@@ -9,8 +9,10 @@
 CC     = g++
 #CCOPTS = -g -DMFEM_DEBUG
 CCOPTS = -O3
+
 # compiler dependent options
 USE_IOS_FMTFLAGS = YES
+
 # internal mfem options
 USE_MEMALLOC     = YES
 USE_LAPACK       = YES
