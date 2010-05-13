@@ -6,6 +6,9 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#ifndef MFEM_OSOCKSTREAM
+#define MFEM_OSOCKSTREAM
+
 #include <sstream>
 using namespace std;
 
@@ -42,3 +45,5 @@ public:
    /** Virtual destructor. If the data hasn't been sent it sends it. */
    ~osockstream();
 };
+
+#endif

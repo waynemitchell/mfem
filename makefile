@@ -33,7 +33,7 @@ CCC = $(CC) $(CCOPTS) $(DEFS)
 
 
 # Generate with 'echo general/*.cpp linalg/*.cpp mesh/*.cpp fem/*.cpp'
-SOURCE_FILES = general/array.cpp general/error.cpp                     \
+SOURCE_FILES = general/array.cpp general/error.cpp general/isockstream.cpp \
 general/osockstream.cpp general/sort_pairs.cpp general/stable3d.cpp    \
 general/table.cpp general/tic_toc.cpp linalg/bicgstab.cpp              \
 linalg/cgsolver.cpp linalg/densemat.cpp linalg/gmres.cpp               \
