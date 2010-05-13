@@ -71,6 +71,7 @@ int isockstream::establish()
    }
 
    listen(port, 4);
+   error = 0;
    return(port);
 }
 
