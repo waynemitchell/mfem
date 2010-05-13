@@ -11,7 +11,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <signal.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/types.h>
