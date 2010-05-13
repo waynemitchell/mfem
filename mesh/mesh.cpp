@@ -2743,60 +2743,46 @@ int FindRoots(const Vector &z, Vector &x)
    case 3:
    {
       double a = z(2)/z(3), b = z(1)/z(3), c = z(0)/z(3);
+
       // find the real roots of x^3 + a x^2 + b x + c = 0
-      // code taken from GSL 1.12 (solve_cubic.c)
-      double q = (a * a - 3 * b);
-      double r = (2 * a * a * a - 9 * a * b + 27 * c);
-
-      double Q = q / 9;
-      double R = r / 54;
-
+      double Q = (a * a - 3 * b) / 9;
+      double R = (2 * a * a * a - 9 * a * b + 27 * c) / 54;
       double Q3 = Q * Q * Q;
       double R2 = R * R;
 
-      double CR2 = 729 * r * r;
-      double CQ3 = 2916 * q * q * q;
-
-      if (R == 0 && Q == 0)
+      if (R2 == Q3)
       {
-         x(0) = x(1) = x(2) = - a / 3;
-         return 3;
-      }
-      else if (CR2 == CQ3)
-      {
-         /* this test is actually R2 == Q3, written in a form suitable
-            for exact computation with integers */
-
-         /* Due to finite precision some double roots may be missed, and
-            considered to be a pair of complex roots z = x +/- epsilon i
-            close to the real axis. */
-
-         double sqrtQ = sqrt(Q);
-
-         if (R > 0)
+         if (Q == 0)
          {
-            x(0) = -2 * sqrtQ - a / 3;
-            x(1) = x(2) = sqrtQ - a / 3;
+            x(0) = x(1) = x(2) = - a / 3;
          }
          else
          {
-            x(0) = x(1) = - sqrtQ - a / 3;
-            x(2) = 2 * sqrtQ - a / 3;
+            double sqrtQ = sqrt(Q);
+
+            if (R > 0)
+            {
+               x(0) = -2 * sqrtQ - a / 3;
+               x(1) = x(2) = sqrtQ - a / 3;
+            }
+            else
+            {
+               x(0) = x(1) = - sqrtQ - a / 3;
+               x(2) = 2 * sqrtQ - a / 3;
+            }
          }
          return 3;
       }
-      else if (CR2 < CQ3) /* equivalent to R2 < Q3 */
+      else if (R2 < Q3)
       {
-         double sqrtQ = sqrt(Q);
-         double sqrtQ3 = sqrtQ * sqrtQ * sqrtQ;
-         double theta = acos (R / sqrtQ3);
-         double norm = -2 * sqrtQ;
+         double theta = acos(R / sqrt(Q3));
+         double A = -2 * sqrt(Q);
          double x0, x1, x2;
-         x0 = norm * cos (theta / 3) - a / 3;
-         x1 = norm * cos ((theta + 2.0 * M_PI) / 3) - a / 3;
-         x2 = norm * cos ((theta - 2.0 * M_PI) / 3) - a / 3;
+         x0 = A * cos(theta / 3) - a / 3;
+         x1 = A * cos((theta + 2.0 * M_PI) / 3) - a / 3;
+         x2 = A * cos((theta - 2.0 * M_PI) / 3) - a / 3;
 
-         /* Sort x0, x1, x2 into increasing order */
+         /* Sort x0, x1, x2 */
          if (x0 > x1)
             swap(x0, x1);
          if (x1 > x2)
