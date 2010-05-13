@@ -8,3 +8,6 @@
 
 #include "mfem_defs.hpp"
 #include "fem/fem.hpp"
+#include "general/tic_toc.hpp"
+#include "general/isockstream.hpp"
+#include "general/osockstream.hpp"
