@@ -256,7 +256,7 @@ void MultVWt(Vector &v, Vector &w, DenseMatrix &VWt);
 void AddMultVWt(Vector &v, Vector &w, DenseMatrix &VWt);
 
 /// VVt += a * v v^t
-void AddMult_a_VVt(double a, Vector &v, DenseMatrix &VVt);
+void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt);
 
 
 /** Data type for inverse of square dense matrix.

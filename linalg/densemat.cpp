@@ -1361,7 +1361,7 @@ void AddMultVWt(Vector &v, Vector &w, DenseMatrix &VWt)
    }
 }
 
-void AddMult_a_VVt(double a, Vector &v, DenseMatrix &VVt)
+void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt)
 {
    int n = v.Size();
 
