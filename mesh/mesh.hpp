@@ -270,10 +270,10 @@ public:
 
    inline int GetNFaces () const { return NumOfFaces; };
 
-   /// Equals 1 + #holes - #loops
+   /// Equals 1 + num_holes - num_loops
    inline int  EulerNumber () const
    { return NumOfVertices - NumOfEdges + NumOfFaces - NumOfElements; };
-   /// Equals 1 - #holes
+   /// Equals 1 - num_holes
    inline int  EulerNumber2D () const
    { return NumOfVertices - NumOfEdges + NumOfElements; };
 
