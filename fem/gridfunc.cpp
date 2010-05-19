@@ -822,6 +822,7 @@ void GridFunction::ProjectCoefficient (Coefficient *coeff[])
       for (j = 0; j < fdof; j++)
       {
          const IntegrationPoint &ip = ir.IntPoint(j);
+         transf->SetIntPoint(&ip);
          for (d = 0; d < fes->GetVDim(); d++)
          {
             val = coeff[d]->Eval(*transf, ip);
@@ -854,6 +855,7 @@ void GridFunction::ProjectBdrCoefficient (
          for (j = 0; j < fdof; j++)
          {
             const IntegrationPoint &ip = ir.IntPoint(j);
+            transf->SetIntPoint(&ip);
             for (d = 0; d < fes->GetVDim(); d++)
             {
                val = coeff[d]->Eval(*transf, ip);
@@ -901,8 +903,8 @@ double GridFunction::ComputeL2Error (
                   a += (*this)(vdofs[fdof*d+k]) * shape(k);
                else
                   a -= (*this)(-1-vdofs[fdof*d+k]) * shape(k);
-            a -= exsol[d]->Eval(*transf, ip);
             transf->SetIntPoint (&ip);
+            a -= exsol[d]->Eval(*transf, ip);
             error += ip.weight * transf->Weight() * a * a;
          }
       }
@@ -942,6 +944,7 @@ double GridFunction::ComputeL2Error (
       {
          const IntegrationPoint &ip = ir->IntPoint(j);
          fe->CalcShape(ip, shape);
+         transf->SetIntPoint(&ip);
          exsol.Eval (sol, *transf, ip);
          for (d = 0; d < fes->GetVDim(); d++)
          {
@@ -952,7 +955,6 @@ double GridFunction::ComputeL2Error (
                else
                   a -= (*this)(-1-vdofs[fdof*d+k]) * shape(k);
             a -= sol(d);
-            transf->SetIntPoint (&ip);
             error += ip.weight * transf->Weight() * a * a;
          }
       }
@@ -1007,8 +1009,8 @@ double GridFunction::ComputeH1Error (
          {
             const IntegrationPoint &ip = ir.IntPoint (j);
             fe -> CalcDShape (ip, dshape);
-            exgrad -> Eval (e_grad, *transf, ip);
             transf -> SetIntPoint (&ip);
+            exgrad -> Eval (e_grad, *transf, ip);
             CalcInverse (transf ->  Jacobian(), Jinv);
             Mult (dshape, Jinv, dshapet);
             dshapet.MultTranspose (el_dofs, a_grad);
@@ -1050,6 +1052,7 @@ double GridFunction::ComputeH1Error (
          {
             face_elem_transf -> Loc1.Transform (ir.IntPoint (j), eip);
             fe -> CalcShape (eip, shape);
+            transf->SetIntPoint(&eip);
             ell_coeff_val(j) = ell_coeff -> Eval (*transf, eip);
             err_val(j) = exsol -> Eval (*transf, eip) - (shape * el_dofs);
          }
@@ -1071,6 +1074,7 @@ double GridFunction::ComputeH1Error (
             {
                face_elem_transf -> Loc2.Transform (ir.IntPoint (j), eip);
                fe -> CalcShape (eip, shape);
+               transf->SetIntPoint(&eip);
                ell_coeff_val(j) += ell_coeff -> Eval (*transf, eip);
                ell_coeff_val(j) *= 0.5;
                err_val(j) -= (exsol -> Eval (*transf, eip) -
@@ -1120,6 +1124,7 @@ double GridFunction::ComputeMaxError (
       {
          const IntegrationPoint &ip = ir->IntPoint(j);
          fe->CalcShape(ip, shape);
+         transf->SetIntPoint(&ip);
          for (d = 0; d < fes->GetVDim(); d++)
          {
             a = 0;
@@ -1181,8 +1186,8 @@ double GridFunction::ComputeW11Error (
          {
             const IntegrationPoint &ip = ir.IntPoint (j);
             fe -> CalcShape (ip, shape);
-            a = (el_dofs * shape) - (exsol -> Eval (*transf, ip));
             transf -> SetIntPoint (&ip);
+            a = (el_dofs * shape) - (exsol -> Eval (*transf, ip));
             error += ip.weight * transf -> Weight() * fabs (a);
          }
       }
@@ -1210,8 +1215,8 @@ double GridFunction::ComputeW11Error (
          {
             const IntegrationPoint &ip = ir.IntPoint (j);
             fe -> CalcDShape (ip, dshape);
-            exgrad -> Eval (e_grad, *transf, ip);
             transf -> SetIntPoint (&ip);
+            exgrad -> Eval (e_grad, *transf, ip);
             CalcInverse (transf ->  Jacobian(), Jinv);
             Mult (dshape, Jinv, dshapet);
             dshapet.MultTranspose (el_dofs, a_grad);
