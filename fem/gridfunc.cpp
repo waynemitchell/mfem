@@ -869,7 +869,7 @@ void GridFunction::ProjectBdrCoefficient (
 }
 
 double GridFunction::ComputeL2Error (
-   Coefficient *exsol[], IntegrationRule *irs[]) const
+   Coefficient *exsol[], const IntegrationRule *irs[]) const
 {
    double error = 0.0, a;
    const FiniteElement *fe;
@@ -916,7 +916,7 @@ double GridFunction::ComputeL2Error (
 }
 
 double GridFunction::ComputeL2Error (
-   VectorCoefficient &exsol, IntegrationRule *irs[],
+   VectorCoefficient &exsol, const IntegrationRule *irs[],
    Array<int> *elems) const
 {
    double error = 0.0, a;
@@ -1098,7 +1098,7 @@ double GridFunction::ComputeH1Error (
 }
 
 double GridFunction::ComputeMaxError (
-   Coefficient *exsol[], IntegrationRule *irs[]) const
+   Coefficient *exsol[], const IntegrationRule *irs[]) const
 {
    double error = 0.0, a;
    const FiniteElement *fe;

@@ -102,17 +102,17 @@ public:
    void ProjectBdrCoefficient (Coefficient *coeff[], Array<int> &attr);
 
    double ComputeL2Error(Coefficient *exsol[],
-                         IntegrationRule *irs[] = NULL) const;
+                         const IntegrationRule *irs[] = NULL) const;
 
    double ComputeL2Error(VectorCoefficient &exsol,
-                         IntegrationRule *irs[] = NULL,
+                         const IntegrationRule *irs[] = NULL,
                          Array<int> *elems = NULL) const;
 
    double ComputeH1Error(Coefficient *exsol, VectorCoefficient *exgrad,
                          Coefficient *ell_coef, double Nu, int norm_type) const;
 
    double ComputeMaxError(Coefficient *exsol[],
-                          IntegrationRule *irs[] = NULL) const;
+                          const IntegrationRule *irs[] = NULL) const;
 
    double ComputeW11Error (Coefficient *exsol, VectorCoefficient *exgrad,
                            int norm_type, Array<int> *elems = NULL) const;
