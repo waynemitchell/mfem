@@ -181,9 +181,9 @@ void VectorBoundaryFluxLFIntegrator::AssembleRHSElementVect(
    const IntegrationRule *ir;
 
    if (!IntRule)
-     ir = &IntRules.Get(el.GetGeomType(), el.GetOrder());
+      ir = &IntRules.Get(el.GetGeomType(), el.GetOrder());
    else
-     ir = IntRule;
+      ir = IntRule;
 
    elvect = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)

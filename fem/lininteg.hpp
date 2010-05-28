@@ -129,7 +129,7 @@ private:
 
 public:
    VectorBoundaryFluxLFIntegrator (Coefficient &f, double s = 1.0, const IntegrationRule *ir = NULL)
-     : Sign(s), F(&f), IntRule(ir) { };
+      : Sign(s), F(&f), IntRule(ir) { };
 
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        ElementTransformation &Tr,
