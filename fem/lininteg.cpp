@@ -178,12 +178,17 @@ void VectorBoundaryFluxLFIntegrator::AssembleRHSElementVect(
    nor.SetSize (dim);
    elvect.SetSize (dim*dof);
 
-   const IntegrationRule &ir = IntRules.Get(el.GetGeomType(), el.GetOrder());
+   const IntegrationRule *ir;
+
+   if (!IntRule)
+     ir = &IntRules.Get(el.GetGeomType(), el.GetOrder());
+   else
+     ir = IntRule;
 
    elvect = 0.0;
-   for (int i = 0; i < ir.GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      const IntegrationPoint &ip = ir.IntPoint(i);
+      const IntegrationPoint &ip = ir->IntPoint(i);
       Tr.SetIntPoint (&ip);
       const DenseMatrix &Jac = Tr.Jacobian();
       if (dim == 2)

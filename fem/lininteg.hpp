@@ -125,10 +125,11 @@ private:
    double Sign;
    Coefficient *F;
    Vector shape, nor;
+   const IntegrationRule *IntRule;
 
 public:
-   VectorBoundaryFluxLFIntegrator (Coefficient &f, double s = 1.0)
-      : Sign(s), F(&f) { };
+   VectorBoundaryFluxLFIntegrator (Coefficient &f, double s = 1.0, const IntegrationRule *ir = NULL)
+     : Sign(s), F(&f), IntRule(ir) { };
 
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        ElementTransformation &Tr,
