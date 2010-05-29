@@ -122,6 +122,8 @@ public:
 
    GridFunction & operator= (const Vector &v);
 
+   GridFunction & operator= (const GridFunction &v);
+
    FiniteElementSpace *FESpace() { return fes; };
 
    void Update() { SetSize (fes->GetVSize()); };
