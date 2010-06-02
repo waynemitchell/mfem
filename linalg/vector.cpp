@@ -324,11 +324,7 @@ void Vector::AddElementVector(const Array<int> & dofs, const double a,
 
 void Vector::Print (ostream & out, int width)
 {
-#ifdef MFEM_IOS_FMTFLAGS
    ios::fmtflags old_fmt = out.setf(ios::scientific);
-#else
-   int old_fmt = out.setf(ios::scientific);
-#endif
    int old_prec = out.precision(14);
 
    for (int i = 0; 1; )
@@ -351,11 +347,7 @@ void Vector::Print (ostream & out, int width)
 void Vector::Print_HYPRE (ostream &out)
 {
    int i;
-#ifdef MFEM_IOS_FMTFLAGS
    ios::fmtflags old_fmt = out.setf(ios::scientific);
-#else
-   int old_fmt = out.setf(ios::scientific);
-#endif
    int old_prec = out.precision(14);
 
    out << size << '\n';  // number of rows

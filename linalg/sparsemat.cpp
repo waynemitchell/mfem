@@ -1017,11 +1017,7 @@ void SparseMatrix::Print(ostream & out, int _width)
 void SparseMatrix::PrintMatlab(ostream & out)
 {
    int i, j;
-#ifdef MFEM_IOS_FMTFLAGS
    ios::fmtflags old_fmt = out.setf(ios::scientific);
-#else
-   int old_fmt = out.setf(ios::scientific);
-#endif
    int old_prec = out.precision(14);
 
    for(i = 0; i < size; i++)
@@ -1034,11 +1030,7 @@ void SparseMatrix::PrintMatlab(ostream & out)
 void SparseMatrix::PrintMM(ostream & out)
 {
    int i, j;
-#ifdef MFEM_IOS_FMTFLAGS
    ios::fmtflags old_fmt = out.setf(ios::scientific);
-#else
-   int old_fmt = out.setf(ios::scientific);
-#endif
    int old_prec = out.precision(14);
 
    out << "%%MatrixMarket matrix coordinate real general" << endl
@@ -1058,11 +1050,7 @@ void SparseMatrix::PrintCSR(ostream & out)
       mfem_error ("SparseMatrix::PrintCSR()");
 
    int i;
-#ifdef MFEM_IOS_FMTFLAGS
    ios::fmtflags old_fmt = out.setf(ios::scientific);
-#else
-   int old_fmt = out.setf(ios::scientific);
-#endif
    int old_prec = out.precision(14);
 
    out << size << '\n';  // number of rows
@@ -1086,11 +1074,7 @@ void SparseMatrix::PrintCSR2(ostream & out)
       mfem_error ("SparseMatrix::PrintCSR2()");
 
    int i;
-#ifdef MFEM_IOS_FMTFLAGS
    ios::fmtflags old_fmt = out.setf(ios::scientific);
-#else
-   int old_fmt = out.setf(ios::scientific);
-#endif
    int old_prec = out.precision(14);
 
    out << size << '\n';  // number of rows
