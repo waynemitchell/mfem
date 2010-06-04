@@ -170,6 +170,9 @@ public:
    /// Returns dimension of the vector.
    int GetVDim() { return vdim; };
 
+   void Eval(DenseMatrix &M, ElementTransformation &T,
+             const IntegrationRule &ir);
+
    virtual void Eval (Vector &V, ElementTransformation &T,
                       const IntegrationPoint &ip) = 0;
 

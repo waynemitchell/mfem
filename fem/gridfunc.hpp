@@ -109,13 +109,21 @@ public:
                          Array<int> *elems = NULL) const;
 
    double ComputeH1Error(Coefficient *exsol, VectorCoefficient *exgrad,
-                         Coefficient *ell_coef, double Nu, int norm_type) const;
+                         Coefficient *ell_coef, double Nu,
+                         int norm_type) const;
 
    double ComputeMaxError(Coefficient *exsol[],
                           const IntegrationRule *irs[] = NULL) const;
 
+   double ComputeMaxError(VectorCoefficient &exsol,
+                          const IntegrationRule *irs[] = NULL) const;
+
    double ComputeW11Error (Coefficient *exsol, VectorCoefficient *exgrad,
-                           int norm_type, Array<int> *elems = NULL) const;
+                           int norm_type, Array<int> *elems = NULL,
+                           const IntegrationRule *irs[] = NULL) const;
+
+   double ComputeL1Error(VectorCoefficient &exsol,
+                         const IntegrationRule *irs[] = NULL) const;
 
    /// Redefine '=' for GridFunction = constant.
    GridFunction & operator= (double value);

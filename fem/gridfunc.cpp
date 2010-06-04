@@ -1144,9 +1144,43 @@ double GridFunction::ComputeMaxError (
    return error;
 }
 
+double GridFunction::ComputeMaxError(
+   VectorCoefficient &exsol, const IntegrationRule *irs[]) const
+{
+   double error = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *transf;
+   DenseMatrix vals, exact_vals, tr;
+   Vector loc_errs;
+
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      fe = fes->GetFE(i);
+      transf = fes->GetElementTransformation(i);
+      int intorder = fe->GetOrder()+2; // <----------
+      const IntegrationRule *ir;
+      if (irs)
+         ir = irs[fe->GetGeomType()];
+      else
+         ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+      GetVectorValues(i, *ir, vals, tr);
+      exsol.Eval(exact_vals, *transf, *ir);
+      vals -= exact_vals;
+      loc_errs.SetSize(vals.Width());
+      // compute the lengths of the errors at the integration points
+      // thus the vector max. norm is rotationally invariant
+      vals.Norm2(loc_errs);
+      double loc_error = loc_errs.Normlinf();
+      if (error < loc_error)
+         error = loc_error;
+   }
+
+   return error;
+}
+
 double GridFunction::ComputeW11Error (
    Coefficient *exsol, VectorCoefficient *exgrad, int norm_type,
-   Array<int> *elems) const
+   Array<int> *elems, const IntegrationRule *irs[]) const
 {
    // assuming vdim is 1
    int i, fdof, dim, intorder, j, k;
@@ -1174,17 +1208,20 @@ double GridFunction::ComputeW11Error (
          el_dofs.SetSize (fdof);
          shape.SetSize (fdof);
          intorder = fe -> GetOrder() + 1; // <----------
-         const IntegrationRule &ir = IntRules.Get (fe -> GetGeomType(),
-                                                   intorder);
+         const IntegrationRule *ir;
+         if (irs)
+            ir = irs[fe->GetGeomType()];
+         else
+            ir = &(IntRules.Get(fe->GetGeomType(), intorder));
          fes -> GetElementVDofs (i, vdofs);
          for (k = 0; k < fdof; k++)
             if (vdofs[k] >= 0)
                el_dofs(k) =   (*this)(vdofs[k]);
             else
                el_dofs(k) = - (*this)(-1-vdofs[k]);
-         for (j = 0; j < ir.GetNPoints(); j++)
+         for (j = 0; j < ir->GetNPoints(); j++)
          {
-            const IntegrationPoint &ip = ir.IntPoint (j);
+            const IntegrationPoint &ip = ir->IntPoint (j);
             fe -> CalcShape (ip, shape);
             transf -> SetIntPoint (&ip);
             a = (el_dofs * shape) - (exsol -> Eval (*transf, ip));
@@ -1203,17 +1240,20 @@ double GridFunction::ComputeW11Error (
          dshape.SetSize (fdof, dim);
          dshapet.SetSize (fdof, dim);
          intorder = fe -> GetOrder() + 1; // <----------
-         const IntegrationRule &ir = IntRules.Get (fe -> GetGeomType(),
-                                                   intorder);
+         const IntegrationRule *ir;
+         if (irs)
+            ir = irs[fe->GetGeomType()];
+         else
+            ir = &(IntRules.Get(fe->GetGeomType(), intorder));
          fes -> GetElementVDofs (i, vdofs);
          for (k = 0; k < fdof; k++)
             if (vdofs[k] >= 0)
                el_dofs(k) =   (*this)(vdofs[k]);
             else
                el_dofs(k) = - (*this)(-1-vdofs[k]);
-         for (j = 0; j < ir.GetNPoints(); j++)
+         for (j = 0; j < ir->GetNPoints(); j++)
          {
-            const IntegrationPoint &ip = ir.IntPoint (j);
+            const IntegrationPoint &ip = ir->IntPoint (j);
             fe -> CalcDShape (ip, dshape);
             transf -> SetIntPoint (&ip);
             exgrad -> Eval (e_grad, *transf, ip);
@@ -1224,6 +1264,43 @@ double GridFunction::ComputeW11Error (
             error += ip.weight * transf -> Weight() * e_grad.Norml1();
          }
       }
+
+   return error;
+}
+
+double GridFunction::ComputeL1Error(
+   VectorCoefficient &exsol, const IntegrationRule *irs[]) const
+{
+   double error = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *transf;
+   DenseMatrix vals, exact_vals, tr;
+   Vector loc_errs;
+
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      fe = fes->GetFE(i);
+      transf = fes->GetElementTransformation(i);
+      int intorder = fe->GetOrder()+2; // <----------
+      const IntegrationRule *ir;
+      if (irs)
+         ir = irs[fe->GetGeomType()];
+      else
+         ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+      GetVectorValues(i, *ir, vals, tr);
+      exsol.Eval(exact_vals, *transf, *ir);
+      vals -= exact_vals;
+      loc_errs.SetSize(vals.Width());
+      // compute the lengths of the errors at the integration points
+      // thus the vector L_1 norm is rotationally invariant
+      vals.Norm2(loc_errs);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint (j);
+         transf->SetIntPoint(&ip);
+         error += ip.weight * transf->Weight() * loc_errs(j);
+      }
+   }
 
    return error;
 }

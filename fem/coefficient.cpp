@@ -42,6 +42,20 @@ double GridFunctionCoefficient::Eval (ElementTransformation &T,
    return GridF -> GetValue (T.ElementNo, ip, Component);
 }
 
+void VectorCoefficient::Eval(DenseMatrix &M, ElementTransformation &T,
+                             const IntegrationRule &ir)
+{
+   Vector Mi;
+   M.SetSize(vdim, ir.GetNPoints());
+   for (int i = 0; i < ir.GetNPoints(); i++)
+   {
+      M.GetColumnReference(i, Mi);
+      const IntegrationPoint &ip = ir.IntPoint(i);
+      T.SetIntPoint(&ip);
+      Eval(Mi, T, ip);
+   }
+}
+
 void VectorFunctionCoefficient::Eval (Vector &V, ElementTransformation &T,
                                       const IntegrationPoint &ip)
 {

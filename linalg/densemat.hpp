@@ -138,7 +138,10 @@ public:
 
    void SingularValues(Vector &sv) const;
 
-   void GetColumn (int c, Vector &col);
+   void GetColumn(int c, Vector &col);
+
+   void GetColumnReference(int c, Vector &col)
+   { col.SetDataAndSize(data + c * height, height); }
 
    /// Creates n x n diagonal matrix with diagonal elements c
    void Diag (double c, int n);
