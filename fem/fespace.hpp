@@ -10,7 +10,7 @@
 #define MFEM_FESPACE
 
 /* Class FiniteElementSpace - responsible for providing FEM view of the mesh
-  (mainly managing the set of degrees of freedom). */
+   (mainly managing the set of degrees of freedom). */
 
 /** The ordering method used when the number of unknowns per mesh
     node (vector dimension) is bigger than 1. */

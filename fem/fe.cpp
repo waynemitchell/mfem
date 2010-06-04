@@ -2511,13 +2511,12 @@ void RefinedLinear2DFiniteElement::CalcShape(const IntegrationPoint &ip,
    L1 = 2.0 * ( ip.x );
    L2 = 2.0 * ( ip.y );
 
-   /* The reference triangle is split in 4 triangles as follows:
-
-      T0 - 0,3,5
-      T1 - 1,3,4
-      T2 - 2,4,5
-      T3 - 3,4,5
-   */
+   // The reference triangle is split in 4 triangles as follows:
+   //
+   // T0 - 0,3,5
+   // T1 - 1,3,4
+   // T2 - 2,4,5
+   // T3 - 3,4,5
 
    for (i = 0; i < 6; i++)
       shape(i) = 0.0;
@@ -2641,17 +2640,16 @@ void RefinedLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
    L4 = 2.0 * ( ip.x + ip.y );
    L5 = 2.0 * ( ip.y + ip.z );
 
-   /* The reference tetrahedron is split in 8 tetrahedra as follows:
-
-      T0 - 0,4,5,6
-      T1 - 1,4,7,8
-      T2 - 2,5,7,9
-      T3 - 3,6,8,9
-      T4 - 4,5,6,8
-      T5 - 4,5,7,8
-      T6 - 5,6,8,9
-      T7 - 5,7,8,9
-   */
+   // The reference tetrahedron is split in 8 tetrahedra as follows:
+   //
+   // T0 - 0,4,5,6
+   // T1 - 1,4,7,8
+   // T2 - 2,5,7,9
+   // T3 - 3,6,8,9
+   // T4 - 4,5,6,8
+   // T5 - 4,5,7,8
+   // T6 - 5,6,8,9
+   // T7 - 5,7,8,9
 
    for (i = 0; i < 10; i++)
       shape(i) = 0.0;
@@ -2830,13 +2828,12 @@ void RefinedBiLinear2DFiniteElement::CalcShape(const IntegrationPoint &ip,
    Lx = 2.0 * ( 1. - x );
    Ly = 2.0 * ( 1. - y );
 
-   /* The reference square is split in 4 squares as follows:
-
-      T0 - 0,4,7,8
-      T1 - 1,4,5,8
-      T2 - 2,5,6,8
-      T3 - 3,6,7,8
-   */
+   // The reference square is split in 4 squares as follows:
+   //
+   // T0 - 0,4,7,8
+   // T1 - 1,4,5,8
+   // T2 - 2,5,6,8
+   // T3 - 3,6,7,8
 
    for (i = 0; i < 9; i++)
       shape(i) = 0.0;
