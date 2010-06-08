@@ -116,26 +116,6 @@ public:
    { mfem_error ("GridFunctionCoefficient::Read()"); }
 };
 
-/** Coefficient used for building the axisymmetric mass matrix from y*rho.*/
-class RZDensityCoefficient : public Coefficient
-{
-private:
-   // Plain vanilla density
-   GridFunctionCoefficient *rho;
-   Vector transip;
-
-public:
-   /// Initialize with plain vanilla density GridFunctionCoefficient
-   RZDensityCoefficient (GridFunctionCoefficient *rho_)
-   { rho = rho_; }
-
-   virtual double Eval(ElementTransformation &T,
-                       const IntegrationPoint &ip);
-
-   virtual void Read(istream &in)
-   { mfem_error ("GridFunctionCoefficient::Read()"); }
-};
-
 class TransformedCoefficient : public Coefficient
 {
 private:

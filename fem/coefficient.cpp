@@ -42,15 +42,6 @@ double GridFunctionCoefficient::Eval (ElementTransformation &T,
    return GridF -> GetValue (T.ElementNo, ip, Component);
 }
 
-double RZDensityCoefficient::Eval (ElementTransformation &T,
-                                      const IntegrationPoint &ip)
-{
-   // Find transformed integration point
-   T.Transform(ip, transip);
-   // Return density times the y-component
-   return rho->Eval(T, ip)*transip(1);
-}
-
 void VectorCoefficient::Eval(DenseMatrix &M, ElementTransformation &T,
                              const IntegrationRule &ir)
 {
