@@ -385,7 +385,7 @@ public:
 
    FaceElementTransformations *GetInteriorFaceTransformations (int FaceNo)
    { if (faces_info[FaceNo].Elem2No < 0) return NULL;
-   return GetFaceElementTransformations (FaceNo); };
+      return GetFaceElementTransformations (FaceNo); };
 
    FaceElementTransformations *GetBdrFaceTransformations (int BdrElemNo);
 

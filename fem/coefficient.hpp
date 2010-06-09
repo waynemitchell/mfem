@@ -133,7 +133,7 @@ public:
 
    virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip)
    { if (Q2) return (*Transform2)(Q1 -> Eval(T,ip),Q2 -> Eval(T,ip));
-   else return (*Transform1)(Q1 -> Eval(T,ip)); }
+      else return (*Transform1)(Q1 -> Eval(T,ip)); }
 
    virtual void Read(istream &in) { };
 };
