@@ -30,11 +30,16 @@ class DomainLFIntegrator : public LinearFormIntegrator
 {
    Vector shape;
    Coefficient &Q;
+   const IntegrationRule *IntRule;
    int oa, ob;
 public:
    /// Constructs a domain integrator with a given Coefficient
    DomainLFIntegrator(Coefficient &QF, int a = 1, int b = 1)
-      : Q(QF), oa(a), ob(b) {};
+      : Q(QF), oa(a), ob(b) { IntRule = NULL; }
+
+   /// Constructs a domain integrator with a given Coefficient
+   DomainLFIntegrator(Coefficient &QF, const IntegrationRule *ir)
+      : Q(QF), oa(1), ob(1) { IntRule = ir; }
 
    /** Given a particular Finite Element and a transformation (Tr)
        computes the element right hand side element vector, elvect. */
