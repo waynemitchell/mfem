@@ -426,6 +426,8 @@ public:
    void GetNodes(Vector &node_coord) const;
    void SetNodes(const Vector &node_coord);
 
+   /// Return a pointer to the internal node grid function
+   GridFunction* GetNodes() { return Nodes; }
    // use the provided GridFunction as Nodes
    void NewNodes(GridFunction &nodes);
 
