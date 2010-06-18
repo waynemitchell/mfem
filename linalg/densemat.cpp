@@ -330,13 +330,47 @@ void DenseMatrix::Neg()
       data[i] = -data[i];
 }
 
+#ifdef MFEM_USE_LAPACK
+extern "C" void
+dgetrf_(int *, int *, double *, int *, int *, int *);
+extern "C" void
+dgetrs_(char *, int *, int *, double *, int *, int *, double *, int *, int *);
+extern "C" void
+dgetri_(int *N, double *A, int *LDA, int *IPIV, double *WORK,
+        int *LWORK, int *INFO);
+#endif
+
 void DenseMatrix::Invert()
 {
 #ifdef MFEM_DEBUG
-   if (Size() != Height())
+   if (Size() <= 0 || Size() != Height())
       mfem_error ("DenseMatrix::Invert()");
 #endif
 
+#ifdef MFEM_USE_LAPACK
+   int   *ipiv = new int[size];
+   int    lwork = -1;
+   double qwork, *work;
+   int    info;
+
+   dgetrf_ (&size, &size, data, &size, ipiv, &info);
+
+   if (info)
+      mfem_error ("DenseMatrix::Invert() : Error in DGETRF");
+
+   dgetri_(&size, data, &size, ipiv, &qwork, &lwork, &info);
+
+   lwork = (int) qwork;
+   work = new double[lwork];
+
+   dgetri_(&size, data, &size, ipiv, work, &lwork, &info);
+
+   if (info)
+      mfem_error ("DenseMatrix::Invert() : Error in DGETRI");
+
+   delete [] work;
+   delete [] ipiv;
+#else
    int c, i, j, n = Size();
    double a, b;
 
@@ -368,6 +402,7 @@ void DenseMatrix::Invert()
             (*this)(i, j) += b * (*this)(c, j);
       }
    }
+#endif
 }
 
 
@@ -1384,13 +1419,6 @@ void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt)
 }
 
 
-#ifdef MFEM_USE_LAPACK
-extern "C" void
-dgetrf_(int *, int *, double *, int *, int *, int *);
-extern "C" void
-dgetrs_(char *, int *, int *, double *, int *, int *, double *, int *, int *);
-#endif
-
 DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix &mat)
    : MatrixInverse(mat)
 {
@@ -1551,32 +1579,45 @@ DenseMatrixEigensystem::~DenseMatrixEigensystem()
 }
 
 
-DenseMatrixSVD::DenseMatrixSVD(DenseMatrix &mat_)
-   : mat(mat_)
+DenseMatrixSVD::DenseMatrixSVD(DenseMatrix &M)
 {
-   m = mat.Height();
-   n = mat.Width();
+   m = M.Height();
+   n = M.Width();
+   Init();
+}
+
+DenseMatrixSVD::DenseMatrixSVD(int h, int w)
+{
+   m = h;
+   n = w;
+   Init();
+}
+
+void DenseMatrixSVD::Init()
+{
    sv.SetSize(min(m, n));
-   mat_copy = mat;
 
    jobu  = 'N';
    jobvt = 'N';
 
    double qwork;
    lwork = -1;
-   dgesvd_(&jobu, &jobvt, &m, &n, mat_copy.Data(), &m,
-           sv.GetData(), NULL, &m, NULL, &n, &qwork, &lwork, &info);
+   dgesvd_(&jobu, &jobvt, &m, &n, NULL, &m, sv.GetData(), NULL, &m,
+           NULL, &n, &qwork, &lwork, &info);
 
    lwork = (int) qwork;
    work = new double[lwork];
 }
 
-void DenseMatrixSVD::Eval()
+void DenseMatrixSVD::Eval(DenseMatrix &M)
 {
-   mat_copy = mat;
+#ifdef MFEM_DEBUG
+   if (M.Height() != m || M.Width() != n)
+      mfem_error("DenseMatrixSVD::Eval()");
+#endif
 
-   dgesvd_(&jobu, &jobvt, &m, &n, mat_copy.Data(), &m,
-           sv.GetData(), NULL, &m, NULL, &n, work, &lwork, &info);
+   dgesvd_(&jobu, &jobvt, &m, &n, M.Data(), &m, sv.GetData(), NULL, &m,
+           NULL, &n, work, &lwork, &info);
 
    if (info)
    {

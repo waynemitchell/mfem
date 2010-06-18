@@ -222,7 +222,8 @@ public:
 class GaussLinearDiscont2DFECollection : public FiniteElementCollection
 {
 private:
-   const CrouzeixRaviartFiniteElement TriangleFE;
+   // const CrouzeixRaviartFiniteElement TriangleFE;
+   const GaussLinear2DFiniteElement TriangleFE;
    const GaussBiLinear2DFiniteElement QuadrilateralFE;
 
 public:
@@ -288,6 +289,8 @@ public:
 class GaussQuadraticDiscont2DFECollection : public FiniteElementCollection
 {
 private:
+   // const Quad2DFiniteElement TriangleFE;
+   const GaussQuad2DFiniteElement TriangleFE;
    const GaussBiQuad2DFiniteElement QuadrilateralFE;
 
 public:

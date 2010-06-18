@@ -323,20 +323,19 @@ public:
 
 class DenseMatrixSVD
 {
-   DenseMatrix &mat;
-
-   Vector      sv;
-   DenseMatrix mat_copy;
+   Vector sv;
 
    int m, n;
    char jobu, jobvt;
    int lwork, info;
    double *work;
 
+   void Init();
 public:
 
-   DenseMatrixSVD(DenseMatrix &);
-   void Eval();
+   DenseMatrixSVD(DenseMatrix &M);
+   DenseMatrixSVD(int h, int w);
+   void Eval(DenseMatrix &M);
    double Singularvalue(int i) { return sv(i); }
    ~DenseMatrixSVD();
 };

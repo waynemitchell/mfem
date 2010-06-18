@@ -273,12 +273,49 @@ void BiLinear2DFiniteElement::CalcHessian(
 }
 
 
+GaussLinear2DFiniteElement::GaussLinear2DFiniteElement()
+   : NodalFiniteElement(2, Geometry::TRIANGLE, 3, 1, FunctionSpace::Pk)
+{
+   Nodes.IntPoint(0).x = 1./6.;
+   Nodes.IntPoint(0).y = 1./6.;
+   Nodes.IntPoint(1).x = 2./3.;
+   Nodes.IntPoint(1).y = 1./6.;
+   Nodes.IntPoint(2).x = 1./6.;
+   Nodes.IntPoint(2).y = 2./3.;
+}
+
+void GaussLinear2DFiniteElement::CalcShape(const IntegrationPoint &ip,
+                                           Vector &shape) const
+{
+   const double x = ip.x, y = ip.y;
+
+   shape(0) = 5./3. - 2. * (x + y);
+   shape(1) = 2. * (x - 1./6.);
+   shape(2) = 2. * (y - 1./6.);
+}
+
+void GaussLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
+                                            DenseMatrix &dshape) const
+{
+   dshape(0,0) = -2.;  dshape(0,1) = -2.;
+   dshape(1,0) =  2.;  dshape(1,1) =  0.;
+   dshape(2,0) =  0.;  dshape(2,1) =  2.;
+}
+
+void GaussLinear2DFiniteElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   dofs(vertex)       = 2./3.;
+   dofs((vertex+1)%3) = 1./6.;
+   dofs((vertex+2)%3) = 1./6.;
+}
+
+
 //  0.5-0.5/sqrt(3) and 0.5+0.5/sqrt(3)
 const double GaussBiLinear2DFiniteElement::p[] =
 { 0.2113248654051871177454256, 0.7886751345948128822545744 };
 
 GaussBiLinear2DFiniteElement::GaussBiLinear2DFiniteElement()
-   : NodalFiniteElement(2, Geometry::SQUARE , 4, 1, FunctionSpace::Qk)
+   : NodalFiniteElement(2, Geometry::SQUARE, 4, 1, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = p[0];
    Nodes.IntPoint(0).y = p[0];
@@ -494,7 +531,6 @@ void Quad2DFiniteElement::CalcHessian (const IntegrationPoint &ip,
    h(5,2) = -8.;
 }
 
-
 void Quad2DFiniteElement::ProjectDelta(int vertex, Vector &dofs) const
 {
 #if 0
@@ -510,6 +546,69 @@ void Quad2DFiniteElement::ProjectDelta(int vertex, Vector &dofs) const
    }
 #endif
 }
+
+
+const double GaussQuad2DFiniteElement::p[] =
+{ 0.0915762135097707434595714634022015, 0.445948490915964886318329253883051 };
+
+GaussQuad2DFiniteElement::GaussQuad2DFiniteElement()
+   : NodalFiniteElement(2, Geometry::TRIANGLE, 6, 2), A(6), D(6,2), pol(6)
+{
+   Nodes.IntPoint(0).x = p[0];
+   Nodes.IntPoint(0).y = p[0];
+   Nodes.IntPoint(1).x = 1. - 2. * p[0];
+   Nodes.IntPoint(1).y = p[0];
+   Nodes.IntPoint(2).x = p[0];
+   Nodes.IntPoint(2).y = 1. - 2. * p[0];
+   Nodes.IntPoint(3).x = p[1];
+   Nodes.IntPoint(3).y = p[1];
+   Nodes.IntPoint(4).x = 1. - 2. * p[1];
+   Nodes.IntPoint(4).y = p[1];
+   Nodes.IntPoint(5).x = p[1];
+   Nodes.IntPoint(5).y = 1. - 2. * p[1];
+
+   for (int i = 0; i < 6; i++)
+   {
+      const double x = Nodes.IntPoint(i).x, y = Nodes.IntPoint(i).y;
+      A(0,i) = 1.;
+      A(1,i) = x;
+      A(2,i) = y;
+      A(3,i) = x * x;
+      A(4,i) = x * y;
+      A(5,i) = y * y;
+   }
+
+   A.Invert();
+}
+
+void GaussQuad2DFiniteElement::CalcShape(const IntegrationPoint &ip,
+                                         Vector &shape) const
+{
+   const double x = ip.x, y = ip.y;
+   pol(0) = 1.;
+   pol(1) = x;
+   pol(2) = y;
+   pol(3) = x * x;
+   pol(4) = x * y;
+   pol(5) = y * y;
+
+   A.Mult(pol, shape);
+}
+
+void GaussQuad2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
+                                          DenseMatrix &dshape) const
+{
+   const double x = ip.x, y = ip.y;
+   D(0,0) = 0.;      D(0,1) = 0.;
+   D(1,0) = 1.;      D(1,1) = 0.;
+   D(2,0) = 0.;      D(2,1) = 1.;
+   D(3,0) = 2. *  x; D(3,1) = 0.;
+   D(4,0) = y;       D(4,1) = x;
+   D(5,0) = 0.;      D(5,1) = 2. * y;
+
+   Mult(A, D, dshape);
+}
+
 
 BiQuad2DFiniteElement::BiQuad2DFiniteElement()
    : NodalFiniteElement(2, Geometry::SQUARE, 9, 2, FunctionSpace::Qk)

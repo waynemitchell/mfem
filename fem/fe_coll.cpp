@@ -545,7 +545,8 @@ GaussQuadraticDiscont2DFECollection::FiniteElementForGeometry(int GeomType)
 {
    switch (GeomType)
    {
-   case Geometry::SQUARE:      return &QuadrilateralFE;
+      case Geometry::TRIANGLE:    return &TriangleFE;
+      case Geometry::SQUARE:      return &QuadrilateralFE;
    default:
       mfem_error ("GaussQuadraticDiscont2DFECollection:"
                   " unknown geometry type.");
@@ -559,6 +560,7 @@ int GaussQuadraticDiscont2DFECollection::DofForGeometry(int GeomType) const
    {
    case Geometry::POINT:       return 0;
    case Geometry::SEGMENT:     return 0;
+   case Geometry::TRIANGLE:    return 6;
    case Geometry::SQUARE:      return 9;
    default:
       mfem_error ("GaussQuadraticDiscont2DFECollection:"
