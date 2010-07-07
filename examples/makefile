@@ -18,7 +18,10 @@ LIBS = $(MFEM_LIB) $(LAPACK_LIB) $(BLAS_LIB)
 all: ex1
 
 ex1: ex1.cpp
-	$(CC) -I$(MFEM_DIR) ex1.cpp -o ex1 $(LIBS)
+	$(CC) $(OPTS) -I$(MFEM_DIR) ex1.cpp -o ex1 $(LIBS)
+
+debug: ex1.cpp
+	$(CC) $(DEBUG_OPTS) -I$(MFEM_DIR) ex1.cpp -o ex1 $(LIBS)
 
 clean:
-	rm -f *.o ex1 *~
+	rm -f *.o ex1 sol.gf *~

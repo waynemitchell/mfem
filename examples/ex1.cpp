@@ -43,6 +43,7 @@ int main (int argc, char *argv[])
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);
+   imesh.close();
 
    // 2. Refine the mesh to increase the resolution.  In this example we do two
    //    levels of uniform refinement.
@@ -61,8 +62,8 @@ int main (int argc, char *argv[])
    //    (1,phi_i) where phi_i are the basis functions in fespace.
    LinearForm *b = new LinearForm(fespace);
    ConstantCoefficient one(1.0);
-   b -> AddDomainIntegrator(new DomainLFIntegrator(one));
-   b -> Assemble();
+   b->AddDomainIntegrator(new DomainLFIntegrator(one));
+   b->Assemble();
 
    // 5. Define the solution vector x as finite element grid function
    //    corresponding to fespace and initialize it with zero.
@@ -76,13 +77,13 @@ int main (int argc, char *argv[])
    //    from the mesh as essential (Dirichlet). After assembly and finalizing
    //    we extract the corresponding sparse matrix A.
    BilinearForm *a = new BilinearForm(fespace);
-   a -> AddDomainIntegrator(new DiffusionIntegrator(one));
-   a -> Assemble();
+   a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   a->Assemble();
    Array<int> ess_bdr(mesh->bdr_attributes.Size());
    ess_bdr = 1;
-   a -> EliminateEssentialBC(ess_bdr, x, *b);
-   a -> Finalize();
-   SparseMatrix &A = a->SpMat();
+   a->EliminateEssentialBC(ess_bdr, x, *b);
+   a->Finalize();
+   const SparseMatrix &A = a->SpMat();
 
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
@@ -98,15 +99,18 @@ int main (int argc, char *argv[])
    char vishost[] = "localhost";
    int  visport   = 19916;
    osockstream sol_sock (visport, vishost);
-   if (mesh -> Dimension() == 2)
+   if (mesh->Dimension() == 2)
       sol_sock << "fem2d_gf_data\n";
    else
       sol_sock << "fem3d_gf_data\n";
-   mesh -> Print(sol_sock);
+   mesh->Print(sol_sock);
    x.Save(sol_sock);
    sol_sock.send();
 
    // 10. Free the used memory
-   delete mesh;
    delete a;
+   delete b;
+   delete fespace;
+   delete fec;
+   delete mesh;
 }
