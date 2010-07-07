@@ -1561,6 +1561,7 @@ void DenseMatrixEigensystem::Eval()
       mfem_error("DenseMatrixEigensystem::Eval()");
 #endif
 
+#ifdef MFEM_USE_LAPACK
    EVect = mat;
    dsyev_(&jobz, &uplo, &n, EVect.Data(), &n, EVal.GetData(),
           work, &lwork, &info);
@@ -1571,6 +1572,9 @@ void DenseMatrixEigensystem::Eval()
            << info << endl;
       mfem_error();
    }
+#else
+   mfem_error("DenseMatrixEigensystem::Eval(): Compiled without LAPACK");
+#endif
 }
 
 DenseMatrixEigensystem::~DenseMatrixEigensystem()
@@ -1595,6 +1599,7 @@ DenseMatrixSVD::DenseMatrixSVD(int h, int w)
 
 void DenseMatrixSVD::Init()
 {
+#ifdef MFEM_USE_LAPACK
    sv.SetSize(min(m, n));
 
    jobu  = 'N';
@@ -1607,6 +1612,10 @@ void DenseMatrixSVD::Init()
 
    lwork = (int) qwork;
    work = new double[lwork];
+#else
+   work = NULL;
+   mfem_error("DenseMatrixSVD::Init(): Compiled without LAPACK");
+#endif
 }
 
 void DenseMatrixSVD::Eval(DenseMatrix &M)
@@ -1616,6 +1625,7 @@ void DenseMatrixSVD::Eval(DenseMatrix &M)
       mfem_error("DenseMatrixSVD::Eval()");
 #endif
 
+#ifdef MFEM_USE_LAPACK
    dgesvd_(&jobu, &jobvt, &m, &n, M.Data(), &m, sv.GetData(), NULL, &m,
            NULL, &n, work, &lwork, &info);
 
@@ -1624,6 +1634,9 @@ void DenseMatrixSVD::Eval(DenseMatrix &M)
       cerr << "DenseMatrixSVD::Eval() : info = " << info << endl;
       mfem_error();
    }
+#else
+   mfem_error("DenseMatrixSVD::Eval(): Compiled without LAPACK");
+#endif
 }
 
 DenseMatrixSVD::~DenseMatrixSVD()
