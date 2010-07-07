@@ -377,6 +377,10 @@ DSTable::DSTable(int nrows)
 
 int DSTable::Push_(int r, int c)
 {
+#ifdef MFEM_DEBUG
+   if (r < 0 || r >= NumRows)
+      mfem_error("DSTable::Push_()");
+#endif
    Node *n;
    for (n = Rows[r]; n != NULL; n = n->Prev)
    {
@@ -399,6 +403,12 @@ int DSTable::Push_(int r, int c)
 
 int DSTable::Index(int r, int c) const
 {
+#ifdef MFEM_DEBUG
+   if (r < 0)
+      mfem_error("DSTable::Index()");
+#endif
+   if (r >= NumRows)
+      return(-1);
    for (Node *n = Rows[r]; n != NULL; n = n->Prev)
    {
       if (n->Column == c)
