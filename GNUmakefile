@@ -7,7 +7,7 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 CC         = g++
-CCOPTS     = -Wall
+CCOPTS     =
 DEBUG_OPTS = -g -DMFEM_DEBUG
 OPTIM_OPTS = -O3
 DEPCC      = g++
@@ -40,6 +40,8 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 .cpp.o:
 	cd $(<D); $(CCC) -c $(<F)
 
+default: opt
+
 lib:	libmfem.a mfem_defs.hpp
 
 debug deps_debug: MODE_OPTS = $(DEBUG_OPTS)
@@ -57,7 +59,6 @@ libmfem.a: $(OBJECT_FILES)
 mfem_defs.hpp:
 	@echo "Generating 'mfem_defs.hpp' ..."
 	@echo "// Auto-generated file." > mfem_defs.hpp
-	@head -n 8 mfem.hpp >> mfem_defs.hpp
 	for i in $(DEFINES); do \
 		echo "#define "$${i} >> mfem_defs.hpp; done
 

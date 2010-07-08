@@ -7,8 +7,8 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 CC     = g++
-#CCOPTS = -g -DMFEM_DEBUG
 CCOPTS = -O3
+#CCOPTS = -g -DMFEM_DEBUG
 # internal mfem options
 USE_MEMALLOC     = YES
 USE_LAPACK       = YES
@@ -24,7 +24,6 @@ USE_LAPACK_DEF = $(USE_LAPACK_$(USE_LAPACK))
 DEFS = $(USE_MEMALLOC_DEF) $(USE_LAPACK_DEF)
 
 CCC = $(CC) $(CCOPTS) $(DEFS)
-
 
 # Generate with 'echo general/*.cpp linalg/*.cpp mesh/*.cpp fem/*.cpp'
 SOURCE_FILES = general/array.cpp general/error.cpp general/isockstream.cpp \
@@ -70,7 +69,6 @@ libmfem.a: $(OBJECT_FILES)
 mfem_defs.hpp:
 	@echo "Generating 'mfem_defs.hpp' ..."
 	@echo "// Auto-generated file." > mfem_defs.hpp
-	@head -n 8 mfem.hpp >> mfem_defs.hpp
 	for i in $(CCC); do \
 		case x$${i} in\
 		   x-D*) echo -n "#define " >> mfem_defs.hpp;\

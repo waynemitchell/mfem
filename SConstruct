@@ -15,7 +15,7 @@ Help("""
 env = Environment()
 
 CC_OPTS    = '-O3'
-DEBUG_OPTS = '-g -DMFEM_DEBUG -Wall'
+DEBUG_OPTS = '-g -Wall'
 
 # MFEM-specific options
 env.Append(CPPDEFINES = ['MFEM_USE_MEMALLOC'])
@@ -23,6 +23,7 @@ env.Append(CPPDEFINES = ['MFEM_USE_MEMALLOC'])
 # Debug options
 debug = ARGUMENTS.get('debug', 0)
 if int(debug):
+   env.Prepend(CPPDEFINES = ['MFEM_DEBUG'])
    env.Append(CCFLAGS = DEBUG_OPTS)
 else:
    env.Append(CCFLAGS = CC_OPTS)
@@ -48,3 +49,13 @@ fem_src = Glob('fem/*.cpp')
 
 # libmfem.a library
 env.Library('mfem',[general_src,linalg_src,mesh_src,fem_src])
+
+# Always generate mfem_defs.hpp
+def mfem_defs_build(target, source, env):
+   mfem_defs = file("mfem_defs.hpp", "w")
+   mfem_defs.write("// Auto-generated file.\n")
+   for definition in env.Dictionary()['CPPDEFINES']:
+      mfem_defs.write("#define "+definition+"\n")
+   mfem_defs.close()
+env.AlwaysBuild(env.Command('mfem_defs.hpp', 'mfem.hpp', mfem_defs_build))
+
