@@ -313,6 +313,7 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
             }
          }
       Array<int> &E = RGeom[2]->RefEdges;
+      // horizontal edges
       for (l = k = 0; k < Times; k += Times/ETimes)
       {
          j = k*(Times+1)-((k-1)*k)/2;
@@ -322,6 +323,7 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
             E[l++] = j;
          }
       }
+      // diagonal edges
       for (k = Times; k > 0; k -= Times/ETimes)
       {
          j = k;
@@ -331,6 +333,7 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
             E[l++] = j;
          }
       }
+      // vertical edges
       for (k = 0; k < Times; k += Times/ETimes)
       {
          j = k;
@@ -373,6 +376,7 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
             G[l++] = k+Times+1;
          }
       Array<int> &E = RGeom[3]->RefEdges;
+      // horizontal edges
       for (l = k = 0; k <= Times; k += Times/ETimes)
       {
          for (i = 0, j = k*(Times+1); i < Times; i++)
@@ -381,7 +385,8 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
             E[l++] = j;
          }
       }
-      for (k = 0; k <= Times; k += Times/ETimes)
+      // vertical edges (in right-to-left order)
+      for (k = Times; k >= 0; k -= Times/ETimes)
       {
          for (i = 0, j = k; i < Times; i++)
          {
