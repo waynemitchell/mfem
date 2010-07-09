@@ -8,10 +8,11 @@
 
 CC     = g++
 CCOPTS = -O3
-#CCOPTS = -g -DMFEM_DEBUG
-# internal mfem options
+DEBUG_OPTS = -g -DMFEM_DEBUG
+
+# Internal mfem options
 USE_MEMALLOC     = YES
-USE_LAPACK       = YES
+USE_LAPACK       = NO
 
 USE_MEMALLOC_NO  =
 USE_MEMALLOC_YES = -DMFEM_USE_MEMALLOC
@@ -59,6 +60,9 @@ fem/lininteg.hpp
 	cd $(<D); $(CCC) -c $(<F)
 
 lib:	libmfem.a mfem_defs.hpp
+
+debug:
+	make "OPTS=$(DEBUG_OPTS)"
 
 $(OBJECT_FILES): $(HEADER_FILES)
 

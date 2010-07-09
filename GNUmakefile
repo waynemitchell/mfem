@@ -11,9 +11,10 @@ CCOPTS     =
 DEBUG_OPTS = -g -DMFEM_DEBUG
 OPTIM_OPTS = -O3
 DEPCC      = g++
+
 # internal mfem options
 USE_MEMALLOC     = YES
-USE_LAPACK       = YES
+USE_LAPACK       = NO
 
 USE_MEMALLOC_NO  =
 USE_MEMALLOC_YES = -DMFEM_USE_MEMALLOC

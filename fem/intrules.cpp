@@ -8,6 +8,10 @@
 
 // Implementation of IntegrationRule(s) classes
 
+// Acknowledgment: Some of the high-precision triangular and tetrahedral
+// quadrature rules below were obtained from the Encyclopaedia of Cubature
+// Formulas at http://nines.cs.kuleuven.be/research/ecf/ecf.html
+
 #include <math.h>
 #include "fem.hpp"
 

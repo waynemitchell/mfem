@@ -1,3 +1,10 @@
+# Copyright (c) 2010,  Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# This file is part of the MFEM library.  See file COPYRIGHT for details.
+#
+# MFEM is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
 
 COPYRIGHT
 
@@ -17,7 +24,7 @@ MFEM is free software; you can redistribute it and/or modify it under the terms
 of the GNU Lesser General Public License (as published by the Free Software
 Foundation) version 2.1 dated February 1999, with the following EXCEPTIONS:
 
-   1. Subclassed of MFEM classes do not constitute a derivative work.
+   1. Subclasses of MFEM classes do not constitute a derivative work.
 
    2. Static linking of applications to the MFEM library does not constitute a
       derivative work and does not require the author to provide source code for
@@ -33,4 +40,11 @@ You should have received a copy of the GNU Lesser General Public License along
 with this library (file LICENSE); if not, write to the Free Software Foundation,
 Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
-The software is released under UCRL_CODE_XXXXXX.
+
+CONTACT INFORMATION
+
+The software is released under UCRL_CODE_XXXXXX. Please see
+
+             http://mfem.googlecode.com
+
+for more information and source code availability.

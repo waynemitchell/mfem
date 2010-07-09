@@ -27,6 +27,7 @@ the "mfem_defs.hpp" header file which lists all "define" symbols from the build.
 Some of the available 'make' targets are:
 
 make       -> Builds the libmfem.a library
+make debug -> Builds a debug version
 make clean -> Cleans the build
 
 

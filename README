@@ -10,6 +10,9 @@
 
 MFEM is a general, modular C++ library for finite element methods.
 
+For building instructions, see the file INSTALL. Copyright information and
+licensing restrictions can be found in the file COPYRIGHT.
+
 Conceptually, MFEM can be viewed as a finite element toolbox, that provides the
 building blocks for developing finite element algorithms in a manner similar to
 that of MATLAB for linear algebra methods. In particular, MFEM supports a wide
