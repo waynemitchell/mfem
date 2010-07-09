@@ -62,7 +62,7 @@ fem/lininteg.hpp
 lib:	libmfem.a mfem_defs.hpp
 
 debug:
-	make "OPTS=$(DEBUG_OPTS)"
+	make "CCOPTS=$(DEBUG_OPTS)"
 
 $(OBJECT_FILES): $(HEADER_FILES)
 
