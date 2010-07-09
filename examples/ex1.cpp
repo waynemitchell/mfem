@@ -42,10 +42,13 @@ int main (int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
 
-   // 2. Refine the mesh to increase the resolution. In this example we do three
-   //    levels of uniform refinement.
+   // 2. Refine the mesh to increase the resolution. In this example we do
+   //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
+   //    largest number that gives a final mesh with no more than 50,000
+   //    elements.
    {
-      int ref_levels = 3;
+      int ref_levels =
+         (int)floor(log(50000./mesh->GetNE())/log(2.)/mesh->Dimension());
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }

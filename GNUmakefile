@@ -69,3 +69,4 @@ deps deps_debug deps_opt:
 
 clean:
 	rm -f */*.o */*~ *~ libmfem.a mfem_defs.hpp deps.mk
+	cd examples; make clean

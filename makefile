@@ -77,3 +77,4 @@ mfem_defs.hpp:
 
 clean:
 	rm -f */*.o */*~ *~ libmfem.a mfem_defs.hpp deps.mk
+	cd examples; make clean
