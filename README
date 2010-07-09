@@ -16,8 +16,9 @@ that of MATLAB for linear algebra methods. In particular, MFEM supports a wide
 variety of finite element spaces in 2D and 3D, as well as many bilinear and
 linear forms defined on them. It includes classes for dealing with various types
 of triangular, quadrilateral, tetrahedral and hexahedral meshes and their global
-and local refinement. General element transformations, allowing for elements
-with curved boundaries are also supported.
+and, in the case of triangular and tetrahedral meshes, local refinement. General
+element transformations, allowing for elements with curved boundaries are also
+supported.
 
 MFEM is commonly used as a "finite element to linear algebra translator", since
 it can take a problem described in terms of finite element-type objects, and
