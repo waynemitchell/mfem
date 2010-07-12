@@ -14,7 +14,7 @@ MFEM_DIR = ..
 MFEM_LIB = -L$(MFEM_DIR) -lmfem
 
 # Link with LAPACK? (needed if MFEM was compiled with LAPACK support)
-USE_LAPACK = NO
+USE_LAPACK = YES
 
 # LAPACK and BLAS
 LAPACK_DIR = $(HOME)/lapack
