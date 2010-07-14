@@ -468,6 +468,10 @@ public:
        f_name == NULL (default) the mesh is printed on the terminal. */
    void Print(ostream &out = cout) const;
 
+   /** Print the mesh in VTK format. The parameter ref specifies an element
+       subdivision number (useful for high order fields and curved meshes). */
+   void PrintVTK(ostream &out, int ref);
+
    void GetElementColoring(Array<int> &colors, int el0 = 0);
 
    /** Prints the mesh with bdr elements given by the boundary of

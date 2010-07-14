@@ -1331,6 +1331,55 @@ void GridFunction::Save (ostream &out)
    Vector::Print (out, 1);
 }
 
+void GridFunction::SaveVTK(ostream &out, const string &field_name, int ref)
+{
+   Mesh *mesh = fes->GetMesh();
+   RefinedGeometry *RefG;
+   Vector val;
+   DenseMatrix vval, pmat;
+
+   if (VectorDim() == 1)
+   {
+      // scalar data
+      out << "SCALARS " << field_name << " double 1\n"
+          << "LOOKUP_TABLE default\n";
+      for (int i = 0; i < mesh->GetNE(); i++)
+      {
+         RefG = GlobGeometryRefiner.Refine(
+            mesh->GetElementBaseGeometry(i), ref, 1);
+
+         GetValues(i, RefG->RefPts, val, pmat);
+
+         for (int j = 0; j < val.Size(); j++)
+         {
+            out << val(j) << '\n';
+         }
+      }
+   }
+   else
+   {
+      // vector data
+      out << "VECTORS " << field_name << " double\n";
+      for (int i = 0; i < mesh->GetNE(); i++)
+      {
+         RefG = GlobGeometryRefiner.Refine(
+            mesh->GetElementBaseGeometry(i), ref, 1);
+
+         GetVectorValues(i, RefG->RefPts, vval, pmat);
+
+         for (int j = 0; j < vval.Width(); j++)
+         {
+            out << vval(0, j) << ' ' << vval(1, j) << ' ';
+            if (vval.Height() == 2)
+               out << 0.0;
+            else
+               out << vval(2, j);
+            out << '\n';
+         }
+      }
+   }
+}
+
 void GridFunction::SaveSTLTri (ostream &out, double p1[], double p2[],
                                double p3[])
 {
