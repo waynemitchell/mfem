@@ -92,10 +92,16 @@ int main (int argc, char *argv[])
    GSSmoother M(A);
    PCG(A, M, *b, x, 1, 200, 1e-12, 1e-28);
 
-   // 8. Save the solution to a file (as a finite element grid function). This
-   //    can be viewed later using "glvis -m <mesh_file> -g sol.gf".
-   ofstream sol_ofs("sol.gf");
-   x.Save(sol_ofs);
+   // 8. Save the rifined mesh and the solution. This output can be viewed
+   //    later using GLVis: "glvis -m refined.mesh -g sol.gf".
+   {
+      ofstream mesh_ofs("refined.mesh");
+      mesh->Print(mesh_ofs);
+   }
+   {
+      ofstream sol_ofs("sol.gf");
+      x.Save(sol_ofs);
+   }
 
    // 9. (Optional) Send the solution by socket to a GLVis server
    char vishost[] = "localhost";

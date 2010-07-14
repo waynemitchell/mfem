@@ -38,4 +38,4 @@ debug:
 	make "OPTS=$(DEBUG_OPTS)"
 
 clean:
-	rm -f *.o ex1 sol.gf *~
+	rm -f *.o ex1 refined.mesh sol.gf *~
