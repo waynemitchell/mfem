@@ -29,13 +29,16 @@ LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
 
 LIBS = $(MFEM_LIB) $(LAPACK_LIBS)
 
-all: ex1
+all: ex1 ex6
 
 ex1: ex1.cpp
 	$(CC) $(OPTS) -I$(MFEM_DIR) ex1.cpp -o ex1 $(LIBS)
+
+ex6: ex6.cpp
+	$(CC) $(OPTS) -I$(MFEM_DIR) ex6.cpp -o ex6 $(LIBS)
 
 debug:
 	make "OPTS=$(DEBUG_OPTS)"
 
 clean:
-	rm -f *.o ex1 refined.mesh sol.gf *~
+	rm -f *.o ex1 ex6 refined.mesh sol.gf *~
