@@ -7,9 +7,9 @@
 //               ex1 escher.mesh3d
 //               ex1 fichera.mesh3d
 //
-// Description: This example code demostrates the use of MFEM to define a simple
+// Description: This example code demonstrates the use of MFEM to define a simple
 //              linear finite element discretization of the Laplace problem
-//              -Delta u = 1 with homegenous Dirichlet boundary conditions.
+//              -Delta u = 1 with homogeneous Dirichlet boundary conditions.
 //
 //              The example highlights the use of mesh refinement, finite
 //              element grid functions, as well as linear and bilinear forms
@@ -32,7 +32,7 @@ int main (int argc, char *argv[])
    }
 
    // 1. Read the mesh from the given mesh file. We can handle triangular,
-   //    qualirateral, tetrahedral or hexahedral elements with the same code.
+   //    quadrilateral, tetrahedral or hexahedral elements with the same code.
    ifstream imesh(argv[1]);
    if (!imesh)
    {
@@ -60,22 +60,22 @@ int main (int argc, char *argv[])
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
-   //    the basis functions in the finite element espace.
+   //    the basis functions in the finite element fespace.
    LinearForm *b = new LinearForm(fespace);
    ConstantCoefficient one(1.0);
    b->AddDomainIntegrator(new DomainLFIntegrator(one));
    b->Assemble();
 
    // 5. Define the solution vector x as a finite element grid function
-   //    corresponding to fespace.  Initialize x with inital guess of zero,
+   //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    GridFunction x(fespace);
    x = 0.0;
 
    // 6. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
-   //    domain integrator and imposing homegenous Dirichlet boundary
-   //    conditions.  The boundary conditions are implemented by marking all the
+   //    domain integrator and imposing homogeneous Dirichlet boundary
+   //    conditions. The boundary conditions are implemented by marking all the
    //    boundary attributes from the mesh as essential (Dirichlet). After
    //    assembly and finalizing we extract the corresponding sparse matrix A.
    BilinearForm *a = new BilinearForm(fespace);
@@ -90,20 +90,18 @@ int main (int argc, char *argv[])
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
-   PCG(A, M, *b, x, 1, 200, 1e-12, 1e-28);
+   PCG(A, M, *b, x, 1, 200, 1e-12, 0.0);
 
-   // 8. Save the rifined mesh and the solution. This output can be viewed
-   //    later using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // 8. Save the refined mesh and the solution. This output can be viewed later
+   //    using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("refined.mesh");
       mesh->Print(mesh_ofs);
-   }
-   {
       ofstream sol_ofs("sol.gf");
       x.Save(sol_ofs);
    }
 
-   // 9. (Optional) Send the solution by socket to a GLVis server
+   // 9. (Optional) Send the solution by socket to a GLVis server.
    char vishost[] = "localhost";
    int  visport   = 19916;
    osockstream sol_sock (visport, vishost);
@@ -115,7 +113,7 @@ int main (int argc, char *argv[])
    x.Save(sol_sock);
    sol_sock.send();
 
-   // 10. Free the used memory
+   // 10. Free the used memory.
    delete a;
    delete b;
    delete fespace;
