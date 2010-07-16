@@ -4810,9 +4810,7 @@ ElementTransformation * Mesh::GetFineElemTrans (int i, int j)
    return &Transformation;  // no refinement
 }
 
-#if 0
-// Old Print
-void Mesh::Print(ostream &out) const
+void Mesh::PrintXG(ostream &out) const
 {
    int i, j;
    Array<int> v;
@@ -4954,8 +4952,7 @@ void Mesh::Print(ostream &out) const
 
    out << flush;
 }
-#else
-// New Print: use the MFEM mesh v1.0 format
+
 void Mesh::Print(ostream &out) const
 {
    int i, j, nv, *v;
@@ -4964,8 +4961,13 @@ void Mesh::Print(ostream &out) const
 
    // optional
    out <<
-      "\n#\n"
-      "# comments / metadata\n"
+      "\n#\n# MFEM Geometry Types (see mesh/geom.hpp):\n#\n"
+      "# POINT       = 0\n"
+      "# SEGMENT     = 1\n"
+      "# TRIANGLE    = 2\n"
+      "# SQUARE      = 3\n"
+      "# TETRAHEDRON = 4\n"
+      "# CUBE        = 5\n"
       "#\n";
 
    out << "\ndimension\n" << Dim
@@ -5009,7 +5011,6 @@ void Mesh::Print(ostream &out) const
       Nodes->Save(out);
    }
 }
-#endif
 
 void Mesh::PrintVTK(ostream &out, int ref)
 {

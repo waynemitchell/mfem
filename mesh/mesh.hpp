@@ -466,8 +466,10 @@ public:
        coordinate system of the coarse element. Clear, isn't it? :-) */
    ElementTransformation * GetFineElemTrans (int i, int j);
 
-   /** Print the mesh in file given by f_name in netgen format. If
-       f_name == NULL (default) the mesh is printed on the terminal. */
+   /// Print the mesh to the given stream using Netgen/Truegrid format.
+   void PrintXG(ostream &out = cout) const;
+
+   /// Print the mesh to the given stream using the default MFEM mesh format.
    void Print(ostream &out = cout) const;
 
    /** Print the mesh in VTK format. The parameter ref specifies an element
