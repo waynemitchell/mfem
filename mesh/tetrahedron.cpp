@@ -89,15 +89,17 @@ void Tetrahedron::CreateRefinementFlag(int refinement_edges[2], int type,
    refinement_flag = refinement_flag | refinement_edges[0];
 }
 
-Tetrahedron::Tetrahedron( int *ind,
-                          int attr ) : Element(Geometry::TETRAHEDRON) {
+Tetrahedron::Tetrahedron(int *ind, int attr)
+  : Element(Geometry::TETRAHEDRON)
+{
    attribute = attr;
    for (int i=0; i<4; i++)
       indices[i] = ind[i];
 }
 
-Tetrahedron::Tetrahedron( int ind1, int ind2, int ind3, int ind4,
-                          int attr ) : Element(Geometry::TETRAHEDRON) {
+Tetrahedron::Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr)
+  : Element(Geometry::TETRAHEDRON)
+{
    attribute  = attr;
    indices[0] = ind1;
    indices[1] = ind2;
@@ -105,7 +107,8 @@ Tetrahedron::Tetrahedron( int ind1, int ind2, int ind3, int ind4,
    indices[3] = ind4;
 }
 
-int Tetrahedron::NeedRefinement ( DSTable &v_to_v, int *middle) const{
+int Tetrahedron::NeedRefinement ( DSTable &v_to_v, int *middle) const
+{
    int m;
 
    if ((m = v_to_v(indices[0], indices[1]))!=-1)
@@ -123,12 +126,14 @@ int Tetrahedron::NeedRefinement ( DSTable &v_to_v, int *middle) const{
    return 0;
 }
 
-void Tetrahedron::SetVertices(const int *ind){
-   for(int i=0; i<4; i++)
+void Tetrahedron::SetVertices(const int *ind)
+{
+   for (int i = 0; i < 4; i++)
       indices[i] = ind[i];
 }
 
-void Tetrahedron::MarkEdge(const DSTable &v_to_v, const int *length){
+void Tetrahedron::MarkEdge(const DSTable &v_to_v, const int *length)
+{
    int ind[4], i, j, l, L, type;
 
    // determine the longest edge
@@ -142,7 +147,8 @@ void Tetrahedron::MarkEdge(const DSTable &v_to_v, const int *length){
    for(i=0; i<4; i++)
       ind[i] = indices[i];
 
-   switch ( j ) {
+   switch (j)
+   {
    case 1:
       indices[0] = ind[1]; indices[1] = ind[2];
       indices[2] = ind[0]; indices[3] = ind[3];
