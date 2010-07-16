@@ -682,16 +682,7 @@ void Mesh::FinalizeTriMesh (int generate_edges, int refine)
    CheckElementOrientation();
 
    if (refine)
-   {
-      // Mark the longest triangle edge by rotating the indeces so that
-      // vertex 0 - vertex 1 to be the longest element's edge.
-      DenseMatrix pmat;
-      for(int i = 0; i < NumOfElements; i++)
-      {
-         GetPointMatrix (i, pmat);
-         elements[i] -> MarkEdge (pmat);
-      }
-   }
+      MarkTriMeshForRefinement();
 
    if (generate_edges)
    {
@@ -729,6 +720,30 @@ void Mesh::FinalizeQuadMesh (int generate_edges, int refine)
    SetAttributes();
 
    meshgen = 2;
+}
+
+void Mesh::MarkForRefinement()
+{
+   if (meshgen & 1)
+   {
+      if (Dim == 2)
+         MarkTriMeshForRefinement();
+      else if (Dim == 3)
+         MarkTetMeshForRefinement();
+   }
+}
+
+void Mesh::MarkTriMeshForRefinement()
+{
+   // Mark the longest triangle edge by rotating the indeces so that
+   // vertex 0 - vertex 1 to be the longest element's edge.
+   DenseMatrix pmat;
+   for (int i = 0; i < NumOfElements; i++)
+      if (elements[i]->GetType() == Element::TRIANGLE)
+      {
+         GetPointMatrix(i, pmat);
+         elements[i]->MarkEdge(pmat);
+      }
 }
 
 void Mesh::MarkTetMeshForRefinement()
@@ -833,8 +848,6 @@ Mesh :: Mesh ( int nx, int ny, Element::Type type, int generate_edges,
    Init();
    InitTables();
 
-   meshgen = 1;
-
    // Creates quadrilateral mesh
    if( type == Element::QUADRILATERAL )
    {
@@ -895,6 +908,7 @@ Mesh :: Mesh ( int nx, int ny, Element::Type type, int generate_edges,
    // Creates triangular mesh
    if( type == Element::TRIANGLE )
    {
+      meshgen = 1;
       NumOfVertices = (nx+1) * (ny+1);
       NumOfElements = 2 * nx * ny;
       NumOfBdrElements = 2 * nx + 2 * ny ;
@@ -950,27 +964,20 @@ Mesh :: Mesh ( int nx, int ny, Element::Type type, int generate_edges,
          boundary[2*nx+ny+j] = new Segment( j*m+nx, (j+1)*m+nx, 2 );
       }
 
-      // Mark the longest triangle edge by rotating the indeces so that
-      // vertex 0 - vertex 1 to be the longest element's edge.
-      DenseMatrix pmat;
-      for(i=0; i<NumOfElements; i++){
-         GetPointMatrix(i, pmat);
-         elements[i]->MarkEdge( pmat);
-      }
+      MarkTriMeshForRefinement();
    }
 
    CheckElementOrientation();
 
-   if (generate_edges == 1){
+   if (generate_edges == 1)
+   {
       el_to_edge = new Table;
       NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
       GenerateFaces();
       CheckBdrElementOrientation();
    }
-   else{
-      el_to_edge = NULL;
+   else
       NumOfEdges = 0;
-   }
 
    NumOfFaces = 0;
 
@@ -1031,7 +1038,9 @@ int GetMeshDimFromStream (istream &meshin)
 
    meshin >> ws;
    meshin.getline (buffer, buflen);
-   if (!strcmp(buffer, "areamesh2") || !strcmp(buffer, "curved_areamesh2"))
+   if (!strcmp(buffer, "MFEM mesh v1.0"))
+      dim = 0;
+   else if (!strcmp(buffer, "areamesh2") || !strcmp(buffer, "curved_areamesh2"))
       dim = 2;
    else if (!strcmp(buffer, "TrueGrid"))
       dim = 3;
@@ -1048,6 +1057,25 @@ int GetMeshDimFromStream (istream &meshin)
    return dim;
 }
 
+Element *NewElement(int geom)
+{
+   switch (geom)
+   {
+   case Geometry::SEGMENT:   return (new Segment);
+   case Geometry::TRIANGLE:  return (new Triangle);
+   case Geometry::SQUARE:    return (new Quadrilateral);
+   case Geometry::CUBE:      return (new Hexahedron);
+   case Geometry::TETRAHEDRON:
+#ifdef MFEM_USE_MEMALLOC
+      return TetMemory.Alloc();
+#else
+      return (new Tetrahedron);
+#endif
+   }
+
+   return NULL;
+}
+
 void Mesh::Load( istream &input, int generate_edges, int refine )
 {
    int i, j, ints[32], n, attr, curved = 0;
@@ -1059,7 +1087,8 @@ void Mesh::Load( istream &input, int generate_edges, int refine )
       mfem_error ("Input file stream not opened : Mesh::Load");
 #endif
 
-   if (NumOfVertices != -1){
+   if (NumOfVertices != -1)
+   {
       // Delete the elements.
       for(i=0; i<NumOfElements; i++)
          // delete elements[i];
@@ -1090,8 +1119,8 @@ void Mesh::Load( istream &input, int generate_edges, int refine )
    }
 
    InitTables();
-   meshgen = 1;
    if (own_nodes) delete Nodes;
+   Nodes = NULL;
 
    Dim = GetMeshDimFromStream (input);
 
@@ -1101,7 +1130,73 @@ void Mesh::Load( istream &input, int generate_edges, int refine )
       return;
    }
 
-   if (Dim == 1)
+   if (Dim == 0)
+   {
+      // Read MFEM mesh v1.0 format
+      string ident;
+      int attr, geom, nv, *v;
+
+      // read the mesh format line and lines begining with '#' (comments)
+      do
+      {
+         input >> ws;
+         getline(input, ident);
+         input >> ws;
+      }
+      while (input.peek() == '#');
+
+      input >> ident; // 'dimension'
+      input >> Dim;
+
+      input >> ident; // 'elements'
+      input >> NumOfElements;
+      elements.SetSize(NumOfElements);
+      for (j = 0; j < NumOfElements; j++)
+      {
+         input >> attr >> geom;
+         elements[j] = NewElement(geom);
+         elements[j]->SetAttribute(attr);
+         nv = elements[j]->GetNVertices();
+         v  = elements[j]->GetVertices();
+         for (i = 0; i < nv; i++)
+            input >> v[i];
+      }
+
+      input >> ident; // 'boundary'
+      input >> NumOfBdrElements;
+      boundary.SetSize(NumOfBdrElements);
+      for (j = 0; j < NumOfBdrElements; j++)
+      {
+         input >> attr >> geom;
+         boundary[j] = NewElement(geom);
+         boundary[j]->SetAttribute(attr);
+         nv = boundary[j]->GetNVertices();
+         v  = boundary[j]->GetVertices();
+         for (i = 0; i < nv; i++)
+            input >> v[i];
+      }
+
+      input >> ident; // 'vertices'
+      input >> NumOfVertices;
+      vertices.SetSize(NumOfVertices);
+
+      input >> ws >> ident;
+      if (ident != "nodes")
+      {
+         // read the vertices
+         int vdim = atoi(ident.c_str());
+         for (j = 0; j < NumOfVertices; j++)
+            for (i = 0; i < vdim; i++)
+               input >> vertices[j](i);
+      }
+      else
+      {
+         // prepare to read the nodes
+         input >> ws;
+         curved = 1;
+      }
+   }
+   else if (Dim == 1)
    {
       int j,p1,p2,a;
 
@@ -1130,271 +1225,265 @@ void Mesh::Load( istream &input, int generate_edges, int refine )
          ind[0]--;
          boundary[j] = new Point(ind,a);
       }
-
-      el_to_edge = NULL;
-      bel_to_edge = NULL;
-      NumOfEdges = 0;
    }
-   else
-      if (Dim == 2){
-         // Read the type of the mesh.
-         input >> buf;
+   else if (Dim == 2)
+   {
+      // Read the type of the mesh.
+      input >> buf;
 
-         // Reading TrueGrid mesh.
-         if (strcmp("TrueGrid", buf)==0){
-            meshgen = 2;
+      // Reading TrueGrid mesh.
+      if (strcmp("TrueGrid", buf)==0)
+      {
+         int vari;
+         double varf;
 
-            int vari;
-            double varf;
+         input >> vari >> NumOfVertices >> vari >> vari >> NumOfElements;
+         input.getline(buf, buflen);
+         input.getline(buf, buflen);
+         input >> vari;
+         input.getline(buf, buflen);
+         input.getline(buf, buflen);
+         input.getline(buf, buflen);
 
-            input >> vari >> NumOfVertices >> vari >> vari >> NumOfElements;
+         // Read the vertices.
+         vertices.SetSize (NumOfVertices);
+         for (i=0; i<NumOfVertices; i++){
+            input >> vari >> varf >> vertices[i](0) >> vertices[i](1);
             input.getline(buf, buflen);
-            input.getline(buf, buflen);
-            input >> vari;
-            input.getline(buf, buflen);
-            input.getline(buf, buflen);
-            input.getline(buf, buflen);
-
-            // Read the vertices.
-            vertices.SetSize (NumOfVertices);
-            for (i=0; i<NumOfVertices; i++){
-               input >> vari >> varf >> vertices[i](0) >> vertices[i](1);
-               input.getline(buf, buflen);
-            }
-
-            // Read the elements.
-            elements.SetSize (NumOfElements);
-            for (i=0; i < NumOfElements; i++){
-               input >> vari >> attr;
-               for(j=0; j<4; j++){
-                  input >> ints[j];
-                  ints[j]--;
-               }
-               input.getline(buf, buflen);
-               input.getline(buf, buflen);
-               elements[i] = new Quadrilateral(ints, attr);
-            }
-
-            CheckElementOrientation();
          }
-         // Read planar mesh in Netgen format.
-         else{
-            if (!strcmp("curved_areamesh2", buf))
-               curved = 1;
 
-            // Read the boundary elements.
-            input >> NumOfBdrElements;
-            boundary.SetSize (NumOfBdrElements);
-            for(i=0; i<NumOfBdrElements; i++){
-               input >> attr
-                     >> ints[0] >> ints[1];
-               ints[0]--; ints[1]--;
-               boundary[i] = new Segment(ints, attr);
+         // Read the elements.
+         elements.SetSize (NumOfElements);
+         for (i=0; i < NumOfElements; i++){
+            input >> vari >> attr;
+            for(j=0; j<4; j++){
+               input >> ints[j];
+               ints[j]--;
             }
-
-            // Read the elements.
-            input >> NumOfElements;
-            elements.SetSize (NumOfElements);
-            for(i=0; i<NumOfElements; i++){
-               input >> attr >> n;
-               for(j=0; j<n; j++){
-                  input >> ints[j];
-                  ints[j]--;
-               }
-               switch (n){
-               case 2:
-                  elements[i] = new Segment(ints, attr);
-                  break;
-               case 3:
-                  elements[i] = new Triangle(ints, attr);
-                  break;
-               case 4:
-                  elements[i] = new Quadrilateral(ints, attr);
-                  break;
-               }
-            }
-
-            if (!curved)
-            {
-               // Read the vertices.
-               input >> NumOfVertices;
-               vertices.SetSize (NumOfVertices);
-               for(i=0; i<NumOfVertices; i++)
-                  for(j=0; j<Dim; j++)
-                     input >> vertices[i](j);
-            }
-            else
-            {
-               input >> NumOfVertices;
-               vertices.SetSize (NumOfVertices);
-               input >> ws;
-            }
-
-            // Set mesh type.
-            for(i = 0; i < NumOfElements; i++)
-               if (elements[i]->GetType() == Element::QUADRILATERAL) {
-                  meshgen = 2;
-                  break;
-               }
-            for(i = 0; i < NumOfElements; i++)
-               if (elements[i]->GetType() == Element::TRIANGLE) {
-                  if (meshgen == 2)
-                     meshgen = 3;
-                  break;
-               }
-
-            // Read the boundary information...
-
-            if (!curved)
-            {
-               CheckElementOrientation();
-
-               if (refine)
-               {
-                  // Mark the longest triangle edge by rotating the indeces so that
-                  // vertex 0 - vertex 1 to be the longest element's edge.
-                  DenseMatrix pmat;
-                  for(i=0; i<NumOfElements; i++)
-                     if (elements[i]->GetType() == Element::TRIANGLE){
-                        GetPointMatrix(i, pmat);
-                        elements[i]->MarkEdge( pmat);
-                     }
-               }
-            }
+            input.getline(buf, buflen);
+            input.getline(buf, buflen);
+            elements[i] = new Quadrilateral(ints, attr);
          }
-         NumOfFaces = 0;
       }
-      else{  // --- Dim=3.
-         // Read the type of the mesh.
-         input >> buf;
+      // Read planar mesh in Netgen format.
+      else
+      {
+         if (!strcmp("curved_areamesh2", buf))
+            curved = 1;
 
-         // Read a TrueGrid format mesh of hexahedrons.
-         if (strcmp("TrueGrid", buf)==0){
-            meshgen = 2;
-
-            int vari;
-            double varf;
-            input >> vari >> NumOfVertices >> NumOfElements;
-            input.getline(buf, buflen);
-            input.getline(buf, buflen);
-            input >> vari >> vari >> NumOfBdrElements;
-            input.getline(buf, buflen);
-            input.getline(buf, buflen);
-            input.getline(buf, buflen);
-            // Read the vertices.
-            vertices.SetSize (NumOfVertices);
-            for (i=0; i<NumOfVertices; i++){
-               input >> vari >> varf >> vertices[i](0) >> vertices[i](1)
-                     >> vertices[i](2);
-               input.getline(buf, buflen);
-            }
-            // Read the elements.
-            elements.SetSize (NumOfElements);
-            for (i=0; i < NumOfElements; i++){
-               input >> vari >> attr;
-               for(j=0; j<8; j++){
-                  input >> ints[j];
-                  ints[j]--;
-               }
-               input.getline(buf, buflen);
-               elements[i] = new Hexahedron(ints, attr);
-            }
-            // Read the boundary elements.
-            boundary.SetSize (NumOfBdrElements);
-            for (i=0; i < NumOfBdrElements; i++){
-               input >> attr;
-               for(j=0; j<4; j++){
-                  input >> ints[j];
-                  ints[j]--;
-               }
-               input.getline(buf, buflen);
-               boundary[i] = new Quadrilateral(ints, attr);
-            }
-
-            CheckElementOrientation ();
-
-            GetElementToFaceTable();
-            GenerateFaces();
-
-            CheckBdrElementOrientation();
+         // Read the boundary elements.
+         input >> NumOfBdrElements;
+         boundary.SetSize (NumOfBdrElements);
+         for(i=0; i<NumOfBdrElements; i++){
+            input >> attr
+                  >> ints[0] >> ints[1];
+            ints[0]--; ints[1]--;
+            boundary[i] = new Segment(ints, attr);
          }
-         // Read a netgen format mesh of tetrahedra.
-         else{
-            // Read the vertices
-            input >> NumOfVertices;
 
-            vertices.SetSize( NumOfVertices);
+         // Read the elements.
+         input >> NumOfElements;
+         elements.SetSize (NumOfElements);
+         for(i=0; i<NumOfElements; i++){
+            input >> attr >> n;
+            for(j=0; j<n; j++){
+               input >> ints[j];
+               ints[j]--;
+            }
+            switch (n){
+            case 2:
+               elements[i] = new Segment(ints, attr);
+               break;
+            case 3:
+               elements[i] = new Triangle(ints, attr);
+               break;
+            case 4:
+               elements[i] = new Quadrilateral(ints, attr);
+               break;
+            }
+         }
+
+         if (!curved)
+         {
+            // Read the vertices.
+            input >> NumOfVertices;
+            vertices.SetSize (NumOfVertices);
             for(i=0; i<NumOfVertices; i++)
                for(j=0; j<Dim; j++)
                   input >> vertices[i](j);
+         }
+         else
+         {
+            input >> NumOfVertices;
+            vertices.SetSize (NumOfVertices);
+            input >> ws;
+         }
 
-            // Read the elements
-            input >> NumOfElements;
-            elements.SetSize (NumOfElements);
-            for(i=0; i<NumOfElements; i++){
-               input >> attr;
-               for(j=0; j<4; j++){
-                  input >> ints[j];
-                  ints[j]--;
-               }
-#ifdef MFEM_USE_MEMALLOC
-               Tetrahedron *tet;
-               tet = TetMemory.Alloc();
-               tet -> SetVertices (ints);
-               tet -> SetAttribute (attr);
-               elements[i] = tet;
-#else
-               elements[i] = new Tetrahedron(ints, attr);
-#endif
+         // Read the boundary information...
+      }
+   }
+   else  // --- Dim=3.
+   {
+      // Read the type of the mesh.
+      input >> buf;
+
+      // Read a TrueGrid format mesh of hexahedrons.
+      if (strcmp("TrueGrid", buf)==0)
+      {
+         int vari;
+         double varf;
+         input >> vari >> NumOfVertices >> NumOfElements;
+         input.getline(buf, buflen);
+         input.getline(buf, buflen);
+         input >> vari >> vari >> NumOfBdrElements;
+         input.getline(buf, buflen);
+         input.getline(buf, buflen);
+         input.getline(buf, buflen);
+         // Read the vertices.
+         vertices.SetSize (NumOfVertices);
+         for (i=0; i<NumOfVertices; i++){
+            input >> vari >> varf >> vertices[i](0) >> vertices[i](1)
+                  >> vertices[i](2);
+            input.getline(buf, buflen);
+         }
+         // Read the elements.
+         elements.SetSize (NumOfElements);
+         for (i=0; i < NumOfElements; i++){
+            input >> vari >> attr;
+            for(j=0; j<8; j++){
+               input >> ints[j];
+               ints[j]--;
             }
-
-            // Read the boundary information.
-            input >> NumOfBdrElements;
-            boundary.SetSize(NumOfBdrElements);
-            for(i=0; i< NumOfBdrElements; i++){
-               input >> attr;
-               for(j=0; j<3; j++){
-                  input >> ints[j];
-                  ints[j]--;
-               }
-               boundary[i] = new Triangle(ints, attr);
+            input.getline(buf, buflen);
+            elements[i] = new Hexahedron(ints, attr);
+         }
+         // Read the boundary elements.
+         boundary.SetSize (NumOfBdrElements);
+         for (i=0; i < NumOfBdrElements; i++){
+            input >> attr;
+            for(j=0; j<4; j++){
+               input >> ints[j];
+               ints[j]--;
             }
-
-            CheckElementOrientation ();
-
-            if (refine)
-            {
-               MarkTetMeshForRefinement();
-            }
-
-            GetElementToFaceTable();
-            GenerateFaces();
-
-            CheckBdrElementOrientation();
+            input.getline(buf, buflen);
+            boundary[i] = new Quadrilateral(ints, attr);
          }
       }
+      // Read a netgen format mesh of tetrahedra.
+      else
+      {
+         // Read the vertices
+         input >> NumOfVertices;
 
-   if (Dim != 1 && generate_edges == 1){
+         vertices.SetSize( NumOfVertices);
+         for(i=0; i<NumOfVertices; i++)
+            for(j=0; j<Dim; j++)
+               input >> vertices[i](j);
+
+         // Read the elements
+         input >> NumOfElements;
+         elements.SetSize (NumOfElements);
+         for(i=0; i<NumOfElements; i++){
+            input >> attr;
+            for(j=0; j<4; j++){
+               input >> ints[j];
+               ints[j]--;
+            }
+#ifdef MFEM_USE_MEMALLOC
+            Tetrahedron *tet;
+            tet = TetMemory.Alloc();
+            tet -> SetVertices (ints);
+            tet -> SetAttribute (attr);
+            elements[i] = tet;
+#else
+            elements[i] = new Tetrahedron(ints, attr);
+#endif
+         }
+
+         // Read the boundary information.
+         input >> NumOfBdrElements;
+         boundary.SetSize(NumOfBdrElements);
+         for(i=0; i< NumOfBdrElements; i++){
+            input >> attr;
+            for(j=0; j<3; j++){
+               input >> ints[j];
+               ints[j]--;
+            }
+            boundary[i] = new Triangle(ints, attr);
+         }
+      }
+   }
+
+   // at this point the following should be defined:
+   //  1) Dim
+   //  2) NumOfElements, elements
+   //  3) NumOfBdrElements, boundary
+   //  4) NumOfVertices, with allocated space in vertices
+   //  5) curved
+   //  5a) if curved == 0, vertices must be defined
+   //  5b) if curved != 1, 'input' must point to a GridFunction
+
+   // set the mesh type ('meshgen')
+   meshgen = 0;
+   for (i = 0; i < NumOfElements; i++)
+   {
+      switch (elements[i]->GetType())
+      {
+      case Element::SEGMENT:
+      case Element::TRIANGLE:
+      case Element::TETRAHEDRON:
+         meshgen |= 1; break;
+
+      case Element::QUADRILATERAL:
+      case Element::HEXAHEDRON:
+         meshgen |= 2;
+      }
+   }
+
+   // generate the arrays 'attributes' and ' bdr_attributes'
+   SetAttributes();
+
+   if (!curved)
+   {
+      // check and fix element orientation
+      CheckElementOrientation();
+
+      if (refine)
+         MarkForRefinement();
+   }
+
+   // generate edges if requested
+   if (Dim > 1 && generate_edges == 1)
+   {
       el_to_edge = new Table;
       NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
       if (Dim == 2)
       {
-         GenerateFaces();
-         if (!curved)
-            CheckBdrElementOrientation();
+         GenerateFaces(); // 'Faces' in 2D refers to the edges
+         // check and fix boundary element orientation
+         CheckBdrElementOrientation();
       }
       c_el_to_edge = NULL;
    }
    else
       NumOfEdges = 0;
 
-   SetAttributes();
+   // generate the faces
+   if (Dim > 2)
+   {
+      GetElementToFaceTable();
+      GenerateFaces();
+      // check and fix boundary element orientation
+      CheckBdrElementOrientation();
+   }
+   else
+      NumOfFaces = 0;
 
    if (curved)
    {
       Nodes = new GridFunction(this, input);
       own_nodes = 1;
-      for (i = 0; i < Dim; i++)
+      for (i = 0; i < Nodes->VectorDim(); i++)
       {
          Vector vert_val;
          Nodes->GetNodalValues(vert_val, i+1);
@@ -1403,18 +1492,8 @@ void Mesh::Load( istream &input, int generate_edges, int refine )
       }
 
       // CheckElementOrientation();
-      if (refine)
-      {
-         // Mark the longest triangle edge by rotating the indeces so that
-         // vertex 0 - vertex 1 to be the longest element's edge.
-         DenseMatrix pmat;
-         for(i=0; i<NumOfElements; i++)
-            if (elements[i]->GetType() == Element::TRIANGLE){
-               GetPointMatrix(i, pmat);
-               elements[i]->MarkEdge( pmat);
-            }
-      }
-      // CheckBdrElementOrientation();
+      // if (refine)
+      //    MarkForRefinement(); // uses the vertices! changes topology!
    }
 }
 
@@ -4731,6 +4810,8 @@ ElementTransformation * Mesh::GetFineElemTrans (int i, int j)
    return &Transformation;  // no refinement
 }
 
+#if 0
+// Old Print
 void Mesh::Print(ostream &out) const
 {
    int i, j;
@@ -4793,7 +4874,8 @@ void Mesh::Print(ostream &out) const
          mfem_error("Mesh::Print(...) : Curved mesh in 3D");
       }
 
-      if (meshgen == 1) {
+      if (meshgen == 1)
+      {
          int nv;
          const int *ind;
 
@@ -4872,6 +4954,62 @@ void Mesh::Print(ostream &out) const
 
    out << flush;
 }
+#else
+// New Print: use the MFEM mesh v1.0 format
+void Mesh::Print(ostream &out) const
+{
+   int i, j, nv, *v;
+
+   out << "MFEM mesh v1.0\n";
+
+   // optional
+   out <<
+      "\n#\n"
+      "# comments / metadata\n"
+      "#\n";
+
+   out << "\ndimension\n" << Dim
+       << "\n\nelements\n" << NumOfElements << '\n';
+   for (i = 0; i < NumOfElements; i++)
+   {
+      out << elements[i]->GetAttribute() << ' '
+          << elements[i]->GetGeometryType();
+      nv = elements[i]->GetNVertices();
+      v  = elements[i]->GetVertices();
+      for (j = 0; j < nv; j++)
+         out << ' ' << v[j];
+      out << '\n';
+   }
+   out << "\nboundary\n" << NumOfBdrElements << '\n';
+   for (i = 0; i < NumOfBdrElements; i++)
+   {
+      out << boundary[i]->GetAttribute() << ' '
+          << boundary[i]->GetGeometryType();
+      nv = boundary[i]->GetNVertices();
+      v  = boundary[i]->GetVertices();
+      for (j = 0; j < nv; j++)
+         out << ' ' << v[j];
+      out << '\n';
+   }
+   out << "\nvertices\n" << NumOfVertices << '\n';
+   if (Nodes == NULL)
+   {
+      out << Dim << '\n';
+      for (i = 0; i < NumOfVertices; i++)
+      {
+         out << vertices[i](0);
+         for (j = 1; j < Dim; j++)
+            out << ' ' << vertices[i](j);
+         out << '\n';
+      }
+   }
+   else
+   {
+      out << "\nnodes\n";
+      Nodes->Save(out);
+   }
+}
+#endif
 
 void Mesh::PrintVTK(ostream &out, int ref)
 {
@@ -4942,7 +5080,7 @@ void Mesh::PrintVTK(ostream &out, int ref)
       int nv = Geometries.GetVertices(geom)->GetNPoints();
       RefG = GlobGeometryRefiner.Refine(geom, ref, 1);
       Array<int> &RG = RefG->RefGeoms;
-      int vtk_cell_type;
+      int vtk_cell_type = 5;
 
       switch (geom)
       {
@@ -4984,6 +5122,7 @@ void Mesh::PrintVTK(ostream &out, int ref)
    {
       int geom = GetElementBaseGeometry(i);
       int nv = Geometries.GetVertices(geom)->GetNPoints();
+      RefG = GlobGeometryRefiner.Refine(geom, ref, 1);
       for (int j = 0; j < RefG->RefGeoms.Size(); j += nv)
       {
          out << coloring[i] + 1 << '\n';

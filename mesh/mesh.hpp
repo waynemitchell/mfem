@@ -78,6 +78,8 @@ protected:
        reference element at the center of the element. */
    void GetElementJacobian(int i, DenseMatrix &J);
 
+   void MarkForRefinement();
+   void MarkTriMeshForRefinement();
    void MarkTetMeshForRefinement();
 
    STable3D *GetElementToFaceTable (int ret_ftbl = 0);
