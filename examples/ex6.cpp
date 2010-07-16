@@ -5,10 +5,10 @@
 // Sample runs:  ex6 square-disc.mesh2d
 //               ex6 star.mesh2d
 //
-// Description: This example code performs a simple mesh smoothing in 2D based
-//              on a topologically defined "mesh Laplacian" matrix.
+// Description: This example code performs a simple mesh smoothing based on a
+//              topologically defined "mesh Laplacian" matrix.
 //
-//              The example highlights meshes with curved elements in 2D, the
+//              The example highlights meshes with curved elements, the
 //              assembling of a custom finite element matrix, the use of vector
 //              finite element spaces, the definition of different spaces and
 //              grid functions on the same mesh, and the setting of values by
@@ -77,13 +77,6 @@ int main (int argc, char *argv[])
    imesh.close();
 
    int dim = mesh->Dimension();
-   if (dim != 2)
-   {
-      // curved meshes are currently supported only in 2D.
-      cerr << "This example should be run with a 2D mesh!" << endl;
-      delete mesh;
-      return 3;
-   }
 
    // 4. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
@@ -122,7 +115,7 @@ int main (int argc, char *argv[])
    //    nodes. We index the nodes using the scalar version of the degrees of
    //    freedom in fespace.
    Vector h0(fespace->GetNDofs());
-   h0 = mesh->GetElementSize(0);
+   h0 = numeric_limits<double>::infinity();
    {
       Array<int> dofs;
       // loop over the mesh elements
@@ -165,10 +158,10 @@ int main (int argc, char *argv[])
    }
    *x -= rdm;
 
-   // 11. Save the initial mesh to a file. This output can be viewed later using
-   //     GLVis: "glvis -m initial.mesh".
+   // 11. Save the perturbed mesh to a file. This output can be viewed later
+   //     using GLVis: "glvis -m perturbed.mesh".
    {
-      ofstream mesh_ofs("initial.mesh");
+      ofstream mesh_ofs("perturbed.mesh");
       mesh->Print(mesh_ofs);
    }
 
@@ -207,7 +200,7 @@ int main (int argc, char *argv[])
    //     that the computed x is the A-harmonic extension of its boundary values
    //     (the coordinates of the boundary vertices). Furthermore, note that
    //     changing x automatically changes the shapes of the elements in the
-   //     mesh. The vector field that gives the displacements to the original
+   //     mesh. The vector field that gives the displacements to the perturbed
    //     positions is saved in the grid function x0.
    GridFunction x0(fespace);
    GSSmoother M(A);
@@ -223,7 +216,7 @@ int main (int argc, char *argv[])
    }
 
    // 16. (Optional) Send the relaxed mesh with the vector field representing
-   //     the displacements to the original mesh by socket to a GLVis server.
+   //     the displacements to the perturbed mesh by socket to a GLVis server.
    cout << "Visualize the smoothed mesh? [0/1] --> ";
    cin >> ans;
    if (ans)
