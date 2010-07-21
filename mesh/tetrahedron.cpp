@@ -90,7 +90,7 @@ void Tetrahedron::CreateRefinementFlag(int refinement_edges[2], int type,
 }
 
 Tetrahedron::Tetrahedron(int *ind, int attr)
-  : Element(Geometry::TETRAHEDRON)
+   : Element(Geometry::TETRAHEDRON)
 {
    attribute = attr;
    for (int i=0; i<4; i++)
@@ -98,7 +98,7 @@ Tetrahedron::Tetrahedron(int *ind, int attr)
 }
 
 Tetrahedron::Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr)
-  : Element(Geometry::TETRAHEDRON)
+   : Element(Geometry::TETRAHEDRON)
 {
    attribute  = attr;
    indices[0] = ind1;
