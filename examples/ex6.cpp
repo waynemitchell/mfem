@@ -15,6 +15,7 @@
 //              iterating over the interior and the boundary elements.
 
 #include <fstream>
+#include <limits>
 #include "mfem.hpp"
 
 // 1. Define the bilinear form corresponding to a mesh Laplacian operator. This
@@ -194,7 +195,7 @@ int main (int argc, char *argv[])
    a->Finalize();
    SparseMatrix &A = a->SpMat();
 
-   // 14. Simple mesh smoothing can be perform by relaxing the node coordinate
+   // 14. Simple mesh smoothing can be performed by relaxing the node coordinate
    //     grid function x with the matrix A and right-hand side b. This process
    //     converges to the solution of Ax=b, which we solve below with PCG. Note
    //     that the computed x is the A-harmonic extension of its boundary values
@@ -208,8 +209,8 @@ int main (int argc, char *argv[])
    PCG(A, M, b, *x, 1, 200, 1e-12, 0.0);
    x0 -= *x;
 
-   // 15. Save the smoothed mesh to a file. This output can be viewed later using
-   //     GLVis: "glvis -m smoothed.mesh".
+   // 15. Save the smoothed mesh to a file. This output can be viewed later
+   //     using GLVis: "glvis -m smoothed.mesh".
    {
       ofstream mesh_ofs("smoothed.mesh");
       mesh->Print(mesh_ofs);
