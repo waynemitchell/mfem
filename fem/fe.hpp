@@ -547,6 +547,9 @@ public:
        so that each row contains the derivatives of one shape function */
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+
+   virtual void ProjectDelta(int vertex, Vector &dofs) const
+   { dofs = 0.0; dofs(vertex) = 1.0; }
 };
 
 /// Crouzeix-Raviart finite element on triangle
