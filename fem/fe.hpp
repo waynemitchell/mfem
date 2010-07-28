@@ -239,7 +239,6 @@ public:
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const
    { dofs = 0.0; dofs(vertex) = 1.0; }
-//      { dofs = 1.0; }
 };
 
 /// Class for bilinear FE on quadrilateral
@@ -513,6 +512,9 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
 
+   virtual void ProjectDelta(int vertex, Vector &dofs) const
+   { dofs = 0.0; dofs(vertex) = 1.0; }
+
    virtual void GetFaceDofs(int face, int **dofs, int *ndofs) const;
 };
 
@@ -715,6 +717,8 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const
+   { dofs(0) = 1.0; }
 };
 
 class P0HexFiniteElement : public NodalFiniteElement
@@ -724,6 +728,8 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const
+   { dofs(0) = 1.0; }
 };
 
 /// Tensor products of 1D FEs (only degree 2 is functional)
