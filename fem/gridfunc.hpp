@@ -85,6 +85,9 @@ public:
 
    void GetGradient(ElementTransformation &tr, Vector &grad);
 
+   void GetGradients(const int elem, const IntegrationRule &ir,
+                     DenseMatrix &grad);
+
    void GetVectorGradient(ElementTransformation &tr, DenseMatrix &grad);
 
    /** Compute \f$ (\int_{\Omega} (*this) \psi_i)/(\int_{\Omega} \psi_i) \f$,

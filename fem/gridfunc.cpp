@@ -624,6 +624,30 @@ void GridFunction::GetGradient(ElementTransformation &tr, Vector &grad)
    mfem_error("GridFunction::GetGradient(...) is not implemented!");
 }
 
+void GridFunction::GetGradients(const int elem, const IntegrationRule &ir,
+                                DenseMatrix &grad)
+{
+   const FiniteElement *fe = fes->GetFE(elem);
+   ElementTransformation *Tr = fes->GetElementTransformation(elem);
+   DenseMatrix dshape(fe->GetDof(), fe->GetDim());
+   DenseMatrix Jinv(fe->GetDim());
+   Vector lval, gh(fe->GetDim()), gcol;
+   Array<int> dofs;
+   fes->GetElementDofs(elem, dofs);
+   GetSubVector(dofs, lval);
+   grad.SetSize(fe->GetDim(), ir.GetNPoints());
+   for (int i = 0; i < ir.GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir.IntPoint(i);
+      fe->CalcDShape(ip, dshape);
+      dshape.MultTranspose(lval, gh);
+      Tr->SetIntPoint(&ip);
+      grad.GetColumnReference(i, gcol);
+      CalcInverse(Tr->Jacobian(), Jinv);
+      Jinv.MultTranspose(gh, gcol);
+   }
+}
+
 void GridFunction::GetVectorGradient(
    ElementTransformation &tr, DenseMatrix &grad)
 {

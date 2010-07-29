@@ -189,7 +189,7 @@ int main (int argc, char *argv[])
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new VectorMeshLaplacianIntegrator);
    a->Assemble();
-   Array<int> ess_bdr(mesh->bdr_attributes.Size());
+   Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
    a->EliminateEssentialBC(ess_bdr, *x, b);
    a->Finalize();

@@ -83,7 +83,7 @@ protected:
 
    void MarkForRefinement();
    void MarkTriMeshForRefinement();
-   void MarkTetMeshForRefinement();
+   void MarkTetMeshForRefinement(int mark_faces = 0);
 
    STable3D *GetElementToFaceTable (int ret_ftbl = 0);
 
