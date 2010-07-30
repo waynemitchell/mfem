@@ -5219,8 +5219,7 @@ void Mesh::PrintWithPartitioning(int *partitioning, ostream &out) const
        << "\n\nelements\n" << NumOfElements << '\n';
    for (i = 0; i < NumOfElements; i++)
    {
-      // use 'partitioning[i]+1' as attribute
-      out << partitioning[i]+1 << ' '
+      out << elements[i]->GetAttribute() << ' '
           << elements[i]->GetGeometryType();
       nv = elements[i]->GetNVertices();
       v  = elements[i]->GetVertices();
