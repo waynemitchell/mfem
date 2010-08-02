@@ -123,6 +123,7 @@ void Mesh::PrintCharacteristics (Vector *Vh, Vector *Vk)
            << "Number of vertices : " << GetNV() << endl
            << "Number of edges    : " << GetNEdges() << endl
            << "Number of elements : " << GetNE() << endl
+           << "Number of bdr elem : " << GetNBE() << endl
            << "Euler Number       : " << EulerNumber2D() << endl
            << "h_min              : " << h_min << endl
            << "h_max              : " << h_max << endl
@@ -135,6 +136,7 @@ void Mesh::PrintCharacteristics (Vector *Vh, Vector *Vk)
            << "Number of edges    : " << GetNEdges() << endl
            << "Number of faces    : " << GetNFaces() << endl
            << "Number of elements : " << GetNE() << endl
+           << "Number of bdr elem : " << GetNBE() << endl
            << "Euler Number       : " << EulerNumber() << endl
            << "h_min              : " << h_min << endl
            << "h_max              : " << h_max << endl
@@ -5710,6 +5712,28 @@ void Mesh::ScaleElements (double sf)
    delete [] cg;
    delete [] nbea;
    delete [] vn;
+}
+
+void Mesh::Transform(void (*f)(const Vector&, Vector&))
+{
+   if (Nodes == NULL)
+   {
+      Vector vold(Dim), vnew(NULL, Dim);
+      for (int i = 0; i < vertices.Size(); i++)
+      {
+         for (int j = 0; j < Dim; j++)
+            vold(j) = vertices[i](j);
+         vnew.SetData(vertices[i]());
+         (*f)(vold, vnew);
+      }
+   }
+   else
+   {
+      GridFunction xnew(Nodes->FESpace());
+      VectorFunctionCoefficient f_pert(Dim, f);
+      xnew.ProjectCoefficient(f_pert);
+      *Nodes = xnew;
+   }
 }
 
 void Mesh::FreeElement (Element *E)

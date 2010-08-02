@@ -494,6 +494,8 @@ public:
    void ScaleSubdomains (double sf);
    void ScaleElements (double sf);
 
+   void Transform(void (*f)(const Vector&, Vector&));
+
    /** Get the size of the i-th element relative to the perfect
        reference element. */
    double GetElementSize(int i, int type = 0);
