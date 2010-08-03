@@ -29,13 +29,11 @@ if int(debug):
 else:
    env.Append(CCFLAGS = CC_OPTS)
 
-env.Append(LIBPATH = [os.getenv("HOME")+'/lib'])
-
 conf = Configure(env)
 
 # Check for LAPACK
 if conf.CheckLib('lapack', 'dsyevr_'):
-   env.Append(CPPDEFINES = ['MFEM_USE_LAPACK'])
+   env.Append(LIBS = ['blas'])
    print 'Using LAPACK'
 else:
    print 'Did not find LAPACK, continuing without it'
