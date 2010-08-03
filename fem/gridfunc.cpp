@@ -459,7 +459,7 @@ void GridFunction::ReorderByNodes()
    for (i = 0; i < size; i++)
       data[i] = temp[i];
 
-   delete temp;
+   delete [] temp;
 }
 
 void GridFunction::GetVectorFieldNodalValues (Vector &val, int comp) const
