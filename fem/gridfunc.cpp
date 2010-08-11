@@ -760,7 +760,7 @@ void GridFunction::ProjectCoefficient (Coefficient &coeff)
       (*this) = 0.0;
 
       // find the elements that have 'v_idx' as a vertex
-      MassIntegrator Mi;
+      MassIntegrator Mi(*delta_c->Weight());
       DenseMatrix loc_mass;
       Array<int> vertices;
       Vector loc_mass_vals;
