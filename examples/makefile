@@ -32,13 +32,13 @@ LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
 
 LIBS = $(MFEM_LIB) $(LAPACK_LIBS)
 
-all: ex1 ex6
+all: ex1 ex2
 
 ex1: ex1.cpp
 	$(CC) $(OPTS) -I$(MFEM_DIR) ex1.cpp -o ex1 $(LIBS)
 
-ex6: ex6.cpp
-	$(CC) $(OPTS) -I$(MFEM_DIR) ex6.cpp -o ex6 $(LIBS)
+ex2: ex2.cpp
+	$(CC) $(OPTS) -I$(MFEM_DIR) ex2.cpp -o ex2 $(LIBS)
 
 debug:
 	make "OPTS=$(DEBUG_OPTS)"
