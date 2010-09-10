@@ -7,16 +7,17 @@
 //               ex1 escher.mesh3d
 //               ex1 fichera.mesh3d
 //
-// Description: This example code demonstrates the use of MFEM to define a simple
-//              linear finite element discretization of the Laplace problem
-//              -Delta u = 1 with homogeneous Dirichlet boundary conditions.
+// Description:  This example code demonstrates the use of MFEM to define a
+//               simple linear finite element discretization of the Laplace
+//               problem -Delta u = 1 with homogeneous Dirichlet boundary
+//               conditions.
 //
-//              The example highlights the use of mesh refinement, finite
-//              element grid functions, as well as linear and bilinear forms
-//              corresponding to the left-hand side and right-hand side of the
-//              discrete linear system. We also cover the explicit elimination
-//              of boundary conditions on all boundary edges, and the optional
-//              connection to the GLVis tool for visualization.
+//               The example highlights the use of mesh refinement, finite
+//               element grid functions, as well as linear and bilinear forms
+//               corresponding to the left-hand side and right-hand side of the
+//               discrete linear system. We also cover the explicit elimination
+//               of boundary conditions on all boundary edges, and the optional
+//               connection to the GLVis tool for visualization.
 
 #include <fstream>
 #include "mfem.hpp"
