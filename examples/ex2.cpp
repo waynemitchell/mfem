@@ -76,7 +76,6 @@ int main (int argc, char *argv[])
         << " 1) Linear\n"
         << " 2) Quadratic\n"
         << " 3) Cubic\n"
-        << " 4) Linear non-conforming\n"
         << " ---> ";
    cin >> fec_type;
    switch (fec_type)
@@ -88,21 +87,11 @@ int main (int argc, char *argv[])
       fec = new QuadraticFECollection; break;
    case 3:
       fec = new CubicFECollection; break;
-   case 4:
-      if (dim == 2)
-         fec = new CrouzeixRaviartFECollection;
-      else
-         fec = new LinearNonConf3DFECollection;
-      break;
    }
+   cout << "Assembling: " << flush;
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec, dim);
 
-   // 4. Make the mesh curved based on the above finite element space. This
-   //    means that we define the mesh elements through a fespace-based
-   //    transformation of the reference element.
-   mesh->SetNodalFESpace(fespace);
-
-   // 5. Set up the linear form b(.) which corresponds to the right-hand side of
+   // 4. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system. In this case, b_i equals the boundary integral
    //    of f*phi_i where f represents a "pull down" force on the Neumann part
    //    of the boundary and phi_i are the basis functions in the finite element
@@ -124,15 +113,16 @@ int main (int argc, char *argv[])
 
    LinearForm *b = new LinearForm(fespace);
    b->AddDomainIntegrator(new VectorBoundaryLFIntegrator(f));
+   cout << "r.h.s. ... " << flush;
    b->Assemble();
 
-   // 6. Define the solution vector x as a finite element grid function
+   // 5. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    GridFunction x(fespace);
    x = 0.0;
 
-   // 7. Set up the bilinear form a(.,.) on the finite element space
+   // 6. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the linear elasticity integrator with piece-wise
    //    constants coefficient lambda and mu. The boundary conditions are
    //    implemented by marking only boundary attribute 1 as essential. After
@@ -148,25 +138,36 @@ int main (int argc, char *argv[])
 
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func,mu_func));
+   cout << "matrix ... " << flush;
    a->Assemble();
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1;
    a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
+   cout << "done." << endl;
    const SparseMatrix &A = a->SpMat();
 
-   // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
+   // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
-   PCG(A, M, *b, x, 1, 10000, 1e-8, 0.0);
+   PCG(A, M, *b, x, 1, 1000, 1e-8, 0.0);
+
+   // 8. Make the mesh curved based on the finite element space. This
+   //    means that we define the mesh elements through a fespace-based
+   //    transformation of the reference element.
+   //    This allows us to save the displaced mesh as a curved mesh when using
+   //    high-order finite element displacement field.
+   //    We assume that the initial mesh (read from the file) is not higher
+   //    order curved mesh compared to the FE space chosen from the menu.
+   mesh->SetNodalFESpace(fespace);
 
    // 9. Save the displaced mesh and the inverted solution (which gives the
    //    backward displacements to the original grid). This output can be viewed
    //    later using GLVis: "glvis -m displaced.mesh -g sol.gf".
    {
       GridFunction *nodes = mesh->GetNodes();
-      nodes -> Add(1.0,x);
+      *nodes += x;
       x *= -1;
       ofstream mesh_ofs("displaced.mesh");
       mesh->Print(mesh_ofs);

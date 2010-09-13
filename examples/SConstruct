@@ -46,4 +46,5 @@ env.Append(CPPPATH = ['..'])
 
 # libmfem.a library
 ex1 = env.Program('ex1',['ex1.cpp'])
-ex6 = env.Program('ex6',['ex1.cpp'])
+ex2 = env.Program('ex2',['ex2.cpp'])
+ex6 = env.Program('ex6',['ex6.cpp'])
