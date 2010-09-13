@@ -8,7 +8,7 @@
                          http://mfem.googlecode.com
 
 
-Version 1.1, released on Sep 10, 2010
+Version 1.1, released on Sep 13, 2010
 =====================================
 
 - New MFEM mesh v1.0 format with uniform structure for any dimension and support
@@ -16,8 +16,8 @@ Version 1.1, released on Sep 10, 2010
   format (in addition to all previously used formats) and Mesh::Print uses the
   new format by default. The old print function was renamed to Mesh::PrintXG.
 
-- Added an example code for linear elasticity with higher-order and
-  non-conforming finite elements (Example 2).
+- Added an example code for linear elasticity with (high-order) vector finite
+  elements (Example 2).
 
 - Added Mesh::PrintVTK and GridFunction::SaveVTK methods for output in VTK
   format.

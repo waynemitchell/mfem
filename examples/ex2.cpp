@@ -151,13 +151,12 @@ int main (int argc, char *argv[])
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
-   PCG(A, M, *b, x, 1, 1000, 1e-8, 0.0);
+   PCG(A, M, *b, x, 1, 500, 1e-8, 0.0);
 
-   // 8. Make the mesh curved based on the finite element space. This
-   //    means that we define the mesh elements through a fespace-based
-   //    transformation of the reference element.
-   //    This allows us to save the displaced mesh as a curved mesh when using
-   //    high-order finite element displacement field.
+   // 8. Make the mesh curved based on the finite element space. This means that
+   //    we define the mesh elements through a fespace-based transformation of
+   //    the reference element.  This allows us to save the displaced mesh as a
+   //    curved mesh when using high-order finite element displacement field.
    //    We assume that the initial mesh (read from the file) is not higher
    //    order curved mesh compared to the FE space chosen from the menu.
    mesh->SetNodalFESpace(fespace);
