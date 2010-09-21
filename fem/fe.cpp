@@ -823,6 +823,25 @@ void BiQuadPos2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    dshape(2,1) = l3x * d3y;
 }
 
+void BiQuadPos2DFiniteElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   double *d = dofs;
+
+   for (int i = 0; i < 9; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      d[i] = coeff.Eval(Trans, ip);
+   }
+   d[4] = 2. * d[4] - 0.5 * (d[0] + d[1]);
+   d[5] = 2. * d[5] - 0.5 * (d[1] + d[2]);
+   d[6] = 2. * d[6] - 0.5 * (d[2] + d[3]);
+   d[7] = 2. * d[7] - 0.5 * (d[3] + d[0]);
+   d[8] = 4. * d[8] - 0.5 * (d[4] + d[5] + d[6] + d[7]) -
+      0.25 * (d[0] + d[1] + d[2] + d[3]);
+}
+
 void BiQuadPos2DFiniteElement::Project (
    VectorCoefficient &vc, ElementTransformation &Trans,
    Vector &dofs) const
