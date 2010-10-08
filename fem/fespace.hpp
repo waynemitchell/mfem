@@ -247,7 +247,7 @@ public:
    /// Return a copy of the current FE space and update
    FiniteElementSpace *SaveUpdate();
 
-   void Save (ostream &out);
+   void Save (ostream &out) const;
 
    ~FiniteElementSpace();
 };

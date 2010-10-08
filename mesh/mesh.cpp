@@ -15,6 +15,7 @@
 #include <fstream>
 #include <math.h>
 #include <string.h>
+#include <time.h>
 
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
