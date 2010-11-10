@@ -294,6 +294,8 @@ public:
 
    const Element *GetBdrElement (int i) const { return boundary[i]; };
 
+   Element *GetBdrElement (int i) { return boundary[i]; };
+
    const Element *GetFace (int i) const { return faces[i]; };
 
    int GetFaceBaseGeometry(int i) const;
