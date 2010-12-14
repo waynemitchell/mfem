@@ -73,9 +73,15 @@ public:
    /// Matrix vector multiplication.
    virtual void Mult (const Vector & x, Vector & y) const;
 
+   void FullMult(const Vector &x, Vector &y) const
+   { mat->Mult(x, y); mat_e->AddMult(x, y); }
+
    virtual void AddMult (const Vector & x, Vector & y,
                          const double a = 1.0) const
    { mat -> AddMult (x, y, a); }
+
+   void FullAddMult(const Vector &x, Vector &y) const
+   { mat->AddMult(x, y); mat_e->AddMult(x, y); }
 
    double InnerProduct (const Vector &x, const Vector &y) const
    { return mat -> InnerProduct (x, y); }

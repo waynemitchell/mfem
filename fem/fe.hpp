@@ -610,8 +610,7 @@ public:
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const;
 
-   virtual void Project (Coefficient &vc,
-                         ElementTransformation &Trans, Vector &dofs) const {};
+   using FiniteElement::Project;
 
    virtual void Project (VectorCoefficient &vc,
                          ElementTransformation &Trans, Vector &dofs) const;
@@ -638,8 +637,7 @@ public:
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const;
 
-   virtual void Project (Coefficient &vc,
-                         ElementTransformation &Trans, Vector &dofs) const {};
+   using FiniteElement::Project;
 
    virtual void Project (VectorCoefficient &vc,
                          ElementTransformation &Trans, Vector &dofs) const;
@@ -871,8 +869,7 @@ public:
                               DenseMatrix &curl_shape) const;
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const;
-   virtual void Project (Coefficient &vc,
-                         ElementTransformation &Trans, Vector &dofs) const {};
+   using FiniteElement::Project;
    virtual void Project (VectorCoefficient &vc,
                          ElementTransformation &Trans, Vector &dofs) const;
 };
@@ -894,8 +891,7 @@ public:
                               DenseMatrix &curl_shape) const;
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const;
-   virtual void Project (Coefficient &vc,
-                         ElementTransformation &Trans, Vector &dofs) const {};
+   using FiniteElement::Project;
    virtual void Project (VectorCoefficient &vc,
                          ElementTransformation &Trans, Vector &dofs) const;
 };
@@ -922,8 +918,7 @@ public:
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const;
 
-   virtual void Project (Coefficient &vc,
-                         ElementTransformation &Trans, Vector &dofs) const {};
+   using FiniteElement::Project;
 
    virtual void Project (VectorCoefficient &vc,
                          ElementTransformation &Trans, Vector &dofs) const;

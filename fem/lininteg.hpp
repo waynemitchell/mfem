@@ -50,9 +50,7 @@ public:
                                        ElementTransformation &Tr,
                                        Vector &elvect);
 
-   virtual void AssembleRHSElementVect(const FiniteElement &el,
-                                       FaceElementTransformations &Tr,
-                                       Vector &elvect) {};
+   using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
 /// Class for boundary integration L(v) := (g, v)
@@ -72,9 +70,7 @@ public:
                                        ElementTransformation &Tr,
                                        Vector &elvect);
 
-   virtual void AssembleRHSElementVect(const FiniteElement &el,
-                                       FaceElementTransformations &Tr,
-                                       Vector &elvect) {};
+   using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
 /** Class for domain integration of L(v) := (f, v), where
@@ -95,9 +91,7 @@ public:
                                        ElementTransformation &Tr,
                                        Vector &elvect);
 
-   virtual void AssembleRHSElementVect(const FiniteElement &el,
-                                       FaceElementTransformations &Tr,
-                                       Vector &elvect) {};
+   using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
 /** Class for boundary integration of L(v) := (g, v), where
@@ -118,9 +112,7 @@ public:
                                        ElementTransformation &Tr,
                                        Vector &elvect);
 
-   virtual void AssembleRHSElementVect(const FiniteElement &el,
-                                       FaceElementTransformations &Tr,
-                                       Vector &elvect) {};
+   using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
 ///  \f$ (f, v)_{\Omega} \f$ for VectorFiniteElements (Nedelec, Raviart-Thomas)
@@ -138,9 +130,7 @@ public:
                                        ElementTransformation &Tr,
                                        Vector &elvect);
 
-   virtual void AssembleRHSElementVect(const FiniteElement &el,
-                                       FaceElementTransformations &Tr,
-                                       Vector &elvect) {};
+   using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
 
@@ -163,9 +153,7 @@ public:
                                        ElementTransformation &Tr,
                                        Vector &elvect);
 
-   virtual void AssembleRHSElementVect(const FiniteElement &el,
-                                       FaceElementTransformations &Tr,
-                                       Vector &elvect) {};
+   using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
 #endif
