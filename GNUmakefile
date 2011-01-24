@@ -9,25 +9,32 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
-CC         = g++
+# CC         = g++
+CC         = mpiCC
 CCOPTS     =
 DEBUG_OPTS = -g -DMFEM_DEBUG
 OPTIM_OPTS = -O3
 DEPCC      = g++
 
 # internal mfem options
-USE_MEMALLOC     = YES
+USE_MPI          = YES
 USE_LAPACK       = YES
+USE_MEMALLOC     = YES
 
-USE_MEMALLOC_NO  =
-USE_MEMALLOC_YES = -DMFEM_USE_MEMALLOC
-USE_MEMALLOC_DEF = $(USE_MEMALLOC_$(USE_MEMALLOC))
+USE_MPI_NO  =
+HYPRE_DIR   = ../../hypre-2.6.1a/src/hypre
+USE_MPI_YES = -DMFEM_USE_MPI -I$(HYPRE_DIR)/include
+USE_MPI_DEF = $(USE_MPI_$(USE_MPI))
 
 USE_LAPACK_NO  =
 USE_LAPACK_YES = -DMFEM_USE_LAPACK
 USE_LAPACK_DEF = $(USE_LAPACK_$(USE_LAPACK))
 
-DEFS = $(USE_MEMALLOC_DEF) $(USE_LAPACK_DEF)
+USE_MEMALLOC_NO  =
+USE_MEMALLOC_YES = -DMFEM_USE_MEMALLOC
+USE_MEMALLOC_DEF = $(USE_MEMALLOC_$(USE_MEMALLOC))
+
+DEFS = $(USE_MPI_DEF) $(USE_LAPACK_DEF) $(USE_MEMALLOC_DEF)
 
 CCC    = $(CC) $(CCOPTS) $(MODE_OPTS) $(DEFS)
 # compiler and options used for generating deps.mk
