@@ -79,7 +79,7 @@ double InnerProduct(HypreParVector &x, HypreParVector &y);
 double InnerProduct(HypreParVector *x, HypreParVector *y);
 
 
-/// Wrapper for hypre's par_csr matrix class
+/// Wrapper for hypre's ParCSR matrix class
 class HypreParMatrix : public Operator
 {
 private:
@@ -95,7 +95,7 @@ private:
 public:
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a) : A(a)
-   { X = Y = 0; CommPkg = 0; };
+   { X = Y = 0; CommPkg = 0; }
    /// Creates block-diagonal square parallel matrix. Diagonal given by diag.
    HypreParMatrix(int size, int *row, SparseMatrix *diag);
    /** Creates block-diagonal rectangular parallel matrix. Diagonal
@@ -143,7 +143,7 @@ public:
 
    /// Returns the number of rows in the diagonal block of the ParCSRMatrix
    int GetNumRows() const
-   { return hypre_CSRMatrixNumRows (hypre_ParCSRMatrixDiag(A)); }
+   { return hypre_CSRMatrixNumRows(hypre_ParCSRMatrixDiag(A)); }
 
    int GetGlobalNumRows() const { return hypre_ParCSRMatrixGlobalNumRows(A); }
 
@@ -175,10 +175,10 @@ public:
 };
 
 /// Returns the matrix A * B
-HypreParMatrix * ParMult (HypreParMatrix *A, HypreParMatrix *B);
+HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B);
 
 /// Returns the matrix P^t * A * P
-HypreParMatrix * RAP (HypreParMatrix *A, HypreParMatrix *P);
+HypreParMatrix * RAP(HypreParMatrix *A, HypreParMatrix *P);
 
 
 /// Abstract class for hypre's solvers and preconditioners
@@ -197,7 +197,7 @@ protected:
 public:
    HypreSolver();
 
-   HypreSolver (HypreParMatrix *_A);
+   HypreSolver(HypreParMatrix *_A);
 
    /// Typecast to HYPRE_Solver -- return the solver
    virtual operator HYPRE_Solver() const = 0;
@@ -236,14 +236,14 @@ public:
    void SetZeroInintialIterate() { use_zero_initial_iterate = 1; }
 
    /// The typecast to HYPRE_Solver returns the internal pcg_solver
-   virtual operator HYPRE_Solver() const { return pcg_solver; };
+   virtual operator HYPRE_Solver() const { return pcg_solver; }
 
    /// PCG Setup function
    virtual HYPRE_PtrToParSolverFcn SetupFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRPCGSetup; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRPCGSetup; }
    /// PCG Solve function
    virtual HYPRE_PtrToParSolverFcn SolveFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRPCGSolve; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRPCGSolve; }
 
    /// Solve Ax=b with hypre's PCG
    virtual void Mult(const HypreParVector &b, HypreParVector &x) const;
@@ -274,47 +274,47 @@ public:
    void SetZeroInintialIterate() { use_zero_initial_iterate = 1; }
 
    /// The typecast to HYPRE_Solver returns the internal gmres_solver
-   virtual operator HYPRE_Solver() const  { return gmres_solver; };
+   virtual operator HYPRE_Solver() const  { return gmres_solver; }
 
    /// GMRES Setup function
    virtual HYPRE_PtrToParSolverFcn SetupFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRGMRESSetup; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRGMRESSetup; }
    /// GMRES Solve function
    virtual HYPRE_PtrToParSolverFcn SolveFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRGMRESSolve; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRGMRESSolve; }
 
    /// Solve Ax=b with hypre's GMRES
    virtual void Mult (const HypreParVector &b, HypreParVector &x) const;
 
-   virtual ~HypreGMRES ();
+   virtual ~HypreGMRES();
 };
 
 /// The identity operator as a hypre solver
 class HypreIdentity : public HypreSolver
 {
 public:
-   virtual operator HYPRE_Solver() const { return NULL; };
+   virtual operator HYPRE_Solver() const { return NULL; }
 
    virtual HYPRE_PtrToParSolverFcn SetupFcn() const
-   { return (HYPRE_PtrToParSolverFcn) hypre_ParKrylovIdentitySetup; };
+   { return (HYPRE_PtrToParSolverFcn) hypre_ParKrylovIdentitySetup; }
    virtual HYPRE_PtrToParSolverFcn SolveFcn() const
-   { return (HYPRE_PtrToParSolverFcn) hypre_ParKrylovIdentity; };
+   { return (HYPRE_PtrToParSolverFcn) hypre_ParKrylovIdentity; }
 
-   virtual ~HypreIdentity() { };
+   virtual ~HypreIdentity() { }
 };
 
 /// Jacobi preconditioner in hypre
 class HypreDiagScale : public HypreSolver
 {
 public:
-   virtual operator HYPRE_Solver() const { return NULL; };
+   virtual operator HYPRE_Solver() const { return NULL; }
 
    virtual HYPRE_PtrToParSolverFcn SetupFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRDiagScaleSetup; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRDiagScaleSetup; }
    virtual HYPRE_PtrToParSolverFcn SolveFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRDiagScale; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRDiagScale; }
 
-   virtual ~HypreDiagScale() { };
+   virtual ~HypreDiagScale() { }
 };
 
 /// The ParaSails preconditioner in hypre
@@ -329,12 +329,12 @@ public:
    void SetSymmetry(int sym);
 
    /// The typecast to HYPRE_Solver returns the internal sai_precond
-   virtual operator HYPRE_Solver() const { return sai_precond; };
+   virtual operator HYPRE_Solver() const { return sai_precond; }
 
    virtual HYPRE_PtrToParSolverFcn SetupFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParaSailsSetup; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParaSailsSetup; }
    virtual HYPRE_PtrToParSolverFcn SolveFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParaSailsSolve; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ParaSailsSolve; }
 
    virtual ~HypreParaSails();
 };
@@ -349,12 +349,12 @@ public:
    HypreBoomerAMG(HypreParMatrix &A);
 
    /// The typecast to HYPRE_Solver returns the internal amg_precond
-   virtual operator HYPRE_Solver() const { return amg_precond; };
+   virtual operator HYPRE_Solver() const { return amg_precond; }
 
    virtual HYPRE_PtrToParSolverFcn SetupFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_BoomerAMGSetup; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_BoomerAMGSetup; }
    virtual HYPRE_PtrToParSolverFcn SolveFcn() const
-   { return (HYPRE_PtrToParSolverFcn) HYPRE_BoomerAMGSolve; };
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_BoomerAMGSolve; }
 
    virtual ~HypreBoomerAMG();
 };
