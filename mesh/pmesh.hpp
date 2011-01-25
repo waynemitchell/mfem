@@ -71,7 +71,7 @@ public:
 #endif
 
    ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_ = NULL,
-           int part_method = 2);
+           int part_method = 1);
 
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }

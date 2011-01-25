@@ -92,7 +92,7 @@ protected:
    void MarkTriMeshForRefinement();
    void MarkTetMeshForRefinement(int mark_faces = 0);
 
-   STable3D *GetElementToFaceTable (int ret_ftbl = 0);
+   STable3D *GetElementToFaceTable(int ret_ftbl = 0);
 
    /** Red refinement. Element with index i is refined. The default
        red refinement for now is Uniform. */
@@ -426,7 +426,8 @@ public:
    ///  The returned Table must be destroyed by the caller
    Table *GetVertexToElementTable();
 
-   void CheckPartitioning (int *partitioning);
+   int *GeneratePartitioning(int nparts, int part_method = 1);
+   void CheckPartitioning(int *partitioning);
 
    void CheckDisplacements(const Vector &displacements, double &tmax);
    void MoveVertices(const Vector &displacements);

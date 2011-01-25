@@ -19,6 +19,7 @@
 
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
+#include "../general/sort_pairs.hpp"
 
 void Mesh::GetElementJacobian(int i, DenseMatrix &J)
 {
@@ -2575,6 +2576,166 @@ STable3D *Mesh::GetElementToFaceTable (int ret_ftbl)
       return faces_tbl;
    delete faces_tbl;
    return NULL;
+}
+
+#ifdef MFEM_USE_MPI
+// auxiliary function for qsort
+static int mfem_less(const void *x, const void *y)
+{
+   if (*(int*)x < *(int*)y)
+      return 1;
+   if (*(int*)x > *(int*)y)
+      return -1;
+   return 0;
+}
+// METIS prototypes
+typedef int idxtype;
+void METIS_PartGraphRecursive(int *, idxtype *, idxtype *, idxtype *, idxtype *,
+                              int *, int *, int *, int *, int *, idxtype *);
+void METIS_PartGraphKway(int *, idxtype *, idxtype *, idxtype *, idxtype *,
+                         int *, int *, int *, int *, int *, idxtype *);
+void METIS_PartGraphVKway(int *, idxtype *, idxtype *, idxtype *, idxtype *,
+                          int *, int *, int *, int *, int *, idxtype *);
+#endif
+
+int *Mesh::GeneratePartitioning(int nparts, int part_method)
+{
+#ifdef MFEM_USE_MPI
+   int i, *partitioning;
+
+   ElementToElementTable();
+
+   partitioning = new int[NumOfElements];
+
+   if (nparts == 1)
+   {
+      for (i = 0; i < NumOfElements; i++)
+         partitioning[i] = 0;
+   }
+   else
+   {
+      int *I, *J, n;
+      int wgtflag = 0;
+      int numflag = 0;
+      int options[5];
+      int edgecut;
+
+      n = NumOfElements;
+      I = el_to_el -> GetI();
+      J = el_to_el -> GetJ();
+      options[0] = 0;
+
+      // Sort the neighbor lists
+      if (part_method >= 0 && part_method <= 2)
+         for (i = 0; i < n; i++)
+            qsort(&J[I[i]], I[i+1]-I[i], sizeof(int), &mfem_less);
+
+      // This function should be used to partition a graph into a small
+      // number of partitions (less than 8).
+      if (part_method == 0 || part_method == 3)
+         METIS_PartGraphRecursive(&n,
+                                  (idxtype *) I,
+                                  (idxtype *) J,
+                                  (idxtype *) NULL,
+                                  (idxtype *) NULL,
+                                  &wgtflag,
+                                  &numflag,
+                                  &nparts,
+                                  options,
+                                  &edgecut,
+                                  (idxtype *) partitioning);
+
+      // This function should be used to partition a graph into a large
+      // number of partitions (greater than 8).
+      if (part_method == 1 || part_method == 4)
+         METIS_PartGraphKway(&n,
+                             (idxtype *) I,
+                             (idxtype *) J,
+                             (idxtype *) NULL,
+                             (idxtype *) NULL,
+                             &wgtflag,
+                             &numflag,
+                             &nparts,
+                             options,
+                             &edgecut,
+                             (idxtype *) partitioning);
+
+      // The objective of this partitioning is to minimize the total
+      // communication volume
+      if (part_method == 2 || part_method == 5)
+         METIS_PartGraphVKway(&n,
+                              (idxtype *) I,
+                              (idxtype *) J,
+                              (idxtype *) NULL,
+                              (idxtype *) NULL,
+                              &wgtflag,
+                              &numflag,
+                              &nparts,
+                              options,
+                              &edgecut,
+                              (idxtype *) partitioning);
+
+#ifdef MFEM_DEBUG
+      cout << "Mesh::GeneratePartitioning (...): edgecut = "
+           << edgecut << endl;
+#endif
+   }
+
+   if (el_to_el)
+      delete el_to_el;
+   el_to_el = NULL;
+
+   // Check for empty partitionings (a "feature" in METIS)
+   {
+      Array< Pair<int,int> > psize(nparts);
+      for (i = 0; i < nparts; i++)
+      {
+         psize[i].one = 0;
+         psize[i].two = i;
+      }
+
+      for (i = 0; i < NumOfElements; i++)
+         psize[partitioning[i]].one++;
+
+      int empty_parts = 0;
+      for (i = 0; i < nparts; i++)
+         if (psize[i].one == 0)
+            empty_parts++;
+
+      // This code just split the largest partitionings in two.
+      // Do we need to replace it with something better?
+      if (empty_parts)
+      {
+         cerr << "Mesh::GeneratePartitioning returned " << empty_parts
+              << " empty parts!" << endl;
+
+         SortPairs<int,int> (psize, nparts);
+
+         for (i = nparts-1; i > nparts-1-empty_parts; i--)
+            psize[i].one /= 2;
+
+         for (int j = 0; j < NumOfElements; j++)
+            for (i = nparts-1; i > nparts-1-empty_parts; i--)
+               if (psize[i].one == 0 || partitioning[j] != psize[i].two)
+                  continue;
+               else
+               {
+                  partitioning[j] = psize[nparts-1-i].two;
+                  psize[i].one--;
+               }
+      }
+   }
+
+   return partitioning;
+
+#else
+
+   mfem_error("Mesh::GeneratePartitioning (...): "
+              "MFEM was compiled without Metis.");
+
+   return NULL;
+
+#endif
 }
 
 /* required: 0 <= partitioning[i] < num_part */
