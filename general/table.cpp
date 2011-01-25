@@ -149,6 +149,16 @@ void Table::GetRow(int i, Array<int> &row) const
       row[i] = jp[i];
 }
 
+void Table::SetIJ(int *newI, int *newJ, int newsize)
+{
+   delete [] I;
+   delete [] J;
+   I = newI;
+   J = newJ;
+   if (newsize >= 0)
+      size = newsize;
+}
+
 int Table::Push(int i, int j)
 {
 #ifdef MFEM_DEBUG

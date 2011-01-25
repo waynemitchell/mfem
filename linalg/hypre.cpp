@@ -79,11 +79,6 @@ HypreParVector::operator HYPRE_ParVector() const
    return (HYPRE_ParVector) x;
 }
 
-HypreParVector::operator double*()
-{
-   return hypre_VectorData(hypre_ParVectorLocalVector(x));
-}
-
 Vector * HypreParVector::GlobalVector()
 {
    hypre_Vector *hv = hypre_ParVectorToVectorAll(*this);

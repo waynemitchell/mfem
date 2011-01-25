@@ -1213,9 +1213,9 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
       sface_lface[i] = (*faces_tbl)(v[0], v[1], v[2]);
    }
 
-   group_svert.Recreate(I_group_svert, J_group_svert);
-   group_sedge.Recreate(I_group_sedge, J_group_sedge);
-   group_sface.Recreate(I_group_sface, J_group_sface);
+   group_svert.SetIJ(I_group_svert, J_group_svert);
+   group_sedge.SetIJ(I_group_sedge, J_group_sedge);
+   group_sface.SetIJ(I_group_sface, J_group_sface);
 
    delete faces_tbl;
 }
@@ -1451,9 +1451,9 @@ void ParMesh::HexUniformRefinement()
       }
       delete faces_tbl;
 
-      group_svert.Recreate(I_group_svert,J_group_svert);
-      group_sedge.Recreate(I_group_sedge,J_group_sedge);
-      group_sface.Recreate(I_group_sface,J_group_sface);
+      group_svert.SetIJ(I_group_svert, J_group_svert);
+      group_sedge.SetIJ(I_group_sedge, J_group_sedge);
+      group_sface.SetIJ(I_group_sface, J_group_sface);
    }
 
    //  GetElementToFaceTable();

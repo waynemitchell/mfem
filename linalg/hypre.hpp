@@ -47,8 +47,6 @@ public:
    operator hypre_ParVector*() const;
    /// Typecasting to hypre's HYPRE_ParVector, a.k.a. void *
    operator HYPRE_ParVector() const;
-   /// Local vector's data
-   operator double*();
    /// Changes the ownership of the the vector
    hypre_ParVector *StealParVector() { own_ParVector = 0; return x; }
 
@@ -64,10 +62,10 @@ public:
        Must be used only for HypreParVectors that do not own the data,
        e.g. created with the constructor:
        HypreParVector(int glob_size, double *_data, int *col).  */
-   void SetData (double *_data);
+   void SetData(double *_data);
 
    /// Set random values
-   int Randomize (int seed);
+   int Randomize(int seed);
 
    /// Prints the locally owned rows in parallel
    void Print(const char *fname);
@@ -96,25 +94,26 @@ private:
 
 public:
    /// Converts hypre's format to HypreParMatrix
-   HypreParMatrix(hypre_ParCSRMatrix * a) : A(a)
+   HypreParMatrix(hypre_ParCSRMatrix *a) : A(a)
    { X = Y = 0; CommPkg = 0; };
    /// Creates block-diagonal square parallel matrix. Diagonal given by diag.
-   HypreParMatrix(int size, int * row, SparseMatrix * diag);
-   /// Creates block-diagonal rectangular parallel matrix. Diagonal given by diag.
-   HypreParMatrix(int M, int N, int * row, int * col, SparseMatrix * diag);
+   HypreParMatrix(int size, int *row, SparseMatrix *diag);
+   /** Creates block-diagonal rectangular parallel matrix. Diagonal
+       given by diag. */
+   HypreParMatrix(int M, int N, int *row, int *col, SparseMatrix *diag);
    /// Creates general (rectangular) parallel matrix
-   HypreParMatrix(int M, int N, int * row, int * col,
-                  SparseMatrix * diag, SparseMatrix * offd, int * cmap);
+   HypreParMatrix(int M, int N, int *row, int *col, SparseMatrix *diag,
+                  SparseMatrix *offd, int *cmap);
 
    /// Creates a parallel matrix from SparseMatrix on processor 0.
    HypreParMatrix(int *row, int *col, SparseMatrix *a);
 
    /// Creates boolean block-diagonal rectangular parallel matrix.
-   HypreParMatrix(int M, int N, int * row, int * col, Table * diag);
+   HypreParMatrix(int M, int N, int *row, int *col, Table *diag);
    /// Creates boolean rectangular parallel matrix (which owns its data)
-   HypreParMatrix(MPI_Comm comm, int id, int np, int * row, int * col,
-                  int * i_diag, int * j_diag, int * i_offd, int * j_offd,
-                  int * cmap, int cmap_size);
+   HypreParMatrix(MPI_Comm comm, int id, int np, int *row, int *col,
+                  int *i_diag, int *j_diag, int *i_offd, int *j_offd,
+                  int *cmap, int cmap_size);
 
    // hypre's communication package object
    void SetCommPkg(hypre_ParCSRCommPkg *comm_pkg);
@@ -155,31 +154,31 @@ public:
    int *GetColStarts() const { return hypre_ParCSRMatrixColStarts(A); }
 
    /// Computes y = alpha * A * x + beta * y
-   int Mult (HypreParVector & x, HypreParVector & y,
-             double alpha = 1.0, double beta = 0.0);
+   int Mult(HypreParVector &x, HypreParVector &y,
+            double alpha = 1.0, double beta = 0.0);
    /// Computes y = alpha * A * x + beta * y
-   int Mult (HYPRE_ParVector x, HYPRE_ParVector y,
-             double alpha = 1.0, double beta = 0.0);
+   int Mult(HYPRE_ParVector x, HYPRE_ParVector y,
+            double alpha = 1.0, double beta = 0.0);
    /// Computes y = alpha * A^t * x + beta * y
-   int MultTranspose (HypreParVector & x, HypreParVector & y,
-                      double alpha = 1.0, double beta = 0.0);
+   int MultTranspose(HypreParVector &x, HypreParVector &y,
+                     double alpha = 1.0, double beta = 0.0);
 
-   virtual void Mult (const Vector &x, Vector &y) const;
+   virtual void Mult(const Vector &x, Vector &y) const;
 
    /// Prints the locally owned rows in parallel
-   void Print(const char * fname, int offi = 0, int offj = 0);
+   void Print(const char *fname, int offi = 0, int offj = 0);
    /// Reads the matrix from a file
-   void Read(const char * fname);
+   void Read(const char *fname);
 
    /// Calls hypre's destroy function
    virtual ~HypreParMatrix();
 };
 
 /// Returns the matrix A * B
-HypreParMatrix * ParMult (HypreParMatrix * A, HypreParMatrix * B);
+HypreParMatrix * ParMult (HypreParMatrix *A, HypreParMatrix *B);
 
 /// Returns the matrix P^t * A * P
-HypreParMatrix * RAP (HypreParMatrix * A, HypreParMatrix * P);
+HypreParMatrix * RAP (HypreParMatrix *A, HypreParMatrix *P);
 
 
 /// Abstract class for hypre's solvers and preconditioners

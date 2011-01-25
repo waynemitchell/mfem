@@ -17,8 +17,15 @@
 class FiniteElementSpace;
 class GridFunction;
 
+#ifdef MFEM_USE_MPI
+class ParMesh;
+#endif
+
 class Mesh
 {
+#ifdef MFEM_USE_MPI
+   friend class ParMesh;
+#endif
 protected:
    int Dim;
 

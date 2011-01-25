@@ -85,6 +85,8 @@ public:
    const int *GetI() const { return I; };
    const int *GetJ() const { return J; };
 
+   void SetIJ(int *newI, int *newJ, int newsize = -1);
+
    /** Establish connection between element i and element j in the table.
        The return value is the index of the connection. It returns -1 if it
        fails to establish the connection. Possibilities are there is not
