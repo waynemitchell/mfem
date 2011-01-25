@@ -19,23 +19,23 @@ private:
    Array<int> me;
 
 public:
-   IntegerSet() { };
+   IntegerSet() { }
 
-   IntegerSet (IntegerSet &s);
+   IntegerSet(IntegerSet &s);
 
-   IntegerSet (const int n, const int *p) { Recreate (n, p); };
+   IntegerSet(const int n, const int *p) { Recreate(n, p); }
 
-   int Size() { return me.Size(); };
+   int Size() { return me.Size(); }
 
-   operator Array<int>& () { return me; } ;
+   operator Array<int>& () { return me; }
 
-   int PickElement() { return me[0]; };
+   int PickElement() { return me[0]; }
 
    int PickRandomElement();
 
-   int operator== (IntegerSet &s);
+   int operator==(IntegerSet &s);
 
-   void Recreate (const int n, const int *p);
+   void Recreate(const int n, const int *p);
 };
 
 /// List of integer sets
@@ -46,17 +46,17 @@ private:
 
 public:
 
-   int Size() { return TheList.Size(); };
+   int Size() { return TheList.Size(); }
 
-   int PickElementInSet (int i) { return TheList[i] -> PickElement(); };
+   int PickElementInSet(int i) { return TheList[i]->PickElement(); }
 
-   int PickRandomElementInSet (int i) { return TheList[i] -> PickRandomElement(); };
+   int PickRandomElementInSet(int i) { return TheList[i]->PickRandomElement(); }
 
-   int Insert (IntegerSet &s);
+   int Insert(IntegerSet &s);
 
-   int Lookup (IntegerSet &s);
+   int Lookup(IntegerSet &s);
 
-   void AsTable (Table & t);
+   void AsTable(Table &t);
 
    ~ListOfIntegerSets();
 };

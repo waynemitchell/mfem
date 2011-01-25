@@ -83,8 +83,8 @@ int ListOfIntegerSets::Lookup (IntegerSet &s)
       if (*TheList[i] == s)
          return i;
 
-   cerr << "ListOfIntegerSets::Lookup ()" << endl;
-   return *((int *)NULL); // crash
+   mfem_error("ListOfIntegerSets::Lookup ()");
+   return -1;
 }
 
 void ListOfIntegerSets::AsTable (Table & t)

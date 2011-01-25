@@ -17,16 +17,6 @@
 #include "../general/osockstream.hpp"
 #include "../general/sets.hpp"
 
-// These are used to get a unique ordering of the edges
-typedef struct {int edge;  double length;} edge_length;
-static  int edge_compare(const void *ii, const void *jj)
-{
-   edge_length *i = (edge_length *)ii, *j = (edge_length *)jj;
-   if (i->length > j->length) return (1);
-   if (i->length < j->length) return (-1);
-   return (0);
-}
-
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                  int part_method)
 {
@@ -34,16 +24,16 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    int *partitioning;
 
    MyComm = comm;
-   MPI_Comm_size (MyComm, &NRanks);
-   MPI_Comm_rank (MyComm, &MyRank);
+   MPI_Comm_size(MyComm, &NRanks);
+   MPI_Comm_rank(MyComm, &MyRank);
 
    if (partitioning_)
       partitioning = partitioning_;
    else
-      partitioning = mesh.GeneratePartitioning (NRanks,part_method);
+      partitioning = mesh.GeneratePartitioning(NRanks, part_method);
 
    Array<int> vert;
-   Array<int> vert_global_local (mesh.GetNV());
+   Array<int> vert_global_local(mesh.GetNV());
    int vert_counter, element_counter, bdrelem_counter;
 
    // make sure that the same edges are marked in the elements,
@@ -59,7 +49,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    for (i = 0; i < mesh.GetNE(); i++)
       if (partitioning[i] == MyRank)
       {
-         mesh.GetElementVertices (i, vert);
+         mesh.GetElementVertices(i, vert);
          element_counter++;
          for (j = 0; j < vert.Size(); j++)
             if (vert_global_local[vert[j]] < 0)
@@ -68,7 +58,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
    NumOfVertices = vert_counter;
    NumOfElements = element_counter;
-   vertices.SetSize (NumOfVertices);
+   vertices.SetSize(NumOfVertices);
 
    // preserve ordering when running in serial
    if (NRanks == 1)
@@ -133,7 +123,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    else if (Dim == 2)
    {
       edge_element = new Table;
-      mesh.ElementToEdgeTable().GetTranspose (*edge_element, mesh.GetNEdges());
+      Transpose(mesh.ElementToEdgeTable(), *edge_element, mesh.GetNEdges());
 
       NumOfBdrElements = 0;
       for (i = 0; i < mesh.GetNBE(); i++)
@@ -225,7 +215,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    if (!edge_element)
    {
       edge_element = new Table;
-      mesh.ElementToEdgeTable().GetTranspose (*edge_element, mesh.GetNEdges());
+      Transpose(mesh.ElementToEdgeTable(), *edge_element, mesh.GetNEdges());
    }
    for (i = 0; i < edge_element->Size(); i++)
    {
@@ -363,26 +353,26 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    sedge_ledge. SetSize (sedge_counter);
 
    {
-      STable v_to_v (NumOfVertices, 100);
-      Mesh::GetVertexToVertexTable (v_to_v);
+      DSTable v_to_v(NumOfVertices);
+      GetVertexToVertexTable(v_to_v);
 
       sedge_counter = 0;
       for (i = 0; i < edge_element->Size(); i++)
          if (edge_element->GetRow(i)[0] >= 0)
          {
-            mesh.GetEdgeVertices (i, vert);
+            mesh.GetEdgeVertices(i, vert);
 
             shared_edges[sedge_counter] =
-               new Segment (vert_global_local[vert[0]],
-                            vert_global_local[vert[1]],1);
+               new Segment(vert_global_local[vert[0]],
+                           vert_global_local[vert[1]], 1);
 
             if ((sedge_ledge[sedge_counter] =
-                 v_to_v (vert_global_local[vert[0]],
-                         vert_global_local[vert[1]])) < 0)
+                 v_to_v(vert_global_local[vert[0]],
+                        vert_global_local[vert[1]])) < 0)
             {
                cerr << "\n\n\n" << MyRank << ": ParMesh::ParMesh: "
                     << "ERROR in v_to_v\n\n" << endl;
-               *((int *)NULL) = 0;  // crash
+               mfem_error();
             }
 
             sedge_counter++;
@@ -515,9 +505,9 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
          if (lproc_proc[groupmaster_lproc[i]] != status.MPI_SOURCE)
          {
-            cout << "\n\n\nParMesh::ParMesh: " << MyRank
+            cerr << "\n\n\nParMesh::ParMesh: " << MyRank
                  << ": ERROR\n\n\n" << endl;
-            *((int*)NULL)=0; // crash
+            mfem_error();
          }
       }
       delete [] recv_buf;
@@ -555,11 +545,12 @@ void ParMesh::GroupFace(int group, int i, int &face, int &o)
 // the following meaning:
 // 0 - the edge was not refined
 // 1 - the edge e was refined once by splitting v[0],v[1]
-int ParMesh::GetEdgeSplittings(Element *edge, const STable &v_to_v, int *middle)
+int ParMesh::GetEdgeSplittings(Element *edge, const DSTable &v_to_v,
+                               int *middle)
 {
-   int m, *v = edge -> GetVertices();
+   int m, *v = edge->GetVertices();
 
-   if ((m = v_to_v(v[0], v[1]))!=-1 && middle[m]!=-1)
+   if ((m = v_to_v(v[0], v[1])) != -1 && middle[m] != -1)
       return 1;
    else
       return 0;
@@ -572,22 +563,26 @@ int ParMesh::GetEdgeSplittings(Element *edge, const STable &v_to_v, int *middle)
 // 2 - the face was refined twice by splitting v[0],v[1] and then v[1],v[2]
 // 3 - the face was refined twice by splitting v[0],v[1] and then v[0],v[2]
 // 4 - the face was refined three times (as in 2+3)
-int ParMesh::GetFaceSplittings(Element *face, const STable &v_to_v, int *middle)
+int ParMesh::GetFaceSplittings(Element *face, const DSTable &v_to_v,
+                               int *middle)
 {
    int m, right = 0;
    int number_of_splittings = 0;
-   int *v = face -> GetVertices();
+   int *v = face->GetVertices();
 
-   if ((m = v_to_v(v[0], v[1]))!=-1 && middle[m]!=-1) {
+   if ((m = v_to_v(v[0], v[1])) != -1 && middle[m] != -1)
+   {
       number_of_splittings++;
-      if ((m = v_to_v(v[1], v[2]))!=-1 && middle[m]!=-1) {
+      if ((m = v_to_v(v[1], v[2])) != -1 && middle[m] != -1)
+      {
          right = 1;
          number_of_splittings++;
       }
-      if ((m = v_to_v(v[2], v[0]))!=-1 && middle[m]!=-1)
+      if ((m = v_to_v(v[2], v[0])) != -1 && middle[m] != -1)
          number_of_splittings++;
 
-      switch (number_of_splittings) {
+      switch (number_of_splittings)
+      {
       case 2:
          if (right == 0)
             number_of_splittings++;
@@ -605,27 +600,30 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 {
    int i;
 
-   if (Dim == 3) {
+   if (Dim == 3)
+   {
       int nedges;
 
-      if (WantTwoLevelState) {
+      if (WantTwoLevelState)
+      {
          c_NumOfVertices    = NumOfVertices;
          c_NumOfElements    = NumOfElements;
          c_NumOfBdrElements = NumOfBdrElements;
       }
 
       int uniform_refinement = 0;
-      if (type < 0) {
+      if (type < 0)
+      {
          type = -type;
          uniform_refinement = 1;
       }
 
       // 1. Get table of vertex to vertex connections.
-      STable v_to_v(NumOfVertices, 100);
+      DSTable v_to_v(NumOfVertices);
       GetVertexToVertexTable(v_to_v);
 
       // 2. Get edge to element connections in arrays edge1 and edge2
-      nedges = v_to_v.Size_of_connections();
+      nedges = v_to_v.NumberOfEntries();
       int *middle = new int[nedges];
 
       for(i=0; i<nedges; i++)
@@ -633,7 +631,8 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
       // 3. Do the red refinement.
       int ii;
-      switch (type) {
+      switch (type)
+      {
       case 1:
          for(i=0; i<marked_el.Size(); i++)
             Bisection ( marked_el[i], v_to_v, NULL, NULL, middle);
@@ -662,7 +661,8 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          break;
       }
 
-      if (WantTwoLevelState) {
+      if (WantTwoLevelState)
+      {
          RefinedElement::State = RefinedElement::FINE;
          State = Mesh::TWO_LEVEL_FINE;
       }
@@ -677,7 +677,8 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       int faces_in_group, max_faces_in_group = 0;
       // face_splittings identify how the shared faces have been split
       int **face_splittings = new int*[GetNGroups()-1];
-      for (i = 0; i < GetNGroups()-1; i++) {
+      for (i = 0; i < GetNGroups()-1; i++)
+      {
          faces_in_group = GroupNFaces(i+1);
          face_splittings[i] = new int[faces_in_group];
          if (faces_in_group > max_faces_in_group)
@@ -687,10 +688,12 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
       do {
          need_refinement = 0;
-         for(i = 0; i < NumOfElements; i++) {
-            if (elements[i]->NeedRefinement(v_to_v, middle)) {
+         for (i = 0; i < NumOfElements; i++)
+         {
+            if (elements[i]->NeedRefinement(v_to_v, middle))
+            {
                need_refinement = 1;
-               Bisection ( i, v_to_v, NULL, NULL, middle);
+               Bisection(i, v_to_v, NULL, NULL, middle);
             }
          }
 
@@ -705,15 +708,18 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          MPI_Status  status;
 
          // if the mesh is locally conforming start making it globally conforming
-         if (need_refinement == 0) {
+         if (need_refinement == 0)
+         {
             MPI_Barrier(MyComm);
 
             //==== (a) send the type of interface splitting ========
-            for (i = 0; i < GetNGroups()-1; i++) {
+            for (i = 0; i < GetNGroups()-1; i++)
+            {
                group_sface.GetRow(i, group_faces);
                faces_in_group = group_faces.Size();
                // it is enough to communicate through the faces
-               if (faces_in_group != 0) {
+               if (faces_in_group != 0)
+               {
                   for (j = 0; j < faces_in_group; j++)
                      face_splittings[i][j] =
                         GetFaceSplittings(shared_faces[group_faces[j]], v_to_v, middle);
@@ -722,16 +728,18 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                      neighbor = lproc_proc[group_lproc.GetJ()[j+1]];
                   else
                      neighbor = lproc_proc[group_lproc.GetJ()[j]];
-                  MPI_Isend (face_splittings[i], faces_in_group, MPI_INT,
-                             neighbor, 0, MyComm, &request);
+                  MPI_Isend(face_splittings[i], faces_in_group, MPI_INT,
+                            neighbor, 0, MyComm, &request);
                }
             }
 
             //==== (b) receive the type of interface splitting =====
-            for (i = 0; i < GetNGroups()-1; i++) {
+            for (i = 0; i < GetNGroups()-1; i++)
+            {
                group_sface.GetRow(i, group_faces);
                faces_in_group = group_faces.Size();
-               if (faces_in_group != 0) {
+               if (faces_in_group != 0)
+               {
                   j = group_lproc.GetI()[i+1];
                   if (group_lproc.GetJ()[j] == 0)
                      neighbor = lproc_proc[group_lproc.GetJ()[j+1]];
@@ -741,19 +749,22 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                            MPI_ANY_TAG, MyComm, &status);
 
                   for (j = 0; j < faces_in_group; j++)
-                     if (iBuf[j] != face_splittings[i][j]) {
+                     if (iBuf[j] != face_splittings[i][j])
+                     {
                         v = shared_faces[group_faces[j]] -> GetVertices();
                         for (k = 0; k < 3; k++)
                            if (refined_edge[iBuf[j]][k] == 1 &&
-                               refined_edge[face_splittings[i][j]][k] == 0) {
+                               refined_edge[face_splittings[i][j]][k] == 0)
+                           {
                               ii = v_to_v(v[k], v[(k+1)%3]);
-                              if (middle[ii] == -1) {
+                              if (middle[ii] == -1)
+                              {
                                  need_refinement = 1;
                                  middle[ii] = NumOfVertices++;
                                  for (c = 0; c < 3; c++)
                                     coord[c] = 0.5 * (vertices[v[k]](c) +
                                                       vertices[v[(k+1)%3]](c));
-                                 Vertex V(coord);
+                                 Vertex V(coord, Dim);
                                  vertices.Append(V);
                               }
                            }
@@ -762,9 +773,10 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
             }
 
             ii = need_refinement;
-            MPI_Allreduce (&ii, &need_refinement, 1, MPI_INT, MPI_LOR, MyComm);
+            MPI_Allreduce(&ii, &need_refinement, 1, MPI_INT, MPI_LOR, MyComm);
          }
-      } while (need_refinement == 1);
+      }
+      while (need_refinement == 1);
 
       for (i = 0; i < GetNGroups()-1; i++)
          delete [] face_splittings[i];
@@ -775,10 +787,11 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       // 5. Update the boundary elements.
       do {
          need_refinement = 0;
-         for(i=0; i<NumOfBdrElements; i++)
-            if (boundary[i]->NeedRefinement(v_to_v, middle)) {
+         for (i = 0; i < NumOfBdrElements; i++)
+            if (boundary[i]->NeedRefinement(v_to_v, middle))
+            {
                need_refinement = 1;
-               Bisection (i, v_to_v, middle);
+               Bisection(i, v_to_v, middle);
             }
       }
       while (need_refinement == 1);
@@ -788,7 +801,8 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
       // 6. Un-mark the Pf elements.
       int refinement_edges[2], type, flag;
-      for(i=0; i<NumOfElements; i++) {
+      for (i = 0; i < NumOfElements; i++)
+      {
          Element *El = elements[i];
          while (El->GetType() == Element::BISECTED)
             El = ((BisectedElement *) El)->FirstChild;
@@ -805,7 +819,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       delete [] middle;
 
 #ifdef MFEM_DEBUG
-      CheckElementOrientation ();
+      CheckElementOrientation();
 #endif
 
       if (el_to_edge != NULL)
@@ -838,7 +852,8 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
    } //  'if (Dim == 3)'
 
 
-   if (Dim == 2) {
+   if (Dim == 2)
+   {
       int i, j, ind, nedges;
       Array<int> v;
 
@@ -855,11 +870,11 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
 
       // 1. Get table of vertex to vertex connections.
-      STable v_to_v(NumOfVertices, 15);
+      DSTable v_to_v(NumOfVertices);
       GetVertexToVertexTable(v_to_v);
 
       // 2. Get edge to element connections in arrays edge1 and edge2
-      nedges = v_to_v.Size_of_connections();
+      nedges = v_to_v.NumberOfEntries();
       int *edge1  = new int[nedges];
       int *edge2  = new int[nedges];
       int *middle = new int[nedges];
@@ -923,7 +938,8 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          MPI_Status  status;
 
          // if the mesh is locally conforming start making it globally conforming
-         if (need_refinement == 0) {
+         if (need_refinement == 0)
+         {
             MPI_Barrier(MyComm);
 
             //==== (a) send the type of interface splitting ========
@@ -945,10 +961,12 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
             }
 
             //==== (b) receive the type of interface splitting =====
-            for (i = 0; i < GetNGroups()-1; i++) {
+            for (i = 0; i < GetNGroups()-1; i++)
+            {
                group_sedge.GetRow(i, group_edges);
                edges_in_group = group_edges.Size();
-               if (edges_in_group != 0) {
+               if (edges_in_group != 0)
+               {
                   j = group_lproc.GetI()[i+1];
                   if (group_lproc.GetJ()[j] == 0)
                      neighbor = lproc_proc[group_lproc.GetJ()[j+1]];
@@ -958,19 +976,23 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                            MPI_ANY_TAG, MyComm, &status);
 
                   for (j = 0; j < edges_in_group; j++)
-                     if (iBuf[j] != edge_splittings[i][j]) {
+                     if (iBuf[j] != edge_splittings[i][j])
+                     {
                         v = shared_edges[group_edges[j]] -> GetVertices();
                         for (k = 0; k < 3; k++)
                            if (refined_edge[iBuf[j]][k] == 1 &&
-                               refined_edge[edge_splittings[i][j]][k] == 0) {
+                               refined_edge[edge_splittings[i][j]][k] == 0)
+                           {
                               ii = v_to_v(v[k], v[(k+1)%3]);
-                              if (middle[ii] == -1) {
+                              if (middle[ii] == -1)
+                              {
                                  need_refinement = 1;
                                  middle[ii] = NumOfVertices++;
                                  for (c = 0; c < 3; c++)
                                     coord[c] = 0.5 * (vertices[v[k]](c) +
                                                       vertices[v[(k+1)%3]](c));
-                                 Vertex V(coord);
+                                 Vertex V(coord, Dim);
+                                 // TODO: (Dim == 2) here!?
                                  vertices.Append(V);
                               }
                            }
@@ -1031,7 +1053,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       delete [] middle;
 
 #ifdef MFEM_DEBUG
-      CheckElementOrientation ();
+      CheckElementOrientation();
 #endif
 
       if (el_to_edge != NULL)
@@ -1051,7 +1073,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
    } //  'if (Dim == 2)'
 }
 
-void ParMesh::RefineGroups (const STable &v_to_v, int *middle)
+void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
 {
    int i, attr, newv[3], ind, f_ind;
    Array<int> v;
@@ -1086,21 +1108,24 @@ void ParMesh::RefineGroups (const STable &v_to_v, int *middle)
                            + 3*group_sface.Size_of_connections()];
    J_group_sface = new int[4*group_sface.Size_of_connections()];
 
-   for (group = 0; group < GetNGroups()-1; group++) {
+   for (group = 0; group < GetNGroups()-1; group++)
+   {
       // Get the group shared objects
       group_svert.GetRow(group, group_verts);
       group_sedge.GetRow(group, group_edges);
       group_sface.GetRow(group, group_faces);
 
       // Check which edges have been refined
-      for(i = 0; i < group_sedge.RowSize(group); i++) {
+      for(i = 0; i < group_sedge.RowSize(group); i++)
+      {
          shared_edges[group_edges[i]] -> GetVertices(v);
-         ind = middle[v_to_v(v[0],v[1])];
-         if (ind != -1) {
+         ind = middle[v_to_v(v[0], v[1])];
+         if (ind != -1)
+         {
             // add a vertex
             group_verts.Append(svert_lvert.Append(ind)-1);
             // update the edges
-            shared_edges[group_edges[i]] -> GetAttribute(attr);
+            attr = shared_edges[group_edges[i]]->GetAttribute();
             shared_edges.Append(new Segment(v[1],ind,attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
             newv[0] = v[0]; newv[1] = ind;
@@ -1109,11 +1134,13 @@ void ParMesh::RefineGroups (const STable &v_to_v, int *middle)
       }
 
       // Check which faces have been refined
-      for(i = 0; i < group_sface.RowSize(group); i++) {
+      for (i = 0; i < group_sface.RowSize(group); i++)
+      {
          shared_faces[group_faces[i]] -> GetVertices(v);
-         ind = middle[v_to_v(v[0],v[1])];
-         if (ind != -1) {
-            shared_faces[group_faces[i]] -> GetAttribute(attr);
+         ind = middle[v_to_v(v[0], v[1])];
+         if (ind != -1)
+         {
+            attr = shared_faces[group_faces[i]]->GetAttribute();
             // add the refinement edge
             shared_edges.Append(new Segment(v[2],ind,attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
@@ -1126,8 +1153,9 @@ void ParMesh::RefineGroups (const STable &v_to_v, int *middle)
 
             // check if the left face has also been refined
             shared_faces[group_faces[i]] -> GetVertices(v);
-            ind = middle[v_to_v(v[0],v[1])];
-            if (ind != -1) {
+            ind = middle[v_to_v(v[0], v[1])];
+            if (ind != -1)
+            {
                // add the refinement edge
                shared_edges.Append(new Segment(v[2],ind,attr));
                group_edges.Append(sedge_ledge.Append(-1)-1);
@@ -1140,8 +1168,9 @@ void ParMesh::RefineGroups (const STable &v_to_v, int *middle)
 
             // check if the right face has also been refined
             shared_faces[group_faces[f_ind]] -> GetVertices(v);
-            ind = middle[v_to_v(v[0],v[1])];
-            if (ind != -1) {
+            ind = middle[v_to_v(v[0], v[1])];
+            if (ind != -1)
+            {
                // add the refinement edge
                shared_edges.Append(new Segment(v[2],ind,attr));
                group_edges.Append(sedge_ledge.Append(-1)-1);
@@ -1171,25 +1200,28 @@ void ParMesh::RefineGroups (const STable &v_to_v, int *middle)
    }
 
    // Fix the local numbers of shared edges and faces
-   STable new_v_to_v(NumOfVertices, 100);
+   DSTable new_v_to_v(NumOfVertices);
    GetVertexToVertexTable(new_v_to_v);
-   for (i = 0; i < shared_edges.Size(); i++) {
-      shared_edges[i] -> GetVertices(v);
-      sedge_ledge[i] = new_v_to_v(v[0],v[1]);
+   for (i = 0; i < shared_edges.Size(); i++)
+   {
+      shared_edges[i]->GetVertices(v);
+      sedge_ledge[i] = new_v_to_v(v[0], v[1]);
    }
-   for (i = 0; i < shared_faces.Size(); i++) {
-      shared_faces[i] -> GetVertices(v);
+   for (i = 0; i < shared_faces.Size(); i++)
+   {
+      shared_faces[i]->GetVertices(v);
       sface_lface[i] = (*faces_tbl)(v[0], v[1], v[2]);
    }
 
-   group_svert.Recreate(I_group_svert,J_group_svert);
-   group_sedge.Recreate(I_group_sedge,J_group_sedge);
-   group_sface.Recreate(I_group_sface,J_group_sface);
+   group_svert.Recreate(I_group_svert, J_group_svert);
+   group_sedge.Recreate(I_group_sedge, J_group_sedge);
+   group_sface.Recreate(I_group_sface, J_group_sface);
 
    delete faces_tbl;
 }
 
-void ParMesh::HexUniformRefinement() {
+void ParMesh::HexUniformRefinement()
+{
    int oedge = NumOfVertices;
    int oface = oedge + NumOfEdges;
    int oelem = oface + NumOfFaces;
@@ -1198,17 +1230,18 @@ void ParMesh::HexUniformRefinement() {
    int *v, *e, *f;
    int vv[4];
 
-   STable v_to_v(NumOfVertices, 100);
+   DSTable v_to_v(NumOfVertices);
    GetVertexToVertexTable(v_to_v);
    STable3D *faces_tbl = GetElementToFaceTable(1);
 
-   vertices.SetSize (oelem + NumOfElements);
-   for (i = 0; i < NumOfElements; i++) {
-      v = elements[i] -> GetVertices();
+   vertices.SetSize(oelem + NumOfElements);
+   for (i = 0; i < NumOfElements; i++)
+   {
+      v = elements[i]->GetVertices();
 
-      AverageVertices (v, 8, oelem+i);
+      AverageVertices(v, 8, oelem+i);
 
-      f = el_to_face -> GetRow(i);
+      f = el_to_face->GetRow(i);
 
       vv[0] = v[3], vv[1] = v[2], vv[2] = v[1], vv[3] = v[0];
       AverageVertices (vv, 4, oface+f[0]);
@@ -1280,7 +1313,8 @@ void ParMesh::HexUniformRefinement() {
    }
 
    boundary.SetSize (4 * NumOfBdrElements);
-   for (i = NumOfBdrElements - 1; i >= 0 ; i--) {
+   for (i = NumOfBdrElements - 1; i >= 0 ; i--)
+   {
       attr = boundary[i] -> GetAttribute();
       v = boundary[i] -> GetVertices();
       e = bel_to_edge -> GetRow(i);
@@ -1331,20 +1365,22 @@ void ParMesh::HexUniformRefinement() {
                               + 4*group_sface.Size_of_connections()];
       J_group_sface = new int[4*group_sface.Size_of_connections()];
 
-      for (group = 0; group < GetNGroups()-1; group++) {
+      for (group = 0; group < GetNGroups()-1; group++)
+      {
          // Get the group shared objects
          group_svert.GetRow(group, group_verts);
          group_sedge.GetRow(group, group_edges);
          group_sface.GetRow(group, group_faces);
 
          // Process the edges that have been refined
-         for(i = 0; i < group_sedge.RowSize(group); i++) {
+         for (i = 0; i < group_sedge.RowSize(group); i++)
+         {
             shared_edges[group_edges[i]] -> GetVertices(v);
             ind = oedge+v_to_v(v[0],v[1]);
             // add a vertex
             group_verts.Append(svert_lvert.Append(ind)-1);
             // update the edges
-            shared_edges[group_edges[i]] -> GetAttribute(attr);
+            attr = shared_edges[group_edges[i]]->GetAttribute();
             shared_edges.Append(new Segment(v[1],ind,attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
             newv[0] = v[0]; newv[1] = ind;
@@ -1352,9 +1388,10 @@ void ParMesh::HexUniformRefinement() {
          }
 
          // Process the faces that have been refined
-         for(i = 0; i < group_sface.RowSize(group); i++) {
-            shared_faces[group_faces[i]] -> GetVertices(v);
-            shared_faces[group_faces[i]] -> GetAttribute(attr);
+         for (i = 0; i < group_sface.RowSize(group); i++)
+         {
+            shared_faces[group_faces[i]]->GetVertices(v);
+            attr = shared_faces[group_faces[i]]->GetAttribute();
             // add the refinement edges
             m[0] = oface+(*faces_tbl)(v[0], v[1], v[2], v[3]);
             m[1] = oedge+v_to_v(v[0],v[1]);
@@ -1397,17 +1434,19 @@ void ParMesh::HexUniformRefinement() {
       }
 
       // Fix the local numbers of shared edges and faces
-      STable new_v_to_v(NumOfVertices, 100);
+      DSTable new_v_to_v(NumOfVertices);
       GetVertexToVertexTable(new_v_to_v);
-      for (i = 0; i < shared_edges.Size(); i++) {
-         shared_edges[i] -> GetVertices(v);
-         sedge_ledge[i] = new_v_to_v(v[0],v[1]);
+      for (i = 0; i < shared_edges.Size(); i++)
+      {
+         shared_edges[i]->GetVertices(v);
+         sedge_ledge[i] = new_v_to_v(v[0], v[1]);
       }
 
       delete faces_tbl;
       faces_tbl = GetElementToFaceTable(1);
-      for (i = 0; i < shared_faces.Size(); i++) {
-         shared_faces[i] -> GetVertices(v);
+      for (i = 0; i < shared_faces.Size(); i++)
+      {
+         shared_faces[i]->GetVertices(v);
          sface_lface[i] = (*faces_tbl)(v[0], v[1], v[2], v[3]);
       }
       delete faces_tbl;
@@ -1537,8 +1576,9 @@ void ParMesh::Print (ostream &out) const
       // print the boundary + shared edges information
       out << NumOfBdrElements + shared_edges.Size() << endl;
       // boundary
-      for (i = 0; i < NumOfBdrElements; i++) {
-         boundary[i]->GetAttribute(attr);
+      for (i = 0; i < NumOfBdrElements; i++)
+      {
+         attr = boundary[i]->GetAttribute();
          boundary[i]->GetVertices(v);
          out << attr << "     ";
          for (j = 0; j < v.Size(); j++)
@@ -1548,7 +1588,7 @@ void ParMesh::Print (ostream &out) const
       // shared edges
       for (i = 0; i < shared_edges.Size(); i++)
       {
-         shared_edges[i]->GetAttribute(attr);
+         attr = shared_edges[i]->GetAttribute();
          shared_edges[i]->GetVertices(v);
          out << attr << "     ";
          for (j = 0; j < v.Size(); j++)
@@ -1558,9 +1598,10 @@ void ParMesh::Print (ostream &out) const
 
       // print the elements
       out << NumOfElements << endl;
-      for (i = 0; i < NumOfElements; i++) {
-         elements[i]->GetAttribute(attr);
-         elements[i]->GetVertices( v);
+      for (i = 0; i < NumOfElements; i++)
+      {
+         attr = elements[i]->GetAttribute();
+         elements[i]->GetVertices(v);
 
          out << attr << "   ";
          if ((j = GetElementType (i)) == Element::TRIANGLE)
@@ -1578,7 +1619,8 @@ void ParMesh::Print (ostream &out) const
 
       // print the vertices
       out << NumOfVertices << endl;
-      for (i = 0; i < NumOfVertices; i++) {
+      for (i = 0; i < NumOfVertices; i++)
+      {
          for (j = 0; j < Dim; j++)
             out << vertices[i](j) << " ";
          out << endl;
@@ -1910,8 +1952,9 @@ void ParMesh::PrintAsOne (ostream &out)
          MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
          out << ne << endl;
          // boundary
-         for (i = 0; i < NumOfBdrElements; i++) {
-            boundary[i]->GetAttribute(attr);
+         for (i = 0; i < NumOfBdrElements; i++)
+         {
+            attr = boundary[i]->GetAttribute();
             boundary[i]->GetVertices(v);
             out << attr << "     ";
             for (j = 0; j < v.Size(); j++)
@@ -1919,8 +1962,9 @@ void ParMesh::PrintAsOne (ostream &out)
             out << endl;
          }
          // shared edges
-         for (i = 0; i < shared_edges.Size(); i++) {
-            shared_edges[i]->GetAttribute(attr);
+         for (i = 0; i < shared_edges.Size(); i++)
+         {
+            attr = shared_edges[i]->GetAttribute();
             shared_edges[i]->GetVertices(v);
             out << attr << "     ";
             for (j = 0; j < v.Size(); j++)
@@ -1947,9 +1991,10 @@ void ParMesh::PrintAsOne (ostream &out)
          nv = NumOfElements;
          MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
          out << ne << '\n';
-         for (i = 0; i < NumOfElements; i++) {
-            elements[i]->GetAttribute(attr);
-            elements[i]->GetVertices( v);
+         for (i = 0; i < NumOfElements; i++)
+         {
+            attr = elements[i]->GetAttribute();
+            elements[i]->GetVertices(v);
             out << 1 << "   " << 3 << "   ";
             for (j = 0; j < v.Size(); j++)
                out << v[j] + 1 << "  ";

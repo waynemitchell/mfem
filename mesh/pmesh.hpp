@@ -32,9 +32,9 @@ private:
    Array<int> sface_lface;
 
    /// Return a number(0-1) identifying how the given edge has been split
-   int GetEdgeSplittings(Element *edge, const STable &v_to_v, int *middle);
+   int GetEdgeSplittings(Element *edge, const DSTable &v_to_v, int *middle);
    /// Return a number(0-4) identifying how the given face has been split
-   int GetFaceSplittings(Element *face, const STable &v_to_v, int *middle);
+   int GetFaceSplittings(Element *face, const DSTable &v_to_v, int *middle);
 
 public:
 
@@ -106,7 +106,7 @@ public:
    virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
 
    /// Update the groups after tet refinement
-   void RefineGroups(const STable &v_to_v, int *middle);
+   void RefineGroups(const DSTable &v_to_v, int *middle);
 
    /// Refine a hexahedral mesh.
    virtual void HexUniformRefinement();
