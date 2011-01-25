@@ -83,7 +83,7 @@ public:
    void LoseDofOffsets() { dof_offsets.LoseData(); };
    void LoseTrueDofOffsets() { tdof_offsets.LoseData(); };
 
-   ~ParFiniteElementSpace() { if (P) delete P; }
+   virtual ~ParFiniteElementSpace() { if (P) delete P; }
 };
 
 #endif
