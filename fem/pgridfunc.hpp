@@ -31,6 +31,7 @@ public:
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;
 
+   /// Merge the local grid functions
    void SaveAsOne(ostream &out = cout);
 };
 

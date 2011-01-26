@@ -14,8 +14,8 @@
 #include "sets.hpp"
 
 
-IntegerSet::IntegerSet (IntegerSet &s)
-   : me (s.me.Size())
+IntegerSet::IntegerSet(IntegerSet &s)
+   : me(s.me.Size())
 {
    for (int i = 0; i < me.Size(); i++)
       me[i] = s.me[i];
@@ -47,11 +47,11 @@ int IntegerSet::PickRandomElement()
    return me[rand()/(RAND_MAX/size)];
 }
 
-void IntegerSet::Recreate (const int n, const int *p)
+void IntegerSet::Recreate(const int n, const int *p)
 {
    int i, j;
 
-   me.SetSize (n);
+   me.SetSize(n);
 
    for (i = 0; i < n; i++)
       me[i] = p[i];
@@ -62,22 +62,22 @@ void IntegerSet::Recreate (const int n, const int *p)
       if (me[i] != me[j])
          me[++j] = me[i];
 
-   me.SetSize (j+1);
+   me.SetSize(j+1);
 }
 
 
-int ListOfIntegerSets::Insert (IntegerSet &s)
+int ListOfIntegerSets::Insert(IntegerSet &s)
 {
    for (int i = 0; i < TheList.Size(); i++)
       if (*TheList[i] == s)
          return i;
 
-   TheList.Append (new IntegerSet (s));
+   TheList.Append(new IntegerSet(s));
 
    return TheList.Size()-1;
 }
 
-int ListOfIntegerSets::Lookup (IntegerSet &s)
+int ListOfIntegerSets::Lookup(IntegerSet &s)
 {
    for (int i = 0; i < TheList.Size(); i++)
       if (*TheList[i] == s)
@@ -87,14 +87,14 @@ int ListOfIntegerSets::Lookup (IntegerSet &s)
    return -1;
 }
 
-void ListOfIntegerSets::AsTable (Table & t)
+void ListOfIntegerSets::AsTable(Table & t)
 {
    int i;
 
    t.MakeI(Size());
 
    for (i = 0; i < Size(); i++)
-      t.AddColumnsInRow (i, TheList[i] -> Size());
+      t.AddColumnsInRow(i, TheList[i] -> Size());
 
    t.MakeJ();
 

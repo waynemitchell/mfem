@@ -15,9 +15,9 @@
 
 void ParLinearForm::Update(ParFiniteElementSpace *pf)
 {
-   if (pf)  pfes = pf;
+   if (pf) pfes = pf;
 
-   LinearForm::Update (pfes);
+   LinearForm::Update(pfes);
 }
 
 HypreParVector *ParLinearForm::ParallelAssemble()
@@ -40,7 +40,7 @@ HypreParVector *ParLinearForm::ParallelAssemble()
    else
       tv = new HypreParVector(tdof_off[nproc], tdof_off);
 
-   pfes -> Dof_TrueDof_Matrix() -> MultTranspose (*v,*tv);
+   pfes -> Dof_TrueDof_Matrix() -> MultTranspose(*v,*tv);
 
    delete v;
 

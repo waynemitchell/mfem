@@ -19,11 +19,11 @@ protected:
    ParFiniteElementSpace *pfes;
 
 public:
-   ParBilinearForm (ParFiniteElementSpace *pf)
-      : BilinearForm (pf) { pfes = pf; }
+   ParBilinearForm(ParFiniteElementSpace *pf)
+      : BilinearForm(pf) { pfes = pf; }
 
-   ParBilinearForm (ParFiniteElementSpace *pf, ParBilinearForm *bf)
-      : BilinearForm (pf, bf) { pfes = pf; }
+   ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
+      : BilinearForm(pf, bf) { pfes = pf; }
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
    HypreParMatrix *ParallelAssemble();

@@ -33,7 +33,7 @@ private:
    Array<int> ldof_ltdof;
 
    /// Offsets for the dofs in each processor in gloabl numbering.
-   Array<int>  dof_offsets;
+   Array<int> dof_offsets;
 
    /// Offsets for the true dofs in each processor in gloabl numbering.
    Array<int> tdof_offsets;
@@ -55,7 +55,7 @@ public:
    int TrueVSize()          { return ltdof_size; }
    int *GetDofOffsets()     { return dof_offsets; }
    int *GetTrueDofOffsets() { return tdof_offsets; }
-   int GetDofSign (int i)   { return ldof_sign[i]; }
+   int GetDofSign(int i)    { return ldof_sign[i]; }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
@@ -80,8 +80,8 @@ public:
                                   Array<int> &ess_dofs);
 
    void Lose_Dof_TrueDof_Matrix();
-   void LoseDofOffsets() { dof_offsets.LoseData(); };
-   void LoseTrueDofOffsets() { tdof_offsets.LoseData(); };
+   void LoseDofOffsets() { dof_offsets.LoseData(); }
+   void LoseTrueDofOffsets() { tdof_offsets.LoseData(); }
 
    virtual ~ParFiniteElementSpace() { if (P) delete P; }
 };

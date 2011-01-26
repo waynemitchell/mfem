@@ -37,39 +37,6 @@ private:
    int GetFaceSplittings(Element *face, const DSTable &v_to_v, int *middle);
 
 public:
-
-#ifdef MFEM_TMP_DEP_SEC3
-   using Mesh::elements;
-   using Mesh::vertices;
-   using Mesh::boundary;
-   using Mesh::faces;
-   using Mesh::el_to_edge;
-   using Mesh::c_NumOfVertices;
-   using Mesh::c_NumOfElements;
-   using Mesh::c_NumOfBdrElements;
-   using Mesh::f_NumOfVertices;
-   using Mesh::f_NumOfElements;
-   using Mesh::f_NumOfBdrElements;
-   using Mesh::el_to_face;
-   using Mesh::be_to_face;
-   using Mesh::be_to_edge;
-   using Mesh::bel_to_edge;
-   using Mesh::c_bel_to_edge;
-   using Mesh::f_bel_to_edge;
-   using Mesh::c_el_to_edge;
-   using Mesh::f_el_to_edge;
-   using Mesh::InitTables;
-   using Mesh::GenerateFaces;
-   using Mesh::Bisection;
-   using Mesh::RedRefinement;
-   using Mesh::GreenRefinement;
-   using Mesh::AverageVertices;
-   using Mesh::GetElementToFaceTable;
-   using Mesh::CheckElementOrientation;
-   using Mesh::CheckBdrElementOrientation;
-   using Mesh::FreeElement;
-#endif
-
    ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_ = NULL,
            int part_method = 1);
 
@@ -77,13 +44,12 @@ public:
    int GetNRanks() { return NRanks; }
    int GetMyRank() { return MyRank; }
 
-   /** The shared vertices, faces and edges are split into groups, each
-       group determined by the set of participating processors, proc.
-       They are numbered locally in lproc.
-       Assumptions:
-       group 0 is the 'local' group
-       groupmaster_lproc[0] = 0
-       lproc_proc[0] = MyRank */
+   /** The shared vertices, faces and edges are split into groups, each group
+       determined by the set of participating processors, proc.  They are
+       numbered locally in lproc. Assumptions:
+       - group 0 is the 'local' group
+       - groupmaster_lproc[0] = 0
+       - lproc_proc[0] = MyRank */
    Table group_lproc;
    Array<int> groupmaster_lproc;
    Array<int> lproc_proc;
@@ -93,14 +59,14 @@ public:
    int GetNGroups() { return group_lproc.Size(); }
 
    // next 6 methods do not work for the 'local' group 0
-   int GroupNVertices (int group) { return group_svert.RowSize(group-1); }
-   int GroupNEdges (int group)    { return group_sedge.RowSize(group-1); }
-   int GroupNFaces (int group)    { return group_sface.RowSize(group-1); }
+   int GroupNVertices(int group) { return group_svert.RowSize(group-1); }
+   int GroupNEdges(int group)    { return group_sedge.RowSize(group-1); }
+   int GroupNFaces(int group)    { return group_sface.RowSize(group-1); }
 
-   int GroupVertex (int group, int i)
+   int GroupVertex(int group, int i)
    { return svert_lvert[group_svert.GetJ()[group_svert.GetI()[group-1]+i]]; }
-   void GroupEdge (int group, int i, int &edge, int &o);
-   void GroupFace (int group, int i, int &face, int &o);
+   void GroupEdge(int group, int i, int &edge, int &o);
+   void GroupFace(int group, int i, int &face, int &o);
 
    /// Refine the marked elements.
    virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
@@ -117,7 +83,6 @@ public:
 
    /// Process 0 writes the whole mesh to 'out'
    virtual void PrintAsOne(ostream &out = cout);
-   void PrintAsOneAndScaled(ostream &out = cout, double sf=0.0);
 
    virtual ~ParMesh();
 };

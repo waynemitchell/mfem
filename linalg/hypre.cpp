@@ -168,10 +168,7 @@ HypreParMatrix::HypreParMatrix(int size, int *row, SparseMatrix *diag)
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
-   if (HYPRE_AssumedPartitionCheck())
-      hypre_NewCommPkgCreate(A);
-   else
-      hypre_MatvecCommPkgCreate(A);
+   hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
    X = Y = NULL;
@@ -199,10 +196,7 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
-   if (HYPRE_AssumedPartitionCheck())
-      hypre_NewCommPkgCreate(A);
-   else
-      hypre_MatvecCommPkgCreate(A);
+   hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
    X = Y = NULL;
@@ -237,10 +231,7 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
-   if (HYPRE_AssumedPartitionCheck())
-      hypre_NewCommPkgCreate(A);
-   else
-      hypre_MatvecCommPkgCreate(A);
+   hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
    X = Y = NULL;
@@ -273,10 +264,7 @@ HypreParMatrix::HypreParMatrix(int *row, int *col, SparseMatrix *sm_a)
 
    size = GetNumRows();
 
-   if (HYPRE_AssumedPartitionCheck())
-      hypre_NewCommPkgCreate(A);
-   else
-      hypre_MatvecCommPkgCreate(A);
+   hypre_MatvecCommPkgCreate(A);
 }
 
 HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
@@ -305,10 +293,7 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
-   if (HYPRE_AssumedPartitionCheck())
-      hypre_NewCommPkgCreate(A);
-   else
-      hypre_MatvecCommPkgCreate(A);
+   hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
    X = Y = NULL;
@@ -371,10 +356,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
-   if (HYPRE_AssumedPartitionCheck())
-      hypre_NewCommPkgCreate(A);
-   else
-      hypre_MatvecCommPkgCreate(A);
+   hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
    X = Y = NULL;
@@ -442,10 +424,7 @@ HypreParMatrix * HypreParMatrix::Transpose()
    hypre_ParCSRMatrixTranspose(A, &At, 1);
    hypre_ParCSRMatrixSetNumNonzeros(At);
 
-   if (HYPRE_AssumedPartitionCheck())
-      hypre_NewCommPkgCreate(At);
-   else
-      hypre_MatvecCommPkgCreate(At);
+   hypre_MatvecCommPkgCreate(At);
 
    return new HypreParMatrix(At);
 }
@@ -500,10 +479,7 @@ void HypreParMatrix::Read(const char *fname)
    hypre_ParCSRMatrixReadIJ(MPI_COMM_WORLD, fname, &io, &jo, &A);
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
-   if (HYPRE_AssumedPartitionCheck())
-      hypre_NewCommPkgCreate(A);
-   else
-      hypre_MatvecCommPkgCreate(A);
+   hypre_MatvecCommPkgCreate(A);
 }
 
 HypreParMatrix::~HypreParMatrix()
@@ -544,10 +520,7 @@ HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B)
    hypre_ParCSRMatrix * ab;
    ab = hypre_ParMatmul(*A,*B);
 
-   if (HYPRE_AssumedPartitionCheck())
-      hypre_NewCommPkgCreate(ab);
-   else
-      hypre_MatvecCommPkgCreate(ab);
+   hypre_MatvecCommPkgCreate(ab);
 
    return new HypreParMatrix(ab);
 }

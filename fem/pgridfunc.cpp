@@ -13,8 +13,8 @@
 
 #include "fem.hpp"
 
-ParGridFunction::ParGridFunction (ParFiniteElementSpace *pf, HypreParVector *tv)
-   : GridFunction (pf), pfes(pf)
+ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, HypreParVector *tv)
+   : GridFunction(pf), pfes(pf)
 {
    int  nproc   = pf -> GetNRanks();
    int *dof_off = pf -> GetDofOffsets();
@@ -60,8 +60,8 @@ HypreParVector * ParGridFunction::ParallelAvarage()
    return tv;
 }
 
-double ParGridFunction::ComputeL2Error (Coefficient *exsol[],
-                                        const IntegrationRule *irs[]) const
+double ParGridFunction::ComputeL2Error(Coefficient *exsol[],
+                                       const IntegrationRule *irs[]) const
 {
    double lerr, gerr;
 

@@ -13,7 +13,6 @@
 
 #include "mesh_headers.hpp"
 
-// for osockstream ... temporary
 #include "../general/osockstream.hpp"
 #include "../general/sets.hpp"
 
@@ -26,6 +25,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    MyComm = comm;
    MPI_Comm_size(MyComm, &NRanks);
    MPI_Comm_rank(MyComm, &MyRank);
+
+   Dim = mesh.Dim;
 
    if (partitioning_)
       partitioning = partitioning_;
@@ -72,11 +73,11 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
    // determine elements
    element_counter = 0;
-   elements.SetSize (NumOfElements);
+   elements.SetSize(NumOfElements);
    for (i = 0; i < mesh.GetNE(); i++)
       if (partitioning[i] == MyRank)
       {
-         elements[element_counter] = mesh.GetElement (i) -> Duplicate();
+         elements[element_counter] = mesh.GetElement(i) -> Duplicate();
          int *v = elements[element_counter] -> GetVertices();
          int nv = elements[element_counter] -> GetNVertices();
          for (j = 0; j < nv; j++)
@@ -92,25 +93,25 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       NumOfBdrElements = 0;
       for (i = 0; i < mesh.GetNBE(); i++)
       {
-         int face = mesh.GetBdrElementEdgeIndex (i);
+         int face = mesh.GetBdrElementEdgeIndex(i);
          int el1, el2;
-         mesh.GetFaceElements (face, &el1, &el2);
+         mesh.GetFaceElements(face, &el1, &el2);
          if (partitioning[el1] == MyRank ||
              (el2 >= 0 && partitioning[el2] == MyRank))
             NumOfBdrElements++;
       }
 
       bdrelem_counter = 0;
-      boundary.SetSize (NumOfBdrElements);
+      boundary.SetSize(NumOfBdrElements);
       for (i = 0; i < mesh.GetNBE(); i++)
       {
-         int face = mesh.GetBdrElementEdgeIndex (i);
+         int face = mesh.GetBdrElementEdgeIndex(i);
          int el1, el2;
-         mesh.GetFaceElements (face, &el1, &el2);
+         mesh.GetFaceElements(face, &el1, &el2);
          if (partitioning[el1] == MyRank ||
              (el2 >= 0 && partitioning[el2] == MyRank))
          {
-            boundary[bdrelem_counter] = mesh.GetBdrElement (i) -> Duplicate();
+            boundary[bdrelem_counter] = mesh.GetBdrElement(i) -> Duplicate();
             int *v = boundary[bdrelem_counter] -> GetVertices();
             int nv = boundary[bdrelem_counter] -> GetNVertices();
             for (j = 0; j < nv; j++)
@@ -128,7 +129,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       NumOfBdrElements = 0;
       for (i = 0; i < mesh.GetNBE(); i++)
       {
-         int edge = mesh.GetBdrElementEdgeIndex (i);
+         int edge = mesh.GetBdrElementEdgeIndex(i);
          int el1, el2 = -1;
          el1 = edge_element -> GetRow(edge)[0];
          if (edge_element -> RowSize(edge) == 2)
@@ -139,10 +140,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       }
 
       bdrelem_counter = 0;
-      boundary.SetSize (NumOfBdrElements);
+      boundary.SetSize(NumOfBdrElements);
       for (i = 0; i < mesh.GetNBE(); i++)
       {
-         int edge = mesh.GetBdrElementEdgeIndex (i);
+         int edge = mesh.GetBdrElementEdgeIndex(i);
          int el1, el2 = -1;
          el1 = edge_element -> GetRow(edge)[0];
          if (edge_element -> RowSize(edge) == 2)
@@ -150,7 +151,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          if (partitioning[el1] == MyRank ||
              (el2 >= 0 && partitioning[el2] == MyRank))
          {
-            boundary[bdrelem_counter] = mesh.GetBdrElement (i) -> Duplicate();
+            boundary[bdrelem_counter] = mesh.GetBdrElement(i) -> Duplicate();
             int *v = boundary[bdrelem_counter] -> GetVertices();
             int nv = boundary[bdrelem_counter] -> GetNVertices();
             for (j = 0; j < nv; j++)
@@ -162,10 +163,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
    meshgen = mesh.MeshGenerator();
 
-   attributes.SetSize (mesh.attributes.Size());
+   attributes.SetSize(mesh.attributes.Size());
    for (i = 0; i < attributes.Size(); i++)
       attributes[i] = mesh.attributes[i];
-   bdr_attributes.SetSize (mesh.bdr_attributes.Size());
+   bdr_attributes.SetSize(mesh.bdr_attributes.Size());
    for (i = 0; i < bdr_attributes.Size(); i++)
       bdr_attributes[i] = mesh.bdr_attributes[i];
 
@@ -177,7 +178,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    STable3D *faces_tbl = NULL;
    if (Dim == 3)
    {
-      faces_tbl = GetElementToFaceTable (1);
+      faces_tbl = GetElementToFaceTable(1);
       GenerateFaces();
    }
 
@@ -185,17 +186,17 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    IntegerSet         group;
 
    // the first group is the local one
-   group.Recreate (1, &MyRank);
+   group.Recreate(1, &MyRank);
    groups.Insert(group);
 
    // determine shared faces
    int sface_counter = 0;
-   Array<int> face_group (mesh.GetNFaces());
+   Array<int> face_group(mesh.GetNFaces());
    for (i = 0; i < face_group.Size(); i++)
    {
       int el[2];
       face_group[i] = -1;
-      mesh.GetFaceElements (i, &el[0], &el[1]);
+      mesh.GetFaceElements(i, &el[0], &el[1]);
       if (el[1] >= 0)
       {
          el[0] = partitioning[el[0]];
@@ -203,8 +204,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          if ((el[0] == MyRank && el[1] != MyRank) ||
              (el[0] != MyRank && el[1] == MyRank))
          {
-            group.Recreate (2, el);
-            face_group[i] = groups.Insert (group) - 1;
+            group.Recreate(2, el);
+            face_group[i] = groups.Insert(group) - 1;
             sface_counter++;
          }
       }
@@ -232,8 +233,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       if (me && others)
       {
          sedge_counter++;
-         group.Recreate (edge_element->RowSize(i), edge_element->GetRow(i));
-         edge_element->GetRow(i)[0] = groups.Insert (group) - 1;
+         group.Recreate(edge_element->RowSize(i), edge_element->GetRow(i));
+         edge_element->GetRow(i)[0] = groups.Insert(group) - 1;
       }
       else
          edge_element->GetRow(i)[0] = -1;
@@ -258,8 +259,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       if (me && others)
       {
          svert_counter++;
-         group.Recreate (vert_element->RowSize(i), vert_element->GetRow(i));
-         vert_element->GetRow(i)[0] = groups.Insert (group) - 1;
+         group.Recreate(vert_element->RowSize(i), vert_element->GetRow(i));
+         vert_element->GetRow(i)[0] = groups.Insert(group) - 1;
       }
       else
          vert_element->GetRow(i)[0] = -1;
@@ -319,8 +320,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    group_svert.ShiftUpI();
 
    // build shared_faces and sface_lface
-   shared_faces.SetSize (sface_counter);
-   sface_lface. SetSize (sface_counter);
+   shared_faces.SetSize(sface_counter);
+   sface_lface. SetSize(sface_counter);
 
    if (Dim == 3)
    {
@@ -349,8 +350,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    }
 
    // build shared_edges and sedge_ledge
-   shared_edges.SetSize (sedge_counter);
-   sedge_ledge. SetSize (sedge_counter);
+   shared_edges.SetSize(sedge_counter);
+   sedge_ledge. SetSize(sedge_counter);
 
    {
       DSTable v_to_v(NumOfVertices);
@@ -395,9 +396,9 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    groups.AsTable(group_lproc); // group_lproc = group_proc
 
    Table group_mgroupandproc;
-   group_mgroupandproc.SetDims (group_lproc.Size(),
-                                group_lproc.Size_of_connections() +
-                                group_lproc.Size());
+   group_mgroupandproc.SetDims(group_lproc.Size(),
+                               group_lproc.Size_of_connections() +
+                               group_lproc.Size());
    for (i = 0; i < group_mgroupandproc.Size(); i++)
    {
       j = group_mgroupandproc.GetI()[i];
@@ -409,7 +410,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          group_mgroupandproc.GetJ()[j] = group_lproc.GetJ()[k];
    }
 
-   Array<int> proc_lproc (NRanks);
+   Array<int> proc_lproc(NRanks);
    for (i = 0; i < NRanks; i++)
       proc_lproc[i] = -1;
 
@@ -429,17 +430,17 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    // build groupmaster_lproc
    groupmaster_lproc.SetSize(groups.Size());
 
-   /* simplest choice of the group owner
-      for (i = 0; i < groups.Size(); i++)
-      groupmaster_lproc[i] = proc_lproc[groups.PickElementInSet(i)];
-   */
-
-   // load-balanced choice of the group owner
+   // simplest choice of the group owner
    for (i = 0; i < groups.Size(); i++)
-      groupmaster_lproc[i] = proc_lproc[groups.PickRandomElementInSet(i)];
+      groupmaster_lproc[i] = proc_lproc[groups.PickElementInSet(i)];
+
+   // load-balanced choice of the group owner, which however can lead to
+   // isolated dofs
+   // for (i = 0; i < groups.Size(); i++)
+   //    groupmaster_lproc[i] = proc_lproc[groups.PickRandomElementInSet(i)];
 
    // build group_mgroup
-   group_mgroup.SetSize (groups.Size());
+   group_mgroup.SetSize(groups.Size());
 
    int send_counter = 0;
    int recv_counter = 0;
@@ -447,7 +448,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       if (groupmaster_lproc[i] != 0) // we are not the master
          recv_counter++;
       else
-         send_counter += group_lproc.RowSize (i)-1;
+         send_counter += group_lproc.RowSize(i)-1;
 
    MPI_Request *requests = new MPI_Request[send_counter];
    MPI_Status  *statuses = new MPI_Status[send_counter];
@@ -465,16 +466,14 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          {
             if (group_lproc.GetJ()[j] != 0)
             {
-               MPI_Isend (group_mgroupandproc.GetRow (i),
-                          group_mgroupandproc.RowSize (i),
-                          MPI_INT,
-                          lproc_proc[group_lproc.GetJ()[j]],
-                          822,
-                          MyComm,
-                          &requests[send_counter]);
+               MPI_Isend(group_mgroupandproc.GetRow (i),
+                         group_mgroupandproc.RowSize (i),
+                         MPI_INT,
+                         lproc_proc[group_lproc.GetJ()[j]],
+                         822,
+                         MyComm,
+                         &requests[send_counter]);
                send_counter++;
-//               cout << "ParMesh::ParMesh: " << MyRank
-//                    << " ---> " << lproc_proc[group_lproc.GetJ()[j]] << endl;
             }
          }
       }
@@ -491,17 +490,13 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       int *recv_buf = new int[max_recv_size];
       for ( ; recv_counter > 0; recv_counter--)
       {
-         MPI_Recv (recv_buf, max_recv_size, MPI_INT,
-                   MPI_ANY_SOURCE, 822, MyComm, &status);
+         MPI_Recv(recv_buf, max_recv_size, MPI_INT,
+                  MPI_ANY_SOURCE, 822, MyComm, &status);
 
-         MPI_Get_count (&status, MPI_INT, &count);
+         MPI_Get_count(&status, MPI_INT, &count);
 
-//         cout << "ParMesh::ParMesh: " << MyRank
-//              << " <--- " << status.MPI_SOURCE << endl;
-
-         group.Recreate (count-1, recv_buf+1);
-//         group_mgroup[groups.Lookup (group)] = recv_buf[0];
-         group_mgroup[i=groups.Lookup (group)] = recv_buf[0];
+         group.Recreate(count-1, recv_buf+1);
+         group_mgroup[i=groups.Lookup(group)] = recv_buf[0];
 
          if (lproc_proc[groupmaster_lproc[i]] != status.MPI_SOURCE)
          {
@@ -513,7 +508,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       delete [] recv_buf;
    }
 
-   MPI_Waitall (send_counter, requests, statuses);
+   MPI_Waitall(send_counter, requests, statuses);
 
    delete [] statuses;
    delete [] requests;
@@ -635,28 +630,28 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       {
       case 1:
          for(i=0; i<marked_el.Size(); i++)
-            Bisection ( marked_el[i], v_to_v, NULL, NULL, middle);
+            Bisection(marked_el[i], v_to_v, NULL, NULL, middle);
          break;
       case 2:
          for(i=0; i<marked_el.Size(); i++) {
-            Bisection ( marked_el[i], v_to_v, NULL, NULL, middle);
+            Bisection(marked_el[i], v_to_v, NULL, NULL, middle);
 
-            Bisection ( NumOfElements - 1, v_to_v, NULL, NULL, middle);
-            Bisection ( marked_el[i], v_to_v, NULL, NULL, middle);
+            Bisection(NumOfElements - 1, v_to_v, NULL, NULL, middle);
+            Bisection(marked_el[i], v_to_v, NULL, NULL, middle);
          }
          break;
       case 3:
          for(i=0; i<marked_el.Size(); i++) {
-            Bisection ( marked_el[i], v_to_v, NULL, NULL, middle);
+            Bisection(marked_el[i], v_to_v, NULL, NULL, middle);
 
             ii = NumOfElements - 1;
-            Bisection ( ii, v_to_v, NULL, NULL, middle);
-            Bisection ( NumOfElements - 1, v_to_v, NULL, NULL, middle);
-            Bisection ( ii, v_to_v, NULL, NULL, middle);
+            Bisection(ii, v_to_v, NULL, NULL, middle);
+            Bisection(NumOfElements - 1, v_to_v, NULL, NULL, middle);
+            Bisection(ii, v_to_v, NULL, NULL, middle);
 
-            Bisection ( marked_el[i], v_to_v, NULL, NULL, middle);
-            Bisection ( NumOfElements-1, v_to_v, NULL, NULL, middle);
-            Bisection ( marked_el[i], v_to_v, NULL, NULL, middle);
+            Bisection(marked_el[i], v_to_v, NULL, NULL, middle);
+            Bisection(NumOfElements-1, v_to_v, NULL, NULL, middle);
+            Bisection(marked_el[i], v_to_v, NULL, NULL, middle);
          }
          break;
       }
@@ -712,7 +707,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          {
             MPI_Barrier(MyComm);
 
-            //==== (a) send the type of interface splitting ========
+            // (a) send the type of interface splitting
             for (i = 0; i < GetNGroups()-1; i++)
             {
                group_sface.GetRow(i, group_faces);
@@ -733,7 +728,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                }
             }
 
-            //==== (b) receive the type of interface splitting =====
+            // (b) receive the type of interface splitting
             for (i = 0; i < GetNGroups()-1; i++)
             {
                group_sface.GetRow(i, group_faces);
@@ -810,7 +805,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                                                     type, flag);
          if (type == Tetrahedron::TYPE_PF)
             ((Tetrahedron *) El) ->
-               CreateRefinementFlag (refinement_edges, Tetrahedron::TYPE_PU, flag);
+               CreateRefinementFlag(refinement_edges, Tetrahedron::TYPE_PU, flag);
       }
 
       NumOfBdrElements = boundary.Size();
@@ -827,7 +822,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          if (WantTwoLevelState)
          {
             c_el_to_edge = el_to_edge;
-            f_el_to_edge = new Table (NumOfElements, 12); // 12 for hexs
+            f_el_to_edge = new Table(NumOfElements, 12); // 12 for hexs
             c_bel_to_edge = bel_to_edge;
             bel_to_edge = NULL;
             NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
@@ -942,7 +937,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          {
             MPI_Barrier(MyComm);
 
-            //==== (a) send the type of interface splitting ========
+            // (a) send the type of interface splitting
             for (i = 0; i < GetNGroups()-1; i++) {
                group_sedge.GetRow(i, group_edges);
                edges_in_group = group_edges.Size();
@@ -955,12 +950,12 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                      neighbor = lproc_proc[group_lproc.GetJ()[j+1]];
                   else
                      neighbor = lproc_proc[group_lproc.GetJ()[j]];
-                  MPI_Isend (edge_splittings[i], edges_in_group, MPI_INT,
-                             neighbor, 0, MyComm, &request);
+                  MPI_Isend(edge_splittings[i], edges_in_group, MPI_INT,
+                            neighbor, 0, MyComm, &request);
                }
             }
 
-            //==== (b) receive the type of interface splitting =====
+            // (b) receive the type of interface splitting
             for (i = 0; i < GetNGroups()-1; i++)
             {
                group_sedge.GetRow(i, group_edges);
@@ -1001,7 +996,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
             }
 
             ii = need_refinement;
-            MPI_Allreduce (&ii, &need_refinement, 1, MPI_INT, MPI_LOR, MyComm);
+            MPI_Allreduce(&ii, &need_refinement, 1, MPI_INT, MPI_LOR, MyComm);
          }
       } while (need_refinement == 1);
 
@@ -1026,7 +1021,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                {
                   boundary.Append( new Segment(v2, boundary[i]->GetAttribute()) );
                   BisectedElement *aux = BEMemory.Alloc();
-                  aux -> SetCoarseElem (boundary[i]);
+                  aux -> SetCoarseElem(boundary[i]);
                   aux->FirstChild = new Segment(v1, boundary[i]->GetAttribute());
                   aux->SecondChild = NumOfBdrElements;
                   boundary[i] = aux;
@@ -1061,7 +1056,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          if (WantTwoLevelState)
          {
             c_el_to_edge = el_to_edge;
-            f_el_to_edge = new Table (NumOfElements, 3); // triangles
+            f_el_to_edge = new Table(NumOfElements, 3); // triangles
             // need to save  'be_to_el' -- NOT saved for now
             NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
             el_to_edge = f_el_to_edge;
@@ -1244,63 +1239,63 @@ void ParMesh::HexUniformRefinement()
       f = el_to_face->GetRow(i);
 
       vv[0] = v[3], vv[1] = v[2], vv[2] = v[1], vv[3] = v[0];
-      AverageVertices (vv, 4, oface+f[0]);
+      AverageVertices(vv, 4, oface+f[0]);
       vv[0] = v[0], vv[1] = v[1], vv[2] = v[5], vv[3] = v[4];
-      AverageVertices (vv, 4, oface+f[1]);
+      AverageVertices(vv, 4, oface+f[1]);
       vv[0] = v[1], vv[1] = v[2], vv[2] = v[6], vv[3] = v[5];
-      AverageVertices (vv, 4, oface+f[2]);
+      AverageVertices(vv, 4, oface+f[2]);
       vv[0] = v[2], vv[1] = v[3], vv[2] = v[7], vv[3] = v[6];
-      AverageVertices (vv, 4, oface+f[3]);
+      AverageVertices(vv, 4, oface+f[3]);
       vv[0] = v[3], vv[1] = v[0], vv[2] = v[4], vv[3] = v[7];
-      AverageVertices (vv, 4, oface+f[4]);
+      AverageVertices(vv, 4, oface+f[4]);
       vv[0] = v[4], vv[1] = v[5], vv[2] = v[6], vv[3] = v[7];
-      AverageVertices (vv, 4, oface+f[5]);
+      AverageVertices(vv, 4, oface+f[5]);
 
       e = el_to_edge -> GetRow(i);
 
-      vv[0] = v[0], vv[1] = v[1]; AverageVertices (vv, 2, oedge+e[0]);
-      vv[0] = v[1], vv[1] = v[2]; AverageVertices (vv, 2, oedge+e[1]);
-      vv[0] = v[2], vv[1] = v[3]; AverageVertices (vv, 2, oedge+e[2]);
-      vv[0] = v[3], vv[1] = v[0]; AverageVertices (vv, 2, oedge+e[3]);
-      vv[0] = v[4], vv[1] = v[5]; AverageVertices (vv, 2, oedge+e[4]);
-      vv[0] = v[5], vv[1] = v[6]; AverageVertices (vv, 2, oedge+e[5]);
-      vv[0] = v[6], vv[1] = v[7]; AverageVertices (vv, 2, oedge+e[6]);
-      vv[0] = v[7], vv[1] = v[4]; AverageVertices (vv, 2, oedge+e[7]);
-      vv[0] = v[0], vv[1] = v[4]; AverageVertices (vv, 2, oedge+e[8]);
-      vv[0] = v[1], vv[1] = v[5]; AverageVertices (vv, 2, oedge+e[9]);
-      vv[0] = v[2], vv[1] = v[6]; AverageVertices (vv, 2, oedge+e[10]);
-      vv[0] = v[3], vv[1] = v[7]; AverageVertices (vv, 2, oedge+e[11]);
+      vv[0] = v[0], vv[1] = v[1]; AverageVertices(vv, 2, oedge+e[0]);
+      vv[0] = v[1], vv[1] = v[2]; AverageVertices(vv, 2, oedge+e[1]);
+      vv[0] = v[2], vv[1] = v[3]; AverageVertices(vv, 2, oedge+e[2]);
+      vv[0] = v[3], vv[1] = v[0]; AverageVertices(vv, 2, oedge+e[3]);
+      vv[0] = v[4], vv[1] = v[5]; AverageVertices(vv, 2, oedge+e[4]);
+      vv[0] = v[5], vv[1] = v[6]; AverageVertices(vv, 2, oedge+e[5]);
+      vv[0] = v[6], vv[1] = v[7]; AverageVertices(vv, 2, oedge+e[6]);
+      vv[0] = v[7], vv[1] = v[4]; AverageVertices(vv, 2, oedge+e[7]);
+      vv[0] = v[0], vv[1] = v[4]; AverageVertices(vv, 2, oedge+e[8]);
+      vv[0] = v[1], vv[1] = v[5]; AverageVertices(vv, 2, oedge+e[9]);
+      vv[0] = v[2], vv[1] = v[6]; AverageVertices(vv, 2, oedge+e[10]);
+      vv[0] = v[3], vv[1] = v[7]; AverageVertices(vv, 2, oedge+e[11]);
    }
 
    int attr;
-   elements.SetSize (8 * NumOfElements);
+   elements.SetSize(8 * NumOfElements);
    for (i = NumOfElements - 1; i >= 0 ; i--) {
       attr = elements[i] -> GetAttribute();
       v = elements[i] -> GetVertices();
       e = el_to_edge -> GetRow(i);
       f = el_to_face -> GetRow(i);
 
-      elements[8*i+1] = new Hexahedron (oedge+e[0], v[1], oedge+e[1], oface+f[0],
-                                        oface+f[1], oedge+e[9], oface+f[2], oelem+i,
-                                        attr);
-      elements[8*i+2] = new Hexahedron (oface+f[0], oedge+e[1], v[2], oedge+e[2],
-                                        oelem+i, oface+f[2], oedge+e[10], oface+f[3],
-                                        attr);
-      elements[8*i+3] = new Hexahedron (oedge+e[3], oface+f[0], oedge+e[2], v[3],
-                                        oface+f[4], oelem+i, oface+f[3], oedge+e[11],
-                                        attr);
-      elements[8*i+4] = new Hexahedron (oedge+e[8], oface+f[1], oelem+i, oface+f[4],
-                                        v[4], oedge+e[4], oface+f[5], oedge+e[7],
-                                        attr);
-      elements[8*i+5] = new Hexahedron (oface+f[1], oedge+e[9], oface+f[2], oelem+i,
-                                        oedge+e[4], v[5], oedge+e[5], oface+f[5],
-                                        attr);
-      elements[8*i+6] = new Hexahedron (oelem+i, oface+f[2], oedge+e[10], oface+f[3],
-                                        oface+f[5], oedge+e[5], v[6], oedge+e[6],
-                                        attr);
-      elements[8*i+7] = new Hexahedron (oface+f[4], oelem+i, oface+f[3], oedge+e[11],
-                                        oedge+e[7], oface+f[5], oedge+e[6], v[7],
-                                        attr);
+      elements[8*i+1] = new Hexahedron(oedge+e[0], v[1], oedge+e[1], oface+f[0],
+                                       oface+f[1], oedge+e[9], oface+f[2], oelem+i,
+                                       attr);
+      elements[8*i+2] = new Hexahedron(oface+f[0], oedge+e[1], v[2], oedge+e[2],
+                                       oelem+i, oface+f[2], oedge+e[10], oface+f[3],
+                                       attr);
+      elements[8*i+3] = new Hexahedron(oedge+e[3], oface+f[0], oedge+e[2], v[3],
+                                       oface+f[4], oelem+i, oface+f[3], oedge+e[11],
+                                       attr);
+      elements[8*i+4] = new Hexahedron(oedge+e[8], oface+f[1], oelem+i, oface+f[4],
+                                       v[4], oedge+e[4], oface+f[5], oedge+e[7],
+                                       attr);
+      elements[8*i+5] = new Hexahedron(oface+f[1], oedge+e[9], oface+f[2], oelem+i,
+                                       oedge+e[4], v[5], oedge+e[5], oface+f[5],
+                                       attr);
+      elements[8*i+6] = new Hexahedron(oelem+i, oface+f[2], oedge+e[10], oface+f[3],
+                                       oface+f[5], oedge+e[5], v[6], oedge+e[6],
+                                       attr);
+      elements[8*i+7] = new Hexahedron(oface+f[4], oelem+i, oface+f[3], oedge+e[11],
+                                       oedge+e[7], oface+f[5], oedge+e[6], v[7],
+                                       attr);
 
       elements[8*i] = elements[i];
       v[1] = oedge+e[0];
@@ -1312,7 +1307,7 @@ void ParMesh::HexUniformRefinement()
       v[7] = oface+f[4];
    }
 
-   boundary.SetSize (4 * NumOfBdrElements);
+   boundary.SetSize(4 * NumOfBdrElements);
    for (i = NumOfBdrElements - 1; i >= 0 ; i--)
    {
       attr = boundary[i] -> GetAttribute();
@@ -1320,12 +1315,12 @@ void ParMesh::HexUniformRefinement()
       e = bel_to_edge -> GetRow(i);
       f = & be_to_face[i];
 
-      boundary[4*i+1] = new Quadrilateral (oedge+e[0], v[1], oedge+e[1],
-                                           oface+f[0], attr);
-      boundary[4*i+2] = new Quadrilateral (oface+f[0], oedge+e[1], v[2],
-                                           oedge+e[2], attr);
-      boundary[4*i+3] = new Quadrilateral (oedge+e[3], oface+f[0], oedge+e[2],
-                                           v[3], attr);
+      boundary[4*i+1] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
+                                          oface+f[0], attr);
+      boundary[4*i+2] = new Quadrilateral(oface+f[0], oedge+e[1], v[2],
+                                          oedge+e[2], attr);
+      boundary[4*i+3] = new Quadrilateral(oedge+e[3], oface+f[0], oedge+e[2],
+                                          v[3], attr);
 
       boundary[4*i] = boundary[i];
       v[1] = oedge+e[0];
@@ -1463,7 +1458,7 @@ void ParMesh::HexUniformRefinement()
    NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
 }
 
-void ParMesh::Print (ostream &out) const
+void ParMesh::Print(ostream &out) const
 {
    if (Dim == 3 && meshgen == 1)
    {
@@ -1484,8 +1479,8 @@ void ParMesh::Print (ostream &out) const
       out << NumOfElements << '\n';
       for(i=0; i<NumOfElements; i++)
       {
-         nv = elements[i] -> GetNVertices ();
-         ind = elements[i] -> GetVertices ();
+         nv = elements[i] -> GetNVertices();
+         ind = elements[i] -> GetVertices();
          out << elements[i] -> GetAttribute();
          for(j=0; j<nv; j++)
             out << " " << ind[j]+1;
@@ -1497,8 +1492,8 @@ void ParMesh::Print (ostream &out) const
       // boundary
       for(i=0; i< NumOfBdrElements; i++)
       {
-         nv = boundary[i] -> GetNVertices ();
-         ind = boundary[i] -> GetVertices ();
+         nv = boundary[i] -> GetNVertices();
+         ind = boundary[i] -> GetVertices();
          out << boundary[i] -> GetAttribute();
          for(j=0; j<nv; j++)
             out << " " << ind[j]+1;
@@ -1507,8 +1502,8 @@ void ParMesh::Print (ostream &out) const
       // shared faces
       for(i=0; i<shared_faces.Size() ; i++)
       {
-         nv = shared_faces[i] -> GetNVertices ();
-         ind = shared_faces[i] -> GetVertices ();
+         nv = shared_faces[i] -> GetNVertices();
+         ind = shared_faces[i] -> GetVertices();
          out << shared_faces[i] -> GetAttribute();
          for(j=0; j<nv; j++)
             out << " " << ind[j]+1;
@@ -1536,8 +1531,8 @@ void ParMesh::Print (ostream &out) const
 
       // print the elements
       for (i = 0; i < NumOfElements; i++) {
-         nv = elements[i] -> GetNVertices ();
-         ind = elements[i] -> GetVertices ();
+         nv = elements[i] -> GetNVertices();
+         ind = elements[i] -> GetVertices();
          out << i+1 << " " << elements[i] -> GetAttribute();
          for(j = 0; j < nv; j++)
             out << " " << ind[j]+1;
@@ -1546,8 +1541,8 @@ void ParMesh::Print (ostream &out) const
 
       // print the boundary information
       for(i=0; i< NumOfBdrElements; i++) {
-         nv = boundary[i] -> GetNVertices ();
-         ind = boundary[i] -> GetVertices ();
+         nv = boundary[i] -> GetNVertices();
+         ind = boundary[i] -> GetVertices();
          out << boundary[i] -> GetAttribute();
          for(j=0; j<nv; j++)
             out << " " << ind[j]+1;
@@ -1557,8 +1552,8 @@ void ParMesh::Print (ostream &out) const
       // print the shared faces information
       for(i=0; i<shared_faces.Size() ; i++)
       {
-         nv = shared_faces[i] -> GetNVertices ();
-         ind = shared_faces[i] -> GetVertices ();
+         nv = shared_faces[i] -> GetNVertices();
+         ind = shared_faces[i] -> GetVertices();
          out << shared_faces[i] -> GetAttribute();
          for(j=0; j<nv; j++)
             out << " " << ind[j]+1;
@@ -1604,7 +1599,7 @@ void ParMesh::Print (ostream &out) const
          elements[i]->GetVertices(v);
 
          out << attr << "   ";
-         if ((j = GetElementType (i)) == Element::TRIANGLE)
+         if ((j = GetElementType(i)) == Element::TRIANGLE)
             out << 3 << "   ";
          else
             if (j == Element::QUADRILATERAL)
@@ -1628,7 +1623,7 @@ void ParMesh::Print (ostream &out) const
    }
 }
 
-void ParMesh::PrintAsOne (ostream &out)
+void ParMesh::PrintAsOne(ostream &out)
 {
    if (Dim == 3 && meshgen == 1)
    {
@@ -1643,7 +1638,7 @@ void ParMesh::PrintAsOne (ostream &out)
          out << "NETGEN_Neutral_Format\n";
          // print the vertices
          ne = NumOfVertices;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Reduce(&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
          out << nv << '\n';
          for(i=0; i<NumOfVertices; i++)
          {
@@ -1653,9 +1648,9 @@ void ParMesh::PrintAsOne (ostream &out)
          }
          for (p = 1; p < NRanks; p++)
          {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            vert.SetSize (Dim*nv);
-            MPI_Recv (&vert[0], Dim*nv, MPI_DOUBLE, p, 445, MyComm, &status);
+            MPI_Recv(&nv, 1, MPI_INT, p, 444, MyComm, &status);
+            vert.SetSize(Dim*nv);
+            MPI_Recv(&vert[0], Dim*nv, MPI_DOUBLE, p, 445, MyComm, &status);
             for(i = 0; i < nv; i++)
             {
                for(j=0; j<Dim; j++)
@@ -1666,12 +1661,12 @@ void ParMesh::PrintAsOne (ostream &out)
 
          // print the elements
          nv = NumOfElements;
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Reduce(&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
          out << ne << '\n';
          for(i=0; i<NumOfElements; i++)
          {
-            nv = elements[i] -> GetNVertices ();
-            ind = elements[i] -> GetVertices ();
+            nv = elements[i] -> GetNVertices();
+            ind = elements[i] -> GetVertices();
             out << 1;
             for(j=0; j<nv; j++)
                out << " " << ind[j]+1;
@@ -1680,10 +1675,10 @@ void ParMesh::PrintAsOne (ostream &out)
          k = NumOfVertices;
          for (p = 1; p < NRanks; p++)
          {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            MPI_Recv (&ne, 1, MPI_INT, p, 446, MyComm, &status);
-            ints.SetSize (4*ne);
-            MPI_Recv (&ints[0], 4*ne, MPI_INT, p, 447, MyComm, &status);
+            MPI_Recv(&nv, 1, MPI_INT, p, 444, MyComm, &status);
+            MPI_Recv(&ne, 1, MPI_INT, p, 446, MyComm, &status);
+            ints.SetSize(4*ne);
+            MPI_Recv(&ints[0], 4*ne, MPI_INT, p, 447, MyComm, &status);
             for(i = 0; i < ne; i++)
             {
                out << p+1;
@@ -1695,13 +1690,13 @@ void ParMesh::PrintAsOne (ostream &out)
          }
          // print the boundary + shared faces information
          nv = NumOfBdrElements + shared_faces.Size();
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Reduce(&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
          out << ne << '\n';
          // boundary
          for(i=0; i< NumOfBdrElements; i++)
          {
-            nv = boundary[i] -> GetNVertices ();
-            ind = boundary[i] -> GetVertices ();
+            nv = boundary[i] -> GetNVertices();
+            ind = boundary[i] -> GetVertices();
             out << 1;
             for(j=0; j<nv; j++)
                out << " " << ind[j]+1;
@@ -1710,8 +1705,8 @@ void ParMesh::PrintAsOne (ostream &out)
          // shared faces
          for(i=0; i< shared_faces.Size(); i++)
          {
-            nv = shared_faces[i] -> GetNVertices ();
-            ind = shared_faces[i] -> GetVertices ();
+            nv = shared_faces[i] -> GetNVertices();
+            ind = shared_faces[i] -> GetVertices();
             out << 1;
             for(j=0; j<nv; j++)
                out << " " << ind[j]+1;
@@ -1720,10 +1715,10 @@ void ParMesh::PrintAsOne (ostream &out)
          k = NumOfVertices;
          for (p = 1; p < NRanks; p++)
          {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            MPI_Recv (&ne, 1, MPI_INT, p, 446, MyComm, &status);
-            ints.SetSize (3*ne);
-            MPI_Recv (&ints[0], 3*ne, MPI_INT, p, 447, MyComm, &status);
+            MPI_Recv(&nv, 1, MPI_INT, p, 444, MyComm, &status);
+            MPI_Recv(&ne, 1, MPI_INT, p, 446, MyComm, &status);
+            ints.SetSize(3*ne);
+            MPI_Recv(&ints[0], 3*ne, MPI_INT, p, 447, MyComm, &status);
             for(i = 0; i < ne; i++)
             {
                out << p+1;
@@ -1737,19 +1732,19 @@ void ParMesh::PrintAsOne (ostream &out)
       else
       {
          ne = NumOfVertices;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
-         vert.SetSize (Dim*NumOfVertices);
+         MPI_Reduce(&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
+         vert.SetSize(Dim*NumOfVertices);
          for (i = 0; i < NumOfVertices; i++)
             for (j = 0; j < Dim; j++)
                vert[Dim*i+j] = vertices[i](j);
-         MPI_Send (&vert[0], Dim*NumOfVertices, MPI_DOUBLE,
+         MPI_Send(&vert[0], Dim*NumOfVertices, MPI_DOUBLE,
                    0, 445, MyComm);
          // elements
          ne = NumOfElements;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
-         MPI_Send (&NumOfElements, 1, MPI_INT, 0, 446, MyComm);
+         MPI_Reduce(&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
+         MPI_Send(&NumOfElements, 1, MPI_INT, 0, 446, MyComm);
          ints.SetSize(NumOfElements*4);
          for (i = 0; i < NumOfElements; i++)
          {
@@ -1757,14 +1752,14 @@ void ParMesh::PrintAsOne (ostream &out)
             for (j = 0; j < 4; j++)
                ints[4*i+j] = v[j];
          }
-         MPI_Send (&ints[0], 4*NumOfElements, MPI_INT, 0, 447, MyComm);
+         MPI_Send(&ints[0], 4*NumOfElements, MPI_INT, 0, 447, MyComm);
          // boundary + shared faces
          nv = NumOfBdrElements + shared_faces.Size();
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
+         MPI_Reduce(&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
          ne = NumOfBdrElements + shared_faces.Size();
-         MPI_Send (&ne, 1, MPI_INT, 0, 446, MyComm);
-         ints.SetSize (3*ne);
+         MPI_Send(&ne, 1, MPI_INT, 0, 446, MyComm);
+         ints.SetSize(3*ne);
          for (i = 0; i < NumOfBdrElements; i++)
          {
             v = boundary[i] -> GetVertices();
@@ -1777,7 +1772,7 @@ void ParMesh::PrintAsOne (ostream &out)
             for (j = 0; j < 3; j++)
                ints[3*i+j] = v[j];
          }
-         MPI_Send (&ints[0], 3*ne, MPI_INT, 0, 447, MyComm);
+         MPI_Send(&ints[0], 3*ne, MPI_INT, 0, 447, MyComm);
       }
    }
 
@@ -1793,10 +1788,10 @@ void ParMesh::PrintAsOne (ostream &out)
 
       if (MyRank == 0)
       {
-         MPI_Reduce (&NumOfVertices, &TG_nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Reduce (&NumOfElements, &TG_ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Reduce(&NumOfVertices, &TG_nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Reduce(&NumOfElements, &TG_ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
          nv = NumOfBdrElements + shared_faces.Size();
-         MPI_Reduce (&nv, &TG_nbe, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Reduce(&nv, &TG_nbe, 1, MPI_INT, MPI_SUM, 0, MyComm);
 
          out << "TrueGrid" << endl
              << "1 " << TG_nv << " " << TG_ne << " 0 0 0 0 0 0 0" << endl
@@ -1812,9 +1807,9 @@ void ParMesh::PrintAsOne (ostream &out)
                 << " " << vertices[i](2) << " 0.0 " << endl;
          for (p = 1; p < NRanks; p++)
          {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            vert.SetSize (Dim*nv);
-            MPI_Recv (&vert[0], Dim*nv, MPI_DOUBLE, p, 445, MyComm, &status);
+            MPI_Recv(&nv, 1, MPI_INT, p, 444, MyComm, &status);
+            vert.SetSize(Dim*nv);
+            MPI_Recv(&vert[0], Dim*nv, MPI_DOUBLE, p, 445, MyComm, &status);
             for(i = 0; i < nv; i++)
                out << i+1 << " 0.0 " << vert[Dim*i] << " " << vert[Dim*i+1]
                    << " " << vert[Dim*i+2] << " 0.0 " << endl;
@@ -1824,8 +1819,8 @@ void ParMesh::PrintAsOne (ostream &out)
          ne = TG_ne;
          for(i=0; i<NumOfElements; i++)
          {
-            nv = elements[i] -> GetNVertices ();
-            ind = elements[i] -> GetVertices ();
+            nv = elements[i] -> GetNVertices();
+            ind = elements[i] -> GetVertices();
             out << i+1 << " " << 1;
             for(j=0; j<nv; j++)
                out << " " << ind[j]+1;
@@ -1834,10 +1829,10 @@ void ParMesh::PrintAsOne (ostream &out)
          k = NumOfVertices;
          for (p = 1; p < NRanks; p++)
          {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            MPI_Recv (&ne, 1, MPI_INT, p, 446, MyComm, &status);
-            ints.SetSize (8*ne);
-            MPI_Recv (&ints[0], 8*ne, MPI_INT, p, 447, MyComm, &status);
+            MPI_Recv(&nv, 1, MPI_INT, p, 444, MyComm, &status);
+            MPI_Recv(&ne, 1, MPI_INT, p, 446, MyComm, &status);
+            ints.SetSize(8*ne);
+            MPI_Recv(&ints[0], 8*ne, MPI_INT, p, 447, MyComm, &status);
             for(i = 0; i < ne; i++)
             {
                out << i+1 << " " << p+1;
@@ -1853,8 +1848,8 @@ void ParMesh::PrintAsOne (ostream &out)
          // boundary
          for(i=0; i< NumOfBdrElements; i++)
          {
-            nv = boundary[i] -> GetNVertices ();
-            ind = boundary[i] -> GetVertices ();
+            nv = boundary[i] -> GetNVertices();
+            ind = boundary[i] -> GetVertices();
             out << 1;
             for(j=0; j<nv; j++)
                out << " " << ind[j]+1;
@@ -1863,8 +1858,8 @@ void ParMesh::PrintAsOne (ostream &out)
          // shared faces
          for(i=0; i< shared_faces.Size(); i++)
          {
-            nv = shared_faces[i] -> GetNVertices ();
-            ind = shared_faces[i] -> GetVertices ();
+            nv = shared_faces[i] -> GetNVertices();
+            ind = shared_faces[i] -> GetVertices();
             out << 1;
             for(j=0; j<nv; j++)
                out << " " << ind[j]+1;
@@ -1873,10 +1868,10 @@ void ParMesh::PrintAsOne (ostream &out)
          k = NumOfVertices;
          for (p = 1; p < NRanks; p++)
          {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            MPI_Recv (&ne, 1, MPI_INT, p, 446, MyComm, &status);
-            ints.SetSize (4*ne);
-            MPI_Recv (&ints[0], 4*ne, MPI_INT, p, 447, MyComm, &status);
+            MPI_Recv(&nv, 1, MPI_INT, p, 444, MyComm, &status);
+            MPI_Recv(&ne, 1, MPI_INT, p, 446, MyComm, &status);
+            ints.SetSize(4*ne);
+            MPI_Recv(&ints[0], 4*ne, MPI_INT, p, 447, MyComm, &status);
             for(i = 0; i < ne; i++)
             {
                out << p+1;
@@ -1890,19 +1885,19 @@ void ParMesh::PrintAsOne (ostream &out)
       else
       {
          ne = NumOfVertices;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
-         vert.SetSize (Dim*NumOfVertices);
+         MPI_Reduce(&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
+         vert.SetSize(Dim*NumOfVertices);
          for (i = 0; i < NumOfVertices; i++)
             for (j = 0; j < Dim; j++)
                vert[Dim*i+j] = vertices[i](j);
-         MPI_Send (&vert[0], Dim*NumOfVertices, MPI_DOUBLE,
-                   0, 445, MyComm);
+         MPI_Send(&vert[0], Dim*NumOfVertices, MPI_DOUBLE,
+                  0, 445, MyComm);
          // elements
          ne = NumOfElements;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
-         MPI_Send (&NumOfElements, 1, MPI_INT, 0, 446, MyComm);
+         MPI_Reduce(&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
+         MPI_Send(&NumOfElements, 1, MPI_INT, 0, 446, MyComm);
          ints.SetSize(NumOfElements*8);
          for (i = 0; i < NumOfElements; i++)
          {
@@ -1910,14 +1905,14 @@ void ParMesh::PrintAsOne (ostream &out)
             for (j = 0; j < 8; j++)
                ints[8*i+j] = v[j];
          }
-         MPI_Send (&ints[0], 8*NumOfElements, MPI_INT, 0, 447, MyComm);
+         MPI_Send(&ints[0], 8*NumOfElements, MPI_INT, 0, 447, MyComm);
          // boundary + shared faces
          nv = NumOfBdrElements + shared_faces.Size();
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
+         MPI_Reduce(&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
          ne = NumOfBdrElements + shared_faces.Size();
-         MPI_Send (&ne, 1, MPI_INT, 0, 446, MyComm);
-         ints.SetSize (4*ne);
+         MPI_Send(&ne, 1, MPI_INT, 0, 446, MyComm);
+         ints.SetSize(4*ne);
          for (i = 0; i < NumOfBdrElements; i++)
          {
             v = boundary[i] -> GetVertices();
@@ -1930,7 +1925,7 @@ void ParMesh::PrintAsOne (ostream &out)
             for (j = 0; j < 4; j++)
                ints[4*i+j] = v[j];
          }
-         MPI_Send (&ints[0], 4*ne, MPI_INT, 0, 447, MyComm);
+         MPI_Send(&ints[0], 4*ne, MPI_INT, 0, 447, MyComm);
       }
    }
 
@@ -1949,7 +1944,7 @@ void ParMesh::PrintAsOne (ostream &out)
 
          // print the boundary + shared edges information
          nv = NumOfBdrElements + shared_edges.Size();
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Reduce(&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
          out << ne << endl;
          // boundary
          for (i = 0; i < NumOfBdrElements; i++)
@@ -1974,10 +1969,10 @@ void ParMesh::PrintAsOne (ostream &out)
          k = NumOfVertices;
          for (p = 1; p < NRanks; p++)
          {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            MPI_Recv (&ne, 1, MPI_INT, p, 446, MyComm, &status);
-            ints.SetSize (2*ne);
-            MPI_Recv (&ints[0], 2*ne, MPI_INT, p, 447, MyComm, &status);
+            MPI_Recv(&nv, 1, MPI_INT, p, 444, MyComm, &status);
+            MPI_Recv(&ne, 1, MPI_INT, p, 446, MyComm, &status);
+            ints.SetSize(2*ne);
+            MPI_Recv(&ints[0], 2*ne, MPI_INT, p, 447, MyComm, &status);
             for (i = 0; i < ne; i++) {
                out << p+1;
                for (j = 0; j < 2; j++)
@@ -1989,7 +1984,7 @@ void ParMesh::PrintAsOne (ostream &out)
 
          // print the elements
          nv = NumOfElements;
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Reduce(&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
          out << ne << '\n';
          for (i = 0; i < NumOfElements; i++)
          {
@@ -2003,10 +1998,10 @@ void ParMesh::PrintAsOne (ostream &out)
          k = NumOfVertices;
          for (p = 1; p < NRanks; p++)
          {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            MPI_Recv (&ne, 1, MPI_INT, p, 446, MyComm, &status);
-            ints.SetSize (3*ne);
-            MPI_Recv (&ints[0], 3*ne, MPI_INT, p, 447, MyComm, &status);
+            MPI_Recv(&nv, 1, MPI_INT, p, 444, MyComm, &status);
+            MPI_Recv(&ne, 1, MPI_INT, p, 446, MyComm, &status);
+            ints.SetSize(3*ne);
+            MPI_Recv(&ints[0], 3*ne, MPI_INT, p, 447, MyComm, &status);
             for(i = 0; i < ne; i++) {
                out << p+1 << " " << 3;
                for (j = 0; j < 3; j++)
@@ -2018,7 +2013,7 @@ void ParMesh::PrintAsOne (ostream &out)
 
          // print the vertices
          ne = NumOfVertices;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Reduce(&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
          out << nv << '\n';
          for (i = 0; i < NumOfVertices; i++) {
             for (j = 0; j < Dim; j++)
@@ -2027,9 +2022,9 @@ void ParMesh::PrintAsOne (ostream &out)
          }
          for (p = 1; p < NRanks; p++)
          {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            vert.SetSize (Dim*nv);
-            MPI_Recv (&vert[0], Dim*nv, MPI_DOUBLE, p, 445, MyComm, &status);
+            MPI_Recv(&nv, 1, MPI_INT, p, 444, MyComm, &status);
+            vert.SetSize(Dim*nv);
+            MPI_Recv(&vert[0], Dim*nv, MPI_DOUBLE, p, 445, MyComm, &status);
             for(i = 0; i < nv; i++)
             {
                for(j=0; j<Dim; j++)
@@ -2037,14 +2032,16 @@ void ParMesh::PrintAsOne (ostream &out)
                out << '\n';
             }
          }
-      } else {
+      }
+      else
+      {
          // boundary + shared faces
          nv = NumOfBdrElements + shared_edges.Size();
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
+         MPI_Reduce(&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
          ne = NumOfBdrElements + shared_edges.Size();
-         MPI_Send (&ne, 1, MPI_INT, 0, 446, MyComm);
-         ints.SetSize (2*ne);
+         MPI_Send(&ne, 1, MPI_INT, 0, 446, MyComm);
+         ints.SetSize(2*ne);
          for (i = 0; i < NumOfBdrElements; i++)
          {
             boundary[i] -> GetVertices(v);
@@ -2057,12 +2054,12 @@ void ParMesh::PrintAsOne (ostream &out)
             for (j = 0; j < 2; j++)
                ints[2*i+j] = v[j];
          }
-         MPI_Send (&ints[0], 2*ne, MPI_INT, 0, 447, MyComm);
+         MPI_Send(&ints[0], 2*ne, MPI_INT, 0, 447, MyComm);
          // elements
          ne = NumOfElements;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
-         MPI_Send (&NumOfElements, 1, MPI_INT, 0, 446, MyComm);
+         MPI_Reduce(&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
+         MPI_Send(&NumOfElements, 1, MPI_INT, 0, 446, MyComm);
          ints.SetSize(NumOfElements*3);
          for (i = 0; i < NumOfElements; i++)
          {
@@ -2070,191 +2067,17 @@ void ParMesh::PrintAsOne (ostream &out)
             for (j = 0; j < 3; j++)
                ints[3*i+j] = v[j];
          }
-         MPI_Send (&ints[0], 3*NumOfElements, MPI_INT, 0, 447, MyComm);
+         MPI_Send(&ints[0], 3*NumOfElements, MPI_INT, 0, 447, MyComm);
          // vertices
          ne = NumOfVertices;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
-         vert.SetSize (Dim*NumOfVertices);
+         MPI_Reduce(&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
+         vert.SetSize(Dim*NumOfVertices);
          for (i = 0; i < NumOfVertices; i++)
             for (j = 0; j < Dim; j++)
                vert[Dim*i+j] = vertices[i](j);
-         MPI_Send (&vert[0], Dim*NumOfVertices, MPI_DOUBLE,
-                   0, 445, MyComm);
-      }
-   }
-}
-
-void ParMesh::PrintAsOneAndScaled (ostream &out, double sf)
-{
-   if (Dim == 3)
-   {
-      int i, j, k, nv, ne, p;
-      const int *ind, *v;
-      MPI_Status status;
-      Array<double> vert;
-      Array<int> ints;
-
-      double cg[Dim]; // center of gravity
-
-      if (MyRank == 0)
-      {
-         out << "NETGEN_Neutral_Format\n";
-         // print the vertices
-         ne = NumOfVertices;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         out << nv << '\n';
-
-         for(j=0; j<Dim; j++)
-            cg[j] = 0.0;
-         for(i=0; i<NumOfVertices; i++)
-            for(j=0; j<Dim; j++)
-               cg[j] +=  vertices[i](j);
-         for(j=0; j<Dim; j++)
-            cg[j] /= NumOfVertices;
-
-         for(i=0; i<NumOfVertices; i++) {
-            for(j=0; j<Dim; j++)
-               out << " " << sf*vertices[i](j) + (1-sf)*cg[j];
-            out << '\n';
-         }
-
-         for (p = 1; p < NRanks; p++)
-         {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            vert.SetSize (Dim*nv);
-            MPI_Recv (&vert[0], Dim*nv, MPI_DOUBLE, p, 445, MyComm, &status);
-
-            for(j=0; j<Dim; j++)
-               cg[j] = 0.0;
-            for(i=0; i<nv; i++)
-               for(j=0; j<Dim; j++) {
-                  cg[j] +=  vert[Dim*i+j];
-               }
-            for(j=0; j<Dim; j++)
-               cg[j] /= nv;
-
-            for(i=0; i<nv; i++) {
-               for(j=0; j<Dim; j++)
-                  out << " " << sf*vert[Dim*i+j] + (1-sf)*cg[j];
-               out << '\n';
-            }
-         }
-
-         // print the elements
-         nv = NumOfElements;
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         out << ne << '\n';
-         for(i=0; i<NumOfElements; i++)
-         {
-            nv = elements[i] -> GetNVertices ();
-            ind = elements[i] -> GetVertices ();
-            out << 1;
-            for(j=0; j<nv; j++)
-               out << " " << ind[j]+1;
-            out << '\n';
-         }
-         k = NumOfVertices;
-         for (p = 1; p < NRanks; p++)
-         {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            MPI_Recv (&ne, 1, MPI_INT, p, 446, MyComm, &status);
-            ints.SetSize (4*ne);
-            MPI_Recv (&ints[0], 4*ne, MPI_INT, p, 447, MyComm, &status);
-            for(i = 0; i < ne; i++)
-            {
-               out << p+1;
-               for(j=0; j<4; j++)
-                  out << " " << k+ints[i*4+j]+1;
-               out << '\n';
-            }
-            k += nv;
-         }
-         // print the boundary + shared faces information
-         nv = NumOfBdrElements + shared_faces.Size();
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         out << ne << '\n';
-         // boundary
-         for(i=0; i< NumOfBdrElements; i++)
-         {
-            nv = boundary[i] -> GetNVertices ();
-            ind = boundary[i] -> GetVertices ();
-            out << 1;
-            for(j=0; j<nv; j++)
-               out << " " << ind[j]+1;
-            out << '\n';
-         }
-         // shared faces
-         for(i=0; i< shared_faces.Size(); i++)
-         {
-            nv = shared_faces[i] -> GetNVertices ();
-            ind = shared_faces[i] -> GetVertices ();
-            out << 1;
-            for(j=0; j<nv; j++)
-               out << " " << ind[j]+1;
-            out << '\n';
-         }
-         k = NumOfVertices;
-         for (p = 1; p < NRanks; p++)
-         {
-            MPI_Recv (&nv, 1, MPI_INT, p, 444, MyComm, &status);
-            MPI_Recv (&ne, 1, MPI_INT, p, 446, MyComm, &status);
-            ints.SetSize (3*ne);
-            MPI_Recv (&ints[0], 3*ne, MPI_INT, p, 447, MyComm, &status);
-            for(i = 0; i < ne; i++)
-            {
-               out << p+1;
-               for(j=0; j<3; j++)
-                  out << " " << k+ints[i*3+j]+1;
-               out << '\n';
-            }
-            k += nv;
-         }
-      }
-      else
-      {
-         ne = NumOfVertices;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
-         vert.SetSize (Dim*NumOfVertices);
-         for (i = 0; i < NumOfVertices; i++)
-            for (j = 0; j < Dim; j++)
-               vert[Dim*i+j] = vertices[i](j);
-         MPI_Send (&vert[0], Dim*NumOfVertices, MPI_DOUBLE,
-                   0, 445, MyComm);
-         // elements
-         ne = NumOfElements;
-         MPI_Reduce (&ne, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
-         MPI_Send (&NumOfElements, 1, MPI_INT, 0, 446, MyComm);
-         ints.SetSize(NumOfElements*4);
-         for (i = 0; i < NumOfElements; i++)
-         {
-            v = elements[i] -> GetVertices();
-            for (j = 0; j < 4; j++)
-               ints[4*i+j] = v[j];
-         }
-         MPI_Send (&ints[0], 4*NumOfElements, MPI_INT, 0, 447, MyComm);
-         // boundary + shared faces
-         nv = NumOfBdrElements + shared_faces.Size();
-         MPI_Reduce (&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
-         MPI_Send (&NumOfVertices, 1, MPI_INT, 0, 444, MyComm);
-         ne = NumOfBdrElements + shared_faces.Size();
-         MPI_Send (&ne, 1, MPI_INT, 0, 446, MyComm);
-         ints.SetSize (3*ne);
-         for (i = 0; i < NumOfBdrElements; i++)
-         {
-            v = boundary[i] -> GetVertices();
-            for (j = 0; j < 3; j++)
-               ints[3*i+j] = v[j];
-         }
-         for ( ; i < ne; i++)
-         {
-            v = shared_faces[i-NumOfBdrElements] -> GetVertices();
-            for (j = 0; j < 3; j++)
-               ints[3*i+j] = v[j];
-         }
-         MPI_Send (&ints[0], 3*ne, MPI_INT, 0, 447, MyComm);
+         MPI_Send(&vert[0], Dim*NumOfVertices, MPI_DOUBLE,
+                  0, 445, MyComm);
       }
    }
 }
@@ -2264,12 +2087,11 @@ ParMesh::~ParMesh()
    int i;
 
    for (i = 0; i < shared_faces.Size(); i++)
-      FreeElement (shared_faces[i]);
+      FreeElement(shared_faces[i]);
    for (i = 0; i < shared_edges.Size(); i++)
-      FreeElement (shared_edges[i]);
+      FreeElement(shared_edges[i]);
 
-   ///  Is it necessary to call the destructor for Mesh? (No?)
-   ///  The destructor for Mesh is called automatically. (checked)
+   // The Mesh destructor is called automatically
 }
 
 #endif

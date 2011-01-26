@@ -16,13 +16,13 @@
 
 ParFiniteElementSpace::ParFiniteElementSpace(
    ParMesh *pm, FiniteElementCollection *f, int dim, int order)
-   : FiniteElementSpace (pm, f, dim, order)
+   : FiniteElementSpace(pm, f, dim, order)
 {
    mesh = pmesh = pm;
 
    MyComm = pmesh->GetComm();
-   MPI_Comm_size (MyComm, &NRanks);
-   MPI_Comm_rank (MyComm, &MyRank);
+   MPI_Comm_size(MyComm, &NRanks);
+   MPI_Comm_rank(MyComm, &MyRank);
 
    P = NULL;
 
@@ -31,9 +31,9 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    GenerateGlobalOffsets();
 }
 
-void ParFiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
+void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
 {
-   FiniteElementSpace::GetElementDofs (i, dofs);
+   FiniteElementSpace::GetElementDofs(i, dofs);
    for (i = 0; i < dofs.Size(); i++)
       if (dofs[i] < 0) {
          if (ldof_sign[-1-dofs[i]] < 0)
@@ -44,9 +44,9 @@ void ParFiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
       }
 }
 
-void ParFiniteElementSpace::GetBdrElementDofs (int i, Array<int> &dofs) const
+void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
 {
-   FiniteElementSpace::GetBdrElementDofs (i, dofs);
+   FiniteElementSpace::GetBdrElementDofs(i, dofs);
    for (i = 0; i < dofs.Size(); i++)
       if (dofs[i] < 0) {
          if (ldof_sign[-1-dofs[i]] < 0)
@@ -93,11 +93,11 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       int ldof  = GetVSize();
       int ltdof = TrueVSize();
 
-      dof_offsets.SetSize  (NRanks+1);
-      tdof_offsets.SetSize (NRanks+1);
+      dof_offsets.SetSize (NRanks+1);
+      tdof_offsets.SetSize(NRanks+1);
 
-      MPI_Allgather (&ldof, 1, MPI_INT, &dof_offsets[1], 1, MPI_INT, MyComm);
-      MPI_Allgather (&ltdof, 1, MPI_INT, &tdof_offsets[1], 1, MPI_INT, MyComm);
+      MPI_Allgather(&ldof, 1, MPI_INT, &dof_offsets[1], 1, MPI_INT, MyComm);
+      MPI_Allgather(&ltdof, 1, MPI_INT, &tdof_offsets[1], 1, MPI_INT, MyComm);
 
       dof_offsets[0] = tdof_offsets[0] = 0;
       for (i = 1; i < NRanks; i++)
@@ -108,7 +108,7 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
    }
 }
 
-HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // P
+HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
 {
    int  i;
 
@@ -134,12 +134,8 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // P
    int *col_starts;
    int *row_starts;
 
-   // -------------------------------
-
    col_starts = GetTrueDofOffsets();
    row_starts = GetDofOffsets();
-
-   // if (ldof != row_starts[MyRank+1]-row_starts[MyRank])  crash();
 
    i_diag = new int[ldof+1];
    j_diag = new int[ltdof];
@@ -149,7 +145,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // P
 
    cmap   = new int[ldof-ltdof];
 
-   Array<Pair<int, int> > cmap_j_offd (ldof-ltdof);
+   Array<Pair<int, int> > cmap_j_offd(ldof-ltdof);
 
    int *ncol_starts;
    if (HYPRE_AssumedPartitionCheck())
@@ -162,14 +158,14 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // P
       int request_counter = 0;
       // send and receive neighbors' local tdof offsets
       for (i = 1; i < nsize+1; i++)
-         MPI_Irecv (&ncol_starts[i], 1, MPI_INT, lproc_proc[i], 5365,
-                    MyComm, &requests[request_counter++]);
+         MPI_Irecv(&ncol_starts[i], 1, MPI_INT, lproc_proc[i], 5365,
+                   MyComm, &requests[request_counter++]);
 
       for (i = 1; i < nsize+1; i++)
-         MPI_Isend (&col_starts[0], 1, MPI_INT, lproc_proc[i], 5365,
-                    MyComm, &requests[request_counter++]);
+         MPI_Isend(&col_starts[0], 1, MPI_INT, lproc_proc[i], 5365,
+                   MyComm, &requests[request_counter++]);
 
-      MPI_Waitall (request_counter, requests, statuses);
+      MPI_Waitall(request_counter, requests, statuses);
 
       delete [] statuses;
       delete [] requests;
@@ -201,9 +197,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // P
    if (HYPRE_AssumedPartitionCheck())
       delete [] ncol_starts;
 
-   // if (diag_counter != ltdof)  crash();
-
-   SortPairs<int, int> (cmap_j_offd, offd_counter);
+   SortPairs<int, int>(cmap_j_offd, offd_counter);
 
    for (i = 0; i < offd_counter; i++)
    {
@@ -217,15 +211,15 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // P
    return P;
 }
 
-void ParFiniteElementSpace::DivideByGroupSize (double * vec)
+void ParFiniteElementSpace::DivideByGroupSize(double * vec)
 {
    for (int i = 0; i < ldof_group.Size(); i++)
       if (pmesh -> groupmaster_lproc[ldof_group[i]] == 0) // we are the master
          vec[ldof_ltdof[i]] /= pmesh -> group_lproc.RowSize(ldof_group[i]);
 }
 
-void ParFiniteElementSpace::GetEssentialVDofs (Array<int> &bdr_attr_is_ess,
-                                               Array<int> &ess_dofs)
+void ParFiniteElementSpace::GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
+                                              Array<int> &ess_dofs)
 {
    int i;
 
@@ -233,7 +227,6 @@ void ParFiniteElementSpace::GetEssentialVDofs (Array<int> &bdr_attr_is_ess,
 
    // Make sure that processors without boundary elements mark
    // their boundary dofs (if they have any).
-
    double * d_ess_dofs = new double[ess_dofs.Size()];
    for (i = 0; i < ess_dofs.Size(); i++)
       d_ess_dofs[i] = ess_dofs[i];
@@ -291,29 +284,27 @@ void ParFiniteElementSpace::ConstructTrueDofs()
    MPI_Request *requests;
    MPI_Status  *statuses;
 
-//    MPI_Barrier (MPI_COMM_WORLD);
-//    cout << MyRank << ": group_lproc :" << endl;
-//    pmesh -> group_lproc.Print (cout);
-//    cout << MyRank << ": lproc_proc :" << endl;
-//    pmesh -> lproc_proc.Print (cout, 1);
-//    cout << MyRank << ": groupmaster_lproc :" << endl;
-//    pmesh -> groupmaster_lproc.Print (cout, 1);
-//    MPI_Barrier (MPI_COMM_WORLD);
+#if 0
+   MPI_Barrier (MPI_COMM_WORLD);
+   cout << MyRank << ": group_lproc :" << endl;
+   pmesh -> group_lproc.Print (cout);
+   cout << MyRank << ": lproc_proc :" << endl;
+   pmesh -> lproc_proc.Print (cout, 1);
+   cout << MyRank << ": groupmaster_lproc :" << endl;
+   pmesh -> groupmaster_lproc.Print (cout, 1);
+   MPI_Barrier (MPI_COMM_WORLD);
+#endif
 
-
-   nvd = fec->DofForGeometry (Geometry::POINT);
-   ned = fec->DofForGeometry (Geometry::SEGMENT);
+   nvd = fec->DofForGeometry(Geometry::POINT);
+   ned = fec->DofForGeometry(Geometry::SEGMENT);
    nfd = (fdofs) ? (fdofs[1]-fdofs[0]) : (0);
 
-   //-----------------------------------------------------
-   // define ldof_group and mark ldof_ltdof with
+   // Define ldof_group and mark ldof_ltdof with
    //   -1 for ldof that is ours
    //   -2 for ldof that is in a group with another master
-   // group_ldof ....
-   //-----------------------------------------------------
-   ldof_group.SetSize (n);
-   ldof_ltdof.SetSize (n);
-   group_ldof.SetDims (ng, n);
+   ldof_group.SetSize(n);
+   ldof_ltdof.SetSize(n);
+   group_ldof.SetDims(ng, n);
 
    for (i = 0; i < n; i++)
    {
@@ -321,7 +312,7 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       ldof_ltdof[i] = -1;
    }
 
-   ldof_sign.SetSize (GetNDofs());
+   ldof_sign.SetSize(GetNDofs());
    for (i = 0; i < GetNDofs(); i++)
       ldof_sign[i] = 1;
 
@@ -333,17 +324,17 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       int j, k, l, m, o, nv, ne, nf;
       const int *ind;
 
-      nv = pmesh -> GroupNVertices (gr);
-      ne = pmesh -> GroupNEdges (gr);
-      nf = pmesh -> GroupNFaces (gr);
+      nv = pmesh -> GroupNVertices(gr);
+      ne = pmesh -> GroupNEdges(gr);
+      nf = pmesh -> GroupNFaces(gr);
 
       // vertices
       if (nvd > 0)
          for (j = 0; j < nv; j++)
          {
-            k = pmesh -> GroupVertex (gr, j);
+            k = pmesh -> GroupVertex(gr, j);
 
-            dofs.SetSize (nvd);
+            dofs.SetSize(nvd);
             m = nvd * k;
             for (l = 0; l < nvd; l++, m++)
                dofs[l] = m;
@@ -365,9 +356,9 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       if (ned > 0)
          for (j = 0; j < ne; j++)
          {
-            pmesh -> GroupEdge (gr, j, k, o);
+            pmesh -> GroupEdge(gr, j, k, o);
 
-            dofs.SetSize (ned);
+            dofs.SetSize(ned);
             m = nvdofs+k*ned;
             ind = fec->DofOrderForOrientation(Geometry::SEGMENT, o);
             for (l = 0; l < ned; l++)
@@ -379,7 +370,7 @@ void ParFiniteElementSpace::ConstructTrueDofs()
                else
                   dofs[l] = m + ind[l];
 
-            DofsToVDofs (dofs);
+            DofsToVDofs(dofs);
 
             for (l = 0; l < dofs.Size(); l++)
                ldof_group[dofs[l]] = gr;
@@ -396,9 +387,9 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       if (nfd > 0)
          for (j = 0; j < nf; j++)
          {
-            pmesh -> GroupFace (gr, j, k, o);
+            pmesh -> GroupFace(gr, j, k, o);
 
-            dofs.SetSize (nfd);
+            dofs.SetSize(nfd);
             m = nvdofs+nedofs+fdofs[k];
             ind = fec->DofOrderForOrientation(
                mesh->GetFaceBaseGeometry(k), o);
@@ -411,7 +402,7 @@ void ParFiniteElementSpace::ConstructTrueDofs()
                else
                   dofs[l] = m + ind[l];
 
-            DofsToVDofs (dofs);
+            DofsToVDofs(dofs);
 
             for (l = 0; l < dofs.Size(); l++)
                ldof_group[dofs[l]] = gr;
@@ -426,25 +417,20 @@ void ParFiniteElementSpace::ConstructTrueDofs()
 
       group_ldof.GetI()[gr+1] = group_ldof_counter;
 
-      if (group_ldof.RowSize (gr) != 0)
+      if (group_ldof.RowSize(gr) != 0)
          if (pmesh -> groupmaster_lproc[gr] != 0) // we are not the master
             request_counter++;
          else
-            request_counter += pmesh -> group_lproc.RowSize (gr)-1;
+            request_counter += pmesh -> group_lproc.RowSize(gr)-1;
    }
 
-   //---------------------------------------------------
    // count ltdof_size
-   //---------------------------------------------------
-
    ltdof_size = 0;
    for (i = 0; i < n; i++)
       if (ldof_ltdof[i] == -1)
          ldof_ltdof[i] = ltdof_size++;
 
-   //---------------------------------------------------
-
-   j_group_ltdof.SetSize (group_ldof_counter); // send and receive buffers
+   j_group_ltdof.SetSize(group_ldof_counter); // send and receive buffers
 
    if (group_ldof_counter > 0)
    {
@@ -455,22 +441,18 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       for (gr = 1; gr < ng; gr++) {
 
          // ignore groups without dofs
-         if (group_ldof.RowSize (gr) == 0)
+         if (group_ldof.RowSize(gr) == 0)
             continue;
 
          if (pmesh -> groupmaster_lproc[gr] != 0) // we are not the master
          {
-            MPI_Irecv (&j_group_ltdof[group_ldof.GetI()[gr]],
-                       group_ldof.RowSize (gr),
-                       MPI_INT,
-                       pmesh -> lproc_proc[pmesh -> groupmaster_lproc[gr]],
-                       40822 + pmesh -> group_mgroup[gr],
-                       MyComm,
-                       &requests[request_counter]);
-//       cout << "ParFiniteElementSpace::ConstructTrueDofs: "
-//            << MyRank << " <--- "
-//            << pmesh -> lproc_proc[pmesh -> groupmaster_lproc[gr]]
-//            << endl;
+            MPI_Irecv(&j_group_ltdof[group_ldof.GetI()[gr]],
+                      group_ldof.RowSize(gr),
+                      MPI_INT,
+                      pmesh -> lproc_proc[pmesh -> groupmaster_lproc[gr]],
+                      40822 + pmesh -> group_mgroup[gr],
+                      MyComm,
+                      &requests[request_counter]);
             request_counter++;
          }
          else // we are the master
@@ -484,30 +466,26 @@ void ParFiniteElementSpace::ConstructTrueDofs()
             {
                if (pmesh -> group_lproc.GetJ()[i] != 0)
                {
-                  MPI_Isend (&j_group_ltdof[group_ldof.GetI()[gr]],
-                             group_ldof.RowSize (gr),
-                             MPI_INT,
-                             pmesh -> lproc_proc[pmesh -> group_lproc.GetJ()[i]],
-                             40822 + pmesh -> group_mgroup[gr],
-                             MyComm,
-                             &requests[request_counter]);
-//           cout << "ParFiniteElementSpace::ConstructTrueDofs: "
-//                << MyRank << " ---> "
-//                << pmesh -> lproc_proc[pmesh -> group_lproc.GetJ()[i]]
-//                << endl;
+                  MPI_Isend(&j_group_ltdof[group_ldof.GetI()[gr]],
+                            group_ldof.RowSize (gr),
+                            MPI_INT,
+                            pmesh -> lproc_proc[pmesh -> group_lproc.GetJ()[i]],
+                            40822 + pmesh -> group_mgroup[gr],
+                            MyComm,
+                            &requests[request_counter]);
                   request_counter++;
                }
             }
          }
       }
 
-      MPI_Waitall (request_counter, requests, statuses);
+      MPI_Waitall(request_counter, requests, statuses);
 
       delete [] statuses;
       delete [] requests;
    }
 
-   //  set ldof_ltdof for groups that have another master
+   // set ldof_ltdof for groups that have another master
    for (gr = 1; gr < ng; gr++)
       if (pmesh -> groupmaster_lproc[gr] != 0) // we are not the master
       {

@@ -2590,12 +2590,14 @@ static int mfem_less(const void *x, const void *y)
 }
 // METIS prototypes
 typedef int idxtype;
-void METIS_PartGraphRecursive(int *, idxtype *, idxtype *, idxtype *, idxtype *,
-                              int *, int *, int *, int *, int *, idxtype *);
-void METIS_PartGraphKway(int *, idxtype *, idxtype *, idxtype *, idxtype *,
-                         int *, int *, int *, int *, int *, idxtype *);
-void METIS_PartGraphVKway(int *, idxtype *, idxtype *, idxtype *, idxtype *,
-                          int *, int *, int *, int *, int *, idxtype *);
+extern "C" {
+void METIS_PartGraphRecursive(int*, idxtype*, idxtype*, idxtype*, idxtype*,
+                              int*, int*, int*, int*, int*, idxtype*);
+void METIS_PartGraphKway(int*, idxtype*, idxtype*, idxtype*, idxtype*,
+                         int*, int*, int*, int*, int*, idxtype*);
+void METIS_PartGraphVKway(int*, idxtype*, idxtype*, idxtype*, idxtype*,
+                          int*, int*, int*, int*, int*, idxtype*);
+}
 #endif
 
 int *Mesh::GeneratePartitioning(int nparts, int part_method)

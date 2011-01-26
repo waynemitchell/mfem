@@ -19,9 +19,9 @@ protected:
    ParFiniteElementSpace *pfes;
 
 public:
-   ParLinearForm (ParFiniteElementSpace *pf) : LinearForm(pf) { pfes = pf; }
+   ParLinearForm(ParFiniteElementSpace *pf) : LinearForm(pf) { pfes = pf; }
 
-   void Update (ParFiniteElementSpace *pf = NULL);
+   void Update(ParFiniteElementSpace *pf = NULL);
 
    /// Returns the vector assembled on the true dofs, i.e. P^t v.
    HypreParVector *ParallelAssemble();

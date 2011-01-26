@@ -33,7 +33,7 @@ private:
 
 public:
    /** Creates vector with given global size and partitioning of the columns.
-       Processor P owns colums [col[P],col[P+1]) */
+       Processor P owns columns [col[P],col[P+1]) */
    HypreParVector(int glob_size, int *col);
    /** Creates vector with given global size, partitioning of the columns,
        and data. The data must be allocated and destroyed outside. */
