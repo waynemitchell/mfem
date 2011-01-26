@@ -36,7 +36,8 @@ int main (int argc, char *argv[])
    if (argc == 1)
    {
       if (myid == 0)
-         cout << "Usage: ex1 <mesh_file>" << endl;
+         cout << "\nUsage: ex1 <mesh_file>\n" << endl;
+      MPI_Finalize();
       return 1;
    }
 
@@ -46,7 +47,8 @@ int main (int argc, char *argv[])
    if (!imesh)
    {
       if (myid == 0)
-         cerr << "can not open mesh file: " << argv[1] << endl;
+         cerr << "\nCan not open mesh file: " << argv[1] << '\n' << endl;
+      MPI_Finalize();
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);
@@ -67,9 +69,14 @@ int main (int argc, char *argv[])
    pmesh = new ParMesh(MPI_COMM_WORLD, *mesh, 0, 1);
 
    // DEBUG
+   if (0)
    {
-      ofstream test("pmesh.mesh");
-      pmesh -> PrintAsOne(test);
+      ofstream test;
+      if (myid == 0)
+         test.open("pmesh.mesh");
+      pmesh->PrintAsOne(test);
+      if (myid == 0)
+         test.close();
    }
 
    // 3. Define a finite element space on the mesh. Here we use linear finite
@@ -126,10 +133,19 @@ int main (int argc, char *argv[])
    // 8. Save the refined mesh and the solution. This output can be viewed later
    //    using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
-      ofstream mesh_ofs("refined.mesh");
+      ofstream mesh_ofs;
+      if (myid == 0)
+         mesh_ofs.open("refined.mesh");
       pmesh->PrintAsOne(mesh_ofs);
-      ofstream sol_ofs("sol.gf");
+      if (myid == 0)
+         mesh_ofs.close();
+
+      ofstream sol_ofs;
+      if (myid == 0)
+         sol_ofs.open("sol.gf");
       xx.SaveAsOne(sol_ofs);
+      if (myid == 0)
+         sol_ofs.close();
    }
 
    // 9. (Optional) Send the solution by socket to a GLVis server.
@@ -153,9 +169,20 @@ int main (int argc, char *argv[])
    }
 
    // 10. Free the used memory.
+   delete solver;
+   delete prec;
+   delete X;
+   delete B;
+   delete A;
+
    delete a;
    delete b;
    delete fespace;
    delete fec;
+   delete pmesh;
    delete mesh;
+
+   MPI_Finalize();
+
+   return 0;
 }
