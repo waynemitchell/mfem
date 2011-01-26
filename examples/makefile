@@ -16,6 +16,11 @@ DEBUG_OPTS = -g -DDEBUG
 MFEM_DIR = ..
 MFEM_LIB = -L$(MFEM_DIR) -lmfem
 
+# Libraries needed for the parallel examples
+MPICC = mpiCC
+METIS_DIR = ../../metis-4.0
+HYPRE_DIR = ../../hypre-2.6.1a/src/hypre
+
 # Link with LAPACK? (needed if MFEM was compiled with LAPACK support)
 USE_LAPACK = YES
 
@@ -34,8 +39,14 @@ LIBS = $(MFEM_LIB) $(LAPACK_LIBS)
 
 all: ex1 ex2 ex6
 
+parallel: ex1p
+
 ex1: ex1.cpp
 	$(CC) $(OPTS) -I$(MFEM_DIR) ex1.cpp -o ex1 $(LIBS)
+
+ex1p: ex1p.cpp
+	$(MPICC) $(OPTS) -g -I$(MFEM_DIR) -I$(HYPRE_DIR)/include ex1p.cpp -o ex1p \
+	$(LIBS) -L$(METIS_DIR) -lmetis -L$(HYPRE_DIR)/lib -lHYPRE
 
 ex2: ex2.cpp
 	$(CC) $(OPTS) -I$(MFEM_DIR) ex2.cpp -o ex2 $(LIBS)
@@ -47,5 +58,5 @@ debug:
 	make "OPTS=$(DEBUG_OPTS)"
 
 clean:
-	rm -f *.o ex1 ex2 ex6 refined.mesh displaced.mesh sol.gf\
+	rm -f *.o ex1 ex1p ex2 ex6 refined.mesh displaced.mesh sol.gf\
  perturbed.mesh smoothed.mesh *~
