@@ -5083,7 +5083,7 @@ void Mesh::PrintXG(ostream &out) const
    {
       if (Nodes)
       {
-         mfem_error("Mesh::Print(...) : Curved mesh in 3D");
+         mfem_error("Mesh::PrintXG(...) : Curved mesh in 3D");
       }
 
       if (meshgen == 1)

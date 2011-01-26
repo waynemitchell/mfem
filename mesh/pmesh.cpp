@@ -1653,6 +1653,215 @@ void ParMesh::Print(ostream &out) const
 
 void ParMesh::PrintAsOne(ostream &out)
 {
+   int i, j, k, p, nv_ne[2], &nv = nv_ne[0], &ne = nv_ne[1], vc;
+   const int *ind, *v;
+   MPI_Status status;
+   Array<double> vert;
+   Array<int> ints;
+
+   if (MyRank == 0)
+   {
+      out << "MFEM mesh v1.0\n";
+
+      // optional
+      out <<
+         "\n#\n# MFEM Geometry Types (see mesh/geom.hpp):\n#\n"
+         "# POINT       = 0\n"
+         "# SEGMENT     = 1\n"
+         "# TRIANGLE    = 2\n"
+         "# SQUARE      = 3\n"
+         "# TETRAHEDRON = 4\n"
+         "# CUBE        = 5\n"
+         "#\n";
+
+      out << "\ndimension\n" << Dim;
+   }
+
+   nv = NumOfElements;
+   MPI_Reduce(&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+   if (MyRank == 0)
+   {
+      out << "\n\nelements\n" << ne << '\n';
+      for (i = 0; i < NumOfElements; i++)
+      {
+         // processor number + 1 as attribute and geometry type
+         out << 1 << ' ' << elements[i]->GetGeometryType();
+         // vertices
+         nv = elements[i]->GetNVertices();
+         v  = elements[i]->GetVertices();
+         for (j = 0; j < nv; j++)
+            out << ' ' << v[j];
+         out << '\n';
+      }
+      vc = NumOfVertices;
+      for (p = 1; p < NRanks; p++)
+      {
+         MPI_Recv(nv_ne, 2, MPI_INT, p, 444, MyComm, &status);
+         ints.SetSize(ne);
+         MPI_Recv(&ints[0], ne, MPI_INT, p, 445, MyComm, &status);
+         for (i = 0; i < ne; )
+         {
+            // processor number + 1 as attribute and geometry type
+            out << p+1 << ' ' << ints[i];
+            // vertices
+            k = Geometries.GetVertices(ints[i++])->GetNPoints();
+            for (j = 0; j < k; j++)
+               out << ' ' << vc + ints[i++];
+            out << '\n';
+         }
+         vc += nv;
+      }
+   }
+   else
+   {
+      // for each element send its geometry type and its vertices
+      ne = 0;
+      for (i = 0; i < NumOfElements; i++)
+         ne += 1 + elements[i]->GetNVertices();
+      nv = NumOfVertices;
+      MPI_Send(nv_ne, 2, MPI_INT, 0, 444, MyComm);
+      ints.SetSize(ne);
+      for (i = j = 0; i < NumOfElements; i++)
+      {
+         ints[j++] = elements[i]->GetGeometryType();
+         nv = elements[i]->GetNVertices();
+         v  = elements[i]->GetVertices();
+         for (k = 0; k < nv; k++)
+            ints[j++] = v[k];
+      }
+      MPI_Send(&ints[0], ne, MPI_INT, 0, 445, MyComm);
+   }
+
+   // boundary + shared boundary
+   Array<Element *> &shared_boundary =
+      (Dim == 2) ? shared_edges : shared_faces;
+   nv = NumOfBdrElements + shared_boundary.Size();
+   MPI_Reduce(&nv, &ne, 1, MPI_INT, MPI_SUM, 0, MyComm);
+   if (MyRank == 0)
+   {
+      out << "\nboundary\n" << ne << '\n';
+      // actual boundary
+      for (i = 0; i < NumOfBdrElements; i++)
+      {
+         // processor number + 1 as bdr. attr. and bdr. geometry type
+         out << 1 << ' ' << boundary[i]->GetGeometryType();
+         // vertices
+         nv = boundary[i]->GetNVertices();
+         v  = boundary[i]->GetVertices();
+         for (j = 0; j < nv; j++)
+            out << ' ' << v[j];
+         out << '\n';
+      }
+      // shared boundary (interface)
+      for (i = 0; i < shared_boundary.Size(); i++)
+      {
+         // processor number + 1 as bdr. attr. and bdr. geometry type
+         out << 1 << ' ' << shared_boundary[i]->GetGeometryType();
+         // vertices
+         nv = shared_boundary[i]->GetNVertices();
+         v  = shared_boundary[i]->GetVertices();
+         for (j = 0; j < nv; j++)
+            out << ' ' << v[j];
+         out << '\n';
+      }
+      vc = NumOfVertices;
+      for (p = 1; p < NRanks; p++)
+      {
+         MPI_Recv(nv_ne, 2, MPI_INT, p, 446, MyComm, &status);
+         ints.SetSize(ne);
+         MPI_Recv(&ints[0], ne, MPI_INT, p, 447, MyComm, &status);
+         for (i = 0; i < ne; )
+         {
+            // processor number + 1 as bdr. attr. and bdr. geometry type
+            out << p+1 << ' ' << ints[i];
+            k = Geometries.GetVertices(ints[i++])->GetNPoints();
+            // vertices
+            for (j = 0; j < k; j++)
+               out << ' ' << vc + ints[i++];
+            out << '\n';
+         }
+         vc += nv;
+      }
+   }
+   else
+   {
+      // for each boundary and shared boundary element send its
+      // geometry type and its vertices
+      ne = 0;
+      for (i = 0; i < NumOfBdrElements; i++)
+         ne += 1 + boundary[i]->GetNVertices();
+      for (i = 0; i < shared_boundary.Size(); i++)
+         ne += 1 + shared_boundary[i]->GetNVertices();
+      nv = NumOfVertices;
+      MPI_Send(nv_ne, 2, MPI_INT, 0, 446, MyComm);
+      ints.SetSize(ne);
+      // boundary
+      for (i = j = 0; i < NumOfBdrElements; i++)
+      {
+         ints[j++] = boundary[i]->GetGeometryType();
+         nv = boundary[i]->GetNVertices();
+         v  = boundary[i]->GetVertices();
+         for (k = 0; k < nv; k++)
+            ints[j++] = v[k];
+      }
+      // shared boundary
+      for (i = 0; i < shared_boundary.Size(); i++)
+      {
+         ints[j++] = shared_boundary[i]->GetGeometryType();
+         nv = shared_boundary[i]->GetNVertices();
+         v  = shared_boundary[i]->GetVertices();
+         for (k = 0; k < nv; k++)
+            ints[j++] = v[k];
+      }
+      MPI_Send(&ints[0], ne, MPI_INT, 0, 447, MyComm);
+   }
+
+   // vertices / nodes
+   MPI_Reduce(&NumOfVertices, &nv, 1, MPI_INT, MPI_SUM, 0, MyComm);
+   if (MyRank == 0)
+      out << "\nvertices\n" << nv << '\n';
+   if (Nodes == NULL)
+   {
+      if (MyRank == 0)
+      {
+         out << Dim << '\n';
+         for (i = 0; i < NumOfVertices; i++)
+         {
+            out << vertices[i](0);
+            for (j = 1; j < Dim; j++)
+               out << ' ' << vertices[i](j);
+            out << '\n';
+         }
+         for (p = 1; p < NRanks; p++)
+         {
+            MPI_Recv(&nv, 1, MPI_INT, p, 448, MyComm, &status);
+            vert.SetSize(nv*Dim);
+            MPI_Recv(&vert[0], nv*Dim, MPI_DOUBLE, p, 449, MyComm, &status);
+            for (i = 0; i < nv; i++)
+            {
+               out << vert[i*Dim];
+               for (j = 1; j < Dim; j++)
+                  out << ' ' << vert[i*Dim+j];
+               out << '\n';
+            }
+         }
+      }
+      else
+      {
+         MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 448, MyComm);
+         vert.SetSize(NumOfVertices*Dim);
+         for (i = 0; i < NumOfVertices; i++)
+            for (j = 0; j < Dim; j++)
+               vert[i*Dim+j] = vertices[i](j);
+         MPI_Send(&vert[0], NumOfVertices*Dim, MPI_DOUBLE, 0, 449, MyComm);
+      }
+   }
+   else
+      mfem_error("ParMesh::PrintAsOne : curvilinear mesh!");
+}
+
+void ParMesh::PrintAsOneXG(ostream &out)
+{
    if (Dim == 3 && meshgen == 1)
    {
       int i, j, k, nv, ne, p;

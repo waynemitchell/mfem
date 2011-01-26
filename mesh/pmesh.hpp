@@ -81,8 +81,15 @@ public:
        adding the interface as boundary (for visualization purposes) */
    virtual void Print(ostream &out = cout) const;
 
-   /// Process 0 writes the whole mesh to 'out'
-   virtual void PrintAsOne(ostream &out = cout);
+   /** Write the mesh to the stream 'out' on Process 0 in a form
+       suitable for visualization: the mesh is written as a disjoint
+       mesh and the shared boundary is added to the actual boundary;
+       both the element and boundary attributes are set to the
+       precessor number.  */
+   void PrintAsOne(ostream &out = cout);
+
+   /// Old mesh format (Netgen/Truegrid) version of 'PrintAsOne'
+   void PrintAsOneXG(ostream &out = cout);
 
    virtual ~ParMesh();
 };
