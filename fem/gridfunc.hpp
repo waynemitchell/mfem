@@ -15,7 +15,7 @@
 /// Class for grid function - Vector with asociated FE space.
 class GridFunction : public Vector
 {
-private:
+protected:
    /// FE space on which grid function lives.
    FiniteElementSpace * fes;
 

@@ -126,7 +126,7 @@ protected:
    void QuadUniformRefinement();
 
    /// Refine hexahedral mesh.
-   void HexUniformRefinement();
+   virtual void HexUniformRefinement();
 
    /** Mark the edges in the elements, boundary elements and faces for
        refinement. */
@@ -447,7 +447,7 @@ public:
    void NewNodes(GridFunction &nodes);
 
    /// Refine the marked elements.
-   void LocalRefinement(const Array<int> &marked_el, int type = 3);
+   virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
 
    void UniformRefinement();
 
@@ -483,7 +483,7 @@ public:
    void PrintXG(ostream &out = cout) const;
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
-   void Print(ostream &out = cout) const;
+   virtual void Print(ostream &out = cout) const;
 
    /** Print the mesh in VTK format. The parameter ref specifies an element
        subdivision number (useful for high order fields and curved meshes). */
@@ -517,7 +517,7 @@ public:
    void PrintCharacteristics (Vector *Vh = NULL, Vector *Vk = NULL);
 
    /// Destroys mesh.
-   ~Mesh();
+   virtual ~Mesh();
 };
 
 #endif
