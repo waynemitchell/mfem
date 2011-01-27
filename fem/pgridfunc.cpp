@@ -13,6 +13,12 @@
 
 #include "fem.hpp"
 
+ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf)
+{
+   fes = pfes = pf;
+   SetDataAndSize(gf->GetData(), gf->Size());
+}
+
 ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, HypreParVector *tv)
    : GridFunction(pf), pfes(pf)
 {
@@ -119,23 +125,48 @@ void ParGridFunction::SaveAsOne(ostream &out)
       for (p = 0; p < NRanks; p++)
          nrdofs[p] = nv[p]/vdim - nvdofs[p] - nedofs[p] - nfdofs[p];
 
-      for (int d = 0; d < vdim; d++)
+      if (pfes->GetOrdering() == Ordering::byNODES)
+      {
+         for (int d = 0; d < vdim; d++)
+         {
+            for (p = 0; p < NRanks; p++)
+               for (i = 0; i < nvdofs[p]; i++)
+                  out << *values[p]++ << endl;
+
+            for (p = 0; p < NRanks; p++)
+               for (i = 0; i < nedofs[p]; i++)
+                  out << *values[p]++ << endl;
+
+            for (p = 0; p < NRanks; p++)
+               for (i = 0; i < nfdofs[p]; i++)
+                  out << *values[p]++ << endl;
+
+            for (p = 0; p < NRanks; p++)
+               for (i = 0; i < nrdofs[p]; i++)
+                  out << *values[p]++ << endl;
+         }
+      }
+      else
       {
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nvdofs[p]; i++)
-               out << *values[p]++ << endl;
+               for (int d = 0; d < vdim; d++)
+                  out << *values[p]++ << endl;
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nedofs[p]; i++)
-               out << *values[p]++ << endl;
+               for (int d = 0; d < vdim; d++)
+                  out << *values[p]++ << endl;
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nfdofs[p]; i++)
-               out << *values[p]++ << endl;
+               for (int d = 0; d < vdim; d++)
+                  out << *values[p]++ << endl;
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nrdofs[p]; i++)
-               out << *values[p]++ << endl;
+               for (int d = 0; d < vdim; d++)
+                  out << *values[p]++ << endl;
       }
 
       for (p = 1; p < NRanks; p++)

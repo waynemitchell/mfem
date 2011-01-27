@@ -12,6 +12,7 @@
 #ifdef MFEM_USE_MPI
 
 #include "mesh_headers.hpp"
+#include "../fem/fem.hpp"
 #include "../general/sets.hpp"
 
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
@@ -1857,7 +1858,14 @@ void ParMesh::PrintAsOne(ostream &out)
       }
    }
    else
-      mfem_error("ParMesh::PrintAsOne : curvilinear mesh!");
+   {
+      if (MyRank == 0)
+         out << "\nnodes\n";
+      // convert Nodes to a ParGridFunction
+      ParGridFunction ParNodes((ParFiniteElementSpace*)Nodes->FESpace(),
+                               Nodes);
+      ParNodes.SaveAsOne(out);
+   }
 }
 
 void ParMesh::PrintAsOneXG(ostream &out)

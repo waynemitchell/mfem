@@ -21,6 +21,9 @@ protected:
 public:
    ParGridFunction(ParFiniteElementSpace *pf) : GridFunction(pf), pfes(pf) { }
 
+   /// Construct a ParGridFunction corresponding to *pf and the data from *gf
+   ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf);
+
    /** Creates grid function on (all) dofs from a given vector on the true dofs,
        i.e. P tv. */
    ParGridFunction(ParFiniteElementSpace *pf, HypreParVector *tv);
