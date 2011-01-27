@@ -64,7 +64,6 @@ int main (int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   MPI_Barrier(MPI_COMM_WORLD);
 
    int dim = mesh->Dimension();
 
@@ -93,7 +92,7 @@ int main (int argc, char *argv[])
    // 5. Define a parallel finite element space on the parallel mesh. Here we
    //    use vector finite elements, i.e. dim copies of a scalar finite element
    //    space. We use the ordering by vector dimension (the last argument of
-   //    the FiniteElementSpace constructor) which is is expected in the systems
+   //    the FiniteElementSpace constructor) which is expected in the systems
    //    version of BoomerAMG preconditioner.
    FiniteElementCollection *fec;
    int fec_type;
@@ -130,17 +129,15 @@ int main (int argc, char *argv[])
    //    is a vector of Coefficient objects. The fact that f is non-zero on
    //    boundary attribute 2 is indicated by the use of piece-wise constants
    //    coefficient for its last component.
-   Coefficient *f_coeff[dim];
-   for (int i = 0; i < dim-1; i++)
-      f_coeff[i] = new ConstantCoefficient(0.0);
-   Vector pull_force(pmesh->bdr_attributes.Max());
-   pull_force = 0.0;
-   pull_force(1) = -1.0e-2;
-   f_coeff[dim-1] = new PWConstCoefficient(pull_force);
-
    VectorArrayCoefficient f(dim);
-   for (int i = 0; i < dim; i++)
-      f.Set(i,f_coeff[i]);
+   for (int i = 0; i < dim-1; i++)
+      f.Set(i, new ConstantCoefficient(0.0));
+   {
+      Vector pull_force(pmesh->bdr_attributes.Max());
+      pull_force = 0.0;
+      pull_force(1) = -1.0e-2;
+      f.Set(dim-1, new PWConstCoefficient(pull_force));
+   }
 
    ParLinearForm *b = new ParLinearForm(fespace);
    b->AddDomainIntegrator(new VectorBoundaryLFIntegrator(f));
@@ -148,10 +145,10 @@ int main (int argc, char *argv[])
       cout << "r.h.s. ... " << flush;
    b->Assemble();
 
-   // 7. Define a solution vector, sol, which is a parallel finite element grid
+   // 7. Define a solution vector, x, which is a parallel finite element grid
    //    function satisfying the homogeneous boundary conditions.
-   ParGridFunction sol(fespace);
-   (Vector &)sol = 0.0;
+   ParGridFunction x(fespace);
+   (Vector &)x = 0.0;
 
    // 8. Set up the parallel bilinear form a(.,.) on the finite element space
    //    corresponding to the linear elasticity integrator with piece-wise
@@ -168,14 +165,14 @@ int main (int argc, char *argv[])
    PWConstCoefficient mu_func(mu);
 
    ParBilinearForm *a = new ParBilinearForm(fespace);
-   a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func,mu_func));
+   a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func, mu_func));
    if (myid == 0)
       cout << "matrix ... " << flush;
    a->Assemble();
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1;
-   a->EliminateEssentialBC(ess_bdr, sol, *b);
+   a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
    if (myid == 0)
       cout << "done." << endl;
@@ -184,10 +181,13 @@ int main (int argc, char *argv[])
    //    b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = new HypreParVector(*B);
+   HypreParVector *X = x.ParallelAverage();
+
+   delete a;
+   delete b;
 
    // 10. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
-   //     preconditioner from hypre. Start with a zero initial guess.
+   //     preconditioner from hypre.
    HypreBoomerAMG *amg = new HypreBoomerAMG(*A);
    amg->SetSystemsOptions(dim);
    HyprePCG *pcg = new HyprePCG(*A);
@@ -195,24 +195,24 @@ int main (int argc, char *argv[])
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
-   *X = 0.0;
    pcg->Mult(*B, *X);
 
    // 11. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   ParGridFunction x(fespace, X);
+   x = *X;
 
-   // 12. Make the mesh curved based on the finite element space. This means that
-   //     we define the mesh elements through a fespace-based transformation of
-   //     the reference element.  This allows us to save the displaced mesh as a
-   //     curved mesh when using high-order finite element displacement field.
-   //     We assume that the initial mesh (read from the file) is not higher
-   //     order curved mesh compared to the FE space chosen from the menu.
+   // 12. Make the mesh curved based on the finite element space. This means
+   //     that we define the mesh elements through a fespace-based
+   //     transformation of the reference element.  This allows us to save the
+   //     displaced mesh as a curved mesh when using high-order finite element
+   //     displacement field. We assume that the initial mesh (read from the
+   //     file) is not higher order curved mesh compared to the FE space chosen
+   //     from the menu.
    pmesh->SetNodalFESpace(fespace);
 
    // 13. Save the displaced mesh and the inverted solution (which gives the
-   //     backward displacements to the original grid). This output can be viewed
-   //     later using GLVis: "glvis -m displaced.mesh -g sol.gf".
+   //     backward displacements to the original grid). This output can be
+   //     viewed later using GLVis: "glvis -m displaced.mesh -g sol.gf".
    {
       GridFunction *nodes = pmesh->GetNodes();
       *nodes += x;
@@ -262,8 +262,6 @@ int main (int argc, char *argv[])
    delete B;
    delete A;
 
-   delete a;
-   delete b;
    delete fespace;
    delete fec;
 

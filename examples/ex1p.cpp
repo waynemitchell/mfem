@@ -115,6 +115,9 @@ int main (int argc, char *argv[])
    HypreParVector *B = b->ParallelAssemble();
    HypreParVector *X = x.ParallelAverage();
 
+   delete a;
+   delete b;
+
    // 10. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
    HypreSolver *amg = new HypreBoomerAMG(*A);
@@ -174,8 +177,6 @@ int main (int argc, char *argv[])
    delete B;
    delete A;
 
-   delete a;
-   delete b;
    delete fespace;
    delete fec;
    delete pmesh;
