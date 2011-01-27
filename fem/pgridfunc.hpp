@@ -28,8 +28,16 @@ public:
        i.e. P tv. */
    ParGridFunction(ParFiniteElementSpace *pf, HypreParVector *tv);
 
+   /** Set the grid function on (all) dofs from a given vector on the
+       true dofs, i.e. P tv. */
+   void Distribute(HypreParVector *tv);
+
+   /// Short semantic for Distribute
+   ParGridFunction &operator=(HypreParVector &tv)
+   { Distribute(&tv); return (*this); }
+
    /// Returns the vector averaged on the true dofs.
-   HypreParVector *ParallelAvarage();
+   HypreParVector *ParallelAverage();
 
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;
