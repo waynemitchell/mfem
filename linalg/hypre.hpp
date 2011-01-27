@@ -348,6 +348,11 @@ private:
 public:
    HypreBoomerAMG(HypreParMatrix &A);
 
+   /** More robust options for systems, such as elastisity. Note that BoomerAMG
+       assumes Ordering::byVDIM in the finite element space used to generate the
+       matrix A. */
+   void SetSystemsOptions(int dim);
+
    /// The typecast to HYPRE_Solver returns the internal amg_precond
    virtual operator HYPRE_Solver() const { return amg_precond; }
 

@@ -875,6 +875,15 @@ HypreBoomerAMG::HypreBoomerAMG(HypreParMatrix &A) : HypreSolver(&A)
    HYPRE_BoomerAMGSetPrintLevel(amg_precond, print_level);
 }
 
+void HypreBoomerAMG::SetSystemsOptions(int dim)
+{
+   HYPRE_BoomerAMGSetNumFunctions(amg_precond, dim);
+
+   // More robust options with respect to convergence
+   HYPRE_BoomerAMGSetAggNumLevels(amg_precond, 0);
+   HYPRE_BoomerAMGSetStrongThreshold(amg_precond, 0.5);
+}
+
 HypreBoomerAMG::~HypreBoomerAMG()
 {
    HYPRE_BoomerAMGDestroy(amg_precond);
