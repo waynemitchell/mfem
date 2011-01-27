@@ -54,7 +54,6 @@ int main (int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   MPI_Barrier(MPI_COMM_WORLD);
 
    // 3. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
@@ -91,10 +90,10 @@ int main (int argc, char *argv[])
    b->AddDomainIntegrator(new DomainLFIntegrator(one));
    b->Assemble();
 
-   // 7. Define a solution vector, sol, which is a parallel finite element grid
+   // 7. Define a solution vector, x, which is a parallel finite element grid
    //    function satisfying the homogeneous boundary conditions.
-   ParGridFunction sol(fespace);
-   (Vector &)sol = 0.0;
+   ParGridFunction x(fespace);
+   (Vector &)x = 0.0;
 
    // 8. Set up the parallel bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
@@ -107,29 +106,28 @@ int main (int argc, char *argv[])
    a->Assemble();
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, sol, *b);
+   a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 9. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //    b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = new HypreParVector(*B);
+   HypreParVector *X = x.ParallelAverage();
 
    // 10. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
-   //     preconditioner from hypre. Start with a zero initial guess.
+   //     preconditioner from hypre.
    HypreSolver *amg = new HypreBoomerAMG(*A);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(200);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
-   *X = 0.0;
    pcg->Mult(*B, *X);
 
    // 11. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   ParGridFunction x(fespace, X);
+   x = *X;
 
    // 12. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
