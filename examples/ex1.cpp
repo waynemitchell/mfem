@@ -28,7 +28,7 @@ int main (int argc, char *argv[])
 
    if (argc == 1)
    {
-      cout << "Usage: ex1 <mesh_file>" << endl;
+      cout << "\nUsage: ex1 <mesh_file>\n" << endl;
       return 1;
    }
 
@@ -37,7 +37,7 @@ int main (int argc, char *argv[])
    ifstream imesh(argv[1]);
    if (!imesh)
    {
-      cerr << "can not open mesh file: " << argv[1] << endl;
+      cerr << "\nCan not open mesh file: " << argv[1] << '\n' << endl;
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);

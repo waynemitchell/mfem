@@ -38,7 +38,7 @@ int main (int argc, char *argv[])
 
    if (argc == 1)
    {
-      cout << "Usage: ex2 <mesh_file>" << endl;
+      cout << "\nUsage: ex2 <mesh_file>\n" << endl;
       return 1;
    }
 
@@ -47,7 +47,7 @@ int main (int argc, char *argv[])
    ifstream imesh(argv[1]);
    if (!imesh)
    {
-      cerr << "can not open mesh file: " << argv[1] << endl;
+      cerr << "\nCan not open mesh file: " << argv[1] << '\n' << endl;
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);
@@ -61,7 +61,7 @@ int main (int argc, char *argv[])
    //    elements.
    {
       int ref_levels =
-         (int)floor(log(5000./mesh->GetNE())/log(2.)/mesh->Dimension());
+         (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }
@@ -181,7 +181,7 @@ int main (int argc, char *argv[])
    char vishost[] = "localhost";
    int  visport   = 19916;
    osockstream sol_sock (visport, vishost);
-   if (mesh->Dimension() == 2)
+   if (dim == 2)
       sol_sock << "vfem2d_gf_data\n";
    else
       sol_sock << "vfem3d_gf_data\n";

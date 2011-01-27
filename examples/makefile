@@ -9,22 +9,28 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
+# Serial compiler
 CC = g++
-OPTS = -O3
-DEBUG_OPTS = -g -DDEBUG
+OPTS = -O3 -I$(MFEM_DIR)
+DEBUG_OPTS = -g -DDEBUG -I$(MFEM_DIR)
+LIBS = $(MFEM_LIB) $(LAPACK_LIBS)
 
+# Parallel compiler
+MPICC = mpiCC
+MPIOPTS = $(OPTS) -I$(HYPRE_DIR)/include
+MPIDEBUG_OPTS = $(DEBUG_OPTS) -I$(HYPRE_DIR)/include
+MPILIBS = $(LIBS) -L$(METIS_DIR) -lmetis -L$(HYPRE_DIR)/lib -lHYPRE
+
+# The MFEM library
 MFEM_DIR = ..
 MFEM_LIB = -L$(MFEM_DIR) -lmfem
 
-# Libraries needed for the parallel examples
-MPICC = mpiCC
+# The METIS and HYPRE libraries (needed for the parallel examples)
 METIS_DIR = ../../metis-4.0
 HYPRE_DIR = ../../hypre-2.6.1a/src/hypre
 
-# Link with LAPACK? (needed if MFEM was compiled with LAPACK support)
+# The LAPACK and BLAS libraries (needed if MFEM was compiled with LAPACK support)
 USE_LAPACK = YES
-
-# LAPACK and BLAS
 LAPACK_DIR = $(HOME)/lapack
 LAPACK_LIB = -L$(LAPACK_DIR) -llapack
 BLAS_DIR   = $(HOME)/lapack
@@ -35,28 +41,31 @@ LAPACK_LIBS_NO  =
 LAPACK_LIBS_YES = $(LAPACK_LIB) $(BLAS_LIB)
 LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
 
-LIBS = $(MFEM_LIB) $(LAPACK_LIBS)
+serial: ex1 ex2 ex6
 
-all: ex1 ex2 ex6
-
-parallel: ex1p
+parallel: ex1p ex2p
 
 ex1: ex1.cpp
-	$(CC) $(OPTS) -I$(MFEM_DIR) ex1.cpp -o ex1 $(LIBS)
+	$(CC) $(OPTS) ex1.cpp -o ex1 $(LIBS)
 
 ex1p: ex1p.cpp
-	$(MPICC) $(OPTS) -g -I$(MFEM_DIR) -I$(HYPRE_DIR)/include ex1p.cpp -o ex1p \
-	$(LIBS) -L$(METIS_DIR) -lmetis -L$(HYPRE_DIR)/lib -lHYPRE
+	$(MPICC) $(MPIOPTS) ex1p.cpp -o ex1p $(MPILIBS)
 
 ex2: ex2.cpp
-	$(CC) $(OPTS) -I$(MFEM_DIR) ex2.cpp -o ex2 $(LIBS)
+	$(CC) $(OPTS) ex2.cpp -o ex2 $(LIBS)
+
+ex2p: ex2p.cpp
+	$(MPICC) $(MPIOPTS) ex2p.cpp -o ex2p $(MPILIBS)
 
 ex6: ex6.cpp
-	$(CC) $(OPTS) -I$(MFEM_DIR) ex6.cpp -o ex6 $(LIBS)
+	$(CC) $(OPTS) ex6.cpp -o ex6 $(LIBS)
 
 debug:
-	make "OPTS=$(DEBUG_OPTS)"
+	make "OPTS=$(DEBUG_OPTS)" serial
+
+pdebug:
+	make "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
 
 clean:
-	rm -f *.o ex1 ex1p ex2 ex6 refined.mesh displaced.mesh sol.gf\
- perturbed.mesh smoothed.mesh *~
+	rm -f *.o *~ ex1 ex1p ex2 ex2p ex6
+	rm -f refined.mesh displaced.mesh sol.gf perturbed.mesh smoothed.mesh
