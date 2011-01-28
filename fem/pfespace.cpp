@@ -147,7 +147,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
 
    Array<Pair<int, int> > cmap_j_offd(ldof-ltdof);
 
-   int *ncol_starts;
+   int *ncol_starts = NULL;
    if (HYPRE_AssumedPartitionCheck())
    {
       int nsize = pmesh -> lproc_proc.Size()-1;
