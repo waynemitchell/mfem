@@ -123,7 +123,7 @@ protected:
    void UpdateNodes();
 
    /// Refine quadrilateral mesh.
-   void QuadUniformRefinement();
+   virtual void QuadUniformRefinement();
 
    /// Refine hexahedral mesh.
    virtual void HexUniformRefinement();
@@ -451,7 +451,7 @@ public:
 
    void UniformRefinement();
 
-   /** Sets or clears the flag that indicates that 'LocalRefinement (...)'
+   /** Sets or clears the flag that indicates that mesh refinement methods
        should put the mesh in two-level state. */
    void UseTwoLevelState (int use)
    {

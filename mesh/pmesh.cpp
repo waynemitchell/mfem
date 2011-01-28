@@ -169,17 +169,20 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    for (i = 0; i < bdr_attributes.Size(); i++)
       bdr_attributes[i] = mesh.bdr_attributes[i];
 
-   InitTables();
+   // this is called by the default Mesh constructor
+   // InitTables();
 
    el_to_edge = new Table;
    NumOfEdges = Mesh::GetElementToEdgeTable(*el_to_edge, be_to_edge);
 
    STable3D *faces_tbl = NULL;
    if (Dim == 3)
-   {
       faces_tbl = GetElementToFaceTable(1);
-      GenerateFaces();
-   }
+   else
+      NumOfFaces = 0;
+   GenerateFaces();
+
+   c_el_to_edge = NULL;
 
    ListOfIntegerSets  groups;
    IntegerSet         group;
@@ -265,7 +268,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          vert_element->GetRow(i)[0] = -1;
    }
 
-   delete [] partitioning;
+   if (partitioning_ == NULL)
+      delete [] partitioning;
 
    // build group_sface
    group_sface.MakeI(groups.Size()-1);
@@ -279,7 +283,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    sface_counter = 0;
    for (i = 0; i < face_group.Size(); i++)
       if (face_group[i] >= 0)
-         group_sface.AddConnection(face_group[i],sface_counter++);
+         group_sface.AddConnection(face_group[i], sface_counter++);
 
    group_sface.ShiftUpI();
 
@@ -289,7 +293,6 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    for (i = 0; i < edge_element->Size(); i++)
       if (edge_element->GetRow(i)[0] >= 0)
          group_sedge.AddAColumnInRow(edge_element->GetRow(i)[0]);
-
 
    group_sedge.MakeJ();
 
@@ -339,7 +342,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                sface_lface[sface_counter] = (*faces_tbl)(v[0], v[1], v[2]);
                break;
             case Element::QUADRILATERAL:
-               sface_lface[sface_counter] = (*faces_tbl)(v[0], v[1], v[2], v[3]);
+               sface_lface[sface_counter] =
+                  (*faces_tbl)(v[0], v[1], v[2], v[3]);
                break;
             }
             sface_counter++;
@@ -409,9 +413,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          group_mgroupandproc.GetJ()[j] = group_lproc.GetJ()[k];
    }
 
-   Array<int> proc_lproc(NRanks);
-   for (i = 0; i < NRanks; i++)
-      proc_lproc[i] = -1;
+   Array<int> proc_lproc(NRanks); // array of size number of processors!
+   proc_lproc = -1;
 
    int lproc_counter = 0;
    for (i = 0; i < group_lproc.Size_of_connections(); i++)
@@ -437,6 +440,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    // isolated dofs
    // for (i = 0; i < groups.Size(); i++)
    //    groupmaster_lproc[i] = proc_lproc[groups.PickRandomElementInSet(i)];
+   proc_lproc.DeleteAll();
 
    // build group_mgroup
    group_mgroup.SetSize(groups.Size());
@@ -1241,6 +1245,79 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
    delete faces_tbl;
 }
 
+void ParMesh::QuadUniformRefinement()
+{
+   int oedge = NumOfVertices;
+
+   Mesh::QuadUniformRefinement();
+
+   // update the groups
+   {
+      int i, attr, ind, *v;
+
+      int group;
+      Array<int> sverts, sedges;
+
+      int *I_group_svert, *J_group_svert;
+      int *I_group_sedge, *J_group_sedge;
+
+      I_group_svert = new int[GetNGroups()+1];
+      I_group_sedge = new int[GetNGroups()+1];
+
+      I_group_svert[0] = I_group_svert[1] = 0;
+      I_group_sedge[0] = I_group_sedge[1] = 0;
+
+      // compute the size of the J arrays
+      J_group_svert = new int[group_svert.Size_of_connections()
+                              + group_sedge.Size_of_connections()];
+      J_group_sedge = new int[2*group_sedge.Size_of_connections()];
+
+      for (group = 0; group < GetNGroups()-1; group++)
+      {
+         // Get the group shared objects
+         group_svert.GetRow(group, sverts);
+         group_sedge.GetRow(group, sedges);
+
+         // Process all the edges
+         for (i = 0; i < group_sedge.RowSize(group); i++)
+         {
+            v = shared_edges[sedges[i]]->GetVertices();
+            ind = oedge + sedge_ledge[sedges[i]];
+            // add a vertex
+            sverts.Append(svert_lvert.Append(ind)-1);
+            // update the edges
+            attr = shared_edges[sedges[i]]->GetAttribute();
+            shared_edges.Append(new Segment(v[1], ind, attr));
+            sedges.Append(sedge_ledge.Append(-1)-1);
+            v[1] = ind;
+         }
+
+         I_group_svert[group+1] = I_group_svert[group] + sverts.Size();
+         I_group_sedge[group+1] = I_group_sedge[group] + sedges.Size();
+
+         int *J;
+         J = J_group_svert+I_group_svert[group];
+         for (i = 0; i < sverts.Size(); i++)
+            J[i] = sverts[i];
+         J = J_group_sedge+I_group_sedge[group];
+         for (i = 0; i < sedges.Size(); i++)
+            J[i] = sedges[i];
+      }
+
+      // Fix the local numbers of shared edges
+      DSTable v_to_v(NumOfVertices);
+      GetVertexToVertexTable(v_to_v);
+      for (i = 0; i < shared_edges.Size(); i++)
+      {
+         v = shared_edges[i]->GetVertices();
+         sedge_ledge[i] = v_to_v(v[0], v[1]);
+      }
+
+      group_svert.SetIJ(I_group_svert, J_group_svert);
+      group_sedge.SetIJ(I_group_sedge, J_group_sedge);
+   }
+}
+
 void ParMesh::HexUniformRefinement()
 {
    int oedge = NumOfVertices;
@@ -1413,9 +1490,11 @@ void ParMesh::HexUniformRefinement()
          for (i = 0; i < group_sface.RowSize(group); i++)
          {
             shared_faces[group_faces[i]]->GetVertices(v);
-            attr = shared_faces[group_faces[i]]->GetAttribute();
-            // add the refinement edges
             m[0] = oface+(*faces_tbl)(v[0], v[1], v[2], v[3]);
+            // add a vertex
+            group_verts.Append(svert_lvert.Append(m[0])-1);
+            // add the refinement edges
+            attr = shared_faces[group_faces[i]]->GetAttribute();
             m[1] = oedge+v_to_v(v[0],v[1]);
             m[2] = oedge+v_to_v(v[1],v[2]);
             m[3] = oedge+v_to_v(v[2],v[3]);
@@ -1655,7 +1734,7 @@ void ParMesh::Print(ostream &out) const
 void ParMesh::PrintAsOne(ostream &out)
 {
    int i, j, k, p, nv_ne[2], &nv = nv_ne[0], &ne = nv_ne[1], vc;
-   const int *ind, *v;
+   const int *v;
    MPI_Status status;
    Array<double> vert;
    Array<int> ints;

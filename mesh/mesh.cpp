@@ -677,7 +677,7 @@ typedef struct {
 } edge_length;
 
 // Used by qsort to sort edges in increasing (according their length) order.
-static  int edge_compare(const void *ii, const void *jj)
+static int edge_compare(const void *ii, const void *jj)
 {
    edge_length *i = (edge_length *)ii, *j = (edge_length *)jj;
    if (i->length > j->length) return (1);
@@ -2876,7 +2876,7 @@ void Mesh::CheckPartitioning(int *partitioning)
    if (n_mcomp > 0)
    {
       cout << "Mesh::CheckPartitioning(...) :\n"
-           << "The following subdomains have are NOT connected :\n";
+           << "The following subdomains are NOT connected :\n";
       for (i = 0; i < num_comp.Size(); i++)
          if (num_comp[i] > 1)
             cout << ' ' << i;

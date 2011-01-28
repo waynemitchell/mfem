@@ -74,6 +74,9 @@ public:
    /// Update the groups after tet refinement
    void RefineGroups(const DSTable &v_to_v, int *middle);
 
+   /// Refine quadrilateral mesh.
+   virtual void QuadUniformRefinement();
+
    /// Refine a hexahedral mesh.
    virtual void HexUniformRefinement();
 
