@@ -99,17 +99,15 @@ int main (int argc, char *argv[])
    //    which is a vector of Coefficient objects. The fact that f is non-zero
    //    on boundary attribute 2 is indicated by the use of piece-wise constants
    //    coefficient for its last component.
-   Coefficient *f_coeff[dim];
-   for (int i = 0; i < dim-1; i++)
-      f_coeff[i] = new ConstantCoefficient(0.0);
-   Vector pull_force(mesh->bdr_attributes.Max());
-   pull_force = 0.0;
-   pull_force(1) = -1.0e-2;
-   f_coeff[dim-1] = new PWConstCoefficient(pull_force);
-
    VectorArrayCoefficient f(dim);
-   for (int i = 0; i < dim; i++)
-      f.Set(i,f_coeff[i]);
+   for (int i = 0; i < dim-1; i++)
+      f.Set(i, new ConstantCoefficient(0.0));
+   {
+      Vector pull_force(pmesh->bdr_attributes.Max());
+      pull_force = 0.0;
+      pull_force(1) = -1.0e-2;
+      f.Set(dim-1, new PWConstCoefficient(pull_force));
+   }
 
    LinearForm *b = new LinearForm(fespace);
    b->AddDomainIntegrator(new VectorBoundaryLFIntegrator(f));

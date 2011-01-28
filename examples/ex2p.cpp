@@ -145,8 +145,9 @@ int main (int argc, char *argv[])
       cout << "r.h.s. ... " << flush;
    b->Assemble();
 
-   // 7. Define a solution vector, x, which is a parallel finite element grid
-   //    function satisfying the homogeneous boundary conditions.
+   // 7. Define the solution vector x as a parallel finite element grid function
+   //    corresponding to fespace. Initialize x with initial guess of zero,
+   //    which satisfies the boundary conditions.
    ParGridFunction x(fespace);
    (Vector &)x = 0.0;
 
