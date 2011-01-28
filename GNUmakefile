@@ -22,7 +22,7 @@ USE_LAPACK       = YES
 USE_MEMALLOC     = YES
 
 USE_MPI_NO  =
-HYPRE_DIR   = ../../hypre-2.6.1a/src/hypre
+HYPRE_DIR   = ../../hypre-2.7.0b/src/hypre
 USE_MPI_YES = -DMFEM_USE_MPI -I$(HYPRE_DIR)/include
 USE_MPI_DEF = $(USE_MPI_$(USE_MPI))
 
