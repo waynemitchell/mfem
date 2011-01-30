@@ -14,6 +14,23 @@
 #include "fem.hpp"
 #include "../general/sort_pairs.hpp"
 
+ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
+   : FiniteElementSpace(pf)
+{
+   MyComm = pf.MyComm;
+   NRanks = pf.NRanks;
+   MyRank = pf.MyRank;
+   pmesh = pf.pmesh;
+   ltdof_size = pf.ltdof_size;
+   Swap(ldof_group, pf.ldof_group);
+   Swap(ldof_ltdof, pf.ldof_ltdof);
+   Swap(dof_offsets, pf.dof_offsets);
+   Swap(tdof_offsets, pf.tdof_offsets);
+   Swap(ldof_sign, pf.ldof_sign);
+   P = pf.P;
+   pf.P = NULL;
+}
+
 ParFiniteElementSpace::ParFiniteElementSpace(
    ParMesh *pm, FiniteElementCollection *f, int dim, int order)
    : FiniteElementSpace(pm, f, dim, order)
@@ -26,19 +43,27 @@ ParFiniteElementSpace::ParFiniteElementSpace(
 
    P = NULL;
 
-   ParFiniteElementSpace::ConstructTrueDofs();
+   ConstructTrueDofs();
 
    GenerateGlobalOffsets();
 }
 
 void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
 {
+   if (elem_dof)
+   {
+      elem_dof->GetRow(i, dofs);
+      return;
+   }
    FiniteElementSpace::GetElementDofs(i, dofs);
    for (i = 0; i < dofs.Size(); i++)
-      if (dofs[i] < 0) {
+      if (dofs[i] < 0)
+      {
          if (ldof_sign[-1-dofs[i]] < 0)
             dofs[i] = -1-dofs[i];
-      } else {
+      }
+      else
+      {
          if (ldof_sign[dofs[i]] < 0)
             dofs[i] = -1-dofs[i];
       }
@@ -492,6 +517,30 @@ void ParFiniteElementSpace::ConstructTrueDofs()
          for (i = group_ldof.GetI()[gr]; i < group_ldof.GetI()[gr+1]; i++)
             ldof_ltdof[group_ldof.GetJ()[i]] = j_group_ltdof[i];
       }
+}
+
+void ParFiniteElementSpace::Update()
+{
+   FiniteElementSpace::Update();
+
+   ldof_group.DeleteAll();
+   ldof_ltdof.DeleteAll();
+   dof_offsets.DeleteAll();
+   tdof_offsets.DeleteAll();
+   ldof_sign.DeleteAll();
+   delete P;
+   P = NULL;
+   ConstructTrueDofs();
+   GenerateGlobalOffsets();
+}
+
+FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
+{
+   ParFiniteElementSpace *cpfes = new ParFiniteElementSpace(*this);
+   Constructor();
+   ConstructTrueDofs();
+   GenerateGlobalOffsets();
+   return cpfes;
 }
 
 #endif

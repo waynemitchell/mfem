@@ -13,7 +13,6 @@
 
 #include "fem.hpp"
 #include <math.h>
-#include <string.h>
 
 GridFunction::GridFunction (Mesh *m, istream &input)
    : Vector()
@@ -29,45 +28,7 @@ GridFunction::GridFunction (Mesh *m, istream &input)
    input.getline (buff, bufflen, ' '); // 'FiniteElementCollection:'
    input >> ws;
    input.getline (buff, bufflen);
-   if (!strcmp(buff, "Linear"))
-      fec = new LinearFECollection;
-   else if (!strcmp(buff, "Quadratic"))
-      fec = new QuadraticFECollection;
-   else if (!strcmp(buff, "QuadraticPos"))
-      fec = new QuadraticPosFECollection;
-   else if (!strcmp(buff, "Cubic"))
-      fec = new CubicFECollection;
-   else if (!strcmp(buff, "Const3D"))
-      fec = new Const3DFECollection;
-   else if (!strcmp(buff, "Const2D"))
-      fec = new Const2DFECollection;
-   else if (!strcmp(buff, "LinearDiscont2D"))
-      fec = new LinearDiscont2DFECollection;
-   else if (!strcmp(buff, "GaussLinearDiscont2D"))
-      fec = new GaussLinearDiscont2DFECollection;
-   else if (!strcmp(buff, "P1OnQuad"))
-      fec = new P1OnQuadFECollection;
-   else if (!strcmp(buff, "QuadraticDiscont2D"))
-      fec = new QuadraticDiscont2DFECollection;
-   else if (!strcmp(buff, "QuadraticPosDiscont2D"))
-      fec = new QuadraticPosDiscont2DFECollection;
-   else if (!strcmp(buff, "GaussQuadraticDiscont2D"))
-      fec = new GaussQuadraticDiscont2DFECollection;
-   else if (!strcmp(buff, "CubicDiscont2D"))
-      fec = new CubicDiscont2DFECollection;
-   else if (!strcmp(buff, "LinearDiscont3D"))
-      fec = new LinearDiscont3DFECollection;
-   else if (!strcmp(buff, "QuadraticDiscont3D"))
-      fec = new QuadraticDiscont3DFECollection;
-   else if (!strcmp(buff, "LinearNonConf3D"))
-      fec = new LinearNonConf3DFECollection;
-   else if (!strcmp(buff, "CrouzeixRaviart"))
-      fec = new CrouzeixRaviartFECollection;
-   else if (!strcmp(buff, "ND1_3D"))
-      fec = new ND1_3DFECollection;
-   else
-      mfem_error ("GridFunction::GridFunction (): "
-                  "Unknown FiniteElementCollection!");
+   fec = FiniteElementCollection::New(buff);
    input.getline (buff, bufflen, ' '); // 'VDim:'
    input >> vdim;
    input.getline (buff, bufflen, ' '); // 'Ordering:'

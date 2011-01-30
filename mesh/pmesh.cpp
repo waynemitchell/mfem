@@ -191,6 +191,14 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    group.Recreate(1, &MyRank);
    groups.Insert(group);
 
+#ifdef MFEM_DEBUG
+   if (Dim < 3 && mesh.GetNFaces() != 0)
+   {
+      cerr << "ParMesh::ParMesh (proc " << MyRank << ") : "
+         "(Dim < 3 && mesh.GetNFaces() != 0) is true!" << endl;
+      mfem_error();
+   }
+#endif
    // determine shared faces
    int sface_counter = 0;
    Array<int> face_group(mesh.GetNFaces());
@@ -267,9 +275,6 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       else
          vert_element->GetRow(i)[0] = -1;
    }
-
-   if (partitioning_ == NULL)
-      delete [] partitioning;
 
    // build group_sface
    group_sface.MakeI(groups.Size()-1);
@@ -515,6 +520,28 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
    delete [] statuses;
    delete [] requests;
+
+   if (mesh.GetNodes()) // curved mesh
+   {
+      Nodes = new ParGridFunction(this, mesh.GetNodes());
+      own_nodes = 1;
+
+      Array<int> gvdofs, lvdofs;
+      Vector lnodes;
+      element_counter = 0;
+      for (i = 0; i < mesh.GetNE(); i++)
+         if (partitioning[i] == MyRank)
+         {
+            Nodes->FESpace()->GetElementVDofs(element_counter, lvdofs);
+            mesh.GetNodes()->FESpace()->GetElementVDofs(i, gvdofs);
+            mesh.GetNodes()->GetSubVector(gvdofs, lnodes);
+            Nodes->SetSubVector(lvdofs, lnodes);
+            element_counter++;
+         }
+   }
+
+   if (partitioning_ == NULL)
+      delete [] partitioning;
 }
 
 void ParMesh::GroupEdge(int group, int i, int &edge, int &o)
@@ -596,7 +623,15 @@ int ParMesh::GetFaceSplittings(Element *face, const DSTable &v_to_v,
 
 void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 {
-   int i;
+   int i, wtls = WantTwoLevelState;
+
+   if (Nodes)  // curved mesh
+   {
+      UseTwoLevelState(1);
+   }
+
+   SetState(Mesh::NORMAL);
+   DeleteCoarseTables();
 
    if (Dim == 3)
    {
@@ -605,6 +640,8 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       if (WantTwoLevelState)
       {
          c_NumOfVertices    = NumOfVertices;
+         c_NumOfEdges       = NumOfEdges;
+         c_NumOfFaces       = NumOfFaces;
          c_NumOfElements    = NumOfElements;
          c_NumOfBdrElements = NumOfBdrElements;
       }
@@ -832,7 +869,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          if (WantTwoLevelState)
          {
             c_el_to_edge = el_to_edge;
-            f_el_to_edge = new Table(NumOfElements, 12); // 12 for hexs
+            f_el_to_edge = new Table;
             c_bel_to_edge = bel_to_edge;
             bel_to_edge = NULL;
             NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
@@ -842,16 +879,27 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          else
             NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
       }
-
       if (el_to_face != NULL)
       {
-         GetElementToFaceTable();
+         if (WantTwoLevelState)
+         {
+            c_el_to_face = el_to_face;
+            el_to_face = NULL;
+            Swap(faces_info, fc_faces_info);
+         }
+         // GetElementToFaceTable(); // Called by RefineGroups
          GenerateFaces();
+         if (WantTwoLevelState)
+         {
+            f_el_to_face = el_to_face;
+         }
       }
 
       if (WantTwoLevelState)
       {
          f_NumOfVertices    = NumOfVertices;
+         f_NumOfEdges       = NumOfEdges;
+         f_NumOfFaces       = NumOfFaces;
          f_NumOfElements    = NumOfElements;
          f_NumOfBdrElements = NumOfBdrElements;
       }
@@ -866,6 +914,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       if (WantTwoLevelState)
       {
          c_NumOfVertices    = NumOfVertices;
+         c_NumOfEdges       = NumOfEdges;
          c_NumOfElements    = NumOfElements;
          c_NumOfBdrElements = NumOfBdrElements;
       }
@@ -1037,7 +1086,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       for (i = 0; i < temp; i++)
       {
          boundary[i]->GetVertices(v);
-         bisect = v_to_v(v[0],v[1]);
+         bisect = v_to_v(v[0], v[1]);
          if (middle[bisect] != -1)
          {  // the element was refined (needs updating)
             if (boundary[i]->GetType() == Element::SEGMENT)
@@ -1048,8 +1097,12 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                if (WantTwoLevelState)
                {
                   boundary.Append(new Segment(v2, boundary[i]->GetAttribute()));
+#ifdef MFEM_USE_MEMALLOC
                   BisectedElement *aux = BEMemory.Alloc();
                   aux->SetCoarseElem(boundary[i]);
+#else
+                  BisectedElement *aux = new BisectedElement(boundary[i]);
+#endif
                   aux->FirstChild =
                      new Segment(v1, boundary[i]->GetAttribute());
                   aux->SecondChild = NumOfBdrElements;
@@ -1081,32 +1134,45 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       CheckElementOrientation();
 #endif
 
+      if (WantTwoLevelState)
+      {
+         f_NumOfVertices    = NumOfVertices;
+         f_NumOfElements    = NumOfElements;
+         f_NumOfBdrElements = NumOfBdrElements;
+         RefinedElement::State = RefinedElement::FINE;
+         State = Mesh::TWO_LEVEL_FINE;
+      }
+
       if (el_to_edge != NULL)
       {
          if (WantTwoLevelState)
          {
             c_el_to_edge = el_to_edge;
-            f_el_to_edge = new Table(NumOfElements, 3); // triangles
-            // need to save  'be_to_el' -- NOT saved for now
+            Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
+            f_el_to_edge = new Table;
             NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
             el_to_edge = f_el_to_edge;
+            f_NumOfEdges = NumOfEdges;
          }
          else
             NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+         GenerateFaces();
       }
-
    } //  'if (Dim == 2)'
+
+   if (Nodes)  // curved mesh
+   {
+      UpdateNodes();
+      UseTwoLevelState(wtls);
+   }
 }
 
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
 {
-   int i, attr, newv[3], ind, f_ind;
-   Array<int> v;
+   int i, attr, newv[3], ind, f_ind, *v;
 
    int group;
    Array<int> group_verts, group_edges, group_faces;
-
-   STable3D *faces_tbl = GetElementToFaceTable(1);
 
    // To update the groups after a refinement, we observe that:
    // - every (new and old) vertex, edge and face belongs to exactly one group
@@ -1120,18 +1186,29 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
 
    I_group_svert = new int[GetNGroups()+1];
    I_group_sedge = new int[GetNGroups()+1];
-   I_group_sface = new int[GetNGroups()+1];
+   if (Dim == 3)
+      I_group_sface = new int[GetNGroups()+1];
 
    I_group_svert[0] = I_group_svert[1] = 0;
    I_group_sedge[0] = I_group_sedge[1] = 0;
-   I_group_sface[0] = I_group_sface[1] = 0;
+   if (Dim == 3)
+      I_group_sface[0] = I_group_sface[1] = 0;
 
    // overestimate the size of the J arrays
-   J_group_svert = new int[group_svert.Size_of_connections()
-                           + group_sedge.Size_of_connections()];
-   J_group_sedge = new int[2*group_sedge.Size_of_connections()
-                           + 3*group_sface.Size_of_connections()];
-   J_group_sface = new int[4*group_sface.Size_of_connections()];
+   if (Dim == 3)
+   {
+      J_group_svert = new int[group_svert.Size_of_connections()
+                              + group_sedge.Size_of_connections()];
+      J_group_sedge = new int[2*group_sedge.Size_of_connections()
+                              + 3*group_sface.Size_of_connections()];
+      J_group_sface = new int[4*group_sface.Size_of_connections()];
+   }
+   else if (Dim == 2)
+   {
+      J_group_svert = new int[group_svert.Size_of_connections()
+                              + group_sedge.Size_of_connections()];
+      J_group_sedge = new int[2*group_sedge.Size_of_connections()];
+   }
 
    for (group = 0; group < GetNGroups()-1; group++)
    {
@@ -1143,7 +1220,7 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
       // Check which edges have been refined
       for (i = 0; i < group_sedge.RowSize(group); i++)
       {
-         shared_edges[group_edges[i]]->GetVertices(v);
+         v = shared_edges[group_edges[i]]->GetVertices();
          ind = middle[v_to_v(v[0], v[1])];
          if (ind != -1)
          {
@@ -1151,66 +1228,66 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
             group_verts.Append(svert_lvert.Append(ind)-1);
             // update the edges
             attr = shared_edges[group_edges[i]]->GetAttribute();
-            shared_edges.Append(new Segment(v[1],ind,attr));
+            shared_edges.Append(new Segment(v[1], ind, attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
-            newv[0] = v[0]; newv[1] = ind;
-            shared_edges[group_edges[i]]->SetVertices(newv);
+            v[1] = ind;
          }
       }
 
       // Check which faces have been refined
       for (i = 0; i < group_sface.RowSize(group); i++)
       {
-         shared_faces[group_faces[i]]->GetVertices(v);
+         v = shared_faces[group_faces[i]]->GetVertices();
          ind = middle[v_to_v(v[0], v[1])];
          if (ind != -1)
          {
             attr = shared_faces[group_faces[i]]->GetAttribute();
             // add the refinement edge
-            shared_edges.Append(new Segment(v[2],ind,attr));
+            shared_edges.Append(new Segment(v[2], ind, attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
             // add a face
+            f_ind = group_faces.Size();
+            shared_faces.Append(new Triangle(v[1], v[2], ind, attr));
+            group_faces.Append(sface_lface.Append(-1)-1);
             newv[0] = v[2]; newv[1] = v[0]; newv[2] = ind;
             shared_faces[group_faces[i]]->SetVertices(newv);
-            f_ind = group_faces.Size();
-            shared_faces.Append(new Triangle(v[1],v[2],ind,attr));
-            group_faces.Append(sface_lface.Append(-1)-1);
 
             // check if the left face has also been refined
-            shared_faces[group_faces[i]]->GetVertices(v);
+            // v = shared_faces[group_faces[i]]->GetVertices();
             ind = middle[v_to_v(v[0], v[1])];
             if (ind != -1)
             {
                // add the refinement edge
-               shared_edges.Append(new Segment(v[2],ind,attr));
+               shared_edges.Append(new Segment(v[2], ind, attr));
                group_edges.Append(sedge_ledge.Append(-1)-1);
                // add a face
+               shared_faces.Append(new Triangle(v[1], v[2], ind, attr));
+               group_faces.Append(sface_lface.Append(-1)-1);
                newv[0] = v[2]; newv[1] = v[0]; newv[2] = ind;
                shared_faces[group_faces[i]]->SetVertices(newv);
-               shared_faces.Append(new Triangle(v[1],v[2],ind,attr));
-               group_faces.Append(sface_lface.Append(-1)-1);
             }
 
             // check if the right face has also been refined
-            shared_faces[group_faces[f_ind]]->GetVertices(v);
+            v = shared_faces[group_faces[f_ind]]->GetVertices();
             ind = middle[v_to_v(v[0], v[1])];
             if (ind != -1)
             {
                // add the refinement edge
-               shared_edges.Append(new Segment(v[2],ind,attr));
+               shared_edges.Append(new Segment(v[2], ind, attr));
                group_edges.Append(sedge_ledge.Append(-1)-1);
                // add a face
+               shared_faces.Append(new Triangle(v[1], v[2], ind, attr));
+               group_faces.Append(sface_lface.Append(-1)-1);
                newv[0] = v[2]; newv[1] = v[0]; newv[2] = ind;
                shared_faces[group_faces[f_ind]]->SetVertices(newv);
-               shared_faces.Append(new Triangle(v[1],v[2],ind,attr));
-               group_faces.Append(sface_lface.Append(-1)-1);
             }
          }
       }
 
       I_group_svert[group+1] = I_group_svert[group] + group_verts.Size();
       I_group_sedge[group+1] = I_group_sedge[group] + group_edges.Size();
-      I_group_sface[group+1] = I_group_sface[group] + group_faces.Size();
+      if (Dim == 3)
+         I_group_sface[group+1] = I_group_sface[group] + group_faces.Size();
 
       int *J;
       J = J_group_svert+I_group_svert[group];
@@ -1219,30 +1296,39 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
       J = J_group_sedge+I_group_sedge[group];
       for (i = 0; i < group_edges.Size(); i++)
          J[i] = group_edges[i];
-      J = J_group_sface+I_group_sface[group];
-      for (i = 0; i < group_faces.Size(); i++)
-         J[i] = group_faces[i];
+      if (Dim == 3)
+      {
+         J = J_group_sface+I_group_sface[group];
+         for (i = 0; i < group_faces.Size(); i++)
+            J[i] = group_faces[i];
+      }
    }
 
    // Fix the local numbers of shared edges and faces
-   DSTable new_v_to_v(NumOfVertices);
-   GetVertexToVertexTable(new_v_to_v);
-   for (i = 0; i < shared_edges.Size(); i++)
    {
-      shared_edges[i]->GetVertices(v);
-      sedge_ledge[i] = new_v_to_v(v[0], v[1]);
+      DSTable new_v_to_v(NumOfVertices);
+      GetVertexToVertexTable(new_v_to_v);
+      for (i = 0; i < shared_edges.Size(); i++)
+      {
+         v = shared_edges[i]->GetVertices();
+         sedge_ledge[i] = new_v_to_v(v[0], v[1]);
+      }
    }
-   for (i = 0; i < shared_faces.Size(); i++)
+   if (Dim == 3)
    {
-      shared_faces[i]->GetVertices(v);
-      sface_lface[i] = (*faces_tbl)(v[0], v[1], v[2]);
+      STable3D *faces_tbl = GetElementToFaceTable(1);
+      for (i = 0; i < shared_faces.Size(); i++)
+      {
+         v = shared_faces[i]->GetVertices();
+         sface_lface[i] = (*faces_tbl)(v[0], v[1], v[2]);
+      }
+      delete faces_tbl;
    }
 
    group_svert.SetIJ(I_group_svert, J_group_svert);
    group_sedge.SetIJ(I_group_sedge, J_group_sedge);
-   group_sface.SetIJ(I_group_sface, J_group_sface);
-
-   delete faces_tbl;
+   if (Dim == 3)
+      group_sface.SetIJ(I_group_sface, J_group_sface);
 }
 
 void ParMesh::QuadUniformRefinement()
@@ -1322,119 +1408,12 @@ void ParMesh::HexUniformRefinement()
 {
    int oedge = NumOfVertices;
    int oface = oedge + NumOfEdges;
-   int oelem = oface + NumOfFaces;
-
-   int i;
-   int *v, *e, *f;
-   int vv[4];
 
    DSTable v_to_v(NumOfVertices);
    GetVertexToVertexTable(v_to_v);
    STable3D *faces_tbl = GetElementToFaceTable(1);
 
-   vertices.SetSize(oelem + NumOfElements);
-   for (i = 0; i < NumOfElements; i++)
-   {
-      v = elements[i]->GetVertices();
-
-      AverageVertices(v, 8, oelem+i);
-
-      f = el_to_face->GetRow(i);
-
-      vv[0] = v[3], vv[1] = v[2], vv[2] = v[1], vv[3] = v[0];
-      AverageVertices(vv, 4, oface+f[0]);
-      vv[0] = v[0], vv[1] = v[1], vv[2] = v[5], vv[3] = v[4];
-      AverageVertices(vv, 4, oface+f[1]);
-      vv[0] = v[1], vv[1] = v[2], vv[2] = v[6], vv[3] = v[5];
-      AverageVertices(vv, 4, oface+f[2]);
-      vv[0] = v[2], vv[1] = v[3], vv[2] = v[7], vv[3] = v[6];
-      AverageVertices(vv, 4, oface+f[3]);
-      vv[0] = v[3], vv[1] = v[0], vv[2] = v[4], vv[3] = v[7];
-      AverageVertices(vv, 4, oface+f[4]);
-      vv[0] = v[4], vv[1] = v[5], vv[2] = v[6], vv[3] = v[7];
-      AverageVertices(vv, 4, oface+f[5]);
-
-      e = el_to_edge->GetRow(i);
-
-      vv[0] = v[0], vv[1] = v[1]; AverageVertices(vv, 2, oedge+e[0]);
-      vv[0] = v[1], vv[1] = v[2]; AverageVertices(vv, 2, oedge+e[1]);
-      vv[0] = v[2], vv[1] = v[3]; AverageVertices(vv, 2, oedge+e[2]);
-      vv[0] = v[3], vv[1] = v[0]; AverageVertices(vv, 2, oedge+e[3]);
-      vv[0] = v[4], vv[1] = v[5]; AverageVertices(vv, 2, oedge+e[4]);
-      vv[0] = v[5], vv[1] = v[6]; AverageVertices(vv, 2, oedge+e[5]);
-      vv[0] = v[6], vv[1] = v[7]; AverageVertices(vv, 2, oedge+e[6]);
-      vv[0] = v[7], vv[1] = v[4]; AverageVertices(vv, 2, oedge+e[7]);
-      vv[0] = v[0], vv[1] = v[4]; AverageVertices(vv, 2, oedge+e[8]);
-      vv[0] = v[1], vv[1] = v[5]; AverageVertices(vv, 2, oedge+e[9]);
-      vv[0] = v[2], vv[1] = v[6]; AverageVertices(vv, 2, oedge+e[10]);
-      vv[0] = v[3], vv[1] = v[7]; AverageVertices(vv, 2, oedge+e[11]);
-   }
-
-   int attr;
-   elements.SetSize(8 * NumOfElements);
-   for (i = NumOfElements - 1; i >= 0; i--)
-   {
-      attr = elements[i]->GetAttribute();
-      v = elements[i]->GetVertices();
-      e = el_to_edge->GetRow(i);
-      f = el_to_face->GetRow(i);
-
-      elements[8*i+1] = new Hexahedron(oedge+e[0], v[1], oedge+e[1], oface+f[0],
-                                       oface+f[1], oedge+e[9], oface+f[2],
-                                       oelem+i, attr);
-      elements[8*i+2] = new Hexahedron(oface+f[0], oedge+e[1], v[2], oedge+e[2],
-                                       oelem+i, oface+f[2], oedge+e[10],
-                                       oface+f[3], attr);
-      elements[8*i+3] = new Hexahedron(oedge+e[3], oface+f[0], oedge+e[2], v[3],
-                                       oface+f[4], oelem+i, oface+f[3],
-                                       oedge+e[11], attr);
-      elements[8*i+4] = new Hexahedron(oedge+e[8], oface+f[1], oelem+i,
-                                       oface+f[4], v[4], oedge+e[4], oface+f[5],
-                                       oedge+e[7], attr);
-      elements[8*i+5] = new Hexahedron(oface+f[1], oedge+e[9], oface+f[2],
-                                       oelem+i, oedge+e[4], v[5], oedge+e[5],
-                                       oface+f[5], attr);
-      elements[8*i+6] = new Hexahedron(oelem+i, oface+f[2], oedge+e[10],
-                                       oface+f[3], oface+f[5], oedge+e[5],
-                                       v[6], oedge+e[6], attr);
-      elements[8*i+7] = new Hexahedron(oface+f[4], oelem+i, oface+f[3],
-                                       oedge+e[11], oedge+e[7], oface+f[5],
-                                       oedge+e[6], v[7], attr);
-
-      elements[8*i] = elements[i];
-      v[1] = oedge+e[0];
-      v[2] = oface+f[0];
-      v[3] = oedge+e[3];
-      v[4] = oedge+e[8];
-      v[5] = oface+f[1];
-      v[6] = oelem+i;
-      v[7] = oface+f[4];
-   }
-
-   boundary.SetSize(4 * NumOfBdrElements);
-   for (i = NumOfBdrElements - 1; i >= 0; i--)
-   {
-      attr = boundary[i]->GetAttribute();
-      v = boundary[i]->GetVertices();
-      e = bel_to_edge->GetRow(i);
-      f = & be_to_face[i];
-
-      boundary[4*i+1] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
-                                          oface+f[0], attr);
-      boundary[4*i+2] = new Quadrilateral(oface+f[0], oedge+e[1], v[2],
-                                          oedge+e[2], attr);
-      boundary[4*i+3] = new Quadrilateral(oedge+e[3], oface+f[0], oedge+e[2],
-                                          v[3], attr);
-
-      boundary[4*i] = boundary[i];
-      v[1] = oedge+e[0];
-      v[2] = oface+f[0];
-      v[3] = oedge+e[3];
-   }
-
-   NumOfVertices    = oelem + NumOfElements;
-   NumOfElements    = 8 * NumOfElements;
-   NumOfBdrElements = 4 * NumOfBdrElements;
+   Mesh::HexUniformRefinement();
 
    // update the groups
    {
@@ -1475,12 +1454,12 @@ void ParMesh::HexUniformRefinement()
          for (i = 0; i < group_sedge.RowSize(group); i++)
          {
             shared_edges[group_edges[i]]->GetVertices(v);
-            ind = oedge+v_to_v(v[0], v[1]);
+            ind = oedge + v_to_v(v[0], v[1]);
             // add a vertex
             group_verts.Append(svert_lvert.Append(ind)-1);
             // update the edges
             attr = shared_edges[group_edges[i]]->GetAttribute();
-            shared_edges.Append(new Segment(v[1],ind,attr));
+            shared_edges.Append(new Segment(v[1], ind, attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
             newv[0] = v[0]; newv[1] = ind;
             shared_edges[group_edges[i]]->SetVertices(newv);
@@ -1495,17 +1474,17 @@ void ParMesh::HexUniformRefinement()
             group_verts.Append(svert_lvert.Append(m[0])-1);
             // add the refinement edges
             attr = shared_faces[group_faces[i]]->GetAttribute();
-            m[1] = oedge+v_to_v(v[0],v[1]);
-            m[2] = oedge+v_to_v(v[1],v[2]);
-            m[3] = oedge+v_to_v(v[2],v[3]);
-            m[4] = oedge+v_to_v(v[3],v[0]);
-            shared_edges.Append(new Segment(m[1],m[0],attr));
+            m[1] = oedge + v_to_v(v[0], v[1]);
+            m[2] = oedge + v_to_v(v[1], v[2]);
+            m[3] = oedge + v_to_v(v[2], v[3]);
+            m[4] = oedge + v_to_v(v[3], v[0]);
+            shared_edges.Append(new Segment(m[1], m[0], attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
-            shared_edges.Append(new Segment(m[2],m[0],attr));
+            shared_edges.Append(new Segment(m[2], m[0], attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
-            shared_edges.Append(new Segment(m[3],m[0],attr));
+            shared_edges.Append(new Segment(m[3], m[0], attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
-            shared_edges.Append(new Segment(m[4],m[0],attr));
+            shared_edges.Append(new Segment(m[4], m[0], attr));
             group_edges.Append(sedge_ledge.Append(-1)-1);
             // update faces
             newv[0] = v[0]; newv[1] = m[1]; newv[2] = m[0]; newv[3] = m[4];
@@ -1556,12 +1535,6 @@ void ParMesh::HexUniformRefinement()
       group_sedge.SetIJ(I_group_sedge, J_group_sedge);
       group_sface.SetIJ(I_group_sface, J_group_sface);
    }
-
-   //  GetElementToFaceTable();
-   GenerateFaces();
-   CheckBdrElementOrientation();
-
-   NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
 }
 
 void ParMesh::Print(ostream &out) const
@@ -1940,10 +1913,24 @@ void ParMesh::PrintAsOne(ostream &out)
    {
       if (MyRank == 0)
          out << "\nnodes\n";
-      // convert Nodes to a ParGridFunction
-      ParGridFunction ParNodes((ParFiniteElementSpace*)Nodes->FESpace(),
-                               Nodes);
-      ParNodes.SaveAsOne(out);
+      ParGridFunction *pnodes = dynamic_cast<ParGridFunction *>(Nodes);
+      if (pnodes)
+      {
+         pnodes->SaveAsOne(out);
+      }
+      else
+      {
+         ParFiniteElementSpace *pfes =
+            dynamic_cast<ParFiniteElementSpace *>(Nodes->FESpace());
+         if (pfes)
+         {
+            // create a wrapper ParGridFunction
+            ParGridFunction ParNodes(pfes, Nodes);
+            ParNodes.SaveAsOne(out);
+         }
+         else
+            mfem_error("ParMesh::PrintAsOne : Nodes have no parallel info!");
+      }
    }
 }
 

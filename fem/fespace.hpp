@@ -243,9 +243,9 @@ public:
        is defined on the same mesh. */
    SparseMatrix * H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes);
 
-   void Update();
+   virtual void Update();
    /// Return a copy of the current FE space and update
-   FiniteElementSpace *SaveUpdate();
+   virtual FiniteElementSpace *SaveUpdate();
 
    void Save (ostream &out) const;
 

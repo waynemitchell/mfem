@@ -21,12 +21,17 @@ protected:
 public:
    ParGridFunction(ParFiniteElementSpace *pf) : GridFunction(pf), pfes(pf) { }
 
-   /// Construct a ParGridFunction corresponding to *pf and the data from *gf
+   /** Construct a ParGridFunction corresponding to *pf and the data from *gf
+       which is a local GridFunction on each processor. */
    ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf);
 
    /** Creates grid function on (all) dofs from a given vector on the true dofs,
        i.e. P tv. */
    ParGridFunction(ParFiniteElementSpace *pf, HypreParVector *tv);
+
+   /** Construct a ParGridFunction from the given serial GridFunction.
+       The data from 'gf' is NOT copied. */
+   ParGridFunction(ParMesh *pmesh, GridFunction *gf);
 
    /** Set the grid function on (all) dofs from a given vector on the
        true dofs, i.e. P tv. */
@@ -44,6 +49,8 @@ public:
 
    /// Merge the local grid functions
    void SaveAsOne(ostream &out = cout);
+
+   virtual ~ParGridFunction() { }
 };
 
 #endif

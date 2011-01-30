@@ -44,6 +44,10 @@ private:
    /// The matrix P (interpolation from true dof to dof).
    HypreParMatrix *P;
 
+   /* Create a parallel FE space stealing all data (except RefData) from the
+      given FE space. This is used in SaveUpdate(). */
+   ParFiniteElementSpace(ParFiniteElementSpace &pf);
+
 public:
    ParFiniteElementSpace(ParMesh *pm, FiniteElementCollection *f,
                          int dim = 1, int order = Ordering::byNODES);
@@ -82,6 +86,10 @@ public:
    void Lose_Dof_TrueDof_Matrix();
    void LoseDofOffsets() { dof_offsets.LoseData(); }
    void LoseTrueDofOffsets() { tdof_offsets.LoseData(); }
+
+   virtual void Update();
+   /// Return a copy of the current FE space and update
+   virtual FiniteElementSpace *SaveUpdate();
 
    virtual ~ParFiniteElementSpace() { if (P) delete P; }
 };

@@ -157,7 +157,7 @@ public:
    void SaveSTL (ostream &out, int TimesToRefine = 1);
 
    /// Destroys grid function.
-   ~GridFunction();
+   virtual ~GridFunction();
 };
 
 void ComputeFlux(BilinearFormIntegrator &blfi,

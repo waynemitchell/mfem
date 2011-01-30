@@ -27,6 +27,8 @@ public:
    int HasFaceDofs (int GeomType) const;
 
    virtual ~FiniteElementCollection() { };
+
+   static FiniteElementCollection *New(const char *name);
 };
 
 class LinearFECollection : public FiniteElementCollection
