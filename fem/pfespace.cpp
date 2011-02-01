@@ -331,15 +331,11 @@ void ParFiniteElementSpace::ConstructTrueDofs()
    ldof_ltdof.SetSize(n);
    group_ldof.SetDims(ng, n);
 
-   for (i = 0; i < n; i++)
-   {
-      ldof_group[i] =  0;
-      ldof_ltdof[i] = -1;
-   }
+   ldof_group = 0;
+   ldof_ltdof = -1;
 
    ldof_sign.SetSize(GetNDofs());
-   for (i = 0; i < GetNDofs(); i++)
-      ldof_sign[i] = 1;
+   ldof_sign = 1;
 
    request_counter = 0;
    group_ldof_counter = 0;
