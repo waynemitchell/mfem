@@ -32,6 +32,9 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    else
       partitioning = mesh.GeneratePartitioning(NRanks, part_method);
 
+   // re-enumerate the partitions to better map to actual processor
+   // interconnect topology !?
+
    Array<int> vert;
    Array<int> vert_global_local(mesh.GetNV());
    int vert_counter, element_counter, bdrelem_counter;
@@ -623,7 +626,7 @@ int ParMesh::GetFaceSplittings(Element *face, const DSTable &v_to_v,
 
 void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 {
-   int i, wtls = WantTwoLevelState;
+   int i, j, wtls = WantTwoLevelState;
 
    if (Nodes)  // curved mesh
    {
@@ -635,8 +638,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
    if (Dim == 3)
    {
-      int nedges;
-
       if (WantTwoLevelState)
       {
          c_NumOfVertices    = NumOfVertices;
@@ -658,14 +659,10 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       GetVertexToVertexTable(v_to_v);
 
       // 2. Get edge to element connections in arrays edge1 and edge2
-      nedges = v_to_v.NumberOfEntries();
-      int *middle = new int[nedges];
-
-      for (i = 0; i < nedges; i++)
-         middle[i] = -1;
+      Array<int> middle(v_to_v.NumberOfEntries());
+      middle = -1;
 
       // 3. Do the red refinement.
-      int ii;
       switch (type)
       {
       case 1:
@@ -686,10 +683,10 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          {
             Bisection(marked_el[i], v_to_v, NULL, NULL, middle);
 
-            ii = NumOfElements - 1;
-            Bisection(ii, v_to_v, NULL, NULL, middle);
+            j = NumOfElements - 1;
+            Bisection(j, v_to_v, NULL, NULL, middle);
             Bisection(NumOfElements - 1, v_to_v, NULL, NULL, middle);
-            Bisection(ii, v_to_v, NULL, NULL, middle);
+            Bisection(j, v_to_v, NULL, NULL, middle);
 
             Bisection(marked_el[i], v_to_v, NULL, NULL, middle);
             Bisection(NumOfElements-1, v_to_v, NULL, NULL, middle);
@@ -723,6 +720,12 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
       int neighbor, *iBuf = new int[max_faces_in_group];
 
+      Array<int> group_faces;
+      Vertex V;
+
+      MPI_Request request;
+      MPI_Status  status;
+
       do
       {
          need_refinement = 0;
@@ -737,13 +740,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
          if (uniform_refinement)
             continue;
-
-         Array<int> group_faces;
-         int *v, j, k, c;
-         double coord[3];
-
-         MPI_Request request;
-         MPI_Status  status;
 
          // if the mesh is locally conforming start making it globally
          // conforming
@@ -791,38 +787,39 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                   for (j = 0; j < faces_in_group; j++)
                      if (iBuf[j] != face_splittings[i][j])
                      {
-                        v = shared_faces[group_faces[j]]->GetVertices();
-                        for (k = 0; k < 3; k++)
+                        int *v = shared_faces[group_faces[j]]->GetVertices();
+                        for (int k = 0; k < 3; k++)
                            if (refined_edge[iBuf[j]][k] == 1 &&
                                refined_edge[face_splittings[i][j]][k] == 0)
                            {
-                              ii = v_to_v(v[k], v[(k+1)%3]);
-                              if (middle[ii] == -1)
-                              {
-                                 need_refinement = 1;
-                                 middle[ii] = NumOfVertices++;
-                                 for (c = 0; c < 3; c++)
-                                    coord[c] = 0.5 * (vertices[v[k]](c) +
-                                                      vertices[v[(k+1)%3]](c));
-                                 Vertex V(coord, Dim);
-                                 vertices.Append(V);
-                              }
+                              int ii = v_to_v(v[k], v[(k+1)%3]);
+#ifdef MFEM_DEBUG
+                              if (middle[ii] != -1)
+                                 mfem_error("ParMesh::LocalRefinement "
+                                            "(tetrahedra) : Oops!");
+#endif
+                              need_refinement = 1;
+                              middle[ii] = NumOfVertices++;
+                              for (int c = 0; c < 3; c++)
+                                 V(c) = 0.5 * (vertices[v[k]](c) +
+                                               vertices[v[(k+1)%3]](c));
+                              vertices.Append(V);
                            }
                      }
                }
             }
 
-            ii = need_refinement;
-            MPI_Allreduce(&ii, &need_refinement, 1, MPI_INT, MPI_LOR, MyComm);
+            i = need_refinement;
+            MPI_Allreduce(&i, &need_refinement, 1, MPI_INT, MPI_LOR, MyComm);
          }
       }
       while (need_refinement == 1);
 
+      delete [] iBuf;
       for (i = 0; i < GetNGroups()-1; i++)
          delete [] face_splittings[i];
       delete [] face_splittings;
 
-      delete [] iBuf;
 
       // 5. Update the boundary elements.
       do
@@ -858,7 +855,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       NumOfBdrElements = boundary.Size();
 
       // 7. Free the allocated memory.
-      delete [] middle;
+      middle.DeleteAll();
 
 #ifdef MFEM_DEBUG
       CheckElementOrientation();
@@ -908,9 +905,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
    if (Dim == 2)
    {
-      int i, j, ind, nedges;
-      Array<int> v;
-
       if (WantTwoLevelState)
       {
          c_NumOfVertices    = NumOfVertices;
@@ -931,7 +925,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       GetVertexToVertexTable(v_to_v);
 
       // 2. Get edge to element connections in arrays edge1 and edge2
-      nedges = v_to_v.NumberOfEntries();
+      int nedges  = v_to_v.NumberOfEntries();
       int *edge1  = new int[nedges];
       int *edge2  = new int[nedges];
       int *middle = new int[nedges];
@@ -941,14 +935,12 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
       for (i = 0; i < NumOfElements; i++)
       {
-         elements[i]->GetVertices(v);
-         for (j = 1; j < v.Size(); j++)
+         int *v = elements[i]->GetVertices();
+         for (j = 0; j < 3; j++)
          {
-            ind = v_to_v(v[j-1], v[j]);
+            int ind = v_to_v(v[j], v[(j+1)%3]);
             (edge1[ind] == -1) ? (edge1[ind] = i) : (edge2[ind] = i);
          }
-         ind = v_to_v(v[0], v[v.Size()-1]);
-         (edge1[ind] == -1) ? (edge1[ind] = i) : (edge2[ind] = i);
       }
 
       // 3. Do the red refinement.
@@ -963,11 +955,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
       // 4. Do the green refinement (to get conforming mesh).
       int need_refinement;
-      int refined_edge[5][3] = {{0, 0, 0},
-                                {1, 0, 0},
-                                {1, 1, 0},
-                                {1, 0, 1},
-                                {1, 1, 1}};
       int edges_in_group, max_edges_in_group = 0;
       // edge_splittings identify how the shared edges have been split
       int **edge_splittings = new int*[GetNGroups()-1];
@@ -979,6 +966,13 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
             max_edges_in_group = edges_in_group;
       }
       int neighbor, *iBuf = new int[max_edges_in_group];
+
+      Array<int> group_edges;
+
+      MPI_Request request;
+      MPI_Status  status;
+      Vertex V;
+      V(2) = 0.0;
 
       do
       {
@@ -992,13 +986,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
          if (uniform_refinement)
             continue;
-
-         Array<int> group_edges;
-         int *v, ii,j, k, c;
-         double coord[3];
-
-         MPI_Request request;
-         MPI_Status  status;
 
          // if the mesh is locally conforming start making it globally
          // conforming
@@ -1044,32 +1031,26 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                            MPI_ANY_TAG, MyComm, &status);
 
                   for (j = 0; j < edges_in_group; j++)
-                     if (iBuf[j] != edge_splittings[i][j])
+                     if (iBuf[j] == 1 && edge_splittings[i][j] == 0)
                      {
-                        v = shared_edges[group_edges[j]]->GetVertices();
-                        for (k = 0; k < 3; k++)
-                           if (refined_edge[iBuf[j]][k] == 1 &&
-                               refined_edge[edge_splittings[i][j]][k] == 0)
-                           {
-                              ii = v_to_v(v[k], v[(k+1)%3]);
-                              if (middle[ii] == -1)
-                              {
-                                 need_refinement = 1;
-                                 middle[ii] = NumOfVertices++;
-                                 for (c = 0; c < 3; c++)
-                                    coord[c] = 0.5 * (vertices[v[k]](c) +
-                                                      vertices[v[(k+1)%3]](c));
-                                 Vertex V(coord, Dim);
-                                 // TODO: (Dim == 2) here!?
-                                 vertices.Append(V);
-                              }
-                           }
+                        int *v = shared_edges[group_edges[j]]->GetVertices();
+                        int ii = v_to_v(v[0], v[1]);
+#ifdef MFEM_DEBUG
+                        if (middle[ii] != -1)
+                           mfem_error("ParMesh::LocalRefinement (triangles) : "
+                                      "Oops!");
+#endif
+                        need_refinement = 1;
+                        middle[ii] = NumOfVertices++;
+                        for (int c = 0; c < 2; c++)
+                           V(c) = 0.5 * (vertices[v[0]](c) + vertices[v[1]](c));
+                        vertices.Append(V);
                      }
                }
             }
 
-            ii = need_refinement;
-            MPI_Allreduce(&ii, &need_refinement, 1, MPI_INT, MPI_LOR, MyComm);
+            i = need_refinement;
+            MPI_Allreduce(&i, &need_refinement, 1, MPI_INT, MPI_LOR, MyComm);
          }
       }
       while (need_refinement == 1);
@@ -1085,7 +1066,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       temp = NumOfBdrElements;
       for (i = 0; i < temp; i++)
       {
-         boundary[i]->GetVertices(v);
+         int *v = boundary[i]->GetVertices();
          bisect = v_to_v(v[0], v[1]);
          if (middle[bisect] != -1)
          {  // the element was refined (needs updating)
