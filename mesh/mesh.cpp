@@ -4027,8 +4027,8 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
 {
    int *vert;
    int v[2][4], v_new, bisect, t;
-   double coord[3];
    Element **pce;
+   Vertex V;
 
    if (WantTwoLevelState)
    {
@@ -4060,7 +4060,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       vert = tri->GetVertices();
 
       // 1. Get the index for the new vertex in v_new.
-      bisect = v_to_v(vert[0],vert[1]);
+      bisect = v_to_v(vert[0], vert[1]);
 #ifdef MFEM_DEBUG
       if (bisect < 0)
          mfem_error("Mesh::Bisection(...): ERROR");
@@ -4068,9 +4068,9 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       if (middle[bisect] == -1)
       {
          v_new = NumOfVertices++;
-         coord[0] = (vertices[vert[0]](0) + vertices[vert[1]](0))/2.;
-         coord[1] = (vertices[vert[0]](1) + vertices[vert[1]](1))/2.;
-         Vertex V(coord[0], coord[1]);
+         V(0) = 0.5 * (vertices[vert[0]](0) + vertices[vert[1]](0));
+         V(1) = 0.5 * (vertices[vert[0]](1) + vertices[vert[1]](1));
+         V(2) = 0.0;
          vertices.Append(V);
 
          // Put the element that may need refinement (because of this
@@ -4112,7 +4112,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       // 3. edge1 and edge2 may have to be changed for the second triangle.
       if (v[1][0] < v_to_v.NumberOfRows() && v[1][1] < v_to_v.NumberOfRows())
       {
-         bisect = v_to_v(v[1][0],v[1][1]);
+         bisect = v_to_v(v[1][0], v[1][1]);
 #ifdef MFEM_DEBUG
          if (bisect < 0)
             mfem_error("Mesh::Bisection(...): ERROR 2");
@@ -4157,9 +4157,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       {
          v_new = NumOfVertices++;
          for (j = 0; j < 3; j++)
-            coord[j] = 0.5 * (vertices[vert[0]](j) + vertices[vert[1]](j));
-
-         Vertex  V(coord[0], coord[1], coord[2]);
+            V(j) = 0.5 * (vertices[vert[0]](j) + vertices[vert[1]](j));
          vertices.Append(V);
 
          middle[bisect] = v_new;
@@ -4258,7 +4256,6 @@ void Mesh::Bisection(int i, const DSTable &v_to_v, int *middle)
 {
    int *vert;
    int v[2][3], v_new, bisect, t;
-   // double coord[3];
    Element **pce;
 
    if (WantTwoLevelState)
@@ -4289,7 +4286,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v, int *middle)
       vert = tri->GetVertices();
 
       // 1. Get the index for the new vertex in v_new.
-      bisect = v_to_v(vert[0],vert[1]);
+      bisect = v_to_v(vert[0], vert[1]);
       if (middle[bisect] == -1)
          mfem_error("Error in Bisection(...) of boundary triangle!");
       else
