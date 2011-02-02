@@ -246,40 +246,38 @@ void ParFiniteElementSpace::DivideByGroupSize(double * vec)
 void ParFiniteElementSpace::GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
                                               Array<int> &ess_dofs)
 {
-   int i;
-
-   FiniteElementSpace::GetEssentialVDofs(bdr_attr_is_ess,ess_dofs);
+   FiniteElementSpace::GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
 
    // Make sure that processors without boundary elements mark
    // their boundary dofs (if they have any).
-   double * d_ess_dofs = new double[ess_dofs.Size()];
-   for (i = 0; i < ess_dofs.Size(); i++)
-      d_ess_dofs[i] = ess_dofs[i];
+   Vector d_ess_dofs(ess_dofs.Size());
+   for (int i = 0; i < ess_dofs.Size(); i++)
+      d_ess_dofs(i) = ess_dofs[i];
 
    // vector on (all) dofs
    HypreParVector *v_ess_dofs;
    if (HYPRE_AssumedPartitionCheck())
       v_ess_dofs = new HypreParVector(dof_offsets[2], d_ess_dofs, dof_offsets);
    else
-      v_ess_dofs = new HypreParVector(dof_offsets[NRanks], d_ess_dofs, dof_offsets);
+      v_ess_dofs = new HypreParVector(dof_offsets[NRanks], d_ess_dofs,
+                                      dof_offsets);
 
    // vector on true dofs
-   HypreParVector * v_ess_tdofs;
+   HypreParVector *v_ess_tdofs;
    if (HYPRE_AssumedPartitionCheck())
       v_ess_tdofs = new HypreParVector(tdof_offsets[2], tdof_offsets);
    else
       v_ess_tdofs = new HypreParVector(tdof_offsets[NRanks], tdof_offsets);
 
-   Dof_TrueDof_Matrix() -> MultTranspose(*v_ess_dofs, *v_ess_tdofs);
-   Dof_TrueDof_Matrix() -> Mult(*v_ess_tdofs, *v_ess_dofs);
+   Dof_TrueDof_Matrix()->MultTranspose(*v_ess_dofs, *v_ess_tdofs);
+   Dof_TrueDof_Matrix()->Mult(*v_ess_tdofs, *v_ess_dofs);
 
-   for (i = 0; i < ess_dofs.Size(); i++)
-      if (d_ess_dofs[i] < 0)
+   for (int i = 0; i < ess_dofs.Size(); i++)
+      if (d_ess_dofs(i) < 0.0)
          ess_dofs[i] = -1;
 
-   delete [] d_ess_dofs;
-   delete v_ess_dofs;
    delete v_ess_tdofs;
+   delete v_ess_dofs;
 }
 
 void ParFiniteElementSpace::Lose_Dof_TrueDof_Matrix()
