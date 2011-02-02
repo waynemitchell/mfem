@@ -726,6 +726,9 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       MPI_Request request;
       MPI_Status  status;
 
+#ifdef MFEM_DEBUG
+      int ref_loops_all = 0, ref_loops_par = 0;
+#endif
       do
       {
          need_refinement = 0;
@@ -737,6 +740,9 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                Bisection(i, v_to_v, NULL, NULL, middle);
             }
          }
+#ifdef MFEM_DEBUG
+         ref_loops_all++;
+#endif
 
          if (uniform_refinement)
             continue;
@@ -745,7 +751,10 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          // conforming
          if (need_refinement == 0)
          {
-            MPI_Barrier(MyComm);
+#ifdef MFEM_DEBUG
+            ref_loops_par++;
+#endif
+            // MPI_Barrier(MyComm);
 
             // (a) send the type of interface splitting
             for (i = 0; i < GetNGroups()-1; i++)
@@ -793,17 +802,15 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                                refined_edge[face_splittings[i][j]][k] == 0)
                            {
                               int ii = v_to_v(v[k], v[(k+1)%3]);
-#ifdef MFEM_DEBUG
-                              if (middle[ii] != -1)
-                                 mfem_error("ParMesh::LocalRefinement "
-                                            "(tetrahedra) : Oops!");
-#endif
-                              need_refinement = 1;
-                              middle[ii] = NumOfVertices++;
-                              for (int c = 0; c < 3; c++)
-                                 V(c) = 0.5 * (vertices[v[k]](c) +
-                                               vertices[v[(k+1)%3]](c));
-                              vertices.Append(V);
+                              if (middle[ii] == -1)
+                              {
+                                 need_refinement = 1;
+                                 middle[ii] = NumOfVertices++;
+                                 for (int c = 0; c < 3; c++)
+                                    V(c) = 0.5 * (vertices[v[k]](c) +
+                                                  vertices[v[(k+1)%3]](c));
+                                 vertices.Append(V);
+                              }
                            }
                      }
                }
@@ -814,6 +821,17 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          }
       }
       while (need_refinement == 1);
+
+#ifdef MFEM_DEBUG
+      i = ref_loops_all;
+      MPI_Reduce(&i, &ref_loops_all, 1, MPI_INT, MPI_MAX, 0, MyComm);
+      if (MyRank == 0)
+      {
+         cout << "\n\nParMesh::LocalRefinement : max. ref_loops_all = "
+              << ref_loops_all << ", ref_loops_par = " << ref_loops_par
+              << '\n' << endl;
+      }
+#endif
 
       delete [] iBuf;
       for (i = 0; i < GetNGroups()-1; i++)
@@ -974,6 +992,9 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       Vertex V;
       V(2) = 0.0;
 
+#ifdef MFEM_DEBUG
+      int ref_loops_all = 0, ref_loops_par = 0;
+#endif
       do
       {
          need_refinement = 0;
@@ -983,6 +1004,9 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                need_refinement = 1;
                GreenRefinement(edge1[i], v_to_v, edge1, edge2, middle);
             }
+#ifdef MFEM_DEBUG
+         ref_loops_all++;
+#endif
 
          if (uniform_refinement)
             continue;
@@ -991,7 +1015,10 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          // conforming
          if (need_refinement == 0)
          {
-            MPI_Barrier(MyComm);
+#ifdef MFEM_DEBUG
+            ref_loops_par++;
+#endif
+            // MPI_Barrier(MyComm);
 
             // (a) send the type of interface splitting
             for (i = 0; i < GetNGroups()-1; i++)
@@ -1054,6 +1081,17 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          }
       }
       while (need_refinement == 1);
+
+#ifdef MFEM_DEBUG
+      i = ref_loops_all;
+      MPI_Reduce(&i, &ref_loops_all, 1, MPI_INT, MPI_MAX, 0, MyComm);
+      if (MyRank == 0)
+      {
+         cout << "\n\nParMesh::LocalRefinement : max. ref_loops_all = "
+              << ref_loops_all << ", ref_loops_par = " << ref_loops_par
+              << '\n' << endl;
+      }
+#endif
 
       for (i = 0; i < GetNGroups()-1; i++)
          delete [] edge_splittings[i];
