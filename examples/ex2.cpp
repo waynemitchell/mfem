@@ -103,7 +103,7 @@ int main (int argc, char *argv[])
    for (int i = 0; i < dim-1; i++)
       f.Set(i, new ConstantCoefficient(0.0));
    {
-      Vector pull_force(pmesh->bdr_attributes.Max());
+      Vector pull_force(mesh->bdr_attributes.Max());
       pull_force = 0.0;
       pull_force(1) = -1.0e-2;
       f.Set(dim-1, new PWConstCoefficient(pull_force));
