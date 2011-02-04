@@ -39,10 +39,6 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    Array<int> vert_global_local(mesh.GetNV());
    int vert_counter, element_counter, bdrelem_counter;
 
-   // make sure that the same edges are marked in the elements,
-   // boundary elements and the faces of the serial mesh
-   mesh.MarkEdges();
-
    // build vert_global_local
    for (i = 0; i < vert_global_local.Size(); i++)
       vert_global_local[i] = -1;
@@ -348,6 +344,52 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
             {
             case Element::TRIANGLE:
                sface_lface[sface_counter] = (*faces_tbl)(v[0], v[1], v[2]);
+               // mark the shared face for refinement by reorienting
+               // it according to the refinement flag in the tetradron
+               // to which this shared face belongs to.
+               {
+                  int lface = sface_lface[sface_counter];
+                  Tetrahedron *tet =
+                     (Tetrahedron *)(elements[faces_info[lface].Elem1No]);
+                  int re[2], type, flag, *tv;
+                  tet->ParseRefinementFlag(re, type, flag);
+                  tv = tet->GetVertices();
+                  switch (faces_info[lface].Elem1Inf/64)
+                  {
+                  case 0:
+                     switch (re[1])
+                     {
+                     case 1: v[0] = tv[1]; v[1] = tv[2]; v[2] = tv[3]; break;
+                     case 4: v[0] = tv[3]; v[1] = tv[1]; v[2] = tv[2]; break;
+                     case 5: v[0] = tv[2]; v[1] = tv[3]; v[2] = tv[1]; break;
+                     }
+                     break;
+                  case 1:
+                     switch (re[0])
+                     {
+                     case 2: v[0] = tv[2]; v[1] = tv[0]; v[2] = tv[3]; break;
+                     case 3: v[0] = tv[0]; v[1] = tv[3]; v[2] = tv[2]; break;
+                     case 5: v[0] = tv[3]; v[1] = tv[2]; v[2] = tv[0]; break;
+                     }
+                     break;
+                  case 2:
+                     v[0] = tv[0]; v[1] = tv[1]; v[2] = tv[3];
+                     break;
+                  case 3:
+                     v[0] = tv[1]; v[1] = tv[0]; v[2] = tv[2];
+                     break;
+                  }
+                  // flip the shared face in the processor that owns the
+                  // second element (in 'mesh')
+                  {
+                     int gl_el1, gl_el2;
+                     mesh.GetFaceElements(i, &gl_el1, &gl_el2);
+                     if (MyRank == partitioning[gl_el2])
+                     {
+                        const int t = v[0]; v[0] = v[1]; v[1] = t;
+                     }
+                  }
+               }
                break;
             case Element::QUADRILATERAL:
                sface_lface[sface_counter] =
@@ -852,8 +894,27 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
       while (need_refinement == 1);
 
+      if (NumOfBdrElements != boundary.Size())
+         mfem_error("ParMesh::LocalRefinement :"
+                    " (NumOfBdrElements != boundary.Size())");
+
       // 5a. Update the groups after refinement.
-      RefineGroups(v_to_v, middle);
+      if (el_to_face != NULL)
+      {
+         if (WantTwoLevelState)
+         {
+            c_el_to_face = el_to_face;
+            el_to_face = NULL;
+            Swap(faces_info, fc_faces_info);
+         }
+         RefineGroups(v_to_v, middle);
+         // GetElementToFaceTable(); // Called by RefineGroups
+         GenerateFaces();
+         if (WantTwoLevelState)
+         {
+            f_el_to_face = el_to_face;
+         }
+      }
 
       // 6. Un-mark the Pf elements.
       int refinement_edges[2], type, flag;
@@ -869,8 +930,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                                                        Tetrahedron::TYPE_PU,
                                                        flag);
       }
-
-      NumOfBdrElements = boundary.Size();
 
       // 7. Free the allocated memory.
       middle.DeleteAll();
@@ -893,21 +952,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          }
          else
             NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-      }
-      if (el_to_face != NULL)
-      {
-         if (WantTwoLevelState)
-         {
-            c_el_to_face = el_to_face;
-            el_to_face = NULL;
-            Swap(faces_info, fc_faces_info);
-         }
-         // GetElementToFaceTable(); // Called by RefineGroups
-         GenerateFaces();
-         if (WantTwoLevelState)
-         {
-            f_el_to_face = el_to_face;
-         }
       }
 
       if (WantTwoLevelState)
@@ -1352,9 +1396,18 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
 
 void ParMesh::QuadUniformRefinement()
 {
-   int oedge = NumOfVertices;
+   int oedge = NumOfVertices, wtls = WantTwoLevelState;
 
-   Mesh::QuadUniformRefinement();
+   if (Nodes)  // curved mesh
+      UseTwoLevelState(1);
+
+   // call Mesh::QuadUniformRefinement so that it won't update the nodes
+   {
+      GridFunction *nodes = Nodes;
+      Nodes = NULL;
+      Mesh::QuadUniformRefinement();
+      Nodes = nodes;
+   }
 
    // update the groups
    {
@@ -1421,10 +1474,17 @@ void ParMesh::QuadUniformRefinement()
       group_svert.SetIJ(I_group_svert, J_group_svert);
       group_sedge.SetIJ(I_group_sedge, J_group_sedge);
    }
+
+   if (Nodes)  // curved mesh
+   {
+      UpdateNodes();
+      UseTwoLevelState(wtls);
+   }
 }
 
 void ParMesh::HexUniformRefinement()
 {
+   int wtls = WantTwoLevelState;
    int oedge = NumOfVertices;
    int oface = oedge + NumOfEdges;
 
@@ -1432,7 +1492,16 @@ void ParMesh::HexUniformRefinement()
    GetVertexToVertexTable(v_to_v);
    STable3D *faces_tbl = GetElementToFaceTable(1);
 
-   Mesh::HexUniformRefinement();
+   if (Nodes)  // curved mesh
+      UseTwoLevelState(1);
+
+   // call Mesh::HexUniformRefinement so that it won't update the nodes
+   {
+      GridFunction *nodes = Nodes;
+      Nodes = NULL;
+      Mesh::HexUniformRefinement();
+      Nodes = nodes;
+   }
 
    // update the groups
    {
@@ -1553,6 +1622,12 @@ void ParMesh::HexUniformRefinement()
       group_svert.SetIJ(I_group_svert, J_group_svert);
       group_sedge.SetIJ(I_group_sedge, J_group_sedge);
       group_sface.SetIJ(I_group_sface, J_group_sface);
+   }
+
+   if (Nodes)  // curved mesh
+   {
+      UpdateNodes();
+      UseTwoLevelState(wtls);
    }
 }
 

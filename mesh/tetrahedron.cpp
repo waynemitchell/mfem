@@ -22,6 +22,10 @@ void Tetrahedron::ParseRefinementFlag(int refinement_edges[2], int &type,
 {
    int i, f = refinement_flag;
 
+   if (f == 0)
+      mfem_error("Tetrahedron::ParseRefinementFlag :"
+                 " tetrahedron is not marked");
+
    for (i = 0; i < 2; i++)
    {
       refinement_edges[i] = f & 7;

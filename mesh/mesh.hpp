@@ -90,7 +90,7 @@ protected:
 
    void MarkForRefinement();
    void MarkTriMeshForRefinement();
-   void MarkTetMeshForRefinement(int mark_faces = 0);
+   void MarkTetMeshForRefinement();
 
    STable3D *GetElementToFaceTable(int ret_ftbl = 0);
 
@@ -127,10 +127,6 @@ protected:
 
    /// Refine hexahedral mesh.
    virtual void HexUniformRefinement();
-
-   /** Mark the edges in the elements, boundary elements and faces for
-       refinement. */
-   void MarkEdges();
 
    void BisectTriTrans (DenseMatrix &pointmat, Triangle *tri,
                         int child);
