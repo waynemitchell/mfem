@@ -108,9 +108,9 @@ public:
    void LoseData() { size = -1; I = J = NULL; }
 
    /// Prints the table to stream out.
-   void Print(ostream & out = cout, int width = 4);
+   void Print(ostream & out = cout, int width = 4) const;
 
-   void Save(ostream & out);
+   void Save(ostream & out) const;
 
    /// Destroys Table.
    ~Table();

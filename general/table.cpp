@@ -224,7 +224,7 @@ int Table::Width() const
    return width + 1;
 }
 
-void Table::Print(ostream & out, int width)
+void Table::Print(ostream & out, int width) const
 {
    int i, j;
 
@@ -242,7 +242,7 @@ void Table::Print(ostream & out, int width)
    out << endl;
 }
 
-void Table::Save(ostream & out)
+void Table::Save(ostream & out) const
 {
    int i;
 
