@@ -103,7 +103,8 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       dof_offsets[0] = dof_offsets[1] - ldof[0];
 
       // get the global sizes in (t)dof_offsets[2]
-      if (MyRank == NRanks-1) {
+      if (MyRank == NRanks-1)
+      {
          ldof[0] = dof_offsets[1];
          ldof[1] = tdof_offsets[1];
       }
