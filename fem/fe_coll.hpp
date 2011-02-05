@@ -104,10 +104,10 @@ private:
    const Cubic2DFiniteElement TriangleFE;
    const BiCubic2DFiniteElement QuadrilateralFE;
    const Cubic3DFiniteElement TetrahedronFE;
-   // const LagrangeHexFiniteElement ParallelepipedFE;
+   const LagrangeHexFiniteElement ParallelepipedFE;
 
 public:
-   CubicFECollection() { };
+   CubicFECollection() : ParallelepipedFE(3) { };
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;

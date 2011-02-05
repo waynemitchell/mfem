@@ -198,7 +198,7 @@ CubicFECollection::FiniteElementForGeometry(int GeomType) const
    case Geometry::TRIANGLE:    return &TriangleFE;
    case Geometry::SQUARE:      return &QuadrilateralFE;
    case Geometry::TETRAHEDRON: return &TetrahedronFE;
-      // case Geometry::CUBE:        return &ParallelepipedFE;
+   case Geometry::CUBE:        return &ParallelepipedFE;
    default:
       mfem_error ("CubicFECollection: unknown geometry type.");
    }
@@ -214,7 +214,7 @@ int CubicFECollection::DofForGeometry(int GeomType) const
    case Geometry::TRIANGLE:    return 1;
    case Geometry::SQUARE:      return 4;
    case Geometry::TETRAHEDRON: return 0;
-      // case Geometry::CUBE:        return 8;
+   case Geometry::CUBE:        return 8;
    default:
       mfem_error ("CubicFECollection: unknown geometry type.");
    }
@@ -223,13 +223,7 @@ int CubicFECollection::DofForGeometry(int GeomType) const
 
 int * CubicFECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
-   if (GeomType == Geometry::TRIANGLE)
-   {
-      static int indexes[] = { 0 };
-
-      return indexes;
-   }
-   else if (GeomType == Geometry::SEGMENT)
+   if (GeomType == Geometry::SEGMENT)
    {
       static int ind_pos[] = { 0, 1 };
       static int ind_neg[] = { 1, 0 };
@@ -237,6 +231,20 @@ int * CubicFECollection::DofOrderForOrientation(int GeomType, int Or) const
       if (Or < 0)
          return ind_neg;
       return ind_pos;
+   }
+   else if (GeomType == Geometry::TRIANGLE)
+   {
+      static int indexes[] = { 0 };
+
+      return indexes;
+   }
+   else if (GeomType == Geometry::SQUARE)
+   {
+      static int sq_ind[8][4] = {{0, 1, 2, 3}, {0, 2, 1, 3},
+                                 {1, 3, 0, 2}, {1, 0, 3, 2},
+                                 {3, 2, 1, 0}, {3, 1, 2, 0},
+                                 {2, 0, 3, 1}, {2, 3, 0, 1}};
+      return sq_ind[Or];
    }
 
    return NULL;
