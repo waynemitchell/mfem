@@ -140,7 +140,8 @@ int main (int argc, char *argv[])
 
    // 10. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
-   HypreSolver *amg = new HypreBoomerAMG(*A);
+   // HypreSolver *amg = new HypreBoomerAMG(*A);
+   HypreSolver *amg = new HypreIdentity;
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);
