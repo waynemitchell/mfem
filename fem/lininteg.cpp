@@ -155,7 +155,6 @@ void VectorFEDomainLFIntegrator::AssembleRHSElementVect(
    int dof = el.GetDof();
    int dim = el.GetDim();
 
-   Jinv.SetSize(dim);
    vshape.SetSize(dof,dim);
    vec.SetSize(dim);
 
@@ -172,7 +171,7 @@ void VectorFEDomainLFIntegrator::AssembleRHSElementVect(
       el.CalcVShape(Tr, vshape);
 
       QF.Eval (vec, Tr, ip);
-      vec *= ip.weight;
+      vec *= ip.weight * Tr.Weight();
 
       vshape.AddMult (vec, elvect);
    }

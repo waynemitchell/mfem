@@ -120,7 +120,7 @@ class VectorFEDomainLFIntegrator : public LinearFormIntegrator
 {
 private:
    VectorCoefficient &QF;
-   DenseMatrix Jinv, vshape;
+   DenseMatrix vshape;
    Vector vec;
 
 public:

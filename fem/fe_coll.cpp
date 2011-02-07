@@ -931,7 +931,11 @@ int * RT0_3DFECollection::DofOrderForOrientation(int GeomType, int Or)
    static int ind_pos[] = { 0 };
    static int ind_neg[] = { -1 };
 
-   if (Or > 0)
-      return ind_pos;
-   return ind_neg;
+   if (GeomType == Geometry::TRIANGLE)
+   {
+      if (Or % 2 == 0)
+         return ind_pos;
+      return ind_neg;
+   }
+   return NULL;
 }
