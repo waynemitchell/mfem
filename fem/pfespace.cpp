@@ -73,10 +73,13 @@ void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
 {
    FiniteElementSpace::GetBdrElementDofs(i, dofs);
    for (i = 0; i < dofs.Size(); i++)
-      if (dofs[i] < 0) {
+      if (dofs[i] < 0)
+      {
          if (ldof_sign[-1-dofs[i]] < 0)
             dofs[i] = -1-dofs[i];
-      } else {
+      }
+      else
+      {
          if (ldof_sign[dofs[i]] < 0)
             dofs[i] = -1-dofs[i];
       }
