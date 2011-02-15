@@ -853,7 +853,7 @@ HypreBoomerAMG::HypreBoomerAMG(HypreParMatrix &A) : HypreSolver(&A)
 {
    int coarsen_type = 10;
    int agg_levels   = 1;
-   int relax_type   = 6;
+   int relax_type   = 8;
    int relax_sweeps = 1;
    double theta     = 0.25;
    int interp_type  = 6;
