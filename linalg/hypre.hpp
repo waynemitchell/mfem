@@ -364,4 +364,31 @@ public:
    virtual ~HypreBoomerAMG();
 };
 
+class ParFiniteElementSpace;
+
+/// The Auxiliary-space Maxwell Solver in hypre
+class HypreAMS : public HypreSolver
+{
+private:
+   HYPRE_Solver ams;
+
+   /// Vertex coordinates
+   HypreParVector *x, *y, *z;
+   /// Discrete gradient matrix
+   HypreParMatrix *G;
+
+public:
+   HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace);
+
+   /// The typecast to HYPRE_Solver returns the internal ams object
+   virtual operator HYPRE_Solver() const { return ams; }
+
+   virtual HYPRE_PtrToParSolverFcn SetupFcn() const
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_AMSSetup; }
+   virtual HYPRE_PtrToParSolverFcn SolveFcn() const
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_AMSSolve; }
+
+   virtual ~HypreAMS();
+};
+
 #endif

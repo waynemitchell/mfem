@@ -889,4 +889,124 @@ HypreBoomerAMG::~HypreBoomerAMG()
    HYPRE_BoomerAMGDestroy(amg_precond);
 }
 
+
+#include "../fem/fem.hpp"
+
+HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
+  : HypreSolver(&A)
+{
+   int cycle_type       = 13;
+   int rlx_type         = 2;
+   int rlx_sweeps       = 1;
+   double rlx_weight    = 1.0;
+   double rlx_omega     = 1.0;
+   int amg_coarsen_type = 10;
+   int amg_agg_levels   = 1;
+   int amg_agg_npaths   = 1;
+   int amg_rlx_type     = 8;
+   double theta         = 0.25;
+   int amg_interp_type  = 6;
+   int amg_Pmax         = 4;
+   int print_level      = 1;
+
+   HYPRE_AMSCreate(&ams);
+
+   HYPRE_AMSSetDimension(ams, 3); // 3D problems
+   HYPRE_AMSSetTol(ams, 0.0);
+   HYPRE_AMSSetMaxIter(ams, 1); // use as a preconditioner
+   HYPRE_AMSSetCycleType(ams, cycle_type);
+   HYPRE_AMSSetPrintLevel(ams, 1);
+
+   /// define the nodal linear finite element space associated with edge_fespace
+   ParMesh *pmesh = (ParMesh *) edge_fespace->GetMesh();
+   FiniteElementCollection *vert_fec = new LinearFECollection;
+   ParFiniteElementSpace *vert_fespace = new ParFiniteElementSpace(pmesh, vert_fec);
+
+   // generate and set the vertex coordinates
+   ParGridFunction x_coord(vert_fespace);
+   ParGridFunction y_coord(vert_fespace);
+   ParGridFunction z_coord(vert_fespace);
+   double *coord;
+   for (int i = 0; i < pmesh->GetNV(); i++)
+   {
+      coord = pmesh -> GetVertex(i);
+      x_coord(i) = coord[0];
+      y_coord(i) = coord[1];
+      z_coord(i) = coord[2];
+   }
+   x = x_coord.ParallelAverage();
+   y = y_coord.ParallelAverage();
+   z = z_coord.ParallelAverage();
+   HYPRE_AMSSetCoordinateVectors(ams, *x, *y, *z);
+
+   // generate and set the discrete gradient
+   HYPRE_ParCSRMatrix Gh;
+   {
+      int *edge_vertex = new int[2*edge_fespace->TrueVSize()];
+      Array<int> vert;
+      // set orientation of locally owned edges (tdofs in edge_fespace)
+      for (int i = 0; i < pmesh->GetNEdges(); i++)
+      {
+         int j = edge_fespace->GetLocalTDofNumber(i);
+         if (j >= 0)
+         {
+            pmesh->GetEdgeVertices(i,vert);
+            if (vert[0] < vert[1])
+            {
+               edge_vertex[2*j] = vert_fespace->GetGlobalTDofNumber(vert[0]);
+               edge_vertex[2*j+1] = vert_fespace->GetGlobalTDofNumber(vert[1]);
+            }
+            else
+            {
+               edge_vertex[2*j] = vert_fespace->GetGlobalTDofNumber(vert[1]);
+               edge_vertex[2*j+1] = vert_fespace->GetGlobalTDofNumber(vert[0]);
+            }
+         }
+      }
+      // fix the orientation of shared edges
+      for (int gr = 1; gr < pmesh->GetNGroups(); gr++)
+      {
+         if (pmesh->groupmaster_lproc[gr] == 0)
+            for (int j = 0; j < pmesh->GroupNEdges(gr); j++)
+            {
+               int k, o;
+               pmesh->GroupEdge(gr, j, k, o);
+               if (edge_fespace->GetDofSign(k) < 0)
+               {
+                  k = edge_fespace->GetLocalTDofNumber(k);
+                  int tmp = edge_vertex[2*k];
+                  edge_vertex[2*k] = edge_vertex[2*k+1];
+                  edge_vertex[2*k+1] = tmp;
+               }
+            }
+      }
+      HYPRE_AMSConstructDiscreteGradient(A, *x, edge_vertex, 1, &Gh);
+      delete edge_vertex;
+   }
+   G = new HypreParMatrix((hypre_ParCSRMatrix *)Gh);
+   HYPRE_AMSSetDiscreteGradient(ams, *G);
+
+   delete vert_fec;
+   delete vert_fespace;
+
+   // set additional AMS options
+   HYPRE_AMSSetSmoothingOptions(ams, rlx_type, rlx_sweeps, rlx_weight, rlx_omega);
+   HYPRE_AMSSetAlphaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
+                               theta, amg_interp_type, amg_Pmax);
+   HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
+                              theta, amg_interp_type, amg_Pmax);
+
+}
+
+HypreAMS::~HypreAMS()
+{
+   HYPRE_AMSDestroy(ams);
+
+   delete x;
+   delete y;
+   delete z;
+
+   delete G;
+}
+
 #endif
