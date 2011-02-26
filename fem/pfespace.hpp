@@ -32,10 +32,10 @@ private:
    /// For a local dof: the local true dof number in the master of its group.
    Array<int> ldof_ltdof;
 
-   /// Offsets for the dofs in each processor in gloabl numbering.
+   /// Offsets for the dofs in each processor in global numbering.
    Array<int> dof_offsets;
 
-   /// Offsets for the true dofs in each processor in gloabl numbering.
+   /// Offsets for the true dofs in each processor in global numbering.
    Array<int> tdof_offsets;
 
    /// The sign of the basis functions at the local dofs.
@@ -82,6 +82,12 @@ public:
    /// Determine the boundary degrees of freedom
    virtual void GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
                                   Array<int> &ess_dofs);
+
+   /** If the given ldof is owned by the current processor, return its local
+       tdof number, otherwise return -1 */
+   int GetLocalTDofNumber(int ldof);
+   /// Returns the global tdof number of the given local degree of freedom
+   int GetGlobalTDofNumber(int ldof);
 
    void Lose_Dof_TrueDof_Matrix();
    void LoseDofOffsets() { dof_offsets.LoseData(); }

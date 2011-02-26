@@ -284,6 +284,33 @@ void ParFiniteElementSpace::GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
    delete v_ess_dofs;
 }
 
+int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
+{
+   if (pmesh -> groupmaster_lproc[ldof_group[ldof]] == 0)
+      return ldof_ltdof[ldof];
+   else
+      return -1;
+}
+
+int ParFiniteElementSpace::GetGlobalTDofNumber(int ldof)
+{
+   if (HYPRE_AssumedPartitionCheck())
+   {
+      if (MyRank == 0)
+         cerr << "ParFiniteElementSpace::GetGlobalTDofNumber "
+              << "does not support Assumed Partitioning!\n" << endl;
+      MPI_Finalize();
+      mfem_error();
+   }
+
+   if (pmesh -> groupmaster_lproc[ldof_group[ldof]] == 0)
+      return ldof_ltdof[ldof] + tdof_offsets[MyRank];
+   else
+      return ldof_ltdof[ldof] +
+         tdof_offsets[pmesh->lproc_proc[
+            pmesh->groupmaster_lproc[ldof_group[ldof]]]];
+}
+
 void ParFiniteElementSpace::Lose_Dof_TrueDof_Matrix()
 {
    hypre_ParCSRMatrix *csrP = (hypre_ParCSRMatrix*)(*P);
