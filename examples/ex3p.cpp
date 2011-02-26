@@ -138,15 +138,14 @@ int main (int argc, char *argv[])
    delete a;
    delete b;
 
-   // 10. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   // 10. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
-   // HypreSolver *amg = new HypreBoomerAMG(*A);
-   HypreSolver *amg = new HypreIdentity;
+   HypreSolver *ams = new HypreAMS(*A, fespace);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*amg);
+   pcg->SetPreconditioner(*ams);
    pcg->Mult(*B, *X);
 
    // 11. Extract the parallel grid function corresponding to the finite element
@@ -186,10 +185,7 @@ int main (int argc, char *argv[])
    if (myid == 0)
    {
       sol_sock = new osockstream(visport, vishost);
-      if (pmesh->Dimension() == 2)
-         *sol_sock << "vfem2d_gf_data\n";
-      else
-         *sol_sock << "vfem3d_gf_data\n";
+      *sol_sock << "vfem3d_gf_data\n";
    }
    pmesh->PrintAsOne(*sol_sock);
    dx.SaveAsOne(*sol_sock);
@@ -201,7 +197,7 @@ int main (int argc, char *argv[])
 
    // 11. Free the used memory.
    delete pcg;
-   delete amg;
+   delete ams;
    delete X;
    delete B;
    delete A;
