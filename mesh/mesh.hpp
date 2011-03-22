@@ -481,6 +481,9 @@ public:
    /// Print the mesh to the given stream using the default MFEM mesh format.
    virtual void Print(ostream &out = cout) const;
 
+   /// Print the mesh in VTK format (linear and quadratic meshes only).
+   void PrintVTK(ostream &out);
+
    /** Print the mesh in VTK format. The parameter ref specifies an element
        subdivision number (useful for high order fields and curved meshes). */
    void PrintVTK(ostream &out, int ref);

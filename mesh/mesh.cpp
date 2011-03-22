@@ -1038,32 +1038,37 @@ Mesh::Mesh(istream &input, int generate_edges, int refine)
    Load(input, generate_edges, refine);
 }
 
-int GetMeshDimFromStream(istream &meshin)
+
+// mesh types:
+// 0 - MFEM mesh v1.0
+// 1 - 1D mesh ("linemesh"?)
+// 2 - 2D Netgen mesh ("areamesh2") / MFEM curvil. ext. ("curved_areamesh2")
+// 3 - 3D Netgen mesh ("NETGEN" / "NETGEN_Neutral_Format")
+// 4 - TrueGrid mesh (2D/3D how?)
+// 5 - VTK mesh
+static int GetMeshTypeFromStream(istream &meshin)
 {
-   const int buflen = 256;
-   char buffer[buflen];
-   int dim;
+   string buff;
+   int type = -1;
    streampos start_pos = meshin.tellg();
 
    meshin >> ws;
-   meshin.getline(buffer, buflen);
-   if (!strcmp(buffer, "MFEM mesh v1.0"))
-      dim = 0;
-   else if (!strcmp(buffer, "areamesh2") || !strcmp(buffer, "curved_areamesh2"))
-      dim = 2;
-   else if (!strcmp(buffer, "TrueGrid"))
-      dim = 3;
-   else if (!strcmp(buffer, "NETGEN"))
-      dim = 3;
-   else if (!strcmp(buffer, "NETGEN_Neutral_Format"))
-      dim = 3;
-   else
-      //  Unknown type of mesh
-      dim = -1;
-
+   getline(meshin, buff);
+   if (buff == "MFEM mesh v1.0")
+      type = 0;
+   if (buff == "linemesh")
+      type = 1;
+   else if (buff == "areamesh2" || buff == "curved_areamesh2")
+      type = 2;
+   else if (buff == "NETGEN" || buff == "NETGEN_Neutral_Format")
+      type = 3;
+   else if (buff == "TrueGrid")
+      type = 4;
+   else if (buff == "# vtk DataFile Version 3.0")
+      type = 5;
    meshin.seekg(start_pos);
 
-   return dim;
+   return type;
 }
 
 Element *NewElement(int geom)
@@ -1085,9 +1090,18 @@ Element *NewElement(int geom)
    return NULL;
 }
 
+// see Tetrahedron::edges
+static const int vtk_quadratic_tet[10] =
+{ 0, 1, 2, 3, 4, 7, 5, 6, 8, 9 };
+
+// see Hexahedron::edges & Mesh::GenerateFaces
+static const int vtk_quadratic_hex[27] =
+{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+  24, 22, 21, 23, 20, 25, 26 };
+
 void Mesh::Load(istream &input, int generate_edges, int refine)
 {
-   int i, j, ints[32], n, attr, curved = 0;
+   int i, j, ints[32], n, attr, curved = 0, read_gf = 1;
    const int buflen = 1024;
    char buf[buflen];
 
@@ -1131,15 +1145,15 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
    if (own_nodes) delete Nodes;
    Nodes = NULL;
 
-   Dim = GetMeshDimFromStream(input);
+   int mesh_type = GetMeshTypeFromStream(input);
 
-   if (Dim < 0)
+   if (mesh_type < 0)
    {
       mfem_error("Mesh::Load : Unknown input mesh format!");
       return;
    }
 
-   if (Dim == 0)
+   if (mesh_type == 0)
    {
       // Read MFEM mesh v1.0 format
       string ident;
@@ -1205,10 +1219,11 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          curved = 1;
       }
    }
-   else if (Dim == 1)
+   else if (mesh_type == 1)
    {
       int j,p1,p2,a;
 
+      Dim = 1;
       // Read 1st (info) line
       input >> buf;
 
@@ -1237,13 +1252,129 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          boundary[j] = new Point(ind,a);
       }
    }
-   else if (Dim == 2)
+   else if (mesh_type == 2)
    {
+      // Read planar mesh in Netgen format.
+      Dim = 2;
+      // Read the type of the mesh.
+      input >> buf;
+      if (!strcmp("curved_areamesh2", buf))
+         curved = 1;
+
+      // Read the boundary elements.
+      input >> NumOfBdrElements;
+      boundary.SetSize(NumOfBdrElements);
+      for (i = 0; i < NumOfBdrElements; i++)
+      {
+         input >> attr
+               >> ints[0] >> ints[1];
+         ints[0]--; ints[1]--;
+         boundary[i] = new Segment(ints, attr);
+      }
+
+      // Read the elements.
+      input >> NumOfElements;
+      elements.SetSize(NumOfElements);
+      for (i = 0; i < NumOfElements; i++)
+      {
+         input >> attr >> n;
+         for (j = 0; j < n; j++)
+         {
+            input >> ints[j];
+            ints[j]--;
+         }
+         switch (n)
+         {
+         case 2:
+            elements[i] = new Segment(ints, attr);
+            break;
+         case 3:
+            elements[i] = new Triangle(ints, attr);
+            break;
+         case 4:
+            elements[i] = new Quadrilateral(ints, attr);
+            break;
+         }
+      }
+
+      if (!curved)
+      {
+         // Read the vertices.
+         input >> NumOfVertices;
+         vertices.SetSize(NumOfVertices);
+         for (i = 0; i < NumOfVertices; i++)
+            for (j = 0; j < Dim; j++)
+               input >> vertices[i](j);
+      }
+      else
+      {
+         input >> NumOfVertices;
+         vertices.SetSize(NumOfVertices);
+         input >> ws;
+      }
+   }
+   else if (mesh_type == 3)
+   {
+      // Read a netgen format mesh of tetrahedra.
+      Dim = 3;
       // Read the type of the mesh.
       input >> buf;
 
+      // Read the vertices
+      input >> NumOfVertices;
+
+      vertices.SetSize(NumOfVertices);
+      for (i = 0; i < NumOfVertices; i++)
+         for (j = 0; j < Dim; j++)
+            input >> vertices[i](j);
+
+      // Read the elements
+      input >> NumOfElements;
+      elements.SetSize(NumOfElements);
+      for (i = 0; i < NumOfElements; i++)
+      {
+         input >> attr;
+         for (j = 0; j < 4; j++)
+         {
+            input >> ints[j];
+            ints[j]--;
+         }
+#ifdef MFEM_USE_MEMALLOC
+         Tetrahedron *tet;
+         tet = TetMemory.Alloc();
+         tet->SetVertices(ints);
+         tet->SetAttribute(attr);
+         elements[i] = tet;
+#else
+         elements[i] = new Tetrahedron(ints, attr);
+#endif
+      }
+
+      // Read the boundary information.
+      input >> NumOfBdrElements;
+      boundary.SetSize(NumOfBdrElements);
+      for (i = 0; i < NumOfBdrElements; i++)
+      {
+         input >> attr;
+         for (j = 0; j < 3; j++)
+         {
+            input >> ints[j];
+            ints[j]--;
+         }
+         boundary[i] = new Triangle(ints, attr);
+      }
+   }
+   else if (mesh_type == 4)
+   {
       // Reading TrueGrid mesh.
-      if (strcmp("TrueGrid", buf)==0)
+
+      // Read the type of the mesh.
+      input >> buf;
+
+      // TODO: find the actual dimension
+      Dim = 3;
+
+      if (Dim == 2)
       {
          int vari;
          double varf;
@@ -1279,74 +1410,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
             elements[i] = new Quadrilateral(ints, attr);
          }
       }
-      // Read planar mesh in Netgen format.
-      else
-      {
-         if (!strcmp("curved_areamesh2", buf))
-            curved = 1;
-
-         // Read the boundary elements.
-         input >> NumOfBdrElements;
-         boundary.SetSize(NumOfBdrElements);
-         for (i = 0; i < NumOfBdrElements; i++)
-         {
-            input >> attr
-                  >> ints[0] >> ints[1];
-            ints[0]--; ints[1]--;
-            boundary[i] = new Segment(ints, attr);
-         }
-
-         // Read the elements.
-         input >> NumOfElements;
-         elements.SetSize(NumOfElements);
-         for (i = 0; i < NumOfElements; i++)
-         {
-            input >> attr >> n;
-            for (j = 0; j < n; j++)
-            {
-               input >> ints[j];
-               ints[j]--;
-            }
-            switch (n)
-            {
-            case 2:
-               elements[i] = new Segment(ints, attr);
-               break;
-            case 3:
-               elements[i] = new Triangle(ints, attr);
-               break;
-            case 4:
-               elements[i] = new Quadrilateral(ints, attr);
-               break;
-            }
-         }
-
-         if (!curved)
-         {
-            // Read the vertices.
-            input >> NumOfVertices;
-            vertices.SetSize(NumOfVertices);
-            for (i = 0; i < NumOfVertices; i++)
-               for (j = 0; j < Dim; j++)
-                  input >> vertices[i](j);
-         }
-         else
-         {
-            input >> NumOfVertices;
-            vertices.SetSize(NumOfVertices);
-            input >> ws;
-         }
-
-         // Read the boundary information...
-      }
-   }
-   else  // --- Dim=3.
-   {
-      // Read the type of the mesh.
-      input >> buf;
-
-      // Read a TrueGrid format mesh of hexahedrons.
-      if (strcmp("TrueGrid", buf)==0)
+      else if (Dim == 3)
       {
          int vari;
          double varf;
@@ -1392,52 +1456,274 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
             boundary[i] = new Quadrilateral(ints, attr);
          }
       }
-      // Read a netgen format mesh of tetrahedra.
-      else
+   }
+   else if (mesh_type == 5)
+   {
+      // Reading VTK mesh
+
+      string buff;
+      getline(input, buff); // "# vtk DataFile Version 3.0"
+      getline(input, buff); // comment line
+      getline(input, buff);
+      if (buff != "ASCII")
       {
-         // Read the vertices
-         input >> NumOfVertices;
+         mfem_error("Mesh::Load : VTK mesh is not in ASCII format!");
+         return;
+      }
+      getline(input, buff);
+      if (buff != "DATASET UNSTRUCTURED_GRID")
+      {
+         mfem_error("Mesh::Load : VTK mesh is not UNSTRUCTURED_GRID!");
+         return;
+      }
 
-         vertices.SetSize(NumOfVertices);
-         for (i = 0; i < NumOfVertices; i++)
-            for (j = 0; j < Dim; j++)
-               input >> vertices[i](j);
+      // Read the points
+      int np = 0;
+      Vector points;
+      input >> buff;
+      if (buff == "POINTS")
+      {
+         input >> np >> ws;
+         points.SetSize(3*np);
+         getline(input, buff); // "double"
+         for (i = 0; i < points.Size(); i++)
+            input >> points(i);
+      }
 
-         // Read the elements
+      // Read the cells
+      NumOfElements = n = 0;
+      Array<int> cells_data;
+      input >> ws >> buff;
+      if (buff == "CELLS")
+      {
+         input >> NumOfElements >> n >> ws;
+         cells_data.SetSize(n);
+         for (i = 0; i < n; i++)
+            input >> cells_data[i];
+      }
+
+      // Read the cell types
+      Dim = 0;
+      int order = 1;
+      input >> ws >> buff;
+      if (buff == "CELL_TYPES")
+      {
          input >> NumOfElements;
          elements.SetSize(NumOfElements);
+         for (j = i = 0; i < NumOfElements; i++)
+         {
+            int ct;
+            input >> ct;
+            switch (ct)
+            {
+            case 5:   // triangle
+               Dim = 2;
+               elements[i] = new Triangle(&cells_data[j+1]);
+               break;
+            case 9:   // quadrilateral
+               Dim = 2;
+               elements[i] = new Quadrilateral(&cells_data[j+1]);
+               break;
+            case 10:  // tetrahedron
+               Dim = 3;
+#ifdef MFEM_USE_MEMALLOC
+               elements[i] = TetMemory.Alloc();
+               elements[i]->SetVertices(&cells_data[j+1]);
+#else
+               elements[i] = new Tetrahedron(&cells_data[j+1]);
+#endif
+               break;
+            case 12:  // hexahedron
+               Dim = 3;
+               elements[i] = new Hexahedron(&cells_data[j+1]);
+               break;
+
+            case 22:  // quadratic triangle
+               Dim = 2;
+               order = 2;
+               elements[i] = new Triangle(&cells_data[j+1]);
+               break;
+            case 28:  // biquadratic quadrilateral
+               Dim = 2;
+               order = 2;
+               elements[i] = new Quadrilateral(&cells_data[j+1]);
+               break;
+            case 24:  // quadratic tetrahedron
+               Dim = 3;
+               order = 2;
+#ifdef MFEM_USE_MEMALLOC
+               elements[i] = TetMemory.Alloc();
+               elements[i]->SetVertices(&cells_data[j+1]);
+#else
+               elements[i] = new Tetrahedron(&cells_data[j+1]);
+#endif
+               break;
+            case 29:  // triquadratic hexahedron
+               Dim = 3;
+               order = 2;
+               elements[i] = new Hexahedron(&cells_data[j+1]);
+               break;
+            default:
+               cerr << "Mesh::Load : VTK mesh : cell type " << ct
+                    << " is not supported!" << endl;
+               mfem_error();
+               return;
+            }
+            j += cells_data[j] + 1;
+         }
+      }
+
+      // Read attributes
+      streampos sp = input.tellg();
+      input >> ws >> buff;
+      if (buff == "CELL_DATA")
+      {
+         input >> n >> ws;
+         getline(input, buff);
+         if (buff == "SCALARS material int")
+         {
+            getline(input, buff); // "LOOKUP_TABLE default"
+            for (i = 0; i < NumOfElements; i++)
+            {
+               input >> attr;
+               elements[i]->SetAttribute(attr);
+            }
+         }
+         else
+            input.seekg(sp);
+      }
+      else
+         input.seekg(sp);
+
+      if (order == 1)
+      {
+         cells_data.DeleteAll();
+         NumOfVertices = np;
+         vertices.SetSize(np);
+         for (i = 0; i < np; i++)
+         {
+            vertices[i](0) = points(3*i+0);
+            vertices[i](1) = points(3*i+1);
+            vertices[i](2) = points(3*i+2);
+         }
+         points.Destroy();
+
+         // No boundary is defined in a VTK mesh
+         NumOfBdrElements = 0;
+      }
+      else if (order == 2)
+      {
+         curved = 1;
+
+         // generate new enumeration for the vertices
+         Array<int> pts_dof(np);
+         pts_dof = -1;
+         for (n = i = 0; i < NumOfElements; i++)
+         {
+            int *v = elements[i]->GetVertices();
+            int nv = elements[i]->GetNVertices();
+            for (j = 0; j < nv; j++)
+               if (pts_dof[v[j]] == -1)
+                  pts_dof[v[j]] = n++;
+         }
+         // keep the original ordering of the vertices
+         for (n = i = 0; i < np; i++)
+            if (pts_dof[i] != -1)
+               pts_dof[i] = n++;
+         // update the element vertices
          for (i = 0; i < NumOfElements; i++)
          {
-            input >> attr;
-            for (j = 0; j < 4; j++)
+            int *v = elements[i]->GetVertices();
+            int nv = elements[i]->GetNVertices();
+            for (j = 0; j < nv; j++)
+               v[j] = pts_dof[v[j]];
+         }
+         // Define the 'vertices' from the 'points' through the 'pts_dof' map
+         NumOfVertices = n;
+         vertices.SetSize(n);
+         for (i = 0; i < np; i++)
+         {
+            if ((j = pts_dof[i]) != -1)
             {
-               input >> ints[j];
-               ints[j]--;
+               vertices[j](0) = points(3*i+0);
+               vertices[j](1) = points(3*i+1);
+               vertices[j](2) = points(3*i+2);
             }
-#ifdef MFEM_USE_MEMALLOC
-            Tetrahedron *tet;
-            tet = TetMemory.Alloc();
-            tet->SetVertices(ints);
-            tet->SetAttribute(attr);
-            elements[i] = tet;
-#else
-            elements[i] = new Tetrahedron(ints, attr);
-#endif
          }
 
-         // Read the boundary information.
-         input >> NumOfBdrElements;
-         boundary.SetSize(NumOfBdrElements);
-         for (i = 0; i < NumOfBdrElements; i++)
+         // No boundary is defined in a VTK mesh
+         NumOfBdrElements = 0;
+
+         // Generate faces and edges so that we can define quadratic
+         // FE space on the mesh
+
+         // Generate faces
+         if (Dim > 2)
          {
-            input >> attr;
-            for (j = 0; j < 3; j++)
-            {
-               input >> ints[j];
-               ints[j]--;
-            }
-            boundary[i] = new Triangle(ints, attr);
+            GetElementToFaceTable();
+            GenerateFaces();
          }
+         else
+            NumOfFaces = 0;
+
+         // Generate edges
+         el_to_edge = new Table;
+         NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+         if (Dim == 2)
+            GenerateFaces(); // 'Faces' in 2D refers to the edges
+
+         // Define quadratic FE space
+         FiniteElementCollection *fec = new QuadraticFECollection;
+         FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+         Nodes = new GridFunction(fes);
+         Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
+         own_nodes = 1;
+
+         // Map vtk points to edge/face/element dofs
+         Array<int> dofs;
+         for (n = i = 0; i < NumOfElements; i++)
+         {
+            fes->GetElementDofs(i, dofs);
+            const int *vtk_mfem;
+            switch (elements[i]->GetGeometryType())
+            {
+            case Geometry::TRIANGLE:
+            case Geometry::SQUARE:
+               vtk_mfem = vtk_quadratic_hex; break; // identity map
+            case Geometry::TETRAHEDRON:
+               vtk_mfem = vtk_quadratic_tet; break;
+            case Geometry::CUBE:
+               vtk_mfem = vtk_quadratic_hex; break;
+            }
+
+            for (n++, j = 0; j < dofs.Size(); j++, n++)
+            {
+               if (pts_dof[cells_data[n]] == -1)
+               {
+                  pts_dof[cells_data[n]] = dofs[vtk_mfem[j]];
+               }
+               else
+               {
+                  if (pts_dof[cells_data[n]] != dofs[vtk_mfem[j]])
+                     mfem_error("Mesh::Load : VTK mesh : "
+                                "inconsistent quadratic mesh!");
+               }
+            }
+         }
+
+         // Define the 'Nodes' from the 'points' through the 'pts_dof' map
+         for (i = 0; i < np; i++)
+         {
+            dofs.SetSize(1);
+            if ((dofs[0] = pts_dof[i]) != -1)
+            {
+               fes->DofsToVDofs(dofs);
+               for (j = 0; j < dofs.Size(); j++)
+                  (*Nodes)(dofs[j]) = points(3*i+j);
+            }
+         }
+
+         read_gf = 0;
       }
    }
 
@@ -1448,7 +1734,10 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
    //  4) NumOfVertices, with allocated space in vertices
    //  5) curved
    //  5a) if curved == 0, vertices must be defined
-   //  5b) if curved != 1, 'input' must point to a GridFunction
+   //  5b) if curved != 0 and read_gf != 0,
+   //         'input' must point to a GridFunction
+   //  5c) if curved != 0 and read_gf == 0,
+   //         vertices and Nodes must be defined
 
    // set the mesh type ('meshgen')
    meshgen = 0;
@@ -1467,9 +1756,6 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       }
    }
 
-   // generate the arrays 'attributes' and ' bdr_attributes'
-   SetAttributes();
-
    if (!curved)
    {
       // check and fix element orientation
@@ -1484,6 +1770,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
    {
       GetElementToFaceTable();
       GenerateFaces();
+      if (NumOfBdrElements == 0)
+         GenerateBoundaryElements();
       // check and fix boundary element orientation
       if ( !(curved && (meshgen & 1)) )
          CheckBdrElementOrientation();
@@ -1499,6 +1787,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       if (Dim == 2)
       {
          GenerateFaces(); // 'Faces' in 2D refers to the edges
+         if (NumOfBdrElements == 0)
+            GenerateBoundaryElements();
          // check and fix boundary element orientation
          if ( !(curved && (meshgen & 1)) )
             CheckBdrElementOrientation();
@@ -1508,16 +1798,22 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
    else
       NumOfEdges = 0;
 
+   // generate the arrays 'attributes' and ' bdr_attributes'
+   SetAttributes();
+
    if (curved)
    {
-      Nodes = new GridFunction(this, input);
-      own_nodes = 1;
-      for (i = 0; i < Nodes->VectorDim(); i++)
+      if (read_gf)
       {
-         Vector vert_val;
-         Nodes->GetNodalValues(vert_val, i+1);
-         for (j = 0; j < NumOfVertices; j++)
-            vertices[j](i) = vert_val(j);
+         Nodes = new GridFunction(this, input);
+         own_nodes = 1;
+         for (i = 0; i < Nodes->VectorDim(); i++)
+         {
+            Vector vert_val;
+            Nodes->GetNodalValues(vert_val, i+1);
+            for (j = 0; j < NumOfVertices; j++)
+               vertices[j](i) = vert_val(j);
+         }
       }
 
       // Check orientation and mark edges; only for triangles / tets
@@ -5383,6 +5679,153 @@ void Mesh::Print(ostream &out) const
    {
       out << "\nnodes\n";
       Nodes->Save(out);
+   }
+}
+
+void Mesh::PrintVTK(ostream &out)
+{
+   out <<
+      "# vtk DataFile Version 3.0\n"
+      "Generated by MFEM\n"
+      "ASCII\n"
+      "DATASET UNSTRUCTURED_GRID\n";
+
+   if (Nodes == NULL)
+   {
+      out << "POINTS " << NumOfVertices << " double\n";
+      for (int i = 0; i < NumOfVertices; i++)
+      {
+         out << vertices[i](0);
+         int j;
+         for (j = 1; j < Dim; j++)
+            out << ' ' << vertices[i](j);
+         for ( ; j < 3; j++)
+            out << ' ' << 0.0;
+         out << '\n';
+      }
+   }
+   else
+   {
+      Array<int> vdofs(3);
+      out << "POINTS " << Nodes->FESpace()->GetNDofs() << " double\n";
+      for (int i = 0; i < Nodes->FESpace()->GetNDofs(); i++)
+      {
+         vdofs.SetSize(1);
+         vdofs[0] = i;
+         Nodes->FESpace()->DofsToVDofs(vdofs);
+         out << (*Nodes)(vdofs[0]);
+         int j;
+         for (j = 1; j < Dim; j++)
+            out << ' ' << (*Nodes)(vdofs[j]);
+         for ( ; j < 3; j++)
+            out << ' ' << 0.0;
+         out << '\n';
+      }
+   }
+
+   int order = -1;
+   if (Nodes == NULL)
+   {
+      int size = 0;
+      for (int i = 0; i < NumOfElements; i++)
+         size += elements[i]->GetNVertices() + 1;
+      out << "CELLS " << NumOfElements << ' ' << size << '\n';
+      for (int i = 0; i < NumOfElements; i++)
+      {
+         const int *v = elements[i]->GetVertices();
+         const int nv = elements[i]->GetNVertices();
+         out << nv;
+         for (int j = 0; j < nv; j++)
+            out << ' ' << v[j];
+         out << '\n';
+      }
+      order = 1;
+   }
+   else
+   {
+      Array<int> dofs;
+      int size = 0;
+      for (int i = 0; i < NumOfElements; i++)
+      {
+         Nodes->FESpace()->GetElementDofs(i, dofs);
+         size += dofs.Size() + 1;
+      }
+      out << "CELLS " << NumOfElements << ' ' << size << '\n';
+      const char *fec_name = Nodes->FESpace()->FEColl()->Name();
+      if (!strcmp(fec_name, "Linear"))
+         order = 1;
+      else if (!strcmp(fec_name, "Quadratic"))
+         order = 2;
+      if (order == -1)
+      {
+         cerr << "Mesh::PrintVTK : can not save '"
+              << fec_name << "' elements!" << endl;
+         mfem_error();
+      }
+      for (int i = 0; i < NumOfElements; i++)
+      {
+         Nodes->FESpace()->GetElementDofs(i, dofs);
+         out << dofs.Size();
+         if (order == 1)
+         {
+            for (int j = 0; j < dofs.Size(); j++)
+               out << ' ' << dofs[j];
+         }
+         else if (order == 2)
+         {
+            const int *vtk_mfem;
+            switch (elements[i]->GetGeometryType())
+            {
+            case Geometry::TRIANGLE:
+            case Geometry::SQUARE:
+               vtk_mfem = vtk_quadratic_hex; break; // identity map
+            case Geometry::TETRAHEDRON:
+               vtk_mfem = vtk_quadratic_tet; break;
+            case Geometry::CUBE:
+               vtk_mfem = vtk_quadratic_hex; break;
+            }
+            for (int j = 0; j < dofs.Size(); j++)
+               out << ' ' << dofs[vtk_mfem[j]];
+         }
+         out << '\n';
+      }
+   }
+
+   out << "CELL_TYPES " << NumOfElements << '\n';
+   for (int i = 0; i < NumOfElements; i++)
+   {
+      int vtk_cell_type;
+      if (order == 1)
+      {
+         switch (elements[i]->GetGeometryType())
+         {
+         case Geometry::TRIANGLE:     vtk_cell_type = 5;   break;
+         case Geometry::SQUARE:       vtk_cell_type = 9;   break;
+         case Geometry::TETRAHEDRON:  vtk_cell_type = 10;  break;
+         case Geometry::CUBE:         vtk_cell_type = 12;  break;
+         }
+      }
+      else if (order == 2)
+      {
+         switch (elements[i]->GetGeometryType())
+         {
+         case Geometry::TRIANGLE:     vtk_cell_type = 22;  break;
+         case Geometry::SQUARE:       vtk_cell_type = 28;  break;
+         case Geometry::TETRAHEDRON:  vtk_cell_type = 24;  break;
+         case Geometry::CUBE:         vtk_cell_type = 29;  break;
+         }
+      }
+
+      out << vtk_cell_type << '\n';
+   }
+
+   // write attributes
+   out << "CELL_DATA " << NumOfElements << '\n'
+       << "SCALARS material int\n"
+       << "LOOKUP_TABLE default\n";
+   for (int i = 0; i < NumOfElements; i++)
+   {
+      out << elements[i]->GetAttribute() << '\n';
    }
 }
 
