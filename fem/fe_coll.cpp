@@ -11,6 +11,7 @@
 
 #include "fem.hpp"
 #include <stdlib.h>
+#include <string.h>
 
 int FiniteElementCollection::HasFaceDofs (int GeomType) const
 {
@@ -23,6 +24,53 @@ int FiniteElementCollection::HasFaceDofs (int GeomType) const
                   " unknown geometry type.");
    }
    return 0;
+}
+
+FiniteElementCollection *FiniteElementCollection::New(const char *name)
+{
+   FiniteElementCollection *fec = NULL;
+
+   if (!strcmp(name, "Linear"))
+      fec = new LinearFECollection;
+   else if (!strcmp(name, "Quadratic"))
+      fec = new QuadraticFECollection;
+   else if (!strcmp(name, "QuadraticPos"))
+      fec = new QuadraticPosFECollection;
+   else if (!strcmp(name, "Cubic"))
+      fec = new CubicFECollection;
+   else if (!strcmp(name, "Const3D"))
+      fec = new Const3DFECollection;
+   else if (!strcmp(name, "Const2D"))
+      fec = new Const2DFECollection;
+   else if (!strcmp(name, "LinearDiscont2D"))
+      fec = new LinearDiscont2DFECollection;
+   else if (!strcmp(name, "GaussLinearDiscont2D"))
+      fec = new GaussLinearDiscont2DFECollection;
+   else if (!strcmp(name, "P1OnQuad"))
+      fec = new P1OnQuadFECollection;
+   else if (!strcmp(name, "QuadraticDiscont2D"))
+      fec = new QuadraticDiscont2DFECollection;
+   else if (!strcmp(name, "QuadraticPosDiscont2D"))
+      fec = new QuadraticPosDiscont2DFECollection;
+   else if (!strcmp(name, "GaussQuadraticDiscont2D"))
+      fec = new GaussQuadraticDiscont2DFECollection;
+   else if (!strcmp(name, "CubicDiscont2D"))
+      fec = new CubicDiscont2DFECollection;
+   else if (!strcmp(name, "LinearDiscont3D"))
+      fec = new LinearDiscont3DFECollection;
+   else if (!strcmp(name, "QuadraticDiscont3D"))
+      fec = new QuadraticDiscont3DFECollection;
+   else if (!strcmp(name, "LinearNonConf3D"))
+      fec = new LinearNonConf3DFECollection;
+   else if (!strcmp(name, "CrouzeixRaviart"))
+      fec = new CrouzeixRaviartFECollection;
+   else if (!strcmp(name, "ND1_3D"))
+      fec = new ND1_3DFECollection;
+   else
+      mfem_error ("FiniteElementCollection::New : "
+                  "Unknown FiniteElementCollection!");
+
+   return fec;
 }
 
 const FiniteElement *
