@@ -223,35 +223,42 @@ void GridFunction::GetVectorValues(int i, const IntegrationRule &ir,
                                    DenseMatrix &vals, DenseMatrix &tr)
    const
 {
-   Array<int> dofs;
-
-   int k, n, vdim;
-
-   n = ir.GetNPoints();
-   vdim = fes->GetVDim();
-   vals.SetSize(vdim, n);
-   fes->GetElementVDofs(i, dofs);
    const FiniteElement *FElem = fes->GetFE(i);
-   ElementTransformation *ET;
-   ET = fes->GetElementTransformation(i);
-   ET->Transform(ir, tr);
    int dof = FElem->GetDof();
-   Vector DofVal(dof);
-   for (k = 0; k < n; k++)
+   Array<int> vdofs;
+   fes->GetElementVDofs(i, vdofs);
+   Vector loc_data;
+   GetSubVector(vdofs, loc_data);
+   int nip = ir.GetNPoints();
+   if (FElem->GetRangeType() == FiniteElement::SCALAR)
    {
-      FElem->CalcShape(ir.IntPoint(k), DofVal);
-      for (int d = 0; d < vdim; d++)
+      Vector shape(dof);
+      int vdim = fes->GetVDim();
+      vals.SetSize(vdim, nip);
+      for (int j = 0; j < nip; j++)
       {
-         double v = 0.0;
-         for (int j = 0; j < dof; j++)
+         const IntegrationPoint &ip = ir.IntPoint(j);
+         FElem->CalcShape(ip, shape);
+         for (int k = 0; k < vdim; k++)
          {
-            int ind = dofs[dof*d+j];
-            if (ind >= 0)
-               v += DofVal(j) * data[ind];
-            else
-               v -= DofVal(j) * data[-1-ind];
+            vals(k,j) = shape * ((const double *)loc_data + dof * k);
          }
-         vals(d,k) = v;
+      }
+   }
+   else
+   {
+      int dim = FElem->GetDim();
+      DenseMatrix vshape(dof, dim);
+      ElementTransformation *Tr = fes->GetElementTransformation(i);
+      vals.SetSize(dim, nip);
+      Vector val_j;
+      for (int j = 0; j < nip; j++)
+      {
+         const IntegrationPoint &ip = ir.IntPoint(j);
+         Tr->SetIntPoint(&ip);
+         FElem->CalcVShape(*Tr, vshape);
+         vals.GetColumnReference(j, val_j);
+         vshape.MultTranspose(loc_data, val_j);
       }
    }
 }
@@ -900,44 +907,33 @@ double GridFunction::ComputeL2Error(
    VectorCoefficient &exsol, const IntegrationRule *irs[],
    Array<int> *elems) const
 {
-   double error = 0.0, a;
+   double error = 0.0;
    const FiniteElement *fe;
-   ElementTransformation *transf;
-   Vector shape, sol(exsol.GetVDim());
-   Array<int> vdofs;
-   int fdof, d, i, intorder, j, k;
+   ElementTransformation *T;
+   DenseMatrix vals, exact_vals, tr;
+   Vector loc_errs;
 
-   for (i = 0; i < fes->GetNE(); i++)
+   for (int i = 0; i < fes->GetNE(); i++)
    {
       if (elems != NULL && (*elems)[i] == 0)  continue;
       fe = fes->GetFE(i);
-      fdof = fe->GetDof();
-      transf = fes->GetElementTransformation(i);
-      shape.SetSize(fdof);
-      intorder = fe->GetOrder()+2; // <----------
+      int intorder = fe->GetOrder()+2; // <----------
       const IntegrationRule *ir;
       if (irs)
          ir = irs[fe->GetGeomType()];
       else
          ir = &(IntRules.Get(fe->GetGeomType(), intorder));
-      fes->GetElementVDofs(i, vdofs);
-      for (j = 0; j < ir->GetNPoints(); j++)
+      GetVectorValues(i, *ir, vals, tr);
+      T = fes->GetElementTransformation(i);
+      exsol.Eval(exact_vals, *T, *ir);
+      vals -= exact_vals;
+      loc_errs.SetSize(vals.Width());
+      vals.Norm2(loc_errs);
+      for (int j = 0; j < ir->GetNPoints(); j++)
       {
          const IntegrationPoint &ip = ir->IntPoint(j);
-         fe->CalcShape(ip, shape);
-         transf->SetIntPoint(&ip);
-         exsol.Eval(sol, *transf, ip);
-         for (d = 0; d < fes->GetVDim(); d++)
-         {
-            a = 0;
-            for (k = 0; k < fdof; k++)
-               if (vdofs[fdof*d+k] >= 0)
-                  a += (*this)(vdofs[fdof*d+k]) * shape(k);
-               else
-                  a -= (*this)(-1-vdofs[fdof*d+k]) * shape(k);
-            a -= sol(d);
-            error += ip.weight * transf->Weight() * a * a;
-         }
+         T->SetIntPoint(&ip);
+         error += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
       }
    }
 
@@ -1128,14 +1124,13 @@ double GridFunction::ComputeMaxError(
 {
    double error = 0.0;
    const FiniteElement *fe;
-   ElementTransformation *transf;
+   ElementTransformation *T;
    DenseMatrix vals, exact_vals, tr;
    Vector loc_errs;
 
    for (int i = 0; i < fes->GetNE(); i++)
    {
       fe = fes->GetFE(i);
-      transf = fes->GetElementTransformation(i);
       int intorder = fe->GetOrder()+2; // <----------
       const IntegrationRule *ir;
       if (irs)
@@ -1143,7 +1138,8 @@ double GridFunction::ComputeMaxError(
       else
          ir = &(IntRules.Get(fe->GetGeomType(), intorder));
       GetVectorValues(i, *ir, vals, tr);
-      exsol.Eval(exact_vals, *transf, *ir);
+      T = fes->GetElementTransformation(i);
+      exsol.Eval(exact_vals, *T, *ir);
       vals -= exact_vals;
       loc_errs.SetSize(vals.Width());
       // compute the lengths of the errors at the integration points
@@ -1252,14 +1248,13 @@ double GridFunction::ComputeL1Error(
 {
    double error = 0.0;
    const FiniteElement *fe;
-   ElementTransformation *transf;
+   ElementTransformation *T;
    DenseMatrix vals, exact_vals, tr;
    Vector loc_errs;
 
    for (int i = 0; i < fes->GetNE(); i++)
    {
       fe = fes->GetFE(i);
-      transf = fes->GetElementTransformation(i);
       int intorder = fe->GetOrder()+2; // <----------
       const IntegrationRule *ir;
       if (irs)
@@ -1267,7 +1262,8 @@ double GridFunction::ComputeL1Error(
       else
          ir = &(IntRules.Get(fe->GetGeomType(), intorder));
       GetVectorValues(i, *ir, vals, tr);
-      exsol.Eval(exact_vals, *transf, *ir);
+      T = fes->GetElementTransformation(i);
+      exsol.Eval(exact_vals, *T, *ir);
       vals -= exact_vals;
       loc_errs.SetSize(vals.Width());
       // compute the lengths of the errors at the integration points
@@ -1276,8 +1272,8 @@ double GridFunction::ComputeL1Error(
       for (int j = 0; j < ir->GetNPoints(); j++)
       {
          const IntegrationPoint &ip = ir->IntPoint(j);
-         transf->SetIntPoint(&ip);
-         error += ip.weight * transf->Weight() * loc_errs(j);
+         T->SetIntPoint(&ip);
+         error += ip.weight * T->Weight() * loc_errs(j);
       }
    }
 
