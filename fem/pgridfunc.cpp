@@ -88,7 +88,21 @@ double ParGridFunction::ComputeL2Error(Coefficient *exsol[],
    lerr = GridFunction::ComputeL2Error(exsol, irs);
    lerr *= lerr;
 
-   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes -> GetComm());
+   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes->GetComm());
+
+   return sqrt(gerr);
+}
+
+double ParGridFunction::ComputeL2Error(VectorCoefficient &exsol,
+                                       const IntegrationRule *irs[],
+                                       Array<int> *elems) const
+{
+   double lerr, gerr;
+
+   lerr = GridFunction::ComputeL2Error(exsol, irs, elems);
+   lerr *= lerr;
+
+   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes->GetComm());
 
    return sqrt(gerr);
 }

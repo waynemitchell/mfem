@@ -47,6 +47,10 @@ public:
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;
 
+   double ComputeL2Error(VectorCoefficient &exsol,
+                         const IntegrationRule *irs[] = NULL,
+                         Array<int> *elems = NULL) const;
+
    /// Merge the local grid functions
    void SaveAsOne(ostream &out = cout);
 
