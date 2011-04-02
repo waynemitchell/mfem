@@ -8,20 +8,25 @@
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
-//               equation curl curl E + E = f with perfectly conducting boundary
-//               conditions E x n = 0. Here f = (0,0,1) and we discretize with
-//               the lowest order Nedelec finite elements.
+//               equation curl curl E + E = f with boundary condition
+//               E x n = <given tangential field>. Here, we use a given exact
+//               solution E and compute the corresponding r.h.s. f.
+//               We discretize with the lowest order Nedelec finite elements.
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
 //               bilinear form, the projection of grid functions between finite
-//               element spaces and the extraction of scalar components of
-//               vector fields.
+//               element spaces and the computation of discretization error
+//               when the exact solution is known.
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
 #include <fstream>
 #include "mfem.hpp"
+
+// Exact solution, E, and r.h.s., f. See below for implementation.
+void E_exact(const Vector &, Vector &);
+void f_exact(const Vector &, Vector &);
 
 int main (int argc, char *argv[])
 {
@@ -43,8 +48,8 @@ int main (int argc, char *argv[])
    }
 
    // 2. Read the (serial) mesh from the given mesh file on all processors.
-   //    We can handle triangular, quadrilateral, tetrahedral or hexahedral
-   //    elements with the same code.
+   //    In this 3D example, we can handle tetrahedral or hexahedral meshes
+   //    with the same code.
    ifstream imesh(argv[1]);
    if (!imesh)
    {
@@ -92,28 +97,29 @@ int main (int argc, char *argv[])
 
    // 6. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
-   //    (f,phi_i) where f=(0,0,1) and phi_i are the basis functions in the
-   //    finite element fespace.
-   VectorArrayCoefficient f(3);
-   f.Set(0, new ConstantCoefficient(0.0));
-   f.Set(1, new ConstantCoefficient(0.0));
-   f.Set(2, new ConstantCoefficient(1.0));
+   //    (f,phi_i) where f is given by the function f_exact and phi_i are the
+   //    basis functions in the finite element fespace.
+   VectorFunctionCoefficient f(3, f_exact);
    ParLinearForm *b = new ParLinearForm(fespace);
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
 
    // 7. Define the solution vector x as a parallel finite element grid function
-   //    corresponding to fespace. Initialize x with initial guess of zero,
-   //    which satisfies the boundary conditions.
+   //    corresponding to fespace. Initialize x by projecting the exact
+   //    solution. Note that only values from the boundary edges will be used
+   //    when eliminating the non-homogenious boundary condition to modify the
+   //    r.h.s. vector b.
    ParGridFunction x(fespace);
-   (Vector &)x = 0.0;
+   VectorFunctionCoefficient E(3, E_exact);
+   x.ProjectCoefficient(E);
 
    // 8. Set up the parallel bilinear form corresponding to the EM diffusion
    //    operator curl muinv curl + sigma I, by adding the curl-curl and the
-   //    mass domain integrators and imposing homogeneous Dirichlet boundary
-   //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential (Dirichlet). After
-   //    serial and parallel assembly we extract the parallel matrix A.
+   //    mass domain integrators and finally imposing non-homogeneous Dirichlet
+   //    boundary conditions. The boundary conditions are implemented by
+   //    marking all the boundary attributes from the mesh as essential
+   //    (Dirichlet). After serial and parallel assembly we extract the
+   //    parallel matrix A.
    Coefficient *muinv = new ConstantCoefficient(1.0);
    Coefficient *sigma = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(fespace);
@@ -134,8 +140,11 @@ int main (int argc, char *argv[])
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
    HypreParVector *X = x.ParallelAverage();
+   *X = 0.0;
 
    delete a;
+   delete sigma;
+   delete muinv;
    delete b;
 
    // 10. Define and apply a parallel PCG solver for AX=B with the AMS
@@ -152,15 +161,23 @@ int main (int argc, char *argv[])
    //     approximation X. This is the local solution on each processor.
    x = *X;
 
-   // 12. In order to visualize the solution, we first represent it in the space
+   // 12. Compute and print the L^2 norm of the error.
+   {
+      double err = x.ComputeL2Error(E);
+      if (myid == 0)
+         cout << "\n|| E_h - E ||_{L^2} = " << err << '\n' << endl;
+   }
+
+   // 13. In order to visualize the solution, we first represent it in the space
    //     of linear discontinuous vector finite elements. The representation in
-   //     this space is obtained by (exact) projection with ProjectVectorFieldOn.
+   //     this space is obtained by (exact) projection with
+   //     ProjectVectorFieldOn.
    FiniteElementCollection *dfec = new LinearDiscont3DFECollection;
    ParFiniteElementSpace *dfespace = new ParFiniteElementSpace(pmesh, dfec, 3);
    ParGridFunction dx(dfespace);
    x.ProjectVectorFieldOn(dx);
 
-   // 13. Save the refined mesh and the solution. This output can be viewed
+   // 14. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs;
@@ -178,7 +195,7 @@ int main (int argc, char *argv[])
          sol_ofs.close();
     }
 
-   // 14. (Optional) Send the solution by socket to a GLVis server.
+   // 15. (Optional) Send the solution by socket to a GLVis server.
    char vishost[] = "localhost";
    int  visport   = 19916;
    osockstream *sol_sock;
@@ -195,13 +212,14 @@ int main (int argc, char *argv[])
       delete sol_sock;
    }
 
-   // 11. Free the used memory.
+   // 16. Free the used memory.
+   delete dfespace;
+   delete dfec;
    delete pcg;
    delete ams;
    delete X;
    delete B;
    delete A;
-
    delete fespace;
    delete fec;
    delete pmesh;
@@ -209,4 +227,21 @@ int main (int argc, char *argv[])
    MPI_Finalize();
 
    return 0;
+}
+
+// A parameter for the exact solution.
+const double kappa = M_PI;
+
+void E_exact(const Vector &x, Vector &E)
+{
+   E(0) = sin(kappa * x(1));
+   E(1) = sin(kappa * x(2));
+   E(2) = sin(kappa * x(0));
+}
+
+void f_exact(const Vector &x, Vector &f)
+{
+   f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
+   f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
+   f(2) = (1. + kappa * kappa) * sin(kappa * x(0));
 }
