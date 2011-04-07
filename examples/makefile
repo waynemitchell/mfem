@@ -12,7 +12,7 @@
 # Serial compiler
 CC = g++
 OPTS = -O3 -I$(MFEM_DIR)
-DEBUG_OPTS = -g -DDEBUG -I$(MFEM_DIR)
+DEBUG_OPTS = -g -I$(MFEM_DIR)
 LIBS = $(MFEM_LIB) $(LAPACK_LIBS)
 
 # Parallel compiler
