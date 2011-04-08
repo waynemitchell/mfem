@@ -2,9 +2,12 @@
 //
 // Compile with: make ex3p
 //
-// Sample runs:  mpirun -np 4 ex3p beam.mesh3d
-//               mpirun -np 4 ex3p fichera.mesh3d
-//               mpirun -np 4 ex3p escher.mesh3d
+// Sample runs:  mpirun -np 4 ex3p ../data/beam-tet.mesh
+//               mpirun -np 4 ex3p ../data/beam-hex.mesh
+//               mpirun -np 4 ex3p ../data/escher.mesh
+//               mpirun -np 4 ex3p ../data/fichera.mesh
+//               mpirun -np 4 ex3p ../data/fichera-q2.vtk
+//               mpirun -np 4 ex3p ../data/fichera-q3.mesh
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -16,8 +19,8 @@
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
 //               bilinear form, the projection of grid functions between finite
-//               element spaces and the computation of discretization error
-//               when the exact solution is known.
+//               element spaces and the computation of discretization error when
+//               the exact solution is known.
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
@@ -170,8 +173,7 @@ int main (int argc, char *argv[])
 
    // 13. In order to visualize the solution, we first represent it in the space
    //     of linear discontinuous vector finite elements. The representation in
-   //     this space is obtained by (exact) projection with
-   //     ProjectVectorFieldOn.
+   //     this space is given by (exact) projection with ProjectVectorFieldOn.
    FiniteElementCollection *dfec = new LinearDiscont3DFECollection;
    ParFiniteElementSpace *dfespace = new ParFiniteElementSpace(pmesh, dfec, 3);
    ParGridFunction dx(dfespace);

@@ -2,7 +2,10 @@
 //
 // Compile with: make ex2
 //
-// Sample runs:  ex2 beam.mesh3d
+// Sample runs:  ex2 ../data/beam-tri.mesh
+//               ex2 ../data/beam-quad.mesh
+//               ex2 ../data/beam-tet.mesh
+//               ex2 ../data/beam-hex.mesh
 //
 // Description:  This example code solves a simple linear elasticity problem
 //               describing a multi-material Cantilever beam.

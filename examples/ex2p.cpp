@@ -2,7 +2,10 @@
 //
 // Compile with: make ex2p
 //
-// Sample runs:  mpirun -np 4 ex2p beam.mesh3d
+// Sample runs:  mpirun -np 4 ex2p ../data/beam-tri.mesh
+//               mpirun -np 4 ex2p ../data/beam-quad.mesh
+//               mpirun -np 4 ex2p ../data/beam-tet.mesh
+//               mpirun -np 4 ex2p ../data/beam-hex.mesh
 //
 // Description:  This example code solves a simple linear elasticity problem
 //               describing a multi-material Cantilever beam.

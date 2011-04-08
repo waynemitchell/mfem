@@ -2,10 +2,12 @@
 //
 // Compile with: make ex1p
 //
-// Sample runs:  mpirun -np 4 ex1p square-disc.mesh2d
-//               mpirun -np 4 ex1p star.mesh2d
-//               mpirun -np 4 ex1p escher.mesh3d
-//               mpirun -np 4 ex1p fichera.mesh3d
+// Sample runs:  mpirun -np 4 ex1p ../data/square-disc.mesh
+//               mpirun -np 4 ex1p ../data/star.mesh
+//               mpirun -np 4 ex1p ../data/escher.mesh
+//               mpirun -np 4 ex1p ../data/fichera.mesh
+//               mpirun -np 4 ex1p ../data/square-disc-p2.vtk
+//               mpirun -np 4 ex1p ../data/square-disc-p3.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple linear finite element discretization of the Laplace

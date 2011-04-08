@@ -14,8 +14,8 @@ ex2 - Elasticity with higher-order and non-conforming (Crouzeix-Raviart, etc.)
                rotations in its local nullspace).
 ex2p- Parallel version of ex2 using BoomerAMG. [DONE]
 
-ex3 - Electromagnetic diffusion showcasing Nedelec elements.
-ex3p- Parallel version of ex3 using AMS.
+ex3 - Electromagnetic diffusion showcasing Nedelec elements. [DONE]
+ex3p- Parallel version of ex3 using AMS. [DONE]
 
 ex4 - Mixed finite elements showcasing Raviart-Thomas elements in 2D/3D.
 
@@ -23,5 +23,4 @@ ex5 - Geometric Multigrid for Poisson in 2D/3D showcasing local refinement and
       the construction of interpolation operators. Requires bringing the MG code
       back into MFEM.
 
-ex6 - Mesh smoothing showcasing curved meshes.
-      [DONE]
+ex6 - Mesh smoothing showcasing curved meshes. [DONE]

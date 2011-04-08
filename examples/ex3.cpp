@@ -2,9 +2,12 @@
 //
 // Compile with: make ex3
 //
-// Sample runs:  ex3 beam.mesh3d
-//               ex3 fichera.mesh3d
-//               ex3 escher.mesh3d
+// Sample runs:  ex3 ../data/beam-tet.mesh
+//               ex3 ../data/beam-hex.mesh
+//               ex3 ../data/escher.mesh
+//               ex3 ../data/fichera.mesh
+//               ex3 ../data/fichera-q2.vtk
+//               ex3 ../data/fichera-q3.mesh
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -16,8 +19,8 @@
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
 //               bilinear form, the projection of grid functions between finite
-//               element spaces and the computation of discretization error
-//               when the exact solution is known.
+//               element spaces and the computation of discretization error when
+//               the exact solution is known.
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
