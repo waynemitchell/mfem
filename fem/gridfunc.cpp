@@ -230,6 +230,8 @@ void GridFunction::GetVectorValues(int i, const IntegrationRule &ir,
    Vector loc_data;
    GetSubVector(vdofs, loc_data);
    int nip = ir.GetNPoints();
+   ElementTransformation *Tr = fes->GetElementTransformation(i);
+   Tr->Transform(ir, tr);
    if (FElem->GetRangeType() == FiniteElement::SCALAR)
    {
       Vector shape(dof);
@@ -249,7 +251,6 @@ void GridFunction::GetVectorValues(int i, const IntegrationRule &ir,
    {
       int dim = FElem->GetDim();
       DenseMatrix vshape(dof, dim);
-      ElementTransformation *Tr = fes->GetElementTransformation(i);
       vals.SetSize(dim, nip);
       Vector val_j;
       for (int j = 0; j < nip; j++)
