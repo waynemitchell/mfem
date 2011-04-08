@@ -22,7 +22,7 @@ Triangle::Triangle(const int *ind, int attr) : Element(Geometry::TRIANGLE)
 }
 
 Triangle::Triangle(int ind1, int ind2, int ind3, int attr)
-  : Element(Geometry::TRIANGLE)
+   : Element(Geometry::TRIANGLE)
 {
    attribute  = attr;
    indices[0] = ind1;

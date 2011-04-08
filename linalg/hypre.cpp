@@ -893,7 +893,7 @@ HypreBoomerAMG::~HypreBoomerAMG()
 #include "../fem/fem.hpp"
 
 HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
-  : HypreSolver(&A)
+   : HypreSolver(&A)
 {
    int cycle_type       = 13;
    int rlx_type         = 2;

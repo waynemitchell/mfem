@@ -133,7 +133,7 @@ int main (int argc, char *argv[])
       mesh->Print(mesh_ofs);
       ofstream sol_ofs("sol.gf");
       dx.Save(sol_ofs);
-    }
+   }
 
    // 11. (Optional) Send the solution by socket to a GLVis server.
    char vishost[] = "localhost";

@@ -195,7 +195,7 @@ int main (int argc, char *argv[])
       dx.SaveAsOne(sol_ofs);
       if (myid == 0)
          sol_ofs.close();
-    }
+   }
 
    // 15. (Optional) Send the solution by socket to a GLVis server.
    char vishost[] = "localhost";
