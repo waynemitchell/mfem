@@ -17,8 +17,7 @@ The only prerequisite for building the serial version of MFEM is a (modern) C++
 compiler, such as g++. Some of the dense linear algebra functionality in MFEM
 requires the LAPACK and BLAS libraries from http://www.netlib.org/lapack. If
 LAPACK is not provided, the corresponding MFEM functions will either use a
-simple internal version, or generate run-time errors when used. The libtiff
-library (http://www.libtiff.org) can optionally be used for taking screenshots.
+simple internal version, or generate run-time errors when used.
 
 The parallel version of MFEM requires a MPI C++ compiler, as well as the
 following external libraries:
