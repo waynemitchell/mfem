@@ -61,7 +61,7 @@ class BoundaryLFIntegrator : public LinearFormIntegrator
    int oa, ob;
 public:
    /// Constructs a boundary integrator with a given Coefficient QG
-   BoundaryLFIntegrator(Coefficient &QG, int a = 2, int b = 0)
+   BoundaryLFIntegrator(Coefficient &QG, int a = 1, int b = 1)
       : Q(QG), oa(a), ob(b) {};
 
    /** Given a particular boundary Finite Element and a transformation (Tr)
@@ -120,7 +120,7 @@ class VectorFEDomainLFIntegrator : public LinearFormIntegrator
 {
 private:
    VectorCoefficient &QF;
-   DenseMatrix Jinv, vshape;
+   DenseMatrix vshape;
    Vector vec;
 
 public:

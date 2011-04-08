@@ -148,10 +148,10 @@ public:
    int GetBdrAttribute(int i) { return mesh -> GetBdrAttribute(i); };
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
-   void GetElementDofs (int i, Array<int> &dofs) const;
+   virtual void GetElementDofs (int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
-   void GetBdrElementDofs (int i, Array<int> &dofs) const;
+   virtual void GetBdrElementDofs (int i, Array<int> &dofs) const;
 
    /** Returns the indexes of the degrees of freedom for i'th face
        including the dofs for the edges and the vertices of the face. */
@@ -218,8 +218,8 @@ public:
                                            int one_vdim = -1);
 
    /// Determine the boundary degrees of freedom
-   void GetEssentialVDofs (Array<int> &bdr_attr_is_ess,
-                           Array<int> &ess_dofs);
+   virtual void GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
+                                  Array<int> &ess_dofs);
 
    void EliminateEssentialBCFromGRM (FiniteElementSpace *cfes,
                                      Array<int> &bdr_attr_is_ess,
@@ -243,13 +243,13 @@ public:
        is defined on the same mesh. */
    SparseMatrix * H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes);
 
-   void Update();
+   virtual void Update();
    /// Return a copy of the current FE space and update
-   FiniteElementSpace *SaveUpdate();
+   virtual FiniteElementSpace *SaveUpdate();
 
    void Save (ostream &out) const;
 
-   ~FiniteElementSpace();
+   virtual ~FiniteElementSpace();
 };
 
 #endif

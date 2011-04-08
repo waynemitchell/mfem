@@ -2,19 +2,25 @@ Planned MFEM Example Codes:
 ===========================
 
 ex1 - Linear FEM for Poisson in 2D/3D. [DONE]
+ex1p- Parallel version of ex1 using BoomerAMG. [DONE]
 
 ex2 - Elasticity with higher-order and non-conforming (Crouzeix-Raviart, etc.)
       elements in 2D/3D. Assume that the mesh has two materials and three
       boundary attributes (Dirichlet, Neumann-down and Neumann-zero). Cantilever
       beam test problems (with beam meshes split in two materials).
+      [DONE] - without the non-conforming discretizations which actually leads
+               to singular matrices with the standard bilinear form (they are OK
+               for the reformulated pure Dirichlet form which doesn't have
+               rotations in its local nullspace).
+ex2p- Parallel version of ex2 using BoomerAMG. [DONE]
 
-ex3 - Mixed finite elements showcasing Raviart-Thomas elements in 2D/3D.
+ex3 - Electromagnetic diffusion showcasing Nedelec elements. [DONE]
+ex3p- Parallel version of ex3 using AMS. [DONE]
 
-ex4 - Geometric Multigrid for Poisson in 2D/3D showcasing local refinement and
+ex4 - Mixed finite elements showcasing Raviart-Thomas elements in 2D/3D.
+
+ex5 - Geometric Multigrid for Poisson in 2D/3D showcasing local refinement and
       the construction of interpolation operators. Requires bringing the MG code
       back into MFEM.
-
-ex5 - Magnetostatics in 3D with GMG or AMS showcasing Nedelec elements. If it
-      doesn't work, try electromagnetic diffusion (with time stepping) .
 
 ex6 - Mesh smoothing showcasing curved meshes. [DONE]
