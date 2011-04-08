@@ -37,6 +37,8 @@ USE_MEMALLOC_DEF = $(USE_MEMALLOC_$(USE_MEMALLOC))
 
 DEFS = $(USE_LAPACK_DEF) $(USE_MEMALLOC_DEF)
 
+CCC = $(CC) $(MODE_OPTS) $(DEFS) $(CCOPTS)
+
 # Compiler and options used for generating deps.mk
 DEPCCC = $(DEPCC) $(CCOPTS) $(MODE_OPTS) $(DEFS)
 
@@ -52,12 +54,12 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 	cd $(<D); $(CCC) -c $(<F)
 
 # Serial build
-serial: CCC=$(CC) $(MODE_OPTS) $(DEFS) $(CCOPTS)
 serial: opt
 
 # Parallel build
-parallel: CCC=$(MPICC) $(MODE_OPTS) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS)
+parallel pdebug: CCC=$(MPICC) $(MODE_OPTS) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS)
 parallel: opt
+pdebug: debug
 
 lib: libmfem.a mfem_defs.hpp
 

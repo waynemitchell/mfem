@@ -17,6 +17,7 @@ DEBUG_OPTS = -g -DMFEM_DEBUG
 # Parallel compiler
 MPICC      = mpiCC
 MPIOPTS    = $(CCOPTS) -I$(HYPRE_DIR)/include
+MPIDEBUG   = $(DEBUG_OPTS) -I$(HYPRE_DIR)/include
 
 # The HYPRE library (needed to build the parallel version)
 HYPRE_DIR  = ../../hypre-2.7.0b/src/hypre
@@ -81,6 +82,11 @@ lib: libmfem.a mfem_defs.hpp
 
 debug:
 	$(MAKE) "CCOPTS=$(DEBUG_OPTS)"
+
+pdebug:
+	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIDEBUG)" lib
+
+opt: serial
 
 $(OBJECT_FILES): $(HEADER_FILES)
 
