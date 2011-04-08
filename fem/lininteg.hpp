@@ -115,7 +115,7 @@ public:
    using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
-///  \f$ (f, v)_{\Omega} \f$ for VectorFiniteElements (Nedelec, Raviart-Thomas)
+/// \f$ (f, v)_{\Omega} \f$ for VectorFiniteElements (Nedelec, Raviart-Thomas)
 class VectorFEDomainLFIntegrator : public LinearFormIntegrator
 {
 private:
@@ -134,9 +134,9 @@ public:
 };
 
 
-/**  \f$ (f, v \cdot n)_{\partial\Omega} \f$ for vector test function
-     v=(v1,...,vn) where all vi are in the same scalar FE space and f is a
-     scalar function. */
+/** \f$ (f, v \cdot n)_{\partial\Omega} \f$ for vector test function
+    v=(v1,...,vn) where all vi are in the same scalar FE space and f is a
+    scalar function. */
 class VectorBoundaryFluxLFIntegrator : public LinearFormIntegrator
 {
 private:

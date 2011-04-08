@@ -17,7 +17,7 @@ class Element
 {
 protected:
 
-   /* Element's attribute (specifying material property, etc). */
+   /// Element's attribute (specifying material property, etc).
    int attribute, base_geom;
 
 public:

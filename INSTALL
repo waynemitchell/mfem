@@ -10,8 +10,8 @@
 
 The MFEM library has a serial and a MPI-based parallel version, which largely
 share the same code base. Note that the two versions don't mix (you can't build
-the serial examples with the parallel library or vice-versa) and that the GLVis
-visualization tool requires the serial version.
+the serial examples with the parallel library or vice-versa). Note also that the
+GLVis visualization tool requires the serial version.
 
 The only prerequisite for building the serial version of MFEM is a (modern) C++
 compiler, such as g++. Some of the dense linear algebra functionality in MFEM
@@ -41,8 +41,9 @@ the "mfem_defs.hpp" header file which lists all "define" symbols from the build.
 Some of the available 'make' targets are:
 
 make          -> Builds the serial libmfem.a library
-make debug    -> Builds a (serial) debug version
+make debug    -> Builds a serial debug version
 make parallel -> Builds the parallel libmfem.a library
+make pdebug   -> Builds a parallel debug version
 make clean    -> Cleans the build
 
 
@@ -56,8 +57,9 @@ GNUmakefile will be used instead of the makefile.
 Some of the available 'gmake' targets are:
 
 gmake          -> Builds the serial libmfem.a library
-gmake debug    -> Builds a (serial) debug version
+gmake debug    -> Builds a serial debug version
 gmake parallel -> Builds the parallel libmfem.a library
+gmake pdebug   -> Builds a parallel debug version
 gmake clean    -> Cleans the build
 
 
@@ -70,6 +72,6 @@ file will automatically detect the availability of LAPACK.
 Some of the available 'SCons' targets are:
 
 scons            -> Builds the serial libmfem.a library
-scons debug=1    -> Builds a (serial) debug version
+scons debug=1    -> Builds a serial debug version
 scons parallel=1 -> Builds the parallel libmfem.a library
 scons -c         -> Cleans the build

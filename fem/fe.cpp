@@ -313,7 +313,7 @@ void GaussLinear2DFiniteElement::ProjectDelta(int vertex, Vector &dofs) const
 }
 
 
-//  0.5-0.5/sqrt(3) and 0.5+0.5/sqrt(3)
+// 0.5-0.5/sqrt(3) and 0.5+0.5/sqrt(3)
 const double GaussBiLinear2DFiniteElement::p[] =
 { 0.2113248654051871177454256, 0.7886751345948128822545744 };
 

@@ -208,14 +208,14 @@ public:
    virtual ~SparseMatrix();
 };
 
-// Applies f() to each element of the matrix (after it is finalized).
+/// Applies f() to each element of the matrix (after it is finalized).
 void SparseMatrixFunction (SparseMatrix & S, double (*f)(double));
 
 
-/*  Transpose of a sparse matrix. A must be finalized.  */
+/// Transpose of a sparse matrix. A must be finalized.
 SparseMatrix *Transpose (SparseMatrix &A);
 
-/*  Matrix product A.B.
+/** Matrix product A.B.
     If OAB is not NULL, we assume it has the structure
     of A.B and store the result in OAB.
     If OAB is NULL, we create a new SparseMatrix to store
@@ -225,12 +225,12 @@ SparseMatrix *Mult (SparseMatrix &A, SparseMatrix &B,
                     SparseMatrix *OAB = NULL);
 
 
-/*  RAP matrix product. ORAP is like OAB above.
+/** RAP matrix product. ORAP is like OAB above.
     All matrices must be finalized.  */
 SparseMatrix *RAP (SparseMatrix &A, SparseMatrix &R,
                    SparseMatrix *ORAP = NULL);
 
-/*  Matrix multiplication A^t D A.
+/** Matrix multiplication A^t D A.
     All matrices must be finalized.  */
 SparseMatrix *Mult_AtDA (SparseMatrix &A, Vector &D,
                          SparseMatrix *OAtDA = NULL);

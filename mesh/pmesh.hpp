@@ -12,6 +12,7 @@
 #ifndef MFEM_PMESH
 #define MFEM_PMESH
 
+/// Class for parallel meshes
 class ParMesh : public Mesh
 {
 private:

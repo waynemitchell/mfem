@@ -44,8 +44,8 @@ private:
    /// The matrix P (interpolation from true dof to dof).
    HypreParMatrix *P;
 
-   /* Create a parallel FE space stealing all data (except RefData) from the
-      given FE space. This is used in SaveUpdate(). */
+   /** Create a parallel FE space stealing all data (except RefData) from the
+       given FE space. This is used in SaveUpdate(). */
    ParFiniteElementSpace(ParFiniteElementSpace &pf);
 
 public:

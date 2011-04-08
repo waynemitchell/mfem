@@ -204,16 +204,14 @@ public:
    /// Returns pointer to the FiniteElement for the i'th boundary element.
    const FiniteElement * GetBE (int i) const;
 
-   /** Return the restriction matrix from this FE space to the
-       coarse FE space 'cfes'. Both FE spaces must use the same FE
-       collection and be defined on the same Mesh which must be in
-       TWO_LEVEL_* state.  When vdim > 1, 'one_vdim' specifies
-       whether the restriction matrix built should be the scalar
-       restriction (one_vdim=1) or the full vector restriction
-       (one_vdim=0); if one_vdim=-1 then the behavior depends on
-       the ordering of this FE space: if ordering=byNodes then the
-       scalar restriction matrix is built and if ordering=byVDim --
-       the full vector restriction matrix.  */
+   /** Return the restriction matrix from this FE space to the coarse FE space
+       'cfes'. Both FE spaces must use the same FE collection and be defined on
+       the same Mesh which must be in TWO_LEVEL_* state.  When vdim > 1,
+       'one_vdim' specifies whether the restriction matrix built should be the
+       scalar restriction (one_vdim=1) or the full vector restriction
+       (one_vdim=0); if one_vdim=-1 then the behavior depends on the ordering of
+       this FE space: if ordering=byNodes then the scalar restriction matrix is
+       built and if ordering=byVDim -- the full vector restriction matrix.  */
    SparseMatrix * GlobalRestrictionMatrix (FiniteElementSpace *cfes,
                                            int one_vdim = -1);
 

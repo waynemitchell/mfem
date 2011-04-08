@@ -36,7 +36,7 @@ public:
 
    GridFunction(Mesh *m, istream &input);
 
-   // Make the GridFunction the owner of 'fec' and 'fes'
+   /// Make the GridFunction the owner of 'fec' and 'fes'
    void MakeOwner(FiniteElementCollection *_fec)
    { fec = _fec; }
 
