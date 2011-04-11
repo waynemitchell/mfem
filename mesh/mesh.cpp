@@ -1756,6 +1756,14 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       }
    }
 
+   if (NumOfBdrElements == 0 && Dim > 2)
+   {
+      // in 3D, generate boundary elements before we 'MarkForRefinement'
+      GetElementToFaceTable();
+      GenerateFaces();
+      GenerateBoundaryElements();
+   }
+
    if (!curved)
    {
       // check and fix element orientation
@@ -1770,8 +1778,6 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
    {
       GetElementToFaceTable();
       GenerateFaces();
-      if (NumOfBdrElements == 0)
-         GenerateBoundaryElements();
       // check and fix boundary element orientation
       if ( !(curved && (meshgen & 1)) )
          CheckBdrElementOrientation();
