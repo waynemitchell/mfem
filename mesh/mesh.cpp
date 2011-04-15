@@ -1462,6 +1462,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       // Reading VTK mesh
 
       string buff;
+      input >> ws;
       getline(input, buff); // "# vtk DataFile Version 3.0"
       getline(input, buff); // comment line
       getline(input, buff);
