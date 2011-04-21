@@ -80,6 +80,30 @@ HypreParVector * ParGridFunction::ParallelAverage()
    return tv;
 }
 
+double ParGridFunction::ComputeL1Error(Coefficient *exsol[],
+                                       const IntegrationRule *irs[]) const
+{
+   double lerr, gerr;
+
+   lerr = GridFunction::ComputeW11Error(*exsol, NULL, 1, NULL, irs);
+
+   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes->GetComm());
+
+   return gerr;
+}
+
+double ParGridFunction::ComputeL1Error(VectorCoefficient &exsol,
+                                       const IntegrationRule *irs[]) const
+{
+   double lerr, gerr;
+
+   lerr = GridFunction::ComputeL1Error(exsol, irs);
+
+   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes->GetComm());
+
+   return gerr;
+}
+
 double ParGridFunction::ComputeL2Error(Coefficient *exsol[],
                                        const IntegrationRule *irs[]) const
 {
@@ -105,6 +129,30 @@ double ParGridFunction::ComputeL2Error(VectorCoefficient &exsol,
    MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes->GetComm());
 
    return sqrt(gerr);
+}
+
+double ParGridFunction::ComputeMaxError(Coefficient *exsol[],
+                                        const IntegrationRule *irs[]) const
+{
+   double lerr, gerr;
+
+   lerr = GridFunction::ComputeMaxError(exsol, irs);
+
+   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_MAX, pfes->GetComm());
+
+   return gerr;
+}
+
+double ParGridFunction::ComputeMaxError(VectorCoefficient &exsol,
+                                        const IntegrationRule *irs[]) const
+{
+   double lerr, gerr;
+
+   lerr = GridFunction::ComputeMaxError(exsol, irs);
+
+   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_MAX, pfes->GetComm());
+
+   return gerr;
 }
 
 void ParGridFunction::SaveAsOne(ostream &out)

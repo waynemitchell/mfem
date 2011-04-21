@@ -33,6 +33,8 @@ public:
        The data from 'gf' is NOT copied. */
    ParGridFunction(ParMesh *pmesh, GridFunction *gf);
 
+   ParFiniteElementSpace *ParFESpace() { return pfes; }
+
    /** Set the grid function on (all) dofs from a given vector on the
        true dofs, i.e. P tv. */
    void Distribute(HypreParVector *tv);
@@ -44,12 +46,24 @@ public:
    /// Returns the vector averaged on the true dofs.
    HypreParVector *ParallelAverage();
 
+   double ComputeL1Error(Coefficient *exsol[],
+                         const IntegrationRule *irs[] = NULL) const;
+
+   double ComputeL1Error(VectorCoefficient &exsol,
+                         const IntegrationRule *irs[] = NULL) const;
+
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;
 
    double ComputeL2Error(VectorCoefficient &exsol,
                          const IntegrationRule *irs[] = NULL,
                          Array<int> *elems = NULL) const;
+
+   double ComputeMaxError(Coefficient *exsol[],
+                          const IntegrationRule *irs[] = NULL) const;
+
+   double ComputeMaxError(VectorCoefficient &exsol,
+                          const IntegrationRule *irs[] = NULL) const;
 
    /// Merge the local grid functions
    void SaveAsOne(ostream &out = cout);
