@@ -60,7 +60,6 @@ void GridFunction::Update(FiniteElementSpace *f)
    SetSize(fes->GetVSize());
 }
 
-
 void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
 {
    if (fec)
