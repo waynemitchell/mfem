@@ -79,6 +79,11 @@ public:
    /// Scale a vector in the range of P
    void DivideByGroupSize(double * vec);
 
+   /** Given a marker array on the local degrees of freedom, perform a logical
+       OR between the shared dofs and return the result in the input array with
+       true values set to the given marker. */
+   void Synchronize(Array<int> &dof_marker, int marker = 1);
+
    /// Determine the boundary degrees of freedom
    virtual void GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
                                   Array<int> &ess_dofs);

@@ -247,6 +247,39 @@ void ParFiniteElementSpace::DivideByGroupSize(double * vec)
          vec[ldof_ltdof[i]] /= pmesh -> group_lproc.RowSize(ldof_group[i]);
 }
 
+void ParFiniteElementSpace::Synchronize(Array<int> &dof_marker, int marker)
+{
+   Vector d_dof_marker(dof_marker.Size());
+   for (int i = 0; i < dof_marker.Size(); i++)
+      d_dof_marker(i) = dof_marker[i] ? 1.0 : 0.0;
+
+   // vector on (all) dofs
+   HypreParVector *v_dof_marker;
+   if (HYPRE_AssumedPartitionCheck())
+      v_dof_marker = new HypreParVector(dof_offsets[2], d_dof_marker,
+                                        dof_offsets);
+   else
+      v_dof_marker = new HypreParVector(dof_offsets[NRanks], d_dof_marker,
+                                        dof_offsets);
+
+   // vector on true dofs
+   HypreParVector *v_tdof_marker;
+   if (HYPRE_AssumedPartitionCheck())
+      v_tdof_marker = new HypreParVector(tdof_offsets[2], tdof_offsets);
+   else
+      v_tdof_marker = new HypreParVector(tdof_offsets[NRanks], tdof_offsets);
+
+   Dof_TrueDof_Matrix()->MultTranspose(*v_dof_marker, *v_tdof_marker);
+   Dof_TrueDof_Matrix()->Mult(*v_tdof_marker, *v_dof_marker);
+
+   for (int i = 0; i < dof_marker.Size(); i++)
+      if (d_dof_marker(i) > 0.0)
+         dof_marker[i] = marker;
+
+   delete v_tdof_marker;
+   delete v_dof_marker;
+}
+
 void ParFiniteElementSpace::GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
                                               Array<int> &ess_dofs)
 {
@@ -254,34 +287,7 @@ void ParFiniteElementSpace::GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
 
    // Make sure that processors without boundary elements mark
    // their boundary dofs (if they have any).
-   Vector d_ess_dofs(ess_dofs.Size());
-   for (int i = 0; i < ess_dofs.Size(); i++)
-      d_ess_dofs(i) = ess_dofs[i];
-
-   // vector on (all) dofs
-   HypreParVector *v_ess_dofs;
-   if (HYPRE_AssumedPartitionCheck())
-      v_ess_dofs = new HypreParVector(dof_offsets[2], d_ess_dofs, dof_offsets);
-   else
-      v_ess_dofs = new HypreParVector(dof_offsets[NRanks], d_ess_dofs,
-                                      dof_offsets);
-
-   // vector on true dofs
-   HypreParVector *v_ess_tdofs;
-   if (HYPRE_AssumedPartitionCheck())
-      v_ess_tdofs = new HypreParVector(tdof_offsets[2], tdof_offsets);
-   else
-      v_ess_tdofs = new HypreParVector(tdof_offsets[NRanks], tdof_offsets);
-
-   Dof_TrueDof_Matrix()->MultTranspose(*v_ess_dofs, *v_ess_tdofs);
-   Dof_TrueDof_Matrix()->Mult(*v_ess_tdofs, *v_ess_dofs);
-
-   for (int i = 0; i < ess_dofs.Size(); i++)
-      if (d_ess_dofs(i) < 0.0)
-         ess_dofs[i] = -1;
-
-   delete v_ess_tdofs;
-   delete v_ess_dofs;
+   Synchronize(ess_dofs, -1);
 }
 
 int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
