@@ -96,7 +96,7 @@ int main (int argc, char *argv[])
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    ParGridFunction x(fespace);
-   (Vector &)x = 0.0;
+   x = 0.0;
 
    // 8. Set up the parallel bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
