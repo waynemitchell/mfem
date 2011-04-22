@@ -19,6 +19,8 @@ protected:
    ParFiniteElementSpace *pfes;
 
 public:
+   ParGridFunction() { pfes = NULL; }
+
    ParGridFunction(ParFiniteElementSpace *pf) : GridFunction(pf), pfes(pf) { }
 
    /** Construct a ParGridFunction corresponding to *pf and the data from *gf
@@ -33,7 +35,13 @@ public:
        The data from 'gf' is NOT copied. */
    ParGridFunction(ParMesh *pmesh, GridFunction *gf);
 
+   ParGridFunction &operator=(double value) { GridFunction::operator=(value); }
+
    ParFiniteElementSpace *ParFESpace() { return pfes; }
+
+   void Update(ParFiniteElementSpace *f);
+
+   void Update(ParFiniteElementSpace *f, Vector &v, int v_offset);
 
    /** Set the grid function on (all) dofs from a given vector on the
        true dofs, i.e. P tv. */

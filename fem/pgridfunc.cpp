@@ -34,6 +34,18 @@ ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf)
    SetSize(pfes->GetVSize());
 }
 
+void ParGridFunction::Update(ParFiniteElementSpace *f)
+{
+   GridFunction::Update(f);
+   pfes = f;
+}
+
+void ParGridFunction::Update(ParFiniteElementSpace *f, Vector &v, int v_offset)
+{
+   GridFunction::Update(f, v, v_offset);
+   pfes = f;
+}
+
 void ParGridFunction::Distribute(HypreParVector *tv)
 {
    int  nproc   = pfes->GetNRanks();
