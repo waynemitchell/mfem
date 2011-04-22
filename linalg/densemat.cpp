@@ -1263,17 +1263,31 @@ void MultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt)
    }
 }
 
+#ifdef MFEM_USE_LAPACK
+extern "C" void
+dgemm_(char *, char *, int *, int *, int *, double *, double *,
+       int *, double *, int *, double *, double *, int *);
+#endif
+
 void MultABt(const DenseMatrix &A, const DenseMatrix &B,
              DenseMatrix &ABt)
 {
-   int i, j, k;
-   double d;
-
 #ifdef MFEM_DEBUG
    if (A.Height() != ABt.Height() || B.Height() != ABt.Width() ||
        A.Width() != B.Width())
       mfem_error ("MultABt (...)");
 #endif
+
+#ifdef MFEM_USE_LAPACK
+   static char transa = 'N', transb = 'T';
+   static double alpha = 1.0, beta = 0.0;
+   int m = A.Height(), n = B.Height(), k = A.Width();
+
+   dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &m,
+          B.Data(), &n, &beta, ABt.Data(), &m);
+#else
+   int i, j, k;
+   double d;
 
    for (i = 0; i < A.Height(); i++)
       for (j = 0; j < B.Height(); j++)
@@ -1283,6 +1297,7 @@ void MultABt(const DenseMatrix &A, const DenseMatrix &B,
             d += A(i, k) * B(j, k);
          ABt(i, j) = d;
       }
+#endif
 }
 
 void AddMultABt ( DenseMatrix & A, DenseMatrix & B,
@@ -1309,6 +1324,20 @@ void AddMultABt ( DenseMatrix & A, DenseMatrix & B,
 void MultAtB(const DenseMatrix &A, const DenseMatrix &B,
              DenseMatrix &AtB)
 {
+#ifdef MFEM_DEBUG
+   if (A.Width() != AtB.Width() || B.Width() != AtB.Height() ||
+       A.Height() != B.Height())
+      mfem_error ("MultAtB (...)");
+#endif
+
+#ifdef MFEM_USE_LAPACK
+   static char transa = 'T', transb = 'N';
+   static double alpha = 1.0, beta = 0.0;
+   int m = A.Width(), n = B.Width(), k = A.Height();
+
+   dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &k,
+          B.Data(), &k, &beta, AtB.Data(), &m);
+#else
    int i, j, k;
    double d;
 
@@ -1320,6 +1349,7 @@ void MultAtB(const DenseMatrix &A, const DenseMatrix &B,
             d += A(k, i) * B(k, j);
          AtB(i, j) = d;
       }
+#endif
 }
 
 void AddMult_a_AAt (double a, DenseMatrix &A, DenseMatrix &AAt)
