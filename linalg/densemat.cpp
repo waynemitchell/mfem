@@ -23,13 +23,13 @@
 #include "densemat.hpp"
 
 
-DenseMatrix::DenseMatrix () : Matrix(0)
+DenseMatrix::DenseMatrix() : Matrix(0)
 {
    height = 0;
    data = NULL;
 }
 
-DenseMatrix::DenseMatrix (const DenseMatrix &m) : Matrix(m.size)
+DenseMatrix::DenseMatrix(const DenseMatrix &m) : Matrix(m.size)
 {
    height = m.height;
    int hw = size * height;
@@ -38,7 +38,7 @@ DenseMatrix::DenseMatrix (const DenseMatrix &m) : Matrix(m.size)
       data[i] = m.data[i];
 }
 
-DenseMatrix::DenseMatrix (int s) : Matrix(s)
+DenseMatrix::DenseMatrix(int s) : Matrix(s)
 {
    height = s;
 
@@ -49,7 +49,7 @@ DenseMatrix::DenseMatrix (int s) : Matrix(s)
          (*this)(i,j) = 0;
 }
 
-DenseMatrix::DenseMatrix (int m, int n) : Matrix(n)
+DenseMatrix::DenseMatrix(int m, int n) : Matrix(n)
 {
    height = m;
 
@@ -60,7 +60,7 @@ DenseMatrix::DenseMatrix (int m, int n) : Matrix(n)
          (*this)(i,j) = 0;
 }
 
-DenseMatrix::DenseMatrix (const DenseMatrix & mat, char ch) : Matrix(mat.height)
+DenseMatrix::DenseMatrix(const DenseMatrix &mat, char ch) : Matrix(mat.height)
 {
    if (ch == 't')
    {
@@ -111,21 +111,21 @@ void DenseMatrix::SetSize(int h, int w)
       data = 0;
 }
 
-double & DenseMatrix::Elem (int i, int j)
+double &DenseMatrix::Elem(int i, int j)
 {
    return (*this)(i,j);
 }
 
-const double & DenseMatrix::Elem (int i, int j) const
+const double &DenseMatrix::Elem(int i, int j) const
 {
    return (*this)(i,j);
 }
 
-void DenseMatrix::Mult (const Vector & x, Vector & y) const
+void DenseMatrix::Mult(const Vector &x, Vector &y) const
 {
 #ifdef MFEM_DEBUG
    if ( size != x.Size() || height != y.Size() )
-      mfem_error ("DenseMatrix::Mult");
+      mfem_error("DenseMatrix::Mult");
 #endif
 
    for (int i = 0; i < height; i++)
@@ -152,11 +152,11 @@ double DenseMatrix::operator *(const DenseMatrix &m) const
    return a;
 }
 
-void DenseMatrix::MultTranspose (const Vector & x, Vector & y) const
+void DenseMatrix::MultTranspose(const Vector &x, Vector &y) const
 {
 #ifdef MFEM_DEBUG
    if ( height != x.Size() || size != y.Size() )
-      mfem_error ("DenseMatrix::MultTranspose");
+      mfem_error("DenseMatrix::MultTranspose");
 #endif
 
    for (int i = 0; i < size; i++)
@@ -168,11 +168,11 @@ void DenseMatrix::MultTranspose (const Vector & x, Vector & y) const
    }
 }
 
-void DenseMatrix::AddMult (const Vector & x, Vector & y) const
+void DenseMatrix::AddMult(const Vector &x, Vector &y) const
 {
 #ifdef MFEM_DEBUG
    if ( size != x.Size() || height != y.Size() )
-      mfem_error ("DenseMatrix::AddMult");
+      mfem_error("DenseMatrix::AddMult");
 #endif
 
    for (int i = 0; i < height; i++)
@@ -180,7 +180,7 @@ void DenseMatrix::AddMult (const Vector & x, Vector & y) const
          y(i) += (*this)(i,j) * x(j);
 }
 
-double DenseMatrix::InnerProduct (const Vector &x, const Vector &y) const
+double DenseMatrix::InnerProduct(const Vector &x, const Vector &y) const
 {
    double prod = 0.0;
 
@@ -219,7 +219,7 @@ double DenseMatrix::Det() const
 {
 #ifdef MFEM_DEBUG
    if (Height() != Width() || Height() < 1 || Height() > 3)
-      mfem_error ("DenseMatrix::Det");
+      mfem_error("DenseMatrix::Det");
 #endif
 
    switch (Height())
@@ -261,22 +261,22 @@ double DenseMatrix::Weight() const
       double F = d[0] * d[3] + d[1] * d[4] + d[2] * d[5];
       return sqrt(E * G - F * F);
    }
-   mfem_error ("DenseMatrix::Weight()");
+   mfem_error("DenseMatrix::Weight()");
    return 0.0;
 }
 
-void DenseMatrix::Add(const double c, DenseMatrix & A)
+void DenseMatrix::Add(const double c, DenseMatrix &A)
 {
-   for(int i=0;i<Height();i++)
-      for(int j=0;j<Size();j++)
+   for (int i = 0; i < Height(); i++)
+      for (int j = 0; j < Size(); j++)
          (*this)(i,j) += c * A(i,j);
 }
 
 DenseMatrix &DenseMatrix::operator=(double c)
 {
-   int s=Size()*Height();
+   int s = Size()*Height();
    if (data != NULL)
-      for(int i = 0; i < s; i++)
+      for (int i = 0; i < s; i++)
          data[i] = c;
    return *this;
 }
@@ -285,7 +285,7 @@ DenseMatrix &DenseMatrix::operator=(const DenseMatrix &m)
 {
    int i, hw;
 
-   SetSize (m.height, m.size);
+   SetSize(m.height, m.size);
 
    hw = size * height;
    for (i = 0; i < hw; i++)
@@ -318,9 +318,9 @@ DenseMatrix &DenseMatrix::operator-=(DenseMatrix &m)
 
 DenseMatrix &DenseMatrix::operator*=(double c)
 {
-   int s=Size()*Height();
+   int s = Size()*Height();
    if (data != NULL)
-      for(int i = 0; i < s; i++)
+      for (int i = 0; i < s; i++)
          data[i] *= c;
    return *this;
 }
@@ -347,7 +347,7 @@ void DenseMatrix::Invert()
 {
 #ifdef MFEM_DEBUG
    if (Size() <= 0 || Size() != Height())
-      mfem_error ("DenseMatrix::Invert()");
+      mfem_error("DenseMatrix::Invert()");
 #endif
 
 #ifdef MFEM_USE_LAPACK
@@ -356,10 +356,10 @@ void DenseMatrix::Invert()
    double qwork, *work;
    int    info;
 
-   dgetrf_ (&size, &size, data, &size, ipiv, &info);
+   dgetrf_(&size, &size, data, &size, ipiv, &info);
 
    if (info)
-      mfem_error ("DenseMatrix::Invert() : Error in DGETRF");
+      mfem_error("DenseMatrix::Invert() : Error in DGETRF");
 
    dgetri_(&size, data, &size, ipiv, &qwork, &lwork, &info);
 
@@ -369,7 +369,7 @@ void DenseMatrix::Invert()
    dgetri_(&size, data, &size, ipiv, work, &lwork, &info);
 
    if (info)
-      mfem_error ("DenseMatrix::Invert() : Error in DGETRI");
+      mfem_error("DenseMatrix::Invert() : Error in DGETRI");
 
    delete [] work;
    delete [] ipiv;
@@ -381,7 +381,7 @@ void DenseMatrix::Invert()
    {
 #ifdef MFEM_DEBUG
       if ((*this)(c, c) == 0.0)
-         mfem_error ("DenseMatrix::Invert() : division by zero");
+         mfem_error("DenseMatrix::Invert() : division by zero");
 #endif
       a = (*this)(c, c) = 1.0 / (*this)(c, c);
       for (j = 0; j < c; j++)
@@ -408,10 +408,10 @@ void DenseMatrix::Invert()
 #endif
 }
 
-
-void DenseMatrix::Norm2 (double * v)
+void DenseMatrix::Norm2(double *v) const
 {
-   for (int j = 0; j < Size(); j++) {
+   for (int j = 0; j < Size(); j++)
+   {
       v[j] = 0.0;
       for (int i = 0; i < Height(); i++)
          v[j] += (*this)(i,j)*(*this)(i,j);
@@ -430,30 +430,27 @@ double DenseMatrix::FNorm() const
    return sqrt(a);
 }
 
-
 #ifdef MFEM_USE_LAPACK
 extern "C" void
-dsyevr_ ( char *JOBZ, char *RANGE, char *UPLO, int *N, double *A,
-          int *LDA, double *VL, double *VU, int *IL, int *IU,
-          double *ABSTOL, int *M, double *W, double *Z, int *LDZ,
-          int *ISUPPZ, double *WORK, int *LWORK, int *IWORK,
-          int *LIWORK, int *INFO);
+dsyevr_(char *JOBZ, char *RANGE, char *UPLO, int *N, double *A, int *LDA,
+        double *VL, double *VU, int *IL, int *IU, double *ABSTOL, int *M,
+        double *W, double *Z, int *LDZ, int *ISUPPZ, double *WORK, int *LWORK,
+        int *IWORK, int *LIWORK, int *INFO);
 extern "C" void
-dsyev_ ( char *JOBZ, char *UPLO, int *N, double *A, int *LDA, double *W,
-         double *WORK, int *LWORK, int *INFO );
+dsyev_(char *JOBZ, char *UPLO, int *N, double *A, int *LDA, double *W,
+       double *WORK, int *LWORK, int *INFO);
 extern "C" void
 dgesvd_(char *JOBU, char *JOBVT, int *M, int *N, double *A, int *LDA,
-        double *S, double *U, int *LDU, double *VT, int *LDVT,
-        double *WORK, int *LWORK, int *INFO);
+        double *S, double *U, int *LDU, double *VT, int *LDVT, double *WORK,
+        int *LWORK, int *INFO);
 #endif
 
-void dsyevr_Eigensystem (DenseMatrix &a,
-                         Vector &ev, DenseMatrix *evect)
+void dsyevr_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
 {
 
 #ifdef MFEM_USE_LAPACK
 
-   ev.SetSize (a.Size());
+   ev.SetSize(a.Size());
 
    char      JOBZ     = 'N';
    char      RANGE    = 'A';
@@ -479,10 +476,10 @@ void dsyevr_Eigensystem (DenseMatrix &a,
 
    if (evect) // Compute eigenvectors too
    {
-      evect -> SetSize (N);
+      evect->SetSize(N);
 
       JOBZ     = 'V';
-      Z        = evect -> Data();
+      Z        = evect->Data();
       LDZ      = N;
    }
 
@@ -499,7 +496,7 @@ void dsyevr_Eigensystem (DenseMatrix &a,
 
    if (INFO != 0)
    {
-      cerr << "dsyevr_Eigensystem (...): DSYEVR error code: "
+      cerr << "dsyevr_Eigensystem(...): DSYEVR error code: "
            << INFO << endl;
       mfem_error();
    }
@@ -507,17 +504,17 @@ void dsyevr_Eigensystem (DenseMatrix &a,
 #ifdef MFEM_DEBUG
    if (M < N)
    {
-      cerr << "dsyevr_Eigensystem (...):\n"
+      cerr << "dsyevr_Eigensystem(...):\n"
            << " DSYEVR did not find all eigenvalues "
            << M << "/" << N << endl;
       mfem_error();
    }
    for (IL = 0; IL < N; IL++)
       if (!finite(W[IL]))
-         mfem_error ("dsyevr_Eigensystem (...): !finite value in W");
+         mfem_error("dsyevr_Eigensystem(...): !finite value in W");
    for (IL = 0; IL < N*N; IL++)
       if (!finite(Z[IL]))
-         mfem_error ("dsyevr_Eigensystem (...): !finite value in Z");
+         mfem_error("dsyevr_Eigensystem(...): !finite value in Z");
    VU = 0.0;
    for (IL = 0; IL < N; IL++)
       for (IU = 0; IU <= IL; IU++)
@@ -533,7 +530,7 @@ void dsyevr_Eigensystem (DenseMatrix &a,
             VU = VL;
          if (VU > 0.5)
          {
-            cerr << "dsyevr_Eigensystem (...):"
+            cerr << "dsyevr_Eigensystem(...):"
                  << " Z^t Z - I deviation = " << VU
                  << "\n W[max] = " << W[N-1] << ", W[min] = "
                  << W[0] << ", N = " << N << endl;
@@ -542,13 +539,13 @@ void dsyevr_Eigensystem (DenseMatrix &a,
       }
    if (VU > 1e-9)
    {
-      cerr << "dsyevr_Eigensystem (...):"
+      cerr << "dsyevr_Eigensystem(...):"
            << " Z^t Z - I deviation = " << VU
            << "\n W[max] = " << W[N-1] << ", W[min] = "
            << W[0] << ", N = " << N << endl;
    }
    if (VU > 1e-5)
-      mfem_error ("dsyevr_Eigensystem (...): ERROR: ...");
+      mfem_error("dsyevr_Eigensystem(...): ERROR: ...");
    VU = 0.0;
    for (IL = 0; IL < N; IL++)
       for (IU = 0; IU < N; IU++)
@@ -562,13 +559,13 @@ void dsyevr_Eigensystem (DenseMatrix &a,
       }
    if (VU > 1e-9)
    {
-      cerr << "dsyevr_Eigensystem (...):"
+      cerr << "dsyevr_Eigensystem(...):"
            << " max matrix deviation = " << VU
            << "\n W[max] = " << W[N-1] << ", W[min] = "
            << W[0] << ", N = " << N << endl;
    }
    if (VU > 1e-5)
-      mfem_error ("dsyevr_Eigensystem (...): ERROR: ...");
+      mfem_error("dsyevr_Eigensystem(...): ERROR: ...");
 #endif
 
    delete [] IWORK;
@@ -579,8 +576,7 @@ void dsyevr_Eigensystem (DenseMatrix &a,
 #endif
 }
 
-void dsyev_Eigensystem (DenseMatrix &a,
-                        Vector &ev, DenseMatrix *evect)
+void dsyev_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
 {
 
 #ifdef MFEM_USE_LAPACK
@@ -592,7 +588,7 @@ void dsyev_Eigensystem (DenseMatrix &a,
    int   LWORK  = 3*N; /* max(1,3*N-1) */
    int   INFO;
 
-   ev.SetSize (N);
+   ev.SetSize(N);
 
    double *A    = NULL;
    double *W    = ev.GetData();
@@ -601,8 +597,8 @@ void dsyev_Eigensystem (DenseMatrix &a,
    if (evect)
    {
       JOBZ = 'V';
-      evect -> SetSize (N);
-      A = evect -> Data();
+      evect->SetSize(N);
+      A = evect->Data();
    }
    else
    {
@@ -616,8 +612,7 @@ void dsyev_Eigensystem (DenseMatrix &a,
    for (int i = 0; i < hw; i++)
       A[i] = data[i];
 
-   dsyev_ ( &JOBZ, &UPLO, &N, A, &LDA, W,
-            WORK, &LWORK, &INFO );
+   dsyev_(&JOBZ, &UPLO, &N, A, &LDA, W, WORK, &LWORK, &INFO);
 
    if (INFO != 0)
    {
@@ -631,17 +626,17 @@ void dsyev_Eigensystem (DenseMatrix &a,
 #endif
 }
 
-void DenseMatrix::Eigensystem (Vector &ev, DenseMatrix *evect)
+void DenseMatrix::Eigensystem(Vector &ev, DenseMatrix *evect)
 {
 #ifdef MFEM_USE_LAPACK
 
-   // dsyevr_Eigensystem (*this, ev, evect);
+   // dsyevr_Eigensystem(*this, ev, evect);
 
-   dsyev_Eigensystem (*this, ev, evect);
+   dsyev_Eigensystem(*this, ev, evect);
 
 #else
 
-   mfem_error ("DenseMatrix::Eigensystem");
+   mfem_error("DenseMatrix::Eigensystem");
 
 #endif
 }
@@ -685,13 +680,13 @@ void DenseMatrix::SingularValues(Vector &sv) const
 #endif
 }
 
-void DenseMatrix::GetColumn (int c, Vector &col)
+void DenseMatrix::GetColumn(int c, Vector &col)
 {
    int n;
    double *cp, *vp;
 
    n = Height();
-   col.SetSize (n);
+   col.SetSize(n);
    cp = data + c * n;
    vp = col.GetData();
 
@@ -699,48 +694,51 @@ void DenseMatrix::GetColumn (int c, Vector &col)
       vp[i] = cp[i];
 }
 
-void DenseMatrix::Diag (double c, int n)
+void DenseMatrix::Diag(double c, int n)
 {
    SetSize(n);
 
    int i, N = n*n;
-   for(i = 0; i < N; i++)
+   for (i = 0; i < N; i++)
       data[i] = 0.0;
-   for(i = 0; i < n; i++)
+   for (i = 0; i < n; i++)
       data[i*(n+1)] = c;
 }
 
-
-void DenseMatrix::Diag (double * diag, int n)
+void DenseMatrix::Diag(double *diag, int n)
 {
    SetSize(n);
 
    int i, N = n*n;
-   for(i = 0; i < N; i++)
+   for (i = 0; i < N; i++)
       data[i] = 0.0;
-   for(i = 0; i < n; i++)
+   for (i = 0; i < n; i++)
       data[i*(n+1)] = diag[i];
 }
 
-void DenseMatrix::Transpose ()
+void DenseMatrix::Transpose()
 {
    int i, j;
    double t;
 
-   if (Size() == Height()) {
+   if (Size() == Height())
+   {
       for (i = 0; i < Height(); i++)
-         for (j = i+1; j < Size(); j++) {
+         for (j = i+1; j < Size(); j++)
+         {
             t = (*this)(i,j);
             (*this)(i,j) = (*this)(j,i);
             (*this)(j,i) = t;
          }
-   } else {
+   }
+   else
+   {
       DenseMatrix T(*this,'t');
       (*this) = T;
    }
 }
 
-void DenseMatrix::Transpose (DenseMatrix & A)
+void DenseMatrix::Transpose(DenseMatrix &A)
 {
    SetSize(A.Size(),A.Height());
 
@@ -778,13 +776,13 @@ void DenseMatrix::Lump()
    }
 }
 
-void DenseMatrix::GradToCurl (DenseMatrix &curl)
+void DenseMatrix::GradToCurl(DenseMatrix &curl)
 {
    int n = Height();
 
 #ifdef MFEM_DEBUG
    if (Width() != 3 || curl.Width() != 3 || 3*n != curl.Height())
-      mfem_error ("DenseMatrix::GradToCurl (...)");
+      mfem_error("DenseMatrix::GradToCurl(...)");
 #endif
 
    for (int i = 0; i < n; i++)
@@ -814,12 +812,12 @@ void DenseMatrix::GradToCurl (DenseMatrix &curl)
    }
 }
 
-void DenseMatrix::GradToDiv (Vector &div)
+void DenseMatrix::GradToDiv(Vector &div)
 {
 
 #ifdef MFEM_DEBUG
    if (Width()*Height() != div.Size())
-      mfem_error ("DenseMatrix::GradToDiv (...)");
+      mfem_error("DenseMatrix::GradToDiv(...)");
 #endif
 
    // div(dof*j+i) <-- (*this)(i,j)
@@ -831,27 +829,27 @@ void DenseMatrix::GradToDiv (Vector &div)
       ddata[i] = data[i];
 }
 
-void DenseMatrix::CopyRows (DenseMatrix & A, int row1, int row2)
+void DenseMatrix::CopyRows(DenseMatrix &A, int row1, int row2)
 {
-   SetSize (row2 - row1 + 1, A.Size());
+   SetSize(row2 - row1 + 1, A.Size());
 
    for (int i = row1; i <= row2; i++)
       for (int j = 0; j < Size(); j++)
          (*this)(i-row1,j) = A(i,j);
 }
 
-void DenseMatrix::CopyCols (DenseMatrix & A, int col1, int col2)
+void DenseMatrix::CopyCols(DenseMatrix &A, int col1, int col2)
 {
-   SetSize (A.Height(), col2 - col1 + 1);
+   SetSize(A.Height(), col2 - col1 + 1);
 
    for (int i = 0; i < Height(); i++)
       for (int j = col1; j <= col2; j++)
          (*this)(i,j-col1) = A(i,j);
 }
 
-void DenseMatrix::CopyMN (DenseMatrix & A, int m, int n, int Aro, int Aco)
+void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco)
 {
-   int i,j;
+   int i, j;
 
    SetSize(m,n);
 
@@ -860,32 +858,29 @@ void DenseMatrix::CopyMN (DenseMatrix & A, int m, int n, int Aro, int Aco)
          (*this)(i,j) = A(Aro+i,Aco+j);
 }
 
-void DenseMatrix::CopyMN (DenseMatrix & A,
-                          int row_offset, int col_offset)
+void DenseMatrix::CopyMN(DenseMatrix &A, int row_offset, int col_offset)
 {
-   int i,j;
-   double * v = A.data;
+   int i, j;
+   double *v = A.data;
 
    for (j = 0; j < A.Size(); j++)
       for (i = 0; i < A.Height(); i++)
          (*this)(row_offset+i,col_offset+j) = *(v++);
 }
 
-void DenseMatrix::CopyMNt (DenseMatrix & A,
-                           int row_offset, int col_offset)
+void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
 {
-   int i,j;
-   double * v = A.data;
+   int i, j;
+   double *v = A.data;
 
    for (i = 0; i < A.Size(); i++)
       for (j = 0; j < A.Height(); j++)
          (*this)(row_offset+i,col_offset+j) = *(v++);
 }
 
-void DenseMatrix::CopyMNDiag (double c, int n,
-                              int row_offset, int col_offset)
+void DenseMatrix::CopyMNDiag(double c, int n, int row_offset, int col_offset)
 {
-   int i,j;
+   int i, j;
 
    for (i = 0; i < n; i++)
       for (j = i+1; j < n; j++)
@@ -896,10 +891,10 @@ void DenseMatrix::CopyMNDiag (double c, int n,
       (*this)(row_offset+i,col_offset+i) = c;
 }
 
-void DenseMatrix::CopyMNDiag (double * diag, int n,
-                              int row_offset, int col_offset)
+void DenseMatrix::CopyMNDiag(double *diag, int n, int row_offset,
+                             int col_offset)
 {
-   int i,j;
+   int i, j;
 
    for (i = 0; i < n; i++)
       for (j = i+1; j < n; j++)
@@ -910,7 +905,7 @@ void DenseMatrix::CopyMNDiag (double * diag, int n,
       (*this)(row_offset+i,col_offset+i) = diag[i];
 }
 
-void DenseMatrix::AddMatrix (DenseMatrix &A, int ro, int co)
+void DenseMatrix::AddMatrix(DenseMatrix &A, int ro, int co)
 {
    int h, ah, aw;
    double *p, *ap;
@@ -921,7 +916,7 @@ void DenseMatrix::AddMatrix (DenseMatrix &A, int ro, int co)
 
 #ifdef MFEM_DEBUG
    if (co+aw > Width() || ro+ah > h)
-      mfem_error ("DenseMatrix::AddMatrix (...) 1");
+      mfem_error("DenseMatrix::AddMatrix(...) 1");
 #endif
 
    p  = data + ro + co * h;
@@ -936,8 +931,7 @@ void DenseMatrix::AddMatrix (DenseMatrix &A, int ro, int co)
    }
 }
 
-void DenseMatrix::AddMatrix (double a, DenseMatrix &A,
-                             int ro, int co)
+void DenseMatrix::AddMatrix(double a, DenseMatrix &A, int ro, int co)
 {
    int h, ah, aw;
    double *p, *ap;
@@ -948,7 +942,7 @@ void DenseMatrix::AddMatrix (double a, DenseMatrix &A,
 
 #ifdef MFEM_DEBUG
    if (co+aw > Width() || ro+ah > h)
-      mfem_error ("DenseMatrix::AddMatrix (...) 2");
+      mfem_error("DenseMatrix::AddMatrix(...) 2");
 #endif
 
    p  = data + ro + co * h;
@@ -963,7 +957,7 @@ void DenseMatrix::AddMatrix (double a, DenseMatrix &A,
    }
 }
 
-void DenseMatrix::AddToVector (int offset, Vector &v) const
+void DenseMatrix::AddToVector(int offset, Vector &v) const
 {
    int i, n = size * height;
    double *vdata = v.GetData() + offset;
@@ -972,7 +966,7 @@ void DenseMatrix::AddToVector (int offset, Vector &v) const
       vdata[i] += data[i];
 }
 
-void DenseMatrix::GetFromVector (int offset, const Vector &v)
+void DenseMatrix::GetFromVector(int offset, const Vector &v)
 {
    int i, n = size * height;
    const double *vdata = v.GetData() + offset;
@@ -981,13 +975,13 @@ void DenseMatrix::GetFromVector (int offset, const Vector &v)
       data[i] = vdata[i];
 }
 
-void DenseMatrix::AdjustDofDirection (Array<int> &dofs)
+void DenseMatrix::AdjustDofDirection(Array<int> &dofs)
 {
    int n = Height();
 
 #ifdef MFEM_DEBUG
    if (dofs.Size() != n || Width() != n)
-      mfem_error ("DenseMatrix::AdjustDofDirection (...)");
+      mfem_error("DenseMatrix::AdjustDofDirection(...)");
 #endif
 
    int *dof = dofs;
@@ -1007,7 +1001,7 @@ void DenseMatrix::AdjustDofDirection (Array<int> &dofs)
 }
 
 
-void DenseMatrix::Print (ostream & out, int width) const
+void DenseMatrix::Print(ostream &out, int width) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
@@ -1025,7 +1019,7 @@ void DenseMatrix::Print (ostream & out, int width) const
    }
 }
 
-void DenseMatrix::PrintT (ostream & out, int width) const
+void DenseMatrix::PrintT(ostream &out, int width) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
@@ -1051,8 +1045,8 @@ DenseMatrix::~DenseMatrix()
 
 
 
-void Add (const DenseMatrix & A, const DenseMatrix & B,
-          double alpha, DenseMatrix & C)
+void Add(const DenseMatrix &A, const DenseMatrix &B,
+         double alpha, DenseMatrix &C)
 {
    for (int i = 0; i < C.Height(); i++)
       for (int j = 0; j < C.Size(); j++)
@@ -1060,13 +1054,11 @@ void Add (const DenseMatrix & A, const DenseMatrix & B,
 }
 
 
-void Mult (const DenseMatrix & b,
-           const DenseMatrix & c,
-           DenseMatrix & a)
+void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
 {
 #ifdef MFEM_DEBUG
-   if ( a.height != b.height || a.size != c.size || b.size != c.height )
-      mfem_error ("Mult (product of DenseMatrices)");
+   if (a.height != b.height || a.size != c.size || b.size != c.height)
+      mfem_error("Mult (product of DenseMatrices)");
 #endif
 
    register int ah = a.height;
@@ -1096,12 +1088,12 @@ void Mult (const DenseMatrix & b,
    }
 }
 
-void CalcAdjugate (const DenseMatrix & a, DenseMatrix & adja)
+void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
 {
 #ifdef MFEM_DEBUG
    if (a.Height() != a.Size() || adja.Height() != adja.Size() ||
        a.Size() != adja.Size() || a.Size() < 2 || a.Size() > 3)
-      mfem_error ("DenseMatrix::CalcAdjugate (...)");
+      mfem_error("DenseMatrix::CalcAdjugate(...)");
 #endif
    if (a.Size() == 2)
    {
@@ -1126,12 +1118,12 @@ void CalcAdjugate (const DenseMatrix & a, DenseMatrix & adja)
    }
 }
 
-void CalcAdjugateTranspose (const DenseMatrix & a, DenseMatrix & adjat)
+void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat)
 {
 #ifdef MFEM_DEBUG
    if (a.Height() != a.Size() || adjat.Height() != adjat.Size() ||
        a.Size() != adjat.Size() || a.Size() < 2 || a.Size() > 3)
-      mfem_error ("DenseMatrix::CalcAdjugateTranspose (...)");
+      mfem_error("DenseMatrix::CalcAdjugateTranspose(...)");
 #endif
    if (a.Size() == 2)
    {
@@ -1156,12 +1148,12 @@ void CalcAdjugateTranspose (const DenseMatrix & a, DenseMatrix & adjat)
    }
 }
 
-void CalcInverse(const DenseMatrix & a, DenseMatrix & inva)
+void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 {
 #ifdef MFEM_DEBUG
    if ( (a.Size() != a.Height()) || ( (a.Height()!= 1) && (a.Height()!= 2)
                                       && (a.Height()!= 3) ) )
-      mfem_error ("DenseMatrix::CalcInverse(...)");
+      mfem_error("DenseMatrix::CalcInverse(...)");
 #endif
 
    double t;
@@ -1175,7 +1167,8 @@ void CalcInverse(const DenseMatrix & a, DenseMatrix & inva)
    t = 1.0 / a.Det();
 #endif
 
-   switch (a.Height()) {
+   switch (a.Height())
+   {
    case 1:
       inva(0,0) = 1.0 / a(0,0);
       break;
@@ -1201,17 +1194,18 @@ void CalcInverse(const DenseMatrix & a, DenseMatrix & inva)
    }
 }
 
-void CalcInverseTranspose(const DenseMatrix & a, DenseMatrix & inva)
+void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva)
 {
 #ifdef MFEM_DEBUG
    if ( (a.Size() != a.Height()) || ( (a.Height()!= 1) && (a.Height()!= 2)
                                       && (a.Height()!= 3) ) )
-      mfem_error ("DenseMatrix::CalcInverse(...)");
+      mfem_error("DenseMatrix::CalcInverse(...)");
 #endif
 
    double t = 1. / a.Det() ;
 
-   switch (a.Height()) {
+   switch (a.Height())
+   {
    case 1:
       inva(0,0) = 1.0 / a(0,0);
       break;
@@ -1237,14 +1231,14 @@ void CalcInverseTranspose(const DenseMatrix & a, DenseMatrix & inva)
    }
 }
 
-void MultAAt(DenseMatrix & a, DenseMatrix & aat)
+void MultAAt(const DenseMatrix &a, DenseMatrix &aat)
 {
-   for(int i=0;i<a.Height();i++)
-      for(int j=0;j<=i;j++)
+   for (int i = 0; i < a.Height(); i++)
+      for (int j = 0; j <= i; j++)
       {
-         double temp = 0. ;
-         for(int k=0;k<a.Size();k++)
-            temp += a(i,k) * a(j,k) ;
+         double temp = 0.;
+         for (int k = 0; k < a.Size(); k++)
+            temp += a(i,k) * a(j,k);
          aat(j,i) = aat(i,j) = temp;
       }
 }
@@ -1269,13 +1263,12 @@ dgemm_(char *, char *, int *, int *, int *, double *, double *,
        int *, double *, int *, double *, double *, int *);
 #endif
 
-void MultABt(const DenseMatrix &A, const DenseMatrix &B,
-             DenseMatrix &ABt)
+void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
 {
 #ifdef MFEM_DEBUG
    if (A.Height() != ABt.Height() || B.Height() != ABt.Width() ||
        A.Width() != B.Width())
-      mfem_error ("MultABt (...)");
+      mfem_error("MultABt(...)");
 #endif
 
 #ifdef MFEM_USE_LAPACK
@@ -1300,15 +1293,14 @@ void MultABt(const DenseMatrix &A, const DenseMatrix &B,
 #endif
 }
 
-void AddMultABt ( DenseMatrix & A, DenseMatrix & B,
-                  DenseMatrix & ABt )
+void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
 {
    int i, j, k;
    double d;
 
 #ifdef MFEM_DEBUG
    if (A.Height() != ABt.Height() || B.Height() != ABt.Width())
-      mfem_error ("AddMultABt (...)");
+      mfem_error("AddMultABt(...)");
 #endif
 
    for (i = 0; i < A.Height(); i++)
@@ -1321,13 +1313,12 @@ void AddMultABt ( DenseMatrix & A, DenseMatrix & B,
       }
 }
 
-void MultAtB(const DenseMatrix &A, const DenseMatrix &B,
-             DenseMatrix &AtB)
+void MultAtB(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &AtB)
 {
 #ifdef MFEM_DEBUG
    if (A.Width() != AtB.Height() || B.Width() != AtB.Width() ||
        A.Height() != B.Height())
-      mfem_error ("MultAtB (...)");
+      mfem_error("MultAtB(...)");
 #endif
 
 #ifdef MFEM_USE_LAPACK
@@ -1352,7 +1343,7 @@ void MultAtB(const DenseMatrix &A, const DenseMatrix &B,
 #endif
 }
 
-void AddMult_a_AAt (double a, DenseMatrix &A, DenseMatrix &AAt)
+void AddMult_a_AAt(double a, const DenseMatrix &A, DenseMatrix &AAt)
 {
    double d;
 
@@ -1373,7 +1364,7 @@ void AddMult_a_AAt (double a, DenseMatrix &A, DenseMatrix &AAt)
    }
 }
 
-void Mult_a_AAt (double a, DenseMatrix &A, DenseMatrix &AAt)
+void Mult_a_AAt(double a, const DenseMatrix &A, DenseMatrix &AAt)
 {
    for (int i = 0; i < A.Height(); i++)
       for (int j = 0; j <= i; j++)
@@ -1387,21 +1378,21 @@ void Mult_a_AAt (double a, DenseMatrix &A, DenseMatrix &AAt)
 
 void MultVVt(const Vector &v, DenseMatrix &vvt)
 {
-   for(int i = 0; i < v.Size(); i++)
-      for(int j = 0; j <= i; j++)
+   for (int i = 0; i < v.Size(); i++)
+      for (int j = 0; j <= i; j++)
       {
          vvt(i,j) = vvt(j,i) = v(i) * v(j);
       }
 }
 
-void MultVWt(Vector &v, Vector &w, DenseMatrix &VWt)
+void MultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt)
 {
    int i, j;
    double vi;
 
 #ifdef MFEM_DEBUG
    if (v.Size() != VWt.Height() || w.Size() != VWt.Size())
-      mfem_error ("MultVWt (...)");
+      mfem_error("MultVWt(...)");
 #endif
 
    for (i = 0; i < v.Size(); i++)
@@ -1412,13 +1403,13 @@ void MultVWt(Vector &v, Vector &w, DenseMatrix &VWt)
    }
 }
 
-void AddMultVWt(Vector &v, Vector &w, DenseMatrix &VWt)
+void AddMultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt)
 {
    int m = v.Size(), n = w.Size();
 
 #ifdef MFEM_DEBUG
    if (VWt.Height() != m || VWt.Width() != n)
-      mfem_error ("AddMultVWt (...)");
+      mfem_error("AddMultVWt(...)");
 #endif
 
    for (int i = 0; i < m; i++)
@@ -1435,7 +1426,7 @@ void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt)
 
 #ifdef MFEM_DEBUG
    if (VVt.Height() != n || VVt.Width() != n)
-      mfem_error ("AddMult_a_VVt (...)");
+      mfem_error("AddMult_a_VVt(...)");
 #endif
 
    for (int i = 0; i < n; i++)
@@ -1480,10 +1471,10 @@ void DenseMatrixInverse::Factor()
       data[i] = adata[i];
 
    int info;
-   dgetrf_ (&size, &size, data, &size, ipiv, &info);
+   dgetrf_(&size, &size, data, &size, ipiv, &info);
 
    if (info)
-      mfem_error ("DenseMatrixInverse::Factor : Error in DGETRF");
+      mfem_error("DenseMatrixInverse::Factor : Error in DGETRF");
 #else
    // compiling without LAPACK
    int i, j, k;
@@ -1493,7 +1484,7 @@ void DenseMatrixInverse::Factor()
    {
 #ifdef MFEM_DEBUG
       if (i > 0 && data[i-1+size*(i-1)] == 0.0)
-         mfem_error ("DenseMatrixInverse::Factor()");
+         mfem_error("DenseMatrixInverse::Factor()");
 #endif
       for (j = 0; j < i; j++)
       {
@@ -1534,11 +1525,10 @@ void DenseMatrixInverse::Mult(const Vector &x, Vector &y) const
    int  nrhs  = 1;
    int  info;
    y = x;
-   dgetrs_ (&trans, &n, &nrhs, data, &n, ipiv,
-            y.GetData(), &n, &info);
+   dgetrs_(&trans, &n, &nrhs, data, &n, ipiv, y.GetData(), &n, &info);
 
    if (info)
-      mfem_error ("DenseMatrixInverse::Mult #1");
+      mfem_error("DenseMatrixInverse::Mult #1");
 #else
    // compiling without LAPACK
    int i, j;
@@ -1558,7 +1548,7 @@ void DenseMatrixInverse::Mult(const Vector &x, Vector &y) const
          y(i) -= data[i+size*j] * y(j);
 #ifdef MFEM_DEBUG
       if ((data[i+size*i]) == 0.0)
-         mfem_error ("DenseMatrixInverse::Mult #2");
+         mfem_error("DenseMatrixInverse::Mult #2");
 #endif
       y(i) /= data[i+size*i];
    }
