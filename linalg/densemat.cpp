@@ -1325,7 +1325,7 @@ void MultAtB(const DenseMatrix &A, const DenseMatrix &B,
              DenseMatrix &AtB)
 {
 #ifdef MFEM_DEBUG
-   if (A.Width() != AtB.Width() || B.Width() != AtB.Height() ||
+   if (A.Width() != AtB.Height() || B.Width() != AtB.Width() ||
        A.Height() != B.Height())
       mfem_error ("MultAtB (...)");
 #endif
