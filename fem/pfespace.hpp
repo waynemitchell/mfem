@@ -12,6 +12,8 @@
 #ifndef MFEM_PFESPACE
 #define MFEM_PFESPACE
 
+class GroupCommunicator;
+
 /// Abstract parallel finite element space.
 class ParFiniteElementSpace : public FiniteElementSpace
 {
@@ -22,6 +24,9 @@ private:
 
    /// Parallel mesh.
    ParMesh *pmesh;
+
+   /// GroupCommunicator on the local VDofs
+   GroupCommunicator *gcomm;
 
    /// Number of true dofs in this processor (local true dofs).
    int ltdof_size;
@@ -48,6 +53,16 @@ private:
        given FE space. This is used in SaveUpdate(). */
    ParFiniteElementSpace(ParFiniteElementSpace &pf);
 
+   // ldof_type = 0 : DOFs communicator, otherwise VDOFs communicator
+   void GetGroupComm(GroupCommunicator &gcomm, int ldof_type,
+                     Array<int> *ldof_sign = NULL);
+
+   /// Construct dof_offsets and tdof_offsets using global communication.
+   void GenerateGlobalOffsets();
+
+   /// Construct ldof_group and ldof_ltdof.
+   void ConstructTrueDofs();
+
 public:
    ParFiniteElementSpace(ParMesh *pm, FiniteElementCollection *f,
                          int dim = 1, int order = Ordering::byNODES);
@@ -67,22 +82,21 @@ public:
    /// Returns indexes of degrees of freedom for i'th boundary element.
    virtual void GetBdrElementDofs(int i, Array<int> &dofs) const;
 
-   /// Construct dof_offsets and tdof_offsets using global communication.
-   void GenerateGlobalOffsets();
-
-   /// Construct ldof_group and ldof_ltdof.
-   void ConstructTrueDofs();
-
-   /// The dof-to-true dof interpolation matrix
+   /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix();
 
-   /// Scale a vector in the range of P
-   void DivideByGroupSize(double * vec);
+   /// Scale a vector of true dofs
+   void DivideByGroupSize(double *vec);
 
-   /** Given a marker array on the local degrees of freedom, perform a logical
-       OR between the shared dofs and return the result in the input array with
-       true values set to the given marker. */
-   void Synchronize(Array<int> &dof_marker, int marker = 1);
+   /// Return a reference to the internal GroupCommunicator (on VDofs)
+   GroupCommunicator &GroupComm() { return *gcomm; }
+
+   /// Return a new GroupCommunicator on Dofs
+   GroupCommunicator *ScalarGroupComm();
+
+   /** Given an integer array on the local degrees of freedom, perform
+       a bitwise OR between the shared dofs. */
+   void Synchronize(Array<int> &ldof_marker);
 
    /// Determine the boundary degrees of freedom
    virtual void GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
@@ -103,6 +117,29 @@ public:
    virtual FiniteElementSpace *SaveUpdate();
 
    virtual ~ParFiniteElementSpace() { if (P) delete P; }
+};
+
+class GroupCommunicator
+{
+private:
+   ParMesh &pmesh;
+   Table group_ldof;
+   Array<int> group_buf;
+   MPI_Request *requests;
+   MPI_Status  *statuses;
+
+public:
+   GroupCommunicator(ParMesh &m);
+   Table &GroupLDofTable() { return group_ldof; }
+   /// Allocate internal buffers after the GroupLDofTable is defined
+   void Finalize();
+
+   /// Broadcast within each group where the master is the root
+   void Bcast(Array<int> &ldata);
+   /** Reduce within each group where the master is the root. The reduce
+       operation is bitwise OR. */
+   void Reduce(Array<int> &ldata);
+   ~GroupCommunicator();
 };
 
 #endif
