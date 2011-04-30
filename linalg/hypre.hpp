@@ -181,6 +181,13 @@ HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B);
 /// Returns the matrix P^t * A * P
 HypreParMatrix * RAP(HypreParMatrix *A, HypreParMatrix *P);
 
+/** Eliminate essential b.c. specified by ess_dof_list from the solution x to
+    the r.h.s. b. Here A is matrix with eliminated b.c., while Ae is such that
+    (A+Ae) is the original (Neumann) matrix before elimination. */
+void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
+                 Array<int> &ess_dof_list,
+                 HypreParVector &x, HypreParVector &b);
+
 
 /// Abstract class for hypre's solvers and preconditioners
 class HypreSolver : public Operator

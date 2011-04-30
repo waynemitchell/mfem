@@ -99,7 +99,7 @@ HypreParVector& HypreParVector::operator=(const HypreParVector &y)
 {
 #ifdef MFEM_DEBUG
    if (size != y.Size())
-      cerr << "HypreParVector::operator=" << endl;
+      mfem_error("HypreParVector::operator=");
 #endif
 
    for (int i = 0; i < size; i++)
@@ -378,7 +378,7 @@ void HypreParMatrix::CheckCommPkg()
 {
 #ifdef MFEM_DEBUG
    if (CommPkg == NULL || CommPkg != hypre_ParCSRMatrixCommPkg(A))
-      cerr << endl << "HypreParMatrix::CheckCommPkg()" << endl;
+      mfem_error("\nHypreParMatrix::CheckCommPkg()");
 #endif
 }
 
@@ -564,6 +564,35 @@ HypreParMatrix * RAP(HypreParMatrix *A, HypreParMatrix *P)
    return new HypreParMatrix(rap);
 }
 
+void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
+                 Array<int> &ess_dof_list,
+                 HypreParVector &x, HypreParVector &b)
+{
+   // b -= Ae*x
+   Ae.Mult(x, b, -1.0, 1.0);
+
+   hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag((hypre_ParCSRMatrix *)A);
+   double *data = hypre_CSRMatrixData(A_diag);
+   int    *I    = hypre_CSRMatrixI(A_diag);
+#ifdef MFEM_DEBUG
+   int    *J    = hypre_CSRMatrixJ(A_diag);
+   int *I_offd  =
+      hypre_CSRMatrixI(hypre_ParCSRMatrixOffd((hypre_ParCSRMatrix *)A));
+#endif
+
+   for (int i = 0; i < ess_dof_list.Size(); i++)
+   {
+      int r = ess_dof_list[i];
+      b(r) = data[I[r]] * x(r);
+#ifdef MFEM_DEBUG
+      // Check that in the rows specified by the ess_dof_list, the matrix A has
+      // only one entry -- the diagonal.
+      if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
+         mfem_error("EliminateBC (hypre.cpp)");
+#endif
+   }
+}
+
 
 HypreSolver::HypreSolver()
 {
@@ -587,7 +616,7 @@ void HypreSolver::Mult(const HypreParVector &b, HypreParVector &x) const
 {
    if (A == NULL)
    {
-      cerr << "HypreSolver::Mult (...) : HypreParMatrix A is missing" << endl;
+      mfem_error("HypreSolver::Mult (...) : HypreParMatrix A is missing");
       return;
    }
    if (!setup_called)
@@ -603,7 +632,7 @@ void HypreSolver::Mult(const Vector &b, Vector &x) const
 {
    if (A == NULL)
    {
-      cerr << "HypreSolver::Mult (...) : HypreParMatrix A is missing" << endl;
+      mfem_error("HypreSolver::Mult (...) : HypreParMatrix A is missing");
       return;
    }
    if (B == NULL)
