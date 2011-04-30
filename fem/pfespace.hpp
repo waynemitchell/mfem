@@ -74,6 +74,8 @@ public:
    int TrueVSize()          { return ltdof_size; }
    int *GetDofOffsets()     { return dof_offsets; }
    int *GetTrueDofOffsets() { return tdof_offsets; }
+   int GlobalVSize()        { return Dof_TrueDof_Matrix()->GetGlobalNumRows(); }
+   int GlobalTrueVSize()    { return Dof_TrueDof_Matrix()->GetGlobalNumCols(); }
    int GetDofSign(int i)    { return ldof_sign[i]; }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
