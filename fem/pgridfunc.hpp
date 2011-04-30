@@ -52,6 +52,9 @@ public:
    { Distribute(&tv); return (*this); }
 
    /// Returns the vector averaged on the true dofs.
+   void ParallelAverage(HypreParVector &tv);
+
+   /// Returns a new vector averaged on the true dofs.
    HypreParVector *ParallelAverage();
 
    double ComputeL1Error(Coefficient *exsol[],

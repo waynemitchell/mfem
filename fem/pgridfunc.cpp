@@ -48,47 +48,20 @@ void ParGridFunction::Update(ParFiniteElementSpace *f, Vector &v, int v_offset)
 
 void ParGridFunction::Distribute(HypreParVector *tv)
 {
-   int  nproc   = pfes->GetNRanks();
-   int *dof_off = pfes->GetDofOffsets();
-
-   // vector on (all) dofs
-   HypreParVector *v;
-   if (HYPRE_AssumedPartitionCheck())
-      v = new HypreParVector(dof_off[2], data, dof_off);
-   else
-      v = new HypreParVector(dof_off[nproc], data, dof_off);
-
-   pfes->Dof_TrueDof_Matrix()->Mult(*tv, *v);
-
-   delete v;
+   pfes->Dof_TrueDof_Matrix()->Mult(*tv, *this);
 }
 
-HypreParVector * ParGridFunction::ParallelAverage()
+void ParGridFunction::ParallelAverage(HypreParVector &tv)
 {
-   int  nproc    = pfes->GetNRanks();
-   int *dof_off  = pfes->GetDofOffsets();
-   int *tdof_off = pfes->GetTrueDofOffsets();
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
+   pfes->DivideByGroupSize(tv);
+}
 
-   // vector on true dofs
-   HypreParVector *tv;
-   if (HYPRE_AssumedPartitionCheck())
-      tv = new HypreParVector(tdof_off[2], tdof_off);
-   else
-      tv = new HypreParVector(tdof_off[nproc], tdof_off);
-
-   // vector on (all) dofs
-   HypreParVector *v;
-   if (HYPRE_AssumedPartitionCheck())
-      v = new HypreParVector(dof_off[2], data, dof_off);
-   else
-      v = new HypreParVector(dof_off[nproc], data, dof_off);
-
-   pfes->Dof_TrueDof_Matrix()->MultTranspose(*v, *tv);
-
-   delete v;
-
-   pfes->DivideByGroupSize(*tv);
-
+HypreParVector *ParGridFunction::ParallelAverage()
+{
+   HypreParVector *tv = new HypreParVector(pfes->GlobalTrueVSize(),
+                                           pfes->GetTrueDofOffsets());
+   ParallelAverage(*tv);
    return tv;
 }
 
