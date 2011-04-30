@@ -18,6 +18,8 @@ class ParBilinearForm : public BilinearForm
 protected:
    ParFiniteElementSpace *pfes;
 
+   HypreParMatrix *ParallelAssemble(SparseMatrix *m);
+
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
       : BilinearForm(pf) { pfes = pf; }
@@ -26,7 +28,10 @@ public:
       : BilinearForm(pf, bf) { pfes = pf; }
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
-   HypreParMatrix *ParallelAssemble();
+   HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
+
+   /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
+   HypreParMatrix *ParallelAssembleElim() { return ParallelAssemble(mat_e); }
 
    virtual ~ParBilinearForm() { }
 };

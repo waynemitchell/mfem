@@ -13,19 +13,16 @@
 
 #include "fem.hpp"
 
-HypreParMatrix *ParBilinearForm::ParallelAssemble()
+HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 {
-   int  nproc   = pfes -> GetNRanks();
-   int *dof_off = pfes -> GetDofOffsets();
+   if (m == NULL)
+      return NULL;
 
-   // construct the block-diagonal matrix A
-   HypreParMatrix *A;
-   if (HYPRE_AssumedPartitionCheck())
-      A = new HypreParMatrix(dof_off[2], dof_off, mat);
-   else
-      A = new HypreParMatrix(dof_off[nproc], dof_off, mat);
+   // construct a parallel block-diagonal wrapper matrix A based on m
+   HypreParMatrix *A = new HypreParMatrix(pfes->GlobalVSize(),
+                                          pfes->GetDofOffsets(), m);
 
-   HypreParMatrix *rap = RAP(A, pfes -> Dof_TrueDof_Matrix());
+   HypreParMatrix *rap = RAP(A, pfes->Dof_TrueDof_Matrix());
 
    delete A;
 
