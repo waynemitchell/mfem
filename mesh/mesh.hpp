@@ -477,7 +477,7 @@ public:
    ElementTransformation * GetFineElemTrans (int i, int j);
 
    /// Print the mesh to the given stream using Netgen/Truegrid format.
-   void PrintXG(ostream &out = cout) const;
+   virtual void PrintXG(ostream &out = cout) const;
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
    virtual void Print(ostream &out = cout) const;
@@ -514,7 +514,7 @@ public:
 
    double GetElementVolume(int i);
 
-   void PrintCharacteristics (Vector *Vh = NULL, Vector *Vk = NULL);
+   void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL);
 
    /// Destroys mesh.
    virtual ~Mesh();

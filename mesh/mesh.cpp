@@ -2310,11 +2310,11 @@ void Mesh::CheckElementOrientation()
          }
       }
    }
-//#ifdef MFEM_DEBUG
+#if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
    if (wo > 0)
       cout << "Orientation fixed in " << wo << " of "<< NumOfElements
            << " elements" << endl;
-//#endif
+#endif
 }
 
 int Mesh::GetTriOrientation(const int *base, const int *test)
@@ -2473,11 +2473,11 @@ void Mesh::CheckBdrElementOrientation()
          }
       }
    }
-//#ifdef MFEM_DEBUG
+#if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
    if (wo > 0)
       cout << "Orientation fixed in " << wo << " of "<< NumOfBdrElements
            << " boundary elements" << endl;
-//#endif
+#endif
 }
 
 void Mesh::GetElementEdges(int i, Array<int> &edges, Array<int> &cor)
