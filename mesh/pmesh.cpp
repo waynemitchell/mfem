@@ -1635,7 +1635,7 @@ void ParMesh::HexUniformRefinement()
    }
 }
 
-void ParMesh::Print(ostream &out) const
+void ParMesh::PrintXG(ostream &out) const
 {
    if (Dim == 3 && meshgen == 1)
    {
@@ -1799,6 +1799,77 @@ void ParMesh::Print(ostream &out) const
             out << vertices[i](j) << " ";
          out << '\n';
       }
+   }
+}
+
+void ParMesh::Print(ostream &out) const
+{
+   int i, j, nv, *v;
+   const Array<Element *> &shared_bdr =
+      (Dim == 3) ? shared_faces : shared_edges;
+
+   out << "MFEM mesh v1.0\n";
+
+   // optional
+   out <<
+      "\n#\n# MFEM Geometry Types (see mesh/geom.hpp):\n#\n"
+      "# POINT       = 0\n"
+      "# SEGMENT     = 1\n"
+      "# TRIANGLE    = 2\n"
+      "# SQUARE      = 3\n"
+      "# TETRAHEDRON = 4\n"
+      "# CUBE        = 5\n"
+      "#\n";
+
+   out << "\ndimension\n" << Dim
+       << "\n\nelements\n" << NumOfElements << '\n';
+   for (i = 0; i < NumOfElements; i++)
+   {
+      out << elements[i]->GetAttribute() << ' '
+          << elements[i]->GetGeometryType();
+      nv = elements[i]->GetNVertices();
+      v  = elements[i]->GetVertices();
+      for (j = 0; j < nv; j++)
+         out << ' ' << v[j];
+      out << '\n';
+   }
+   out << "\nboundary\n" << NumOfBdrElements + shared_bdr.Size() << '\n';
+   for (i = 0; i < NumOfBdrElements; i++)
+   {
+      out << boundary[i]->GetAttribute() << ' '
+          << boundary[i]->GetGeometryType();
+      nv = boundary[i]->GetNVertices();
+      v  = boundary[i]->GetVertices();
+      for (j = 0; j < nv; j++)
+         out << ' ' << v[j];
+      out << '\n';
+   }
+   for (i = 0; i < shared_bdr.Size(); i++)
+   {
+      out << shared_bdr[i]->GetAttribute() << ' '
+          << shared_bdr[i]->GetGeometryType();
+      nv = shared_bdr[i]->GetNVertices();
+      v  = shared_bdr[i]->GetVertices();
+      for (j = 0; j < nv; j++)
+         out << ' ' << v[j];
+      out << '\n';
+   }
+   out << "\nvertices\n" << NumOfVertices << '\n';
+   if (Nodes == NULL)
+   {
+      out << Dim << '\n';
+      for (i = 0; i < NumOfVertices; i++)
+      {
+         out << vertices[i](0);
+         for (j = 1; j < Dim; j++)
+            out << ' ' << vertices[i](j);
+         out << '\n';
+      }
+   }
+   else
+   {
+      out << "\nnodes\n";
+      Nodes->Save(out);
    }
 }
 
@@ -2489,6 +2560,120 @@ void ParMesh::PrintAsOneXG(ostream &out)
          MPI_Send(&vert[0], Dim*NumOfVertices, MPI_DOUBLE,
                   0, 445, MyComm);
       }
+   }
+}
+
+void ParMesh::PrintInfo(ostream &out)
+{
+   int i;
+   DenseMatrix J(Dim);
+   double h_min, h_max, kappa_min, kappa_max, h, kappa;
+#ifdef MFEM_USE_LAPACK
+   Vector sv(Dim);
+#else
+   DenseMatrix Jinv(Dim);
+#endif
+
+   if (MyRank == 0)
+      out << "Parallel Mesh Stats:" << endl;
+
+   for (i = 0; i < NumOfElements; i++)
+   {
+      GetElementJacobian(i, J);
+      h = pow(fabs(J.Det()), 1.0/double(Dim));
+#ifdef MFEM_USE_LAPACK
+      // J's condition number in spectral norm
+      J.SingularValues(sv);
+      kappa = sv(0) / sv(Dim-1);
+#else
+      // J's condition number in Frobenius norm
+      CalcInverse(J, Jinv);
+      kappa = J.FNorm() * Jinv.FNorm();
+#endif
+      if (i == 0)
+      {
+         h_min = h_max = h;
+         kappa_min = kappa_max = kappa;
+      }
+      else
+      {
+         if (h < h_min)  h_min = h;
+         if (h > h_max)  h_max = h;
+         if (kappa < kappa_min)  kappa_min = kappa;
+         if (kappa > kappa_max)  kappa_max = kappa;
+      }
+   }
+
+   double gh_min, gh_max, gk_min, gk_max;
+   MPI_Reduce(&h_min, &gh_min, 1, MPI_DOUBLE, MPI_MIN, 0, MyComm);
+   MPI_Reduce(&h_max, &gh_max, 1, MPI_DOUBLE, MPI_MAX, 0, MyComm);
+   MPI_Reduce(&kappa_min, &gk_min, 1, MPI_DOUBLE, MPI_MIN, 0, MyComm);
+   MPI_Reduce(&kappa_max, &gk_max, 1, MPI_DOUBLE, MPI_MAX, 0, MyComm);
+
+   int ldata[5]; // vert, edge, face, elem, neighbors;
+   int mindata[5], maxdata[5], sumdata[5];
+
+   // count locally owned vertices, edges, and faces
+   ldata[0] = GetNV();
+   ldata[1] = GetNEdges();
+   ldata[2] = GetNFaces();
+   ldata[3] = GetNE();
+   ldata[4] = lproc_proc.Size()-1;
+   for (int gr = 1; gr < GetNGroups(); gr++)
+      if (groupmaster_lproc[gr] != 0) // we are not the master
+      {
+         ldata[0] -= group_svert.RowSize(gr-1);
+         ldata[1] -= group_sedge.RowSize(gr-1);
+         ldata[2] -= group_sface.RowSize(gr-1);
+      }
+
+   MPI_Reduce(ldata, mindata, 5, MPI_INT, MPI_MIN, 0, MyComm);
+   MPI_Reduce(ldata, sumdata, 5, MPI_INT, MPI_SUM, 0, MyComm); // overflow?
+   MPI_Reduce(ldata, maxdata, 5, MPI_INT, MPI_MAX, 0, MyComm);
+
+   if (MyRank == 0)
+   {
+      out << '\n'
+          << "           "
+          << setw(12) << "minimum"
+          << setw(12) << "average"
+          << setw(12) << "maximum"
+          << setw(12) << "total" << '\n';
+      out << " vertices  "
+          << setw(12) << mindata[0]
+          << setw(12) << sumdata[0]/NRanks
+          << setw(12) << maxdata[0]
+          << setw(12) << sumdata[0] << '\n';
+      out << " edges     "
+          << setw(12) << mindata[1]
+          << setw(12) << sumdata[1]/NRanks
+          << setw(12) << maxdata[1]
+          << setw(12) << sumdata[1] << '\n';
+      if (Dim == 3)
+         out << " faces     "
+             << setw(12) << mindata[2]
+             << setw(12) << sumdata[2]/NRanks
+             << setw(12) << maxdata[2]
+             << setw(12) << sumdata[2] << '\n';
+      out << " elements  "
+          << setw(12) << mindata[3]
+          << setw(12) << sumdata[3]/NRanks
+          << setw(12) << maxdata[3]
+          << setw(12) << sumdata[3] << '\n';
+      out << " neighbors "
+          << setw(12) << mindata[4]
+          << setw(12) << sumdata[4]/NRanks
+          << setw(12) << maxdata[4] << '\n';
+      out << '\n'
+          << "       "
+          << setw(12) << "minimum"
+          << setw(12) << "maximum" << '\n';
+      out << " h     "
+          << setw(12) << gh_min
+          << setw(12) << gh_max << '\n';
+      out << " kappa "
+          << setw(12) << gk_min
+          << setw(12) << gk_max << '\n';
    }
 }
 

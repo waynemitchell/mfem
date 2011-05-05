@@ -81,9 +81,13 @@ public:
    /// Refine a hexahedral mesh.
    virtual void HexUniformRefinement();
 
-   /** Print the part of the mesh in the calling processor
-       adding the interface as boundary (for visualization purposes) */
+   /** Print the part of the mesh in the calling processor adding the interface
+       as boundary (for visualization purposes) using the default format. */
    virtual void Print(ostream &out = cout) const;
+
+   /** Print the part of the mesh in the calling processor adding the interface
+       as boundary (for visualization purposes) using Netgen/Truegrid format .*/
+   virtual void PrintXG(ostream &out = cout) const;
 
    /** Write the mesh to the stream 'out' on Process 0 in a form
        suitable for visualization: the mesh is written as a disjoint
@@ -94,6 +98,9 @@ public:
 
    /// Old mesh format (Netgen/Truegrid) version of 'PrintAsOne'
    void PrintAsOneXG(ostream &out = cout);
+
+   /// Print various parallel mesh stats
+   void PrintInfo(ostream &out = cout);
 
    virtual ~ParMesh();
 };
