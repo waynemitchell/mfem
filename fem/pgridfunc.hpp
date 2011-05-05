@@ -35,7 +35,11 @@ public:
        The data from 'gf' is NOT copied. */
    ParGridFunction(ParMesh *pmesh, GridFunction *gf);
 
-   ParGridFunction &operator=(double value) { GridFunction::operator=(value); }
+   ParGridFunction &operator=(double value)
+   { GridFunction::operator=(value); return *this; }
+
+   ParGridFunction &operator=(const Vector &v)
+   { GridFunction::operator=(v); return *this; }
 
    ParFiniteElementSpace *ParFESpace() { return pfes; }
 

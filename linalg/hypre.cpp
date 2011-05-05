@@ -951,12 +951,12 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    double rlx_omega     = 1.0;
    int amg_coarsen_type = 10;
    int amg_agg_levels   = 1;
-   int amg_agg_npaths   = 1;
+   // int amg_agg_npaths   = 1;
    int amg_rlx_type     = 8;
    double theta         = 0.25;
    int amg_interp_type  = 6;
    int amg_Pmax         = 4;
-   int print_level      = 1;
+   // int print_level      = 1;
 
    HYPRE_AMSCreate(&ams);
 

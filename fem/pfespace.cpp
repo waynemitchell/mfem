@@ -53,7 +53,7 @@ ParFiniteElementSpace::ParFiniteElementSpace(
 void ParFiniteElementSpace::GetGroupComm(
    GroupCommunicator &gc, int ldof_type, Array<int> *ldof_sign)
 {
-   int i, gr;
+   int gr;
    int ng = pmesh->GetNGroups();
    int nvd, ned, nfd;
    Array<int> dofs;
