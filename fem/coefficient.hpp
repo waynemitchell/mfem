@@ -145,18 +145,22 @@ public:
 class DeltaCoefficient : public Coefficient
 {
 private:
-   double center[3], scale;
+   double center[3], scale, tol;
    Coefficient *weight;
 
 public:
    DeltaCoefficient();
    DeltaCoefficient(double x, double y, double s)
-   { center[0] = x; center[1] = y; center[2] = 0.; scale = s; weight = NULL; }
+   { center[0] = x; center[1] = y; center[2] = 0.; scale = s; tol = 1e-12;
+      weight = NULL; }
    DeltaCoefficient(double x, double y, double z, double s)
-   { center[0] = x; center[1] = y; center[2] = z; scale = s; weight = NULL; }
+   { center[0] = x; center[1] = y; center[2] = z; scale = s; tol = 1e-12;
+      weight = NULL; }
+   void SetTol(double _tol) { tol = _tol; }
    void SetWeight(Coefficient *w) { weight = w; }
    const double *Center() { return center; }
    double Scale() { return scale; }
+   double Tol() { return tol; }
    Coefficient *Weight() { return weight; }
    virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip)
    { mfem_error("DeltaCoefficient::Eval"); return 0.; }
