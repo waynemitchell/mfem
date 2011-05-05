@@ -722,6 +722,9 @@ void GridFunction::ProjectCoefficient(Coefficient &coeff)
 
       (*this) = 0.0;
 
+      if (min_dist >= delta_c->Tol())
+         return;
+
       // find the elements that have 'v_idx' as a vertex
       MassIntegrator Mi(*delta_c->Weight());
       DenseMatrix loc_mass;
