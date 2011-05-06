@@ -156,10 +156,7 @@ HypreParMatrix::HypreParMatrix(int size, int *row, SparseMatrix *diag)
    hypre_CSRMatrixSetRownnz(A->diag);
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
-   hypre_CSRMatrixI(A->offd)    = new int[diag->Size()+1];
-   hypre_CSRMatrixJ(A->offd)    = NULL;
-   for (int k = 0; k < diag->Size()+1; k++)
-      (A->offd)->i[k] = 0;
+   hypre_CSRMatrixI(A->offd)    = hypre_CTAlloc(HYPRE_Int, diag->Size()+1);
 
    /* Don't need to call these, since they allocate memory only
       if it was not already allocated */
@@ -191,8 +188,7 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
    hypre_CSRMatrixSetRownnz(A->diag);
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
-   hypre_CSRMatrixI(A->offd) = new int[diag->Size()+1];
-   for (int k = 0; k < diag->Size()+1; k++) (A->offd)->i[k] = 0;
+   hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(HYPRE_Int, diag->Size()+1);
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
@@ -281,15 +277,14 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
    hypre_CSRMatrixI(A->diag)    = diag->GetI();
    hypre_CSRMatrixJ(A->diag)    = diag->GetJ();
 
-   hypre_CSRMatrixData(A->diag) = new double[nnz];
+   hypre_CSRMatrixData(A->diag) = hypre_TAlloc(double, nnz);
    for (int k = 0; k < nnz; k++)
       (hypre_CSRMatrixData(A->diag))[k] = 1.0;
 
    hypre_CSRMatrixSetRownnz(A->diag);
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
-   hypre_CSRMatrixI(A->offd) = new int[diag->Size()+1];
-   for (int k = 0; k < diag->Size()+1; k++) (A->offd)->i[k] = 0;
+   hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(HYPRE_Int, diag->Size()+1);
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
@@ -332,11 +327,11 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 
    int i;
 
-   double * a_diag = new double[diag_col];
+   double *a_diag = hypre_TAlloc(double, diag_col);
    for (i = 0; i < diag_col; i++)
       a_diag[i] = 1.0;
 
-   double * a_offd = new double[offd_col];
+   double *a_offd = hypre_TAlloc(double, offd_col);
    for (i = 0; i < offd_col; i++)
       a_offd[i] = 1.0;
 
@@ -1030,7 +1025,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
             }
       }
       HYPRE_AMSConstructDiscreteGradient(A, *x, edge_vertex, 1, &Gh);
-      delete edge_vertex;
+      delete [] edge_vertex;
    }
    G = new HypreParMatrix((hypre_ParCSRMatrix *)Gh);
    HYPRE_AMSSetDiscreteGradient(ams, *G);

@@ -291,13 +291,13 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
    col_starts = GetTrueDofOffsets();
    row_starts = GetDofOffsets();
 
-   i_diag = new int[ldof+1];
-   j_diag = new int[ltdof];
+   i_diag = hypre_TAlloc(HYPRE_Int, ldof+1);
+   j_diag = hypre_TAlloc(HYPRE_Int, ltdof);
 
-   i_offd = new int[ldof+1];
-   j_offd = new int[ldof-ltdof];
+   i_offd = hypre_TAlloc(HYPRE_Int, ldof+1);
+   j_offd = hypre_TAlloc(HYPRE_Int, ldof-ltdof);
 
-   cmap   = new int[ldof-ltdof];
+   cmap   = hypre_TAlloc(HYPRE_Int, ldof-ltdof);
 
    Array<Pair<int, int> > cmap_j_offd(ldof-ltdof);
 
@@ -307,7 +307,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       int nsize = pmesh -> lproc_proc.Size()-1;
       MPI_Request *requests = new MPI_Request[2*nsize];
       MPI_Status  *statuses = new MPI_Status[2*nsize];
-      ncol_starts = hypre_CTAlloc(int, nsize+1);
+      ncol_starts = new int[nsize+1];
 
       int request_counter = 0;
       // send and receive neighbors' local tdof offsets
