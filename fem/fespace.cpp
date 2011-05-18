@@ -811,5 +811,5 @@ void FiniteElementSpace::Save (ostream &out) const
    out << "FiniteElementSpace\n"
        << "FiniteElementCollection: " << fec -> Name() << '\n'
        << "VDim: " << vdim << '\n'
-       << "Ordering: " << ordering << endl;
+       << "Ordering: " << ordering << '\n';
 }

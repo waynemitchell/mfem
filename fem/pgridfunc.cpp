@@ -169,7 +169,7 @@ void ParGridFunction::SaveAsOne(ostream &out)
    if (MyRank == 0)
    {
       pfes -> Save(out);
-      out << endl;
+      out << '\n';
 
       for (p = 1; p < NRanks; p++)
       {
@@ -192,19 +192,19 @@ void ParGridFunction::SaveAsOne(ostream &out)
          {
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nvdofs[p]; i++)
-                  out << *values[p]++ << endl;
+                  out << *values[p]++ << '\n';
 
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nedofs[p]; i++)
-                  out << *values[p]++ << endl;
+                  out << *values[p]++ << '\n';
 
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nfdofs[p]; i++)
-                  out << *values[p]++ << endl;
+                  out << *values[p]++ << '\n';
 
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nrdofs[p]; i++)
-                  out << *values[p]++ << endl;
+                  out << *values[p]++ << '\n';
          }
       }
       else
@@ -212,22 +212,22 @@ void ParGridFunction::SaveAsOne(ostream &out)
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nvdofs[p]; i++)
                for (int d = 0; d < vdim; d++)
-                  out << *values[p]++ << endl;
+                  out << *values[p]++ << '\n';
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nedofs[p]; i++)
                for (int d = 0; d < vdim; d++)
-                  out << *values[p]++ << endl;
+                  out << *values[p]++ << '\n';
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nfdofs[p]; i++)
                for (int d = 0; d < vdim; d++)
-                  out << *values[p]++ << endl;
+                  out << *values[p]++ << '\n';
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nrdofs[p]; i++)
                for (int d = 0; d < vdim; d++)
-                  out << *values[p]++ << endl;
+                  out << *values[p]++ << '\n';
       }
 
       for (p = 1; p < NRanks; p++)

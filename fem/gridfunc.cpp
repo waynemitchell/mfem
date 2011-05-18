@@ -12,6 +12,7 @@
 // Implementation of GridFunction
 
 #include "fem.hpp"
+#include <cstring>
 #include <math.h>
 
 GridFunction::GridFunction(Mesh *m, istream &input)
@@ -37,6 +38,75 @@ GridFunction::GridFunction(Mesh *m, istream &input)
    input.getline(buff, bufflen); // read the empty line
    fes = new FiniteElementSpace(m, fec, vdim, ordering);
    Vector::Load(input, fes->GetVSize());
+}
+
+GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
+{
+   // all GridFunctions must have the same FE collection, vdim, ordering
+   int vdim, ordering;
+
+   fes = gf_array[0]->FESpace();
+   fec = FiniteElementCollection::New(fes->FEColl()->Name());
+   vdim = fes->GetVDim();
+   ordering = fes->GetOrdering();
+   fes = new FiniteElementSpace(m, fec, vdim, ordering);
+   SetSize(fes->GetVSize());
+
+   int g_ndofs  = fes->GetNDofs();
+   int g_nvdofs = fes->GetNVDofs();
+   int g_nedofs = fes->GetNEDofs();
+   int g_nfdofs = fes->GetNFDofs();
+   int g_nddofs = g_ndofs - (g_nvdofs + g_nedofs + g_nfdofs);
+   int vi, ei, fi, di;
+   vi = ei = fi = di = 0;
+   for (int i = 0; i < num_pieces; i++)
+   {
+      FiniteElementSpace *l_fes = gf_array[i]->FESpace();
+      int l_ndofs  = l_fes->GetNDofs();
+      int l_nvdofs = l_fes->GetNVDofs();
+      int l_nedofs = l_fes->GetNEDofs();
+      int l_nfdofs = l_fes->GetNFDofs();
+      int l_nddofs = l_ndofs - (l_nvdofs + l_nedofs + l_nfdofs);
+      const double *l_data = gf_array[i]->GetData();
+      double *g_data = data;
+      if (ordering == Ordering::byNODES)
+      {
+         for (int d = 0; d < vdim; d++)
+         {
+            memcpy(g_data+vi, l_data, l_nvdofs*sizeof(double));
+            l_data += l_nvdofs;
+            g_data += g_nvdofs;
+            memcpy(g_data+ei, l_data, l_nedofs*sizeof(double));
+            l_data += l_nedofs;
+            g_data += g_nedofs;
+            memcpy(g_data+fi, l_data, l_nfdofs*sizeof(double));
+            l_data += l_nfdofs;
+            g_data += g_nfdofs;
+            memcpy(g_data+di, l_data, l_nddofs*sizeof(double));
+            l_data += l_nddofs;
+            g_data += g_nddofs;
+         }
+      }
+      else
+      {
+         memcpy(g_data+vdim*vi, l_data, vdim*l_nvdofs*sizeof(double));
+         l_data += vdim*l_nvdofs;
+         g_data += vdim*g_nvdofs;
+         memcpy(g_data+vdim*ei, l_data, vdim*l_nedofs*sizeof(double));
+         l_data += vdim*l_nedofs;
+         g_data += vdim*g_nedofs;
+         memcpy(g_data+vdim*fi, l_data, vdim*l_nfdofs*sizeof(double));
+         l_data += vdim*l_nfdofs;
+         g_data += vdim*g_nfdofs;
+         memcpy(g_data+vdim*di, l_data, vdim*l_nddofs*sizeof(double));
+         l_data += vdim*l_nddofs;
+         g_data += vdim*g_nddofs;
+      }
+      vi += l_nvdofs;
+      ei += l_nedofs;
+      fi += l_nfdofs;
+      di += l_nddofs;
+   }
 }
 
 GridFunction::~GridFunction()
@@ -1305,7 +1375,7 @@ GridFunction & GridFunction::operator=(const GridFunction &v)
 void GridFunction::Save(ostream &out)
 {
    fes->Save(out);
-   out << endl;
+   out << '\n';
    Vector::Print(out, 1);
 }
 

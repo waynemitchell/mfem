@@ -1964,6 +1964,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          if (num_elem_dofs > 0)
          {
             // matters when the 'fec' is
+            // (this code is executed only for triangles/tets)
             // - Pk on triangles, k >= 4
             // - Qk on quads,     k >= 3
             // - Pk on tets,      k >= 5
@@ -2217,6 +2218,99 @@ void Mesh::Load(istream &input, Vector **data, int nprocessors,
       SetAttributes();
 
       np = elems = bdrelems = totalNumberOfVertices = 0;
+   }
+}
+
+Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
+{
+   int      i, j, ie, ib, iv, *v, nv;
+   Element *el;
+   Mesh    *m;
+
+   Init();
+   InitTables();
+
+   Dim = mesh_array[0]->Dimension();
+
+   NumOfElements    = 0;
+   NumOfBdrElements = 0;
+   NumOfVertices    = 0;
+   for (i = 0; i < num_pieces; i++)
+   {
+      m = mesh_array[i];
+      NumOfElements    += m->GetNE();
+      NumOfBdrElements += m->GetNBE();
+      NumOfVertices    += m->GetNV();
+   }
+   elements.SetSize(NumOfElements);
+   boundary.SetSize(NumOfBdrElements);
+   vertices.SetSize(NumOfVertices);
+   ie = ib = iv = 0;
+   for (i = 0; i < num_pieces; i++)
+   {
+      m = mesh_array[i];
+      // copy the elements
+      for (j = 0; j < m->GetNE(); j++)
+      {
+         el = m->GetElement(j)->Duplicate();
+         v  = el->GetVertices();
+         nv = el->GetNVertices();
+         for (int k = 0; k < nv; k++)
+            v[k] += iv;
+         elements[ie++] = el;
+      }
+      // copy the boundary elements
+      for (j = 0; j < m->GetNBE(); j++)
+      {
+         el = m->GetBdrElement(j)->Duplicate();
+         v  = el->GetVertices();
+         nv = el->GetNVertices();
+         for (int k = 0; k < nv; k++)
+            v[k] += iv;
+         boundary[ib++] = el;
+      }
+      // copy the vertices
+      for (j = 0; j < m->GetNV(); j++)
+         vertices[iv++].SetCoords(m->GetVertex(j));
+   }
+
+   // set the mesh type ('meshgen')
+   meshgen = 0;
+   for (i = 0; i < num_pieces; i++)
+      meshgen |= mesh_array[i]->MeshGenerator();
+
+   // generate faces
+   if (Dim > 2)
+   {
+      GetElementToFaceTable();
+      GenerateFaces();
+   }
+   else
+      NumOfFaces = 0;
+
+   // generate edges
+   if (Dim > 1)
+   {
+      el_to_edge = new Table;
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+      if (Dim == 2)
+         GenerateFaces(); // 'Faces' in 2D refers to the edges
+   }
+   else
+      NumOfEdges = 0;
+
+   // generate the arrays 'attributes' and ' bdr_attributes'
+   SetAttributes();
+
+   // copy the nodes (curvilinear meshes)
+   GridFunction *g = mesh_array[0]->GetNodes();
+   if (g)
+   {
+      Array<GridFunction *> gf_array(num_pieces);
+      for (i = 0; i < num_pieces; i++)
+         gf_array[i] = mesh_array[i]->GetNodes();
+      Nodes = new GridFunction(this, gf_array, num_pieces);
+      own_nodes = 1;
    }
 }
 

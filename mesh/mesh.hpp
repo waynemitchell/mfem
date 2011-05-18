@@ -247,6 +247,8 @@ public:
        different subdomains. */
    Mesh ( istream ** input, int nprocessors, int * dim);
 
+   Mesh(Mesh *mesh_array[], int num_pieces);
+
    /* This is similar to the above mesh constructor, but here the current
       mesh is destroyed and another one created based on the data stream
       again given in netgen format. If generate_edges = 0 (default) edges
