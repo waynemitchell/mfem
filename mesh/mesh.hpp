@@ -232,21 +232,7 @@ public:
        are generated. */
    Mesh ( istream &input, int generate_edges = 0, int refine = 1);
 
-   /** Start creating a mesh by reading data stream in netgen format. If
-       generate_edges = 0 (default) edges are not generated, if 1 edges
-       are generated. Used with consecutive load calls. */
-   Mesh ( istream &input, Vector **data, int nprocessors,
-          int currentprocessor, int generate_edges = 0 );
-
-   /** Creating a mesh from array of nprocessors input streams. The meshes
-       are read in the array order. The nodes in the consecutive meshes are
-       properly shifted. dim is output array of dimension nprocessors and
-       gives the number of vertices in the different subdomains. The obtained
-       global mesh is nonconforming between the subdomains in the sence that
-       the same nodes on the boundary have different indices (from the
-       different subdomains. */
-   Mesh ( istream ** input, int nprocessors, int * dim);
-
+   /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
 
    /* This is similar to the above mesh constructor, but here the current
@@ -254,11 +240,6 @@ public:
       again given in netgen format. If generate_edges = 0 (default) edges
       are not generated, if 1 edges are generated. */
    void Load ( istream &input, int generate_edges = 0, int refine = 1);
-
-   /* Continue loading a mesh - started by the constructor that takes as
-      argument number of processors. */
-   void Load ( istream &input, Vector **data, int nprocessors,
-               int currentprocessor, int generate_edges = 0);
 
    void SetNodalFESpace(FiniteElementSpace *nfes);
    void SetNodalGridFunction(GridFunction *nodes);
