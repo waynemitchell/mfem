@@ -162,23 +162,16 @@ int main (int argc, char *argv[])
    // 13. (Optional) Send the solution by socket to a GLVis server.
    char vishost[] = "localhost";
    int  visport   = 19916;
-   osockstream *sol_sock;
-   if (myid == 0)
-   {
-      sol_sock = new osockstream(visport, vishost);
-      if (pmesh->Dimension() == 2)
-         *sol_sock << "fem2d_gf_data\n";
-      else
-         *sol_sock << "fem3d_gf_data\n";
-      sol_sock->precision(8);
-   }
-   pmesh->PrintAsOne(*sol_sock);
-   x.SaveAsOne(*sol_sock);
-   if (myid == 0)
-   {
-      sol_sock->send();
-      delete sol_sock;
-   }
+   osockstream sol_sock(visport, vishost);
+   sol_sock << "parallel " << num_procs << " " << myid << "\n";
+   if (pmesh->Dimension() == 2)
+      sol_sock << "fem2d_gf_data\n";
+   else
+      sol_sock << "fem3d_gf_data\n";
+   sol_sock.precision(8);
+   pmesh->Print(sol_sock);
+   x.Save(sol_sock);
+   sol_sock.send();
 
    // 14. Free the used memory.
    delete pcg;

@@ -257,23 +257,16 @@ int main (int argc, char *argv[])
    //     the displacements.
    char vishost[] = "localhost";
    int  visport   = 19916;
-   osockstream *sol_sock;
-   if (myid == 0)
-   {
-      sol_sock = new osockstream(visport, vishost);
-      if (dim == 2)
-         *sol_sock << "vfem2d_gf_data\n";
-      else
-         *sol_sock << "vfem3d_gf_data\n";
-      sol_sock->precision(8);
-   }
-   pmesh->PrintAsOne(*sol_sock);
-   x.SaveAsOne(*sol_sock);
-   if (myid == 0)
-   {
-      sol_sock->send();
-      delete sol_sock;
-   }
+   osockstream sol_sock(visport, vishost);
+   sol_sock << "parallel " << num_procs << " " << myid << "\n";
+   if (dim == 2)
+      sol_sock << "vfem2d_gf_data\n";
+   else
+      sol_sock << "vfem3d_gf_data\n";
+   sol_sock.precision(8);
+   pmesh->Print(sol_sock);
+   x.Save(sol_sock);
+   sol_sock.send();
 
    // 15. Free the used memory.
    delete pcg;
