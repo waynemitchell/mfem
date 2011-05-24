@@ -282,6 +282,30 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
 
    switch (Geom)
    {
+   case Geometry::SEGMENT:
+   {
+      const int g = Geometry::SEGMENT;
+      if (RGeom[g] != NULL && RGeom[g]->Times == Times)
+         return RGeom[g];
+      delete RGeom[g];
+      RGeom[g] = new RefinedGeometry(Times+1, 2*Times, 0);
+      RGeom[g]->Times = Times;
+      RGeom[g]->ETimes = 0;
+      for (i = 0; i <= Times; i++)
+      {
+         IntegrationPoint &ip = RGeom[g]->RefPts.IntPoint(i);
+         ip.x = double(i) / Times;
+      }
+      Array<int> &G = RGeom[g]->RefGeoms;
+      for (i = 0; i < Times; i++)
+      {
+         G[2*i+0] = i;
+         G[2*i+1] = i+1;
+      }
+
+      return RGeom[g];
+   }
+
    case Geometry::TRIANGLE:
    {
       if (RGeom[2] != NULL && RGeom[2]->Times == Times &&
