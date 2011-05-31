@@ -406,6 +406,7 @@ public:
    ///  The returned Table must be destroyed by the caller
    Table *GetVertexToElementTable();
 
+   int *CartesianPartitioning(int nxyz[]);
    int *GeneratePartitioning(int nparts, int part_method = 1);
    void CheckPartitioning(int *partitioning);
 
