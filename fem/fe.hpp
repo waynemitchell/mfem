@@ -897,6 +897,33 @@ public:
 };
 
 
+class RT0HexFiniteElement : public VectorFiniteElement
+{
+   private:
+      static const double nk[6][3];
+
+   public:
+      RT0HexFiniteElement();
+
+      virtual void CalcVShape(const IntegrationPoint &ip,
+                              DenseMatrix &shape) const;
+
+      virtual void CalcVShape(ElementTransformation &Trans,
+                              DenseMatrix &shape) const
+      { CalcVShape_RT(Trans, shape); };
+
+      virtual void CalcDivShape(const IntegrationPoint &ip,
+                                Vector &divshape) const;
+
+      virtual void GetLocalInterpolation (ElementTransformation &Trans,
+                                          DenseMatrix &I) const;
+
+      using FiniteElement::Project;
+
+      virtual void Project (VectorCoefficient &vc,
+                            ElementTransformation &Trans, Vector &dofs) const;
+};
+
 class RT0TetFiniteElement : public VectorFiniteElement
 {
 private:

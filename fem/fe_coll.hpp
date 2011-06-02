@@ -454,6 +454,7 @@ class RT0_3DFECollection : public FiniteElementCollection
 {
 private:
    const P0TriangleFiniteElement TriangleFE;
+   const RT0HexFiniteElement HexahedronFE;
    const RT0TetFiniteElement TetrahedronFE;
 public:
    RT0_3DFECollection() { };

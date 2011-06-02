@@ -905,6 +905,7 @@ RT0_3DFECollection::FiniteElementForGeometry(int GeomType) const
    {
    case Geometry::TRIANGLE:    return &TriangleFE;
    case Geometry::TETRAHEDRON: return &TetrahedronFE;
+   case Geometry::CUBE:        return &HexahedronFE;
    default:
       mfem_error ("RT0_3DFECollection: unknown geometry type.");
    }
