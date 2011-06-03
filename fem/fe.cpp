@@ -3896,7 +3896,7 @@ RT0HexFiniteElement::RT0HexFiniteElement()
 }
 
 void RT0HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
-                                      DenseMatrix &shape) const
+                                     DenseMatrix &shape) const
 {
    double x = ip.x, y = ip.y, z = ip.z;
    // z = 0 
@@ -3958,7 +3958,7 @@ void RT0HexFiniteElement::GetLocalInterpolation (
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT0HexFiniteElement::GetLocalInterpolation (...)\n"
-                  " k = " << k << ", j = " << j << ", d = " << d << endl;
+               " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -3991,8 +3991,8 @@ void RT0HexFiniteElement::GetLocalInterpolation (
 }
 
 void RT0HexFiniteElement::Project (
-      VectorCoefficient &vc, ElementTransformation &Trans,
-      Vector &dofs) const
+   VectorCoefficient &vc, ElementTransformation &Trans,
+   Vector &dofs) const
 {
    double vk[3];
    Vector xk (vk, 3);
