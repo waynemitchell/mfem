@@ -422,12 +422,26 @@ void DenseMatrix::Norm2(double *v) const
 double DenseMatrix::FNorm() const
 {
    int i, hw = Height() * Size();
-   double a = 0.0;
+   double max_norm = 0.0, entry, fnorm2;
 
    for (i = 0; i < hw; i++)
-      a += data[i] * data[i];
+   {
+      entry = fabs(data[i]);
+      if (entry > max_norm)
+         max_norm = entry;
+   }
 
-   return sqrt(a);
+   if (max_norm == 0.0)
+      return 0.0;
+
+   fnorm2 = 0.0;
+   for (i = 0; i < hw; i++)
+   {
+      entry = data[i] / max_norm;
+      fnorm2 += entry * entry;
+   }
+
+   return max_norm * sqrt(fnorm2);
 }
 
 #ifdef MFEM_USE_LAPACK
