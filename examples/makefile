@@ -41,7 +41,7 @@ LAPACK_LIBS_NO  =
 LAPACK_LIBS_YES = $(LAPACK_LIB) $(BLAS_LIB)
 LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
 
-serial: ex1 ex2 ex3 ex6
+serial: ex1 ex2 ex3 ex4 ex6
 
 parallel: ex1p ex2p ex3p
 
@@ -62,6 +62,9 @@ ex3: ex3.cpp
 
 ex3p: ex3p.cpp
 	$(MPICC) $(MPIOPTS) ex3p.cpp -o ex3p $(MPILIBS)
+	
+ex4: ex4.cpp
+	$(CC) $(OPTS) ex4.cpp -o ex4 $(LIBS)
 
 ex6: ex6.cpp
 	$(CC) $(OPTS) ex6.cpp -o ex6 $(LIBS)
@@ -73,5 +76,5 @@ pdebug:
 	make "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
 
 clean:
-	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex6
+	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex6
 	rm -f refined.mesh displaced.mesh sol.gf perturbed.mesh smoothed.mesh

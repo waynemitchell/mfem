@@ -454,6 +454,7 @@ class RT0_3DFECollection : public FiniteElementCollection
 {
 private:
    const P0TriangleFiniteElement TriangleFE;
+   const P0QuadFiniteElement QuadrilateralFE;
    const RT0HexFiniteElement HexahedronFE;
    const RT0TetFiniteElement TetrahedronFE;
 public:
@@ -465,6 +466,8 @@ public:
    virtual int DofForGeometry(int GeomType) const;
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
+   
+   virtual const char * Name() const { return "RT0_3D"; };
 };
 
 
