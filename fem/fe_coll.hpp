@@ -466,7 +466,7 @@ public:
    virtual int DofForGeometry(int GeomType) const;
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
-   
+
    virtual const char * Name() const { return "RT0_3D"; };
 };
 

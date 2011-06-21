@@ -11,11 +11,11 @@
 //               ex4 ../data/fichera-q3.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
-//               problem corresponding to the second order definite 
+//               problem corresponding to the second order definite
 //               equation grad(alpha div F) - beta F = f with boundary condition
 //               F dot n = <given normal field>. Here, we use a given exact
 //               solution F and compute the corresponding r.h.s. f.
-//               We discretize with the lowest order Raviart-Thomas finite 
+//               We discretize with the lowest order Raviart-Thomas finite
 //               elements.
 //
 //               The example demonstrates the use of H(div) finite element
@@ -43,8 +43,8 @@ int main (int argc, char *argv[])
       return 1;
    }
 
-   // 1. Read the 2D or 3D mesh from the given mesh file. In this example, we 
-   //    can handle triangular, quadrilateral, tetrahedral or hexahedral meshes 
+   // 1. Read the 2D or 3D mesh from the given mesh file. In this example, we
+   //    can handle triangular, quadrilateral, tetrahedral or hexahedral meshes
    //    with the same code.
    ifstream imesh(argv[1]);
    if (!imesh)
@@ -54,9 +54,9 @@ int main (int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   
+
    const int dim = mesh->Dimension();
- 
+
    // 2. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
@@ -73,13 +73,13 @@ int main (int argc, char *argv[])
    FiniteElementCollection *fec;
    switch (dim)
    {
-      default:
-      case 2:
-         fec = new RT0_2DFECollection; break;
-      case 3:
-         fec = new RT0_3DFECollection; break;
+   default:
+   case 2:
+      fec = new RT0_2DFECollection; break;
+   case 3:
+      fec = new RT0_3DFECollection; break;
    }
-   
+
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side
@@ -133,11 +133,11 @@ int main (int argc, char *argv[])
    FiniteElementCollection *dfec;
    switch (dim)
    {
-      default:
-      case 2:
-         dfec = new LinearDiscont2DFECollection; break;
-      case 3:
-         dfec = new LinearDiscont3DFECollection; break;
+   default:
+   case 2:
+      dfec = new LinearDiscont2DFECollection; break;
+   case 3:
+      dfec = new LinearDiscont3DFECollection; break;
    }
    FiniteElementSpace *dfespace = new FiniteElementSpace(mesh, dfec, dim);
    GridFunction dx(dfespace);
@@ -160,11 +160,11 @@ int main (int argc, char *argv[])
    osockstream sol_sock(visport, vishost);
    switch (dim)
    {
-      default:
-      case 2:
-         sol_sock << "vfem2d_gf_data\n"; break;
-      case 3:
-         sol_sock << "vfem3d_gf_data\n"; break;
+   default:
+   case 2:
+      sol_sock << "vfem2d_gf_data\n"; break;
+   case 3:
+      sol_sock << "vfem3d_gf_data\n"; break;
    }
    sol_sock.precision(8);
    mesh->Print(sol_sock);
@@ -190,14 +190,14 @@ int main (int argc, char *argv[])
 void F_exact(const Vector &p, Vector &F)
 {
    double x,y,z;
-   
+
    int dim = p.Size();
-   
+
    x = p(0);
    y = p(1);
    if(dim == 3)
       z = p(2);
-   
+
    F(0) = M_PI*cos(M_PI*x)*sin(M_PI*y);
    F(1) = M_PI*cos(M_PI*y)*sin(M_PI*x);
    if(dim == 3)
@@ -208,18 +208,18 @@ void F_exact(const Vector &p, Vector &F)
 void f_exact(const Vector &p, Vector &f)
 {
    double x,y,z;
-   
+
    int dim = p.Size();
-   
+
    x = p(0);
    y = p(1);
    if(dim == 3)
       z = p(2);
-     
+
    double temp = 1 + 2*M_PI*M_PI;
-    
+
    f(0) = M_PI*temp*cos(M_PI*x)*sin(M_PI*y);
    f(1) = M_PI*temp*cos(M_PI*y)*sin(M_PI*x);
    if(dim == 3)
-      f(2) = 0; 
+      f(2) = 0;
 }

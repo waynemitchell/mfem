@@ -905,12 +905,12 @@ RT0_3DFECollection::FiniteElementForGeometry(int GeomType) const
 {
    switch (GeomType)
    {
-      case Geometry::TRIANGLE:    return &TriangleFE;
-      case Geometry::SQUARE:      return &QuadrilateralFE;
-      case Geometry::CUBE:        return &HexahedronFE;
-      case Geometry::TETRAHEDRON: return &TetrahedronFE;
-      default:
-         mfem_error ("RT0_3DFECollection: unknown geometry type.");
+   case Geometry::TRIANGLE:    return &TriangleFE;
+   case Geometry::SQUARE:      return &QuadrilateralFE;
+   case Geometry::CUBE:        return &HexahedronFE;
+   case Geometry::TETRAHEDRON: return &TetrahedronFE;
+   default:
+      mfem_error ("RT0_3DFECollection: unknown geometry type.");
    }
    return &HexahedronFE; // Make some compilers happy
 }
@@ -919,24 +919,24 @@ int RT0_3DFECollection::DofForGeometry(int GeomType) const
 {
    switch (GeomType)
    {
-      case Geometry::POINT:       return 0;
-      case Geometry::SEGMENT:     return 0;
-      case Geometry::TRIANGLE:    return 1;
-      case Geometry::SQUARE:      return 1;
-      case Geometry::TETRAHEDRON: return 0;
-      case Geometry::CUBE:        return 0;
-      default:
-         mfem_error ("RT0_3DFECollection: unknown geometry type.");
+   case Geometry::POINT:       return 0;
+   case Geometry::SEGMENT:     return 0;
+   case Geometry::TRIANGLE:    return 1;
+   case Geometry::SQUARE:      return 1;
+   case Geometry::TETRAHEDRON: return 0;
+   case Geometry::CUBE:        return 0;
+   default:
+      mfem_error ("RT0_3DFECollection: unknown geometry type.");
    }
    return 0; // Make some compilers happy
 }
 
-int * RT0_3DFECollection::DofOrderForOrientation(int GeomType, int Or) 
+int * RT0_3DFECollection::DofOrderForOrientation(int GeomType, int Or)
    const
 {
    static int ind_pos[] = { 0 };
    static int ind_neg[] = { -1 };
-   
+
    if ((GeomType == Geometry::TRIANGLE) || (GeomType == Geometry::SQUARE))
    {
       if (Or % 2 == 0)
