@@ -3901,10 +3901,10 @@ void RT0HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
    // z = 0
    shape(0,0) = 0.;
    shape(0,1) = 0.;
-   shape(0,2) = 1. - z;
+   shape(0,2) = z - 1.;
    // y = 0
    shape(1,0) = 0.;
-   shape(1,1) = 1. - y;
+   shape(1,1) = y - 1.;
    shape(1,2) = 0.;
    // x = 1
    shape(2,0) = x;
@@ -3915,7 +3915,7 @@ void RT0HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
    shape(3,1) = y;
    shape(3,2) = 0.;
    // x = 0
-   shape(4,0) = 1. - x;
+   shape(4,0) = x - 1.;
    shape(4,1) = 0.;
    shape(4,2) = 0.;
    // z = 1
@@ -3927,12 +3927,12 @@ void RT0HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
 void RT0HexFiniteElement::CalcDivShape(const IntegrationPoint &ip,
                                        Vector &divshape) const
 {
-   divshape(0) = -1.;
-   divshape(1) = -1.;
-   divshape(2) =  1.;
-   divshape(3) =  1.;
-   divshape(4) = -1.;
-   divshape(5) =  1.;
+   divshape(0) = 1.;
+   divshape(1) = 1.;
+   divshape(2) = 1.;
+   divshape(3) = 1.;
+   divshape(4) = 1.;
+   divshape(5) = 1.;
 }
 
 const double RT0HexFiniteElement::nk[6][3] =
