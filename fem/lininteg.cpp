@@ -205,8 +205,8 @@ void VectorBoundaryFluxLFIntegrator::AssembleRHSElementVect(
       const DenseMatrix &Jac = Tr.Jacobian();
       if (dim == 2)
       {
-         nor(0) = -Jac (1,0);
-         nor(1) =  Jac (0,0);
+         nor(0) =  Jac (1,0);
+         nor(1) = -Jac (0,0);
       }
       else if (dim == 3)
       {

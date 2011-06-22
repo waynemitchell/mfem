@@ -1039,39 +1039,6 @@ Mesh::Mesh(istream &input, int generate_edges, int refine)
    Load(input, generate_edges, refine);
 }
 
-
-// mesh types:
-// 0 - MFEM mesh v1.0
-// 1 - 1D mesh ("linemesh"?)
-// 2 - 2D Netgen mesh ("areamesh2") / MFEM curvil. ext. ("curved_areamesh2")
-// 3 - 3D Netgen mesh ("NETGEN" / "NETGEN_Neutral_Format")
-// 4 - TrueGrid mesh (2D/3D how?)
-// 5 - VTK mesh
-static int GetMeshTypeFromStream(istream &meshin)
-{
-   string buff;
-   int type = -1;
-   streampos start_pos = meshin.tellg();
-
-   meshin >> ws;
-   getline(meshin, buff);
-   if (buff == "MFEM mesh v1.0")
-      type = 0;
-   if (buff == "linemesh")
-      type = 1;
-   else if (buff == "areamesh2" || buff == "curved_areamesh2")
-      type = 2;
-   else if (buff == "NETGEN" || buff == "NETGEN_Neutral_Format")
-      type = 3;
-   else if (buff == "TrueGrid")
-      type = 4;
-   else if (buff == "# vtk DataFile Version 3.0")
-      type = 5;
-   meshin.seekg(start_pos);
-
-   return type;
-}
-
 Element *NewElement(int geom)
 {
    switch (geom)
@@ -1146,28 +1113,25 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
    if (own_nodes) delete Nodes;
    Nodes = NULL;
 
-   int mesh_type = GetMeshTypeFromStream(input);
+   string mesh_type;
+   input >> ws;
+   getline(input, mesh_type);
 
-   if (mesh_type < 0)
-   {
-      mfem_error("Mesh::Load : Unknown input mesh format!");
-      return;
-   }
-
-   if (mesh_type == 0)
+   if (mesh_type == "MFEM mesh v1.0")
    {
       // Read MFEM mesh v1.0 format
       string ident;
       int attr, geom, nv, *v;
 
-      // read the mesh format line and lines begining with '#' (comments)
+      // read lines begining with '#' (comments)
       do
       {
          input >> ws;
+         if (input.peek() != '#')
+            break;
          getline(input, ident);
-         input >> ws;
       }
-      while (input.peek() == '#');
+      while (1);
 
       input >> ident; // 'dimension'
       input >> Dim;
@@ -1220,13 +1184,11 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          curved = 1;
       }
    }
-   else if (mesh_type == 1)
+   else if (mesh_type == "linemesh")
    {
       int j,p1,p2,a;
 
       Dim = 1;
-      // Read 1st (info) line
-      input >> buf;
 
       input >> NumOfVertices;
       vertices.SetSize(NumOfVertices);
@@ -1253,13 +1215,12 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          boundary[j] = new Point(ind,a);
       }
    }
-   else if (mesh_type == 2)
+   else if (mesh_type == "areamesh2" || mesh_type == "curved_areamesh2")
    {
       // Read planar mesh in Netgen format.
       Dim = 2;
-      // Read the type of the mesh.
-      input >> buf;
-      if (!strcmp("curved_areamesh2", buf))
+
+      if (mesh_type == "curved_areamesh2")
          curved = 1;
 
       // Read the boundary elements.
@@ -1314,12 +1275,10 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          input >> ws;
       }
    }
-   else if (mesh_type == 3)
+   else if (mesh_type == "NETGEN" || mesh_type == "NETGEN_Neutral_Format")
    {
       // Read a netgen format mesh of tetrahedra.
       Dim = 3;
-      // Read the type of the mesh.
-      input >> buf;
 
       // Read the vertices
       input >> NumOfVertices;
@@ -1365,12 +1324,9 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          boundary[i] = new Triangle(ints, attr);
       }
    }
-   else if (mesh_type == 4)
+   else if (mesh_type == "TrueGrid")
    {
       // Reading TrueGrid mesh.
-
-      // Read the type of the mesh.
-      input >> buf;
 
       // TODO: find the actual dimension
       Dim = 3;
@@ -1458,13 +1414,11 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          }
       }
    }
-   else if (mesh_type == 5)
+   else if (mesh_type == "# vtk DataFile Version 3.0")
    {
       // Reading VTK mesh
 
       string buff;
-      input >> ws;
-      getline(input, buff); // "# vtk DataFile Version 3.0"
       getline(input, buff); // comment line
       getline(input, buff);
       if (buff != "ASCII")
@@ -1727,6 +1681,11 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
 
          read_gf = 0;
       }
+   }
+   else
+   {
+      mfem_error("Mesh::Load : Unknown input mesh format!");
+      return;
    }
 
    // at this point the following should be defined:
@@ -2381,7 +2340,7 @@ void Mesh::GetBdrElementEdges(int i, Array<int> &edges, Array<int> &cor)
       cor.SetSize(1);
       edges[0] = be_to_edge[i];
       const int *v = boundary[i]->GetVertices();
-      cor[0] = (v[0]<v[1]) ? (1) : (-1);
+      cor[0] = (v[0] < v[1]) ? (1) : (-1);
    }
    else if (Dim == 3)
    {
@@ -2884,7 +2843,7 @@ void Mesh::GenerateFaces()
          for (int j = 0; j < ne; j++)
          {
             const int *e = elements[i]->GetEdgeVertices(j);
-            AddSegmentFaceElement(j, ef[j], i, v[e[1]], v[e[0]]);
+            AddSegmentFaceElement(j, ef[j], i, v[e[0]], v[e[1]]);
          }
       }
       else
