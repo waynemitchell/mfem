@@ -108,6 +108,12 @@ public:
 
    void ProjectBdrCoefficient(Coefficient *coeff[], Array<int> &attr);
 
+   /** Project the normal component of the given VectorCoefficient on
+       the boundary. Only boundary attributes that are marked in
+       'bdr_attr' are projected. Assumes RT-type VectorFE GridFunction. */
+   void ProjectBdrCoefficientNormal(VectorCoefficient &vcoeff,
+                                    Array<int> &bdr_attr);
+
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;
 

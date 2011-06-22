@@ -929,6 +929,52 @@ void GridFunction::ProjectBdrCoefficient(
    }
 }
 
+void GridFunction::ProjectBdrCoefficientNormal(
+   VectorCoefficient &vcoeff, Array<int> &bdr_attr)
+{
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   Array<int> dofs;
+   int dim = vcoeff.GetVDim();
+   Vector vc(dim), nor(dim), lvec, shape;
+
+   for (int i = 0; i < fes->GetNBE(); i++)
+   {
+      if (bdr_attr[fes->GetBdrAttribute(i)-1] == 0)
+         continue;
+      fe = fes->GetBE(i);
+      T = fes->GetBdrElementTransformation(i);
+      int intorder = fe->GetOrder() + 1;
+      const IntegrationRule &ir = IntRules.Get(fe->GetGeomType(), intorder);
+      int nd = fe->GetDof();
+      lvec.SetSize(nd);
+      shape.SetSize(nd);
+      lvec = 0.0;
+      for (int j = 0; j < ir.GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir.IntPoint(j);
+         T->SetIntPoint(&ip);
+         vcoeff.Eval(vc, *T, ip);
+         const DenseMatrix &J = T->Jacobian();
+         if (dim == 2)
+         {
+            nor(0) =  J(1,0);
+            nor(1) = -J(0,0);
+         }
+         else if (dim == 3)
+         {
+            nor(0) = J(1,0)*J(2,1) - J(2,0)*J(1,1);
+            nor(1) = J(2,0)*J(0,1) - J(0,0)*J(2,1);
+            nor(2) = J(0,0)*J(1,1) - J(1,0)*J(0,1);
+         }
+         fe->CalcShape(ip, shape);
+         lvec.Add(ip.weight * (vc * nor), shape);
+      }
+      fes->GetBdrElementDofs(i, dofs);
+      SetSubVector(dofs, lvec);
+   }
+}
+
 double GridFunction::ComputeL2Error(
    Coefficient *exsol[], const IntegrationRule *irs[]) const
 {
