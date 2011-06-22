@@ -121,7 +121,7 @@ int main (int argc, char *argv[])
    }
 
    LinearForm *b = new LinearForm(fespace);
-   b->AddDomainIntegrator(new VectorBoundaryLFIntegrator(f));
+   b->AddBoundaryIntegrator(new VectorBoundaryLFIntegrator(f));
    cout << "r.h.s. ... " << flush;
    b->Assemble();
 

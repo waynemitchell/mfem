@@ -152,7 +152,7 @@ int main (int argc, char *argv[])
    }
 
    ParLinearForm *b = new ParLinearForm(fespace);
-   b->AddDomainIntegrator(new VectorBoundaryLFIntegrator(f));
+   b->AddBoundaryIntegrator(new VectorBoundaryLFIntegrator(f));
    if (myid == 0)
       cout << "r.h.s. ... " << flush;
    b->Assemble();
