@@ -955,7 +955,8 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
 
    HYPRE_AMSCreate(&ams);
 
-   HYPRE_AMSSetDimension(ams, 3); // 3D problems
+   int dim = edge_fespace->GetMesh()->Dimension();
+   HYPRE_AMSSetDimension(ams, dim); // 2D H(div) and 3D H(curl) problems
    HYPRE_AMSSetTol(ams, 0.0);
    HYPRE_AMSSetMaxIter(ams, 1); // use as a preconditioner
    HYPRE_AMSSetCycleType(ams, cycle_type);
@@ -976,12 +977,21 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
       coord = pmesh -> GetVertex(i);
       x_coord(i) = coord[0];
       y_coord(i) = coord[1];
-      z_coord(i) = coord[2];
+      if (dim == 3)
+         z_coord(i) = coord[2];
    }
    x = x_coord.ParallelAverage();
    y = y_coord.ParallelAverage();
-   z = z_coord.ParallelAverage();
-   HYPRE_AMSSetCoordinateVectors(ams, *x, *y, *z);
+   if (dim == 2)
+   {
+      z = NULL;
+      HYPRE_AMSSetCoordinateVectors(ams, *x, *y, NULL);
+   }
+   else
+   {
+      z = z_coord.ParallelAverage();
+      HYPRE_AMSSetCoordinateVectors(ams, *x, *y, *z);
+   }
 
    // generate and set the discrete gradient
    HYPRE_ParCSRMatrix Gh;
@@ -1039,7 +1049,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
                                theta, amg_interp_type, amg_Pmax);
    HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                               theta, amg_interp_type, amg_Pmax);
-
 }
 
 HypreAMS::~HypreAMS()
