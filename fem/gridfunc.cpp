@@ -153,28 +153,40 @@ int GridFunction::VectorDim() const
 
 void GridFunction::GetNodalValues(int i, Array<double> &nval, int vdim) const
 {
-   Array<int> dofs;
+   Array<int> vdofs;
 
    int k;
 
-   fes->GetElementVDofs(i, dofs);
+   fes->GetElementVDofs(i, vdofs);
    const FiniteElement *FElem = fes->GetFE(i);
    const IntegrationRule *ElemVert =
       Geometries.GetVertices(FElem->GetGeomType());
    int dof = FElem->GetDof();
-   Vector DofVal(dof);
    int n = ElemVert->GetNPoints();
    nval.SetSize(n);
    vdim--;
-   for (k = 0; k < n; k++)
+   Vector loc_data;
+   GetSubVector(vdofs, loc_data);
+
+   if (FElem->GetRangeType() == FiniteElement::SCALAR)
    {
-      FElem->CalcShape(ElemVert->IntPoint(k), DofVal);
-      nval[k] = 0.0;
-      for (int j = 0; j < dof; j++)
-         if (dofs[dof*vdim+j] >= 0)
-            nval[k] += DofVal(j) * data[dofs[dof*vdim+j]];
-         else
-            nval[k] -= DofVal(j) * data[-1-dofs[dof*vdim+j]];
+      Vector shape(dof);
+      for (k = 0; k < n; k++)
+      {
+         FElem->CalcShape(ElemVert->IntPoint(k), shape);
+         nval[k] = shape * ((const double *)loc_data + dof * vdim);
+      }
+   }
+   else
+   {
+      ElementTransformation *Tr = fes->GetElementTransformation(i);
+      DenseMatrix vshape(dof, FElem->GetDim());
+      for (k = 0; k < n; k++)
+      {
+         Tr->SetIntPoint(&ElemVert->IntPoint(k));
+         FElem->CalcVShape(*Tr, vshape);
+         nval[k] = loc_data * (&vshape(0,vdim));
+      }
    }
 }
 
