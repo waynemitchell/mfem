@@ -66,6 +66,12 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
       fec = new CrouzeixRaviartFECollection;
    else if (!strcmp(name, "ND1_3D"))
       fec = new ND1_3DFECollection;
+   else if (!strcmp(name, "RT0_2D"))
+      fec = new RT0_2DFECollection;
+   else if (!strcmp(name, "RT1_2D"))
+      fec = new RT1_2DFECollection;
+   else if (!strcmp(name, "RT2_2D"))
+      fec = new RT2_2DFECollection;
    else if (!strcmp(name, "RT0_3D"))
       fec = new RT0_3DFECollection;
    else
