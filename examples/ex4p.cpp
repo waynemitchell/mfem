@@ -2,7 +2,8 @@
 //
 // Compile with: make ex4
 //
-// Sample runs:  mpirun -np 4 ex4p ../data/star.mesh
+// Sample runs:  mpirun -np 4 ex4p ../data/square-disc.mesh
+//               mpirun -np 4 ex4p ../data/star.mesh
 //               mpirun -np 4 ex4p ../data/beam-tet.mesh
 //               mpirun -np 4 ex4p ../data/beam-hex.mesh
 //               mpirun -np 4 ex4p ../data/escher.mesh
@@ -11,12 +12,11 @@
 //               mpirun -np 4 ex4p ../data/fichera-q3.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
-//               problem corresponding to the second order definite
-//               equation grad(alpha div F) - beta F = f with boundary condition
-//               F dot n = <given normal field>. Here, we use a given exact
-//               solution F and compute the corresponding r.h.s. f.
-//               We discretize with the lowest order Raviart-Thomas finite
-//               elements.
+//               problem corresponding to the second order definite equation
+//               -grad(alpha div F) + beta F = f with boundary condition F dot n
+//               = <given normal field>. Here, we use a given exact solution F
+//               and compute the corresponding r.h.s. f.  We discretize with the
+//               lowest order Raviart-Thomas finite elements.
 //
 //               The example demonstrates the use of H(div) finite element
 //               spaces with the grad-div and H(div) vector finite element mass
@@ -36,7 +36,7 @@ void f_exact(const Vector &, Vector &);
 int main (int argc, char *argv[])
 {
    int num_procs, myid;
-   
+
    // 1. Initialize MPI
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
@@ -46,13 +46,13 @@ int main (int argc, char *argv[])
 
    if (argc == 1)
    {
-      cout << "\nUsage: ex4 <mesh_file>\n" << endl;
+      cout << "\nUsage: mpirun -np <np> ex4 <mesh_file>\n" << endl;
       MPI_Finalize();
       return 1;
    }
 
    // 2. Read the (serial) mesh from the given mesh file on all processors.
-   //    In this 2D/3D example, we can handle triangular, quadrilateral, 
+   //    In this 2D/3D example, we can handle triangular, quadrilateral,
    //    tetrahedral or hexahedral meshes with the same code.
    ifstream imesh(argv[1]);
    if (!imesh)
@@ -64,9 +64,9 @@ int main (int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
- 
+
    const int dim = mesh->Dimension();
-   
+
    // 3. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
@@ -88,7 +88,7 @@ int main (int argc, char *argv[])
       for (int l = 0; l < par_ref_levels; l++)
          pmesh->UniformRefinement();
    }
-   
+
    // 5. Define a parallel finite element space on the parallel mesh. Here we
    //    use the lowest order Raviart-Thomas finite elements.
    FiniteElementCollection *fec;
@@ -100,9 +100,8 @@ int main (int argc, char *argv[])
       case 3:
          fec = new RT0_3DFECollection; break;
    }
-
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
-   
+
    // 6. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
    //    (f,phi_i) where f is given by the function f_exact and phi_i are the
@@ -120,7 +119,7 @@ int main (int argc, char *argv[])
    ParGridFunction x(fespace);
    VectorFunctionCoefficient F(dim, F_exact);
    x.ProjectCoefficient(F);
-   
+
    // 8. Set up the parallel bilinear form corresponding to the H(div) diffusion
    //    operator grad alpha div + beta I, by adding the div-div and the
    //    mass domain integrators and finally imposing non-homogeneous Dirichlet
@@ -154,16 +153,19 @@ int main (int argc, char *argv[])
    delete alpha;
    delete beta;
    delete b;
-   
-   // 10. Define and apply a parallel PCG solver for AX=B with the AMG
-   //     preconditioner from hypre.
-   HypreBoomerAMG *amg = new HypreBoomerAMG(*A);
-   amg->SetSystemsOptions(dim);
+
+   // 10. Define and apply a parallel PCG solver for AX=B with the AMS (for 2D
+   //     problems) or AMG (in 3D) preconditioner from hypre.
+   HypreSolver *prec;
+   if (dim == 2)
+      prec = new HypreAMS(*A, fespace);
+   else
+      prec = new HypreBoomerAMG(*A);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-10);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*amg);
+   pcg->SetPreconditioner(*prec);
    pcg->Mult(*B, *X);
 
    // 11. Extract the parallel grid function corresponding to the finite element
@@ -176,7 +178,7 @@ int main (int argc, char *argv[])
       if (myid == 0)
          cout << "\n|| F_h - F ||_{L^2} = " << err << '\n' << endl;
    }
-   
+
    // 13. In order to visualize the solution, we first represent it in the space
    //     of linear discontinuous vector finite elements. The representation in
    //     this space is given by (exact) projection with ProjectVectorFieldOn.
@@ -192,7 +194,7 @@ int main (int argc, char *argv[])
    ParFiniteElementSpace *dfespace = new ParFiniteElementSpace(pmesh, dfec, dim);
    ParGridFunction dx(dfespace);
    x.ProjectVectorFieldOn(dx);
-   
+
    // 14. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
@@ -212,7 +214,7 @@ int main (int argc, char *argv[])
       if (myid == 0)
          sol_ofs.close();
    }
-   
+
    // 15. (Optional) Send the solution by socket to a GLVis server.
    char vishost[] = "localhost";
    int  visport   = 19916;
@@ -230,12 +232,12 @@ int main (int argc, char *argv[])
    pmesh->Print(sol_sock);
    dx.Save(sol_sock);
    sol_sock.send();
-   
+
    // 16. Free the used memory.
    delete dfespace;
    delete dfec;
    delete pcg;
-   delete amg;
+   delete prec;
    delete X;
    delete B;
    delete A;
@@ -244,7 +246,7 @@ int main (int argc, char *argv[])
    delete pmesh;
 
    MPI_Finalize();
-   
+
    return 0;
 }
 
@@ -261,8 +263,8 @@ void F_exact(const Vector &p, Vector &F)
    if(dim == 3)
       z = p(2);
 
-   F(0) = M_PI*cos(M_PI*x)*sin(M_PI*y);
-   F(1) = M_PI*cos(M_PI*y)*sin(M_PI*x);
+   F(0) = cos(M_PI*x)*sin(M_PI*y);
+   F(1) = cos(M_PI*y)*sin(M_PI*x);
    if(dim == 3)
       F(2) = 0.0;
 }
@@ -281,8 +283,8 @@ void f_exact(const Vector &p, Vector &f)
 
    double temp = 1 + 2*M_PI*M_PI;
 
-   f(0) = M_PI*temp*cos(M_PI*x)*sin(M_PI*y);
-   f(1) = M_PI*temp*cos(M_PI*y)*sin(M_PI*x);
+   f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
+   f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
    if(dim == 3)
       f(2) = 0;
 }

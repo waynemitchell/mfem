@@ -45,7 +45,7 @@ int main (int argc, char *argv[])
    if (argc == 1)
    {
       if (myid == 0)
-         cout << "\nUsage: ex3 <mesh_file>\n" << endl;
+         cout << "\nUsage: mpirun -np <np> ex3 <mesh_file>\n" << endl;
       MPI_Finalize();
       return 1;
    }

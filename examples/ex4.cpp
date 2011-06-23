@@ -2,7 +2,8 @@
 //
 // Compile with: make ex4
 //
-// Sample runs:  ex4 ../data/star.mesh
+// Sample runs:  ex4 ../data/square-disc.mesh
+//               ex4 ../data/star.mesh
 //               ex4 ../data/beam-tet.mesh
 //               ex4 ../data/beam-hex.mesh
 //               ex4 ../data/escher.mesh
@@ -11,12 +12,11 @@
 //               ex4 ../data/fichera-q3.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
-//               problem corresponding to the second order definite
-//               equation grad(alpha div F) - beta F = f with boundary condition
-//               F dot n = <given normal field>. Here, we use a given exact
-//               solution F and compute the corresponding r.h.s. f.
-//               We discretize with the lowest order Raviart-Thomas finite
-//               elements.
+//               problem corresponding to the second order definite equation
+//               -grad(alpha div F) + beta F = f with boundary condition F dot n
+//               = <given normal field>. Here, we use a given exact solution F
+//               and compute the corresponding r.h.s. f.  We discretize with the
+//               lowest order Raviart-Thomas finite elements.
 //
 //               The example demonstrates the use of H(div) finite element
 //               spaces with the grad-div and H(div) vector finite element mass
@@ -122,7 +122,7 @@ int main (int argc, char *argv[])
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
    x = 0.0;
-   PCG(A, M, *b, x, 1, 1000, 1e-12, 0.0);
+   PCG(A, M, *b, x, 1, 10000, 1e-20, 0.0);
 
    // 8. Compute and print the L^2 norm of the error.
    cout << "\n|| F_h - F ||_{L^2} = " << x.ComputeL2Error(F) << '\n' << endl;
@@ -198,8 +198,8 @@ void F_exact(const Vector &p, Vector &F)
    if(dim == 3)
       z = p(2);
 
-   F(0) = M_PI*cos(M_PI*x)*sin(M_PI*y);
-   F(1) = M_PI*cos(M_PI*y)*sin(M_PI*x);
+   F(0) = cos(M_PI*x)*sin(M_PI*y);
+   F(1) = cos(M_PI*y)*sin(M_PI*x);
    if(dim == 3)
       F(2) = 0.0;
 }
@@ -218,8 +218,9 @@ void f_exact(const Vector &p, Vector &f)
 
    double temp = 1 + 2*M_PI*M_PI;
 
-   f(0) = M_PI*temp*cos(M_PI*x)*sin(M_PI*y);
-   f(1) = M_PI*temp*cos(M_PI*y)*sin(M_PI*x);
+   f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
+   f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
    if(dim == 3)
       f(2) = 0;
 }
+
