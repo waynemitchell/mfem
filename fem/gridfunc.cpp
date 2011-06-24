@@ -654,16 +654,31 @@ void GridFunction::GetVectorGradientHat(
 
 double GridFunction::GetDivergence(ElementTransformation &tr)
 {
-   DenseMatrix grad_hat;
-   GetVectorGradientHat(tr, grad_hat);
-   int dim = grad_hat.Size();
-   DenseMatrix Jinv(dim);
-   CalcInverse(tr.Jacobian(), Jinv);
-   double div_v = 0.0;
-   for (int i = 0; i < dim; i++)
-      for (int j = 0; j < dim; j++)
-         div_v += grad_hat(i, j) * Jinv(j, i);
-
+   double div_v;
+   int elNo = tr.ElementNo;
+   const FiniteElement *FElem = fes->GetFE(elNo);
+   if (FElem->GetRangeType() == FiniteElement::SCALAR)
+   {
+      DenseMatrix grad_hat;
+      GetVectorGradientHat(tr, grad_hat);
+      int dim = grad_hat.Size();
+      DenseMatrix Jinv(dim);
+      CalcInverse(tr.Jacobian(), Jinv);
+      div_v = 0.0;
+      for (int i = 0; i < dim; i++)
+         for (int j = 0; j < dim; j++)
+            div_v += grad_hat(i, j) * Jinv(j, i);
+   }
+   else
+   {
+      // Assuming RT-type space
+      Array<int> dofs;
+      fes->GetElementDofs(elNo, dofs);
+      Vector loc_data, divshape(FElem->GetDof());
+      GetSubVector(dofs, loc_data);
+      FElem->CalcDivShape(tr.GetIntPoint(), divshape);
+      div_v = (loc_data * divshape) / tr.Weight();
+   }
    return div_v;
 }
 
@@ -956,7 +971,7 @@ void GridFunction::ProjectBdrCoefficientNormal(
          continue;
       fe = fes->GetBE(i);
       T = fes->GetBdrElementTransformation(i);
-      int intorder = fe->GetOrder() + 1;
+      int intorder = 2*fe->GetOrder(); // !!!
       const IntegrationRule &ir = IntRules.Get(fe->GetGeomType(), intorder);
       int nd = fe->GetDof();
       lvec.SetSize(nd);
