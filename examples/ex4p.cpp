@@ -73,7 +73,7 @@ int main (int argc, char *argv[])
    //    more than 1,000 elements.
    {
       int ref_levels =
-            (int)floor(log(1000./mesh->GetNE())/log(2.)/mesh->Dimension());
+         (int)floor(log(1000./mesh->GetNE())/log(2.)/mesh->Dimension());
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }
@@ -94,11 +94,11 @@ int main (int argc, char *argv[])
    FiniteElementCollection *fec;
    switch (dim)
    {
-      default:
-      case 2:
-         fec = new RT0_2DFECollection; break;
-      case 3:
-         fec = new RT0_3DFECollection; break;
+   default:
+   case 2:
+      fec = new RT0_2DFECollection; break;
+   case 3:
+      fec = new RT0_3DFECollection; break;
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
 
@@ -185,11 +185,11 @@ int main (int argc, char *argv[])
    FiniteElementCollection *dfec;
    switch (dim)
    {
-      default:
-      case 2:
-         dfec = new LinearDiscont2DFECollection; break;
-      case 3:
-         dfec = new LinearDiscont3DFECollection; break;
+   default:
+   case 2:
+      dfec = new LinearDiscont2DFECollection; break;
+   case 3:
+      dfec = new LinearDiscont3DFECollection; break;
    }
    ParFiniteElementSpace *dfespace = new ParFiniteElementSpace(pmesh, dfec, dim);
    ParGridFunction dx(dfespace);
@@ -222,11 +222,11 @@ int main (int argc, char *argv[])
    sol_sock << "parallel " << num_procs << " " << myid << "\n";
    switch (dim)
    {
-      default:
-      case 2:
-         sol_sock << "vfem2d_gf_data\n"; break;
-      case 3:
-         sol_sock << "vfem3d_gf_data\n"; break;
+   default:
+   case 2:
+      sol_sock << "vfem2d_gf_data\n"; break;
+   case 3:
+      sol_sock << "vfem3d_gf_data\n"; break;
    }
    sol_sock.precision(8);
    pmesh->Print(sol_sock);
