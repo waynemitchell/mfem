@@ -250,6 +250,22 @@ ElementTransformation *Mesh::GetBdrElementTransformation(int i)
    return &FaceTransformation;
 }
 
+ElementTransformation *Mesh::GetFaceTransformation(int FaceNo)
+{
+   FaceTransformation.Attribute = faces[FaceNo]->GetAttribute();
+   FaceTransformation.ElementNo = FaceNo;
+   const int *v = faces[FaceNo]->GetVertices();
+   const int nv = faces[FaceNo]->GetNVertices();
+   DenseMatrix &pm = FaceTransformation.GetPointMat();
+   pm.SetSize(Dim, nv);
+   for (int i = 0; i < Dim; i++)
+      for (int j = 0; j < nv; j++)
+         pm(i, j) = vertices[v[j]](i);
+   FaceTransformation.SetFE(
+      GetTransformationFEforElementType(faces[FaceNo]->GetType()));
+   return &FaceTransformation;
+}
+
 void Mesh::GetLocalSegToTriTransformation(
    IsoparametricTransformation &Transf, int i)
 {

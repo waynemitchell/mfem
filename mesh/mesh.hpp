@@ -360,6 +360,9 @@ public:
    /// Returns the transformation defining the i-th boundary element
    ElementTransformation * GetBdrElementTransformation(int i);
 
+   /// Returns the transformation defining the given face element
+   ElementTransformation *GetFaceTransformation(int FaceNo);
+
    /** Returns (a poiter to a structure containing) the following data:
        1) Elem1No - the index of the first element that contains this face
        this is the element that has the same outward unit normal
