@@ -51,10 +51,11 @@ void Vector::Load (istream ** in, int np, int * dim) {
          *in[i] >> data[p++];
 }
 
-void Vector::Load(istream &in, int Size){
-   SetSize (Size);
+void Vector::Load(istream &in, int Size)
+{
+   SetSize(Size);
 
-   for(int i=0; i<size; i++)
+   for (int i = 0; i < size; i++)
       in >> data[i];
 }
 

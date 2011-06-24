@@ -40,18 +40,18 @@ CCC = $(CC) $(CCOPTS) $(DEFS)
 
 # Generate with 'echo general/*.cpp linalg/*.cpp mesh/*.cpp fem/*.cpp'
 SOURCE_FILES = general/array.cpp general/error.cpp general/isockstream.cpp     \
-general/osockstream.cpp general/sets.cpp general/sort_pairs.cpp                \
-general/stable3d.cpp general/table.cpp general/tic_toc.cpp linalg/bicgstab.cpp \
-linalg/cgsolver.cpp linalg/densemat.cpp linalg/gmres.cpp linalg/hypre.cpp      \
-linalg/matrix.cpp linalg/operator.cpp linalg/pcgsolver.cpp                     \
-linalg/sparsemat.cpp linalg/sparsesmoothers.cpp linalg/vector.cpp              \
-mesh/element.cpp mesh/hexahedron.cpp mesh/mesh.cpp mesh/pmesh.cpp              \
-mesh/point.cpp mesh/quadrilateral.cpp mesh/segment.cpp mesh/tetrahedron.cpp    \
-mesh/triangle.cpp mesh/vertex.cpp fem/bilinearform.cpp fem/bilininteg.cpp      \
-fem/coefficient.cpp fem/eltrans.cpp fem/fe_coll.cpp fem/fe.cpp fem/fespace.cpp \
-fem/geom.cpp fem/gridfunc.cpp fem/intrules.cpp fem/linearform.cpp              \
-fem/lininteg.cpp fem/pbilinearform.cpp fem/pfespace.cpp fem/pgridfunc.cpp      \
-fem/plinearform.cpp
+general/osockstream.cpp general/sets.cpp general/socketstream.cpp	       \
+general/sort_pairs.cpp general/stable3d.cpp general/table.cpp		       \
+general/tic_toc.cpp linalg/bicgstab.cpp linalg/cgsolver.cpp		       \
+linalg/densemat.cpp linalg/gmres.cpp linalg/hypre.cpp linalg/matrix.cpp	       \
+linalg/operator.cpp linalg/pcgsolver.cpp linalg/sparsemat.cpp		       \
+linalg/sparsesmoothers.cpp linalg/vector.cpp mesh/element.cpp		       \
+mesh/hexahedron.cpp mesh/mesh.cpp mesh/pmesh.cpp mesh/point.cpp		       \
+mesh/quadrilateral.cpp mesh/segment.cpp mesh/tetrahedron.cpp mesh/triangle.cpp \
+mesh/vertex.cpp fem/bilinearform.cpp fem/bilininteg.cpp fem/coefficient.cpp    \
+fem/eltrans.cpp fem/fe_coll.cpp fem/fe.cpp fem/fespace.cpp fem/geom.cpp	       \
+fem/gridfunc.cpp fem/intrules.cpp fem/linearform.cpp fem/lininteg.cpp	       \
+fem/pbilinearform.cpp fem/pfespace.cpp fem/pgridfunc.cpp fem/plinearform.cpp
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 # Generated with 'echo general/*.hpp linalg/*.hpp mesh/*.hpp fem/*.hpp'
 HEADER_FILES = general/array.hpp general/error.hpp general/isockstream.hpp    \

@@ -22,6 +22,7 @@ GridFunction::GridFunction(Mesh *m, istream &input)
    char buff[bufflen];
    int vdim;
 
+   input >> ws;
    input.getline(buff, bufflen);  // 'FiniteElementSpace'
    if (strcmp(buff, "FiniteElementSpace"))
       mfem_error("GridFunction::GridFunction():"
