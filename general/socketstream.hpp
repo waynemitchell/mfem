@@ -74,12 +74,12 @@ private:
    socketbuf __buf;
 
 public:
-   socketstream() { init(&__buf); }
+   socketstream() : std::iostream(&__buf) { }
 
-   socketstream(int s) : __buf(s) { init(&__buf); }
+   socketstream(int s) : __buf(s), std::iostream(&__buf) { }
 
    socketstream(const char hostname[], int port)
-      : __buf(hostname, port) { init(&__buf); }
+      : __buf(hostname, port), std::iostream(&__buf) { }
 
    socketbuf *rdbuf() { return &__buf; }
 
