@@ -479,23 +479,23 @@ public:
 
 class RT1_3DFECollection : public FiniteElementCollection
 {
-   private:
-      //const RT1TriangleFiniteElement TriangleFE;
-      //const RT1QuadFiniteElement QuadrilateralFE;
-      const Linear2DFiniteElement TriangleFE;
-      const BiLinear2DFiniteElement QuadrilateralFE;
-      const RT1HexFiniteElement HexahedronFE;
-   public:
-      RT1_3DFECollection() { };
+private:
+   //const RT1TriangleFiniteElement TriangleFE;
+   //const RT1QuadFiniteElement QuadrilateralFE;
+   const Linear2DFiniteElement TriangleFE;
+   const BiLinear2DFiniteElement QuadrilateralFE;
+   const RT1HexFiniteElement HexahedronFE;
+public:
+   RT1_3DFECollection() { };
 
-      virtual const FiniteElement *
-            FiniteElementForGeometry(int GeomType) const;
+   virtual const FiniteElement *
+   FiniteElementForGeometry(int GeomType) const;
 
-      virtual int DofForGeometry(int GeomType) const;
+   virtual int DofForGeometry(int GeomType) const;
 
-      virtual int * DofOrderForOrientation(int GeomType, int Or) const;
+   virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-      virtual const char * Name() const { return "RT0_3D"; };
+   virtual const char * Name() const { return "RT0_3D"; };
 };
 
 

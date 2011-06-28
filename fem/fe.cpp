@@ -2084,7 +2084,7 @@ void RT1QuadFiniteElement::CalcVShape(const IntegrationPoint &ip,
                                       DenseMatrix &shape) const
 {
    double x = ip.x, y = ip.y;
-  
+
    // y = 0
    shape(0,0)  = 0;
    shape(0,1)  = -( 1. - 3.*y + 2.*y*y)*( 2. - 3.*x);
@@ -2119,9 +2119,9 @@ void RT1QuadFiniteElement::CalcVShape(const IntegrationPoint &ip,
 
 void RT1QuadFiniteElement::CalcDivShape(const IntegrationPoint &ip,
                                         Vector &divshape) const
-{                   
+{
    double x = ip.x, y = ip.y;
-      
+
    divshape(0)  = -(-3. + 4.*y)*( 2. - 3.*x);
    divshape(1)  = -(-3. + 4.*y)*(-1. + 3.*x);
    divshape(2)  = (-1. + 4.*x)*( 2. - 3.*y);
@@ -2133,59 +2133,59 @@ void RT1QuadFiniteElement::CalcDivShape(const IntegrationPoint &ip,
    divshape(8)  = ( 4. - 8.*x)*( 2. - 3.*y);
    divshape(9)  = ( 4. - 8.*x)*(-1. + 3.*y);
    divshape(10) = ( 4. - 8.*y)*( 2. - 3.*x);
-   divshape(11) = ( 4. - 8.*y)*(-1. + 3.*x);              
-}                   
-                    
+   divshape(11) = ( 4. - 8.*y)*(-1. + 3.*x);
+}
+
 const double RT1QuadFiniteElement::nk[12][2] =
-{                   
-   // y = 0         
-   {0,-1}, {0,-1},  
-   // X = 1         
-   {1, 0}, {1, 0},  
-   // y = 1         
-   {0, 1}, {0, 1},  
-   // x = 0         
-   {-1,0}, {-1,0},  
+{
+   // y = 0
+   {0,-1}, {0,-1},
+   // X = 1
+   {1, 0}, {1, 0},
+   // y = 1
+   {0, 1}, {0, 1},
+   // x = 0
+   {-1,0}, {-1,0},
    // x = 0.5 (interior)
-   {1, 0}, {1, 0},  
+   {1, 0}, {1, 0},
    // y = 0.5 (interior)
-   {0, 1}, {0, 1}  
-  };                
-                    
+   {0, 1}, {0, 1}
+};
+
 void RT1QuadFiniteElement::GetLocalInterpolation (
-      ElementTransformation &Trans, DenseMatrix &I) const
- {                  
-    int k, j;       
-                    
-#ifdef MFEM_DEBUG   
+   ElementTransformation &Trans, DenseMatrix &I) const
+{
+   int k, j;
+
+#ifdef MFEM_DEBUG
    for (k = 0; k < 12; k++)
-   {                
+   {
       CalcVShape (Nodes.IntPoint(k), vshape);
       for (j = 0; j < 12; j++)
-      {             
+      {
          double d = vshape(j,0)*nk[k][0]+vshape(j,1)*nk[k][1];
          if (j == k) d -= 1.0;
          if (fabs(d) > 1.0e-12)
-         {          
+         {
             cerr << "RT1QuadFiniteElement::GetLocalInterpolation (...)\n"
-                  " k = " << k << ", j = " << j << ", d = " << d << endl;
+               " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
-         }          
-      }             
-   }                
-#endif              
-                    
+         }
+      }
+   }
+#endif
+
    IntegrationPoint ip;
    ip.x = ip.y = 0.0;
    Trans.SetIntPoint (&ip);
    // Trans must be linear (more to have embedding?)
    // set Jinv = |J| J^{-t} = adj(J)^t
    CalcAdjugateTranspose (Trans.Jacobian(), Jinv);
-   double vk[2];    
+   double vk[2];
    Vector xk (vk, 2);
-                    
+
    for (k = 0; k < 12; k++)
-   {                
+   {
       Trans.Transform (Nodes.IntPoint (k), xk);
       ip.x = vk[0]; ip.y = vk[1];
       CalcVShape (ip, vshape);
@@ -2195,31 +2195,31 @@ void RT1QuadFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 12; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
             I(k,j) = 0.0;
-   }                
- }                  
-                    
+   }
+}
+
 void RT1QuadFiniteElement::Project (
-      VectorCoefficient &vc, ElementTransformation &Trans, Vector &dofs) const
-{                   
-   double vk[2];    
+   VectorCoefficient &vc, ElementTransformation &Trans, Vector &dofs) const
+{
+   double vk[2];
    Vector xk (vk, 2);
-                    
+
    for (int k = 0; k < 12; k++)
-   {                
+   {
       Trans.SetIntPoint (&Nodes.IntPoint (k));
       // set Jinv = |J| J^{-t} = adj(J)^t
       CalcAdjugateTranspose (Trans.Jacobian(), Jinv);
-                    
+
       vc.Eval (xk, Trans, Nodes.IntPoint (k));
       //  xk^t |J| J^{-t} nk
       dofs(k) = (vk[0] * ( Jinv(0,0)*nk[k][0]+Jinv(0,1)*nk[k][1] ) +
                  vk[1] * ( Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1] ));
-   }                
-}                   
-                    
+   }
+}
+
 RT1TriangleFiniteElement::RT1TriangleFiniteElement()
    : VectorFiniteElement (2, Geometry::TRIANGLE, 8, 2)
-{                   
+{
    Nodes.IntPoint(0).x = 0.33333333333333333333;
    Nodes.IntPoint(0).y = 0.0;
    Nodes.IntPoint(1).x = 0.66666666666666666667;
@@ -2236,13 +2236,13 @@ RT1TriangleFiniteElement::RT1TriangleFiniteElement()
    Nodes.IntPoint(6).y = 0.33333333333333333333;
    Nodes.IntPoint(7).x = 0.33333333333333333333;
    Nodes.IntPoint(7).y = 0.5;
-}                   
-                    
+}
+
 void RT1TriangleFiniteElement::CalcVShape(const IntegrationPoint &ip,
                                           DenseMatrix &shape) const
-{                   
+{
    double x = ip.x, y = ip.y;
-                    
+
    shape(0,0) = -2 * x * (-1 + x + 2 * y);
    shape(0,1) = -2 * (-1 + y) * (-1 + x + 2 * y);
    shape(1,0) =  2 * x * (x - y);
@@ -2277,46 +2277,46 @@ void RT1TriangleFiniteElement::CalcDivShape(const IntegrationPoint &ip,
 }
 
 const double RT1TriangleFiniteElement::nk[8][2] =
-{ { 0,-1}, { 0,-1}, 
+{ { 0,-1}, { 0,-1},
   { 1, 1}, { 1, 1},
   {-1, 0}, {-1, 0},
-  { 1, 0}, { 0, 1} 
-  };
+  { 1, 0}, { 0, 1}
+};
 
 void RT1TriangleFiniteElement::GetLocalInterpolation (
-      ElementTransformation &Trans, DenseMatrix &I) const
-{                  
-   int k, j;       
-                    
-#ifdef MFEM_DEBUG   
+   ElementTransformation &Trans, DenseMatrix &I) const
+{
+   int k, j;
+
+#ifdef MFEM_DEBUG
    for (k = 0; k < 8; k++)
-   {                
+   {
       CalcVShape (Nodes.IntPoint(k), vshape);
       for (j = 0; j < 8; j++)
-      {             
+      {
          double d = vshape(j,0)*nk[k][0]+vshape(j,1)*nk[k][1];
          if (j == k) d -= 1.0;
          if (fabs(d) > 1.0e-12)
-         {          
+         {
             cerr << "RT1QuadFiniteElement::GetLocalInterpolation (...)\n"
-                  " k = " << k << ", j = " << j << ", d = " << d << endl;
+               " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
-         }          
-      }             
-   }                
-#endif              
-                    
+         }
+      }
+   }
+#endif
+
    IntegrationPoint ip;
    ip.x = ip.y = 0.0;
    Trans.SetIntPoint (&ip);
    // Trans must be linear (more to have embedding?)
    // set Jinv = |J| J^{-t} = adj(J)^t
    CalcAdjugateTranspose (Trans.Jacobian(), Jinv);
-   double vk[2];    
+   double vk[2];
    Vector xk (vk, 2);
-   
+
    for (k = 0; k < 8; k++)
-   {                
+   {
       Trans.Transform (Nodes.IntPoint (k), xk);
       ip.x = vk[0]; ip.y = vk[1];
       CalcVShape (ip, vshape);
@@ -2326,27 +2326,27 @@ void RT1TriangleFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 8; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
             I(k,j) = 0.0;
-   }                
-}                  
-                    
+   }
+}
+
 void RT1TriangleFiniteElement::Project (
-      VectorCoefficient &vc, ElementTransformation &Trans, Vector &dofs) const
-{                   
-   double vk[2];    
+   VectorCoefficient &vc, ElementTransformation &Trans, Vector &dofs) const
+{
+   double vk[2];
    Vector xk (vk, 2);
-                    
+
    for (int k = 0; k < 8; k++)
-   {                
+   {
       Trans.SetIntPoint (&Nodes.IntPoint (k));
       // set Jinv = |J| J^{-t} = adj(J)^t
       CalcAdjugateTranspose (Trans.Jacobian(), Jinv);
-                    
+
       vc.Eval (xk, Trans, Nodes.IntPoint (k));
       //  xk^t |J| J^{-t} nk
       dofs(k) = (vk[0] * ( Jinv(0,0)*nk[k][0]+Jinv(0,1)*nk[k][1] ) +
                  vk[1] * ( Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1] ));
-   }                
-} 
+   }
+}
 
 
 const double RT2TriangleFiniteElement::M[15][15] =
@@ -4372,7 +4372,7 @@ RT1HexFiniteElement::RT1HexFiniteElement()
    Nodes.IntPoint(34).z = 0.5;
    Nodes.IntPoint(35).x = 2./3.;
    Nodes.IntPoint(35).y = 2./3.;
-   Nodes.IntPoint(35).z = 0.5;       
+   Nodes.IntPoint(35).z = 0.5;
 }
 
 void RT1HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
@@ -4392,7 +4392,7 @@ void RT1HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
    shape(3,0)  = 0.;
    shape(3,1)  = 0.;
    shape(3,2)  = -(1. - 3.*z + 2.*z*z)*(-1. + 3.*x)*(-1. + 3.*y);
-    // y = 0
+   // y = 0
    shape(4,0)  = 0.;
    shape(4,1)  = -(1. - 3.*y + 2.*y*y)*( 2. - 3.*x)*( 2. - 3.*z);
    shape(4,2)  = 0.;
@@ -4404,7 +4404,7 @@ void RT1HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
    shape(6,2)  = 0.;
    shape(7,0)  = 0.;
    shape(7,1)  = -(1. - 3.*y + 2.*y*y)*(-1. + 3.*x)*(-1. + 3.*z);
-   shape(7,2)  = 0.;  
+   shape(7,2)  = 0.;
    // x = 1
    shape(8,0)  = (-x + 2.*x*x)*( 2. - 3.*y)*( 2. - 3.*z);
    shape(8,1)  = 0.;
@@ -4417,7 +4417,7 @@ void RT1HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
    shape(10,2) = 0.;
    shape(11,0) = (-x + 2.*x*x)*(-1. + 3.*y)*(-1. + 3.*z);
    shape(11,1) = 0.;
-   shape(11,2) = 0.;  
+   shape(11,2) = 0.;
    // y = 1
    shape(12,0) = 0.;
    shape(12,1) = (-y + 2.*y*y)*( 2. - 3.*x)*( 2. - 3.*z);
@@ -4521,7 +4521,7 @@ void RT1HexFiniteElement::CalcDivShape(const IntegrationPoint &ip,
    divshape(12) = (-1. + 4.*y)*( 2. - 3.*x)*( 2. - 3.*z);
    divshape(13) = (-1. + 4.*y)*(-1. + 3.*x)*( 2. - 3.*z);
    divshape(14) = (-1. + 4.*y)*( 2. - 3.*x)*(-1. + 3.*z);
-   divshape(15) = (-1. + 4.*y)*(-1. + 3.*x)*(-1. + 3.*z);  
+   divshape(15) = (-1. + 4.*y)*(-1. + 3.*x)*(-1. + 3.*z);
    // x = 0
    divshape(16) = -(-3. + 4.*x)*( 2. - 3.*y)*( 2. - 3.*z);
    divshape(17) = -(-3. + 4.*x)*(-1. + 3.*y)*( 2. - 3.*z);
@@ -4554,7 +4554,7 @@ const double RT1HexFiniteElement::nk[36][3] =
    {0, 0,-1}, {0, 0,-1}, {0, 0,-1}, {0, 0,-1},
    {0,-1, 0}, {0,-1, 0}, {0,-1, 0}, {0,-1, 0},
    {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0},
-   {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, 
+   {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0},
    {-1,0, 0}, {-1,0, 0}, {-1,0, 0}, {-1,0, 0},
    {0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1},
    {1, 0, 0}, {1, 0, 0}, {1, 0, 0}, {1, 0, 0},
@@ -4566,7 +4566,7 @@ void RT1HexFiniteElement::GetLocalInterpolation (
    ElementTransformation &Trans, DenseMatrix &I) const
 {
    int k, j;
-   
+
 #ifdef MFEM_DEBUG
    for (k = 0; k < 36; k++)
    {
@@ -4579,7 +4579,7 @@ void RT1HexFiniteElement::GetLocalInterpolation (
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT0HexFiniteElement::GetLocalInterpolation (...)\n"
-                  " k = " << k << ", j = " << j << ", d = " << d << endl;
+               " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -4594,7 +4594,7 @@ void RT1HexFiniteElement::GetLocalInterpolation (
    CalcAdjugateTranspose (Trans.Jacobian(), Jinv);
    double vk[3];
    Vector xk (vk, 3);
-   
+
    for (k = 0; k < 36; k++)
    {
       Trans.Transform (Nodes.IntPoint (k), xk);
@@ -4606,18 +4606,18 @@ void RT1HexFiniteElement::GetLocalInterpolation (
       vk[2] = Jinv(2,0)*nk[k][0]+Jinv(2,1)*nk[k][1]+Jinv(2,2)*nk[k][2];
       for (j = 0; j < 6; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
-             vshape(j,2)*vk[2])) < 1.0e-12)
+                             vshape(j,2)*vk[2])) < 1.0e-12)
             I(k,j) = 0.0;
    }
 }
 
 void RT1HexFiniteElement::Project (
-      VectorCoefficient &vc, ElementTransformation &Trans,
+   VectorCoefficient &vc, ElementTransformation &Trans,
    Vector &dofs) const
 {
    double vk[3];
    Vector xk (vk, 3);
-   
+
    for (int k = 0; k < 36; k++)
    {
       Trans.SetIntPoint (&Nodes.IntPoint (k));
@@ -4627,9 +4627,9 @@ void RT1HexFiniteElement::Project (
       vc.Eval (xk, Trans, Nodes.IntPoint (k));
       //  xk^t |J| J^{-t} nk
       dofs(k) =
-               vk[0] * ( Jinv(0,0)*nk[k][0]+Jinv(0,1)*nk[k][1]+Jinv(0,2)*nk[k][2] ) +
-               vk[1] * ( Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1]+Jinv(1,2)*nk[k][2] ) +
-               vk[2] * ( Jinv(2,0)*nk[k][0]+Jinv(2,1)*nk[k][1]+Jinv(2,2)*nk[k][2] );
+         vk[0] * ( Jinv(0,0)*nk[k][0]+Jinv(0,1)*nk[k][1]+Jinv(0,2)*nk[k][2] ) +
+         vk[1] * ( Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1]+Jinv(1,2)*nk[k][2] ) +
+         vk[2] * ( Jinv(2,0)*nk[k][0]+Jinv(2,1)*nk[k][1]+Jinv(2,2)*nk[k][2] );
    }
 }
 

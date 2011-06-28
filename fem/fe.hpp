@@ -650,22 +650,22 @@ private:
 
 public:
    RT1QuadFiniteElement();
-   
+
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
-   
+
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
    { CalcVShape_RT(Trans, shape); };
-   
+
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
-   
+
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const;
-   
+
    using FiniteElement::Project;
-   
+
    virtual void Project (VectorCoefficient &vc,
                          ElementTransformation &Trans, Vector &dofs) const;
 };
@@ -674,7 +674,7 @@ class RT1TriangleFiniteElement : public VectorFiniteElement
 {
 private:
    static const double nk[8][2];
-   
+
 public:
    RT1TriangleFiniteElement();
 
@@ -687,12 +687,12 @@ public:
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
-   
+
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const;
-   
+
    using FiniteElement::Project;
-   
+
    virtual void Project (VectorCoefficient &vc,
                          ElementTransformation &Trans, Vector &dofs) const;
 };
@@ -965,29 +965,29 @@ public:
 
 class RT1HexFiniteElement : public VectorFiniteElement
 {
-   private:
-      static const double nk[36][3];
+private:
+   static const double nk[36][3];
 
-   public:
-      RT1HexFiniteElement();
+public:
+   RT1HexFiniteElement();
 
-      virtual void CalcVShape(const IntegrationPoint &ip,
-                              DenseMatrix &shape) const;
+   virtual void CalcVShape(const IntegrationPoint &ip,
+                           DenseMatrix &shape) const;
 
-      virtual void CalcVShape(ElementTransformation &Trans,
-                              DenseMatrix &shape) const
-      { CalcVShape_RT(Trans, shape); };
+   virtual void CalcVShape(ElementTransformation &Trans,
+                           DenseMatrix &shape) const
+   { CalcVShape_RT(Trans, shape); };
 
-      virtual void CalcDivShape(const IntegrationPoint &ip,
-                                Vector &divshape) const;
+   virtual void CalcDivShape(const IntegrationPoint &ip,
+                             Vector &divshape) const;
 
-      virtual void GetLocalInterpolation (ElementTransformation &Trans,
-                                          DenseMatrix &I) const;
+   virtual void GetLocalInterpolation (ElementTransformation &Trans,
+                                       DenseMatrix &I) const;
 
-      using FiniteElement::Project;
+   using FiniteElement::Project;
 
-      virtual void Project (VectorCoefficient &vc,
-                            ElementTransformation &Trans, Vector &dofs) const;
+   virtual void Project (VectorCoefficient &vc,
+                         ElementTransformation &Trans, Vector &dofs) const;
 };
 
 

@@ -956,15 +956,15 @@ int * RT0_3DFECollection::DofOrderForOrientation(int GeomType, int Or)
 }
 
 const FiniteElement *
-      RT1_3DFECollection::FiniteElementForGeometry(int GeomType) const
+RT1_3DFECollection::FiniteElementForGeometry(int GeomType) const
 {
    switch (GeomType)
    {
-      case Geometry::TRIANGLE:    return &TriangleFE;
-      case Geometry::SQUARE:      return &QuadrilateralFE;
-      case Geometry::CUBE:        return &HexahedronFE;
-      default:
-         mfem_error ("RT1_3DFECollection: unknown geometry type.");
+   case Geometry::TRIANGLE:    return &TriangleFE;
+   case Geometry::SQUARE:      return &QuadrilateralFE;
+   case Geometry::CUBE:        return &HexahedronFE;
+   default:
+      mfem_error ("RT1_3DFECollection: unknown geometry type.");
    }
    return &HexahedronFE; // Make some compilers happy
 }
@@ -973,20 +973,20 @@ int RT1_3DFECollection::DofForGeometry(int GeomType) const
 {
    switch (GeomType)
    {
-      case Geometry::POINT:       return 0;
-      case Geometry::SEGMENT:     return 0;
-      case Geometry::TRIANGLE:    return 2;
-      case Geometry::SQUARE:      return 4;
-      case Geometry::CUBE:        return 12;
-      default:
-         mfem_error ("RT1_3DFECollection: unknown geometry type.");
+   case Geometry::POINT:       return 0;
+   case Geometry::SEGMENT:     return 0;
+   case Geometry::TRIANGLE:    return 2;
+   case Geometry::SQUARE:      return 4;
+   case Geometry::CUBE:        return 12;
+   default:
+      mfem_error ("RT1_3DFECollection: unknown geometry type.");
    }
    return 0; // Make some compilers happy
 }
 
 int * RT1_3DFECollection::DofOrderForOrientation(int GeomType, int Or)
-      const
-{   
+   const
+{
    if (GeomType == Geometry::SQUARE)
    {
       static int sq_ind[8][4] = {
@@ -995,8 +995,8 @@ int * RT1_3DFECollection::DofOrderForOrientation(int GeomType, int Or)
          {3, 2, 1, 0}, {-3, -1, -2, 0},
          {2, 0, 3, 1}, {-2, -3, -0, -1}
       };
-      return sq_ind[Or];   
-   } 
+      return sq_ind[Or];
+   }
    else
       return NULL;
 }
