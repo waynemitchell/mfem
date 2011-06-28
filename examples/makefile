@@ -62,10 +62,10 @@ ex3: ex3.cpp
 
 ex3p: ex3p.cpp
 	$(MPICC) $(MPIOPTS) ex3p.cpp -o ex3p $(MPILIBS)
-	
+
 ex4: ex4.cpp
 	$(CC) $(OPTS) ex4.cpp -o ex4 $(LIBS)
-	
+
 ex4p: ex4p.cpp
 	$(MPICC) $(MPIOPTS) ex4p.cpp -o ex4p $(MPILIBS)
 
