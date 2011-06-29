@@ -2232,10 +2232,10 @@ RT1TriangleFiniteElement::RT1TriangleFiniteElement()
    Nodes.IntPoint(4).y = 0.66666666666666666667;
    Nodes.IntPoint(5).x = 0.0;
    Nodes.IntPoint(5).y = 0.33333333333333333333;
-   Nodes.IntPoint(6).x = 0.5;
+   Nodes.IntPoint(6).x = 0.33333333333333333333;
    Nodes.IntPoint(6).y = 0.33333333333333333333;
    Nodes.IntPoint(7).x = 0.33333333333333333333;
-   Nodes.IntPoint(7).y = 0.5;
+   Nodes.IntPoint(7).y = 0.33333333333333333333;
 }
 
 void RT1TriangleFiniteElement::CalcVShape(const IntegrationPoint &ip,
@@ -2277,10 +2277,11 @@ void RT1TriangleFiniteElement::CalcDivShape(const IntegrationPoint &ip,
 }
 
 const double RT1TriangleFiniteElement::nk[8][2] =
-{ { 0,-1}, { 0,-1},
-  { 1, 1}, { 1, 1},
-  {-1, 0}, {-1, 0},
-  { 1, 0}, { 0, 1}
+{
+   { 0,-1}, { 0,-1},
+   { 1, 1}, { 1, 1},
+   {-1, 0}, {-1, 0},
+   { 1, 0}, { 0, 1}
 };
 
 void RT1TriangleFiniteElement::GetLocalInterpolation (
@@ -2345,6 +2346,7 @@ void RT1TriangleFiniteElement::Project (
       //  xk^t |J| J^{-t} nk
       dofs(k) = (vk[0] * ( Jinv(0,0)*nk[k][0]+Jinv(0,1)*nk[k][1] ) +
                  vk[1] * ( Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1] ));
+      dofs(k) *= 0.5;
    }
 }
 
@@ -4254,21 +4256,21 @@ void RT0HexFiniteElement::Project (
 }
 
 RT1HexFiniteElement::RT1HexFiniteElement()
-   : VectorFiniteElement (3, Geometry::CUBE, 36, 1, FunctionSpace::Qk)
+   : VectorFiniteElement (3, Geometry::CUBE, 36, 2, FunctionSpace::Qk)
 {
    // z = 0
-   Nodes.IntPoint(0).x  = 1./3.;
-   Nodes.IntPoint(0).y  = 1./3.;
-   Nodes.IntPoint(0).z  = 0.0;
-   Nodes.IntPoint(1).x  = 2./3.;
-   Nodes.IntPoint(1).y  = 1./3.;
-   Nodes.IntPoint(1).z  = 0.0;
    Nodes.IntPoint(2).x  = 1./3.;
-   Nodes.IntPoint(2).y  = 2./3.;
+   Nodes.IntPoint(2).y  = 1./3.;
    Nodes.IntPoint(2).z  = 0.0;
    Nodes.IntPoint(3).x  = 2./3.;
-   Nodes.IntPoint(3).y  = 2./3.;
+   Nodes.IntPoint(3).y  = 1./3.;
    Nodes.IntPoint(3).z  = 0.0;
+   Nodes.IntPoint(0).x  = 1./3.;
+   Nodes.IntPoint(0).y  = 2./3.;
+   Nodes.IntPoint(0).z  = 0.0;
+   Nodes.IntPoint(1).x  = 2./3.;
+   Nodes.IntPoint(1).y  = 2./3.;
+   Nodes.IntPoint(1).z  = 0.0;
    // y = 0
    Nodes.IntPoint(4).x  = 1./3.;
    Nodes.IntPoint(4).y  = 0.0;
@@ -4296,31 +4298,31 @@ RT1HexFiniteElement::RT1HexFiniteElement()
    Nodes.IntPoint(11).y = 2./3.;
    Nodes.IntPoint(11).z = 2./3.;
    // y = 1
-   Nodes.IntPoint(12).x = 1./3.;
-   Nodes.IntPoint(12).y = 1.0;
-   Nodes.IntPoint(12).z = 1./3.;
-   Nodes.IntPoint(13).x = 2./3.;
+   Nodes.IntPoint(13).x = 1./3.;
    Nodes.IntPoint(13).y = 1.0;
    Nodes.IntPoint(13).z = 1./3.;
-   Nodes.IntPoint(14).x = 1./3.;
-   Nodes.IntPoint(14).y = 1.0;
-   Nodes.IntPoint(14).z = 2./3.;
-   Nodes.IntPoint(15).x = 2./3.;
+   Nodes.IntPoint(12).x = 2./3.;
+   Nodes.IntPoint(12).y = 1.0;
+   Nodes.IntPoint(12).z = 1./3.;
+   Nodes.IntPoint(15).x = 1./3.;
    Nodes.IntPoint(15).y = 1.0;
    Nodes.IntPoint(15).z = 2./3.;
+   Nodes.IntPoint(14).x = 2./3.;
+   Nodes.IntPoint(14).y = 1.0;
+   Nodes.IntPoint(14).z = 2./3.;
    // x = 0
-   Nodes.IntPoint(16).x = 0.0;
-   Nodes.IntPoint(16).y = 1./3.;
-   Nodes.IntPoint(16).z = 1./3.;
    Nodes.IntPoint(17).x = 0.0;
-   Nodes.IntPoint(17).y = 2./3.;
+   Nodes.IntPoint(17).y = 1./3.;
    Nodes.IntPoint(17).z = 1./3.;
-   Nodes.IntPoint(18).x = 0.0;
-   Nodes.IntPoint(18).y = 1./3.;
-   Nodes.IntPoint(18).z = 2./3.;
+   Nodes.IntPoint(16).x = 0.0;
+   Nodes.IntPoint(16).y = 2./3.;
+   Nodes.IntPoint(16).z = 1./3.;
    Nodes.IntPoint(19).x = 0.0;
-   Nodes.IntPoint(19).y = 2./3.;
+   Nodes.IntPoint(19).y = 1./3.;
    Nodes.IntPoint(19).z = 2./3.;
+   Nodes.IntPoint(18).x = 0.0;
+   Nodes.IntPoint(18).y = 2./3.;
+   Nodes.IntPoint(18).z = 2./3.;
    // z = 1
    Nodes.IntPoint(20).x = 1./3.;
    Nodes.IntPoint(20).y = 1./3.;
@@ -4380,18 +4382,18 @@ void RT1HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
 {
    double x = ip.x, y = ip.y, z = ip.z;
    // z = 0
-   shape(0,0)  = 0.;
-   shape(0,1)  = 0.;
-   shape(0,2)  = -(1. - 3.*z + 2.*z*z)*( 2. - 3.*x)*( 2. - 3.*y);
-   shape(1,0)  = 0.;
-   shape(1,1)  = 0.;
-   shape(1,2)  = -(1. - 3.*z + 2.*z*z)*(-1. + 3.*x)*( 2. - 3.*y);
    shape(2,0)  = 0.;
    shape(2,1)  = 0.;
-   shape(2,2)  = -(1. - 3.*z + 2.*z*z)*( 2. - 3.*x)*(-1. + 3.*y);
+   shape(2,2)  = -(1. - 3.*z + 2.*z*z)*( 2. - 3.*x)*( 2. - 3.*y);
    shape(3,0)  = 0.;
    shape(3,1)  = 0.;
-   shape(3,2)  = -(1. - 3.*z + 2.*z*z)*(-1. + 3.*x)*(-1. + 3.*y);
+   shape(3,2)  = -(1. - 3.*z + 2.*z*z)*(-1. + 3.*x)*( 2. - 3.*y);
+   shape(0,0)  = 0.;
+   shape(0,1)  = 0.;
+   shape(0,2)  = -(1. - 3.*z + 2.*z*z)*( 2. - 3.*x)*(-1. + 3.*y);
+   shape(1,0)  = 0.;
+   shape(1,1)  = 0.;
+   shape(1,2)  = -(1. - 3.*z + 2.*z*z)*(-1. + 3.*x)*(-1. + 3.*y);
    // y = 0
    shape(4,0)  = 0.;
    shape(4,1)  = -(1. - 3.*y + 2.*y*y)*( 2. - 3.*x)*( 2. - 3.*z);
@@ -4419,31 +4421,31 @@ void RT1HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
    shape(11,1) = 0.;
    shape(11,2) = 0.;
    // y = 1
-   shape(12,0) = 0.;
-   shape(12,1) = (-y + 2.*y*y)*( 2. - 3.*x)*( 2. - 3.*z);
-   shape(12,2) = 0.;
    shape(13,0) = 0.;
-   shape(13,1) = (-y + 2.*y*y)*(-1. + 3.*x)*( 2. - 3.*z);
+   shape(13,1) = (-y + 2.*y*y)*( 2. - 3.*x)*( 2. - 3.*z);
    shape(13,2) = 0.;
-   shape(14,0) = 0.;
-   shape(14,1) = (-y + 2.*y*y)*( 2. - 3.*x)*(-1. + 3.*z);
-   shape(14,2) = 0.;
+   shape(12,0) = 0.;
+   shape(12,1) = (-y + 2.*y*y)*(-1. + 3.*x)*( 2. - 3.*z);
+   shape(12,2) = 0.;
    shape(15,0) = 0.;
-   shape(15,1) = (-y + 2.*y*y)*(-1. + 3.*x)*(-1. + 3.*z);
+   shape(15,1) = (-y + 2.*y*y)*( 2. - 3.*x)*(-1. + 3.*z);
    shape(15,2) = 0.;
+   shape(14,0) = 0.;
+   shape(14,1) = (-y + 2.*y*y)*(-1. + 3.*x)*(-1. + 3.*z);
+   shape(14,2) = 0.;
    // x = 0
-   shape(16,0) = -(1. - 3.*x + 2.*x*x)*( 2. - 3.*y)*( 2. - 3.*z);
-   shape(16,1) = 0.;
-   shape(16,2) = 0.;
-   shape(17,0) = -(1. - 3.*x + 2.*x*x)*(-1. + 3.*y)*( 2. - 3.*z);
+   shape(17,0) = -(1. - 3.*x + 2.*x*x)*( 2. - 3.*y)*( 2. - 3.*z);
    shape(17,1) = 0.;
    shape(17,2) = 0.;
-   shape(18,0) = -(1. - 3.*x + 2.*x*x)*( 2. - 3.*y)*(-1. + 3.*z);
-   shape(18,1) = 0.;
-   shape(18,2) = 0.;
-   shape(19,0) = -(1. - 3.*x + 2.*x*x)*(-1. + 3.*y)*(-1. + 3.*z);
+   shape(16,0) = -(1. - 3.*x + 2.*x*x)*(-1. + 3.*y)*( 2. - 3.*z);
+   shape(16,1) = 0.;
+   shape(16,2) = 0.;
+   shape(19,0) = -(1. - 3.*x + 2.*x*x)*( 2. - 3.*y)*(-1. + 3.*z);
    shape(19,1) = 0.;
    shape(19,2) = 0.;
+   shape(18,0) = -(1. - 3.*x + 2.*x*x)*(-1. + 3.*y)*(-1. + 3.*z);
+   shape(18,1) = 0.;
+   shape(18,2) = 0.;
    // z = 1
    shape(20,0) = 0.;
    shape(20,1) = 0.;
@@ -4503,10 +4505,10 @@ void RT1HexFiniteElement::CalcDivShape(const IntegrationPoint &ip,
 {
    double x = ip.x, y = ip.y, z = ip.z;
    // z = 0
-   divshape(0)  = -(-3. + 4.*z)*( 2. - 3.*x)*( 2. - 3.*y);
-   divshape(1)  = -(-3. + 4.*z)*(-1. + 3.*x)*( 2. - 3.*y);
-   divshape(2)  = -(-3. + 4.*z)*( 2. - 3.*x)*(-1. + 3.*y);
-   divshape(3)  = -(-3. + 4.*z)*(-1. + 3.*x)*(-1. + 3.*y);
+   divshape(2)  = -(-3. + 4.*z)*( 2. - 3.*x)*( 2. - 3.*y);
+   divshape(3)  = -(-3. + 4.*z)*(-1. + 3.*x)*( 2. - 3.*y);
+   divshape(0)  = -(-3. + 4.*z)*( 2. - 3.*x)*(-1. + 3.*y);
+   divshape(1)  = -(-3. + 4.*z)*(-1. + 3.*x)*(-1. + 3.*y);
    // y = 0
    divshape(4)  = -(-3. + 4.*y)*( 2. - 3.*x)*( 2. - 3.*z);
    divshape(5)  = -(-3. + 4.*y)*(-1. + 3.*x)*( 2. - 3.*z);
@@ -4518,15 +4520,15 @@ void RT1HexFiniteElement::CalcDivShape(const IntegrationPoint &ip,
    divshape(10) = (-1. + 4.*x)*( 2. - 3.*y)*(-1. + 3.*z);
    divshape(11) = (-1. + 4.*x)*(-1. + 3.*y)*(-1. + 3.*z);
    // y = 1
-   divshape(12) = (-1. + 4.*y)*( 2. - 3.*x)*( 2. - 3.*z);
-   divshape(13) = (-1. + 4.*y)*(-1. + 3.*x)*( 2. - 3.*z);
-   divshape(14) = (-1. + 4.*y)*( 2. - 3.*x)*(-1. + 3.*z);
-   divshape(15) = (-1. + 4.*y)*(-1. + 3.*x)*(-1. + 3.*z);
+   divshape(13) = (-1. + 4.*y)*( 2. - 3.*x)*( 2. - 3.*z);
+   divshape(12) = (-1. + 4.*y)*(-1. + 3.*x)*( 2. - 3.*z);
+   divshape(15) = (-1. + 4.*y)*( 2. - 3.*x)*(-1. + 3.*z);
+   divshape(14) = (-1. + 4.*y)*(-1. + 3.*x)*(-1. + 3.*z);
    // x = 0
-   divshape(16) = -(-3. + 4.*x)*( 2. - 3.*y)*( 2. - 3.*z);
-   divshape(17) = -(-3. + 4.*x)*(-1. + 3.*y)*( 2. - 3.*z);
-   divshape(18) = -(-3. + 4.*x)*( 2. - 3.*y)*(-1. + 3.*z);
-   divshape(19) = -(-3. + 4.*x)*(-1. + 3.*y)*(-1. + 3.*z);
+   divshape(17) = -(-3. + 4.*x)*( 2. - 3.*y)*( 2. - 3.*z);
+   divshape(16) = -(-3. + 4.*x)*(-1. + 3.*y)*( 2. - 3.*z);
+   divshape(19) = -(-3. + 4.*x)*( 2. - 3.*y)*(-1. + 3.*z);
+   divshape(18) = -(-3. + 4.*x)*(-1. + 3.*y)*(-1. + 3.*z);
    // z = 1
    divshape(20) = (-1. + 4.*z)*( 2. - 3.*x)*( 2. - 3.*y);
    divshape(21) = (-1. + 4.*z)*(-1. + 3.*x)*( 2. - 3.*y);

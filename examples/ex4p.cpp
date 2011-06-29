@@ -92,13 +92,31 @@ int main (int argc, char *argv[])
    // 5. Define a parallel finite element space on the parallel mesh. Here we
    //    use the lowest order Raviart-Thomas finite elements.
    FiniteElementCollection *fec;
-   switch (dim)
+   int fec_type;
+   if (myid == 0)
    {
-   default:
+      cout << "Choose the finite element space:\n"
+           << " 1) RT0\n"
+           << " 2) RT1\n"
+           << " ---> ";
+      cin >> fec_type;
+   }
+   MPI_Bcast(&fec_type, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+   switch (fec_type)
+   {
+   case 1:
+      if (dim == 2)
+         fec = new RT0_2DFECollection;
+      else
+         fec = new RT0_3DFECollection;
+      break;
    case 2:
-      fec = new RT0_2DFECollection; break;
-   case 3:
-      fec = new RT0_3DFECollection; break;
+      if (dim == 2)
+         fec = new RT1_2DFECollection;
+      else
+         fec = new RT1_3DFECollection;
+      break;
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
 
@@ -183,13 +201,20 @@ int main (int argc, char *argv[])
    //     of linear discontinuous vector finite elements. The representation in
    //     this space is given by (exact) projection with ProjectVectorFieldOn.
    FiniteElementCollection *dfec;
-   switch (dim)
+   switch (fec_type)
    {
-   default:
+   case 1:
+      if (dim == 2)
+         dfec = new LinearDiscont2DFECollection;
+      else
+         dfec = new LinearDiscont3DFECollection;
+      break;
    case 2:
-      dfec = new LinearDiscont2DFECollection; break;
-   case 3:
-      dfec = new LinearDiscont3DFECollection; break;
+      if (dim == 2)
+         dfec = new QuadraticDiscont2DFECollection;
+      else
+         dfec = new QuadraticDiscont3DFECollection;
+      break;
    }
    ParFiniteElementSpace *dfespace = new ParFiniteElementSpace(pmesh, dfec, dim);
    ParGridFunction dx(dfespace);

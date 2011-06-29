@@ -480,8 +480,6 @@ public:
 class RT1_3DFECollection : public FiniteElementCollection
 {
 private:
-   //const RT1TriangleFiniteElement TriangleFE;
-   //const RT1QuadFiniteElement QuadrilateralFE;
    const Linear2DFiniteElement TriangleFE;
    const BiLinear2DFiniteElement QuadrilateralFE;
    const RT1HexFiniteElement HexahedronFE;
@@ -495,7 +493,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "RT0_3D"; };
+   virtual const char * Name() const { return "RT1_3D"; };
 };
 
 

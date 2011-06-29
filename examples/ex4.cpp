@@ -59,11 +59,11 @@ int main (int argc, char *argv[])
 
    // 2. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
-   //    largest number that gives a final mesh with no more than 50,000
+   //    largest number that gives a final mesh with no more than 25,000
    //    elements.
    {
       int ref_levels =
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/mesh->Dimension());
+         (int)floor(log(25000./mesh->GetNE())/log(2.)/mesh->Dimension());
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }
@@ -71,15 +71,27 @@ int main (int argc, char *argv[])
    // 3. Define a finite element space on the mesh. Here we use the lowest order
    //    Raviart-Thomas finite elements.
    FiniteElementCollection *fec;
-   switch (dim)
+   int fec_type;
+   cout << "Choose the finite element space:\n"
+        << " 1) RT0\n"
+        << " 2) RT1\n"
+        << " ---> ";
+   cin >> fec_type;
+   switch (fec_type)
    {
-   default:
+   case 1:
+      if (dim == 2)
+         fec = new RT0_2DFECollection;
+      else
+         fec = new RT0_3DFECollection;
+      break;
    case 2:
-      fec = new RT0_2DFECollection; break;
-   case 3:
-      fec = new RT0_3DFECollection; break;
+      if (dim == 2)
+         fec = new RT1_2DFECollection;
+      else
+         fec = new RT1_3DFECollection;
+      break;
    }
-
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side
@@ -131,13 +143,20 @@ int main (int argc, char *argv[])
    //    of linear discontinuous vector finite elements. The representation in
    //    this space is obtained by (exact) projection with ProjectVectorFieldOn.
    FiniteElementCollection *dfec;
-   switch (dim)
+   switch (fec_type)
    {
-   default:
+   case 1:
+      if (dim == 2)
+         dfec = new LinearDiscont2DFECollection;
+      else
+         dfec = new LinearDiscont3DFECollection;
+      break;
    case 2:
-      dfec = new LinearDiscont2DFECollection; break;
-   case 3:
-      dfec = new LinearDiscont3DFECollection; break;
+      if (dim == 2)
+         dfec = new QuadraticDiscont2DFECollection;
+      else
+         dfec = new QuadraticDiscont3DFECollection;
+      break;
    }
    FiniteElementSpace *dfespace = new FiniteElementSpace(mesh, dfec, dim);
    GridFunction dx(dfespace);
