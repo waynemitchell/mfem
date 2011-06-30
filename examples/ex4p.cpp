@@ -173,9 +173,9 @@ int main (int argc, char *argv[])
    delete b;
 
    // 10. Define and apply a parallel PCG solver for AX=B with the AMS (for 2D
-   //     problems) or AMG (in 3D) preconditioner from hypre.
+   //     RT0 problems) or AMG preconditioner (otherwise) from hypre.
    HypreSolver *prec;
-   if (dim == 2)
+   if (dim == 2 && fec_type == 1)
       prec = new HypreAMS(*A, fespace);
    else
       prec = new HypreBoomerAMG(*A);
