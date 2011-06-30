@@ -4449,16 +4449,16 @@ void RT1HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
    // z = 1
    shape(20,0) = 0.;
    shape(20,1) = 0.;
-   shape(20,2) = (-z + 2.*z*z)*( 2. - 3.*x)*( 2. - 3.*z);
+   shape(20,2) = (-z + 2.*z*z)*( 2. - 3.*x)*( 2. - 3.*y);
    shape(21,0) = 0.;
    shape(21,1) = 0.;
-   shape(21,2) = (-z + 2.*z*z)*(-1. + 3.*x)*( 2. - 3.*z);
+   shape(21,2) = (-z + 2.*z*z)*(-1. + 3.*x)*( 2. - 3.*y);
    shape(22,0) = 0.;
    shape(22,1) = 0.;
-   shape(22,2) = (-z + 2.*z*z)*( 2. - 3.*x)*(-1. + 3.*z);
+   shape(22,2) = (-z + 2.*z*z)*( 2. - 3.*x)*(-1. + 3.*y);
    shape(23,0) = 0.;
    shape(23,1) = 0.;
-   shape(23,2) = (-z + 2.*z*z)*(-1. + 3.*x)*(-1. + 3.*z);
+   shape(23,2) = (-z + 2.*z*z)*(-1. + 3.*x)*(-1. + 3.*y);
    // x = 0.5 (interior)
    shape(24,0) = (4.*x - 4.*x*x)*( 2. - 3.*y)*( 2. - 3.*z);
    shape(24,1) = 0.;
@@ -4606,7 +4606,7 @@ void RT1HexFiniteElement::GetLocalInterpolation (
       vk[0] = Jinv(0,0)*nk[k][0]+Jinv(0,1)*nk[k][1]+Jinv(0,2)*nk[k][2];
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1]+Jinv(1,2)*nk[k][2];
       vk[2] = Jinv(2,0)*nk[k][0]+Jinv(2,1)*nk[k][1]+Jinv(2,2)*nk[k][2];
-      for (j = 0; j < 6; j++)
+      for (j = 0; j < 36; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
             I(k,j) = 0.0;
