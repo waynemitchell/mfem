@@ -384,6 +384,7 @@ RT2_2DFECollection::FiniteElementForGeometry(int GeomType) const
    {
    case Geometry::SEGMENT:     return &SegmentFE;
    case Geometry::TRIANGLE:    return &TriangleFE;
+   case Geometry::SQUARE:      return &QuadrilateralFE;
    default:
       mfem_error ("RT2_2DFECollection: unknown geometry type.");
    }
@@ -397,6 +398,7 @@ int RT2_2DFECollection::DofForGeometry(int GeomType) const
    case Geometry::POINT:       return 0;
    case Geometry::SEGMENT:     return 3;
    case Geometry::TRIANGLE:    return 6;
+   case Geometry::SQUARE:      return 12;
    default:
       mfem_error ("RT2_2DFECollection: unknown geometry type.");
    }

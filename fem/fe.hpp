@@ -643,13 +643,13 @@ public:
                          ElementTransformation &Trans, Vector &dofs) const;
 };
 
-class RT1QuadFiniteElement : public VectorFiniteElement
+class RT1TriangleFiniteElement : public VectorFiniteElement
 {
 private:
-   static const double nk[12][2];
+   static const double nk[8][2];
 
 public:
-   RT1QuadFiniteElement();
+   RT1TriangleFiniteElement();
 
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
@@ -670,13 +670,13 @@ public:
                          ElementTransformation &Trans, Vector &dofs) const;
 };
 
-class RT1TriangleFiniteElement : public VectorFiniteElement
+class RT1QuadFiniteElement : public VectorFiniteElement
 {
 private:
-   static const double nk[8][2];
+   static const double nk[12][2];
 
 public:
-   RT1TriangleFiniteElement();
+   RT1QuadFiniteElement();
 
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
@@ -713,6 +713,35 @@ public:
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
+};
+
+class RT2QuadFiniteElement : public VectorFiniteElement
+{
+private:
+   static const double nk[24][2];
+   static const double pt[4];
+   static const double dpt[3];
+
+public:
+   RT2QuadFiniteElement();
+
+   virtual void CalcVShape(const IntegrationPoint &ip,
+                           DenseMatrix &shape) const;
+
+   virtual void CalcVShape(ElementTransformation &Trans,
+                           DenseMatrix &shape) const
+   { CalcVShape_RT(Trans, shape); };
+
+   virtual void CalcDivShape(const IntegrationPoint &ip,
+                             Vector &divshape) const;
+
+   virtual void GetLocalInterpolation (ElementTransformation &Trans,
+                                       DenseMatrix &I) const;
+
+   using FiniteElement::Project;
+
+   virtual void Project (VectorCoefficient &vc,
+                         ElementTransformation &Trans, Vector &dofs) const;
 };
 
 /// Linear 1D element with nodes 1/3 and 2/3 (trace of RT1)

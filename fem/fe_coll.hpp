@@ -181,6 +181,7 @@ class RT2_2DFECollection : public FiniteElementCollection
 private:
    const P2SegmentFiniteElement SegmentFE; // normal component on edge
    const RT2TriangleFiniteElement TriangleFE;
+   const RT2QuadFiniteElement QuadrilateralFE;
 public:
    RT2_2DFECollection() { };
 
