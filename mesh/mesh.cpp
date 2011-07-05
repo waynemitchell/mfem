@@ -2321,7 +2321,8 @@ void Mesh::CheckBdrElementOrientation()
          }
       }
    }
-#if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
+// #if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
+#ifdef MFEM_DEBUG
    if (wo > 0)
       cout << "Orientation fixed in " << wo << " of "<< NumOfBdrElements
            << " boundary elements" << endl;
