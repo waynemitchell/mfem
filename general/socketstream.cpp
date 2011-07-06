@@ -78,7 +78,11 @@ int socketbuf::sync()
    // std::cout << "[socketbuf::sync n=" << n << ']' << std::endl;
    while (n > 0)
    {
+#ifdef MSG_NOSIGNAL
       bw = send(socket_descriptor, pptr() - n, n, MSG_NOSIGNAL);
+#else
+      bw = send(socket_descriptor, pptr() - n, n, 0);
+#endif
       if (bw < 0)
       {
          setp(pptr() - n, obuf + buflen);
@@ -160,7 +164,11 @@ std::streamsize socketbuf::xsputn(const char_type *__s, std::streamsize __n)
    const char_type *end = __s + __n;
    while (remain > buflen)
    {
+#ifdef MSG_NOSIGNAL
       bw = send(socket_descriptor, end - remain, remain, MSG_NOSIGNAL);
+#else
+      bw = send(socket_descriptor, end - remain, remain, 0);
+#endif
       if (bw < 0)
          return (__n - remain);
       remain -= bw;
