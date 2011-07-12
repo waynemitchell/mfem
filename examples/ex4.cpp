@@ -177,14 +177,7 @@ int main (int argc, char *argv[])
    char vishost[] = "localhost";
    int  visport   = 19916;
    osockstream sol_sock(visport, vishost);
-   switch (dim)
-   {
-   default:
-   case 2:
-      sol_sock << "vfem2d_gf_data\n"; break;
-   case 3:
-      sol_sock << "vfem3d_gf_data\n"; break;
-   }
+   sol_sock << "solution\n";
    sol_sock.precision(8);
    mesh->Print(sol_sock);
    dx.Save(sol_sock);

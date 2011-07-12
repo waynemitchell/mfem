@@ -164,10 +164,7 @@ int main (int argc, char *argv[])
    int  visport   = 19916;
    osockstream sol_sock(visport, vishost);
    sol_sock << "parallel " << num_procs << " " << myid << "\n";
-   if (pmesh->Dimension() == 2)
-      sol_sock << "fem2d_gf_data\n";
-   else
-      sol_sock << "fem3d_gf_data\n";
+   sol_sock << "solution\n";
    sol_sock.precision(8);
    pmesh->Print(sol_sock);
    x.Save(sol_sock);

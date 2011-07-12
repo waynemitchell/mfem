@@ -192,10 +192,7 @@ int main (int argc, char *argv[])
    char vishost[] = "localhost";
    int  visport   = 19916;
    osockstream sol_sock(visport, vishost);
-   if (dim == 2)
-      sol_sock << "vfem2d_gf_data\n";
-   else
-      sol_sock << "vfem3d_gf_data\n";
+   sol_sock << "solution\n";
    sol_sock.precision(8);
    mesh->Print(sol_sock);
    x.Save(sol_sock);
