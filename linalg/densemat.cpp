@@ -482,10 +482,12 @@ void dsyevr_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
    double   *Z        = NULL;
    int       LDZ      = 1;
    int      *ISUPPZ   = new int[2*N];
-   double   *WORK     = new double[26*N];
-   int       LWORK    = 26*N;
-   int      *IWORK    = new int[10*N];
-   int       LIWORK   = 10*N;
+   int       LWORK    = -1; // query optimal (double) workspace size
+   double    QWORK;
+   double   *WORK     = NULL;
+   int       LIWORK   = -1; // query optimal (int) workspace size
+   int       QIWORK;
+   int      *IWORK    = NULL;
    int       INFO;
 
    if (evect) // Compute eigenvectors too
@@ -503,6 +505,15 @@ void dsyevr_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
    for (int i = 0; i < hw; i++)
       A[i] = data[i];
 
+   dsyevr_( &JOBZ, &RANGE, &UPLO, &N, A, &LDA, &VL, &VU, &IL, &IU,
+            &ABSTOL, &M, W, Z, &LDZ, ISUPPZ, &QWORK, &LWORK,
+            &QIWORK, &LIWORK, &INFO );
+
+   LWORK  = (int) QWORK;
+   LIWORK = QIWORK;
+
+   WORK  = new double[LWORK];
+   IWORK = new int[LIWORK];
 
    dsyevr_( &JOBZ, &RANGE, &UPLO, &N, A, &LDA, &VL, &VU, &IL, &IU,
             &ABSTOL, &M, W, Z, &LDZ, ISUPPZ, WORK, &LWORK,
@@ -599,7 +610,7 @@ void dsyev_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
    char  JOBZ   = 'N';
    char  UPLO   = 'U';
    int   LDA    = N;
-   int   LWORK  = 3*N; /* max(1,3*N-1) */
+   int   LWORK  = -1; /* query optimal workspace size */
    int   INFO;
 
    ev.SetSize(N);
@@ -607,6 +618,7 @@ void dsyev_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
    double *A    = NULL;
    double *W    = ev.GetData();
    double *WORK = NULL;
+   double  QWORK;
 
    if (evect)
    {
@@ -619,12 +631,15 @@ void dsyev_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
       A = new double[N*N];
    }
 
-   WORK = new double[3*N];
-
    int hw = a.Height() * a.Width();
    double *data = a.Data();
    for (int i = 0; i < hw; i++)
       A[i] = data[i];
+
+   dsyev_(&JOBZ, &UPLO, &N, A, &LDA, W, &QWORK, &LWORK, &INFO);
+
+   LWORK = (int) QWORK;
+   WORK = new double[LWORK];
 
    dsyev_(&JOBZ, &UPLO, &N, A, &LDA, W, WORK, &LWORK, &INFO);
 
@@ -692,6 +707,675 @@ void DenseMatrix::SingularValues(Vector &sv) const
    // compiling without lapack
    mfem_error("DenseMatrix::SingularValues");
 #endif
+}
+
+double DenseMatrix::CalcSingularvalue(const int i) const
+{
+#ifdef MFEM_DEBUG
+   if (Height() != Width() || Height() < 2 || Height() > 3)
+      mfem_error("DenseMatrix::CalcSingularvalue");
+#endif
+
+   const int n = Height();
+   const double *d = data;
+
+   if (n == 2)
+   {
+#if 0
+      double b11 = d[0]*d[0] + d[1]*d[1];
+      double b12 = d[0]*d[2] + d[1]*d[3];
+      double b22 = d[2]*d[2] + d[3]*d[3];
+
+      double tmp     = 0.5*(b11 - b22);
+      double sqrtD_2 = sqrt(tmp*tmp + b12*b12);
+      double mid     = 0.5*(b11 + b22);
+      if (i == 0)
+         return sqrt(mid + sqrtD_2);
+      if ((mid -= sqrtD_2) <= 0.0)
+         return 0.0;
+      return sqrt(mid);
+#else
+      register double d0, d1, d2, d3;
+      d0 = d[0];
+      d1 = d[1];
+      d2 = d[2];
+      d3 = d[3];
+      // double b11 = d[0]*d[0] + d[1]*d[1];
+      // double b12 = d[0]*d[2] + d[1]*d[3];
+      // double b22 = d[2]*d[2] + d[3]*d[3];
+      // t = 0.5*(a+b).(a-b) = 0.5*(|a|^2-|b|^2)
+      // with a,b - the columns of (*this)
+      // double t = 0.5*(b11 - b22);
+      double t = 0.5*((d0+d2)*(d0-d2)+(d1-d3)*(d1+d3));
+      // double s = sqrt(0.5*(b11 + b22) + sqrt(t*t + b12*b12));
+      double s = d0*d2 + d1*d3;
+      s = sqrt(0.5*(d0*d0 + d1*d1 + d2*d2 + d3*d3) + sqrt(t*t + s*s));
+      if (s == 0.0)
+         return 0.0;
+      t = fabs(d0*d3 - d1*d2) / s;
+// #ifdef MFEM_DEBUG
+      if (t > s)
+         mfem_error("DenseMatrix::CalcSingularvalue : 2x2");
+// #endif
+      if (i == 0)
+         return s;
+      return t;
+#endif
+   }
+   else
+   {
+      double b11 = d[0]*d[0] + d[1]*d[1] + d[2]*d[2];
+      double b12 = d[0]*d[3] + d[1]*d[4] + d[2]*d[5];
+      double b13 = d[0]*d[6] + d[1]*d[7] + d[2]*d[8];
+      double b22 = d[3]*d[3] + d[4]*d[4] + d[5]*d[5];
+      double b23 = d[3]*d[6] + d[4]*d[7] + d[5]*d[8];
+      double b33 = d[6]*d[6] + d[7]*d[7] + d[8]*d[8];
+
+      // double a, b, c;
+      // a = -(b11 + b22 + b33);
+      // b = b11*(b22 + b33) + b22*b33 - b12*b12 - b13*b13 - b23*b23;
+      // c = b11*(b23*b23 - b22*b33) + b12*(b12*b33 - 2*b13*b23) + b13*b13*b22;
+
+      // double Q = (a * a - 3 * b) / 9;
+      // double Q = (b12*b12 + b13*b13 + b23*b23 +
+      //             ((b11 - b22)*(b11 - b22) +
+      //              (b11 - b33)*(b11 - b33) +
+      //              (b22 - b33)*(b22 - b33))/6)/3;
+      // Q = (3*(b12^2 + b13^2 + b23^2) +
+      //      ((b11 - b22)^2 + (b11 - b33)^2 + (b22 - b33)^2)/2)/9
+      //   or
+      // Q = (1/6)*|B-tr(B)/3|_F^2
+      // Q >= 0 and
+      // Q = 0  <==> B = scalar * I
+      // double R = (2 * a * a * a - 9 * a * b + 27 * c) / 54;
+      double aa = (b11 + b22 + b33)/3;  // aa = tr(B)/3
+      double c1, c2, c3;
+      // c1 = b11 - aa; // ((b11 - b22) + (b11 - b33))/3
+      // c2 = b22 - aa; // ((b22 - b11) + (b22 - b33))/3
+      // c3 = b33 - aa; // ((b33 - b11) + (b33 - b22))/3
+      {
+         double b11_b22 = ((d[0]-d[3])*(d[0]+d[3])+
+                           (d[1]-d[4])*(d[1]+d[4])+
+                           (d[2]-d[5])*(d[2]+d[5]));
+         double b22_b33 = ((d[3]-d[6])*(d[3]+d[6])+
+                           (d[4]-d[7])*(d[4]+d[7])+
+                           (d[5]-d[8])*(d[5]+d[8]));
+         double b33_b11 = ((d[6]-d[0])*(d[6]+d[0])+
+                           (d[7]-d[1])*(d[7]+d[1])+
+                           (d[8]-d[2])*(d[8]+d[2]));
+         c1 = (b11_b22 - b33_b11)/3;
+         c2 = (b22_b33 - b11_b22)/3;
+         c3 = (b33_b11 - b22_b33)/3;
+      }
+      double Q = (2*(b12*b12 + b13*b13 + b23*b23) +
+                  c1*c1 + c2*c2 + c3*c3)/6;
+      double R = (c1*(b23*b23 - c2*c3)+ b12*(b12*c3 - 2*b13*b23) +
+                  b13*b13*c2)/2;
+      // R = (-1/2)*det(B-(tr(B)/3)*I)
+      // Note: 54*(det(S))^2 <= |S|_F^6, when S^t=S and tr(S)=0, S is 3x3
+      // Therefore: R^2 <= Q^3
+
+      if (Q <= 0.)
+      {
+         ;
+      }
+/*
+      else if (fabs(R) >= sqrtQ3)
+      {
+         double det = (d[0] * (d[4] * d[8] - d[5] * d[7]) +
+                       d[3] * (d[2] * d[7] - d[1] * d[8]) +
+                       d[6] * (d[1] * d[5] - d[2] * d[4]));
+
+         if (R > 0.)
+         {
+            if (i == 2)
+               // aa -= 2*sqrtQ;
+               return fabs(det)/(aa + sqrtQ);
+            else
+               aa += sqrtQ;
+         }
+         else
+         {
+            if (i != 0)
+               aa -= sqrtQ;
+               // aa = fabs(det)/sqrt(aa + 2*sqrtQ);
+            else
+               aa += 2*sqrtQ;
+         }
+      }
+*/
+      else
+      {
+         double sqrtQ = sqrt(Q);
+         double sqrtQ3 = sqrtQ*sqrtQ*sqrtQ;
+         // double sqrtQ3 = pow(Q, 1.5);
+         double r;
+
+         if (fabs(R) >= sqrtQ3)
+         {
+            if (R < 0.)
+            {
+               R = -1.;
+               r = 2*sqrtQ;
+            }
+            else
+            {
+               R = 1.;
+               r = -2*sqrtQ;
+            }
+         }
+         else
+         {
+            R = R/sqrtQ3;
+
+            // if (fabs(R) <= 0.95)
+            if (fabs(R) <= 0.9)
+            {
+               if (i == 2)
+                  aa -= 2*sqrtQ*cos(acos(R)/3); // min
+               else if (i == 0)
+                  aa -= 2*sqrtQ*cos((acos(R) + 2.0*M_PI)/3); // max
+               else
+                  aa -= 2*sqrtQ*cos((acos(R) - 2.0*M_PI)/3); // mid
+               goto have_aa;
+            }
+
+            if (R < 0.)
+            {
+               r = -2*sqrtQ*cos((acos(R) + 2.0*M_PI)/3); // max
+               if (i == 0)
+               {
+                  aa += r;
+                  goto have_aa;
+               }
+            }
+            else
+            {
+               r = -2*sqrtQ*cos(acos(R)/3); // min
+               if (i == 2)
+               {
+                  aa += r;
+                  goto have_aa;
+               }
+            }
+         }
+
+         // (tr(B)/3 + r) is the root which is separated from the other
+         // two roots which are close to each other when |R| is close to 1
+
+         c1 -= r;
+         c2 -= r;
+         c3 -= r;
+
+         // QR factorization of
+         //   c1  b12  b13
+         //  b12   c2  b23
+         //  b13  b23   c3
+         // to find an eigenvector (z1,z2,z3) for [tr(B)/3 + r]
+         double z1, z2, z3;
+         double sigma = b12*b12 + b13*b13;
+         double mu, gamma, u1;
+         double c12, c13, c23, c32, w1, w2, w3;
+         if (sigma == 0.)
+         {
+            z1 = 1.;
+            z2 = z3 = 0.;
+         }
+         else
+         {
+            mu = copysign(sqrt(c1*c1 + sigma), c1);
+            u1 = -sigma/(c1 + mu); // = c1 - mu
+            gamma = 2./(sigma + u1*u1);
+            // u = (u1, b12, b13),  gamma = 2/(u^t u)
+            // Q = I - 2/(u^t u) u u^t,  Q (c1, b12, b13) = mu e_1
+            c1 = mu;
+            w2  = gamma*(b12*(u1 + c2) + b23*b13);
+            w3  = gamma*(b13*(u1 + c3) + b23*b12);
+            c12 = b12 - u1 *w2;
+            c2  = c2  - b12*w2;
+            c32 = b23 - b13*w2;
+            c13 = b13 - u1 *w3;
+            c23 = b23 - b12*w3;
+            c3  = c3  - b13*w3;
+
+            sigma = c32*c32;
+            if (sigma == 0.)
+            {
+               ;
+            }
+            else
+            {
+               mu = copysign(sqrt(c2*c2 + sigma), c2);
+               u1 = -sigma/(c2 + mu); // = c2 - mu
+               gamma = 2./(sigma + u1*u1);
+               // u = (0, u1, c32),  gamma = 2/(u^t u)
+               // Q = I - 2/(u^t u) u u^t,  Q (c12, c2, c32) = (c12, mu, 0)
+               c2 = mu;
+               w3 = gamma*(u1*c23 + c32*c3);
+               c23 = c23 - u1 *w3;
+               c3  = c3  - c32*w3;
+            }
+            //     solve:
+            // | c1 c12 c13 | | z1 |   | 0 |
+            // | 0   c2 c23 | | z2 | = | 0 |
+            // | 0   0   c3 | | z3 |   | 0 |
+            //  either c2 or c3 must be 0
+            if (fabs(c3) < fabs(c2))
+            {
+               // c3 ~ 0?  -->  set z3 = 1
+               //           c2*z2 + c23 = 0  ==>  z2 = -c23/c2
+               //  c1*z1 + c12*z2 + c13 = 0  ==>  z1 = (-c13 - c12*z2)/c1
+               z3 = 1.;
+               z2 = -c23/c2;
+               z1 = -(c13 + c12*z2)/c1;
+            }
+            else
+            {
+               // c2 ~ 0?
+               z3 = 0.;
+               z2 = 1.;
+               z1 = -c12/c1;
+            }
+         }
+
+         // using the eigenvector z=(z1,z2,z3) transform B into
+         //         | *   0   0 |
+         // Q B Q = | 0  c2 c23 |
+         //         | 0 c23  c3 |
+         sigma = z2*z2 + z3*z3;
+         if (sigma == 0.)
+         {
+            c2  = b22;
+            c23 = b23;
+            c3  = b33;
+         }
+         else
+         {
+            mu = copysign(sqrt(z1*z1 + sigma), z1);
+            u1 = -sigma/(z1 + mu); // = z1 - mu
+            gamma = 2./(sigma + u1*u1);
+            // u = (u1, z2, z3),  gamma = 2/(u^t u)
+            // Q = I - 2/(u^t u) u u^t,  Q (z1, z2, z3) = mu e_1
+            // Compute Q B Q
+            // w = gamma*B u
+            w1 = gamma*(b11*u1 + b12*z2 + b13*z3);
+            w2 = gamma*(b12*u1 + b22*z2 + b23*z3);
+            w3 = gamma*(b13*u1 + b23*z2 + b33*z3);
+            // w <-  w - (gamma*(u^t w)/2) u
+            double gutw2 = gamma*(u1*w1 + z2*w2 + z3*w3)/2;
+            w2 -= gutw2*z2;
+            w3 -= gutw2*z3;
+            c2  = b22 - 2*z2*w2;
+            c23 = b23 - z2*w3 - z3*w2;
+            c3  = b33 - 2*z3*w3;
+
+#ifdef MFEM_DEBUG
+            // for debugger testing
+            // is z close to an eigenvector?
+            w1 -= gutw2*u1;
+            c1  = b11 - 2*u1*w1; // is c1 more accurate than (aa + r)?
+            c12 = b12 - u1*w2 - z2*w1;
+            c13 = b13 - u1*w3 - z3*w1;
+#endif
+         }
+
+         // find the eigenvalues of
+         //  |  c2 c23 |
+         //  | c23  c3 |
+         w1 = 0.5*(c3 - c2);
+         w2 = 0.5*(c2 + c3) + sqrt(w1*w1 + c23*c23);
+         if (w2 == 0.0)
+         {
+            w1 = 0.0;
+         }
+         else
+         {
+            w1 = (c2*c3 - c23*c23)/w2;
+         }
+
+         if (R < 0.)
+         {
+            // order is w1 <= w2 <= aa + r
+            if (i == 2)
+               aa = w1;
+            else if (i == 0)
+               aa += r;
+            else
+               aa = w2;
+         }
+         else
+         {
+            // order is aa + r <= w1 <= w2
+            if (i == 2)
+               aa += r;
+            else if (i == 0)
+               aa = w2;
+            else
+               aa = w1;
+         }
+
+/*
+         double theta = acos(R / sqrtQ3);
+         double A = -2 * sqrt(Q);
+
+         if (i == 2)
+         {
+            aa += A * cos(theta / 3); // min
+         }
+         else if (i == 0)
+         {
+            aa += A * cos((theta + 2.0 * M_PI) / 3); // max
+         }
+         else
+         {
+            aa += A * cos((theta - 2.0 * M_PI) / 3); // mid
+         }
+*/
+      }
+
+   have_aa:
+      if (aa < 0.0)
+      {
+         cerr << "DenseMatrix::CalcSingularvalue (3x3) : aa = " << aa << endl;
+         mfem_error();
+         return 0.0;
+      }
+
+      return sqrt(aa);
+   }
+
+   return 0.0;
+}
+
+void DenseMatrix::CalcEigenvalues(double *lambda, double *vec) const
+{
+#ifdef MFEM_DEBUG
+   if (Height() != Width() || Height() < 2 || Height() > 3)
+      mfem_error("DenseMatrix::CalcEigenvalues");
+#endif
+
+   const int n = Height();
+   const double *d = data;
+
+   if (n == 2)
+   {
+      const double d0 = d[0];
+      const double d2 = d[2]; // use the upper triangular entry
+      const double d3 = d[3];
+
+      double c, s, l0, l1;
+      if (d2 == 0.)
+      {
+         c = 1.;
+         s = 0.;
+         l0 = d0;
+         l1 = d3;
+      }
+      else
+      {
+         // "The Symmetric Eigenvalue Problem", B. N. Parlett, pp.189-190
+         double zeta = (d3 - d0)/(2*d2);
+         double t = copysign(1./(fabs(zeta) + sqrt(1. + zeta*zeta)), zeta);
+         c = 1./sqrt(1. + t*t);
+         s = c*t;
+         l0 = d0 - d2*t;
+         l1 = d3 + d2*t;
+      }
+      if (l0 <= l1)
+      {
+         lambda[0] = l0;
+         lambda[1] = l1;
+         vec[0] =  c;
+         vec[1] = -s;
+         vec[2] =  s;
+         vec[3] =  c;
+      }
+      else
+      {
+         lambda[0] = l1;
+         lambda[1] = l0;
+         vec[0] =  s;
+         vec[1] =  c;
+         vec[2] =  c;
+         vec[3] = -s;
+      }
+   }
+   else
+   {
+      const double d11 = d[0];
+      const double d22 = d[4];
+      const double d33 = d[8];
+      const double d12 = d[3]; // use the upper triangular entries
+      const double d13 = d[6];
+      const double d23 = d[7];
+
+      double aa = (d11 + d22 + d33)/3;  // aa = tr(A)/3
+      double c1 = d11 - aa;
+      double c2 = d22 - aa;
+      double c3 = d33 - aa;
+
+      double Q = (2*(d12*d12 + d13*d13 + d23*d23) +
+                  c1*c1 + c2*c2 + c3*c3)/6;
+      double R = (c1*(d23*d23 - c2*c3)+ d12*(d12*c3 - 2*d13*d23) +
+                  d13*d13*c2)/2;
+
+      if (Q <= 0.)
+      {
+         lambda[0] = lambda[1] = lambda[2] = aa;
+         vec[0] = 1.; vec[3] = 0.; vec[6] = 0.;
+         vec[1] = 0.; vec[4] = 1.; vec[7] = 0.;
+         vec[2] = 0.; vec[5] = 0.; vec[8] = 1.;
+      }
+      else
+      {
+         double sqrtQ = sqrt(Q);
+         double sqrtQ3 = sqrtQ*sqrtQ*sqrtQ;
+         // double sqrtQ3 = pow(Q, 1.5);
+         double r;
+         if (fabs(R) >= sqrtQ3)
+         {
+            if (R < 0.)
+            {
+               R = -1.;
+               r = 2*sqrtQ;
+            }
+            else
+            {
+               R = 1.;
+               r = -2*sqrtQ;
+            }
+         }
+         else
+         {
+            R = R/sqrtQ3;
+
+            if (R < 0.)
+            {
+               r = -2*sqrtQ*cos((acos(R) + 2.0*M_PI)/3); // max
+            }
+            else
+            {
+               r = -2*sqrtQ*cos(acos(R)/3); // min
+            }
+         }
+
+         c1 -= r;
+         c2 -= r;
+         c3 -= r;
+
+         // QR factorization of
+         //   c1  d12  d13
+         //  d12   c2  d23
+         //  d13  d23   c3
+         // to find an eigenvector (z1,z2,z3) for [tr(A)/3 + r]
+         double z1, z2, z3;
+         double sigma = d12*d12 + d13*d13;
+         double mu, gamma, u1;
+         double c12, c13, c23, c32, w1, w2, w3;
+         if (sigma == 0.)
+         {
+            z1 = 1.;
+            z2 = z3 = 0.;
+         }
+         else
+         {
+            mu = copysign(sqrt(c1*c1 + sigma), c1);
+            u1 = -sigma/(c1 + mu);
+            gamma = 2./(sigma + u1*u1);
+            c1 = mu;
+            w2  = gamma*(d12*(u1 + c2) + d23*d13);
+            w3  = gamma*(d13*(u1 + c3) + d23*d12);
+            c12 = d12 - u1 *w2;
+            c2  = c2  - d12*w2;
+            c32 = d23 - d13*w2;
+            c13 = d13 - u1 *w3;
+            c23 = d23 - d12*w3;
+            c3  = c3  - d13*w3;
+
+            sigma = c32*c32;
+            if (sigma == 0.)
+            {
+               ;
+            }
+            else
+            {
+               mu = copysign(sqrt(c2*c2 + sigma), c2);
+               u1 = -sigma/(c2 + mu);
+               gamma = 2./(sigma + u1*u1);
+               c2 = mu;
+               w3 = gamma*(u1*c23 + c32*c3);
+               c23 = c23 - u1 *w3;
+               c3  = c3  - c32*w3;
+            }
+            if (fabs(c3) < fabs(c2))
+            {
+               z3 = 1.;
+               z2 = -c23/c2;
+               z1 = -(c13 + c12*z2)/c1;
+            }
+            else
+            {
+               z3 = 0.;
+               z2 = 1.;
+               z1 = -c12/c1;
+            }
+         }
+
+         // using the eigenvector z=(z1,z2,z3) transform A into
+         //         | *   0   0 |
+         // Q A Q = | 0  c2 c23 |
+         //         | 0 c23  c3 |
+         sigma = z2*z2 + z3*z3;
+         if (sigma == 0.)
+         {
+            c2  = d22;
+            c23 = d23;
+            c3  = d33;
+         }
+         else
+         {
+            mu = copysign(sqrt(z1*z1 + sigma), z1);
+            u1 = -sigma/(z1 + mu);
+            gamma = 2./(sigma + u1*u1);
+            w1 = gamma*(d11*u1 + d12*z2 + d13*z3);
+            w2 = gamma*(d12*u1 + d22*z2 + d23*z3);
+            w3 = gamma*(d13*u1 + d23*z2 + d33*z3);
+            double gutw2 = gamma*(u1*w1 + z2*w2 + z3*w3)/2;
+            w2 -= gutw2*z2;
+            w3 -= gutw2*z3;
+            c2  = d22 - 2*z2*w2;
+            c23 = d23 - z2*w3 - z3*w2;
+            c3  = d33 - 2*z3*w3;
+
+#ifdef MFEM_DEBUG
+            // for debugger testing
+            // is z close to an eigenvector?
+            w1 -= gutw2*u1;
+            c1  = d11 - 2*u1*w1; // is c1 more accurate than (aa + r)?
+            c12 = d12 - u1*w2 - z2*w1;
+            c13 = d13 - u1*w3 - z3*w1;
+#endif
+         }
+
+         // find the eigenvalues and eigenvectors for
+         // |  c2 c23 |
+         // | c23  c3 |
+         double c, s;
+         if (c23 == 0.)
+         {
+            c = 1.;
+            s = 0.;
+            w1 = c2;
+            w2 = c3;
+         }
+         else
+         {
+            double zeta = (c3 - c2)/(2*c23);
+            double t = copysign(1./(fabs(zeta) + sqrt(1. + zeta*zeta)), zeta);
+            c = 1./sqrt(1. + t*t);
+            s = c*t;
+            w1 = c2 - c23*t;
+            w2 = c3 + c23*t;
+         }
+         // w1 <-> Q (0, c, -s), w2 <-> Q (0, s, c)
+         // Q = I, when sigma = 0
+         // Q = I - gamma* u u^t,  u = (u1, z2, z3)
+
+         double *vec_ar, *vec_w1, *vec_w2;
+         if (R < 0.)
+         {
+            // (aa + r) is max
+            lambda[2] = aa + r;
+            vec_ar = vec + 6;
+            if (w1 <= w2)
+            {
+               lambda[0] = w1;  vec_w1 = vec;
+               lambda[1] = w2;  vec_w2 = vec + 3;
+            }
+            else
+            {
+               lambda[0] = w2;  vec_w2 = vec;
+               lambda[1] = w1;  vec_w1 = vec + 3;
+            }
+         }
+         else
+         {
+            // (aa + r) is min
+            lambda[0] = aa + r;
+            vec_ar = vec;
+            if (w1 <= w2)
+            {
+               lambda[1] = w1;  vec_w1 = vec + 3;
+               lambda[2] = w2;  vec_w2 = vec + 6;
+            }
+            else
+            {
+               lambda[1] = w2;  vec_w2 = vec + 3;
+               lambda[2] = w1;  vec_w1 = vec + 6;
+            }
+         }
+
+         if (sigma == 0.)
+         {
+            mu = fabs(z1);
+            vec_w1[0] = 0.;  vec_w2[0] = 0.;
+            vec_w1[1] =  c;  vec_w2[1] = s;
+            vec_w1[2] = -s;  vec_w2[2] = c;
+         }
+         else
+         {
+            mu = fabs(mu);
+            w1 = gamma*(z2*c - z3*s);
+            w2 = gamma*(z2*s + z3*c);
+            vec_w1[0] =    - u1*w1;  vec_w2[0] =   - u1*w2;
+            vec_w1[1] =  c - z2*w1;  vec_w2[1] = s - z2*w2;
+            vec_w1[2] = -s - z3*w1;  vec_w2[2] = c - z3*w2;
+         }
+         vec_ar[0] = z1/mu;
+         vec_ar[1] = z2/mu;
+         vec_ar[2] = z3/mu;
+      }
+   }
 }
 
 void DenseMatrix::GetColumn(int c, Vector &col)
@@ -1292,6 +1976,54 @@ void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
 
    dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &m,
           B.Data(), &n, &beta, ABt.Data(), &m);
+#elif 1
+   register const int ah = A.Height();
+   register const int bh = B.Height();
+   register const int aw = A.Width();
+   register const double *ad = A.Data();
+   register const double *bd = B.Data();
+   register double *cd = ABt.Data();
+   register double *cp;
+
+   cp = cd;
+   for (register int i = 0, s = ah*bh; i < s; i++)
+      *(cp++) = 0.0;
+   for (register int k = 0; k < aw; k++)
+   {
+      cp = cd;
+      for (register int j = 0; j < bh; j++)
+      {
+         register const double bjk = bd[j];
+         for (register int i = 0; i < ah; i++)
+         {
+            *(cp++) += ad[i] * bjk;
+         }
+      }
+      ad += ah;
+      bd += bh;
+   }
+#elif 1
+   register const int ah = A.Height();
+   register const int bh = B.Height();
+   register const int aw = A.Width();
+   register const double *ad = A.Data();
+   register const double *bd = B.Data();
+   register double *cd = ABt.Data();
+
+   for (register int j = 0; j < bh; j++)
+      for (register int i = 0; i < ah; i++)
+      {
+         register double d = 0.0;
+         register const double *ap = ad + i;
+         register const double *bp = bd + j;
+         for (register int k = 0; k < aw; k++)
+         {
+            d += (*ap) * (*bp);
+            ap += ah;
+            bp += bh;
+         }
+         *(cd++) = d;
+      }
 #else
    int i, j, k;
    double d;
@@ -1342,6 +2074,28 @@ void MultAtB(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &AtB)
 
    dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &k,
           B.Data(), &k, &beta, AtB.Data(), &m);
+#elif 1
+   register const int ah = A.Height();
+   register const int aw = A.Width();
+   register const int bw = B.Width();
+   register const double *ad = A.Data();
+   register const double *bd = B.Data();
+   register double *cd = AtB.Data();
+
+   for (register int j = 0; j < bw; j++)
+   {
+      register const double *ap = ad;
+      for (register int i = 0; i < aw; i++)
+      {
+         register double d = 0.0;
+         for (register int k = 0; k < ah; k++)
+         {
+            d += *(ap++) * bd[k];
+         }
+         *(cd++) = d;
+      }
+      bd += ah;
+   }
 #else
    int i, j, k;
    double d;
@@ -1587,7 +2341,13 @@ DenseMatrixEigensystem::DenseMatrixEigensystem(DenseMatrix &m)
    ev.SetDataAndSize(NULL, n);
    jobz = 'V';
    uplo = 'U';
-   lwork = 3*n;
+
+   lwork = -1;
+   double qwork;
+   dsyev_(&jobz, &uplo, &n, EVect.Data(), &n, EVal.GetData(),
+          &qwork, &lwork, &info);
+
+   lwork = (int) qwork;
    work = new double[lwork];
 }
 

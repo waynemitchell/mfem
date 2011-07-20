@@ -3373,7 +3373,7 @@ inline void swap(double &a, double &b)
 // compute the real roots of
 //   z(0)+z(1)*x+...+z(d)*x^d = 0,  d=2,3;
 // the roots are returned in x, sorted in increasing order;
-// it is assumed that x is at least if size d;
+// it is assumed that x is at least of size d;
 // return the number of roots counting multiplicity;
 // return -1 if all z(i) are 0.
 int FindRoots(const Vector &z, Vector &x)

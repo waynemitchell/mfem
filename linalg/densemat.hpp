@@ -141,6 +141,13 @@ public:
 
    void SingularValues(Vector &sv) const;
 
+   /// Return the i-th singular value (decreasing order) of a 2x2 or 3x3 matrix
+   double CalcSingularvalue(const int i) const;
+
+   /** Return the eigenvalues (in increasing order) and eigenvectors of a
+       2x2 or 3x3 symmetric matrix. */
+   void CalcEigenvalues(double *lambda, double *vec) const;
+
    void GetColumn(int c, Vector &col);
 
    void GetColumnReference(int c, Vector &col)
