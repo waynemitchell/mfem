@@ -819,31 +819,31 @@ double DenseMatrix::CalcSingularvalue(const int i) const
       {
          ;
       }
-/*
-      else if (fabs(R) >= sqrtQ3)
-      {
-         double det = (d[0] * (d[4] * d[8] - d[5] * d[7]) +
-                       d[3] * (d[2] * d[7] - d[1] * d[8]) +
-                       d[6] * (d[1] * d[5] - d[2] * d[4]));
 
-         if (R > 0.)
-         {
-            if (i == 2)
-               // aa -= 2*sqrtQ;
-               return fabs(det)/(aa + sqrtQ);
-            else
-               aa += sqrtQ;
-         }
-         else
-         {
-            if (i != 0)
-               aa -= sqrtQ;
-               // aa = fabs(det)/sqrt(aa + 2*sqrtQ);
-            else
-               aa += 2*sqrtQ;
-         }
-      }
-*/
+      // else if (fabs(R) >= sqrtQ3)
+      // {
+      //    double det = (d[0] * (d[4] * d[8] - d[5] * d[7]) +
+      //                  d[3] * (d[2] * d[7] - d[1] * d[8]) +
+      //                  d[6] * (d[1] * d[5] - d[2] * d[4]));
+      //
+      //    if (R > 0.)
+      //    {
+      //       if (i == 2)
+      //          // aa -= 2*sqrtQ;
+      //          return fabs(det)/(aa + sqrtQ);
+      //       else
+      //          aa += sqrtQ;
+      //    }
+      //    else
+      //    {
+      //       if (i != 0)
+      //          aa -= sqrtQ;
+      //          // aa = fabs(det)/sqrt(aa + 2*sqrtQ);
+      //       else
+      //          aa += 2*sqrtQ;
+      //    }
+      // }
+
       else
       {
          double sqrtQ = sqrt(Q);
@@ -1054,23 +1054,21 @@ double DenseMatrix::CalcSingularvalue(const int i) const
                aa = w1;
          }
 
-/*
-         double theta = acos(R / sqrtQ3);
-         double A = -2 * sqrt(Q);
-
-         if (i == 2)
-         {
-            aa += A * cos(theta / 3); // min
-         }
-         else if (i == 0)
-         {
-            aa += A * cos((theta + 2.0 * M_PI) / 3); // max
-         }
-         else
-         {
-            aa += A * cos((theta - 2.0 * M_PI) / 3); // mid
-         }
-*/
+         // double theta = acos(R / sqrtQ3);
+         // double A = -2 * sqrt(Q);
+         //
+         // if (i == 2)
+         // {
+         //    aa += A * cos(theta / 3); // min
+         // }
+         // else if (i == 0)
+         // {
+         //    aa += A * cos((theta + 2.0 * M_PI) / 3); // max
+         // }
+         // else
+         // {
+         //    aa += A * cos((theta - 2.0 * M_PI) / 3); // mid
+         // }
       }
 
    have_aa:
@@ -2342,6 +2340,7 @@ DenseMatrixEigensystem::DenseMatrixEigensystem(DenseMatrix &m)
    jobz = 'V';
    uplo = 'U';
 
+#ifdef MFEM_USE_LAPACK
    lwork = -1;
    double qwork;
    dsyev_(&jobz, &uplo, &n, EVect.Data(), &n, EVal.GetData(),
@@ -2349,6 +2348,7 @@ DenseMatrixEigensystem::DenseMatrixEigensystem(DenseMatrix &m)
 
    lwork = (int) qwork;
    work = new double[lwork];
+#endif
 }
 
 void DenseMatrixEigensystem::Eval()
