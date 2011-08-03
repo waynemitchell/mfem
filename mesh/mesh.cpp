@@ -415,6 +415,7 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo)
          GetLocalSegToQuadTransformation(FaceElemTr.Loc1.Transf,
                                          faces_info[FaceNo].Elem1Inf);
       if (FaceElemTr.Elem2No >= 0)
+      {
          if (GetElementType(faces_info[FaceNo].Elem2No)
              == Element::TRIANGLE)
             GetLocalSegToTriTransformation(FaceElemTr.Loc2.Transf,
@@ -422,6 +423,7 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo)
          else // assume the element is a quad
             GetLocalSegToQuadTransformation(FaceElemTr.Loc2.Transf,
                                             faces_info[FaceNo].Elem2Inf);
+      }
       break;
    case Element::TRIANGLE:
       // ---------  assumes the face is a triangle -- face of a tetrahedron
@@ -3226,6 +3228,7 @@ void FindPartitioningComponents(Table &elem_elem,
          {
             k = j_elem_elem[j];
             if (partitioning[k] == partitioning[i])
+            {
                if (component[k] < 0)
                {
                   component[k] = component[i];
@@ -3235,6 +3238,7 @@ void FindPartitioningComponents(Table &elem_elem,
                {
                   mfem_error("FindPartitioningComponents");
                }
+            }
          }
       }
    }
@@ -5030,10 +5034,12 @@ int Mesh::GetRefinementType(int i)
 
       t = E->GetType();
       if (t != Element::BISECTED)
+      {
          if (t == Element::OCTASECTED)
             return 1;  //  refinement type for octasected CUBE
          else
             return 0;
+      }
       // Bisected TETRAHEDRON
       tet = (Tetrahedron *) (((BisectedElement *) E)->CoarseElem);
       tet->ParseRefinementFlag(redges, type, flag);

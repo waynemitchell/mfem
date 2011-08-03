@@ -78,10 +78,12 @@ int FiniteElementSpace::DofToVDof (int dof, int vd) const
    if (vdim == 1)
       return dof;
    if (ordering == Ordering::byNODES)
+   {
       if (dof < 0)
          return -1 - ((-1-dof) + vd * ndofs);
       else
          return dof + vd * ndofs;
+   }
    if (dof < 0)
       return -1 - ((-1-dof) * vdim + vd);
    else

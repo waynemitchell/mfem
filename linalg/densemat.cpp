@@ -1082,7 +1082,7 @@ double DenseMatrix::CalcSingularvalue(const int i) const
       return sqrt(aa);
    }
 
-   return 0.0;
+//   return 0.0;
 }
 
 void DenseMatrix::CalcEigenvalues(double *lambda, double *vec) const

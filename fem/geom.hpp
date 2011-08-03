@@ -43,6 +43,8 @@ public:
    const IntegrationPoint &GetCenter(int GeomType)
    { return GeomCenter[GeomType]; }
 
+   DenseMatrix *GetPerfGeomToGeomJac(int GeomType)
+   { return PerfGeomToGeomJac[GeomType]; }
    void GetPerfPointMat (int GeomType, DenseMatrix &pm);
    void JacToPerfJac(int GeomType, const DenseMatrix &J,
                      DenseMatrix &PJ) const;

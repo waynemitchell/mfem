@@ -143,6 +143,7 @@ void DiffusionIntegrator::ComputeElementFlux
       invdfdx.MultTranspose(vec, pointflux);
 
       if (wcoef)
+      {
          if (Q)
          {
             pointflux *= Q->Eval(Trans,ip);
@@ -156,6 +157,7 @@ void DiffusionIntegrator::ComputeElementFlux
             for (j = 0; j < dim; j++)
                flux(fnd*j+i) = vec(j);
          }
+      }
    }
 }
 
