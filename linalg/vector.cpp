@@ -293,6 +293,17 @@ void Vector::GetSubVector(const Array<int> & dofs, Vector &elemvect) const
          elemvect(i) = -data[-1-j];
 }
 
+void Vector::GetSubVector(const Array<int> & dofs, double *elem_data) const
+{
+   int i, j, n = dofs.Size();
+
+   for (i = 0; i < n; i++)
+      if ((j=dofs[i]) >= 0)
+         elem_data[i] = data[j];
+      else
+         elem_data[i] = -data[-1-j];
+}
+
 void Vector::SetSubVector(const Array<int> & dofs, const Vector &elemvect)
 {
    int i, j, n = dofs.Size();
@@ -304,6 +315,17 @@ void Vector::SetSubVector(const Array<int> & dofs, const Vector &elemvect)
          data[-1-j] = -elemvect(i);
 }
 
+void Vector::SetSubVector(const Array<int> & dofs, double *elem_data)
+{
+   int i, j, n = dofs.Size();
+
+   for (i = 0; i < n; i++)
+      if ((j=dofs[i]) >= 0)
+         data[j] = elem_data[i];
+      else
+         data[-1-j] = -elem_data[i];
+}
+
 void Vector::AddElementVector(const Array<int> & dofs, const Vector & elemvect)
 {
    int i, j, n = dofs.Size();
@@ -313,6 +335,17 @@ void Vector::AddElementVector(const Array<int> & dofs, const Vector & elemvect)
          data[j] += elemvect(i);
       else
          data[-1-j] -= elemvect(i);
+}
+
+void Vector::AddElementVector(const Array<int> & dofs, double *elem_data)
+{
+   int i, j, n = dofs.Size();
+
+   for (i = 0; i < n; i++)
+      if ((j=dofs[i]) >= 0)
+         data[j] += elem_data[i];
+      else
+         data[-1-j] -= elem_data[i];
 }
 
 void Vector::AddElementVector(const Array<int> & dofs, const double a,

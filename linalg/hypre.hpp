@@ -138,6 +138,8 @@ public:
    /// Returns the global number of columns
    inline int N() { return A -> global_num_cols; }
 
+   /// Get the diagonal of the matrix
+   void GetDiag(Vector &diag);
    /// Returns the transpose of *this
    HypreParMatrix * Transpose();
 
@@ -324,6 +326,7 @@ public:
    virtual HYPRE_PtrToParSolverFcn SolveFcn() const
    { return (HYPRE_PtrToParSolverFcn) HYPRE_ParCSRDiagScale; }
 
+   HypreParMatrix* GetData() { return A; }
    virtual ~HypreDiagScale() { }
 };
 

@@ -413,6 +413,15 @@ hypre_ParCSRMatrix* HypreParMatrix::StealData()
    return R;
 }
 
+void HypreParMatrix::GetDiag(Vector &diag)
+{
+   int size=hypre_CSRMatrixNumRows(A->diag);
+   diag.SetSize(size);
+   for (int j = 0; j < size; j++)
+      diag(j) = A->diag->data[A->diag->i[j]];
+}
+
+
 HypreParMatrix * HypreParMatrix::Transpose()
 {
    hypre_ParCSRMatrix * At;

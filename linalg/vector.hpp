@@ -143,11 +143,14 @@ public:
                         const Vector &y, Vector &z);
 
    void GetSubVector(const Array<int> &dofs, Vector &elemvect) const;
+   void GetSubVector(const Array<int> &dofs, double *elem_data) const;
 
    void SetSubVector(const Array<int> &dofs, const Vector &elemvect);
+   void SetSubVector(const Array<int> &dofs, double *elem_data);
 
    /// Add (element) subvector to the vector.
    void AddElementVector(const Array<int> & dofs, const Vector & elemvect);
+   void AddElementVector(const Array<int> & dofs, double *elem_data);
    void AddElementVector(const Array<int> & dofs, const double a,
                          const Vector & elemvect);
 
