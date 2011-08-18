@@ -359,6 +359,62 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
    size = GetNumRows();
 }
 
+HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
+                               int glob_ncols, int *I, int *J, double *data,
+                               int *rows, int *cols)
+{
+   // construct the local CSR matrix
+   int nnz = I[nrows];
+   hypre_CSRMatrix *local = hypre_CSRMatrixCreate(nrows, glob_ncols, nnz);
+   hypre_CSRMatrixI(local) = I;
+   hypre_CSRMatrixJ(local) = J;
+   hypre_CSRMatrixData(local) = data;
+   hypre_CSRMatrixRownnz(local) = NULL;
+   hypre_CSRMatrixOwnsData(local) = 1;
+   hypre_CSRMatrixNumRownnz(local) = nrows;
+
+   int part_size, myid;
+   if (HYPRE_AssumedPartitionCheck())
+   {
+      myid = 0;
+      part_size = 2;
+   }
+   else
+   {
+      MPI_Comm_rank(comm, &myid);
+      MPI_Comm_size(comm, &part_size);
+      part_size++;
+   }
+
+   // copy in the row and column partitionings
+   HYPRE_Int *row_starts = hypre_TAlloc(HYPRE_Int, part_size);
+   HYPRE_Int *col_starts = hypre_TAlloc(HYPRE_Int, part_size);
+   for (int i = 0; i < part_size; i++)
+   {
+      row_starts[i] = rows[i];
+      col_starts[i] = cols[i];
+   }
+
+   // construct the global ParCSR matrix
+   A = hypre_ParCSRMatrixCreate(comm, glob_nrows, glob_ncols,
+                                row_starts, col_starts, 0, 0, 0);
+   hypre_ParCSRMatrixOwnsRowStarts(A) = 1;
+   hypre_ParCSRMatrixOwnsColStarts(A) = 1;
+   GenerateDiagAndOffd(local, A, col_starts[myid], col_starts[myid+1]-1);
+   hypre_ParCSRMatrixSetNumNonzeros(A);
+   hypre_MatvecCommPkgCreate(A);
+
+   // delete the local CSR matrix
+   hypre_CSRMatrixI(local) = NULL;
+   hypre_CSRMatrixJ(local) = NULL;
+   hypre_CSRMatrixData(local) = NULL;
+   hypre_CSRMatrixDestroy(local);
+
+   CommPkg = NULL;
+   X = Y = NULL;
+   size = GetNumRows();
+}
+
 void HypreParMatrix::SetCommPkg(hypre_ParCSRCommPkg *comm_pkg)
 {
    CommPkg = comm_pkg;
@@ -418,7 +474,13 @@ void HypreParMatrix::GetDiag(Vector &diag)
    int size=hypre_CSRMatrixNumRows(A->diag);
    diag.SetSize(size);
    for (int j = 0; j < size; j++)
+   {
       diag(j) = A->diag->data[A->diag->i[j]];
+#ifdef MFEM_DEBUG
+      if (A->diag->j[A->diag->i[j]] != j)
+         mfem_error("HypreParMatrix::GetDiag");
+#endif
+   }
 }
 
 
@@ -945,6 +1007,106 @@ HypreBoomerAMG::~HypreBoomerAMG()
 
 #include "../fem/fem.hpp"
 
+
+HypreParMatrix* DiscreteGrad(ParFiniteElementSpace *edge_fespace,
+                             ParFiniteElementSpace *vert_fespace)
+{
+   int i, e;
+   ParMesh *pmesh = (ParMesh *) edge_fespace->GetMesh();
+
+   // set the number of vertices in each edge
+   int nedges = edge_fespace->TrueVSize();
+   int *edge_offset = new int[nedges+1];
+   for (int i = 0; i <= nedges; i++)
+      edge_offset[i] = 2*i;
+
+   // set the orientation of locally owned edges (tdofs in edge_fespace)
+   int *edge_vert = new int[2*nedges];
+   double *vert_sign = new double[2*nedges];
+   Array<int> vert;
+   for (i = 0; i < pmesh->GetNEdges(); i++)
+   {
+      e = edge_fespace->GetLocalTDofNumber(i);
+      if (e >= 0)
+      {
+         pmesh->GetEdgeVertices(i,vert);
+         edge_vert[2*e]   = vert_fespace->GetGlobalTDofNumber(vert[0]);
+         edge_vert[2*e+1] = vert_fespace->GetGlobalTDofNumber(vert[1]);
+         vert_sign[2*e]   = -edge_fespace->GetDofSign(i);
+         vert_sign[2*e+1] = edge_fespace->GetDofSign(i);
+      }
+   }
+
+   // construct the corresponding ParCSR matrix
+   HypreParMatrix *G = new HypreParMatrix(edge_fespace->GetComm(),
+                                          edge_fespace->TrueVSize(),
+                                          edge_fespace->GlobalTrueVSize(),
+                                          vert_fespace->GlobalTrueVSize(),
+                                          edge_offset, edge_vert, vert_sign,
+                                          edge_fespace->GetTrueDofOffsets(),
+                                          vert_fespace->GetTrueDofOffsets());
+
+   delete [] edge_vert;
+   delete [] vert_sign;
+   delete [] edge_offset;
+
+   return G;
+}
+
+HypreParMatrix* DiscreteCurl(ParFiniteElementSpace *face_fespace,
+                             ParFiniteElementSpace *edge_fespace)
+{
+   int i, j, f;
+   ParMesh *pmesh = (ParMesh *) face_fespace->GetMesh();
+
+   // count the number of edges in each face
+   int nfaces = face_fespace->TrueVSize();
+   int *face_offset = new int[nfaces+1];
+   for (i = 0; i < pmesh->GetNFaces(); i++)
+   {
+      f = face_fespace->GetLocalTDofNumber(i);
+      face_offset[f+1] = pmesh->GetFace(i)->GetNEdges();
+   }
+   face_offset[0] = 0;
+   for (i = 1; i < nfaces; i++)
+      face_offset[i+1] += face_offset[i];
+
+   // set the orientation of locally owned faces (tdofs in face_fespace)
+   int *face_edge = new int[face_offset[nfaces]];
+   double *edge_sign = new double[face_offset[nfaces]];
+   Array<int> edge, orient;
+   for (i = 0; i < pmesh->GetNFaces(); i++)
+   {
+      f = face_fespace->GetLocalTDofNumber(i);
+      if (f >= 0)
+      {
+         pmesh->GetFaceEdges(i, edge, orient);
+         for (j = 0; j < face_offset[f+1]-face_offset[f]; j++)
+         {
+            face_edge[face_offset[f]+j] = edge_fespace->GetGlobalTDofNumber(edge[j]);
+            edge_sign[face_offset[f]+j] = (orient[j] * face_fespace->GetDofSign(i) *
+                                           edge_fespace->GetDofSign(edge[j]));
+         }
+      }
+   }
+
+   // construct the corresponding ParCSR matrix
+   HypreParMatrix *C = new HypreParMatrix(face_fespace->GetComm(),
+                                          face_fespace->TrueVSize(),
+                                          face_fespace->GlobalTrueVSize(),
+                                          edge_fespace->GlobalTrueVSize(),
+                                          face_offset, face_edge, edge_sign,
+                                          face_fespace->GetTrueDofOffsets(),
+                                          edge_fespace->GetTrueDofOffsets());
+
+   delete [] face_edge;
+   delete [] edge_sign;
+   delete [] face_offset;
+
+   return C;
+}
+
+
 HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    : HypreSolver(&A)
 {
@@ -955,12 +1117,10 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    double rlx_omega     = 1.0;
    int amg_coarsen_type = 10;
    int amg_agg_levels   = 1;
-   // int amg_agg_npaths   = 1;
    int amg_rlx_type     = 8;
    double theta         = 0.25;
    int amg_interp_type  = 6;
    int amg_Pmax         = 4;
-   // int print_level      = 1;
 
    HYPRE_AMSCreate(&ams);
 
@@ -971,7 +1131,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    HYPRE_AMSSetCycleType(ams, cycle_type);
    HYPRE_AMSSetPrintLevel(ams, 1);
 
-   /// define the nodal linear finite element space associated with edge_fespace
+   // define the nodal linear finite element space associated with edge_fespace
    ParMesh *pmesh = (ParMesh *) edge_fespace->GetMesh();
    FiniteElementCollection *vert_fec = new LinearFECollection;
    ParFiniteElementSpace *vert_fespace = new ParFiniteElementSpace(pmesh, vert_fec);
@@ -1002,51 +1162,8 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
       HYPRE_AMSSetCoordinateVectors(ams, *x, *y, *z);
    }
 
-   // generate and set the discrete gradient
-   HYPRE_ParCSRMatrix Gh;
-   {
-      int *edge_vertex = new int[2*edge_fespace->TrueVSize()];
-      Array<int> vert;
-      // set orientation of locally owned edges (tdofs in edge_fespace)
-      for (int i = 0; i < pmesh->GetNEdges(); i++)
-      {
-         int j = edge_fespace->GetLocalTDofNumber(i);
-         if (j >= 0)
-         {
-            pmesh->GetEdgeVertices(i,vert);
-            if (vert[0] < vert[1])
-            {
-               edge_vertex[2*j] = vert_fespace->GetGlobalTDofNumber(vert[0]);
-               edge_vertex[2*j+1] = vert_fespace->GetGlobalTDofNumber(vert[1]);
-            }
-            else
-            {
-               edge_vertex[2*j] = vert_fespace->GetGlobalTDofNumber(vert[1]);
-               edge_vertex[2*j+1] = vert_fespace->GetGlobalTDofNumber(vert[0]);
-            }
-         }
-      }
-      // fix the orientation of shared edges
-      for (int gr = 1; gr < pmesh->GetNGroups(); gr++)
-      {
-         if (pmesh->groupmaster_lproc[gr] == 0)
-            for (int j = 0; j < pmesh->GroupNEdges(gr); j++)
-            {
-               int k, o;
-               pmesh->GroupEdge(gr, j, k, o);
-               if (edge_fespace->GetDofSign(k) < 0)
-               {
-                  k = edge_fespace->GetLocalTDofNumber(k);
-                  int tmp = edge_vertex[2*k];
-                  edge_vertex[2*k] = edge_vertex[2*k+1];
-                  edge_vertex[2*k+1] = tmp;
-               }
-            }
-      }
-      HYPRE_AMSConstructDiscreteGradient(A, *x, edge_vertex, 1, &Gh);
-      delete [] edge_vertex;
-   }
-   G = new HypreParMatrix((hypre_ParCSRMatrix *)Gh);
+   // set the discrete gradient
+   G = DiscreteGrad(edge_fespace, vert_fespace);
    HYPRE_AMSSetDiscreteGradient(ams, *G);
 
    delete vert_fec;

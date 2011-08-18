@@ -115,6 +115,13 @@ public:
                   int *i_diag, int *j_diag, int *i_offd, int *j_offd,
                   int *cmap, int cmap_size);
 
+   /** Creates a general parallel matrix from a local CSR matrix on each
+       processor described by the I, J and data arrays. The local matrix should
+       be of size (local) nrows by (global) glob_ncols. The parallel matrix
+       contains copies of the rows and cols arrays (so they can be deleted). */
+   HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows, int glob_ncols,
+                  int *I, int *J, double *data, int *rows, int *cols);
+
    // hypre's communication package object
    void SetCommPkg(hypre_ParCSRCommPkg *comm_pkg);
    void CheckCommPkg();
@@ -378,6 +385,13 @@ public:
 };
 
 class ParFiniteElementSpace;
+
+/// Compute the discrete gradient matrix between the nodal linear and ND1 spaces
+HypreParMatrix* DiscreteGrad(ParFiniteElementSpace *edge_fespace,
+                             ParFiniteElementSpace *vert_fespace);
+/// Compute the discrete curl matrix between the ND1 and RT0 spaces
+HypreParMatrix* DiscreteCurl(ParFiniteElementSpace *face_fespace,
+                             ParFiniteElementSpace *edge_fespace);
 
 /// The Auxiliary-space Maxwell Solver in hypre
 class HypreAMS : public HypreSolver
