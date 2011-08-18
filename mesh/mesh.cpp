@@ -2388,7 +2388,14 @@ void Mesh::GetFaceEdges(int i, Array<int> &edges, Array<int> &o) const
 
    face_edge->GetRow(i, edges);
 
-   // to do: set the orientation 'o'
+   const int *v = faces[i]->GetVertices();
+   const int ne = faces[i]->GetNEdges();
+   o.SetSize(ne);
+   for (int j = 0; j < ne; j++)
+   {
+      const int *e = faces[i]->GetEdgeVertices(j);
+      o[j] = (v[e[0]] < v[e[1]]) ? (1) : (-1);
+   }
 }
 
 void Mesh::GetEdgeVertices(int i, Array<int> &vert) const
