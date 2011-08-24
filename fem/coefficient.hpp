@@ -26,7 +26,7 @@ public:
 
 
 /// Subclass constant coefficient.
-class ConstantCoefficient: public Coefficient
+class ConstantCoefficient : public Coefficient
 {
 public:
 
@@ -77,7 +77,7 @@ public:
 };
 
 /// class for C-function coefficient
-class FunctionCoefficient:public Coefficient
+class FunctionCoefficient : public Coefficient
 {
 private:
    double (*Function)(Vector &);
