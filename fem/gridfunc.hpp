@@ -106,6 +106,12 @@ public:
 
    void ProjectCoefficient(Coefficient *coeff[]);
 
+   void ProjectBdrCoefficient(Coefficient &coeff, Array<int> &attr)
+   {
+      Coefficient *coeff_p = &coeff;
+      ProjectBdrCoefficient(&coeff_p, attr);
+   }
+
    void ProjectBdrCoefficient(Coefficient *coeff[], Array<int> &attr);
 
    /** Project the normal component of the given VectorCoefficient on
@@ -113,6 +119,13 @@ public:
        'bdr_attr' are projected. Assumes RT-type VectorFE GridFunction. */
    void ProjectBdrCoefficientNormal(VectorCoefficient &vcoeff,
                                     Array<int> &bdr_attr);
+
+   double ComputeL2Error(Coefficient &exsol,
+                         const IntegrationRule *irs[] = NULL) const
+   {
+      Coefficient *exsol_p = &exsol;
+      return ComputeL2Error(&exsol_p, irs);
+   }
 
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;

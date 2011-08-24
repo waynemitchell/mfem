@@ -181,6 +181,14 @@ protected:
    void CalcVShape_ND(ElementTransformation &Trans,
                       DenseMatrix &shape) const;
 
+   void Project_RT(const double *nk, const Array<int> &d2n,
+                   VectorCoefficient &vc, ElementTransformation &Trans,
+                   Vector &dofs) const;
+
+   void LocalInterpolation_RT(const double *nk, const Array<int> &d2n,
+                              ElementTransformation &Trans,
+                              DenseMatrix &I) const;
+
 public:
    VectorFiniteElement (int D, int G, int Do, int O,
                         int F = FunctionSpace::Pk)
@@ -1055,6 +1063,339 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+};
+
+
+class Poly_1D
+{
+public:
+   class Basis
+   {
+   private:
+      DenseMatrix A;
+      mutable Vector a, b;
+
+   public:
+      Basis(const int p, const double *nodes);
+      void Eval(const double x, Vector &u) const;
+      void Eval(const double x, Vector &u, Vector &d) const;
+   };
+
+private:
+   Array<double *> open_pts, closed_pts;
+   Array<Basis *> open_basis, closed_basis;
+
+   static void UniformPoints(const int p, double *x);
+   static void GaussPoints(const int p, double *x);
+   static void GaussLobattoPoints(const int p, double *x);
+   static void ChebyshevPoints(const int p, double *x);
+
+   static void CalcMono(const int p, const double x, double *u);
+   static void CalcMono(const int p, const double x, double *u, double *d);
+
+   static void CalcBernstein(const int p, const double x, double *u);
+   static void CalcBernstein(const int p, const double x, double *u, double *d);
+
+   static void CalcLegendre(const int p, const double x, double *u);
+   static void CalcLegendre(const int p, const double x, double *u, double *d);
+
+   static void CalcChebyshev(const int p, const double x, double *u);
+   static void CalcChebyshev(const int p, const double x, double *u, double *d);
+
+public:
+   Poly_1D() { }
+
+   const double *OpenPoints(const int p);
+   const double *ClosedPoints(const int p);
+
+   Basis &OpenBasis(const int p);
+   Basis &ClosedBasis(const int p);
+
+   // Evaluate the values of a hierarchical 1D basis at point x
+   // hierarchical = k-th basis function is degree k polynomial
+   static void CalcBasis(const int p, const double x, double *u)
+   // { CalcMono(p, x, u); }
+   // Bernstein basis is not hierarchical --> does not work for triangles
+   //  and tetrahedra
+   // { CalcBernstein(p, x, u); }
+   // { CalcLegendre(p, x, u); }
+   { CalcChebyshev(p, x, u); }
+
+   // Evaluate the values and derivatives of a hierarchical 1D basis at point x
+   static void CalcBasis(const int p, const double x, double *u, double *d)
+   // { CalcMono(p, x, u, d); }
+   // { CalcBernstein(p, x, u, d); }
+   // { CalcLegendre(p, x, u, d); }
+   { CalcChebyshev(p, x, u, d); }
+
+   ~Poly_1D();
+};
+
+extern Poly_1D poly1d;
+
+
+class H1_SegmentElement : public NodalFiniteElement
+{
+private:
+   Poly_1D::Basis &basis1d;
+   mutable Vector shape_x, dshape_x;
+
+public:
+   H1_SegmentElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class H1_QuadrilateralElement : public NodalFiniteElement
+{
+private:
+   Poly_1D::Basis &basis1d;
+   mutable Vector shape_x, shape_y, dshape_x, dshape_y;
+   Array<int> dof_map;
+
+public:
+   H1_QuadrilateralElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class H1_HexahedronElement : public NodalFiniteElement
+{
+private:
+   Poly_1D::Basis &basis1d;
+   mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
+   Array<int> dof_map;
+
+public:
+   H1_HexahedronElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class H1_TriangleElement : public NodalFiniteElement
+{
+private:
+   mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
+   mutable DenseMatrix du;
+   DenseMatrix T;
+
+public:
+   H1_TriangleElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class H1_TetrahedronElement : public NodalFiniteElement
+{
+private:
+   mutable Vector shape_x, shape_y, shape_z, shape_l;
+   mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
+   mutable DenseMatrix du;
+   DenseMatrix T;
+
+public:
+   H1_TetrahedronElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class L2_SegmentElement : public NodalFiniteElement
+{
+private:
+   Poly_1D::Basis &basis1d;
+   mutable Vector shape_x, dshape_x;
+
+public:
+   L2_SegmentElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class L2_QuadrilateralElement : public NodalFiniteElement
+{
+private:
+   Poly_1D::Basis &basis1d;
+   mutable Vector shape_x, shape_y, dshape_x, dshape_y;
+
+public:
+   L2_QuadrilateralElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class L2_HexahedronElement : public NodalFiniteElement
+{
+private:
+   Poly_1D::Basis &basis1d;
+   mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
+
+public:
+   L2_HexahedronElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class L2_TriangleElement : public NodalFiniteElement
+{
+private:
+   mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
+   mutable DenseMatrix du;
+   DenseMatrix T;
+
+public:
+   L2_TriangleElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class L2_TetrahedronElement : public NodalFiniteElement
+{
+private:
+   mutable Vector shape_x, shape_y, shape_z, shape_l;
+   mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
+   mutable DenseMatrix du;
+   DenseMatrix T;
+
+public:
+   L2_TetrahedronElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+};
+
+
+class RT_QuadrilateralElement : public VectorFiniteElement
+{
+private:
+   static const double nk[8];
+
+   Poly_1D::Basis &cbasis1d, &obasis1d;
+   mutable Vector shape_cx, shape_ox, shape_cy, shape_oy;
+   mutable Vector dshape_cx, dshape_cy;
+   Array<int> dof_map, dof2nk;
+
+public:
+   RT_QuadrilateralElement(const int p);
+   virtual void CalcVShape(const IntegrationPoint &ip,
+                           DenseMatrix &shape) const;
+   virtual void CalcVShape(ElementTransformation &Trans,
+                           DenseMatrix &shape) const
+   { CalcVShape_RT(Trans, shape); }
+   virtual void CalcDivShape(const IntegrationPoint &ip,
+                             Vector &divshape) const;
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const
+   { LocalInterpolation_RT(nk, dof2nk, Trans, I); }
+   using FiniteElement::Project;
+   virtual void Project(VectorCoefficient &vc,
+                        ElementTransformation &Trans, Vector &dofs) const
+   { Project_RT(nk, dof2nk, vc, Trans, dofs); }
+};
+
+
+class RT_HexahedronElement : public VectorFiniteElement
+{
+   static const double nk[18];
+
+   Poly_1D::Basis &cbasis1d, &obasis1d;
+   mutable Vector shape_cx, shape_ox, shape_cy, shape_oy, shape_cz, shape_oz;
+   mutable Vector dshape_cx, dshape_cy, dshape_cz;
+   Array<int> dof_map, dof2nk;
+
+public:
+   RT_HexahedronElement(const int p);
+   virtual void CalcVShape(const IntegrationPoint &ip,
+                           DenseMatrix &shape) const;
+   virtual void CalcVShape(ElementTransformation &Trans,
+                           DenseMatrix &shape) const
+   { CalcVShape_RT(Trans, shape); }
+   virtual void CalcDivShape(const IntegrationPoint &ip,
+                             Vector &divshape) const;
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const
+   { LocalInterpolation_RT(nk, dof2nk, Trans, I); }
+   using FiniteElement::Project;
+   virtual void Project(VectorCoefficient &vc,
+                        ElementTransformation &Trans, Vector &dofs) const
+   { Project_RT(nk, dof2nk, vc, Trans, dofs); }
+};
+
+
+class RT_TriangleElement : public VectorFiniteElement
+{
+   static const double nk[6];
+
+   mutable Vector shape_x, shape_y, shape_l;
+   mutable Vector dshape_x, dshape_y, dshape_l;
+   mutable DenseMatrix u;
+   mutable Vector divu;
+   Array<int> dof2nk;
+   DenseMatrix T;
+
+public:
+   RT_TriangleElement(const int p);
+   virtual void CalcVShape(const IntegrationPoint &ip,
+                           DenseMatrix &shape) const;
+   virtual void CalcVShape(ElementTransformation &Trans,
+                           DenseMatrix &shape) const
+   { CalcVShape_RT(Trans, shape); }
+   virtual void CalcDivShape(const IntegrationPoint &ip,
+                             Vector &divshape) const;
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const
+   { LocalInterpolation_RT(nk, dof2nk, Trans, I); }
+   using FiniteElement::Project;
+   virtual void Project(VectorCoefficient &vc,
+                        ElementTransformation &Trans, Vector &dofs) const
+   { Project_RT(nk, dof2nk, vc, Trans, dofs); }
+};
+
+
+class RT_TetrahedronElement : public VectorFiniteElement
+{
+   static const double nk[12];
+
+   mutable Vector shape_x, shape_y, shape_z, shape_l;
+   mutable Vector dshape_x, dshape_y, dshape_z, dshape_l;
+   mutable DenseMatrix u;
+   mutable Vector divu;
+   Array<int> dof2nk;
+   DenseMatrix T;
+
+public:
+   RT_TetrahedronElement(const int p);
+   virtual void CalcVShape(const IntegrationPoint &ip,
+                           DenseMatrix &shape) const;
+   virtual void CalcVShape(ElementTransformation &Trans,
+                           DenseMatrix &shape) const
+   { CalcVShape_RT(Trans, shape); }
+   virtual void CalcDivShape(const IntegrationPoint &ip,
+                             Vector &divshape) const;
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const
+   { LocalInterpolation_RT(nk, dof2nk, Trans, I); }
+   using FiniteElement::Project;
+   virtual void Project(VectorCoefficient &vc,
+                        ElementTransformation &Trans, Vector &dofs) const
+   { Project_RT(nk, dof2nk, vc, Trans, dofs); }
 };
 
 #endif

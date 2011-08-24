@@ -497,5 +497,70 @@ public:
    virtual const char * Name() const { return "RT1_3D"; };
 };
 
+class H1_FECollection : public FiniteElementCollection
+{
+private:
+   char h1_name[32];
+   FiniteElement *H1_Elements[Geometry::NumGeom];
+   int H1_dof[Geometry::NumGeom];
+   int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
+
+public:
+   H1_FECollection(const int p, const int dim = 3);
+
+   virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
+   { return H1_Elements[GeomType]; }
+   virtual int DofForGeometry(int GeomType) const
+   { return H1_dof[GeomType]; }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const;
+   virtual const char *Name() const { return h1_name; }
+
+   virtual ~H1_FECollection();
+};
+
+class L2_FECollection : public FiniteElementCollection
+{
+private:
+   char d_name[32];
+   FiniteElement *L2_Elements[Geometry::NumGeom];
+
+public:
+   L2_FECollection(const int p, const int dim);
+
+   virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
+   { return L2_Elements[GeomType]; }
+   virtual int DofForGeometry(int GeomType) const
+   {
+      if (L2_Elements[GeomType])
+         return L2_Elements[GeomType]->GetDof();
+      return 0;
+   }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const
+   { return NULL; }
+   virtual const char *Name() const { return d_name; }
+
+   virtual ~L2_FECollection();
+};
+
+class RT_FECollection : public FiniteElementCollection
+{
+private:
+   char rt_name[32];
+   FiniteElement *RT_Elements[Geometry::NumGeom];
+   int RT_dof[Geometry::NumGeom];
+   int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
+
+public:
+   RT_FECollection(const int p, const int dim);
+
+   virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
+   { return RT_Elements[GeomType]; }
+   virtual int DofForGeometry(int GeomType) const
+   { return RT_dof[GeomType]; }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const;
+   virtual const char *Name() const { return rt_name; }
+
+   virtual ~RT_FECollection();
+};
 
 #endif

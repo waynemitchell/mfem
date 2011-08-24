@@ -218,6 +218,9 @@ public:
    /// Prints the transpose matrix to stream out.
    virtual void PrintT(ostream &out = cout, int width = 4) const;
 
+   /// Invert and print the numerical conditioning of the inversion.
+   void TestInversion();
+
    /// Destroys dense matrix.
    virtual ~DenseMatrix();
 };

@@ -960,6 +960,9 @@ void GridFunction::ProjectBdrCoefficient(
 void GridFunction::ProjectBdrCoefficientNormal(
    VectorCoefficient &vcoeff, Array<int> &bdr_attr)
 {
+#if 0
+   // implementation for the case when the face dofs are integrals of the
+   // normal component.
    const FiniteElement *fe;
    ElementTransformation *T;
    Array<int> dofs;
@@ -1001,6 +1004,46 @@ void GridFunction::ProjectBdrCoefficientNormal(
       fes->GetBdrElementDofs(i, dofs);
       SetSubVector(dofs, lvec);
    }
+#else
+   // implementation for the case when the face dofs are scaled point
+   // values of the normal component.
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   Array<int> dofs;
+   int dim = vcoeff.GetVDim();
+   Vector vc(dim), nor(dim), lvec;
+
+   for (int i = 0; i < fes->GetNBE(); i++)
+   {
+      if (bdr_attr[fes->GetBdrAttribute(i)-1] == 0)
+         continue;
+      fe = fes->GetBE(i);
+      T = fes->GetBdrElementTransformation(i);
+      const IntegrationRule &ir = fe->GetNodes();
+      lvec.SetSize(fe->GetDof());
+      for (int j = 0; j < ir.GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir.IntPoint(j);
+         T->SetIntPoint(&ip);
+         vcoeff.Eval(vc, *T, ip);
+         const DenseMatrix &J = T->Jacobian();
+         if (dim == 2)
+         {
+            nor(0) =  J(1,0);
+            nor(1) = -J(0,0);
+         }
+         else if (dim == 3)
+         {
+            nor(0) = J(1,0)*J(2,1) - J(2,0)*J(1,1);
+            nor(1) = J(2,0)*J(0,1) - J(0,0)*J(2,1);
+            nor(2) = J(0,0)*J(1,1) - J(1,0)*J(0,1);
+         }
+         lvec(j) = (vc * nor);
+      }
+      fes->GetBdrElementDofs(i, dofs);
+      SetSubVector(dofs, lvec);
+   }
+#endif
 }
 
 double GridFunction::ComputeL2Error(
@@ -1019,7 +1062,7 @@ double GridFunction::ComputeL2Error(
       fdof = fe->GetDof();
       transf = fes->GetElementTransformation(i);
       shape.SetSize(fdof);
-      intorder = fe->GetOrder()+2; // <----------
+      intorder = 2*fe->GetOrder() + 1; // <----------
       const IntegrationRule *ir;
       if (irs)
          ir = irs[fe->GetGeomType()];
@@ -1064,7 +1107,7 @@ double GridFunction::ComputeL2Error(
    {
       if (elems != NULL && (*elems)[i] == 0)  continue;
       fe = fes->GetFE(i);
-      int intorder = fe->GetOrder()+2; // <----------
+      int intorder = 2*fe->GetOrder() + 1; // <----------
       const IntegrationRule *ir;
       if (irs)
          ir = irs[fe->GetGeomType()];
@@ -1235,7 +1278,7 @@ double GridFunction::ComputeMaxError(
       fdof = fe->GetDof();
       transf = fes->GetElementTransformation(i);
       shape.SetSize(fdof);
-      intorder = fe->GetOrder()+2; // <----------
+      intorder = 2*fe->GetOrder() + 1; // <----------
       const IntegrationRule *ir;
       if (irs)
          ir = irs[fe->GetGeomType()];
@@ -1278,7 +1321,7 @@ double GridFunction::ComputeMaxError(
    for (int i = 0; i < fes->GetNE(); i++)
    {
       fe = fes->GetFE(i);
-      int intorder = fe->GetOrder()+2; // <----------
+      int intorder = 2*fe->GetOrder() + 1; // <----------
       const IntegrationRule *ir;
       if (irs)
          ir = irs[fe->GetGeomType()];
@@ -1329,7 +1372,7 @@ double GridFunction::ComputeW11Error(
          transf = fes->GetElementTransformation(i);
          el_dofs.SetSize(fdof);
          shape.SetSize(fdof);
-         intorder = fe->GetOrder() + 1; // <----------
+         intorder = 2*fe->GetOrder() + 1; // <----------
          const IntegrationRule *ir;
          if (irs)
             ir = irs[fe->GetGeomType()];
@@ -1361,7 +1404,7 @@ double GridFunction::ComputeW11Error(
          el_dofs.SetSize(fdof);
          dshape.SetSize(fdof, dim);
          dshapet.SetSize(fdof, dim);
-         intorder = fe->GetOrder() + 1; // <----------
+         intorder = 2*fe->GetOrder() + 1; // <----------
          const IntegrationRule *ir;
          if (irs)
             ir = irs[fe->GetGeomType()];
@@ -1402,7 +1445,7 @@ double GridFunction::ComputeL1Error(
    for (int i = 0; i < fes->GetNE(); i++)
    {
       fe = fes->GetFE(i);
-      int intorder = fe->GetOrder()+2; // <----------
+      int intorder = 2*fe->GetOrder() + 1; // <----------
       const IntegrationRule *ir;
       if (irs)
          ir = irs[fe->GetGeomType()];

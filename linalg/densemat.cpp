@@ -1738,6 +1738,24 @@ void DenseMatrix::PrintT(ostream &out, int width) const
    }
 }
 
+void DenseMatrix::TestInversion()
+{
+   DenseMatrix copy(*this), C(size);
+   Invert();
+   ::Mult(*this, copy, C);
+
+   double i_max = 0.;
+   for (int j = 0; j < size; j++)
+      for (int i = 0; i < size; i++)
+      {
+         if (i == j)
+            C(i,j) -= 1.;
+         i_max = fmax(i_max, fabs(C(i, j)));
+      }
+   cout << "size = " << size << ", i_max = " << i_max
+        << ", cond_F = " << FNorm()*copy.FNorm() << endl;
+}
+
 DenseMatrix::~DenseMatrix()
 {
    if (data != NULL)
