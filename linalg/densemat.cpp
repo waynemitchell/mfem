@@ -121,6 +121,17 @@ const double &DenseMatrix::Elem(int i, int j) const
    return (*this)(i,j);
 }
 
+void DenseMatrix::Mult(const double *x, double *y) const
+{
+   for (int i = 0; i < height; i++)
+   {
+      double a = 0.;
+      for (int j = 0; j < size; j++)
+         a += (*this)(i,j) * x[j];
+      y[i] = a;
+   }
+}
+
 void DenseMatrix::Mult(const Vector &x, Vector &y) const
 {
 #ifdef MFEM_DEBUG
@@ -128,13 +139,7 @@ void DenseMatrix::Mult(const Vector &x, Vector &y) const
       mfem_error("DenseMatrix::Mult");
 #endif
 
-   for (int i = 0; i < height; i++)
-   {
-      double a = 0.;
-      for (int j = 0; j < size; j++)
-         a += (*this)(i,j) * x(j);
-      y(i) = a;
-   }
+   Mult((const double *)x, (double *)y);
 }
 
 double DenseMatrix::operator *(const DenseMatrix &m) const
@@ -180,7 +185,7 @@ void DenseMatrix::AddMult(const Vector &x, Vector &y) const
          y(i) += (*this)(i,j) * x(j);
 }
 
-double DenseMatrix::InnerProduct(const Vector &x, const Vector &y) const
+double DenseMatrix::InnerProduct(const double *x, const double *y) const
 {
    double prod = 0.0;
 
@@ -188,8 +193,8 @@ double DenseMatrix::InnerProduct(const Vector &x, const Vector &y) const
    {
       double Axi = 0.0;
       for (int j = 0; j < size; j++)
-         Axi += (*this)(i,j) * x(j);
-      prod += y(i) * Axi;
+         Axi += (*this)(i,j) * x[j];
+      prod += y[i] * Axi;
    }
 
    return prod;

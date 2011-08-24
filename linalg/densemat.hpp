@@ -85,16 +85,23 @@ public:
    virtual const double &Elem(int i, int j) const;
 
    /// Matrix vector multiplication.
-   void Mult(const Vector &x, Vector &y) const;
+   void Mult(const double *x, double *y) const;
+
+   /// Matrix vector multiplication.
+   virtual void Mult(const Vector &x, Vector &y) const;
 
    /// Multiply a vector with the transpose matrix.
-   void MultTranspose(const Vector &x, Vector &y) const;
+   virtual void MultTranspose(const Vector &x, Vector &y) const;
 
    /// y += A.x
    void AddMult(const Vector &x, Vector &y) const;
 
    /// Compute y^t A x
-   double InnerProduct(const Vector &x, const Vector &y) const;
+   double InnerProduct(const double *x, const double *y) const;
+
+   /// Compute y^t A x
+   double InnerProduct(const Vector &x, const Vector &y) const
+   { return InnerProduct((const double *)x, (const double *)y); }
 
    /// Returns a pointer to the inverse matrix.
    virtual MatrixInverse *Inverse() const;

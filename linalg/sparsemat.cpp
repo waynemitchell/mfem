@@ -29,6 +29,9 @@ SparseMatrix::SparseMatrix (int nrows, int ncols)
    width = (ncols) ? (ncols) : (nrows);
    for (int i = 0; i < nrows; i++)
       Rows[i] = NULL;
+   ColPtr = new RowNode *[width];
+   for (int i = 0; i < width; i++)
+      ColPtr[i] = NULL;
 }
 
 int SparseMatrix::RowSize (int i)
@@ -250,6 +253,9 @@ void SparseMatrix::Finalize (int skip_zeros)
    int i, j, nr, nz;
    RowNode *aux;
 
+   delete [] ColPtr;
+   ColPtr = NULL;
+
    I = new int[size+1];
    I[0] = 0;
    for (i = 1; i <= size; i++)
@@ -329,9 +335,19 @@ void SparseMatrix::Symmetrize()
 int SparseMatrix::NumNonZeroElems() const
 {
    if (A != NULL)  //  matrix is finalized
+   {
       return I[size];
-   mfem_error ("SparseMatrix::NumNonZeroElems");
-   return -1;
+   }
+   else
+   {
+      int nnz = 0;
+
+      for (int i = 0; i < size; i++)
+         for (RowNode *node_p = Rows[i]; node_p != NULL; node_p = node_p->Prev)
+            nnz++;
+
+      return nnz;
+   }
 }
 
 int SparseMatrix::CountSmallElems (double tol)
@@ -604,62 +620,115 @@ void SparseMatrix::EliminateZeroRows()
 
 void SparseMatrix::Gauss_Seidel_forw(const Vector &x, Vector &y) const
 {
-   int c, i, j, end, d, s = size, *Ip = I, *Jp = J;
-   double sum, *Ap = A, *yp = y.GetData();
+   int c, i, s = size;
+   double sum, *yp = y.GetData();
    const double *xp = x.GetData();
 
    if (A == NULL)
-      mfem_error ("SparseMatrix::Gauss_Seidel_forw ()");
+   {
+      RowNode *diag_p, *n_p, **R = Rows;
 
-   j = Ip[0];
-   for(i=0; i<s; i++){
-      end = Ip[i+1];
-      sum = 0.0;
-      d = -1;
-      for( ; j<end ; j++)
-         if ((c = Jp[j]) == i)
-            d = j;
-         else
-            sum += Ap[j] * yp[c];
+      for (i = 0; i < s; i++)
+      {
+         sum = 0.0;
+         diag_p = NULL;
+         for (n_p = R[i]; n_p != NULL; n_p = n_p->Prev)
+            if ((c = n_p->Column) == i)
+               diag_p = n_p;
+            else
+               sum += n_p->Value * yp[c];
 
-      if (d >= 0 && Ap[d] != 0.0)
-         yp[i] = (xp[i] - sum) / Ap[d];
-      else
-         if (xp[i] == sum)
-            yp[i] = sum;
+         if (diag_p != NULL && diag_p->Value != 0.0)
+            yp[i] = (xp[i] - sum) / diag_p->Value;
          else
-            mfem_error ("SparseMatrix::Gauss_Seidel_forw (...) #2");
+            if (xp[i] == sum)
+               yp[i] = sum;
+            else
+               mfem_error("SparseMatrix::Gauss_Seidel_forw()");
+      }
+   }
+   else
+   {
+      int j, end, d, *Ip = I, *Jp = J;
+      double *Ap = A;
+
+      j = Ip[0];
+      for (i = 0; i < s; i++)
+      {
+         end = Ip[i+1];
+         sum = 0.0;
+         d = -1;
+         for( ; j<end ; j++)
+            if ((c = Jp[j]) == i)
+               d = j;
+            else
+               sum += Ap[j] * yp[c];
+
+         if (d >= 0 && Ap[d] != 0.0)
+            yp[i] = (xp[i] - sum) / Ap[d];
+         else
+            if (xp[i] == sum)
+               yp[i] = sum;
+            else
+               mfem_error("SparseMatrix::Gauss_Seidel_forw(...) #2");
+      }
    }
 }
 
 void SparseMatrix::Gauss_Seidel_back(const Vector &x, Vector &y) const
 {
-   int i, j, beg, c, d;
-   double sum, *Ap = A, *yp = y.GetData();
-   double *xp = x.GetData();
-   int *Ip = I, *Jp = J;
+   int i, c;
+   double sum, *yp = y.GetData();
+   const double *xp = x.GetData();
 
    if (A == NULL)
-      mfem_error ("SparseMatrix::Gauss_Seidel_back ()");
+   {
+      RowNode *diag_p, *n_p, **R = Rows;
 
-   j=Ip[size]-1;
-   for(i=size-1; i >= 0; i--){
-      beg = Ip[i];
-      sum = 0.;
-      d = -1;
-      for( ; j>=beg; j--)
-         if ((c = Jp[j]) == i)
-            d = j;
-         else
-            sum += Ap[j] * yp[c];
+      for (i = size-1; i >= 0; i--)
+      {
+         sum = 0.;
+         diag_p = NULL;
+         for (n_p = R[i]; n_p != NULL; n_p = n_p->Prev)
+            if ((c = n_p->Column) == i)
+               diag_p = n_p;
+            else
+               sum += n_p->Value * yp[c];
 
-      if (d >= 0 && Ap[d] != 0.0)
-         yp[i] = (xp[i] - sum) / Ap[d];
-      else
-         if (xp[i] == sum)
-            yp[i] = sum;
+         if (diag_p != NULL && diag_p->Value != 0.0)
+            yp[i] = (xp[i] - sum) / diag_p->Value;
          else
-            mfem_error ("SparseMatrix::Gauss_Seidel_back (...) #2");
+            if (xp[i] == sum)
+               yp[i] = sum;
+            else
+               mfem_error("SparseMatrix::Gauss_Seidel_back()");
+      }
+   }
+   else
+   {
+      int j, beg, d, *Ip = I, *Jp = J;
+      double *Ap = A;
+
+      j = Ip[size]-1;
+      for (i = size-1; i >= 0; i--)
+      {
+         beg = Ip[i];
+         sum = 0.;
+         d = -1;
+         for( ; j >= beg; j--)
+            if ((c = Jp[j]) == i)
+               d = j;
+            else
+               sum += Ap[j] * yp[c];
+
+         if (d >= 0 && Ap[d] != 0.0)
+            yp[i] = (xp[i] - sum) / Ap[d];
+         else
+            if (xp[i] == sum)
+               yp[i] = sum;
+            else
+               mfem_error("SparseMatrix::Gauss_Seidel_back(...) #2");
+      }
    }
 }
 
@@ -749,6 +818,7 @@ void SparseMatrix::AddSubMatrix(const Array<int> &rows, const Array<int> &cols,
       if (gi >= size)
          mfem_error ("SparseMatrix::AddSubMatrix(...) #1");
 #endif
+      SetColPtr(gi);
       for (j = 0; j < cols.Size(); j++)
       {
          if ((gj=cols[j]) < 0) gj = -1-gj, t = -s; else t = s;
@@ -765,8 +835,9 @@ void SparseMatrix::AddSubMatrix(const Array<int> &rows, const Array<int> &cols,
                continue;
          }
          if (t < 0)  a = -a;
-         _Add_ (gi, gj, a);
+         _Add_(gj, a);
       }
+      ClearColPtr();
    }
 }
 
@@ -1098,6 +1169,7 @@ SparseMatrix::~SparseMatrix ()
 {
    if (Rows != NULL)
    {
+      delete [] ColPtr;
 #ifdef MFEM_USE_MEMALLOC
       // NodesMem.Clear();  // this is done implicitly
 #else

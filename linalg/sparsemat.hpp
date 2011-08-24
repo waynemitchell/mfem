@@ -41,9 +41,20 @@ private:
 
    RowNode **Rows;
 
+   int current_row;
+   RowNode **ColPtr;
+
 #ifdef MFEM_USE_MEMALLOC
    MemAlloc <RowNode, 1024> NodesMem;
 #endif
+
+   inline void SetColPtr(const int row);
+   inline void ClearColPtr();
+   inline double &SearchRow(const int col);
+   inline void _Add_(const int col, const double a)
+   { SearchRow(col) += a; }
+   inline void _Set_(const int col, const double a)
+   { SearchRow(col) = a; }
 
    inline double &SearchRow (const int row, const int col);
    inline void _Add_ (const int row, const int col, const double a)
@@ -237,6 +248,42 @@ SparseMatrix *Mult_AtDA (SparseMatrix &A, Vector &D,
 
 
 // Inline methods
+
+inline void SparseMatrix::SetColPtr(const int row)
+{
+   for (RowNode *node_p = Rows[row]; node_p != NULL; node_p = node_p->Prev)
+   {
+      ColPtr[node_p->Column] = node_p;
+   }
+   current_row = row;
+}
+
+inline void SparseMatrix::ClearColPtr()
+{
+   for (RowNode *node_p = Rows[current_row]; node_p != NULL;
+        node_p = node_p->Prev)
+   {
+      ColPtr[node_p->Column] = NULL;
+   }
+}
+
+inline double &SparseMatrix::SearchRow(const int col)
+{
+   RowNode *node_p = ColPtr[col];
+   if (node_p == NULL)
+   {
+#ifdef MFEM_USE_MEMALLOC
+      node_p = NodesMem.Alloc();
+#else
+      node_p = new RowNode;
+#endif
+      node_p->Prev = Rows[current_row];
+      node_p->Column = col;
+      node_p->Value = 0.0;
+      Rows[current_row] = ColPtr[col] = node_p;
+   }
+   return node_p->Value;
+}
 
 inline double &SparseMatrix::SearchRow (const int row, const int col)
 {
