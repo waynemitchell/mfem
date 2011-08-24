@@ -2568,11 +2568,6 @@ void ParMesh::PrintInfo(ostream &out)
    int i;
    DenseMatrix J(Dim);
    double h_min, h_max, kappa_min, kappa_max, h, kappa;
-#ifdef MFEM_USE_LAPACK
-   Vector sv(Dim);
-#else
-   DenseMatrix Jinv(Dim);
-#endif
 
    if (MyRank == 0)
       out << "Parallel Mesh Stats:" << endl;
@@ -2581,15 +2576,7 @@ void ParMesh::PrintInfo(ostream &out)
    {
       GetElementJacobian(i, J);
       h = pow(fabs(J.Det()), 1.0/double(Dim));
-#ifdef MFEM_USE_LAPACK
-      // J's condition number in spectral norm
-      J.SingularValues(sv);
-      kappa = sv(0) / sv(Dim-1);
-#else
-      // J's condition number in Frobenius norm
-      CalcInverse(J, Jinv);
-      kappa = J.FNorm() * Jinv.FNorm();
-#endif
+      kappa = J.CalcSingularvalue(0) / J.CalcSingularvalue(dim-1);
       if (i == 0)
       {
          h_min = h_max = h;

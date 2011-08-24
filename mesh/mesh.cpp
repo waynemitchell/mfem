@@ -34,15 +34,12 @@ double Mesh::GetElementSize(int i, int type)
 {
    DenseMatrix J(Dim);
    GetElementJacobian(i, J);
-   if (type)
-   {
-      Vector sv;
-      J.SingularValues(sv);
-      if (type == 1)
-         return sv(sv.Size()-1); // h_min
-      return sv(0); // h_max
-   }
-   return pow(fabs(J.Det()), 1./Dim);
+   if (type == 0)
+      return pow(fabs(J.Det()), 1./Dim);
+   else if (type == 1)
+      return J.CalcSingularvalue(Dim-1); // h_min
+   else
+      return J.CalcSingularvalue(0); // h_max
 }
 
 double Mesh::GetElementSize(int i, const Vector &dir)
@@ -75,19 +72,11 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
    int i, dim;
    DenseMatrix J;
    double h_min, h_max, kappa_min, kappa_max, h, kappa;
-#ifdef MFEM_USE_LAPACK
-   Vector sv;
-#else
-   DenseMatrix Jinv;
-#endif
 
    cout << "Mesh Characteristics:" << flush;
 
    dim = Dimension();
    J.SetSize(dim);
-#ifndef MFEM_USE_LAPACK
-   Jinv.SetSize(dim);
-#endif
 
    if (Vh) Vh->SetSize(NumOfElements);
    if (Vk) Vk->SetSize(NumOfElements);
@@ -96,15 +85,7 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
    {
       GetElementJacobian(i, J);
       h = pow(fabs(J.Det()), 1.0/double(dim));
-#ifdef MFEM_USE_LAPACK
-      // J's condition number in spectral norm
-      J.SingularValues(sv);
-      kappa = sv(0) / sv(dim-1);
-#else
-      // J's condition number in Frobenius norm
-      CalcInverse(J, Jinv);
-      kappa = J.FNorm() * Jinv.FNorm();
-#endif
+      kappa = J.CalcSingularvalue(0) / J.CalcSingularvalue(dim-1);
       if (Vh) (*Vh)(i) = h;
       if (Vk) (*Vk)(i) = kappa;
       if (i == 0)
@@ -1085,6 +1066,17 @@ static const int vtk_quadratic_hex[27] =
 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
   24, 22, 21, 23, 20, 25, 26 };
 
+inline void skip_comment_lines(istream &is, const char comment_char)
+{
+   while(1)
+   {
+      is >> ws;
+      if (is.peek() != comment_char)
+         break;
+      is.ignore(numeric_limits<streamsize>::max(), '\n');
+   }
+}
+
 void Mesh::Load(istream &input, int generate_edges, int refine)
 {
    int i, j, ints[32], n, attr, curved = 0, read_gf = 1;
@@ -1142,17 +1134,12 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       int attr, geom, nv, *v;
 
       // read lines begining with '#' (comments)
-      do
-      {
-         input >> ws;
-         if (input.peek() != '#')
-            break;
-         getline(input, ident);
-      }
-      while (1);
+      skip_comment_lines(input, '#');
 
       input >> ident; // 'dimension'
       input >> Dim;
+
+      skip_comment_lines(input, '#');
 
       input >> ident; // 'elements'
       input >> NumOfElements;
@@ -1168,6 +1155,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
             input >> v[i];
       }
 
+      skip_comment_lines(input, '#');
+
       input >> ident; // 'boundary'
       input >> NumOfBdrElements;
       boundary.SetSize(NumOfBdrElements);
@@ -1181,6 +1170,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          for (i = 0; i < nv; i++)
             input >> v[i];
       }
+
+      skip_comment_lines(input, '#');
 
       input >> ident; // 'vertices'
       input >> NumOfVertices;
