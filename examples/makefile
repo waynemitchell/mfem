@@ -77,4 +77,4 @@ pdebug:
 
 clean:
 	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p
-	rm -f refined.mesh displaced.mesh sol.gf perturbed.mesh smoothed.mesh
+	rm -f refined.mesh displaced.mesh sol.gf

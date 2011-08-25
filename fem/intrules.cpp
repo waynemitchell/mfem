@@ -54,7 +54,7 @@ void IntegrationRule::GaussianRule()
    int m = (n+1)/2;
    int i, j;
    double p1, p2, p3;
-   double pp, z, z1;
+   double pp, z;
    for (i = 1; i <= m; i++)
    {
       z = cos(M_PI * (i - 0.25) / (n + 0.5));

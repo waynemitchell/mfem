@@ -90,4 +90,4 @@ prof-debug:
 clean:
 	rm -f *.o *~ ex1x ex4x test_simplex_intrules print_quadrature_rule
 	rm -f view_basis ex5 ex5p ex6
-	rm -f refined.mesh sol.gf
+	rm -f refined.mesh sol.gf perturbed.mesh smoothed.mesh
