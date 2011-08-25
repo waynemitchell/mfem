@@ -162,8 +162,9 @@ void VectorFEDomainLFIntegrator::AssembleRHSElementVect(
    elvect.SetSize(dof);
    elvect = 0.0;
 
-   const IntegrationRule &ir = IntRules.Get(el.GetGeomType(),
-                                            el.GetOrder() + 1);
+   // int intorder = 2*el.GetOrder() - 1; // <-- ok for O(h^{k+1}) conv. in L2
+   int intorder = 2*el.GetOrder();
+   const IntegrationRule &ir = IntRules.Get(el.GetGeomType(), intorder);
 
    for (int i = 0; i < ir.GetNPoints(); i++)
    {

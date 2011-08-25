@@ -37,7 +37,9 @@ class DomainLFIntegrator : public LinearFormIntegrator
    int oa, ob;
 public:
    /// Constructs a domain integrator with a given Coefficient
-   DomainLFIntegrator(Coefficient &QF, int a = 1, int b = 1)
+   DomainLFIntegrator(Coefficient &QF, int a = 2, int b = 0)
+      // the old default was a = 1, b = 1
+      // for simple elliptic problems a = 2, b = -2 is ok
       : Q(QF), oa(a), ob(b) { IntRule = NULL; }
 
    /// Constructs a domain integrator with a given Coefficient
