@@ -2576,7 +2576,7 @@ void ParMesh::PrintInfo(ostream &out)
    {
       GetElementJacobian(i, J);
       h = pow(fabs(J.Det()), 1.0/double(Dim));
-      kappa = J.CalcSingularvalue(0) / J.CalcSingularvalue(dim-1);
+      kappa = J.CalcSingularvalue(0) / J.CalcSingularvalue(Dim-1);
       if (i == 0)
       {
          h_min = h_max = h;
