@@ -1971,18 +1971,18 @@ void AddMultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt)
          double t = 0.;
          for (int k = 0; k < A.Width(); k++)
             t += D(k) * A(i, k) * A(j, k);
-	 ADAt(i, j) += t;
-	 ADAt(j, i) += t;
+         ADAt(i, j) += t;
+         ADAt(j, i) += t;
       }
    }
 
    // process diagonal
    for (int i = 0; i < A.Height(); i++)
    {
-         double t = 0.;
-         for (int k = 0; k < A.Width(); k++)
-            t += D(k) * A(i, k) * A(i, k);
-	 ADAt(i, i) += t;
+      double t = 0.;
+      for (int k = 0; k < A.Width(); k++)
+         t += D(k) * A(i, k) * A(i, k);
+      ADAt(i, i) += t;
    }
 }
 

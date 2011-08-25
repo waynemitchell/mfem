@@ -543,15 +543,15 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
       w = ip.weight * Trans.Weight();
       if (VQ)
       {
-	VQ->Eval(D, Trans, ip);
-        D *= w;
-	AddMultADAt(vshape, D, elmat);
+         VQ->Eval(D, Trans, ip);
+         D *= w;
+         AddMultADAt(vshape, D, elmat);
       }
       else
       {
-	if (Q)
-	  w *= Q -> Eval (Trans, ip);
-	AddMult_a_AAt (w, vshape, elmat);
+         if (Q)
+            w *= Q -> Eval (Trans, ip);
+         AddMult_a_AAt (w, vshape, elmat);
       }
    }
 }
