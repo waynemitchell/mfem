@@ -75,7 +75,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    for (i = 0; i < mesh.GetNE(); i++)
       if (partitioning[i] == MyRank)
       {
-         elements[element_counter] = mesh.GetElement(i)->Duplicate();
+         elements[element_counter] = mesh.GetElement(i)->Duplicate(this);
          int *v = elements[element_counter]->GetVertices();
          int nv = elements[element_counter]->GetNVertices();
          for (j = 0; j < nv; j++)
@@ -109,7 +109,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          if (partitioning[el1] == MyRank ||
              (el2 >= 0 && partitioning[el2] == MyRank))
          {
-            boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate();
+            boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate(this);
             int *v = boundary[bdrelem_counter]->GetVertices();
             int nv = boundary[bdrelem_counter]->GetNVertices();
             for (j = 0; j < nv; j++)
@@ -149,7 +149,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          if (partitioning[el1] == MyRank ||
              (el2 >= 0 && partitioning[el2] == MyRank))
          {
-            boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate();
+            boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate(this);
             int *v = boundary[bdrelem_counter]->GetVertices();
             int nv = boundary[bdrelem_counter]->GetNVertices();
             for (j = 0; j < nv; j++)
@@ -335,7 +335,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       for (i = 0; i < face_group.Size(); i++)
          if (face_group[i] >= 0)
          {
-            shared_faces[sface_counter] = mesh.GetFace(i)->Duplicate();
+            shared_faces[sface_counter] = mesh.GetFace(i)->Duplicate(this);
             int *v = shared_faces[sface_counter]->GetVertices();
             int nv = shared_faces[sface_counter]->GetNVertices();
             for (j = 0; j < nv; j++)

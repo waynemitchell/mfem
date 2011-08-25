@@ -12,6 +12,8 @@
 #ifndef MFEM_ELEMENT
 #define MFEM_ELEMENT
 
+class Mesh;
+
 /// Abstract data type element
 class Element
 {
@@ -65,7 +67,7 @@ public:
 
    virtual int GetRefinementFlag() { return 0; }
 
-   virtual Element *Duplicate() const = 0;
+   virtual Element *Duplicate(Mesh *m) const = 0;
 
    /// Destroys element.
    virtual ~Element() { }
@@ -139,7 +141,7 @@ public:
 
    virtual int GetType() const { return Element::BISECTED; }
 
-   virtual Element *Duplicate() const
+   virtual Element *Duplicate(Mesh *m) const
    { mfem_error("BisectedElement::Duplicate()"); return NULL; }
 };
 
@@ -152,7 +154,7 @@ public:
 
    virtual int GetType() const { return Element::QUADRISECTED; }
 
-   virtual Element *Duplicate() const
+   virtual Element *Duplicate(Mesh *m) const
    { mfem_error("QuadrisectedElement::Duplicate()"); return NULL; }
 };
 
@@ -165,7 +167,7 @@ public:
 
    virtual int GetType() const { return Element::OCTASECTED; }
 
-   virtual Element *Duplicate() const
+   virtual Element *Duplicate(Mesh *m) const
    { mfem_error("OctasectedElement::Duplicate()"); return NULL; }
 };
 

@@ -661,7 +661,7 @@ void Mesh::GenerateBoundaryElements()
    for (j = i = 0; i < faces_info.Size(); i++)
       if (faces_info[i].Elem2No == -1)
       {
-         boundary[j] = faces[i]->Duplicate();
+         boundary[j] = faces[i]->Duplicate(this);
          if (Dim == 3)
             be_to_face[j] = i;
          if (Dim == 2)
@@ -1038,7 +1038,7 @@ Mesh::Mesh(istream &input, int generate_edges, int refine)
    Load(input, generate_edges, refine);
 }
 
-Element *NewElement(int geom)
+Element *Mesh::NewElement(int geom)
 {
    switch (geom)
    {
@@ -1999,7 +1999,7 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
       // copy the elements
       for (j = 0; j < m->GetNE(); j++)
       {
-         el = m->GetElement(j)->Duplicate();
+         el = m->GetElement(j)->Duplicate(this);
          v  = el->GetVertices();
          nv = el->GetNVertices();
          for (int k = 0; k < nv; k++)
@@ -2009,7 +2009,7 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
       // copy the boundary elements
       for (j = 0; j < m->GetNBE(); j++)
       {
-         el = m->GetBdrElement(j)->Duplicate();
+         el = m->GetBdrElement(j)->Duplicate(this);
          v  = el->GetVertices();
          nv = el->GetNVertices();
          for (int k = 0; k < nv; k++)
@@ -3749,7 +3749,7 @@ void Mesh::QuadUniformRefinement()
       {
          QuadrisectedElement *qe;
 
-         qe = new QuadrisectedElement(elements[i]->Duplicate());
+         qe = new QuadrisectedElement(elements[i]->Duplicate(this));
          qe->FirstChild = elements[i];
          qe->Child2 = j;
          qe->Child3 = j+1;
@@ -3778,7 +3778,7 @@ void Mesh::QuadUniformRefinement()
 #else
          BisectedElement *be = new BisectedElement;
 #endif
-         be->SetCoarseElem(boundary[i]->Duplicate());
+         be->SetCoarseElem(boundary[i]->Duplicate(this));
          be->FirstChild = boundary[i];
          be->SecondChild = j;
          boundary[i] = be;
@@ -3940,7 +3940,7 @@ void Mesh::HexUniformRefinement()
       {
          OctasectedElement *oe;
 
-         oe = new OctasectedElement(elements[i]->Duplicate());
+         oe = new OctasectedElement(elements[i]->Duplicate(this));
          oe->FirstChild = elements[i];
          for (k = 0; k < 7; k++)
             oe->Child[k] = j + k;
@@ -3976,7 +3976,7 @@ void Mesh::HexUniformRefinement()
       {
          QuadrisectedElement *qe;
 
-         qe = new QuadrisectedElement(boundary[i]->Duplicate());
+         qe = new QuadrisectedElement(boundary[i]->Duplicate(this));
          qe->FirstChild = boundary[i];
          qe->Child2 = j;
          qe->Child3 = j+1;

@@ -71,6 +71,15 @@ protected:
    GridFunction *Nodes;
    int own_nodes;
 
+#ifdef MFEM_USE_MEMALLOC
+   friend class Tetrahedron;
+
+   MemAlloc <Tetrahedron, 1024> TetMemory;
+   MemAlloc <BisectedElement, 1024> BEMemory;
+#endif
+
+   Element *NewElement(int geom);
+
    void Init();
 
    void InitTables();
