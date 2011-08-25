@@ -81,7 +81,7 @@ void DiffusionIntegrator::AssembleElementMatrix
    if (el.Space() == FunctionSpace::Pk)
       order = 2*el.GetOrder() - 2;
    else
-      //  order = 2*el.GetOrder();
+      // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
       order = 2*el.GetOrder() + dim - 1;
 
    const IntegrationRule *ir;
@@ -226,6 +226,7 @@ void MassIntegrator::AssembleElementMatrix
    const IntegrationRule *ir = IntRule;
    if (ir == NULL)
    {
+      // int order = 2 * el.GetOrder();
       int order = 2 * el.GetOrder() + Trans.OrderW();
 
       if (el.Space() == FunctionSpace::rQk)
@@ -526,6 +527,7 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
    elmat.SetSize(dof);
    elmat = 0.0;
 
+   // int order = 2 * el.GetOrder();
    int order = Trans.OrderW() + 2 * el.GetOrder();
 
    const IntegrationRule &ir = IntRules.Get(el.GetGeomType(), order);
@@ -539,10 +541,18 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
       el.CalcVShape(Trans, vshape);
 
       w = ip.weight * Trans.Weight();
-      if (Q)
-         w *= Q -> Eval (Trans, ip);
-
-      AddMult_a_AAt (w, vshape, elmat);
+      if (VQ)
+      {
+	VQ->Eval(D, Trans, ip);
+        D *= w;
+	AddMultADAt(vshape, D, elmat);
+      }
+      else
+      {
+	if (Q)
+	  w *= Q -> Eval (Trans, ip);
+	AddMult_a_AAt (w, vshape, elmat);
+      }
    }
 }
 
@@ -555,6 +565,10 @@ void VectorFEMassIntegrator::AssembleElementMatrix2(
    int trial_dof = trial_fe.GetDof();
    int test_dof = test_fe.GetDof();
    double w;
+
+   if (VQ)
+      mfem_error("VectorFEMassIntegrator::AssembleElementMatrix2(...)\n"
+                 "   is not implemented for vector permeability");
 
    vshape.SetSize(trial_dof, dim);
    shape.SetSize(test_dof);

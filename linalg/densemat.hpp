@@ -250,6 +250,9 @@ void MultAAt(const DenseMatrix &a, DenseMatrix &aat);
 /// ADAt = A D A^t, where D is diagonal
 void MultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt);
 
+/// ADAt += A D A^t, where D is diagonal
+void AddMultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt);
+
 /// Multiply a matrix A with the transpose of a matrix B:   A*Bt
 void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt);
 

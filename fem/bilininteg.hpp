@@ -269,13 +269,17 @@ class VectorFEMassIntegrator: public BilinearFormIntegrator
 {
 private:
    Coefficient *Q;
+   VectorCoefficient *VQ;
 
    Vector shape;
+   Vector D;
    DenseMatrix  vshape;
 
 public:
-   VectorFEMassIntegrator() { Q = NULL; };
-   VectorFEMassIntegrator (Coefficient *_q) { Q = _q; };
+   VectorFEMassIntegrator() { Q = NULL; VQ= NULL; }
+   VectorFEMassIntegrator (Coefficient *_q) { Q = _q; VQ= NULL; }
+   VectorFEMassIntegrator (VectorCoefficient *_vq)
+   { VQ = _vq; Q = NULL; D.SetSize(VQ->GetVDim()); }
 
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,

@@ -1962,6 +1962,30 @@ void MultAAt(const DenseMatrix &a, DenseMatrix &aat)
       }
 }
 
+void AddMultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt)
+{
+   for (int i = 0; i < A.Height(); i++)
+   {
+      for (int j = 0; j < i; j++)
+      {
+         double t = 0.;
+         for (int k = 0; k < A.Width(); k++)
+            t += D(k) * A(i, k) * A(j, k);
+	 ADAt(i, j) += t;
+	 ADAt(j, i) += t;
+      }
+   }
+
+   // process diagonal
+   for (int i = 0; i < A.Height(); i++)
+   {
+         double t = 0.;
+         for (int k = 0; k < A.Width(); k++)
+            t += D(k) * A(i, k) * A(i, k);
+	 ADAt(i, i) += t;
+   }
+}
+
 void MultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt)
 {
    for (int i = 0; i < A.Height(); i++)
