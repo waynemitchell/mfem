@@ -795,6 +795,13 @@ void Mesh::FinalizeTetMesh(int generate_edges, int refine)
 {
    CheckElementOrientation();
 
+   if (NumOfBdrElements == 0)
+   {
+      GetElementToFaceTable();
+      GenerateFaces();
+      GenerateBoundaryElements();
+   }
+
    if (refine)
    {
       MarkTetMeshForRefinement();
@@ -802,8 +809,8 @@ void Mesh::FinalizeTetMesh(int generate_edges, int refine)
 
    GetElementToFaceTable();
    GenerateFaces();
-   if (NumOfBdrElements == 0)
-      GenerateBoundaryElements();
+
+   CheckBdrElementOrientation();
 
    if (generate_edges == 1)
    {
