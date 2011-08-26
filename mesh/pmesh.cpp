@@ -1804,7 +1804,7 @@ void ParMesh::PrintXG(ostream &out) const
 
 void ParMesh::Print(ostream &out) const
 {
-   int i, j, nv, *v;
+   int i, j, nv, *v, shared_bdr_attr;
    const Array<Element *> &shared_bdr =
       (Dim == 3) ? shared_faces : shared_edges;
 
@@ -1844,9 +1844,10 @@ void ParMesh::Print(ostream &out) const
          out << ' ' << v[j];
       out << '\n';
    }
+   shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
    for (i = 0; i < shared_bdr.Size(); i++)
    {
-      out << shared_bdr[i]->GetAttribute() << ' '
+      out << shared_bdr_attr << ' '
           << shared_bdr[i]->GetGeometryType();
       nv = shared_bdr[i]->GetNVertices();
       v  = shared_bdr[i]->GetVertices();

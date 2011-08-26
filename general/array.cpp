@@ -74,7 +74,7 @@ void Array<T>::Save(ostream &out)
 }
 
 template <class T>
-T Array<T>::Max()
+T Array<T>::Max() const
 {
    T max;
 

@@ -147,7 +147,7 @@ public:
 
    /** Finds the maximal element in the array.
        (uses the comparison operator '<' for class T)  */
-   T Max();
+   T Max() const;
 
    /// Sorts the array.
    void Sort();
