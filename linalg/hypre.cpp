@@ -585,6 +585,8 @@ HypreParMatrix::~HypreParMatrix()
       }
       else
       {
+         if (hypre_CSRMatrixRownnz(A->diag))
+            hypre_TFree(hypre_CSRMatrixRownnz(A->diag));
          hypre_TFree(A->diag);
          A->diag = NULL;
       }
@@ -593,6 +595,11 @@ HypreParMatrix::~HypreParMatrix()
       {
          hypre_CSRMatrixDestroy(A->offd);
          A->offd = NULL;
+      }
+      else
+      {
+         if (hypre_CSRMatrixRownnz(A->offd))
+            hypre_TFree(hypre_CSRMatrixRownnz(A->offd));
       }
       hypre_ParCSRMatrixDestroy(A);
    }
