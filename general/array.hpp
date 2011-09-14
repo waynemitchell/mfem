@@ -122,7 +122,7 @@ public:
    inline int Union(const T & el);
 
    /// Return the first index where 'el' is found; return -1 if not found
-   inline int Find(const T &el);
+   inline int Find(const T &el) const;
 
    /// Delete the last entry
    inline void DeleteLast() { size--; }
@@ -263,7 +263,7 @@ inline int Array<T>::Union(const T &el)
 }
 
 template <class T>
-inline int Array<T>::Find(const T &el)
+inline int Array<T>::Find(const T &el) const
 {
    for (int i = 0; i < size; i++)
       if (((T*)data)[i] == el)
