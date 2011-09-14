@@ -75,6 +75,9 @@ ex5p: ex5p.cpp
 ex6: ex6.cpp
 	$(CC) $(OPTS) ex6.cpp -o ex6 $(LIBS)
 
+test_interp: test_interp.cpp
+	$(CC) $(OPTS) test_interp.cpp -o test_interp $(LIBS)
+
 debug:
 	make "OPTS=$(DEBUG_OPTS)" serial
 
@@ -89,5 +92,5 @@ prof-debug:
 
 clean:
 	rm -f *.o *~ ex1x ex4x test_simplex_intrules print_quadrature_rule
-	rm -f view_basis ex5 ex5p ex6
+	rm -f view_basis ex5 ex5p ex6 test_interp
 	rm -f refined.mesh sol.gf perturbed.mesh smoothed.mesh
