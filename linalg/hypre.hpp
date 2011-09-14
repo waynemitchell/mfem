@@ -252,6 +252,9 @@ public:
    /// non-hypre setting
    void SetZeroInintialIterate() { use_zero_initial_iterate = 1; }
 
+   void GetNumIterations(int &num_iterations)
+   { HYPRE_ParCSRPCGGetNumIterations(pcg_solver, &num_iterations); }
+
    /// The typecast to HYPRE_Solver returns the internal pcg_solver
    virtual operator HYPRE_Solver() const { return pcg_solver; }
 

@@ -637,11 +637,18 @@ void Mesh::AddBdrQuad(int *vi, int attr)
 void Mesh::GenerateBoundaryElements()
 {
    int i, j;
+   Array<int> &be2face = (Dim == 2) ? be_to_edge : be_to_face;
 
    // GenerateFaces();
 
    for (i = 0; i < boundary.Size(); i++)
       FreeElement(boundary[i]);
+
+   if (Dim == 3)
+   {
+      delete bel_to_edge;
+      bel_to_edge = NULL;
+   }
 
    // count the 'NumOfBdrElements'
    NumOfBdrElements = 0;
@@ -650,23 +657,12 @@ void Mesh::GenerateBoundaryElements()
          NumOfBdrElements++;
 
    boundary.SetSize(NumOfBdrElements);
-   if (Dim == 3)
-   {
-      be_to_face.SetSize(NumOfBdrElements);
-      delete bel_to_edge;
-      bel_to_edge = NULL;
-   }
-   if (Dim == 2)
-      be_to_edge.SetSize(NumOfBdrElements);
+   be2face.SetSize(NumOfBdrElements);
    for (j = i = 0; i < faces_info.Size(); i++)
       if (faces_info[i].Elem2No == -1)
       {
          boundary[j] = faces[i]->Duplicate(this);
-         if (Dim == 3)
-            be_to_face[j] = i;
-         if (Dim == 2)
-            be_to_edge[j] = i;
-         j++;
+         be2face[j++] = i;
       }
    // In 3D, 'bel_to_edge' is destroyed but it's not updated.
 }
@@ -5959,7 +5955,8 @@ void Mesh::GetElementColoring(Array<int> &colors, int el0)
    }
 }
 
-void Mesh::PrintWithPartitioning(int *partitioning, ostream &out) const
+void Mesh::PrintWithPartitioning(int *partitioning, ostream &out,
+                                 int elem_attr) const
 {
    if (Dim != 3 && Dim != 2) return;
 
@@ -5982,8 +5979,8 @@ void Mesh::PrintWithPartitioning(int *partitioning, ostream &out) const
        << "\n\nelements\n" << NumOfElements << '\n';
    for (i = 0; i < NumOfElements; i++)
    {
-      out << elements[i]->GetAttribute() << ' '
-          << elements[i]->GetGeometryType();
+      out << int((elem_attr) ? partitioning[i] : elements[i]->GetAttribute())
+          << ' ' << elements[i]->GetGeometryType();
       nv = elements[i]->GetNVertices();
       v  = elements[i]->GetVertices();
       for (j = 0; j < nv; j++)

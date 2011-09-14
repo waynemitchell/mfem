@@ -760,7 +760,12 @@ double DenseMatrix::CalcSingularvalue(const int i) const
       t = fabs(d0*d3 - d1*d2) / s;
 // #ifdef MFEM_DEBUG
       if (t > s)
-         mfem_error("DenseMatrix::CalcSingularvalue : 2x2");
+      {
+         if (i == 0)
+            return t;
+         return s;
+         // mfem_error("DenseMatrix::CalcSingularvalue : 2x2");
+      }
 // #endif
       if (i == 0)
          return s;
@@ -852,7 +857,8 @@ double DenseMatrix::CalcSingularvalue(const int i) const
       else
       {
          double sqrtQ = sqrt(Q);
-         double sqrtQ3 = sqrtQ*sqrtQ*sqrtQ;
+         double sqrtQ3 = Q*sqrtQ;
+         // double sqrtQ3 = sqrtQ*sqrtQ*sqrtQ;
          // double sqrtQ3 = pow(Q, 1.5);
          double r;
 
@@ -1172,7 +1178,8 @@ void DenseMatrix::CalcEigenvalues(double *lambda, double *vec) const
       else
       {
          double sqrtQ = sqrt(Q);
-         double sqrtQ3 = sqrtQ*sqrtQ*sqrtQ;
+         double sqrtQ3 = Q*sqrtQ;
+         // double sqrtQ3 = sqrtQ*sqrtQ*sqrtQ;
          // double sqrtQ3 = pow(Q, 1.5);
          double r;
          if (fabs(R) >= sqrtQ3)

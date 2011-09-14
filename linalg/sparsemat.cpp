@@ -229,7 +229,7 @@ void SparseMatrix::PartMult(
    }
 }
 
-double SparseMatrix::InnerProduct (const Vector &x, const Vector &y) const
+double SparseMatrix::InnerProduct(const Vector &x, const Vector &y) const
 {
    double prod = 0.0;
    for (int i = 0; i < size; i++)
@@ -239,16 +239,30 @@ double SparseMatrix::InnerProduct (const Vector &x, const Vector &y) const
          for (int j = I[i], end = I[i+1]; j < end; j++)
             a += A[j] * x(J[j]);
       else
-         for (RowNode *node_p = Rows[i]; node_p != NULL;
-              node_p = node_p -> Prev)
-            a += node_p -> Value * x(node_p -> Column);
+         for (RowNode *np = Rows[i]; np != NULL; np = np->Prev)
+            a += np->Value * x(np->Column);
       prod += a * y(i);
    }
 
    return prod;
 }
 
-void SparseMatrix::Finalize (int skip_zeros)
+void SparseMatrix::GetRowSums(Vector &x) const
+{
+   for (int i = 0; i < size; i++)
+   {
+      double a = 0.0;
+      if (A)
+         for (int j = I[i], end = I[i+1]; j < end; j++)
+            a += A[j];
+      else
+         for (RowNode *np = Rows[i]; np != NULL; np = np->Prev)
+            a += np->Value;
+      x(i) = a;
+   }
+}
+
+void SparseMatrix::Finalize(int skip_zeros)
 {
    int i, j, nr, nz;
    RowNode *aux;

@@ -109,10 +109,12 @@ public:
    void PartMult(const Array<int> &rows, const Vector &x, Vector &y);
 
    /// Compute y^t A x
-   double InnerProduct (const Vector &x, const Vector &y) const;
+   double InnerProduct(const Vector &x, const Vector &y) const;
+
+   void GetRowSums(Vector &x) const;
 
    /// Returns a pointer to approximation of the matrix inverse.
-   virtual MatrixInverse * Inverse() const;
+   virtual MatrixInverse *Inverse() const;
 
    /// Eliminates a column from the transpose matrix.
    void EliminateRow (int row, const double sol, Vector &rhs);

@@ -90,7 +90,7 @@ public:
    double operator*(const double *) const;
 
    /// Return the inner-product.
-   double operator*(const Vector & v) const;
+   double operator*(const Vector &v) const;
 
    /// Redefine '=' for vector = vector.
    Vector & operator=(const Vector &v);

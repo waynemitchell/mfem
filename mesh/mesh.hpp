@@ -491,7 +491,7 @@ public:
        the subdomains, so that the boundary of subdomain i has bdr
        attribute i. */
    void PrintWithPartitioning (int *partitioning,
-                               ostream &out) const;
+                               ostream &out, int elem_attr = 0) const;
 
    void PrintElementsWithPartitioning (int *partitioning,
                                        ostream &out,

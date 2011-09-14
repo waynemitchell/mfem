@@ -161,12 +161,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
    meshgen = mesh.MeshGenerator();
 
-   attributes.SetSize(mesh.attributes.Size());
-   for (i = 0; i < attributes.Size(); i++)
-      attributes[i] = mesh.attributes[i];
-   bdr_attributes.SetSize(mesh.bdr_attributes.Size());
-   for (i = 0; i < bdr_attributes.Size(); i++)
-      bdr_attributes[i] = mesh.bdr_attributes[i];
+   mesh.attributes.Copy(attributes);
+   mesh.bdr_attributes.Copy(bdr_attributes);
 
    // this is called by the default Mesh constructor
    // InitTables();

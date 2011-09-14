@@ -121,6 +121,9 @@ public:
    /// Append element when it is not yet in the array, return index
    inline int Union(const T & el);
 
+   /// Return the first index where 'el' is found; return -1 if not found
+   inline int Find(const T &el);
+
    /// Delete the last entry
    inline void DeleteLast() { size--; }
 
@@ -131,10 +134,10 @@ public:
    inline void DeleteAll();
 
    /// Create a copy of the current array
-   inline void Copy(Array &copy)
+   inline void Copy(Array &copy) const
    {
       copy.SetSize(Size());
-      memcpy(copy.GetData(), GetData(), Size()*sizeof(T));
+      memcpy(copy.GetData(), data, Size()*sizeof(T));
    }
 
    inline void GetSubArray(int offset, int sa_size, Array<T> &sa);
@@ -257,6 +260,15 @@ inline int Array<T>::Union(const T &el)
    if (i == size)
       Append(el);
    return i;
+}
+
+template <class T>
+inline int Array<T>::Find(const T &el)
+{
+   for (int i = 0; i < size; i++)
+      if (((T*)data)[i] == el)
+         return i;
+   return -1;
 }
 
 template <class T>
