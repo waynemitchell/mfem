@@ -21,7 +21,7 @@ MPICC      = mpiCC
 MPIOPTS    = $(CCOPTS) -I$(HYPRE_DIR)/include
 
 # The HYPRE library (needed to build the parallel version)
-HYPRE_DIR  = ../../hypre-2.7.0b/src/hypre
+HYPRE_DIR  = ~/sa/tmp/linear_solvers/hypre
 
 # Internal mfem options
 USE_LAPACK   = YES
