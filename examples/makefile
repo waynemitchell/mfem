@@ -43,7 +43,7 @@ LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
 
 serial: ex1 ex2 ex3 ex4
 
-parallel: ex1p ex2p ex3p ex4p ex5p
+parallel: ex1p ex2p ex3p ex4p
 
 ex1: ex1.cpp
 	$(CC) $(OPTS) ex1.cpp -o ex1 $(LIBS)

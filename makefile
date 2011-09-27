@@ -39,10 +39,10 @@ DEFS = $(USE_MEMALLOC_DEF) $(USE_LAPACK_DEF)
 CCC = $(CC) $(CCOPTS) $(DEFS)
 
 # Generate with 'echo general/*.cpp linalg/*.cpp mesh/*.cpp fem/*.cpp'
-SOURCE_FILES = general/array.cpp general/error.cpp general/isockstream.cpp     \
-general/osockstream.cpp general/sets.cpp general/socketstream.cpp              \
-general/sort_pairs.cpp general/stable3d.cpp general/table.cpp                  \
-general/tic_toc.cpp linalg/bicgstab.cpp linalg/cgsolver.cpp                    \
+SOURCE_FILES = general/array.cpp general/communication.cpp general/error.cpp   \
+general/isockstream.cpp general/osockstream.cpp general/sets.cpp               \
+general/socketstream.cpp general/sort_pairs.cpp general/stable3d.cpp           \
+general/table.cpp general/tic_toc.cpp linalg/bicgstab.cpp linalg/cgsolver.cpp  \
 linalg/densemat.cpp linalg/gmres.cpp linalg/hypre.cpp linalg/matrix.cpp        \
 linalg/operator.cpp linalg/pcgsolver.cpp linalg/sparsemat.cpp                  \
 linalg/sparsesmoothers.cpp linalg/vector.cpp mesh/element.cpp                  \
@@ -54,19 +54,19 @@ fem/gridfunc.cpp fem/intrules.cpp fem/linearform.cpp fem/lininteg.cpp          \
 fem/pbilinearform.cpp fem/pfespace.cpp fem/pgridfunc.cpp fem/plinearform.cpp
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 # Generated with 'echo general/*.hpp linalg/*.hpp mesh/*.hpp fem/*.hpp'
-HEADER_FILES = general/array.hpp general/error.hpp general/isockstream.hpp    \
-general/mem_alloc.hpp general/osockstream.hpp general/sets.hpp                \
-general/sort_pairs.hpp general/stable3d.hpp general/table.hpp                 \
-general/tic_toc.hpp linalg/densemat.hpp linalg/hypre.hpp linalg/linalg.hpp    \
-linalg/matrix.hpp linalg/operator.hpp linalg/solvers.hpp linalg/sparsemat.hpp \
-linalg/sparsesmoothers.hpp linalg/vector.hpp mesh/element.hpp                 \
-mesh/hexahedron.hpp mesh/mesh_headers.hpp mesh/mesh.hpp mesh/pmesh.hpp        \
-mesh/point.hpp mesh/quadrilateral.hpp mesh/segment.hpp mesh/tetrahedron.hpp   \
-mesh/triangle.hpp mesh/vertex.hpp fem/bilinearform.hpp fem/bilininteg.hpp     \
-fem/coefficient.hpp fem/eltrans.hpp fem/fe_coll.hpp fem/fe.hpp fem/fem.hpp    \
-fem/fespace.hpp fem/geom.hpp fem/gridfunc.hpp fem/intrules.hpp                \
-fem/linearform.hpp fem/lininteg.hpp fem/pbilinearform.hpp fem/pfespace.hpp    \
-fem/pgridfunc.hpp fem/plinearform.hpp
+HEADER_FILES = general/array.hpp general/communication.hpp general/error.hpp   \
+general/isockstream.hpp general/mem_alloc.hpp general/osockstream.hpp          \
+general/sets.hpp general/socketstream.hpp general/sort_pairs.hpp               \
+general/stable3d.hpp general/table.hpp general/tic_toc.hpp linalg/densemat.hpp \
+linalg/hypre.hpp linalg/linalg.hpp linalg/matrix.hpp linalg/operator.hpp       \
+linalg/solvers.hpp linalg/sparsemat.hpp linalg/sparsesmoothers.hpp             \
+linalg/vector.hpp mesh/element.hpp mesh/hexahedron.hpp mesh/mesh_headers.hpp   \
+mesh/mesh.hpp mesh/pmesh.hpp mesh/point.hpp mesh/quadrilateral.hpp             \
+mesh/segment.hpp mesh/tetrahedron.hpp mesh/triangle.hpp mesh/vertex.hpp        \
+fem/bilinearform.hpp fem/bilininteg.hpp fem/coefficient.hpp fem/eltrans.hpp    \
+fem/fe_coll.hpp fem/fe.hpp fem/fem.hpp fem/fespace.hpp fem/geom.hpp            \
+fem/gridfunc.hpp fem/intrules.hpp fem/linearform.hpp fem/lininteg.hpp          \
+fem/pbilinearform.hpp fem/pfespace.hpp fem/pgridfunc.hpp fem/plinearform.hpp
 
 .SUFFIXES: .cpp .o
 .cpp.o:

@@ -270,11 +270,9 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       return P;
 
    int  ldof = GetVSize();
-
    int  ltdof = TrueVSize();
 
-   int *lproc_proc = pmesh -> lproc_proc;
-   int *groupmaster_lproc = pmesh -> groupmaster_lproc;
+   GroupTopology &gt = GetGroupTopo();
 
    int *i_diag;
    int *j_diag;
@@ -304,7 +302,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
    int *ncol_starts = NULL;
    if (HYPRE_AssumedPartitionCheck())
    {
-      int nsize = pmesh -> lproc_proc.Size()-1;
+      int nsize = gt.GetNumNeighbors()-1;
       MPI_Request *requests = new MPI_Request[2*nsize];
       MPI_Status  *statuses = new MPI_Status[2*nsize];
       ncol_starts = new int[nsize+1];
@@ -312,11 +310,11 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       int request_counter = 0;
       // send and receive neighbors' local tdof offsets
       for (i = 1; i < nsize+1; i++)
-         MPI_Irecv(&ncol_starts[i], 1, MPI_INT, lproc_proc[i], 5365,
+         MPI_Irecv(&ncol_starts[i], 1, MPI_INT, gt.GetNeighborRank(i), 5365,
                    MyComm, &requests[request_counter++]);
 
       for (i = 1; i < nsize+1; i++)
-         MPI_Isend(&col_starts[0], 1, MPI_INT, lproc_proc[i], 5365,
+         MPI_Isend(&col_starts[0], 1, MPI_INT, gt.GetNeighborRank(i), 5365,
                    MyComm, &requests[request_counter++]);
 
       MPI_Waitall(request_counter, requests, statuses);
@@ -329,7 +327,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
    diag_counter = offd_counter = 0;
    for (i = 0; i < ldof; i++)
    {
-      int proc = lproc_proc[groupmaster_lproc[ldof_group[i]]];
+      int proc = gt.GetGroupMasterRank(ldof_group[i]);
       if (proc == MyRank)
       {
          j_diag[diag_counter++] = ldof_ltdof[i];
@@ -338,7 +336,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       {
          if (HYPRE_AssumedPartitionCheck())
             cmap_j_offd[offd_counter].one =
-               ncol_starts[groupmaster_lproc[ldof_group[i]]] + ldof_ltdof[i];
+               ncol_starts[gt.GetGroupMaster(ldof_group[i])] + ldof_ltdof[i];
          else
             cmap_j_offd[offd_counter].one = col_starts[proc] + ldof_ltdof[i];
          cmap_j_offd[offd_counter].two = offd_counter;
@@ -367,14 +365,16 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
 
 void ParFiniteElementSpace::DivideByGroupSize(double *vec)
 {
+   GroupTopology &gt = GetGroupTopo();
+
    for (int i = 0; i < ldof_group.Size(); i++)
-      if (pmesh->groupmaster_lproc[ldof_group[i]] == 0) // we are the master
-         vec[ldof_ltdof[i]] /= pmesh->group_lproc.RowSize(ldof_group[i]);
+      if (gt.IAmMaster(ldof_group[i])) // we are the master
+         vec[ldof_ltdof[i]] /= gt.GetGroupSize(ldof_group[i]);
 }
 
 GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 {
-   GroupCommunicator *gc = new GroupCommunicator(*pmesh);
+   GroupCommunicator *gc = new GroupCommunicator(GetGroupTopo());
    GetGroupComm(*gc, 0);
    return gc;
 }
@@ -401,7 +401,7 @@ void ParFiniteElementSpace::GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
 
 int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
 {
-   if (pmesh -> groupmaster_lproc[ldof_group[ldof]] == 0)
+   if (GetGroupTopo().IAmMaster(ldof_group[ldof]))
       return ldof_ltdof[ldof];
    else
       return -1;
@@ -411,19 +411,12 @@ int ParFiniteElementSpace::GetGlobalTDofNumber(int ldof)
 {
    if (HYPRE_AssumedPartitionCheck())
    {
-      if (MyRank == 0)
-         cerr << "ParFiniteElementSpace::GetGlobalTDofNumber "
-              << "does not support Assumed Partitioning!\n" << endl;
-      MPI_Finalize();
-      mfem_error();
+      mfem_error("ParFiniteElementSpace::GetGlobalTDofNumber "
+                 "does not support Assumed Partitioning!\n");
    }
 
-   if (pmesh -> groupmaster_lproc[ldof_group[ldof]] == 0)
-      return ldof_ltdof[ldof] + tdof_offsets[MyRank];
-   else
-      return ldof_ltdof[ldof] +
-         tdof_offsets[pmesh->lproc_proc[
-            pmesh->groupmaster_lproc[ldof_group[ldof]]]];
+   return ldof_ltdof[ldof] +
+      tdof_offsets[GetGroupTopo().GetGroupMasterRank(ldof_group[ldof])];
 }
 
 void ParFiniteElementSpace::Lose_Dof_TrueDof_Matrix()
@@ -439,21 +432,11 @@ void ParFiniteElementSpace::Lose_Dof_TrueDof_Matrix()
 void ParFiniteElementSpace::ConstructTrueDofs()
 {
    int i, gr, n = GetVSize();
-   gcomm = new GroupCommunicator(*pmesh);
+   GroupTopology &gt = pmesh->gtopo;
+   gcomm = new GroupCommunicator(gt);
    Table &group_ldof = gcomm->GroupLDofTable();
 
    GetGroupComm(*gcomm, 1, &ldof_sign);
-
-#if 0
-   MPI_Barrier (MPI_COMM_WORLD);
-   cout << MyRank << ": group_lproc :" << endl;
-   pmesh -> group_lproc.Print (cout);
-   cout << MyRank << ": lproc_proc :" << endl;
-   pmesh -> lproc_proc.Print (cout, 1);
-   cout << MyRank << ": groupmaster_lproc :" << endl;
-   pmesh -> groupmaster_lproc.Print (cout, 1);
-   MPI_Barrier (MPI_COMM_WORLD);
-#endif
 
    // Define ldof_group and mark ldof_ltdof with
    //   -1 for ldof that is ours
@@ -470,7 +453,7 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       for (i = 0; i < nldofs; i++)
          ldof_group[ldofs[i]] = gr;
 
-      if (pmesh->groupmaster_lproc[gr] != 0) // we are not the master
+      if (!gt.IAmMaster(gr)) // we are not the master
          for (i = 0; i < nldofs; i++)
             ldof_ltdof[ldofs[i]] = -2;
    }
@@ -509,186 +492,6 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
    ConstructTrueDofs();
    GenerateGlobalOffsets();
    return cpfes;
-}
-
-GroupCommunicator::GroupCommunicator(ParMesh &m)
-   : pmesh(m)
-{
-   requests = NULL;
-   statuses = NULL;
-}
-
-void GroupCommunicator::Finalize()
-{
-   int request_counter = 0;
-   int reduce_buf_size = 0;
-
-   for (int gr = 1; gr < group_ldof.Size(); gr++)
-      if (group_ldof.RowSize(gr) != 0)
-      {
-         int gr_requests;
-         if (pmesh.groupmaster_lproc[gr] != 0) // we are not the master
-            gr_requests = 1;
-         else
-            gr_requests = pmesh.group_lproc.RowSize(gr)-1;
-
-         request_counter += gr_requests;
-         reduce_buf_size += gr_requests * group_ldof.RowSize(gr);
-      }
-
-   requests = new MPI_Request[request_counter];
-   statuses = new MPI_Status[request_counter];
-
-   group_buf.SetSize(reduce_buf_size);
-}
-
-void GroupCommunicator::Bcast(Array<int> &ldata)
-{
-   if (group_buf.Size() == 0)
-      return;
-
-   int i, gr, request_counter = 0;
-
-   for (gr = 1; gr < group_ldof.Size(); gr++)
-   {
-      // ignore groups without dofs
-      if (group_ldof.RowSize(gr) == 0)
-         continue;
-
-      if (pmesh.groupmaster_lproc[gr] != 0) // we are not the master
-      {
-         MPI_Irecv(&group_buf[group_ldof.GetI()[gr]],
-                   group_ldof.RowSize(gr),
-                   MPI_INT,
-                   pmesh.lproc_proc[pmesh.groupmaster_lproc[gr]],
-                   40822 + pmesh.group_mgroup[gr],
-                   pmesh.GetComm(),
-                   &requests[request_counter]);
-         request_counter++;
-      }
-      else // we are the master
-      {
-         // fill send buffer
-         for (i = group_ldof.GetI()[gr]; i < group_ldof.GetI()[gr+1]; i++)
-            group_buf[i] = ldata[group_ldof.GetJ()[i]];
-
-         for (i = pmesh.group_lproc.GetI()[gr];
-              i < pmesh.group_lproc.GetI()[gr+1]; i++)
-         {
-            if (pmesh.group_lproc.GetJ()[i] != 0)
-            {
-               MPI_Isend(&group_buf[group_ldof.GetI()[gr]],
-                         group_ldof.RowSize(gr),
-                         MPI_INT,
-                         pmesh.lproc_proc[pmesh.group_lproc.GetJ()[i]],
-                         40822 + pmesh.group_mgroup[gr],
-                         pmesh.GetComm(),
-                         &requests[request_counter]);
-               request_counter++;
-            }
-         }
-      }
-   }
-
-   MPI_Waitall(request_counter, requests, statuses);
-
-   // copy the received data from the buffer to ldata
-   for (gr = 1; gr < group_ldof.Size(); gr++)
-      if (pmesh.groupmaster_lproc[gr] != 0) // we are not the master
-      {
-         for (i = group_ldof.GetI()[gr]; i < group_ldof.GetI()[gr+1]; i++)
-            ldata[group_ldof.GetJ()[i]] = group_buf[i];
-      }
-}
-
-void GroupCommunicator::Reduce(Array<int> &ldata)
-{
-   if (group_buf.Size() == 0)
-      return;
-
-   int i, gr, request_counter = 0, buf_offset = 0;
-
-   for (gr = 1; gr < group_ldof.Size(); gr++)
-   {
-      // ignore groups without dofs
-      if (group_ldof.RowSize(gr) == 0)
-         continue;
-
-      const int *ldofs = group_ldof.GetRow(gr);
-      const int nldofs = group_ldof.RowSize(gr);
-
-      if (pmesh.groupmaster_lproc[gr] != 0) // we are not the master
-      {
-         for (i = 0; i < nldofs; i++)
-            group_buf[buf_offset+i] = ldata[ldofs[i]];
-
-         MPI_Isend(&group_buf[buf_offset],
-                   nldofs,
-                   MPI_INT,
-                   pmesh.lproc_proc[pmesh.groupmaster_lproc[gr]],
-                   43822 + pmesh.group_mgroup[gr],
-                   pmesh.GetComm(),
-                   &requests[request_counter]);
-         request_counter++;
-         buf_offset += nldofs;
-      }
-      else // we are the master
-      {
-         for (i = pmesh.group_lproc.GetI()[gr];
-              i < pmesh.group_lproc.GetI()[gr+1]; i++)
-         {
-            if (pmesh.group_lproc.GetJ()[i] != 0)
-            {
-               MPI_Irecv(&group_buf[buf_offset],
-                         nldofs,
-                         MPI_INT,
-                         pmesh.lproc_proc[pmesh.group_lproc.GetJ()[i]],
-                         43822 + pmesh.group_mgroup[gr],
-                         pmesh.GetComm(),
-                         &requests[request_counter]);
-               request_counter++;
-               buf_offset += nldofs;
-            }
-         }
-      }
-   }
-
-   MPI_Waitall(request_counter, requests, statuses);
-
-   // perform the reduce operation
-   buf_offset = 0;
-   for (gr = 1; gr < group_ldof.Size(); gr++)
-   {
-      // ignore groups without dofs
-      if (group_ldof.RowSize(gr) == 0)
-         continue;
-
-      const int nldofs = group_ldof.RowSize(gr);
-
-      if (pmesh.groupmaster_lproc[gr] != 0) // we are not the master
-      {
-         buf_offset += nldofs;
-      }
-      else // we are the master
-      {
-         const int *ldofs = group_ldof.GetRow(gr);
-         const int nb = pmesh.group_lproc.RowSize(gr)-1;
-         for (i = 0; i < nldofs; i++)
-         {
-            int data = ldata[ldofs[i]];
-            for (int j = 0; j < nb; j++)
-               data |= group_buf[buf_offset+j*nldofs+i];
-            ldata[ldofs[i]] = data;
-         }
-         buf_offset += nb * nldofs;
-      }
-   }
-}
-
-GroupCommunicator::~GroupCommunicator()
-{
-   delete [] statuses;
-   delete [] requests;
 }
 
 #endif

@@ -17,6 +17,7 @@
 
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                  int part_method)
+   : gtopo(comm)
 {
    int i, j;
    int *partitioning;
@@ -441,126 +442,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
    delete vert_element;
 
-   // build group_lproc, group_mgroupandproc and lproc_proc
-   groups.AsTable(group_lproc); // group_lproc = group_proc
-
-   Table group_mgroupandproc;
-   group_mgroupandproc.SetDims(group_lproc.Size(),
-                               group_lproc.Size_of_connections() +
-                               group_lproc.Size());
-   for (i = 0; i < group_mgroupandproc.Size(); i++)
-   {
-      j = group_mgroupandproc.GetI()[i];
-      group_mgroupandproc.GetI()[i+1] = j + group_lproc.RowSize(i) + 1;
-      group_mgroupandproc.GetJ()[j] = i;
-      j++;
-      for (int k = group_lproc.GetI()[i];
-           j < group_mgroupandproc.GetI()[i+1]; j++, k++)
-         group_mgroupandproc.GetJ()[j] = group_lproc.GetJ()[k];
-   }
-
-   Array<int> proc_lproc(NRanks); // array of size number of processors!
-   proc_lproc = -1;
-
-   int lproc_counter = 0;
-   for (i = 0; i < group_lproc.Size_of_connections(); i++)
-      if (proc_lproc[group_lproc.GetJ()[i]] < 0)
-         proc_lproc[group_lproc.GetJ()[i]] = lproc_counter++;
-
-   lproc_proc.SetSize(lproc_counter);
-   for (i = 0; i < NRanks; i++)
-      if (proc_lproc[i] >= 0)
-         lproc_proc[proc_lproc[i]] = i;
-
-   for (i = 0; i < group_lproc.Size_of_connections(); i++)
-      group_lproc.GetJ()[i] = proc_lproc[group_lproc.GetJ()[i]];
-
-   // build groupmaster_lproc
-   groupmaster_lproc.SetSize(groups.Size());
-
-   // simplest choice of the group owner
-   for (i = 0; i < groups.Size(); i++)
-      groupmaster_lproc[i] = proc_lproc[groups.PickElementInSet(i)];
-
-   // load-balanced choice of the group owner, which however can lead to
-   // isolated dofs
-   // for (i = 0; i < groups.Size(); i++)
-   //    groupmaster_lproc[i] = proc_lproc[groups.PickRandomElementInSet(i)];
-   proc_lproc.DeleteAll();
-
-   // build group_mgroup
-   group_mgroup.SetSize(groups.Size());
-
-   int send_counter = 0;
-   int recv_counter = 0;
-   for (i = 1; i < groups.Size(); i++)
-      if (groupmaster_lproc[i] != 0) // we are not the master
-         recv_counter++;
-      else
-         send_counter += group_lproc.RowSize(i)-1;
-
-   MPI_Request *requests = new MPI_Request[send_counter];
-   MPI_Status  *statuses = new MPI_Status[send_counter];
-
-   int max_recv_size = 0;
-   send_counter = 0;
-   for (i = 1; i < groups.Size(); i++)
-   {
-      if (groupmaster_lproc[i] == 0) // we are the master
-      {
-         group_mgroup[i] = i;
-
-         for (j = group_lproc.GetI()[i];
-              j < group_lproc.GetI()[i+1]; j++)
-         {
-            if (group_lproc.GetJ()[j] != 0)
-            {
-               MPI_Isend(group_mgroupandproc.GetRow (i),
-                         group_mgroupandproc.RowSize (i),
-                         MPI_INT,
-                         lproc_proc[group_lproc.GetJ()[j]],
-                         822,
-                         MyComm,
-                         &requests[send_counter]);
-               send_counter++;
-            }
-         }
-      }
-      else // we are not the master
-         if (max_recv_size < group_lproc.RowSize(i))
-            max_recv_size = group_lproc.RowSize(i);
-   }
-   max_recv_size++;
-
-   if (recv_counter > 0)
-   {
-      int count;
-      MPI_Status status;
-      int *recv_buf = new int[max_recv_size];
-      for ( ; recv_counter > 0; recv_counter--)
-      {
-         MPI_Recv(recv_buf, max_recv_size, MPI_INT,
-                  MPI_ANY_SOURCE, 822, MyComm, &status);
-
-         MPI_Get_count(&status, MPI_INT, &count);
-
-         group.Recreate(count-1, recv_buf+1);
-         group_mgroup[i=groups.Lookup(group)] = recv_buf[0];
-
-         if (lproc_proc[groupmaster_lproc[i]] != status.MPI_SOURCE)
-         {
-            cerr << "\n\n\nParMesh::ParMesh: " << MyRank
-                 << ": ERROR\n\n\n" << endl;
-            mfem_error();
-         }
-      }
-      delete [] recv_buf;
-   }
-
-   MPI_Waitall(send_counter, requests, statuses);
-
-   delete [] statuses;
-   delete [] requests;
+   // build the group communication topology
+   gtopo.Create(groups, 822);
 
    if (mesh.GetNodes()) // curved mesh
    {
@@ -605,7 +488,6 @@ void ParMesh::GroupFace(int group, int i, int &face, int &o)
       o = GetQuadOrientation(faces[face]->GetVertices(),
                              shared_faces[sface]->GetVertices());
 }
-
 
 // For a line segment with vertices v[0] and v[1], return a number with
 // the following meaning:
@@ -806,11 +688,11 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                      face_splittings[i][j] =
                         GetFaceSplittings(shared_faces[group_faces[j]], v_to_v,
                                           middle);
-                  j = group_lproc.GetI()[i+1];
-                  if (group_lproc.GetJ()[j] == 0)
-                     neighbor = lproc_proc[group_lproc.GetJ()[j+1]];
+                  const int *nbs = gtopo.GetGroup(i+1);
+                  if (nbs[0] == 0)
+                     neighbor = gtopo.GetNeighborRank(nbs[1]);
                   else
-                     neighbor = lproc_proc[group_lproc.GetJ()[j]];
+                     neighbor = gtopo.GetNeighborRank(nbs[0]);
                   MPI_Isend(face_splittings[i], faces_in_group, MPI_INT,
                             neighbor, 0, MyComm, &request);
                }
@@ -823,11 +705,11 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                faces_in_group = group_faces.Size();
                if (faces_in_group != 0)
                {
-                  j = group_lproc.GetI()[i+1];
-                  if (group_lproc.GetJ()[j] == 0)
-                     neighbor = lproc_proc[group_lproc.GetJ()[j+1]];
+                  const int *nbs = gtopo.GetGroup(i+1);
+                  if (nbs[0] == 0)
+                     neighbor = gtopo.GetNeighborRank(nbs[1]);
                   else
-                     neighbor = lproc_proc[group_lproc.GetJ()[j]];
+                     neighbor = gtopo.GetNeighborRank(nbs[0]);
                   MPI_Recv(iBuf, faces_in_group, MPI_INT, neighbor,
                            MPI_ANY_TAG, MyComm, &status);
 
@@ -1072,11 +954,11 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                      edge_splittings[i][j] =
                         GetEdgeSplittings(shared_edges[group_edges[j]], v_to_v,
                                           middle);
-                  j = group_lproc.GetI()[i+1];
-                  if (group_lproc.GetJ()[j] == 0)
-                     neighbor = lproc_proc[group_lproc.GetJ()[j+1]];
+                  const int *nbs = gtopo.GetGroup(i+1);
+                  if (nbs[0] == 0)
+                     neighbor = gtopo.GetNeighborRank(nbs[1]);
                   else
-                     neighbor = lproc_proc[group_lproc.GetJ()[j]];
+                     neighbor = gtopo.GetNeighborRank(nbs[0]);
                   MPI_Isend(edge_splittings[i], edges_in_group, MPI_INT,
                             neighbor, 0, MyComm, &request);
                }
@@ -1089,11 +971,11 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                edges_in_group = group_edges.Size();
                if (edges_in_group != 0)
                {
-                  j = group_lproc.GetI()[i+1];
-                  if (group_lproc.GetJ()[j] == 0)
-                     neighbor = lproc_proc[group_lproc.GetJ()[j+1]];
+                  const int *nbs = gtopo.GetGroup(i+1);
+                  if (nbs[0] == 0)
+                     neighbor = gtopo.GetNeighborRank(nbs[1]);
                   else
-                     neighbor = lproc_proc[group_lproc.GetJ()[j]];
+                     neighbor = gtopo.GetNeighborRank(nbs[0]);
                   MPI_Recv(iBuf, edges_in_group, MPI_INT, neighbor,
                            MPI_ANY_TAG, MyComm, &status);
 
@@ -2602,9 +2484,9 @@ void ParMesh::PrintInfo(ostream &out)
    ldata[1] = GetNEdges();
    ldata[2] = GetNFaces();
    ldata[3] = GetNE();
-   ldata[4] = lproc_proc.Size()-1;
+   ldata[4] = gtopo.GetNumNeighbors()-1;
    for (int gr = 1; gr < GetNGroups(); gr++)
-      if (groupmaster_lproc[gr] != 0) // we are not the master
+      if (!gtopo.IAmMaster(gr)) // we are not the master
       {
          ldata[0] -= group_svert.RowSize(gr-1);
          ldata[1] -= group_sedge.RowSize(gr-1);

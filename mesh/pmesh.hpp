@@ -45,19 +45,9 @@ public:
    int GetNRanks() { return NRanks; }
    int GetMyRank() { return MyRank; }
 
-   /** The shared vertices, faces and edges are split into groups, each group
-       determined by the set of participating processors, proc.  They are
-       numbered locally in lproc. Assumptions:
-       - group 0 is the 'local' group
-       - groupmaster_lproc[0] = 0
-       - lproc_proc[0] = MyRank */
-   Table group_lproc;
-   Array<int> groupmaster_lproc;
-   Array<int> lproc_proc;
-   /// for each group gives the group number in the master
-   Array<int> group_mgroup;
+   GroupTopology gtopo;
 
-   int GetNGroups() { return group_lproc.Size(); }
+   int GetNGroups() { return gtopo.NGroups(); }
 
    // next 6 methods do not work for the 'local' group 0
    int GroupNVertices(int group) { return group_svert.RowSize(group-1); }

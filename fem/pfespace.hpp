@@ -12,8 +12,6 @@
 #ifndef MFEM_PFESPACE
 #define MFEM_PFESPACE
 
-class GroupCommunicator;
-
 /// Abstract parallel finite element space.
 class ParFiniteElementSpace : public FiniteElementSpace
 {
@@ -48,6 +46,8 @@ private:
 
    /// The matrix P (interpolation from true dof to dof).
    HypreParMatrix *P;
+
+   GroupTopology &GetGroupTopo() { return pmesh->gtopo; }
 
    /** Create a parallel FE space stealing all data (except RefData) from the
        given FE space. This is used in SaveUpdate(). */
@@ -119,29 +119,6 @@ public:
    virtual FiniteElementSpace *SaveUpdate();
 
    virtual ~ParFiniteElementSpace() { if (P) delete P; }
-};
-
-class GroupCommunicator
-{
-private:
-   ParMesh &pmesh;
-   Table group_ldof;
-   Array<int> group_buf;
-   MPI_Request *requests;
-   MPI_Status  *statuses;
-
-public:
-   GroupCommunicator(ParMesh &m);
-   Table &GroupLDofTable() { return group_ldof; }
-   /// Allocate internal buffers after the GroupLDofTable is defined
-   void Finalize();
-
-   /// Broadcast within each group where the master is the root
-   void Bcast(Array<int> &ldata);
-   /** Reduce within each group where the master is the root. The reduce
-       operation is bitwise OR. */
-   void Reduce(Array<int> &ldata);
-   ~GroupCommunicator();
 };
 
 #endif
