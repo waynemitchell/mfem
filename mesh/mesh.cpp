@@ -348,21 +348,31 @@ void Mesh::GetLocalQuadToHexTransformation(
    }
 }
 
-FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo)
+FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
+                                                                int mask)
 {
    int i, j, *v, nv;
-   FiniteElement *FaceFE;
 
    //  setup the transformation for the first element
    FaceElemTr.Elem1No = faces_info[FaceNo].Elem1No;
-   GetElementTransformation(FaceElemTr.Elem1No, &Transformation);
-   FaceElemTr.Elem1 = &Transformation;
+   if (mask & 1)
+   {
+      GetElementTransformation(FaceElemTr.Elem1No, &Transformation);
+      FaceElemTr.Elem1 = &Transformation;
+   }
+   else
+      FaceElemTr.Elem1 = NULL;
 
    //  setup the transformation for the second element
    //     return NULL in the Elem2 field if there's no second element, i.e.
    //     the face is on the "boundary"
-   if ( (FaceElemTr.Elem2No = faces_info[FaceNo].Elem2No) >= 0 )
+   if ( (FaceElemTr.Elem2No = faces_info[FaceNo].Elem2No) >= 0 && (mask & 2))
    {
+#ifdef MFEM_DEBUG
+      if (NURBSext && (mask & 1))
+         mfem_error("Mesh::GetFaceElementTransformations :"
+                    " NURBS mesh is not supported!");
+#endif
       GetElementTransformation(FaceElemTr.Elem2No, &Transformation2);
       FaceElemTr.Elem2 = &Transformation2;
    }
@@ -370,32 +380,28 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo)
       FaceElemTr.Elem2 = NULL;
 
    FaceElemTr.FaceGeom = faces[FaceNo]->GetGeometryType();
-   FaceFE = GetTransformationFEforElementType(faces[FaceNo]->GetType());
 
    // setup the face transformation
-   FaceTransformation.Attribute = faces[FaceNo]->GetAttribute();
-   FaceTransformation.ElementNo = FaceNo;
-   v  = faces[FaceNo]->GetVertices();
-   nv = faces[FaceNo]->GetNVertices();
-   DenseMatrix &pm = FaceTransformation.GetPointMat();
-   pm.SetSize(Dim, nv);
-   for (i = 0; i < Dim; i++)
-      for (j = 0; j < nv; j++)
-         pm(i, j) = vertices[v[j]](i);
-   FaceTransformation.SetFE(FaceFE);
-   FaceElemTr.Face = &FaceTransformation;
+   if (mask & 16)
+      FaceElemTr.Face = GetFaceTransformation(FaceNo);
+   else
+      FaceElemTr.Face = NULL;
 
    // setup Loc1 & Loc2
    switch (faces[FaceNo]->GetType())
    {
    case Element::SEGMENT:
-      if (GetElementType(faces_info[FaceNo].Elem1No) == Element::TRIANGLE)
-         GetLocalSegToTriTransformation(FaceElemTr.Loc1.Transf,
-                                        faces_info[FaceNo].Elem1Inf);
-      else // assume the element is a quad
-         GetLocalSegToQuadTransformation(FaceElemTr.Loc1.Transf,
-                                         faces_info[FaceNo].Elem1Inf);
-      if (FaceElemTr.Elem2No >= 0)
+      if (mask & 4)
+      {
+         if (GetElementType(faces_info[FaceNo].Elem1No) == Element::TRIANGLE)
+            GetLocalSegToTriTransformation(FaceElemTr.Loc1.Transf,
+                                           faces_info[FaceNo].Elem1Inf);
+         else // assume the element is a quad
+            GetLocalSegToQuadTransformation(FaceElemTr.Loc1.Transf,
+                                            faces_info[FaceNo].Elem1Inf);
+      }
+
+      if (FaceElemTr.Elem2No >= 0 && (mask & 8))
       {
          if (GetElementType(faces_info[FaceNo].Elem2No)
              == Element::TRIANGLE)
@@ -408,17 +414,19 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo)
       break;
    case Element::TRIANGLE:
       // ---------  assumes the face is a triangle -- face of a tetrahedron
-      GetLocalTriToTetTransformation(FaceElemTr.Loc1.Transf,
-                                     faces_info[FaceNo].Elem1Inf);
-      if (FaceElemTr.Elem2No >= 0)
+      if (mask & 4)
+         GetLocalTriToTetTransformation(FaceElemTr.Loc1.Transf,
+                                        faces_info[FaceNo].Elem1Inf);
+      if (FaceElemTr.Elem2No >= 0 && (mask & 8))
          GetLocalTriToTetTransformation(FaceElemTr.Loc2.Transf,
                                         faces_info[FaceNo].Elem2Inf);
       break;
    case Element::QUADRILATERAL:
       // ---------  assumes the face is a quad -- face of a hexahedron
-      GetLocalQuadToHexTransformation(FaceElemTr.Loc1.Transf,
-                                      faces_info[FaceNo].Elem1Inf);
-      if (FaceElemTr.Elem2No >= 0)
+      if (mask & 4)
+         GetLocalQuadToHexTransformation(FaceElemTr.Loc1.Transf,
+                                         faces_info[FaceNo].Elem1Inf);
+      if (FaceElemTr.Elem2No >= 0 && (mask & 8))
          GetLocalQuadToHexTransformation(FaceElemTr.Loc2.Transf,
                                          faces_info[FaceNo].Elem2Inf);
       break;
@@ -461,6 +469,7 @@ void Mesh::Init()
    State = Mesh::NORMAL;
    Nodes = NULL;
    own_nodes = 1;
+   NURBSext = NULL;
 }
 
 void Mesh::InitTables()
@@ -1060,6 +1069,32 @@ Element *Mesh::NewElement(int geom)
    return NULL;
 }
 
+Element *Mesh::ReadElement(istream &input)
+{
+   int attr, geom, nv, *v;
+   Element *el;
+
+   input >> attr >> geom;
+   el = NewElement(geom);
+   el->SetAttribute(attr);
+   nv = el->GetNVertices();
+   v  = el->GetVertices();
+   for (int i = 0; i < nv; i++)
+      input >> v[i];
+
+   return el;
+}
+
+void Mesh::PrintElement(Element *el, ostream &out)
+{
+   out << el->GetAttribute() << ' ' << el->GetGeometryType();
+   const int nv = el->GetNVertices();
+   const int *v = el->GetVertices();
+   for (int j = 0; j < nv; j++)
+      out << ' ' << v[j];
+   out << '\n';
+}
+
 // see Tetrahedron::edges
 static const int vtk_quadratic_tet[10] =
 { 0, 1, 2, 3, 4, 7, 5, 6, 8, 9 };
@@ -1069,7 +1104,7 @@ static const int vtk_quadratic_hex[27] =
 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
   24, 22, 21, 23, 20, 25, 26 };
 
-inline void skip_comment_lines(istream &is, const char comment_char)
+void skip_comment_lines(istream &is, const char comment_char)
 {
    while(1)
    {
@@ -1134,7 +1169,6 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
    {
       // Read MFEM mesh v1.0 format
       string ident;
-      int attr, geom, nv, *v;
 
       // read lines begining with '#' (comments)
       skip_comment_lines(input, '#');
@@ -1148,15 +1182,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       input >> NumOfElements;
       elements.SetSize(NumOfElements);
       for (j = 0; j < NumOfElements; j++)
-      {
-         input >> attr >> geom;
-         elements[j] = NewElement(geom);
-         elements[j]->SetAttribute(attr);
-         nv = elements[j]->GetNVertices();
-         v  = elements[j]->GetVertices();
-         for (i = 0; i < nv; i++)
-            input >> v[i];
-      }
+         elements[j] = ReadElement(input);
 
       skip_comment_lines(input, '#');
 
@@ -1164,15 +1190,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       input >> NumOfBdrElements;
       boundary.SetSize(NumOfBdrElements);
       for (j = 0; j < NumOfBdrElements; j++)
-      {
-         input >> attr >> geom;
-         boundary[j] = NewElement(geom);
-         boundary[j]->SetAttribute(attr);
-         nv = boundary[j]->GetNVertices();
-         v  = boundary[j]->GetVertices();
-         for (i = 0; i < nv; i++)
-            input >> v[i];
-      }
+         boundary[j] = ReadElement(input);
 
       skip_comment_lines(input, '#');
 
@@ -1694,6 +1712,23 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
          read_gf = 0;
       }
    }
+   else if (mesh_type == "MFEM NURBS mesh v1.0")
+   {
+      NURBSext = new NURBSExtension(input);
+
+      Dim              = NURBSext->Dimension();
+      NumOfVertices    = NURBSext->GetNV();
+      NumOfElements    = NURBSext->GetNE();
+      NumOfBdrElements = NURBSext->GetNBE();
+
+      NURBSext->GetElementTopo(elements);
+      NURBSext->GetBdrElementTopo(boundary);
+
+      vertices.SetSize(NumOfVertices);
+
+      curved = 1;
+      read_gf = 1;
+   }
    else
    {
       mfem_error("Mesh::Load : Unknown input mesh format!");
@@ -1786,7 +1821,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       {
          Nodes = new GridFunction(this, input);
          own_nodes = 1;
-         for (i = 0; i < Nodes->VectorDim(); i++)
+         int vd = Nodes->VectorDim();
+         for (i = 0; i < vd; i++)
          {
             Vector vert_val;
             Nodes->GetNodalValues(vert_val, i+1);
@@ -1982,46 +2018,93 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
 
    Dim = mesh_array[0]->Dimension();
 
-   NumOfElements    = 0;
-   NumOfBdrElements = 0;
-   NumOfVertices    = 0;
-   for (i = 0; i < num_pieces; i++)
+   if (mesh_array[0]->NURBSext)
    {
-      m = mesh_array[i];
-      NumOfElements    += m->GetNE();
-      NumOfBdrElements += m->GetNBE();
-      NumOfVertices    += m->GetNV();
+      // assuming the pieces form a partition of a NURBS mesh
+      NURBSext = new NURBSExtension(mesh_array, num_pieces);
+
+      NumOfVertices = NURBSext->GetNV();
+      NumOfElements = NURBSext->GetNE();
+
+      NURBSext->GetElementTopo(elements);
+
+      // NumOfBdrElements = NURBSext->GetNBE();
+      // NURBSext->GetBdrElementTopo(boundary);
+
+      Array<int> lvert_vert, lelem_elem;
+
+      NumOfBdrElements = 0;
+      for (i = 0; i < num_pieces; i++)
+         NumOfBdrElements += mesh_array[i]->GetNBE();
+      boundary.SetSize(NumOfBdrElements);
+      vertices.SetSize(NumOfVertices);
+      ib = 0;
+      for (i = 0; i < num_pieces; i++)
+      {
+         m = mesh_array[i];
+         m->NURBSext->GetVertexLocalToGlobal(lvert_vert);
+         m->NURBSext->GetElementLocalToGlobal(lelem_elem);
+         // copy the element attributes
+         for (j = 0; j < m->GetNE(); j++)
+            elements[lelem_elem[j]]->SetAttribute(m->GetAttribute(j));
+         // copy the boundary
+         for (j = 0; j < m->GetNBE(); j++)
+         {
+            el = m->GetBdrElement(j)->Duplicate(this);
+            v  = el->GetVertices();
+            nv = el->GetNVertices();
+            for (int k = 0; k < nv; k++)
+               v[k] = lvert_vert[v[k]];
+            boundary[ib++] = el;
+         }
+         // copy the vertices
+         for (j = 0; j < m->GetNV(); j++)
+            vertices[lvert_vert[j]].SetCoords(m->GetVertex(j));
+      }
    }
-   elements.SetSize(NumOfElements);
-   boundary.SetSize(NumOfBdrElements);
-   vertices.SetSize(NumOfVertices);
-   ie = ib = iv = 0;
-   for (i = 0; i < num_pieces; i++)
+   else // not a NURBS mesh
    {
-      m = mesh_array[i];
-      // copy the elements
-      for (j = 0; j < m->GetNE(); j++)
+      NumOfElements    = 0;
+      NumOfBdrElements = 0;
+      NumOfVertices    = 0;
+      for (i = 0; i < num_pieces; i++)
       {
-         el = m->GetElement(j)->Duplicate(this);
-         v  = el->GetVertices();
-         nv = el->GetNVertices();
-         for (int k = 0; k < nv; k++)
-            v[k] += iv;
-         elements[ie++] = el;
+         m = mesh_array[i];
+         NumOfElements    += m->GetNE();
+         NumOfBdrElements += m->GetNBE();
+         NumOfVertices    += m->GetNV();
       }
-      // copy the boundary elements
-      for (j = 0; j < m->GetNBE(); j++)
+      elements.SetSize(NumOfElements);
+      boundary.SetSize(NumOfBdrElements);
+      vertices.SetSize(NumOfVertices);
+      ie = ib = iv = 0;
+      for (i = 0; i < num_pieces; i++)
       {
-         el = m->GetBdrElement(j)->Duplicate(this);
-         v  = el->GetVertices();
-         nv = el->GetNVertices();
-         for (int k = 0; k < nv; k++)
-            v[k] += iv;
-         boundary[ib++] = el;
+         m = mesh_array[i];
+         // copy the elements
+         for (j = 0; j < m->GetNE(); j++)
+         {
+            el = m->GetElement(j)->Duplicate(this);
+            v  = el->GetVertices();
+            nv = el->GetNVertices();
+            for (int k = 0; k < nv; k++)
+               v[k] += iv;
+            elements[ie++] = el;
+         }
+         // copy the boundary elements
+         for (j = 0; j < m->GetNBE(); j++)
+         {
+            el = m->GetBdrElement(j)->Duplicate(this);
+            v  = el->GetVertices();
+            nv = el->GetNVertices();
+            for (int k = 0; k < nv; k++)
+               v[k] += iv;
+            boundary[ib++] = el;
+         }
+         // copy the vertices
+         for (j = 0; j < m->GetNV(); j++)
+            vertices[iv++].SetCoords(m->GetVertex(j));
       }
-      // copy the vertices
-      for (j = 0; j < m->GetNV(); j++)
-         vertices[iv++].SetCoords(m->GetVertex(j));
    }
 
    // set the mesh type ('meshgen')
@@ -2062,6 +2145,188 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
       Nodes = new GridFunction(this, gf_array, num_pieces);
       own_nodes = 1;
    }
+}
+
+void Mesh::KnotInsert(Array<KnotVector *> &kv)
+{
+   if (NURBSext == NULL)
+      mfem_error("Mesh::KnotInsert : Not a NURBS mesh!");
+
+   if (kv.Size() != NURBSext->GetNKV())
+      mfem_error("Mesh::KnotInsert : KnotVector array size mismatch!");
+
+   NURBSext->ConvertToPatches(*Nodes);
+
+   NURBSext->KnotInsert(kv);
+
+   UpdateNURBS();
+}
+
+void Mesh::NURBSUniformRefinement()
+{
+   // do not check for NURBSext since this method is protected
+   NURBSext->ConvertToPatches(*Nodes);
+
+   NURBSext->UniformRefinement();
+
+   UpdateNURBS();
+}
+
+void Mesh::DegreeElevate(int t)
+{
+   if (NURBSext == NULL)
+      mfem_error("Mesh::DegreeElevate : Not a NURBS mesh!");
+
+   NURBSext->ConvertToPatches(*Nodes);
+
+   NURBSext->DegreeElevate(t);
+
+   NURBSFECollection *nurbs_fec =
+      dynamic_cast<NURBSFECollection *>(Nodes->OwnFEC());
+   if (!nurbs_fec)
+      mfem_error("Mesh::DegreeElevate");
+   nurbs_fec->UpdateOrder(nurbs_fec->GetOrder() + t);
+
+   UpdateNURBS();
+}
+
+void Mesh::UpdateNURBS()
+{
+   NURBSext->SetKnotsFromPatches();
+
+   Dim = NURBSext->Dimension();
+
+   if (NumOfElements != NURBSext->GetNE())
+   {
+      for (int i = 0; i < elements.Size(); i++)
+         FreeElement(elements[i]);
+      NumOfElements = NURBSext->GetNE();
+      NURBSext->GetElementTopo(elements);
+   }
+
+   if (NumOfBdrElements != NURBSext->GetNBE())
+   {
+      for (int i = 0; i < boundary.Size(); i++)
+         FreeElement(boundary[i]);
+      NumOfBdrElements = NURBSext->GetNBE();
+      NURBSext->GetBdrElementTopo(boundary);
+   }
+
+   Nodes->FESpace()->Update();
+   Nodes->Update();
+   NURBSext->SetCoordsFromPatches(*Nodes);
+
+   if (NumOfVertices != NURBSext->GetNV())
+   {
+      NumOfVertices = NURBSext->GetNV();
+      vertices.SetSize(NumOfVertices);
+      int vd = Nodes->VectorDim();
+      for (int i = 0; i < vd; i++)
+      {
+         Vector vert_val;
+         Nodes->GetNodalValues(vert_val, i+1);
+         for (int j = 0; j < NumOfVertices; j++)
+            vertices[j](i) = vert_val(j);
+      }
+   }
+
+   if (el_to_edge)
+   {
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+      if (Dim == 2)
+         GenerateFaces();
+   }
+
+   if (el_to_face)
+   {
+      GetElementToFaceTable();
+      GenerateFaces();
+   }
+}
+
+void Mesh::LoadPatchTopo(istream &input, Array<int> &edge_to_knot)
+{
+   Init();
+   InitTables();
+
+   int j;
+
+   // Read MFEM NURBS mesh v1.0 format
+   string ident;
+
+   skip_comment_lines(input, '#');
+
+   input >> ident; // 'dimension'
+   input >> Dim;
+
+   skip_comment_lines(input, '#');
+
+   input >> ident; // 'elements'
+   input >> NumOfElements;
+   elements.SetSize(NumOfElements);
+   for (j = 0; j < NumOfElements; j++)
+      elements[j] = ReadElement(input);
+
+   skip_comment_lines(input, '#');
+
+   input >> ident; // 'boundary'
+   input >> NumOfBdrElements;
+   boundary.SetSize(NumOfBdrElements);
+   for (j = 0; j < NumOfBdrElements; j++)
+      boundary[j] = ReadElement(input);
+
+   skip_comment_lines(input, '#');
+
+   input >> ident; // 'edges'
+   input >> NumOfEdges;
+   edge_vertex = new Table(NumOfEdges, 2);
+   edge_to_knot.SetSize(NumOfEdges);
+   for (j = 0; j < NumOfEdges; j++)
+   {
+      int *v = edge_vertex->GetRow(j);
+      input >> edge_to_knot[j] >> v[0] >> v[1];
+      if (v[0] > v[1])
+         edge_to_knot[j] = -1 - edge_to_knot[j];
+   }
+
+   skip_comment_lines(input, '#');
+
+   input >> ident; // 'vertices'
+   input >> NumOfVertices;
+   vertices.SetSize(0);
+
+   meshgen = 2;
+
+   // generate the faces
+   if (Dim > 2)
+   {
+      GetElementToFaceTable();
+      GenerateFaces();
+      if (NumOfBdrElements == 0)
+         GenerateBoundaryElements();
+      CheckBdrElementOrientation();
+   }
+   else
+      NumOfFaces = 0;
+
+   // generate edges
+   if (Dim > 1)
+   {
+      el_to_edge = new Table;
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+      if (Dim < 3)
+      {
+         GenerateFaces();
+         if (NumOfBdrElements == 0)
+            GenerateBoundaryElements();
+         CheckBdrElementOrientation();
+      }
+   }
+   else
+      NumOfEdges = 0;
+
+   // generate the arrays 'attributes' and ' bdr_attributes'
+   SetAttributes();
 }
 
 void XYZ_VectorFunction(const Vector &p, Vector &v)
@@ -2414,6 +2679,11 @@ Table *Mesh::GetFaceEdgeTable() const
    if (Dim != 3)
       return NULL;
 
+#ifdef MFEM_DEBUG
+   if (faces.Size() != NumOfFaces)
+      mfem_error("Mesh::GetFaceEdgeTable : faces were not generated!");
+#endif
+
    DSTable v_to_v(NumOfVertices);
    GetVertexToVertexTable(v_to_v);
 
@@ -2664,16 +2934,27 @@ void Mesh::GetElementArrayEdgeTable(const Array<Element*> &elem_array,
    el_to_edge.ShiftUpI();
 }
 
-void Mesh::GetVertexToVertexTable(DSTable & v_to_v) const
+void Mesh::GetVertexToVertexTable(DSTable &v_to_v) const
 {
-   for (int i = 0; i < NumOfElements; i++)
+   if (edge_vertex)
    {
-      const int *v = elements[i]->GetVertices();
-      const int ne = elements[i]->GetNEdges();
-      for (int j = 0; j < ne; j++)
+      for (int i = 0; i < edge_vertex->Size(); i++)
       {
-         const int *e = elements[i]->GetEdgeVertices(j);
-         v_to_v.Push(v[e[0]], v[e[1]]);
+         const int *v = edge_vertex->GetRow(i);
+         v_to_v.Push(v[0], v[1]);
+      }
+   }
+   else
+   {
+      for (int i = 0; i < NumOfElements; i++)
+      {
+         const int *v = elements[i]->GetVertices();
+         const int ne = elements[i]->GetNEdges();
+         for (int j = 0; j < ne; j++)
+         {
+            const int *e = elements[i]->GetEdgeVertices(j);
+            v_to_v.Push(v[e[0]], v[e[1]]);
+         }
       }
    }
 }
@@ -2738,6 +3019,11 @@ const Table & Mesh::ElementToElementTable()
    else if (Dim == 3)
    {
       el_to_el = new Table(NumOfElements, 6); // 6 is the max. # of faces
+
+#ifdef MFEM_DEBUG
+      if (faces_info.Size() != NumOfFaces)
+         mfem_error("Mesh::ElementToElementTable : faces were not generated!");
+#endif
 
       for (int i = 0; i < faces_info.Size(); i++)
          if (faces_info[i].Elem2No >= 0)
@@ -4398,7 +4684,9 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
 
 void Mesh::UniformRefinement()
 {
-   if (meshgen == 1)
+   if (NURBSext)
+      NURBSUniformRefinement();
+   else if (meshgen == 1)
    {
       Array<int> elem_to_refine(GetNE());
 
@@ -5563,7 +5851,15 @@ void Mesh::PrintXG(ostream &out) const
 
 void Mesh::Print(ostream &out) const
 {
-   int i, j, nv, *v;
+   int i, j;
+
+   if (NURBSext)
+   {
+      NURBSext->Print(out);
+      out << '\n';
+      Nodes->Save(out);
+      return;
+   }
 
    out << "MFEM mesh v1.0\n";
 
@@ -5581,26 +5877,12 @@ void Mesh::Print(ostream &out) const
    out << "\ndimension\n" << Dim
        << "\n\nelements\n" << NumOfElements << '\n';
    for (i = 0; i < NumOfElements; i++)
-   {
-      out << elements[i]->GetAttribute() << ' '
-          << elements[i]->GetGeometryType();
-      nv = elements[i]->GetNVertices();
-      v  = elements[i]->GetVertices();
-      for (j = 0; j < nv; j++)
-         out << ' ' << v[j];
-      out << '\n';
-   }
+      PrintElement(elements[i], out);
+
    out << "\nboundary\n" << NumOfBdrElements << '\n';
    for (i = 0; i < NumOfBdrElements; i++)
-   {
-      out << boundary[i]->GetAttribute() << ' '
-          << boundary[i]->GetGeometryType();
-      nv = boundary[i]->GetNVertices();
-      v  = boundary[i]->GetVertices();
-      for (j = 0; j < nv; j++)
-         out << ' ' << v[j];
-      out << '\n';
-   }
+      PrintElement(boundary[i], out);
+
    out << "\nvertices\n" << NumOfVertices << '\n';
    if (Nodes == NULL)
    {
@@ -5618,6 +5900,41 @@ void Mesh::Print(ostream &out) const
       out << "\nnodes\n";
       Nodes->Save(out);
    }
+}
+
+void Mesh::PrintTopo(ostream &out,const Array<int> &e_to_k) const
+{
+   int i;
+   Array<int> vert;
+
+   out << "MFEM NURBS mesh v1.0\n";
+
+   // optional
+   out <<
+      "\n#\n# MFEM Geometry Types (see mesh/geom.hpp):\n#\n"
+      "# SQUARE      = 3\n"
+      "# CUBE        = 5\n"
+      "#\n";
+
+   out << "\ndimension\n" << Dim
+       << "\n\nelements\n" << NumOfElements << '\n';
+   for (i = 0; i < NumOfElements; i++)
+      PrintElement(elements[i], out);
+
+   out << "\nboundary\n" << NumOfBdrElements << '\n';
+   for (i = 0; i < NumOfBdrElements; i++)
+      PrintElement(boundary[i], out);
+
+   out << "\nedges\n" << NumOfEdges << '\n';
+   for (i = 0; i < NumOfEdges; i++)
+   {
+      edge_vertex->GetRow(i, vert);
+      int ki = e_to_k[i];
+      if (ki < 0)
+         ki = -1 - ki;
+      out << ki << ' ' << vert[0] << ' ' << vert[1] << '\n';
+   }
+   out << "\nvertices\n" << NumOfVertices << '\n';
 }
 
 void Mesh::PrintVTK(ostream &out)
@@ -6538,6 +6855,8 @@ Mesh::~Mesh()
    int i;
 
    if (own_nodes) delete Nodes;
+
+   delete NURBSext;
 
    for (i = 0; i < NumOfElements; i++)
       FreeElement(elements[i]);

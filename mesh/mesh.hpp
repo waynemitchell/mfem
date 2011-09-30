@@ -14,6 +14,7 @@
 
 // Data type mesh
 
+class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;
 
@@ -26,6 +27,8 @@ class Mesh
 #ifdef MFEM_USE_MPI
    friend class ParMesh;
 #endif
+   friend class NURBSExtension;
+
 protected:
    int Dim;
 
@@ -90,6 +93,9 @@ protected:
        Usefull in refinement methods to destroy the coarse tables. */
    void DeleteCoarseTables();
 
+   Element *ReadElement(istream &);
+   static void PrintElement(Element *, ostream &);
+
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;
 
@@ -137,6 +143,16 @@ protected:
 
    /// Refine hexahedral mesh.
    virtual void HexUniformRefinement();
+
+   /// Refine NURBS mesh.
+   virtual void NURBSUniformRefinement();
+
+   /// Read NURBS patch/macro-element mesh
+   void LoadPatchTopo(istream &input, Array<int> &edge_to_knot);
+
+   void UpdateNURBS();
+
+   void PrintTopo(ostream &out, const Array<int> &e_to_k) const;
 
    void BisectTriTrans (DenseMatrix &pointmat, Triangle *tri,
                         int child);
@@ -205,6 +221,8 @@ public:
    Array<int> attributes;
    Array<int> bdr_attributes;
 
+   NURBSExtension *NURBSext;
+
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
    Mesh (int _Dim, int NVert, int NElem, int NBdrElem = 0);
@@ -258,60 +276,60 @@ public:
    inline int MeshGenerator() { return meshgen; }
 
    /// Returns number of vertices.
-   inline int GetNV() const {return NumOfVertices;}
+   inline int GetNV() const { return NumOfVertices; }
 
    /// Returns number of elements.
-   inline int GetNE() const {return NumOfElements;}
+   inline int GetNE() const { return NumOfElements; }
 
    /// Returns number of boundary elements.
-   inline int GetNBE() const {return NumOfBdrElements;}
+   inline int GetNBE() const { return NumOfBdrElements; }
 
    /// Return the number of edges.
-   inline int GetNEdges () const { return NumOfEdges;}
+   inline int GetNEdges() const { return NumOfEdges; }
 
-   inline int GetNFaces () const { return NumOfFaces; };
+   inline int GetNFaces() const { return NumOfFaces; }
 
    /// Equals 1 + num_holes - num_loops
-   inline int  EulerNumber () const
-   { return NumOfVertices - NumOfEdges + NumOfFaces - NumOfElements; };
+   inline int EulerNumber() const
+   { return NumOfVertices - NumOfEdges + NumOfFaces - NumOfElements; }
    /// Equals 1 - num_holes
-   inline int  EulerNumber2D () const
-   { return NumOfVertices - NumOfEdges + NumOfElements; };
+   inline int EulerNumber2D() const
+   { return NumOfVertices - NumOfEdges + NumOfElements; }
 
-   int Dimension() const { return Dim; };
+   int Dimension() const { return Dim; }
 
    /// Return pointer to vertex i's coordinates
    const double *GetVertex(int i) const { return vertices[i](); }
    double *GetVertex(int i) { return vertices[i](); }
 
-   const Element *GetElement (int i) const { return elements[i]; };
+   const Element *GetElement(int i) const { return elements[i]; }
 
-   Element *GetElement (int i) { return elements[i]; };
+   Element *GetElement(int i) { return elements[i]; }
 
-   const Element *GetBdrElement (int i) const { return boundary[i]; };
+   const Element *GetBdrElement(int i) const { return boundary[i]; }
 
-   Element *GetBdrElement (int i) { return boundary[i]; };
+   Element *GetBdrElement(int i) { return boundary[i]; }
 
-   const Element *GetFace (int i) const { return faces[i]; };
+   const Element *GetFace(int i) const { return faces[i]; }
 
    int GetFaceBaseGeometry(int i) const;
 
    int GetElementBaseGeometry(int i) const
-   { return elements[i]->GetGeometryType(); };
+   { return elements[i]->GetGeometryType(); }
 
    int GetBdrElementBaseGeometry(int i) const
-   { return boundary[i]->GetGeometryType(); };
+   { return boundary[i]->GetGeometryType(); }
 
    /// Returns the indices of the dofs of element i.
-   void GetElementVertices ( int i, Array<int> &dofs ) const
-   { elements[i] -> GetVertices (dofs); }
+   void GetElementVertices(int i, Array<int> &dofs) const
+   { elements[i]->GetVertices(dofs); }
 
    /// Returns the indices of the dofs of boundary element i.
-   void GetBdrElementVertices ( int i, Array<int> &dofs ) const
-   { boundary[i]->GetVertices( dofs ); }
+   void GetBdrElementVertices(int i, Array<int> &dofs) const
+   { boundary[i]->GetVertices(dofs); }
 
    /// Return the indices and the orientations of all edges of element i.
-   void GetElementEdges (int i, Array<int> &, Array<int> &) const;
+   void GetElementEdges(int i, Array<int> &, Array<int> &) const;
 
    /// Return the indices and the orientations of all edges of bdr element i.
    void GetBdrElementEdges(int i, Array<int> &, Array<int> &) const;
@@ -320,11 +338,11 @@ public:
    void GetFaceEdges(int i, Array<int> &, Array<int> &) const;
 
    /// Returns the indices of the vertices of face i.
-   void GetFaceVertices (int i, Array<int> &vert) const
+   void GetFaceVertices(int i, Array<int> &vert) const
    { faces[i] -> GetVertices (vert); }
 
    /// Returns the indices of the vertices of edge i.
-   void GetEdgeVertices (int i, Array<int> &vert) const;
+   void GetEdgeVertices(int i, Array<int> &vert) const;
 
    /// Returns the face-to-edge Table (3D)
    Table *GetFaceEdgeTable() const;
@@ -333,38 +351,38 @@ public:
    Table *GetEdgeVertexTable() const;
 
    /// Return the indices and the orientations of all faces of element i.
-   void GetElementFaces (int i, Array<int> &, Array<int> &) const;
+   void GetElementFaces(int i, Array<int> &, Array<int> &) const;
 
    /// Return the index and the orientation of the face of bdr element i. (3D)
-   void GetBdrElementFace (int i, int *, int *) const;
+   void GetBdrElementFace(int i, int *, int *) const;
 
    /** Return the edge index of boundary element i. (2D)
        return the face index of boundary element i. (3D) */
-   int GetBdrElementEdgeIndex (int i) const;
+   int GetBdrElementEdgeIndex(int i) const;
 
    /// Returns the type of element i.
-   int GetElementType (int i) const;
+   int GetElementType(int i) const;
 
    /// Returns the type of boundary element i.
-   int GetBdrElementType (int i) const;
+   int GetBdrElementType(int i) const;
 
    /* Return point matrix of element i of dimension Dim X #dofs, where for
       every degree of freedom we give its coordinates in space of dimension
       Dim. */
-   void GetPointMatrix( int i, DenseMatrix &pointmat ) const;
+   void GetPointMatrix(int i, DenseMatrix &pointmat) const;
 
    /* Return point matrix of boundary element i of dimension Dim X #dofs,
       where for every degree of freedom we give its coordinates in space
       of dimension Dim. */
-   void GetBdrPointMatrix( int i, DenseMatrix &pointmat ) const;
+   void GetBdrPointMatrix(int i, DenseMatrix &pointmat) const;
 
    /// Returns the transformation defining the i-th element
-   ElementTransformation * GetElementTransformation (int i);
+   ElementTransformation *GetElementTransformation(int i);
 
    /** Return the transformation defining the i-th element assuming
        the position of the vertices/nodes are given by 'nodes'. */
-   void GetElementTransformation (int i, const Vector &nodes,
-                                  IsoparametricTransformation *ElTr);
+   void GetElementTransformation(int i, const Vector &nodes,
+                                 IsoparametricTransformation *ElTr);
 
    /// Returns the transformation defining the i-th boundary element
    ElementTransformation * GetBdrElementTransformation(int i);
@@ -386,8 +404,12 @@ public:
        face coordinate system to the element coordinate system
        (both in their reference elements). Used to transform
        IntegrationPoints from face to element.
-       6) FaceGeom - the base geometry for the face. */
-   FaceElementTransformations *GetFaceElementTransformations (int FaceNo);
+       6) FaceGeom - the base geometry for the face.
+       The mask specifies which fields in the structure to return:
+       mask & 1 - Elem1, mask & 2 - Elem2, mask & 4 - Loc1, mask & 8 - Loc2,
+       mask & 16 - Face. */
+   FaceElementTransformations *GetFaceElementTransformations(int FaceNo,
+                                                             int mask = 31);
 
    FaceElementTransformations *GetInteriorFaceTransformations (int FaceNo)
    { if (faces_info[FaceNo].Elem2No < 0) return NULL;
@@ -443,6 +465,10 @@ public:
    virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
 
    void UniformRefinement();
+
+   // NURBS mesh refinement methods
+   void KnotInsert(Array<KnotVector *> &kv);
+   void DegreeElevate(int t);
 
    /** Sets or clears the flag that indicates that mesh refinement methods
        should put the mesh in two-level state. */

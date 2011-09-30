@@ -37,6 +37,14 @@ private:
    /// Return a number(0-4) identifying how the given face has been split
    int GetFaceSplittings(Element *face, const DSTable &v_to_v, int *middle);
 
+   /// Refine quadrilateral mesh.
+   virtual void QuadUniformRefinement();
+
+   /// Refine a hexahedral mesh.
+   virtual void HexUniformRefinement();
+
+   virtual void NURBSUniformRefinement();
+
 public:
    ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_ = NULL,
            int part_method = 1);
@@ -64,12 +72,6 @@ public:
 
    /// Update the groups after tet refinement
    void RefineGroups(const DSTable &v_to_v, int *middle);
-
-   /// Refine quadrilateral mesh.
-   virtual void QuadUniformRefinement();
-
-   /// Refine a hexahedral mesh.
-   virtual void HexUniformRefinement();
 
    /** Print the part of the mesh in the calling processor adding the interface
        as boundary (for visualization purposes) using the default format. */

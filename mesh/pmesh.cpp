@@ -21,6 +21,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 {
    int i, j;
    int *partitioning;
+   Array<bool> activeBdrElem;
 
    MyComm = comm;
    MPI_Comm_size(MyComm, &NRanks);
@@ -41,8 +42,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    int vert_counter, element_counter, bdrelem_counter;
 
    // build vert_global_local
-   for (i = 0; i < vert_global_local.Size(); i++)
-      vert_global_local[i] = -1;
+   vert_global_local = -1;
 
    element_counter = 0;
    vert_counter = 0;
@@ -60,10 +60,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    NumOfElements = element_counter;
    vertices.SetSize(NumOfVertices);
 
-   // preserve ordering when running in serial
-   if (NRanks == 1)
-      for (i = 0; i < vert_global_local.Size(); i++)
-         vert_global_local[i] = i;
+   // re-enumerate the local vertices to preserve the global ordering
+   for (i = vert_counter = 0; i < vert_global_local.Size(); i++)
+      if (vert_global_local[i] >= 0)
+         vert_global_local[i] = vert_counter++;
 
    // determine vertices
    for (i = 0; i < vert_global_local.Size(); i++)
@@ -85,7 +85,11 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       }
 
    Table *edge_element = NULL;
-
+   if (mesh.NURBSext)
+   {
+      activeBdrElem.SetSize(mesh.GetNBE());
+      activeBdrElem = false;
+   }
    // build boundary elements
    if (Dim == 3)
    {
@@ -95,9 +99,12 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          int face = mesh.GetBdrElementEdgeIndex(i);
          int el1, el2;
          mesh.GetFaceElements(face, &el1, &el2);
-         if (partitioning[el1] == MyRank ||
-             (el2 >= 0 && partitioning[el2] == MyRank))
+         if (partitioning[el1] == MyRank)
+         {
             NumOfBdrElements++;
+            if (mesh.NURBSext)
+               activeBdrElem[i] = true;
+         }
       }
 
       bdrelem_counter = 0;
@@ -107,8 +114,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          int face = mesh.GetBdrElementEdgeIndex(i);
          int el1, el2;
          mesh.GetFaceElements(face, &el1, &el2);
-         if (partitioning[el1] == MyRank ||
-             (el2 >= 0 && partitioning[el2] == MyRank))
+         if (partitioning[el1] == MyRank)
          {
             boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate(this);
             int *v = boundary[bdrelem_counter]->GetVertices();
@@ -129,13 +135,13 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       for (i = 0; i < mesh.GetNBE(); i++)
       {
          int edge = mesh.GetBdrElementEdgeIndex(i);
-         int el1, el2 = -1;
-         el1 = edge_element->GetRow(edge)[0];
-         if (edge_element->RowSize(edge) == 2)
-            el2 = edge_element->GetRow(edge)[1];
-         if (partitioning[el1] == MyRank ||
-             (el2 >= 0 && partitioning[el2] == MyRank))
+         int el1 = edge_element->GetRow(edge)[0];
+         if (partitioning[el1] == MyRank)
+         {
             NumOfBdrElements++;
+            if (mesh.NURBSext)
+               activeBdrElem[i] = true;
+         }
       }
 
       bdrelem_counter = 0;
@@ -143,12 +149,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       for (i = 0; i < mesh.GetNBE(); i++)
       {
          int edge = mesh.GetBdrElementEdgeIndex(i);
-         int el1, el2 = -1;
-         el1 = edge_element->GetRow(edge)[0];
-         if (edge_element->RowSize(edge) == 2)
-            el2 = edge_element->GetRow(edge)[1];
-         if (partitioning[el1] == MyRank ||
-             (el2 >= 0 && partitioning[el2] == MyRank))
+         int el1 = edge_element->GetRow(edge)[0];
+         if (partitioning[el1] == MyRank)
          {
             boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate(this);
             int *v = boundary[bdrelem_counter]->GetVertices();
@@ -445,6 +447,12 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    // build the group communication topology
    gtopo.Create(groups, 822);
 
+   if (mesh.NURBSext)
+   {
+      NURBSext = new ParNURBSExtension(comm, mesh.NURBSext, partitioning,
+                                       activeBdrElem);
+   }
+
    if (mesh.GetNodes()) // curved mesh
    {
       Nodes = new ParGridFunction(this, mesh.GetNodes());
@@ -464,7 +472,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          }
    }
 
-   if (partitioning_ == NULL)
+   if (NURBSext == NULL)
       delete [] partitioning;
 }
 
@@ -1513,6 +1521,12 @@ void ParMesh::HexUniformRefinement()
    }
 }
 
+void ParMesh::NURBSUniformRefinement()
+{
+   if (MyRank == 0)
+      cout << "\nParMesh::NURBSUniformRefinement : Not supported yet!\n";
+}
+
 void ParMesh::PrintXG(ostream &out) const
 {
    if (Dim == 3 && meshgen == 1)
@@ -1682,9 +1696,15 @@ void ParMesh::PrintXG(ostream &out) const
 
 void ParMesh::Print(ostream &out) const
 {
-   int i, j, nv, *v, shared_bdr_attr;
+   int i, j, shared_bdr_attr;
    const Array<Element *> &shared_bdr =
       (Dim == 3) ? shared_faces : shared_edges;
+
+   if (NURBSext)
+   {
+      Mesh::Print(out); // does not print shared boundary
+      return;
+   }
 
    out << "MFEM mesh v1.0\n";
 
@@ -1702,36 +1722,17 @@ void ParMesh::Print(ostream &out) const
    out << "\ndimension\n" << Dim
        << "\n\nelements\n" << NumOfElements << '\n';
    for (i = 0; i < NumOfElements; i++)
-   {
-      out << elements[i]->GetAttribute() << ' '
-          << elements[i]->GetGeometryType();
-      nv = elements[i]->GetNVertices();
-      v  = elements[i]->GetVertices();
-      for (j = 0; j < nv; j++)
-         out << ' ' << v[j];
-      out << '\n';
-   }
+      PrintElement(elements[i], out);
+
    out << "\nboundary\n" << NumOfBdrElements + shared_bdr.Size() << '\n';
    for (i = 0; i < NumOfBdrElements; i++)
-   {
-      out << boundary[i]->GetAttribute() << ' '
-          << boundary[i]->GetGeometryType();
-      nv = boundary[i]->GetNVertices();
-      v  = boundary[i]->GetVertices();
-      for (j = 0; j < nv; j++)
-         out << ' ' << v[j];
-      out << '\n';
-   }
+      PrintElement(boundary[i], out);
+
    shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
    for (i = 0; i < shared_bdr.Size(); i++)
    {
-      out << shared_bdr_attr << ' '
-          << shared_bdr[i]->GetGeometryType();
-      nv = shared_bdr[i]->GetNVertices();
-      v  = shared_bdr[i]->GetVertices();
-      for (j = 0; j < nv; j++)
-         out << ' ' << v[j];
-      out << '\n';
+      shared_bdr[i]->SetAttribute(shared_bdr_attr);
+      PrintElement(shared_bdr[i], out);
    }
    out << "\nvertices\n" << NumOfVertices << '\n';
    if (Nodes == NULL)
