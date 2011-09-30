@@ -44,4 +44,6 @@
 #include "pmesh.hpp"
 #endif
 
+#include "nurbs.hpp"
+
 #endif
