@@ -18,6 +18,7 @@
 #include <stdlib.h>
 
 #include "linalg.hpp"
+#include "../fem/fem.hpp"
 
 HypreParVector::HypreParVector(int glob_size, int *col) : Vector()
 {
@@ -1010,9 +1011,6 @@ HypreBoomerAMG::~HypreBoomerAMG()
 {
    HYPRE_BoomerAMGDestroy(amg_precond);
 }
-
-
-#include "../fem/fem.hpp"
 
 
 HypreParMatrix* DiscreteGrad(ParFiniteElementSpace *edge_fespace,

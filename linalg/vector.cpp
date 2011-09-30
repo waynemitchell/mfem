@@ -202,7 +202,7 @@ void Vector::Neg()
 void swap(Vector *v1, Vector *v2)
 {
    int size = v1->size, allocsize = v1->allocsize;
-   double * data = v1->data;
+   double *data = v1->data;
 
    v1->size      = v2->size;
    v1->allocsize = v2->allocsize;
@@ -433,7 +433,7 @@ void Vector::AddElementVector(const Array<int> &dofs, const double a,
          data[-1-j] -= a * elemvect(i);
 }
 
-void Vector::Print(ostream &out, int width)
+void Vector::Print(ostream &out, int width) const
 {
    for (int i = 0; 1; )
    {
@@ -449,7 +449,7 @@ void Vector::Print(ostream &out, int width)
    out << '\n';
 }
 
-void Vector::Print_HYPRE(ostream &out)
+void Vector::Print_HYPRE(ostream &out) const
 {
    int i;
    ios::fmtflags old_fmt = out.setf(ios::scientific);

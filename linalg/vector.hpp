@@ -155,10 +155,10 @@ public:
                          const Vector & elemvect);
 
    /// Prints vector to stream out.
-   void Print (ostream & out = cout, int width = 8);
+   void Print(ostream & out = cout, int width = 8) const;
 
    /// Prints vector to stream out in HYPRE_Vector format.
-   void Print_HYPRE (ostream &out);
+   void Print_HYPRE(ostream &out) const;
 
    /// Set random values in the vector.
    void Randomize(int seed = 0);
