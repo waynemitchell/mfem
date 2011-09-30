@@ -8,11 +8,15 @@
 //               mpirun -np 4 ex1p ../data/fichera.mesh
 //               mpirun -np 4 ex1p ../data/square-disc-p2.vtk
 //               mpirun -np 4 ex1p ../data/square-disc-p3.mesh
+//               mpirun -np 4 ex1p ../data/square-disc-nurbs.mesh
+//               mpirun -np 4 ex1p ../data/pipe-nurbs.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
-//               simple linear finite element discretization of the Laplace
-//               problem -Delta u = 1 with homogeneous Dirichlet boundary
-//               conditions.
+//               simple isoparametric finite element discretization of the
+//               Laplace problem -Delta u = 1 with homogeneous Dirichlet
+//               boundary conditions. Specifically, we discretize with the
+//               FE space coming from the mesh (linear by default, quadratic
+//               for quadratic curvilinear mesh, NURBS for NURBS mesh, etc.)
 //
 //               The example highlights the use of mesh refinement, finite
 //               element grid functions, as well as linear and bilinear forms
@@ -80,8 +84,13 @@ int main (int argc, char *argv[])
    }
 
    // 5. Define a parallel finite element space on the parallel mesh. Here we
-   //    use linear finite elements.
-   FiniteElementCollection *fec = new LinearFECollection;
+   //    use isoparametric finite elements coming from the mesh nodes (linear
+   //    by default).
+   FiniteElementCollection *fec;
+   if (pmesh->GetNodes())
+      fec = pmesh->GetNodes()->OwnFEC();
+   else
+      fec = new LinearFECollection;
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
 
    // 6. Set up the parallel linear form b(.) which corresponds to the
@@ -139,24 +148,20 @@ int main (int argc, char *argv[])
    //     approximation X. This is the local solution on each processor.
    x = *X;
 
-   // 12. Save the refined mesh and the solution. This output can be viewed
-   //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // 12. Save the refined mesh and the solution in parallel. This output can
+   //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
-      ofstream mesh_ofs;
-      if (myid == 0)
-         mesh_ofs.open("refined.mesh");
-      mesh_ofs.precision(8);
-      pmesh->PrintAsOne(mesh_ofs);
-      if (myid == 0)
-         mesh_ofs.close();
+      ostringstream mesh_name, sol_name;
+      mesh_name << "mesh." << setfill('0') << setw(6) << myid;
+      sol_name << "sol." << setfill('0') << setw(6) << myid;
 
-      ofstream sol_ofs;
-      if (myid == 0)
-         sol_ofs.open("sol.gf");
+      ofstream mesh_ofs(mesh_name.str().c_str());
+      mesh_ofs.precision(8);
+      pmesh->Print(mesh_ofs);
+
+      ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
-      x.SaveAsOne(sol_ofs);
-      if (myid == 0)
-         sol_ofs.close();
+      x.Save(sol_ofs);
    }
 
    // 13. (Optional) Send the solution by socket to a GLVis server.
@@ -178,7 +183,8 @@ int main (int argc, char *argv[])
    delete A;
 
    delete fespace;
-   delete fec;
+   if (!pmesh->GetNodes())
+      delete fec;
    delete pmesh;
 
    MPI_Finalize();

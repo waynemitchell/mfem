@@ -8,11 +8,15 @@
 //               ex1 ../data/fichera.mesh
 //               ex1 ../data/square-disc-p2.vtk
 //               ex1 ../data/square-disc-p3.mesh
+//               ex1 ../data/square-disc-nurbs.mesh
+//               ex1 ../data/pipe-nurbs.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
-//               simple linear finite element discretization of the Laplace
-//               problem -Delta u = 1 with homogeneous Dirichlet boundary
-//               conditions.
+//               simple isoparametric finite element discretization of the
+//               Laplace problem -Delta u = 1 with homogeneous Dirichlet
+//               boundary conditions. Specifically, we discretize with the
+//               FE space coming from the mesh (linear by default, quadratic
+//               for quadratic curvilinear mesh, NURBS for NURBS mesh, etc.)
 //
 //               The example highlights the use of mesh refinement, finite
 //               element grid functions, as well as linear and bilinear forms
@@ -56,9 +60,13 @@ int main (int argc, char *argv[])
          mesh->UniformRefinement();
    }
 
-   // 3. Define a finite element space on the mesh. Here we use linear finite
-   //    elements.
-   FiniteElementCollection *fec = new LinearFECollection;
+   // 3. Define a finite element space on the mesh. Here we use isoparametric
+   //    finite elements coming from the mesh nodes (linear by default).
+   FiniteElementCollection *fec;
+   if (mesh->GetNodes())
+      fec = mesh->GetNodes()->OwnFEC();
+   else
+      fec = new LinearFECollection;
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side of
@@ -120,7 +128,8 @@ int main (int argc, char *argv[])
    delete a;
    delete b;
    delete fespace;
-   delete fec;
+   if (!mesh->GetNodes())
+      delete fec;
    delete mesh;
 
    return 0;
