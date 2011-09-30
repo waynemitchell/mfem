@@ -288,6 +288,17 @@ void Transpose (const Table &A, Table &At, int _ncols_A)
    i_At[0] = 0;
 }
 
+void Transpose(const Array<int> &A, Table &At, int _ncols_A)
+{
+   At.MakeI((_ncols_A < 0) ? (A.Max() + 1) : _ncols_A);
+   for (int i = 0; i < A.Size(); i++)
+      At.AddAColumnInRow(A[i]);
+   At.MakeJ();
+   for (int i = 0; i < A.Size(); i++)
+      At.AddConnection(A[i], i);
+   At.ShiftUpI();
+}
+
 void Mult (const Table &A, const Table &B, Table &C)
 {
    int  i, j, k, l, m;
