@@ -6991,3 +6991,159 @@ void RT_TetrahedronElement::CalcDivShape(const IntegrationPoint &ip,
 
    T.Mult(divu, divshape);
 }
+
+
+void NURBS1DFiniteElement::CalcShape(const IntegrationPoint &ip,
+                                     Vector &shape) const
+{
+   kv[0]->CalcShape(shape, ijk[0], ip.x);
+
+   double sum = 0.0;
+   for (int i = 0; i <= Order; i++)
+      sum += (shape(i) *= weights(i));
+
+   shape /= sum;
+}
+
+void NURBS1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
+                                      DenseMatrix &dshape) const
+{
+   Vector grad(dshape.Data(), Dof);
+
+   kv[0]->CalcShape (shape_x, ijk[0], ip.x);
+   kv[0]->CalcDShape(grad,    ijk[0], ip.x);
+
+   double sum = 0.0, dsum = 0.0;
+   for (int i = 0; i <= Order; i++)
+   {
+      sum  += (shape_x(i) *= weights(i));
+      dsum += (   grad(i) *= weights(i));
+   }
+
+   sum = 1.0/sum;
+   add(sum, grad, -dsum*sum*sum, shape_x, grad);
+}
+
+void NURBS2DFiniteElement::CalcShape(const IntegrationPoint &ip,
+                                     Vector &shape) const
+{
+   kv[0]->CalcShape(shape_x, ijk[0], ip.x);
+   kv[1]->CalcShape(shape_y, ijk[1], ip.y);
+
+   double sum = 0.0;
+   for (int o = 0, j = 0; j <= Order; j++)
+   {
+      const double sy = shape_y(j);
+      for (int i = 0; i <= Order; i++, o++)
+      {
+         sum += ( shape(o) = shape_x(i)*sy*weights(o) );
+      }
+   }
+
+   shape /= sum;
+}
+
+void NURBS2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
+                                      DenseMatrix &dshape) const
+{
+   double sum, dsum[2];
+
+   kv[0]->CalcShape ( shape_x, ijk[0], ip.x);
+   kv[1]->CalcShape ( shape_y, ijk[1], ip.y);
+
+   kv[0]->CalcDShape(dshape_x, ijk[0], ip.x);
+   kv[1]->CalcDShape(dshape_y, ijk[1], ip.y);
+
+   sum = dsum[0] = dsum[1] = 0.0;
+   for (int o = 0, j = 0; j <= Order; j++)
+   {
+      const double sy = shape_y(j), dsy = dshape_y(j);
+      for (int i = 0; i <= Order; i++, o++)
+      {
+         sum += ( u(o) = shape_x(i)*sy*weights(o) );
+
+         dsum[0] += ( dshape(o,0) = dshape_x(i)*sy *weights(o) );
+         dsum[1] += ( dshape(o,1) =  shape_x(i)*dsy*weights(o) );
+      }
+   }
+
+   sum = 1.0/sum;
+   dsum[0] *= sum*sum;
+   dsum[1] *= sum*sum;
+
+   for (int o = 0; o < Dof; o++)
+   {
+      dshape(o,0) = dshape(o,0)*sum - u(o)*dsum[0];
+      dshape(o,1) = dshape(o,1)*sum - u(o)*dsum[1];
+   }
+}
+
+void NURBS3DFiniteElement::CalcShape(const IntegrationPoint &ip,
+                                     Vector &shape) const
+{
+   kv[0]->CalcShape(shape_x, ijk[0], ip.x);
+   kv[1]->CalcShape(shape_y, ijk[1], ip.y);
+   kv[2]->CalcShape(shape_z, ijk[2], ip.z);
+
+   double sum = 0.0;
+   for (int o = 0, k = 0; k <= Order; k++)
+   {
+      const double sz = shape_z(k);
+      for (int j = 0; j <= Order; j++)
+      {
+         const double sy_sz = shape_y(j)*sz;
+         for (int i = 0; i <= Order; i++, o++)
+         {
+            sum += ( shape(o) = shape_x(i)*sy_sz*weights(o) );
+         }
+      }
+   }
+
+   shape /= sum;
+}
+
+void NURBS3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
+                                      DenseMatrix &dshape) const
+{
+   double sum, dsum[3];
+
+   kv[0]->CalcShape ( shape_x, ijk[0], ip.x);
+   kv[1]->CalcShape ( shape_y, ijk[1], ip.y);
+   kv[2]->CalcShape ( shape_z, ijk[2], ip.z);
+
+   kv[0]->CalcDShape(dshape_x, ijk[0], ip.x);
+   kv[1]->CalcDShape(dshape_y, ijk[1], ip.y);
+   kv[2]->CalcDShape(dshape_z, ijk[2], ip.z);
+
+   sum = dsum[0] = dsum[1] = dsum[2] = 0.0;
+   for (int o = 0, k = 0; k <= Order; k++)
+   {
+      const double sz = shape_z(k), dsz = dshape_z(k);
+      for (int j = 0; j <= Order; j++)
+      {
+         const double  sy_sz  =  shape_y(j)* sz;
+         const double dsy_sz  = dshape_y(j)* sz;
+         const double  sy_dsz =  shape_y(j)*dsz;
+         for (int i = 0; i <= Order; i++, o++)
+         {
+            sum += ( u(o) = shape_x(i)*sy_sz*weights(o) );
+
+            dsum[0] += ( dshape(o,0) = dshape_x(i)* sy_sz *weights(o) );
+            dsum[1] += ( dshape(o,1) =  shape_x(i)*dsy_sz *weights(o) );
+            dsum[2] += ( dshape(o,2) =  shape_x(i)* sy_dsz*weights(o) );
+         }
+      }
+   }
+
+   sum = 1.0/sum;
+   dsum[0] *= sum*sum;
+   dsum[1] *= sum*sum;
+   dsum[2] *= sum*sum;
+
+   for (int o = 0; o < Dof; o++)
+   {
+      dshape(o,0) = dshape(o,0)*sum - u(o)*dsum[0];
+      dshape(o,1) = dshape(o,1)*sum - u(o)*dsum[1];
+      dshape(o,2) = dshape(o,2)*sum - u(o)*dsum[2];
+   }
+}

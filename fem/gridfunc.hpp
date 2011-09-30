@@ -42,6 +42,8 @@ public:
    void MakeOwner(FiniteElementCollection *_fec)
    { fec = _fec; }
 
+   FiniteElementCollection *OwnFEC() { return fec; }
+
    int VectorDim() const;
 
    /// Returns the values in the vertices of i'th element for dimension vdim.

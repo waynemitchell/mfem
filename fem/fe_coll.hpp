@@ -563,4 +563,44 @@ public:
    virtual ~RT_FECollection();
 };
 
+
+class NURBSFECollection : public FiniteElementCollection
+{
+private:
+   NURBS1DFiniteElement *SegmentFE;
+   NURBS2DFiniteElement *QuadrilateralFE;
+   NURBS3DFiniteElement *ParallelepipedFE;
+
+   char name[16];
+
+   void Allocate(int Order);
+   void Deallocate();
+
+public:
+   NURBSFECollection(int Order) { Allocate(Order); }
+
+   int GetOrder() const { return SegmentFE->GetOrder(); }
+
+   /// Change the order of the collection
+   void UpdateOrder(int Order) { Deallocate(); Allocate(Order); }
+
+   void Reset() const
+   {
+      SegmentFE->Reset();
+      QuadrilateralFE->Reset();
+      ParallelepipedFE->Reset();
+   }
+
+   virtual const FiniteElement *
+   FiniteElementForGeometry(int GeomType) const;
+
+   virtual int DofForGeometry(int GeomType) const;
+
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const;
+
+   virtual const char *Name() const { return name; }
+
+   virtual ~NURBSFECollection() { Deallocate(); }
+};
+
 #endif

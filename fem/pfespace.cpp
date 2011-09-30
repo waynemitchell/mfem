@@ -45,7 +45,26 @@ ParFiniteElementSpace::ParFiniteElementSpace(
 
    P = NULL;
 
-   ConstructTrueDofs();
+   if (NURBSext)
+   {
+      if (own_ext)
+      {
+         // the FiniteElementSpace constructor created a serial
+         // NURBSExtension of higher order than the mesh NURBSExtension
+
+         ParNURBSExtension *pNe = new ParNURBSExtension(
+            NURBSext, dynamic_cast<ParNURBSExtension *>(pmesh->NURBSext));
+         // serial NURBSext is destroyed by the above constructor
+         NURBSext = pNe;
+         UpdateNURBS();
+      }
+
+      ConstructTrueNURBSDofs();
+   }
+   else
+   {
+      ConstructTrueDofs();
+   }
 
    GenerateGlobalOffsets();
 }
@@ -196,6 +215,11 @@ void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
 
 void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
 {
+   if (bdrElem_dof)
+   {
+      bdrElem_dof->GetRow(i, dofs);
+      return;
+   }
    FiniteElementSpace::GetBdrElementDofs(i, dofs);
    for (i = 0; i < dofs.Size(); i++)
       if (dofs[i] < 0)
@@ -375,7 +399,10 @@ void ParFiniteElementSpace::DivideByGroupSize(double *vec)
 GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 {
    GroupCommunicator *gc = new GroupCommunicator(GetGroupTopo());
-   GetGroupComm(*gc, 0);
+   if (NURBSext)
+      gc->Create(pNURBSext()->ldof_group);
+   else
+      GetGroupComm(*gc, 0);
    return gc;
 }
 
@@ -463,6 +490,50 @@ void ParFiniteElementSpace::ConstructTrueDofs()
    for (i = 0; i < n; i++)
       if (ldof_ltdof[i] == -1)
          ldof_ltdof[i] = ltdof_size++;
+
+   // have the group masters broadcast their ltdofs to the rest of the group
+   gcomm->Bcast(ldof_ltdof);
+}
+
+void ParFiniteElementSpace::ConstructTrueNURBSDofs()
+{
+   int n = GetVSize();
+   GroupTopology &gt = pNURBSext()->gtopo;
+   gcomm = new GroupCommunicator(gt);
+
+   // pNURBSext()->ldof_group is for scalar space!
+   if (vdim == 1)
+   {
+      ldof_group.MakeRef(pNURBSext()->ldof_group);
+   }
+   else
+   {
+      const int *scalar_ldof_group = pNURBSext()->ldof_group;
+      ldof_group.SetSize(n);
+      for (int i = 0; i < n; i++)
+         ldof_group[i] = scalar_ldof_group[VDofToDof(i)];
+   }
+
+   gcomm->Create(ldof_group);
+
+   // ldof_sign.SetSize(n);
+   // ldof_sign = 1;
+   ldof_sign.DeleteAll();
+
+   ltdof_size = 0;
+   ldof_ltdof.SetSize(n);
+   for (int i = 0; i < n; i++)
+   {
+      if (gt.IAmMaster(ldof_group[i]))
+      {
+         ldof_ltdof[i] = ltdof_size;
+         ltdof_size++;
+      }
+      else
+      {
+         ldof_ltdof[i] = -2;
+      }
+   }
 
    // have the group masters broadcast their ltdofs to the rest of the group
    gcomm->Bcast(ldof_ltdof);

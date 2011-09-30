@@ -47,7 +47,11 @@ private:
    /// The matrix P (interpolation from true dof to dof).
    HypreParMatrix *P;
 
-   GroupTopology &GetGroupTopo() { return pmesh->gtopo; }
+   ParNURBSExtension *pNURBSext()
+   { return dynamic_cast<ParNURBSExtension *>(NURBSext); }
+
+   GroupTopology &GetGroupTopo()
+   { return (NURBSext) ? pNURBSext()->gtopo : pmesh->gtopo; }
 
    /** Create a parallel FE space stealing all data (except RefData) from the
        given FE space. This is used in SaveUpdate(). */
@@ -62,6 +66,7 @@ private:
 
    /// Construct ldof_group and ldof_ltdof.
    void ConstructTrueDofs();
+   void ConstructTrueNURBSDofs();
 
 public:
    ParFiniteElementSpace(ParMesh *pm, FiniteElementCollection *f,
@@ -118,7 +123,7 @@ public:
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
 
-   virtual ~ParFiniteElementSpace() { if (P) delete P; }
+   virtual ~ParFiniteElementSpace() { delete gcomm; delete P; }
 };
 
 #endif

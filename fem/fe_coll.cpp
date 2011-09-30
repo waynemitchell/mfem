@@ -83,6 +83,8 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
       fec = new L2_FECollection(atoi(name + 7), atoi(name + 3));
    else if (!strncmp(name, "RT_", 3))
       fec = new RT_FECollection(atoi(name + 7), atoi(name + 3));
+   else if (!strncmp(name, "NURBS", 5))
+      fec = new NURBSFECollection(atoi(name + 5));
    else
       mfem_error ("FiniteElementCollection::New : "
                   "Unknown FiniteElementCollection!");
@@ -376,8 +378,8 @@ int RT1_2DFECollection::DofForGeometry(int GeomType) const
 int * RT1_2DFECollection::DofOrderForOrientation(int GeomType, int Or)
    const
 {
-   static int ind_pos[] = { 0, 1 };
-   static int ind_neg[] = {-2, -1 };
+   static int ind_pos[] = {  0,  1 };
+   static int ind_neg[] = { -2, -1 };
 
    if (Or > 0)
       return ind_pos;
@@ -1282,4 +1284,47 @@ RT_FECollection::~RT_FECollection()
    delete [] QuadDofOrd[0];
    for (int g = 0; g < Geometry::NumGeom; g++)
       delete RT_Elements[g];
+}
+
+
+void NURBSFECollection::Allocate(int Order)
+{
+   SegmentFE        = new NURBS1DFiniteElement(Order);
+   QuadrilateralFE  = new NURBS2DFiniteElement(Order);
+   ParallelepipedFE = new NURBS3DFiniteElement(Order);
+
+   sprintf(name, "NURBS%i", Order);
+}
+
+void NURBSFECollection::Deallocate()
+{
+   delete ParallelepipedFE;
+   delete QuadrilateralFE;
+   delete SegmentFE;
+}
+
+const FiniteElement *
+NURBSFECollection::FiniteElementForGeometry(int GeomType) const
+{
+   switch (GeomType)
+   {
+   case Geometry::SEGMENT:     return SegmentFE;
+   case Geometry::SQUARE:      return QuadrilateralFE;
+   case Geometry::CUBE:        return ParallelepipedFE;
+   default:
+      mfem_error ("NURBSFECollection: unknown geometry type.");
+   }
+   return SegmentFE; // Make some compilers happy
+}
+
+int NURBSFECollection::DofForGeometry(int GeomType) const
+{
+   mfem_error("NURBSFECollection::DofForGeometry");
+   return 0; // Make some compilers happy
+}
+
+int *NURBSFECollection::DofOrderForOrientation(int GeomType, int Or) const
+{
+   mfem_error("NURBSFECollection::DofOrderForOrientation");
+   return NULL;
 }

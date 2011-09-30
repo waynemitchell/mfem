@@ -53,6 +53,12 @@ GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
    fes = new FiniteElementSpace(m, fec, vdim, ordering);
    SetSize(fes->GetVSize());
 
+   if (fes->GetNURBSext())
+   {
+      fes->GetNURBSext()->MergeGridFunctions(gf_array, num_pieces, *this);
+      return;
+   }
+
    int g_ndofs  = fes->GetNDofs();
    int g_nvdofs = fes->GetNVDofs();
    int g_nedofs = fes->GetNEDofs();
@@ -276,24 +282,27 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
 
    n = ir.GetNPoints();
    IntegrationRule eir(n);  // ---
-   Transf = fes->GetMesh()->GetFaceElementTransformations(i);
-   if (Transf->Elem2No < 0)
-      di = 0;
-   else
-      if ( fes->GetAttribute(Transf->Elem1No) <=
-           fes->GetAttribute(Transf->Elem2No) )
+   Transf = fes->GetMesh()->GetFaceElementTransformations(i, 0);
+   if (side == 2)
+   {
+      if (Transf->Elem2No < 0 ||
+          fes->GetAttribute(Transf->Elem1No) <=
+          fes->GetAttribute(Transf->Elem2No))
          di = 0;
       else
          di = 1;
-   if (side == 2)
-      side = di;
-   if (side == 0)
+   }
+   else
+      di = side;
+   if (di == 0)
    {
+      Transf = fes->GetMesh()->GetFaceElementTransformations(i, 4);
       Transf->Loc1.Transform(ir, eir);
       GetValues(Transf->Elem1No, eir, vals, tr, vdim);
    }
    else
    {
+      Transf = fes->GetMesh()->GetFaceElementTransformations(i, 8);
       Transf->Loc2.Transform(ir, eir);
       GetValues(Transf->Elem2No, eir, vals, tr, vdim);
    }
@@ -355,24 +364,27 @@ int GridFunction::GetFaceVectorValues(
 
    n = ir.GetNPoints();
    IntegrationRule eir(n);  // ---
-   Transf = fes->GetMesh()->GetFaceElementTransformations(i);
-   if (Transf->Elem2No < 0)
-      di = 0;
-   else
-      if ( fes->GetAttribute(Transf->Elem1No) <=
-           fes->GetAttribute(Transf->Elem2No)      )
+   Transf = fes->GetMesh()->GetFaceElementTransformations(i, 0);
+   if (side == 2)
+   {
+      if (Transf->Elem2No < 0 ||
+          fes->GetAttribute(Transf->Elem1No) <=
+          fes->GetAttribute(Transf->Elem2No))
          di = 0;
       else
          di = 1;
-   if (side == 2)
-      side = di;
-   if (side == 0)
+   }
+   else
+      di = side;
+   if (di == 0)
    {
+      Transf = fes->GetMesh()->GetFaceElementTransformations(i, 4);
       Transf->Loc1.Transform(ir, eir);
       GetVectorValues(Transf->Elem1No, eir, vals, tr);
    }
    else
    {
+      Transf = fes->GetMesh()->GetFaceElementTransformations(i, 8);
       Transf->Loc2.Transform(ir, eir);
       GetVectorValues(Transf->Elem2No, eir, vals, tr);
    }
@@ -1190,7 +1202,7 @@ double GridFunction::ComputeH1Error(
    if (norm_type & 2)
       for (i = 0; i < mesh->GetNFaces(); i++)
       {
-         face_elem_transf = mesh->GetFaceElementTransformations(i);
+         face_elem_transf = mesh->GetFaceElementTransformations(i, 5);
          int i1 = face_elem_transf->Elem1No;
          int i2 = face_elem_transf->Elem2No;
          intorder = fes->GetFE(i1)->GetOrder();
@@ -1225,6 +1237,7 @@ double GridFunction::ComputeH1Error(
          if (i2 >= 0)
          {
             // side 2
+            face_elem_transf = mesh->GetFaceElementTransformations(i, 10);
             transf = face_elem_transf->Elem2;
             fe = fes->GetFE(i2);
             fdof = fe->GetDof();
@@ -1246,6 +1259,7 @@ double GridFunction::ComputeH1Error(
                err_val(j) -= (exsol->Eval(*transf, eip) - (shape * el_dofs));
             }
          }
+         face_elem_transf = mesh->GetFaceElementTransformations(i, 16);
          transf = face_elem_transf->Face;
          for (j = 0; j < ir.GetNPoints(); j++)
          {
@@ -1493,7 +1507,10 @@ void GridFunction::Save(ostream &out)
 {
    fes->Save(out);
    out << '\n';
-   Vector::Print(out, 1);
+   if (fes->GetOrdering() == Ordering::byNODES)
+      Vector::Print(out, 1);
+   else
+      Vector::Print(out, fes->GetVDim());
 }
 
 void GridFunction::SaveVTK(ostream &out, const string &field_name, int ref)
