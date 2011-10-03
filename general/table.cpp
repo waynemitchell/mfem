@@ -228,18 +228,18 @@ void Table::Print(ostream & out, int width) const
 {
    int i, j;
 
-   out << setiosflags(ios::scientific | ios::showpos);
-   for(i = 0; i < size; i++) {
+   for (i = 0; i < size; i++)
+   {
       out << "[row " << i << "]\n";
       for (j = I[i]; j < I[i+1]; j++)
       {
-         out << setw(3) << J[j] << "  ";
+         out << setw(5) << J[j];
          if ( !((j+1-I[i]) % width) )
-            out << endl;
+            out << '\n';
       }
-      out << endl;
+      if ((j-I[i]) % width)
+         out << '\n';
    }
-   out << endl;
 }
 
 void Table::Save(ostream & out) const
