@@ -1146,7 +1146,7 @@ void NURBSExtension::MergeGridFunctions(
    for (int i = 0; i < num_pieces; i++)
    {
       FiniteElementSpace *lfes = gf_array[i]->FESpace();
-      NURBSExtension *lext = lfes->GetNURBSext();
+      NURBSExtension *lext = lfes->GetMesh()->NURBSext;
 
       lext->GetElementLocalToGlobal(lelem_elem);
 
@@ -1749,13 +1749,13 @@ void NURBSExtension::Generate2DBdrElementDofTable()
    for (int b = 0; b < GetNBP(); b++)
    {
       p2g.SetBdrPatchDofMap(b, kv, okv);
+      int nx = p2g.nx(); // NCP-1
 
       // Load dofs
       int nks0 = kv[0]->GetNKS();
       for (int i = 0; i < nks0; i++)
       {
-         int _i = (okv[0] >= 0) ? i : (nks0 - 1 - i);
-         if (kv[0]->isElement(_i))
+         if (kv[0]->isElement(i))
          {
             if (activeBdrElem[gbe])
             {
@@ -1763,12 +1763,11 @@ void NURBSExtension::Generate2DBdrElementDofTable()
                int idx = 0;
                for (int ii = 0; ii <= Order; ii++)
                {
-                  dofs[idx] = p2g[_i+ii];
+                  dofs[idx] = p2g[(okv[0] >= 0) ? (i+ii) : (nx-i-ii)];
                   idx++;
                }
-
                bel_to_patch[lbe] = b;
-               bel_to_IJK(lbe,0) = (okv[0] >= 0) ? _i : (-1-_i);
+               bel_to_IJK(lbe,0) = (okv[0] >= 0) ? i : (-1-i);
                lbe++;
             }
             gbe++;
@@ -1791,38 +1790,37 @@ void NURBSExtension::Generate3DBdrElementDofTable()
    for (int b = 0; b < GetNBP(); b++)
    {
       p2g.SetBdrPatchDofMap(b, kv, okv);
+      int nx = p2g.nx(); // NCP0-1
+      int ny = p2g.ny(); // NCP1-1
 
       // Load dofs
       int nks0 = kv[0]->GetNKS();
       int nks1 = kv[1]->GetNKS();
       for (int j = 0; j < nks1; j++)
       {
-         int _j = (okv[1] >= 0) ? j : (nks1 - 1 - j);
-         if (kv[1]->isElement(_j))
+         if (kv[1]->isElement(j))
          {
             for (int i = 0; i < nks0; i++)
             {
-               int _i = (okv[0] >= 0) ? i : (nks0 - 1 - i);
-               if (kv[0]->isElement(_i))
+               if (kv[0]->isElement(i))
                {
                   if (activeBdrElem[gbe])
                   {
-                     int idx = 0;
                      int *dofs = bel_dof->GetRow(lbe);
-
+                     int idx = 0;
                      for (int jj = 0; jj <= Order; jj++)
                      {
+                        int _jj = (okv[1] >= 0) ? (j+jj) : (ny-j-jj);
                         for (int ii = 0; ii <= Order; ii++)
                         {
-                           dofs[idx] = p2g(_i+ii,_j+jj);
+                           int _ii = (okv[0] >= 0) ? (i+ii) : (nx-i-ii);
+                           dofs[idx] = p2g(_ii,_jj);
                            idx++;
                         }
                      }
-
                      bel_to_patch[lbe] = b;
-                     bel_to_IJK(lbe,0) = (okv[0] >= 0) ? _i : (-1-_i);
-                     bel_to_IJK(lbe,1) = (okv[1] >= 0) ? _j : (-1-_j);
-
+                     bel_to_IJK(lbe,0) = (okv[0] >= 0) ? i : (-1-i);
+                     bel_to_IJK(lbe,1) = (okv[1] >= 0) ? j : (-1-j);
                      lbe++;
                   }
                   gbe++;

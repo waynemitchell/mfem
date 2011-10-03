@@ -53,9 +53,9 @@ GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
    fes = new FiniteElementSpace(m, fec, vdim, ordering);
    SetSize(fes->GetVSize());
 
-   if (fes->GetNURBSext())
+   if (m->NURBSext)
    {
-      fes->GetNURBSext()->MergeGridFunctions(gf_array, num_pieces, *this);
+      m->NURBSext->MergeGridFunctions(gf_array, num_pieces, *this);
       return;
    }
 
