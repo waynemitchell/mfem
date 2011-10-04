@@ -5912,6 +5912,7 @@ void Mesh::PrintTopo(ostream &out,const Array<int> &e_to_k) const
    // optional
    out <<
       "\n#\n# MFEM Geometry Types (see mesh/geom.hpp):\n#\n"
+      "# SEGMENT     = 1\n"
       "# SQUARE      = 3\n"
       "# CUBE        = 5\n"
       "#\n";
