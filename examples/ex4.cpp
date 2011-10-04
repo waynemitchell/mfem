@@ -10,6 +10,8 @@
 //               ex4 ../data/fichera.mesh
 //               ex4 ../data/fichera-q2.vtk
 //               ex4 ../data/fichera-q3.mesh
+//               ex4 ../data/square-disc-nurbs.mesh
+//               ex4 ../data/beam-hex-nurbs.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation

@@ -8,6 +8,7 @@
 //               mpirun -np 4 ex3p ../data/fichera.mesh
 //               mpirun -np 4 ex3p ../data/fichera-q2.vtk
 //               mpirun -np 4 ex3p ../data/fichera-q3.mesh
+//               mpirun -np 4 ex3p ../data/beam-hex-nurbs.mesh
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -45,7 +46,7 @@ int main (int argc, char *argv[])
    if (argc == 1)
    {
       if (myid == 0)
-         cout << "\nUsage: mpirun -np <np> ex3 <mesh_file>\n" << endl;
+         cout << "\nUsage: mpirun -np <np> ex3p <mesh_file>\n" << endl;
       MPI_Finalize();
       return 1;
    }
@@ -179,24 +180,20 @@ int main (int argc, char *argv[])
    ParGridFunction dx(dfespace);
    x.ProjectVectorFieldOn(dx);
 
-   // 14. Save the refined mesh and the solution. This output can be viewed
-   //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // 14. Save the refined mesh and the solution in parallel. This output can
+   //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
-      ofstream mesh_ofs;
-      if (myid == 0)
-         mesh_ofs.open("refined.mesh");
-      mesh_ofs.precision(8);
-      pmesh->PrintAsOne(mesh_ofs);
-      if (myid == 0)
-         mesh_ofs.close();
+      ostringstream mesh_name, sol_name;
+      mesh_name << "mesh." << setfill('0') << setw(6) << myid;
+      sol_name << "sol." << setfill('0') << setw(6) << myid;
 
-      ofstream sol_ofs;
-      if (myid == 0)
-         sol_ofs.open("sol.gf");
+      ofstream mesh_ofs(mesh_name.str().c_str());
+      mesh_ofs.precision(8);
+      pmesh->Print(mesh_ofs);
+
+      ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
-      dx.SaveAsOne(sol_ofs);
-      if (myid == 0)
-         sol_ofs.close();
+      dx.Save(sol_ofs);
    }
 
    // 15. (Optional) Send the solution by socket to a GLVis server.

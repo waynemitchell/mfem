@@ -8,6 +8,7 @@
 //               ex3 ../data/fichera.mesh
 //               ex3 ../data/fichera-q2.vtk
 //               ex3 ../data/fichera-q3.mesh
+//               ex3 ../data/beam-hex-nurbs.mesh
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
