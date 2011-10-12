@@ -54,6 +54,8 @@ public:
        of the knot vector. */
    KnotVector *DegreeElevate(int t) const;
 
+   void Flip();
+
    void Print(ostream &out) const;
 
    /// Destroys KnotVector
@@ -86,13 +88,14 @@ protected:
    NURBSPatch(NURBSPatch *parent, int dir, int Order, int NCP);
 
 public:
+   NURBSPatch(istream &input);
    NURBSPatch(KnotVector *kv0, KnotVector *kv1, int dim_);
    NURBSPatch(KnotVector *kv0, KnotVector *kv1, KnotVector *kv2, int dim_);
    NURBSPatch(Array<KnotVector *> &kv, int dim_);
 
    ~NURBSPatch();
 
-   void Print();
+   void Print(ostream &out);
 
    void DegreeElevate(int dir, int t);
    void KnotInsert   (int dir, const KnotVector &knot);
@@ -110,6 +113,16 @@ public:
 
    inline       double &operator()(int i, int j, int k, int l);
    inline const double &operator()(int i, int j, int k, int l) const;
+
+   static void Get3DRotationMatrix(double n[], double angle, double r,
+                                   DenseMatrix &T);
+   void FlipDirection(int dir);
+   void SwapDirections(int dir1, int dir2);
+   void Rotate3D(double normal[], double angle);
+   int MakeUniformDegree();
+   friend NURBSPatch *Interpolate(NURBSPatch &p1, NURBSPatch &p2);
+   friend NURBSPatch *Revolve3D(NURBSPatch &patch, double n[], double ang,
+                                int times);
 };
 
 
@@ -275,6 +288,8 @@ public:
    // Mesh generation functions
    void GetElementTopo   (Array<Element *> &elements);
    void GetBdrElementTopo(Array<Element *> &boundary);
+
+   bool HavePatches() { return (patches.Size() != 0); }
 
    Table *GetElementDofTable() { return el_dof; }
    Table *GetBdrElementDofTable() { return bel_dof; }

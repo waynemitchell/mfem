@@ -1725,9 +1725,28 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       NURBSext->GetBdrElementTopo(boundary);
 
       vertices.SetSize(NumOfVertices);
-
       curved = 1;
-      read_gf = 1;
+      if (NURBSext->HavePatches())
+      {
+         NURBSFECollection  *fec = new NURBSFECollection(NURBSext->GetOrder());
+         FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim,
+                                                          Ordering::byVDIM);
+         Nodes = new GridFunction(fes);
+         Nodes->MakeOwner(fec);
+         NURBSext->SetCoordsFromPatches(*Nodes);
+         own_nodes = 1;
+         read_gf = 0;
+         int vd = Nodes->VectorDim();
+         for (i = 0; i < vd; i++)
+         {
+            Vector vert_val;
+            Nodes->GetNodalValues(vert_val, i+1);
+            for (j = 0; j < NumOfVertices; j++)
+               vertices[j](i) = vert_val(j);
+         }
+      }
+      else
+         read_gf = 1;
    }
    else
    {
@@ -2544,7 +2563,7 @@ void Mesh::CheckBdrElementOrientation()
                {
                   // wrong orientation -- swap vertices 0 and 1 so that
                   //  we don't change the marked edge:  (0,1,2) -> (1,0,2)
-                  j = bv[0]; bv[0] = bv[1]; bv[1] = j;
+                  Swap<int>(bv[0], bv[1]);
                   wo++;
                }
             }
@@ -3654,13 +3673,6 @@ void DetOfLinComb(const DenseMatrix &A, const DenseMatrix &B, Vector &c)
    }
 }
 
-inline void swap(double &a, double &b)
-{
-   const double t = a;
-   a = b;
-   b = t;
-}
-
 // compute the real roots of
 //   z(0)+z(1)*x+...+z(d)*x^d = 0,  d=2,3;
 // the roots are returned in x, sorted in increasing order;
@@ -3720,7 +3732,7 @@ int FindRoots(const Vector &z, Vector &x)
          x(0) = t / a;
          x(1) = c / t;
          if (x(0) > x(1))
-            swap(x(0), x(1));
+            Swap<double>(x(0), x(1));
          return 2;
       }
    }
@@ -3769,12 +3781,12 @@ int FindRoots(const Vector &z, Vector &x)
 
          /* Sort x0, x1, x2 */
          if (x0 > x1)
-            swap(x0, x1);
+            Swap<double>(x0, x1);
          if (x1 > x2)
          {
-            swap(x1, x2);
+            Swap<double>(x1, x2);
             if (x0 > x1)
-               swap(x0, x1);
+               Swap<double>(x0, x1);
          }
          x(0) = x0;
          x(1) = x1;
