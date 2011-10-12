@@ -229,6 +229,14 @@ public:
 
 
 template <class T>
+inline void Swap(T &a, T &b)
+{
+   T c = a;
+   a = b;
+   b = c;
+}
+
+template <class T>
 inline void Swap(Array<T> &a, Array<T> &b)
 {
    int   s;
