@@ -9,7 +9,9 @@
 //               mpirun -np 4 ex1p ../data/square-disc-p2.vtk
 //               mpirun -np 4 ex1p ../data/square-disc-p3.mesh
 //               mpirun -np 4 ex1p ../data/square-disc-nurbs.mesh
+//               mpirun -np 4 ex1p ../data/disc-nurbs.mesh
 //               mpirun -np 4 ex1p ../data/pipe-nurbs.mesh
+//               mpirun -np 4 ex1p ../data/ball-nurbs.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple isoparametric finite element discretization of the

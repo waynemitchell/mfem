@@ -9,6 +9,7 @@
 //               ex1 ../data/square-disc-p2.vtk
 //               ex1 ../data/square-disc-p3.mesh
 //               ex1 ../data/square-disc-nurbs.mesh
+//               ex1 ../data/disc-nurbs.mesh
 //               ex1 ../data/pipe-nurbs.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
