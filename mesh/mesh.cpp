@@ -351,8 +351,6 @@ void Mesh::GetLocalQuadToHexTransformation(
 FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
                                                                 int mask)
 {
-   int i, j, *v, nv;
-
    //  setup the transformation for the first element
    FaceElemTr.Elem1No = faces_info[FaceNo].Elem1No;
    if (mask & 1)
