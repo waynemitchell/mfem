@@ -5702,7 +5702,6 @@ void H1_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
       }
 }
 
-
 H1_HexahedronElement::H1_HexahedronElement(const int p)
    : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
                         FunctionSpace::Qk),
@@ -6061,6 +6060,25 @@ void L2_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    basis1d.Eval(ip.x, shape_x, dshape_x);
 }
 
+void L2_SegmentElement::ProjectDelta(int vertex,
+                                     Vector &dofs) const
+{
+   const int p = Order;
+   const double *op = poly1d.OpenPoints(p);
+   switch (vertex)
+   {
+   case 0:
+      for (int i = 0; i <= p; i++)
+         dofs(i) = poly1d.CalcDelta(p,(1.0 - op[i]));
+      break;
+
+   case 1:
+      for (int i = 0; i <= p; i++)
+         dofs(i) = poly1d.CalcDelta(p,op[i]);
+      break;
+   }
+}
+
 
 L2_QuadrilateralElement::L2_QuadrilateralElement(const int p)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
@@ -6101,6 +6119,43 @@ void L2_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
          dshape(o,0) = dshape_x(i)* shape_y(j);
          dshape(o,1) =  shape_x(i)*dshape_y(j);  o++;
       }
+}
+
+void L2_QuadrilateralElement::ProjectDelta(int vertex,
+                                           Vector &dofs) const
+{
+   const int p = Order;
+   const double *op = poly1d.OpenPoints(p);
+
+   for (int i = 0; i <= p; i++)
+   {
+      shape_x(i) = poly1d.CalcDelta(p,(1.0 - op[i]));
+      shape_y(i) = poly1d.CalcDelta(p,op[i]);
+   }
+
+   switch (vertex)
+   {
+   case 0:
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            dofs[o++] = shape_x(i)*shape_x(j);
+      break;
+   case 1:
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            dofs[o++] = shape_y(i)*shape_x(j);
+      break;
+   case 2:
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            dofs[o++] = shape_y(i)*shape_y(j);
+      break;
+   case 3:
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            dofs[o++] = shape_x(i)*shape_y(j);
+      break;
+   }
 }
 
 
@@ -6150,6 +6205,71 @@ void L2_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
             dshape(o,1) =  shape_x(i)*dshape_y(j)* shape_z(k);
             dshape(o,2) =  shape_x(i)* shape_y(j)*dshape_z(k);  o++;
          }
+}
+
+void L2_HexahedronElement::ProjectDelta(int vertex,
+                                        Vector &dofs) const
+{
+   const int p = Order;
+   const double *op = poly1d.OpenPoints(p);
+
+   for (int i = 0; i <= p; i++)
+   {
+      shape_x(i) = poly1d.CalcDelta(p,(1.0 - op[i]));
+      shape_y(i) = poly1d.CalcDelta(p,op[i]);
+   }
+
+   switch (vertex)
+   {
+   case 0:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs[o++] = shape_x(i)*shape_x(j)*shape_x(k);
+      break;
+   case 1:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs[o++] = shape_y(i)*shape_x(j)*shape_x(k);
+      break;
+   case 2:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs[o++] = shape_y(i)*shape_y(j)*shape_x(k);
+      break;
+   case 3:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs[o++] = shape_x(i)*shape_y(j)*shape_x(k);
+      break;
+   case 4:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs[o++] = shape_x(i)*shape_x(j)*shape_y(k);
+      break;
+   case 5:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs[o++] = shape_y(i)*shape_x(j)*shape_y(k);
+      break;
+   case 6:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs[o++] = shape_y(i)*shape_y(j)*shape_y(k);
+      break;
+   case 7:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs[o++] = shape_x(i)*shape_y(j)*shape_y(k);
+      break;
+   }
 }
 
 

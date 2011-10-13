@@ -1129,6 +1129,9 @@ public:
    // { CalcLegendre(p, x, u, d); }
    { CalcChebyshev(p, x, u, d); }
 
+   // Evaluate a representation of a Delta function at point x
+   static double CalcDelta(const int p, const double x){ return pow(x, (double) p); }
+
    ~Poly_1D();
 };
 
@@ -1221,6 +1224,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
@@ -1235,6 +1239,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
@@ -1249,6 +1254,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
