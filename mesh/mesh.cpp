@@ -1465,6 +1465,15 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       int np = 0;
       Vector points;
       input >> buff;
+
+      // Skip some lines added by VisIt VTK export
+      if (buff == "FIELD")
+         input >> ws >> buff >> ws >> np >> ws >> buff;
+      if (buff == "avtOriginalBounds")
+         input >> ws >> np >> ws >> np >> ws >> buff >> ws >> np
+               >> ws >> np >> ws >> np >> ws >> np >> ws >> np
+               >> ws >> np >> ws >> buff;
+
       if (buff == "POINTS")
       {
          input >> np >> ws;
@@ -1564,7 +1573,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
       {
          input >> n >> ws;
          getline(input, buff);
-         if (buff == "SCALARS material int")
+         if (buff == "SCALARS material int" || buff == "SCALARS material float")
          {
             getline(input, buff); // "LOOKUP_TABLE default"
             for (i = 0; i < NumOfElements; i++)
