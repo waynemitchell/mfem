@@ -246,7 +246,7 @@ public:
    /// Reads vector coefficient.
    void Read (int i, istream &in)  { Coeff[i] -> Read(in); }
 
-   /// Destriys vector coefficient.
+   /// Destroys vector coefficient.
    virtual ~VectorArrayCoefficient();
 };
 
