@@ -3286,6 +3286,41 @@ STable3D *Mesh::GetElementToFaceTable(int ret_ftbl)
    return NULL;
 }
 
+void Mesh::ReorientTetMesh()
+{
+   int *v;
+
+   if (Dim != 3 || !(meshgen & 1))
+      return;
+
+   DeleteCoarseTables();
+
+   for (int i = 0; i < NumOfElements; i++)
+      if (GetElementType(i) == Element::TETRAHEDRON)
+      {
+         v = elements[i]->GetVertices();
+
+         Rotate3(v[0], v[1], v[2]);
+         if (v[0] < v[3])
+            Rotate3(v[1], v[2], v[3]);
+         else
+            ShiftL2R(v[0], v[1], v[3]);
+      }
+
+   for (int i = 0; i < NumOfBdrElements; i++)
+      if (GetBdrElementType(i) == Element::TRIANGLE)
+      {
+         v = boundary[i]->GetVertices();
+
+         Rotate3(v[0], v[1], v[2]);
+      }
+
+   GetElementToFaceTable();
+   GenerateFaces();
+   if (el_to_edge)
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+}
+
 #ifdef MFEM_USE_MPI
 // auxiliary function for qsort
 static int mfem_less(const void *x, const void *y)

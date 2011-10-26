@@ -552,6 +552,48 @@ int ParMesh::GetFaceSplittings(Element *face, const DSTable &v_to_v,
    return number_of_splittings;
 }
 
+void ParMesh::ReorientTetMesh()
+{
+   if (Dim != 3 || !(meshgen & 1))
+      return;
+
+   Mesh::ReorientTetMesh();
+
+   int *v;
+
+   // The local edge and face numbering is changed therefore we need to
+   // update sedge_ledge and sface_lface.
+   {
+      DSTable v_to_v(NumOfVertices);
+      GetVertexToVertexTable(v_to_v);
+      for (int i = 0; i < shared_edges.Size(); i++)
+      {
+         v = shared_edges[i]->GetVertices();
+         sedge_ledge[i] = v_to_v(v[0], v[1]);
+      }
+   }
+
+   // Rotate shared faces and update sface_lface.
+   // Note that no communication is needed to ensure that the shared
+   // faces are rotated in the same way in both processors. This is
+   // automatic due to various things, e.g. the global to local vertex
+   // mapping preserves the global order; also the way new vertices
+   // are introduced during refinement is essential.
+   {
+      STable3D *faces_tbl = GetFacesTable();
+      for (int i = 0; i < shared_faces.Size(); i++)
+         if (shared_faces[i]->GetType() == Element::TRIANGLE)
+         {
+            v = shared_faces[i]->GetVertices();
+
+            Rotate3(v[0], v[1], v[2]);
+
+            sface_lface[i] = (*faces_tbl)(v[0], v[1], v[2]);
+         }
+      delete faces_tbl;
+   }
+}
+
 void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 {
    int i, j, wtls = WantTwoLevelState;

@@ -67,6 +67,9 @@ public:
    void GroupEdge(int group, int i, int &edge, int &o);
    void GroupFace(int group, int i, int &face, int &o);
 
+   /// See the remarks for the serial version in mesh.hpp
+   virtual void ReorientTetMesh();
+
    /// Refine the marked elements.
    virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
 

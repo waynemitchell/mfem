@@ -210,6 +210,11 @@ protected:
    void AddQuadFaceElement (int lf, int gf, int el,
                             int v0, int v1, int v2, int v3);
 
+   // shift cyclically 3 integers left-to-right
+   inline static void ShiftL2R(int &, int &, int &);
+   // shift cyclically 3 integers so that the smallest is first
+   inline static void Rotate3(int &, int &, int &);
+
    void FreeElement (Element *E);
 
    void GenerateFaces();
@@ -440,6 +445,16 @@ public:
    ///  The returned Table must be destroyed by the caller
    Table *GetVertexToElementTable();
 
+   /** This method modifies a tetrahedral mesh so that Nedelec spaces of order
+       greater than 1 can be defined on the mesh. Specifically, we
+       1) rotate all tets in the mesh so that the vertices {v0, v1, v2, v3}
+       satisfy: v0 < v1 < min(v2, v3).
+       2) rotate all boundary triangles so that the vertices {v0, v1, v2}
+       satisfy: v0 < min(v1, v2).
+
+       Note: refinement does not work after a call to this method! */
+   virtual void ReorientTetMesh();
+
    int *CartesianPartitioning(int nxyz[]);
    int *GeneratePartitioning(int nparts, int part_method = 1);
    void CheckPartitioning(int *partitioning);
@@ -541,5 +556,29 @@ public:
    /// Destroys mesh.
    virtual ~Mesh();
 };
+
+
+// inline functions
+inline void Mesh::ShiftL2R(int &a, int &b, int &c)
+{
+   int t = a;
+   a = c;  c = b;  b = t;
+}
+
+inline void Mesh::Rotate3(int &a, int &b, int &c)
+{
+   if (a < b)
+   {
+      if (a > c)
+         ShiftL2R(a, b, c);
+   }
+   else
+   {
+      if (b < c)
+         ShiftL2R(c, b, a);
+      else
+         ShiftL2R(a, b, c);
+   }
+}
 
 #endif
