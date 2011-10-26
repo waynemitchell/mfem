@@ -1268,7 +1268,7 @@ int *RT_FECollection::DofOrderForOrientation(int GeomType, int Or) const
    }
    else if (GeomType == Geometry::TRIANGLE)
    {
-      return TriDofOrd[Or%8];
+      return TriDofOrd[Or%6];
    }
    else if (GeomType == Geometry::SQUARE)
    {
@@ -1284,6 +1284,154 @@ RT_FECollection::~RT_FECollection()
    delete [] QuadDofOrd[0];
    for (int g = 0; g < Geometry::NumGeom; g++)
       delete RT_Elements[g];
+}
+
+ND_FECollection::ND_FECollection(const int p, const int dim)
+{
+   const int pm1 = p - 1, pm2 = p - 2;
+
+   snprintf(nd_name, 32, "ND_%dD_P%d", dim, p);
+
+   for (int g = 0; g < Geometry::NumGeom; g++)
+   {
+      ND_Elements[g] = NULL;
+      ND_dof[g] = 0;
+   }
+   for (int i = 0; i < 2; i++)
+      SegDofOrd[i] = NULL;
+   for (int i = 0; i < 6; i++)
+      TriDofOrd[i] = NULL;
+   for (int i = 0; i < 8; i++)
+      QuadDofOrd[i] = NULL;
+
+   if (dim == 3)
+   {
+      ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p);
+      ND_dof[Geometry::CUBE] = 3*p*pm1*pm1;
+
+      ND_Elements[Geometry::TETRAHEDRON] = new ND_TetrahedronElement(p);
+      ND_dof[Geometry::TETRAHEDRON] = p*pm1*pm2/2;
+
+      ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p);
+      ND_dof[Geometry::SQUARE] = 2*p*pm1;
+
+      ND_Elements[Geometry::TRIANGLE] = new ND_TriangleElement(p);
+      ND_dof[Geometry::TRIANGLE] = p*pm1;
+
+      // ND_Elements[Geometry::SEGMENT] = NULL;
+      ND_dof[Geometry::SEGMENT] = p;
+
+      int QuadDof = ND_dof[Geometry::SQUARE];
+      QuadDofOrd[0] = new int[8*QuadDof];
+      for (int i = 1; i < 8; i++)
+         QuadDofOrd[i] = QuadDofOrd[i-1] + QuadDof;
+      // see Mesh::GetQuadOrientation in mesh/mesh.cpp
+      for (int j = 0; j < pm1; j++)
+         for (int i = 0; i < p; i++)
+         {
+            int d1 = i + j*p;            // x-component
+            int d2 = p*pm1 + j + i*pm1;  // y-component
+            // (0,1,2,3)
+            QuadDofOrd[0][d1] = d1;
+            QuadDofOrd[0][d2] = d2;
+            // (0,3,2,1)
+            QuadDofOrd[1][d1] = d2;
+            QuadDofOrd[1][d2] = d1;
+            // (1,2,3,0)
+            // QuadDofOrd[2][d1] = p*pm1 + (pm2 - j) + i*pm1;
+            // QuadDofOrd[2][d2] = -1 - ((pm1 - i) + j*p);
+            QuadDofOrd[2][d1] = -1 - (p*pm1 + j + (pm1 - i)*pm1);
+            QuadDofOrd[2][d2] = i + (pm2 - j)*p;
+            // (1,0,3,2)
+            QuadDofOrd[3][d1] = -1 - ((pm1 - i) + j*p);
+            QuadDofOrd[3][d2] = p*pm1 + (pm2 - j) + i*pm1;
+            // (2,3,0,1)
+            QuadDofOrd[4][d1] = -1 - ((pm1 - i) + (pm2 - j)*p);
+            QuadDofOrd[4][d2] = -1 - (p*pm1 + (pm2 - j) + (pm1 - i)*pm1);
+            // (2,1,0,3)
+            QuadDofOrd[5][d1] = -1 - (p*pm1 + (pm2 - j) + (pm1 - i)*pm1);
+            QuadDofOrd[5][d2] = -1 - ((pm1 - i) + (pm2 - j)*p);
+            // (3,0,1,2)
+            // QuadDofOrd[6][d1] = -1 - (p*pm1 + j + (pm1 - i)*pm1);
+            // QuadDofOrd[6][d2] = i + (pm2 - j)*p;
+            QuadDofOrd[6][d1] = p*pm1 + (pm2 - j) + i*pm1;
+            QuadDofOrd[6][d2] = -1 - ((pm1 - i) + j*p);
+            // (3,2,1,0)
+            QuadDofOrd[7][d1] = i + (pm2 - j)*p;
+            QuadDofOrd[7][d2] = -1 - (p*pm1 + j + (pm1 - i)*pm1);
+         }
+
+      int TriDof = ND_dof[Geometry::TRIANGLE];
+      TriDofOrd[0] = new int[6*TriDof];
+      for (int i = 1; i < 6; i++)
+         TriDofOrd[i] = TriDofOrd[i-1] + TriDof;
+      // see Mesh::GetTriOrientation in mesh/mesh.cpp,
+      // the constructor of H1_FECollection
+      for (int j = 0; j <= pm2; j++)
+         for (int i = 0; i + j <= pm2; i++)
+         {
+            int k1 = p*pm1 - (p - j)*(pm1 - j) + 2*i;
+            int k2 = p*pm1 - (p - i)*(pm1 - i) + 2*j;
+            // (0,1,2)
+            TriDofOrd[0][k1  ] = k1;
+            TriDofOrd[0][k1+1] = k1 + 1;
+            // (0,2,1)
+            TriDofOrd[5][k1  ] = k2 + 1;
+            TriDofOrd[5][k1+1] = k2;
+
+            // The other orientations can not be supported with the current
+            // interface. The method Mesh::ReorientTetMesh will ensure that
+            // only orientations 0 and 5 are generated.
+         }
+
+      SegDofOrd[0] = new int[2*p];
+      SegDofOrd[1] = SegDofOrd[0] + p;
+      for (int i = 0; i < p; i++)
+      {
+         SegDofOrd[0][i] = i;
+         SegDofOrd[1][i] = -1 - (pm1 - i);
+      }
+   }
+   else
+   {
+      mfem_error("ND_FECollection::ND_FECollection : dim != 3");
+   }
+}
+
+int *ND_FECollection::DofOrderForOrientation(int GeomType, int Or) const
+{
+   if (GeomType == Geometry::SEGMENT)
+   {
+      if (Or > 0)
+         return SegDofOrd[0];
+      return SegDofOrd[1];
+   }
+   else if (GeomType == Geometry::TRIANGLE)
+   {
+      if (Or != 0 && Or != 5)
+      {
+         cerr <<
+            "ND_FECollection::DofOrderForOrientation :\n"
+            "  triangle face orientation " << Or << " is not supported!\n"
+            "  Use Mesh::ReorientTetMesh to fix it." << endl;
+         mfem_error();
+      }
+      return TriDofOrd[Or%6];
+   }
+   else if (GeomType == Geometry::SQUARE)
+   {
+      return QuadDofOrd[Or%8];
+   }
+   return NULL;
+}
+
+ND_FECollection::~ND_FECollection()
+{
+   delete [] SegDofOrd[0];
+   delete [] TriDofOrd[0];
+   delete [] QuadDofOrd[0];
+   for (int g = 0; g < Geometry::NumGeom; g++)
+      delete ND_Elements[g];
 }
 
 

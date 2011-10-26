@@ -1058,6 +1058,27 @@ void GridFunction::ProjectBdrCoefficientNormal(
 #endif
 }
 
+void GridFunction::ProjectBdrCoefficientTangent(
+   VectorCoefficient &vcoeff, Array<int> &bdr_attr)
+{
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   Array<int> dofs;
+   Vector lvec;
+
+   for (int i = 0; i < fes->GetNBE(); i++)
+   {
+      if (bdr_attr[fes->GetBdrAttribute(i)-1] == 0)
+         continue;
+      fe = fes->GetBE(i);
+      T = fes->GetBdrElementTransformation(i);
+      fes->GetBdrElementDofs(i, dofs);
+      lvec.SetSize(fe->GetDof());
+      fe->Project(vcoeff, *T, lvec);
+      SetSubVector(dofs, lvec);
+   }
+}
+
 double GridFunction::ComputeL2Error(
    Coefficient *exsol[], const IntegrationRule *irs[]) const
 {

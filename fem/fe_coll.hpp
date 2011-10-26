@@ -563,6 +563,27 @@ public:
    virtual ~RT_FECollection();
 };
 
+class ND_FECollection : public FiniteElementCollection
+{
+private:
+   char nd_name[32];
+   FiniteElement *ND_Elements[Geometry::NumGeom];
+   int ND_dof[Geometry::NumGeom];
+   int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
+
+public:
+   ND_FECollection(const int p, const int dim);
+
+   virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
+   { return ND_Elements[GeomType]; }
+   virtual int DofForGeometry(int GeomType) const
+   { return ND_dof[GeomType]; }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const;
+   virtual const char *Name() const { return nd_name; }
+
+   virtual ~ND_FECollection();
+};
+
 
 class NURBSFECollection : public FiniteElementCollection
 {

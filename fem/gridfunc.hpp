@@ -122,6 +122,12 @@ public:
    void ProjectBdrCoefficientNormal(VectorCoefficient &vcoeff,
                                     Array<int> &bdr_attr);
 
+   /** Project the tangential components of the given VectorCoefficient on
+       the boundary. Only boundary attributes that are marked in
+       'bdr_attr' are projected. Assumes ND-type VectorFE GridFunction. */
+   void ProjectBdrCoefficientTangent(VectorCoefficient &vcoeff,
+                                     Array<int> &bdr_attr);
+
    double ComputeL2Error(Coefficient &exsol,
                          const IntegrationRule *irs[] = NULL) const
    {
