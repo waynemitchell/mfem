@@ -379,4 +379,31 @@ public:
                                       DenseMatrix &);
 };
 
+
+/** Class for constructing the gradient as a DiscreteLinearOperator from an
+    H1-conforming space to an H(curl)-conforming space. */
+class GradientIntegrator : public BilinearFormIntegrator
+{
+public:
+   virtual void AssembleElementMatrix2(const FiniteElement &h1_fe,
+                                       const FiniteElement &nd_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat)
+   { nd_fe.ProjectGrad(h1_fe, Trans, elmat); }
+};
+
+
+/** Class for constructing the identity map as a DiscreteLinearOperator. This
+    is the discrete embedding matrix when the domain space is a subspace of
+    the range space. Otherwise, a dof projection matrix is constructed. */
+class IdentityIntegrator : public BilinearFormIntegrator
+{
+public:
+   virtual void AssembleElementMatrix2(const FiniteElement &dom_fe,
+                                       const FiniteElement &ran_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat)
+   { ran_fe.Project(dom_fe, Trans, elmat); }
+};
+
 #endif

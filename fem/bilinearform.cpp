@@ -483,3 +483,33 @@ MixedBilinearForm::~MixedBilinearForm()
    for (i = 0; i < dom.Size(); i++)  delete dom[i];
    for (i = 0; i < bdr.Size(); i++)  delete bdr[i];
 }
+
+
+void DiscreteLinearOperator::Assemble(int skip_zeros)
+{
+   Array<int> dom_vdofs, ran_vdofs;
+   ElementTransformation *T;
+   const FiniteElement *dom_fe, *ran_fe;
+   DenseMatrix totelmat, elmat;
+
+   if (mat == NULL)
+      mat = new SparseMatrix(size, width);
+
+   if (dom.Size() > 0)
+      for (int i = 0; i < test_fes->GetNE(); i++)
+      {
+         trial_fes->GetElementVDofs(i, dom_vdofs);
+         test_fes->GetElementVDofs(i, ran_vdofs);
+         T = test_fes->GetElementTransformation(i);
+         dom_fe = trial_fes->GetFE(i);
+         ran_fe = test_fes->GetFE(i);
+
+         dom[0]->AssembleElementMatrix2(*dom_fe, *ran_fe, *T, totelmat);
+         for (int j = 1; j < dom.Size(); j++)
+         {
+            dom[j]->AssembleElementMatrix2(*dom_fe, *ran_fe, *T, elmat);
+            totelmat += elmat;
+         }
+         mat->SetSubMatrix(ran_vdofs, dom_vdofs, totelmat, skip_zeros);
+      }
+}
