@@ -238,7 +238,8 @@ void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja);
 /// Calculate the transposed adjugate of a matrix (for 2x2 or 3x3 matrices)
 void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat);
 
-/// Calculate the inverse of a matrix (for 2x2 or 3x3 matrices)
+/** Calculate the inverse of a matrix (for 2x2 or 3x3 matrices) or the
+    left inverse (A^t.A)^{-1}.A^t (for 2x1, 3x1, or 3x2 matrices) */
 void CalcInverse(const DenseMatrix &a, DenseMatrix &inva);
 
 /// Calculate the inverse transpose of a matrix (for 2x2 or 3x3 matrices)

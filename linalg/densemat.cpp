@@ -1877,12 +1877,51 @@ void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat)
 void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 {
 #ifdef MFEM_DEBUG
-   if ( (a.Size() != a.Height()) || ( (a.Height()!= 1) && (a.Height()!= 2)
-                                      && (a.Height()!= 3) ) )
+   if (a.Width() > a.Height() || a.Width() < 1 || a.Height() > 3)
       mfem_error("DenseMatrix::CalcInverse(...)");
 #endif
 
    double t;
+
+   if (a.Width() < a.Height())
+   {
+      const double *d = a.Data();
+      double *id = inva.Data();
+      if (a.Height() == 2)
+      {
+         t = 1.0 / (d[0]*d[0] + d[1]*d[1]);
+         id[0] = d[0] * t;
+         id[1] = d[1] * t;
+      }
+      else
+      {
+         if (a.Width() == 1)
+         {
+            t = 1.0 / (d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
+            id[0] = d[0] * t;
+            id[1] = d[1] * t;
+            id[2] = d[2] * t;
+         }
+         else
+         {
+            double e, g, f;
+            e = d[0]*d[0] + d[1]*d[1] + d[2]*d[2];
+            g = d[3]*d[3] + d[4]*d[4] + d[5]*d[5];
+            f = d[0]*d[3] + d[1]*d[4] + d[2]*d[5];
+            t = 1.0 / (e*g - f*f);
+            e *= t; g *= t; f *= t;
+
+            id[0] = d[0]*g - d[3]*f;
+            id[1] = d[3]*e - d[0]*f;
+            id[2] = d[1]*g - d[4]*f;
+            id[3] = d[4]*e - d[1]*f;
+            id[4] = d[2]*g - d[5]*f;
+            id[5] = d[5]*e - d[2]*f;
+         }
+      }
+      return;
+   }
+
 #ifdef MFEM_DEBUG
    t = a.Det();
    if (fabs(t) < 1.0e-12 * a.FNorm())
@@ -1896,7 +1935,7 @@ void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
    switch (a.Height())
    {
    case 1:
-      inva(0,0) = 1.0 / a(0,0);
+      inva(0,0) = t;
       break;
    case 2:
       inva(0,0) = a(1,1) * t ;
