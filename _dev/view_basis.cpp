@@ -151,17 +151,76 @@ int main(int argc, char *argv[])
    GridFunction x(fespace);
    x = 0.;
 
+   Array<int> dof_list, dofs;
+   cout << "\n"
+      "0) all dofs\n"
+      "1) element-dof\n"
+      "2) boundary-dof\n"
+      " --> " << flush;
+   cin >> c;
+   switch (c)
+   {
+   case '1':
+   {
+      int n = 0;
+      for (int i = 0; i < mesh->GetNE(); i++)
+      {
+         fespace->GetElementDofs(i, dofs);
+         n += dofs.Size();
+      }
+      dof_list.SetSize(n);
+      n = 0;
+      for (int i = 0; i < mesh->GetNE(); i++)
+      {
+         fespace->GetElementDofs(i, dofs);
+         for (int j = 0; j < dofs.Size(); j++)
+            dof_list[n++] = dofs[j];
+      }
+      break;
+   }
+   case '2':
+   {
+      if (mesh->NURBSext)
+      {
+         Table &bel_dof = *mesh->NURBSext->GetBdrElementDofTable();
+         if (bel_dof.Size() > 0)
+            bel_dof.Print(cout, bel_dof.RowSize(0));
+      }
+      int n = 0;
+      for (int i = 0; i < mesh->GetNBE(); i++)
+      {
+         fespace->GetBdrElementDofs(i, dofs);
+         n += dofs.Size();
+      }
+      dof_list.SetSize(n);
+      n = 0;
+      for (int i = 0; i < mesh->GetNBE(); i++)
+      {
+         fespace->GetBdrElementDofs(i, dofs);
+         for (int j = 0; j < dofs.Size(); j++)
+            dof_list[n++] = dofs[j];
+      }
+      break;
+   }
+   default:
+   {
+      dof_list.SetSize(x.Size());
+      for (int i = 0; i < x.Size(); i++)
+         dof_list[i] = i;
+   }
+   }
+
    char vishost[] = "localhost";
    int  visport   = 19916;
    socketstream sol_sock(vishost, visport);
    sol_sock.precision(8);
 
    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-   for (int i = 0; true; )
+   for (int i = 0; i < dof_list.Size(); )
    {
-      x(i) = 1.;
+      x(dof_list[i]) = 1.;
 
-      cout << "displaying basis function " << i + 1
+      cout << "displaying basis function " << dof_list[i] + 1
            << " / " << x.Size() << " ... " << flush;
 
       sol_sock << "solution\n";
@@ -177,9 +236,9 @@ int main(int argc, char *argv[])
          break;
       }
 
-      x(i) = 0.;
+      x(dof_list[i]) = 0.;
 
-      if (++i == x.Size())
+      if (++i == dof_list.Size())
          break;
 
       cout << "press enter ... " << flush;
