@@ -55,15 +55,10 @@ void DomainLFIntegrator::AssembleRHSElementVect(const FiniteElement &el,
    }
 }
 
-inline double sqr(double x)
-{
-   return x * x;
-}
-
 void BoundaryLFIntegrator::AssembleRHSElementVect(
    const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
 {
-   int dof  = el.GetDof();
+   int dof = el.GetDof();
 
    shape.SetSize(dof);        // vector of size dof
    elvect.SetSize(dof);
@@ -220,5 +215,31 @@ void VectorBoundaryFluxLFIntegrator::AssembleRHSElementVect(
       for (int j = 0; j < dof; j++)
          for (int k = 0; k < dim; k++)
             elvect(dof*k+j) += nor(k) * shape(j);
+   }
+}
+
+
+void VectorFEBoundaryFluxLFIntegrator::AssembleRHSElementVect(
+   const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
+{
+   int dof = el.GetDof();
+
+   shape.SetSize(dof);
+   elvect.SetSize(dof);
+   elvect = 0.0;
+
+   int intorder = 2*el.GetOrder();  // <----------
+   const IntegrationRule &ir = IntRules.Get(el.GetGeomType(), intorder);
+
+   for (int i = 0; i < ir.GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir.IntPoint(i);
+
+      Tr.SetIntPoint (&ip);
+      double val = ip.weight*F.Eval(Tr, ip);
+
+      el.CalcShape(ip, shape);
+
+      add(elvect, val, shape, elvect);
    }
 }
