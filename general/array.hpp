@@ -191,6 +191,9 @@ public:
 
    void SetSize(int m, int n) { array1d.SetSize(m*n); N = n; }
 
+   int NumRows() const { return array1d.Size()/N; }
+   int NumCols() const { return N; }
+
    inline const T &operator()(int i, int j) const;
    inline       T &operator()(int i, int j);
 
