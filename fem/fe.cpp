@@ -99,6 +99,23 @@ void FiniteElement::ProjectGrad(
               "this element!");
 }
 
+void FiniteElement::ProjectCurl(
+   const FiniteElement &fe, ElementTransformation &Trans,
+   DenseMatrix &curl) const
+{
+   mfem_error("FiniteElement::ProjectCurl(...) is not implemented for "
+              "this element!");
+}
+
+void FiniteElement::ProjectDiv(
+   const FiniteElement &fe, ElementTransformation &Trans,
+   DenseMatrix &div) const
+{
+   mfem_error("FiniteElement::ProjectDiv(...) is not implemented for "
+              "this element!");
+}
+
+
 void NodalFiniteElement::NodalLocalInterpolation (
    ElementTransformation &Trans, DenseMatrix &I,
    const NodalFiniteElement &fine_fe) const
@@ -200,6 +217,24 @@ void NodalFiniteElement::ProjectGrad(
    }
 }
 
+void NodalFiniteElement::ProjectDiv(
+   const FiniteElement &fe,ElementTransformation &Trans,
+   DenseMatrix &div) const
+{
+   double detJ;
+   Vector div_shape(fe.GetDof());
+
+   div.SetSize(Dof, fe.GetDof());
+   for (int k = 0; k < Dof; k++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(k);
+      fe.CalcDivShape(ip, div_shape);
+      Trans.SetIntPoint(&ip);
+      detJ = Trans.Weight();
+      for (int j = 0; j < div_shape.Size(); j++)
+         div(k,j) = (fabs(div_shape(j)) < 1e-12) ? 0.0 : div_shape(j)/detJ;
+   }
+}
 
 void VectorFiniteElement::CalcShape (
    const IntegrationPoint &ip, Vector &shape ) const
@@ -254,6 +289,58 @@ void VectorFiniteElement::Project_RT(
       vc.Eval(xk, Trans, Nodes.IntPoint(k));
       // dof_k = nk^t adj(J) xk
       dofs(k) = Jinv.InnerProduct(vk, nk + d2n[k]*Dim);
+   }
+}
+
+void VectorFiniteElement::Project_RT(
+   const double *nk, const Array<int> &d2n, const FiniteElement &fe,
+   ElementTransformation &Trans, DenseMatrix &I) const
+{
+   if (fe.GetRangeType() == SCALAR)
+   {
+      double vk[3];
+      Vector shape(fe.GetDof());
+
+      I.SetSize(Dof, Dim*fe.GetDof());
+      for (int k = 0; k < Dof; k++)
+      {
+         const IntegrationPoint &ip = Nodes.IntPoint(k);
+
+         fe.CalcShape(ip, shape);
+         Trans.SetIntPoint(&ip);
+         CalcAdjugateTranspose(Trans.Jacobian(), Jinv);
+         Jinv.Mult(nk + d2n[k]*Dim, vk);
+
+         for (int j = 0; j < shape.Size(); j++)
+         {
+            double s = shape(j);
+            if (fabs(s) < 1e-12)
+               s = 0.0;
+            for (int d = 0; d < Dim; d++)
+               I(k,j+d*shape.Size()) = s*vk[d];
+         }
+      }
+   }
+   else
+   {
+      mfem_error("VectorFiniteElement::Project_RT (fe version)");
+   }
+}
+
+void VectorFiniteElement::ProjectCurl_RT(
+   const double *nk, const Array<int> &d2n, const FiniteElement &fe,
+   ElementTransformation &Trans, DenseMatrix &curl) const
+{
+   DenseMatrix curl_shape(fe.GetDof(), Dim);
+   Vector curl_k(fe.GetDof());
+
+   curl.SetSize(Dof, fe.GetDof());
+   for (int k = 0; k < Dof; k++)
+   {
+      fe.CalcCurlShape(Nodes.IntPoint(k), curl_shape);
+      curl_shape.Mult(nk + d2n[k]*Dim, curl_k);
+      for (int j = 0; j < curl_k.Size(); j++)
+         curl(k,j) = (fabs(curl_k(j)) < 1e-12) ? 0.0 : curl_k(j);
    }
 }
 

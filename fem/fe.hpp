@@ -140,10 +140,24 @@ public:
 
    /** Compute the discrete gradient matrix from the given FiniteElement onto
        'this' FiniteElement. The ElementTransformation is included to support
-       cases when the projection depends on it. */
+       cases when the matrix depends on it. */
    virtual void ProjectGrad(const FiniteElement &fe,
                             ElementTransformation &Trans,
                             DenseMatrix &grad) const;
+
+   /** Compute the discrete curl matrix from the given FiniteElement onto
+       'this' FiniteElement. The ElementTransformation is included to support
+       cases when the matrix depends on it. */
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const;
+
+   /** Compute the discrete divergence matrix from the given FiniteElement onto
+       'this' FiniteElement. The ElementTransformation is included to support
+       cases when the matrix depends on it. */
+   virtual void ProjectDiv(const FiniteElement &fe,
+                           ElementTransformation &Trans,
+                           DenseMatrix &div) const;
 
    virtual ~FiniteElement () { }
 };
@@ -178,6 +192,10 @@ public:
    virtual void ProjectGrad(const FiniteElement &fe,
                             ElementTransformation &Trans,
                             DenseMatrix &grad) const;
+
+   virtual void ProjectDiv(const FiniteElement &fe,
+                           ElementTransformation &Trans,
+                           DenseMatrix &div) const;
 };
 
 class VectorFiniteElement : public FiniteElement
@@ -205,6 +223,14 @@ protected:
    void Project_RT(const double *nk, const Array<int> &d2n,
                    VectorCoefficient &vc, ElementTransformation &Trans,
                    Vector &dofs) const;
+
+   void Project_RT(const double *nk, const Array<int> &d2n,
+                   const FiniteElement &fe, ElementTransformation &Trans,
+                   DenseMatrix &I) const;
+
+   void ProjectCurl_RT(const double *nk, const Array<int> &d2n,
+                       const FiniteElement &fe, ElementTransformation &Trans,
+                       DenseMatrix &curl) const;
 
    void Project_ND(const double *tk, const Array<int> &d2t,
                    VectorCoefficient &vc, ElementTransformation &Trans,
@@ -444,6 +470,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   using FiniteElement::Project;
    virtual void Project(Coefficient &coeff, ElementTransformation &Trans,
                         Vector &dofs) const;
    virtual void Project(VectorCoefficient &vc, ElementTransformation &Trans,
@@ -1351,6 +1378,9 @@ public:
    virtual void Project(VectorCoefficient &vc,
                         ElementTransformation &Trans, Vector &dofs) const
    { Project_RT(nk, dof2nk, vc, Trans, dofs); }
+   virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
+                        DenseMatrix &I) const
+   { Project_RT(nk, dof2nk, fe, Trans, I); }
 };
 
 
@@ -1379,6 +1409,13 @@ public:
    virtual void Project(VectorCoefficient &vc,
                         ElementTransformation &Trans, Vector &dofs) const
    { Project_RT(nk, dof2nk, vc, Trans, dofs); }
+   virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
+                        DenseMatrix &I) const
+   { Project_RT(nk, dof2nk, fe, Trans, I); }
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectCurl_RT(nk, dof2nk, fe, Trans, curl); }
 };
 
 
@@ -1409,6 +1446,9 @@ public:
    virtual void Project(VectorCoefficient &vc,
                         ElementTransformation &Trans, Vector &dofs) const
    { Project_RT(nk, dof2nk, vc, Trans, dofs); }
+   virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
+                        DenseMatrix &I) const
+   { Project_RT(nk, dof2nk, fe, Trans, I); }
 };
 
 
@@ -1439,6 +1479,13 @@ public:
    virtual void Project(VectorCoefficient &vc,
                         ElementTransformation &Trans, Vector &dofs) const
    { Project_RT(nk, dof2nk, vc, Trans, dofs); }
+   virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
+                        DenseMatrix &I) const
+   { Project_RT(nk, dof2nk, fe, Trans, I); }
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectCurl_RT(nk, dof2nk, fe, Trans, curl); }
 };
 
 
