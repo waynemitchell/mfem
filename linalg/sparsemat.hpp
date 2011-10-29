@@ -161,6 +161,11 @@ public:
 
    int Finalized() { return (A != NULL); }
 
+   /** Split the matrix into M x N blocks of sparse matrices in CSR format.
+       The 'blocks' array is M x N (i.e. M and N are determined by its
+       dimensions) and its entries are overwritten by the new blocks. */
+   void GetBlocks(Array2D<SparseMatrix *> &blocks) const;
+
    void GetSubMatrix(const Array<int> &rows, const Array<int> &cols,
                      DenseMatrix &subm);
 
@@ -212,6 +217,8 @@ public:
 
    /// Returns the number of the nonzero elements in the matrix
    int NumNonZeroElems() const;
+
+   double MaxNorm() const;
 
    /// Count the number of entries with |a_ij| < tol
    int CountSmallElems(double tol);

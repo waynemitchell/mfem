@@ -307,6 +307,56 @@ void SparseMatrix::Finalize(int skip_zeros)
    Rows = NULL;
 }
 
+void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
+{
+   if (A)
+      mfem_error("SparseMatrix::GetBlocks : matrix is finalized!");
+
+   int br = blocks.NumRows(), bc = blocks.NumCols();
+   int nr = (size + br - 1)/br, nc = (width + bc - 1)/bc;
+
+   for (int j = 0; j < bc; j++)
+      for (int i = 0; i < br; i++)
+      {
+         int *bI = new int[nr + 1];
+         for (int k = 0; k <= nr; k++)
+            bI[k] = 0;
+         blocks(i,j) = new SparseMatrix(bI, NULL, NULL, nr, nc);
+      }
+
+   for (int gr = 0; gr < size; gr++)
+   {
+      int bi = gr/nr, i = gr%nr + 1;
+      for (RowNode *n_p = Rows[gr]; n_p != NULL; n_p = n_p->Prev)
+         if (n_p->Value != 0.0)
+            blocks(bi,n_p->Column/nc)->I[i]++;
+   }
+
+   for (int j = 0; j < bc; j++)
+      for (int i = 0; i < br; i++)
+      {
+         SparseMatrix &b = *blocks(i,j);
+         int nnz = 0, rs;
+         for (int k = 1; k <= nr; k++)
+            rs = b.I[k], b.I[k] = nnz, nnz += rs;
+         b.J = new int[nnz];
+         b.A = new double[nnz];
+      }
+
+   for (int gr = 0; gr < size; gr++)
+   {
+      int bi = gr/nr, i = gr%nr + 1;
+      for (RowNode *n_p = Rows[gr]; n_p != NULL; n_p = n_p->Prev)
+         if (n_p->Value != 0.0)
+         {
+            SparseMatrix &b = *blocks(bi,n_p->Column/nc);
+            b.J[b.I[i]] = n_p->Column % nc;
+            b.A[b.I[i]] = n_p->Value;
+            b.I[i]++;
+         }
+   }
+}
+
 double SparseMatrix::IsSymmetric() const
 {
    if (A == NULL)
@@ -360,6 +410,25 @@ int SparseMatrix::NumNonZeroElems() const
 
       return nnz;
    }
+}
+
+double SparseMatrix::MaxNorm() const
+{
+   double m = 0.0;
+
+   if (A)
+   {
+      int nnz = I[size];
+      for (int j = 0; j < nnz; j++)
+         m = fmax(m, fabs(A[j]));
+   }
+   else
+   {
+      for (int i = 0; i < size; i++)
+         for (RowNode *n_p = Rows[i]; n_p != NULL; n_p = n_p->Prev)
+            m = fmax(m, fabs(n_p->Value));
+   }
+   return m;
 }
 
 int SparseMatrix::CountSmallElems(double tol)
