@@ -48,7 +48,7 @@ PROFILER_LIB = -L$(PROFILER_DIR) -lprofiler
 
 
 serial: ex1x ex3x ex4x test_simplex_intrules print_quadrature_rule \
- view_basis ex5 ex6
+ view_basis ex5 ex6 discrete-operators
 
 parallel: ex5p
 
@@ -82,6 +82,9 @@ ex6: ex6.cpp
 test_interp: test_interp.cpp
 	$(CC) $(OPTS) test_interp.cpp -o test_interp $(LIBS)
 
+discrete-operators: discrete-operators.cpp
+	$(CC) $(OPTS) discrete-operators.cpp -o discrete-operators $(LIBS)
+
 debug:
 	make "OPTS=$(DEBUG_OPTS)" serial
 
@@ -98,3 +101,5 @@ clean:
 	rm -f *.o *~ ex1x ex3x ex4x test_simplex_intrules print_quadrature_rule
 	rm -f view_basis ex5 ex5p ex6 test_interp
 	rm -f refined.mesh sol.gf perturbed.mesh smoothed.mesh
+	rm -f discrete-operators G_matrix.txt GtG_matrix.txt Pi_h_matrix.txt
+	rm -f C_matrix.txt D_matrix.txt
