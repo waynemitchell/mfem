@@ -377,6 +377,18 @@ void MixedBilinearForm::Finalize (int skip_zeros)
    mat -> Finalize (skip_zeros);
 }
 
+void MixedBilinearForm::GetBlocks(Array2D<SparseMatrix *> &blocks) const
+{
+   if (trial_fes->GetOrdering() != Ordering::byNODES ||
+       test_fes->GetOrdering() != Ordering::byNODES)
+      mfem_error("MixedBilinearForm::GetBlocks :\n"
+                 " Both trial and test spaces must use Ordering::byNODES!");
+
+   blocks.SetSize(test_fes->GetVDim(), trial_fes->GetVDim());
+
+   mat->GetBlocks(blocks);
+}
+
 void MixedBilinearForm::AddDomainIntegrator (BilinearFormIntegrator * bfi)
 {
    dom.Append (bfi);

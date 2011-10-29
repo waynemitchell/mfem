@@ -207,6 +207,11 @@ public:
 
    virtual void Finalize (int skip_zeros = 1);
 
+   /** Extract the associated matrix as SparseMatrix blocks. The number of
+       block rows and columns is given by the vector dimensions (vdim) of the
+       test and trial spaces, respectively. */
+   void GetBlocks(Array2D<SparseMatrix *> &blocks) const;
+
    const SparseMatrix &SpMat() const { return *mat; };
    SparseMatrix &SpMat() { return *mat; };
 
@@ -265,6 +270,9 @@ public:
    DiscreteLinearOperator(FiniteElementSpace *domain_fes,
                           FiniteElementSpace *range_fes)
       : MixedBilinearForm(domain_fes, range_fes) { }
+
+   void AddDomainInterpolator(DiscreteInterpolator *di)
+   { AddDomainIntegrator(di); }
 
    virtual void Assemble(int skip_zeros = 1);
 };

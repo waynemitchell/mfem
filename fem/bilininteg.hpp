@@ -380,9 +380,15 @@ public:
 };
 
 
+/** Abstract class to serve as a base for local interpolators to be used in
+    the DiscreteLinearOperator class. */
+class DiscreteInterpolator : public BilinearFormIntegrator { };
+
+
 /** Class for constructing the gradient as a DiscreteLinearOperator from an
-    H1-conforming space to an H(curl)-conforming space. */
-class GradientIntegrator : public BilinearFormIntegrator
+    H1-conforming space to an H(curl)-conforming space. The range space can
+    be vector L2 space as well. */
+class GradientInterpolator : public DiscreteInterpolator
 {
 public:
    virtual void AssembleElementMatrix2(const FiniteElement &h1_fe,
@@ -396,7 +402,7 @@ public:
 /** Class for constructing the identity map as a DiscreteLinearOperator. This
     is the discrete embedding matrix when the domain space is a subspace of
     the range space. Otherwise, a dof projection matrix is constructed. */
-class IdentityIntegrator : public BilinearFormIntegrator
+class IdentityInterpolator : public DiscreteInterpolator
 {
 public:
    virtual void AssembleElementMatrix2(const FiniteElement &dom_fe,
@@ -404,6 +410,39 @@ public:
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat)
    { ran_fe.Project(dom_fe, Trans, elmat); }
+};
+
+
+/** Class for constructing the (local) discrete curl matrix which can be used
+    as an integrator in a DiscreteLinearOperator object to assemble the global
+    discrete curl matrix. */
+class CurlInterpolator : public DiscreteInterpolator
+{
+public:
+   virtual void AssembleElementMatrix2(const FiniteElement &dom_fe,
+                                       const FiniteElement &ran_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat)
+   { ran_fe.ProjectCurl(dom_fe, Trans, elmat); }
+};
+
+
+/** Class for constructing the (local) discrete divergence matrix which can
+    be used as an integrator in a DiscreteLinearOperator object to assemble
+    the global discrete divergence matrix.
+
+    Note: Since the dofs in the L2_FECollection are nodal values, the local
+    discrete divergence matrix (with an RT-type domain space) will depend on
+    the transformation. On the other hand, the local matrix returned by
+    VectorFEDivergenceInterpolator is independent of the transformation. */
+class DivergenceInterpolator : public DiscreteInterpolator
+{
+public:
+   virtual void AssembleElementMatrix2(const FiniteElement &dom_fe,
+                                       const FiniteElement &ran_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat)
+   { ran_fe.ProjectDiv(dom_fe, Trans, elmat); }
 };
 
 #endif
