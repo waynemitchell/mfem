@@ -19,9 +19,8 @@
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
-//               bilinear form, the projection of grid functions between finite
-//               element spaces and the computation of discretization error when
-//               the exact solution is known.
+//               bilinear form, as well as the computation of discretization
+//               error when the exact solution is known.
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
@@ -119,38 +118,28 @@ int main (int argc, char *argv[])
    // 8. Compute and print the L^2 norm of the error.
    cout << "\n|| E_h - E ||_{L^2} = " << x.ComputeL2Error(E) << '\n' << endl;
 
-   // 9. In order to visualize the solution, we first represent it in the space
-   //    of linear discontinuous vector finite elements. The representation in
-   //    this space is obtained by (exact) projection with ProjectVectorFieldOn.
-   FiniteElementCollection *dfec = new LinearDiscont3DFECollection;
-   FiniteElementSpace *dfespace = new FiniteElementSpace(mesh, dfec, 3);
-   GridFunction dx(dfespace);
-   x.ProjectVectorFieldOn(dx);
-
-   // 10. Save the refined mesh and the solution. This output can be viewed
-   //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // 9. Save the refined mesh and the solution. This output can be viewed
+   //    later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("refined.mesh");
       mesh_ofs.precision(8);
       mesh->Print(mesh_ofs);
       ofstream sol_ofs("sol.gf");
       sol_ofs.precision(8);
-      dx.Save(sol_ofs);
+      x.Save(sol_ofs);
    }
 
-   // 11. (Optional) Send the solution by socket to a GLVis server.
+   // 10. (Optional) Send the solution by socket to a GLVis server.
    char vishost[] = "localhost";
    int  visport   = 19916;
    osockstream sol_sock(visport, vishost);
    sol_sock << "solution\n";
    sol_sock.precision(8);
    mesh->Print(sol_sock);
-   dx.Save(sol_sock);
+   x.Save(sol_sock);
    sol_sock.send();
 
-   // 12. Free the used memory.
-   delete dfespace;
-   delete dfec;
+   // 11. Free the used memory.
    delete a;
    delete sigma;
    delete muinv;
