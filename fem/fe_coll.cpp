@@ -14,7 +14,7 @@
 #include <cstring>
 #include <cstdio>
 
-int FiniteElementCollection::HasFaceDofs (int GeomType) const
+int FiniteElementCollection::HasFaceDofs(int GeomType) const
 {
    switch (GeomType)
    {
@@ -83,6 +83,8 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
       fec = new L2_FECollection(atoi(name + 7), atoi(name + 3));
    else if (!strncmp(name, "RT_", 3))
       fec = new RT_FECollection(atoi(name + 7), atoi(name + 3));
+   else if (!strncmp(name, "Local_", 6))
+      fec = new Local_FECollection(name + 6);
    else if (!strncmp(name, "NURBS", 5))
       fec = new NURBSFECollection(atoi(name + 5));
    else
@@ -1432,6 +1434,33 @@ ND_FECollection::~ND_FECollection()
    delete [] QuadDofOrd[0];
    for (int g = 0; g < Geometry::NumGeom; g++)
       delete ND_Elements[g];
+}
+
+
+Local_FECollection::Local_FECollection(const char *fe_name)
+{
+   snprintf(d_name, 32, "Local_%s", fe_name);
+
+   Local_Element = NULL;
+
+   if (!strcmp(fe_name, "BiCubic2DFiniteElement") ||
+       !strcmp(fe_name, "Quad_Q3"))
+   {
+      GeomType = Geometry::SQUARE;
+      Local_Element = new BiCubic2DFiniteElement;
+   }
+   else if (!strcmp(fe_name, "Nedelec1HexFiniteElement") ||
+            !strcmp(fe_name, "Hex_ND1"))
+   {
+      GeomType = Geometry::CUBE;
+      Local_Element = new Nedelec1HexFiniteElement;
+   }
+   else
+   {
+      cerr << "Local_FECollection::Local_FECollection : fe_name = "
+           << fe_name << endl;
+      mfem_error();
+   }
 }
 
 

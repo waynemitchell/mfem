@@ -24,7 +24,7 @@ public:
 
    virtual const char * Name() const { return "Undefined"; };
 
-   int HasFaceDofs (int GeomType) const;
+   int HasFaceDofs(int GeomType) const;
 
    virtual ~FiniteElementCollection() { };
 
@@ -582,6 +582,29 @@ public:
    virtual const char *Name() const { return nd_name; }
 
    virtual ~ND_FECollection();
+};
+
+
+/// Discontinuous collection defined locally by a given finite element.
+class Local_FECollection : public FiniteElementCollection
+{
+private:
+   char d_name[32];
+   int GeomType;
+   FiniteElement *Local_Element;
+
+public:
+   Local_FECollection(const char *fe_name);
+
+   virtual const FiniteElement *FiniteElementForGeometry(int _GeomType) const
+   { return (GeomType == _GeomType) ? Local_Element : NULL; }
+   virtual int DofForGeometry(int _GeomType) const
+   { return (GeomType == _GeomType) ? Local_Element->GetDof() : 0; }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const
+   { return NULL; }
+   virtual const char *Name() const { return d_name; }
+
+   virtual ~Local_FECollection() { delete Local_Element; }
 };
 
 
