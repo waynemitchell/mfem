@@ -109,6 +109,9 @@ public:
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; };
 
+   /// Returns the order of the i'th finite element
+   int GetOrder(int i) const;
+
    /// Returns number of degrees of freedom.
    inline int GetNDofs() const { return ndofs; };
 

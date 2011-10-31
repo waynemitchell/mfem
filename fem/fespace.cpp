@@ -14,6 +14,13 @@
 #include "fem.hpp"
 #include <math.h>
 
+int FiniteElementSpace::GetOrder(int i) const
+{
+   int GeomType = mesh->GetElementBaseGeometry(i);
+   return fec->FiniteElementForGeometry(GeomType)->GetOrder();
+}
+
+
 void FiniteElementSpace::DofsToVDofs (Array<int> &dofs) const
 {
    int i, j, size;
