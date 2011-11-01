@@ -178,34 +178,6 @@ int main (int argc, char *argv[])
            << xp.ComputeL2Error(F) << '\n' << endl;
    }
 
-   // 9. In order to visualize the solution, we first represent it in the space
-   //    of linear discontinuous vector finite elements. The representation in
-   //    this space is obtained by (exact) projection with ProjectVectorFieldOn.
-   FiniteElementCollection *dfec;
-#if 0
-   switch (fec_type)
-   {
-   case 1:
-      if (dim == 2)
-         dfec = new LinearDiscont2DFECollection;
-      else
-         dfec = new LinearDiscont3DFECollection;
-      break;
-   case 2:
-      if (dim == 2)
-         dfec = new QuadraticDiscont2DFECollection;
-      else
-         dfec = new QuadraticDiscont3DFECollection;
-      break;
-   }
-#else
-   dfec = new L2_FECollection(k + 1, dim);
-   // dfec = new L2_FECollection(k + 2, dim); // for curved meshes?
-#endif
-   FiniteElementSpace *dfespace = new FiniteElementSpace(mesh, dfec, dim);
-   GridFunction dx(dfespace);
-   x.ProjectVectorFieldOn(dx);
-
    // 10. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
@@ -214,10 +186,7 @@ int main (int argc, char *argv[])
       mesh->Print(mesh_ofs);
       ofstream sol_ofs("sol.gf");
       sol_ofs.precision(8);
-      if (dim == 3)
-         dx.Save(sol_ofs);
-      else
-         x.Save(sol_ofs);
+      x.Save(sol_ofs);
    }
 
    // 11. (Optional) Send the solution by socket to a GLVis server.
@@ -227,13 +196,7 @@ int main (int argc, char *argv[])
    sol_sock << "solution\n";
    sol_sock.precision(8);
    mesh->Print(sol_sock);
-   if (dim == 3)
-      dx.Save(sol_sock);
-   else
-   {
-      // dx.Save(sol_sock);
-      x.Save(sol_sock);
-   }
+   x.Save(sol_sock);
    sol_sock.send();
 
    // view the projection
@@ -241,27 +204,16 @@ int main (int argc, char *argv[])
    {
       GridFunction xp(fespace);
       xp.ProjectCoefficient(F);    // xp <-- F
-      xp.ProjectVectorFieldOn(dx); // xp --> dx
 
       osockstream sol_sock(visport, vishost);
       sol_sock << "solution\n";
       sol_sock.precision(8);
       mesh->Print(sol_sock);
-      if (dim == 3)
-      {
-         dx.Save(sol_sock);
-      }
-      else
-      {
-         // dx.Save(sol_sock);
-         xp.Save(sol_sock);
-      }
+      xp.Save(sol_sock);
       sol_sock.send();
    }
 
    // 12. Free the used memory.
-   delete dfespace;
-   delete dfec;
    delete a;
    delete alpha;
    delete beta;
@@ -277,6 +229,8 @@ const double sx = 7./23.;
 const double sy = 1./3.;
 const double sz = 5./7.;
 
+const double kappa = M_PI/5;
+
 // The exact solution
 void F_exact(const Vector &p, Vector &F)
 {
@@ -289,8 +243,8 @@ void F_exact(const Vector &p, Vector &F)
    if(dim == 3)
       z = p(2) - sz;
 
-   F(0) = cos(M_PI*x)*sin(M_PI*y);
-   F(1) = cos(M_PI*y)*sin(M_PI*x);
+   F(0) = cos(kappa*x)*sin(kappa*y);
+   F(1) = cos(kappa*y)*sin(kappa*x);
    if(dim == 3)
       F(2) = 0.0;
 }
@@ -307,10 +261,10 @@ void f_exact(const Vector &p, Vector &f)
    if(dim == 3)
       z = p(2) - sz;
 
-   double temp = 1 + 2*M_PI*M_PI;
+   double temp = 1 + 2*kappa*kappa;
 
-   f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
-   f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
+   f(0) = temp*cos(kappa*x)*sin(kappa*y);
+   f(1) = temp*cos(kappa*y)*sin(kappa*x);
    if(dim == 3)
       f(2) = 0;
 }
