@@ -83,6 +83,8 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
       fec = new L2_FECollection(atoi(name + 7), atoi(name + 3));
    else if (!strncmp(name, "RT_", 3))
       fec = new RT_FECollection(atoi(name + 7), atoi(name + 3));
+   else if (!strncmp(name, "ND_", 3))
+      fec = new ND_FECollection(atoi(name + 7), atoi(name + 3));
    else if (!strncmp(name, "Local_", 6))
       fec = new Local_FECollection(name + 6);
    else if (!strncmp(name, "NURBS", 5))
