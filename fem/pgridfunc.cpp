@@ -140,6 +140,19 @@ double ParGridFunction::ComputeMaxError(VectorCoefficient &exsol,
    return gerr;
 }
 
+void ParGridFunction::Save(ostream &out)
+{
+   for (int i = 0; i < size; i++)
+      if (pfes->GetDofSign(i) < 0)
+         data[i] = -data[i];
+
+   GridFunction::Save(out);
+
+   for (int i = 0; i < size; i++)
+      if (pfes->GetDofSign(i) < 0)
+         data[i] = -data[i];
+}
+
 void ParGridFunction::SaveAsOne(ostream &out)
 {
    int i, p;
