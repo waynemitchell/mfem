@@ -81,7 +81,7 @@ public:
    int *GetTrueDofOffsets() { return tdof_offsets; }
    int GlobalVSize()        { return Dof_TrueDof_Matrix()->GetGlobalNumRows(); }
    int GlobalTrueVSize()    { return Dof_TrueDof_Matrix()->GetGlobalNumCols(); }
-   int GetDofSign(int i)    { return ldof_sign[i]; }
+   int GetDofSign(int i)    { return NURBSext ? 1 : ldof_sign[i]; }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
