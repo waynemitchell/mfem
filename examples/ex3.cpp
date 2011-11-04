@@ -15,7 +15,7 @@
 //               equation curl curl E + E = f with boundary condition
 //               E x n = <given tangential field>. Here, we use a given exact
 //               solution E and compute the corresponding r.h.s. f.
-//               We discretize with the lowest order Nedelec finite elements.
+//               We discretize with Nedelec finite elements.
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
@@ -69,8 +69,10 @@ int main (int argc, char *argv[])
    }
 
    // 3. Define a finite element space on the mesh. Here we use the lowest order
-   //    Nedelec finite elements.
-   FiniteElementCollection *fec = new ND1_3DFECollection;
+   //    Nedelec finite elements, but we can easily swich to higher-order spaces
+   //    by changing the value of p.
+   int p = 1;
+   FiniteElementCollection *fec = new ND_FECollection(p, mesh -> Dimension());
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side

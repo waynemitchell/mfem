@@ -17,8 +17,8 @@
 //               problem corresponding to the second order definite equation
 //               -grad(alpha div F) + beta F = f with boundary condition F dot n
 //               = <given normal field>. Here, we use a given exact solution F
-//               and compute the corresponding r.h.s. f.  We discretize with the
-//               lowest order Raviart-Thomas finite elements.
+//               and compute the corresponding r.h.s. f.  We discretize with
+//               Raviart-Thomas finite elements.
 //
 //               The example demonstrates the use of H(div) finite element
 //               spaces with the grad-div and H(div) vector finite element mass
@@ -81,7 +81,9 @@ int main (int argc, char *argv[])
 
    // 4. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted.
+   //    parallel mesh is defined, the serial mesh can be deleted. Tetrahedral
+   //    meshes need to be reoriented before we can define high-order Nedelec
+   //    spaces on them (this is needed in the ADS solver below).
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
@@ -89,36 +91,13 @@ int main (int argc, char *argv[])
       for (int l = 0; l < par_ref_levels; l++)
          pmesh->UniformRefinement();
    }
+   pmesh->ReorientTetMesh();
 
    // 5. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Raviart-Thomas finite elements.
-   FiniteElementCollection *fec;
-   int fec_type;
-   if (myid == 0)
-   {
-      cout << "Choose the finite element space:\n"
-           << " 1) RT0\n"
-           << " 2) RT1\n"
-           << " ---> ";
-      cin >> fec_type;
-   }
-   MPI_Bcast(&fec_type, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-   switch (fec_type)
-   {
-   case 1:
-      if (dim == 2)
-         fec = new RT0_2DFECollection;
-      else
-         fec = new RT0_3DFECollection;
-      break;
-   case 2:
-      if (dim == 2)
-         fec = new RT1_2DFECollection;
-      else
-         fec = new RT1_3DFECollection;
-      break;
-   }
+   //    use the lowest order Raviart-Thomas finite elements, but we can easily
+   //    swich to higher-order spaces by changing the value of p.
+   int p = 1;
+   FiniteElementCollection *fec = new RT_FECollection(p-1, pmesh -> Dimension());
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
 
    // 6. Set up the parallel linear form b(.) which corresponds to the
@@ -173,13 +152,13 @@ int main (int argc, char *argv[])
    delete beta;
    delete b;
 
-   // 10. Define and apply a parallel PCG solver for AX=B with the AMS (for 2D
-   //     RT0 problems) or AMG preconditioner (otherwise) from hypre.
+   // 10. Define and apply a parallel PCG solver for AX=B with the 2D AMS or the
+   //     3D ADS preconditioners from hypre.
    HypreSolver *prec;
-   if (dim == 2 && fec_type == 1)
+   if (dim == 2)
       prec = new HypreAMS(*A, fespace);
    else
-      prec = new HypreBoomerAMG(*A);
+      prec = new HypreADS(*A, fespace);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-10);
    pcg->SetMaxIter(500);

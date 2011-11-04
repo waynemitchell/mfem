@@ -15,7 +15,7 @@
 //               equation curl curl E + E = f with boundary condition
 //               E x n = <given tangential field>. Here, we use a given exact
 //               solution E and compute the corresponding r.h.s. f.
-//               We discretize with the lowest order Nedelec finite elements.
+//               We discretize with Nedelec finite elements.
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
@@ -84,7 +84,9 @@ int main (int argc, char *argv[])
 
    // 4. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted.
+   //    parallel mesh is defined, the serial mesh can be deleted. Tetrahedral
+   //    meshes need to be reoriented before we can define high-order Nedelec
+   //    spaces on them.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
@@ -92,10 +94,13 @@ int main (int argc, char *argv[])
       for (int l = 0; l < par_ref_levels; l++)
          pmesh->UniformRefinement();
    }
+   pmesh->ReorientTetMesh();
 
    // 5. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Nedelec finite elements.
-   FiniteElementCollection *fec = new ND1_3DFECollection;
+   //    use the lowest order Nedelec finite elements, but we can easily swich
+   //    to higher-order spaces by changing the value of p.
+   int p = 1;
+   FiniteElementCollection *fec = new ND_FECollection(p, pmesh -> Dimension());
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
 
    // 6. Set up the parallel linear form b(.) which corresponds to the

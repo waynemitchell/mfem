@@ -18,7 +18,7 @@
 //               -grad(alpha div F) + beta F = f with boundary condition F dot n
 //               = <given normal field>. Here, we use a given exact solution F
 //               and compute the corresponding r.h.s. f.  We discretize with the
-//               lowest order Raviart-Thomas finite elements.
+//               Raviart-Thomas finite elements.
 //
 //               The example demonstrates the use of H(div) finite element
 //               spaces with the grad-div and H(div) vector finite element mass
@@ -70,29 +70,10 @@ int main (int argc, char *argv[])
    }
 
    // 3. Define a finite element space on the mesh. Here we use the lowest order
-   //    Raviart-Thomas finite elements.
-   FiniteElementCollection *fec;
-   int fec_type;
-   cout << "Choose the finite element space:\n"
-        << " 1) RT0\n"
-        << " 2) RT1\n"
-        << " ---> ";
-   cin >> fec_type;
-   switch (fec_type)
-   {
-   case 1:
-      if (dim == 2)
-         fec = new RT0_2DFECollection;
-      else
-         fec = new RT0_3DFECollection;
-      break;
-   case 2:
-      if (dim == 2)
-         fec = new RT1_2DFECollection;
-      else
-         fec = new RT1_3DFECollection;
-      break;
-   }
+   //    Raviart-Thomas finite elements, but we can easily swich to higher-order
+   //    spaces by changing the value of p.
+   int p = 1;
+   FiniteElementCollection *fec = new RT_FECollection(p-1, mesh -> Dimension());
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side
