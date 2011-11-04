@@ -446,6 +446,24 @@ int ParFiniteElementSpace::GetGlobalTDofNumber(int ldof)
       tdof_offsets[GetGroupTopo().GetGroupMasterRank(ldof_group[ldof])];
 }
 
+int ParFiniteElementSpace::GetGlobalScalarTDofNumber(int sldof)
+{
+   if (HYPRE_AssumedPartitionCheck())
+   {
+      mfem_error("ParFiniteElementSpace::GetGlobalScalarTDofNumber "
+                 "does not support Assumed Partitioning!\n");
+   }
+
+   if (ordering == Ordering::byNODES)
+      return ldof_ltdof[sldof] +
+         tdof_offsets[GetGroupTopo().GetGroupMasterRank(
+            ldof_group[sldof])] / vdim;
+   else
+      return (ldof_ltdof[sldof*vdim] +
+              tdof_offsets[GetGroupTopo().GetGroupMasterRank(
+                    ldof_group[sldof*vdim])]) / vdim;
+}
+
 void ParFiniteElementSpace::Lose_Dof_TrueDof_Matrix()
 {
    hypre_ParCSRMatrix *csrP = (hypre_ParCSRMatrix*)(*P);

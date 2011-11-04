@@ -114,6 +114,10 @@ public:
    int GetLocalTDofNumber(int ldof);
    /// Returns the global tdof number of the given local degree of freedom
    int GetGlobalTDofNumber(int ldof);
+   /** Returns the global tdof number of the given local degree of freedom in
+       the scalar vesion of the current finite element space. The input should
+       be a scalar local dof. */
+   int GetGlobalScalarTDofNumber(int sldof);
 
    void Lose_Dof_TrueDof_Matrix();
    void LoseDofOffsets() { dof_offsets.LoseData(); }
