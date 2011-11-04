@@ -59,7 +59,11 @@ int main(int argc, char *argv[])
       cout << "Enter ref. levels = " << flush;
       cin >> ref_levels;
       for (int l = 0; l < ref_levels; l++)
+      {
+         cout << "refinement level " << l + 1 << " ... " << flush;
          mesh->UniformRefinement();
+         cout << "done." << endl;
+      }
       cout << endl;
       mesh->PrintCharacteristics();
    }
@@ -80,14 +84,44 @@ int main(int argc, char *argv[])
 
    // 3. Define a finite element space on the mesh. Here we use linear finite
    //    elements.
+   cout << "Mesh curvature: ";
+   if (mesh->GetNodes())
+      cout << mesh->GetNodes()->OwnFEC()->Name();
+   else
+      cout << "(NONE)";
+   cout << endl;
+
+   char c = '1';
+   int min_p = 1;
+   if (mesh->NURBSext)
+   {
+      cout <<
+         "0) NURBS basis functions\n"
+         "1) classical FEM basis functions\n"
+         " --> " << flush;
+      cin >> c;
+      if (c == '0')
+         min_p = mesh->NURBSext->GetOrder();
+   }
+
    int p;
    do
    {
-      cout << "Enter p = " << flush;
+      cout << "enter order --> " << flush;
       cin >> p;
    }
-   while (p < 1 || p > 32);
-   FiniteElementCollection *fec = new H1_FECollection(p, mesh->Dimension());
+   while (p < min_p || p > 32);
+
+   FiniteElementCollection *fec;
+   switch(c)
+   {
+   case '0':
+      fec = new NURBSFECollection(p);
+      break;
+   default:
+      fec = new H1_FECollection(p, mesh->Dimension());
+      break;
+   }
    // p = 3; FiniteElementCollection *fec = new CubicFECollection;
    // p = 2; FiniteElementCollection *fec = new QuadraticFECollection;
    // p = 1; FiniteElementCollection *fec = new LinearFECollection;
@@ -99,19 +133,55 @@ int main(int argc, char *argv[])
    }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
 
+   FunctionCoefficient e_sol(&exact_sol);
+
+   bool useL2proj = (c == '0') ? true : false;
+   // bool useL2proj = true;
+
+   GridFunction xp(fespace);
+   if (!useL2proj)
+   {
+      xp.ProjectCoefficient(e_sol);
+   }
+   else
+   {
+      // L2 projection
+      cout << "\nComputing the L2 projection of the exact solution:\n"
+           << flush;
+      LinearForm bp(fespace);
+      bp.AddDomainIntegrator(new DomainLFIntegrator(e_sol));
+      cout << "rhs ... " << flush;
+      bp.Assemble();
+
+      BilinearForm ap(fespace);
+      ap.AddDomainIntegrator(new MassIntegrator);
+      cout << "matrix ... " << flush;
+      ap.Assemble();
+
+      const SparseMatrix &Ap = ap.SpMat();
+
+      GSSmoother Mp(Ap);
+      xp = 0.0;
+      cout << "solving the system ..." << endl;
+      PCG(Ap, Mp, bp, xp, 1, 5000, 1e-30, 0.0);
+      cout << " ... done. (L2 projection)" << endl;
+   }
+
+   cout << "\nAssebling: ";
+
    // 4. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
    //    the basis functions in the finite element fespace.
    LinearForm *b = new LinearForm(fespace);
    FunctionCoefficient rhs_coeff(&exact_rhs);
    b->AddDomainIntegrator(new DomainLFIntegrator(rhs_coeff));
+   cout << "rhs ... " << flush;
    b->Assemble();
 
    // 5. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    GridFunction x(fespace);
-   FunctionCoefficient e_sol(&exact_sol);
    x = 0.0;
 
    // 6. Set up the bilinear form a(.,.) on the finite element space
@@ -123,19 +193,34 @@ int main(int argc, char *argv[])
    BilinearForm *a = new BilinearForm(fespace);
    ConstantCoefficient one(1.0);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   cout << "matrix ... " << flush;
    a->Assemble();
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
-   x.ProjectBdrCoefficient(e_sol, ess_bdr);
+   cout << "b.c. ... " << flush;
+   if (!useL2proj)
+   {
+      x.ProjectBdrCoefficient(e_sol, ess_bdr);
+   }
+   else
+   {
+      // copy boundary dofs from the domain L2 projection
+      Array<int> dofs;
+      fespace->GetEssentialVDofs(ess_bdr, dofs);
+      for (int i = 0; i < dofs.Size(); i++)
+         if (dofs[i])
+            x(i) = xp(i);
+   }
    // x.ProjectCoefficient(e_sol);
    a->EliminateEssentialBC(ess_bdr, x, *b);
    // a->Finalize();
    const SparseMatrix &A = a->SpMat();
+   cout << "done." << endl;
 
    if (1)
    {
-      cout << "\nMatrix stats: size = " << A.Size() << " , nnz = "
-           << A.NumNonZeroElems() << " , nnz/size = "
+      cout << "\nMatrix stats: size = " << A.Size() << ", nnz = "
+           << A.NumNonZeroElems() << ", nnz/size = "
            << double(A.NumNonZeroElems())/A.Size() << '\n' << endl;
    }
 
@@ -147,29 +232,30 @@ int main(int argc, char *argv[])
 
    cout << "\n|| u_h - u ||_{L^2} = " << x.ComputeL2Error(e_sol)
         << '\n' << endl;
+
    {
-      GridFunction xp(fespace);
-      xp.ProjectCoefficient(e_sol);
       cout << "projecton error :"
            << "\n|| u_h - u ||_{L^2} = "
            << xp.ComputeL2Error(e_sol) << '\n' << endl;
    }
 
+   const int prec = 14;
+
    // 8. Save the refined mesh and the solution. This output can be viewed later
    //    using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("refined.mesh");
-      mesh_ofs.precision(8);
+      mesh_ofs.precision(prec);
       mesh->Print(mesh_ofs);
       ofstream sol_ofs("sol.gf");
-      sol_ofs.precision(8);
+      sol_ofs.precision(prec);
       x.Save(sol_ofs);
    }
 
    if (0)
    {
       ofstream sol_vtk("solution.vtk");
-      sol_vtk.precision(8);
+      sol_vtk.precision(prec);
       GlobGeometryRefiner.SetType(1);
       mesh->PrintVTK(sol_vtk, p);
       x.SaveVTK(sol_vtk, "solution", p);
@@ -180,10 +266,23 @@ int main(int argc, char *argv[])
    int  visport   = 19916;
    osockstream sol_sock(visport, vishost);
    sol_sock << "solution\n";
-   sol_sock.precision(8);
+   sol_sock.precision(prec);
    mesh->Print(sol_sock);
    x.Save(sol_sock);
    sol_sock.send();
+
+   // view the projection, or projection-solution
+   if (0)
+   {
+      // xp -= x;
+
+      osockstream esol_sock(visport, vishost);
+      esol_sock << "solution\n";
+      esol_sock.precision(prec);
+      mesh->Print(esol_sock);
+      xp.Save(esol_sock);
+      esol_sock.send();
+   }
 
    if (0)
    {
@@ -195,7 +294,7 @@ int main(int argc, char *argv[])
 
       osockstream dsol_sock(visport, vishost);
       dsol_sock << "solution\n";
-      dsol_sock.precision(8);
+      dsol_sock.precision(prec);
       mesh->Print(dsol_sock);
       dx.Save(dsol_sock);
       dsol_sock.send();
@@ -215,16 +314,18 @@ const double sx = 1./3.;
 const double sy = 11./23.;
 const double sz = 3./7.;
 
+const double kappa = M_PI/5;
+
 double exact_sol(Vector &x)
 {
    int dim = x.Size();
    if (dim == 2)
    {
-      return sin(M_PI*(x(0)-sx))*sin(M_PI*(x(1)-sy));
+      return sin(kappa*(x(0)-sx))*sin(kappa*(x(1)-sy));
    }
    else if (dim == 3)
    {
-      return sin(M_PI*(x(0)-sx))*sin(M_PI*(x(1)-sy))*sin(M_PI*(x(2)-sz));
+      return sin(kappa*(x(0)-sx))*sin(kappa*(x(1)-sy))*sin(kappa*(x(2)-sz));
    }
    return 0.;
 }
@@ -234,12 +335,12 @@ double exact_rhs(Vector &x)
    int dim = x.Size();
    if (dim == 2)
    {
-      return 2*M_PI*M_PI*sin(M_PI*(x(0)-sx))*sin(M_PI*(x(1)-sy));
+      return 2*kappa*kappa*sin(kappa*(x(0)-sx))*sin(kappa*(x(1)-sy));
    }
    else if (dim == 3)
    {
-      return (3*M_PI*M_PI*
-              sin(M_PI*(x(0)-sx))*sin(M_PI*(x(1)-sy))*sin(M_PI*(x(2)-sz)));
+      return (3*kappa*kappa*
+              sin(kappa*(x(0)-sx))*sin(kappa*(x(1)-sy))*sin(kappa*(x(2)-sz)));
    }
    return 0.;
 }

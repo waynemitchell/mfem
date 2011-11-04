@@ -175,7 +175,7 @@ public:
    void Update(FiniteElementSpace *f, Vector &v, int v_offset);
 
    /// Save the GridFunction to an output stream.
-   void Save(ostream &out);
+   virtual void Save(ostream &out);
 
    /** Write the GridFunction in VTK format. Note that Mesh::PrintVTK must be
        called first. The parameter ref must match the one used in

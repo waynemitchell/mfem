@@ -80,6 +80,11 @@ public:
    double ComputeMaxError(VectorCoefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const;
 
+   /** Save the local portion of the ParGridFunction. It differs from the
+       serial GridFunction::Save in that it takes into account the signs of
+       the local dofs. */
+   virtual void Save(ostream &out);
+
    /// Merge the local grid functions
    void SaveAsOne(ostream &out = cout);
 

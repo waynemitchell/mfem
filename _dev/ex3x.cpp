@@ -124,29 +124,16 @@ int main(int argc, char *argv[])
    cout << "\nprojection error:\n|| E_h - E ||_{L^2} = "
         << xp.ComputeL2Error(E) << endl;
 
-   // 9. In order to visualize the solution, we first represent it in the space
-   //    of linear discontinuous vector finite elements. The representation in
-   //    this space is obtained by (exact) projection with ProjectVectorFieldOn.
-   FiniteElementCollection *dfec;
-   if (1)
-      dfec = new L2_FECollection(p, dim);
-   else
-      dfec = new L2_FECollection(p + 1, dim); // curved meshes?
-   FiniteElementSpace *dfespace = new FiniteElementSpace(mesh, dfec, dim);
-   GridFunction dx(dfespace);
-
    // view the projection
    if (1)
    {
-      xp.ProjectVectorFieldOn(dx);
-
       char vishost[] = "localhost";
       int  visport   = 19916;
       osockstream sol_sock(visport, vishost);
       sol_sock << "solution\n";
       sol_sock.precision(8);
       mesh->Print(sol_sock);
-      dx.Save(sol_sock);
+      xp.Save(sol_sock);
       sol_sock.send();
    }
 
@@ -209,8 +196,6 @@ int main(int argc, char *argv[])
 
    // x -= xp;
 
-   x.ProjectVectorFieldOn(dx);
-
    // 10. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
@@ -219,7 +204,7 @@ int main(int argc, char *argv[])
       mesh->Print(mesh_ofs);
       ofstream sol_ofs("sol.gf");
       sol_ofs.precision(8);
-      dx.Save(sol_ofs);
+      x.Save(sol_ofs);
    }
 
    // 11. (Optional) Send the solution by socket to a GLVis server.
@@ -229,12 +214,10 @@ int main(int argc, char *argv[])
    sol_sock << "solution\n";
    sol_sock.precision(8);
    mesh->Print(sol_sock);
-   dx.Save(sol_sock);
+   x.Save(sol_sock);
    sol_sock.send();
 
    // 12. Free the used memory.
-   delete dfespace;
-   delete dfec;
    delete a;
    delete sigma;
    delete muinv;
