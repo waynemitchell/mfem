@@ -455,12 +455,12 @@ void HypreParMatrix::DestroyCommPkg()
 
 HypreParMatrix::operator hypre_ParCSRMatrix*()
 {
-   return A;
+   return (this) ? A : NULL;
 }
 
 HypreParMatrix::operator HYPRE_ParCSRMatrix()
 {
-   return (HYPRE_ParCSRMatrix) A;
+   return (this) ? (HYPRE_ParCSRMatrix) A : (HYPRE_ParCSRMatrix) NULL;
 }
 
 hypre_ParCSRMatrix* HypreParMatrix::StealData()
@@ -1013,105 +1013,6 @@ HypreBoomerAMG::~HypreBoomerAMG()
 }
 
 
-HypreParMatrix* DiscreteGrad(ParFiniteElementSpace *edge_fespace,
-                             ParFiniteElementSpace *vert_fespace)
-{
-   int i, e;
-   ParMesh *pmesh = (ParMesh *) edge_fespace->GetMesh();
-
-   // set the number of vertices in each edge
-   int nedges = edge_fespace->TrueVSize();
-   int *edge_offset = new int[nedges+1];
-   for (int i = 0; i <= nedges; i++)
-      edge_offset[i] = 2*i;
-
-   // set the orientation of locally owned edges (tdofs in edge_fespace)
-   int *edge_vert = new int[2*nedges];
-   double *vert_sign = new double[2*nedges];
-   Array<int> vert;
-   for (i = 0; i < pmesh->GetNEdges(); i++)
-   {
-      e = edge_fespace->GetLocalTDofNumber(i);
-      if (e >= 0)
-      {
-         pmesh->GetEdgeVertices(i,vert);
-         edge_vert[2*e]   = vert_fespace->GetGlobalTDofNumber(vert[0]);
-         edge_vert[2*e+1] = vert_fespace->GetGlobalTDofNumber(vert[1]);
-         vert_sign[2*e]   = -edge_fespace->GetDofSign(i);
-         vert_sign[2*e+1] = edge_fespace->GetDofSign(i);
-      }
-   }
-
-   // construct the corresponding ParCSR matrix
-   HypreParMatrix *G = new HypreParMatrix(edge_fespace->GetComm(),
-                                          edge_fespace->TrueVSize(),
-                                          edge_fespace->GlobalTrueVSize(),
-                                          vert_fespace->GlobalTrueVSize(),
-                                          edge_offset, edge_vert, vert_sign,
-                                          edge_fespace->GetTrueDofOffsets(),
-                                          vert_fespace->GetTrueDofOffsets());
-
-   delete [] edge_vert;
-   delete [] vert_sign;
-   delete [] edge_offset;
-
-   return G;
-}
-
-HypreParMatrix* DiscreteCurl(ParFiniteElementSpace *face_fespace,
-                             ParFiniteElementSpace *edge_fespace)
-{
-   int i, j, f;
-   ParMesh *pmesh = (ParMesh *) face_fespace->GetMesh();
-
-   // count the number of edges in each face
-   int nfaces = face_fespace->TrueVSize();
-   int *face_offset = new int[nfaces+1];
-   for (i = 0; i < pmesh->GetNFaces(); i++)
-   {
-      f = face_fespace->GetLocalTDofNumber(i);
-      face_offset[f+1] = pmesh->GetFace(i)->GetNEdges();
-   }
-   face_offset[0] = 0;
-   for (i = 1; i < nfaces; i++)
-      face_offset[i+1] += face_offset[i];
-
-   // set the orientation of locally owned faces (tdofs in face_fespace)
-   int *face_edge = new int[face_offset[nfaces]];
-   double *edge_sign = new double[face_offset[nfaces]];
-   Array<int> edge, orient;
-   for (i = 0; i < pmesh->GetNFaces(); i++)
-   {
-      f = face_fespace->GetLocalTDofNumber(i);
-      if (f >= 0)
-      {
-         pmesh->GetFaceEdges(i, edge, orient);
-         for (j = 0; j < face_offset[f+1]-face_offset[f]; j++)
-         {
-            face_edge[face_offset[f]+j] = edge_fespace->GetGlobalTDofNumber(edge[j]);
-            edge_sign[face_offset[f]+j] = (orient[j] * face_fespace->GetDofSign(i) *
-                                           edge_fespace->GetDofSign(edge[j]));
-         }
-      }
-   }
-
-   // construct the corresponding ParCSR matrix
-   HypreParMatrix *C = new HypreParMatrix(face_fespace->GetComm(),
-                                          face_fespace->TrueVSize(),
-                                          face_fespace->GlobalTrueVSize(),
-                                          edge_fespace->GlobalTrueVSize(),
-                                          face_offset, face_edge, edge_sign,
-                                          face_fespace->GetTrueDofOffsets(),
-                                          edge_fespace->GetTrueDofOffsets());
-
-   delete [] face_edge;
-   delete [] edge_sign;
-   delete [] face_offset;
-
-   return C;
-}
-
-
 HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    : HypreSolver(&A)
 {
@@ -1127,9 +1028,11 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    int amg_interp_type  = 6;
    int amg_Pmax         = 4;
 
+   int p = edge_fespace->GetOrder(0);
+   int dim = edge_fespace->GetMesh()->Dimension();
+
    HYPRE_AMSCreate(&ams);
 
-   int dim = edge_fespace->GetMesh()->Dimension();
    HYPRE_AMSSetDimension(ams, dim); // 2D H(div) and 3D H(curl) problems
    HYPRE_AMSSetTol(ams, 0.0);
    HYPRE_AMSSetMaxIter(ams, 1); // use as a preconditioner
@@ -1138,41 +1041,93 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
 
    // define the nodal linear finite element space associated with edge_fespace
    ParMesh *pmesh = (ParMesh *) edge_fespace->GetMesh();
-   FiniteElementCollection *vert_fec = new LinearFECollection;
+   FiniteElementCollection *vert_fec = new H1_FECollection(p, dim);
    ParFiniteElementSpace *vert_fespace = new ParFiniteElementSpace(pmesh, vert_fec);
 
    // generate and set the vertex coordinates
-   ParGridFunction x_coord(vert_fespace);
-   ParGridFunction y_coord(vert_fespace);
-   ParGridFunction z_coord(vert_fespace);
-   double *coord;
-   for (int i = 0; i < pmesh->GetNV(); i++)
+   if (p == 1)
    {
-      coord = pmesh -> GetVertex(i);
-      x_coord(i) = coord[0];
-      y_coord(i) = coord[1];
-      if (dim == 3)
-         z_coord(i) = coord[2];
-   }
-   x = x_coord.ParallelAverage();
-   y = y_coord.ParallelAverage();
-   if (dim == 2)
-   {
-      z = NULL;
-      HYPRE_AMSSetCoordinateVectors(ams, *x, *y, NULL);
+      ParGridFunction x_coord(vert_fespace);
+      ParGridFunction y_coord(vert_fespace);
+      ParGridFunction z_coord(vert_fespace);
+      double *coord;
+      for (int i = 0; i < pmesh->GetNV(); i++)
+      {
+         coord = pmesh -> GetVertex(i);
+         x_coord(i) = coord[0];
+         y_coord(i) = coord[1];
+         if (dim == 3)
+            z_coord(i) = coord[2];
+      }
+      x = x_coord.ParallelAverage();
+      y = y_coord.ParallelAverage();
+      if (dim == 2)
+      {
+         z = NULL;
+         HYPRE_AMSSetCoordinateVectors(ams, *x, *y, NULL);
+      }
+      else
+      {
+         z = z_coord.ParallelAverage();
+         HYPRE_AMSSetCoordinateVectors(ams, *x, *y, *z);
+      }
    }
    else
    {
-      z = z_coord.ParallelAverage();
-      HYPRE_AMSSetCoordinateVectors(ams, *x, *y, *z);
+      x = NULL;
+      y = NULL;
+      z = NULL;
    }
 
-   // set the discrete gradient
-   G = DiscreteGrad(edge_fespace, vert_fespace);
+   // generate and set the discrete gradient
+   ParDiscreteLinearOperator *grad;
+   grad = new ParDiscreteLinearOperator(vert_fespace, edge_fespace);
+   grad->AddDomainInterpolator(new GradientInterpolator);
+   grad->Assemble();
+   grad->Finalize();
+   G = grad->ParallelAssemble();
    HYPRE_AMSSetDiscreteGradient(ams, *G);
+   delete grad;
 
-   delete vert_fec;
+   // generate and set the Nedelec interpolation matrices
+   Pi = Pix = Piy = Piz = NULL;
+   if (p > 1)
+   {
+      ParFiniteElementSpace *vert_fespace_d;
+      if (cycle_type < 10)
+         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, dim,
+                                                    Ordering::byVDIM);
+      else
+         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, dim,
+                                                    Ordering::byNODES);
+
+      ParDiscreteLinearOperator *id_ND;
+      id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
+      id_ND->AddDomainInterpolator(new IdentityInterpolator);
+      id_ND->Assemble();
+
+      if (cycle_type < 10)
+      {
+         id_ND->Finalize();
+         Pi = id_ND->ParallelAssemble();
+      }
+      else
+      {
+         Array2D<HypreParMatrix *> Pi_blocks;
+         id_ND->GetParBlocks(Pi_blocks);
+         Pix = Pi_blocks(0,0);
+         Piy = Pi_blocks(0,1);
+         if (dim == 3)
+            Piz = Pi_blocks(0,2);
+      }
+
+      HYPRE_AMSSetInterpolations(ams, *Pi, *Pix, *Piy, *Piz);
+
+      delete vert_fespace_d;
+   }
+
    delete vert_fespace;
+   delete vert_fec;
 
    // set additional AMS options
    HYPRE_AMSSetSmoothingOptions(ams, rlx_type, rlx_sweeps, rlx_weight, rlx_omega);
@@ -1191,6 +1146,195 @@ HypreAMS::~HypreAMS()
    delete z;
 
    delete G;
+   delete Pi;
+   delete Pix;
+   delete Piy;
+   delete Piz;
+}
+
+HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
+   : HypreSolver(&A)
+{
+   int cycle_type       = 11;
+   int rlx_type         = 2;
+   int rlx_sweeps       = 1;
+   double rlx_weight    = 1.0;
+   double rlx_omega     = 1.0;
+   int amg_coarsen_type = 10;
+   int amg_agg_levels   = 1;
+   int amg_rlx_type     = 6;
+   double theta         = 0.25;
+   int amg_interp_type  = 6;
+   int amg_Pmax         = 4;
+   int ams_cycle_type   = 14;
+
+   int p = face_fespace->GetOrder(0);
+
+   HYPRE_ADSCreate(&ads);
+
+   HYPRE_ADSSetTol(ads, 0.0);
+   HYPRE_ADSSetMaxIter(ads, 1); // use as a preconditioner
+   HYPRE_ADSSetCycleType(ads, cycle_type);
+   HYPRE_ADSSetPrintLevel(ads, 1);
+
+   // define the nodal and edge finite element spaces associated with face_fespace
+   ParMesh *pmesh = (ParMesh *) face_fespace->GetMesh();
+   FiniteElementCollection *vert_fec   = new H1_FECollection(p, 3);
+   ParFiniteElementSpace *vert_fespace = new ParFiniteElementSpace(pmesh, vert_fec);
+   FiniteElementCollection *edge_fec   = new ND_FECollection(p, 3);
+   ParFiniteElementSpace *edge_fespace = new ParFiniteElementSpace(pmesh, edge_fec);
+
+   // generate and set the vertex coordinates
+   if (p == 1)
+   {
+      ParGridFunction x_coord(vert_fespace);
+      ParGridFunction y_coord(vert_fespace);
+      ParGridFunction z_coord(vert_fespace);
+      double *coord;
+      for (int i = 0; i < pmesh->GetNV(); i++)
+      {
+         coord = pmesh -> GetVertex(i);
+         x_coord(i) = coord[0];
+         y_coord(i) = coord[1];
+         z_coord(i) = coord[2];
+      }
+      x = x_coord.ParallelAverage();
+      y = y_coord.ParallelAverage();
+      z = z_coord.ParallelAverage();
+      HYPRE_ADSSetCoordinateVectors(ads, *x, *y, *z);
+   }
+   else
+   {
+      x = NULL;
+      y = NULL;
+      z = NULL;
+   }
+
+   // generate and set the discrete curl
+   ParDiscreteLinearOperator *curl;
+   curl = new ParDiscreteLinearOperator(edge_fespace, face_fespace);
+   curl->AddDomainInterpolator(new CurlInterpolator);
+   curl->Assemble();
+   curl->Finalize();
+   C = curl->ParallelAssemble();
+   HYPRE_ADSSetDiscreteCurl(ads, *C);
+   delete curl;
+
+   // generate and set the discrete gradient
+   ParDiscreteLinearOperator *grad;
+   grad = new ParDiscreteLinearOperator(vert_fespace, edge_fespace);
+   grad->AddDomainInterpolator(new GradientInterpolator);
+   grad->Assemble();
+   grad->Finalize();
+   G = grad->ParallelAssemble();
+   HYPRE_ADSSetDiscreteGradient(ads, *G);
+   delete grad;
+
+   // generate and set the Nedelec and Raviart-Thomas interpolation matrices
+   RT_Pi = RT_Pix = RT_Piy = RT_Piz = NULL;
+   ND_Pi = ND_Pix = ND_Piy = ND_Piz = NULL;
+   if (p > 1)
+   {
+      ParFiniteElementSpace *vert_fespace_d;
+
+      if (ams_cycle_type < 10)
+         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
+                                                    Ordering::byVDIM);
+      else
+         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
+                                                    Ordering::byNODES);
+
+      ParDiscreteLinearOperator *id_ND;
+      id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
+      id_ND->AddDomainInterpolator(new IdentityInterpolator);
+      id_ND->Assemble();
+
+      if (ams_cycle_type < 10)
+      {
+         id_ND->Finalize();
+         ND_Pi = id_ND->ParallelAssemble();
+      }
+      else
+      {
+         Array2D<HypreParMatrix *> ND_Pi_blocks;
+         id_ND->GetParBlocks(ND_Pi_blocks);
+         ND_Pix = ND_Pi_blocks(0,0);
+         ND_Piy = ND_Pi_blocks(0,1);
+         ND_Piz = ND_Pi_blocks(0,2);
+      }
+
+      if (cycle_type < 10 && ams_cycle_type > 10)
+      {
+         delete vert_fespace_d;
+         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
+                                                    Ordering::byVDIM);
+      }
+      else if (cycle_type > 10 && ams_cycle_type < 10)
+      {
+         delete vert_fespace_d;
+         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
+                                                    Ordering::byNODES);
+      }
+
+      ParDiscreteLinearOperator *id_RT;
+      id_RT = new ParDiscreteLinearOperator(vert_fespace_d, face_fespace);
+      id_RT->AddDomainInterpolator(new IdentityInterpolator);
+      id_RT->Assemble();
+
+      if (cycle_type < 10)
+      {
+         id_RT->Finalize();
+         RT_Pi = id_RT->ParallelAssemble();
+      }
+      else
+      {
+         Array2D<HypreParMatrix *> RT_Pi_blocks;
+         id_RT->GetParBlocks(RT_Pi_blocks);
+         RT_Pix = RT_Pi_blocks(0,0);
+         RT_Piy = RT_Pi_blocks(0,1);
+         RT_Piz = RT_Pi_blocks(0,2);
+      }
+
+      HYPRE_ADSSetInterpolations(ads,
+                                 *RT_Pi, *RT_Pix, *RT_Piy, *RT_Piz,
+                                 *ND_Pi, *ND_Pix, *ND_Piy, *ND_Piz);
+
+      delete vert_fespace_d;
+   }
+
+   delete vert_fec;
+   delete vert_fespace;
+   delete edge_fec;
+   delete edge_fespace;
+
+   // set additional ADS options
+   HYPRE_ADSSetSmoothingOptions(ads, rlx_type, rlx_sweeps, rlx_weight, rlx_omega);
+   HYPRE_ADSSetAMGOptions(ads, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
+                          theta, amg_interp_type, amg_Pmax);
+   HYPRE_ADSSetAMSOptions(ads, ams_cycle_type, amg_coarsen_type, amg_agg_levels,
+                          amg_rlx_type, theta, amg_interp_type, amg_Pmax);
+}
+
+HypreADS::~HypreADS()
+{
+   HYPRE_ADSDestroy(ads);
+
+   delete x;
+   delete y;
+   delete z;
+
+   delete G;
+   delete C;
+
+   delete RT_Pi;
+   delete RT_Pix;
+   delete RT_Piy;
+   delete RT_Piz;
+
+   delete ND_Pi;
+   delete ND_Pix;
+   delete ND_Piy;
+   delete ND_Piz;
 }
 
 #endif

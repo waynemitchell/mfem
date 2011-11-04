@@ -197,7 +197,6 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
                  Array<int> &ess_dof_list,
                  HypreParVector &x, HypreParVector &b);
 
-
 /// Abstract class for hypre's solvers and preconditioners
 class HypreSolver : public Operator
 {
@@ -406,6 +405,8 @@ private:
    HypreParVector *x, *y, *z;
    /// Discrete gradient matrix
    HypreParMatrix *G;
+   /// Nedelec interpolation matrix and its components
+   HypreParMatrix *Pi, *Pix, *Piy, *Piz;
 
 public:
    HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace);
@@ -419,6 +420,37 @@ public:
    { return (HYPRE_PtrToParSolverFcn) HYPRE_AMSSolve; }
 
    virtual ~HypreAMS();
+};
+
+/// The Auxiliary-space Divergence Solver in hypre
+class HypreADS : public HypreSolver
+{
+private:
+   HYPRE_Solver ads;
+
+   /// Vertex coordinates
+   HypreParVector *x, *y, *z;
+   /// Discrete gradient matrix
+   HypreParMatrix *G;
+   /// Discrete curl matrix
+   HypreParMatrix *C;
+   /// Nedelec interpolation matrix and its components
+   HypreParMatrix *ND_Pi, *ND_Pix, *ND_Piy, *ND_Piz;
+   /// Raviart-Thomas interpolation matrix and its components
+   HypreParMatrix *RT_Pi, *RT_Pix, *RT_Piy, *RT_Piz;
+
+public:
+   HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace);
+
+   /// The typecast to HYPRE_Solver returns the internal ads object
+   virtual operator HYPRE_Solver() const { return ads; }
+
+   virtual HYPRE_PtrToParSolverFcn SetupFcn() const
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ADSSetup; }
+   virtual HYPRE_PtrToParSolverFcn SolveFcn() const
+   { return (HYPRE_PtrToParSolverFcn) HYPRE_ADSSolve; }
+
+   virtual ~HypreADS();
 };
 
 #endif
