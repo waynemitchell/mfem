@@ -25,7 +25,7 @@ CC_OPTS    = '-O3'
 DEBUG_OPTS = '-g -Wall'
 
 # External libraries
-HYPRE_DIR  = "../hypre-2.7.0b/src/hypre"
+HYPRE_DIR  = "../hypre-2.8.0b-pre/src/hypre"
 
 # MFEM-specific options
 env.Append(CPPDEFINES = ['MFEM_USE_MEMALLOC'])

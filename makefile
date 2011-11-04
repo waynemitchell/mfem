@@ -20,7 +20,7 @@ MPIOPTS    = $(CCOPTS) -I$(HYPRE_DIR)/include
 MPIDEBUG   = $(DEBUG_OPTS) -I$(HYPRE_DIR)/include
 
 # The HYPRE library (needed to build the parallel version)
-HYPRE_DIR  = ../../hypre-2.7.0b/src/hypre
+HYPRE_DIR  = ../../hypre-2.8.0b-pre/src/hypre
 
 # Internal mfem options
 USE_MEMALLOC     = YES
