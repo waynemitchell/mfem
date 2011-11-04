@@ -228,6 +228,11 @@ protected:
                    const FiniteElement &fe, ElementTransformation &Trans,
                    DenseMatrix &I) const;
 
+   // rotated gradient in 2D
+   void ProjectGrad_RT(const double *nk, const Array<int> &d2n,
+                       const FiniteElement &fe, ElementTransformation &Trans,
+                       DenseMatrix &grad) const;
+
    void ProjectCurl_RT(const double *nk, const Array<int> &d2n,
                        const FiniteElement &fe, ElementTransformation &Trans,
                        DenseMatrix &curl) const;
@@ -1381,6 +1386,10 @@ public:
    virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
                         DenseMatrix &I) const
    { Project_RT(nk, dof2nk, fe, Trans, I); }
+   virtual void ProjectGrad(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &grad) const
+   { ProjectGrad_RT(nk, dof2nk, fe, Trans, grad); }
 };
 
 
@@ -1449,6 +1458,10 @@ public:
    virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
                         DenseMatrix &I) const
    { Project_RT(nk, dof2nk, fe, Trans, I); }
+   virtual void ProjectGrad(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &grad) const
+   { ProjectGrad_RT(nk, dof2nk, fe, Trans, grad); }
 };
 
 

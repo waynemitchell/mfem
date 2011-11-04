@@ -327,6 +327,29 @@ void VectorFiniteElement::Project_RT(
    }
 }
 
+void VectorFiniteElement::ProjectGrad_RT(
+   const double *nk, const Array<int> &d2n, const FiniteElement &fe,
+   ElementTransformation &Trans, DenseMatrix &grad) const
+{
+   if (Dim != 2)
+      mfem_error("VectorFiniteElement::ProjectGrad_RT works only in 2D!");
+
+   DenseMatrix dshape(fe.GetDof(), fe.GetDim());
+   Vector grad_k(fe.GetDof());
+   double tk[2];
+
+   grad.SetSize(Dof, fe.GetDof());
+   for (int k = 0; k < Dof; k++)
+   {
+      fe.CalcDShape(Nodes.IntPoint(k), dshape);
+      tk[0] = nk[d2n[k]*Dim+1];
+      tk[1] = -nk[d2n[k]*Dim];
+      dshape.Mult(tk, grad_k);
+      for (int j = 0; j < grad_k.Size(); j++)
+         grad(k,j) = (fabs(grad_k(j)) < 1e-12) ? 0.0 : grad_k(j);
+   }
+}
+
 void VectorFiniteElement::ProjectCurl_RT(
    const double *nk, const Array<int> &d2n, const FiniteElement &fe,
    ElementTransformation &Trans, DenseMatrix &curl) const
