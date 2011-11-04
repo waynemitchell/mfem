@@ -36,4 +36,29 @@ public:
    virtual ~ParBilinearForm() { }
 };
 
+/** The parallel matrix representation a linear operator between parallel finite
+    element spaces */
+class ParDiscreteLinearOperator : public DiscreteLinearOperator
+{
+protected:
+   ParFiniteElementSpace *domain_fes;
+   ParFiniteElementSpace *range_fes;
+
+   HypreParMatrix *ParallelAssemble(SparseMatrix *m);
+
+public:
+   ParDiscreteLinearOperator(ParFiniteElementSpace *dfes,
+                             ParFiniteElementSpace *rfes)
+      : DiscreteLinearOperator(dfes, rfes) { domain_fes=dfes; range_fes=rfes; }
+
+   /// Returns the matrix "assembled" on the true dofs
+   HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
+
+   /** Extract the parallel blocks corresponding to the vector dimensions of the
+       domain and range parallel finite element spaces */
+   void GetParBlocks(Array2D<HypreParMatrix *> &blocks) const;
+
+   virtual ~ParDiscreteLinearOperator() { }
+};
+
 #endif
