@@ -22,6 +22,9 @@ MPIDEBUG   = $(DEBUG_OPTS) -I$(HYPRE_DIR)/include
 # The HYPRE library (needed to build the parallel version)
 HYPRE_DIR  = ../../hypre-2.8.0b-pre/src/hypre
 
+# Which version of the METIS library should be used, 4 (default) or 5?
+USE_METIS_5 = NO
+
 # Internal mfem options
 USE_MEMALLOC     = YES
 USE_LAPACK       = YES
@@ -34,7 +37,11 @@ USE_LAPACK_NO  =
 USE_LAPACK_YES = -DMFEM_USE_LAPACK
 USE_LAPACK_DEF = $(USE_LAPACK_$(USE_LAPACK))
 
-DEFS = $(USE_MEMALLOC_DEF) $(USE_LAPACK_DEF)
+USE_METIS_5_NO  =
+USE_METIS_5_YES = -DMFEM_USE_METIS_5
+USE_METIS_5_DEF = $(USE_METIS_5_$(USE_METIS_5))
+
+DEFS = $(USE_LAPACK_DEF) $(USE_MEMALLOC_DEF) $(USE_METIS_5_DEF)
 
 CCC = $(CC) $(CCOPTS) $(DEFS)
 

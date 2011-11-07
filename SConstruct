@@ -27,6 +27,9 @@ DEBUG_OPTS = '-g -Wall'
 # External libraries
 HYPRE_DIR  = "../hypre-2.8.0b-pre/src/hypre"
 
+# Which version of the METIS library should be used, 4 (default) or 5?
+# env.Append(CPPDEFINES = ['MFEM_USE_METIS_5'])
+
 # MFEM-specific options
 env.Append(CPPDEFINES = ['MFEM_USE_MEMALLOC'])
 
