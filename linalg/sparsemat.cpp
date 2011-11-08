@@ -669,7 +669,31 @@ void SparseMatrix::EliminateRowCol(int rc, SparseMatrix &Ae, int d)
    }
    else
    {
-      mfem_error("SparseMatrix::EliminateRowCol");
+      for (int j = I[rc]; j < I[rc+1]; j++)
+         if ((col = J[j]) == rc)
+         {
+            if (d == 0)
+            {
+               Ae.Add(rc, rc, A[j] - 1.0);
+               A[j] = 1.0;
+            }
+         }
+         else
+         {
+            Ae.Add(rc, col, A[j]);
+            A[j] = 0.0;
+            for (int k = I[col]; true; k++)
+               if (k == I[col+1])
+               {
+                  mfem_error("SparseMatrix::EliminateRowCol");
+               }
+               else if (J[k] == rc)
+               {
+                  Ae.Add(col, rc, A[k]);
+                  A[k] = 0.0;
+                  break;
+               }
+         }
    }
 }
 
