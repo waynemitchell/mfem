@@ -1308,14 +1308,8 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
    for (int i = 0; i < 8; i++)
       QuadDofOrd[i] = NULL;
 
-   if (dim == 3)
+   if (dim == 2 || dim == 3)
    {
-      ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p);
-      ND_dof[Geometry::CUBE] = 3*p*pm1*pm1;
-
-      ND_Elements[Geometry::TETRAHEDRON] = new ND_TetrahedronElement(p);
-      ND_dof[Geometry::TETRAHEDRON] = p*pm1*pm2/2;
-
       ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p);
       ND_dof[Geometry::SQUARE] = 2*p*pm1;
 
@@ -1324,6 +1318,27 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
 
       // ND_Elements[Geometry::SEGMENT] = NULL;
       ND_dof[Geometry::SEGMENT] = p;
+
+      SegDofOrd[0] = new int[2*p];
+      SegDofOrd[1] = SegDofOrd[0] + p;
+      for (int i = 0; i < p; i++)
+      {
+         SegDofOrd[0][i] = i;
+         SegDofOrd[1][i] = -1 - (pm1 - i);
+      }
+   }
+   else
+   {
+      mfem_error("ND_FECollection::ND_FECollection : dim != 2 or 3");
+   }
+
+   if (dim == 3)
+   {
+      ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p);
+      ND_dof[Geometry::CUBE] = 3*p*pm1*pm1;
+
+      ND_Elements[Geometry::TETRAHEDRON] = new ND_TetrahedronElement(p);
+      ND_dof[Geometry::TETRAHEDRON] = p*pm1*pm2/2;
 
       int QuadDof = ND_dof[Geometry::SQUARE];
       QuadDofOrd[0] = new int[8*QuadDof];
@@ -1387,18 +1402,6 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
             // interface. The method Mesh::ReorientTetMesh will ensure that
             // only orientations 0 and 5 are generated.
          }
-
-      SegDofOrd[0] = new int[2*p];
-      SegDofOrd[1] = SegDofOrd[0] + p;
-      for (int i = 0; i < p; i++)
-      {
-         SegDofOrd[0][i] = i;
-         SegDofOrd[1][i] = -1 - (pm1 - i);
-      }
-   }
-   else
-   {
-      mfem_error("ND_FECollection::ND_FECollection : dim != 3");
    }
 }
 
