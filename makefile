@@ -15,7 +15,7 @@ CCOPTS     = -O3
 DEBUG_OPTS = -g -DMFEM_DEBUG
 
 # Parallel compiler
-MPICC      = mpiCC
+MPICC      = mpicxx
 MPIOPTS    = $(CCOPTS) -I$(HYPRE_DIR)/include
 MPIDEBUG   = $(DEBUG_OPTS) -I$(HYPRE_DIR)/include
 

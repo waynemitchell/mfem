@@ -17,7 +17,7 @@ OPTIM_OPTS = -O3
 DEPCC      = $(CC)
 
 # Parallel compiler
-MPICC      = mpiCC
+MPICC      = mpicxx
 MPIOPTS    = $(CCOPTS) -I$(HYPRE_DIR)/include
 
 # The HYPRE library (needed to build the parallel version)

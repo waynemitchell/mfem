@@ -17,7 +17,7 @@ LIBS = $(MFEM_LIB) $(LAPACK_LIBS)
 PROF_LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(PROFILER_LIB)
 
 # Parallel compiler
-MPICC = mpiCC
+MPICC = mpicxx
 MPIOPTS = $(OPTS) -I$(HYPRE_DIR)/include
 MPIDEBUG_OPTS = $(DEBUG_OPTS) -I$(HYPRE_DIR)/include
 MPILIBS = $(LIBS) -L$(METIS_DIR) -lmetis -L$(HYPRE_DIR)/lib -lHYPRE

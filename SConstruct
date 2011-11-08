@@ -45,7 +45,7 @@ else:
 parallel = ARGUMENTS.get('parallel', 0)
 if int(parallel):
    env.Append(CPPDEFINES = ['MFEM_USE_MPI'])
-   env.Replace(CXX = 'mpiCC')
+   env.Replace(CXX = 'mpicxx')
    env.Append(CPPPATH = [HYPRE_DIR+"/include"])
    print 'Building parallel version'
 else:

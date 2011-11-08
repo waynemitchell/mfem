@@ -42,7 +42,7 @@ env.Append(CPPPATH = ['..'])
 # Parallel version
 parallel = ARGUMENTS.get('parallel', 0)
 if int(parallel):
-   env.Replace(CXX = 'mpiCC')
+   env.Replace(CXX = 'mpicxx')
    env.Append(LIBS = ['HYPRE'])
    env.Append(CPPPATH = [HYPRE_DIR+"/include"])
    env.Append(LIBPATH = [HYPRE_DIR+"/lib"])
