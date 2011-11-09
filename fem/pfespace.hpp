@@ -41,7 +41,10 @@ private:
    /// Offsets for the true dofs in each processor in global numbering.
    Array<int> tdof_offsets;
 
-   /// The sign of the basis functions at the local dofs.
+   /// Offsets for the true dofs in neighbor processor in global numbering.
+   Array<int> tdof_nb_offsets;
+
+   /// The sign of the basis functions at the scalar local dofs.
    Array<int> ldof_sign;
 
    /// The matrix P (interpolation from true dof to dof).
@@ -81,7 +84,7 @@ public:
    int *GetTrueDofOffsets() { return tdof_offsets; }
    int GlobalVSize()        { return Dof_TrueDof_Matrix()->GetGlobalNumRows(); }
    int GlobalTrueVSize()    { return Dof_TrueDof_Matrix()->GetGlobalNumCols(); }
-   int GetDofSign(int i)    { return NURBSext ? 1 : ldof_sign[i]; }
+   int GetDofSign(int i)    { return NURBSext ? 1 : ldof_sign[VDofToDof(i)]; }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;

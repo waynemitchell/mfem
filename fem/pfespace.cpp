@@ -28,6 +28,7 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
    Swap(ldof_ltdof, pf.ldof_ltdof);
    Swap(dof_offsets, pf.dof_offsets);
    Swap(tdof_offsets, pf.tdof_offsets);
+   Swap(tdof_nb_offsets, pf.tdof_nb_offsets);
    Swap(ldof_sign, pf.ldof_sign);
    P = pf.P;
    pf.P = NULL;
@@ -323,22 +324,22 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
 
    Array<Pair<int, int> > cmap_j_offd(ldof-ltdof);
 
-   int *ncol_starts = NULL;
    if (HYPRE_AssumedPartitionCheck())
    {
       int nsize = gt.GetNumNeighbors()-1;
       MPI_Request *requests = new MPI_Request[2*nsize];
       MPI_Status  *statuses = new MPI_Status[2*nsize];
-      ncol_starts = new int[nsize+1];
+      tdof_nb_offsets.SetSize(nsize+1);
+      tdof_nb_offsets[0] = col_starts[0];
 
       int request_counter = 0;
       // send and receive neighbors' local tdof offsets
-      for (i = 1; i < nsize+1; i++)
-         MPI_Irecv(&ncol_starts[i], 1, MPI_INT, gt.GetNeighborRank(i), 5365,
+      for (i = 1; i <= nsize; i++)
+         MPI_Irecv(&tdof_nb_offsets[i], 1, MPI_INT, gt.GetNeighborRank(i), 5365,
                    MyComm, &requests[request_counter++]);
 
-      for (i = 1; i < nsize+1; i++)
-         MPI_Isend(&col_starts[0], 1, MPI_INT, gt.GetNeighborRank(i), 5365,
+      for (i = 1; i <= nsize; i++)
+         MPI_Isend(&tdof_nb_offsets[0], 1, MPI_INT, gt.GetNeighborRank(i), 5365,
                    MyComm, &requests[request_counter++]);
 
       MPI_Waitall(request_counter, requests, statuses);
@@ -360,7 +361,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       {
          if (HYPRE_AssumedPartitionCheck())
             cmap_j_offd[offd_counter].one =
-               ncol_starts[gt.GetGroupMaster(ldof_group[i])] + ldof_ltdof[i];
+               tdof_nb_offsets[gt.GetGroupMaster(ldof_group[i])] + ldof_ltdof[i];
          else
             cmap_j_offd[offd_counter].one = col_starts[proc] + ldof_ltdof[i];
          cmap_j_offd[offd_counter].two = offd_counter;
@@ -369,9 +370,6 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       i_diag[i+1] = diag_counter;
       i_offd[i+1] = offd_counter;
    }
-
-   if (HYPRE_AssumedPartitionCheck())
-      delete [] ncol_starts;
 
    SortPairs<int, int>(cmap_j_offd, offd_counter);
 
@@ -438,8 +436,10 @@ int ParFiniteElementSpace::GetGlobalTDofNumber(int ldof)
 {
    if (HYPRE_AssumedPartitionCheck())
    {
-      mfem_error("ParFiniteElementSpace::GetGlobalTDofNumber "
-                 "does not support Assumed Partitioning!\n");
+      if (!P)
+         Dof_TrueDof_Matrix();
+      return ldof_ltdof[ldof] +
+         tdof_nb_offsets[GetGroupTopo().GetGroupMaster(ldof_group[ldof])];
    }
 
    return ldof_ltdof[ldof] +
@@ -450,8 +450,16 @@ int ParFiniteElementSpace::GetGlobalScalarTDofNumber(int sldof)
 {
    if (HYPRE_AssumedPartitionCheck())
    {
-      mfem_error("ParFiniteElementSpace::GetGlobalScalarTDofNumber "
-                 "does not support Assumed Partitioning!\n");
+      if (!P)
+         Dof_TrueDof_Matrix();
+      if (ordering == Ordering::byNODES)
+         return ldof_ltdof[sldof] +
+            tdof_nb_offsets[GetGroupTopo().GetGroupMaster(
+               ldof_group[sldof])] / vdim;
+      else
+         return (ldof_ltdof[sldof*vdim] +
+                 tdof_nb_offsets[GetGroupTopo().GetGroupMaster(
+                       ldof_group[sldof*vdim])]) / vdim;
    }
 
    if (ordering == Ordering::byNODES)
@@ -565,6 +573,7 @@ void ParFiniteElementSpace::Update()
    ldof_ltdof.DeleteAll();
    dof_offsets.DeleteAll();
    tdof_offsets.DeleteAll();
+   tdof_nb_offsets.DeleteAll();
    ldof_sign.DeleteAll();
    delete P;
    P = NULL;
