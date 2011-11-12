@@ -27,7 +27,7 @@ public:
       socket_descriptor = -1;
    }
 
-   socketbuf(int sd)
+   explicit socketbuf(int sd)
    {
       socket_descriptor = sd;
       setp(obuf, obuf + buflen);
@@ -76,7 +76,7 @@ private:
 public:
    socketstream() : std::iostream(&__buf) { }
 
-   socketstream(int s) : std::iostream(&__buf), __buf(s) { }
+   explicit socketstream(int s) : std::iostream(&__buf), __buf(s) { }
 
    socketstream(const char hostname[], int port)
       : std::iostream(&__buf), __buf(hostname, port) { }
@@ -102,7 +102,7 @@ private:
    int listen_socket;
 
 public:
-   socketserver(int port);
+   explicit socketserver(int port);
 
    bool good() { return (listen_socket >= 0); }
 

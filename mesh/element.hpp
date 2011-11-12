@@ -29,7 +29,7 @@ public:
                HEXAHEDRON, BISECTED, QUADRISECTED, OCTASECTED };
 
    /// Default element constructor.
-   Element(int bg = Geometry::POINT) { attribute = -1; base_geom = bg; }
+   explicit Element(int bg = Geometry::POINT) { attribute = -1; base_geom = bg; }
 
    /// Set the indices the element according to the input.
    virtual void SetVertices(const int *ind);

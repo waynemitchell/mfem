@@ -33,7 +33,7 @@ public:
    double constant;
 
    /// c is value of constant function
-   ConstantCoefficient(double c = 1.0) { constant=c; };
+   explicit ConstantCoefficient(double c = 1.0) { constant=c; };
 
    /// Evaluate the coefficient
    virtual double Eval(ElementTransformation &T,
@@ -52,7 +52,7 @@ private:
 public:
 
    /// Constructs a piecewise constant coefficient in NumOfSubD subdomains
-   PWConstCoefficient(int NumOfSubD = 0) : constants(NumOfSubD)
+   explicit PWConstCoefficient(int NumOfSubD = 0) : constants(NumOfSubD)
    { constants = 0.0; };
 
    /** c should be a vector defined by attributes, so for region with
@@ -226,7 +226,7 @@ private:
 
 public:
    /// Construct vector of dim coefficients.
-   VectorArrayCoefficient (int dim);
+   explicit VectorArrayCoefficient (int dim);
 
    /// Returns i'th coefficient.
    Coefficient & GetCoeff (int i) { return *Coeff[i]; }
@@ -272,7 +272,7 @@ protected:
    int vdim;
 
 public:
-   MatrixCoefficient (int dim) { vdim = dim; };
+   explicit MatrixCoefficient (int dim) { vdim = dim; };
 
    int GetVDim() { return vdim; };
 
@@ -306,7 +306,7 @@ private:
 
 public:
 
-   MatrixArrayCoefficient (int dim);
+   explicit MatrixArrayCoefficient (int dim);
 
    Coefficient & GetCoeff (int i, int j) { return *Coeff[i*vdim+j]; }
 

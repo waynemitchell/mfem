@@ -36,7 +36,7 @@ public:
    Table() { size = -1; I = J = NULL; }
 
    /// Create a table with a fixed number of connections.
-   Table (int dim, int connections_per_row = 3);
+   explicit Table (int dim, int connections_per_row = 3);
 
    /** Create a table with one entry per row with column indices given
        by 'partitioning'. */

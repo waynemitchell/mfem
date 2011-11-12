@@ -37,7 +37,7 @@ public:
    DenseMatrix(const DenseMatrix &);
 
    /// Creates square matrix of size s.
-   DenseMatrix(int s);
+   explicit DenseMatrix(int s);
 
    /// Creates rectangular matrix of size n and height m.
    DenseMatrix(int m, int n);

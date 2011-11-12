@@ -65,7 +65,7 @@ private:
 
 public:
    /// Creates sparse matrix.
-   SparseMatrix(int nrows, int ncols = 0);
+   explicit SparseMatrix(int nrows, int ncols = 0);
 
    SparseMatrix(int *i, int *j, double *data, int m, int n)
       : Matrix (m), I(i), J(j), width(n), A(data)

@@ -33,7 +33,7 @@ public:
 
    /** The constructor takes as input the portnumber port on which
        it establishes a server. */
-   isockstream(int port);
+   explicit isockstream(int port);
 
    bool good() { return (!error); }
 

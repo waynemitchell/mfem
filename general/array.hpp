@@ -66,7 +66,7 @@ public:
    friend void Swap<T>(Array<T> &, Array<T> &);
 
    /// Creates array of asize elements
-   inline Array(int asize = 0, int ainc = 0)
+   explicit inline Array(int asize = 0, int ainc = 0)
       : BaseArray(asize, ainc, sizeof (T)) { }
 
    /** Creates array using an existing c-array of asize elements;

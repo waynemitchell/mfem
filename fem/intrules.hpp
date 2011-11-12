@@ -178,7 +178,7 @@ public:
    IntegrationRule() { NPoints = 0; IntPoints = NULL; }
 
    /// Construct an integration rule with given number of points
-   IntegrationRule(int NP);
+   explicit IntegrationRule(int NP);
 
    /// Tensor product of two 1D integration rules
    IntegrationRule(IntegrationRule &irx, IntegrationRule &iry);
@@ -220,7 +220,7 @@ private:
 
 public:
    /// Defines all integration rules
-   IntegrationRules(int refined = 0);
+   explicit IntegrationRules(int refined = 0);
 
    /// Returns an integration rule for given GeomType and Order.
    const IntegrationRule &Get(int GeomType, int Order);

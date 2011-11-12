@@ -45,7 +45,7 @@ private:
    int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
 
 public:
-   H1_FECollection(const int p, const int dim = 3);
+   explicit H1_FECollection(const int p, const int dim = 3);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return H1_Elements[GeomType]; }
@@ -140,7 +140,7 @@ private:
    void Deallocate();
 
 public:
-   NURBSFECollection(int Order) { Allocate(Order); }
+   explicit NURBSFECollection(int Order) { Allocate(Order); }
 
    int GetOrder() const { return SegmentFE->GetOrder(); }
 

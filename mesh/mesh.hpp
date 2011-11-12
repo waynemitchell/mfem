@@ -257,7 +257,7 @@ public:
         double sx = 1.0, double sy = 1.0);
 
    /** Creates 1D mesh , divided into n equal intervals. */
-   Mesh (int n);
+   explicit Mesh(int n);
 
    /** Creates mesh by reading data stream in netgen format. If
        generate_edges = 0 (default) edges are not generated, if 1 edges

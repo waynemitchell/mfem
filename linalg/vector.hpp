@@ -34,7 +34,7 @@ public:
    Vector(const Vector &);
 
    /// Creates vector of size s.
-   Vector (int s);
+   explicit Vector (int s);
 
    Vector (double *_data, int _size)
    { data = _data; size = _size; allocsize = -size; }
