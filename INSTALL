@@ -1,5 +1,5 @@
                     Finite Element Discretization Library
-                                 version 1.2
+                                 version 2.0
                                    __
                        _ __ ___   / _|  ___  _ __ ___
                       | '_ ` _ \ | |_  / _ \| '_ ` _ \
@@ -27,6 +27,9 @@ following external libraries:
 
 - metis (a family of multilevel partitioning algorithms)
   http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
+
+By default MFEM supports metis version 4.0. For version 5.0 set USE_METIS_5 to
+YES or define MFEM_USE_METIS_5 in the build files below.
 
 Three build systems are supported, based on make, GNU make (gmake) and SCons, as
 described below.

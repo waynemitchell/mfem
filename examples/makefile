@@ -27,10 +27,10 @@ MFEM_LIB = -L$(MFEM_DIR) -lmfem
 
 # The METIS and HYPRE libraries (needed for the parallel examples)
 METIS_DIR = ../../metis-4.0
-HYPRE_DIR = ../../hypre-2.8.0b-pre/src/hypre
+HYPRE_DIR = ../../hypre-2.8.0b/src/hypre
 
 # The LAPACK and BLAS libraries (needed if MFEM was compiled with LAPACK support)
-USE_LAPACK = YES
+USE_LAPACK = NO
 LAPACK_DIR = $(HOME)/lapack
 LAPACK_LIB = -L$(LAPACK_DIR) -llapack
 BLAS_DIR   = $(HOME)/lapack
