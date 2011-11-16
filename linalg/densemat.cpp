@@ -381,34 +381,55 @@ void DenseMatrix::Invert()
 #else
    int c, i, j, n = Size();
    double a, b;
+   Array<int> piv(n);
 
    for (c = 0; c < n; c++)
    {
-#ifdef MFEM_DEBUG
-      if ((*this)(c, c) == 0.0)
-         mfem_error("DenseMatrix::Invert() : division by zero");
-#endif
+      a = fabs((*this)(c, c));
+      i = c;
+      for (j = c + 1; j < n; j++)
+      {
+         b = fabs((*this)(j, c));
+         if (a < b)
+         {
+            a = b;
+            i = j;
+         }
+      }
+      if (a == 0.0)
+         mfem_error("DenseMatrix::Invert() : singular matrix");
+      piv[c] = i;
+      for (j = 0; j < n; j++)
+         Swap<double>((*this)(c, j), (*this)(i, j));
+
       a = (*this)(c, c) = 1.0 / (*this)(c, c);
       for (j = 0; j < c; j++)
          (*this)(c, j) *= a;
-      for (j = c+1; j < n; j++)
+      for (j++; j < n; j++)
          (*this)(c, j) *= a;
       for (i = 0; i < c; i++)
       {
          (*this)(i, c) = a * (b = -(*this)(i, c));
          for (j = 0; j < c; j++)
             (*this)(i, j) += b * (*this)(c, j);
-         for (j = c+1; j < n; j++)
+         for (j++; j < n; j++)
             (*this)(i, j) += b * (*this)(c, j);
       }
-      for (i = c+1; i < n; i++)
+      for (i++; i < n; i++)
       {
          (*this)(i, c) = a * (b = -(*this)(i, c));
          for (j = 0; j < c; j++)
             (*this)(i, j) += b * (*this)(c, j);
-         for (j = c+1; j < n; j++)
+         for (j++; j < n; j++)
             (*this)(i, j) += b * (*this)(c, j);
       }
+   }
+
+   for (c = n - 1; c >= 0; c--)
+   {
+      j = piv[c];
+      for (i = 0; i < n; i++)
+         Swap<double>((*this)(i, c), (*this)(i, j));
    }
 #endif
 }
