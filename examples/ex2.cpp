@@ -105,7 +105,8 @@ int main (int argc, char *argv[])
       fec = new H1_FECollection(p, dim);
       fespace = new FiniteElementSpace(mesh, fec, dim);
    }
-   cout << "Assembling: " << flush;
+   cout << "Number of unknowns: " << fespace->GetVSize() << endl
+        << "Assembling: " << flush;
 
    // 5. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system. In this case, b_i equals the boundary integral

@@ -74,6 +74,7 @@ int main (int argc, char *argv[])
    int p = 1;
    FiniteElementCollection *fec = new ND_FECollection(p, mesh -> Dimension());
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
+   cout << "Number of unknowns: " << fespace->GetVSize() << endl;
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side
    //    of the FEM linear system, which in this case is (f,phi_i) where f is

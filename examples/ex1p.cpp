@@ -94,6 +94,9 @@ int main (int argc, char *argv[])
    else
       fec = new LinearFECollection;
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
+   int size = fespace->GlobalTrueVSize();
+   if (myid == 0)
+      cout << "Number of unknowns: " << size << endl;
 
    // 6. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is

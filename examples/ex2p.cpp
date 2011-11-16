@@ -134,8 +134,10 @@ int main (int argc, char *argv[])
       fec = new H1_FECollection(p, dim);
       fespace = new ParFiniteElementSpace(pmesh, fec, dim, Ordering::byVDIM);
    }
+   int size = fespace->GlobalTrueVSize();
    if (myid == 0)
-      cout << "Assembling: " << flush;
+      cout << "Number of unknowns: " << size << endl
+           << "Assembling: " << flush;
 
    // 7. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system. In this case, b_i equals the
