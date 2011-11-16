@@ -787,8 +787,22 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
 
    if (!setup_called)
    {
+      if (print_level > 0)
+      {
+         time_index = hypre_InitializeTiming("PCG Setup");
+         hypre_BeginTiming(time_index);
+      }
+
       HYPRE_ParCSRPCGSetup(pcg_solver, *A, b, x);
       setup_called = 1;
+
+      if (print_level > 0)
+      {
+         hypre_EndTiming(time_index);
+         hypre_PrintTiming("Setup phase times", comm);
+         hypre_FinalizeTiming(time_index);
+         hypre_ClearTiming();
+      }
    }
 
    if (print_level > 0)
@@ -895,8 +909,22 @@ void HypreGMRES::Mult(const HypreParVector &b, HypreParVector &x) const
 
    if (!setup_called)
    {
+      if (print_level > 0)
+      {
+         time_index = hypre_InitializeTiming("GMRES Setup");
+         hypre_BeginTiming(time_index);
+      }
+
       HYPRE_ParCSRGMRESSetup(gmres_solver, *A, b, x);
       setup_called = 1;
+
+      if (print_level > 0)
+      {
+         hypre_EndTiming(time_index);
+         hypre_PrintTiming("Setup phase times", comm);
+         hypre_FinalizeTiming(time_index);
+         hypre_ClearTiming();
+      }
    }
 
    if (print_level > 0)
