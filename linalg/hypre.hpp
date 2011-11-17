@@ -248,6 +248,11 @@ public:
    /// Set the hypre solver to be used as a preconditioner
    void SetPreconditioner(HypreSolver &precond);
 
+   /** Use the L2 norm of the residual for measuring PCG convergence, plus
+       (optionally) 1) periodically recompute true residuals from scratch; and
+       2) enable residual-based stopping criteria. */
+   void SetResidualConvergenceOptions(int res_frequency=-1, double rtol=0.0);
+
    /// non-hypre setting
    void SetZeroInintialIterate() { use_zero_initial_iterate = 1; }
 

@@ -775,6 +775,15 @@ void HyprePCG::SetPreconditioner(HypreSolver &precond)
                              precond);
 }
 
+void HyprePCG::SetResidualConvergenceOptions(int res_frequency, double rtol)
+{
+   HYPRE_PCGSetTwoNorm(pcg_solver, 1);
+   if (res_frequency > 0)
+      HYPRE_PCGSetRecomputeResidualP(pcg_solver, res_frequency);
+   if (rtol > 0.0)
+      HYPRE_PCGSetResidualTol(pcg_solver, rtol);
+}
+
 void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
 {
    int myid;
