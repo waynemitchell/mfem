@@ -35,6 +35,9 @@ void PWConstCoefficient::Read(istream &in)
 double FunctionCoefficient::Eval(ElementTransformation & T,
                                  const IntegrationPoint & ip)
 {
+   double x[3];
+   Vector transip(x, 3);
+
    T.Transform(ip, transip);
 
    return((*Function)(transip));
@@ -63,6 +66,9 @@ void VectorCoefficient::Eval(DenseMatrix &M, ElementTransformation &T,
 void VectorFunctionCoefficient::Eval (Vector &V, ElementTransformation &T,
                                       const IntegrationPoint &ip)
 {
+   double x[3];
+   Vector transip(x, 3);
+
    T.Transform (ip, transip);
 
    V.SetSize (vdim);
@@ -109,6 +115,9 @@ void VectorGridFunctionCoefficient::Eval (Vector &V, ElementTransformation &T,
 void MatrixFunctionCoefficient::Eval (DenseMatrix &K, ElementTransformation &T,
                                       const IntegrationPoint &ip)
 {
+   double x[3];
+   Vector transip(x, 3);
+
    T.Transform (ip, transip);
 
    K.SetSize (vdim);

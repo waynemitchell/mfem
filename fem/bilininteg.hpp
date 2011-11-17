@@ -88,7 +88,9 @@ class DiffusionIntegrator: public BilinearFormIntegrator
 {
 private:
    Vector vec, pointflux, shape;
+#ifndef MFEM_USE_OPENMP
    DenseMatrix dshape, dshapedxt, invdfdx;
+#endif
    Coefficient *Q;
    MatrixCoefficient *MQ;
 
@@ -212,8 +214,10 @@ public:
     does NOT depend on the ElementTransformation Trans. */
 class VectorFEDivergenceIntegrator : public BilinearFormIntegrator
 {
+#ifndef MFEM_USE_OPENMP
 private:
    Vector divshape, shape;
+#endif
 public:
    VectorFEDivergenceIntegrator() { };
    virtual void AssembleElementMatrix(const FiniteElement &el,
@@ -249,7 +253,9 @@ public:
 class CurlCurlIntegrator: public BilinearFormIntegrator
 {
 private:
+#ifndef MFEM_USE_OPENMP
    DenseMatrix Curlshape, Curlshape_dFt;
+#endif
    Coefficient *Q;
 
 public:
@@ -271,15 +277,16 @@ private:
    Coefficient *Q;
    VectorCoefficient *VQ;
 
+#ifndef MFEM_USE_OPENMP
    Vector shape;
    Vector D;
-   DenseMatrix  vshape;
+   DenseMatrix vshape;
+#endif
 
 public:
    VectorFEMassIntegrator() { Q = NULL; VQ= NULL; }
-   VectorFEMassIntegrator (Coefficient *_q) { Q = _q; VQ= NULL; }
-   VectorFEMassIntegrator (VectorCoefficient *_vq)
-   { VQ = _vq; Q = NULL; D.SetSize(VQ->GetVDim()); }
+   VectorFEMassIntegrator(Coefficient *_q) { Q = _q; VQ= NULL; }
+   VectorFEMassIntegrator(VectorCoefficient *_vq) { VQ = _vq; Q = NULL; }
 
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
@@ -320,7 +327,9 @@ class DivDivIntegrator: public BilinearFormIntegrator
 private:
    Coefficient *Q;
 
+#ifndef MFEM_USE_OPENMP
    Vector divshape;
+#endif
 
 public:
    DivDivIntegrator() { Q = NULL; };
@@ -363,8 +372,10 @@ private:
    double q_lambda, q_mu;
    Coefficient *lambda, *mu;
 
+#ifndef MFEM_USE_OPENMP
    DenseMatrix dshape, Jinv, gshape, pelmat;
    Vector divshape;
+#endif
 
 public:
    ElasticityIntegrator(Coefficient &l, Coefficient &m)

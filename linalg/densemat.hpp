@@ -387,8 +387,9 @@ public:
       tdata = new double[i*j*k];
    }
 
-   DenseMatrix &operator()(int k)
-   { Mk.data = tdata+k*Mk.Height()*Mk.Width(); return Mk; }
+   DenseMatrix &operator()(int k) { Mk.data = GetData(k); return Mk; }
+
+   double *GetData(int k) { return tdata+k*Mk.Height()*Mk.Width(); }
 
    double *Data() { return tdata; }
 

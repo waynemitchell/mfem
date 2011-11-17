@@ -72,10 +72,14 @@ void DiffusionIntegrator::AssembleElementMatrix
    int dim = el.GetDim();
    double w;
 
-   elmat.SetSize(nd);
+#ifdef MFEM_USE_OPENMP
+   DenseMatrix dshape(nd,dim), dshapedxt(nd,dim), invdfdx(dim);
+#else
    dshape.SetSize(nd,dim);
    dshapedxt.SetSize(nd,dim);
    invdfdx.SetSize(dim);
+#endif
+   elmat.SetSize(nd);
 
    int order;
    if (el.Space() == FunctionSpace::Pk)
@@ -124,8 +128,12 @@ void DiffusionIntegrator::ComputeElementFlux
    nd = el.GetDof();
    dim = el.GetDim();
 
+#ifdef MFEM_USE_OPENMP
+   DenseMatrix dshape(nd,dim), invdfdx(dim);
+#else
    dshape.SetSize(nd,dim);
    invdfdx.SetSize(dim);
+#endif
    vec.SetSize(dim);
 
    const IntegrationRule &ir = fluxelem.GetNodes();
@@ -170,6 +178,10 @@ double DiffusionIntegrator::ComputeFluxEnergy
 
    nd = fluxelem.GetDof();
    dim = fluxelem.GetDim();
+
+#ifdef MFEM_USE_OPENMP
+   DenseMatrix invdfdx;
+#endif
 
    shape.SetSize(nd);
    pointflux.SetSize(dim);
@@ -397,13 +409,16 @@ void VectorFEDivergenceIntegrator::AssembleElementMatrix2 (
    const FiniteElement &trial_fe, const FiniteElement &test_fe,
    ElementTransformation &Trans, DenseMatrix &elmat )
 {
-   int trial_nd = trial_fe.GetDof(),
-      test_nd = test_fe.GetDof(),
-      i;
+   int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
 
-   elmat.SetSize(test_nd, trial_nd);
+#ifdef MFEM_USE_OPENMP
+   Vector divshape(trial_nd), shape(test_nd);
+#else
    divshape.SetSize(trial_nd);
    shape.SetSize(test_nd);
+#endif
+
+   elmat.SetSize(test_nd, trial_nd);
 
    int order = trial_fe.GetOrder() + test_fe.GetOrder() - 1; // <--
    const IntegrationRule *ir = &IntRules.Get(trial_fe.GetGeomType(), order);
@@ -480,9 +495,13 @@ void CurlCurlIntegrator::AssembleElementMatrix
    int dim = el.GetDim();
    double w;
 
-   elmat.SetSize(nd);
+#ifdef MFEM_USE_OPENMP
+   DenseMatrix Curlshape(nd,dim), Curlshape_dFt(nd,dim);
+#else
    Curlshape.SetSize(nd,dim);
    Curlshape_dFt.SetSize(nd,dim);
+#endif
+   elmat.SetSize(nd);
 
    int order;
    if (el.Space() == FunctionSpace::Pk)
@@ -522,7 +541,12 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
 
    double w;
 
+#ifdef MFEM_USE_OPENMP
+   Vector D(VQ ? VQ->GetVDim() : 0);
+   DenseMatrix vshape(dof, dim);
+#else
    vshape.SetSize(dof,dim);
+#endif
 
    elmat.SetSize(dof);
    elmat = 0.0;
@@ -570,8 +594,13 @@ void VectorFEMassIntegrator::AssembleElementMatrix2(
       mfem_error("VectorFEMassIntegrator::AssembleElementMatrix2(...)\n"
                  "   is not implemented for vector permeability");
 
+#ifdef MFEM_USE_OPENMP
+   DenseMatrix vshape(trial_dof, dim);
+   Vector shape(test_dof);
+#else
    vshape.SetSize(trial_dof, dim);
    shape.SetSize(test_dof);
+#endif
 
    elmat.SetSize (dim*test_dof, trial_dof);
 
@@ -667,9 +696,12 @@ void DivDivIntegrator::AssembleElementMatrix(
    int dof = el.GetDof();
    double c;
 
-   divshape.SetSize (dof);
-
-   elmat.SetSize (dof);
+#ifdef MFEM_USE_OPENMP
+   Vector divshape(dof);
+#else
+   divshape.SetSize(dof);
+#endif
+   elmat.SetSize(dof);
 
    int order = 2 * el.GetOrder() - 2; // <--- OK for RTk
    const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
@@ -758,14 +790,18 @@ void ElasticityIntegrator::AssembleElementMatrix(
    int dim = el.GetDim();
    double w, L, M;
 
-   elmat.SetSize(dof * dim);
-
-   Jinv.  SetSize(dim);
+#ifdef MFEM_USE_OPENMP
+   DenseMatrix dshape(dof, dim), Jinv(dim), gshape(dof, dim), pelmat(dof);
+   Vector divshape(dim*dof);
+#else
+   Jinv.SetSize(dim);
    dshape.SetSize(dof, dim);
    gshape.SetSize(dof, dim);
    pelmat.SetSize(dof);
-
    divshape.SetSize(dim*dof);
+#endif
+
+   elmat.SetSize(dof * dim);
 
    int order = 2 * Trans.OrderGrad(&el); // correct order?
    const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);

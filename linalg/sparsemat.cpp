@@ -132,13 +132,14 @@ void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
 
    j = *Ip;
    if (a == 1.0)
+   {
+#ifndef MFEM_USE_OPENMP
       for (i = 0; i < size; i++)
       {
-         double d;
-         d = 0.0;
+         double d = 0.0;
          Ip++;
          end = (*Ip);
-         for( ; j < end; j++)
+         for ( ; j < end; j++)
          {
             d += (*Ap) * xp[*Jp];
             Ap++;
@@ -147,14 +148,26 @@ void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
          *yp += d;
          yp++;
       }
+#else
+#pragma omp parallel for private(j,end)
+      for (i = 0; i < size; i++)
+      {
+         double d = 0.0;
+         for (j = Ip[i], end = Ip[i+1]; j < end; j++)
+         {
+            d += Ap[j] * xp[Jp[j]];
+         }
+         yp[i] += d;
+      }
+#endif
+   }
    else
       for (i = 0; i < size; i++)
       {
-         double d;
-         d = 0.0;
+         double d = 0.0;
          Ip++;
          end = (*Ip);
-         for( ; j < end; j++)
+         for ( ; j < end; j++)
          {
             d += (*Ap) * xp[*Jp];
             Ap++;
@@ -593,6 +606,81 @@ void SparseMatrix::EliminateRowCol(int rc, const double sol, Vector &rhs,
          }
 }
 
+void SparseMatrix::EliminateRowColMultipleRHS(int rc, const Vector &sol,
+                                              DenseMatrix &rhs, int d)
+{
+   int col;
+   int num_rhs = rhs.Width();
+
+#ifdef MFEM_DEBUG
+   if (rc >= size || rc < 0)
+      mfem_error("SparseMatrix::EliminateRowColMultipleRHS() #1");
+   if (sol.Size() != num_rhs)
+      mfem_error("SparseMatrix::EliminateRowColMultipleRHS() #2");
+#endif
+
+   if (Rows == NULL)
+      for (int j = I[rc]; j < I[rc+1]; j++)
+         if ((col = J[j]) == rc)
+            if (d)
+            {
+               for (int r = 0; r < num_rhs; r++)
+                  rhs(rc,r) = A[j] * sol(r);
+            }
+            else
+            {
+               A[j] = 1.0;
+               for (int r = 0; r < num_rhs; r++)
+                  rhs(rc,r) = sol(r);
+            }
+         else
+         {
+            A[j] = 0.0;
+            for (int k = I[col]; 1; k++)
+               if (k == I[col+1])
+               {
+                  mfem_error("SparseMatrix::EliminateRowColMultipleRHS() #3");
+               }
+               else if (J[k] == rc)
+               {
+                  for (int r = 0; r < num_rhs; r++)
+                     rhs(col,r) -= sol(r) * A[k];
+                  A[k] = 0.0;
+                  break;
+               }
+         }
+   else
+      for (RowNode *aux = Rows[rc]; aux != NULL; aux = aux->Prev)
+         if ((col = aux->Column) == rc)
+            if (d)
+            {
+               for (int r = 0; r < num_rhs; r++)
+                  rhs(rc,r) = aux->Value * sol(r);
+            }
+            else
+            {
+               aux->Value = 1.0;
+               for (int r = 0; r < num_rhs; r++)
+                  rhs(rc,r) = sol(r);
+            }
+         else
+         {
+            aux->Value = 0.0;
+            for (RowNode *node = Rows[col]; 1; node = node->Prev)
+               if (node == NULL)
+               {
+                  mfem_error("SparseMatrix::EliminateRowColMultipleRHS() #4");
+               }
+               else if (node->Column == rc)
+               {
+                  for (int r = 0; r < num_rhs; r++)
+                     rhs(col,r) -= sol(r) * node->Value;
+                  node->Value = 0.0;
+                  break;
+               }
+         }
+}
+
 void SparseMatrix::EliminateRowCol(int rc, int d)
 {
    int col;
@@ -763,7 +851,7 @@ void SparseMatrix::Gauss_Seidel_forw(const Vector &x, Vector &y) const
          end = Ip[i+1];
          sum = 0.0;
          d = -1;
-         for( ; j<end ; j++)
+         for ( ; j < end; j++)
             if ((c = Jp[j]) == i)
                d = j;
             else

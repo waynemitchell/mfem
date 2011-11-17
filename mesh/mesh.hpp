@@ -166,8 +166,6 @@ protected:
 
    FiniteElement *GetTransformationFEforElementType (int);
 
-   void GetElementTransformation (int i, IsoparametricTransformation *ElTr);
-
    /// Used in GetFaceElementTransformations (...)
    void GetLocalSegToTriTransformation (IsoparametricTransformation &loc,
                                         int i);
@@ -381,6 +379,10 @@ public:
       of dimension Dim. */
    void GetBdrPointMatrix(int i, DenseMatrix &pointmat) const;
 
+   /** Builds the transformation defining the i-th element in the user-defined
+       variable. */
+   void GetElementTransformation(int i, IsoparametricTransformation *ElTr);
+
    /// Returns the transformation defining the i-th element
    ElementTransformation *GetElementTransformation(int i);
 
@@ -391,6 +393,10 @@ public:
 
    /// Returns the transformation defining the i-th boundary element
    ElementTransformation * GetBdrElementTransformation(int i);
+
+   /** Returns the transformation defining the given face element.
+       The transformation is stored in a user-defined variable. */
+   void GetFaceTransformation(int i, IsoparametricTransformation *FTr);
 
    /// Returns the transformation defining the given face element
    ElementTransformation *GetFaceTransformation(int FaceNo);

@@ -231,19 +231,23 @@ ElementTransformation *Mesh::GetBdrElementTransformation(int i)
    return &FaceTransformation;
 }
 
-ElementTransformation *Mesh::GetFaceTransformation(int FaceNo)
+void Mesh::GetFaceTransformation(int FaceNo, IsoparametricTransformation *FTr)
 {
-   FaceTransformation.Attribute = faces[FaceNo]->GetAttribute();
-   FaceTransformation.ElementNo = FaceNo;
+   FTr->Attribute = faces[FaceNo]->GetAttribute();
+   FTr->ElementNo = FaceNo;
    const int *v = faces[FaceNo]->GetVertices();
    const int nv = faces[FaceNo]->GetNVertices();
-   DenseMatrix &pm = FaceTransformation.GetPointMat();
+   DenseMatrix &pm = FTr->GetPointMat();
    pm.SetSize(Dim, nv);
    for (int i = 0; i < Dim; i++)
       for (int j = 0; j < nv; j++)
          pm(i, j) = vertices[v[j]](i);
-   FaceTransformation.SetFE(
-      GetTransformationFEforElementType(faces[FaceNo]->GetType()));
+   FTr->SetFE(GetTransformationFEforElementType(faces[FaceNo]->GetType()));
+}
+
+ElementTransformation *Mesh::GetFaceTransformation(int FaceNo)
+{
+   GetFaceTransformation(FaceNo, &FaceTransformation);
    return &FaceTransformation;
 }
 

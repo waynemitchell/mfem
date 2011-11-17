@@ -13,7 +13,7 @@
 CC = g++
 OPTS = -O3 -I$(MFEM_DIR)
 DEBUG_OPTS = -g -I$(MFEM_DIR)
-LIBS = $(MFEM_LIB) $(LAPACK_LIBS)
+LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(OPENMP_LIBS)
 
 # Parallel compiler
 MPICC = mpicxx
@@ -28,6 +28,12 @@ MFEM_LIB = -L$(MFEM_DIR) -lmfem
 # The METIS and HYPRE libraries (needed for the parallel examples)
 METIS_DIR = ../../metis-4.0
 HYPRE_DIR = ../../hypre-2.8.0b/src/hypre
+
+# Enable experimental OpenMP support
+USE_OPENMP = NO
+OPENMP_LIBS_NO  =
+OPENMP_LIBS_YES = -fopenmp
+OPENMP_LIBS     = $(OPENMP_LIBS_$(USE_OPENMP))
 
 # The LAPACK and BLAS libraries (needed if MFEM was compiled with LAPACK support)
 USE_LAPACK = NO

@@ -44,9 +44,11 @@ protected:
    DenseMatrix elemmat;
    Array<int>  vdofs;
 
+   DenseTensor *element_matrices;
+
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
-   { fes = NULL; mat = mat_e = NULL; extern_bfs = 0; };
+   { fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL; }
 
 public:
    /// Creates bilinear form associated with FE space *f.
@@ -112,6 +114,13 @@ public:
 
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
+
+   /// Compute and store internally all element matrices.
+   void ComputeElementMatrices();
+
+   /// Free the memory used by the element matrices.
+   void FreeElementMatrices()
+   { delete element_matrices; element_matrices = NULL; }
 
    void ComputeElementMatrix(int i, DenseMatrix &elmat);
    void AssembleElementMatrix(int i, const DenseMatrix &elmat,

@@ -129,6 +129,12 @@ public:
        is assembled if and only if the element (rc,i) is assembled.
        If d != 0 then the element (rc,rc) remains the same. */
    void EliminateRowCol(int rc, const double sol, Vector &rhs, int d = 0);
+
+   /** Like previous one, but multiple values for eliminated dofs are accepted,
+       and accordingly multiple right-hand-sides are used. */
+   void EliminateRowColMultipleRHS(int rc, const Vector &sol,
+                                   DenseMatrix &rhs, int d = 0);
+
    void EliminateRowCol(int rc, int d = 0);
    // Same as above + save the eliminated entries in Ae so that
    // (*this) + Ae is the original matrix

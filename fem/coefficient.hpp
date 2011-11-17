@@ -81,7 +81,6 @@ class FunctionCoefficient : public Coefficient
 {
 private:
    double (*Function)(Vector &);
-   Vector transip;
 
 public:
 
@@ -205,7 +204,6 @@ class VectorFunctionCoefficient : public VectorCoefficient
 private:
    void (*Function)(const Vector &, Vector &);
    Coefficient *Q;
-   Vector transip;
 
 public:
    VectorFunctionCoefficient (
@@ -286,7 +284,6 @@ class MatrixFunctionCoefficient : public MatrixCoefficient
 {
 private:
    void (*Function)(const Vector &, DenseMatrix &);
-   Vector transip;
 
 public:
    MatrixFunctionCoefficient (int dim, void (*F)(const Vector &,

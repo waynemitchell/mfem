@@ -72,9 +72,14 @@ const double &Vector::Elem(int i) const
 
 double Vector::operator*(const double *v) const
 {
+   int s = size;
+   const double *d = data;
    double prod = 0.0;
-   for (int i = 0; i < size; i++)
-      prod += data[i] * v[i];
+#ifdef MFEM_USE_OPENMP
+#pragma omp parallel for reduction(+:prod)
+#endif
+   for (int i = 0; i < s; i++)
+      prod += d[i] * v[i];
    return prod;
 }
 
@@ -85,12 +90,7 @@ double Vector::operator*(const Vector &v) const
       mfem_error("Vector::operator*(const Vector &) const");
 #endif
 
-   register int i, s = size;
-   register const double *p = data, *vp = v.data;
-   register double sum = 0.;
-   for (i = 0; i < s; i++)
-      sum += p[i]*vp[i];
-   return sum;
+   return operator*(v.data);
 }
 
 Vector &Vector::operator=(const Vector &v)
@@ -219,6 +219,10 @@ void add(const Vector &v1, const Vector &v2, Vector &v)
    if (v.size != v1.size || v.size != v2.size)
       mfem_error("add(Vector &v1, Vector &v2, Vector &v)");
 #endif
+
+#ifdef MFEM_USE_OPENMP
+#pragma omp parallel for
+#endif
    for (int i = 0; i < v.size; i++)
       v.data[i] = v1.data[i] + v2.data[i];
 }
@@ -242,6 +246,9 @@ void add(const Vector &v1, double alpha, const Vector &v2, Vector &v)
       const double *v1p = v1.data, *v2p = v2.data;
       double *vp = v.data;
       int s = v.size;
+#ifdef MFEM_USE_OPENMP
+#pragma omp parallel for
+#endif
       for (int i = 0; i < s; i++)
          vp[i] = v1p[i] + alpha*v2p[i];
    }
@@ -267,8 +274,12 @@ void add(const double a, const Vector &x, const Vector &y, Vector &z)
       const double *xp = x.data;
       const double *yp = y.data;
       double       *zp = z.data;
+      int            s = x.size;
 
-      for (int i = 0, s = x.size; i < s; i++)
+#ifdef MFEM_USE_OPENMP
+#pragma omp parallel for
+#endif
+      for (int i = 0; i < s; i++)
          zp[i] = a * (xp[i] + yp[i]);
    }
 }
@@ -306,8 +317,12 @@ void add(const double a, const Vector &x,
       const double *xp = x.data;
       const double *yp = y.data;
       double       *zp = z.data;
+      int            s = x.size;
 
-      for (int i = 0, s = x.size; i < s; i++)
+#ifdef MFEM_USE_OPENMP
+#pragma omp parallel for
+#endif
+      for (int i = 0; i < s; i++)
          zp[i] = a * xp[i] + b * yp[i];
    }
 }
@@ -321,8 +336,12 @@ void subtract(const Vector &x, const Vector &y, Vector &z)
    const double *xp = x.data;
    const double *yp = y.data;
    double       *zp = z.data;
+   int            s = x.size;
 
-   for (int i = 0, s = x.size; i < s; i++)
+#ifdef MFEM_USE_OPENMP
+#pragma omp parallel for
+#endif
+   for (int i = 0; i < s; i++)
       zp[i] = xp[i] - yp[i];
 }
 
@@ -347,8 +366,12 @@ void subtract(const double a, const Vector &x, const Vector &y, Vector &z)
       const double *xp = x.data;
       const double *yp = y.data;
       double       *zp = z.data;
+      int            s = x.size;
 
-      for (int i = 0, s = x.size; i < s; i++)
+#ifdef MFEM_USE_OPENMP
+#pragma omp parallel for
+#endif
+      for (int i = 0; i < s; i++)
          zp[i] = a * (xp[i] - yp[i]);
    }
 }

@@ -311,7 +311,7 @@ void Mult (const Table &A, const Table &B, Table &C)
    const int  ncols_A = A.Width();
    const int  ncols_B = B.Width();
 
-   if (ncols_A != nrows_B)
+   if (ncols_A > nrows_B)
       mfem_error ("Mult (Table &A, Table &B, Table &C)");
 
    Array<int> B_marker (ncols_B);

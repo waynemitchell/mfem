@@ -151,6 +151,11 @@ public:
    ElementTransformation * GetElementTransformation(int i) const
    { return mesh -> GetElementTransformation(i); };
 
+   /** Returns the transformation defining the i-th element in the user-defined
+       variable. */
+   void GetElementTransformation(int i, IsoparametricTransformation *ElTr)
+   { mesh->GetElementTransformation(i, ElTr); }
+
    /// Returns ElementTransformation for the i'th boundary element.
    ElementTransformation * GetBdrElementTransformation(int i) const
    { return mesh -> GetBdrElementTransformation(i); };

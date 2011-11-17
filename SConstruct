@@ -13,6 +13,7 @@ Help("""
        Type: 'scons' to build the production library,
              'scons -c' to clean the build,
              'scons debug=1' to build the debug version,
+             'scons openmp=1' to enable OpenMP support,
              'scons parallel=1' to build the parallel version.
        """)
 
@@ -40,6 +41,13 @@ if int(debug):
    env.Append(CCFLAGS = DEBUG_OPTS)
 else:
    env.Append(CCFLAGS = CC_OPTS)
+
+# OpenMP options
+openmp = ARGUMENTS.get('openmp', 0)
+if int(openmp):
+   env.Prepend(CPPDEFINES = ['MFEM_USE_OPENMP'])
+   env.Append(CCFLAGS = '-fopenmp')
+   print 'Enabled OpenMP'
 
 # Parallel version
 parallel = ARGUMENTS.get('parallel', 0)
