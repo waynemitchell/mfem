@@ -36,11 +36,11 @@ public:
                                    ElementTransformation &Trans,
                                    Vector &u,
                                    const FiniteElement &fluxelem,
-                                   Vector &flux, int wcoef = 1) { };
+                                   Vector &flux, int wcoef = 1) { }
    virtual double ComputeFluxEnergy(const FiniteElement &fluxelem,
                                     ElementTransformation &Trans,
-                                    Vector &flux) { return 0.0; };
-   virtual ~BilinearFormIntegrator() { };
+                                    Vector &flux) { return 0.0; }
+   virtual ~BilinearFormIntegrator() { }
 };
 
 class TransposeIntegrator : public BilinearFormIntegrator
@@ -96,10 +96,10 @@ private:
 
 public:
    /// Construct a diffusion integrator with a scalar coefficient q
-   DiffusionIntegrator (Coefficient &q) : Q(&q) { MQ = NULL; };
+   DiffusionIntegrator (Coefficient &q) : Q(&q) { MQ = NULL; }
 
    /// Construct a diffusion integrator with a matrix coefficient q
-   DiffusionIntegrator (MatrixCoefficient &q) : MQ(&q) { Q = NULL; };
+   DiffusionIntegrator (MatrixCoefficient &q) : MQ(&q) { Q = NULL; }
 
    /** Given a particular Finite Element
        computes the element stiffness matrix elmat. */
@@ -145,7 +145,7 @@ public:
 class BoundaryMassIntegrator : public MassIntegrator
 {
 public:
-   BoundaryMassIntegrator(Coefficient &q) : MassIntegrator(q) { };
+   BoundaryMassIntegrator(Coefficient &q) : MassIntegrator(q) { }
 };
 
 /// (q . grad u, v)
@@ -158,7 +158,7 @@ private:
    Vector BdFidxT;
    VectorCoefficient &Q;
 public:
-   ConvectionIntegrator(VectorCoefficient &q) : Q(q) { };
+   ConvectionIntegrator(VectorCoefficient &q) : Q(q) { }
    virtual void AssembleElementMatrix(const FiniteElement &,
                                       ElementTransformation &,
                                       DenseMatrix &);
@@ -214,20 +214,46 @@ public:
     does NOT depend on the ElementTransformation Trans. */
 class VectorFEDivergenceIntegrator : public BilinearFormIntegrator
 {
-#ifndef MFEM_USE_OPENMP
 private:
+   Coefficient *Q;
+#ifndef MFEM_USE_OPENMP
    Vector divshape, shape;
 #endif
 public:
-   VectorFEDivergenceIntegrator() { };
+   VectorFEDivergenceIntegrator() { Q = NULL; }
+   VectorFEDivergenceIntegrator(Coefficient &q) { Q = &q; }
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
-                                      DenseMatrix &elmat) { };
+                                      DenseMatrix &elmat) { }
    virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
                                        const FiniteElement &test_fe,
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
 };
+
+
+/// Integrator for (curl u, v) for Nedelec and RT elements
+class VectorFECurlIntegrator: public BilinearFormIntegrator
+{
+private:
+   Coefficient *Q;
+#ifndef MFEM_USE_OPENMP
+   DenseMatrix curlshapeTrial;
+   DenseMatrix vshapeTest;
+   DenseMatrix curlshapeTrial_dFT;
+#endif
+public:
+   VectorFECurlIntegrator() { Q = NULL; }
+   VectorFECurlIntegrator(Coefficient &q) { Q = &q; }
+   virtual void AssembleElementMatrix(const FiniteElement &el,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat) { }
+   virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
+                                       const FiniteElement &test_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
+};
+
 
 /// Class for integrating (Q D_i(u), v); u and v are scalars
 class DerivativeIntegrator : public BilinearFormIntegrator
@@ -238,11 +264,11 @@ private:
    DenseMatrix dshape, dshapedxt, invdfdx;
    Vector shape, dshapedxi;
 public:
-   DerivativeIntegrator(Coefficient &q, int i) : Q(q), xi(i) {};
+   DerivativeIntegrator(Coefficient &q, int i) : Q(q), xi(i) { }
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat)
-   { AssembleElementMatrix2(el,el,Trans,elmat); } ;
+   { AssembleElementMatrix2(el,el,Trans,elmat); }
    virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
                                        const FiniteElement &test_fe,
                                        ElementTransformation &Trans,
@@ -259,9 +285,9 @@ private:
    Coefficient *Q;
 
 public:
-   CurlCurlIntegrator() { Q = NULL; };
+   CurlCurlIntegrator() { Q = NULL; }
    /// Construct a bilinear form integrator for Nedelec elements
-   CurlCurlIntegrator(Coefficient &q):Q(&q) {};
+   CurlCurlIntegrator(Coefficient &q) : Q(&q) { }
 
    /* Given a particular Finite Element, compute the
       element curl-curl matrix elmat */
@@ -286,7 +312,9 @@ private:
 public:
    VectorFEMassIntegrator() { Q = NULL; VQ= NULL; }
    VectorFEMassIntegrator(Coefficient *_q) { Q = _q; VQ= NULL; }
+   VectorFEMassIntegrator(Coefficient &q) { Q = &q; VQ= NULL; }
    VectorFEMassIntegrator(VectorCoefficient *_vq) { VQ = _vq; Q = NULL; }
+   VectorFEMassIntegrator(VectorCoefficient &vq) { VQ = &vq; Q = NULL; }
 
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
@@ -312,8 +340,9 @@ private:
    DenseMatrix Jadj;
 
 public:
-   VectorDivergenceIntegrator() { Q = NULL; };
-   VectorDivergenceIntegrator (Coefficient *_q) { Q = _q; };
+   VectorDivergenceIntegrator() { Q = NULL; }
+   VectorDivergenceIntegrator(Coefficient *_q) { Q = _q; }
+   VectorDivergenceIntegrator(Coefficient &q) { Q = &q; }
 
    virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
                                        const FiniteElement &test_fe,
@@ -332,8 +361,8 @@ private:
 #endif
 
 public:
-   DivDivIntegrator() { Q = NULL; };
-   DivDivIntegrator(Coefficient &q) : Q(&q) { };
+   DivDivIntegrator() { Q = NULL; }
+   DivDivIntegrator(Coefficient &q) : Q(&q) { }
 
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
@@ -353,8 +382,8 @@ private:
    DenseMatrix pelmat;
 
 public:
-   VectorDiffusionIntegrator() { Q = NULL; };
-   VectorDiffusionIntegrator (Coefficient &q) { Q = &q; };
+   VectorDiffusionIntegrator() { Q = NULL; }
+   VectorDiffusionIntegrator(Coefficient &q) { Q = &q; }
 
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,

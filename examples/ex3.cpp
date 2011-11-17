@@ -104,7 +104,7 @@ int main (int argc, char *argv[])
    Coefficient *sigma = new ConstantCoefficient(1.0);
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
-   a->AddDomainIntegrator(new VectorFEMassIntegrator(sigma));
+   a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;

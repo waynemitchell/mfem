@@ -405,9 +405,9 @@ void VectorMassIntegrator::AssembleElementMatrix
    }
 }
 
-void VectorFEDivergenceIntegrator::AssembleElementMatrix2 (
+void VectorFEDivergenceIntegrator::AssembleElementMatrix2(
    const FiniteElement &trial_fe, const FiniteElement &test_fe,
-   ElementTransformation &Trans, DenseMatrix &elmat )
+   ElementTransformation &Trans, DenseMatrix &elmat)
 {
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
 
@@ -424,13 +424,57 @@ void VectorFEDivergenceIntegrator::AssembleElementMatrix2 (
    const IntegrationRule *ir = &IntRules.Get(trial_fe.GetGeomType(), order);
 
    elmat = 0.0;
-   for(i = 0; i < ir->GetNPoints(); i++)
+   for (i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
       trial_fe.CalcDivShape(ip, divshape);
       test_fe.CalcShape(ip, shape);
-      shape *= ip.weight;
+      double w = ip.weight;
+      if (Q)
+      {
+         Trans.SetIntPoint(&ip);
+         w *= Q->Eval(Trans, ip);
+      }
+      shape *= w;
       AddMultVWt(shape, divshape, elmat);
+   }
+}
+
+void VectorFECurlIntegrator::AssembleElementMatrix2(
+   const FiniteElement &trial_fe, const FiniteElement &test_fe,
+   ElementTransformation &Trans, DenseMatrix &elmat)
+{
+   int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
+   int dim = trial_fe.GetDim();
+
+#ifdef MFEM_USE_OPENMP
+   DenseMatrix curlshapeTrial(trial_nd, dim);
+   DenseMatrix curlshapeTrial_dFT(trial_nd, dim);
+   DenseMatrix vshapeTest(test_nd, dim);
+#else
+   curlshapeTrial.SetSize(trial_nd, dim);
+   curlshapeTrial_dFT.SetSize(trial_nd, dim);
+   vshapeTest.SetSize(test_nd, dim);
+#endif
+
+   elmat.SetSize(test_nd, trial_nd);
+
+   int order = trial_fe.GetOrder() + test_fe.GetOrder() - 1; // <--
+   const IntegrationRule *ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+
+   elmat = 0.0;
+   for (i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      trial_fe.CalcCurlShape(ip, curlshapeTrial);
+      MultABt(curlshapeTrial, Trans.Jacobian(), curlshapeTrial_dFT);
+      test_fe.CalcVShape(Trans, vshapeTest);
+      double w = ip.weight;
+      if (Q)
+         w *= Q->Eval(Trans, ip);
+      vshapeTest *= w;
+      AddMultABt(vshapeTest, curlshapeTrial_dFT, elmat);
    }
 }
 

@@ -135,7 +135,7 @@ int main (int argc, char *argv[])
    Coefficient *sigma = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
-   a->AddDomainIntegrator(new VectorFEMassIntegrator(sigma));
+   a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
    {
       Array<int> ess_bdr(pmesh->bdr_attributes.Max());

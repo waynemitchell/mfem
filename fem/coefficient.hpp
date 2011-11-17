@@ -167,6 +167,23 @@ public:
    virtual ~DeltaCoefficient() { delete weight; }
 };
 
+/// Coefficient defined on a subset of domain or boundary attributes
+class RestrictedCoefficient : public Coefficient
+{
+private:
+   Coefficient *c;
+   Array<int> active_attr;
+
+public:
+   RestrictedCoefficient(Coefficient &_c, Array<int> &attr)
+   { c = &_c; attr.Copy(active_attr); }
+
+   virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip)
+   { return active_attr[T.Attribute-1] ? c->Eval(T, ip) : 0.0; }
+
+   virtual void Read(istream &in) { }
+};
+
 class VectorCoefficient
 {
 protected:
@@ -261,6 +278,22 @@ public:
                       const IntegrationPoint &ip);
 
    virtual ~VectorGridFunctionCoefficient() { };
+};
+
+/// VectorCoefficient defined on a subset of domain or boundary attributes
+class VectorRestrictedCoefficient : public VectorCoefficient
+{
+private:
+   VectorCoefficient *c;
+   Array<int> active_attr;
+
+public:
+   VectorRestrictedCoefficient(VectorCoefficient &vc, Array<int> &attr)
+      : VectorCoefficient(vc.GetVDim())
+   { c = &vc; attr.Copy(active_attr); }
+
+   virtual void Eval(Vector &V, ElementTransformation &T,
+                     const IntegrationPoint &ip);
 };
 
 

@@ -112,6 +112,16 @@ void VectorGridFunctionCoefficient::Eval (Vector &V, ElementTransformation &T,
    GridFunc -> GetVectorValue (T.ElementNo, ip, V);
 }
 
+void VectorRestrictedCoefficient::Eval(Vector &V, ElementTransformation &T,
+                                       const IntegrationPoint &ip)
+{
+   V.SetSize(vdim);
+   if (active_attr[T.Attribute-1])
+      c->Eval(V, T, ip);
+   else
+      V = 0.0;
+}
+
 void MatrixFunctionCoefficient::Eval (DenseMatrix &K, ElementTransformation &T,
                                       const IntegrationPoint &ip)
 {
