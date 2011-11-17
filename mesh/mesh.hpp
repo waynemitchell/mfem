@@ -523,8 +523,10 @@ public:
    void PrintVTK(ostream &out);
 
    /** Print the mesh in VTK format. The parameter ref specifies an element
-       subdivision number (useful for high order fields and curved meshes). */
-   void PrintVTK(ostream &out, int ref);
+       subdivision number (useful for high order fields and curved meshes).
+       If the optional field_data is set, we also add a FIELD section in the
+       beginning of the file with additional dataset information. */
+   void PrintVTK(ostream &out, int ref, int field_data=0);
 
    void GetElementColoring(Array<int> &colors, int el0 = 0);
 
