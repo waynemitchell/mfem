@@ -8,7 +8,7 @@
                          http://mfem.googlecode.com
 
 
-Version 2.0, released on Nov XX, 2011
+Version 2.0, released on Nov 18, 2011
 =====================================
 
 Arbitrary order finite element spaces
@@ -18,7 +18,7 @@ Arbitrary order finite element spaces
   These are based on a number of new FiniteElement sub-classes H1_*, L2_*, RT_*
   and ND_* elements of arbitrary order on all types of reference elements.
 
-  The classes implement H1-conforming, L2-discontinuous, H(div)-conforming
+- The classes implement H1-conforming, L2-discontinuous, H(div)-conforming
   Raviart-Thomas and H(curl)-conforming Nedelec elements on triangular,
   quadrilateral, tetrahedral and hexahedral meshes. The only restriction on the
   order of the spaces is the availability of the required quadrature rules.
@@ -27,37 +27,41 @@ NURBS meshes and discretization spaces
 --------------------------------------
 - Added a collection of classes for serial and parallel meshes and
   discretization spaces using Non-uniform rational B-splines (NURBS) basis
-  functions (files mesh/nurbs.?pp). The Mesh class supports the NURBS-specific
-  refinement functions: KnotInsert and DegreeElevate. Example NURBS meshes can
-  found in the 'data' directory with filenames *-nurbs.mesh including an exact
-  non-degenerate disc (disc-nurbs.mesh) and exact non-degenerate ball
-  (ball-nurbs.mesh). We can handle arbitrary NURBS or standard, non-NURBS
-  finite element spaces on NURBS meshes. However, a NURBS finite element space
-  requires an underlying NURBS mesh. Note that refinement of parallel NURBS
-  meshes is not supported yet.
+  functions (files mesh/nurbs.?pp).
 
-Discrete gradient, curl, etc matrices
--------------------------------------
+- The Mesh class supports the NURBS-specific refinement functions: KnotInsert
+  and DegreeElevate. Example NURBS meshes can found in the 'data' directory with
+  file names *-nurbs.mesh including an exact non-degenerate disc
+  (disc-nurbs.mesh) and exact non-degenerate ball (ball-nurbs.mesh).
+
+- We can handle arbitrary NURBS or standard, non-NURBS, finite element spaces on
+  NURBS meshes. However, a NURBS finite element space requires an underlying
+  NURBS mesh. Refinement of parallel NURBS meshes is not supported yet.
+
+Discrete gradient, curl, etc. matrices
+--------------------------------------
 - Added a new class, DiscreteLinearOperator, that facilitates the construction
   of matrix representations for linear operators like gradient, curl, embedding,
   projection, etc. The corresponding local "interpolators" are similar to
   bilinear form integrators and derive from base class DiscreteInterpolator.
   Current interpolators include GradientInterpolator, IdentityInterpolator,
-  CurlInterpolator and DivergenceInterpolator. Also available is a parallel
-  version of DiscreteLinearOperator, which assembles parallel topological
-  matrices (such as the discrete gradient, curl, etc.) in hypre's ParCSR format.
+  CurlInterpolator and DivergenceInterpolator.
+
+- Also available is a parallel version of DiscreteLinearOperator, which
+  assembles parallel topological matrices (such as the discrete gradient, curl,
+  etc.) in hypre's ParCSR format.
 
 New integrators
 ---------------
 - New linear (r.h.s.) integrator VectorFEBoundaryFluxLFIntegrator for
   assembling (u, v.n) on the boundary for scalar u and v in an RT space.
 
-- New bilinear integrator VectorFECurlIntegrator for assembing (curl u, v) for
+- New bilinear integrator VectorFECurlIntegrator for assembling (curl u, v) for
   u in a ND space and v in an RT space.
 
-New example 4, updated examples
--------------------------------
-- Added a new serial/parallel Example code 4/4p, which solves a 2D/3D H(Div)
+New and updated examples
+------------------------
+- Added a new serial/parallel Example code 4/4p, which solves a 2D or 3D H(Div)
   diffusion problem using the Raviart-Thomas finite elements. In parallel, the
   linear system is solved with the brand-new Auxiliary-space Divergence Solver
   (ADS) in hypre.
@@ -65,17 +69,17 @@ New example 4, updated examples
 - Modified Example 1 to use isoparametric discretization (use the FE space from
   the mesh) including NURBS meshes and spaces.  Updated Example 2 to support
   arbitrary order spaces. Updated all examples to work with NURBS meshes and
-  spaces, as well as to not use the projection onto discontinuous polynomial
-  spaces (this is now handled directly in GLVis when necessary).
+  spaces, as well as to not use projection onto discontinuous polynomial spaces
+  for visualization (this is now handled directly in GLVis when necessary).
 
-- In the examples, switched to a uniform "solution" socket data type instead of
+- In all examples, switched to a uniform "solution" socket data type instead of
   the various previous "*_gf_data" data types.
 
 - In the parallel examples, switched to parallel mesh and solution output, as
   well as to the new parallel socket format in place of PrintAsOne/SaveAsOne.
 
-New hypre solver(s)
--------------------
+New hypre solvers
+-----------------
 - The parallel MFEM build now requires hypre 2.8.0b or newer.
 
 - Extended HypreAMS and HypreADS to support (arbitrary) high-order ND/RT spaces,
@@ -103,7 +107,7 @@ Miscellaneous
 
 - Basic experimental OpenMP support (disabled by default). When enabled, OpenMP
   code is used for local matrix assembly, sparse matrix-vector product, and some
-  vector operatoins.
+  vector operations.
 
 - Added support for METIS 5.0 (not the default, see INSTALL).
 
@@ -113,17 +117,23 @@ Miscellaneous
 Version 1.2, released on Apr 08, 2011
 =====================================
 
+Parallel MPI-based version of the library based on hypre
+--------------------------------------------------------
 - New MPI parallel version of the library based on the ParCSR parallel matrix
   format from hypre and the metis graph partitioning library. This version
   supports parallel local refinement and parallel curved meshes, as well as
   several solvers from hypre.
 
+New serial and parallel examples
+--------------------------------
 - Added a new example code describing an electromagnetic diffusion problem
   discretized with lowest order Nedelec finite elements (Example 3).
 
 - Added parallel versions of all examples codes (files ex1p.cpp, ex2p.cpp and
   ex3p.cpp) based on hypre's BoomerAMG and AMS preconditioners.
 
+Miscellaneous
+-------------
 - Added support for saving and reading linear and curved quadratic meshes in VTK
   format. The format is automatically recognized when opening a mesh file, and
   the boundary is reconstructed based on the actual domain boundary.
@@ -146,14 +156,20 @@ Version 1.2, released on Apr 08, 2011
 Version 1.1, released on Sep 13, 2010
 =====================================
 
+New MFEM format for general meshes
+----------------------------------
 - New MFEM mesh v1.0 format with uniform structure for any dimension and support
   for curved meshes including in 3D.  Class Mesh will recognize and read the new
   format (in addition to all previously used formats) and Mesh::Print uses the
   new format by default. The old print function was renamed to Mesh::PrintXG.
 
+New elasticity example
+----------------------
 - Added an example code for linear elasticity with (high-order) vector finite
   elements (Example 2).
 
+Miscellaneous
+-------------
 - Added Mesh::PrintVTK and GridFunction::SaveVTK methods for output in VTK
   format.
 

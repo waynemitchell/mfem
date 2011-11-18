@@ -181,7 +181,7 @@ public:
 #else
       FiniteElement(D, G, Do, O, F), c_shape(Do)
 #endif
-    { }
+   { }
 
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const
