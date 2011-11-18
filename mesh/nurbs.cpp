@@ -613,8 +613,8 @@ void NURBSPatch::DegreeElevate(int dir, int t)
       mfem_error("NURBSPatch::DegreeElevate : Incorrect direction!");
 
    int i, j, k, kj, mpi, mul, mh, kind, cind, first, last;
-   int r, a, b, oldr, save, s, tr, lbz, rbz, l, den, bet, gam;
-   double inv, ua, ub, numer, alf;
+   int r, a, b, oldr, save, s, tr, lbz, rbz, l;
+   double inv, ua, ub, numer, alf, den, bet, gam;
 
    NURBSPatch &oldp  = *this;
    KnotVector &oldkv = *kv[dir];
@@ -714,7 +714,7 @@ void NURBSPatch::DegreeElevate(int dir, int t)
          for (k = p ; k > mul; k--)
             alphas[k-mul-1] = numer/(oldkv[a+k]-ua);
 
-         for (int j = 1; j <= r; j++)
+         for (j = 1; j <= r; j++)
          {
             save = r-j;
             s = mul+j;
