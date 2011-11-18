@@ -31,6 +31,10 @@ following external libraries:
 By default MFEM supports metis version 4.0. For version 5.0 set USE_METIS_5 to
 YES or define MFEM_USE_METIS_5 in the build files below.
 
+Basic experimental OpenMP support (for both serial and parallel MFEM builds)
+can be enabled by setting USE_OPENMP to YES in the makefiles or by using the
+scons option 'openmp=1'.
+
 Three build systems are supported, based on make, GNU make (gmake) and SCons, as
 described below.
 
