@@ -169,12 +169,19 @@ protected:
                                  DenseMatrix &I,
                                  const NodalFiniteElement &fine_fe) const;
 
+#ifndef MFEM_USE_OPENMP
    mutable Vector c_shape;
+#endif
 
 public:
-   NodalFiniteElement (int D, int G, int Do, int O,
-                       int F = FunctionSpace::Pk)
-      : FiniteElement (D, G, Do, O, F), c_shape (Do) { }
+   NodalFiniteElement(int D, int G, int Do, int O,
+                      int F = FunctionSpace::Pk) :
+#ifdef MFEM_USE_OPENMP
+      FiniteElement(D, G, Do, O, F)
+#else
+      FiniteElement(D, G, Do, O, F), c_shape(Do)
+#endif
+    { }
 
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const
@@ -850,13 +857,15 @@ public:
 class Lagrange1DFiniteElement : public NodalFiniteElement
 {
 private:
-   double *rwk, *rxxk;
+   Vector rwk;
+#ifndef MFEM_USE_OPENMP
+   mutable Vector rxxk;
+#endif
 public:
    Lagrange1DFiniteElement (int degree);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   ~Lagrange1DFiniteElement ();
 };
 
 class P1TetNonConfFiniteElement : public NodalFiniteElement
@@ -897,8 +906,10 @@ private:
    Lagrange1DFiniteElement * fe1d;
    int dof1d;
    int *I, *J, *K;
+#ifndef MFEM_USE_OPENMP
    mutable Vector shape1dx, shape1dy, shape1dz;
    mutable DenseMatrix dshape1dx, dshape1dy, dshape1dz;
+#endif
 
 public:
    LagrangeHexFiniteElement (int degree);

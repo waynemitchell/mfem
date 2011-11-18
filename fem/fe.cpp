@@ -124,6 +124,10 @@ void NodalFiniteElement::NodalLocalInterpolation (
    Vector vv (v, Dim);
    IntegrationPoint f_ip;
 
+#ifdef MFEM_USE_OPENMP
+   Vector c_shape(Dof);
+#endif
+
    for (int i = 0; i < fine_fe.Dof; i++)
    {
       Trans.Transform (fine_fe.Nodes.IntPoint (i), vv);
@@ -3221,16 +3225,18 @@ Lagrange1DFiniteElement::Lagrange1DFiniteElement(int degree)
    for (i = 1; i < m; i++)
       Nodes.IntPoint(i+1).x = double(i) / m;
 
-   rwk = new double[degree+1];
-   rxxk = new double[degree+1];
+   rwk.SetSize(degree+1);
+#ifndef MFEM_USE_OPENMP
+   rxxk.SetSize(degree+1);
+#endif
 
-   rwk[0] = 1.0;
+   rwk(0) = 1.0;
    for (i = 1; i <= m; i++)
-      rwk[i] = rwk[i-1] * ( (double)(m) / (double)(i) );
+      rwk(i) = rwk(i-1) * ( (double)(m) / (double)(i) );
    for (i = 0; i < m/2+1; i++)
-      rwk[m-i] = ( rwk[i] *= rwk[m-i] );
+      rwk(m-i) = ( rwk(i) *= rwk(m-i) );
    for (i = m-1; i >= 0; i -= 2)
-      rwk[i] = -rwk[i];
+      rwk(i) = -rwk(i);
 }
 
 void Lagrange1DFiniteElement::CalcShape(const IntegrationPoint &ip,
@@ -3239,26 +3245,30 @@ void Lagrange1DFiniteElement::CalcShape(const IntegrationPoint &ip,
    double w, wk, x = ip.x;
    int i, k, m = GetOrder();
 
+#ifdef MFEM_USE_OPENMP
+   Vector rxxk(m+1);
+#endif
+
    k = (int) floor ( m * x + 0.5 );
    wk = 1.0;
    for (i = 0; i <= m; i++)
       if (i != k)
-         wk *= ( rxxk[i] = x - (double)(i) / m );
-   w = wk * ( rxxk[k] = x - (double)(k) / m );
+         wk *= ( rxxk(i) = x - (double)(i) / m );
+   w = wk * ( rxxk(k) = x - (double)(k) / m );
 
    if (k != 0)
-      shape(0) = w * rwk[0] / rxxk[0];
+      shape(0) = w * rwk(0) / rxxk(0);
    else
-      shape(0) = wk * rwk[0];
+      shape(0) = wk * rwk(0);
    if (k != m)
-      shape(1) = w * rwk[m] / rxxk[m];
+      shape(1) = w * rwk(m) / rxxk(m);
    else
-      shape(1) = wk * rwk[k];
+      shape(1) = wk * rwk(k);
    for (i = 1; i < m; i++)
       if (i != k)
-         shape(i+1) = w * rwk[i] / rxxk[i];
+         shape(i+1) = w * rwk(i) / rxxk(i);
       else
-         shape(k+1) = wk * rwk[k];
+         shape(k+1) = wk * rwk(k);
 }
 
 void Lagrange1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
@@ -3267,40 +3277,38 @@ void Lagrange1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    double s, srx, w, wk, x = ip.x;
    int i, k, m = GetOrder();
 
+#ifdef MFEM_USE_OPENMP
+   Vector rxxk(m+1);
+#endif
+
    k = (int) floor ( m * x + 0.5 );
    wk = 1.0;
    for (i = 0; i <= m; i++)
       if (i != k)
-         wk *= ( rxxk[i] = x - (double)(i) / m );
-   w = wk * ( rxxk[k] = x - (double)(k) / m );
+         wk *= ( rxxk(i) = x - (double)(i) / m );
+   w = wk * ( rxxk(k) = x - (double)(k) / m );
 
    for (i = 0; i <= m; i++)
-      rxxk[i] = 1.0 / rxxk[i];
+      rxxk(i) = 1.0 / rxxk(i);
    srx = 0.0;
    for (i = 0; i <= m; i++)
       if (i != k)
-         srx += rxxk[i];
+         srx += rxxk(i);
    s = w * srx + wk;
 
    if (k != 0)
-      dshape(0,0) = (s - w * rxxk[0]) * rwk[0] * rxxk[0];
+      dshape(0,0) = (s - w * rxxk(0)) * rwk(0) * rxxk(0);
    else
-      dshape(0,0) = wk * srx * rwk[0];
+      dshape(0,0) = wk * srx * rwk(0);
    if (k != m)
-      dshape(1,0) = (s - w * rxxk[m]) * rwk[m] * rxxk[m];
+      dshape(1,0) = (s - w * rxxk(m)) * rwk(m) * rxxk(m);
    else
-      dshape(1,0) = wk * srx * rwk[k];
+      dshape(1,0) = wk * srx * rwk(k);
    for (i = 1; i < m; i++)
       if (i != k)
-         dshape(i+1,0) = (s - w * rxxk[i]) * rwk[i] * rxxk[i];
+         dshape(i+1,0) = (s - w * rxxk(i)) * rwk(i) * rxxk(i);
       else
-         dshape(k+1,0) = wk * srx * rwk[k];
-}
-
-Lagrange1DFiniteElement::~Lagrange1DFiniteElement()
-{
-   delete [] rwk;
-   delete [] rxxk;
+         dshape(k+1,0) = wk * srx * rwk(k);
 }
 
 
@@ -3512,6 +3520,7 @@ LagrangeHexFiniteElement::LagrangeHexFiniteElement (int degree)
    fe1d = new Lagrange1DFiniteElement(degree);
    dof1d = fe1d -> GetDof();
 
+#ifndef MFEM_USE_OPENMP
    shape1dx.SetSize(dof1d);
    shape1dy.SetSize(dof1d);
    shape1dz.SetSize(dof1d);
@@ -3519,6 +3528,7 @@ LagrangeHexFiniteElement::LagrangeHexFiniteElement (int degree)
    dshape1dx.SetSize(dof1d,1);
    dshape1dy.SetSize(dof1d,1);
    dshape1dz.SetSize(dof1d,1);
+#endif
 
    for (int n = 0; n < Dof; n++)
    {
@@ -3535,6 +3545,10 @@ void LagrangeHexFiniteElement::CalcShape(const IntegrationPoint &ip,
    ipy.x = ip.y;
    ipz.x = ip.z;
 
+#ifdef MFEM_USE_OPENMP
+   Vector shape1dx(dof1d), shape1dy(dof1d), shape1dz(dof1d);
+#endif
+
    fe1d -> CalcShape(ip,  shape1dx);
    fe1d -> CalcShape(ipy, shape1dy);
    fe1d -> CalcShape(ipz, shape1dz);
@@ -3549,6 +3563,11 @@ void LagrangeHexFiniteElement::CalcDShape(const IntegrationPoint &ip,
    IntegrationPoint ipy, ipz;
    ipy.x = ip.y;
    ipz.x = ip.z;
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape1dx(dof1d), shape1dy(dof1d), shape1dz(dof1d);
+   DenseMatrix dshape1dx(dof1d,1), dshape1dy(dof1d,1), dshape1dz(dof1d,1);
+#endif
 
    fe1d -> CalcShape(ip,  shape1dx);
    fe1d -> CalcShape(ipy, shape1dy);
