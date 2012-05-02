@@ -1159,9 +1159,6 @@ public:
    {
    private:
       DenseMatrix A;
-#ifndef MFEM_USE_OPENMP
-      mutable Vector a, b;
-#endif
 
    public:
       Basis(const int p, const double *nodes);

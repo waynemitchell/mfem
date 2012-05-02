@@ -5576,12 +5576,9 @@ void RotTriLinearHexFiniteElement::CalcDShape(const IntegrationPoint &ip,
 Poly_1D::Basis::Basis(const int p, const double *nodes)
    : A(p + 1)
 {
-#ifdef MFEM_USE_OPENMP
-   Vector a(p+1);
-#else
-   a.SetSize(p+1);
-   b.SetSize(p+1);
-#endif
+   double adata[p + 1];
+   Vector a(adata, p + 1);
+
    for (int i = 0; i <= p; i++)
    {
       CalcBasis(p, nodes[i], a);
@@ -5595,21 +5592,21 @@ Poly_1D::Basis::Basis(const int p, const double *nodes)
 
 void Poly_1D::Basis::Eval(const double x, Vector &u) const
 {
-#ifdef MFEM_USE_OPENMP
-   Vector a(A.Size());
-#endif
-   const int p = A.Size() - 1;
-   CalcBasis(p, x, a);
+   const int s = A.Size();
+   double adata[s];
+   Vector a(adata, s);
+
+   CalcBasis(s - 1, x, a);
    A.Mult(a, u);
 }
 
 void Poly_1D::Basis::Eval(const double x, Vector &u, Vector &d) const
 {
-#ifdef MFEM_USE_OPENMP
-   Vector a(A.Size()), b(A.Size());
-#endif
-   const int p = A.Size() - 1;
-   CalcBasis(p, x, a, b);
+   const int s = A.Size();
+   double adata[s], bdata[s];
+   Vector a(adata, s), b(bdata, s);
+
+   CalcBasis(s - 1, x, a, b);
    A.Mult(a, u);
    A.Mult(b, d);
 }
