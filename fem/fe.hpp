@@ -1178,9 +1178,6 @@ private:
    static void CalcMono(const int p, const double x, double *u);
    static void CalcMono(const int p, const double x, double *u, double *d);
 
-   static void CalcBernstein(const int p, const double x, double *u);
-   static void CalcBernstein(const int p, const double x, double *u, double *d);
-
    static void CalcLegendre(const int p, const double x, double *u);
    static void CalcLegendre(const int p, const double x, double *u, double *d);
 
@@ -1215,6 +1212,9 @@ public:
 
    // Evaluate a representation of a Delta function at point x
    static double CalcDelta(const int p, const double x){ return pow(x, (double) p); }
+
+   static void CalcBernstein(const int p, const double x, double *u);
+   static void CalcBernstein(const int p, const double x, double *u, double *d);
 
    ~Poly_1D();
 };
