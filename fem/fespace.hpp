@@ -105,6 +105,7 @@ public:
    inline Mesh * GetMesh() const { return mesh; };
 
    NURBSExtension *GetNURBSext() { return NURBSext; }
+   NURBSExtension *StealNURBSext();
 
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; };

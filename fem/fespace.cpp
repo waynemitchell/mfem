@@ -487,6 +487,15 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
    }
 }
 
+NURBSExtension *FiniteElementSpace::StealNURBSext()
+{
+   if (NURBSext && !own_ext)
+      mfem_error("FiniteElementSpace::StealNURBSext");
+   own_ext = 0;
+
+   return NURBSext;
+}
+
 void FiniteElementSpace::UpdateNURBS()
 {
    nvdofs = 0;
