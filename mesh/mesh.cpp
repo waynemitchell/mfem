@@ -2371,6 +2371,12 @@ void Mesh::SetNodalFESpace(FiniteElementSpace *nfes)
    if (own_nodes) delete Nodes;
    Nodes = nodes;
    own_nodes = 1;
+
+   if (NURBSext != nfes->GetNURBSext())
+   {
+      delete NURBSext;
+      NURBSext = nfes->StealNURBSext();
+   }
 }
 
 void Mesh::SetNodalGridFunction(GridFunction *nodes)
@@ -2383,9 +2389,7 @@ void Mesh::SetNodalGridFunction(GridFunction *nodes)
    else
       *nodes = *Nodes;
 
-   if (own_nodes) delete Nodes;
-   Nodes = nodes;
-   own_nodes = 0;
+   NewNodes(*nodes);
 }
 
 const FiniteElementSpace *Mesh::GetNodalFESpace()
@@ -4095,6 +4099,12 @@ void Mesh::NewNodes(GridFunction &nodes)
    if (own_nodes) delete Nodes;
    Nodes = &nodes;
    own_nodes = 0;
+
+   if (NURBSext != nodes.FESpace()->GetNURBSext())
+   {
+      delete NURBSext;
+      NURBSext = nodes.FESpace()->StealNURBSext();
+   }
 }
 
 void Mesh::AverageVertices(int * indexes, int n, int result)
