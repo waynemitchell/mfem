@@ -1540,8 +1540,9 @@ void GridFunction::SaveVTK(ostream &out, const string &field_name, int ref)
    RefinedGeometry *RefG;
    Vector val;
    DenseMatrix vval, pmat;
+   int vec_dim = VectorDim();
 
-   if (VectorDim() == 1)
+   if (vec_dim == 1)
    {
       // scalar data
       out << "SCALARS " << field_name << " double 1\n"
@@ -1559,7 +1560,7 @@ void GridFunction::SaveVTK(ostream &out, const string &field_name, int ref)
          }
       }
    }
-   else
+   else if (vec_dim == mesh->Dimension())
    {
       // vector data
       out << "VECTORS " << field_name << " double\n";
@@ -1578,6 +1579,27 @@ void GridFunction::SaveVTK(ostream &out, const string &field_name, int ref)
             else
                out << vval(2, j);
             out << '\n';
+         }
+      }
+   }
+   else
+   {
+      // other data: save the components as separate scalars
+      for (int vd = 0; vd < vec_dim; vd++)
+      {
+         out << "SCALARS " << field_name << vd << " double 1\n"
+             << "LOOKUP_TABLE default\n";
+         for (int i = 0; i < mesh->GetNE(); i++)
+         {
+            RefG = GlobGeometryRefiner.Refine(
+               mesh->GetElementBaseGeometry(i), ref, 1);
+
+            GetValues(i, RefG->RefPts, val, pmat, vd + 1);
+
+            for (int j = 0; j < val.Size(); j++)
+            {
+               out << val(j) << '\n';
+            }
          }
       }
    }
