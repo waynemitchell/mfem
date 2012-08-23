@@ -79,7 +79,7 @@ public:
 /// class for C-function coefficient
 class FunctionCoefficient : public Coefficient
 {
-private:
+protected:
    double (*Function)(Vector &);
 
 public:
