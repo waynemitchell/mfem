@@ -34,7 +34,6 @@
 #include <fstream>
 #include "mfem.hpp"
 
-
 // Choose a functional form for the velocity field
 const int funcID = 5;
 
@@ -102,7 +101,6 @@ int main (int argc, char *argv[])
    cout << "Enter finite element space order --> " << flush;
    cin >> p;
 
-
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 5,000
@@ -158,7 +156,6 @@ int main (int argc, char *argv[])
 
    // Calculate L2 norm of error in s
    cout << "\n s field: || s_h - s ||_{L^2} = " << s_proj.ComputeL2Error(f_proj) << '\n' << endl;
-   outputFile<<mesh->GetElementSize(0)<<" "<< s_proj.ComputeL2Error(f_proj)<<" ";
 
    // Exact Laplacian of s
    GridFunction lap_exact(fespace);
@@ -216,7 +213,6 @@ int main (int argc, char *argv[])
 
          // Calculate L2 norm
          cout << "\n L(s):  || x_h - x ||_{L^2} = " << x.ComputeL2Error(lap_proj) << '\n' << endl;
-         outputFile<< x.ComputeL2Error(lap_proj)<<" ";
 
       }
       else
@@ -230,14 +226,11 @@ int main (int argc, char *argv[])
 
          // Calculate L2 norm
          cout << "\n LL(s):  || x_h - x ||_{L^2} = " << x2.ComputeL2Error(lap2_proj) << '\n' << endl;
-         outputFile<< x2.ComputeL2Error(lap2_proj)<<" ";
-
       }
    }
 
 
    // 8. (Optional) Send the above data by socket to a GLVis server.
-
    char vishost[] = "localhost";
    int  visport   = 19916;
 
@@ -307,7 +300,7 @@ int main (int argc, char *argv[])
    LLsm_sock.send();
    LLsm_sock.send();
 
-   // 8. Free the used memory.
+   // 9. Free the used memory.
    if (fec)
    {
       delete fespace;
@@ -317,11 +310,8 @@ int main (int argc, char *argv[])
    }
    delete mesh;
 
-   outputFile<<endl;
-   outputFile.close();
    return 0;
 }
-
 
 //----------------------------------------------------------------------
 // Functions
@@ -497,7 +487,6 @@ double Ls_exact(Vector &p)
    return s;
 
 }
-
 
 // Second Laplacian of the s field
 double LLs__exact(Vector &p)
@@ -683,7 +672,6 @@ void absGridFunction(FiniteElementSpace *fespace, GridFunction& v)
          v(dofs[p]) = fabs(v(dofs[p]));
    }
 }
-
 
 void smoothing(FiniteElementSpace *fespace, GridFunction& h0s )
 {
