@@ -59,15 +59,19 @@ public:
    const int *GetGroup(int g) { return group_lproc.GetRow(g); }
 };
 
-
 class GroupCommunicator
 {
 private:
    GroupTopology &gtopo;
    Table group_ldof;
-   Array<int> group_buf;
+   int group_buf_size;
+   Array<char> group_buf;
    MPI_Request *requests;
    MPI_Status  *statuses;
+
+   /** Function template that returns the MPI_Datatype for a given C++ type.
+       We explicitly define this function for int and double. */
+   template <class T> static inline MPI_Datatype Get_MPI_Datatype();
 
 public:
    GroupCommunicator(GroupTopology &gt);
@@ -80,11 +84,36 @@ public:
    /// Allocate internal buffers after the GroupLDofTable is defined
    void Finalize();
 
-   /// Broadcast within each group where the master is the root
-   void Bcast(Array<int> &ldata);
+   /** Broadcast within each group where the master is the root.
+       This method is instantiated for int and double. */
+   template <class T> void Bcast(T *ldata);
+   template <class T> void Bcast(Array<T> &ldata) { Bcast<T>((T *)ldata); }
+
+   /** Data structure on which we define reduce operations. The data is
+       associated with (and the operation is performed on) one group at a
+       time. */
+   template <class T> struct OpData
+   {
+      int nldofs, nb, *ldofs;
+      T *ldata, *buf;
+   };
+
    /** Reduce within each group where the master is the root. The reduce
-       operation is bitwise OR. */
-   void Reduce(Array<int> &ldata);
+       operation is given by the second argument (see below for list of the
+       supported operations.) This method is instantiated for int and double. */
+   template <class T> void Reduce(T *ldata, void (*Op)(OpData<T>));
+   template <class T> void Reduce(Array<T> &ldata, void (*Op)(OpData<T>))
+   { Reduce<T>((T *)ldata, Op); }
+
+   /// Reduce operation Sum, instantiated for int and double
+   template <class T> static void Sum(OpData<T>);
+   /// Reduce operation Min, instantiated for int and double
+   template <class T> static void Min(OpData<T>);
+   /// Reduce operation Max, instantiated for int and double
+   template <class T> static void Max(OpData<T>);
+   /// Reduce operation bitwise OR, instantiated for int only
+   template <class T> static void BitOR(OpData<T>);
+
    ~GroupCommunicator();
 };
 

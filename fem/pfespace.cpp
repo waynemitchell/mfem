@@ -410,7 +410,7 @@ void ParFiniteElementSpace::Synchronize(Array<int> &ldof_marker)
       mfem_error("ParFiniteElementSpace::Synchronize");
 
    // implement allreduce(|) as reduce(|) + broadcast
-   gcomm->Reduce(ldof_marker);
+   gcomm->Reduce(ldof_marker, GroupCommunicator::BitOR);
    gcomm->Bcast(ldof_marker);
 }
 

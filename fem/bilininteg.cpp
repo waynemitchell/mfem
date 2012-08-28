@@ -104,9 +104,10 @@ void DiffusionIntegrator::AssembleElementMatrix
       CalcInverse(Trans.Jacobian(), invdfdx);
       w = Trans.Weight() * ip.weight;
       Mult(dshape, invdfdx, dshapedxt);
-      if (Q)
+      if (!MQ)
       {
-         w *= Q->Eval(Trans, ip);
+         if (Q)
+            w *= Q->Eval(Trans, ip);
          AddMult_a_AAt(w, dshapedxt, elmat);
       }
       else
@@ -135,6 +136,7 @@ void DiffusionIntegrator::ComputeElementFlux
    invdfdx.SetSize(dim);
 #endif
    vec.SetSize(dim);
+   pointflux.SetSize(dim);
 
    const IntegrationRule &ir = fluxelem.GetNodes();
    fnd = ir.GetNPoints();
@@ -150,21 +152,24 @@ void DiffusionIntegrator::ComputeElementFlux
       CalcInverse(Trans.Jacobian(), invdfdx);
       invdfdx.MultTranspose(vec, pointflux);
 
-      if (wcoef)
+      if (!wcoef)
+      {
+         for (j = 0; j < dim; j++)
+            flux(fnd*j+i) = pointflux(j);
+      }
+      else if (!MQ)
       {
          if (Q)
-         {
             pointflux *= Q->Eval(Trans,ip);
-            for (j = 0; j < dim; j++)
-               flux(fnd*j+i) = pointflux(j);
-         }
-         else
-         {
-            MQ->Eval(invdfdx, Trans, ip);
-            invdfdx.Mult(pointflux, vec);
-            for (j = 0; j < dim; j++)
-               flux(fnd*j+i) = vec(j);
-         }
+         for (j = 0; j < dim; j++)
+            flux(fnd*j+i) = pointflux(j);
+      }
+      else
+      {
+         MQ->Eval(invdfdx, Trans, ip);
+         invdfdx.Mult(pointflux, vec);
+         for (j = 0; j < dim; j++)
+            flux(fnd*j+i) = vec(j);
       }
    }
 }
@@ -208,13 +213,16 @@ double DiffusionIntegrator::ComputeFluxEnergy
       Trans.SetIntPoint (&ip);
       co = Trans.Weight() * ip.weight;
 
-      if (Q)
-         co *= Q->Eval(Trans, ip) * ( pointflux * pointflux );
+      if (!MQ)
+      {
+         co *= ( pointflux * pointflux );
+         if (Q)
+            co *= Q->Eval(Trans, ip);
+      }
       else
       {
          MQ->Eval(invdfdx, Trans, ip);
-         invdfdx.Mult(pointflux, vec);
-         co *= ( pointflux * vec );
+         co *= invdfdx.InnerProduct(pointflux, pointflux);
       }
 
       energy += co;

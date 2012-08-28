@@ -55,11 +55,23 @@ public:
    ParGridFunction &operator=(HypreParVector &tv)
    { Distribute(&tv); return (*this); }
 
+   /// Returns the true dofs in a HypreParVector
+   void GetTrueDofs(HypreParVector &tv) const;
+
+   /// Returns the true dofs in a new HypreParVector
+   HypreParVector *GetTrueDofs() const;
+
    /// Returns the vector averaged on the true dofs.
-   void ParallelAverage(HypreParVector &tv);
+   void ParallelAverage(HypreParVector &tv) const;
 
    /// Returns a new vector averaged on the true dofs.
-   HypreParVector *ParallelAverage();
+   HypreParVector *ParallelAverage() const;
+
+   /// Returns the vector assembled on the true dofs.
+   void ParallelAssemble(HypreParVector &tv) const;
+
+   /// Returns a new vector assembled on the true dofs.
+   HypreParVector *ParallelAssemble() const;
 
    double ComputeL1Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;

@@ -51,17 +51,55 @@ void ParGridFunction::Distribute(HypreParVector *tv)
    pfes->Dof_TrueDof_Matrix()->Mult(*tv, *this);
 }
 
-void ParGridFunction::ParallelAverage(HypreParVector &tv)
+void ParGridFunction::GetTrueDofs(HypreParVector &tv) const
+{
+#if 0
+   for (int i = 0; i < size; i++)
+   {
+      int tdof = pfes->GetLocalTDofNumber(i);
+      if (tdof >= 0)
+         tv(tdof) = (*this)(i);
+   }
+#else
+   hypre_ParCSRMatrix *P = *pfes->Dof_TrueDof_Matrix();
+   hypre_CSRMatrix *diag = hypre_ParCSRMatrixDiag(P);
+   int *I = hypre_CSRMatrixI(diag) + 1;
+   int *J = hypre_CSRMatrixJ(diag);
+   for (int i = 0, j = 0; i < size; i++)
+      if (j < I[i])
+         tv(J[j++]) = (*this)(i);
+#endif
+}
+
+HypreParVector *ParGridFunction::GetTrueDofs() const
+{
+   HypreParVector *tv = pfes->NewTrueDofVector();
+   GetTrueDofs(*tv);
+   return tv;
+}
+
+void ParGridFunction::ParallelAverage(HypreParVector &tv) const
 {
    pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
    pfes->DivideByGroupSize(tv);
 }
 
-HypreParVector *ParGridFunction::ParallelAverage()
+HypreParVector *ParGridFunction::ParallelAverage() const
 {
-   HypreParVector *tv = new HypreParVector(pfes->GlobalTrueVSize(),
-                                           pfes->GetTrueDofOffsets());
+   HypreParVector *tv = pfes->NewTrueDofVector();
    ParallelAverage(*tv);
+   return tv;
+}
+
+void ParGridFunction::ParallelAssemble(HypreParVector &tv) const
+{
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
+}
+
+HypreParVector *ParGridFunction::ParallelAssemble() const
+{
+   HypreParVector *tv = pfes->NewTrueDofVector();
+   ParallelAssemble(*tv);
    return tv;
 }
 
