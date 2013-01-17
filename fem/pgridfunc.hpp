@@ -18,6 +18,8 @@ class ParGridFunction : public GridFunction
 protected:
    ParFiniteElementSpace *pfes;
 
+   Vector face_nbr_data;
+
 public:
    ParGridFunction() { pfes = NULL; }
 
@@ -49,14 +51,14 @@ public:
 
    /** Set the grid function on (all) dofs from a given vector on the
        true dofs, i.e. P tv. */
-   void Distribute(HypreParVector *tv);
+   void Distribute(const Vector *tv);
 
    /// Short semantic for Distribute
-   ParGridFunction &operator=(HypreParVector &tv)
+   ParGridFunction &operator=(const HypreParVector &tv)
    { Distribute(&tv); return (*this); }
 
    /// Returns the true dofs in a HypreParVector
-   void GetTrueDofs(HypreParVector &tv) const;
+   void GetTrueDofs(Vector &tv) const;
 
    /// Returns the true dofs in a new HypreParVector
    HypreParVector *GetTrueDofs() const;
@@ -73,8 +75,22 @@ public:
    /// Returns a new vector assembled on the true dofs.
    HypreParVector *ParallelAssemble() const;
 
+   void ExchangeFaceNbrData();
+   Vector &FaceNbrData() { return face_nbr_data; }
+   const Vector &FaceNbrData() const { return face_nbr_data; }
+
+   using GridFunction::GetValue;
+   double GetValue(ElementTransformation &T);
+
+   using GridFunction::ProjectCoefficient;
+   void ProjectCoefficient(Coefficient &coeff);
+
    double ComputeL1Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;
+
+   double ComputeL1Error(Coefficient &exsol,
+                         const IntegrationRule *irs[] = NULL) const
+   { Coefficient *exsol_p = &exsol; return ComputeL1Error(&exsol_p, irs); }
 
    double ComputeL1Error(VectorCoefficient &exsol,
                          const IntegrationRule *irs[] = NULL) const;
@@ -82,12 +98,20 @@ public:
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;
 
+   double ComputeL2Error(Coefficient &exsol,
+                         const IntegrationRule *irs[] = NULL) const
+   { Coefficient *exsol_p = &exsol; return ComputeL2Error(&exsol_p, irs); }
+
    double ComputeL2Error(VectorCoefficient &exsol,
                          const IntegrationRule *irs[] = NULL,
                          Array<int> *elems = NULL) const;
 
    double ComputeMaxError(Coefficient *exsol[],
                           const IntegrationRule *irs[] = NULL) const;
+
+   double ComputeMaxError(Coefficient &exsol,
+                          const IntegrationRule *irs[] = NULL) const
+   { Coefficient *exsol_p = &exsol; return ComputeMaxError(&exsol_p, irs); }
 
    double ComputeMaxError(VectorCoefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const;

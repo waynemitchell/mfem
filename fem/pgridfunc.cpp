@@ -36,22 +36,24 @@ ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf)
 
 void ParGridFunction::Update(ParFiniteElementSpace *f)
 {
+   face_nbr_data.Destroy();
    GridFunction::Update(f);
    pfes = f;
 }
 
 void ParGridFunction::Update(ParFiniteElementSpace *f, Vector &v, int v_offset)
 {
+   face_nbr_data.Destroy();
    GridFunction::Update(f, v, v_offset);
    pfes = f;
 }
 
-void ParGridFunction::Distribute(HypreParVector *tv)
+void ParGridFunction::Distribute(const Vector *tv)
 {
    pfes->Dof_TrueDof_Matrix()->Mult(*tv, *this);
 }
 
-void ParGridFunction::GetTrueDofs(HypreParVector &tv) const
+void ParGridFunction::GetTrueDofs(Vector &tv) const
 {
 #if 0
    for (int i = 0; i < size; i++)
@@ -101,6 +103,97 @@ HypreParVector *ParGridFunction::ParallelAssemble() const
    HypreParVector *tv = pfes->NewTrueDofVector();
    ParallelAssemble(*tv);
    return tv;
+}
+
+void ParGridFunction::ExchangeFaceNbrData()
+{
+   pfes->ExchangeFaceNbrData();
+
+   if (pfes->GetFaceNbrVSize() <= 0)
+      return;
+
+   ParMesh *pmesh = pfes->GetParMesh();
+
+   face_nbr_data.SetSize(pfes->GetFaceNbrVSize());
+   Vector send_data(pfes->send_face_nbr_ldof.Size_of_connections());
+
+   int *send_offset = pfes->send_face_nbr_ldof.GetI();
+   int *send_ldof = pfes->send_face_nbr_ldof.GetJ();
+   int *recv_offset = pfes->face_nbr_gdof.GetI();
+   MPI_Comm MyComm = pfes->GetComm();
+
+   int num_face_nbrs = pmesh->GetNFaceNeighbors();
+   MPI_Request *requests = new MPI_Request[2*num_face_nbrs];
+   MPI_Request *send_requests = requests;
+   MPI_Request *recv_requests = requests + num_face_nbrs;
+   MPI_Status  *statuses = new MPI_Status[num_face_nbrs];
+
+   for (int i = 0; i < send_data.Size(); i++)
+      send_data[i] = data[send_ldof[i]];
+
+   for (int fn = 0; fn < num_face_nbrs; fn++)
+   {
+      int nbr_rank = pmesh->GetFaceNbrRank(fn);
+      int tag = 0;
+
+      MPI_Isend(&send_data(send_offset[fn]),
+                send_offset[fn+1] - send_offset[fn],
+                MPI_DOUBLE, nbr_rank, tag, MyComm, &send_requests[fn]);
+
+      MPI_Irecv(&face_nbr_data(recv_offset[fn]),
+                recv_offset[fn+1] - recv_offset[fn],
+                MPI_DOUBLE, nbr_rank, tag, MyComm, &recv_requests[fn]);
+   }
+
+   MPI_Waitall(num_face_nbrs, send_requests, statuses);
+   MPI_Waitall(num_face_nbrs, recv_requests, statuses);
+
+   delete [] statuses;
+   delete [] requests;
+}
+
+double ParGridFunction::GetValue(ElementTransformation &T)
+{
+   Array<int> dofs;
+   Vector DofVal, LocVec;
+   int nbr_el_no = T.ElementNo - pfes->GetParMesh()->GetNE();
+   if (nbr_el_no >= 0)
+   {
+      pfes->GetFaceNbrElementVDofs(nbr_el_no, dofs);
+      DofVal.SetSize(dofs.Size());
+      pfes->GetFaceNbrFE(nbr_el_no)->CalcShape(T.GetIntPoint(), DofVal);
+      face_nbr_data.GetSubVector(dofs, LocVec);
+   }
+   else
+   {
+      fes->GetElementDofs(T.ElementNo, dofs);
+      DofVal.SetSize(dofs.Size());
+      fes->GetFE(T.ElementNo)->CalcShape(T.GetIntPoint(), DofVal);
+      GetSubVector(dofs, LocVec);
+   }
+
+   return (DofVal * LocVec);
+}
+
+void ParGridFunction::ProjectCoefficient(Coefficient &coeff)
+{
+   DeltaCoefficient *delta_c = dynamic_cast<DeltaCoefficient *>(&coeff);
+
+   if (delta_c == NULL)
+   {
+      GridFunction::ProjectCoefficient(coeff);
+   }
+   else
+   {
+      double loc_integral, glob_integral;
+
+      ProjectDeltaCoefficient(*delta_c, loc_integral);
+
+      MPI_Allreduce(&loc_integral, &glob_integral, 1, MPI_DOUBLE, MPI_SUM,
+                    pfes->GetComm());
+
+      (*this) *= (delta_c->Scale() / glob_integral);
+   }
 }
 
 double ParGridFunction::ComputeL1Error(Coefficient *exsol[],

@@ -72,12 +72,21 @@ private:
    void ConstructTrueNURBSDofs();
 
 public:
-   ParFiniteElementSpace(ParMesh *pm, FiniteElementCollection *f,
+   // Face-neighbor data
+   int num_face_nbr_dofs;
+   Table face_nbr_element_dof;
+   Table face_nbr_gdof;
+   // Local face-neighbor data
+   Table send_face_nbr_ldof;
+
+   ParFiniteElementSpace(ParMesh *pm, const FiniteElementCollection *f,
                          int dim = 1, int order = Ordering::byNODES);
 
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }
    int GetMyRank() { return MyRank; }
+
+   inline ParMesh *GetParMesh() { return pmesh; }
 
    int TrueVSize()          { return ltdof_size; }
    int *GetDofOffsets()     { return dof_offsets; }
@@ -111,11 +120,11 @@ public:
 
    /** Given an integer array on the local degrees of freedom, perform
        a bitwise OR between the shared dofs. */
-   void Synchronize(Array<int> &ldof_marker);
+   void Synchronize(Array<int> &ldof_marker) const;
 
    /// Determine the boundary degrees of freedom
-   virtual void GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
-                                  Array<int> &ess_dofs);
+   virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
+                                  Array<int> &ess_dofs) const;
 
    /** If the given ldof is owned by the current processor, return its local
        tdof number, otherwise return -1 */
@@ -126,6 +135,15 @@ public:
        the scalar vesion of the current finite element space. The input should
        be a scalar local dof. */
    int GetGlobalScalarTDofNumber(int sldof);
+   int GetMyDofOffset();
+
+   // Face-neighbor functions
+   void ExchangeFaceNbrData();
+   int GetFaceNbrVSize() const { return num_face_nbr_dofs; }
+   void GetSharedFaceVDofs(int sf, Array<int> &vdofs) const;
+   void GetFaceNbrElementVDofs(int i, Array<int> &vdofs) const;
+   const FiniteElement *GetFaceNbrFE(int i) const;
+   int *GetFaceNbrGlobalDofMap() { return face_nbr_gdof.GetJ(); }
 
    void Lose_Dof_TrueDof_Matrix();
    void LoseDofOffsets() { dof_offsets.LoseData(); }

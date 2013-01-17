@@ -282,9 +282,9 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
 
    n = ir.GetNPoints();
    IntegrationRule eir(n);  // ---
-   Transf = fes->GetMesh()->GetFaceElementTransformations(i, 0);
    if (side == 2)
    {
+      Transf = fes->GetMesh()->GetFaceElementTransformations(i, 0);
       if (Transf->Elem2No < 0 ||
           fes->GetAttribute(Transf->Elem1No) <=
           fes->GetAttribute(Transf->Elem2No))
@@ -771,11 +771,8 @@ void GridFunction::GetNodalValues(Vector &nval, int vdim) const
    Array<int> overlap(fes->GetNV());
    nval.SetSize(fes->GetNV());
 
-   for (i = 0; i < overlap.Size(); i++)
-   {
-      nval(i) = 0.0;
-      overlap[i] = 0;
-   }
+   nval = 0.0;
+   overlap = 0;
    for (i = 0; i < fes->GetNE(); i++)
    {
       fes->GetElementVertices(i, vertices);
@@ -790,17 +787,71 @@ void GridFunction::GetNodalValues(Vector &nval, int vdim) const
       nval(i) /= overlap[i];
 }
 
+void GridFunction::ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
+                                           double &integral)
+{
+   Mesh *mesh = fes->GetMesh();
+   const int dim = mesh->Dimension();
+   const double *center = delta_coeff.Center();
+   const double *vert = mesh->GetVertex(0);
+   double min_dist, dist;
+   int v_idx = 0;
+
+   // find the vertex closest to the center of the delta function
+   min_dist = Distance(center, vert, dim);
+   for (int i = 0; i < mesh->GetNV(); i++)
+   {
+      vert = mesh->GetVertex(i);
+      dist = Distance(center, vert, dim);
+      if (dist < min_dist)
+      {
+         min_dist = dist;
+         v_idx = i;
+      }
+   }
+
+   (*this) = 0.0;
+
+   if (min_dist >= delta_coeff.Tol())
+      return;
+
+   // find the elements that have 'v_idx' as a vertex
+   MassIntegrator Mi(*delta_coeff.Weight());
+   DenseMatrix loc_mass;
+   Array<int> vdofs, vertices;
+   Vector vals, loc_mass_vals;
+   integral = 0.0;
+   for (int i = 0; i < mesh->GetNE(); i++)
+   {
+      mesh->GetElementVertices(i, vertices);
+      for (int j = 0; j < vertices.Size(); j++)
+         if (vertices[j] == v_idx)
+         {
+            const FiniteElement *fe = fes->GetFE(i);
+            Mi.AssembleElementMatrix(*fe, *fes->GetElementTransformation(i),
+                                     loc_mass);
+            vals.SetSize(fe->GetDof());
+            fe->ProjectDelta(j, vals);
+            fes->GetElementVDofs(i, vdofs);
+            SetSubVector(vdofs, vals);
+            loc_mass_vals.SetSize(vals.Size());
+            loc_mass.Mult(vals, loc_mass_vals);
+            integral += loc_mass_vals.Sum(); // partition of unity basis
+            break;
+         }
+   }
+}
+
 void GridFunction::ProjectCoefficient(Coefficient &coeff)
 {
-   int i;
-   Array<int> vdofs;
-   Vector vals;
-
    DeltaCoefficient *delta_c = dynamic_cast<DeltaCoefficient *>(&coeff);
 
    if (delta_c == NULL)
    {
-      for (i = 0; i < fes->GetNE(); i++)
+      Array<int> vdofs;
+      Vector vals;
+
+      for (int i = 0; i < fes->GetNE(); i++)
       {
          fes->GetElementVDofs(i, vdofs);
          vals.SetSize(vdofs.Size());
@@ -810,57 +861,9 @@ void GridFunction::ProjectCoefficient(Coefficient &coeff)
    }
    else
    {
-      Mesh *mesh = fes->GetMesh();
-      const int dim = mesh->Dimension();
-      const double *center = delta_c->Center();
-      const double *vert = mesh->GetVertex(0);
-      double min_dist, dist;
-      int v_idx = 0;
+      double integral;
 
-      // find the vertex closest to the center of the delta function
-      min_dist = Distance(center, vert, dim);
-      for (int i = 0; i < mesh->GetNV(); i++)
-      {
-         vert = mesh->GetVertex(i);
-         dist = Distance(center, vert, dim);
-         if (dist < min_dist)
-         {
-            min_dist = dist;
-            v_idx = i;
-         }
-      }
-
-      (*this) = 0.0;
-
-      if (min_dist >= delta_c->Tol())
-         return;
-
-      // find the elements that have 'v_idx' as a vertex
-      MassIntegrator Mi(*delta_c->Weight());
-      DenseMatrix loc_mass;
-      Array<int> vertices;
-      Vector loc_mass_vals;
-      double integral = 0.0;
-      for (int i = 0; i < mesh->GetNE(); i++)
-      {
-         mesh->GetElementVertices(i, vertices);
-         for (int j = 0; j < vertices.Size(); j++)
-            if (vertices[j] == v_idx)
-            {
-               const FiniteElement *fe = fes->GetFE(i);
-               Mi.AssembleElementMatrix(*fe, *fes->GetElementTransformation(i),
-                                        loc_mass);
-               vals.SetSize(fe->GetDof());
-               fe->ProjectDelta(j, vals);
-               fes->GetElementVDofs(i, vdofs);
-               SetSubVector(vdofs, vals);
-               loc_mass_vals.SetSize(vals.Size());
-               loc_mass.Mult(vals, loc_mass_vals);
-               for (int k = 0; k < loc_mass_vals.Size(); k++)
-                  integral += loc_mass_vals(k);
-               break;
-            }
-      }
+      ProjectDeltaCoefficient(*delta_c, integral);
 
       (*this) *= (delta_c->Scale() / integral);
    }

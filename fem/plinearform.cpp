@@ -22,8 +22,7 @@ void ParLinearForm::Update(ParFiniteElementSpace *pf)
 
 HypreParVector *ParLinearForm::ParallelAssemble()
 {
-   HypreParVector *tv = new HypreParVector(pfes->GlobalTrueVSize(),
-                                           pfes->GetTrueDofOffsets());
+   HypreParVector *tv = pfes->NewTrueDofVector();
    pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, *tv);
    return tv;
 }

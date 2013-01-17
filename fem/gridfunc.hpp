@@ -26,6 +26,11 @@ protected:
 
    void GetVectorGradientHat(ElementTransformation &T, DenseMatrix &gh);
 
+   // Project the delta coefficient without scaling and return the (local)
+   // integral of the projection.
+   void ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
+                                double &integral);
+
 public:
 
    GridFunction() { fes = NULL; fec = NULL; }

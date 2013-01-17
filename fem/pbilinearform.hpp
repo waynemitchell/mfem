@@ -20,12 +20,17 @@ protected:
 
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
 
+   void AssembleSharedFaces(int skip_zeros = 1);
+
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
       : BilinearForm(pf) { pfes = pf; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
       : BilinearForm(pf, bf) { pfes = pf; }
+
+   /// Assemble the local matrix
+   void Assemble(int skip_zeros = 1);
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
