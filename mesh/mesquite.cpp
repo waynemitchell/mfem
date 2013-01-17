@@ -416,7 +416,7 @@ MesquiteMesh::MeshTags::TagIterator MesquiteMesh::MeshTags::TagIterator::operato
 // MesquiteMesh implementation follows
 //
 MesquiteMesh::MesquiteMesh(::Mesh *mfem_mesh)
-    :   myTags( new MeshTags )
+   :   myTags( new MeshTags )
 {
    mesh = mfem_mesh;
    nelems = mesh->GetNE();

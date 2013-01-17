@@ -546,14 +546,14 @@ void DG_remap(Mesh &mesh, GridFunction &u, GridFunction &x_in,
          if (mode == 's')
          {
             if (0) //(i == 1)
-	    {
+            {
                stringstream ss;
                ss << setfill('0') << setw(4) << i;
                string cyc = ss.str();
 
                sol_sock << "screenshot rho_" << cyc << ".png \n";
                *mu_sock <<  "screenshot mon_" << cyc << ".png \n";
-	    }
+            }
             cout << "(a)nimate, (s)tep, or (q)uit [" << mode << "] --> "
                  << flush;
             getline(cin, str);
@@ -1201,8 +1201,8 @@ void Upwind(SparseMatrix &M, const Vector &mu)
             double Dij = fmax(fmax(0.0, -A[k]), -Aji);
             if (Dij != 0.0)
             {
-	       Dij *= fmax(mu(i), mu(j));
-	       // Dij *= mu(i)*mu(j);
+               Dij *= fmax(mu(i), mu(j));
+               // Dij *= mu(i)*mu(j);
                // Dij *= (mu(i)+mu(j))/2.0;
 
                A[k] += Dij;
@@ -1549,10 +1549,10 @@ void smooth_displacement(const Vector &X, Vector &u)
 
 double smooth_transition(double x)
 {
-  //return 1.0 - exp(-1e5*pow(x,2.0));
-  // return fmin(1e4*pow(x,2.0),1);
-  if (x > 1e-12)
-    return 1.0;
-  else
-    return 0.0;
+   //return 1.0 - exp(-1e5*pow(x,2.0));
+   // return fmin(1e4*pow(x,2.0),1);
+   if (x > 1e-12)
+      return 1.0;
+   else
+      return 0.0;
 }

@@ -290,20 +290,20 @@ public:
       {
          xdim.SetData(&x(d*n));
 
-	 Vector dx(xdim.Size());
+         Vector dx(xdim.Size());
 
-	 for (int i = 0; i < N; i++) {
+         for (int i = 0; i < N; i++) {
 
-	    K->Mult(xdim,dx);
+            K->Mult(xdim,dx);
 
-	    if ( 0 == (i % 2)) {
-	       dx *= lambda;
-	    }
-	    else {
-	       dx *= mu;
-	    }
-	    xdim += dx;
-	 }
+            if ( 0 == (i % 2)) {
+               dx *= lambda;
+            }
+            else {
+               dx *= mu;
+            }
+            xdim += dx;
+         }
       }
 
    }
@@ -364,42 +364,42 @@ public:
 
          xdim.SetData(&x(d*n));
 
-	 Vector x0(xdim);
+         Vector x0(xdim);
 
-	 Vector x1(xdim.Size());
-	 K->Mult(x0, x1);
-	 x1 *= -1;
+         Vector x1(xdim.Size());
+         K->Mult(x0, x1);
+         x1 *= -1;
 
-	 x1 *= -0.5;
-	 x1 += x0;
+         x1 *= -0.5;
+         x1 += x0;
 
-	 Vector x3(x0);
-	 x3 *= w[0]*f[0];
+         Vector x3(x0);
+         x3 *= w[0]*f[0];
 
-	 Vector b(x1);
-	 b *= w[1]*f[1];
-	 x3 += b;
+         Vector b(x1);
+         b *= w[1]*f[1];
+         x3 += b;
 
-	 Vector x2(xdim.Size());
+         Vector x2(xdim.Size());
 
-	 for (int i = 2; i <= N; i++) {
+         for (int i = 2; i <= N; i++) {
 
-	    K->Mult(x1, x2);
+            K->Mult(x1, x2);
 
-	    x2 += x1;
-	    x2 -= x0;
-	    x2 += x1;
+            x2 += x1;
+            x2 -= x0;
+            x2 += x1;
 
-	    Vector z(x2);
-	    double c = w[i]*f[i];
-	    z *= c;
-	    x3 += z;
+            Vector z(x2);
+            double c = w[i]*f[i];
+            z *= c;
+            x3 += z;
 
-	    x0 = x1;
-	    x1 = x2;
-	 }
+            x0 = x1;
+            x1 = x2;
+         }
 
-	 xdim = x3;
+         xdim = x3;
 
       } // foreach dim
    }
@@ -568,13 +568,13 @@ void smooth_taubin(
    for (int i = 0; i < ess_dofs.Size(); i++) {
       if (ess_dofs[i] < 0)
       {
-	 K.ScaleRow(i, 0.0);
+         K.ScaleRow(i, 0.0);
       }
    }
 
    int smooth_steps;
    cout << "Enter number of smoothing steps --> "
-	<< flush;
+        << flush;
    cin >> smooth_steps;
 
    // Smoothed mesh
@@ -590,10 +590,10 @@ void smooth_taubin(
    for (int n = 0; n < smooth_steps; n++) {
 
       {
-	 ostringstream os;
-	 os << "taubin-it" << n << ".mesh";
-	 ofstream mesh_ofs(os.str().c_str());
-	 mesh->Print(mesh_ofs);
+         ostringstream os;
+         os << "taubin-it" << n << ".mesh";
+         ofstream mesh_ofs(os.str().c_str());
+         mesh->Print(mesh_ofs);
       }
 
       S.Mult(*x, xs);
@@ -726,13 +726,13 @@ void smooth_fir(
    for (int i = 0; i < ess_dofs.Size(); i++) {
       if (ess_dofs[i] < 0)
       {
-	 K.ScaleRow(i, 0.0);
+         K.ScaleRow(i, 0.0);
       }
    }
 
    int smooth_steps;
    cout << "Enter number of smoothing steps --> "
-	<< flush;
+        << flush;
    cin >> smooth_steps;
 
    // Smoothed mesh
@@ -768,10 +768,10 @@ void smooth_fir(
       *x = xs;
 
       {
-	 ostringstream os;
-	 os << "fir-it" << n+1 << ".mesh";
-	 ofstream mesh_ofs(os.str().c_str());
-	 mesh->Print(mesh_ofs);
+         ostringstream os;
+         os << "fir-it" << n+1 << ".mesh";
+         ofstream mesh_ofs(os.str().c_str());
+         mesh->Print(mesh_ofs);
       }
 
    }
@@ -1082,12 +1082,12 @@ int main (int argc, char *argv[])
          else
          {
 
-	    if (dump_iterations) {
-	       ostringstream os;
-	       os << "GtG-it0.mesh";
-	       ofstream mesh_ofs(os.str().c_str());
-	       mesh->Print(mesh_ofs);
-	    }
+            if (dump_iterations) {
+               ostringstream os;
+               os << "GtG-it0.mesh";
+               ofstream mesh_ofs(os.str().c_str());
+               mesh->Print(mesh_ofs);
+            }
 
             // Jacobi2 smoothing
             Vector yd(xd.Size());
@@ -1097,12 +1097,12 @@ int main (int argc, char *argv[])
             {
                GtG->Jacobi2(bd, xd, yd, a);
 
-	       if (dump_iterations) {
-		  ostringstream os;
-		  os << "GtG-it" << i << ".mesh";
-		  ofstream mesh_ofs(os.str().c_str());
-		  mesh->Print(mesh_ofs);
-	       }
+               if (dump_iterations) {
+                  ostringstream os;
+                  os << "GtG-it" << i << ".mesh";
+                  ofstream mesh_ofs(os.str().c_str());
+                  mesh->Print(mesh_ofs);
+               }
 
                if (++i >= smooth_steps)
                {
@@ -1111,12 +1111,12 @@ int main (int argc, char *argv[])
                }
                GtG->Jacobi2(bd, yd, xd, a);
 
-	       if (dump_iterations) {
-		  ostringstream os;
-		  os << "GtG-it" << i << ".mesh";
-		  ofstream mesh_ofs(os.str().c_str());
-		  mesh->Print(mesh_ofs);
-	       }
+               if (dump_iterations) {
+                  ostringstream os;
+                  os << "GtG-it" << i << ".mesh";
+                  ofstream mesh_ofs(os.str().c_str());
+                  mesh->Print(mesh_ofs);
+               }
 
 
             }
