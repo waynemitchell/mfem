@@ -243,3 +243,69 @@ void VectorFEBoundaryFluxLFIntegrator::AssembleRHSElementVect(
       add(elvect, val, shape, elvect);
    }
 }
+
+
+void BoundaryFlowIntegrator::AssembleRHSElementVect(
+   const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
+{
+   mfem_error("BoundaryFlowIntegrator::AssembleRHSElementVect\n"
+              "  is not implemented as boundary integrator!\n"
+              "  Use LinearForm::AddBdrFaceIntegrator instead of\n"
+              "  LinearForm::AddBoundaryIntegrator.");
+}
+
+void BoundaryFlowIntegrator::AssembleRHSElementVect(
+   const FiniteElement &el, FaceElementTransformations &Tr, Vector &elvect)
+{
+   int dim, ndof, order;
+   double un, w, vu_data[3], nor_data[3];
+
+   dim  = el.GetDim();
+   ndof = el.GetDof();
+   Vector vu(vu_data, dim), nor(nor_data, dim);
+
+   // Assuming order(u)==order(mesh)
+   order = Tr.Elem1->OrderW() + 2*el.GetOrder();
+
+   if (el.Space() == FunctionSpace::Pk)
+      order++;
+
+   shape.SetSize(ndof);
+   elvect.SetSize(ndof);
+   elvect = 0.0;
+
+   const IntegrationRule *ir = &IntRules.Get(Tr.FaceGeom, order);
+   for (int p = 0; p < ir->GetNPoints(); p++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(p);
+      IntegrationPoint eip;
+      Tr.Loc1.Transform(ip, eip);
+      el.CalcShape(eip, shape);
+
+      Tr.Face->SetIntPoint(&ip);
+
+      u->Eval(vu, *Tr.Elem1, eip);
+
+      const DenseMatrix &J = Tr.Face->Jacobian();
+      if (dim == 1)
+      {
+         nor(0) = 2*eip.x - 1.0;
+      }
+      else if (dim == 2)
+      {
+         nor(0) =  J(1,0);
+         nor(1) = -J(0,0);
+      }
+      else if (dim == 3)
+      {
+         nor(0) = J(1,0)*J(2,1) - J(2,0)*J(1,1);
+         nor(1) = J(2,0)*J(0,1) - J(0,0)*J(2,1);
+         nor(2) = J(0,0)*J(1,1) - J(1,0)*J(0,1);
+      }
+
+      un = vu * nor;
+      w = 0.5*alpha*un - beta*fabs(un);
+      w *= ip.weight*f->Eval(*Tr.Elem1, eip);
+      elvect.Add(w, shape);
+   }
+}

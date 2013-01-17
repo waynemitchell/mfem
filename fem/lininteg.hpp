@@ -177,4 +177,31 @@ public:
    using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
+
+/** Class for boundary integration of the linear form:
+    (alpha/2) < (u.n) f, w > - beta < |u.n| f, w >,
+    where f and u are given sclar and vector coefficients, respectively,
+    and w is the scalar test function. */
+class BoundaryFlowIntegrator : public LinearFormIntegrator
+{
+private:
+   Coefficient *f;
+   VectorCoefficient *u;
+   double alpha, beta;
+
+   Vector shape;
+
+public:
+   BoundaryFlowIntegrator(Coefficient &_f, VectorCoefficient &_u,
+                          double a, double b)
+   { f = &_f; u = &_u; alpha = a; beta = b; }
+
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       ElementTransformation &Tr,
+                                       Vector &elvect);
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       FaceElementTransformations &Tr,
+                                       Vector &elvect);
+};
+
 #endif

@@ -38,6 +38,14 @@ void BilinearFormIntegrator::AssembleFaceMatrix (
                "   is not implemented fot this class.");
 }
 
+void BilinearFormIntegrator::AssembleElementVector(
+   const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun,
+   Vector &elvect)
+{
+   mfem_error("BilinearFormIntegrator::AssembleElementVector\n"
+              "   is not implemented fot this class.");
+}
+
 
 void TransposeIntegrator::AssembleElementMatrix (
    const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
@@ -52,6 +60,15 @@ void TransposeIntegrator::AssembleElementMatrix2 (
    ElementTransformation &Trans, DenseMatrix &elmat)
 {
    bfi -> AssembleElementMatrix2 (test_fe, trial_fe, Trans, bfi_elmat);
+   // elmat = bfi_elmat^t
+   elmat.Transpose (bfi_elmat);
+}
+
+void TransposeIntegrator::AssembleFaceMatrix (
+   const FiniteElement &el1, const FiniteElement &el2,
+   FaceElementTransformations &Trans, DenseMatrix &elmat)
+{
+   bfi -> AssembleFaceMatrix (el1, el2, Trans, bfi_elmat);
    // elmat = bfi_elmat^t
    elmat.Transpose (bfi_elmat);
 }
@@ -100,9 +117,9 @@ void DiffusionIntegrator::AssembleElementMatrix
       const IntegrationPoint &ip = ir->IntPoint(i);
       el.CalcDShape(ip, dshape);
 
-      Trans.SetIntPoint (&ip);
-      CalcInverse(Trans.Jacobian(), invdfdx);
-      w = Trans.Weight() * ip.weight;
+      Trans.SetIntPoint(&ip);
+      CalcAdjugate(Trans.Jacobian(), invdfdx); // invdfdx = adj(J)
+      w = ip.weight / Trans.Weight();
       Mult(dshape, invdfdx, dshapedxt);
       if (!MQ)
       {
@@ -114,9 +131,73 @@ void DiffusionIntegrator::AssembleElementMatrix
       {
          MQ->Eval(invdfdx, Trans, ip);
          invdfdx *= w;
-         MultABt (dshapedxt, invdfdx, dshape);
+         Mult(dshapedxt, invdfdx, dshape);
          AddMultABt(dshape, dshapedxt, elmat);
       }
+   }
+}
+
+void DiffusionIntegrator::AssembleElementVector(
+   const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun,
+   Vector &elvect)
+{
+   int nd = el.GetDof();
+   int dim = el.GetDim();
+   double w;
+
+#ifdef MFEM_USE_OPENMP
+   DenseMatrix dshape(nd,dim), invdfdx(dim), mq(dim);
+#else
+   dshape.SetSize(nd,dim);
+   invdfdx.SetSize(dim);
+   mq.SetSize(dim);
+#endif
+   vec.SetSize(dim);
+   pointflux.SetSize(dim);
+
+   elvect.SetSize(nd);
+
+   int order;
+   if (el.Space() == FunctionSpace::Pk)
+      order = 2*el.GetOrder() - 2;
+   else
+      // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+      order = 2*el.GetOrder() + dim - 1;
+
+   const IntegrationRule *ir;
+   if (el.Space() == FunctionSpace::rQk)
+      ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+   else
+      ir = &IntRules.Get(el.GetGeomType(), order);
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      el.CalcDShape(ip, dshape);
+
+      Tr.SetIntPoint(&ip);
+      CalcAdjugate(Tr.Jacobian(), invdfdx); // invdfdx = adj(J)
+      w = ip.weight / Tr.Weight();
+
+      if (!MQ)
+      {
+         dshape.MultTranspose(elfun, vec);
+         invdfdx.MultTranspose(vec, pointflux);
+         if (Q)
+            w *= Q->Eval(Tr, ip);
+      }
+      else
+      {
+
+         dshape.MultTranspose(elfun, pointflux);
+         invdfdx.MultTranspose(pointflux, vec);
+         MQ->Eval(mq, Tr, ip);
+         mq.Mult(vec, pointflux);
+      }
+      pointflux *= w;
+      invdfdx.Mult(pointflux, vec);
+      dshape.AddMult(vec, elvect);
    }
 }
 
@@ -309,22 +390,21 @@ void MassIntegrator::AssembleElementMatrix2(
 }
 
 
-void ConvectionIntegrator::AssembleElementMatrix (
-   const FiniteElement &el, ElementTransformation &Trans,
-   DenseMatrix &elmat )
+void ConvectionIntegrator::AssembleElementMatrix(
+   const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
 {
    int nd = el.GetDof();
    int dim = el.GetDim();
 
    elmat.SetSize(nd);
    dshape.SetSize(nd,dim);
-   invdfdx.SetSize(dim);
+   adjJ.SetSize(dim);
    shape.SetSize(nd);
    vec1.SetSize(dim);
    vec2.SetSize(dim);
    BdFidxT.SetSize(nd);
 
-   int order = 2*el.GetOrder() - 1;  //  <----------
+   int order = Trans.OrderGrad(&el) + Trans.Order() + el.GetOrder();
    const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
 
    elmat = 0.0;
@@ -334,15 +414,62 @@ void ConvectionIntegrator::AssembleElementMatrix (
       el.CalcDShape(ip, dshape);
       el.CalcShape(ip, shape);
 
-      Trans.SetIntPoint (&ip);
-      CalcInverse (Trans.Jacobian(), invdfdx);
+      Trans.SetIntPoint(&ip);
+      CalcAdjugate(Trans.Jacobian(), adjJ);
       Q.Eval(vec1, Trans, ip);
-      vec1 *= Trans.Weight() * ip.weight;
+      vec1 *= alpha * ip.weight;
 
-      invdfdx.Mult(vec1, vec2);
+      adjJ.Mult(vec1, vec2);
       dshape.Mult(vec2, BdFidxT);
 
       AddMultVWt(shape, BdFidxT, elmat);
+   }
+}
+
+
+void GroupConvectionIntegrator::AssembleElementMatrix(
+   const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
+{
+   int nd = el.GetDof();
+   int dim = el.GetDim();
+
+   elmat.SetSize(nd);
+   dshape.SetSize(nd,dim);
+   adjJ.SetSize(dim);
+   shape.SetSize(nd);
+   grad.SetSize(nd,dim);
+
+   int order = Trans.OrderGrad(&el) + el.GetOrder();
+   const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
+
+   Q.Eval(Q_nodal, Trans, el.GetNodes()); // sets the size of Q_nodal
+
+   elmat = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      el.CalcDShape(ip, dshape);
+      el.CalcShape(ip, shape);
+
+      Trans.SetIntPoint(&ip);
+      CalcAdjugate(Trans.Jacobian(), adjJ);
+
+      Mult(dshape, adjJ, grad);
+
+      double w = alpha * ip.weight;
+
+      // elmat(k,l) += \sum_s w*shape(k)*Q_nodal(s,k)*grad(l,s)
+      for (int k = 0; k < nd; k++)
+      {
+         double wsk = w*shape(k);
+         for (int l = 0; l < nd; l++)
+         {
+            double a = 0.0;
+            for (int s = 0; s < dim; s++)
+               a += Q_nodal(s,k)*grad(l,s);
+            elmat(k,l) += wsk*a;
+         }
+      }
    }
 }
 
@@ -902,6 +1029,108 @@ void ElasticityIntegrator::AssembleElementMatrix(
                         (M * w) * gshape(k, j) * gshape(l, i);
                // + (L * w) * gshape(k, i) * gshape(l, j)
             }
+      }
+   }
+}
+
+void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
+                                           const FiniteElement &el2,
+                                           FaceElementTransformations &Trans,
+                                           DenseMatrix &elmat)
+{
+   int i, j, ndof1, ndof2;
+   int dim, order;
+
+   double un, a, b, w;
+
+   dim = el1.GetDim();
+   ndof1 = el1.GetDof();
+   Vector vu(dim), nor(dim);
+
+   // Assuming order(u)==order(mesh)
+   if (Trans.Elem2No >= 0)
+   {
+      ndof2 = el2.GetDof();
+      order = (min(Trans.Elem1->OrderW(), Trans.Elem2->OrderW()) +
+               2*max(el1.GetOrder(), el2.GetOrder()));
+   }
+   else
+   {
+      ndof2 = 0;
+      order = Trans.Elem1->OrderW() + 2*el1.GetOrder();
+   }
+
+   if (el1.Space() == FunctionSpace::Pk)
+      order++;
+
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+   elmat.SetSize(ndof1 + ndof2);
+   elmat = 0.0;
+
+   const IntegrationRule *ir = &IntRules.Get(Trans.FaceGeom, order);
+   for (int p = 0; p < ir->GetNPoints(); p++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(p);
+      IntegrationPoint eip1, eip2;
+      Trans.Loc1.Transform(ip, eip1);
+      el1.CalcShape(eip1, shape1);
+
+      Trans.Face->SetIntPoint(&ip);
+
+      u->Eval(vu, *Trans.Elem1, eip1);
+
+      const DenseMatrix &J = Trans.Face->Jacobian();
+      if (dim == 1)
+      {
+         nor(0) = 2*eip1.x - 1.0;
+      }
+      else if (dim == 2)
+      {
+         nor(0) =  J(1,0);
+         nor(1) = -J(0,0);
+      }
+      else if (dim == 3)
+      {
+         nor(0) = J(1,0)*J(2,1) - J(2,0)*J(1,1);
+         nor(1) = J(2,0)*J(0,1) - J(0,0)*J(2,1);
+         nor(2) = J(0,0)*J(1,1) - J(1,0)*J(0,1);
+      }
+
+      un = vu * nor;
+      a = 0.5 * alpha * un;
+      b = beta * fabs(un);
+      // note: if |alpha/2|==|beta| then |a|==|b|, i.e. (a==b) or (a==-b)
+      //       and therefore two blocks in the element matrix contribution
+      //       (from the current quadrature point) are 0
+
+      w = ip.weight * (a+b);
+      if (w != 0.0)
+         for (i = 0; i < ndof1; i++)
+            for (j = 0; j < ndof1; j++)
+               elmat(i, j) += w * shape1(i) * shape1(j);
+
+      if (ndof2)
+      {
+         Trans.Loc2.Transform(ip, eip2);
+         el2.CalcShape(eip2, shape2);
+
+         if (w != 0.0)
+            for (i = 0; i < ndof2; i++)
+               for (j = 0; j < ndof1; j++)
+                  elmat(ndof1+i, j) -= w * shape2(i) * shape1(j);
+
+         w = ip.weight * (b-a);
+         if (w != 0.0)
+         {
+            for (i = 0; i < ndof2; i++)
+               for (j = 0; j < ndof2; j++)
+                  elmat(ndof1+i, ndof1+j) += w * shape2(i) * shape2(j);
+
+            for (i = 0; i < ndof1; i++)
+               for (j = 0; j < ndof2; j++)
+                  elmat(i, ndof1+j) -= w * shape1(i) * shape2(j);
+         }
       }
    }
 }
