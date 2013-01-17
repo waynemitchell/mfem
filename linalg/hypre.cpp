@@ -699,6 +699,8 @@ void HypreSolver::Mult(const HypreParVector &b, HypreParVector &x) const
       setup_called = 1;
    }
 
+   if (!iterative_mode)
+      x = 0.0;
    SolveFcn()(*this, *A, b, x);
 }
 
@@ -739,7 +741,7 @@ HyprePCG::HyprePCG(HypreParMatrix &_A) : HypreSolver(&_A)
    MPI_Comm comm;
 
    print_level = 0;
-   use_zero_initial_iterate = 0;
+   iterative_mode = true;
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
 
@@ -820,7 +822,7 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
       hypre_BeginTiming(time_index);
    }
 
-   if (use_zero_initial_iterate)
+   if (!iterative_mode)
       x = 0.0;
 
    HYPRE_ParCSRPCGSolve(pcg_solver, *A, b, x);
@@ -862,7 +864,7 @@ HypreGMRES::HypreGMRES(HypreParMatrix &_A) : HypreSolver(&_A)
    double tol   = 1e-6;
 
    print_level = 0;
-   use_zero_initial_iterate = 0;
+   iterative_mode = true;
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
 
@@ -942,7 +944,7 @@ void HypreGMRES::Mult(const HypreParVector &b, HypreParVector &x) const
       hypre_BeginTiming(time_index);
    }
 
-   if (use_zero_initial_iterate)
+   if (!iterative_mode)
       x = 0.0;
 
    HYPRE_ParCSRGMRESSolve(gmres_solver, *A, b, x);

@@ -20,11 +20,13 @@
 #include "sparsemat.hpp"
 #include "sparsesmoothers.hpp"
 #include "densemat.hpp"
-#include "solvers.hpp"
+#include "ode.hpp"
 
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
 #include "hypre.hpp"
 #endif
+
+#include "solvers.hpp"
 
 #endif

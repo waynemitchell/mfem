@@ -130,23 +130,17 @@ void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
 
    int *Jp = J, *Ip = I;
 
-   j = *Ip;
    if (a == 1.0)
    {
 #ifndef MFEM_USE_OPENMP
-      for (i = 0; i < size; i++)
+      for (i = j = 0; i < size; i++)
       {
          double d = 0.0;
-         Ip++;
-         end = (*Ip);
-         for ( ; j < end; j++)
+         for (end = Ip[i+1]; j < end; j++)
          {
-            d += (*Ap) * xp[*Jp];
-            Ap++;
-            Jp++;
+            d += Ap[j] * xp[Jp[j]];
          }
-         *yp += d;
-         yp++;
+         yp[i] += d;
       }
 #else
 #pragma omp parallel for private(j,end)
@@ -162,19 +156,14 @@ void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
 #endif
    }
    else
-      for (i = 0; i < size; i++)
+      for (i = j = 0; i < size; i++)
       {
          double d = 0.0;
-         Ip++;
-         end = (*Ip);
-         for ( ; j < end; j++)
+         for (end = Ip[i+1]; j < end; j++)
          {
-            d += (*Ap) * xp[*Jp];
-            Ap++;
-            Jp++;
+            d += Ap[j] * xp[Jp[j]];
          }
-         *yp += a * d;
-         yp++;
+         yp[i] += a * d;
       }
 }
 
@@ -684,36 +673,60 @@ void SparseMatrix::EliminateRowColMultipleRHS(int rc, const Vector &sol,
 void SparseMatrix::EliminateRowCol(int rc, int d)
 {
    int col;
-   RowNode *aux, *node;
 
 #ifdef MFEM_DEBUG
    if ( rc >= size || rc < 0 )
-      mfem_error("SparseMatrix::EliminateRowCol () #1");
+      mfem_error("SparseMatrix::EliminateRowCol() #1");
 #endif
 
    if (Rows == NULL)
-      mfem_error("SparseMatrix::EliminateRowCol () #2");
-
-   for (aux = Rows[rc]; aux != NULL; aux = aux->Prev)
    {
-      if ((col = aux->Column) == rc)
+      for (int j = I[rc]; j < I[rc+1]; j++)
+         if ((col = J[j]) == rc)
+         {
+            if (d == 0)
+               A[j] = 1.0;
+         }
+         else
+         {
+            A[j] = 0.0;
+            for (int k = I[col]; 1; k++)
+               if (k == I[col+1])
+               {
+                  mfem_error("SparseMatrix::EliminateRowCol() #2");
+               }
+               else if (J[k] == rc)
+               {
+                  A[k] = 0.0;
+                  break;
+               }
+         }
+   }
+   else
+   {
+      RowNode *aux, *node;
+
+      for (aux = Rows[rc]; aux != NULL; aux = aux->Prev)
       {
-         if (d == 0)
-            aux->Value = 1.0;
-      }
-      else
-      {
-         aux->Value = 0.0;
-         for (node = Rows[col]; 1; node = node->Prev)
-            if (node == NULL)
-            {
-               mfem_error("SparseMatrix::EliminateRowCol () #3");
-            }
-            else if (node->Column == rc)
-            {
-               node->Value = 0.0;
-               break;
-            }
+         if ((col = aux->Column) == rc)
+         {
+            if (d == 0)
+               aux->Value = 1.0;
+         }
+         else
+         {
+            aux->Value = 0.0;
+            for (node = Rows[col]; 1; node = node->Prev)
+               if (node == NULL)
+               {
+                  mfem_error("SparseMatrix::EliminateRowCol() #3");
+               }
+               else if (node->Column == rc)
+               {
+                  node->Value = 0.0;
+                  break;
+               }
+         }
       }
    }
 }
@@ -1242,6 +1255,25 @@ SparseMatrix &SparseMatrix::operator+=(SparseMatrix &B)
    return (*this);
 }
 
+void SparseMatrix::Add(const double a, SparseMatrix &B)
+{
+   for (int i = 0; i < size; i++)
+   {
+      B.SetColPtr(i);
+      if (Rows)
+      {
+         for (RowNode *np = Rows[i]; np != NULL; np = np->Prev)
+            np->Value += a * B._Get_(np->Column);
+      }
+      else
+      {
+         for (int j = I[i]; j < I[i+1]; j++)
+            A[j] += a * B._Get_(J[j]);
+      }
+      B.ClearColPtr();
+   }
+}
+
 SparseMatrix &SparseMatrix::operator=(double a)
 {
    if (Rows == NULL)
@@ -1256,12 +1288,41 @@ SparseMatrix &SparseMatrix::operator=(double a)
    return (*this);
 }
 
+SparseMatrix &SparseMatrix::operator*=(double a)
+{
+   if (Rows == NULL)
+      for (int i = 0, nnz = I[size]; i < nnz; i++)
+         A[i] *= a;
+   else
+      for (int i = 0; i < size; i++)
+         for (RowNode *node_p = Rows[i]; node_p != NULL;
+              node_p = node_p -> Prev)
+            node_p -> Value *= a;
+
+   return (*this);
+}
+
 void SparseMatrix::Print(ostream & out, int _width) const
 {
    int i, j;
 
    if (A == NULL)
-      mfem_error("SparseMatrix::Print()");
+   {
+      RowNode *nd;
+      for (i = 0; i < size; i++)
+      {
+         out << "[row " << i << "]\n";
+         for (nd = Rows[i], j = 0; nd != NULL; nd = nd->Prev, j++)
+         {
+            out << " (" << nd->Column << ","<< nd->Value << ")";
+            if ( !((j+1) % _width) )
+               out << '\n';
+         }
+         if (j % _width)
+            out << '\n';
+      }
+      return;
+   }
 
    for (i = 0; i < size; i++)
    {

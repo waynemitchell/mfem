@@ -95,7 +95,7 @@ private:
 public:
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a) : A(a)
-   { X = Y = 0; CommPkg = 0; }
+   { size = GetNumRows(); X = Y = 0; CommPkg = 0; }
    /// Creates block-diagonal square parallel matrix. Diagonal given by diag.
    HypreParMatrix(int size, int *row, SparseMatrix *diag);
    /** Creates block-diagonal rectangular parallel matrix. Diagonal
@@ -198,7 +198,7 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
                  HypreParVector &x, HypreParVector &b);
 
 /// Abstract class for hypre's solvers and preconditioners
-class HypreSolver : public Operator
+class HypreSolver : public Solver
 {
 protected:
    /// The linear system matrix
@@ -223,6 +223,9 @@ public:
    /// hypre's internal Solve function
    virtual HYPRE_PtrToParSolverFcn SolveFcn() const = 0;
 
+   virtual void SetOperator(const Operator &op)
+   { mfem_error("HypreSolvers do not support SetOperator!"); }
+
    /// Solve the linear system Ax=b
    virtual void Mult(const HypreParVector &b, HypreParVector &x) const;
    virtual void Mult(const Vector &b, Vector &x) const;
@@ -234,7 +237,7 @@ public:
 class HyprePCG : public HypreSolver
 {
 private:
-   int print_level, use_zero_initial_iterate;
+   int print_level;
    HYPRE_Solver pcg_solver;
 
 public:
@@ -254,7 +257,7 @@ public:
    void SetResidualConvergenceOptions(int res_frequency=-1, double rtol=0.0);
 
    /// non-hypre setting
-   void SetZeroInintialIterate() { use_zero_initial_iterate = 1; }
+   void SetZeroInintialIterate() { iterative_mode = false; }
 
    void GetNumIterations(int &num_iterations)
    { HYPRE_ParCSRPCGGetNumIterations(pcg_solver, &num_iterations); }
@@ -280,7 +283,7 @@ public:
 class HypreGMRES : public HypreSolver
 {
 private:
-   int print_level, use_zero_initial_iterate;
+   int print_level;
    HYPRE_Solver gmres_solver;
 
 public:
@@ -296,7 +299,7 @@ public:
    void SetPreconditioner(HypreSolver &precond);
 
    /// non-hypre setting
-   void SetZeroInintialIterate() { use_zero_initial_iterate = 1; }
+   void SetZeroInintialIterate() { iterative_mode = false; }
 
    /// The typecast to HYPRE_Solver returns the internal gmres_solver
    virtual operator HYPRE_Solver() const  { return gmres_solver; }
@@ -379,6 +382,9 @@ public:
        assumes Ordering::byVDIM in the finite element space used to generate the
        matrix A. */
    void SetSystemsOptions(int dim);
+
+   void SetPrintLevel(int print_level)
+   { HYPRE_BoomerAMGSetPrintLevel(amg_precond, print_level); }
 
    /// The typecast to HYPRE_Solver returns the internal amg_precond
    virtual operator HYPRE_Solver() const { return amg_precond; }

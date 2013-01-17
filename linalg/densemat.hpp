@@ -277,6 +277,9 @@ void MultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt);
 /// VWt += v w^t
 void AddMultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt);
 
+/// VWt += a * v w^t
+void AddMult_a_VWt(const double a, const Vector &v, const Vector &w, DenseMatrix &VWt);
+
 /// VVt += a * v v^t
 void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt);
 
@@ -286,6 +289,7 @@ void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt);
 class DenseMatrixInverse : public MatrixInverse
 {
 private:
+   const DenseMatrix *a;
    double *data;
 #ifdef MFEM_USE_LAPACK
    int *ipiv;
@@ -304,6 +308,8 @@ public:
 
    /// Factor a new DenseMatrix of the same size
    void Factor(const DenseMatrix &mat);
+
+   virtual void SetOperator(const Operator &op);
 
    /// Matrix vector multiplication with inverse of dense matrix.
    virtual void Mult(const Vector &x, Vector &y) const;

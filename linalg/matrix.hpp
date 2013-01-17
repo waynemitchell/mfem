@@ -48,17 +48,14 @@ public:
 
 
 /// Abstract data type for matrix inverse
-class MatrixInverse : public Operator
+class MatrixInverse : public Solver
 {
-protected:
-   const Matrix *a;
-
 public:
-   /// Creates approximation of the inverse of square matrix
-   MatrixInverse (const Matrix &mat) { size = mat.size; a = &mat; }
+   MatrixInverse() { }
 
-   /// Destroys inverse matrix.
-   virtual ~MatrixInverse() { }
+   /// Creates approximation of the inverse of square matrix
+   MatrixInverse(const Matrix &mat)
+      : Solver(mat.size) { }
 };
 
 #endif

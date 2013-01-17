@@ -172,6 +172,8 @@ public:
    double Max();
    /// Returns the minimal element of the vector.
    double Min();
+   /// Return the sum of the vector entries
+   double Sum();
    /// Compute the Euclidian distance to another vector.
    double DistanceTo (const double *p) const;
 

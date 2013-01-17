@@ -34,10 +34,50 @@ public:
    virtual void MultTranspose (const Vector & x, Vector & y) const
    { mfem_error ("Operator::MultTranspose() is not overloaded!"); }
 
+   /// Evaluate the gradient operator at the point x
+   virtual Operator &GetGradient(const Vector &x) const
+   {
+      mfem_error("Operator::GetGradient() is not overloaded!");
+      return *((Operator *)this);
+   }
+
    /// Prints operator with input size n and output size m in matlab format.
    void PrintMatlab (ostream & out, int n = 0, int m = 0);
 
    virtual ~Operator() { }
+};
+
+
+/// Base abstract class for time dependent operators: (x,t) -> f(x,t)
+class TimeDependentOperator : public Operator
+{
+protected:
+   double t;
+
+public:
+   explicit TimeDependentOperator(int n = 0, double _t = 0.0)
+      : Operator(n) { t = _t; }
+
+   virtual double GetTime() const { return t; }
+
+   virtual void SetTime(const double _t) { t = _t; }
+
+   virtual ~TimeDependentOperator() { }
+};
+
+
+/// Base class for solvers
+class Solver : public Operator
+{
+public:
+   // Use the second argument of Mult as an initial guess?
+   bool iterative_mode;
+
+   Solver(int s = 0, bool iter_mode = false)
+      : Operator(s) { iterative_mode = iter_mode; }
+
+   /// Set/update the solver for the given operator
+   virtual void SetOperator(const Operator &op) = 0;
 };
 
 

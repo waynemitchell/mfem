@@ -195,7 +195,13 @@ public:
        Both marices should not be finilized */
    SparseMatrix &operator+=(SparseMatrix &B);
 
+   /** Add the sparse matrix 'B' scaled by the scalar 'a' into '*this'.
+       Only entries in the sparsity pattern of '*this' are added. */
+   void Add(const double a, SparseMatrix &B);
+
    SparseMatrix &operator=(double a);
+
+   SparseMatrix &operator*=(double a);
 
    /// Prints matrix to stream out.
    void Print(ostream &out = cout, int width = 4) const;

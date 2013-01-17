@@ -550,6 +550,16 @@ double Vector::Min()
    return min;
 }
 
+double Vector::Sum()
+{
+   double sum = 0.0;
+
+   for (int i = 0; i < size; i++)
+      sum += data[i];
+
+   return sum;
+}
+
 double Vector::DistanceTo(const double *p) const
 {
    return Distance(data, p, size);

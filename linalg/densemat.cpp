@@ -1839,10 +1839,14 @@ void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
 {
 #ifdef MFEM_DEBUG
    if (a.Height() != a.Size() || adja.Height() != adja.Size() ||
-       a.Size() != adja.Size() || a.Size() < 2 || a.Size() > 3)
+       a.Size() != adja.Size() || a.Size() < 1 || a.Size() > 3)
       mfem_error("DenseMatrix::CalcAdjugate(...)");
 #endif
-   if (a.Size() == 2)
+   if (a.Size() == 1)
+   {
+      adja(0,0) = 1.0;
+   }
+   else if (a.Size() == 2)
    {
       adja(0,0) =  a(1,1);
       adja(0,1) = -a(0,1);
@@ -2300,6 +2304,23 @@ void AddMultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt)
    }
 }
 
+void AddMult_a_VWt(const double a, const Vector &v, const Vector &w, DenseMatrix &VWt)
+{
+   int m = v.Size(), n = w.Size();
+
+#ifdef MFEM_DEBUG
+   if (VWt.Height() != m || VWt.Width() != n)
+      mfem_error("AddMultVWt(...)");
+#endif
+
+   for (int i = 0; i < m; i++)
+   {
+      double avi = a * v(i);
+      for (int j = 0; j < n; j++)
+         VWt(i, j) += avi * w(j);
+   }
+}
+
 void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt)
 {
    int n = v.Size();
@@ -2326,6 +2347,7 @@ void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt)
 DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix &mat)
    : MatrixInverse(mat)
 {
+   a = &mat;
    data = new double[size*size];
 #ifdef MFEM_USE_LAPACK
    ipiv = new int[size];
@@ -2336,6 +2358,7 @@ DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix &mat)
 DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix *mat)
    : MatrixInverse(*mat)
 {
+   a = mat;
    data = new double[size*size];
 #ifdef MFEM_USE_LAPACK
    ipiv = new int[size];
@@ -2344,7 +2367,7 @@ DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix *mat)
 
 void DenseMatrixInverse::Factor()
 {
-   const double *adata = ((const DenseMatrix *)a)->data;
+   const double *adata = a->data;
 
 #ifdef MFEM_USE_LAPACK
    for (int i = 0; i < size*size; i++)
@@ -2394,6 +2417,24 @@ void DenseMatrixInverse::Factor(const DenseMatrix &mat)
 #endif
    a = &mat;
 
+   Factor();
+}
+
+void DenseMatrixInverse::SetOperator(const Operator &op)
+{
+   a = dynamic_cast<const DenseMatrix*>(&op);
+   if (a == NULL)
+      mfem_error("DenseMatrixInverse::SetOperator : not a DenseMatrix!");
+   if (size != a->size)
+   {
+      size = a->size;
+      delete [] data;
+      data = new double[size*size];
+#ifdef MFEM_USE_LAPACK
+      delete [] ipiv;
+      ipiv = new int[size];
+#endif
+   }
    Factor();
 }
 
