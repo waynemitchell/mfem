@@ -79,6 +79,9 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
       fec = new RT1_3DFECollection;
    else if (!strncmp(name, "H1_", 3))
       fec = new H1_FECollection(atoi(name + 7), atoi(name + 3));
+   else if (!strncmp(name, "L2_T", 4))
+      fec = new L2_FECollection(atoi(name + 10), atoi(name + 6),
+                                atoi(name + 4));
    else if (!strncmp(name, "L2_", 3))
       fec = new L2_FECollection(atoi(name + 7), atoi(name + 3));
    else if (!strncmp(name, "RT_", 3))
@@ -1036,6 +1039,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim)
       QuadDofOrd[i] = NULL;
 
    H1_dof[Geometry::POINT] = 1;
+   H1_Elements[Geometry::POINT] = new PointFiniteElement;
    H1_dof[Geometry::SEGMENT] = pm1;
    H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p);
 
@@ -1130,21 +1134,30 @@ H1_FECollection::~H1_FECollection()
 }
 
 
-L2_FECollection::L2_FECollection(const int p, const int dim)
+L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
 {
-   snprintf(d_name, 32, "L2_%dD_P%d", dim, p);
+   if (type == 0)
+      snprintf(d_name, 32, "L2_%dD_P%d", dim, p);
+   else
+      snprintf(d_name, 32, "L2_T%d_%dD_P%d", type, dim, p);
 
    for (int g = 0; g < Geometry::NumGeom; g++)
       L2_Elements[g] = NULL;
 
    if (dim == 1)
    {
-      L2_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p);
+      if (type == 0 || type == 1)
+         L2_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, type);
+      else
+         L2_Elements[Geometry::SEGMENT] = new L2Pos_SegmentElement(p);
    }
    else if (dim == 2)
    {
       L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p);
-      L2_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p);
+      if (type == 0 || type == 1)
+         L2_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, type);
+      else
+         L2_Elements[Geometry::SQUARE] = new L2Pos_QuadrilateralElement(p);
    }
    else if (dim == 3)
    {

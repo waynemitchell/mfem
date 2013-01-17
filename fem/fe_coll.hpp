@@ -65,7 +65,7 @@ private:
    FiniteElement *L2_Elements[Geometry::NumGeom];
 
 public:
-   L2_FECollection(const int p, const int dim);
+   L2_FECollection(const int p, const int dim, const int type = 0);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return L2_Elements[GeomType]; }

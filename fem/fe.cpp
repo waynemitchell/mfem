@@ -1175,6 +1175,33 @@ void BiQuadPos2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    dshape(2,1) = l3x * d3y;
 }
 
+void BiQuadPos2DFiniteElement::GetLocalInterpolation(
+   ElementTransformation &Trans, DenseMatrix &I) const
+{
+   double s[9];
+   IntegrationPoint tr_ip;
+   Vector xx(&tr_ip.x, 2), shape(s, 9);
+
+   for (int i = 0; i < 9; i++)
+   {
+      Trans.Transform(Nodes.IntPoint(i), xx);
+      CalcShape(tr_ip, shape);
+      for (int j = 0; j < 9; j++)
+         if (fabs(I(i,j) = s[j]) < 1.0e-12)
+            I(i,j) = 0.0;
+   }
+   for (int i = 0; i < 9; i++)
+   {
+      double *d = &I(0,i);
+      d[4] = 2. * d[4] - 0.5 * (d[0] + d[1]);
+      d[5] = 2. * d[5] - 0.5 * (d[1] + d[2]);
+      d[6] = 2. * d[6] - 0.5 * (d[2] + d[3]);
+      d[7] = 2. * d[7] - 0.5 * (d[3] + d[0]);
+      d[8] = 4. * d[8] - 0.5 * (d[4] + d[5] + d[6] + d[7]) -
+         0.25 * (d[0] + d[1] + d[2] + d[3]);
+   }
+}
+
 void BiQuadPos2DFiniteElement::Project(
    Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
 {
@@ -5611,6 +5638,21 @@ void Poly_1D::Basis::Eval(const double x, Vector &u, Vector &d) const
    A.Mult(b, d);
 }
 
+const int *Poly_1D::Binom(const int p)
+{
+   if (binom.NumCols() <= p)
+   {
+      binom.SetSize(p + 1, p + 1);
+      for (int i = 0; i <= p; i++)
+      {
+         binom(i,0) = binom(i,i) = 1;
+         for (int j = 1; j < i; j++)
+            binom(i,j) = binom(i-1,j) + binom(i-1,j-1);
+      }
+   }
+   return binom[p];
+}
+
 void Poly_1D::UniformPoints(const int p, double *x)
 {
    if (p == 0)
@@ -5786,33 +5828,62 @@ void Poly_1D::CalcMono(const int p, const double x, double *u, double *d)
 
 void Poly_1D::CalcBernstein(const int p, const double x, double *u)
 {
-   // not the best way to evaluate; just for testing
-   u[0] = 1.;
-   for (int n = 1; n <= p; n++)
+   if (p == 0)
    {
-      u[n] = x*u[n-1];
-      for (int k = n - 1; k > 0; k--)
-         u[k] = x*u[k-1] + (1. - x)*u[k];
-      u[0] = (1. - x)*u[0];
+      u[0] = 1.;
+   }
+   else
+   {
+      int i;
+      const int *b = Binom(p);
+      double z = x, y = 1. - x;
+
+      for (i = 1; i < p; i++)
+      {
+         u[i] = b[i]*z;
+         z *= x;
+      }
+      u[p] = z;
+      z = y;
+      for (i--; i > 0; i--)
+      {
+         u[i] *= z;
+         z *= y;
+      }
+      u[0] = z;
    }
 }
 
 void Poly_1D::CalcBernstein(const int p, const double x, double *u, double *d)
 {
-   // not the best way to evaluate; just for testing
-   u[0] = 1.;
-   d[0] = 0.;
-   for (int n = 1; n <= p; n++)
+   if (p == 0)
    {
-      d[n] = u[n-1] + x*d[n-1];
-      u[n] = x*u[n-1];
-      for (int k = n - 1; k > 0; k--)
+      u[0] = 1.;
+      d[0] = 0.;
+   }
+   else
+   {
+      int i;
+      const int *b = Binom(p);
+      double z = 1., y = 1. - x;
+
+      for (i = 1; i < p; i++)
       {
-         d[k] = u[k-1] + x*d[k-1] - u[k] + (1. - x)*d[k];
-         u[k] = x*u[k-1] + (1. - x)*u[k];
+         d[i] = b[i]*z*(i - p*x);
+         z *= x;
+         u[i] = b[i]*z;
       }
-      d[0] = -u[0] + (1. - x)*d[0];
-      u[0] = (1. - x)*u[0];
+      d[p] = p*z;
+      u[p] = z*x;
+      z = 1.;
+      for (i--; i > 0; i--)
+      {
+         d[i] *= z;
+         z *= y;
+         u[i] *= z;
+      }
+      d[0] = -p*z;
+      u[0] = z*y;
    }
 }
 
@@ -5980,6 +6051,7 @@ Poly_1D::~Poly_1D()
 }
 
 Poly_1D poly1d;
+Array2D<int> Poly_1D::binom;
 
 
 H1_SegmentElement::H1_SegmentElement(const int p)
@@ -6031,6 +6103,29 @@ void H1_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    dshape(1,0) = dshape_x(p);
    for (int i = 1; i < p; i++)
       dshape(i+1,0) = dshape_x(i);
+}
+
+void H1_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   const int p = Order;
+   const double *cp = poly1d.ClosedPoints(p);
+
+   switch (vertex)
+   {
+   case 0:
+      dofs(0) = poly1d.CalcDelta(p, (1.0 - cp[0]));
+      dofs(1) = poly1d.CalcDelta(p, (1.0 - cp[p]));
+      for (int i = 1; i < p; i++)
+         dofs(i+1) = poly1d.CalcDelta(p, (1.0 - cp[i]));
+      break;
+
+   case 1:
+      dofs(0) = poly1d.CalcDelta(p, cp[0]);
+      dofs(1) = poly1d.CalcDelta(p, cp[p]);
+      for (int i = 1; i < p; i++)
+         dofs(i+1) = poly1d.CalcDelta(p, cp[i]);
+      break;
+   }
 }
 
 
@@ -6114,6 +6209,47 @@ void H1_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
          dshape(dof_map[o],1) =  shape_x(i)*dshape_y(j);  o++;
       }
 }
+
+void H1_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   const int p = Order;
+   const double *cp = poly1d.ClosedPoints(p);
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1), shape_y(p+1);
+#endif
+
+   for (int i = 0; i <= p; i++)
+   {
+      shape_x(i) = poly1d.CalcDelta(p, (1.0 - cp[i]));
+      shape_y(i) = poly1d.CalcDelta(p, cp[i]);
+   }
+
+   switch (vertex)
+   {
+   case 0:
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            dofs(dof_map[o++]) = shape_x(i)*shape_x(j);
+      break;
+   case 1:
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            dofs(dof_map[o++]) = shape_y(i)*shape_x(j);
+      break;
+   case 2:
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            dofs(dof_map[o++]) = shape_y(i)*shape_y(j);
+      break;
+   case 3:
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            dofs(dof_map[o++]) = shape_x(i)*shape_y(j);
+      break;
+   }
+}
+
 
 H1_HexahedronElement::H1_HexahedronElement(const int p)
    : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
@@ -6244,6 +6380,74 @@ void H1_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
             dshape(dof_map[o],1) =  shape_x(i)*dshape_y(j)* shape_z(k);
             dshape(dof_map[o],2) =  shape_x(i)* shape_y(j)*dshape_z(k);  o++;
          }
+}
+
+void H1_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   const int p = Order;
+   const double *cp = poly1d.ClosedPoints(p);
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1), shape_y(p+1);
+#endif
+
+   for (int i = 0; i <= p; i++)
+   {
+      shape_x(i) = poly1d.CalcDelta(p, (1.0 - cp[i]));
+      shape_y(i) = poly1d.CalcDelta(p, cp[i]);
+   }
+
+   switch (vertex)
+   {
+   case 0:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_x(k);
+      break;
+   case 1:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_x(k);
+      break;
+   case 2:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_x(k);
+      break;
+   case 3:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_x(k);
+      break;
+   case 4:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_y(k);
+      break;
+   case 5:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_y(k);
+      break;
+   case 6:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_y(k);
+      break;
+   case 7:
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+               dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_y(k);
+      break;
+   }
 }
 
 
@@ -6508,11 +6712,23 @@ void H1_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 
-L2_SegmentElement::L2_SegmentElement(const int p)
-   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
-     basis1d(poly1d.OpenBasis(p))
+L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
+   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
 {
-   const double *op = poly1d.OpenPoints(p);
+   const double *op;
+
+   type = _type;
+   switch (type)
+   {
+   case 0:
+      basis1d = &poly1d.OpenBasis(p);
+      op = poly1d.OpenPoints(p);
+      break;
+   case 1:
+      basis1d = &poly1d.ClosedBasis(p);
+      op = poly1d.ClosedPoints(p);
+      break;
+   }
 
 #ifndef MFEM_USE_OPENMP
    shape_x.SetSize(p + 1);
@@ -6526,7 +6742,7 @@ L2_SegmentElement::L2_SegmentElement(const int p)
 void L2_SegmentElement::CalcShape(const IntegrationPoint &ip,
                                   Vector &shape) const
 {
-   basis1d.Eval(ip.x, shape);
+   basis1d->Eval(ip.x, shape);
 }
 
 void L2_SegmentElement::CalcDShape(const IntegrationPoint &ip,
@@ -6537,14 +6753,21 @@ void L2_SegmentElement::CalcDShape(const IntegrationPoint &ip,
 #else
    dshape_x.SetData(dshape.Data());
 #endif
-   basis1d.Eval(ip.x, shape_x, dshape_x);
+   basis1d->Eval(ip.x, shape_x, dshape_x);
 }
 
 void L2_SegmentElement::ProjectDelta(int vertex,
                                      Vector &dofs) const
 {
    const int p = Order;
-   const double *op = poly1d.OpenPoints(p);
+   const double *op;
+
+   switch (type)
+   {
+   case 0: op = poly1d.OpenPoints(p); break;
+   case 1: op = poly1d.ClosedPoints(p); break;
+   }
+
    switch (vertex)
    {
    case 0:
@@ -6560,11 +6783,73 @@ void L2_SegmentElement::ProjectDelta(int vertex,
 }
 
 
-L2_QuadrilateralElement::L2_QuadrilateralElement(const int p)
-   : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
-                        FunctionSpace::Qk), basis1d(poly1d.OpenBasis(p))
+L2Pos_SegmentElement::L2Pos_SegmentElement(const int p)
+   : FiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
 {
-   const double *op = poly1d.OpenPoints(p);
+#ifndef MFEM_USE_OPENMP
+   shape_x.SetSize(p + 1);
+   dshape_x.SetDataAndSize(NULL, p + 1);
+#endif
+
+   for (int i = 0; i <= p; i++)
+      Nodes.IntPoint(i).x = double(i)/p;
+}
+
+void L2Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
+                                     Vector &shape) const
+{
+   Poly_1D::CalcBernstein(Order, ip.x, shape);
+}
+
+void L2Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
+                                      DenseMatrix &dshape) const
+{
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(Dof), dshape_x(dshape.Data(), Dof);
+#else
+   dshape_x.SetData(dshape.Data());
+#endif
+   Poly_1D::CalcBernstein(Order, ip.x, shape_x, dshape_x);
+}
+
+void L2Pos_SegmentElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   for (int i = 0; i < Dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      // some coefficients expect that Trans.IntPoint is the same
+      // as the second argument of Eval
+      Trans.SetIntPoint(&ip);
+      dofs(i) = coeff.Eval(Trans, ip);
+   }
+}
+
+void L2Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   dofs = 0.0;
+   dofs[vertex*Order] = 1.0;
+}
+
+
+L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
+   : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
+                        FunctionSpace::Qk)
+{
+   const double *op;
+
+   type = _type;
+   switch (type)
+   {
+   case 0:
+      basis1d = &poly1d.OpenBasis(p);
+      op = poly1d.OpenPoints(p);
+      break;
+   case 1:
+      basis1d = &poly1d.ClosedBasis(p);
+      op = poly1d.ClosedPoints(p);
+      break;
+   }
 
 #ifndef MFEM_USE_OPENMP
    shape_x.SetSize(p + 1);
@@ -6587,8 +6872,8 @@ void L2_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
    Vector shape_x(p+1), shape_y(p+1);
 #endif
 
-   basis1d.Eval(ip.x, shape_x);
-   basis1d.Eval(ip.y, shape_y);
+   basis1d->Eval(ip.x, shape_x);
+   basis1d->Eval(ip.y, shape_y);
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
@@ -6604,8 +6889,8 @@ void L2_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
    Vector shape_x(p+1), shape_y(p+1), dshape_x(p+1), dshape_y(p+1);
 #endif
 
-   basis1d.Eval(ip.x, shape_x, dshape_x);
-   basis1d.Eval(ip.y, shape_y, dshape_y);
+   basis1d->Eval(ip.x, shape_x, dshape_x);
+   basis1d->Eval(ip.y, shape_y, dshape_y);
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
@@ -6615,11 +6900,16 @@ void L2_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
       }
 }
 
-void L2_QuadrilateralElement::ProjectDelta(int vertex,
-                                           Vector &dofs) const
+void L2_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    const int p = Order;
-   const double *op = poly1d.OpenPoints(p);
+   const double *op;
+
+   switch (type)
+   {
+   case 0: op = poly1d.OpenPoints(p); break;
+   case 1: op = poly1d.ClosedPoints(p); break;
+   }
 
 #ifdef MFEM_USE_OPENMP
    Vector shape_x(p+1), shape_y(p+1);
@@ -6653,6 +6943,87 @@ void L2_QuadrilateralElement::ProjectDelta(int vertex,
          for (int i = 0; i <= p; i++)
             dofs[o++] = shape_x(i)*shape_y(j);
       break;
+   }
+}
+
+
+L2Pos_QuadrilateralElement::L2Pos_QuadrilateralElement(const int p)
+   : FiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
+                   FunctionSpace::Qk)
+{
+#ifndef MFEM_USE_OPENMP
+   shape_x.SetSize(p + 1);
+   shape_y.SetSize(p + 1);
+   dshape_x.SetSize(p + 1);
+   dshape_y.SetSize(p + 1);
+#endif
+
+   for (int o = 0, j = 0; j <= p; j++)
+      for (int i = 0; i <= p; i++)
+         Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
+}
+
+void L2Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
+                                           Vector &shape) const
+{
+   const int p = Order;
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1), shape_y(p+1);
+#endif
+
+   Poly_1D::CalcBernstein(p, ip.x, shape_x);
+   Poly_1D::CalcBernstein(p, ip.y, shape_y);
+
+   for (int o = 0, j = 0; j <= p; j++)
+      for (int i = 0; i <= p; i++)
+         shape(o++) = shape_x(i)*shape_y(j);
+}
+
+void L2Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
+                                            DenseMatrix &dshape) const
+{
+   const int p = Order;
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1), shape_y(p+1), dshape_x(p+1), dshape_y(p+1);
+#endif
+
+   Poly_1D::CalcBernstein(p, ip.x, shape_x, dshape_x);
+   Poly_1D::CalcBernstein(p, ip.y, shape_y, dshape_y);
+
+   for (int o = 0, j = 0; j <= p; j++)
+      for (int i = 0; i <= p; i++)
+      {
+         dshape(o,0) = dshape_x(i)* shape_y(j);
+         dshape(o,1) =  shape_x(i)*dshape_y(j);  o++;
+      }
+}
+
+void L2Pos_QuadrilateralElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   for (int i = 0; i < Dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      // some coefficients expect that Trans.IntPoint is the same
+      // as the second argument of Eval
+      Trans.SetIntPoint(&ip);
+      dofs(i) = coeff.Eval(Trans, ip);
+   }
+}
+
+void L2Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   const int p = Order;
+
+   dofs = 0.0;
+   switch (vertex)
+   {
+   case 0: dofs[0] = 1.0; break;
+   case 1: dofs[p] = 1.0; break;
+   case 2: dofs[p*(p + 2)] = 1.0; break;
+   case 3: dofs[p*(p + 1)] = 1.0; break;
    }
 }
 

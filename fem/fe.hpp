@@ -488,6 +488,8 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const;
    using FiniteElement::Project;
    virtual void Project(Coefficient &coeff, ElementTransformation &Trans,
                         Vector &dofs) const;
@@ -1170,6 +1172,9 @@ private:
    Array<double *> open_pts, closed_pts;
    Array<Basis *> open_basis, closed_basis;
 
+   static Array2D<int> binom;
+   static const int *Binom(const int p);
+
    static void UniformPoints(const int p, double *x);
    static void GaussPoints(const int p, double *x);
    static void GaussLobattoPoints(const int p, double *x);
@@ -1211,7 +1216,8 @@ public:
    { CalcChebyshev(p, x, u, d); }
 
    // Evaluate a representation of a Delta function at point x
-   static double CalcDelta(const int p, const double x){ return pow(x, (double) p); }
+   static double CalcDelta(const int p, const double x)
+   { return pow(x, (double) p); }
 
    static void CalcBernstein(const int p, const double x, double *u);
    static void CalcBernstein(const int p, const double x, double *u, double *d);
@@ -1235,6 +1241,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
@@ -1252,6 +1259,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
@@ -1269,6 +1277,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
@@ -1310,13 +1319,14 @@ public:
 class L2_SegmentElement : public NodalFiniteElement
 {
 private:
-   Poly_1D::Basis &basis1d;
+   int type;
+   Poly_1D::Basis *basis1d;
 #ifndef MFEM_USE_OPENMP
    mutable Vector shape_x, dshape_x;
 #endif
 
 public:
-   L2_SegmentElement(const int p);
+   L2_SegmentElement(const int p, const int _type = 0);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1324,19 +1334,58 @@ public:
 };
 
 
+class L2Pos_SegmentElement : public FiniteElement
+{
+private:
+#ifndef MFEM_USE_OPENMP
+   mutable Vector shape_x, dshape_x;
+#endif
+
+public:
+   L2Pos_SegmentElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+   using FiniteElement::Project;
+   virtual void Project(Coefficient &coeff,
+                        ElementTransformation &Trans, Vector &dofs) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
+};
+
+
 class L2_QuadrilateralElement : public NodalFiniteElement
 {
 private:
-   Poly_1D::Basis &basis1d;
+   int type;
+   Poly_1D::Basis *basis1d;
 #ifndef MFEM_USE_OPENMP
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
 
 public:
-   L2_QuadrilateralElement(const int p);
+   L2_QuadrilateralElement(const int p, const int _type = 0);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
+};
+
+
+class L2Pos_QuadrilateralElement : public FiniteElement
+{
+private:
+#ifndef MFEM_USE_OPENMP
+   mutable Vector shape_x, shape_y, dshape_x, dshape_y;
+#endif
+
+public:
+   L2Pos_QuadrilateralElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+   using FiniteElement::Project;
+   virtual void Project(Coefficient &coeff,
+                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
