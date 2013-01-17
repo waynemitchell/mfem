@@ -21,6 +21,8 @@ class IntegrationPoint
 public:
    double x, y, z, weight;
 
+   IntegrationPoint() { x = y = z = weight = 0.0; }
+
    void Set(const double x1, const double x2, const double x3, const double w)
    { x = x1; y = x2; z = x3; weight = w; }
 

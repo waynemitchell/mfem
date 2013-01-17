@@ -99,6 +99,7 @@ public:
 
       if (type == 1)
       {
+         // A is -(A^T+2S) from the notes
          A.AddDomainIntegrator(new ConvectionIntegrator(vc_u));
          BilinearForm *pAJ = lump_jump ? &AJ : &A;
          pAJ->AddInteriorFaceIntegrator(
