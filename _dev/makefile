@@ -13,7 +13,7 @@
 CC = g++
 OPTS = -O3 -I$(MFEM_DIR)
 DEBUG_OPTS = -g -I$(MFEM_DIR)
-LIBS = $(MFEM_LIB) $(LAPACK_LIBS)
+LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(MESQUITE_LIB)
 PROF_LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(PROFILER_LIB)
 
 # Parallel compiler
@@ -29,6 +29,16 @@ MFEM_LIB = -L$(MFEM_DIR) -lmfem
 # The METIS and HYPRE libraries (needed for the parallel examples)
 METIS_DIR = ../../metis-4.0
 HYPRE_DIR = ../../hypre-2.8.0b/src/hypre
+
+# The MESQUITE library
+USE_MESQUITE     = YES
+MESQUITE_DIR     = ../../mesquite-2.99/lib
+MESQUITE_DEF_NO  =
+MESQUITE_DEF_YES = -DMFEM_USE_MESQUITE
+MESQUITE_DEF     = $(MESQUITE_DEF_$(USE_MESQUITE))
+MESQUITE_LIB_NO  =
+MESQUITE_LIB_YES = -L$(MESQUITE_DIR) -lmesquite
+MESQUITE_LIB     = $(MESQUITE_LIB_$(USE_MESQUITE))
 
 # The LAPACK and BLAS libraries (needed if MFEM was compiled with LAPACK support)
 USE_LAPACK = YES
@@ -48,7 +58,7 @@ PROFILER_LIB = -L$(PROFILER_DIR) -lprofiler
 
 
 serial: ex1x ex3x ex4x test_simplex_intrules print_quadrature_rule \
- view_basis ex5 ex6 ex8 discrete-operators
+ view_basis ex5 ex6 ex7 ex8 discrete-operators
 
 parallel: ex1px ex3px ex5p
 
@@ -88,6 +98,9 @@ ex8: ex8.cpp
 ex6: ex6.cpp
 	$(CC) $(OPTS) ex6.cpp -o ex6 $(LIBS)
 
+ex7: ex7.cpp
+	$(CC) $(OPTS) ex7.cpp -o ex7 $(LIBS)
+
 test_interp: test_interp.cpp
 	$(CC) $(OPTS) test_interp.cpp -o test_interp $(LIBS)
 
@@ -108,7 +121,10 @@ prof-debug:
 
 clean:
 	rm -f *.o *~ ex1x ex3x ex4x test_simplex_intrules print_quadrature_rule
-	rm -f view_basis ex5 ex5p ex6 ex8 test_interp ex1px ex3px ex8p mesh.* sol.*
+	rm -f view_basis ex5 ex5p ex6 ex7 ex8 test_interp ex1px ex3px ex8p
+	rm -f mesh.* sol.* fir-*.mesh taubin-*.mesh
 	rm -f refined.mesh sol.gf perturbed.mesh smoothed.mesh
 	rm -f discrete-operators G_matrix.txt GtG_matrix.txt Pi_h_matrix.txt
 	rm -f C_matrix.txt D_matrix.txt
+	rm -f initial.vtk final_rho.vtk final_mom.vtk mono.vtk
+	rm -f M?-matrix-???.txt A?-matrix-???.txt AJ?-matrix-rho.txt
