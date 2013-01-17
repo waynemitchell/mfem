@@ -67,7 +67,7 @@ void Table::MakeJ()
    J = new int[I[size]=k];
 }
 
-void Table::AddConnections (int r, int *c, int nc)
+void Table::AddConnections (int r, const int *c, int nc)
 {
    int *jp = J+I[r];
 
@@ -252,6 +252,14 @@ void Table::Save(ostream & out) const
       out << I[i] << '\n';
    for (i = 0; i < I[size]; i++)
       out << J[i] << '\n';
+}
+
+void Table::Clear()
+{
+   delete [] I;
+   delete [] J;
+   size = -1;
+   I = J = NULL;
 }
 
 Table::~Table ()

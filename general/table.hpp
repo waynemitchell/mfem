@@ -48,7 +48,7 @@ public:
    void AddColumnsInRow (int r, int ncol) { I[r] += ncol; }
    void MakeJ();
    void AddConnection (int r, int c) { J[I[r]++] = c; }
-   void AddConnections (int r, int *c, int nc);
+   void AddConnections (int r, const int *c, int nc);
    void ShiftUpI();
 
    /// Set the size and the number of connections for the table.
@@ -111,6 +111,8 @@ public:
    void Print(ostream & out = cout, int width = 4) const;
 
    void Save(ostream & out) const;
+
+   void Clear();
 
    /// Destroys Table.
    ~Table();

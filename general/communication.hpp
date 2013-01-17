@@ -39,24 +39,25 @@ public:
 
    void Create(ListOfIntegerSets &groups, int mpitag);
 
-   int NGroups() { return group_lproc.Size(); }
+   int NGroups() const { return group_lproc.Size(); }
    // return the number of neighbors including the local processor
-   int GetNumNeighbors() { return lproc_proc.Size(); }
-   int GetNeighborRank(int i) { return lproc_proc[i]; }
+   int GetNumNeighbors() const { return lproc_proc.Size(); }
+   int GetNeighborRank(int i) const { return lproc_proc[i]; }
    // am I master for group 'g'?
-   bool IAmMaster(int g) { return (groupmaster_lproc[g] == 0); }
+   bool IAmMaster(int g) const { return (groupmaster_lproc[g] == 0); }
    // return the neighbor index of the group master for a given group.
    // neighbor 0 is the local processor
-   int GetGroupMaster(int g) { return groupmaster_lproc[g]; }
+   int GetGroupMaster(int g) const { return groupmaster_lproc[g]; }
    // return the rank of the group master for a given group
-   int GetGroupMasterRank(int g) { return lproc_proc[groupmaster_lproc[g]]; }
+   int GetGroupMasterRank(int g) const
+   { return lproc_proc[groupmaster_lproc[g]]; }
    // for a given group return the group number in the master
-   int GetGroupMasterGroup(int g) { return group_mgroup[g]; }
+   int GetGroupMasterGroup(int g) const { return group_mgroup[g]; }
    // get the number of processors in a group
-   int GetGroupSize(int g) { return group_lproc.RowSize(g); }
+   int GetGroupSize(int g) const { return group_lproc.RowSize(g); }
    // return a pointer to a list of neighbors for a given group.
    // neighbor 0 is the local processor
-   const int *GetGroup(int g) { return group_lproc.GetRow(g); }
+   const int *GetGroup(int g) const { return group_lproc.GetRow(g); }
 };
 
 class GroupCommunicator
