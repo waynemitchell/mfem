@@ -37,6 +37,9 @@ private:
    /// Return a number(0-4) identifying how the given face has been split
    int GetFaceSplittings(Element *face, const DSTable &v_to_v, int *middle);
 
+   void GetFaceNbrElementTransformation(
+      int i, IsoparametricTransformation *ElTr);
+
    /// Refine quadrilateral mesh.
    virtual void QuadUniformRefinement();
 
@@ -44,6 +47,8 @@ private:
    virtual void HexUniformRefinement();
 
    virtual void NURBSUniformRefinement();
+
+   void DeleteFaceNbrData();
 
 public:
    ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_ = NULL,
@@ -54,6 +59,17 @@ public:
    int GetMyRank() { return MyRank; }
 
    GroupTopology gtopo;
+
+   // Face-neighbor elements and vertices
+   bool             have_face_nbr_data;
+   Array<int>       face_nbr_group;
+   Array<int>       face_nbr_elements_offset;
+   Array<int>       face_nbr_vertices_offset;
+   Array<Element *> face_nbr_elements;
+   Array<Vertex>    face_nbr_vertices;
+   // Local face-neighbor elements and vertices ordered by face-neighbor
+   Table            send_face_nbr_elements;
+   Table            send_face_nbr_vertices;
 
    int GetNGroups() { return gtopo.NGroups(); }
 
@@ -66,6 +82,20 @@ public:
    { return svert_lvert[group_svert.GetJ()[group_svert.GetI()[group-1]+i]]; }
    void GroupEdge(int group, int i, int &edge, int &o);
    void GroupFace(int group, int i, int &face, int &o);
+
+   void ExchangeFaceNbrData();
+   void ExchangeFaceNbrNodes();
+   int GetNFaceNeighbors() const { return face_nbr_group.Size(); }
+   int GetFaceNbrGroup(int fn) const { return face_nbr_group[fn]; }
+   int GetFaceNbrRank(int fn) const;
+
+   /** Get the FaceElementTransformations for the given shared face (edge 2D).
+       In the returned object, 1 and 2 refer to the local and the neighbor
+       elements, respectively. */
+   FaceElementTransformations *GetSharedFaceTransformations(int);
+
+   /// Return the number of shared faces (3D), edges (2D), vertices (1D)
+   int GetNSharedFaces() const;
 
    /// See the remarks for the serial version in mesh.hpp
    virtual void ReorientTetMesh();

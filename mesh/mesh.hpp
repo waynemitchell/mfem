@@ -74,6 +74,12 @@ protected:
    GridFunction *Nodes;
    int own_nodes;
 
+   static const int tet_faces[4][3];
+   static const int hex_faces[6][4];
+
+   static const int tri_orientations[6][3];
+   static const int quad_orientations[8][4];
+
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
 
@@ -167,6 +173,7 @@ protected:
    FiniteElement *GetTransformationFEforElementType (int);
 
    /// Used in GetFaceElementTransformations (...)
+   void GetLocalPtToSegTransformation(IsoparametricTransformation &, int);
    void GetLocalSegToTriTransformation (IsoparametricTransformation &loc,
                                         int i);
    void GetLocalSegToQuadTransformation (IsoparametricTransformation &loc,
@@ -200,6 +207,8 @@ protected:
    int GetElementToEdgeTable(Table &, Array<int> &);
 
    /// Used in GenerateFaces()
+   void AddPointFaceElement(int lf, int gf, int el);
+
    void AddSegmentFaceElement (int lf, int gf, int el, int v0, int v1);
 
    void AddTriangleFaceElement (int lf, int gf, int el,
@@ -337,12 +346,20 @@ public:
    /// Return the indices and the orientations of all edges of bdr element i.
    void GetBdrElementEdges(int i, Array<int> &, Array<int> &) const;
 
-   /// Return the indices and the orientations of all edges of face i.
+   /** Return the indices and the orientations of all edges of face i.
+       Works for both 2D (face=edge) and 3D faces. */
    void GetFaceEdges(int i, Array<int> &, Array<int> &) const;
 
    /// Returns the indices of the vertices of face i.
    void GetFaceVertices(int i, Array<int> &vert) const
-   { faces[i] -> GetVertices (vert); }
+   {
+      if (Dim == 1)
+      {
+         vert.SetSize(1); vert[0] = i;
+      }
+      else
+         faces[i]->GetVertices(vert);
+   }
 
    /// Returns the indices of the vertices of edge i.
    void GetEdgeVertices(int i, Array<int> &vert) const;
@@ -470,6 +487,9 @@ public:
    void GetVertices(Vector &vert_coord) const;
    void SetVertices(const Vector &vert_coord);
 
+   void GetNode(int i, double *coord);
+   void SetNode(int i, const double *coord);
+
    // Node operations for curved mesh.
    // They call the corresponding '...Vertices' method if the
    // mesh is not curved (i.e. Nodes == NULL).
@@ -560,6 +580,8 @@ public:
    double GetElementVolume(int i);
 
    void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL);
+
+   void MesquiteSmooth(const int mesquite_option = 0);
 
    /// Destroys mesh.
    virtual ~Mesh();
