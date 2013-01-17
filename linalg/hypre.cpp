@@ -166,6 +166,9 @@ HypreParMatrix::HypreParMatrix(int size, int *row, SparseMatrix *diag)
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
+   /* Make sure that the first entry in each row is the diagonal one. */
+   hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+
    hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
@@ -192,6 +195,10 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
    hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(HYPRE_Int, diag->Size()+1);
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
+
+   /* Make sure that the first entry in each row is the diagonal one. */
+   if (row == col)
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
 
    hypre_MatvecCommPkgCreate(A);
 
@@ -228,6 +235,10 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
+   /* Make sure that the first entry in each row is the diagonal one. */
+   if (row == col)
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+
    hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
@@ -261,6 +272,10 @@ HypreParMatrix::HypreParMatrix(int *row, int *col, SparseMatrix *sm_a)
 
    size = GetNumRows();
 
+   /* Make sure that the first entry in each row is the diagonal one. */
+   if (row == col)
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+
    hypre_MatvecCommPkgCreate(A);
 }
 
@@ -288,6 +303,10 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
    hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(HYPRE_Int, diag->Size()+1);
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
+
+   /* Make sure that the first entry in each row is the diagonal one. */
+   if (row == col)
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
 
    hypre_MatvecCommPkgCreate(A);
 
@@ -352,6 +371,10 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
+   /* Make sure that the first entry in each row is the diagonal one. */
+   if (row == col)
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+
    hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
@@ -403,6 +426,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
    hypre_ParCSRMatrixOwnsColStarts(A) = 1;
    GenerateDiagAndOffd(local, A, col_starts[myid], col_starts[myid+1]-1);
    hypre_ParCSRMatrixSetNumNonzeros(A);
+   /* Make sure that the first entry in each row is the diagonal one. */
+   if (rows == cols)
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
    hypre_MatvecCommPkgCreate(A);
 
    // delete the local CSR matrix
