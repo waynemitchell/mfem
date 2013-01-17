@@ -90,67 +90,67 @@ protected:
    FiniteElementSpace(FiniteElementSpace &);
 
    /// Constructs new refinement data using coarse element k as a template
-   void ConstructRefinementData (int k, int cdofs, RefinementType type);
+   void ConstructRefinementData(int k, int cdofs, RefinementType type);
 
    /// Generates the local interpolation matrix for coarse element k
-   DenseMatrix * LocalInterpolation (int k, int cdofs,
-                                     RefinementType type,
-                                     Array<int> &rows);
+   DenseMatrix *LocalInterpolation(int k, int cdofs,
+                                   RefinementType type,
+                                   Array<int> &rows);
 
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
                       int dim = 1, int order = Ordering::byNODES);
 
    /// Returns the mesh
-   inline Mesh * GetMesh() const { return mesh; };
+   inline Mesh *GetMesh() const { return mesh; }
 
    NURBSExtension *GetNURBSext() { return NURBSext; }
    NURBSExtension *StealNURBSext();
 
    /// Returns vector dimension.
-   inline int GetVDim() const { return vdim; };
+   inline int GetVDim() const { return vdim; }
 
    /// Returns the order of the i'th finite element
    int GetOrder(int i) const;
 
    /// Returns number of degrees of freedom.
-   inline int GetNDofs() const { return ndofs; };
+   inline int GetNDofs() const { return ndofs; }
 
-   inline int GetVSize() const { return vdim * ndofs; };
+   inline int GetVSize() const { return vdim * ndofs; }
 
    /// Return the ordering method.
-   inline int GetOrdering() const { return ordering; };
+   inline int GetOrdering() const { return ordering; }
 
-   const FiniteElementCollection *FEColl() const { return fec; };
+   const FiniteElementCollection *FEColl() const { return fec; }
 
    int GetNVDofs() const { return nvdofs; }
    int GetNEDofs() const { return nedofs; }
    int GetNFDofs() const { return nfdofs; }
 
    /// Returns number of elements in the mesh.
-   inline int GetNE() const { return mesh -> GetNE(); };
+   inline int GetNE() const { return mesh->GetNE(); }
 
    /// Returns number of nodes in the mesh.
-   inline int GetNV() const { return mesh -> GetNV(); };
+   inline int GetNV() const { return mesh->GetNV(); }
 
    /// Returns number of boundary elements in the mesh.
-   inline int GetNBE() const { return mesh -> GetNBE(); };
+   inline int GetNBE() const { return mesh->GetNBE(); }
 
    /// Returns the type of element i.
-   inline int GetElementType (int i) const
-   { return mesh -> GetElementType(i); }
+   inline int GetElementType(int i) const
+   { return mesh->GetElementType(i); }
 
    /// Returns the vertices of element i.
-   inline void GetElementVertices (int i, Array<int> &vertices) const
-   { mesh -> GetElementVertices(i, vertices); }
+   inline void GetElementVertices(int i, Array<int> &vertices) const
+   { mesh->GetElementVertices(i, vertices); }
 
    /// Returns the type of boundary element i.
-   inline int GetBdrElementType (int i) const
-   { return mesh -> GetBdrElementType(i); }
+   inline int GetBdrElementType(int i) const
+   { return mesh->GetBdrElementType(i); }
 
    /// Returns ElementTransformation for the i'th element.
-   ElementTransformation * GetElementTransformation(int i) const
-   { return mesh -> GetElementTransformation(i); };
+   ElementTransformation *GetElementTransformation(int i) const
+   { return mesh->GetElementTransformation(i); };
 
    /** Returns the transformation defining the i-th element in the user-defined
        variable. */
@@ -158,57 +158,57 @@ public:
    { mesh->GetElementTransformation(i, ElTr); }
 
    /// Returns ElementTransformation for the i'th boundary element.
-   ElementTransformation * GetBdrElementTransformation(int i) const
-   { return mesh -> GetBdrElementTransformation(i); };
+   ElementTransformation *GetBdrElementTransformation(int i) const
+   { return mesh->GetBdrElementTransformation(i); }
 
-   int GetAttribute(int i) { return mesh -> GetAttribute(i); };
+   int GetAttribute(int i) const { return mesh->GetAttribute(i); }
 
-   int GetBdrAttribute(int i) { return mesh -> GetBdrAttribute(i); };
+   int GetBdrAttribute(int i) const { return mesh->GetBdrAttribute(i); }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
-   virtual void GetElementDofs (int i, Array<int> &dofs) const;
+   virtual void GetElementDofs(int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
-   virtual void GetBdrElementDofs (int i, Array<int> &dofs) const;
+   virtual void GetBdrElementDofs(int i, Array<int> &dofs) const;
 
    /** Returns the indexes of the degrees of freedom for i'th face
        including the dofs for the edges and the vertices of the face. */
-   void GetFaceDofs (int i, Array<int> &dofs) const;
+   void GetFaceDofs(int i, Array<int> &dofs) const;
 
    /** Returns the indexes of the degrees of freedom for i'th edge
        including the dofs for the vertices of the edge. */
-   void GetEdgeDofs (int i, Array<int> &dofs) const;
+   void GetEdgeDofs(int i, Array<int> &dofs) const;
 
-   void GetElementInteriorDofs (int i, Array<int> &dofs) const;
+   void GetElementInteriorDofs(int i, Array<int> &dofs) const;
 
-   void GetEdgeInteriorDofs (int i, Array<int> &dofs) const;
+   void GetEdgeInteriorDofs(int i, Array<int> &dofs) const;
 
-   void DofsToVDofs (Array<int> &dofs) const;
+   void DofsToVDofs(Array<int> &dofs) const;
 
-   void DofsToVDofs (int vd, Array<int> &dofs) const;
+   void DofsToVDofs(int vd, Array<int> &dofs) const;
 
-   int DofToVDof (int dof, int vd) const;
+   int DofToVDof(int dof, int vd) const;
 
    int VDofToDof(int vdof) const
    { return (ordering == Ordering::byNODES) ? (vdof%ndofs) : (vdof/vdim); }
 
-   static void AdjustVDofs (Array<int> &vdofs);
+   static void AdjustVDofs(Array<int> &vdofs);
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
-   void GetElementVDofs (int i, Array<int> &dofs) const;
+   void GetElementVDofs(int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
-   void GetBdrElementVDofs (int i, Array<int> &dofs) const;
+   void GetBdrElementVDofs(int i, Array<int> &dofs) const;
 
-   /// Returns indexes of degrees of freedom for i'th face element.
-   void GetFaceVDofs (int iF, Array<int> &dofs) const;
+   /// Returns indexes of degrees of freedom for i'th face element (2D and 3D).
+   void GetFaceVDofs(int iF, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom for i'th edge.
-   void GetEdgeVDofs (int iE, Array<int> &dofs) const;
+   void GetEdgeVDofs(int iE, Array<int> &dofs) const;
 
-   void GetElementInteriorVDofs (int i, Array<int> &vdofs) const;
+   void GetElementInteriorVDofs(int i, Array<int> &vdofs) const;
 
-   void GetEdgeInteriorVDofs (int i, Array<int> &vdofs) const;
+   void GetEdgeInteriorVDofs(int i, Array<int> &vdofs) const;
 
    void BuildElementToDofTable();
 
@@ -216,14 +216,16 @@ public:
 
    const Table &GetElementToDofTable() const { return *elem_dof; }
 
-   int GetElementForDof  (int i) { return dof_elem_array[i]; }
-   int GetLocalDofForDof (int i) { return dof_ldof_array[i]; }
+   int GetElementForDof(int i) { return dof_elem_array[i]; }
+   int GetLocalDofForDof(int i) { return dof_ldof_array[i]; }
 
    /// Returns pointer to the FiniteElement associated with i'th element.
-   const FiniteElement * GetFE (int i) const;
+   const FiniteElement *GetFE(int i) const;
 
    /// Returns pointer to the FiniteElement for the i'th boundary element.
-   const FiniteElement * GetBE (int i) const;
+   const FiniteElement *GetBE(int i) const;
+
+   const FiniteElement *GetFaceElement(int i) const;
 
    /** Return the restriction matrix from this FE space to the coarse FE space
        'cfes'. Both FE spaces must use the same FE collection and be defined on
@@ -233,34 +235,34 @@ public:
        (one_vdim=0); if one_vdim=-1 then the behavior depends on the ordering of
        this FE space: if ordering=byNodes then the scalar restriction matrix is
        built and if ordering=byVDim -- the full vector restriction matrix.  */
-   SparseMatrix * GlobalRestrictionMatrix (FiniteElementSpace *cfes,
-                                           int one_vdim = -1);
+   SparseMatrix *GlobalRestrictionMatrix(FiniteElementSpace *cfes,
+                                         int one_vdim = -1);
 
    /// Determine the boundary degrees of freedom
-   virtual void GetEssentialVDofs(Array<int> &bdr_attr_is_ess,
-                                  Array<int> &ess_dofs);
+   virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
+                                  Array<int> &ess_dofs) const;
 
-   void EliminateEssentialBCFromGRM (FiniteElementSpace *cfes,
-                                     Array<int> &bdr_attr_is_ess,
-                                     SparseMatrix *R);
+   void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,
+                                    Array<int> &bdr_attr_is_ess,
+                                    SparseMatrix *R);
 
    /// Generate the global restriction matrix with eliminated essential bc
-   SparseMatrix * GlobalRestrictionMatrix(FiniteElementSpace *cfes,
-                                          Array<int> &bdr_attr_is_ess,
-                                          int one_vdim = -1);
+   SparseMatrix *GlobalRestrictionMatrix(FiniteElementSpace *cfes,
+                                         Array<int> &bdr_attr_is_ess,
+                                         int one_vdim = -1);
 
    /** Generate the global restriction matrix from a discontinuous
        FE space to the continuous FE space of the same polynomial degree. */
-   SparseMatrix * D2C_GlobalRestrictionMatrix(FiniteElementSpace *cfes);
+   SparseMatrix *D2C_GlobalRestrictionMatrix(FiniteElementSpace *cfes);
 
    /** Generate the global restriction matrix from a discontinuous
        FE space to the piecewise constant FE space. */
-   SparseMatrix * D2Const_GlobalRestrictionMatrix(FiniteElementSpace *cfes);
+   SparseMatrix *D2Const_GlobalRestrictionMatrix(FiniteElementSpace *cfes);
 
    /** Construct the restriction matrix from the FE space given by
        (*this) to the lower degree FE space given by (*lfes) which
        is defined on the same mesh. */
-   SparseMatrix * H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes);
+   SparseMatrix *H2L_GlobalRestrictionMatrix(FiniteElementSpace *lfes);
 
    virtual void Update();
    /// Return a copy of the current FE space and update

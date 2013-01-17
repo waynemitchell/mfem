@@ -263,19 +263,19 @@ SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
    return R;
 }
 
-void FiniteElementSpace::GetEssentialVDofs (Array<int> &bdr_attr_is_ess,
-                                            Array<int> &ess_dofs)
+void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
+                                           Array<int> &ess_dofs) const
 {
    int i, j, k;
    Array<int> vdofs;
 
-   ess_dofs.SetSize (GetVSize());
+   ess_dofs.SetSize(GetVSize());
    ess_dofs = 0;
 
    for (i = 0; i < GetNBE(); i++)
-      if (bdr_attr_is_ess[GetBdrAttribute (i)-1])
+      if (bdr_attr_is_ess[GetBdrAttribute(i)-1])
       {
-         GetBdrElementVDofs (i, vdofs);
+         GetBdrElementVDofs(i, vdofs);
          for (j = 0; j < vdofs.Size(); j++)
             if ( (k = vdofs[j]) >= 0 )
                ess_dofs[k] = -1;
@@ -717,7 +717,9 @@ void FiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
 {
    int j, k, nv, ne, nf, nd;
    Array<int> V, E, Eo;
+   const int *ind;
 
+   // for 2D and 3D faces
    nv = fec->DofForGeometry(Geometry::POINT);
    ne = fec->DofForGeometry(Geometry::SEGMENT);
    if (nv > 0)
@@ -732,11 +734,16 @@ void FiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
          for (j = 0; j < nv; j++)
             dofs[k*nv+j] = V[k]*nv+j;
    nv *= V.Size();
-   // do not take edge orientation 'Eo' into account
    if (ne > 0)
       for (k = 0; k < E.Size(); k++)
+      {
+         ind = fec->DofOrderForOrientation(Geometry::SEGMENT, Eo[k]);
          for (j = 0; j < ne; j++)
-            dofs[nv+k*ne+j] = nvdofs+E[k]*ne+j;
+            if (ind[j] < 0)
+               dofs[nv+k*ne+j] = -1 - ( nvdofs+E[k]*ne+(-1-ind[j]) );
+            else
+               dofs[nv+k*ne+j] = nvdofs+E[k]*ne+ind[j];
+      }
    ne = nv + ne * E.Size();
    if (nf > 0)
       for (j = nvdofs+nedofs+fdofs[i], k = 0; k < nf; j++, k++)
@@ -803,6 +810,26 @@ const FiniteElement *FiniteElementSpace::GetBE (int i) const
       NURBSext->LoadBE(i, BE);
 
    return BE;
+}
+
+const FiniteElement *FiniteElementSpace::GetFaceElement(int i) const
+{
+   const FiniteElement *fe;
+
+   switch (mesh->Dimension())
+   {
+   case 1:
+      fe = fec->FiniteElementForGeometry(Geometry::POINT);
+   case 2:
+      fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+   case 3:
+      fe = fec->FiniteElementForGeometry(mesh->GetFaceBaseGeometry(i));
+   }
+
+   // if (NURBSext)
+   //    NURBSext->LoadFaceElement(i, fe);
+
+   return fe;
 }
 
 FiniteElementSpace::~FiniteElementSpace()
