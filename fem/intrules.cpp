@@ -191,7 +191,7 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
 
    switch (GeomType)
    {
-   case Geometry::POINT:       ir_array = &PointIntRules; break;
+   case Geometry::POINT:       return *PointIntRules[0];
    case Geometry::SEGMENT:     ir_array = &SegmentIntRules; break;
    case Geometry::TRIANGLE:    ir_array = &TriangleIntRules; break;
    case Geometry::SQUARE:      ir_array = &SquareIntRules; break;

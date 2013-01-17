@@ -32,6 +32,7 @@ public:
        transformation, the second -- the y derivatives, etc.  */
    virtual const DenseMatrix & Jacobian() = 0;
    virtual double Weight() = 0;
+   virtual int Order() = 0;
    virtual int OrderJ() = 0;
    virtual int OrderW() = 0;
    /// order of adj(J)^t.grad(fi)
@@ -58,6 +59,7 @@ public:
    virtual void Transform(const IntegrationRule &, DenseMatrix &);
    virtual const DenseMatrix & Jacobian();
    virtual double Weight();
+   virtual int Order() { return FElem->GetOrder(); }
    virtual int OrderJ();
    virtual int OrderW();
    virtual int OrderGrad(const FiniteElement *fe);

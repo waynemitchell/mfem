@@ -200,10 +200,12 @@ void BilinearForm::Assemble (int skip_zeros)
       Array<int> vdofs2;
 
       int nfaces;
-      if (mesh -> Dimension() == 2)
-         nfaces = mesh -> GetNEdges();
+      if (mesh->Dimension() == 1)
+         nfaces = mesh->GetNV();
+      else if (mesh->Dimension() == 2)
+         nfaces = mesh->GetNEdges();
       else
-         nfaces = mesh -> GetNFaces();
+         nfaces = mesh->GetNFaces();
       for (i = 0; i < nfaces; i++)
       {
          tr = mesh -> GetInteriorFaceTransformations (i);
