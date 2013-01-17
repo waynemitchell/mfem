@@ -104,10 +104,10 @@ fem/pfespace.hpp fem/pgridfunc.hpp fem/plinearform.hpp fem/pnonlinearform.hpp
 	cd $(<D); $(CCC) -c $(<F)
 
 serial:
-	$(MAKE) "CCC=$(CC) $(DEFS) $(CCOPTS)" lib
+	$(MAKE) "CCC=$(CC) $(DEFS) $(CCOPTS) $(USE_MESQUITE_OPTS)" lib
 
 parallel:
-	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS)" lib
+	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(USE_MESQUITE_OPTS)" lib
 
 lib: libmfem.a mfem_defs.hpp
 
@@ -115,7 +115,7 @@ debug:
 	$(MAKE) "CCOPTS=$(DEBUG_OPTS)"
 
 pdebug:
-	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIDEBUG)" lib
+	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIDEBUG) $(USE_MESQUITE_OPTS)" lib
 
 opt: serial
 

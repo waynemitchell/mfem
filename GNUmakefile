@@ -83,7 +83,7 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 serial: opt
 
 # Parallel build
-parallel pdebug: CCC=$(MPICC) $(MODE_OPTS) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS)
+parallel pdebug: CCC=$(MPICC) $(MODE_OPTS) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(USE_MESQUITE_OPTS)
 parallel: opt
 pdebug: debug
 
