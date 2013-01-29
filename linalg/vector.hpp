@@ -56,6 +56,9 @@ public:
    void SetDataAndSize(double *d, int s)
    { data = d; size = s; allocsize = -s; }
 
+   void NewDataAndSize(double *d, int s)
+   { if (allocsize > 0) delete [] data; SetDataAndSize(d, s); }
+
    void MakeDataOwner() { allocsize = abs(allocsize); }
 
    /// Destroy a vector
@@ -91,6 +94,8 @@ public:
 
    /// Return the inner-product.
    double operator*(const Vector &v) const;
+
+   Vector & operator=(const double *v);
 
    /// Redefine '=' for vector = vector.
    Vector & operator=(const Vector &v);

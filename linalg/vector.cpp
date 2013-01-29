@@ -93,6 +93,13 @@ double Vector::operator*(const Vector &v) const
    return operator*(v.data);
 }
 
+Vector &Vector::operator=(const double *v)
+{
+   for (int i = 0; i < size; i++)
+      data[i] = v[i];
+   return *this;
+}
+
 Vector &Vector::operator=(const Vector &v)
 {
    SetSize(v.Size());
