@@ -80,7 +80,11 @@ public:
    /// Return the number of columns
    inline int Width() const { return width; }
    /// Returns the number of elements in row i
-   int RowSize(int i);
+   int RowSize(const int i) const;
+   /// Return a pointer to the column indices in a row
+   int *GetRowColumns(const int row);
+   /// Return a pointer to the entries in a row
+   double *GetRowEntries(const int row);
 
    /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
    virtual double &Elem(int i, int j);
@@ -187,6 +191,15 @@ public:
    void AddSubMatrix(const Array<int> &rows, const Array<int> &cols,
                      const DenseMatrix &subm, int skip_zeros = 1);
 
+   bool RowIsEmpty(const int row) const;
+
+   /** Extract all column indices and values from a given row.
+       If the matrix is finalized (i.e. in CSR format), 'cols' and 'srow'
+       will simply be references to the specific portion of the J and A
+       arrays. */
+   void GetRow(const int row, Array<int> &cols, Vector &srow) const;
+
+   void SetRow(const int row, const Array<int> &cols, const Vector &srow);
    void AddRow(const int row, const Array<int> &cols, const Vector &srow);
 
    void ScaleRow(const int row, const double scale);

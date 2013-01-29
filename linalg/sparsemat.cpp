@@ -32,7 +32,7 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
    ColPtr.Node = NULL;
 }
 
-int SparseMatrix::RowSize(int i)
+int SparseMatrix::RowSize(const int i) const
 {
    if (I)
       return I[i+1]-I[i];
@@ -43,6 +43,22 @@ int SparseMatrix::RowSize(int i)
       if (row->Value != 0.0)
          s++;
    return s;
+}
+
+int *SparseMatrix::GetRowColumns(const int row)
+{
+   if (Rows)
+      mfem_error("SparseMatrix::GetRowColumns : matrix is not Finalized!");
+
+   return J + I[row];
+}
+
+double *SparseMatrix::GetRowEntries(const int row)
+{
+   if (Rows)
+      mfem_error("SparseMatrix::GetRowEntries : matrix is not Finalized!");
+
+   return A + I[row];
 }
 
 double &SparseMatrix::Elem(int i, int j)
@@ -1175,6 +1191,87 @@ void SparseMatrix::GetSubMatrix(const Array<int> &rows, const Array<int> &cols,
       }
       ClearColPtr();
    }
+}
+
+bool SparseMatrix::RowIsEmpty(const int row) const
+{
+   int gi;
+
+   if ((gi=row) < 0)
+      gi = -1-gi;
+#ifdef MFEM_DEBUG
+   if (gi >= size)
+      mfem_error("SparseMatrix::RowIsEmpty(...) #1");
+#endif
+   if (Rows)
+      return (Rows[gi] == NULL);
+   else
+      return (I[gi] == I[gi+1]);
+}
+
+void SparseMatrix::GetRow(const int row, Array<int> &cols, Vector &srow) const
+{
+   RowNode *n;
+   int j, gi;
+
+   if ((gi=row) < 0) gi = -1-gi;
+#ifdef MFEM_DEBUG
+   if (gi >= size)
+      mfem_error("SparseMatrix::GetRow(...) #1");
+#endif
+   if (Rows)
+   {
+      for (n = Rows[gi], j = 0; n; n = n->Prev)
+         j++;
+      cols.SetSize(j);
+      srow.SetSize(j);
+      for (n = Rows[gi], j = 0; n; n = n->Prev, j++)
+      {
+         cols[j] = n->Column;
+         srow(j) = n->Value;
+      }
+      if (row < 0)
+         srow.Neg();
+   }
+   else
+   {
+      j = I[gi];
+      cols.MakeRef(J + j, I[gi+1]-j);
+      srow.NewDataAndSize(A + j, cols.Size());
+#ifdef DEBUG
+      if (row < 0)
+         mfem_error("SparseMatrix::GetRow(...) #2");
+#endif
+   }
+}
+
+void SparseMatrix::SetRow(const int row, const Array<int> &cols,
+                          const Vector &srow)
+{
+   int j, gi, gj, s, t;
+   double a;
+
+   if (Rows == NULL)
+      mfem_error("SparseMatrix::SetRow(...) #0");
+
+   if ((gi=row) < 0) gi = -1-gi, s = -1; else s = 1;
+#ifdef MFEM_DEBUG
+   if (gi >= size)
+      mfem_error("SparseMatrix::SetRow(...) #1");
+#endif
+   SetColPtr(gi);
+   for (j = 0; j < cols.Size(); j++)
+   {
+      if ((gj=cols[j]) < 0) gj = -1-gj, t = -s; else t = s;
+#ifdef MFEM_DEBUG
+      if (gj >= width)
+         mfem_error("SparseMatrix::SetRow(...) #2");
+#endif
+      a = srow(j);
+      if (t < 0)  a = -a;
+      _Set_(gj, a);
+   }
+   ClearColPtr();
 }
 
 void SparseMatrix::AddRow(const int row, const Array<int> &cols,
