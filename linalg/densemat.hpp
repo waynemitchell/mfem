@@ -232,17 +232,17 @@ void Add(const DenseMatrix &A, const DenseMatrix &B,
 /// Matrix matrix multiplication.  A = B * C.
 void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a);
 
-/// Calculate the adjugate of a matrix (for 2x2 or 3x3 matrices)
+/// Calculate the adjugate of a matrix (for NxN matrices, N=1,2,3)
 void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja);
 
-/// Calculate the transposed adjugate of a matrix (for 2x2 or 3x3 matrices)
+/// Calculate the transposed adjugate of a matrix (for NxN matrices, N=1,2,3)
 void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat);
 
-/** Calculate the inverse of a matrix (for 2x2 or 3x3 matrices) or the
+/** Calculate the inverse of a matrix (for NxN matrices, N=1,2,3) or the
     left inverse (A^t.A)^{-1}.A^t (for 2x1, 3x1, or 3x2 matrices) */
 void CalcInverse(const DenseMatrix &a, DenseMatrix &inva);
 
-/// Calculate the inverse transpose of a matrix (for 2x2 or 3x3 matrices)
+/// Calculate the inverse transpose of a matrix (for NxN matrices, N=1,2,3)
 void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva);
 
 /// Calculate the matrix A.At

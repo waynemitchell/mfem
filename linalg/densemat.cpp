@@ -123,12 +123,17 @@ const double &DenseMatrix::Elem(int i, int j) const
 
 void DenseMatrix::Mult(const double *x, double *y) const
 {
-   for (int i = 0; i < height; i++)
+   double *d_col = data;
+   double x_col = x[0];
+   for (int row = 0; row < height; row++)
+      y[row] = x_col*d_col[row];
+   d_col += height;
+   for (int col = 1; col < size; col++)
    {
-      double a = 0.;
-      for (int j = 0; j < size; j++)
-         a += (*this)(i,j) * x[j];
-      y[i] = a;
+      x_col = x[col];
+      for (int row = 0; row < height; row++)
+         y[row] += x_col*d_col[row];
+      d_col += height;
    }
 }
 
@@ -1873,10 +1878,14 @@ void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat)
 {
 #ifdef MFEM_DEBUG
    if (a.Height() != a.Size() || adjat.Height() != adjat.Size() ||
-       a.Size() != adjat.Size() || a.Size() < 2 || a.Size() > 3)
+       a.Size() != adjat.Size() || a.Size() < 1 || a.Size() > 3)
       mfem_error("DenseMatrix::CalcAdjugateTranspose(...)");
 #endif
-   if (a.Size() == 2)
+   if (a.Size() == 1)
+   {
+      adjat(0,0) = 1.0;
+   }
+   else if (a.Size() == 2)
    {
       adjat(0,0) =  a(1,1);
       adjat(1,0) = -a(0,1);
@@ -1949,7 +1958,7 @@ void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 
 #ifdef MFEM_DEBUG
    t = a.Det();
-   if (fabs(t) < 1.0e-12 * a.FNorm())
+   if (fabs(t) < 1.0e-14 * pow(a.FNorm()/a.Width(), a.Width()))
       cerr << "DenseMatrix::CalcInverse(...) : singular matrix!"
            << endl;
    t = 1. / t;
