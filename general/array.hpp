@@ -128,7 +128,7 @@ public:
    inline int Find(const T &el) const;
 
    /// Delete the last entry
-   inline void DeleteLast() { size--; }
+   inline void DeleteLast() { if (size > 0) size--; }
 
    /// Delete the first 'el' entry
    inline void DeleteFirst(const T &el);
@@ -142,6 +142,9 @@ public:
       copy.SetSize(Size());
       memcpy(copy.GetData(), data, Size()*sizeof(T));
    }
+
+   /// Make this Array a reference to a poiter
+   inline void MakeRef(T *, int);
 
    /// Make this Array a reference to 'master'
    inline void MakeRef(const Array &master);
@@ -162,6 +165,9 @@ public:
    void Sort();
 
    inline void operator=(const T &a);
+
+   /// Copy data from a pointer. Size() elements are copied.
+   inline void Assign(const T *);
 
 private:
    /// Array copy is not supported
@@ -372,6 +378,16 @@ inline void Array<T>::DeleteAll()
 }
 
 template <class T>
+inline void Array<T>::MakeRef(T *p, int s)
+{
+   if (allocsize > 0)
+      delete [] (char*)data;
+   data = p;
+   size = s;
+   allocsize = -s;
+}
+
+template <class T>
 inline void Array<T>::MakeRef(const Array &master)
 {
    if (allocsize > 0)
@@ -395,6 +411,12 @@ inline void Array<T>::operator=(const T &a)
 {
    for (int i = 0; i < size; i++)
       ((T*)data)[i] = a;
+}
+
+template <class T>
+inline void Array<T>::Assign(const T *p)
+{
+   memcpy(data, p, Size()*sizeof(T));
 }
 
 
