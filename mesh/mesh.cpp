@@ -1105,11 +1105,11 @@ Mesh::Mesh(int n)
    bdr_attributes.Append(1); bdr_attributes.Append(2);
 }
 
-Mesh::Mesh(istream &input, int generate_edges, int refine)
+Mesh::Mesh(istream &input, int generate_edges, int refine, bool fix_orientation)
 {
    Init();
    InitTables();
-   Load(input, generate_edges, refine);
+   Load(input, generate_edges, refine, fix_orientation);
 }
 
 Element *Mesh::NewElement(int geom)
@@ -1177,7 +1177,8 @@ void skip_comment_lines(istream &is, const char comment_char)
    }
 }
 
-void Mesh::Load(istream &input, int generate_edges, int refine)
+void Mesh::Load(istream &input, int generate_edges, int refine,
+                bool fix_orientation)
 {
    int i, j, ints[32], n, attr, curved = 0, read_gf = 1;
    const int buflen = 1024;
@@ -1863,7 +1864,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
    if (!curved)
    {
       // check and fix element orientation
-      CheckElementOrientation();
+      CheckElementOrientation(fix_orientation);
 
       if (refine)
          MarkForRefinement();
@@ -1939,7 +1940,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine)
 
          // check orientation and mark for refinement using just vertices
          // (i.e. higher order curvature is not used)
-         CheckElementOrientation();
+         CheckElementOrientation(fix_orientation);
          if (refine)
             MarkForRefinement(); // changes topology!
 
@@ -2457,7 +2458,9 @@ const FiniteElementSpace *Mesh::GetNodalFESpace()
    return ((Nodes) ? Nodes->FESpace() : NULL);
 }
 
-void Mesh::CheckElementOrientation()
+static const char *fixed_or_not[] = { "fixed", "NOT FIXED" };
+
+void Mesh::CheckElementOrientation(bool fix_it)
 {
    int i, j, k, wo = 0, *vi;
    double *v[4];
@@ -2475,15 +2478,19 @@ void Mesh::CheckElementOrientation()
             for (k = 0; k < 2; k++)
                tri(j, k) = v[j+1][k] - v[0][k];
          if (tri.Det() < 0.0)
-            switch (GetElementType(i))
-            {
-            case Element::TRIANGLE:
-               k = vi[0], vi[0] = vi[1], vi[1] = k, wo++;
-               break;
-            case Element::QUADRILATERAL:
-               k = vi[1], vi[1] = vi[3], vi[3] = k, wo++;
-               break;
-            }
+         {
+            if (fix_it)
+               switch (GetElementType(i))
+               {
+               case Element::TRIANGLE:
+                  k = vi[0], vi[0] = vi[1], vi[1] = k;
+                  break;
+               case Element::QUADRILATERAL:
+                  k = vi[1], vi[1] = vi[3], vi[3] = k;
+                  break;
+               }
+            wo++;
+         }
       }
    }
 
@@ -2503,7 +2510,11 @@ void Mesh::CheckElementOrientation()
                for (k = 0; k < 3; k++)
                   tet(j, k) = v[j+1][k] - v[0][k];
             if (tet.Det() < 0.0)
-               k = vi[0], vi[0] = vi[1], vi[1] = k, wo++;
+            {
+               wo++;
+               if (fix_it)
+                  k = vi[0], vi[0] = vi[1], vi[1] = k;
+            }
             break;
          case Element::HEXAHEDRON:
             // to do ...
@@ -2513,8 +2524,9 @@ void Mesh::CheckElementOrientation()
    }
 #if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
    if (wo > 0)
-      cout << "Orientation fixed in " << wo << " of "<< NumOfElements
-           << " elements" << endl;
+      cout << "Elements with wrong orientation: " << wo << " / "
+           << NumOfElements << " (" << fixed_or_not[fix_it ? 0 : 1]
+           << ")" << endl;
 #endif
 }
 
@@ -2584,7 +2596,7 @@ int Mesh::GetQuadOrientation(const int *base, const int *test)
    return 2*i+1;
 }
 
-void Mesh::CheckBdrElementOrientation()
+void Mesh::CheckBdrElementOrientation(bool fix_it)
 {
    int i, j, wo = 0;
 
@@ -2598,7 +2610,8 @@ void Mesh::CheckBdrElementOrientation()
             int *fv = faces[be_to_edge[i]]->GetVertices();
             if (bv[0] != fv[0])
             {
-               j = bv[0]; bv[0] = bv[1]; bv[1] = j;
+               if (fix_it)
+                  j = bv[0]; bv[0] = bv[1]; bv[1] = j;
                wo++;
             }
          }
@@ -2629,7 +2642,8 @@ void Mesh::CheckBdrElementOrientation()
                {
                   // wrong orientation -- swap vertices 0 and 1 so that
                   //  we don't change the marked edge:  (0,1,2) -> (1,0,2)
-                  Swap<int>(bv[0], bv[1]);
+                  if (fix_it)
+                     Swap<int>(bv[0], bv[1]);
                   wo++;
                }
             }
@@ -2659,7 +2673,8 @@ void Mesh::CheckBdrElementOrientation()
                }
                if (GetQuadOrientation(v, bv) % 2)
                {
-                  j = bv[0]; bv[0] = bv[2]; bv[2] = j;
+                  if (fix_it)
+                     j = bv[0]; bv[0] = bv[2]; bv[2] = j;
                   wo++;
                }
                break;
@@ -2670,8 +2685,9 @@ void Mesh::CheckBdrElementOrientation()
 // #if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
 #ifdef MFEM_DEBUG
    if (wo > 0)
-      cout << "Orientation fixed in " << wo << " of "<< NumOfBdrElements
-           << " boundary elements" << endl;
+      cout << "Boundary elements with wrong orientation: " << wo << " / "
+           << NumOfBdrElements << " (" << fixed_or_not[fix_it ? 0 : 1]
+           << ")" << endl;
 #endif
 }
 
@@ -4233,11 +4249,12 @@ void Mesh::SetNodes(const Vector &node_coord)
       SetVertices(node_coord);
 }
 
-void Mesh::NewNodes(GridFunction &nodes)
+void Mesh::NewNodes(GridFunction &nodes, bool make_owner)
+
 {
    if (own_nodes) delete Nodes;
    Nodes = &nodes;
-   own_nodes = 0;
+   own_nodes = (int)make_owner;
 
    if (NURBSext != nodes.FESpace()->GetNURBSext())
    {

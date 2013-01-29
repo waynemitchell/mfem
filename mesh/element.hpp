@@ -44,6 +44,9 @@ public:
 
    virtual int *GetVertices() = 0;
 
+   const int *GetVertices() const
+   { return const_cast<Element *>(this)->GetVertices(); }
+
    virtual int GetNVertices() const = 0;
 
    virtual int GetNEdges() const = 0;

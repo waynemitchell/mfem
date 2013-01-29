@@ -87,8 +87,6 @@ protected:
    MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
 
-   Element *NewElement(int geom);
-
    void Init();
 
    void InitTables();
@@ -238,13 +236,17 @@ public:
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
    Mesh (int _Dim, int NVert, int NElem, int NBdrElem = 0);
+
+   Element *NewElement(int geom);
+
    void AddVertex (double *);
-   void AddElement (Element *elem)  { elements[NumOfElements++] = elem; }
    void AddTri (int *vi, int attr = 1);
    void AddTriangle (int *vi, int attr = 1);
    void AddQuad (int *vi, int attr = 1);
    void AddTet (int *vi, int attr = 1);
    void AddHex (int *vi, int attr = 1);
+   // 'elem' should be allocated using the NewElement method
+   void AddElement (Element *elem)  { elements[NumOfElements++] = elem; }
    void AddBdrSegment (int *vi, int attr = 1);
    void AddBdrTriangle (int *vi, int attr = 1);
    void AddBdrQuad (int *vi, int attr = 1);
@@ -266,19 +268,21 @@ public:
    /** Creates 1D mesh , divided into n equal intervals. */
    explicit Mesh(int n);
 
-   /** Creates mesh by reading data stream in netgen format. If
-       generate_edges = 0 (default) edges are not generated, if 1 edges
-       are generated. */
-   Mesh ( istream &input, int generate_edges = 0, int refine = 1);
+   /** Creates mesh by reading data stream in MFEM, netgen, or VTK format. If
+       generate_edges = 0 (default) edges are not generated, if 1 edges are
+       generated. */
+   Mesh(istream &input, int generate_edges = 0, int refine = 1,
+        bool fix_orientation = true);
 
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
 
    /* This is similar to the above mesh constructor, but here the current
       mesh is destroyed and another one created based on the data stream
-      again given in netgen format. If generate_edges = 0 (default) edges
-      are not generated, if 1 edges are generated. */
-   void Load ( istream &input, int generate_edges = 0, int refine = 1);
+      again given in MFEM, netgen, or VTK format. If generate_edges = 0
+      (default) edges are not generated, if 1 edges are generated. */
+   void Load(istream &input, int generate_edges = 0, int refine = 1,
+             bool fix_orientation = true);
 
    void SetNodalFESpace(FiniteElementSpace *nfes);
    void SetNodalGridFunction(GridFunction *nodes);
@@ -449,9 +453,9 @@ public:
    void GetFaceInfos (int Face, int *Inf1, int *Inf2);
 
    /// Check the orientation of the elements
-   void CheckElementOrientation ();
+   void CheckElementOrientation(bool fix_it = true);
    /// Check the orientation of the boundary elements
-   void CheckBdrElementOrientation ();
+   void CheckBdrElementOrientation(bool fix_it = true);
 
    /// Return the attribute of element i.
    int GetAttribute(int i) const { return elements[i]->GetAttribute();}
@@ -500,7 +504,7 @@ public:
    /// Return a pointer to the internal node grid function
    GridFunction* GetNodes() { return Nodes; }
    // use the provided GridFunction as Nodes
-   void NewNodes(GridFunction &nodes);
+   void NewNodes(GridFunction &nodes, bool make_owner = false);
 
    /// Refine the marked elements.
    virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
