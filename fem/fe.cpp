@@ -5600,42 +5600,138 @@ void RotTriLinearHexFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 
-Poly_1D::Basis::Basis(const int p, const double *nodes)
-   : A(p + 1)
+Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
+   : x(p + 1), w(p + 1)
 {
-   double adata[p + 1];
-   Vector a(adata, p + 1);
-
-   for (int i = 0; i <= p; i++)
+   mode = _mode;
+   if (mode == 0)
    {
-      CalcBasis(p, nodes[i], a);
-      for (int j = 0; j <= p; j++)
-         A(j, i) = a(j);
+      A.SetSize(p + 1);
+      for (int i = 0; i <= p; i++)
+      {
+         CalcBasis(p, nodes[i], x);
+         for (int j = 0; j <= p; j++)
+            A(j, i) = x(j);
+      }
+
+      A.Invert();
+      // cout << "Poly_1D::Basis(" << p << ",...) : "; A.TestInversion();
    }
+   else
+   {
+      x = nodes;
+      w = 1.0;
+      for (int i = 0; i <= p; i++)
+         for (int j = 0; j < i; j++)
+         {
+            double xij = x(i) - x(j);
+            w(i) *=  xij;
+            w(j) *= -xij;
+         }
+      for (int i = 0; i <= p; i++)
+         w(i) = 1.0/w(i);
 
-   A.Invert();
-   // cout << "Poly_1D::Basis(" << p << ",...) : "; A.TestInversion();
+#ifdef MFEM_DEBUG
+      // Make sure the nodes are increasing
+      for (int i = 0; i < p; i++)
+         if (x(i) >= x(i+1))
+            mfem_error("Poly_1D::Basis::Basis : nodes are not increasing!");
+#endif
+   }
 }
 
-void Poly_1D::Basis::Eval(const double x, Vector &u) const
+void Poly_1D::Basis::Eval(const double y, Vector &u) const
 {
-   const int s = A.Size();
-   double adata[s];
-   Vector a(adata, s);
+   if (mode == 0)
+   {
+      CalcBasis(A.Size() - 1, y, x);
+      A.Mult(x, u);
+   }
+   else
+   {
+      int i, k, p = x.Size() - 1;
+      double l, lk;
 
-   CalcBasis(s - 1, x, a);
-   A.Mult(a, u);
+      if (p == 0)
+      {
+         u(0) = 1.0;
+         return;
+      }
+
+      lk = 1.0;
+      for (k = 0; k < p; k++)
+         if (y >= (x(k) + x(k+1))/2)
+            lk *= y - x(k);
+         else
+         {
+            for (i = k+1; i <= p; i++)
+               lk *= y - x(i);
+            break;
+         }
+      l = lk * (y - x(k));
+
+      for (i = 0; i < k; i++)
+         u(i) = l * w(i) / (y - x(i));
+      u(k) = lk * w(k);
+      for (i++; i <= p; i++)
+         u(i) = l * w(i) / (y - x(i));
+   }
 }
 
-void Poly_1D::Basis::Eval(const double x, Vector &u, Vector &d) const
+void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
 {
-   const int s = A.Size();
-   double adata[s], bdata[s];
-   Vector a(adata, s), b(bdata, s);
+   if (mode == 0)
+   {
+      CalcBasis(A.Size() - 1, y, x, w);
+      A.Mult(x, u);
+      A.Mult(w, d);
+   }
+   else
+   {
+      int i, k, p = x.Size() - 1;
+      double l, lp, lk, sk, si;
 
-   CalcBasis(s - 1, x, a, b);
-   A.Mult(a, u);
-   A.Mult(b, d);
+      if (p == 0)
+      {
+         u(0) = 1.0;
+         d(0) = 0.0;
+         return;
+      }
+
+      lk = 1.0;
+      for (k = 0; k < p; k++)
+         if (y >= (x(k) + x(k+1))/2)
+            lk *= y - x(k);
+         else
+         {
+            for (i = k+1; i <= p; i++)
+               lk *= y - x(i);
+            break;
+         }
+      l = lk * (y - x(k));
+
+      sk = 0.0;
+      for (i = 0; i < k; i++)
+      {
+         si = 1.0/(y - x(i));
+         sk += si;
+         u(i) = l * si * w(i);
+      }
+      u(k) = lk * w(k);
+      for (i++; i <= p; i++)
+      {
+         si = 1.0/(y - x(i));
+         sk += si;
+         u(i) = l * si * w(i);
+      }
+      lp = l * sk + lk;
+
+      for (i = 0; i < k; i++)
+         d(i) = (lp * w(i) - u(i))/(y - x(i));
+      d(k) = sk * u(k);
+      for (i++; i <= p; i++)
+         d(i) = (lp * w(i) - u(i))/(y - x(i));
+   }
 }
 
 const int *Poly_1D::Binom(const int p)

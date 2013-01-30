@@ -1160,10 +1160,13 @@ public:
    class Basis
    {
    private:
+      int mode; // 0 - use change of basis, O(p^2) Evals
+                // 1 - use barycentric Lagrangian interpolation, O(p) Evals
       DenseMatrix A;
+      mutable Vector x, w;
 
    public:
-      Basis(const int p, const double *nodes);
+      Basis(const int p, const double *nodes, const int _mode = 1);
       void Eval(const double x, Vector &u) const;
       void Eval(const double x, Vector &u, Vector &d) const;
    };
