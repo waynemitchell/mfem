@@ -171,8 +171,8 @@ public:
 class ConvectionIntegrator : public BilinearFormIntegrator
 {
 private:
-   DenseMatrix dshape, adjJ;
-   Vector shape, vec1, vec2, BdFidxT;
+   DenseMatrix dshape, adjJ, Q_ir;
+   Vector shape, vec2, BdFidxT;
    VectorCoefficient &Q;
    double alpha;
 
@@ -207,7 +207,7 @@ public:
 class VectorMassIntegrator: public BilinearFormIntegrator
 {
 private:
-   Vector shape, vec;
+   Vector shape, te_shape, vec;
    DenseMatrix partelmat;
    DenseMatrix mcoeff;
    Coefficient *Q;
@@ -239,6 +239,10 @@ public:
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
+   virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
+                                       const FiniteElement &test_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
 };
 
 

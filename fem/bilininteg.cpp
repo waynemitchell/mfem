@@ -400,12 +400,15 @@ void ConvectionIntegrator::AssembleElementMatrix(
    dshape.SetSize(nd,dim);
    adjJ.SetSize(dim);
    shape.SetSize(nd);
-   vec1.SetSize(dim);
    vec2.SetSize(dim);
    BdFidxT.SetSize(nd);
 
+   Vector vec1;
+
    int order = Trans.OrderGrad(&el) + Trans.Order() + el.GetOrder();
    const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
+
+   Q.Eval(Q_ir, Trans, *ir);
 
    elmat = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -416,7 +419,7 @@ void ConvectionIntegrator::AssembleElementMatrix(
 
       Trans.SetIntPoint(&ip);
       CalcAdjugate(Trans.Jacobian(), adjJ);
-      Q.Eval(vec1, Trans, ip);
+      Q_ir.GetColumnReference(i, vec1);
       vec1 *= alpha * ip.weight;
 
       adjJ.Mult(vec1, vec2);
@@ -517,25 +520,97 @@ void VectorMassIntegrator::AssembleElementMatrix
 
       MultVVt(shape, partelmat);
 
-      if (Q)
+      if (VQ)
       {
-         norm *= Q -> Eval (Trans, ip);
-         partelmat *= norm;
+         VQ->Eval(vec, Trans, ip);
          for (int k = 0; k < vdim; k++)
-            elmat.AddMatrix (partelmat, nd*k, nd*k);
+            elmat.AddMatrix(norm*vec(k), partelmat, nd*k, nd*k);
       }
-      else if (VQ)
+      else if (MQ)
       {
-         VQ -> Eval (vec, Trans, ip);
-         for (int k = 0; k < vdim; k++)
-            elmat.AddMatrix (norm * vec(k), partelmat, nd*k, nd*k);
-      }
-      else // (MQ != NULL) -- matrix coefficient
-      {
-         MQ -> Eval (mcoeff, Trans, ip);
+         MQ->Eval(mcoeff, Trans, ip);
          for (int i = 0; i < vdim; i++)
             for (int j = 0; j < vdim; j++)
-               elmat.AddMatrix (norm * mcoeff(i,j), partelmat, nd*i, nd*j);
+               elmat.AddMatrix(norm*mcoeff(i,j), partelmat, nd*i, nd*j);
+      }
+      else
+      {
+         if (Q)
+            norm *= Q->Eval(Trans, ip);
+         partelmat *= norm;
+         for (int k = 0; k < vdim; k++)
+            elmat.AddMatrix(partelmat, nd*k, nd*k);
+      }
+   }
+}
+
+void VectorMassIntegrator::AssembleElementMatrix2(
+   const FiniteElement &trial_fe, const FiniteElement &test_fe,
+   ElementTransformation &Trans, DenseMatrix &elmat)
+{
+   int tr_nd = trial_fe.GetDof();
+   int te_nd = test_fe.GetDof();
+   int dim   = trial_fe.GetDim();
+   int vdim;
+
+   double norm;
+
+   // Get vdim from the ElementTransformation Trans ?
+   vdim = (VQ) ? (VQ -> GetVDim()) : ((MQ) ? (MQ -> GetVDim()) : (dim));
+
+   elmat.SetSize(te_nd*vdim, tr_nd*vdim);
+   shape.SetSize(tr_nd);
+   te_shape.SetSize(te_nd);
+   partelmat.SetSize(te_nd, tr_nd);
+   if (VQ)
+      vec.SetSize(vdim);
+   else if (MQ)
+      mcoeff.SetSize(vdim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = (trial_fe.GetOrder() + test_fe.GetOrder() +
+                   Trans.OrderW() + Q_order);
+
+      if (trial_fe.Space() == FunctionSpace::rQk)
+         ir = &RefinedIntRules.Get(trial_fe.GetGeomType(), order);
+      else
+         ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+   }
+
+   elmat = 0.0;
+   for (int s = 0; s < ir->GetNPoints(); s++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(s);
+      trial_fe.CalcShape(ip, shape);
+      test_fe.CalcShape(ip, te_shape);
+
+      Trans.SetIntPoint(&ip);
+      norm = ip.weight * Trans.Weight();
+
+      MultVWt(te_shape, shape, partelmat);
+
+      if (VQ)
+      {
+         VQ->Eval(vec, Trans, ip);
+         for (int k = 0; k < vdim; k++)
+            elmat.AddMatrix(norm*vec(k), partelmat, te_nd*k, tr_nd*k);
+      }
+      else if (MQ)
+      {
+         MQ->Eval(mcoeff, Trans, ip);
+         for (int i = 0; i < vdim; i++)
+            for (int j = 0; j < vdim; j++)
+               elmat.AddMatrix(norm*mcoeff(i,j), partelmat, te_nd*i, tr_nd*j);
+      }
+      else
+      {
+         if (Q)
+            norm *= Q->Eval(Trans, ip);
+         partelmat *= norm;
+         for (int k = 0; k < vdim; k++)
+            elmat.AddMatrix(partelmat, te_nd*k, tr_nd*k);
       }
    }
 }
