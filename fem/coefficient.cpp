@@ -106,10 +106,16 @@ VectorGridFunctionCoefficient::VectorGridFunctionCoefficient (
    GridFunc = gf;
 }
 
-void VectorGridFunctionCoefficient::Eval (Vector &V, ElementTransformation &T,
-                                          const IntegrationPoint &ip)
+void VectorGridFunctionCoefficient::Eval(Vector &V, ElementTransformation &T,
+                                         const IntegrationPoint &ip)
 {
-   GridFunc -> GetVectorValue (T.ElementNo, ip, V);
+   GridFunc->GetVectorValue(T.ElementNo, ip, V);
+}
+
+void VectorGridFunctionCoefficient::Eval(
+   DenseMatrix &M, ElementTransformation &T, const IntegrationRule &ir)
+{
+   GridFunc->GetVectorValues(T, ir, M);
 }
 
 void VectorRestrictedCoefficient::Eval(Vector &V, ElementTransformation &T,

@@ -196,11 +196,13 @@ public:
    /// Returns dimension of the vector.
    int GetVDim() { return vdim; };
 
-   void Eval(DenseMatrix &M, ElementTransformation &T,
-             const IntegrationRule &ir);
+   virtual void Eval(Vector &V, ElementTransformation &T,
+                     const IntegrationPoint &ip) = 0;
 
-   virtual void Eval (Vector &V, ElementTransformation &T,
-                      const IntegrationPoint &ip) = 0;
+   // General implementation using the Eval method for one IntegrationPoint.
+   // Can be overloaded for more efficient implementation.
+   virtual void Eval(DenseMatrix &M, ElementTransformation &T,
+                     const IntegrationRule &ir);
 
    virtual ~VectorCoefficient() { };
 };
@@ -272,10 +274,13 @@ private:
    GridFunction *GridFunc;
 
 public:
-   VectorGridFunctionCoefficient (GridFunction *gf);
+   VectorGridFunctionCoefficient(GridFunction *gf);
 
-   virtual void Eval (Vector &V, ElementTransformation &T,
-                      const IntegrationPoint &ip);
+   virtual void Eval(Vector &V, ElementTransformation &T,
+                     const IntegrationPoint &ip);
+
+   virtual void Eval(DenseMatrix &M, ElementTransformation &T,
+                     const IntegrationRule &ir);
 
    virtual ~VectorGridFunctionCoefficient() { };
 };
