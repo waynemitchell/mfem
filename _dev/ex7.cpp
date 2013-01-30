@@ -10,9 +10,12 @@
 
 #include <fstream>
 #include <limits>
+#include <iomanip>
 #include <time.h>     // nanosleep
 #include <cstdio>     // remove
 #include "mfem.hpp"
+
+bool rho_is_continuous;
 
 // lumping and upwinding for the function-based DG method
 bool lump_mass  = false;
@@ -27,6 +30,9 @@ int  limiter    = -1;
 //  2 - Van Leer
 //  3 - MC
 //  4 - superbee
+
+// use group FE conv. for the func-based method
+bool group_conv = false;
 
 int    pcg_max_iter = 20;
 double pcg_rel_tol  = 1e-30;
@@ -100,11 +106,15 @@ public:
       if (type == 1)
       {
          // A is -(A^T+2S) from the notes
-         A.AddDomainIntegrator(new ConvectionIntegrator(vc_u));
+         if (group_conv)
+            A.AddDomainIntegrator(new GroupConvectionIntegrator(vc_u));
+         else
+            A.AddDomainIntegrator(new ConvectionIntegrator(vc_u));
          BilinearForm *pAJ = lump_jump ? &AJ : &A;
-         pAJ->AddInteriorFaceIntegrator(
-            new TransposeIntegrator(
-               new DGTraceIntegrator(vc_u, -1.0, -bt)));
+         if (!rho_is_continuous)
+            pAJ->AddInteriorFaceIntegrator(
+               new TransposeIntegrator(
+                  new DGTraceIntegrator(vc_u, -1.0, -bt)));
          pAJ->AddBdrFaceIntegrator(
             new TransposeIntegrator(
                new DGTraceIntegrator(vc_u, -1.0, -bt)));
@@ -114,13 +124,15 @@ public:
          // A is the advection matrix from the notes
          A.AddDomainIntegrator(new TransposeIntegrator(
                                   new ConvectionIntegrator(vc_u, -1.0)));
-         A.AddInteriorFaceIntegrator(new DGTraceIntegrator(vc_u, 1.0, -bt));
+         if (!rho_is_continuous)
+            A.AddInteriorFaceIntegrator(new DGTraceIntegrator(vc_u, 1.0, -bt));
          A.AddBdrFaceIntegrator(new DGTraceIntegrator(vc_u, 1.0, -bt));
 
          // APS is (A+S) from the notes
          APS.AddDomainIntegrator(new TransposeIntegrator(
                                     new ConvectionIntegrator(vc_u, -1.0)));
-         APS.AddInteriorFaceIntegrator(new DGTraceIntegrator(vc_u, 1.0, 0.));
+         if (!rho_is_continuous)
+            APS.AddInteriorFaceIntegrator(new DGTraceIntegrator(vc_u, 1.0, 0.));
          APS.AddBdrFaceIntegrator(new DGTraceIntegrator(vc_u, 1.0, 0.));
          APS.Assemble(0);
          APS.Finalize(0);
@@ -421,7 +433,10 @@ void DG_remap(Mesh &mesh, GridFunction &u, GridFunction &x_in,
       remap_ode.GetRho(tau, x, rho);
    SocketSend(sol_sock, &mesh, &rho);
 
-   sol_sock << "window_title 'rho'" << endl;
+   if (type == 1)
+      sol_sock << "window_title 'Function-based Remap'" << endl;
+   else
+      sol_sock << "window_title 'Moment-based Remap'" << endl;
    //sol_sock << "palette 25" << endl;
    sol_sock << "keys cRjlm \n";
    sol_sock << "window_size 600 600" << endl;
@@ -498,6 +513,8 @@ void DG_remap(Mesh &mesh, GridFunction &u, GridFunction &x_in,
             if (!use_mono || type != 1)
             {
                ode_solver.Step(x, tau, dtau);
+               if (mode != 's')
+                  cout << '.' << flush;
             }
             else
             {
@@ -511,6 +528,8 @@ void DG_remap(Mesh &mesh, GridFunction &u, GridFunction &x_in,
                // Begin correction loop
                (*mono_save) = (*mono);
                CalcMonotonicityMeasure(x_out, x, *mono, nbrs);
+               nodes.Add(tau, u);
+               SocketSend(sol_sock, &mesh, &rho);
                SocketSend(*mu_sock, &mesh, mono);
                mu_norm = mono->ComputeL2Error(zero);
                cout << "(" << counter
@@ -528,8 +547,10 @@ void DG_remap(Mesh &mesh, GridFunction &u, GridFunction &x_in,
                   // Reset the solution and try again
                   x = x_out;
                   tau = tau_old;
+                  nodes = nodes0;
                   goto redo_ode_solve;
                }
+               nodes = nodes0;
             }
          }
 
@@ -542,6 +563,15 @@ void DG_remap(Mesh &mesh, GridFunction &u, GridFunction &x_in,
             nodes = nodes0;
             // if (use_mono && type == 1)
             //    SocketSend(*mu_sock, &mesh, mono);
+         }
+
+         if (0)
+         {
+            // generate screenshots
+            if (mode != 'q' || i == 0 || i == nsteps)
+               sol_sock
+                  << "screenshot remap_type" << type << "_density_"
+                  << setw(4) << setfill('0') << i << ".png" << endl;
          }
 
          if (mode == 's')
@@ -783,6 +813,7 @@ int main (int argc, char *argv[])
    int l2_fec_type = 0;
    if (rho_poly_deg <= 0)
    {
+      rho_is_continuous = false;
       cout <<
          "Enter type of discontinuous basis:\n"
          "0) Nodal basis, using Gauss-Legengre points\n"
@@ -793,6 +824,8 @@ int main (int argc, char *argv[])
       if (l2_fec_type == 2)
          pcg_max_iter = 100;
    }
+   else
+      rho_is_continuous = true;
    FiniteElementCollection *rho_fec;
    if (rho_poly_deg <= 0)
       rho_fec = new L2_FECollection(abs(rho_poly_deg), dim, l2_fec_type);
@@ -890,6 +923,26 @@ int main (int argc, char *argv[])
    GridFunction &x = *mesh->GetNodes();
    Vector x0(x);
 
+   if (0)
+   {
+      ofstream mesh_file("ex7_initial.mesh");
+      mesh_file.precision(8);
+      mesh->Print(mesh_file);
+
+      ofstream sol_file("ex7_initial.sol");
+      sol_file.precision(8);
+      rho.Save(sol_file);
+   }
+
+   if (0)
+   {
+      x += u;
+      ofstream mesh_file("ex7_final.mesh");
+      mesh_file.precision(8);
+      mesh->Print(mesh_file);
+      x = x0;
+   }
+
    BilinearForm M(rho_fespace);
    M.AddDomainIntegrator(new MassIntegrator);
    M.Assemble(0);
@@ -902,6 +955,8 @@ int main (int argc, char *argv[])
    irs = NULL;
    int geom = mesh->GetElementBaseGeometry(0);
    irs[geom] = &(IntRules.Get(geom, 2*abs(rho_poly_deg) + 3));
+   cout << "\nError quadrature rule: " << irs[geom]->GetNPoints() << " pts"
+        << endl;
 
    // Compute initial mass (integral of the function)
    GridFunction one(rho_fespace);
@@ -955,6 +1010,10 @@ int main (int argc, char *argv[])
          ho_interp_rho.ProjectCoefficient(gfc_rho);
          ho_interp_rho -= ho_exact_rho;
          SocketSend(sol_sock, mesh, &ho_interp_rho);
+         sol_sock <<
+            "window_title 'Function-based Remap, Error'\n"
+            "window_size 800 650\n"
+                  << flush;
       }
       else
       {
@@ -1019,6 +1078,10 @@ int main (int argc, char *argv[])
          ho_interp_rho.ProjectCoefficient(gfc_rho);
          ho_interp_rho -= ho_exact_rho;
          SocketSend(sol_sock, mesh, &ho_interp_rho);
+         sol_sock <<
+            "window_title 'Moment-based Remap, Error'\n"
+            "window_size 800 650\n"
+                  << flush;
       }
       else
       {
@@ -1476,18 +1539,34 @@ double rho_exact(Vector &X)
 
    // return 1.0;
    // return x+y;
+   // return x+y-2*x*y;
    // return x*x+4*y*y;
    // return sin(M_PI*x)*sin(M_PI*y);
    // return 1+cos(2*M_PI*x)*sin(M_PI*y);
    // return M_PI_2+atan(20*(x-0.5));
+   // return M_PI_2+atan(50*((x-0.5)+sqrt(2.)*(y-0.5)));
+   // return 1.0+erf(6*((x-0.5)+sqrt(2.)*(y-0.5)));
+   // return erfc(80*(sqrt((x-0.5)*(x-0.5)+sqrt(2.)*(y-0.5)*(y-0.5))-0.3));
+   // return exp(-640*pow(sqrt(pow(x-0.4,2.)+sqrt(2.)*pow(y-0.5,2.))-0.25, 2.));
    // return M_PI_2+atan(20*(y-0.5));
+   // return sqrt(fmax(0.,1./9-(pow(x-0.5,2)+pow(y-0.5,2)))); // hemisphere
+   // return sqrt(fmax(0.,1-(pow(x-0.5,2)+pow(y-0.5,2)))); // hemisphere
    return (x < 0.5) ? 0.5 : 1.0;
    // return (x < 0.5 - eps) ? 0.5 : ((x > 0.5 + eps) ? 1.0: 0.75);
    // return (y < 0.5) ? 0.5 : 1.0;
    // return (x < 0.5) ? M_PI_2 : M_PI_2+atan(5*(x-0.5));
    // return pow(fmax(0.0, fmin(x, 1. - x)), 4.);
+   // return (pow(fmax(0.0, fmin(x, 1. - x)), 4.)*
+   //         pow(fmax(0.0, fmin(y, 1. - y)), 4.));
    // return sin(2*M_PI*x);
    // return sin(0.5*M_PI*x);
+   // return ((sin(M_PI*x)+sin(M_PI*y))*sin(M_PI*z) +
+   //         (sin(M_PI*x)+sin(M_PI*z))*sin(M_PI*y) +
+   //         (sin(M_PI*y)+sin(M_PI*z))*sin(M_PI*x));
+   // return x+y+z;
+   // return 1+cos(2*M_PI*x)*cos(M_PI*y)*cos(3*M_PI*z);
+   // return exp(-32*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)));
+   // return exp(-512*((x-0.25)*(x-0.25)+(y-0.25)*(y-0.25)));
 }
 
 void smooth_displacement(const Vector &X, Vector &u)
@@ -1502,13 +1581,13 @@ void smooth_displacement(const Vector &X, Vector &u)
    const double xc = 0.5, yc = 0.5;
    double fix_bdr = 16*x*(1-x)*y*(1-y);
    // double fix_bdr = 1; // do not fix the boundary
-   double angle = 30.*(M_PI/180)*fix_bdr;
+   double angle = 15.*(M_PI/180)*fix_bdr;
    double s = sin(angle), c = cos(angle);
    d[0] = xc + c*(x-xc) - s*(y-yc) - x;
    d[1] = yc + s*(x-xc) + c*(y-yc) - y;
 
    // // rotation, with tangential displacement at the boundary
-   // double angle = 15.*(M_PI/180);
+   // double angle = 30.*(M_PI/180);
    // double s = sin(angle), c = cos(angle);
    // d[0] = 0.5 + c*(x-0.5) - s*(y-0.5) - x;
    // d[1] = 0.5 + s*(x-0.5) + c*(y-0.5) - y;
@@ -1543,6 +1622,34 @@ void smooth_displacement(const Vector &X, Vector &u)
    // // 1D translation in x-direction
    // d[0] = 4./1;
    // d[1] = 0.0;
+
+   // // 1D translation and compression: [-4,1] --> [0,3]
+   // d[0] = (3./5)*(x - 1.0) + 3.0 - x;
+   // d[1] = 0.0;
+
+   // // 1D translation and expansion: [0,1] --> [2,4]
+   // d[0] = 2.0*x + 2.0 - x;
+   // d[1] = 0.0;
+
+   // // 3D rotations, with tangential displacement at the boundary
+   // double angle = 20.*(M_PI/180);
+   // double s = sin(angle), c = cos(angle);
+   // double x0, y0, z0, x1, y1, z1;
+   // // transform x,y,z in [0,1]^3
+   // x0 = (x - (-1.))/(1. - (-1.));
+   // y0 = (y - (-1.))/(1. - (-1.));
+   // z0 = (z - (-1.))/(1. - (-1.));
+   // x1 = 4*x0*(1-x0)*(0.5 + c*(x0-0.5) - s*(y0-0.5) - x0) + x0;
+   // y1 = 4*y0*(1-y0)*(0.5 + s*(x0-0.5) + c*(y0-0.5) - y0) + y0;
+   // z1 = z0;
+   // angle = -20.*(M_PI/180);
+   // s = sin(angle); c = cos(angle);
+   // d[0] = 4*x1*(1-x1)*(0.5 + c*(x1-0.5) - s*(z1-0.5) - x1) + x1;
+   // d[1] = y1;
+   // d[2] = 4*z1*(1-z1)*(0.5 + s*(x1-0.5) + c*(z1-0.5) - z1) + z1;
+   // d[0] = -1. + d[0]*(1. - (-1.)) - x;
+   // d[1] = -1. + d[1]*(1. - (-1.)) - y;
+   // d[2] = -1. + d[2]*(1. - (-1.)) - z;
 
    for (int i = 0; i < dim; i++)
       u(i) = d[i];
