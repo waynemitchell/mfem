@@ -28,7 +28,7 @@ void DomainLFIntegrator::AssembleRHSElementVect(const FiniteElement &el,
 
    shape.SetSize(dof);       // vector of size dof
    elvect.SetSize(dof);
-   elvect = 0;
+   elvect = 0.0;
 
    const IntegrationRule *ir;
    if (IntRule)

@@ -18,20 +18,13 @@
 #include <math.h>
 #include "fem.hpp"
 
-IntegrationRule::IntegrationRule(int NP)
-{
-   NPoints   = NP;
-   IntPoints = new IntegrationPoint[NP];
-}
-
 IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry)
 {
    int i, j, nx, ny;
 
    nx = irx.GetNPoints();
    ny = iry.GetNPoints();
-   NPoints = nx * ny;
-   IntPoints = new IntegrationPoint[NPoints];
+   SetSize(nx * ny);
 
    for (j = 0; j < ny; j++)
    {
@@ -39,7 +32,7 @@ IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry)
       for (i = 0; i < nx; i++)
       {
          IntegrationPoint &ipx = irx.IntPoint(i);
-         IntegrationPoint &ip  = IntPoints[j*nx+i];
+         IntegrationPoint &ip  = IntPoint(j*nx+i);
 
          ip.x = ipx.x;
          ip.y = ipy.x;
@@ -50,7 +43,7 @@ IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry)
 
 void IntegrationRule::GaussianRule()
 {
-   int n = NPoints;
+   int n = Size();
    int m = (n+1)/2;
    int i, j;
    double p1, p2, p3;
@@ -80,10 +73,10 @@ void IntegrationRule::GaussianRule()
 
       z = ((1 - z) + p1/pp)/2;
 
-      IntPoints[i-1].x  = z;
-      IntPoints[n-i].x  = 1 - z;
-      IntPoints[i-1].weight =
-         IntPoints[n-i].weight = 1./(4*z*(1 - z)*pp*pp);
+      IntPoint(i-1).x  = z;
+      IntPoint(n-i).x  = 1 - z;
+      IntPoint(i-1).weight =
+         IntPoint(n-i).weight = 1./(4*z*(1 - z)*pp*pp);
    }
 }
 
@@ -92,14 +85,14 @@ void IntegrationRule::UniformRule()
    int i;
    double h;
 
-   h = 1.0 / (NPoints - 1);
-   for (i = 0; i < NPoints; i++)
+   h = 1.0 / (Size() - 1);
+   for (i = 0; i < Size(); i++)
    {
-      IntPoints[i].x = double(i) / (NPoints - 1);
-      IntPoints[i].weight = h;
+      IntPoint(i).x = double(i) / (Size() - 1);
+      IntPoint(i).weight = h;
    }
-   IntPoints[0].weight = 0.5 * h;
-   IntPoints[NPoints-1].weight = 0.5 * h;
+   IntPoint(0).weight = 0.5 * h;
+   IntPoint(Size()-1).weight = 0.5 * h;
 }
 
 void IntegrationRule::GrundmannMollerTetrahedronRule(int s)
@@ -118,11 +111,7 @@ void IntegrationRule::GrundmannMollerTetrahedronRule(int s)
    for (int i = 0; i <= n; i++)
       np *= (s + i + 1), f *= (i + 1);
    np /= f;
-   if (NPoints != np)
-   {
-      delete [] IntPoints;
-      IntPoints = new IntegrationPoint[NPoints = np];
-   }
+   SetSize(np);
 
    int pt = 0;
    for (int i = 0; i <= s; i++)
@@ -139,7 +128,7 @@ void IntegrationRule::GrundmannMollerTetrahedronRule(int s)
       sums = 0;
       while (true)
       {
-         IntegrationPoint &ip = IntPoints[pt++];
+         IntegrationPoint &ip = IntPoint(pt++);
          ip.weight = weight;
          ip.x = double(2*beta[0] + 1)/(d + n - 2*i);
          ip.y = double(2*beta[1] + 1)/(d + n - 2*i);
@@ -160,11 +149,6 @@ void IntegrationRule::GrundmannMollerTetrahedronRule(int s)
    done_beta:
       ;
    }
-}
-
-IntegrationRule::~IntegrationRule()
-{
-   delete [] IntPoints;
 }
 
 
