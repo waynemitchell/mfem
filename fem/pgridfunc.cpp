@@ -152,23 +152,36 @@ void ParGridFunction::ExchangeFaceNbrData()
    delete [] requests;
 }
 
-double ParGridFunction::GetValue(ElementTransformation &T)
+double ParGridFunction::GetValue(int i, const IntegrationPoint &ip, int vdim)
+   const
 {
    Array<int> dofs;
    Vector DofVal, LocVec;
-   int nbr_el_no = T.ElementNo - pfes->GetParMesh()->GetNE();
+   int nbr_el_no = i - pfes->GetParMesh()->GetNE();
    if (nbr_el_no >= 0)
    {
+      int fes_vdim = pfes->GetVDim();
       pfes->GetFaceNbrElementVDofs(nbr_el_no, dofs);
-      DofVal.SetSize(dofs.Size());
-      pfes->GetFaceNbrFE(nbr_el_no)->CalcShape(T.GetIntPoint(), DofVal);
-      face_nbr_data.GetSubVector(dofs, LocVec);
+      if (fes_vdim > 1)
+      {
+         int s = dofs.Size()/fes_vdim;
+         Array<int> _dofs(&dofs[(vdim-1)*s], s);
+         face_nbr_data.GetSubVector(_dofs, LocVec);
+         DofVal.SetSize(s);
+      }
+      else
+      {
+         face_nbr_data.GetSubVector(dofs, LocVec);
+         DofVal.SetSize(dofs.Size());
+      }
+      pfes->GetFaceNbrFE(nbr_el_no)->CalcShape(ip, DofVal);
    }
    else
    {
-      fes->GetElementDofs(T.ElementNo, dofs);
+      fes->GetElementDofs(i, dofs);
+      fes->DofsToVDofs(vdim-1, dofs);
       DofVal.SetSize(dofs.Size());
-      fes->GetFE(T.ElementNo)->CalcShape(T.GetIntPoint(), DofVal);
+      fes->GetFE(i)->CalcShape(ip, DofVal);
       GetSubVector(dofs, LocVec);
    }
 

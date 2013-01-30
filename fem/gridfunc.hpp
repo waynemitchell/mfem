@@ -64,6 +64,9 @@ public:
    int GetFaceValues(int i, int side, const IntegrationRule &ir, Vector &vals,
                      DenseMatrix &tr, int vdim = 1) const;
 
+   void GetVectorValues(ElementTransformation &T, const IntegrationRule &ir,
+                        DenseMatrix &vals) const;
+
    void GetVectorValues(int i, const IntegrationRule &ir,
                         DenseMatrix &vals, DenseMatrix &tr) const;
 

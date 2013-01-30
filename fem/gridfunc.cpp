@@ -197,7 +197,6 @@ void GridFunction::GetNodalValues(int i, Array<double> &nval, int vdim) const
    }
 }
 
-
 double GridFunction::GetValue(int i, const IntegrationPoint &ip, int vdim)
    const
 {
@@ -310,19 +309,17 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
    return di;
 }
 
-void GridFunction::GetVectorValues(int i, const IntegrationRule &ir,
-                                   DenseMatrix &vals, DenseMatrix &tr)
-   const
+void GridFunction::GetVectorValues(ElementTransformation &T,
+                                   const IntegrationRule &ir,
+                                   DenseMatrix &vals) const
 {
-   const FiniteElement *FElem = fes->GetFE(i);
+   const FiniteElement *FElem = fes->GetFE(T.ElementNo);
    int dof = FElem->GetDof();
    Array<int> vdofs;
-   fes->GetElementVDofs(i, vdofs);
+   fes->GetElementVDofs(T.ElementNo, vdofs);
    Vector loc_data;
    GetSubVector(vdofs, loc_data);
    int nip = ir.GetNPoints();
-   ElementTransformation *Tr = fes->GetElementTransformation(i);
-   Tr->Transform(ir, tr);
    if (FElem->GetRangeType() == FiniteElement::SCALAR)
    {
       Vector shape(dof);
@@ -347,12 +344,21 @@ void GridFunction::GetVectorValues(int i, const IntegrationRule &ir,
       for (int j = 0; j < nip; j++)
       {
          const IntegrationPoint &ip = ir.IntPoint(j);
-         Tr->SetIntPoint(&ip);
-         FElem->CalcVShape(*Tr, vshape);
+         T.SetIntPoint(&ip);
+         FElem->CalcVShape(T, vshape);
          vals.GetColumnReference(j, val_j);
          vshape.MultTranspose(loc_data, val_j);
       }
    }
+}
+
+void GridFunction::GetVectorValues(int i, const IntegrationRule &ir,
+                                   DenseMatrix &vals, DenseMatrix &tr) const
+{
+   ElementTransformation *Tr = fes->GetElementTransformation(i);
+   Tr->Transform(ir, tr);
+
+   GetVectorValues(*Tr, ir, vals);
 }
 
 int GridFunction::GetFaceVectorValues(
