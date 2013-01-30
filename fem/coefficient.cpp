@@ -128,16 +128,28 @@ void VectorRestrictedCoefficient::Eval(Vector &V, ElementTransformation &T,
       V = 0.0;
 }
 
-void MatrixFunctionCoefficient::Eval (DenseMatrix &K, ElementTransformation &T,
-                                      const IntegrationPoint &ip)
+void VectorRestrictedCoefficient::Eval(
+   DenseMatrix &M, ElementTransformation &T, const IntegrationRule &ir)
+{
+   if (active_attr[T.Attribute-1])
+      c->Eval(M, T, ir);
+   else
+   {
+      M.SetSize(vdim);
+      M = 0.0;
+   }
+}
+
+void MatrixFunctionCoefficient::Eval(DenseMatrix &K, ElementTransformation &T,
+                                     const IntegrationPoint &ip)
 {
    double x[3];
    Vector transip(x, 3);
 
-   T.Transform (ip, transip);
+   T.Transform(ip, transip);
 
-   K.SetSize (vdim);
-   (*Function) (transip, K);
+   K.SetSize(vdim);
+   (*Function)(transip, K);
 }
 
 MatrixArrayCoefficient::MatrixArrayCoefficient (int dim)
