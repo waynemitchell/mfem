@@ -13,7 +13,7 @@
 CC = g++
 OPTS = -O3 -I$(MFEM_DIR)
 DEBUG_OPTS = -g -I$(MFEM_DIR)
-LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(MESQUITE_LIB)
+LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(OPENMP_LIBS) $(MESQUITE_LIB)
 PROF_LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(PROFILER_LIB)
 
 # Parallel compiler
@@ -29,6 +29,12 @@ MFEM_LIB = -L$(MFEM_DIR) -lmfem
 # The METIS and HYPRE libraries (needed for the parallel examples)
 METIS_DIR = ../../metis-4.0
 HYPRE_DIR = ../../hypre-2.8.0b/src/hypre
+
+# Enable experimental OpenMP support
+USE_OPENMP = NO
+OPENMP_LIBS_NO  =
+OPENMP_LIBS_YES = -fopenmp
+OPENMP_LIBS     = $(OPENMP_LIBS_$(USE_OPENMP))
 
 # The MESQUITE library
 USE_MESQUITE     = YES
@@ -128,3 +134,4 @@ clean:
 	rm -f C_matrix.txt D_matrix.txt
 	rm -f initial.vtk final_rho.vtk final_mom.vtk mono.vtk
 	rm -f M?-matrix-???.txt A?-matrix-???.txt AJ?-matrix-rho.txt
+	rm -f ex7_initial.mesh ex7_initial.sol ex7_final.mesh
