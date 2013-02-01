@@ -214,6 +214,7 @@ private:
 public:
    VectorConstantCoefficient(const Vector &v)
       : VectorCoefficient(v.Size()), vec(v) { }
+   using VectorCoefficient::Eval;
    virtual void Eval(Vector &V, ElementTransformation &T,
                      const IntegrationPoint &ip) { V = vec; }
 };
@@ -229,10 +230,11 @@ public:
       int dim, void (*F)(const Vector &, Vector &), Coefficient *q = NULL)
       : VectorCoefficient (dim), Q(q) { Function = F; };
 
-   virtual void Eval (Vector &V, ElementTransformation &T,
-                      const IntegrationPoint &ip);
+   using VectorCoefficient::Eval;
+   virtual void Eval(Vector &V, ElementTransformation &T,
+                     const IntegrationPoint &ip);
 
-   virtual ~VectorFunctionCoefficient() { };
+   virtual ~VectorFunctionCoefficient() { }
 };
 
 /// Vector coefficient defined by an array of scalar coefficients.
@@ -243,25 +245,26 @@ private:
 
 public:
    /// Construct vector of dim coefficients.
-   explicit VectorArrayCoefficient (int dim);
+   explicit VectorArrayCoefficient(int dim);
 
    /// Returns i'th coefficient.
-   Coefficient & GetCoeff (int i) { return *Coeff[i]; }
+   Coefficient &GetCoeff(int i) { return *Coeff[i]; }
 
-   Coefficient ** GetCoeffs () { return Coeff; }
+   Coefficient **GetCoeffs() { return Coeff; }
 
    /// Sets coefficient in the vector.
-   void Set (int i, Coefficient * c) { Coeff[i] = c; }
+   void Set(int i, Coefficient *c) { Coeff[i] = c; }
 
    /// Evaluates i'th component of the vector.
-   double Eval (int i, ElementTransformation &T, IntegrationPoint &ip)
-   { return Coeff[i] -> Eval(T,ip); }
+   double Eval(int i, ElementTransformation &T, IntegrationPoint &ip)
+   { return Coeff[i]->Eval(T,ip); }
 
-   virtual void Eval (Vector &V, ElementTransformation &T,
-                      const IntegrationPoint &ip);
+   using VectorCoefficient::Eval;
+   virtual void Eval(Vector &V, ElementTransformation &T,
+                     const IntegrationPoint &ip);
 
    /// Reads vector coefficient.
-   void Read (int i, istream &in)  { Coeff[i] -> Read(in); }
+   void Read(int i, istream &in) { Coeff[i]->Read(in); }
 
    /// Destroys vector coefficient.
    virtual ~VectorArrayCoefficient();
@@ -282,7 +285,7 @@ public:
    virtual void Eval(DenseMatrix &M, ElementTransformation &T,
                      const IntegrationRule &ir);
 
-   virtual ~VectorGridFunctionCoefficient() { };
+   virtual ~VectorGridFunctionCoefficient() { }
 };
 
 /// VectorCoefficient defined on a subset of domain or boundary attributes
@@ -299,6 +302,9 @@ public:
 
    virtual void Eval(Vector &V, ElementTransformation &T,
                      const IntegrationPoint &ip);
+
+   virtual void Eval(DenseMatrix &M, ElementTransformation &T,
+                     const IntegrationRule &ir);
 };
 
 
@@ -308,14 +314,14 @@ protected:
    int vdim;
 
 public:
-   explicit MatrixCoefficient (int dim) { vdim = dim; };
+   explicit MatrixCoefficient(int dim) { vdim = dim; }
 
-   int GetVDim() { return vdim; };
+   int GetVDim() { return vdim; }
 
-   virtual void Eval (DenseMatrix &K, ElementTransformation &T,
-                      const IntegrationPoint &ip) = 0;
+   virtual void Eval(DenseMatrix &K, ElementTransformation &T,
+                     const IntegrationPoint &ip) = 0;
 
-   virtual ~MatrixCoefficient() { };
+   virtual ~MatrixCoefficient() { }
 };
 
 class MatrixFunctionCoefficient : public MatrixCoefficient
@@ -324,12 +330,12 @@ private:
    void (*Function)(const Vector &, DenseMatrix &);
 
 public:
-   MatrixFunctionCoefficient (int dim, void (*F)(const Vector &,
-                                                 DenseMatrix &))
-      : MatrixCoefficient (dim) { Function = F; }
+   MatrixFunctionCoefficient(int dim, void (*F)(const Vector &,
+                                                DenseMatrix &))
+      : MatrixCoefficient(dim) { Function = F; }
 
-   virtual void Eval (DenseMatrix &K, ElementTransformation &T,
-                      const IntegrationPoint &ip);
+   virtual void Eval(DenseMatrix &K, ElementTransformation &T,
+                     const IntegrationPoint &ip);
 
    virtual ~MatrixFunctionCoefficient() { }
 };
@@ -343,16 +349,15 @@ public:
 
    explicit MatrixArrayCoefficient (int dim);
 
-   Coefficient & GetCoeff (int i, int j) { return *Coeff[i*vdim+j]; }
+   Coefficient &GetCoeff (int i, int j) { return *Coeff[i*vdim+j]; }
 
-   void Set (int i, int j, Coefficient * c) { Coeff[i*vdim+j] = c; }
+   void Set(int i, int j, Coefficient * c) { Coeff[i*vdim+j] = c; }
 
-   double Eval (int i, int j, ElementTransformation &T,
-                IntegrationPoint &ip)
+   double Eval(int i, int j, ElementTransformation &T, IntegrationPoint &ip)
    { return Coeff[i*vdim+j] -> Eval(T, ip); }
 
-   virtual void Eval (DenseMatrix &K, ElementTransformation &T,
-                      const IntegrationPoint &ip);
+   virtual void Eval(DenseMatrix &K, ElementTransformation &T,
+                     const IntegrationPoint &ip);
 
    virtual ~MatrixArrayCoefficient();
 };

@@ -2458,7 +2458,9 @@ const FiniteElementSpace *Mesh::GetNodalFESpace()
    return ((Nodes) ? Nodes->FESpace() : NULL);
 }
 
+#if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
 static const char *fixed_or_not[] = { "fixed", "NOT FIXED" };
+#endif
 
 void Mesh::CheckElementOrientation(bool fix_it)
 {
