@@ -694,6 +694,156 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
 }
 
 
+HypreSmoother::HypreSmoother() : Solver()
+{
+   type = 2;
+   relax_times = 1;
+   relax_weight = 1.0;
+   omega = 1.0;
+   cheby_order = 2;
+   cheby_fraction = .3;
+
+   l1_norms = NULL;
+   B = X = V = Z = NULL;
+}
+
+HypreSmoother::HypreSmoother(HypreParMatrix &_A, int _type,
+                             int _relax_times, double _relax_weight, double _omega,
+                             int _cheby_order, double _cheby_fraction)
+{
+   type = _type;
+   relax_times = _relax_times;
+   relax_weight = _relax_weight;
+   omega = _omega;
+   cheby_order = _cheby_order;
+   cheby_fraction = _cheby_fraction;
+
+   l1_norms = NULL;
+   B = X = V = Z = NULL;
+
+   SetOperator(_A);
+}
+
+void HypreSmoother::SetType(HypreSmoother::Type _type, int _relax_times)
+{
+   if (_type == HypreSmoother::Jacobi)
+      type = 0;
+   else if (_type == HypreSmoother::GS)
+      type = 6;
+   else if (_type == HypreSmoother::l1Jacobi)
+      type = 1;
+   else if (_type == HypreSmoother::l1GS)
+      type = 4;
+   else if (_type == HypreSmoother::Chebyshev)
+      type = 16;
+
+   relax_times = _relax_times;
+}
+
+void HypreSmoother::SetSOROptions(double _relax_weight, double _omega)
+{
+   relax_weight = _relax_weight;
+   omega = _omega;
+}
+
+void HypreSmoother::SetChebyshevOptions(int _cheby_order, double _cheby_fraction)
+{
+   cheby_order = _cheby_order;
+   cheby_fraction = _cheby_fraction;
+}
+
+void HypreSmoother::SetOperator(const Operator &op)
+{
+   A = const_cast<HypreParMatrix *>(dynamic_cast<const HypreParMatrix *>(&op));
+   if (A == NULL)
+      mfem_error("HypreSmoother::SetOperator : not HypreParMatrix!");
+
+   size = A -> GetNumRows();
+
+   if (B) delete B;
+   if (X) delete X;
+   if (V) delete V;
+   if (Z) delete Z;
+   if (l1_norms)
+      delete [] l1_norms;
+
+   if (type >= 1 && type <= 4)
+      hypre_ParCSRComputeL1Norms(*A, type, NULL, &l1_norms);
+   else
+      l1_norms = NULL;
+
+   if (type == 16)
+   {
+      hypre_ParCSRMaxEigEstimateCG(*A, 1, 10, &max_eig_est, &min_eig_est);
+      Z = new HypreParVector(A -> GetGlobalNumCols(), A -> GetColStarts());
+   }
+   else
+      Z = NULL;
+
+   V = new HypreParVector(A -> GetGlobalNumCols(), A -> GetColStarts());
+
+   B = X = NULL;
+}
+
+void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
+{
+   if (A == NULL)
+   {
+      mfem_error("HypreSmoother::Mult (...) : HypreParMatrix A is missing");
+      return;
+   }
+
+   if (!iterative_mode)
+      x = 0.0;
+
+   if (Z == NULL)
+      hypre_ParCSRRelax(*A, b, type,
+                        relax_times, l1_norms, relax_weight, omega,
+                        max_eig_est, min_eig_est, cheby_order, cheby_fraction,
+                        x, *V, NULL);
+   else
+      hypre_ParCSRRelax(*A, b, type,
+                        relax_times, l1_norms, relax_weight, omega,
+                        max_eig_est, min_eig_est, cheby_order, cheby_fraction,
+                        x, *V, *Z);
+}
+
+void HypreSmoother::Mult(const Vector &b, Vector &x) const
+{
+   if (A == NULL)
+   {
+      mfem_error("HypreSmoother::Mult (...) : HypreParMatrix A is missing");
+      return;
+   }
+   if (B == NULL)
+   {
+      B = new HypreParVector(A -> GetGlobalNumRows(),
+                             b.GetData(),
+                             A -> GetRowStarts());
+      X = new HypreParVector(A -> GetGlobalNumCols(),
+                             x.GetData(),
+                             A -> GetColStarts());
+   }
+   else
+   {
+      B -> SetData(b.GetData());
+      X -> SetData(x.GetData());
+   }
+
+   Mult(*B, *X);
+}
+
+HypreSmoother::~HypreSmoother()
+{
+   if (B) delete B;
+   if (X) delete X;
+   if (V) delete V;
+   if (Z) delete Z;
+   if (l1_norms)
+      delete [] l1_norms;
+}
+
+
 HypreSolver::HypreSolver()
 {
    size = 0;

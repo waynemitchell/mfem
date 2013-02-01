@@ -197,6 +197,77 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
                  Array<int> &ess_dof_list,
                  HypreParVector &x, HypreParVector &b);
 
+
+/// Parallel smoothers in hypre
+class HypreSmoother : public Solver
+{
+protected:
+   /// The linear system matrix
+   HypreParMatrix *A;
+   /// Right-hand side and solution vectors
+   mutable HypreParVector *B, *X;
+   /// Temporary vectors
+   mutable HypreParVector *V, *Z;
+
+   /** Hypre relaxation type (from hypre_ParCSRRelax() in ams.c). Options are:
+       1  = l1-scaled Jacobi
+       2  = l1-scaled block Gauss-Seidel/SSOR
+       3  = Kaczmarz
+       4  = truncated version of type 2
+       16 = Chebyshev
+       x  = BoomerAMG relaxation with relax_type = |x| */
+   int type;
+   /// Number of relaxation sweeps
+   int relax_times;
+   /// Damping coefficient (usually <= 1)
+   double relax_weight;
+   /// SOR parameter (usually in (0,2))
+   double omega;
+   /// Order of the Chebyshev polynomial
+   int cheby_order;
+   /// Fraction of spectrum to smooth for Chebyshev relaxation
+   double cheby_fraction;
+
+   /// l1 norms of the rows of A
+   double *l1_norms;
+   /// Maximal eigenvalue estimate for the Chebyshev polynomial
+   double max_eig_est;
+   /// Minimal eigenvalue estimate for the Chebyshev polynomial
+   double min_eig_est;
+
+public:
+   enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev };
+
+   HypreSmoother();
+
+   HypreSmoother(HypreParMatrix &_A, int type = 2,
+                 int relax_times = 1, double relax_weight = 1.0, double omega = 1.0,
+                 int cheby_order = 2, double cheby_fraction = .3);
+
+   /// Set some of the more common used relaxation types and number of sweeps
+   void SetType(HypreSmoother::Type type, int relax_times = 1);
+   /// Set SOR-related parameters
+   void SetSOROptions(double relax_weight, double omega);
+   /// Set Chebyshev-related parameters
+   void SetChebyshevOptions(int cheby_order, double cheby_fraction);
+
+   virtual void SetOperator(const Operator &op);
+
+   /// Relax the linear system Ax=b
+   virtual void Mult(const HypreParVector &b, HypreParVector &x) const;
+   virtual void Mult(const Vector &b, Vector &x) const;
+
+   virtual ~HypreSmoother();
+};
+
+
+/// Artificial HypreSolver Setup function for the external hypre solver
+HYPRE_Int ExternalHypreSolverSetup(HYPRE_Solver solver, HYPRE_ParCSRMatrix A,
+                                   HYPRE_ParVector b, HYPRE_ParVector x);
+/// Artificial HypreSolver Solve function for the external hypre solver
+HYPRE_Int ExternalHypreSolverSolve(HYPRE_Solver solver, HYPRE_ParCSRMatrix A,
+                                   HYPRE_ParVector b, HYPRE_ParVector x);
+
 /// Abstract class for hypre's solvers and preconditioners
 class HypreSolver : public Solver
 {
