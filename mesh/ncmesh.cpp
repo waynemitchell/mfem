@@ -668,7 +668,7 @@ void NCMesh::SimpleFace_iterator::prev()
    face = NULL;
 }
 
-NCMesh::AllFace_iterator::AllFace_iterator(const NCMesh &ncmesh,
+NCMesh::AllFace_iterator::AllFace_iterator(const NonconformingMesh &ncmesh,
                                            int c_face_start)
    : c_faces(ncmesh.c_faces)
 {
@@ -702,8 +702,8 @@ void NCMesh::AllFace_iterator::next_up()
    next_coarse();
 }
 
-NCMesh::RefinedFace_iterator::RefinedFace_iterator(const NCMesh &ncmesh)
-   : AllFace_iterator(ncmesh)
+NCMesh::RefinedFace_iterator::RefinedFace_iterator(
+   const NonconformingMesh &ncmesh) : AllFace_iterator(ncmesh)
 {
    for ( ; face; next_coarse())
       if (face->isRefined())
@@ -799,7 +799,7 @@ void NCMesh::SimpleEdge_iterator::prev()
       edge = NULL;
 }
 
-NCMesh::AllEdge_iterator::AllEdge_iterator(const NCMesh &ncmesh,
+NCMesh::AllEdge_iterator::AllEdge_iterator(const NonconformingMesh &ncmesh,
                                            int c_edge_start)
    : face(ncmesh), c_edges(ncmesh.c_edges)
 {
@@ -900,7 +900,7 @@ found_next_face:
 }
 
 NCMesh::TrulyRefinedEdge_iterator::TrulyRefinedEdge_iterator(
-   const NCMesh &ncmesh) : AllEdge_iterator(ncmesh)
+   const NonconformingMesh &ncmesh) : AllEdge_iterator(ncmesh)
 {
    for (c_edge_idx = 0; c_edge_idx < c_edges.Size(); c_edge_idx++)
    {
