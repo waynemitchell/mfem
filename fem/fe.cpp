@@ -131,8 +131,7 @@ void NodalFiniteElement::NodalLocalInterpolation (
    for (int i = 0; i < fine_fe.Dof; i++)
    {
       Trans.Transform (fine_fe.Nodes.IntPoint (i), vv);
-      f_ip.x = v[0];
-      if (Dim > 1) { f_ip.y = v[1]; if (Dim > 2) f_ip.z = v[2]; }
+      f_ip.Set(v, Dim);
       CalcShape (f_ip, c_shape);
       for (int j = 0; j < Dof; j++)
          if (fabs (I (i,j) = c_shape (j)) < 1.0e-12)
@@ -6925,6 +6924,32 @@ void L2Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    dofs = 0.0;
    dofs[vertex*Order] = 1.0;
+}
+
+
+void L2Vol_SegmentElement::GetLocalInterpolation(
+   ElementTransformation &Trans, DenseMatrix &I) const
+{
+   double v[3], w;
+   Vector vv(v, Dim);
+   IntegrationPoint f_ip;
+
+#ifdef MFEM_USE_OPENMP
+   Vector c_shape(Dof);
+#endif
+
+   // assuming Trans is linear; this should be ok for all refinement types
+   Trans.SetIntPoint(&Geometries.GetCenter(GeomType));
+   w = Trans.Weight();
+   for (int i = 0; i < Dof; i++)
+   {
+      Trans.Transform(Nodes.IntPoint(i), vv);
+      f_ip.Set(v, Dim);
+      CalcShape(f_ip, c_shape);
+      for (int j = 0; j < Dof; j++)
+         if (fabs(I(i,j) = w * c_shape(j)) < 1.0e-12)
+            I(i,j) = 0.0;
+   }
 }
 
 

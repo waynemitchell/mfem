@@ -72,13 +72,13 @@ general/table.cpp general/tic_toc.cpp linalg/densemat.cpp linalg/hypre.cpp     \
 linalg/matrix.cpp linalg/ode.cpp linalg/operator.cpp linalg/solvers.cpp        \
 linalg/sparsemat.cpp linalg/sparsesmoothers.cpp linalg/vector.cpp              \
 mesh/element.cpp mesh/hexahedron.cpp mesh/mesh.cpp mesh/mesquite.cpp           \
-mesh/nurbs.cpp mesh/pmesh.cpp mesh/point.cpp mesh/quadrilateral.cpp            \
-mesh/segment.cpp mesh/tetrahedron.cpp mesh/triangle.cpp mesh/vertex.cpp        \
-fem/bilinearform.cpp fem/bilininteg.cpp fem/coefficient.cpp fem/eltrans.cpp    \
-fem/fe_coll.cpp fem/fe.cpp fem/fespace.cpp fem/geom.cpp fem/gridfunc.cpp       \
-fem/intrules.cpp fem/linearform.cpp fem/lininteg.cpp fem/nonlinearform.cpp     \
-fem/nonlininteg.cpp fem/pbilinearform.cpp fem/pfespace.cpp fem/pgridfunc.cpp   \
-fem/plinearform.cpp fem/pnonlinearform.cpp
+mesh/ncmesh.cpp mesh/nurbs.cpp mesh/pmesh.cpp mesh/point.cpp                   \
+mesh/quadrilateral.cpp mesh/segment.cpp mesh/tetrahedron.cpp mesh/triangle.cpp \
+mesh/vertex.cpp fem/bilinearform.cpp fem/bilininteg.cpp fem/coefficient.cpp    \
+fem/eltrans.cpp fem/fe_coll.cpp fem/fe.cpp fem/fespace.cpp fem/geom.cpp        \
+fem/gridfunc.cpp fem/intrules.cpp fem/linearform.cpp fem/lininteg.cpp          \
+fem/nonlinearform.cpp fem/nonlininteg.cpp fem/pbilinearform.cpp                \
+fem/pfespace.cpp fem/pgridfunc.cpp fem/plinearform.cpp fem/pnonlinearform.cpp
 
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
@@ -91,13 +91,14 @@ linalg/hypre.hpp linalg/linalg.hpp linalg/matrix.hpp linalg/ode.hpp            \
 linalg/operator.hpp linalg/solvers.hpp linalg/sparsemat.hpp                    \
 linalg/sparsesmoothers.hpp linalg/vector.hpp mesh/element.hpp                  \
 mesh/hexahedron.hpp mesh/mesh_headers.hpp mesh/mesh.hpp mesh/mesquite.hpp      \
-mesh/nurbs.hpp mesh/pmesh.hpp mesh/point.hpp mesh/quadrilateral.hpp            \
-mesh/segment.hpp mesh/tetrahedron.hpp mesh/triangle.hpp mesh/vertex.hpp        \
-fem/bilinearform.hpp fem/bilininteg.hpp fem/coefficient.hpp fem/eltrans.hpp    \
-fem/fe_coll.hpp fem/fe.hpp fem/fem.hpp fem/fespace.hpp fem/geom.hpp            \
-fem/gridfunc.hpp fem/intrules.hpp fem/linearform.hpp fem/lininteg.hpp          \
-fem/nonlinearform.hpp fem/nonlininteg.hpp fem/pbilinearform.hpp                \
-fem/pfespace.hpp fem/pgridfunc.hpp fem/plinearform.hpp fem/pnonlinearform.hpp
+mesh/ncmesh.hpp mesh/nurbs.hpp mesh/pmesh.hpp mesh/point.hpp                   \
+mesh/quadrilateral.hpp mesh/segment.hpp mesh/tetrahedron.hpp mesh/triangle.hpp \
+mesh/vertex.hpp fem/bilinearform.hpp fem/bilininteg.hpp fem/coefficient.hpp    \
+fem/eltrans.hpp fem/fe_coll.hpp fem/fe.hpp fem/fem.hpp fem/fespace.hpp         \
+fem/geom.hpp fem/gridfunc.hpp fem/intrules.hpp fem/linearform.hpp              \
+fem/lininteg.hpp fem/nonlinearform.hpp fem/nonlininteg.hpp                     \
+fem/pbilinearform.hpp fem/pfespace.hpp fem/pgridfunc.hpp fem/plinearform.hpp   \
+fem/pnonlinearform.hpp
 
 .SUFFIXES: .cpp .o
 .cpp.o:

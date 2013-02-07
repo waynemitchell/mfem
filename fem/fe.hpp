@@ -1356,6 +1356,15 @@ public:
 };
 
 
+class L2Vol_SegmentElement : public L2_SegmentElement
+{
+public:
+   L2Vol_SegmentElement(const int p) : L2_SegmentElement(p) { }
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const;
+};
+
+
 class L2_QuadrilateralElement : public NodalFiniteElement
 {
 private:

@@ -23,6 +23,9 @@ public:
 
    void Init() { x = y = z = weight = 0.0; }
 
+   void Set(const double *p, const int dim)
+   { x = p[0]; if (dim > 1) { y = p[1]; if (dim > 2) z = p[2]; } }
+
    void Set(const double x1, const double x2, const double x3, const double w)
    { x = x1; y = x2; z = x3; weight = w; }
 

@@ -1205,7 +1205,8 @@ RT_FECollection::RT_FECollection(const int p, const int dim)
       RT_Elements[Geometry::SQUARE] = new RT_QuadrilateralElement(p);
       RT_dof[Geometry::SQUARE] = 2*p*pp1;
 
-      RT_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p);
+      // RT_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p);
+      RT_Elements[Geometry::SEGMENT] = new L2Vol_SegmentElement(p);
       RT_dof[Geometry::SEGMENT] = pp1;
 
       SegDofOrd[0] = new int[2*pp1];

@@ -35,6 +35,7 @@
 #include "quadrilateral.hpp"
 #include "hexahedron.hpp"
 #include "tetrahedron.hpp"
+#include "ncmesh.hpp"
 #include "mesh.hpp"
 
 #ifdef MFEM_USE_MPI

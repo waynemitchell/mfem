@@ -185,6 +185,15 @@ public:
 
    GridFunction &operator=(const GridFunction &v);
 
+   /** For partially conforming FE spaces, prolongate the conforming vector x
+       to this partially conforming GridFunction. */
+   void ConformingProlongate(const Vector &x)
+   { fes->GetConformingProlongation()->Mult(x, *this); }
+
+   /** For partially conforming FE spaces, project this partially conforming
+       GridFunction onto the conforming vector x. */
+   void ConformingProject(Vector &x) const;
+
    FiniteElementSpace *FESpace() { return fes; }
 
    void Update() { SetSize(fes->GetVSize()); }

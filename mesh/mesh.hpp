@@ -232,6 +232,7 @@ public:
    Array<int> bdr_attributes;
 
    NURBSExtension *NURBSext;
+   NonconformingMesh *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
@@ -506,8 +507,12 @@ public:
    // use the provided GridFunction as Nodes
    void NewNodes(GridFunction &nodes, bool make_owner = false);
 
-   /// Refine the marked elements.
+   /// Refine the given list of marked elements.
    virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
+
+   /** Refine the given list of marked elements. The resulting mesh is
+       nonconforming, i.e. it has hanging nodes. */
+   void NonconformingRefinement(const Array<int> &marked_el);
 
    void UniformRefinement();
 

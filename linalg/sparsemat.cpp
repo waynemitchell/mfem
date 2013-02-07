@@ -283,6 +283,8 @@ void SparseMatrix::Finalize(int skip_zeros)
    int i, j, nr, nz;
    RowNode *aux;
 
+   if (A != NULL) return;
+
    delete [] ColPtr.Node;
    ColPtr.J = NULL;
 

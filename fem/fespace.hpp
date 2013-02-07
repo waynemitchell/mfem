@@ -80,6 +80,11 @@ protected:
    NURBSExtension *NURBSext;
    int own_ext;
 
+   // Matrix representing the prolongation from the global conforming dofs to
+   // a set of intermediate partially conforming dofs, e.g. the dofs associated
+   // with a "cut" space on a non-conforming mesh.
+   SparseMatrix *cP;
+
    void UpdateNURBS();
 
    void Constructor();
@@ -106,6 +111,9 @@ public:
 
    NURBSExtension *GetNURBSext() { return NURBSext; }
    NURBSExtension *StealNURBSext();
+
+   SparseMatrix *GetConformingProlongation() { return cP; }
+   const SparseMatrix *GetConformingProlongation() const { return cP; }
 
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }
@@ -241,6 +249,11 @@ public:
    /// Determine the boundary degrees of freedom
    virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
                                   Array<int> &ess_dofs) const;
+
+   /** For a partially conforming FE space, convert a marker array (negative
+       entries are true) on the partially conforming dofs to a marker array on
+       the conforming dofs. */
+   void GetConformingDofs(const Array<int> &dofs, Array<int> &cdofs);
 
    void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,
                                     Array<int> &bdr_attr_is_ess,

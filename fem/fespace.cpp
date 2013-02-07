@@ -284,6 +284,21 @@ void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
       }
 }
 
+void FiniteElementSpace::GetConformingDofs(const Array<int> &dofs,
+                                           Array<int> &cdofs)
+{
+   cdofs.SetSize(cP->Width());
+   cdofs = 0;
+
+   for (int i = 0; i < ndofs; i++)
+      if (dofs[i] < 0)
+      {
+         int *col = cP->GetRowColumns(i), n = cP->RowSize(i);
+         for (int j = 0; j < n; j++)
+            cdofs[col[j]] = -1;
+      }
+}
+
 void FiniteElementSpace::EliminateEssentialBCFromGRM
 (FiniteElementSpace *cfes, Array<int> &bdr_attr_is_ess, SparseMatrix *R)
 {
@@ -439,6 +454,9 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
    NURBSext = fes.NURBSext;
    own_ext = 0;
 
+   cP = fes.cP;
+   fes.cP = NULL;
+
    fes.bdofs = NULL;
    fes.fdofs = NULL;
    fes.elem_dof = NULL;
@@ -562,6 +580,13 @@ void FiniteElementSpace::Constructor()
 
    ndofs = nvdofs + nedofs + nfdofs + nbdofs;
 
+   if (mesh->ncmesh && ndofs > nbdofs)
+   {
+      // TODO: vdim > 1
+      cP = mesh->ncmesh->GetInterpolation(mesh, this);
+   }
+   else
+      cP = NULL;
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
@@ -842,6 +867,8 @@ FiniteElementSpace::~FiniteElementSpace()
 
 void FiniteElementSpace::Destructor()
 {
+   delete cP;
+
    dof_elem_array.DeleteAll();
    dof_ldof_array.DeleteAll();
 

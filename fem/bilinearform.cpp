@@ -252,6 +252,21 @@ void BilinearForm::Assemble (int skip_zeros)
 #endif
 }
 
+void BilinearForm::ConformingAssemble()
+{
+   mat->Finalize();
+
+   SparseMatrix *P = fes->GetConformingProlongation();
+   SparseMatrix *R = Transpose(*P);
+   SparseMatrix *RA = ::Mult(*R, *mat);
+   delete R;
+   delete mat;
+   mat = ::Mult(*RA, *P);
+   delete RA;
+
+   size = mat->Size();
+}
+
 void BilinearForm::ComputeElementMatrices()
 {
    if (element_matrices || dbfi.Size() == 0)
