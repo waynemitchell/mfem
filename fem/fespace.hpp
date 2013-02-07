@@ -253,7 +253,7 @@ public:
    /** For a partially conforming FE space, convert a marker array (negative
        entries are true) on the partially conforming dofs to a marker array on
        the conforming dofs. */
-   void GetConformingDofs(const Array<int> &dofs, Array<int> &cdofs);
+   void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs);
 
    void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,
                                     Array<int> &bdr_attr_is_ess,

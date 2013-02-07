@@ -284,13 +284,13 @@ void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
       }
 }
 
-void FiniteElementSpace::GetConformingDofs(const Array<int> &dofs,
-                                           Array<int> &cdofs)
+void FiniteElementSpace::ConvertToConformingVDofs(const Array<int> &dofs,
+                                                  Array<int> &cdofs)
 {
    cdofs.SetSize(cP->Width());
    cdofs = 0;
 
-   for (int i = 0; i < ndofs; i++)
+   for (int i = 0; i < cP->Size(); i++)
       if (dofs[i] < 0)
       {
          int *col = cP->GetRowColumns(i), n = cP->RowSize(i);
@@ -582,8 +582,29 @@ void FiniteElementSpace::Constructor()
 
    if (mesh->ncmesh && ndofs > nbdofs)
    {
-      // TODO: vdim > 1
       cP = mesh->ncmesh->GetInterpolation(mesh, this);
+      if (vdim > 1)
+      {
+         Array<int> cdofs, vcdofs;
+         Vector srow;
+         SparseMatrix *vec_cP =
+            new SparseMatrix(vdim*cP->Size(), vdim*cP->Width());
+         for (int i = 0; i < cP->Size(); i++)
+         {
+            cP->GetRow(i, cdofs, srow);
+            for (int vd = 0; vd < vdim; vd++)
+            {
+               cdofs.Copy(vcdofs);
+               ndofs = cP->Width(); // make DofsToVDofs work on conf. dofs
+               DofsToVDofs(vd, vcdofs);
+               ndofs = cP->Size();
+               vec_cP->SetRow(DofToVDof(i, vd), vcdofs, srow);
+            }
+         }
+         delete cP;
+         vec_cP->Finalize();
+         cP = vec_cP;
+      }
    }
    else
       cP = NULL;

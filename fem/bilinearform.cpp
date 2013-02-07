@@ -254,7 +254,11 @@ void BilinearForm::Assemble (int skip_zeros)
 
 void BilinearForm::ConformingAssemble()
 {
-   mat->Finalize();
+   // Do not remove zero entries to preserve the symmetric structure of the
+   // matrix which in turn will give rise to symmetric structure in the new
+   // matrix. This ensures that subsequent calls to EliminateRowCol will work
+   // correctly.
+   mat->Finalize(0);
 
    SparseMatrix *P = fes->GetConformingProlongation();
    SparseMatrix *R = Transpose(*P);
