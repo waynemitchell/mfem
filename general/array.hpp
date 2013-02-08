@@ -103,6 +103,9 @@ public:
    /// Change logical size of the array, keep existing entries
    inline void SetSize(int nsize);
 
+   /// Same as SetSize(int) plus initialize new entries with 'initval'
+   inline void SetSize(int nsize, const T &initval);
+
    /// Access element
    inline T & operator[](int i);
 
@@ -266,6 +269,23 @@ inline void Array<T>::SetSize(int nsize)
 #endif
    if (nsize > abs(allocsize))
       GrowSize(nsize, sizeof(T));
+   size = nsize;
+}
+
+template <class T>
+inline void Array<T>::SetSize(int nsize, const T &initval)
+{
+#ifdef MFEM_DEBUG
+   if (nsize < 0)
+      mfem_error("Array::SetSize : negative size!");
+#endif
+   if (nsize > size)
+   {
+      if (nsize > abs(allocsize))
+         GrowSize(nsize, sizeof(T));
+      for (int i = size; i < nsize; i++)
+         ((T*)data)[i] = initval;
+   }
    size = nsize;
 }
 
