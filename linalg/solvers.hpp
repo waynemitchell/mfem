@@ -51,8 +51,10 @@ public:
    int GetConverged() { return converged; }
    double GetFinalNorm() { return final_norm; }
 
+   /// This should be called before SetOperator
    virtual void SetPreconditioner(Solver &pr);
 
+   /// Also calls SetOperator for the preconditioner if there is one
    virtual void SetOperator(const Operator &op);
 };
 

@@ -261,13 +261,6 @@ public:
 };
 
 
-/// Artificial HypreSolver Setup function for the external hypre solver
-HYPRE_Int ExternalHypreSolverSetup(HYPRE_Solver solver, HYPRE_ParCSRMatrix A,
-                                   HYPRE_ParVector b, HYPRE_ParVector x);
-/// Artificial HypreSolver Solve function for the external hypre solver
-HYPRE_Int ExternalHypreSolverSolve(HYPRE_Solver solver, HYPRE_ParCSRMatrix A,
-                                   HYPRE_ParVector b, HYPRE_ParVector x);
-
 /// Abstract class for hypre's solvers and preconditioners
 class HypreSolver : public Solver
 {

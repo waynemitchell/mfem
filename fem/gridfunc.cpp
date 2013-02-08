@@ -817,6 +817,7 @@ void GridFunction::ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
    }
 
    (*this) = 0.0;
+   integral = 0.0;
 
    if (min_dist >= delta_coeff.Tol())
       return;
@@ -826,7 +827,6 @@ void GridFunction::ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
    DenseMatrix loc_mass;
    Array<int> vdofs, vertices;
    Vector vals, loc_mass_vals;
-   integral = 0.0;
    for (int i = 0; i < mesh->GetNE(); i++)
    {
       mesh->GetElementVertices(i, vertices);
