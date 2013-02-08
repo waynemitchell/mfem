@@ -7374,6 +7374,34 @@ void L2_TriangleElement::CalcDShape(const IntegrationPoint &ip,
    Mult(T, du, dshape);
 }
 
+void L2_TriangleElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   switch (vertex)
+   {
+   case 0:
+      for (int i = 0; i < Dof; i++)
+      {
+         const IntegrationPoint &ip = Nodes.IntPoint(i);
+         dofs[i] = pow(1.0 - ip.x - ip.y, Order);
+      }
+      break;
+   case 1:
+      for (int i = 0; i < Dof; i++)
+      {
+         const IntegrationPoint &ip = Nodes.IntPoint(i);
+         dofs[i] = pow(ip.x, Order);
+      }
+      break;
+   case 2:
+      for (int i = 0; i < Dof; i++)
+      {
+         const IntegrationPoint &ip = Nodes.IntPoint(i);
+         dofs[i] = pow(ip.y, Order);
+      }
+      break;
+   }
+}
+
 
 L2_TetrahedronElement::L2_TetrahedronElement(const int p)
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, ((p + 1)*(p + 2)*(p + 3))/6,
@@ -7476,6 +7504,40 @@ void L2_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
          }
 
    Mult(T, du, dshape);
+}
+
+void L2_TetrahedronElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   switch (vertex)
+   {
+   case 0:
+      for (int i = 0; i < Dof; i++)
+      {
+         const IntegrationPoint &ip = Nodes.IntPoint(i);
+         dofs[i] = pow(1.0 - ip.x - ip.y - ip.z, Order);
+      }
+      break;
+   case 1:
+      for (int i = 0; i < Dof; i++)
+      {
+         const IntegrationPoint &ip = Nodes.IntPoint(i);
+         dofs[i] = pow(ip.x, Order);
+      }
+      break;
+   case 2:
+      for (int i = 0; i < Dof; i++)
+      {
+         const IntegrationPoint &ip = Nodes.IntPoint(i);
+         dofs[i] = pow(ip.y, Order);
+      }
+   case 3:
+      for (int i = 0; i < Dof; i++)
+      {
+         const IntegrationPoint &ip = Nodes.IntPoint(i);
+         dofs[i] = pow(ip.z, Order);
+      }
+      break;
+   }
 }
 
 
