@@ -15,6 +15,12 @@
 /// Abstract base class LinearFormIntegrator
 class LinearFormIntegrator
 {
+protected:
+   const IntegrationRule *IntRule;
+
+   LinearFormIntegrator(const IntegrationRule *ir = NULL)
+   { IntRule = ir; }
+
 public:
    /** Given a particular Finite Element and a transformation (Tr)
        computes the element vector, elvect. */
@@ -24,6 +30,9 @@ public:
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        FaceElementTransformations &Tr,
                                        Vector &elvect);
+
+   void SetIntRule(const IntegrationRule *ir) { IntRule = ir; }
+
    virtual ~LinearFormIntegrator() { };
 };
 
@@ -33,18 +42,17 @@ class DomainLFIntegrator : public LinearFormIntegrator
 {
    Vector shape;
    Coefficient &Q;
-   const IntegrationRule *IntRule;
    int oa, ob;
 public:
    /// Constructs a domain integrator with a given Coefficient
    DomainLFIntegrator(Coefficient &QF, int a = 2, int b = 0)
       // the old default was a = 1, b = 1
       // for simple elliptic problems a = 2, b = -2 is ok
-      : Q(QF), oa(a), ob(b) { IntRule = NULL; }
+      : Q(QF), oa(a), ob(b) { }
 
    /// Constructs a domain integrator with a given Coefficient
    DomainLFIntegrator(Coefficient &QF, const IntegrationRule *ir)
-      : Q(QF), oa(1), ob(1) { IntRule = ir; }
+      : LinearFormIntegrator(ir), Q(QF), oa(1), ob(1) { }
 
    /** Given a particular Finite Element and a transformation (Tr)
        computes the element right hand side element vector, elvect. */
@@ -145,11 +153,11 @@ private:
    double Sign;
    Coefficient *F;
    Vector shape, nor;
-   const IntegrationRule *IntRule;
 
 public:
-   VectorBoundaryFluxLFIntegrator (Coefficient &f, double s = 1.0, const IntegrationRule *ir = NULL)
-      : Sign(s), F(&f), IntRule(ir) { };
+   VectorBoundaryFluxLFIntegrator(Coefficient &f, double s = 1.0,
+                                  const IntegrationRule *ir = NULL)
+      : LinearFormIntegrator(ir), Sign(s), F(&f) { }
 
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        ElementTransformation &Tr,

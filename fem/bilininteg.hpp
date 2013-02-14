@@ -15,6 +15,12 @@
 /// Abstract base class BilinearFormIntegrator
 class BilinearFormIntegrator : public NonlinearFormIntegrator
 {
+protected:
+   const IntegrationRule *IntRule;
+
+   BilinearFormIntegrator(const IntegrationRule *ir = NULL)
+   { IntRule = ir; }
+
 public:
    /// Given a particular Finite Element computes the element matrix elmat.
    virtual void AssembleElementMatrix(const FiniteElement &el,
@@ -48,6 +54,9 @@ public:
    virtual double ComputeFluxEnergy(const FiniteElement &fluxelem,
                                     ElementTransformation &Trans,
                                     Vector &flux) { return 0.0; }
+
+   void SetIntRule(const IntegrationRule *ir) { IntRule = ir; }
+
    virtual ~BilinearFormIntegrator() { }
 };
 
@@ -141,14 +150,13 @@ class MassIntegrator: public BilinearFormIntegrator
 private:
    Vector shape, te_shape;
    Coefficient *Q;
-   const IntegrationRule *IntRule;
 
 public:
    MassIntegrator(const IntegrationRule *ir = NULL)
-   { Q = NULL; IntRule = ir; }
+      : BilinearFormIntegrator(ir) { Q = NULL; }
    /// Construct a mass integrator with coefficient q
    MassIntegrator(Coefficient &q, const IntegrationRule *ir = NULL)
-      : Q(&q) { IntRule = ir; }
+      : BilinearFormIntegrator(ir), Q(&q) { }
 
    /** Given a particular Finite Element
        computes the element mass matrix elmat. */
@@ -214,27 +222,27 @@ private:
    VectorCoefficient *VQ;
    MatrixCoefficient *MQ;
 
-   const IntegrationRule *IntRule;
    int Q_order;
 
 public:
    /// Construct an integrator with coefficient 1.0
    VectorMassIntegrator()
-   { Q = NULL; VQ = NULL; MQ = NULL; IntRule = NULL; Q_order = 0; }
+   { Q = NULL; VQ = NULL; MQ = NULL; Q_order = 0; }
    /** Construct an integrator with scalar coefficient q.
        If possible, save memory by using a scalar integrator since
        the resulting matrix is block diagonal with the same diagonal
-       block repeated. ;-)   */
+       block repeated. */
    VectorMassIntegrator(Coefficient &q, int qo = 0)
-      : Q(&q) { VQ = NULL; MQ = NULL; IntRule = NULL; Q_order = qo; }
+      : Q(&q) { VQ = NULL; MQ = NULL; Q_order = qo; }
    VectorMassIntegrator(Coefficient &q, const IntegrationRule *ir)
-      : Q(&q) { VQ = NULL; MQ = NULL; IntRule = ir; Q_order = 0; }
+      : BilinearFormIntegrator(ir), Q(&q)
+   { VQ = NULL; MQ = NULL; Q_order = 0; }
    /// Construct an integrator with diagonal coefficient q
    VectorMassIntegrator(VectorCoefficient &q, int qo = 0)
-      : VQ(&q) { Q = NULL; MQ = NULL; IntRule = NULL; Q_order = qo; }
+      : VQ(&q) { Q = NULL; MQ = NULL; Q_order = qo; }
    /// Construct an integrator with matrix coefficient q
    VectorMassIntegrator(MatrixCoefficient &q, int qo = 0)
-      : MQ(&q) { Q = NULL; VQ = NULL; IntRule = NULL; Q_order = qo; }
+      : MQ(&q) { Q = NULL; VQ = NULL; Q_order = qo; }
 
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
@@ -461,20 +469,26 @@ public:
 };
 
 /** Integrator for the DG form:
-    alpha < (u.n) {v},[w] > + beta < |u.n| [v],[w] >,
-    where v and w are the trial and test variables, respectively, and u is a
-    given vector coefficient. */
+    alpha < (u.n) {rho v},[w] > + beta < |u.n| [rho v],[w] >,
+    where v and w are the trial and test variables, respectively, and rho/u
+    are given scalar/vector coefficients. */
 class DGTraceIntegrator : public BilinearFormIntegrator
 {
 private:
+   Coefficient *rho;
    VectorCoefficient *u;
    double alpha, beta;
 
    Vector shape1, shape2;
 
 public:
+   /// Construct integrator with rho = 1.
    DGTraceIntegrator(VectorCoefficient &_u, double a, double b)
-   { u = &_u; alpha = a; beta = b; }
+   { rho = NULL; u = &_u; alpha = a; beta = b; }
+
+   DGTraceIntegrator(Coefficient &_rho, VectorCoefficient &_u,
+                     double a, double b)
+   { rho = &_rho; u = &_u; alpha = a; beta = b; }
 
    virtual void AssembleFaceMatrix(const FiniteElement &el1,
                                    const FiniteElement &el2,

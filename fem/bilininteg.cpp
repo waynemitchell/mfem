@@ -98,18 +98,21 @@ void DiffusionIntegrator::AssembleElementMatrix
 #endif
    elmat.SetSize(nd);
 
-   int order;
-   if (el.Space() == FunctionSpace::Pk)
-      order = 2*el.GetOrder() - 2;
-   else
-      // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
-      order = 2*el.GetOrder() + dim - 1;
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+         order = 2*el.GetOrder() - 2;
+      else
+         // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+         order = 2*el.GetOrder() + dim - 1;
 
-   const IntegrationRule *ir;
-   if (el.Space() == FunctionSpace::rQk)
-      ir = &RefinedIntRules.Get(el.GetGeomType(), order);
-   else
-      ir = &IntRules.Get(el.GetGeomType(), order);
+      if (el.Space() == FunctionSpace::rQk)
+         ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+      else
+         ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    elmat = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -157,18 +160,21 @@ void DiffusionIntegrator::AssembleElementVector(
 
    elvect.SetSize(nd);
 
-   int order;
-   if (el.Space() == FunctionSpace::Pk)
-      order = 2*el.GetOrder() - 2;
-   else
-      // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
-      order = 2*el.GetOrder() + dim - 1;
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+         order = 2*el.GetOrder() - 2;
+      else
+         // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+         order = 2*el.GetOrder() + dim - 1;
 
-   const IntegrationRule *ir;
-   if (el.Space() == FunctionSpace::rQk)
-      ir = &RefinedIntRules.Get(el.GetGeomType(), order);
-   else
-      ir = &IntRules.Get(el.GetGeomType(), order);
+      if (el.Space() == FunctionSpace::rQk)
+         ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+      else
+         ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    elvect = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -405,8 +411,12 @@ void ConvectionIntegrator::AssembleElementMatrix(
 
    Vector vec1;
 
-   int order = Trans.OrderGrad(&el) + Trans.Order() + el.GetOrder();
-   const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = Trans.OrderGrad(&el) + Trans.Order() + el.GetOrder();
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    Q.Eval(Q_ir, Trans, *ir);
 
@@ -442,8 +452,12 @@ void GroupConvectionIntegrator::AssembleElementMatrix(
    shape.SetSize(nd);
    grad.SetSize(nd,dim);
 
-   int order = Trans.OrderGrad(&el) + el.GetOrder();
-   const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = Trans.OrderGrad(&el) + el.GetOrder();
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    Q.Eval(Q_nodal, Trans, el.GetNodes()); // sets the size of Q_nodal
 
@@ -630,8 +644,12 @@ void VectorFEDivergenceIntegrator::AssembleElementMatrix2(
 
    elmat.SetSize(test_nd, trial_nd);
 
-   int order = trial_fe.GetOrder() + test_fe.GetOrder() - 1; // <--
-   const IntegrationRule *ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = trial_fe.GetOrder() + test_fe.GetOrder() - 1; // <--
+      ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+   }
 
    elmat = 0.0;
    for (i = 0; i < ir->GetNPoints(); i++)
@@ -669,8 +687,12 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
 
    elmat.SetSize(test_nd, trial_nd);
 
-   int order = trial_fe.GetOrder() + test_fe.GetOrder() - 1; // <--
-   const IntegrationRule *ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = trial_fe.GetOrder() + test_fe.GetOrder() - 1; // <--
+      ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+   }
 
    elmat = 0.0;
    for (i = 0; i < ir->GetNPoints(); i++)
@@ -708,17 +730,20 @@ void DerivativeIntegrator::AssembleElementMatrix2 (
    invdfdx.SetSize(dim);
    shape.SetSize (test_nd);
 
-   int order;
-   if (trial_fe.Space() == FunctionSpace::Pk)
-      order = trial_fe.GetOrder() + test_fe.GetOrder() - 1;
-   else
-      order = trial_fe.GetOrder() + test_fe.GetOrder() + dim;
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (trial_fe.Space() == FunctionSpace::Pk)
+         order = trial_fe.GetOrder() + test_fe.GetOrder() - 1;
+      else
+         order = trial_fe.GetOrder() + test_fe.GetOrder() + dim;
 
-   const IntegrationRule * ir;
-   if (trial_fe.Space() == FunctionSpace::rQk)
-      ir = &RefinedIntRules.Get(trial_fe.GetGeomType(), order);
-   else
-      ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+      if (trial_fe.Space() == FunctionSpace::rQk)
+         ir = &RefinedIntRules.Get(trial_fe.GetGeomType(), order);
+      else
+         ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+   }
 
    elmat = 0.0;
    for(i = 0; i < ir->GetNPoints(); i++) {
@@ -757,18 +782,22 @@ void CurlCurlIntegrator::AssembleElementMatrix
 #endif
    elmat.SetSize(nd);
 
-   int order;
-   if (el.Space() == FunctionSpace::Pk)
-      order = 2*el.GetOrder() - 2;
-   else
-      order = 2*el.GetOrder();
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+         order = 2*el.GetOrder() - 2;
+      else
+         order = 2*el.GetOrder();
 
-   const IntegrationRule &ir = IntRules.Get(el.GetGeomType(), order);
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    elmat = 0.0;
-   for (int i = 0; i < ir.GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      const IntegrationPoint &ip = ir.IntPoint(i);
+      const IntegrationPoint &ip = ir->IntPoint(i);
       el.CalcCurlShape(ip, Curlshape);
 
       Trans.SetIntPoint (&ip);
@@ -805,14 +834,17 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
    elmat.SetSize(dof);
    elmat = 0.0;
 
-   // int order = 2 * el.GetOrder();
-   int order = Trans.OrderW() + 2 * el.GetOrder();
-
-   const IntegrationRule &ir = IntRules.Get(el.GetGeomType(), order);
-
-   for (int i = 0; i < ir.GetNPoints(); i++)
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
    {
-      const IntegrationPoint &ip = ir.IntPoint(i);
+      // int order = 2 * el.GetOrder();
+      int order = Trans.OrderW() + 2 * el.GetOrder();
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
 
       Trans.SetIntPoint (&ip);
 
@@ -858,15 +890,17 @@ void VectorFEMassIntegrator::AssembleElementMatrix2(
 
    elmat.SetSize (dim*test_dof, trial_dof);
 
-   int order = (Trans.OrderW() +
-                test_fe.GetOrder() + trial_fe.GetOrder());
-
-   const IntegrationRule &ir = IntRules.Get(test_fe.GetGeomType(), order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = (Trans.OrderW() + test_fe.GetOrder() + trial_fe.GetOrder());
+      ir = &IntRules.Get(test_fe.GetGeomType(), order);
+   }
 
    elmat = 0.0;
-   for (int i = 0; i < ir.GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      const IntegrationPoint &ip = ir.IntPoint(i);
+      const IntegrationPoint &ip = ir->IntPoint(i);
 
       Trans.SetIntPoint (&ip);
 
@@ -910,10 +944,12 @@ void VectorDivergenceIntegrator::AssembleElementMatrix2(
 
    elmat.SetSize (test_dof, dim*trial_dof);
 
-   int order = Trans.OrderGrad(&trial_fe) + test_fe.GetOrder();
-
-   const IntegrationRule *ir;
-   ir = &IntRules.Get (trial_fe.GetGeomType(), order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = Trans.OrderGrad(&trial_fe) + test_fe.GetOrder();
+      ir = &IntRules.Get(trial_fe.GetGeomType(), order);
+   }
 
    elmat = 0.0;
 
@@ -957,8 +993,12 @@ void DivDivIntegrator::AssembleElementMatrix(
 #endif
    elmat.SetSize(dof);
 
-   int order = 2 * el.GetOrder() - 2; // <--- OK for RTk
-   const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * el.GetOrder() - 2; // <--- OK for RTk
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    elmat = 0.0;
 
@@ -997,14 +1037,16 @@ void VectorDiffusionIntegrator::AssembleElementMatrix(
    gshape.SetSize (dof, dim);
    pelmat.SetSize (dof);
 
-   // integrant is rational function if det(J) is not constant
-   int order = 2 * Trans.OrderGrad(&el); // order of the numerator
-
-   const IntegrationRule *ir;
-   if (el.Space() == FunctionSpace::rQk)
-      ir = &RefinedIntRules.Get(el.GetGeomType(), order);
-   else
-      ir = &IntRules.Get(el.GetGeomType(), order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // integrant is rational function if det(J) is not constant
+      int order = 2 * Trans.OrderGrad(&el); // order of the numerator
+      if (el.Space() == FunctionSpace::rQk)
+         ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+      else
+         ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    elmat = 0.0;
 
@@ -1057,8 +1099,12 @@ void ElasticityIntegrator::AssembleElementMatrix(
 
    elmat.SetSize(dof * dim);
 
-   int order = 2 * Trans.OrderGrad(&el); // correct order?
-   const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * Trans.OrderGrad(&el); // correct order?
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    elmat = 0.0;
 
@@ -1122,28 +1168,30 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
    ndof1 = el1.GetDof();
    Vector vu(dim), nor(dim);
 
-   // Assuming order(u)==order(mesh)
    if (Trans.Elem2No >= 0)
-   {
       ndof2 = el2.GetDof();
-      order = (min(Trans.Elem1->OrderW(), Trans.Elem2->OrderW()) +
-               2*max(el1.GetOrder(), el2.GetOrder()));
-   }
    else
-   {
       ndof2 = 0;
-      order = Trans.Elem1->OrderW() + 2*el1.GetOrder();
-   }
-
-   if (el1.Space() == FunctionSpace::Pk)
-      order++;
 
    shape1.SetSize(ndof1);
    shape2.SetSize(ndof2);
    elmat.SetSize(ndof1 + ndof2);
    elmat = 0.0;
 
-   const IntegrationRule *ir = &IntRules.Get(Trans.FaceGeom, order);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // Assuming order(u)==order(mesh)
+      if (Trans.Elem2No >= 0)
+         order = (min(Trans.Elem1->OrderW(), Trans.Elem2->OrderW()) +
+                  2*max(el1.GetOrder(), el2.GetOrder()));
+      else
+         order = Trans.Elem1->OrderW() + 2*el1.GetOrder();
+      if (el1.Space() == FunctionSpace::Pk)
+         order++;
+      ir = &IntRules.Get(Trans.FaceGeom, order);
+   }
+
    for (int p = 0; p < ir->GetNPoints(); p++)
    {
       const IntegrationPoint &ip = ir->IntPoint(p);
@@ -1152,6 +1200,7 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
       el1.CalcShape(eip1, shape1);
 
       Trans.Face->SetIntPoint(&ip);
+      Trans.Elem1->SetIntPoint(&eip1);
 
       u->Eval(vu, *Trans.Elem1, eip1);
 
@@ -1181,9 +1230,13 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
 
       w = ip.weight * (a+b);
       if (w != 0.0)
+      {
+         if (rho)
+            w *= rho->Eval(*Trans.Elem1, eip1);
          for (i = 0; i < ndof1; i++)
             for (j = 0; j < ndof1; j++)
                elmat(i, j) += w * shape1(i) * shape1(j);
+      }
 
       if (ndof2)
       {
@@ -1198,6 +1251,11 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
          w = ip.weight * (b-a);
          if (w != 0.0)
          {
+            if (rho)
+            {
+               Trans.Elem2->SetIntPoint(&eip2);
+               w *= rho->Eval(*Trans.Elem2, eip2);
+            }
             for (i = 0; i < ndof2; i++)
                for (j = 0; j < ndof2; j++)
                   elmat(ndof1+i, ndof1+j) += w * shape2(i) * shape2(j);
