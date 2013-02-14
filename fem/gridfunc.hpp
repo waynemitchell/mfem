@@ -54,7 +54,8 @@ public:
    /// Returns the values in the vertices of i'th element for dimension vdim.
    void GetNodalValues(int i, Array<double> &nval, int vdim = 1) const;
 
-   double GetValue(int i, const IntegrationPoint &ip, int vdim = 1) const;
+   virtual double GetValue(int i, const IntegrationPoint &ip,
+                           int vdim = 1) const;
 
    void GetVectorValue(int i, const IntegrationPoint &ip, Vector &val) const;
 

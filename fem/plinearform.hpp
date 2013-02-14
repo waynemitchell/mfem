@@ -23,6 +23,9 @@ public:
 
    void Update(ParFiniteElementSpace *pf = NULL);
 
+   /// Assemble the vector on the true dofs, i.e. P^t v.
+   void ParallelAssemble(Vector &tv);
+
    /// Returns the vector assembled on the true dofs, i.e. P^t v.
    HypreParVector *ParallelAssemble();
 };

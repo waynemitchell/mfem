@@ -80,7 +80,8 @@ public:
    const Vector &FaceNbrData() const { return face_nbr_data; }
 
    // Redefine to handle the case when i is a face-neighbor element
-   double GetValue(int i, const IntegrationPoint &ip, int vdim = 1) const;
+   virtual double GetValue(int i, const IntegrationPoint &ip,
+                           int vdim = 1) const;
    double GetValue(ElementTransformation &T)
    { return GetValue(T.ElementNo, T.GetIntPoint()); }
 

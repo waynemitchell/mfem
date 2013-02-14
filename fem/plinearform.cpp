@@ -20,6 +20,11 @@ void ParLinearForm::Update(ParFiniteElementSpace *pf)
    LinearForm::Update(pfes);
 }
 
+void ParLinearForm::ParallelAssemble(Vector &tv)
+{
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
+}
+
 HypreParVector *ParLinearForm::ParallelAssemble()
 {
    HypreParVector *tv = pfes->NewTrueDofVector();

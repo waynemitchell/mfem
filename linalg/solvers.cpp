@@ -221,7 +221,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
            << "(B r_N, r_N) = " << betanom << endl
            << "Number of PCG iterations: " << final_iter << endl;
    }
-   if (print_level >= 1 || !converged)
+   if (print_level >= 1 || (print_level >= 0 && !converged))
    {
       cout << "Average reduction factor = "
            << pow (betanom/nom0, 0.5/final_iter) << endl;

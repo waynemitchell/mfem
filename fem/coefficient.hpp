@@ -111,6 +111,8 @@ public:
    GridFunctionCoefficient (GridFunction *gf, int comp = 1)
    { GridF = gf; Component = comp; }
 
+   void SetGridFunction(GridFunction *gf) { GridF = gf; }
+
    virtual double Eval(ElementTransformation &T,
                        const IntegrationPoint &ip);
 
