@@ -159,6 +159,8 @@ public:
        x1 = x0 + sc D^{-1} (b - A x0)  where D is the diag of A. */
    void Jacobi(const Vector &b, const Vector &x0, Vector &x1, double sc) const;
 
+   void DiagScale(const Vector &b, Vector &x, double sc = 1.0) const;
+
    /** x1 = x0 + sc D^{-1} (b - A x0) where \f$ D_{ii} = \sum_j |A_{ij}| \f$. */
    void Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
                 double sc = 1.0) const;

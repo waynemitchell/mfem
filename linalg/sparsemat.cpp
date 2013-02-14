@@ -1008,6 +1008,38 @@ void SparseMatrix::Jacobi(const Vector &b, const Vector &x0, Vector &x1,
    }
 }
 
+void SparseMatrix::DiagScale(const Vector &b, Vector &x, double sc) const
+{
+   if (A == NULL)
+      mfem_error("SparseMatrix::DiagScale(...)");
+
+   bool scale = (sc != 1.0);
+   for (int i = 0, j = 0; i < size; i++)
+   {
+      int end = I[i+1];
+      for ( ; true; j++)
+      {
+         if (j == end)
+            goto diagscale_error;
+         if (J[j] == i)
+         {
+            if (A[j] == 0.0)
+               goto diagscale_error;
+            if (scale)
+               x(i) = sc * b(i) / A[j];
+            else
+               x(i) = b(i) / A[j];
+            break;
+         }
+      }
+      j = end;
+   }
+   return;
+
+diagscale_error:
+   mfem_error("SparseMatrix::DiagScale(...) #2");
+}
+
 void SparseMatrix::Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
                            double sc) const
 {

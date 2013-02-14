@@ -51,6 +51,12 @@ DSmoother::DSmoother(const SparseMatrix &a, int t, double s, int it)
 /// Matrix vector multiplication with Jacobi smoother.
 void DSmoother::Mult(const Vector &x, Vector &y) const
 {
+   if (!iterative_mode && type == 0 && iterations == 1)
+   {
+      oper->DiagScale(x, y, scale);
+      return;
+   }
+
    z.SetSize(size);
 
    Vector *r = &y, *p = &z;

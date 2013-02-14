@@ -20,6 +20,8 @@
 #include "_hypre_parcsr_mv.h"
 #include "_hypre_parcsr_ls.h"
 
+class ParFiniteElementSpace;
+
 /// Wrapper for hypre's parallel vector class
 class HypreParVector : public Vector
 {
@@ -42,6 +44,8 @@ public:
    HypreParVector(const HypreParVector &y);
    /// Creates vector wrapping y
    HypreParVector(HYPRE_ParVector y);
+   /// Create a true dof parallel vector on a given ParFiniteElementSpace
+   HypreParVector(ParFiniteElementSpace *pfes);
 
    /// Typecasting to hypre's hypre_ParVector*
    operator hypre_ParVector*() const;
@@ -460,8 +464,6 @@ public:
 
    virtual ~HypreBoomerAMG();
 };
-
-class ParFiniteElementSpace;
 
 /// Compute the discrete gradient matrix between the nodal linear and ND1 spaces
 HypreParMatrix* DiscreteGrad(ParFiniteElementSpace *edge_fespace,

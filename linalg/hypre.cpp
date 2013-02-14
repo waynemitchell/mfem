@@ -70,6 +70,20 @@ HypreParVector::HypreParVector(HYPRE_ParVector y) : Vector()
    own_ParVector = 0;
 }
 
+HypreParVector::HypreParVector(ParFiniteElementSpace *pfes)
+{
+   x = hypre_ParVectorCreate(pfes->GetComm(), pfes->GlobalTrueVSize(),
+                             pfes->GetTrueDofOffsets());
+   hypre_ParVectorInitialize(x);
+   hypre_ParVectorSetPartitioningOwner(x,0);
+   // The data will be destroyed by hypre (this is the default)
+   hypre_ParVectorSetDataOwner(x,1);
+   hypre_SeqVectorSetDataOwner(hypre_ParVectorLocalVector(x),1);
+   SetDataAndSize(hypre_VectorData(hypre_ParVectorLocalVector(x)),
+                  hypre_VectorSize(hypre_ParVectorLocalVector(x)));
+   own_ParVector = 1;
+}
+
 HypreParVector::operator hypre_ParVector*() const
 {
    return x;
@@ -758,7 +772,7 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (A == NULL)
       mfem_error("HypreSmoother::SetOperator : not HypreParMatrix!");
 
-   size = A -> GetNumRows();
+   size = A->GetNumRows();
 
    if (B) delete B;
    if (X) delete X;
@@ -775,14 +789,12 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (type == 16)
    {
       hypre_ParCSRMaxEigEstimateCG(*A, 1, 10, &max_eig_est, &min_eig_est);
-      Z = new HypreParVector(A -> GetGlobalNumCols(), A -> GetColStarts());
+      Z = new HypreParVector(A->GetGlobalNumCols(), A->GetColStarts());
    }
    else
       Z = NULL;
 
-   V = new HypreParVector(A -> GetGlobalNumCols(), A -> GetColStarts());
-
-   B = X = NULL;
+   V = B = X = NULL;
 }
 
 void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
@@ -794,7 +806,19 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
    }
 
    if (!iterative_mode)
+   {
+      if (type == 0 && relax_times == 1)
+      {
+         HYPRE_ParCSRDiagScale(NULL, *A, x, b);
+         if (relax_weight != 1.0)
+            x *= relax_weight;
+         return;
+      }
       x = 0.0;
+   }
+
+   if (V == NULL)
+      V = new HypreParVector(A->GetGlobalNumCols(), A->GetColStarts());
 
    if (Z == NULL)
       hypre_ParCSRRelax(*A, b, type,
