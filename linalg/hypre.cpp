@@ -809,7 +809,7 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
    {
       if (type == 0 && relax_times == 1)
       {
-         HYPRE_ParCSRDiagScale(NULL, *A, x, b);
+         HYPRE_ParCSRDiagScale(NULL, *A, b, x);
          if (relax_weight != 1.0)
             x *= relax_weight;
          return;
