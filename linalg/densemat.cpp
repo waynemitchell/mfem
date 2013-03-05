@@ -1806,6 +1806,12 @@ void Add(const DenseMatrix &A, const DenseMatrix &B,
 }
 
 
+#ifdef MFEM_USE_LAPACK
+extern "C" void
+dgemm_(char *, char *, int *, int *, int *, double *, double *,
+       int *, double *, int *, double *, double *, int *);
+#endif
+
 void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
 {
 #ifdef MFEM_DEBUG
@@ -1813,6 +1819,14 @@ void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
       mfem_error("Mult (product of DenseMatrices)");
 #endif
 
+#ifdef MFEM_USE_LAPACK
+   static char transa = 'N', transb = 'N';
+   static double alpha = 1.0, beta = 0.0;
+   int m = b.Height(), n = c.Width(), k = b.Width();
+
+   dgemm_(&transa, &transb, &m, &n, &k, &alpha, b.Data(), &m,
+          c.Data(), &k, &beta, a.Data(), &m);
+#else
    register int ah = a.height;
    register int as = a.size;
    register int bs = b.size;
@@ -1838,6 +1852,7 @@ void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
          *ad = d;
       }
    }
+#endif
 }
 
 void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
@@ -2080,12 +2095,6 @@ void MultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt)
    }
 }
 
-#ifdef MFEM_USE_LAPACK
-extern "C" void
-dgemm_(char *, char *, int *, int *, int *, double *, double *,
-       int *, double *, int *, double *, double *, int *);
-#endif
-
 void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
 {
 #ifdef MFEM_DEBUG
@@ -2166,13 +2175,22 @@ void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
 
 void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
 {
-   int i, j, k;
-   double d;
-
 #ifdef MFEM_DEBUG
-   if (A.Height() != ABt.Height() || B.Height() != ABt.Width())
+   if (A.Height() != ABt.Height() || B.Height() != ABt.Width() ||
+       A.Width() != B.Width())
       mfem_error("AddMultABt(...)");
 #endif
+
+#ifdef MFEM_USE_LAPACK
+   static char transa = 'N', transb = 'T';
+   static double alpha = 1.0, beta = 1.0;
+   int m = A.Height(), n = B.Height(), k = A.Width();
+
+   dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &m,
+          B.Data(), &n, &beta, ABt.Data(), &m);
+#else
+   int i, j, k;
+   double d;
 
    for (i = 0; i < A.Height(); i++)
       for (j = 0; j < B.Height(); j++)
@@ -2182,6 +2200,7 @@ void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
             d += A(i, k) * B(j, k);
          ABt(i, j) += d;
       }
+#endif
 }
 
 void MultAtB(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &AtB)
