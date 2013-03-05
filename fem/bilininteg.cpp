@@ -1197,6 +1197,8 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
       const IntegrationPoint &ip = ir->IntPoint(p);
       IntegrationPoint eip1, eip2;
       Trans.Loc1.Transform(ip, eip1);
+      if (ndof2)
+         Trans.Loc2.Transform(ip, eip2);
       el1.CalcShape(eip1, shape1);
 
       Trans.Face->SetIntPoint(&ip);
@@ -1228,11 +1230,25 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
       //       and therefore two blocks in the element matrix contribution
       //       (from the current quadrature point) are 0
 
+      if (rho)
+      {
+         double rho_p;
+         if (un >= 0.0 && ndof2)
+         {
+            Trans.Elem2->SetIntPoint(&eip2);
+            rho_p = rho->Eval(*Trans.Elem2, eip2);
+         }
+         else
+         {
+            rho_p = rho->Eval(*Trans.Elem1, eip1);
+         }
+         a *= rho_p;
+         b *= rho_p;
+      }
+
       w = ip.weight * (a+b);
       if (w != 0.0)
       {
-         if (rho)
-            w *= rho->Eval(*Trans.Elem1, eip1);
          for (i = 0; i < ndof1; i++)
             for (j = 0; j < ndof1; j++)
                elmat(i, j) += w * shape1(i) * shape1(j);
@@ -1240,7 +1256,6 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
 
       if (ndof2)
       {
-         Trans.Loc2.Transform(ip, eip2);
          el2.CalcShape(eip2, shape2);
 
          if (w != 0.0)
@@ -1251,11 +1266,6 @@ void DGTraceIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
          w = ip.weight * (b-a);
          if (w != 0.0)
          {
-            if (rho)
-            {
-               Trans.Elem2->SetIntPoint(&eip2);
-               w *= rho->Eval(*Trans.Elem2, eip2);
-            }
             for (i = 0; i < ndof2; i++)
                for (j = 0; j < ndof2; j++)
                   elmat(ndof1+i, ndof1+j) += w * shape2(i) * shape2(j);
