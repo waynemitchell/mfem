@@ -2123,6 +2123,12 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
 
       Array<int> lvert_vert, lelem_elem;
 
+      // Here, for visualization purposes, we copy the boundary elements from
+      // the individual pieces which include the interior boundaries.
+      // This creates 'boundary' array that is different from the one generated
+      // by the NURBSExtension which, in particular, makes the boundary-dof
+      // table invalid. This, in turn, causes GetBdrElementTransformation to
+      // not function properly.
       NumOfBdrElements = 0;
       for (i = 0; i < num_pieces; i++)
          NumOfBdrElements += mesh_array[i]->GetNBE();

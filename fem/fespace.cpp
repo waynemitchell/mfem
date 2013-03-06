@@ -495,6 +495,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
             own_ext = 1;
          }
          UpdateNURBS();
+         cP = NULL;
       }
    }
    else
