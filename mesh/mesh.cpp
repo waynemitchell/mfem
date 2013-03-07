@@ -6824,7 +6824,7 @@ void Mesh::PrintWithPartitioning(int *partitioning, ostream &out,
        << "\n\nelements\n" << NumOfElements << '\n';
    for (i = 0; i < NumOfElements; i++)
    {
-      out << int((elem_attr) ? partitioning[i] : elements[i]->GetAttribute())
+      out << int((elem_attr) ? partitioning[i]+1 : elements[i]->GetAttribute())
           << ' ' << elements[i]->GetGeometryType();
       nv = elements[i]->GetNVertices();
       v  = elements[i]->GetVertices();
@@ -6833,7 +6833,7 @@ void Mesh::PrintWithPartitioning(int *partitioning, ostream &out,
       out << '\n';
    }
    nbe = 0;
-   for (i = 0; i < NumOfFaces; i++)
+   for (i = 0; i < faces_info.Size(); i++)
    {
       if ((l = faces_info[i].Elem2No) >= 0)
       {
@@ -6846,7 +6846,7 @@ void Mesh::PrintWithPartitioning(int *partitioning, ostream &out,
          nbe++;
    }
    out << "\nboundary\n" << nbe << '\n';
-   for (i = 0; i < NumOfFaces; i++)
+   for (i = 0; i < faces_info.Size(); i++)
    {
       if ((l = faces_info[i].Elem2No) >= 0)
       {
