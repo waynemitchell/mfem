@@ -12,6 +12,7 @@
 // Implementation of GridFunction
 
 #include "fem.hpp"
+#include <limits>
 #include <cstring>
 #include <math.h>
 
@@ -242,34 +243,34 @@ void GridFunction::GetVectorValue(int i, const IntegrationPoint &ip,
    }
 }
 
+void GridFunction::GetValues(int i, const IntegrationRule &ir, Vector &vals, int vdim)
+   const
+{
+   Array<int> dofs;
+   int n = ir.GetNPoints();
+   vals.SetSize(n);
+   fes->GetElementDofs(i, dofs);
+   fes->DofsToVDofs(vdim-1, dofs);
+   const FiniteElement *FElem = fes->GetFE(i);
+   int dof = FElem->GetDof();
+   Vector DofVal(dof), loc_data(dof);
+   GetSubVector(dofs, loc_data);
+   for (int k = 0; k < n; k++)
+   {
+      FElem->CalcShape(ir.IntPoint(k), DofVal);
+      vals(k) = DofVal * loc_data;
+   }
+}
+
 void GridFunction::GetValues(int i, const IntegrationRule &ir, Vector &vals,
                              DenseMatrix &tr, int vdim)
    const
 {
-   Array<int> dofs;
-
-   int k, n;
-
-   n = ir.GetNPoints();
-   vals.SetSize(n);
-   fes->GetElementVDofs(i, dofs);
-   const FiniteElement *FElem = fes->GetFE(i);
    ElementTransformation *ET;
    ET = fes->GetElementTransformation(i);
    ET->Transform(ir, tr);
-   int dof = FElem->GetDof();
-   Vector DofVal(dof);
-   vdim--;
-   for (k = 0; k < n; k++)
-   {
-      FElem->CalcShape(ir.IntPoint(k), DofVal);
-      vals(k) = 0.0;
-      for (int j = 0; j < dof; j++)
-         if (dofs[dof*vdim+j] >= 0)
-            vals(k) += DofVal(j) * data[dofs[dof*vdim+j]];
-         else
-            vals(k) -= DofVal(j) * data[-1-dofs[dof*vdim+j]];
-   }
+
+   GetValues(i, ir, vals, vdim);
 }
 
 int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
@@ -1142,7 +1143,7 @@ double GridFunction::ComputeL2Error(
    double error = 0.0;
    const FiniteElement *fe;
    ElementTransformation *T;
-   DenseMatrix vals, exact_vals, tr;
+   DenseMatrix vals, exact_vals;
    Vector loc_errs;
 
    for (int i = 0; i < fes->GetNE(); i++)
@@ -1155,8 +1156,8 @@ double GridFunction::ComputeL2Error(
          ir = irs[fe->GetGeomType()];
       else
          ir = &(IntRules.Get(fe->GetGeomType(), intorder));
-      GetVectorValues(i, *ir, vals, tr);
       T = fes->GetElementTransformation(i);
+      GetVectorValues(*T, *ir, vals);
       exsol.Eval(exact_vals, *T, *ir);
       vals -= exact_vals;
       loc_errs.SetSize(vals.Width());
@@ -1353,40 +1354,6 @@ double GridFunction::ComputeMaxError(
    return error;
 }
 
-double GridFunction::ComputeMaxError(
-   VectorCoefficient &exsol, const IntegrationRule *irs[]) const
-{
-   double error = 0.0;
-   const FiniteElement *fe;
-   ElementTransformation *T;
-   DenseMatrix vals, exact_vals, tr;
-   Vector loc_errs;
-
-   for (int i = 0; i < fes->GetNE(); i++)
-   {
-      fe = fes->GetFE(i);
-      int intorder = 2*fe->GetOrder() + 1; // <----------
-      const IntegrationRule *ir;
-      if (irs)
-         ir = irs[fe->GetGeomType()];
-      else
-         ir = &(IntRules.Get(fe->GetGeomType(), intorder));
-      GetVectorValues(i, *ir, vals, tr);
-      T = fes->GetElementTransformation(i);
-      exsol.Eval(exact_vals, *T, *ir);
-      vals -= exact_vals;
-      loc_errs.SetSize(vals.Width());
-      // compute the lengths of the errors at the integration points
-      // thus the vector max. norm is rotationally invariant
-      vals.Norm2(loc_errs);
-      double loc_error = loc_errs.Normlinf();
-      if (error < loc_error)
-         error = loc_error;
-   }
-
-   return error;
-}
-
 double GridFunction::ComputeW11Error(
    Coefficient *exsol, VectorCoefficient *exgrad, int norm_type,
    Array<int> *elems, const IntegrationRule *irs[]) const
@@ -1477,38 +1444,139 @@ double GridFunction::ComputeW11Error(
    return error;
 }
 
-double GridFunction::ComputeL1Error(
-   VectorCoefficient &exsol, const IntegrationRule *irs[]) const
+double GridFunction::ComputeLpError(const double p, Coefficient &exsol,
+                                    Coefficient *weight,
+                                    const IntegrationRule *irs[]) const
 {
    double error = 0.0;
    const FiniteElement *fe;
    ElementTransformation *T;
-   DenseMatrix vals, exact_vals, tr;
+   Vector vals;
+
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      fe = fes->GetFE(i);
+      const IntegrationRule *ir;
+      if (irs)
+      {
+         ir = irs[fe->GetGeomType()];
+      }
+      else
+      {
+         int intorder = 2*fe->GetOrder() + 1; // <----------
+         ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+      }
+      GetValues(i, *ir, vals);
+      T = fes->GetElementTransformation(i);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         double err = fabs(vals(j) - exsol.Eval(*T, ip));
+         if (p < numeric_limits<double>::infinity())
+         {
+            err = pow(err, p);
+            if (weight)
+               err *= weight->Eval(*T, ip);
+            error += ip.weight * T->Weight() * err;
+         }
+         else
+         {
+            if (weight)
+               err *= weight->Eval(*T, ip);
+            error = fmax(error, err);
+         }
+      }
+   }
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // negative quadrature weights may cause the error to be negative
+      if (error < 0.)
+         error = -pow(-error, 1./p);
+      else
+         error = pow(error, 1./p);
+   }
+
+   return error;
+}
+
+double GridFunction::ComputeLpError(const double p, VectorCoefficient &exsol,
+                                    Coefficient *weight,
+                                    VectorCoefficient *v_weight,
+                                    const IntegrationRule *irs[]) const
+{
+   double error = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   DenseMatrix vals, exact_vals;
    Vector loc_errs;
 
    for (int i = 0; i < fes->GetNE(); i++)
    {
       fe = fes->GetFE(i);
-      int intorder = 2*fe->GetOrder() + 1; // <----------
       const IntegrationRule *ir;
       if (irs)
+      {
          ir = irs[fe->GetGeomType()];
+      }
       else
+      {
+         int intorder = 2*fe->GetOrder() + 1; // <----------
          ir = &(IntRules.Get(fe->GetGeomType(), intorder));
-      GetVectorValues(i, *ir, vals, tr);
+      }
       T = fes->GetElementTransformation(i);
+      GetVectorValues(*T, *ir, vals);
       exsol.Eval(exact_vals, *T, *ir);
       vals -= exact_vals;
       loc_errs.SetSize(vals.Width());
-      // compute the lengths of the errors at the integration points
-      // thus the vector L_1 norm is rotationally invariant
-      vals.Norm2(loc_errs);
+      if (!v_weight)
+      {
+         // compute the lengths of the errors at the integration points
+         // thus the vector norm is rotationally invariant
+         vals.Norm2(loc_errs);
+      }
+      else
+      {
+         v_weight->Eval(exact_vals, *T, *ir);
+         // column-wise dot product of the vector error (in vals) and the
+         // vector weight (in exact_vals)
+         for (int j = 0; j < vals.Width(); j++)
+         {
+            double err = 0.0;
+            for (int d = 0; d < vals.Height(); d++)
+               err += vals(d,j)*exact_vals(d,j);
+            loc_errs(j) = fabs(err);
+         }
+      }
       for (int j = 0; j < ir->GetNPoints(); j++)
       {
          const IntegrationPoint &ip = ir->IntPoint(j);
          T->SetIntPoint(&ip);
-         error += ip.weight * T->Weight() * loc_errs(j);
+         double err = loc_errs(j);
+         if (p < numeric_limits<double>::infinity())
+         {
+            err = pow(err, p);
+            if (weight)
+               err *= weight->Eval(*T, ip);
+            error += ip.weight * T->Weight() * err;
+         }
+         else
+         {
+            if (weight)
+               err *= weight->Eval(*T, ip);
+            error = fmax(error, err);
+         }
       }
+   }
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // negative quadrature weights may cause the error to be negative
+      if (error < 0.)
+         error = -pow(-error, 1./p);
+      else
+         error = pow(error, 1./p);
    }
 
    return error;

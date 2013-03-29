@@ -209,79 +209,33 @@ void ParGridFunction::ProjectCoefficient(Coefficient &coeff)
    }
 }
 
-double ParGridFunction::ComputeL1Error(Coefficient *exsol[],
-                                       const IntegrationRule *irs[]) const
+double ParGridFunction::GlobalLpNorm(const double p, double loc_norm) const
 {
-   double lerr, gerr;
+   double glob_norm;
 
-   lerr = GridFunction::ComputeW11Error(*exsol, NULL, 1, NULL, irs);
+   if (p < numeric_limits<double>::infinity())
+   {
+      // negative quadrature weights may cause the error to be negative
+      if (loc_norm < 0.)
+         loc_norm = -pow(-loc_norm, p);
+      else
+         loc_norm = pow(loc_norm, p);
 
-   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes->GetComm());
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM,
+                    pfes->GetComm());
 
-   return gerr;
-}
+      if (glob_norm < 0.)
+         glob_norm = -pow(-glob_norm, 1./p);
+      else
+         glob_norm = pow(glob_norm, 1./p);
+   }
+   else
+   {
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX,
+                    pfes->GetComm());
+   }
 
-double ParGridFunction::ComputeL1Error(VectorCoefficient &exsol,
-                                       const IntegrationRule *irs[]) const
-{
-   double lerr, gerr;
-
-   lerr = GridFunction::ComputeL1Error(exsol, irs);
-
-   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes->GetComm());
-
-   return gerr;
-}
-
-double ParGridFunction::ComputeL2Error(Coefficient *exsol[],
-                                       const IntegrationRule *irs[]) const
-{
-   double lerr, gerr;
-
-   lerr = GridFunction::ComputeL2Error(exsol, irs);
-   lerr *= lerr;
-
-   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes->GetComm());
-
-   return sqrt(gerr);
-}
-
-double ParGridFunction::ComputeL2Error(VectorCoefficient &exsol,
-                                       const IntegrationRule *irs[],
-                                       Array<int> *elems) const
-{
-   double lerr, gerr;
-
-   lerr = GridFunction::ComputeL2Error(exsol, irs, elems);
-   lerr *= lerr;
-
-   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_SUM, pfes->GetComm());
-
-   return sqrt(gerr);
-}
-
-double ParGridFunction::ComputeMaxError(Coefficient *exsol[],
-                                        const IntegrationRule *irs[]) const
-{
-   double lerr, gerr;
-
-   lerr = GridFunction::ComputeMaxError(exsol, irs);
-
-   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_MAX, pfes->GetComm());
-
-   return gerr;
-}
-
-double ParGridFunction::ComputeMaxError(VectorCoefficient &exsol,
-                                        const IntegrationRule *irs[]) const
-{
-   double lerr, gerr;
-
-   lerr = GridFunction::ComputeMaxError(exsol, irs);
-
-   MPI_Allreduce(&lerr, &gerr, 1, MPI_DOUBLE, MPI_MAX, pfes->GetComm());
-
-   return gerr;
+   return glob_norm;
 }
 
 void ParGridFunction::Save(ostream &out)

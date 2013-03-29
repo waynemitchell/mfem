@@ -12,6 +12,8 @@
 #ifndef MFEM_GRIDFUNC
 #define MFEM_GRIDFUNC
 
+#include <limits>
+
 /// Class for grid function - Vector with asociated FE space.
 class GridFunction : public Vector
 {
@@ -58,6 +60,8 @@ public:
                            int vdim = 1) const;
 
    void GetVectorValue(int i, const IntegrationPoint &ip, Vector &val) const;
+
+   void GetValues(int i, const IntegrationRule &ir, Vector &vals, int vdim = 1) const;
 
    void GetValues(int i, const IntegrationRule &ir, Vector &vals,
                   DenseMatrix &tr, int vdim = 1) const;
@@ -139,10 +143,7 @@ public:
 
    double ComputeL2Error(Coefficient &exsol,
                          const IntegrationRule *irs[] = NULL) const
-   {
-      Coefficient *exsol_p = &exsol;
-      return ComputeL2Error(&exsol_p, irs);
-   }
+   { return ComputeLpError(2.0, exsol, NULL, irs); }
 
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const;
@@ -158,25 +159,42 @@ public:
    double ComputeMaxError(Coefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
    {
-      Coefficient *exsol_p = &exsol;
-      return ComputeMaxError(&exsol_p, irs);
+      return ComputeLpError(numeric_limits<double>::infinity(),
+                            exsol, NULL, irs);
    }
 
    double ComputeMaxError(Coefficient *exsol[],
                           const IntegrationRule *irs[] = NULL) const;
 
    double ComputeMaxError(VectorCoefficient &exsol,
-                          const IntegrationRule *irs[] = NULL) const;
+                          const IntegrationRule *irs[] = NULL) const
+   {
+      return ComputeLpError(numeric_limits<double>::infinity(),
+                            exsol, NULL, NULL, irs);
+   }
 
    double ComputeL1Error(Coefficient &exsol,
                          const IntegrationRule *irs[] = NULL) const
-   { return ComputeW11Error(&exsol, NULL, 1, NULL, irs); }
+   { return ComputeLpError(1.0, exsol, NULL, irs); }
 
    double ComputeW11Error(Coefficient *exsol, VectorCoefficient *exgrad,
                           int norm_type, Array<int> *elems = NULL,
                           const IntegrationRule *irs[] = NULL) const;
 
    double ComputeL1Error(VectorCoefficient &exsol,
+                         const IntegrationRule *irs[] = NULL) const
+   { return ComputeLpError(1.0, exsol, NULL, NULL, irs); }
+
+   double ComputeLpError(const double p, Coefficient &exsol,
+                         Coefficient *weight = NULL,
+                         const IntegrationRule *irs[] = NULL) const;
+
+   /** When given a vector weight, compute the pointwise (scalar) error as the
+       dot product of the vector error with the vector weight. Otherwise, the
+       scalar error is the l_2 norm of the vector error. */
+   double ComputeLpError(const double p, VectorCoefficient &exsol,
+                         Coefficient *weight = NULL,
+                         VectorCoefficient *v_weight = NULL,
                          const IntegrationRule *irs[] = NULL) const;
 
    /// Redefine '=' for GridFunction = constant.

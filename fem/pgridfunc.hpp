@@ -20,6 +20,8 @@ protected:
 
    Vector face_nbr_data;
 
+   double GlobalLpNorm(const double p, double loc_norm) const;
+
 public:
    ParGridFunction() { pfes = NULL; }
 
@@ -89,35 +91,75 @@ public:
    void ProjectCoefficient(Coefficient &coeff);
 
    double ComputeL1Error(Coefficient *exsol[],
-                         const IntegrationRule *irs[] = NULL) const;
+                         const IntegrationRule *irs[] = NULL) const
+   {
+      return GlobalLpNorm(1.0, GridFunction::ComputeW11Error(
+                             *exsol, NULL, 1, NULL, irs));
+   }
 
    double ComputeL1Error(Coefficient &exsol,
                          const IntegrationRule *irs[] = NULL) const
-   { Coefficient *exsol_p = &exsol; return ComputeL1Error(&exsol_p, irs); }
+   { return ComputeLpError(1.0, exsol, NULL, irs); }
 
    double ComputeL1Error(VectorCoefficient &exsol,
-                         const IntegrationRule *irs[] = NULL) const;
+                         const IntegrationRule *irs[] = NULL) const
+   { return ComputeLpError(1.0, exsol, NULL, NULL, irs); }
 
    double ComputeL2Error(Coefficient *exsol[],
-                         const IntegrationRule *irs[] = NULL) const;
+                         const IntegrationRule *irs[] = NULL) const
+   { return GlobalLpNorm(2.0, GridFunction::ComputeL2Error(exsol, irs)); }
 
    double ComputeL2Error(Coefficient &exsol,
                          const IntegrationRule *irs[] = NULL) const
-   { Coefficient *exsol_p = &exsol; return ComputeL2Error(&exsol_p, irs); }
+   { return ComputeLpError(2.0, exsol, NULL, irs); }
 
    double ComputeL2Error(VectorCoefficient &exsol,
                          const IntegrationRule *irs[] = NULL,
-                         Array<int> *elems = NULL) const;
+                         Array<int> *elems = NULL) const
+   {
+      return GlobalLpNorm(2.0, GridFunction::ComputeL2Error(exsol, irs, elems));
+   }
 
    double ComputeMaxError(Coefficient *exsol[],
-                          const IntegrationRule *irs[] = NULL) const;
+                          const IntegrationRule *irs[] = NULL) const
+   {
+      return GlobalLpNorm(numeric_limits<double>::infinity(),
+                          GridFunction::ComputeMaxError(exsol, irs));
+   }
 
    double ComputeMaxError(Coefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
-   { Coefficient *exsol_p = &exsol; return ComputeMaxError(&exsol_p, irs); }
+   {
+      return ComputeLpError(numeric_limits<double>::infinity(),
+                            exsol, NULL, irs);
+   }
 
    double ComputeMaxError(VectorCoefficient &exsol,
-                          const IntegrationRule *irs[] = NULL) const;
+                          const IntegrationRule *irs[] = NULL) const
+   {
+      return ComputeLpError(numeric_limits<double>::infinity(),
+                            exsol, NULL, NULL, irs);
+   }
+
+   double ComputeLpError(const double p, Coefficient &exsol,
+                         Coefficient *weight = NULL,
+                         const IntegrationRule *irs[] = NULL) const
+   {
+      return GlobalLpNorm(p, GridFunction::ComputeLpError(
+                             p, exsol, weight, irs));
+   }
+
+   /** When given a vector weight, compute the pointwise (scalar) error as the
+       dot product of the vector error with the vector weight. Otherwise, the
+       scalar error is the l_2 norm of the vector error. */
+   double ComputeLpError(const double p, VectorCoefficient &exsol,
+                         Coefficient *weight = NULL,
+                         VectorCoefficient *v_weight = NULL,
+                         const IntegrationRule *irs[] = NULL) const
+   {
+      return GlobalLpNorm(p, GridFunction::ComputeLpError(
+                             p, exsol, weight, v_weight, irs));
+   }
 
    /** Save the local portion of the ParGridFunction. It differs from the
        serial GridFunction::Save in that it takes into account the signs of
