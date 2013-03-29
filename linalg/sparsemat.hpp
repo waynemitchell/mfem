@@ -248,7 +248,7 @@ public:
    double MaxNorm() const;
 
    /// Count the number of entries with |a_ij| < tol
-   int CountSmallElems(double tol);
+   int CountSmallElems(double tol) const;
 
    /// Call this if data has been stolen.
    void LoseData() { I=0; J=0; A=0; }

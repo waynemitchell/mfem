@@ -482,7 +482,8 @@ void Vector::Print(ostream &out, int width) const
 void Vector::Print_HYPRE(ostream &out) const
 {
    int i;
-   ios::fmtflags old_fmt = out.setf(ios::scientific);
+   ios::fmtflags old_fmt = out.flags();
+   out.setf(ios::scientific);
    int old_prec = out.precision(14);
 
    out << size << '\n';  // number of rows
@@ -491,7 +492,7 @@ void Vector::Print_HYPRE(ostream &out) const
       out << data[i] << '\n';
 
    out.precision(old_prec);
-   out.setf(old_fmt);
+   out.flags(old_fmt);
 }
 
 void Vector::Randomize(int seed)

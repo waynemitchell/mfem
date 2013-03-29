@@ -451,7 +451,7 @@ double SparseMatrix::MaxNorm() const
    return m;
 }
 
-int SparseMatrix::CountSmallElems(double tol)
+int SparseMatrix::CountSmallElems(double tol) const
 {
    int i, counter = 0;
 
@@ -1472,20 +1472,22 @@ void SparseMatrix::Print(ostream & out, int _width) const
 void SparseMatrix::PrintMatlab(ostream & out) const
 {
    int i, j;
-   ios::fmtflags old_fmt = out.setf(ios::scientific);
+   ios::fmtflags old_fmt = out.flags();
+   out.setf(ios::scientific);
    int old_prec = out.precision(14);
 
    for(i = 0; i < size; i++)
       for (j = I[i]; j < I[i+1]; j++)
          out << i+1 << " " << J[j]+1 << " " << A[j] << endl;
    out.precision(old_prec);
-   out.setf(old_fmt);
+   out.flags(old_fmt);
 }
 
 void SparseMatrix::PrintMM(ostream & out) const
 {
    int i, j;
-   ios::fmtflags old_fmt = out.setf(ios::scientific);
+   ios::fmtflags old_fmt = out.flags();
+   out.setf(ios::scientific);
    int old_prec = out.precision(14);
 
    out << "%%MatrixMarket matrix coordinate real general" << endl
@@ -1496,7 +1498,7 @@ void SparseMatrix::PrintMM(ostream & out) const
       for (j = I[i]; j < I[i+1]; j++)
          out << i+1 << " " << J[j]+1 << " " << A[j] << endl;
    out.precision(old_prec);
-   out.setf(old_fmt);
+   out.flags(old_fmt);
 }
 
 void SparseMatrix::PrintCSR(ostream & out) const
