@@ -15,8 +15,6 @@ const double eps = 1e-12;
 
 int rho_exact_option = -1;
 
-
-
 double rho_exact(Vector &x);
 void smooth_displacement(const Vector &, Vector &);
 
@@ -496,7 +494,6 @@ int main (int argc, char *argv[])
          "2) Generate nx-by-ny mesh for the rectangle [xL,xR]x[0,1]\n"
          " --> "  << flush;
       cin >> ny;
-      ny = 10;
 
       cout << "enter xL --> " << flush;
       cin >> xL;
