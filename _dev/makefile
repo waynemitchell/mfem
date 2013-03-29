@@ -37,7 +37,7 @@ OPENMP_LIBS_YES = -fopenmp
 OPENMP_LIBS     = $(OPENMP_LIBS_$(USE_OPENMP))
 
 # The MESQUITE library
-USE_MESQUITE     = YES
+USE_MESQUITE     = NO
 MESQUITE_DIR     = ../../mesquite-2.99/lib
 MESQUITE_DEF_NO  =
 MESQUITE_DEF_YES = -DMFEM_USE_MESQUITE
@@ -47,7 +47,7 @@ MESQUITE_LIB_YES = -L$(MESQUITE_DIR) -lmesquite
 MESQUITE_LIB     = $(MESQUITE_LIB_$(USE_MESQUITE))
 
 # The LAPACK and BLAS libraries (needed if MFEM was compiled with LAPACK support)
-USE_LAPACK = YES
+USE_LAPACK = NO
 LAPACK_DIR = $(HOME)/lapack
 LAPACK_LIB = -L$(LAPACK_DIR) -llapack
 BLAS_DIR   = $(HOME)/lapack
@@ -64,7 +64,7 @@ PROFILER_LIB = -L$(PROFILER_DIR) -lprofiler
 
 
 serial: ex1x ex3x ex4x test_simplex_intrules print_quadrature_rule \
- view_basis ex5 ex6 ex7 ex8 discrete-operators
+ view_basis ex5 ex6 ex7 ex8 ex9 discrete-operators
 
 parallel: ex1px ex3px ex5p
 
@@ -98,14 +98,18 @@ ex5: ex5.cpp
 ex5p: ex5p.cpp
 	$(MPICC) $(MPIOPTS) ex5p.cpp -o ex5p $(MPILIBS)
 
-ex8: ex8.cpp
-	$(CC) $(OPTS) ex8.cpp -o ex8 $(LIBS)
-
 ex6: ex6.cpp
 	$(CC) $(OPTS) ex6.cpp -o ex6 $(LIBS)
 
 ex7: ex7.cpp
 	$(CC) $(OPTS) ex7.cpp -o ex7 $(LIBS)
+
+ex8: ex8.cpp
+	$(CC) $(OPTS) ex8.cpp -o ex8 $(LIBS)
+
+ex9: ex9.cpp
+	$(CC) $(OPTS) ex9.cpp -o ex9 $(LIBS)
+
 
 test_interp: test_interp.cpp
 	$(CC) $(OPTS) test_interp.cpp -o test_interp $(LIBS)
@@ -127,7 +131,7 @@ prof-debug:
 
 clean:
 	rm -f *.o *~ ex1x ex3x ex4x test_simplex_intrules print_quadrature_rule
-	rm -f view_basis ex5 ex5p ex6 ex7 ex8 test_interp ex1px ex3px ex8p
+	rm -f view_basis ex5 ex5p ex6 ex7 ex8 ex9 test_interp ex1px ex3px ex8p
 	rm -f mesh.* sol.* fir-*.mesh taubin-*.mesh
 	rm -f refined.mesh sol.gf perturbed.mesh smoothed.mesh
 	rm -f discrete-operators G_matrix.txt GtG_matrix.txt Pi_h_matrix.txt
