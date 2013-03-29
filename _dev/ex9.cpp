@@ -500,9 +500,6 @@ int main (int argc, char *argv[])
       cout << "enter xR --> " << flush;
       cin >> xR;
 
-      xL = 0.0;
-      xR = 1.0;
-
       cout << "enter nx --> " << flush;
       cin >> nx;
 
