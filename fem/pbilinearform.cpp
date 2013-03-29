@@ -73,7 +73,10 @@ void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
          fbfi[k]->AssembleFaceMatrix(*pfes->GetFE(T->Elem1No),
                                      *pfes->GetFaceNbrFE(T->Elem2No),
                                      *T, elemmat);
-         mat->AddSubMatrix(vdofs1, vdofs_all, elemmat, skip_zeros);
+         if (keep_nbr_block)
+            mat->AddSubMatrix(vdofs_all, vdofs_all, elemmat, skip_zeros);
+         else
+            mat->AddSubMatrix(vdofs1, vdofs_all, elemmat, skip_zeros);
       }
    }
 }
@@ -83,7 +86,11 @@ void ParBilinearForm::Assemble(int skip_zeros)
    if (mat == NULL && fbfi.Size() > 0)
    {
       pfes->ExchangeFaceNbrData();
-      mat = new SparseMatrix(size, size + pfes->GetFaceNbrVSize());
+      int nbr_size = pfes->GetFaceNbrVSize();
+      if (keep_nbr_block)
+         mat = new SparseMatrix(size + nbr_size, size + nbr_size);
+      else
+         mat = new SparseMatrix(size, size + nbr_size);
    }
 
    BilinearForm::Assemble(skip_zeros);

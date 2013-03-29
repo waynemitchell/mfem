@@ -18,16 +18,24 @@ class ParBilinearForm : public BilinearForm
 protected:
    ParFiniteElementSpace *pfes;
 
+   bool keep_nbr_block;
+
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
 
    void AssembleSharedFaces(int skip_zeros = 1);
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-      : BilinearForm(pf) { pfes = pf; }
+      : BilinearForm(pf) { pfes = pf; keep_nbr_block = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
-      : BilinearForm(pf, bf) { pfes = pf; }
+      : BilinearForm(pf, bf) { pfes = pf; keep_nbr_block = false; }
+
+   /** When set to true and the ParBilinearForm has interior face integrators,
+       the local SparseMatrix will include the rows (in addition to the columns)
+       corresponding to face-neighbor dofs. The default behavior is to disregard
+       those rows. Must be called before the first Assemble call. */
+   void KeepNbrBlock(bool knb = true) { keep_nbr_block = knb; }
 
    /// Assemble the local matrix
    void Assemble(int skip_zeros = 1);
