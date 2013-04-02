@@ -168,8 +168,6 @@ protected:
 
    int GetBisectionHierarchy (Element *E);
 
-   FiniteElement *GetTransformationFEforElementType (int);
-
    /// Used in GetFaceElementTransformations (...)
    void GetLocalPtToSegTransformation(IsoparametricTransformation &, int);
    void GetLocalSegToTriTransformation (IsoparametricTransformation &loc,
@@ -401,6 +399,8 @@ public:
       of dimension Dim. */
    void GetBdrPointMatrix(int i, DenseMatrix &pointmat) const;
 
+   static FiniteElement *GetTransformationFEforElementType(int);
+
    /** Builds the transformation defining the i-th element in the user-defined
        variable. */
    void GetElementTransformation(int i, IsoparametricTransformation *ElTr);
@@ -472,6 +472,11 @@ public:
 
    ///  The returned Table must be destroyed by the caller
    Table *GetVertexToElementTable();
+
+   /** Return the "face"-element Table. Here "face" refers to face (3D),
+       edge (2D), or vertex (1D).
+       The returned Table must be destroyed by the caller. */
+   Table *GetFaceToElementTable() const;
 
    /** This method modifies a tetrahedral mesh so that Nedelec spaces of order
        greater than 1 can be defined on the mesh. Specifically, we

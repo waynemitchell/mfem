@@ -46,15 +46,25 @@ protected:
 
    DenseTensor *element_matrices;
 
+   int precompute_sparsity;
+   // Allocate appropriate SparseMatrix and assign it to mat
+   void AllocMat();
+
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
-   { fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL; }
+   { fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
+      precompute_sparsity = 0; }
 
 public:
    /// Creates bilinear form associated with FE space *f.
-   BilinearForm (FiniteElementSpace * f);
+   BilinearForm(FiniteElementSpace *f);
 
-   BilinearForm (FiniteElementSpace * f, BilinearForm * bf);
+   BilinearForm(FiniteElementSpace *f, BilinearForm *bf, int ps = 0);
+
+   /** For scalar FE spaces, precompute the sparsity pattern of the matrix
+       (assuming dense element matrices) based on the types of integrators
+       present in the bilinear form. */
+   void UsePrecomputedSparsity(int ps = 1) { precompute_sparsity = ps; }
 
    Array<BilinearFormIntegrator*> *GetDBFI() { return &dbfi; }
 

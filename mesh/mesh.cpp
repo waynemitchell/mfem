@@ -2861,6 +2861,34 @@ Table *Mesh::GetVertexToElementTable()
    return vert_elem;
 }
 
+Table *Mesh::GetFaceToElementTable() const
+{
+   Table *face_elem = new Table;
+
+   face_elem->MakeI(faces_info.Size());
+
+   for (int i = 0; i < faces_info.Size(); i++)
+   {
+      if (faces_info[i].Elem2No >= 0)
+         face_elem->AddColumnsInRow(i, 2);
+      else
+         face_elem->AddAColumnInRow(i);
+   }
+
+   face_elem->MakeJ();
+
+   for (int i = 0; i < faces_info.Size(); i++)
+   {
+      face_elem->AddConnection(i, faces_info[i].Elem1No);
+      if (faces_info[i].Elem2No >= 0)
+         face_elem->AddConnection(i, faces_info[i].Elem2No);
+   }
+
+   face_elem->ShiftUpI();
+
+   return face_elem;
+}
+
 void Mesh::GetElementFaces(int i, Array<int> &fcs, Array<int> &cor)
    const
 {

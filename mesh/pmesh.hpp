@@ -88,6 +88,9 @@ public:
    int GetNFaceNeighbors() const { return face_nbr_group.Size(); }
    int GetFaceNbrGroup(int fn) const { return face_nbr_group[fn]; }
    int GetFaceNbrRank(int fn) const;
+   /** Similar to Mesh::GetFaceToElementTable with added face-neighbor elements
+       with indices offset by the local number of elements. */
+   Table *GetFaceToAllElementTable() const;
 
    /** Get the FaceElementTransformations for the given shared face (edge 2D).
        In the returned object, 1 and 2 refer to the local and the neighbor

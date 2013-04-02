@@ -14,6 +14,48 @@
 #include "fem.hpp"
 #include <math.h>
 
+void BilinearForm::AllocMat()
+{
+   if (precompute_sparsity == 0 || fes->GetVDim() > 1)
+   {
+      mat = new SparseMatrix(size);
+      return;
+   }
+
+   fes->BuildElementToDofTable();
+   const Table &elem_dof = fes->GetElementToDofTable();
+   Table dof_dof;
+
+   if (fbfi.Size() > 0)
+   {
+      // the sparsity pattern is defined from the map: face->element->dof
+      Table face_dof, dof_face;
+      {
+         Table *face_elem = fes->GetMesh()->GetFaceToElementTable();
+         ::Mult(*face_elem, elem_dof, face_dof);
+         delete face_elem;
+      }
+      Transpose(face_dof, dof_face, size);
+      ::Mult(dof_face, face_dof, dof_dof);
+   }
+   else
+   {
+      // the sparsity pattern is defined from the map: element->dof
+      Table dof_elem;
+      Transpose(elem_dof, dof_elem, size);
+      ::Mult(dof_elem, elem_dof, dof_dof);
+   }
+
+   int *I = dof_dof.GetI();
+   int *J = dof_dof.GetJ();
+   double *data = new double[I[size]];
+
+   mat = new SparseMatrix(I, J, data, size, size);
+   *mat = 0.0;
+
+   dof_dof.LoseData();
+}
+
 BilinearForm::BilinearForm (FiniteElementSpace * f)
    : Matrix (f->GetVSize())
 {
@@ -21,19 +63,20 @@ BilinearForm::BilinearForm (FiniteElementSpace * f)
    mat = mat_e = NULL;
    extern_bfs = 0;
    element_matrices = NULL;
+   precompute_sparsity = 0;
 }
 
-BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf)
+BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    : Matrix (f->GetVSize())
 {
    int i;
    Array<BilinearFormIntegrator*> *bfi;
 
    fes = f;
-   mat = new SparseMatrix (size);
    mat_e = NULL;
    extern_bfs = 1;
    element_matrices = NULL;
+   precompute_sparsity = ps;
 
    bfi = bf->GetDBFI();
    dbfi.SetSize (bfi->Size());
@@ -54,6 +97,8 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf)
    bfbfi.SetSize (bfi->Size());
    for (i = 0; i < bfi->Size(); i++)
       bfbfi[i] = (*bfi)[i];
+
+   AllocMat();
 }
 
 double& BilinearForm::Elem (int i, int j)
@@ -137,7 +182,7 @@ void BilinearForm::AssembleElementMatrix(
    int i, const DenseMatrix &elmat, Array<int> &vdofs, int skip_zeros)
 {
    if (mat == NULL)
-      mat = new SparseMatrix(size);
+      AllocMat();
    fes->GetElementVDofs(i, vdofs);
    mat->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
 }
@@ -150,7 +195,7 @@ void BilinearForm::Assemble (int skip_zeros)
    int i;
 
    if (mat == NULL)
-      mat = new SparseMatrix(size);
+      AllocMat();
 
 #ifdef MFEM_USE_OPENMP
    int free_element_matrices = 0;

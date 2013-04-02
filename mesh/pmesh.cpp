@@ -1044,6 +1044,50 @@ int ParMesh::GetFaceNbrRank(int fn) const
    return nbr_rank;
 }
 
+Table *ParMesh::GetFaceToAllElementTable() const
+{
+   const Array<int> *s2l_face;
+   if (Dim == 1)
+      s2l_face = &svert_lvert;
+   else if (Dim == 2)
+      s2l_face = &sedge_ledge;
+   else
+      s2l_face = &sface_lface;
+
+   Table *face_elem = new Table;
+
+   face_elem->MakeI(faces_info.Size());
+
+   for (int i = 0; i < faces_info.Size(); i++)
+   {
+      if (faces_info[i].Elem2No >= 0)
+         face_elem->AddColumnsInRow(i, 2);
+      else
+         face_elem->AddAColumnInRow(i);
+   }
+   for (int i = 0; i < s2l_face->Size(); i++)
+      face_elem->AddAColumnInRow((*s2l_face)[i]);
+
+   face_elem->MakeJ();
+
+   for (int i = 0; i < faces_info.Size(); i++)
+   {
+      face_elem->AddConnection(i, faces_info[i].Elem1No);
+      if (faces_info[i].Elem2No >= 0)
+         face_elem->AddConnection(i, faces_info[i].Elem2No);
+   }
+   for (int i = 0; i < s2l_face->Size(); i++)
+   {
+      int lface = (*s2l_face)[i];
+      int nbr_elem_idx = -1 - faces_info[lface].Elem2No;
+      face_elem->AddConnection(lface, NumOfElements + nbr_elem_idx);
+   }
+
+   face_elem->ShiftUpI();
+
+   return face_elem;
+}
+
 FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 {
    int FaceNo;
