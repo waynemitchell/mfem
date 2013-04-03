@@ -43,8 +43,8 @@ private:
 
 public:
    FCT_Update(Mesh *_mesh, GridFunction *_u, GridFunction *rho) :
-        fes(rho->FESpace()), vc_u(_u), M(fes), A(fes),
-        rho_out(rho_exact), b(fes)
+      fes(rho->FESpace()), vc_u(_u), M(fes), A(fes),
+      rho_out(rho_exact), b(fes)
    {
       mesh = _mesh;
       u = _u;
@@ -61,8 +61,8 @@ public:
       // A is -(A^T+2S) from the notes
       A.AddDomainIntegrator(new ConvectionIntegrator(vc_u));
       A.AddInteriorFaceIntegrator(
-	 new TransposeIntegrator(
-	    new DGTraceIntegrator(vc_u, -1.0, -bt)));
+         new TransposeIntegrator(
+            new DGTraceIntegrator(vc_u, -1.0, -bt)));
 
 
       A.Assemble(0);
@@ -142,15 +142,15 @@ void FCT_Update::Step(Vector &x, double tau, double dtau, Table& nbrs) const
       Array<int> rv(block_size);
       Array<int> cv(block_size);
       for (int r = 0; r < block_size; r++) {
-	 for (int c = 0; c < block_size; c++) {
+         for (int c = 0; c < block_size; c++) {
 
-	    int i = r +nb*block_size;
-	    int j = c +nb*block_size;
+            int i = r +nb*block_size;
+            int j = c +nb*block_size;
 
-	    rv[r] = i;
-	    cv[c] = j;
-	    block(r,c) = M(i,j);
-	 }
+            rv[r] = i;
+            cv[c] = j;
+            block(r,c) = M(i,j);
+         }
       }
 
       block.Invert();
@@ -169,9 +169,9 @@ void FCT_Update::Step(Vector &x, double tau, double dtau, Table& nbrs) const
 
       for (int n = I[i]; n < I[i+1]; n++) {
 
-	 int j = J[n];
+         int j = J[n];
 
-	 sum += Mmat(i,j);
+         sum += Mmat(i,j);
       }
       ML.Set(i,i,sum);
       MLinv.Set(i,i,1.0/sum);
@@ -206,14 +206,14 @@ void FCT_Update::Step(Vector &x, double tau, double dtau, Table& nbrs) const
 
       for (int n = I[i]; n < I[i+1]; n++) {
 
-	 int j = J[n];
+         int j = J[n];
 
-	 double dij = 0;
-	 if (i != j) {
-  	    dij = max(0.0, max(-Amat(i,j), -Amat(j,i)));
-	 }
+         double dij = 0;
+         if (i != j) {
+            dij = max(0.0, max(-Amat(i,j), -Amat(j,i)));
+         }
 
-	 D.Set(i, j, dij);
+         D.Set(i, j, dij);
       }
    }
    bool skip_zeros = false;
@@ -226,11 +226,11 @@ void FCT_Update::Step(Vector &x, double tau, double dtau, Table& nbrs) const
 
       for (int n = I[i]; n < I[i+1]; n++) {
 
-	 int j = J[n];
+         int j = J[n];
 
-	 if (i != j) {
-	    sum += D(i,j);
-	 };
+         if (i != j) {
+            sum += D(i,j);
+         };
 
       }
       D.Set(i,i,-sum);
@@ -243,9 +243,9 @@ void FCT_Update::Step(Vector &x, double tau, double dtau, Table& nbrs) const
 
       for (int n = I[i]; n < I[i+1]; n++) {
 
-	 int j = J[n];
+         int j = J[n];
 
-	 Astar.Set(i,j,Amat(i,j));
+         Astar.Set(i,j,Amat(i,j));
       }
    }
    Astar.Finalize(false);
@@ -306,11 +306,11 @@ void FCT_Update::Step(Vector &x, double tau, double dtau, Table& nbrs) const
 
       for (int n = I[i]; n < I[i+1]; n++) {
 
-	 int j = J[n];
+         int j = J[n];
 
-	 double fij = M(i,j)*(dxH(i)-dxH(j)) +dtau*D(i,j)*(x(i)-x(j));
+         double fij = M(i,j)*(dxH(i)-dxH(j)) +dtau*D(i,j)*(x(i)-x(j));
 
-	 F.Set(i,j,fij);
+         F.Set(i,j,fij);
       }
    }
    F.Finalize(false);
@@ -331,9 +331,9 @@ void FCT_Update::Step(Vector &x, double tau, double dtau, Table& nbrs) const
 
       for (int k = I[i]; k < I[i+1]; k++) {
 
-	 int j = J[k];
+         int j = J[k];
 
-	 F(i,j) > 0.0 ? rowsum_p += F(i,j) : rowsum_m += F(i,j);
+         F(i,j) > 0.0 ? rowsum_p += F(i,j) : rowsum_m += F(i,j);
       }
 
       dx_P(i) = rowsum_p*MLinv(i,i);
@@ -359,16 +359,16 @@ void FCT_Update::Step(Vector &x, double tau, double dtau, Table& nbrs) const
 
       for (int k = I[i]; k < I[i+1]; k++) {
 
-	 int j = J[k];
+         int j = J[k];
 
-	 double aij = 1.0;
-	 if (F(i,j) >= 0) {
-	    aij = min(alpha_p(i), alpha_m(j));
-	 }
-	 else {
-	    aij = min(alpha_p(j), alpha_m(i));
-	 }
-    	 alpha_ij.Set(i, j, aij);
+         double aij = 1.0;
+         if (F(i,j) >= 0) {
+            aij = min(alpha_p(i), alpha_m(j));
+         }
+         else {
+            aij = min(alpha_p(j), alpha_m(i));
+         }
+         alpha_ij.Set(i, j, aij);
       }
    }
    alpha_ij.Finalize(false);
@@ -383,9 +383,9 @@ void FCT_Update::Step(Vector &x, double tau, double dtau, Table& nbrs) const
 
       for (int k = I[i]; k < I[i+1]; k++) {
 
-	 int j = J[k];
+         int j = J[k];
 
-	 rowsum += alpha_ij(i,j)*F(i,j);
+         rowsum += alpha_ij(i,j)*F(i,j);
 
       }
 
@@ -441,7 +441,7 @@ void DG_remap(Mesh &mesh, GridFunction &u, GridFunction &x_in,
 
    SocketSend(*rho_sock, &mesh, &x);
    *rho_sock  << "window_title 'FCT Solution'" << endl;
-   *rho_sock  << "keys cRjlmR \n";
+   *rho_sock  << "keys cRjlmRA \n";
    *rho_sock  << "window_size 600 600" << endl;
    *rho_sock  << "viewcenter 0.25 0.0" << endl;
    *rho_sock  << "zoom 1.18" << endl;
@@ -467,7 +467,7 @@ void DG_remap(Mesh &mesh, GridFunction &u, GridFunction &x_in,
 //       x.Print();
 
 // //       for (int k = 0; k < x.Size(); k++) {
-// // 	 printf("%f %f\n",nodes(k),x(k));
+// //    printf("%f %f\n",nodes(k),x(k));
 // //       }
       nodes = nodes0;
 
@@ -559,7 +559,7 @@ int main (int argc, char *argv[])
    // elements which are tensor products of quadratic finite elements. The
    // dimensionality of the vector finite element space is specified by the last
    // parameter of the FiniteElementSpace constructor.
-  cout << "Mesh curvature: ";
+   cout << "Mesh curvature: ";
    if (mesh->GetNodes())
       cout << mesh->GetNodes()->OwnFEC()->Name();
    else
@@ -706,8 +706,8 @@ int main (int argc, char *argv[])
 
    DenseMatrix I1;
    gl_fes.GetFE(0)->Project(*rho_fespace->GetFE(0),
-			    *mesh->GetElementTransformation(0),
-			    I1);
+                            *mesh->GetElementTransformation(0),
+                            I1);
    // I1.Invert();
    I1.TestInversion();
    Vector v1(gl_rho, I1.Size()), v2(rho, I1.Size());
@@ -723,16 +723,16 @@ int main (int argc, char *argv[])
       ofstream vtk_mesh("initial.vtk");
       vtk_mesh.precision(8);
       if (mesh->Dimension() == 1) {
-	 Mesh* mesh2d = Extrude1D(mesh, 1);
-	 mesh2d->PrintVTK(vtk_mesh, vtk_subdiv);
-	 GridFunction *sol2d = Extrude1DGridFunction(mesh, mesh2d, &rho, 1);
-	 sol2d->SaveVTK(vtk_mesh,"rho",vtk_subdiv);
-	 delete sol2d;
-	 delete mesh2d;
+         Mesh* mesh2d = Extrude1D(mesh, 1);
+         mesh2d->PrintVTK(vtk_mesh, vtk_subdiv);
+         GridFunction *sol2d = Extrude1DGridFunction(mesh, mesh2d, &rho, 1);
+         sol2d->SaveVTK(vtk_mesh,"rho",vtk_subdiv);
+         delete sol2d;
+         delete mesh2d;
       }
       else {
-	 mesh->PrintVTK(vtk_mesh, vtk_subdiv);
-	 rho.SaveVTK(vtk_mesh, "rho", vtk_subdiv);
+         mesh->PrintVTK(vtk_mesh, vtk_subdiv);
+         rho.SaveVTK(vtk_mesh, "rho", vtk_subdiv);
       }
    }
 
@@ -1188,10 +1188,10 @@ void smooth_displacement(const Vector &X, Vector &u)
    // d[0] *= 1. - pow(fabs(2*x - 1), 4.);
    // d[1] *= 1. - pow(fabs(2*y - 1), 4.);
 
-//    // 1D compression in x-direction
-//    const double xc = 6./7; // 1/2 --> xc \in (0,1)
-//    d[0] = x/(1.0 + (1./xc - 2.)*(1.0 - x)) - x;
-//    d[1] = 0.0;
+   // // 1D compression in x-direction
+   // const double xc = 6./7; // 1/2 --> xc \in (0,1)
+   // d[0] = x/(1.0 + (1./xc - 2.)*(1.0 - x)) - x;
+   // d[1] = 0.0;
 
    // // 1D translation in x-direction
    // d[0] = 4./1;
