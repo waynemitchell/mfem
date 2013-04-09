@@ -76,10 +76,10 @@ ex4p: ex4p.cpp
 	$(MPICC) $(MPIOPTS) ex4p.cpp -o ex4p $(MPILIBS)
 
 debug:
-	make "OPTS=$(DEBUG_OPTS)" serial
+	$(MAKE) "OPTS=$(DEBUG_OPTS)" serial
 
 pdebug:
-	make "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
+	$(MAKE) "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
 
 clean:
 	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p
