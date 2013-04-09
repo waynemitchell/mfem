@@ -83,6 +83,24 @@ public:
    using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
+/// Class for boundary integration L(v) := (g \cdot n, v)
+class BoundaryNormalLFIntegrator : public LinearFormIntegrator
+{
+   Vector shape;
+   VectorCoefficient &Q;
+   int oa, ob;
+public:
+   /// Constructs a boundary integrator with a given Coefficient QG
+   BoundaryNormalLFIntegrator(VectorCoefficient &QG, int a = 1, int b = 1)
+      : Q(QG), oa(a), ob(b) {};
+
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       ElementTransformation &Tr,
+                                       Vector &elvect);
+
+   using LinearFormIntegrator::AssembleRHSElementVect;
+};
+
 /** Class for domain integration of L(v) := (f, v), where
     f=(f1,...,fn) and v=(v1,...,vn). */
 class VectorDomainLFIntegrator : public LinearFormIntegrator
@@ -177,6 +195,22 @@ private:
 
 public:
    VectorFEBoundaryFluxLFIntegrator(Coefficient &f) : F(f) { }
+
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       ElementTransformation &Tr,
+                                       Vector &elvect);
+
+   using LinearFormIntegrator::AssembleRHSElementVect;
+};
+
+/// Class for boundary integration L(v) := (n \cross f, v)
+class VectorFEBoundaryTangentLFIntegrator : public LinearFormIntegrator
+{
+private:
+   VectorCoefficient &f;
+
+public:
+   VectorFEBoundaryTangentLFIntegrator(VectorCoefficient &QG) : f(QG) { }
 
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        ElementTransformation &Tr,

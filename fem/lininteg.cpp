@@ -80,6 +80,49 @@ void BoundaryLFIntegrator::AssembleRHSElementVect(
    }
 }
 
+void BoundaryNormalLFIntegrator::AssembleRHSElementVect(
+   const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
+{
+   int dim = el.GetDim()+1;
+   int dof = el.GetDof();
+   Vector nor(dim), Qvec;
+
+   shape.SetSize(dof);
+   elvect.SetSize(dof);
+   elvect = 0.0;
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int intorder = oa * el.GetOrder() + ob;  // <----------
+      ir = &IntRules.Get(el.GetGeomType(), intorder);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+     const IntegrationPoint &ip = ir->IntPoint(i);
+
+     Tr.SetIntPoint(&ip);
+     const DenseMatrix &Jac = Tr.Jacobian();
+     if (dim == 2)
+     {
+       nor(0) =  Jac(1,0);
+       nor(1) = -Jac(0,0);
+     }
+     else if (dim == 3)
+     {
+       nor(0) = Jac(1,0) * Jac(2,1) - Jac(2,0) * Jac(1,1);
+       nor(1) = Jac(2,0) * Jac(0,1) - Jac(0,0) * Jac(2,1);
+       nor(2) = Jac(0,0) * Jac(1,1) - Jac(1,0) * Jac(0,1);
+     }
+     Q.Eval(Qvec, Tr, ip);
+
+     el.CalcShape(ip, shape);
+
+     add(elvect, ip.weight*(Qvec*nor), shape, elvect);
+   }
+}
+
 void VectorDomainLFIntegrator::AssembleRHSElementVect(
    const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
 {
@@ -254,6 +297,41 @@ void VectorFEBoundaryFluxLFIntegrator::AssembleRHSElementVect(
       el.CalcShape(ip, shape);
 
       add(elvect, val, shape, elvect);
+   }
+}
+
+
+void VectorFEBoundaryTangentLFIntegrator::AssembleRHSElementVect(
+   const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
+{
+   int dof = el.GetDof();
+   DenseMatrix vshape(dof, 2);
+   Vector f_loc(3);
+   Vector f_hat(2);
+
+   elvect.SetSize(dof);
+   elvect = 0.0;
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int intorder = 2*el.GetOrder();  // <----------
+      ir = &IntRules.Get(el.GetGeomType(), intorder);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      Tr.SetIntPoint(&ip);
+      f.Eval(f_loc, Tr, ip);
+      Tr.Jacobian().MultTranspose(f_loc, f_hat);
+      el.CalcVShape(ip, vshape);
+
+      Swap<double>(f_hat(0), f_hat(1));
+      f_hat(0) = -f_hat(0);
+      f_hat *= ip.weight;
+      vshape.AddMult(f_hat, elvect);
    }
 }
 

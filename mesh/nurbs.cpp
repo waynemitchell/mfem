@@ -2430,7 +2430,10 @@ ParNURBSExtension::ParNURBSExtension(MPI_Comm comm, NURBSExtension *parent,
    CountElements();
    CountBdrElements();
 
-   partitioning = part;
+   // copy 'part' to 'partitioning'
+   partitioning = new int[GetGNE()];
+   for (int i = 0; i < GetGNE(); i++)
+      partitioning[i] = part[i];
    SetActive(partitioning, active_bel);
 
    GenerateActiveVertices();

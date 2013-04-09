@@ -473,7 +473,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          }
    }
 
-   if (NURBSext == NULL)
+   if (partitioning_ == NULL)
       delete [] partitioning;
 
    have_face_nbr_data = false;

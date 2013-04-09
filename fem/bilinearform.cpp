@@ -152,10 +152,8 @@ void BilinearForm::ComputeElementMatrix(int i, DenseMatrix &elmat)
 {
    if (element_matrices)
    {
-      DenseMatrix tmp(element_matrices->GetData(i),
-                      element_matrices->SizeI(),
-                      element_matrices->SizeJ());
-      elmat = tmp;
+      elmat.SetSize(element_matrices->SizeI(), element_matrices->SizeJ());
+      elmat = element_matrices->GetData(i);
       return;
    }
 

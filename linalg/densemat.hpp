@@ -120,6 +120,9 @@ public:
    /// Sets the matrix elements equal to constant c
    DenseMatrix &operator=(double c);
 
+   /// Copy the matrix entries from the given array
+   DenseMatrix &operator=(const double *d);
+
    /// Sets the matrix size and elements equal to those of m
    DenseMatrix &operator=(const DenseMatrix &m);
 

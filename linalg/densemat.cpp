@@ -291,6 +291,17 @@ DenseMatrix &DenseMatrix::operator=(double c)
    return *this;
 }
 
+DenseMatrix &DenseMatrix::operator=(const double *d)
+{
+   if (data != NULL)
+   {
+      int s = Size()*Height();
+      for (int i = 0; i < s; i++)
+         data[i] = d[i];
+   }
+   return *this;
+}
+
 DenseMatrix &DenseMatrix::operator=(const DenseMatrix &m)
 {
    int i, hw;
