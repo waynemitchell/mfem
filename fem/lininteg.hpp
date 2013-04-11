@@ -83,7 +83,7 @@ public:
    using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
-/// Class for boundary integration L(v) := (g \cdot n, v)
+/// Class for boundary integration \f$ L(v) = (g \cdot n, v) \f$
 class BoundaryNormalLFIntegrator : public LinearFormIntegrator
 {
    Vector shape;
@@ -203,7 +203,7 @@ public:
    using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
-/// Class for boundary integration L(v) := (n \cross f, v)
+/// Class for boundary integration \f$ L(v) = (n \cross f, v) \f$
 class VectorFEBoundaryTangentLFIntegrator : public LinearFormIntegrator
 {
 private:
