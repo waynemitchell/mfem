@@ -203,7 +203,7 @@ public:
    using LinearFormIntegrator::AssembleRHSElementVect;
 };
 
-/// Class for boundary integration \f$ L(v) = (n \cross f, v) \f$
+/// Class for boundary integration \f$ L(v) = (n \times f, v) \f$
 class VectorFEBoundaryTangentLFIntegrator : public LinearFormIntegrator
 {
 private:
