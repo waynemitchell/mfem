@@ -9,11 +9,12 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include <stdlib.h>
 #include "error.hpp"
 
 void mfem_error (const char *msg)
 {
    if (msg)
       std::cerr << msg << std::endl;
-   *((int *)NULL) = 0; // force crash by causing segmentation fault
+   abort(); // force crash by calling abort
 }
