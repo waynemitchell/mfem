@@ -171,7 +171,7 @@ IntegrationRules::IntegrationRules(int refined)
 
 const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
 {
-   Array<IntegrationRule *> *ir_array;
+   Array<IntegrationRule *> *ir_array = &SegmentIntRules;
 
    switch (GeomType)
    {

@@ -5244,7 +5244,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
                      int *edge1, int *edge2, int *middle)
 {
    int *vert;
-   int v[2][4], v_new, bisect, t;
+   int v[2][4], v_new = -1, bisect, t;
    Element **pce;
    Vertex V;
 
@@ -6588,7 +6588,7 @@ void Mesh::PrintVTK(ostream &out)
    out << "CELL_TYPES " << NumOfElements << '\n';
    for (int i = 0; i < NumOfElements; i++)
    {
-      int vtk_cell_type;
+      int vtk_cell_type = 5;
       if (order == 1)
       {
          switch (elements[i]->GetGeometryType())

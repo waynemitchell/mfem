@@ -4156,7 +4156,7 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
                                                 Vector &shape) const
 {
    int i, N[8];
-   double Lx, Ly, Lz;
+   double Lx = 0, Ly = 0, Lz = 0;
    double x = ip.x, y = ip.y, z = ip.z;
 
    for (i = 0; i < 27; i++)
