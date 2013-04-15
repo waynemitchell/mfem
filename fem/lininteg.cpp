@@ -100,26 +100,26 @@ void BoundaryNormalLFIntegrator::AssembleRHSElementVect(
 
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
-     const IntegrationPoint &ip = ir->IntPoint(i);
+      const IntegrationPoint &ip = ir->IntPoint(i);
 
-     Tr.SetIntPoint(&ip);
-     const DenseMatrix &Jac = Tr.Jacobian();
-     if (dim == 2)
-     {
-       nor(0) =  Jac(1,0);
-       nor(1) = -Jac(0,0);
-     }
-     else if (dim == 3)
-     {
-       nor(0) = Jac(1,0) * Jac(2,1) - Jac(2,0) * Jac(1,1);
-       nor(1) = Jac(2,0) * Jac(0,1) - Jac(0,0) * Jac(2,1);
-       nor(2) = Jac(0,0) * Jac(1,1) - Jac(1,0) * Jac(0,1);
-     }
-     Q.Eval(Qvec, Tr, ip);
+      Tr.SetIntPoint(&ip);
+      const DenseMatrix &Jac = Tr.Jacobian();
+      if (dim == 2)
+      {
+         nor(0) =  Jac(1,0);
+         nor(1) = -Jac(0,0);
+      }
+      else if (dim == 3)
+      {
+         nor(0) = Jac(1,0) * Jac(2,1) - Jac(2,0) * Jac(1,1);
+         nor(1) = Jac(2,0) * Jac(0,1) - Jac(0,0) * Jac(2,1);
+         nor(2) = Jac(0,0) * Jac(1,1) - Jac(1,0) * Jac(0,1);
+      }
+      Q.Eval(Qvec, Tr, ip);
 
-     el.CalcShape(ip, shape);
+      el.CalcShape(ip, shape);
 
-     add(elvect, ip.weight*(Qvec*nor), shape, elvect);
+      add(elvect, ip.weight*(Qvec*nor), shape, elvect);
    }
 }
 
