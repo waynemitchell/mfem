@@ -4000,7 +4000,7 @@ void RefinedBiLinear2DFiniteElement::CalcShape(const IntegrationPoint &ip,
 {
    int i;
    double x = ip.x, y = ip.y;
-   double Lx, Ly;
+   double Lx = 0.0, Ly = 0.0;
    Lx = 2.0 * ( 1. - x );
    Ly = 2.0 * ( 1. - y );
 
@@ -4045,7 +4045,7 @@ void RefinedBiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 {
    int i,j;
    double x = ip.x, y = ip.y;
-   double Lx, Ly;
+   double Lx = 0.0, Ly = 0.0;
    Lx = 2.0 * ( 1. - x );
    Ly = 2.0 * ( 1. - y );
 
@@ -4289,7 +4289,7 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
                                                  DenseMatrix &dshape) const
 {
    int i, j, N[8];
-   double Lx, Ly, Lz;
+   double Lx = 0, Ly = 0, Lz = 0;
    double x = ip.x, y = ip.y, z = ip.z;
 
    for (i = 0; i < 27; i++)

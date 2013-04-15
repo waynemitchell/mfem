@@ -198,7 +198,7 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
 
 void IntegrationRules::Set(int GeomType, int Order, IntegrationRule &IntRule)
 {
-   Array<IntegrationRule *> *ir_array;
+   Array<IntegrationRule *> *ir_array = &PointIntRules;
 
    switch (GeomType)
    {

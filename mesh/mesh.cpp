@@ -5473,7 +5473,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
 void Mesh::Bisection(int i, const DSTable &v_to_v, int *middle)
 {
    int *vert;
-   int v[2][3], v_new, bisect, t;
+   int v[2][3], v_new = -1, bisect, t;
    Element **pce;
 
    if (WantTwoLevelState)
