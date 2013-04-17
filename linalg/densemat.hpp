@@ -325,15 +325,16 @@ public:
 class DenseMatrixEigensystem
 {
    DenseMatrix &mat;
-
    Vector      EVal;
    DenseMatrix EVect;
-
    Vector ev;
+   int n;
 
+#ifdef MFEM_USE_LAPACK
    double *work;
    char jobz, uplo;
-   int n, lwork, info;
+   int lwork, info;
+#endif
 
 public:
 
@@ -352,11 +353,13 @@ public:
 class DenseMatrixSVD
 {
    Vector sv;
-
    int m, n;
+
+#ifdef MFEM_USE_LAPACK
+   double *work;
    char jobu, jobvt;
    int lwork, info;
-   double *work;
+#endif
 
    void Init();
 public:

@@ -2527,14 +2527,14 @@ DenseMatrixInverse::~DenseMatrixInverse()
 DenseMatrixEigensystem::DenseMatrixEigensystem(DenseMatrix &m)
    : mat(m)
 {
-   n = m.Size();
+   n = mat.Size();
    EVal.SetSize(n);
    EVect.SetSize(n);
    ev.SetDataAndSize(NULL, n);
-   jobz = 'V';
-   uplo = 'U';
 
 #ifdef MFEM_USE_LAPACK
+   jobz = 'V';
+   uplo = 'U';
    lwork = -1;
    double qwork;
    dsyev_(&jobz, &uplo, &n, EVect.Data(), &n, EVal.GetData(),
@@ -2570,7 +2570,9 @@ void DenseMatrixEigensystem::Eval()
 
 DenseMatrixEigensystem::~DenseMatrixEigensystem()
 {
+#ifdef MFEM_USE_LAPACK
    delete [] work;
+#endif
 }
 
 
@@ -2604,7 +2606,6 @@ void DenseMatrixSVD::Init()
    lwork = (int) qwork;
    work = new double[lwork];
 #else
-   work = NULL;
    mfem_error("DenseMatrixSVD::Init(): Compiled without LAPACK");
 #endif
 }
@@ -2632,5 +2633,7 @@ void DenseMatrixSVD::Eval(DenseMatrix &M)
 
 DenseMatrixSVD::~DenseMatrixSVD()
 {
+#ifdef MFEM_USE_LAPACK
    delete [] work;
+#endif
 }
