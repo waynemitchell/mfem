@@ -1780,6 +1780,8 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
    I_group_sedge = new int[GetNGroups()+1];
    if (Dim == 3)
       I_group_sface = new int[GetNGroups()+1];
+   else
+      I_group_sface = NULL;
 
    I_group_svert[0] = I_group_svert[1] = 0;
    I_group_sedge[0] = I_group_sedge[1] = 0;
@@ -1800,6 +1802,11 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
       J_group_svert = new int[group_svert.Size_of_connections()
                               + group_sedge.Size_of_connections()];
       J_group_sedge = new int[2*group_sedge.Size_of_connections()];
+      J_group_sface = NULL;
+   }
+   else
+   {
+      J_group_svert = J_group_sedge = J_group_sface = NULL;
    }
 
    for (group = 0; group < GetNGroups()-1; group++)

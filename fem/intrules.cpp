@@ -171,7 +171,7 @@ IntegrationRules::IntegrationRules(int refined)
 
 const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
 {
-   Array<IntegrationRule *> *ir_array = &SegmentIntRules;
+   Array<IntegrationRule *> *ir_array;
 
    switch (GeomType)
    {
@@ -182,10 +182,8 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
    case Geometry::TETRAHEDRON: ir_array = &TetrahedronIntRules; break;
    case Geometry::CUBE:        ir_array = &CubeIntRules; break;
    default:
-#ifdef MFEM_DEBUG
-      mfem_error ("IntegrationRules::Get(...)");
-#endif
-      ;
+      mfem_error("IntegrationRules::Get(...) : Unknown geometry type!");
+      ir_array = NULL;
    }
    if (Order >= ir_array->Size() || (*ir_array)[Order] == NULL)
    {
@@ -198,7 +196,7 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
 
 void IntegrationRules::Set(int GeomType, int Order, IntegrationRule &IntRule)
 {
-   Array<IntegrationRule *> *ir_array = &PointIntRules;
+   Array<IntegrationRule *> *ir_array;
 
    switch (GeomType)
    {
@@ -209,10 +207,8 @@ void IntegrationRules::Set(int GeomType, int Order, IntegrationRule &IntRule)
    case Geometry::TETRAHEDRON: ir_array = &TetrahedronIntRules; break;
    case Geometry::CUBE:        ir_array = &CubeIntRules; break;
    default:
-#ifdef MFEM_DEBUG
-      mfem_error("IntegrationRules::Set(...)");
-#endif
-      ;
+      mfem_error("IntegrationRules::Set(...) : Unknown geometry type!");
+      ir_array = NULL;
    }
 
    if (ir_array->Size() <= Order)

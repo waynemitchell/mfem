@@ -347,7 +347,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    {
       final_norm = beta;
       final_iter = 0;
-      converged = 0;
+      converged = 1;
       return;
    }
 
@@ -407,7 +407,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
             final_iter = j;
             for (i = 0; i <= m; i++)
                delete v[i];
-            converged = 0;
+            converged = 1;
             return;
          }
       }
@@ -434,7 +434,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
          final_iter = j;
          for (i = 0; i <= m; i++)
             delete v[i];
-         converged = 0;
+         converged = 1;
          return;
       }
    }
@@ -443,7 +443,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    final_iter = max_iter;
    for (i = 0; i <= m; i++)
       delete v[i];
-   converged = 1;
+   converged = 0;
 }
 
 int GMRES(const Operator &A, Vector &x, const Vector &b, Solver &M,

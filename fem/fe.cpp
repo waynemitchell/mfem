@@ -4000,7 +4000,7 @@ void RefinedBiLinear2DFiniteElement::CalcShape(const IntegrationPoint &ip,
 {
    int i;
    double x = ip.x, y = ip.y;
-   double Lx = 0.0, Ly = 0.0;
+   double Lx, Ly;
    Lx = 2.0 * ( 1. - x );
    Ly = 2.0 * ( 1. - y );
 
@@ -4045,7 +4045,7 @@ void RefinedBiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 {
    int i,j;
    double x = ip.x, y = ip.y;
-   double Lx = 0.0, Ly = 0.0;
+   double Lx, Ly;
    Lx = 2.0 * ( 1. - x );
    Ly = 2.0 * ( 1. - y );
 
@@ -4156,7 +4156,7 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
                                                 Vector &shape) const
 {
    int i, N[8];
-   double Lx = 0, Ly = 0, Lz = 0;
+   double Lx, Ly, Lz;
    double x = ip.x, y = ip.y, z = ip.z;
 
    for (i = 0; i < 27; i++)
@@ -4260,7 +4260,7 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
       N[6] =  6;
       N[7] = 14;
    }
-   else if ((x >= 0.5) && (y >= 0.5) && (z >= 0.5)) { // T7
+   else { // T7
       Lx = 1.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -4289,7 +4289,7 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
                                                  DenseMatrix &dshape) const
 {
    int i, j, N[8];
-   double Lx = 0, Ly = 0, Lz = 0;
+   double Lx, Ly, Lz;
    double x = ip.x, y = ip.y, z = ip.z;
 
    for (i = 0; i < 27; i++)
@@ -4394,7 +4394,7 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       N[6] =  6;
       N[7] = 14;
    }
-   else if ((x >= 0.5) && (y >= 0.5) && (z >= 0.5)) { // T7
+   else { // T7
       Lx = 1.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -6820,9 +6820,9 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
       op = poly1d.OpenPoints(p);
       break;
    case 1:
+   default:
       basis1d = &poly1d.ClosedBasis(p);
       op = poly1d.ClosedPoints(p);
-      break;
    }
 
 #ifndef MFEM_USE_OPENMP
@@ -6860,7 +6860,8 @@ void L2_SegmentElement::ProjectDelta(int vertex,
    switch (type)
    {
    case 0: op = poly1d.OpenPoints(p); break;
-   case 1: op = poly1d.ClosedPoints(p); break;
+   case 1:
+   default: op = poly1d.ClosedPoints(p);
    }
 
    switch (vertex)
@@ -6967,9 +6968,9 @@ L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
       op = poly1d.OpenPoints(p);
       break;
    case 1:
+   default:
       basis1d = &poly1d.ClosedBasis(p);
       op = poly1d.ClosedPoints(p);
-      break;
    }
 
 #ifndef MFEM_USE_OPENMP
@@ -7029,7 +7030,8 @@ void L2_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
    switch (type)
    {
    case 0: op = poly1d.OpenPoints(p); break;
-   case 1: op = poly1d.ClosedPoints(p); break;
+   case 1:
+   default: op = poly1d.ClosedPoints(p);
    }
 
 #ifdef MFEM_USE_OPENMP

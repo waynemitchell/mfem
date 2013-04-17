@@ -129,7 +129,7 @@ protected:
    /** Bisection. Element with index i is bisected. */
    void Bisection(int i, const DSTable &, int *, int *, int *);
 
-   /** Bisection. Element with index i is bisected. */
+   /** Bisection. Boundary element with index i is bisected. */
    void Bisection(int i, const DSTable &, int *);
 
    /** Uniform Refinement. Element with index i is refined uniformly. */

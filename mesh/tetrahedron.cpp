@@ -201,7 +201,8 @@ void Tetrahedron::MarkEdge(const DSTable &v_to_v, const int *length)
       {
       case 1:  type = Tetrahedron::TYPE_PU; break;
       case 4:  type = Tetrahedron::TYPE_A;  break;
-      case 5:  type = Tetrahedron::TYPE_M;
+      case 5:
+      default: type = Tetrahedron::TYPE_M;
       }
       break;
    case 3:
@@ -210,17 +211,20 @@ void Tetrahedron::MarkEdge(const DSTable &v_to_v, const int *length)
       case 1:  type = Tetrahedron::TYPE_A;  break;
       case 4:  type = Tetrahedron::TYPE_PU;
          j = 1; ind[0] = 2; ind[1] = 1; break;
-      case 5:  type = Tetrahedron::TYPE_M;
+      case 5:
+      default: type = Tetrahedron::TYPE_M;
          j = 1; ind[0] = 5; ind[1] = 1;
       }
       break;
    case 5:
+   default:
       switch (ind[1])
       {
       case 1:  type = Tetrahedron::TYPE_M;  break;
       case 4:  type = Tetrahedron::TYPE_M;
          j = 1; ind[0] = 2; ind[1] = 5; break;
-      case 5:  type = Tetrahedron::TYPE_O;
+      case 5:
+      default: type = Tetrahedron::TYPE_O;
       }
    }
 

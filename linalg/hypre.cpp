@@ -989,7 +989,7 @@ void HyprePCG::SetResidualConvergenceOptions(int res_frequency, double rtol)
 void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
 {
    int myid;
-   int time_index;
+   int time_index = 0;
    int num_iterations;
    double final_res_norm;
    MPI_Comm comm;
@@ -1111,7 +1111,7 @@ void HypreGMRES::SetPreconditioner(HypreSolver &precond)
 void HypreGMRES::Mult(const HypreParVector &b, HypreParVector &x) const
 {
    int myid;
-   int time_index;
+   int time_index = 0;
    int num_iterations;
    double final_res_norm;
    MPI_Comm comm;

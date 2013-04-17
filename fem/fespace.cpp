@@ -849,6 +849,7 @@ const FiniteElement *FiniteElementSpace::GetBE (int i) const
    case 2:
       BE = fec->FiniteElementForGeometry(Geometry::SEGMENT);
    case 3:
+   default:
       BE = fec->FiniteElementForGeometry(
          mesh->GetBdrElementBaseGeometry(i));
    }
@@ -870,6 +871,7 @@ const FiniteElement *FiniteElementSpace::GetFaceElement(int i) const
    case 2:
       fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
    case 3:
+   default:
       fe = fec->FiniteElementForGeometry(mesh->GetFaceBaseGeometry(i));
    }
 

@@ -1082,14 +1082,14 @@ void NCMesh::Data_manager::Avg(const Vertex *v0, const Vertex *v1, Vertex *v)
    else if (v0->x[1] <= 0.0) // v0 is interior to a coarse edge
       i0 = -((int)v0->x[1]), type0 = 1;
    else // v0 is interior to a coarse face
-      type0 = 2;
+      i0 = 0, type0 = 2;
 
    if (v1->x[0] == 0.0)  // v1 is a coarse vertex
       i1 = -((int)v1->x[1]), type1 = 0;
    else if (v1->x[1] <= 0.0) // v1 is interior to a coarse edge
       i1 = -((int)v1->x[1]), type1 = 1;
    else // v1 is interior to a coarse face
-      type1 = 2;
+      i1 = 0, type1 = 2;
 
    switch (3*type0 + type1)
    {
@@ -1599,7 +1599,7 @@ Mesh *NCMesh::GetRefinedMesh(Mesh *c_mesh, bool remove_curv, int bdr_type)
    if (!c_nodes || remove_curv)
    {
       int cur_c_face = -1;
-      ElementTransformation *c_tr;
+      ElementTransformation *c_tr = NULL;
       IntegrationPoint ip;
       Vector f_vert;
       DenseMatrix pointmat;
@@ -1682,7 +1682,7 @@ void NCMesh::GetRefinedGridFunction(Mesh *c_mesh, GridFunction *c_sol,
    Array<int> c_vdofs, f_vdofs;
    Vector c_vals, f_vals, c_shape;
    IntegrationPoint ip;
-   const FiniteElement *c_fe, *f_fe;
+   const FiniteElement *c_fe = NULL, *f_fe;
    const NodalFiniteElement *nodal_f_fe;
    int vdim = c_sol->FESpace()->GetVDim();
    bool same_fec = !strcmp(c_sol->FESpace()->FEColl()->Name(),

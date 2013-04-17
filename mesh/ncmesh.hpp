@@ -111,6 +111,8 @@ public:
       virtual void FreeVertex(Vertex *vtx) { delete vtx; }
       virtual void FreeEdge(Edge *edge) { delete edge; }
       virtual void FreeFace(Face *face) { delete face; }
+
+      virtual ~Data_manager() { }
    };
 
    /** A vertex with an integer 'id' and two double 'coordinates'. The base

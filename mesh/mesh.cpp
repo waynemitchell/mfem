@@ -81,6 +81,8 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
    if (Vh) Vh->SetSize(NumOfElements);
    if (Vk) Vk->SetSize(NumOfElements);
 
+   h_min = kappa_min = numeric_limits<double>::infinity();
+   h_max = kappa_max = -h_min;
    for (i = 0; i < NumOfElements; i++)
    {
       GetElementJacobian(i, J);
@@ -88,18 +90,11 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
       kappa = J.CalcSingularvalue(0) / J.CalcSingularvalue(dim-1);
       if (Vh) (*Vh)(i) = h;
       if (Vk) (*Vk)(i) = kappa;
-      if (i == 0)
-      {
-         h_min = h_max = h;
-         kappa_min = kappa_max = kappa;
-      }
-      else
-      {
-         if (h < h_min)  h_min = h;
-         if (h > h_max)  h_max = h;
-         if (kappa < kappa_min)  kappa_min = kappa;
-         if (kappa > kappa_max)  kappa_max = kappa;
-      }
+
+      if (h < h_min)  h_min = h;
+      if (h > h_max)  h_max = h;
+      if (kappa < kappa_min)  kappa_min = kappa;
+      if (kappa > kappa_max)  kappa_max = kappa;
    }
 
    if (dim == 2)
@@ -1750,6 +1745,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
             case Geometry::TETRAHEDRON:
                vtk_mfem = vtk_quadratic_tet; break;
             case Geometry::CUBE:
+            default:
                vtk_mfem = vtk_quadratic_hex; break;
             }
 
@@ -2030,6 +2026,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
                                                         new_or);
                   break;
                case 4:
+               default:
                   new_i = (*faces_tbl)(old_v[0], old_v[1], old_v[2], old_v[3]);
                   new_v = faces[new_i]->GetVertices();
                   new_or = GetQuadOrientation(old_v, new_v);
@@ -2607,7 +2604,7 @@ int Mesh::GetQuadOrientation(const int *base, const int *test)
 
 void Mesh::CheckBdrElementOrientation(bool fix_it)
 {
-   int i, j, wo = 0;
+   int i, wo = 0;
 
    if (Dim == 2)
    {
@@ -2620,7 +2617,7 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
             if (bv[0] != fv[0])
             {
                if (fix_it)
-                  j = bv[0]; bv[0] = bv[1]; bv[1] = j;
+                  Swap<int>(bv[0], bv[1]);
                wo++;
             }
          }
@@ -2677,13 +2674,14 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
                   v[0] = ev[3]; v[1] = ev[0]; v[2] = ev[4]; v[3] = ev[7];
                   break;
                case 5:
+               default:
                   v[0] = ev[4]; v[1] = ev[5]; v[2] = ev[6]; v[3] = ev[7];
                   break;
                }
                if (GetQuadOrientation(v, bv) % 2)
                {
                   if (fix_it)
-                     j = bv[0]; bv[0] = bv[2]; bv[2] = j;
+                     Swap<int>(bv[0], bv[2]);
                   wo++;
                }
                break;
@@ -3910,10 +3908,8 @@ void DetOfLinComb(const DenseMatrix &A, const DenseMatrix &B, Vector &c)
    {
    case 2:
    {
-      // det(A+t*B) = |a0 a2|   / |a0 b2| + |b0 a2| \
-      //              |a1 a3| + \ |a1 b3|   |b1 a3| / * t +
-      //              |b0 b2|
-      //              |b1 b3| * t^2
+      // det(A+t*B) = |a0 a2|   / |a0 b2| + |b0 a2| \       |b0 b2|
+      //              |a1 a3| + \ |a1 b3|   |b1 a3| / * t + |b1 b3| * t^2
       c(0) = a[0]*a[3]-a[1]*a[2];
       c(1) = a[0]*b[3]-a[1]*b[2]+b[0]*a[3]-b[1]*a[2];
       c(2) = b[0]*b[3]-b[1]*b[2];
@@ -3922,21 +3918,21 @@ void DetOfLinComb(const DenseMatrix &A, const DenseMatrix &B, Vector &c)
 
    case 3:
    {
-      //              |a0 a3 a6|
-      // det(A+t*B) = |a1 a4 a7| +
-      //              |a2 a5 a8|
+      /*              |a0 a3 a6|
+       * det(A+t*B) = |a1 a4 a7| +
+       *              |a2 a5 a8|
 
-      //  /  |b0 a3 a6|   |a0 b3 a6|   |a0 a3 b6| \
-      //  |  |b1 a4 a7| + |a1 b4 a7| + |a1 a4 b7| | * t +
-      //  \  |b2 a5 a8|   |a2 b5 a8|   |a2 a5 b8| /
+       *     /  |b0 a3 a6|   |a0 b3 a6|   |a0 a3 b6| \
+       *   + |  |b1 a4 a7| + |a1 b4 a7| + |a1 a4 b7| | * t +
+       *     \  |b2 a5 a8|   |a2 b5 a8|   |a2 a5 b8| /
 
-      //  /  |a0 b3 b6|   |b0 a3 b6|   |b0 b3 a6| \
-      //  |  |a1 b4 b7| + |b1 a4 b7| + |b1 b4 a7| | * t^2 +
-      //  \  |a2 b5 b8|   |b2 a5 b8|   |b2 b5 a8| /
+       *     /  |a0 b3 b6|   |b0 a3 b6|   |b0 b3 a6| \
+       *   + |  |a1 b4 b7| + |b1 a4 b7| + |b1 b4 a7| | * t^2 +
+       *     \  |a2 b5 b8|   |b2 a5 b8|   |b2 b5 a8| /
 
-      //  |b0 b3 b6|
-      //  |b1 b4 b7| * t^3
-      //  |b2 b5 b8|
+       *     |b0 b3 b6|
+       *   + |b1 b4 b7| * t^3
+       *     |b2 b5 b8|       */
       c(0) = (a[0] * (a[4] * a[8] - a[5] * a[7]) +
               a[1] * (a[5] * a[6] - a[3] * a[8]) +
               a[2] * (a[3] * a[7] - a[4] * a[6]));
@@ -5244,36 +5240,28 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
                      int *edge1, int *edge2, int *middle)
 {
    int *vert;
-   int v[2][4], v_new = -1, bisect, t;
-   Element **pce;
+   int v[2][4], v_new, bisect, t;
+   Element **pce = &elements[i];
    Vertex V;
 
+   t = pce[0]->GetType();
    if (WantTwoLevelState)
    {
-      pce = &(elements[i]);
       while (1)
       {
-         t = pce[0]->GetType();
          if (t == Element::BISECTED)
             pce = & ( ((BisectedElement *) pce[0])->FirstChild );
          else if (t == Element::QUADRISECTED)
             pce = & ( ((QuadrisectedElement *) pce[0])->FirstChild );
          else
             break;
+         t = pce[0]->GetType();
       }
    }
-   else
-      t = elements[i]->GetType();
-
 
    if (t == Element::TRIANGLE)
    {
-      Triangle *tri;
-
-      if (WantTwoLevelState)
-         tri = (Triangle *) pce[0];
-      else
-         tri = (Triangle *) elements[i];
+      Triangle *tri = (Triangle *) pce[0];
 
       vert = tri->GetVertices();
 
@@ -5281,7 +5269,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       bisect = v_to_v(vert[0], vert[1]);
 #ifdef MFEM_DEBUG
       if (bisect < 0)
-         mfem_error("Mesh::Bisection(...): ERROR");
+         mfem_error("Mesh::Bisection(...) of triangle! #1");
 #endif
       if (middle[bisect] == -1)
       {
@@ -5333,7 +5321,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
          bisect = v_to_v(v[1][0], v[1][1]);
 #ifdef MFEM_DEBUG
          if (bisect < 0)
-            mfem_error("Mesh::Bisection(...): ERROR 2");
+            mfem_error("Mesh::Bisection(...) of triangle! #2");
 #endif
          if (edge1[bisect] == i)
             edge1[bisect] = NumOfElements;
@@ -5345,12 +5333,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
    else if (t == Element::TETRAHEDRON)
    {
       int j, type, new_type, old_redges[2], new_redges[2][2], flag;
-      Tetrahedron *tet;
-
-      if (WantTwoLevelState)
-         tet = (Tetrahedron *) pce[0];
-      else
-         tet = (Tetrahedron *) elements[i];
+      Tetrahedron *tet = (Tetrahedron *) pce[0];
 
       if (tet->GetRefinementFlag() == 0)
          mfem_error("Mesh::Bisection : TETRAHEDRON element is not marked for "
@@ -5434,10 +5417,11 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
          aux->FirstChild = tet;
          aux->SecondChild = NumOfElements;
          pce[0] = aux;
+         // 'tet' now points to the first child
       }
       else
          tet->SetVertices(v[0]);
-      //  'tet' now points to the first child
+
       {
 #ifdef MFEM_USE_MEMALLOC
          Tetrahedron *tet2 = TetMemory.Alloc();
@@ -5473,42 +5457,41 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
 void Mesh::Bisection(int i, const DSTable &v_to_v, int *middle)
 {
    int *vert;
-   int v[2][3], v_new = -1, bisect, t;
-   Element **pce;
+   int v[2][3], v_new, bisect, t;
+   Element **pce = &boundary[i];
 
+   t = pce[0]->GetType();
    if (WantTwoLevelState)
    {
-      pce = &(boundary[i]);
       while (1)
       {
-         t = pce[0]->GetType();
          if (t == Element::BISECTED)
             pce = & ( ((BisectedElement *) pce[0])->FirstChild );
          else if (t == Element::QUADRISECTED)
             pce = & ( ((QuadrisectedElement *) pce[0])->FirstChild );
          else
             break;
+         t = pce[0]->GetType();
       }
    }
-   else
-      t = boundary[i]->GetType();
 
    if (t == Element::TRIANGLE)
    {
-      Triangle *tri;
-      if (WantTwoLevelState)
-         tri = (Triangle *) pce[0];
-      else
-         tri = (Triangle *) boundary[i];
+      Triangle *tri = (Triangle *) pce[0];
 
       vert = tri->GetVertices();
 
       // 1. Get the index for the new vertex in v_new.
       bisect = v_to_v(vert[0], vert[1]);
-      if (middle[bisect] == -1)
-         mfem_error("Error in Bisection(...) of boundary triangle!");
-      else
-         v_new = middle[bisect];
+#ifdef MFEM_DEBUG
+      if (bisect < 0)
+         mfem_error("Mesh::Bisection(...) of boundary triangle! #1");
+#endif
+      v_new = middle[bisect];
+#ifdef MFEM_DEBUG
+      if (v_new == -1)
+         mfem_error("Mesh::Bisection(...) of boundary triangle! #2");
+#endif
 
       // 2. Set the node indices for the new elements in v[0] and v[1] so that
       //    the  edge marked for refinement is between the first two nodes.
@@ -5525,10 +5508,10 @@ void Mesh::Bisection(int i, const DSTable &v_to_v, int *middle)
          aux->FirstChild = tri = new Triangle(v[0], tri->GetAttribute());
          aux->SecondChild = NumOfBdrElements;
          pce[0] = aux;
+         // 'tri' now points to the first child
       }
       else
-         boundary[i]->SetVertices(v[0]);
-      //  'tri' now points to the first child
+         tri->SetVertices(v[0]);
       boundary.Append(new Triangle(v[1], tri->GetAttribute()));
 
       NumOfBdrElements++;
@@ -6014,7 +5997,8 @@ void Mesh::BisectTetTrans(DenseMatrix &pointmat, Tetrahedron *tet, int child)
       {
       case 2:  ind[0] = 0; ind[1] = 3; ind[2] = 1; ind[3] = 2;  break;
       case 3:  ind[0] = 1; ind[1] = 3; ind[2] = 2; ind[3] = 0;  break;
-      case 5:  ind[0] = 2; ind[1] = 3; ind[2] = 0; ind[3] = 1;
+      case 5:
+      default: ind[0] = 2; ind[1] = 3; ind[2] = 0; ind[3] = 1;
       }
    }
    else  // right tetrahedron
@@ -6028,7 +6012,8 @@ void Mesh::BisectTetTrans(DenseMatrix &pointmat, Tetrahedron *tet, int child)
       {
       case 1:  ind[0] = 3; ind[1] = 1; ind[2] = 0; ind[3] = 2;  break;
       case 4:  ind[0] = 3; ind[1] = 0; ind[2] = 2; ind[3] = 1;  break;
-      case 5:  ind[0] = 3; ind[1] = 2; ind[2] = 1; ind[3] = 0;
+      case 5:
+      default: ind[0] = 3; ind[1] = 2; ind[2] = 1; ind[3] = 0;
       }
    }
    // Do the permutation
@@ -6546,9 +6531,13 @@ void Mesh::PrintVTK(ostream &out)
       }
       out << "CELLS " << NumOfElements << ' ' << size << '\n';
       const char *fec_name = Nodes->FESpace()->FEColl()->Name();
-      if (!strcmp(fec_name, "Linear"))
+      if (!strcmp(fec_name, "Linear") ||
+          !strcmp(fec_name, "H1_2D_P1") ||
+          !strcmp(fec_name, "H1_3D_P1"))
          order = 1;
-      else if (!strcmp(fec_name, "Quadratic"))
+      else if (!strcmp(fec_name, "Quadratic") ||
+               !strcmp(fec_name, "H1_2D_P2") ||
+               !strcmp(fec_name, "H1_3D_P2"))
          order = 2;
       if (order == -1)
       {
@@ -6576,6 +6565,7 @@ void Mesh::PrintVTK(ostream &out)
             case Geometry::TETRAHEDRON:
                vtk_mfem = vtk_quadratic_tet; break;
             case Geometry::CUBE:
+            default:
                vtk_mfem = vtk_quadratic_hex; break;
             }
             for (int j = 0; j < dofs.Size(); j++)

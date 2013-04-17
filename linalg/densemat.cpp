@@ -1313,7 +1313,8 @@ void DenseMatrix::CalcEigenvalues(double *lambda, double *vec) const
          // Q A Q = | 0  c2 c23 |
          //         | 0 c23  c3 |
          sigma = z2*z2 + z3*z3;
-         if (sigma == 0.)
+         bool sigma_is_zero = (sigma == 0.);
+         if (sigma_is_zero)
          {
             c2  = d22;
             c23 = d23;
@@ -1402,7 +1403,7 @@ void DenseMatrix::CalcEigenvalues(double *lambda, double *vec) const
             }
          }
 
-         if (sigma == 0.)
+         if (sigma_is_zero)
          {
             mu = fabs(z1);
             vec_w1[0] = 0.;  vec_w2[0] = 0.;
