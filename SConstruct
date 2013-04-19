@@ -95,7 +95,8 @@ def mfem_defs_build(target, source, env):
    mfem_defs = file("mfem_defs.hpp", "w")
    mfem_defs.write("// Auto-generated file.\n")
    for definition in env.Dictionary()['CPPDEFINES']:
-      mfem_defs.write("#define "+definition+"\n")
+      if (definition[0:5] == "MFEM_"):
+         mfem_defs.write("#define "+definition+"\n")
    mfem_defs.close()
 env.AlwaysBuild(env.Command('mfem_defs.hpp', 'mfem.hpp', mfem_defs_build))
 

@@ -68,7 +68,7 @@ CCC = $(CC) $(MODE_OPTS) $(DEFS) $(CCOPTS) $(USE_MESQUITE_OPTS)
 # Compiler and options used for generating deps.mk
 DEPCCC = $(DEPCC) $(CCOPTS) $(MODE_OPTS) $(DEFS)
 
-DEFINES = $(subst -D,,$(filter -D%,$(CCC)))
+DEFINES = $(subst -D,,$(filter -DMFEM_%,$(CCC)))
 
 # Source dirs in logical order
 DIRS = general linalg mesh fem

@@ -131,7 +131,7 @@ mfem_defs.hpp:
 	@echo "// Auto-generated file." > mfem_defs.hpp
 	for i in $(CCC); do \
 		case x$${i} in\
-		   x-D*) echo -n "#define " >> mfem_defs.hpp;\
+		   x-DMFEM_*) echo -n "#define " >> mfem_defs.hpp;\
 		         echo $${i} | sed -e 's/-D//' >> mfem_defs.hpp;;\
 		esac; done
 
