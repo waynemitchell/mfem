@@ -415,6 +415,7 @@ public:
 
    /// Returns the transformation defining the i-th boundary element
    ElementTransformation * GetBdrElementTransformation(int i);
+   void GetBdrElementTransformation(int i, IsoparametricTransformation *ElTr);
 
    /** Returns the transformation defining the given face element.
        The transformation is stored in a user-defined variable. */

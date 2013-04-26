@@ -202,17 +202,23 @@ ElementTransformation *Mesh::GetElementTransformation(int i)
 
 ElementTransformation *Mesh::GetBdrElementTransformation(int i)
 {
-   FaceTransformation.Attribute = GetBdrAttribute(i);
-   FaceTransformation.ElementNo = i;  // boundary element number
+   GetBdrElementTransformation(i, &FaceTransformation);
+   return &FaceTransformation;
+}
+
+void Mesh::GetBdrElementTransformation(int i, IsoparametricTransformation* ElTr)
+{
+   ElTr->Attribute = GetBdrAttribute(i);
+   ElTr->ElementNo = i; // boundary element number
    if (Nodes == NULL)
    {
-      GetBdrPointMatrix(i, FaceTransformation.GetPointMat());
-      FaceTransformation.SetFE(
+      GetBdrPointMatrix(i, ElTr->GetPointMat());
+      ElTr->SetFE(
          GetTransformationFEforElementType(GetBdrElementType(i)));
    }
    else
    {
-      DenseMatrix &pm = FaceTransformation.GetPointMat();
+      DenseMatrix &pm = ElTr->GetPointMat();
       Array<int> vdofs;
       Nodes->FESpace()->GetBdrElementVDofs(i, vdofs);
       int n = vdofs.Size()/Dim;
@@ -220,10 +226,8 @@ ElementTransformation *Mesh::GetBdrElementTransformation(int i)
       for (int k = 0; k < Dim; k++)
          for (int j = 0; j < n; j++)
             pm(k,j) = (*Nodes)(vdofs[n*k+j]);
-      FaceTransformation.SetFE(Nodes->FESpace()->GetBE(i));
+      ElTr->SetFE(Nodes->FESpace()->GetBE(i));
    }
-
-   return &FaceTransformation;
 }
 
 void Mesh::GetFaceTransformation(int FaceNo, IsoparametricTransformation *FTr)
