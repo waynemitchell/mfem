@@ -916,6 +916,147 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine)
    meshgen = 2;
 }
 
+Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
+           double sx, double sy, double sz)
+{
+   int i, j, k;
+   int x, y, z;
+
+   Dim = 3;
+
+   Init();
+   InitTables();
+   // Creates quadrilateral mesh
+   if (type == Element::HEXAHEDRON)
+   {
+      meshgen = 2;
+      NumOfVertices = (nx+1) * (ny+1) * (nz+1);
+      NumOfElements = nx * ny * nz ;
+      NumOfBdrElements = 0;
+      vertices.SetSize(NumOfVertices);
+      elements.SetSize(NumOfElements);
+#ifdef boundry
+      NumOfBdrElements = 2 *(nx*ny+nx*nz+ny*nz);
+      boundary.SetSize(NumOfBdrElements);
+#endif
+      double cx, cy, cz;
+      int ind[8];
+
+      // Sets vertices and the corresponding coordinates
+      k = 0;
+      for (z = 0; z < nz+1; z++)
+      {
+         cz = ((double) z / nz) * sz;
+         for (y = 0; y < ny+1; y++)
+         {
+            cy = ((double) y / ny) * sy;
+            for (x = 0; x < nx+1; x++)
+            {
+               cx = ((double) x / nx) * sx;
+               vertices[k](0) = cx;
+               vertices[k](1) = cy;
+               vertices[k](2) = cz;
+               k++;
+            }
+         }
+      }
+
+#define VTX(XC, YC, ZC) ((XC)+(YC)*(nx+1)+(ZC)*(nx+1)*(ny+1))
+      // Sets elements and the corresponding indices of vertices
+      k = 0;
+      for (z = 0; z < nz; z++)
+      {
+         for (y = 0; y < ny; y++)
+         {
+            for (x = 0; x < nx; x++)
+            {
+               ind[0] = VTX(x,y,z);
+               ind[1] = VTX(x+1,y,z);
+               ind[2] = VTX(x+1,y+1,z);
+               ind[3] = VTX(x,y+1,z);
+               ind[4] = VTX(x,y,z+1);
+               ind[5] = VTX(x+1,y,z+1);
+               ind[6] = VTX(x+1,y+1,z+1);
+               ind[7] = VTX(x,y+1,z+1);
+               elements[k] = new Hexahedron(ind);
+               k++;
+            }
+         }
+      }
+
+#ifdef boundry
+      // Sets boundary elements and the corresponding indices of vertices
+      // offset for Z dimensions
+      
+      k=0;
+      for (y = 0; y < ny; y++)
+      {
+         for (x = 0; x < nx; x++)
+         {
+         boundary[k++] = new Quadrilateral(VTX(x,y,0),  VTX(x+1, y, 0),  
+                 VTX(x+1, y+1, 0),  VTX(x, y+1, 0), 1);
+         boundary[k++] = new Quadrilateral(VTX(x,y,nz), VTX(x+1, y, nz), 
+                 VTX(x+1, y+1, nz), VTX(x, y+1, nz),4);
+         }
+      }
+      // offset for X dimensions
+      for (z = 0; z < nz; z++)
+      {
+         for (y = 0; y < ny; y++)
+         {
+         boundary[k++] = new Quadrilateral(VTX(0 ,y,z), VTX(0 , y+1,z), 
+                 VTX(0 ,y+1,z+1), VTX(0 ,y,z+1),2);
+         boundary[k++] = new Quadrilateral(VTX(nx,y,z), VTX(nx, y+1,z), 
+                 VTX(nx,y+1,z+1), VTX(nx,y,z+1),5);
+         }
+      }
+      // offset for Y dimensions
+      for (x = 0; x < nx; x++)
+      {
+         for (z = 0; z < nz; z++)
+         {
+         boundary[k++] = new Quadrilateral(VTX(x ,0 ,z), VTX(x, 0, z+1), 
+                 VTX(x+1 ,0, z+1), VTX(x+1,0 ,z),3);
+         boundary[k++] = new Quadrilateral(VTX(x ,ny,z), VTX(x, ny,z+1), 
+                 VTX(x+1 ,ny,z+1), VTX(x+1,ny,z),6);
+         }
+      }
+#endif
+   }
+#ifdef MFEM_DEBUG
+   ofstream test_stream("debug.mesh");
+   Print(test_stream);
+   test_stream.close();
+#endif
+
+
+   if (type == Element::TETRAHEDRON)
+   {
+   // To be implmented!
+   }
+   CheckElementOrientation();
+
+   if (generate_edges == 1)
+   {
+      el_to_edge = new Table;
+      GetElementToFaceTable();
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+      GenerateFaces();
+      if (NumOfBdrElements == 0) {
+         GenerateBoundaryElements();
+      }
+      CheckBdrElementOrientation();
+      c_el_to_edge = NULL;
+   }
+   else
+      NumOfEdges = 0;
+
+   SetAttributes();
+   for (int b=1;b<=NumOfBdrElements;b++) {
+      bdr_attributes.Append(b);
+    }
+}
+
 Mesh::Mesh(int nx, int ny, Element::Type type, int generate_edges,
            double sx, double sy)
 {

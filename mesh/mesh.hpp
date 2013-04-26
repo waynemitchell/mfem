@@ -256,6 +256,12 @@ public:
    void FinalizeHexMesh (int generate_edges = 0, int refine = 0);
 
    void SetAttributes();
+   /** Creates mesh for the unit cube, divided into nx * ny *nz hexahedrals
+       if type=HEXAHEDRON or into 2*nx*ny*nz tetrahedrons if type=TETRAHEDRON.
+       If generate_edges = 0 (default) edges are not generated, if 1 edges
+       are generated. The type=TETRAHEDRON is NOT implemented yet! */
+   Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
+        double sx = 1.0, double sy = 1.0, double sz = 1.0);
 
    /** Creates mesh for the unit square, divided into nx * ny quadrilaterals
        if type = QUADRILATERAL or into 2*nx*ny triangles if type = TRIANGLE.
