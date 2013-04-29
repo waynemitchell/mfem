@@ -919,7 +919,7 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine)
 Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
            double sx, double sy, double sz)
 {
-   int i, j, k;
+   int k;
    int x, y, z;
 
    Dim = 3;
@@ -993,10 +993,10 @@ Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
       {
          for (x = 0; x < nx; x++)
          {
-         boundary[k++] = new Quadrilateral(VTX(x,y,0),  VTX(x+1, y, 0),  
-                 VTX(x+1, y+1, 0),  VTX(x, y+1, 0), 1);
-         boundary[k++] = new Quadrilateral(VTX(x,y,nz), VTX(x+1, y, nz), 
-                 VTX(x+1, y+1, nz), VTX(x, y+1, nz),4);
+            boundary[k++] = new Quadrilateral(VTX(x,y,0),  VTX(x+1, y, 0),  
+                                              VTX(x+1, y+1, 0),  VTX(x, y+1, 0), 1);
+            boundary[k++] = new Quadrilateral(VTX(x,y,nz), VTX(x+1, y, nz), 
+                                              VTX(x+1, y+1, nz), VTX(x, y+1, nz),4);
          }
       }
       // offset for X dimensions
@@ -1004,10 +1004,10 @@ Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
       {
          for (y = 0; y < ny; y++)
          {
-         boundary[k++] = new Quadrilateral(VTX(0 ,y,z), VTX(0 , y+1,z), 
-                 VTX(0 ,y+1,z+1), VTX(0 ,y,z+1),2);
-         boundary[k++] = new Quadrilateral(VTX(nx,y,z), VTX(nx, y+1,z), 
-                 VTX(nx,y+1,z+1), VTX(nx,y,z+1),5);
+            boundary[k++] = new Quadrilateral(VTX(0 ,y,z), VTX(0 , y+1,z), 
+                                              VTX(0 ,y+1,z+1), VTX(0 ,y,z+1),2);
+            boundary[k++] = new Quadrilateral(VTX(nx,y,z), VTX(nx, y+1,z), 
+                                              VTX(nx,y+1,z+1), VTX(nx,y,z+1),5);
          }
       }
       // offset for Y dimensions
@@ -1015,10 +1015,10 @@ Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
       {
          for (z = 0; z < nz; z++)
          {
-         boundary[k++] = new Quadrilateral(VTX(x ,0 ,z), VTX(x, 0, z+1), 
-                 VTX(x+1 ,0, z+1), VTX(x+1,0 ,z),3);
-         boundary[k++] = new Quadrilateral(VTX(x ,ny,z), VTX(x, ny,z+1), 
-                 VTX(x+1 ,ny,z+1), VTX(x+1,ny,z),6);
+            boundary[k++] = new Quadrilateral(VTX(x ,0 ,z), VTX(x, 0, z+1), 
+                                              VTX(x+1 ,0, z+1), VTX(x+1,0 ,z),3);
+            boundary[k++] = new Quadrilateral(VTX(x ,ny,z), VTX(x, ny,z+1), 
+                                              VTX(x+1 ,ny,z+1), VTX(x+1,ny,z),6);
          }
       }
 #endif
@@ -1032,7 +1032,7 @@ Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
 
    if (type == Element::TETRAHEDRON)
    {
-   // To be implmented!
+      // To be implmented!
    }
    CheckElementOrientation();
 
@@ -1054,7 +1054,7 @@ Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
    SetAttributes();
    for (int b=1;b<=NumOfBdrElements;b++) {
       bdr_attributes.Append(b);
-    }
+   }
 }
 
 Mesh::Mesh(int nx, int ny, Element::Type type, int generate_edges,
