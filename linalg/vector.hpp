@@ -17,6 +17,10 @@
 #include <math.h>
 #include "../general/array.hpp"
 
+/** Count the number of entries in an array of doubles for which isfinite
+    is false, i.e. the entry is a NaN or +/-Inf. */
+inline int CheckFinite(const double *v, const int n);
+
 /// Vector data type.
 class Vector
 {
@@ -182,11 +186,24 @@ public:
    /// Compute the Euclidian distance to another vector.
    double DistanceTo (const double *p) const;
 
+   /** Count the number of entries in the Vector for which isfinite
+       is false, i.e. the entry is a NaN or +/-Inf. */
+   int CheckFinite() const { return ::CheckFinite(data, size); }
+
    /// Destroys vector.
    ~Vector ();
 };
 
 // Inline methods
+
+inline int CheckFinite(const double *v, const int n)
+{
+   int bad = 0;
+   for (int i = 0; i < n; i++)
+      if (!isfinite(v[i]))
+         bad++;
+   return bad;
+}
 
 inline Vector::Vector (int s)
 {

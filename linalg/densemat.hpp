@@ -91,6 +91,9 @@ public:
    virtual void Mult(const Vector &x, Vector &y) const;
 
    /// Multiply a vector with the transpose matrix.
+   void MultTranspose(const double *x, double *y) const;
+
+   /// Multiply a vector with the transpose matrix.
    virtual void MultTranspose(const Vector &x, Vector &y) const;
 
    /// y += A.x
@@ -138,6 +141,10 @@ public:
    /// Take the 2-norm of the columns of A and store in v
    void Norm2(double *v) const;
 
+   /// Compute the norm ||A|| = max_{ij} |A_{ij}|
+   double MaxMaxNorm() const;
+
+   /// Compute the Frobenius norm of the matrix
    double FNorm() const;
 
    void Eigenvalues(Vector &ev)
@@ -215,6 +222,10 @@ public:
    /** If (dofs[i] < 0 and dofs[j] >= 0) or (dofs[i] >= 0 and dofs[j] < 0)
        then (*this)(i,j) = -(*this)(i,j).  */
    void AdjustDofDirection(Array<int> &dofs);
+
+   /** Count the number of entries in the matrix for which isfinite
+       is false, i.e. the entry is a NaN or +/-Inf. */
+   int CheckFinite() const { return ::CheckFinite(data, size*height); }
 
    /// Prints matrix to stream out.
    virtual void Print(ostream &out = cout, int width = 4) const;
@@ -340,6 +351,8 @@ public:
 
    DenseMatrixEigensystem(DenseMatrix &m);
    void Eval();
+   Vector &Eigenvalues() { return EVal; }
+   DenseMatrix &Eigenvectors() { return EVect; }
    double Eigenvalue(int i) { return EVal(i); }
    const Vector &Eigenvector(int i)
    {
@@ -367,10 +380,12 @@ public:
    DenseMatrixSVD(DenseMatrix &M);
    DenseMatrixSVD(int h, int w);
    void Eval(DenseMatrix &M);
+   Vector &Singularvalues() { return sv; }
    double Singularvalue(int i) { return sv(i); }
    ~DenseMatrixSVD();
 };
 
+class Table;
 
 /// Rank 3 tensor (array of matrices)
 class DenseTensor
@@ -401,9 +416,18 @@ public:
 
    DenseMatrix &operator()(int k) { Mk.data = GetData(k); return Mk; }
 
+   double &operator()(int i, int j, int k)
+   { return tdata[i+SizeI()*(j+SizeJ()*k)]; }
+   const double &operator()(int i, int j, int k) const
+   { return tdata[i+SizeI()*(j+SizeJ()*k)]; }
+
    double *GetData(int k) { return tdata+k*Mk.Height()*Mk.Width(); }
 
    double *Data() { return tdata; }
+
+   /** Matrix-vector product from unassembled element matrices, assuming both
+       'x' and 'y' use the same elem_dof table. */
+   void AddMult(const Table &elem_dof, const Vector &x, Vector &y) const;
 
    ~DenseTensor() { delete [] tdata; Mk.ClearExternalData(); }
 };
