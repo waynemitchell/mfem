@@ -1599,8 +1599,8 @@ double DenseMatrix::CalcSingularvalue(const int i) const
          // B <-- Q P B P Q = |  0  b22 b23 |
          //                   |  0  b23 b33 |
          double v1, v2, v3, g;
-         int k = Reduce3S(mode, b11, b22, b33, b12, b13, b23,
-                          c1, c2, c3, v1, v2, v3, g);
+         Reduce3S(mode, b11, b22, b33, b12, b13, b23,
+                  c1, c2, c3, v1, v2, v3, g);
          // Q = I - g v v^t
          // P - permitation matrix switching rows and columns 1 and k
 
