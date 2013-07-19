@@ -816,12 +816,8 @@ void Mesh::MarkTriMeshForRefinement()
       }
 }
 
-void Mesh::MarkTetMeshForRefinement()
+void Mesh::GetEdgeOrdering(DSTable &v_to_v, Array<int> &order)
 {
-   // Mark the longest tetrahedral edge by rotating the indices so that
-   // vertex 0 - vertex 1 is the longest edge in the element.
-   DSTable v_to_v(NumOfVertices);
-   GetVertexToVertexTable(v_to_v);
    NumOfEdges = v_to_v.NumberOfEntries();
    edge_length *length = new edge_length[NumOfEdges];
    for (int i = 0; i < NumOfVertices; i++)
@@ -837,9 +833,22 @@ void Mesh::MarkTetMeshForRefinement()
    // sort in increasing order
    qsort(length, NumOfEdges, sizeof(edge_length), edge_compare);
 
-   int *order = new int [NumOfEdges];
+   order.SetSize(NumOfEdges);
    for (int i = 0; i < NumOfEdges; i++)
       order[length[i].edge] = i;
+
+   delete [] length;
+}
+
+void Mesh::MarkTetMeshForRefinement()
+{
+   // Mark the longest tetrahedral edge by rotating the indices so that
+   // vertex 0 - vertex 1 is the longest edge in the element.
+   DSTable v_to_v(NumOfVertices);
+   GetVertexToVertexTable(v_to_v);
+   Array<int> order;
+
+   GetEdgeOrdering(v_to_v, order);
 
    for (int i = 0; i < NumOfElements; i++)
       if (elements[i]->GetType() == Element::TETRAHEDRON)
@@ -848,9 +857,181 @@ void Mesh::MarkTetMeshForRefinement()
    for (int i = 0; i < NumOfBdrElements; i++)
       if (boundary[i]->GetType() == Element::TRIANGLE)
          boundary[i]->MarkEdge(v_to_v, order);
+}
 
-   delete [] order;
-   delete [] length;
+void Mesh::PrepareNodeReorder(DSTable **old_v_to_v)
+{
+   if (*old_v_to_v)
+      return;
+
+   FiniteElementSpace *fes = Nodes->FESpace();
+   const FiniteElementCollection *fec = fes->FEColl();
+   int num_edge_dofs = fec->DofForGeometry(Geometry::SEGMENT);
+   if (num_edge_dofs > 0)
+   {
+      *old_v_to_v = new DSTable(NumOfVertices);
+      GetVertexToVertexTable(*(*old_v_to_v));
+   }
+}
+
+void Mesh::DoNodeReorder(DSTable *old_v_to_v)
+{
+   FiniteElementSpace *fes = Nodes->FESpace();
+   const FiniteElementCollection *fec = fes->FEColl();
+   int num_edge_dofs = fec->DofForGeometry(Geometry::SEGMENT);
+   // assuming all faces have the same geometry
+   int num_face_dofs =
+      (Dim < 3) ? 0 : fec->DofForGeometry(GetFaceBaseGeometry(0));
+   // assuming all elements have the same geometry
+   int num_elem_dofs = fec->DofForGeometry(GetElementBaseGeometry(0));
+
+   // reorder the Nodes
+   Vector onodes = *Nodes;
+
+   Array<int> old_dofs, new_dofs;
+   int offset;
+#ifdef MFEM_DEBUG
+   int redges = 0;
+#endif
+
+   // vertex dofs do not need to be moved
+   offset = NumOfVertices * fec->DofForGeometry(Geometry::POINT);
+
+   // edge dofs:
+   // edge enumeration may be different but edge orientation is the same
+   if (num_edge_dofs > 0)
+   {
+      DSTable new_v_to_v(NumOfVertices);
+      GetVertexToVertexTable(new_v_to_v);
+
+      for (int i = 0; i < NumOfVertices; i++)
+      {
+         for (DSTable::RowIterator it(new_v_to_v, i); !it; ++it)
+         {
+            int old_i = (*old_v_to_v)(i, it.Column());
+            int new_i = it.Index();
+#ifdef MFEM_DEBUG
+            if (old_i != new_i)
+               redges++;
+#endif
+            old_dofs.SetSize(num_edge_dofs);
+            new_dofs.SetSize(num_edge_dofs);
+            for (int j = 0; j < num_edge_dofs; j++)
+            {
+               old_dofs[j] = offset + old_i * num_edge_dofs + j;
+               new_dofs[j] = offset + new_i * num_edge_dofs + j;
+            }
+            fes->DofsToVDofs(old_dofs);
+            fes->DofsToVDofs(new_dofs);
+            for (int j = 0; j < old_dofs.Size(); j++)
+               (*Nodes)(new_dofs[j]) = onodes(old_dofs[j]);
+         }
+      }
+      offset += NumOfEdges * num_edge_dofs;
+   }
+#ifdef MFEM_DEBUG
+   cout << "Mesh::Load : redges = " << redges << endl;
+#endif
+
+   // face dofs:
+   // both enumeration and orientation of the faces may be different
+   if (num_face_dofs > 0)
+   {
+      // generate the old face-vertex table using the unmodified 'faces'
+      Table old_face_vertex;
+      old_face_vertex.MakeI(NumOfFaces);
+      for (int i = 0; i < NumOfFaces; i++)
+         old_face_vertex.AddColumnsInRow(i, faces[i]->GetNVertices());
+      old_face_vertex.MakeJ();
+      for (int i = 0; i < NumOfFaces; i++)
+         old_face_vertex.AddConnections(i, faces[i]->GetVertices(),
+                                        faces[i]->GetNVertices());
+      old_face_vertex.ShiftUpI();
+
+      // update 'el_to_face', 'be_to_face', 'faces', and 'faces_info'
+      STable3D *faces_tbl = GetElementToFaceTable(1);
+      GenerateFaces();
+
+      // loop over the old face numbers
+      for (int i = 0; i < NumOfFaces; i++)
+      {
+         int *old_v = old_face_vertex.GetRow(i), *new_v;
+         int new_i, new_or, *dof_ord;
+         switch (old_face_vertex.RowSize(i))
+         {
+         case 3:
+            new_i = (*faces_tbl)(old_v[0], old_v[1], old_v[2]);
+            new_v = faces[new_i]->GetVertices();
+            new_or = GetTriOrientation(old_v, new_v);
+            dof_ord = fec->DofOrderForOrientation(Geometry::TRIANGLE, new_or);
+            break;
+         case 4:
+         default:
+            new_i = (*faces_tbl)(old_v[0], old_v[1], old_v[2], old_v[3]);
+            new_v = faces[new_i]->GetVertices();
+            new_or = GetQuadOrientation(old_v, new_v);
+            dof_ord = fec->DofOrderForOrientation(Geometry::SQUARE, new_or);
+            break;
+         }
+
+         old_dofs.SetSize(num_face_dofs);
+         new_dofs.SetSize(num_face_dofs);
+         for (int j = 0; j < num_face_dofs; j++)
+         {
+            old_dofs[j] = offset +     i * num_face_dofs + j;
+            new_dofs[j] = offset + new_i * num_face_dofs + dof_ord[j];
+            // we assumed the dofs are non-directional
+            // i.e. dof_ord[j] is >= 0
+         }
+         fes->DofsToVDofs(old_dofs);
+         fes->DofsToVDofs(new_dofs);
+         for (int j = 0; j < old_dofs.Size(); j++)
+            (*Nodes)(new_dofs[j]) = onodes(old_dofs[j]);
+      }
+
+      offset += NumOfFaces * num_face_dofs;
+      delete faces_tbl;
+   }
+
+   // element dofs:
+   // element orientation may be different
+   if (num_elem_dofs > 1)
+   {
+      // matters when the 'fec' is
+      // (this code is executed only for triangles/tets)
+      // - Pk on triangles, k >= 4
+      // - Qk on quads,     k >= 3
+      // - Pk on tets,      k >= 5
+      // - Qk on hexes,     k >= 3
+      // - ...
+
+      mfem_error("Mesh::DoNodeReorder : node re-ordering for high-order tri/tet"
+                 " meshes is not implemented!");
+   }
+
+   // Update Tables, faces, etc
+   if (Dim > 2)
+   {
+      if (num_face_dofs == 0)
+      {
+         // needed for FE spaces that have face dofs, even if
+         // the 'Nodes' do not have face dofs.
+         GetElementToFaceTable();
+         GenerateFaces();
+      }
+      CheckBdrElementOrientation();
+   }
+   if (el_to_edge)
+   {
+      // update 'el_to_edge', 'be_to_edge' (2D), 'bel_to_edge' (3D)
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+      if (Dim == 2)
+      {
+         // update 'faces' and 'faces_info'
+         GenerateFaces();
+         CheckBdrElementOrientation();
+      }
+   }
 }
 
 void Mesh::FinalizeTetMesh(int generate_edges, int refine)
@@ -1272,14 +1453,13 @@ Element *Mesh::NewElement(int geom)
    return NULL;
 }
 
-Element *Mesh::ReadElement(istream &input)
+Element *Mesh::ReadElementWithoutAttr(istream &input)
 {
-   int attr, geom, nv, *v;
+   int geom, nv, *v;
    Element *el;
 
-   input >> attr >> geom;
+   input >> geom;
    el = NewElement(geom);
-   el->SetAttribute(attr);
    nv = el->GetNVertices();
    v  = el->GetVertices();
    for (int i = 0; i < nv; i++)
@@ -1288,14 +1468,32 @@ Element *Mesh::ReadElement(istream &input)
    return el;
 }
 
-void Mesh::PrintElement(Element *el, ostream &out)
+void Mesh::PrintElementWithoutAttr(Element *el, ostream &out)
 {
-   out << el->GetAttribute() << ' ' << el->GetGeometryType();
+   out << el->GetGeometryType();
    const int nv = el->GetNVertices();
    const int *v = el->GetVertices();
    for (int j = 0; j < nv; j++)
       out << ' ' << v[j];
    out << '\n';
+}
+
+Element *Mesh::ReadElement(istream &input)
+{
+   int attr;
+   Element *el;
+
+   input >> attr;
+   el = ReadElementWithoutAttr(input);
+   el->SetAttribute(attr);
+
+   return el;
+}
+
+void Mesh::PrintElement(Element *el, ostream &out)
+{
+   out << el->GetAttribute() << ' ';
+   PrintElementWithoutAttr(el, out);
 }
 
 // see Tetrahedron::edges
@@ -2065,20 +2263,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       // Check orientation and mark edges; only for triangles / tets
       if (meshgen & 1)
       {
-         FiniteElementSpace *fes = Nodes->FESpace();
-         const FiniteElementCollection *fec = fes->FEColl();
-         int num_edge_dofs = fec->DofForGeometry(Geometry::SEGMENT);
          DSTable *old_v_to_v = NULL;
-         if (num_edge_dofs)
-         {
-            old_v_to_v = new DSTable(NumOfVertices);
-            GetVertexToVertexTable(*old_v_to_v);
-         }
-         // assuming all faces have the same geometry
-         int num_face_dofs =
-            (Dim < 3) ? 0 : fec->DofForGeometry(GetFaceBaseGeometry(0));
-         // assuming all elements have the same geometry
-         int num_elem_dofs = fec->DofForGeometry(GetElementBaseGeometry(0));
+         PrepareNodeReorder(&old_v_to_v);
 
          // check orientation and mark for refinement using just vertices
          // (i.e. higher order curvature is not used)
@@ -2086,155 +2272,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
          if (refine)
             MarkForRefinement(); // changes topology!
 
-         // reorder the Nodes
-         Vector onodes = *Nodes;
-
-         Array<int> old_dofs, new_dofs;
-         int offset;
-#ifdef MFEM_DEBUG
-         int redges = 0;
-#endif
-
-         // vertex dofs do not need to be moved
-         offset = NumOfVertices * fec->DofForGeometry(Geometry::POINT);
-
-         // edge dofs:
-         // edge enumeration may be different but edge orientation is
-         // the same
-         if (num_edge_dofs > 0)
-         {
-            DSTable new_v_to_v(NumOfVertices);
-            GetVertexToVertexTable(new_v_to_v);
-
-            for (i = 0; i < NumOfVertices; i++)
-            {
-               for (DSTable::RowIterator it(new_v_to_v, i); !it; ++it)
-               {
-                  int old_i = (*old_v_to_v)(i, it.Column());
-                  int new_i = it.Index();
-#ifdef MFEM_DEBUG
-                  if (old_i != new_i)
-                     redges++;
-#endif
-                  old_dofs.SetSize(num_edge_dofs);
-                  new_dofs.SetSize(num_edge_dofs);
-                  for (j = 0; j < num_edge_dofs; j++)
-                  {
-                     old_dofs[j] = offset + old_i * num_edge_dofs + j;
-                     new_dofs[j] = offset + new_i * num_edge_dofs + j;
-                  }
-                  fes->DofsToVDofs(old_dofs);
-                  fes->DofsToVDofs(new_dofs);
-                  for (j = 0; j < old_dofs.Size(); j++)
-                     (*Nodes)(new_dofs[j]) = onodes(old_dofs[j]);
-               }
-            }
-            offset += NumOfEdges * num_edge_dofs;
-            delete old_v_to_v;
-         }
-#ifdef MFEM_DEBUG
-         cout << "Mesh::Load : redges = " << redges << endl;
-#endif
-
-         // face dofs:
-         // both enumeration and orientation of the faces
-         // may be different
-         if (num_face_dofs > 0)
-         {
-            // generate the old face-vertex table
-            Table old_face_vertex;
-            old_face_vertex.MakeI(NumOfFaces);
-            for (i = 0; i < NumOfFaces; i++)
-               old_face_vertex.AddColumnsInRow(i, faces[i]->GetNVertices());
-            old_face_vertex.MakeJ();
-            for (i = 0; i < NumOfFaces; i++)
-               old_face_vertex.AddConnections(i, faces[i]->GetVertices(),
-                                              faces[i]->GetNVertices());
-            old_face_vertex.ShiftUpI();
-
-            // update 'el_to_face', 'be_to_face', 'faces', and 'faces_info'
-            STable3D *faces_tbl = GetElementToFaceTable(1);
-            GenerateFaces();
-
-            // loop over the old face numbers
-            for (i = 0; i < NumOfFaces; i++)
-            {
-               int *old_v = old_face_vertex.GetRow(i), *new_v;
-               int new_i, new_or, *dof_ord;
-               switch (old_face_vertex.RowSize(i))
-               {
-               case 3:
-                  new_i = (*faces_tbl)(old_v[0], old_v[1], old_v[2]);
-                  new_v = faces[new_i]->GetVertices();
-                  new_or = GetTriOrientation(old_v, new_v);
-                  dof_ord = fec->DofOrderForOrientation(Geometry::TRIANGLE,
-                                                        new_or);
-                  break;
-               case 4:
-               default:
-                  new_i = (*faces_tbl)(old_v[0], old_v[1], old_v[2], old_v[3]);
-                  new_v = faces[new_i]->GetVertices();
-                  new_or = GetQuadOrientation(old_v, new_v);
-                  dof_ord = fec->DofOrderForOrientation(Geometry::SQUARE,
-                                                        new_or);
-                  break;
-               }
-
-               old_dofs.SetSize(num_face_dofs);
-               new_dofs.SetSize(num_face_dofs);
-               for (j = 0; j < num_face_dofs; j++)
-               {
-                  old_dofs[j] = offset +     i * num_face_dofs + j;
-                  new_dofs[j] = offset + new_i * num_face_dofs + dof_ord[j];
-                  // we assumed the dofs are non-directional
-                  // i.e. dof_ord[j] is >= 0
-               }
-               fes->DofsToVDofs(old_dofs);
-               fes->DofsToVDofs(new_dofs);
-               for (j = 0; j < old_dofs.Size(); j++)
-                  (*Nodes)(new_dofs[j]) = onodes(old_dofs[j]);
-            }
-
-            offset += NumOfFaces * num_face_dofs;
-            delete faces_tbl;
-         }
-
-         // element dofs:
-         // element orientation may be different
-         if (num_elem_dofs > 0)
-         {
-            // matters when the 'fec' is
-            // (this code is executed only for triangles/tets)
-            // - Pk on triangles, k >= 4
-            // - Qk on quads,     k >= 3
-            // - Pk on tets,      k >= 5
-            // - Qk on hexes,     k >= 3
-            // - ...
-         }
-
-         // Update Tables, faces, etc
-         if (Dim > 2)
-         {
-            if (num_face_dofs == 0)
-            {
-               // needed for FE spaces that have face dofs, even if
-               // the 'Nodes' do not have face dofs.
-               GetElementToFaceTable();
-               GenerateFaces();
-            }
-            CheckBdrElementOrientation();
-         }
-         if (el_to_edge)
-         {
-            // update 'el_to_edge', 'be_to_edge' (2D), 'bel_to_edge' (3D)
-            NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-            if (Dim == 2)
-            {
-               // update 'faces' and 'faces_info'
-               GenerateFaces();
-               CheckBdrElementOrientation();
-            }
-         }
+         DoNodeReorder(old_v_to_v);
+         delete old_v_to_v;
       }
    }
 }
@@ -3603,6 +3642,11 @@ void Mesh::ReorientTetMesh()
    if (Dim != 3 || !(meshgen & 1))
       return;
 
+   DSTable *old_v_to_v = NULL;
+
+   if (Nodes)
+      PrepareNodeReorder(&old_v_to_v);
+
    DeleteCoarseTables();
 
    for (int i = 0; i < NumOfElements; i++)
@@ -3625,10 +3669,18 @@ void Mesh::ReorientTetMesh()
          Rotate3(v[0], v[1], v[2]);
       }
 
-   GetElementToFaceTable();
-   GenerateFaces();
-   if (el_to_edge)
-      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   if (!Nodes)
+   {
+      GetElementToFaceTable();
+      GenerateFaces();
+      if (el_to_edge)
+         NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
+   else
+   {
+      DoNodeReorder(old_v_to_v);
+      delete old_v_to_v;
+   }
 }
 
 #ifdef MFEM_USE_MPI

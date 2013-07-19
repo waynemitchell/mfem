@@ -97,6 +97,9 @@ protected:
        Usefull in refinement methods to destroy the coarse tables. */
    void DeleteCoarseTables();
 
+   Element *ReadElementWithoutAttr(istream &);
+   static void PrintElementWithoutAttr(Element *, ostream &);
+
    Element *ReadElement(istream &);
    static void PrintElement(Element *, ostream &);
 
@@ -109,7 +112,11 @@ protected:
 
    void MarkForRefinement();
    void MarkTriMeshForRefinement();
+   void GetEdgeOrdering(DSTable &v_to_v, Array<int> &order);
    void MarkTetMeshForRefinement();
+
+   void PrepareNodeReorder(DSTable **old_v_to_v);
+   void DoNodeReorder(DSTable *old_v_to_v);
 
    STable3D *GetFacesTable();
    STable3D *GetElementToFaceTable(int ret_ftbl = 0);
@@ -443,7 +450,11 @@ public:
        5) Loc1, Loc2 - IntegrationPointTransformation's mapping the
        face coordinate system to the element coordinate system
        (both in their reference elements). Used to transform
-       IntegrationPoints from face to element.
+       IntegrationPoints from face to element. More formally, let:
+       TL1, TL2 be the transformations represented by Loc1, Loc2,
+       TE1, TE2 - the transformations represented by Eleme1, Elem2,
+       TF - the transformation represented by Face, then
+       TF(x) = TE1(TL1(x)) = TE2(TL2(x)) for all x in the reference face.
        6) FaceGeom - the base geometry for the face.
        The mask specifies which fields in the structure to return:
        mask & 1 - Elem1, mask & 2 - Elem2, mask & 4 - Loc1, mask & 8 - Loc2,

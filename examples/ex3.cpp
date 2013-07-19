@@ -67,6 +67,7 @@ int main (int argc, char *argv[])
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }
+   mesh->ReorientTetMesh();
 
    // 3. Define a finite element space on the mesh. Here we use the lowest order
    //    Nedelec finite elements, but we can easily swich to higher-order spaces
