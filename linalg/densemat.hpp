@@ -259,6 +259,11 @@ void CalcInverse(const DenseMatrix &a, DenseMatrix &inva);
 /// Calculate the inverse transpose of a matrix (for NxN matrices, N=1,2,3)
 void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva);
 
+/** For a given Nx(N-1) (N=2,3) matrix J, compute a vector n such that
+    n_k = (-1)^{k+1} det(J_k), k=1,..,N, where J_k is the matrix J with the
+    k-th row removed. Note: J^t.n = 0, det([n|J])=|n|^2=det(J^t.J). */
+void CalcOrtho(const DenseMatrix &J, Vector &n);
+
 /// Calculate the matrix A.At
 void MultAAt(const DenseMatrix &a, DenseMatrix &aat);
 

@@ -2320,7 +2320,7 @@ void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
 #ifdef MFEM_DEBUG
    if (a.Height() != a.Size() || adja.Height() != adja.Size() ||
        a.Size() != adja.Size() || a.Size() < 1 || a.Size() > 3)
-      mfem_error("DenseMatrix::CalcAdjugate(...)");
+      mfem_error("CalcAdjugate(...)");
 #endif
    if (a.Size() == 1)
    {
@@ -2354,7 +2354,7 @@ void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat)
 #ifdef MFEM_DEBUG
    if (a.Height() != a.Size() || adjat.Height() != adjat.Size() ||
        a.Size() != adjat.Size() || a.Size() < 1 || a.Size() > 3)
-      mfem_error("DenseMatrix::CalcAdjugateTranspose(...)");
+      mfem_error("CalcAdjugateTranspose(...)");
 #endif
    if (a.Size() == 1)
    {
@@ -2387,7 +2387,7 @@ void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 {
 #ifdef MFEM_DEBUG
    if (a.Width() > a.Height() || a.Width() < 1 || a.Height() > 3)
-      mfem_error("DenseMatrix::CalcInverse(...)");
+      mfem_error("CalcInverse(...)");
 #endif
 
    double t;
@@ -2434,7 +2434,7 @@ void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 #ifdef MFEM_DEBUG
    t = a.Det();
    if (fabs(t) < 1.0e-14 * pow(a.FNorm()/a.Width(), a.Width()))
-      cerr << "DenseMatrix::CalcInverse(...) : singular matrix!"
+      cerr << "CalcInverse(...) : singular matrix!"
            << endl;
    t = 1. / t;
 #else
@@ -2473,7 +2473,7 @@ void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva)
 #ifdef MFEM_DEBUG
    if ( (a.Size() != a.Height()) || ( (a.Height()!= 1) && (a.Height()!= 2)
                                       && (a.Height()!= 3) ) )
-      mfem_error("DenseMatrix::CalcInverse(...)");
+      mfem_error("CalcInverseTranspose(...)");
 #endif
 
    double t = 1. / a.Det() ;
@@ -2502,6 +2502,28 @@ void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva)
       inva(1,2) = (a(0,1)*a(2,0)-a(0,0)*a(2,1))*t;
       inva(2,2) = (a(0,0)*a(1,1)-a(0,1)*a(1,0))*t;
       break;
+   }
+}
+
+void CalcOrtho(const DenseMatrix &J, Vector &n)
+{
+#ifdef MFEM_DEBUG
+   if (((J.Height() != 2 || J.Width() != 1) &&
+        (J.Height() != 3 || J.Width() != 2)) || (J.Height() != n.Size()))
+      mfem_error("CalcNormal(...)");
+#endif
+
+   const double *d = J.Data();
+   if (J.Height() == 2)
+   {
+      n(0) =  d[1];
+      n(1) = -d[0];
+   }
+   else
+   {
+      n(0) = d[1]*d[5] - d[2]*d[4];
+      n(1) = d[2]*d[3] - d[0]*d[5];
+      n(2) = d[0]*d[4] - d[1]*d[3];
    }
 }
 

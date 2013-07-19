@@ -500,6 +500,42 @@ public:
                                    DenseMatrix &elmat);
 };
 
+/** Integrator for the DG form:
+
+    - < {(Q grad(u)).n}, [v] > + sigma < [u], {(Q grad(v)).n} >
+    + kappa < {h^{-1} Q} [u], [v] >,
+
+    where Q is a scalar or matrix diffusion coefficient and u, v are the trial
+    and test spaces, respectively. The parameters sigma and kappa determine the
+    DG method to be used (when this integrator is added to the "broken"
+    DiffusionIntegrator):
+    * sigma = -1, kappa >= kappa0: symm. interior penalty (IP or SIPG) method,
+    * sigma = +1, kappa > 0: non-symmetric interior penalty (NIPG) method,
+    * sigma = +1, kappa = 0: the method of Baumann and Oden. */
+class DGDiffusionIntegrator : public BilinearFormIntegrator
+{
+protected:
+   Coefficient *Q;
+   MatrixCoefficient *MQ;
+   double sigma, kappa;
+
+   // these are not thread-safe!
+   Vector shape1, shape2, dshape1dn, dshape2dn, nor, nh, ni;
+   DenseMatrix jmat, dshape1, dshape2, mq, adjJ;
+
+public:
+   DGDiffusionIntegrator(const double s, const double k)
+      : Q(NULL), MQ(NULL), sigma(s), kappa(k) { }
+   DGDiffusionIntegrator(Coefficient &q, const double s, const double k)
+      : Q(&q), MQ(NULL), sigma(s), kappa(k) { }
+   DGDiffusionIntegrator(MatrixCoefficient &q, const double s, const double k)
+      : Q(NULL), MQ(&q), sigma(s), kappa(k) { }
+   virtual void AssembleFaceMatrix(const FiniteElement &el1,
+                                   const FiniteElement &el2,
+                                   FaceElementTransformations &Trans,
+                                   DenseMatrix &elmat);
+};
+
 
 /** Abstract class to serve as a base for local interpolators to be used in
     the DiscreteLinearOperator class. */

@@ -1008,18 +1008,7 @@ void GridFunction::ProjectBdrCoefficientNormal(
          const IntegrationPoint &ip = ir.IntPoint(j);
          T->SetIntPoint(&ip);
          vcoeff.Eval(vc, *T, ip);
-         const DenseMatrix &J = T->Jacobian();
-         if (dim == 2)
-         {
-            nor(0) =  J(1,0);
-            nor(1) = -J(0,0);
-         }
-         else if (dim == 3)
-         {
-            nor(0) = J(1,0)*J(2,1) - J(2,0)*J(1,1);
-            nor(1) = J(2,0)*J(0,1) - J(0,0)*J(2,1);
-            nor(2) = J(0,0)*J(1,1) - J(1,0)*J(0,1);
-         }
+         CalcOrtho(T->Jacobian(), nor);
          fe->CalcShape(ip, shape);
          lvec.Add(ip.weight * (vc * nor), shape);
       }
@@ -1048,18 +1037,7 @@ void GridFunction::ProjectBdrCoefficientNormal(
          const IntegrationPoint &ip = ir.IntPoint(j);
          T->SetIntPoint(&ip);
          vcoeff.Eval(vc, *T, ip);
-         const DenseMatrix &J = T->Jacobian();
-         if (dim == 2)
-         {
-            nor(0) =  J(1,0);
-            nor(1) = -J(0,0);
-         }
-         else if (dim == 3)
-         {
-            nor(0) = J(1,0)*J(2,1) - J(2,0)*J(1,1);
-            nor(1) = J(2,0)*J(0,1) - J(0,0)*J(2,1);
-            nor(2) = J(0,0)*J(1,1) - J(1,0)*J(0,1);
-         }
+         CalcOrtho(T->Jacobian(), nor);
          lvec(j) = (vc * nor);
       }
       fes->GetBdrElementDofs(i, dofs);

@@ -103,23 +103,12 @@ void BoundaryNormalLFIntegrator::AssembleRHSElementVect(
       const IntegrationPoint &ip = ir->IntPoint(i);
 
       Tr.SetIntPoint(&ip);
-      const DenseMatrix &Jac = Tr.Jacobian();
-      if (dim == 2)
-      {
-         nor(0) =  Jac(1,0);
-         nor(1) = -Jac(0,0);
-      }
-      else if (dim == 3)
-      {
-         nor(0) = Jac(1,0) * Jac(2,1) - Jac(2,0) * Jac(1,1);
-         nor(1) = Jac(2,0) * Jac(0,1) - Jac(0,0) * Jac(2,1);
-         nor(2) = Jac(0,0) * Jac(1,1) - Jac(1,0) * Jac(0,1);
-      }
+      CalcOrtho(Tr.Jacobian(), nor);
       Q.Eval(Qvec, Tr, ip);
 
       el.CalcShape(ip, shape);
 
-      add(elvect, ip.weight*(Qvec*nor), shape, elvect);
+      elvect.Add(ip.weight*(Qvec*nor), shape);
    }
 }
 
@@ -250,18 +239,7 @@ void VectorBoundaryFluxLFIntegrator::AssembleRHSElementVect(
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
       Tr.SetIntPoint (&ip);
-      const DenseMatrix &Jac = Tr.Jacobian();
-      if (dim == 2)
-      {
-         nor(0) =  Jac (1,0);
-         nor(1) = -Jac (0,0);
-      }
-      else if (dim == 3)
-      {
-         nor(0) = Jac (1,0) * Jac (2,1) - Jac (2,0) * Jac (1,1);
-         nor(1) = Jac (2,0) * Jac (0,1) - Jac (0,0) * Jac (2,1);
-         nor(2) = Jac (0,0) * Jac (1,1) - Jac (1,0) * Jac (0,1);
-      }
+      CalcOrtho(Tr.Jacobian(), nor);
       el.CalcShape (ip, shape);
       nor *= Sign * ip.weight * F -> Eval (Tr, ip);
       for (int j = 0; j < dof; j++)
@@ -380,26 +358,93 @@ void BoundaryFlowIntegrator::AssembleRHSElementVect(
 
       u->Eval(vu, *Tr.Elem1, eip);
 
-      const DenseMatrix &J = Tr.Face->Jacobian();
       if (dim == 1)
-      {
          nor(0) = 2*eip.x - 1.0;
-      }
-      else if (dim == 2)
-      {
-         nor(0) =  J(1,0);
-         nor(1) = -J(0,0);
-      }
-      else if (dim == 3)
-      {
-         nor(0) = J(1,0)*J(2,1) - J(2,0)*J(1,1);
-         nor(1) = J(2,0)*J(0,1) - J(0,0)*J(2,1);
-         nor(2) = J(0,0)*J(1,1) - J(1,0)*J(0,1);
-      }
+      else
+         CalcOrtho(Tr.Face->Jacobian(), nor);
 
       un = vu * nor;
       w = 0.5*alpha*un - beta*fabs(un);
       w *= ip.weight*f->Eval(*Tr.Elem1, eip);
       elvect.Add(w, shape);
+   }
+}
+
+
+void DGDirichletLFIntegrator::AssembleRHSElementVect(
+   const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
+{
+   mfem_error("DGDirichletLFIntegrator::AssembleRHSElementVect");
+}
+
+void DGDirichletLFIntegrator::AssembleRHSElementVect(
+   const FiniteElement &el, FaceElementTransformations &Tr, Vector &elvect)
+{
+   int dim, ndof;
+   bool kappa_is_nonzero = (kappa != 0.);
+   double w;
+
+   dim = el.GetDim();
+   ndof = el.GetDof();
+
+   nor.SetSize(dim);
+   nh.SetSize(dim);
+   ni.SetSize(dim);
+   adjJ.SetSize(dim);
+   if (MQ)
+      mq.SetSize(dim);
+
+   shape.SetSize(ndof);
+   dshape.SetSize(ndof, dim);
+   dshape_dn.SetSize(ndof);
+
+   elvect.SetSize(ndof);
+   elvect = 0.0;
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // a simple choice for the integration order; is this OK?
+      int order = 2*el.GetOrder();
+      ir = &IntRules.Get(Tr.FaceGeom, order);
+   }
+
+   for (int p = 0; p < ir->GetNPoints(); p++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(p);
+      IntegrationPoint eip;
+
+      Tr.Loc1.Transform(ip, eip);
+      Tr.Face->SetIntPoint(&ip);
+      if (dim == 1)
+         nor(0) = 2*eip.x - 1.0;
+      else
+         CalcOrtho(Tr.Face->Jacobian(), nor);
+
+      el.CalcShape(eip, shape);
+      el.CalcDShape(eip, dshape);
+      Tr.Elem1->SetIntPoint(&eip);
+      // compute uD through the face transformation
+      w = ip.weight * uD->Eval(*Tr.Face, ip) / Tr.Elem1->Weight();
+      if (!MQ)
+      {
+         if (Q)
+            w *= Q->Eval(*Tr.Elem1, eip);
+         ni.Set(w, nor);
+      }
+      else
+      {
+         nh.Set(w, nor);
+         MQ->Eval(mq, *Tr.Elem1, eip);
+         mq.MultTranspose(nh, ni);
+      }
+      CalcAdjugate(Tr.Elem1->Jacobian(), adjJ);
+      adjJ.Mult(ni, nh);
+
+      dshape.Mult(nh, dshape_dn);
+      elvect.Add(sigma, dshape_dn);
+
+      if (kappa_is_nonzero)
+         elvect.Add(kappa*(ni*nor), shape);
    }
 }

@@ -246,4 +246,43 @@ public:
                                        Vector &elvect);
 };
 
+/** Boundary linear integrator for imposing non-zero Dirichlet boundary
+    conditions, to be used in conjunction with DGDiffusionIntegrator.
+    Specifically, given the Dirichlet data u_D, the linear form assembles the
+    following integrals on the boundary:
+
+    sigma < u_D, (Q grad(v)).n > + kappa < {h^{-1} Q} u_D, v >,
+
+    where Q is a scalar or matrix diffusion coefficient and v is the test
+    function. The parameters sigma and kappa should be the same as the ones
+    used in the DGDiffusionIntegrator. */
+class DGDirichletLFIntegrator : public LinearFormIntegrator
+{
+protected:
+   Coefficient *uD, *Q;
+   MatrixCoefficient *MQ;
+   double sigma, kappa;
+
+   // these are not thread-safe!
+   Vector shape, dshape_dn, nor, nh, ni;
+   DenseMatrix dshape, mq, adjJ;
+
+public:
+   DGDirichletLFIntegrator(Coefficient &u, const double s, const double k)
+      : uD(&u), Q(NULL), MQ(NULL), sigma(s), kappa(k) { }
+   DGDirichletLFIntegrator(Coefficient &u, Coefficient &q,
+                           const double s, const double k)
+      : uD(&u), Q(&q), MQ(NULL), sigma(s), kappa(k) { }
+   DGDirichletLFIntegrator(Coefficient &u, MatrixCoefficient &q,
+                           const double s, const double k)
+      : uD(&u), Q(NULL), MQ(&q), sigma(s), kappa(k) { }
+
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       ElementTransformation &Tr,
+                                       Vector &elvect);
+   virtual void AssembleRHSElementVect(const FiniteElement &el,
+                                       FaceElementTransformations &Tr,
+                                       Vector &elvect);
+};
+
 #endif

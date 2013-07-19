@@ -762,20 +762,20 @@ void FiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
 
 void FiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
 {
-   int j, k, nv, ne, nf, nd;
+   int j, k, nv, ne, nf, nd, dim = mesh->Dimension();
    Array<int> V, E, Eo;
    const int *ind;
 
-   // for 2D and 3D faces
+   // for 1D, 2D and 3D faces
    nv = fec->DofForGeometry(Geometry::POINT);
-   ne = fec->DofForGeometry(Geometry::SEGMENT);
+   ne = (dim > 1) ? fec->DofForGeometry(Geometry::SEGMENT) : 0;
    if (nv > 0)
       mesh->GetFaceVertices(i, V);
    if (ne > 0)
       mesh->GetFaceEdges(i, E, Eo);
    nf = (fdofs) ? (fdofs[i+1]-fdofs[i]) : (0);
    nd = V.Size() * nv + E.Size() * ne + nf;
-   dofs.SetSize (nd);
+   dofs.SetSize(nd);
    if (nv > 0)
       for (k = 0; k < V.Size(); k++)
          for (j = 0; j < nv; j++)
