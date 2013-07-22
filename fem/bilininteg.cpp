@@ -1380,7 +1380,7 @@ void DGDiffusionIntegrator::AssembleFaceMatrix(
          if (!MQ)
          {
             if (Q)
-                w *= Q->Eval(*Trans.Elem2, eip2);
+               w *= Q->Eval(*Trans.Elem2, eip2);
             ni.Set(w, nor);
          }
          else
