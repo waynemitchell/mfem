@@ -86,6 +86,8 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
       fec = new L2_FECollection(atoi(name + 7), atoi(name + 3));
    else if (!strncmp(name, "RT_", 3))
       fec = new RT_FECollection(atoi(name + 7), atoi(name + 3));
+   else if (!strncmp(name, "NT_", 3))
+      fec = new NT_FECollection(atoi(name + 7), atoi(name + 3));
    else if (!strncmp(name, "ND_", 3))
       fec = new ND_FECollection(atoi(name + 7), atoi(name + 3));
    else if (!strncmp(name, "Local_", 6))
@@ -1276,7 +1278,112 @@ RT_FECollection::RT_FECollection(const int p, const int dim)
    }
 }
 
+NT_FECollection::NT_FECollection(const int p, const int dim)
+{
+   const int pp1 = p + 1, pp2 = p + 2;
+
+   snprintf(nt_name, 32, "NT_%dD_P%d", dim, p);
+
+   for (int g = 0; g < Geometry::NumGeom; g++)
+   {
+      NT_Elements[g] = NULL;
+      NT_dof[g] = 0;
+   }
+   for (int i = 0; i < 2; i++)
+      SegDofOrd[i] = NULL;
+   for (int i = 0; i < 6; i++)
+      TriDofOrd[i] = NULL;
+   for (int i = 0; i < 8; i++)
+      QuadDofOrd[i] = NULL;
+
+   if (dim == 2)
+   {
+      // NT_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p);
+      NT_Elements[Geometry::SEGMENT] = new L2Vol_SegmentElement(p);
+      NT_dof[Geometry::SEGMENT] = pp1;
+
+      SegDofOrd[0] = new int[2*pp1];
+      SegDofOrd[1] = SegDofOrd[0] + pp1;
+      for (int i = 0; i <= p; i++)
+      {
+         SegDofOrd[0][i] = i;
+         SegDofOrd[1][i] = -1 - (p - i);
+      }
+   }
+   else if (dim == 3)
+   {
+
+      NT_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p);
+      NT_dof[Geometry::TRIANGLE] = pp1*pp2/2;
+
+      NT_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p);
+      NT_dof[Geometry::SQUARE] = pp1*pp1;
+
+      int TriDof = NT_dof[Geometry::TRIANGLE];
+      TriDofOrd[0] = new int[6*TriDof];
+      for (int i = 1; i < 6; i++)
+         TriDofOrd[i] = TriDofOrd[i-1] + TriDof;
+      // see Mesh::GetTriOrientation in mesh/mesh.cpp,
+      // the constructor of H1_FECollection
+      for (int j = 0; j <= p; j++)
+         for (int i = 0; i + j <= p; i++)
+         {
+            int o = TriDof - ((pp2 - j)*(pp1 - j))/2 + i;
+            int k = p - j - i;
+            TriDofOrd[0][o] = o;  // (0,1,2)
+            TriDofOrd[1][o] = -1-(TriDof-((pp2-j)*(pp1-j))/2+k);  // (1,0,2)
+            TriDofOrd[2][o] =     TriDof-((pp2-i)*(pp1-i))/2+k;   // (2,0,1)
+            TriDofOrd[3][o] = -1-(TriDof-((pp2-k)*(pp1-k))/2+i);  // (2,1,0)
+            TriDofOrd[4][o] =     TriDof-((pp2-k)*(pp1-k))/2+j;   // (1,2,0)
+            TriDofOrd[5][o] = -1-(TriDof-((pp2-i)*(pp1-i))/2+j);  // (0,2,1)
+         }
+
+      int QuadDof = NT_dof[Geometry::SQUARE];
+      QuadDofOrd[0] = new int[8*QuadDof];
+      for (int i = 1; i < 8; i++)
+         QuadDofOrd[i] = QuadDofOrd[i-1] + QuadDof;
+      // see Mesh::GetQuadOrientation in mesh/mesh.cpp
+      for (int j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+         {
+            int o = i + j*pp1;
+            QuadDofOrd[0][o] = i + j*pp1;                    // (0,1,2,3)
+            QuadDofOrd[1][o] = -1 - (j + i*pp1);             // (0,3,2,1)
+            QuadDofOrd[2][o] = j + (p - i)*pp1;              // (1,2,3,0)
+            QuadDofOrd[3][o] = -1 - ((p - i) + j*pp1);       // (1,0,3,2)
+            QuadDofOrd[4][o] = (p - i) + (p - j)*pp1;        // (2,3,0,1)
+            QuadDofOrd[5][o] = -1 - ((p - j) + (p - i)*pp1); // (2,1,0,3)
+            QuadDofOrd[6][o] = (p - j) + i*pp1;              // (3,0,1,2)
+            QuadDofOrd[7][o] = -1 - (i + (p - j)*pp1);       // (3,2,1,0)
+         }
+   }
+   else
+   {
+      cerr << "NT_FECollection::NT_FECollection : dim = " << dim << endl;
+      mfem_error();
+   }
+}
+
 int *RT_FECollection::DofOrderForOrientation(int GeomType, int Or) const
+{
+   if (GeomType == Geometry::SEGMENT)
+   {
+      if (Or > 0)
+         return SegDofOrd[0];
+      return SegDofOrd[1];
+   }
+   else if (GeomType == Geometry::TRIANGLE)
+   {
+      return TriDofOrd[Or%6];
+   }
+   else if (GeomType == Geometry::SQUARE)
+   {
+      return QuadDofOrd[Or%8];
+   }
+   return NULL;
+}
+
+int *NT_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
    if (GeomType == Geometry::SEGMENT)
    {
@@ -1302,6 +1409,15 @@ RT_FECollection::~RT_FECollection()
    delete [] QuadDofOrd[0];
    for (int g = 0; g < Geometry::NumGeom; g++)
       delete RT_Elements[g];
+}
+
+NT_FECollection::~NT_FECollection()
+{
+   delete [] SegDofOrd[0];
+   delete [] TriDofOrd[0];
+   delete [] QuadDofOrd[0];
+   for (int g = 0; g < Geometry::NumGeom; g++)
+      delete NT_Elements[g];
 }
 
 ND_FECollection::ND_FECollection(const int p, const int dim)

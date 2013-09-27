@@ -107,6 +107,28 @@ public:
    virtual ~RT_FECollection();
 };
 
+/// Arbitrary order Numerical Trace finite elements.
+class NT_FECollection : public FiniteElementCollection
+{
+private:
+   char nt_name[32];
+   FiniteElement *NT_Elements[Geometry::NumGeom];
+   int NT_dof[Geometry::NumGeom];
+   int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
+
+public:
+   NT_FECollection(const int p, const int dim);
+
+   virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
+   { return NT_Elements[GeomType]; }
+   virtual int DofForGeometry(int GeomType) const
+   { return NT_dof[GeomType]; }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const;
+   virtual const char *Name() const { return nt_name; }
+
+   virtual ~NT_FECollection();
+};
+
 /// Arbitrary order H(curl)-conforming Nedelec finite elements.
 class ND_FECollection : public FiniteElementCollection
 {
