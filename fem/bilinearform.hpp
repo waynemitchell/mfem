@@ -35,10 +35,13 @@ protected:
    /// Set of Boundary Integrators to be applied.
    Array<BilinearFormIntegrator*> bbfi;
 
-   /// Set of interior face Integrators to be applied.
+   /// Set of Face Integrators to be applied (on the union of elem boundaries).
    Array<BilinearFormIntegrator*> fbfi;
 
-   /// Set of boundary face Integrators to be applied.
+   /// Set of interior Face Integrators to be applied.
+   Array<BilinearFormIntegrator*> ifbfi;
+
+   /// Set of boundary Face Integrators to be applied.
    Array<BilinearFormIntegrator*> bfbfi;
 
    DenseMatrix elemmat;
@@ -71,6 +74,8 @@ public:
    Array<BilinearFormIntegrator*> *GetBBFI() { return &bbfi; }
 
    Array<BilinearFormIntegrator*> *GetFBFI() { return &fbfi; }
+
+   Array<BilinearFormIntegrator*> *GetIFBFI() { return &ifbfi; }
 
    Array<BilinearFormIntegrator*> *GetBFBFI() { return &bfbfi; }
 
@@ -113,6 +118,9 @@ public:
    /// Adds new Boundary Integrator.
    void AddBoundaryIntegrator(BilinearFormIntegrator *bfi);
 
+   /// Adds new Face Integrator.
+   void AddFaceIntegrator(BilinearFormIntegrator *bfi);
+
    /// Adds new interior Face Integrator.
    void AddInteriorFaceIntegrator(BilinearFormIntegrator *bfi);
 
@@ -124,6 +132,10 @@ public:
 
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
+
+   /** Assembles the local inverses of the domain integrator portion of the
+       form. */
+   void AssembleDomainInverse(int skip_zeros = 1);
 
    /** For partially conforming FE spaces, complete the assembly process by
        performing A := P^t A P where A is the internal sparse matrix and P is
@@ -204,6 +216,7 @@ protected:
 
    Array<BilinearFormIntegrator*> dom;
    Array<BilinearFormIntegrator*> bdr;
+   Array<BilinearFormIntegrator*> skt;
 
    int width;
 
@@ -243,6 +256,8 @@ public:
    void AddDomainIntegrator (BilinearFormIntegrator * bfi);
 
    void AddBoundaryIntegrator (BilinearFormIntegrator * bfi);
+
+   void AddFaceIntegrator (BilinearFormIntegrator * bfi);
 
    void operator= (const double a) { *mat = a; }
 
