@@ -36,7 +36,7 @@ OPENMP_LIBS_YES = -fopenmp
 OPENMP_LIBS     = $(OPENMP_LIBS_$(USE_OPENMP))
 
 # The LAPACK and BLAS libraries (needed if MFEM was compiled with LAPACK support)
-USE_LAPACK = NO
+USE_LAPACK = YES
 LAPACK_DIR = $(HOME)/lapack
 LAPACK_LIB = -L$(LAPACK_DIR) -llapack
 BLAS_DIR   = $(HOME)/lapack
@@ -47,9 +47,9 @@ LAPACK_LIBS_NO  =
 LAPACK_LIBS_YES = $(LAPACK_LIB) $(BLAS_LIB)
 LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
 
-serial: ex1 ex2 ex3 ex4
+serial: ex1 ex2 ex3 ex4 ex-dpg ex-dpg-hdiv ex-dpg-schur
 
-parallel: ex1p ex2p ex3p ex4p
+parallel: ex1p ex2p ex3p ex4p ex-dpg-hdiv-ams ex-dpg-schur-ams
 
 ex1: ex1.cpp
 	$(CC) $(OPTS) ex1.cpp -o ex1 $(LIBS)
@@ -75,6 +75,24 @@ ex4: ex4.cpp
 ex4p: ex4p.cpp
 	$(MPICC) $(MPIOPTS) ex4p.cpp -o ex4p $(MPILIBS)
 
+ex-dpg: ex-dpg.cpp
+	$(CC) $(OPTS) ex-dpg.cpp -o ex-dpg $(LIBS)
+
+ex-dpg-hdiv: ex-dpg-hdiv.cpp
+	$(CC) $(OPTS) ex-dpg-hdiv.cpp -o ex-dpg-hdiv $(LIBS)
+
+ex-dpg-hdiv-ams: ex-dpg-hdiv-ams.cpp
+	$(MPICC) $(MPIOPTS) ex-dpg-hdiv-ams.cpp -o ex-dpg-hdiv-ams $(MPILIBS)
+
+ex-dpg-schur: ex-dpg-schur.cpp
+	$(CC) $(OPTS) ex-dpg-schur.cpp -o ex-dpg-schur $(LIBS)
+
+ex-dpg-schur-ams: ex-dpg-schur-ams.cpp
+	$(MPICC) $(MPIOPTS) ex-dpg-schur-ams.cpp -o ex-dpg-schur-ams $(MPILIBS)
+
+ex6: ex6.cpp
+	$(CC) $(OPTS) ex6.cpp -o ex6 $(LIBS)
+
 debug:
 	$(MAKE) "OPTS=$(DEBUG_OPTS)" serial
 
@@ -82,5 +100,5 @@ pdebug:
 	$(MAKE) "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
 
 clean:
-	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p
+	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex-dpg ex-dpg-hdiv ex-dpg-hdiv-ams ex-dpg-schur ex-dpg-schur-ams
 	rm -f refined.mesh displaced.mesh sol.* mesh.*
