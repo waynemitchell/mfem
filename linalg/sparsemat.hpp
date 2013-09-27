@@ -274,8 +274,8 @@ SparseMatrix *Mult(SparseMatrix &A, SparseMatrix &B,
                    SparseMatrix *OAB = NULL);
 
 
-/** RAP matrix product. ORAP is like OAB above.
-    All matrices must be finalized.  */
+/** RAP matrix product (with P=R^T). ORAP is like OAB above.
+    All matrices must be finalized. */
 SparseMatrix *RAP(SparseMatrix &A, SparseMatrix &R,
                   SparseMatrix *ORAP = NULL);
 
