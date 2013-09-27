@@ -38,6 +38,11 @@ public:
                                    const FiniteElement &el2,
                                    FaceElementTransformations &Trans,
                                    DenseMatrix &elmat);
+   virtual void AssembleFaceMatrix(const FiniteElement &el1,
+                                   const FiniteElement &el2,
+                                   const FiniteElement &el3,
+                                   FaceElementTransformations &Trans,
+                                   DenseMatrix &elmat);
    /// Perform the local action of the BilinearFormIntegrator
    virtual void AssembleElementVector(const FiniteElement &el,
                                       ElementTransformation &Tr,
@@ -108,9 +113,10 @@ public:
 class DiffusionIntegrator: public BilinearFormIntegrator
 {
 private:
-   Vector vec, pointflux, shape;
+   Vector vec, pointflux, shape, te_shape;
 #ifndef MFEM_USE_OPENMP
    DenseMatrix dshape, dshapedxt, invdfdx, mq;
+   DenseMatrix te_dshape, te_dshapedxt, te_invdfdx, te_mq;
 #endif
    Coefficient *Q;
    MatrixCoefficient *MQ;
@@ -130,6 +136,12 @@ public:
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
+   /** Given a trial and test Finite Element computes the element stiffness
+       matrix elmat. */
+   virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
+                                       const FiniteElement &test_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
    /// Perform the local action of the BilinearFormIntegrator
    virtual void AssembleElementVector(const FiniteElement &el,
                                       ElementTransformation &Tr,
@@ -314,6 +326,27 @@ private:
    Vector shape, dshapedxi;
 public:
    DerivativeIntegrator(Coefficient &q, int i) : Q(q), xi(i) { }
+   virtual void AssembleElementMatrix(const FiniteElement &el,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat)
+   { AssembleElementMatrix2(el,el,Trans,elmat); }
+   virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
+                                       const FiniteElement &test_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
+};
+
+/// Class for integrating (Q D_i(u), D_j (v)); u and v are scalars
+class DiDjIntegrator : public BilinearFormIntegrator
+{
+private:
+   Coefficient & Q;
+   int xi;
+   int xj;
+   DenseMatrix tedshape, tedshapedxt, trdshape, trdshapedxt, invdfdx;
+   Vector tedshapedxj,trdshapedxi;
+public:
+   DiDjIntegrator(Coefficient &q, int i, int j) : Q(q), xi(i), xj(j) { }
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat)
@@ -536,6 +569,34 @@ public:
                                    DenseMatrix &elmat);
 };
 
+/// Integrator for the scaled mass matrix on numerical trace variables: <hv,w>.
+class NTMassIntegrator : public BilinearFormIntegrator
+{
+private:
+   Vector shape1;
+
+public:
+   NTMassIntegrator() { }
+   virtual void AssembleElementMatrix(const FiniteElement &el1,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat);
+};
+
+/** Integrator for the form: < v [w] > where the trial variable v is in a
+    numerical trace space. */
+class NTMassJumpIntegrator : public BilinearFormIntegrator
+{
+private:
+   Vector shape1, shape2, shape3;
+
+public:
+   NTMassJumpIntegrator() { }
+   virtual void AssembleFaceMatrix(const FiniteElement &el1,
+                                   const FiniteElement &el2,
+                                   const FiniteElement &el3,
+                                   FaceElementTransformations &Trans,
+                                   DenseMatrix &elmat);
+};
 
 /** Abstract class to serve as a base for local interpolators to be used in
     the DiscreteLinearOperator class. */
