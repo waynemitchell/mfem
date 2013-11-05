@@ -107,7 +107,8 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    if (fbfi.Size() == 0)
    {
       // construct a parallel block-diagonal wrapper matrix A based on m
-      A = new HypreParMatrix(pfes->GlobalVSize(), pfes->GetDofOffsets(), m);
+      A = new HypreParMatrix(pfes->GetComm(),
+                             pfes->GlobalVSize(), pfes->GetDofOffsets(), m);
    }
    else
    {

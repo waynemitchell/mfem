@@ -67,7 +67,8 @@ Operator &ParNonlinearForm::GetGradient(const Vector &x) const
 
    // construct a parallel block-diagonal wrapper matrix A based on Grad
    HypreParMatrix *A =
-      new HypreParMatrix(pfes->GlobalVSize(), pfes->GetDofOffsets(), Grad);
+      new HypreParMatrix(pfes->GetComm(),
+                         pfes->GlobalVSize(), pfes->GetDofOffsets(), Grad);
 
    pGrad = RAP(A, pfes->Dof_TrueDof_Matrix());
 
