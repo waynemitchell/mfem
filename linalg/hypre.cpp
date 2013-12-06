@@ -101,10 +101,12 @@ HypreParVector::operator hypre_ParVector*() const
    return x;
 }
 
+#ifndef HYPRE_PAR_VECTOR_STRUCT
 HypreParVector::operator HYPRE_ParVector() const
 {
    return (HYPRE_ParVector) x;
 }
+#endif
 
 Vector * HypreParVector::GlobalVector()
 {
@@ -510,10 +512,12 @@ HypreParMatrix::operator hypre_ParCSRMatrix*()
    return (this) ? A : NULL;
 }
 
+#ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
 HypreParMatrix::operator HYPRE_ParCSRMatrix()
 {
    return (this) ? (HYPRE_ParCSRMatrix) A : (HYPRE_ParCSRMatrix) NULL;
 }
+#endif
 
 hypre_ParCSRMatrix* HypreParMatrix::StealData()
 {

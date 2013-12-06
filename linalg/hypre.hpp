@@ -52,8 +52,10 @@ public:
 
    /// Typecasting to hypre's hypre_ParVector*
    operator hypre_ParVector*() const;
+#ifndef HYPRE_PAR_VECTOR_STRUCT
    /// Typecasting to hypre's HYPRE_ParVector, a.k.a. void *
    operator HYPRE_ParVector() const;
+#endif
    /// Changes the ownership of the the vector
    hypre_ParVector *StealParVector() { own_ParVector = 0; return x; }
 
@@ -141,8 +143,10 @@ public:
 
    /// Typecasting to hypre's hypre_ParCSRMatrix*
    operator hypre_ParCSRMatrix*();
+#ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
    /// Typecasting to hypre's HYPRE_ParCSRMatrix, a.k.a. void *
    operator HYPRE_ParCSRMatrix();
+#endif
    /// Changes the ownership of the the matrix
    hypre_ParCSRMatrix* StealData();
 
