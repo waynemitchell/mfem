@@ -2,3 +2,4 @@
 *.[aod]
 .*.swp
 _dev
+mfem_defs.hpp
