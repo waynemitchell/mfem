@@ -57,6 +57,28 @@ public:
    virtual ~H1_FECollection();
 };
 
+/// Arbitrary order H1-conforming (continuous) finite elements with positive basis functions.
+class H1Pos_FECollection : public FiniteElementCollection
+{
+private:
+   char h1_name[32];
+   FiniteElement *H1Pos_Elements[Geometry::NumGeom];
+   int H1Pos_dof[Geometry::NumGeom];
+   int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
+
+public:
+   explicit H1Pos_FECollection(const int p, const int dim = 3);
+
+   virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
+   { return H1Pos_Elements[GeomType]; }
+   virtual int DofForGeometry(int GeomType) const
+   { return H1Pos_dof[GeomType]; }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const;
+   virtual const char *Name() const { return h1_name; }
+
+   virtual ~H1Pos_FECollection();
+};
+
 /// Arbitrary order "L2-conforming" discontinuous finite elements.
 class L2_FECollection : public FiniteElementCollection
 {
