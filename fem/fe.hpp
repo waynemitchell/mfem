@@ -1283,7 +1283,7 @@ public:
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
-class H1Pos_SegmentElement : public NodalFiniteElement
+class H1Pos_SegmentElement : public FiniteElement
 {
 private:
 #ifndef MFEM_USE_OPENMP
@@ -1300,11 +1300,14 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   using FiniteElement::Project;
+   virtual void Project(Coefficient &coeff,
+                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
-class H1Pos_QuadrilateralElement : public NodalFiniteElement
+class H1Pos_QuadrilateralElement : public FiniteElement
 {
 private:
 #ifndef MFEM_USE_OPENMP
@@ -1318,11 +1321,14 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   using FiniteElement::Project;
+   virtual void Project(Coefficient &coeff,
+                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
-class H1Pos_HexahedronElement : public NodalFiniteElement
+class H1Pos_HexahedronElement : public FiniteElement
 {
 private:
 #ifndef MFEM_USE_OPENMP
@@ -1336,6 +1342,9 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   using FiniteElement::Project;
+   virtual void Project(Coefficient &coeff,
+                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 

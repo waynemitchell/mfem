@@ -6545,11 +6545,10 @@ void H1_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
    }
 }
 
-H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
-   : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
-{
-   const double *cp = poly1d.ClosedPoints(p);
 
+H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
+   : FiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
+{
 #ifndef MFEM_USE_OPENMP
    // thread private versions; see class header.
    shape_x.SetSize(p+1);
@@ -6557,14 +6556,14 @@ H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
 #endif
 
    // Endpoints need to be first in the list, so reorder them.
-   Nodes.IntPoint(0).x = cp[0];
-   Nodes.IntPoint(1).x = cp[p];
+   Nodes.IntPoint(0).x = 0.0;
+   Nodes.IntPoint(1).x = 1.0;
    for (int i = 1; i < p; i++)
-      Nodes.IntPoint(i+1).x = cp[i];
+      Nodes.IntPoint(i+1).x = double(i)/p;
 }
 
 void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
-                                  Vector &shape) const
+                                     Vector &shape) const
 {
    const int p = Order;
 
@@ -6582,7 +6581,7 @@ void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
 }
 
 void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
-                                   DenseMatrix &dshape) const
+                                      DenseMatrix &dshape) const
 {
    const int p = Order;
 
@@ -6599,19 +6598,28 @@ void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
       dshape(i+1,0) = dshape_x(i);
 }
 
+void H1Pos_SegmentElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   for (int i = 0; i < Dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      dofs(i) = coeff.Eval(Trans, ip);
+   }
+}
+
 void H1Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 {
-   mfem_error ("Error: H1Pos_SegmentElement::ProjectDelta not yet supported");
+   dofs = 0.0;
+   dofs[vertex] = 1.0;
 }
 
 
 H1Pos_QuadrilateralElement::H1Pos_QuadrilateralElement(const int p)
-   : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
-                        FunctionSpace::Qk),
+   : FiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p, FunctionSpace::Qk),
      dof_map((p + 1)*(p + 1))
 {
-   const double *cp = poly1d.ClosedPoints(p);
-
    const int p1 = p + 1;
 
 #ifndef MFEM_USE_OPENMP
@@ -6647,11 +6655,11 @@ H1Pos_QuadrilateralElement::H1Pos_QuadrilateralElement(const int p)
    o = 0;
    for (int j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
-         Nodes.IntPoint(dof_map[o++]).Set2(cp[i], cp[j]);
+         Nodes.IntPoint(dof_map[o++]).Set2(double(i)/p, double(j)/p);
 }
 
 void H1Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
-                                        Vector &shape) const
+                                           Vector &shape) const
 {
    const int p = Order;
 
@@ -6669,7 +6677,7 @@ void H1Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
 }
 
 void H1Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
-                                         DenseMatrix &dshape) const
+                                            DenseMatrix &dshape) const
 {
    const int p = Order;
 
@@ -6689,19 +6697,29 @@ void H1Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
       }
 }
 
+void H1Pos_QuadrilateralElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   for (int i = 0; i < Dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      dofs(i) = coeff.Eval(Trans, ip);
+   }
+}
+
 void H1Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 {
-   mfem_error ("Error: H1Pos_QuadrilateralElement::ProjectDelta not yet supported");
+   dofs = 0.0;
+   dofs[vertex] = 1.0;
 }
 
 
 H1Pos_HexahedronElement::H1Pos_HexahedronElement(const int p)
-   : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
-                        FunctionSpace::Qk),
+   : FiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
+                   FunctionSpace::Qk),
      dof_map((p + 1)*(p + 1)*(p + 1))
 {
-   const double *cp = poly1d.ClosedPoints(p);
-
    const int p1 = p + 1;
 
 #ifndef MFEM_USE_OPENMP
@@ -6781,11 +6799,12 @@ H1Pos_HexahedronElement::H1Pos_HexahedronElement(const int p)
    for (int k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
-            Nodes.IntPoint(dof_map[o++]).Set3(cp[i], cp[j], cp[k]);
+            Nodes.IntPoint(dof_map[o++]).Set3(double(i)/p, double(j)/p,
+                                              double(k)/p);
 }
 
 void H1Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
-                                     Vector &shape) const
+                                        Vector &shape) const
 {
    const int p = Order;
 
@@ -6804,7 +6823,7 @@ void H1Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
 }
 
 void H1Pos_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
-                                      DenseMatrix &dshape) const
+                                         DenseMatrix &dshape) const
 {
    const int p = Order;
 
@@ -6827,9 +6846,21 @@ void H1Pos_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
          }
 }
 
+void H1Pos_HexahedronElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   for (int i = 0; i < Dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      dofs(i) = coeff.Eval(Trans, ip);
+   }
+}
+
 void H1Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 {
-   mfem_error ("Error: H1Pos_QuadrilateralElement::ProjectDelta not yet supported");
+   dofs = 0.0;
+   dofs[vertex] = 1.0;
 }
 
 
