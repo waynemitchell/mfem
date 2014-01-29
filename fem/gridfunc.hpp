@@ -112,6 +112,11 @@ public:
        Both FE spaces should be scalar and on the same mesh. */
    void GetElementAverages(GridFunction &avgs);
 
+   /** Project the given 'src' GridFunction to 'this' GridFunction, both of
+       which must be on the same mesh. The current implementation assumes that
+       all element use the same projection matrix. */
+   void ProjectGridFunction(const GridFunction &src);
+
    void ProjectCoefficient(Coefficient &coeff);
 
    // call fes -> BuildDofToArrays() before using this projection

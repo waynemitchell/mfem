@@ -205,6 +205,18 @@ public:
                            DenseMatrix &div) const;
 };
 
+class PositiveFiniteElement : public FiniteElement
+{
+public:
+   PositiveFiniteElement(int D, int G, int Do, int O, int F = FunctionSpace::Pk)
+      : FiniteElement(D, G, Do, O, F) { }
+   using FiniteElement::Project;
+   virtual void Project(Coefficient &coeff,
+                        ElementTransformation &Trans, Vector &dofs) const;
+   virtual void Project(const FiniteElement &fe, ElementTransformation &Trans,
+                        DenseMatrix &I) const;
+};
+
 class VectorFiniteElement : public FiniteElement
 {
    // Hide the scalar functions CalcShape and CalcDShape.
@@ -1337,7 +1349,7 @@ public:
 };
 
 
-class L2Pos_SegmentElement : public FiniteElement
+class L2Pos_SegmentElement : public PositiveFiniteElement
 {
 private:
 #ifndef MFEM_USE_OPENMP
@@ -1349,9 +1361,6 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   using FiniteElement::Project;
-   virtual void Project(Coefficient &coeff,
-                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
@@ -1383,7 +1392,7 @@ public:
 };
 
 
-class L2Pos_QuadrilateralElement : public FiniteElement
+class L2Pos_QuadrilateralElement : public PositiveFiniteElement
 {
 private:
 #ifndef MFEM_USE_OPENMP
@@ -1395,9 +1404,6 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   using FiniteElement::Project;
-   virtual void Project(Coefficient &coeff,
-                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 

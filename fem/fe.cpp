@@ -239,6 +239,37 @@ void NodalFiniteElement::ProjectDiv(
    }
 }
 
+void PositiveFiniteElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   for (int i = 0; i < Dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      dofs(i) = coeff.Eval(Trans, ip);
+   }
+}
+
+void PositiveFiniteElement::Project(
+   const FiniteElement &fe, ElementTransformation &Trans, DenseMatrix &I) const
+{
+   const NodalFiniteElement *nfe =
+      dynamic_cast<const NodalFiniteElement *>(&fe);
+
+   if (nfe && Dof == nfe->GetDof())
+   {
+      nfe->Project(*this, Trans, I);
+      I.Invert();
+   }
+   else
+   {
+      mfem_error("PositiveFiniteElement::Project() (fe version) :\n"
+                 "   the other FE must be nodal and have the same number"
+                 " of DOFs!");
+   }
+}
+
+
 void VectorFiniteElement::CalcShape (
    const IntegrationPoint &ip, Vector &shape ) const
 {
@@ -6880,7 +6911,7 @@ void L2_SegmentElement::ProjectDelta(int vertex,
 
 
 L2Pos_SegmentElement::L2Pos_SegmentElement(const int p)
-   : FiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
+   : PositiveFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
 {
 #ifndef MFEM_USE_OPENMP
    shape_x.SetSize(p + 1);
@@ -6906,19 +6937,6 @@ void L2Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    dshape_x.SetData(dshape.Data());
 #endif
    Poly_1D::CalcBernstein(Order, ip.x, shape_x, dshape_x);
-}
-
-void L2Pos_SegmentElement::Project(
-   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
-{
-   for (int i = 0; i < Dof; i++)
-   {
-      const IntegrationPoint &ip = Nodes.IntPoint(i);
-      // some coefficients expect that Trans.IntPoint is the same
-      // as the second argument of Eval
-      Trans.SetIntPoint(&ip);
-      dofs(i) = coeff.Eval(Trans, ip);
-   }
 }
 
 void L2Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
@@ -7071,8 +7089,8 @@ void L2_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 
 
 L2Pos_QuadrilateralElement::L2Pos_QuadrilateralElement(const int p)
-   : FiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
-                   FunctionSpace::Qk)
+   : PositiveFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
+                           FunctionSpace::Qk)
 {
 #ifndef MFEM_USE_OPENMP
    shape_x.SetSize(p + 1);
@@ -7121,19 +7139,6 @@ void L2Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
          dshape(o,0) = dshape_x(i)* shape_y(j);
          dshape(o,1) =  shape_x(i)*dshape_y(j);  o++;
       }
-}
-
-void L2Pos_QuadrilateralElement::Project(
-   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
-{
-   for (int i = 0; i < Dof; i++)
-   {
-      const IntegrationPoint &ip = Nodes.IntPoint(i);
-      // some coefficients expect that Trans.IntPoint is the same
-      // as the second argument of Eval
-      Trans.SetIntPoint(&ip);
-      dofs(i) = coeff.Eval(Trans, ip);
-   }
 }
 
 void L2Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
@@ -7606,7 +7611,7 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p)
          dof_map[idx] = -1 - dof_map[idx];
       }
    if (p%2 == 1)
-      for (int i = p/2 + 1; i <= p; i++)
+      for (int i = 0; i <= p/2; i++)
       {
          int idx = 1*dof2 + i + (p/2 + 1)*(p + 1);
          dof_map[idx] = -1 - dof_map[idx];
