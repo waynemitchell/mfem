@@ -770,6 +770,31 @@ void GridFunction::GetElementAverages(GridFunction &avgs)
       avgs(i) /= int_psi(i);
 }
 
+void GridFunction::ProjectGridFunction(const GridFunction &src)
+{
+   // Assuming that the projection matrix is the same for all elements
+   Mesh *mesh = fes->GetMesh();
+   DenseMatrix P;
+   fes->GetFE(0)->Project(*src.fes->GetFE(0),
+                          *mesh->GetElementTransformation(0), P);
+   int vdim = fes->GetVDim();
+   if (vdim != src.fes->GetVDim())
+      mfem_error("GridFunction::ProjectGridFunction() :"
+                 " incompatible vector dimensions!");
+   Array<int> src_vdofs, dest_vdofs;
+   Vector src_lvec, dest_lvec(vdim*P.Height());
+
+   for (int i = 0; i < mesh->GetNE(); i++)
+   {
+      src.fes->GetElementVDofs(i, src_vdofs);
+      src.GetSubVector(src_vdofs, src_lvec);
+      for (int vd = 0; vd < vdim; vd++)
+         P.Mult(&src_lvec[vd*P.Width()], &dest_lvec[vd*P.Height()]);
+      fes->GetElementVDofs(i, dest_vdofs);
+      SetSubVector(dest_vdofs, dest_lvec);
+   }
+}
+
 void GridFunction::GetNodalValues(Vector &nval, int vdim) const
 {
    int i, j;
