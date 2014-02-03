@@ -106,6 +106,7 @@ public:
    /// Returns a reference to the sparse martix
    const SparseMatrix &SpMat() const { return *mat; }
    SparseMatrix &SpMat() { return *mat; }
+   SparseMatrix * LoseMat() { SparseMatrix * tmp = mat; mat = NULL; return tmp; }
 
    /// Adds new Domain Integrator.
    void AddDomainIntegrator(BilinearFormIntegrator *bfi);
@@ -239,10 +240,15 @@ public:
 
    const SparseMatrix &SpMat() const { return *mat; };
    SparseMatrix &SpMat() { return *mat; };
+   SparseMatrix * LoseMat() { SparseMatrix * tmp = mat; mat = NULL; return tmp; }
 
    void AddDomainIntegrator (BilinearFormIntegrator * bfi);
 
    void AddBoundaryIntegrator (BilinearFormIntegrator * bfi);
+   
+   Array<BilinearFormIntegrator*> *GetDBFI() { return &dom; }
+
+   Array<BilinearFormIntegrator*> *GetBBFI() { return &bdr; }
 
    void operator= (const double a) { *mat = a; }
 
@@ -298,6 +304,8 @@ public:
 
    void AddDomainInterpolator(DiscreteInterpolator *di)
    { AddDomainIntegrator(di); }
+   
+   Array<BilinearFormIntegrator*> *GetDI() { return &dom; }
 
    virtual void Assemble(int skip_zeros = 1);
 };
