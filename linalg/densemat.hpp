@@ -157,6 +157,7 @@ public:
    { Eigensystem(ev, &evect); }
 
    void SingularValues(Vector &sv) const;
+   int Rank(double tol) const;
 
    /// Return the i-th singular value (decreasing order) of a 2x2 or 3x3 matrix
    double CalcSingularvalue(const int i) const;
@@ -229,6 +230,7 @@ public:
 
    /// Prints matrix to stream out.
    virtual void Print(ostream &out = cout, int width = 4) const;
+   virtual void PrintMatlab(ostream &out = cout) const;
    /// Prints the transpose matrix to stream out.
    virtual void PrintT(ostream &out = cout, int width = 4) const;
 

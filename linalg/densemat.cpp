@@ -786,6 +786,19 @@ void DenseMatrix::SingularValues(Vector &sv) const
 #endif
 }
 
+int DenseMatrix::Rank(double tol) const
+{
+	int rank(0);
+	Vector sv( min(Height(), Width() ) );
+	SingularValues(sv);
+
+	for(int i(0); i < sv.Size(); ++i)
+		if( sv(i) >= tol)
+			++rank;
+
+	return rank;
+}
+
 static const double sqrt_1_eps = sqrt(1./numeric_limits<double>::epsilon());
 
 inline void Eigenvalues2S(const double &d12, double &d1, double &d2)
@@ -2214,6 +2227,21 @@ void DenseMatrix::Print(ostream &out, int width) const
          else
             out << ' ';
       }
+   }
+}
+
+void DenseMatrix::PrintMatlab(ostream &out) const
+{
+   // output flags = scientific + show sign
+   out << setiosflags(ios::scientific | ios::showpos);
+   for (int i = 0; i < height; i++)
+   {
+      for (int j = 0; j < size; j++)
+      {
+         out << (*this)(i,j);
+         out << ' ';
+      }
+      out << "\n";
    }
 }
 
