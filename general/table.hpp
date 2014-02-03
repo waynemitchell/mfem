@@ -76,7 +76,6 @@ public:
    void GetRow(int i, Array<int> &row) const;
 
    int RowSize(int i) const { return I[i+1]-I[i]; }
-
    const int *GetRow(int i) const { return J+I[i]; }
    int *GetRow(int i) { return J+I[i]; }
 
@@ -109,8 +108,11 @@ public:
 
    /// Prints the table to stream out.
    void Print(ostream & out = cout, int width = 4) const;
+   void PrintMatlab(ostream & out) const;
 
    void Save(ostream & out) const;
+   void Copy(Table & copy) const;
+   void Swap(Table & other);
 
    void Clear();
 

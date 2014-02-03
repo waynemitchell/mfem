@@ -242,6 +242,17 @@ void Table::Print(ostream & out, int width) const
    }
 }
 
+void Table::PrintMatlab(ostream & out) const
+{
+   int i, j;
+
+   for (i = 0; i < size; i++)
+      for (j = I[i]; j < I[i+1]; j++)
+    	  out << i << " " << J[j] << " 1. \n";
+
+   out << flush;
+}
+
 void Table::Save(ostream & out) const
 {
    int i;
@@ -260,6 +271,32 @@ void Table::Clear()
    delete [] J;
    size = -1;
    I = J = NULL;
+}
+
+void Table::Copy(Table & copy) const
+{
+	int * i_copy = new int[size+1];
+	int * j_copy = new int[I[size]];
+
+	memcpy(i_copy, I, sizeof(int)*(size+1) );
+	memcpy(j_copy, J, sizeof(int)*size);
+
+	copy.SetIJ(i_copy, j_copy, size);
+}
+
+void Table::Swap(Table & other)
+{
+	int * I_backup = I;
+	int * J_backup = J;
+	int size_backup = size;
+
+	I = other.I;
+	J = other.J;
+	size = other.size;
+
+	other.I = I_backup;
+	other.J = J_backup;
+	other.size = size_backup;
 }
 
 Table::~Table ()
