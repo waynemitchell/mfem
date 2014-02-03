@@ -278,6 +278,10 @@ double DenseMatrix::Weight() const
    {
       return sqrt(data[0] * data[0] + data[1] * data[1]);
    }
+   else if ((Height() == 3) && (Width() == 1))
+   {
+      return sqrt(data[0] * data[0] + data[1] * data[1] + data[2] * data[2]);
+   }
    else if ((Height() == 3) && (Width() == 2))
    {
       const double *d = data;

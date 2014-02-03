@@ -265,6 +265,51 @@ ElementTransformation *Mesh::GetFaceTransformation(int FaceNo)
    return &FaceTransformation;
 }
 
+void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
+{
+	if(Dim == 2)
+    {
+		GetFaceTransformation(EdgeNo, EdTr);
+        return;
+    }
+	if(Dim == 1)
+		mfem_error("Mesh::GetEdgeTransformation not defined in 1D \n");
+
+   EdTr->Attribute = 1;
+   EdTr->ElementNo = EdgeNo;
+   DenseMatrix &pm = EdTr->GetPointMat();
+   if (Nodes == NULL)
+   {
+	   Array<int> v;
+	   GetEdgeVertices(EdgeNo, v);
+	   const int nv = 2;
+      pm.SetSize(Dim, nv);
+      for (int i = 0; i < Dim; i++)
+         for (int j = 0; j < nv; j++)
+            pm(i, j) = vertices[v[j]](i);
+      EdTr->SetFE(GetTransformationFEforElementType( Element::SEGMENT ) );
+
+   }
+   else
+   {
+      Array<int> vdofs;
+      Nodes->FESpace()->GetEdgeVDofs(EdgeNo, vdofs);
+      int n = vdofs.Size()/Dim;
+      pm.SetSize(Dim, n);
+      for (int i = 0; i < Dim; i++)
+         for (int j = 0; j < n; j++)
+            pm(i, j) = (*Nodes)(vdofs[n*i+j]);
+      EdTr->SetFE(GetTransformationFEforElementType( Element::SEGMENT ));
+   }
+}
+
+ElementTransformation *Mesh::GetEdgeTransformation(int EdgeNo)
+{
+   GetEdgeTransformation(EdgeNo, &EdgeTransformation);
+   return &EdgeTransformation;
+}
+
+
 void Mesh::GetLocalPtToSegTransformation(
    IsoparametricTransformation &Transf, int i)
 {

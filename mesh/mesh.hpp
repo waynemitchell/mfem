@@ -68,7 +68,7 @@ protected:
    Array<FaceInfo> fc_faces_info;      // for 3D two-level state
 
    IsoparametricTransformation Transformation, Transformation2;
-   IsoparametricTransformation FaceTransformation;
+   IsoparametricTransformation FaceTransformation, EdgeTransformation;
    FaceElementTransformations FaceElemTr;
 
    GridFunction *Nodes;
@@ -436,6 +436,13 @@ public:
 
    /// Returns the transformation defining the given face element
    ElementTransformation *GetFaceTransformation(int FaceNo);
+
+   /** Returns the transformation defining the given edge element.
+       The transformation is stored in a user-defined variable. */
+   void GetEdgeTransformation(int i, IsoparametricTransformation *EdTr);
+
+   /// Returns the transformation defining the given face element
+   ElementTransformation *GetEdgeTransformation(int EdgeNo);
 
    /** Returns (a poiter to a structure containing) the following data:
        1) Elem1No - the index of the first element that contains this face
