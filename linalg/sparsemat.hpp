@@ -81,6 +81,8 @@ public:
    inline int Width() const { return width; }
    /// Returns the number of elements in row i
    int RowSize(const int i) const;
+   /// Returns the maximum number of elements among all rows
+   int MaxRowSize() const;
    /// Return a pointer to the column indices in a row
    int *GetRowColumns(const int row);
    /// Return a pointer to the entries in a row
@@ -98,6 +100,9 @@ public:
    /// Returns reference to A[i][j].  Index i, j = 0 .. size-1
    const double &operator()(int i, int j) const;
 
+   /// Returns the Diagonal of A
+   void GetDiag(Vector & d) const;
+
    /// Matrix vector multiplication.
    virtual void Mult(const Vector &x, Vector &y) const;
 
@@ -111,7 +116,8 @@ public:
    void AddMultTranspose(const Vector &x, Vector &y,
                          const double a = 1.0) const;
 
-   void PartMult(const Array<int> &rows, const Vector &x, Vector &y);
+   void PartMult(const Array<int> &rows, const Vector &x, Vector &y) const;
+   void PartAddMult(const Array<int> &rows, const Vector &x, Vector &y, const double a=1.0) const;
 
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const;
@@ -205,6 +211,10 @@ public:
    void AddRow(const int row, const Array<int> &cols, const Vector &srow);
 
    void ScaleRow(const int row, const double scale);
+   // this = diag(sl) * this;
+   void ScaleRows(const Vector & sl);
+   //this = this * diag(sr);
+   void ScaleColumns(const Vector & sr);
 
    /** Add a sparse matrix to "*this" sparse marix
        Both marices should not be finilized */
@@ -263,6 +273,8 @@ void SparseMatrixFunction(SparseMatrix &S, double (*f)(double));
 
 /// Transpose of a sparse matrix. A must be finalized.
 SparseMatrix *Transpose(SparseMatrix &A);
+/// Transpose of a sparse matrix. A does not need to be finalized.
+SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth);
 
 /** Matrix product A.B.
     If OAB is not NULL, we assume it has the structure
@@ -272,6 +284,9 @@ SparseMatrix *Transpose(SparseMatrix &A);
     All matrices must be finalized.  */
 SparseMatrix *Mult(SparseMatrix &A, SparseMatrix &B,
                    SparseMatrix *OAB = NULL);
+
+/// Transpose of a sparse matrix. A and B do not need to be finalized.
+SparseMatrix *MultRowMatrix (SparseMatrix &A, SparseMatrix &B);
 
 
 /** RAP matrix product. ORAP is like OAB above.
