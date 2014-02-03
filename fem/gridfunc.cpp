@@ -147,7 +147,7 @@ void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
       fec = NULL;
    }
    fes = f;
-   SetDataAndSize((double *)v + v_offset, fes->GetVSize());
+   NewDataAndSize((double *)v + v_offset, fes->GetVSize());
 }
 
 int GridFunction::VectorDim() const
