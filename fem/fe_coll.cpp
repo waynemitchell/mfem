@@ -1330,7 +1330,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
       ND_Elements[Geometry::TRIANGLE] = new ND_TriangleElement(p);
       ND_dof[Geometry::TRIANGLE] = p*pm1;
 
-      // ND_Elements[Geometry::SEGMENT] = NULL;
+      ND_Elements[Geometry::SEGMENT] = new L2Vol_SegmentElement(p-1);
       ND_dof[Geometry::SEGMENT] = p;
 
       SegDofOrd[0] = new int[2*p];
