@@ -7665,8 +7665,6 @@ L2Pos_HexahedronElement::L2Pos_HexahedronElement(const int p)
    : PositiveFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
                            FunctionSpace::Qk)
 {
-   const double *op = poly1d.OpenPoints(p);
-
 #ifndef MFEM_USE_OPENMP
    shape_x.SetSize(p + 1);
    shape_y.SetSize(p + 1);

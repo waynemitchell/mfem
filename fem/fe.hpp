@@ -1313,11 +1313,11 @@ class H1Pos_SegmentElement : public FiniteElement
 {
 private:
 #ifndef MFEM_USE_OPENMP
-  // This is to share scratch space between invocations, which helps
-  // speed things up, but with OpenMP, we need one copy per thread.
-  // Right now, we solve this by allocating this space within each function
-  // call every time we call it.  Alternatively, we should do some sort
-  // thread private thing.  Brunner, Jan 2014
+   // This is to share scratch space between invocations, which helps
+   // speed things up, but with OpenMP, we need one copy per thread.
+   // Right now, we solve this by allocating this space within each function
+   // call every time we call it.  Alternatively, we should do some sort
+   // thread private thing.  Brunner, Jan 2014
    mutable Vector shape_x, dshape_x;
 #endif
 
@@ -1337,7 +1337,7 @@ class H1Pos_QuadrilateralElement : public FiniteElement
 {
 private:
 #ifndef MFEM_USE_OPENMP
-  // See comment in H1Pos_SegmentElement
+   // See comment in H1Pos_SegmentElement
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
    Array<int> dof_map;
@@ -1358,7 +1358,7 @@ class H1Pos_HexahedronElement : public FiniteElement
 {
 private:
 #ifndef MFEM_USE_OPENMP
-  // See comment in H1Pos_SegementElement.
+   // See comment in H1Pos_SegementElement.
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
    Array<int> dof_map;
