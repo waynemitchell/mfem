@@ -1269,16 +1269,30 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
    }
    else if (dim == 2)
    {
-      L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p);
       if (type == 0 || type == 1)
+      {
+         L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, type);
          L2_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, type);
+      }
       else
+      {
+         L2_Elements[Geometry::TRIANGLE] = new L2Pos_TriangleElement(p);
          L2_Elements[Geometry::SQUARE] = new L2Pos_QuadrilateralElement(p);
+      }
    }
    else if (dim == 3)
    {
-      L2_Elements[Geometry::TETRAHEDRON] = new L2_TetrahedronElement(p);
-      L2_Elements[Geometry::CUBE] = new L2_HexahedronElement(p);
+      if (type == 0 || type == 1)
+      {
+         L2_Elements[Geometry::TETRAHEDRON] =
+            new L2_TetrahedronElement(p, type);
+         L2_Elements[Geometry::CUBE] = new L2_HexahedronElement(p, type);
+      }
+      else
+      {
+         L2_Elements[Geometry::TETRAHEDRON] = new L2Pos_TetrahedronElement(p);
+         L2_Elements[Geometry::CUBE] = new L2Pos_HexahedronElement(p);
+      }
    }
    else
    {
