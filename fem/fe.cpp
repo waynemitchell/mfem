@@ -6577,6 +6577,324 @@ void H1_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 }
 
 
+H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
+   : FiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
+{
+#ifndef MFEM_USE_OPENMP
+   // thread private versions; see class header.
+   shape_x.SetSize(p+1);
+   dshape_x.SetSize(p+1);
+#endif
+
+   // Endpoints need to be first in the list, so reorder them.
+   Nodes.IntPoint(0).x = 0.0;
+   Nodes.IntPoint(1).x = 1.0;
+   for (int i = 1; i < p; i++)
+      Nodes.IntPoint(i+1).x = double(i)/p;
+}
+
+void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
+                                     Vector &shape) const
+{
+   const int p = Order;
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1);
+#endif
+
+   Poly_1D::CalcBernstein(p, ip.x, shape_x.GetData() );
+
+   // Endpoints need to be first in the list, so reorder them.
+   shape(0) = shape_x(0);
+   shape(1) = shape_x(p);
+   for (int i = 1; i < p; i++)
+      shape(i+1) = shape_x(i);
+}
+
+void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
+                                      DenseMatrix &dshape) const
+{
+   const int p = Order;
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1), dshape_x(p+1);
+#endif
+
+   Poly_1D::CalcBernstein(p, ip.x, shape_x.GetData(), dshape_x.GetData() );
+
+   // Endpoints need to be first in the list, so reorder them.
+   dshape(0,0) = dshape_x(0);
+   dshape(1,0) = dshape_x(p);
+   for (int i = 1; i < p; i++)
+      dshape(i+1,0) = dshape_x(i);
+}
+
+void H1Pos_SegmentElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   for (int i = 0; i < Dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      dofs(i) = coeff.Eval(Trans, ip);
+   }
+}
+
+void H1Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   dofs = 0.0;
+   dofs[vertex] = 1.0;
+}
+
+
+H1Pos_QuadrilateralElement::H1Pos_QuadrilateralElement(const int p)
+   : FiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p, FunctionSpace::Qk),
+     dof_map((p + 1)*(p + 1))
+{
+   const int p1 = p + 1;
+
+#ifndef MFEM_USE_OPENMP
+   shape_x.SetSize(p1);
+   shape_y.SetSize(p1);
+   dshape_x.SetSize(p1);
+   dshape_y.SetSize(p1);
+#endif
+
+   // vertices must be the first ones in the list of DOF's for
+   // this element.  So we need to reorder the points.
+   dof_map[0 + 0*p1] = 0;
+   dof_map[p + 0*p1] = 1;
+   dof_map[p + p*p1] = 2;
+   dof_map[0 + p*p1] = 3;
+
+   // edges
+   int o = 4;
+   for (int i = 1; i < p; i++)
+      dof_map[i + 0*p1] = o++;
+   for (int i = 1; i < p; i++)
+      dof_map[p + i*p1] = o++;
+   for (int i = 1; i < p; i++)
+      dof_map[(p-i) + p*p1] = o++;
+   for (int i = 1; i < p; i++)
+      dof_map[0 + (p-i)*p1] = o++;
+
+   // interior
+   for (int j = 1; j < p; j++)
+      for (int i = 1; i < p; i++)
+         dof_map[i + j*p1] = o++;
+
+   o = 0;
+   for (int j = 0; j <= p; j++)
+      for (int i = 0; i <= p; i++)
+         Nodes.IntPoint(dof_map[o++]).Set2(double(i)/p, double(j)/p);
+}
+
+void H1Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
+                                           Vector &shape) const
+{
+   const int p = Order;
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1), shape_y(p+1);
+#endif
+
+   Poly_1D::CalcBernstein(p, ip.x, shape_x.GetData() );
+   Poly_1D::CalcBernstein(p, ip.y, shape_y.GetData() );
+
+   // Reorder so that vertices are at the beginning of the list
+   for (int o = 0, j = 0; j <= p; j++)
+      for (int i = 0; i <= p; i++)
+         shape(dof_map[o++]) = shape_x(i)*shape_y(j);
+}
+
+void H1Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
+                                            DenseMatrix &dshape) const
+{
+   const int p = Order;
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1), shape_y(p+1), dshape_x(p+1), dshape_y(p+1);
+#endif
+
+   Poly_1D::CalcBernstein(p, ip.x, shape_x.GetData(), dshape_x.GetData() );
+   Poly_1D::CalcBernstein(p, ip.y, shape_y.GetData(), dshape_y.GetData() );
+
+   // Reorder so that vertices are at the beginning of the list
+   for (int o = 0, j = 0; j <= p; j++)
+      for (int i = 0; i <= p; i++)
+      {
+         dshape(dof_map[o],0) = dshape_x(i)* shape_y(j);
+         dshape(dof_map[o],1) =  shape_x(i)*dshape_y(j);  o++;
+      }
+}
+
+void H1Pos_QuadrilateralElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   for (int i = 0; i < Dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      dofs(i) = coeff.Eval(Trans, ip);
+   }
+}
+
+void H1Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   dofs = 0.0;
+   dofs[vertex] = 1.0;
+}
+
+
+H1Pos_HexahedronElement::H1Pos_HexahedronElement(const int p)
+   : FiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
+                   FunctionSpace::Qk),
+     dof_map((p + 1)*(p + 1)*(p + 1))
+{
+   const int p1 = p + 1;
+
+#ifndef MFEM_USE_OPENMP
+   shape_x.SetSize(p1);
+   shape_y.SetSize(p1);
+   shape_z.SetSize(p1);
+   dshape_x.SetSize(p1);
+   dshape_y.SetSize(p1);
+   dshape_z.SetSize(p1);
+#endif
+
+   // vertices must be the first ones in the list of DOF's for
+   // this element.  So we need to reorder the points.
+   dof_map[0 + (0 + 0*p1)*p1] = 0;
+   dof_map[p + (0 + 0*p1)*p1] = 1;
+   dof_map[p + (p + 0*p1)*p1] = 2;
+   dof_map[0 + (p + 0*p1)*p1] = 3;
+   dof_map[0 + (0 + p*p1)*p1] = 4;
+   dof_map[p + (0 + p*p1)*p1] = 5;
+   dof_map[p + (p + p*p1)*p1] = 6;
+   dof_map[0 + (p + p*p1)*p1] = 7;
+
+   // edges (see Hexahedron::edges in mesh/hexahedron.cpp)
+   int o = 8;
+   for (int i = 1; i < p; i++)
+      dof_map[i + (0 + 0*p1)*p1] = o++;  // (0,1)
+   for (int i = 1; i < p; i++)
+      dof_map[p + (i + 0*p1)*p1] = o++;  // (1,2)
+   for (int i = 1; i < p; i++)
+      dof_map[i + (p + 0*p1)*p1] = o++;  // (3,2)
+   for (int i = 1; i < p; i++)
+      dof_map[0 + (i + 0*p1)*p1] = o++;  // (0,3)
+   for (int i = 1; i < p; i++)
+      dof_map[i + (0 + p*p1)*p1] = o++;  // (4,5)
+   for (int i = 1; i < p; i++)
+      dof_map[p + (i + p*p1)*p1] = o++;  // (5,6)
+   for (int i = 1; i < p; i++)
+      dof_map[i + (p + p*p1)*p1] = o++;  // (7,6)
+   for (int i = 1; i < p; i++)
+      dof_map[0 + (i + p*p1)*p1] = o++;  // (4,7)
+   for (int i = 1; i < p; i++)
+      dof_map[0 + (0 + i*p1)*p1] = o++;  // (0,4)
+   for (int i = 1; i < p; i++)
+      dof_map[p + (0 + i*p1)*p1] = o++;  // (1,5)
+   for (int i = 1; i < p; i++)
+      dof_map[p + (p + i*p1)*p1] = o++;  // (2,6)
+   for (int i = 1; i < p; i++)
+      dof_map[0 + (p + i*p1)*p1] = o++;  // (3,7)
+
+   // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
+   for (int j = 1; j < p; j++)
+      for (int i = 1; i < p; i++)
+         dof_map[i + ((p-j) + 0*p1)*p1] = o++;  // (3,2,1,0)
+   for (int j = 1; j < p; j++)
+      for (int i = 1; i < p; i++)
+         dof_map[i + (0 + j*p1)*p1] = o++;  // (0,1,5,4)
+   for (int j = 1; j < p; j++)
+      for (int i = 1; i < p; i++)
+         dof_map[p + (i + j*p1)*p1] = o++;  // (1,2,6,5)
+   for (int j = 1; j < p; j++)
+      for (int i = 1; i < p; i++)
+         dof_map[(p-i) + (p + j*p1)*p1] = o++;  // (2,3,7,6)
+   for (int j = 1; j < p; j++)
+      for (int i = 1; i < p; i++)
+         dof_map[0 + ((p-i) + j*p1)*p1] = o++;  // (3,0,4,7)
+   for (int j = 1; j < p; j++)
+      for (int i = 1; i < p; i++)
+         dof_map[i + (j + p*p1)*p1] = o++;  // (4,5,6,7)
+
+   // interior
+   for (int k = 1; k < p; k++)
+      for (int j = 1; j < p; j++)
+         for (int i = 1; i < p; i++)
+            dof_map[i + (j + k*p1)*p1] = o++;
+
+   o = 0;
+   for (int k = 0; k <= p; k++)
+      for (int j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            Nodes.IntPoint(dof_map[o++]).Set3(double(i)/p, double(j)/p,
+                                              double(k)/p);
+}
+
+void H1Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
+                                        Vector &shape) const
+{
+   const int p = Order;
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1), shape_y(p+1), shape_z(p+1);
+#endif
+
+   Poly_1D::CalcBernstein(p, ip.x, shape_x.GetData() );
+   Poly_1D::CalcBernstein(p, ip.y, shape_y.GetData() );
+   Poly_1D::CalcBernstein(p, ip.z, shape_z.GetData() );
+
+   for (int o = 0, k = 0; k <= p; k++)
+      for (int j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+            shape(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_z(k);
+}
+
+void H1Pos_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
+                                         DenseMatrix &dshape) const
+{
+   const int p = Order;
+
+#ifdef MFEM_USE_OPENMP
+   Vector shape_x(p+1),  shape_y(p+1),  shape_z(p+1);
+   Vector dshape_x(p+1), dshape_y(p+1), dshape_z(p+1);
+#endif
+
+   Poly_1D::CalcBernstein(p, ip.x, shape_x.GetData(), dshape_x.GetData() );
+   Poly_1D::CalcBernstein(p, ip.y, shape_y.GetData(), dshape_y.GetData() );
+   Poly_1D::CalcBernstein(p, ip.z, shape_z.GetData(), dshape_z.GetData() );
+
+   for (int o = 0, k = 0; k <= p; k++)
+      for (int j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+         {
+            dshape(dof_map[o],0) = dshape_x(i)* shape_y(j)* shape_z(k);
+            dshape(dof_map[o],1) =  shape_x(i)*dshape_y(j)* shape_z(k);
+            dshape(dof_map[o],2) =  shape_x(i)* shape_y(j)*dshape_z(k);  o++;
+         }
+}
+
+void H1Pos_HexahedronElement::Project(
+   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
+{
+   for (int i = 0; i < Dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      dofs(i) = coeff.Eval(Trans, ip);
+   }
+}
+
+void H1Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
+{
+   dofs = 0.0;
+   dofs[vertex] = 1.0;
+}
+
+
 H1_TriangleElement::H1_TriangleElement(const int p)
    : NodalFiniteElement(2, Geometry::TRIANGLE, ((p + 1)*(p + 2))/2, p,
                         FunctionSpace::Pk), T(Dof)
