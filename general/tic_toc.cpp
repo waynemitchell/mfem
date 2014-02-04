@@ -57,6 +57,11 @@ void StopWatch::Stop()
    Running = 0;
 }
 
+double StopWatch::Resolution()
+{
+	return static_cast<double>(1.) / static_cast<double>( my_CLK_TCK );
+}
+
 double StopWatch::RealTime()
 {
    clock_t curr_rtime, curr_utime, curr_stime;
