@@ -100,10 +100,18 @@ int main (int argc, char *argv[])
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 
+#ifndef MFEM_USE_SUITESPARSE
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
    PCG(A, M, *b, x, 1, 200, 1e-12, 0.0);
+#else
+   // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system
+   UMFPackSolver umf_solver;
+   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   umf_solver.SetOperator(A);
+   umf_solver.Mult(*b, x);
+#endif
 
    // 8. Save the refined mesh and the solution. This output can be viewed later
    //    using GLVis: "glvis -m refined.mesh -g sol.gf".
