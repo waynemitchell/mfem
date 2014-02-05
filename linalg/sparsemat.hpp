@@ -86,6 +86,9 @@ public:
    /// Return a pointer to the entries in a row
    double *GetRowEntries(const int row);
 
+   /// Sort the column indices corresponding to each row
+   void SortColumnIndices();
+
    /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
    virtual double &Elem(int i, int j);
 
