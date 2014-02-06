@@ -122,9 +122,9 @@ void BoundaryTangentialLFIntegrator::AssembleRHSElementVect(
    shape.SetSize(dof);
    elvect.SetSize(dof);
    elvect = 0.0;
-   
+
    if (dim != 2)
-    	 mfem_error("This methods make sense only in 2D problems.");
+      mfem_error("These methods make sense only in 2D problems.");
 
    const IntegrationRule *ir = IntRule;
    if (ir == NULL)

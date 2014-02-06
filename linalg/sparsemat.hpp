@@ -117,7 +117,8 @@ public:
                          const double a = 1.0) const;
 
    void PartMult(const Array<int> &rows, const Vector &x, Vector &y) const;
-   void PartAddMult(const Array<int> &rows, const Vector &x, Vector &y, const double a=1.0) const;
+   void PartAddMult(const Array<int> &rows, const Vector &x, Vector &y,
+                    const double a=1.0) const;
 
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const;
@@ -285,7 +286,7 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth);
 SparseMatrix *Mult(SparseMatrix &A, SparseMatrix &B,
                    SparseMatrix *OAB = NULL);
 
-/// Transpose of a sparse matrix. A and B do not need to be finalized.
+/// Matrix product of sparse matrices. A and B do not need to be finalized.
 SparseMatrix *MultRowMatrix (SparseMatrix &A, SparseMatrix &B);
 
 

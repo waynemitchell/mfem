@@ -823,7 +823,7 @@ void FiniteElementSpace::GetVertexDofs(int i, Array<int> &dofs) const
    nv = fec->DofForGeometry(Geometry::POINT);
    dofs.SetSize(nv);
    for (j = 0; j < nv; j++)
-	   dofs[j] = i*nv+j;
+      dofs[j] = i*nv+j;
 }
 
 void FiniteElementSpace::GetElementInteriorDofs (int i, Array<int> &dofs) const

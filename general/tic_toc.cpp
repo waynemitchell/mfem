@@ -59,7 +59,7 @@ void StopWatch::Stop()
 
 double StopWatch::Resolution()
 {
-	return static_cast<double>(1.) / static_cast<double>( my_CLK_TCK );
+   return static_cast<double>(1.) / static_cast<double>( my_CLK_TCK );
 }
 
 double StopWatch::RealTime()

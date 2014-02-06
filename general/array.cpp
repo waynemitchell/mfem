@@ -108,26 +108,27 @@ void Array<T>::Sort()
 template <class T>
 void Array<T>::PartialSum()
 {
-  T sum = operator[](0);
-  for(int i = 1; i < size; i++) {
-    sum+=operator[](i);
-    operator[](i) = sum;
-  }
+   T sum = operator[](0);
+   for (int i = 1; i < size; i++)
+   {
+      sum+=operator[](i);
+      operator[](i) = sum;
+   }
 }
 
 template <class T>
 int Array<T>::IsSorted()
 {
-	T val_prev = operator[](0), val;
-	for(int i = 1; i < size; i++)
-	{
-	    val=operator[](i);
-	    if(val < val_prev)
-	    	return 0;
-	    val_prev = val;
-	}
+   T val_prev = operator[](0), val;
+   for(int i = 1; i < size; i++)
+   {
+      val=operator[](i);
+      if(val < val_prev)
+         return 0;
+      val_prev = val;
+   }
 
-	  return 1;
+   return 1;
 }
 
 template class Array<int>;

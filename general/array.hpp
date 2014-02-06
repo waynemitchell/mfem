@@ -226,7 +226,7 @@ public:
    void Copy(Array2D &copy) const
    { copy.N = N; array1d.Copy(copy.array1d); }
 
-   inline void operator=(const T &a) 
+   inline void operator=(const T &a)
    { array1d = a; }
 
    /// Make this Array a reference to 'master'

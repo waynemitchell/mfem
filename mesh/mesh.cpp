@@ -267,22 +267,22 @@ ElementTransformation *Mesh::GetFaceTransformation(int FaceNo)
 
 void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
 {
-	if(Dim == 2)
-    {
-		GetFaceTransformation(EdgeNo, EdTr);
-        return;
-    }
-	if(Dim == 1)
-		mfem_error("Mesh::GetEdgeTransformation not defined in 1D \n");
+   if(Dim == 2)
+   {
+      GetFaceTransformation(EdgeNo, EdTr);
+      return;
+   }
+   if(Dim == 1)
+      mfem_error("Mesh::GetEdgeTransformation not defined in 1D \n");
 
    EdTr->Attribute = 1;
    EdTr->ElementNo = EdgeNo;
    DenseMatrix &pm = EdTr->GetPointMat();
    if (Nodes == NULL)
    {
-	   Array<int> v;
-	   GetEdgeVertices(EdgeNo, v);
-	   const int nv = 2;
+      Array<int> v;
+      GetEdgeVertices(EdgeNo, v);
+      const int nv = 2;
       pm.SetSize(Dim, nv);
       for (int i = 0; i < Dim; i++)
          for (int j = 0; j < nv; j++)

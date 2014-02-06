@@ -788,15 +788,15 @@ void DenseMatrix::SingularValues(Vector &sv) const
 
 int DenseMatrix::Rank(double tol) const
 {
-	int rank(0);
-	Vector sv( min(Height(), Width() ) );
-	SingularValues(sv);
+   int rank(0);
+   Vector sv( min(Height(), Width() ) );
+   SingularValues(sv);
 
-	for(int i(0); i < sv.Size(); ++i)
-		if( sv(i) >= tol)
-			++rank;
+   for(int i(0); i < sv.Size(); ++i)
+      if( sv(i) >= tol)
+         ++rank;
 
-	return rank;
+   return rank;
 }
 
 static const double sqrt_1_eps = sqrt(1./numeric_limits<double>::epsilon());
