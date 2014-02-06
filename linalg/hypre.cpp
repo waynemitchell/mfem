@@ -20,9 +20,10 @@
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
 
-HypreParVector::HypreParVector(int glob_size, int *col) : Vector()
+HypreParVector::HypreParVector(MPI_Comm comm, int glob_size,
+                               int *col) : Vector()
 {
-   x = hypre_ParVectorCreate(MPI_COMM_WORLD,glob_size,col);
+   x = hypre_ParVectorCreate(comm,glob_size,col);
    hypre_ParVectorInitialize(x);
    hypre_ParVectorSetPartitioningOwner(x,0);
    // The data will be destroyed by hypre (this is the default)
@@ -33,10 +34,10 @@ HypreParVector::HypreParVector(int glob_size, int *col) : Vector()
    own_ParVector = 1;
 }
 
-HypreParVector::HypreParVector(int glob_size, double *_data, int *col)
-   : Vector()
+HypreParVector::HypreParVector(MPI_Comm comm, int glob_size,
+                               double *_data, int *col) : Vector()
 {
-   x = hypre_ParVectorCreate(MPI_COMM_WORLD,glob_size,col);
+   x = hypre_ParVectorCreate(comm,glob_size,col);
    hypre_ParVectorSetDataOwner(x,1); // owns the seq vector
    hypre_SeqVectorSetDataOwner(hypre_ParVectorLocalVector(x),0);
    hypre_ParVectorSetPartitioningOwner(x,0);
@@ -51,12 +52,23 @@ HypreParVector::HypreParVector(int glob_size, double *_data, int *col)
 
 HypreParVector::HypreParVector(const HypreParVector &y) : Vector()
 {
-   x = hypre_ParVectorCreate(MPI_COMM_WORLD, y.x -> global_size,
+   x = hypre_ParVectorCreate(y.x -> comm, y.x -> global_size,
                              y.x -> partitioning);
    hypre_ParVectorInitialize(x);
    hypre_ParVectorSetPartitioningOwner(x,0);
    hypre_ParVectorSetDataOwner(x,1);
    hypre_SeqVectorSetDataOwner(hypre_ParVectorLocalVector(x),1);
+   SetDataAndSize(hypre_VectorData(hypre_ParVectorLocalVector(x)),
+                  hypre_VectorSize(hypre_ParVectorLocalVector(x)));
+   own_ParVector = 1;
+}
+
+HypreParVector::HypreParVector(HypreParMatrix &A, int tr) : Vector()
+{
+   if (!tr)
+      x = hypre_ParVectorInDomainOf(A);
+   else
+      x = hypre_ParVectorInRangeOf(A);
    SetDataAndSize(hypre_VectorData(hypre_ParVectorLocalVector(x)),
                   hypre_VectorSize(hypre_ParVectorLocalVector(x)));
    own_ParVector = 1;
@@ -89,10 +101,12 @@ HypreParVector::operator hypre_ParVector*() const
    return x;
 }
 
+#ifndef HYPRE_PAR_VECTOR_STRUCT
 HypreParVector::operator HYPRE_ParVector() const
 {
    return (HYPRE_ParVector) x;
 }
+#endif
 
 Vector * HypreParVector::GlobalVector()
 {
@@ -155,10 +169,10 @@ double InnerProduct(HypreParVector &x, HypreParVector &y)
 }
 
 
-HypreParMatrix::HypreParMatrix(int size, int *row, SparseMatrix *diag)
+HypreParMatrix::HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *diag)
    : Operator(size)
 {
-   A = hypre_ParCSRMatrixCreate(MPI_COMM_WORLD, size, size, row, row,
+   A = hypre_ParCSRMatrixCreate(comm, size, size, row, row,
                                 0, diag->NumNonZeroElems(), 0);
    hypre_ParCSRMatrixSetDataOwner(A,0);
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
@@ -190,10 +204,10 @@ HypreParMatrix::HypreParMatrix(int size, int *row, SparseMatrix *diag)
 }
 
 
-HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
+HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
                                SparseMatrix *diag)
 {
-   A = hypre_ParCSRMatrixCreate(MPI_COMM_WORLD, M, N, row, col,
+   A = hypre_ParCSRMatrixCreate(comm, M, N, row, col,
                                 0, diag->NumNonZeroElems(), 0);
    hypre_ParCSRMatrixSetDataOwner(A,0);
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
@@ -222,11 +236,11 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
    size = GetNumRows();
 }
 
-HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
+HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
                                SparseMatrix *diag, SparseMatrix *offd,
                                int *cmap)
 {
-   A = hypre_ParCSRMatrixCreate(MPI_COMM_WORLD, M, N, row, col,
+   A = hypre_ParCSRMatrixCreate(comm, M, N, row, col,
                                 offd->Width(), diag->NumNonZeroElems(),
                                 offd->NumNonZeroElems());
    hypre_ParCSRMatrixSetDataOwner(A,0);
@@ -261,7 +275,8 @@ HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
    size = GetNumRows();
 }
 
-HypreParMatrix::HypreParMatrix(int *row, int *col, SparseMatrix *sm_a)
+HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row, int *col,
+                               SparseMatrix *sm_a)
 {
 #ifdef MFEM_DEBUG
    if (sm_a == NULL)
@@ -279,7 +294,7 @@ HypreParMatrix::HypreParMatrix(int *row, int *col, SparseMatrix *sm_a)
    hypre_CSRMatrixData(csr_a) = sm_a -> GetData();
    hypre_CSRMatrixSetRownnz(csr_a);
 
-   A = hypre_CSRMatrixToParCSRMatrix(MPI_COMM_WORLD,csr_a,row,col);
+   A = hypre_CSRMatrixToParCSRMatrix(comm,csr_a,row,col);
 
    CommPkg = NULL;
    X = Y = NULL;
@@ -293,12 +308,11 @@ HypreParMatrix::HypreParMatrix(int *row, int *col, SparseMatrix *sm_a)
    hypre_MatvecCommPkgCreate(A);
 }
 
-HypreParMatrix::HypreParMatrix(int M, int N, int *row, int *col,
+HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
                                Table *diag)
 {
    int nnz = diag->Size_of_connections();
-   A = hypre_ParCSRMatrixCreate(MPI_COMM_WORLD, M, N, row, col,
-                                0, nnz, 0);
+   A = hypre_ParCSRMatrixCreate(comm, M, N, row, col, 0, nnz, 0);
    hypre_ParCSRMatrixSetDataOwner(A,1);
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
    hypre_ParCSRMatrixSetColStartsOwner(A,0);
@@ -498,10 +512,12 @@ HypreParMatrix::operator hypre_ParCSRMatrix*()
    return (this) ? A : NULL;
 }
 
+#ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
 HypreParMatrix::operator HYPRE_ParCSRMatrix()
 {
    return (this) ? (HYPRE_ParCSRMatrix) A : (HYPRE_ParCSRMatrix) NULL;
 }
+#endif
 
 hypre_ParCSRMatrix* HypreParMatrix::StealData()
 {
@@ -546,10 +562,12 @@ void HypreParMatrix::Mult(const Vector &x, Vector &y) const
 {
    if (X == NULL)
    {
-      X = new HypreParVector(GetGlobalNumCols(),
+      X = new HypreParVector(A->comm,
+                             GetGlobalNumCols(),
                              x.GetData(),
                              GetColStarts());
-      Y = new HypreParVector(GetGlobalNumRows(),
+      Y = new HypreParVector(A->comm,
+                             GetGlobalNumRows(),
                              y.GetData(),
                              GetRowStarts());
    }
@@ -566,10 +584,12 @@ void HypreParMatrix::MultTranspose(const Vector &x, Vector &y) const
 {
    if (X == NULL)
    {
-      X = new HypreParVector(GetGlobalNumCols(),
+      X = new HypreParVector(A->comm,
+                             GetGlobalNumCols(),
                              x.GetData(),
                              GetColStarts());
-      Y = new HypreParVector(GetGlobalNumRows(),
+      Y = new HypreParVector(A->comm,
+                             GetGlobalNumRows(),
                              y.GetData(),
                              GetRowStarts());
    }
@@ -599,11 +619,11 @@ void HypreParMatrix::Print(const char *fname, int offi, int offj)
    hypre_ParCSRMatrixPrintIJ(A,offi,offj,fname);
 }
 
-void HypreParMatrix::Read(const char *fname)
+void HypreParMatrix::Read(MPI_Comm comm, const char *fname)
 {
    if (A) hypre_ParCSRMatrixDestroy(A);
    int io,jo;
-   hypre_ParCSRMatrixReadIJ(MPI_COMM_WORLD, fname, &io, &jo, &A);
+   hypre_ParCSRMatrixReadIJ(comm, fname, &io, &jo, &A);
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
    hypre_MatvecCommPkgCreate(A);
@@ -789,7 +809,8 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (type == 16)
    {
       hypre_ParCSRMaxEigEstimateCG(*A, 1, 10, &max_eig_est, &min_eig_est);
-      Z = new HypreParVector(A->GetGlobalNumCols(), A->GetColStarts());
+      Z = new HypreParVector(A->GetComm(),
+                             A->GetGlobalNumCols(), A->GetColStarts());
    }
    else
       Z = NULL;
@@ -818,7 +839,8 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
    }
 
    if (V == NULL)
-      V = new HypreParVector(A->GetGlobalNumCols(), A->GetColStarts());
+      V = new HypreParVector(A->GetComm(),
+                             A->GetGlobalNumCols(), A->GetColStarts());
 
    if (Z == NULL)
       hypre_ParCSRRelax(*A, b, type,
@@ -841,10 +863,12 @@ void HypreSmoother::Mult(const Vector &b, Vector &x) const
    }
    if (B == NULL)
    {
-      B = new HypreParVector(A -> GetGlobalNumRows(),
+      B = new HypreParVector(A->GetComm(),
+                             A -> GetGlobalNumRows(),
                              b.GetData(),
                              A -> GetRowStarts());
-      X = new HypreParVector(A -> GetGlobalNumCols(),
+      X = new HypreParVector(A->GetComm(),
+                             A -> GetGlobalNumCols(),
                              x.GetData(),
                              A -> GetColStarts());
    }
@@ -913,10 +937,12 @@ void HypreSolver::Mult(const Vector &b, Vector &x) const
    }
    if (B == NULL)
    {
-      B = new HypreParVector(A -> GetGlobalNumRows(),
+      B = new HypreParVector(A->GetComm(),
+                             A -> GetGlobalNumRows(),
                              b.GetData(),
                              A -> GetRowStarts());
-      X = new HypreParVector(A -> GetGlobalNumCols(),
+      X = new HypreParVector(A->GetComm(),
+                             A -> GetGlobalNumCols(),
                              x.GetData(),
                              A -> GetColStarts());
    }

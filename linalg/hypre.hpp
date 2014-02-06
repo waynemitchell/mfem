@@ -21,6 +21,7 @@
 #include "_hypre_parcsr_ls.h"
 
 class ParFiniteElementSpace;
+class HypreParMatrix;
 
 /// Wrapper for hypre's parallel vector class
 class HypreParVector : public Vector
@@ -36,12 +37,14 @@ private:
 public:
    /** Creates vector with given global size and partitioning of the columns.
        Processor P owns columns [col[P],col[P+1]) */
-   HypreParVector(int glob_size, int *col);
+   HypreParVector(MPI_Comm comm, int glob_size, int *col);
    /** Creates vector with given global size, partitioning of the columns,
        and data. The data must be allocated and destroyed outside. */
-   HypreParVector(int glob_size, double *_data, int *col);
+   HypreParVector(MPI_Comm comm, int glob_size, double *_data, int *col);
    /// Creates vector compatible with y
    HypreParVector(const HypreParVector &y);
+   /// Creates vector compatible with A or A^T
+   HypreParVector(HypreParMatrix &A, int tr = 0);
    /// Creates vector wrapping y
    HypreParVector(HYPRE_ParVector y);
    /// Create a true dof parallel vector on a given ParFiniteElementSpace
@@ -49,8 +52,10 @@ public:
 
    /// Typecasting to hypre's hypre_ParVector*
    operator hypre_ParVector*() const;
+#ifndef HYPRE_PAR_VECTOR_STRUCT
    /// Typecasting to hypre's HYPRE_ParVector, a.k.a. void *
    operator HYPRE_ParVector() const;
+#endif
    /// Changes the ownership of the the vector
    hypre_ParVector *StealParVector() { own_ParVector = 0; return x; }
 
@@ -101,19 +106,21 @@ public:
    HypreParMatrix(hypre_ParCSRMatrix *a) : A(a)
    { size = GetNumRows(); X = Y = 0; CommPkg = 0; }
    /// Creates block-diagonal square parallel matrix. Diagonal given by diag.
-   HypreParMatrix(int size, int *row, SparseMatrix *diag);
+   HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *diag);
    /** Creates block-diagonal rectangular parallel matrix. Diagonal
        given by diag. */
-   HypreParMatrix(int M, int N, int *row, int *col, SparseMatrix *diag);
+   HypreParMatrix(MPI_Comm comm, int M, int N,
+                  int *row, int *col, SparseMatrix *diag);
    /// Creates general (rectangular) parallel matrix
-   HypreParMatrix(int M, int N, int *row, int *col, SparseMatrix *diag,
-                  SparseMatrix *offd, int *cmap);
+   HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
+                  SparseMatrix *diag, SparseMatrix *offd, int *cmap);
 
    /// Creates a parallel matrix from SparseMatrix on processor 0.
-   HypreParMatrix(int *row, int *col, SparseMatrix *a);
+   HypreParMatrix(MPI_Comm comm, int *row, int *col, SparseMatrix *a);
 
    /// Creates boolean block-diagonal rectangular parallel matrix.
-   HypreParMatrix(int M, int N, int *row, int *col, Table *diag);
+   HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
+                  Table *diag);
    /// Creates boolean rectangular parallel matrix (which owns its data)
    HypreParMatrix(MPI_Comm comm, int id, int np, int *row, int *col,
                   int *i_diag, int *j_diag, int *i_offd, int *j_offd,
@@ -131,10 +138,15 @@ public:
    void CheckCommPkg();
    void DestroyCommPkg();
 
+   /// MPI communicator
+   MPI_Comm GetComm() { return A->comm; }
+
    /// Typecasting to hypre's hypre_ParCSRMatrix*
    operator hypre_ParCSRMatrix*();
+#ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
    /// Typecasting to hypre's HYPRE_ParCSRMatrix, a.k.a. void *
    operator HYPRE_ParCSRMatrix();
+#endif
    /// Changes the ownership of the the matrix
    hypre_ParCSRMatrix* StealData();
 
@@ -182,7 +194,7 @@ public:
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, int offi = 0, int offj = 0);
    /// Reads the matrix from a file
-   void Read(const char *fname);
+   void Read(MPI_Comm comm, const char *fname);
 
    /// Calls hypre's destroy function
    virtual ~HypreParMatrix();

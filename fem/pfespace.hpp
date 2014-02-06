@@ -107,7 +107,7 @@ public:
    /** Create and return a new HypreParVector on the true dofs, which is
        owned by (i.e. it must be destroyed by) the calling function. */
    HypreParVector *NewTrueDofVector()
-   { return (new HypreParVector(GlobalTrueVSize(), GetTrueDofOffsets())); }
+   { return (new HypreParVector(MyComm,GlobalTrueVSize(),GetTrueDofOffsets()));}
 
    /// Scale a vector of true dofs
    void DivideByGroupSize(double *vec);

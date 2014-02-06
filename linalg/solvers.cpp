@@ -452,6 +452,7 @@ int GMRES(const Operator &A, Vector &x, const Vector &b, Solver &M,
    GMRESSolver gmres;
    gmres.SetPrintLevel(printit);
    gmres.SetMaxIter(max_iter);
+   gmres.SetKDim(m);
    gmres.SetRelTol(sqrt(tol));
    gmres.SetAbsTol(sqrt(atol));
    gmres.SetOperator(A);
