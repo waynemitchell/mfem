@@ -120,10 +120,10 @@ template <class T>
 int Array<T>::IsSorted()
 {
    T val_prev = operator[](0), val;
-   for(int i = 1; i < size; i++)
+   for (int i = 1; i < size; i++)
    {
       val=operator[](i);
-      if(val < val_prev)
+      if (val < val_prev)
          return 0;
       val_prev = val;
    }

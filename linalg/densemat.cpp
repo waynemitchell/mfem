@@ -788,12 +788,12 @@ void DenseMatrix::SingularValues(Vector &sv) const
 
 int DenseMatrix::Rank(double tol) const
 {
-   int rank(0);
-   Vector sv( min(Height(), Width() ) );
+   int rank=0;
+   Vector sv(min(Height(), Width()));
    SingularValues(sv);
 
-   for(int i(0); i < sv.Size(); ++i)
-      if( sv(i) >= tol)
+   for (int i=0; i < sv.Size(); ++i)
+      if (sv(i) >= tol)
          ++rank;
 
    return rank;

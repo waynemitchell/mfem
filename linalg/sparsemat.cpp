@@ -47,11 +47,11 @@ int SparseMatrix::RowSize(const int i) const
 
 int SparseMatrix::MaxRowSize() const
 {
-   int out(0);
-   int rowSize(0);
+   int out=0;
+   int rowSize=0;
    if (I)
    {
-      for(int i(0); i < size; ++i)
+      for (int i=0; i < size; ++i)
       {
          rowSize = I[i+1]-I[i];
          out = (out > rowSize) ? out : rowSize;
@@ -59,7 +59,7 @@ int SparseMatrix::MaxRowSize() const
    }
    else
    {
-      for(int i(0); i < size; ++i)
+      for (int i=0; i < size; ++i)
       {
          rowSize = RowSize(i);
          out = (out > rowSize) ? out : rowSize;
@@ -67,7 +67,6 @@ int SparseMatrix::MaxRowSize() const
    }
 
    return out;
-
 }
 
 int *SparseMatrix::GetRowColumns(const int row)
@@ -140,7 +139,7 @@ const double &SparseMatrix::operator()(int i, int j) const
 void SparseMatrix::GetDiag(Vector & d) const
 {
 
-   if(size != width)
+   if (size != width)
       mfem_error("SparseMatrix::GetDiag(Vector & d) this must be a square"
                  " matrix");
 
@@ -157,13 +156,13 @@ void SparseMatrix::GetDiag(Vector & d) const
       end = I[i+1];
       for (j = I[i]; j < end; j++)
       {
-         if(J[j] == i)
+         if (J[j] == i)
          {
             d[i] = A[j];
             break;
          }
       }
-      if(j == end)
+      if (j == end)
          d[i] = 0.;
    }
 }
@@ -1455,7 +1454,7 @@ void SparseMatrix::ScaleRows(const Vector & sl)
    if (Rows != NULL)
    {
       RowNode *aux;
-      for(int i(0); i < size; ++i)
+      for (int i=0; i < size; ++i)
       {
          scale = sl(i);
          for (aux = Rows[i]; aux != NULL; aux = aux -> Prev)
@@ -1466,7 +1465,7 @@ void SparseMatrix::ScaleRows(const Vector & sl)
    {
       int j, end;
 
-      for(int i(0); i < size; ++i)
+      for (int i=0; i < size; ++i)
       {
          end = I[i+1];
          scale = sl(i);
@@ -1481,7 +1480,7 @@ void SparseMatrix::ScaleColumns(const Vector & sr)
    if (Rows != NULL)
    {
       RowNode *aux;
-      for(int i(0); i < size; ++i)
+      for (int i=0; i < size; ++i)
       {
          for (aux = Rows[i]; aux != NULL; aux = aux -> Prev)
             aux -> Value *= sr(aux->Column);
@@ -1491,7 +1490,7 @@ void SparseMatrix::ScaleColumns(const Vector & sr)
    {
       int j, end;
 
-      for(int i(0); i < size; ++i)
+      for (int i=0; i < size; ++i)
       {
          end = I[i+1];
          for (j = I[i]; j < end; j++)
@@ -1722,7 +1721,7 @@ void SparseMatrixFunction (SparseMatrix & S, double (*f)(double))
 
 SparseMatrix *Transpose (SparseMatrix &A)
 {
-   if(!A.Finalized())
+   if (!A.Finalized())
       mfem_error("Finalize must be called before Transpose. Use"
                  " TransposeRowMatrix instead");
 
@@ -1774,18 +1773,18 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth)
    Array<int> Acols;
    Vector Avals;
 
-   m      = A.Size();   // number of rows of A
-   if(useActualWidth)
+   m = A.Size();   // number of rows of A
+   if (useActualWidth)
    {
       n = 0;
       int tmp;
       for (i = 0; i < m; i++)
       {
          A.GetRow(i, Acols, Avals);
-         if(Acols.Size())
+         if (Acols.Size())
          {
             tmp = Acols.Max();
-            if(tmp > n)
+            if (tmp > n)
                n = tmp;
          }
       }
@@ -1793,9 +1792,9 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth)
    }
    else
    {
-      n      = A.Width();  // number of columns of A
+      n = A.Width();  // number of columns of A
    }
-   nnz    = A.NumNonZeroElems();
+   nnz = A.NumNonZeroElems();
 
    At_i = new int[n+1];
    At_j = new int[nnz];
@@ -1807,7 +1806,7 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth)
    for (i = 0; i < m; i++)
    {
       A.GetRow(i, Acols, Avals);
-      for(j = 0; j<Acols.Size(); ++j)
+      for (j = 0; j<Acols.Size(); ++j)
          At_i[Acols[j]+1]++;
    }
    for (i = 1; i < n; i++)
@@ -1816,7 +1815,7 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth)
    for (i = 0; i < m; i++)
    {
       A.GetRow(i, Acols, Avals);
-      for ( j = 0; j<Acols.Size(); ++j )
+      for (j = 0; j<Acols.Size(); ++j)
       {
          At_j[At_i[Acols[j]]] = i;
          At_data[At_i[Acols[j]]] = Avals[j];
@@ -1828,7 +1827,7 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth)
       At_i[i] = At_i[i-1];
    At_i[0] = 0;
 
-   return  new SparseMatrix (At_i, At_j, At_data, n, m);
+   return new SparseMatrix(At_i, At_j, At_data, n, m);
 }
 
 
@@ -1994,7 +1993,7 @@ SparseMatrix *MultRowMatrix (SparseMatrix &A, SparseMatrix &B)
    C_j    = new int[num_nonzeros];
    C_data = new double[num_nonzeros];
 
-   C = new SparseMatrix (C_i, C_j, C_data, nrowsA, ncolsB);
+   C = new SparseMatrix(C_i, C_j, C_data, nrowsA, ncolsB);
 
    for (ib = 0; ib < ncolsB; ib++)
       B_marker[ib] = -1;

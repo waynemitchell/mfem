@@ -267,12 +267,12 @@ ElementTransformation *Mesh::GetFaceTransformation(int FaceNo)
 
 void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
 {
-   if(Dim == 2)
+   if (Dim == 2)
    {
       GetFaceTransformation(EdgeNo, EdTr);
       return;
    }
-   if(Dim == 1)
+   if (Dim == 1)
       mfem_error("Mesh::GetEdgeTransformation not defined in 1D \n");
 
    EdTr->Attribute = 1;

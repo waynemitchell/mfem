@@ -857,10 +857,10 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
       w = ip.weight * Trans.Weight();
       if (MQ)
       {
-        MQ->Eval(K, Trans, ip);
-        K *= w;
-        Mult(vshape,K,tmp);
-        AddMultABt(tmp,vshape,elmat);
+         MQ->Eval(K, Trans, ip);
+         K *= w;
+         Mult(vshape,K,tmp);
+         AddMultABt(tmp,vshape,elmat);
       }
       else if (VQ)
       {
