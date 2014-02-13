@@ -35,8 +35,10 @@ void SortPairs (Pair<A, B> *pairs, int size)
 }
 
 
-// Instantiate int-int and double-int pairs
+// Instantiate int-int, double-int pairs, and int-double pairs
 template int ComparePairs<int, int> (const void *, const void *);
 template int ComparePairs<double, int> (const void *, const void *);
+template int ComparePairs<int, double> (const void *, const void *);
 template void SortPairs<int, int> (Pair<int, int> *, int );
 template void SortPairs<double, int> (Pair<double, int> *, int );
+template void SortPairs<int, double> (Pair<int, double> *, int );

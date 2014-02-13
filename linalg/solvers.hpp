@@ -12,6 +12,10 @@
 #ifndef MFEM_SOLVERS
 #define MFEM_SOLVERS
 
+#ifdef MFEM_USE_SUITESPARSE
+#include <umfpack.h>
+#endif
+
 /// Abstract base class for iterative solver
 class IterativeSolver : public Solver
 {
@@ -218,5 +222,41 @@ void SLI(const Operator &A, const Operator &B,
          const Vector &b, Vector &x,
          int print_iter = 0, int max_num_iter = 1000,
          double RTOLERANCE = 1e-12, double ATOLERANCE = 1e-24);
+
+
+#ifdef MFEM_USE_SUITESPARSE
+
+/// Direct sparse solver using UMFPACK
+class UMFPackSolver : public Solver
+{
+protected:
+   bool use_long_ints;
+   SparseMatrix *mat;
+   void *Numeric;
+   SuiteSparse_long *AI, *AJ;
+
+   void Init();
+
+public:
+   double Control[UMFPACK_CONTROL];
+   mutable double Info[UMFPACK_INFO];
+
+   UMFPackSolver(bool _use_long_ints = false)
+      : use_long_ints(_use_long_ints) { Init(); }
+   UMFPackSolver(SparseMatrix &A, bool _use_long_ints = false)
+      : use_long_ints(_use_long_ints) { Init(); SetOperator(A); }
+
+   // Works on sparse matrices only; calls SparseMatrix::SortColumnIndices().
+   virtual void SetOperator(const Operator &op);
+
+   void SetPrintLevel(int print_lvl) { Control[UMFPACK_PRL] = print_lvl; }
+
+   virtual void Mult(const Vector &b, Vector &x) const;
+   virtual void MultTranspose(const Vector &b, Vector &x) const;
+
+   virtual ~UMFPackSolver();
+};
+
+#endif // MFEM_USE_SUITESPARSE
 
 #endif

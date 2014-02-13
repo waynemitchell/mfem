@@ -1026,3 +1026,181 @@ void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
            << "Number of iterations: " << i << endl;
    }
 }
+
+
+#ifdef MFEM_USE_SUITESPARSE
+
+void UMFPackSolver::Init()
+{
+   mat = NULL;
+   Numeric = NULL;
+   AI = AJ = NULL;
+   if (!use_long_ints)
+      umfpack_di_defaults(Control);
+   else
+      umfpack_dl_defaults(Control);
+}
+
+void UMFPackSolver::SetOperator(const Operator &op)
+{
+   int *Ap, *Ai;
+   void *Symbolic;
+   double *Ax;
+
+   if (Numeric)
+      if (!use_long_ints)
+         umfpack_di_free_numeric(&Numeric);
+      else
+         umfpack_dl_free_numeric(&Numeric);
+
+   mat = const_cast<SparseMatrix *>(dynamic_cast<const SparseMatrix *>(&op));
+   if (mat == NULL)
+      mfem_error("UMFPackSolver::SetOperator : not a SparseMatrix!");
+
+   // UMFPack requires that the column-indices in mat corresponding to each
+   // row be sorted.
+   // Generally, this will modify the ordering of the entries of mat.
+   mat->SortColumnIndices();
+
+   size = mat->Size();
+   Ap = mat->GetI();
+   Ai = mat->GetJ();
+   Ax = mat->GetData();
+
+   if (!use_long_ints)
+   {
+      int status = umfpack_di_symbolic(size, size, Ap, Ai, Ax, &Symbolic,
+                                       Control, Info);
+      if (status < 0)
+      {
+         umfpack_di_report_info(Control, Info);
+         umfpack_di_report_status(Control, status);
+         mfem_error("UMFPackSolver::SetOperator :"
+                    " umfpack_di_symbolic() failed!");
+      }
+
+      status = umfpack_di_numeric(Ap, Ai, Ax, Symbolic, &Numeric,
+                                  Control, Info);
+      if (status < 0)
+      {
+         umfpack_di_report_info(Control, Info);
+         umfpack_di_report_status(Control, status);
+         mfem_error("UMFPackSolver::SetOperator :"
+                    " umfpack_di_numeric() failed!");
+      }
+      umfpack_di_free_symbolic(&Symbolic);
+   }
+   else
+   {
+      SuiteSparse_long status;
+
+      delete [] AJ;
+      delete [] AI;
+      AI = new SuiteSparse_long[size + 1];
+      AJ = new SuiteSparse_long[Ap[size]];
+      for (int i = 0; i <= size; i++)
+         AI[i] = (SuiteSparse_long)(Ap[i]);
+      for (int i = 0; i <= Ap[size]; i++)
+         AJ[i] = (SuiteSparse_long)(Ai[i]);
+
+      status = umfpack_dl_symbolic(size, size, AI, AJ, Ax, &Symbolic,
+                                   Control, Info);
+      if (status < 0)
+      {
+         umfpack_dl_report_info(Control, Info);
+         umfpack_dl_report_status(Control, status);
+         mfem_error("UMFPackSolver::SetOperator :"
+                    " umfpack_dl_symbolic() failed!");
+      }
+
+      status = umfpack_dl_numeric(AI, AJ, Ax, Symbolic, &Numeric,
+                                  Control, Info);
+      if (status < 0)
+      {
+         umfpack_dl_report_info(Control, Info);
+         umfpack_dl_report_status(Control, status);
+         mfem_error("UMFPackSolver::SetOperator :"
+                    " umfpack_dl_numeric() failed!");
+      }
+      umfpack_dl_free_symbolic(&Symbolic);
+   }
+}
+
+void UMFPackSolver::Mult(const Vector &b, Vector &x) const
+{
+   if (mat == NULL)
+      mfem_error("UMFPackSolver::Mult : matrix is not set!"
+                 " Call SetOperator first!");
+
+   if (!use_long_ints)
+   {
+      int status =
+         umfpack_di_solve(UMFPACK_At, mat->GetI(), mat->GetJ(),
+                          mat->GetData(), x, b, Numeric, Control, Info);
+      umfpack_di_report_info(Control, Info);
+      if (status < 0)
+      {
+         umfpack_di_report_status(Control, status);
+         mfem_error("UMFPackSolver::Mult : umfpack_di_solve() failed!");
+      }
+   }
+   else
+   {
+      SuiteSparse_long status =
+         umfpack_dl_solve(UMFPACK_At, AI, AJ, mat->GetData(), x, b,
+                          Numeric, Control, Info);
+      umfpack_dl_report_info(Control, Info);
+      if (status < 0)
+      {
+         umfpack_dl_report_status(Control, status);
+         mfem_error("UMFPackSolver::Mult : umfpack_dl_solve() failed!");
+      }
+   }
+}
+
+void UMFPackSolver::MultTranspose(const Vector &b, Vector &x) const
+{
+   if (mat == NULL)
+      mfem_error("UMFPackSolver::MultTranspose : matrix is not set!"
+                 " Call SetOperator first!");
+
+   if (!use_long_ints)
+   {
+      int status =
+         umfpack_di_solve(UMFPACK_A, mat->GetI(), mat->GetJ(),
+                          mat->GetData(), x, b, Numeric, Control, Info);
+      umfpack_di_report_info(Control, Info);
+      if (status < 0)
+      {
+         umfpack_di_report_status(Control, status);
+         mfem_error("UMFPackSolver::MultTranspose :"
+                    " umfpack_di_solve() failed!");
+      }
+   }
+   else
+   {
+      SuiteSparse_long status =
+         umfpack_dl_solve(UMFPACK_A, AI, AJ, mat->GetData(), x, b,
+                          Numeric, Control, Info);
+      umfpack_dl_report_info(Control, Info);
+      if (status < 0)
+      {
+         umfpack_dl_report_status(Control, status);
+         mfem_error("UMFPackSolver::MultTranspose :"
+                    " umfpack_dl_solve() failed!");
+      }
+   }
+}
+
+UMFPackSolver::~UMFPackSolver()
+{
+   delete [] AJ;
+   delete [] AI;
+   if (Numeric)
+      if (!use_long_ints)
+         umfpack_di_free_numeric(&Numeric);
+      else
+         umfpack_dl_free_numeric(&Numeric);
+}
+
+#endif // MFEM_USE_SUITESPARSE

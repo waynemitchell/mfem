@@ -31,10 +31,14 @@ USE_METIS_5 = NO
 # The MESQUITE library
 MESQUITE_DIR  = ../../mesquite-2.99
 
+# The SuiteSparse library
+SUITESPARSE_DIR = ../../SuiteSparse
+
 # Internal mfem options
 USE_MEMALLOC     = YES
 USE_LAPACK       = NO
 USE_MESQUITE     = NO
+USE_SUITESPARSE  = NO
 
 USE_MEMALLOC_NO  =
 USE_MEMALLOC_YES = -DMFEM_USE_MEMALLOC
@@ -59,10 +63,15 @@ USE_MESQUITE_OPTS_NO  =
 USE_MESQUITE_OPTS_YES = -I$(MESQUITE_DIR)/include
 USE_MESQUITE_OPTS     = $(USE_MESQUITE_OPTS_$(USE_MESQUITE))
 
+SUITESPARSE_OPT_NO  =
+SUITESPARSE_OPT_YES = -DMFEM_USE_SUITESPARSE -I$(SUITESPARSE_DIR)/include
+SUITESPARSE_OPT     = $(SUITESPARSE_OPT_$(USE_SUITESPARSE))
+
 DEFS = $(USE_LAPACK_DEF) $(USE_MEMALLOC_DEF) $(USE_OPENMP_DEF) \
        $(USE_METIS_5_DEF) $(USE_MESQUITE_DEF)
 
-CCC = $(CC) $(CCOPTS) $(DEFS) $(USE_MESQUITE_OPTS)
+LIBS_OPT = $(USE_MESQUITE_OPTS) $(SUITESPARSE_OPT)
+CCC = $(CC) $(CCOPTS) $(DEFS) $(LIBS_OPT)
 
 # Generate with 'echo general/*.cpp linalg/*.cpp mesh/*.cpp fem/*.cpp'
 SOURCE_FILES = general/array.cpp general/communication.cpp general/error.cpp   \
@@ -105,10 +114,10 @@ fem/pnonlinearform.hpp
 	cd $(<D); $(CCC) -c $(<F)
 
 serial:
-	$(MAKE) "CCC=$(CC) $(DEFS) $(CCOPTS) $(USE_MESQUITE_OPTS)" lib
+	$(MAKE) "CCC=$(CC) $(DEFS) $(CCOPTS) $(LIBS_OPT)" lib
 
 parallel:
-	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(USE_MESQUITE_OPTS)" lib
+	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(LIBS_OPT)" lib
 
 lib: libmfem.a mfem_defs.hpp
 
@@ -116,7 +125,7 @@ debug:
 	$(MAKE) "CCOPTS=$(DEBUG_OPTS)"
 
 pdebug:
-	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIDEBUG) $(USE_MESQUITE_OPTS)" lib
+	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIDEBUG) $(LIBS_OPT)" lib
 
 opt: serial
 

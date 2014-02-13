@@ -17,7 +17,9 @@ The only prerequisite for building the serial version of MFEM is a (modern) C++
 compiler, such as g++. Some of the dense linear algebra functionality in MFEM
 requires the LAPACK and BLAS libraries from http://www.netlib.org/lapack. If
 LAPACK is not provided, the corresponding MFEM functions will either use a
-simple internal version, or generate run-time errors when used.
+simple internal version, or generate run-time errors when used. The serial
+version of MFEM can also be optionally compiled to support sparse direct solvers
+from the SuiteSparse library, as described in the building considerations below.
 
 The parallel version of MFEM requires a MPI C++ compiler, as well as the
 following external libraries:
@@ -91,3 +93,8 @@ Some building considerations:
   directory which contain similar compile options plus some linking options.
   Make sure to propagate changes from the top-level to the example build files,
   e.g. when enabling OpenMP.
+
+- For sparse direct solver support in serial, first download and install the
+  SuiteSparse library from http://www.cise.ufl.edu/research/sparse/SuiteSparse/,
+  and then set USE_SUITESPARSE = YES in GNUmakefile and examples/makefile,
+  adjusting the SUITESPARSE_DIR variable if necessary.

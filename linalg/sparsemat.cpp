@@ -17,6 +17,7 @@
 
 #include "linalg.hpp"
 #include "../general/table.hpp"
+#include "../general/sort_pairs.hpp"
 
 SparseMatrix::SparseMatrix(int nrows, int ncols)
    : Matrix(nrows)
@@ -83,6 +84,30 @@ double *SparseMatrix::GetRowEntries(const int row)
       mfem_error("SparseMatrix::GetRowEntries : matrix is not Finalized!");
 
    return A + I[row];
+}
+
+void SparseMatrix::SortColumnIndices()
+{
+   if (Rows)
+      mfem_error("SparseMatrix::SortColumnIndices : matrix is not Finalized!");
+
+   Array<Pair<int,double> > row;
+   for (int j = 0, i = 0; i < size; i++)
+   {
+      int end = I[i+1];
+      row.SetSize(end - j);
+      for (int k = 0; k < row.Size(); k++)
+      {
+         row[k].one = J[j+k];
+         row[k].two = A[j+k];
+      }
+      SortPairs<int,double>(row, row.Size());
+      for (int k = 0; k < row.Size(); k++, j++)
+      {
+         J[j] = row[k].one;
+         A[j] = row[k].two;
+      }
+   }
 }
 
 double &SparseMatrix::Elem(int i, int j)

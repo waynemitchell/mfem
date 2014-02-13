@@ -29,7 +29,8 @@ it can take a problem described in terms of finite element-type objects, and
 produce the corresponding linear algebra vectors and sparse matrices. In order
 to facilitate this, MFEM uses compressed sparse row (CSR) sparse matrix storage
 and includes simple smoothers and Krylov solvers, such as PCG, GMRES and
-BiCGStab.
+BiCGStab, as well as support for serial sparse direct solvers from the
+SuiteSparse library.
 
 The MPI-based parallel version of MFEM can be used as a scalable unstructured
 finite element problem generator, which supports parallel local refinement and
