@@ -1792,13 +1792,13 @@ SparseMatrix *Transpose (SparseMatrix &A)
 
 SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth)
 {
-   int i, j, end;
+   int i, j;
    int m, n, nnz, *At_i, *At_j;
    double *At_data;
    Array<int> Acols;
    Vector Avals;
 
-   m = A.Size();   // number of rows of A
+   m = A.Size(); // number of rows of A
    if (useActualWidth)
    {
       n = 0;
@@ -1817,7 +1817,7 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth)
    }
    else
    {
-      n = A.Width();  // number of columns of A
+      n = A.Width(); // number of columns of A
    }
    nnz = A.NumNonZeroElems();
 
