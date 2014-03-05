@@ -597,7 +597,7 @@ public:
 
    /** Prints the mesh with bdr elements given by the boundary of
        the subdomains, so that the boundary of subdomain i has bdr
-       attribute i. */
+       attribute i+1. */
    void PrintWithPartitioning (int *partitioning,
                                ostream &out, int elem_attr = 0) const;
 
@@ -625,6 +625,11 @@ public:
    /// Destroys mesh.
    virtual ~Mesh();
 };
+
+
+/// Extrude a 1D mesh
+Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
+                const bool closed = false);
 
 
 // inline functions

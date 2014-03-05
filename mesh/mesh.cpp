@@ -1483,6 +1483,7 @@ Element *Mesh::NewElement(int geom)
 {
    switch (geom)
    {
+   case Geometry::POINT:     return (new Point);
    case Geometry::SEGMENT:   return (new Segment);
    case Geometry::TRIANGLE:  return (new Triangle);
    case Geometry::SQUARE:    return (new Quadrilateral);
@@ -7658,4 +7659,171 @@ Mesh::~Mesh()
       FreeElement(faces[i]);
 
    DeleteTables();
+}
+
+
+// Class used to exrude the nodes of a 1D mesh
+class NodeExtrudeCoefficient : public VectorCoefficient
+{
+private:
+   int layer, ny;
+   double sy, p[1];
+   Vector tip;
+public:
+   NodeExtrudeCoefficient(const int _ny, const double _sy)
+      : VectorCoefficient(2), ny(_ny), sy(_sy), tip(p, 1) { }
+   void SetLayer(const int l) { layer = l; }
+   virtual void Eval(Vector &V, ElementTransformation &T,
+                     const IntegrationPoint &ip);
+   virtual ~NodeExtrudeCoefficient() { }
+};
+
+void NodeExtrudeCoefficient::Eval(Vector &V, ElementTransformation &T,
+                                  const IntegrationPoint &ip)
+{
+   // T is 1D transformation
+   V.SetSize(2);
+   T.Transform(ip, tip);
+   V(0) = p[0];
+   V(1) = sy * ((ip.y + layer) / ny);
+}
+
+
+Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
+{
+   if (mesh->Dimension() != 1)
+   {
+      cerr << "Extrude1D : Not a 1D mesh!" << endl;
+      mfem_error();
+   }
+
+   int nvy = (closed) ? (ny) : (ny + 1);
+   int nvt = mesh->GetNV() * nvy;
+
+   Mesh *mesh2d;
+
+   if (closed)
+      mesh2d = new Mesh(2, nvt, mesh->GetNE()*ny, mesh->GetNBE()*ny);
+   else
+      mesh2d = new Mesh(2, nvt, mesh->GetNE()*ny,
+                        mesh->GetNBE()*ny+2*mesh->GetNE());
+
+   // vertices
+   double vc[2];
+   for (int i = 0; i < mesh->GetNV(); i++)
+   {
+      vc[0] = mesh->GetVertex(i)[0];
+      for (int j = 0; j < nvy; j++)
+      {
+         vc[1] = sy * (double(j) / ny);
+         mesh2d->AddVertex(vc);
+      }
+   }
+   // elements
+   Array<int> vert;
+   for (int i = 0; i < mesh->GetNE(); i++)
+   {
+      const Element *elem = mesh->GetElement(i);
+      elem->GetVertices(vert);
+      const int attr = elem->GetAttribute();
+      for (int j = 0; j < ny; j++)
+      {
+         int qv[4];
+         qv[0] = vert[0] * nvy + j;
+         qv[1] = vert[1] * nvy + j;
+         qv[2] = vert[1] * nvy + (j + 1) % nvy;
+         qv[3] = vert[0] * nvy + (j + 1) % nvy;
+
+         mesh2d->AddQuad(qv, attr);
+      }
+   }
+   // 2D boundary from the 1D boundary
+   for (int i = 0; i < mesh->GetNBE(); i++)
+   {
+      const Element *elem = mesh->GetBdrElement(i);
+      elem->GetVertices(vert);
+      const int attr = elem->GetAttribute();
+      for (int j = 0; j < ny; j++)
+      {
+         int sv[2];
+         sv[0] = vert[0] * nvy + j;
+         sv[1] = vert[0] * nvy + (j + 1) % nvy;
+
+         if (attr%2)
+            Swap<int>(sv[0], sv[1]);
+
+         mesh2d->AddBdrSegment(sv, attr);
+      }
+   }
+
+   if (!closed)
+   {
+      // 2D boundary from the 1D elements (bottom + top)
+      int nba = mesh->bdr_attributes.Max();
+      for (int i = 0; i < mesh->GetNE(); i++)
+      {
+         const Element *elem = mesh->GetElement(i);
+         elem->GetVertices(vert);
+         const int attr = nba + elem->GetAttribute();
+         int sv[2];
+         sv[0] = vert[0] * nvy;
+         sv[1] = vert[1] * nvy;
+
+         mesh2d->AddBdrSegment(sv, attr);
+
+         sv[0] = vert[1] * nvy + ny;
+         sv[1] = vert[0] * nvy + ny;
+
+         mesh2d->AddBdrSegment(sv, attr);
+      }
+   }
+
+   mesh2d->FinalizeQuadMesh(1, 0);
+
+   GridFunction *nodes = mesh->GetNodes();
+   if (nodes)
+   {
+      // duplicate the fec of the 1D mesh so that it can be deleted safely
+      // along with its nodes, fes and fec
+      FiniteElementCollection *fec2d;
+      FiniteElementSpace *fes2d;
+      const char *name = nodes->FESpace()->FEColl()->Name();
+      string cname = name;
+      if (cname == "Linear")
+         fec2d = new LinearFECollection;
+      else if (cname == "Quadratic")
+         fec2d = new QuadraticFECollection;
+      else if (cname == "Cubic")
+         fec2d = new CubicFECollection;
+      else if (!strncmp(name, "H1_", 3))
+         fec2d = new H1_FECollection(atoi(name + 7), 2);
+      else
+      {
+         delete mesh2d;
+         cerr << "Extrude1D : The mesh uses unknown FE collection : "
+              << cname << endl;
+         mfem_error();
+      }
+      fes2d = new FiniteElementSpace(mesh2d, fec2d, 2);
+      mesh2d->SetNodalFESpace(fes2d);
+      GridFunction *nodes2d = mesh2d->GetNodes();
+      nodes2d->MakeOwner(fec2d);
+
+      NodeExtrudeCoefficient ecoeff(ny, sy);
+      Vector lnodes;
+      Array<int> vdofs2d;
+      for (int i = 0; i < mesh->GetNE(); i++)
+      {
+         ElementTransformation &T = *mesh->GetElementTransformation(i);
+         for (int j = ny-1; j >= 0; j--)
+         {
+            fes2d->GetElementVDofs(i*ny+j, vdofs2d);
+            lnodes.SetSize(vdofs2d.Size());
+            ecoeff.SetLayer(j);
+            fes2d->GetFE(i*ny+j)->Project(ecoeff, T, lnodes);
+            nodes2d->SetSubVector(vdofs2d, lnodes);
+         }
+      }
+   }
+   return mesh2d;
 }
