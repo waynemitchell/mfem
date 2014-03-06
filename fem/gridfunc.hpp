@@ -249,6 +249,22 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &flux, Vector &ErrorEstimates,
                       int wsd = 1);
 
+
+/// Class used for extruding scalar GridFunctions
+class ExtrudeCoefficient : public Coefficient
+{
+private:
+   int n;
+   Mesh *mesh_in;
+   Coefficient &sol_in;
+public:
+   ExtrudeCoefficient(Mesh *m, Coefficient &s, int _n)
+      : n(_n), mesh_in(m), sol_in(s) { }
+   virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+   virtual void Read(istream &in) { }
+   virtual ~ExtrudeCoefficient() { }
+};
+
 /// Extrude a scalar 1D GridFunction, after extruding the mesh with Extrude1D.
 GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
                                     GridFunction *sol, const int ny);

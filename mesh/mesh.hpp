@@ -627,6 +627,22 @@ public:
 };
 
 
+/// Class used to exrude the nodes of a mesh
+class NodeExtrudeCoefficient : public VectorCoefficient
+{
+private:
+   int n, layer;
+   double p[2], s;
+   Vector tip;
+public:
+   NodeExtrudeCoefficient(const int dim, const int _n, const double _s);
+   void SetLayer(const int l) { layer = l; }
+   virtual void Eval(Vector &V, ElementTransformation &T,
+                     const IntegrationPoint &ip);
+   virtual ~NodeExtrudeCoefficient() { }
+};
+
+
 /// Extrude a 1D mesh
 Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
                 const bool closed = false);

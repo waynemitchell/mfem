@@ -7662,30 +7662,27 @@ Mesh::~Mesh()
 }
 
 
-// Class used to exrude the nodes of a 1D mesh
-class NodeExtrudeCoefficient : public VectorCoefficient
+NodeExtrudeCoefficient::NodeExtrudeCoefficient(const int dim, const int _n,
+                                               const double _s)
+   : VectorCoefficient(dim), n(_n), s(_s), tip(p, dim-1)
 {
-private:
-   int layer, ny;
-   double sy, p[1];
-   Vector tip;
-public:
-   NodeExtrudeCoefficient(const int _ny, const double _sy)
-      : VectorCoefficient(2), ny(_ny), sy(_sy), tip(p, 1) { }
-   void SetLayer(const int l) { layer = l; }
-   virtual void Eval(Vector &V, ElementTransformation &T,
-                     const IntegrationPoint &ip);
-   virtual ~NodeExtrudeCoefficient() { }
-};
+}
 
 void NodeExtrudeCoefficient::Eval(Vector &V, ElementTransformation &T,
                                   const IntegrationPoint &ip)
 {
-   // T is 1D transformation
-   V.SetSize(2);
+   V.SetSize(vdim);
    T.Transform(ip, tip);
    V(0) = p[0];
-   V(1) = sy * ((ip.y + layer) / ny);
+   if (vdim == 2)
+   {
+      V(1) = s * ((ip.y + layer) / n);
+   }
+   else
+   {
+      V(1) = p[1];
+      V(2) = s * ((ip.z + layer) / n);
+   }
 }
 
 
@@ -7809,7 +7806,7 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
       GridFunction *nodes2d = mesh2d->GetNodes();
       nodes2d->MakeOwner(fec2d);
 
-      NodeExtrudeCoefficient ecoeff(ny, sy);
+      NodeExtrudeCoefficient ecoeff(2, ny, sy);
       Vector lnodes;
       Array<int> vdofs2d;
       for (int i = 0; i < mesh->GetNE(); i++)

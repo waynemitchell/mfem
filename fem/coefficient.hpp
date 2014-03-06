@@ -12,6 +12,9 @@
 #ifndef MFEM_COEFFICIENT
 #define MFEM_COEFFICIENT
 
+class Mesh;
+
+
 /// Base class Coefficient
 class Coefficient
 {

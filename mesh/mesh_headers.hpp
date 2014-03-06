@@ -26,6 +26,7 @@
 #include "../fem/geom.hpp"
 #include "../fem/fe.hpp"
 #include "../fem/eltrans.hpp"
+#include "../fem/coefficient.hpp"
 
 #include "vertex.hpp"
 #include "element.hpp"
