@@ -792,9 +792,9 @@ static int edge_compare(const void *ii, const void *jj)
    return (0);
 }
 
-void Mesh::FinalizeTriMesh(int generate_edges, int refine)
+void Mesh::FinalizeTriMesh(int generate_edges, int refine, bool fix_orientation)
 {
-   CheckElementOrientation();
+   CheckElementOrientation(fix_orientation);
 
    if (refine)
       MarkTriMeshForRefinement();
@@ -816,9 +816,10 @@ void Mesh::FinalizeTriMesh(int generate_edges, int refine)
    meshgen = 1;
 }
 
-void Mesh::FinalizeQuadMesh(int generate_edges, int refine)
+void Mesh::FinalizeQuadMesh(int generate_edges, int refine,
+                            bool fix_orientation)
 {
-   CheckElementOrientation();
+   CheckElementOrientation(fix_orientation);
 
    if (generate_edges)
    {
@@ -1079,9 +1080,9 @@ void Mesh::DoNodeReorder(DSTable *old_v_to_v)
    }
 }
 
-void Mesh::FinalizeTetMesh(int generate_edges, int refine)
+void Mesh::FinalizeTetMesh(int generate_edges, int refine, bool fix_orientation)
 {
-   CheckElementOrientation();
+   CheckElementOrientation(fix_orientation);
 
    if (NumOfBdrElements == 0)
    {
@@ -1117,9 +1118,9 @@ void Mesh::FinalizeTetMesh(int generate_edges, int refine)
    meshgen = 1;
 }
 
-void Mesh::FinalizeHexMesh(int generate_edges, int refine)
+void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
 {
-   CheckElementOrientation();
+   CheckElementOrientation(fix_orientation);
 
    GetElementToFaceTable();
    GenerateFaces();

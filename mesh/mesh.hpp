@@ -257,10 +257,14 @@ public:
    void AddBdrTriangle (int *vi, int attr = 1);
    void AddBdrQuad (int *vi, int attr = 1);
    void GenerateBoundaryElements();
-   void FinalizeTriMesh (int generate_edges = 0, int refine = 0);
-   void FinalizeQuadMesh (int generate_edges = 0, int refine = 0);
-   void FinalizeTetMesh (int generate_edges = 0, int refine = 0);
-   void FinalizeHexMesh (int generate_edges = 0, int refine = 0);
+   void FinalizeTriMesh(int generate_edges = 0, int refine = 0,
+                        bool fix_orientation = true);
+   void FinalizeQuadMesh(int generate_edges = 0, int refine = 0,
+                         bool fix_orientation = true);
+   void FinalizeTetMesh(int generate_edges = 0, int refine = 0,
+                        bool fix_orientation = true);
+   void FinalizeHexMesh(int generate_edges = 0, int refine = 0,
+                        bool fix_orientation = true);
 
    void SetAttributes();
    /** Creates mesh for the unit cube, divided into nx * ny *nz hexahedrals
