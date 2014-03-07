@@ -641,6 +641,7 @@ private:
 public:
    NodeExtrudeCoefficient(const int dim, const int _n, const double _s);
    void SetLayer(const int l) { layer = l; }
+   using VectorCoefficient::Eval;
    virtual void Eval(Vector &V, ElementTransformation &T,
                      const IntegrationPoint &ip);
    virtual ~NodeExtrudeCoefficient() { }

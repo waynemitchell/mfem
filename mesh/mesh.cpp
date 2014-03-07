@@ -7783,7 +7783,7 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
    {
       // duplicate the fec of the 1D mesh so that it can be deleted safely
       // along with its nodes, fes and fec
-      FiniteElementCollection *fec2d;
+      FiniteElementCollection *fec2d = NULL;
       FiniteElementSpace *fes2d;
       const char *name = nodes->FESpace()->FEColl()->Name();
       string cname = name;
