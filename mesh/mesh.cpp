@@ -265,6 +265,51 @@ ElementTransformation *Mesh::GetFaceTransformation(int FaceNo)
    return &FaceTransformation;
 }
 
+void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
+{
+   if (Dim == 2)
+   {
+      GetFaceTransformation(EdgeNo, EdTr);
+      return;
+   }
+   if (Dim == 1)
+      mfem_error("Mesh::GetEdgeTransformation not defined in 1D \n");
+
+   EdTr->Attribute = 1;
+   EdTr->ElementNo = EdgeNo;
+   DenseMatrix &pm = EdTr->GetPointMat();
+   if (Nodes == NULL)
+   {
+      Array<int> v;
+      GetEdgeVertices(EdgeNo, v);
+      const int nv = 2;
+      pm.SetSize(Dim, nv);
+      for (int i = 0; i < Dim; i++)
+         for (int j = 0; j < nv; j++)
+            pm(i, j) = vertices[v[j]](i);
+      EdTr->SetFE(GetTransformationFEforElementType( Element::SEGMENT ) );
+
+   }
+   else
+   {
+      Array<int> vdofs;
+      Nodes->FESpace()->GetEdgeVDofs(EdgeNo, vdofs);
+      int n = vdofs.Size()/Dim;
+      pm.SetSize(Dim, n);
+      for (int i = 0; i < Dim; i++)
+         for (int j = 0; j < n; j++)
+            pm(i, j) = (*Nodes)(vdofs[n*i+j]);
+      EdTr->SetFE(GetTransformationFEforElementType( Element::SEGMENT ));
+   }
+}
+
+ElementTransformation *Mesh::GetEdgeTransformation(int EdgeNo)
+{
+   GetEdgeTransformation(EdgeNo, &EdgeTransformation);
+   return &EdgeTransformation;
+}
+
+
 void Mesh::GetLocalPtToSegTransformation(
    IsoparametricTransformation &Transf, int i)
 {
@@ -747,9 +792,9 @@ static int edge_compare(const void *ii, const void *jj)
    return (0);
 }
 
-void Mesh::FinalizeTriMesh(int generate_edges, int refine)
+void Mesh::FinalizeTriMesh(int generate_edges, int refine, bool fix_orientation)
 {
-   CheckElementOrientation();
+   CheckElementOrientation(fix_orientation);
 
    if (refine)
       MarkTriMeshForRefinement();
@@ -771,9 +816,10 @@ void Mesh::FinalizeTriMesh(int generate_edges, int refine)
    meshgen = 1;
 }
 
-void Mesh::FinalizeQuadMesh(int generate_edges, int refine)
+void Mesh::FinalizeQuadMesh(int generate_edges, int refine,
+                            bool fix_orientation)
 {
-   CheckElementOrientation();
+   CheckElementOrientation(fix_orientation);
 
    if (generate_edges)
    {
@@ -1034,9 +1080,9 @@ void Mesh::DoNodeReorder(DSTable *old_v_to_v)
    }
 }
 
-void Mesh::FinalizeTetMesh(int generate_edges, int refine)
+void Mesh::FinalizeTetMesh(int generate_edges, int refine, bool fix_orientation)
 {
-   CheckElementOrientation();
+   CheckElementOrientation(fix_orientation);
 
    if (NumOfBdrElements == 0)
    {
@@ -1072,9 +1118,9 @@ void Mesh::FinalizeTetMesh(int generate_edges, int refine)
    meshgen = 1;
 }
 
-void Mesh::FinalizeHexMesh(int generate_edges, int refine)
+void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
 {
-   CheckElementOrientation();
+   CheckElementOrientation(fix_orientation);
 
    GetElementToFaceTable();
    GenerateFaces();
@@ -1438,6 +1484,7 @@ Element *Mesh::NewElement(int geom)
 {
    switch (geom)
    {
+   case Geometry::POINT:     return (new Point);
    case Geometry::SEGMENT:   return (new Segment);
    case Geometry::TRIANGLE:  return (new Triangle);
    case Geometry::SQUARE:    return (new Quadrilateral);
@@ -7613,4 +7660,168 @@ Mesh::~Mesh()
       FreeElement(faces[i]);
 
    DeleteTables();
+}
+
+
+NodeExtrudeCoefficient::NodeExtrudeCoefficient(const int dim, const int _n,
+                                               const double _s)
+   : VectorCoefficient(dim), n(_n), s(_s), tip(p, dim-1)
+{
+}
+
+void NodeExtrudeCoefficient::Eval(Vector &V, ElementTransformation &T,
+                                  const IntegrationPoint &ip)
+{
+   V.SetSize(vdim);
+   T.Transform(ip, tip);
+   V(0) = p[0];
+   if (vdim == 2)
+   {
+      V(1) = s * ((ip.y + layer) / n);
+   }
+   else
+   {
+      V(1) = p[1];
+      V(2) = s * ((ip.z + layer) / n);
+   }
+}
+
+
+Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
+{
+   if (mesh->Dimension() != 1)
+   {
+      cerr << "Extrude1D : Not a 1D mesh!" << endl;
+      mfem_error();
+   }
+
+   int nvy = (closed) ? (ny) : (ny + 1);
+   int nvt = mesh->GetNV() * nvy;
+
+   Mesh *mesh2d;
+
+   if (closed)
+      mesh2d = new Mesh(2, nvt, mesh->GetNE()*ny, mesh->GetNBE()*ny);
+   else
+      mesh2d = new Mesh(2, nvt, mesh->GetNE()*ny,
+                        mesh->GetNBE()*ny+2*mesh->GetNE());
+
+   // vertices
+   double vc[2];
+   for (int i = 0; i < mesh->GetNV(); i++)
+   {
+      vc[0] = mesh->GetVertex(i)[0];
+      for (int j = 0; j < nvy; j++)
+      {
+         vc[1] = sy * (double(j) / ny);
+         mesh2d->AddVertex(vc);
+      }
+   }
+   // elements
+   Array<int> vert;
+   for (int i = 0; i < mesh->GetNE(); i++)
+   {
+      const Element *elem = mesh->GetElement(i);
+      elem->GetVertices(vert);
+      const int attr = elem->GetAttribute();
+      for (int j = 0; j < ny; j++)
+      {
+         int qv[4];
+         qv[0] = vert[0] * nvy + j;
+         qv[1] = vert[1] * nvy + j;
+         qv[2] = vert[1] * nvy + (j + 1) % nvy;
+         qv[3] = vert[0] * nvy + (j + 1) % nvy;
+
+         mesh2d->AddQuad(qv, attr);
+      }
+   }
+   // 2D boundary from the 1D boundary
+   for (int i = 0; i < mesh->GetNBE(); i++)
+   {
+      const Element *elem = mesh->GetBdrElement(i);
+      elem->GetVertices(vert);
+      const int attr = elem->GetAttribute();
+      for (int j = 0; j < ny; j++)
+      {
+         int sv[2];
+         sv[0] = vert[0] * nvy + j;
+         sv[1] = vert[0] * nvy + (j + 1) % nvy;
+
+         if (attr%2)
+            Swap<int>(sv[0], sv[1]);
+
+         mesh2d->AddBdrSegment(sv, attr);
+      }
+   }
+
+   if (!closed)
+   {
+      // 2D boundary from the 1D elements (bottom + top)
+      int nba = mesh->bdr_attributes.Max();
+      for (int i = 0; i < mesh->GetNE(); i++)
+      {
+         const Element *elem = mesh->GetElement(i);
+         elem->GetVertices(vert);
+         const int attr = nba + elem->GetAttribute();
+         int sv[2];
+         sv[0] = vert[0] * nvy;
+         sv[1] = vert[1] * nvy;
+
+         mesh2d->AddBdrSegment(sv, attr);
+
+         sv[0] = vert[1] * nvy + ny;
+         sv[1] = vert[0] * nvy + ny;
+
+         mesh2d->AddBdrSegment(sv, attr);
+      }
+   }
+
+   mesh2d->FinalizeQuadMesh(1, 0);
+
+   GridFunction *nodes = mesh->GetNodes();
+   if (nodes)
+   {
+      // duplicate the fec of the 1D mesh so that it can be deleted safely
+      // along with its nodes, fes and fec
+      FiniteElementCollection *fec2d = NULL;
+      FiniteElementSpace *fes2d;
+      const char *name = nodes->FESpace()->FEColl()->Name();
+      string cname = name;
+      if (cname == "Linear")
+         fec2d = new LinearFECollection;
+      else if (cname == "Quadratic")
+         fec2d = new QuadraticFECollection;
+      else if (cname == "Cubic")
+         fec2d = new CubicFECollection;
+      else if (!strncmp(name, "H1_", 3))
+         fec2d = new H1_FECollection(atoi(name + 7), 2);
+      else
+      {
+         delete mesh2d;
+         cerr << "Extrude1D : The mesh uses unknown FE collection : "
+              << cname << endl;
+         mfem_error();
+      }
+      fes2d = new FiniteElementSpace(mesh2d, fec2d, 2);
+      mesh2d->SetNodalFESpace(fes2d);
+      GridFunction *nodes2d = mesh2d->GetNodes();
+      nodes2d->MakeOwner(fec2d);
+
+      NodeExtrudeCoefficient ecoeff(2, ny, sy);
+      Vector lnodes;
+      Array<int> vdofs2d;
+      for (int i = 0; i < mesh->GetNE(); i++)
+      {
+         ElementTransformation &T = *mesh->GetElementTransformation(i);
+         for (int j = ny-1; j >= 0; j--)
+         {
+            fes2d->GetElementVDofs(i*ny+j, vdofs2d);
+            lnodes.SetSize(vdofs2d.Size());
+            ecoeff.SetLayer(j);
+            fes2d->GetFE(i*ny+j)->Project(ecoeff, T, lnodes);
+            nodes2d->SetSubVector(vdofs2d, lnodes);
+         }
+      }
+   }
+   return mesh2d;
 }

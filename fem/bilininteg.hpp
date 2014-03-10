@@ -351,19 +351,25 @@ class VectorFEMassIntegrator: public BilinearFormIntegrator
 private:
    Coefficient *Q;
    VectorCoefficient *VQ;
+   MatrixCoefficient *MQ;
+   void Init(Coefficient *q, VectorCoefficient *vq, MatrixCoefficient *mq)
+   { Q = q; VQ = vq; MQ = mq; }
 
 #ifndef MFEM_USE_OPENMP
    Vector shape;
    Vector D;
+   DenseMatrix K;
    DenseMatrix vshape;
 #endif
 
 public:
-   VectorFEMassIntegrator() { Q = NULL; VQ= NULL; }
-   VectorFEMassIntegrator(Coefficient *_q) { Q = _q; VQ= NULL; }
-   VectorFEMassIntegrator(Coefficient &q) { Q = &q; VQ= NULL; }
-   VectorFEMassIntegrator(VectorCoefficient *_vq) { VQ = _vq; Q = NULL; }
-   VectorFEMassIntegrator(VectorCoefficient &vq) { VQ = &vq; Q = NULL; }
+   VectorFEMassIntegrator() { Init(NULL, NULL, NULL); }
+   VectorFEMassIntegrator(Coefficient *_q) { Init(_q, NULL, NULL); }
+   VectorFEMassIntegrator(Coefficient &q) { Init(&q, NULL, NULL); }
+   VectorFEMassIntegrator(VectorCoefficient *_vq) { Init(NULL, _vq, NULL); }
+   VectorFEMassIntegrator(VectorCoefficient &vq) { Init(NULL, &vq, NULL); }
+   VectorFEMassIntegrator(MatrixCoefficient *_mq) { Init(NULL, NULL, _mq); }
+   VectorFEMassIntegrator(MatrixCoefficient &mq) { Init(NULL, NULL, &mq); }
 
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,

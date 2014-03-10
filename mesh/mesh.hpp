@@ -68,7 +68,7 @@ protected:
    Array<FaceInfo> fc_faces_info;      // for 3D two-level state
 
    IsoparametricTransformation Transformation, Transformation2;
-   IsoparametricTransformation FaceTransformation;
+   IsoparametricTransformation FaceTransformation, EdgeTransformation;
    FaceElementTransformations FaceElemTr;
 
    GridFunction *Nodes;
@@ -257,10 +257,14 @@ public:
    void AddBdrTriangle (int *vi, int attr = 1);
    void AddBdrQuad (int *vi, int attr = 1);
    void GenerateBoundaryElements();
-   void FinalizeTriMesh (int generate_edges = 0, int refine = 0);
-   void FinalizeQuadMesh (int generate_edges = 0, int refine = 0);
-   void FinalizeTetMesh (int generate_edges = 0, int refine = 0);
-   void FinalizeHexMesh (int generate_edges = 0, int refine = 0);
+   void FinalizeTriMesh(int generate_edges = 0, int refine = 0,
+                        bool fix_orientation = true);
+   void FinalizeQuadMesh(int generate_edges = 0, int refine = 0,
+                         bool fix_orientation = true);
+   void FinalizeTetMesh(int generate_edges = 0, int refine = 0,
+                        bool fix_orientation = true);
+   void FinalizeHexMesh(int generate_edges = 0, int refine = 0,
+                        bool fix_orientation = true);
 
    void SetAttributes();
    /** Creates mesh for the unit cube, divided into nx * ny *nz hexahedrals
@@ -437,6 +441,13 @@ public:
    /// Returns the transformation defining the given face element
    ElementTransformation *GetFaceTransformation(int FaceNo);
 
+   /** Returns the transformation defining the given edge element.
+       The transformation is stored in a user-defined variable. */
+   void GetEdgeTransformation(int i, IsoparametricTransformation *EdTr);
+
+   /// Returns the transformation defining the given face element
+   ElementTransformation *GetEdgeTransformation(int EdgeNo);
+
    /** Returns (a poiter to a structure containing) the following data:
        1) Elem1No - the index of the first element that contains this face
        this is the element that has the same outward unit normal
@@ -590,7 +601,7 @@ public:
 
    /** Prints the mesh with bdr elements given by the boundary of
        the subdomains, so that the boundary of subdomain i has bdr
-       attribute i. */
+       attribute i+1. */
    void PrintWithPartitioning (int *partitioning,
                                ostream &out, int elem_attr = 0) const;
 
@@ -618,6 +629,28 @@ public:
    /// Destroys mesh.
    virtual ~Mesh();
 };
+
+
+/// Class used to exrude the nodes of a mesh
+class NodeExtrudeCoefficient : public VectorCoefficient
+{
+private:
+   int n, layer;
+   double p[2], s;
+   Vector tip;
+public:
+   NodeExtrudeCoefficient(const int dim, const int _n, const double _s);
+   void SetLayer(const int l) { layer = l; }
+   using VectorCoefficient::Eval;
+   virtual void Eval(Vector &V, ElementTransformation &T,
+                     const IntegrationPoint &ip);
+   virtual ~NodeExtrudeCoefficient() { }
+};
+
+
+/// Extrude a 1D mesh
+Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
+                const bool closed = false);
 
 
 // inline functions

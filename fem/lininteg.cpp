@@ -112,6 +112,44 @@ void BoundaryNormalLFIntegrator::AssembleRHSElementVect(
    }
 }
 
+void BoundaryTangentialLFIntegrator::AssembleRHSElementVect(
+   const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
+{
+   int dim = el.GetDim()+1;
+   int dof = el.GetDof();
+   Vector tangent(dim), Qvec;
+
+   shape.SetSize(dof);
+   elvect.SetSize(dof);
+   elvect = 0.0;
+
+   if (dim != 2)
+      mfem_error("These methods make sense only in 2D problems.");
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int intorder = oa * el.GetOrder() + ob;  // <----------
+      ir = &IntRules.Get(el.GetGeomType(), intorder);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      Tr.SetIntPoint(&ip);
+      const DenseMatrix &Jac = Tr.Jacobian();
+      tangent(0) =  Jac(0,0);
+      tangent(1) = Jac(1,0);
+
+      Q.Eval(Qvec, Tr, ip);
+
+      el.CalcShape(ip, shape);
+
+      add(elvect, ip.weight*(Qvec*tangent), shape, elvect);
+   }
+}
+
 void VectorDomainLFIntegrator::AssembleRHSElementVect(
    const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
 {

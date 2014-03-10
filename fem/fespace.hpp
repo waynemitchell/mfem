@@ -187,6 +187,8 @@ public:
        including the dofs for the vertices of the edge. */
    void GetEdgeDofs(int i, Array<int> &dofs) const;
 
+   void GetVertexDofs(int i, Array<int> &dofs) const;
+
    void GetElementInteriorDofs(int i, Array<int> &dofs) const;
 
    void GetEdgeInteriorDofs(int i, Array<int> &dofs) const;

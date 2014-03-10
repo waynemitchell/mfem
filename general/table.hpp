@@ -109,8 +109,11 @@ public:
 
    /// Prints the table to stream out.
    void Print(ostream & out = cout, int width = 4) const;
+   void PrintMatlab(ostream & out) const;
 
    void Save(ostream & out) const;
+   void Copy(Table & copy) const;
+   void Swap(Table & other);
 
    void Clear();
 

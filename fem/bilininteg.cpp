@@ -827,9 +827,13 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
 #ifdef MFEM_USE_OPENMP
    Vector D(VQ ? VQ->GetVDim() : 0);
    DenseMatrix vshape(dof, dim);
+   DenseMatrix K(MQ ? MQ->GetVDim() : 0, MQ ? MQ->GetVDim() : 0);
 #else
    vshape.SetSize(dof,dim);
+   D.SetSize(VQ ? VQ->GetVDim() : 0);
+   K.SetSize(MQ ? MQ->GetVDim() : 0, MQ ? MQ->GetVDim() : 0);
 #endif
+   DenseMatrix tmp(vshape.Height(), K.Width());
 
    elmat.SetSize(dof);
    elmat = 0.0;
@@ -851,7 +855,14 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
       el.CalcVShape(Trans, vshape);
 
       w = ip.weight * Trans.Weight();
-      if (VQ)
+      if (MQ)
+      {
+         MQ->Eval(K, Trans, ip);
+         K *= w;
+         Mult(vshape,K,tmp);
+         AddMultABt(tmp,vshape,elmat);
+      }
+      else if (VQ)
       {
          VQ->Eval(D, Trans, ip);
          D *= w;
@@ -876,9 +887,9 @@ void VectorFEMassIntegrator::AssembleElementMatrix2(
    int test_dof = test_fe.GetDof();
    double w;
 
-   if (VQ)
+   if (VQ || MQ)
       mfem_error("VectorFEMassIntegrator::AssembleElementMatrix2(...)\n"
-                 "   is not implemented for vector permeability");
+                 "   is not implemented for vector/tensor permeability");
 
 #ifdef MFEM_USE_OPENMP
    DenseMatrix vshape(trial_dof, dim);

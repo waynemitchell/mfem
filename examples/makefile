@@ -11,9 +11,9 @@
 
 # Serial compiler
 CC = g++
-OPTS = -O3 -I$(MFEM_DIR)
+OPTS = -O3 -I$(MFEM_DIR) $(SUITESPARSE_OPT)
 DEBUG_OPTS = -g -I$(MFEM_DIR)
-LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(OPENMP_LIBS)
+LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(OPENMP_LIBS) $(SUITESPARSE_LIB)
 
 # Parallel compiler
 MPICC = mpicxx
@@ -46,6 +46,18 @@ BLAS_LIB   = -L$(LAPACK_DIR) -lblas -lgfortran
 LAPACK_LIBS_NO  =
 LAPACK_LIBS_YES = $(LAPACK_LIB) $(BLAS_LIB)
 LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
+
+# The SuiteSparse library
+USE_SUITESPARSE = NO
+SUITESPARSE_DIR = ../../SuiteSparse
+SUITESPARSE_OPT_NO  =
+SUITESPARSE_OPT_YES = -I$(SUITESPARSE_DIR)/include
+SUITESPARSE_OPT     = $(SUITESPARSE_OPT_$(USE_SUITESPARSE))
+SUITESPARSE_LIB_NO  =
+SUITESPARSE_LIB_YES = -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd\
+ -lamd -lcamd -lccolamd -lsuitesparseconfig -lrt -L$(METIS_DIR) -lmetis\
+ $(LAPACK_LIB) $(BLAS_LIB)
+SUITESPARSE_LIB     = $(SUITESPARSE_LIB_$(USE_SUITESPARSE))
 
 serial: ex1 ex2 ex3 ex4
 

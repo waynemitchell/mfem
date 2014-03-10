@@ -99,11 +99,11 @@ public:
 class TransposeOperator : public Operator
 {
 private:
-   Operator * A;
+   const Operator * A;
 
 public:
    /// Saves the operator
-   TransposeOperator (Operator * a) : A(a) { size = A -> Size(); }
+   TransposeOperator (const Operator * a) : A(a) { size = A -> Size(); }
 
    /// Operator application
    virtual void Mult (const Vector & x, Vector & y) const

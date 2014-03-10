@@ -278,6 +278,10 @@ double DenseMatrix::Weight() const
    {
       return sqrt(data[0] * data[0] + data[1] * data[1]);
    }
+   else if ((Height() == 3) && (Width() == 1))
+   {
+      return sqrt(data[0] * data[0] + data[1] * data[1] + data[2] * data[2]);
+   }
    else if ((Height() == 3) && (Width() == 2))
    {
       const double *d = data;
@@ -780,6 +784,19 @@ void DenseMatrix::SingularValues(Vector &sv) const
    // compiling without lapack
    mfem_error("DenseMatrix::SingularValues");
 #endif
+}
+
+int DenseMatrix::Rank(double tol) const
+{
+   int rank=0;
+   Vector sv(min(Height(), Width()));
+   SingularValues(sv);
+
+   for (int i=0; i < sv.Size(); ++i)
+      if (sv(i) >= tol)
+         ++rank;
+
+   return rank;
 }
 
 static const double sqrt_1_eps = sqrt(1./numeric_limits<double>::epsilon());
@@ -2210,6 +2227,21 @@ void DenseMatrix::Print(ostream &out, int width) const
          else
             out << ' ';
       }
+   }
+}
+
+void DenseMatrix::PrintMatlab(ostream &out) const
+{
+   // output flags = scientific + show sign
+   out << setiosflags(ios::scientific | ios::showpos);
+   for (int i = 0; i < height; i++)
+   {
+      for (int j = 0; j < size; j++)
+      {
+         out << (*this)(i,j);
+         out << ' ';
+      }
+      out << "\n";
    }
 }
 

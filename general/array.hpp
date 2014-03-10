@@ -86,6 +86,8 @@ public:
 
    /// Returns the data
    inline T *GetData() { return (T *)data; }
+   /// Returns the data
+   inline const T *GetData() const { return (T *)data; }
 
    /// Changes the ownership of the the data
    inline void StealData(T **p)
@@ -167,6 +169,12 @@ public:
    /// Sorts the array.
    void Sort();
 
+   /// return true if the array is sorted.
+   int IsSorted();
+
+   // Partial Sum
+   void PartialSum();
+
    inline void operator=(const T &a);
 
    /// Copy data from a pointer. Size() elements are copied.
@@ -217,6 +225,13 @@ public:
 
    void Copy(Array2D &copy) const
    { copy.N = N; array1d.Copy(copy.array1d); }
+
+   inline void operator=(const T &a)
+   { array1d = a; }
+
+   /// Make this Array a reference to 'master'
+   inline void MakeRef(const Array2D &master)
+   { N = master.N; array1d.MakeRef(master.array1d);}
 };
 
 

@@ -113,11 +113,19 @@ int main (int argc, char *argv[])
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 
+#ifndef MFEM_USE_SUITESPARSE
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
    x = 0.0;
    PCG(A, M, *b, x, 1, 10000, 1e-20, 0.0);
+#else
+   // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   UMFPackSolver umf_solver;
+   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   umf_solver.SetOperator(A);
+   umf_solver.Mult(*b, x);
+#endif
 
    // 8. Compute and print the L^2 norm of the error.
    cout << "\n|| F_h - F ||_{L^2} = " << x.ComputeL2Error(F) << '\n' << endl;

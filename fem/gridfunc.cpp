@@ -147,7 +147,7 @@ void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
       fec = NULL;
    }
    fes = f;
-   SetDataAndSize((double *)v + v_offset, fes->GetVSize());
+   NewDataAndSize((double *)v + v_offset, fes->GetVSize());
 }
 
 int GridFunction::VectorDim() const
@@ -1903,4 +1903,54 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                                                        *Transf, fl);
          }
    }
+}
+
+
+double ExtrudeCoefficient::Eval(ElementTransformation &T,
+                                const IntegrationPoint &ip)
+{
+   ElementTransformation *T_in =
+      mesh_in->GetElementTransformation(T.ElementNo / n);
+   T_in->SetIntPoint(&ip);
+   return sol_in.Eval(*T_in, ip);
+}
+
+
+GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
+                                    GridFunction *sol, const int ny)
+{
+   GridFunction *sol2d;
+
+   FiniteElementCollection *solfec2d;
+   const char *name = sol->FESpace()->FEColl()->Name();
+   string cname = name;
+   if (cname == "Linear")
+      solfec2d = new LinearFECollection;
+   else if (cname == "Quadratic")
+      solfec2d = new QuadraticFECollection;
+   else if (cname == "Cubic")
+      solfec2d = new CubicFECollection;
+   else if (!strncmp(name, "H1_", 3))
+      solfec2d = new H1_FECollection(atoi(name + 7), 2);
+   else if (!strncmp(name, "L2_T", 4))
+      solfec2d = new L2_FECollection(atoi(name + 10), 2);
+   else if (!strncmp(name, "L2_", 3))
+      solfec2d = new L2_FECollection(atoi(name + 7), 2);
+   else
+   {
+      cerr << "Extrude1DGridFunction : unknown FE collection : "
+           << cname << endl;
+      return NULL;
+   }
+   FiniteElementSpace *solfes2d;
+   // assuming sol is scalar
+   solfes2d = new FiniteElementSpace(mesh2d, solfec2d);
+   sol2d = new GridFunction(solfes2d);
+   sol2d->MakeOwner(solfec2d);
+   {
+      GridFunctionCoefficient csol(sol);
+      ExtrudeCoefficient c2d(mesh, csol, ny);
+      sol2d->ProjectCoefficient(c2d);
+   }
+   return sol2d;
 }

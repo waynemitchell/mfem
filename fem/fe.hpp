@@ -1188,12 +1188,6 @@ private:
    Array<Basis *> open_basis, closed_basis;
 
    static Array2D<int> binom;
-   static const int *Binom(const int p);
-
-   static void UniformPoints(const int p, double *x);
-   static void GaussPoints(const int p, double *x);
-   static void GaussLobattoPoints(const int p, double *x);
-   static void ChebyshevPoints(const int p, double *x);
 
    static void CalcMono(const int p, const double x, double *u);
    static void CalcMono(const int p, const double x, double *u, double *d);
@@ -1206,6 +1200,8 @@ private:
 
 public:
    Poly_1D() { }
+
+   static const int *Binom(const int p);
 
    const double *OpenPoints(const int p);
    const double *ClosedPoints(const int p);
@@ -1234,8 +1230,26 @@ public:
    static double CalcDelta(const int p, const double x)
    { return pow(x, (double) p); }
 
-   static void CalcBernstein(const int p, const double x, double *u);
-   static void CalcBernstein(const int p, const double x, double *u, double *d);
+   static void UniformPoints(const int p, double *x);
+   static void GaussPoints(const int p, double *x);
+   static void GaussLobattoPoints(const int p, double *x);
+   static void ChebyshevPoints(const int p, double *x);
+
+   /// Compute the terms in the expansion of the binomial (x + y)^p
+   static void CalcBinomTerms(const int p, const double x, const double y,
+                              double *u);
+   /** Compute the terms in the expansion of the binomial (x + y)^p and their
+       derivatives with respect to x assuming that dy/dx = -1. */
+   static void CalcBinomTerms(const int p, const double x, const double y,
+                              double *u, double *d);
+   /** Compute the derivatives (w.r.t. x) of the terms in the expansion of the
+       binomial (x + y)^p assuming that dy/dx = -1. */
+   static void CalcDBinomTerms(const int p, const double x, const double y,
+                               double *d);
+   static void CalcBernstein(const int p, const double x, double *u)
+   { CalcBinomTerms(p, x, 1. - x, u); }
+   static void CalcBernstein(const int p, const double x, double *u, double *d)
+   { CalcBinomTerms(p, x, 1. - x, u, d); }
 
    ~Poly_1D();
 };
@@ -1292,6 +1306,71 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
+};
+
+class H1Pos_SegmentElement : public FiniteElement
+{
+private:
+#ifndef MFEM_USE_OPENMP
+   // This is to share scratch space between invocations, which helps
+   // speed things up, but with OpenMP, we need one copy per thread.
+   // Right now, we solve this by allocating this space within each function
+   // call every time we call it.  Alternatively, we should do some sort
+   // thread private thing.  Brunner, Jan 2014
+   mutable Vector shape_x, dshape_x;
+#endif
+
+public:
+   H1Pos_SegmentElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+   using FiniteElement::Project;
+   virtual void Project(Coefficient &coeff,
+                        ElementTransformation &Trans, Vector &dofs) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
+};
+
+
+class H1Pos_QuadrilateralElement : public FiniteElement
+{
+private:
+#ifndef MFEM_USE_OPENMP
+   // See comment in H1Pos_SegmentElement
+   mutable Vector shape_x, shape_y, dshape_x, dshape_y;
+#endif
+   Array<int> dof_map;
+
+public:
+   H1Pos_QuadrilateralElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+   using FiniteElement::Project;
+   virtual void Project(Coefficient &coeff,
+                        ElementTransformation &Trans, Vector &dofs) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
+};
+
+
+class H1Pos_HexahedronElement : public FiniteElement
+{
+private:
+#ifndef MFEM_USE_OPENMP
+   // See comment in H1Pos_SegementElement.
+   mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
+#endif
+   Array<int> dof_map;
+
+public:
+   H1Pos_HexahedronElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+   using FiniteElement::Project;
+   virtual void Project(Coefficient &coeff,
+                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
@@ -1411,13 +1490,30 @@ public:
 class L2_HexahedronElement : public NodalFiniteElement
 {
 private:
-   Poly_1D::Basis &basis1d;
+   int type;
+   Poly_1D::Basis *basis1d;
 #ifndef MFEM_USE_OPENMP
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
 
 public:
-   L2_HexahedronElement(const int p);
+   L2_HexahedronElement(const int p, const int _type = 0);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
+};
+
+
+class L2Pos_HexahedronElement : public PositiveFiniteElement
+{
+private:
+#ifndef MFEM_USE_OPENMP
+   mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
+#endif
+
+public:
+   L2Pos_HexahedronElement(const int p);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1428,6 +1524,7 @@ public:
 class L2_TriangleElement : public NodalFiniteElement
 {
 private:
+   int type;
 #ifndef MFEM_USE_OPENMP
    mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
    mutable DenseMatrix du;
@@ -1435,7 +1532,23 @@ private:
    DenseMatrix T;
 
 public:
-   L2_TriangleElement(const int p);
+   L2_TriangleElement(const int p, const int _type = 0);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
+};
+
+
+class L2Pos_TriangleElement : public PositiveFiniteElement
+{
+private:
+#ifndef MFEM_USE_OPENMP
+   mutable Vector dshape_1d;
+#endif
+
+public:
+   L2Pos_TriangleElement(const int p);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1446,6 +1559,7 @@ public:
 class L2_TetrahedronElement : public NodalFiniteElement
 {
 private:
+   int type;
 #ifndef MFEM_USE_OPENMP
    mutable Vector shape_x, shape_y, shape_z, shape_l;
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
@@ -1454,7 +1568,23 @@ private:
    DenseMatrix T;
 
 public:
-   L2_TetrahedronElement(const int p);
+   L2_TetrahedronElement(const int p, const int _type = 0);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+   virtual void CalcDShape(const IntegrationPoint &ip,
+                           DenseMatrix &dshape) const;
+   virtual void ProjectDelta(int vertex, Vector &dofs) const;
+};
+
+
+class L2Pos_TetrahedronElement : public PositiveFiniteElement
+{
+private:
+#ifndef MFEM_USE_OPENMP
+   mutable Vector dshape_1d;
+#endif
+
+public:
+   L2Pos_TetrahedronElement(const int p);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;

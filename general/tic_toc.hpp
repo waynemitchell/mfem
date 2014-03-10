@@ -28,6 +28,7 @@ public:
    void Clear();
    void Start();
    void Stop();
+   double Resolution();
    double RealTime();
    double UserTime();
    double SystTime();
