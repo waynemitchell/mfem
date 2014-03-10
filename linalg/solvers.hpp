@@ -257,14 +257,14 @@ public:
 
 void SLBQP(Vector &x, const Vector &xt,
 	   const Vector &lo, const Vector &hi,
-	   const Vector &a, double b,
+	   const Vector &w, double a,
 	   int max_iter, double tol);
 
 #ifdef MFEM_USE_MPI
 void SLBQP(MPI_Comm comm,
 	   Vector &x, const Vector &xt,
 	   const Vector &lo, const Vector &hi,
-	   const Vector &a, double b,
+	   const Vector &w, double a,
 	   int max_iter, double tol);
 #endif
 
