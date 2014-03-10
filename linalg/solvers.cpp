@@ -1025,3 +1025,202 @@ void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
            << "Number of iterations: " << i << endl;
    }
 }
+
+void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
+{
+   int size = xt.Size();
+   
+   // Set some algorithm-specific constants and temporaries.
+   int nclip       = 0;
+   double l        = 0;
+   double llow     = 0;
+   double lupp     = 0;
+   double lnew     = 0;
+   double dl       = 2;
+   double r        = 0;
+   double rlow     = 0;
+   double rupp     = 0;
+   double s        = 0;
+
+   /********** Start bracketing phase of SLBQP **********/
+
+   // Solve QP with fixed Lagrange multiplier:
+   add(l, w, 1.0, xt, x);
+   x.median(lo, hi);
+
+   // Compute residual:
+   r = Dot(w,x) -a;
+
+   // Increment counter:
+   nclip += 1;
+
+   if (r < 0) {
+
+      llow = l;  rlow = r;  l = l + dl;
+
+      // Solve QP with fixed Lagrange multiplier:
+      add(l, w, 1.0, xt, x);
+      x.median(lo, hi);
+
+      // Compute residual:
+      r = Dot(w,x) -a;
+
+      // Increment counter:
+      nclip += 1;
+
+      while ((r < 0) && (nclip < max_iter)) {
+	 llow = l;
+	 s = rlow/r - 1.0;  if (s < 0.1) {s = 0.1;}
+	 dl = dl + dl/s;  l = l + dl;
+	 // Solve QP with fixed Lagrange multiplier:
+	 add(l, w, 1.0, xt, x);
+	 x.median(lo, hi);
+
+	 // Compute residual:
+	 r = Dot(w,x) -a;
+
+	 // Increment counter:
+	 nclip += 1;
+      }
+
+      lupp = l;  rupp = r;
+   }
+
+   else {
+
+      lupp = l;  rupp = r;  l = l - dl;
+
+      // Solve QP with fixed Lagrange multiplier:
+      add(l, w, 1.0, xt, x);
+      x.median(lo, hi);
+
+      // Compute residual:
+      r = Dot(w,x) -a;
+
+      // Increment counter:
+      nclip += 1;
+
+      while ((r > 0) && (nclip < max_iter)) {
+	 lupp = l;
+	 s = rupp/r - 1.0;  if (s < 0.1) {s = 0.1;}
+	 dl = dl + dl/s;  l = l - dl;
+	 // Solve QP with fixed Lagrange multiplier:
+	 add(l, w, 1.0, xt, x);
+	 x.median(lo, hi);
+
+	 // Compute residual:
+	 r = Dot(w,x) -a;
+
+	 // Increment counter:
+	 nclip += 1;
+      }
+
+      llow = l;  rlow = r;
+   }
+
+   /********** Stop bracketing phase of SLBQP **********/
+
+
+   /********** Start secant phase of SLBQP **********/
+
+   s = 1.0 - rlow/rupp;  dl = dl/s;  l = lupp - dl;
+ 
+   // Solve QP with fixed Lagrange multiplier:
+   add(l, w, 1.0, xt, x);
+   x.median(lo, hi);
+
+   // Compute residual:
+   r = Dot(w,x) -a;
+
+   // Increment counter:
+   nclip += 1;
+
+   while ( ((r > abs_tol) || (-r > abs_tol)) && (nclip < max_iter) ) {  // while not converged  
+
+      if (r > 0) {
+
+	 if (s <= 2.0) {
+	    lupp = l;  rupp = r;  s = 1.0 - rlow/rupp;
+	    dl = (lupp - llow)/s;  l = lupp - dl;
+	 }
+	 else {
+	    s = rupp/r - 1.0;   if (s < 0.1) {s = 0.1;}
+	    dl = (lupp - l)/s;
+	    lnew = 0.75*llow + 0.25*l;  if (lnew < l-dl) {lnew = l-dl;}
+	    lupp = l;  rupp = r;  l = lnew;
+	    s = (lupp - llow)/(lupp - l);
+	 }
+
+      }
+
+      else {
+
+	 if (s >= 2.0) {
+	    llow = l;  rlow = r;  s = 1.0 - rlow/rupp;
+	    dl = (lupp - llow)/s;  l = lupp - dl;
+	 }
+	 else {
+	    s = rlow/r - 1.0;   if (s < 0.1) {s = 0.1;}
+	    dl = (l - llow)/s;
+	    lnew = 0.75*lupp + 0.25*l;  if (lnew < l+dl) {lnew = l+dl;}
+	    llow = l;  rlow = r; l = lnew;
+	    s = (lupp - llow)/(lupp - l);
+	 }
+
+      }
+
+      // Solve QP with fixed Lagrange multiplier:
+      add(l, w, 1.0, xt, x);
+      x.median(lo, hi);
+
+      // Compute residual:
+      r = Dot(w,x) -a;
+
+      // Increment counter:
+      nclip += 1;
+
+   }
+
+   /********** Stop secant phase of SLBQP **********/
+
+   int print_level_now = print_level;
+   if ((r > abs_tol) || (-r > abs_tol)) {
+      cout << "SLBQP not converged!" << endl;
+      print_level_now = 1;
+   }
+   
+   if (print_level_now > 0) {
+      cout << "iterations: " << nclip << endl;
+      cout << "lamba = " << l << endl;
+      cout << "residual = " << r << endl;
+   }
+}
+
+void SLBQP(Vector &x, const Vector &xt,
+	   const Vector &lo, const Vector &hi,
+	   const Vector &w, double a,
+	   int max_iter, double abs_tol)
+{
+   SLBQPOptimizer slbqp;
+   slbqp.SetMaxIter(max_iter);
+   slbqp.SetAbsTol(abs_tol);
+   slbqp.SetBounds(lo,hi);
+   slbqp.SetLinearConstraint(w, a);
+   slbqp.Mult(xt,x);
+}
+
+#ifdef MFEM_USE_MPI
+void SLBQP(MPI_Comm comm,
+	   Vector &x, const Vector &xt,
+	   const Vector &lo, const Vector &hi,
+	   const Vector &w, double a,
+	   int max_iter, double abs_tol)
+{
+   SLBQPOptimizer slbqp(comm);
+   slbqp.SetMaxIter(max_iter);
+   slbqp.SetAbsTol(abs_tol);
+   slbqp.SetBounds(lo,hi);
+   slbqp.SetLinearConstraint(w, a);
+   slbqp.Mult(xt,x);
+}
+#endif
