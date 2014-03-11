@@ -47,7 +47,7 @@ else:
 # OpenMP options
 openmp = ARGUMENTS.get('openmp', 0)
 if int(openmp):
-   env.Prepend(CPPDEFINES = ['MFEM_USE_OPENMP','MFEM_MAKE_THREAD_SAFE'])
+   env.Prepend(CPPDEFINES = ['MFEM_USE_OPENMP','MFEM_THREAD_SAFE'])
    env.Append(CCFLAGS = '-fopenmp')
    print 'Enabled OpenMP'
 

@@ -195,7 +195,7 @@ void BilinearForm::Assemble (int skip_zeros)
    if (mat == NULL)
       AllocMat();
 
-#ifdef MFEM_MAKE_THREAD_SAFE
+#ifdef MFEM_THREAD_SAFE
    int free_element_matrices = 0;
    if (!element_matrices)
    {
@@ -289,7 +289,7 @@ void BilinearForm::Assemble (int skip_zeros)
       }
    }
 
-#ifdef MFEM_MAKE_THREAD_SAFE
+#ifdef MFEM_THREAD_SAFE
    if (free_element_matrices)
       FreeElementMatrices();
 #endif
