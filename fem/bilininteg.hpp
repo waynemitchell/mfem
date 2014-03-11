@@ -109,7 +109,7 @@ class DiffusionIntegrator: public BilinearFormIntegrator
 {
 private:
    Vector vec, pointflux, shape;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_MAKE_THREAD_SAFE
    DenseMatrix dshape, dshapedxt, invdfdx, mq;
 #endif
    Coefficient *Q;
@@ -265,7 +265,7 @@ class VectorFEDivergenceIntegrator : public BilinearFormIntegrator
 {
 private:
    Coefficient *Q;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_MAKE_THREAD_SAFE
    Vector divshape, shape;
 #endif
 public:
@@ -286,7 +286,7 @@ class VectorFECurlIntegrator: public BilinearFormIntegrator
 {
 private:
    Coefficient *Q;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_MAKE_THREAD_SAFE
    DenseMatrix curlshapeTrial;
    DenseMatrix vshapeTest;
    DenseMatrix curlshapeTrial_dFT;
@@ -328,7 +328,7 @@ public:
 class CurlCurlIntegrator: public BilinearFormIntegrator
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_MAKE_THREAD_SAFE
    DenseMatrix Curlshape, Curlshape_dFt;
 #endif
    Coefficient *Q;
@@ -355,7 +355,7 @@ private:
    void Init(Coefficient *q, VectorCoefficient *vq, MatrixCoefficient *mq)
    { Q = q; VQ = vq; MQ = mq; }
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_MAKE_THREAD_SAFE
    Vector shape;
    Vector D;
    DenseMatrix K;
@@ -411,7 +411,7 @@ class DivDivIntegrator: public BilinearFormIntegrator
 private:
    Coefficient *Q;
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_MAKE_THREAD_SAFE
    Vector divshape;
 #endif
 
@@ -456,7 +456,7 @@ private:
    double q_lambda, q_mu;
    Coefficient *lambda, *mu;
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_MAKE_THREAD_SAFE
    DenseMatrix dshape, Jinv, gshape, pelmat;
    Vector divshape;
 #endif

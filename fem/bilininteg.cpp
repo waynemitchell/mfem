@@ -89,7 +89,7 @@ void DiffusionIntegrator::AssembleElementMatrix
    int dim = el.GetDim();
    double w;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    DenseMatrix dshape(nd,dim), dshapedxt(nd,dim), invdfdx(dim);
 #else
    dshape.SetSize(nd,dim);
@@ -148,7 +148,7 @@ void DiffusionIntegrator::AssembleElementVector(
    int dim = el.GetDim();
    double w;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    DenseMatrix dshape(nd,dim), invdfdx(dim), mq(dim);
 #else
    dshape.SetSize(nd,dim);
@@ -216,7 +216,7 @@ void DiffusionIntegrator::ComputeElementFlux
    nd = el.GetDof();
    dim = el.GetDim();
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    DenseMatrix dshape(nd,dim), invdfdx(dim);
 #else
    dshape.SetSize(nd,dim);
@@ -271,7 +271,7 @@ double DiffusionIntegrator::ComputeFluxEnergy
    nd = fluxelem.GetDof();
    dim = fluxelem.GetDim();
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    DenseMatrix invdfdx;
 #endif
 
@@ -635,7 +635,7 @@ void VectorFEDivergenceIntegrator::AssembleElementMatrix2(
 {
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    Vector divshape(trial_nd), shape(test_nd);
 #else
    divshape.SetSize(trial_nd);
@@ -675,7 +675,7 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
    int dim = trial_fe.GetDim();
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    DenseMatrix curlshapeTrial(trial_nd, dim);
    DenseMatrix curlshapeTrial_dFT(trial_nd, dim);
    DenseMatrix vshapeTest(test_nd, dim);
@@ -774,7 +774,7 @@ void CurlCurlIntegrator::AssembleElementMatrix
    int dim = el.GetDim();
    double w;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    DenseMatrix Curlshape(nd,dim), Curlshape_dFt(nd,dim);
 #else
    Curlshape.SetSize(nd,dim);
@@ -824,7 +824,7 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
 
    double w;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    Vector D(VQ ? VQ->GetVDim() : 0);
    DenseMatrix vshape(dof, dim);
    DenseMatrix K(MQ ? MQ->GetVDim() : 0, MQ ? MQ->GetVDim() : 0);
@@ -891,7 +891,7 @@ void VectorFEMassIntegrator::AssembleElementMatrix2(
       mfem_error("VectorFEMassIntegrator::AssembleElementMatrix2(...)\n"
                  "   is not implemented for vector/tensor permeability");
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    DenseMatrix vshape(trial_dof, dim);
    Vector shape(test_dof);
 #else
@@ -997,7 +997,7 @@ void DivDivIntegrator::AssembleElementMatrix(
    int dof = el.GetDof();
    double c;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    Vector divshape(dof);
 #else
    divshape.SetSize(dof);
@@ -1097,7 +1097,7 @@ void ElasticityIntegrator::AssembleElementMatrix(
    int dim = el.GetDim();
    double w, L, M;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_MAKE_THREAD_SAFE
    DenseMatrix dshape(dof, dim), Jinv(dim), gshape(dof, dim), pelmat(dof);
    Vector divshape(dim*dof);
 #else
