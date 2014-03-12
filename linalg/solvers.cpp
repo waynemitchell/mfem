@@ -1053,7 +1053,6 @@ void SLBQPOptimizer::SetOperator(const Operator &op)
 	      "not meaningful for this solver");
 }
 
-
 void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 {
    int size = xt.Size();
@@ -1069,29 +1068,29 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    double rlow = 0;
    double rupp = 0;
    double s    = 0;
-   double smin = 0.1;
+
+   const double smin = 0.1;
 
    // *** Start bracketing phase of SLBQP ***
 
-   // Solve QP with fixed Lagrange multiplier:
-   add(l, w, 1.0, xt, x);
-   x.median(lo, hi);
-   // Compute residual:
-   r = Dot(w,x)-a;
-   // Increment counter:
-   nclip++;
+   // Solve QP with fixed Lagrange multiplier
+   r = solve(l,xt,x,nclip);
+
+   // If x=xt was already within bounds and satisfies the linear
+   // constraint, then we already have the solution.
+   if (fabs(r) < abs_tol) {
+      converged = true;
+      final_iter = 0;
+      final_norm = r;
+      return;
+   }
 
    if (r < 0)
    {
       llow = l;  rlow = r;  l = l + dl;
 
       // Solve QP with fixed Lagrange multiplier:
-      add(l, w, 1.0, xt, x);
-      x.median(lo, hi);
-      // Compute residual:
-      r = Dot(w,x)-a;
-      // Increment counter:
-      nclip++;
+      r = solve(l,xt,x,nclip);
 
       while ((r < 0) && (nclip < max_iter))
       {
@@ -1101,13 +1100,8 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
          dl = dl + dl/s;
          l = l + dl;
 
-         // Solve QP with fixed Lagrange multiplier:
-         add(l, w, 1.0, xt, x);
-         x.median(lo, hi);
-         // Compute residual:
-         r = Dot(w,x)-a;
-         // Increment counter:
-         nclip++;
+	 // Solve QP with fixed Lagrange multiplier:
+	 r = solve(l,xt,x,nclip);
       }
 
       lupp = l;  rupp = r;
@@ -1117,12 +1111,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
       lupp = l;  rupp = r;  l = l - dl;
 
       // Solve QP with fixed Lagrange multiplier:
-      add(l, w, 1.0, xt, x);
-      x.median(lo, hi);
-      // Compute residual:
-      r = Dot(w,x)-a;
-      // Increment counter:
-      nclip++;
+      r = solve(l,xt,x,nclip);
 
       while ((r > 0) && (nclip < max_iter))
       {
@@ -1132,13 +1121,8 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
          dl = dl + dl/s;
          l = l - dl;
 
-         // Solve QP with fixed Lagrange multiplier:
-         add(l, w, 1.0, xt, x);
-         x.median(lo, hi);
-         // Compute residual:
-         r = Dot(w,x)-a;
-         // Increment counter:
-         nclip++;
+	 // Solve QP with fixed Lagrange multiplier:
+	 r = solve(l,xt,x,nclip);
       }
 
       llow = l;  rlow = r;
@@ -1152,12 +1136,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    s = 1.0 - rlow/rupp;  dl = dl/s;  l = lupp - dl;
 
    // Solve QP with fixed Lagrange multiplier:
-   add(l, w, 1.0, xt, x);
-   x.median(lo, hi);
-   // Compute residual:
-   r = Dot(w,x)-a;
-   // Increment counter:
-   nclip++;
+   r = solve(l,xt,x,nclip);
 
    while ( ((r > abs_tol) || (-r > abs_tol)) && (nclip < max_iter) )
    {
@@ -1200,12 +1179,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
       }
 
       // Solve QP with fixed Lagrange multiplier:
-      add(l, w, 1.0, xt, x);
-      x.median(lo, hi);
-      // Compute residual:
-      r = Dot(w,x)-a;
-      // Increment counter:
-      nclip++;
+      r = solve(l,xt,x,nclip);
    }
 
    // *** Stop secant phase of SLBQP ***

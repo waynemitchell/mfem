@@ -236,8 +236,18 @@ protected:
    Vector lo, hi, w;
    double a;
 
-   // void UpdateVectors();
+   // Solve QP at fixed lambda
 
+   inline
+   double solve(double l, const Vector& xt, Vector& x, int& nclip) const {
+      add(l, w, 1.0, xt, x);
+      x.median(lo,hi);
+      double r = Dot(w,x) -a;
+      nclip++;
+      
+      return r;
+   }
+   
 public:
    SLBQPOptimizer() {}
 
