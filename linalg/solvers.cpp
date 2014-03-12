@@ -1048,10 +1048,16 @@ void UMFPackSolver::SetOperator(const Operator &op)
    double *Ax;
 
    if (Numeric)
+   {
       if (!use_long_ints)
+      {
          umfpack_di_free_numeric(&Numeric);
+      }
       else
+      {
          umfpack_dl_free_numeric(&Numeric);
+      }
+   }
 
    mat = const_cast<SparseMatrix *>(dynamic_cast<const SparseMatrix *>(&op));
    if (mat == NULL)
@@ -1197,10 +1203,16 @@ UMFPackSolver::~UMFPackSolver()
    delete [] AJ;
    delete [] AI;
    if (Numeric)
+   {
       if (!use_long_ints)
+      {
          umfpack_di_free_numeric(&Numeric);
+      }
       else
+      {
          umfpack_dl_free_numeric(&Numeric);
+      }
+   }
 }
 
 #endif // MFEM_USE_SUITESPARSE
