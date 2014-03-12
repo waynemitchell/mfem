@@ -224,7 +224,7 @@ void SLI(const Operator &A, const Operator &B,
          double RTOLERANCE = 1e-12, double ATOLERANCE = 1e-24);
 
 
-/** Single Linearly Constrained Quadratic Program with simple bounds
+/** SLBQP: (S)ingle (L)inearly Constrained with (B)ounds (Q)uadratic (P)rogram
 
     minimize 1/2 ||x - x_t||^2, subject to:
     lo_i <= x_i <= hi_i
@@ -233,8 +233,8 @@ void SLI(const Operator &A, const Operator &B,
 class SLBQPOptimizer : public IterativeSolver
 {
 protected:
-   mutable Vector lo, hi, w;
-   mutable double a;
+   Vector lo, hi, w;
+   double a;
 
    // void UpdateVectors();
 
@@ -245,27 +245,14 @@ public:
    SLBQPOptimizer(MPI_Comm _comm) : IterativeSolver(_comm) {}
 #endif
 
-   void SetBounds(const Vector &_lo, const Vector &_hi) { lo = _lo; hi = _hi; }
-   void SetLinearConstraint(const Vector &_w, double _a) { w = _w; a = _a; }
+   void SetBounds(const Vector &_lo, const Vector &_hi);
+   void SetLinearConstraint(const Vector &_w, double _a);
 
    // For this problem type, we let the target values play the role of the
-   // initial vector x, from which the operator generates the optimal vector y.
+   // initial vector xt, from which the operator generates the optimal vector x.
 
-   virtual void Mult(const Vector &x, Vector &y) const;
+   virtual void Mult(const Vector &xt, Vector &x) const;
 };
-
-void SLBQP(Vector &x, const Vector &xt,
-           const Vector &lo, const Vector &hi,
-           const Vector &w, double a,
-           int max_iter, double tol);
-
-#ifdef MFEM_USE_MPI
-void SLBQP(MPI_Comm comm,
-           Vector &x, const Vector &xt,
-           const Vector &lo, const Vector &hi,
-           const Vector &w, double a,
-           int max_iter, double tol);
-#endif
 
 
 #ifdef MFEM_USE_SUITESPARSE

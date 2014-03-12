@@ -1027,6 +1027,20 @@ void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
    }
 }
 
+void SLBQPOptimizer::SetBounds(
+   const Vector &_lo, const Vector &_hi)
+{
+   lo.SetDataAndSize(_lo.GetData(), _lo.Size());
+   hi.SetDataAndSize(_hi.GetData(), _hi.Size());
+}
+
+void SLBQPOptimizer::SetLinearConstraint(
+   const Vector &_w, double _a)
+{
+   w.SetDataAndSize(_w.GetData(), _w.Size());
+   a = _a;
+}
+
 void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 {
    int size = xt.Size();
@@ -1197,35 +1211,6 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
       cout << "SLBQP residual = " << r << endl;
    }
 }
-
-void SLBQP(Vector &x, const Vector &xt,
-           const Vector &lo, const Vector &hi,
-           const Vector &w, double a,
-           int max_iter, double abs_tol)
-{
-   SLBQPOptimizer slbqp;
-   slbqp.SetMaxIter(max_iter);
-   slbqp.SetAbsTol(abs_tol);
-   slbqp.SetBounds(lo,hi);
-   slbqp.SetLinearConstraint(w, a);
-   slbqp.Mult(xt,x);
-}
-
-#ifdef MFEM_USE_MPI
-void SLBQP(MPI_Comm comm,
-           Vector &x, const Vector &xt,
-           const Vector &lo, const Vector &hi,
-           const Vector &w, double a,
-           int max_iter, double abs_tol)
-{
-   SLBQPOptimizer slbqp(comm);
-   slbqp.SetMaxIter(max_iter);
-   slbqp.SetAbsTol(abs_tol);
-   slbqp.SetBounds(lo,hi);
-   slbqp.SetLinearConstraint(w, a);
-   slbqp.Mult(xt,x);
-}
-#endif
 
 #ifdef MFEM_USE_SUITESPARSE
 
