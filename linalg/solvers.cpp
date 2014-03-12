@@ -1076,14 +1076,17 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
    const double smin = 0.1;
 
+   const double tol = max(abs_tol, rel_tol*a);
+   
    // *** Start bracketing phase of SLBQP ***
 
    // Solve QP with fixed Lagrange multiplier
    r = solve(l,xt,x,nclip);
 
+   
    // If x=xt was already within bounds and satisfies the linear
    // constraint, then we already have the solution.
-   if (fabs(r) < abs_tol) {
+   if (fabs(r) <= tol) {
       converged = true;
       final_iter = 0;
       final_norm = r;
@@ -1143,7 +1146,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    // Solve QP with fixed Lagrange multiplier:
    r = solve(l,xt,x,nclip);
 
-   while ( ((r > abs_tol) || (-r > abs_tol)) && (nclip < max_iter) )
+   while ( (fabs(r) > tol) && (nclip < max_iter) )
    {
       if (r > 0)
       {
@@ -1190,7 +1193,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    // *** Stop secant phase of SLBQP ***
 
    int print_level_now = print_level;
-   if ((r > abs_tol) || (-r > abs_tol))
+   if (fabs(r) > tol)
    {
       cerr << "SLBQP not converged!" << endl;
       print_level_now = 1;
