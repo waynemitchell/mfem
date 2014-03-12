@@ -169,14 +169,14 @@ protected:
                                  DenseMatrix &I,
                                  const NodalFiniteElement &fine_fe) const;
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector c_shape;
 #endif
 
 public:
    NodalFiniteElement(int D, int G, int Do, int O,
                       int F = FunctionSpace::Pk) :
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
       FiniteElement(D, G, Do, O, F)
 #else
       FiniteElement(D, G, Do, O, F), c_shape(Do)
@@ -230,7 +230,7 @@ private:
                            DenseMatrix &dshape) const;
 
 protected:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable DenseMatrix Jinv;
    mutable DenseMatrix vshape;
 #endif
@@ -281,7 +281,7 @@ protected:
 public:
    VectorFiniteElement (int D, int G, int Do, int O,
                         int F = FunctionSpace::Pk) :
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
       FiniteElement(D, G, Do, O, F)
 #else
       FiniteElement(D, G, Do, O, F), Jinv(D), vshape(Do, D)
@@ -872,7 +872,7 @@ class Lagrange1DFiniteElement : public NodalFiniteElement
 {
 private:
    Vector rwk;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector rxxk;
 #endif
 public:
@@ -920,7 +920,7 @@ private:
    Lagrange1DFiniteElement * fe1d;
    int dof1d;
    int *I, *J, *K;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape1dx, shape1dy, shape1dz;
    mutable DenseMatrix dshape1dx, dshape1dy, dshape1dz;
 #endif
@@ -1261,7 +1261,7 @@ class H1_SegmentElement : public NodalFiniteElement
 {
 private:
    Poly_1D::Basis &basis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, dshape_x;
 #endif
 
@@ -1278,7 +1278,7 @@ class H1_QuadrilateralElement : public NodalFiniteElement
 {
 private:
    Poly_1D::Basis &basis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
    Array<int> dof_map;
@@ -1296,7 +1296,7 @@ class H1_HexahedronElement : public NodalFiniteElement
 {
 private:
    Poly_1D::Basis &basis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
    Array<int> dof_map;
@@ -1312,7 +1312,7 @@ public:
 class H1Pos_SegmentElement : public FiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    // This is to share scratch space between invocations, which helps
    // speed things up, but with OpenMP, we need one copy per thread.
    // Right now, we solve this by allocating this space within each function
@@ -1336,7 +1336,7 @@ public:
 class H1Pos_QuadrilateralElement : public FiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    // See comment in H1Pos_SegmentElement
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
@@ -1357,7 +1357,7 @@ public:
 class H1Pos_HexahedronElement : public FiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    // See comment in H1Pos_SegementElement.
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
@@ -1378,7 +1378,7 @@ public:
 class H1_TriangleElement : public NodalFiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
    mutable DenseMatrix du;
 #endif
@@ -1395,7 +1395,7 @@ public:
 class H1_TetrahedronElement : public NodalFiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, shape_l;
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
    mutable DenseMatrix du;
@@ -1415,7 +1415,7 @@ class L2_SegmentElement : public NodalFiniteElement
 private:
    int type;
    Poly_1D::Basis *basis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, dshape_x;
 #endif
 
@@ -1431,7 +1431,7 @@ public:
 class L2Pos_SegmentElement : public PositiveFiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, dshape_x;
 #endif
 
@@ -1458,7 +1458,7 @@ class L2_QuadrilateralElement : public NodalFiniteElement
 private:
    int type;
    Poly_1D::Basis *basis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
 
@@ -1474,7 +1474,7 @@ public:
 class L2Pos_QuadrilateralElement : public PositiveFiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, dshape_x, dshape_y;
 #endif
 
@@ -1492,7 +1492,7 @@ class L2_HexahedronElement : public NodalFiniteElement
 private:
    int type;
    Poly_1D::Basis *basis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
 
@@ -1508,7 +1508,7 @@ public:
 class L2Pos_HexahedronElement : public PositiveFiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, dshape_x, dshape_y, dshape_z;
 #endif
 
@@ -1525,7 +1525,7 @@ class L2_TriangleElement : public NodalFiniteElement
 {
 private:
    int type;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
    mutable DenseMatrix du;
 #endif
@@ -1543,7 +1543,7 @@ public:
 class L2Pos_TriangleElement : public PositiveFiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector dshape_1d;
 #endif
 
@@ -1560,7 +1560,7 @@ class L2_TetrahedronElement : public NodalFiniteElement
 {
 private:
    int type;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, shape_l;
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
    mutable DenseMatrix du;
@@ -1579,7 +1579,7 @@ public:
 class L2Pos_TetrahedronElement : public PositiveFiniteElement
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector dshape_1d;
 #endif
 
@@ -1598,7 +1598,7 @@ private:
    static const double nk[8];
 
    Poly_1D::Basis &cbasis1d, &obasis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy;
    mutable Vector dshape_cx, dshape_cy;
 #endif
@@ -1635,7 +1635,7 @@ class RT_HexahedronElement : public VectorFiniteElement
    static const double nk[18];
 
    Poly_1D::Basis &cbasis1d, &obasis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy, shape_cz, shape_oz;
    mutable Vector dshape_cx, dshape_cy, dshape_cz;
 #endif
@@ -1671,7 +1671,7 @@ class RT_TriangleElement : public VectorFiniteElement
 {
    static const double nk[6], c;
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_l;
    mutable Vector dshape_x, dshape_y, dshape_l;
    mutable DenseMatrix u;
@@ -1710,7 +1710,7 @@ class RT_TetrahedronElement : public VectorFiniteElement
 {
    static const double nk[12], c;
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, shape_l;
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l;
    mutable DenseMatrix u;
@@ -1750,7 +1750,7 @@ class ND_HexahedronElement : public VectorFiniteElement
    static const double tk[18];
 
    Poly_1D::Basis &cbasis1d, &obasis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy, shape_cz, shape_oz;
    mutable Vector dshape_cx, dshape_cy, dshape_cz;
 #endif
@@ -1788,7 +1788,7 @@ class ND_QuadrilateralElement : public VectorFiniteElement
    static const double tk[8];
 
    Poly_1D::Basis &cbasis1d, &obasis1d;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_cx, shape_ox, shape_cy, shape_oy;
    mutable Vector dshape_cx, dshape_cy;
 #endif
@@ -1825,7 +1825,7 @@ class ND_TetrahedronElement : public VectorFiniteElement
 {
    static const double tk[18], c;
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_z, shape_l;
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l;
    mutable DenseMatrix u;
@@ -1863,7 +1863,7 @@ class ND_TriangleElement : public VectorFiniteElement
 {
    static const double tk[8], c;
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, shape_y, shape_l;
    mutable Vector dshape_x, dshape_y, dshape_l;
    mutable DenseMatrix u;
