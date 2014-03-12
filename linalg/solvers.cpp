@@ -1041,6 +1041,19 @@ void SLBQPOptimizer::SetLinearConstraint(
    a = _a;
 }
 
+void SLBQPOptimizer::SetPreconditioner(Solver &pr)
+{
+   mfem_error("SLBQPOptimizer::SetPreconditioner() : "
+	      "not meaningful for this solver");
+}
+
+void SLBQPOptimizer::SetOperator(const Operator &op)
+{
+   mfem_error("SLBQPOptimizer::SetOperator() : "
+	      "not meaningful for this solver");
+}
+
+
 void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 {
    int size = xt.Size();

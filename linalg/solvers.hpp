@@ -252,6 +252,11 @@ public:
    // initial vector xt, from which the operator generates the optimal vector x.
 
    virtual void Mult(const Vector &xt, Vector &x) const;
+
+   /// These are not currently meaningful for this solver and will error out.
+   virtual void SetPreconditioner(Solver &pr);
+   virtual void SetOperator(const Operator &op);
+   
 };
 
 
