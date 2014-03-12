@@ -390,9 +390,9 @@ void Vector::median(const Vector &lo, const Vector &hi)
    for (int i = 0; i < size; i++)
    {
       if (v[i] < lo[i])
-	 v[i] = lo[i];
+         v[i] = lo[i];
       else if (v[i] > hi[i])
-	 v[i] = hi[i];
+         v[i] = hi[i];
    }
 }
 

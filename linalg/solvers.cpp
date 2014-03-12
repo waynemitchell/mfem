@@ -1027,15 +1027,13 @@ void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
    }
 }
 
-void SLBQPOptimizer::SetBounds(
-   const Vector &_lo, const Vector &_hi)
+void SLBQPOptimizer::SetBounds(const Vector &_lo, const Vector &_hi)
 {
    lo.SetDataAndSize(_lo.GetData(), _lo.Size());
    hi.SetDataAndSize(_hi.GetData(), _hi.Size());
 }
 
-void SLBQPOptimizer::SetLinearConstraint(
-   const Vector &_w, double _a)
+void SLBQPOptimizer::SetLinearConstraint(const Vector &_w, double _a)
 {
    w.SetDataAndSize(_w.GetData(), _w.Size());
    a = _a;
@@ -1044,13 +1042,13 @@ void SLBQPOptimizer::SetLinearConstraint(
 void SLBQPOptimizer::SetPreconditioner(Solver &pr)
 {
    mfem_error("SLBQPOptimizer::SetPreconditioner() : "
-	      "not meaningful for this solver");
+              "not meaningful for this solver");
 }
 
 void SLBQPOptimizer::SetOperator(const Operator &op)
 {
    mfem_error("SLBQPOptimizer::SetOperator() : "
-	      "not meaningful for this solver");
+              "not meaningful for this solver");
 }
 
 void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
@@ -1059,7 +1057,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    // Algorithm adapted from Dai and Fletcher, "New Algorithms for
    // Singly Linearly Constrained Quadratic Programs Subject to Lower
    // and Upper Bounds", Numerical Analysis Report NA/216, 2003.
-   
+
    int size = xt.Size();
 
    // Set some algorithm-specific constants and temporaries.
@@ -1077,16 +1075,16 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    const double smin = 0.1;
 
    const double tol = max(abs_tol, rel_tol*a);
-   
+
    // *** Start bracketing phase of SLBQP ***
 
    // Solve QP with fixed Lagrange multiplier
    r = solve(l,xt,x,nclip);
 
-   
    // If x=xt was already within bounds and satisfies the linear
    // constraint, then we already have the solution.
-   if (fabs(r) <= tol) {
+   if (fabs(r) <= tol)
+   {
       converged = true;
       final_iter = 0;
       final_norm = r;
@@ -1097,7 +1095,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    {
       llow = l;  rlow = r;  l = l + dl;
 
-      // Solve QP with fixed Lagrange multiplier:
+      // Solve QP with fixed Lagrange multiplier
       r = solve(l,xt,x,nclip);
 
       while ((r < 0) && (nclip < max_iter))
@@ -1107,9 +1105,9 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
          if (s < smin) { s = smin; }
          dl = dl + dl/s;
          l = l + dl;
-	 
-	 // Solve QP with fixed Lagrange multiplier:
-	 r = solve(l,xt,x,nclip);
+
+         // Solve QP with fixed Lagrange multiplier
+         r = solve(l,xt,x,nclip);
       }
 
       lupp = l;  rupp = r;
@@ -1118,7 +1116,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    {
       lupp = l;  rupp = r;  l = l - dl;
 
-      // Solve QP with fixed Lagrange multiplier:
+      // Solve QP with fixed Lagrange multiplier
       r = solve(l,xt,x,nclip);
 
       while ((r > 0) && (nclip < max_iter))
@@ -1129,8 +1127,8 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
          dl = dl + dl/s;
          l = l - dl;
 
-	 // Solve QP with fixed Lagrange multiplier:
-	 r = solve(l,xt,x,nclip);
+         // Solve QP with fixed Lagrange multiplier
+         r = solve(l,xt,x,nclip);
       }
 
       llow = l;  rlow = r;
@@ -1143,7 +1141,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
    s = 1.0 - rlow/rupp;  dl = dl/s;  l = lupp - dl;
 
-   // Solve QP with fixed Lagrange multiplier:
+   // Solve QP with fixed Lagrange multiplier
    r = solve(l,xt,x,nclip);
 
    while ( (fabs(r) > tol) && (nclip < max_iter) )
@@ -1186,7 +1184,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
          }
       }
 
-      // Solve QP with fixed Lagrange multiplier:
+      // Solve QP with fixed Lagrange multiplier
       r = solve(l,xt,x,nclip);
    }
 

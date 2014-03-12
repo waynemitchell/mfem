@@ -236,18 +236,15 @@ protected:
    Vector lo, hi, w;
    double a;
 
-   // Solve QP at fixed lambda
-
-   inline
-   double solve(double l, const Vector& xt, Vector& x, int& nclip) const {
+   /// Solve QP at fixed lambda
+   inline double solve(double l, const Vector& xt, Vector& x, int& nclip) const
+   {
       add(l, w, 1.0, xt, x);
       x.median(lo,hi);
-      double r = Dot(w,x) -a;
       nclip++;
-      
-      return r;
+      return Dot(w,x)-a;
    }
-   
+
 public:
    SLBQPOptimizer() {}
 
@@ -266,7 +263,6 @@ public:
    /// These are not currently meaningful for this solver and will error out.
    virtual void SetPreconditioner(Solver &pr);
    virtual void SetOperator(const Operator &op);
-   
 };
 
 
