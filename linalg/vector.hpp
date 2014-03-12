@@ -151,7 +151,7 @@ public:
    friend void subtract(const double a, const Vector &x,
                         const Vector &y, Vector &z);
 
-   /// v = median(v,lo,hi) entrywise
+   /// v = median(v,lo,hi) entrywise.  Implementation assumes lo <= hi.
    void median(const Vector &lo, const Vector &hi);
 
    void GetSubVector(const Array<int> &dofs, Vector &elemvect) const;

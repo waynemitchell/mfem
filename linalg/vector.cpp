@@ -389,14 +389,10 @@ void Vector::median(const Vector &lo, const Vector &hi)
 
    for (int i = 0; i < size; i++)
    {
-      // v >= lo and v <= hi OR v <= lo and v >= hi
-      if ( (v[i] - lo[i]) * (hi[i] - v[i]) >= 0 )
-         ;  // v[i] is already the median
-      // lo >= v and lo <= hi OR lo <= v and lo >= hi
-      else if ( (lo[i] - v[i]) * (hi[i] - lo[i]) >= 0 )
-         v[i] = lo[i];  // lo[i] is the median
-      else
-         v[i] = hi[i];  // hi[i] is the median
+      if (v[i] < lo[i])
+	 v[i] = lo[i];
+      else if (v[i] > hi[i])
+	 v[i] = hi[i];
    }
 }
 
