@@ -1042,6 +1042,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    double rlow = 0;
    double rupp = 0;
    double s    = 0;
+   double smin = 0.1;
 
    // *** Start bracketing phase of SLBQP ***
 
@@ -1069,7 +1070,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
       {
          llow = l;
          s = rlow/r - 1.0;
-         if (s < 0.1) { s = 0.1; }
+         if (s < smin) { s = smin; }
          dl = dl + dl/s;
          l = l + dl;
 
@@ -1100,7 +1101,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
       {
          lupp = l;
          s = rupp/r - 1.0;
-         if (s < 0.1) { s = 0.1; }
+         if (s < smin) { s = smin; }
          dl = dl + dl/s;
          l = l - dl;
 
@@ -1143,7 +1144,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
          else
          {
             s = rupp/r - 1.0;
-            if (s < 0.1) { s = 0.1; }
+            if (s < smin) { s = smin; }
             dl = (lupp - l)/s;
             lnew = 0.75*llow + 0.25*l;
             if (lnew < l-dl) { lnew = l-dl; }
@@ -1162,7 +1163,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
          else
          {
             s = rlow/r - 1.0;
-            if (s < 0.1) { s = 0.1; }
+            if (s < smin) { s = smin; }
             dl = (l - llow)/s;
             lnew = 0.75*lupp + 0.25*l;
             if (lnew < l+dl) { lnew = l+dl; }
