@@ -1055,6 +1055,11 @@ void SLBQPOptimizer::SetOperator(const Operator &op)
 
 void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 {
+   // Based on code provided by Denis Ridzal, dridzal@sandia.gov.
+   // Algorithm adapted from Dai and Fletcher, "New Algorithms for
+   // Singly Linearly Constrained Quadratic Programs Subject to Lower
+   // and Upper Bounds", Numerical Analysis Report NA/216, 2003.
+   
    int size = xt.Size();
 
    // Set some algorithm-specific constants and temporaries.
@@ -1099,7 +1104,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
          if (s < smin) { s = smin; }
          dl = dl + dl/s;
          l = l + dl;
-
+	 
 	 // Solve QP with fixed Lagrange multiplier:
 	 r = solve(l,xt,x,nclip);
       }
