@@ -224,6 +224,49 @@ void SLI(const Operator &A, const Operator &B,
          double RTOLERANCE = 1e-12, double ATOLERANCE = 1e-24);
 
 
+/** SLBQP: (S)ingle (L)inearly Constrained with (B)ounds (Q)uadratic (P)rogram
+
+    minimize 1/2 ||x - x_t||^2, subject to:
+    lo_i <= x_i <= hi_i
+    sum_i w_i x_i = a
+*/
+class SLBQPOptimizer : public IterativeSolver
+{
+protected:
+   Vector lo, hi, w;
+   double a;
+
+   /// Solve QP at fixed lambda
+   inline double solve(double l, const Vector &xt, Vector &x, int &nclip) const
+   {
+      add(xt, l, w, x);
+      x.median(lo,hi);
+      nclip++;
+      return Dot(w,x)-a;
+   }
+
+   inline void print_iteration(int it, double r, double l) const;
+
+public:
+   SLBQPOptimizer() {}
+
+#ifdef MFEM_USE_MPI
+   SLBQPOptimizer(MPI_Comm _comm) : IterativeSolver(_comm) {}
+#endif
+
+   void SetBounds(const Vector &_lo, const Vector &_hi);
+   void SetLinearConstraint(const Vector &_w, double _a);
+
+   // For this problem type, we let the target values play the role of the
+   // initial vector xt, from which the operator generates the optimal vector x.
+   virtual void Mult(const Vector &xt, Vector &x) const;
+
+   /// These are not currently meaningful for this solver and will error out.
+   virtual void SetPreconditioner(Solver &pr);
+   virtual void SetOperator(const Operator &op);
+};
+
+
 #ifdef MFEM_USE_SUITESPARSE
 
 /// Direct sparse solver using UMFPACK
@@ -259,4 +302,5 @@ public:
 
 #endif // MFEM_USE_SUITESPARSE
 
-#endif
+#endif // MFEM_SOLVERS
+

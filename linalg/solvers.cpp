@@ -1027,6 +1027,202 @@ void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
    }
 }
 
+void SLBQPOptimizer::SetBounds(const Vector &_lo, const Vector &_hi)
+{
+   lo.SetDataAndSize(_lo.GetData(), _lo.Size());
+   hi.SetDataAndSize(_hi.GetData(), _hi.Size());
+}
+
+void SLBQPOptimizer::SetLinearConstraint(const Vector &_w, double _a)
+{
+   w.SetDataAndSize(_w.GetData(), _w.Size());
+   a = _a;
+}
+
+void SLBQPOptimizer::SetPreconditioner(Solver &pr)
+{
+   mfem_error("SLBQPOptimizer::SetPreconditioner() : "
+              "not meaningful for this solver");
+}
+
+void SLBQPOptimizer::SetOperator(const Operator &op)
+{
+   mfem_error("SLBQPOptimizer::SetOperator() : "
+              "not meaningful for this solver");
+}
+
+inline void SLBQPOptimizer::print_iteration(int it, double r, double l) const
+{
+   if (print_level > 1)
+      cout << "SLBQP iteration " << it << ": residual = " << r
+           << ", lambda = " << l << endl;
+}
+
+void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
+{
+   // Based on code provided by Denis Ridzal, dridzal@sandia.gov.
+   // Algorithm adapted from Dai and Fletcher, "New Algorithms for
+   // Singly Linearly Constrained Quadratic Programs Subject to Lower
+   // and Upper Bounds", Numerical Analysis Report NA/216, 2003.
+
+   int size = xt.Size();
+
+   // Set some algorithm-specific constants and temporaries.
+   int nclip   = 0;
+   double l    = 0;
+   double llow = 0;
+   double lupp = 0;
+   double lnew = 0;
+   double dl   = 2;
+   double r    = 0;
+   double rlow = 0;
+   double rupp = 0;
+   double s    = 0;
+
+   const double smin = 0.1;
+
+   const double tol = max(abs_tol, rel_tol*a);
+
+   // *** Start bracketing phase of SLBQP ***
+   if (print_level > 1)
+      cout << "SLBQP bracketing phase" << endl;
+
+   // Solve QP with fixed Lagrange multiplier
+   r = solve(l,xt,x,nclip);
+   print_iteration(nclip, r, l);
+
+
+   // If x=xt was already within bounds and satisfies the linear
+   // constraint, then we already have the solution.
+   if (fabs(r) <= tol)
+   {
+      converged = true;
+      goto slbqp_done;
+   }
+
+   if (r < 0)
+   {
+      llow = l;  rlow = r;  l = l + dl;
+
+      // Solve QP with fixed Lagrange multiplier
+      r = solve(l,xt,x,nclip);
+      print_iteration(nclip, r, l);
+
+      while ((r < 0) && (nclip < max_iter))
+      {
+         llow = l;
+         s = rlow/r - 1.0;
+         if (s < smin) { s = smin; }
+         dl = dl + dl/s;
+         l = l + dl;
+
+         // Solve QP with fixed Lagrange multiplier
+         r = solve(l,xt,x,nclip);
+         print_iteration(nclip, r, l);
+      }
+
+      lupp = l;  rupp = r;
+   }
+   else
+   {
+      lupp = l;  rupp = r;  l = l - dl;
+
+      // Solve QP with fixed Lagrange multiplier
+      r = solve(l,xt,x,nclip);
+      print_iteration(nclip, r, l);
+
+      while ((r > 0) && (nclip < max_iter))
+      {
+         lupp = l;
+         s = rupp/r - 1.0;
+         if (s < smin) { s = smin; }
+         dl = dl + dl/s;
+         l = l - dl;
+
+         // Solve QP with fixed Lagrange multiplier
+         r = solve(l,xt,x,nclip);
+         print_iteration(nclip, r, l);
+      }
+
+      llow = l;  rlow = r;
+   }
+
+   // *** Stop bracketing phase of SLBQP ***
+
+
+   // *** Start secant phase of SLBQP ***
+   if (print_level > 1)
+      cout << "SLBQP secant phase" << endl;
+
+   s = 1.0 - rlow/rupp;  dl = dl/s;  l = lupp - dl;
+
+   // Solve QP with fixed Lagrange multiplier
+   r = solve(l,xt,x,nclip);
+   print_iteration(nclip, r, l);
+
+   while ( (fabs(r) > tol) && (nclip < max_iter) )
+   {
+      if (r > 0)
+      {
+         if (s <= 2.0)
+         {
+            lupp = l;  rupp = r;  s = 1.0 - rlow/rupp;
+            dl = (lupp - llow)/s;  l = lupp - dl;
+         }
+         else
+         {
+            s = rupp/r - 1.0;
+            if (s < smin) { s = smin; }
+            dl = (lupp - l)/s;
+            lnew = 0.75*llow + 0.25*l;
+            if (lnew < l-dl) { lnew = l-dl; }
+            lupp = l;  rupp = r;  l = lnew;
+            s = (lupp - llow)/(lupp - l);
+         }
+
+      }
+      else
+      {
+         if (s >= 2.0)
+         {
+            llow = l;  rlow = r;  s = 1.0 - rlow/rupp;
+            dl = (lupp - llow)/s;  l = lupp - dl;
+         }
+         else
+         {
+            s = rlow/r - 1.0;
+            if (s < smin) { s = smin; }
+            dl = (l - llow)/s;
+            lnew = 0.75*lupp + 0.25*l;
+            if (lnew < l+dl) { lnew = l+dl; }
+            llow = l;  rlow = r; l = lnew;
+            s = (lupp - llow)/(lupp - l);
+         }
+      }
+
+      // Solve QP with fixed Lagrange multiplier
+      r = solve(l,xt,x,nclip);
+      print_iteration(nclip, r, l);
+   }
+
+   // *** Stop secant phase of SLBQP ***
+
+   converged = (fabs(r) <= tol);
+   if (!converged && print_level >= 0)
+      cerr << "SLBQP not converged!" << endl;
+
+slbqp_done:
+
+   final_iter = nclip;
+   final_norm = r;
+
+   if (print_level == 1 || (!converged && print_level >= 0))
+   {
+      cout << "SLBQP iterations = " << nclip << endl;
+      cout << "SLBQP lamba      = " << l << endl;
+      cout << "SLBQP residual   = " << r << endl;
+   }
+}
 
 #ifdef MFEM_USE_SUITESPARSE
 
@@ -1216,3 +1412,4 @@ UMFPackSolver::~UMFPackSolver()
 }
 
 #endif // MFEM_USE_SUITESPARSE
+

@@ -383,6 +383,19 @@ void subtract(const double a, const Vector &x, const Vector &y, Vector &z)
    }
 }
 
+void Vector::median(const Vector &lo, const Vector &hi)
+{
+   double *v = data;
+
+   for (int i = 0; i < size; i++)
+   {
+      if (v[i] < lo[i])
+         v[i] = lo[i];
+      else if (v[i] > hi[i])
+         v[i] = hi[i];
+   }
+}
+
 void Vector::GetSubVector(const Array<int> &dofs, Vector &elemvect) const
 {
    int i, j, n = dofs.Size();
