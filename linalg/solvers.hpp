@@ -237,13 +237,15 @@ protected:
    double a;
 
    /// Solve QP at fixed lambda
-   inline double solve(double l, const Vector& xt, Vector& x, int& nclip) const
+   inline double solve(double l, const Vector &xt, Vector &x, int &nclip) const
    {
-      add(l, w, 1.0, xt, x);
+      add(xt, l, w, x);
       x.median(lo,hi);
       nclip++;
       return Dot(w,x)-a;
    }
+
+   inline void print_iteration(int it, double r, double l) const;
 
 public:
    SLBQPOptimizer() {}
@@ -257,7 +259,6 @@ public:
 
    // For this problem type, we let the target values play the role of the
    // initial vector xt, from which the operator generates the optimal vector x.
-
    virtual void Mult(const Vector &xt, Vector &x) const;
 
    /// These are not currently meaningful for this solver and will error out.

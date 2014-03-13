@@ -1051,6 +1051,13 @@ void SLBQPOptimizer::SetOperator(const Operator &op)
               "not meaningful for this solver");
 }
 
+inline void SLBQPOptimizer::print_iteration(int it, double r, double l) const
+{
+   if (print_level > 1)
+      cout << "SLBQP iteration " << it << ": residual = " << r
+           << ", lambda = " << l << endl;
+}
+
 void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 {
    // Based on code provided by Denis Ridzal, dridzal@sandia.gov.
@@ -1077,18 +1084,20 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    const double tol = max(abs_tol, rel_tol*a);
 
    // *** Start bracketing phase of SLBQP ***
+   if (print_level > 1)
+      cout << "SLBQP bracketing phase" << endl;
 
    // Solve QP with fixed Lagrange multiplier
    r = solve(l,xt,x,nclip);
+   print_iteration(nclip, r, l);
+
 
    // If x=xt was already within bounds and satisfies the linear
    // constraint, then we already have the solution.
    if (fabs(r) <= tol)
    {
       converged = true;
-      final_iter = 0;
-      final_norm = r;
-      return;
+      goto slbqp_done;
    }
 
    if (r < 0)
@@ -1097,6 +1106,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
       // Solve QP with fixed Lagrange multiplier
       r = solve(l,xt,x,nclip);
+      print_iteration(nclip, r, l);
 
       while ((r < 0) && (nclip < max_iter))
       {
@@ -1108,6 +1118,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
          // Solve QP with fixed Lagrange multiplier
          r = solve(l,xt,x,nclip);
+         print_iteration(nclip, r, l);
       }
 
       lupp = l;  rupp = r;
@@ -1118,6 +1129,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
       // Solve QP with fixed Lagrange multiplier
       r = solve(l,xt,x,nclip);
+      print_iteration(nclip, r, l);
 
       while ((r > 0) && (nclip < max_iter))
       {
@@ -1129,6 +1141,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
          // Solve QP with fixed Lagrange multiplier
          r = solve(l,xt,x,nclip);
+         print_iteration(nclip, r, l);
       }
 
       llow = l;  rlow = r;
@@ -1138,11 +1151,14 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
 
    // *** Start secant phase of SLBQP ***
+   if (print_level > 1)
+      cout << "SLBQP secant phase" << endl;
 
    s = 1.0 - rlow/rupp;  dl = dl/s;  l = lupp - dl;
 
    // Solve QP with fixed Lagrange multiplier
    r = solve(l,xt,x,nclip);
+   print_iteration(nclip, r, l);
 
    while ( (fabs(r) > tol) && (nclip < max_iter) )
    {
@@ -1186,22 +1202,25 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
       // Solve QP with fixed Lagrange multiplier
       r = solve(l,xt,x,nclip);
+      print_iteration(nclip, r, l);
    }
 
    // *** Stop secant phase of SLBQP ***
 
-   int print_level_now = print_level;
-   if (fabs(r) > tol)
-   {
+   converged = (fabs(r) <= tol);
+   if (!converged && print_level >= 0)
       cerr << "SLBQP not converged!" << endl;
-      print_level_now = 1;
-   }
 
-   if (print_level_now > 0)
+slbqp_done:
+
+   final_iter = nclip;
+   final_norm = r;
+
+   if (print_level == 1 || (!converged && print_level >= 0))
    {
-      cout << "SLBQP iterations: " << nclip << endl;
-      cout << "SLBQP lamba = " << l << endl;
-      cout << "SLBQP residual = " << r << endl;
+      cout << "SLBQP iterations = " << nclip << endl;
+      cout << "SLBQP lamba      = " << l << endl;
+      cout << "SLBQP residual   = " << r << endl;
    }
 }
 
