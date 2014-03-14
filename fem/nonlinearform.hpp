@@ -37,6 +37,11 @@ public:
    virtual void SetEssentialBC(const Array<int> &bdr_attr_is_ess,
                                Vector *rhs = NULL);
 
+   void SetEssentialVDofs(const Array<int> &ess_vdofs_list)
+   {
+      ess_vdofs_list.Copy(ess_vdofs); // ess_vdofs_list --> ess_vdofs
+   }
+
    virtual double GetEnergy(const Vector &x) const;
 
    virtual void Mult(const Vector &x, Vector &y) const;

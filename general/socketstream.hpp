@@ -79,13 +79,16 @@ public:
    explicit socketstream(int s) : std::iostream(&__buf), __buf(s) { }
 
    socketstream(const char hostname[], int port)
-      : std::iostream(&__buf), __buf(hostname, port) { }
+      : std::iostream(&__buf) { open(hostname, port); }
 
    socketbuf *rdbuf() { return &__buf; }
 
    int open(const char hostname[], int port)
    {
-      return __buf.open(hostname, port);
+      int err = __buf.open(hostname, port);
+      if (err)
+         setstate(std::ios::failbit);
+      return err;
    }
 
    int close() { return __buf.close(); }
