@@ -118,7 +118,7 @@ public:
    double Weight() const;
 
    /// Adds the matrix A multiplied by the number c to the matrix
-   void Add(const double c, DenseMatrix &A);
+   void Add(const double c, const DenseMatrix &A);
 
    /// Sets the matrix elements equal to constant c
    DenseMatrix &operator=(double c);

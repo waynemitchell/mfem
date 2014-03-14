@@ -294,7 +294,7 @@ double DenseMatrix::Weight() const
    return 0.0;
 }
 
-void DenseMatrix::Add(const double c, DenseMatrix &A)
+void DenseMatrix::Add(const double c, const DenseMatrix &A)
 {
    for (int i = 0; i < Height(); i++)
       for (int j = 0; j < Size(); j++)
