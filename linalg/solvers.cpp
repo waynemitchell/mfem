@@ -1065,8 +1065,6 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
    // Singly Linearly Constrained Quadratic Programs Subject to Lower
    // and Upper Bounds", Numerical Analysis Report NA/216, 2003.
 
-   int size = xt.Size();
-
    // Set some algorithm-specific constants and temporaries.
    int nclip   = 0;
    double l    = 0;
