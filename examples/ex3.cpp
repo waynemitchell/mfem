@@ -70,8 +70,8 @@ int main (int argc, char *argv[])
    mesh->ReorientTetMesh();
 
    // 3. Define a finite element space on the mesh. Here we use the lowest order
-   //    Nedelec finite elements, but we can easily swich to higher-order spaces
-   //    by changing the value of p.
+   //    Nedelec finite elements, but we can easily switch to higher-order
+   //    spaces by changing the value of p.
    int p = 1;
    FiniteElementCollection *fec = new ND_FECollection(p, mesh -> Dimension());
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
@@ -89,7 +89,7 @@ int main (int argc, char *argv[])
    // 5. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary edges will be used
-   //    when eliminating the non-homogenious boundary condition to modify the
+   //    when eliminating the non-homogeneous boundary condition to modify the
    //    r.h.s. vector b.
    GridFunction x(fespace);
    VectorFunctionCoefficient E(3, E_exact);

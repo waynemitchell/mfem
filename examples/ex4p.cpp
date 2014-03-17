@@ -95,7 +95,7 @@ int main (int argc, char *argv[])
 
    // 5. Define a parallel finite element space on the parallel mesh. Here we
    //    use the lowest order Raviart-Thomas finite elements, but we can easily
-   //    swich to higher-order spaces by changing the value of p.
+   //    switch to higher-order spaces by changing the value of p.
    int p = 1;
    FiniteElementCollection *fec = new RT_FECollection(p-1, pmesh -> Dimension());
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
