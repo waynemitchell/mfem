@@ -1386,6 +1386,8 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
             Piz = Pi_blocks(0,2);
       }
 
+      delete id_ND;
+
       HYPRE_AMSSetInterpolations(ams, *Pi, *Pix, *Piy, *Piz);
 
       delete vert_fespace_d;
@@ -1528,6 +1530,8 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          ND_Piz = ND_Pi_blocks(0,2);
       }
 
+      delete id_ND;
+
       if (cycle_type < 10 && ams_cycle_type > 10)
       {
          delete vert_fespace_d;
@@ -1559,6 +1563,8 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          RT_Piy = RT_Pi_blocks(0,1);
          RT_Piz = RT_Pi_blocks(0,2);
       }
+
+      delete id_RT;
 
       HYPRE_ADSSetInterpolations(ads,
                                  *RT_Pi, *RT_Pix, *RT_Piy, *RT_Piz,
