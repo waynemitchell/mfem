@@ -87,10 +87,10 @@ public:
 
 
 /** Neo-Hookean hyperelastic model with a strain energy density function given
-    by the formula: (mu/2)(\bar{I}_1 - dim) + (K/2)(det(J)/g - 1)^2 where J is
-    the deformation gradient and \bar{I}_1 = (det(J))^{-2/dim} Tr(J J^t). The
-    parameters mu and K are the shear and bulk moduli, respectively, and g is
-    a reference volumetric scaling. */
+    by the formula: \f$(\mu/2)(\bar{I}_1 - dim) + (K/2)(det(J)/g - 1)^2\f$ where
+    J is the deformation gradient and \f$\bar{I}_1 = (det(J))^{-2/dim} Tr(J
+    J^t)\f$. The parameters \f$\mu\f$ and K are the shear and bulk moduli,
+    respectively, and g is a reference volumetric scaling. */
 class NeoHookeanModel : public HyperelasticModel
 {
 protected:
