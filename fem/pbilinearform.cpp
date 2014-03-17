@@ -271,8 +271,8 @@ void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks) 
                                             row_starts, col_starts);
       }
 
-   delete row_starts;
-   delete col_starts;
+   delete [] row_starts;
+   delete [] col_starts;
 }
 
 #endif
