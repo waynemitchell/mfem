@@ -239,33 +239,36 @@ protected:
    double relax_weight;
    /// SOR parameter (usually in (0,2))
    double omega;
-   /// Order of the Chebyshev polynomial
-   int cheby_order;
-   /// Fraction of spectrum to smooth for Chebyshev relaxation
-   double cheby_fraction;
+   /// Order of the smoothing polynomial
+   int poly_order;
+   /// Fraction of spectrum to smooth for polynomial relaxation
+   double poly_fraction;
+   /// Apply the polynomial smoother to A or D^{-1/2} A D^{-1/2}
+   int poly_scale;
 
    /// l1 norms of the rows of A
    double *l1_norms;
-   /// Maximal eigenvalue estimate for the Chebyshev polynomial
+   /// Maximal eigenvalue estimate for polynomial smoothing
    double max_eig_est;
-   /// Minimal eigenvalue estimate for the Chebyshev polynomial
+   /// Minimal eigenvalue estimate for polynomial smoothing
    double min_eig_est;
 
 public:
-   enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev };
+   enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev, Taubin, FIR };
 
    HypreSmoother();
 
    HypreSmoother(HypreParMatrix &_A, int type = 2,
                  int relax_times = 1, double relax_weight = 1.0, double omega = 1.0,
-                 int cheby_order = 2, double cheby_fraction = .3);
+                 int poly_order = 2, double poly_fraction = .3, int poly_scale = 1);
 
    /// Set some of the more common used relaxation types and number of sweeps
    void SetType(HypreSmoother::Type type, int relax_times = 1);
    /// Set SOR-related parameters
    void SetSOROptions(double relax_weight, double omega);
-   /// Set Chebyshev-related parameters
-   void SetChebyshevOptions(int cheby_order, double cheby_fraction);
+   /// Set parameters for polynomial smoothing
+   void SetPolyOptions(int poly_order, double poly_fraction,
+                       int poly_scale = 1);
 
    virtual void SetOperator(const Operator &op);
 

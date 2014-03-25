@@ -20,6 +20,14 @@
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
 
+#ifndef HYPRE_Int
+#define HYPRE_Int int
+#endif
+
+#ifndef HYPRE_Real
+#define HYPRE_Real double
+#endif
+
 HypreParVector::HypreParVector(MPI_Comm comm, int glob_size,
                                int *col) : Vector()
 {
@@ -728,14 +736,205 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
 }
 
 
+// Prototype polinomial relaxation, currently Chebyshev
+//
+// Order (1-4) is the order of the resid polynomial, ratio indicates the
+// percentage of the whole spectrum to use (e.g. 0.1 means 10%).
+HYPRE_Int hypre_ParCSRRelax_Taubin(hypre_ParCSRMatrix *A, // matrix to relax with
+                                   hypre_ParVector *f,    // right-hand side
+                                   HYPRE_Real max_eig,
+                                   HYPRE_Real min_eig,
+                                   HYPRE_Real fraction,
+                                   HYPRE_Int order,       // polynomial order
+                                   HYPRE_Int scale,       // scale by diagonal?
+                                   hypre_ParVector *u,    // initial/updated approximation
+                                   hypre_ParVector *v,    // temporary vector,
+                                   hypre_ParVector *r     // another temp vector
+   )
+{
+   hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag(A);
+   HYPRE_Real      *A_diag_data = hypre_CSRMatrixData(A_diag);
+   HYPRE_Int       *A_diag_i    = hypre_CSRMatrixI(A_diag);
+
+   HYPRE_Real *u_data = hypre_VectorData(hypre_ParVectorLocalVector(u));
+   HYPRE_Real *f_data = hypre_VectorData(hypre_ParVectorLocalVector(f));
+   HYPRE_Real *v_data = hypre_VectorData(hypre_ParVectorLocalVector(v));
+
+   HYPRE_Real *r_data = hypre_VectorData(hypre_ParVectorLocalVector(r));
+
+   HYPRE_Real theta, delta;
+
+   HYPRE_Real den;
+   HYPRE_Real upper_bound, lower_bound;
+
+   HYPRE_Int i, j;
+   HYPRE_Int num_rows = hypre_CSRMatrixNumRows(A_diag);
+
+   HYPRE_Real coefs[5];
+   HYPRE_Real mult;
+   HYPRE_Real *orig_u;
+
+   HYPRE_Real tmp_d;
+
+   HYPRE_Int poly_order;
+
+   HYPRE_Real *ds_data, *tmp_data;
+   HYPRE_Real diag;
+
+   hypre_ParVector *ds;
+   hypre_ParVector *tmp_vec;
+
+   if (order > 4)
+      order = 4;
+   if (order < 1)
+      order = 1;
+
+   /* we are using the order of p(A) */
+   poly_order = order -1;
+
+   /* make sure we are large enough -  Adams et al. 2003 */
+   upper_bound = max_eig * 1.1;
+   /* lower_bound = max_eig/fraction; */
+   lower_bound = (upper_bound - min_eig)* fraction + min_eig;
+
+   /* theta and delta */
+   theta = (upper_bound + lower_bound)/2;
+   delta = (upper_bound - lower_bound)/2;
+
+   // these are the corresponding cheby polynomials: u = u_o + s(A)r_0 - so
+   // order is one less thatn resid poly: r(t) = 1 - t*s(t)
+   switch (poly_order)
+   {
+   case 0:
+      coefs[0] = 1.0/theta;
+      break;
+
+   case 1:  // (2*t - 4*th)/(del^2 - 2*th^2)
+      den = delta*delta - 2*theta*theta;
+      coefs[0] = -4*theta/den;
+      coefs[1] = 2/den;
+      break;
+
+   case 2: // (3*del^2 - 4*t^2 + 12*t*th - 12*th^2)/(3*del^2*th - 4*th^3)
+      den = 3*(delta*delta)*theta - 4*(theta*theta*theta);
+      coefs[0] = (3*delta*delta - 12 *theta*theta)/den;
+      coefs[1] = 12*theta/den;
+      coefs[2] = -4/den;
+      break;
+
+   case 3: // (t*(8*del^2 - 48*th^2) - 16*del^2*th + 32*t^2*th - 8*t^3 +
+           // 32*th^3)/(del^4 - 8*del^2*th^2 + 8*th^4)
+      den = pow(delta,4) - 8*delta*delta*theta*theta + 8*pow(theta,4);
+      coefs[0] = (32*pow(theta,3)- 16*delta*delta*theta)/den;
+      coefs[1] = (8*delta*delta - 48*theta*theta)/den;
+      coefs[2] = 32*theta/den;
+      coefs[3] = -8/den;
+      break;
+   }
+
+   orig_u = hypre_CTAlloc(HYPRE_Real, num_rows);
+
+   if (!scale) // u = u + p(A)r
+   {
+      // get residual: r = f - A*u
+      hypre_ParVectorCopy(f, r);
+      hypre_ParCSRMatrixMatvec(-1.0, A, u, 1.0, r);
+
+      for (i = 0; i < num_rows; i++)
+      {
+         orig_u[i] = u_data[i];
+         u_data[i] = r_data[i] * coefs[poly_order];
+      }
+      for (i = poly_order - 1; i >= 0; i--)
+      {
+         hypre_ParCSRMatrixMatvec(1.0, A, u, 0.0, v);
+         mult = coefs[i];
+
+         for (j = 0; j < num_rows; j++)
+            u_data[j] = mult * r_data[j] + v_data[j];
+      }
+
+      for (i = 0; i < num_rows; i++)
+         u_data[i] = orig_u[i] + u_data[i];
+   }
+   else /* scaling! */
+   {
+      // storage for the 1/sqrt(diagonal) vector
+      ds = hypre_ParVectorCreate(hypre_ParCSRMatrixComm(A),
+                                 hypre_ParCSRMatrixGlobalNumRows(A),
+                                 hypre_ParCSRMatrixRowStarts(A));
+      hypre_ParVectorInitialize(ds);
+      hypre_ParVectorSetPartitioningOwner(ds,0);
+      ds_data = hypre_VectorData(hypre_ParVectorLocalVector(ds));
+
+      tmp_vec = hypre_ParVectorCreate(hypre_ParCSRMatrixComm(A),
+                                      hypre_ParCSRMatrixGlobalNumRows(A),
+                                      hypre_ParCSRMatrixRowStarts(A));
+      hypre_ParVectorInitialize(tmp_vec);
+      hypre_ParVectorSetPartitioningOwner(tmp_vec,0);
+      tmp_data = hypre_VectorData(hypre_ParVectorLocalVector(tmp_vec));
+
+      // get ds_data and get scaled residual: r = D^(-1/2) (f - A*u)
+      for (j = 0; j < num_rows; j++)
+      {
+         diag = A_diag_data[A_diag_i[j]];
+         ds_data[j] = 1/sqrt(diag);
+         r_data[j] = ds_data[j] * f_data[j];
+      }
+
+      hypre_ParCSRMatrixMatvec(-1.0, A, u, 0.0, tmp_vec);
+      for ( j = 0; j < num_rows; j++ )
+         r_data[j] += ds_data[j] * tmp_data[j];
+
+      // save original u, then start the iteration by multiplying r by the cheby
+      // coefficient
+      for ( j = 0; j < num_rows; j++ )
+      {
+         orig_u[j] = u_data[j]; // orig, unscaled u
+         u_data[j] = r_data[j] * coefs[poly_order];
+      }
+
+      // now do the other coefficients
+      for (i = poly_order - 1; i >= 0; i-- )
+      {
+         // v = D^(-1/2)AD^(-1/2)u
+         for ( j = 0; j < num_rows; j++ )
+            tmp_data[j]  =  ds_data[j] * u_data[j];
+         hypre_ParCSRMatrixMatvec(1.0, A, tmp_vec, 0.0, v);
+
+         // u_new = coef*r + v
+         mult = coefs[i];
+
+         for ( j = 0; j < num_rows; j++ )
+         {
+            tmp_d = ds_data[j]* v_data[j];
+            u_data[j] = mult * r_data[j] + tmp_d;
+         }
+
+      }
+
+      // now we have to scale u_data before adding it to u_orig
+      for ( j = 0; j < num_rows; j++ )
+         u_data[j] = orig_u[j] + ds_data[j]*u_data[j];
+
+      hypre_ParVectorDestroy(ds);
+      hypre_ParVectorDestroy(tmp_vec);
+   }
+
+   hypre_TFree(orig_u);
+
+   return hypre_error_flag;
+}
+
+
 HypreSmoother::HypreSmoother() : Solver()
 {
    type = 2;
    relax_times = 1;
    relax_weight = 1.0;
    omega = 1.0;
-   cheby_order = 2;
-   cheby_fraction = .3;
+   poly_order = 2;
+   poly_fraction = .3;
 
    l1_norms = NULL;
    B = X = V = Z = NULL;
@@ -743,14 +942,15 @@ HypreSmoother::HypreSmoother() : Solver()
 
 HypreSmoother::HypreSmoother(HypreParMatrix &_A, int _type,
                              int _relax_times, double _relax_weight, double _omega,
-                             int _cheby_order, double _cheby_fraction)
+                             int _poly_order, double _poly_fraction, int _poly_scale)
 {
    type = _type;
    relax_times = _relax_times;
    relax_weight = _relax_weight;
    omega = _omega;
-   cheby_order = _cheby_order;
-   cheby_fraction = _cheby_fraction;
+   poly_order = _poly_order;
+   poly_fraction = _poly_fraction;
+   poly_scale = _poly_scale;
 
    l1_norms = NULL;
    B = X = V = Z = NULL;
@@ -770,6 +970,10 @@ void HypreSmoother::SetType(HypreSmoother::Type _type, int _relax_times)
       type = 4;
    else if (_type == HypreSmoother::Chebyshev)
       type = 16;
+   else if (_type == HypreSmoother::Taubin)
+      type = 1001;
+   else if (_type == HypreSmoother::FIR)
+      type = 1002;
 
    relax_times = _relax_times;
 }
@@ -780,10 +984,12 @@ void HypreSmoother::SetSOROptions(double _relax_weight, double _omega)
    omega = _omega;
 }
 
-void HypreSmoother::SetChebyshevOptions(int _cheby_order, double _cheby_fraction)
+void HypreSmoother::SetPolyOptions(int _poly_order, double _poly_fraction,
+                                   int _poly_scale)
 {
-   cheby_order = _cheby_order;
-   cheby_fraction = _cheby_fraction;
+   poly_order = _poly_order;
+   poly_fraction = _poly_fraction;
+   poly_scale = _poly_scale;
 }
 
 void HypreSmoother::SetOperator(const Operator &op)
@@ -806,9 +1012,10 @@ void HypreSmoother::SetOperator(const Operator &op)
    else
       l1_norms = NULL;
 
-   if (type == 16)
+   if (type == 16 || type == 1001 || type == 1002)
    {
-      hypre_ParCSRMaxEigEstimateCG(*A, 1, 10, &max_eig_est, &min_eig_est);
+      hypre_ParCSRMaxEigEstimateCG(*A, poly_scale, 10,
+                                   &max_eig_est, &min_eig_est);
       Z = new HypreParVector(A->GetComm(),
                              A->GetGlobalNumCols(), A->GetColStarts());
    }
@@ -842,15 +1049,23 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
       V = new HypreParVector(A->GetComm(),
                              A->GetGlobalNumCols(), A->GetColStarts());
 
+   if (type == 1001) // TODO for Taubin and FIR
+   {
+      for (int sweep = 0; sweep < relax_times; sweep++)
+         hypre_ParCSRRelax_Taubin(*A, b, max_eig_est, min_eig_est,
+                                  poly_fraction, poly_order, poly_scale,
+                                  x, *V, *Z);
+   }
+
    if (Z == NULL)
       hypre_ParCSRRelax(*A, b, type,
                         relax_times, l1_norms, relax_weight, omega,
-                        max_eig_est, min_eig_est, cheby_order, cheby_fraction,
+                        max_eig_est, min_eig_est, poly_order, poly_fraction,
                         x, *V, NULL);
    else
       hypre_ParCSRRelax(*A, b, type,
                         relax_times, l1_norms, relax_weight, omega,
-                        max_eig_est, min_eig_est, cheby_order, cheby_fraction,
+                        max_eig_est, min_eig_est, poly_order, poly_fraction,
                         x, *V, *Z);
 }
 
@@ -1529,6 +1744,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          ND_Piy = ND_Pi_blocks(0,1);
          ND_Piz = ND_Pi_blocks(0,2);
       }
+      delete id_ND;
 
       delete id_ND;
 
@@ -1563,6 +1779,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          RT_Piy = RT_Pi_blocks(0,1);
          RT_Piz = RT_Pi_blocks(0,2);
       }
+      delete id_RT;
 
       delete id_RT;
 
