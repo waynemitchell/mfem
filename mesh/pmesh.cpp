@@ -269,10 +269,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       {
          svert_counter++;
          group.Recreate(vert_element->RowSize(i), vert_element->GetRow(i));
-         vert_element->GetRow(i)[0] = groups.Insert(group) - 1;
+         vert_element->GetI()[i] = groups.Insert(group) - 1;
       }
       else
-         vert_element->GetRow(i)[0] = -1;
+         vert_element->GetI()[i] = -1;
    }
 
    // build group_sface
@@ -312,15 +312,15 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    group_svert.MakeI(groups.Size()-1);
 
    for (i = 0; i < vert_element->Size(); i++)
-      if (vert_element->GetRow(i)[0] >= 0)
-         group_svert.AddAColumnInRow(vert_element->GetRow(i)[0]);
+      if (vert_element->GetI()[i] >= 0)
+         group_svert.AddAColumnInRow(vert_element->GetI()[i]);
 
    group_svert.MakeJ();
 
    svert_counter = 0;
    for (i = 0; i < vert_element->Size(); i++)
-      if (vert_element->GetRow(i)[0] >= 0)
-         group_svert.AddConnection(vert_element->GetRow(i)[0],
+      if (vert_element->GetI()[i] >= 0)
+         group_svert.AddConnection(vert_element->GetI()[i],
                                    svert_counter++);
 
    group_svert.ShiftUpI();
@@ -440,7 +440,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
    svert_counter = 0;
    for (i = 0; i < vert_element->Size(); i++)
-      if (vert_element->GetRow(i)[0] >= 0)
+      if (vert_element->GetI()[i] >= 0)
          svert_lvert[svert_counter++] = vert_global_local[i];
 
    delete vert_element;
