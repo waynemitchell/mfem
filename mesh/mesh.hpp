@@ -233,19 +233,18 @@ protected:
        if type=HEXAHEDRON or into 2*nx*ny*nz tetrahedrons if type=TETRAHEDRON.
        If generate_edges = 0 (default) edges are not generated, if 1 edges
        are generated. The type=TETRAHEDRON is NOT implemented yet! */
-   Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
+   void Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
         double sx, double sy, double sz);
 
    /** Creates mesh for the unit square, divided into nx * ny quadrilaterals
        if type = QUADRILATERAL or into 2*nx*ny triangles if type = TRIANGLE.
        If generate_edges = 0 (default) edges are not generated, if 1 edges
        are generated. */
-   Make2D(int nx, int ny, Element::Type type, int generate_edges,
+   void Make2D(int nx, int ny, Element::Type type, int generate_edges,
         double sx, double sy);
 
    /** Creates 1D mesh , divided into n equal intervals. */
-   Make1D(int n);
-
+   void Make1D(int n);
 
 public:
 
