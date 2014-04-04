@@ -1144,7 +1144,7 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
    meshgen = 2;
 }
 
-Mesh::Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
+void Mesh::Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
            double sx, double sy, double sz)
 {
    int k;
@@ -1285,7 +1285,7 @@ Mesh::Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
    }
 }
 
-Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
+void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
            double sx, double sy)
 {
    int i, j, k;
@@ -1433,7 +1433,7 @@ Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
    bdr_attributes.Append(3); bdr_attributes.Append(4);
 }
 
-Mesh::Make1D(int n)
+void Mesh::Make1D(int n)
 {
    int j, ind[1];
 
@@ -2222,8 +2222,26 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       while (true)
       {
          skip_comment_lines(input, '#');
+         // Break out if we reached the end of the file after
+         // gobbling up the whitespace and comments after the last keyword.
+         if( !input.good() )
+         {
+           break;
+         }
+
+         // Read the next keyword
          std::string name;
          input >> name;
+         input >> std::ws;
+         // Make sure there's an equal sign
+         if( input.get() != '=' )
+         {
+           std::ostringstream os;
+           os << "Mesh::Load : Inline mesh expected '=' after keyword " << name;
+           mfem_error(os.str().c_str());
+         }
+         input >> std::ws;
+
          if (name == "nx")
          {
             input >> nx;
@@ -2271,8 +2289,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
             else
             {
                std::ostringstream os;
-               os << "Mesh::Load : unrecognized element type (" << eltype
-                  << ") in inline mesh format.  Allowed: tri, tet, quad, hex";
+               os << "Mesh::Load : unrecognized element type (read '" << eltype
+                  << "') in inline mesh format.  Allowed: tri, tet, quad, hex";
                mfem_error(os.str().c_str());
             }
          }
@@ -2283,6 +2301,14 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
                << ") in inline mesh format.  Allowed: nx, ny, nz, type, sx, sy, sz";
             mfem_error(os.str().c_str());
          }
+
+         input >> std::ws;
+         // Allow an optional semi-colon at the end of each line.
+         if( input.peek() == ';')
+         {
+           input.get();
+         }
+
          // Done reading file
          if (!input)
          {
@@ -2321,11 +2347,11 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
                << "   sz = " << sz << "\n";
             mfem_error(os.str().c_str());
          }
-         Make3D(nx, ny, nz type, generate_edges, sx, sy, sz);
+         Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
       }
       else
       {
-        mfmem_error( "Mesh::Load : must specify an element type = [tri, quad, tet, hex]" );
+        mfem_error( "Mesh::Load : For inline mesh, must specify an element type = [tri, quad, tet, hex]" );
       }
    }
    else
