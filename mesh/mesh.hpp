@@ -229,6 +229,24 @@ protected:
 
    void GenerateFaces();
 
+   /** Creates mesh for the unit cube, divided into nx * ny *nz hexahedrals
+       if type=HEXAHEDRON or into 2*nx*ny*nz tetrahedrons if type=TETRAHEDRON.
+       If generate_edges = 0 (default) edges are not generated, if 1 edges
+       are generated. The type=TETRAHEDRON is NOT implemented yet! */
+   Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
+        double sx, double sy, double sz);
+
+   /** Creates mesh for the unit square, divided into nx * ny quadrilaterals
+       if type = QUADRILATERAL or into 2*nx*ny triangles if type = TRIANGLE.
+       If generate_edges = 0 (default) edges are not generated, if 1 edges
+       are generated. */
+   Make2D(int nx, int ny, Element::Type type, int generate_edges,
+        double sx, double sy);
+
+   /** Creates 1D mesh , divided into n equal intervals. */
+   Make1D(int n);
+
+
 public:
 
    enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
@@ -267,22 +285,32 @@ public:
                         bool fix_orientation = true);
 
    void SetAttributes();
+
    /** Creates mesh for the unit cube, divided into nx * ny *nz hexahedrals
        if type=HEXAHEDRON or into 2*nx*ny*nz tetrahedrons if type=TETRAHEDRON.
        If generate_edges = 0 (default) edges are not generated, if 1 edges
        are generated. The type=TETRAHEDRON is NOT implemented yet! */
    Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
-        double sx = 1.0, double sy = 1.0, double sz = 1.0);
+        double sx = 1.0, double sy = 1.0, double sz = 1.0)
+   {
+      Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
+   }
 
    /** Creates mesh for the unit square, divided into nx * ny quadrilaterals
        if type = QUADRILATERAL or into 2*nx*ny triangles if type = TRIANGLE.
        If generate_edges = 0 (default) edges are not generated, if 1 edges
        are generated. */
    Mesh(int nx, int ny, Element::Type type, int generate_edges = 0,
-        double sx = 1.0, double sy = 1.0);
+        double sx = 1.0, double sy = 1.0)
+   {
+      Make2D(nx, ny, type, generate_edges, sx, sy);
+   }
 
    /** Creates 1D mesh , divided into n equal intervals. */
-   explicit Mesh(int n);
+   explicit Mesh(int n)
+   {
+      Make1D(n);
+   }
 
    /** Creates mesh by reading data stream in MFEM, netgen, or VTK format. If
        generate_edges = 0 (default) edges are not generated, if 1 edges are
