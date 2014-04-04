@@ -12,6 +12,7 @@
 // Implementation of data type mesh
 
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <limits>
 #include <math.h>
@@ -1143,7 +1144,7 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
    meshgen = 2;
 }
 
-Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
+Mesh::Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
            double sx, double sy, double sz)
 {
    int k;
@@ -1284,7 +1285,7 @@ Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
    }
 }
 
-Mesh::Mesh(int nx, int ny, Element::Type type, int generate_edges,
+Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
            double sx, double sy)
 {
    int i, j, k;
@@ -1432,7 +1433,7 @@ Mesh::Mesh(int nx, int ny, Element::Type type, int generate_edges,
    bdr_attributes.Append(3); bdr_attributes.Append(4);
 }
 
-Mesh::Mesh(int n)
+Mesh::Make1D(int n)
 {
    int j, ind[1];
 
@@ -2204,6 +2205,128 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       }
       else
          read_gf = 1;
+   }
+   else if (mesh_type == "MFEM INLINE mesh v1.0")
+   {
+      // Initialize to negative numbers so that we know if they've
+      // been set.  We're using Element::POINT as our flag, since
+      // we're not going to make a 0D mesh, ever.
+      int nx = -1;
+      int ny = -1;
+      int nz = -1;
+      double sx = -1.0;
+      double sy = -1.0;
+      double sz = -1.0;
+      Element::Type type = Element::POINT;
+
+      while (true)
+      {
+         skip_comment_lines(input, '#');
+         std::string name;
+         input >> name;
+         if (name == "nx")
+         {
+            input >> nx;
+         }
+         else if (name == "ny")
+         {
+            input >> ny;
+         }
+         else if (name == "nz")
+         {
+            input >> nz;
+         }
+         else if (name == "sx")
+         {
+            input >> sx;
+         }
+         else if (name == "sy")
+         {
+            input >> sy;
+         }
+         else if (name == "sz")
+         {
+            input >> sz;
+         }
+         else if (name == "type")
+         {
+            std::string eltype;
+            input >> eltype;
+            if (eltype == "quad")
+            {
+               type = Element::QUADRILATERAL;
+            }
+            else if (eltype == "tri")
+            {
+               type = Element::TRIANGLE;
+            }
+            else if (eltype == "hex")
+            {
+               type = Element::HEXAHEDRON;
+            }
+            else if (eltype == "tet")
+            {
+               type = Element::TETRAHEDRON;
+            }
+            else
+            {
+               std::ostringstream os;
+               os << "Mesh::Load : unrecognized element type (" << eltype
+                  << ") in inline mesh format.  Allowed: tri, tet, quad, hex";
+               mfem_error(os.str().c_str());
+            }
+         }
+         else
+         {
+            std::ostringstream os;
+            os << "Mesh::Load : unrecognized keyword (" << name
+               << ") in inline mesh format.  Allowed: nx, ny, nz, type, sx, sy, sz";
+            mfem_error(os.str().c_str());
+         }
+         // Done reading file
+         if (!input)
+         {
+            break;
+         }
+      }
+
+      // Now make the mesh.
+      if (type == Element::TRIANGLE || type == Element::QUADRILATERAL)
+      {
+         if (nx < 0 || ny < 0 || sx < 0.0 || sy < 0.0)
+         {
+            std::ostringstream os;
+            os << "Mesh::Load : invalid 2D inline mesh format, all values must be "
+                  "positive\n"
+               << "   nx = " << nx << "\n"
+               << "   ny = " << ny << "\n"
+               << "   sx = " << sx << "\n"
+               << "   sy = " << sy << "\n";
+            mfem_error(os.str().c_str());
+         }
+         Make2D(nx, ny, type, generate_edges, sx, sy);
+      }
+      else if (type == Element::TETRAHEDRON || type == Element::HEXAHEDRON )
+      {
+         if (nx < 0 || ny < 0 || nz < 0 || sx < 0.0 || sy < 0.0 || sz < 0.0)
+         {
+            std::ostringstream os;
+            os << "Mesh::Load : invalid 3D inline mesh format, all values must be "
+                  "positive\n"
+               << "   nx = " << nx << "\n"
+               << "   ny = " << ny << "\n"
+               << "   nz = " << nz << "\n"
+               << "   sx = " << sx << "\n"
+               << "   sy = " << sy << "\n"
+               << "   sz = " << sz << "\n";
+            mfem_error(os.str().c_str());
+         }
+         Make3D(nx, ny, nz type, generate_edges, sx, sy, sz);
+      }
+      else
+      {
+        mfmem_error( "Mesh::Load : must specify an element type = [tri, quad, tet, hex]" );
+      }
    }
    else
    {
