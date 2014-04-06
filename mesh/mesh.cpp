@@ -1260,8 +1260,160 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges
 
    if (type == Element::TETRAHEDRON)
    {
-      // To be implmented!
+      // Code from Umberto Villa
+      // build 3d cartesian mesh where each parallelepiped is split into 6 tetrahedrons
+
+      double hx = sx / nx;
+      double hy = sy / ny;
+      double hz = sz / nz;
+
+      int nVx = nx + 1;
+      int nVy = ny + 1;
+      int nVz = nz + 1;
+      int localNumOfVertices = nVx*nVy*nVz;
+      int localNumOfElements = 6*nx*ny*nz;
+      int localNumOfBdrElements = 2 * 2 * (nx * ny + ny * nz + nx * nz);
+      NumOfVertices = 0;
+      NumOfElements = 0;
+      NumOfBdrElements = 0;
+      vertices.SetSize(localNumOfVertices);
+      elements.SetSize(localNumOfElements);
+      boundary.SetSize(localNumOfBdrElements);
+      double vert_coord[3];
+      for (int i = 0; i < nVx; i++)
+      {
+         for (int j = 0; j < nVy; j++)
+         {
+            for (int k = 0; k < nVz; k++)
+            {
+               vert_coord[0] = i * hx;
+               vert_coord[1] = j * hy;
+               vert_coord[2] = k * hz;
+               AddVertex(vert_coord);
+            }
+         }
+      }
+      int vi[4];
+      for (int i = 0; i < nx; i++)
+      {
+         for (int j = 0; j < ny; j++)
+         {
+            for (int k = 0; k < nz; k++)
+            {
+               int v000 = i * nVz * nVy + (j) * nVz + k;
+               int v001 = i * nVz * nVy + j * nVz + k + 1;
+               int v010 = i * nVz * nVy + (j + 1) * nVz + k;
+               int v011 = i * nVz * nVy + (j + 1) * nVz + k + 1;
+
+               int v100 = (i + 1) * nVz * nVy + (j) * nVz + k;
+               int v101 = (i + 1) * nVz * nVy + (j) * nVz + k + 1;
+               int v110 = (i + 1) * nVz * nVy + (j + 1) * nVz + k;
+               int v111 = (i + 1) * nVz * nVy + (j + 1) * nVz + k + 1;
+
+               vi[0] = v000;
+               vi[1] = v100;
+               vi[2] = v110;
+               vi[3] = v111;
+               AddTet(vi);
+               vi[0] = v000;
+               vi[1] = v100;
+               vi[2] = v101;
+               vi[3] = v111;
+               AddTet(vi);
+               vi[0] = v000;
+               vi[1] = v010;
+               vi[2] = v110;
+               vi[3] = v111;
+               AddTet(vi);
+               vi[0] = v000;
+               vi[1] = v010;
+               vi[2] = v011;
+               vi[3] = v111;
+               AddTet(vi);
+               vi[0] = v000;
+               vi[1] = v001;
+               vi[2] = v101;
+               vi[3] = v111;
+               AddTet(vi);
+               vi[0] = v000;
+               vi[1] = v001;
+               vi[2] = v011;
+               vi[3] = v111;
+               AddTet(vi);
+
+               // add boundary triangles here
+               if (0 == i)
+               {
+                  vi[0] = v000;
+                  vi[1] = v001;
+                  vi[2] = v011;
+                  AddBdrTriangle(vi, 1);
+                  vi[0] = v000;
+                  vi[1] = v010;
+                  vi[2] = v011;
+                  AddBdrTriangle(vi, 1);
+               }
+               if (nx - 1 == i)
+               {
+                  vi[0] = v100;
+                  vi[1] = v110;
+                  vi[2] = v111;
+                  AddBdrTriangle(vi, 2);
+                  vi[0] = v100;
+                  vi[1] = v101;
+                  vi[2] = v111;
+                  AddBdrTriangle(vi, 2);
+               }
+
+               if (0 == j)
+               {
+                  vi[0] = v000;
+                  vi[1] = v001;
+                  vi[2] = v101;
+                  AddBdrTriangle(vi, 3);
+                  vi[0] = v000;
+                  vi[1] = v100;
+                  vi[2] = v101;
+                  AddBdrTriangle(vi, 3);
+               }
+               if (ny - 1 == j)
+               {
+                  vi[0] = v010;
+                  vi[1] = v011;
+                  vi[2] = v111;
+                  AddBdrTriangle(vi, 4);
+                  vi[0] = v010;
+                  vi[1] = v110;
+                  vi[2] = v111;
+                  AddBdrTriangle(vi, 4);
+               }
+               if (0 == k)
+               {
+                  vi[0] = v000;
+                  vi[1] = v100;
+                  vi[2] = v110;
+                  AddBdrTriangle(vi, 5);
+                  vi[0] = v000;
+                  vi[1] = v010;
+                  vi[2] = v110;
+                  AddBdrTriangle(vi, 5);
+               }
+               if (nz - 1 == k)
+               {
+                  vi[0] = v001;
+                  vi[1] = v101;
+                  vi[2] = v111;
+                  AddBdrTriangle(vi, 6);
+                  vi[0] = v001;
+                  vi[1] = v011;
+                  vi[2] = v111;
+                  AddBdrTriangle(vi, 6);
+               }
+            }
+         }
+      }
    }
+
    CheckElementOrientation();
 
    if (generate_edges == 1)
@@ -1277,7 +1429,9 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges
       c_el_to_edge = NULL;
    }
    else
+   {
       NumOfEdges = 0;
+   }
 
    SetAttributes();
    for (int b=1;b<=NumOfBdrElements;b++) {
