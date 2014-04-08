@@ -246,8 +246,8 @@ protected:
    void Make2D(int nx, int ny, Element::Type type, int generate_edges,
         double sx, double sy);
 
-   /** Creates 1D mesh , divided into n equal intervals. */
-   void Make1D(int n);
+   /// Creates a 1D mesh for the interval [0,sx] divided into n equal intervals.
+   void Make1D(int n, double sx = 1.0);
 
 public:
 
@@ -314,9 +314,9 @@ public:
    }
 
    /** Creates 1D mesh , divided into n equal intervals. */
-   explicit Mesh(int n)
+   explicit Mesh(int n, double sx = 1.0)
    {
-      Make1D(n);
+      Make1D(n, sx);
    }
 
    /** Creates mesh by reading data stream in MFEM, netgen, or VTK format. If

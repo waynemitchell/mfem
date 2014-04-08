@@ -1476,7 +1476,7 @@ void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
    bdr_attributes.Append(3); bdr_attributes.Append(4);
 }
 
-void Mesh::Make1D(int n)
+void Mesh::Make1D(int n, double sx)
 {
    int j, ind[1];
 
@@ -1496,7 +1496,7 @@ void Mesh::Make1D(int n)
 
    // Sets vertices and the corresponding coordinates
    for (j = 0; j < n+1; j++)
-      vertices[j](0) = (double) j / n;
+      vertices[j](0) = ((double) j / n) * sx;
 
    // Sets elements and the corresponding indices of vertices
    for (j = 0; j < n; j++)
@@ -2313,7 +2313,11 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
          {
             std::string eltype;
             input >> eltype;
-            if (eltype == "quad")
+            if (eltype == "segment")
+            {
+               type = Element::SEGMENT;
+            }
+            else if (eltype == "quad")
             {
                type = Element::QUADRILATERAL;
             }
@@ -2333,7 +2337,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
             {
                std::ostringstream os;
                os << "Mesh::Load : unrecognized element type (read '" << eltype
-                  << "') in inline mesh format.  Allowed: tri, tet, quad, hex";
+                  << "') in inline mesh format.  Allowed: segment, tri, tet, quad, hex";
                mfem_error(os.str().c_str());
             }
          }
@@ -2360,7 +2364,20 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       }
 
       // Now make the mesh.
-      if (type == Element::TRIANGLE || type == Element::QUADRILATERAL)
+      if (type == Element::SEGMENT)
+      {
+         if (nx < 0 || sx < 0.0)
+         {
+            std::ostringstream os;
+            os << "Mesh::Load : invalid 1D inline mesh format, all values must be "
+                  "positive\n"
+               << "   nx = " << nx << "\n"
+               << "   sx = " << sx << "\n";
+            mfem_error(os.str().c_str());
+         }
+         Make1D(nx, sx);
+      }
+      else if (type == Element::TRIANGLE || type == Element::QUADRILATERAL)
       {
          if (nx < 0 || ny < 0 || sx < 0.0 || sy < 0.0)
          {
