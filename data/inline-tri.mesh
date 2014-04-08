@@ -1,10 +1,7 @@
 MFEM INLINE mesh v1.0
 
-type = tet
+type = tri
 nx = 4
-ny = 2
-nz = 3
+ny = 4
 sx = 1.0
 sy = 1.0
-sz = 1.0
-
