@@ -237,14 +237,14 @@ protected:
        if type=TETRAHEDRON. If generate_edges = 0 (default) edges are not
        generated, if 1 edges are generated. */
    void Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
-        double sx, double sy, double sz);
+               double sx, double sy, double sz);
 
    /** Creates mesh for the rectangle [0,sx]x[0,sy], divided into nx*ny
        quadrilaterals if type = QUADRILATERAL or into 2*nx*ny triangles if
        type = TRIANGLE. If generate_edges = 0 (default) edges are not generated,
        if 1 edges are generated. */
    void Make2D(int nx, int ny, Element::Type type, int generate_edges,
-        double sx, double sy);
+               double sx, double sy);
 
    /// Creates a 1D mesh for the interval [0,sx] divided into n equal intervals.
    void Make1D(int n, double sx = 1.0);

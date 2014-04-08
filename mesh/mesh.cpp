@@ -288,7 +288,7 @@ void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
       for (int i = 0; i < Dim; i++)
          for (int j = 0; j < nv; j++)
             pm(i, j) = vertices[v[j]](i);
-      EdTr->SetFE(GetTransformationFEforElementType( Element::SEGMENT ) );
+      EdTr->SetFE(GetTransformationFEforElementType(Element::SEGMENT));
 
    }
    else
@@ -300,7 +300,7 @@ void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
       for (int i = 0; i < Dim; i++)
          for (int j = 0; j < n; j++)
             pm(i, j) = (*Nodes)(vdofs[n*i+j]);
-      EdTr->SetFE(GetTransformationFEforElementType( Element::SEGMENT ));
+      EdTr->SetFE(GetTransformationFEforElementType(Element::SEGMENT));
    }
 }
 
@@ -1329,7 +1329,7 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
 }
 
 void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
-           double sx, double sy)
+                  double sx, double sy)
 {
    int i, j, k;
 
@@ -2267,9 +2267,9 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
          skip_comment_lines(input, '#');
          // Break out if we reached the end of the file after
          // gobbling up the whitespace and comments after the last keyword.
-         if( !input.good() )
+         if (!input.good())
          {
-           break;
+            break;
          }
 
          // Read the next keyword
@@ -2277,11 +2277,11 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
          input >> name;
          input >> std::ws;
          // Make sure there's an equal sign
-         if( input.get() != '=' )
+         if (input.get() != '=')
          {
-           std::ostringstream os;
-           os << "Mesh::Load : Inline mesh expected '=' after keyword " << name;
-           mfem_error(os.str().c_str());
+            std::ostringstream os;
+            os << "Mesh::Load : Inline mesh expected '=' after keyword " << name;
+            mfem_error(os.str().c_str());
          }
          input >> std::ws;
 
@@ -2351,9 +2351,9 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
 
          input >> std::ws;
          // Allow an optional semi-colon at the end of each line.
-         if( input.peek() == ';')
+         if (input.peek() == ';')
          {
-           input.get();
+            input.get();
          }
 
          // Done reading file
@@ -2370,7 +2370,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
          {
             std::ostringstream os;
             os << "Mesh::Load : invalid 1D inline mesh format, all values must be "
-                  "positive\n"
+               "positive\n"
                << "   nx = " << nx << "\n"
                << "   sx = " << sx << "\n";
             mfem_error(os.str().c_str());
@@ -2383,7 +2383,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
          {
             std::ostringstream os;
             os << "Mesh::Load : invalid 2D inline mesh format, all values must be "
-                  "positive\n"
+               "positive\n"
                << "   nx = " << nx << "\n"
                << "   ny = " << ny << "\n"
                << "   sx = " << sx << "\n"
@@ -2392,13 +2392,13 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
          }
          Make2D(nx, ny, type, generate_edges, sx, sy);
       }
-      else if (type == Element::TETRAHEDRON || type == Element::HEXAHEDRON )
+      else if (type == Element::TETRAHEDRON || type == Element::HEXAHEDRON)
       {
          if (nx < 0 || ny < 0 || nz < 0 || sx < 0.0 || sy < 0.0 || sz < 0.0)
          {
             std::ostringstream os;
             os << "Mesh::Load : invalid 3D inline mesh format, all values must be "
-                  "positive\n"
+               "positive\n"
                << "   nx = " << nx << "\n"
                << "   ny = " << ny << "\n"
                << "   nz = " << nz << "\n"
@@ -2411,7 +2411,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       }
       else
       {
-        mfem_error( "Mesh::Load : For inline mesh, must specify an element type = [tri, quad, tet, hex]" );
+         mfem_error("Mesh::Load : For inline mesh, must specify an "
+                    "element type = [segment, tri, quad, tet, hex]");
       }
       return; // done with inline mesh construction
    }
