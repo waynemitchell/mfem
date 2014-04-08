@@ -12,6 +12,7 @@
 // Implementation of data type mesh
 
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <limits>
 #include <math.h>
@@ -287,7 +288,7 @@ void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
       for (int i = 0; i < Dim; i++)
          for (int j = 0; j < nv; j++)
             pm(i, j) = vertices[v[j]](i);
-      EdTr->SetFE(GetTransformationFEforElementType( Element::SEGMENT ) );
+      EdTr->SetFE(GetTransformationFEforElementType(Element::SEGMENT));
 
    }
    else
@@ -299,7 +300,7 @@ void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
       for (int i = 0; i < Dim; i++)
          for (int j = 0; j < n; j++)
             pm(i, j) = (*Nodes)(vdofs[n*i+j]);
-      EdTr->SetFE(GetTransformationFEforElementType( Element::SEGMENT ));
+      EdTr->SetFE(GetTransformationFEforElementType(Element::SEGMENT));
    }
 }
 
@@ -671,7 +672,7 @@ void Mesh::SetAttributes()
    }
 }
 
-Mesh::Mesh(int _Dim, int NVert, int NElem, int NBdrElem)
+void Mesh::InitMesh(int _Dim, int NVert, int NElem, int NBdrElem)
 {
    Dim = _Dim;
 
@@ -730,6 +731,21 @@ void Mesh::AddHex(int *vi, int attr)
    elements[NumOfElements++] = new Hexahedron(vi, attr);
 }
 
+void Mesh::AddHexAsTets(int *vi, int attr)
+{
+   static const int hex_to_tet[6][4] =
+      { { 0, 1, 2, 6 }, { 0, 5, 1, 6 }, { 0, 4, 5, 6 },
+        { 0, 2, 3, 6 }, { 0, 3, 7, 6 }, { 0, 7, 4, 6 } };
+   int ti[4];
+
+   for (int i = 0; i < 6; i++)
+   {
+      for (int j = 0; j < 4; j++)
+         ti[j] = vi[hex_to_tet[i][j]];
+      AddTet(ti, attr);
+   }
+}
+
 void Mesh::AddBdrSegment(int *vi, int attr)
 {
    boundary[NumOfBdrElements++] = new Segment(vi, attr);
@@ -743,6 +759,19 @@ void Mesh::AddBdrTriangle(int *vi, int attr)
 void Mesh::AddBdrQuad(int *vi, int attr)
 {
    boundary[NumOfBdrElements++] = new Quadrilateral(vi, attr);
+}
+
+void Mesh::AddBdrQuadAsTriangles(int *vi, int attr)
+{
+   static const int quad_to_tri[2][3] = { { 0, 1, 2 }, { 0, 2, 3 } };
+   int ti[3];
+
+   for (int i = 0; i < 2; i++)
+   {
+      for (int j = 0; j < 3; j++)
+         ti[j] = vi[quad_to_tri[i][j]];
+      AddBdrTriangle(ti, attr);
+   }
 }
 
 void Mesh::GenerateBoundaryElements()
@@ -1143,149 +1172,164 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
    meshgen = 2;
 }
 
-Mesh::Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges,
-           double sx, double sy, double sz)
+void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
+                  int generate_edges, double sx, double sy, double sz)
 {
-   int k;
    int x, y, z;
 
-   Dim = 3;
+   int NVert, NElem, NBdrElem;
 
-   Init();
-   InitTables();
-   // Creates quadrilateral mesh
-   if (type == Element::HEXAHEDRON)
+   NVert = (nx+1) * (ny+1) * (nz+1);
+   NElem = nx * ny * nz;
+   NBdrElem = 2*(nx*ny+nx*nz+ny*nz);
+   if (type == Element::TETRAHEDRON)
    {
-      meshgen = 2;
-      NumOfVertices = (nx+1) * (ny+1) * (nz+1);
-      NumOfElements = nx * ny * nz ;
-      NumOfBdrElements = 0;
-      vertices.SetSize(NumOfVertices);
-      elements.SetSize(NumOfElements);
-#ifdef boundry
-      NumOfBdrElements = 2 *(nx*ny+nx*nz+ny*nz);
-      boundary.SetSize(NumOfBdrElements);
-#endif
-      double cx, cy, cz;
-      int ind[8];
+      NElem *= 6;
+      NBdrElem *= 2;
+   }
 
-      // Sets vertices and the corresponding coordinates
-      k = 0;
-      for (z = 0; z < nz+1; z++)
+   InitMesh(3, NVert, NElem, NBdrElem);
+
+   double coord[3];
+   int ind[8];
+
+   // Sets vertices and the corresponding coordinates
+   for (z = 0; z <= nz; z++)
+   {
+      coord[2] = ((double) z / nz) * sz;
+      for (y = 0; y <= ny; y++)
       {
-         cz = ((double) z / nz) * sz;
-         for (y = 0; y < ny+1; y++)
+         coord[1] = ((double) y / ny) * sy;
+         for (x = 0; x <= nx; x++)
          {
-            cy = ((double) y / ny) * sy;
-            for (x = 0; x < nx+1; x++)
-            {
-               cx = ((double) x / nx) * sx;
-               vertices[k](0) = cx;
-               vertices[k](1) = cy;
-               vertices[k](2) = cz;
-               k++;
-            }
+            coord[0] = ((double) x / nx) * sx;
+            AddVertex(coord);
          }
       }
+   }
 
-#define VTX(XC, YC, ZC) ((XC)+(YC)*(nx+1)+(ZC)*(nx+1)*(ny+1))
-      // Sets elements and the corresponding indices of vertices
-      k = 0;
-      for (z = 0; z < nz; z++)
-      {
-         for (y = 0; y < ny; y++)
-         {
-            for (x = 0; x < nx; x++)
-            {
-               ind[0] = VTX(x,y,z);
-               ind[1] = VTX(x+1,y,z);
-               ind[2] = VTX(x+1,y+1,z);
-               ind[3] = VTX(x,y+1,z);
-               ind[4] = VTX(x,y,z+1);
-               ind[5] = VTX(x+1,y,z+1);
-               ind[6] = VTX(x+1,y+1,z+1);
-               ind[7] = VTX(x,y+1,z+1);
-               elements[k] = new Hexahedron(ind);
-               k++;
-            }
-         }
-      }
+#define VTX(XC, YC, ZC) ((XC)+((YC)+(ZC)*(ny+1))*(nx+1))
 
-#ifdef boundry
-      // Sets boundary elements and the corresponding indices of vertices
-      // offset for Z dimensions
-
-      k=0;
+   // Sets elements and the corresponding indices of vertices
+   for (z = 0; z < nz; z++)
+   {
       for (y = 0; y < ny; y++)
       {
          for (x = 0; x < nx; x++)
          {
-            boundary[k++] = new Quadrilateral(VTX(x,y,0),  VTX(x+1, y, 0),
-                                              VTX(x+1, y+1, 0),  VTX(x, y+1, 0), 1);
-            boundary[k++] = new Quadrilateral(VTX(x,y,nz), VTX(x+1, y, nz),
-                                              VTX(x+1, y+1, nz), VTX(x, y+1, nz),4);
+            ind[0] = VTX(x  , y  , z  );
+            ind[1] = VTX(x+1, y  , z  );
+            ind[2] = VTX(x+1, y+1, z  );
+            ind[3] = VTX(x  , y+1, z  );
+            ind[4] = VTX(x  , y  , z+1);
+            ind[5] = VTX(x+1, y  , z+1);
+            ind[6] = VTX(x+1, y+1, z+1);
+            ind[7] = VTX(x  , y+1, z+1);
+            if (type == Element::TETRAHEDRON)
+               AddHexAsTets(ind, 1);
+            else
+               AddHex(ind, 1);
          }
       }
-      // offset for X dimensions
-      for (z = 0; z < nz; z++)
-      {
-         for (y = 0; y < ny; y++)
-         {
-            boundary[k++] = new Quadrilateral(VTX(0 ,y,z), VTX(0 , y+1,z),
-                                              VTX(0 ,y+1,z+1), VTX(0 ,y,z+1),2);
-            boundary[k++] = new Quadrilateral(VTX(nx,y,z), VTX(nx, y+1,z),
-                                              VTX(nx,y+1,z+1), VTX(nx,y,z+1),5);
-         }
-      }
-      // offset for Y dimensions
+   }
+
+   // Sets boundary elements and the corresponding indices of vertices
+   // bottom, bdr. attribute 1
+   for (y = 0; y < ny; y++)
       for (x = 0; x < nx; x++)
       {
-         for (z = 0; z < nz; z++)
-         {
-            boundary[k++] = new Quadrilateral(VTX(x ,0 ,z), VTX(x, 0, z+1),
-                                              VTX(x+1 ,0, z+1), VTX(x+1,0 ,z),3);
-            boundary[k++] = new Quadrilateral(VTX(x ,ny,z), VTX(x, ny,z+1),
-                                              VTX(x+1 ,ny,z+1), VTX(x+1,ny,z),6);
-         }
+         ind[0] = VTX(x  , y  , 0);
+         ind[1] = VTX(x  , y+1, 0);
+         ind[2] = VTX(x+1, y+1, 0);
+         ind[3] = VTX(x+1, y  , 0);
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 1);
+         else
+            AddBdrQuad(ind, 1);
       }
-#endif
-   }
-#ifdef MFEM_DEBUG
+   // top, bdr. attribute 6
+   for (y = 0; y < ny; y++)
+      for (x = 0; x < nx; x++)
+      {
+         ind[0] = VTX(x  , y  , nz);
+         ind[1] = VTX(x+1, y  , nz);
+         ind[2] = VTX(x+1, y+1, nz);
+         ind[3] = VTX(x  , y+1, nz);
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 6);
+         else
+            AddBdrQuad(ind, 6);
+      }
+   // left, bdr. attribute 5
+   for (z = 0; z < nz; z++)
+      for (y = 0; y < ny; y++)
+      {
+         ind[0] = VTX(0  , y  , z  );
+         ind[1] = VTX(0  , y  , z+1);
+         ind[2] = VTX(0  , y+1, z+1);
+         ind[3] = VTX(0  , y+1, z  );
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 5);
+         else
+            AddBdrQuad(ind, 5);
+      }
+   // right, bdr. attribute 3
+   for (z = 0; z < nz; z++)
+      for (y = 0; y < ny; y++)
+      {
+         ind[0] = VTX(nx, y  , z  );
+         ind[1] = VTX(nx, y+1, z  );
+         ind[2] = VTX(nx, y+1, z+1);
+         ind[3] = VTX(nx, y  , z+1);
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 3);
+         else
+            AddBdrQuad(ind, 3);
+      }
+   // front, bdr. attribute 2
+   for (x = 0; x < nx; x++)
+      for (z = 0; z < nz; z++)
+      {
+         ind[0] = VTX(x  , 0, z  );
+         ind[1] = VTX(x+1, 0, z  );
+         ind[2] = VTX(x+1, 0, z+1);
+         ind[3] = VTX(x  , 0, z+1);
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 2);
+         else
+            AddBdrQuad(ind, 2);
+      }
+   // back, bdr. attribute 4
+   for (x = 0; x < nx; x++)
+      for (z = 0; z < nz; z++)
+      {
+         ind[0] = VTX(x  , ny, z  );
+         ind[1] = VTX(x  , ny, z+1);
+         ind[2] = VTX(x+1, ny, z+1);
+         ind[3] = VTX(x+1, ny, z  );
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 4);
+         else
+            AddBdrQuad(ind, 4);
+      }
+
+#if 0
    ofstream test_stream("debug.mesh");
    Print(test_stream);
    test_stream.close();
 #endif
 
+   int refine = 1;
+   bool fix_orientation = true;
 
    if (type == Element::TETRAHEDRON)
-   {
-      // To be implmented!
-   }
-   CheckElementOrientation();
-
-   if (generate_edges == 1)
-   {
-      el_to_edge = new Table;
-      GetElementToFaceTable();
-      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-      GenerateFaces();
-      if (NumOfBdrElements == 0) {
-         GenerateBoundaryElements();
-      }
-      CheckBdrElementOrientation();
-      c_el_to_edge = NULL;
-   }
+      FinalizeTetMesh(generate_edges, refine, fix_orientation);
    else
-      NumOfEdges = 0;
-
-   SetAttributes();
-   for (int b=1;b<=NumOfBdrElements;b++) {
-      bdr_attributes.Append(b);
-   }
+      FinalizeHexMesh(generate_edges, refine, fix_orientation);
 }
 
-Mesh::Mesh(int nx, int ny, Element::Type type, int generate_edges,
-           double sx, double sy)
+void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
+                  double sx, double sy)
 {
    int i, j, k;
 
@@ -1432,7 +1476,7 @@ Mesh::Mesh(int nx, int ny, Element::Type type, int generate_edges,
    bdr_attributes.Append(3); bdr_attributes.Append(4);
 }
 
-Mesh::Mesh(int n)
+void Mesh::Make1D(int n, double sx)
 {
    int j, ind[1];
 
@@ -1452,7 +1496,7 @@ Mesh::Mesh(int n)
 
    // Sets vertices and the corresponding coordinates
    for (j = 0; j < n+1; j++)
-      vertices[j](0) = (double) j / n;
+      vertices[j](0) = ((double) j / n) * sx;
 
    // Sets elements and the corresponding indices of vertices
    for (j = 0; j < n; j++)
@@ -2204,6 +2248,173 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       }
       else
          read_gf = 1;
+   }
+   else if (mesh_type == "MFEM INLINE mesh v1.0")
+   {
+      // Initialize to negative numbers so that we know if they've
+      // been set.  We're using Element::POINT as our flag, since
+      // we're not going to make a 0D mesh, ever.
+      int nx = -1;
+      int ny = -1;
+      int nz = -1;
+      double sx = -1.0;
+      double sy = -1.0;
+      double sz = -1.0;
+      Element::Type type = Element::POINT;
+
+      while (true)
+      {
+         skip_comment_lines(input, '#');
+         // Break out if we reached the end of the file after
+         // gobbling up the whitespace and comments after the last keyword.
+         if (!input.good())
+         {
+            break;
+         }
+
+         // Read the next keyword
+         std::string name;
+         input >> name;
+         input >> std::ws;
+         // Make sure there's an equal sign
+         if (input.get() != '=')
+         {
+            std::ostringstream os;
+            os << "Mesh::Load : Inline mesh expected '=' after keyword " << name;
+            mfem_error(os.str().c_str());
+         }
+         input >> std::ws;
+
+         if (name == "nx")
+         {
+            input >> nx;
+         }
+         else if (name == "ny")
+         {
+            input >> ny;
+         }
+         else if (name == "nz")
+         {
+            input >> nz;
+         }
+         else if (name == "sx")
+         {
+            input >> sx;
+         }
+         else if (name == "sy")
+         {
+            input >> sy;
+         }
+         else if (name == "sz")
+         {
+            input >> sz;
+         }
+         else if (name == "type")
+         {
+            std::string eltype;
+            input >> eltype;
+            if (eltype == "segment")
+            {
+               type = Element::SEGMENT;
+            }
+            else if (eltype == "quad")
+            {
+               type = Element::QUADRILATERAL;
+            }
+            else if (eltype == "tri")
+            {
+               type = Element::TRIANGLE;
+            }
+            else if (eltype == "hex")
+            {
+               type = Element::HEXAHEDRON;
+            }
+            else if (eltype == "tet")
+            {
+               type = Element::TETRAHEDRON;
+            }
+            else
+            {
+               std::ostringstream os;
+               os << "Mesh::Load : unrecognized element type (read '" << eltype
+                  << "') in inline mesh format.  Allowed: segment, tri, tet, quad, hex";
+               mfem_error(os.str().c_str());
+            }
+         }
+         else
+         {
+            std::ostringstream os;
+            os << "Mesh::Load : unrecognized keyword (" << name
+               << ") in inline mesh format.  Allowed: nx, ny, nz, type, sx, sy, sz";
+            mfem_error(os.str().c_str());
+         }
+
+         input >> std::ws;
+         // Allow an optional semi-colon at the end of each line.
+         if (input.peek() == ';')
+         {
+            input.get();
+         }
+
+         // Done reading file
+         if (!input)
+         {
+            break;
+         }
+      }
+
+      // Now make the mesh.
+      if (type == Element::SEGMENT)
+      {
+         if (nx < 0 || sx < 0.0)
+         {
+            std::ostringstream os;
+            os << "Mesh::Load : invalid 1D inline mesh format, all values must be "
+               "positive\n"
+               << "   nx = " << nx << "\n"
+               << "   sx = " << sx << "\n";
+            mfem_error(os.str().c_str());
+         }
+         Make1D(nx, sx);
+      }
+      else if (type == Element::TRIANGLE || type == Element::QUADRILATERAL)
+      {
+         if (nx < 0 || ny < 0 || sx < 0.0 || sy < 0.0)
+         {
+            std::ostringstream os;
+            os << "Mesh::Load : invalid 2D inline mesh format, all values must be "
+               "positive\n"
+               << "   nx = " << nx << "\n"
+               << "   ny = " << ny << "\n"
+               << "   sx = " << sx << "\n"
+               << "   sy = " << sy << "\n";
+            mfem_error(os.str().c_str());
+         }
+         Make2D(nx, ny, type, generate_edges, sx, sy);
+      }
+      else if (type == Element::TETRAHEDRON || type == Element::HEXAHEDRON)
+      {
+         if (nx < 0 || ny < 0 || nz < 0 || sx < 0.0 || sy < 0.0 || sz < 0.0)
+         {
+            std::ostringstream os;
+            os << "Mesh::Load : invalid 3D inline mesh format, all values must be "
+               "positive\n"
+               << "   nx = " << nx << "\n"
+               << "   ny = " << ny << "\n"
+               << "   nz = " << nz << "\n"
+               << "   sx = " << sx << "\n"
+               << "   sy = " << sy << "\n"
+               << "   sz = " << sz << "\n";
+            mfem_error(os.str().c_str());
+         }
+         Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
+      }
+      else
+      {
+         mfem_error("Mesh::Load : For inline mesh, must specify an "
+                    "element type = [segment, tri, quad, tet, hex]");
+      }
+      return; // done with inline mesh construction
    }
    else
    {

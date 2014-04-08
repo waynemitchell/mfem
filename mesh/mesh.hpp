@@ -229,6 +229,26 @@ protected:
 
    void GenerateFaces();
 
+   /// Begin construction of a mesh
+   void InitMesh(int _Dim, int NVert, int NElem, int NBdrElem);
+
+   /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
+       nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
+       if type=TETRAHEDRON. If generate_edges = 0 (default) edges are not
+       generated, if 1 edges are generated. */
+   void Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
+               double sx, double sy, double sz);
+
+   /** Creates mesh for the rectangle [0,sx]x[0,sy], divided into nx*ny
+       quadrilaterals if type = QUADRILATERAL or into 2*nx*ny triangles if
+       type = TRIANGLE. If generate_edges = 0 (default) edges are not generated,
+       if 1 edges are generated. */
+   void Make2D(int nx, int ny, Element::Type type, int generate_edges,
+               double sx, double sy);
+
+   /// Creates a 1D mesh for the interval [0,sx] divided into n equal intervals.
+   void Make1D(int n, double sx = 1.0);
+
 public:
 
    enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
@@ -241,7 +261,10 @@ public:
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
-   Mesh (int _Dim, int NVert, int NElem, int NBdrElem = 0);
+   Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0)
+   {
+      InitMesh(_Dim, NVert, NElem, NBdrElem);
+   }
 
    Element *NewElement(int geom);
 
@@ -251,11 +274,13 @@ public:
    void AddQuad (int *vi, int attr = 1);
    void AddTet (int *vi, int attr = 1);
    void AddHex (int *vi, int attr = 1);
+   void AddHexAsTets(int *vi, int attr = 1);
    // 'elem' should be allocated using the NewElement method
    void AddElement (Element *elem)  { elements[NumOfElements++] = elem; }
    void AddBdrSegment (int *vi, int attr = 1);
    void AddBdrTriangle (int *vi, int attr = 1);
    void AddBdrQuad (int *vi, int attr = 1);
+   void AddBdrQuadAsTriangles(int *vi, int attr = 1);
    void GenerateBoundaryElements();
    void FinalizeTriMesh(int generate_edges = 0, int refine = 0,
                         bool fix_orientation = true);
@@ -267,22 +292,32 @@ public:
                         bool fix_orientation = true);
 
    void SetAttributes();
-   /** Creates mesh for the unit cube, divided into nx * ny *nz hexahedrals
-       if type=HEXAHEDRON or into 2*nx*ny*nz tetrahedrons if type=TETRAHEDRON.
-       If generate_edges = 0 (default) edges are not generated, if 1 edges
-       are generated. The type=TETRAHEDRON is NOT implemented yet! */
-   Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
-        double sx = 1.0, double sy = 1.0, double sz = 1.0);
 
-   /** Creates mesh for the unit square, divided into nx * ny quadrilaterals
-       if type = QUADRILATERAL or into 2*nx*ny triangles if type = TRIANGLE.
-       If generate_edges = 0 (default) edges are not generated, if 1 edges
-       are generated. */
+   /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
+       nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
+       if type=TETRAHEDRON. If generate_edges = 0 (default) edges are not
+       generated, if 1 edges are generated. */
+   Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
+        double sx = 1.0, double sy = 1.0, double sz = 1.0)
+   {
+      Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
+   }
+
+   /** Creates mesh for the rectangle [0,sx]x[0,sy], divided into nx*ny
+       quadrilaterals if type = QUADRILATERAL or into 2*nx*ny triangles if
+       type = TRIANGLE. If generate_edges = 0 (default) edges are not generated,
+       if 1 edges are generated. */
    Mesh(int nx, int ny, Element::Type type, int generate_edges = 0,
-        double sx = 1.0, double sy = 1.0);
+        double sx = 1.0, double sy = 1.0)
+   {
+      Make2D(nx, ny, type, generate_edges, sx, sy);
+   }
 
    /** Creates 1D mesh , divided into n equal intervals. */
-   explicit Mesh(int n);
+   explicit Mesh(int n, double sx = 1.0)
+   {
+      Make1D(n, sx);
+   }
 
    /** Creates mesh by reading data stream in MFEM, netgen, or VTK format. If
        generate_edges = 0 (default) edges are not generated, if 1 edges are
