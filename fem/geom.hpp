@@ -27,6 +27,7 @@ public:
    static const int NumGeom = 6;
    static const int NumBdrArray[];
    static const char *Name[NumGeom];
+   static const double Volume[NumGeom];
 
 private:
    IntegrationRule *GeomVert[NumGeom];
@@ -45,7 +46,7 @@ public:
 
    DenseMatrix *GetPerfGeomToGeomJac(int GeomType)
    { return PerfGeomToGeomJac[GeomType]; }
-   void GetPerfPointMat (int GeomType, DenseMatrix &pm);
+   void GetPerfPointMat(int GeomType, DenseMatrix &pm);
    void JacToPerfJac(int GeomType, const DenseMatrix &J,
                      DenseMatrix &PJ) const;
 
