@@ -672,7 +672,7 @@ void Mesh::SetAttributes()
    }
 }
 
-Mesh::Mesh(int _Dim, int NVert, int NElem, int NBdrElem)
+void Mesh::InitMesh(int _Dim, int NVert, int NElem, int NBdrElem)
 {
    Dim = _Dim;
 
@@ -731,6 +731,21 @@ void Mesh::AddHex(int *vi, int attr)
    elements[NumOfElements++] = new Hexahedron(vi, attr);
 }
 
+void Mesh::AddHexAsTets(int *vi, int attr)
+{
+   static const int hex_to_tet[6][4] =
+      { { 0, 1, 2, 6 }, { 0, 5, 1, 6 }, { 0, 4, 5, 6 },
+        { 0, 2, 3, 6 }, { 0, 3, 7, 6 }, { 0, 7, 4, 6 } };
+   int ti[4];
+
+   for (int i = 0; i < 6; i++)
+   {
+      for (int j = 0; j < 4; j++)
+         ti[j] = vi[hex_to_tet[i][j]];
+      AddTet(ti, attr);
+   }
+}
+
 void Mesh::AddBdrSegment(int *vi, int attr)
 {
    boundary[NumOfBdrElements++] = new Segment(vi, attr);
@@ -744,6 +759,19 @@ void Mesh::AddBdrTriangle(int *vi, int attr)
 void Mesh::AddBdrQuad(int *vi, int attr)
 {
    boundary[NumOfBdrElements++] = new Quadrilateral(vi, attr);
+}
+
+void Mesh::AddBdrQuadAsTriangles(int *vi, int attr)
+{
+   static const int quad_to_tri[2][3] = { { 0, 1, 2 }, { 0, 2, 3 } };
+   int ti[3];
+
+   for (int i = 0; i < 2; i++)
+   {
+      for (int j = 0; j < 3; j++)
+         ti[j] = vi[quad_to_tri[i][j]];
+      AddBdrTriangle(ti, attr);
+   }
 }
 
 void Mesh::GenerateBoundaryElements()
@@ -1144,299 +1172,160 @@ void Mesh::FinalizeHexMesh(int generate_edges, int refine, bool fix_orientation)
    meshgen = 2;
 }
 
-void Mesh::Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
-           double sx, double sy, double sz)
+void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
+                  int generate_edges, double sx, double sy, double sz)
 {
-   int k;
    int x, y, z;
 
-   Dim = 3;
+   int NVert, NElem, NBdrElem;
 
-   Init();
-   InitTables();
-   // Creates quadrilateral mesh
-   if (type == Element::HEXAHEDRON)
+   NVert = (nx+1) * (ny+1) * (nz+1);
+   NElem = nx * ny * nz;
+   NBdrElem = 2*(nx*ny+nx*nz+ny*nz);
+   if (type == Element::TETRAHEDRON)
    {
-      meshgen = 2;
-      NumOfVertices = (nx+1) * (ny+1) * (nz+1);
-      NumOfElements = nx * ny * nz ;
-      NumOfBdrElements = 0;
-      vertices.SetSize(NumOfVertices);
-      elements.SetSize(NumOfElements);
-#ifdef boundry
-      NumOfBdrElements = 2 *(nx*ny+nx*nz+ny*nz);
-      boundary.SetSize(NumOfBdrElements);
-#endif
-      double cx, cy, cz;
-      int ind[8];
+      NElem *= 6;
+      NBdrElem *= 2;
+   }
 
-      // Sets vertices and the corresponding coordinates
-      k = 0;
-      for (z = 0; z < nz+1; z++)
+   InitMesh(3, NVert, NElem, NBdrElem);
+
+   double coord[3];
+   int ind[8];
+
+   // Sets vertices and the corresponding coordinates
+   for (z = 0; z <= nz; z++)
+   {
+      coord[2] = ((double) z / nz) * sz;
+      for (y = 0; y <= ny; y++)
       {
-         cz = ((double) z / nz) * sz;
-         for (y = 0; y < ny+1; y++)
+         coord[1] = ((double) y / ny) * sy;
+         for (x = 0; x <= nx; x++)
          {
-            cy = ((double) y / ny) * sy;
-            for (x = 0; x < nx+1; x++)
-            {
-               cx = ((double) x / nx) * sx;
-               vertices[k](0) = cx;
-               vertices[k](1) = cy;
-               vertices[k](2) = cz;
-               k++;
-            }
+            coord[0] = ((double) x / nx) * sx;
+            AddVertex(coord);
          }
       }
+   }
 
-#define VTX(XC, YC, ZC) ((XC)+(YC)*(nx+1)+(ZC)*(nx+1)*(ny+1))
-      // Sets elements and the corresponding indices of vertices
-      k = 0;
-      for (z = 0; z < nz; z++)
-      {
-         for (y = 0; y < ny; y++)
-         {
-            for (x = 0; x < nx; x++)
-            {
-               ind[0] = VTX(x,y,z);
-               ind[1] = VTX(x+1,y,z);
-               ind[2] = VTX(x+1,y+1,z);
-               ind[3] = VTX(x,y+1,z);
-               ind[4] = VTX(x,y,z+1);
-               ind[5] = VTX(x+1,y,z+1);
-               ind[6] = VTX(x+1,y+1,z+1);
-               ind[7] = VTX(x,y+1,z+1);
-               elements[k] = new Hexahedron(ind);
-               k++;
-            }
-         }
-      }
+#define VTX(XC, YC, ZC) ((XC)+((YC)+(ZC)*(ny+1))*(nx+1))
 
-#ifdef boundry
-      // Sets boundary elements and the corresponding indices of vertices
-      // offset for Z dimensions
-
-      k=0;
+   // Sets elements and the corresponding indices of vertices
+   for (z = 0; z < nz; z++)
+   {
       for (y = 0; y < ny; y++)
       {
          for (x = 0; x < nx; x++)
          {
-            boundary[k++] = new Quadrilateral(VTX(x,y,0),  VTX(x+1, y, 0),
-                                              VTX(x+1, y+1, 0),  VTX(x, y+1, 0), 1);
-            boundary[k++] = new Quadrilateral(VTX(x,y,nz), VTX(x+1, y, nz),
-                                              VTX(x+1, y+1, nz), VTX(x, y+1, nz),4);
+            ind[0] = VTX(x  , y  , z  );
+            ind[1] = VTX(x+1, y  , z  );
+            ind[2] = VTX(x+1, y+1, z  );
+            ind[3] = VTX(x  , y+1, z  );
+            ind[4] = VTX(x  , y  , z+1);
+            ind[5] = VTX(x+1, y  , z+1);
+            ind[6] = VTX(x+1, y+1, z+1);
+            ind[7] = VTX(x  , y+1, z+1);
+            if (type == Element::TETRAHEDRON)
+               AddHexAsTets(ind, 1);
+            else
+               AddHex(ind, 1);
          }
       }
-      // offset for X dimensions
-      for (z = 0; z < nz; z++)
-      {
-         for (y = 0; y < ny; y++)
-         {
-            boundary[k++] = new Quadrilateral(VTX(0 ,y,z), VTX(0 , y+1,z),
-                                              VTX(0 ,y+1,z+1), VTX(0 ,y,z+1),2);
-            boundary[k++] = new Quadrilateral(VTX(nx,y,z), VTX(nx, y+1,z),
-                                              VTX(nx,y+1,z+1), VTX(nx,y,z+1),5);
-         }
-      }
-      // offset for Y dimensions
+   }
+
+   // Sets boundary elements and the corresponding indices of vertices
+   // bottom, bdr. attribute 1
+   for (y = 0; y < ny; y++)
       for (x = 0; x < nx; x++)
       {
-         for (z = 0; z < nz; z++)
-         {
-            boundary[k++] = new Quadrilateral(VTX(x ,0 ,z), VTX(x, 0, z+1),
-                                              VTX(x+1 ,0, z+1), VTX(x+1,0 ,z),3);
-            boundary[k++] = new Quadrilateral(VTX(x ,ny,z), VTX(x, ny,z+1),
-                                              VTX(x+1 ,ny,z+1), VTX(x+1,ny,z),6);
-         }
+         ind[0] = VTX(x  , y  , 0);
+         ind[1] = VTX(x  , y+1, 0);
+         ind[2] = VTX(x+1, y+1, 0);
+         ind[3] = VTX(x+1, y  , 0);
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 1);
+         else
+            AddBdrQuad(ind, 1);
       }
-#endif
-   }
-#ifdef MFEM_DEBUG
+   // top, bdr. attribute 6
+   for (y = 0; y < ny; y++)
+      for (x = 0; x < nx; x++)
+      {
+         ind[0] = VTX(x  , y  , nz);
+         ind[1] = VTX(x+1, y  , nz);
+         ind[2] = VTX(x+1, y+1, nz);
+         ind[3] = VTX(x  , y+1, nz);
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 6);
+         else
+            AddBdrQuad(ind, 6);
+      }
+   // left, bdr. attribute 5
+   for (z = 0; z < nz; z++)
+      for (y = 0; y < ny; y++)
+      {
+         ind[0] = VTX(0  , y  , z  );
+         ind[1] = VTX(0  , y  , z+1);
+         ind[2] = VTX(0  , y+1, z+1);
+         ind[3] = VTX(0  , y+1, z  );
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 5);
+         else
+            AddBdrQuad(ind, 5);
+      }
+   // right, bdr. attribute 3
+   for (z = 0; z < nz; z++)
+      for (y = 0; y < ny; y++)
+      {
+         ind[0] = VTX(nx, y  , z  );
+         ind[1] = VTX(nx, y+1, z  );
+         ind[2] = VTX(nx, y+1, z+1);
+         ind[3] = VTX(nx, y  , z+1);
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 3);
+         else
+            AddBdrQuad(ind, 3);
+      }
+   // front, bdr. attribute 2
+   for (x = 0; x < nx; x++)
+      for (z = 0; z < nz; z++)
+      {
+         ind[0] = VTX(x  , 0, z  );
+         ind[1] = VTX(x+1, 0, z  );
+         ind[2] = VTX(x+1, 0, z+1);
+         ind[3] = VTX(x  , 0, z+1);
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 2);
+         else
+            AddBdrQuad(ind, 2);
+      }
+   // back, bdr. attribute 4
+   for (x = 0; x < nx; x++)
+      for (z = 0; z < nz; z++)
+      {
+         ind[0] = VTX(x  , ny, z  );
+         ind[1] = VTX(x  , ny, z+1);
+         ind[2] = VTX(x+1, ny, z+1);
+         ind[3] = VTX(x+1, ny, z  );
+         if (type == Element::TETRAHEDRON)
+            AddBdrQuadAsTriangles(ind, 4);
+         else
+            AddBdrQuad(ind, 4);
+      }
+
+#if 0
    ofstream test_stream("debug.mesh");
    Print(test_stream);
    test_stream.close();
 #endif
 
+   int refine = 1;
+   bool fix_orientation = true;
 
    if (type == Element::TETRAHEDRON)
-   {
-      // Code from Umberto Villa
-      // build 3d cartesian mesh where each parallelepiped is split into 6 tetrahedrons
-
-      double hx = sx / nx;
-      double hy = sy / ny;
-      double hz = sz / nz;
-
-      int nVx = nx + 1;
-      int nVy = ny + 1;
-      int nVz = nz + 1;
-      int localNumOfVertices = nVx*nVy*nVz;
-      int localNumOfElements = 6*nx*ny*nz;
-      int localNumOfBdrElements = 2 * 2 * (nx * ny + ny * nz + nx * nz);
-      NumOfVertices = 0;
-      NumOfElements = 0;
-      NumOfBdrElements = 0;
-      vertices.SetSize(localNumOfVertices);
-      elements.SetSize(localNumOfElements);
-      boundary.SetSize(localNumOfBdrElements);
-      double vert_coord[3];
-      for (int i = 0; i < nVx; i++)
-      {
-         for (int j = 0; j < nVy; j++)
-         {
-            for (int k = 0; k < nVz; k++)
-            {
-               vert_coord[0] = i * hx;
-               vert_coord[1] = j * hy;
-               vert_coord[2] = k * hz;
-               AddVertex(vert_coord);
-            }
-         }
-      }
-      int vi[4];
-      for (int i = 0; i < nx; i++)
-      {
-         for (int j = 0; j < ny; j++)
-         {
-            for (int k = 0; k < nz; k++)
-            {
-               int v000 = i * nVz * nVy + (j) * nVz + k;
-               int v001 = i * nVz * nVy + j * nVz + k + 1;
-               int v010 = i * nVz * nVy + (j + 1) * nVz + k;
-               int v011 = i * nVz * nVy + (j + 1) * nVz + k + 1;
-
-               int v100 = (i + 1) * nVz * nVy + (j) * nVz + k;
-               int v101 = (i + 1) * nVz * nVy + (j) * nVz + k + 1;
-               int v110 = (i + 1) * nVz * nVy + (j + 1) * nVz + k;
-               int v111 = (i + 1) * nVz * nVy + (j + 1) * nVz + k + 1;
-
-               vi[0] = v000;
-               vi[1] = v100;
-               vi[2] = v110;
-               vi[3] = v111;
-               AddTet(vi);
-               vi[0] = v000;
-               vi[1] = v100;
-               vi[2] = v101;
-               vi[3] = v111;
-               AddTet(vi);
-               vi[0] = v000;
-               vi[1] = v010;
-               vi[2] = v110;
-               vi[3] = v111;
-               AddTet(vi);
-               vi[0] = v000;
-               vi[1] = v010;
-               vi[2] = v011;
-               vi[3] = v111;
-               AddTet(vi);
-               vi[0] = v000;
-               vi[1] = v001;
-               vi[2] = v101;
-               vi[3] = v111;
-               AddTet(vi);
-               vi[0] = v000;
-               vi[1] = v001;
-               vi[2] = v011;
-               vi[3] = v111;
-               AddTet(vi);
-
-               // add boundary triangles here
-               if (0 == i)
-               {
-                  vi[0] = v000;
-                  vi[1] = v001;
-                  vi[2] = v011;
-                  AddBdrTriangle(vi, 1);
-                  vi[0] = v000;
-                  vi[1] = v010;
-                  vi[2] = v011;
-                  AddBdrTriangle(vi, 1);
-               }
-               if (nx - 1 == i)
-               {
-                  vi[0] = v100;
-                  vi[1] = v110;
-                  vi[2] = v111;
-                  AddBdrTriangle(vi, 2);
-                  vi[0] = v100;
-                  vi[1] = v101;
-                  vi[2] = v111;
-                  AddBdrTriangle(vi, 2);
-               }
-
-               if (0 == j)
-               {
-                  vi[0] = v000;
-                  vi[1] = v001;
-                  vi[2] = v101;
-                  AddBdrTriangle(vi, 3);
-                  vi[0] = v000;
-                  vi[1] = v100;
-                  vi[2] = v101;
-                  AddBdrTriangle(vi, 3);
-               }
-               if (ny - 1 == j)
-               {
-                  vi[0] = v010;
-                  vi[1] = v011;
-                  vi[2] = v111;
-                  AddBdrTriangle(vi, 4);
-                  vi[0] = v010;
-                  vi[1] = v110;
-                  vi[2] = v111;
-                  AddBdrTriangle(vi, 4);
-               }
-               if (0 == k)
-               {
-                  vi[0] = v000;
-                  vi[1] = v100;
-                  vi[2] = v110;
-                  AddBdrTriangle(vi, 5);
-                  vi[0] = v000;
-                  vi[1] = v010;
-                  vi[2] = v110;
-                  AddBdrTriangle(vi, 5);
-               }
-               if (nz - 1 == k)
-               {
-                  vi[0] = v001;
-                  vi[1] = v101;
-                  vi[2] = v111;
-                  AddBdrTriangle(vi, 6);
-                  vi[0] = v001;
-                  vi[1] = v011;
-                  vi[2] = v111;
-                  AddBdrTriangle(vi, 6);
-               }
-            }
-         }
-      }
-   }
-
-   CheckElementOrientation();
-
-   if (generate_edges == 1)
-   {
-      el_to_edge = new Table;
-      GetElementToFaceTable();
-      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-      GenerateFaces();
-      if (NumOfBdrElements == 0) {
-         GenerateBoundaryElements();
-      }
-      CheckBdrElementOrientation();
-      c_el_to_edge = NULL;
-   }
+      FinalizeTetMesh(generate_edges, refine, fix_orientation);
    else
-   {
-      NumOfEdges = 0;
-   }
-
-   SetAttributes();
-   for (int b=1;b<=NumOfBdrElements;b++) {
-      bdr_attributes.Append(b);
-   }
+      FinalizeHexMesh(generate_edges, refine, fix_orientation);
 }
 
 void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
@@ -2507,6 +2396,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       {
         mfem_error( "Mesh::Load : For inline mesh, must specify an element type = [tri, quad, tet, hex]" );
       }
+      return; // done with inline mesh construction
    }
    else
    {
