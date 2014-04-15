@@ -247,6 +247,7 @@ public:
 
    void LeftScaling(const Vector & s);
    void InvLeftScaling(const Vector & s);
+   void operator*=(double s);
 
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, int offi = 0, int offj = 0);
