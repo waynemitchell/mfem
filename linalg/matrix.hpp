@@ -58,4 +58,37 @@ public:
       : Solver(mat.size) { }
 };
 
+/// Abstract data type for sparse matrices
+class SparseRowMatrix : public Matrix
+{
+public:
+	   /// Creates matrix of width s.
+	   explicit SparseRowMatrix (int s):Matrix(s){};
+	   /// Returns the Width of the matrix
+	   virtual int Width() const = 0;
+	   /// Returns the number of non-zeros in a matrix
+	   virtual int NumNonZeroElems() const = 0;
+
+	   /// Gets the columns indeces and values for row *row*. Returns 0 if cols and srow are copies, 1 if they are references.
+	   virtual int GetRow(const int row, Array<int> &cols, Vector &srow) const = 0;
+	   /// If the matrix is square, it will place 1 on the diagonal (i,i) if row i has "almost" zero l1-norm.
+	   /*
+	    * If entry (i,i) does not belong to the sparsity pattern of A, then a error will occur.
+	    */
+	   virtual void EliminateZeroRows() = 0;
+
+	   /// Matrix-Vector Multiplication y = A*x
+	   virtual void Mult(const Vector & x, Vector & y) const = 0;
+	   /// Matrix-Vector Multiplication y += A*x
+	   virtual void AddMult(const Vector & x, Vector & y, const double val = 1.) const;
+	   /// MatrixTranspose-Vector Multiplication y = A'*x
+	   virtual void MultTranspose(const Vector & x, Vector & y) const;
+	   /// MatrixTranspose-Vector Multiplication y += A'*x
+	   virtual void AddMultTranspose(const Vector & x, Vector & y, const double val = 1.) const;
+
+
+	   /// Destroys SparseRowMatrix.
+	   virtual ~SparseRowMatrix() { };
+};
+
 #endif
