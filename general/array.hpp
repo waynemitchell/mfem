@@ -172,8 +172,11 @@ public:
    /// return true if the array is sorted.
    int IsSorted();
 
-   // Partial Sum
+   /// Partial Sum
    void PartialSum();
+
+   /// Sum all entries
+   T Sum();
 
    inline void operator=(const T &a);
 

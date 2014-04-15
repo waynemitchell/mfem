@@ -116,6 +116,15 @@ void Array<T>::PartialSum()
    }
 }
 
+// Sum
+template <class T>
+T Array<T>::Sum()
+{
+   T sum = operator[](0);
+   for (int i = 1; i < size; i++)
+      sum+=operator[](i);
+}
+
 template <class T>
 int Array<T>::IsSorted()
 {

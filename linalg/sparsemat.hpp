@@ -309,7 +309,7 @@ SparseMatrix *Mult_AtDA(SparseMatrix &A, Vector &D,
 
 
 /// Matrix addition res = A + B.
-SparseMatrix * Add(SparseMatrix & A, SparseMatrix & B);
+SparseMatrix * Add(const SparseMatrix & A, const SparseMatrix & B);
 /// Matrix addition res = a*A + b*B
 SparseMatrix * Add(double a, const SparseMatrix & A, double b, const SparseMatrix & B);
 /// Matrix addition res = sum_i A_i

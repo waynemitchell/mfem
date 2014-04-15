@@ -87,6 +87,60 @@ public:
 double InnerProduct(HypreParVector &x, HypreParVector &y);
 double InnerProduct(HypreParVector *x, HypreParVector *y);
 
+/// Block structure for HypreParVector
+class BlockHypreParVector : public HypreParVector
+{
+public:
+
+	/** Creates vector with given global size and partitioning of the columns.
+	    Processor P owns columns [col[P],col[P+1])
+	     the number of Blocks (same for all processes)
+	     the array blocks_glob_size[iblock] gives the global dimension of block iblock.
+	     the array2d bLocalSizes[iblock][my_Pid] gives the local size of block iblock on process myPid
+	   */
+	BlockHypreParVector(MPI_Comm comm, int glob_size, int *col,
+			const Array<int> & blocks_glob_size, const Array2D<int> & bLocalSizes, int nBlocks);
+
+	/// Creates vector compatible with y
+	BlockHypreParVector(const BlockHypreParVector & y);
+
+	BlockHypreParVector & operator=(const BlockHypreParVector & original);
+	BlockHypreParVector & operator=(double val);
+
+	//! Destructor
+	virtual ~BlockHypreParVector();
+
+	//! Get the i-th vector in the block
+	HypreParVector Block(int i);
+	const HypreParVector Block(int i) const;
+
+
+protected:
+
+   //! The communicator
+   MPI_Comm comm;
+   //! Number of blocks in the blockVector
+   int numBlocks;
+   //! Dimension of each global block Vector
+   Array<int> blocks_glob_size;
+   //! Dimension of each local block Vector blockLocalSizes[iblock][my_Pid]
+   Array2D<int> blockLocalSizes;
+   //! My Offsets for the data (nBlocks+1)
+   Array<int> localOffsets;
+   //! A two dimensional array such that block_col[iblock][my_Pid]
+   // is the starting column of block iblock on proc my_Pid
+   Array2D<int> block_col;
+
+};
+
+/** Stride an arbitrary number of HypreParVectors in BlockHypreParVector results. Since results does not own the row start array,
+* the array rowStarts_monolithic is returned to avoid memory leaks.
+*/
+BlockHypreParVector * stride(const Array<const HypreParVector *> & vectors, Array<int> & rowStarts_monolithic);
+/** Stride two HypreParVector v1  and v2 in BlockHypreParVector results. Since results does not own the row start array,
+* the array rowStarts_monolithic is returned to avoid memory leaks.
+*/
+BlockHypreParVector * stride(const HypreParVector & v1, const HypreParVector & v2, Array<int> & rowStarts_monolithic);
 
 /// Wrapper for hypre's ParCSR matrix class
 class HypreParMatrix : public Operator
@@ -190,6 +244,9 @@ public:
 
    virtual void Mult(const Vector &x, Vector &y) const;
    virtual void MultTranspose(const Vector &x, Vector &y) const;
+
+   void LeftScaling(const Vector & s);
+   void InvLeftScaling(const Vector & s);
 
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, int offi = 0, int offj = 0);
@@ -416,6 +473,7 @@ public:
 class HypreDiagScale : public HypreSolver
 {
 public:
+   HypreDiagScale(HypreParMatrix &_A):HypreSolver(&_A){};
    virtual operator HYPRE_Solver() const { return NULL; }
 
    virtual HYPRE_PtrToParSolverFcn SetupFcn() const
