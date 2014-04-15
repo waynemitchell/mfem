@@ -212,3 +212,45 @@ double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
 
    return norm;
 }
+
+double ComputeLpNorm(double p, VectorCoefficient &coeff, Mesh &mesh,
+                     const IntegrationRule *irs[])
+{
+   double norm = 0.0;
+   ElementTransformation *tr;
+   Vector vval(coeff.GetVDim());
+   double val = 0;
+
+   for (int i = 0; i < mesh.GetNE(); i++)
+   {
+      tr = mesh.GetElementTransformation(i);
+      const IntegrationRule &ir = *irs[mesh.GetElementType(i)];
+      for (int j = 0; j < ir.GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir.IntPoint(j);
+         tr->SetIntPoint(&ip);
+         coeff.Eval(vval, *tr, ip);
+         val = vval.Normlp(p);
+         if (p < numeric_limits<double>::infinity())
+         {
+            norm += ip.weight * tr->Weight() * pow(val, p);
+         }
+         else
+         {
+            if (norm < val)
+               norm = val;
+         }
+      }
+   }
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // negative quadrature weights may cause norm to be negative
+      if (norm < 0.)
+         norm = -pow(-norm, 1. / p);
+      else
+         norm = pow(norm, 1. / p);
+   }
+
+   return norm;
+}

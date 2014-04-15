@@ -16,6 +16,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
+#include <limits>
 
 #include "vector.hpp"
 
@@ -547,6 +548,23 @@ double Vector::Norml1()
       sum += fabs (data[i]);
 
    return sum;
+}
+
+double Vector::Normlp(double p)
+{
+	if(p == 1)
+		return Norml1();
+	if(p == 2)
+		return Norml2();
+	if(p == numeric_limits<double>::infinity() )
+		return Normlinf();
+
+   double sum = 0.0;
+
+   for (int i = 0; i < size; i++)
+      sum += pow( fabs(data[i]), p);
+
+   return pow(sum, 1./p);
 }
 
 double Vector::Max()

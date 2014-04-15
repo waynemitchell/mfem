@@ -180,6 +180,8 @@ public:
    double Normlinf();
    /// Returns the l_1 norm of the vector.
    double Norml1();
+   /// Returns the l_p norm of the vector.
+   double Normlp(double p);
    /// Returns the maximal element of the vector.
    double Max();
    /// Returns the minimal element of the vector.
