@@ -94,8 +94,8 @@ int main (int argc, char *argv[])
 	//    use the lowest order Raviart-Thomas finite elements, but we can easily
 	//    swich to higher-order spaces by changing the value of p.
 	int order(0);
-	FiniteElementCollection * hdiv_coll(new RT_FECollection(order,3));
-	FiniteElementCollection * l2_coll(new L2_FECollection(order,3));
+	FiniteElementCollection * hdiv_coll(new RT_FECollection(order,pmesh->Dimension()));
+	FiniteElementCollection * l2_coll(new L2_FECollection(order,pmesh->Dimension()));
 
 	ParFiniteElementSpace * R_space = new ParFiniteElementSpace(pmesh,  hdiv_coll);
 	ParFiniteElementSpace * W_space = new ParFiniteElementSpace(pmesh,    l2_coll);
