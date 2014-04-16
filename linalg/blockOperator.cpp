@@ -33,11 +33,8 @@ BlockOperator::BlockOperator(int nRowBlocks_):
 	op(nRowBlocks_, nRowBlocks_)
 	{
 	  op = static_cast<Operator *>(NULL);
-	  //std::fill(op[0], op[0]+nRowBlocks_*nRowBlocks_,static_cast<Operator *>(NULL));
 	  row_offsets = 0;
 	  col_offsets = 0;
-	  // row_offsets = -1;
-	  // col_offsets = -1;
 	}
 
 
@@ -49,9 +46,6 @@ BlockOperator::BlockOperator(int nRowBlocks_, int nColBlocks_):
 	op(nRowBlocks_, nColBlocks_)
 	{
 	  op = static_cast<Operator *>(NULL);
-	  //std::fill(op[0], op[0]+nRowBlocks_*nColBlocks_,static_cast<Operator *>(NULL));
-	  // row_offsets = -1;
-	  // col_offsets = -1;
 	  row_offsets = 0;
 	  col_offsets = 0;
 	}
@@ -60,8 +54,6 @@ void BlockOperator::SetUp(int nRowBlocks_, int nColBlocks_)
 {
 	nRowBlocks = nRowBlocks_;
 	nRowBlocks = nColBlocks_;
-	//row_offsets.SetSize(nRowBlocks+1, -1);
-	//col_offsets.SetSize(nColBlocks+1, -1);
 	row_offsets.SetSize(nRowBlocks+1);
 	col_offsets.SetSize(nColBlocks+1);
 	op.SetSize(nRowBlocks, nColBlocks);
@@ -92,8 +84,6 @@ void BlockOperator::Finalize()
 	row_offsets.PartialSum();
 	col_offsets.PartialSum();
 	size = row_offsets.Last();
-	//std::partial_sum(row_offsets.GetData(), row_offsets.GetData()+nRowBlocks+1, row_offsets.GetData());
-	//std::partial_sum(col_offsets.GetData(), col_offsets.GetData()+nColBlocks+1, col_offsets.GetData());
 }
 
 /// Operator application
@@ -183,8 +173,6 @@ void BlockDiagonalPreconditioner::SetBlock(int iRow, int iCol, Operator *opt, in
   if(size!=width)
     mfem_error("Block is not square in BlockDiagonalPreconditioner");
 
-  //  assert(iRow == iCol);
-  //assert(size == width);
   op[iRow] = opt;
   offsets[iRow+1] = size;
 }
@@ -194,7 +182,6 @@ void BlockDiagonalPreconditioner::Finalize()
   offsets[0] = 0;
   offsets.PartialSum();
   size = offsets.Last();
-  //  std::partial_sum(offsets.GetData(), offsets.GetData() + nBlocks+1, offsets.GetData());
 }
 
 /// Operator application

@@ -39,8 +39,8 @@ BlockVector::BlockVector(int * bOffsets, int nBlocks):
 	blockOffsets[0] = bOffsets[0];
 	for(int i(0); i < numBlocks; ++i)
 		blockOffsets[i+1] = bOffsets[i+1];
+
 	Vector::operator=(0.0);
-	//std::fill(this->data, this->data+this->size, 0.0);
 }
 
 //! Copy constructor
