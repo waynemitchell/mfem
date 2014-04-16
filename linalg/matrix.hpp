@@ -25,7 +25,7 @@ class Matrix : public Operator
    friend class MatrixInverse;
 public:
    /// Creates matrix of width s.
-   explicit Matrix (int s) { size=s; }
+   explicit Matrix (int s) : Operator(s){ }
 
    /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
    virtual double& Elem (int i, int j) = 0;
@@ -63,7 +63,7 @@ class SparseRowMatrix : public Matrix
 {
 public:
 	   /// Creates matrix of width s.
-	   explicit SparseRowMatrix (int s):Matrix(s){};
+	   explicit SparseRowMatrix (int s = 0 ):Matrix(s){};
 	   /// Returns the Width of the matrix
 	   virtual int Width() const = 0;
 	   /// Returns the number of non-zeros in a matrix

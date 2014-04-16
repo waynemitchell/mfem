@@ -12,11 +12,18 @@
 #ifndef BLOCKMATRIX_HPP_
 #define BLOCKMATRIX_HPP_
 
-class BlockMatrix : public Operator {
+class BlockMatrix : public SparseRowMatrix {
 public:
 	BlockMatrix(int nRowBlocks, int nColBlocks);
 	void SetBlock(int i, int j, SparseMatrix & mat);
-	void Finalize();
+	/// Finalize the matrix (no more blocks allowed)
+	virtual void Finalize();
+	/// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+	virtual double& Elem (int i, int j);
+	/// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+	virtual const double& Elem (int i, int j) const;
+    /// Returns a pointer to (approximation) of the matrix inverse.
+	virtual MatrixInverse * Inverse() const { mfem_error("BlockMatrix::Inverse not implemented \n"); return static_cast<MatrixInverse*>(NULL); }
 	int NumRowBlocks() const {return nRowBlocks; }
 	int NumColBlocks() const {return nColBlocks; }
 	int NumRows() const {return is_filled ? row_offsets[nRowBlocks]:-1;}
@@ -33,7 +40,7 @@ public:
 	const int * GetColOffsets() const { return col_offsets.GetData(); }
 
 	int RowSize(const int i) const;
-	void GetRow(const int row, Array<int> &cols, Vector &srow) const;
+	int GetRow(const int row, Array<int> &cols, Vector &srow) const;
 	void EliminateRowCol(Array<int> & ess_bc_dofs, Vector & sol, Vector & rhs);
 	void EliminateZeroRows();
 
@@ -44,8 +51,7 @@ public:
 
 //	BlockMatrix * ExtractRowAndColumns( const Array<int> & grows, const Array<int> & gcols, Array<int> & colMapper) const;
 
-	SparseMatrix & Monolithic();
-	void LoseMonolithic(){ Amono = static_cast<SparseMatrix*>(NULL); }
+	SparseMatrix * Monolithic();
 
 	void PrintMatlab(std::ostream & os = std::cout);
 
@@ -90,8 +96,6 @@ private:
 	bool is_filled;
 
 	Array2D<SparseMatrix *> Aij;
-	SparseMatrix * Amono;
-
 };
 
 BlockMatrix * Transpose(const BlockMatrix & A);
