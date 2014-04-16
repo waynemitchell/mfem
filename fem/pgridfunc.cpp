@@ -209,35 +209,6 @@ void ParGridFunction::ProjectCoefficient(Coefficient &coeff)
    }
 }
 
-double ParGridFunction::GlobalLpNorm(const double p, double loc_norm) const
-{
-   double glob_norm;
-
-   if (p < numeric_limits<double>::infinity())
-   {
-      // negative quadrature weights may cause the error to be negative
-      if (loc_norm < 0.)
-         loc_norm = -pow(-loc_norm, p);
-      else
-         loc_norm = pow(loc_norm, p);
-
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM,
-                    pfes->GetComm());
-
-      if (glob_norm < 0.)
-         glob_norm = -pow(-glob_norm, 1./p);
-      else
-         glob_norm = pow(glob_norm, 1./p);
-   }
-   else
-   {
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX,
-                    pfes->GetComm());
-   }
-
-   return glob_norm;
-}
-
 void ParGridFunction::Save(ostream &out)
 {
    for (int i = 0; i < size; i++)
@@ -362,6 +333,35 @@ void ParGridFunction::SaveAsOne(ostream &out)
    delete [] nedofs;
    delete [] nfdofs;
    delete [] nrdofs;
+}
+
+double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm)
+{
+   double glob_norm;
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // negative quadrature weights may cause the error to be negative
+      if (loc_norm < 0.)
+         loc_norm = -pow(-loc_norm, p);
+      else
+         loc_norm = pow(loc_norm, p);
+
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM,
+                    comm);
+
+      if (glob_norm < 0.)
+         glob_norm = -pow(-glob_norm, 1./p);
+      else
+         glob_norm = pow(glob_norm, 1./p);
+   }
+   else
+   {
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX,
+                    comm);
+   }
+
+   return glob_norm;
 }
 
 #endif

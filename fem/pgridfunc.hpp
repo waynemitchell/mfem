@@ -12,6 +12,9 @@
 #ifndef MFEM_PGRIDFUNC
 #define MFEM_PGRIDFUNC
 
+/// Compute a global Lp norm from the local Lp norms computed by each processor
+double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm);
+
 /// Class for parallel grid function
 class ParGridFunction : public GridFunction
 {
@@ -19,8 +22,6 @@ protected:
    ParFiniteElementSpace *pfes;
 
    Vector face_nbr_data;
-
-   double GlobalLpNorm(const double p, double loc_norm) const;
 
 public:
    ParGridFunction() { pfes = NULL; }
@@ -94,7 +95,7 @@ public:
                          const IntegrationRule *irs[] = NULL) const
    {
       return GlobalLpNorm(1.0, GridFunction::ComputeW11Error(
-                             *exsol, NULL, 1, NULL, irs));
+                             *exsol, NULL, 1, NULL, irs), pfes->GetComm());
    }
 
    double ComputeL1Error(Coefficient &exsol,
@@ -107,7 +108,7 @@ public:
 
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const
-   { return GlobalLpNorm(2.0, GridFunction::ComputeL2Error(exsol, irs)); }
+   { return GlobalLpNorm(2.0, GridFunction::ComputeL2Error(exsol, irs), pfes->GetComm()); }
 
    double ComputeL2Error(Coefficient &exsol,
                          const IntegrationRule *irs[] = NULL) const
@@ -117,14 +118,14 @@ public:
                          const IntegrationRule *irs[] = NULL,
                          Array<int> *elems = NULL) const
    {
-      return GlobalLpNorm(2.0, GridFunction::ComputeL2Error(exsol, irs, elems));
+      return GlobalLpNorm(2.0, GridFunction::ComputeL2Error(exsol, irs, elems), pfes->GetComm());
    }
 
    double ComputeMaxError(Coefficient *exsol[],
                           const IntegrationRule *irs[] = NULL) const
    {
       return GlobalLpNorm(numeric_limits<double>::infinity(),
-                          GridFunction::ComputeMaxError(exsol, irs));
+                          GridFunction::ComputeMaxError(exsol, irs), pfes->GetComm());
    }
 
    double ComputeMaxError(Coefficient &exsol,
@@ -146,7 +147,7 @@ public:
                          const IntegrationRule *irs[] = NULL) const
    {
       return GlobalLpNorm(p, GridFunction::ComputeLpError(
-                             p, exsol, weight, irs));
+                             p, exsol, weight, irs), pfes->GetComm());
    }
 
    /** When given a vector weight, compute the pointwise (scalar) error as the
@@ -158,7 +159,7 @@ public:
                          const IntegrationRule *irs[] = NULL) const
    {
       return GlobalLpNorm(p, GridFunction::ComputeLpError(
-                             p, exsol, weight, v_weight, irs));
+                             p, exsol, weight, v_weight, irs), pfes->GetComm());
    }
 
    /** Save the local portion of the ParGridFunction. It differs from the

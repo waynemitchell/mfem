@@ -32,35 +32,6 @@ void fFun(const Vector & x, Vector & f);
 double gFun(Vector & x);
 double f_natural(Vector & x);
 
-double GlobalLpNorm(const double p, double loc_norm)
-{
-   double glob_norm;
-
-   if (p < numeric_limits<double>::infinity())
-   {
-      // negative quadrature weights may cause the error to be negative
-      if (loc_norm < 0.)
-         loc_norm = -pow(-loc_norm, p);
-      else
-         loc_norm = pow(loc_norm, p);
-
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM,
-                    MPI_COMM_WORLD);
-
-      if (glob_norm < 0.)
-         glob_norm = -pow(-glob_norm, 1./p);
-      else
-         glob_norm = pow(glob_norm, 1./p);
-   }
-   else
-   {
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX,
-    		  MPI_COMM_WORLD);
-   }
-
-   return glob_norm;
-}
-
 int main (int argc, char *argv[])
 {
 	// 1. Initialize MPI
@@ -296,9 +267,9 @@ int main (int argc, char *argv[])
 		irs.Append(&(IntRules.Get(i, order_quad)));
 
 	double err_u  = u->ComputeL2Error(ucoeff, irs.GetData());
-	double norm_u = GlobalLpNorm(2., ComputeLpNorm(2., ucoeff, *pmesh, irs.GetData()));
+	double norm_u = GlobalLpNorm(2., ComputeLpNorm(2., ucoeff, *pmesh, irs.GetData()), MPI_COMM_WORLD);
 	double err_p = p->ComputeL2Error(pcoeff, irs.GetData());
-	double norm_p = GlobalLpNorm(2., ComputeLpNorm(2., pcoeff, *pmesh, irs.GetData()));
+	double norm_p = GlobalLpNorm(2., ComputeLpNorm(2., pcoeff, *pmesh, irs.GetData()), MPI_COMM_WORLD);
 
 	if(verbose)
 	{
