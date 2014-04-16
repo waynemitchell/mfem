@@ -245,8 +245,11 @@ public:
    virtual void Mult(const Vector &x, Vector &y) const;
    virtual void MultTranspose(const Vector &x, Vector &y) const;
 
+   /// Scale all entries in row i by s(i). A_scaled = diag(s) * A.
    void LeftScaling(const Vector & s);
+   /// Scale all entries in row i by 1/s(i). A_scaled = diag(s)^-1 * A.
    void InvLeftScaling(const Vector & s);
+   /// Scale all entries by s. A_scaled = s*A.
    void operator*=(double s);
 
    /// Prints the locally owned rows in parallel

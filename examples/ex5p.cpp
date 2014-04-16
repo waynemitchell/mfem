@@ -1,6 +1,6 @@
 //                                MFEM Example 5
 //
-// Compile with: make ex5
+// Compile with: make ex5p
 //
 // Sample runs:  mpirun -np 4 ex5p ../data/square-disc.mesh
 //               mpirun -np 4 ex5p ../data/star.mesh

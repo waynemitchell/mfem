@@ -126,7 +126,9 @@ public:
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const;
 
+   /// for all i compute x_i = \sum_j A_{ij}
    void GetRowSums(Vector &x) const;
+   /// for i = irow compute x_i = \sum_j | A_{i, j} |
    double GetRowNorml1(int irow) const;
 
    /// Returns a pointer to approximation of the matrix inverse.
@@ -134,7 +136,11 @@ public:
 
    /// Eliminates a column from the transpose matrix.
    void EliminateRow(int row, const double sol, Vector &rhs);
+   /// Set all the entries in row *row* to 0.
    void EliminateRow(int row);
+   /** Set all the entries in row *row* to 0 if the matrix is rectangular.
+    *  Set A(i,i) = 1. and A(i,j) = 0 (i ~= j) if the matrix is square.
+   */
    void EliminateRow2(int row);
    void EliminateCol(int col);
    /// Eliminate all columns 'i' for which cols[i] != 0
@@ -211,7 +217,9 @@ public:
        If the matrix is finalized (i.e. in CSR format), 'cols' and 'srow'
        will simply be references to the specific portion of the J and A
        arrays.
-       Returns 0 if cols and srow are copies. Return 1 if cols and srow are references.
+	   As required by the SparseRowMatrix interface this method returns:
+	   0 if cols and srow are copies of the values in the matrix (i.e. when the matrix is open).
+	   1 if cols and srow are views of the values in the matrix (i.e. when the matrix is finalized).
    */
    virtual int GetRow(const int row, Array<int> &cols, Vector &srow) const;
 

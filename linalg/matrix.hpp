@@ -69,7 +69,10 @@ public:
 	   /// Returns the number of non-zeros in a matrix
 	   virtual int NumNonZeroElems() const = 0;
 
-	   /// Gets the columns indeces and values for row *row*. Returns 0 if cols and srow are copies, 1 if they are references.
+	   /// Gets the columns indexes and values for row *row*.
+	   /// Returns:
+	   /// 0 if cols and srow are copies of the values in the matrix.
+	   /// 1 if cols and srow are views of the values in the matrix.
 	   virtual int GetRow(const int row, Array<int> &cols, Vector &srow) const = 0;
 	   /// If the matrix is square, it will place 1 on the diagonal (i,i) if row i has "almost" zero l1-norm.
 	   /*
