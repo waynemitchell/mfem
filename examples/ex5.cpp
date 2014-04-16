@@ -1,6 +1,6 @@
 //                                MFEM Example 5
 //
-// Compile with: make ex5p
+// Compile with: make ex5
 //
 // Sample runs:  mpirun -np 4 ex5p ../data/square-disc.mesh
 //               mpirun -np 4 ex5p ../data/star.mesh
@@ -13,19 +13,20 @@
 //               corresponding to the saddle point system
 //               k*u + grad p = f
 //               - div u      = g
-//               with boundary condition -p = <given pressure>.
+//               with natural boundary condition -p = <given pressure>.
 //               Here, we use a given exact solution (u,p)
 //               and compute the corresponding r.h.s. (f,g).  We discretize with
 //               Raviart-Thomas finite elements (velocity u)
 //               and piecewise discontinuous polynomials (pressure p).
 //
-//               The example demonstrates the use of the BlockOperator class.
+//               The example demonstrates the use of the BlockMatrix class.
 //
 //               We recommend viewing examples 1-4 before viewing this example.
 
 #include <fstream>
 #include "mfem.hpp"
 
+// Define the analytical solution and forcing terms / bc
 void uFun_ex(const Vector & x, Vector & u);
 double pFun_ex(Vector & x);
 void fFun(const Vector & x, Vector & f);
@@ -39,11 +40,11 @@ int main (int argc, char *argv[])
 
 	if (argc == 1)
 	{
-		cout << "\nUsage: mpirun -np <np> ex1p <mesh_file>\n" << endl;
+		cout << "\nUsage: ./ex5 <mesh_file>\n" << endl;
 		return 1;
 	}
 
-	// 2. Read the (serial) mesh from the given mesh file on all processors.
+	// 1. Read the (serial) mesh from the given mesh file.
 	//    We can handle triangular, quadrilateral, tetrahedral or hexahedral
 	//    elements with the same code.
 	ifstream imesh(argv[1]);
@@ -55,7 +56,7 @@ int main (int argc, char *argv[])
 	mesh = new Mesh(imesh, 1, 1);
 	imesh.close();
 
-	// 3. Refine the serial mesh on all processors to increase the resolution. In
+	// 2. Refine the serial mesh to increase the resolution. In
 	//    this example we do 'ref_levels' of uniform refinement. We choose
 	//    'ref_levels' to be the largest number that gives a final mesh with no
 	//    more than 10,000 elements.
@@ -66,9 +67,12 @@ int main (int argc, char *argv[])
 			mesh->UniformRefinement();
 	}
 
-	// 5. Define a finite element space on the mesh. Here we
+	// Reorient Tetraheadral mesh (necessary if one uses high order RT spaces)
+	mesh->ReorientTetMesh();
+
+	// 3. Define a finite element space on the mesh. Here we
 	//    use the lowest order Raviart-Thomas finite elements, but we can easily
-	//    swich to higher-order spaces by changing the value of p.
+	//    switch to higher-order spaces by changing the value of *order*.
 	int order(0);
 	FiniteElementCollection * hdiv_coll(new RT_FECollection(order,mesh->Dimension()));
 	FiniteElementCollection * l2_coll(new L2_FECollection(order,mesh->Dimension()));
@@ -78,15 +82,15 @@ int main (int argc, char *argv[])
 
 	int dimR(R_space->GetVSize());
 	int dimW(W_space->GetVSize());
-        int dimRW(dimR + dimW );
+    int dimRW(dimR + dimW );
 
 	std::cout << "***********************************************************\n";
-	std::cout << "dim(R) = " << dimR << std::endl;
-	std::cout << "dim(W) = " << dimW << std::endl;
-	std::cout << "dim(R+W) = " << dimRW << std::endl;
+	std::cout << "dim(R) = " << dimR << "\n";
+	std::cout << "dim(W) = " << dimW << "\n";
+	std::cout << "dim(R+W) = " << dimRW << "\n";
 	std::cout << "***********************************************************\n";
 
-	// 6. Coefficients
+	// 4. Define the coefficients, analytical solution, and rhs of the PDE
 	ConstantCoefficient k( 1. );
 
 	VectorFunctionCoefficient fcoeff(mesh->Dimension(), fFun);
@@ -96,34 +100,40 @@ int main (int argc, char *argv[])
 	VectorFunctionCoefficient ucoeff(mesh->Dimension(), uFun_ex);
 	FunctionCoefficient pcoeff(pFun_ex);
 
-	// 7. Define the grid function and linear forms
+	// 5. Allocate memory (x, rhs) for the analytical solution and the right hand side.
+	// Define the GridFunction u,p for the finite element solution and linear forms fform and gform for the right hand side.
+	// The data allocated by x and rhs are passed as a reference to the grid fuctions (u,p) and the linear forms (fform, gform).
 	Vector x( dimRW ), rhs( dimRW );
-        GridFunction u, p;
-        u.Update(R_space, x, 0);
-        p.Update(W_space, x, dimR );
+    GridFunction u, p;
+    u.Update(R_space, x, 0);
+    p.Update(W_space, x, dimR );
 
 	LinearForm * fform( new LinearForm );
-        fform->Update(R_space, rhs, 0);
+    fform->Update(R_space, rhs, 0);
 	fform->AddDomainIntegrator( new VectorFEDomainLFIntegrator(fcoeff));
 	fform->AddBoundaryIntegrator( new VectorFEBoundaryFluxLFIntegrator(fnatcoeff));
 	fform->Assemble();
 
 	LinearForm * gform( new LinearForm );
-        gform->Update(W_space, rhs, dimR );
+    gform->Update(W_space, rhs, dimR );
 	gform->AddDomainIntegrator( new DomainLFIntegrator(gcoeff));
 	gform->Assemble();
 
-	// 8. Assemble the finite element matrices for the Darcy operator
-	// Darcy augmented operator and preconditioner
+	// 6. Assemble the finite element matrices for the Darcy operator
 	/*
 	 * \D = [ M        B^T ]
 	 *      [ B         0   ]
 	 *
-	 * 	M = \int_\Omega k u_h \cdot v_h d\Omega   \u_h, v_h \in R_h
-	 *  W = \int_\Omega p_h q_h d\Omega            p_h, q_h \in W_h
+	 *  where:
 	 *
-	 *  B   = -\int_\Omega \div u_h q_h d\Omega       u_h \in R_h, q_h \in W_h
-	 *  D   : R_h --> W_h s.t. p_h = D u_h --> p_h = \div u_h aka B = -WD
+	 * 	M = \int_\Omega k u_h \cdot v_h d\Omega   u_h, v_h \in R_h
+	 *  B   = -\int_\Omega \div u_h q_h d\Omega   u_h \in R_h, q_h \in W_h
+     *
+     *  The mixed bilinear form B is computed as B = W*D, where
+     *  W is the pressure mass matrix
+	 *  W = \int_\Omega p_h q_h d\Omega            p_h, q_h \in W_h
+	 *  and D is the discrete divergence operator that maps the RT-space in piecewise discontinuous polynomials space.
+	 *  D   : R_h --> W_h s.t. p_h = D u_h --> p_h = \div u_h
 	 */
 
 	BilinearForm * mVarf( new BilinearForm(R_space));
@@ -135,35 +145,40 @@ int main (int argc, char *argv[])
 	mVarf->AddDomainIntegrator(new VectorFEMassIntegrator(k));
 	mVarf->Assemble();
 	mVarf->Finalize();
-        SparseMatrix & M( mVarf->SpMat() );
+    SparseMatrix & M( mVarf->SpMat() );
 
 	wVarf->AddDomainIntegrator(new MassIntegrator);
 	wVarf->Assemble();
 	wVarf->Finalize();
-        SparseMatrix & W( wVarf->SpMat() );
+    SparseMatrix & W( wVarf->SpMat() );
 
 	discreteDiv->AddDomainInterpolator( new DivergenceInterpolator);
 	discreteDiv->Assemble();
 	discreteDiv->Finalize();
-        SparseMatrix & D(discreteDiv->SpMat());
+    SparseMatrix & D(discreteDiv->SpMat());
 
 	SparseMatrix * B = Mult( W, D );
-	(*B) *= -1;
+	(*B) *= -1.;
 	SparseMatrix * BT = Transpose(*B);
 
+	BlockMatrix darcyMatrix(2,2);
+	darcyMatrix.SetBlock(0,0, M );
+	darcyMatrix.SetBlock(0,1, *BT );
+	darcyMatrix.SetBlock(1,0, *B);
+	darcyMatrix.Finalize();
 
-	// 8. Create the operators for preconditioner
+	// 7. Construct the operators for preconditioner
 	/*
 	 *  \P = [ diag(M)         0         ]
 	 *       [  0       B diag(M)^-1 B^T ]
 	 *
-	 *  We use HypreBoomerAMG to approximate the inverse of the pressure Schur Complement
+	 *  Here we use Symmetric Gauss-Seidel to approximate the inverse of the pressure Schur Complement
 	 */
+
 	SparseMatrix * MinvBt = Transpose(*B);
 	Vector Md(M.Size());
 	M.GetDiag(Md);
-
-        for(int i = 0; i < Md.Size(); ++i)
+    for(int i = 0; i < Md.Size(); ++i)
 	    MinvBt->ScaleRow(i, 1./Md(i));
 	SparseMatrix * S = Mult(*B, *MinvBt );
 
@@ -174,17 +189,12 @@ int main (int argc, char *argv[])
 	invM->iterative_mode = false;
 	invS->iterative_mode = false;
 
-	// 8. Setup the BlockOperators and solve the linear system with MINRES
-	BlockMatrix darcyMatrix(2,2);
-	darcyMatrix.SetBlock(0,0, M );
-	darcyMatrix.SetBlock(0,1, *BT );
-	darcyMatrix.SetBlock(1,0, *B);
-	darcyMatrix.Finalize();
-
 	BlockDiagonalPreconditioner darcyPrec(2);
 	darcyPrec.SetDiagonalBlock(0, invM, M.Size() );
 	darcyPrec.SetDiagonalBlock(1, invS, S->Size() );
 	darcyPrec.Finalize();
+
+	// 8. Solve the linear system with MINRES. Check the norm of the unpreconditioned residual.
 
 	x = 0.0;
 
@@ -208,12 +218,12 @@ int main (int argc, char *argv[])
 		std::cout << "MINRES converged in " << solver.GetNumIterations() << " with a residual norm of " << solver.GetFinalNorm() << ".\n";
 	else
 		std::cout << "MINRES did not converge in " << solver.GetNumIterations() << ". Residual norm is " << solver.GetFinalNorm() << ".\n";
-		std::cout << "MINRES solver took " << chrono.RealTime() << " s. \n";
+
+	std::cout << "MINRES solver took " << chrono.RealTime() << " s. \n";
 
 	Vector r( rhs.Size()  );
 	darcyMatrix.Mult(x, r);
 	subtract(rhs, r, r);
-
 
 	double residual_norm(r.Norml2());
 	double rhs_norm(rhs.Norml2());
@@ -221,11 +231,11 @@ int main (int argc, char *argv[])
 	std::cout<<"|| Ax_n - b ||_2 = "<<residual_norm<<"\n";
 	std::cout<<"|| Ax_n - b ||_2/||b||_2 = "<<residual_norm/rhs_norm<<"\n";
 
-	// Update the grid functions and compute L2 error norms.
+	// 9. Update the grid functions u and p. Compute the L2 error norms.
 	u.Update(R_space, x, 0);
 	p.Update(W_space, x, dimR );
 
-	int order_quad = 2;
+	int order_quad = max(2, 2*order+1);
 	Array<const IntegrationRule *> irs;
 	for(int i(0); i < Geometry::NumGeom; ++i)
 		irs.Append(&(IntRules.Get(i, order_quad)));
@@ -238,8 +248,9 @@ int main (int argc, char *argv[])
 	std::cout << "|| u_h - u_ex || / || u_ex || = " << err_u / norm_u << "\n";
 	std::cout << "|| p_h - p_ex || / || p_ex || = " << err_p / norm_p << "\n";
 
-	// 12. Save the refined mesh and the solution in parallel. This output can
-	//     be viewed later using GLVis: "glvis -m mesh -g sol".
+	// 10. Save the mesh and the solution. This output can
+	//     be viewed later using GLVis: "glvis -m ex5.mesh -g sol_u.gf"
+	//     or "glvis -m ex5.mesh -g sol_p.gf".
 	{
 		ofstream mesh_ofs("ex5.mesh");
 		mesh_ofs.precision(8);
@@ -254,7 +265,7 @@ int main (int argc, char *argv[])
 		p.Save(p_ofs);
 	}
 
-	// 13. (Optional) Send the solution by socket to a GLVis server.
+	// 11. (Optional) Send the solution by socket to a GLVis server.
 	{
 		char vishost[] = "localhost";
 		int  visport   = 19916;
@@ -270,7 +281,7 @@ int main (int argc, char *argv[])
 		p.Save(p_sock);
 	}
 
-	// 14. Free the used memory.;
+	// 12. Free the used memory.;
 	delete fform;
 	delete gform;
 	delete invM;

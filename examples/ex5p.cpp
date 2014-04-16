@@ -1,6 +1,6 @@
 //                                MFEM Example 5
 //
-// Compile with: make ex5p
+// Compile with: make ex5
 //
 // Sample runs:  mpirun -np 4 ex5p ../data/square-disc.mesh
 //               mpirun -np 4 ex5p ../data/star.mesh
@@ -13,7 +13,7 @@
 //               corresponding to the saddle point system
 //               k*u + grad p = f
 //               - div u      = g
-//               with boundary condition -p = <given pressure>.
+//               with natural boundary condition -p = <given pressure>.
 //               Here, we use a given exact solution (u,p)
 //               and compute the corresponding r.h.s. (f,g).  We discretize with
 //               Raviart-Thomas finite elements (velocity u)
@@ -26,6 +26,7 @@
 #include <fstream>
 #include "mfem.hpp"
 
+// Define the analytical solution and forcing terms / bc
 void uFun_ex(const Vector & x, Vector & u);
 double pFun_ex(Vector & x);
 void fFun(const Vector & x, Vector & f);
@@ -48,7 +49,7 @@ int main (int argc, char *argv[])
 	if (argc == 1)
 	{
 		if (myid == 0)
-			cout << "\nUsage: mpirun -np <np> ex1p <mesh_file>\n" << endl;
+			cout << "\nUsage: mpirun -np <np> ex5p <mesh_file>\n" << endl;
 		MPI_Finalize();
 		return 1;
 	}
@@ -89,10 +90,12 @@ int main (int argc, char *argv[])
 			pmesh->UniformRefinement();
 	}
 
+	// Reorient Tetraheadral mesh (necessary if one uses high order RT spaces)
+	pmesh->ReorientTetMesh();
 
 	// 5. Define a parallel finite element space on the parallel mesh. Here we
 	//    use the lowest order Raviart-Thomas finite elements, but we can easily
-	//    swich to higher-order spaces by changing the value of p.
+	//    switch to higher-order spaces by changing the value of *order*.
 	int order(0);
 	FiniteElementCollection * hdiv_coll(new RT_FECollection(order,pmesh->Dimension()));
 	FiniteElementCollection * l2_coll(new L2_FECollection(order,pmesh->Dimension()));
@@ -106,13 +109,13 @@ int main (int argc, char *argv[])
 	if(verbose)
 	{
 		std::cout << "***********************************************************\n";
-		std::cout << "dim(R) = " << dimR << std::endl;
-		std::cout << "dim(W) = " << dimW << std::endl;
-		std::cout << "dim(R+W) = " << dimR + dimW << std::endl;
+		std::cout << "dim(R) = " << dimR << "\n";
+		std::cout << "dim(W) = " << dimW << "\n";
+		std::cout << "dim(R+W) = " << dimR + dimW << "\n";
 		std::cout << "***********************************************************\n";
 	}
 
-	// 6. Coefficients
+	// 6. Define the coefficients, analytical solution, and rhs of the PDE
 	ConstantCoefficient k( 1. );
 
 	VectorFunctionCoefficient fcoeff(pmesh->Dimension(), fFun);
@@ -138,16 +141,20 @@ int main (int argc, char *argv[])
 	HypreParVector * f_p = gform->ParallelAssemble();
 
 	// 8. Assemble the finite element matrices for the Darcy operator
-	// Darcy augmented operator and preconditioner
 	/*
 	 * \D = [ M        B^T ]
 	 *      [ B         0   ]
 	 *
-	 * 	M = \int_\Omega k u_h \cdot v_h d\Omega   \u_h, v_h \in R_h
-	 *  W = \int_\Omega p_h q_h d\Omega            p_h, q_h \in W_h
+	 *  where:
 	 *
-	 *  B   = -\int_\Omega \div u_h q_h d\Omega       u_h \in R_h, q_h \in W_h
-	 *  D   : R_h --> W_h s.t. p_h = D u_h --> p_h = \div u_h aka B = -WD
+	 * 	M = \int_\Omega k u_h \cdot v_h d\Omega   u_h, v_h \in R_h
+	 *  B   = -\int_\Omega \div u_h q_h d\Omega   u_h \in R_h, q_h \in W_h
+	 *
+	 *  The mixed bilinear form B is computed as B = W*D, where
+     *  W is the pressure mass matrix
+	 *  W = \int_\Omega p_h q_h d\Omega            p_h, q_h \in W_h
+	 *  and D is the discrete divergence operator that maps the RT-space in piecewise discontinuous polynomials space.
+	 *  D   : R_h --> W_h s.t. p_h = D u_h --> p_h = \div u_h
 	 */
 
 	ParBilinearForm * mVarf( new ParBilinearForm(R_space));
@@ -176,15 +183,22 @@ int main (int argc, char *argv[])
 	HypreParMatrix * B = ParMult(W,D);
 	(*B) *= -1;
 	HypreParMatrix * BT = B->Transpose();
+	
+	BlockOperator * darcyOp = new BlockOperator(2,2);
+	darcyOp->SetBlock(0,0, M, M->GetNumRows(), M->GetNumRows() );
+	darcyOp->SetBlock(0,1, BT, BT->GetNumRows(), B->GetNumRows() );
+	darcyOp->SetBlock(1,0, B, B->GetNumRows(), BT->GetNumRows() );
+	darcyOp->Finalize();
 
 
-	// 8. Create the operators for preconditioner
+	// 9. Construct the operators for preconditioner
 	/*
 	 *  \P = [ diag(M)         0         ]
 	 *       [  0       B diag(M)^-1 B^T ]
 	 *
-	 *  We use HypreBoomerAMG to approximate the inverse of the pressure Schur Complement
+	 *  Here we use HypreBoomerAMG to approximate the inverse of the pressure Schur Complement
 	 */
+	 
 	HypreParMatrix * MinvBt = B->Transpose();
 	HypreParVector * Md = new HypreParVector(MPI_COMM_WORLD, M->GetGlobalNumRows(), M->GetRowStarts());
 	M->GetDiag(*Md);
@@ -192,25 +206,20 @@ int main (int argc, char *argv[])
 	MinvBt->InvLeftScaling(*Md);
 	HypreParMatrix * S = ParMult(B, MinvBt );
 
-	HypreParMatrix * A = M;
-	HypreSolver * invA, *invS;
-	invA = new HypreDiagScale(*A);
+	HypreSolver * invM, *invS;
+	invM = new HypreDiagScale(*M);
 	invS = new HypreBoomerAMG(*S);
 
-	invA->iterative_mode = false;
+	invM->iterative_mode = false;
 	invS->iterative_mode = false;
-
-	// 8. Setup the BlockOperators and solve the linear system with MINRES
-	BlockOperator * darcyOp = new BlockOperator(2,2);
-	darcyOp->SetBlock(0,0, A, A->GetNumRows(), A->GetNumRows() );
-	darcyOp->SetBlock(0,1, BT, BT->GetNumRows(), B->GetNumRows() );
-	darcyOp->SetBlock(1,0, B, B->GetNumRows(), BT->GetNumRows() );
-	darcyOp->Finalize();
-
+	
 	BlockDiagonalPreconditioner * darcyPr = new BlockDiagonalPreconditioner(2);
-	darcyPr->SetDiagonalBlock(0, invA, A->GetNumRows() );
+	darcyPr->SetDiagonalBlock(0, invM, M->GetNumRows() );
 	darcyPr->SetDiagonalBlock(1, invS, S->GetNumRows() );
 	darcyPr->Finalize();
+
+	// 10. Stride the right hand side and solve the linear system with MINRES.
+	//     Check the norm of the unpreconditioned residual
 
 	Array<int> row_starts_monolithic;
 	BlockHypreParVector * rhs( stride(*f_u, *f_p, row_starts_monolithic) );
@@ -229,11 +238,11 @@ int main (int argc, char *argv[])
 	solver.SetMaxIter(maxIter);
 	solver.SetOperator(*darcyOp);
 	solver.SetPreconditioner(*darcyPr);
-	solver.SetPrintLevel(myid == 0);
+	solver.SetPrintLevel(verbose);
 	solver.Mult(*rhs, *x);
 	chrono.Stop();
 
-	if(myid == 0)
+	if(verbose)
 	{
 		if( solver.GetConverged() )
 			std::cout << "MINRES converged in " << solver.GetNumIterations() << " with a residual norm of " << solver.GetFinalNorm() << ".\n";
@@ -261,7 +270,7 @@ int main (int argc, char *argv[])
 	*u = x->Block(0);
 	*p = x->Block(1);
 
-	int order_quad = 2;
+	int order_quad = max(2, 2*order+1);
 	Array<const IntegrationRule *> irs;
 	for(int i(0); i < Geometry::NumGeom; ++i)
 		irs.Append(&(IntRules.Get(i, order_quad)));
@@ -278,7 +287,7 @@ int main (int argc, char *argv[])
 	}
 
 	// 12. Save the refined mesh and the solution in parallel. This output can
-	//     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
+	//     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol_*".
 	{
 		ostringstream mesh_name, u_name, p_name;
 		mesh_name << "mesh." << setfill('0') << setw(6) << myid;
@@ -328,7 +337,7 @@ int main (int argc, char *argv[])
 	delete x;
 	delete rhs;
 	delete r;
-	delete invA;
+	delete invM;
 	delete invS;
 	delete S;
 	delete Md;
