@@ -311,9 +311,23 @@ NURBSPatch::NURBSPatch(istream &input)
    init(dim + 1);
 
    input >> ws >> ident; // controlpoints (homogeneous coordinates)
-   for (int j = 0, i = 0; i < size; i++)
-      for (int d = 0; d <= dim; d++, j++)
-         input >> data[j];
+   if (ident == "controlpoints" || ident == "controlpoints_homogeneous")
+   {
+      for (int j = 0, i = 0; i < size; i++)
+         for (int d = 0; d <= dim; d++, j++)
+            input >> data[j];
+   }
+   else // "controlpoints_cartesian" (Cartesian coordinates with weight)
+   {
+      for (int j = 0, i = 0; i < size; i++)
+      {
+         for (int d = 0; d <= dim; d++)
+            input >> data[j+d];
+         for (int d = 0; d < dim; d++)
+            data[j+d] *= data[j+dim];
+         j += (dim+1);
+      }
+   }
 }
 
 NURBSPatch::NURBSPatch(KnotVector *kv0, KnotVector *kv1, int dim_)
