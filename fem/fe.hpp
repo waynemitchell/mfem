@@ -1289,6 +1289,7 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   const Array<int> &GetDofMap() const { return dof_map; }
 };
 
 
@@ -1307,6 +1308,7 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   const Array<int> &GetDofMap() const { return dof_map; }
 };
 
 class H1Pos_SegmentElement : public FiniteElement
