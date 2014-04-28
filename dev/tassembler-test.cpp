@@ -8,7 +8,7 @@ using namespace std;
 
 int main()
 {
-   const int dim = 2;   // space dimension
+   const int dim = 2;   // space dimension (3D not implemented)
    const int p   = 2;   // polynomial degree
    const int q   = 4;   // quadrature points in each spatial direction
    const int ne  = 16;  // number of elements processed at a time
@@ -24,11 +24,13 @@ int main()
    typedef TMassIntegrator<dim, nq>      mass_integ_type;
    typedef TDiffusionIntegrator<dim, nq> diff_integ_type;
    // number of flops per quadrature point
-   double flops_mass_integ = 0.;
-   double flops_diff_integ = 0.;
+   double flops_mass_integ = 0., flops_mass_integ_asm = 0.;
+   double flops_diff_integ = 0., flops_diff_integ_asm = 0.;
    if (dim == 2)
    {
       flops_mass_integ = 3; // multiplies only
+
+      flops_mass_integ_asm = 1; // flops in Calc (assembled form)
 
       flops_diff_integ += 0; // CalcAdjugate
       flops_diff_integ += 4; // adjJ^t.d_phi
@@ -36,10 +38,14 @@ int main()
       flops_diff_integ += 1; // one division
       flops_diff_integ += 2; // grad*=val
       flops_diff_integ += 4; // adjJ.grad
+
+      flops_diff_integ_asm = 4; // flops in Calc (assembled form)
    }
    else if (dim == 3)
    {
       flops_mass_integ = 10; // multiplies only
+
+      flops_mass_integ_asm = 1; // flops in Calc (assembled form)
    }
 
    typedef TensorProductBasis<dim, p, q, ne> basis_type;
@@ -151,8 +157,37 @@ int main()
         << "Diffusion matrix:  total data = " << (diff_dd+diff_id)/MiB
         << " MiB" << endl;
 
+   // partial assembly in TAssembler
+   cout << endl << "Partial assembly: TAssembler::Assemble:\n"
+        << "mass ...      " << flush;
+   tic();
+   mass_assembler.Assemble();
+   tic_toc.Stop();
+   utime = tic_toc.UserTime();
+   rtime = tic_toc.RealTime();
+   cout << " utime = " << utime << " s, rtime = " << rtime << " s" << endl;
+   cout << "diffusion ... " << flush;
+   tic();
+   diff_assembler.Assemble();
+   tic_toc.Stop();
+   utime = tic_toc.UserTime();
+   rtime = tic_toc.RealTime();
+   cout << " utime = " << utime << " s, rtime = " << rtime << " s" << endl;
+
+   // size of the assembled data in TAssembler
+   double mass_asm_dd = (double(sizeof(mass_integ_type::assembled_type)) *
+                         basis_type::total_qpts * mesh->GetNE());
+   double diff_asm_dd = (double(sizeof(diff_integ_type::assembled_type)) *
+                         basis_type::total_qpts * mesh->GetNE());
+   cout << endl
+        << "Size of the partially assembled data:\n"
+        << "Mass      = " << mass_asm_dd/MiB << " MiB\n"
+        << "Diffusion = " << diff_asm_dd/MiB << " MiB" << endl;
+
 #if 0
+   // test the experimental implementation for correctness
    double max_mass_error = 0.0, max_diff_error = 0.0, max_diff_error_2 = 0.0;
+   double max_mass_error_asm = 0.0, max_diff_error_asm = 0.0;
    GridFunction u(fes), v_tmpl(fes), v_mfem(fes);
 
    cout << endl << "Comparing Mult() on " << num_mults
@@ -160,15 +195,27 @@ int main()
    for (int i = 0; i < num_mults; i++)
    {
       u.Randomize();
+      mass_assembler.use_assembled_data = false;
       mass_assembler.Mult(u, v_tmpl);
       mass_form.Mult(u, v_mfem);
-      v_mfem -= v_tmpl;
-      max_mass_error = fmax(max_mass_error, v_mfem.Normlinf());
+      v_tmpl -= v_mfem;
+      max_mass_error = fmax(max_mass_error, v_tmpl.Normlinf());
+
+      mass_assembler.use_assembled_data = true;
+      mass_assembler.Mult(u, v_tmpl);
+      v_tmpl -= v_mfem;
+      max_mass_error_asm = fmax(max_mass_error_asm, v_tmpl.Normlinf());
 
       diff_form.Mult(u, v_mfem);
+      diff_assembler.use_assembled_data = false;
       diff_assembler.Mult(u, v_tmpl);
       v_tmpl -= v_mfem;
       max_diff_error = fmax(max_diff_error, v_tmpl.Normlinf());
+
+      diff_assembler.use_assembled_data = true;
+      diff_assembler.Mult(u, v_tmpl);
+      v_tmpl -= v_mfem;
+      max_diff_error_asm = fmax(max_diff_error_asm, v_tmpl.Normlinf());
 
       diff_actn.Mult(u, v_tmpl);
       v_tmpl -= v_mfem;
@@ -176,12 +223,17 @@ int main()
    }
 
    cout << " done." << endl
+        << "Errors relative to assembled MFEM:\n"
         << "max_mass_error = " << max_mass_error
-        << " (templated - assembled MFEM)" << endl
+        << " (experimental)" << endl
+        << "max_mass_error = " << max_mass_error_asm
+        << " (assembled experimental)" << endl
         << "max_diff_error = " << max_diff_error
-        << " (templated - assembled MFEM)" << endl
+        << " (experimental)" << endl
+        << "max_diff_error = " << max_diff_error_asm
+        << " (assembled experimental)" << endl
         << "max_diff_error = " << max_diff_error_2
-        << " (action MFEM - assembled MFEM)" << endl;
+        << " (action MFEM)" << endl;
 #endif
 
    int num_vecs = max_mem/(sizeof(double)*size);
@@ -202,8 +254,9 @@ int main()
    cout << " done." << endl;
 
    cout << endl;
-   cout << "Assembler using templates:" << endl;
+   cout << "Experimental assembler (NOT using assembled data):" << endl;
 
+   mass_assembler.use_assembled_data = false;
    tic();
    for (int i = 0; i < num_vecs; i++)
    {
@@ -225,7 +278,7 @@ int main()
    cout << "Mass assembler:         utime = " << utime << " s" << endl;
    cout << "Mass assembler:         rtime = " << rtime << " s" << endl;
    cout << "Mass assembler:        Gflops = " << flops/1e9
-        << " = " << bflops/1e9 << " basis + " << qflops << " qpts" << endl;
+        << " = " << bflops/1e9 << " basis + " << qflops/1e9 << " qpts" << endl;
    cout << "Mass assembler:      Gflops/s = " << flops/1e9/rtime << endl;
    cout << "Mass assembler:           GiB = " << (rmops+wmops)/GiB
         << " = " << rmops/GiB << " read + " << wmops/GiB << " write" << endl;
@@ -235,6 +288,7 @@ int main()
 
    cout << endl;
 
+   diff_assembler.use_assembled_data = false;
    tic();
    for (int i = 0; i < num_vecs; i++)
    {
@@ -256,7 +310,73 @@ int main()
    cout << "Diffusion assembler:    utime = " << utime << " s" << endl;
    cout << "Diffusion assembler:    rtime = " << rtime << " s" << endl;
    cout << "Diffusion assembler:   Gflops = " << flops/1e9
-        << " = " << bflops/1e9 << " basis + " << qflops << " qpts" << endl;
+        << " = " << bflops/1e9 << " basis + " << qflops/1e9 << " qpts" << endl;
+   cout << "Diffusion assembler: Gflops/s = " << flops/1e9/rtime << endl;
+
+   cout << "Diffusion assembler:      GiB = " << (rmops+wmops)/GiB
+        << " = " << rmops/GiB << " read + " << wmops/GiB << " write" << endl;
+   cout << "Diffusion assembler:    GiB/s = " << (rmops+wmops)/GiB/rtime
+        << " = " << rmops/GiB/rtime << " read + " << wmops/GiB/rtime
+        << " write" << endl;
+
+   cout << endl;
+   cout << "Experimental assembler (using assembled data):" << endl;
+
+   mass_assembler.use_assembled_data = true;
+   tic();
+   for (int i = 0; i < num_vecs; i++)
+   {
+      ui.SetData(&us(i*size));
+      vi.SetData(&vs(i*size));
+
+      mass_assembler.Mult(ui, vi);
+   }
+   tic_toc.Stop();
+   utime = tic_toc.UserTime();
+   rtime = tic_toc.RealTime();
+   bflops = flops_basis*(2);
+   bflops *= mesh->GetNE()*num_vecs;
+   qflops = (flops_mass_integ_asm+1)*basis_type::total_qpts;
+   qflops *= mesh->GetNE()*num_vecs;
+   flops = bflops + qflops;
+   rmops = (svec_dd + mass_asm_dd + eldof_id)*num_vecs;
+   wmops = svec_dd*num_vecs;
+   cout << "Mass assembler:         utime = " << utime << " s" << endl;
+   cout << "Mass assembler:         rtime = " << rtime << " s" << endl;
+   cout << "Mass assembler:        Gflops = " << flops/1e9
+        << " = " << bflops/1e9 << " basis + " << qflops/1e9 << " qpts" << endl;
+   cout << "Mass assembler:      Gflops/s = " << flops/1e9/rtime << endl;
+   cout << "Mass assembler:           GiB = " << (rmops+wmops)/GiB
+        << " = " << rmops/GiB << " read + " << wmops/GiB << " write" << endl;
+   cout << "Mass assembler:         GiB/s = " << (rmops+wmops)/GiB/rtime
+        << " = " << rmops/GiB/rtime << " read + " << wmops/GiB/rtime
+        << " write" << endl;
+
+   cout << endl;
+
+   diff_assembler.use_assembled_data = true;
+   tic();
+   for (int i = 0; i < num_vecs; i++)
+   {
+      ui.SetData(&us(i*size));
+      vi.SetData(&vs(i*size));
+
+      diff_assembler.Mult(ui, vi);
+   }
+   tic_toc.Stop();
+   utime = tic_toc.UserTime();
+   rtime = tic_toc.RealTime();
+   bflops = flops_basis*(2*dim);
+   bflops *= mesh->GetNE()*num_vecs;
+   qflops = (flops_diff_integ_asm+1)*basis_type::total_qpts;
+   qflops *= mesh->GetNE()*num_vecs;
+   flops = bflops + qflops;
+   rmops = (svec_dd + diff_asm_dd + eldof_id)*num_vecs;
+   wmops = svec_dd*num_vecs;
+   cout << "Diffusion assembler:    utime = " << utime << " s" << endl;
+   cout << "Diffusion assembler:    rtime = " << rtime << " s" << endl;
+   cout << "Diffusion assembler:   Gflops = " << flops/1e9
+        << " = " << bflops/1e9 << " basis + " << qflops/1e9 << " qpts" << endl;
    cout << "Diffusion assembler: Gflops/s = " << flops/1e9/rtime << endl;
 
    cout << "Diffusion assembler:      GiB = " << (rmops+wmops)/GiB
@@ -305,7 +425,7 @@ int main()
    tic_toc.Stop();
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
-   flops = double(diff_mat.NumNonZeroElems()*num_vecs); // multiplies only
+   flops = double(diff_mat.NumNonZeroElems())*num_vecs; // multiplies only
    rmops = (svec_dd + diff_dd + diff_id)*num_vecs;
    wmops = svec_dd*num_vecs;
    cout << "Diffusion form:         utime = " << utime << " s" << endl;
@@ -318,11 +438,14 @@ int main()
         << " = " << rmops/GiB/rtime << " read + " << wmops/GiB/rtime
         << " write" << endl;
 
-#if 0
+#if 1
    cout << endl;
+   cout << "MFEM matrix-vector product (no matrix assembly):" << endl;
+   int actn_num_vecs = num_vecs/10;
+   cout << "number of matrix-vector products = " << actn_num_vecs << endl;
 
    tic();
-   for (int i = 0; i < num_vecs; i++)
+   for (int i = 0; i < actn_num_vecs; i++)
    {
       ui.SetData(&us(i*size));
       vi.SetData(&vs(i*size));
@@ -333,8 +456,8 @@ int main()
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = 0.;
-   rmops = (svec_dd + vvec_dd + eldof_id)*num_vecs;
-   wmops = svec_dd*num_vecs;
+   rmops = (svec_dd + vvec_dd + eldof_id)*actn_num_vecs;
+   wmops = svec_dd*actn_num_vecs;
    cout << "Diffusion action:       utime = " << utime << " s" << endl;
    cout << "Diffusion action:       rtime = " << rtime << " s" << endl;
    cout << "Diffusion action:      Gflops = " << flops/1e9 << endl;

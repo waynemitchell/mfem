@@ -17,6 +17,14 @@ protected:
    double qpt_weights[Basis::qpts_1d]; // 1D quadrature weights
    Table elem_dof; // dofs in tensor product local ordering
 
+   typename Integ::assembled_type *assembled_data;
+
+   inline void ReorderBasisToIntegrator_Mesh(
+      const int qpt_bi, const double *x_loc_qpt, const double *J_loc_qpt,
+      double *integ) const;
+   inline void ReorderBasisToIntegrator_Field(
+      const int qpt_bi, const double *u_loc_qpt, const double *d_loc_qpt,
+      double *integ) const;
    inline void ReorderBasisToIntegrator(
       const int qpt_bi, const double *x_loc_qpt, const double *J_loc_qpt,
       const double *u_loc_qpt, const double *d_loc_qpt, double *integ) const;
@@ -26,8 +34,15 @@ protected:
 
    inline void ApplyWeights(double *loc_qpt) const;
 
+   void MultAssembled(const Vector &x, Vector &y) const;
+   void MultNotAssembled(const Vector &x, Vector &y) const;
+
 public:
+   bool use_assembled_data;
+
    TAssembler(FiniteElementSpace *_fes);
+
+   void Assemble();
 
    virtual void Mult(const Vector &x, Vector &y) const;
 
@@ -36,7 +51,7 @@ public:
    void PrintIntegrator();
    void PrintBasis();
 
-   virtual ~TAssembler() { }
+   virtual ~TAssembler() { delete [] assembled_data; }
 };
 
 
@@ -134,6 +149,84 @@ TAssembler<Integ,Basis,isDG>::TAssembler(FiniteElementSpace *_fes)
          int *dofs_tp = elem_dof.GetRow(i);
          for (int j = 0; j < dof; j++)
             dofs_tp[j] = dofs_in[(*dof_map)[j]]; // dof_map[tp_idx]==def_idx
+      }
+   }
+
+   assembled_data = NULL;
+   use_assembled_data = true;
+}
+
+template <class Integ, class Basis, bool isDG>
+inline void TAssembler<Integ,Basis,isDG>::ReorderBasisToIntegrator_Mesh(
+   const int qpt_bi, const double *x_loc_qpt, const double *J_loc_qpt,
+   double *integ) const
+{
+   const int nc0 = Integ::num_input_comp[0];
+
+   for (int qi = 0, off = 0; qi < Integ::num_qdr_points; qi++)
+   {
+      // values for input 0 (mesh)
+      if (Integ::input_data[0] == Integ::VALUE ||
+          Integ::input_data[0] == Integ::VALUE_AND_GRADIENT)
+      {
+         // x_loc_qpt is
+         // Basis::total_qpts * Basis::num_entries * nc0
+         for (int c = 0; c < nc0; c++)
+         {
+            integ[off + c] =
+               x_loc_qpt[qi + qpt_bi * Integ::num_qdr_points +
+                         c * (Basis::total_qpts * Basis::num_entries)];
+         }
+         off += nc0;
+      }
+      // gradient for input 0 (mesh)
+      if (Integ::input_data[0] == Integ::GRADIENT ||
+          Integ::input_data[0] == Integ::VALUE_AND_GRADIENT)
+      {
+         // J_loc_qpt is
+         // Basis::total_qpts * Basis::num_entries * Basis::dim * nc0
+         for (int c = 0; c < nc0; c++)
+            for (int d = 0; d < Basis::dim; d++)
+            {
+               integ[off + c + d * nc0] =
+                  J_loc_qpt[qi + qpt_bi * Integ::num_qdr_points +
+                            (d + c * Basis::dim) *
+                            (Basis::total_qpts * Basis::num_entries)];
+            }
+         off += nc0 * Basis::dim;
+      }
+   }
+}
+
+template <class Integ, class Basis, bool isDG>
+inline void TAssembler<Integ,Basis,isDG>::ReorderBasisToIntegrator_Field(
+   const int qpt_bi, const double *u_loc_qpt, const double *d_loc_qpt,
+   double *integ) const
+{
+   for (int qi = 0, off = 0; qi < Integ::num_qdr_points; qi++)
+   {
+      // values for input 1 ('u')
+      if (Integ::input_data[1] == Integ::VALUE ||
+          Integ::input_data[1] == Integ::VALUE_AND_GRADIENT)
+      {
+         // u_loc_qpt is
+         // Basis::total_qpts * Basis::num_entries
+         integ[off] = u_loc_qpt[qi + qpt_bi * Integ::num_qdr_points];
+         off++;
+      }
+      // gradient for input 1 ('u')
+      if (Integ::input_data[1] == Integ::GRADIENT ||
+          Integ::input_data[1] == Integ::VALUE_AND_GRADIENT)
+      {
+         // d_loc_qpt is
+         // Basis::total_qpts * Basis::num_entries * Basis::dim
+         for (int d = 0; d < Basis::dim; d++)
+         {
+            integ[off + d] =
+               d_loc_qpt[qi + qpt_bi * Integ::num_qdr_points +
+                         d * (Basis::total_qpts * Basis::num_entries)];
+         }
+         off += Basis::dim;
       }
    }
 }
@@ -253,7 +346,175 @@ inline void TAssembler<Integ,Basis,isDG>::ApplyWeights(double *loc_qpt) const
 }
 
 template <class Integ, class Basis, bool isDG>
-void TAssembler<Integ,Basis,isDG>::Mult(const Vector &u, Vector &v) const
+void TAssembler<Integ,Basis,isDG>::Assemble()
+{
+   int num_elem_blocks = mesh->GetNE() / Basis::num_entries;
+   const double *mesh_node_data = mesh->GetNodes()->GetData();
+   int comp_size = size;
+   const int *el_dof;
+
+   const int num_integ_calls =
+      (Basis::total_qpts * Basis::num_entries) / Integ::num_qdr_points;
+   const int nc0 = Integ::num_input_comp[0];
+
+   // quadrature point values and gradients
+   double x_loc_qpt[Basis::total_qpts * Basis::num_entries * nc0];
+   double J_loc_qpt[Basis::total_qpts * Basis::num_entries * Basis::dim * nc0];
+
+   typename Integ::a_input_type integ_a_data_in[Integ::num_qdr_points];
+
+   if (assembled_data == NULL)
+      assembled_data =
+         new typename Integ::assembled_type[Basis::total_qpts * mesh->GetNE()];
+   typename Integ::assembled_type *asm_data;
+
+   for (int el_bi = 0; el_bi < num_elem_blocks; el_bi++)
+   {
+      el_dof = elem_dof.GetRow(el_bi * Basis::num_entries);
+
+      // Convert dof->qpt values for input 0 (mesh)
+      if (Integ::input_data[0] == Integ::VALUE ||
+          Integ::input_data[0] == Integ::VALUE_AND_GRADIENT)
+      {
+         for (int c = 0; c < nc0; c++)
+            basis.Calc(el_dof, &mesh_node_data[c * comp_size],
+                       &x_loc_qpt[c * (Basis::total_qpts *
+                                       Basis::num_entries)]);
+      }
+      // Convert dof->qpt grad for input 0 (mesh)
+      if (Integ::input_data[0] == Integ::GRADIENT ||
+          Integ::input_data[0] == Integ::VALUE_AND_GRADIENT)
+      {
+         for (int c = 0; c < nc0; c++)
+            basis.GradCalc(el_dof, &mesh_node_data[c * comp_size],
+                           &J_loc_qpt[c * (Basis::total_qpts *
+                                           Basis::num_entries *
+                                           Basis::dim)]);
+      }
+
+      asm_data = &assembled_data[el_bi * (Basis::total_qpts *
+                                          Basis::num_entries)];
+      for (int qpt_bi = 0; qpt_bi < num_integ_calls; qpt_bi++)
+      {
+         // Reorder the 'basis' data for the 'integrator'
+         // Can we eliminate this reordering?
+         ReorderBasisToIntegrator_Mesh(qpt_bi, x_loc_qpt, J_loc_qpt,
+                                       (double *)(&integ_a_data_in[0]));
+
+         // Assemble
+         integrator.Assemble(integ_a_data_in,
+                             &asm_data[qpt_bi * Integ::num_qdr_points]);
+      }
+   }
+}
+
+template <class Integ, class Basis, bool isDG>
+void TAssembler<Integ,Basis,isDG>::MultAssembled(
+   const Vector &u, Vector &v) const
+{
+   int num_elem_blocks = mesh->GetNE() / Basis::num_entries;
+   const double *u_data = u.GetData();
+   double *v_data = v.GetData();
+   int comp_size = size;
+   const int *el_dof;
+
+   const int num_integ_calls =
+      (Basis::total_qpts * Basis::num_entries) / Integ::num_qdr_points;
+
+   // quadrature point values and gradients
+   double u_loc_qpt[Basis::total_qpts * Basis::num_entries];
+   double d_loc_qpt[Basis::total_qpts * Basis::num_entries * Basis::dim];
+
+   typename Integ::b_input_type integ_b_data_in[Integ::num_qdr_points];
+   typename Integ::output_type integ_data_out[Integ::num_qdr_points];
+
+   const typename Integ::assembled_type *asm_data;
+
+   v = 0.0;
+
+   for (int el_bi = 0; el_bi < num_elem_blocks; el_bi++)
+   {
+      if (isDG)
+      {
+         // TODO
+      }
+      else // isDG == false
+      {
+         el_dof = elem_dof.GetRow(el_bi * Basis::num_entries);
+
+         // Convert dof->qpt values for input 1 ('u')
+         if (Integ::input_data[1] == Integ::VALUE ||
+             Integ::input_data[1] == Integ::VALUE_AND_GRADIENT)
+         {
+            basis.Calc(el_dof, u_data, u_loc_qpt);
+         }
+         // Convert dof->qpt grad for input 1 ('u')
+         if (Integ::input_data[1] == Integ::GRADIENT ||
+             Integ::input_data[1] == Integ::VALUE_AND_GRADIENT)
+         {
+            basis.GradCalc(el_dof, u_data, d_loc_qpt);
+         }
+      }
+
+      asm_data = &assembled_data[el_bi * (Basis::total_qpts *
+                                          Basis::num_entries)];
+      for (int qpt_bi = 0; qpt_bi < num_integ_calls; qpt_bi++)
+      {
+         // Reorder the 'basis' data for the 'integrator'
+         // Can we eliminate this reordering?
+         ReorderBasisToIntegrator_Field(qpt_bi, u_loc_qpt, d_loc_qpt,
+                                        (double *)(&integ_b_data_in[0]));
+
+         // Apply the 'integrator'
+         integrator.Calc(integ_b_data_in,
+                         &asm_data[qpt_bi * Integ::num_qdr_points],
+                         integ_data_out);
+
+         // Reorder the 'integrator' data for the 'basis'
+         // Can we eliminate this reordering?
+         ReorderIntegratorToBasis(qpt_bi, (const double *)(&integ_data_out[0]),
+                                  u_loc_qpt, d_loc_qpt);
+      }
+
+      // Multiply by the quadrature point weights
+      if (Integ::output_data[0] == Integ::VALUE ||
+          Integ::output_data[0] == Integ::VALUE_AND_GRADIENT)
+      {
+         for (int ei = 0; ei < Basis::num_entries; ei++)
+            ApplyWeights(&u_loc_qpt[ei * Basis::total_qpts]);
+      }
+      if (Integ::output_data[0] == Integ::GRADIENT ||
+          Integ::output_data[0] == Integ::VALUE_AND_GRADIENT)
+      {
+         for (int ei = 0; ei < (Basis::num_entries * Basis::dim); ei++)
+            ApplyWeights(&d_loc_qpt[ei * Basis::total_qpts]);
+      }
+
+      if (isDG)
+      {
+         // TODO
+      }
+      else
+      {
+         // Add qpt values to dofs from output 0 ('v')
+         if (Integ::output_data[0] == Integ::VALUE ||
+             Integ::output_data[0] == Integ::VALUE_AND_GRADIENT)
+         {
+            basis.template CalcT<true>(el_dof, u_loc_qpt, v_data);
+         }
+         // Add qpt gradients to dofs from output 0 ('v')
+         if (Integ::output_data[0] == Integ::GRADIENT ||
+             Integ::output_data[0] == Integ::VALUE_AND_GRADIENT)
+         {
+            basis.template GradCalcT<true>(el_dof, d_loc_qpt, v_data);
+         }
+      }
+   }
+}
+
+template <class Integ, class Basis, bool isDG>
+void TAssembler<Integ,Basis,isDG>::MultNotAssembled(
+   const Vector &u, Vector &v) const
 {
    int num_elem_blocks = mesh->GetNE() / Basis::num_entries;
    const double *mesh_node_data = mesh->GetNodes()->GetData();
@@ -283,7 +544,7 @@ void TAssembler<Integ,Basis,isDG>::Mult(const Vector &u, Vector &v) const
       {
          // TODO
       }
-      else // isDG
+      else // isDG == false
       {
          el_dof = elem_dof.GetRow(el_bi * Basis::num_entries);
 
@@ -372,6 +633,15 @@ void TAssembler<Integ,Basis,isDG>::Mult(const Vector &u, Vector &v) const
          }
       }
    }
+}
+
+template <class Integ, class Basis, bool isDG>
+void TAssembler<Integ,Basis,isDG>::Mult(const Vector &u, Vector &v) const
+{
+   if (assembled_data == NULL || use_assembled_data == false)
+      MultNotAssembled(u, v);
+   else
+      MultAssembled(u, v);
 }
 
 template <class Integ, class Basis, bool isDG>
