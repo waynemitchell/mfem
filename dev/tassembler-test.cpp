@@ -141,18 +141,20 @@ int main()
    const SparseMatrix &mass_mat = mass_form.SpMat();
    const SparseMatrix &diff_mat = diff_form.SpMat();
 
-   double mass_dd = mass_mat.NumNonZeroElems()*double(sizeof(double));
-   double mass_id = ((mass_mat.NumNonZeroElems()+mass_mat.Size()+1)*
-                     double(sizeof(int)));
-   double diff_dd = diff_mat.NumNonZeroElems()*double(sizeof(double));
-   double diff_id = ((diff_mat.NumNonZeroElems()+diff_mat.Size()+1)*
-                     double(sizeof(int)));
+   int mass_nnz = mass_mat.NumNonZeroElems();
+   double mass_dd = mass_nnz*double(sizeof(double));
+   double mass_id = ((mass_nnz+mass_mat.Size()+1)*double(sizeof(int)));
+   int diff_nnz = diff_mat.NumNonZeroElems();
+   double diff_dd = diff_nnz*double(sizeof(double));
+   double diff_id = ((diff_nnz+diff_mat.Size()+1)*double(sizeof(int)));
    cout << endl
+        << "Mass matrix:         nonzeros = " << mass_nnz << "\n"
         << "Mass matrix:      double data = " << mass_dd/MiB << " MiB\n"
         << "Mass matrix:         int data = " << mass_id/MiB << " MiB\n"
         << "Mass matrix:       total data = " << (mass_dd+mass_id)/MiB
         << " MiB\n";
-   cout << "Diffusion matrix: double data = " << diff_dd/MiB << " MiB\n"
+   cout << "Diffusion matrix:    nonzeros = " << diff_nnz << "\n"
+        << "Diffusion matrix: double data = " << diff_dd/MiB << " MiB\n"
         << "Diffusion matrix:    int data = " << diff_id/MiB << " MiB\n"
         << "Diffusion matrix:  total data = " << (diff_dd+diff_id)/MiB
         << " MiB" << endl;
@@ -302,7 +304,7 @@ int main()
    rtime = tic_toc.RealTime();
    bflops = flops_basis*(dim*(dim+2));
    bflops *= mesh->GetNE()*num_vecs;
-   qflops = (flops_diff_integ+1)*basis_type::total_qpts;
+   qflops = (flops_diff_integ+dim)*basis_type::total_qpts;
    qflops *= mesh->GetNE()*num_vecs;
    flops = bflops + qflops;
    rmops = (svec_dd + vvec_dd + eldof_id)*num_vecs;
@@ -368,7 +370,7 @@ int main()
    rtime = tic_toc.RealTime();
    bflops = flops_basis*(2*dim);
    bflops *= mesh->GetNE()*num_vecs;
-   qflops = (flops_diff_integ_asm+1)*basis_type::total_qpts;
+   qflops = (flops_diff_integ_asm+dim)*basis_type::total_qpts;
    qflops *= mesh->GetNE()*num_vecs;
    flops = bflops + qflops;
    rmops = (svec_dd + diff_asm_dd + eldof_id)*num_vecs;
