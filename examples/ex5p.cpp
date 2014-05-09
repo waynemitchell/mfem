@@ -245,9 +245,9 @@ int main (int argc, char *argv[])
 	if(verbose)
 	{
 		if( solver.GetConverged() )
-			std::cout << "MINRES converged in " << solver.GetNumIterations() << " with a residual norm of " << solver.GetFinalNorm() << ".\n";
+			std::cout << "MINRES converged in " << solver.GetNumIterations() << " iterations with a residual norm of " << solver.GetFinalNorm() << ".\n";
 		else
-			std::cout << "MINRES did not converge in " << solver.GetNumIterations() << ". Residual norm is " << solver.GetFinalNorm() << ".\n";
+			std::cout << "MINRES did not converge in " << solver.GetNumIterations() << " iterations. Residual norm is " << solver.GetFinalNorm() << ".\n";
 		std::cout << "MINRES solver took " << chrono.RealTime() << " s. \n";
 	}
 
@@ -256,8 +256,8 @@ int main (int argc, char *argv[])
 	subtract(*rhs, *r, *r);
 
 
-	double residual_norm(r->Norml2());
-	double rhs_norm(rhs->Norml2());
+	double residual_norm = GlobalLpNorm(2., r->Norml2(),   MPI_COMM_WORLD);
+	double rhs_norm      = GlobalLpNorm(2., rhs->Norml2(), MPI_COMM_WORLD);
 
 	if(verbose)
 	{

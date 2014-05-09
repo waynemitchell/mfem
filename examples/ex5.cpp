@@ -215,9 +215,9 @@ int main (int argc, char *argv[])
 	chrono.Stop();
 
 	if( solver.GetConverged() )
-		std::cout << "MINRES converged in " << solver.GetNumIterations() << " with a residual norm of " << solver.GetFinalNorm() << ".\n";
+		std::cout << "MINRES converged in " << solver.GetNumIterations() << " iterations with a residual norm of " << solver.GetFinalNorm() << ".\n";
 	else
-		std::cout << "MINRES did not converge in " << solver.GetNumIterations() << ". Residual norm is " << solver.GetFinalNorm() << ".\n";
+		std::cout << "MINRES did not converge in " << solver.GetNumIterations() << " iterations. Residual norm is " << solver.GetFinalNorm() << ".\n";
 
 	std::cout << "MINRES solver took " << chrono.RealTime() << " s. \n";
 
