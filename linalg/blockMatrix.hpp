@@ -9,8 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef BLOCKMATRIX_HPP_
-#define BLOCKMATRIX_HPP_
+#ifndef MFEM_BLOCKMATRIX
+#define MFEM_BLOCKMATRIX
 
 class BlockMatrix : public SparseRowMatrix {
 public:
@@ -153,4 +153,4 @@ BlockMatrix * Transpose(const BlockMatrix & A);
 //! Multiply BlockMatrix matrices: result = A*B
 BlockMatrix * Mult(const BlockMatrix & A, const BlockMatrix & B);
 
-#endif /* BLOCKMATRIX_HPP_ */
+#endif /* MFEM_BLOCKMATRIX */

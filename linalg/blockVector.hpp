@@ -10,8 +10,8 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 
-#ifndef BLOCKVECTOR_HPP_
-#define BLOCKVECTOR_HPP_
+#ifndef MFEM_BLOCKVECTOR
+#define MFEM_BLOCKVECTOR
 
 //! @class BlockVector
 /*
@@ -94,4 +94,4 @@ BlockVector * stride(const Vector & v1, const Vector & v2);
 BlockVector * stride(const Vector & v1, const Vector & v2, const Vector & v3);
 
 
-#endif /* BLOCKVECTOR_HPP_ */
+#endif /* MFEM_BLOCKVECTOR */

@@ -9,8 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef BLOCKOPERATOR_HPP_
-#define BLOCKOPERATOR_HPP_
+#ifndef MFEM_BLOCKOPERATOR
+#define MFEM_BLOCKOPERATOR
 
 //! @class BlockOperator
 /*
@@ -144,4 +144,4 @@ private:
   
 };
 
-#endif /* BLOCKOPERATOR_HPP_ */
+#endif /* MFEM_BLOCKOPERATOR */
