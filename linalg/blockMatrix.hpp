@@ -83,8 +83,8 @@ public:
 	/// Gets the columns indexes and values for row *row*.
 	/// The return value is always 0 since cols and srow are copies of the values in the matrix.
 	int GetRow(const int row, Array<int> &cols, Vector &srow) const;
-	/// If the matrix is square, it will place 1 on the diagonal (i,i) if row i has "almost" zero l1-norm.
-	/*
+	//! If the matrix is square, it will place 1 on the diagonal (i,i) if row i has "almost" zero l1-norm.
+	/**
 	 * If entry (i,i) does not belong to the sparsity pattern of A, then a error will occur.
 	 */
 	void EliminateZeroRows();

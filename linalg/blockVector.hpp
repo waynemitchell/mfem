@@ -26,7 +26,7 @@ protected:
    //! Number of blocks in the blockVector
    int numBlocks;
    //! Offset for each block start. (length numBlocks+1)
-   /*
+   /**
     * blockOffsets[i+1] - blockOffsets[i] is the size of block i.
     */
    int *blockOffsets;
@@ -42,7 +42,7 @@ public:
    BlockVector();
 
    //! Constructor
-   /*
+   /**
     * bOffsets is an array of integers (length nBlocks+1) that tells the offsets of each block start.
     * nBlocks is the number of blocks.
     */
@@ -68,7 +68,7 @@ public:
    virtual ~BlockVector();
 
    //! Get the i-th vector in the block. (Thread Unsafe)
-   /*
+   /**
     * WARNING: Do not call this method with two different inputs in the same instruction or the results will be undefined.
     */
    Vector & Block(int i);
@@ -79,7 +79,7 @@ public:
    void BlockView(int i, Vector & blockView);
 
    //! Update method
-   /*
+   /**
     * data is an array of double of length at least blockOffsets[numBlocks] that contain all the values of the monolithic vector.
     * bOffsets is an array of integers (length nBlocks+1) that tells the offsets of each block start.
     * nBlocks is the number of blocks.

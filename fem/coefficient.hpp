@@ -367,13 +367,13 @@ public:
    virtual ~MatrixArrayCoefficient();
 };
 
-/// Compute the Lp norm of a function f.
-/// \| f \|_{Lp} = ( \int_\Omega | f |^p d\Omega)^{1/p}
+/** Compute the Lp norm of a function f.
+    \| f \|_{Lp} = ( \int_\Omega | f |^p d\Omega)^{1/p} */
 double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
                      const IntegrationRule *irs[]);
 
-/// Compute the Lp norm of a vector function f = {f_i}_i=1...N.
-/// \| f \|_{Lp} = ( \sum_i \| f_i \|_{Lp}^p )^{1/p}
+/** Compute the Lp norm of a vector function f = {f_i}_i=1...N.
+    \| f \|_{Lp} = ( \sum_i \| f_i \|_{Lp}^p )^{1/p} */
 double ComputeLpNorm(double p, VectorCoefficient &coeff, Mesh &mesh,
                      const IntegrationRule *irs[]);
 

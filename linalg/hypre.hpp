@@ -92,16 +92,19 @@ class BlockHypreParVector : public HypreParVector
 {
 public:
 
-	/** Creates vector with given global size and partitioning of the columns.
-	    Processor P owns columns [col[P],col[P+1])
-	     the number of Blocks (same for all processes)
-	     the array blocks_glob_size[iblock] gives the global dimension of block iblock.
-	     the array2d bLocalSizes[iblock][my_Pid] gives the local size of block iblock on process myPid
-	   */
+	/** Creates vector with given
+	    - the global size glob_size;
+	    - the partitioning of the columns col
+	      (i.e. Processor P owns columns [col[P],col[P+1] )
+	    - the number of blocks nBlocks (same for all processes)
+	    - the global dimension of each block
+	      (i.e. the global dimension of block iblock is blocks_glob_size[iblock])
+	    - the local dimension of each block bLocalSizes
+	      (i.e. the 2d array bLocalSizes[iblock][my_Pid] gives the local size of block iblock on process myPid) */
 	BlockHypreParVector(MPI_Comm comm, int glob_size, int *col,
 			const Array<int> & blocks_glob_size, const Array2D<int> & bLocalSizes, int nBlocks);
 
-	/// Creates vector compatible with y
+	//! Creates vector compatible with y
 	BlockHypreParVector(const BlockHypreParVector & y);
 
 	BlockHypreParVector & operator=(const BlockHypreParVector & original);

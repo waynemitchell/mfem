@@ -13,7 +13,7 @@
 #define MFEM_BLOCKOPERATOR
 
 //! @class BlockOperator
-/*
+/**
  * \brief A class to handle Block systems in a matrix-free implementation.
  *
  * Usage:

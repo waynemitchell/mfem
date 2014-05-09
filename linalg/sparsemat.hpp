@@ -139,8 +139,7 @@ public:
    /// Set all the entries in row *row* to 0.
    void EliminateRow(int row);
    /** Set all the entries in row *row* to 0 if the matrix is rectangular.
-    *  Set A(i,i) = 1. and A(i,j) = 0 (i ~= j) if the matrix is square.
-   */
+       Set A(i,i) = 1. and A(i,j) = 0 (i ~= j) if the matrix is square. */
    void EliminateRow2(int row);
    void EliminateCol(int col);
    /// Eliminate all columns 'i' for which cols[i] != 0
@@ -219,8 +218,7 @@ public:
        arrays.
 	   As required by the SparseRowMatrix interface this method returns:
 	   0 if cols and srow are copies of the values in the matrix (i.e. when the matrix is open).
-	   1 if cols and srow are views of the values in the matrix (i.e. when the matrix is finalized).
-   */
+	   1 if cols and srow are views of the values in the matrix (i.e. when the matrix is finalized). */
    virtual int GetRow(const int row, Array<int> &cols, Vector &srow) const;
 
    void SetRow(const int row, const Array<int> &cols, const Vector &srow);
