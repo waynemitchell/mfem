@@ -345,6 +345,31 @@ public:
                                       DenseMatrix &elmat);
 };
 
+/** Integrator for (curl u, curl v) for FE spaces defined by 'dim' copies of a
+    scalar FE space. */
+class VectorCurlCurlIntegrator: public BilinearFormIntegrator
+{
+private:
+#ifndef MFEM_THREAD_SAFE
+   DenseMatrix dshape_hat, dshape, curlshape, Jadj, grad_hat, grad;
+#endif
+   Coefficient *Q;
+
+public:
+   VectorCurlCurlIntegrator() { Q = NULL; }
+
+   VectorCurlCurlIntegrator(Coefficient &q) : Q(&q) { }
+
+   /// Assemble an element matrix
+   virtual void AssembleElementMatrix(const FiniteElement &el,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat);
+   /// Compute element energy: (1/2) (curl u, curl u)_E
+   virtual double GetElementEnergy(const FiniteElement &el,
+                                   ElementTransformation &Tr,
+                                   const Vector &elfun);
+};
+
 /// Integrator for (Q u, v) for VectorFiniteElements
 class VectorFEMassIntegrator: public BilinearFormIntegrator
 {
