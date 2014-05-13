@@ -224,7 +224,9 @@ protected:
    mutable HypreParVector *B, *X;
    /// Temporary vectors
    mutable HypreParVector *V, *Z;
-
+   /// FIR Filter Temporary Vectors
+   mutable HypreParVector *X0, *X1, *X2, *X3;
+   
    /** Hypre relaxation type (from hypre_ParCSRRelax() in ams.c). Options are:
        1  = l1-scaled Jacobi
        2  = l1-scaled block Gauss-Seidel/SSOR
@@ -252,6 +254,11 @@ protected:
    double max_eig_est;
    /// Minimal eigenvalue estimate for polynomial smoothing
    double min_eig_est;
+   /// Paramters for windowing function of FIR filter
+   double window_params[3];
+
+   /// Combined coefficients for windowing and Chebyshev polynomials.
+   double* fir_coeffs;
 
 public:
    enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev, Taubin, FIR };
@@ -269,6 +276,13 @@ public:
    /// Set parameters for polynomial smoothing
    void SetPolyOptions(int poly_order, double poly_fraction,
                        int poly_scale = 1);
+
+   /// Convenience function for setting canonical windowing parameters
+   void SetWindowByName(const char* window_name);
+   /// Set parameters for windowing function for FIR smoother.
+   void SetWindowParameters(double a, double b, double c);
+   /// Compute window and Chebyshev coefficients for given polynomial order.
+   void SetFIRCoefficients(double max_eig);
 
    virtual void SetOperator(const Operator &op);
 
