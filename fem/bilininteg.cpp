@@ -904,9 +904,9 @@ double VectorCurlCurlIntegrator::GetElementEnergy(
       }
       else
       {
-         double curl_x = grad(3,2) - grad(2,3);
-         double curl_y = grad(1,3) - grad(3,1);
-         double curl_z = grad(2,1) - grad(1,2);
+         double curl_x = grad(2,1) - grad(1,2);
+         double curl_y = grad(0,2) - grad(2,0);
+         double curl_z = grad(1,0) - grad(0,1);
          w *= curl_x * curl_x + curl_y * curl_y + curl_z * curl_z;
       }
 
