@@ -895,7 +895,7 @@ double VectorCurlCurlIntegrator::GetElementEnergy(
       CalcAdjugate(Tr.Jacobian(), Jadj);
       double w = ip.weight / Tr.Weight();
 
-      MultAtB(Jadj, grad_hat, grad);
+      Mult(grad_hat, Jadj, grad);
 
       if (dim == 2)
       {
