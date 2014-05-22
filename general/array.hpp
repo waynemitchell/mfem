@@ -125,6 +125,7 @@ public:
 
    /// Return the last element in the array
    inline T &Last();
+   inline const T &Last() const;
 
    /// Append element when it is not yet in the array, return index
    inline int Union(const T & el);
@@ -366,6 +367,16 @@ inline int Array<T>::Prepend(const T &el)
 
 template <class T>
 inline T &Array<T>::Last()
+{
+#ifdef MFEM_DEBUG
+   if (size < 1)
+      mfem_error("Array<T>::Last()");
+#endif
+   return ((T*)data)[size-1];
+}
+
+template <class T>
+inline const T &Array<T>::Last() const
 {
 #ifdef MFEM_DEBUG
    if (size < 1)
