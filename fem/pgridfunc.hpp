@@ -67,10 +67,16 @@ public:
    HypreParVector *GetTrueDofs() const;
 
    /// Returns the vector averaged on the true dofs.
+   void ParallelAverage(Vector &tv) const;
+
+   /// Returns the vector averaged on the true dofs.
    void ParallelAverage(HypreParVector &tv) const;
 
    /// Returns a new vector averaged on the true dofs.
    HypreParVector *ParallelAverage() const;
+
+   /// Returns the vector assembled on the true dofs.
+   void ParallelAssemble(Vector &tv) const;
 
    /// Returns the vector assembled on the true dofs.
    void ParallelAssemble(HypreParVector &tv) const;
