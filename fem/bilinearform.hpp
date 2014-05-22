@@ -66,6 +66,11 @@ public:
        present in the bilinear form. */
    void UsePrecomputedSparsity(int ps = 1) { precompute_sparsity = ps; }
 
+   /** Pre-allocate the internal SparseMatrix before assembly. If the flag
+       'precompute sparsity' is set, the matrix is allocated in CSR format (i.e.
+       finalized) and the entries are initialized with zeros. */
+   void AllocateMatrix() { if (mat == NULL) AllocMat(); }
+
    Array<BilinearFormIntegrator*> *GetDBFI() { return &dbfi; }
 
    Array<BilinearFormIntegrator*> *GetBBFI() { return &bbfi; }

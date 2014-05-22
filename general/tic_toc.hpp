@@ -12,19 +12,33 @@
 #ifndef MFEM_TIC_TOC
 #define MFEM_TIC_TOC
 
+#ifndef MFEM_USE_POSIX_CLOCKS
 #include <sys/times.h>
+#else
+#include <time.h>
+#if (!defined(CLOCK_MONOTONIC) || !defined(CLOCK_PROCESS_CPUTIME_ID))
+#error "CLOCK_MONOTONIC and CLOCK_PROCESS_CPUTIME_ID not defined in <time.h>"
+#endif
+#endif
 
 /// Timing object
 class StopWatch
 {
 private:
+#ifndef MFEM_USE_POSIX_CLOCKS
    clock_t real_time, user_time, syst_time;
    clock_t start_rtime, start_utime, start_stime;
    long my_CLK_TCK;
-   short Running;
    void Current(clock_t *, clock_t *, clock_t *);
+#else
+   struct timespec real_time, user_time;
+   struct timespec start_rtime, start_utime;
+   inline void GetRealTime(struct timespec &tp);
+   inline void GetUserTime(struct timespec &tp);
+#endif
+   short Running;
 public:
-   StopWatch();  // determines my_CLK_TCK
+   StopWatch();
    void Clear();
    void Start();
    void Stop();

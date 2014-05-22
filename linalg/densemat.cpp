@@ -1992,34 +1992,55 @@ void DenseMatrix::GradToCurl(DenseMatrix &curl)
    int n = Height();
 
 #ifdef MFEM_DEBUG
-   if (Width() != 3 || curl.Width() != 3 || 3*n != curl.Height())
+   if ((Width() != 2 || curl.Width() != 1 || 2*n != curl.Height()) &&
+       (Width() != 3 || curl.Width() != 3 || 3*n != curl.Height()))
       mfem_error("DenseMatrix::GradToCurl(...)");
 #endif
 
-   for (int i = 0; i < n; i++)
+   if (Width() == 2)
    {
-      // (x,y,z) is grad of Ui
-      double x = (*this)(i,0);
-      double y = (*this)(i,1);
-      double z = (*this)(i,2);
+      for (int i = 0; i < n; i++)
+      {
+         // (x,y) is grad of Ui
+         double x = (*this)(i,0);
+         double y = (*this)(i,1);
 
-      int j = i+n;
-      int k = j+n;
+         int j = i+n;
 
-      // curl of (Ui,0,0)
-      curl(i,0) =  0.;
-      curl(i,1) =  z;
-      curl(i,2) = -y;
+         // curl of (Ui,0)
+         curl(i,0) = -y;
 
-      // curl of (0,Ui,0)
-      curl(j,0) = -z;
-      curl(j,1) =  0.;
-      curl(j,2) =  x;
+         // curl of (0,Ui)
+         curl(j,0) =  x;
+      }
+   }
+   else
+   {
+      for (int i = 0; i < n; i++)
+      {
+         // (x,y,z) is grad of Ui
+         double x = (*this)(i,0);
+         double y = (*this)(i,1);
+         double z = (*this)(i,2);
 
-      // curl of (0,0,Ui)
-      curl(k,0) =  y;
-      curl(k,1) = -x;
-      curl(k,2) =  0.;
+         int j = i+n;
+         int k = j+n;
+
+         // curl of (Ui,0,0)
+         curl(i,0) =  0.;
+         curl(i,1) =  z;
+         curl(i,2) = -y;
+
+         // curl of (0,Ui,0)
+         curl(j,0) = -z;
+         curl(j,1) =  0.;
+         curl(j,2) =  x;
+
+         // curl of (0,0,Ui)
+         curl(k,0) =  y;
+         curl(k,1) = -x;
+         curl(k,2) =  0.;
+      }
    }
 }
 
