@@ -15,20 +15,30 @@
 #include "blockVector.hpp"
 #include "blockMatrix.hpp"
 
-
-BlockMatrix::BlockMatrix(int nRowBlocks_, int nColBlocks_):
-    SparseRowMatrix(0),
+BlockMatrix::BlockMatrix(const Array<int> & offsets):
+	SparseRowMatrix(offsets.Last()),
 	owns_blocks(false),
-	nRowBlocks(nRowBlocks_),
-	nColBlocks(nColBlocks_),
-	row_offsets(nRowBlocks_+1),
-	col_offsets(nColBlocks_+1),
-	nnz_elem(0),
-	is_filled(false),
-	Aij(nRowBlocks_,nColBlocks_)
+	nRowBlocks(offsets.Size()-1),
+	nColBlocks(offsets.Size()-1),
+	row_offsets(const_cast< Array<int>& >(offsets).GetData(), offsets.Size()),
+	col_offsets(const_cast< Array<int>& >(offsets).GetData(), offsets.Size()),
+	Aij(nRowBlocks, nColBlocks)
 {
 	Aij = (SparseMatrix *)NULL;
 }
+
+BlockMatrix::BlockMatrix(const Array<int> & row_offsets, const Array<int> & col_offsets):
+	SparseRowMatrix(row_offsets.Last()),
+	owns_blocks(false),
+	nRowBlocks(row_offsets.Size()-1),
+	nColBlocks(col_offsets.Size()-1),
+	row_offsets(const_cast< Array<int>& >(row_offsets).GetData(), row_offsets.Size()),
+	col_offsets(const_cast< Array<int>& >(row_offsets).GetData(), row_offsets.Size()),
+	Aij(nRowBlocks, nColBlocks)
+{
+	Aij = (SparseMatrix *)NULL;
+}
+
 
 BlockMatrix::~BlockMatrix()
 {
@@ -39,62 +49,57 @@ BlockMatrix::~BlockMatrix()
 
 void BlockMatrix::SetBlock(int i, int j, SparseMatrix & mat)
 {
+#ifdef MFEM_DEBUG
+	if(nRowBlocks <= i || nColBlocks <= j)
+		mfem_error("BlockMatrix::SetBlock #0");
+
+	if(mat.Size() != row_offsets[i+1] - row_offsets[i])
+		mfem_error("BlockMatrix::SetBlock #1");
+
+	if(mat.Width() != col_offsets[j+1] - col_offsets[j])
+		mfem_error("BlockMatrix::SetBlock #2");
+#endif
 	Aij(i,j) = &mat;
 }
 
 SparseMatrix & BlockMatrix::Block(int i, int j)
 {
+#ifdef MFEM_DEBUG
+	if(nRowBlocks <= i || nColBlocks <= j)
+		mfem_error("BlockMatrix::Block #0");
+
+	if(IsZeroBlock(i,j))
+		mfem_error("BlockMatrix::Block #1");
+#endif
 	return *Aij(i,j);
 }
 
-void BlockMatrix::Finalize()
+const SparseMatrix & BlockMatrix::Block(int i, int j) const
 {
-	if(is_filled)
-		return;
+#ifdef MFEM_DEBUG
+	if(nRowBlocks <= i || nColBlocks <= j)
+		mfem_error("BlockMatrix::Block const #0");
 
-	row_offsets[0] = 0;
-	for(int irow(0); irow != nRowBlocks; ++irow)
-		for(int jcol(0); jcol != nColBlocks; ++jcol)
-		{
-			if(Aij(irow,jcol) != NULL)
-			{
-				row_offsets[irow+1] = Aij(irow,jcol)->Size();
-				break;
-			}
-		}
+	if(IsZeroBlock(i,j))
+		mfem_error("BlockMatrix::Block const #1");
+#endif
 
-	// do partial sums
-	row_offsets.PartialSum();
-	size = row_offsets.Last();
-	//std::partial_sum(row_offsets.GetData(), row_offsets.GetData()+row_offsets.Size(), row_offsets.GetData());
+	return *Aij(i,j);
+}
 
-	col_offsets[0] = 0;
-	for(int jcol(0); jcol != nColBlocks; ++jcol)
-		for(int irow(0); irow != nRowBlocks; ++irow)
-		{
-			if(Aij(irow,jcol) != NULL)
-			{
-				col_offsets[jcol+1] = Aij(irow,jcol)->Width();
-				break;
-			}
-		}
 
-	// do partial sums
-	col_offsets.PartialSum();
-	//std::partial_sum(col_offsets.GetData(), col_offsets.GetData()+col_offsets.Size(), col_offsets.GetData());
-
-	nnz_elem = 0;
+int BlockMatrix::NumNonZeroElems() const
+{
+	int nnz_elem = 0;
 	for(int jcol(0); jcol != nColBlocks; ++jcol)
 		for(int irow(0); irow != nRowBlocks; ++irow)
 		{
 			if(Aij(irow,jcol) )
 				nnz_elem+= Aij(irow,jcol)->NumNonZeroElems();
-
 		}
-
-	is_filled = true;
-
+	return nnz_elem;
 }
+
 
 double& BlockMatrix::Elem (int i, int j)
 {
@@ -124,15 +129,8 @@ const double& BlockMatrix::Elem (int i, int j) const
 	return Aij(iblock, jblock)->Elem(iloc, jloc);
 }
 
-const SparseMatrix & BlockMatrix::Block(int i, int j) const
-{
-	return *Aij(i,j);
-}
-
 int BlockMatrix::RowSize(const int i) const
 {
-	if(!is_filled)
-		mfem_error("Finalize method should be called before Mult \n");
 
 	int rowsize(0);
 
@@ -148,9 +146,6 @@ int BlockMatrix::RowSize(const int i) const
 
 int BlockMatrix::GetRow(const int row, Array<int> &cols, Vector &srow) const
 {
-	if(!is_filled)
-		mfem_error("Finalize method should be called before Mult \n");
-
 	int iblock, iloc, rowsize;
 	findGlobalRow(row, iblock, iloc);
 	rowsize = RowSize(row);
@@ -233,8 +228,6 @@ void BlockMatrix::EliminateRowCol(Array<int> & ess_bc_dofs, Vector & sol, Vector
 
 void BlockMatrix::EliminateZeroRows()
 {
-	if(!is_filled)
-		mfem_error("BlockMatrix::EliminateZeroRows() #0");
 
 	if(nRowBlocks != nColBlocks)
 		mfem_error("BlockMatrix::EliminateZeroRows() #1");
@@ -286,9 +279,6 @@ void BlockMatrix::Mult(const Vector & x, Vector & y) const
 	if(x.GetData() == y.GetData())
 		mfem_error("Error: x and y can't point to the same datas \n");
 
-	if(!is_filled)
-		mfem_error("Finalize method should be called before Mult \n");
-
 	y = 0.;
 
 	Vector xblockview, yblockview;
@@ -311,9 +301,6 @@ void BlockMatrix::AddMult(const Vector & x, Vector & y, const double val) const
 	if(x.GetData() == y.GetData())
 		mfem_error("Error: x and y can't point to the same datas \n");
 
-	if(!is_filled)
-		mfem_error("Finalize method should be called before Mult \n");
-
 	Vector xblockview, yblockview;
 
 	for(int iblock(0); iblock != nRowBlocks; ++iblock)
@@ -333,9 +320,6 @@ void BlockMatrix::MultTranspose(const Vector & x, Vector & y) const
 
 	if(x.GetData() == y.GetData())
 		mfem_error("Error: x and y can't point to the same datas \n");
-
-	if(!is_filled)
-		mfem_error("Finalize method should be called before Mult \n");
 
 	y = 0.;
 	Vector xblockview, yblockview;
@@ -358,9 +342,6 @@ void BlockMatrix::AddMultTranspose(const Vector & x, Vector & y, const double va
 	if(x.GetData() == y.GetData())
 		mfem_error("Error: x and y can't point to the same datas \n");
 
-	if(!is_filled)
-		mfem_error("Finalize method should be called before Mult \n");
-
 	Vector xblockview, yblockview;
 
 	for(int iblock(0); iblock != nRowBlocks; ++iblock)
@@ -377,16 +358,8 @@ void BlockMatrix::AddMultTranspose(const Vector & x, Vector & y, const double va
 
 SparseMatrix * BlockMatrix::Monolithic()
 {
-	if(!is_filled)
-		Finalize();
 
-	int nnz(0);
-	for(int irow(0); irow != nRowBlocks; ++irow)
-		for(int jcol(0); jcol != nColBlocks; ++jcol)
-		{
-			if(Aij(irow,jcol) != NULL)
-				nnz += Aij(irow,jcol)->NumNonZeroElems();
-		}
+	int nnz = NumNonZeroElems();
 
 	int * i_amono = new int[ row_offsets[nRowBlocks]+2 ];
 	int * j_amono = new int[ nnz ];
@@ -465,11 +438,10 @@ SparseMatrix * BlockMatrix::Monolithic()
 
 void BlockMatrix::PrintMatlab(std::ostream & os)
 {
-	if(!is_filled)
-		mfem_error("BlockMatrix::PrintMatlab please finalize the matrix first");
 
    Vector row_data;
    Array<int> row_ind;
+   int nnz_elem = NumNonZeroElems();
    os<<"% size " << row_offsets.Last() << " " << col_offsets.Last() << "\n";
    os<<"% Non Zeros " << nnz_elem << "\n";
    int i, j;
@@ -489,21 +461,19 @@ void BlockMatrix::PrintMatlab(std::ostream & os)
 
 BlockMatrix * Transpose(const BlockMatrix & A)
 {
-	BlockMatrix * At = new BlockMatrix(A.NumColBlocks(), A.NumRowBlocks());
+	BlockMatrix * At = new BlockMatrix(A.ColOffsets(), A.RowOffsets());
 	At->owns_blocks = 1;
 
 	for(int irowAt(0); irowAt < At->NumRowBlocks(); ++irowAt)
 		for(int jcolAt(0); jcolAt < At->NumColBlocks(); ++jcolAt)
 			if( !A.IsZeroBlock(jcolAt, irowAt))
 				At->SetBlock(irowAt, jcolAt, *Transpose( const_cast<SparseMatrix &>(A.Block(jcolAt, irowAt)) ) );
-
-	At->Finalize();
 	return At;
 }
 
 BlockMatrix * Mult(const BlockMatrix & A, const BlockMatrix & B)
 {
-	BlockMatrix * C= new BlockMatrix(A.NumRowBlocks(), B.NumColBlocks() );
+	BlockMatrix * C= new BlockMatrix(A.RowOffsets(), B.ColOffsets() );
 	C->owns_blocks = 1;
 	Array<SparseMatrix *> CijPieces( A.NumColBlocks() );
 
@@ -527,8 +497,6 @@ BlockMatrix * Mult(const BlockMatrix & A, const BlockMatrix & B)
 			}
 		}
 
-
-	C->Finalize();
 	return C;
 }
 

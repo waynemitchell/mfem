@@ -29,13 +29,9 @@ protected:
    /**
     * blockOffsets[i+1] - blockOffsets[i] is the size of block i.
     */
-   int *blockOffsets;
+   const int *blockOffsets;
    //! temporary Vector used to extract blocks without allocating memory (possibly unsafe).
    mutable Vector tmp_block;
-
-private:
-	//! Determine whenever the pointer to blockSizes should be deallocated or not
-	bool ownBlockOffsets;
 
 public:
    //! empty constructor
@@ -44,9 +40,8 @@ public:
    //! Constructor
    /**
     * bOffsets is an array of integers (length nBlocks+1) that tells the offsets of each block start.
-    * nBlocks is the number of blocks.
     */
-   BlockVector(int * bOffsets, int nBlocks);
+   BlockVector(const Array<int> & bOffsets);
 
    //! Copy constructor
    BlockVector(const BlockVector & block);
@@ -57,7 +52,7 @@ public:
     * bOffsets is an array of integers (length nBlocks+1) that tells the offsets of each block start.
     * nBlocks is the number of blocks.
     */
-   BlockVector(double *data, int *blockOffsets, int numBlocks);
+   BlockVector(double *data, const Array<int> & bOffsets);
 
    //! Assignment operator. this and original must have the same block structure.
    BlockVector & operator=(const BlockVector & original);
@@ -84,14 +79,14 @@ public:
     * bOffsets is an array of integers (length nBlocks+1) that tells the offsets of each block start.
     * nBlocks is the number of blocks.
     */
-   void Update(double *data, const int *blockOffsets, int numBlocks);
+   void Update(double *data, const Array<int> & bOffsets);
 
 };
 
 //! Stride two or more objects of type Vector in a BlockVector.
-BlockVector * stride(const Array<const Vector *> & vectors);
-BlockVector * stride(const Vector & v1, const Vector & v2);
-BlockVector * stride(const Vector & v1, const Vector & v2, const Vector & v3);
+BlockVector * stride(const Array<const Vector *> & vectors, Array<int> & bOffsets);
+BlockVector * stride(const Vector & v1, const Vector & v2, Array<int> & bOffsets);
+BlockVector * stride(const Vector & v1, const Vector & v2, const Vector & v3, Array<int> & bOffsets);
 
 
 #endif /* MFEM_BLOCKVECTOR */

@@ -24,22 +24,17 @@
 BlockVector::BlockVector():
 	Vector(),
 	numBlocks(0),
-	blockOffsets(NULL),
-	ownBlockOffsets(false)
-{}
+	blockOffsets(NULL)
+{
+
+}
 
 //! Standard constructor
-BlockVector::BlockVector(int * bOffsets, int nBlocks):
-		Vector(bOffsets[nBlocks]),
-		numBlocks(nBlocks),
-		blockOffsets(new int[nBlocks+1]),
-
-		ownBlockOffsets(true)
+BlockVector::BlockVector(const Array<int> & bOffsets):
+		Vector(bOffsets.Last()),
+		numBlocks(bOffsets.Size()-1),
+		blockOffsets(bOffsets.GetData())
 {
-	blockOffsets[0] = bOffsets[0];
-	for(int i(0); i < numBlocks; ++i)
-		blockOffsets[i+1] = bOffsets[i+1];
-
 	Vector::operator=(0.0);
 }
 
@@ -47,31 +42,25 @@ BlockVector::BlockVector(int * bOffsets, int nBlocks):
 BlockVector::BlockVector(const BlockVector & v):
 	Vector(v),
 	numBlocks(v.numBlocks),
-	blockOffsets(new int[v.numBlocks+1]),
-	ownBlockOffsets(true)
+	blockOffsets(v.blockOffsets)
 {
-	blockOffsets[0] = v.blockOffsets[0];
-	for(int i(0); i < numBlocks; ++i)
-	  blockOffsets[i+1] = v.blockOffsets[i+1];
 
 }
 
 //! View constructor
-BlockVector::BlockVector(double *data, int *bOffsets, int numBlocks_):
-		Vector(data, bOffsets[numBlocks_]),
-		numBlocks(numBlocks_),
-		blockOffsets(bOffsets),
-		ownBlockOffsets(false)
+BlockVector::BlockVector(double *data, const Array<int> & bOffsets):
+		Vector(data, bOffsets.Last()),
+		numBlocks(bOffsets.Size()-1),
+		blockOffsets(bOffsets.GetData())
 {
 
 }
 
-void BlockVector::Update(double *data, const int *blockOffsets_, int numBlocks_)
+void BlockVector::Update(double *data, const Array<int> & bOffsets)
 {
-	SetDataAndSize(data, blockOffsets_[numBlocks_]);
-	numBlocks = numBlocks_;
-	blockOffsets = const_cast<int *>(blockOffsets_);
-	ownBlockOffsets = false;
+	SetDataAndSize(data, bOffsets.Last());
+	numBlocks = bOffsets.Size()-1;
+	blockOffsets = bOffsets.GetData();
 }
 
 BlockVector & BlockVector::operator=(const BlockVector & original)
@@ -100,8 +89,7 @@ BlockVector & BlockVector::operator=(double val)
 //! Destructor
 BlockVector::~BlockVector()
 {
-	if(ownBlockOffsets)
-		delete[] blockOffsets;
+
 }
 
 
@@ -122,17 +110,32 @@ void BlockVector::BlockView(int i, Vector & blockView)
 	blockView.SetDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
 }
 
-BlockVector * stride(const Array<const Vector *> & vectors)
+BlockVector * stride(const Array<const Vector *> & vectors, Array<int> & bOffsets)
 {
 	int nBlocks(vectors.Size());
-	Array<int> blockOffsets(nBlocks+1);
 
-	blockOffsets[0] = 0;
+	if(bOffsets.Size() == 0)
+	{
+		bOffsets.SetSize(nBlocks+1);
+		bOffsets[0] = 0;
 
-	for(int i(0); i<nBlocks; ++i)
-		blockOffsets[i+1] = blockOffsets[i] + vectors[i]->Size();
+		for(int i(0); i<nBlocks; ++i)
+			bOffsets[i+1] = bOffsets[i] + vectors[i]->Size();
+	}
+#ifdef MFEM_DEBUG
+	else
+	{
+		if(bOffsets.Size()!=nBlocks+1)
+			mfem_error("BlockVector * stride #1");
 
-	BlockVector * result = new BlockVector(blockOffsets.GetData(), nBlocks);
+		for(int i(0); i<nBlocks; ++i)
+			if(bOffsets[i+1] - bOffsets[i] != vectors[i]->Size())
+				mfem_error("BlockVector * stride #2");
+	}
+#endif
+
+
+	BlockVector * result = new BlockVector(bOffsets);
 
 	for(int i(0); i<nBlocks; ++i)
 		result->Block(i) = *vectors[i];
@@ -140,19 +143,19 @@ BlockVector * stride(const Array<const Vector *> & vectors)
 	return result;
 }
 
-BlockVector * stride(const Vector & v1, const Vector & v2)
+BlockVector * stride(const Vector & v1, const Vector & v2, Array<int> & bOffsets)
 {
 	Array<const Vector *> vectors(2);
 	vectors[0] = &v1;
 	vectors[1] = &v2;
-	return stride(vectors);
+	return stride(vectors, bOffsets);
 }
 
-BlockVector * stride(const Vector & v1, const Vector & v2, const Vector & v3)
+BlockVector * stride(const Vector & v1, const Vector & v2, const Vector & v3, Array<int> & bOffsets)
 {
 	Array<const Vector *> vectors(3);
 	vectors[0] = &v1;
 	vectors[1] = &v2;
 	vectors[2] = &v3;
-	return stride(vectors);
+	return stride(vectors, bOffsets);
 }

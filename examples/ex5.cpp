@@ -80,17 +80,23 @@ int main (int argc, char *argv[])
 	FiniteElementSpace * R_space = new FiniteElementSpace(mesh,  hdiv_coll);
 	FiniteElementSpace * W_space = new FiniteElementSpace(mesh,    l2_coll);
 
-	int dimR(R_space->GetVSize());
-	int dimW(W_space->GetVSize());
-    int dimRW(dimR + dimW );
+	// 4. Define the BlockStructure of the problem. I.E define the array of offsets
+	// for each variable. The last component of the Array is the sum of the dimensions
+	// of each block.
+
+	Array<int> block_offsets(3); //Number of variables + 1
+	block_offsets[0] = 0;
+	block_offsets[1] = R_space->GetVSize();
+	block_offsets[2] = W_space->GetVSize();
+	block_offsets.PartialSum();
 
 	std::cout << "***********************************************************\n";
-	std::cout << "dim(R) = " << dimR << "\n";
-	std::cout << "dim(W) = " << dimW << "\n";
-	std::cout << "dim(R+W) = " << dimRW << "\n";
+	std::cout << "dim(R) = " << block_offsets[1] - block_offsets[0] << "\n";
+	std::cout << "dim(W) = " << block_offsets[2] - block_offsets[1] << "\n";
+	std::cout << "dim(R+W) = " << block_offsets.Last() << "\n";
 	std::cout << "***********************************************************\n";
 
-	// 4. Define the coefficients, analytical solution, and rhs of the PDE
+	// 5. Define the coefficients, analytical solution, and rhs of the PDE
 	ConstantCoefficient k( 1. );
 
 	VectorFunctionCoefficient fcoeff(mesh->Dimension(), fFun);
@@ -100,26 +106,26 @@ int main (int argc, char *argv[])
 	VectorFunctionCoefficient ucoeff(mesh->Dimension(), uFun_ex);
 	FunctionCoefficient pcoeff(pFun_ex);
 
-	// 5. Allocate memory (x, rhs) for the analytical solution and the right hand side.
+	// 6. Allocate memory (x, rhs) for the analytical solution and the right hand side.
 	// Define the GridFunction u,p for the finite element solution and linear forms fform and gform for the right hand side.
 	// The data allocated by x and rhs are passed as a reference to the grid fuctions (u,p) and the linear forms (fform, gform).
-	Vector x( dimRW ), rhs( dimRW );
+	BlockVector x( block_offsets ), rhs( block_offsets );
     GridFunction u, p;
-    u.Update(R_space, x, 0);
-    p.Update(W_space, x, dimR );
+    u.Update(R_space, x.Block(0), 0);
+    p.Update(W_space, x.Block(1), 0 );
 
 	LinearForm * fform( new LinearForm );
-    fform->Update(R_space, rhs, 0);
+    fform->Update(R_space, rhs.Block(0), 0);
 	fform->AddDomainIntegrator( new VectorFEDomainLFIntegrator(fcoeff));
 	fform->AddBoundaryIntegrator( new VectorFEBoundaryFluxLFIntegrator(fnatcoeff));
 	fform->Assemble();
 
 	LinearForm * gform( new LinearForm );
-    gform->Update(W_space, rhs, dimR );
+    gform->Update(W_space, rhs.Block(1), 0 );
 	gform->AddDomainIntegrator( new DomainLFIntegrator(gcoeff));
 	gform->Assemble();
 
-	// 6. Assemble the finite element matrices for the Darcy operator
+	// 7. Assemble the finite element matrices for the Darcy operator
 	/*
 	 * \D = [ M        B^T ]
 	 *      [ B         0   ]
@@ -161,13 +167,12 @@ int main (int argc, char *argv[])
 	(*B) *= -1.;
 	SparseMatrix * BT = Transpose(*B);
 
-	BlockMatrix darcyMatrix(2,2);
+	BlockMatrix darcyMatrix(block_offsets);
 	darcyMatrix.SetBlock(0,0, M );
 	darcyMatrix.SetBlock(0,1, *BT );
 	darcyMatrix.SetBlock(1,0, *B);
-	darcyMatrix.Finalize();
 
-	// 7. Construct the operators for preconditioner
+	// 8. Construct the operators for preconditioner
 	/*
 	 *  \P = [ diag(M)         0         ]
 	 *       [  0       B diag(M)^-1 B^T ]
@@ -189,12 +194,11 @@ int main (int argc, char *argv[])
 	invM->iterative_mode = false;
 	invS->iterative_mode = false;
 
-	BlockDiagonalPreconditioner darcyPrec(2);
-	darcyPrec.SetDiagonalBlock(0, invM, M.Size() );
-	darcyPrec.SetDiagonalBlock(1, invS, S->Size() );
-	darcyPrec.Finalize();
+	BlockDiagonalPreconditioner darcyPrec(block_offsets);
+	darcyPrec.SetDiagonalBlock(0, invM );
+	darcyPrec.SetDiagonalBlock(1, invS );
 
-	// 8. Solve the linear system with MINRES. Check the norm of the unpreconditioned residual.
+	// 9. Solve the linear system with MINRES. Check the norm of the unpreconditioned residual.
 
 	x = 0.0;
 
@@ -221,7 +225,7 @@ int main (int argc, char *argv[])
 
 	std::cout << "MINRES solver took " << chrono.RealTime() << " s. \n";
 
-	Vector r( rhs.Size()  );
+	BlockVector r( block_offsets  );
 	darcyMatrix.Mult(x, r);
 	subtract(rhs, r, r);
 
@@ -231,9 +235,9 @@ int main (int argc, char *argv[])
 	std::cout<<"|| Ax_n - b ||_2 = "<<residual_norm<<"\n";
 	std::cout<<"|| Ax_n - b ||_2/||b||_2 = "<<residual_norm/rhs_norm<<"\n";
 
-	// 9. Update the grid functions u and p. Compute the L2 error norms.
-	u.Update(R_space, x, 0);
-	p.Update(W_space, x, dimR );
+	// 10. Update the grid functions u and p. Compute the L2 error norms.
+	u.Update(R_space, x.Block(0), 0);
+	p.Update(W_space, x.Block(1), 0 );
 
 	int order_quad = max(2, 2*order+1);
 	Array<const IntegrationRule *> irs;
@@ -248,7 +252,7 @@ int main (int argc, char *argv[])
 	std::cout << "|| u_h - u_ex || / || u_ex || = " << err_u / norm_u << "\n";
 	std::cout << "|| p_h - p_ex || / || p_ex || = " << err_p / norm_p << "\n";
 
-	// 10. Save the mesh and the solution. This output can
+	// 11. Save the mesh and the solution. This output can
 	//     be viewed later using GLVis: "glvis -m ex5.mesh -g sol_u.gf"
 	//     or "glvis -m ex5.mesh -g sol_p.gf".
 	{
@@ -265,7 +269,7 @@ int main (int argc, char *argv[])
 		p.Save(p_ofs);
 	}
 
-	// 11. (Optional) Send the solution by socket to a GLVis server.
+	// 12. (Optional) Send the solution by socket to a GLVis server.
 	{
 		char vishost[] = "localhost";
 		int  visport   = 19916;
@@ -281,7 +285,7 @@ int main (int argc, char *argv[])
 		p.Save(p_sock);
 	}
 
-	// 12. Free the used memory.;
+	// 13. Free the used memory.;
 	delete fform;
 	delete gform;
 	delete invM;

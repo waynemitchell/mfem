@@ -29,33 +29,34 @@ public:
 
 	//! Default Constructor
 	BlockOperator();
-	//! Constructor for BlockOperators with the same number of block rows and block columns.
-	BlockOperator(int nRowBlocks);
+	//! Constructor for BlockOperators with the same block-structure for rows and columns.
+	/**
+	 *  offsets: offsets that mark the start of each row/column block (size nRowBlocks+1).
+	 *  Note: BlockOperator will not own/copy the data contained in offsets.
+	 */
+	BlockOperator(const Array<int> & offsets);
 	//! Constructor for general BlockOperators.
-	BlockOperator(int nRowBlocks, int nColBlocks);
+	/**
+	 *  row_offsets: offsets that mark the start of each row block (size nRowBlocks+1).
+	 *  col_offsets: offsets that mark the start of each column block (size nColBlocks+1).
+	 *  Note: BlockOperator will not own/copy the data contained in offsets.
+	 */
+	BlockOperator(const Array<int> & row_offsets, const Array<int> & col_offsets);
 
-	//! Set the number of row and columns blocks.
-	void SetUp(int nRowBlocks, int nColBlocks);
-	//! Add a square block op in the block-entry (iblock, iblock).
+	//! Set the block structure.
+	void SetUp(const Array<int> & row_offsets, const Array<int> & col_offsets);
+	//! Add block op in the block-entry (iblock, iblock).
 	/**
 	 * iblock: The block will be inserted in location (iblock, iblock).
 	 * op: the Operator to be inserted.
-	 * size: the local size (number of rows) of the operator.
 	 */
-	void SetDiagonalBlock(int iblock, Operator *op, int size);
+	void SetDiagonalBlock(int iblock, Operator *op);
 	//! Add a block op in the block-entry (iblock, jblock).
 	/**
 	 * irow, icol: The block will be inserted in location (irow, icol).
 	 * op: the Operator to be inserted.
-	 * size: the local size (number of rows) of the operator.
-	 * width: the local width (number of columns) of the operator.
 	 */
-	void SetBlock(int iRow, int iCol, Operator *op, int size, int width);
-	//! Finalize the block structure of the operator.
-	/**
-	 * You must call this method before calling Mult or MultTranspose
-	 */
-	void Finalize();
+	void SetBlock(int iRow, int iCol, Operator *op);
 
 	/// Operator application
 	virtual void Mult (const Vector & x, Vector & y) const;
@@ -92,6 +93,8 @@ private:
  * - Call the method Finalize() to generate the BlockOffsets.
  * - Use the method Mult and MultTranspose to apply the operator to a vector.
  *
+ * If a block is not set, it is assumed it is an identity block
+ *
  */
 class BlockDiagonalPreconditioner : public Solver
 {
@@ -99,31 +102,25 @@ public:
 
   //! Default Constructor
   BlockDiagonalPreconditioner();
-  //! Constructor that specifies the number of blocks
-  BlockDiagonalPreconditioner(int nRowBlocks);
-  //! Set the number of blocks.
-  void SetUp(int nRowBlocks);
+  //! Constructor that specifies the block structure
+  BlockDiagonalPreconditioner(const Array<int> & offsets);
+  //! Set the block structure
+  void SetUp(const Array<int> & offsets);
   //! Add a square block op in the block-entry (iblock, iblock).
   /**
    * iblock: The block will be inserted in location (iblock, iblock).
    * op: the Operator to be inserted.
-   * size: the local size (number of rows) of the operator.
    */
-  void SetDiagonalBlock(int iblock, Operator *op, int size);
+  void SetDiagonalBlock(int iblock, Operator *op);
   //! This method is present for the purpose of having the same interface as BlockOperator
   /**
    * This method will raise an error if:
    * - op is not square (i.e. size ~= width)
    * - the block is not on the diagonal (i.e. iRow ~= iCol)
    */
-  void SetBlock(int iRow, int iCol, Operator *op, int size, int width);
+  void SetBlock(int iRow, int iCol, Operator *op);
   //! This method is present since required by the abstract base class Solver
   void SetOperator(const Operator &op){ }
-  //! Finalize the block structure of the operator.
-  /**
-  * You must call this method before calling Mult or MultTranspose
-  */
-  void Finalize();
 
   /// Operator application
   virtual void Mult (const Vector & x, Vector & y) const;

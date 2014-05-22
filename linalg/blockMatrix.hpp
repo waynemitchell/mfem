@@ -12,14 +12,22 @@
 #ifndef MFEM_BLOCKMATRIX
 #define MFEM_BLOCKMATRIX
 
-class BlockMatrix : public SparseRowMatrix {
+class BlockMatrix : public SparseRowMatrix
+{
 public:
-	//! Constructor
+	//! Constructor for square block matrices
 	/**
-	 *  nRowBlocks: number of block rows
-	 *  nColBlocks: number of block columns
+	 *  offsets: offsets that mark the start of each row/column block (size nRowBlocks+1).
+	 *  Note: BlockMatrix will not own/copy the data contained in offsets.
 	 */
-	BlockMatrix(int nRowBlocks, int nColBlocks);
+	BlockMatrix(const Array<int> & offsets);
+	//! Constructor for rectangular block matrices
+	/**
+	 *  row_offsets: offsets that mark the start of each row block (size nRowBlocks+1).
+	 *  col_offsets: offsets that mark the start of each column block (size nColBlocks+1).
+	 *  Note: BlockMatrix will not own/copy the data contained in offsets.
+	 */
+	BlockMatrix(const Array<int> & row_offsets, const Array<int> & col_offsets);
 	//! Set A(i,j) = mat
 	void SetBlock(int i, int j, SparseMatrix & mat);
 	//! Return the number of row blocks
@@ -27,23 +35,23 @@ public:
 	//! Return the number of column blocks
 	int NumColBlocks() const {return nColBlocks; }
 	//! Return the total number of rows (Finalize must be called!)
-	int NumRows() const {return is_filled ? row_offsets[nRowBlocks]:-1;}
+	int NumRows() const {return row_offsets[nRowBlocks];}
 	//! Return the total number of columns (Finalize must be called!)
-	int NumCols() const {return is_filled ? col_offsets[nColBlocks]:-1;}
+	int NumCols() const {return col_offsets[nColBlocks];}
 	//! Return a reference to block (i,j). Reference may be invalid if Aij(i,j) == NULL
 	SparseMatrix & Block(int i, int j);
 	//! Return a reference to block (i,j). Reference may be invalid if Aij(i,j) == NULL. (const version)
 	const SparseMatrix & Block(int i, int j) const;
 	//! Check if block (i,j) is a zero block.
 	int IsZeroBlock(int i, int j) const {return (Aij(i,j)==NULL) ? 1 : 0; }
-	//! Return the row offsets for block starts (Finalize must be called!)
-	int * GetRowOffsets() { return row_offsets.GetData(); }
-	//! Return the columns offsets for block starts (Finalize must be called!)
-	int * GetColOffsets() { return col_offsets.GetData(); }
+	//! Return the row offsets for block starts
+	Array<int> & RowOffsets() { return row_offsets; }
+	//! Return the columns offsets for block starts
+	Array<int> & ColOffsets() { return col_offsets; }
 	//! Return the row offsets for block starts (const version)
-	const int * GetRowOffsets() const { return row_offsets.GetData(); }
+	const Array<int> & RowOffsets() const { return row_offsets; }
 	//! Return the row offsets for block starts (const version)
-	const int * GetColOffsets() const { return col_offsets.GetData(); }
+	const Array<int> & ColOffsets() const { return col_offsets; }
 	//! Return the number of non zeros in row i
 	int RowSize(const int i) const;
 	//! Symmetric elimination of the marked degree of freedom.
@@ -61,7 +69,7 @@ public:
 
 	//@{ Operator interface
 	// Return the size (number of rows) of the BlockMatrix. (Finalize must be called first).
-	int Size() const { return is_filled ? row_offsets[nRowBlocks]:-1;}
+	int Size() const { return row_offsets[nRowBlocks];}
 	//@}
 
 	//@{ Matrix interface
@@ -71,15 +79,13 @@ public:
 	virtual const double& Elem (int i, int j) const;
     /// Returns a pointer to (approximation) of the matrix inverse.
 	virtual MatrixInverse * Inverse() const { mfem_error("BlockMatrix::Inverse not implemented \n"); return static_cast<MatrixInverse*>(NULL); }
-	/// Finalize the matrix (no more blocks allowed).
-	virtual void Finalize();
 	//@}
 
 	//@{ SparseRowMatrix interface
 	//! Returns the width (total number of columns) of the matrix (Finalize must be called first)
-	int Width() const {return is_filled ? col_offsets[nColBlocks]:-1;}
+	int Width() const {return col_offsets[nColBlocks];}
 	//! Returns the total number of non zeros in the matrix (Finalize must be called first)
-	virtual int NumNonZeroElems() const { if(!is_filled) mfem_error("BlockMatrix::NumNonZeroElems()"); return nnz_elem; }
+	virtual int NumNonZeroElems() const;
 	/// Gets the columns indexes and values for row *row*.
 	/// The return value is always 0 since cols and srow are copies of the values in the matrix.
 	int GetRow(const int row, Array<int> &cols, Vector &srow) const;
@@ -109,7 +115,7 @@ private:
 	//! Given a global row iglobal finds to which row iloc in block iblock belongs to.
 	inline void findGlobalRow(int iglobal, int & iblock, int & iloc) const
 	{
-		if(!is_filled || iglobal > row_offsets[nRowBlocks])
+		if(iglobal > row_offsets[nRowBlocks])
 			mfem_error("BlockMatrix::findGlobalRow");
 
 		for(iblock = 0; iblock < nRowBlocks; ++iblock)
@@ -122,7 +128,7 @@ private:
 	//! Given a global column jglobal finds to which column jloc in block jblock belongs to.
 	inline void findGlobalCol(int jglobal, int & jblock, int & jloc) const
 	{
-		if(!is_filled || jglobal > col_offsets[nColBlocks])
+		if(jglobal > col_offsets[nColBlocks])
 			mfem_error("BlockMatrix::findGlobalCol");
 
 		for(jblock = 0; jblock < nColBlocks; ++jblock)
@@ -140,10 +146,6 @@ private:
 	Array<int> row_offsets;
 	//! column offsets for each block start (length nColBlocks+1). This array is initialized in the Finalize() method.
 	Array<int> col_offsets;
-	//! Total number of non-zeros element. nnz_elem is computed in the Finalize() method.
-	int nnz_elem;
-	//! True if Finalize() is called
-	bool is_filled;
 	//! 2D array that stores each block of the BlockMatrix. Aij(iblock, jblock) == NULL if block (iblock, jblock) is all zeros.
 	Array2D<SparseMatrix *> Aij;
 };

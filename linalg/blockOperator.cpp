@@ -25,75 +25,70 @@ BlockOperator::BlockOperator():
 	{ }
 
 
-BlockOperator::BlockOperator(int nRowBlocks_):
-	nRowBlocks(nRowBlocks_),
-	nColBlocks(nRowBlocks_),
-	row_offsets(nRowBlocks_+1),
-	col_offsets(nRowBlocks_+1),
-	op(nRowBlocks_, nRowBlocks_)
+BlockOperator::BlockOperator(const Array<int> & offsets):
+	Operator(offsets.Last()),
+	nRowBlocks(offsets.Size() - 1),
+	nColBlocks(offsets.Size() - 1),
+	row_offsets(0),
+	col_offsets(0),
+	op(nRowBlocks, nRowBlocks)
 	{
 	  op = static_cast<Operator *>(NULL);
-	  row_offsets = 0;
-	  col_offsets = 0;
+	  row_offsets.MakeRef(offsets);
+	  col_offsets.MakeRef(offsets);
 	}
 
 
-BlockOperator::BlockOperator(int nRowBlocks_, int nColBlocks_):
-	nRowBlocks(nRowBlocks_),
-	nColBlocks(nColBlocks_),
-	row_offsets(nRowBlocks_+1),
-	col_offsets(nColBlocks_+1),
-	op(nRowBlocks_, nColBlocks_)
+BlockOperator::BlockOperator(const Array<int> & row_offsets_, const Array<int> & col_offsets_):
+    Operator(row_offsets_.Last()),
+	nRowBlocks(row_offsets_.Size()-1),
+	nColBlocks(col_offsets_.Size()-1),
+	row_offsets(0),
+	col_offsets(0),
+	op(nRowBlocks, nColBlocks)
 	{
 	  op = static_cast<Operator *>(NULL);
-	  row_offsets = 0;
-	  col_offsets = 0;
+	  row_offsets.MakeRef(row_offsets_);
+	  col_offsets.MakeRef(col_offsets_);
 	}
 
-void BlockOperator::SetUp(int nRowBlocks_, int nColBlocks_)
+void BlockOperator::SetUp(const Array<int> & row_offsets_, const Array<int> & col_offsets_)
 {
-	nRowBlocks = nRowBlocks_;
-	nRowBlocks = nColBlocks_;
-	row_offsets.SetSize(nRowBlocks+1);
-	col_offsets.SetSize(nColBlocks+1);
+	size = row_offsets_.Size();
+
+	nRowBlocks = row_offsets_.Size() - 1;
+	nRowBlocks = col_offsets_.Size() - 1;
+	row_offsets.MakeRef(row_offsets_);
+	col_offsets.MakeRef(col_offsets_);
+
 	op.SetSize(nRowBlocks, nColBlocks);
+	op = static_cast<Operator *>(NULL);
+
 }
 
-void BlockOperator::SetDiagonalBlock(int iblock, Operator *op, int size)
+void BlockOperator::SetDiagonalBlock(int iblock, Operator *op)
 {
-	SetBlock(iblock, iblock, op, size, size);
+	SetBlock(iblock, iblock, op);
 }
 
 
-void BlockOperator::SetBlock(int iRow, int iCol, Operator *opt, int size, int width)
+void BlockOperator::SetBlock(int iRow, int iCol, Operator *opt)
 {
 	op(iRow, iCol) = opt;
 
-	if( row_offsets[iRow+1] > 0 && row_offsets[iRow+1] != size)
+	if( row_offsets[iRow+1] - row_offsets[iRow] != opt->Size() )
 		mfem_error("BlockOperator::SetBlock Incompatible Row Size\n");
-	row_offsets[iRow+1] = size;
 
-	if( col_offsets[iCol+1] > 0 && col_offsets[iCol+1] != width)
-		mfem_error("BlockOperator::SetBlock Incompatible Col Size\n");
-	col_offsets[iCol+1] = width;
-}
-
-void BlockOperator::Finalize()
-{
-	row_offsets[0] = 0; col_offsets[0] = 0;
-	row_offsets.PartialSum();
-	col_offsets.PartialSum();
-	size = row_offsets.Last();
+//  Since Operator does not have the method Width we trust that the width is correct.
+//	if( col_offsets[iCol+1]-row_offsets[iCol] != opt->Width() )
+//		mfem_error("BlockOperator::SetBlock Incompatible Col Size\n");
 }
 
 /// Operator application
 void BlockOperator::Mult (const Vector & x, Vector & y) const
 {
-	if(row_offsets[0] != 0)
-		mfem_error("BlockOperator::Mult You need to call Finalize() first");
-
-	yblock.Update(y.GetData(),const_cast<Array<int>&>(row_offsets).GetData(), nRowBlocks);
-	xblock.Update(x.GetData(),const_cast<Array<int>&>(col_offsets).GetData(), nColBlocks);
+	yblock.Update(y.GetData(),row_offsets);
+	xblock.Update(x.GetData(),col_offsets);
 
 	y = 0.0;
 	for (int iRow(0); iRow < nRowBlocks; ++iRow)
@@ -113,13 +108,10 @@ void BlockOperator::Mult (const Vector & x, Vector & y) const
 /// Action of the transpose operator
 void BlockOperator::MultTranspose (const Vector & x, Vector & y) const
 {
-	if(row_offsets[0] != 0)
-		mfem_error("BlockOperator::Mult You need to call Finalize() first");
-
 	y = 0.0;
 
-	xblock.Update(x.GetData(),const_cast<Array<int>&>(row_offsets).GetData(), nRowBlocks);
-	yblock.Update(y.GetData(),const_cast<Array<int>&>(col_offsets).GetData(), nColBlocks);
+	xblock.Update(x.GetData(),row_offsets);
+	yblock.Update(y.GetData(),col_offsets);
 
 	for (int iRow(0); iRow < nRowBlocks; ++iRow)
 	{
@@ -144,75 +136,72 @@ BlockDiagonalPreconditioner::BlockDiagonalPreconditioner():
   op()
 { }
 
-BlockDiagonalPreconditioner::BlockDiagonalPreconditioner(int nRowBlocks):
-  Solver(),
-  nBlocks(nRowBlocks),
-  offsets(nRowBlocks+1),
-  op(nRowBlocks)
+BlockDiagonalPreconditioner::BlockDiagonalPreconditioner(const Array<int> & offsets_):
+  Solver(offsets_.Last()),
+  nBlocks(offsets_.Size() - 1),
+  offsets(0),
+  op(nBlocks)
 
 {
   op = static_cast<Operator *>(NULL);
+  offsets.MakeRef(offsets_);
 }
 
-void BlockDiagonalPreconditioner::SetUp(int nRowBlocks)
+void BlockDiagonalPreconditioner::SetUp(const Array<int> & offsets_)
 {
-  nBlocks = nRowBlocks;
-  op.SetSize(nRowBlocks);
-  offsets.SetSize(nRowBlocks+1, -1);
+  size = offsets_.Last();
+  nBlocks = offsets_.Size();
+  offsets.MakeRef(offsets_);
+  op.SetSize(nBlocks);
 }
 
-void BlockDiagonalPreconditioner::SetDiagonalBlock(int iblock, Operator *opt, int size)
+void BlockDiagonalPreconditioner::SetDiagonalBlock(int iblock, Operator *opt)
 {
+  if( offsets[iblock+1] - offsets[iblock] != opt->Size() )
+	  mfem_error("offsets[iblock+1] - offsets[iblock] != size");
+
   op[iblock] = opt;
-  offsets[iblock+1] = size;
 }
-void BlockDiagonalPreconditioner::SetBlock(int iRow, int iCol, Operator *opt, int size, int width)
+void BlockDiagonalPreconditioner::SetBlock(int iRow, int iCol, Operator *opt)
 {
   if(iRow!=iCol)
     mfem_error("Trying to add offdiagonal block in BlockDiagonalPreconditioner");
-  if(size!=width)
-    mfem_error("Block is not square in BlockDiagonalPreconditioner");
+
+  if( offsets[iRow+1] - offsets[iRow] != opt->Size() )
+    mfem_error("offsets[iblock+1] - offsets[iblock] != size");
 
   op[iRow] = opt;
-  offsets[iRow+1] = size;
-}
-
-void BlockDiagonalPreconditioner::Finalize()
-{
-  offsets[0] = 0;
-  offsets.PartialSum();
-  size = offsets.Last();
 }
 
 /// Operator application
 void BlockDiagonalPreconditioner::Mult (const Vector & x, Vector & y) const
 {
-  if(offsets[0] != 0)
-    mfem_error("BlockOperator::Mult You need to call Finalize() first");
 
   y = 0.0;
 
-  yblock.Update(y.GetData(), offsets.GetData(), nBlocks);
-  xblock.Update(x.GetData(), offsets.GetData(), nBlocks);
+  yblock.Update(y.GetData(), offsets);
+  xblock.Update(x.GetData(), offsets);
 
   for(int i(0); i<nBlocks; ++i)
     if(op[i])
       op[i]->Mult(xblock.Block(i), yblock.Block(i));
+    else
+      yblock.Block(i) = xblock.Block(i);
 
 }
 
 /// Action of the transpose operator
 void BlockDiagonalPreconditioner::MultTranspose (const Vector & x, Vector & y) const
 {
-  if(offsets[0] != 0)
-    mfem_error("BlockOperator::Mult You need to call Finalize() first");
 
   y = 0.0;
 
-  yblock.Update(y.GetData(), offsets.GetData(), nBlocks);
-  xblock.Update(x.GetData(), offsets.GetData(), nBlocks);
+  yblock.Update(y.GetData(), offsets);
+  xblock.Update(x.GetData(), offsets);
 
   for(int i(0); i<nBlocks; ++i)
+  if(op[i])
     (op[i])->MultTranspose(xblock.Block(i), yblock.Block(i));
-
+  else
+    yblock.Block(i) = xblock.Block(i);
 }

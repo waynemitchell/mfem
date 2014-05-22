@@ -115,7 +115,25 @@ int main (int argc, char *argv[])
 		std::cout << "***********************************************************\n";
 	}
 
-	// 6. Define the coefficients, analytical solution, and rhs of the PDE
+	// 6. Define the two BlockStructure of the problem. block_offsets is used for Vector based
+	// on dof (like ParGridFunction or ParLinearForm), block_trueOffstes is used for Vector based
+	// on trueDof (HypreParVector for the rhs and solution of the linear system).
+	// The offsets computed here are local to the processor.
+
+	Array<int> block_offsets(3); //Number of variables + 1
+	block_offsets[0] = 0;
+	block_offsets[1] = R_space->GetVSize();
+	block_offsets[2] = W_space->GetVSize();
+	block_offsets.PartialSum();
+
+	Array<int> block_trueOffsets(3); //Number of variables + 1
+	block_trueOffsets[0] = 0;
+	block_trueOffsets[1] = R_space->TrueVSize();
+	block_trueOffsets[2] = W_space->TrueVSize();
+	block_trueOffsets.PartialSum();
+
+
+	// 7. Define the coefficients, analytical solution, and rhs of the PDE
 	ConstantCoefficient k( 1. );
 
 	VectorFunctionCoefficient fcoeff(pmesh->Dimension(), fFun);
@@ -125,22 +143,32 @@ int main (int argc, char *argv[])
 	VectorFunctionCoefficient ucoeff(pmesh->Dimension(), uFun_ex);
 	FunctionCoefficient pcoeff(pFun_ex);
 
-	// 7. Define the parallel grid function and parallel linear forms
-	ParGridFunction *u(new ParGridFunction(R_space));
-	ParGridFunction *p(new ParGridFunction(W_space));
+	// 8. Define the parallel grid function and parallel linear forms, solution vector and rhs
+	BlockVector x(block_offsets), rhs(block_offsets);
+	BlockVector trueX(block_trueOffsets), trueRhs(block_trueOffsets);
 
-	ParLinearForm * fform( new ParLinearForm(R_space) );
+	ParGridFunction *u(new ParGridFunction);
+	ParGridFunction *p(new ParGridFunction);
+	u->Update(R_space, x.Block(0), 0);
+	p->Update(W_space, x.Block(1), 0);
+	*u = 0.; *p = 0.; 	// One could now use u and p to interpolate essential boundary conditions, instead.
+	u->GetTrueDofs(trueX.Block(0));
+	p->GetTrueDofs(trueX.Block(1));
+
+	ParLinearForm * fform( new ParLinearForm );
+	fform->Update(R_space, rhs.Block(0), 0);
 	fform->AddDomainIntegrator( new VectorFEDomainLFIntegrator(fcoeff));
 	fform->AddBoundaryIntegrator( new VectorFEBoundaryFluxLFIntegrator(fnatcoeff));
 	fform->Assemble();
-	HypreParVector * f_u = fform->ParallelAssemble();
+	fform->ParallelAssemble(trueRhs.Block(0));
 
-	ParLinearForm * gform( new ParLinearForm(W_space) );
+	ParLinearForm * gform( new ParLinearForm );
+	gform->Update(W_space, rhs.Block(1), 0);
 	gform->AddDomainIntegrator( new DomainLFIntegrator(gcoeff));
 	gform->Assemble();
-	HypreParVector * f_p = gform->ParallelAssemble();
+	gform->ParallelAssemble(trueRhs.Block(1));
 
-	// 8. Assemble the finite element matrices for the Darcy operator
+	// 9. Assemble the finite element matrices for the Darcy operator
 	/*
 	 * \D = [ M        B^T ]
 	 *      [ B         0   ]
@@ -184,14 +212,12 @@ int main (int argc, char *argv[])
 	(*B) *= -1;
 	HypreParMatrix * BT = B->Transpose();
 	
-	BlockOperator * darcyOp = new BlockOperator(2,2);
-	darcyOp->SetBlock(0,0, M, M->GetNumRows(), M->GetNumRows() );
-	darcyOp->SetBlock(0,1, BT, BT->GetNumRows(), B->GetNumRows() );
-	darcyOp->SetBlock(1,0, B, B->GetNumRows(), BT->GetNumRows() );
-	darcyOp->Finalize();
+	BlockOperator * darcyOp = new BlockOperator(block_trueOffsets);
+	darcyOp->SetBlock(0,0, M);
+	darcyOp->SetBlock(0,1, BT);
+	darcyOp->SetBlock(1,0, B );
 
-
-	// 9. Construct the operators for preconditioner
+	// 10. Construct the operators for preconditioner
 	/*
 	 *  \P = [ diag(M)         0         ]
 	 *       [  0       B diag(M)^-1 B^T ]
@@ -213,18 +239,12 @@ int main (int argc, char *argv[])
 	invM->iterative_mode = false;
 	invS->iterative_mode = false;
 	
-	BlockDiagonalPreconditioner * darcyPr = new BlockDiagonalPreconditioner(2);
-	darcyPr->SetDiagonalBlock(0, invM, M->GetNumRows() );
-	darcyPr->SetDiagonalBlock(1, invS, S->GetNumRows() );
-	darcyPr->Finalize();
+	BlockDiagonalPreconditioner * darcyPr = new BlockDiagonalPreconditioner(block_trueOffsets);
+	darcyPr->SetDiagonalBlock(0, invM );
+	darcyPr->SetDiagonalBlock(1, invS );
 
-	// 10. Stride the right hand side and solve the linear system with MINRES.
+	// 11. Solve the linear system with MINRES.
 	//     Check the norm of the unpreconditioned residual
-
-	Array<int> row_starts_monolithic;
-	BlockHypreParVector * rhs( stride(*f_u, *f_p, row_starts_monolithic) );
-	BlockHypreParVector * x( new BlockHypreParVector(*rhs) );
-	(*x) = 0.0;
 
 	int maxIter(500);
 	double rtol(1.e-6);
@@ -239,7 +259,7 @@ int main (int argc, char *argv[])
 	solver.SetOperator(*darcyOp);
 	solver.SetPreconditioner(*darcyPr);
 	solver.SetPrintLevel(verbose);
-	solver.Mult(*rhs, *x);
+	solver.Mult(trueRhs, trueX);
 	chrono.Stop();
 
 	if(verbose)
@@ -251,13 +271,13 @@ int main (int argc, char *argv[])
 		std::cout << "MINRES solver took " << chrono.RealTime() << " s. \n";
 	}
 
-	BlockHypreParVector * r( new BlockHypreParVector(*rhs)  );
-	darcyOp->Mult(*x, *r);
-	subtract(*rhs, *r, *r);
+	BlockVector r( block_trueOffsets );
+	darcyOp->Mult(trueX, r);
+	subtract(trueRhs, r, r);
 
 
-	double residual_norm = GlobalLpNorm(2., r->Norml2(),   MPI_COMM_WORLD);
-	double rhs_norm      = GlobalLpNorm(2., rhs->Norml2(), MPI_COMM_WORLD);
+	double residual_norm = GlobalLpNorm(2., r.Norml2(),   MPI_COMM_WORLD);
+	double rhs_norm      = GlobalLpNorm(2., rhs.Norml2(), MPI_COMM_WORLD);
 
 	if(verbose)
 	{
@@ -265,10 +285,12 @@ int main (int argc, char *argv[])
 		std::cout<<"|| Ax_n - b ||_2/||b||_2 = "<<residual_norm/rhs_norm<<"\n";
 	}
 
-	// 11. Extract the parallel grid function corresponding to the finite element
+	// 12. Extract the parallel grid function corresponding to the finite element
 	//     approximation X. This is the local solution on each processor. Compute L2 error norms.
-	*u = x->Block(0);
-	*p = x->Block(1);
+	u->Update(R_space, x.Block(0), 0);
+	p->Update(W_space, x.Block(1), 0);
+	u->Distribute( &(trueX.Block(0)) );
+	p->Distribute( &(trueX.Block(1)) );
 
 	int order_quad = max(2, 2*order+1);
 	Array<const IntegrationRule *> irs;
@@ -286,7 +308,7 @@ int main (int argc, char *argv[])
 		std::cout << "|| p_h - p_ex || / || p_ex || = " << err_p / norm_p << "\n";
 	}
 
-	// 12. Save the refined mesh and the solution in parallel. This output can
+	// 13. Save the refined mesh and the solution in parallel. This output can
 	//     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol_*".
 	{
 		ostringstream mesh_name, u_name, p_name;
@@ -307,7 +329,7 @@ int main (int argc, char *argv[])
 		p->Save(p_ofs);
 	}
 
-	// 13. (Optional) Send the solution by socket to a GLVis server.
+	// 14. (Optional) Send the solution by socket to a GLVis server.
 	{
 		char vishost[] = "localhost";
 		int  visport   = 19916;
@@ -325,18 +347,14 @@ int main (int argc, char *argv[])
 		p->Save(p_sock);
 	}
 
-	// 14. Free the used memory.;
-	delete f_p;
-	delete f_u;
+	// 15. Free the used memory.;
+
 	delete fform;
 	delete gform;
 	delete u;
 	delete p;
 	delete darcyOp;
 	delete darcyPr;
-	delete x;
-	delete rhs;
-	delete r;
 	delete invM;
 	delete invS;
 	delete S;
