@@ -1799,7 +1799,7 @@ void SparseMatrixFunction (SparseMatrix & S, double (*f)(double))
       s[i] = f(s[i]);
 }
 
-SparseMatrix *Transpose (SparseMatrix &A)
+SparseMatrix *Transpose (const SparseMatrix &A)
 {
    if (!A.Finalized())
       mfem_error("Finalize must be called before Transpose. Use"
@@ -1911,7 +1911,7 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth)
 }
 
 
-SparseMatrix *Mult (SparseMatrix &A, SparseMatrix &B,
+SparseMatrix *Mult (const SparseMatrix &A, const SparseMatrix &B,
                     SparseMatrix *OAB)
 {
    int nrowsA, ncolsA, nrowsB, ncolsB;
@@ -2020,7 +2020,7 @@ SparseMatrix *Mult (SparseMatrix &A, SparseMatrix &B,
    return C;
 }
 
-SparseMatrix *MultRowMatrix (SparseMatrix &A, SparseMatrix &B)
+SparseMatrix *MultRowMatrix (const SparseMatrix &A, const SparseMatrix &B)
 {
    int nrowsA, ncolsA, nrowsB, ncolsB;
    int *C_i, *C_j, *B_marker;

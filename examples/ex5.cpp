@@ -111,17 +111,17 @@ int main (int argc, char *argv[])
 	// The data allocated by x and rhs are passed as a reference to the grid fuctions (u,p) and the linear forms (fform, gform).
 	BlockVector x( block_offsets ), rhs( block_offsets );
     GridFunction u, p;
-    u.Update(R_space, x.Block(0), 0);
-    p.Update(W_space, x.Block(1), 0 );
+    u.Update(R_space, x.GetBlock(0), 0);
+    p.Update(W_space, x.GetBlock(1), 0 );
 
 	LinearForm * fform( new LinearForm );
-    fform->Update(R_space, rhs.Block(0), 0);
+    fform->Update(R_space, rhs.GetBlock(0), 0);
 	fform->AddDomainIntegrator( new VectorFEDomainLFIntegrator(fcoeff));
 	fform->AddBoundaryIntegrator( new VectorFEBoundaryFluxLFIntegrator(fnatcoeff));
 	fform->Assemble();
 
 	LinearForm * gform( new LinearForm );
-    gform->Update(W_space, rhs.Block(1), 0 );
+    gform->Update(W_space, rhs.GetBlock(1), 0 );
 	gform->AddDomainIntegrator( new DomainLFIntegrator(gcoeff));
 	gform->Assemble();
 
@@ -236,8 +236,8 @@ int main (int argc, char *argv[])
 	std::cout<<"|| Ax_n - b ||_2/||b||_2 = "<<residual_norm/rhs_norm<<"\n";
 
 	// 10. Update the grid functions u and p. Compute the L2 error norms.
-	u.Update(R_space, x.Block(0), 0);
-	p.Update(W_space, x.Block(1), 0 );
+	u.Update(R_space, x.GetBlock(0), 0);
+	p.Update(W_space, x.GetBlock(1), 0 );
 
 	int order_quad = max(2, 2*order+1);
 	Array<const IntegrationRule *> irs;

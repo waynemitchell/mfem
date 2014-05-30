@@ -30,8 +30,8 @@ protected:
     * blockOffsets[i+1] - blockOffsets[i] is the size of block i.
     */
    const int *blockOffsets;
-   //! temporary Vector used to extract blocks without allocating memory (possibly unsafe).
-   mutable Vector tmp_block;
+   //! array of Vector objects used to extract blocks without allocating memory.
+   Array<Vector *> tmp_block;
 
 public:
    //! empty constructor
@@ -60,18 +60,17 @@ public:
    BlockVector & operator=(double val);
 
    //! Destructor
-   virtual ~BlockVector();
+   ~BlockVector();
 
-   //! Get the i-th vector in the block. (Thread Unsafe)
-   /**
-    * WARNING: Do not call this method with two different inputs in the same instruction or the results will be undefined.
-    */
-   Vector & Block(int i);
-   //! Get the i-th vector in the block (const version). (Thread Unsafe)
-   const Vector & Block(int i) const;
+   //! Get the i-th vector in the block.
+   Vector & GetBlock(int i);
+   //! Get the i-th vector in the block (const version).
+   const Vector & GetBlock(int i) const;
 
-   //! Get the i-th vector in the block (Thread safe)
-   void BlockView(int i, Vector & blockView);
+   //! Get the i-th vector in the block
+   void GetBlockView(int i, Vector & blockView);
+
+   int BlockSize(int i){ return blockOffsets[i+1] - blockOffsets[i];}
 
    //! Update method
    /**
@@ -82,11 +81,6 @@ public:
    void Update(double *data, const Array<int> & bOffsets);
 
 };
-
-//! Stride two or more objects of type Vector in a BlockVector.
-BlockVector * stride(const Array<const Vector *> & vectors, Array<int> & bOffsets);
-BlockVector * stride(const Vector & v1, const Vector & v2, Array<int> & bOffsets);
-BlockVector * stride(const Vector & v1, const Vector & v2, const Vector & v3, Array<int> & bOffsets);
 
 
 #endif /* MFEM_BLOCKVECTOR */

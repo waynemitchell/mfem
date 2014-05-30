@@ -62,7 +62,7 @@ void BlockMatrix::SetBlock(int i, int j, SparseMatrix & mat)
 	Aij(i,j) = &mat;
 }
 
-SparseMatrix & BlockMatrix::Block(int i, int j)
+SparseMatrix & BlockMatrix::GetBlock(int i, int j)
 {
 #ifdef MFEM_DEBUG
 	if(nRowBlocks <= i || nColBlocks <= j)
@@ -74,7 +74,7 @@ SparseMatrix & BlockMatrix::Block(int i, int j)
 	return *Aij(i,j);
 }
 
-const SparseMatrix & BlockMatrix::Block(int i, int j) const
+const SparseMatrix & BlockMatrix::GetBlock(int i, int j) const
 {
 #ifdef MFEM_DEBUG
 	if(nRowBlocks <= i || nColBlocks <= j)
@@ -356,7 +356,7 @@ void BlockMatrix::AddMultTranspose(const Vector & x, Vector & y, const double va
 		}
 }
 
-SparseMatrix * BlockMatrix::Monolithic()
+SparseMatrix * BlockMatrix::CreateMonolithic()
 {
 
 	int nnz = NumNonZeroElems();
@@ -467,7 +467,7 @@ BlockMatrix * Transpose(const BlockMatrix & A)
 	for(int irowAt(0); irowAt < At->NumRowBlocks(); ++irowAt)
 		for(int jcolAt(0); jcolAt < At->NumColBlocks(); ++jcolAt)
 			if( !A.IsZeroBlock(jcolAt, irowAt))
-				At->SetBlock(irowAt, jcolAt, *Transpose( const_cast<SparseMatrix &>(A.Block(jcolAt, irowAt)) ) );
+				At->SetBlock(irowAt, jcolAt, *Transpose( A.GetBlock(jcolAt, irowAt)) );
 	return At;
 }
 
@@ -483,7 +483,7 @@ BlockMatrix * Mult(const BlockMatrix & A, const BlockMatrix & B)
 			CijPieces.SetSize(0, static_cast<SparseMatrix *>(NULL));
 			for(int k(0); k < A.NumColBlocks(); ++k)
 				if( !A.IsZeroBlock(irowC, k) && !B.IsZeroBlock(k, jcolC))
-					CijPieces.Append( Mult(const_cast<SparseMatrix &>(A.Block(irowC, k)), const_cast<SparseMatrix &>(B.Block(k, jcolC) ) ) );
+					CijPieces.Append( Mult( A.GetBlock(irowC, k), B.GetBlock(k, jcolC) ) );
 
 			if( CijPieces.Size() > 1 )
 			{

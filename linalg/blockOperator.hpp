@@ -17,18 +17,15 @@
  * \brief A class to handle Block systems in a matrix-free implementation.
  *
  * Usage:
- * - Use one of the constructors or the SetUp method to define how many row and columns blocks.
+ * - Use one of the constructors or the SetUp method to define the block structure.
  * - Use SetDiagonalBlock or SetBlock to fill the BlockOperator
- * - Call the method Finalize() to check for consistency and generate the BlockOffsets.
  * - Use the method Mult and MultTranspose to apply the operator to a vector.
  *
+ * If a block is not set, it is assumed to be a zero block
  */
 class BlockOperator : public Operator
 {
 public:
-
-	//! Default Constructor
-	BlockOperator();
 	//! Constructor for BlockOperators with the same block-structure for rows and columns.
 	/**
 	 *  offsets: offsets that mark the start of each row/column block (size nRowBlocks+1).
@@ -43,8 +40,6 @@ public:
 	 */
 	BlockOperator(const Array<int> & row_offsets, const Array<int> & col_offsets);
 
-	//! Set the block structure.
-	void SetUp(const Array<int> & row_offsets, const Array<int> & col_offsets);
 	//! Add block op in the block-entry (iblock, iblock).
 	/**
 	 * iblock: The block will be inserted in location (iblock, iblock).
@@ -88,9 +83,8 @@ private:
  * \brief A class to handle Block diagonal preconditioners in a matrix-free implementation.
  *
  * Usage:
- * - Use the constructors or the SetUp method to define how many blocks.
+ * - Use the constructors or the SetUp method to define the block structure
  * - Use SetDiagonalBlock to fill the BlockOperator
- * - Call the method Finalize() to generate the BlockOffsets.
  * - Use the method Mult and MultTranspose to apply the operator to a vector.
  *
  * If a block is not set, it is assumed it is an identity block
@@ -99,28 +93,16 @@ private:
 class BlockDiagonalPreconditioner : public Solver
 {
 public:
-
-  //! Default Constructor
-  BlockDiagonalPreconditioner();
   //! Constructor that specifies the block structure
   BlockDiagonalPreconditioner(const Array<int> & offsets);
-  //! Set the block structure
-  void SetUp(const Array<int> & offsets);
   //! Add a square block op in the block-entry (iblock, iblock).
   /**
    * iblock: The block will be inserted in location (iblock, iblock).
    * op: the Operator to be inserted.
    */
   void SetDiagonalBlock(int iblock, Operator *op);
-  //! This method is present for the purpose of having the same interface as BlockOperator
-  /**
-   * This method will raise an error if:
-   * - op is not square (i.e. size ~= width)
-   * - the block is not on the diagonal (i.e. iRow ~= iCol)
-   */
-  void SetBlock(int iRow, int iCol, Operator *op);
   //! This method is present since required by the abstract base class Solver
-  void SetOperator(const Operator &op){ }
+  virtual void SetOperator(const Operator &op){ }
 
   /// Operator application
   virtual void Mult (const Vector & x, Vector & y) const;

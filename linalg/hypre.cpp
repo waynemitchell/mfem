@@ -168,173 +168,6 @@ double InnerProduct(HypreParVector &x, HypreParVector &y)
    return hypre_ParVectorInnerProd(x, y);
 }
 
-BlockHypreParVector::BlockHypreParVector(MPI_Comm comm_, int glob_size, int *col,
-		const Array<int> & b_glob_size, const Array2D<int> & bLocalSizes, int nBlocks):
-		comm(comm_),
-        HypreParVector(comm_,glob_size, col),
-		numBlocks(nBlocks),
-		blocks_glob_size(b_glob_size.Size()),
-		blockLocalSizes(bLocalSizes.NumRows(), bLocalSizes.NumCols()),
-		localOffsets(bLocalSizes.NumRows()+1),
-		block_col(bLocalSizes.NumRows(), bLocalSizes.NumCols()+1)
-{
-
-	int myPID(0), nProc(0);
-
-	/*ONLY IF NOT ASSUMED_PARTITION!!*/
-	MPI_Comm_rank (MPI_COMM_WORLD, &myPID);	/* get current process id */
-	MPI_Comm_size (MPI_COMM_WORLD, &nProc);	/* get number of processes */
-
-#ifdef MFEM_DEBUG
-	if(blocks_glob_size.Size() != nBlocks)
-		mfem_error("BlockHypreParVector::BlockHypreParVector #1");
-	if(blockLocalSizes.NumCols() != nProc)
-		mfem_error("BlockHypreParVector::BlockHypreParVector #2");
-	if(blockLocalSizes.NumRows() != nBlocks)
-		mfem_error("BlockHypreParVector::BlockHypreParVector #3");
-	if(block_col.NumCols() != nProc+1)
-		mfem_error("BlockHypreParVector::BlockHypreParVector #4");
-	if(block_col.NumRows() != nBlocks)
-		mfem_error("BlockHypreParVector::BlockHypreParVector #5");
-#endif
-
-	b_glob_size.Copy(blocks_glob_size);
-	bLocalSizes.Copy(blockLocalSizes);
-
-	localOffsets[0] = 0;
-
-	for(int iblock(0); iblock < numBlocks; ++iblock)
-	{
-
-		localOffsets[iblock+1] = localOffsets[iblock] + blockLocalSizes(iblock, myPID);
-
-		// Create the block_col array
-		int * iblock_col(block_col.GetRow(iblock));
-		iblock_col[0] = 0;
-		for(int iPID(0); iPID < nProc; ++iPID)
-			iblock_col[iPID+1] = iblock_col[iPID] + blockLocalSizes(iblock, iPID);
-
-	}
-}
-
-// Creates vector compatible with y
-BlockHypreParVector::BlockHypreParVector(const BlockHypreParVector & y):
-		HypreParVector(y),
-        comm(y.comm),
-		numBlocks(y.numBlocks),
-		blocks_glob_size(y.numBlocks),
-		blockLocalSizes(y.blockLocalSizes.NumRows(), y.blockLocalSizes.NumCols()),
-		localOffsets(y.localOffsets.Size()),
-		block_col(y.block_col.NumRows(), y.block_col.NumCols())
-{
-
-	int myPID(0), nProc(0);
-
-	MPI_Comm_rank (MPI_COMM_WORLD, &myPID);	/* get current process id */
-	MPI_Comm_size (MPI_COMM_WORLD, &nProc);	/* get number of processes */
-
-#ifdef MFEM_DEBUG
-	if(blocks_glob_size.Size() != y.numBlocks)
-		mfem_error("BlockHypreParVector::BlockHypreParVector #1");
-	if(blockLocalSizes.NumCols() != nProc)
-		mfem_error("BlockHypreParVector::BlockHypreParVector #2");
-	if(blockLocalSizes.NumRows() != y.numBlocks)
-	    mfem_error("BlockHypreParVector::BlockHypreParVector #3");
-	if(block_col.NumCols() != nProc+1)
-		mfem_error("BlockHypreParVector::BlockHypreParVector #4");
-	if(block_col.NumRows() != y.numBlocks)
-		mfem_error("BlockHypreParVector::BlockHypreParVector #5");
-#endif
-
-	y.blocks_glob_size.Copy(blocks_glob_size);
-	y.blockLocalSizes.Copy(blockLocalSizes);
-	y.block_col.Copy(block_col);
-	y.localOffsets.Copy(localOffsets);
-
-}
-
-HypreParVector BlockHypreParVector::Block(int i)
-{
-	return HypreParVector(comm, blocks_glob_size[i], this->data+localOffsets[i], block_col.GetRow(i));
-}
-const HypreParVector BlockHypreParVector::Block(int i) const
-{
-	return HypreParVector(comm, blocks_glob_size[i], this->data+localOffsets[i], const_cast<int *>( block_col.GetRow(i) ) );
-}
-
-BlockHypreParVector & BlockHypreParVector::operator=(const BlockHypreParVector & original)
-{
-	//Assert that numBlock blockOffsets glob_size and col are the same
-	std::copy(original.data, original.data+original.Size(), this->data);
-	return *this;
-}
-
-BlockHypreParVector & BlockHypreParVector::operator=(double val)
-{
-	hypre_ParVectorSetConstantValues(*this,val);
-	return *this;
-}
-
-//! Destructor
-BlockHypreParVector::~BlockHypreParVector()
-{
-
-}
-
-BlockHypreParVector * stride(const Array<const HypreParVector *> & vectors, Array<int> & rowStarts_monolithic)
-{
-	MPI_Comm & comm( hypre_ParVectorComm(static_cast<hypre_ParVector*>(*vectors[0]) ) );
-	int myPID(0), nProc(0);
-
-	MPI_Comm_rank (comm, &myPID);	/* get current process id */
-	MPI_Comm_size (comm, &nProc);	/* get number of processes */
-
-	int nBlocks(vectors.Size());
-    rowStarts_monolithic.SetSize(nProc+1);
-    rowStarts_monolithic = 0;
-	int * col = rowStarts_monolithic.GetData();
-	Array<int> b_glob_size(nBlocks);
-	Array2D<int> bLocalSizes(nBlocks, nProc);
-	int glob_size(0);
-
-	for(int iblock(0); iblock < nBlocks; ++iblock)
-	{
-		b_glob_size[iblock] = hypre_ParVectorGlobalSize(static_cast<hypre_ParVector*>(*vectors[iblock]) );
-		int * partitioning(hypre_ParVectorPartitioning(static_cast<hypre_ParVector*>(*vectors[iblock])));
-		int * iblockLocalSizes(bLocalSizes.GetRow(iblock));
-		for(int iPID(0); iPID < nProc; ++iPID)
-			iblockLocalSizes[iPID] = partitioning[iPID+1] - partitioning[iPID];
-	}
-
-	col[0] = 0;
-	for (int iPID(0); iPID < nProc; ++iPID)
-	{
-		int iCol(col[iPID]);
-		for(int iblock(0); iblock < nBlocks; ++iblock)
-			iCol += bLocalSizes(iblock,iPID);
-		col[iPID+1] = iCol;
-	}
-
-
-	glob_size = b_glob_size.Sum();
-	BlockHypreParVector * strided;
-
-	strided = new BlockHypreParVector(comm, glob_size, col, b_glob_size, bLocalSizes, nBlocks);
-
-	for(int iblock(0); iblock < nBlocks; ++iblock)
-		strided->Block(iblock) = *(vectors[iblock]);
-
-	return strided;
-}
-
-BlockHypreParVector * stride(const HypreParVector & v1, const HypreParVector & v2, Array<int> & rowStarts_monolithic)
-{
-	Array<const HypreParVector *> vectors(2);
-	vectors[0] = &v1;
-	vectors[1] = &v2;
-
-	return stride(vectors, rowStarts_monolithic);
-}
 
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *diag)
    : Operator(size)
@@ -781,7 +614,7 @@ int HypreParMatrix::MultTranspose(HypreParVector & x, HypreParVector & y,
    return hypre_ParCSRMatrixMatvecT(a,A,x,b,y);
 }
 
-void HypreParMatrix::LeftScaling(const Vector &diag)
+void HypreParMatrix::ScaleRows(const Vector &diag)
 {
 
    if(hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
@@ -809,7 +642,7 @@ void HypreParMatrix::LeftScaling(const Vector &diag)
    }
 }
 
-void HypreParMatrix::InvLeftScaling(const Vector &diag)
+void HypreParMatrix::InvScaleRows(const Vector &diag)
 {
 
    if(hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))

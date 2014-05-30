@@ -15,16 +15,6 @@
 #include "blockVector.hpp"
 #include "blockOperator.hpp"
 
-
-BlockOperator::BlockOperator():
-	nRowBlocks(0),
-	nColBlocks(0),
-	row_offsets(0),
-	col_offsets(0),
-	op()
-	{ }
-
-
 BlockOperator::BlockOperator(const Array<int> & offsets):
 	Operator(offsets.Last()),
 	nRowBlocks(offsets.Size() - 1),
@@ -52,20 +42,6 @@ BlockOperator::BlockOperator(const Array<int> & row_offsets_, const Array<int> &
 	  col_offsets.MakeRef(col_offsets_);
 	}
 
-void BlockOperator::SetUp(const Array<int> & row_offsets_, const Array<int> & col_offsets_)
-{
-	size = row_offsets_.Size();
-
-	nRowBlocks = row_offsets_.Size() - 1;
-	nRowBlocks = col_offsets_.Size() - 1;
-	row_offsets.MakeRef(row_offsets_);
-	col_offsets.MakeRef(col_offsets_);
-
-	op.SetSize(nRowBlocks, nColBlocks);
-	op = static_cast<Operator *>(NULL);
-
-}
-
 void BlockOperator::SetDiagonalBlock(int iblock, Operator *op)
 {
 	SetBlock(iblock, iblock, op);
@@ -84,7 +60,7 @@ void BlockOperator::SetBlock(int iRow, int iCol, Operator *opt)
 //		mfem_error("BlockOperator::SetBlock Incompatible Col Size\n");
 }
 
-/// Operator application
+// Operator application
 void BlockOperator::Mult (const Vector & x, Vector & y) const
 {
 	yblock.Update(y.GetData(),row_offsets);
@@ -98,14 +74,14 @@ void BlockOperator::Mult (const Vector & x, Vector & y) const
 		{
 			if(op(iRow,jCol))
 			{
-				op(iRow,jCol)->Mult(xblock.Block(jCol), tmp);
-				yblock.Block(iRow) += tmp;
+				op(iRow,jCol)->Mult(xblock.GetBlock(jCol), tmp);
+				yblock.GetBlock(iRow) += tmp;
 			}
 		}
 	}
 }
 
-/// Action of the transpose operator
+// Action of the transpose operator
 void BlockOperator::MultTranspose (const Vector & x, Vector & y) const
 {
 	y = 0.0;
@@ -120,8 +96,8 @@ void BlockOperator::MultTranspose (const Vector & x, Vector & y) const
 		{
 			if(op(jCol,iRow))
 			{
-				op(jCol,iRow)->MultTranspose(xblock.Block(iRow), tmp);
-				yblock.Block(jCol) += tmp;
+				op(jCol,iRow)->MultTranspose(xblock.GetBlock(iRow), tmp);
+				yblock.GetBlock(jCol) += tmp;
 			}
 		}
 	}
@@ -129,13 +105,6 @@ void BlockOperator::MultTranspose (const Vector & x, Vector & y) const
 }
 
 //-----------------------------------------------------------------------
-BlockDiagonalPreconditioner::BlockDiagonalPreconditioner():
-  Solver(),
-  nBlocks(0),
-  offsets(0),
-  op()
-{ }
-
 BlockDiagonalPreconditioner::BlockDiagonalPreconditioner(const Array<int> & offsets_):
   Solver(offsets_.Last()),
   nBlocks(offsets_.Size() - 1),
@@ -147,14 +116,6 @@ BlockDiagonalPreconditioner::BlockDiagonalPreconditioner(const Array<int> & offs
   offsets.MakeRef(offsets_);
 }
 
-void BlockDiagonalPreconditioner::SetUp(const Array<int> & offsets_)
-{
-  size = offsets_.Last();
-  nBlocks = offsets_.Size();
-  offsets.MakeRef(offsets_);
-  op.SetSize(nBlocks);
-}
-
 void BlockDiagonalPreconditioner::SetDiagonalBlock(int iblock, Operator *opt)
 {
   if( offsets[iblock+1] - offsets[iblock] != opt->Size() )
@@ -162,18 +123,8 @@ void BlockDiagonalPreconditioner::SetDiagonalBlock(int iblock, Operator *opt)
 
   op[iblock] = opt;
 }
-void BlockDiagonalPreconditioner::SetBlock(int iRow, int iCol, Operator *opt)
-{
-  if(iRow!=iCol)
-    mfem_error("Trying to add offdiagonal block in BlockDiagonalPreconditioner");
 
-  if( offsets[iRow+1] - offsets[iRow] != opt->Size() )
-    mfem_error("offsets[iblock+1] - offsets[iblock] != size");
-
-  op[iRow] = opt;
-}
-
-/// Operator application
+// Operator application
 void BlockDiagonalPreconditioner::Mult (const Vector & x, Vector & y) const
 {
 
@@ -184,13 +135,13 @@ void BlockDiagonalPreconditioner::Mult (const Vector & x, Vector & y) const
 
   for(int i(0); i<nBlocks; ++i)
     if(op[i])
-      op[i]->Mult(xblock.Block(i), yblock.Block(i));
+      op[i]->Mult(xblock.GetBlock(i), yblock.GetBlock(i));
     else
-      yblock.Block(i) = xblock.Block(i);
+      yblock.GetBlock(i) = xblock.GetBlock(i);
 
 }
 
-/// Action of the transpose operator
+// Action of the transpose operator
 void BlockDiagonalPreconditioner::MultTranspose (const Vector & x, Vector & y) const
 {
 
@@ -201,7 +152,7 @@ void BlockDiagonalPreconditioner::MultTranspose (const Vector & x, Vector & y) c
 
   for(int i(0); i<nBlocks; ++i)
   if(op[i])
-    (op[i])->MultTranspose(xblock.Block(i), yblock.Block(i));
+    (op[i])->MultTranspose(xblock.GetBlock(i), yblock.GetBlock(i));
   else
-    yblock.Block(i) = xblock.Block(i);
+    yblock.GetBlock(i) = xblock.GetBlock(i);
 }

@@ -149,24 +149,24 @@ int main (int argc, char *argv[])
 
 	ParGridFunction *u(new ParGridFunction);
 	ParGridFunction *p(new ParGridFunction);
-	u->Update(R_space, x.Block(0), 0);
-	p->Update(W_space, x.Block(1), 0);
+	u->Update(R_space, x.GetBlock(0), 0);
+	p->Update(W_space, x.GetBlock(1), 0);
 	*u = 0.; *p = 0.; 	// One could now use u and p to interpolate essential boundary conditions, instead.
-	u->GetTrueDofs(trueX.Block(0));
-	p->GetTrueDofs(trueX.Block(1));
+	u->GetTrueDofs(trueX.GetBlock(0));
+	p->GetTrueDofs(trueX.GetBlock(1));
 
 	ParLinearForm * fform( new ParLinearForm );
-	fform->Update(R_space, rhs.Block(0), 0);
+	fform->Update(R_space, rhs.GetBlock(0), 0);
 	fform->AddDomainIntegrator( new VectorFEDomainLFIntegrator(fcoeff));
 	fform->AddBoundaryIntegrator( new VectorFEBoundaryFluxLFIntegrator(fnatcoeff));
 	fform->Assemble();
-	fform->ParallelAssemble(trueRhs.Block(0));
+	fform->ParallelAssemble(trueRhs.GetBlock(0));
 
 	ParLinearForm * gform( new ParLinearForm );
-	gform->Update(W_space, rhs.Block(1), 0);
+	gform->Update(W_space, rhs.GetBlock(1), 0);
 	gform->AddDomainIntegrator( new DomainLFIntegrator(gcoeff));
 	gform->Assemble();
-	gform->ParallelAssemble(trueRhs.Block(1));
+	gform->ParallelAssemble(trueRhs.GetBlock(1));
 
 	// 9. Assemble the finite element matrices for the Darcy operator
 	/*
@@ -229,7 +229,7 @@ int main (int argc, char *argv[])
 	HypreParVector * Md = new HypreParVector(MPI_COMM_WORLD, M->GetGlobalNumRows(), M->GetRowStarts());
 	M->GetDiag(*Md);
 
-	MinvBt->InvLeftScaling(*Md);
+	MinvBt->InvScaleRows(*Md);
 	HypreParMatrix * S = ParMult(B, MinvBt );
 
 	HypreSolver * invM, *invS;
@@ -287,10 +287,10 @@ int main (int argc, char *argv[])
 
 	// 12. Extract the parallel grid function corresponding to the finite element
 	//     approximation X. This is the local solution on each processor. Compute L2 error norms.
-	u->Update(R_space, x.Block(0), 0);
-	p->Update(W_space, x.Block(1), 0);
-	u->Distribute( &(trueX.Block(0)) );
-	p->Distribute( &(trueX.Block(1)) );
+	u->Update(R_space, x.GetBlock(0), 0);
+	p->Update(W_space, x.GetBlock(1), 0);
+	u->Distribute( &(trueX.GetBlock(0)) );
+	p->Distribute( &(trueX.GetBlock(1)) );
 
 	int order_quad = max(2, 2*order+1);
 	Array<const IntegrationRule *> irs;

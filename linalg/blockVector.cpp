@@ -24,7 +24,8 @@
 BlockVector::BlockVector():
 	Vector(),
 	numBlocks(0),
-	blockOffsets(NULL)
+	blockOffsets(NULL),
+	tmp_block(0)
 {
 
 }
@@ -33,34 +34,48 @@ BlockVector::BlockVector():
 BlockVector::BlockVector(const Array<int> & bOffsets):
 		Vector(bOffsets.Last()),
 		numBlocks(bOffsets.Size()-1),
-		blockOffsets(bOffsets.GetData())
+		blockOffsets(bOffsets.GetData()),
+		tmp_block(numBlocks)
 {
-	Vector::operator=(0.0);
+	for(int i = 0; i < numBlocks; ++i)
+		tmp_block[i] =  new Vector(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
 }
 
 //! Copy constructor
 BlockVector::BlockVector(const BlockVector & v):
 	Vector(v),
 	numBlocks(v.numBlocks),
-	blockOffsets(v.blockOffsets)
+	blockOffsets(v.blockOffsets),
+	tmp_block(numBlocks)
 {
-
+	for(int i = 0; i < numBlocks; ++i)
+		tmp_block[i] =  new Vector(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
 }
 
 //! View constructor
 BlockVector::BlockVector(double *data, const Array<int> & bOffsets):
 		Vector(data, bOffsets.Last()),
 		numBlocks(bOffsets.Size()-1),
-		blockOffsets(bOffsets.GetData())
+		blockOffsets(bOffsets.GetData()),
+		tmp_block(numBlocks)
 {
-
+	for(int i = 0; i < numBlocks; ++i)
+		tmp_block[i] =  new Vector(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
 }
 
 void BlockVector::Update(double *data, const Array<int> & bOffsets)
 {
-	SetDataAndSize(data, bOffsets.Last());
-	numBlocks = bOffsets.Size()-1;
+	NewDataAndSize(data, bOffsets.Last());
 	blockOffsets = bOffsets.GetData();
+	numBlocks = bOffsets.Size()-1;
+
+	int oldNumBlocks = tmp_block.Size();
+	for(int i = numBlocks; i < oldNumBlocks; ++i)
+		delete tmp_block[i];
+
+	tmp_block.SetSize(numBlocks );
+	for(int i = oldNumBlocks; i < numBlocks; ++i)
+		tmp_block[i] =  new Vector(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
 }
 
 BlockVector & BlockVector::operator=(const BlockVector & original)
@@ -89,73 +104,24 @@ BlockVector & BlockVector::operator=(double val)
 //! Destructor
 BlockVector::~BlockVector()
 {
-
+	for(int i = 0; i < tmp_block.Size(); ++i)
+		delete tmp_block[i];
 }
 
 
-Vector & BlockVector::Block(int i)
+Vector & BlockVector::GetBlock(int i)
 {
-	tmp_block.SetDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
-	return tmp_block;
+	tmp_block[i]->SetDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
+	return *(tmp_block[i]);
 }
 
-const Vector &  BlockVector::Block(int i) const
+const Vector &  BlockVector::GetBlock(int i) const
 {
-	tmp_block.SetDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
-	return tmp_block;
+	tmp_block[i]->SetDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
+	return *(tmp_block[i]);
 }
 
-void BlockVector::BlockView(int i, Vector & blockView)
+void BlockVector::GetBlockView(int i, Vector & blockView)
 {
-	blockView.SetDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
-}
-
-BlockVector * stride(const Array<const Vector *> & vectors, Array<int> & bOffsets)
-{
-	int nBlocks(vectors.Size());
-
-	if(bOffsets.Size() == 0)
-	{
-		bOffsets.SetSize(nBlocks+1);
-		bOffsets[0] = 0;
-
-		for(int i(0); i<nBlocks; ++i)
-			bOffsets[i+1] = bOffsets[i] + vectors[i]->Size();
-	}
-#ifdef MFEM_DEBUG
-	else
-	{
-		if(bOffsets.Size()!=nBlocks+1)
-			mfem_error("BlockVector * stride #1");
-
-		for(int i(0); i<nBlocks; ++i)
-			if(bOffsets[i+1] - bOffsets[i] != vectors[i]->Size())
-				mfem_error("BlockVector * stride #2");
-	}
-#endif
-
-
-	BlockVector * result = new BlockVector(bOffsets);
-
-	for(int i(0); i<nBlocks; ++i)
-		result->Block(i) = *vectors[i];
-
-	return result;
-}
-
-BlockVector * stride(const Vector & v1, const Vector & v2, Array<int> & bOffsets)
-{
-	Array<const Vector *> vectors(2);
-	vectors[0] = &v1;
-	vectors[1] = &v2;
-	return stride(vectors, bOffsets);
-}
-
-BlockVector * stride(const Vector & v1, const Vector & v2, const Vector & v3, Array<int> & bOffsets)
-{
-	Array<const Vector *> vectors(3);
-	vectors[0] = &v1;
-	vectors[1] = &v2;
-	vectors[2] = &v3;
-	return stride(vectors, bOffsets);
+	blockView.NewDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
 }
