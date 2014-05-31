@@ -891,6 +891,12 @@ const FiniteElement *FiniteElementSpace::GetFaceElement(int i) const
    return fe;
 }
 
+const FiniteElement *FiniteElementSpace::GetTraceElement(
+   int i, int geom_type) const
+{
+   return fec->TraceFiniteElementForGeometry(geom_type);
+}
+
 FiniteElementSpace::~FiniteElementSpace()
 {
    Destructor();

@@ -249,14 +249,60 @@ void Mesh::GetFaceTransformation(int FaceNo, IsoparametricTransformation *FTr)
    }
    else
    {
-      Array<int> vdofs;
-      Nodes->FESpace()->GetFaceVDofs(FaceNo, vdofs);
-      int n = vdofs.Size()/Dim;
-      pm.SetSize(Dim, n);
-      for (int i = 0; i < Dim; i++)
-         for (int j = 0; j < n; j++)
-            pm(i, j) = (*Nodes)(vdofs[n*i+j]);
-      FTr->SetFE(Nodes->FESpace()->GetFaceElement(FaceNo));
+      const FiniteElement *face_el = Nodes->FESpace()->GetFaceElement(FaceNo);
+      if (face_el)
+      {
+         Array<int> vdofs;
+         Nodes->FESpace()->GetFaceVDofs(FaceNo, vdofs);
+         int n = vdofs.Size()/Dim;
+         pm.SetSize(Dim, n);
+         for (int i = 0; i < Dim; i++)
+            for (int j = 0; j < n; j++)
+               pm(i, j) = (*Nodes)(vdofs[n*i+j]);
+         FTr->SetFE(face_el);
+      }
+      else
+      {
+         int face_geom =
+            (Dim == 1) ? Geometry::POINT : faces[FaceNo]->GetGeometryType();
+         FaceInfo &face_info = faces_info[FaceNo];
+
+         face_el = Nodes->FESpace()->GetTraceElement(face_info.Elem1No,
+                                                     (Geometry::Type)face_geom);
+
+         switch (face_geom)
+         {
+         case Geometry::POINT:
+            GetLocalPtToSegTransformation(FaceElemTr.Loc1.Transf,
+                                          face_info.Elem1Inf);
+            break;
+         case Geometry::SEGMENT:
+            if (GetElementType(face_info.Elem1No) == Element::TRIANGLE)
+               GetLocalSegToTriTransformation(FaceElemTr.Loc1.Transf,
+                                              face_info.Elem1Inf);
+            else // assume the element is a quad
+               GetLocalSegToQuadTransformation(FaceElemTr.Loc1.Transf,
+                                               face_info.Elem1Inf);
+            break;
+         case Geometry::TRIANGLE:
+            // --- assume the face is a triangle -- face of a tetrahedron
+            GetLocalTriToTetTransformation(FaceElemTr.Loc1.Transf,
+                                           face_info.Elem1Inf);
+            break;
+         case Geometry::SQUARE:
+            // ---  assume the face is a quad -- face of a hexahedron
+            GetLocalQuadToHexTransformation(FaceElemTr.Loc1.Transf,
+                                            face_info.Elem1Inf);
+            break;
+         }
+
+         IntegrationRule eir(face_el->GetDof());
+         FaceElemTr.Loc1.Transform(face_el->GetNodes(), eir);
+         // 'Transformation' is not used
+         Nodes->GetVectorValues(Transformation, eir, pm);
+
+         FTr->SetFE(face_el);
+      }
    }
 }
 
@@ -503,8 +549,7 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
 
       if (FaceElemTr.Elem2No >= 0 && (mask & 8))
       {
-         if (GetElementType(face_info.Elem2No)
-             == Element::TRIANGLE)
+         if (GetElementType(face_info.Elem2No) == Element::TRIANGLE)
             GetLocalSegToTriTransformation(FaceElemTr.Loc2.Transf,
                                            face_info.Elem2Inf);
          else // assume the element is a quad

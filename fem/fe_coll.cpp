@@ -1258,7 +1258,10 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       snprintf(d_name, 32, "L2_T%d_%dD_P%d", type, dim, p);
 
    for (int g = 0; g < Geometry::NumGeom; g++)
+   {
       L2_Elements[g] = NULL;
+      Tr_Elements[g] = NULL;
+   }
 
    if (dim == 1)
    {
@@ -1266,6 +1269,8 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, type);
       else
          L2_Elements[Geometry::SEGMENT] = new L2Pos_SegmentElement(p);
+
+      Tr_Elements[Geometry::POINT] = new PointFiniteElement;
    }
    else if (dim == 2)
    {
@@ -1279,6 +1284,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::TRIANGLE] = new L2Pos_TriangleElement(p);
          L2_Elements[Geometry::SQUARE] = new L2Pos_QuadrilateralElement(p);
       }
+      Tr_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, 0);
    }
    else if (dim == 3)
    {
@@ -1293,6 +1299,8 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::TETRAHEDRON] = new L2Pos_TetrahedronElement(p);
          L2_Elements[Geometry::CUBE] = new L2Pos_HexahedronElement(p);
       }
+      Tr_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, 0);
+      Tr_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, 0);
    }
    else
    {
@@ -1305,7 +1313,10 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
 L2_FECollection::~L2_FECollection()
 {
    for (int i = 0; i < Geometry::NumGeom; i++)
+   {
       delete L2_Elements[i];
+      delete Tr_Elements[i];
+   }
 }
 
 
