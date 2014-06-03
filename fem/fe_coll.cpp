@@ -1045,6 +1045,14 @@ H1_FECollection::H1_FECollection(const int p, const int dim)
    H1_dof[Geometry::SEGMENT] = pm1;
    H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p);
 
+   SegDofOrd[0] = new int[2*pm1];
+   SegDofOrd[1] = SegDofOrd[0] + pm1;
+   for (int i = 0; i < pm1; i++)
+   {
+      SegDofOrd[0][i] = i;
+      SegDofOrd[1][i] = pm2 - i;
+   }
+
    if (dim >= 2)
    {
       H1_dof[Geometry::TRIANGLE] = (pm1*pm2)/2;
@@ -1052,57 +1060,49 @@ H1_FECollection::H1_FECollection(const int p, const int dim)
       H1_Elements[Geometry::TRIANGLE] = new H1_TriangleElement(p);
       H1_Elements[Geometry::SQUARE] = new H1_QuadrilateralElement(p);
 
-      SegDofOrd[0] = new int[2*pm1];
-      SegDofOrd[1] = SegDofOrd[0] + pm1;
-      for (int i = 0; i < pm1; i++)
-      {
-         SegDofOrd[0][i] = i;
-         SegDofOrd[1][i] = pm2 - i;
-      }
+      const int &TriDof = H1_dof[Geometry::TRIANGLE];
+      const int &QuadDof = H1_dof[Geometry::SQUARE];
+      TriDofOrd[0] = new int[6*TriDof];
+      for (int i = 1; i < 6; i++)
+         TriDofOrd[i] = TriDofOrd[i-1] + TriDof;
+      // see Mesh::GetTriOrientation in mesh/mesh.cpp
+      for (int j = 0; j < pm2; j++)
+         for (int i = 0; i + j < pm2; i++)
+         {
+            int o = TriDof - ((pm1 - j)*(pm2 - j))/2 + i;
+            int k = pm3 - j - i;
+            TriDofOrd[0][o] = o;  // (0,1,2)
+            TriDofOrd[1][o] = TriDof - ((pm1-j)*(pm2-j))/2 + k;  // (1,0,2)
+            TriDofOrd[2][o] = TriDof - ((pm1-i)*(pm2-i))/2 + k;  // (2,0,1)
+            TriDofOrd[3][o] = TriDof - ((pm1-k)*(pm2-k))/2 + i;  // (2,1,0)
+            TriDofOrd[4][o] = TriDof - ((pm1-k)*(pm2-k))/2 + j;  // (1,2,0)
+            TriDofOrd[5][o] = TriDof - ((pm1-i)*(pm2-i))/2 + j;  // (0,2,1)
+         }
+
+      QuadDofOrd[0] = new int[8*QuadDof];
+      for (int i = 1; i < 8; i++)
+         QuadDofOrd[i] = QuadDofOrd[i-1] + QuadDof;
+      // see Mesh::GetQuadOrientation in mesh/mesh.cpp
+      for (int j = 0; j < pm1; j++)
+         for (int i = 0; i < pm1; i++)
+         {
+            int o = i + j*pm1;
+            QuadDofOrd[0][o] = i + j*pm1;  // (0,1,2,3)
+            QuadDofOrd[1][o] = j + i*pm1;  // (0,3,2,1)
+            QuadDofOrd[2][o] = j + (pm2 - i)*pm1;  // (1,2,3,0)
+            QuadDofOrd[3][o] = (pm2 - i) + j*pm1;  // (1,0,3,2)
+            QuadDofOrd[4][o] = (pm2 - i) + (pm2 - j)*pm1;  // (2,3,0,1)
+            QuadDofOrd[5][o] = (pm2 - j) + (pm2 - i)*pm1;  // (2,1,0,3)
+            QuadDofOrd[6][o] = (pm2 - j) + i*pm1;  // (3,0,1,2)
+            QuadDofOrd[7][o] = i + (pm2 - j)*pm1;  // (3,2,1,0)
+         }
 
       if (dim >= 3)
       {
-         const int &TriDof = H1_dof[Geometry::TRIANGLE];
-         const int &QuadDof = H1_dof[Geometry::SQUARE];
          H1_dof[Geometry::TETRAHEDRON] = (TriDof*pm3)/3;
          H1_dof[Geometry::CUBE] = QuadDof*pm1;
          H1_Elements[Geometry::TETRAHEDRON] = new H1_TetrahedronElement(p);
          H1_Elements[Geometry::CUBE] = new H1_HexahedronElement(p);
-
-         TriDofOrd[0] = new int[6*TriDof];
-         for (int i = 1; i < 6; i++)
-            TriDofOrd[i] = TriDofOrd[i-1] + TriDof;
-         // see Mesh::GetTriOrientation in mesh/mesh.cpp
-         for (int j = 0; j < pm2; j++)
-            for (int i = 0; i + j < pm2; i++)
-            {
-               int o = TriDof - ((pm1 - j)*(pm2 - j))/2 + i;
-               int k = pm3 - j - i;
-               TriDofOrd[0][o] = o;  // (0,1,2)
-               TriDofOrd[1][o] = TriDof - ((pm1-j)*(pm2-j))/2 + k;  // (1,0,2)
-               TriDofOrd[2][o] = TriDof - ((pm1-i)*(pm2-i))/2 + k;  // (2,0,1)
-               TriDofOrd[3][o] = TriDof - ((pm1-k)*(pm2-k))/2 + i;  // (2,1,0)
-               TriDofOrd[4][o] = TriDof - ((pm1-k)*(pm2-k))/2 + j;  // (1,2,0)
-               TriDofOrd[5][o] = TriDof - ((pm1-i)*(pm2-i))/2 + j;  // (0,2,1)
-            }
-
-         QuadDofOrd[0] = new int[8*QuadDof];
-         for (int i = 1; i < 8; i++)
-            QuadDofOrd[i] = QuadDofOrd[i-1] + QuadDof;
-         // see Mesh::GetQuadOrientation in mesh/mesh.cpp
-         for (int j = 0; j < pm1; j++)
-            for (int i = 0; i < pm1; i++)
-            {
-               int o = i + j*pm1;
-               QuadDofOrd[0][o] = i + j*pm1;  // (0,1,2,3)
-               QuadDofOrd[1][o] = j + i*pm1;  // (0,3,2,1)
-               QuadDofOrd[2][o] = j + (pm2 - i)*pm1;  // (1,2,3,0)
-               QuadDofOrd[3][o] = (pm2 - i) + j*pm1;  // (1,0,3,2)
-               QuadDofOrd[4][o] = (pm2 - i) + (pm2 - j)*pm1;  // (2,3,0,1)
-               QuadDofOrd[5][o] = (pm2 - j) + (pm2 - i)*pm1;  // (2,1,0,3)
-               QuadDofOrd[6][o] = (pm2 - j) + i*pm1;  // (3,0,1,2)
-               QuadDofOrd[7][o] = i + (pm2 - j)*pm1;  // (3,2,1,0)
-            }
       }
    }
 }
@@ -1157,6 +1157,14 @@ H1Pos_FECollection::H1Pos_FECollection(const int p, const int dim)
    H1Pos_dof[Geometry::SEGMENT] = pm1;
    H1Pos_Elements[Geometry::SEGMENT] = new H1Pos_SegmentElement(p);
 
+   SegDofOrd[0] = new int[2*pm1];
+   SegDofOrd[1] = SegDofOrd[0] + pm1;
+   for (int i = 0; i < pm1; i++)
+   {
+      SegDofOrd[0][i] = i;
+      SegDofOrd[1][i] = pm2 - i;
+   }
+
    if (dim >= 2)
    {
       H1Pos_dof[Geometry::TRIANGLE] = (pm1*pm2)/2;
@@ -1165,58 +1173,50 @@ H1Pos_FECollection::H1Pos_FECollection(const int p, const int dim)
       H1Pos_Elements[Geometry::TRIANGLE] = new H1_TriangleElement(p);
       H1Pos_Elements[Geometry::SQUARE] = new H1Pos_QuadrilateralElement(p);
 
-      SegDofOrd[0] = new int[2*pm1];
-      SegDofOrd[1] = SegDofOrd[0] + pm1;
-      for (int i = 0; i < pm1; i++)
-      {
-         SegDofOrd[0][i] = i;
-         SegDofOrd[1][i] = pm2 - i;
-      }
+      const int &TriDof = H1Pos_dof[Geometry::TRIANGLE];
+      const int &QuadDof = H1Pos_dof[Geometry::SQUARE];
+      TriDofOrd[0] = new int[6*TriDof];
+      for (int i = 1; i < 6; i++)
+         TriDofOrd[i] = TriDofOrd[i-1] + TriDof;
+      // see Mesh::GetTriOrientation in mesh/mesh.cpp
+      for (int j = 0; j < pm2; j++)
+         for (int i = 0; i + j < pm2; i++)
+         {
+            int o = TriDof - ((pm1 - j)*(pm2 - j))/2 + i;
+            int k = pm3 - j - i;
+            TriDofOrd[0][o] = o;  // (0,1,2)
+            TriDofOrd[1][o] = TriDof - ((pm1-j)*(pm2-j))/2 + k;  // (1,0,2)
+            TriDofOrd[2][o] = TriDof - ((pm1-i)*(pm2-i))/2 + k;  // (2,0,1)
+            TriDofOrd[3][o] = TriDof - ((pm1-k)*(pm2-k))/2 + i;  // (2,1,0)
+            TriDofOrd[4][o] = TriDof - ((pm1-k)*(pm2-k))/2 + j;  // (1,2,0)
+            TriDofOrd[5][o] = TriDof - ((pm1-i)*(pm2-i))/2 + j;  // (0,2,1)
+         }
+
+      QuadDofOrd[0] = new int[8*QuadDof];
+      for (int i = 1; i < 8; i++)
+         QuadDofOrd[i] = QuadDofOrd[i-1] + QuadDof;
+      // see Mesh::GetQuadOrientation in mesh/mesh.cpp
+      for (int j = 0; j < pm1; j++)
+         for (int i = 0; i < pm1; i++)
+         {
+            int o = i + j*pm1;
+            QuadDofOrd[0][o] = i + j*pm1;  // (0,1,2,3)
+            QuadDofOrd[1][o] = j + i*pm1;  // (0,3,2,1)
+            QuadDofOrd[2][o] = j + (pm2 - i)*pm1;  // (1,2,3,0)
+            QuadDofOrd[3][o] = (pm2 - i) + j*pm1;  // (1,0,3,2)
+            QuadDofOrd[4][o] = (pm2 - i) + (pm2 - j)*pm1;  // (2,3,0,1)
+            QuadDofOrd[5][o] = (pm2 - j) + (pm2 - i)*pm1;  // (2,1,0,3)
+            QuadDofOrd[6][o] = (pm2 - j) + i*pm1;  // (3,0,1,2)
+            QuadDofOrd[7][o] = i + (pm2 - j)*pm1;  // (3,2,1,0)
+         }
 
       if (dim >= 3)
       {
-         const int &TriDof = H1Pos_dof[Geometry::TRIANGLE];
-         const int &QuadDof = H1Pos_dof[Geometry::SQUARE];
          H1Pos_dof[Geometry::TETRAHEDRON] = (TriDof*pm3)/3;
          H1Pos_dof[Geometry::CUBE] = QuadDof*pm1;
          // We don't have a positive tetrahedron, so use the regular one.
          H1Pos_Elements[Geometry::TETRAHEDRON] = new H1_TetrahedronElement(p);
          H1Pos_Elements[Geometry::CUBE] = new H1Pos_HexahedronElement(p);
-
-         TriDofOrd[0] = new int[6*TriDof];
-         for (int i = 1; i < 6; i++)
-            TriDofOrd[i] = TriDofOrd[i-1] + TriDof;
-         // see Mesh::GetTriOrientation in mesh/mesh.cpp
-         for (int j = 0; j < pm2; j++)
-            for (int i = 0; i + j < pm2; i++)
-            {
-               int o = TriDof - ((pm1 - j)*(pm2 - j))/2 + i;
-               int k = pm3 - j - i;
-               TriDofOrd[0][o] = o;  // (0,1,2)
-               TriDofOrd[1][o] = TriDof - ((pm1-j)*(pm2-j))/2 + k;  // (1,0,2)
-               TriDofOrd[2][o] = TriDof - ((pm1-i)*(pm2-i))/2 + k;  // (2,0,1)
-               TriDofOrd[3][o] = TriDof - ((pm1-k)*(pm2-k))/2 + i;  // (2,1,0)
-               TriDofOrd[4][o] = TriDof - ((pm1-k)*(pm2-k))/2 + j;  // (1,2,0)
-               TriDofOrd[5][o] = TriDof - ((pm1-i)*(pm2-i))/2 + j;  // (0,2,1)
-            }
-
-         QuadDofOrd[0] = new int[8*QuadDof];
-         for (int i = 1; i < 8; i++)
-            QuadDofOrd[i] = QuadDofOrd[i-1] + QuadDof;
-         // see Mesh::GetQuadOrientation in mesh/mesh.cpp
-         for (int j = 0; j < pm1; j++)
-            for (int i = 0; i < pm1; i++)
-            {
-               int o = i + j*pm1;
-               QuadDofOrd[0][o] = i + j*pm1;  // (0,1,2,3)
-               QuadDofOrd[1][o] = j + i*pm1;  // (0,3,2,1)
-               QuadDofOrd[2][o] = j + (pm2 - i)*pm1;  // (1,2,3,0)
-               QuadDofOrd[3][o] = (pm2 - i) + j*pm1;  // (1,0,3,2)
-               QuadDofOrd[4][o] = (pm2 - i) + (pm2 - j)*pm1;  // (2,3,0,1)
-               QuadDofOrd[5][o] = (pm2 - j) + (pm2 - i)*pm1;  // (2,1,0,3)
-               QuadDofOrd[6][o] = (pm2 - j) + i*pm1;  // (3,0,1,2)
-               QuadDofOrd[7][o] = i + (pm2 - j)*pm1;  // (3,2,1,0)
-            }
       }
    }
 }
@@ -1262,6 +1262,8 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       L2_Elements[g] = NULL;
       Tr_Elements[g] = NULL;
    }
+   for (int i = 0; i < 6; i++)
+      TriDofOrd[i] = NULL;
 
    if (dim == 1)
    {
@@ -1285,6 +1287,24 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::SQUARE] = new L2Pos_QuadrilateralElement(p);
       }
       Tr_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, 0);
+
+      const int TriDof = L2_Elements[Geometry::TRIANGLE]->GetDof();
+      TriDofOrd[0] = new int[6*TriDof];
+      for (int i = 1; i < 6; i++)
+         TriDofOrd[i] = TriDofOrd[i-1] + TriDof;
+      const int pp1 = p + 1, pp2 = pp1 + 1;
+      for (int j = 0; j <= p; j++)
+         for (int i = 0; i + j <= p; i++)
+         {
+            int o = TriDof - ((pp2 - j)*(pp1 - j))/2 + i;
+            int k = p - j - i;
+            TriDofOrd[0][o] = o;  // (0,1,2)
+            TriDofOrd[1][o] = TriDof - ((pp2-j)*(pp1-j))/2 + k;  // (1,0,2)
+            TriDofOrd[2][o] = TriDof - ((pp2-i)*(pp1-i))/2 + k;  // (2,0,1)
+            TriDofOrd[3][o] = TriDof - ((pp2-k)*(pp1-k))/2 + i;  // (2,1,0)
+            TriDofOrd[4][o] = TriDof - ((pp2-k)*(pp1-k))/2 + j;  // (1,2,0)
+            TriDofOrd[5][o] = TriDof - ((pp2-i)*(pp1-i))/2 + j;  // (0,2,1)
+         }
    }
    else if (dim == 3)
    {
@@ -1310,8 +1330,18 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
    }
 }
 
+int *L2_FECollection::DofOrderForOrientation(int GeomType, int Or) const
+{
+   if (GeomType == Geometry::TRIANGLE)
+   {
+      return TriDofOrd[Or%6];
+   }
+   return NULL;
+}
+
 L2_FECollection::~L2_FECollection()
 {
+   delete [] TriDofOrd[0];
    for (int i = 0; i < Geometry::NumGeom; i++)
    {
       delete L2_Elements[i];

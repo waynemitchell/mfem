@@ -92,6 +92,7 @@ private:
    char d_name[32];
    FiniteElement *L2_Elements[Geometry::NumGeom];
    FiniteElement *Tr_Elements[Geometry::NumGeom];
+   int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:
    L2_FECollection(const int p, const int dim, const int type = 0);
@@ -104,8 +105,7 @@ public:
          return L2_Elements[GeomType]->GetDof();
       return 0;
    }
-   virtual int *DofOrderForOrientation(int GeomType, int Or) const
-   { return NULL; }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const;
    virtual const char *Name() const { return d_name; }
 
    virtual const FiniteElement *TraceFiniteElementForGeometry(

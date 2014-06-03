@@ -979,22 +979,47 @@ void Mesh::MarkTetMeshForRefinement()
          boundary[i]->MarkEdge(v_to_v, order);
 }
 
-void Mesh::PrepareNodeReorder(DSTable **old_v_to_v)
+void Mesh::PrepareNodeReorder(DSTable **old_v_to_v, Table **old_elem_vert)
 {
-   if (*old_v_to_v)
+   if (*old_v_to_v && *old_elem_vert)
       return;
 
    FiniteElementSpace *fes = Nodes->FESpace();
    const FiniteElementCollection *fec = fes->FEColl();
-   int num_edge_dofs = fec->DofForGeometry(Geometry::SEGMENT);
-   if (num_edge_dofs > 0)
+
+   if (*old_v_to_v == NULL)
    {
-      *old_v_to_v = new DSTable(NumOfVertices);
-      GetVertexToVertexTable(*(*old_v_to_v));
+      int num_edge_dofs = fec->DofForGeometry(Geometry::SEGMENT);
+      if (num_edge_dofs > 0)
+      {
+         *old_v_to_v = new DSTable(NumOfVertices);
+         GetVertexToVertexTable(*(*old_v_to_v));
+      }
+   }
+   if (*old_elem_vert == NULL)
+   {
+      // assuming all elements have the same geometry
+      int num_elem_dofs = fec->DofForGeometry(GetElementBaseGeometry(0));
+      if (num_elem_dofs > 1)
+      {
+         *old_elem_vert = new Table;
+         (*old_elem_vert)->MakeI(GetNE());
+         for (int i = 0; i < GetNE(); i++)
+         {
+            (*old_elem_vert)->AddColumnsInRow(i, elements[i]->GetNVertices());
+         }
+         (*old_elem_vert)->MakeJ();
+         for (int i = 0; i < GetNE(); i++)
+         {
+            (*old_elem_vert)->AddConnections(i, elements[i]->GetVertices(),
+                                             elements[i]->GetNVertices());
+         }
+         (*old_elem_vert)->ShiftUpI();
+      }
    }
 }
 
-void Mesh::DoNodeReorder(DSTable *old_v_to_v)
+void Mesh::DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert)
 {
    FiniteElementSpace *fes = Nodes->FESpace();
    const FiniteElementCollection *fec = fes->FEColl();
@@ -1050,7 +1075,7 @@ void Mesh::DoNodeReorder(DSTable *old_v_to_v)
       offset += NumOfEdges * num_edge_dofs;
    }
 #ifdef MFEM_DEBUG
-   cout << "Mesh::Load : redges = " << redges << endl;
+   cout << "Mesh::DoNodeReorder : redges = " << redges << endl;
 #endif
 
    // face dofs:
@@ -1123,10 +1148,54 @@ void Mesh::DoNodeReorder(DSTable *old_v_to_v)
       // - Qk on quads,     k >= 3
       // - Pk on tets,      k >= 5
       // - Qk on hexes,     k >= 3
+      // - DG spaces
       // - ...
 
-      mfem_error("Mesh::DoNodeReorder : node re-ordering for high-order tri/tet"
-                 " meshes is not implemented!");
+      // loop over all elements
+      for (int i = 0; i < GetNE(); i++)
+      {
+         int *old_v = old_elem_vert->GetRow(i);
+         int *new_v = elements[i]->GetVertices();
+         int new_or, *dof_ord;
+         int geom = elements[i]->GetGeometryType();
+         switch (geom)
+         {
+         case Geometry::TRIANGLE:
+            new_or = GetTriOrientation(old_v, new_v);
+            break;
+         case Geometry::SQUARE:
+            new_or = GetQuadOrientation(old_v, new_v);
+            break;
+         default:
+            cerr << "Mesh::DoNodeReorder : " << Geometry::Name[geom]
+                 << " elements (" << fec->Name()
+                 << " FE collection) are not supported yet!" << endl;
+            mfem_error();
+            break;
+         }
+         dof_ord = fec->DofOrderForOrientation(geom, new_or);
+         if (dof_ord == NULL)
+         {
+            cerr << "Mesh::DoNodeReorder : FE collection '" << fec->Name()
+                 << "' does not define reordering for " << Geometry::Name[geom]
+                 << " elements!" << endl;
+            mfem_error();
+         }
+         old_dofs.SetSize(num_elem_dofs);
+         new_dofs.SetSize(num_elem_dofs);
+         for (int j = 0; j < num_elem_dofs; j++)
+         {
+            // we assume the dofs are non-directional, i.e. dof_ord[j] is >= 0
+            old_dofs[j] = offset + dof_ord[j];
+            new_dofs[j] = offset + j;
+         }
+         fes->DofsToVDofs(old_dofs);
+         fes->DofsToVDofs(new_dofs);
+         for (int j = 0; j < old_dofs.Size(); j++)
+            (*Nodes)(new_dofs[j]) = onodes(old_dofs[j]);
+
+         offset += num_elem_dofs;
+      }
    }
 
    // Update Tables, faces, etc
@@ -2567,7 +2636,11 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       if (meshgen & 1)
       {
          DSTable *old_v_to_v = NULL;
-         PrepareNodeReorder(&old_v_to_v);
+         Table *old_elem_vert = NULL;
+         if (fix_orientation || refine)
+         {
+            PrepareNodeReorder(&old_v_to_v, &old_elem_vert);
+         }
 
          // check orientation and mark for refinement using just vertices
          // (i.e. higher order curvature is not used)
@@ -2575,8 +2648,12 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
          if (refine)
             MarkForRefinement(); // changes topology!
 
-         DoNodeReorder(old_v_to_v);
-         delete old_v_to_v;
+         if (fix_orientation || refine)
+         {
+            DoNodeReorder(old_v_to_v, old_elem_vert);
+            delete old_elem_vert;
+            delete old_v_to_v;
+         }
       }
    }
 }
@@ -2955,33 +3032,44 @@ static const char *fixed_or_not[] = { "fixed", "NOT FIXED" };
 
 void Mesh::CheckElementOrientation(bool fix_it)
 {
-   int i, j, k, wo = 0, *vi;
+   int i, j, k, wo = 0, fo = 0, *vi;
    double *v[4];
 
    if (Dim == 2)
    {
-      DenseMatrix tri(2, 2);
+      DenseMatrix J(2, 2);
 
       for (i = 0; i < NumOfElements; i++)
       {
-         vi = elements[i]->GetVertices();
-         for (j = 0; j < 3; j++)
-            v[j] = vertices[vi[j]]();
-         for (j = 0; j < 2; j++)
-            for (k = 0; k < 2; k++)
-               tri(j, k) = v[j+1][k] - v[0][k];
-         if (tri.Det() < 0.0)
+         if (Nodes == NULL)
+         {
+            vi = elements[i]->GetVertices();
+            for (j = 0; j < 3; j++)
+               v[j] = vertices[vi[j]]();
+            for (j = 0; j < 2; j++)
+               for (k = 0; k < 2; k++)
+                  J(j, k) = v[j+1][k] - v[0][k];
+         }
+         else
+         {
+            // only check the Jacobian at the center of the element
+            GetElementJacobian(i, J);
+         }
+         if (J.Det() < 0.0)
          {
             if (fix_it)
+            {
                switch (GetElementType(i))
                {
                case Element::TRIANGLE:
-                  k = vi[0], vi[0] = vi[1], vi[1] = k;
+                  Swap(vi[0], vi[1]);
                   break;
                case Element::QUADRILATERAL:
-                  k = vi[1], vi[1] = vi[3], vi[3] = k;
+                  Swap(vi[1], vi[3]);
                   break;
                }
+               fo++;
+            }
             wo++;
          }
       }
@@ -2989,7 +3077,7 @@ void Mesh::CheckElementOrientation(bool fix_it)
 
    if (Dim == 3)
    {
-      DenseMatrix tet(3, 3);
+      DenseMatrix J(3, 3);
 
       for (i = 0; i < NumOfElements; i++)
       {
@@ -2997,20 +3085,41 @@ void Mesh::CheckElementOrientation(bool fix_it)
          switch (GetElementType(i))
          {
          case Element::TETRAHEDRON:
-            for (j = 0; j < 4; j++)
-               v[j] = vertices[vi[j]]();
-            for (j = 0; j < 3; j++)
-               for (k = 0; k < 3; k++)
-                  tet(j, k) = v[j+1][k] - v[0][k];
-            if (tet.Det() < 0.0)
+            if (Nodes == NULL)
+            {
+               for (j = 0; j < 4; j++)
+                  v[j] = vertices[vi[j]]();
+               for (j = 0; j < 3; j++)
+                  for (k = 0; k < 3; k++)
+                     J(j, k) = v[j+1][k] - v[0][k];
+            }
+            else
+            {
+               // only check the Jacobian at the center of the element
+               GetElementJacobian(i, J);
+            }
+            if (J.Det() < 0.0)
             {
                wo++;
                if (fix_it)
-                  k = vi[0], vi[0] = vi[1], vi[1] = k;
+               {
+                  Swap(vi[0], vi[1]);
+                  fo++;
+               }
             }
             break;
+
          case Element::HEXAHEDRON:
-            // to do ...
+            // only check the Jacobian at the center of the element
+            GetElementJacobian(i, J);
+            if (J.Det() < 0.0)
+            {
+               wo++;
+               if (fix_it)
+               {
+                  // how?
+               }
+            }
             break;
          }
       }
@@ -3018,7 +3127,7 @@ void Mesh::CheckElementOrientation(bool fix_it)
 #if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
    if (wo > 0)
       cout << "Elements with wrong orientation: " << wo << " / "
-           << NumOfElements << " (" << fixed_or_not[fix_it ? 0 : 1]
+           << NumOfElements << " (" << fixed_or_not[(wo == fo) ? 0 : 1]
            << ")" << endl;
 #endif
 }
@@ -3946,9 +4055,10 @@ void Mesh::ReorientTetMesh()
       return;
 
    DSTable *old_v_to_v = NULL;
+   Table *old_elem_vert = NULL;
 
    if (Nodes)
-      PrepareNodeReorder(&old_v_to_v);
+      PrepareNodeReorder(&old_v_to_v, &old_elem_vert);
 
    DeleteCoarseTables();
 
@@ -3981,7 +4091,8 @@ void Mesh::ReorientTetMesh()
    }
    else
    {
-      DoNodeReorder(old_v_to_v);
+      DoNodeReorder(old_v_to_v, old_elem_vert);
+      delete old_elem_vert;
       delete old_v_to_v;
    }
 }
@@ -4964,16 +5075,16 @@ void Mesh::QuadUniformRefinement()
       GenerateFaces();
    }
 
-#ifdef MFEM_DEBUG
-   CheckElementOrientation();
-   CheckBdrElementOrientation();
-#endif
-
    if (Nodes)  // curved mesh
    {
       UpdateNodes();
       UseTwoLevelState(wtls);
    }
+
+#ifdef MFEM_DEBUG
+   CheckElementOrientation(false);
+   CheckBdrElementOrientation();
+#endif
 }
 
 void Mesh::HexUniformRefinement()
@@ -5331,10 +5442,6 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       delete [] edge2;
       delete [] middle;
 
-#ifdef MFEM_DEBUG
-      CheckElementOrientation();
-#endif
-
       if (WantTwoLevelState)
       {
          f_NumOfVertices    = NumOfVertices;
@@ -5480,10 +5587,6 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       // 7. Free the allocated memory.
       delete [] middle;
 
-#ifdef MFEM_DEBUG
-      CheckElementOrientation();
-#endif
-
       if (el_to_edge != NULL)
       {
          if (WantTwoLevelState)
@@ -5531,6 +5634,10 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       UpdateNodes();
       UseTwoLevelState(wtls);
    }
+
+#ifdef MFEM_DEBUG
+   CheckElementOrientation(false);
+#endif
 }
 
 void Mesh::NonconformingRefinement(const Array<int> &marked_el)
@@ -5710,7 +5817,7 @@ void Mesh::NonconformingRefinement(const Array<int> &marked_el)
       }
 
 #ifdef MFEM_DEBUG
-      CheckElementOrientation();
+      CheckElementOrientation(false);
       CheckBdrElementOrientation();
 #endif
    }

@@ -115,8 +115,8 @@ protected:
    void GetEdgeOrdering(DSTable &v_to_v, Array<int> &order);
    void MarkTetMeshForRefinement();
 
-   void PrepareNodeReorder(DSTable **old_v_to_v);
-   void DoNodeReorder(DSTable *old_v_to_v);
+   void PrepareNodeReorder(DSTable **old_v_to_v, Table **old_elem_vert);
+   void DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert);
 
    STable3D *GetFacesTable();
    STable3D *GetElementToFaceTable(int ret_ftbl = 0);
