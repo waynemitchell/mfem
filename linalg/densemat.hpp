@@ -185,10 +185,10 @@ public:
 
    void Lump();
 
-   /** Given a DShape matrix (from a scalar FE), stored in *this,
-       returns the CurlShape matrix. If *this is a N by 3 matrix,
-       then curl is a 3*N by 3 matrix. The size of curl must be
-       set outside.  */
+   /** Given a DShape matrix (from a scalar FE), stored in *this, returns the
+       CurlShape matrix. If *this is a N by D matrix, then curl is a D*N by
+       D*(D-1)/2 matrix. The size of curl must be set outside. The dimension D
+       can be either 2 or 3. */
    void GradToCurl(DenseMatrix &curl);
    /** Given a DShape matrix (from a scalar FE), stored in *this,
        returns the DivShape vector. If *this is a N by dim matrix,

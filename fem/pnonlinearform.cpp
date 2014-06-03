@@ -30,18 +30,22 @@ void ParNonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
       }
 }
 
-double ParNonlinearForm::GetEnergy(const Vector &x) const
+double ParNonlinearForm::GetEnergy(const ParGridFunction &x) const
 {
    double loc_energy, glob_energy;
 
-   X.Distribute(&x);
-
-   loc_energy = NonlinearForm::GetEnergy(X);
+   loc_energy = NonlinearForm::GetEnergy(x);
 
    MPI_Allreduce(&loc_energy, &glob_energy, 1, MPI_DOUBLE, MPI_SUM,
                  ParFESpace()->GetComm());
 
    return glob_energy;
+}
+
+double ParNonlinearForm::GetEnergy(const Vector &x) const
+{
+   X.Distribute(&x);
+   return GetEnergy(X);
 }
 
 void ParNonlinearForm::Mult(const Vector &x, Vector &y) const

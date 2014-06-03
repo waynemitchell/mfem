@@ -679,7 +679,7 @@ void IntegrationRules::TriangleIntegrationRules(int refined)
 // Integration rules for unit square
 void IntegrationRules::SquareIntegrationRules()
 {
-   SquareIntRules.SetSize(22);
+   SquareIntRules.SetSize(32);
 
    for (int i = 1; i < SquareIntRules.Size(); i += 2)
    {
@@ -773,7 +773,7 @@ void IntegrationRules::CubeIntegrationRules()
 {
    int i, k, l, m, np;
 
-   CubeIntRules.SetSize(22);
+   CubeIntRules.SetSize(32);
    CubeIntRules = NULL;
 
    for (i = 1; i < CubeIntRules.Size(); i += 2)

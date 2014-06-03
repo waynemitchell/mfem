@@ -814,6 +814,114 @@ void CurlCurlIntegrator::AssembleElementMatrix
 }
 
 
+void VectorCurlCurlIntegrator::AssembleElementMatrix(
+   const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
+{
+   int dim = el.GetDim();
+   int dof = el.GetDof();
+   int cld = (dim*(dim-1))/2;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape_hat(dof, dim), dshape(dof, dim);
+   DenseMatrix curlshape(dim*dof, cld), Jadj(dim);
+#else
+   dshape_hat.SetSize(dof, dim);
+   dshape.SetSize(dof, dim);
+   curlshape.SetSize(dim*dof, cld);
+   Jadj.SetSize(dim);
+#endif
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // use the same integration rule as diffusion
+      int order = 2 * Trans.OrderGrad(&el);
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elmat = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      el.CalcDShape(ip, dshape_hat);
+
+      Trans.SetIntPoint(&ip);
+      CalcAdjugate(Trans.Jacobian(), Jadj);
+      double w = ip.weight / Trans.Weight();
+
+      Mult(dshape_hat, Jadj, dshape);
+      dshape.GradToCurl(curlshape);
+
+      if (Q)
+         w *= Q->Eval(Trans, ip);
+
+      AddMult_a_AAt(w, curlshape, elmat);
+   }
+}
+
+double VectorCurlCurlIntegrator::GetElementEnergy(
+   const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun)
+{
+   int dim = el.GetDim();
+   int dof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape_hat(dof, dim), Jadj(dim), grad_hat(dim), grad(dim);
+#else
+   dshape_hat.SetSize(dof, dim);
+   Jadj.SetSize(dim);
+   grad_hat.SetSize(dim);
+   grad.SetSize(dim);
+#endif
+   DenseMatrix elfun_mat(elfun.GetData(), dof, dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // use the same integration rule as diffusion
+      int order = 2 * Tr.OrderGrad(&el);
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double energy = 0.;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      el.CalcDShape(ip, dshape_hat);
+
+      MultAtB(elfun_mat, dshape_hat, grad_hat);
+
+      Tr.SetIntPoint(&ip);
+      CalcAdjugate(Tr.Jacobian(), Jadj);
+      double w = ip.weight / Tr.Weight();
+
+      Mult(grad_hat, Jadj, grad);
+
+      if (dim == 2)
+      {
+         double curl = grad(0,1) - grad(1,0);
+         w *= curl * curl;
+      }
+      else
+      {
+         double curl_x = grad(2,1) - grad(1,2);
+         double curl_y = grad(0,2) - grad(2,0);
+         double curl_z = grad(1,0) - grad(0,1);
+         w *= curl_x * curl_x + curl_y * curl_y + curl_z * curl_z;
+      }
+
+      if (Q)
+         w *= Q->Eval(Tr, ip);
+
+      energy += w;
+   }
+
+   elfun_mat.ClearExternalData();
+
+   return 0.5 * energy;
+}
+
+
 void VectorFEMassIntegrator::AssembleElementMatrix(
    const FiniteElement &el,
    ElementTransformation &Trans,

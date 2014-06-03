@@ -237,6 +237,9 @@ public:
 
    const FiniteElement *GetFaceElement(int i) const;
 
+   /// Return the trace element from element 'i' to the given 'geom_type'
+   const FiniteElement *GetTraceElement(int i, int geom_type) const;
+
    /** Return the restriction matrix from this FE space to the coarse FE space
        'cfes'. Both FE spaces must use the same FE collection and be defined on
        the same Mesh which must be in TWO_LEVEL_* state.  When vdim > 1,
