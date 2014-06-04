@@ -1167,6 +1167,7 @@ void Mesh::DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert)
             new_or = GetQuadOrientation(old_v, new_v);
             break;
          default:
+            new_or = 0;
             cerr << "Mesh::DoNodeReorder : " << Geometry::Name[geom]
                  << " elements (" << fec->Name()
                  << " FE collection) are not supported yet!" << endl;
