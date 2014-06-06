@@ -779,7 +779,6 @@ HYPRE_Int hypre_ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
                                 hypre_ParVector *f,    // right-hand side
                                 HYPRE_Real max_eig,
                                 HYPRE_Int poly_order,
-                                double *l1_norms,      // l1 norms of rows of A
                                 double* fir_coeffs,
                                 hypre_ParVector *u,    // initial/updated approximation
                                 hypre_ParVector *x0,   // temporaries
@@ -806,16 +805,18 @@ HYPRE_Int hypre_ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
 
    for (int i = 0; i < num_rows; i++)
    {
-      x1_data[i] /= -(max_eig*l1_norms[i]);
+      x1_data[i] /= -max_eig;
    }
 
    // x1 = x0 -x1
-   for (int i = 0; i < num_rows; i++) {
+   for (int i = 0; i < num_rows; i++)
+   {
       x1_data[i] = x0_data[i] -x1_data[i];
    }
 
    // x3 = f0*x0 +f1*x1
-   for (int i = 0; i < num_rows; i++) {
+   for (int i = 0; i < num_rows; i++)
+   {
       x3_data[i] = fir_coeffs[0]*x0_data[i] +fir_coeffs[1]*x1_data[i];
    }
    
@@ -828,7 +829,7 @@ HYPRE_Int hypre_ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
 
       for (int i = 0; i < num_rows; i++)
       {
-         x2_data[i] /= -(max_eig*l1_norms[i]);
+         x2_data[i] /= -max_eig;
       }
       
       // x2 = (x1-x0) +(x1-2*x2)
@@ -970,17 +971,32 @@ void HypreSmoother::SetOperator(const Operator &op)
 
    if (type == 16 || type == 1001 || type == 1002)
    {
+      if (type == 1001 || type == 1002) poly_scale = 0;
       hypre_ParCSRMaxEigEstimateCG(*A, poly_scale, 10,
                                    &max_eig_est, &min_eig_est);
+
+      if (type == 1001 || type == 1002) max_eig_est /= 2;
+      
       Z = new HypreParVector(A->GetComm(),
                              A->GetGlobalNumCols(), A->GetColStarts());
    }
    else
       Z = NULL;
 
-   // Compute window function and Chebyshev coefficients.
+
+   // Compute window function, Chebyshev coefficients, and allocate temps.
    if (type == 1002)
    {
+      // Temporaries for Chebyshev recursive evaluation
+      X0 = new HypreParVector(A->GetComm(),
+                              A->GetGlobalNumCols(), A->GetColStarts());
+      X1 = new HypreParVector(A->GetComm(),
+                              A->GetGlobalNumCols(), A->GetColStarts());
+      X2 = new HypreParVector(A->GetComm(),
+                              A->GetGlobalNumCols(), A->GetColStarts());
+      X3 = new HypreParVector(A->GetComm(),
+                              A->GetGlobalNumCols(), A->GetColStarts());
+      
       SetFIRCoefficients(max_eig_est);
    }
 
@@ -1062,29 +1078,14 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
    }
    else if (type == 1002) {
 
-      // Temporaries for Chebyshev recursive evaluation
-      X0 = new HypreParVector(A->GetComm(),
-                              A->GetGlobalNumCols(), A->GetColStarts());
-      X1 = new HypreParVector(A->GetComm(),
-                              A->GetGlobalNumCols(), A->GetColStarts());
-      X2 = new HypreParVector(A->GetComm(),
-                              A->GetGlobalNumCols(), A->GetColStarts());
-      X3 = new HypreParVector(A->GetComm(),
-                              A->GetGlobalNumCols(), A->GetColStarts());
-      
       for (int sweep = 0; sweep < relax_times; sweep++) {
          hypre_ParCSRRelax_FIR(*A, b,
                                max_eig_est,
                                poly_order,
-                               l1_norms, fir_coeffs,
+                               fir_coeffs,
                                x,
                                *X0, *X1, *X2, *X3);
       }
-
-      delete X0;
-      delete X1;
-      delete X2;
-      delete X3;
    }
    else {
       
@@ -1138,6 +1139,11 @@ HypreSmoother::~HypreSmoother()
       delete [] l1_norms;
    if (fir_coeffs)
       delete [] fir_coeffs;
+   if (X0) delete X0;
+   if (X1) delete X1;
+   if (X2) delete X2;
+   if (X3) delete X3;
+   
 }
 
 
