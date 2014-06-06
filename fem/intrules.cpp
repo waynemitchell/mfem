@@ -785,13 +785,13 @@ void IntegrationRules::CubeIntegrationRules()
             for (m = 0; m < np; m++)
             {
                CubeIntRules[i] -> IntPoint((k*np+l)*np+m).x =
-                  SegmentIntRules[i] -> IntPoint(k).x;
+                  SegmentIntRules[i] -> IntPoint(m).x;
 
                CubeIntRules[i] -> IntPoint((k*np+l)*np+m).y =
                   SegmentIntRules[i] -> IntPoint(l).x;
 
                CubeIntRules[i] -> IntPoint((k*np+l)*np+m).z =
-                  SegmentIntRules[i] -> IntPoint(m).x;
+                  SegmentIntRules[i] -> IntPoint(k).x;
 
                CubeIntRules[i] -> IntPoint((k*np+l)*np+m).weight =
                   SegmentIntRules[i] -> IntPoint(k).weight *
