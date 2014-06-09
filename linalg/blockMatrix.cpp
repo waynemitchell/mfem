@@ -27,13 +27,13 @@ BlockMatrix::BlockMatrix(const Array<int> & offsets):
 	Aij = (SparseMatrix *)NULL;
 }
 
-BlockMatrix::BlockMatrix(const Array<int> & row_offsets, const Array<int> & col_offsets):
-	SparseRowMatrix(row_offsets.Last()),
+BlockMatrix::BlockMatrix(const Array<int> & row_offsets_, const Array<int> & col_offsets_):
+	SparseRowMatrix(row_offsets_.Last()),
 	owns_blocks(false),
-	nRowBlocks(row_offsets.Size()-1),
-	nColBlocks(col_offsets.Size()-1),
-	row_offsets(const_cast< Array<int>& >(row_offsets).GetData(), row_offsets.Size()),
-	col_offsets(const_cast< Array<int>& >(row_offsets).GetData(), row_offsets.Size()),
+	nRowBlocks(row_offsets_.Size()-1),
+	nColBlocks(col_offsets_.Size()-1),
+	row_offsets(const_cast< Array<int>& >(row_offsets_).GetData(), row_offsets_.Size()),
+	col_offsets(const_cast< Array<int>& >(col_offsets_).GetData(), col_offsets_.Size()),
 	Aij(nRowBlocks, nColBlocks)
 {
 	Aij = (SparseMatrix *)NULL;
