@@ -248,6 +248,11 @@ protected:
    /// Apply the polynomial smoother to A or D^{-1/2} A D^{-1/2}
    int poly_scale;
 
+   /// Taubin's lambda-mu method parameters
+   double lambda;
+   double mu;
+   int taubin_iter;
+   
    /// l1 norms of the rows of A
    double *l1_norms;
    /// Maximal eigenvalue estimate for polynomial smoothing
@@ -276,6 +281,8 @@ public:
    /// Set parameters for polynomial smoothing
    void SetPolyOptions(int poly_order, double poly_fraction,
                        int poly_scale = 1);
+   /// Set parameters for Taubin's lambda-mu method
+   void SetTaubinOptions(double lambda, double mu, int iter);
 
    /// Convenience function for setting canonical windowing parameters
    void SetWindowByName(const char* window_name);

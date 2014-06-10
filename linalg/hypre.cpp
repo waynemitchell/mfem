@@ -743,7 +743,7 @@ HYPRE_Int hypre_ParCSRRelax_Taubin(hypre_ParCSRMatrix *A, // matrix to relax wit
                                    HYPRE_Real lambda,
                                    HYPRE_Real mu,
                                    HYPRE_Int N,
-                                   double *l1_norms,      // l1 norms of rows of A
+                                   double max_eig,
                                    hypre_ParVector *u,    // initial/updated approximation
                                    hypre_ParVector *r     // another temp vector
    )
@@ -764,7 +764,7 @@ HYPRE_Int hypre_ParCSRRelax_Taubin(hypre_ParCSRMatrix *A, // matrix to relax wit
       (0 == (i % 2)) ? coef = lambda : coef = mu;
       
       for (int i = 0; i < num_rows; i++) {
-         u_data[i] += coef*r_data[i] / l1_norms[i];
+         u_data[i] += coef*r_data[i] / max_eig;
       }
       
    }
@@ -865,6 +865,9 @@ HypreSmoother::HypreSmoother() : Solver()
    omega = 1.0;
    poly_order = 2;
    poly_fraction = .3;
+   lambda = 0.5;
+   mu = -0.5;
+   taubin_iter = 40;
 
    l1_norms = NULL;
    B = X = V = Z = NULL;
@@ -924,6 +927,14 @@ void HypreSmoother::SetPolyOptions(int _poly_order, double _poly_fraction,
    poly_scale = _poly_scale;
 }
 
+void HypreSmoother::SetTaubinOptions(double _lambda, double _mu,
+                                     int _taubin_iter)
+{
+   lambda = _lambda;
+   mu = _mu;
+   taubin_iter = _taubin_iter;
+}
+
 void HypreSmoother::SetWindowByName(const char* name)
 {
    double a = -1,b,c;
@@ -959,7 +970,7 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (l1_norms)
       delete [] l1_norms;
 
-   if ( (type >= 1 && type <= 4) || type == 1001 || type == 1002)
+   if ( (type >= 1 && type <= 4) )
    {
       int option;
       if (type == 1001 || type == 1002) option = 1;
@@ -969,13 +980,18 @@ void HypreSmoother::SetOperator(const Operator &op)
    else
       l1_norms = NULL;
 
-   if (type == 16 || type == 1001 || type == 1002)
-   {
-      if (type == 1001 || type == 1002) poly_scale = 0;
+   if (type == 16) {
       hypre_ParCSRMaxEigEstimateCG(*A, poly_scale, 10,
                                    &max_eig_est, &min_eig_est);
-
-      if (type == 1001 || type == 1002) max_eig_est /= 2;
+      Z = new HypreParVector(A->GetComm(),
+                             A->GetGlobalNumCols(), A->GetColStarts());
+   }
+   else if (type == 1001 || type == 1002)
+   {
+      poly_scale = 0;
+      hypre_ParCSRMaxEigEstimateCG(*A, poly_scale, 10,
+                                   &max_eig_est, &min_eig_est);
+      max_eig_est /= 2;
       
       Z = new HypreParVector(A->GetComm(),
                              A->GetGlobalNumCols(), A->GetColStarts());
@@ -1046,9 +1062,6 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
       return;
    }
 
-   A->Print("A", 0, 0);
-//   hypre_ParCSRMatrixPrintIJ(A, 0, 0, "A.mat");
-
    if (!iterative_mode)
    {
       if (type == 0 && relax_times == 1)
@@ -1067,17 +1080,14 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
 
    if (type == 1001)
    {
-      double lambda = 0.5;
-      double mu = -0.5;
-      double N = 40;
       for (int sweep = 0; sweep < relax_times; sweep++) {
-         hypre_ParCSRRelax_Taubin(*A, b, lambda, mu, N,
-                                  l1_norms,
+         hypre_ParCSRRelax_Taubin(*A, b, lambda, mu, taubin_iter,
+                                  max_eig_est,
                                   x, *Z);
       }
    }
    else if (type == 1002) {
-
+      
       for (int sweep = 0; sweep < relax_times; sweep++) {
          hypre_ParCSRRelax_FIR(*A, b,
                                max_eig_est,
