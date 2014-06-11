@@ -1796,8 +1796,6 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
       }
       delete id_ND;
 
-      delete id_ND;
-
       if (cycle_type < 10 && ams_cycle_type > 10)
       {
          delete vert_fespace_d;
@@ -1829,8 +1827,6 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          RT_Piy = RT_Pi_blocks(0,1);
          RT_Piz = RT_Pi_blocks(0,2);
       }
-      delete id_RT;
-
       delete id_RT;
 
       HYPRE_ADSSetInterpolations(ads,
