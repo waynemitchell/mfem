@@ -20,14 +20,6 @@
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
 
-#ifndef HYPRE_Int
-#define HYPRE_Int int
-#endif
-
-#ifndef HYPRE_Real
-#define HYPRE_Real double
-#endif
-
 HypreParVector::HypreParVector(MPI_Comm comm, int glob_size,
                                int *col) : Vector()
 {
@@ -193,7 +185,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *
    hypre_CSRMatrixSetRownnz(A->diag);
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
-   hypre_CSRMatrixI(A->offd)    = hypre_CTAlloc(HYPRE_Int, diag->Size()+1);
+   hypre_CSRMatrixI(A->offd)    = hypre_CTAlloc(int, diag->Size()+1);
 
    /* Don't need to call these, since they allocate memory only
       if it was not already allocated */
@@ -228,7 +220,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
    hypre_CSRMatrixSetRownnz(A->diag);
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
-   hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(HYPRE_Int, diag->Size()+1);
+   hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(int, diag->Size()+1);
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
@@ -336,7 +328,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
    hypre_CSRMatrixSetRownnz(A->diag);
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
-   hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(HYPRE_Int, diag->Size()+1);
+   hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(int, diag->Size()+1);
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
@@ -447,8 +439,8 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
    }
 
    // copy in the row and column partitionings
-   HYPRE_Int *row_starts = hypre_TAlloc(HYPRE_Int, part_size);
-   HYPRE_Int *col_starts = hypre_TAlloc(HYPRE_Int, part_size);
+   int *row_starts = hypre_TAlloc(int, part_size);
+   int *col_starts = hypre_TAlloc(int, part_size);
    for (int i = 0; i < part_size; i++)
    {
       row_starts[i] = rows[i];
@@ -738,64 +730,64 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
 // Taubin or "lambda-mu" scheme, which alternates between positive and
 // negative step sizes to approximate low-pass filter effect.
 
-HYPRE_Int hypre_ParCSRRelax_Taubin(hypre_ParCSRMatrix *A, // matrix to relax with
-                                   hypre_ParVector *f,    // right-hand side
-                                   HYPRE_Real lambda,
-                                   HYPRE_Real mu,
-                                   HYPRE_Int N,
-                                   double max_eig,
-                                   hypre_ParVector *u,    // initial/updated approximation
-                                   hypre_ParVector *r     // another temp vector
-   )
+int ParCSRRelax_Taubin(hypre_ParCSRMatrix *A, // matrix to relax with
+                       hypre_ParVector *f,    // right-hand side
+                       double lambda,
+                       double mu,
+                       int N,
+                       double max_eig,
+                       hypre_ParVector *u,    // initial/updated approximation
+                       hypre_ParVector *r     // another temp vector
+                      )
 {
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag(A);
-   HYPRE_Int num_rows = hypre_CSRMatrixNumRows(A_diag);
+   int num_rows = hypre_CSRMatrixNumRows(A_diag);
 
-   HYPRE_Real *u_data = hypre_VectorData(hypre_ParVectorLocalVector(u));
-   HYPRE_Real *r_data = hypre_VectorData(hypre_ParVectorLocalVector(r));
+   double *u_data = hypre_VectorData(hypre_ParVectorLocalVector(u));
+   double *r_data = hypre_VectorData(hypre_ParVectorLocalVector(r));
 
    for (int i = 0; i < N; i++) {
-      
+
       // get residual: r = f - A*u
       hypre_ParVectorCopy(f, r);
       hypre_ParCSRMatrixMatvec(-1.0, A, u, 1.0, r);
-      
+
       double coef;
       (0 == (i % 2)) ? coef = lambda : coef = mu;
-      
+
       for (int i = 0; i < num_rows; i++) {
          u_data[i] += coef*r_data[i] / max_eig;
       }
-      
+
    }
 
-   return hypre_error_flag;
+   return 0;
 }
 
 // FIR scheme, which uses Chebyshev polynomials and a window function
 // to approximate a low-pass step filter.
 
-HYPRE_Int hypre_ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
-                                hypre_ParVector *f,    // right-hand side
-                                HYPRE_Real max_eig,
-                                HYPRE_Int poly_order,
-                                double* fir_coeffs,
-                                hypre_ParVector *u,    // initial/updated approximation
-                                hypre_ParVector *x0,   // temporaries
-                                hypre_ParVector *x1,
-                                hypre_ParVector *x2,
-                                hypre_ParVector *x3)
+int ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
+                    hypre_ParVector *f,    // right-hand side
+                    double max_eig,
+                    int poly_order,
+                    double* fir_coeffs,
+                    hypre_ParVector *u,    // initial/updated approximation
+                    hypre_ParVector *x0,   // temporaries
+                    hypre_ParVector *x1,
+                    hypre_ParVector *x2,
+                    hypre_ParVector *x3)
 
 {
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag(A);
-   HYPRE_Int num_rows = hypre_CSRMatrixNumRows(A_diag);
+   int num_rows = hypre_CSRMatrixNumRows(A_diag);
 
-   HYPRE_Real *u_data = hypre_VectorData(hypre_ParVectorLocalVector(u));
+   double *u_data = hypre_VectorData(hypre_ParVectorLocalVector(u));
 
-   HYPRE_Real *x0_data = hypre_VectorData(hypre_ParVectorLocalVector(x0));
-   HYPRE_Real *x1_data = hypre_VectorData(hypre_ParVectorLocalVector(x1));
-   HYPRE_Real *x2_data = hypre_VectorData(hypre_ParVectorLocalVector(x2));
-   HYPRE_Real *x3_data = hypre_VectorData(hypre_ParVectorLocalVector(x3));
+   double *x0_data = hypre_VectorData(hypre_ParVectorLocalVector(x0));
+   double *x1_data = hypre_VectorData(hypre_ParVectorLocalVector(x1));
+   double *x2_data = hypre_VectorData(hypre_ParVectorLocalVector(x2));
+   double *x3_data = hypre_VectorData(hypre_ParVectorLocalVector(x3));
 
    hypre_ParVectorCopy(u, x0);
 
@@ -819,10 +811,10 @@ HYPRE_Int hypre_ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
    {
       x3_data[i] = fir_coeffs[0]*x0_data[i] +fir_coeffs[1]*x1_data[i];
    }
-   
+
    for (int n = 2; n <= poly_order; n++)
    {
-      
+
       // x2 = f - A*x1/max_eig
       hypre_ParVectorCopy(f, x2);
       hypre_ParCSRMatrixMatvec(-1.0, A, x1, 1.0, x2);
@@ -831,12 +823,12 @@ HYPRE_Int hypre_ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
       {
          x2_data[i] /= -max_eig;
       }
-      
+
       // x2 = (x1-x0) +(x1-2*x2)
       // x3 = x3 +f[n]*x2
       // x0 = x1
       // x1 = x2
-      
+
       for (int i = 0; i < num_rows; i++)
       {
 
@@ -846,15 +838,15 @@ HYPRE_Int hypre_ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
          x1_data[i] = x2_data[i];
 
       }
-      
+
    }
 
    for (int i = 0; i < num_rows; i++)
    {
       u_data[i] = x3_data[i];
    }
-   
-   return hypre_error_flag;
+
+   return 0;
 }
 
 HypreSmoother::HypreSmoother() : Solver()
@@ -871,7 +863,7 @@ HypreSmoother::HypreSmoother() : Solver()
 
    l1_norms = NULL;
    B = X = V = Z = NULL;
-   X0 = X1 = X2 = X3 = NULL;
+   X0 = X1 = NULL;
    fir_coeffs = NULL;
 }
 
@@ -889,6 +881,8 @@ HypreSmoother::HypreSmoother(HypreParMatrix &_A, int _type,
 
    l1_norms = NULL;
    B = X = V = Z = NULL;
+   X0 = X1 = NULL;
+   fir_coeffs = NULL;
 
    SetOperator(_A);
 }
@@ -944,7 +938,7 @@ void HypreSmoother::SetWindowByName(const char* name)
    if (!strcmp(name,"Blackman"))    a = 0.42, b = 0.50, c = 0.08;
    if (a < 0)
       mfem_error("HypreSmoother::SetWindowByName : name not recognized!");
-      
+
    SetWindowParameters(a, b, c);
 }
 
@@ -969,22 +963,21 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (Z) delete Z;
    if (l1_norms)
       delete [] l1_norms;
+   delete X0;
+   delete X1;
 
-   if ( (type >= 1 && type <= 4) )
-   {
-      int option;
-      if (type == 1001 || type == 1002) option = 1;
-      else option = type;
-      hypre_ParCSRComputeL1Norms(*A, option, NULL, &l1_norms);
-   }
+   X1 = X0 = Z = V = B = X = NULL;
+
+   if (type >= 1 && type <= 4)
+      hypre_ParCSRComputeL1Norms(*A, type, NULL, &l1_norms);
    else
       l1_norms = NULL;
 
-   if (type == 16) {
+   if (type == 16)
+   {
       hypre_ParCSRMaxEigEstimateCG(*A, poly_scale, 10,
                                    &max_eig_est, &min_eig_est);
-      Z = new HypreParVector(A->GetComm(),
-                             A->GetGlobalNumCols(), A->GetColStarts());
+      Z = new HypreParVector(*A);
    }
    else if (type == 1001 || type == 1002)
    {
@@ -992,40 +985,27 @@ void HypreSmoother::SetOperator(const Operator &op)
       hypre_ParCSRMaxEigEstimateCG(*A, poly_scale, 10,
                                    &max_eig_est, &min_eig_est);
       max_eig_est /= 2;
-      
-      Z = new HypreParVector(A->GetComm(),
-                             A->GetGlobalNumCols(), A->GetColStarts());
+
+      // Compute window function, Chebyshev coefficients, and allocate temps.
+      if (type == 1002)
+      {
+         // Temporaries for Chebyshev recursive evaluation
+         Z = new HypreParVector(*A);
+         X0 = new HypreParVector(*A);
+         X1 = new HypreParVector(*A);
+
+         SetFIRCoefficients(max_eig_est);
+      }
    }
-   else
-      Z = NULL;
-
-
-   // Compute window function, Chebyshev coefficients, and allocate temps.
-   if (type == 1002)
-   {
-      // Temporaries for Chebyshev recursive evaluation
-      X0 = new HypreParVector(A->GetComm(),
-                              A->GetGlobalNumCols(), A->GetColStarts());
-      X1 = new HypreParVector(A->GetComm(),
-                              A->GetGlobalNumCols(), A->GetColStarts());
-      X2 = new HypreParVector(A->GetComm(),
-                              A->GetGlobalNumCols(), A->GetColStarts());
-      X3 = new HypreParVector(A->GetComm(),
-                              A->GetGlobalNumCols(), A->GetColStarts());
-      
-      SetFIRCoefficients(max_eig_est);
-   }
-
-   V = B = X = NULL;
 }
 
 void HypreSmoother::SetFIRCoefficients(double max_eig)
 {
    if (fir_coeffs)
       delete [] fir_coeffs;
-   
+
    fir_coeffs = new double[poly_order+1];
-   
+
    double* window_coeffs = new double[poly_order+1];
    double* cheby_coeffs = new double[poly_order+1];
 
@@ -1075,30 +1055,29 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
    }
 
    if (V == NULL)
-      V = new HypreParVector(A->GetComm(),
-                             A->GetGlobalNumCols(), A->GetColStarts());
+      V = new HypreParVector(*A);
 
    if (type == 1001)
    {
       for (int sweep = 0; sweep < relax_times; sweep++) {
-         hypre_ParCSRRelax_Taubin(*A, b, lambda, mu, taubin_iter,
-                                  max_eig_est,
-                                  x, *Z);
+         ParCSRRelax_Taubin(*A, b, lambda, mu, taubin_iter,
+                            max_eig_est,
+                            x, *V);
       }
    }
    else if (type == 1002) {
-      
+
       for (int sweep = 0; sweep < relax_times; sweep++) {
-         hypre_ParCSRRelax_FIR(*A, b,
-                               max_eig_est,
-                               poly_order,
-                               fir_coeffs,
-                               x,
-                               *X0, *X1, *X2, *X3);
+         ParCSRRelax_FIR(*A, b,
+                         max_eig_est,
+                         poly_order,
+                         fir_coeffs,
+                         x,
+                         *X0, *X1, *V, *Z);
       }
    }
    else {
-      
+
       if (Z == NULL)
          hypre_ParCSRRelax(*A, b, type,
                            relax_times, l1_norms, relax_weight, omega,
@@ -1151,9 +1130,6 @@ HypreSmoother::~HypreSmoother()
       delete [] fir_coeffs;
    if (X0) delete X0;
    if (X1) delete X1;
-   if (X2) delete X2;
-   if (X3) delete X3;
-   
 }
 
 

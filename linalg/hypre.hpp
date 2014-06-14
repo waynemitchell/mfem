@@ -43,7 +43,7 @@ public:
    HypreParVector(MPI_Comm comm, int glob_size, double *_data, int *col);
    /// Creates vector compatible with y
    HypreParVector(const HypreParVector &y);
-   /// Creates vector compatible with A or A^T
+   /// Creates vector compatible with (i.e. in the domain of) A or A^T
    HypreParVector(HypreParMatrix &A, int tr = 0);
    /// Creates vector wrapping y
    HypreParVector(HYPRE_ParVector y);
@@ -225,8 +225,8 @@ protected:
    /// Temporary vectors
    mutable HypreParVector *V, *Z;
    /// FIR Filter Temporary Vectors
-   mutable HypreParVector *X0, *X1, *X2, *X3;
-   
+   mutable HypreParVector *X0, *X1;
+
    /** Hypre relaxation type (from hypre_ParCSRRelax() in ams.c). Options are:
        1  = l1-scaled Jacobi
        2  = l1-scaled block Gauss-Seidel/SSOR
@@ -252,7 +252,7 @@ protected:
    double lambda;
    double mu;
    int taubin_iter;
-   
+
    /// l1 norms of the rows of A
    double *l1_norms;
    /// Maximal eigenvalue estimate for polynomial smoothing
