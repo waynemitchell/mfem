@@ -112,6 +112,13 @@ public:
        Both FE spaces should be scalar and on the same mesh. */
    void GetElementAverages(GridFunction &avgs);
 
+   /** Impose the given bounds on the function while presetving its local
+    *  integral (described in terms of the given weights) the i'th element
+    *  through SLBPQ optimization.
+    *  Intended to be used for discontinuos FE functions. */
+   void ImposeBounds(int i, const Vector &weights,
+                     double _min = 0.0, double _max = 1.0e10);
+
    /** Project the given 'src' GridFunction to 'this' GridFunction, both of
        which must be on the same mesh. The current implementation assumes that
        all element use the same projection matrix. */

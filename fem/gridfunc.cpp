@@ -795,6 +795,46 @@ void GridFunction::ProjectGridFunction(const GridFunction &src)
    }
 }
 
+void GridFunction::ImposeBounds(int i, const Vector &weights,
+                                double _min, double _max)
+{
+   Array<int> vdofs;
+   Vector vals;
+   fes->GetElementVDofs(i, vdofs);
+   GetSubVector(vdofs, vals);
+   int size = vdofs.Size();
+
+#ifdef MFEM_DEBUG
+   if (weights.Size() != size)
+      mfem_error("GridFunction::ImposeBounds:"
+                 " different # of weights and dofs.");
+#endif
+
+   double max_val = vals.Max();
+   double min_val = vals.Min();
+
+   if(_min <= min_val && max_val <= _max)
+      return;
+
+   Vector minv(size), maxv(size);
+   minv = (_min > min_val) ? _min : min_val;
+   maxv = (_max < max_val) ? _max : max_val;
+
+   Vector new_vals(size);
+   int max_iter = 30;
+   double tol = 1.e-12;
+   SLBQPOptimizer slbqp;
+   slbqp.SetMaxIter(max_iter);
+   slbqp.SetAbsTol(0.0);
+   slbqp.SetRelTol(tol);
+   slbqp.SetBounds(minv, maxv);
+   slbqp.SetLinearConstraint(weights, weights * vals);
+   slbqp.SetPrintLevel(0); // print messages only if not converged
+   slbqp.Mult(vals, new_vals);
+
+   SetSubVector(vdofs, new_vals);
+}
+
 void GridFunction::GetNodalValues(Vector &nval, int vdim) const
 {
    int i, j;
