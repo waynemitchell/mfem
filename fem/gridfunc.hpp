@@ -117,7 +117,7 @@ public:
     *  through SLBPQ optimization.
     *  Intended to be used for discontinuos FE functions. */
    void ImposeBounds(int i, const Vector &weights,
-                     double _min = 0.0, double _max = 1.0e10);
+                     double _min = 0.0, double _max = numeric_limits<double>::infinity());
 
    /** Project the given 'src' GridFunction to 'this' GridFunction, both of
        which must be on the same mesh. The current implementation assumes that

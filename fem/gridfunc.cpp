@@ -799,10 +799,10 @@ void GridFunction::ImposeBounds(int i, const Vector &weights,
                                 double _min, double _max)
 {
    Array<int> vdofs;
-   Vector vals;
    fes->GetElementVDofs(i, vdofs);
-   GetSubVector(vdofs, vals);
    int size = vdofs.Size();
+   Vector vals, new_vals(size);
+   GetSubVector(vdofs, vals);
 
 #ifdef MFEM_DEBUG
    if (weights.Size() != size)
@@ -813,6 +813,13 @@ void GridFunction::ImposeBounds(int i, const Vector &weights,
    double max_val = vals.Max();
    double min_val = vals.Min();
 
+   if(max_val <= _min)
+   {
+      new_vals = _min;
+      SetSubVector(vdofs, new_vals);
+      return;
+   }
+
    if(_min <= min_val && max_val <= _max)
       return;
 
@@ -820,12 +827,11 @@ void GridFunction::ImposeBounds(int i, const Vector &weights,
    minv = (_min > min_val) ? _min : min_val;
    maxv = (_max < max_val) ? _max : max_val;
 
-   Vector new_vals(size);
    int max_iter = 30;
    double tol = 1.e-12;
    SLBQPOptimizer slbqp;
    slbqp.SetMaxIter(max_iter);
-   slbqp.SetAbsTol(0.0);
+   slbqp.SetAbsTol(1.0e-18);
    slbqp.SetRelTol(tol);
    slbqp.SetBounds(minv, maxv);
    slbqp.SetLinearConstraint(weights, weights * vals);
