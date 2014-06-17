@@ -1379,7 +1379,11 @@ double DenseMatrix::CalcSingularvalue(const int i) const
    const int n = Height();
    const double *d = data;
 
-   if (n == 2)
+   if (n == 1)
+   {
+      return d[0];
+   }
+   else if (n == 2)
    {
       register double d0, d1, d2, d3;
       d0 = d[0];

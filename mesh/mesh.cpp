@@ -98,7 +98,15 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
       if (kappa > kappa_max)  kappa_max = kappa;
    }
 
-   if (dim == 2)
+   if (dim == 1)
+      cout << endl
+           << "Number of vertices : " << GetNV() << endl
+           << "Number of elements : " << GetNE() << endl
+           << "Number of bdr elem : " << GetNBE() << endl
+           << "h_min              : " << h_min << endl
+           << "h_max              : " << h_max << endl
+           << endl;
+   else if (dim == 2)
       cout << endl
            << "Number of vertices : " << GetNV() << endl
            << "Number of edges    : " << GetNEdges() << endl
