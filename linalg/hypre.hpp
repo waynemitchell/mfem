@@ -272,15 +272,14 @@ public:
 
    HypreSmoother(HypreParMatrix &_A, int type = 2,
                  int relax_times = 1, double relax_weight = 1.0, double omega = 1.0,
-                 int poly_order = 2, double poly_fraction = .3, int poly_scale = 1);
+                 int poly_order = 2, double poly_fraction = .3);
 
    /// Set some of the more common used relaxation types and number of sweeps
    void SetType(HypreSmoother::Type type, int relax_times = 1);
    /// Set SOR-related parameters
    void SetSOROptions(double relax_weight, double omega);
    /// Set parameters for polynomial smoothing
-   void SetPolyOptions(int poly_order, double poly_fraction,
-                       int poly_scale = 1);
+   void SetPolyOptions(int poly_order, double poly_fraction);
    /// Set parameters for Taubin's lambda-mu method
    void SetTaubinOptions(double lambda, double mu, int iter);
 
