@@ -746,8 +746,8 @@ int ParCSRRelax_Taubin(hypre_ParCSRMatrix *A, // matrix to relax with
    double *u_data = hypre_VectorData(hypre_ParVectorLocalVector(u));
    double *r_data = hypre_VectorData(hypre_ParVectorLocalVector(r));
 
-   for (int i = 0; i < N; i++) {
-
+   for (int i = 0; i < N; i++)
+   {
       // get residual: r = f - A*u
       hypre_ParVectorCopy(f, r);
       hypre_ParCSRMatrixMatvec(-1.0, A, u, 1.0, r);
@@ -755,10 +755,10 @@ int ParCSRRelax_Taubin(hypre_ParCSRMatrix *A, // matrix to relax with
       double coef;
       (0 == (i % 2)) ? coef = lambda : coef = mu;
 
-      for (int i = 0; i < num_rows; i++) {
+      for (int i = 0; i < num_rows; i++)
+      {
          u_data[i] += coef*r_data[i] / max_eig;
       }
-
    }
 
    return 0;
@@ -814,7 +814,6 @@ int ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
 
    for (int n = 2; n <= poly_order; n++)
    {
-
       // x2 = f - A*x1/max_eig
       hypre_ParVectorCopy(f, x2);
       hypre_ParCSRMatrixMatvec(-1.0, A, x1, 1.0, x2);
@@ -831,14 +830,11 @@ int ParCSRRelax_FIR(hypre_ParCSRMatrix *A, // matrix to relax with
 
       for (int i = 0; i < num_rows; i++)
       {
-
          x2_data[i] = (x1_data[i]-x0_data[i]) +(x1_data[i]-2*x2_data[i]);
          x3_data[i] += fir_coeffs[n]*x2_data[i];
          x0_data[i] = x1_data[i];
          x1_data[i] = x2_data[i];
-
       }
-
    }
 
    for (int i = 0; i < num_rows; i++)
@@ -857,6 +853,7 @@ HypreSmoother::HypreSmoother() : Solver()
    omega = 1.0;
    poly_order = 2;
    poly_fraction = .3;
+   poly_scale = 1;
    lambda = 0.5;
    mu = -0.5;
    taubin_iter = 40;
@@ -931,7 +928,7 @@ void HypreSmoother::SetTaubinOptions(double _lambda, double _mu,
 
 void HypreSmoother::SetWindowByName(const char* name)
 {
-   double a = -1,b,c;
+   double a = -1, b, c;
    if (!strcmp(name,"Rectangular")) a = 1.0,  b = 0.0,  c = 0.0;
    if (!strcmp(name,"Hanning"))     a = 0.5,  b = 0.5,  c = 0.0;
    if (!strcmp(name,"Hamming"))     a = 0.54, b = 0.46, c = 0.0;
@@ -981,9 +978,14 @@ void HypreSmoother::SetOperator(const Operator &op)
    }
    else if (type == 1001 || type == 1002)
    {
-      poly_scale = 0;
+      if (poly_scale == 1)
+         mfem_error("The Taubin and FIR smoothers don't currently "
+                    "support poly_scale = 1 !");
+
       hypre_ParCSRMaxEigEstimateCG(*A, poly_scale, 10,
                                    &max_eig_est, &min_eig_est);
+
+      // The Taubin and FIR polynomials are defined on [0, 2]
       max_eig_est /= 2;
 
       // Compute window function, Chebyshev coefficients, and allocate temps.
@@ -1012,7 +1014,8 @@ void HypreSmoother::SetFIRCoefficients(double max_eig)
    double a = window_params[0];
    double b = window_params[1];
    double c = window_params[2];
-   for (int i = 0; i <= poly_order; i++) {
+   for (int i = 0; i <= poly_order; i++)
+   {
       double t = (i*M_PI)/(poly_order+1);
       window_coeffs[i] = a + b*cos(t) +c*cos(2*t);
    }
@@ -1021,12 +1024,14 @@ void HypreSmoother::SetFIRCoefficients(double max_eig)
    double theta_pb = acos(1.0 -0.5*k_pb);
    double sigma = 0.0;
    cheby_coeffs[0] = (theta_pb +sigma)/M_PI;
-   for (int i = 1; i <= poly_order; i++) {
+   for (int i = 1; i <= poly_order; i++)
+   {
       double t = i*(theta_pb+sigma);
       cheby_coeffs[i] = 2.0*sin(t)/(i*M_PI);
    }
 
-   for (int i = 0; i <= poly_order; i++) {
+   for (int i = 0; i <= poly_order; i++)
+   {
       fir_coeffs[i] = window_coeffs[i]*cheby_coeffs[i];
    }
 
@@ -1059,15 +1064,17 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
 
    if (type == 1001)
    {
-      for (int sweep = 0; sweep < relax_times; sweep++) {
+      for (int sweep = 0; sweep < relax_times; sweep++)
+      {
          ParCSRRelax_Taubin(*A, b, lambda, mu, taubin_iter,
                             max_eig_est,
                             x, *V);
       }
    }
-   else if (type == 1002) {
-
-      for (int sweep = 0; sweep < relax_times; sweep++) {
+   else if (type == 1002)
+   {
+      for (int sweep = 0; sweep < relax_times; sweep++)
+      {
          ParCSRRelax_FIR(*A, b,
                          max_eig_est,
                          poly_order,
@@ -1076,8 +1083,8 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
                          *X0, *X1, *V, *Z);
       }
    }
-   else {
-
+   else
+   {
       if (Z == NULL)
          hypre_ParCSRRelax(*A, b, type,
                            relax_times, l1_norms, relax_weight, omega,
@@ -1770,6 +1777,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          ND_Piy = ND_Pi_blocks(0,1);
          ND_Piz = ND_Pi_blocks(0,2);
       }
+
       delete id_ND;
 
       if (cycle_type < 10 && ams_cycle_type > 10)
@@ -1803,6 +1811,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          RT_Piy = RT_Pi_blocks(0,1);
          RT_Piz = RT_Pi_blocks(0,2);
       }
+
       delete id_RT;
 
       HYPRE_ADSSetInterpolations(ads,
