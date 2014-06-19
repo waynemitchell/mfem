@@ -43,7 +43,7 @@ public:
    HypreParVector(MPI_Comm comm, int glob_size, double *_data, int *col);
    /// Creates vector compatible with y
    HypreParVector(const HypreParVector &y);
-   /// Creates vector compatible with A or A^T
+   /// Creates vector compatible with (i.e. in the domain of) A or A^T
    HypreParVector(HypreParMatrix &A, int tr = 0);
    /// Creates vector wrapping y
    HypreParVector(HYPRE_ParVector y);
@@ -224,6 +224,8 @@ protected:
    mutable HypreParVector *B, *X;
    /// Temporary vectors
    mutable HypreParVector *V, *Z;
+   /// FIR Filter Temporary Vectors
+   mutable HypreParVector *X0, *X1;
 
    /** Hypre relaxation type (from hypre_ParCSRRelax() in ams.c). Options are:
        1  = l1-scaled Jacobi
@@ -239,33 +241,54 @@ protected:
    double relax_weight;
    /// SOR parameter (usually in (0,2))
    double omega;
-   /// Order of the Chebyshev polynomial
-   int cheby_order;
-   /// Fraction of spectrum to smooth for Chebyshev relaxation
-   double cheby_fraction;
+   /// Order of the smoothing polynomial
+   int poly_order;
+   /// Fraction of spectrum to smooth for polynomial relaxation
+   double poly_fraction;
+   /// Apply the polynomial smoother to A or D^{-1/2} A D^{-1/2}
+   int poly_scale;
+
+   /// Taubin's lambda-mu method parameters
+   double lambda;
+   double mu;
+   int taubin_iter;
 
    /// l1 norms of the rows of A
    double *l1_norms;
-   /// Maximal eigenvalue estimate for the Chebyshev polynomial
+   /// Maximal eigenvalue estimate for polynomial smoothing
    double max_eig_est;
-   /// Minimal eigenvalue estimate for the Chebyshev polynomial
+   /// Minimal eigenvalue estimate for polynomial smoothing
    double min_eig_est;
+   /// Paramters for windowing function of FIR filter
+   double window_params[3];
+
+   /// Combined coefficients for windowing and Chebyshev polynomials.
+   double* fir_coeffs;
 
 public:
-   enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev };
+   enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev, Taubin, FIR };
 
    HypreSmoother();
 
    HypreSmoother(HypreParMatrix &_A, int type = 2,
                  int relax_times = 1, double relax_weight = 1.0, double omega = 1.0,
-                 int cheby_order = 2, double cheby_fraction = .3);
+                 int poly_order = 2, double poly_fraction = .3);
 
    /// Set some of the more common used relaxation types and number of sweeps
    void SetType(HypreSmoother::Type type, int relax_times = 1);
    /// Set SOR-related parameters
    void SetSOROptions(double relax_weight, double omega);
-   /// Set Chebyshev-related parameters
-   void SetChebyshevOptions(int cheby_order, double cheby_fraction);
+   /// Set parameters for polynomial smoothing
+   void SetPolyOptions(int poly_order, double poly_fraction);
+   /// Set parameters for Taubin's lambda-mu method
+   void SetTaubinOptions(double lambda, double mu, int iter);
+
+   /// Convenience function for setting canonical windowing parameters
+   void SetWindowByName(const char* window_name);
+   /// Set parameters for windowing function for FIR smoother.
+   void SetWindowParameters(double a, double b, double c);
+   /// Compute window and Chebyshev coefficients for given polynomial order.
+   void SetFIRCoefficients(double max_eig);
 
    virtual void SetOperator(const Operator &op);
 
