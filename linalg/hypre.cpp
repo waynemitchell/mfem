@@ -738,7 +738,7 @@ int ParCSRRelax_Taubin(hypre_ParCSRMatrix *A, // matrix to relax with
                        double max_eig,
                        hypre_ParVector *u,    // initial/updated approximation
                        hypre_ParVector *r     // another temp vector
-                      )
+   )
 {
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag(A);
    int num_rows = hypre_CSRMatrixNumRows(A_diag);
