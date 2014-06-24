@@ -23,20 +23,19 @@ void mfem_error (const char *msg = NULL);
 //#define _MFEM_FUNC_NAME __func__
 
 // Does a check, and then outputs lots of useful information if the test fails
-#define MFEM_VERIFY(x, msg)                                                    \
-   {                                                                           \
-      if (!(x))                                                                \
-      {                                                                        \
-         std::ostringstream s;                                                 \
-         s << std::setprecision(16);                                           \
-         s << std::setiosflags(std::ios_base::scientific);                     \
-         s << "Verification failed: (" << #x << ") is false: " << msg << '\n'; \
-         s << "...at line " << __LINE__ << ;                                   \
-         s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << ".";     \
-         s << std::ends;                                                       \
-         mfem_error(s.str().c_str());                                          \
-      }                                                                        \
-   }
+#define MFEM_VERIFY(x, msg)                                                 \
+  {                                                                         \
+    if (!(x)) {                                                             \
+      std::ostringstream s;                                                 \
+      s << std::setprecision(16);                                           \
+      s << std::setiosflags(std::ios_base::scientific);                     \
+      s << "Verification failed: (" << #x << ") is false: " << msg << '\n'; \
+      s << "...at line " << __LINE__;                                       \
+      s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << ".";     \
+      s << std::ends;                                                       \
+      mfem_error(s.str().c_str());                                          \
+    }                                                                       \
+  }
 
 // Use this if the only place your variable is used is in ASSERT's
 #define MFEM_CONTRACT_VAR(x) if (0 && &x == &x){}
@@ -44,20 +43,19 @@ void mfem_error (const char *msg = NULL);
 // Now set up some optional checks, but only if the right flags are on
 #ifdef MFEM_DEBUG
 
-#define MFEM_ASSERT(x, msg)                                                 \
-   {                                                                        \
-      if (!(x))                                                             \
-      {                                                                     \
-         std::ostringstream s;                                              \
-         s << std::setprecision(16);                                        \
-         s << std::setiosflags(std::ios_base::scientific);                  \
-         s << "Assertion failed: (" << #x << ") is false: " << msg << '\n'; \
-         s << "...at line " << __LINE__ << ;                                \
-         s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << ".";  \
-         s << std::ends;                                                    \
-         mfem_error(s.str().c_str());                                       \
-      }                                                                     \
-   }
+#define MFEM_ASSERT(x, msg)                                              \
+  {                                                                      \
+    if (!(x)) {                                                          \
+      std::ostringstream s;                                              \
+      s << std::setprecision(16);                                        \
+      s << std::setiosflags(std::ios_base::scientific);                  \
+      s << "Assertion failed: (" << #x << ") is false: " << msg << '\n'; \
+      s << "...at line " << __LINE__;                                    \
+      s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << ".";  \
+      s << std::ends;                                                    \
+      mfem_error(s.str().c_str());                                       \
+    }                                                                    \
+  }
 
 #else
 
