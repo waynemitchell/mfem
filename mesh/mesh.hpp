@@ -46,6 +46,8 @@ protected:
    int f_NumOfEdges, f_NumOfFaces;
 
    Array<Element *> elements;
+   // Vertices are only at the corners of elements, where you would expect them
+   // in the lowest-order mesh.
    Array<Vertex> vertices;
    Array<Element *> boundary;
    Array<Element *> faces;
@@ -71,6 +73,9 @@ protected:
    IsoparametricTransformation FaceTransformation, EdgeTransformation;
    FaceElementTransformations FaceElemTr;
 
+   // Nodes are only active for higher order meshes, and share locations with
+   // the vertecies, plus all the higher- order control points within the
+   // element and along the edges and on the faces.
    GridFunction *Nodes;
    int own_nodes;
 
@@ -342,7 +347,9 @@ public:
    /// Truegrid or NetGen?
    inline int MeshGenerator() { return meshgen; }
 
-   /// Returns number of vertices.
+   /// Returns number of vertices.  Vertices are only at the corners of
+   /// elements, where you would expect them in the lowest-order mesh.
+   void MoveVertices(const Vector &displacements);
    inline int GetNV() const { return NumOfVertices; }
 
    /// Returns number of elements.
@@ -557,10 +564,16 @@ public:
    void CheckPartitioning(int *partitioning);
 
    void CheckDisplacements(const Vector &displacements, double &tmax);
+
+   // Vertices are only at the corners of elements, where you would expect them
+   // in the lowest-order mesh.
    void MoveVertices(const Vector &displacements);
    void GetVertices(Vector &vert_coord) const;
    void SetVertices(const Vector &vert_coord);
 
+   // Nodes are only active for higher order meshes, and share locations with
+   // the vertecies, plus all the higher- order control points within the
+   // element and along the edges and on the faces.
    void GetNode(int i, double *coord);
    void SetNode(int i, const double *coord);
 
