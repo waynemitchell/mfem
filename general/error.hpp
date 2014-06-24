@@ -9,8 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef MFEM_ERROR
-#define MFEM_ERROR
+#ifndef MFEM_ERROR_H
+#define MFEM_ERROR_H
 
 #include <iomanip>
 #include <sstream>
@@ -21,6 +21,19 @@ void mfem_error (const char *msg = NULL);
 #define _MFEM_FUNC_NAME __PRETTY_FUNCTION__
 // This one is C99 standard.
 //#define _MFEM_FUNC_NAME __func__
+
+// Outputs lots of useful information and aborts.
+#define MFEM_ERROR(msg)                                               \
+  {                                                                   \
+    std::ostringstream s;                                             \
+    s << std::setprecision(16);                                       \
+    s << std::setiosflags(std::ios_base::scientific);                 \
+    s << "MFEM error: " << msg << '\n';                               \
+    s << "...at line " << __LINE__;                                   \
+    s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << "."; \
+    s << std::ends;                                                   \
+    mfem_error(s.str().c_str());                                      \
+  }
 
 // Does a check, and then outputs lots of useful information if the test fails
 #define MFEM_VERIFY(x, msg)                                                 \
@@ -63,6 +76,5 @@ void mfem_error (const char *msg = NULL);
 #define MFEM_ASSERT(x, msg)
 
 #endif
-
 
 #endif

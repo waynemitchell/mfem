@@ -173,8 +173,8 @@ int Table::Push(int i, int j)
          return k;
       }
 
-   MFEM_VERIFY(false, "Reached end of loop unexpectedly: (i,j) = ("
-               << i << ", " << j << ")");
+   MFEM_ERROR("Reached end of loop unexpectedly: (i,j) = (" << i << ", " << j
+                                                            << ")");
 
    return -1;
 }
