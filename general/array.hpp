@@ -278,10 +278,7 @@ inline void Swap(Array<T> &a, Array<T> &b)
 template <class T>
 inline void Array<T>::SetSize(int nsize)
 {
-#ifdef MFEM_DEBUG
-   if (nsize < 0)
-      mfem_error("Array::SetSize : negative size!");
-#endif
+   MFEM_ASSERT( nsize>=0, "Size must be non-negative.  It is " << nsize );
    if (nsize > abs(allocsize))
       GrowSize(nsize, sizeof(T));
    size = nsize;
@@ -290,10 +287,7 @@ inline void Array<T>::SetSize(int nsize)
 template <class T>
 inline void Array<T>::SetSize(int nsize, const T &initval)
 {
-#ifdef MFEM_DEBUG
-   if (nsize < 0)
-      mfem_error("Array::SetSize : negative size!");
-#endif
+   MFEM_ASSERT( nsize>=0, "Size must be non-negative.  It is " << nsize );
    if (nsize > size)
    {
       if (nsize > abs(allocsize))
@@ -307,26 +301,14 @@ inline void Array<T>::SetSize(int nsize, const T &initval)
 template <class T>
 inline T &Array<T>::operator[](int i)
 {
-#ifdef MFEM_DEBUG
-   if (i < 0 || i >= size)
-   {
-      cerr << "Access element " << i << " of array, size = " << size << endl;
-      mfem_error();
-   }
-#endif
+   MFEM_ASSERT( i>=0 && i<size, "Access element " << i << " of array, size = " << size );
    return ((T*)data)[i];
 }
 
 template <class T>
 inline const T &Array<T>::operator[](int i) const
 {
-#ifdef MFEM_DEBUG
-   if (i < 0 || i >= size)
-   {
-      cerr << "Access element " << i << " of array, size = " << size << endl;
-      mfem_error();
-   }
-#endif
+   MFEM_ASSERT( i>=0 && i<size, "Access element " << i << " of array, size = " << size );
    return ((T*)data)[i];
 }
 
@@ -364,10 +346,7 @@ inline int Array<T>::Prepend(const T &el)
 template <class T>
 inline T &Array<T>::Last()
 {
-#ifdef MFEM_DEBUG
-   if (size < 1)
-      mfem_error("Array<T>::Last()");
-#endif
+   MFEM_ASSERT(size > 0, "Array size is zero: " << size);
    return ((T*)data)[size-1];
 }
 
@@ -458,58 +437,38 @@ inline void Array<T>::Assign(const T *p)
 template <class T>
 inline const T &Array2D<T>::operator()(int i, int j) const
 {
-#ifdef MFEM_DEBUG
-   if (i < 0 || i >= array1d.Size()/N || j < 0 || j >= N)
-   {
-      cerr << "Array2D: invalid access of element (" << i << ',' << j
-           << ") in array of size (" << array1d.Size()/N << ',' << N
-           << ")." << endl;
-      mfem_error();
-   }
-#endif
+   MFEM_ASSERT( i>=0 && i< array1d.Size()/N && j>=0 && j<N,
+                "Array2D: invalid access of element (" << i << ',' << j
+                << ") in array of size (" << array1d.Size()/N << ',' << N
+                << ")." );
    return array1d[i*N+j];
 }
 
 template <class T>
 inline T &Array2D<T>::operator()(int i, int j)
 {
-#ifdef MFEM_DEBUG
-   if (i < 0 || i >= array1d.Size()/N || j < 0 || j >= N)
-   {
-      cerr << "Array2D: invalid access of element (" << i << ',' << j
-           << ") in array of size (" << array1d.Size()/N << ',' << N
-           << ")." << endl;
-      mfem_error();
-   }
-#endif
+   MFEM_ASSERT( i>=0 && i< array1d.Size()/N && j>=0 && j<N,
+                "Array2D: invalid access of element (" << i << ',' << j
+                << ") in array of size (" << array1d.Size()/N << ',' << N
+                << ")." );
    return array1d[i*N+j];
 }
 
 template <class T>
 inline const T *Array2D<T>::operator[](int i) const
 {
-#ifdef MFEM_DEBUG
-   if (i < 0 || i >= array1d.Size()/N)
-   {
-      cerr << "Array2D: invalid access of row " << i << " in array with "
-           << array1d.Size()/N << " rows." << endl;
-      mfem_error();
-   }
-#endif
+   MFEM_ASSERT( i>=0 && i< array1d.Size()/N,
+                "Array2D: invalid access of row " << i << " in array with "
+                << array1d.Size()/N << " rows.");
    return &array1d[i*N];
 }
 
 template <class T>
 inline T *Array2D<T>::operator[](int i)
 {
-#ifdef MFEM_DEBUG
-   if (i < 0 || i >= array1d.Size()/N)
-   {
-      cerr << "Array2D: invalid access of row " << i << " in array with "
-           << array1d.Size()/N << " rows." << endl;
-      mfem_error();
-   }
-#endif
+   MFEM_ASSERT( i>=0 && i< array1d.Size()/N,
+                "Array2D: invalid access of row " << i << " in array with "
+                << array1d.Size()/N << " rows.");
    return &array1d[i*N];
 }
 
@@ -526,32 +485,22 @@ inline void Swap(Array2D<T> &a, Array2D<T> &b)
 template <class T>
 inline const T &Array3D<T>::operator()(int i, int j, int k) const
 {
-#ifdef MFEM_DEBUG
-   int N1 = array1d.Size()/N2/N3;
-   if (i < 0 || i >= N1 || j < 0 || j >= N2 || k < 0 || k >= N3)
-   {
-      cerr << "Array3D: invalid access of element ("
-           << i << ',' << j << ',' << k << ") in array of size ("
-           << N1 << ',' << N2 << ',' << N3 << ")." << endl;
-      mfem_error();
-   }
-#endif
+   MFEM_ASSERT(i >= 0 && i < array1d.Size() / N2 / N3 && j >= 0 && j < N2
+               && k >= 0 && k < N3,
+               "Array3D: invalid access of element ("
+               << i << ',' << j << ',' << k << ") in array of size ("
+               << array1d.Size() / N2 / N3 << ',' << N2 << ',' << N3 << ").");
    return array1d[(i*N2+j)*N3+k];
 }
 
 template <class T>
 inline T &Array3D<T>::operator()(int i, int j, int k)
 {
-#ifdef MFEM_DEBUG
-   int N1 = array1d.Size()/N2/N3;
-   if (i < 0 || i >= N1 || j < 0 || j >= N2 || k < 0 || k >= N3)
-   {
-      cerr << "Array3D: invalid access of element ("
-           << i << ',' << j << ',' << k << ") in array of size ("
-           << N1 << ',' << N2 << ',' << N3 << ")." << endl;
-      mfem_error();
-   }
-#endif
+   MFEM_ASSERT(i >= 0 && i < array1d.Size() / N2 / N3 && j >= 0 && j < N2
+               && k >= 0 && k < N3,
+               "Array3D: invalid access of element ("
+               << i << ',' << j << ',' << k << ") in array of size ("
+               << array1d.Size() / N2 / N3 << ',' << N2 << ',' << N3 << ").");
    return array1d[(i*N2+j)*N3+k];
 }
 

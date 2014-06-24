@@ -16,6 +16,7 @@
 
 #include "array.hpp"
 #include "table.hpp"
+#include "error.hpp"
 
 
 Table::Table (int dim, int connections_per_row)
@@ -161,13 +162,7 @@ void Table::SetIJ(int *newI, int *newJ, int newsize)
 
 int Table::Push(int i, int j)
 {
-#ifdef MFEM_DEBUG
-   if (i >= size || i < 0)
-   {
-      cerr << "Table::Push() i = " << i << endl;
-      mfem_error();
-   }
-#endif
+   MFEM_ASSERT( i >=0 && i<size, "Index out of bounds.  i = "<<i);
 
    for(int k = I[i], end = I[i+1]; k < end; k++)
       if (J[k] == j)
@@ -177,8 +172,9 @@ int Table::Push(int i, int j)
          J[k] = j;
          return k;
       }
-   cerr << "Table::Push() : (i,j) = (" << i << ", " << j << ")" << endl;
-   mfem_error();
+
+   MFEM_VERIFY(false, "Reached end of loop unexpectedly: (i,j) = ("
+               << i << ", " << j << ")");
 
    return -1;
 }
@@ -209,10 +205,7 @@ void Table::Finalize()
 
       J = NewJ;
 
-#ifdef MFEM_DEBUG
-      if (sum != n)
-         mfem_error ("Table::Finalize");
-#endif
+      MFEM_ASSERT(sum == n, "sum = " << sum << ", n = " << n);
    }
 }
 
@@ -356,8 +349,8 @@ void Mult (const Table &A, const Table &B, Table &C)
    const int  ncols_A = A.Width();
    const int  ncols_B = B.Width();
 
-   if (ncols_A > nrows_B)
-      mfem_error ("Mult (Table &A, Table &B, Table &C)");
+   MFEM_VERIFY( ncols_A <= nrows_B, "Table size mismatch: ncols_A = " << ncols_A
+                << ", nrows_B = " << nrows_B);
 
    Array<int> B_marker (ncols_B);
 
@@ -444,10 +437,8 @@ DSTable::DSTable(int nrows)
 
 int DSTable::Push_(int r, int c)
 {
-#ifdef MFEM_DEBUG
-   if (r < 0 || r >= NumRows)
-      mfem_error("DSTable::Push_()");
-#endif
+   MFEM_ASSERT(r >= 0 && r < NumRows,
+               "Row out of bounds: r = " << r << ", NumRows = " << NumRows);
    Node *n;
    for (n = Rows[r]; n != NULL; n = n->Prev)
    {
@@ -470,10 +461,7 @@ int DSTable::Push_(int r, int c)
 
 int DSTable::Index(int r, int c) const
 {
-#ifdef MFEM_DEBUG
-   if (r < 0)
-      mfem_error("DSTable::Index()");
-#endif
+   MFEM_ASSERT( r>=0, "Row index must be non-negative, not "<<r);
    if (r >= NumRows)
       return(-1);
    for (Node *n = Rows[r]; n != NULL; n = n->Prev)

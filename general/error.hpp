@@ -12,8 +12,52 @@
 #ifndef MFEM_ERROR
 #define MFEM_ERROR
 
-#include <iostream>
+#include <iomanip>
+#include <sstream>
 
 void mfem_error (const char *msg = NULL);
+
+// Does a check, and then outputs lots of useful information if the test fails
+#define MFEM_VERIFY(x, msg)                                                    \
+   {                                                                           \
+      if (!(x))                                                                \
+      {                                                                        \
+         std::ostringstream s;                                                 \
+         s << std::setprecision(16);                                           \
+         s << std::setiosflags(std::ios_base::scientific);                     \
+         s << "Verification failed: (" << #x << ") is false: " << msg << '\n'; \
+         s << "...at line " << __LINE__ << " of file " << __FILE__ << ".";     \
+         s << std::ends;                                                       \
+         mfem_error(s.str().c_str());                                          \
+      }                                                                        \
+   }
+
+// Use this if the only place your variable is used is in ASSERT's
+#define MFEM_CONTRACT_VAR(x) if (0 && &x == &x){}
+
+// Now set up some optional checks, but only if the right flags are on
+#ifdef MFEM_DEBUG
+
+#define MFEM_ASSERT(x, msg)                                                 \
+   {                                                                        \
+      if (!(x))                                                             \
+      {                                                                     \
+         std::ostringstream s;                                              \
+         s << std::setprecision(16);                                        \
+         s << std::setiosflags(std::ios_base::scientific);                  \
+         s << "Assertion failed: (" << #x << ") is false: " << msg << '\n'; \
+         s << "...at line " << __LINE__ << " of file " << __FILE__ << ".";  \
+         s << std::ends;                                                    \
+         mfem_error(s.str().c_str());                                       \
+      }                                                                     \
+   }
+
+#else
+
+// Get rid of all this code, since we're not checking.
+#define MFEM_ASSERT(x, msg)
+
+#endif
+
 
 #endif
