@@ -17,6 +17,11 @@
 
 void mfem_error (const char *msg = NULL);
 
+// This is nice because it shows the class and method name
+#define _MFEM_FUNC_NAME __PRETTY_FUNCTION__
+// This one is C99 standard.
+//#define _MFEM_FUNC_NAME __func__
+
 // Does a check, and then outputs lots of useful information if the test fails
 #define MFEM_VERIFY(x, msg)                                                    \
    {                                                                           \
@@ -26,7 +31,8 @@ void mfem_error (const char *msg = NULL);
          s << std::setprecision(16);                                           \
          s << std::setiosflags(std::ios_base::scientific);                     \
          s << "Verification failed: (" << #x << ") is false: " << msg << '\n'; \
-         s << "...at line " << __LINE__ << " of file " << __FILE__ << ".";     \
+         s << "...at line " << __LINE__ << ;                                   \
+         s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << ".";     \
          s << std::ends;                                                       \
          mfem_error(s.str().c_str());                                          \
       }                                                                        \
@@ -46,7 +52,8 @@ void mfem_error (const char *msg = NULL);
          s << std::setprecision(16);                                        \
          s << std::setiosflags(std::ios_base::scientific);                  \
          s << "Assertion failed: (" << #x << ") is false: " << msg << '\n'; \
-         s << "...at line " << __LINE__ << " of file " << __FILE__ << ".";  \
+         s << "...at line " << __LINE__ << ;                                \
+         s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << ".";  \
          s << std::ends;                                                    \
          mfem_error(s.str().c_str());                                       \
       }                                                                     \
