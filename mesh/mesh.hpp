@@ -347,9 +347,8 @@ public:
    /// Truegrid or NetGen?
    inline int MeshGenerator() { return meshgen; }
 
-   /// Returns number of vertices.  Vertices are only at the corners of
-   /// elements, where you would expect them in the lowest-order mesh.
-   void MoveVertices(const Vector &displacements);
+   /** Returns number of vertices.  Vertices are only at the corners of
+       elements, where you would expect them in the lowest-order mesh. */
    inline int GetNV() const { return NumOfVertices; }
 
    /// Returns number of elements.
