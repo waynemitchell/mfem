@@ -13,6 +13,10 @@
 #include <iostream>
 #include "error.hpp"
 
+#ifdef MFEM_USE_MPI
+#include <mpi.h>
+#endif
+
 void mfem_error (const char *msg)
 {
    if (msg)
@@ -21,5 +25,10 @@ void mfem_error (const char *msg)
       // thing if all your processors try to do it at the same time.
       std::cerr << msg << std::endl;
    }
+#ifdef MFEM_USE_MPI
+   MPI_Abort(MPI_COMM_WORLD, 1);
+#else
    std::abort(); // force crash by calling abort
+#endif
+
 }
