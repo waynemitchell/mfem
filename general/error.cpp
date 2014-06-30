@@ -17,6 +17,8 @@ void mfem_error (const char *msg)
 {
    if (msg)
    {
+      // NOTE: This endl also flushes the I/O stream, which can be a very bad
+      // thing if all your processors try to do it at the same time.
       std::cerr << msg << std::endl;
    }
    std::abort(); // force crash by calling abort
