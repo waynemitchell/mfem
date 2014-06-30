@@ -23,7 +23,7 @@ void mfem_error (const char *msg = NULL);
 //#define _MFEM_FUNC_NAME __func__
 
 // Outputs lots of useful information and aborts.
-#define MFEM_ERROR(msg)                                               \
+#define MFEM_ABORT(msg)                                               \
   {                                                                   \
     std::ostringstream s;                                             \
     s << std::setprecision(16);                                       \
