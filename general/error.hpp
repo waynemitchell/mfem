@@ -9,8 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef MFEM_ERROR_H
-#define MFEM_ERROR_H
+#ifndef MFEM_ERROR
+#define MFEM_ERROR
 
 #include <iomanip>
 #include <sstream>
