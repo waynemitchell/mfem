@@ -22,37 +22,33 @@ void mfem_error (const char *msg = NULL);
 // This one is C99 standard.
 //#define _MFEM_FUNC_NAME __func__
 
+// Common error message and abort macro
+#define _MFEM_MSG_ABORT(msg)                                            \
+   {                                                                    \
+      std::ostringstream s;                                             \
+      s << std::setprecision(16);                                       \
+      s << std::setiosflags(std::ios_base::scientific);                 \
+      s << msg << '\n';                                                 \
+      s << "...at line " << __LINE__;                                   \
+      s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << "."; \
+      s << std::ends;                                                   \
+      mfem_error(s.str().c_str());                                      \
+   }                                                                    \
+
 // Outputs lots of useful information and aborts.
 // For all of these functions, "msg" is pushed to an ostream, so you can
 // write useful (if complicated) error messages instead of writing
 // out to the screen first, then calling abort.  For example:
 // MFEM_ABORT( "Unknown geometry type: " << type );
-#define MFEM_ABORT(msg)                                               \
-  {                                                                   \
-    std::ostringstream s;                                             \
-    s << std::setprecision(16);                                       \
-    s << std::setiosflags(std::ios_base::scientific);                 \
-    s << "MFEM abort: " << msg << '\n';                               \
-    s << "...at line " << __LINE__;                                   \
-    s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << "."; \
-    s << std::ends;                                                   \
-    mfem_error(s.str().c_str());                                      \
-  }
+#define MFEM_ABORT(msg) _MFEM_MSG_ABORT("MFEM abort: " << msg);
 
 // Does a check, and then outputs lots of useful information if the test fails
-#define MFEM_VERIFY(x, msg)                                                 \
-  {                                                                         \
-    if (!(x)) {                                                             \
-      std::ostringstream s;                                                 \
-      s << std::setprecision(16);                                           \
-      s << std::setiosflags(std::ios_base::scientific);                     \
-      s << "Verification failed: (" << #x << ") is false: " << msg << '\n'; \
-      s << "...at line " << __LINE__;                                       \
-      s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << ".";     \
-      s << std::ends;                                                       \
-      mfem_error(s.str().c_str());                                          \
-    }                                                                       \
-  }
+#define MFEM_VERIFY(x, msg)                             \
+   if (!(x))                                            \
+   {                                                    \
+      _MFEM_MSG_ABORT("Verification failed: ("          \
+                      << #x << ") is false: " << msg);  \
+   }
 
 // Use this if the only place your variable is used is in ASSERT's
 // For example, this code snippet:
@@ -65,19 +61,12 @@ void mfem_error (const char *msg = NULL);
 // Now set up some optional checks, but only if the right flags are on
 #ifdef MFEM_DEBUG
 
-#define MFEM_ASSERT(x, msg)                                              \
-  {                                                                      \
-    if (!(x)) {                                                          \
-      std::ostringstream s;                                              \
-      s << std::setprecision(16);                                        \
-      s << std::setiosflags(std::ios_base::scientific);                  \
-      s << "Assertion failed: (" << #x << ") is false: " << msg << '\n'; \
-      s << "...at line " << __LINE__;                                    \
-      s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << ".";  \
-      s << std::ends;                                                    \
-      mfem_error(s.str().c_str());                                       \
-    }                                                                    \
-  }
+#define MFEM_ASSERT(x, msg)                             \
+   if (!(x))                                            \
+   {                                                    \
+      _MFEM_MSG_ABORT("Assertion failed: ("             \
+                      << #x << ") is false: " << msg);  \
+   }
 
 #else
 
