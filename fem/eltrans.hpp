@@ -37,6 +37,8 @@ public:
    virtual int OrderW() = 0;
    /// order of adj(J)^t.grad(fi)
    virtual int OrderGrad(const FiniteElement *fe) = 0;
+   // get dimension of target space (we support 2d meshes embedded in 3d; in this case the function should return "3") 
+   virtual int SpaceDim() = 0;
 
    virtual ~ElementTransformation() { }
 };
@@ -63,6 +65,11 @@ public:
    virtual int OrderJ();
    virtual int OrderW();
    virtual int OrderGrad(const FiniteElement *fe);
+   virtual int SpaceDim() 
+   { 
+     // this function should only be called after PointMat is initialised
+     return PointMat.Height(); 
+   }
 
    virtual ~IsoparametricTransformation() { }
 };

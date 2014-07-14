@@ -31,6 +31,7 @@ class Mesh
 
 protected:
    int Dim;
+   int spaceDim;
 
    int NumOfVertices, NumOfElements, NumOfBdrElements;
    int NumOfEdges, NumOfFaces;
@@ -236,6 +237,7 @@ protected:
 
    /// Begin construction of a mesh
    void InitMesh(int _Dim, int NVert, int NElem, int NBdrElem);
+   void InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem);
 
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
        nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
@@ -370,6 +372,7 @@ public:
    { return NumOfVertices - NumOfEdges + NumOfElements; }
 
    int Dimension() const { return Dim; }
+   int spaceDimension() const { return spaceDim; }
 
    /// Return pointer to vertex i's coordinates
    const double *GetVertex(int i) const { return vertices[i](); }

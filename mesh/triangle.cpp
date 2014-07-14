@@ -58,6 +58,14 @@ void Triangle::MarkEdge(DenseMatrix &pmat)
    d[2] = ( (pmat(0,2)-pmat(0,0))*(pmat(0,2)-pmat(0,0)) +
             (pmat(1,2)-pmat(1,0))*(pmat(1,2)-pmat(1,0)) );
 
+   // if pmat has 3 rows, then use extra term in each sum
+   if (pmat.Height()==3)
+   {
+     d[0] += (pmat(2,1)-pmat(2,0))*(pmat(2,1)-pmat(2,0));
+     d[1] += (pmat(2,2)-pmat(2,1))*(pmat(2,2)-pmat(2,1));
+     d[2] += (pmat(2,2)-pmat(2,0))*(pmat(2,2)-pmat(2,0));
+   }
+
    if (d[0] >= d[1])
       if (d[0] >= d[2]) shift = 0;
       else              shift = 2;

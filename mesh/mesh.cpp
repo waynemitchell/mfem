@@ -163,9 +163,11 @@ void Mesh::GetElementTransformation(int i, IsoparametricTransformation *ElTr)
       DenseMatrix &pm = ElTr->GetPointMat();
       Array<int> vdofs;
       Nodes->FESpace()->GetElementVDofs(i, vdofs);
-      int n = vdofs.Size()/Dim;
-      pm.SetSize(Dim, n);
-      for (int k = 0; k < Dim; k++)
+
+      // below change Dim to spaceDim  (not needed for curved meshes)
+      int n = vdofs.Size()/spaceDim;
+      pm.SetSize(spaceDim, n);
+      for (int k = 0; k < spaceDim; k++)
          for (int j = 0; j < n; j++)
             pm(k,j) = (*Nodes)(vdofs[n*k+j]);
       ElTr->SetFE(Nodes->FESpace()->GetFE(i));
@@ -725,9 +727,16 @@ void Mesh::SetAttributes()
    }
 }
 
+void Mesh::InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem)
+{
+  InitMesh( _Dim, NVert, NElem, NBdrElem);
+  spaceDim = _spaceDim;
+}
+
 void Mesh::InitMesh(int _Dim, int NVert, int NElem, int NBdrElem)
 {
    Dim = _Dim;
+   spaceDim = _Dim;
 
    Init();
    InitTables();
@@ -746,7 +755,7 @@ void Mesh::AddVertex(double *x)
 {
    double *y = vertices[NumOfVertices]();
 
-   for (int i = 0; i < Dim; i++)
+   for (int i = 0; i < spaceDim; i++)
       y[i] = x[i];
    NumOfVertices++;
 }
@@ -1776,6 +1785,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
    InitTables();
    if (own_nodes) delete Nodes;
    Nodes = NULL;
+   spaceDim=0;
 
    string mesh_type;
    input >> ws;
@@ -1818,9 +1828,9 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       if (ident != "nodes")
       {
          // read the vertices
-         int vdim = atoi(ident.c_str());
+         spaceDim = atoi(ident.c_str());
          for (j = 0; j < NumOfVertices; j++)
-            for (i = 0; i < vdim; i++)
+            for (i = 0; i < spaceDim; i++)
                input >> vertices[j](i);
       }
       else
@@ -2558,6 +2568,8 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
    //         vertices and Nodes must be defined
 
    // set the mesh type ('meshgen')
+   if (spaceDim == 0)
+     spaceDim = Dim;
    meshgen = 0;
    for (i = 0; i < NumOfElements; i++)
    {
@@ -2677,6 +2689,7 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
    InitTables();
 
    Dim = mesh_array[0]->Dimension();
+   spaceDim = mesh_array[0]->spaceDimension();
 
    if (mesh_array[0]->NURBSext)
    {
@@ -2861,6 +2874,7 @@ void Mesh::UpdateNURBS()
    NURBSext->SetKnotsFromPatches();
 
    Dim = NURBSext->Dimension();
+   spaceDim = Dim;
 
    if (NumOfElements != NURBSext->GetNE())
    {
@@ -2924,6 +2938,7 @@ void Mesh::LoadPatchTopo(istream &input, Array<int> &edge_to_knot)
 
    input >> ident; // 'dimension'
    input >> Dim;
+   spaceDim = Dim;
 
    skip_comment_lines(input, '#');
 
@@ -3003,7 +3018,7 @@ void XYZ_VectorFunction(const Vector &p, Vector &v)
 void Mesh::SetNodalFESpace(FiniteElementSpace *nfes)
 {
    GridFunction *nodes = new GridFunction(nfes);
-   VectorFunctionCoefficient xyz(Dim, XYZ_VectorFunction);
+   VectorFunctionCoefficient xyz(spaceDim, XYZ_VectorFunction);
    nodes->ProjectCoefficient(xyz);
 
    if (own_nodes) delete Nodes;
@@ -3021,7 +3036,7 @@ void Mesh::SetNodalGridFunction(GridFunction *nodes)
 {
    if (Nodes == NULL || Nodes->FESpace() != nodes->FESpace())
    {
-      VectorFunctionCoefficient xyz(Dim, XYZ_VectorFunction);
+      VectorFunctionCoefficient xyz(spaceDim, XYZ_VectorFunction);
       nodes->ProjectCoefficient(xyz);
    }
    else
@@ -3044,7 +3059,7 @@ void Mesh::CheckElementOrientation(bool fix_it)
    int i, j, k, wo = 0, fo = 0, *vi;
    double *v[4];
 
-   if (Dim == 2)
+   if (Dim == 2 && spaceDim == 2)
    {
       DenseMatrix J(2, 2);
 
@@ -3626,8 +3641,8 @@ void Mesh::GetPointMatrix(int i, DenseMatrix &pointmat) const
    v  = elements[i]->GetVertices();
    nv = elements[i]->GetNVertices();
 
-   pointmat.SetSize(Dim, nv);
-   for (k = 0; k < Dim; k++)
+   pointmat.SetSize(spaceDim, nv);
+   for (k = 0; k < spaceDim; k++)
       for (j = 0; j < nv; j++)
          pointmat(k, j) = vertices[v[j]](k);
 }
@@ -3640,8 +3655,8 @@ void Mesh::GetBdrPointMatrix(int i,DenseMatrix &pointmat) const
    v  = boundary[i]->GetVertices();
    nv = boundary[i]->GetNVertices();
 
-   pointmat.SetSize(Dim, nv);
-   for (k = 0; k < Dim; k++)
+   pointmat.SetSize(spaceDim, nv);
+   for (k = 0; k < spaceDim; k++)
       for (j = 0; j < nv; j++)
          pointmat(k, j) = vertices[v[j]](k);
 }
@@ -3652,7 +3667,7 @@ double Mesh::GetLength(int i, int j) const
    const double *vj = vertices[j]();
    double length = 0.;
 
-   for (int k = 0; k < Dim; k++)
+   for (int k = 0; k < spaceDim; k++)
       length += (vi[k]-vj[k])*(vi[k]-vj[k]);
 
    return sqrt(length);
@@ -4827,23 +4842,23 @@ void Mesh::CheckDisplacements(const Vector &displacements, double &tmax)
 void Mesh::MoveVertices(const Vector &displacements)
 {
    for (int i = 0, nv = vertices.Size(); i < nv; i++)
-      for (int j = 0; j < Dim; j++)
+      for (int j = 0; j < spaceDim; j++)
          vertices[i](j) += displacements(j*nv+i);
 }
 
 void Mesh::GetVertices(Vector &vert_coord) const
 {
    int nv = vertices.Size();
-   vert_coord.SetSize(nv*Dim);
+   vert_coord.SetSize(nv*spaceDim);
    for (int i = 0; i < nv; i++)
-      for (int j = 0; j < Dim; j++)
+      for (int j = 0; j < spaceDim; j++)
          vert_coord(j*nv+i) = vertices[i](j);
 }
 
 void Mesh::SetVertices(const Vector &vert_coord)
 {
    for (int i = 0, nv = vertices.Size(); i < nv; i++)
-      for (int j = 0; j < Dim; j++)
+      for (int j = 0; j < spaceDim; j++)
          vertices[i](j) = vert_coord(j*nv+i);
 }
 
@@ -4852,12 +4867,12 @@ void Mesh::GetNode(int i, double *coord)
    if (Nodes)
    {
       FiniteElementSpace *fes = Nodes->FESpace();
-      for (int j = 0; j < Dim; j++)
+      for (int j = 0; j < spaceDim; j++)
          coord[j] = (*Nodes)(fes->DofToVDof(i, j));
    }
    else
    {
-      for (int j = 0; j < Dim; j++)
+      for (int j = 0; j < spaceDim; j++)
          coord[j] = vertices[i](j);
    }
 }
@@ -4867,12 +4882,12 @@ void Mesh::SetNode(int i, const double *coord)
    if (Nodes)
    {
       FiniteElementSpace *fes = Nodes->FESpace();
-      for (int j = 0; j < Dim; j++)
+      for (int j = 0; j < spaceDim; j++)
          (*Nodes)(fes->DofToVDof(i, j)) = coord[j];
    }
    else
    {
-      for (int j = 0; j < Dim; j++)
+      for (int j = 0; j < spaceDim; j++)
          vertices[i](j) = coord[j];
 
    }
@@ -4920,14 +4935,14 @@ void Mesh::AverageVertices(int * indexes, int n, int result)
 {
    int j, k;
 
-   for (k = 0; k < Dim; k++)
+   for (k = 0; k < spaceDim; k++)
       vertices[result](k) = vertices[indexes[0]](k);
 
    for (j = 1; j < n; j++)
-      for (k = 0; k < Dim; k++)
+      for (k = 0; k < spaceDim; k++)
          vertices[result](k) += vertices[indexes[j]](k);
 
-   for (k = 0; k < Dim; k++)
+   for (k = 0; k < spaceDim; k++)
       vertices[result](k) *= (1.0 / n);
 }
 
@@ -5343,8 +5358,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       {
          i = marked_el[j];
          int *vert = elements[i]->GetVertices();
-         vertices[cnv+j](0) = 0.5 * ( vertices[vert[0]](0) +
-                                      vertices[vert[1]](0) );
+	 AverageVertices(vert, 2, cnv+j);
          elements[cne+j] = new Segment(cnv+j, vert[1],
                                        elements[i]->GetAttribute());
          vert[1] = cnv+j;
@@ -5739,10 +5753,9 @@ void Mesh::NonconformingRefinement(const Array<int> &marked_el)
             if (pv[1] == NULL)
                mfem_error("Mesh::NonconformingRefinement : oops!");
 #endif
-            vertices[vi->id](0) = (vertices[pv[0]->id](0) +
-                                   vertices[pv[1]->id](0))/2;
-            vertices[vi->id](1) = (vertices[pv[0]->id](1) +
-                                   vertices[pv[1]->id](1))/2;
+	    for(int d=0; d<spaceDim; d++)
+	      vertices[vi->id](d) = (vertices[pv[0]->id](d) +
+		  vertices[pv[1]->id](d))/2;
          }
       NumOfVertices = num_vert;
 
@@ -5890,9 +5903,8 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       if (middle[bisect] == -1)
       {
          v_new = NumOfVertices++;
-         V(0) = 0.5 * (vertices[vert[0]](0) + vertices[vert[1]](0));
-         V(1) = 0.5 * (vertices[vert[0]](1) + vertices[vert[1]](1));
-         V(2) = 0.0;
+	 for(int d=0; d<spaceDim; d++)
+	   V(d) = 0.5 * (vertices[vert[0]](d) + vertices[vert[1]](d));
          vertices.Append(V);
 
          // Put the element that may need refinement (because of this
@@ -6141,7 +6153,7 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
 {
    Array<int> v;
    int j, v1[3], v2[3], v3[3], v4[3], v_new[3], bisect[3];
-   double coord[2];
+   double coord[3];
 
    if (elements[i]->GetType() == Element::TRIANGLE)
    {
@@ -6160,9 +6172,9 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
          if (middle[bisect[j]] == -1)
          {
             v_new[j] = NumOfVertices++;
-            coord[0] = (vertices[v[j]](0) + vertices[v[(j+1)%3]](0))/2.;
-            coord[1] = (vertices[v[j]](1) + vertices[v[(j+1)%3]](1))/2.;
-            Vertex V(coord[0], coord[1]);
+	    for (int d=0; d<spaceDim; d++)
+	      coord[d] = (vertices[v[j]](d) + vertices[v[(j+1)%3]](d))/2.;
+            Vertex V(coord, spaceDim);
             vertices.Append(V);
 
             // Put the element that may need refinement (because of this
@@ -7025,11 +7037,11 @@ void Mesh::Print(ostream &out) const
    out << "\nvertices\n" << NumOfVertices << '\n';
    if (Nodes == NULL)
    {
-      out << Dim << '\n';
+      out << spaceDim << '\n';
       for (i = 0; i < NumOfVertices; i++)
       {
          out << vertices[i](0);
-         for (j = 1; j < Dim; j++)
+         for (j = 1; j < spaceDim; j++)
             out << ' ' << vertices[i](j);
          out << '\n';
       }
@@ -7979,10 +7991,10 @@ void Mesh::Transform(void (*f)(const Vector&, Vector&))
 {
    if (Nodes == NULL)
    {
-      Vector vold(Dim), vnew(NULL, Dim);
+      Vector vold(spaceDim), vnew(NULL, spaceDim);
       for (int i = 0; i < vertices.Size(); i++)
       {
-         for (int j = 0; j < Dim; j++)
+         for (int j = 0; j < spaceDim; j++)
             vold(j) = vertices[i](j);
          vnew.SetData(vertices[i]());
          (*f)(vold, vnew);
@@ -7991,7 +8003,7 @@ void Mesh::Transform(void (*f)(const Vector&, Vector&))
    else
    {
       GridFunction xnew(Nodes->FESpace());
-      VectorFunctionCoefficient f_pert(Dim, f);
+      VectorFunctionCoefficient f_pert(spaceDim, f);
       xnew.ProjectCoefficient(f_pert);
       *Nodes = xnew;
    }
