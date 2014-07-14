@@ -1,0 +1,11 @@
+*.o
+examples/ex1
+examples/ex2
+examples/ex3
+examples/ex4
+examples/refined.mesh
+examples/sol.gf
+libmfem.a
+mfem_defs.hpp
+tags
+*~
