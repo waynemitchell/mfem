@@ -796,7 +796,7 @@ void GridFunction::ProjectGridFunction(const GridFunction &src)
 }
 
 void GridFunction::ImposeBounds(int i, const Vector &weights,
-                                double _min, double _max)
+                                const Vector &_lo, const Vector &_hi)
 {
    Array<int> vdofs;
    fes->GetElementVDofs(i, vdofs);
@@ -804,11 +804,32 @@ void GridFunction::ImposeBounds(int i, const Vector &weights,
    Vector vals, new_vals(size);
    GetSubVector(vdofs, vals);
 
-#ifdef MFEM_DEBUG
-   if (weights.Size() != size)
-      mfem_error("GridFunction::ImposeBounds:"
-                 " different # of weights and dofs.");
-#endif
+   MFEM_ASSERT(weights.Size() == size, "Different # of weights and dofs.");
+   MFEM_ASSERT(_lo.Size() == size, "Different # of lower bounds and dofs.");
+   MFEM_ASSERT(_hi.Size() == size, "Different # of upper bounds and dofs.");
+
+   int max_iter = 30;
+   double tol = 1.e-12;
+   SLBQPOptimizer slbqp;
+   slbqp.SetMaxIter(max_iter);
+   slbqp.SetAbsTol(1.0e-18);
+   slbqp.SetRelTol(tol);
+   slbqp.SetBounds(_lo, _hi);
+   slbqp.SetLinearConstraint(weights, weights * vals);
+   slbqp.SetPrintLevel(0); // print messages only if not converged
+   slbqp.Mult(vals, new_vals);
+
+   SetSubVector(vdofs, new_vals);
+}
+
+void GridFunction::ImposeBounds(int i, const Vector &weights,
+                                double _min, double _max)
+{
+   Array<int> vdofs;
+   fes->GetElementVDofs(i, vdofs);
+   int size = vdofs.Size();
+   Vector vals, new_vals(size);
+   GetSubVector(vdofs, vals);
 
    double max_val = vals.Max();
    double min_val = vals.Min();
@@ -827,18 +848,7 @@ void GridFunction::ImposeBounds(int i, const Vector &weights,
    minv = (_min > min_val) ? _min : min_val;
    maxv = (_max < max_val) ? _max : max_val;
 
-   int max_iter = 30;
-   double tol = 1.e-12;
-   SLBQPOptimizer slbqp;
-   slbqp.SetMaxIter(max_iter);
-   slbqp.SetAbsTol(1.0e-18);
-   slbqp.SetRelTol(tol);
-   slbqp.SetBounds(minv, maxv);
-   slbqp.SetLinearConstraint(weights, weights * vals);
-   slbqp.SetPrintLevel(0); // print messages only if not converged
-   slbqp.Mult(vals, new_vals);
-
-   SetSubVector(vdofs, new_vals);
+   ImposeBounds(i, weights, minv, maxv);
 }
 
 void GridFunction::GetNodalValues(Vector &nval, int vdim) const
