@@ -59,6 +59,8 @@ SUITESPARSE_LIB_YES = -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd\
  $(LAPACK_LIB) $(BLAS_LIB)
 SUITESPARSE_LIB     = $(SUITESPARSE_LIB_$(USE_SUITESPARSE))
 
+entry: debug
+
 serial: ex1 ex2 ex3 ex4
 
 parallel: ex1p ex2p ex3p ex4p

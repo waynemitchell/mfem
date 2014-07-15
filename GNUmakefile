@@ -12,7 +12,7 @@
 # Serial compiler
 CC         = g++
 CCOPTS     =
-DEBUG_OPTS = -g -DMFEM_DEBUG
+DEBUG_OPTS = -g -O0 -DMFEM_DEBUG
 OPTIM_OPTS = -O3
 DEPCC      = $(CC)
 
@@ -97,7 +97,7 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 	cd $(<D); $(CCC) -c $(<F)
 
 # Serial build
-serial: opt
+serial: debug 
 
 # Parallel build
 parallel pdebug: CCC=$(MPICC) $(MODE_OPTS) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(USE_MESQUITE_OPTS)

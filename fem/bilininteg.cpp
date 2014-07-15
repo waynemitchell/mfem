@@ -87,14 +87,15 @@ void DiffusionIntegrator::AssembleElementMatrix
 {
    int nd = el.GetDof();
    int dim = el.GetDim();
+   int spaceDim = Trans.GetSpaceDim();
    double w;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix dshape(nd,dim), dshapedxt(nd,dim), invdfdx(dim);
+   DenseMatrix dshape(nd,dim), dshapedxt(nd,spaceDim), invdfdx(dim,spaceDim);
 #else
    dshape.SetSize(nd,dim);
-   dshapedxt.SetSize(nd,dim);
-   invdfdx.SetSize(dim);
+   dshapedxt.SetSize(nd,spaceDim);
+   invdfdx.SetSize(dim,spaceDim);
 #endif
    elmat.SetSize(nd);
 
