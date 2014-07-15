@@ -9,3 +9,4 @@ libmfem.a
 mfem_defs.hpp
 tags
 *~
+.*.swp
