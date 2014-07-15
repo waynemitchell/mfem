@@ -174,7 +174,7 @@ int Table::Push(int i, int j)
       }
 
    MFEM_ABORT("Reached end of loop unexpectedly: (i,j) = (" << i << ", " << j
-                                                            << ")");
+              << ")");
 
    return -1;
 }
