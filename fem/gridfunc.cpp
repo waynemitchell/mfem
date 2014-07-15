@@ -704,7 +704,20 @@ double GridFunction::GetDivergence(ElementTransformation &tr)
 
 void GridFunction::GetGradient(ElementTransformation &tr, Vector &grad)
 {
-   mfem_error("GridFunction::GetGradient(...) is not implemented!");
+   int elNo = tr.ElementNo;
+   const FiniteElement *fe = fes->GetFE(elNo);
+   int dim = fe->GetDim(), dof = fe->GetDof();
+   DenseMatrix dshape(dof, dim), Jinv(dim);
+   Vector lval, gh(dim);
+   Array<int> dofs;
+
+   grad.SetSize(dim);
+   fes->GetElementDofs(elNo, dofs);
+   GetSubVector(dofs, lval);
+   fe->CalcDShape(tr.GetIntPoint(), dshape);
+   dshape.MultTranspose(lval, gh);
+   CalcInverse(tr.Jacobian(), Jinv);
+   Jinv.MultTranspose(gh, grad);
 }
 
 void GridFunction::GetGradients(const int elem, const IntegrationRule &ir,
