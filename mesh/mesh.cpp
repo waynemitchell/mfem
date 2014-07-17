@@ -1465,7 +1465,7 @@ void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
 {
    int i, j, k;
 
-   Dim = 2;
+   Dim = spaceDim = 2;
 
    Init();
    InitTables();
