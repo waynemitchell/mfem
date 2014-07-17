@@ -94,7 +94,7 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .SUFFIXES: .cpp .o
 .cpp.o:
-	cd $(<D); $(CCC) -c $(<F)
+	$(CCC) -c $(<) -o $(<:.cpp=.o) 
 
 # Serial build
 serial: debug 
