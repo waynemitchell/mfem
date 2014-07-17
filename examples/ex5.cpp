@@ -26,7 +26,7 @@ int main (int argc, char *argv[])
   Mesh mesh(2, (nx+1) * (ny+1), 2 * nx * ny, 2 * nx + 2 * ny, 3);
   double c[3];
   int ind[3];
-  double theta = M_PI/4;
+  double theta = 0*M_PI/2;
 
    // Sets vertices and the corresponding coordinates
    for (int j = 0; j < ny+1; j++)
@@ -36,7 +36,7 @@ int main (int argc, char *argv[])
      {
        double tmp = ((double) i / nx);
        c[0] = tmp*cos(theta);
-       c[1] = tmp*sin(theta);
+       c[2] = tmp*sin(theta);
        mesh.AddVertex(c);
      }
    }
