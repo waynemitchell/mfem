@@ -2382,7 +2382,7 @@ void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
    {
       adja(0,0) = 1.0;
    }
-   else if (a.Size() == 2)
+   else if (a.Size() == 2 && a.Height() == 2)
    {
       adja(0,0) =  a(1,1);
       adja(0,1) = -a(0,1);

@@ -21,12 +21,13 @@
 
 int main (int argc, char *argv[])
 {
+  // Mesh mesh(nx, ny, Element::TRIANGLE, 1, 1.0, 1.0);
   const int nx = 10;
   const int ny = 10;
   Mesh mesh(2, (nx+1) * (ny+1), 2 * nx * ny, 2 * nx + 2 * ny, 3);
   double c[3];
   int ind[3];
-  double theta = 0*M_PI/2;
+  double theta = M_PI/2;
 
    // Sets vertices and the corresponding coordinates
    for (int j = 0; j < ny+1; j++)
