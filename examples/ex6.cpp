@@ -18,12 +18,33 @@
 
 #include <fstream>
 #include "mfem.hpp"
+#include <cassert>
+
+double analytic_solution (Vector & input)
+{
+  double l = sqrt(input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
+  return input[2]/l;
+}
+
+
+double analytic_rhs (Vector & input)
+{
+  double l = sqrt(input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
+  return 3*input[2]/l;
+}
 
 int main (int argc, char *argv[])
 {
+   if (argc == 1)
+   {
+      cout << "\nUsage: ex6 <number_of_refinements>\n" << endl;
+      return 1;
+   }
+
   // Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
   const int Nvert = 5;
   const int NElem = 6;
+
   Mesh mesh(2, Nvert, NElem, 0, 3);
 
    // Sets vertices and the corresponding coordinates
@@ -60,6 +81,21 @@ int main (int argc, char *argv[])
 
   mesh.FinalizeTriMesh(1,1,1);
 
+  // Refine the mesh 
+  const int ref_levels = atoi(argv[1]);
+  for (int l = 0; l < ref_levels; l++)
+    mesh.UniformRefinement();
+
+  // snap the new vertices of the refined mesh back to sphere surface
+  for (int i=0; i<mesh.GetNV(); i++)
+  {
+    double * coord = mesh.GetVertex(i);
+    double l = sqrt(coord[0]*coord[0] + coord[1]*coord[1] + coord[2]*coord[2]);
+    assert (l>0);
+    for (int j=0; j<3; j++)
+      coord[j] /= l;
+  }
+
    // 3. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements coming from the mesh nodes (linear by default).
    FiniteElementCollection *fec;
@@ -75,7 +111,10 @@ int main (int argc, char *argv[])
    //    the basis functions in the finite element fespace.
    LinearForm *b = new LinearForm(fespace);
    ConstantCoefficient one(1.0);
-   b->AddDomainIntegrator(new DomainLFIntegrator(one));
+   FunctionCoefficient rhs_coef (analytic_rhs);
+   FunctionCoefficient sol_coef (analytic_solution);
+
+   b->AddDomainIntegrator(new DomainLFIntegrator(rhs_coef));
    b->Assemble();
 
    // 5. Define the solution vector x as a finite element grid function
@@ -92,17 +131,16 @@ int main (int argc, char *argv[])
    //    assembly and finalizing we extract the corresponding sparse matrix A.
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   a->AddDomainIntegrator(new MassIntegrator(one));
    a->Assemble();
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
-   ofstream dumpster("stiffness_matrix.txt");
-   A.PrintMatlab(dumpster);
 
 #ifndef MFEM_USE_SUITESPARSE
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
-   // GSSmoother M(A);
-   CG(A, *b, x, 1, 200, 1e-12, 0.0);
+   GSSmoother M(A);
+   PCG(A, M, *b, x, 0, 200, 1e-12, 0.0);
 #else
    // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
@@ -111,26 +149,21 @@ int main (int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
 
-   // 8. Save the refined mesh and the solution. This output can be viewed later
-   //    using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // compare with exact solution
+   GridFunction sol(fespace);
+   sol.ProjectCoefficient(sol_coef);
+   sol -= x;
+   cout<<"Inf-norm of error (over mesh nodes): " << sol.Normlinf() << endl;
+
+   // 8. Save the solution and the mesh. 
    {
-      ofstream mesh_ofs("refined.mesh");
+      ofstream mesh_ofs("sphere_refined.mesh");
       mesh_ofs.precision(8);
       mesh.Print(mesh_ofs);
       ofstream sol_ofs("sol.gf");
       sol_ofs.precision(8);
       x.Save(sol_ofs);
    }
-
-   // 9. (Optional) Send the solution by socket to a GLVis server.
-   char vishost[] = "localhost";
-   int  visport   = 19916;
-   osockstream sol_sock(visport, vishost);
-   sol_sock << "solution\n";
-   sol_sock.precision(8);
-   mesh.Print(sol_sock);
-   x.Save(sol_sock);
-   sol_sock.send();
 
    // 10. Free the used memory.
    delete a;
