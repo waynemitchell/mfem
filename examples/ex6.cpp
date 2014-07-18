@@ -22,15 +22,15 @@
 
 double analytic_solution (Vector & input)
 {
-  double l = sqrt(input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
-  return input[2]/l;
+  double l2 = (input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
+  return input[0]*input[1]/l2;
 }
 
 
 double analytic_rhs (Vector & input)
 {
-  double l = sqrt(input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
-  return 3*input[2]/l;
+  double l2 = (input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
+  return 7*input[0]*input[1]/l2;
 }
 
 int main (int argc, char *argv[])
@@ -140,7 +140,7 @@ int main (int argc, char *argv[])
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
-   PCG(A, M, *b, x, 0, 200, 1e-12, 0.0);
+   PCG(A, M, *b, x, 0, 10000, 1e-12, 0.0);
 #else
    // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
