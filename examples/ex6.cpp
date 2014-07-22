@@ -42,17 +42,18 @@ int main (int argc, char *argv[])
    }
 
   // Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
-  const int Nvert = 5;
-  const int NElem = 6;
+  const int Nvert = 6;
+  const int NElem = 8;
 
   Mesh mesh(2, Nvert, NElem, 0, 3);
 
    // Sets vertices and the corresponding coordinates
    double v[Nvert*3] =
    {
-     cos(2*M_PI/3), sin(2*M_PI/3), 0,
-     cos(4*M_PI/3), sin(4*M_PI/3), 0,
-     cos(6*M_PI/3), sin(6*M_PI/3), 0,
+     1,             0,             0,
+     0,             1,             0,
+     -1,            0,             0,
+     0,             -1,            0,
      0,             0,             1,
      0,             0,            -1
    };
@@ -65,12 +66,14 @@ int main (int argc, char *argv[])
 
   int e[NElem*3] = 
   {
-    2, 0, 3,
-    0, 1, 3,
-    1, 2, 3,
-    2, 4, 0,
-    0, 4, 1,
-    1, 4, 2
+    0, 1, 4,
+    1, 2, 4,
+    2, 3, 4,
+    3, 0, 4,
+    1, 0, 5,
+    2, 1, 5,
+    3, 2, 5,
+    0, 3, 5
   };
 
   // Sets the elements and the corresponding indices of vertices
@@ -84,16 +87,18 @@ int main (int argc, char *argv[])
   // Refine the mesh 
   const int ref_levels = atoi(argv[1]);
   for (int l = 0; l < ref_levels; l++)
+  {
     mesh.UniformRefinement();
 
-  // snap the new vertices of the refined mesh back to sphere surface
-  for (int i=0; i<mesh.GetNV(); i++)
-  {
-    double * coord = mesh.GetVertex(i);
-    double l = sqrt(coord[0]*coord[0] + coord[1]*coord[1] + coord[2]*coord[2]);
-    assert (l>0);
-    for (int j=0; j<3; j++)
-      coord[j] /= l;
+    // snap the new vertices of the refined mesh back to sphere surface
+    for (int i=0; i<mesh.GetNV(); i++)
+    {
+      double * coord = mesh.GetVertex(i);
+      double l = sqrt(coord[0]*coord[0] + coord[1]*coord[1] + coord[2]*coord[2]);
+      assert (l>0);
+      for (int j=0; j<3; j++)
+	coord[j] /= l;
+    }
   }
 
    // 3. Define a finite element space on the mesh. Here we use isoparametric
@@ -113,8 +118,11 @@ int main (int argc, char *argv[])
    ConstantCoefficient one(1.0);
    FunctionCoefficient rhs_coef (analytic_rhs);
    FunctionCoefficient sol_coef (analytic_solution);
+   GridFunction rhs_gf(fespace);
+   rhs_gf.ProjectCoefficient(rhs_coef);
+   GridFunctionCoefficient rhs_gf_coef(&rhs_gf);
 
-   b->AddDomainIntegrator(new DomainLFIntegrator(rhs_coef));
+   b->AddDomainIntegrator(new DomainLFIntegrator(rhs_gf_coef));
    b->Assemble();
 
    // 5. Define the solution vector x as a finite element grid function
@@ -135,6 +143,8 @@ int main (int argc, char *argv[])
    a->Assemble();
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
+   ofstream dumpster("K_plus_M.txt");
+   A.PrintMatlab(dumpster);
 
 #ifndef MFEM_USE_SUITESPARSE
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
