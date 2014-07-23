@@ -37,8 +37,8 @@ USE_MESQUITE = NO
 MESQUITE_DIR = ../../mesquite-2.99
 
 # The SuiteSparse library
-USE_SUITESPARSE = NO
-SUITESPARSE_DIR = ../../SuiteSparse
+USE_SUITESPARSE = YES
+SUITESPARSE_DIR = $(HOME)/SuiteSparse_installation
 
 # Internal mfem options
 USE_MEMALLOC = YES

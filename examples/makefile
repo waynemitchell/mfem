@@ -12,7 +12,7 @@
 # Serial compiler
 CC = g++
 OPTS = -O3 -I$(MFEM_DIR) $(SUITESPARSE_OPT)
-DEBUG_OPTS = -g -I$(MFEM_DIR)
+DEBUG_OPTS = -g -I$(MFEM_DIR) $(SUITESPARSE_OPT)
 LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(OPENMP_LIBS) $(SUITESPARSE_LIB)
 
 # Parallel compiler
@@ -26,7 +26,7 @@ MFEM_DIR = ..
 MFEM_LIB = -L$(MFEM_DIR) -lmfem
 
 # The METIS and HYPRE libraries (needed for the parallel examples)
-METIS_DIR = ../../metis-4.0
+METIS_DIR = $(HOME)/SuiteSparse/metis-4.0
 HYPRE_DIR = ../../hypre-2.8.0b/src/hypre
 
 # Enable experimental OpenMP support
@@ -36,28 +36,30 @@ OPENMP_LIBS_YES = -fopenmp
 OPENMP_LIBS     = $(OPENMP_LIBS_$(USE_OPENMP))
 
 # The LAPACK and BLAS libraries (needed if MFEM was compiled with LAPACK support)
-USE_LAPACK = NO
-LAPACK_DIR = $(HOME)/lapack
-LAPACK_LIB = -L$(LAPACK_DIR) -llapack
-BLAS_DIR   = $(HOME)/lapack
-BLAS_LIB   = -L$(LAPACK_DIR) -lblas -lgfortran
+USE_LAPACK = YES
+# LAPACK_DIR = $(HOME)/lapack
+# LAPACK_LIB = -L$(LAPACK_DIR) -llapack
+# BLAS_DIR   = $(HOME)/lapack
+# BLAS_LIB   = -L$(LAPACK_DIR) -lblas -lgfortran
 # on a Mac:
-# BLAS_LIB   = -L$(LAPACK_DIR) -lblas
+BLAS_LIB   =  -lblas
 LAPACK_LIBS_NO  =
 LAPACK_LIBS_YES = $(LAPACK_LIB) $(BLAS_LIB)
 LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
 
 # The SuiteSparse library
-USE_SUITESPARSE = NO
-SUITESPARSE_DIR = ../../SuiteSparse
+USE_SUITESPARSE = YES
+SUITESPARSE_DIR = ../../SuiteSparse_installation
 SUITESPARSE_OPT_NO  =
 SUITESPARSE_OPT_YES = -I$(SUITESPARSE_DIR)/include
 SUITESPARSE_OPT     = $(SUITESPARSE_OPT_$(USE_SUITESPARSE))
 SUITESPARSE_LIB_NO  =
 SUITESPARSE_LIB_YES = -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd\
- -lamd -lcamd -lccolamd -lsuitesparseconfig -lrt -L$(METIS_DIR) -lmetis\
+ -lamd -lcamd -lccolamd -lsuitesparseconfig -L$(METIS_DIR) -lmetis\
  $(LAPACK_LIB) $(BLAS_LIB)
 SUITESPARSE_LIB     = $(SUITESPARSE_LIB_$(USE_SUITESPARSE))
+
+
 
 entry: debug
 

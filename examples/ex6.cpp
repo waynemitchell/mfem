@@ -163,6 +163,7 @@ int main (int argc, char *argv[])
    GridFunction sol(fespace);
    sol.ProjectCoefficient(sol_coef);
    sol -= x;
+   cout.precision(15);
    cout<<"Inf-norm of error (over mesh nodes): " << sol.Normlinf() << endl;
 
    // 8. Save the solution and the mesh. 
