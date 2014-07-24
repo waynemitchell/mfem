@@ -1385,7 +1385,7 @@ double DenseMatrix::CalcSingularvalue(const int i) const
    }
    else if (n == 2)
    {
-      register double d0, d1, d2, d3;
+      double d0, d1, d2, d3;
       d0 = d[0];
       d1 = d[1];
       d2 = d[2];
@@ -2344,14 +2344,14 @@ void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
    dgemm_(&transa, &transb, &m, &n, &k, &alpha, b.Data(), &m,
           c.Data(), &k, &beta, a.Data(), &m);
 #else
-   register int ah = a.height;
-   register int as = a.size;
-   register int bs = b.size;
-   register double *ad = a.data;
-   register double *bd = b.data;
-   register double *cd = c.data;
-   register int i, j, k;
-   register double d, *bdd, *cdd;
+   int ah = a.height;
+   int as = a.size;
+   int bs = b.size;
+   double *ad = a.data;
+   double *bd = b.data;
+   double *cd = c.data;
+   int i, j, k;
+   double d, *bdd, *cdd;
 
    for (j = 0; j < as; j++, cd += bs)
    {
@@ -2650,22 +2650,22 @@ void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
    dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &m,
           B.Data(), &n, &beta, ABt.Data(), &m);
 #elif 1
-   register const int ah = A.Height();
-   register const int bh = B.Height();
-   register const int aw = A.Width();
-   register const double *ad = A.Data();
-   register const double *bd = B.Data();
-   register double *cd = ABt.Data();
+   const int ah = A.Height();
+   const int bh = B.Height();
+   const int aw = A.Width();
+   const double *ad = A.Data();
+   const double *bd = B.Data();
+   double *cd = ABt.Data();
 
-   for (register int i = 0, s = ah*bh; i < s; i++)
+   for (int i = 0, s = ah*bh; i < s; i++)
       cd[i] = 0.0;
-   for (register int k = 0; k < aw; k++)
+   for (int k = 0; k < aw; k++)
    {
-      register double *cp = cd;
-      for (register int j = 0; j < bh; j++)
+      double *cp = cd;
+      for (int j = 0; j < bh; j++)
       {
-         register const double bjk = bd[j];
-         for (register int i = 0; i < ah; i++)
+         const double bjk = bd[j];
+         for (int i = 0; i < ah; i++)
          {
             cp[i] += ad[i] * bjk;
          }
@@ -2675,20 +2675,20 @@ void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
       bd += bh;
    }
 #elif 1
-   register const int ah = A.Height();
-   register const int bh = B.Height();
-   register const int aw = A.Width();
-   register const double *ad = A.Data();
-   register const double *bd = B.Data();
-   register double *cd = ABt.Data();
+   const int ah = A.Height();
+   const int bh = B.Height();
+   const int aw = A.Width();
+   const double *ad = A.Data();
+   const double *bd = B.Data();
+   double *cd = ABt.Data();
 
-   for (register int j = 0; j < bh; j++)
-      for (register int i = 0; i < ah; i++)
+   for (int j = 0; j < bh; j++)
+      for (int i = 0; i < ah; i++)
       {
-         register double d = 0.0;
-         register const double *ap = ad + i;
-         register const double *bp = bd + j;
-         for (register int k = 0; k < aw; k++)
+         double d = 0.0;
+         const double *ap = ad + i;
+         const double *bp = bd + j;
+         for (int k = 0; k < aw; k++)
          {
             d += (*ap) * (*bp);
             ap += ah;
@@ -2727,20 +2727,20 @@ void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
    dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &m,
           B.Data(), &n, &beta, ABt.Data(), &m);
 #elif 1
-   register const int ah = A.Height();
-   register const int bh = B.Height();
-   register const int aw = A.Width();
-   register const double *ad = A.Data();
-   register const double *bd = B.Data();
-   register double *cd = ABt.Data();
+   const int ah = A.Height();
+   const int bh = B.Height();
+   const int aw = A.Width();
+   const double *ad = A.Data();
+   const double *bd = B.Data();
+   double *cd = ABt.Data();
 
-   for (register int k = 0; k < aw; k++)
+   for (int k = 0; k < aw; k++)
    {
-      register double *cp = cd;
-      for (register int j = 0; j < bh; j++)
+      double *cp = cd;
+      for (int j = 0; j < bh; j++)
       {
-         register const double bjk = bd[j];
-         for (register int i = 0; i < ah; i++)
+         const double bjk = bd[j];
+         for (int i = 0; i < ah; i++)
          {
             cp[i] += ad[i] * bjk;
          }
@@ -2780,20 +2780,20 @@ void MultAtB(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &AtB)
    dgemm_(&transa, &transb, &m, &n, &k, &alpha, A.Data(), &k,
           B.Data(), &k, &beta, AtB.Data(), &m);
 #elif 1
-   register const int ah = A.Height();
-   register const int aw = A.Width();
-   register const int bw = B.Width();
-   register const double *ad = A.Data();
-   register const double *bd = B.Data();
-   register double *cd = AtB.Data();
+   const int ah = A.Height();
+   const int aw = A.Width();
+   const int bw = B.Width();
+   const double *ad = A.Data();
+   const double *bd = B.Data();
+   double *cd = AtB.Data();
 
-   for (register int j = 0; j < bw; j++)
+   for (int j = 0; j < bw; j++)
    {
-      register const double *ap = ad;
-      for (register int i = 0; i < aw; i++)
+      const double *ap = ad;
+      for (int i = 0; i < aw; i++)
       {
-         register double d = 0.0;
-         for (register int k = 0; k < ah; k++)
+         double d = 0.0;
+         for (int k = 0; k < ah; k++)
          {
             d += ap[k] * bd[k];
          }

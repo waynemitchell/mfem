@@ -110,8 +110,8 @@ Vector &Vector::operator=(const Vector &v)
 
 Vector &Vector::operator=(double value)
 {
-   register int i, s = size;
-   register double *p = data, v = value;
+   int i, s = size;
+   double *p = data, v = value;
    for (i = 0; i < s; i++)
       *(p++) = v;
    return *this;
