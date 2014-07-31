@@ -4,7 +4,7 @@
 // Description:  This example code demonstrates the use of MFEM to define a 
 //               triangulation of a unit sphere and a simple isoparametric
 //               finite element discretization of the Laplace problem 
-//               -Delta u = f on a triangulated sphere using linear finite
+//               -Delta u + u = f on a triangulated sphere using linear finite
 //               elements.  The example highlights mesh generation, the use of
 //               mesh refinement, finite element grid functions, as well as
 //               linear and bilinear forms corresponding to the left-hand side
