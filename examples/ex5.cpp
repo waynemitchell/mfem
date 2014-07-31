@@ -1,20 +1,14 @@
-// TO BE REWRITTEN
 //                                MFEM Example 5
 //
 //
-// Description:  This example code demonstrates the use of MFEM to define a
-//               simple isoparametric finite element discretization of the
-//               Laplace problem -Delta u = 1 with homogeneous Dirichlet
-//               boundary conditions. Specifically, we discretize with the
-//               FE space coming from the mesh (linear by default, quadratic
-//               for quadratic curvilinear mesh, NURBS for NURBS mesh, etc.)
-//
-//               The example highlights the use of mesh refinement, finite
-//               element grid functions, as well as linear and bilinear forms
-//               corresponding to the left-hand side and right-hand side of the
-//               discrete linear system. We also cover the explicit elimination
-//               of boundary conditions on all boundary edges, and the optional
-//               connection to the GLVis tool for visualization.
+// Description:  This example code demonstrates the use of MFEM to define a 
+//               triangulation of a unit sphere and a simple isoparametric
+//               finite element discretization of the Laplace problem 
+//               -Delta u = f on a triangulated sphere using linear finite
+//               elements.  The example highlights mesh generation, the use of
+//               mesh refinement, finite element grid functions, as well as
+//               linear and bilinear forms corresponding to the left-hand side
+//               and right-hand side of the discrete linear system.
 
 #include <fstream>
 #include "mfem.hpp"
@@ -37,7 +31,7 @@ int main (int argc, char *argv[])
 {
    if (argc == 1)
    {
-      cout << "\nUsage: ex6 <number_of_refinements>\n" << endl;
+      cout << "\nUsage: ex5 <number_of_refinements>\n" << endl;
       return 1;
    }
 
@@ -118,11 +112,8 @@ int main (int argc, char *argv[])
    ConstantCoefficient one(1.0);
    FunctionCoefficient rhs_coef (analytic_rhs);
    FunctionCoefficient sol_coef (analytic_solution);
-   GridFunction rhs_gf(fespace);
-   rhs_gf.ProjectCoefficient(rhs_coef);
-   GridFunctionCoefficient rhs_gf_coef(&rhs_gf);
 
-   b->AddDomainIntegrator(new DomainLFIntegrator(rhs_gf_coef));
+   b->AddDomainIntegrator(new DomainLFIntegrator(rhs_coef));
    b->Assemble();
 
    // 5. Define the solution vector x as a finite element grid function
@@ -143,8 +134,6 @@ int main (int argc, char *argv[])
    a->Assemble();
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
-   ofstream dumpster("K_plus_M.txt");
-   A.PrintMatlab(dumpster);
 
 #ifndef MFEM_USE_SUITESPARSE
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
@@ -160,11 +149,7 @@ int main (int argc, char *argv[])
 #endif
 
    // compare with exact solution
-   GridFunction sol(fespace);
-   sol.ProjectCoefficient(sol_coef);
-   sol -= x;
-   cout.precision(15);
-   cout<<"Inf-norm of error (over mesh nodes): " << sol.Normlinf() << endl;
+   cout<<"L2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;
 
    // 8. Save the solution and the mesh. 
    {
