@@ -63,7 +63,7 @@ SUITESPARSE_LIB     = $(SUITESPARSE_LIB_$(USE_SUITESPARSE))
 
 entry: debug
 
-serial: ex1 ex2 ex3 ex4 ex5 ex6
+serial: ex1 ex2 ex3 ex4 ex5
 
 parallel: ex1p ex2p ex3p ex4p
 
@@ -93,8 +93,6 @@ ex4p: ex4p.cpp
 
 ex5: ex5.cpp
 	$(CC) $(OPTS) ex5.cpp -o ex5 $(LIBS)
-ex6: ex6.cpp
-	$(CC) $(OPTS) ex6.cpp -o ex6 $(LIBS)
 
 debug:
 	$(MAKE) "OPTS=$(DEBUG_OPTS)" serial
