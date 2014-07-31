@@ -102,4 +102,4 @@ pdebug:
 
 clean:
 	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5
-	rm -f refined.mesh displaced.mesh sol.* mesh.*
+	rm -rf refined.mesh displaced.mesh sol.* mesh.* sphere_refined.mesh *.dSYM
