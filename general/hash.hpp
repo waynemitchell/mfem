@@ -50,12 +50,24 @@ public:
    HashTable(int size = 128*1024);
    ~HashTable();
 
+   /// Get an item whose parents are p1, p2... Create it if it doesn't exist.
    ItemT* Get(int p1, int p2);
    ItemT* Get(int p1, int p2, int p3, int p4);
 
+   /// Get an item whose parents are p1, p2... Return NULL if it doesn't exist.
    ItemT* Peek(int p1, int p2);
    ItemT* Peek(int p1, int p2, int p3, int p4);
 
+   // item pointer variants of the above for convenience
+   ItemT* Get(ItemT* i1, ItemT* i2) { return Get(i1->id, i2->id); }
+   ItemT* Get(ItemT* i1, ItemT* i2, ItemT* i3, ItemT* i4)
+      { return Get(i1->id, i2->id, i3->id, i4->id); }
+
+   ItemT* Peek(ItemT* i1, ItemT* i2) { return Peek(i1->id, i2->id); }
+   ItemT* Peek(ItemT* i1, ItemT* i2, ItemT* i3, ItemT* i4)
+      { return Peek(i1->id, i2->id, i3->id, i4->id); }
+
+   /// Remove the item from the hash table and delete the item itself.
    void Remove(ItemT* item);
 
    // TODO: iterator
@@ -81,7 +93,7 @@ protected:
 
 
 template<typename ItemT>
-HashTable::HashTable(int size)
+HashTable<ItemT>::HashTable(int size)
 {
    mask = size-1;
    if (size & mask)
@@ -94,7 +106,7 @@ HashTable::HashTable(int size)
 }
 
 template<typename ItemT>
-HashTable::~HashTable()
+HashTable<ItemT>::~HashTable()
 {
    // TODO!!
 }
@@ -119,21 +131,21 @@ inline void sort4(int &a, int &b, int &c, int &d)
 } // detail
 
 template<typename ItemT>
-ItemT* HashTable::Peek(int p1, int p2) const
+ItemT* HashTable<ItemT>::Peek(int p1, int p2)
 {
   if (p1 > p2) std::swap(p1, p2);
   return SearchList(table[hash(p1, p2)], p1, p2);
 }
 
 template<typename ItemT>
-ItemT* HashTable::Peek(int p1, int p2, int p3, int p4) const
+ItemT* HashTable<ItemT>::Peek(int p1, int p2, int p3, int p4)
 {
   detail::sort4(p1, p2, p3, p4);
   return SearchList(table[hash(p1, p2, p3)], p1, p2, p3);
 }
 
 template<typename ItemT>
-ItemT* HashTable::Get(int p1, int p2)
+ItemT* HashTable<ItemT>::Get(int p1, int p2)
 {
   // search for the item in the hashtable
   if (p1 > p2) std::swap(p1, p2);
@@ -147,14 +159,14 @@ ItemT* HashTable::Get(int p1, int p2)
   newitem->p2 = p2;
 
   // insert into hashtable
-  newitem->next_hash = table[idx];
+  newitem->next = table[idx];
   table[idx] = newitem;
 
   return newitem;
 }
 
 template<typename ItemT>
-ItemT* HashTable::Get(int p1, int p2, int p3, int p4)
+ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
 {
   // search for the item in the hashtable
    detail::sort4(p1, p2, p3, p4);
@@ -168,33 +180,33 @@ ItemT* HashTable::Get(int p1, int p2, int p3, int p4)
   newitem->p2 = p2;
 
   // insert into hashtable
-  newitem->next_hash = table[idx];
+  newitem->next = table[idx];
   table[idx] = newitem;
 
   return newitem;
 }
 
 template<typename ItemT>
-ItemT* HashTable::SearchList(ItemT* item, int p1, int p2)
+ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2)
 {
    nqueries++;
    while (item != NULL)
    {
       if (item->p1 == p1 && item->p2 == p2) return item;
-      item = item->next;
+      item = (ItemT*) item->next;
       ncollisions++;
    }
    return NULL;
 }
 
 template<typename ItemT>
-ItemT* HashTable::SearchList(ItemT* item, int p1, int p2, int p3)
+ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3)
 {
    nqueries++;
    while (item != NULL)
    {
       if (item->p1 == p1 && item->p2 == p2 && item->p3 == p3) return item;
-      item = item->next;
+      item = (ItemT*) item->next;
       ncollisions++;
    }
    return NULL;

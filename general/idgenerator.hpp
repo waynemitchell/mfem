@@ -24,7 +24,7 @@ class IdGenerator
 public:
    IdGenerator(int first_id = 0) : next(first_id) {}
 
-   /// Generate an unique ID.
+   /// Generate a unique ID.
    int Get()
    {
       if (reusable.Size())
