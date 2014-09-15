@@ -26,7 +26,7 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
       if (elem->GetType() != ::Element::HEXAHEDRON)
          mfem_error("NCMeshHex::NCMeshHex: only hexahedrons supported.");
 
-      Element* nc_elem = new Element;
+      Element* nc_elem = new Element(elem->GetAttribute());
       root_elements.Append(nc_elem);
 
       for (int j = 0; j < 8; j++)
@@ -45,6 +45,8 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
       // (note: this will also create and reference all edge nodes)
       RefElementNodes(nc_elem);
    }
+
+   num_leaf_elements = root_elements.Size();
 }
 
 NCMeshHex::~NCMeshHex()
@@ -133,6 +135,8 @@ void NCMeshHex::UnrefElementNodes(Element *elem)
 }
 
 
+//// Refinement & Derefinement /////////////////////////////////////////////////
+
 NCMeshHex::Node* NCMeshHex::GetMidVertex(Node* n1, Node* n2)
 {
    Node* mid = nodes.Get(n1, n2);
@@ -158,6 +162,7 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    // TODO: check for incompatible refinements between neighbors!!!
 
    Node** n = elem->node;
+   int attr = elem->attribute;
 
    /* Vertex numbering is assumed to be as follows:
 
@@ -183,10 +188,10 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       Node* mid45 = GetMidVertex(n[4], n[5]);
 
       child0 = new Element(n[0], mid01, mid23, n[3],
-                           n[4], mid45, mid67, n[7]);
+                           n[4], mid45, mid67, n[7], attr);
 
       child1 = new Element(mid01, n[1], n[2], mid23,
-                           mid45, n[5], n[6], mid67);
+                           mid45, n[5], n[6], mid67, attr);
    }
    else if (ref_type == 2) // split along Y axis
    {
@@ -196,10 +201,10 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       Node* mid74 = GetMidVertex(n[7], n[4]);
 
       child0 = new Element(n[0], n[1], mid12, mid30,
-                           n[4], n[5], mid56, mid74);
+                           n[4], n[5], mid56, mid74, attr);
 
       child1 = new Element(mid12, n[2], n[3], mid30,
-                           mid56, n[6], n[7], mid74);
+                           mid56, n[6], n[7], mid74, attr);
    }
    else if (ref_type == 4) // split along Z axis
    {
@@ -209,10 +214,10 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       Node* mid37 = GetMidVertex(n[3], n[7]);
 
       child0 = new Element(n[0], n[1], n[2], n[3],
-                           mid04, mid15, mid26, mid37);
+                           mid04, mid15, mid26, mid37, attr);
 
       child1 = new Element(mid04, mid15, mid26, mid37,
-                           n[4], n[5], n[6], n[7]);
+                           n[4], n[5], n[6], n[7], attr);
    }
 
    // start using the nodes of the children (plus create edge nodes)
@@ -227,12 +232,91 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    elem->child[0] = child0;
    elem->child[1] = child1;
    elem->ref_type = ref_type;
+
+   num_leaf_elements += 1;
 }
 
 void NCMeshHex::Derefine(Element* elem)
 {
    // TODO
 }
+
+
+//// Mesh interface ////////////////////////////////////////////////////////////
+
+int NCMeshHex::IndexVertices()
+{
+   int num_vert = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->vertex)
+         it->vertex->index = num_vert++;
+
+   return num_vert;
+}
+
+int NCMeshHex::IndexEdges()
+{
+   int num_edges = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->edge)
+         it->edge->index = num_edges++;
+
+   return num_edges;
+}
+
+void NCMeshHex::GetVertices(Array< ::Vertex>& vertices)
+{
+   int num_vert = IndexVertices();
+   vertices.SetSize(num_vert);
+
+   // copy vertices
+   int i = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->vertex)
+         vertices[i++].SetCoords(it->vertex->pos);
+}
+
+static void GetLeafElements(NCMeshHex::Element* e, Array<Element*>& elements)
+{
+   if (!e->ref_type)
+   {
+      Hexahedron* hex = new Hexahedron;
+      hex->SetAttribute(e->attribute);
+      for (int i = 0; i < 8; i++)
+         hex->GetVertices()[i] = e->node[i]->vertex->index;
+
+      elements.Append(hex);
+   }
+   else
+   {
+      for (int i = 0; i < 8; i++)
+         if (e->child[i])
+            GetLeafElements(e->child[i], elements);
+   }
+}
+
+void NCMeshHex::GetElements(Array< ::Element*>& elements)
+{
+   // NOTE: this assumes GetVertices has already been called
+   // so their 'index' member is valid
+
+   elements.SetSize(num_leaf_elements);
+   elements.SetSize(0);
+
+   for (int i = 0; i < root_elements.Size(); i++)
+      GetLeafElements(root_elements[i], elements);
+}
+
+void NCMeshHex::GetBdrElements(Array< ::Element*>& boundary)
+{
+
+}
+
+
+//// Interpolation /////////////////////////////////////////////////////////////
+
+
+
 
 /* THINGS MISSING:
  *  - proper destruction of nodes (remove from hash table)

@@ -70,7 +70,26 @@ public:
    /// Remove the item from the hash table and delete the item itself.
    void Remove(ItemT* item);
 
-   // TODO: iterator
+   /// Iterator over items contained in the HashTable.
+   class Iterator
+   {
+   public:
+      Iterator(HashTable<ItemT>& table)
+         : hash_table(table), next_bin(0), cur_item(NULL) { next(); }
+
+      operator ItemT*() const { return cur_item; }
+      ItemT &operator*() const { return *cur_item; }
+      ItemT *operator->() const { return cur_item; }
+
+      Iterator &operator++() { next(); return *this; }
+
+   protected:
+      HashTable<ItemT>& hash_table;
+      int next_bin;
+      ItemT* cur_item;
+
+      void next();
+   };
 
 protected:
 
@@ -88,7 +107,7 @@ protected:
    ItemT* SearchList(ItemT* item, int p1, int p2, int p3);
 
    IdGenerator id_gen; ///< id generator for new items
-   Array<int> used_bins; ///< bins in 'table' that contain something
+   Array<int> used_bins; ///< bins in 'table' that (may) contain something
 };
 
 
@@ -162,6 +181,9 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2)
   newitem->next = table[idx];
   table[idx] = newitem;
 
+  // if this is a new bin, make sure the iterator will find it
+  if (!newitem->next) used_bins.Append(idx);
+
   return newitem;
 }
 
@@ -182,6 +204,9 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
   // insert into hashtable
   newitem->next = table[idx];
   table[idx] = newitem;
+
+  // if this is a new bin, make sure the iterator will find it
+  if (!newitem->next) used_bins.Append(idx);
 
   return newitem;
 }
@@ -212,5 +237,22 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3)
    return NULL;
 }
 
+template<typename ItemT>
+void HashTable<ItemT>::Iterator::next()
+{
+   if (next_bin >= hash_table.used_bins.Size())
+   {
+      cur_item = NULL;
+      return;
+   }
+
+   if (cur_item)
+      cur_item = (ItemT*) cur_item->next;
+
+   while (!cur_item && next_bin < hash_table.used_bins.Size())
+   {
+      cur_item = hash_table.table[hash_table.used_bins[next_bin++]];
+   }
+}
 
 #endif

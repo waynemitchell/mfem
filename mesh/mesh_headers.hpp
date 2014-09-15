@@ -37,6 +37,7 @@
 #include "hexahedron.hpp"
 #include "tetrahedron.hpp"
 #include "ncmesh.hpp"
+#include "ncmeshhex.hpp"
 #include "mesh.hpp"
 
 #ifdef MFEM_USE_MPI

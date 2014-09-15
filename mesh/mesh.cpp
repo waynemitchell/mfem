@@ -5832,6 +5832,41 @@ void Mesh::NonconformingRefinement(const Array<int> &marked_el)
    }
 }
 
+Mesh::Mesh(NCMeshHex &ncmesh)
+{
+   Dim = 3;
+
+   Init();
+   InitTables();
+
+   Nodes = NULL;
+
+   ncmesh.GetVertices(vertices);
+   ncmesh.GetElements(elements);
+   ncmesh.GetBdrElements(boundary);
+
+   NumOfVertices = vertices.Size();
+   NumOfElements = elements.Size();
+   NumOfBdrElements = boundary.Size();
+
+   meshgen = 2;
+
+   GetElementToFaceTable();
+   GenerateFaces();
+   CheckBdrElementOrientation();
+
+   el_to_edge = new Table;
+   NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   c_el_to_edge = NULL;
+
+   SetAttributes();
+
+#ifdef MFEM_DEBUG
+   CheckElementOrientation(false);
+   CheckBdrElementOrientation();
+#endif
+}
+
 void Mesh::UniformRefinement()
 {
    if (NURBSext)

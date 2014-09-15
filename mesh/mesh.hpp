@@ -333,6 +333,9 @@ public:
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
 
+   /// Create from a non-conforming hex mesh
+   Mesh(NCMeshHex& ncmesh);
+
    /* This is similar to the above mesh constructor, but here the current
       mesh is destroyed and another one created based on the data stream
       again given in MFEM, netgen, or VTK format. If generate_edges = 0

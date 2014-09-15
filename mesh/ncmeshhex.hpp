@@ -12,8 +12,6 @@
 #ifndef MFEM_NCMESHHEX
 #define MFEM_NCMESHHEX
 
-#include "mesh.hpp"
-#include "../fem/fespace.hpp"
 #include "../general/hash.hpp"
 
 /**
@@ -32,14 +30,16 @@ public:
    {
       int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
       union {
-         Node* node[8]; // element corners (ref_type == 0, i.e, not refined)
-         Element* child[8]; // children (ref_type != 0)
+         Node* node[8]; // element corners (if ref_type == 0, i.e, not refined)
+         Element* child[8]; // children (if ref_type != 0)
       };
+      int attribute;
 
-      Element() : ref_type(0) {}
+      Element(int attr) : ref_type(0), attribute(attr) {}
 
       Element(Node* n0, Node* n1, Node* n2, Node* n3,
-              Node* n4, Node* n5, Node* n6, Node* n7) : ref_type(0)
+              Node* n4, Node* n5, Node* n6, Node* n7, int attr)
+         : ref_type(0), attribute(attr)
       {
          node[0] = n0, node[1] = n1, node[2] = n2, node[3] = n3;
          node[4] = n4, node[5] = n5, node[6] = n6, node[7] = n7;
@@ -51,7 +51,9 @@ public:
    /** Returns one of the elements that are based on the elements of the
        original mesh. These are the roots of the refinement trees. */
    Element* GetRootElement(int index) { return root_elements[index]; }
+
    int NRootElements() const { return root_elements.Size(); }
+   int NLeafElements() const { return num_leaf_elements; }
 
    void Refine(Element* elem, int ref_type /*= 7*/);
    void Derefine(Element* elem);
@@ -60,7 +62,15 @@ public:
 
    ~NCMeshHex();
 
-protected:
+protected: // interface for Mesh to be able to construct from us
+
+   void GetVertices(Array< ::Vertex>& vertices);
+   void GetElements(Array< ::Element*>& elements);
+   void GetBdrElements(Array< ::Element*>& boundary);
+
+   friend class Mesh;
+
+protected: // implementation
 
    ///
    struct RefCount
@@ -84,6 +94,7 @@ protected:
    {
       double pos[3];
       bool dependent;
+      int index;
 
       Vertex() {}
       Vertex(double x, double y, double z)
@@ -93,8 +104,8 @@ protected:
    ///
    struct Edge : public RefCount
    {
-      int depth;
       bool dependent;
+      int index;
    };
 
    ///
@@ -105,7 +116,7 @@ protected:
 
       Node(int id) : Hashed2(id), vertex(NULL), edge(NULL) {}
 
-      // Bump ref count on a vertex or an edge or create them. Used when an
+      // Bump ref count on a vertex or an edge, or create them. Used when an
       // element starts using a vertex or an edge.
       void RefVertex();
       void RefEdge();
@@ -120,6 +131,7 @@ protected:
    ///
    struct Face : public Hashed4, public RefCount
    {
+      int attribute;
       bool dependent;
 
       Face(int id) : Hashed4(id) {}
@@ -130,11 +142,16 @@ protected:
    HashTable<Node> nodes;
    HashTable<Face> faces;
 
+   int num_leaf_elements;
+
    int FaceSplitType(int v1, int v2, int v3, int v4);
 
    Node* GetMidVertex(Node* n1, Node* n2);
    void RefElementNodes(Element* elem);
    void UnrefElementNodes(Element* elem);
+
+   int IndexVertices();
+   int IndexEdges();
 
    struct Dependency
    {
@@ -143,9 +160,9 @@ protected:
    };
 
    typedef Array<Dependency> DepList;
-   DepList* v_dep;
+/*   DepList* v_dep;
    DepList* e_dep;
-   DepList* f_dep;
+   DepList* f_dep;*/
 
 };
 
