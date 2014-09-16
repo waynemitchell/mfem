@@ -21,7 +21,7 @@
 struct Hashed2
 {
    int id;
-   int p1, p2;
+   int p[2];
    Hashed2* next;
 
    Hashed2(int id) : id(id) {}
@@ -33,7 +33,7 @@ struct Hashed2
 struct Hashed4
 {
    int id;
-   int p1, p2, p3; // p4 redundant
+   int p[4]; // NOTE: p[3] not hashed
    Hashed4* next;
 
    Hashed4(int id) : id(id) {}
@@ -59,16 +59,27 @@ public:
    ItemT* Peek(int p1, int p2, int p3, int p4);
 
    // item pointer variants of the above for convenience
-   ItemT* Get(ItemT* i1, ItemT* i2) { return Get(i1->id, i2->id); }
-   ItemT* Get(ItemT* i1, ItemT* i2, ItemT* i3, ItemT* i4)
+   template<typename OtherT>
+   ItemT* Get(OtherT* i1, OtherT* i2)
+      { return Get(i1->id, i2->id); }
+
+   template<typename OtherT>
+   ItemT* Get(OtherT* i1, OtherT* i2, OtherT* i3, OtherT* i4)
       { return Get(i1->id, i2->id, i3->id, i4->id); }
 
-   ItemT* Peek(ItemT* i1, ItemT* i2) { return Peek(i1->id, i2->id); }
-   ItemT* Peek(ItemT* i1, ItemT* i2, ItemT* i3, ItemT* i4)
+   template<typename OtherT>
+   ItemT* Peek(OtherT* i1, OtherT* i2) { return Peek(i1->id, i2->id); }
+
+   template<typename OtherT>
+   ItemT* Peek(OtherT* i1, OtherT* i2, OtherT* i3, OtherT* i4)
       { return Peek(i1->id, i2->id, i3->id, i4->id); }
 
-   /// Remove the item from the hash table and delete the item itself.
-   void Remove(ItemT* item);
+   /// Obtains an item given its ID.
+   ItemT* Peek(int id) const { return id_to_item[id]; }
+
+   /// Remove an item from the hash table and also delete the item itself.
+   void Delete(ItemT* item);
+   void Delete(int id) { Delete(Peek(id)); }
 
    /// Iterator over items contained in the HashTable.
    class Iterator
@@ -97,17 +108,26 @@ protected:
    int mask;
    int nqueries, ncollisions; // stats
 
-   inline int hash(int p1, int p2)
+   // hash functions (NOTE: the constants are arbitrary)
+   inline int hash(int p1, int p2) const
       { return (984120265*p1 + 125965121*p2) & mask; }
 
-   inline int hash(int p1, int p2, int p3)
+   inline int hash(int p1, int p2, int p3) const
       { return (984120265*p1 + 125965121*p2 + 495698413*p3) & mask; }
+
+   // Remove() uses one of the following two overloads:
+   inline int hash(const Hashed2* item) const
+      { return hash(item->p[0], item->p[1]); }
+
+   inline int hash(const Hashed4* item) const
+      { return hash(item->p[0], item->p[1], item->p[2]); }
 
    ItemT* SearchList(ItemT* item, int p1, int p2);
    ItemT* SearchList(ItemT* item, int p1, int p2, int p3);
 
    IdGenerator id_gen; ///< id generator for new items
    Array<int> used_bins; ///< bins in 'table' that (may) contain something
+   Array<ItemT*> id_to_item; ///< mapping table for the Peek(id) method
 };
 
 
@@ -174,8 +194,8 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2)
 
   // not found - create a new one
   ItemT* newitem = new ItemT(id_gen.Get());
-  newitem->p1 = p1;
-  newitem->p2 = p2;
+  newitem->p[0] = p1;
+  newitem->p[1] = p2;
 
   // insert into hashtable
   newitem->next = table[idx];
@@ -183,6 +203,12 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2)
 
   // if this is a new bin, make sure the iterator will find it
   if (!newitem->next) used_bins.Append(idx);
+
+  // also, maintain the mapping ID -> item
+  if (id_to_item.Size() <= newitem->id) {
+     id_to_item.SetSize(newitem->id + 1, NULL);
+  }
+  id_to_item[newitem->id] = newitem;
 
   return newitem;
 }
@@ -191,15 +217,17 @@ template<typename ItemT>
 ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
 {
   // search for the item in the hashtable
-   detail::sort4(p1, p2, p3, p4);
+  detail::sort4(p1, p2, p3, p4);
   int idx = hash(p1, p2, p3);
   ItemT* node = SearchList(table[idx], p1, p2, p3);
   if (node) return node;
 
   // not found - create a new one
   ItemT* newitem = new ItemT(id_gen.Get());
-  newitem->p1 = p1;
-  newitem->p2 = p2;
+  newitem->p[0] = p1;
+  newitem->p[1] = p2;
+  newitem->p[2] = p3;
+  newitem->p[3] = p4;
 
   // insert into hashtable
   newitem->next = table[idx];
@@ -207,6 +235,12 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
 
   // if this is a new bin, make sure the iterator will find it
   if (!newitem->next) used_bins.Append(idx);
+
+  // also, maintain the mapping ID -> item
+  if (id_to_item.Size() <= newitem->id) {
+     id_to_item.SetSize(newitem->id + 1, NULL);
+  }
+  id_to_item[newitem->id] = newitem;
 
   return newitem;
 }
@@ -217,7 +251,7 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2)
    nqueries++;
    while (item != NULL)
    {
-      if (item->p1 == p1 && item->p2 == p2) return item;
+      if (item->p[0] == p1 && item->p[1] == p2) return item;
       item = (ItemT*) item->next;
       ncollisions++;
    }
@@ -230,7 +264,7 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3)
    nqueries++;
    while (item != NULL)
    {
-      if (item->p1 == p1 && item->p2 == p2 && item->p3 == p3) return item;
+      if (item->p[0] == p1 && item->p[1] == p2 && item->p[2] == p3) return item;
       item = (ItemT*) item->next;
       ncollisions++;
    }
@@ -238,17 +272,50 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3)
 }
 
 template<typename ItemT>
+void HashTable<ItemT>::Delete(ItemT* item)
+{
+   int idx = hash(item);
+
+   // remove item from the hash table
+   ItemT** ptr = table + idx;
+   while (*ptr)
+   {
+      if (*ptr == item)
+      {
+         *ptr = (ItemT*) item->next;
+         goto ok;
+      }
+      ptr = (ItemT**) &((*ptr)->next);
+   }
+   mfem_error("HashTable<>::Delete: item not found!");
+
+ok:
+   // remove from the (ID -> item) map
+   id_to_item[item->id] = NULL;
+
+   // reuse the item ID in the future
+   id_gen.Reuse(item->id);
+
+   delete item;
+}
+
+template<typename ItemT>
 void HashTable<ItemT>::Iterator::next()
 {
    if (next_bin >= hash_table.used_bins.Size())
    {
+      // no more bins to visit, finish
       cur_item = NULL;
       return;
    }
 
    if (cur_item)
+   {
+      // iterate through a list of hash synonyms
       cur_item = (ItemT*) cur_item->next;
+   }
 
+   // do we need to switch the next bin?
    while (!cur_item && next_bin < hash_table.used_bins.Size())
    {
       cur_item = hash_table.table[hash_table.used_bins[next_bin++]];

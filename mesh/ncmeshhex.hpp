@@ -37,14 +37,6 @@ public:
 
       Element(int attr) : ref_type(0), attribute(attr) {}
 
-      Element(Node* n0, Node* n1, Node* n2, Node* n3,
-              Node* n4, Node* n5, Node* n6, Node* n7, int attr)
-         : ref_type(0), attribute(attr)
-      {
-         node[0] = n0, node[1] = n1, node[2] = n2, node[3] = n3;
-         node[4] = n4, node[5] = n5, node[6] = n6, node[7] = n7;
-      }
-
       ~Element();
    };
 
@@ -62,11 +54,11 @@ public:
 
    ~NCMeshHex();
 
-protected: // interface for Mesh to be able to construct from us
+protected: // interface for Mesh to be able to construct itself from us
 
    void GetVertices(Array< ::Vertex>& vertices);
-   void GetElements(Array< ::Element*>& elements);
-   void GetBdrElements(Array< ::Element*>& boundary);
+   void GetElements(Array< ::Element*>& elements,
+                    Array< ::Element*>& boundary);
 
    friend class Mesh;
 
@@ -93,7 +85,6 @@ protected: // implementation
    struct Vertex : public RefCount
    {
       double pos[3];
-      bool dependent;
       int index;
 
       Vertex() {}
@@ -104,7 +95,6 @@ protected: // implementation
    ///
    struct Edge : public RefCount
    {
-      bool dependent;
       int index;
    };
 
@@ -126,17 +116,20 @@ protected: // implementation
       // The hash-table pointer needs to be known then to remove the node.
       void UnrefVertex();
       void UnrefEdge();
+
+      ~Node();
    };
 
    ///
-   struct Face : public Hashed4, public RefCount
+   struct Face : public RefCount, public Hashed4
    {
       int attribute;
-      bool dependent;
 
-      Face(int id) : Hashed4(id) {}
+      Face(int id) : Hashed4(id), attribute(-1) {}
+
+      // overloaded Unref without auto-destruction
+      int Unref() { return --ref_count; }
    };
-
 
    Array<Element*> root_elements;
    HashTable<Node> nodes;
@@ -144,14 +137,25 @@ protected: // implementation
 
    int num_leaf_elements;
 
-   int FaceSplitType(int v1, int v2, int v3, int v4);
+//   int FaceSplitType(int v1, int v2, int v3, int v4);
 
    Node* GetMidVertex(Node* n1, Node* n2);
+
+   Element* NewElement(Node* n0, Node* n1, Node* n2, Node* n3,
+                       Node* n4, Node* n5, Node* n6, Node* n7,
+                       int attr,
+                       int fattr0, int fattr1, int fattr2,
+                       int fattr3, int fattr4, int fattr5);
+
    void RefElementNodes(Element* elem);
    void UnrefElementNodes(Element* elem);
 
    int IndexVertices();
    int IndexEdges();
+
+   void GetLeafElements(Element* e, Array< ::Element*>& elements,
+                                    Array< ::Element*>& boundary);
+
 
    struct Dependency
    {

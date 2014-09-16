@@ -5842,8 +5842,7 @@ Mesh::Mesh(NCMeshHex &ncmesh)
    Nodes = NULL;
 
    ncmesh.GetVertices(vertices);
-   ncmesh.GetElements(elements);
-   ncmesh.GetBdrElements(boundary);
+   ncmesh.GetElements(elements, boundary);
 
    NumOfVertices = vertices.Size();
    NumOfElements = elements.Size();
@@ -5853,18 +5852,13 @@ Mesh::Mesh(NCMeshHex &ncmesh)
 
    GetElementToFaceTable();
    GenerateFaces();
-   CheckBdrElementOrientation();
+   //CheckBdrElementOrientation();
 
    el_to_edge = new Table;
    NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
    c_el_to_edge = NULL;
 
    SetAttributes();
-
-#ifdef MFEM_DEBUG
-   CheckElementOrientation(false);
-   CheckBdrElementOrientation();
-#endif
 }
 
 void Mesh::UniformRefinement()

@@ -24,7 +24,7 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
       const int *v = elem->GetVertices();
 
       if (elem->GetType() != ::Element::HEXAHEDRON)
-         mfem_error("NCMeshHex::NCMeshHex: only hexahedrons supported.");
+         mfem_error("NCMeshHex: only hexahedra supported.");
 
       Element* nc_elem = new Element(elem->GetAttribute());
       root_elements.Append(nc_elem);
@@ -47,6 +47,31 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
    }
 
    num_leaf_elements = root_elements.Size();
+
+   // store boundary element attributes
+   for (int i = 0; i < mesh->GetNBE(); i++)
+   {
+      const ::Element *be = mesh->GetBdrElement(i);
+      const int *v = be->GetVertices();
+
+      if (be->GetType() != ::Element::QUADRILATERAL)
+         mfem_error("NCMeshHex: only quadrilateral boundary "
+                    "elements supported.");
+
+      Node* node[4];
+      for (int i = 0; i < 4; i++)
+      {
+         node[i] = nodes.Peek(v[i], v[i]);
+         if (!node[i])
+            mfem_error("NCMeshHex: boundary elements inconsistent.");
+      }
+
+      Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
+      if (!face)
+         mfem_error("NCMeshHex: face not found.");
+
+      face->attribute = be->GetAttribute();
+   }
 }
 
 NCMeshHex::~NCMeshHex()
@@ -96,42 +121,65 @@ void NCMeshHex::Node::UnrefEdge()
    if (!vertex && !edge) delete this;
 }
 
-/*NCMeshHex::Node::~Node()
+NCMeshHex::Node::~Node()
 {
    if (vertex) delete vertex;
    if (edge) delete edge;
-}*/
+}
 
-static Hexahedron hexahedron;
+static Hexahedron hexahedron; // used for a list of edges
+
+const int hex_faces[6][4] = // TODO: this should be shared somehow
+{{3, 2, 1, 0}, {0, 1, 5, 4},
+ {1, 2, 6, 5}, {2, 3, 7, 6},
+ {3, 0, 4, 7}, {4, 5, 6, 7}};
+
 
 void NCMeshHex::RefElementNodes(Element *elem)
 {
+   Node** node = elem->node;
+
    // ref all vertices
    for (int i = 0; i < 8; i++)
-      elem->node[i]->RefVertex();
+      node[i]->RefVertex();
 
-   // ref all edges, possibly creating them
+   // ref all edges (possibly creating them)
    for (int i = 0; i < hexahedron.GetNEdges(); i++)
    {
       const int* ev = hexahedron.GetEdgeVertices(i);
-      Node* node = nodes.Get(elem->node[ev[0]], elem->node[ev[1]]);
-      node->RefEdge();
+      nodes.Get(node[ev[0]], node[ev[1]])->RefEdge();
+   }
+
+   // ref all faces (possibly creating them)
+   for (int i = 0; i < 6; i++)
+   {
+      const int* fv = hex_faces[i];
+      faces.Get(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]])->Ref();
    }
 }
 
 void NCMeshHex::UnrefElementNodes(Element *elem)
 {
-   // unref all edges
+   Node** node = elem->node;
+
+   // unref all faces (possibly destroying them)
+   for (int i = 0; i < 6; i++)
+   {
+      const int* fv = hex_faces[i];
+      Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
+      if (!face->Unref()) faces.Delete(face);
+   }
+
+   // unref all edges (possibly destroying them)
    for (int i = 0; i < hexahedron.GetNEdges(); i++)
    {
       const int* ev = hexahedron.GetEdgeVertices(i);
-      Node* node = nodes.Get(elem->node[ev[0]], elem->node[ev[1]]);
-      node->UnrefEdge();
+      nodes.Peek(node[ev[0]], node[ev[1]])->UnrefEdge();
    }
 
-   // unref all vertices
+   // unref all vertices (possibly destroying them)
    for (int i = 0; i < 8; i++)
-      elem->node[i]->UnrefVertex();
+      node[i]->UnrefVertex();
 }
 
 
@@ -152,6 +200,34 @@ NCMeshHex::Node* NCMeshHex::GetMidVertex(Node* n1, Node* n2)
    return mid;
 }
 
+NCMeshHex::Element*
+   NCMeshHex::NewElement(Node* n0, Node* n1, Node* n2, Node* n3,
+                         Node* n4, Node* n5, Node* n6, Node* n7,
+                         int attr,
+                         int fattr0, int fattr1, int fattr2,
+                         int fattr3, int fattr4, int fattr5)
+{
+   // create new unrefined element, initialize nodes
+   Element* e = new Element(attr);
+   e->node[0] = n0, e->node[1] = n1, e->node[2] = n2, e->node[3] = n3;
+   e->node[4] = n4, e->node[5] = n5, e->node[6] = n6, e->node[7] = n7;
+
+   // get face nodes and assign face attributes
+   Face* f[6];
+   for (int i = 0; i < 6; i++)
+   {
+      const int* fv = hex_faces[i];
+      f[i] = faces.Get(e->node[fv[0]], e->node[fv[1]],
+                       e->node[fv[2]], e->node[fv[3]]);
+   }
+
+   f[0]->attribute = fattr0,  f[1]->attribute = fattr1;
+   f[2]->attribute = fattr2,  f[3]->attribute = fattr3;
+   f[4]->attribute = fattr4,  f[5]->attribute = fattr5;
+
+   return e;
+}
+
 
 void NCMeshHex::Refine(Element* elem, int ref_type)
 {
@@ -164,15 +240,25 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    Node** n = elem->node;
    int attr = elem->attribute;
 
+   // get element's face attributes
+   int fa[6];
+   for (int i = 0; i < 6; i++)
+   {
+      const int* fv = hex_faces[i];
+      fa[i] = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
+                         elem->node[fv[2]], elem->node[fv[3]])->attribute;
+
+   }
+
    /* Vertex numbering is assumed to be as follows:
 
             7              6
-             +------------+
-            /|           /|
-         4 / |        5 / |
-          +------------+  |
-          |  |         |  |
-          |  +---------|--+
+             +------------+                Faces: 0 bottom
+            /|           /|                       1 front
+         4 / |        5 / |                       2 right
+          +------------+  |                       3 back
+          |  |         |  |                       4 left
+          |  +---------|--+                       5 top
           | / 3        | / 2       Z Y
           |/           |/          |/
           +------------+           *--X
@@ -187,11 +273,13 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       Node* mid67 = GetMidVertex(n[6], n[7]);
       Node* mid45 = GetMidVertex(n[4], n[5]);
 
-      child0 = new Element(n[0], mid01, mid23, n[3],
-                           n[4], mid45, mid67, n[7], attr);
+      child0 = NewElement(n[0], mid01, mid23, n[3],
+                          n[4], mid45, mid67, n[7], attr,
+                          fa[0], fa[1], -1, fa[3], fa[4], fa[5]);
 
-      child1 = new Element(mid01, n[1], n[2], mid23,
-                           mid45, n[5], n[6], mid67, attr);
+      child1 = NewElement(mid01, n[1], n[2], mid23,
+                          mid45, n[5], n[6], mid67, attr,
+                          fa[0], fa[1], fa[2], fa[3], -1, fa[5]);
    }
    else if (ref_type == 2) // split along Y axis
    {
@@ -200,11 +288,13 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       Node* mid56 = GetMidVertex(n[5], n[6]);
       Node* mid74 = GetMidVertex(n[7], n[4]);
 
-      child0 = new Element(n[0], n[1], mid12, mid30,
-                           n[4], n[5], mid56, mid74, attr);
+      child0 = NewElement(n[0], n[1], mid12, mid30,
+                          n[4], n[5], mid56, mid74, attr,
+                          fa[0], fa[1], fa[2], -1, fa[4], fa[5]);
 
-      child1 = new Element(mid12, n[2], n[3], mid30,
-                           mid56, n[6], n[7], mid74, attr);
+      child1 = NewElement(mid12, n[2], n[3], mid30,
+                          mid56, n[6], n[7], mid74, attr,
+                          fa[0], -1, fa[2], fa[3], fa[4], fa[5]);
    }
    else if (ref_type == 4) // split along Z axis
    {
@@ -213,11 +303,13 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       Node* mid26 = GetMidVertex(n[2], n[6]);
       Node* mid37 = GetMidVertex(n[3], n[7]);
 
-      child0 = new Element(n[0], n[1], n[2], n[3],
-                           mid04, mid15, mid26, mid37, attr);
+      child0 = NewElement(n[0], n[1], n[2], n[3],
+                          mid04, mid15, mid26, mid37, attr,
+                          fa[0], fa[1], fa[2], fa[3], fa[4], -1);
 
-      child1 = new Element(mid04, mid15, mid26, mid37,
-                           n[4], n[5], n[6], n[7], attr);
+      child1 = NewElement(mid04, mid15, mid26, mid37,
+                          n[4], n[5], n[6], n[7], attr,
+                          -1, fa[1], fa[2], fa[3], fa[4], fa[5]);
    }
 
    // start using the nodes of the children (plus create edge nodes)
@@ -227,12 +319,13 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    // sign off of the nodes of the parent (some may get destroyed)
    UnrefElementNodes(elem);
 
-   // finish the refinement
+   // mark the original element as refined
+   elem->ref_type = ref_type;
    memset(elem->child, 0, sizeof(elem->child));
    elem->child[0] = child0;
    elem->child[1] = child1;
-   elem->ref_type = ref_type;
 
+   // keep track of the number of leaf elements
    num_leaf_elements += 1;
 }
 
@@ -276,7 +369,9 @@ void NCMeshHex::GetVertices(Array< ::Vertex>& vertices)
          vertices[i++].SetCoords(it->vertex->pos);
 }
 
-static void GetLeafElements(NCMeshHex::Element* e, Array<Element*>& elements)
+void NCMeshHex::GetLeafElements(Element* e,
+                                Array< ::Element*>& elements,
+                                Array< ::Element*>& boundary)
 {
    if (!e->ref_type)
    {
@@ -286,16 +381,34 @@ static void GetLeafElements(NCMeshHex::Element* e, Array<Element*>& elements)
          hex->GetVertices()[i] = e->node[i]->vertex->index;
 
       elements.Append(hex);
+
+      // also return boundary elements
+      for (int i = 0; i < 6; i++)
+      {
+         const int* fv = hex_faces[i];
+         NCMeshHex::Face* face = faces.Peek(e->node[fv[0]], e->node[fv[1]],
+                                            e->node[fv[2]], e->node[fv[3]]);
+         if (face->attribute >= 0)
+         {
+            Quadrilateral* quad = new Quadrilateral;
+            quad->SetAttribute(face->attribute);
+            for (int i = 0; i < 4; i++)
+               quad->GetVertices()[i] = e->node[fv[i]]->vertex->index;
+
+            boundary.Append(quad);
+         }
+      }
    }
    else
    {
       for (int i = 0; i < 8; i++)
          if (e->child[i])
-            GetLeafElements(e->child[i], elements);
+            GetLeafElements(e->child[i], elements, boundary);
    }
 }
 
-void NCMeshHex::GetElements(Array< ::Element*>& elements)
+void NCMeshHex::GetElements(Array< ::Element*>& elements,
+                            Array< ::Element*>& boundary)
 {
    // NOTE: this assumes GetVertices has already been called
    // so their 'index' member is valid
@@ -304,13 +417,28 @@ void NCMeshHex::GetElements(Array< ::Element*>& elements)
    elements.SetSize(0);
 
    for (int i = 0; i < root_elements.Size(); i++)
-      GetLeafElements(root_elements[i], elements);
+      GetLeafElements(root_elements[i], elements, boundary);
 }
 
-void NCMeshHex::GetBdrElements(Array< ::Element*>& boundary)
+/*void NCMeshHex::GetBdrElements(Array< ::Element*>& boundary)
 {
+   for (HashTable<Face>::Iterator it(faces); it; ++it)
+   {
+      if (it->attribute >= 0)
+      {
+         Quadrilateral* quad = new Quadrilateral;
+         quad->SetAttribute(it->attribute);
 
-}
+         for (int i = 0; i < 4; i++)
+         {
+            Node* node = nodes.Peek(it->p[i]); // get one of the parent nodes
+            quad->GetVertices()[i] = node->vertex->index;
+         }
+
+         boundary.Append(quad);
+      }
+   }
+}*/
 
 
 //// Interpolation /////////////////////////////////////////////////////////////
