@@ -17,7 +17,7 @@
 
 NCMeshHex::NCMeshHex(const Mesh *mesh)
 {
-   // create our Element struct for each mesh element
+   // create the NCMeshHex::Element struct for each mesh element
    for (int i = 0; i < mesh->GetNE(); i++)
    {
       const ::Element *elem = mesh->GetElement(i);
@@ -34,15 +34,18 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
          // root nodes are special: they have p1 == p2 == orig. mesh vertex id
          Node* node = nodes.Get(v[j], v[j]);
 
-         // create a vertex in the node and initialize its position
-         const double* pos = mesh->GetVertex(v[j]);
-         node->vertex = new Vertex(pos[0], pos[1], pos[2]);
+         if (!node->vertex)
+         {
+            // create a vertex in the node and initialize its position
+            const double* pos = mesh->GetVertex(v[j]);
+            node->vertex = new Vertex(pos[0], pos[1], pos[2]);
+         }
 
          nc_elem->node[j] = node;
       }
 
       // increase reference count of all nodes the element is using
-      // (note: this will also create and reference all edge nodes)
+      // (note: this will also create and reference all edge and face nodes)
       RefElementNodes(nc_elem);
    }
 
@@ -92,6 +95,7 @@ void NCMeshHex::DeleteHierarchy(Element* elem)
    {
       UnrefElementNodes(elem);
    }
+   delete elem;
 }
 
 void NCMeshHex::Node::RefVertex()

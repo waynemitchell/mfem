@@ -89,8 +89,8 @@ public:
          : hash_table(table), next_bin(0), cur_item(NULL) { next(); }
 
       operator ItemT*() const { return cur_item; }
-      ItemT &operator*() const { return *cur_item; }
-      ItemT *operator->() const { return cur_item; }
+      ItemT& operator*() const { return *cur_item; }
+      ItemT* operator->() const { return cur_item; }
 
       Iterator &operator++() { next(); return *this; }
 
@@ -147,7 +147,11 @@ HashTable<ItemT>::HashTable(int size)
 template<typename ItemT>
 HashTable<ItemT>::~HashTable()
 {
-   // TODO!!
+   // delete all items
+   for (Iterator it(*this); it; ++it)
+      delete it;
+
+   delete [] table;
 }
 
 namespace detail {
