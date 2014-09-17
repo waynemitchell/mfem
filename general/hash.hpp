@@ -21,7 +21,7 @@
 struct Hashed2
 {
    int id;
-   int p[2];
+   int p1, p2;
    Hashed2* next;
 
    Hashed2(int id) : id(id) {}
@@ -33,7 +33,7 @@ struct Hashed2
 struct Hashed4
 {
    int id;
-   int p[4]; // NOTE: p[3] not hashed
+   int p1, p2, p3; // NOTE: p4 not hashed or stored
    Hashed4* next;
 
    Hashed4(int id) : id(id) {}
@@ -55,8 +55,8 @@ public:
    ItemT* Get(int p1, int p2, int p3, int p4);
 
    /// Get an item whose parents are p1, p2... Return NULL if it doesn't exist.
-   ItemT* Peek(int p1, int p2);
-   ItemT* Peek(int p1, int p2, int p3, int p4);
+   ItemT* Peek(int p1, int p2) const;
+   ItemT* Peek(int p1, int p2, int p3, int p4) const;
 
    // item pointer variants of the above for convenience
    template<typename OtherT>
@@ -68,10 +68,11 @@ public:
       { return Get(i1->id, i2->id, i3->id, i4->id); }
 
    template<typename OtherT>
-   ItemT* Peek(OtherT* i1, OtherT* i2) { return Peek(i1->id, i2->id); }
+   ItemT* Peek(OtherT* i1, OtherT* i2) const
+      { return Peek(i1->id, i2->id); }
 
    template<typename OtherT>
-   ItemT* Peek(OtherT* i1, OtherT* i2, OtherT* i3, OtherT* i4)
+   ItemT* Peek(OtherT* i1, OtherT* i2, OtherT* i3, OtherT* i4) const
       { return Peek(i1->id, i2->id, i3->id, i4->id); }
 
    /// Obtains an item given its ID.
@@ -106,7 +107,6 @@ protected:
 
    ItemT** table;
    int mask;
-   int nqueries, ncollisions; // stats
 
    // hash functions (NOTE: the constants are arbitrary)
    inline int hash(int p1, int p2) const
@@ -117,17 +117,19 @@ protected:
 
    // Remove() uses one of the following two overloads:
    inline int hash(const Hashed2* item) const
-      { return hash(item->p[0], item->p[1]); }
+      { return hash(item->p1, item->p2); }
 
    inline int hash(const Hashed4* item) const
-      { return hash(item->p[0], item->p[1], item->p[2]); }
+      { return hash(item->p1, item->p2, item->p3); }
 
-   ItemT* SearchList(ItemT* item, int p1, int p2);
-   ItemT* SearchList(ItemT* item, int p1, int p2, int p3);
+   ItemT* SearchList(ItemT* item, int p1, int p2) const;
+   ItemT* SearchList(ItemT* item, int p1, int p2, int p3) const;
 
    IdGenerator id_gen; ///< id generator for new items
    Array<int> used_bins; ///< bins in 'table' that (may) contain something
    Array<ItemT*> id_to_item; ///< mapping table for the Peek(id) method
+
+   mutable int nqueries, ncollisions; // stats
 };
 
 
@@ -174,14 +176,14 @@ inline void sort4(int &a, int &b, int &c, int &d)
 } // detail
 
 template<typename ItemT>
-ItemT* HashTable<ItemT>::Peek(int p1, int p2)
+ItemT* HashTable<ItemT>::Peek(int p1, int p2) const
 {
   if (p1 > p2) std::swap(p1, p2);
   return SearchList(table[hash(p1, p2)], p1, p2);
 }
 
 template<typename ItemT>
-ItemT* HashTable<ItemT>::Peek(int p1, int p2, int p3, int p4)
+ItemT* HashTable<ItemT>::Peek(int p1, int p2, int p3, int p4) const
 {
   detail::sort4(p1, p2, p3, p4);
   return SearchList(table[hash(p1, p2, p3)], p1, p2, p3);
@@ -198,8 +200,8 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2)
 
   // not found - create a new one
   ItemT* newitem = new ItemT(id_gen.Get());
-  newitem->p[0] = p1;
-  newitem->p[1] = p2;
+  newitem->p1 = p1;
+  newitem->p2 = p2;
 
   // insert into hashtable
   newitem->next = table[idx];
@@ -228,10 +230,9 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
 
   // not found - create a new one
   ItemT* newitem = new ItemT(id_gen.Get());
-  newitem->p[0] = p1;
-  newitem->p[1] = p2;
-  newitem->p[2] = p3;
-  newitem->p[3] = p4;
+  newitem->p1 = p1;
+  newitem->p2 = p2;
+  newitem->p3 = p3;
 
   // insert into hashtable
   newitem->next = table[idx];
@@ -250,12 +251,12 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
 }
 
 template<typename ItemT>
-ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2)
+ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2) const
 {
    nqueries++;
    while (item != NULL)
    {
-      if (item->p[0] == p1 && item->p[1] == p2) return item;
+      if (item->p1 == p1 && item->p2 == p2) return item;
       item = (ItemT*) item->next;
       ncollisions++;
    }
@@ -263,12 +264,12 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2)
 }
 
 template<typename ItemT>
-ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3)
+ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3) const
 {
    nqueries++;
    while (item != NULL)
    {
-      if (item->p[0] == p1 && item->p[1] == p2 && item->p[2] == p3) return item;
+      if (item->p1 == p1 && item->p2 == p2 && item->p3 == p3) return item;
       item = (ItemT*) item->next;
       ncollisions++;
    }
