@@ -89,7 +89,7 @@ void NCMeshHex::DeleteHierarchy(Element* elem)
    {
       for (int i = 0; i < 8; i++)
          if (elem->child[i])
-            delete elem->child[i];
+            DeleteHierarchy(elem->child[i]);
    }
    else
    {
@@ -97,6 +97,9 @@ void NCMeshHex::DeleteHierarchy(Element* elem)
    }
    delete elem;
 }
+
+
+//// Node and Face Memory Management ///////////////////////////////////////////
 
 void NCMeshHex::Node::RefVertex()
 {
@@ -338,7 +341,7 @@ void NCMeshHex::Derefine(Element* elem)
 }
 
 
-//// Mesh interface ////////////////////////////////////////////////////////////
+//// Mesh Interface ////////////////////////////////////////////////////////////
 
 int NCMeshHex::IndexVertices()
 {
