@@ -292,8 +292,8 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
                           n[4], n[5], mid56, mid74, attr,
                           fa[0], fa[1], fa[2], -1, fa[4], fa[5]);
 
-      child1 = NewElement(mid12, n[2], n[3], mid30,
-                          mid56, n[6], n[7], mid74, attr,
+      child1 = NewElement(mid30, mid12, n[2], n[3],
+                          mid74, mid56, n[6], n[7], attr,
                           fa[0], -1, fa[2], fa[3], fa[4], fa[5]);
    }
    else if (ref_type == 4) // split along Z axis
