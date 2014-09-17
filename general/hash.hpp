@@ -33,15 +33,39 @@ struct Hashed2
 struct Hashed4
 {
    int id;
-   int p1, p2, p3; // NOTE: p4 not hashed or stored
+   int p1, p2, p3; // NOTE: p4 is not hashed nor stored
    Hashed4* next;
 
    Hashed4(int id) : id(id) {}
 };
 
 
-/** TODO
+/** HashTable is a container for items that require associative access through
+ *  pairs (or quadruples) of indices:
  *
+ *    (p1, p2) -> item
+ *    (p1, p2, p3, p4) -> item
+ *
+ *  An example of this are edges and faces in a mesh. Each edge is uniquely
+ *  identified by two parent vertices and so can be easily accessed from
+ *  different elements using this class. Similarly with faces.
+ *
+ *  The order of the p1, p2, ... indices is not relevant as they are sorted
+ *  each time this class is invoked.
+ *
+ *  There are two main methods this class provides. The Get(...) method always
+ *  returns an item given the two or four indices. If the item didn't previously
+ *  exist, the methods creates a new one. The Peek(...) method, on the other
+ *  hand, just returns NULL if the item doesn't exist.
+ *
+ *  Each new item is automatically assigned a unique ID. The IDs may (but
+ *  need not) be used as p1, p2, ... of other items.
+ *
+ *  The item type (ItemT) needs to follow either the Hashed2 or the Hashed4
+ *  concept. It is easiest to just inherit from these structs.
+ *
+ *  All items in the container can also be accessed sequentially using the
+ *  provided iterator.
  */
 template<typename ItemT>
 class HashTable
@@ -132,6 +156,8 @@ protected:
    mutable int nqueries, ncollisions; // stats
 };
 
+
+// implementation
 
 template<typename ItemT>
 HashTable<ItemT>::HashTable(int size)
