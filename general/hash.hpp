@@ -193,6 +193,10 @@ HashTable<ItemT>::~HashTable()
 
    delete [] table;
    delete [] new_bin;
+
+   if (ncollisions > 3*nqueries)
+      std::cout << "HashTable: WARNING: ncollisions = " << ncollisions << ", "
+                << "nqueries = " << nqueries << ". Adaptive resizing needed.";
 }
 
 namespace detail {
