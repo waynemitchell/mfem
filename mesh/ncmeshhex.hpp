@@ -36,8 +36,6 @@ public:
       int attribute;
 
       Element(int attr) : ref_type(0), attribute(attr) {}
-
-      ~Element();
    };
 
    /** Returns one of the elements that are based on the elements of the
@@ -114,8 +112,8 @@ protected: // implementation
       // Decrement ref on vertex or edge when an element is not using them
       // anymore. The vertex, edge or the whole Node can auto-destruct.
       // The hash-table pointer needs to be known then to remove the node.
-      void UnrefVertex();
-      void UnrefEdge();
+      void UnrefVertex(HashTable<Node>& nodes);
+      void UnrefEdge(HashTable<Node>& nodes);
 
       ~Node();
    };
@@ -156,6 +154,7 @@ protected: // implementation
    void GetLeafElements(Element* e, Array< ::Element*>& elements,
                                     Array< ::Element*>& boundary);
 
+   void DeleteHierarchy(Element* elem);
 
    struct Dependency
    {

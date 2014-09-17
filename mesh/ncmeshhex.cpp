@@ -77,21 +77,20 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
 NCMeshHex::~NCMeshHex()
 {
    for (int i = 0; i < root_elements.Size(); i++)
-      delete root_elements[i];
+      DeleteHierarchy(root_elements[i]);
 }
 
-NCMeshHex::Element::~Element() // FIXME!!!
+void NCMeshHex::DeleteHierarchy(Element* elem)
 {
-   if (ref_type)
+   if (elem->ref_type)
    {
       for (int i = 0; i < 8; i++)
-         if (child[i])
-            delete child[i];
+         if (elem->child[i])
+            delete elem->child[i];
    }
    else
    {
-      for (int i = 0; i < 8; i++)
-         node[i]->UnrefVertex();
+      UnrefElementNodes(elem);
    }
 }
 
@@ -107,18 +106,18 @@ void NCMeshHex::Node::RefEdge()
    edge->Ref();
 }
 
-void NCMeshHex::Node::UnrefVertex()
+void NCMeshHex::Node::UnrefVertex(HashTable<Node> &nodes)
 {
    MFEM_ASSERT(vertex, "Cannot unref a nonexistent vertex.");
    if (!vertex->Unref()) vertex = NULL;
-   if (!vertex && !edge) delete this;
+   if (!vertex && !edge) nodes.Delete(this);
 }
 
-void NCMeshHex::Node::UnrefEdge()
+void NCMeshHex::Node::UnrefEdge(HashTable<Node> &nodes)
 {
    MFEM_ASSERT(edge, "Cannot unref a nonexistent edge.");
    if (!edge->Unref()) edge = NULL;
-   if (!vertex && !edge) delete this;
+   if (!vertex && !edge) nodes.Delete(this);
 }
 
 NCMeshHex::Node::~Node()
@@ -174,12 +173,12 @@ void NCMeshHex::UnrefElementNodes(Element *elem)
    for (int i = 0; i < hexahedron.GetNEdges(); i++)
    {
       const int* ev = hexahedron.GetEdgeVertices(i);
-      nodes.Peek(node[ev[0]], node[ev[1]])->UnrefEdge();
+      nodes.Peek(node[ev[0]], node[ev[1]])->UnrefEdge(nodes);
    }
 
    // unref all vertices (possibly destroying them)
    for (int i = 0; i < 8; i++)
-      node[i]->UnrefVertex();
+      node[i]->UnrefVertex(nodes);
 }
 
 
