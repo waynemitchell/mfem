@@ -14,6 +14,17 @@
 
 #include "ncmeshhex.hpp"
 
+// TODO: this should be somewhere else
+const int hex_edges[12][2] =
+{{0, 1}, {1, 2}, {3, 2}, {0, 3},
+ {4, 5}, {5, 6}, {7, 6}, {4, 7},
+ {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+
+const int hex_faces[6][4] =
+{{3, 2, 1, 0}, {0, 1, 5, 4},
+ {1, 2, 6, 5}, {2, 3, 7, 6},
+ {3, 0, 4, 7}, {4, 5, 6, 7}};
+
 
 NCMeshHex::NCMeshHex(const Mesh *mesh)
 {
@@ -44,9 +55,10 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
          nc_elem->node[j] = node;
       }
 
-      // increase reference count of all nodes the element is using
-      // (note: this will also create and reference all edge and face nodes)
-      RefElementNodes(nc_elem);
+      // increase reference count of the element's vertices
+      RefVertices(nc_elem);
+      // create edges and faces
+      RefEdgesFaces(nc_elem);
    }
 
    num_leaf_elements = root_elements.Size();
@@ -93,8 +105,9 @@ void NCMeshHex::DeleteHierarchy(Element* elem)
    }
    else
    {
-      UnrefElementNodes(elem);
+      UnrefEdgesFaces(elem);
    }
+   UnrefVertices(elem);
    delete elem;
 }
 
@@ -129,30 +142,34 @@ void NCMeshHex::Node::UnrefEdge(HashTable<Node> &nodes)
 
 NCMeshHex::Node::~Node()
 {
+   MFEM_ASSERT(!vertex && !edge, "Node was not unreffed properly.");
    if (vertex) delete vertex;
    if (edge) delete edge;
 }
 
-static Hexahedron hexahedron; // used for a list of edges
-
-const int hex_faces[6][4] = // TODO: this should be shared somehow
-{{3, 2, 1, 0}, {0, 1, 5, 4},
- {1, 2, 6, 5}, {2, 3, 7, 6},
- {3, 0, 4, 7}, {4, 5, 6, 7}};
-
-
-void NCMeshHex::RefElementNodes(Element *elem)
+void NCMeshHex::RefVertices(Element* elem)
 {
-   Node** node = elem->node;
-
    // ref all vertices
    for (int i = 0; i < 8; i++)
-      node[i]->RefVertex();
+      elem->node[i]->RefVertex();
+}
+
+void NCMeshHex::UnrefVertices(Element* elem)
+{
+   // unref all vertices (possibly destroying them)
+   for (int i = 0; i < 8; i++)
+      elem->node[i]->UnrefVertex(nodes);
+}
+
+void NCMeshHex::RefEdgesFaces(Element *elem)
+{
+   // NOTE: vertices must exist for this to work!
+   Node** node = elem->node;
 
    // ref all edges (possibly creating them)
-   for (int i = 0; i < hexahedron.GetNEdges(); i++)
+   for (int i = 0; i < 12; i++)
    {
-      const int* ev = hexahedron.GetEdgeVertices(i);
+      const int* ev = hex_edges[i];
       nodes.Get(node[ev[0]], node[ev[1]])->RefEdge();
    }
 
@@ -164,8 +181,9 @@ void NCMeshHex::RefElementNodes(Element *elem)
    }
 }
 
-void NCMeshHex::UnrefElementNodes(Element *elem)
+void NCMeshHex::UnrefEdgesFaces(Element *elem)
 {
+   // NOTE: vertices must exist for this to work!
    Node** node = elem->node;
 
    // unref all faces (possibly destroying them)
@@ -177,33 +195,21 @@ void NCMeshHex::UnrefElementNodes(Element *elem)
    }
 
    // unref all edges (possibly destroying them)
-   for (int i = 0; i < hexahedron.GetNEdges(); i++)
+   for (int i = 0; i < 12; i++)
    {
-      const int* ev = hexahedron.GetEdgeVertices(i);
+      const int* ev = hex_edges[i];
       nodes.Peek(node[ev[0]], node[ev[1]])->UnrefEdge(nodes);
    }
-
-   // unref all vertices (possibly destroying them)
-   for (int i = 0; i < 8; i++)
-      node[i]->UnrefVertex(nodes);
 }
 
 
 //// Refinement & Derefinement /////////////////////////////////////////////////
 
-NCMeshHex::Node* NCMeshHex::GetMidVertex(Node* n1, Node* n2)
+NCMeshHex::Element::Element(int attr)
+   : ref_type(0), attribute(attr)
 {
-   Node* mid = nodes.Get(n1, n2);
-   if (!mid->vertex)
-   {
-      MFEM_ASSERT(n1->vertex && n2->vertex,
-                  "NCMeshHex::CreateMidVertex: missing parent vertices");
-
-      mid->vertex = new Vertex;
-      for (int i = 0; i < 3; i++)
-         mid->vertex->pos[i] = (n1->vertex->pos[i] + n2->vertex->pos[i]) * 0.5;
-   }
-   return mid;
+   memset(node, 0, sizeof(node));
+   memset(child, 0, sizeof(child));
 }
 
 NCMeshHex::Element*
@@ -232,6 +238,21 @@ NCMeshHex::Element*
    f[4]->attribute = fattr4,  f[5]->attribute = fattr5;
 
    return e;
+}
+
+NCMeshHex::Node* NCMeshHex::GetMidVertex(Node* n1, Node* n2)
+{
+   Node* mid = nodes.Get(n1, n2);
+   if (!mid->vertex)
+   {
+      MFEM_ASSERT(n1->vertex && n2->vertex,
+                  "NCMeshHex::CreateMidVertex: missing parent vertices");
+
+      mid->vertex = new Vertex;
+      for (int i = 0; i < 3; i++)
+         mid->vertex->pos[i] = (n1->vertex->pos[i] + n2->vertex->pos[i]) * 0.5;
+   }
+   return mid;
 }
 
 
@@ -318,16 +339,15 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
                           -1, fa[1], fa[2], fa[3], fa[4], fa[5]);
    }
 
-   // start using the nodes of the children (plus create edge nodes)
-   RefElementNodes(child0);
-   RefElementNodes(child1);
+   // start using the nodes of the children, create edges & faces
+   RefVertices(child0); RefEdgesFaces(child0);
+   RefVertices(child1); RefEdgesFaces(child1);
 
-   // sign off of the nodes of the parent (some may get destroyed)
-   UnrefElementNodes(elem);
+   // sign off of the edges & faces of the parent, but retain the corners
+   UnrefEdgesFaces(elem);
 
    // mark the original element as refined
    elem->ref_type = ref_type;
-   memset(elem->child, 0, sizeof(elem->child));
    elem->child[0] = child0;
    elem->child[1] = child1;
 
@@ -449,10 +469,13 @@ void NCMeshHex::GetElements(Array< ::Element*>& elements,
 
 //// Interpolation /////////////////////////////////////////////////////////////
 
+SparseMatrix*
+   NCMeshHex::GetInterpolation(Mesh *f_mesh, FiniteElementSpace *f_fes)
+{
 
+}
 
 
 /* THINGS MISSING:
- *  - proper destruction of nodes (remove from hash table)
  *  - Refine: incompatible + multiple
  */

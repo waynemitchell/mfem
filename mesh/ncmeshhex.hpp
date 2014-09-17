@@ -28,14 +28,12 @@ public:
    ///
    struct Element
    {
+      Node* node[8]; // element corners
       int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
-      union {
-         Node* node[8]; // element corners (if ref_type == 0, i.e, not refined)
-         Element* child[8]; // children (if ref_type != 0)
-      };
+      Element* child[8]; // children (if ref_type != 0)
       int attribute;
 
-      Element(int attr) : ref_type(0), attribute(attr) {}
+      Element(int attr);
    };
 
    /** Returns one of the elements that are based on the elements of the
@@ -145,8 +143,11 @@ protected: // implementation
                        int fattr0, int fattr1, int fattr2,
                        int fattr3, int fattr4, int fattr5);
 
-   void RefElementNodes(Element* elem);
-   void UnrefElementNodes(Element* elem);
+   void RefVertices(Element* elem);
+   void UnrefVertices(Element* elem);
+
+   void RefEdgesFaces(Element *elem);
+   void UnrefEdgesFaces(Element *elem);
 
    int IndexVertices();
    int IndexEdges();
