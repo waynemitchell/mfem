@@ -66,6 +66,9 @@ struct Hashed4
  *
  *  All items in the container can also be accessed sequentially using the
  *  provided iterator.
+ *
+ *  TODO: The hash table currently doesn't adapt its size to the number of
+ *        items stored!
  */
 template<typename ItemT>
 class HashTable
@@ -150,8 +153,10 @@ protected:
    ItemT* SearchList(ItemT* item, int p1, int p2, int p3) const;
 
    IdGenerator id_gen; ///< id generator for new items
-   Array<int> used_bins; ///< bins in 'table' that (may) contain something
    Array<ItemT*> id_to_item; ///< mapping table for the Peek(id) method
+
+   Array<int> used_bins; ///< bins in 'table' that (may) contain something
+   char* new_bin; ///< flag showing that bin index is not in 'used_bins'
 
    mutable int nqueries, ncollisions; // stats
 };
@@ -169,6 +174,9 @@ HashTable<ItemT>::HashTable(int size)
    table = new ItemT*[size];
    memset(table, 0, size * sizeof(ItemT*));
 
+   new_bin = new char[size];
+   memset(new_bin, 1, size * sizeof(char));
+
    nqueries = ncollisions = 0;
 }
 
@@ -176,10 +184,15 @@ template<typename ItemT>
 HashTable<ItemT>::~HashTable()
 {
    // delete all items
-   for (Iterator it(*this); it; ++it)
-      delete it;
+   for (Iterator it(*this); it; )
+   {
+      ItemT* tmp = it;
+      ++it;
+      delete tmp;
+   }
 
    delete [] table;
+   delete [] new_bin;
 }
 
 namespace detail {
@@ -234,7 +247,11 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2)
   table[idx] = newitem;
 
   // if this is a new bin, make sure the iterator will find it
-  if (!newitem->next) used_bins.Append(idx);
+  if (new_bin[idx])
+  {
+     used_bins.Append(idx);
+     new_bin[idx] = 0;
+  }
 
   // also, maintain the mapping ID -> item
   if (id_to_item.Size() <= newitem->id) {
@@ -265,7 +282,11 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
   table[idx] = newitem;
 
   // if this is a new bin, make sure the iterator will find it
-  if (!newitem->next) used_bins.Append(idx);
+  if (new_bin[idx])
+  {
+     used_bins.Append(idx);
+     new_bin[idx] = 0;
+  }
 
   // also, maintain the mapping ID -> item
   if (id_to_item.Size() <= newitem->id) {
