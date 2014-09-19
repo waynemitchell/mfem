@@ -81,7 +81,7 @@ protected: // implementation
    struct Vertex : public RefCount
    {
       double pos[3];
-      int index;
+      int index; ///< internal numbering, set by IndexVertices to 0..NV-1
 
       Vertex() {}
       Vertex(double x, double y, double z)
@@ -91,7 +91,7 @@ protected: // implementation
    ///
    struct Edge : public RefCount
    {
-      int index;
+      int index; ///< internal numbering, set by IndexEdges to 0..NE-1
    };
 
    ///
@@ -119,7 +119,8 @@ protected: // implementation
    ///
    struct Face : public RefCount, public Hashed4
    {
-      int attribute;
+      int attribute; ///< boundary element attribute, -1 if internal face
+      int index; ///<  internal numbering, set by IndexFaces to 0..NF-1
 
       Face(int id) : Hashed4(id), attribute(-1) {}
 
@@ -133,7 +134,8 @@ protected: // implementation
 
    int num_leaf_elements;
 
-//   int FaceSplitType(int v1, int v2, int v3, int v4);
+   int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
+                     Node* mid[5] = NULL /* optional output of middle nodes*/);
 
    Node* GetMidVertex(Node* n1, Node* n2);
 
@@ -151,11 +153,15 @@ protected: // implementation
 
    int IndexVertices();
    int IndexEdges();
+   int IndexFaces();
 
    void GetLeafElements(Element* e, Array< ::Element*>& elements,
                                     Array< ::Element*>& boundary);
 
    void DeleteHierarchy(Element* elem);
+
+
+   // interpolation
 
    struct Dependency
    {
@@ -164,9 +170,25 @@ protected: // implementation
    };
 
    typedef Array<Dependency> DepList;
-/*   DepList* v_dep;
-   DepList* e_dep;
-   DepList* f_dep;*/
+
+   /** This holds temporary data for each vertex, edge and face, used during
+       the interpolation algorithm. */
+   struct InterpolationData
+   {
+      int dof;      ///< original nonconforming FESpace-assigned DOF number
+      int true_dof; ///< conforming true DOF number, -1 if slave DOF
+      DepList dep_list;
+   };
+
+   InterpolationData* v_data; ///< vertex temporary data
+/*   InterpolationData* e_data; ///< edge temporary data
+   InterpolationData* f_data; ///< face temporary data*/
+
+   void ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
+                      IsoparametricTransformation& face_T, int level);
+
+   void VisitFaces(Element* elem);
+
 
 };
 

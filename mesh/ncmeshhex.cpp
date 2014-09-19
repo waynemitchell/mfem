@@ -255,6 +255,37 @@ NCMeshHex::Node* NCMeshHex::GetMidVertex(Node* n1, Node* n2)
    return mid;
 }
 
+int NCMeshHex::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
+                             Node* mid[5])
+{
+   // find edge nodes
+   Node* e1 = nodes.Peek(v1, v2);
+   Node* e2 = nodes.Peek(v2, v3);
+   Node* e3 = nodes.Peek(v3, v4);
+   Node* e4 = nodes.Peek(v4, v1);
+
+   // optional: return the mid-edge nodes if requested
+   if (mid) mid[0] = e1, mid[1] = e2, mid[2] = e3, mid[3] = e4, mid[4] = NULL;
+
+   // try to get a mid-face node, either by (e1, e3) or by (e2, e4)
+   Node *midf1, *midf2;
+   if (e1 && e3) midf1 = nodes.Peek(e1, e3);
+   if (e2 && e4) midf2 = nodes.Peek(e2, e4);
+
+   // only one way to to access the mid-face node must always exist
+   MFEM_ASSERT(!(midf1 && midf2), "Incorrectly split face!");
+
+   if (!midf1 && !midf2) return 0; // face not split
+
+   Node* midf = midf1 ? midf1 : midf2;
+   if (mid) mid[4] = midf;
+
+   if (midf->vertex) return 3; // face split both ways
+
+   MFEM_ASSERT(midf->edge, "Nodes inconsistent!");
+
+   return midf1 ? 1 : 2; // face split "vertically" or "horizontally"
+}
 
 void NCMeshHex::Refine(Element* elem, int ref_type)
 {
@@ -357,7 +388,30 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
 
 void NCMeshHex::Derefine(Element* elem)
 {
-   // TODO
+/*   // check that all children are leafs   TODO: maybe derefine recursively?
+   for (int i = 0; i < 8; i++)
+      if (elem->child[i] && elem->child[i]->ref_type)
+         mfem_error("NCMeshHex::Derefine: can't derefine element whose child "
+                    "is refined.");
+
+   for (int i = 0; i < 8; i++)
+   {
+      if (elem->child[i])
+      {
+         UnrefEdgesFaces(elem->child[i]);
+         UnrefVertices(elem->child[i]);
+         delete elem->child[i];
+         elem->child[i] = NULL;
+         num_leaf_elements--;
+      }
+   }
+
+   RefEdgesFaces(elem);
+
+   elem->ref_type = 0;
+   num_leaf_elements++;
+
+   // FIXME: restore boundary attributes!*/
 }
 
 
@@ -446,36 +500,164 @@ void NCMeshHex::GetElements(Array< ::Element*>& elements,
       GetLeafElements(root_elements[i], elements, boundary);
 }
 
-/*void NCMeshHex::GetBdrElements(Array< ::Element*>& boundary)
-{
-   for (HashTable<Face>::Iterator it(faces); it; ++it)
-   {
-      if (it->attribute >= 0)
-      {
-         Quadrilateral* quad = new Quadrilateral;
-         quad->SetAttribute(it->attribute);
-
-         for (int i = 0; i < 4; i++)
-         {
-            Node* node = nodes.Peek(it->p[i]); // get one of the parent nodes
-            quad->GetVertices()[i] = node->vertex->index;
-         }
-
-         boundary.Append(quad);
-      }
-   }
-}*/
-
 
 //// Interpolation /////////////////////////////////////////////////////////////
+
+static void make_point_mat(double v0[], double v1[], double v2[], double v3[],
+                           DenseMatrix &pm)
+{
+   for (int i = 0; i < 2; i++)
+   {
+      pm(i,0) = v0[i];
+      pm(i,1) = v1[i];
+      pm(i,2) = v2[i];
+      pm(i,3) = v3[i];
+   }
+}
+
+void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
+                              IsoparametricTransformation& face_T, int level)
+{
+   if (level > 0)
+   {
+      // check if we made it to a face that is not split further
+      Face* face = faces.Peek(v0, v1, v2, v3);
+      if (face)
+      {
+         // yes, we need to make everything on this face constrained
+
+
+         return;
+      }
+   }
+
+   // we need to recurse deeper, now determine how
+   Node* mid[5];
+   int split = FaceSplitType(v0, v1, v2, v3, mid);
+
+   // prepare also the middle points for the transformation
+   DenseMatrix& pm = face_T.GetPointMat();
+   double t_mid[5][2] =
+   {
+      { pm(0,0) + pm(0,1),  pm(1,0) + pm(1,1) }, // bottom (0)
+      { pm(0,1) + pm(0,2),  pm(1,1) + pm(1,2) }, // right (1)
+      { pm(0,2) + pm(0,3),  pm(1,2) + pm(1,3) }, // top (2)
+      { pm(0,3) + pm(0,0),  pm(1,3) + pm(1,0) }, // left (3)
+      { pm(0,0) + pm(0,1) + pm(0,2) + pm(0,3),
+        pm(1,0) + pm(1,1) + pm(1,2) + pm(1,3) }  // middle (4)
+   };
+   double t_v[4][2] = // backup of original points
+   {
+      { pm(0,0), pm(1,0) },
+      { pm(0,1), pm(1,1) },
+      { pm(0,2), pm(1,2) },
+      { pm(0,3), pm(1,3) },
+   };
+
+   if (split == 1) // "X" split face
+   {
+      make_point_mat(t_v[0], t_mid[0], t_mid[2], t_v[3], pm);
+      ConstrainFace (   v0,    mid[0],   mid[2],    v3,  face_T, level+1);
+
+      make_point_mat(t_mid[0], t_v[1], t_v[2], t_mid[2], pm);
+      ConstrainFace (  mid[0],    v1,     v2,    mid[2], face_T, level+1);
+   }
+   else if (split == 2) // "Y" split face
+   {
+      make_point_mat(t_v[0], t_v[1], t_mid[1], t_mid[3], pm);
+      ConstrainFace (   v0,     v1,    mid[1],   mid[3], face_T, level+1);
+
+      make_point_mat(t_mid[3], t_mid[1], t_v[2], t_v[3], pm);
+      ConstrainFace (  mid[3],   mid[1],    v2,     v3,  face_T, level+1);
+   }
+   else if (split == 3) // 4-way split face
+   {
+      make_point_mat(t_v[0], t_mid[0], t_mid[4], t_mid[3], pm);
+      ConstrainFace (   v0,    mid[0],   mid[4],   mid[3], face_T, level+1);
+
+      make_point_mat(t_mid[0], t_v[1], t_mid[1], t_mid[4], pm);
+      ConstrainFace (  mid[0],    v1,    mid[1],   mid[4], face_T, level+1);
+
+      make_point_mat(t_mid[4], t_mid[1], t_v[2], t_mid[2], pm);
+      ConstrainFace (  mid[4],   mid[1],    v2,    mid[2], face_T, level+1);
+
+      make_point_mat(t_mid[3], t_mid[4], t_mid[2], t_v[3], pm);
+      ConstrainFace (  mid[3],   mid[4],   mid[2],    v3,  face_T, level+1);
+   }
+
+   MFEM_ASSERT(0, "Should never get here.");
+}
+
+void NCMeshHex::VisitFaces(Element* elem)
+{
+   // we're done once we hit a leaf
+   if (!elem->ref_type) return;
+
+   // refined element: check its faces for constraints coming from the outside
+   for (int i = 0; i < 6; i++)
+   {
+      const int* fv = hex_faces[i];
+      Node** node = elem->node;
+      Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
+
+      if (face)
+      {
+         // there is a complete face on the other side; we need to spawn
+         // a new recursive process that will constrain everything lying on
+         // this master face on our side
+
+         // set up a face transformation that will keep track of our position
+         // within the complete face
+         IsoparametricTransformation face_T;
+         face_T.SetFE(&QuadrilateralFE);
+
+         // the initial transformation is identity (vertices of the unit square)
+         DenseMatrix& pm = face_T.GetPointMat();
+         pm.SetSize(2, 4);
+         pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
+         pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
+
+         ConstrainFace(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
+                       face_T, 0);
+      }
+   }
+
+   // go further down
+   for (int i = 0; i < 8; i++)
+      if (elem->child[i])
+         VisitFaces(elem->child[i]);
+}
 
 SparseMatrix*
    NCMeshHex::GetInterpolation(Mesh *f_mesh, FiniteElementSpace *f_fes)
 {
+   int num_vert = IndexVertices();
+   //int num_edges = IndexEdges();
+   //int num_faces = IndexFaces();
 
+   v_data = new InterpolationData[num_vert];
+   //e_data = new InterpolationData[num_edges];
+   //f_data = new InterpolationData[num_faces];
+
+   // assign true DOF numbers to vertices
+   int true_vert = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
+      if (!it->vertex) continue;
+
+      int index = it->vertex->index;
+      InterpolationData& vd = v_data[index];
+
+      vd.dof = index; // nonconforming: same numbering as in mesh
+
+      if (!it->edge) // independent vertex  FIXME!!!!! faces
+         vd.true_dof = true_vert++;
+      else  // dependent vertex (in the middle of some edge)
+         vd.true_dof = -1;
+   }
+
+   // traverse hierarych top-down, find constraining faces
+   for (int i = 0; i < root_elements.Size(); i++)
+      VisitFaces(root_elements[i]);
 }
 
-
-/* THINGS MISSING:
- *  - Refine: incompatible + multiple
- */
