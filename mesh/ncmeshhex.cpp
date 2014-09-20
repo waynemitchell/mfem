@@ -287,6 +287,7 @@ int NCMeshHex::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
    return midf1 ? 1 : 2; // face split "vertically" or "horizontally"
 }
 
+
 void NCMeshHex::Refine(Element* elem, int ref_type)
 {
    if (elem->ref_type)
@@ -385,6 +386,7 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    // keep track of the number of leaf elements
    num_leaf_elements += 1;
 }
+
 
 void NCMeshHex::Derefine(Element* elem)
 {
@@ -503,6 +505,8 @@ void NCMeshHex::GetElements(Array< ::Element*>& elements,
 
 //// Interpolation /////////////////////////////////////////////////////////////
 
+
+
 static void make_point_mat(double v0[], double v1[], double v2[], double v3[],
                            DenseMatrix &pm)
 {
@@ -516,7 +520,8 @@ static void make_point_mat(double v0[], double v1[], double v2[], double v3[],
 }
 
 void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
-                              IsoparametricTransformation& face_T, int level)
+                              IsoparametricTransformation& face_T,
+                              MasterFace* master, int level)
 {
    if (level > 0)
    {
@@ -524,8 +529,24 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
       Face* face = faces.Peek(v0, v1, v2, v3);
       if (face)
       {
-         // yes, we need to make everything on this face constrained
+         // yes, we need to make this face constrained
+         DenseMatrix I;
+         master->face_fe->GetLocalInterpolation(face_T, I);
 
+         Node* v[4] = { v0, v1, v2, v3 };
+         for (int i = 0; i < 4; i++)
+         {
+            // make v[i] dependent on all master face DOFs
+            VertexData& vd = v_data[v[i]->vertex->index];
+            if (!vd.Processed())
+            {
+               vd.true_dof = -1;
+               for (int j = 0; j < 4; j++)
+                  AddDependencies(vd.dep_list, I(i, j), master->v[j]);
+            }
+            else
+               MFEM_ASSERT(vd.Dependent(), "aaa");
+         }
 
          return;
       }
@@ -537,7 +558,7 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
 
    // prepare also the middle points for the transformation
    DenseMatrix& pm = face_T.GetPointMat();
-   double t_mid[5][2] =
+   double tmid[5][2] =
    {
       { pm(0,0) + pm(0,1),  pm(1,0) + pm(1,1) }, // bottom (0)
       { pm(0,1) + pm(0,2),  pm(1,1) + pm(1,2) }, // right (1)
@@ -546,7 +567,7 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
       { pm(0,0) + pm(0,1) + pm(0,2) + pm(0,3),
         pm(1,0) + pm(1,1) + pm(1,2) + pm(1,3) }  // middle (4)
    };
-   double t_v[4][2] = // backup of original points
+   double tv[4][2] = // backup of original points
    {
       { pm(0,0), pm(1,0) },
       { pm(0,1), pm(1,1) },
@@ -556,39 +577,40 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
 
    if (split == 1) // "X" split face
    {
-      make_point_mat(t_v[0], t_mid[0], t_mid[2], t_v[3], pm);
-      ConstrainFace (   v0,    mid[0],   mid[2],    v3,  face_T, level+1);
+      make_point_mat(tv[0], tmid[0], tmid[2], tv[3], pm);
+      ConstrainFace (  v0,   mid[0],  mid[2],   v3,  face_T, master, level+1);
 
-      make_point_mat(t_mid[0], t_v[1], t_v[2], t_mid[2], pm);
-      ConstrainFace (  mid[0],    v1,     v2,    mid[2], face_T, level+1);
+      make_point_mat(tmid[0], tv[1], tv[2], tmid[2], pm);
+      ConstrainFace ( mid[0],   v1,    v2,   mid[2], face_T, master, level+1);
    }
    else if (split == 2) // "Y" split face
    {
-      make_point_mat(t_v[0], t_v[1], t_mid[1], t_mid[3], pm);
-      ConstrainFace (   v0,     v1,    mid[1],   mid[3], face_T, level+1);
+      make_point_mat(tv[0], tv[1], tmid[1], tmid[3], pm);
+      ConstrainFace (  v0,    v1,   mid[1],  mid[3], face_T, master, level+1);
 
-      make_point_mat(t_mid[3], t_mid[1], t_v[2], t_v[3], pm);
-      ConstrainFace (  mid[3],   mid[1],    v2,     v3,  face_T, level+1);
+      make_point_mat(tmid[3], tmid[1], tv[2], tv[3], pm);
+      ConstrainFace ( mid[3],  mid[1],   v2,    v3,  face_T, master, level+1);
    }
    else if (split == 3) // 4-way split face
    {
-      make_point_mat(t_v[0], t_mid[0], t_mid[4], t_mid[3], pm);
-      ConstrainFace (   v0,    mid[0],   mid[4],   mid[3], face_T, level+1);
+      make_point_mat(tv[0], tmid[0], tmid[4], tmid[3], pm);
+      ConstrainFace (  v0,   mid[0],  mid[4],  mid[3], face_T, master, level+1);
 
-      make_point_mat(t_mid[0], t_v[1], t_mid[1], t_mid[4], pm);
-      ConstrainFace (  mid[0],    v1,    mid[1],   mid[4], face_T, level+1);
+      make_point_mat(tmid[0], tv[1], tmid[1], tmid[4], pm);
+      ConstrainFace ( mid[0],   v1,   mid[1],  mid[4], face_T, master, level+1);
 
-      make_point_mat(t_mid[4], t_mid[1], t_v[2], t_mid[2], pm);
-      ConstrainFace (  mid[4],   mid[1],    v2,    mid[2], face_T, level+1);
+      make_point_mat(tmid[4], tmid[1], tv[2], tmid[2], pm);
+      ConstrainFace ( mid[4],  mid[1],   v2,   mid[2], face_T, master, level+1);
 
-      make_point_mat(t_mid[3], t_mid[4], t_mid[2], t_v[3], pm);
-      ConstrainFace (  mid[3],   mid[4],   mid[2],    v3,  face_T, level+1);
+      make_point_mat(tmid[3], tmid[4], tmid[2], tv[3], pm);
+      ConstrainFace ( mid[3],  mid[4],  mid[2],   v3,  face_T, master, level+1);
    }
 
    MFEM_ASSERT(0, "Should never get here.");
 }
 
-void NCMeshHex::VisitFaces(Element* elem)
+
+void NCMeshHex::VisitFaces(Element* elem, const FiniteElementCollection *fec)
 {
    // we're done once we hit a leaf
    if (!elem->ref_type) return;
@@ -617,16 +639,41 @@ void NCMeshHex::VisitFaces(Element* elem)
          pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
          pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
 
+         // package all the constraining nodes in one struct
+         MasterFace master;
+         for (int j = 0; j < 4; j++)
+         {
+            master.v[i] = node[fv[i]];
+            //master.e[i] = ...
+         }
+         master.face = face;
+
+         // make all master face nodes independent, if still uninitialized
+         for (int j = 0; j < 4; j++)
+         {
+            VertexData& vd = v_data[master.v[i]->vertex->index];
+            if (!vd.Processed())
+            {
+               vd.true_dof = next_true_dof++;
+               vd.dep_list.Append(Dependency(vd.dof, 1.0));
+            }
+
+            // EdgeData &ed = ...
+         }
+
+         master.face_fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
+
          ConstrainFace(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
-                       face_T, 0);
+                       face_T, &master, 0);
       }
    }
 
    // go further down
    for (int i = 0; i < 8; i++)
       if (elem->child[i])
-         VisitFaces(elem->child[i]);
+         VisitFaces(elem->child[i], fec);
 }
+
 
 SparseMatrix*
    NCMeshHex::GetInterpolation(Mesh *f_mesh, FiniteElementSpace *f_fes)
@@ -635,29 +682,28 @@ SparseMatrix*
    //int num_edges = IndexEdges();
    //int num_faces = IndexFaces();
 
-   v_data = new InterpolationData[num_vert];
+   v_data = new VertexData[num_vert];
    //e_data = new InterpolationData[num_edges];
    //f_data = new InterpolationData[num_faces];
 
    // assign true DOF numbers to vertices
-   int true_vert = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
    {
-      if (!it->vertex) continue;
+      if (it->vertex)
+      {
+         int index = it->vertex->index;
+         VertexData& vd = v_data[index];
 
-      int index = it->vertex->index;
-      InterpolationData& vd = v_data[index];
-
-      vd.dof = index; // nonconforming: same numbering as in mesh
-
-      if (!it->edge) // independent vertex  FIXME!!!!! faces
-         vd.true_dof = true_vert++;
-      else  // dependent vertex (in the middle of some edge)
-         vd.true_dof = -1;
+         vd.dof = index; // nonconforming DOF: same numbering as in mesh
+         vd.true_dof = -2; // "uninitialized"
+      }
    }
 
-   // traverse hierarych top-down, find constraining faces
+   next_true_dof = 0;
+
+   // traverse hierarych top-down, find constraining faces, constrain
+   // their adjoining faces
    for (int i = 0; i < root_elements.Size(); i++)
-      VisitFaces(root_elements[i]);
+      VisitFaces(root_elements[i], f_fes->FEColl());
 }
 

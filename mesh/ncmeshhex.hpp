@@ -14,6 +14,9 @@
 
 #include "../general/hash.hpp"
 
+class FiniteElementCollection;
+
+
 /**
  *
  */
@@ -167,27 +170,43 @@ protected: // implementation
    {
       int dof;
       double coef;
+
+      Dependency(int dof, double coef) : dof(dof), coef(coef) {}
    };
 
    typedef Array<Dependency> DepList;
 
-   /** This holds temporary data for each vertex, edge and face, used during
-       the interpolation algorithm. */
-   struct InterpolationData
+   /// Holds temporary data for each vertex during the interpolation algorithm.
+   struct VertexData
    {
       int dof;      ///< original nonconforming FESpace-assigned DOF number
       int true_dof; ///< conforming true DOF number, -1 if slave DOF
       DepList dep_list;
+
+      bool Independent() const { return true_dof >= 0; }
+      bool Dependent() const { return true_dof == -1; }
+      bool Processed() const { return true_dof > -2; }
    };
 
-   InterpolationData* v_data; ///< vertex temporary data
+   VertexData* v_data; ///< vertex temporary data
 /*   InterpolationData* e_data; ///< edge temporary data
    InterpolationData* f_data; ///< face temporary data*/
 
-   void ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
-                      IsoparametricTransformation& face_T, int level);
+   struct MasterFace
+   {
+      const Node* v[4];
+      const Node* e[4];
+      const Face* face;
+      const FiniteElement *face_fe;
+   };
 
-   void VisitFaces(Element* elem);
+   void ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
+                      IsoparametricTransformation& face_T,
+                      MasterFace* master, int level);
+
+   void VisitFaces(Element* elem, const FiniteElementCollection *fec);
+
+   int next_true_dof;
 
 
 };
