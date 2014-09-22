@@ -393,7 +393,46 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
                             node[4], node[5], node[6], node[7], attr,
                             -1, fa[1], fa[2], fa[3], fa[4], fa[5]);
    }
-   else if (ref_type == 7) // complete isotropic refinement
+   else if (ref_type == 3) // XY split
+   {
+      // TODO
+   }
+   else if (ref_type == 5) // XZ split
+   {
+      Node* mid01 = GetMidEdgeVertex(node[0], node[1]);
+      Node* mid23 = GetMidEdgeVertex(node[2], node[3]);
+      Node* mid45 = GetMidEdgeVertex(node[4], node[5]);
+      Node* mid67 = GetMidEdgeVertex(node[6], node[7]);
+
+      Node* mid04 = GetMidEdgeVertex(node[0], node[4]);
+      Node* mid15 = GetMidEdgeVertex(node[1], node[5]);
+      Node* mid26 = GetMidEdgeVertex(node[2], node[6]);
+      Node* mid37 = GetMidEdgeVertex(node[3], node[7]);
+
+      Node* midf1 = GetMidFaceVertex(mid01, mid15, mid45, mid04);
+      Node* midf3 = GetMidFaceVertex(mid23, mid37, mid67, mid26);
+
+      child[0] = NewElement(node[0], mid01, mid23, node[3],
+                            mid04, midf1, midf3, mid37, attr,
+                            fa[0], fa[1], -1, fa[3], fa[4], -1);
+
+      child[1] = NewElement(mid01, node[1], node[2], mid23,
+                            midf1, mid15, mid26, midf3, attr,
+                            fa[0], fa[1], fa[2], fa[3], -1, -1);
+
+      child[2] = NewElement(midf1, mid15, mid26, midf3,
+                            mid45, node[5], node[6], mid67, attr,
+                            -1, fa[1], fa[2], fa[3], -1, fa[5]);
+
+      child[3] = NewElement(mid04, midf1, midf3, mid37,
+                            node[4], mid45, mid67, node[7], attr,
+                            -1, fa[1], -1, fa[3], fa[4], fa[5]);
+   }
+   else if (ref_type == 6) // YZ split
+   {
+      // TODO
+   }
+   else if (ref_type == 7) // full isotropic refinement
    {
       Node* mid01 = GetMidEdgeVertex(node[0], node[1]);
       Node* mid12 = GetMidEdgeVertex(node[1], node[2]);
@@ -586,6 +625,7 @@ void NCMeshHex::MakeVertexIndependent(Node* node)
    VertexData& vd = v_data[node->vertex->index];
    if (vd.Unprocessed())
    {
+      // assign a true DOF and make an 'identity' row in the final matrix
       vd.true_dof = next_true_dof++;
       vd.dep_list.Append(Dependency(vd.true_dof, 1.0));
    }
@@ -816,5 +856,9 @@ SparseMatrix*
          ExportDependencies(e_data[it->edge->index].dep_list, cP);*/
    }
    cP->Finalize();
+
+   delete [] v_data;
+
+   return cP;
 }
 
