@@ -14,7 +14,9 @@
 
 #include "../general/hash.hpp"
 
+class SparseMatrix;
 class FiniteElementCollection;
+class IsoparametricTransformation;
 
 
 /**
@@ -44,7 +46,6 @@ public:
    Element* GetRootElement(int index) { return root_elements[index]; }
 
    int NRootElements() const { return root_elements.Size(); }
-   int NLeafElements() const { return num_leaf_elements; }
 
    void Refine(Element* elem, int ref_type /*= 7*/);
    void Derefine(Element* elem);
@@ -127,6 +128,8 @@ protected: // implementation
 
       Face(int id) : Hashed4(id), attribute(-1) {}
 
+      bool Boundary() const { return attribute >= 0; }
+
       // overloaded Unref without auto-destruction
       int Unref() { return --ref_count; }
    };
@@ -135,18 +138,18 @@ protected: // implementation
    HashTable<Node> nodes;
    HashTable<Face> faces;
 
-   int num_leaf_elements;
-
-   int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
-                     Node* mid[5] = NULL /* optional output of middle nodes*/);
-
-   Node* GetMidVertex(Node* n1, Node* n2);
+   Vertex* NewVertex(Node* v1, Node* v2);
+   Node* GetMidEdgeVertex(Node* v1, Node* v2);
+   Node* GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4);
 
    Element* NewElement(Node* n0, Node* n1, Node* n2, Node* n3,
                        Node* n4, Node* n5, Node* n6, Node* n7,
                        int attr,
                        int fattr0, int fattr1, int fattr2,
                        int fattr3, int fattr4, int fattr5);
+
+   int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
+                     Node* mid[5] = NULL /* optional output of middle nodes*/);
 
    void RefVertices(Element* elem);
    void UnrefVertices(Element* elem);
@@ -168,10 +171,14 @@ protected: // implementation
 
    struct Dependency
    {
-      int dof;
+      int true_dof;
       double coef;
 
-      Dependency(int dof, double coef) : dof(dof), coef(coef) {}
+      Dependency(int true_dof, double coef)
+         : true_dof(true_dof), coef(coef) {}
+
+      Dependency(double multiplier, const Dependency& other)
+         : true_dof(other.true_dof), coef(multiplier * other.coef) {}
    };
 
    typedef Array<Dependency> DepList;
@@ -181,22 +188,31 @@ protected: // implementation
    {
       int dof;      ///< original nonconforming FESpace-assigned DOF number
       int true_dof; ///< conforming true DOF number, -1 if slave DOF
-      DepList dep_list;
+      DepList dep_list; ///< what true DOFs does this vertex depend on?
 
       bool Independent() const { return true_dof >= 0; }
       bool Dependent() const { return true_dof == -1; }
-      bool Processed() const { return true_dof > -2; }
+      bool Unprocessed() const { return true_dof <= -2; }
+
+      VertexData() : true_dof(-2) {}
    };
 
    VertexData* v_data; ///< vertex temporary data
 /*   InterpolationData* e_data; ///< edge temporary data
    InterpolationData* f_data; ///< face temporary data*/
 
+   int next_true_dof;
+
+   void MakeVertexIndependent(Node* node);
+
+   void AddDependencies(DepList& list, double multiplier, const DepList& master);
+   void ExportDependencies(int dof, DepList& list, SparseMatrix* cP);
+
    struct MasterFace
    {
-      const Node* v[4];
-      const Node* e[4];
-      const Face* face;
+      Node* v[4];
+      Node* e[4];
+      Face* face;
       const FiniteElement *face_fe;
    };
 
@@ -206,7 +222,6 @@ protected: // implementation
 
    void VisitFaces(Element* elem, const FiniteElementCollection *fec);
 
-   int next_true_dof;
 
 
 };

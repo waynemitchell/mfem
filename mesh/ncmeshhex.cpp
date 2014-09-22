@@ -61,8 +61,6 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
       RefEdgesFaces(nc_elem);
    }
 
-   num_leaf_elements = root_elements.Size();
-
    // store boundary element attributes
    for (int i = 0; i < mesh->GetNBE(); i++)
    {
@@ -240,20 +238,44 @@ NCMeshHex::Element*
    return e;
 }
 
-NCMeshHex::Node* NCMeshHex::GetMidVertex(Node* n1, Node* n2)
-{
-   Node* mid = nodes.Get(n1, n2);
-   if (!mid->vertex)
-   {
-      MFEM_ASSERT(n1->vertex && n2->vertex,
-                  "NCMeshHex::CreateMidVertex: missing parent vertices");
 
-      mid->vertex = new Vertex;
-      for (int i = 0; i < 3; i++)
-         mid->vertex->pos[i] = (n1->vertex->pos[i] + n2->vertex->pos[i]) * 0.5;
-   }
+NCMeshHex::Vertex* NCMeshHex::NewVertex(Node* v1, Node* v2)
+{
+   MFEM_ASSERT(v1->vertex && v2->vertex,
+               "NCMeshHex::NewVertex: missing parent vertices.");
+
+   Vertex* v = new Vertex;
+   for (int i = 0; i < 3; i++)
+      v->pos[i] = (v1->vertex->pos[i] + v2->vertex->pos[i]) * 0.5;
+
+   return v;
+}
+
+NCMeshHex::Node* NCMeshHex::GetMidEdgeVertex(Node* v1, Node* v2)
+{
+   Node* mid = nodes.Get(v1, v2);
+   if (!mid->vertex) mid->vertex = NewVertex(v1, v2);
    return mid;
 }
+
+NCMeshHex::Node*
+   NCMeshHex::GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4)
+{
+   // mid-face node must be created either from (e1, e3) or from (e2, e4)
+   Node* midf = nodes.Peek(e1, e3);
+   if (midf)
+   {
+      if (!midf->vertex) midf->vertex = NewVertex(e1, e3);
+      return midf;
+   }
+   else
+   {
+      midf = nodes.Get(e2, e4);
+      if (!midf->vertex) midf->vertex = NewVertex(e2, e4);
+      return midf;
+   }
+}
+
 
 int NCMeshHex::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
                              Node* mid[5])
@@ -296,7 +318,8 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    // TODO: do combined splits at once
    // TODO: check for incompatible refinements between neighbors!!!
 
-   Node** n = elem->node;
+   Node** node = elem->node;
+   Element** child = elem->child;
    int attr = elem->attribute;
 
    // get element's face attributes
@@ -327,64 +350,119 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
 
    if (ref_type == 1) // split along X axis
    {
-      Node* mid01 = GetMidVertex(n[0], n[1]);
-      Node* mid23 = GetMidVertex(n[2], n[3]);
-      Node* mid67 = GetMidVertex(n[6], n[7]);
-      Node* mid45 = GetMidVertex(n[4], n[5]);
+      Node* mid01 = GetMidEdgeVertex(node[0], node[1]);
+      Node* mid23 = GetMidEdgeVertex(node[2], node[3]);
+      Node* mid67 = GetMidEdgeVertex(node[6], node[7]);
+      Node* mid45 = GetMidEdgeVertex(node[4], node[5]);
 
-      child0 = NewElement(n[0], mid01, mid23, n[3],
-                          n[4], mid45, mid67, n[7], attr,
-                          fa[0], fa[1], -1, fa[3], fa[4], fa[5]);
+      child[0] = NewElement(node[0], mid01, mid23, node[3],
+                            node[4], mid45, mid67, node[7], attr,
+                            fa[0], fa[1], -1, fa[3], fa[4], fa[5]);
 
-      child1 = NewElement(mid01, n[1], n[2], mid23,
-                          mid45, n[5], n[6], mid67, attr,
-                          fa[0], fa[1], fa[2], fa[3], -1, fa[5]);
+      child[1] = NewElement(mid01, node[1], node[2], mid23,
+                            mid45, node[5], node[6], mid67, attr,
+                            fa[0], fa[1], fa[2], fa[3], -1, fa[5]);
    }
    else if (ref_type == 2) // split along Y axis
    {
-      Node* mid12 = GetMidVertex(n[1], n[2]);
-      Node* mid30 = GetMidVertex(n[3], n[0]);
-      Node* mid56 = GetMidVertex(n[5], n[6]);
-      Node* mid74 = GetMidVertex(n[7], n[4]);
+      Node* mid12 = GetMidEdgeVertex(node[1], node[2]);
+      Node* mid30 = GetMidEdgeVertex(node[3], node[0]);
+      Node* mid56 = GetMidEdgeVertex(node[5], node[6]);
+      Node* mid74 = GetMidEdgeVertex(node[7], node[4]);
 
-      child0 = NewElement(n[0], n[1], mid12, mid30,
-                          n[4], n[5], mid56, mid74, attr,
-                          fa[0], fa[1], fa[2], -1, fa[4], fa[5]);
+      child[0] = NewElement(node[0], node[1], mid12, mid30,
+                            node[4], node[5], mid56, mid74, attr,
+                            fa[0], fa[1], fa[2], -1, fa[4], fa[5]);
 
-      child1 = NewElement(mid30, mid12, n[2], n[3],
-                          mid74, mid56, n[6], n[7], attr,
-                          fa[0], -1, fa[2], fa[3], fa[4], fa[5]);
+      child[1] = NewElement(mid30, mid12, node[2], node[3],
+                            mid74, mid56, node[6], node[7], attr,
+                            fa[0], -1, fa[2], fa[3], fa[4], fa[5]);
    }
    else if (ref_type == 4) // split along Z axis
    {
-      Node* mid04 = GetMidVertex(n[0], n[4]);
-      Node* mid15 = GetMidVertex(n[1], n[5]);
-      Node* mid26 = GetMidVertex(n[2], n[6]);
-      Node* mid37 = GetMidVertex(n[3], n[7]);
+      Node* mid04 = GetMidEdgeVertex(node[0], node[4]);
+      Node* mid15 = GetMidEdgeVertex(node[1], node[5]);
+      Node* mid26 = GetMidEdgeVertex(node[2], node[6]);
+      Node* mid37 = GetMidEdgeVertex(node[3], node[7]);
 
-      child0 = NewElement(n[0], n[1], n[2], n[3],
-                          mid04, mid15, mid26, mid37, attr,
-                          fa[0], fa[1], fa[2], fa[3], fa[4], -1);
+      child[0] = NewElement(node[0], node[1], node[2], node[3],
+                            mid04, mid15, mid26, mid37, attr,
+                            fa[0], fa[1], fa[2], fa[3], fa[4], -1);
 
-      child1 = NewElement(mid04, mid15, mid26, mid37,
-                          n[4], n[5], n[6], n[7], attr,
-                          -1, fa[1], fa[2], fa[3], fa[4], fa[5]);
+      child[1] = NewElement(mid04, mid15, mid26, mid37,
+                            node[4], node[5], node[6], node[7], attr,
+                            -1, fa[1], fa[2], fa[3], fa[4], fa[5]);
+   }
+   else if (ref_type == 7) // complete isotropic refinement
+   {
+      Node* mid01 = GetMidEdgeVertex(node[0], node[1]);
+      Node* mid12 = GetMidEdgeVertex(node[1], node[2]);
+      Node* mid23 = GetMidEdgeVertex(node[2], node[3]);
+      Node* mid30 = GetMidEdgeVertex(node[3], node[0]);
+
+      Node* mid45 = GetMidEdgeVertex(node[4], node[5]);
+      Node* mid56 = GetMidEdgeVertex(node[5], node[6]);
+      Node* mid67 = GetMidEdgeVertex(node[6], node[7]);
+      Node* mid74 = GetMidEdgeVertex(node[7], node[4]);
+
+      Node* mid04 = GetMidEdgeVertex(node[0], node[4]);
+      Node* mid15 = GetMidEdgeVertex(node[1], node[5]);
+      Node* mid26 = GetMidEdgeVertex(node[2], node[6]);
+      Node* mid37 = GetMidEdgeVertex(node[3], node[7]);
+
+      Node* midf0 = GetMidFaceVertex(mid23, mid12, mid01, mid30);
+      Node* midf1 = GetMidFaceVertex(mid01, mid15, mid45, mid04);
+      Node* midf2 = GetMidFaceVertex(mid12, mid26, mid56, mid15);
+      Node* midf3 = GetMidFaceVertex(mid23, mid37, mid67, mid26);
+      Node* midf4 = GetMidFaceVertex(mid30, mid04, mid74, mid37);
+      Node* midf5 = GetMidFaceVertex(mid45, mid56, mid67, mid74);
+
+      Node* midel = GetMidEdgeVertex(midf1, midf3);
+
+      child[0] = NewElement(node[0], mid01, midf0, mid30,
+                            mid04, midf1, midel, midf4, attr,
+                            fa[0], fa[1], -1, -1, fa[4], -1);
+
+      child[1] = NewElement(mid01, node[1], mid12, midf0,
+                            midf1, mid15, midf2, midel, attr,
+                            fa[0], fa[1], fa[2], -1, -1, -1);
+
+      child[2] = NewElement(midf0, mid12, node[2], mid23,
+                            midel, midf2, mid26, midf3, attr,
+                            fa[0], -1, fa[2], fa[3], -1, -1);
+
+      child[3] = NewElement(mid30, midf0, mid23, node[3],
+                            midf4, midel, midf3, mid37, attr,
+                            fa[0], -1, -1, fa[3], fa[4], -1);
+
+      child[4] = NewElement(mid04, midf1, midel, midf4,
+                            node[4], mid45, midf5, mid74, attr,
+                            -1, fa[1], -1, -1, fa[4], fa[5]);
+
+      child[5] = NewElement(midf1, mid15, midf2, midel,
+                            mid45, node[5], mid56, midf5, attr,
+                            -1, fa[1], fa[2], -1, -1, fa[5]);
+
+      child[6] = NewElement(midel, midf2, mid26, midf3,
+                            midf5, mid56, node[6], mid67, attr,
+                            -1, -1, fa[2], fa[3], -1, fa[5]);
+
+      child[7] = NewElement(midf4, midel, midf3, mid37,
+                            mid74, midf5, mid67, node[7], attr,
+                            -1, -1, -1, fa[3], fa[4], fa[5]);
    }
 
    // start using the nodes of the children, create edges & faces
-   RefVertices(child0); RefEdgesFaces(child0);
-   RefVertices(child1); RefEdgesFaces(child1);
+   for (int i = 0; i < 8; i++)
+   {
+      RefVertices(child[i]);
+      RefEdgesFaces(child[i]);
+   }
 
    // sign off of the edges & faces of the parent, but retain the corners
    UnrefEdgesFaces(elem);
 
-   // mark the original element as refined
    elem->ref_type = ref_type;
-   elem->child[0] = child0;
-   elem->child[1] = child1;
-
-   // keep track of the number of leaf elements
-   num_leaf_elements += 1;
 }
 
 
@@ -404,14 +482,12 @@ void NCMeshHex::Derefine(Element* elem)
          UnrefVertices(elem->child[i]);
          delete elem->child[i];
          elem->child[i] = NULL;
-         num_leaf_elements--;
       }
    }
 
    RefEdgesFaces(elem);
 
    elem->ref_type = 0;
-   num_leaf_elements++;
 
    // FIXME: restore boundary attributes!*/
 }
@@ -495,8 +571,8 @@ void NCMeshHex::GetElements(Array< ::Element*>& elements,
    // NOTE: this assumes GetVertices has already been called
    // so their 'index' member is valid
 
-   elements.SetSize(num_leaf_elements);
    elements.SetSize(0);
+   boundary.SetSize(0);
 
    for (int i = 0; i < root_elements.Size(); i++)
       GetLeafElements(root_elements[i], elements, boundary);
@@ -505,7 +581,28 @@ void NCMeshHex::GetElements(Array< ::Element*>& elements,
 
 //// Interpolation /////////////////////////////////////////////////////////////
 
+void NCMeshHex::MakeVertexIndependent(Node* node)
+{
+   VertexData& vd = v_data[node->vertex->index];
+   if (vd.Unprocessed())
+   {
+      vd.true_dof = next_true_dof++;
+      vd.dep_list.Append(Dependency(vd.true_dof, 1.0));
+   }
+}
 
+void NCMeshHex::AddDependencies(DepList& list, double multiplier,
+                                const DepList& master)
+{
+   if (fabs(multiplier) > 1e-12)
+   {
+      // append all dependencies from 'master', times 'multiplier'
+      for (int i = 0; i < master.Size(); i++)
+      {
+         list.Append(Dependency(multiplier, master[i]));
+      }
+   }
+}
 
 static void make_point_mat(double v0[], double v1[], double v2[], double v3[],
                            DenseMatrix &pm)
@@ -530,7 +627,7 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
       if (face)
       {
          // yes, we need to make this face constrained
-         DenseMatrix I;
+         DenseMatrix I(master->face_fe->GetDof());
          master->face_fe->GetLocalInterpolation(face_T, I);
 
          Node* v[4] = { v0, v1, v2, v3 };
@@ -538,14 +635,13 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
          {
             // make v[i] dependent on all master face DOFs
             VertexData& vd = v_data[v[i]->vertex->index];
-            if (!vd.Processed())
+            if (vd.Unprocessed())
             {
                vd.true_dof = -1;
                for (int j = 0; j < 4; j++)
-                  AddDependencies(vd.dep_list, I(i, j), master->v[j]);
+                  AddDependencies(vd.dep_list, I(i, j),
+                                  v_data[master->v[j]->vertex->index].dep_list);
             }
-            else
-               MFEM_ASSERT(vd.Dependent(), "aaa");
          }
 
          return;
@@ -560,12 +656,12 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
    DenseMatrix& pm = face_T.GetPointMat();
    double tmid[5][2] =
    {
-      { pm(0,0) + pm(0,1),  pm(1,0) + pm(1,1) }, // bottom (0)
-      { pm(0,1) + pm(0,2),  pm(1,1) + pm(1,2) }, // right (1)
-      { pm(0,2) + pm(0,3),  pm(1,2) + pm(1,3) }, // top (2)
-      { pm(0,3) + pm(0,0),  pm(1,3) + pm(1,0) }, // left (3)
-      { pm(0,0) + pm(0,1) + pm(0,2) + pm(0,3),
-        pm(1,0) + pm(1,1) + pm(1,2) + pm(1,3) }  // middle (4)
+      { (pm(0,0) + pm(0,1)) / 2,  (pm(1,0) + pm(1,1)) / 2 }, // bottom (0)
+      { (pm(0,1) + pm(0,2)) / 2,  (pm(1,1) + pm(1,2)) / 2 }, // right (1)
+      { (pm(0,2) + pm(0,3)) / 2,  (pm(1,2) + pm(1,3)) / 2 }, // top (2)
+      { (pm(0,3) + pm(0,0)) / 2,  (pm(1,3) + pm(1,0)) / 2 }, // left (3)
+      { (pm(0,0) + pm(0,1) + pm(0,2) + pm(0,3)) / 4,
+        (pm(1,0) + pm(1,1) + pm(1,2) + pm(1,3)) / 4 }  // middle (4)
    };
    double tv[4][2] = // backup of original points
    {
@@ -605,73 +701,77 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
       make_point_mat(tmid[3], tmid[4], tmid[2], tv[3], pm);
       ConstrainFace ( mid[3],  mid[4],  mid[2],   v3,  face_T, master, level+1);
    }
-
-   MFEM_ASSERT(0, "Should never get here.");
 }
 
 
 void NCMeshHex::VisitFaces(Element* elem, const FiniteElementCollection *fec)
 {
-   // we're done once we hit a leaf
-   if (!elem->ref_type) return;
-
-   // refined element: check its faces for constraints coming from the outside
-   for (int i = 0; i < 6; i++)
+   if (elem->ref_type)
    {
-      const int* fv = hex_faces[i];
-      Node** node = elem->node;
-      Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
-
-      if (face)
+      // refined element: check its faces for constraints coming from the outside
+      for (int i = 0; i < 6; i++)
       {
-         // there is a complete face on the other side; we need to spawn
-         // a new recursive process that will constrain everything lying on
-         // this master face on our side
+         const int* fv = hex_faces[i];
+         Node** node = elem->node;
+         Face* face = faces.Peek(node[fv[0]], node[fv[1]],
+                                 node[fv[2]], node[fv[3]]);
 
-         // set up a face transformation that will keep track of our position
-         // within the complete face
-         IsoparametricTransformation face_T;
-         face_T.SetFE(&QuadrilateralFE);
-
-         // the initial transformation is identity (vertices of the unit square)
-         DenseMatrix& pm = face_T.GetPointMat();
-         pm.SetSize(2, 4);
-         pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
-         pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
-
-         // package all the constraining nodes in one struct
-         MasterFace master;
-         for (int j = 0; j < 4; j++)
+         if (face && !face->Boundary())
          {
-            master.v[i] = node[fv[i]];
-            //master.e[i] = ...
-         }
-         master.face = face;
+            // there is a complete face on the other side; we need to start
+            // a new recursive process that will constrain everything lying on
+            // this master face on our side
 
-         // make all master face nodes independent, if still uninitialized
-         for (int j = 0; j < 4; j++)
-         {
-            VertexData& vd = v_data[master.v[i]->vertex->index];
-            if (!vd.Processed())
+            // set up a face transformation that will keep track of our position
+            // within the master face
+            IsoparametricTransformation face_T;
+            face_T.SetFE(&QuadrilateralFE);
+
+            // initial transformation is identity (vertices of the unit square)
+            DenseMatrix& pm = face_T.GetPointMat();
+            pm.SetSize(2, 4);
+            pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
+            pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
+
+            // package all constraining nodes in one struct
+            MasterFace master;
+            for (int j = 0; j < 4; j++)
             {
-               vd.true_dof = next_true_dof++;
-               vd.dep_list.Append(Dependency(vd.dof, 1.0));
+               master.v[j] = node[fv[j]];
+               //master.e[j] = ...
+
+               // also, mark the vertices and edges as independent
+               MakeVertexIndependent(master.v[j]);
+               //MakeEdgeIndependent(master.e[j]);
             }
+            master.face = face;
+            master.face_fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
 
-            // EdgeData &ed = ...
+            ConstrainFace(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
+                          face_T, &master, 0);
          }
-
-         master.face_fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
-
-         ConstrainFace(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
-                       face_T, &master, 0);
       }
-   }
 
-   // go further down
-   for (int i = 0; i < 8; i++)
-      if (elem->child[i])
-         VisitFaces(elem->child[i], fec);
+      // go further down
+      for (int i = 0; i < 8; i++)
+         if (elem->child[i])
+            VisitFaces(elem->child[i], fec);
+   }
+   else
+   {
+      // once we hit a leaf just mark all unprocessed nodes as independent
+      for (int i = 0; i < 8; i++)
+         MakeVertexIndependent(elem->node[i]);
+   }
+}
+
+
+void NCMeshHex::ExportDependencies(int dof, DepList& list, SparseMatrix* cP)
+{
+   for (int i = 0; i < list.Size(); i++)
+   {
+      cP->Add(dof, list[i].true_dof, list[i].coef);
+   }
 }
 
 
@@ -686,16 +786,13 @@ SparseMatrix*
    //e_data = new InterpolationData[num_edges];
    //f_data = new InterpolationData[num_faces];
 
-   // assign true DOF numbers to vertices
+   // get nonconforming DOF numbers
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
    {
       if (it->vertex)
       {
          int index = it->vertex->index;
-         VertexData& vd = v_data[index];
-
-         vd.dof = index; // nonconforming DOF: same numbering as in mesh
-         vd.true_dof = -2; // "uninitialized"
+         v_data[index].dof = index;
       }
    }
 
@@ -705,5 +802,19 @@ SparseMatrix*
    // their adjoining faces
    for (int i = 0; i < root_elements.Size(); i++)
       VisitFaces(root_elements[i], f_fes->FEColl());
+
+   // create the conforming prolongation matrix
+   SparseMatrix* cP = new SparseMatrix(f_fes->GetNDofs(), next_true_dof);
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
+      if (it->vertex)
+      {
+         VertexData& vd = v_data[it->vertex->index];
+         ExportDependencies(vd.dof, vd.dep_list, cP);
+      }
+      /*if (it->edge)
+         ExportDependencies(e_data[it->edge->index].dep_list, cP);*/
+   }
+   cP->Finalize();
 }
 

@@ -115,6 +115,9 @@ public:
    SparseMatrix *GetConformingProlongation() { return cP; }
    const SparseMatrix *GetConformingProlongation() const { return cP; }
 
+   // DEBUG JAKUB!!!
+   void SetConformingProlongation(SparseMatrix* cP) { this->cP = cP; }
+
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }
 
