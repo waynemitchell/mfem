@@ -14,7 +14,7 @@
 
 // Data type vector
 
-#include <math.h>
+#include <cmath>
 #include "../general/array.hpp"
 
 /** Count the number of entries in an array of doubles for which isfinite
@@ -203,7 +203,7 @@ inline int CheckFinite(const double *v, const int n)
 {
    int bad = 0;
    for (int i = 0; i < n; i++)
-      if (!isfinite(v[i]))
+      if (!std::isfinite(v[i]))
          bad++;
    return bad;
 }
@@ -278,7 +278,7 @@ inline double Distance(const double *x, const double *y, const int n)
    for (int i = 0; i < n; i++)
       d += (x[i]-y[i])*(x[i]-y[i]);
 
-   return sqrt(d);
+   return std::sqrt(d);
 }
 
 #endif
