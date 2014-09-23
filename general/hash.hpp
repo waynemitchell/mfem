@@ -17,12 +17,16 @@
 
 /** A concept for items that should be used in HashTable and be accessible by
  *  hashing two IDs.
+ *
+ *  NOTE: the CRTP pattern is needed for correct pointer arithmetics if the
+ *        derived class uses multiple inheritance.
  */
+template<typename Derived>
 struct Hashed2
 {
    int id;
    int p1, p2;
-   Hashed2* next;
+   Derived* next;
 
    Hashed2(int id) : id(id) {}
 };
@@ -30,11 +34,12 @@ struct Hashed2
 /** A concept for items that should be used in HashTable and be accessible by
  *  hashing four IDs.
  */
+template<typename Derived>
 struct Hashed4
 {
    int id;
    int p1, p2, p3; // NOTE: p4 is not hashed nor stored
-   Hashed4* next;
+   Derived* next;
 
    Hashed4(int id) : id(id) {}
 };
@@ -143,10 +148,10 @@ protected:
       { return (984120265*p1 + 125965121*p2 + 495698413*p3) & mask; }
 
    // Remove() uses one of the following two overloads:
-   inline int hash(const Hashed2* item) const
+   inline int hash(const Hashed2<ItemT>* item) const
       { return hash(item->p1, item->p2); }
 
-   inline int hash(const Hashed4* item) const
+   inline int hash(const Hashed4<ItemT>* item) const
       { return hash(item->p1, item->p2, item->p3); }
 
    ItemT* SearchList(ItemT* item, int p1, int p2) const;
@@ -308,7 +313,7 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2) const
    while (item != NULL)
    {
       if (item->p1 == p1 && item->p2 == p2) return item;
-      item = (ItemT*) item->next;
+      item = item->next;
       ncollisions++;
    }
    return NULL;
@@ -321,7 +326,7 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3) const
    while (item != NULL)
    {
       if (item->p1 == p1 && item->p2 == p2 && item->p3 == p3) return item;
-      item = (ItemT*) item->next;
+      item = item->next;
       ncollisions++;
    }
    return NULL;
@@ -338,10 +343,10 @@ void HashTable<ItemT>::Delete(ItemT* item)
    {
       if (*ptr == item)
       {
-         *ptr = (ItemT*) item->next;
+         *ptr = item->next;
          goto ok;
       }
-      ptr = (ItemT**) &((*ptr)->next);
+      ptr = &((*ptr)->next);
    }
    mfem_error("HashTable<>::Delete: item not found!");
 
@@ -368,7 +373,7 @@ void HashTable<ItemT>::Iterator::next()
    if (cur_item)
    {
       // iterate through a list of hash synonyms
-      cur_item = (ItemT*) cur_item->next;
+      cur_item = cur_item->next;
    }
 
    // do we need to switch the next bin?

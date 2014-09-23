@@ -45,10 +45,20 @@ public:
        original mesh. These are the roots of the refinement trees. */
    Element* GetRootElement(int index) { return root_elements[index]; }
 
-   int NRootElements() const { return root_elements.Size(); }
+   /** Returns a leaf (unrefined) elements. NOTE: leaf elements are enumerated
+       when converting from NCMeshHex to Mesh. Only use this function after. */
+   Element* GetLeafElement(int index) { return leaf_elements[index]; }
 
-   void Refine(Element* elem, int ref_type /*= 7*/);
+   int NRootElements() const { return root_elements.Size(); }
+   int NLeafElements() const { return leaf_elements.Size(); }
+
+   void Refine(Element* elem, int ref_type);
    void Derefine(Element* elem);
+
+   void Refine(int index, int ref_type)
+      { Refine(GetLeafElement(index), ref_type); }
+   void Derefine(int index)
+      { Derefine(GetLeafElement(index)); }
 
    SparseMatrix *GetInterpolation(Mesh *f_mesh, FiniteElementSpace *f_fes);
 
@@ -59,6 +69,8 @@ protected: // interface for Mesh to be able to construct itself from us
    void GetVertices(Array< ::Vertex>& vertices);
    void GetElements(Array< ::Element*>& elements,
                     Array< ::Element*>& boundary);
+
+   Array<Element*> leaf_elements; // initialized by GetElements
 
    friend class Mesh;
 
@@ -99,12 +111,12 @@ protected: // implementation
    };
 
    ///
-   struct Node : public Hashed2
+   struct Node : public Hashed2<Node>
    {
       Vertex* vertex;
       Edge* edge;
 
-      Node(int id) : Hashed2(id), vertex(NULL), edge(NULL) {}
+      Node(int id) : Hashed2<Node>(id), vertex(NULL), edge(NULL) {}
 
       // Bump ref count on a vertex or an edge, or create them. Used when an
       // element starts using a vertex or an edge.
@@ -121,12 +133,12 @@ protected: // implementation
    };
 
    ///
-   struct Face : public RefCount, public Hashed4
+   struct Face : public RefCount, public Hashed4<Face>
    {
       int attribute; ///< boundary element attribute, -1 if internal face
       int index; ///<  internal numbering, set by IndexFaces to 0..NF-1
 
-      Face(int id) : Hashed4(id), attribute(-1) {}
+      Face(int id) : Hashed4<Face>(id), attribute(-1) {}
 
       bool Boundary() const { return attribute >= 0; }
 

@@ -493,10 +493,11 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
 
    // start using the nodes of the children, create edges & faces
    for (int i = 0; i < 8; i++)
-   {
-      RefVertices(child[i]);
-      RefEdgesFaces(child[i]);
-   }
+      if (child[i])
+      {
+         RefVertices(child[i]);
+         RefEdgesFaces(child[i]);
+      }
 
    // sign off of the edges & faces of the parent, but retain the corners
    UnrefEdgesFaces(elem);
@@ -578,6 +579,7 @@ void NCMeshHex::GetLeafElements(Element* e,
          hex->GetVertices()[i] = e->node[i]->vertex->index;
 
       elements.Append(hex);
+      leaf_elements.Append(e);
 
       // also return boundary elements
       for (int i = 0; i < 6; i++)
@@ -612,6 +614,7 @@ void NCMeshHex::GetElements(Array< ::Element*>& elements,
 
    elements.SetSize(0);
    boundary.SetSize(0);
+   leaf_elements.SetSize(0);
 
    for (int i = 0; i < root_elements.Size(); i++)
       GetLeafElements(root_elements[i], elements, boundary);
