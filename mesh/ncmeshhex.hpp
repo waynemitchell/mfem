@@ -183,14 +183,11 @@ protected: // implementation
 
    struct Dependency
    {
-      int true_dof;
+      int dof;
       double coef;
 
-      Dependency(int true_dof, double coef)
-         : true_dof(true_dof), coef(coef) {}
-
-      Dependency(double multiplier, const Dependency& other)
-         : true_dof(other.true_dof), coef(multiplier * other.coef) {}
+      Dependency(int dof, double coef)
+         : dof(dof), coef(coef) {}
    };
 
    typedef Array<Dependency> DepList;
@@ -199,26 +196,20 @@ protected: // implementation
    struct VertexData
    {
       int dof;      ///< original nonconforming FESpace-assigned DOF number
-      int true_dof; ///< conforming true DOF number, -1 if slave DOF
-      DepList dep_list; ///< what true DOFs does this vertex depend on?
+      int true_dof; ///< conforming true DOF number, -1 if slave
+      bool finalized; ///< true if cP matrix row is known for this DOF
 
-      bool Independent() const { return true_dof >= 0; }
-      bool Dependent() const { return true_dof == -1; }
-      bool Unprocessed() const { return true_dof <= -2; }
+      DepList dep_list; ///< what other DOFs does this vertex depend on?
+      bool Independent() const { return !dep_list.Size(); }
 
-      VertexData() : true_dof(-2) {}
+      VertexData() : true_dof(-1), finalized(false) {}
    };
 
    VertexData* v_data; ///< vertex temporary data
 /*   InterpolationData* e_data; ///< edge temporary data
    InterpolationData* f_data; ///< face temporary data*/
 
-   int next_true_dof;
-
-   void MakeVertexIndependent(Node* node);
-
-   void AddDependencies(DepList& list, double multiplier, const DepList& master);
-   void ExportDependencies(int dof, DepList& list, SparseMatrix* cP);
+   bool VertexFinalizable(VertexData& vd);
 
    struct MasterFace
    {
@@ -233,8 +224,6 @@ protected: // implementation
                       MasterFace* master, int level);
 
    void VisitFaces(Element* elem, const FiniteElementCollection *fec);
-
-
 
 };
 

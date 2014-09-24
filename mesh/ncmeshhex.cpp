@@ -623,30 +623,6 @@ void NCMeshHex::GetElements(Array< ::Element*>& elements,
 
 //// Interpolation /////////////////////////////////////////////////////////////
 
-void NCMeshHex::MakeVertexIndependent(Node* node)
-{
-   VertexData& vd = v_data[node->vertex->index];
-   if (vd.Unprocessed())
-   {
-      // assign a true DOF and make an 'identity' row in the final matrix
-      vd.true_dof = next_true_dof++;
-      vd.dep_list.Append(Dependency(vd.true_dof, 1.0));
-   }
-}
-
-void NCMeshHex::AddDependencies(DepList& list, double multiplier,
-                                const DepList& master)
-{
-   if (fabs(multiplier) > 1e-12)
-   {
-      // append all dependencies from 'master', times 'multiplier'
-      for (int i = 0; i < master.Size(); i++)
-      {
-         list.Append(Dependency(multiplier, master[i]));
-      }
-   }
-}
-
 static void make_point_mat(double v0[], double v1[], double v2[], double v3[],
                            DenseMatrix &pm)
 {
@@ -678,12 +654,18 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
          {
             // make v[i] dependent on all master face DOFs
             VertexData& vd = v_data[v[i]->vertex->index];
-            if (vd.Unprocessed())
+            if (vd.Independent())
             {
-               vd.true_dof = -1;
                for (int j = 0; j < 4; j++)
-                  AddDependencies(vd.dep_list, I(i, j),
-                                  v_data[master->v[j]->vertex->index].dep_list);
+               {
+                  double coef = I(i, j);
+                  if (fabs(coef) > 1e-12)
+                  {
+                     int dof = v_data[master->v[j]->vertex->index].dof;
+                     if (dof != vd.dof)
+                        vd.dep_list.Append(Dependency(dof, coef));
+                  }
+               }
             }
          }
 
@@ -749,72 +731,64 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
 
 void NCMeshHex::VisitFaces(Element* elem, const FiniteElementCollection *fec)
 {
-   if (elem->ref_type)
+   // we're done once we hit a leaf
+   if (!elem->ref_type) return;
+
+   // refined element: check its faces for constraints coming from the outside
+   for (int i = 0; i < 6; i++)
    {
-      // refined element: check its faces for constraints coming from the outside
-      for (int i = 0; i < 6; i++)
+      const int* fv = hex_faces[i];
+      Node** node = elem->node;
+      Face* face = faces.Peek(node[fv[0]], node[fv[1]],
+                              node[fv[2]], node[fv[3]]);
+
+      if (face && !face->Boundary())
       {
-         const int* fv = hex_faces[i];
-         Node** node = elem->node;
-         Face* face = faces.Peek(node[fv[0]], node[fv[1]],
-                                 node[fv[2]], node[fv[3]]);
+         // there is a complete face on the other side; we need to start
+         // a new recursive process that will constrain everything lying on
+         // this master face on our side
 
-         if (face && !face->Boundary())
+         // set up a face transformation that will keep track of our position
+         // within the master face
+         IsoparametricTransformation face_T;
+         face_T.SetFE(&QuadrilateralFE);
+
+         // initial transformation is identity (vertices of the unit square)
+         DenseMatrix& pm = face_T.GetPointMat();
+         pm.SetSize(2, 4);
+         pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
+         pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
+
+         // package all constraining nodes in one struct
+         MasterFace master;
+         for (int j = 0; j < 4; j++)
          {
-            // there is a complete face on the other side; we need to start
-            // a new recursive process that will constrain everything lying on
-            // this master face on our side
-
-            // set up a face transformation that will keep track of our position
-            // within the master face
-            IsoparametricTransformation face_T;
-            face_T.SetFE(&QuadrilateralFE);
-
-            // initial transformation is identity (vertices of the unit square)
-            DenseMatrix& pm = face_T.GetPointMat();
-            pm.SetSize(2, 4);
-            pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
-            pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
-
-            // package all constraining nodes in one struct
-            MasterFace master;
-            for (int j = 0; j < 4; j++)
-            {
-               master.v[j] = node[fv[j]];
-               //master.e[j] = ...
-
-               // also, mark the vertices and edges as independent
-               MakeVertexIndependent(master.v[j]);
-               //MakeEdgeIndependent(master.e[j]);
-            }
-            master.face = face;
-            master.face_fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
-
-            ConstrainFace(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
-                          face_T, &master, 0);
+            master.v[j] = node[fv[j]];
+            //master.e[j] = ...
          }
-      }
+         master.face = face;
+         master.face_fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
 
-      // go further down
-      for (int i = 0; i < 8; i++)
-         if (elem->child[i])
-            VisitFaces(elem->child[i], fec);
+         ConstrainFace(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
+                       face_T, &master, 0);
+      }
    }
-   else
-   {
-      // once we hit a leaf just mark all unprocessed nodes as independent
-      for (int i = 0; i < 8; i++)
-         MakeVertexIndependent(elem->node[i]);
-   }
+
+   // go further down
+   for (int i = 0; i < 8; i++)
+      if (elem->child[i])
+         VisitFaces(elem->child[i], fec);
 }
 
 
-void NCMeshHex::ExportDependencies(int dof, DepList& list, SparseMatrix* cP)
+bool NCMeshHex::VertexFinalizable(VertexData& vd)
 {
-   for (int i = 0; i < list.Size(); i++)
-   {
-      cP->Add(dof, list[i].true_dof, list[i].coef);
-   }
+   // are all constraining DOFs finalized?
+   for (int i = 0; i < vd.dep_list.Size(); i++)
+      if (!v_data[vd.dep_list[i].dof /*FIXME*/].finalized)
+         return false;
+
+   return true;
 }
 
 
@@ -839,29 +813,67 @@ SparseMatrix*
       }
    }
 
-   next_true_dof = 0;
-
    // traverse hierarych top-down, find constraining faces, constrain
    // their adjoining faces
    for (int i = 0; i < root_elements.Size(); i++)
+   {
       VisitFaces(root_elements[i], f_fes->FEColl());
+   }
+
+   // assign true DOFs to vertices that stayed independent
+   int next_true_dof = 0;
+   for (int i = 0; i < num_vert; i++)
+   {
+      VertexData& vd = v_data[i];
+      if (vd.Independent())
+         vd.true_dof = next_true_dof++;
+   }
 
    // create the conforming prolongation matrix
    SparseMatrix* cP = new SparseMatrix(f_fes->GetNDofs(), next_true_dof);
-   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+
+   // put identity in the matrix for independent vertices
+   for (int i = 0; i < num_vert; i++)
    {
-      if (it->vertex)
+      VertexData& vd = v_data[i];
+      if (vd.Independent())
       {
-         VertexData& vd = v_data[it->vertex->index];
-         ExportDependencies(vd.dof, vd.dep_list, cP);
+         cP->Add(vd.dof, vd.true_dof, 1.0);
+         vd.finalized = true;
       }
-      /*if (it->edge)
-         ExportDependencies(e_data[it->edge->index].dep_list, cP);*/
    }
-   cP->Finalize();
+
+   // resolve dependencies
+   bool finished;
+   do
+   {
+      finished = true;
+      for (int i = 0; i < num_vert; i++)
+      {
+         VertexData& vd = v_data[i];
+         if (!vd.finalized && VertexFinalizable(vd))
+         {
+            for (int j = 0; j < vd.dep_list.Size(); j++)
+            {
+               Dependency& dep = vd.dep_list[j];
+
+               Array<int> cols;
+               Vector srow;
+               cP->GetRow(dep.dof, cols, srow);
+
+               for (int k = 0; k < cols.Size(); k++)
+                  cP->Add(vd.dof, cols[k], dep.coef * srow[k]);
+            }
+            vd.finalized = true;
+            finished = false;
+         }
+      }
+   }
+   while (!finished);
 
    delete [] v_data;
 
+   cP->Finalize();
    return cP;
 }
 
