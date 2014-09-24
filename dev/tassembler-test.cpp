@@ -5,9 +5,19 @@
 
 using namespace std;
 
+#ifdef BGQPROF
+#include <mpi.h>
+extern "C" HPM_Start(char*);
+extern "C" HPM_Stop(char*);
+#endif
 
-int main()
+
+int main(int argc, char *argv[])
 {
+#ifdef BGQPROF
+   MPI_Init(&argc, &argv);
+#endif
+
    const int dim = 2;   // space dimension (3D not implemented)
    const int p   = 2;   // polynomial degree
    const int q   = 4;   // quadrature points in each spatial direction
@@ -19,7 +29,20 @@ int main()
    const int MiB = 1024*1024;
    const int GiB = 1024*MiB;
 
+#ifndef BGQPROF
    const int max_mem = 512*MiB;
+
+   const int mesh_2D_nx = 1200/p;
+   const int mesh_2D_ny = 800/p;
+#else
+   const int max_mem = 32*MiB;
+
+   const int mesh_2D_nx = 600/p;
+   const int mesh_2D_ny = 400/p;
+#endif
+
+   const int mesh_2D_sx = 3.;
+   const int mesh_2D_sy = 2.;
 
    typedef TMassIntegrator<dim, nq>      mass_integ_type;
    typedef TDiffusionIntegrator<dim, nq> diff_integ_type;
@@ -64,7 +87,8 @@ int main()
 
    Mesh *mesh = NULL;
    if (dim == 2)
-      mesh = new Mesh(1200/p, 800/p, Element::QUADRILATERAL, 1, 3., 2.);
+      mesh = new Mesh(mesh_2D_nx, mesh_2D_ny, Element::QUADRILATERAL, 1,
+                      mesh_2D_sx, mesh_2D_sy);
    else if (dim == 3)
       mesh = new Mesh(200/p, 120/p, 80/p, Element::HEXAHEDRON, 1, 5., 3., 2.);
 
@@ -259,6 +283,9 @@ int main()
    cout << "Experimental assembler (NOT using assembled data):" << endl;
 
    mass_assembler.use_assembled_data = false;
+#ifdef BGQPROF
+   HPM_Start("Unassembled_mass");
+#endif
    tic();
    for (int i = 0; i < num_vecs; i++)
    {
@@ -268,6 +295,9 @@ int main()
       mass_assembler.Mult(ui, vi);
    }
    tic_toc.Stop();
+#ifdef BGQPROF
+   HPM_Stop("Unassembled_mass");
+#endif
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    bflops = flops_basis*(dim*dim+2);
@@ -291,6 +321,9 @@ int main()
    cout << endl;
 
    diff_assembler.use_assembled_data = false;
+#ifdef BGQPROF
+   HPM_Start("Unassembled_diff");
+#endif
    tic();
    for (int i = 0; i < num_vecs; i++)
    {
@@ -300,6 +333,9 @@ int main()
       diff_assembler.Mult(ui, vi);
    }
    tic_toc.Stop();
+#ifdef BGQPROF
+   HPM_Stop("Unassembled_diff");
+#endif
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    bflops = flops_basis*(dim*(dim+2));
@@ -325,6 +361,9 @@ int main()
    cout << "Experimental assembler (using assembled data):" << endl;
 
    mass_assembler.use_assembled_data = true;
+#ifdef BGQPROF
+   HPM_Start("Partial_assembled_mass");
+#endif
    tic();
    for (int i = 0; i < num_vecs; i++)
    {
@@ -334,6 +373,9 @@ int main()
       mass_assembler.Mult(ui, vi);
    }
    tic_toc.Stop();
+#ifdef BGQPROF
+   HPM_Stop("Partial_assembled_mass");
+#endif
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    bflops = flops_basis*(2);
@@ -357,6 +399,9 @@ int main()
    cout << endl;
 
    diff_assembler.use_assembled_data = true;
+#ifdef BGQPROF
+   HPM_Start("Partial_assembled_diff");
+#endif
    tic();
    for (int i = 0; i < num_vecs; i++)
    {
@@ -366,6 +411,9 @@ int main()
       diff_assembler.Mult(ui, vi);
    }
    tic_toc.Stop();
+#ifdef BGQPROF
+   HPM_Stop("Partial_assembled_diff");
+#endif
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    bflops = flops_basis*(2*dim);
@@ -390,6 +438,9 @@ int main()
    cout << endl;
    cout << "Assembled bilinear forms (csr format):" << endl;
 
+#ifdef BGQPROF
+   HPM_Start("MFEM_assembled_mass");
+#endif
    tic();
    for (int i = 0; i < num_vecs; i++)
    {
@@ -399,6 +450,9 @@ int main()
       mass_form.Mult(ui, vi);
    }
    tic_toc.Stop();
+#ifdef BGQPROF
+   HPM_Stop("MFEM_assembled_mass");
+#endif
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = double(mass_mat.NumNonZeroElems())*num_vecs; // multiplies only
@@ -416,6 +470,9 @@ int main()
 
    cout << endl;
 
+#ifdef BGQPROF
+   HPM_Start("MFEM_assembled_diff");
+#endif
    tic();
    for (int i = 0; i < num_vecs; i++)
    {
@@ -425,6 +482,9 @@ int main()
       diff_form.Mult(ui, vi);
    }
    tic_toc.Stop();
+#ifdef BGQPROF
+   HPM_Stop("MFEM_assembled_diff");
+#endif
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = double(diff_mat.NumNonZeroElems())*num_vecs; // multiplies only
@@ -446,6 +506,9 @@ int main()
    int actn_num_vecs = num_vecs/10;
    cout << "number of matrix-vector products = " << actn_num_vecs << endl;
 
+#ifdef BGQPROF
+   HPM_Start("MFEM_unassembled_diff");
+#endif
    tic();
    for (int i = 0; i < actn_num_vecs; i++)
    {
@@ -455,6 +518,9 @@ int main()
       diff_actn.Mult(ui, vi);
    }
    tic_toc.Stop();
+#ifdef BGQPROF
+   HPM_Stop("MFEM_unassembled_diff");
+#endif
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = 0.;
@@ -477,6 +543,10 @@ int main()
    delete fes;
    delete fec;
    delete mesh;
+
+#ifdef BGQPROF
+   MPI_Finalize();
+#endif
 
    return 0;
 }

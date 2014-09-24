@@ -18,6 +18,16 @@ ifeq ($(TEST_EIGEN),YES)
    EIGEN_FLAGS = -I$(EIGEN_DIR) -DTEST_EIGEN=1
 endif
 
+ENABLE_BGQPROF = NO
+ifeq ($(ENABLE_BGQPROF),YES)
+   # use the bgq back-end mpi compiler:
+   CXX = mpixlcxx_r
+   # CXXFLAGS = -O2 -qmaxmem=-1 -qnoeh
+   CXXFLAGS = -O5 -qmaxmem=-1 -qnoeh
+   CXXFLAGS += -DBGQPROF
+   MFEM_LIBS += -L/usr/local/tools/mpitrace/lib -lmpihpm -L/bgsys/drivers/ppcfloor/bgpm/lib -lbgpm -lrt -lstdc++ -lhpmprof
+endif
+
 ALL_FLAGS = $(CXXFLAGS) -I$(MFEM_DIR) $(EIGEN_FLAGS)
 
 TESTS_CPP = $(wildcard *-test.cpp)
