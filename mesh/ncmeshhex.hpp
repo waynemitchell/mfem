@@ -60,7 +60,7 @@ public:
    void Derefine(int index)
       { Derefine(GetLeafElement(index)); }
 
-   SparseMatrix *GetInterpolation(Mesh *f_mesh, FiniteElementSpace *f_fes);
+   SparseMatrix *GetInterpolation(Mesh *f_mesh, FiniteElementSpace *fes);
 
    ~NCMeshHex();
 
@@ -206,8 +206,6 @@ protected: // implementation
    };
 
    VertexData* v_data; ///< vertex temporary data
-/*   InterpolationData* e_data; ///< edge temporary data
-   InterpolationData* f_data; ///< face temporary data*/
 
    bool VertexFinalizable(VertexData& vd);
 
@@ -223,7 +221,8 @@ protected: // implementation
                       IsoparametricTransformation& face_T,
                       MasterFace* master, int level);
 
-   void VisitFaces(Element* elem, const FiniteElementCollection *fec);
+   void ProcessMasterFace(Node* node[4], Face* face,
+                          const FiniteElementCollection *fec);
 
 };
 

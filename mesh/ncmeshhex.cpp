@@ -729,55 +729,31 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
 }
 
 
-void NCMeshHex::VisitFaces(Element* elem, const FiniteElementCollection *fec)
+void NCMeshHex::ProcessMasterFace(Node* node[4], Face* face,
+                                  const FiniteElementCollection *fec)
 {
-   // we're done once we hit a leaf
-   if (!elem->ref_type) return;
+   // set up a face transformation that will keep track of our position
+   // within the master face
+   IsoparametricTransformation face_T;
+   face_T.SetFE(&QuadrilateralFE);
 
-   // refined element: check its faces for constraints coming from the outside
-   for (int i = 0; i < 6; i++)
+   // initial transformation is identity (vertices of the unit square)
+   DenseMatrix& pm = face_T.GetPointMat();
+   pm.SetSize(2, 4);
+   pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
+   pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
+
+   // package all constraining nodes in one struct
+   MasterFace master;
+   for (int i = 0; i < 4; i++)
    {
-      const int* fv = hex_faces[i];
-      Node** node = elem->node;
-      Face* face = faces.Peek(node[fv[0]], node[fv[1]],
-                              node[fv[2]], node[fv[3]]);
-
-      if (face && !face->Boundary())
-      {
-         // there is a complete face on the other side; we need to start
-         // a new recursive process that will constrain everything lying on
-         // this master face on our side
-
-         // set up a face transformation that will keep track of our position
-         // within the master face
-         IsoparametricTransformation face_T;
-         face_T.SetFE(&QuadrilateralFE);
-
-         // initial transformation is identity (vertices of the unit square)
-         DenseMatrix& pm = face_T.GetPointMat();
-         pm.SetSize(2, 4);
-         pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
-         pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
-
-         // package all constraining nodes in one struct
-         MasterFace master;
-         for (int j = 0; j < 4; j++)
-         {
-            master.v[j] = node[fv[j]];
-            //master.e[j] = ...
-         }
-         master.face = face;
-         master.face_fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
-
-         ConstrainFace(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
-                       face_T, &master, 0);
-      }
+      master.v[i] = node[i];
+      //master.e[j] = ...
    }
+   master.face = face;
+   master.face_fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
 
-   // go further down
-   for (int i = 0; i < 8; i++)
-      if (elem->child[i])
-         VisitFaces(elem->child[i], fec);
+   ConstrainFace(node[0], node[1], node[2], node[3], face_T, &master, 0);
 }
 
 
@@ -793,7 +769,7 @@ bool NCMeshHex::VertexFinalizable(VertexData& vd)
 
 
 SparseMatrix*
-   NCMeshHex::GetInterpolation(Mesh *f_mesh, FiniteElementSpace *f_fes)
+   NCMeshHex::GetInterpolation(Mesh*, FiniteElementSpace *fes)
 {
    int num_vert = IndexVertices();
    //int num_edges = IndexEdges();
@@ -813,11 +789,30 @@ SparseMatrix*
       }
    }
 
-   // traverse hierarych top-down, find constraining faces, constrain
-   // their adjoining faces
-   for (int i = 0; i < root_elements.Size(); i++)
+   // visit faces of leaf elements
+   for (int i = 0; i < leaf_elements.Size(); i++)
    {
-      VisitFaces(root_elements[i], f_fes->FEColl());
+      Element* elem = leaf_elements[i];
+      MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
+
+      for (int i = 0; i < 6; i++)
+      {
+         Node* node[4];
+         const int* fv = hex_faces[i];
+         for (int j = 0; j < 4; j++)
+            node[j] = elem->node[fv[j]];
+
+         Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
+         MFEM_ASSERT(face, "Face not found!");
+
+         if (face->ref_count == 1 && !face->Boundary())
+         {
+            // we found a face that is complete on one side and refined on the
+            // other; we need to start a recursive process that will make all
+            // DOFs lying on the other side dependent on this master face
+            ProcessMasterFace(node, face, fes->FEColl());
+         }
+      }
    }
 
    // assign true DOFs to vertices that stayed independent
@@ -830,7 +825,7 @@ SparseMatrix*
    }
 
    // create the conforming prolongation matrix
-   SparseMatrix* cP = new SparseMatrix(f_fes->GetNDofs(), next_true_dof);
+   SparseMatrix* cP = new SparseMatrix(fes->GetNDofs(), next_true_dof);
 
    // put identity in the matrix for independent vertices
    for (int i = 0; i < num_vert; i++)
