@@ -112,7 +112,10 @@ public:
 
    /// Remove an item from the hash table and also delete the item itself.
    void Delete(ItemT* item);
-   void Delete(int id) { Delete(Peek(id)); }
+
+   /// Make an item hashed under different parent IDs.
+   void Reparent(ItemT* item, int new_p1, int new_p2);
+   void Reparent(ItemT* item, int new_p1, int new_p2, int new_p3, int new_p4);
 
    /// Iterator over items contained in the HashTable.
    class Iterator
@@ -156,6 +159,9 @@ protected:
 
    ItemT* SearchList(ItemT* item, int p1, int p2) const;
    ItemT* SearchList(ItemT* item, int p1, int p2, int p3) const;
+
+   void Insert(int idx, ItemT* item);
+   void Unlink(ItemT* item);
 
    IdGenerator id_gen; ///< id generator for new items
    Array<ItemT*> id_to_item; ///< mapping table for the Peek(id) method
@@ -238,6 +244,21 @@ ItemT* HashTable<ItemT>::Peek(int p1, int p2, int p3, int p4) const
 }
 
 template<typename ItemT>
+void HashTable<ItemT>::Insert(int idx, ItemT* item)
+{
+   // insert into hashtable
+   item->next = table[idx];
+   table[idx] = item;
+
+   // if this is a new bin, make sure the iterator will find it
+   if (new_bin[idx])
+   {
+      used_bins.Append(idx);
+      new_bin[idx] = 0;
+   }
+}
+
+template<typename ItemT>
 ItemT* HashTable<ItemT>::Get(int p1, int p2)
 {
   // search for the item in the hashtable
@@ -252,15 +273,7 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2)
   newitem->p2 = p2;
 
   // insert into hashtable
-  newitem->next = table[idx];
-  table[idx] = newitem;
-
-  // if this is a new bin, make sure the iterator will find it
-  if (new_bin[idx])
-  {
-     used_bins.Append(idx);
-     new_bin[idx] = 0;
-  }
+  Insert(idx, newitem);
 
   // also, maintain the mapping ID -> item
   if (id_to_item.Size() <= newitem->id) {
@@ -287,15 +300,7 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
   newitem->p3 = p3;
 
   // insert into hashtable
-  newitem->next = table[idx];
-  table[idx] = newitem;
-
-  // if this is a new bin, make sure the iterator will find it
-  if (new_bin[idx])
-  {
-     used_bins.Append(idx);
-     new_bin[idx] = 0;
-  }
+  Insert(idx, newitem);
 
   // also, maintain the mapping ID -> item
   if (id_to_item.Size() <= newitem->id) {
@@ -333,31 +338,65 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3) const
 }
 
 template<typename ItemT>
-void HashTable<ItemT>::Delete(ItemT* item)
+void HashTable<ItemT>::Unlink(ItemT* item)
 {
-   int idx = hash(item);
-
-   // remove item from the hash table
-   ItemT** ptr = table + idx;
+   // remove item from the linked list
+   ItemT** ptr = table + hash(item);
    while (*ptr)
    {
       if (*ptr == item)
       {
          *ptr = item->next;
-         goto ok;
+         return;
       }
       ptr = &((*ptr)->next);
    }
-   mfem_error("HashTable<>::Delete: item not found!");
+   mfem_error("HashTable<>::Unlink: item not found!");
+}
 
-ok:
+template<typename ItemT>
+void HashTable<ItemT>::Delete(ItemT* item)
+{
+   // remove item from the hash table
+   Unlink(item);
+
    // remove from the (ID -> item) map
    id_to_item[item->id] = NULL;
 
-   // reuse the item ID in the future
+   // reuse the its ID in the future
    id_gen.Reuse(item->id);
 
    delete item;
+}
+
+template<typename ItemT>
+void HashTable<ItemT>::Reparent(ItemT* item, int new_p1, int new_p2)
+{
+   Unlink(item);
+
+   if (new_p1 > new_p2) std::swap(new_p1, new_p2);
+   item->p1 = new_p1;
+   item->p2 = new_p2;
+
+   // reinsert under new parent IDs
+   int new_idx = hash(new_p1, new_p2);
+   Insert(new_idx, item);
+}
+
+template<typename ItemT>
+void HashTable<ItemT>::Reparent(ItemT* item,
+                                int new_p1, int new_p2, int new_p3, int new_p4)
+{
+   Unlink(item);
+
+   detail::sort4(new_p1, new_p2, new_p3, new_p4);
+   item->p1 = new_p1;
+   item->p2 = new_p2;
+   item->p3 = new_p3;
+
+   // reinsert under new parent IDs
+   int new_idx = hash(new_p1, new_p2, new_p3);
+   Insert(new_idx, item);
 }
 
 template<typename ItemT>
