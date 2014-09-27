@@ -12,7 +12,7 @@
 // Implementation of class BilinearForm
 
 #include "fem.hpp"
-#include <math.h>
+#include <cmath>
 
 void BilinearForm::AllocMat()
 {

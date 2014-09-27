@@ -17,6 +17,7 @@
 #include "../general/mem_alloc.hpp"
 #include "../general/table.hpp"
 #include "densemat.hpp"
+#include <iostream>
 
 class RowNode
 {
@@ -233,19 +234,19 @@ public:
    SparseMatrix &operator*=(double a);
 
    /// Prints matrix to stream out.
-   void Print(ostream &out = cout, int width = 4) const;
+   void Print(std::ostream &out = std::cout, int width = 4) const;
 
    /// Prints matrix in matlab format.
-   void PrintMatlab(ostream &out = cout) const;
+   void PrintMatlab(std::ostream &out = std::cout) const;
 
    /// Prints matrix in Matrix Market sparse format.
-   void PrintMM(ostream &out = cout) const;
+   void PrintMM(std::ostream &out = std::cout) const;
 
    /// Prints matrix to stream out in hypre_CSRMatrix format.
-   void PrintCSR(ostream &out) const;
+   void PrintCSR(std::ostream &out) const;
 
    /// Prints a sparse matrix to stream out in CSR format.
-   void PrintCSR2(ostream &out) const;
+   void PrintCSR2(std::ostream &out) const;
 
    /// Walks the sparse matrix
    int Walk(int &i, int &j, double &a);

@@ -18,6 +18,7 @@
 #include "table.hpp"
 #include "error.hpp"
 
+using namespace std;
 
 Table::Table (int dim, int connections_per_row)
 {
@@ -217,7 +218,7 @@ int Table::Width() const
    return width + 1;
 }
 
-void Table::Print(ostream & out, int width) const
+void Table::Print(std::ostream & out, int width) const
 {
    int i, j;
 
@@ -235,7 +236,7 @@ void Table::Print(ostream & out, int width) const
    }
 }
 
-void Table::PrintMatlab(ostream & out) const
+void Table::PrintMatlab(std::ostream & out) const
 {
    int i, j;
 
@@ -246,7 +247,7 @@ void Table::PrintMatlab(ostream & out) const
    out << flush;
 }
 
-void Table::Save(ostream & out) const
+void Table::Save(std::ostream & out) const
 {
    int i;
 

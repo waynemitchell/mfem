@@ -16,8 +16,6 @@
 
 #include "Mesquite_all_headers.hpp"
 
-using namespace Mesquite;
-
 class MesquiteMesh : public Mesquite::Mesh
 {
    // tagging interface definition

@@ -11,7 +11,7 @@
 
 // Finite Element classes
 
-#include <math.h>
+#include <cmath>
 #include "fem.hpp"
 
 FiniteElement::FiniteElement(int D, int G, int Do, int O, int F)

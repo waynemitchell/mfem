@@ -16,7 +16,7 @@
 #include <iostream>
 #include <iomanip>
 #include <limits>
-#include <math.h>
+#include <cmath>
 #include <stdlib.h>
 
 #include "vector.hpp"
@@ -24,6 +24,7 @@
 #include "densemat.hpp"
 #include "../general/table.hpp"
 
+using namespace std;
 
 DenseMatrix::DenseMatrix() : Matrix(0)
 {
@@ -2237,7 +2238,7 @@ void DenseMatrix::AdjustDofDirection(Array<int> &dofs)
 }
 
 
-void DenseMatrix::Print(ostream &out, int width) const
+void DenseMatrix::Print(std::ostream &out, int width) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
@@ -2255,7 +2256,7 @@ void DenseMatrix::Print(ostream &out, int width) const
    }
 }
 
-void DenseMatrix::PrintMatlab(ostream &out) const
+void DenseMatrix::PrintMatlab(std::ostream &out) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
@@ -2270,7 +2271,7 @@ void DenseMatrix::PrintMatlab(ostream &out) const
    }
 }
 
-void DenseMatrix::PrintT(ostream &out, int width) const
+void DenseMatrix::PrintT(std::ostream &out, int width) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);

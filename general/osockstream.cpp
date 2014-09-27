@@ -15,6 +15,6 @@ osockstream::osockstream(int port, const char *hostname)
    : socketstream(hostname, port)
 {
    if (!is_open())
-      cerr << "Unable to connect to port " << port << " on "
-           << hostname << endl;
+      std::cerr << "Unable to connect to port " << port << " on "
+           << hostname << '\n';
 }

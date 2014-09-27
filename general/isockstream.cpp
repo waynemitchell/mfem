@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+using namespace std;
 
 isockstream::isockstream(int port)
 {
@@ -98,7 +99,7 @@ int isockstream::read_data(int s, char *buf, int n){
    return(bcount);
 }
 
-void isockstream::receive(istringstream **in)
+void isockstream::receive(std::istringstream **in)
 {
    int size;
    char length[32];

@@ -12,6 +12,8 @@
 #ifndef MFEM_PMESH
 #define MFEM_PMESH
 
+#include <iostream>
+
 /// Class for parallel meshes
 class ParMesh : public Mesh
 {
@@ -111,24 +113,24 @@ public:
 
    /** Print the part of the mesh in the calling processor adding the interface
        as boundary (for visualization purposes) using the default format. */
-   virtual void Print(ostream &out = cout) const;
+   virtual void Print(std::ostream &out = std::cout) const;
 
    /** Print the part of the mesh in the calling processor adding the interface
        as boundary (for visualization purposes) using Netgen/Truegrid format .*/
-   virtual void PrintXG(ostream &out = cout) const;
+   virtual void PrintXG(std::ostream &out = std::cout) const;
 
    /** Write the mesh to the stream 'out' on Process 0 in a form
        suitable for visualization: the mesh is written as a disjoint
        mesh and the shared boundary is added to the actual boundary;
        both the element and boundary attributes are set to the
        precessor number.  */
-   void PrintAsOne(ostream &out = cout);
+   void PrintAsOne(std::ostream &out = std::cout);
 
    /// Old mesh format (Netgen/Truegrid) version of 'PrintAsOne'
-   void PrintAsOneXG(ostream &out = cout);
+   void PrintAsOneXG(std::ostream &out = std::cout);
 
    /// Print various parallel mesh stats
-   void PrintInfo(ostream &out = cout);
+   void PrintInfo(std::ostream &out = std::cout);
 
    virtual ~ParMesh();
 };

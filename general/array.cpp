@@ -53,7 +53,7 @@ void BaseArray::GrowSize(int minsize, int elementsize)
 }
 
 template <class T>
-void Array<T>::Print(ostream &out, int width)
+void Array<T>::Print(std::ostream &out, int width)
 {
    for (int i = 0; i < size; i++)
    {
@@ -66,7 +66,7 @@ void Array<T>::Print(ostream &out, int width)
 }
 
 template <class T>
-void Array<T>::Save(ostream &out)
+void Array<T>::Save(std::ostream &out)
 {
    out << size << '\n';
    for (int i = 0; i < size; i++)

@@ -12,6 +12,8 @@
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 
+using namespace std;
+
 NCMesh::Edge::Edge(Edge *my_parent)
    : parent(my_parent)
 {
