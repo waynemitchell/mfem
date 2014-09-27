@@ -200,6 +200,26 @@ public:
 
 // Inline methods
 
+inline int CheckFinite(const double *v, const int n)
+{
+   // isfinite didn't appear in a standard until C99, and later C++11
+   // It wasn't standard in C89 or C++98.  PGI as of 14.7 still defines
+   // it as a macro, which sort of screws up everybody else.
+   int bad = 0;
+   for (int i = 0; i < n; i++)
+   {
+#ifdef isfinite
+      if (!isfinite(v[i]))
+#else
+      if (!std::isfinite(v[i]))
+#endif
+      {
+         bad++;
+      }
+   }
+   return bad;
+}
+
 inline Vector::Vector (int s)
 {
    if (s > 0)
@@ -273,26 +293,5 @@ inline double Distance(const double *x, const double *y, const int n)
 
    return sqrt(d);
 }
-
-inline int CheckFinite(const double *v, const int n)
-{
-   // isfinite didn't appear in a standard until C99, and later C++11
-   // It wasn't standard in C89 or C++98.  PGI as of 14.7 still defines
-   // it as a macro, which sort of screws up everybody else.
-   int bad = 0;
-   for (int i = 0; i < n; i++)
-   {
-#ifdef isfinite
-      if (!isfinite(v[i]))
-#else
-      if (!std::isfinite(v[i]))
-#endif
-      {
-         bad++;
-      }
-   }
-   return bad;
-}
-
 
 #endif
