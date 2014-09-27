@@ -118,7 +118,7 @@ void IntegrationRule::GrundmannMollerTetrahedronRule(int s)
    {
       double weight;
 
-      weight = pow(2., -2*s)*pow(d + n - 2*i, d)/fact(i)/fact(d + n - i);
+      weight = pow(2., -2*s)*pow(static_cast<double>(d + n - 2*i), d)/fact(i)/fact(d + n - i);
       if (i%2)
          weight = -weight;
 

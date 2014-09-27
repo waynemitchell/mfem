@@ -14,8 +14,9 @@
 
 // Data type vector
 
-#include <cmath>
 #include "../general/array.hpp"
+#include <cmath>
+#include <iostream>
 
 /** Count the number of entries in an array of doubles for which isfinite
     is false, i.e. the entry is a NaN or +/-Inf. */
@@ -44,13 +45,13 @@ public:
    { data = _data; size = _size; allocsize = -size; }
 
    /// Reads a vector from multpile files
-   void Load (istream ** in, int np, int * dim);
+   void Load (std::istream ** in, int np, int * dim);
 
    /// Load a vector from an input stream.
-   void Load(istream &in, int Size);
+   void Load(std::istream &in, int Size);
 
    /// Load a vector from an input stream.
-   void Load(istream &in) { int s; in >> s; Load (in, s); };
+   void Load(std::istream &in) { int s; in >> s; Load (in, s); };
 
    /// Resizes the vector if the new size is different
    void SetSize(int s);
@@ -167,10 +168,10 @@ public:
                          const Vector & elemvect);
 
    /// Prints vector to stream out.
-   void Print(ostream & out = cout, int width = 8) const;
+   void Print(std::ostream & out = std::cout, int width = 8) const;
 
    /// Prints vector to stream out in HYPRE_Vector format.
-   void Print_HYPRE(ostream &out) const;
+   void Print_HYPRE(std::ostream &out) const;
 
    /// Set random values in the vector.
    void Randomize(int seed = 0);
@@ -201,10 +202,21 @@ public:
 
 inline int CheckFinite(const double *v, const int n)
 {
+   // isfinite didn't appear in a standard until C99, and later C++11
+   // It wasn't standard in C89 or C++98.  PGI as of 14.7 still defines
+   // it as a macro, which sort of screws up everybody else.
    int bad = 0;
    for (int i = 0; i < n; i++)
+   {
+#ifdef isfinite
+      if (!isfinite(v[i]))
+#else
       if (!std::isfinite(v[i]))
+#endif
+      {
          bad++;
+      }
+   }
    return bad;
 }
 
@@ -273,12 +285,13 @@ inline Vector::~Vector()
 
 inline double Distance(const double *x, const double *y, const int n)
 {
+   using namespace std;
    double d = 0.0;
 
    for (int i = 0; i < n; i++)
       d += (x[i]-y[i])*(x[i]-y[i]);
 
-   return std::sqrt(d);
+   return sqrt(d);
 }
 
 #endif
