@@ -133,6 +133,7 @@ void NCMeshHex::Node::UnrefVertex(HashTable<Node> &nodes)
 
 void NCMeshHex::Node::UnrefEdge(HashTable<Node> &nodes)
 {
+   MFEM_ASSERT(this, "Node not found.");
    MFEM_ASSERT(edge, "Cannot unref a nonexistent edge.");
    if (!edge->Unref()) edge = NULL;
    if (!vertex && !edge) nodes.Delete(this);
@@ -244,6 +245,7 @@ NCMeshHex::Vertex* NCMeshHex::NewVertex(Node* v1, Node* v2)
    MFEM_ASSERT(v1->vertex && v2->vertex,
                "NCMeshHex::NewVertex: missing parent vertices.");
 
+   // get the midpoint between v1 and v2
    Vertex* v = new Vertex;
    for (int i = 0; i < 3; i++)
       v->pos[i] = (v1->vertex->pos[i] + v2->vertex->pos[i]) * 0.5;
@@ -290,33 +292,75 @@ int NCMeshHex::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
    if (mid) mid[0] = e1, mid[1] = e2, mid[2] = e3, mid[3] = e4, mid[4] = NULL;
 
    // try to get a mid-face node, either by (e1, e3) or by (e2, e4)
-   Node *midf1, *midf2;
+   Node *midf1 = NULL, *midf2 = NULL;
    if (e1 && e3) midf1 = nodes.Peek(e1, e3);
    if (e2 && e4) midf2 = nodes.Peek(e2, e4);
 
-   // only one way to to access the mid-face node must always exist
+   // only one way to access the mid-face node must always exist
    MFEM_ASSERT(!(midf1 && midf2), "Incorrectly split face!");
 
    if (!midf1 && !midf2) return 0; // face not split
 
-   Node* midf = midf1 ? midf1 : midf2;
-   if (mid) mid[4] = midf;
-
-   if (midf->vertex) return 3; // face split both ways
-
-   MFEM_ASSERT(midf->edge, "Nodes inconsistent!");
+   if (mid) mid[4] = midf1 ? midf1 : midf2;
 
    return midf1 ? 1 : 2; // face split "vertically" or "horizontally"
 }
 
 
-void NCMeshHex::Refine(Element* elem, int ref_type)
+bool NCMeshHex::LegalAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4, int level)
+{
+   // can we split the face vertically?
+   Node* mid[5];
+   switch (FaceSplitType(v1, v2, v3, v4, mid))
+   {
+      // no-split at level zero legal, otherwise illegal
+      case 0: return level == 0;
+
+      // already split vertically, all OK
+      case 1: return true;
+
+      // split horizontally at this level, check lower and upper half
+      case 2: return LegalAnisoSplit(v1, v2, mid[1], mid[3], level+1) &&
+                     LegalAnisoSplit(mid[3], mid[1], v3, v4, level+1);
+
+      default: throw 0; // never happens
+   }
+}
+
+
+void NCMeshHex::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
+                               Node* mid12, Node* mid34)
+{
+/*     v4     mid34     v3
+          *-----*-----*             TODO: explain
+          |     |     |
+          |     |midf |
+    mid41 *- - -*- - -* mid23
+          |     |     |
+          |     |     |
+          *-----*-----*
+       v1     mid12     v2                                     */
+
+   Node* mid23 = nodes.Peek(v2, v3);
+   Node* mid41 = nodes.Peek(v4, v1);
+   if (mid23 && mid41)
+   {
+      Node* midf = nodes.Peek(mid23, mid41);
+      if (midf)
+      {
+        nodes.Reparent(midf, mid12->id, mid34->id);
+
+        CheckAnisoFace(v1, v2, mid23, mid41, mid12, midf);
+        CheckAnisoFace(mid41, mid23, v3, v4, midf, mid34);
+      }
+   }
+}
+
+
+bool NCMeshHex::Refine(Element* elem, int ref_type)
 {
    if (elem->ref_type)
       mfem_error("NCMeshHex::Refine: element already refined.");
-
-   // TODO: do combined splits at once
-   // TODO: check for incompatible refinements between neighbors!!!
 
    Node** node = elem->node;
    Element** child = elem->child;
@@ -330,6 +374,29 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       fa[i] = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
                          elem->node[fv[2]], elem->node[fv[3]])->attribute;
 
+   }
+
+   // check for incompatible anisotropic splits
+   if (ref_type == 1) // split along X axis
+   {
+      if (!LegalAnisoSplit(node[0], node[1], node[5], node[4]) ||
+          !LegalAnisoSplit(node[2], node[3], node[7], node[6]) ||
+          !LegalAnisoSplit(node[4], node[5], node[6], node[7]) ||
+          !LegalAnisoSplit(node[3], node[2], node[1], node[0])) return false;
+   }
+   else if (ref_type == 2) // split along Y axis
+   {
+      if (!LegalAnisoSplit(node[1], node[2], node[6], node[5]) ||
+          !LegalAnisoSplit(node[3], node[0], node[4], node[7]) ||
+          !LegalAnisoSplit(node[5], node[6], node[7], node[4]) ||
+          !LegalAnisoSplit(node[0], node[3], node[2], node[1])) return false;
+   }
+   else if (ref_type == 4) // split along Z axis
+   {
+      if (!LegalAnisoSplit(node[4], node[0], node[1], node[5]) ||
+          !LegalAnisoSplit(node[5], node[1], node[2], node[6]) ||
+          !LegalAnisoSplit(node[6], node[2], node[3], node[7]) ||
+          !LegalAnisoSplit(node[7], node[3], node[0], node[4])) return false;
    }
 
    /* Vertex numbering is assumed to be as follows:
@@ -362,6 +429,11 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       child[1] = NewElement(mid01, node[1], node[2], mid23,
                             mid45, node[5], node[6], mid67, attr,
                             fa[0], fa[1], fa[2], fa[3], -1, fa[5]);
+
+      CheckAnisoFace(node[0], node[1], node[5], node[4], mid01, mid45);
+      CheckAnisoFace(node[2], node[3], node[7], node[6], mid23, mid67);
+      CheckAnisoFace(node[4], node[5], node[6], node[7], mid45, mid67);
+      CheckAnisoFace(node[3], node[2], node[1], node[0], mid23, mid01);
    }
    else if (ref_type == 2) // split along Y axis
    {
@@ -377,6 +449,11 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       child[1] = NewElement(mid30, mid12, node[2], node[3],
                             mid74, mid56, node[6], node[7], attr,
                             fa[0], -1, fa[2], fa[3], fa[4], fa[5]);
+
+      CheckAnisoFace(node[1], node[2], node[6], node[5], mid12, mid56);
+      CheckAnisoFace(node[3], node[0], node[4], node[7], mid30, mid74);
+      CheckAnisoFace(node[5], node[6], node[7], node[4], mid56, mid74);
+      CheckAnisoFace(node[0], node[3], node[2], node[1], mid30, mid12);
    }
    else if (ref_type == 4) // split along Z axis
    {
@@ -392,6 +469,11 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       child[1] = NewElement(mid04, mid15, mid26, mid37,
                             node[4], node[5], node[6], node[7], attr,
                             -1, fa[1], fa[2], fa[3], fa[4], fa[5]);
+
+      CheckAnisoFace(node[4], node[0], node[1], node[5], mid04, mid15);
+      CheckAnisoFace(node[5], node[1], node[2], node[6], mid15, mid26);
+      CheckAnisoFace(node[6], node[2], node[3], node[7], mid26, mid37);
+      CheckAnisoFace(node[7], node[3], node[0], node[4], mid37, mid04);
    }
    else if (ref_type == 3) // XY split
    {
@@ -503,33 +585,14 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    UnrefEdgesFaces(elem);
 
    elem->ref_type = ref_type;
+
+   return true;
 }
 
 
 void NCMeshHex::Derefine(Element* elem)
 {
-/*   // check that all children are leafs   TODO: maybe derefine recursively?
-   for (int i = 0; i < 8; i++)
-      if (elem->child[i] && elem->child[i]->ref_type)
-         mfem_error("NCMeshHex::Derefine: can't derefine element whose child "
-                    "is refined.");
 
-   for (int i = 0; i < 8; i++)
-   {
-      if (elem->child[i])
-      {
-         UnrefEdgesFaces(elem->child[i]);
-         UnrefVertices(elem->child[i]);
-         delete elem->child[i];
-         elem->child[i] = NULL;
-      }
-   }
-
-   RefEdgesFaces(elem);
-
-   elem->ref_type = 0;
-
-   // FIXME: restore boundary attributes!*/
 }
 
 

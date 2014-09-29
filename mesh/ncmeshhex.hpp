@@ -37,6 +37,7 @@ public:
       int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
       Element* child[8]; // children (if ref_type != 0)
       int attribute;
+      // TODO: union on node & child
 
       Element(int attr);
    };
@@ -52,11 +53,11 @@ public:
    int NRootElements() const { return root_elements.Size(); }
    int NLeafElements() const { return leaf_elements.Size(); }
 
-   void Refine(Element* elem, int ref_type);
+   bool Refine(Element* elem, int ref_type);
    void Derefine(Element* elem);
 
-   void Refine(int index, int ref_type)
-      { Refine(GetLeafElement(index), ref_type); }
+   bool Refine(int index, int ref_type)
+      { return Refine(GetLeafElement(index), ref_type); }
    void Derefine(int index)
       { Derefine(GetLeafElement(index)); }
 
@@ -100,7 +101,7 @@ protected: // implementation
       int index; ///< internal numbering, set by IndexVertices to 0..NV-1
 
       Vertex() {}
-      Vertex(double x, double y, double z)
+      Vertex(double x, double y, double z) : index(-1)
          { pos[0] = x, pos[1] = y, pos[2] = z; }
    };
 
@@ -162,6 +163,10 @@ protected: // implementation
 
    int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
                      Node* mid[5] = NULL /* optional output of middle nodes*/);
+
+   bool LegalAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4, int level = 0);
+   void CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
+                       Node* mid12, Node* mid34);
 
    void RefVertices(Element* elem);
    void UnrefVertices(Element* elem);
