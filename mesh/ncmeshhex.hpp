@@ -33,11 +33,13 @@ public:
    ///
    struct Element
    {
-      Node* node[8]; // element corners
-      int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
-      Element* child[8]; // children (if ref_type != 0)
       int attribute;
-      // TODO: union on node & child
+      int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
+      union
+      {
+         Node* node[8]; // element corners (if ref_type == 0)
+         Element* child[8]; // 2-8 children (if ref_type != 0)
+      };
 
       Element(int attr);
    };
@@ -168,11 +170,8 @@ protected: // implementation
    void CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
                        Node* mid12, Node* mid34);
 
-   void RefVertices(Element* elem);
-   void UnrefVertices(Element* elem);
-
-   void RefEdgesFaces(Element *elem);
-   void UnrefEdgesFaces(Element *elem);
+   void RefElementNodes(Element *elem);
+   void UnrefElementNodes(Element *elem);
 
    int IndexVertices();
    int IndexEdges();

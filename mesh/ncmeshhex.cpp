@@ -55,10 +55,9 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
          nc_elem->node[j] = node;
       }
 
-      // increase reference count of the element's vertices
-      RefVertices(nc_elem);
-      // create edges and faces
-      RefEdgesFaces(nc_elem);
+      // increase reference count of all nodes the element is using
+      // (note: this will also create and reference all edge and face nodes)
+      RefElementNodes(nc_elem);
    }
 
    // store boundary element attributes
@@ -103,9 +102,8 @@ void NCMeshHex::DeleteHierarchy(Element* elem)
    }
    else
    {
-      UnrefEdgesFaces(elem);
+      UnrefElementNodes(elem);
    }
-   UnrefVertices(elem);
    delete elem;
 }
 
@@ -146,24 +144,13 @@ NCMeshHex::Node::~Node()
    if (edge) delete edge;
 }
 
-void NCMeshHex::RefVertices(Element* elem)
+void NCMeshHex::RefElementNodes(Element *elem)
 {
+   Node** node = elem->node;
+
    // ref all vertices
    for (int i = 0; i < 8; i++)
-      elem->node[i]->RefVertex();
-}
-
-void NCMeshHex::UnrefVertices(Element* elem)
-{
-   // unref all vertices (possibly destroying them)
-   for (int i = 0; i < 8; i++)
-      elem->node[i]->UnrefVertex(nodes);
-}
-
-void NCMeshHex::RefEdgesFaces(Element *elem)
-{
-   // NOTE: vertices must exist for this to work!
-   Node** node = elem->node;
+      node[i]->RefVertex();
 
    // ref all edges (possibly creating them)
    for (int i = 0; i < 12; i++)
@@ -180,9 +167,8 @@ void NCMeshHex::RefEdgesFaces(Element *elem)
    }
 }
 
-void NCMeshHex::UnrefEdgesFaces(Element *elem)
+void NCMeshHex::UnrefElementNodes(Element *elem)
 {
-   // NOTE: vertices must exist for this to work!
    Node** node = elem->node;
 
    // unref all faces (possibly destroying them)
@@ -199,6 +185,10 @@ void NCMeshHex::UnrefEdgesFaces(Element *elem)
       const int* ev = hex_edges[i];
       nodes.Peek(node[ev[0]], node[ev[1]])->UnrefEdge(nodes);
    }
+
+   // unref all vertices (possibly destroying them)
+   for (int i = 0; i < 8; i++)
+      elem->node[i]->UnrefVertex(nodes);
 }
 
 
@@ -208,7 +198,6 @@ NCMeshHex::Element::Element(int attr)
    : ref_type(0), attribute(attr)
 {
    memset(node, 0, sizeof(node));
-   memset(child, 0, sizeof(child));
 }
 
 NCMeshHex::Element*
@@ -363,7 +352,6 @@ bool NCMeshHex::Refine(Element* elem, int ref_type)
       mfem_error("NCMeshHex::Refine: element already refined.");
 
    Node** node = elem->node;
-   Element** child = elem->child;
    int attr = elem->attribute;
 
    // get element's face attributes
@@ -413,7 +401,8 @@ bool NCMeshHex::Refine(Element* elem, int ref_type)
           +------------+           *--X
          0              1                      */
 
-   Element *child0, *child1;
+   Element* child[8];
+   memset(child, 0, sizeof(child));
 
    if (ref_type == 1) // split along X axis
    {
@@ -576,15 +565,13 @@ bool NCMeshHex::Refine(Element* elem, int ref_type)
    // start using the nodes of the children, create edges & faces
    for (int i = 0; i < 8; i++)
       if (child[i])
-      {
-         RefVertices(child[i]);
-         RefEdgesFaces(child[i]);
-      }
+         RefElementNodes(child[i]);
 
-   // sign off of the edges & faces of the parent, but retain the corners
-   UnrefEdgesFaces(elem);
+   // sign off of all nodes of the parent, clean up unused nodes
+   UnrefElementNodes(elem);
 
    elem->ref_type = ref_type;
+   memcpy(elem->child, child, sizeof(elem->child));
 
    return true;
 }
