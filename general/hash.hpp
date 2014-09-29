@@ -122,7 +122,7 @@ public:
    {
    public:
       Iterator(HashTable<ItemT>& table)
-         : hash_table(table), next_bin(0), cur_item(NULL) { next(); }
+         : hash_table(table), cur_id(-1), cur_item(NULL) { next(); }
 
       operator ItemT*() const { return cur_item; }
       ItemT& operator*() const { return *cur_item; }
@@ -132,7 +132,7 @@ public:
 
    protected:
       HashTable<ItemT>& hash_table;
-      int next_bin;
+      int cur_id;
       ItemT* cur_item;
 
       void next();
@@ -166,9 +166,6 @@ protected:
    IdGenerator id_gen; ///< id generator for new items
    Array<ItemT*> id_to_item; ///< mapping table for the Peek(id) method
 
-   Array<int> used_bins; ///< bins in 'table' that (may) contain something
-   char* new_bin; ///< flag showing that bin index is not in 'used_bins'
-
    mutable int nqueries, ncollisions; // stats
 };
 
@@ -185,9 +182,6 @@ HashTable<ItemT>::HashTable(int size)
    table = new ItemT*[size];
    memset(table, 0, size * sizeof(ItemT*));
 
-   new_bin = new char[size];
-   memset(new_bin, 1, size * sizeof(char));
-
    nqueries = ncollisions = 0;
 }
 
@@ -195,15 +189,10 @@ template<typename ItemT>
 HashTable<ItemT>::~HashTable()
 {
    // delete all items
-   for (Iterator it(*this); it; )
-   {
-      ItemT* tmp = it;
-      ++it;
-      delete tmp;
-   }
+   for (Iterator it(*this); it; ++it)
+      delete it;
 
    delete [] table;
-   delete [] new_bin;
 
    if (ncollisions > 3*nqueries)
       std::cout << "HashTable: WARNING: ncollisions = " << ncollisions << ", "
@@ -249,13 +238,6 @@ void HashTable<ItemT>::Insert(int idx, ItemT* item)
    // insert into hashtable
    item->next = table[idx];
    table[idx] = item;
-
-   // if this is a new bin, make sure the iterator will find it
-   if (new_bin[idx])
-   {
-      used_bins.Append(idx);
-      new_bin[idx] = 0;
-   }
 }
 
 template<typename ItemT>
@@ -363,7 +345,7 @@ void HashTable<ItemT>::Delete(ItemT* item)
    // remove from the (ID -> item) map
    id_to_item[item->id] = NULL;
 
-   // reuse the its ID in the future
+   // reuse the ID in the future
    id_gen.Reuse(item->id);
 
    delete item;
@@ -402,24 +384,15 @@ void HashTable<ItemT>::Reparent(ItemT* item,
 template<typename ItemT>
 void HashTable<ItemT>::Iterator::next()
 {
-   if (next_bin >= hash_table.used_bins.Size())
+   while (cur_id < hash_table.id_to_item.Size()-1)
    {
-      // no more bins to visit, finish
-      cur_item = NULL;
-      return;
+      ++cur_id;
+      cur_item = hash_table.id_to_item[cur_id];
+      if (cur_item) return;
    }
 
-   if (cur_item)
-   {
-      // iterate through a list of hash synonyms
-      cur_item = cur_item->next;
-   }
-
-   // do we need to switch the next bin?
-   while (!cur_item && next_bin < hash_table.used_bins.Size())
-   {
-      cur_item = hash_table.table[hash_table.used_bins[next_bin++]];
-   }
+   // no more items
+   cur_item = NULL;
 }
 
 #endif
