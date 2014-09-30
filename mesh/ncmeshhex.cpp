@@ -58,6 +58,9 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
       // increase reference count of all nodes the element is using
       // (note: this will also create and reference all edge and face nodes)
       RefElementNodes(nc_elem);
+
+      // make links from faces back to the element
+      RegisterFaces(nc_elem);
    }
 
    // store boundary element attributes
@@ -164,6 +167,8 @@ void NCMeshHex::RefElementNodes(Element *elem)
    {
       const int* fv = hex_faces[i];
       faces.Get(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]])->Ref();
+      // NOTE: face->RegisterElement called elsewhere to avoid having
+      //       to store 3 element pointers in each face when refining
    }
 }
 
@@ -176,6 +181,7 @@ void NCMeshHex::UnrefElementNodes(Element *elem)
    {
       const int* fv = hex_faces[i];
       Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
+      face->ForgetElement(elem);
       if (!face->Unref()) faces.Delete(face);
    }
 
@@ -189,6 +195,37 @@ void NCMeshHex::UnrefElementNodes(Element *elem)
    // unref all vertices (possibly destroying them)
    for (int i = 0; i < 8; i++)
       elem->node[i]->UnrefVertex(nodes);
+}
+
+void NCMeshHex::Face::RegisterElement(Element* e)
+{
+   if (elem[0] == NULL)
+      elem[0] = e;
+   else if (elem[1] == NULL)
+      elem[1] = e;
+   else
+      MFEM_ASSERT(0, "Can't have 3 elements in Face::elem[2].");
+}
+
+void NCMeshHex::Face::ForgetElement(Element* e)
+{
+   if (elem[0] == e)
+      elem[0] = NULL;
+   else if (elem[1] == e)
+      elem[1] = NULL;
+   else
+      MFEM_ASSERT(0, "Element not found in Face::elem[2].");
+}
+
+void NCMeshHex::RegisterFaces(Element* elem)
+{
+   Node** node = elem->node;
+   for (int i = 0; i < 6; i++)
+   {
+      const int* fv = hex_faces[i];
+      Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
+      face->RegisterElement(elem);
+   }
 }
 
 
@@ -570,6 +607,11 @@ bool NCMeshHex::Refine(Element* elem, int ref_type)
    // sign off of all nodes of the parent, clean up unused nodes
    UnrefElementNodes(elem);
 
+   // register the children in their faces once the parent is out of the way
+   for (int i = 0; i < 8; i++)
+      if (child[i])
+         RegisterFaces(child[i]);
+
    elem->ref_type = ref_type;
    memcpy(elem->child, child, sizeof(elem->child));
 
@@ -726,6 +768,7 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
    // we need to recurse deeper, now determine how
    Node* mid[5];
    int split = FaceSplitType(v0, v1, v2, v3, mid);
+   if (!split) return;
 
    // prepare also the middle points for the transformation
    DenseMatrix& pm = face_T.GetPointMat();
@@ -761,20 +804,6 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
 
       make_point_mat(tmid[3], tmid[1], tv[2], tv[3], pm);
       ConstrainFace ( mid[3],  mid[1],   v2,    v3,  face_T, master, level+1);
-   }
-   else if (split == 3) // 4-way split face
-   {
-      make_point_mat(tv[0], tmid[0], tmid[4], tmid[3], pm);
-      ConstrainFace (  v0,   mid[0],  mid[4],  mid[3], face_T, master, level+1);
-
-      make_point_mat(tmid[0], tv[1], tmid[1], tmid[4], pm);
-      ConstrainFace ( mid[0],   v1,   mid[1],  mid[4], face_T, master, level+1);
-
-      make_point_mat(tmid[4], tmid[1], tv[2], tmid[2], pm);
-      ConstrainFace ( mid[4],  mid[1],   v2,   mid[2], face_T, master, level+1);
-
-      make_point_mat(tmid[3], tmid[4], tmid[2], tv[3], pm);
-      ConstrainFace ( mid[3],  mid[4],  mid[2],   v3,  face_T, master, level+1);
    }
 }
 

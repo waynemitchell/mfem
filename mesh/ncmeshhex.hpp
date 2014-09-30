@@ -140,10 +140,16 @@ protected: // implementation
    {
       int attribute; ///< boundary element attribute, -1 if internal face
       int index; ///<  internal numbering, set by IndexFaces to 0..NF-1
+      Element* elem[2]; ///< up to 2 elements sharing the face
 
-      Face(int id) : Hashed4<Face>(id), attribute(-1) {}
+      Face(int id) : Hashed4<Face>(id), attribute(-1)
+         { elem[0] = elem[1] = NULL; }
 
       bool Boundary() const { return attribute >= 0; }
+
+      // add or remove an element from the 'elem[2]' array
+      void RegisterElement(Element* e);
+      void ForgetElement(Element* e);
 
       // overloaded Unref without auto-destruction
       int Unref() { return --ref_count; }
@@ -172,6 +178,7 @@ protected: // implementation
 
    void RefElementNodes(Element *elem);
    void UnrefElementNodes(Element *elem);
+   void RegisterFaces(Element* elem);
 
    int IndexVertices();
    int IndexEdges();
