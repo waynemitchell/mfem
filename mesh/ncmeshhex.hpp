@@ -170,7 +170,7 @@ protected: // implementation
                        int fattr3, int fattr4, int fattr5);
 
    int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
-                     Node* mid[5] = NULL /* optional output of middle nodes*/);
+                     Node* mid[4] = NULL /* optional output of mid-edge nodes*/);
 
    bool LegalAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4, int level = 0);
    void CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,

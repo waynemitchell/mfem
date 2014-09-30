@@ -306,16 +306,16 @@ NCMeshHex::Node*
 
 
 int NCMeshHex::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
-                             Node* mid[5])
+                             Node* mid[4])
 {
    // find edge nodes
    Node* e1 = nodes.Peek(v1, v2);
    Node* e2 = nodes.Peek(v2, v3);
-   Node* e3 = nodes.Peek(v3, v4);
-   Node* e4 = nodes.Peek(v4, v1);
+   Node* e3 = e1 ? nodes.Peek(v3, v4) : NULL;
+   Node* e4 = e2 ? nodes.Peek(v4, v1) : NULL;
 
    // optional: return the mid-edge nodes if requested
-   if (mid) mid[0] = e1, mid[1] = e2, mid[2] = e3, mid[3] = e4, mid[4] = NULL;
+   if (mid) mid[0] = e1, mid[1] = e2, mid[2] = e3, mid[3] = e4;
 
    // try to get a mid-face node, either by (e1, e3) or by (e2, e4)
    Node *midf1 = NULL, *midf2 = NULL;
@@ -325,11 +325,13 @@ int NCMeshHex::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
    // only one way to access the mid-face node must always exist
    MFEM_ASSERT(!(midf1 && midf2), "Incorrectly split face!");
 
-   if (!midf1 && !midf2) return 0; // face not split
+   if (!midf1 && !midf2)
+      return 0; // face not split
 
-   if (mid) mid[4] = midf1 ? midf1 : midf2;
-
-   return midf1 ? 1 : 2; // face split "vertically" or "horizontally"
+   if (midf1)
+      return 1; // face split "vertically"
+   else
+      return 2; // face split "horizontally"
 }
 
 
@@ -391,16 +393,6 @@ bool NCMeshHex::Refine(Element* elem, int ref_type)
    Node** node = elem->node;
    int attr = elem->attribute;
 
-   // get element's face attributes
-   int fa[6];
-   for (int i = 0; i < 6; i++)
-   {
-      const int* fv = hex_faces[i];
-      fa[i] = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
-                         elem->node[fv[2]], elem->node[fv[3]])->attribute;
-
-   }
-
    // check for incompatible anisotropic splits
    if (ref_type == 1) // split along X axis
    {
@@ -422,6 +414,16 @@ bool NCMeshHex::Refine(Element* elem, int ref_type)
           !LegalAnisoSplit(node[5], node[1], node[2], node[6]) ||
           !LegalAnisoSplit(node[6], node[2], node[3], node[7]) ||
           !LegalAnisoSplit(node[7], node[3], node[0], node[4])) return false;
+   }
+
+   // get element's face attributes
+   int fa[6];
+   for (int i = 0; i < 6; i++)
+   {
+      const int* fv = hex_faces[i];
+      fa[i] = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
+                         elem->node[fv[2]], elem->node[fv[3]])->attribute;
+
    }
 
    /* Vertex numbering is assumed to be as follows:
