@@ -211,11 +211,11 @@ inline int CheckFinite(const double *v, const int n)
 #ifdef isfinite
       if (!isfinite(v[i]))
 #else
-      if (!std::isfinite(v[i]))
+         if (!std::isfinite(v[i]))
 #endif
-      {
-         bad++;
-      }
+         {
+            bad++;
+         }
    }
    return bad;
 }
