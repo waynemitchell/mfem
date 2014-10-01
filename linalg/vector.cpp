@@ -36,7 +36,7 @@ Vector::Vector(const Vector &v)
    }
 }
 
-void Vector::Load(istream **in, int np, int *dim)
+void Vector::Load(std::istream **in, int np, int *dim)
 {
    int i, j, s;
 
@@ -52,7 +52,7 @@ void Vector::Load(istream **in, int np, int *dim)
          *in[i] >> data[p++];
 }
 
-void Vector::Load(istream &in, int Size)
+void Vector::Load(std::istream &in, int Size)
 {
    SetSize(Size);
 
