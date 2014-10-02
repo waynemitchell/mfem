@@ -13,6 +13,16 @@
 #include <math.h>
 #include "fem.hpp"
 
+ElementTransformation::ElementTransformation():
+	JacobianIsEvaluated(0),
+	WeightIsEvaluated(0),
+	IntPoint(static_cast<IntegrationPoint *>(NULL)),
+	Attribute(-1),
+	ElementNo(-1)
+{
+
+}
+
 const DenseMatrix & IsoparametricTransformation::Jacobian()
 {
    if (JacobianIsEvaluated)  return dFdx;
