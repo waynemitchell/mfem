@@ -87,6 +87,22 @@ T Array<T>::Max() const
 }
 
 template <class T>
+T Array<T>::Min() const
+{
+#ifdef MFEM_DEBUG
+   if (size <= 0)
+      mfem_error("Array::Max : empty array!");
+#endif
+
+   T min = operator[](0);
+   for (int i = 1; i < size; i++)
+      if ( operator[](i) < min)
+         min = operator[](i);
+
+   return min;
+}
+
+template <class T>
 int Compare(const void *p, const void *q)
 {
    if (*((T*)p) < *((T*)q))  return -1;

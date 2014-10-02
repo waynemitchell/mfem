@@ -125,6 +125,7 @@ public:
 
    /// Return the last element in the array
    inline T &Last();
+   inline const T &Last() const;
 
    /// Append element when it is not yet in the array, return index
    inline int Union(const T & el);
@@ -165,6 +166,10 @@ public:
    /** Finds the maximal element in the array.
        (uses the comparison operator '<' for class T)  */
    T Max() const;
+
+   /** Finds the minimal element in the array.
+        (uses the comparison operator '<' for class T)  */
+    T Min() const;
 
    /// Sorts the array.
    void Sort();
@@ -347,6 +352,16 @@ template <class T>
 inline T &Array<T>::Last()
 {
    MFEM_ASSERT(size > 0, "Array size is zero: " << size);
+   return ((T*)data)[size-1];
+}
+
+template <class T>
+inline const T &Array<T>::Last() const
+{
+#ifdef MFEM_DEBUG
+   if (size < 1)
+      mfem_error("Array<T>::Last()");
+#endif
    return ((T*)data)[size-1];
 }
 
