@@ -7850,6 +7850,67 @@ void Mesh::PrintElementsWithPartitioning(int *partitioning,
    delete [] voff;
    delete [] vown;
 }
+void Mesh::PrintSurfaces(const Table & face_Aface, ostream &out)
+{
+   int i, j;
+
+   if (NURBSext)
+   {
+	  mfem_error("Mesh::PrintSurfaces"
+                 " NURBS mesh is not supported!");
+      return;
+   }
+
+   out << "MFEM mesh v1.0\n";
+
+   // optional
+   out <<
+      "\n#\n# MFEM Geometry Types (see mesh/geom.hpp):\n#\n"
+      "# POINT       = 0\n"
+      "# SEGMENT     = 1\n"
+      "# TRIANGLE    = 2\n"
+      "# SQUARE      = 3\n"
+      "# TETRAHEDRON = 4\n"
+      "# CUBE        = 5\n"
+      "#\n";
+
+   out << "\ndimension\n" << Dim
+       << "\n\nelements\n" << NumOfElements << '\n';
+   for (i = 0; i < NumOfElements; i++)
+      PrintElement(elements[i], out);
+
+   out << "\nboundary\n" << face_Aface.Size_of_connections() << '\n';
+   for (int face=0; face<NumOfFaces; face++)
+   {
+     int num_Afaces = face_Aface.RowSize(face);
+     if(num_Afaces>=2)
+    	 mfem_error("num_Afaces > 2\n");
+     if (num_Afaces==1)
+     {
+       Element * face_elem = const_cast<Element*>(GetFace(face));
+       face_elem->SetAttribute(*face_Aface.GetRow(face)+1);
+       PrintElement(face_elem, out);
+     }
+   }
+
+   out << "\nvertices\n" << NumOfVertices << '\n';
+   if (Nodes == NULL)
+   {
+      out << Dim << '\n';
+      for (i = 0; i < NumOfVertices; i++)
+      {
+         out << vertices[i](0);
+         for (j = 1; j < Dim; j++)
+            out << ' ' << vertices[i](j);
+         out << '\n';
+      }
+   }
+   else
+   {
+      out << "\nnodes\n";
+      Nodes->Save(out);
+   }
+}
 
 void Mesh::ScaleSubdomains(double sf)
 {

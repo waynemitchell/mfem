@@ -656,6 +656,9 @@ public:
                                        ostream &out,
                                        int interior_faces = 0);
 
+   /// print set of disjoint surfaces
+   void PrintSurfaces(const Table & face_Aface, ostream &out);
+
    void ScaleSubdomains (double sf);
    void ScaleElements (double sf);
 
