@@ -276,11 +276,11 @@ NCMeshHex::Node* NCMeshHex::PeekAltParents(Node* v1, Node* v2)
          Node *v2p1 = nodes.Peek(v2->p1), *v2p2 = nodes.Peek(v2->p2);
 
          Node* w1 = PeekAltParents(v1p1, v2p1);
-         Node* w2 = PeekAltParents(v1p2, v2p2);
+         Node* w2 = w1 ? PeekAltParents(v1p2, v2p2) : NULL;
 
          if (!w1 || !w2) // one more try may be needed as p1, p2 are unordered
             w1 = PeekAltParents(v1p1, v2p2),
-            w2 = PeekAltParents(v1p2, v2p1);
+            w2 = w1 ? PeekAltParents(v1p2, v2p1) : NULL;
 
          if (w1 && w2) // got both alternate parents?
             mid = nodes.Peek(w1, w2);
