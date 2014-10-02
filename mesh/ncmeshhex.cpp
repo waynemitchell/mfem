@@ -293,7 +293,7 @@ NCMeshHex::Node* NCMeshHex::PeekAltParents(Node* v1, Node* v2)
 //// Refinement & Derefinement /////////////////////////////////////////////////
 
 NCMeshHex::Element::Element(int attr)
-   : attribute(attr), ref_type(0), index(-1)
+   : attribute(attr), ref_type(0)
 {
    memset(node, 0, sizeof(node));
 }
@@ -677,7 +677,7 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
 
 void NCMeshHex::Refine(Array<Refinement>& refinements)
 {
-   IndexLeafElements();
+   UpdateLeafElements();
 
    // push all refinements on the stack in reverse order
    for (int i = refinements.Size()-1; i >= 0; i--)
@@ -712,23 +712,18 @@ void NCMeshHex::GetLeafElements(Element* e)
    }
    else
    {
-      e->index = -1;
       for (int i = 0; i < 8; i++)
          if (e->child[i])
             GetLeafElements(e->child[i]);
    }
 }
 
-void NCMeshHex::IndexLeafElements()
+void NCMeshHex::UpdateLeafElements()
 {
    // collect leaf elements
    leaf_elements.SetSize(0);
    for (int i = 0; i < root_elements.Size(); i++)
       GetLeafElements(root_elements[i]);
-
-   // assign indices
-   for (int i = 0; i < leaf_elements.Size(); i++)
-      leaf_elements[i]->index = i;
 }
 
 void NCMeshHex::GetVerticesElementsBoundary(Array< ::Vertex>& vertices,
@@ -748,7 +743,7 @@ void NCMeshHex::GetVerticesElementsBoundary(Array< ::Vertex>& vertices,
       if (it->vertex)
          vertices[i++].SetCoords(it->vertex->pos);
 
-   IndexLeafElements();
+   UpdateLeafElements();
 
    elements.SetSize(leaf_elements.Size());
    boundary.SetSize(0);

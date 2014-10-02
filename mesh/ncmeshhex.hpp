@@ -40,7 +40,6 @@ public:
          Node* node[8]; // element corners (if ref_type == 0)
          Element* child[8]; // 2-8 children (if ref_type != 0)
       };
-      int index; // element number (-1 for non-leaf elements) FIXME - needed?
 
       Element(int attr);
    };
@@ -185,7 +184,7 @@ protected: // implementation
    void Refine(Element* elem, int ref_type);
 
    void GetLeafElements(Element* e);
-   void IndexLeafElements();
+   void UpdateLeafElements();
 
    void DeleteHierarchy(Element* elem);
 
