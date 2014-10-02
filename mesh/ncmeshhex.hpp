@@ -40,6 +40,7 @@ public:
          Node* node[8]; // element corners (if ref_type == 0)
          Element* child[8]; // 2-8 children (if ref_type != 0)
       };
+      int index; // element number (-1 for non-leaf elements)
 
       Element(int attr);
    };
@@ -55,26 +56,39 @@ public:
    int NRootElements() const { return root_elements.Size(); }
    int NLeafElements() const { return leaf_elements.Size(); }
 
-   bool Refine(Element* elem, int ref_type);
+/*   void MarkForRefinement(int index, int ref_type);
+   void DoRefinements();
+
+   void Derefine(int index);*/
+
+   /*struct Refinement
+   {
+      int index; ///< leaf element number
+      int ref_type; ///< refinement type (7 = full isotropic)
+
+      Refinement(int index, int type = 7)
+         : index(index), ref_type(type) {}
+   };
+
+   void Refine(Array<Refinement>& refinements);*/
+
+   void Refine(Element* elem, int ref_type);
    void Derefine(Element* elem);
 
-   bool Refine(int index, int ref_type)
+   void Refine(int index, int ref_type)
       { return Refine(GetLeafElement(index), ref_type); }
    void Derefine(int index)
       { Derefine(GetLeafElement(index)); }
 
-   SparseMatrix *GetInterpolation(Mesh *f_mesh, FiniteElementSpace *fes);
+   SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* fes);
 
    ~NCMeshHex();
 
 protected: // interface for Mesh to be able to construct itself from us
 
-   void GetVertices(Array< ::Vertex>& vertices);
-   void GetElements(Array< ::Element*>& elements,
-                    Array< ::Element*>& boundary);
-
-   Array<Element*> leaf_elements; // initialized by GetElements
-
+   void GetVerticesElementsBoundary(Array< ::Vertex>& vertices,
+                                    Array< ::Element*>& elements,
+                                    Array< ::Element*>& boundary);
    friend class Mesh;
 
 protected: // implementation
@@ -100,7 +114,7 @@ protected: // implementation
    struct Vertex : public RefCount
    {
       double pos[3];
-      int index; ///< internal numbering, set by IndexVertices to 0..NV-1
+      int index;
 
       Vertex() {}
       Vertex(double x, double y, double z) : index(-1)
@@ -110,7 +124,7 @@ protected: // implementation
    ///
    struct Edge : public RefCount
    {
-      int index; ///< internal numbering, set by IndexEdges to 0..NE-1
+      int index;
    };
 
    ///
@@ -139,8 +153,8 @@ protected: // implementation
    struct Face : public RefCount, public Hashed4<Face>
    {
       int attribute; ///< boundary element attribute, -1 if internal face
-      int index; ///<  internal numbering, set by IndexFaces to 0..NF-1
       Element* elem[2]; ///< up to 2 elements sharing the face
+      int index;
 
       Face(int id) : Hashed4<Face>(id), attribute(-1)
          { elem[0] = elem[1] = NULL; }
@@ -151,13 +165,23 @@ protected: // implementation
       void RegisterElement(Element* e);
       void ForgetElement(Element* e);
 
+      // return one of elem[0] or elem[1] and make sure the other is NULL
+      Element* GetSingleElement() const;
+
       // overloaded Unref without auto-destruction
       int Unref() { return --ref_count; }
    };
 
-   Array<Element*> root_elements;
+   Array<Element*> root_elements; // initialized by constructor
+   Array<Element*> leaf_elements; // updated by GetLeafElements
+
    HashTable<Node> nodes;
    HashTable<Face> faces;
+
+   void GetLeafElements(Element* e);
+   void IndexLeafElements();
+
+   void DeleteHierarchy(Element* elem);
 
    Vertex* NewVertex(Node* v1, Node* v2);
    Node* GetMidEdgeVertex(Node* v1, Node* v2);
@@ -172,22 +196,22 @@ protected: // implementation
    int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
                      Node* mid[4] = NULL /* optional output of mid-edge nodes*/);
 
-   bool LegalAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4, int level = 0);
    void CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
                        Node* mid12, Node* mid34);
+
+   void CheckAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4, int level = 0);
+   bool LegalAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4, int level = 0);
 
    void RefElementNodes(Element *elem);
    void UnrefElementNodes(Element *elem);
    void RegisterFaces(Element* elem);
 
-   int IndexVertices();
-   int IndexEdges();
-   int IndexFaces();
-
-   void GetLeafElements(Element* e, Array< ::Element*>& elements,
-                                    Array< ::Element*>& boundary);
-
-   void DeleteHierarchy(Element* elem);
+   bool NodeSetX1(Node* node, Node** n);
+   bool NodeSetX2(Node* node, Node** n);
+   bool NodeSetY1(Node* node, Node** n);
+   bool NodeSetY2(Node* node, Node** n);
+   bool NodeSetZ1(Node* node, Node** n);
+   bool NodeSetZ2(Node* node, Node** n);
 
 
    // interpolation
@@ -234,6 +258,11 @@ protected: // implementation
 
    void ProcessMasterFace(Node* node[4], Face* face,
                           const FiniteElementCollection *fec);
+
+
+   void CheckFaces(Element* elem);
+public:
+   void Check();
 
 };
 

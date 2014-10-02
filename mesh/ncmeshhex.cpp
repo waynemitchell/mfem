@@ -228,11 +228,25 @@ void NCMeshHex::RegisterFaces(Element* elem)
    }
 }
 
+NCMeshHex::Element* NCMeshHex::Face::GetSingleElement() const
+{
+   if (elem[0])
+   {
+      MFEM_ASSERT(!elem[1], "Not a single element face.");
+      return elem[0];
+   }
+   else
+   {
+      MFEM_ASSERT(elem[1], "No elements in face.");
+      return elem[1];
+   }
+}
+
 
 //// Refinement & Derefinement /////////////////////////////////////////////////
 
 NCMeshHex::Element::Element(int attr)
-   : ref_type(0), attribute(attr)
+   : attribute(attr), ref_type(0), index(-1)
 {
    memset(node, 0, sizeof(node));
 }
@@ -335,6 +349,86 @@ int NCMeshHex::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
 }
 
 
+inline bool NCMeshHex::NodeSetX1(Node* node, Node** n)
+   { return node == n[0] || node == n[3] || node == n[4] || node == n[7]; }
+
+inline bool NCMeshHex::NodeSetX2(Node* node, Node** n)
+   { return node == n[1] || node == n[2] || node == n[5] || node == n[6]; }
+
+inline bool NCMeshHex::NodeSetY1(Node* node, Node** n)
+   { return node == n[0] || node == n[1] || node == n[4] || node == n[5]; }
+
+inline bool NCMeshHex::NodeSetY2(Node* node, Node** n)
+   { return node == n[2] || node == n[3] || node == n[6] || node == n[7]; }
+
+inline bool NCMeshHex::NodeSetZ1(Node* node, Node** n)
+   { return node == n[0] || node == n[1] || node == n[2] || node == n[3]; }
+
+inline bool NCMeshHex::NodeSetZ2(Node* node, Node** n)
+   { return node == n[4] || node == n[5] || node == n[6] || node == n[7]; }
+
+
+void NCMeshHex::CheckAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4,
+                                int level)
+{
+   Node* mid[4];
+   switch (FaceSplitType(v1, v2, v3, v4, mid))
+   {
+   case 0:
+      // face not split: at level zero this is legal, at level > 0 we need to
+      // split the incompatible element vertically
+      if (level)
+      {
+         // get the element this face belongs to
+         Face* face = faces.Peek(v1, v2, v3, v4);
+         MFEM_ASSERT(face, "Face not found.");
+
+         Element* elem = face->GetSingleElement();
+         if (!elem->ref_type)
+         {
+            Node** nodes = elem->node;
+
+            // split the element the right way depending on face orientation
+            if ((NodeSetX1(v1, nodes) && NodeSetX2(v2, nodes)) ||
+                (NodeSetX1(v2, nodes) && NodeSetX2(v1, nodes)))
+            {
+               Refine(elem, 1); // X split
+            }
+            else if ((NodeSetY1(v1, nodes) && NodeSetY2(v2, nodes)) ||
+                     (NodeSetY1(v2, nodes) && NodeSetY2(v1, nodes)))
+            {
+               Refine(elem, 2); // Y split
+            }
+            else if ((NodeSetZ1(v1, nodes) && NodeSetZ2(v2, nodes)) ||
+                     (NodeSetZ1(v2, nodes) && NodeSetZ2(v1, nodes)))
+            {
+               Refine(elem, 4); // Z split
+            }
+            else
+               MFEM_ASSERT(0, "Inconsistent element/face data structure.");
+         }
+         else
+         {
+            // the incompatible element is refined already -- this must mean
+            // we looped back to the original element being refined; we can't
+            // recurse further as that would lead to infinite recursion
+            std::cout << "aa\n"; // -- do nothing
+         }
+      }
+      break;
+
+   case 1:
+      // already split vertically: do nothing
+      break;
+
+   case 2:
+      // face split horizontally at this level, check lower and upper half
+      CheckAnisoSplit(v1, v2, mid[1], mid[3], level+1);
+      CheckAnisoSplit(mid[3], mid[1], v3, v4, level+1);
+   }
+}
+
+
 bool NCMeshHex::LegalAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4, int level)
 {
    // can we split the face vertically?
@@ -385,38 +479,77 @@ void NCMeshHex::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
 }
 
 
-bool NCMeshHex::Refine(Element* elem, int ref_type)
+void NCMeshHex::Refine(Element* elem, int ref_type)
 {
+   if (!ref_type) return;
+
+   // handle elements that may have been refined indirectly
    if (elem->ref_type)
-      mfem_error("NCMeshHex::Refine: element already refined.");
+   {
+      int remaining = ref_type & ~elem->ref_type;
+
+      // do the remaining splits on the children
+      for (int i = 0; i < 8; i++)
+         if (elem->child[i])
+            Refine(elem->child[i], remaining);
+
+      return;
+   }
+
+   // mark the element refined as early as here, so that forced refinements
+   // don't make us recurse infinitely
+   elem->ref_type = ref_type;
 
    Node** node = elem->node;
-   int attr = elem->attribute;
 
    // check for incompatible anisotropic splits
    if (ref_type == 1) // split along X axis
    {
-      if (!LegalAnisoSplit(node[0], node[1], node[5], node[4]) ||
-          !LegalAnisoSplit(node[2], node[3], node[7], node[6]) ||
-          !LegalAnisoSplit(node[4], node[5], node[6], node[7]) ||
-          !LegalAnisoSplit(node[3], node[2], node[1], node[0])) return false;
+      CheckAnisoSplit(node[0], node[1], node[5], node[4]);
+      CheckAnisoSplit(node[2], node[3], node[7], node[6]);
+      CheckAnisoSplit(node[4], node[5], node[6], node[7]);
+      CheckAnisoSplit(node[3], node[2], node[1], node[0]);
    }
    else if (ref_type == 2) // split along Y axis
    {
-      if (!LegalAnisoSplit(node[1], node[2], node[6], node[5]) ||
-          !LegalAnisoSplit(node[3], node[0], node[4], node[7]) ||
-          !LegalAnisoSplit(node[5], node[6], node[7], node[4]) ||
-          !LegalAnisoSplit(node[0], node[3], node[2], node[1])) return false;
+      CheckAnisoSplit(node[1], node[2], node[6], node[5]);
+      CheckAnisoSplit(node[3], node[0], node[4], node[7]);
+      CheckAnisoSplit(node[5], node[6], node[7], node[4]);
+      CheckAnisoSplit(node[0], node[3], node[2], node[1]);
    }
    else if (ref_type == 4) // split along Z axis
    {
-      if (!LegalAnisoSplit(node[4], node[0], node[1], node[5]) ||
-          !LegalAnisoSplit(node[5], node[1], node[2], node[6]) ||
-          !LegalAnisoSplit(node[6], node[2], node[3], node[7]) ||
-          !LegalAnisoSplit(node[7], node[3], node[0], node[4])) return false;
+      CheckAnisoSplit(node[4], node[0], node[1], node[5]);
+      CheckAnisoSplit(node[5], node[1], node[2], node[6]);
+      CheckAnisoSplit(node[6], node[2], node[3], node[7]);
+      CheckAnisoSplit(node[7], node[3], node[0], node[4]);
    }
 
-   // get element's face attributes
+   // DEBUG DEBUG
+   if (ref_type == 1) // split along X axis
+   {
+      MFEM_ASSERT(LegalAnisoSplit(node[0], node[1], node[5], node[4]), "");
+      MFEM_ASSERT(LegalAnisoSplit(node[2], node[3], node[7], node[6]), "");
+      MFEM_ASSERT(LegalAnisoSplit(node[4], node[5], node[6], node[7]), "");
+      MFEM_ASSERT(LegalAnisoSplit(node[3], node[2], node[1], node[0]), "");
+   }
+   else if (ref_type == 2) // split along Y axis
+   {
+      MFEM_ASSERT(LegalAnisoSplit(node[1], node[2], node[6], node[5]), "");
+      MFEM_ASSERT(LegalAnisoSplit(node[3], node[0], node[4], node[7]), "");
+      MFEM_ASSERT(LegalAnisoSplit(node[5], node[6], node[7], node[4]), "");
+      MFEM_ASSERT(LegalAnisoSplit(node[0], node[3], node[2], node[1]), "");
+   }
+   else if (ref_type == 4) // split along Z axis
+   {
+      MFEM_ASSERT(LegalAnisoSplit(node[4], node[0], node[1], node[5]), "");
+      MFEM_ASSERT(LegalAnisoSplit(node[5], node[1], node[2], node[6]), "");
+      MFEM_ASSERT(LegalAnisoSplit(node[6], node[2], node[3], node[7]), "");
+      MFEM_ASSERT(LegalAnisoSplit(node[7], node[3], node[0], node[4]), "");
+   }
+
+
+   // get element's face and interior attributes
    int fa[6];
    for (int i = 0; i < 6; i++)
    {
@@ -425,6 +558,7 @@ bool NCMeshHex::Refine(Element* elem, int ref_type)
                          elem->node[fv[2]], elem->node[fv[3]])->attribute;
 
    }
+   int attr = elem->attribute;
 
    /* Vertex numbering is assumed to be as follows:
 
@@ -614,13 +748,72 @@ bool NCMeshHex::Refine(Element* elem, int ref_type)
       if (child[i])
          RegisterFaces(child[i]);
 
-   elem->ref_type = ref_type;
+   // finish the refinement
    memcpy(elem->child, child, sizeof(elem->child));
-
-   return true;
 }
 
 
+/*
+
+void NCMeshHex::MarkForRefinement(Element* elem, int ref_type,
+                                  Array<int>& marks)
+{
+   int remaining_refs = ~marks[elem->index] & ref_type;
+   if (!remaining_refs) return;
+
+   marks[elem->index] |= ref_type;
+
+   // check neighbors for incompatible anisotropic splits
+   Node** node = elem->node;
+   if (remaining_refs & 1) // split along X axis
+   {
+      CheckAnisoSplit(node[0], node[1], node[5], node[4], marks);
+      CheckAnisoSplit(node[2], node[3], node[7], node[6], marks);
+      CheckAnisoSplit(node[4], node[5], node[6], node[7], marks);
+      CheckAnisoSplit(node[3], node[2], node[1], node[0], marks);
+   }
+   if (remaining_refs & 2) // split along Y axis
+   {
+      CheckAnisoSplit(node[1], node[2], node[6], node[5], marks);
+      CheckAnisoSplit(node[3], node[0], node[4], node[7], marks);
+      CheckAnisoSplit(node[5], node[6], node[7], node[4], marks);
+      CheckAnisoSplit(node[0], node[3], node[2], node[1], marks);
+   }
+   if (remaining_refs & 4) // split along Z axis
+   {
+      CheckAnisoSplit(node[4], node[0], node[1], node[5], marks);
+      CheckAnisoSplit(node[5], node[1], node[2], node[6], marks);
+      CheckAnisoSplit(node[6], node[2], node[3], node[7], marks);
+      CheckAnisoSplit(node[7], node[3], node[0], node[4], marks);
+   }
+}
+
+
+void NCMeshHex::Refine(Array<Refinement>& refinements)
+{
+   // mark elements for the requested refinements
+   Array<int> marks;
+   marks.SetSize(leaf_elements.Size(), 0);
+
+   for (int i = 0; i < refinements.Size(); i++)
+   {
+      Refinement& ref = refinements[i];
+
+      if (leaf_elements[ref.index]->ref_type)
+         mfem_error("NCMeshHex::Refine: element already refined.");
+
+      MarkForRefinement(leaf_elements[ref.index], ref.ref_type, marks);
+   }
+
+   // now do the refinements; note that more than the requested refinements
+   // may have been marked to keep the mesh consistent
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      Refine(leaf_elements[i], marks[i]);
+   }
+}
+
+*/
 void NCMeshHex::Derefine(Element* elem)
 {
 
@@ -629,89 +822,84 @@ void NCMeshHex::Derefine(Element* elem)
 
 //// Mesh Interface ////////////////////////////////////////////////////////////
 
-int NCMeshHex::IndexVertices()
+void NCMeshHex::GetLeafElements(Element* e)
 {
+   if (!e->ref_type)
+   {
+      leaf_elements.Append(e);
+   }
+   else
+   {
+      e->index = -1;
+      for (int i = 0; i < 8; i++)
+         if (e->child[i])
+            GetLeafElements(e->child[i]);
+   }
+}
+
+void NCMeshHex::IndexLeafElements()
+{
+   // collect leaf elements
+   leaf_elements.SetSize(0);
+   for (int i = 0; i < root_elements.Size(); i++)
+      GetLeafElements(root_elements[i]);
+
+   // assign indices
+   for (int i = 0; i < leaf_elements.Size(); i++)
+      leaf_elements[i]->index = i;
+}
+
+void NCMeshHex::GetVerticesElementsBoundary(Array< ::Vertex>& vertices,
+                                            Array< ::Element*>& elements,
+                                            Array< ::Element*>& boundary)
+{
+   // count vertices and assign indices
    int num_vert = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->vertex)
          it->vertex->index = num_vert++;
 
-   return num_vert;
-}
-
-int NCMeshHex::IndexEdges()
-{
-   int num_edges = 0;
-   for (HashTable<Node>::Iterator it(nodes); it; ++it)
-      if (it->edge)
-         it->edge->index = num_edges++;
-
-   return num_edges;
-}
-
-void NCMeshHex::GetVertices(Array< ::Vertex>& vertices)
-{
-   int num_vert = IndexVertices();
-   vertices.SetSize(num_vert);
-
    // copy vertices
+   vertices.SetSize(num_vert);
    int i = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->vertex)
          vertices[i++].SetCoords(it->vertex->pos);
-}
 
-void NCMeshHex::GetLeafElements(Element* e,
-                                Array< ::Element*>& elements,
-                                Array< ::Element*>& boundary)
-{
-   if (!e->ref_type)
+   IndexLeafElements();
+
+   elements.SetSize(leaf_elements.Size());
+   boundary.SetSize(0);
+
+   for (int i = 0; i < leaf_elements.Size(); i++)
    {
+      Element* elem = leaf_elements[i];
+
+      // create an ::Element for each leaf Element
       Hexahedron* hex = new Hexahedron;
-      hex->SetAttribute(e->attribute);
-      for (int i = 0; i < 8; i++)
-         hex->GetVertices()[i] = e->node[i]->vertex->index;
+      hex->SetAttribute(elem->attribute);
+      for (int j = 0; j < 8; j++)
+         hex->GetVertices()[j] = elem->node[j]->vertex->index;
 
-      elements.Append(hex);
-      leaf_elements.Append(e);
+      elements[i] = hex;
 
-      // also return boundary elements
-      for (int i = 0; i < 6; i++)
+      // create boundary elements
+      for (int k = 0; k < 6; k++)
       {
-         const int* fv = hex_faces[i];
-         NCMeshHex::Face* face = faces.Peek(e->node[fv[0]], e->node[fv[1]],
-                                            e->node[fv[2]], e->node[fv[3]]);
-         if (face->attribute >= 0)
+         const int* fv = hex_faces[k];
+         Face* face = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
+                                 elem->node[fv[2]], elem->node[fv[3]]);
+         if (face->Boundary())
          {
             Quadrilateral* quad = new Quadrilateral;
             quad->SetAttribute(face->attribute);
-            for (int i = 0; i < 4; i++)
-               quad->GetVertices()[i] = e->node[fv[i]]->vertex->index;
+            for (int j = 0; j < 4; j++)
+               quad->GetVertices()[j] = elem->node[fv[j]]->vertex->index;
 
             boundary.Append(quad);
          }
       }
    }
-   else
-   {
-      for (int i = 0; i < 8; i++)
-         if (e->child[i])
-            GetLeafElements(e->child[i], elements, boundary);
-   }
-}
-
-void NCMeshHex::GetElements(Array< ::Element*>& elements,
-                            Array< ::Element*>& boundary)
-{
-   // NOTE: this assumes GetVertices has already been called
-   // so their 'index' member is valid
-
-   elements.SetSize(0);
-   boundary.SetSize(0);
-   leaf_elements.SetSize(0);
-
-   for (int i = 0; i < root_elements.Size(); i++)
-      GetLeafElements(root_elements[i], elements, boundary);
 }
 
 
@@ -850,15 +1038,11 @@ bool NCMeshHex::VertexFinalizable(VertexData& vd)
 
 
 SparseMatrix*
-   NCMeshHex::GetInterpolation(Mesh*, FiniteElementSpace *fes)
+   NCMeshHex::GetInterpolation(Mesh* mesh, FiniteElementSpace *fes)
 {
-   int num_vert = IndexVertices();
-   //int num_edges = IndexEdges();
-   //int num_faces = IndexFaces();
-
+   // TODO: generalize
+   int num_vert = mesh->GetNV();
    v_data = new VertexData[num_vert];
-   //e_data = new InterpolationData[num_edges];
-   //f_data = new InterpolationData[num_faces];
 
    // get nonconforming DOF numbers
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
@@ -952,4 +1136,35 @@ SparseMatrix*
    cP->Finalize();
    return cP;
 }
+
+
+void NCMeshHex::CheckFaces(Element* elem)
+{
+   if (elem->ref_type)
+   {
+      for (int i = 0; i < 8; i++)
+         if (elem->child[i])
+            CheckFaces(elem->child[i]);
+   }
+   else
+   {
+      for (int i = 0; i < 6; i++)
+      {
+         Node* node[4];
+         const int* fv = hex_faces[i];
+         for (int j = 0; j < 4; j++)
+            node[j] = elem->node[fv[j]];
+
+         Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
+         MFEM_ASSERT(face, "Face not found!");
+      }
+   }
+}
+
+void NCMeshHex::Check()
+{
+   for (int i = 0; i < root_elements.Size(); i++)
+      CheckFaces(root_elements[i]);
+}
+
 
