@@ -326,6 +326,13 @@ void Transpose (const Table &A, Table &At, int _ncols_A)
    i_At[0] = 0;
 }
 
+Table * Transpose(const Table &A)
+{
+	Table * At = new Table;
+	Transpose(A, *At);
+	return At;
+}
+
 void Transpose(const Array<int> &A, Table &At, int _ncols_A)
 {
    At.MakeI((_ncols_A < 0) ? (A.Max() + 1) : _ncols_A);
@@ -403,6 +410,13 @@ void Mult (const Table &A, const Table &B, Table &C)
    }
 }
 
+
+Table * Mult (const Table &A, const Table &B)
+{
+	Table * C = new Table;
+	Mult(A,B,*C);
+	return C;
+}
 
 STable::STable (int dim, int connections_per_row) :
    Table(dim, connections_per_row)
