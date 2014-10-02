@@ -2087,3 +2087,18 @@ SparseMatrix *Mult_AtDA (SparseMatrix &A, Vector &D,
    delete At;
    return AtDA;
 }
+
+void Swap(SparseMatrix & A, SparseMatrix & B)
+{
+#ifdef MFEM_USE_MEMALLOC
+	mfem_error("Swap(SparseMatrix &, SparseMatrix &) MFEM_USE_MEMALLOC not supported\n");
+#endif
+	int width(A.width); A.width = B.width; B.width = width;
+	int size(A.size);   A.size = B.size; B.size = size;
+	int * I(A.I);       A.I = B.I;  B.I = I;
+	int * J(A.J);       A.J = B.J;  B.J = J;
+	double * val(A.A);  A.A = B.A;  B.A = val;
+	RowNode **rows(A.Rows); A.Rows = B.Rows; B.Rows = rows;
+	int current_row(A.current_row); A.current_row = B.current_row; B.current_row = current_row;
+	J = A.ColPtr.J; A.ColPtr.J = B.ColPtr.J; B.ColPtr.J = J;
+}

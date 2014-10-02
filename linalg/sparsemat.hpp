@@ -266,6 +266,8 @@ public:
 
    /// Call this if data has been stolen.
    void LoseData() { I=0; J=0; A=0; }
+   
+   friend void Swap(SparseMatrix & A, SparseMatrix & B);
 
    /// Destroys sparse matrix.
    virtual ~SparseMatrix();
