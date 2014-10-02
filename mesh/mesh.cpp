@@ -5841,8 +5841,7 @@ Mesh::Mesh(NCMeshHex &ncmesh)
 
    Nodes = NULL;
 
-   ncmesh.GetVertices(vertices);
-   ncmesh.GetElements(elements, boundary);
+   ncmesh.GetVerticesElementsBoundary(vertices, elements, boundary);
 
    NumOfVertices = vertices.Size();
    NumOfElements = elements.Size();

@@ -53,7 +53,7 @@ struct Hashed4
  *
  *  An example of this are edges and faces in a mesh. Each edge is uniquely
  *  identified by two parent vertices and so can be easily accessed from
- *  different elements using this class. Similarly with faces.
+ *  different elements using this class. Similarly for faces.
  *
  *  The order of the p1, p2, ... indices is not relevant as they are sorted
  *  each time this class is invoked.

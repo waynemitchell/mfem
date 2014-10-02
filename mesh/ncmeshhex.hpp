@@ -40,7 +40,7 @@ public:
          Node* node[8]; // element corners (if ref_type == 0)
          Element* child[8]; // 2-8 children (if ref_type != 0)
       };
-      int index; // element number (-1 for non-leaf elements)
+      int index; // element number (-1 for non-leaf elements) FIXME - needed?
 
       Element(int attr);
    };
@@ -56,12 +56,7 @@ public:
    int NRootElements() const { return root_elements.Size(); }
    int NLeafElements() const { return leaf_elements.Size(); }
 
-/*   void MarkForRefinement(int index, int ref_type);
-   void DoRefinements();
-
-   void Derefine(int index);*/
-
-   /*struct Refinement
+   struct Refinement
    {
       int index; ///< leaf element number
       int ref_type; ///< refinement type (7 = full isotropic)
@@ -70,15 +65,13 @@ public:
          : index(index), ref_type(type) {}
    };
 
-   void Refine(Array<Refinement>& refinements);*/
+   /** Perform the given batch of refinements. Please note that in the presence
+       of anisotropic splits additional refinements may be necessary to keep
+       the mesh consistent. However, the function always performas at least the
+       requested refinements. */
+   void Refine(Array<Refinement>& refinements);
 
-   void Refine(Element* elem, int ref_type);
    void Derefine(Element* elem);
-
-   void Refine(int index, int ref_type)
-      { return Refine(GetLeafElement(index), ref_type); }
-   void Derefine(int index)
-      { Derefine(GetLeafElement(index)); }
 
    SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* fes);
 
@@ -178,14 +171,23 @@ protected: // implementation
    HashTable<Node> nodes;
    HashTable<Face> faces;
 
+   struct RefStackItem
+   {
+      Element* elem;
+      int ref_type;
+
+      RefStackItem(Element* elem, int type)
+         : elem(elem), ref_type(type) {}
+   };
+
+   Array<RefStackItem> ref_stack; ///< stack of scheduled refinements
+
+   void Refine(Element* elem, int ref_type);
+
    void GetLeafElements(Element* e);
    void IndexLeafElements();
 
    void DeleteHierarchy(Element* elem);
-
-   Vertex* NewVertex(Node* v1, Node* v2);
-   Node* GetMidEdgeVertex(Node* v1, Node* v2);
-   Node* GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4);
 
    Element* NewElement(Node* n0, Node* n1, Node* n2, Node* n3,
                        Node* n4, Node* n5, Node* n6, Node* n7,
@@ -193,18 +195,23 @@ protected: // implementation
                        int fattr0, int fattr1, int fattr2,
                        int fattr3, int fattr4, int fattr5);
 
+   Vertex* NewVertex(Node* v1, Node* v2);
+   Node* GetMidEdgeVertex(Node* v1, Node* v2);
+   Node* GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4);
+
    int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
                      Node* mid[4] = NULL /* optional output of mid-edge nodes*/);
 
-   void CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
-                       Node* mid12, Node* mid34);
+   void ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4);
 
-   void CheckAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4, int level = 0);
-   bool LegalAnisoSplit(Node* v1, Node* v2, Node* v3, Node* v4, int level = 0);
+   void CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
+                       Node* mid12, Node* mid34, int level = 0);
 
    void RefElementNodes(Element *elem);
    void UnrefElementNodes(Element *elem);
    void RegisterFaces(Element* elem);
+
+   Node* PeekAltParents(Node* v1, Node* v2);
 
    bool NodeSetX1(Node* node, Node** n);
    bool NodeSetX2(Node* node, Node** n);
