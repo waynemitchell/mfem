@@ -476,15 +476,14 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       return;
    }
 
-   Node** node = elem->node;
+   Node** no = elem->node;
 
    // get element's face and interior attributes
    int fa[6];
    for (int i = 0; i < 6; i++)
    {
       const int* fv = hex_faces[i];
-      fa[i] = faces.Peek(node[fv[0]], node[fv[1]],
-                         node[fv[2]], node[fv[3]])->attribute;
+      fa[i] = faces.Peek(no[fv[0]], no[fv[1]], no[fv[2]], no[fv[3]])->attribute;
 
    }
    int attr = elem->attribute;
@@ -508,197 +507,197 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
 
    if (ref_type == 1) // split along X axis
    {
-      Node* mid01 = GetMidEdgeVertex(node[0], node[1]);
-      Node* mid23 = GetMidEdgeVertex(node[2], node[3]);
-      Node* mid67 = GetMidEdgeVertex(node[6], node[7]);
-      Node* mid45 = GetMidEdgeVertex(node[4], node[5]);
+      Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
+      Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
+      Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
+      Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
 
-      child[0] = NewElement(node[0], mid01, mid23, node[3],
-                            node[4], mid45, mid67, node[7], attr,
+      child[0] = NewElement(no[0], mid01, mid23, no[3],
+                            no[4], mid45, mid67, no[7], attr,
                             fa[0], fa[1], -1, fa[3], fa[4], fa[5]);
 
-      child[1] = NewElement(mid01, node[1], node[2], mid23,
-                            mid45, node[5], node[6], mid67, attr,
+      child[1] = NewElement(mid01, no[1], no[2], mid23,
+                            mid45, no[5], no[6], mid67, attr,
                             fa[0], fa[1], fa[2], fa[3], -1, fa[5]);
 
-      CheckAnisoFace(node[0], node[1], node[5], node[4], mid01, mid45);
-      CheckAnisoFace(node[2], node[3], node[7], node[6], mid23, mid67);
-      CheckAnisoFace(node[4], node[5], node[6], node[7], mid45, mid67);
-      CheckAnisoFace(node[3], node[2], node[1], node[0], mid23, mid01);
+      CheckAnisoFace(no[0], no[1], no[5], no[4], mid01, mid45);
+      CheckAnisoFace(no[2], no[3], no[7], no[6], mid23, mid67);
+      CheckAnisoFace(no[4], no[5], no[6], no[7], mid45, mid67);
+      CheckAnisoFace(no[3], no[2], no[1], no[0], mid23, mid01);
    }
    else if (ref_type == 2) // split along Y axis
    {
-      Node* mid12 = GetMidEdgeVertex(node[1], node[2]);
-      Node* mid30 = GetMidEdgeVertex(node[3], node[0]);
-      Node* mid56 = GetMidEdgeVertex(node[5], node[6]);
-      Node* mid74 = GetMidEdgeVertex(node[7], node[4]);
+      Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
+      Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
+      Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
+      Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
 
-      child[0] = NewElement(node[0], node[1], mid12, mid30,
-                            node[4], node[5], mid56, mid74, attr,
+      child[0] = NewElement(no[0], no[1], mid12, mid30,
+                            no[4], no[5], mid56, mid74, attr,
                             fa[0], fa[1], fa[2], -1, fa[4], fa[5]);
 
-      child[1] = NewElement(mid30, mid12, node[2], node[3],
-                            mid74, mid56, node[6], node[7], attr,
+      child[1] = NewElement(mid30, mid12, no[2], no[3],
+                            mid74, mid56, no[6], no[7], attr,
                             fa[0], -1, fa[2], fa[3], fa[4], fa[5]);
 
-      CheckAnisoFace(node[1], node[2], node[6], node[5], mid12, mid56);
-      CheckAnisoFace(node[3], node[0], node[4], node[7], mid30, mid74);
-      CheckAnisoFace(node[5], node[6], node[7], node[4], mid56, mid74);
-      CheckAnisoFace(node[0], node[3], node[2], node[1], mid30, mid12);
+      CheckAnisoFace(no[1], no[2], no[6], no[5], mid12, mid56);
+      CheckAnisoFace(no[3], no[0], no[4], no[7], mid30, mid74);
+      CheckAnisoFace(no[5], no[6], no[7], no[4], mid56, mid74);
+      CheckAnisoFace(no[0], no[3], no[2], no[1], mid30, mid12);
    }
    else if (ref_type == 4) // split along Z axis
    {
-      Node* mid04 = GetMidEdgeVertex(node[0], node[4]);
-      Node* mid15 = GetMidEdgeVertex(node[1], node[5]);
-      Node* mid26 = GetMidEdgeVertex(node[2], node[6]);
-      Node* mid37 = GetMidEdgeVertex(node[3], node[7]);
+      Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
+      Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
+      Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
+      Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
 
-      child[0] = NewElement(node[0], node[1], node[2], node[3],
+      child[0] = NewElement(no[0], no[1], no[2], no[3],
                             mid04, mid15, mid26, mid37, attr,
                             fa[0], fa[1], fa[2], fa[3], fa[4], -1);
 
       child[1] = NewElement(mid04, mid15, mid26, mid37,
-                            node[4], node[5], node[6], node[7], attr,
+                            no[4], no[5], no[6], no[7], attr,
                             -1, fa[1], fa[2], fa[3], fa[4], fa[5]);
 
-      CheckAnisoFace(node[4], node[0], node[1], node[5], mid04, mid15);
-      CheckAnisoFace(node[5], node[1], node[2], node[6], mid15, mid26);
-      CheckAnisoFace(node[6], node[2], node[3], node[7], mid26, mid37);
-      CheckAnisoFace(node[7], node[3], node[0], node[4], mid37, mid04);
+      CheckAnisoFace(no[4], no[0], no[1], no[5], mid04, mid15);
+      CheckAnisoFace(no[5], no[1], no[2], no[6], mid15, mid26);
+      CheckAnisoFace(no[6], no[2], no[3], no[7], mid26, mid37);
+      CheckAnisoFace(no[7], no[3], no[0], no[4], mid37, mid04);
    }
    else if (ref_type == 3) // XY split
    {
-       Node* mid01 = GetMidEdgeVertex(node[0], node[1]);
-       Node* mid12 = GetMidEdgeVertex(node[1], node[2]);
-       Node* mid23 = GetMidEdgeVertex(node[2], node[3]);
-       Node* mid30 = GetMidEdgeVertex(node[3], node[0]);
+       Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
+       Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
+       Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
+       Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
 
-       Node* mid45 = GetMidEdgeVertex(node[4], node[5]);
-       Node* mid56 = GetMidEdgeVertex(node[5], node[6]);
-       Node* mid67 = GetMidEdgeVertex(node[6], node[7]);
-       Node* mid74 = GetMidEdgeVertex(node[7], node[4]);
+       Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
+       Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
+       Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
+       Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
 
        Node* midf0 = GetMidFaceVertex(mid23, mid12, mid01, mid30);
        Node* midf5 = GetMidFaceVertex(mid45, mid56, mid67, mid74);
 
-       child[0] = NewElement(node[0], mid01, midf0, mid30,
-                             node[4], mid45, midf5, mid74, attr,
+       child[0] = NewElement(no[0], mid01, midf0, mid30,
+                             no[4], mid45, midf5, mid74, attr,
                              fa[0], fa[1], -1, -1, fa[4], fa[5]);
 
-       child[1] = NewElement(mid01, node[1], mid12, midf0,
-                             mid45, node[5], mid56, midf5, attr,
+       child[1] = NewElement(mid01, no[1], mid12, midf0,
+                             mid45, no[5], mid56, midf5, attr,
                              fa[0], fa[1], fa[2], -1, -1, fa[5]);
 
-       child[2] = NewElement(midf0, mid12, node[2], mid23,
-                             midf5, mid56, node[6], mid67, attr,
+       child[2] = NewElement(midf0, mid12, no[2], mid23,
+                             midf5, mid56, no[6], mid67, attr,
                              fa[0], -1, fa[2], fa[3], -1, fa[5]);
 
-       child[3] = NewElement(mid30, midf0, mid23, node[3],
-                             mid74, midf5, mid67, node[7], attr,
+       child[3] = NewElement(mid30, midf0, mid23, no[3],
+                             mid74, midf5, mid67, no[7], attr,
                              fa[0], -1, -1, fa[3], fa[4], fa[5]);
 
-       CheckAnisoFace(node[0], node[1], node[5], node[4], mid01, mid45);
-       CheckAnisoFace(node[1], node[2], node[6], node[5], mid12, mid56);
-       CheckAnisoFace(node[2], node[3], node[7], node[6], mid23, mid67);
-       CheckAnisoFace(node[3], node[0], node[4], node[7], mid30, mid74);
+       CheckAnisoFace(no[0], no[1], no[5], no[4], mid01, mid45);
+       CheckAnisoFace(no[1], no[2], no[6], no[5], mid12, mid56);
+       CheckAnisoFace(no[2], no[3], no[7], no[6], mid23, mid67);
+       CheckAnisoFace(no[3], no[0], no[4], no[7], mid30, mid74);
 
-       CheckIsoFace(node[3], node[2], node[1], node[0], mid23, mid12, mid01, mid30);
-       CheckIsoFace(node[4], node[5], node[6], node[7], mid45, mid56, mid67, mid74);
+       CheckIsoFace(no[3], no[2], no[1], no[0], mid23, mid12, mid01, mid30, midf0);
+       CheckIsoFace(no[4], no[5], no[6], no[7], mid45, mid56, mid67, mid74, midf5);
    }
    else if (ref_type == 5) // XZ split
    {
-      Node* mid01 = GetMidEdgeVertex(node[0], node[1]);
-      Node* mid23 = GetMidEdgeVertex(node[2], node[3]);
-      Node* mid45 = GetMidEdgeVertex(node[4], node[5]);
-      Node* mid67 = GetMidEdgeVertex(node[6], node[7]);
+      Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
+      Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
+      Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
+      Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
 
-      Node* mid04 = GetMidEdgeVertex(node[0], node[4]);
-      Node* mid15 = GetMidEdgeVertex(node[1], node[5]);
-      Node* mid26 = GetMidEdgeVertex(node[2], node[6]);
-      Node* mid37 = GetMidEdgeVertex(node[3], node[7]);
+      Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
+      Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
+      Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
+      Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
 
       Node* midf1 = GetMidFaceVertex(mid01, mid15, mid45, mid04);
       Node* midf3 = GetMidFaceVertex(mid23, mid37, mid67, mid26);
 
-      child[0] = NewElement(node[0], mid01, mid23, node[3],
+      child[0] = NewElement(no[0], mid01, mid23, no[3],
                             mid04, midf1, midf3, mid37, attr,
                             fa[0], fa[1], -1, fa[3], fa[4], -1);
 
-      child[1] = NewElement(mid01, node[1], node[2], mid23,
+      child[1] = NewElement(mid01, no[1], no[2], mid23,
                             midf1, mid15, mid26, midf3, attr,
                             fa[0], fa[1], fa[2], fa[3], -1, -1);
 
       child[2] = NewElement(midf1, mid15, mid26, midf3,
-                            mid45, node[5], node[6], mid67, attr,
+                            mid45, no[5], no[6], mid67, attr,
                             -1, fa[1], fa[2], fa[3], -1, fa[5]);
 
       child[3] = NewElement(mid04, midf1, midf3, mid37,
-                            node[4], mid45, mid67, node[7], attr,
+                            no[4], mid45, mid67, no[7], attr,
                             -1, fa[1], -1, fa[3], fa[4], fa[5]);
 
-      CheckAnisoFace(node[3], node[2], node[1], node[0], mid23, mid01);
-      CheckAnisoFace(node[2], node[6], node[5], node[1], mid26, mid15);
-      CheckAnisoFace(node[6], node[7], node[4], node[5], mid67, mid45);
-      CheckAnisoFace(node[7], node[3], node[0], node[4], mid37, mid04);
+      CheckAnisoFace(no[3], no[2], no[1], no[0], mid23, mid01);
+      CheckAnisoFace(no[2], no[6], no[5], no[1], mid26, mid15);
+      CheckAnisoFace(no[6], no[7], no[4], no[5], mid67, mid45);
+      CheckAnisoFace(no[7], no[3], no[0], no[4], mid37, mid04);
 
-      CheckIsoFace(node[0], node[1], node[5], node[4], mid01, mid15, mid45, mid04);
-      CheckIsoFace(node[2], node[3], node[7], node[6], mid23, mid37, mid67, mid26);
+      CheckIsoFace(no[0], no[1], no[5], no[4], mid01, mid15, mid45, mid04, midf1);
+      CheckIsoFace(no[2], no[3], no[7], no[6], mid23, mid37, mid67, mid26, midf3);
    }
    else if (ref_type == 6) // YZ split
    {
-       Node* mid12 = GetMidEdgeVertex(node[1], node[2]);
-       Node* mid30 = GetMidEdgeVertex(node[3], node[0]);
-       Node* mid56 = GetMidEdgeVertex(node[5], node[6]);
-       Node* mid74 = GetMidEdgeVertex(node[7], node[4]);
+       Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
+       Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
+       Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
+       Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
 
-       Node* mid04 = GetMidEdgeVertex(node[0], node[4]);
-       Node* mid15 = GetMidEdgeVertex(node[1], node[5]);
-       Node* mid26 = GetMidEdgeVertex(node[2], node[6]);
-       Node* mid37 = GetMidEdgeVertex(node[3], node[7]);
+       Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
+       Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
+       Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
+       Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
 
        Node* midf2 = GetMidFaceVertex(mid12, mid26, mid56, mid15);
        Node* midf4 = GetMidFaceVertex(mid30, mid04, mid74, mid37);
 
-       child[0] = NewElement(node[0], node[1], mid12, mid30,
-                             mid04, mid12, midf2, midf4, attr,
+       child[0] = NewElement(no[0], no[1], mid12, mid30,
+                             mid04, mid15, midf2, midf4, attr,
                              fa[0], fa[1], fa[2], -1, fa[4], -1);
 
-       child[1] = NewElement(mid30, mid12, node[2], node[3],
+       child[1] = NewElement(mid30, mid12, no[2], no[3],
                              midf4, midf2, mid26, mid37, attr,
                              fa[0], -1, fa[2], fa[3], fa[4], -1);
 
        child[2] = NewElement(mid04, mid15, midf2, midf4,
-                             node[4], node[5], mid56, mid74, attr,
+                             no[4], no[5], mid56, mid74, attr,
                              -1, fa[1], fa[2], -1, fa[4], fa[5]);
 
        child[3] = NewElement(midf4, midf2, mid26, mid37,
-                             mid74, mid56, node[6], node[7], attr,
+                             mid74, mid56, no[6], no[7], attr,
                              -1, -1, fa[2], fa[3], fa[4], fa[5]);
 
-       CheckAnisoFace(node[4], node[0], node[1], node[5], mid04, mid15);
-       CheckAnisoFace(node[0], node[3], node[2], node[1], mid30, mid12);
-       CheckAnisoFace(node[3], node[7], node[6], node[2], mid37, mid26);
-       CheckAnisoFace(node[7], node[4], node[5], node[6], mid74, mid56);
+       CheckAnisoFace(no[4], no[0], no[1], no[5], mid04, mid15);
+       CheckAnisoFace(no[0], no[3], no[2], no[1], mid30, mid12);
+       CheckAnisoFace(no[3], no[7], no[6], no[2], mid37, mid26);
+       CheckAnisoFace(no[7], no[4], no[5], no[6], mid74, mid56);
 
-       CheckIsoFace(node[3], node[0], node[4], node[7], mid30, mid04, mid74, mid37);
-       CheckIsoFace(node[1], node[2], node[6], node[5], mid12, mid26, mid56, mid15);
+       CheckIsoFace(no[1], no[2], no[6], no[5], mid12, mid26, mid56, mid15, midf2);
+       CheckIsoFace(no[3], no[0], no[4], no[7], mid30, mid04, mid74, mid37, midf4);
    }
    else if (ref_type == 7) // full isotropic refinement
    {
-      Node* mid01 = GetMidEdgeVertex(node[0], node[1]);
-      Node* mid12 = GetMidEdgeVertex(node[1], node[2]);
-      Node* mid23 = GetMidEdgeVertex(node[2], node[3]);
-      Node* mid30 = GetMidEdgeVertex(node[3], node[0]);
+      Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
+      Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
+      Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
+      Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
 
-      Node* mid45 = GetMidEdgeVertex(node[4], node[5]);
-      Node* mid56 = GetMidEdgeVertex(node[5], node[6]);
-      Node* mid67 = GetMidEdgeVertex(node[6], node[7]);
-      Node* mid74 = GetMidEdgeVertex(node[7], node[4]);
+      Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
+      Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
+      Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
+      Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
 
-      Node* mid04 = GetMidEdgeVertex(node[0], node[4]);
-      Node* mid15 = GetMidEdgeVertex(node[1], node[5]);
-      Node* mid26 = GetMidEdgeVertex(node[2], node[6]);
-      Node* mid37 = GetMidEdgeVertex(node[3], node[7]);
+      Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
+      Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
+      Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
+      Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
 
       Node* midf0 = GetMidFaceVertex(mid23, mid12, mid01, mid30);
       Node* midf1 = GetMidFaceVertex(mid01, mid15, mid45, mid04);
@@ -707,41 +706,48 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       Node* midf4 = GetMidFaceVertex(mid30, mid04, mid74, mid37);
       Node* midf5 = GetMidFaceVertex(mid45, mid56, mid67, mid74);
 
-      Node* midel = GetMidEdgeVertex(midf1, midf3);
+      //Node* midel = GetMidEdgeVertex(midf1, midf3);
+      Node* midel = nodes.Get(midf1, midf3);
+      if (!midel->vertex) midel->vertex = NewVertex(midf1, midf3);
 
-      child[0] = NewElement(node[0], mid01, midf0, mid30,
+      child[0] = NewElement(no[0], mid01, midf0, mid30,
                             mid04, midf1, midel, midf4, attr,
                             fa[0], fa[1], -1, -1, fa[4], -1);
 
-      child[1] = NewElement(mid01, node[1], mid12, midf0,
+      child[1] = NewElement(mid01, no[1], mid12, midf0,
                             midf1, mid15, midf2, midel, attr,
                             fa[0], fa[1], fa[2], -1, -1, -1);
 
-      child[2] = NewElement(midf0, mid12, node[2], mid23,
+      child[2] = NewElement(midf0, mid12, no[2], mid23,
                             midel, midf2, mid26, midf3, attr,
                             fa[0], -1, fa[2], fa[3], -1, -1);
 
-      child[3] = NewElement(mid30, midf0, mid23, node[3],
+      child[3] = NewElement(mid30, midf0, mid23, no[3],
                             midf4, midel, midf3, mid37, attr,
                             fa[0], -1, -1, fa[3], fa[4], -1);
 
       child[4] = NewElement(mid04, midf1, midel, midf4,
-                            node[4], mid45, midf5, mid74, attr,
+                            no[4], mid45, midf5, mid74, attr,
                             -1, fa[1], -1, -1, fa[4], fa[5]);
 
       child[5] = NewElement(midf1, mid15, midf2, midel,
-                            mid45, node[5], mid56, midf5, attr,
+                            mid45, no[5], mid56, midf5, attr,
                             -1, fa[1], fa[2], -1, -1, fa[5]);
 
       child[6] = NewElement(midel, midf2, mid26, midf3,
-                            midf5, mid56, node[6], mid67, attr,
+                            midf5, mid56, no[6], mid67, attr,
                             -1, -1, fa[2], fa[3], -1, fa[5]);
 
       child[7] = NewElement(midf4, midel, midf3, mid37,
-                            mid74, midf5, mid67, node[7], attr,
+                            mid74, midf5, mid67, no[7], attr,
                             -1, -1, -1, fa[3], fa[4], fa[5]);
 
-
+      CheckIsoFace(no[3], no[2], no[1], no[0], mid23, mid12, mid01, mid30, midf0);
+      CheckIsoFace(no[0], no[1], no[5], no[4], mid01, mid15, mid45, mid04, midf1);
+      CheckIsoFace(no[1], no[2], no[6], no[5], mid12, mid26, mid56, mid15, midf2);
+      CheckIsoFace(no[2], no[3], no[7], no[6], mid23, mid37, mid67, mid26, midf3);
+      CheckIsoFace(no[3], no[0], no[4], no[7], mid30, mid04, mid74, mid37, midf4);
+      CheckIsoFace(no[4], no[5], no[6], no[7], mid45, mid56, mid67, mid74, midf5);
    }
 
    // start using the nodes of the children, create edges & faces
