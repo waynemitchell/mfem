@@ -276,11 +276,11 @@ NCMeshHex::Node* NCMeshHex::PeekAltParents(Node* v1, Node* v2)
          Node *v2p1 = nodes.Peek(v2->p1), *v2p2 = nodes.Peek(v2->p2);
 
          Node* w1 = PeekAltParents(v1p1, v2p1);
-         Node* w2 = w1 ? PeekAltParents(v1p2, v2p2) : NULL;
+         Node* w2 = w1 ? PeekAltParents(v1p2, v2p2) : NULL /* optimization */;
 
          if (!w1 || !w2) // one more try may be needed as p1, p2 are unordered
             w1 = PeekAltParents(v1p1, v2p2),
-            w2 = w1 ? PeekAltParents(v1p2, v2p1) : NULL;
+            w2 = w1 ? PeekAltParents(v1p2, v2p1) : NULL /* optimization */;
 
          if (w1 && w2) // got both alternate parents?
             mid = nodes.Peek(w1, w2);
@@ -449,13 +449,21 @@ void NCMeshHex::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
       ForceRefinement(v1, v2, v3, v4);
 }
 
+void NCMeshHex::CheckIsoFace(Node* v1, Node* v2, Node* v3, Node* v4,
+                             Node* e1, Node* e2, Node* e3, Node* e4, Node* midf)
+{
+   CheckAnisoFace(v1, v2, e2, e4, e1, midf);
+   CheckAnisoFace(e4, e2, v3, v4, midf, e3);
+   CheckAnisoFace(v4, v1, e1, e3, e4, midf);
+   CheckAnisoFace(e3, e1, v2, v3, midf, e2);
+}
+
 
 void NCMeshHex::Refine(Element* elem, int ref_type)
 {
    if (!ref_type) return;
 
-   // handle elements that may have been refined already to keep the mesh
-   // consistent
+   // handle elements that may have been (force-) refined already
    if (elem->ref_type)
    {
       int remaining = ref_type & ~elem->ref_type;
@@ -475,8 +483,8 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    for (int i = 0; i < 6; i++)
    {
       const int* fv = hex_faces[i];
-      fa[i] = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
-                         elem->node[fv[2]], elem->node[fv[3]])->attribute;
+      fa[i] = faces.Peek(node[fv[0]], node[fv[1]],
+                         node[fv[2]], node[fv[3]])->attribute;
 
    }
    int attr = elem->attribute;

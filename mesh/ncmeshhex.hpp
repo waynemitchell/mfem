@@ -206,6 +206,9 @@ protected: // implementation
    void CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
                        Node* mid12, Node* mid34, int level = 0);
 
+   void CheckIsoFace(Node* v1, Node* v2, Node* v3, Node* v4,
+                     Node* e1, Node* e2, Node* e3, Node* e4, Node* midf);
+
    void RefElementNodes(Element *elem);
    void UnrefElementNodes(Element *elem);
    void RegisterFaces(Element* elem);
