@@ -72,6 +72,10 @@ public:
 
    void Derefine(Element* elem);
 
+   /** Check mesh and potentially refine some elements so that the maximum level
+       of hanging nodes is not greater than 'max_level'. */
+   void LimitNCLevel(int max_level);
+
    SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* fes);
 
    ~NCMeshHex();
@@ -269,9 +273,13 @@ protected: // implementation
                           const FiniteElementCollection *fec);
 
 
-   void CheckFaces(Element* elem);
-public:
-   void Check();
+   // utility
+
+   void FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
+                       int& h_level, int& v_level);
+
+   void CountSplits(Element* elem, int splits[3]);
+
 
 };
 

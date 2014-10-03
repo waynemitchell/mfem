@@ -706,9 +706,7 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       Node* midf4 = GetMidFaceVertex(mid30, mid04, mid74, mid37);
       Node* midf5 = GetMidFaceVertex(mid45, mid56, mid67, mid74);
 
-      //Node* midel = GetMidEdgeVertex(midf1, midf3);
-      Node* midel = nodes.Get(midf1, midf3);
-      if (!midel->vertex) midel->vertex = NewVertex(midf1, midf3);
+      Node* midel = GetMidEdgeVertex(midf1, midf3);
 
       child[0] = NewElement(no[0], mid01, midf0, mid30,
                             mid04, midf1, midel, midf4, attr,
@@ -1135,33 +1133,79 @@ SparseMatrix*
 }
 
 
-void NCMeshHex::CheckFaces(Element* elem)
+//// Utility ///////////////////////////////////////////////////////////////////
+
+void NCMeshHex::FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
+                               int& h_level, int& v_level)
 {
-   if (elem->ref_type)
+   int hl1, hl2, vl1, vl2;
+   Node* mid[4];
+
+   switch (FaceSplitType(v1, v2, v3, v4, mid))
    {
-      for (int i = 0; i < 8; i++)
-         if (elem->child[i])
-            CheckFaces(elem->child[i]);
+   case 0: // not split
+      h_level = v_level = 0;
+      break;
+
+   case 1: // vertical
+      FaceSplitLevel(v1, mid[0], mid[2], v4, hl1, vl1);
+      FaceSplitLevel(mid[0], v2, v3, mid[2], hl2, vl2);
+      h_level = std::max(hl1, hl2);
+      v_level = std::max(vl1, vl2) + 1;
+      break;
+
+   default: // horizontal
+      FaceSplitLevel(v1, v2, mid[1], mid[3], hl1, vl1);
+      FaceSplitLevel(mid[3], mid[1], v3, v4, hl2, vl2);
+      h_level = std::max(hl1, hl2) + 1;
+      v_level = std::max(vl1, vl2);
    }
-   else
+}
+
+static int max4(int a, int b, int c, int d)
+   { return std::max(std::max(a, b), std::max(c, d)); }
+
+void NCMeshHex::CountSplits(Element* elem, int splits[3])
+{
+   Node** node = elem->node;
+
+   int level[6][2];
+   for (int i = 0; i < 6; i++)
    {
-      for (int i = 0; i < 6; i++)
+      const int* fv = hex_faces[i];
+      FaceSplitLevel(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
+                     level[i][1], level[i][0]);
+   }
+
+   splits[0] = max4(level[0][0], level[1][0], level[3][0], level[5][0]);
+   splits[1] = max4(level[0][1], level[2][0], level[4][0], level[5][1]);
+   splits[2] = max4(level[1][1], level[2][1], level[3][1], level[4][1]);
+}
+
+void NCMeshHex::LimitNCLevel(int max_level)
+{
+   while (1)
+   {
+      UpdateLeafElements();
+
+      Array<Refinement> refinements;
+      for (int i = 0; i < leaf_elements.Size(); i++)
       {
-         Node* node[4];
-         const int* fv = hex_faces[i];
-         for (int j = 0; j < 4; j++)
-            node[j] = elem->node[fv[j]];
+         int splits[3];
+         CountSplits(leaf_elements[i], splits);
 
-         Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
-         MFEM_ASSERT(face, "Face not found!");
+         int ref_type = 0;
+         for (int k = 0; k < 3; k++)
+            if (splits[k] > max_level)
+               ref_type |= (1 << k);
+
+         if (ref_type)
+            refinements.Append(Refinement(i, ref_type));
       }
+
+      if (!refinements.Size()) break;
+
+      Refine(refinements);
    }
 }
-
-void NCMeshHex::Check()
-{
-   for (int i = 0; i < root_elements.Size(); i++)
-      CheckFaces(root_elements[i]);
-}
-
 
