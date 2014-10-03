@@ -568,7 +568,42 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    }
    else if (ref_type == 3) // XY split
    {
-      // TODO
+       Node* mid01 = GetMidEdgeVertex(node[0], node[1]);
+       Node* mid12 = GetMidEdgeVertex(node[1], node[2]);
+       Node* mid23 = GetMidEdgeVertex(node[2], node[3]);
+       Node* mid30 = GetMidEdgeVertex(node[3], node[0]);
+
+       Node* mid45 = GetMidEdgeVertex(node[4], node[5]);
+       Node* mid56 = GetMidEdgeVertex(node[5], node[6]);
+       Node* mid67 = GetMidEdgeVertex(node[6], node[7]);
+       Node* mid74 = GetMidEdgeVertex(node[7], node[4]);
+
+       Node* midf0 = GetMidFaceVertex(mid23, mid12, mid01, mid30);
+       Node* midf5 = GetMidFaceVertex(mid45, mid56, mid67, mid74);
+
+       child[0] = NewElement(node[0], mid01, midf0, mid30,
+                             node[4], mid45, midf5, mid74, attr,
+                             fa[0], fa[1], -1, -1, fa[4], fa[5]);
+
+       child[1] = NewElement(mid01, node[1], mid12, midf0,
+                             mid45, node[5], mid56, midf5, attr,
+                             fa[0], fa[1], fa[2], -1, -1, fa[5]);
+
+       child[2] = NewElement(midf0, mid12, node[2], mid23,
+                             midf5, mid56, node[6], mid67, attr,
+                             fa[0], -1, fa[2], fa[3], -1, fa[5]);
+
+       child[3] = NewElement(mid30, midf0, mid23, node[3],
+                             mid74, midf5, mid67, node[7], attr,
+                             fa[0], -1, -1, fa[3], fa[4], fa[5]);
+
+       CheckAnisoFace(node[0], node[1], node[5], node[4], mid01, mid45);
+       CheckAnisoFace(node[1], node[2], node[6], node[5], mid12, mid56);
+       CheckAnisoFace(node[2], node[3], node[7], node[6], mid23, mid67);
+       CheckAnisoFace(node[3], node[0], node[4], node[7], mid30, mid74);
+
+       CheckIsoFace(node[3], node[2], node[1], node[0], mid23, mid12, mid01, mid30);
+       CheckIsoFace(node[4], node[5], node[6], node[7], mid45, mid56, mid67, mid74);
    }
    else if (ref_type == 5) // XZ split
    {
@@ -600,10 +635,53 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       child[3] = NewElement(mid04, midf1, midf3, mid37,
                             node[4], mid45, mid67, node[7], attr,
                             -1, fa[1], -1, fa[3], fa[4], fa[5]);
+
+      CheckAnisoFace(node[3], node[2], node[1], node[0], mid23, mid01);
+      CheckAnisoFace(node[2], node[6], node[5], node[1], mid26, mid15);
+      CheckAnisoFace(node[6], node[7], node[4], node[5], mid67, mid45);
+      CheckAnisoFace(node[7], node[3], node[0], node[4], mid37, mid04);
+
+      CheckIsoFace(node[0], node[1], node[5], node[4], mid01, mid15, mid45, mid04);
+      CheckIsoFace(node[2], node[3], node[7], node[6], mid23, mid37, mid67, mid26);
    }
    else if (ref_type == 6) // YZ split
    {
-      // TODO
+       Node* mid12 = GetMidEdgeVertex(node[1], node[2]);
+       Node* mid30 = GetMidEdgeVertex(node[3], node[0]);
+       Node* mid56 = GetMidEdgeVertex(node[5], node[6]);
+       Node* mid74 = GetMidEdgeVertex(node[7], node[4]);
+
+       Node* mid04 = GetMidEdgeVertex(node[0], node[4]);
+       Node* mid15 = GetMidEdgeVertex(node[1], node[5]);
+       Node* mid26 = GetMidEdgeVertex(node[2], node[6]);
+       Node* mid37 = GetMidEdgeVertex(node[3], node[7]);
+
+       Node* midf2 = GetMidFaceVertex(mid12, mid26, mid56, mid15);
+       Node* midf4 = GetMidFaceVertex(mid30, mid04, mid74, mid37);
+
+       child[0] = NewElement(node[0], node[1], mid12, mid30,
+                             mid04, mid12, midf2, midf4, attr,
+                             fa[0], fa[1], fa[2], -1, fa[4], -1);
+
+       child[1] = NewElement(mid30, mid12, node[2], node[3],
+                             midf4, midf2, mid26, mid37, attr,
+                             fa[0], -1, fa[2], fa[3], fa[4], -1);
+
+       child[2] = NewElement(mid04, mid15, midf2, midf4,
+                             node[4], node[5], mid56, mid74, attr,
+                             -1, fa[1], fa[2], -1, fa[4], fa[5]);
+
+       child[3] = NewElement(midf4, midf2, mid26, mid37,
+                             mid74, mid56, node[6], node[7], attr,
+                             -1, -1, fa[2], fa[3], fa[4], fa[5]);
+
+       CheckAnisoFace(node[4], node[0], node[1], node[5], mid04, mid15);
+       CheckAnisoFace(node[0], node[3], node[2], node[1], mid30, mid12);
+       CheckAnisoFace(node[3], node[7], node[6], node[2], mid37, mid26);
+       CheckAnisoFace(node[7], node[4], node[5], node[6], mid74, mid56);
+
+       CheckIsoFace(node[3], node[0], node[4], node[7], mid30, mid04, mid74, mid37);
+       CheckIsoFace(node[1], node[2], node[6], node[5], mid12, mid26, mid56, mid15);
    }
    else if (ref_type == 7) // full isotropic refinement
    {
@@ -662,6 +740,8 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       child[7] = NewElement(midf4, midel, midf3, mid37,
                             mid74, midf5, mid67, node[7], attr,
                             -1, -1, -1, fa[3], fa[4], fa[5]);
+
+
    }
 
    // start using the nodes of the children, create edges & faces
