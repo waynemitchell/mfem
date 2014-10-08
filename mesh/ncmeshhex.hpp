@@ -15,8 +15,9 @@
 #include "../general/hash.hpp"
 
 class SparseMatrix;
-class FiniteElementCollection;
+//class FiniteElementCollection;
 class IsoparametricTransformation;
+class FiniteElementSpace;
 
 
 /**
@@ -70,13 +71,14 @@ public:
        requested refinements. */
    void Refine(Array<Refinement>& refinements);
 
-   void Derefine(Element* elem);
+   /** Derefine -- not implemented yet */
+   //void Derefine(Element* elem);
 
    /** Check mesh and potentially refine some elements so that the maximum level
        of hanging nodes is not greater than 'max_level'. */
    void LimitNCLevel(int max_level);
 
-   SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* fes);
+   SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* space);
 
    ~NCMeshHex();
 
@@ -109,8 +111,8 @@ protected: // implementation
    ///
    struct Vertex : public RefCount
    {
-      double pos[3];
-      int index;
+      double pos[3]; ///< 3D position
+      int index; ///< vertex number in the Mesh
 
       Vertex() {}
       Vertex(double x, double y, double z) : index(-1)
@@ -120,7 +122,7 @@ protected: // implementation
    ///
    struct Edge : public RefCount
    {
-      int index;
+      //int dof; ///< first edge DOF number (nonconforming)
    };
 
    ///
@@ -150,9 +152,9 @@ protected: // implementation
    {
       int attribute; ///< boundary element attribute, -1 if internal face
       Element* elem[2]; ///< up to 2 elements sharing the face
-      int index;
+      int index; ///< face number in the Mesh
 
-      Face(int id) : Hashed4<Face>(id), attribute(-1)
+      Face(int id) : Hashed4<Face>(id), attribute(-1), index(-1)
          { elem[0] = elem[1] = NULL; }
 
       bool Boundary() const { return attribute >= 0; }
@@ -240,38 +242,30 @@ protected: // implementation
 
    typedef Array<Dependency> DepList;
 
-   /// Holds temporary data for each vertex during the interpolation algorithm.
-   struct VertexData
+   /** Holds temporary data for each nonconforming (FESpace-assigned) DOF
+       during the interpolation algorithm. */
+   struct DofData
    {
-      int dof;      ///< original nonconforming FESpace-assigned DOF number
-      int true_dof; ///< conforming true DOF number, -1 if slave
+      int true_dof; ///< assigned conforming true DOF number, -1 if slave
       bool finalized; ///< true if cP matrix row is known for this DOF
 
-      DepList dep_list; ///< what other DOFs does this vertex depend on?
+      DepList dep_list; ///< list of other DOFs this DOF depends on
       bool Independent() const { return !dep_list.Size(); }
 
-      VertexData() : true_dof(-1), finalized(false) {}
+      DofData() : true_dof(-1), finalized(false) {}
    };
 
-   VertexData* v_data; ///< vertex temporary data
+   DofData* dof_data; ///< vertex temporary data
 
-   bool VertexFinalizable(VertexData& vd);
-
-   struct MasterFace
-   {
-      Node* v[4];
-      Node* e[4];
-      Face* face;
-      const FiniteElement *face_fe;
-   };
+   FiniteElementSpace* space;
 
    void ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
                       IsoparametricTransformation& face_T,
-                      MasterFace* master, int level);
+                      Array<int>& master_dofs, int level);
 
-   void ProcessMasterFace(Node* node[4], Face* face,
-                          const FiniteElementCollection *fec);
+   void ProcessMasterFace(Node* node[4], Face* face);
 
+   bool DofFinalizable(DofData& vd);
 
    // utility
 

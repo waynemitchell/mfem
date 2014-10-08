@@ -12,6 +12,8 @@
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 
+#include <cmath>
+
 #include "ncmeshhex.hpp"
 
 // TODO: this should be somewhere else
@@ -788,10 +790,10 @@ void NCMeshHex::Refine(Array<Refinement>& refinements)
 }
 
 
-void NCMeshHex::Derefine(Element* elem)
+/*void NCMeshHex::Derefine(Element* elem)
 {
 
-}
+}*/
 
 
 //// Mesh Interface ////////////////////////////////////////////////////////////
@@ -917,7 +919,7 @@ static void make_point_mat(double v0[], double v1[], double v2[], double v3[],
 
 void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
                               IsoparametricTransformation& face_T,
-                              MasterFace* master, int level)
+                              Array<int>& master_dofs, int level)
 {
    if (level > 0)
    {
@@ -925,30 +927,36 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
       Face* face = faces.Peek(v0, v1, v2, v3);
       if (face)
       {
-         // yes, we need to make this face constrained
-         DenseMatrix I(master->face_fe->GetDof());
-         master->face_fe->GetLocalInterpolation(face_T, I);
+         // yes, we need to make this face constrained; get its DOFs
+         Array<int> slave_dofs;
+         space->GetFaceDofs(face->index, slave_dofs);
 
-         Node* v[4] = { v0, v1, v2, v3 };
-         for (int i = 0; i < 4; i++)
+         // obtain the local interpolation matrix
+         const FiniteElement* face_fe =
+            space->FEColl()->FiniteElementForGeometry(Geometry::SQUARE);
+
+         DenseMatrix I(face_fe->GetDof());
+         face_fe->GetLocalInterpolation(face_T, I);
+
+         // make each slave DOF dependent on all master face DOFs
+         for (int i = 0; i < slave_dofs.Size(); i++)
          {
-            // make v[i] dependent on all master face DOFs
-            VertexData& vd = v_data[v[i]->vertex->index];
-            if (vd.Independent())
+            int slave_dof = slave_dofs[i];
+            DofData& slave_data = dof_data[slave_dof];
+            if (!slave_data.dep_list.Size()) // not processed yet
             {
-               for (int j = 0; j < 4; j++)
+               for (int j = 0; j < master_dofs.Size(); j++)
                {
                   double coef = I(i, j);
-                  if (fabs(coef) > 1e-12)
+                  if (std::abs(coef) > 1e-12)
                   {
-                     int dof = v_data[master->v[j]->vertex->index].dof;
-                     if (dof != vd.dof)
-                        vd.dep_list.Append(Dependency(dof, coef));
+                     int master_dof = master_dofs[j];
+                     if (master_dof != slave_dof)
+                        slave_data.dep_list.Append(Dependency(master_dof, coef));
                   }
                }
             }
          }
-
          return;
       }
    }
@@ -960,14 +968,12 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
 
    // prepare also the middle points for the transformation
    DenseMatrix& pm = face_T.GetPointMat();
-   double tmid[5][2] =
+   double tmid[4][2] =
    {
       { (pm(0,0) + pm(0,1)) / 2,  (pm(1,0) + pm(1,1)) / 2 }, // bottom (0)
       { (pm(0,1) + pm(0,2)) / 2,  (pm(1,1) + pm(1,2)) / 2 }, // right (1)
       { (pm(0,2) + pm(0,3)) / 2,  (pm(1,2) + pm(1,3)) / 2 }, // top (2)
-      { (pm(0,3) + pm(0,0)) / 2,  (pm(1,3) + pm(1,0)) / 2 }, // left (3)
-      { (pm(0,0) + pm(0,1) + pm(0,2) + pm(0,3)) / 4,
-        (pm(1,0) + pm(1,1) + pm(1,2) + pm(1,3)) / 4 }  // middle (4)
+      { (pm(0,3) + pm(0,0)) / 2,  (pm(1,3) + pm(1,0)) / 2 }  // left (3)
    };
    double tv[4][2] = // backup of original points
    {
@@ -980,23 +986,26 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
    if (split == 1) // "X" split face
    {
       make_point_mat(tv[0], tmid[0], tmid[2], tv[3], pm);
-      ConstrainFace (  v0,   mid[0],  mid[2],   v3,  face_T, master, level+1);
+      ConstrainFace (  v0,   mid[0],  mid[2],   v3,
+                     face_T, master_dofs, level+1);
 
       make_point_mat(tmid[0], tv[1], tv[2], tmid[2], pm);
-      ConstrainFace ( mid[0],   v1,    v2,   mid[2], face_T, master, level+1);
+      ConstrainFace ( mid[0],   v1,    v2,   mid[2],
+                     face_T, master_dofs, level+1);
    }
    else if (split == 2) // "Y" split face
    {
       make_point_mat(tv[0], tv[1], tmid[1], tmid[3], pm);
-      ConstrainFace (  v0,    v1,   mid[1],  mid[3], face_T, master, level+1);
+      ConstrainFace (  v0,    v1,   mid[1],  mid[3],
+                     face_T, master_dofs, level+1);
 
       make_point_mat(tmid[3], tmid[1], tv[2], tv[3], pm);
-      ConstrainFace ( mid[3],  mid[1],   v2,    v3,  face_T, master, level+1);
+      ConstrainFace ( mid[3],  mid[1],   v2,    v3,
+                     face_T, master_dofs, level+1);
    }
 }
 
-void NCMeshHex::ProcessMasterFace(Node* node[4], Face* face,
-                                  const FiniteElementCollection *fec)
+void NCMeshHex::ProcessMasterFace(Node* node[4], Face* face)
 {
    // set up a face transformation that will keep track of our position
    // within the master face
@@ -1006,48 +1015,59 @@ void NCMeshHex::ProcessMasterFace(Node* node[4], Face* face,
    // initial transformation is identity (vertices of the unit square)
    DenseMatrix& pm = face_T.GetPointMat();
    pm.SetSize(2, 4);
-   pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
+   /*pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
+   pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;*/
+   pm(0, 0) = 1;  pm(0, 1) = 0;  pm(0, 2) = 0;  pm(0, 3) = 1;
    pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
 
-   // package all constraining nodes in one struct
-   MasterFace master;
-   for (int i = 0; i < 4; i++)
-   {
-      master.v[i] = node[i];
-      //master.e[j] = ...
-   }
-   master.face = face;
-   master.face_fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
+   // get a list of DOFs on the master face
+   Array<int> master_dofs;
+   space->GetFaceDofs(face->index, master_dofs);
 
-   ConstrainFace(node[0], node[1], node[2], node[3], face_T, &master, 0);
+   //ConstrainFace(node[0], node[1], node[2], node[3], face_T, master_dofs, 0);
+   ConstrainFace(node[1], node[0], node[3], node[2], face_T, master_dofs, 0);
 }
 
-bool NCMeshHex::VertexFinalizable(VertexData& vd)
+bool NCMeshHex::DofFinalizable(DofData& dd)
 {
    // are all constraining DOFs finalized?
-   for (int i = 0; i < vd.dep_list.Size(); i++)
-      if (!v_data[vd.dep_list[i].dof /*FIXME*/].finalized)
+   for (int i = 0; i < dd.dep_list.Size(); i++)
+      if (!dof_data[dd.dep_list[i].dof].finalized)
          return false;
 
    return true;
 }
 
 SparseMatrix*
-   NCMeshHex::GetInterpolation(Mesh* mesh, FiniteElementSpace *fes)
+   NCMeshHex::GetInterpolation(Mesh* mesh, FiniteElementSpace *space)
 {
-   // TODO: generalize
-   int num_vert = mesh->GetNV();
-   v_data = new VertexData[num_vert];
+   this->space = space;
 
-   // get nonconforming DOF numbers
+   // allocate temporary data for each DOF
+   int ndofs = space->GetNDofs();
+   dof_data = new DofData[ndofs];
+
+   // get a list of our Vertices
+   int nvert = mesh->GetNV();
+   Node** vertex_nodes = new Node*[nvert];
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
-   {
       if (it->vertex)
       {
-         int index = it->vertex->index;
-         v_data[index].dof = index;
+         MFEM_ASSERT(it->vertex->index != -1, "Vertices not indexed.");
+         vertex_nodes[it->vertex->index] = it;
       }
+
+   // pull face numbering from the mesh
+   for (int i = 0; i < mesh->GetNFaces(); i++)
+   {
+      const int* v = mesh->GetFace(i)->GetVertices();
+      Face* face = faces.Peek(vertex_nodes[v[0]], vertex_nodes[v[1]],
+                              vertex_nodes[v[2]], vertex_nodes[v[3]]);
+
+      MFEM_ASSERT(face, "Face not found.");
+      face->index = i;
    }
+   delete [] vertex_nodes;
 
    // visit faces of leaf elements
    for (int i = 0; i < leaf_elements.Size(); i++)
@@ -1070,31 +1090,31 @@ SparseMatrix*
             // we found a face that is complete on one side and refined on the
             // other; we need to start a recursive process that will make all
             // DOFs lying on the other side dependent on this master face
-            ProcessMasterFace(node, face, fes->FEColl());
+            ProcessMasterFace(node, face);
          }
       }
    }
 
-   // assign true DOFs to vertices that stayed independent
+   // assign true DOFs to DOFs that stayed independent
    int next_true_dof = 0;
-   for (int i = 0; i < num_vert; i++)
+   for (int i = 0; i < ndofs; i++)
    {
-      VertexData& vd = v_data[i];
-      if (vd.Independent())
-         vd.true_dof = next_true_dof++;
+      DofData& dd = dof_data[i];
+      if (dd.Independent())
+         dd.true_dof = next_true_dof++;
    }
 
    // create the conforming prolongation matrix
-   SparseMatrix* cP = new SparseMatrix(fes->GetNDofs(), next_true_dof);
+   SparseMatrix* cP = new SparseMatrix(ndofs, next_true_dof);
 
    // put identity in the matrix for independent vertices
-   for (int i = 0; i < num_vert; i++)
+   for (int i = 0; i < ndofs; i++)
    {
-      VertexData& vd = v_data[i];
-      if (vd.Independent())
+      DofData& dd = dof_data[i];
+      if (dd.Independent())
       {
-         cP->Add(vd.dof, vd.true_dof, 1.0);
-         vd.finalized = true;
+         cP->Add(i, dd.true_dof, 1.0);
+         dd.finalized = true;
       }
    }
 
@@ -1103,30 +1123,30 @@ SparseMatrix*
    do
    {
       finished = true;
-      for (int i = 0; i < num_vert; i++)
+      for (int i = 0; i < ndofs; i++)
       {
-         VertexData& vd = v_data[i];
-         if (!vd.finalized && VertexFinalizable(vd))
+         DofData& dd = dof_data[i];
+         if (!dd.finalized && DofFinalizable(dd))
          {
-            for (int j = 0; j < vd.dep_list.Size(); j++)
+            for (int j = 0; j < dd.dep_list.Size(); j++)
             {
-               Dependency& dep = vd.dep_list[j];
+               Dependency& dep = dd.dep_list[j];
 
                Array<int> cols;
                Vector srow;
                cP->GetRow(dep.dof, cols, srow);
 
                for (int k = 0; k < cols.Size(); k++)
-                  cP->Add(vd.dof, cols[k], dep.coef * srow[k]);
+                  cP->Add(i, cols[k], dep.coef * srow[k]);
             }
-            vd.finalized = true;
+            dd.finalized = true;
             finished = false;
          }
       }
    }
    while (!finished);
 
-   delete [] v_data;
+   delete [] dof_data;
 
    cP->Finalize();
    return cP;
