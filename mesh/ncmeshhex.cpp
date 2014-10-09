@@ -17,6 +17,10 @@
 #include "ncmeshhex.hpp"
 
 // TODO: this should be somewhere else
+/*const double hex_corners[8][3] =
+{{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0},
+ {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}};*/
+
 const int hex_edges[12][2] =
 {{0, 1}, {1, 2}, {3, 2}, {0, 3},
  {4, 5}, {5, 6}, {7, 6}, {4, 7},
@@ -906,7 +910,7 @@ int NCMeshHex::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
 }
 
 static void make_point_mat(double v0[], double v1[], double v2[], double v3[],
-                           DenseMatrix &pm)
+                           DenseMatrix& pm)
 {
    for (int i = 0; i < 2; i++)
    {
@@ -914,6 +918,57 @@ static void make_point_mat(double v0[], double v1[], double v2[], double v3[],
       pm(i,1) = v1[i];
       pm(i,2) = v2[i];
       pm(i,3) = v3[i];
+   }
+}
+
+int NCMeshHex::find_node(Element* elem, Node* node)
+{
+   for (int i = 0; i < 8; i++)
+      if (elem->node[i] == node)
+         return i;
+
+   mfem_error("Node not found.");
+}
+
+static int find_face(int a, int b, int c)
+{
+   for (int i = 0; i < 6; i++)
+   {
+      const int* fv = hex_faces[i];
+      if ((a == fv[0] || a == fv[1] || a == fv[2] || a == fv[3]) &&
+          (b == fv[0] || b == fv[1] || b == fv[2] || b == fv[3]) &&
+          (c == fv[0] || c == fv[1] || c == fv[2] || c == fv[3]))
+      {
+         return i;
+      }
+   }
+   mfem_error("Face not found.");
+}
+
+void NCMeshHex::ReorderPointMat(Node* v0, Node* v1, Node* v2, Node* v3,
+                                Element* elem, DenseMatrix& pm)
+{
+   int master[4] = {
+      find_node(elem, v0), find_node(elem, v1),
+      find_node(elem, v2), find_node(elem, v3)
+   };
+
+   int fi = find_face(master[0], master[1], master[2]);
+   const int* fv = hex_faces[fi];
+
+   DenseMatrix tmp(pm);
+   for (int i = 0, j; i < 4; i++)
+   {
+      for (j = 0; j < 4; j++)
+         if (fv[i] == master[j])
+         {
+            // pm.column(i) = tmp.column(j)
+            for (int k = 0; k < pm.Height(); k++)
+               pm(k,i) = tmp(k,j);
+            break;
+         }
+
+      MFEM_ASSERT(j != 4, "Node not found.");
    }
 }
 
@@ -930,6 +985,10 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
          // yes, we need to make this face constrained; get its DOFs
          Array<int> slave_dofs;
          space->GetFaceDofs(face->index, slave_dofs);
+
+         // reorder face_T point matrix according to slave face orientation
+         ReorderPointMat(v0, v1, v2, v3, face->GetSingleElement(),
+                        face_T.GetPointMat());
 
          // obtain the local interpolation matrix
          const FiniteElement* face_fe =
@@ -1015,17 +1074,14 @@ void NCMeshHex::ProcessMasterFace(Node* node[4], Face* face)
    // initial transformation is identity (vertices of the unit square)
    DenseMatrix& pm = face_T.GetPointMat();
    pm.SetSize(2, 4);
-   /*pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
-   pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;*/
-   pm(0, 0) = 1;  pm(0, 1) = 0;  pm(0, 2) = 0;  pm(0, 3) = 1;
+   pm(0, 0) = 0;  pm(0, 1) = 1;  pm(0, 2) = 1;  pm(0, 3) = 0;
    pm(1, 0) = 0;  pm(1, 1) = 0;  pm(1, 2) = 1;  pm(1, 3) = 1;
 
    // get a list of DOFs on the master face
    Array<int> master_dofs;
    space->GetFaceDofs(face->index, master_dofs);
 
-   //ConstrainFace(node[0], node[1], node[2], node[3], face_T, master_dofs, 0);
-   ConstrainFace(node[1], node[0], node[3], node[2], face_T, master_dofs, 0);
+   ConstrainFace(node[0], node[1], node[2], node[3], face_T, master_dofs, 0);
 }
 
 bool NCMeshHex::DofFinalizable(DofData& dd)
@@ -1041,12 +1097,6 @@ bool NCMeshHex::DofFinalizable(DofData& dd)
 SparseMatrix*
    NCMeshHex::GetInterpolation(Mesh* mesh, FiniteElementSpace *space)
 {
-   this->space = space;
-
-   // allocate temporary data for each DOF
-   int ndofs = space->GetNDofs();
-   dof_data = new DofData[ndofs];
-
    // get a list of our Vertices
    int nvert = mesh->GetNV();
    Node** vertex_nodes = new Node*[nvert];
@@ -1069,6 +1119,12 @@ SparseMatrix*
    }
    delete [] vertex_nodes;
 
+   // allocate temporary data for each DOF
+   int ndofs = space->GetNDofs();
+   dof_data = new DofData[ndofs];
+
+   this->space = space;
+
    // visit faces of leaf elements
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
@@ -1087,6 +1143,8 @@ SparseMatrix*
 
          if (face->ref_count == 1 && !face->Boundary())
          {
+            // FIXME! may not be refined
+
             // we found a face that is complete on one side and refined on the
             // other; we need to start a recursive process that will make all
             // DOFs lying on the other side dependent on this master face
@@ -1107,7 +1165,7 @@ SparseMatrix*
    // create the conforming prolongation matrix
    SparseMatrix* cP = new SparseMatrix(ndofs, next_true_dof);
 
-   // put identity in the matrix for independent vertices
+   // put identity in the matrix for independent DOFs
    for (int i = 0; i < ndofs; i++)
    {
       DofData& dd = dof_data[i];
@@ -1118,8 +1176,9 @@ SparseMatrix*
       }
    }
 
-   // resolve dependencies
+   // resolve dependencies of slave DOFs
    bool finished;
+   int nfinalized = next_true_dof;
    do
    {
       finished = true;
@@ -1139,12 +1198,19 @@ SparseMatrix*
                for (int k = 0; k < cols.Size(); k++)
                   cP->Add(i, cols[k], dep.coef * srow[k]);
             }
+
             dd.finalized = true;
+            nfinalized++;
             finished = false;
          }
       }
    }
    while (!finished);
+
+   // if everything is consistent (mesh, face orientations, etc.), we should
+   // be able to finalize all slave DOFs, otherwise it's a serious error
+   if (nfinalized != ndofs)
+      mfem_error("Error creating cP matrix.");
 
    delete [] dof_data;
 
@@ -1183,7 +1249,9 @@ void NCMeshHex::FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
 }
 
 static int max4(int a, int b, int c, int d)
-   { return std::max(std::max(a, b), std::max(c, d)); }
+{
+   return std::max(std::max(a, b), std::max(c, d));
+}
 
 void NCMeshHex::CountSplits(Element* elem, int splits[3])
 {

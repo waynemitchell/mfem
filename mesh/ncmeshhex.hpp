@@ -259,6 +259,11 @@ protected: // implementation
 
    FiniteElementSpace* space;
 
+   static int find_node(Element* elem, Node* node);
+
+   void ReorderPointMat(Node* v0, Node* v1, Node* v2, Node* v3,
+                       Element* elem, DenseMatrix& pm);
+
    void ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
                       IsoparametricTransformation& face_T,
                       Array<int>& master_dofs, int level);
