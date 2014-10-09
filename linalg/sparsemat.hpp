@@ -181,7 +181,7 @@ public:
        CSR (compressed sparse row) format. */
    virtual void Finalize(int skip_zeros = 1);
 
-   int Finalized() { return (A != NULL); }
+   int Finalized() const { return (A != NULL); }
 
    /** Split the matrix into M x N blocks of sparse matrices in CSR format.
        The 'blocks' array is M x N (i.e. M and N are determined by its
@@ -278,7 +278,7 @@ void SparseMatrixFunction(SparseMatrix &S, double (*f)(double));
 
 
 /// Transpose of a sparse matrix. A must be finalized.
-SparseMatrix *Transpose(SparseMatrix &A);
+SparseMatrix *Transpose(const SparseMatrix &A);
 /// Transpose of a sparse matrix. A does not need to be finalized.
 SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth);
 
@@ -288,21 +288,21 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth);
     If OAB is NULL, we create a new SparseMatrix to store
     the result and return a pointer to it.
     All matrices must be finalized.  */
-SparseMatrix *Mult(SparseMatrix &A, SparseMatrix &B,
+SparseMatrix *Mult(const SparseMatrix &A, const SparseMatrix &B,
                    SparseMatrix *OAB = NULL);
 
 /// Matrix product of sparse matrices. A and B do not need to be finalized.
-SparseMatrix *MultRowMatrix (SparseMatrix &A, SparseMatrix &B);
+SparseMatrix *MultRowMatrix (const SparseMatrix &A, const SparseMatrix &B);
 
 
 /** RAP matrix product. ORAP is like OAB above.
     All matrices must be finalized.  */
-SparseMatrix *RAP(SparseMatrix &A, SparseMatrix &R,
+SparseMatrix *RAP(const SparseMatrix &A, const SparseMatrix &R,
                   SparseMatrix *ORAP = NULL);
 
 /** Matrix multiplication A^t D A.
     All matrices must be finalized.  */
-SparseMatrix *Mult_AtDA(SparseMatrix &A, Vector &D,
+SparseMatrix *Mult_AtDA(const SparseMatrix &A, const Vector &D,
                         SparseMatrix *OAtDA = NULL);
 
 
