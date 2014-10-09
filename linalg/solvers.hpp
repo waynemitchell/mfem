@@ -16,6 +16,23 @@
 #include <umfpack.h>
 #endif
 
+
+class IterativeSolverData
+{
+public:
+	IterativeSolverData():
+		rel_tol(1e-6),
+		abs_tol(1e-12),
+		max_iter(1000),
+		print_level(0)
+	{};
+
+	double rel_tol;
+	double abs_tol;
+	int max_iter;
+	int print_level;
+};
+
 /// Abstract base class for iterative solver
 class IterativeSolver : public Solver
 {
@@ -46,6 +63,7 @@ public:
    IterativeSolver(MPI_Comm _comm);
 #endif
 
+   void Set(const IterativeSolverData & data){rel_tol = data.rel_tol; abs_tol = data.abs_tol; max_iter = data.max_iter; SetPrintLevel(data.print_level); }
    void SetRelTol(double rtol) { rel_tol = rtol; }
    void SetAbsTol(double atol) { abs_tol = atol; }
    void SetMaxIter(int max_it) { max_iter = max_it; }
@@ -106,6 +124,24 @@ public:
 
 #ifdef MFEM_USE_MPI
    GMRESSolver(MPI_Comm _comm) : IterativeSolver(_comm) { m = 50; }
+#endif
+
+   void SetKDim(int dim) { m = dim; }
+
+   virtual void Mult(const Vector &x, Vector &y) const;
+};
+
+/// FGMRES method
+class FGMRESSolver : public IterativeSolver
+{
+protected:
+   int m;
+
+public:
+   FGMRESSolver() { m = 50; }
+
+#ifdef MFEM_USE_MPI
+   FGMRESSolver(MPI_Comm _comm) : IterativeSolver(_comm) { m = 50; }
 #endif
 
    void SetKDim(int dim) { m = dim; }
