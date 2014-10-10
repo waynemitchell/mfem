@@ -62,6 +62,15 @@ public:
 
    virtual void SetTime(const double _t) { t = _t; }
 
+   /** Solve the equation: k = f(x + dt*k, t), for the unknown k.
+       This method allows for the abstract implementation of some time
+       integration methods, including diagonal implicit Runge-Kutta (DIRK)
+       methods and the backward Euler method in particular. */
+   virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k)
+   {
+      mfem_error("TimeDependentOperator::ImplicitSolve() is not overloaded!");
+   }
+
    virtual ~TimeDependentOperator() { }
 };
 

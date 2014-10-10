@@ -37,7 +37,7 @@ Vector::Vector(const Vector &v)
    }
 }
 
-void Vector::Load(istream **in, int np, int *dim)
+void Vector::Load(std::istream **in, int np, int *dim)
 {
    int i, j, s;
 
@@ -53,7 +53,7 @@ void Vector::Load(istream **in, int np, int *dim)
          *in[i] >> data[p++];
 }
 
-void Vector::Load(istream &in, int Size)
+void Vector::Load(std::istream &in, int Size)
 {
    SetSize(Size);
 
@@ -111,8 +111,8 @@ Vector &Vector::operator=(const Vector &v)
 
 Vector &Vector::operator=(double value)
 {
-   register int i, s = size;
-   register double *p = data, v = value;
+   int i, s = size;
+   double *p = data, v = value;
    for (i = 0; i < s; i++)
       *(p++) = v;
    return *this;

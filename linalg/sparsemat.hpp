@@ -230,8 +230,8 @@ public:
    //this = this * diag(sr);
    void ScaleColumns(const Vector & sr);
 
-   /** Add a sparse matrix to "*this" sparse marix
-       Both marices should not be finilized */
+   /** Add the sparse matrix 'B' to '*this'. This operation will cause an error
+       if '*this' is finalized and 'B' has larger sparsity pattern. */
    SparseMatrix &operator+=(SparseMatrix &B);
 
    /** Add the sparse matrix 'B' scaled by the scalar 'a' into '*this'.

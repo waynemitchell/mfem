@@ -65,7 +65,7 @@ int isockstream::establish()
    int on=1;
    setsockopt(port, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
-   if (bind(port,(const sockaddr*)&sa,sizeof(struct sockaddr_in)) < 0)
+   if (bind(port,(const sockaddr*)&sa,(socklen_t)sizeof(struct sockaddr_in)) < 0)
    {
       cerr << "isockstream::establish(): bind() failed!" << endl;
       close(port);

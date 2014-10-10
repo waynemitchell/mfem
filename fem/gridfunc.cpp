@@ -704,7 +704,20 @@ double GridFunction::GetDivergence(ElementTransformation &tr)
 
 void GridFunction::GetGradient(ElementTransformation &tr, Vector &grad)
 {
-   mfem_error("GridFunction::GetGradient(...) is not implemented!");
+   int elNo = tr.ElementNo;
+   const FiniteElement *fe = fes->GetFE(elNo);
+   int dim = fe->GetDim(), dof = fe->GetDof();
+   DenseMatrix dshape(dof, dim), Jinv(dim);
+   Vector lval, gh(dim);
+   Array<int> dofs;
+
+   grad.SetSize(dim);
+   fes->GetElementDofs(elNo, dofs);
+   GetSubVector(dofs, lval);
+   fe->CalcDShape(tr.GetIntPoint(), dshape);
+   dshape.MultTranspose(lval, gh);
+   CalcInverse(tr.Jacobian(), Jinv);
+   Jinv.MultTranspose(gh, grad);
 }
 
 void GridFunction::GetGradients(const int elem, const IntegrationRule &ir,
@@ -793,6 +806,62 @@ void GridFunction::ProjectGridFunction(const GridFunction &src)
       fes->GetElementVDofs(i, dest_vdofs);
       SetSubVector(dest_vdofs, dest_lvec);
    }
+}
+
+void GridFunction::ImposeBounds(int i, const Vector &weights,
+                                const Vector &_lo, const Vector &_hi)
+{
+   Array<int> vdofs;
+   fes->GetElementVDofs(i, vdofs);
+   int size = vdofs.Size();
+   Vector vals, new_vals(size);
+   GetSubVector(vdofs, vals);
+
+   MFEM_ASSERT(weights.Size() == size, "Different # of weights and dofs.");
+   MFEM_ASSERT(_lo.Size() == size, "Different # of lower bounds and dofs.");
+   MFEM_ASSERT(_hi.Size() == size, "Different # of upper bounds and dofs.");
+
+   int max_iter = 30;
+   double tol = 1.e-12;
+   SLBQPOptimizer slbqp;
+   slbqp.SetMaxIter(max_iter);
+   slbqp.SetAbsTol(1.0e-18);
+   slbqp.SetRelTol(tol);
+   slbqp.SetBounds(_lo, _hi);
+   slbqp.SetLinearConstraint(weights, weights * vals);
+   slbqp.SetPrintLevel(0); // print messages only if not converged
+   slbqp.Mult(vals, new_vals);
+
+   SetSubVector(vdofs, new_vals);
+}
+
+void GridFunction::ImposeBounds(int i, const Vector &weights,
+                                double _min, double _max)
+{
+   Array<int> vdofs;
+   fes->GetElementVDofs(i, vdofs);
+   int size = vdofs.Size();
+   Vector vals, new_vals(size);
+   GetSubVector(vdofs, vals);
+
+   double max_val = vals.Max();
+   double min_val = vals.Min();
+
+   if(max_val <= _min)
+   {
+      new_vals = _min;
+      SetSubVector(vdofs, new_vals);
+      return;
+   }
+
+   if(_min <= min_val && max_val <= _max)
+      return;
+
+   Vector minv(size), maxv(size);
+   minv = (_min > min_val) ? _min : min_val;
+   maxv = (_max < max_val) ? _max : max_val;
+
+   ImposeBounds(i, weights, minv, maxv);
 }
 
 void GridFunction::GetNodalValues(Vector &nval, int vdim) const

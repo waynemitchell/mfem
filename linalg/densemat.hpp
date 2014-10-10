@@ -159,7 +159,7 @@ public:
    void SingularValues(Vector &sv) const;
    int Rank(double tol) const;
 
-   /// Return the i-th singular value (decreasing order) of a 2x2 or 3x3 matrix
+   /// Return the i-th singular value (decreasing order) of NxN matrix, N=1,2,3.
    double CalcSingularvalue(const int i) const;
 
    /** Return the eigenvalues (in increasing order) and eigenvectors of a

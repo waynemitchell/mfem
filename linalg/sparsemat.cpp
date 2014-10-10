@@ -1581,22 +1581,27 @@ void SparseMatrix::ScaleColumns(const Vector & sr)
 
 SparseMatrix &SparseMatrix::operator+=(SparseMatrix &B)
 {
-   int i;
-   RowNode *aux;
-
-   if (Rows == NULL || B.Rows == NULL)
-      mfem_error("SparseMatrix::operator+=(...) #0");
 #ifdef MFEM_DEBUG
    if (size != B.size || width != B.width)
       mfem_error("SparseMatrix::operator+=(...) #1");
 #endif
 
-   for (i = 0; i < size; i++)
+   for (int i = 0; i < size; i++)
    {
       SetColPtr(i);
-      for (aux = B.Rows[i]; aux != NULL; aux = aux->Prev)
+      if (B.Rows)
       {
-         _Add_(aux->Column, aux->Value);
+         for (RowNode *aux = B.Rows[i]; aux != NULL; aux = aux->Prev)
+         {
+            _Add_(aux->Column, aux->Value);
+         }
+      }
+      else
+      {
+         for (int j = B.I[i]; j < B.I[i+1]; j++)
+         {
+            _Add_(B.J[j], B.A[j]);
+         }
       }
       ClearColPtr();
    }

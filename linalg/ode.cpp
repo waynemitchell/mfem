@@ -321,3 +321,143 @@ const double RK8Solver::c[] = {
    .94,
    1.,
 };
+
+
+void BackwardEulerSolver::Init(TimeDependentOperator &_f)
+{
+   ODESolver::Init(_f);
+   k.SetSize(f->Size());
+}
+
+void BackwardEulerSolver::Step(Vector &x, double &t, double &dt)
+{
+   f->SetTime(t + dt);
+   f->ImplicitSolve(dt, x, k); // solve for k: k = f(x + dt*k, t + dt)
+   x.Add(dt, k);
+   t += dt;
+}
+
+
+void ImplicitMidpointSolver::Init(TimeDependentOperator &_f)
+{
+   ODESolver::Init(_f);
+   k.SetSize(f->Size());
+}
+
+void ImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
+{
+   f->SetTime(t + dt/2);
+   f->ImplicitSolve(dt/2, x, k);
+   x.Add(dt, k);
+   t += dt;
+}
+
+
+SDIRK23Solver::SDIRK23Solver(int gamma_opt)
+{
+   if (gamma_opt == 0)
+      gamma = (3. - sqrt(3.))/6.; // not A-stable, order 3
+   else if (gamma_opt == 2)
+      gamma = (2. - sqrt(2.))/2.; // L-stable, order 2
+   else if (gamma_opt == 3)
+      gamma = (2. + sqrt(2.))/2.; // L-stable, order 2
+   else
+      gamma = (3. + sqrt(3.))/6.; // A-stable, order 3
+}
+
+void SDIRK23Solver::Init(TimeDependentOperator &_f)
+{
+   ODESolver::Init(_f);
+   k.SetSize(f->Size());
+   y.SetSize(f->Size());
+}
+
+void SDIRK23Solver::Step(Vector &x, double &t, double &dt)
+{
+   // with a = gamma:
+   //   a   |   a
+   //  1-a  |  1-2a  a
+   // ------+-----------
+   //       |  1/2  1/2
+   // note: with gamma_opt=3, both solve are outside [t,t+dt] since a>1
+   f->SetTime(t + gamma*dt);
+   f->ImplicitSolve(gamma*dt, x, k);
+   add(x, (1.-2.*gamma)*dt, k, y); // y = x + (1-2*gamma)*dt*k
+   x.Add(dt/2, k);
+
+   f->SetTime(t + (1.-gamma)*dt);
+   f->ImplicitSolve(gamma*dt, y, k);
+   x.Add(dt/2, k);
+   t += dt;
+}
+
+
+void SDIRK34Solver::Init(TimeDependentOperator &_f)
+{
+   ODESolver::Init(_f);
+   k.SetSize(f->Size());
+   y.SetSize(f->Size());
+   z.SetSize(f->Size());
+}
+
+void SDIRK34Solver::Step(Vector &x, double &t, double &dt)
+{
+   //   a   |    a
+   //  1/2  |  1/2-a    a
+   //  1-a  |   2a    1-4a   a
+   // ------+--------------------
+   //       |    b    1-2b   b
+   // note: two solves are outside [t,t+dt] since c1=a>1, c3=1-a<0
+   const double a = 1./sqrt(3.)*cos(M_PI/18.) + 0.5;
+   const double b = 1./(6.*(2.*a-1.)*(2.*a-1.));
+
+   f->SetTime(t + a*dt);
+   f->ImplicitSolve(a*dt, x, k);
+   add(x, (0.5-a)*dt, k, y);
+   add(x,  (2.*a)*dt, k, z);
+   x.Add(b*dt, k);
+
+   f->SetTime(t + dt/2);
+   f->ImplicitSolve(a*dt, y, k);
+   z.Add((1.-4.*a)*dt, k);
+   x.Add((1.-2.*b)*dt, k);
+
+   f->SetTime(t + (1.-a)*dt);
+   f->ImplicitSolve(a*dt, z, k);
+   x.Add(b*dt, k);
+   t += dt;
+}
+
+
+void SDIRK33Solver::Init(TimeDependentOperator &_f)
+{
+   ODESolver::Init(_f);
+   k.SetSize(f->Size());
+   y.SetSize(f->Size());
+}
+
+void SDIRK33Solver::Step(Vector &x, double &t, double &dt)
+{
+   //   a  |   a
+   //   c  |  c-a    a
+   //   1  |   b   1-a-b  a
+   // -----+----------------
+   //      |   b   1-a-b  a
+   const double a = 0.435866521508458999416019;
+   const double b = 1.20849664917601007033648;
+   const double c = 0.717933260754229499708010;
+
+   f->SetTime(t + a*dt);
+   f->ImplicitSolve(a*dt, x, k);
+   add(x, (c-a)*dt, k, y);
+   x.Add(b*dt, k);
+
+   f->SetTime(t + c*dt);
+   f->ImplicitSolve(a*dt, y, k);
+   x.Add((1.-a-b)*dt, k);
+
+   f->SetTime(t + dt);
+   f->ImplicitSolve(a*dt, x, k);
+   x.Add(a*dt, k);
+   t += dt;
+}

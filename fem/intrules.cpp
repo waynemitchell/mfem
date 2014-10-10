@@ -118,7 +118,7 @@ void IntegrationRule::GrundmannMollerTetrahedronRule(int s)
    {
       double weight;
 
-      weight = pow(2., -2*s)*pow(d + n - 2*i, d)/fact(i)/fact(d + n - i);
+      weight = pow(2., -2*s)*pow(static_cast<double>(d + n - 2*i), d)/fact(i)/fact(d + n - i);
       if (i%2)
          weight = -weight;
 
@@ -679,7 +679,7 @@ void IntegrationRules::TriangleIntegrationRules(int refined)
 // Integration rules for unit square
 void IntegrationRules::SquareIntegrationRules()
 {
-   SquareIntRules.SetSize(22);
+   SquareIntRules.SetSize(32);
 
    for (int i = 1; i < SquareIntRules.Size(); i += 2)
    {
@@ -773,7 +773,7 @@ void IntegrationRules::CubeIntegrationRules()
 {
    int i, k, l, m, np;
 
-   CubeIntRules.SetSize(22);
+   CubeIntRules.SetSize(32);
    CubeIntRules = NULL;
 
    for (i = 1; i < CubeIntRules.Size(); i += 2)
@@ -785,13 +785,13 @@ void IntegrationRules::CubeIntegrationRules()
             for (m = 0; m < np; m++)
             {
                CubeIntRules[i] -> IntPoint((k*np+l)*np+m).x =
-                  SegmentIntRules[i] -> IntPoint(k).x;
+                  SegmentIntRules[i] -> IntPoint(m).x;
 
                CubeIntRules[i] -> IntPoint((k*np+l)*np+m).y =
                   SegmentIntRules[i] -> IntPoint(l).x;
 
                CubeIntRules[i] -> IntPoint((k*np+l)*np+m).z =
-                  SegmentIntRules[i] -> IntPoint(m).x;
+                  SegmentIntRules[i] -> IntPoint(k).x;
 
                CubeIntRules[i] -> IntPoint((k*np+l)*np+m).weight =
                   SegmentIntRules[i] -> IntPoint(k).weight *
