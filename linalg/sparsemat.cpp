@@ -31,6 +31,20 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
    for (int i = 0; i < nrows; i++)
       Rows[i] = NULL;
    ColPtr.Node = NULL;
+
+#ifdef MFEM_USE_MEMALLOC
+   NodesMem = new RowNodeAlloc;
+#endif
+}
+
+SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
+   : Matrix (m), I(i), J(j), width(n), A(data)
+{
+	Rows = NULL;
+	ColPtr.J = NULL;
+#ifdef MFEM_USE_MEMALLOC
+   NodesMem = new RowNodeAlloc;
+#endif
 }
 
 int SparseMatrix::RowSize(const int i) const
@@ -85,6 +99,43 @@ double *SparseMatrix::GetRowEntries(const int row)
 
    return A + I[row];
 }
+
+void SparseMatrix::SetWidth(int newWidth)
+{
+	if(newWidth == width)
+	{
+		// Nothing to be done here
+		return;
+	}
+	else if( newWidth == -1)
+	{
+		// Compute the actual width
+		width = actualWidth();
+		// No need to reset the ColPtr, since the new ColPtr will be shorter.
+	}
+	else if(newWidth > width)
+	{
+		// We need to reset ColPtr, since now we may have additional columns.
+		if (Rows != NULL)
+		{
+			delete [] ColPtr.Node;
+			ColPtr.Node = static_cast<RowNode **>(NULL);
+		}
+		else
+		{
+			delete [] ColPtr.J;
+			ColPtr.J = static_cast<int *>(NULL);
+		}
+		width = newWidth;
+	}
+	else
+	{
+		// Check that the new width is bigger or equal to the actual width.
+		MFEM_ASSERT( newWidth >= actualWidth(), "The new width needs to be bigger or equal to the actual width");
+		width = newWidth;
+	}
+}
+
 
 void SparseMatrix::SortColumnIndices()
 {
@@ -411,7 +462,7 @@ void SparseMatrix::Finalize(int skip_zeros)
             j++;
          }
 #ifdef MFEM_USE_MEMALLOC
-   NodesMem.Clear();
+   NodesMem->Clear();
 #else
    for (i = 0; i < size; i++)
    {
@@ -602,13 +653,16 @@ void SparseMatrix::EliminateRow(int row, const double sol, Vector &rhs)
    }
 }
 
-void SparseMatrix::EliminateRow(int row)
+void SparseMatrix::EliminateRow(int row, int setOneDiagonal)
 {
    RowNode *aux;
 
 #ifdef MFEM_DEBUG
    if ( row >= size || row < 0 )
       mfem_error("SparseMatrix::EliminateRow () #1");
+
+   if( setOneDiagonal && size != width )
+	  mfem_error("SparseMatrix::EliminateRow () #2");
 #endif
 
    if (Rows == NULL)
@@ -617,6 +671,9 @@ void SparseMatrix::EliminateRow(int row)
    else
       for (aux = Rows[row]; aux != NULL; aux = aux->Prev)
          aux->Value = 0.0;
+
+   if(setOneDiagonal)
+	   SearchRow(row, row) = 1.;
 }
 
 void SparseMatrix::EliminateCol(int col)
@@ -1716,7 +1773,7 @@ SparseMatrix::~SparseMatrix ()
    {
       delete [] ColPtr.Node;
 #ifdef MFEM_USE_MEMALLOC
-      // NodesMem.Clear();  // this is done implicitly
+      delete NodesMem;
 #else
       for (int i = 0; i < size; i++)
       {
@@ -1738,6 +1795,29 @@ SparseMatrix::~SparseMatrix ()
       delete [] J;
       delete [] A;
    }
+}
+
+int SparseMatrix::actualWidth()
+{
+	int awidth = 0;
+	if(A)
+	{
+		int * start_j(J);
+		int * end_j(J + I[size]);
+		for(int * jptr(start_j); jptr != end_j; ++jptr)
+			awidth = (*jptr > awidth) ? *jptr : awidth;
+	}
+	else
+	{
+	    RowNode *aux;
+	      for (int i = 0; i < size; i++)
+	         for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
+	        	 awidth =(aux->Column > awidth) ? aux->Column : awidth;
+	 }
+	++awidth;
+
+	return awidth;
+
 }
 
 void SparseMatrixFunction (SparseMatrix & S, double (*f)(double))
@@ -2090,9 +2170,6 @@ SparseMatrix *Mult_AtDA (const SparseMatrix &A, const Vector &D,
 
 void Swap(SparseMatrix & A, SparseMatrix & B)
 {
-#ifdef MFEM_USE_MEMALLOC
-	mfem_error("Swap(SparseMatrix &, SparseMatrix &) MFEM_USE_MEMALLOC not supported\n");
-#endif
 	int width(A.width); A.width = B.width; B.width = width;
 	int size(A.size);   A.size = B.size; B.size = size;
 	int * I(A.I);       A.I = B.I;  B.I = I;
@@ -2101,4 +2178,7 @@ void Swap(SparseMatrix & A, SparseMatrix & B)
 	RowNode **rows(A.Rows); A.Rows = B.Rows; B.Rows = rows;
 	int current_row(A.current_row); A.current_row = B.current_row; B.current_row = current_row;
 	J = A.ColPtr.J; A.ColPtr.J = B.ColPtr.J; B.ColPtr.J = J;
+#ifdef MFEM_USE_MEMALLOC
+	SparseMatrix::RowNodeAlloc * NodesMem(A.NodesMem); A.NodesMem = B.NodesMem; B.NodesMem = NodesMem;
+#endif
 }
