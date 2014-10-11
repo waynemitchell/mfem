@@ -168,9 +168,9 @@ int main (int argc, char *argv[])
 	SparseMatrix * BT = Transpose(*B);
 
 	BlockMatrix darcyMatrix(block_offsets);
-	darcyMatrix.SetBlock(0,0, M );
-	darcyMatrix.SetBlock(0,1, *BT );
-	darcyMatrix.SetBlock(1,0, *B);
+	darcyMatrix.SetBlock(0,0, &M );
+	darcyMatrix.SetBlock(0,1, BT );
+	darcyMatrix.SetBlock(1,0, B);
 
 	// 8. Construct the operators for preconditioner
 	/*

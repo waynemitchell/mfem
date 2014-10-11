@@ -29,7 +29,7 @@ public:
 	 */
 	BlockMatrix(const Array<int> & row_offsets, const Array<int> & col_offsets);
 	//! Set A(i,j) = mat
-	void SetBlock(int i, int j, SparseMatrix & mat);
+	void SetBlock(int i, int j, SparseMatrix * mat);
 	//! Return the number of row blocks
 	int NumRowBlocks() const {return nRowBlocks; }
 	//! Return the number of column blocks
@@ -109,7 +109,7 @@ public:
 	//@}
 
 	//! Destructor
-	~BlockMatrix();
+	virtual ~BlockMatrix();
 	//! if owns_blocks the SparseMatrix objects Aij will be deallocated.
 	int owns_blocks;
 

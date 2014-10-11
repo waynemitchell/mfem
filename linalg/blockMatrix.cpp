@@ -47,19 +47,19 @@ BlockMatrix::~BlockMatrix()
 			delete *it;
 }
 
-void BlockMatrix::SetBlock(int i, int j, SparseMatrix & mat)
+void BlockMatrix::SetBlock(int i, int j, SparseMatrix * mat)
 {
 #ifdef MFEM_DEBUG
 	if(nRowBlocks <= i || nColBlocks <= j)
 		mfem_error("BlockMatrix::SetBlock #0");
 
-	if(mat.Size() != row_offsets[i+1] - row_offsets[i])
+	if(mat->Size() != row_offsets[i+1] - row_offsets[i])
 		mfem_error("BlockMatrix::SetBlock #1");
 
-	if(mat.Width() != col_offsets[j+1] - col_offsets[j])
+	if(mat->Width() != col_offsets[j+1] - col_offsets[j])
 		mfem_error("BlockMatrix::SetBlock #2");
 #endif
-	Aij(i,j) = &mat;
+	Aij(i,j) = mat;
 }
 
 SparseMatrix & BlockMatrix::GetBlock(int i, int j)
@@ -467,7 +467,7 @@ BlockMatrix * Transpose(const BlockMatrix & A)
 	for(int irowAt(0); irowAt < At->NumRowBlocks(); ++irowAt)
 		for(int jcolAt(0); jcolAt < At->NumColBlocks(); ++jcolAt)
 			if( !A.IsZeroBlock(jcolAt, irowAt))
-				At->SetBlock(irowAt, jcolAt, *Transpose( A.GetBlock(jcolAt, irowAt)) );
+				At->SetBlock(irowAt, jcolAt, Transpose( A.GetBlock(jcolAt, irowAt)) );
 	return At;
 }
 
@@ -487,13 +487,13 @@ BlockMatrix * Mult(const BlockMatrix & A, const BlockMatrix & B)
 
 			if( CijPieces.Size() > 1 )
 			{
-				C->SetBlock(irowC, jcolC, *Add(CijPieces));
+				C->SetBlock(irowC, jcolC, Add(CijPieces));
 				for(SparseMatrix ** it = CijPieces.GetData(); it != CijPieces.GetData()+CijPieces.Size(); ++it)
 					delete *it;
 			}
 			else if(CijPieces.Size() == 1)
 			{
-				C->SetBlock(irowC, jcolC, *CijPieces[0]);
+				C->SetBlock(irowC, jcolC, CijPieces[0]);
 			}
 		}
 
