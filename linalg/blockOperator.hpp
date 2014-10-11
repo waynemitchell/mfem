@@ -59,6 +59,10 @@ public:
 	/// Action of the transpose operator
 	virtual void MultTranspose (const Vector & x, Vector & y) const;
 
+	~BlockOperator();
+
+	int owns_block;
+
 private:
 	//! Number of block rows
 	int nRowBlocks;
@@ -109,6 +113,10 @@ public:
   
   /// Action of the transpose operator
   virtual void MultTranspose (const Vector & x, Vector & y) const;
+
+  ~BlockDiagonalPreconditioner();
+
+  int owns_block;
 
 private:
   //! Number of Blocks

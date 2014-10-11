@@ -17,6 +17,7 @@
 
 BlockOperator::BlockOperator(const Array<int> & offsets):
 	Operator(offsets.Last()),
+	owns_block(0),
 	nRowBlocks(offsets.Size() - 1),
 	nColBlocks(offsets.Size() - 1),
 	row_offsets(0),
@@ -31,6 +32,7 @@ BlockOperator::BlockOperator(const Array<int> & offsets):
 
 BlockOperator::BlockOperator(const Array<int> & row_offsets_, const Array<int> & col_offsets_):
     Operator(row_offsets_.Last()),
+    owns_block(0),
 	nRowBlocks(row_offsets_.Size()-1),
 	nColBlocks(col_offsets_.Size()-1),
 	row_offsets(0),
@@ -104,9 +106,18 @@ void BlockOperator::MultTranspose (const Vector & x, Vector & y) const
 
 }
 
+BlockOperator::~BlockOperator()
+{
+	if(owns_block)
+		for (int iRow(0); iRow < nRowBlocks; ++iRow)
+			for(int jCol(0); jCol < nColBlocks; ++jCol)
+				delete op(jCol,iRow);
+}
+
 //-----------------------------------------------------------------------
 BlockDiagonalPreconditioner::BlockDiagonalPreconditioner(const Array<int> & offsets_):
   Solver(offsets_.Last()),
+  owns_block(0),
   nBlocks(offsets_.Size() - 1),
   offsets(0),
   op(nBlocks)
@@ -155,4 +166,11 @@ void BlockDiagonalPreconditioner::MultTranspose (const Vector & x, Vector & y) c
     (op[i])->MultTranspose(xblock.GetBlock(i), yblock.GetBlock(i));
   else
     yblock.GetBlock(i) = xblock.GetBlock(i);
+}
+
+BlockDiagonalPreconditioner::~BlockDiagonalPreconditioner()
+{
+	if(owns_block)
+	  for(int i(0); i<nBlocks; ++i)
+		  delete op[i];
 }
