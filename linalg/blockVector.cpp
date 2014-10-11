@@ -111,13 +111,13 @@ BlockVector::~BlockVector()
 
 Vector & BlockVector::GetBlock(int i)
 {
-	tmp_block[i]->SetDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
+	tmp_block[i]->NewDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
 	return *(tmp_block[i]);
 }
 
 const Vector &  BlockVector::GetBlock(int i) const
 {
-	tmp_block[i]->SetDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
+	tmp_block[i]->NewDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
 	return *(tmp_block[i]);
 }
 
