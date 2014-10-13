@@ -61,11 +61,11 @@ protected:
 
 public:
    ParMixedBilinearForm(ParFiniteElementSpace *trial_fes,
-		   	   	   ParFiniteElementSpace *test_fes)
-   : MixedBilinearForm(trial_fes, test_fes)
+                        ParFiniteElementSpace *test_fes)
+      : MixedBilinearForm(trial_fes, test_fes)
    {
-	   trial_pfes = trial_fes;
-	   test_pfes  = test_fes;
+      trial_pfes = trial_fes;
+      test_pfes  = test_fes;
    }
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.

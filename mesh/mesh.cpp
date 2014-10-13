@@ -7856,7 +7856,7 @@ void Mesh::PrintSurfaces(const Table & face_Aface, ostream &out)
 
    if (NURBSext)
    {
-	  mfem_error("Mesh::PrintSurfaces"
+      mfem_error("Mesh::PrintSurfaces"
                  " NURBS mesh is not supported!");
       return;
    }
@@ -7882,15 +7882,15 @@ void Mesh::PrintSurfaces(const Table & face_Aface, ostream &out)
    out << "\nboundary\n" << face_Aface.Size_of_connections() << '\n';
    for (int face=0; face<NumOfFaces; face++)
    {
-     int num_Afaces = face_Aface.RowSize(face);
-     if(num_Afaces>=2)
-    	 mfem_error("num_Afaces > 2\n");
-     if (num_Afaces==1)
-     {
-       Element * face_elem = const_cast<Element*>(GetFace(face));
-       face_elem->SetAttribute(*face_Aface.GetRow(face)+1);
-       PrintElement(face_elem, out);
-     }
+      int num_Afaces = face_Aface.RowSize(face);
+      if (num_Afaces >= 2)
+         mfem_error("num_Afaces > 2\n");
+      if (num_Afaces == 1)
+      {
+         Element * face_elem = const_cast<Element*>(GetFace(face));
+         face_elem->SetAttribute(*face_Aface.GetRow(face)+1);
+         PrintElement(face_elem, out);
+      }
    }
 
    out << "\nvertices\n" << NumOfVertices << '\n';

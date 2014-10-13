@@ -14,11 +14,11 @@
 #include "fem.hpp"
 
 ElementTransformation::ElementTransformation():
-	JacobianIsEvaluated(0),
-	WeightIsEvaluated(0),
-	IntPoint(static_cast<IntegrationPoint *>(NULL)),
-	Attribute(-1),
-	ElementNo(-1)
+   JacobianIsEvaluated(0),
+   WeightIsEvaluated(0),
+   IntPoint(static_cast<IntegrationPoint *>(NULL)),
+   Attribute(-1),
+   ElementNo(-1)
 {
 
 }

@@ -618,10 +618,10 @@ void HypreParMatrix::ScaleRows(const Vector &diag)
 {
 
    if(hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
-	   mfem_error("Row does not match");
+      mfem_error("Row does not match");
 
    if(hypre_CSRMatrixNumRows(A->diag) != diag.Size())
-	   mfem_error("Note the Vector diag is not of compatible dimensions with A\n");
+      mfem_error("Note the Vector diag is not of compatible dimensions with A\n");
 
    int size=hypre_CSRMatrixNumRows(A->diag);
    double     *Adiag_data   = hypre_CSRMatrixData(A->diag);
@@ -634,11 +634,11 @@ void HypreParMatrix::ScaleRows(const Vector &diag)
    int jj;
    for (int i(0); i < size; ++i)
    {
-	   val = diag[i];
-       for (jj = Adiag_i[i]; jj < Adiag_i[i+1]; ++jj)
-    	   Adiag_data[jj] *= val;
-       for (jj = Aoffd_i[i]; jj < Aoffd_i[i+1]; ++jj)
-    	   Aoffd_data[jj] *= val;
+      val = diag[i];
+      for (jj = Adiag_i[i]; jj < Adiag_i[i+1]; ++jj)
+         Adiag_data[jj] *= val;
+      for (jj = Aoffd_i[i]; jj < Aoffd_i[i+1]; ++jj)
+         Aoffd_data[jj] *= val;
    }
 }
 
@@ -646,10 +646,10 @@ void HypreParMatrix::InvScaleRows(const Vector &diag)
 {
 
    if(hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
-	   mfem_error("Row does not match");
+      mfem_error("Row does not match");
 
    if(hypre_CSRMatrixNumRows(A->diag) != diag.Size())
-	   mfem_error("Note the Vector diag is not of compatible dimensions with A\n");
+      mfem_error("Note the Vector diag is not of compatible dimensions with A\n");
 
    int size=hypre_CSRMatrixNumRows(A->diag);
    double     *Adiag_data   = hypre_CSRMatrixData(A->diag);
@@ -663,14 +663,14 @@ void HypreParMatrix::InvScaleRows(const Vector &diag)
    for (int i(0); i < size; ++i)
    {
 #ifdef MFEM_DEBUG
-	  if(0.0 == diag(i))
-		  mfem_error("HypreParMatrix::InvDiagScale : Division by 0");
+      if(0.0 == diag(i))
+         mfem_error("HypreParMatrix::InvDiagScale : Division by 0");
 #endif
-	   val = 1./diag(i);
-       for (jj = Adiag_i[i]; jj < Adiag_i[i+1]; ++jj)
-    	   Adiag_data[jj] *= val;
-       for (jj = Aoffd_i[i]; jj < Aoffd_i[i+1]; ++jj)
-    	   Aoffd_data[jj] *= val;
+      val = 1./diag(i);
+      for (jj = Adiag_i[i]; jj < Adiag_i[i+1]; ++jj)
+         Adiag_data[jj] *= val;
+      for (jj = Aoffd_i[i]; jj < Aoffd_i[i+1]; ++jj)
+         Aoffd_data[jj] *= val;
    }
 }
 
@@ -765,7 +765,7 @@ HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P)
       hypre_ParCSRMatrixOwnsColStarts((hypre_ParCSRMatrix*)(*P));
    int Rt_owns_its_col_starts =
       hypre_ParCSRMatrixOwnsColStarts((hypre_ParCSRMatrix*)(*Rt));
- 
+
    hypre_ParCSRMatrix * rap;
    hypre_BoomerAMGBuildCoarseOperator(*Rt,*A,*P,&rap);
 

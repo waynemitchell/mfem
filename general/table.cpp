@@ -328,9 +328,9 @@ void Transpose (const Table &A, Table &At, int _ncols_A)
 
 Table * Transpose(const Table &A)
 {
-	Table * At = new Table;
-	Transpose(A, *At);
-	return At;
+   Table * At = new Table;
+   Transpose(A, *At);
+   return At;
 }
 
 void Transpose(const Array<int> &A, Table &At, int _ncols_A)
@@ -413,9 +413,9 @@ void Mult (const Table &A, const Table &B, Table &C)
 
 Table * Mult (const Table &A, const Table &B)
 {
-	Table * C = new Table;
-	Mult(A,B,*C);
-	return C;
+   Table * C = new Table;
+   Mult(A,B,*C);
+   return C;
 }
 
 STable::STable (int dim, int connections_per_row) :

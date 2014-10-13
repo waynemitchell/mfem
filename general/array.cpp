@@ -96,7 +96,7 @@ T Array<T>::Min() const
 
    T min = operator[](0);
    for (int i = 1; i < size; i++)
-      if ( operator[](i) < min)
+      if (operator[](i) < min)
          min = operator[](i);
 
    return min;

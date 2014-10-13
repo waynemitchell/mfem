@@ -168,8 +168,8 @@ public:
    T Max() const;
 
    /** Finds the minimal element in the array.
-        (uses the comparison operator '<' for class T)  */
-    T Min() const;
+       (uses the comparison operator '<' for class T)  */
+   T Min() const;
 
    /// Sorts the array.
    void Sort();
