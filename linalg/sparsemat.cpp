@@ -1769,11 +1769,14 @@ void SparseMatrix::PrintCSR2(ostream & out) const
 
 SparseMatrix::~SparseMatrix ()
 {
+#ifdef MFEM_USE_MEMALLOC
+	delete NodesMem;
+#endif
    if (Rows != NULL)
    {
       delete [] ColPtr.Node;
 #ifdef MFEM_USE_MEMALLOC
-      delete NodesMem;
+      // Do nothing
 #else
       for (int i = 0; i < size; i++)
       {
