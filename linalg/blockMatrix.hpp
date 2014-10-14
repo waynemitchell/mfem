@@ -63,9 +63,9 @@ public:
 	 */
 	void EliminateRowCol(Array<int> & ess_bc_dofs, Vector & sol, Vector & rhs);
 	//! Returns a monolithic CSR matrix that represents this operator.
-	SparseMatrix * CreateMonolithic();
+	SparseMatrix * CreateMonolithic() const;
 	//! Export the monolithic matrix to file.
-	void PrintMatlab(std::ostream & os = std::cout);
+	void PrintMatlab(std::ostream & os = std::cout) const;
 
 	//@name Operator interface
 	//@{

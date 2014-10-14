@@ -356,7 +356,7 @@ void BlockMatrix::AddMultTranspose(const Vector & x, Vector & y, const double va
 		}
 }
 
-SparseMatrix * BlockMatrix::CreateMonolithic()
+SparseMatrix * BlockMatrix::CreateMonolithic() const
 {
 
 	int nnz = NumNonZeroElems();
@@ -436,7 +436,7 @@ SparseMatrix * BlockMatrix::CreateMonolithic()
 	return new SparseMatrix(i_amono, j_amono, data, row_offsets[nRowBlocks], col_offsets[nColBlocks]);
 }
 
-void BlockMatrix::PrintMatlab(std::ostream & os)
+void BlockMatrix::PrintMatlab(std::ostream & os) const
 {
 
    Vector row_data;
