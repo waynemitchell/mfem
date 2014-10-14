@@ -2813,6 +2813,11 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
       Nodes = new GridFunction(this, gf_array, num_pieces);
       own_nodes = 1;
    }
+
+#ifdef MFEM_DEBUG
+   CheckElementOrientation(false);
+   CheckBdrElementOrientation(false);
+#endif
 }
 
 void Mesh::KnotInsert(Array<KnotVector *> &kv)

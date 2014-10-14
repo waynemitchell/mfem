@@ -297,7 +297,12 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
          di = 1;
    }
    else
-      di = side;
+   {
+      if (side == 1 && Transf->Elem2No < 0)
+         di = 0;
+      else
+         di = side;
+   }
    if (di == 0)
    {
       Transf = fes->GetMesh()->GetFaceElementTransformations(i, 4);

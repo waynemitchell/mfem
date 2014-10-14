@@ -1465,10 +1465,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       // 7. Free the allocated memory.
       middle.DeleteAll();
 
-#ifdef MFEM_DEBUG
-      CheckElementOrientation();
-#endif
-
       if (el_to_edge != NULL)
       {
          if (WantTwoLevelState)
@@ -1724,10 +1720,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       delete [] edge2;
       delete [] middle;
 
-#ifdef MFEM_DEBUG
-      CheckElementOrientation();
-#endif
-
       if (WantTwoLevelState)
       {
          f_NumOfVertices    = NumOfVertices;
@@ -1759,6 +1751,11 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       UpdateNodes();
       UseTwoLevelState(wtls);
    }
+
+#ifdef MFEM_DEBUG
+   CheckElementOrientation(false);
+   CheckBdrElementOrientation(false);
+#endif
 }
 
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
@@ -2351,8 +2348,8 @@ void ParMesh::PrintXG(std::ostream &out) const
 void ParMesh::Print(std::ostream &out) const
 {
    int i, j, shared_bdr_attr;
-   const Array<Element *> &shared_bdr =
-      (Dim == 3) ? shared_faces : shared_edges;
+   const Array<int> &s2l_face = ((Dim == 1) ? svert_lvert :
+                                 ((Dim == 2) ? sedge_ledge : sface_lface));
 
    if (NURBSext)
    {
@@ -2378,15 +2375,20 @@ void ParMesh::Print(std::ostream &out) const
    for (i = 0; i < NumOfElements; i++)
       PrintElement(elements[i], out);
 
-   out << "\nboundary\n" << NumOfBdrElements + shared_bdr.Size() << '\n';
+   out << "\nboundary\n" << NumOfBdrElements +
+      ((Dim > 1) ? s2l_face.Size() : 0) << '\n';
    for (i = 0; i < NumOfBdrElements; i++)
       PrintElement(boundary[i], out);
 
-   shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
-   for (i = 0; i < shared_bdr.Size(); i++)
+   if (Dim > 1)
    {
-      shared_bdr[i]->SetAttribute(shared_bdr_attr);
-      PrintElement(shared_bdr[i], out);
+      shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
+      for (i = 0; i < s2l_face.Size(); i++)
+      {
+         // Modify the attrributes of the faces (not used otherwise?)
+         faces[s2l_face[i]]->SetAttribute(shared_bdr_attr);
+         PrintElement(faces[s2l_face[i]], out);
+      }
    }
    out << "\nvertices\n" << NumOfVertices << '\n';
    if (Nodes == NULL)

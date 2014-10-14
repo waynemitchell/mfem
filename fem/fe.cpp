@@ -14,6 +14,8 @@
 #include <cmath>
 #include "fem.hpp"
 
+using namespace std;
+
 FiniteElement::FiniteElement(int D, int G, int Do, int O, int F)
    : Nodes(Do)
 {
