@@ -229,10 +229,10 @@ public:
    int CheckFinite() const { return ::CheckFinite(data, size*height); }
 
    /// Prints matrix to stream out.
-   virtual void Print(ostream &out = cout, int width = 4) const;
-   virtual void PrintMatlab(ostream &out = cout) const;
+   virtual void Print(std::ostream &out = std::cout, int width = 4) const;
+   virtual void PrintMatlab(std::ostream &out = std::cout) const;
    /// Prints the transpose matrix to stream out.
-   virtual void PrintT(ostream &out = cout, int width = 4) const;
+   virtual void PrintT(std::ostream &out = std::cout, int width = 4) const;
 
    /// Invert and print the numerical conditioning of the inversion.
    void TestInversion();

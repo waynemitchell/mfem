@@ -17,6 +17,8 @@
 #include "table.hpp"
 #include "sets.hpp"
 #include "communication.hpp"
+#include <iostream>
+using namespace std;
 
 void GroupTopology::ProcToLProc()
 {

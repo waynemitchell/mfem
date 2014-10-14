@@ -14,6 +14,8 @@
 #include <cmath>
 #include "linalg.hpp"
 
+using namespace std;
+
 IterativeSolver::IterativeSolver()
    : Solver(0, true)
 {
@@ -132,7 +134,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
 
    if (print_level == 1)
       cout << "   Iteration : " << setw(3) << 0 << "  (B r, r) = "
-           << nom << endl;
+           << nom << '\n';
 
    r0 = fmax(nom*rel_tol*rel_tol, abs_tol*abs_tol);
    if (nom <= r0)
@@ -148,7 +150,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
 
    if (print_level >= 0 && den < 0.0)
    {
-      cout << "Negative denominator in step 0 of PCG: " << den << endl;
+      cout << "Negative denominator in step 0 of PCG: " << den << '\n';
    }
 
    if (den == 0.0)
@@ -180,17 +182,17 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
 
       if (print_level == 1)
          cout << "   Iteration : " << setw(3) << i << "  (B r, r) = "
-              << betanom << endl;
+              << betanom << '\n';
 
       if (betanom < r0)
       {
          if (print_level == 2)
-            cout << "Number of PCG iterations: " << i << endl;
+            cout << "Number of PCG iterations: " << i << '\n';
          else
             if (print_level == 3)
-               cout << "(B r_0, r_0) = " << nom0 << endl
-                    << "(B r_N, r_N) = " << betanom << endl
-                    << "Number of PCG iterations: " << i << endl;
+               cout << "(B r_0, r_0) = " << nom0 << '\n'
+                    << "(B r_N, r_N) = " << betanom << '\n'
+                    << "Number of PCG iterations: " << i << '\n';
          converged = 1;
          final_iter = i;
          break;
@@ -210,21 +212,21 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       {
          if (print_level >= 0 && Dot(d, d) > 0.0)
             cout <<"PCG: The operator is not postive definite. (Ad, d) = "
-                 << den << endl;
+                 << den << '\n';
       }
       nom = betanom;
    }
    if (print_level >= 0 && !converged)
    {
-      cerr << "PCG: No convergence!" << endl;
-      cout << "(B r_0, r_0) = " << nom0 << endl
-           << "(B r_N, r_N) = " << betanom << endl
-           << "Number of PCG iterations: " << final_iter << endl;
+      cerr << "PCG: No convergence!" << '\n';
+      cout << "(B r_0, r_0) = " << nom0 << '\n'
+           << "(B r_N, r_N) = " << betanom << '\n'
+           << "Number of PCG iterations: " << final_iter << '\n';
    }
    if (print_level >= 1 || (print_level >= 0 && !converged))
    {
       cout << "Average reduction factor = "
-           << pow (betanom/nom0, 0.5/final_iter) << endl;
+           << pow (betanom/nom0, 0.5/final_iter) << '\n';
    }
    final_norm = sqrt(betanom);
 }
@@ -354,7 +356,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    if (print_level >= 0)
       cout << "   Pass : " << setw(2) << 1
            << "   Iteration : " << setw(3) << 0
-           << "  ||B r|| = " << beta << endl;
+           << "  ||B r|| = " << beta << '\n';
 
    Array<Vector *> v(m+1);
    v = NULL;
@@ -398,7 +400,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
          if (print_level >= 0)
             cout << "   Pass : " << setw(2) << (j-1)/m+1
                  << "   Iteration : " << setw(3) << j
-                 << "  ||B r|| = " << resid << endl;
+                 << "  ||B r|| = " << resid << '\n';
 
          if (resid <= final_norm)
          {
@@ -413,7 +415,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
       }
 
       if (print_level >= 0 && j <= max_iter)
-         cout << "Restarting..." << endl;
+         cout << "Restarting..." << '\n';
 
       Update(x, i-1, H, s, v);
 
@@ -506,7 +508,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
    resid = Norm(r);
    if (print_level >= 0)
       cout << "   Iteration : " << setw(3) << 0
-           << "   ||r|| = " << resid << endl;
+           << "   ||r|| = " << resid << '\n';
 
    tol_goal = fmax(resid*rel_tol, abs_tol);
 
@@ -525,7 +527,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
       {
          if (print_level >= 0)
             cout << "   Iteration : " << setw(3) << i
-                 << "   ||r|| = " << resid << endl;
+                 << "   ||r|| = " << resid << '\n';
          final_norm = resid;
          final_iter = i;
          converged = 0;
@@ -552,7 +554,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
          x.Add(alpha, phat);  //  x = x + alpha * phat
          if (print_level >= 0)
             cout << "   Iteration : " << setw(3) << i
-                 << "   ||s|| = " << resid << endl;
+                 << "   ||s|| = " << resid << '\n';
          final_norm = resid;
          final_iter = i;
          converged = 1;
@@ -574,7 +576,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
       rho_2 = rho_1;
       resid = Norm(r);
       if (print_level >= 0)
-         cout << "   ||r|| = " << resid << endl;
+         cout << "   ||r|| = " << resid << '\n';
       if (resid < tol_goal)
       {
          final_norm = resid;
@@ -666,7 +668,7 @@ void MINRESSolver::Mult(const Vector &b, Vector &x) const
 
    if (print_level == 1 || print_level == 3)
       cout << "MINRES: iteration " << setw(3) << 0 << ": ||r||_B = "
-           << eta << endl;
+           << eta << '\n';
 
    if (eta <= norm_goal)
    {
@@ -721,7 +723,7 @@ void MINRESSolver::Mult(const Vector &b, Vector &x) const
 
       if (print_level == 1)
          cout << "MINRES: iteration " << setw(3) << it << ": ||r||_B = "
-              << fabs(eta) << endl;
+              << fabs(eta) << '\n';
 
       if (fabs(eta) <= norm_goal)
          goto loop_end;
@@ -739,10 +741,10 @@ loop_end:
    final_norm = fabs(eta);
 
    if (print_level == 2)
-      cout << "MINRES: number of iterations: " << it << endl;
+      cout << "MINRES: number of iterations: " << it << '\n';
    else if (print_level == 3)
       cout << "MINRES: iteration " << setw(3) << it << ": ||r||_B = "
-           << fabs(eta) << endl;
+           << fabs(eta) << '\n';
 #if 0
    if (print_level >= 1)
    {
@@ -752,11 +754,11 @@ loop_end:
          prec->Mult(v1, u1);
       eta = sqrt(Dot(*z, v1));
       cout << "MINRES: iteration " << setw(3) << it << ": ||r||_B = "
-           << eta << " (re-computed)" << endl;
+           << eta << " (re-computed)" << '\n';
    }
 #endif
    if (!converged && print_level >= 0)
-      cerr << "MINRES: No convergence!" << endl;
+      cerr << "MINRES: No convergence!" << '\n';
 }
 
 void MINRES(const Operator &A, const Vector &b, Vector &x, int print_it,
@@ -810,7 +812,7 @@ void NewtonSolver::Mult(const Vector &b, Vector &x) const
    {
       if (print_level >= 0)
          cout << "Newton iteration " << setw(2) << it
-              << " : ||r|| = " << norm << endl;
+              << " : ||r|| = " << norm << '\n';
 
       if (norm <= norm_goal)
       {
@@ -879,7 +881,7 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
    if (printit)
       cout << "   Pass : " << setw(2) << 1
            << "   Iteration : " << setw(3) << 0
-           << "  (r, r) = " << beta*beta << endl;
+           << "  (r, r) = " << beta*beta << '\n';
 
    tol *= (normb*normb);
    tol = (atol > tol) ? atol : tol;
@@ -923,7 +925,7 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
          if (printit)
             cout << "   Pass : " << setw(2) << j
                  << "   Iteration : " << setw(3) << i+1
-                 << "  (r, r) = " << resid*resid << endl;
+                 << "  (r, r) = " << resid*resid << '\n';
 
          if ( resid*resid < tol) {
             Update(x, i, H, s, v);
@@ -936,7 +938,7 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
       }
 
       if (printit)
-         cout << "Restarting..." << endl;
+         cout << "Restarting..." << '\n';
 
       Update(x, i-1, H, s, v);
 
@@ -999,19 +1001,19 @@ void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
               << nom;
          if (i > 1)
             cout << "\tConv. rate: " << cf;
-         cout << endl;
+         cout << '\n';
       }
       nomold = nom;
 
       if (nom < r0) {
          if (print_iter == 2)
-            cout << "Number of iterations: " << i << endl
-                 << "Conv. rate: " << cf << endl;
+            cout << "Number of iterations: " << i << '\n'
+                 << "Conv. rate: " << cf << '\n';
          else
             if (print_iter == 3)
-               cout << "(B r_0, r_0) = " << nom0 << endl
-                    << "(B r_N, r_N) = " << nom << endl
-                    << "Number of iterations: " << i << endl;
+               cout << "(B r_0, r_0) = " << nom0 << '\n'
+                    << "(B r_N, r_N) = " << nom << '\n'
+                    << "Number of iterations: " << i << '\n';
          break;
       }
 
@@ -1020,10 +1022,10 @@ void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
 
    if (i == max_num_iter)
    {
-      cerr << "No convergence!" << endl;
-      cout << "(B r_0, r_0) = " << nom0 << endl
-           << "(B r_N, r_N) = " << nom << endl
-           << "Number of iterations: " << i << endl;
+      cerr << "No convergence!" << '\n';
+      cout << "(B r_0, r_0) = " << nom0 << '\n'
+           << "(B r_N, r_N) = " << nom << '\n'
+           << "Number of iterations: " << i << '\n';
    }
 }
 
@@ -1055,7 +1057,7 @@ inline void SLBQPOptimizer::print_iteration(int it, double r, double l) const
 {
    if (print_level > 1)
       cout << "SLBQP iteration " << it << ": residual = " << r
-           << ", lambda = " << l << endl;
+           << ", lambda = " << l << '\n';
 }
 
 void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
@@ -1083,7 +1085,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
    // *** Start bracketing phase of SLBQP ***
    if (print_level > 1)
-      cout << "SLBQP bracketing phase" << endl;
+      cout << "SLBQP bracketing phase" << '\n';
 
    // Solve QP with fixed Lagrange multiplier
    r = solve(l,xt,x,nclip);
@@ -1150,7 +1152,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
    // *** Start secant phase of SLBQP ***
    if (print_level > 1)
-      cout << "SLBQP secant phase" << endl;
+      cout << "SLBQP secant phase" << '\n';
 
    s = 1.0 - rlow/rupp;  dl = dl/s;  l = lupp - dl;
 
@@ -1207,7 +1209,7 @@ void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
 
    converged = (fabs(r) <= tol);
    if (!converged && print_level >= 0)
-      cerr << "SLBQP not converged!" << endl;
+      cerr << "SLBQP not converged!" << '\n';
 
 slbqp_done:
 
@@ -1216,9 +1218,9 @@ slbqp_done:
 
    if (print_level == 1 || (!converged && print_level >= 0))
    {
-      cout << "SLBQP iterations = " << nclip << endl;
-      cout << "SLBQP lamba      = " << l << endl;
-      cout << "SLBQP residual   = " << r << endl;
+      cout << "SLBQP iterations = " << nclip << '\n';
+      cout << "SLBQP lamba      = " << l << '\n';
+      cout << "SLBQP residual   = " << r << '\n';
    }
 }
 

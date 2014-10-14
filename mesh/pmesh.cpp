@@ -15,6 +15,8 @@
 #include "../fem/fem.hpp"
 #include "../general/sets.hpp"
 #include "../general/sort_pairs.hpp"
+#include <iostream>
+using namespace std;
 
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                  int part_method)
@@ -2179,7 +2181,7 @@ void ParMesh::NURBSUniformRefinement()
       cout << "\nParMesh::NURBSUniformRefinement : Not supported yet!\n";
 }
 
-void ParMesh::PrintXG(ostream &out) const
+void ParMesh::PrintXG(std::ostream &out) const
 {
    if (Dim == 3 && meshgen == 1)
    {
@@ -2346,7 +2348,7 @@ void ParMesh::PrintXG(ostream &out) const
    }
 }
 
-void ParMesh::Print(ostream &out) const
+void ParMesh::Print(std::ostream &out) const
 {
    int i, j, shared_bdr_attr;
    const Array<Element *> &shared_bdr =
@@ -2405,7 +2407,7 @@ void ParMesh::Print(ostream &out) const
    }
 }
 
-void ParMesh::PrintAsOne(ostream &out)
+void ParMesh::PrintAsOne(std::ostream &out)
 {
    int i, j, k, p, nv_ne[2], &nv = nv_ne[0], &ne = nv_ne[1], vc;
    const int *v;
@@ -2635,7 +2637,7 @@ void ParMesh::PrintAsOne(ostream &out)
    }
 }
 
-void ParMesh::PrintAsOneXG(ostream &out)
+void ParMesh::PrintAsOneXG(std::ostream &out)
 {
    if (Dim == 3 && meshgen == 1)
    {
@@ -3095,7 +3097,7 @@ void ParMesh::PrintAsOneXG(ostream &out)
    }
 }
 
-void ParMesh::PrintInfo(ostream &out)
+void ParMesh::PrintInfo(std::ostream &out)
 {
    int i;
    DenseMatrix J(Dim);

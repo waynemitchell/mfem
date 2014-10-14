@@ -13,7 +13,6 @@
 #define MFEM_OSOCKSTREAM
 
 #include "socketstream.hpp"
-using namespace std;
 
 /** Data type for output socket stream class. The class is used as client
     to send data to a server on a specified port number. One object of the

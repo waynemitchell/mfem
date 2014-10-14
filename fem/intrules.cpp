@@ -15,8 +15,10 @@
 // quadrature rules below were obtained from the Encyclopaedia of Cubature
 // Formulas at http://nines.cs.kuleuven.be/research/ecf/ecf.html
 
-#include <math.h>
 #include "fem.hpp"
+#include <cmath>
+
+using namespace std;
 
 IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry)
 {
@@ -97,6 +99,8 @@ void IntegrationRule::UniformRule()
 
 void IntegrationRule::GrundmannMollerTetrahedronRule(int s)
 {
+   // for pow on older compilers
+   using std::pow;
    const int n = 3;
    const int d = 2*s + 1;
    Vector fact(d + n + 1);

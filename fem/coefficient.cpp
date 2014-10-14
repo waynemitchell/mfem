@@ -11,9 +11,12 @@
 
 // Implementation of Coefficient class
 
-#include <math.h>
-#include <limits>
 #include "fem.hpp"
+
+#include <cmath>
+#include <limits>
+
+using namespace std;
 
 double PWConstCoefficient::Eval(ElementTransformation & T,
                                 const IntegrationPoint & ip)

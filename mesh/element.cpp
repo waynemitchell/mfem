@@ -9,7 +9,7 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include <math.h>
+#include <cmath>
 #include "mesh_headers.hpp"
 
 void Element::SetVertices(const int *ind)
