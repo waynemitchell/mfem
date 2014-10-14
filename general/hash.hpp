@@ -196,7 +196,7 @@ HashTable<ItemT>::~HashTable()
 
    if (ncollisions > 3*nqueries)
       std::cout << "HashTable: WARNING: ncollisions = " << ncollisions << ", "
-                << "nqueries = " << nqueries << ". Adaptive resizing needed.";
+                << "nqueries = " << nqueries << ". Adaptive resizing needed.\n";
 }
 
 namespace detail {

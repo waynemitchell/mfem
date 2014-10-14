@@ -15,7 +15,7 @@
 #include "../general/hash.hpp"
 
 class SparseMatrix;
-//class FiniteElementCollection;
+class DenseMatrix;
 class IsoparametricTransformation;
 class FiniteElementSpace;
 
@@ -122,7 +122,8 @@ protected: // implementation
    ///
    struct Edge : public RefCount
    {
-      //int dof; ///< first edge DOF number (nonconforming)
+      int index; ///< edge number in the Mesh
+      Edge() : index(-1) {}
    };
 
    ///
@@ -246,13 +247,11 @@ protected: // implementation
        during the interpolation algorithm. */
    struct DofData
    {
-      int true_dof; ///< assigned conforming true DOF number, -1 if slave
       bool finalized; ///< true if cP matrix row is known for this DOF
-
       DepList dep_list; ///< list of other DOFs this DOF depends on
       bool Independent() const { return !dep_list.Size(); }
 
-      DofData() : true_dof(-1), finalized(false) {}
+      DofData() : finalized(false) {}
    };
 
    DofData* dof_data; ///< vertex temporary data
@@ -261,13 +260,21 @@ protected: // implementation
 
    static int find_node(Element* elem, Node* node);
 
-   void ReorderPointMat(Node* v0, Node* v1, Node* v2, Node* v3,
-                       Element* elem, DenseMatrix& pm);
+   void ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
+                           Element* elem, DenseMatrix& pm);
+
+   void AddDependencies(Array<int>& master_dofs, Array<int>& slave_dofs,
+                        DenseMatrix& I);
+
+   void ConstrainEdge(Node* v0, Node* v1,
+                      IsoparametricTransformation& edge_T,
+                      Array<int>& master_dofs, int level);
 
    void ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
                       IsoparametricTransformation& face_T,
                       Array<int>& master_dofs, int level);
 
+   void ProcessMasterEdge(Node* node[2], Node* edge);
    void ProcessMasterFace(Node* node[4], Face* face);
 
    bool DofFinalizable(DofData& vd);
