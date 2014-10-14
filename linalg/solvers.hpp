@@ -20,17 +20,17 @@
 class IterativeSolverData
 {
 public:
-	IterativeSolverData():
-		rel_tol(1e-6),
-		abs_tol(1e-12),
-		max_iter(1000),
-		print_level(0)
-	{};
+   IterativeSolverData():
+      rel_tol(1e-6),
+      abs_tol(1e-12),
+      max_iter(1000),
+      print_level(0)
+   {};
 
-	double rel_tol;
-	double abs_tol;
-	int max_iter;
-	int print_level;
+   double rel_tol;
+   double abs_tol;
+   int max_iter;
+   int print_level;
 };
 
 /// Abstract base class for iterative solver

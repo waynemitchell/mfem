@@ -168,8 +168,8 @@ public:
    T Max() const;
 
    /** Finds the minimal element in the array.
-        (uses the comparison operator '<' for class T)  */
-    T Min() const;
+       (uses the comparison operator '<' for class T)  */
+   T Min() const;
 
    /// Sorts the array.
    void Sort();
@@ -358,10 +358,7 @@ inline T &Array<T>::Last()
 template <class T>
 inline const T &Array<T>::Last() const
 {
-#ifdef MFEM_DEBUG
-   if (size < 1)
-      mfem_error("Array<T>::Last()");
-#endif
+   MFEM_ASSERT(size > 0, "Array size is zero: " << size);
    return ((T*)data)[size-1];
 }
 

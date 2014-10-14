@@ -35,21 +35,21 @@ ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf, int * partiti
 
    if(partitioning)
    {
-	      Array<int> gvdofs, lvdofs;
-	      Vector lnodes;
-	      int element_counter = 0;
-	      Mesh & mesh(*gf->FESpace()->GetMesh());
-	      int MyRank;
-	      MPI_Comm_rank(pfes->GetComm(), &MyRank);
-	      for (int i = 0; i < mesh.GetNE(); i++)
-	         if (partitioning[i] == MyRank)
-	         {
-	            pfes->GetElementVDofs(element_counter, lvdofs);
-	            gf->FESpace()->GetElementVDofs(i, gvdofs);
-	            gf->GetSubVector(gvdofs, lnodes);
-	            SetSubVector(lvdofs, lnodes);
-	            element_counter++;
-	         }
+      Array<int> gvdofs, lvdofs;
+      Vector lnodes;
+      int element_counter = 0;
+      Mesh & mesh(*gf->FESpace()->GetMesh());
+      int MyRank;
+      MPI_Comm_rank(pfes->GetComm(), &MyRank);
+      for (int i = 0; i < mesh.GetNE(); i++)
+         if (partitioning[i] == MyRank)
+         {
+            pfes->GetElementVDofs(element_counter, lvdofs);
+            gf->FESpace()->GetElementVDofs(i, gvdofs);
+            gf->GetSubVector(gvdofs, lnodes);
+            SetSubVector(lvdofs, lnodes);
+            element_counter++;
+         }
    }
 }
 

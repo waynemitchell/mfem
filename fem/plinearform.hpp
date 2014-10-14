@@ -20,7 +20,7 @@ protected:
 
 public:
    ParLinearForm() : LinearForm() { pfes = NULL; }
-   
+
    ParLinearForm(ParFiniteElementSpace *pf) : LinearForm(pf) { pfes = pf; }
 
    void Update(ParFiniteElementSpace *pf = NULL);

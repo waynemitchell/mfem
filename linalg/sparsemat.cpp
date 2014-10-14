@@ -40,8 +40,8 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
 SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
    : Matrix (m), I(i), J(j), width(n), A(data)
 {
-	Rows = NULL;
-	ColPtr.J = NULL;
+   Rows = NULL;
+   ColPtr.J = NULL;
 #ifdef MFEM_USE_MEMALLOC
    NodesMem = new RowNodeAlloc;
 #endif
@@ -102,38 +102,38 @@ double *SparseMatrix::GetRowEntries(const int row)
 
 void SparseMatrix::SetWidth(int newWidth)
 {
-	if(newWidth == width)
-	{
-		// Nothing to be done here
-		return;
-	}
-	else if( newWidth == -1)
-	{
-		// Compute the actual width
-		width = actualWidth();
-		// No need to reset the ColPtr, since the new ColPtr will be shorter.
-	}
-	else if(newWidth > width)
-	{
-		// We need to reset ColPtr, since now we may have additional columns.
-		if (Rows != NULL)
-		{
-			delete [] ColPtr.Node;
-			ColPtr.Node = static_cast<RowNode **>(NULL);
-		}
-		else
-		{
-			delete [] ColPtr.J;
-			ColPtr.J = static_cast<int *>(NULL);
-		}
-		width = newWidth;
-	}
-	else
-	{
-		// Check that the new width is bigger or equal to the actual width.
-		MFEM_ASSERT( newWidth >= actualWidth(), "The new width needs to be bigger or equal to the actual width");
-		width = newWidth;
-	}
+   if(newWidth == width)
+   {
+      // Nothing to be done here
+      return;
+   }
+   else if( newWidth == -1)
+   {
+      // Compute the actual width
+      width = actualWidth();
+      // No need to reset the ColPtr, since the new ColPtr will be shorter.
+   }
+   else if(newWidth > width)
+   {
+      // We need to reset ColPtr, since now we may have additional columns.
+      if (Rows != NULL)
+      {
+         delete [] ColPtr.Node;
+         ColPtr.Node = static_cast<RowNode **>(NULL);
+      }
+      else
+      {
+         delete [] ColPtr.J;
+         ColPtr.J = static_cast<int *>(NULL);
+      }
+      width = newWidth;
+   }
+   else
+   {
+      // Check that the new width is bigger or equal to the actual width.
+      MFEM_ASSERT( newWidth >= actualWidth(), "The new width needs to be bigger or equal to the actual width");
+      width = newWidth;
+   }
 }
 
 
@@ -662,7 +662,7 @@ void SparseMatrix::EliminateRow(int row, int setOneDiagonal)
       mfem_error("SparseMatrix::EliminateRow () #1");
 
    if( setOneDiagonal && size != width )
-	  mfem_error("SparseMatrix::EliminateRow () #2");
+      mfem_error("SparseMatrix::EliminateRow () #2");
 #endif
 
    if (Rows == NULL)
@@ -673,7 +673,7 @@ void SparseMatrix::EliminateRow(int row, int setOneDiagonal)
          aux->Value = 0.0;
 
    if(setOneDiagonal)
-	   SearchRow(row, row) = 1.;
+      SearchRow(row, row) = 1.;
 }
 
 void SparseMatrix::EliminateCol(int col)
@@ -1802,24 +1802,24 @@ SparseMatrix::~SparseMatrix ()
 
 int SparseMatrix::actualWidth()
 {
-	int awidth = 0;
-	if(A)
-	{
-		int * start_j(J);
-		int * end_j(J + I[size]);
-		for(int * jptr(start_j); jptr != end_j; ++jptr)
-			awidth = (*jptr > awidth) ? *jptr : awidth;
-	}
-	else
-	{
-	    RowNode *aux;
-	      for (int i = 0; i < size; i++)
-	         for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
-	        	 awidth =(aux->Column > awidth) ? aux->Column : awidth;
-	 }
-	++awidth;
+   int awidth = 0;
+   if(A)
+   {
+      int * start_j(J);
+      int * end_j(J + I[size]);
+      for(int * jptr(start_j); jptr != end_j; ++jptr)
+         awidth = (*jptr > awidth) ? *jptr : awidth;
+   }
+   else
+   {
+      RowNode *aux;
+      for (int i = 0; i < size; i++)
+         for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
+            awidth =(aux->Column > awidth) ? aux->Column : awidth;
+   }
+   ++awidth;
 
-	return awidth;
+   return awidth;
 
 }
 
@@ -2173,15 +2173,15 @@ SparseMatrix *Mult_AtDA (const SparseMatrix &A, const Vector &D,
 
 void Swap(SparseMatrix & A, SparseMatrix & B)
 {
-	int width(A.width); A.width = B.width; B.width = width;
-	int size(A.size);   A.size = B.size; B.size = size;
-	int * I(A.I);       A.I = B.I;  B.I = I;
-	int * J(A.J);       A.J = B.J;  B.J = J;
-	double * val(A.A);  A.A = B.A;  B.A = val;
-	RowNode **rows(A.Rows); A.Rows = B.Rows; B.Rows = rows;
-	int current_row(A.current_row); A.current_row = B.current_row; B.current_row = current_row;
-	J = A.ColPtr.J; A.ColPtr.J = B.ColPtr.J; B.ColPtr.J = J;
+   int width(A.width); A.width = B.width; B.width = width;
+   int size(A.size);   A.size = B.size; B.size = size;
+   int * I(A.I);       A.I = B.I;  B.I = I;
+   int * J(A.J);       A.J = B.J;  B.J = J;
+   double * val(A.A);  A.A = B.A;  B.A = val;
+   RowNode **rows(A.Rows); A.Rows = B.Rows; B.Rows = rows;
+   int current_row(A.current_row); A.current_row = B.current_row; B.current_row = current_row;
+   J = A.ColPtr.J; A.ColPtr.J = B.ColPtr.J; B.ColPtr.J = J;
 #ifdef MFEM_USE_MEMALLOC
-	SparseMatrix::RowNodeAlloc * NodesMem(A.NodesMem); A.NodesMem = B.NodesMem; B.NodesMem = NodesMem;
+   SparseMatrix::RowNodeAlloc * NodesMem(A.NodesMem); A.NodesMem = B.NodesMem; B.NodesMem = NodesMem;
 #endif
 }

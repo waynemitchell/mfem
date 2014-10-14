@@ -448,133 +448,133 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
 
 void FGMRESSolver::Mult(const Vector &b, Vector &x) const
 {
+   DenseMatrix H(m+1,m);
+   Vector s(m+1), cs(m+1), sn(m+1);
+   Vector w(b.Size());
+   Vector av(b.Size());
+   Vector r(b.Size());
 
-	DenseMatrix H(m+1,m);
-	Vector s(m+1), cs(m+1), sn(m+1);
-	Vector w(b.Size());
-    Vector av(b.Size());
-    Vector r(b.Size());
+   int i, j, k;
 
-	int i, j, k;
+   w = b;
+   double normb = Norm(w); // normb = ||M b||
+   if (normb == 0.0)
+      normb = 1;
 
-	w = b;
-	double normb = Norm(w); // normb = ||M b||
-	if (normb == 0.0)
-		normb = 1;
+   oper->Mult(x, r);
+   subtract(b,r,w);
+   r = w;
+   double beta = Norm(r);  // beta = ||r||
 
-    oper->Mult(x, r);
-	subtract(b,r,w);
-	r = w;
-	double beta = Norm(r);  // beta = ||r||
+   final_norm = fmax(rel_tol*normb, abs_tol);
 
-	final_norm = fmax(rel_tol*normb, abs_tol);
+   if (beta <= final_norm)
+   {
+      final_norm = beta;
+      final_iter = 0;
+      converged = 1;
+      return;
+   }
 
-	if (beta <= final_norm)
-	{
-		final_norm = beta;
-		final_iter = 0;
-		converged = 1;
-		return;
-	}
+   if (print_level>=0)
+      cout << "   Pass : " << setw(2) << 1
+           << "   Iteration : " << setw(3) << 0
+           << "  || r || = " << beta << endl;
 
-	if (print_level>=0)
-		cout << "   Pass : " << setw(2) << 1
-		<< "   Iteration : " << setw(3) << 0
-		<< "  || r || = " << beta << endl;
+   Array<Vector*> v(m+1);
+   Array<Vector*> z(m+1);
+   for (i= 0; i<=m; i++)
+   {
+      v[i] = NULL;
+      z[i] = NULL;
+   }
 
-	Array<Vector*> v(m+1);
-	Array<Vector*> z(m+1);
-	for (i= 0; i<=m; i++)
-	{
-		v[i] = NULL;
-		z[i] = NULL;
-	}
+   j = 1;
+   while (j <= max_iter)
+   {
+      if (v[0] == NULL) v[0] = new Vector(b.Size());
+      (*v[0]) = 0.0;
+      v[0] -> Add (1.0/beta, r);   // v[0] = r / ||r||
+      s = 0.0; s(0) = beta;
 
-	j = 1;
-	while (j <= max_iter)
-	{
-		if (v[0] == NULL) v[0] = new Vector(b.Size());
-		(*v[0]) = 0.0;
-		v[0] -> Add (1.0/beta, r);   // v[0] = r / ||r||
-		s = 0.0; s(0) = beta;
+      for (i = 0; i < m && j <= max_iter; i++)
+      {
 
-		for (i = 0; i < m && j <= max_iter; i++)
-		{
+         if (z[i] == NULL)  z[i] = new Vector(b.Size());
+         (*z[i]) = 0.0;
 
-			if (z[i] == NULL)  z[i] = new Vector(b.Size());
-			(*z[i]) = 0.0;
+         prec->Mult(*v[i], *z[i]);
+         oper->Mult(*z[i], w);
 
-            prec->Mult(*v[i], *z[i]);
-            oper->Mult(*z[i], w);
+         for (k = 0; k <= i; k++)
+         {
+            H(k,i) = Dot( w, *v[k]); // H(k,i) = w * v[k]
+            w.Add(-H(k,i), (*v[k])); // w -= H(k,i) * v[k]
+         }
 
-			for (k = 0; k <= i; k++)
-			{
-				H(k,i) = Dot( w, *v[k]);    // H(k,i) = w * v[k]
-				w.Add(-H(k,i), (*v[k])); // w -= H(k,i) * v[k]
-			}
+         H(i+1,i)  = Norm(w);       // H(i+1,i) = ||w||
+         if (v[i+1] == NULL) v[i+1] = new Vector(b.Size());
+         (*v[i+1]) = 0.0;
+         v[i+1] -> Add (1.0/H(i+1,i), w); // v[i+1] = w / H(i+1,i)
 
-			H(i+1,i)  = Norm(w);       // H(i+1,i) = ||w||
-			if (v[i+1] == NULL) v[i+1] = new Vector(b.Size());
-			(*v[i+1]) = 0.0;
-			v[i+1] -> Add (1.0/H(i+1,i), w); // v[i+1] = w / H(i+1,i)
+         for (k = 0; k < i; k++)
+            ApplyPlaneRotation(H(k,i), H(k+1,i), cs(k), sn(k));
 
-			for (k = 0; k < i; k++)
-				ApplyPlaneRotation(H(k,i), H(k+1,i), cs(k), sn(k));
+         GeneratePlaneRotation(H(i,i), H(i+1,i), cs(i), sn(i));
+         ApplyPlaneRotation(H(i,i), H(i+1,i), cs(i), sn(i));
+         ApplyPlaneRotation(s(i), s(i+1), cs(i), sn(i));
 
-			GeneratePlaneRotation(H(i,i), H(i+1,i), cs(i), sn(i));
-			ApplyPlaneRotation(H(i,i), H(i+1,i), cs(i), sn(i));
-			ApplyPlaneRotation(s(i), s(i+1), cs(i), sn(i));
+         double resid = fabs(s(i+1));
+         if (print_level >= 0)
+            cout << "   Pass : " << setw(2) << j
+                 << "   Iteration : " << setw(3) << i+1
+                 << "  || r || = " << resid << endl;
 
-			double resid = fabs(s(i+1));
-			if (print_level >= 0)
-				cout << "   Pass : " << setw(2) << j
-				<< "   Iteration : " << setw(3) << i+1
-				<< "  || r || = " << resid << endl;
+         if ( resid <= final_norm) {
+            Update(x, i, H, s, z);
+            final_norm = resid;
+            final_iter = (j-1)*m + i;
+            converged = 1;
+            for (i= 0; i<=m; i++){
+               if (v[i])  delete v[i];
+               if (z[i])  delete z[i];
+            }
+            return;
+         }
+      }
 
-			if ( resid <= final_norm) {
-				Update(x, i, H, s, z);
-				final_norm = resid;
-				final_iter = (j-1)*m + i;
-				converged = 1;
-				for (i= 0; i<=m; i++){
-					if (v[i])  delete v[i];
-					if (z[i])  delete z[i];
-				}
-				return;
-			}
-		}
+      if (print_level>=0)
+         cout << "Restarting..." << endl;
 
-		if (print_level>=0)
-			cout << "Restarting..." << endl;
+      Update(x, i-1, H, s, z);
 
-		Update(x, i-1, H, s, z);
+      // A.Mult(x, *r);
+      oper->Mult(x, r);
+      subtract(b,r,w);
+      r = w;
+      beta = Norm(r);
+      if ( beta <= final_norm)
+      {
+         final_norm = beta;
+         final_iter = j*m;
+         converged = 1;
+         for (i= 0; i<=m; i++){
+            if (v[i])  delete v[i];
+            if (z[i])  delete z[i];
+         }
+         return;
+      }
 
-		//A.Mult(x, *r);
-		oper->Mult(x, r);
-		subtract(b,r,w);
-		r = w;
-		beta = Norm(r);
-		if ( beta <= final_norm)
-		{
-			final_norm = beta;
-			final_iter = j*m;
-			converged = 1;
-			for (i= 0; i<=m; i++){
-				if (v[i])  delete v[i];
-				if (z[i])  delete z[i];
-			}
-			return;
-		}
+      j++;
+   }
 
-		j++;
-	}
-
-	for (i= 0; i<=m; i++){
-		if (v[i])  delete v[i];
-		if (z[i])  delete z[i];
-	}
-	converged = 0;
-	return;
+   for (i = 0; i <= m; i++)
+   {
+      if (v[i])  delete v[i];
+      if (z[i])  delete z[i];
+   }
+   converged = 0;
+   return;
 
 }
 
