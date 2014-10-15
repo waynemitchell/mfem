@@ -18,6 +18,8 @@
 #include "table.hpp"
 #include "error.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 using namespace std;
 
 Table::Table (int dim, int connections_per_row)
@@ -493,3 +495,5 @@ DSTable::~DSTable()
 #endif
    delete [] Rows;
 }
+
+MFEM_NAMESPACE_END();

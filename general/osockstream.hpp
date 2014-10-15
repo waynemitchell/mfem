@@ -14,6 +14,8 @@
 
 #include "socketstream.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 /** Data type for output socket stream class. The class is used as client
     to send data to a server on a specified port number. One object of the
     class can be used for one time send of data to the server. The user
@@ -38,5 +40,7 @@ public:
    /** Virtual destructor. If the data hasn't been sent it sends it. */
    virtual ~osockstream() { }
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

@@ -16,6 +16,8 @@
 
 #include "matrix.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 void Matrix::Print (std::ostream & out, int width) const
 {
    using namespace std;
@@ -34,3 +36,5 @@ void Matrix::Print (std::ostream & out, int width) const
    }
    out << '\n';
 }
+
+MFEM_NAMESPACE_END();

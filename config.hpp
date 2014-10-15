@@ -9,16 +9,18 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "osockstream.hpp"
+#ifndef MFEM_CONFIG_HEADER
+#define MFEM_CONFIG_HEADER
 
-MFEM_NAMESPACE_BEGIN();
+// Namespace configuration and macros
+#ifdef MFEM_USE_NAMESPACE
+#define MFEM_NAMESPACE mfem
+#define MFEM_NAMESPACE_BEGIN() namespace MFEM_NAMESPACE {
+#define MFEM_NAMESPACE_END() }
+#else
+#define MFEM_NAMESPACE
+#define MFEM_NAMESPACE_BEGIN()
+#define MFEM_NAMESPACE_END()
+#endif
 
-osockstream::osockstream(int port, const char *hostname)
-   : socketstream(hostname, port)
-{
-   if (!is_open())
-      std::cerr << "Unable to connect to port " << port << " on "
-           << hostname << '\n';
-}
-
-MFEM_NAMESPACE_END();
+#endif

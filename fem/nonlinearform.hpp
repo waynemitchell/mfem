@@ -12,6 +12,10 @@
 #ifndef MFEM_NONLINEARFORM
 #define MFEM_NONLINEARFORM
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 class NonlinearForm : public Operator
 {
 protected:
@@ -50,5 +54,7 @@ public:
 
    virtual ~NonlinearForm();
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

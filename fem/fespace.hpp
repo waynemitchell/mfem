@@ -13,6 +13,9 @@
 #define MFEM_FESPACE
 
 #include <iostream>
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
 
 /* Class FiniteElementSpace - responsible for providing FEM view of the mesh
    (mainly managing the set of degrees of freedom). */
@@ -292,5 +295,7 @@ public:
 
    virtual ~FiniteElementSpace();
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

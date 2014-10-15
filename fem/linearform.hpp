@@ -12,6 +12,10 @@
 #ifndef MFEM_LINEARFORM
 #define MFEM_LINEARFORM
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// Class for linear form - Vector with asociated FE space and LFIntegrators.
 class LinearForm : public Vector
 {
@@ -60,5 +64,7 @@ public:
    /// Destroys linear form.
    ~LinearForm();
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

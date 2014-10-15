@@ -14,6 +14,8 @@
 #include <cmath>
 #include "fem.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 using namespace std;
 
 FiniteElement::FiniteElement(int D, int G, int Do, int O, int F)
@@ -9962,3 +9964,5 @@ void NURBS3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       dshape(o,2) = dshape(o,2)*sum - u(o)*dsum[2];
    }
 }
+
+MFEM_NAMESPACE_END();

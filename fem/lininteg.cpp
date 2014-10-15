@@ -13,6 +13,8 @@
 #include <cmath>
 #include "fem.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 void LinearFormIntegrator::AssembleRHSElementVect(
    const FiniteElement &el, FaceElementTransformations &Tr, Vector &elvect)
 {
@@ -486,3 +488,5 @@ void DGDirichletLFIntegrator::AssembleRHSElementVect(
          elvect.Add(kappa*(ni*nor), shape);
    }
 }
+
+MFEM_NAMESPACE_END();

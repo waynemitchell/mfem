@@ -14,6 +14,9 @@
 
 #include <iostream>
 #include <limits>
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
 
 /// Class for parallel grid function
 class ParGridFunction : public GridFunction
@@ -174,5 +177,7 @@ public:
 
    virtual ~ParGridFunction() { }
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

@@ -16,6 +16,8 @@
 
 #include "mem_alloc.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 /** Data type Table. Table stores the connectivity of elements of TYPE I
     to elements of TYPE II, for example, it may be Element-To-Face
     connectivity table, etc. */
@@ -199,5 +201,7 @@ public:
       int Index() { return(n->Index); }
    };
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

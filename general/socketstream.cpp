@@ -18,6 +18,8 @@
 #include <sys/socket.h> // socket, setsockopt, connect, recv, send
 #include <unistd.h>     // close
 
+MFEM_NAMESPACE_BEGIN();
+
 int socketbuf::attach(int sd)
 {
    int old_sd = socket_descriptor;
@@ -238,3 +240,5 @@ int socketserver::accept(socketstream &sockstr)
    }
    return socketd;
 }
+
+MFEM_NAMESPACE_END();

@@ -9,6 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "linalg.hpp"
@@ -17,9 +19,11 @@
 #include <fstream>
 #include <iomanip>
 #include <cmath>
-#include <stdlib.h>
+#include <cstdlib>
 
 using namespace std;
+
+MFEM_NAMESPACE_BEGIN();
 
 HypreParVector::HypreParVector(MPI_Comm comm, int glob_size,
                                int *col) : Vector()
@@ -1850,5 +1854,7 @@ HypreADS::~HypreADS()
    delete ND_Piy;
    delete ND_Piz;
 }
+
+MFEM_NAMESPACE_END();
 
 #endif

@@ -13,6 +13,9 @@
 #define MFEM_SOCKETSTREAM
 
 #include <iostream>
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
 
 class socketbuf : public std::streambuf
 {
@@ -115,5 +118,7 @@ public:
 
    ~socketserver() { close(); }
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

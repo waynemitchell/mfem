@@ -19,6 +19,8 @@
 #include "../general/table.hpp"
 #include "../general/sort_pairs.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 using namespace std;
 
 SparseMatrix::SparseMatrix(int nrows, int ncols)
@@ -2089,3 +2091,5 @@ SparseMatrix *Mult_AtDA (SparseMatrix &A, Vector &D,
    delete At;
    return AtDA;
 }
+
+MFEM_NAMESPACE_END();

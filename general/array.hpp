@@ -16,7 +16,10 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "../config.hpp"
 #include "error.hpp"
+
+MFEM_NAMESPACE_BEGIN();
 
 /// Base class for array container.
 class BaseArray
@@ -501,5 +504,7 @@ inline T &Array3D<T>::operator()(int i, int j, int k)
                << array1d.Size() / N2 / N3 << ',' << N2 << ',' << N3 << ").");
    return array1d[(i*N2+j)*N3+k];
 }
+
+MFEM_NAMESPACE_END();
 
 #endif

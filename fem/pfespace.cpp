@@ -9,10 +9,14 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
 #include "../general/sort_pairs.hpp"
+
+MFEM_NAMESPACE_BEGIN();
 
 ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
    : FiniteElementSpace(pf)
@@ -822,5 +826,7 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
    GenerateGlobalOffsets();
    return cpfes;
 }
+
+MFEM_NAMESPACE_END();
 
 #endif

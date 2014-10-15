@@ -12,6 +12,10 @@
 #ifndef MFEM_PNONLINEARFORM
 #define MFEM_PNONLINEARFORM
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// Parallel non-linear operator on the true dofs
 class ParNonlinearForm : public NonlinearForm
 {
@@ -43,5 +47,7 @@ public:
 
    virtual ~ParNonlinearForm() { delete pGrad; }
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

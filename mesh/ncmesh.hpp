@@ -12,6 +12,10 @@
 #ifndef MFEM_NCMESH
 #define MFEM_NCMESH
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 class Mesh;
 class FiniteElementSpace;
 class GridFunction;
@@ -592,5 +596,7 @@ inline void NCMesh::DependentVertex_iterator::next()
       }
    vert = NULL;
 }
+
+MFEM_NAMESPACE_END();
 
 #endif

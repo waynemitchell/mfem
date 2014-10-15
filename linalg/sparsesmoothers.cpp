@@ -17,6 +17,8 @@
 #include "sparsemat.hpp"
 #include "sparsesmoothers.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 void SparseSmoother::SetOperator(const Operator &a)
 {
    oper = dynamic_cast<const SparseMatrix*>(&a);
@@ -77,3 +79,5 @@ void DSmoother::Mult(const Vector &x, Vector &y) const
       Swap<Vector*>(r, p);
    }
 }
+
+MFEM_NAMESPACE_END();

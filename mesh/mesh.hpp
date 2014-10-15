@@ -13,6 +13,9 @@
 #define MFEM_MESH
 
 #include <iostream>
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
 
 // Data type mesh
 
@@ -724,5 +727,7 @@ inline void Mesh::Rotate3(int &a, int &b, int &c)
          ShiftL2R(a, b, c);
    }
 }
+
+MFEM_NAMESPACE_END();
 
 #endif

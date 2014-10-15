@@ -13,6 +13,9 @@
 #define MFEM_NURBS
 
 #include <iostream>
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
 
 class KnotVector
 {
@@ -573,5 +576,7 @@ inline int NURBSPatchMap::operator()(const int i, const int j, const int k)
 #endif
    return -1;
 }
+
+MFEM_NAMESPACE_END();
 
 #endif

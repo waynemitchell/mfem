@@ -16,6 +16,8 @@
 
 using namespace std;
 
+MFEM_NAMESPACE_BEGIN();
+
 STable3D::STable3D (int nr)
 {
    int i;
@@ -191,3 +193,5 @@ STable3D::~STable3D ()
 #endif
    delete [] Rows;
 }
+
+MFEM_NAMESPACE_END();

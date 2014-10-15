@@ -12,6 +12,10 @@
 #ifndef MFEM_PBILINEARFORM
 #define MFEM_PBILINEARFORM
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// Class for parallel bilinear form
 class ParBilinearForm : public BilinearForm
 {
@@ -76,5 +80,7 @@ public:
 
    virtual ~ParDiscreteLinearOperator() { }
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

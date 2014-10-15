@@ -12,6 +12,8 @@
 #ifndef MFEM_HYPRE
 #define MFEM_HYPRE
 
+#include "../config.hpp"
+
 // Enable internal hypre timing routines
 #define HYPRE_TIMING
 
@@ -19,6 +21,8 @@
 #include "seq_mv.h"
 #include "_hypre_parcsr_mv.h"
 #include "_hypre_parcsr_ls.h"
+
+MFEM_NAMESPACE_BEGIN();
 
 class ParFiniteElementSpace;
 class HypreParMatrix;
@@ -564,5 +568,7 @@ public:
 
    virtual ~HypreADS();
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

@@ -12,6 +12,10 @@
 #ifndef MFEM_TETRAHEDRON
 #define MFEM_TETRAHEDRON
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// Data type tetrahedron element
 class Tetrahedron : public Element
 {
@@ -83,5 +87,7 @@ public:
 };
 
 extern Linear3DFiniteElement TetrahedronFE;
+
+MFEM_NAMESPACE_END();
 
 #endif

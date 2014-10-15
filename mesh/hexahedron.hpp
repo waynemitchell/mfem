@@ -12,6 +12,10 @@
 #ifndef MFEM_HEXAHEDRON
 #define MFEM_HEXAHEDRON
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// Data type hexahedron element
 class Hexahedron : public Element
 {
@@ -52,5 +56,7 @@ public:
 };
 
 extern TriLinear3DFiniteElement HexahedronFE;
+
+MFEM_NAMESPACE_END();
 
 #endif

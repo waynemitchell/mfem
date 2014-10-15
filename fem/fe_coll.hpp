@@ -12,6 +12,10 @@
 #ifndef MFEM_FE_COLLECTION
 #define MFEM_FE_COLLECTION
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /** Collection of finite elements from the same family in multiple dimensions.
     This class is used to match the degrees of fredom of a FiniteElementSpace
     between elements, and to provide the finite element restriction from an
@@ -729,5 +733,7 @@ public:
 
    virtual ~Local_FECollection() { delete Local_Element; }
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

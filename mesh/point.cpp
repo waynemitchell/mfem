@@ -12,6 +12,8 @@
 
 #include "mesh_headers.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 Point::Point( const int *ind, int attr ) : Element(Geometry::POINT) {
    attribute = attr;
    indices[0] = ind[0];
@@ -25,3 +27,5 @@ void Point::GetVertices( Array<int> &v ) const {
 PointFiniteElement PointFE;
 
 int RefinedElement::State = RefinedElement::FINE;
+
+MFEM_NAMESPACE_END();

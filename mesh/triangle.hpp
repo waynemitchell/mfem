@@ -12,6 +12,10 @@
 #ifndef MFEM_TRIANGLE
 #define MFEM_TRIANGLE
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// Data type triangle element
 class Triangle : public Element
 {
@@ -64,5 +68,7 @@ public:
 };
 
 extern Linear2DFiniteElement TriangleFE;
+
+MFEM_NAMESPACE_END();
 
 #endif

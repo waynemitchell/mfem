@@ -12,6 +12,10 @@
 #ifndef MFEM_COMMUNICATION
 #define MFEM_COMMUNICATION
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 class GroupTopology
 {
 private:
@@ -117,5 +121,7 @@ public:
 
    ~GroupCommunicator();
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

@@ -12,6 +12,10 @@
 #ifndef MFEM_BILININTEG
 #define MFEM_BILININTEG
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// Abstract base class BilinearFormIntegrator
 class BilinearFormIntegrator : public NonlinearFormIntegrator
 {
@@ -632,5 +636,7 @@ public:
                                        DenseMatrix &elmat)
    { ran_fe.ProjectDiv(dom_fe, Trans, elmat); }
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

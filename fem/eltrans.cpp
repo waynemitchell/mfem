@@ -13,6 +13,8 @@
 #include <cmath>
 #include "fem.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 const DenseMatrix & IsoparametricTransformation::Jacobian()
 {
    if (JacobianIsEvaluated)  return dFdx;
@@ -141,3 +143,5 @@ void IntegrationPointTransformation::Transform (const IntegrationRule &ir1,
    for (i = 0; i < n; i++)
       Transform (ir1.IntPoint(i), ir2.IntPoint(i));
 }
+
+MFEM_NAMESPACE_END();

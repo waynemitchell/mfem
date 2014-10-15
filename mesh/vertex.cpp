@@ -12,8 +12,12 @@
 
 #include "vertex.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 Vertex::Vertex (double *xx, int dim)
 {
    for (int i = 0; i < dim; i++)
       coord[i] = xx[i];
 }
+
+MFEM_NAMESPACE_END();

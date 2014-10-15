@@ -12,6 +12,10 @@
 #ifndef MFEM_ELEMENTTRANSFORM
 #define MFEM_ELEMENTTRANSFORM
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 class ElementTransformation
 {
 protected:
@@ -82,5 +86,7 @@ public:
    ElementTransformation *Elem1, *Elem2, *Face;
    IntegrationPointTransformation Loc1, Loc2;
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

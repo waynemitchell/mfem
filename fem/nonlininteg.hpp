@@ -12,6 +12,10 @@
 #ifndef MFEM_NONLININTEG
 #define MFEM_NONLININTEG
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /** The abstract base class NonlinearFormIntegrator is used to express the
     local action of a general nonlinear finite element operator. In addition
     it may provide the capability to assemble the local gradient operator
@@ -145,5 +149,7 @@ public:
 
    virtual ~HyperelasticNLFIntegrator();
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

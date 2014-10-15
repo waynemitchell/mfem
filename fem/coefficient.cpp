@@ -16,6 +16,8 @@
 #include <cmath>
 #include <limits>
 
+MFEM_NAMESPACE_BEGIN();
+
 using namespace std;
 
 double PWConstCoefficient::Eval(ElementTransformation & T,
@@ -233,3 +235,5 @@ double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
 
    return norm;
 }
+
+MFEM_NAMESPACE_END();

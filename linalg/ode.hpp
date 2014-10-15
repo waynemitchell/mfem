@@ -12,6 +12,10 @@
 #ifndef MFEM_ODE
 #define MFEM_ODE
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// Abstract class for solving systems of ODEs: dx/dt = f(x,t)
 class ODESolver
 {
@@ -213,5 +217,7 @@ public:
 
    virtual void Step(Vector &x, double &t, double &dt);
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

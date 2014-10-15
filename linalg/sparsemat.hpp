@@ -19,6 +19,8 @@
 #include "densemat.hpp"
 #include <iostream>
 
+MFEM_NAMESPACE_BEGIN();
+
 class RowNode
 {
 public:
@@ -431,5 +433,7 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
    }
    return A[0];
 }
+
+MFEM_NAMESPACE_END();
 
 #endif

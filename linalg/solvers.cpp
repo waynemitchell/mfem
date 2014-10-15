@@ -14,6 +14,8 @@
 #include <cmath>
 #include "linalg.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 using namespace std;
 
 IterativeSolver::IterativeSolver()
@@ -1413,3 +1415,4 @@ UMFPackSolver::~UMFPackSolver()
 
 #endif // MFEM_USE_SUITESPARSE
 
+MFEM_NAMESPACE_END();

@@ -16,6 +16,8 @@
 
 using namespace std;
 
+MFEM_NAMESPACE_BEGIN();
+
 int FiniteElementSpace::GetOrder(int i) const
 {
    int GeomType = mesh->GetElementBaseGeometry(i);
@@ -1016,3 +1018,5 @@ void FiniteElementSpace::Save(std::ostream &out) const
        << "VDim: " << vdim << '\n'
        << "Ordering: " << ordering << '\n';
 }
+
+MFEM_NAMESPACE_END();

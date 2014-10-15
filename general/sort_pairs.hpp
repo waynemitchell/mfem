@@ -12,6 +12,10 @@
 #ifndef MFEM_SORT_PAIRS
 #define MFEM_SORT_PAIRS
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// A pair of objects
 template <class A, class B>
 class Pair
@@ -28,5 +32,7 @@ int ComparePairs (const void *_p, const void *_q);
 /// Sort with respect to the first element
 template <class A, class B>
 void SortPairs (Pair<A, B> *pairs, int size);
+
+MFEM_NAMESPACE_END();
 
 #endif

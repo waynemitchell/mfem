@@ -13,8 +13,8 @@
 // Abstract array data type
 
 #include "array.hpp"
-#include <string.h>
-#include <stdlib.h>
+
+MFEM_NAMESPACE_BEGIN();
 
 BaseArray::BaseArray(int asize, int ainc, int elementsize)
 {
@@ -130,3 +130,5 @@ int Array<T>::IsSorted()
 
 template class Array<int>;
 template class Array<double>;
+
+MFEM_NAMESPACE_END();

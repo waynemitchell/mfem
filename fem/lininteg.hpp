@@ -12,6 +12,10 @@
 #ifndef MFEM_LININTEG
 #define MFEM_LININTEG
 
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
+
 /// Abstract base class LinearFormIntegrator
 class LinearFormIntegrator
 {
@@ -302,5 +306,7 @@ public:
                                        FaceElementTransformations &Tr,
                                        Vector &elvect);
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

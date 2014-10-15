@@ -11,8 +11,8 @@
 
 #include "isockstream.hpp"
 #include <iostream>
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 #include <errno.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -21,6 +21,8 @@
 #include <unistd.h>
 
 using namespace std;
+
+MFEM_NAMESPACE_BEGIN();
 
 isockstream::isockstream(int port)
 {
@@ -146,3 +148,5 @@ isockstream::~isockstream()
    if (portID != -1)
       close(portID);
 }
+
+MFEM_NAMESPACE_END();

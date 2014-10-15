@@ -9,6 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include <mpi.h>
@@ -19,6 +21,8 @@
 #include "communication.hpp"
 #include <iostream>
 using namespace std;
+
+MFEM_NAMESPACE_BEGIN();
 
 void GroupTopology::ProcToLProc()
 {
@@ -461,5 +465,7 @@ template void GroupCommunicator::BitOR<int>(OpData<int>);
 template void GroupCommunicator::Sum<double>(OpData<double>);
 template void GroupCommunicator::Min<double>(OpData<double>);
 template void GroupCommunicator::Max<double>(OpData<double>);
+
+MFEM_NAMESPACE_END();
 
 #endif

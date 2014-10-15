@@ -13,6 +13,9 @@
 #define MFEM_ISOCKSTREAM
 
 #include <sstream>
+#include "../config.hpp"
+
+MFEM_NAMESPACE_BEGIN();
 
 /** Data type for input socket stream class. The class is used as server
     to receive data from a client on specified port number. The user gets
@@ -42,5 +45,7 @@ public:
    /** Virtual destructor. If the data hasn't been sent it sends it. */
    ~isockstream();
 };
+
+MFEM_NAMESPACE_END();
 
 #endif

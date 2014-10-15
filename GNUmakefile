@@ -23,6 +23,9 @@ MPIOPTS    = $(CCOPTS) -I$(HYPRE_DIR)/include
 # The HYPRE library (needed to build the parallel version)
 HYPRE_DIR  = ../../hypre-2.8.0b/src/hypre
 
+# Wrap all MFEM classes/functions/objects in the 'mfem' namespace?
+USE_NAMESPACE = YES
+
 # Enable experimental OpenMP support
 USE_OPENMP = NO
 
@@ -44,6 +47,10 @@ SUITESPARSE_DIR = ../../SuiteSparse
 USE_MEMALLOC = YES
 # Use high-resolution POSIX clocks, link with -lrt
 USE_POSIX_CLOCKS = NO
+
+USE_NAMESPACE_NO  =
+USE_NAMESPACE_YES = -DMFEM_USE_NAMESPACE
+USE_NAMESPACE_DEF = $(USE_NAMESPACE_$(USE_NAMESPACE))
 
 USE_LAPACK_NO  =
 USE_LAPACK_YES = -DMFEM_USE_LAPACK
@@ -76,8 +83,9 @@ POSIX_CLOCKS_DEF_NO  =
 POSIX_CLOCKS_DEF_YES = -DMFEM_USE_POSIX_CLOCKS
 POSIX_CLOCKS_DEF = $(POSIX_CLOCKS_DEF_$(USE_POSIX_CLOCKS))
 
-DEFS = $(USE_LAPACK_DEF) $(USE_MEMALLOC_DEF) $(USE_OPENMP_DEF) \
-       $(USE_METIS_5_DEF) $(USE_MESQUITE_DEF) $(POSIX_CLOCKS_DEF)
+DEFS = $(USE_NAMESPACE_DEF) $(USE_LAPACK_DEF) $(USE_MEMALLOC_DEF) \
+       $(USE_OPENMP_DEF) $(USE_METIS_5_DEF) $(USE_MESQUITE_DEF) \
+       $(POSIX_CLOCKS_DEF)
 
 CCC = $(CC) $(MODE_OPTS) $(DEFS) $(CCOPTS) $(USE_MESQUITE_OPTS) \
       $(SUITESPARSE_OPT)
@@ -100,7 +108,7 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 serial: opt
 
 # Parallel build
-parallel pdebug: CCC=$(MPICC) $(MODE_OPTS) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(USE_MESQUITE_OPTS)
+parallel pdebug: CCC=$(MPICC) $(MODE_OPTS) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(USE_MESQUITE_OPTS) $(SUITESPARSE_OPT)
 parallel: opt
 pdebug: debug
 

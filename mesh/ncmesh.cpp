@@ -12,6 +12,8 @@
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 using namespace std;
 
 NCMesh::Edge::Edge(Edge *my_parent)
@@ -2041,3 +2043,5 @@ NonconformingMesh::~NonconformingMesh()
       for (int i = 0; i < c_verts.Size(); i++)
          data_manager->FreeVertex(c_verts[i]);
 }
+
+MFEM_NAMESPACE_END();

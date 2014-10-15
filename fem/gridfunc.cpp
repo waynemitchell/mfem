@@ -18,6 +18,8 @@
 #include <iostream>
 #include "fem.hpp"
 
+MFEM_NAMESPACE_BEGIN();
+
 using namespace std;
 
 GridFunction::GridFunction(Mesh *m, std::istream &input)
@@ -2032,3 +2034,5 @@ GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
    }
    return sol2d;
 }
+
+MFEM_NAMESPACE_END();

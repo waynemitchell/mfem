@@ -9,9 +9,13 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+
+MFEM_NAMESPACE_BEGIN();
 
 void ParLinearForm::Update(ParFiniteElementSpace *pf)
 {
@@ -31,5 +35,7 @@ HypreParVector *ParLinearForm::ParallelAssemble()
    pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, *tv);
    return tv;
 }
+
+MFEM_NAMESPACE_END();
 
 #endif
