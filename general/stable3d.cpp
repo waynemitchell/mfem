@@ -126,8 +126,8 @@ int STable3D::Index (int r, int c, int f) const
 
 int STable3D::Push4 (int r, int c, int f, int t)
 {
-  MFEM_ASSERT(r != c && r != f && r != t && c != f && c != t && f != t,
-              " r = " << r << ", c = " << c << ", f = " << f << ", t = " << t);
+   MFEM_ASSERT(r != c && r != f && r != t && c != f && c != t && f != t,
+               " r = " << r << ", c = " << c << ", f = " << f << ", t = " << t);
 
    int i = 0;
    int max = r;
