@@ -14,14 +14,31 @@
 
 #include "../general/hash.hpp"
 
+// TODO: these won't be needed once this module is purely geometric
 class SparseMatrix;
 class DenseMatrix;
 class IsoparametricTransformation;
 class FiniteElementSpace;
 
 
-/**
+/** \brief A class for non-conforming AMR on higher-order hexahedral meshes.
  *
+ *  The class is used as follows:
+ *
+ *  1. NCMeshHex is constructed from elements of an existing Mesh. The elements
+ *     are copied and become the roots of the refinement hierarchy.
+ *
+ *  2. Some elements are refined with the Refine() method. Both isotropic and
+ *     anisotropic refinements of the hexes are supported.
+ *
+ *  3. A new Mesh is created from NCMeshHex containing the leaf elements.
+ *     This new mesh may have non-conforming (hanging) edges and faces.
+ *
+ *  4. A conforming interpolation matrix is obtained using GetInterpolation().
+ *     The matrix can be used to constrain the hanging DOFs so a continous
+ *     solution is obtained.
+ *
+ *  5. Refine some more leaf elements, i.e., repeat from step 2.
  */
 class NCMeshHex
 {
@@ -31,7 +48,9 @@ protected:
 public:
    NCMeshHex(const Mesh *mesh);
 
-   ///
+   /** This is a hex element in the refinement hierarchy. Each element has
+       either been refined and points to its children, or is a leaf and points
+       to its vertex nodes. */
    struct Element
    {
       int attribute;
@@ -49,7 +68,7 @@ public:
        original mesh. These are the roots of the refinement trees. */
    Element* GetRootElement(int index) { return root_elements[index]; }
 
-   /** Returns a leaf (unrefined) elements. NOTE: leaf elements are enumerated
+   /** Returns a leaf (unrefined) element. NOTE: leaf elements are enumerated
        when converting from NCMeshHex to Mesh. Only use this function after. */
    Element* GetLeafElement(int index) { return leaf_elements[index]; }
 
@@ -82,6 +101,7 @@ public:
 
    ~NCMeshHex();
 
+
 protected: // interface for Mesh to be able to construct itself from us
 
    void GetVerticesElementsBoundary(Array< ::Vertex>& vertices,
@@ -89,9 +109,11 @@ protected: // interface for Mesh to be able to construct itself from us
                                     Array< ::Element*>& boundary);
    friend class Mesh;
 
+
 protected: // implementation
 
-   ///
+   /** We want vertices and edges to autodestruct when elements stop using
+       (i.e., referencing) them. This base class does the reference counting. */
    struct RefCount
    {
       int ref_count;
@@ -108,7 +130,8 @@ protected: // implementation
       }
    };
 
-   ///
+   /** A vertex in the NC mesh. Elements point to vertices indirectly through
+       their Nodes. */
    struct Vertex : public RefCount
    {
       double pos[3]; ///< 3D position
@@ -119,14 +142,23 @@ protected: // implementation
          { pos[0] = x, pos[1] = y, pos[2] = z; }
    };
 
-   ///
+   /** An NC mesh edge. Edges don't do much more than just exist. */
    struct Edge : public RefCount
    {
       int index; ///< edge number in the Mesh
       Edge() : index(-1) {}
    };
 
-   ///
+   /** A Node can hold a Vertex, an Edge, or both. Elements directly point to
+       their corner nodes, but edge nodes also exist and can be accessed using
+       a hash-table given their two end-point node IDs. All nodes can be
+       accessed in this way, with the exception of top-level vertex nodes.
+       When an element is being refined, the mid-edge nodes are readily
+       available with this mechanism. The new elements "sign in" into the nodes
+       to have vertices and edges created for them or to just have their
+       reference counts increased. The parent element "signs off" its nodes,
+       which decrements the vertex and edge reference counts. Vertices and edges
+       are destroyed when their reference count drops to zero. */
    struct Node : public Hashed2<Node>
    {
       Vertex* vertex;
@@ -140,15 +172,18 @@ protected: // implementation
       void RefEdge();
 
       // Decrement ref on vertex or edge when an element is not using them
-      // anymore. The vertex, edge or the whole Node can auto-destruct.
-      // The hash-table pointer needs to be known then to remove the node.
+      // anymore. The vertex, edge or the whole Node can autodestruct.
+      // (The hash-table pointer needs to be known then to remove the node.)
       void UnrefVertex(HashTable<Node>& nodes);
       void UnrefEdge(HashTable<Node>& nodes);
 
       ~Node();
    };
 
-   ///
+   /** Similarly to nodes, faces can be accessed by hashing their four vertex
+       node IDs. A face knows about the one or two elements that are using it.
+       A face that is not on the boundary and only has one element referencing
+       it is either a master or a slave face. */
    struct Face : public RefCount, public Hashed4<Face>
    {
       int attribute; ///< boundary element attribute, -1 if internal face
@@ -172,10 +207,10 @@ protected: // implementation
    };
 
    Array<Element*> root_elements; // initialized by constructor
-   Array<Element*> leaf_elements; // updated by GetLeafElements
+   Array<Element*> leaf_elements; // updated by UpdateLeafElements
 
-   HashTable<Node> nodes;
-   HashTable<Face> faces;
+   HashTable<Node> nodes; // associative container holding all Nodes
+   HashTable<Face> faces; // associative container holding all Faces
 
    struct RefStackItem
    {
@@ -249,9 +284,9 @@ protected: // implementation
    {
       bool finalized; ///< true if cP matrix row is known for this DOF
       DepList dep_list; ///< list of other DOFs this DOF depends on
-      bool Independent() const { return !dep_list.Size(); }
 
       DofData() : finalized(false) {}
+      bool Independent() const { return !dep_list.Size(); }
    };
 
    DofData* dof_data; ///< vertex temporary data
@@ -279,13 +314,13 @@ protected: // implementation
 
    bool DofFinalizable(DofData& vd);
 
+
    // utility
 
    void FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
                        int& h_level, int& v_level);
 
    void CountSplits(Element* elem, int splits[3]);
-
 
 };
 

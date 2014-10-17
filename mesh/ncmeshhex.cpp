@@ -89,6 +89,8 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
 
       face->attribute = be->GetAttribute();
    }
+
+   UpdateLeafElements();
 }
 
 NCMeshHex::~NCMeshHex()
@@ -249,28 +251,28 @@ NCMeshHex::Node* NCMeshHex::PeekAltParents(Node* v1, Node* v2)
    Node* mid = nodes.Peek(v1, v2);
    if (!mid)
    {
-      // In rare cases, a mid-face node exists under alternate parents w1, w2
-      // (see picture) instead of the requested parents v1, v2. This is an
-      // inconsistent situation that may exist temporarily as a result of
-      // "nodes.Reparent" while doing anisotropic splits, before forced
-      // refinements are all processed. This function attempts to retrieve such
-      // a node. An extra twist is that w1 and w2 may themselves need to be
-      // obtained using this very function.
-      //
-      //                v1->p1      v1       v1->p2
-      //                      *------*------*
-      //                      |      |      |
-      //                      |      |mid   |
-      //                   w1 *------*------* w2
-      //                      |      |      |
-      //                      |      |      |
-      //                      *------*------*
-      //                v2->p1      v2       v2->p2
-      //
-      // NOTE: this function would not be needed if the elements remembered
-      // pointers to their edge nodes. We have however opted to save memory
-      // at the cost of this computation, which is only necessary when forced
-      // refinements are being done.
+      /* In rare cases, a mid-face node exists under alternate parents w1, w2
+         (see picture) instead of the requested parents v1, v2. This is an
+         inconsistent situation that may exist temporarily as a result of
+         "nodes.Reparent" while doing anisotropic splits, before forced
+         refinements are all processed. This function attempts to retrieve such
+         a node. An extra twist is that w1 and w2 may themselves need to be
+         obtained using this very function.
+
+                        v1->p1      v1       v1->p2
+                              *------*------*
+                              |      |      |
+                              |      |mid   |
+                           w1 *------*------* w2
+                              |      |      |
+                              |      |      |
+                              *------*------*
+                        v2->p1      v2       v2->p2
+
+         NOTE: this function would not be needed if the elements remembered
+         pointers to their edge nodes. We have however opted to save memory
+         at the cost of this computation, which is only necessary when forced
+         refinements are being done. */
 
       if ((v1->p1 != v1->p2) && (v2->p1 != v2->p2)) // non-top-level nodes?
       {
@@ -422,15 +424,29 @@ void NCMeshHex::ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4)
 void NCMeshHex::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
                                Node* mid12, Node* mid34, int level)
 {
-/*     v4      mid34      v3
-          *------*------*             TODO: explain
-          |      |      |
-          |      |midf  |
-    mid41 *- - - *- - - * mid23
-          |      |      |
-          |      |      |
-          *------*------*
-       v1      mid12      v2                                     */
+   /* When a face is getting split anisotropically (without loss of generality
+      we assume a "vertical" split here, see picture), it is important to make
+      sure that the mid-face vertex (midf) has mid34 and mid12 as parents.
+      This is necessary for the face traversal algorithm and at places like
+      Refine() that assume the mid-edge nodes to be accessible through the right
+      parents. However, midf may already exist under the parents mid41 and
+      mid23. In that case we need to "reparent" midf, i.e., reinsert it to the
+      hash-table under the correct parents. This doesn't affect other nodes as
+      all IDs stay the same, only the face refinement "tree" is affected.
+
+                           v4      mid34      v3
+                             *------*------*
+                             |      |      |
+                             |      |midf  |
+                       mid41 *- - - *- - - * mid23
+                             |      |      |
+                             |      |      |
+                             *------*------*
+                          v1      mid12      v2
+
+      This function is recusive, because the above applies to any node along the
+      middle vertical edge. The function calls itself again for the bottom and
+      uppper half of the above picture. */
 
    Node* mid23 = nodes.Peek(v2, v3);
    Node* mid41 = nodes.Peek(v4, v1);
@@ -447,6 +463,11 @@ void NCMeshHex::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
       }
    }
 
+   /* Also, this is the place where forced refinements begin. In the picture,
+      the edges mid12-midf and midf-mid34 should actually exist in the
+      neighboring elements, otherwise the mesh is inconsistent and needs to be
+      fixed. */
+
    if (level > 0)
       ForceRefinement(v1, v2, v3, v4);
 }
@@ -454,6 +475,11 @@ void NCMeshHex::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
 void NCMeshHex::CheckIsoFace(Node* v1, Node* v2, Node* v3, Node* v4,
                              Node* e1, Node* e2, Node* e3, Node* e4, Node* midf)
 {
+   /* If anisotropic refinements are present in the mesh, we need to check
+      isotropically split faces as well. The iso face can be thought to contain
+      four anisotropic cases as in the function CheckAnisoFace, that still need
+      to be checked for the corrent parents. */
+
    CheckAnisoFace(v1, v2, e2, e4, e1, midf);
    CheckAnisoFace(e4, e2, v3, v4, midf, e3);
    CheckAnisoFace(v4, v1, e1, e3, e4, midf);
@@ -787,6 +813,14 @@ void NCMeshHex::Refine(Array<Refinement>& refinements)
       ref_stack.DeleteLast();
       Refine(ref.elem, ref.ref_type);
    }
+
+   /* TODO: the current algorithm of forced refinements is not optimal. As
+      forced refinements spread through the mesh, some may not be necessary
+      in the end, since the affected elements may still be scheduled for
+      refinement that could stop the propagation. We should introduce the
+      member Element::ref_pending that would show the intended refinement in
+      the batch. A forced refinement would be combined with ref_pending to
+      (possibly) stop the propagation earlier. */
 }
 
 
@@ -942,7 +976,7 @@ static int find_face(int a, int b, int c)
 }
 
 void NCMeshHex::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
-                                     Element* elem, DenseMatrix& pm)
+                                    Element* elem, DenseMatrix& pm)
 {
    int master[4] = {
       find_node(elem, v0), find_node(elem, v1),
@@ -1223,6 +1257,8 @@ SparseMatrix*
          Node* edge = nodes.Peek(node[0], node[1]);
          MFEM_ASSERT(edge && edge->edge, "Edge not found!");
 
+         // this edge could contain slave edges that need constraining; traverse
+         // them recursively and make them dependent on this master edge
          ProcessMasterEdge(node, edge);
       }
 
