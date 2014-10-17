@@ -202,7 +202,7 @@ public:
 class IntegrationRules
 {
 private:
-   int own_rules;
+   int own_rules, refined;
 
    Array<IntegrationRule *> PointIntRules;
    Array<IntegrationRule *> SegmentIntRules;
@@ -211,18 +211,20 @@ private:
    Array<IntegrationRule *> TetrahedronIntRules;
    Array<IntegrationRule *> CubeIntRules;
 
-   void PointIntegrationRules();
-   void SegmentIntegrationRules(int refined);
-   void TriangleIntegrationRules(int refined);
-   void SquareIntegrationRules();
-   void TetrahedronIntegrationRules(int refined);
-   void CubeIntegrationRules();
+   IntegrationRule *GenerateIntegrationRule(int GeomType, int Order);
+   IntegrationRule *PointIntegrationRule(int Order);
+   IntegrationRule *SegmentIntegrationRule(int Order);
+   IntegrationRule *TriangleIntegrationRule(int Order);
+   IntegrationRule *SquareIntegrationRule(int Order);
+   IntegrationRule *TetrahedronIntegrationRule(int Order);
+   IntegrationRule *CubeIntegrationRule(int Order);
 
    void DeleteIntRuleArray(Array<IntegrationRule *> &ir_array);
 
 public:
-   /// Defines all integration rules
-   explicit IntegrationRules(int refined = 0);
+   /// Sets initial sizes for the integration rule arrays, but rules
+   /// are defined the first time they are requested with the Get method.
+   explicit IntegrationRules(int Ref = 0);
 
    /// Returns an integration rule for given GeomType and Order.
    const IntegrationRule &Get(int GeomType, int Order);
