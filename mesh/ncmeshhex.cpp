@@ -1402,6 +1402,9 @@ void NCMeshHex::CountSplits(Element* elem, int splits[3])
 
 void NCMeshHex::LimitNCLevel(int max_level)
 {
+   if (max_level < 1)
+      mfem_error("NCMeshHex::LimitNCLevel: max_level must be 1 or greater.");
+
    while (1)
    {
       UpdateLeafElements();
