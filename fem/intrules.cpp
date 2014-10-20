@@ -184,13 +184,6 @@ IntegrationRules::IntegrationRules(int Ref)
 
    CubeIntRules.SetSize(32);
    CubeIntRules = NULL;
-/*
-   PointIntegrationRules();
-   SegmentIntegrationRules(refined);
-   TriangleIntegrationRules(0);
-   SquareIntegrationRules();
-   TetrahedronIntegrationRules(0);
-   CubeIntegrationRules();*/
 }
 
 const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
@@ -199,7 +192,7 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
 
    switch (GeomType)
    {
-   case Geometry::POINT:       return *PointIntRules[0];
+   case Geometry::POINT:       ir_array = &PointIntRules; break;
    case Geometry::SEGMENT:     ir_array = &SegmentIntRules; break;
    case Geometry::TRIANGLE:    ir_array = &TriangleIntRules; break;
    case Geometry::SQUARE:      ir_array = &SquareIntRules; break;
@@ -254,11 +247,16 @@ void IntegrationRules::Set(int GeomType, int Order, IntegrationRule &IntRule)
 void IntegrationRules::DeleteIntRuleArray(Array<IntegrationRule *> &ir_array)
 {
    int i;
-   IntegrationRule *ir;
+   IntegrationRule *ir = NULL;
 
-   for (i = 0, ir = NULL; i < ir_array.Size(); i++)
-      if (ir_array[i] != ir)
-         delete (ir = ir_array[i]);
+   //Many of the intrules have multiple contiguous copies in the ir_array
+   //so we have to be careful to not deleate them twice.
+   for (i = 0; i < ir_array.Size(); i++) {
+      if (ir_array[i] != NULL && ir_array[i] != ir) {
+         ir = ir_array[i];
+         delete (ir_array[i]);
+      }
+   }
 }
 
 IntegrationRules::~IntegrationRules()
@@ -671,7 +669,7 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
                         0.01140911202919763);
       return ir;
 
-      case 21: // 126 point - 25 degree (used also for derees from 21 to 24)
+      case 21: // 126 point - 25 degree (used also for degrees from 21 to 24)
       case 22:
       case 23:
       case 24:
@@ -751,28 +749,33 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
       TetrahedronIntRules[0] =
          TetrahedronIntRules[1] = ir = new IntegrationRule (1);
       ir->AddTetMidPoint(0, 1./6.);
+      return ir;
 
    case 2:  // 4 points - degree 2
       TetrahedronIntRules[2] = ir = new IntegrationRule (4);
       // ir->AddTetPoints4(0, 0.13819660112501051518, 1./24.);
       ir->AddTetPoints4b(0, 0.58541019662496845446, 1./24.);
+      return ir;
 
    case 3:  // 5 points - degree 3 (negative weight)
       TetrahedronIntRules[3] = ir = new IntegrationRule (5);
       ir->AddTetMidPoint(0, -2./15.);
       ir->AddTetPoints4b(1, 0.5, 0.075);
+      return ir;
 
    case 4:  // 11 points - degree 4 (negative weight)
       TetrahedronIntRules[4] = ir = new IntegrationRule (11);
       ir->AddTetPoints4(0, 1./14., 343./45000.);
       ir->AddTetMidPoint(4, -74./5625.);
       ir->AddTetPoints6(5, 0.10059642383320079500, 28./1125.);
+      return ir;
 
    case 5:  // 14 points - degree 5
       TetrahedronIntRules[5] = ir = new IntegrationRule (14);
       ir->AddTetPoints6(0, 0.045503704125649649492, 7.0910034628469110730E-03);
       ir->AddTetPoints4(6, 0.092735250310891226402, 0.012248840519393658257);
       ir->AddTetPoints4b(10, 0.067342242210098170608, 0.018781320953002641800);
+      return ir;
 
    case 6:  // 24 points - degree 6
       TetrahedronIntRules[6] = ir = new IntegrationRule (24);
@@ -781,6 +784,7 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
       ir->AddTetPoints4b(8, 0.032986329573173468968, 9.2261969239424536825E-03);
       ir->AddTetPoints12(12, 0.063661001875017525299, 0.26967233145831580803,
                          8.0357142857142857143E-03);
+      return ir;
 
    case 7:  // 31 points - degree 7 (negative weight)
       TetrahedronIntRules[7] = ir = new IntegrationRule (31);
@@ -790,6 +794,7 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
       ir->AddTetPoints4(11, 0.12184321666390517465, -0.062517740114331851691);
       ir->AddTetPoints4b(15, 2.3825066607381275412E-03, 4.8914252630734993858E-03);
       ir->AddTetPoints12(19, 0.1, 0.2, 0.027557319223985890653);
+      return ir;
 
    case 8:  // 43 points - degree 8 (negative weight)
       TetrahedronIntRules[8] = ir = new IntegrationRule (43);
@@ -802,6 +807,7 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
                          5.7044858086819185068E-03);
       ir->AddTetPoints4(38, 0.20682993161067320408, 0.014250305822866901248);
       ir->AddTetMidPoint(42, -0.020500188658639915841);
+      return ir;
 
    case 9: // orders 9 and higher -- Grundmann-Moller rules
       TetrahedronIntRules[9] = ir = new IntegrationRule;
