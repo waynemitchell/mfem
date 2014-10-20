@@ -180,7 +180,10 @@ public:
    IntegrationRule() : Array<IntegrationPoint>() { }
 
    /// Construct an integration rule with given number of points
-   explicit IntegrationRule(int NP) : Array<IntegrationPoint>(NP) { }
+   explicit IntegrationRule(int NP) : Array<IntegrationPoint>(NP) { 
+      for (int i = 0; i < this->Size(); i ++)
+         (*this)[i].Init();
+   }
 
    /// Tensor product of two 1D integration rules
    IntegrationRule(IntegrationRule &irx, IntegrationRule &iry);
