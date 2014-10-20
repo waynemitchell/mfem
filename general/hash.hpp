@@ -71,15 +71,12 @@ struct Hashed4
  *
  *  All items in the container can also be accessed sequentially using the
  *  provided iterator.
- *
- *  TODO: The hash table currently doesn't adapt its size to the number of
- *        items stored!
  */
 template<typename ItemT>
 class HashTable
 {
 public:
-   HashTable(int size = 128*1024);
+   HashTable(int init_size = 32*1024);
    ~HashTable();
 
    /// Get an item whose parents are p1, p2... Create it if it doesn't exist.
@@ -142,6 +139,7 @@ protected:
 
    ItemT** table;
    int mask;
+   int num_items;
 
    // hash functions (NOTE: the constants are arbitrary)
    inline int hash(int p1, int p2) const
@@ -163,26 +161,27 @@ protected:
    void Insert(int idx, ItemT* item);
    void Unlink(ItemT* item);
 
+   /// Check table load and resize if necessary
+   void Rehash();
+
    IdGenerator id_gen; ///< id generator for new items
    Array<ItemT*> id_to_item; ///< mapping table for the Peek(id) method
-
-   mutable int nqueries, ncollisions; // stats
 };
 
 
 // implementation
 
 template<typename ItemT>
-HashTable<ItemT>::HashTable(int size)
+HashTable<ItemT>::HashTable(int init_size)
 {
-   mask = size-1;
-   if (size & mask)
-      mfem_error("Hash table size must be a power of two.");
+   mask = init_size-1;
+   if (init_size & mask)
+      mfem_error("HashTable(): init_size size must be a power of two.");
 
-   table = new ItemT*[size];
-   memset(table, 0, size * sizeof(ItemT*));
+   table = new ItemT*[init_size];
+   memset(table, 0, init_size * sizeof(ItemT*));
 
-   nqueries = ncollisions = 0;
+   num_items = 0;
 }
 
 template<typename ItemT>
@@ -193,10 +192,6 @@ HashTable<ItemT>::~HashTable()
       delete it;
 
    delete [] table;
-
-   if (ncollisions > 3*nqueries)
-      std::cout << "HashTable: WARNING: ncollisions = " << ncollisions << ", "
-                << "nqueries = " << nqueries << ". Adaptive resizing needed.\n";
 }
 
 namespace detail {
@@ -238,6 +233,7 @@ void HashTable<ItemT>::Insert(int idx, ItemT* item)
    // insert into hashtable
    item->next = table[idx];
    table[idx] = item;
+   num_items++;
 }
 
 template<typename ItemT>
@@ -263,6 +259,7 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2)
   }
   id_to_item[newitem->id] = newitem;
 
+  Rehash();
   return newitem;
 }
 
@@ -290,18 +287,17 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
   }
   id_to_item[newitem->id] = newitem;
 
+  Rehash();
   return newitem;
 }
 
 template<typename ItemT>
 ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2) const
 {
-   nqueries++;
    while (item != NULL)
    {
       if (item->p1 == p1 && item->p2 == p2) return item;
       item = item->next;
-      ncollisions++;
    }
    return NULL;
 }
@@ -309,14 +305,39 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2) const
 template<typename ItemT>
 ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3) const
 {
-   nqueries++;
    while (item != NULL)
    {
       if (item->p1 == p1 && item->p2 == p2 && item->p3 == p3) return item;
       item = item->next;
-      ncollisions++;
    }
    return NULL;
+}
+
+template<typename ItemT>
+void HashTable<ItemT>::Rehash()
+{
+   const int fill_factor = 2;
+   int old_size = mask+1;
+
+   // is the table overfull?
+   if (num_items > old_size * fill_factor)
+   {
+      delete [] table;
+
+      // double the table size
+      int new_size = 2*old_size;
+      table = new ItemT*[new_size];
+      memset(table, 0, new_size * sizeof(ItemT*));
+      mask = new_size-1;
+
+      /*std::cout << __PRETTY_FUNCTION__ << ": rehashing to size " << new_size
+                << std::endl;*/
+
+      // reinsert all items
+      num_items = 0;
+      for (Iterator it(*this); it; ++it)
+         Insert(hash(it), it);
+   }
 }
 
 template<typename ItemT>
@@ -329,6 +350,7 @@ void HashTable<ItemT>::Unlink(ItemT* item)
       if (*ptr == item)
       {
          *ptr = item->next;
+         num_items--;
          return;
       }
       ptr = &((*ptr)->next);
