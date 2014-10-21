@@ -64,10 +64,6 @@ private:
    inline void _Set_(const int row, const int col, const double a)
    { SearchRow(row, col) = a; }
 
-   /// Returns the actual Width of the matrix
-   /*! This method can be called for matrices finalized or not. */
-   int actualWidth();
-
 public:
    /// Creates sparse matrix.
    explicit SparseMatrix(int nrows, int ncols = 0);
@@ -100,6 +96,10 @@ public:
     * This method can be called for matrices finalized or not.
     */
    void SetWidth(int width_ = -1);
+
+   /// Returns the actual Width of the matrix
+   /*! This method can be called for matrices finalized or not. */
+   int ActualWidth();
 
    /// Sort the column indices corresponding to each row
    void SortColumnIndices();

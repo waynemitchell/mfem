@@ -110,7 +110,7 @@ void SparseMatrix::SetWidth(int newWidth)
    else if( newWidth == -1)
    {
       // Compute the actual width
-      width = actualWidth();
+      width = ActualWidth();
       // No need to reset the ColPtr, since the new ColPtr will be shorter.
    }
    else if(newWidth > width)
@@ -131,7 +131,7 @@ void SparseMatrix::SetWidth(int newWidth)
    else
    {
       // Check that the new width is bigger or equal to the actual width.
-      MFEM_ASSERT( newWidth >= actualWidth(), "The new width needs to be bigger or equal to the actual width");
+      MFEM_ASSERT( newWidth >= ActualWidth(), "The new width needs to be bigger or equal to the actual width");
       width = newWidth;
    }
 }
@@ -1800,7 +1800,7 @@ SparseMatrix::~SparseMatrix ()
    }
 }
 
-int SparseMatrix::actualWidth()
+int SparseMatrix::ActualWidth()
 {
    int awidth = 0;
    if(A)
