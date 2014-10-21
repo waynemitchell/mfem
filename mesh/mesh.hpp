@@ -103,10 +103,10 @@ protected:
    void DeleteCoarseTables();
 
    Element *ReadElementWithoutAttr(istream &);
-   static void PrintElementWithoutAttr(Element *, ostream &);
+   static void PrintElementWithoutAttr(const Element *, ostream &);
 
    Element *ReadElement(istream &);
-   static void PrintElement(Element *, ostream &);
+   static void PrintElement(const Element *, ostream &);
 
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;
@@ -657,7 +657,7 @@ public:
                                        int interior_faces = 0);
 
    /// Print set of disjoint surfaces
-   void PrintSurfaces(const Table &face_Aface, ostream &out);
+   void PrintSurfaces(const Table &Aface_face, ostream &out) const;
 
    void ScaleSubdomains (double sf);
    void ScaleElements (double sf);

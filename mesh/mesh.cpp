@@ -1682,7 +1682,7 @@ Element *Mesh::ReadElementWithoutAttr(istream &input)
    return el;
 }
 
-void Mesh::PrintElementWithoutAttr(Element *el, ostream &out)
+void Mesh::PrintElementWithoutAttr(const Element *el, ostream &out)
 {
    out << el->GetGeometryType();
    const int nv = el->GetNVertices();
@@ -1704,9 +1704,10 @@ Element *Mesh::ReadElement(istream &input)
    return el;
 }
 
-void Mesh::PrintElement(Element *el, ostream &out)
+void Mesh::PrintElement(const Element *el, ostream &out)
 {
    out << el->GetAttribute() << ' ';
+   int attr;
    PrintElementWithoutAttr(el, out);
 }
 
@@ -7850,7 +7851,8 @@ void Mesh::PrintElementsWithPartitioning(int *partitioning,
    delete [] voff;
    delete [] vown;
 }
-void Mesh::PrintSurfaces(const Table & face_Aface, ostream &out)
+
+void Mesh::PrintSurfaces(const Table & Aface_face, ostream &out) const
 {
    int i, j;
 
@@ -7879,19 +7881,16 @@ void Mesh::PrintSurfaces(const Table & face_Aface, ostream &out)
    for (i = 0; i < NumOfElements; i++)
       PrintElement(elements[i], out);
 
-   out << "\nboundary\n" << face_Aface.Size_of_connections() << '\n';
-   for (int face=0; face<NumOfFaces; face++)
-   {
-      int num_Afaces = face_Aface.RowSize(face);
-      if (num_Afaces >= 2)
-         mfem_error("num_Afaces > 2\n");
-      if (num_Afaces == 1)
+   out << "\nboundary\n" << Aface_face.Size_of_connections() << '\n';
+   const int * const i_AF_f = Aface_face.GetI();
+   const int * const j_AF_f = Aface_face.GetJ();
+
+   for(int iAF=0; iAF < Aface_face.Size(); ++iAF)
+      for(const int * iface = j_AF_f + i_AF_f[iAF]; iface < j_AF_f + i_AF_f[iAF+1]; ++iface)
       {
-         Element * face_elem = const_cast<Element*>(GetFace(face));
-         face_elem->SetAttribute(*face_Aface.GetRow(face)+1);
-         PrintElement(face_elem, out);
-      }
-   }
+         out << iAF+1 << ' ';
+         PrintElementWithoutAttr(faces[*iface],out);
+      } 
 
    out << "\nvertices\n" << NumOfVertices << '\n';
    if (Nodes == NULL)
