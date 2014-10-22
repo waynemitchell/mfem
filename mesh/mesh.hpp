@@ -656,7 +656,11 @@ public:
                                        ostream &out,
                                        int interior_faces = 0);
 
-   /// Print set of disjoint surfaces
+   /// Print set of disjoint surfaces:
+   /*!
+    * If Aface_face(i,j) != 0, print face j as a boundary
+    * element with attribute i+1.
+    */
    void PrintSurfaces(const Table &Aface_face, ostream &out) const;
 
    void ScaleSubdomains (double sf);
