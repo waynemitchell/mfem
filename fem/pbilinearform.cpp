@@ -275,4 +275,24 @@ void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks) 
    delete [] col_starts;
 }
 
+HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
+{
+   int  nproc   = trial_pfes -> GetNRanks();
+   int *trial_dof_off = trial_pfes -> GetDofOffsets();
+   int *test_dof_off  = test_pfes -> GetDofOffsets();
+
+   // construct the block-diagonal matrix A
+   HypreParMatrix *A;
+   if (HYPRE_AssumedPartitionCheck())
+      A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[2], trial_dof_off[2], test_dof_off, trial_dof_off, mat);
+   else
+      A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[nproc], trial_dof_off[nproc], test_dof_off, trial_dof_off, mat);
+
+   HypreParMatrix *rap = RAP(test_pfes -> Dof_TrueDof_Matrix(), A, trial_pfes -> Dof_TrueDof_Matrix());
+
+   delete A;
+
+   return rap;
+}
+
 #endif

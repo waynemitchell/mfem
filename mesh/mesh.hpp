@@ -105,10 +105,10 @@ protected:
    void DeleteCoarseTables();
 
    Element *ReadElementWithoutAttr(std::istream &);
-   static void PrintElementWithoutAttr(Element *, std::ostream &);
+   static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
    Element *ReadElement(std::istream &);
-   static void PrintElement(Element *, std::ostream &);
+   static void PrintElement(const Element *, std::ostream &);
 
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;
@@ -657,6 +657,13 @@ public:
    void PrintElementsWithPartitioning (int *partitioning,
                                        std::ostream &out,
                                        int interior_faces = 0);
+
+   /// Print set of disjoint surfaces:
+   /*!
+    * If Aface_face(i,j) != 0, print face j as a boundary
+    * element with attribute i+1.
+    */
+   void PrintSurfaces(const Table &Aface_face, std::ostream &out) const;
 
    void ScaleSubdomains (double sf);
    void ScaleElements (double sf);

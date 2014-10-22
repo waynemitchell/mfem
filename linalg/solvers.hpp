@@ -16,6 +16,7 @@
 #include <umfpack.h>
 #endif
 
+
 /// Abstract base class for iterative solver
 class IterativeSolver : public Solver
 {
@@ -106,6 +107,24 @@ public:
 
 #ifdef MFEM_USE_MPI
    GMRESSolver(MPI_Comm _comm) : IterativeSolver(_comm) { m = 50; }
+#endif
+
+   void SetKDim(int dim) { m = dim; }
+
+   virtual void Mult(const Vector &x, Vector &y) const;
+};
+
+/// FGMRES method
+class FGMRESSolver : public IterativeSolver
+{
+protected:
+   int m;
+
+public:
+   FGMRESSolver() { m = 50; }
+
+#ifdef MFEM_USE_MPI
+   FGMRESSolver(MPI_Comm _comm) : IterativeSolver(_comm) { m = 50; }
 #endif
 
    void SetKDim(int dim) { m = dim; }
