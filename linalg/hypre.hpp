@@ -446,6 +446,7 @@ public:
 class HypreDiagScale : public HypreSolver
 {
 public:
+   HypreDiagScale() : HypreSolver() { }
    explicit HypreDiagScale(HypreParMatrix &A) : HypreSolver(&A) { }
    virtual operator HYPRE_Solver() const { return NULL; }
 
