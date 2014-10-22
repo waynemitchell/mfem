@@ -663,7 +663,7 @@ public:
     * If Aface_face(i,j) != 0, print face j as a boundary
     * element with attribute i+1.
     */
-   void PrintSurfaces(const Table &Aface_face, ostream &out) const;
+   void PrintSurfaces(const Table &Aface_face, std::ostream &out) const;
 
    void ScaleSubdomains (double sf);
    void ScaleElements (double sf);

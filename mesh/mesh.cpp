@@ -7858,7 +7858,7 @@ void Mesh::PrintElementsWithPartitioning(int *partitioning,
    delete [] vown;
 }
 
-void Mesh::PrintSurfaces(const Table & Aface_face, ostream &out) const
+void Mesh::PrintSurfaces(const Table & Aface_face, std::ostream &out) const
 {
    int i, j;
 
