@@ -2180,7 +2180,7 @@ void Swap(SparseMatrix & A, SparseMatrix & B)
    Swap(A.A, B.A);
    Swap(A.Rows, B.Rows);
    Swap(A.current_row, B.current_row);
-   Swap(A.ColPtr, B.ColPtr);
+   Swap(A.ColPtr.J, B.ColPtr.J);
 
 #ifdef MFEM_USE_MEMALLOC
    Swap(A.NodesMem, B.NodesMem);
