@@ -102,11 +102,11 @@ protected:
        Usefull in refinement methods to destroy the coarse tables. */
    void DeleteCoarseTables();
 
-   Element *ReadElementWithoutAttr(istream &);
-   static void PrintElementWithoutAttr(const Element *, ostream &);
+   Element *ReadElementWithoutAttr(std::istream &);
+   static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
-   Element *ReadElement(istream &);
-   static void PrintElement(const Element *, ostream &);
+   Element *ReadElement(std::istream &);
+   static void PrintElement(const Element *, std::ostream &);
 
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;

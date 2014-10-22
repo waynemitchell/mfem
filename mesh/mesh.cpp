@@ -1682,7 +1682,7 @@ Element *Mesh::ReadElementWithoutAttr(istream &input)
    return el;
 }
 
-void Mesh::PrintElementWithoutAttr(const Element *el, ostream &out)
+void Mesh::PrintElementWithoutAttr(const Element *el, std::ostream &out)
 {
    out << el->GetGeometryType();
    const int nv = el->GetNVertices();
@@ -1704,7 +1704,7 @@ Element *Mesh::ReadElement(istream &input)
    return el;
 }
 
-void Mesh::PrintElement(const Element *el, ostream &out)
+void Mesh::PrintElement(const Element *el, std::ostream &out)
 {
    out << el->GetAttribute() << ' ';
    PrintElementWithoutAttr(el, out);
