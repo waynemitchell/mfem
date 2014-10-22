@@ -138,9 +138,6 @@ public:
    void EliminateRow(int row, const double sol, Vector &rhs);
    /// Set all the entries in row *row* to 0.
    void EliminateRow(int row);
-   /** Set all the entries in row *row* to 0 if the matrix is rectangular.
-       Set A(i,i) = 1. and A(i,j) = 0 (i ~= j) if the matrix is square. */
-   void EliminateRow2(int row);
    void EliminateCol(int col);
    /// Eliminate all columns 'i' for which cols[i] != 0
    void EliminateCols(Array<int> &cols, Vector *x = NULL, Vector *b = NULL);

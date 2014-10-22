@@ -636,41 +636,6 @@ void SparseMatrix::EliminateRow(int row)
          aux->Value = 0.0;
 }
 
-void SparseMatrix::EliminateRow2(int row)
-{
-	if(size != width)
-	{
-		EliminateRow(row);
-		return;
-	}
-	else
-	{
-		RowNode *aux;
-
-#ifdef MFEM_DEBUG
-		if ( row >= size || row < 0 )
-			mfem_error("SparseMatrix::EliminateRow () #1");
-#endif
-
-		if (Rows == NULL)
-		{
-			for (int i=I[row]; i < I[row+1]; ++i)
-				if(J[i] == row)
-					A[i] = 1.0;
-				else
-					A[i]=0.0;
-		}
-		else
-		{
-			for (aux = Rows[row]; aux != NULL; aux = aux->Prev)
-				if(aux->Column == row)
-					aux->Value = 1.0;
-				else
-					aux->Value = 0.0;
-		}
-	}
-}
-
 void SparseMatrix::EliminateCol(int col)
 {
    RowNode *aux;
