@@ -450,23 +450,25 @@ void FGMRESSolver::Mult(const Vector &b, Vector &x) const
 {
    DenseMatrix H(m+1,m);
    Vector s(m+1), cs(m+1), sn(m+1);
-   Vector w(b.Size());
    Vector av(b.Size());
    Vector r(b.Size());
 
    int i, j, k;
 
-   w = b;
-   double normb = Norm(w); // normb = ||M b||
-   if (normb == 0.0)
-      normb = 1;
 
-   oper->Mult(x, r);
-   subtract(b,r,w);
-   r = w;
+   if (iterative_mode)
+   {
+	   oper->Mult(x, r);
+       subtract(b,r,r);
+   }
+   else
+   {
+	   x = 0.;
+	   r = b;
+   }
    double beta = Norm(r);  // beta = ||r||
 
-   final_norm = fmax(rel_tol*normb, abs_tol);
+   final_norm = fmax(rel_tol*beta, abs_tol);
 
    if (beta <= final_norm)
    {
@@ -504,18 +506,18 @@ void FGMRESSolver::Mult(const Vector &b, Vector &x) const
          (*z[i]) = 0.0;
 
          prec->Mult(*v[i], *z[i]);
-         oper->Mult(*z[i], w);
+         oper->Mult(*z[i], r);
 
          for (k = 0; k <= i; k++)
          {
-            H(k,i) = Dot( w, *v[k]); // H(k,i) = w * v[k]
-            w.Add(-H(k,i), (*v[k])); // w -= H(k,i) * v[k]
+            H(k,i) = Dot( r, *v[k]); // H(k,i) = r * v[k]
+            r.Add(-H(k,i), (*v[k])); // r -= H(k,i) * v[k]
          }
 
-         H(i+1,i)  = Norm(w);       // H(i+1,i) = ||w||
+         H(i+1,i)  = Norm(r);       // H(i+1,i) = ||r||
          if (v[i+1] == NULL) v[i+1] = new Vector(b.Size());
          (*v[i+1]) = 0.0;
-         v[i+1] -> Add (1.0/H(i+1,i), w); // v[i+1] = w / H(i+1,i)
+         v[i+1] -> Add (1.0/H(i+1,i), r); // v[i+1] = r / H(i+1,i)
 
          for (k = 0; k < i; k++)
             ApplyPlaneRotation(H(k,i), H(k+1,i), cs(k), sn(k));
@@ -548,10 +550,8 @@ void FGMRESSolver::Mult(const Vector &b, Vector &x) const
 
       Update(x, i-1, H, s, z);
 
-      // A.Mult(x, *r);
       oper->Mult(x, r);
-      subtract(b,r,w);
-      r = w;
+      subtract(b,r,r);
       beta = Norm(r);
       if ( beta <= final_norm)
       {
