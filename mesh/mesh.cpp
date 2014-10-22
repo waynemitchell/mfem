@@ -1707,7 +1707,6 @@ Element *Mesh::ReadElement(istream &input)
 void Mesh::PrintElement(const Element *el, ostream &out)
 {
    out << el->GetAttribute() << ' ';
-   int attr;
    PrintElementWithoutAttr(el, out);
 }
 

@@ -43,7 +43,7 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
    Rows = NULL;
    ColPtr.J = NULL;
 #ifdef MFEM_USE_MEMALLOC
-   NodesMem = new RowNodeAlloc;
+   NodesMem = NULL;
 #endif
 }
 
@@ -462,7 +462,8 @@ void SparseMatrix::Finalize(int skip_zeros)
             j++;
          }
 #ifdef MFEM_USE_MEMALLOC
-   NodesMem->Clear();
+   delete NodesMem;
+   NodesMem = NULL;
 #else
    for (i = 0; i < size; i++)
    {
@@ -1769,14 +1770,11 @@ void SparseMatrix::PrintCSR2(ostream & out) const
 
 SparseMatrix::~SparseMatrix ()
 {
-#ifdef MFEM_USE_MEMALLOC
-	delete NodesMem;
-#endif
    if (Rows != NULL)
    {
       delete [] ColPtr.Node;
 #ifdef MFEM_USE_MEMALLOC
-      // Do nothing
+      delete NodesMem;
 #else
       for (int i = 0; i < size; i++)
       {
@@ -2173,15 +2171,16 @@ SparseMatrix *Mult_AtDA (const SparseMatrix &A, const Vector &D,
 
 void Swap(SparseMatrix & A, SparseMatrix & B)
 {
-   int width(A.width); A.width = B.width; B.width = width;
-   int size(A.size);   A.size = B.size; B.size = size;
-   int * I(A.I);       A.I = B.I;  B.I = I;
-   int * J(A.J);       A.J = B.J;  B.J = J;
-   double * val(A.A);  A.A = B.A;  B.A = val;
-   RowNode **rows(A.Rows); A.Rows = B.Rows; B.Rows = rows;
-   int current_row(A.current_row); A.current_row = B.current_row; B.current_row = current_row;
-   J = A.ColPtr.J; A.ColPtr.J = B.ColPtr.J; B.ColPtr.J = J;
+   Swap(A.width, B.width);
+   Swap(A.size, B.size);
+   Swap(A.I, B.I);
+   Swap(A.J, B.J);
+   Swap(A.A, B.A);
+   Swap(A.Rows, B.Rows);
+   Swap(A.current_row, B.current_row);
+   Swap(A.ColPtr, B.ColPtr);
+
 #ifdef MFEM_USE_MEMALLOC
-   SparseMatrix::RowNodeAlloc * NodesMem(A.NodesMem); A.NodesMem = B.NodesMem; B.NodesMem = NodesMem;
+   Swap(A.NodesMem, B.NodesMem);
 #endif
 }

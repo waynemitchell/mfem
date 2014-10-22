@@ -458,13 +458,13 @@ void FGMRESSolver::Mult(const Vector &b, Vector &x) const
 
    if (iterative_mode)
    {
-	   oper->Mult(x, r);
-       subtract(b,r,r);
+      oper->Mult(x, r);
+      subtract(b,r,r);
    }
    else
    {
-	   x = 0.;
-	   r = b;
+      x = 0.;
+      r = b;
    }
    double beta = Norm(r);  // beta = ||r||
 
