@@ -12,9 +12,11 @@
 #include "../fem/fem.hpp"
 
 
+using namespace std;
+
 const int KnotVector::MaxOrder = 10;
 
-KnotVector::KnotVector(istream &input)
+KnotVector::KnotVector(std::istream &input)
 {
    input >> Order >> NumOfControlPoints;
    knot.Load(input, NumOfControlPoints + Order + 1);
@@ -108,7 +110,7 @@ void KnotVector::Flip()
    }
 }
 
-void KnotVector::Print(ostream &out) const
+void KnotVector::Print(std::ostream &out) const
 {
    out << Order << ' ' << NumOfControlPoints << ' ';
    knot.Print(out, knot.Size());
@@ -294,7 +296,7 @@ void NURBSPatch::init(int dim_)
    }
 }
 
-NURBSPatch::NURBSPatch(istream &input)
+NURBSPatch::NURBSPatch(std::istream &input)
 {
    int pdim, dim, size = 1;
    string ident;
@@ -402,7 +404,7 @@ NURBSPatch::~NURBSPatch()
    }
 }
 
-void NURBSPatch::Print(ostream &out)
+void NURBSPatch::Print(std::ostream &out)
 {
    int size = 1;
 
@@ -1047,9 +1049,9 @@ NURBSPatch *Revolve3D(NURBSPatch &patch, double n[], double ang, int times)
 
 
 // from mesh.cpp
-extern void skip_comment_lines(istream &, const char);
+extern void skip_comment_lines(std::istream &, const char);
 
-NURBSExtension::NURBSExtension(istream &input)
+NURBSExtension::NURBSExtension(std::istream &input)
 {
    // Read topology
    patchTopo = new Mesh;
@@ -1267,7 +1269,7 @@ NURBSExtension::~NURBSExtension()
       delete patchTopo;
 }
 
-void NURBSExtension::Print(ostream &out) const
+void NURBSExtension::Print(std::ostream &out) const
 {
    patchTopo->PrintTopo(out, edge_to_knot);
    out << "\nknotvectors\n" << NumOfKnotVectors << '\n';
@@ -1288,7 +1290,7 @@ void NURBSExtension::Print(ostream &out) const
    weights.Print(out, 1);
 }
 
-void NURBSExtension::PrintCharacteristics(ostream &out)
+void NURBSExtension::PrintCharacteristics(std::ostream &out)
 {
    out <<
       "NURBS Mesh entity sizes:\n"

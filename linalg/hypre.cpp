@@ -11,14 +11,15 @@
 
 #ifdef MFEM_USE_MPI
 
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <math.h>
-#include <stdlib.h>
-
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
+
+#include <fstream>
+#include <iomanip>
+#include <cmath>
+#include <stdlib.h>
+
+using namespace std;
 
 HypreParVector::HypreParVector(MPI_Comm comm, int glob_size,
                                int *col) : Vector()

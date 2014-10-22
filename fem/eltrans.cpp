@@ -10,7 +10,7 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 
-#include <math.h>
+#include <cmath>
 #include "fem.hpp"
 
 ElementTransformation::ElementTransformation():

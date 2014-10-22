@@ -14,6 +14,7 @@
 
 // Abstract data types matrix, inverse matrix
 
+#include <iostream>
 #include "../general/array.hpp"
 #include "operator.hpp"
 
@@ -40,7 +41,7 @@ public:
    virtual void Finalize(int) { }
 
    /// Prints matrix to stream out.
-   virtual void Print (ostream & out = cout, int width = 4) const;
+   virtual void Print (std::ostream & out = std::cout, int width = 4) const;
 
    /// Destroys matrix.
    virtual ~Matrix() { }

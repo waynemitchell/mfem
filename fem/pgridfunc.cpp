@@ -12,6 +12,9 @@
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+#include <iostream>
+#include <limits>
+using namespace std;
 
 ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf)
 {
@@ -257,7 +260,7 @@ double ParGridFunction::GlobalLpNorm(const double p, double loc_norm) const
    return glob_norm;
 }
 
-void ParGridFunction::Save(ostream &out)
+void ParGridFunction::Save(std::ostream &out)
 {
    for (int i = 0; i < size; i++)
       if (pfes->GetDofSign(i) < 0)
@@ -270,7 +273,7 @@ void ParGridFunction::Save(ostream &out)
          data[i] = -data[i];
 }
 
-void ParGridFunction::SaveAsOne(ostream &out)
+void ParGridFunction::SaveAsOne(std::ostream &out)
 {
    int i, p;
 

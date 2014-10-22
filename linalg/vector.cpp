@@ -13,7 +13,7 @@
 
 #include <iostream>
 #include <iomanip>
-#include <math.h>
+#include <cmath>
 #include <stdlib.h>
 #include <time.h>
 
@@ -476,7 +476,7 @@ void Vector::AddElementVector(const Array<int> &dofs, const double a,
          data[-1-j] -= a * elemvect(i);
 }
 
-void Vector::Print(ostream &out, int width) const
+void Vector::Print(std::ostream &out, int width) const
 {
    for (int i = 0; 1; )
    {
@@ -492,11 +492,11 @@ void Vector::Print(ostream &out, int width) const
    out << '\n';
 }
 
-void Vector::Print_HYPRE(ostream &out) const
+void Vector::Print_HYPRE(std::ostream &out) const
 {
    int i;
-   ios::fmtflags old_fmt = out.flags();
-   out.setf(ios::scientific);
+   std::ios::fmtflags old_fmt = out.flags();
+   out.setf(std::ios::scientific);
    int old_prec = out.precision(14);
 
    out << size << '\n';  // number of rows
@@ -585,3 +585,4 @@ double Vector::DistanceTo(const double *p) const
 {
    return Distance(data, p, size);
 }
+

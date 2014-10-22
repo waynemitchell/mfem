@@ -14,6 +14,8 @@
 #include <cstring>
 #include <cstdio>
 
+using namespace std;
+
 int FiniteElementCollection::HasFaceDofs(int GeomType) const
 {
    switch (GeomType)

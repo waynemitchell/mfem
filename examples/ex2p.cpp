@@ -34,8 +34,10 @@
 //
 //               We recommend viewing example 1 before viewing this example.
 
-#include <fstream>
 #include "mfem.hpp"
+#include <fstream>
+#include <iostream>
+using namespace std;
 
 int main (int argc, char *argv[])
 {

@@ -11,25 +11,29 @@
 
 // Implementation of GridFunction
 
-#include "fem.hpp"
 #include <limits>
 #include <cstring>
-#include <math.h>
+#include <string>
+#include <cmath>
+#include <iostream>
+#include "fem.hpp"
 
-GridFunction::GridFunction(Mesh *m, istream &input)
+using namespace std;
+
+GridFunction::GridFunction(Mesh *m, std::istream &input)
    : Vector()
 {
    const int bufflen = 256;
    char buff[bufflen];
    int vdim;
 
-   input >> ws;
+   input >> std::ws;
    input.getline(buff, bufflen);  // 'FiniteElementSpace'
    if (strcmp(buff, "FiniteElementSpace"))
       mfem_error("GridFunction::GridFunction():"
                  " input stream is not a GridFunction!");
    input.getline(buff, bufflen, ' '); // 'FiniteElementCollection:'
-   input >> ws;
+   input >> std::ws;
    input.getline(buff, bufflen);
    fec = FiniteElementCollection::New(buff);
    input.getline(buff, bufflen, ' '); // 'VDim:'
@@ -293,7 +297,12 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
          di = 1;
    }
    else
-      di = side;
+   {
+      if (side == 1 && Transf->Elem2No < 0)
+         di = 0;
+      else
+         di = side;
+   }
    if (di == 0)
    {
       Transf = fes->GetMesh()->GetFaceElementTransformations(i, 4);
@@ -1690,7 +1699,7 @@ void GridFunction::ConformingProject(Vector &x) const
    }
 }
 
-void GridFunction::Save(ostream &out)
+void GridFunction::Save(std::ostream &out)
 {
    fes->Save(out);
    out << '\n';
@@ -1700,7 +1709,7 @@ void GridFunction::Save(ostream &out)
       Vector::Print(out, fes->GetVDim());
 }
 
-void GridFunction::SaveVTK(ostream &out, const string &field_name, int ref)
+void GridFunction::SaveVTK(std::ostream &out, const std::string &field_name, int ref)
 {
    Mesh *mesh = fes->GetMesh();
    RefinedGeometry *RefG;
@@ -1771,7 +1780,7 @@ void GridFunction::SaveVTK(ostream &out, const string &field_name, int ref)
    }
 }
 
-void GridFunction::SaveSTLTri(ostream &out, double p1[], double p2[],
+void GridFunction::SaveSTLTri(std::ostream &out, double p1[], double p2[],
                               double p3[])
 {
    double v1[3] = { p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2] };
@@ -1790,7 +1799,7 @@ void GridFunction::SaveSTLTri(ostream &out, double p1[], double p2[],
        << "\n  endloop\n endfacet\n";
 }
 
-void GridFunction::SaveSTL(ostream &out, int TimesToRefine)
+void GridFunction::SaveSTL(std::ostream &out, int TimesToRefine)
 {
    Mesh *mesh = fes->GetMesh();
 
