@@ -40,7 +40,7 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
 }
 
 SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
-   : Matrix (m), I(i), J(j), width(n), A(data)
+   : SparseRowMatrix (m), I(i), J(j), width(n), A(data)
 {
    Rows = NULL;
    ColPtr.J = NULL;

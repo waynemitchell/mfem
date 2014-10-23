@@ -445,8 +445,8 @@ void BlockMatrix::PrintMatlab(std::ostream & os) const
    os<<"% size " << row_offsets.Last() << " " << col_offsets.Last() << "\n";
    os<<"% Non Zeros " << nnz_elem << "\n";
    int i, j;
-   ios::fmtflags old_fmt = os.flags();
-   os.setf(ios::scientific);
+   std::ios::fmtflags old_fmt = os.flags();
+   os.setf(std::ios::scientific);
    int old_prec = os.precision(14);
    for(i = 0; i < row_offsets.Last(); i++)
    {

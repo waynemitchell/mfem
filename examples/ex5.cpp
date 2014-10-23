@@ -25,6 +25,7 @@
 
 #include <fstream>
 #include "mfem.hpp"
+using namespace std;
 
 // Define the analytical solution and forcing terms / bc
 void uFun_ex(const Vector & x, Vector & u);

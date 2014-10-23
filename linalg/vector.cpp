@@ -558,7 +558,7 @@ double Vector::Normlp(double p) const
 		return Norml1();
 	if( fabs(p - 2.) < 1.e-12 )
 		return Norml2();
-	if(p < numeric_limits<double>::infinity() )
+	if(p < std::numeric_limits<double>::infinity() )
 	{
 		double sum = 0.0;
 		for (int i = 0; i < size; i++)
