@@ -17,6 +17,7 @@
 #include "../general/mem_alloc.hpp"
 #include "../general/table.hpp"
 #include "densemat.hpp"
+#include <iostream>
 
 class RowNode
 {
@@ -45,7 +46,8 @@ private:
    union { int *J; RowNode **Node; } ColPtr;
 
 #ifdef MFEM_USE_MEMALLOC
-   MemAlloc <RowNode, 1024> NodesMem;
+   typedef MemAlloc <RowNode, 1024> RowNodeAlloc;
+   RowNodeAlloc * NodesMem;
 #endif
 
    inline void SetColPtr(const int row);
@@ -67,9 +69,7 @@ public:
    /// Creates sparse matrix.
    explicit SparseMatrix(int nrows, int ncols = 0);
 
-   SparseMatrix(int *i, int *j, double *data, int m, int n)
-      : SparseRowMatrix (m), I(i), J(j), width(n), A(data)
-   { Rows = NULL; ColPtr.J = NULL; }
+   SparseMatrix(int *i, int *j, double *data, int m, int n);
 
    /// Return the array I
    inline int *GetI() const { return I; }
@@ -87,6 +87,20 @@ public:
    int *GetRowColumns(const int row);
    /// Return a pointer to the entries in a row
    double *GetRowEntries(const int row);
+
+   /// Change the width of a SparseMatrix.
+   /*!
+    * If width_ = -1 (DEFAULT), this routine will set the new width
+    * to the actual Width of the matrix awidth = max(J) + 1.
+    * Values 0 <= width_ < awidth are not allowed (error check in Debug Mode only)
+    *
+    * This method can be called for matrices finalized or not.
+    */
+   void SetWidth(int width_ = -1);
+
+   /// Returns the actual Width of the matrix
+   /*! This method can be called for matrices finalized or not. */
+   int ActualWidth();
 
    /// Sort the column indices corresponding to each row
    void SortColumnIndices();
@@ -136,8 +150,14 @@ public:
 
    /// Eliminates a column from the transpose matrix.
    void EliminateRow(int row, const double sol, Vector &rhs);
-   /// Set all the entries in row *row* to 0.
-   void EliminateRow(int row);
+   /// Eliminates a row from the matrix.
+   /*!
+    * If setOneDiagonal = 0, all the entries in the row will be set to 0.
+    * If setOneDiagonal = 1 (matrix must be square),
+    *    the diagonal entry will be set equal to 1
+    *    and all the others entries to 0.
+    */
+   void EliminateRow(int row, int setOneDiagonal = 0);
    void EliminateCol(int col);
    /// Eliminate all columns 'i' for which cols[i] != 0
    void EliminateCols(Array<int> &cols, Vector *x = NULL, Vector *b = NULL);
@@ -240,19 +260,19 @@ public:
    SparseMatrix &operator*=(double a);
 
    /// Prints matrix to stream out.
-   void Print(ostream &out = cout, int width = 4) const;
+   void Print(std::ostream &out = std::cout, int width = 4) const;
 
    /// Prints matrix in matlab format.
-   void PrintMatlab(ostream &out = cout) const;
+   void PrintMatlab(std::ostream &out = std::cout) const;
 
    /// Prints matrix in Matrix Market sparse format.
-   void PrintMM(ostream &out = cout) const;
+   void PrintMM(std::ostream &out = std::cout) const;
 
    /// Prints matrix to stream out in hypre_CSRMatrix format.
-   void PrintCSR(ostream &out) const;
+   void PrintCSR(std::ostream &out) const;
 
    /// Prints a sparse matrix to stream out in CSR format.
-   void PrintCSR2(ostream &out) const;
+   void PrintCSR2(std::ostream &out) const;
 
    /// Walks the sparse matrix
    int Walk(int &i, int &j, double &a);
@@ -273,6 +293,8 @@ public:
 
    /// Call this if data has been stolen.
    void LoseData() { I=0; J=0; A=0; }
+
+   friend void Swap(SparseMatrix & A, SparseMatrix & B);
 
    /// Destroys sparse matrix.
    virtual ~SparseMatrix();
@@ -302,12 +324,12 @@ SparseMatrix *MultRowMatrix (const SparseRowMatrix &A, const SparseRowMatrix &B)
 
 /** RAP matrix product. ORAP is like OAB above.
     All matrices must be finalized.  */
-SparseMatrix *RAP(SparseMatrix &A, SparseMatrix &R,
+SparseMatrix *RAP(const SparseMatrix &A, const SparseMatrix &R,
                   SparseMatrix *ORAP = NULL);
 
 /** Matrix multiplication A^t D A.
     All matrices must be finalized.  */
-SparseMatrix *Mult_AtDA(SparseMatrix &A, Vector &D,
+SparseMatrix *Mult_AtDA(const SparseMatrix &A, const Vector &D,
                         SparseMatrix *OAtDA = NULL);
 
 
@@ -375,7 +397,7 @@ inline double &SparseMatrix::SearchRow(const int col)
       if (node_p == NULL)
       {
 #ifdef MFEM_USE_MEMALLOC
-         node_p = NodesMem.Alloc();
+         node_p = NodesMem->Alloc();
 #else
          node_p = new RowNode;
 #endif
@@ -419,7 +441,7 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
          if (node_p == NULL)
          {
 #ifdef MFEM_USE_MEMALLOC
-            node_p = NodesMem.Alloc();
+            node_p = NodesMem->Alloc();
 #else
             node_p = new RowNode;
 #endif

@@ -20,9 +20,11 @@ protected:
 
 public:
    ParLinearForm() : LinearForm() { pfes = NULL; }
+
    ParLinearForm(ParFiniteElementSpace *pf) : LinearForm(pf) { pfes = pf; }
 
    void Update(ParFiniteElementSpace *pf = NULL);
+
    void Update(ParFiniteElementSpace *pf, Vector &v, int v_offset);
 
    /// Assemble the vector on the true dofs, i.e. P^t v.

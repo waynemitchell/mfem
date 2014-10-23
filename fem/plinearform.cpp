@@ -22,9 +22,8 @@ void ParLinearForm::Update(ParFiniteElementSpace *pf)
 
 void ParLinearForm::Update(ParFiniteElementSpace *pf, Vector &v, int v_offset)
 {
-	if(pf) pfes = pf;
-
-	LinearForm::Update(pfes, v, v_offset);
+   pfes = pf;
+   LinearForm::Update(pf,v,v_offset);
 }
 
 void ParLinearForm::ParallelAssemble(Vector &tv)

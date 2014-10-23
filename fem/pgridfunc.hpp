@@ -12,6 +12,9 @@
 #ifndef MFEM_PGRIDFUNC
 #define MFEM_PGRIDFUNC
 
+#include <iostream>
+#include <limits>
+
 /// Compute a global Lp norm from the local Lp norms computed by each processor
 double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm);
 
@@ -130,21 +133,21 @@ public:
    double ComputeMaxError(Coefficient *exsol[],
                           const IntegrationRule *irs[] = NULL) const
    {
-      return GlobalLpNorm(numeric_limits<double>::infinity(),
+      return GlobalLpNorm(std::numeric_limits<double>::infinity(),
                           GridFunction::ComputeMaxError(exsol, irs), pfes->GetComm());
    }
 
    double ComputeMaxError(Coefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
    {
-      return ComputeLpError(numeric_limits<double>::infinity(),
+      return ComputeLpError(std::numeric_limits<double>::infinity(),
                             exsol, NULL, irs);
    }
 
    double ComputeMaxError(VectorCoefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
    {
-      return ComputeLpError(numeric_limits<double>::infinity(),
+      return ComputeLpError(std::numeric_limits<double>::infinity(),
                             exsol, NULL, NULL, irs);
    }
 
@@ -171,10 +174,10 @@ public:
    /** Save the local portion of the ParGridFunction. It differs from the
        serial GridFunction::Save in that it takes into account the signs of
        the local dofs. */
-   virtual void Save(ostream &out);
+   virtual void Save(std::ostream &out);
 
    /// Merge the local grid functions
-   void SaveAsOne(ostream &out = cout);
+   void SaveAsOne(std::ostream &out = std::cout);
 
    virtual ~ParGridFunction() { }
 };
