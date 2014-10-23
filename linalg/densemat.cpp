@@ -16,7 +16,7 @@
 #include <iostream>
 #include <iomanip>
 #include <limits>
-#include <math.h>
+#include <cmath>
 #include <stdlib.h>
 
 #include "vector.hpp"
@@ -24,6 +24,7 @@
 #include "densemat.hpp"
 #include "../general/table.hpp"
 
+using namespace std;
 
 DenseMatrix::DenseMatrix() : Matrix(0)
 {
@@ -218,6 +219,90 @@ double DenseMatrix::InnerProduct(const double *x, const double *y) const
    }
 
    return prod;
+}
+
+// LeftScaling this = diag(s) * this
+void DenseMatrix::LeftScaling(const Vector & s)
+{
+   double * it_data = data;
+   for (int j = 0; j < size; ++j)
+      for (int i = 0; i < height; ++i)
+         *(it_data++) *= s(i);
+}
+
+// InvLeftScaling this = diag(1./s) * this
+void DenseMatrix::InvLeftScaling(const Vector & s)
+{
+   double * it_data = data;
+   for (int j = 0; j < size; ++j)
+      for (int i = 0; i < height; ++i)
+         *(it_data++) /= s(i);
+}
+
+// RightScaling: this = this * diag(s);
+void DenseMatrix::RightScaling(const Vector & s)
+{
+   double sj;
+   double * it_data = data;
+   for (int j = 0; j < size; ++j)
+   {
+      sj = s(j);
+      for (int i = 0; i < height; ++i)
+         *(it_data++) *= sj;
+   }
+}
+
+// InvRightScaling: this = this * diag(1./s);
+void DenseMatrix::InvRightScaling(const Vector & s)
+{
+   double sj;
+   double * it_data = data;
+   for (int j = 0; j < size; ++j)
+   {
+      sj = 1./s(j);
+      for (int i = 0; i < height; ++i)
+         *(it_data++) *= sj;
+   }
+}
+
+// SymmetricScaling this = diag(sqrt(s)) * this * diag(sqrt(s))
+void DenseMatrix::SymmetricScaling(const Vector & s)
+{
+   if(size != height || s.Size() != size)
+      mfem_error("DenseMatrix::SymmetricScaling");
+
+   double * ss = new double[size];
+   double * it_s = s.GetData();
+   double * it_ss = ss;
+   for( double * end_s = it_s + size; it_s != end_s; ++it_s)
+      *(it_ss++) = sqrt(*it_s);
+
+   double * it_data = data;
+   for (int j = 0; j < size; ++j)
+      for (int i = 0; i < height; ++i)
+         *(it_data++) *= ss[i]*ss[j];
+
+   delete[] ss;
+}
+
+// InvSymmetricScaling this = diag(sqrt(1./s)) * this * diag(sqrt(1./s))
+void DenseMatrix::InvSymmetricScaling(const Vector & s)
+{
+   if(size != height || s.Size() != size)
+      mfem_error("DenseMatrix::SymmetricScaling");
+
+   double * ss = new double[ size];
+   double * it_s = s.GetData();
+   double * it_ss = ss;
+   for( double * end_s = it_s + size; it_s != end_s; ++it_s)
+      *(it_ss++) = 1./sqrt(*it_s);
+
+   double * it_data = data;
+   for (int j = 0; j < size; ++j)
+      for (int i = 0; i < height; ++i)
+         *(it_data++) *= ss[i]*ss[j];
+
+   delete[] ss;
 }
 
 double DenseMatrix::Trace() const
@@ -1909,6 +1994,29 @@ void DenseMatrix::GetColumn(int c, Vector &col)
       vp[i] = cp[i];
 }
 
+void DenseMatrix::GetDiag(Vector &d)
+{
+   if(height != size)
+      mfem_error("DenseMatrix::GetDiag \n");
+   d.SetSize(height);
+
+   for (int i = 0; i < height; ++i)
+      d(i) = (*this)(i,i);
+}
+
+void DenseMatrix::Getl1Diag(Vector &l)
+{
+   if(height != size)
+      mfem_error("DenseMatrix::GetDiag \n");
+   l.SetSize(height);
+
+   l = 0.0;
+
+   for (int j = 0; j < size; ++j)
+      for (int i = 0; i < height; ++i)
+         l(i) += fabs((*this)(i,j));
+}
+
 void DenseMatrix::Diag(double c, int n)
 {
    SetSize(n);
@@ -2237,7 +2345,7 @@ void DenseMatrix::AdjustDofDirection(Array<int> &dofs)
 }
 
 
-void DenseMatrix::Print(ostream &out, int width) const
+void DenseMatrix::Print(std::ostream &out, int width) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
@@ -2255,7 +2363,7 @@ void DenseMatrix::Print(ostream &out, int width) const
    }
 }
 
-void DenseMatrix::PrintMatlab(ostream &out) const
+void DenseMatrix::PrintMatlab(std::ostream &out) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
@@ -2270,7 +2378,7 @@ void DenseMatrix::PrintMatlab(ostream &out) const
    }
 }
 
-void DenseMatrix::PrintT(ostream &out, int width) const
+void DenseMatrix::PrintT(std::ostream &out, int width) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);

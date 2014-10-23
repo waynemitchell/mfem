@@ -15,6 +15,8 @@
 #include "../fem/fem.hpp"
 #include "../general/sets.hpp"
 #include "../general/sort_pairs.hpp"
+#include <iostream>
+using namespace std;
 
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                  int part_method)
@@ -1463,10 +1465,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       // 7. Free the allocated memory.
       middle.DeleteAll();
 
-#ifdef MFEM_DEBUG
-      CheckElementOrientation();
-#endif
-
       if (el_to_edge != NULL)
       {
          if (WantTwoLevelState)
@@ -1722,10 +1720,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       delete [] edge2;
       delete [] middle;
 
-#ifdef MFEM_DEBUG
-      CheckElementOrientation();
-#endif
-
       if (WantTwoLevelState)
       {
          f_NumOfVertices    = NumOfVertices;
@@ -1757,6 +1751,11 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       UpdateNodes();
       UseTwoLevelState(wtls);
    }
+
+#ifdef MFEM_DEBUG
+   CheckElementOrientation(false);
+   CheckBdrElementOrientation(false);
+#endif
 }
 
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
@@ -2179,7 +2178,7 @@ void ParMesh::NURBSUniformRefinement()
       cout << "\nParMesh::NURBSUniformRefinement : Not supported yet!\n";
 }
 
-void ParMesh::PrintXG(ostream &out) const
+void ParMesh::PrintXG(std::ostream &out) const
 {
    if (Dim == 3 && meshgen == 1)
    {
@@ -2346,11 +2345,11 @@ void ParMesh::PrintXG(ostream &out) const
    }
 }
 
-void ParMesh::Print(ostream &out) const
+void ParMesh::Print(std::ostream &out) const
 {
    int i, j, shared_bdr_attr;
-   const Array<Element *> &shared_bdr =
-      (Dim == 3) ? shared_faces : shared_edges;
+   const Array<int> &s2l_face = ((Dim == 1) ? svert_lvert :
+                                 ((Dim == 2) ? sedge_ledge : sface_lface));
 
    if (NURBSext)
    {
@@ -2376,15 +2375,20 @@ void ParMesh::Print(ostream &out) const
    for (i = 0; i < NumOfElements; i++)
       PrintElement(elements[i], out);
 
-   out << "\nboundary\n" << NumOfBdrElements + shared_bdr.Size() << '\n';
+   out << "\nboundary\n" << NumOfBdrElements +
+      ((Dim > 1) ? s2l_face.Size() : 0) << '\n';
    for (i = 0; i < NumOfBdrElements; i++)
       PrintElement(boundary[i], out);
 
-   shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
-   for (i = 0; i < shared_bdr.Size(); i++)
+   if (Dim > 1)
    {
-      shared_bdr[i]->SetAttribute(shared_bdr_attr);
-      PrintElement(shared_bdr[i], out);
+      shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
+      for (i = 0; i < s2l_face.Size(); i++)
+      {
+         // Modify the attrributes of the faces (not used otherwise?)
+         faces[s2l_face[i]]->SetAttribute(shared_bdr_attr);
+         PrintElement(faces[s2l_face[i]], out);
+      }
    }
    out << "\nvertices\n" << NumOfVertices << '\n';
    if (Nodes == NULL)
@@ -2405,7 +2409,7 @@ void ParMesh::Print(ostream &out) const
    }
 }
 
-void ParMesh::PrintAsOne(ostream &out)
+void ParMesh::PrintAsOne(std::ostream &out)
 {
    int i, j, k, p, nv_ne[2], &nv = nv_ne[0], &ne = nv_ne[1], vc;
    const int *v;
@@ -2635,7 +2639,7 @@ void ParMesh::PrintAsOne(ostream &out)
    }
 }
 
-void ParMesh::PrintAsOneXG(ostream &out)
+void ParMesh::PrintAsOneXG(std::ostream &out)
 {
    if (Dim == 3 && meshgen == 1)
    {
@@ -3095,7 +3099,7 @@ void ParMesh::PrintAsOneXG(ostream &out)
    }
 }
 
-void ParMesh::PrintInfo(ostream &out)
+void ParMesh::PrintInfo(std::ostream &out)
 {
    int i;
    DenseMatrix J(Dim);

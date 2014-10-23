@@ -12,7 +12,7 @@
 // Implementation of class Tetrahedron
 
 #include "mesh_headers.hpp"
-#include <math.h>
+#include <cmath>
 
 const int Tetrahedron::edges[6][2] =
 {{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}};

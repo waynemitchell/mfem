@@ -10,8 +10,18 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 
-#include <math.h>
+#include <cmath>
 #include "fem.hpp"
+
+ElementTransformation::ElementTransformation():
+   JacobianIsEvaluated(0),
+   WeightIsEvaluated(0),
+   IntPoint(static_cast<IntegrationPoint *>(NULL)),
+   Attribute(-1),
+   ElementNo(-1)
+{
+
+}
 
 const DenseMatrix & IsoparametricTransformation::Jacobian()
 {

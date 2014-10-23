@@ -12,6 +12,7 @@
 #ifndef MFEM_OPERATOR
 #define MFEM_OPERATOR
 
+#include <iostream>
 #include "vector.hpp"
 
 /// Abstract operator
@@ -42,7 +43,7 @@ public:
    }
 
    /// Prints operator with input size n and output size m in matlab format.
-   void PrintMatlab (ostream & out, int n = 0, int m = 0);
+   void PrintMatlab (std::ostream & out, int n = 0, int m = 0);
 
    virtual ~Operator() { }
 };

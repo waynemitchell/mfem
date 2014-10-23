@@ -102,6 +102,19 @@ public:
    /// Compute y^t A x
    double InnerProduct(const double *x, const double *y) const;
 
+   /// LeftScaling this = diag(s) * this
+   void LeftScaling(const Vector & s);
+   /// InvLeftScaling this = diag(1./s) * this
+   void InvLeftScaling(const Vector & s);
+   /// RightScaling: this = this * diag(s);
+   void RightScaling(const Vector & s);
+   /// InvRightScaling: this = this * diag(1./s);
+   void InvRightScaling(const Vector & s);
+   /// SymmetricScaling this = diag(sqrt(s)) * this * diag(sqrt(s))
+   void SymmetricScaling(const Vector & s);
+   /// InvSymmetricScaling this = diag(sqrt(1./s)) * this * diag(sqrt(1./s))
+   void InvSymmetricScaling(const Vector & s);
+
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const
    { return InnerProduct((const double *)x, (const double *)y); }
@@ -171,6 +184,11 @@ public:
    void GetColumnReference(int c, Vector &col)
    { col.SetDataAndSize(data + c * height, height); }
 
+   /// Returns the diagonal of the matrix
+   void GetDiag(Vector &d);
+   /// Returns the l1 norm of the rows of the matrix v_i = \sum_j |a_ij|
+   void Getl1Diag(Vector &l);
+
    /// Creates n x n diagonal matrix with diagonal elements c
    void Diag(double c, int n);
    /// Creates n x n diagonal matrix with diagonal given by diag
@@ -229,10 +247,10 @@ public:
    int CheckFinite() const { return ::CheckFinite(data, size*height); }
 
    /// Prints matrix to stream out.
-   virtual void Print(ostream &out = cout, int width = 4) const;
-   virtual void PrintMatlab(ostream &out = cout) const;
+   virtual void Print(std::ostream &out = std::cout, int width = 4) const;
+   virtual void PrintMatlab(std::ostream &out = std::cout) const;
    /// Prints the transpose matrix to stream out.
-   virtual void PrintT(ostream &out = cout, int width = 4) const;
+   virtual void PrintT(std::ostream &out = std::cout, int width = 4) const;
 
    /// Invert and print the numerical conditioning of the inversion.
    void TestInversion();

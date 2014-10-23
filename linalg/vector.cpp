@@ -529,7 +529,7 @@ double Vector::Norml2() const
    return sqrt((*this)*(*this));
 }
 
-double Vector::Normlinf()
+double Vector::Normlinf() const
 {
    double max = fabs(data[0]);
 

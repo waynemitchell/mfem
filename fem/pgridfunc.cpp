@@ -12,6 +12,9 @@
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+#include <iostream>
+#include <limits>
+using namespace std;
 
 ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf)
 {
@@ -25,13 +28,32 @@ ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, HypreParVector *tv)
    Distribute(tv);
 }
 
-ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf)
+ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf, int * partitioning)
 {
    // duplicate the FiniteElementCollection from 'gf'
    fec = FiniteElementCollection::New(gf->FESpace()->FEColl()->Name());
    fes = pfes = new ParFiniteElementSpace(pmesh, fec, gf->FESpace()->GetVDim(),
                                           gf->FESpace()->GetOrdering());
    SetSize(pfes->GetVSize());
+
+   if(partitioning)
+   {
+      Array<int> gvdofs, lvdofs;
+      Vector lnodes;
+      int element_counter = 0;
+      Mesh & mesh(*gf->FESpace()->GetMesh());
+      int MyRank;
+      MPI_Comm_rank(pfes->GetComm(), &MyRank);
+      for (int i = 0; i < mesh.GetNE(); i++)
+         if (partitioning[i] == MyRank)
+         {
+            pfes->GetElementVDofs(element_counter, lvdofs);
+            gf->FESpace()->GetElementVDofs(i, gvdofs);
+            gf->GetSubVector(gvdofs, lnodes);
+            SetSubVector(lvdofs, lnodes);
+            element_counter++;
+         }
+   }
 }
 
 void ParGridFunction::Update(ParFiniteElementSpace *f)
@@ -221,7 +243,7 @@ void ParGridFunction::ProjectCoefficient(Coefficient &coeff)
    }
 }
 
-void ParGridFunction::Save(ostream &out)
+void ParGridFunction::Save(std::ostream &out)
 {
    for (int i = 0; i < size; i++)
       if (pfes->GetDofSign(i) < 0)
@@ -234,7 +256,7 @@ void ParGridFunction::Save(ostream &out)
          data[i] = -data[i];
 }
 
-void ParGridFunction::SaveAsOne(ostream &out)
+void ParGridFunction::SaveAsOne(std::ostream &out)
 {
    int i, p;
 

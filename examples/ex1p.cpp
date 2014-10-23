@@ -27,8 +27,10 @@
 //               of boundary conditions on all boundary edges, and the optional
 //               connection to the GLVis tool for visualization.
 
-#include <fstream>
 #include "mfem.hpp"
+#include <fstream>
+#include <iostream>
+using namespace std;
 
 int main (int argc, char *argv[])
 {
