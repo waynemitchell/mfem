@@ -807,11 +807,15 @@ void NCMeshHex::Refine(Array<Refinement>& refinements)
    }
 
    // keep refining as long as the stack contains something
+   int nforced = 0;
    while (ref_stack.Size())
    {
       RefStackItem ref = ref_stack.Last();
       ref_stack.DeleteLast();
+
+      int size = ref_stack.Size();
       Refine(ref.elem, ref.ref_type);
+      nforced += ref_stack.Size() - size;
    }
 
    /* TODO: the current algorithm of forced refinements is not optimal. As
@@ -821,6 +825,9 @@ void NCMeshHex::Refine(Array<Refinement>& refinements)
       member Element::ref_pending that would show the intended refinement in
       the batch. A forced refinement would be combined with ref_pending to
       (possibly) stop the propagation earlier. */
+
+   std::cout << "Refined " << refinements.Size() << " + " << nforced
+             << " elements" << std::endl;
 }
 
 
