@@ -1,4 +1,0 @@
-*.o
-*.a
-
-mfem_defs.hpp

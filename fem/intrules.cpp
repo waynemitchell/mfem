@@ -253,7 +253,7 @@ void IntegrationRules::DeleteIntRuleArray(Array<IntegrationRule *> &ir_array)
    IntegrationRule *ir = NULL;
 
    //Many of the intrules have multiple contiguous copies in the ir_array
-   //so we have to be careful to not deleate them twice.
+   //so we have to be careful to not delete them twice.
    for (i = 0; i < ir_array.Size(); i++) {
       if (ir_array[i] != NULL && ir_array[i] != ir) {
          ir = ir_array[i];
