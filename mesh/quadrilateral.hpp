@@ -47,6 +47,11 @@ public:
    virtual const int *GetEdgeVertices(int ei) const
    { return(edges[ei]); }
 
+   virtual int GetNFaces(int &nFaceVertices) const
+   { nFaceVertices = 0; return 0; }
+
+   virtual const int *GetFaceVertices(int fi) const { return NULL; }
+
    virtual Element *Duplicate(Mesh *m) const
    { return new Quadrilateral(indices, attribute); }
 

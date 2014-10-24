@@ -53,6 +53,10 @@ public:
 
    virtual const int *GetEdgeVertices(int) const = 0;
 
+   virtual int GetNFaces(int &nFaceVertices) const = 0;
+
+   virtual const int *GetFaceVertices(int fi) const = 0;
+
    /// Mark the longest edge by assuming/changing the order of the vertices.
    virtual void MarkEdge(DenseMatrix &pmat) {}
 
@@ -124,6 +128,12 @@ public:
 
    virtual const int *GetEdgeVertices(int ei) const
    { return(IAm()->GetEdgeVertices(ei)); }
+
+   virtual int GetNFaces(int &nFaceVertices) const
+   { return IAm()->GetNFaces(nFaceVertices); }
+
+   virtual const int *GetFaceVertices(int fi) const
+   { return IAm()->GetFaceVertices(fi); };
 
    virtual void MarkEdge(DenseMatrix &pmat) { IAm()->MarkEdge(pmat); }
 
