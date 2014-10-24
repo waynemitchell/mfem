@@ -186,7 +186,7 @@ public:
 
    /// Returns the diagonal of the matrix
    void GetDiag(Vector &d);
-   /// Returns the l1 norm of the rows of the matrix v_i = \sum_j |a_ij|
+   /// Returns the l1 norm of the rows of the matrix v_i = sum_j |a_ij|
    void Getl1Diag(Vector &l);
 
    /// Creates n x n diagonal matrix with diagonal elements c
