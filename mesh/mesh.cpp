@@ -5834,7 +5834,7 @@ void Mesh::NonconformingRefinement(const Array<int> &marked_el)
 
 Mesh::Mesh(NCMeshHex &ncmesh)
 {
-   Dim = 3;
+   Dim = ncmesh.Dimension();
 
    Init();
    InitTables();
@@ -5849,9 +5849,14 @@ Mesh::Mesh(NCMeshHex &ncmesh)
 
    meshgen = 2;
 
-   GetElementToFaceTable();
-   GenerateFaces();
-   //CheckBdrElementOrientation();
+   NumOfEdges = NumOfFaces = 0;
+
+   if (Dim > 2)
+   {
+      GetElementToFaceTable();
+      GenerateFaces();
+      //CheckBdrElementOrientation();
+   }
 
    el_to_edge = new Table;
    NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);

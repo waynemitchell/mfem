@@ -16,33 +16,71 @@
 
 #include "ncmeshhex.hpp"
 
-// TODO: this should be somewhere else
-const int hex_edges[12][2] =
-{{0, 1}, {1, 2}, {3, 2}, {0, 3},
- {4, 5}, {5, 6}, {7, 6}, {4, 7},
- {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+/** This holds in one place the constants about the geometries we support
+    (triangles, quads, cubes) */
+struct GeomInfo
+{
+   int nv, ne, nf, nfv; // number of: vertices, edge, faces, face vertices
+   int edges[12][2];    // edge vertices (up to 12 edges)
+   int faces[6][4];     // face vertices (up to 6 faces)
 
-const int hex_faces[6][4] =
-{{3, 2, 1, 0}, {0, 1, 5, 4},
- {1, 2, 6, 5}, {2, 3, 7, 6},
- {3, 0, 4, 7}, {4, 5, 6, 7}};
+   bool initialized;
+   GeomInfo() : initialized(false) {}
+   void Initialize(const Element* elem);
+};
+
+static GeomInfo GI[Geometry::NumGeom];
+
+static GeomInfo& gi_hex  = GI[Geometry::CUBE];
+static GeomInfo& gi_quad = GI[Geometry::SQUARE];
+static GeomInfo& gi_tri  = GI[Geometry::TRIANGLE];
+
+void GeomInfo::Initialize(const Element* elem)
+{
+   if (initialized) return;
+
+   nv = elem->GetNVertices();
+   ne = elem->GetNEdges();
+   nf = elem->GetNFaces(nfv);
+
+   for (int i = 0; i < ne; i++)
+      for (int j = 0; j < 2; j++)
+         edges[i][j] = elem->GetEdgeVertices(i)[j];
+
+   for (int i = 0; i < nf; i++)
+      for (int j = 0; j < nfv; j++)
+         faces[i][j] = elem->GetFaceVertices(i)[j];
+
+   initialized = true;
+}
 
 
 NCMeshHex::NCMeshHex(const Mesh *mesh)
 {
-   // create the NCMeshHex::Element struct for each mesh element
+   Dim = mesh->Dimension();
+
+   // create the NCMeshHex::Element struct for each Mesh element
    for (int i = 0; i < mesh->GetNE(); i++)
    {
       const ::Element *elem = mesh->GetElement(i);
       const int *v = elem->GetVertices();
 
-      if (elem->GetType() != ::Element::HEXAHEDRON)
-         mfem_error("NCMeshHex: only hexahedra supported.");
+      int geom = elem->GetGeometryType();
+      if (geom != Geometry::TRIANGLE &&
+          geom != Geometry::SQUARE &&
+          geom != Geometry::CUBE)
+      {
+         mfem_error("NCMesh: only triangles, quads and hexes are supported.");
+      }
 
-      Element* nc_elem = new Element(elem->GetAttribute());
+      // initialize edge/face tables for this type of element
+      GI[geom].Initialize(elem);
+
+      // create our Element struct for this element
+      Element* nc_elem = new Element(geom, elem->GetAttribute());
       root_elements.Append(nc_elem);
 
-      for (int j = 0; j < 8; j++)
+      for (int j = 0; j < GI[geom].nv; j++)
       {
          // root nodes are special: they have p1 == p2 == orig. mesh vertex id
          Node* node = nodes.Get(v[j], v[j]);
@@ -58,7 +96,7 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
       }
 
       // increase reference count of all nodes the element is using
-      // (note: this will also create and reference all edge and face nodes)
+      // (NOTE: this will also create and reference all edge and face nodes)
       RefElementNodes(nc_elem);
 
       // make links from faces back to the element
@@ -71,23 +109,33 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
       const ::Element *be = mesh->GetBdrElement(i);
       const int *v = be->GetVertices();
 
-      if (be->GetType() != ::Element::QUADRILATERAL)
-         mfem_error("NCMeshHex: only quadrilateral boundary "
-                    "elements supported.");
-
       Node* node[4];
-      for (int i = 0; i < 4; i++)
+      for (int i = 0; i < be->GetNVertices(); i++)
       {
          node[i] = nodes.Peek(v[i], v[i]);
          if (!node[i])
-            mfem_error("NCMeshHex: boundary elements inconsistent.");
+            mfem_error("NCMesh: boundary elements inconsistent.");
       }
 
-      Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
-      if (!face)
-         mfem_error("NCMeshHex: face not found.");
+      if (be->GetType() == ::Element::QUADRILATERAL)
+      {
+         Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
+         if (!face)
+            mfem_error("NCMesh: boundary face not found.");
 
-      face->attribute = be->GetAttribute();
+         face->attribute = be->GetAttribute();
+      }
+      else if (be->GetType() == ::Element::SEGMENT)
+      {
+         Edge* edge = nodes.Peek(node[0], node[1])->edge;
+         if (!edge)
+            mfem_error("NCMesh: boundary edge not found.");
+
+         edge->attribute = be->GetAttribute();
+      }
+      else
+         mfem_error("NCMesh: only segment and quadrilateral boundary "
+                    "elements are supported.");
    }
 
    UpdateLeafElements();
@@ -154,22 +202,23 @@ NCMeshHex::Node::~Node()
 void NCMeshHex::RefElementNodes(Element *elem)
 {
    Node** node = elem->node;
+   GeomInfo& gi = GI[elem->geom];
 
    // ref all vertices
-   for (int i = 0; i < 8; i++)
+   for (int i = 0; i < gi.nv; i++)
       node[i]->RefVertex();
 
    // ref all edges (possibly creating them)
-   for (int i = 0; i < 12; i++)
+   for (int i = 0; i < gi.ne; i++)
    {
-      const int* ev = hex_edges[i];
+      const int* ev = gi.edges[i];
       nodes.Get(node[ev[0]], node[ev[1]])->RefEdge();
    }
 
    // ref all faces (possibly creating them)
-   for (int i = 0; i < 6; i++)
+   for (int i = 0; i < gi.nf; i++)
    {
-      const int* fv = hex_faces[i];
+      const int* fv = gi.faces[i];
       faces.Get(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]])->Ref();
       // NOTE: face->RegisterElement called elsewhere to avoid having
       //       to store 3 element pointers temporarily in the face when refining
@@ -179,25 +228,27 @@ void NCMeshHex::RefElementNodes(Element *elem)
 void NCMeshHex::UnrefElementNodes(Element *elem)
 {
    Node** node = elem->node;
+   GeomInfo& gi = GI[elem->geom];
 
    // unref all faces (possibly destroying them)
-   for (int i = 0; i < 6; i++)
+   for (int i = 0; i < gi.nf; i++)
    {
-      const int* fv = hex_faces[i];
+      const int* fv = gi.faces[i];
       Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
       face->ForgetElement(elem);
       if (!face->Unref()) faces.Delete(face);
    }
 
    // unref all edges (possibly destroying them)
-   for (int i = 0; i < 12; i++)
+   for (int i = 0; i < gi.ne; i++)
    {
-      const int* ev = hex_edges[i];
+      const int* ev = gi.edges[i];
+      //nodes.Peek(node[ev[0]], node[ev[1]])->UnrefEdge(nodes); -- pre-aniso
       PeekAltParents(node[ev[0]], node[ev[1]])->UnrefEdge(nodes);
    }
 
    // unref all vertices (possibly destroying them)
-   for (int i = 0; i < 8; i++)
+   for (int i = 0; i < gi.nv; i++)
       elem->node[i]->UnrefVertex(nodes);
 }
 
@@ -224,9 +275,11 @@ void NCMeshHex::Face::ForgetElement(Element* e)
 void NCMeshHex::RegisterFaces(Element* elem)
 {
    Node** node = elem->node;
-   for (int i = 0; i < 6; i++)
+   GeomInfo& gi = GI[elem->geom];
+
+   for (int i = 0; i < gi.nf; i++)
    {
-      const int* fv = hex_faces[i];
+      const int* fv = gi.faces[i];
       Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
       face->RegisterElement(elem);
    }
@@ -296,29 +349,29 @@ NCMeshHex::Node* NCMeshHex::PeekAltParents(Node* v1, Node* v2)
 
 //// Refinement & Derefinement /////////////////////////////////////////////////
 
-NCMeshHex::Element::Element(int attr)
-   : attribute(attr), ref_type(0)
+NCMeshHex::Element::Element(int geom, int attr)
+   : geom(geom), attribute(attr), ref_type(0)
 {
    memset(node, 0, sizeof(node));
 }
 
 NCMeshHex::Element*
-   NCMeshHex::NewElement(Node* n0, Node* n1, Node* n2, Node* n3,
-                         Node* n4, Node* n5, Node* n6, Node* n7,
-                         int attr,
-                         int fattr0, int fattr1, int fattr2,
-                         int fattr3, int fattr4, int fattr5)
+   NCMeshHex::NewHexahedron(Node* n0, Node* n1, Node* n2, Node* n3,
+                            Node* n4, Node* n5, Node* n6, Node* n7,
+                            int attr,
+                            int fattr0, int fattr1, int fattr2,
+                            int fattr3, int fattr4, int fattr5)
 {
    // create new unrefined element, initialize nodes
-   Element* e = new Element(attr);
+   Element* e = new Element(Geometry::CUBE, attr);
    e->node[0] = n0, e->node[1] = n1, e->node[2] = n2, e->node[3] = n3;
    e->node[4] = n4, e->node[5] = n5, e->node[6] = n6, e->node[7] = n7;
 
    // get face nodes and assign face attributes
    Face* f[6];
-   for (int i = 0; i < 6; i++)
+   for (int i = 0; i < gi_hex.nf; i++)
    {
-      const int* fv = hex_faces[i];
+      const int* fv = gi_hex.faces[i];
       f[i] = faces.Get(e->node[fv[0]], e->node[fv[1]],
                        e->node[fv[2]], e->node[fv[3]]);
    }
@@ -326,6 +379,58 @@ NCMeshHex::Element*
    f[0]->attribute = fattr0,  f[1]->attribute = fattr1;
    f[2]->attribute = fattr2,  f[3]->attribute = fattr3;
    f[4]->attribute = fattr4,  f[5]->attribute = fattr5;
+
+   return e;
+}
+
+NCMeshHex::Element*
+   NCMeshHex::NewQuadrilateral(Node* n0, Node* n1, Node* n2, Node* n3,
+                               int attr,
+                               int eattr0, int eattr1, int eattr2, int eattr3)
+{
+   // create new unrefined element, initialize nodes
+   Element* e = new Element(Geometry::SQUARE, attr);
+   e->node[0] = n0, e->node[1] = n1, e->node[2] = n2, e->node[3] = n3;
+
+   // get edge nodes and assign edge attributes
+   Edge* edge[4];
+   for (int i = 0; i < gi_quad.ne; i++)
+   {
+      const int* ev = gi_quad.edges[i];
+      Node* node = nodes.Get(e->node[ev[0]], e->node[ev[1]]);
+      if (!node->edge) node->edge = new Edge;
+      edge[i] = node->edge;
+   }
+
+   edge[0]->attribute = eattr0;
+   edge[1]->attribute = eattr1;
+   edge[2]->attribute = eattr2;
+   edge[3]->attribute = eattr3;
+
+   return e;
+}
+
+NCMeshHex::Element*
+   NCMeshHex::NewTriangle(Node* n0, Node* n1, Node* n2,
+                          int attr, int eattr0, int eattr1, int eattr2)
+{
+   // create new unrefined element, initialize nodes
+   Element* e = new Element(Geometry::TRIANGLE, attr);
+   e->node[0] = n0, e->node[1] = n1, e->node[2] = n2;
+
+   // get edge nodes and assign edge attributes
+   Edge* edge[3];
+   for (int i = 0; i < gi_tri.ne; i++)
+   {
+      const int* ev = gi_tri.edges[i];
+      Node* node = nodes.Get(e->node[ev[0]], e->node[ev[1]]);
+      if (!node->edge) node->edge = new Edge;
+      edge[i] = node->edge;
+   }
+
+   edge[0]->attribute = eattr0;
+   edge[1]->attribute = eattr1;
+   edge[2]->attribute = eattr2;
 
    return e;
 }
@@ -345,8 +450,17 @@ NCMeshHex::Vertex* NCMeshHex::NewVertex(Node* v1, Node* v2)
 
 NCMeshHex::Node* NCMeshHex::GetMidEdgeVertex(Node* v1, Node* v2)
 {
+   // in 3D we must be careful about getting the mid-edge node
    Node* mid = PeekAltParents(v1, v2);
    if (!mid) mid = nodes.Get(v1, v2);
+   if (!mid->vertex) mid->vertex = NewVertex(v1, v2);
+   return mid;
+}
+
+NCMeshHex::Node* NCMeshHex::GetMidEdgeVertexSimple(Node* v1, Node* v2)
+{
+   // simple version for 2D cases
+   Node* mid = nodes.Get(v1, v2);
    if (!mid->vertex) mid->vertex = NewVertex(v1, v2);
    return mid;
 }
@@ -505,276 +619,355 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
    }
 
    Node** no = elem->node;
-
-   // get element's face and interior attributes
-   int fa[6];
-   for (int i = 0; i < 6; i++)
-   {
-      const int* fv = hex_faces[i];
-      fa[i] = faces.Peek(no[fv[0]], no[fv[1]], no[fv[2]], no[fv[3]])->attribute;
-
-   }
    int attr = elem->attribute;
-
-   /* Vertex numbering is assumed to be as follows:
-
-            7              6
-             +------------+                Faces: 0 bottom
-            /|           /|                       1 front
-         4 / |        5 / |                       2 right
-          +------------+  |                       3 back
-          |  |         |  |                       4 left
-          |  +---------|--+                       5 top
-          | / 3        | / 2       Z Y
-          |/           |/          |/
-          +------------+           *--X
-         0              1                      */
 
    Element* child[8];
    memset(child, 0, sizeof(child));
 
-   if (ref_type == 1) // split along X axis
+   // create child elements
+   if (elem->geom == Geometry::CUBE)
    {
-      Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
-      Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
-      Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
-      Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
+      // get parent's face attributes
+      int fa[6];
+      for (int i = 0; i < gi_hex.nf; i++)
+      {
+         const int* fv = gi_hex.faces[i];
+         Face* face = faces.Peek(no[fv[0]], no[fv[1]], no[fv[2]], no[fv[3]]);
+         fa[i] = face->attribute;
+      }
 
-      child[0] = NewElement(no[0], mid01, mid23, no[3],
-                            no[4], mid45, mid67, no[7], attr,
-                            fa[0], fa[1], -1, fa[3], fa[4], fa[5]);
+      /* Vertex numbering is assumed to be as follows:
 
-      child[1] = NewElement(mid01, no[1], no[2], mid23,
-                            mid45, no[5], no[6], mid67, attr,
-                            fa[0], fa[1], fa[2], fa[3], -1, fa[5]);
+               7              6
+                +------------+                Faces: 0 bottom
+               /|           /|                       1 front
+            4 / |        5 / |                       2 right
+             +------------+  |                       3 back
+             |  |         |  |                       4 left
+             |  +---------|--+                       5 top
+             | / 3        | / 2       Z Y
+             |/           |/          |/
+             +------------+           *--X
+            0              1                      */
 
-      CheckAnisoFace(no[0], no[1], no[5], no[4], mid01, mid45);
-      CheckAnisoFace(no[2], no[3], no[7], no[6], mid23, mid67);
-      CheckAnisoFace(no[4], no[5], no[6], no[7], mid45, mid67);
-      CheckAnisoFace(no[3], no[2], no[1], no[0], mid23, mid01);
+      if (ref_type == 1) // split along X axis
+      {
+         Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
+         Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
+         Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
+         Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
+
+         child[0] = NewHexahedron(no[0], mid01, mid23, no[3],
+                                  no[4], mid45, mid67, no[7], attr,
+                                  fa[0], fa[1], -1, fa[3], fa[4], fa[5]);
+
+         child[1] = NewHexahedron(mid01, no[1], no[2], mid23,
+                                  mid45, no[5], no[6], mid67, attr,
+                                  fa[0], fa[1], fa[2], fa[3], -1, fa[5]);
+
+         CheckAnisoFace(no[0], no[1], no[5], no[4], mid01, mid45);
+         CheckAnisoFace(no[2], no[3], no[7], no[6], mid23, mid67);
+         CheckAnisoFace(no[4], no[5], no[6], no[7], mid45, mid67);
+         CheckAnisoFace(no[3], no[2], no[1], no[0], mid23, mid01);
+      }
+      else if (ref_type == 2) // split along Y axis
+      {
+         Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
+         Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
+         Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
+         Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
+
+         child[0] = NewHexahedron(no[0], no[1], mid12, mid30,
+                                  no[4], no[5], mid56, mid74, attr,
+                                  fa[0], fa[1], fa[2], -1, fa[4], fa[5]);
+
+         child[1] = NewHexahedron(mid30, mid12, no[2], no[3],
+                                  mid74, mid56, no[6], no[7], attr,
+                                  fa[0], -1, fa[2], fa[3], fa[4], fa[5]);
+
+         CheckAnisoFace(no[1], no[2], no[6], no[5], mid12, mid56);
+         CheckAnisoFace(no[3], no[0], no[4], no[7], mid30, mid74);
+         CheckAnisoFace(no[5], no[6], no[7], no[4], mid56, mid74);
+         CheckAnisoFace(no[0], no[3], no[2], no[1], mid30, mid12);
+      }
+      else if (ref_type == 4) // split along Z axis
+      {
+         Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
+         Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
+         Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
+         Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
+
+         child[0] = NewHexahedron(no[0], no[1], no[2], no[3],
+                                  mid04, mid15, mid26, mid37, attr,
+                                  fa[0], fa[1], fa[2], fa[3], fa[4], -1);
+
+         child[1] = NewHexahedron(mid04, mid15, mid26, mid37,
+                                  no[4], no[5], no[6], no[7], attr,
+                                  -1, fa[1], fa[2], fa[3], fa[4], fa[5]);
+
+         CheckAnisoFace(no[4], no[0], no[1], no[5], mid04, mid15);
+         CheckAnisoFace(no[5], no[1], no[2], no[6], mid15, mid26);
+         CheckAnisoFace(no[6], no[2], no[3], no[7], mid26, mid37);
+         CheckAnisoFace(no[7], no[3], no[0], no[4], mid37, mid04);
+      }
+      else if (ref_type == 3) // XY split
+      {
+          Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
+          Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
+          Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
+          Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
+
+          Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
+          Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
+          Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
+          Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
+
+          Node* midf0 = GetMidFaceVertex(mid23, mid12, mid01, mid30);
+          Node* midf5 = GetMidFaceVertex(mid45, mid56, mid67, mid74);
+
+          child[0] = NewHexahedron(no[0], mid01, midf0, mid30,
+                                   no[4], mid45, midf5, mid74, attr,
+                                   fa[0], fa[1], -1, -1, fa[4], fa[5]);
+
+          child[1] = NewHexahedron(mid01, no[1], mid12, midf0,
+                                   mid45, no[5], mid56, midf5, attr,
+                                   fa[0], fa[1], fa[2], -1, -1, fa[5]);
+
+          child[2] = NewHexahedron(midf0, mid12, no[2], mid23,
+                                   midf5, mid56, no[6], mid67, attr,
+                                   fa[0], -1, fa[2], fa[3], -1, fa[5]);
+
+          child[3] = NewHexahedron(mid30, midf0, mid23, no[3],
+                                   mid74, midf5, mid67, no[7], attr,
+                                   fa[0], -1, -1, fa[3], fa[4], fa[5]);
+
+          CheckAnisoFace(no[0], no[1], no[5], no[4], mid01, mid45);
+          CheckAnisoFace(no[1], no[2], no[6], no[5], mid12, mid56);
+          CheckAnisoFace(no[2], no[3], no[7], no[6], mid23, mid67);
+          CheckAnisoFace(no[3], no[0], no[4], no[7], mid30, mid74);
+
+          CheckIsoFace(no[3], no[2], no[1], no[0], mid23, mid12, mid01, mid30, midf0);
+          CheckIsoFace(no[4], no[5], no[6], no[7], mid45, mid56, mid67, mid74, midf5);
+      }
+      else if (ref_type == 5) // XZ split
+      {
+         Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
+         Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
+         Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
+         Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
+
+         Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
+         Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
+         Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
+         Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
+
+         Node* midf1 = GetMidFaceVertex(mid01, mid15, mid45, mid04);
+         Node* midf3 = GetMidFaceVertex(mid23, mid37, mid67, mid26);
+
+         child[0] = NewHexahedron(no[0], mid01, mid23, no[3],
+                                  mid04, midf1, midf3, mid37, attr,
+                                  fa[0], fa[1], -1, fa[3], fa[4], -1);
+
+         child[1] = NewHexahedron(mid01, no[1], no[2], mid23,
+                                  midf1, mid15, mid26, midf3, attr,
+                                  fa[0], fa[1], fa[2], fa[3], -1, -1);
+
+         child[2] = NewHexahedron(midf1, mid15, mid26, midf3,
+                                  mid45, no[5], no[6], mid67, attr,
+                                  -1, fa[1], fa[2], fa[3], -1, fa[5]);
+
+         child[3] = NewHexahedron(mid04, midf1, midf3, mid37,
+                                  no[4], mid45, mid67, no[7], attr,
+                                  -1, fa[1], -1, fa[3], fa[4], fa[5]);
+
+         CheckAnisoFace(no[3], no[2], no[1], no[0], mid23, mid01);
+         CheckAnisoFace(no[2], no[6], no[5], no[1], mid26, mid15);
+         CheckAnisoFace(no[6], no[7], no[4], no[5], mid67, mid45);
+         CheckAnisoFace(no[7], no[3], no[0], no[4], mid37, mid04);
+
+         CheckIsoFace(no[0], no[1], no[5], no[4], mid01, mid15, mid45, mid04, midf1);
+         CheckIsoFace(no[2], no[3], no[7], no[6], mid23, mid37, mid67, mid26, midf3);
+      }
+      else if (ref_type == 6) // YZ split
+      {
+          Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
+          Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
+          Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
+          Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
+
+          Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
+          Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
+          Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
+          Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
+
+          Node* midf2 = GetMidFaceVertex(mid12, mid26, mid56, mid15);
+          Node* midf4 = GetMidFaceVertex(mid30, mid04, mid74, mid37);
+
+          child[0] = NewHexahedron(no[0], no[1], mid12, mid30,
+                                   mid04, mid15, midf2, midf4, attr,
+                                   fa[0], fa[1], fa[2], -1, fa[4], -1);
+
+          child[1] = NewHexahedron(mid30, mid12, no[2], no[3],
+                                   midf4, midf2, mid26, mid37, attr,
+                                   fa[0], -1, fa[2], fa[3], fa[4], -1);
+
+          child[2] = NewHexahedron(mid04, mid15, midf2, midf4,
+                                   no[4], no[5], mid56, mid74, attr,
+                                   -1, fa[1], fa[2], -1, fa[4], fa[5]);
+
+          child[3] = NewHexahedron(midf4, midf2, mid26, mid37,
+                                   mid74, mid56, no[6], no[7], attr,
+                                   -1, -1, fa[2], fa[3], fa[4], fa[5]);
+
+          CheckAnisoFace(no[4], no[0], no[1], no[5], mid04, mid15);
+          CheckAnisoFace(no[0], no[3], no[2], no[1], mid30, mid12);
+          CheckAnisoFace(no[3], no[7], no[6], no[2], mid37, mid26);
+          CheckAnisoFace(no[7], no[4], no[5], no[6], mid74, mid56);
+
+          CheckIsoFace(no[1], no[2], no[6], no[5], mid12, mid26, mid56, mid15, midf2);
+          CheckIsoFace(no[3], no[0], no[4], no[7], mid30, mid04, mid74, mid37, midf4);
+      }
+      else if (ref_type == 7) // full isotropic refinement
+      {
+         Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
+         Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
+         Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
+         Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
+
+         Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
+         Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
+         Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
+         Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
+
+         Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
+         Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
+         Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
+         Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
+
+         Node* midf0 = GetMidFaceVertex(mid23, mid12, mid01, mid30);
+         Node* midf1 = GetMidFaceVertex(mid01, mid15, mid45, mid04);
+         Node* midf2 = GetMidFaceVertex(mid12, mid26, mid56, mid15);
+         Node* midf3 = GetMidFaceVertex(mid23, mid37, mid67, mid26);
+         Node* midf4 = GetMidFaceVertex(mid30, mid04, mid74, mid37);
+         Node* midf5 = GetMidFaceVertex(mid45, mid56, mid67, mid74);
+
+         Node* midel = GetMidEdgeVertex(midf1, midf3);
+
+         child[0] = NewHexahedron(no[0], mid01, midf0, mid30,
+                                  mid04, midf1, midel, midf4, attr,
+                                  fa[0], fa[1], -1, -1, fa[4], -1);
+
+         child[1] = NewHexahedron(mid01, no[1], mid12, midf0,
+                                  midf1, mid15, midf2, midel, attr,
+                                  fa[0], fa[1], fa[2], -1, -1, -1);
+
+         child[2] = NewHexahedron(midf0, mid12, no[2], mid23,
+                                  midel, midf2, mid26, midf3, attr,
+                                  fa[0], -1, fa[2], fa[3], -1, -1);
+
+         child[3] = NewHexahedron(mid30, midf0, mid23, no[3],
+                                  midf4, midel, midf3, mid37, attr,
+                                  fa[0], -1, -1, fa[3], fa[4], -1);
+
+         child[4] = NewHexahedron(mid04, midf1, midel, midf4,
+                                  no[4], mid45, midf5, mid74, attr,
+                                  -1, fa[1], -1, -1, fa[4], fa[5]);
+
+         child[5] = NewHexahedron(midf1, mid15, midf2, midel,
+                                  mid45, no[5], mid56, midf5, attr,
+                                  -1, fa[1], fa[2], -1, -1, fa[5]);
+
+         child[6] = NewHexahedron(midel, midf2, mid26, midf3,
+                                  midf5, mid56, no[6], mid67, attr,
+                                  -1, -1, fa[2], fa[3], -1, fa[5]);
+
+         child[7] = NewHexahedron(midf4, midel, midf3, mid37,
+                                  mid74, midf5, mid67, no[7], attr,
+                                  -1, -1, -1, fa[3], fa[4], fa[5]);
+
+         CheckIsoFace(no[3], no[2], no[1], no[0], mid23, mid12, mid01, mid30, midf0);
+         CheckIsoFace(no[0], no[1], no[5], no[4], mid01, mid15, mid45, mid04, midf1);
+         CheckIsoFace(no[1], no[2], no[6], no[5], mid12, mid26, mid56, mid15, midf2);
+         CheckIsoFace(no[2], no[3], no[7], no[6], mid23, mid37, mid67, mid26, midf3);
+         CheckIsoFace(no[3], no[0], no[4], no[7], mid30, mid04, mid74, mid37, midf4);
+         CheckIsoFace(no[4], no[5], no[6], no[7], mid45, mid56, mid67, mid74, midf5);
+      }
+      else
+         mfem_error("NCMesh::Refine(): Invalid refinement type.");
    }
-   else if (ref_type == 2) // split along Y axis
+   else if (elem->geom == Geometry::SQUARE)
    {
-      Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
-      Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
-      Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
-      Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
+      // get parent's edge attributes
+      int ea0 = nodes.Peek(no[0], no[1])->edge->attribute;
+      int ea1 = nodes.Peek(no[1], no[2])->edge->attribute;
+      int ea2 = nodes.Peek(no[2], no[3])->edge->attribute;
+      int ea3 = nodes.Peek(no[3], no[0])->edge->attribute;
 
-      child[0] = NewElement(no[0], no[1], mid12, mid30,
-                            no[4], no[5], mid56, mid74, attr,
-                            fa[0], fa[1], fa[2], -1, fa[4], fa[5]);
+      if (ref_type == 1) // X split
+      {
+         Node* mid01 = GetMidEdgeVertexSimple(no[0], no[1]);
+         Node* mid23 = GetMidEdgeVertexSimple(no[2], no[3]);
 
-      child[1] = NewElement(mid30, mid12, no[2], no[3],
-                            mid74, mid56, no[6], no[7], attr,
-                            fa[0], -1, fa[2], fa[3], fa[4], fa[5]);
+         child[0] = NewQuadrilateral(no[0], mid01, mid23, no[3],
+                                     attr, ea0, -1, ea2, ea3);
 
-      CheckAnisoFace(no[1], no[2], no[6], no[5], mid12, mid56);
-      CheckAnisoFace(no[3], no[0], no[4], no[7], mid30, mid74);
-      CheckAnisoFace(no[5], no[6], no[7], no[4], mid56, mid74);
-      CheckAnisoFace(no[0], no[3], no[2], no[1], mid30, mid12);
+         child[1] = NewQuadrilateral(mid01, no[1], no[2], mid23,
+                                     attr, ea0, ea1, ea2, -1);
+      }
+      else if (ref_type == 2) // Y split
+      {
+         Node* mid12 = GetMidEdgeVertexSimple(no[1], no[2]);
+         Node* mid30 = GetMidEdgeVertexSimple(no[3], no[0]);
+
+         child[0] = NewQuadrilateral(no[0], no[1], mid12, mid30,
+                                     attr, ea0, ea1, -1, ea3);
+
+         child[1] = NewQuadrilateral(mid30, mid12, no[2], no[3],
+                                     attr, -1, ea1, ea2, ea3);
+      }
+      else if (ref_type == 3) // iso split
+      {
+         Node* mid01 = GetMidEdgeVertexSimple(no[0], no[1]);
+         Node* mid12 = GetMidEdgeVertexSimple(no[1], no[2]);
+         Node* mid23 = GetMidEdgeVertexSimple(no[2], no[3]);
+         Node* mid30 = GetMidEdgeVertexSimple(no[3], no[0]);
+
+         Node* midel = GetMidEdgeVertexSimple(mid01, mid23);
+
+         child[0] = NewQuadrilateral(no[0], mid01, midel, mid30,
+                                     attr, ea0, -1, -1, ea3);
+
+         child[1] = NewQuadrilateral(mid01, no[1], mid12, midel,
+                                     attr, ea0, ea1, -1, -1);
+
+         child[2] = NewQuadrilateral(midel, mid12, no[2], mid23,
+                                     attr, -1, ea1, ea2, -1);
+
+         child[3] = NewQuadrilateral(mid30, midel, mid23, no[3],
+                                     attr, -1, -1, ea2, ea3);
+      }
+      else
+         mfem_error("NCMesh::Refine(): Invalid refinement type.");
    }
-   else if (ref_type == 4) // split along Z axis
+   else if (elem->geom == Geometry::TRIANGLE)
    {
-      Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
-      Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
-      Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
-      Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
+      // get parent's edge attributes
+      int ea0 = nodes.Peek(no[0], no[1])->edge->attribute;
+      int ea1 = nodes.Peek(no[1], no[2])->edge->attribute;
+      int ea2 = nodes.Peek(no[2], no[0])->edge->attribute;
 
-      child[0] = NewElement(no[0], no[1], no[2], no[3],
-                            mid04, mid15, mid26, mid37, attr,
-                            fa[0], fa[1], fa[2], fa[3], fa[4], -1);
+      // isotropic split - the only ref_type available for triangles
+      Node* mid01 = GetMidEdgeVertexSimple(no[0], no[1]);
+      Node* mid12 = GetMidEdgeVertexSimple(no[1], no[2]);
+      Node* mid20 = GetMidEdgeVertexSimple(no[2], no[0]);
 
-      child[1] = NewElement(mid04, mid15, mid26, mid37,
-                            no[4], no[5], no[6], no[7], attr,
-                            -1, fa[1], fa[2], fa[3], fa[4], fa[5]);
-
-      CheckAnisoFace(no[4], no[0], no[1], no[5], mid04, mid15);
-      CheckAnisoFace(no[5], no[1], no[2], no[6], mid15, mid26);
-      CheckAnisoFace(no[6], no[2], no[3], no[7], mid26, mid37);
-      CheckAnisoFace(no[7], no[3], no[0], no[4], mid37, mid04);
+      child[0] = NewTriangle(no[0], mid01, mid20, attr, ea0, -1, ea2);
+      child[1] = NewTriangle(mid01, no[1], mid12, attr, ea0, ea1, -1);
+      child[2] = NewTriangle(mid20, mid12, no[2], attr, -1, ea1, ea2);
+      child[3] = NewTriangle(mid01, mid12, mid20, attr, -1, -1, -1);
    }
-   else if (ref_type == 3) // XY split
-   {
-       Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
-       Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
-       Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
-       Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
-
-       Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
-       Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
-       Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
-       Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
-
-       Node* midf0 = GetMidFaceVertex(mid23, mid12, mid01, mid30);
-       Node* midf5 = GetMidFaceVertex(mid45, mid56, mid67, mid74);
-
-       child[0] = NewElement(no[0], mid01, midf0, mid30,
-                             no[4], mid45, midf5, mid74, attr,
-                             fa[0], fa[1], -1, -1, fa[4], fa[5]);
-
-       child[1] = NewElement(mid01, no[1], mid12, midf0,
-                             mid45, no[5], mid56, midf5, attr,
-                             fa[0], fa[1], fa[2], -1, -1, fa[5]);
-
-       child[2] = NewElement(midf0, mid12, no[2], mid23,
-                             midf5, mid56, no[6], mid67, attr,
-                             fa[0], -1, fa[2], fa[3], -1, fa[5]);
-
-       child[3] = NewElement(mid30, midf0, mid23, no[3],
-                             mid74, midf5, mid67, no[7], attr,
-                             fa[0], -1, -1, fa[3], fa[4], fa[5]);
-
-       CheckAnisoFace(no[0], no[1], no[5], no[4], mid01, mid45);
-       CheckAnisoFace(no[1], no[2], no[6], no[5], mid12, mid56);
-       CheckAnisoFace(no[2], no[3], no[7], no[6], mid23, mid67);
-       CheckAnisoFace(no[3], no[0], no[4], no[7], mid30, mid74);
-
-       CheckIsoFace(no[3], no[2], no[1], no[0], mid23, mid12, mid01, mid30, midf0);
-       CheckIsoFace(no[4], no[5], no[6], no[7], mid45, mid56, mid67, mid74, midf5);
-   }
-   else if (ref_type == 5) // XZ split
-   {
-      Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
-      Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
-      Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
-      Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
-
-      Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
-      Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
-      Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
-      Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
-
-      Node* midf1 = GetMidFaceVertex(mid01, mid15, mid45, mid04);
-      Node* midf3 = GetMidFaceVertex(mid23, mid37, mid67, mid26);
-
-      child[0] = NewElement(no[0], mid01, mid23, no[3],
-                            mid04, midf1, midf3, mid37, attr,
-                            fa[0], fa[1], -1, fa[3], fa[4], -1);
-
-      child[1] = NewElement(mid01, no[1], no[2], mid23,
-                            midf1, mid15, mid26, midf3, attr,
-                            fa[0], fa[1], fa[2], fa[3], -1, -1);
-
-      child[2] = NewElement(midf1, mid15, mid26, midf3,
-                            mid45, no[5], no[6], mid67, attr,
-                            -1, fa[1], fa[2], fa[3], -1, fa[5]);
-
-      child[3] = NewElement(mid04, midf1, midf3, mid37,
-                            no[4], mid45, mid67, no[7], attr,
-                            -1, fa[1], -1, fa[3], fa[4], fa[5]);
-
-      CheckAnisoFace(no[3], no[2], no[1], no[0], mid23, mid01);
-      CheckAnisoFace(no[2], no[6], no[5], no[1], mid26, mid15);
-      CheckAnisoFace(no[6], no[7], no[4], no[5], mid67, mid45);
-      CheckAnisoFace(no[7], no[3], no[0], no[4], mid37, mid04);
-
-      CheckIsoFace(no[0], no[1], no[5], no[4], mid01, mid15, mid45, mid04, midf1);
-      CheckIsoFace(no[2], no[3], no[7], no[6], mid23, mid37, mid67, mid26, midf3);
-   }
-   else if (ref_type == 6) // YZ split
-   {
-       Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
-       Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
-       Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
-       Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
-
-       Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
-       Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
-       Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
-       Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
-
-       Node* midf2 = GetMidFaceVertex(mid12, mid26, mid56, mid15);
-       Node* midf4 = GetMidFaceVertex(mid30, mid04, mid74, mid37);
-
-       child[0] = NewElement(no[0], no[1], mid12, mid30,
-                             mid04, mid15, midf2, midf4, attr,
-                             fa[0], fa[1], fa[2], -1, fa[4], -1);
-
-       child[1] = NewElement(mid30, mid12, no[2], no[3],
-                             midf4, midf2, mid26, mid37, attr,
-                             fa[0], -1, fa[2], fa[3], fa[4], -1);
-
-       child[2] = NewElement(mid04, mid15, midf2, midf4,
-                             no[4], no[5], mid56, mid74, attr,
-                             -1, fa[1], fa[2], -1, fa[4], fa[5]);
-
-       child[3] = NewElement(midf4, midf2, mid26, mid37,
-                             mid74, mid56, no[6], no[7], attr,
-                             -1, -1, fa[2], fa[3], fa[4], fa[5]);
-
-       CheckAnisoFace(no[4], no[0], no[1], no[5], mid04, mid15);
-       CheckAnisoFace(no[0], no[3], no[2], no[1], mid30, mid12);
-       CheckAnisoFace(no[3], no[7], no[6], no[2], mid37, mid26);
-       CheckAnisoFace(no[7], no[4], no[5], no[6], mid74, mid56);
-
-       CheckIsoFace(no[1], no[2], no[6], no[5], mid12, mid26, mid56, mid15, midf2);
-       CheckIsoFace(no[3], no[0], no[4], no[7], mid30, mid04, mid74, mid37, midf4);
-   }
-   else if (ref_type == 7) // full isotropic refinement
-   {
-      Node* mid01 = GetMidEdgeVertex(no[0], no[1]);
-      Node* mid12 = GetMidEdgeVertex(no[1], no[2]);
-      Node* mid23 = GetMidEdgeVertex(no[2], no[3]);
-      Node* mid30 = GetMidEdgeVertex(no[3], no[0]);
-
-      Node* mid45 = GetMidEdgeVertex(no[4], no[5]);
-      Node* mid56 = GetMidEdgeVertex(no[5], no[6]);
-      Node* mid67 = GetMidEdgeVertex(no[6], no[7]);
-      Node* mid74 = GetMidEdgeVertex(no[7], no[4]);
-
-      Node* mid04 = GetMidEdgeVertex(no[0], no[4]);
-      Node* mid15 = GetMidEdgeVertex(no[1], no[5]);
-      Node* mid26 = GetMidEdgeVertex(no[2], no[6]);
-      Node* mid37 = GetMidEdgeVertex(no[3], no[7]);
-
-      Node* midf0 = GetMidFaceVertex(mid23, mid12, mid01, mid30);
-      Node* midf1 = GetMidFaceVertex(mid01, mid15, mid45, mid04);
-      Node* midf2 = GetMidFaceVertex(mid12, mid26, mid56, mid15);
-      Node* midf3 = GetMidFaceVertex(mid23, mid37, mid67, mid26);
-      Node* midf4 = GetMidFaceVertex(mid30, mid04, mid74, mid37);
-      Node* midf5 = GetMidFaceVertex(mid45, mid56, mid67, mid74);
-
-      Node* midel = GetMidEdgeVertex(midf1, midf3);
-
-      child[0] = NewElement(no[0], mid01, midf0, mid30,
-                            mid04, midf1, midel, midf4, attr,
-                            fa[0], fa[1], -1, -1, fa[4], -1);
-
-      child[1] = NewElement(mid01, no[1], mid12, midf0,
-                            midf1, mid15, midf2, midel, attr,
-                            fa[0], fa[1], fa[2], -1, -1, -1);
-
-      child[2] = NewElement(midf0, mid12, no[2], mid23,
-                            midel, midf2, mid26, midf3, attr,
-                            fa[0], -1, fa[2], fa[3], -1, -1);
-
-      child[3] = NewElement(mid30, midf0, mid23, no[3],
-                            midf4, midel, midf3, mid37, attr,
-                            fa[0], -1, -1, fa[3], fa[4], -1);
-
-      child[4] = NewElement(mid04, midf1, midel, midf4,
-                            no[4], mid45, midf5, mid74, attr,
-                            -1, fa[1], -1, -1, fa[4], fa[5]);
-
-      child[5] = NewElement(midf1, mid15, midf2, midel,
-                            mid45, no[5], mid56, midf5, attr,
-                            -1, fa[1], fa[2], -1, -1, fa[5]);
-
-      child[6] = NewElement(midel, midf2, mid26, midf3,
-                            midf5, mid56, no[6], mid67, attr,
-                            -1, -1, fa[2], fa[3], -1, fa[5]);
-
-      child[7] = NewElement(midf4, midel, midf3, mid37,
-                            mid74, midf5, mid67, no[7], attr,
-                            -1, -1, -1, fa[3], fa[4], fa[5]);
-
-      CheckIsoFace(no[3], no[2], no[1], no[0], mid23, mid12, mid01, mid30, midf0);
-      CheckIsoFace(no[0], no[1], no[5], no[4], mid01, mid15, mid45, mid04, midf1);
-      CheckIsoFace(no[1], no[2], no[6], no[5], mid12, mid26, mid56, mid15, midf2);
-      CheckIsoFace(no[2], no[3], no[7], no[6], mid23, mid37, mid67, mid26, midf3);
-      CheckIsoFace(no[3], no[0], no[4], no[7], mid30, mid04, mid74, mid37, midf4);
-      CheckIsoFace(no[4], no[5], no[6], no[7], mid45, mid56, mid67, mid74, midf5);
-   }
+   else
+      mfem_error("NCMesh::Refine(): Unsupported element geometry.");
 
    // start using the nodes of the children, create edges & faces
    for (int i = 0; i < 8; i++)
@@ -885,30 +1078,58 @@ void NCMeshHex::GetVerticesElementsBoundary(Array< ::Vertex>& vertices,
 
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
-      Element* elem = leaf_elements[i];
+      Element* nc_elem = leaf_elements[i];
+      Node** node = nc_elem->node;
+      GeomInfo& gi = GI[nc_elem->geom];
 
       // create an ::Element for each leaf Element
-      Hexahedron* hex = new Hexahedron;
-      hex->SetAttribute(elem->attribute);
-      for (int j = 0; j < 8; j++)
-         hex->GetVertices()[j] = elem->node[j]->vertex->index;
+      ::Element* elem = NULL;
+      switch (nc_elem->geom)
+      {
+      case Geometry::CUBE: elem = new Hexahedron; break;
+      case Geometry::SQUARE: elem = new Quadrilateral; break;
+      case Geometry::TRIANGLE: elem = new Triangle; break;
+      }
 
-      elements[i] = hex;
+      elements[i] = elem;
+      elem->SetAttribute(nc_elem->attribute);
+      for (int j = 0; j < gi.nv; j++)
+         elem->GetVertices()[j] = node[j]->vertex->index;
 
       // create boundary elements
-      for (int k = 0; k < 6; k++)
+      if (nc_elem->geom == Geometry::CUBE)
       {
-         const int* fv = hex_faces[k];
-         Face* face = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
-                                 elem->node[fv[2]], elem->node[fv[3]]);
-         if (face->Boundary())
+         for (int k = 0; k < gi.nf; k++)
          {
-            Quadrilateral* quad = new Quadrilateral;
-            quad->SetAttribute(face->attribute);
-            for (int j = 0; j < 4; j++)
-               quad->GetVertices()[j] = elem->node[fv[j]]->vertex->index;
+            const int* fv = gi.faces[k];
+            Face* face = faces.Peek(node[fv[0]], node[fv[1]],
+                                    node[fv[2]], node[fv[3]]);
+            if (face->Boundary())
+            {
+               Quadrilateral* quad = new Quadrilateral;
+               quad->SetAttribute(face->attribute);
+               for (int j = 0; j < 4; j++)
+                  quad->GetVertices()[j] = node[fv[j]]->vertex->index;
 
-            boundary.Append(quad);
+               boundary.Append(quad);
+            }
+         }
+      }
+      else // quad & triangle boundary elements
+      {
+         for (int k = 0; k < gi.ne; k++)
+         {
+            const int* ev = gi.edges[k];
+            Edge* edge = nodes.Peek(node[ev[0]], node[ev[1]])->edge;
+            if (edge->Boundary())
+            {
+               Segment* segment = new Segment;
+               segment->SetAttribute(edge->attribute);
+               for (int j = 0; j < 2; j++)
+                  segment->GetVertices()[j] = node[ev[j]]->vertex->index;
+
+               boundary.Append(segment);
+            }
          }
       }
    }
@@ -967,11 +1188,11 @@ int NCMeshHex::find_node(Element* elem, Node* node)
    mfem_error("Node not found.");
 }
 
-static int find_face(int a, int b, int c)
+static int find_hex_face(int a, int b, int c)
 {
    for (int i = 0; i < 6; i++)
    {
-      const int* fv = hex_faces[i];
+      const int* fv = gi_hex.faces[i];
       if ((a == fv[0] || a == fv[1] || a == fv[2] || a == fv[3]) &&
           (b == fv[0] || b == fv[1] || b == fv[2] || b == fv[3]) &&
           (c == fv[0] || c == fv[1] || c == fv[2] || c == fv[3]))
@@ -990,8 +1211,8 @@ void NCMeshHex::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
       find_node(elem, v2), find_node(elem, v3)
    };
 
-   int fi = find_face(master[0], master[1], master[2]);
-   const int* fv = hex_faces[fi];
+   int fi = find_hex_face(master[0], master[1], master[2]);
+   const int* fv = gi_hex.faces[fi];
 
    DenseMatrix tmp(pm);
    for (int i = 0, j; i < 4; i++)
@@ -1254,11 +1475,12 @@ SparseMatrix*
    {
       Element* elem = leaf_elements[i];
       MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
+      GeomInfo& gi = GI[elem->geom];
 
       // visit edges of 'elem'
-      for (int j = 0; j < 12; j++)
+      for (int j = 0; j < gi.ne; j++)
       {
-         const int* ev = hex_edges[j];
+         const int* ev = gi.edges[j];
          Node* node[2] = { elem->node[ev[0]], elem->node[ev[1]] };
 
          Node* edge = nodes.Peek(node[0], node[1]);
@@ -1270,10 +1492,10 @@ SparseMatrix*
       }
 
       // visit faces of 'elem'
-      for (int j = 0; j < 6; j++)
+      for (int j = 0; j < gi.nf; j++)
       {
          Node* node[4];
-         const int* fv = hex_faces[j];
+         const int* fv = gi.faces[j];
          for (int k = 0; k < 4; k++)
             node[k] = elem->node[fv[k]];
 
@@ -1393,11 +1615,14 @@ static int max4(int a, int b, int c, int d)
 void NCMeshHex::CountSplits(Element* elem, int splits[3])
 {
    Node** node = elem->node;
+   GeomInfo& gi = GI[elem->geom];
+
+   MFEM_ASSERT(elem->geom == Geometry::CUBE, "TODO");
 
    int level[6][2];
-   for (int i = 0; i < 6; i++)
+   for (int i = 0; i < gi.nf; i++)
    {
-      const int* fv = hex_faces[i];
+      const int* fv = gi.faces[i];
       FaceSplitLevel(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
                      level[i][1], level[i][0]);
    }
@@ -1436,4 +1661,3 @@ void NCMeshHex::LimitNCLevel(int max_level)
       Refine(refinements);
    }
 }
-

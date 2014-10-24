@@ -12,6 +12,7 @@
 #ifndef MFEM_NCMESHHEX
 #define MFEM_NCMESHHEX
 
+#include "../fem/geom.hpp"
 #include "../general/hash.hpp"
 
 // TODO: these won't be needed once this module is purely geometric
@@ -48,11 +49,14 @@ protected:
 public:
    NCMeshHex(const Mesh *mesh);
 
-   /** This is a hex element in the refinement hierarchy. Each element has
+   int Dimension() const { return Dim; }
+
+   /** This is an element in the refinement hierarchy. Each element has
        either been refined and points to its children, or is a leaf and points
        to its vertex nodes. */
    struct Element
    {
+      int geom; // Geometry::Type of the element
       int attribute;
       int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
       union
@@ -61,7 +65,7 @@ public:
          Element* child[8]; // 2-8 children (if ref_type != 0)
       };
 
-      Element(int attr);
+      Element(int geom, int attr);
    };
 
    /** Returns one of the elements that are based on the elements of the
@@ -112,6 +116,8 @@ protected: // interface for Mesh to be able to construct itself from us
 
 protected: // implementation
 
+   int Dim;
+
    /** We want vertices and edges to autodestruct when elements stop using
        (i.e., referencing) them. This base class does the reference counting. */
    struct RefCount
@@ -135,7 +141,7 @@ protected: // implementation
    struct Vertex : public RefCount
    {
       double pos[3]; ///< 3D position
-      int index; ///< vertex number in the Mesh
+      int index;     ///< vertex number in the Mesh
 
       Vertex() {}
       Vertex(double x, double y, double z) : index(-1)
@@ -145,8 +151,11 @@ protected: // implementation
    /** An NC mesh edge. Edges don't do much more than just exist. */
    struct Edge : public RefCount
    {
-      int index; ///< edge number in the Mesh
-      Edge() : index(-1) {}
+      int attribute; ///< boundary element attribute, -1 if internal edge
+      int index;     ///< edge number in the Mesh
+
+      Edge() : attribute(-1), index(-1) {}
+      bool Boundary() const { return attribute >= 0; }
    };
 
    /** A Node can hold a Vertex, an Edge, or both. Elements directly point to
@@ -186,9 +195,9 @@ protected: // implementation
        it is either a master or a slave face. */
    struct Face : public RefCount, public Hashed4<Face>
    {
-      int attribute; ///< boundary element attribute, -1 if internal face
+      int attribute;    ///< boundary element attribute, -1 if internal face
+      int index;        ///< face number in the Mesh
       Element* elem[2]; ///< up to 2 elements sharing the face
-      int index; ///< face number in the Mesh
 
       Face(int id) : Hashed4<Face>(id), attribute(-1), index(-1)
          { elem[0] = elem[1] = NULL; }
@@ -230,14 +239,23 @@ protected: // implementation
 
    void DeleteHierarchy(Element* elem);
 
-   Element* NewElement(Node* n0, Node* n1, Node* n2, Node* n3,
-                       Node* n4, Node* n5, Node* n6, Node* n7,
-                       int attr,
-                       int fattr0, int fattr1, int fattr2,
-                       int fattr3, int fattr4, int fattr5);
+   Element* NewHexahedron(Node* n0, Node* n1, Node* n2, Node* n3,
+                          Node* n4, Node* n5, Node* n6, Node* n7,
+                          int attr,
+                          int fattr0, int fattr1, int fattr2,
+                          int fattr3, int fattr4, int fattr5);
+
+   Element* NewQuadrilateral(Node* n0, Node* n1, Node* n2, Node* n3,
+                             int attr,
+                             int eattr0, int eattr1, int eattr2, int eattr3);
+
+   Element* NewTriangle(Node* n0, Node* n1, Node* n2,
+                        int attr, int eattr0, int eattr1, int eattr2);
 
    Vertex* NewVertex(Node* v1, Node* v2);
+
    Node* GetMidEdgeVertex(Node* v1, Node* v2);
+   Node* GetMidEdgeVertexSimple(Node* v1, Node* v2);
    Node* GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4);
 
    int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
