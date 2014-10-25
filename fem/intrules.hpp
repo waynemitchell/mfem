@@ -180,8 +180,9 @@ public:
    IntegrationRule() : Array<IntegrationPoint>() { }
 
    /// Construct an integration rule with given number of points
-   explicit IntegrationRule(int NP) : Array<IntegrationPoint>(NP) { 
-      for (int i = 0; i < this->Size(); i ++)
+   explicit IntegrationRule(int NP) : Array<IntegrationPoint>(NP)
+   {
+      for (int i = 0; i < this->Size(); i++)
          (*this)[i].Init();
    }
 
