@@ -62,8 +62,8 @@ private:
    /// Defines composite trapezoidal integration rule on [0,1]
    void UniformRule();
 
-   /// Define tetrahedron rule of order (2s+1)
-   void GrundmannMollerTetrahedronRule(int s);
+   /// Define n-simplex rule (triangle/tetrahedron for n=2/3) of order (2s+1)
+   void GrundmannMollerSimplexRule(int s, int n = 3);
 
    void AddTriMidPoint(const int off, const double weight)
    { IntPoint(off).Set2w(1./3., 1./3., weight); }

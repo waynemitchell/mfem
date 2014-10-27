@@ -97,11 +97,10 @@ void IntegrationRule::UniformRule()
    IntPoint(Size()-1).weight = 0.5 * h;
 }
 
-void IntegrationRule::GrundmannMollerTetrahedronRule(int s)
+void IntegrationRule::GrundmannMollerSimplexRule(int s, int n)
 {
    // for pow on older compilers
    using std::pow;
-   const int n = 3;
    const int d = 2*s + 1;
    Vector fact(d + n + 1);
    Array<int> beta(n), sums(n);
@@ -136,7 +135,8 @@ void IntegrationRule::GrundmannMollerTetrahedronRule(int s)
          ip.weight = weight;
          ip.x = double(2*beta[0] + 1)/(d + n - 2*i);
          ip.y = double(2*beta[1] + 1)/(d + n - 2*i);
-         ip.z = double(2*beta[2] + 1)/(d + n - 2*i);
+         if (n == 3)
+            ip.z = double(2*beta[2] + 1)/(d + n - 2*i);
 
          int j = 0;
          while (sums[j] == k)
@@ -736,8 +736,11 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
       return ir;
 
    default:
-      mfem_error("TriangleIntRule only defined for Order between 0 and 25.");
-      return NULL;
+      // Grundmann-Moller rules
+      int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
+      TriangleIntRules[i-1] = TriangleIntRules[i] = ir = new IntegrationRule;
+      ir->GrundmannMollerSimplexRule(i/2,2);
+      return ir;
    }
 }
 
@@ -825,13 +828,13 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
 
    case 9: // orders 9 and higher -- Grundmann-Moller rules
       TetrahedronIntRules[9] = ir = new IntegrationRule;
-      ir->GrundmannMollerTetrahedronRule(4);
+      ir->GrundmannMollerSimplexRule(4,3);
       return ir;
 
    default: // Grundmann-Moller rules
       int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
       TetrahedronIntRules[i-1] = TetrahedronIntRules[i] = ir = new IntegrationRule;
-      ir->GrundmannMollerTetrahedronRule(i/2);
+      ir->GrundmannMollerSimplexRule(i/2,3);
       return ir;
    }
 }
