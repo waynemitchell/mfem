@@ -353,6 +353,11 @@ NCMeshHex::Element::Element(int geom, int attr)
    : geom(geom), attribute(attr), ref_type(0)
 {
    memset(node, 0, sizeof(node));
+
+   // NOTE: in 2D the 8-element node/child arrays are not optimal, however
+   // testing shows we would only save 17% of the total NCMeshHex memory if
+   // 4-element arrays were used (e.g. through templates); we thus prefer to
+   // keep the code as simple as possible.
 }
 
 NCMeshHex::Element*
@@ -1660,4 +1665,39 @@ void NCMeshHex::LimitNCLevel(int max_level)
 
       Refine(refinements);
    }
+}
+
+int NCMeshHex::CountElements(Element* elem)
+{
+   int n = 1;
+   if (elem->ref_type)
+   {
+      for (int i = 0; i < 8; i++)
+         if (elem->child[i])
+            n += CountElements(elem->child[i]);
+   }
+   return n;
+}
+
+long NCMeshHex::MemoryUsage()
+{
+   int num_elem = 0;
+   for (int i = 0; i < root_elements.Size(); i++)
+      num_elem += CountElements(root_elements[i]);
+
+   int num_vert = 0, num_edges = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
+      if (it->vertex) num_vert++;
+      if (it->edge) num_edges++;
+   }
+
+   return num_elem * sizeof(Element) +
+          num_vert * sizeof(Vertex) +
+          num_edges * sizeof(Edge) +
+          nodes.MemoryUsage() +
+          faces.MemoryUsage() +
+          root_elements.Size() * sizeof(Element*) +
+          leaf_elements.Size() * sizeof(Element*) +
+          sizeof(*this);
 }

@@ -135,6 +135,9 @@ public:
       void next();
    };
 
+   /// Return total size of allocated memory (tables plus items), in bytes.
+   long MemoryUsage() const;
+
 protected:
 
    ItemT** table;
@@ -415,6 +418,14 @@ void HashTable<ItemT>::Iterator::next()
 
    // no more items
    cur_item = NULL;
+}
+
+template<typename ItemT>
+long HashTable<ItemT>::MemoryUsage() const
+{
+   return sizeof(*this) +
+          ((mask+1) + id_to_item.Size()) * sizeof(ItemT*) +
+          num_items * sizeof(ItemT);
 }
 
 #endif

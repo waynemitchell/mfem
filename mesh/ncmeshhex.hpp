@@ -22,7 +22,8 @@ class IsoparametricTransformation;
 class FiniteElementSpace;
 
 
-/** \brief A class for non-conforming AMR on higher-order hexahedral meshes.
+/** \brief A class for non-conforming AMR on higher-order hexahedral,
+ *  quadrilateral or triangular meshes.
  *
  *  The class is used as follows:
  *
@@ -30,7 +31,7 @@ class FiniteElementSpace;
  *     are copied and become the roots of the refinement hierarchy.
  *
  *  2. Some elements are refined with the Refine() method. Both isotropic and
- *     anisotropic refinements of the hexes are supported.
+ *     anisotropic refinements of quads/hexes are supported.
  *
  *  3. A new Mesh is created from NCMeshHex containing the leaf elements.
  *     This new mesh may have non-conforming (hanging) edges and faces.
@@ -102,6 +103,9 @@ public:
    void LimitNCLevel(int max_level);
 
    SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* space);
+
+   /// Return total number of bytes allocated.
+   long MemoryUsage();
 
    ~NCMeshHex();
 
@@ -307,7 +311,7 @@ protected: // implementation
       bool Independent() const { return !dep_list.Size(); }
    };
 
-   DofData* dof_data; ///< vertex temporary data
+   DofData* dof_data; ///< DOF temporary data
 
    FiniteElementSpace* space;
 
@@ -339,6 +343,8 @@ protected: // implementation
                        int& h_level, int& v_level);
 
    void CountSplits(Element* elem, int splits[3]);
+
+   int CountElements(Element* elem);
 
 };
 
