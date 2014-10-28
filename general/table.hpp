@@ -123,12 +123,14 @@ public:
 
 ///  Transpose a Table
 void Transpose (const Table &A, Table &At, int _ncols_A = -1);
+Table * Transpose (const Table &A);
 
 ///  Transpose an Array<int>
 void Transpose(const Array<int> &A, Table &At, int _ncols_A = -1);
 
 ///  C = A * B  (as boolean matrices)
 void Mult (const Table &A, const Table &B, Table &C);
+Table * Mult (const Table &A, const Table &B);
 
 
 /** Data type STable. STable is similar to Table, but it's for symmetric

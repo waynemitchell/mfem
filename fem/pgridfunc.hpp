@@ -39,8 +39,8 @@ public:
    ParGridFunction(ParFiniteElementSpace *pf, HypreParVector *tv);
 
    /** Construct a ParGridFunction from the given serial GridFunction.
-       The data from 'gf' is NOT copied. */
-   ParGridFunction(ParMesh *pmesh, GridFunction *gf);
+       If partitioning == NULL (default), the data from 'gf' is NOT copied. */
+   ParGridFunction(ParMesh *pmesh, GridFunction *gf, int * partitioning = NULL);
 
    ParGridFunction &operator=(double value)
    { GridFunction::operator=(value); return *this; }

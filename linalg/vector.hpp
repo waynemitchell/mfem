@@ -176,17 +176,17 @@ public:
    /// Set random values in the vector.
    void Randomize(int seed = 0);
    /// Returns the l2 norm of the vector.
-   double Norml2();
+   double Norml2() const;
    /// Returns the l_infinity norm of the vector.
-   double Normlinf();
+   double Normlinf() const;
    /// Returns the l_1 norm of the vector.
-   double Norml1();
+   double Norml1() const;
    /// Returns the maximal element of the vector.
-   double Max();
+   double Max() const;
    /// Returns the minimal element of the vector.
-   double Min();
+   double Min() const;
    /// Return the sum of the vector entries
-   double Sum();
+   double Sum() const;
    /// Compute the Euclidian distance to another vector.
    double DistanceTo (const double *p) const;
 

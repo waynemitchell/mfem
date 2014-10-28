@@ -21,6 +21,7 @@ protected:
 
 public:
    int Attribute, ElementNo;
+   ElementTransformation();
    void SetIntPoint(const IntegrationPoint *ip)
    { IntPoint = ip; WeightIsEvaluated = JacobianIsEvaluated = 0; }
    const IntegrationPoint &GetIntPoint() { return *IntPoint; }

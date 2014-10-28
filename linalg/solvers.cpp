@@ -448,6 +448,139 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    converged = 0;
 }
 
+void FGMRESSolver::Mult(const Vector &b, Vector &x) const
+{
+   DenseMatrix H(m+1,m);
+   Vector s(m+1), cs(m+1), sn(m+1);
+   Vector av(b.Size());
+   Vector r(b.Size());
+
+   int i, j, k;
+
+
+   if (iterative_mode)
+   {
+      oper->Mult(x, r);
+      subtract(b,r,r);
+   }
+   else
+   {
+      x = 0.;
+      r = b;
+   }
+   double beta = Norm(r);  // beta = ||r||
+
+   final_norm = fmax(rel_tol*beta, abs_tol);
+
+   if (beta <= final_norm)
+   {
+      final_norm = beta;
+      final_iter = 0;
+      converged = 1;
+      return;
+   }
+
+   if (print_level>=0)
+      cout << "   Pass : " << setw(2) << 1
+           << "   Iteration : " << setw(3) << 0
+           << "  || r || = " << beta << endl;
+
+   Array<Vector*> v(m+1);
+   Array<Vector*> z(m+1);
+   for (i= 0; i<=m; i++)
+   {
+      v[i] = NULL;
+      z[i] = NULL;
+   }
+
+   j = 1;
+   while (j <= max_iter)
+   {
+      if (v[0] == NULL) v[0] = new Vector(b.Size());
+      (*v[0]) = 0.0;
+      v[0] -> Add (1.0/beta, r);   // v[0] = r / ||r||
+      s = 0.0; s(0) = beta;
+
+      for (i = 0; i < m && j <= max_iter; i++)
+      {
+
+         if (z[i] == NULL)  z[i] = new Vector(b.Size());
+         (*z[i]) = 0.0;
+
+         prec->Mult(*v[i], *z[i]);
+         oper->Mult(*z[i], r);
+
+         for (k = 0; k <= i; k++)
+         {
+            H(k,i) = Dot( r, *v[k]); // H(k,i) = r * v[k]
+            r.Add(-H(k,i), (*v[k])); // r -= H(k,i) * v[k]
+         }
+
+         H(i+1,i)  = Norm(r);       // H(i+1,i) = ||r||
+         if (v[i+1] == NULL) v[i+1] = new Vector(b.Size());
+         (*v[i+1]) = 0.0;
+         v[i+1] -> Add (1.0/H(i+1,i), r); // v[i+1] = r / H(i+1,i)
+
+         for (k = 0; k < i; k++)
+            ApplyPlaneRotation(H(k,i), H(k+1,i), cs(k), sn(k));
+
+         GeneratePlaneRotation(H(i,i), H(i+1,i), cs(i), sn(i));
+         ApplyPlaneRotation(H(i,i), H(i+1,i), cs(i), sn(i));
+         ApplyPlaneRotation(s(i), s(i+1), cs(i), sn(i));
+
+         double resid = fabs(s(i+1));
+         if (print_level >= 0)
+            cout << "   Pass : " << setw(2) << j
+                 << "   Iteration : " << setw(3) << i+1
+                 << "  || r || = " << resid << endl;
+
+         if ( resid <= final_norm) {
+            Update(x, i, H, s, z);
+            final_norm = resid;
+            final_iter = (j-1)*m + i;
+            converged = 1;
+            for (i= 0; i<=m; i++){
+               if (v[i])  delete v[i];
+               if (z[i])  delete z[i];
+            }
+            return;
+         }
+      }
+
+      if (print_level>=0)
+         cout << "Restarting..." << endl;
+
+      Update(x, i-1, H, s, z);
+
+      oper->Mult(x, r);
+      subtract(b,r,r);
+      beta = Norm(r);
+      if ( beta <= final_norm)
+      {
+         final_norm = beta;
+         final_iter = j*m;
+         converged = 1;
+         for (i= 0; i<=m; i++){
+            if (v[i])  delete v[i];
+            if (z[i])  delete z[i];
+         }
+         return;
+      }
+
+      j++;
+   }
+
+   for (i = 0; i <= m; i++)
+   {
+      if (v[i])  delete v[i];
+      if (z[i])  delete z[i];
+   }
+   converged = 0;
+   return;
+
+}
+
+
 int GMRES(const Operator &A, Vector &x, const Vector &b, Solver &M,
           int &max_iter, int m, double &tol, double atol, int printit)
 {
