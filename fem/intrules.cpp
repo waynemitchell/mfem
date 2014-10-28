@@ -173,12 +173,14 @@ IntegrationRules::IntegrationRules(int Ref)
    SegmentIntRules.SetSize(32);
    SegmentIntRules = NULL;
 
+   // TriangleIntegrationRule() assumes that this size is >= 26
    TriangleIntRules.SetSize(32);
    TriangleIntRules = NULL;
 
    SquareIntRules.SetSize(32);
    SquareIntRules = NULL;
 
+   // TetrahedronIntegrationRule() assumes that this size is >= 10
    TetrahedronIntRules.SetSize(32);
    SquareIntRules = NULL;
 
@@ -206,20 +208,8 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
       ir_array = NULL;
    }
 
-   if (Order >= ir_array->Size())
-      ir_array->SetSize(Order + 2, NULL);
-
-   if ((*ir_array)[Order] == NULL)
-      (*ir_array)[Order] = GenerateIntegrationRule(GeomType, Order);
-
-   if (GeomType == Geometry::SQUARE || GeomType == Geometry::CUBE)
-   {
-      if (Order >= SegmentIntRules.Size())
-         SegmentIntRules.SetSize(Order + 2, NULL);
-
-      if (SegmentIntRules[Order] == NULL)
-         SegmentIntRules[Order] = GenerateIntegrationRule(Geometry::SEGMENT, Order);
-   }
+   if (!HaveIntRule(*ir_array, Order))
+      GenerateIntegrationRule(GeomType, Order);
 
    return *(*ir_array)[Order];
 }
@@ -241,15 +231,10 @@ void IntegrationRules::Set(int GeomType, int Order, IntegrationRule &IntRule)
       ir_array = NULL;
    }
 
-   if (ir_array->Size() <= Order)
-   {
-      int i = ir_array->Size();
+   if (HaveIntRule(*ir_array, Order))
+      MFEM_ABORT("Overwriting set rules is not supported!");
 
-      ir_array->SetSize(Order + 1);
-
-      for ( ; i < Order; i++)
-         (*ir_array)[i] = NULL;
-   }
+   AllocIntRule(*ir_array, Order);
 
    (*ir_array)[Order] = &IntRule;
 }
@@ -295,12 +280,10 @@ IntegrationRule *IntegrationRules::GenerateIntegrationRule(int GeomType, int Ord
    case Geometry::TRIANGLE:
       return TriangleIntegrationRule(Order);
    case Geometry::SQUARE:
-      SegmentIntegrationRule(Order);
       return SquareIntegrationRule(Order);
    case Geometry::TETRAHEDRON:
       return TetrahedronIntegrationRule(Order);
    case Geometry::CUBE:
-      SegmentIntegrationRule(Order);
       return CubeIntegrationRule(Order);
    default:
       mfem_error("IntegrationRules::Set(...) : Unknown geometry type!");
@@ -330,11 +313,12 @@ IntegrationRule *IntegrationRules::PointIntegrationRule(int Order)
 // Integration rules for line segment [0,1]
 IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
 {
-   int i, j;
+   int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
+
+   AllocIntRule(SegmentIntRules, i);
 
    if (refined)
    {
-      i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
       int n = i/2 + 1;
 
       IntegrationRule *tmp = new IntegrationRule(n);
@@ -342,7 +326,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
 
       IntegrationRule *ir = new IntegrationRule(2*n);
       SegmentIntRules[i-1] = SegmentIntRules[i] = ir;
-      for (j = 0; j < n; j++)
+      for (int j = 0; j < n; j++)
       {
          ir->IntPoint(j).x = tmp->IntPoint(j).x/2.0;
          ir->IntPoint(j).weight = tmp->IntPoint(j).weight/2.0;
@@ -378,7 +362,6 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
       SegmentIntRules[4] -> IntPoint(2).weight = 5./18.;
       return SegmentIntRules[4];
    default:
-      i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
       SegmentIntRules[i-1] = SegmentIntRules[i] = new IntegrationRule (i/2+1);
       SegmentIntRules[i]->GaussianRule();
       return SegmentIntRules[i];
@@ -390,6 +373,7 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
 {
    IntegrationRule *ir = NULL;
 
+   // assuming that orders <= 25 are pre-allocated
    switch (Order)
    {
    case 0:  // 1 point - 0 degree
@@ -738,6 +722,7 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
    default:
       // Grundmann-Moller rules
       int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
+      AllocIntRule(TriangleIntRules, i);
       TriangleIntRules[i-1] = TriangleIntRules[i] = ir = new IntegrationRule;
       ir->GrundmannMollerSimplexRule(i/2,2);
       return ir;
@@ -748,6 +733,10 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
 IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order)
 {
    int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
+
+   if (!HaveIntRule(SegmentIntRules, i))
+      SegmentIntegrationRule(i);
+   AllocIntRule(SquareIntRules, i);
    SquareIntRules[i-1] = SquareIntRules[i] =
       new IntegrationRule(*SegmentIntRules[i], *SegmentIntRules[i]);
    return SquareIntRules[i];
@@ -759,6 +748,7 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
 {
    IntegrationRule *ir;
 
+   // assuming that orders <= 9 are pre-allocated
    switch (Order)
    {
    case 0:  // 1 point - degree 1
@@ -833,6 +823,7 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
 
    default: // Grundmann-Moller rules
       int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
+      AllocIntRule(TetrahedronIntRules, i);
       TetrahedronIntRules[i-1] = TetrahedronIntRules[i] = ir = new IntegrationRule;
       ir->GrundmannMollerSimplexRule(i/2,3);
       return ir;
@@ -845,6 +836,9 @@ IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
    int k, l, m, np;
    int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
 
+   if (!HaveIntRule(SegmentIntRules, i))
+      SegmentIntegrationRule(i);
+   AllocIntRule(CubeIntRules, i);
    np = SegmentIntRules[i] -> GetNPoints();
    CubeIntRules[i-1] = CubeIntRules[i] = new IntegrationRule(np*np*np);
    for (k = 0; k < np; k++)

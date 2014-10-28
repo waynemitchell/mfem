@@ -215,6 +215,16 @@ private:
    Array<IntegrationRule *> TetrahedronIntRules;
    Array<IntegrationRule *> CubeIntRules;
 
+   void AllocIntRule(Array<IntegrationRule *> &ir_array, int Order)
+   {
+      if (ir_array.Size() <= Order)
+         ir_array.SetSize(Order + 1, NULL);
+   }
+   bool HaveIntRule(Array<IntegrationRule *> &ir_array, int Order)
+   {
+      return (ir_array.Size() > Order && ir_array[Order] != NULL);
+   }
+
    IntegrationRule *GenerateIntegrationRule(int GeomType, int Order);
    IntegrationRule *PointIntegrationRule(int Order);
    IntegrationRule *SegmentIntegrationRule(int Order);
