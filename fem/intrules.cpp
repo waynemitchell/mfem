@@ -182,7 +182,7 @@ IntegrationRules::IntegrationRules(int Ref)
 
    // TetrahedronIntegrationRule() assumes that this size is >= 10
    TetrahedronIntRules.SetSize(32);
-   SquareIntRules = NULL;
+   TetrahedronIntRules = NULL;
 
    CubeIntRules.SetSize(32);
    CubeIntRules = NULL;
