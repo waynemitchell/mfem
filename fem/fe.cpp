@@ -266,9 +266,16 @@ void PositiveFiniteElement::Project(
    }
    else
    {
-      mfem_error("PositiveFiniteElement::Project() (fe version) :\n"
-                 "   the other FE must be nodal and have the same number"
-                 " of DOFs!");
+      // local L2 projection
+      DenseMatrix pos_mass, mixed_mass;
+      MassIntegrator mass_integ;
+
+      mass_integ.AssembleElementMatrix(*this, Trans, pos_mass);
+      mass_integ.AssembleElementMatrix2(fe, *this, Trans, mixed_mass);
+
+      pos_mass.Invert();
+      I.SetSize(Dof, fe.GetDof());
+      Mult(pos_mass, mixed_mass, I);
    }
 }
 
