@@ -993,14 +993,14 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
 }
 
 
-void NCMeshHex::Refine(Array<Refinement>& refinements)
+void NCMeshHex::Refine(Array<NCRefinement>& refinements)
 {
    UpdateLeafElements();
 
    // push all refinements on the stack in reverse order
    for (int i = refinements.Size()-1; i >= 0; i--)
    {
-      Refinement& ref = refinements[i];
+      NCRefinement& ref = refinements[i];
       ref_stack.Append(RefStackItem(leaf_elements[ref.index], ref.ref_type));
    }
 
@@ -1646,7 +1646,7 @@ void NCMeshHex::LimitNCLevel(int max_level)
    {
       UpdateLeafElements();
 
-      Array<Refinement> refinements;
+      Array<NCRefinement> refinements;
       for (int i = 0; i < leaf_elements.Size(); i++)
       {
          int splits[3];
@@ -1658,7 +1658,7 @@ void NCMeshHex::LimitNCLevel(int max_level)
                ref_type |= (1 << k);
 
          if (ref_type)
-            refinements.Append(Refinement(i, ref_type));
+            refinements.Append(NCRefinement(i, ref_type));
       }
 
       if (!refinements.Size()) break;

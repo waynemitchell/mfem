@@ -21,6 +21,16 @@ class DenseMatrix;
 class IsoparametricTransformation;
 class FiniteElementSpace;
 
+/** */
+struct NCRefinement
+{
+   int index; ///< Mesh element number
+   int ref_type; ///< refinement XYZ bit mask (7 = full isotropic)
+
+   NCRefinement(int index, int type = 7)
+      : index(index), ref_type(type) {}
+};
+
 
 /** \brief A class for non-conforming AMR on higher-order hexahedral,
  *  quadrilateral or triangular meshes.
@@ -44,56 +54,16 @@ class FiniteElementSpace;
  */
 class NCMeshHex
 {
-protected:
-   struct Node; // forward declaration, not for public use
-
 public:
    NCMeshHex(const Mesh *mesh);
 
    int Dimension() const { return Dim; }
 
-   /** This is an element in the refinement hierarchy. Each element has
-       either been refined and points to its children, or is a leaf and points
-       to its vertex nodes. */
-   struct Element
-   {
-      int geom; // Geometry::Type of the element
-      int attribute;
-      int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
-      union
-      {
-         Node* node[8]; // element corners (if ref_type == 0)
-         Element* child[8]; // 2-8 children (if ref_type != 0)
-      };
-
-      Element(int geom, int attr);
-   };
-
-   /** Returns one of the elements that are based on the elements of the
-       original mesh. These are the roots of the refinement trees. */
-   Element* GetRootElement(int index) { return root_elements[index]; }
-
-   /** Returns a leaf (unrefined) element. NOTE: leaf elements are enumerated
-       when converting from NCMeshHex to Mesh. Only use this function after. */
-   Element* GetLeafElement(int index) { return leaf_elements[index]; }
-
-   int NRootElements() const { return root_elements.Size(); }
-   int NLeafElements() const { return leaf_elements.Size(); }
-
-   struct Refinement
-   {
-      int index; ///< leaf element number
-      int ref_type; ///< refinement type (7 = full isotropic)
-
-      Refinement(int index, int type = 7)
-         : index(index), ref_type(type) {}
-   };
-
    /** Perform the given batch of refinements. Please note that in the presence
        of anisotropic splits additional refinements may be necessary to keep
        the mesh consistent. However, the function always performas at least the
        requested refinements. */
-   void Refine(Array<Refinement>& refinements);
+   void Refine(Array<NCRefinement>& refinements);
 
    /** Derefine -- not implemented yet */
    //void Derefine(Element* elem);
@@ -102,7 +72,21 @@ public:
        of hanging nodes is not greater than 'max_level'. */
    void LimitNCLevel(int max_level);
 
+   /** */
    SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* space);
+
+   /** */
+   struct FineTransformation
+   {
+      int coarse_element;
+      DenseMatrix point_matrix;
+   };
+
+   /** */
+   void MarkCoarseLevel() { leaf_elements.Copy(coarse_elements); }
+
+   /** */
+   void GetFineTransformations(Array<FineTransformation>& ref_trans);
 
    /// Return total number of bytes allocated.
    long MemoryUsage();
@@ -193,6 +177,8 @@ protected: // implementation
       ~Node();
    };
 
+   struct Element;
+
    /** Similarly to nodes, faces can be accessed by hashing their four vertex
        node IDs. A face knows about the one or two elements that are using it.
        A face that is not on the boundary and only has one element referencing
@@ -219,8 +205,26 @@ protected: // implementation
       int Unref() { return --ref_count; }
    };
 
+   /** This is an element in the refinement hierarchy. Each element has
+       either been refined and points to its children, or is a leaf and points
+       to its vertex nodes. */
+   struct Element
+   {
+      int geom; // Geometry::Type of the element
+      int attribute;
+      int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
+      union
+      {
+         Node* node[8]; // element corners (if ref_type == 0)
+         Element* child[8]; // 2-8 children (if ref_type != 0)
+      };
+
+      Element(int geom, int attr);
+   };
+
    Array<Element*> root_elements; // initialized by constructor
-   Array<Element*> leaf_elements; // updated by UpdateLeafElements
+   Array<Element*> leaf_elements; // finest level, updated by UpdateLeafElements
+   Array<Element*> coarse_elements; // coarse level, set by MarkCoarseLevel
 
    HashTable<Node> nodes; // associative container holding all Nodes
    HashTable<Face> faces; // associative container holding all Faces
