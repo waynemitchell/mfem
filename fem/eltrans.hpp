@@ -56,6 +56,8 @@ public:
    void SetFE(const FiniteElement *FE) { FElem = FE; };
    DenseMatrix &GetPointMat () { return PointMat; };
 
+   void SetIdentityTransformation(int GeomType);
+
    virtual void Transform(const IntegrationPoint &, Vector &);
    virtual void Transform(const IntegrationRule &, DenseMatrix &);
    virtual const DenseMatrix & Jacobian();
