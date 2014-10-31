@@ -76,17 +76,17 @@ public:
    SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* space);
 
    /** */
-   struct FineTransformation
+   struct FineTransform
    {
-      int coarse_element;
-      DenseMatrix point_matrix;
+      int coarse_index; ///< coarse mesh element index
+      DenseMatrix point_matrix; ///< for use in IsoparametricTransformation
    };
 
    /** */
    void MarkCoarseLevel() { leaf_elements.Copy(coarse_elements); }
 
    /** */
-   void GetFineTransformations(Array<FineTransformation>& ref_trans);
+   void GetFineTransforms(Array<FineTransform>& transforms);
 
    /// Return total number of bytes allocated.
    long MemoryUsage();
@@ -210,12 +210,13 @@ protected: // implementation
        to its vertex nodes. */
    struct Element
    {
-      int geom; // Geometry::Type of the element
+      int geom;     // Geometry::Type of the element
       int attribute;
       int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
+      int index;    // element number in the Mesh, -1 if refined
       union
       {
-         Node* node[8]; // element corners (if ref_type == 0)
+         Node* node[8];  // element corners (if ref_type == 0)
          Element* child[8]; // 2-8 children (if ref_type != 0)
       };
 
@@ -340,6 +341,66 @@ protected: // implementation
 
    bool DofFinalizable(DofData& vd);
 
+
+   // coarse to fine transformations
+
+   struct Point
+   {
+      int dim;
+      double coord[3];
+
+      Point()
+      { dim = 0; }
+
+      Point(double x, double y)
+      { dim = 2; coord[0] = x; coord[1] = y; }
+
+      Point(double x, double y, double z)
+      { dim = 3; coord[0] = x; coord[1] = y; coord[2] = z; }
+
+      Point(const Point& p0, const Point& p1)
+      {
+         dim = p0.dim;
+         for (int i = 0; i < dim; i++)
+            coord[i] = (p0.coord[i] + p1.coord[i]) * 0.5;
+      }
+
+      Point& operator=(const Point& src)
+      {
+         dim = src.dim;
+         for (int i = 0; i < dim; i++)
+            coord[i] = src.coord[i];
+      }
+   };
+
+   struct PointMatrix
+   {
+      int np;
+      Point points[8];
+
+      PointMatrix(const Point& p0, const Point& p1, const Point& p2)
+      { np = 3; points[0] = p0; points[1] = p1; points[2] = p2; }
+
+      PointMatrix(const Point& p0, const Point& p1, const Point& p2, const Point& p3)
+      { np = 4; points[0] = p0; points[1] = p1; points[2] = p2; points[3] = p3; }
+
+      PointMatrix(const Point& p0, const Point& p1, const Point& p2, const Point& p3,
+                  const Point& p4, const Point& p5, const Point& p6, const Point& p7)
+      {
+         np = 8;
+         points[0] = p0; points[1] = p1; points[2] = p2; points[3] = p3;
+         points[4] = p4; points[5] = p5; points[6] = p6; points[7] = p7;
+      }
+
+      Point& operator()(int i) { return points[i]; }
+      const Point& operator()(int i) const { return points[i]; }
+
+      void GetMatrix(DenseMatrix& point_matrix) const;
+   };
+
+   void GetFineTransforms(Element* elem, int coarse_index,
+                          Array<FineTransform>& transforms,
+                          const PointMatrix &pm);
 
    // utility
 

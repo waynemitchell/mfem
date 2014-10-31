@@ -350,7 +350,7 @@ NCMeshHex::Node* NCMeshHex::PeekAltParents(Node* v1, Node* v2)
 //// Refinement & Derefinement /////////////////////////////////////////////////
 
 NCMeshHex::Element::Element(int geom, int attr)
-   : geom(geom), attribute(attr), ref_type(0)
+   : geom(geom), attribute(attr), ref_type(0), index(-1)
 {
    memset(node, 0, sizeof(node));
 
@@ -1041,10 +1041,12 @@ void NCMeshHex::GetLeafElements(Element* e)
 {
    if (!e->ref_type)
    {
+      e->index = leaf_elements.Size();
       leaf_elements.Append(e);
    }
    else
    {
+      e->index = -1;
       for (int i = 0; i < 8; i++)
          if (e->child[i])
             GetLeafElements(e->child[i]);
@@ -1354,6 +1356,8 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
       { pm(0,3), pm(1,3) },
    };
 
+   // TODO: use the PointMatrix class!
+
    if (split == 1) // "X" split face
    {
       make_point_mat(tv[0], tmid[0], tmid[2], tv[3], pm);
@@ -1580,6 +1584,120 @@ SparseMatrix*
 
    cP->Finalize();
    return cP;
+}
+
+
+//// Coarse to fine transformations ////////////////////////////////////////////
+
+void NCMeshHex::PointMatrix::GetMatrix(DenseMatrix& point_matrix) const
+{
+   point_matrix.SetSize(points[0].dim, np);
+   for (int i = 0; i < np; i++)
+      for (int j = 0; j < points[0].dim; j++)
+         point_matrix(j, i) = points[i].coord[j];
+}
+
+void NCMeshHex::GetFineTransforms(Element* elem, int coarse_index,
+                                  Array<FineTransform>& transforms,
+                                  const PointMatrix& pm)
+{
+   if (!elem->ref_type)
+   {
+      // we got to a leaf, store the fine element transformation
+      FineTransform& ft = transforms[elem->index];
+      ft.coarse_index = coarse_index;
+      pm.GetMatrix(ft.point_matrix);
+      return;
+   }
+
+   // recurse into the finer children, adjusting the point matrix
+   if (elem->geom == Geometry::CUBE)
+   {
+      mfem_error("TODO");
+   }
+   else if (elem->geom == Geometry::SQUARE)
+   {
+      if (elem->ref_type == 1) // X split
+      {
+         Point mid01(pm(0), pm(1)), mid23(pm(2), pm(3));
+
+         GetFineTransforms(elem->child[0], coarse_index, transforms,
+                           PointMatrix(pm(0), mid01, mid23, pm(3)));
+
+         GetFineTransforms(elem->child[1], coarse_index, transforms,
+                           PointMatrix(mid01, pm(1), pm(2), mid23));
+      }
+      else if (elem->ref_type == 2) // Y split
+      {
+         Point mid12(pm(1), pm(2)), mid30(pm(3), pm(0));
+
+         GetFineTransforms(elem->child[0], coarse_index, transforms,
+                           PointMatrix(pm(0), pm(1), mid12, mid30));
+
+         GetFineTransforms(elem->child[1], coarse_index, transforms,
+                           PointMatrix(mid30, mid12, pm(2), pm(3)));
+      }
+      else if (elem->ref_type == 3) // iso split
+      {
+         Point mid01(pm(0), pm(1)), mid12(pm(1), pm(2));
+         Point mid23(pm(2), pm(3)), mid30(pm(3), pm(0));
+         Point midel(mid01, mid23);
+
+         GetFineTransforms(elem->child[0], coarse_index, transforms,
+                           PointMatrix(pm(0), mid01, midel, mid30));
+
+         GetFineTransforms(elem->child[1], coarse_index, transforms,
+                           PointMatrix(mid01, pm(1), mid12, midel));
+
+         GetFineTransforms(elem->child[2], coarse_index, transforms,
+                           PointMatrix(midel, mid12, pm(2), mid23));
+
+         GetFineTransforms(elem->child[3], coarse_index, transforms,
+                           PointMatrix(mid30, midel, mid23, pm(3)));
+      }
+   }
+   else if (elem->geom == Geometry::TRIANGLE)
+   {
+      mfem_error("TODO");
+   }
+}
+
+void NCMeshHex::GetFineTransforms(Array<FineTransform>& transforms)
+{
+   if (!coarse_elements.Size())
+      mfem_error("You need to call MarkCoarseLevel before calling Refine and "
+                 "GetFineTransformations.");
+
+   transforms.SetSize(leaf_elements.Size());
+
+   // get transformations for fine elements, starting from coarse elements
+   for (int i = 0; i < coarse_elements.Size(); i++)
+   {
+      Element* c_elem = coarse_elements[i];
+
+      if (c_elem->geom == Geometry::CUBE)
+      {
+         PointMatrix pm(Point(0,0,0), Point(1,0,0), Point(1,1,0), Point(0,1,0),
+                        Point(0,0,1), Point(1,0,1), Point(1,1,1), Point(0,1,1));
+
+         GetFineTransforms(c_elem, i, transforms, pm);
+      }
+      else if (c_elem->geom == Geometry::SQUARE)
+      {
+         PointMatrix pm(Point(0,0), Point(1,0), Point(1,1), Point(0,1));
+         GetFineTransforms(c_elem, i, transforms, pm);
+      }
+      else if (c_elem->geom == Geometry::TRIANGLE)
+      {
+         PointMatrix pm(Point(0,0), Point(1,0), Point(1,1));
+         GetFineTransforms(c_elem, i, transforms, pm);
+      }
+      else
+         mfem_error("NCMeshHex::GetFineTransforms: Bad geometry.");
+   }
+
+   // get rid of the coarse level array to save memory
+   coarse_elements.DeleteAll();
 }
 
 
