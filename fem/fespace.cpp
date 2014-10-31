@@ -263,6 +263,43 @@ SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
    return R;
 }
 
+SparseMatrix* FiniteElementSpace
+   ::NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes, NCMeshHex* ncmesh)
+{
+   Array<int> rows, cols, rs, cs;
+
+   Array<NCMeshHex::FineTransform> transforms;
+   ncmesh->GetFineTransforms(transforms);
+
+   SparseMatrix* R = new SparseMatrix(cfes->GetVSize(), this->GetVSize());
+
+   // loop over the fine elements, interpolate what's on the coarse element
+   for (int k = 0; k < mesh->GetNE(); k++)
+   {
+      cfes->GetElementDofs(transforms[k].coarse_index, rows);
+      this->GetElementDofs(k, cols);
+
+      int geom = mesh->GetElementBaseGeometry(k);
+      const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
+
+      IsoparametricTransformation trans;
+      trans.SetFE(fe);
+      trans.GetPointMat() = transforms[k].point_matrix;
+
+      DenseMatrix I(fe->GetDof());
+      fe->GetLocalInterpolation(trans, I);
+
+      if (vdim == 1)
+      {
+      }
+      else
+      {
+      }
+   }
+
+   return R;
+}
+
 void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
                                            Array<int> &ess_dofs) const
 {
