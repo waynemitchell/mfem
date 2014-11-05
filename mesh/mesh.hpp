@@ -262,7 +262,7 @@ public:
    Array<int> bdr_attributes;
 
    NURBSExtension *NURBSext;
-   NonconformingMesh *ncmesh;
+   NCMeshHex *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
@@ -596,7 +596,8 @@ public:
 
    /** Refine the given list of marked elements. The resulting mesh is
        nonconforming, i.e. it has hanging nodes. */
-   void NonconformingRefinement(const Array<int> &marked_el);
+   void NonconformingRefinement(const Array<NCRefinement> &refinements,
+                                int nc_limit = 0);
 
    void UniformRefinement();
 
@@ -675,6 +676,9 @@ public:
    void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL);
 
    void MesquiteSmooth(const int mesquite_option = 0);
+
+   /// Swaps all internal data with another mesh.
+   void Swap(Mesh& other);
 
    /// Destroys mesh.
    virtual ~Mesh();

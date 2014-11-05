@@ -3071,10 +3071,10 @@ void Mesh::CheckElementOrientation(bool fix_it)
                switch (GetElementType(i))
                {
                case Element::TRIANGLE:
-                  Swap(vi[0], vi[1]);
+                  ::Swap(vi[0], vi[1]);
                   break;
                case Element::QUADRILATERAL:
-                  Swap(vi[1], vi[3]);
+                  ::Swap(vi[1], vi[3]);
                   break;
                }
                fo++;
@@ -3112,7 +3112,7 @@ void Mesh::CheckElementOrientation(bool fix_it)
                wo++;
                if (fix_it)
                {
-                  Swap(vi[0], vi[1]);
+                  ::Swap(vi[0], vi[1]);
                   fo++;
                }
             }
@@ -3222,7 +3222,7 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
             if (bv[0] != fv[0])
             {
                if (fix_it)
-                  Swap<int>(bv[0], bv[1]);
+                  ::Swap<int>(bv[0], bv[1]);
                wo++;
             }
          }
@@ -3254,7 +3254,7 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
                   // wrong orientation -- swap vertices 0 and 1 so that
                   //  we don't change the marked edge:  (0,1,2) -> (1,0,2)
                   if (fix_it)
-                     Swap<int>(bv[0], bv[1]);
+                     ::Swap<int>(bv[0], bv[1]);
                   wo++;
                }
             }
@@ -3286,7 +3286,7 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
                if (GetQuadOrientation(v, bv) % 2)
                {
                   if (fix_it)
-                     Swap<int>(bv[0], bv[2]);
+                     ::Swap<int>(bv[0], bv[2]);
                   wo++;
                }
                break;
@@ -5073,7 +5073,7 @@ void Mesh::QuadUniformRefinement()
       if (WantTwoLevelState)
       {
          c_el_to_edge = el_to_edge;
-         Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
+         ::Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
          f_el_to_edge = new Table;
          NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
          el_to_edge = f_el_to_edge;
@@ -5292,7 +5292,7 @@ void Mesh::HexUniformRefinement()
       {
          c_el_to_face = el_to_face;
          el_to_face = NULL;
-         Swap(faces_info, fc_faces_info);
+         ::Swap(faces_info, fc_faces_info);
       }
       GetElementToFaceTable();
       GenerateFaces();
@@ -5465,7 +5465,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
          if (WantTwoLevelState)
          {
             c_el_to_edge = el_to_edge;
-            Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
+            ::Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
             f_el_to_edge = new Table;
             NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
             el_to_edge = f_el_to_edge;
@@ -5617,7 +5617,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
          {
             c_el_to_face = el_to_face;
             el_to_face = NULL;
-            Swap(faces_info, fc_faces_info);
+            ::Swap(faces_info, fc_faces_info);
          }
          GetElementToFaceTable();
          GenerateFaces();
@@ -5649,187 +5649,61 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
 #endif
 }
 
-void Mesh::NonconformingRefinement(const Array<int> &marked_el)
+void Mesh::NonconformingRefinement(const Array<NCRefinement> &refinements,
+                                   int nc_limit)
 {
    if (NURBSext)
-      mfem_error("Mesh::NonconformingRefinement :"
-                 " NURBS meshes are not supported!");
+      mfem_error("Mesh::NonconformingRefinement: NURBS meshes are not supported."
+                 " Project the NURBS to Nodes first.");
 
    SetState(Mesh::NORMAL);
    DeleteCoarseTables();
 
-   if (Dim != 2)
+   if (!ncmesh)
    {
-      mfem_error("Mesh::NonconformingRefinement : not a 2D mesh!");
+      // start tracking refinement hierarchy
+      ncmesh = new NCMeshHex(this);
    }
-   else
+
+   // do the refinements
+   ncmesh->MarkCoarseLevel();
+   ncmesh->Refine(refinements);
+
+   if (nc_limit > 0)
+      ncmesh->LimitNCLevel(nc_limit);
+
+   // create a second mesh containing the finest elements from 'ncmesh'
+   Mesh* mesh2 = new Mesh(*ncmesh);
+
+   // now swap the meshes, the second mesh will become the old coarse mesh
+   // and this mesh will be the new fine mesh
+   Swap(*mesh2);
+
+   // update Nodes if the coarse mesh was curved
+   if (mesh2->Nodes)
    {
-      // TODO: support for two-level state and curved meshes.
-      if (Nodes)
-         mfem_error("Mesh::NonconformingRefinement :"
-                    " curved meshes are not supported!");
-      if (WantTwoLevelState)
-         mfem_error("Mesh::NonconformingRefinement :"
-                    " two-level state is not supported!");
+      FiniteElementSpace* old_nfe = mesh2->Nodes->FESpace();
+      old_nfe->UpdateMesh(mesh2); // update the coarse mesh pointer
 
-      // In 'ncmesh':
-      // Vertex ids are vertex indices which are not the same as the indices
-      // generated by the NCMesh::AllVertex_iterator.
-      // Face ids are not assumed to be set but they are used here temporarily
-      // first as element indices and then replaced by element attributes.
-      // Element indices are the same as the ones generated by the
-      // NCMesh::Face_iterator.
-      // The edge ids are used to identify the boundary: the non-boundary
-      // edges (and the new edges) have id -1; the boundary edges have id equal
-      // to the boundary attribute.
+      FiniteElementCollection* new_nfec =
+            FiniteElementCollection::New(old_nfe->FEColl()->Name());
 
-      int num_face, num_vert, num_bdr;
+      FiniteElementSpace* new_nfe = new FiniteElementSpace(this, new_nfec,
+            old_nfe->GetVDim(), old_nfe->GetOrdering());
 
-      if (ncmesh == NULL)
-      {
-         ncmesh = new NonconformingMesh(this);
+      Nodes = new GridFunction(new_nfe);
+      Nodes->MakeOwner(new_nfec);
 
-         num_vert = 0;
-         for (NCMesh::AllVertex_iterator vi(*ncmesh); vi; ++vi)
-            vi->id = num_vert++;
-
-         Array<int> c_edge_id(NumOfEdges);
-         c_edge_id = -1;
-         for (int i = 0; i < NumOfBdrElements; i++)
-            if ((c_edge_id[be_to_edge[i]] = GetBdrAttribute(i)) < 0)
-               mfem_error("Mesh::NonconformingRefinement :"
-                          " negative boundary attributes!");
-         int num_edge = 0;
-         for (NCMesh::Edge_iterator ei(*ncmesh); ei; ++ei)
-            ei->id = c_edge_id[num_edge++];
-      }
-
-      // delete the boundary elements
-      for (int i = 0; i < NumOfBdrElements; i++)
-         FreeElement(boundary[i]);
-
-      Array<bool> c_face_marker(NumOfElements);
-
-      c_face_marker = false;
-      for (int i = 0; i < marked_el.Size(); i++)
-         c_face_marker[marked_el[i]] = true;
-
-      // Refine the marked elements
-      num_face = 0;
-      for (NCMesh::Face_iterator fi(*ncmesh); fi; ++fi)
-      {
-         fi->id = num_face; // face id := element index
-         if (c_face_marker[num_face++])
-            ncmesh->Refine(fi);
-      }
-
-      // count and enumerate the new vertices (including dependent vertices)
-      num_vert = NumOfVertices;
-      for (NCMesh::AllVertex_iterator vi(*ncmesh); vi; ++vi)
-         if (vi->id < 0)
-            vi->id = num_vert++;
-      vertices.SetSize(num_vert);
-      // set the coordinates of the new vertices
-      for (NCMesh::AllVertex_iterator vi(*ncmesh); vi; ++vi)
-         if (vi->id >= NumOfVertices)
-         {
-            NCMesh::Vertex *pv[2];
-            vi.parent_vertices(pv);
-#ifdef MFEM_DEBUG
-            if (pv[1] == NULL)
-               mfem_error("Mesh::NonconformingRefinement : oops!");
-#endif
-            vertices[vi->id](0) = (vertices[pv[0]->id](0) +
-                                   vertices[pv[1]->id](0))/2;
-            vertices[vi->id](1) = (vertices[pv[0]->id](1) +
-                                   vertices[pv[1]->id](1))/2;
-         }
-      NumOfVertices = num_vert;
-
-      // count the new faces (elements)
-      num_face = 0;
-      for (NCMesh::Face_iterator fi(*ncmesh); fi; ++fi)
-      {
-         // face id : element index -> element attribute
-         if (fi->id >= 0)
-            fi->id = GetAttribute(fi->id);
-         else // new face
-            fi->id = GetAttribute(fi->parent->id);
-         num_face++;
-      }
-      // delete all coarse elements
-      for (int i = 0; i < NumOfElements; i++)
-         FreeElement(elements[i]);
-      // allocate all fine elements
-      elements.SetSize(num_face);
-      num_face = 0;
-      for (NCMesh::Face_iterator fi(*ncmesh); fi; ++fi)
-      {
-         NCMesh::Vertex *fv[4];
-         int *v, nv = fi->GetVertices(fv);
-         Element *elem;
-         if (!fi->isQuad())
-            elem = NewElement(Geometry::TRIANGLE);
-         else
-            elem = NewElement(Geometry::SQUARE);
-         v = elem->GetVertices();
-         for (int i = 0; i < nv; i++)
-            v[i] = fv[i]->id;
-         elem->SetAttribute(fi->id);
-         elements[num_face++] = elem;
-      }
-      NumOfElements = num_face;
-
-      // Count the boundary edges. Propagate the edge ids to the refined edges
-      // (inheriting from the parent); these ids identify the boundary and its
-      // attributes, see above.
-      num_bdr = 0;
-      for (NCMesh::Edge_iterator ei(*ncmesh); ei; ++ei)
-      {
-         if (ei->parent)
-            ei->id = ei->parent->id;
-         if (ei->id >= 0)
-         {
-            num_bdr++;
-            NCMesh::SimpleEdge_iterator edge(ei);
-            for (++edge; edge; ++edge)
-            {
-               edge->id = edge->parent->id;
-               if (!edge->isRefined())
-                  num_bdr++;
-            }
-         }
-      }
-      boundary.SetSize(num_bdr);
-      // generate the boundary elements
-      num_bdr = 0;
-      for (NCMesh::Edge_iterator ei(*ncmesh); ei; ++ei)
-      {
-         if (ei->id >= 0)
-         {
-            boundary[num_bdr++] =
-               new Segment(ei->vertex[0]->id, ei->vertex[1]->id, ei->id);
-            NCMesh::SimpleEdge_iterator edge(ei);
-            for (++edge; edge; ++edge)
-               if (!edge->isRefined())
-                  boundary[num_bdr++] =
-                     new Segment(edge->vertex[0]->id,
-                                 edge->vertex[1]->id, edge->id);
-         }
-      }
-      NumOfBdrElements = num_bdr;
-
-      if (el_to_edge != NULL)
-      {
-         NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-         GenerateFaces();
-      }
-
-#ifdef MFEM_DEBUG
-      CheckElementOrientation(false);
-      CheckBdrElementOrientation();
-#endif
+      SparseMatrix *R = new_nfe->NC_GlobalRestrictionMatrix(old_nfe, mesh2->ncmesh);
+      R->MultTranspose(*mesh2->Nodes, *Nodes);
+      delete R;
    }
+
+   // the only thing we don't want swapped is the ncmesh
+   ::Swap(ncmesh, mesh2->ncmesh);
+
+   // delete the old mesh
+   delete mesh2;
 }
 
 Mesh::Mesh(NCMeshHex &ncmesh)
@@ -5838,8 +5712,6 @@ Mesh::Mesh(NCMeshHex &ncmesh)
 
    Init();
    InitTables();
-
-   Nodes = NULL;
 
    ncmesh.GetVerticesElementsBoundary(vertices, elements, boundary);
 
@@ -5863,6 +5735,73 @@ Mesh::Mesh(NCMeshHex &ncmesh)
    c_el_to_edge = NULL;
 
    SetAttributes();
+}
+
+void Mesh::Swap(Mesh& other)
+{
+   ::Swap(Dim, other.Dim);
+
+   ::Swap(NumOfVertices, other.NumOfVertices);
+   ::Swap(NumOfElements, other.NumOfElements);
+   ::Swap(NumOfBdrElements, other.NumOfBdrElements);
+   ::Swap(NumOfEdges, other.NumOfEdges);
+   ::Swap(NumOfFaces, other.NumOfFaces);
+
+   ::Swap(State, other.State);
+   ::Swap(WantTwoLevelState, other.WantTwoLevelState);
+
+   ::Swap(meshgen, other.meshgen);
+
+   ::Swap(c_NumOfVertices, other.c_NumOfVertices);
+   ::Swap(c_NumOfElements, other.c_NumOfElements);
+   ::Swap(c_NumOfBdrElements, other.c_NumOfBdrElements);
+   ::Swap(f_NumOfVertices, other.f_NumOfVertices);
+   ::Swap(f_NumOfElements, other.f_NumOfElements);
+   ::Swap(f_NumOfBdrElements, other.f_NumOfBdrElements);
+   ::Swap(c_NumOfEdges, other.c_NumOfEdges);
+   ::Swap(c_NumOfFaces, other.c_NumOfFaces);
+   ::Swap(f_NumOfEdges, other.f_NumOfEdges);
+   ::Swap(f_NumOfFaces, other.f_NumOfFaces);
+
+   ::Swap(elements, other.elements);
+   ::Swap(vertices, other.vertices);
+   ::Swap(boundary, other.boundary);
+   ::Swap(faces, other.faces);
+   ::Swap(faces_info, other.faces_info);
+
+   ::Swap(el_to_edge, other.el_to_edge);
+   ::Swap(el_to_face, other.el_to_face);
+   ::Swap(el_to_el, other.el_to_el);
+   ::Swap(be_to_edge, other.be_to_edge);
+   ::Swap(bel_to_edge, other.bel_to_edge);
+   ::Swap(be_to_face, other.be_to_face);
+   ::Swap(face_edge, other.face_edge);
+   ::Swap(edge_vertex, other.edge_vertex);
+
+   ::Swap(c_el_to_edge, other.c_el_to_edge);
+   ::Swap(f_el_to_edge, other.f_el_to_edge);
+   ::Swap(c_bel_to_edge, other.c_bel_to_edge);
+   ::Swap(f_bel_to_edge, other.f_bel_to_edge);
+   ::Swap(fc_be_to_edge, other.fc_be_to_edge);
+   ::Swap(c_el_to_face, other.c_el_to_face);
+   ::Swap(f_el_to_face, other.f_el_to_face);
+   ::Swap(fc_faces_info, other.fc_faces_info);
+
+/* TODO: Transformation, Transformation2;
+         FaceTransformation, EdgeTransformation;
+         FaceElementTransformations FaceElemTr;  */
+
+   ::Swap(Nodes, other.Nodes);
+   ::Swap(own_nodes, other.own_nodes);
+
+/* TODO:  MemAlloc <Tetrahedron, 1024> TetMemory;
+          MemAlloc <BisectedElement, 1024> BEMemory; */
+
+   ::Swap(attributes, other.attributes);
+   ::Swap(bdr_attributes, other.bdr_attributes);
+
+   ::Swap(NURBSext, other.NURBSext);
+   ::Swap(ncmesh, other.ncmesh);
 }
 
 void Mesh::UniformRefinement()
@@ -6289,7 +6228,7 @@ void Mesh::SetState(int s)
          if (Dim == 2)
          {
             if (State == Mesh::TWO_LEVEL_COARSE)
-               Swap(be_to_edge, fc_be_to_edge);
+               ::Swap(be_to_edge, fc_be_to_edge);
             fc_be_to_edge.DeleteAll();
          }
          if (Dim == 3)
@@ -6303,7 +6242,7 @@ void Mesh::SetState(int s)
          delete c_el_to_face;
          el_to_face = f_el_to_face;
          if (State == Mesh::TWO_LEVEL_COARSE)
-            Swap(faces_info, fc_faces_info);
+            ::Swap(faces_info, fc_faces_info);
          fc_faces_info.DeleteAll();
       }
 
@@ -6322,14 +6261,14 @@ void Mesh::SetState(int s)
       {
          el_to_edge = f_el_to_edge;
          if (Dim == 2)
-            Swap(be_to_edge, fc_be_to_edge);
+            ::Swap(be_to_edge, fc_be_to_edge);
          if (Dim == 3)
             bel_to_edge = f_bel_to_edge;
       }
       if (el_to_face != NULL)
       {
          el_to_face = f_el_to_face;
-         Swap(faces_info, fc_faces_info);
+         ::Swap(faces_info, fc_faces_info);
       }
       NumOfVertices    = f_NumOfVertices;
       NumOfEdges       = f_NumOfEdges;
@@ -6346,14 +6285,14 @@ void Mesh::SetState(int s)
       {
          el_to_edge = c_el_to_edge;
          if (Dim == 2)
-            Swap(be_to_edge, fc_be_to_edge);
+            ::Swap(be_to_edge, fc_be_to_edge);
          if (Dim == 3)
             bel_to_edge = c_bel_to_edge;
       }
       if (el_to_face != NULL)
       {
          el_to_face = c_el_to_face;
-         Swap(faces_info, fc_faces_info);
+         ::Swap(faces_info, fc_faces_info);
       }
       NumOfVertices    = c_NumOfVertices;
       NumOfEdges       = c_NumOfEdges;
