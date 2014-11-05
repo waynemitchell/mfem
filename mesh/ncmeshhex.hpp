@@ -86,7 +86,7 @@ public:
    void MarkCoarseLevel() { leaf_elements.Copy(coarse_elements); }
 
    /** */
-   void GetFineTransforms(Array<FineTransform>& transforms);
+   FineTransform* GetFineTransforms();
 
    /// Return total number of bytes allocated.
    long MemoryUsage();
@@ -408,8 +408,7 @@ protected: // implementation
    };
 
    void GetFineTransforms(Element* elem, int coarse_index,
-                          Array<FineTransform>& transforms,
-                          const PointMatrix &pm);
+                          FineTransform *transforms, const PointMatrix &pm);
 
    // utility
 

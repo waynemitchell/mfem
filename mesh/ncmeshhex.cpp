@@ -1598,7 +1598,7 @@ void NCMeshHex::PointMatrix::GetMatrix(DenseMatrix& point_matrix) const
 }
 
 void NCMeshHex::GetFineTransforms(Element* elem, int coarse_index,
-                                  Array<FineTransform>& transforms,
+                                  FineTransform* transforms,
                                   const PointMatrix& pm)
 {
    if (!elem->ref_type)
@@ -1840,13 +1840,13 @@ void NCMeshHex::GetFineTransforms(Element* elem, int coarse_index,
    }
 }
 
-void NCMeshHex::GetFineTransforms(Array<FineTransform>& transforms)
+NCMeshHex::FineTransform* NCMeshHex::GetFineTransforms()
 {
    if (!coarse_elements.Size())
       mfem_error("You need to call MarkCoarseLevel before calling Refine and "
                  "GetFineTransformations.");
 
-   transforms.SetSize(leaf_elements.Size(), FineTransform());
+   FineTransform* transforms = new FineTransform[leaf_elements.Size()];
 
    // get transformations for fine elements, starting from coarse elements
    for (int i = 0; i < coarse_elements.Size(); i++)
@@ -1872,10 +1872,14 @@ void NCMeshHex::GetFineTransforms(Array<FineTransform>& transforms)
       }
       else
          mfem_error("NCMeshHex::GetFineTransforms: Bad geometry.");
+
+      // TODO: detect non-refined elements and return empty matrices as identities
    }
 
    // get rid of the coarse level array to save memory
    coarse_elements.DeleteAll();
+
+   return transforms;
 }
 
 
