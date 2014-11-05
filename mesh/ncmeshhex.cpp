@@ -354,7 +354,7 @@ NCMeshHex::Element::Element(int geom, int attr)
 {
    memset(node, 0, sizeof(node));
 
-   // NOTE: in 2D the 8-element node/child arrays are not optimal, however
+   // NOTE: in 2D the 8-element node/child arrays are not optimal, however,
    // testing shows we would only save 17% of the total NCMeshHex memory if
    // 4-element arrays were used (e.g. through templates); we thus prefer to
    // keep the code as simple as possible.
@@ -565,7 +565,7 @@ void NCMeshHex::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
 
       This function is recusive, because the above applies to any node along the
       middle vertical edge. The function calls itself again for the bottom and
-      uppper half of the above picture. */
+      upper half of the above picture. */
 
    Node* mid23 = nodes.Peek(v2, v3);
    Node* mid41 = nodes.Peek(v4, v1);
@@ -597,7 +597,7 @@ void NCMeshHex::CheckIsoFace(Node* v1, Node* v2, Node* v3, Node* v4,
    /* If anisotropic refinements are present in the mesh, we need to check
       isotropically split faces as well. The iso face can be thought to contain
       four anisotropic cases as in the function CheckAnisoFace, that still need
-      to be checked for the corrent parents. */
+      to be checked for the correct parents. */
 
    CheckAnisoFace(v1, v2, e2, e4, e1, midf);
    CheckAnisoFace(e4, e2, v3, v4, midf, e3);
@@ -1613,7 +1613,173 @@ void NCMeshHex::GetFineTransforms(Element* elem, int coarse_index,
    // recurse into the finer children, adjusting the point matrix
    if (elem->geom == Geometry::CUBE)
    {
-      mfem_error("TODO");
+       if (elem->ref_type == 1) // split along X axis
+       {
+          Point mid01(pm(0), pm(1)), mid23(pm(2), pm(3));
+          Point mid67(pm(6), pm(7)), mid45(pm(4), pm(5));
+
+          GetFineTransforms(elem->child[0], coarse_index, transforms,
+                            PointMatrix(pm(0), mid01, mid23, pm(3),
+                                        pm(4), mid45, mid67, pm(7)));
+
+          GetFineTransforms(elem->child[1], coarse_index, transforms,
+                            PointMatrix(mid01, pm(1), pm(2), mid23,
+                                        mid45, pm(5), pm(6), mid67));
+       }
+       else if (elem->ref_type == 2) // split along Y axis
+       {
+          Point mid12(pm(1), pm(2)), mid30(pm(3), pm(0));
+          Point mid56(pm(5), pm(6)), mid74(pm(7), pm(4));
+
+          GetFineTransforms(elem->child[0], coarse_index, transforms,
+                            PointMatrix(pm(0), pm(1), mid12, mid30,
+                                        pm(4), pm(5), mid56, mid74));
+
+          GetFineTransforms(elem->child[1], coarse_index, transforms,
+                            PointMatrix(mid30, mid12, pm(2), pm(3),
+                                        mid74, mid56, pm(6), pm(7)));
+       }
+       else if (elem->ref_type == 4) // split along Z axis
+       {
+          Point mid04(pm(0), pm(4)), mid15(pm(1), pm(5));
+          Point mid26(pm(2), pm(6)), mid37(pm(3), pm(7));
+
+          GetFineTransforms(elem->child[0], coarse_index, transforms,
+                            PointMatrix(pm(0), pm(1), pm(2), pm(3),
+                                        mid04, mid15, mid26, mid37));
+
+          GetFineTransforms(elem->child[1], coarse_index, transforms,
+                            PointMatrix(mid04, mid15, mid26, mid37,
+                                        pm(4), pm(5), pm(6), pm(7)));
+       }
+       else if (elem->ref_type == 3) // XY split
+       {
+           Point mid01(pm(0), pm(1)), mid12(pm(1), pm(2));
+           Point mid23(pm(2), pm(3)), mid30(pm(3), pm(0));
+           Point mid45(pm(4), pm(5)), mid56(pm(5), pm(6));
+           Point mid67(pm(6), pm(7)), mid74(pm(7), pm(4));
+
+           Point midf0(mid23, mid12, mid01, mid30);
+           Point midf5(mid45, mid56, mid67, mid74);
+
+           GetFineTransforms(elem->child[0], coarse_index, transforms,
+                             PointMatrix(pm(0), mid01, midf0, mid30,
+                                         pm(4), mid45, midf5, mid74));
+
+           GetFineTransforms(elem->child[1], coarse_index, transforms,
+                             PointMatrix(mid01, pm(1), mid12, midf0,
+                                         mid45, pm(5), mid56, midf5));
+
+           GetFineTransforms(elem->child[2], coarse_index, transforms,
+                             PointMatrix(midf0, mid12, pm(2), mid23,
+                                         midf5, mid56, pm(6), mid67));
+
+           GetFineTransforms(elem->child[3], coarse_index, transforms,
+                             PointMatrix(mid30, midf0, mid23, pm(3),
+                                         mid74, midf5, mid67, pm(7)));
+       }
+       else if (elem->ref_type == 5) // XZ split
+       {
+          Point mid01(pm(0), pm(1)), mid23(pm(2), pm(3));
+          Point mid45(pm(4), pm(5)), mid67(pm(6), pm(7));
+          Point mid04(pm(0), pm(4)), mid15(pm(1), pm(5));
+          Point mid26(pm(2), pm(6)), mid37(pm(3), pm(7));
+
+          Point midf1(mid01, mid15, mid45, mid04);
+          Point midf3(mid23, mid37, mid67, mid26);
+
+          GetFineTransforms(elem->child[0], coarse_index, transforms,
+                            PointMatrix(pm(0), mid01, mid23, pm(3),
+                                        mid04, midf1, midf3, mid37));
+
+          GetFineTransforms(elem->child[1], coarse_index, transforms,
+                            PointMatrix(mid01, pm(1), pm(2), mid23,
+                                        midf1, mid15, mid26, midf3));
+
+          GetFineTransforms(elem->child[2], coarse_index, transforms,
+                            PointMatrix(midf1, mid15, mid26, midf3,
+                                        mid45, pm(5), pm(6), mid67));
+
+          GetFineTransforms(elem->child[3], coarse_index, transforms,
+                            PointMatrix(mid04, midf1, midf3, mid37,
+                                        pm(4), mid45, mid67, pm(7)));
+       }
+       else if (elem->ref_type == 6) // YZ split
+       {
+           Point mid12(pm(1), pm(2)), mid30(pm(3), pm(0));
+           Point mid56(pm(5), pm(6)), mid74(pm(7), pm(4));
+           Point mid04(pm(0), pm(4)), mid15(pm(1), pm(5));
+           Point mid26(pm(2), pm(6)), mid37(pm(3), pm(7));
+
+           Point midf2(mid12, mid26, mid56, mid15);
+           Point midf4(mid30, mid04, mid74, mid37);
+
+           GetFineTransforms(elem->child[0], coarse_index, transforms,
+                             PointMatrix(pm(0), pm(1), mid12, mid30,
+                                         mid04, mid15, midf2, midf4));
+
+           GetFineTransforms(elem->child[1], coarse_index, transforms,
+                             PointMatrix(mid30, mid12, pm(2), pm(3),
+                                         midf4, midf2, mid26, mid37));
+
+           GetFineTransforms(elem->child[2], coarse_index, transforms,
+                             PointMatrix(mid04, mid15, midf2, midf4,
+                                         pm(4), pm(5), mid56, mid74));
+
+           GetFineTransforms(elem->child[3], coarse_index, transforms,
+                             PointMatrix(midf4, midf2, mid26, mid37,
+                                         mid74, mid56, pm(6), pm(7)));
+       }
+       else if (elem->ref_type == 7) // full isotropic refinement
+       {
+          Point mid01(pm(0), pm(1)), mid12(pm(1), pm(2));
+          Point mid23(pm(2), pm(3)), mid30(pm(3), pm(0));
+          Point mid45(pm(4), pm(5)), mid56(pm(5), pm(6));
+          Point mid67(pm(6), pm(7)), mid74(pm(7), pm(4));
+          Point mid04(pm(0), pm(4)), mid15(pm(1), pm(5));
+          Point mid26(pm(2), pm(6)), mid37(pm(3), pm(7));
+
+          Point midf0(mid23, mid12, mid01, mid30);
+          Point midf1(mid01, mid15, mid45, mid04);
+          Point midf2(mid12, mid26, mid56, mid15);
+          Point midf3(mid23, mid37, mid67, mid26);
+          Point midf4(mid30, mid04, mid74, mid37);
+          Point midf5(mid45, mid56, mid67, mid74);
+
+          Point midel(midf1, midf3);
+
+          GetFineTransforms(elem->child[0], coarse_index, transforms,
+                            PointMatrix(pm(0), mid01, midf0, mid30,
+                                        mid04, midf1, midel, midf4));
+
+          GetFineTransforms(elem->child[1], coarse_index, transforms,
+                            PointMatrix(mid01, pm(1), mid12, midf0,
+                                        midf1, mid15, midf2, midel));
+
+          GetFineTransforms(elem->child[2], coarse_index, transforms,
+                            PointMatrix(midf0, mid12, pm(2), mid23,
+                                        midel, midf2, mid26, midf3));
+
+          GetFineTransforms(elem->child[3], coarse_index, transforms,
+                            PointMatrix(mid30, midf0, mid23, pm(3),
+                                        midf4, midel, midf3, mid37));
+
+          GetFineTransforms(elem->child[4], coarse_index, transforms,
+                            PointMatrix(mid04, midf1, midel, midf4,
+                                        pm(4), mid45, midf5, mid74));
+
+          GetFineTransforms(elem->child[5], coarse_index, transforms,
+                            PointMatrix(midf1, mid15, midf2, midel,
+                                        mid45, pm(5), mid56, midf5));
+
+          GetFineTransforms(elem->child[6], coarse_index, transforms,
+                            PointMatrix(midel, midf2, mid26, midf3,
+                                        midf5, mid56, pm(6), mid67));
+
+          GetFineTransforms(elem->child[7], coarse_index, transforms,
+                            PointMatrix(midf4, midel, midf3, mid37,
+                                        mid74, midf5, mid67, pm(7)));
+       }
    }
    else if (elem->geom == Geometry::SQUARE)
    {

@@ -365,6 +365,14 @@ protected: // implementation
             coord[i] = (p0.coord[i] + p1.coord[i]) * 0.5;
       }
 
+      Point(const Point& p0, const Point& p1, const Point& p2, const Point& p3)
+      {
+         dim = p0.dim;
+         for (int i = 0; i < dim; i++)
+            coord[i] = (p0.coord[i] + p1.coord[i] + p2.coord[i] + p3.coord[i])
+                        * 0.25;
+      }
+
       Point& operator=(const Point& src)
       {
          dim = src.dim;
@@ -384,8 +392,9 @@ protected: // implementation
       PointMatrix(const Point& p0, const Point& p1, const Point& p2, const Point& p3)
       { np = 4; points[0] = p0; points[1] = p1; points[2] = p2; points[3] = p3; }
 
-      PointMatrix(const Point& p0, const Point& p1, const Point& p2, const Point& p3,
-                  const Point& p4, const Point& p5, const Point& p6, const Point& p7)
+      PointMatrix(const Point& p0, const Point& p1, const Point& p2,
+                  const Point& p3, const Point& p4, const Point& p5,
+                  const Point& p6, const Point& p7)
       {
          np = 8;
          points[0] = p0; points[1] = p1; points[2] = p2; points[3] = p3;
