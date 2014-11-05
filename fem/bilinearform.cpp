@@ -304,6 +304,8 @@ void BilinearForm::ConformingAssemble()
    mat->Finalize(0);
 
    SparseMatrix *P = fes->GetConformingProlongation();
+   if (!P) return; // assume conforming mesh
+
    SparseMatrix *R = Transpose(*P);
    SparseMatrix *RA = ::Mult(*R, *mat);
    delete R;

@@ -87,8 +87,15 @@ void LinearForm::Assemble()
 void LinearForm::ConformingAssemble(Vector &b)
 {
    SparseMatrix *P = fes->GetConformingProlongation();
-   b.SetSize(P->Width());
-   P->MultTranspose(*this, b);
+   if (P)
+   {
+      b.SetSize(P->Width());
+      P->MultTranspose(*this, b);
+   }
+   else
+   {
+      b = *this;
+   }
 }
 
 void LinearForm::Update(FiniteElementSpace *f, Vector &v, int v_offset)

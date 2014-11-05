@@ -1673,20 +1673,41 @@ GridFunction & GridFunction::operator=(const GridFunction &v)
    return this->operator=((const Vector &)v);
 }
 
+void GridFunction::ConformingProlongate(const Vector &x)
+{
+   const SparseMatrix *P = fes->GetConformingProlongation();
+   if (P)
+   {
+      P->Mult(x, *this);
+   }
+   else // assume conforming mesh
+   {
+      *this = x;
+   }
+}
+
 void GridFunction::ConformingProject(Vector &x) const
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
-   const int *I = P->GetI(), *J = P->GetJ(), s = P->Size();
-   const double *A = P->GetData();
-
-   x.SetSize(P->Width());
-
-   for (int i = 0, j = 0; i < s; i++)
+   if (P)
    {
-      const int end = I[i+1];
-      if (j + 1 == end) // exactly one entry in row i
-         x(J[j]) = (*this)(i) / A[j];
-      j = end;
+      const int *I = P->GetI(), *J = P->GetJ(), s = P->Size();
+      const double *A = P->GetData();
+
+      x.SetSize(P->Width());
+
+      for (int i = 0, j = 0; i < s; i++)
+      {
+         const int end = I[i+1];
+         if (j + 1 == end) // exactly one entry in row i
+            x(J[j]) = (*this)(i) / A[j];
+         j = end;
+      }
+   }
+   else // assume conforming mesh
+   {
+      x = *this;
+      return;
    }
 }
 

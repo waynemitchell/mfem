@@ -220,8 +220,7 @@ public:
 
    /** For partially conforming FE spaces, prolongate the conforming vector x
        to this partially conforming GridFunction. */
-   void ConformingProlongate(const Vector &x)
-   { fes->GetConformingProlongation()->Mult(x, *this); }
+   void ConformingProlongate(const Vector &x);
 
    /** For partially conforming FE spaces, project this partially conforming
        GridFunction onto the conforming vector x. */

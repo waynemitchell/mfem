@@ -116,9 +116,6 @@ public:
    SparseMatrix *GetConformingProlongation() { return cP; }
    const SparseMatrix *GetConformingProlongation() const { return cP; }
 
-   // DEBUG JAKUB!!!
-   void SetConformingProlongation(SparseMatrix* cP) { this->cP = cP; }
-
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }
 
@@ -297,6 +294,8 @@ public:
    virtual void Update();
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
+   /// Change the mesh pointer.
+   void UpdateMesh(Mesh* mesh) { this->mesh = mesh; }
 
    void Save (ostream &out) const;
 

@@ -267,13 +267,18 @@ SparseMatrix* FiniteElementSpace
    ::NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes, NCMeshHex* ncmesh)
 {
    Array<int> rows, cols, rs, cs;
+   LinearFECollection linfec;
 
-   Array<NCMeshHex::FineTransform> transforms;
-   ncmesh->GetFineTransforms(transforms);
+   NCMeshHex::FineTransform* transforms = ncmesh->GetFineTransforms();
 
    SparseMatrix* R = new SparseMatrix(cfes->GetVSize(), this->GetVSize());
 
-   // loop over the fine elements, interpolate what's on the coarse element
+   // we mark each fine DOF the first time its column is set so that slave node
+   // values don't get represented twice in R
+   Array<int> mark;
+   mark.SetSize(this->GetNDofs(), 0);
+
+   // loop over the fine elements, get interpolations of the coarse elements
    for (int k = 0; k < mesh->GetNE(); k++)
    {
       cfes->GetElementDofs(transforms[k].coarse_index, rows);
@@ -283,20 +288,46 @@ SparseMatrix* FiniteElementSpace
       const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
 
       IsoparametricTransformation trans;
-      trans.SetFE(fe);
+      trans.SetFE(linfec.FiniteElementForGeometry(geom));
       trans.GetPointMat() = transforms[k].point_matrix;
 
       DenseMatrix I(fe->GetDof());
       fe->GetLocalInterpolation(trans, I);
 
+      // make sure we don't set any column of R more than once
+      // TODO: simplify this?
+      for (int i = 0; i < I.Height(); i++)
+      {
+         if (mark[cols[i]])
+         {
+            // zero the i-th row
+            for (int j = 0; j < I.Width(); j++)
+               I(i,j) = 0;
+         }
+         else
+            mark[cols[i]] = 1;
+      }
+
       if (vdim == 1)
       {
+         R->SetSubMatrixTranspose(rows, cols, I, 1);
       }
       else
       {
+         int nr = rows.Size(), nc = cols.Size();
+         cfes->DofsToVDofs(rows);
+         DofsToVDofs(cols);
+         for (int d = 0; d < vdim; d++)
+         {
+            rows.GetSubArray(d*nr, nr, rs);
+            cols.GetSubArray(d*nc, nc, cs);
+            R->SetSubMatrixTranspose(rs, cs, I, 1);
+         }
       }
+      // TODO: detect non-refined elements and insert identities directly
    }
 
+   delete [] transforms;
    return R;
 }
 
@@ -324,16 +355,23 @@ void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
 void FiniteElementSpace::ConvertToConformingVDofs(const Array<int> &dofs,
                                                   Array<int> &cdofs)
 {
-   cdofs.SetSize(cP->Width());
-   cdofs = 0;
+   if (cP)
+   {
+      cdofs.SetSize(cP->Width());
+      cdofs = 0;
 
-   for (int i = 0; i < cP->Size(); i++)
-      if (dofs[i] < 0)
-      {
-         int *col = cP->GetRowColumns(i), n = cP->RowSize(i);
-         for (int j = 0; j < n; j++)
-            cdofs[col[j]] = -1;
-      }
+      for (int i = 0; i < cP->Size(); i++)
+         if (dofs[i] < 0)
+         {
+            int *col = cP->GetRowColumns(i), n = cP->RowSize(i);
+            for (int j = 0; j < n; j++)
+               cdofs[col[j]] = -1;
+         }
+   }
+   else
+   {
+      dofs.Copy(cdofs);
+   }
 }
 
 void FiniteElementSpace::EliminateEssentialBCFromGRM
