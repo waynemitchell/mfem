@@ -522,6 +522,10 @@ public:
 
    FaceElementTransformations *GetBdrFaceTransformations (int BdrElemNo);
 
+   bool FaceIsInterior(int FaceNo) const
+   {
+      return (faces_info[FaceNo].Elem2No >= 0);
+   }
    void GetFaceElements (int Face, int *Elem1, int *Elem2);
    void GetFaceInfos (int Face, int *Inf1, int *Inf2);
 
