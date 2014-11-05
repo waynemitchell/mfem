@@ -63,7 +63,7 @@ public:
        of anisotropic splits additional refinements may be necessary to keep
        the mesh consistent. However, the function always performas at least the
        requested refinements. */
-   void Refine(Array<NCRefinement>& refinements);
+   void Refine(const Array<NCRefinement> &refinements);
 
    /** Derefine -- not implemented yet */
    //void Derefine(Element* elem);

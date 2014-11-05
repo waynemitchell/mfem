@@ -993,14 +993,12 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
 }
 
 
-void NCMeshHex::Refine(Array<NCRefinement>& refinements)
+void NCMeshHex::Refine(const Array<NCRefinement>& refinements)
 {
-   UpdateLeafElements();
-
    // push all refinements on the stack in reverse order
    for (int i = refinements.Size()-1; i >= 0; i--)
    {
-      NCRefinement& ref = refinements[i];
+      const NCRefinement& ref = refinements[i];
       ref_stack.Append(RefStackItem(leaf_elements[ref.index], ref.ref_type));
    }
 
@@ -1026,6 +1024,8 @@ void NCMeshHex::Refine(Array<NCRefinement>& refinements)
 
    std::cout << "Refined " << refinements.Size() << " + " << nforced
              << " elements" << std::endl;
+
+   UpdateLeafElements();
 }
 
 
@@ -1658,7 +1658,19 @@ void NCMeshHex::GetFineTransforms(Element* elem, int coarse_index,
    }
    else if (elem->geom == Geometry::TRIANGLE)
    {
-      mfem_error("TODO");
+      Point mid01(pm(0), pm(1)), mid12(pm(1), pm(2)), mid20(pm(2), pm(0));
+
+      GetFineTransforms(elem->child[0], coarse_index, transforms,
+                        PointMatrix(pm(0), mid01, mid20));
+
+      GetFineTransforms(elem->child[1], coarse_index, transforms,
+                        PointMatrix(mid01, pm(1), mid12));
+
+      GetFineTransforms(elem->child[2], coarse_index, transforms,
+                        PointMatrix(mid20, mid12, pm(2)));
+
+      GetFineTransforms(elem->child[3], coarse_index, transforms,
+                        PointMatrix(mid01, mid12, mid20));
    }
 }
 
@@ -1668,7 +1680,7 @@ void NCMeshHex::GetFineTransforms(Array<FineTransform>& transforms)
       mfem_error("You need to call MarkCoarseLevel before calling Refine and "
                  "GetFineTransformations.");
 
-   transforms.SetSize(leaf_elements.Size());
+   transforms.SetSize(leaf_elements.Size(), FineTransform());
 
    // get transformations for fine elements, starting from coarse elements
    for (int i = 0; i < coarse_elements.Size(); i++)
@@ -1689,7 +1701,7 @@ void NCMeshHex::GetFineTransforms(Array<FineTransform>& transforms)
       }
       else if (c_elem->geom == Geometry::TRIANGLE)
       {
-         PointMatrix pm(Point(0,0), Point(1,0), Point(1,1));
+         PointMatrix pm(Point(0,0), Point(1,0), Point(0,1));
          GetFineTransforms(c_elem, i, transforms, pm);
       }
       else
