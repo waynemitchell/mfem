@@ -1237,6 +1237,14 @@ void NCMeshHex::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
    }
 }
 
+inline int decode_dof(int dof, double& sign)
+{
+   if (dof >= 0)
+      return (sign = 1.0, dof);
+   else
+      return (sign = -1.0, -1 - dof);
+}
+
 void NCMeshHex::AddDependencies(Array<int>& master_dofs,
                                 Array<int>& slave_dofs,
                                 DenseMatrix& I)
@@ -1244,7 +1252,8 @@ void NCMeshHex::AddDependencies(Array<int>& master_dofs,
    // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
    {
-      int sdof = slave_dofs[i];
+      double ssign;
+      int sdof = decode_dof(slave_dofs[i], ssign);
       DofData& sdata = dof_data[sdof];
 
       if (!sdata.dep_list.Size()) // not processed yet?
@@ -1254,9 +1263,10 @@ void NCMeshHex::AddDependencies(Array<int>& master_dofs,
             double coef = I(i, j);
             if (std::abs(coef) > 1e-12)
             {
-               int mdof = master_dofs[j];
+               double msign;
+               int mdof = decode_dof(master_dofs[j], msign);
                if (mdof != sdof)
-                  sdata.dep_list.Append(Dependency(mdof, coef));
+                  sdata.dep_list.Append(Dependency(mdof, coef * ssign * msign));
             }
          }
       }
