@@ -117,6 +117,24 @@ public:
    virtual void Mult(const Vector &x, Vector &y) const;
 };
 
+/// FGMRES method
+class FGMRESSolver : public IterativeSolver
+{
+protected:
+   int m;
+
+public:
+   FGMRESSolver() { m = 50; }
+
+#ifdef MFEM_USE_MPI
+   FGMRESSolver(MPI_Comm _comm) : IterativeSolver(_comm) { m = 50; }
+#endif
+
+   void SetKDim(int dim) { m = dim; }
+
+   virtual void Mult(const Vector &x, Vector &y) const;
+};
+
 /// GMRES method. (tolerances are squared)
 int GMRES(const Operator &A, Vector &x, const Vector &b, Solver &M,
           int &max_iter, int m, double &tol, double atol, int printit);
@@ -309,4 +327,3 @@ public:
 MFEM_NAMESPACE_END();
 
 #endif // MFEM_SOLVERS
-

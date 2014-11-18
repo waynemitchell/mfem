@@ -15,6 +15,37 @@
 
 MFEM_NAMESPACE_BEGIN();
 
+ElementTransformation::ElementTransformation():
+   JacobianIsEvaluated(0),
+   WeightIsEvaluated(0),
+   IntPoint(static_cast<IntegrationPoint *>(NULL)),
+   Attribute(-1),
+   ElementNo(-1)
+{
+
+}
+
+void IsoparametricTransformation::SetIdentityTransformation(int GeomType)
+{
+   switch (GeomType)
+   {
+   case Geometry::POINT :       FElem = &PointFE; break;
+   case Geometry::SEGMENT :     FElem = &SegmentFE; break;
+   case Geometry::TRIANGLE :    FElem = &TriangleFE; break;
+   case Geometry::SQUARE :      FElem = &QuadrilateralFE; break;
+   case Geometry::TETRAHEDRON : FElem = &TetrahedronFE; break;
+   case Geometry::CUBE :        FElem = &HexahedronFE; break;
+   default:
+      MFEM_ABORT("unknown Geometry::Type!");
+   }
+   int dim = FElem->GetDim();
+   int dof = FElem->GetDof();
+   const IntegrationRule &nodes = FElem->GetNodes();
+   PointMat.SetSize(dim, dof);
+   for (int j = 0; j < dof; j++)
+      nodes.IntPoint(j).Get(&PointMat(0,j), dim);
+}
+
 const DenseMatrix & IsoparametricTransformation::Jacobian()
 {
    if (JacobianIsEvaluated)  return dFdx;

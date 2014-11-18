@@ -24,6 +24,12 @@ void ParLinearForm::Update(ParFiniteElementSpace *pf)
    LinearForm::Update(pfes);
 }
 
+void ParLinearForm::Update(ParFiniteElementSpace *pf, Vector &v, int v_offset)
+{
+   pfes = pf;
+   LinearForm::Update(pf,v,v_offset);
+}
+
 void ParLinearForm::ParallelAssemble(Vector &tv)
 {
    pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);

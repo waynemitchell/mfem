@@ -525,12 +525,12 @@ void Vector::Randomize(int seed)
       data[i] = fabs(rand()/max);
 }
 
-double Vector::Norml2()
+double Vector::Norml2() const
 {
    return sqrt((*this)*(*this));
 }
 
-double Vector::Normlinf()
+double Vector::Normlinf() const
 {
    double max = fabs(data[0]);
 
@@ -541,7 +541,7 @@ double Vector::Normlinf()
    return max;
 }
 
-double Vector::Norml1()
+double Vector::Norml1() const
 {
    double sum = 0.0;
 
@@ -551,7 +551,7 @@ double Vector::Norml1()
    return sum;
 }
 
-double Vector::Max()
+double Vector::Max() const
 {
    double max = data[0];
 
@@ -562,7 +562,7 @@ double Vector::Max()
    return max;
 }
 
-double Vector::Min()
+double Vector::Min() const
 {
    double min = data[0];
 
@@ -573,7 +573,7 @@ double Vector::Min()
    return min;
 }
 
-double Vector::Sum()
+double Vector::Sum() const
 {
    double sum = 0.0;
 

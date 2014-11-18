@@ -601,6 +601,12 @@ void MixedBilinearForm::EliminateTrialDofs (
    mat -> EliminateCols (cols_marker, &sol, &rhs);
 }
 
+void MixedBilinearForm::EliminateEssentialBCFromTrialDofs (
+   Array<int> &marked_vdofs, Vector &sol, Vector &rhs)
+{
+   mat -> EliminateCols (marked_vdofs, &sol, &rhs);
+}
+
 void MixedBilinearForm::EliminateTestDofs (Array<int> &bdr_attr_is_ess)
 {
    int i, j, k;

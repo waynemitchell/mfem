@@ -300,7 +300,7 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
    }
    else
    {
-      if (side == 1 && Transf->Elem2No < 0)
+      if (side == 1 && !fes->GetMesh()->FaceIsInterior(i))
          di = 0;
       else
          di = side;

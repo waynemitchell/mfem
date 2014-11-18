@@ -265,6 +265,8 @@ public:
    void EliminateTrialDofs (Array<int> &bdr_attr_is_ess,
                             Vector &sol, Vector &rhs);
 
+   void EliminateEssentialBCFromTrialDofs ( Array<int> &marked_vdofs, Vector &sol, Vector &rhs);
+
    virtual void EliminateTestDofs (Array<int> &bdr_attr_is_ess);
 
    void Update();
