@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// A pair of objects
 template <class A, class B>
@@ -67,6 +68,6 @@ void SortTriple (Triple<A, B, C> *triples, int size)
       qsort (triples, size, sizeof(Triple<A, B, C>), CompareTriple<A, B, C>);
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

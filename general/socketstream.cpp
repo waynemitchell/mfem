@@ -18,7 +18,8 @@
 #include <sys/socket.h> // socket, setsockopt, connect, recv, send
 #include <unistd.h>     // close
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 int socketbuf::attach(int sd)
 {
@@ -241,4 +242,4 @@ int socketserver::accept(socketstream &sockstr)
    return socketd;
 }
 
-MFEM_NAMESPACE_END();
+}

@@ -14,7 +14,8 @@
 #include <cmath>
 #include "linalg.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -1548,4 +1549,4 @@ UMFPackSolver::~UMFPackSolver()
 
 #endif // MFEM_USE_SUITESPARSE
 
-MFEM_NAMESPACE_END();
+}

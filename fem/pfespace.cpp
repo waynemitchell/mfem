@@ -16,7 +16,8 @@
 #include "fem.hpp"
 #include "../general/sort_pairs.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
    : FiniteElementSpace(pf)
@@ -827,6 +828,6 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
    return cpfes;
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

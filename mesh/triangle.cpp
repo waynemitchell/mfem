@@ -12,7 +12,8 @@
 
 #include "mesh_headers.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 const int Triangle::edges[3][2] = {{0, 1}, {1, 2}, {2, 0}};
 
@@ -117,4 +118,4 @@ void Triangle::GetVertices(Array<int> &v) const
 
 Linear2DFiniteElement TriangleFE;
 
-MFEM_NAMESPACE_END();
+}

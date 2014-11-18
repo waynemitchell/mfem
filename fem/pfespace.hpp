@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Abstract parallel finite element space.
 class ParFiniteElementSpace : public FiniteElementSpace
@@ -160,6 +161,6 @@ public:
    virtual ~ParFiniteElementSpace() { delete gcomm; delete P; }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

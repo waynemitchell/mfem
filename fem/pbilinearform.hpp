@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Class for parallel bilinear form
 class ParBilinearForm : public BilinearForm
@@ -103,6 +104,6 @@ public:
    virtual ~ParDiscreteLinearOperator() { }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

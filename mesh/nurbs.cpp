@@ -11,7 +11,8 @@
 
 #include "../fem/fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -2826,4 +2827,4 @@ void NURBSPatchMap::SetBdrPatchDofMap(int p, KnotVector *kv[],  int *okv)
    }
 }
 
-MFEM_NAMESPACE_END();
+}

@@ -23,7 +23,8 @@
 #include "../fem/fem.hpp"
 #include "../general/sort_pairs.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -8266,4 +8267,4 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
    return mesh2d;
 }
 
-MFEM_NAMESPACE_END();
+}

@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Abstract base class LinearFormIntegrator
 class LinearFormIntegrator
@@ -307,6 +308,6 @@ public:
                                        Vector &elvect);
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

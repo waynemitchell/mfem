@@ -17,7 +17,8 @@
 #include <mpi.h>
 #endif
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void mfem_error (const char *msg)
 {
@@ -35,4 +36,4 @@ void mfem_error (const char *msg)
 
 }
 
-MFEM_NAMESPACE_END();
+}

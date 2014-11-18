@@ -15,7 +15,8 @@
 
 #include "fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void ParNonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
                                       Vector *rhs)
@@ -85,6 +86,6 @@ Operator &ParNonlinearForm::GetGradient(const Vector &x) const
    return *pGrad;
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

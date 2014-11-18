@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /** Types of domains for integration rules and reference finite elements:
     Geometry::POINT    - a point
@@ -88,6 +89,6 @@ public:
 
 extern GeometryRefiner GlobGeometryRefiner;
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

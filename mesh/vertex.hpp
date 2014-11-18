@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Data type for vertex
 class Vertex
@@ -45,6 +46,6 @@ public:
    ~Vertex() { }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

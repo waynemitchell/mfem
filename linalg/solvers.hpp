@@ -18,7 +18,8 @@
 #include <umfpack.h>
 #endif
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Abstract base class for iterative solver
 class IterativeSolver : public Solver
@@ -324,6 +325,6 @@ public:
 
 #endif // MFEM_USE_SUITESPARSE
 
-MFEM_NAMESPACE_END();
+}
 
 #endif // MFEM_SOLVERS

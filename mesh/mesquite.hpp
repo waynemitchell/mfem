@@ -18,7 +18,8 @@
 
 #include "Mesquite_all_headers.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace Mesquite;
 
@@ -209,24 +210,24 @@ private:
 
    // data members
 private:
-   int ndofs;                       // number of nodes (or vertices) in mesh
-   int nelems;                      // number of elements in mesh
-   MFEM_NAMESPACE::Mesh *mesh;      // pointer to mfem mesh object
-   MFEM_NAMESPACE::Element *elem;       // pointer to mfem element object
-   MFEM_NAMESPACE::GridFunction *nodes; // pointer to mfem grid function object
-                                        // for nodes
-   MFEM_NAMESPACE::FiniteElementSpace *fes; // pointer to mfem finite element
-                                            // space object
-   MFEM_NAMESPACE::Table *dof_elem;         // dof to element table
-   std::vector<char> mByte;   // length = ndofs
-   std::vector<bool> mFixed;  // length = ndofs
+   int ndofs;                      // number of nodes (or vertices) in mesh
+   int nelems;                     // number of elements in mesh
+   mfem::Mesh *mesh;               // pointer to mfem mesh object
+   mfem::Element *elem;            // pointer to mfem element object
+   mfem::GridFunction *nodes;      // pointer to mfem grid function object
+                                   // for nodes
+   mfem::FiniteElementSpace *fes;  // pointer to mfem finite element
+                                   // space object
+   mfem::Table *dof_elem;          // dof to element table
+   std::vector<char> mByte;        // length = ndofs
+   std::vector<bool> mFixed;       // length = ndofs
 
    MeshTags* myTags;
 
 public:
 
    // The constructor
-   MesquiteMesh(MFEM_NAMESPACE::Mesh *mfem_mesh);
+   MesquiteMesh(mfem::Mesh *mfem_mesh);
 
    // The mesh dimension
    int get_geometric_dimension(MsqError &err);
@@ -345,7 +346,7 @@ public:
    void release(){};
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif
 

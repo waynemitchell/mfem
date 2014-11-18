@@ -18,7 +18,8 @@
 #include <cmath>
 #include <iostream>
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /** Count the number of entries in an array of doubles for which isfinite
     is false, i.e. the entry is a NaN or +/-Inf. */
@@ -194,10 +195,7 @@ public:
 
    /** Count the number of entries in the Vector for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */
-   int CheckFinite() const
-   {
-      return MFEM_NAMESPACE::CheckFinite(data, size);
-   }
+   int CheckFinite() const { return mfem::CheckFinite(data, size); }
 
    /// Destroys vector.
    ~Vector ();
@@ -299,6 +297,6 @@ inline double Distance(const double *x, const double *y, const int n)
    return sqrt(d);
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

@@ -12,7 +12,8 @@
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -2044,4 +2045,4 @@ NonconformingMesh::~NonconformingMesh()
          data_manager->FreeVertex(c_verts[i]);
 }
 
-MFEM_NAMESPACE_END();
+}

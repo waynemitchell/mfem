@@ -12,7 +12,8 @@
 
 #include "mesh_headers.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 const int Quadrilateral::edges[4][2] =
 {{0, 1}, {1, 2}, {2, 3}, {3, 0}};
@@ -47,4 +48,4 @@ void Quadrilateral::GetVertices( Array<int> &v ) const {
 
 BiLinear2DFiniteElement QuadrilateralFE;
 
-MFEM_NAMESPACE_END();
+}

@@ -13,7 +13,8 @@
 #include <cmath>
 #include "fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 ElementTransformation::ElementTransformation():
    JacobianIsEvaluated(0),
@@ -175,4 +176,4 @@ void IntegrationPointTransformation::Transform (const IntegrationRule &ir1,
       Transform (ir1.IntPoint(i), ir2.IntPoint(i));
 }
 
-MFEM_NAMESPACE_END();
+}

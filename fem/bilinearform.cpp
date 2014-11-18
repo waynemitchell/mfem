@@ -14,7 +14,8 @@
 #include "fem.hpp"
 #include <cmath>
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void BilinearForm::AllocMat()
 {
@@ -34,18 +35,18 @@ void BilinearForm::AllocMat()
       Table face_dof, dof_face;
       {
          Table *face_elem = fes->GetMesh()->GetFaceToElementTable();
-         MFEM_NAMESPACE::Mult(*face_elem, elem_dof, face_dof);
+         mfem::Mult(*face_elem, elem_dof, face_dof);
          delete face_elem;
       }
       Transpose(face_dof, dof_face, size);
-      MFEM_NAMESPACE::Mult(dof_face, face_dof, dof_dof);
+      mfem::Mult(dof_face, face_dof, dof_dof);
    }
    else
    {
       // the sparsity pattern is defined from the map: element->dof
       Table dof_elem;
       Transpose(elem_dof, dof_elem, size);
-      MFEM_NAMESPACE::Mult(dof_elem, elem_dof, dof_dof);
+      mfem::Mult(dof_elem, elem_dof, dof_dof);
    }
 
    int *I = dof_dof.GetI();
@@ -307,10 +308,10 @@ void BilinearForm::ConformingAssemble()
 
    SparseMatrix *P = fes->GetConformingProlongation();
    SparseMatrix *R = Transpose(*P);
-   SparseMatrix *RA = MFEM_NAMESPACE::Mult(*R, *mat);
+   SparseMatrix *RA = mfem::Mult(*R, *mat);
    delete R;
    delete mat;
-   mat = MFEM_NAMESPACE::Mult(*RA, *P);
+   mat = mfem::Mult(*RA, *P);
    delete RA;
 
    size = mat->Size();
@@ -672,4 +673,4 @@ void DiscreteLinearOperator::Assemble(int skip_zeros)
       }
 }
 
-MFEM_NAMESPACE_END();
+}

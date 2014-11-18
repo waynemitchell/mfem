@@ -16,7 +16,8 @@
 #include "../fem/fem.hpp"
 #include "mesquite.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -419,7 +420,7 @@ MesquiteMesh::MeshTags::TagIterator MesquiteMesh::MeshTags::TagIterator::operato
 //
 // MesquiteMesh implementation follows
 //
-MesquiteMesh::MesquiteMesh(MFEM_NAMESPACE::Mesh *mfem_mesh)
+MesquiteMesh::MesquiteMesh(mfem::Mesh *mfem_mesh)
    :   myTags( new MeshTags )
 {
    mesh = mfem_mesh;
@@ -772,7 +773,7 @@ void MesquiteMesh::tag_get_vertex_data(  TagHandle handle,
                             err );  MSQ_CHKERR(err);
 }
 
-static void BoundaryPreservingOptimization(MFEM_NAMESPACE::MesquiteMesh &mesh)
+static void BoundaryPreservingOptimization(mfem::MesquiteMesh &mesh)
 {
 
    MsqDebug::enable(1);
@@ -1047,9 +1048,9 @@ static void BoundaryPreservingOptimization(MFEM_NAMESPACE::MesquiteMesh &mesh)
 
 // Implementation of Mesh::MesquiteSmooth method
 
-void MFEM_NAMESPACE::Mesh::MesquiteSmooth(const int mesquite_option)
+void mfem::Mesh::MesquiteSmooth(const int mesquite_option)
 {
-   MFEM_NAMESPACE::MesquiteMesh msq_mesh(this);
+   mfem::MesquiteMesh msq_mesh(this);
    MsqDebug::enable(1);
    MsqPrintError err(cerr);
 
@@ -1088,6 +1089,6 @@ void MFEM_NAMESPACE::Mesh::MesquiteSmooth(const int mesquite_option)
    }
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

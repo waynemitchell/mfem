@@ -14,7 +14,8 @@
 
 #include "array.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 BaseArray::BaseArray(int asize, int ainc, int elementsize)
 {
@@ -144,4 +145,4 @@ int Array<T>::IsSorted()
 template class Array<int>;
 template class Array<double>;
 
-MFEM_NAMESPACE_END();
+}

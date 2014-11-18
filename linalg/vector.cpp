@@ -19,7 +19,8 @@
 
 #include "vector.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 Vector::Vector(const Vector &v)
 {
@@ -588,4 +589,4 @@ double Vector::DistanceTo(const double *p) const
    return Distance(data, p, size);
 }
 
-MFEM_NAMESPACE_END();
+}

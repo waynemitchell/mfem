@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /** The abstract base class NonlinearFormIntegrator is used to express the
     local action of a general nonlinear finite element operator. In addition
@@ -150,6 +151,6 @@ public:
    virtual ~HyperelasticNLFIntegrator();
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

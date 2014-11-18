@@ -14,7 +14,8 @@
 #include <cstring>
 #include <cstdio>
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -1710,4 +1711,4 @@ int *NURBSFECollection::DofOrderForOrientation(int GeomType, int Or) const
    return NULL;
 }
 
-MFEM_NAMESPACE_END();
+}

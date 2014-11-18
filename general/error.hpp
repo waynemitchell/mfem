@@ -16,11 +16,12 @@
 #include <sstream>
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void mfem_error (const char *msg = NULL);
 
-MFEM_NAMESPACE_END();
+}
 
 // This is nice because it shows the class and method name
 #define _MFEM_FUNC_NAME __PRETTY_FUNCTION__

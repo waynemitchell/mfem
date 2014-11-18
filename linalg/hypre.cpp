@@ -23,7 +23,8 @@
 
 using namespace std;
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 HypreParVector::HypreParVector(MPI_Comm comm, int glob_size,
                                int *col) : Vector()
@@ -1943,6 +1944,6 @@ HypreADS::~HypreADS()
    delete ND_Piz;
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

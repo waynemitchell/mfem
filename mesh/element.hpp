@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class Mesh;
 
@@ -183,6 +184,6 @@ public:
 extern MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

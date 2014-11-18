@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class Mesh;
 
@@ -414,6 +415,6 @@ public:
 double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
                      const IntegrationRule *irs[]);
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

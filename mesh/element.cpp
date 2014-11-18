@@ -11,7 +11,8 @@
 
 #include "mesh_headers.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void Element::SetVertices(const int *ind)
 {
@@ -24,4 +25,4 @@ void Element::SetVertices(const int *ind)
       v[i] = ind[i];
 }
 
-MFEM_NAMESPACE_END();
+}

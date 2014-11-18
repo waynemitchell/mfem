@@ -14,7 +14,8 @@
 
 #include "socketstream.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /** Data type for output socket stream class. The class is used as client
     to send data to a server on a specified port number. One object of the
@@ -41,6 +42,6 @@ public:
    virtual ~osockstream() { }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

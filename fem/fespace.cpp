@@ -16,7 +16,8 @@
 
 using namespace std;
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 int FiniteElementSpace::GetOrder(int i) const
 {
@@ -1019,4 +1020,4 @@ void FiniteElementSpace::Save(std::ostream &out) const
        << "Ordering: " << ordering << '\n';
 }
 
-MFEM_NAMESPACE_END();
+}

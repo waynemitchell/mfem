@@ -13,7 +13,8 @@
 #include <cstdlib>
 #include "sort_pairs.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 template <class A, class B>
 int ComparePairs (const void *_p, const void *_q)
@@ -44,4 +45,4 @@ template void SortPairs<int, int> (Pair<int, int> *, int );
 template void SortPairs<double, int> (Pair<double, int> *, int );
 template void SortPairs<int, double> (Pair<int, double> *, int );
 
-MFEM_NAMESPACE_END();
+}

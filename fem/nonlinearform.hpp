@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class NonlinearForm : public Operator
 {
@@ -55,6 +56,6 @@ public:
    virtual ~NonlinearForm();
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

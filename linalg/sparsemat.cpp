@@ -19,7 +19,8 @@
 #include "../general/table.hpp"
 #include "../general/sort_pairs.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -2189,4 +2190,4 @@ void Swap(SparseMatrix & A, SparseMatrix & B)
 #endif
 }
 
-MFEM_NAMESPACE_END();
+}

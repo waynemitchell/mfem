@@ -23,7 +23,8 @@
 #endif
 #endif
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Timing object
 class StopWatch
@@ -61,6 +62,6 @@ extern void tic();
 /// End timing
 extern double toc();
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

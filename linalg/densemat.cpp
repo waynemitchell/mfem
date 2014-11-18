@@ -24,7 +24,8 @@
 #include "densemat.hpp"
 #include "../general/table.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -2402,7 +2403,7 @@ void DenseMatrix::TestInversion()
 {
    DenseMatrix copy(*this), C(size);
    Invert();
-   MFEM_NAMESPACE::Mult(*this, copy, C);
+   mfem::Mult(*this, copy, C);
 
    double i_max = 0.;
    for (int j = 0; j < size; j++)
@@ -3345,4 +3346,4 @@ void DenseTensor::AddMult(const Table &elem_dof, const Vector &x, Vector &y)
    }
 }
 
-MFEM_NAMESPACE_END();
+}

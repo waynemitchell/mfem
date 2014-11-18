@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Data type hexahedron element
 class Hexahedron : public Element
@@ -57,6 +58,6 @@ public:
 
 extern TriLinear3DFiniteElement HexahedronFE;
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

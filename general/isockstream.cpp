@@ -22,7 +22,8 @@
 
 using namespace std;
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 isockstream::isockstream(int port)
 {
@@ -149,4 +150,4 @@ isockstream::~isockstream()
       close(portID);
 }
 
-MFEM_NAMESPACE_END();
+}

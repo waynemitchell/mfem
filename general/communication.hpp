@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class GroupTopology
 {
@@ -122,6 +123,6 @@ public:
    ~GroupCommunicator();
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

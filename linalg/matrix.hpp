@@ -15,7 +15,8 @@
 #include <iostream>
 #include "operator.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 // Abstract data types matrix, inverse matrix
 
@@ -60,6 +61,6 @@ public:
       : Solver(mat.size) { }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

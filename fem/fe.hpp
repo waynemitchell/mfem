@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 // Base and derived classes for finite elements
 
@@ -1980,6 +1981,6 @@ public:
                            DenseMatrix &dshape) const;
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

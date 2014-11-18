@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Data type line segment element
 class Segment : public Element
@@ -57,6 +58,6 @@ public:
 
 extern Linear1DFiniteElement SegmentFE;
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

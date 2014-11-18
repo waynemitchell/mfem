@@ -12,7 +12,8 @@
 
 #include "mesh_headers.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 Point::Point( const int *ind, int attr ) : Element(Geometry::POINT) {
    attribute = attr;
@@ -28,4 +29,4 @@ PointFiniteElement PointFE;
 
 int RefinedElement::State = RefinedElement::FINE;
 
-MFEM_NAMESPACE_END();
+}

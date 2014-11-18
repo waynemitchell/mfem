@@ -11,7 +11,8 @@
 
 #include "fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void NonlinearFormIntegrator::AssembleElementGrad(
    const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun,
@@ -334,4 +335,4 @@ HyperelasticNLFIntegrator::~HyperelasticNLFIntegrator()
    PMatO.ClearExternalData();
 }
 
-MFEM_NAMESPACE_END();
+}

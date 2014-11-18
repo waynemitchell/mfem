@@ -19,7 +19,8 @@
 #include "../config.hpp"
 #include "error.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Base class for array container.
 class BaseArray
@@ -517,6 +518,6 @@ inline T &Array3D<T>::operator()(int i, int j, int k)
    return array1d[(i*N2+j)*N3+k];
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

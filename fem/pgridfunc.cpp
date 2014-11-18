@@ -18,7 +18,8 @@
 #include <limits>
 using namespace std;
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf)
 {
@@ -390,6 +391,6 @@ void ParGridFunction::SaveAsOne(std::ostream &out)
    delete [] nrdofs;
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

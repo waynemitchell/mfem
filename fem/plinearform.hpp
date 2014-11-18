@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Class for parallel linear form
 class ParLinearForm : public LinearForm
@@ -38,6 +39,6 @@ public:
    HypreParVector *ParallelAssemble();
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

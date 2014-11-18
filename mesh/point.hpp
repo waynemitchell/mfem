@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Data type point element
 class Point : public Element
@@ -51,6 +52,6 @@ public:
 
 extern PointFiniteElement PointFE;
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

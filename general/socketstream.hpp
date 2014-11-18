@@ -15,7 +15,8 @@
 #include <iostream>
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class socketbuf : public std::streambuf
 {
@@ -119,6 +120,6 @@ public:
    ~socketserver() { close(); }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

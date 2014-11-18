@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 template <class Elem, int Num>
 class StackPart
@@ -150,6 +151,6 @@ void MemAlloc <Elem, Num>::Clear()
    UsedMem.Clear();
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Abstract base class BilinearFormIntegrator
 class BilinearFormIntegrator : public NonlinearFormIntegrator
@@ -637,6 +638,6 @@ public:
    { ran_fe.ProjectDiv(dom_fe, Trans, elmat); }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

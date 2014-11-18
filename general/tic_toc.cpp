@@ -16,7 +16,8 @@
 #include <unistd.h>
 #endif
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 StopWatch::StopWatch()
 {
@@ -210,4 +211,4 @@ double toc()
    return tic_toc.UserTime();
 }
 
-MFEM_NAMESPACE_END();
+}

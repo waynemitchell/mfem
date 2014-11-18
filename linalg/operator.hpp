@@ -15,7 +15,8 @@
 #include <iostream>
 #include "vector.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Abstract operator
 class Operator
@@ -127,6 +128,6 @@ public:
    ~TransposeOperator() { }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

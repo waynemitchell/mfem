@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Data type tetrahedron element
 class Tetrahedron : public Element
@@ -88,6 +89,6 @@ public:
 
 extern Linear3DFiniteElement TetrahedronFE;
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

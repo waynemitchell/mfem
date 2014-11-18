@@ -12,7 +12,8 @@
 
 #include "mesh_headers.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 Segment::Segment( const int *ind, int attr ) : Element(Geometry::SEGMENT) {
    attribute = attr;
@@ -39,4 +40,4 @@ void Segment::GetVertices( Array<int> &v ) const {
 
 Linear1DFiniteElement SegmentFE;
 
-MFEM_NAMESPACE_END();
+}

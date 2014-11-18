@@ -14,7 +14,8 @@
 
 #include "mem_alloc.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class STable3DNode
 {
@@ -52,6 +53,6 @@ public:
    ~STable3D ();
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

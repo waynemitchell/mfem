@@ -11,7 +11,8 @@
 
 #include "osockstream.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 osockstream::osockstream(int port, const char *hostname)
    : socketstream(hostname, port)
@@ -21,4 +22,4 @@ osockstream::osockstream(int port, const char *hostname)
                 << hostname << '\n';
 }
 
-MFEM_NAMESPACE_END();
+}

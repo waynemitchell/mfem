@@ -14,7 +14,8 @@
 #include "sets.hpp"
 
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 IntegerSet::IntegerSet(IntegerSet &s)
    : me(s.me.Size())
@@ -115,4 +116,4 @@ ListOfIntegerSets::~ListOfIntegerSets()
       delete TheList[i];
 }
 
-MFEM_NAMESPACE_END();
+}

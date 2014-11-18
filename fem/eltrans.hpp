@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class ElementTransformation
 {
@@ -90,6 +91,6 @@ public:
    IntegrationPointTransformation Loc1, Loc2;
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

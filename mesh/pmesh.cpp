@@ -20,7 +20,8 @@
 #include <iostream>
 using namespace std;
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                  int part_method)
@@ -3218,6 +3219,6 @@ ParMesh::~ParMesh()
    // The Mesh destructor is called automatically
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

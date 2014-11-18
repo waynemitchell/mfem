@@ -15,7 +15,8 @@
 #include "vector.hpp"
 #include "operator.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void Operator::PrintMatlab (std::ostream & out, int n, int m)
 {
@@ -39,4 +40,4 @@ void Operator::PrintMatlab (std::ostream & out, int n, int m)
    }
 }
 
-MFEM_NAMESPACE_END();
+}

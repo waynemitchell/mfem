@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class SparseSmoother : public MatrixInverse
 {
@@ -71,6 +72,6 @@ public:
    virtual void Mult(const Vector &x, Vector &y) const;
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

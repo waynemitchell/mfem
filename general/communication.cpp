@@ -22,7 +22,8 @@
 #include <iostream>
 using namespace std;
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void GroupTopology::ProcToLProc()
 {
@@ -466,6 +467,6 @@ template void GroupCommunicator::Sum<double>(OpData<double>);
 template void GroupCommunicator::Min<double>(OpData<double>);
 template void GroupCommunicator::Max<double>(OpData<double>);
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

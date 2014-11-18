@@ -14,7 +14,8 @@
 #include <cmath>
 #include "fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -9972,4 +9973,4 @@ void NURBS3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    }
 }
 
-MFEM_NAMESPACE_END();
+}

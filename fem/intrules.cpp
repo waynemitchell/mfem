@@ -20,7 +20,8 @@
 
 using namespace std;
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry)
 {
@@ -864,4 +865,4 @@ IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
    return CubeIntRules[i];
 }
 
-MFEM_NAMESPACE_END();
+}

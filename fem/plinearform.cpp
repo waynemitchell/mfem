@@ -15,7 +15,8 @@
 
 #include "fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void ParLinearForm::Update(ParFiniteElementSpace *pf)
 {
@@ -42,6 +43,6 @@ HypreParVector *ParLinearForm::ParallelAssemble()
    return tv;
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

@@ -11,7 +11,8 @@
 
 #include "fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void NonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
                                    Vector *rhs)
@@ -135,4 +136,4 @@ NonlinearForm::~NonlinearForm()
       delete dfi[i];
 }
 
-MFEM_NAMESPACE_END();
+}

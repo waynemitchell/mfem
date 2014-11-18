@@ -12,7 +12,8 @@
 
 #include "vertex.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 Vertex::Vertex (double *xx, int dim)
 {
@@ -20,4 +21,4 @@ Vertex::Vertex (double *xx, int dim)
       coord[i] = xx[i];
 }
 
-MFEM_NAMESPACE_END();
+}

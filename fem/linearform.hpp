@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Class for linear form - Vector with asociated FE space and LFIntegrators.
 class LinearForm : public Vector
@@ -65,6 +66,6 @@ public:
    ~LinearForm();
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

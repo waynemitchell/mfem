@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Data type quadrilateral element
 class Quadrilateral : public Element
@@ -59,6 +60,6 @@ public:
 
 extern BiLinear2DFiniteElement QuadrilateralFE;
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

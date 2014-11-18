@@ -12,7 +12,8 @@
 
 #include "mesh_headers.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 const int Hexahedron::edges[12][2] =
 {{0, 1}, {1, 2}, {3, 2}, {0, 3},
@@ -51,4 +52,4 @@ void Hexahedron::GetVertices(Array<int> &v) const
 
 TriLinear3DFiniteElement HexahedronFE;
 
-MFEM_NAMESPACE_END();
+}

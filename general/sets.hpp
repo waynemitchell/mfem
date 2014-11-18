@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// A set of integers
 class IntegerSet
@@ -65,6 +66,6 @@ public:
    ~ListOfIntegerSets();
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

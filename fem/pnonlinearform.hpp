@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Parallel non-linear operator on the true dofs
 class ParNonlinearForm : public NonlinearForm
@@ -48,6 +49,6 @@ public:
    virtual ~ParNonlinearForm() { delete pGrad; }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

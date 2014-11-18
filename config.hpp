@@ -12,15 +12,36 @@
 #ifndef MFEM_CONFIG_HEADER
 #define MFEM_CONFIG_HEADER
 
-// Namespace configuration and macros
-#ifdef MFEM_USE_NAMESPACE
-#define MFEM_NAMESPACE mfem
-#define MFEM_NAMESPACE_BEGIN() namespace MFEM_NAMESPACE {
-#define MFEM_NAMESPACE_END() }
-#else
-#define MFEM_NAMESPACE
-#define MFEM_NAMESPACE_BEGIN()
-#define MFEM_NAMESPACE_END()
-#endif
+// Build the parallel MFEM library.
+// Requires an MPI compiler, and the libraries HYPRE and METIS.
+// #define MFEM_USE_MPI
+
+// Enable this option if linking with METIS version 5 (parallel MFEM).
+// #define MFEM_USE_METIS_5
+
+// Enable debug checks in MFEM.
+// #define MFEM_DEBUG
+
+// Use high-resolution POSIX clocks in class StopWatch, link with -lrt.
+// #define MFEM_USE_POSIX_CLOCKS
+
+// Use LAPACK routines for various dense linear algebra operations.
+// #define MFEM_USE_LAPACK
+
+// Use thread-safe implementation. This comes at the cost of extra memory
+// allocation and de-allocation.
+// #define MFEM_THREAD_SAFE
+
+// Enable experimental OpenMP support. Requires MFEM_THREAD_SAFE.
+// #define MFEM_USE_OPENMP
+
+// Enable MFEM functionality based on the Mesquite library.
+// #define MFEM_USE_MESQUITE
+
+// Enable MFEM functionality based on the SuiteSparse library.
+// #define MFEM_USE_SUITESPARSE
+
+// Internal MFEM option: enable group/batch allocation for some small objects.
+// #define MFEM_USE_MEMALLOC
 
 #endif

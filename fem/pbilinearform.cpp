@@ -15,7 +15,8 @@
 
 #include "fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void ParBilinearForm::pAllocMat()
 {
@@ -63,9 +64,9 @@ void ParBilinearForm::pAllocMat()
       {
          Table *face_elem = pfes->GetParMesh()->GetFaceToAllElementTable();
          if (nbr_size > 0)
-            MFEM_NAMESPACE::Mult(*face_elem, elem_dof, face_dof);
+            mfem::Mult(*face_elem, elem_dof, face_dof);
          else
-            MFEM_NAMESPACE::Mult(*face_elem, lelem_ldof, face_dof);
+            mfem::Mult(*face_elem, lelem_ldof, face_dof);
          delete face_elem;
          if (nbr_size > 0)
             elem_dof.Clear();
@@ -75,7 +76,7 @@ void ParBilinearForm::pAllocMat()
       {
          Table dof_face;
          Transpose(face_dof, dof_face, size + nbr_size);
-         MFEM_NAMESPACE::Mult(dof_face, face_dof, dof_dof);
+         mfem::Mult(dof_face, face_dof, dof_dof);
       }
       else
       {
@@ -83,11 +84,11 @@ void ParBilinearForm::pAllocMat()
          {
             Table face_ldof;
             Table *face_lelem = fes->GetMesh()->GetFaceToElementTable();
-            MFEM_NAMESPACE::Mult(*face_lelem, lelem_ldof, face_ldof);
+            mfem::Mult(*face_lelem, lelem_ldof, face_ldof);
             delete face_lelem;
             Transpose(face_ldof, ldof_face, size);
          }
-         MFEM_NAMESPACE::Mult(ldof_face, face_dof, dof_dof);
+         mfem::Mult(ldof_face, face_dof, dof_dof);
       }
    }
 
@@ -299,6 +300,6 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
    return rap;
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

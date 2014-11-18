@@ -22,7 +22,8 @@
 #include "_hypre_parcsr_mv.h"
 #include "_hypre_parcsr_ls.h"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class ParFiniteElementSpace;
 class HypreParMatrix;
@@ -578,6 +579,6 @@ public:
    virtual ~HypreADS();
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

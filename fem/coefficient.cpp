@@ -16,7 +16,8 @@
 #include <cmath>
 #include <limits>
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -236,4 +237,4 @@ double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
    return norm;
 }
 
-MFEM_NAMESPACE_END();
+}

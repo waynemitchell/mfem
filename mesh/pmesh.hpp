@@ -15,7 +15,8 @@
 #include <iostream>
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /// Class for parallel meshes
 class ParMesh : public Mesh
@@ -138,6 +139,6 @@ public:
    virtual ~ParMesh();
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

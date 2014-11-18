@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 class Mesh;
 class FiniteElementSpace;
@@ -597,6 +598,6 @@ inline void NCMesh::DependentVertex_iterator::next()
    vert = NULL;
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

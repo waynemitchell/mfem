@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /** Collection of finite elements from the same family in multiple dimensions.
     This class is used to match the degrees of fredom of a FiniteElementSpace
@@ -734,6 +735,6 @@ public:
    virtual ~Local_FECollection() { delete Local_Element; }
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

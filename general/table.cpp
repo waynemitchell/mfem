@@ -18,7 +18,8 @@
 #include "table.hpp"
 #include "error.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 using namespace std;
 
@@ -510,4 +511,4 @@ DSTable::~DSTable()
    delete [] Rows;
 }
 
-MFEM_NAMESPACE_END();
+}

@@ -13,7 +13,8 @@
 
 #include "fem.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void LinearForm::AddDomainIntegrator (LinearFormIntegrator * lfi)
 {
@@ -106,4 +107,4 @@ LinearForm::~LinearForm()
    for (k=0; k < flfi.Size(); k++) delete flfi[k];
 }
 
-MFEM_NAMESPACE_END();
+}

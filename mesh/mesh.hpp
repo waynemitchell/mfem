@@ -15,7 +15,8 @@
 #include <iostream>
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 // Data type mesh
 
@@ -739,6 +740,6 @@ inline void Mesh::Rotate3(int &a, int &b, int &c)
    }
 }
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

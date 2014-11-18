@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /** Class for bilinear form - "Matrix" with asociated FE space and
     BLFIntegrators. */
@@ -320,6 +321,6 @@ public:
    virtual void Assemble(int skip_zeros = 1);
 };
 
-MFEM_NAMESPACE_END();
+}
 
 #endif

@@ -17,7 +17,8 @@
 
 using namespace std;
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void BilinearFormIntegrator::AssembleElementMatrix (
    const FiniteElement &el, ElementTransformation &Trans,
@@ -1587,4 +1588,4 @@ void DGDiffusionIntegrator::AssembleFaceMatrix(
    }
 }
 
-MFEM_NAMESPACE_END();
+}

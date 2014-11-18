@@ -17,7 +17,8 @@
 #include "sparsemat.hpp"
 #include "sparsesmoothers.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 void SparseSmoother::SetOperator(const Operator &a)
 {
@@ -80,4 +81,4 @@ void DSmoother::Mult(const Vector &x, Vector &y) const
    }
 }
 
-MFEM_NAMESPACE_END();
+}

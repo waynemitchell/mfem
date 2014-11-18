@@ -14,7 +14,8 @@
 
 #include "../config.hpp"
 
-MFEM_NAMESPACE_BEGIN();
+namespace mfem
+{
 
 /* Classes for IntegrationPoint, IntegrationRule, and container class
    IntegrationRules.  Declares the global variable IntRules */
@@ -264,6 +265,6 @@ extern IntegrationRules IntRules;
 /// A global object with all refined integration rules
 extern IntegrationRules RefinedIntRules;
 
-MFEM_NAMESPACE_END();
+}
 
 #endif
