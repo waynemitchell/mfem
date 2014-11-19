@@ -38,7 +38,7 @@ void mfem_error (const char *msg = NULL);
       s << "...at line " << __LINE__;                                   \
       s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << "."; \
       s << std::ends;                                                   \
-      mfem_error(s.str().c_str());                                      \
+      mfem::mfem_error(s.str().c_str());                                \
    }                                                                    \
 
 // Outputs lots of useful information and aborts.
