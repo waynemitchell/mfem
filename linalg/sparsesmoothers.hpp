@@ -12,6 +12,11 @@
 #ifndef MFEM_SPARSEMATSMOOTHERS
 #define MFEM_SPARSEMATSMOOTHERS
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 class SparseSmoother : public MatrixInverse
 {
 protected:
@@ -66,5 +71,7 @@ public:
    /// Matrix vector multiplication with Jacobi smoother.
    virtual void Mult(const Vector &x, Vector &y) const;
 };
+
+}
 
 #endif

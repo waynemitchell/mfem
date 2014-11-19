@@ -16,6 +16,9 @@
 
 #include "matrix.hpp"
 
+namespace mfem
+{
+
 void Matrix::Print (std::ostream & out, int width) const
 {
    using namespace std;
@@ -33,4 +36,6 @@ void Matrix::Print (std::ostream & out, int width) const
       out << '\n';
    }
    out << '\n';
+}
+
 }

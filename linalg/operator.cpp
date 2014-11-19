@@ -15,6 +15,9 @@
 #include "vector.hpp"
 #include "operator.hpp"
 
+namespace mfem
+{
+
 void Operator::PrintMatlab (std::ostream & out, int n, int m)
 {
    using namespace std;
@@ -35,4 +38,6 @@ void Operator::PrintMatlab (std::ostream & out, int n, int m)
          if (y(j))
             out << j+1 << " " << i+1 << " " << y(j) << '\n';
    }
+}
+
 }

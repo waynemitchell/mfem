@@ -11,6 +11,8 @@
 
 #include "../fem/fem.hpp"
 
+namespace mfem
+{
 
 using namespace std;
 
@@ -2823,4 +2825,6 @@ void NURBSPatchMap::SetBdrPatchDofMap(int p, KnotVector *kv[],  int *okv)
 
       pOffset = Ext->f_spaceOffsets[faces[0]];
    }
+}
+
 }

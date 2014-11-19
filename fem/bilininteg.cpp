@@ -17,6 +17,9 @@
 
 using namespace std;
 
+namespace mfem
+{
+
 void BilinearFormIntegrator::AssembleElementMatrix (
    const FiniteElement &el, ElementTransformation &Trans,
    DenseMatrix &elmat )
@@ -1583,4 +1586,6 @@ void DGDiffusionIntegrator::AssembleFaceMatrix(
          elmat(i,i) *= (sigma - 1.);
       }
    }
+}
+
 }

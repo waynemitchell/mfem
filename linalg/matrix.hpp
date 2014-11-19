@@ -12,13 +12,15 @@
 #ifndef MFEM_MATRIX
 #define MFEM_MATRIX
 
-// Abstract data types matrix, inverse matrix
-
 #include <iostream>
-#include "../general/array.hpp"
 #include "operator.hpp"
 
-class  MatrixInverse;
+namespace mfem
+{
+
+// Abstract data types matrix, inverse matrix
+
+class MatrixInverse;
 
 /// Abstract data type matrix
 class Matrix : public Operator
@@ -58,5 +60,7 @@ public:
    MatrixInverse(const Matrix &mat)
       : Solver(mat.size) { }
 };
+
+}
 
 #endif

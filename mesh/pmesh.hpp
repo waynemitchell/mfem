@@ -13,6 +13,10 @@
 #define MFEM_PMESH
 
 #include <iostream>
+#include "../config.hpp"
+
+namespace mfem
+{
 
 /// Class for parallel meshes
 class ParMesh : public Mesh
@@ -134,5 +138,7 @@ public:
 
    virtual ~ParMesh();
 };
+
+}
 
 #endif

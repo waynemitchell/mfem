@@ -19,6 +19,9 @@
 #include "../general/table.hpp"
 #include "../general/sort_pairs.hpp"
 
+namespace mfem
+{
+
 using namespace std;
 
 SparseMatrix::SparseMatrix(int nrows, int ncols)
@@ -2185,4 +2188,6 @@ void Swap(SparseMatrix & A, SparseMatrix & B)
 #ifdef MFEM_USE_MEMALLOC
    Swap(A.NodesMem, B.NodesMem);
 #endif
+}
+
 }

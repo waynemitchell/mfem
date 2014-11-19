@@ -14,6 +14,9 @@
 #include "fem.hpp"
 #include <cmath>
 
+namespace mfem
+{
+
 void BilinearForm::AllocMat()
 {
    if (precompute_sparsity == 0 || fes->GetVDim() > 1)
@@ -32,18 +35,18 @@ void BilinearForm::AllocMat()
       Table face_dof, dof_face;
       {
          Table *face_elem = fes->GetMesh()->GetFaceToElementTable();
-         ::Mult(*face_elem, elem_dof, face_dof);
+         mfem::Mult(*face_elem, elem_dof, face_dof);
          delete face_elem;
       }
       Transpose(face_dof, dof_face, size);
-      ::Mult(dof_face, face_dof, dof_dof);
+      mfem::Mult(dof_face, face_dof, dof_dof);
    }
    else
    {
       // the sparsity pattern is defined from the map: element->dof
       Table dof_elem;
       Transpose(elem_dof, dof_elem, size);
-      ::Mult(dof_elem, elem_dof, dof_dof);
+      mfem::Mult(dof_elem, elem_dof, dof_dof);
    }
 
    int *I = dof_dof.GetI();
@@ -305,10 +308,10 @@ void BilinearForm::ConformingAssemble()
 
    SparseMatrix *P = fes->GetConformingProlongation();
    SparseMatrix *R = Transpose(*P);
-   SparseMatrix *RA = ::Mult(*R, *mat);
+   SparseMatrix *RA = mfem::Mult(*R, *mat);
    delete R;
    delete mat;
-   mat = ::Mult(*RA, *P);
+   mat = mfem::Mult(*RA, *P);
    delete RA;
 
    size = mat->Size();
@@ -668,4 +671,6 @@ void DiscreteLinearOperator::Assemble(int skip_zeros)
          }
          mat->SetSubMatrix(ran_vdofs, dom_vdofs, totelmat, skip_zeros);
       }
+}
+
 }

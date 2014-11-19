@@ -12,14 +12,19 @@
 #ifndef MFEM_TIC_TOC
 #define MFEM_TIC_TOC
 
+#include "../config.hpp"
+
 #ifndef MFEM_USE_POSIX_CLOCKS
 #include <sys/times.h>
 #else
-#include <time.h>
+#include <ctime>
 #if (!defined(CLOCK_MONOTONIC) || !defined(CLOCK_PROCESS_CPUTIME_ID))
 #error "CLOCK_MONOTONIC and CLOCK_PROCESS_CPUTIME_ID not defined in <time.h>"
 #endif
 #endif
+
+namespace mfem
+{
 
 /// Timing object
 class StopWatch
@@ -56,5 +61,7 @@ extern void tic();
 
 /// End timing
 extern double toc();
+
+}
 
 #endif

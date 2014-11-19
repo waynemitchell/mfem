@@ -14,6 +14,10 @@
 
 #include <iostream>
 #include <limits>
+#include "../config.hpp"
+
+namespace mfem
+{
 
 /// Class for parallel grid function
 class ParGridFunction : public GridFunction
@@ -174,5 +178,7 @@ public:
 
    virtual ~ParGridFunction() { }
 };
+
+}
 
 #endif

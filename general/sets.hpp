@@ -12,6 +12,11 @@
 #ifndef MFEM_SETS
 #define MFEM_SETS
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// A set of integers
 class IntegerSet
 {
@@ -61,5 +66,6 @@ public:
    ~ListOfIntegerSets();
 };
 
-#endif
+}
 
+#endif

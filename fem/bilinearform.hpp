@@ -12,6 +12,10 @@
 #ifndef MFEM_BILINEARFORM
 #define MFEM_BILINEARFORM
 
+#include "../config.hpp"
+
+namespace mfem
+{
 
 /** Class for bilinear form - "Matrix" with asociated FE space and
     BLFIntegrators. */
@@ -316,5 +320,7 @@ public:
 
    virtual void Assemble(int skip_zeros = 1);
 };
+
+}
 
 #endif

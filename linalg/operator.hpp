@@ -15,6 +15,9 @@
 #include <iostream>
 #include "vector.hpp"
 
+namespace mfem
+{
+
 /// Abstract operator
 class Operator
 {
@@ -124,5 +127,7 @@ public:
 
    ~TransposeOperator() { }
 };
+
+}
 
 #endif

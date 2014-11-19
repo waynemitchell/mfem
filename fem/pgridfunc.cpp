@@ -9,12 +9,17 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
 #include <iostream>
 #include <limits>
 using namespace std;
+
+namespace mfem
+{
 
 ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf)
 {
@@ -384,6 +389,8 @@ void ParGridFunction::SaveAsOne(std::ostream &out)
    delete [] nedofs;
    delete [] nfdofs;
    delete [] nrdofs;
+}
+
 }
 
 #endif

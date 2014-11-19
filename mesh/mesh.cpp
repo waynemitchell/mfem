@@ -16,12 +16,15 @@
 #include <fstream>
 #include <limits>
 #include <cmath>
-#include <string.h>
-#include <time.h>
+#include <cstring>
+#include <ctime>
 
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 #include "../general/sort_pairs.hpp"
+
+namespace mfem
+{
 
 using namespace std;
 
@@ -8262,4 +8265,6 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
       }
    }
    return mesh2d;
+}
+
 }

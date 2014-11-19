@@ -13,6 +13,10 @@
 #define MFEM_MESH
 
 #include <iostream>
+#include "../config.hpp"
+
+namespace mfem
+{
 
 // Data type mesh
 
@@ -734,6 +738,8 @@ inline void Mesh::Rotate3(int &a, int &b, int &c)
       else
          ShiftL2R(a, b, c);
    }
+}
+
 }
 
 #endif

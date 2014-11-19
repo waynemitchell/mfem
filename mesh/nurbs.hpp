@@ -13,6 +13,10 @@
 #define MFEM_NURBS
 
 #include <iostream>
+#include "../config.hpp"
+
+namespace mfem
+{
 
 class KnotVector
 {
@@ -572,6 +576,8 @@ inline int NURBSPatchMap::operator()(const int i, const int j, const int k)
    mfem_error("NURBSPatchMap::operator() const 3D");
 #endif
    return -1;
+}
+
 }
 
 #endif

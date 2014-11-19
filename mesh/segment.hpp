@@ -12,6 +12,11 @@
 #ifndef MFEM_SEGMENT
 #define MFEM_SEGMENT
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Data type line segment element
 class Segment : public Element
 {
@@ -52,5 +57,7 @@ public:
 };
 
 extern Linear1DFiniteElement SegmentFE;
+
+}
 
 #endif
