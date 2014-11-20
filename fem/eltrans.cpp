@@ -13,6 +13,9 @@
 #include <cmath>
 #include "fem.hpp"
 
+namespace mfem
+{
+
 ElementTransformation::ElementTransformation():
    JacobianIsEvaluated(0),
    WeightIsEvaluated(0),
@@ -21,6 +24,27 @@ ElementTransformation::ElementTransformation():
    ElementNo(-1)
 {
 
+}
+
+void IsoparametricTransformation::SetIdentityTransformation(int GeomType)
+{
+   switch (GeomType)
+   {
+   case Geometry::POINT :       FElem = &PointFE; break;
+   case Geometry::SEGMENT :     FElem = &SegmentFE; break;
+   case Geometry::TRIANGLE :    FElem = &TriangleFE; break;
+   case Geometry::SQUARE :      FElem = &QuadrilateralFE; break;
+   case Geometry::TETRAHEDRON : FElem = &TetrahedronFE; break;
+   case Geometry::CUBE :        FElem = &HexahedronFE; break;
+   default:
+      MFEM_ABORT("unknown Geometry::Type!");
+   }
+   int dim = FElem->GetDim();
+   int dof = FElem->GetDof();
+   const IntegrationRule &nodes = FElem->GetNodes();
+   PointMat.SetSize(dim, dof);
+   for (int j = 0; j < dof; j++)
+      nodes.IntPoint(j).Get(&PointMat(0,j), dim);
 }
 
 const DenseMatrix & IsoparametricTransformation::Jacobian()
@@ -150,4 +174,6 @@ void IntegrationPointTransformation::Transform (const IntegrationRule &ir1,
    n = ir1.GetNPoints();
    for (i = 0; i < n; i++)
       Transform (ir1.IntPoint(i), ir2.IntPoint(i));
+}
+
 }

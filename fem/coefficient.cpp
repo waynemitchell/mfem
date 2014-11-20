@@ -16,6 +16,9 @@
 #include <cmath>
 #include <limits>
 
+namespace mfem
+{
+
 using namespace std;
 
 double PWConstCoefficient::Eval(ElementTransformation & T,
@@ -274,4 +277,6 @@ double ComputeLpNorm(double p, VectorCoefficient &coeff, Mesh &mesh,
    }
 
    return norm;
+}
+
 }

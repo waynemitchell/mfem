@@ -11,10 +11,15 @@
 
 #include "osockstream.hpp"
 
+namespace mfem
+{
+
 osockstream::osockstream(int port, const char *hostname)
    : socketstream(hostname, port)
 {
    if (!is_open())
       std::cerr << "Unable to connect to port " << port << " on "
                 << hostname << '\n';
+}
+
 }

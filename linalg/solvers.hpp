@@ -12,10 +12,14 @@
 #ifndef MFEM_SOLVERS
 #define MFEM_SOLVERS
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_SUITESPARSE
 #include <umfpack.h>
 #endif
 
+namespace mfem
+{
 
 /// Abstract base class for iterative solver
 class IterativeSolver : public Solver
@@ -321,5 +325,6 @@ public:
 
 #endif // MFEM_USE_SUITESPARSE
 
-#endif // MFEM_SOLVERS
+}
 
+#endif // MFEM_SOLVERS

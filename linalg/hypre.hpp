@@ -12,6 +12,8 @@
 #ifndef MFEM_HYPRE
 #define MFEM_HYPRE
 
+#include "../config.hpp"
+
 // Enable internal hypre timing routines
 #define HYPRE_TIMING
 
@@ -19,6 +21,9 @@
 #include "seq_mv.h"
 #include "_hypre_parcsr_mv.h"
 #include "_hypre_parcsr_ls.h"
+
+namespace mfem
+{
 
 class ParFiniteElementSpace;
 class HypreParMatrix;
@@ -448,6 +453,7 @@ public:
 class HypreDiagScale : public HypreSolver
 {
 public:
+   HypreDiagScale() : HypreSolver() { }
    explicit HypreDiagScale(HypreParMatrix &A) : HypreSolver(&A) { }
    virtual operator HYPRE_Solver() const { return NULL; }
 
@@ -574,5 +580,7 @@ public:
 
    virtual ~HypreADS();
 };
+
+}
 
 #endif

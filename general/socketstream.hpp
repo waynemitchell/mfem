@@ -13,6 +13,10 @@
 #define MFEM_SOCKETSTREAM
 
 #include <iostream>
+#include "../config.hpp"
+
+namespace mfem
+{
 
 class socketbuf : public std::streambuf
 {
@@ -115,5 +119,7 @@ public:
 
    ~socketserver() { close(); }
 };
+
+}
 
 #endif

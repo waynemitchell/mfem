@@ -18,6 +18,9 @@
 #include <iostream>
 #include "fem.hpp"
 
+namespace mfem
+{
+
 using namespace std;
 
 GridFunction::GridFunction(Mesh *m, std::istream &input)
@@ -298,7 +301,7 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
    }
    else
    {
-      if (side == 1 && Transf->Elem2No < 0)
+      if (side == 1 && !fes->GetMesh()->FaceIsInterior(i))
          di = 0;
       else
          di = side;
@@ -2031,4 +2034,6 @@ GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
       sol2d->ProjectCoefficient(c2d);
    }
    return sol2d;
+}
+
 }

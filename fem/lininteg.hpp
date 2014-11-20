@@ -12,6 +12,11 @@
 #ifndef MFEM_LININTEG
 #define MFEM_LININTEG
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Abstract base class LinearFormIntegrator
 class LinearFormIntegrator
 {
@@ -302,5 +307,7 @@ public:
                                        FaceElementTransformations &Tr,
                                        Vector &elvect);
 };
+
+}
 
 #endif

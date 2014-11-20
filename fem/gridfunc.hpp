@@ -15,6 +15,10 @@
 #include <limits>
 #include <ostream>
 #include <string>
+#include "../config.hpp"
+
+namespace mfem
+{
 
 /// Class for grid function - Vector with asociated FE space.
 class GridFunction : public Vector
@@ -279,5 +283,7 @@ public:
 /// Extrude a scalar 1D GridFunction, after extruding the mesh with Extrude1D.
 GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
                                     GridFunction *sol, const int ny);
+
+}
 
 #endif

@@ -16,7 +16,11 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "../config.hpp"
 #include "error.hpp"
+
+namespace mfem
+{
 
 /// Base class for array container.
 class BaseArray
@@ -515,6 +519,8 @@ inline T &Array3D<T>::operator()(int i, int j, int k)
                << i << ',' << j << ',' << k << ") in array of size ("
                << array1d.Size() / N2 / N3 << ',' << N2 << ',' << N3 << ").");
    return array1d[(i*N2+j)*N3+k];
+}
+
 }
 
 #endif

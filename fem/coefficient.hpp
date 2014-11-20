@@ -12,6 +12,11 @@
 #ifndef MFEM_COEFFICIENT
 #define MFEM_COEFFICIENT
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 class Mesh;
 
 
@@ -416,5 +421,7 @@ double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
     \| f \|_{Lp} = ( \sum_i \| f_i \|_{Lp}^p )^{1/p} */
 double ComputeLpNorm(double p, VectorCoefficient &coeff, Mesh &mesh,
                      const IntegrationRule *irs[]);
+
+}
 
 #endif

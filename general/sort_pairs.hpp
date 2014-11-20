@@ -12,6 +12,11 @@
 #ifndef MFEM_SORT_PAIRS
 #define MFEM_SORT_PAIRS
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// A pair of objects
 template <class A, class B>
 class Pair
@@ -61,6 +66,8 @@ void SortTriple (Triple<A, B, C> *triples, int size)
 {
    if (size > 0)
       qsort (triples, size, sizeof(Triple<A, B, C>), CompareTriple<A, B, C>);
+}
+
 }
 
 #endif

@@ -12,6 +12,11 @@
 #ifndef MFEM_DENSEMAT
 #define MFEM_DENSEMAT
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Data type dense matrix
 class DenseMatrix : public Matrix
 {
@@ -186,7 +191,7 @@ public:
 
    /// Returns the diagonal of the matrix
    void GetDiag(Vector &d);
-   /// Returns the l1 norm of the rows of the matrix v_i = \sum_j |a_ij|
+   /// Returns the l1 norm of the rows of the matrix v_i = sum_j |a_ij|
    void Getl1Diag(Vector &l);
 
    /// Creates n x n diagonal matrix with diagonal elements c
@@ -244,7 +249,7 @@ public:
 
    /** Count the number of entries in the matrix for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */
-   int CheckFinite() const { return ::CheckFinite(data, size*height); }
+   int CheckFinite() const { return mfem::CheckFinite(data, size*height); }
 
    /// Prints matrix to stream out.
    virtual void Print(std::ostream &out = std::cout, int width = 4) const;
@@ -478,6 +483,8 @@ inline const double &DenseMatrix::operator()(int i, int j) const
 #endif
 
    return data[i+j*height];
+}
+
 }
 
 #endif

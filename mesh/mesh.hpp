@@ -13,6 +13,10 @@
 #define MFEM_MESH
 
 #include <iostream>
+#include "../config.hpp"
+
+namespace mfem
+{
 
 // Data type mesh
 
@@ -522,6 +526,10 @@ public:
 
    FaceElementTransformations *GetBdrFaceTransformations (int BdrElemNo);
 
+   bool FaceIsInterior(int FaceNo) const
+   {
+      return (faces_info[FaceNo].Elem2No >= 0);
+   }
    void GetFaceElements (int Face, int *Elem1, int *Elem2);
    void GetFaceInfos (int Face, int *Inf1, int *Inf2);
 
@@ -730,6 +738,8 @@ inline void Mesh::Rotate3(int &a, int &b, int &c)
       else
          ShiftL2R(a, b, c);
    }
+}
+
 }
 
 #endif

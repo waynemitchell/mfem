@@ -17,6 +17,9 @@
 #include <mpi.h>
 #endif
 
+namespace mfem
+{
+
 void mfem_error (const char *msg)
 {
    if (msg)
@@ -30,5 +33,7 @@ void mfem_error (const char *msg)
 #else
    std::abort(); // force crash by calling abort
 #endif
+
+}
 
 }

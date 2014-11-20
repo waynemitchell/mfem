@@ -14,6 +14,9 @@
 #include <cmath>
 #include "fem.hpp"
 
+namespace mfem
+{
+
 using namespace std;
 
 FiniteElement::FiniteElement(int D, int G, int Do, int O, int F)
@@ -266,9 +269,16 @@ void PositiveFiniteElement::Project(
    }
    else
    {
-      mfem_error("PositiveFiniteElement::Project() (fe version) :\n"
-                 "   the other FE must be nodal and have the same number"
-                 " of DOFs!");
+      // local L2 projection
+      DenseMatrix pos_mass, mixed_mass;
+      MassIntegrator mass_integ;
+
+      mass_integ.AssembleElementMatrix(*this, Trans, pos_mass);
+      mass_integ.AssembleElementMatrix2(fe, *this, Trans, mixed_mass);
+
+      pos_mass.Invert();
+      I.SetSize(Dof, fe.GetDof());
+      Mult(pos_mass, mixed_mass, I);
    }
 }
 
@@ -9961,4 +9971,6 @@ void NURBS3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       dshape(o,1) = dshape(o,1)*sum - u(o)*dsum[1];
       dshape(o,2) = dshape(o,2)*sum - u(o)*dsum[2];
    }
+}
+
 }
