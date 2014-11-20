@@ -12,6 +12,10 @@
 #ifndef MFEM_BLOCKOPERATOR
 #define MFEM_BLOCKOPERATOR
 
+#include "../config.hpp"
+
+namespace mfem
+{
 //! @class BlockOperator
 /**
  * \brief A class to handle Block systems in a matrix-free implementation.
@@ -130,5 +134,7 @@ private:
   mutable BlockVector yblock;
   
 };
+
+}
 
 #endif /* MFEM_BLOCKOPERATOR */

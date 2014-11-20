@@ -21,6 +21,9 @@
 #include "vector.hpp"
 #include "blockVector.hpp"
 
+namespace mfem
+{
+
 BlockVector::BlockVector():
 	Vector(),
 	numBlocks(0),
@@ -124,4 +127,6 @@ const Vector &  BlockVector::GetBlock(int i) const
 void BlockVector::GetBlockView(int i, Vector & blockView)
 {
 	blockView.NewDataAndSize(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]);
+}
+
 }

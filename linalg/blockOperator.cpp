@@ -15,6 +15,9 @@
 #include "blockVector.hpp"
 #include "blockOperator.hpp"
 
+namespace mfem
+{
+
 BlockOperator::BlockOperator(const Array<int> & offsets):
 	Operator(offsets.Last()),
 	owns_block(0),
@@ -173,4 +176,6 @@ BlockDiagonalPreconditioner::~BlockDiagonalPreconditioner()
 	if(owns_block)
 	  for(int i(0); i<nBlocks; ++i)
 		  delete op[i];
+}
+
 }

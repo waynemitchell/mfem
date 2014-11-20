@@ -12,6 +12,11 @@
 #ifndef MFEM_BLOCKMATRIX
 #define MFEM_BLOCKMATRIX
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 class BlockMatrix : public SparseRowMatrix
 {
 public:
@@ -161,5 +166,6 @@ inline void BlockMatrix::findGlobalCol(int jglobal, int & jblock, int & jloc) co
 	jloc = jglobal - col_offsets[jblock];
 }
 
+}
 
 #endif /* MFEM_BLOCKMATRIX */

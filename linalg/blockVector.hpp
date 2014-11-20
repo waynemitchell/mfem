@@ -13,6 +13,11 @@
 #ifndef MFEM_BLOCKVECTOR
 #define MFEM_BLOCKVECTOR
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 //! @class BlockVector
 /*
  * \brief A class to handle Vectors in a block fashion
@@ -82,5 +87,6 @@ public:
 
 };
 
+}
 
 #endif /* MFEM_BLOCKVECTOR */

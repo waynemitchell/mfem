@@ -15,6 +15,9 @@
 #include "blockVector.hpp"
 #include "blockMatrix.hpp"
 
+namespace mfem
+{
+
 BlockMatrix::BlockMatrix(const Array<int> & offsets):
 	SparseRowMatrix(offsets.Last()),
 	owns_blocks(false),
@@ -500,3 +503,4 @@ BlockMatrix * Mult(const BlockMatrix & A, const BlockMatrix & B)
 	return C;
 }
 
+}

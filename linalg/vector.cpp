@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <limits>
 
 #include "vector.hpp"
 
