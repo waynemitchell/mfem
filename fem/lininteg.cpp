@@ -13,6 +13,9 @@
 #include <cmath>
 #include "fem.hpp"
 
+namespace mfem
+{
+
 void LinearFormIntegrator::AssembleRHSElementVect(
    const FiniteElement &el, FaceElementTransformations &Tr, Vector &elvect)
 {
@@ -485,4 +488,6 @@ void DGDirichletLFIntegrator::AssembleRHSElementVect(
       if (kappa_is_nonzero)
          elvect.Add(kappa*(ni*nor), shape);
    }
+}
+
 }

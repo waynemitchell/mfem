@@ -18,6 +18,9 @@
 #include "table.hpp"
 #include "error.hpp"
 
+namespace mfem
+{
+
 using namespace std;
 
 Table::Table (int dim, int connections_per_row)
@@ -506,4 +509,6 @@ DSTable::~DSTable()
    }
 #endif
    delete [] Rows;
+}
+
 }

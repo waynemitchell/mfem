@@ -14,10 +14,13 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
-#include <stdlib.h>
-#include <time.h>
+#include <cstdlib>
+#include <ctime>
 
 #include "vector.hpp"
+
+namespace mfem
+{
 
 Vector::Vector(const Vector &v)
 {
@@ -586,3 +589,4 @@ double Vector::DistanceTo(const double *p) const
    return Distance(data, p, size);
 }
 
+}

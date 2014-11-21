@@ -12,6 +12,9 @@
 #include "operator.hpp"
 #include "ode.hpp"
 
+namespace mfem
+{
+
 void ForwardEulerSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
@@ -460,4 +463,6 @@ void SDIRK33Solver::Step(Vector &x, double &t, double &dt)
    f->ImplicitSolve(a*dt, x, k);
    x.Add(a*dt, k);
    t += dt;
+}
+
 }

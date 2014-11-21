@@ -19,6 +19,9 @@
 #include "densemat.hpp"
 #include <iostream>
 
+namespace mfem
+{
+
 class RowNode
 {
 public:
@@ -456,6 +459,8 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
       mfem_error("SparseMatrix::SearchRow(...)");
    }
    return A[0];
+}
+
 }
 
 #endif

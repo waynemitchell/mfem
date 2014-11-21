@@ -32,6 +32,8 @@
 #include <iostream>
 using namespace std;
 
+using namespace mfem;
+
 // Exact solution, F, and r.h.s., f. See below for implementation.
 void F_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);

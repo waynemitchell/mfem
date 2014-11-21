@@ -18,6 +18,9 @@
 #include <iostream>
 #include "fem.hpp"
 
+namespace mfem
+{
+
 using namespace std;
 
 GridFunction::GridFunction(Mesh *m, std::istream &input)
@@ -2031,4 +2034,6 @@ GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
       sol2d->ProjectCoefficient(c2d);
    }
    return sol2d;
+}
+
 }

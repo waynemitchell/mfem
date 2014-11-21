@@ -14,6 +14,9 @@
 #include <cmath>
 #include "linalg.hpp"
 
+namespace mfem
+{
+
 using namespace std;
 
 IterativeSolver::IterativeSolver()
@@ -1546,3 +1549,4 @@ UMFPackSolver::~UMFPackSolver()
 
 #endif // MFEM_USE_SUITESPARSE
 
+}

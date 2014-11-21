@@ -13,6 +13,9 @@
 #include <cmath>
 #include "fem.hpp"
 
+namespace mfem
+{
+
 ElementTransformation::ElementTransformation():
    JacobianIsEvaluated(0),
    WeightIsEvaluated(0),
@@ -171,4 +174,6 @@ void IntegrationPointTransformation::Transform (const IntegrationRule &ir1,
    n = ir1.GetNPoints();
    for (i = 0; i < n; i++)
       Transform (ir1.IntPoint(i), ir2.IntPoint(i));
+}
+
 }

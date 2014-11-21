@@ -9,6 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "mesh_headers.hpp"
@@ -17,6 +19,9 @@
 #include "../general/sort_pairs.hpp"
 #include <iostream>
 using namespace std;
+
+namespace mfem
+{
 
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                  int part_method)
@@ -3212,6 +3217,8 @@ ParMesh::~ParMesh()
       FreeElement(shared_edges[i]);
 
    // The Mesh destructor is called automatically
+}
+
 }
 
 #endif

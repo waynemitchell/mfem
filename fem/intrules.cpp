@@ -20,6 +20,9 @@
 
 using namespace std;
 
+namespace mfem
+{
+
 IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry)
 {
    int i, j, nx, ny;
@@ -860,4 +863,6 @@ IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
                SegmentIntRules[i] -> IntPoint(m).weight;
          }
    return CubeIntRules[i];
+}
+
 }

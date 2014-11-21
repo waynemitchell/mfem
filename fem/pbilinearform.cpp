@@ -9,9 +9,14 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+
+namespace mfem
+{
 
 void ParBilinearForm::pAllocMat()
 {
@@ -59,9 +64,9 @@ void ParBilinearForm::pAllocMat()
       {
          Table *face_elem = pfes->GetParMesh()->GetFaceToAllElementTable();
          if (nbr_size > 0)
-            ::Mult(*face_elem, elem_dof, face_dof);
+            mfem::Mult(*face_elem, elem_dof, face_dof);
          else
-            ::Mult(*face_elem, lelem_ldof, face_dof);
+            mfem::Mult(*face_elem, lelem_ldof, face_dof);
          delete face_elem;
          if (nbr_size > 0)
             elem_dof.Clear();
@@ -71,7 +76,7 @@ void ParBilinearForm::pAllocMat()
       {
          Table dof_face;
          Transpose(face_dof, dof_face, size + nbr_size);
-         ::Mult(dof_face, face_dof, dof_dof);
+         mfem::Mult(dof_face, face_dof, dof_dof);
       }
       else
       {
@@ -79,11 +84,11 @@ void ParBilinearForm::pAllocMat()
          {
             Table face_ldof;
             Table *face_lelem = fes->GetMesh()->GetFaceToElementTable();
-            ::Mult(*face_lelem, lelem_ldof, face_ldof);
+            mfem::Mult(*face_lelem, lelem_ldof, face_ldof);
             delete face_lelem;
             Transpose(face_ldof, ldof_face, size);
          }
-         ::Mult(ldof_face, face_dof, dof_dof);
+         mfem::Mult(ldof_face, face_dof, dof_dof);
       }
    }
 
@@ -293,6 +298,8 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
    delete A;
 
    return rap;
+}
+
 }
 
 #endif

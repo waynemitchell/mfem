@@ -11,6 +11,9 @@
 
 #include "fem.hpp"
 
+namespace mfem
+{
+
 void NonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
                                    Vector *rhs)
 {
@@ -131,4 +134,6 @@ NonlinearForm::~NonlinearForm()
    delete Grad;
    for (int i = 0; i < dfi.Size(); i++)
       delete dfi[i];
+}
+
 }

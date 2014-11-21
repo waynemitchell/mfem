@@ -12,6 +12,11 @@
 #ifndef MFEM_QUADRILATERAL
 #define MFEM_QUADRILATERAL
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Data type quadrilateral element
 class Quadrilateral : public Element
 {
@@ -54,5 +59,7 @@ public:
 };
 
 extern BiLinear2DFiniteElement QuadrilateralFE;
+
+}
 
 #endif

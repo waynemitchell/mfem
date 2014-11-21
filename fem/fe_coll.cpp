@@ -14,6 +14,9 @@
 #include <cstring>
 #include <cstdio>
 
+namespace mfem
+{
+
 using namespace std;
 
 int FiniteElementCollection::HasFaceDofs(int GeomType) const
@@ -1706,4 +1709,6 @@ int *NURBSFECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
    mfem_error("NURBSFECollection::DofOrderForOrientation");
    return NULL;
+}
+
 }

@@ -17,6 +17,9 @@
 #include "sparsemat.hpp"
 #include "sparsesmoothers.hpp"
 
+namespace mfem
+{
+
 void SparseSmoother::SetOperator(const Operator &a)
 {
    oper = dynamic_cast<const SparseMatrix*>(&a);
@@ -80,4 +83,6 @@ void DSmoother::Mult(const Vector &x, Vector &y) const
          mfem_error("DSmoother::Mult wrong type");
       Swap<Vector*>(r, p);
    }
+}
+
 }

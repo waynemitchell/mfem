@@ -16,6 +16,9 @@
 
 using namespace std;
 
+namespace mfem
+{
+
 STable3D::STable3D (int nr)
 {
    int i;
@@ -190,4 +193,6 @@ STable3D::~STable3D ()
    }
 #endif
    delete [] Rows;
+}
+
 }
