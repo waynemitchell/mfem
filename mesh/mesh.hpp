@@ -79,6 +79,10 @@ protected:
    GridFunction *Nodes;
    int own_nodes;
 
+   // Backup of the coarse mesh. Only used if WantTwoLevelState == 1 and
+   // nonconforming refinements are used.
+   Mesh* nc_coarse_level;
+
    static const int tet_faces[4][3];
    static const int hex_faces[6][4];
 
@@ -601,6 +605,9 @@ public:
 
    void UniformRefinement();
 
+   void GeneralRefinement(Array<int> &el_to_refine,
+                          int nonconforming = -1, int nc_limit = 0);
+
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
    void DegreeElevate(int t);
@@ -616,6 +623,8 @@ public:
 
    /// Change the mesh state to NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE
    void SetState (int s);
+
+   int GetState() const { return State; }
 
    /** For a given coarse element i returns the number of
        subelements it is divided into. */
@@ -677,8 +686,9 @@ public:
 
    void MesquiteSmooth(const int mesquite_option = 0);
 
-   /// Swaps all internal data with another mesh.
-   void Swap(Mesh& other);
+   /// Swaps internal data with another mesh. By default, non-geometry members
+   /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
+   void Swap(Mesh& other, bool non_geometry = false);
 
    /// Destroys mesh.
    virtual ~Mesh();
