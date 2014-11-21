@@ -49,7 +49,7 @@ public:
 class DSmoother : public SparseSmoother
 {
 protected:
-   int type; // 0, 1 - scaled Jacobi, scaled l1-Jacobi
+   int type; // 0, 1, 2 - scaled Jacobi, scaled l1-Jacobi, scaled lumped-Jacobi
    double scale;
    int iterations;
 

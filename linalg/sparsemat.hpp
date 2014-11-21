@@ -196,6 +196,10 @@ public:
    void Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
                 double sc = 1.0) const;
 
+   /** x1 = x0 + sc D^{-1} (b - A x0) where \f$ D_{ii} = \sum_j A_{ij} \f$. */
+   void Jacobi3(const Vector &b, const Vector &x0, Vector &x1,
+                double sc = 1.0) const;
+
    /** Finalize the matrix initialization. The function should be called
        only once, after the matrix has been initialized. Internally, this
        method converts the matrix from row-wise linked list format into
