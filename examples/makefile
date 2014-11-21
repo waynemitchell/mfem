@@ -12,7 +12,7 @@
 # Serial compiler
 CC = g++
 OPTS = -O3 -I$(MFEM_DIR) $(SUITESPARSE_OPT)
-DEBUG_OPTS = -g -I$(MFEM_DIR)
+DEBUG_OPTS = -g3 -I$(MFEM_DIR) $(SUITESPARSE_OPT)
 LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(OPENMP_LIBS) $(SUITESPARSE_LIB)
 
 # Parallel compiler
@@ -59,12 +59,15 @@ SUITESPARSE_LIB_YES = -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd\
  $(LAPACK_LIB) $(BLAS_LIB)
 SUITESPARSE_LIB     = $(SUITESPARSE_LIB_$(USE_SUITESPARSE))
 
-serial: ex1 ex2 ex3 ex4
+serial: ex1 ex1amr ex2 ex3 ex4
 
 parallel: ex1p ex2p ex3p ex4p
 
-ex1: ex1.cpp
+ex1: ex1.cpp ../libmfem.a
 	$(CC) $(OPTS) ex1.cpp -o ex1 $(LIBS)
+
+ex1amr: ex1amr.cpp ../libmfem.a
+	$(CC) $(OPTS) ex1amr.cpp -o ex1amr $(LIBS)
 
 ex1p: ex1p.cpp
 	$(MPICC) $(MPIOPTS) ex1p.cpp -o ex1p $(MPILIBS)
