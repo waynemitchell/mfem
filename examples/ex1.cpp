@@ -29,10 +29,6 @@
 #include <fstream>
 #include "mfem.hpp"
 
-
-#include "../mesh/ncmeshhex.hpp"
-
-
 int main (int argc, char *argv[])
 {
    Mesh *mesh;
@@ -54,26 +50,16 @@ int main (int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
 
-   NCMeshHex test(mesh);
-   test.Refine(test.GetRootElement(0), 1);
-   test.Refine(test.GetRootElement(0)->child[1], 2);
-
-   delete mesh;
-   mesh = new Mesh(test);
-
    // 2. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
-/*   {
+   {
       int ref_levels =
          (int)floor(log(50000./mesh->GetNE())/log(2.)/mesh->Dimension());
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
-   }*/
-   /*Array<int> ref;
-   ref.Append(1);
-   mesh->NonconformingRefinement(ref);*/
+   }
 
    // 3. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements coming from the mesh nodes (linear by default).
@@ -81,11 +67,9 @@ int main (int argc, char *argv[])
    if (mesh->GetNodes())
       fec = mesh->GetNodes()->OwnFEC();
    else
-      fec = new H1_FECollection(2, mesh->Dimension());
+      fec = new LinearFECollection;
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;
-   //fespace->GetConformingProlongation()->Print();
-   cout << endl;
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
@@ -112,49 +96,22 @@ int main (int argc, char *argv[])
    a->Assemble();
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
-   if (fespace->GetConformingProlongation())
-   {
-      a->ConformingAssemble();
-   }
-   else
-   {
-      a->EliminateEssentialBC(ess_bdr, x, *b);
-      a->Finalize();
-   }
+   a->EliminateEssentialBC(ess_bdr, x, *b);
+   a->Finalize();
    const SparseMatrix &A = a->SpMat();
 
-   Vector conf_x, conf_b;
-   if (fespace->GetConformingProlongation())
-   {
-      x.ConformingProject(conf_x);
-      b->ConformingAssemble(conf_b);
-
-      Array<int> dofs_marker, conf_dofs_marker;
-      fespace->GetEssentialVDofs(ess_bdr, dofs_marker);
-      fespace->ConvertToConformingVDofs(dofs_marker, conf_dofs_marker);
-      a->EliminateEssentialBCFromDofs(conf_dofs_marker, conf_x, conf_b);
-
-      GSSmoother M(A);
-      //PCG(A, M, *b, x, 1, 200, 1e-12, 0.0);
-      PCG(A, M, conf_b, conf_x, 1, 500, 1e-12, 0.0);
-
-      x.ConformingProlongate(conf_x);
-   }
-   else
-   {
 #ifndef MFEM_USE_SUITESPARSE
-      // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
-      //    solve the system Ax=b with PCG.
-      GSSmoother M(A);
-      PCG(A, M, *b, x, 1, 200, 1e-12, 0.0);
+   // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
+   //    solve the system Ax=b with PCG.
+   GSSmoother M(A);
+   PCG(A, M, *b, x, 1, 200, 1e-12, 0.0);
 #else
-      // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
-      UMFPackSolver umf_solver;
-      umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-      umf_solver.SetOperator(A);
-      umf_solver.Mult(*b, x);
+   // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   UMFPackSolver umf_solver;
+   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   umf_solver.SetOperator(A);
+   umf_solver.Mult(*b, x);
 #endif
-   }
 
    // 8. Save the refined mesh and the solution. This output can be viewed later
    //    using GLVis: "glvis -m refined.mesh -g sol.gf".
@@ -170,48 +127,12 @@ int main (int argc, char *argv[])
    // 9. (Optional) Send the solution by socket to a GLVis server.
    char vishost[] = "localhost";
    int  visport   = 19916;
-   {
-      osockstream sol_sock(visport, vishost);
-      sol_sock << "solution\n";
-      sol_sock.precision(8);
-      mesh->Print(sol_sock);
-      x.Save(sol_sock);
-      sol_sock.send();
-   }
-
-   // HACK HACK
-#if 1
    osockstream sol_sock(visport, vishost);
-   for (int i = 0; i < x.Size(); i++)
-   {
-      x = 0.0;
-      x(i) = 1;
-
-      sol_sock << "solution\n";
-      sol_sock.precision(8);
-      mesh->Print(sol_sock);
-      x.Save(sol_sock);
-      sol_sock.send();
-
-      cin.ignore();
-   }
-#else
-   osockstream sol_sock(visport, vishost);
-   for (int i = 0; i < conf_x.Size(); i++)
-   {
-      conf_x = 0.0;
-      conf_x(i) = 1;
-      x.ConformingProlongate(conf_x);
-
-      sol_sock << "solution\n";
-      sol_sock.precision(8);
-      mesh->Print(sol_sock);
-      x.Save(sol_sock);
-      sol_sock.send();
-
-      cin.ignore();
-   }
-#endif
+   sol_sock << "solution\n";
+   sol_sock.precision(8);
+   mesh->Print(sol_sock);
+   x.Save(sol_sock);
+   sol_sock.send();
 
    // 10. Free the used memory.
    delete a;

@@ -114,14 +114,14 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
       {
          node[i] = nodes.Peek(v[i], v[i]);
          if (!node[i])
-            mfem_error("NCMesh: boundary elements inconsistent.");
+            MFEM_ABORT("Boundary elements inconsistent.");
       }
 
       if (be->GetType() == ::Element::QUADRILATERAL)
       {
          Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
          if (!face)
-            mfem_error("NCMesh: boundary face not found.");
+            MFEM_ABORT("Boundary face not found.");
 
          face->attribute = be->GetAttribute();
       }
@@ -129,7 +129,7 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
       {
          Edge* edge = nodes.Peek(node[0], node[1])->edge;
          if (!edge)
-            mfem_error("NCMesh: boundary edge not found.");
+            MFEM_ABORT("Boundary edge not found.");
 
          edge->attribute = be->GetAttribute();
       }
@@ -898,7 +898,7 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
          CheckIsoFace(no[4], no[5], no[6], no[7], mid45, mid56, mid67, mid74, midf5);
       }
       else
-         mfem_error("NCMesh::Refine(): Invalid refinement type.");
+         MFEM_ABORT("Invalid refinement type.");
    }
    else if (elem->geom == Geometry::SQUARE)
    {
@@ -907,6 +907,8 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       int ea1 = nodes.Peek(no[1], no[2])->edge->attribute;
       int ea2 = nodes.Peek(no[2], no[3])->edge->attribute;
       int ea3 = nodes.Peek(no[3], no[0])->edge->attribute;
+
+      ref_type &= ~4; // ignore Z bit
 
       if (ref_type == 1) // X split
       {
@@ -952,7 +954,7 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
                                      attr, -1, -1, ea2, ea3);
       }
       else
-         mfem_error("NCMesh::Refine(): Invalid refinement type.");
+         MFEM_ABORT("Invalid refinement type.");
    }
    else if (elem->geom == Geometry::TRIANGLE)
    {
@@ -972,7 +974,7 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
       child[3] = NewTriangle(mid01, mid12, mid20, attr, -1, -1, -1);
    }
    else
-      mfem_error("NCMesh::Refine(): Unsupported element geometry.");
+      MFEM_ABORT("Unsupported element geometry.");
 
    // start using the nodes of the children, create edges & faces
    for (int i = 0; i < 8; i++)
@@ -1192,7 +1194,7 @@ int NCMeshHex::find_node(Element* elem, Node* node)
       if (elem->node[i] == node)
          return i;
 
-   mfem_error("Node not found.");
+   MFEM_ABORT("Node not found.");
 }
 
 static int find_hex_face(int a, int b, int c)
@@ -1207,7 +1209,7 @@ static int find_hex_face(int a, int b, int c)
          return i;
       }
    }
-   mfem_error("Face not found.");
+   MFEM_ABORT("Face not found.");
 }
 
 void NCMeshHex::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
@@ -1588,7 +1590,7 @@ SparseMatrix*
    // if everything is consistent (mesh, face orientations, etc.), we should
    // be able to finalize all slave DOFs, otherwise it's a serious error
    if (n_finalized != n_dofs)
-      mfem_error("Error creating cP matrix.");
+      MFEM_ABORT("Error creating cP matrix.");
 
    delete [] dof_data;
 
@@ -1853,7 +1855,7 @@ void NCMeshHex::GetFineTransforms(Element* elem, int coarse_index,
 NCMeshHex::FineTransform* NCMeshHex::GetFineTransforms()
 {
    if (!coarse_elements.Size())
-      mfem_error("You need to call MarkCoarseLevel before calling Refine and "
+      MFEM_ABORT("You need to call MarkCoarseLevel before calling Refine and "
                  "GetFineTransformations.");
 
    FineTransform* transforms = new FineTransform[leaf_elements.Size()];
@@ -1881,13 +1883,10 @@ NCMeshHex::FineTransform* NCMeshHex::GetFineTransforms()
          GetFineTransforms(c_elem, i, transforms, pm);
       }
       else
-         mfem_error("NCMeshHex::GetFineTransforms: Bad geometry.");
+         MFEM_ABORT("Bad geometry.");
 
       // TODO: detect non-refined elements and return empty matrices as identities
    }
-
-   // get rid of the coarse level array to save memory
-   coarse_elements.DeleteAll();
 
    return transforms;
 }
@@ -1933,6 +1932,7 @@ void NCMeshHex::CountSplits(Element* elem, int splits[3])
    GeomInfo& gi = GI[elem->geom];
 
    MFEM_ASSERT(elem->geom == Geometry::CUBE, "TODO");
+   // TODO: triangles and quads
 
    int level[6][2];
    for (int i = 0; i < gi.nf; i++)
@@ -1950,7 +1950,7 @@ void NCMeshHex::CountSplits(Element* elem, int splits[3])
 void NCMeshHex::LimitNCLevel(int max_level)
 {
    if (max_level < 1)
-      mfem_error("NCMeshHex::LimitNCLevel: max_level must be 1 or greater.");
+      MFEM_ABORT("'max_level' must be 1 or greater.");
 
    while (1)
    {
@@ -1966,6 +1966,8 @@ void NCMeshHex::LimitNCLevel(int max_level)
          for (int k = 0; k < 3; k++)
             if (splits[k] > max_level)
                ref_type |= (1 << k);
+
+         // TODO: isotropic meshes should only be modified with iso refinements
 
          if (ref_type)
             refinements.Append(NCRefinement(i, ref_type));
