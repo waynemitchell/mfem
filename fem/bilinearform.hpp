@@ -137,6 +137,14 @@ public:
        BilinearForm becomes an operator on the conforming FE space. */
    void ConformingAssemble();
 
+   /** A shortcut for converting the whole linear system to conforming DOFs. */
+   void ConformingAssemble(GridFunction& sol, LinearForm& rhs)
+   {
+      ConformingAssemble();
+      rhs.ConformingAssemble();
+      sol.ConformingProject();
+   }
+
    /// Compute and store internally all element matrices.
    void ComputeElementMatrices();
 

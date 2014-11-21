@@ -12,7 +12,8 @@
 // Implementation of FiniteElementSpace
 
 #include "fem.hpp"
-#include <math.h>
+#include <cmath>
+#include <cstdarg>
 
 int FiniteElementSpace::GetOrder(int i) const
 {
@@ -263,6 +264,12 @@ SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
    return R;
 }
 
+static void SetRow(DenseMatrix& A, int row, double value)
+{
+   for (int j = 0; j < A.Width(); j++)
+      A(row, j) = value;
+}
+
 SparseMatrix* FiniteElementSpace
    ::NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes, NCMeshHex* ncmesh)
 {
@@ -281,7 +288,10 @@ SparseMatrix* FiniteElementSpace
    // loop over the fine elements, get interpolations of the coarse elements
    for (int k = 0; k < mesh->GetNE(); k++)
    {
+      mesh->SetState(Mesh::TWO_LEVEL_COARSE);
       cfes->GetElementDofs(transforms[k].coarse_index, rows);
+
+      mesh->SetState(Mesh::TWO_LEVEL_FINE);
       this->GetElementDofs(k, cols);
 
       int geom = mesh->GetElementBaseGeometry(k);
@@ -295,17 +305,10 @@ SparseMatrix* FiniteElementSpace
       fe->GetLocalInterpolation(trans, I);
 
       // make sure we don't set any column of R more than once
-      // TODO: simplify this?
       for (int i = 0; i < I.Height(); i++)
       {
-         if (mark[cols[i]])
-         {
-            // zero the i-th row
-            for (int j = 0; j < I.Width(); j++)
-               I(i,j) = 0;
-         }
-         else
-            mark[cols[i]] = 1;
+         if (mark[cols[i]]) SetRow(I, i, 0); // zero the i-th row of I
+         mark[cols[i]] = 1;
       }
 
       if (vdim == 1)
@@ -1019,6 +1022,47 @@ FiniteElementSpace *FiniteElementSpace::SaveUpdate()
    FiniteElementSpace *cfes = new FiniteElementSpace(*this);
    Constructor();
    return cfes;
+}
+
+void FiniteElementSpace::UpdateAndInterpolate(int num_grid_fns, ...)
+{
+   if (mesh->GetState() == Mesh::NORMAL)
+   {
+      MFEM_ABORT("Mesh must be in two-level state, please call "
+                 "Mesh::UseTwoLevelState before refining.");
+   }
+
+   FiniteElementSpace *cfes = SaveUpdate();
+
+   // obtain the (transpose of) interpolation matrix between mesh levels
+   SparseMatrix *R;
+   if (mesh->ncmesh)
+      R = NC_GlobalRestrictionMatrix(cfes, mesh->ncmesh);
+   else
+      R = GlobalRestrictionMatrix(cfes, 0);
+
+   delete cfes;
+
+   // interpolate the grid functions
+   std::va_list vl;
+   va_start(vl, num_grid_fns);
+   for (int i = 0; i < num_grid_fns; i++)
+   {
+      GridFunction* gf = va_arg(vl, GridFunction*);
+      if (gf->FESpace() != this)
+      {
+         MFEM_ABORT("Cannot interpolate: grid function is not based "
+                    "on this space.");
+      }
+
+      Vector coarse_gf = *gf;
+      gf->Update();
+      R->MultTranspose(coarse_gf, *gf);
+   }
+   va_end(vl);
+
+   delete R;
+   mesh->SetState(Mesh::TWO_LEVEL_FINE);
 }
 
 void FiniteElementSpace::ConstructRefinementData (int k, int num_c_dofs,

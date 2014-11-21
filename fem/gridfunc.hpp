@@ -222,9 +222,15 @@ public:
        to this partially conforming GridFunction. */
    void ConformingProlongate(const Vector &x);
 
+   /** As above, but the destination is 'this'. */
+   void ConformingProlongate();
+
    /** For partially conforming FE spaces, project this partially conforming
        GridFunction onto the conforming vector x. */
    void ConformingProject(Vector &x) const;
+
+   /** As above, but the destination is 'this'. */
+   void ConformingProject();
 
    FiniteElementSpace *FESpace() { return fes; }
 

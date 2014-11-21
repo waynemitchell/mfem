@@ -359,18 +359,10 @@ void BilinearForm::ComputeElementMatrices()
 void BilinearForm::EliminateEssentialBC (
    Array<int> &bdr_attr_is_ess, Vector &sol, Vector &rhs, int d )
 {
-   int i, j, k;
-
-   for (i = 0; i < fes -> GetNBE(); i++)
-      if (bdr_attr_is_ess[fes -> GetBdrAttribute (i)-1])
-      {
-         fes -> GetBdrElementVDofs (i, vdofs);
-         for (j = 0; j < vdofs.Size(); j++)
-            if ( (k = vdofs[j]) >= 0 )
-               mat -> EliminateRowCol (k, sol(k), rhs, d);
-            else
-               mat -> EliminateRowCol (-1-k, sol(-1-k), rhs, d);
-      }
+   Array<int> ess_dofs, conf_ess_dofs;
+   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+   fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
+   EliminateEssentialBCFromDofs(conf_ess_dofs, sol, rhs, d);
 }
 
 void BilinearForm::EliminateVDofs (
@@ -410,19 +402,10 @@ void BilinearForm::EliminateVDofsInRHS(
 
 void BilinearForm::EliminateEssentialBC (Array<int> &bdr_attr_is_ess, int d)
 {
-   int i, j, k;
-   Array<int> vdofs;
-
-   for (i = 0; i < fes -> GetNBE(); i++)
-      if (bdr_attr_is_ess[fes -> GetBdrAttribute (i)-1])
-      {
-         fes -> GetBdrElementVDofs (i, vdofs);
-         for (j = 0; j < vdofs.Size(); j++)
-            if ( (k = vdofs[j]) >= 0 )
-               mat -> EliminateRowCol (k, d);
-            else
-               mat -> EliminateRowCol (-1-k, d);
-      }
+   Array<int> ess_dofs, conf_ess_dofs;
+   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+   fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
+   EliminateEssentialBCFromDofs(conf_ess_dofs, d);
 }
 
 void BilinearForm::EliminateEssentialBCFromDofs (

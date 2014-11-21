@@ -49,7 +49,9 @@ public:
    /// Assembles the linear form i.e. sums over all domain/bdr integrators.
    void Assemble();
 
-   void ConformingAssemble(Vector &b);
+   void ConformingAssemble(Vector &b) const;
+
+   void ConformingAssemble();
 
    void Update() { SetSize(fes->GetVSize()); }
 

@@ -127,6 +127,12 @@ public:
 
    inline int GetVSize() const { return vdim * ndofs; }
 
+   /// Returns the number of conforming ("true") degrees of freedom
+   /// (if the space is on a nonconforming mesh with hanging nodes).
+   inline int GetNConformingDofs() const { return cP ? cP->Width() : ndofs; }
+
+   inline int GetConformingVSize() const { return vdim * GetNConformingDofs(); }
+
    /// Return the ordering method.
    inline int GetOrdering() const { return ordering; }
 
@@ -292,10 +298,14 @@ public:
                                             NCMeshHex* ncmesh);
 
    virtual void Update();
+
+   virtual void UpdateAndInterpolate(int num_grid_fns, ...);
+
+   /// A shortcut for passing only one GridFunction to UndateAndInterpolate.
+   void UpdateAndInterpolate(GridFunction* gf) { UpdateAndInterpolate(1, gf); }
+
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
-   /// Change the mesh pointer.
-   void UpdateMesh(Mesh* mesh) { this->mesh = mesh; }
 
    void Save (ostream &out) const;
 

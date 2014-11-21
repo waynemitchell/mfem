@@ -84,7 +84,7 @@ void LinearForm::Assemble()
    }
 }
 
-void LinearForm::ConformingAssemble(Vector &b)
+void LinearForm::ConformingAssemble(Vector &b) const
 {
    SparseMatrix *P = fes->GetConformingProlongation();
    if (P)
@@ -96,6 +96,13 @@ void LinearForm::ConformingAssemble(Vector &b)
    {
       b = *this;
    }
+}
+
+void LinearForm::ConformingAssemble()
+{
+   Vector b;
+   ConformingAssemble(b);
+   static_cast<Vector&>(*this) = b;
 }
 
 void LinearForm::Update(FiniteElementSpace *f, Vector &v, int v_offset)

@@ -1678,12 +1678,19 @@ void GridFunction::ConformingProlongate(const Vector &x)
    const SparseMatrix *P = fes->GetConformingProlongation();
    if (P)
    {
+      this->SetSize(P->Size());
       P->Mult(x, *this);
    }
    else // assume conforming mesh
    {
       *this = x;
    }
+}
+
+void GridFunction::ConformingProlongate()
+{
+   Vector x = *this;
+   ConformingProlongate(x);
 }
 
 void GridFunction::ConformingProject(Vector &x) const
@@ -1709,6 +1716,13 @@ void GridFunction::ConformingProject(Vector &x) const
       x = *this;
       return;
    }
+}
+
+void GridFunction::ConformingProject()
+{
+   Vector x;
+   ConformingProject(x);
+   static_cast<Vector&>(*this) = x;
 }
 
 void GridFunction::Save(ostream &out)
