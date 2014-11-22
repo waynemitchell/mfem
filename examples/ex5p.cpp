@@ -93,8 +93,6 @@ int main (int argc, char *argv[])
 			pmesh->UniformRefinement();
 	}
 
-	// Reorient Tetraheadral mesh (necessary if one uses high order RT spaces)
-	pmesh->ReorientTetMesh();
 
 	// 5. Define a parallel finite element space on the parallel mesh. Here we
 	//    use the lowest order Raviart-Thomas finite elements, but we can easily
@@ -150,14 +148,6 @@ int main (int argc, char *argv[])
 	BlockVector x(block_offsets), rhs(block_offsets);
 	BlockVector trueX(block_trueOffsets), trueRhs(block_trueOffsets);
 
-	ParGridFunction *u(new ParGridFunction);
-	ParGridFunction *p(new ParGridFunction);
-	u->Update(R_space, x.GetBlock(0), 0);
-	p->Update(W_space, x.GetBlock(1), 0);
-	*u = 0.; *p = 0.; 	// One could now use u and p to interpolate essential boundary conditions, instead.
-	u->GetTrueDofs(trueX.GetBlock(0));
-	p->GetTrueDofs(trueX.GetBlock(1));
-
 	ParLinearForm * fform( new ParLinearForm );
 	fform->Update(R_space, rhs.GetBlock(0), 0);
 	fform->AddDomainIntegrator( new VectorFEDomainLFIntegrator(fcoeff));
@@ -181,38 +171,24 @@ int main (int argc, char *argv[])
 	 * 	M = \int_\Omega k u_h \cdot v_h d\Omega   u_h, v_h \in R_h
 	 *  B   = -\int_\Omega \div u_h q_h d\Omega   u_h \in R_h, q_h \in W_h
 	 *
-	 *  The mixed bilinear form B is computed as B = W*D, where
-     *  W is the pressure mass matrix
-	 *  W = \int_\Omega p_h q_h d\Omega            p_h, q_h \in W_h
-	 *  and D is the discrete divergence operator that maps the RT-space in piecewise discontinuous polynomials space.
-	 *  D   : R_h --> W_h s.t. p_h = D u_h --> p_h = \div u_h
 	 */
 
 	ParBilinearForm * mVarf( new ParBilinearForm(R_space));
-	ParBilinearForm * wVarf( new ParBilinearForm(W_space) );
-	ParDiscreteLinearOperator * discreteDiv(
-			new ParDiscreteLinearOperator(R_space, W_space)
-	);
+	ParMixedBilinearForm * bVarf(new ParMixedBilinearForm(R_space, W_space));
 
-	HypreParMatrix *M, *W, *D;
+	HypreParMatrix *M, *B;
 
 	mVarf->AddDomainIntegrator(new VectorFEMassIntegrator(k));
 	mVarf->Assemble();
 	mVarf->Finalize();
 	M = mVarf->ParallelAssemble();
 
-	wVarf->AddDomainIntegrator(new MassIntegrator);
-	wVarf->Assemble();
-	wVarf->Finalize();
-	W = wVarf->ParallelAssemble();
-
-	discreteDiv->AddDomainInterpolator( new DivergenceInterpolator);
-	discreteDiv->Assemble();
-	discreteDiv->Finalize();
-	D = discreteDiv->ParallelAssemble();
-
-	HypreParMatrix * B = ParMult(W,D);
+	bVarf->AddDomainIntegrator(new VectorFEDivergenceIntegrator);
+	bVarf->Assemble();
+	bVarf->Finalize();
+	B = bVarf->ParallelAssemble();
 	(*B) *= -1;
+
 	HypreParMatrix * BT = B->Transpose();
 	
 	BlockOperator * darcyOp = new BlockOperator(block_trueOffsets);
@@ -247,7 +223,7 @@ int main (int argc, char *argv[])
 	darcyPr->SetDiagonalBlock(1, invS );
 
 	// 11. Solve the linear system with MINRES.
-	//     Check the norm of the unpreconditioned residual
+	//     Check the norm of the unpreconditioned residual.
 
 	int maxIter(500);
 	double rtol(1.e-6);
@@ -262,6 +238,7 @@ int main (int argc, char *argv[])
 	solver.SetOperator(*darcyOp);
 	solver.SetPreconditioner(*darcyPr);
 	solver.SetPrintLevel(verbose);
+	trueX = 0.;
 	solver.Mult(trueRhs, trueX);
 	chrono.Stop();
 
@@ -274,36 +251,24 @@ int main (int argc, char *argv[])
 		std::cout << "MINRES solver took " << chrono.RealTime() << " s. \n";
 	}
 
-	BlockVector r( block_trueOffsets );
-	darcyOp->Mult(trueX, r);
-	subtract(trueRhs, r, r);
-
-
-	double residual_norm = GlobalLpNorm(2., r.Norml2(),   MPI_COMM_WORLD);
-	double rhs_norm      = GlobalLpNorm(2., rhs.Norml2(), MPI_COMM_WORLD);
-
-	if(verbose)
-	{
-		std::cout<<"|| Ax_n - b ||_2 = "<<residual_norm<<"\n";
-		std::cout<<"|| Ax_n - b ||_2/||b||_2 = "<<residual_norm/rhs_norm<<"\n";
-	}
-
 	// 12. Extract the parallel grid function corresponding to the finite element
 	//     approximation X. This is the local solution on each processor. Compute L2 error norms.
+	ParGridFunction *u(new ParGridFunction);
+	ParGridFunction *p(new ParGridFunction);
 	u->Update(R_space, x.GetBlock(0), 0);
 	p->Update(W_space, x.GetBlock(1), 0);
 	u->Distribute( &(trueX.GetBlock(0)) );
 	p->Distribute( &(trueX.GetBlock(1)) );
 
 	int order_quad = max(2, 2*order+1);
-	Array<const IntegrationRule *> irs;
+	const IntegrationRule * irs[Geometry::NumGeom];
 	for(int i(0); i < Geometry::NumGeom; ++i)
-		irs.Append(&(IntRules.Get(i, order_quad)));
+		irs[i] = &(IntRules.Get(i, order_quad));
 
-	double err_u  = u->ComputeL2Error(ucoeff, irs.GetData());
-	double norm_u = GlobalLpNorm(2., ComputeLpNorm(2., ucoeff, *pmesh, irs.GetData()), MPI_COMM_WORLD);
-	double err_p = p->ComputeL2Error(pcoeff, irs.GetData());
-	double norm_p = GlobalLpNorm(2., ComputeLpNorm(2., pcoeff, *pmesh, irs.GetData()), MPI_COMM_WORLD);
+	double err_u  = u->ComputeL2Error(ucoeff, irs);
+	double norm_u = ComputeGlobalLpNorm(MPI_COMM_WORLD, 2, ucoeff, *pmesh, irs);
+	double err_p = p->ComputeL2Error(pcoeff, irs);
+	double norm_p = ComputeGlobalLpNorm(MPI_COMM_WORLD, 2, pcoeff, *pmesh, irs);
 
 	if(verbose)
 	{
@@ -366,11 +331,8 @@ int main (int argc, char *argv[])
 	delete BT;
 	delete B;
 	delete M;
-	delete W;
-	delete D;
 	delete mVarf;
-	delete wVarf;
-	delete discreteDiv;
+	delete bVarf;
 	delete W_space;
 	delete R_space;
 	delete l2_coll;

@@ -70,8 +70,6 @@ int main (int argc, char *argv[])
 			mesh->UniformRefinement();
 	}
 
-	// Reorient Tetraheadral mesh (necessary if one uses high order RT spaces)
-	mesh->ReorientTetMesh();
 
 	// 3. Define a finite element space on the mesh. Here we
 	//    use the lowest order Raviart-Thomas finite elements, but we can easily
@@ -113,9 +111,6 @@ int main (int argc, char *argv[])
 	// Define the GridFunction u,p for the finite element solution and linear forms fform and gform for the right hand side.
 	// The data allocated by x and rhs are passed as a reference to the grid fuctions (u,p) and the linear forms (fform, gform).
 	BlockVector x( block_offsets ), rhs( block_offsets );
-    GridFunction u, p;
-    u.Update(R_space, x.GetBlock(0), 0);
-    p.Update(W_space, x.GetBlock(1), 0 );
 
 	LinearForm * fform( new LinearForm );
     fform->Update(R_space, rhs.GetBlock(0), 0);
@@ -137,43 +132,28 @@ int main (int argc, char *argv[])
 	 *
 	 * 	M = \int_\Omega k u_h \cdot v_h d\Omega   u_h, v_h \in R_h
 	 *  B   = -\int_\Omega \div u_h q_h d\Omega   u_h \in R_h, q_h \in W_h
-     *
-     *  The mixed bilinear form B is computed as B = W*D, where
-     *  W is the pressure mass matrix
-	 *  W = \int_\Omega p_h q_h d\Omega            p_h, q_h \in W_h
-	 *  and D is the discrete divergence operator that maps the RT-space in piecewise discontinuous polynomials space.
-	 *  D   : R_h --> W_h s.t. p_h = D u_h --> p_h = \div u_h
+	 *
 	 */
 
 	BilinearForm * mVarf( new BilinearForm(R_space));
-	BilinearForm * wVarf( new BilinearForm(W_space) );
-	DiscreteLinearOperator * discreteDiv(
-			new DiscreteLinearOperator(R_space, W_space)
-	);
+	MixedBilinearForm * bVarf( new MixedBilinearForm(R_space, W_space) );
 
 	mVarf->AddDomainIntegrator(new VectorFEMassIntegrator(k));
 	mVarf->Assemble();
 	mVarf->Finalize();
     SparseMatrix & M( mVarf->SpMat() );
 
-	wVarf->AddDomainIntegrator(new MassIntegrator);
-	wVarf->Assemble();
-	wVarf->Finalize();
-    SparseMatrix & W( wVarf->SpMat() );
-
-	discreteDiv->AddDomainInterpolator( new DivergenceInterpolator);
-	discreteDiv->Assemble();
-	discreteDiv->Finalize();
-    SparseMatrix & D(discreteDiv->SpMat());
-
-	SparseMatrix * B = Mult( W, D );
-	(*B) *= -1.;
-	SparseMatrix * BT = Transpose(*B);
+	bVarf->AddDomainIntegrator(new VectorFEDivergenceIntegrator);
+	bVarf->Assemble();
+	bVarf->Finalize();
+    SparseMatrix & B( bVarf->SpMat() );
+	B *= -1.;
+	SparseMatrix * BT = Transpose(B);
 
 	BlockMatrix darcyMatrix(block_offsets);
 	darcyMatrix.SetBlock(0,0, &M );
 	darcyMatrix.SetBlock(0,1, BT );
-	darcyMatrix.SetBlock(1,0, B);
+	darcyMatrix.SetBlock(1,0, &B);
 
 	// 8. Construct the operators for preconditioner
 	/*
@@ -183,16 +163,20 @@ int main (int argc, char *argv[])
 	 *  Here we use Symmetric Gauss-Seidel to approximate the inverse of the pressure Schur Complement
 	 */
 
-	SparseMatrix * MinvBt = Transpose(*B);
+	SparseMatrix * MinvBt = Transpose(B);
 	Vector Md(M.Size());
 	M.GetDiag(Md);
     for(int i = 0; i < Md.Size(); ++i)
 	    MinvBt->ScaleRow(i, 1./Md(i));
-	SparseMatrix * S = Mult(*B, *MinvBt );
+	SparseMatrix * S = Mult(B, *MinvBt );
 
 	Solver * invM, *invS;
 	invM = new DSmoother(M);
+#ifndef MFEM_USE_SUITESPARSE
 	invS = new GSSmoother(*S);
+#else
+	invS = new UMFPackSolver(*S);
+#endif
 
 	invM->iterative_mode = false;
 	invS->iterative_mode = false;
@@ -201,9 +185,8 @@ int main (int argc, char *argv[])
 	darcyPrec.SetDiagonalBlock(0, invM );
 	darcyPrec.SetDiagonalBlock(1, invS );
 
-	// 9. Solve the linear system with MINRES. Check the norm of the unpreconditioned residual.
-
-	x = 0.0;
+	// 9. Solve the linear system with MINRES.
+	//    Check the norm of the unpreconditioned residual.
 
 	int maxIter(500);
 	double rtol(1.e-6);
@@ -218,6 +201,7 @@ int main (int argc, char *argv[])
 	solver.SetOperator(darcyMatrix);
 	solver.SetPreconditioner(darcyPrec);
 	solver.SetPrintLevel(0);
+	x = 0.0;
 	solver.Mult(rhs, x);
 	chrono.Stop();
 
@@ -228,29 +212,20 @@ int main (int argc, char *argv[])
 
 	std::cout << "MINRES solver took " << chrono.RealTime() << " s. \n";
 
-	BlockVector r( block_offsets  );
-	darcyMatrix.Mult(x, r);
-	subtract(rhs, r, r);
-
-	double residual_norm(r.Norml2());
-	double rhs_norm(rhs.Norml2());
-
-	std::cout<<"|| Ax_n - b ||_2 = "<<residual_norm<<"\n";
-	std::cout<<"|| Ax_n - b ||_2/||b||_2 = "<<residual_norm/rhs_norm<<"\n";
-
-	// 10. Update the grid functions u and p. Compute the L2 error norms.
+	// 10. Create the grid functions u and p. Compute the L2 error norms.
+    GridFunction u, p;
 	u.Update(R_space, x.GetBlock(0), 0);
 	p.Update(W_space, x.GetBlock(1), 0 );
 
 	int order_quad = max(2, 2*order+1);
-	Array<const IntegrationRule *> irs;
+	const IntegrationRule * irs[Geometry::NumGeom];
 	for(int i(0); i < Geometry::NumGeom; ++i)
-		irs.Append(&(IntRules.Get(i, order_quad)));
+		irs[i] = &(IntRules.Get(i, order_quad));
 
-	double err_u  = u.ComputeL2Error(ucoeff, irs.GetData());
-	double norm_u = ComputeLpNorm(2., ucoeff, *mesh, irs.GetData());
-	double err_p = p.ComputeL2Error(pcoeff, irs.GetData());
-	double norm_p = ComputeLpNorm(2., pcoeff, *mesh, irs.GetData());
+	double err_u  = u.ComputeL2Error(ucoeff, irs);
+	double norm_u = ComputeLpNorm(2., ucoeff, *mesh, irs);
+	double err_p = p.ComputeL2Error(pcoeff, irs);
+	double norm_p = ComputeLpNorm(2., pcoeff, *mesh, irs);
 
 	std::cout << "|| u_h - u_ex || / || u_ex || = " << err_u / norm_u << "\n";
 	std::cout << "|| p_h - p_ex || / || p_ex || = " << err_p / norm_p << "\n";
@@ -296,10 +271,8 @@ int main (int argc, char *argv[])
 	delete S;
 	delete MinvBt;
 	delete BT;
-	delete B;
 	delete mVarf;
-	delete wVarf;
-	delete discreteDiv;
+	delete bVarf;
 	delete W_space;
 	delete R_space;
 	delete l2_coll;
