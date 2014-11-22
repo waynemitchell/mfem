@@ -555,11 +555,10 @@ double Vector::Norml1() const
 
 double Vector::Normlp(double p) const
 {
-	if( p <= 0. )
-		mfem_error("Vector::Normlp");
-	if( fabs(p - 1.) < 1.e-12 )
+	MFEM_ASSERT( p>0., "Vector::Normlp");
+	if( p == 1. )
 		return Norml1();
-	if( fabs(p - 2.) < 1.e-12 )
+	if( p == 2. )
 		return Norml2();
 	if(p < std::numeric_limits<double>::infinity() )
 	{
