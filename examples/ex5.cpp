@@ -14,6 +14,9 @@
 #include "mfem.hpp"
 #include <cassert>
 
+using namespace std;
+using namespace mfem;
+
 double analytic_solution (Vector & input)
 {
    double l2 = (input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
