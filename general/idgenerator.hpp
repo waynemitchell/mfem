@@ -12,8 +12,11 @@
 #ifndef MFEM_IDGENERATOR
 #define MFEM_IDGENERATOR
 
+#include "../config.hpp"
 #include "array.hpp"
 
+namespace mfem
+{
 
 /** Helper class to generate unique IDs. When IDs are no longer needed, they
  *  can be returned to the class ('Reuse') and they will be returned next time
@@ -47,5 +50,6 @@ private:
    Array<int> reusable;
 };
 
+}
 
 #endif
