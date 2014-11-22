@@ -12,6 +12,11 @@
 #ifndef MFEM_ELEMENTTRANSFORM
 #define MFEM_ELEMENTTRANSFORM
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 class ElementTransformation
 {
 protected:
@@ -21,6 +26,7 @@ protected:
 
 public:
    int Attribute, ElementNo;
+   ElementTransformation();
    void SetIntPoint(const IntegrationPoint *ip)
    { IntPoint = ip; WeightIsEvaluated = JacobianIsEvaluated = 0; }
    const IntegrationPoint &GetIntPoint() { return *IntPoint; }
@@ -58,6 +64,8 @@ public:
    void SetFE(const FiniteElement *FE) { FElem = FE; };
    DenseMatrix &GetPointMat () { return PointMat; };
 
+   void SetIdentityTransformation(int GeomType);
+
    virtual void Transform(const IntegrationPoint &, Vector &);
    virtual void Transform(const IntegrationRule &, DenseMatrix &);
    virtual const DenseMatrix & Jacobian();
@@ -90,5 +98,7 @@ public:
    ElementTransformation *Elem1, *Elem2, *Face;
    IntegrationPointTransformation Loc1, Loc2;
 };
+
+}
 
 #endif

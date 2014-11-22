@@ -12,6 +12,11 @@
 #ifndef MFEM_ODE
 #define MFEM_ODE
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Abstract class for solving systems of ODEs: dx/dt = f(x,t)
 class ODESolver
 {
@@ -138,5 +143,82 @@ private:
 public:
    RK8Solver() : ExplicitRKSolver(12, a, b, c) { }
 };
+
+
+/// Backward Euler ODE solver. L-stable.
+class BackwardEulerSolver : public ODESolver
+{
+protected:
+   Vector k;
+
+public:
+   virtual void Init(TimeDependentOperator &_f);
+
+   virtual void Step(Vector &x, double &t, double &dt);
+};
+
+
+/// Implicit midpoint method. A-stable, not L-stable.
+class ImplicitMidpointSolver : public ODESolver
+{
+protected:
+   Vector k;
+
+public:
+   virtual void Init(TimeDependentOperator &_f);
+
+   virtual void Step(Vector &x, double &t, double &dt);
+};
+
+
+/** Two stage, singly diagonal implicit Runge-Kutta (SDIRK) methods;
+    the choices for gamma_opt are:
+    0 - 3rd order method, not A-stable
+    1 - 3rd order method, A-stable, not L-stable (default)
+    2 - 2nd order method, L-stable
+    3 - 2nd order method, L-stable (has solves ouside [t,t+dt]). */
+class SDIRK23Solver : public ODESolver
+{
+protected:
+   double gamma;
+   Vector k, y;
+
+public:
+   SDIRK23Solver(int gamma_opt = 1);
+
+   virtual void Init(TimeDependentOperator &_f);
+
+   virtual void Step(Vector &x, double &t, double &dt);
+};
+
+
+/** Three stage, singly diagonal implicit Runge-Kutta (SDIRK) method of
+    order 4. A-stable, not L-stable. */
+class SDIRK34Solver : public ODESolver
+{
+protected:
+   Vector k, y, z;
+
+public:
+   virtual void Init(TimeDependentOperator &_f);
+
+   virtual void Step(Vector &x, double &t, double &dt);
+};
+
+
+/** Three stage, singly diagonal implicit Runge-Kutta (SDIRK) method of
+    order 3. L-stable. */
+class SDIRK33Solver : public ODESolver
+{
+protected:
+   Vector k, y;
+
+public:
+   virtual void Init(TimeDependentOperator &_f);
+
+   virtual void Step(Vector &x, double &t, double &dt);
+};
+
+}
 
 #endif

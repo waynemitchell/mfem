@@ -12,12 +12,15 @@
 #ifndef MFEM_MATRIX
 #define MFEM_MATRIX
 
-// Abstract data types matrix, inverse matrix
-
-#include "../general/array.hpp"
+#include <iostream>
 #include "operator.hpp"
 
-class  MatrixInverse;
+namespace mfem
+{
+
+// Abstract data types matrix, inverse matrix
+
+class MatrixInverse;
 
 /// Abstract data type matrix
 class Matrix : public Operator
@@ -40,7 +43,7 @@ public:
    virtual void Finalize(int) { }
 
    /// Prints matrix to stream out.
-   virtual void Print (ostream & out = cout, int width = 4) const;
+   virtual void Print (std::ostream & out = std::cout, int width = 4) const;
 
    /// Destroys matrix.
    virtual ~Matrix() { }
@@ -57,5 +60,7 @@ public:
    MatrixInverse(const Matrix &mat)
       : Solver(mat.size) { }
 };
+
+}
 
 #endif

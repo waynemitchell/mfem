@@ -18,6 +18,10 @@
 #include "table.hpp"
 #include "error.hpp"
 
+namespace mfem
+{
+
+using namespace std;
 
 Table::Table (int dim, int connections_per_row)
 {
@@ -174,7 +178,7 @@ int Table::Push(int i, int j)
       }
 
    MFEM_ABORT("Reached end of loop unexpectedly: (i,j) = (" << i << ", " << j
-                                                            << ")");
+              << ")");
 
    return -1;
 }
@@ -217,7 +221,7 @@ int Table::Width() const
    return width + 1;
 }
 
-void Table::Print(ostream & out, int width) const
+void Table::Print(std::ostream & out, int width) const
 {
    int i, j;
 
@@ -235,7 +239,7 @@ void Table::Print(ostream & out, int width) const
    }
 }
 
-void Table::PrintMatlab(ostream & out) const
+void Table::PrintMatlab(std::ostream & out) const
 {
    int i, j;
 
@@ -246,7 +250,7 @@ void Table::PrintMatlab(ostream & out) const
    out << flush;
 }
 
-void Table::Save(ostream & out) const
+void Table::Save(std::ostream & out) const
 {
    int i;
 
@@ -326,6 +330,13 @@ void Transpose (const Table &A, Table &At, int _ncols_A)
    i_At[0] = 0;
 }
 
+Table * Transpose(const Table &A)
+{
+   Table * At = new Table;
+   Transpose(A, *At);
+   return At;
+}
+
 void Transpose(const Array<int> &A, Table &At, int _ncols_A)
 {
    At.MakeI((_ncols_A < 0) ? (A.Max() + 1) : _ncols_A);
@@ -403,6 +414,13 @@ void Mult (const Table &A, const Table &B, Table &C)
    }
 }
 
+
+Table * Mult (const Table &A, const Table &B)
+{
+   Table * C = new Table;
+   Mult(A,B,*C);
+   return C;
+}
 
 STable::STable (int dim, int connections_per_row) :
    Table(dim, connections_per_row)
@@ -491,4 +509,6 @@ DSTable::~DSTable()
    }
 #endif
    delete [] Rows;
+}
+
 }

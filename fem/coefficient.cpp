@@ -11,25 +11,21 @@
 
 // Implementation of Coefficient class
 
-#include <math.h>
-#include <limits>
 #include "fem.hpp"
+
+#include <cmath>
+#include <limits>
+
+namespace mfem
+{
+
+using namespace std;
 
 double PWConstCoefficient::Eval(ElementTransformation & T,
                                 const IntegrationPoint & ip)
 {
    int att = T.Attribute;
    return(constants(att-1));
-}
-
-void PWConstCoefficient::Read(istream &in)
-{
-   int i, n;
-
-   in >> n;
-   constants.SetSize(n);
-   for (i = 0; i < n; i++)
-      in >> constants(i);
 }
 
 double FunctionCoefficient::Eval(ElementTransformation & T,
@@ -40,13 +36,30 @@ double FunctionCoefficient::Eval(ElementTransformation & T,
 
    T.Transform(ip, transip);
 
-   return((*Function)(transip));
+   if (Function)
+      return((*Function)(transip));
+   else
+      return (*TDFunction)(transip, GetTime());
 }
 
 double GridFunctionCoefficient::Eval (ElementTransformation &T,
                                       const IntegrationPoint &ip)
 {
    return GridF -> GetValue (T.ElementNo, ip, Component);
+}
+
+double TransformedCoefficient::Eval(ElementTransformation &T,
+                                    const IntegrationPoint &ip)
+{
+   if (Q2)
+   {
+      return (*Transform2)(Q1->Eval(T, ip, GetTime()),
+                           Q2->Eval(T, ip, GetTime()));
+   }
+   else
+   {
+      return (*Transform1)(Q1->Eval(T, ip, GetTime()));
+   }
 }
 
 void VectorCoefficient::Eval(DenseMatrix &M, ElementTransformation &T,
@@ -63,18 +76,21 @@ void VectorCoefficient::Eval(DenseMatrix &M, ElementTransformation &T,
    }
 }
 
-void VectorFunctionCoefficient::Eval (Vector &V, ElementTransformation &T,
-                                      const IntegrationPoint &ip)
+void VectorFunctionCoefficient::Eval(Vector &V, ElementTransformation &T,
+                                     const IntegrationPoint &ip)
 {
    double x[3];
    Vector transip(x, 3);
 
-   T.Transform (ip, transip);
+   T.Transform(ip, transip);
 
-   V.SetSize (vdim);
-   (*Function) (transip, V);
+   V.SetSize(vdim);
+   if (Function)
+      (*Function)(transip, V);
+   else
+      (*TDFunction)(transip, GetTime(), V);
    if (Q)
-      V *= Q -> Eval (T, ip);
+      V *= Q->Eval(T, ip, GetTime());
 }
 
 VectorArrayCoefficient::VectorArrayCoefficient (int dim)
@@ -90,14 +106,12 @@ VectorArrayCoefficient::~VectorArrayCoefficient()
       delete Coeff[i];
 }
 
-void VectorArrayCoefficient::Eval (Vector &V, ElementTransformation &T,
-                                   const IntegrationPoint &ip)
+void VectorArrayCoefficient::Eval(Vector &V, ElementTransformation &T,
+                                  const IntegrationPoint &ip)
 {
-   int i;
-
    V.SetSize(vdim);
-   for (i = 0; i < vdim; i++)
-      V(i) = Coeff[i] -> Eval (T, ip);
+   for (int i = 0; i < vdim; i++)
+      V(i) = Coeff[i]->Eval(T, ip, GetTime());
 }
 
 VectorGridFunctionCoefficient::VectorGridFunctionCoefficient (
@@ -123,7 +137,10 @@ void VectorRestrictedCoefficient::Eval(Vector &V, ElementTransformation &T,
 {
    V.SetSize(vdim);
    if (active_attr[T.Attribute-1])
+   {
+      c->SetTime(GetTime());
       c->Eval(V, T, ip);
+   }
    else
       V = 0.0;
 }
@@ -132,7 +149,10 @@ void VectorRestrictedCoefficient::Eval(
    DenseMatrix &M, ElementTransformation &T, const IntegrationRule &ir)
 {
    if (active_attr[T.Attribute-1])
+   {
+      c->SetTime(GetTime());
       c->Eval(M, T, ir);
+   }
    else
    {
       M.SetSize(vdim);
@@ -149,7 +169,11 @@ void MatrixFunctionCoefficient::Eval(DenseMatrix &K, ElementTransformation &T,
    T.Transform(ip, transip);
 
    K.SetSize(vdim);
-   (*Function)(transip, K);
+
+   if (Function)
+      (*Function)(transip, K);
+   else
+      (*TDFunction)(transip, GetTime(), K);
 }
 
 MatrixArrayCoefficient::MatrixArrayCoefficient (int dim)
@@ -171,7 +195,7 @@ void MatrixArrayCoefficient::Eval (DenseMatrix &K, ElementTransformation &T,
 
    for (i = 0; i < vdim; i++)
       for (j = 0; j < vdim; j++)
-         K(i,j) = Coeff[i*vdim+j] -> Eval(T, ip);
+         K(i,j) = Coeff[i*vdim+j] -> Eval(T, ip, GetTime());
 }
 
 double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
@@ -211,4 +235,6 @@ double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
    }
 
    return norm;
+}
+
 }

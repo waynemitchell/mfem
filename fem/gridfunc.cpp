@@ -11,25 +11,32 @@
 
 // Implementation of GridFunction
 
-#include "fem.hpp"
 #include <limits>
 #include <cstring>
-#include <math.h>
+#include <string>
+#include <cmath>
+#include <iostream>
+#include "fem.hpp"
 
-GridFunction::GridFunction(Mesh *m, istream &input)
+namespace mfem
+{
+
+using namespace std;
+
+GridFunction::GridFunction(Mesh *m, std::istream &input)
    : Vector()
 {
    const int bufflen = 256;
    char buff[bufflen];
    int vdim;
 
-   input >> ws;
+   input >> std::ws;
    input.getline(buff, bufflen);  // 'FiniteElementSpace'
    if (strcmp(buff, "FiniteElementSpace"))
       mfem_error("GridFunction::GridFunction():"
                  " input stream is not a GridFunction!");
    input.getline(buff, bufflen, ' '); // 'FiniteElementCollection:'
-   input >> ws;
+   input >> std::ws;
    input.getline(buff, bufflen);
    fec = FiniteElementCollection::New(buff);
    input.getline(buff, bufflen, ' '); // 'VDim:'
@@ -293,7 +300,12 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
          di = 1;
    }
    else
-      di = side;
+   {
+      if (side == 1 && !fes->GetMesh()->FaceIsInterior(i))
+         di = 0;
+      else
+         di = side;
+   }
    if (di == 0)
    {
       Transf = fes->GetMesh()->GetFaceElementTransformations(i, 4);
@@ -704,7 +716,20 @@ double GridFunction::GetDivergence(ElementTransformation &tr)
 
 void GridFunction::GetGradient(ElementTransformation &tr, Vector &grad)
 {
-   mfem_error("GridFunction::GetGradient(...) is not implemented!");
+   int elNo = tr.ElementNo;
+   const FiniteElement *fe = fes->GetFE(elNo);
+   int dim = fe->GetDim(), dof = fe->GetDof();
+   DenseMatrix dshape(dof, dim), Jinv(dim);
+   Vector lval, gh(dim);
+   Array<int> dofs;
+
+   grad.SetSize(dim);
+   fes->GetElementDofs(elNo, dofs);
+   GetSubVector(dofs, lval);
+   fe->CalcDShape(tr.GetIntPoint(), dshape);
+   dshape.MultTranspose(lval, gh);
+   CalcInverse(tr.Jacobian(), Jinv);
+   Jinv.MultTranspose(gh, grad);
 }
 
 void GridFunction::GetGradients(const int elem, const IntegrationRule &ir,
@@ -796,7 +821,7 @@ void GridFunction::ProjectGridFunction(const GridFunction &src)
 }
 
 void GridFunction::ImposeBounds(int i, const Vector &weights,
-                                double _min, double _max)
+                                const Vector &_lo, const Vector &_hi)
 {
    Array<int> vdofs;
    fes->GetElementVDofs(i, vdofs);
@@ -804,11 +829,32 @@ void GridFunction::ImposeBounds(int i, const Vector &weights,
    Vector vals, new_vals(size);
    GetSubVector(vdofs, vals);
 
-#ifdef MFEM_DEBUG
-   if (weights.Size() != size)
-      mfem_error("GridFunction::ImposeBounds:"
-                 " different # of weights and dofs.");
-#endif
+   MFEM_ASSERT(weights.Size() == size, "Different # of weights and dofs.");
+   MFEM_ASSERT(_lo.Size() == size, "Different # of lower bounds and dofs.");
+   MFEM_ASSERT(_hi.Size() == size, "Different # of upper bounds and dofs.");
+
+   int max_iter = 30;
+   double tol = 1.e-12;
+   SLBQPOptimizer slbqp;
+   slbqp.SetMaxIter(max_iter);
+   slbqp.SetAbsTol(1.0e-18);
+   slbqp.SetRelTol(tol);
+   slbqp.SetBounds(_lo, _hi);
+   slbqp.SetLinearConstraint(weights, weights * vals);
+   slbqp.SetPrintLevel(0); // print messages only if not converged
+   slbqp.Mult(vals, new_vals);
+
+   SetSubVector(vdofs, new_vals);
+}
+
+void GridFunction::ImposeBounds(int i, const Vector &weights,
+                                double _min, double _max)
+{
+   Array<int> vdofs;
+   fes->GetElementVDofs(i, vdofs);
+   int size = vdofs.Size();
+   Vector vals, new_vals(size);
+   GetSubVector(vdofs, vals);
 
    double max_val = vals.Max();
    double min_val = vals.Min();
@@ -827,18 +873,7 @@ void GridFunction::ImposeBounds(int i, const Vector &weights,
    minv = (_min > min_val) ? _min : min_val;
    maxv = (_max < max_val) ? _max : max_val;
 
-   int max_iter = 30;
-   double tol = 1.e-12;
-   SLBQPOptimizer slbqp;
-   slbqp.SetMaxIter(max_iter);
-   slbqp.SetAbsTol(1.0e-18);
-   slbqp.SetRelTol(tol);
-   slbqp.SetBounds(minv, maxv);
-   slbqp.SetLinearConstraint(weights, weights * vals);
-   slbqp.SetPrintLevel(0); // print messages only if not converged
-   slbqp.Mult(vals, new_vals);
-
-   SetSubVector(vdofs, new_vals);
+   ImposeBounds(i, weights, minv, maxv);
 }
 
 void GridFunction::GetNodalValues(Vector &nval, int vdim) const
@@ -1667,7 +1702,7 @@ void GridFunction::ConformingProject(Vector &x) const
    }
 }
 
-void GridFunction::Save(ostream &out)
+void GridFunction::Save(std::ostream &out)
 {
    fes->Save(out);
    out << '\n';
@@ -1677,7 +1712,7 @@ void GridFunction::Save(ostream &out)
       Vector::Print(out, fes->GetVDim());
 }
 
-void GridFunction::SaveVTK(ostream &out, const string &field_name, int ref)
+void GridFunction::SaveVTK(std::ostream &out, const std::string &field_name, int ref)
 {
    Mesh *mesh = fes->GetMesh();
    RefinedGeometry *RefG;
@@ -1748,7 +1783,7 @@ void GridFunction::SaveVTK(ostream &out, const string &field_name, int ref)
    }
 }
 
-void GridFunction::SaveSTLTri(ostream &out, double p1[], double p2[],
+void GridFunction::SaveSTLTri(std::ostream &out, double p1[], double p2[],
                               double p3[])
 {
    double v1[3] = { p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2] };
@@ -1767,7 +1802,7 @@ void GridFunction::SaveSTLTri(ostream &out, double p1[], double p2[],
        << "\n  endloop\n endfacet\n";
 }
 
-void GridFunction::SaveSTL(ostream &out, int TimesToRefine)
+void GridFunction::SaveSTL(std::ostream &out, int TimesToRefine)
 {
    Mesh *mesh = fes->GetMesh();
 
@@ -1999,4 +2034,6 @@ GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
       sol2d->ProjectCoefficient(c2d);
    }
    return sol2d;
+}
+
 }

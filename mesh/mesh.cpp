@@ -15,13 +15,18 @@
 #include <sstream>
 #include <fstream>
 #include <limits>
-#include <math.h>
-#include <string.h>
-#include <time.h>
+#include <cmath>
+#include <cstring>
+#include <ctime>
 
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 #include "../general/sort_pairs.hpp"
+
+namespace mfem
+{
+
+using namespace std;
 
 void Mesh::GetElementJacobian(int i, DenseMatrix &J)
 {
@@ -1648,7 +1653,7 @@ void Mesh::Make1D(int n, double sx)
    bdr_attributes.Append(1); bdr_attributes.Append(2);
 }
 
-Mesh::Mesh(istream &input, int generate_edges, int refine, bool fix_orientation)
+Mesh::Mesh(std::istream &input, int generate_edges, int refine, bool fix_orientation)
 {
    Init();
    InitTables();
@@ -1675,7 +1680,7 @@ Element *Mesh::NewElement(int geom)
    return NULL;
 }
 
-Element *Mesh::ReadElementWithoutAttr(istream &input)
+Element *Mesh::ReadElementWithoutAttr(std::istream &input)
 {
    int geom, nv, *v;
    Element *el;
@@ -1690,7 +1695,7 @@ Element *Mesh::ReadElementWithoutAttr(istream &input)
    return el;
 }
 
-void Mesh::PrintElementWithoutAttr(Element *el, ostream &out)
+void Mesh::PrintElementWithoutAttr(const Element *el, std::ostream &out)
 {
    out << el->GetGeometryType();
    const int nv = el->GetNVertices();
@@ -1700,7 +1705,7 @@ void Mesh::PrintElementWithoutAttr(Element *el, ostream &out)
    out << '\n';
 }
 
-Element *Mesh::ReadElement(istream &input)
+Element *Mesh::ReadElement(std::istream &input)
 {
    int attr;
    Element *el;
@@ -1712,7 +1717,7 @@ Element *Mesh::ReadElement(istream &input)
    return el;
 }
 
-void Mesh::PrintElement(Element *el, ostream &out)
+void Mesh::PrintElement(const Element *el, std::ostream &out)
 {
    out << el->GetAttribute() << ' ';
    PrintElementWithoutAttr(el, out);
@@ -1727,7 +1732,7 @@ static const int vtk_quadratic_hex[27] =
 { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
   24, 22, 21, 23, 20, 25, 26 };
 
-void skip_comment_lines(istream &is, const char comment_char)
+void skip_comment_lines(std::istream &is, const char comment_char)
 {
    while(1)
    {
@@ -1738,7 +1743,7 @@ void skip_comment_lines(istream &is, const char comment_char)
    }
 }
 
-void Mesh::Load(istream &input, int generate_edges, int refine,
+void Mesh::Load(std::istream &input, int generate_edges, int refine,
                 bool fix_orientation)
 {
    int i, j, ints[32], n, attr, curved = 0, read_gf = 1;
@@ -2824,6 +2829,11 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
       Nodes = new GridFunction(this, gf_array, num_pieces);
       own_nodes = 1;
    }
+
+#ifdef MFEM_DEBUG
+   CheckElementOrientation(false);
+   CheckBdrElementOrientation(false);
+#endif
 }
 
 void Mesh::KnotInsert(Array<KnotVector *> &kv)
@@ -2924,7 +2934,7 @@ void Mesh::UpdateNURBS()
    }
 }
 
-void Mesh::LoadPatchTopo(istream &input, Array<int> &edge_to_knot)
+void Mesh::LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot)
 {
    Init();
    InitTables();
@@ -3071,7 +3081,7 @@ static const char *fixed_or_not[] = { "fixed", "NOT FIXED" };
 
 void Mesh::CheckElementOrientation(bool fix_it)
 {
-   int i, j, k, wo = 0, fo = 0, *vi;
+   int i, j, k, wo = 0, fo = 0, *vi = 0;
    double *v[4];
 
    if (Dim == 2 && spaceDim == 2)
@@ -4180,12 +4190,12 @@ extern "C" {
 int *Mesh::CartesianPartitioning(int nxyz[])
 {
    int *partitioning;
-   double pmin[3], pmax[3];
-   for (int i = 0; i < Dim; i++)
-   {
-      pmin[i] = numeric_limits<double>::infinity();
-      pmax[i] = -pmin[i];
-   }
+   double pmin[3] = { numeric_limits<double>::infinity(),
+                      numeric_limits<double>::infinity(),
+                      numeric_limits<double>::infinity()};
+   double pmax[3] = { -numeric_limits<double>::infinity(),
+                      -numeric_limits<double>::infinity(),
+                      -numeric_limits<double>::infinity()};
    // find a bounding box using the vertices
    for (int vi = 0; vi < NumOfVertices; vi++)
    {
@@ -6873,7 +6883,7 @@ ElementTransformation * Mesh::GetFineElemTrans(int i, int j)
    return &Transformation;  // no refinement
 }
 
-void Mesh::PrintXG(ostream &out) const
+void Mesh::PrintXG(std::ostream &out) const
 {
    int i, j;
    Array<int> v;
@@ -7016,7 +7026,7 @@ void Mesh::PrintXG(ostream &out) const
    out << flush;
 }
 
-void Mesh::Print(ostream &out) const
+void Mesh::Print(std::ostream &out) const
 {
    int i, j;
 
@@ -7069,7 +7079,7 @@ void Mesh::Print(ostream &out) const
    }
 }
 
-void Mesh::PrintTopo(ostream &out,const Array<int> &e_to_k) const
+void Mesh::PrintTopo(std::ostream &out,const Array<int> &e_to_k) const
 {
    int i;
    Array<int> vert;
@@ -7105,7 +7115,7 @@ void Mesh::PrintTopo(ostream &out,const Array<int> &e_to_k) const
    out << "\nvertices\n" << NumOfVertices << '\n';
 }
 
-void Mesh::PrintVTK(ostream &out)
+void Mesh::PrintVTK(std::ostream &out)
 {
    out <<
       "# vtk DataFile Version 3.0\n"
@@ -7257,7 +7267,7 @@ void Mesh::PrintVTK(ostream &out)
    }
 }
 
-void Mesh::PrintVTK(ostream &out, int ref, int field_data)
+void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
 {
    int np, nc, size;
    RefinedGeometry *RefG;
@@ -7462,7 +7472,7 @@ void Mesh::GetElementColoring(Array<int> &colors, int el0)
    }
 }
 
-void Mesh::PrintWithPartitioning(int *partitioning, ostream &out,
+void Mesh::PrintWithPartitioning(int *partitioning, std::ostream &out,
                                  int elem_attr) const
 {
    if (Dim != 3 && Dim != 2) return;
@@ -7559,7 +7569,7 @@ void Mesh::PrintWithPartitioning(int *partitioning, ostream &out,
 }
 
 void Mesh::PrintElementsWithPartitioning(int *partitioning,
-                                         ostream &out,
+                                         std::ostream &out,
                                          int interior_faces)
 {
    if (Dim != 3 && Dim != 2) return;
@@ -7877,6 +7887,65 @@ void Mesh::PrintElementsWithPartitioning(int *partitioning,
    delete [] vcount;
    delete [] voff;
    delete [] vown;
+}
+
+void Mesh::PrintSurfaces(const Table & Aface_face, std::ostream &out) const
+{
+   int i, j;
+
+   if (NURBSext)
+   {
+      mfem_error("Mesh::PrintSurfaces"
+                 " NURBS mesh is not supported!");
+      return;
+   }
+
+   out << "MFEM mesh v1.0\n";
+
+   // optional
+   out <<
+      "\n#\n# MFEM Geometry Types (see mesh/geom.hpp):\n#\n"
+      "# POINT       = 0\n"
+      "# SEGMENT     = 1\n"
+      "# TRIANGLE    = 2\n"
+      "# SQUARE      = 3\n"
+      "# TETRAHEDRON = 4\n"
+      "# CUBE        = 5\n"
+      "#\n";
+
+   out << "\ndimension\n" << Dim
+       << "\n\nelements\n" << NumOfElements << '\n';
+   for (i = 0; i < NumOfElements; i++)
+      PrintElement(elements[i], out);
+
+   out << "\nboundary\n" << Aface_face.Size_of_connections() << '\n';
+   const int * const i_AF_f = Aface_face.GetI();
+   const int * const j_AF_f = Aface_face.GetJ();
+
+   for(int iAF=0; iAF < Aface_face.Size(); ++iAF)
+      for(const int * iface = j_AF_f + i_AF_f[iAF]; iface < j_AF_f + i_AF_f[iAF+1]; ++iface)
+      {
+         out << iAF+1 << ' ';
+         PrintElementWithoutAttr(faces[*iface],out);
+      }
+
+   out << "\nvertices\n" << NumOfVertices << '\n';
+   if (Nodes == NULL)
+   {
+      out << Dim << '\n';
+      for (i = 0; i < NumOfVertices; i++)
+      {
+         out << vertices[i](0);
+         for (j = 1; j < Dim; j++)
+            out << ' ' << vertices[i](j);
+         out << '\n';
+      }
+   }
+   else
+   {
+      out << "\nnodes\n";
+      Nodes->Save(out);
+   }
 }
 
 void Mesh::ScaleSubdomains(double sf)
@@ -8225,4 +8294,6 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
       }
    }
    return mesh2d;
+}
+
 }

@@ -12,6 +12,11 @@
 #ifndef MFEM_FE
 #define MFEM_FE
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 // Base and derived classes for finite elements
 
 /// Describes the space on each element
@@ -1975,5 +1980,7 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
 };
+
+}
 
 #endif

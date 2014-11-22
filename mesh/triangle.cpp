@@ -12,6 +12,9 @@
 
 #include "mesh_headers.hpp"
 
+namespace mfem
+{
+
 const int Triangle::edges[3][2] = {{0, 1}, {1, 2}, {2, 0}};
 
 Triangle::Triangle(const int *ind, int attr) : Element(Geometry::TRIANGLE)
@@ -122,3 +125,5 @@ void Triangle::GetVertices(Array<int> &v) const
 }
 
 Linear2DFiniteElement TriangleFE;
+
+}

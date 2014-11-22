@@ -12,6 +12,12 @@
 #ifndef MFEM_MESH
 #define MFEM_MESH
 
+#include <iostream>
+#include "../config.hpp"
+
+namespace mfem
+{
+
 // Data type mesh
 
 class NURBSExtension;
@@ -103,11 +109,11 @@ protected:
        Usefull in refinement methods to destroy the coarse tables. */
    void DeleteCoarseTables();
 
-   Element *ReadElementWithoutAttr(istream &);
-   static void PrintElementWithoutAttr(Element *, ostream &);
+   Element *ReadElementWithoutAttr(std::istream &);
+   static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
-   Element *ReadElement(istream &);
-   static void PrintElement(Element *, ostream &);
+   Element *ReadElement(std::istream &);
+   static void PrintElement(const Element *, std::ostream &);
 
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;
@@ -165,11 +171,11 @@ protected:
    virtual void NURBSUniformRefinement();
 
    /// Read NURBS patch/macro-element mesh
-   void LoadPatchTopo(istream &input, Array<int> &edge_to_knot);
+   void LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot);
 
    void UpdateNURBS();
 
-   void PrintTopo(ostream &out, const Array<int> &e_to_k) const;
+   void PrintTopo(std::ostream &out, const Array<int> &e_to_k) const;
 
    void BisectTriTrans (DenseMatrix &pointmat, Triangle *tri,
                         int child);
@@ -332,7 +338,7 @@ public:
    /** Creates mesh by reading data stream in MFEM, netgen, or VTK format. If
        generate_edges = 0 (default) edges are not generated, if 1 edges are
        generated. */
-   Mesh(istream &input, int generate_edges = 0, int refine = 1,
+   Mesh(std::istream &input, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
 
    /// Create a disjoint mesh from the given mesh array
@@ -342,7 +348,7 @@ public:
       mesh is destroyed and another one created based on the data stream
       again given in MFEM, netgen, or VTK format. If generate_edges = 0
       (default) edges are not generated, if 1 edges are generated. */
-   void Load(istream &input, int generate_edges = 0, int refine = 1,
+   void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
    void SetNodalFESpace(FiniteElementSpace *nfes);
@@ -526,6 +532,10 @@ public:
 
    FaceElementTransformations *GetBdrFaceTransformations (int BdrElemNo);
 
+   bool FaceIsInterior(int FaceNo) const
+   {
+      return (faces_info[FaceNo].Elem2No >= 0);
+   }
    void GetFaceElements (int Face, int *Elem1, int *Elem2);
    void GetFaceInfos (int Face, int *Inf1, int *Inf2);
 
@@ -636,19 +646,19 @@ public:
    ElementTransformation * GetFineElemTrans (int i, int j);
 
    /// Print the mesh to the given stream using Netgen/Truegrid format.
-   virtual void PrintXG(ostream &out = cout) const;
+   virtual void PrintXG(std::ostream &out = std::cout) const;
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
-   virtual void Print(ostream &out = cout) const;
+   virtual void Print(std::ostream &out = std::cout) const;
 
    /// Print the mesh in VTK format (linear and quadratic meshes only).
-   void PrintVTK(ostream &out);
+   void PrintVTK(std::ostream &out);
 
    /** Print the mesh in VTK format. The parameter ref specifies an element
        subdivision number (useful for high order fields and curved meshes).
        If the optional field_data is set, we also add a FIELD section in the
        beginning of the file with additional dataset information. */
-   void PrintVTK(ostream &out, int ref, int field_data=0);
+   void PrintVTK(std::ostream &out, int ref, int field_data=0);
 
    void GetElementColoring(Array<int> &colors, int el0 = 0);
 
@@ -656,11 +666,18 @@ public:
        the subdomains, so that the boundary of subdomain i has bdr
        attribute i+1. */
    void PrintWithPartitioning (int *partitioning,
-                               ostream &out, int elem_attr = 0) const;
+                               std::ostream &out, int elem_attr = 0) const;
 
    void PrintElementsWithPartitioning (int *partitioning,
-                                       ostream &out,
+                                       std::ostream &out,
                                        int interior_faces = 0);
+
+   /// Print set of disjoint surfaces:
+   /*!
+    * If Aface_face(i,j) != 0, print face j as a boundary
+    * element with attribute i+1.
+    */
+   void PrintSurfaces(const Table &Aface_face, std::ostream &out) const;
 
    void ScaleSubdomains (double sf);
    void ScaleElements (double sf);
@@ -727,6 +744,8 @@ inline void Mesh::Rotate3(int &a, int &b, int &c)
       else
          ShiftL2R(a, b, c);
    }
+}
+
 }
 
 #endif

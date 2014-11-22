@@ -12,7 +12,13 @@
 // Implementation of Bilinear Form Integrators
 
 #include "fem.hpp"
-#include <math.h>
+#include <cmath>
+#include <algorithm>
+
+using namespace std;
+
+namespace mfem
+{
 
 void BilinearFormIntegrator::AssembleElementMatrix (
    const FiniteElement &el, ElementTransformation &Trans,
@@ -1403,7 +1409,7 @@ void DGDiffusionIntegrator::AssembleFaceMatrix(
 {
    int dim, ndof1, ndof2, ndofs;
    bool kappa_is_nonzero = (kappa != 0.);
-   double w, wq;
+   double w, wq = 0.0;
 
    dim = el1.GetDim();
    ndof1 = el1.GetDof();
@@ -1592,4 +1598,6 @@ void DGDiffusionIntegrator::AssembleFaceMatrix(
          elmat(i,i) *= (sigma - 1.);
       }
    }
+}
+
 }

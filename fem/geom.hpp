@@ -12,6 +12,11 @@
 #ifndef MFEM_GEOM
 #define MFEM_GEOM
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /** Types of domains for integration rules and reference finite elements:
     Geometry::POINT    - a point
     Geometry::SEGMENT  - the interval [0,1]
@@ -83,5 +88,7 @@ public:
 };
 
 extern GeometryRefiner GlobGeometryRefiner;
+
+}
 
 #endif

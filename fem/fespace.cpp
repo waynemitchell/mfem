@@ -11,8 +11,13 @@
 
 // Implementation of FiniteElementSpace
 
+#include <cmath>
 #include "fem.hpp"
-#include <math.h>
+
+using namespace std;
+
+namespace mfem
+{
 
 int FiniteElementSpace::GetOrder(int i) const
 {
@@ -1007,10 +1012,12 @@ void FiniteElementSpace::ConstructRefinementData (int k, int num_c_dofs,
    RefData.Append(data);
 }
 
-void FiniteElementSpace::Save(ostream &out) const
+void FiniteElementSpace::Save(std::ostream &out) const
 {
    out << "FiniteElementSpace\n"
        << "FiniteElementCollection: " << fec->Name() << '\n'
        << "VDim: " << vdim << '\n'
        << "Ordering: " << ordering << '\n';
+}
+
 }

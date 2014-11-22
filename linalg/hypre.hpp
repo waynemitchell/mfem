@@ -12,6 +12,8 @@
 #ifndef MFEM_HYPRE
 #define MFEM_HYPRE
 
+#include "../config.hpp"
+
 // Enable internal hypre timing routines
 #define HYPRE_TIMING
 
@@ -19,6 +21,9 @@
 #include "seq_mv.h"
 #include "_hypre_parcsr_mv.h"
 #include "_hypre_parcsr_ls.h"
+
+namespace mfem
+{
 
 class ParFiniteElementSpace;
 class HypreParMatrix;
@@ -191,6 +196,11 @@ public:
    virtual void Mult(const Vector &x, Vector &y) const;
    virtual void MultTranspose(const Vector &x, Vector &y) const;
 
+   /// Scale the local row i by s(i).
+   void ScaleRows(const Vector & s);
+   /// Scale the local row i by 1./s(i)
+   void InvScaleRows(const Vector & s);
+
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, int offi = 0, int offj = 0);
    /// Reads the matrix from a file
@@ -205,6 +215,8 @@ HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B);
 
 /// Returns the matrix P^t * A * P
 HypreParMatrix * RAP(HypreParMatrix *A, HypreParMatrix *P);
+/// Returns the matrix Rt^t * A * P
+HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P);
 
 /** Eliminate essential b.c. specified by ess_dof_list from the solution x to
     the r.h.s. b. Here A is matrix with eliminated b.c., while Ae is such that
@@ -439,6 +451,8 @@ public:
 class HypreDiagScale : public HypreSolver
 {
 public:
+   HypreDiagScale() : HypreSolver() { }
+   explicit HypreDiagScale(HypreParMatrix &A) : HypreSolver(&A) { }
    virtual operator HYPRE_Solver() const { return NULL; }
 
    virtual HYPRE_PtrToParSolverFcn SetupFcn() const
@@ -564,5 +578,7 @@ public:
 
    virtual ~HypreADS();
 };
+
+}
 
 #endif

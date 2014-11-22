@@ -12,6 +12,12 @@
 #ifndef MFEM_FESPACE
 #define MFEM_FESPACE
 
+#include <iostream>
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /* Class FiniteElementSpace - responsible for providing FEM view of the mesh
    (mainly managing the set of degrees of freedom). */
 
@@ -286,9 +292,11 @@ public:
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
 
-   void Save (ostream &out) const;
+   void Save (std::ostream &out) const;
 
    virtual ~FiniteElementSpace();
 };
+
+}
 
 #endif
