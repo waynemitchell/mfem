@@ -16,6 +16,9 @@
 
 #include "mem_alloc.hpp"
 
+namespace mfem
+{
+
 /** Data type Table. Table stores the connectivity of elements of TYPE I
     to elements of TYPE II, for example, it may be Element-To-Face
     connectivity table, etc. */
@@ -108,10 +111,10 @@ public:
    void LoseData() { size = -1; I = J = NULL; }
 
    /// Prints the table to stream out.
-   void Print(ostream & out = cout, int width = 4) const;
-   void PrintMatlab(ostream & out) const;
+   void Print(std::ostream & out = std::cout, int width = 4) const;
+   void PrintMatlab(std::ostream & out) const;
 
-   void Save(ostream & out) const;
+   void Save(std::ostream & out) const;
    void Copy(Table & copy) const;
    void Swap(Table & other);
 
@@ -123,12 +126,14 @@ public:
 
 ///  Transpose a Table
 void Transpose (const Table &A, Table &At, int _ncols_A = -1);
+Table * Transpose (const Table &A);
 
 ///  Transpose an Array<int>
 void Transpose(const Array<int> &A, Table &At, int _ncols_A = -1);
 
 ///  C = A * B  (as boolean matrices)
 void Mult (const Table &A, const Table &B, Table &C);
+Table * Mult (const Table &A, const Table &B);
 
 
 /** Data type STable. STable is similar to Table, but it's for symmetric
@@ -199,5 +204,7 @@ public:
       int Index() { return(n->Index); }
    };
 };
+
+}
 
 #endif

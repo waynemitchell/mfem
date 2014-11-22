@@ -14,6 +14,9 @@
 #include "sets.hpp"
 
 
+namespace mfem
+{
+
 IntegerSet::IntegerSet(IntegerSet &s)
    : me(s.me.Size())
 {
@@ -111,4 +114,6 @@ ListOfIntegerSets::~ListOfIntegerSets()
 {
    for (int i = 0; i < TheList.Size(); i++)
       delete TheList[i];
+}
+
 }

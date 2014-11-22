@@ -14,8 +14,14 @@
 
 #include <iomanip>
 #include <sstream>
+#include "../config.hpp"
+
+namespace mfem
+{
 
 void mfem_error (const char *msg = NULL);
+
+}
 
 // This is nice because it shows the class and method name
 #define _MFEM_FUNC_NAME __PRETTY_FUNCTION__
@@ -32,7 +38,7 @@ void mfem_error (const char *msg = NULL);
       s << "...at line " << __LINE__;                                   \
       s << " in " << _MFEM_FUNC_NAME << " of file " << __FILE__ << "."; \
       s << std::ends;                                                   \
-      mfem_error(s.str().c_str());                                      \
+      mfem::mfem_error(s.str().c_str());                                \
    }                                                                    \
 
 // Outputs lots of useful information and aborts.

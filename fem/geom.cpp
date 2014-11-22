@@ -11,6 +11,9 @@
 
 #include "fem.hpp"
 
+namespace mfem
+{
+
 const char *Geometry::Name[NumGeom] =
 { "Point", "Segment", "Triangle", "Square", "Tetrahedron", "Cube" };
 
@@ -701,3 +704,5 @@ const IntegrationRule *GeometryRefiner::RefineInterior(int Geom, int Times)
 }
 
 GeometryRefiner GlobGeometryRefiner;
+
+}

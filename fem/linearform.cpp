@@ -13,6 +13,8 @@
 
 #include "fem.hpp"
 
+namespace mfem
+{
 
 void LinearForm::AddDomainIntegrator (LinearFormIntegrator * lfi)
 {
@@ -117,4 +119,6 @@ LinearForm::~LinearForm()
    for (k=0; k < dlfi.Size(); k++) delete dlfi[k];
    for (k=0; k < blfi.Size(); k++) delete blfi[k];
    for (k=0; k < flfi.Size(); k++) delete flfi[k];
+}
+
 }

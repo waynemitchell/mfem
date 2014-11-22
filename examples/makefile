@@ -11,14 +11,17 @@
 
 # Serial compiler
 CC = g++
-OPTS = -O3 -I$(MFEM_DIR) $(SUITESPARSE_OPT)
-DEBUG_OPTS = -g3 -I$(MFEM_DIR) $(SUITESPARSE_OPT)
-LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(OPENMP_LIBS) $(SUITESPARSE_LIB)
+OPTS = -O3
+DEBUG_OPTS = -g
+LIB_OPTS = -I$(MFEM_DIR) $(SUITESPARSE_OPT)
+COPTS = $(OPTS) $(LIB_OPTS)
+LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(OPENMP_LIBS) $(SUITESPARSE_LIB)\
+ $(POSIX_CLOCKS_LIB)
 
 # Parallel compiler
 MPICC = mpicxx
-MPIOPTS = $(OPTS) -I$(HYPRE_DIR)/include
-MPIDEBUG_OPTS = $(DEBUG_OPTS) -I$(HYPRE_DIR)/include
+MPIOPTS = $(OPTS) $(LIB_OPTS) -I$(HYPRE_DIR)/include
+MPIDEBUG_OPTS = $(DEBUG_OPTS) $(LIB_OPTS) -I$(HYPRE_DIR)/include
 MPILIBS = $(LIBS) -L$(METIS_DIR) -lmetis -L$(HYPRE_DIR)/lib -lHYPRE
 
 # The MFEM library
@@ -59,33 +62,39 @@ SUITESPARSE_LIB_YES = -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd\
  $(LAPACK_LIB) $(BLAS_LIB)
 SUITESPARSE_LIB     = $(SUITESPARSE_LIB_$(USE_SUITESPARSE))
 
+# The high-resolution POSIX clocks may need -lrt
+USE_POSIX_CLOCKS = NO
+POSIX_CLOCKS_LIB_NO  =
+POSIX_CLOCKS_LIB_YES = -lrt
+POSIX_CLOCKS_LIB = $(POSIX_CLOCKS_LIB_$(USE_POSIX_CLOCKS))
+
 serial: ex1 ex1amr ex2 ex3 ex4
 
 parallel: ex1p ex2p ex3p ex4p
 
-ex1: ex1.cpp ../libmfem.a
-	$(CC) $(OPTS) ex1.cpp -o ex1 $(LIBS)
+ex1: ex1.cpp
+	$(CC) $(COPTS) ex1.cpp -o ex1 $(LIBS)
 
-ex1amr: ex1amr.cpp ../libmfem.a
+ex1amr: ex1amr.cpp
 	$(CC) $(OPTS) ex1amr.cpp -o ex1amr $(LIBS)
 
 ex1p: ex1p.cpp
 	$(MPICC) $(MPIOPTS) ex1p.cpp -o ex1p $(MPILIBS)
 
 ex2: ex2.cpp
-	$(CC) $(OPTS) ex2.cpp -o ex2 $(LIBS)
+	$(CC) $(COPTS) ex2.cpp -o ex2 $(LIBS)
 
 ex2p: ex2p.cpp
 	$(MPICC) $(MPIOPTS) ex2p.cpp -o ex2p $(MPILIBS)
 
 ex3: ex3.cpp
-	$(CC) $(OPTS) ex3.cpp -o ex3 $(LIBS)
+	$(CC) $(COPTS) ex3.cpp -o ex3 $(LIBS)
 
 ex3p: ex3p.cpp
 	$(MPICC) $(MPIOPTS) ex3p.cpp -o ex3p $(MPILIBS)
 
 ex4: ex4.cpp
-	$(CC) $(OPTS) ex4.cpp -o ex4 $(LIBS)
+	$(CC) $(COPTS) ex4.cpp -o ex4 $(LIBS)
 
 ex4p: ex4p.cpp
 	$(MPICC) $(MPIOPTS) ex4p.cpp -o ex4p $(MPILIBS)

@@ -12,6 +12,11 @@
 #ifndef MFEM_ELEMENT
 #define MFEM_ELEMENT
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 class Mesh;
 
 /// Abstract data type element
@@ -188,5 +193,7 @@ public:
 // defined in tetrahedron.cpp
 extern MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
+
+}
 
 #endif

@@ -12,6 +12,10 @@
 #ifndef MFEM_BILINEARFORM
 #define MFEM_BILINEARFORM
 
+#include "../config.hpp"
+
+namespace mfem
+{
 
 /** Class for bilinear form - "Matrix" with asociated FE space and
     BLFIntegrators. */
@@ -270,6 +274,8 @@ public:
    void EliminateTrialDofs (Array<int> &bdr_attr_is_ess,
                             Vector &sol, Vector &rhs);
 
+   void EliminateEssentialBCFromTrialDofs ( Array<int> &marked_vdofs, Vector &sol, Vector &rhs);
+
    virtual void EliminateTestDofs (Array<int> &bdr_attr_is_ess);
 
    void Update();
@@ -322,5 +328,7 @@ public:
 
    virtual void Assemble(int skip_zeros = 1);
 };
+
+}
 
 #endif

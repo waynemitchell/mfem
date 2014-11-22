@@ -12,6 +12,13 @@
 #ifndef MFEM_PGRIDFUNC
 #define MFEM_PGRIDFUNC
 
+#include <iostream>
+#include <limits>
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Class for parallel grid function
 class ParGridFunction : public GridFunction
 {
@@ -36,8 +43,8 @@ public:
    ParGridFunction(ParFiniteElementSpace *pf, HypreParVector *tv);
 
    /** Construct a ParGridFunction from the given serial GridFunction.
-       The data from 'gf' is NOT copied. */
-   ParGridFunction(ParMesh *pmesh, GridFunction *gf);
+       If partitioning == NULL (default), the data from 'gf' is NOT copied. */
+   ParGridFunction(ParMesh *pmesh, GridFunction *gf, int * partitioning = NULL);
 
    ParGridFunction &operator=(double value)
    { GridFunction::operator=(value); return *this; }
@@ -123,21 +130,21 @@ public:
    double ComputeMaxError(Coefficient *exsol[],
                           const IntegrationRule *irs[] = NULL) const
    {
-      return GlobalLpNorm(numeric_limits<double>::infinity(),
+      return GlobalLpNorm(std::numeric_limits<double>::infinity(),
                           GridFunction::ComputeMaxError(exsol, irs));
    }
 
    double ComputeMaxError(Coefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
    {
-      return ComputeLpError(numeric_limits<double>::infinity(),
+      return ComputeLpError(std::numeric_limits<double>::infinity(),
                             exsol, NULL, irs);
    }
 
    double ComputeMaxError(VectorCoefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
    {
-      return ComputeLpError(numeric_limits<double>::infinity(),
+      return ComputeLpError(std::numeric_limits<double>::infinity(),
                             exsol, NULL, NULL, irs);
    }
 
@@ -164,12 +171,14 @@ public:
    /** Save the local portion of the ParGridFunction. It differs from the
        serial GridFunction::Save in that it takes into account the signs of
        the local dofs. */
-   virtual void Save(ostream &out);
+   virtual void Save(std::ostream &out);
 
    /// Merge the local grid functions
-   void SaveAsOne(ostream &out = cout);
+   void SaveAsOne(std::ostream &out = std::cout);
 
    virtual ~ParGridFunction() { }
 };
+
+}
 
 #endif

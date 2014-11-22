@@ -12,6 +12,11 @@
 #ifndef MFEM_COMMUNICATION
 #define MFEM_COMMUNICATION
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 class GroupTopology
 {
 private:
@@ -117,5 +122,7 @@ public:
 
    ~GroupCommunicator();
 };
+
+}
 
 #endif

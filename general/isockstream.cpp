@@ -11,8 +11,8 @@
 
 #include "isockstream.hpp"
 #include <iostream>
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 #include <errno.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -20,6 +20,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+using namespace std;
+
+namespace mfem
+{
 
 isockstream::isockstream(int port)
 {
@@ -98,7 +102,7 @@ int isockstream::read_data(int s, char *buf, int n){
    return(bcount);
 }
 
-void isockstream::receive(istringstream **in)
+void isockstream::receive(std::istringstream **in)
 {
    int size;
    char length[32];
@@ -144,4 +148,6 @@ isockstream::~isockstream()
       delete [] Buf;
    if (portID != -1)
       close(portID);
+}
+
 }
