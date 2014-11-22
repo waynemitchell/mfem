@@ -2375,21 +2375,54 @@ void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
 void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
 {
 #ifdef MFEM_DEBUG
-   if (!(a.Height()==3 && a.Size()==2) && a.Height() != a.Size() || adja.Height() != a.Size() || a.Height() != adja.Size() || a.Size() < 1 || a.Size() > 3)
+   if (a.Width() > a.Height() || a.Width() < 1 || a.Height() > 3)
+      mfem_error("CalcAdjugate(...)");
+   if (a.Width() != adja.Height() || a.Height() != adja.Width())
       mfem_error("CalcAdjugate(...)");
 #endif
+
+   if (a.Width() < a.Height())
+   {
+      const double *d = a.Data();
+      double *ad = adja.Data();
+      if (a.Width() == 1)
+      {
+         // N x 1, N = 2,3
+         ad[0] = d[0];
+         ad[1] = d[1];
+         if (a.Height() == 3)
+            ad[2] = d[2];
+      }
+      else
+      {
+         // 3 x 2
+         double e, g, f;
+         e = d[0]*d[0] + d[1]*d[1] + d[2]*d[2];
+         g = d[3]*d[3] + d[4]*d[4] + d[5]*d[5];
+         f = d[0]*d[3] + d[1]*d[4] + d[2]*d[5];
+
+         ad[0] = d[0]*g - d[3]*f;
+         ad[1] = d[3]*e - d[0]*f;
+         ad[2] = d[1]*g - d[4]*f;
+         ad[3] = d[4]*e - d[1]*f;
+         ad[4] = d[2]*g - d[5]*f;
+         ad[5] = d[5]*e - d[2]*f;
+      }
+      return;
+   }
+
    if (a.Size() == 1)
    {
       adja(0,0) = 1.0;
    }
-   else if (a.Size() == 2 && a.Height() == 2)
+   else if (a.Size() == 2)
    {
       adja(0,0) =  a(1,1);
       adja(0,1) = -a(0,1);
       adja(1,0) = -a(1,0);
       adja(1,1) =  a(0,0);
    }
-   else if (a.Size()==3 && a.Height()==3)
+   else
    {
       adja(0,0) = a(1,1)*a(2,2)-a(1,2)*a(2,1);
       adja(0,1) = a(0,2)*a(2,1)-a(0,1)*a(2,2);
@@ -2402,24 +2435,6 @@ void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
       adja(2,0) = a(1,0)*a(2,1)-a(1,1)*a(2,0);
       adja(2,1) = a(0,1)*a(2,0)-a(0,0)*a(2,1);
       adja(2,2) = a(0,0)*a(1,1)-a(0,1)*a(1,0);
-   }
-   else if (a.Size()==2 && a.Height()==3)
-   {
-     const double *d = a.Data();
-     double *id = adja.Data();
-     double e, g, f, t;
-     e = d[0]*d[0] + d[1]*d[1] + d[2]*d[2];
-     g = d[3]*d[3] + d[4]*d[4] + d[5]*d[5];
-     f = d[0]*d[3] + d[1]*d[4] + d[2]*d[5];
-     t = 1.0 / sqrt(e*g - f*f);
-     e *= t; g *= t; f *= t;
-
-     id[0] = d[0]*g - d[3]*f;
-     id[1] = d[3]*e - d[0]*f;
-     id[2] = d[1]*g - d[4]*f;
-     id[3] = d[4]*e - d[1]*f;
-     id[4] = d[2]*g - d[5]*f;
-     id[5] = d[5]*e - d[2]*f;
    }
 }
 

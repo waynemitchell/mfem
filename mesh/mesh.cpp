@@ -164,7 +164,6 @@ void Mesh::GetElementTransformation(int i, IsoparametricTransformation *ElTr)
       Array<int> vdofs;
       Nodes->FESpace()->GetElementVDofs(i, vdofs);
 
-      // below change Dim to spaceDim  (not needed for curved meshes)
       int n = vdofs.Size()/spaceDim;
       pm.SetSize(spaceDim, n);
       for (int k = 0; k < spaceDim; k++)
@@ -729,8 +728,8 @@ void Mesh::SetAttributes()
 
 void Mesh::InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem)
 {
-  InitMesh( _Dim, NVert, NElem, NBdrElem);
-  spaceDim = _spaceDim;
+   InitMesh( _Dim, NVert, NElem, NBdrElem);
+   spaceDim = _spaceDim;
 }
 
 void Mesh::InitMesh(int _Dim, int NVert, int NElem, int NBdrElem)
@@ -1785,7 +1784,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
    InitTables();
    if (own_nodes) delete Nodes;
    Nodes = NULL;
-   spaceDim=0;
+   spaceDim = 0;
 
    string mesh_type;
    input >> ws;
@@ -2569,7 +2568,7 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
 
    // set the mesh type ('meshgen')
    if (spaceDim == 0)
-     spaceDim = Dim;
+      spaceDim = Dim;
    meshgen = 0;
    for (i = 0; i < NumOfElements; i++)
    {
@@ -2643,8 +2642,9 @@ void Mesh::Load(istream &input, int generate_edges, int refine,
       {
          Nodes = new GridFunction(this, input);
          own_nodes = 1;
-         int vd = Nodes->VectorDim();
-         for (i = 0; i < vd; i++)
+         spaceDim = Nodes->VectorDim();
+         // Set the 'vertices' from the 'Nodes'
+         for (i = 0; i < spaceDim; i++)
          {
             Vector vert_val;
             Nodes->GetNodalValues(vert_val, i+1);
@@ -3012,17 +3012,31 @@ void Mesh::LoadPatchTopo(istream &input, Array<int> &edge_to_knot)
 
 void XYZ_VectorFunction(const Vector &p, Vector &v)
 {
-   v = p;
+   if (p.Size() >= v.Size())
+   {
+      for (int d = 0; d < v.Size(); d++)
+         v(d) = p(d);
+   }
+   else
+   {
+      int d;
+      for (d = 0; d < p.Size(); d++)
+         v(d) = p(d);
+      for (d = 0; d < v.Size(); d++)
+         v(d) = 0.0;
+   }
 }
 
 void Mesh::SetNodalFESpace(FiniteElementSpace *nfes)
 {
+   int newSpaceDim = nfes->GetVDim();
    GridFunction *nodes = new GridFunction(nfes);
-   VectorFunctionCoefficient xyz(spaceDim, XYZ_VectorFunction);
+   VectorFunctionCoefficient xyz(newSpaceDim, XYZ_VectorFunction);
    nodes->ProjectCoefficient(xyz);
 
    if (own_nodes) delete Nodes;
    Nodes = nodes;
+   spaceDim = newSpaceDim;
    own_nodes = 1;
 
    if (NURBSext != nfes->GetNURBSext())
@@ -3036,7 +3050,8 @@ void Mesh::SetNodalGridFunction(GridFunction *nodes)
 {
    if (Nodes == NULL || Nodes->FESpace() != nodes->FESpace())
    {
-      VectorFunctionCoefficient xyz(spaceDim, XYZ_VectorFunction);
+      int newSpaceDim = nodes->FESpace()->GetVDim();
+      VectorFunctionCoefficient xyz(newSpaceDim, XYZ_VectorFunction);
       nodes->ProjectCoefficient(xyz);
    }
    else
@@ -4922,6 +4937,7 @@ void Mesh::NewNodes(GridFunction &nodes, bool make_owner)
 {
    if (own_nodes) delete Nodes;
    Nodes = &nodes;
+   spaceDim = Nodes->FESpace()->GetVDim();
    own_nodes = (int)make_owner;
 
    if (NURBSext != nodes.FESpace()->GetNURBSext())
@@ -5358,7 +5374,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       {
          i = marked_el[j];
          int *vert = elements[i]->GetVertices();
-	 AverageVertices(vert, 2, cnv+j);
+         AverageVertices(vert, 2, cnv+j);
          elements[cne+j] = new Segment(cnv+j, vert[1],
                                        elements[i]->GetAttribute());
          vert[1] = cnv+j;
@@ -5753,9 +5769,9 @@ void Mesh::NonconformingRefinement(const Array<int> &marked_el)
             if (pv[1] == NULL)
                mfem_error("Mesh::NonconformingRefinement : oops!");
 #endif
-	    for(int d=0; d<spaceDim; d++)
-	      vertices[vi->id](d) = (vertices[pv[0]->id](d) +
-		  vertices[pv[1]->id](d))/2;
+            for (int d = 0; d < spaceDim; d++)
+               vertices[vi->id](d) = (vertices[pv[0]->id](d) +
+                                      vertices[pv[1]->id](d))/2;
          }
       NumOfVertices = num_vert;
 
@@ -5903,8 +5919,8 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       if (middle[bisect] == -1)
       {
          v_new = NumOfVertices++;
-	 for(int d=0; d<spaceDim; d++)
-	   V(d) = 0.5 * (vertices[vert[0]](d) + vertices[vert[1]](d));
+         for (int d = 0; d < spaceDim; d++)
+            V(d) = 0.5 * (vertices[vert[0]](d) + vertices[vert[1]](d));
          vertices.Append(V);
 
          // Put the element that may need refinement (because of this
@@ -6172,8 +6188,8 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
          if (middle[bisect[j]] == -1)
          {
             v_new[j] = NumOfVertices++;
-	    for (int d=0; d<spaceDim; d++)
-	      coord[d] = (vertices[v[j]](d) + vertices[v[(j+1)%3]](d))/2.;
+            for (int d = 0; d < spaceDim; d++)
+               coord[d] = (vertices[v[j]](d) + vertices[v[(j+1)%3]](d))/2.;
             Vertex V(coord, spaceDim);
             vertices.Append(V);
 
@@ -7989,6 +8005,7 @@ void Mesh::ScaleElements(double sf)
 
 void Mesh::Transform(void (*f)(const Vector&, Vector&))
 {
+   // TODO: support for different new spaceDim.
    if (Nodes == NULL)
    {
       Vector vold(spaceDim), vnew(NULL, spaceDim);

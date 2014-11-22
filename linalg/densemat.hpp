@@ -248,7 +248,9 @@ void Add(const DenseMatrix &A, const DenseMatrix &B,
 /// Matrix matrix multiplication.  A = B * C.
 void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a);
 
-/// Calculate the adjugate of a matrix (for NxN matrices, N=1,2,3)
+/** Calculate the adjugate of a matrix (for NxN matrices, N=1,2,3) or the matrix
+    adj(A^t.A).A^t for rectangular matrices (2x1, 3x1, or 3x2). This operation
+    is well defined even when the matrix is not full rank. */
 void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja);
 
 /// Calculate the transposed adjugate of a matrix (for NxN matrices, N=1,2,3)

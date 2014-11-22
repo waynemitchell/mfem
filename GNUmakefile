@@ -12,7 +12,7 @@
 # Serial compiler
 CC         = g++
 CCOPTS     =
-DEBUG_OPTS = -g -O0 -DMFEM_DEBUG
+DEBUG_OPTS = -g -DMFEM_DEBUG
 OPTIM_OPTS = -O3
 DEPCC      = $(CC)
 
@@ -38,7 +38,7 @@ MESQUITE_DIR = ../../mesquite-2.99
 
 # The SuiteSparse library
 USE_SUITESPARSE = YES
-SUITESPARSE_DIR = $(HOME)/SuiteSparse_installation
+SUITESPARSE_DIR = ../../SuiteSparse
 
 # Internal mfem options
 USE_MEMALLOC = YES
@@ -94,10 +94,10 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .SUFFIXES: .cpp .o
 .cpp.o:
-	$(CCC) -c $(<) -o $(<:.cpp=.o) 
+	cd $(<D); $(CCC) -c $(<F)
 
 # Serial build
-serial: debug 
+serial: opt
 
 # Parallel build
 parallel pdebug: CCC=$(MPICC) $(MODE_OPTS) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(USE_MESQUITE_OPTS)

@@ -270,10 +270,10 @@ public:
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
-     if (_spaceDim == -1)
-      InitMesh(_Dim, NVert, NElem, NBdrElem);
-     else
-      InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
+      if (_spaceDim == -1)
+         InitMesh(_Dim, NVert, NElem, NBdrElem);
+      else
+         InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
    Element *NewElement(int geom);
