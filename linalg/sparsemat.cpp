@@ -1253,6 +1253,27 @@ void SparseMatrix::Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
    }
 }
 
+void SparseMatrix::Jacobi3(const Vector &b, const Vector &x0, Vector &x1,
+                           double sc) const
+{
+   if (A == NULL)
+      mfem_error("SparseMatrix::Jacobi3(...)");
+
+   for (int i = 0; i < size; i++)
+   {
+      double resi = b(i), sum = 0.0;
+      for (int j = I[i]; j < I[i+1]; j++)
+      {
+         resi -= A[j] * x0(J[j]);
+         sum  += A[j];
+      }
+      if (sum > 0.0)
+         x1(i) = x0(i) + sc * resi / sum;
+      else
+         mfem_error("SparseMatrix::Jacobi3(...) #2");
+   }
+}
+
 void SparseMatrix::AddSubMatrix(const Array<int> &rows, const Array<int> &cols,
                                 const DenseMatrix &subm, int skip_zeros)
 {
