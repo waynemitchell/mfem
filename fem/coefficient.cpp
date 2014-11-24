@@ -301,11 +301,13 @@ double ComputeLpNorm(double p, VectorCoefficient &coeff, Mesh &mesh,
 }
 
 #ifdef MFEM_USE_MPI
-double ComputeGlobalLpNorm(MPI_Comm comm, double p, Coefficient &coeff, Mesh &mesh,
+double ComputeGlobalLpNorm(double p, Coefficient &coeff, ParMesh &pmesh,
                      const IntegrationRule *irs[])
 {
-	   double loc_norm = LpNormLoop(p, coeff, mesh, irs);
+	   double loc_norm = LpNormLoop(p, coeff, pmesh, irs);
 	   double glob_norm = 0;
+
+	   MPI_Comm comm = pmesh.GetComm();
 
 	   if (p < numeric_limits<double>::infinity())
 	   {
@@ -326,11 +328,13 @@ double ComputeGlobalLpNorm(MPI_Comm comm, double p, Coefficient &coeff, Mesh &me
 	   return glob_norm;
 }
 
-double ComputeGlobalLpNorm(MPI_Comm comm, double p, VectorCoefficient &coeff, Mesh &mesh,
+double ComputeGlobalLpNorm(double p, VectorCoefficient &coeff, ParMesh &pmesh,
                      const IntegrationRule *irs[])
 {
-	   double loc_norm = LpNormLoop(p, coeff, mesh, irs);
+	   double loc_norm = LpNormLoop(p, coeff, pmesh, irs);
 	   double glob_norm = 0;
+
+	   MPI_Comm comm = pmesh.GetComm();
 
 	   if (p < numeric_limits<double>::infinity())
 	   {

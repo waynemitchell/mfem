@@ -266,9 +266,9 @@ int main (int argc, char *argv[])
 		irs[i] = &(IntRules.Get(i, order_quad));
 
 	double err_u  = u->ComputeL2Error(ucoeff, irs);
-	double norm_u = ComputeGlobalLpNorm(MPI_COMM_WORLD, 2, ucoeff, *pmesh, irs);
+	double norm_u = ComputeGlobalLpNorm(2, ucoeff, *pmesh, irs);
 	double err_p = p->ComputeL2Error(pcoeff, irs);
-	double norm_p = ComputeGlobalLpNorm(MPI_COMM_WORLD, 2, pcoeff, *pmesh, irs);
+	double norm_p = ComputeGlobalLpNorm(2, pcoeff, *pmesh, irs);
 
 	if(verbose)
 	{
