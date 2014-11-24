@@ -17,7 +17,7 @@
 namespace mfem
 {
 
-class BlockMatrix : public SparseRowMatrix
+class BlockMatrix : public AbstractSparseMatrix
 {
 public:
 	//! Constructor for square block matrices

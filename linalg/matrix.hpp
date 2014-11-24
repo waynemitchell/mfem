@@ -63,11 +63,11 @@ public:
 };
 
 /// Abstract data type for sparse matrices
-class SparseRowMatrix : public Matrix
+class AbstractSparseMatrix : public Matrix
 {
 public:
 	   /// Creates matrix of width s.
-	   explicit SparseRowMatrix (int s = 0 ):Matrix(s){};
+	   explicit AbstractSparseMatrix (int s = 0 ):Matrix(s){};
 	   /// Returns the Width of the matrix
 	   virtual int Width() const = 0;
 	   /// Returns the number of non-zeros in a matrix
@@ -94,7 +94,7 @@ public:
 
 
 	   /// Destroys SparseRowMatrix.
-	   virtual ~SparseRowMatrix() { };
+	   virtual ~AbstractSparseMatrix() { };
 };
 
 }

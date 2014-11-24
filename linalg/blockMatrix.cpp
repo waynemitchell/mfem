@@ -19,7 +19,7 @@ namespace mfem
 {
 
 BlockMatrix::BlockMatrix(const Array<int> & offsets):
-	SparseRowMatrix(offsets.Last()),
+	AbstractSparseMatrix(offsets.Last()),
 	owns_blocks(false),
 	nRowBlocks(offsets.Size()-1),
 	nColBlocks(offsets.Size()-1),
@@ -31,7 +31,7 @@ BlockMatrix::BlockMatrix(const Array<int> & offsets):
 }
 
 BlockMatrix::BlockMatrix(const Array<int> & row_offsets_, const Array<int> & col_offsets_):
-	SparseRowMatrix(row_offsets_.Last()),
+	AbstractSparseMatrix(row_offsets_.Last()),
 	owns_blocks(false),
 	nRowBlocks(row_offsets_.Size()-1),
 	nColBlocks(col_offsets_.Size()-1),

@@ -25,7 +25,7 @@ namespace mfem
 using namespace std;
 
 SparseMatrix::SparseMatrix(int nrows, int ncols)
-   : SparseRowMatrix(nrows)
+   : AbstractSparseMatrix(nrows)
 {
    I = NULL;
    J = NULL;
@@ -43,7 +43,7 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
 }
 
 SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
-   : SparseRowMatrix (m), I(i), J(j), width(n), A(data)
+   : AbstractSparseMatrix (m), I(i), J(j), width(n), A(data)
 {
    Rows = NULL;
    ColPtr.J = NULL;
@@ -1922,7 +1922,7 @@ SparseMatrix *Transpose (const SparseMatrix &A)
    return  new SparseMatrix (At_i, At_j, At_data, n, m);
 }
 
-SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth)
+SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A, int useActualWidth)
 {
    int i, j;
    int m, n, nnz, *At_i, *At_j;
@@ -2097,7 +2097,7 @@ SparseMatrix *Mult (const SparseMatrix &A, const SparseMatrix &B,
    return C;
 }
 
-SparseMatrix *MultRowMatrix (const SparseMatrix &A, const SparseMatrix &B)
+SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A, const AbstractSparseMatrix &B)
 {
    int nrowsA, ncolsA, nrowsB, ncolsB;
    int *C_i, *C_j, *B_marker;

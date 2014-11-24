@@ -31,7 +31,7 @@ public:
 };
 
 /// Data type sparse matrix
-class SparseMatrix : public SparseRowMatrix
+class SparseMatrix : public AbstractSparseMatrix
 {
 private:
 
@@ -314,7 +314,7 @@ void SparseMatrixFunction(SparseMatrix &S, double (*f)(double));
 /// Transpose of a sparse matrix. A must be finalized.
 SparseMatrix *Transpose(const SparseMatrix &A);
 /// Transpose of a sparse matrix. A does not need to be a CSR matrix.
-SparseMatrix *TransposeRowMatrix (const SparseRowMatrix &A, int useActualWidth);
+SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A, int useActualWidth);
 
 /** Matrix product A.B.
     If OAB is not NULL, we assume it has the structure
@@ -326,7 +326,7 @@ SparseMatrix *Mult(const SparseMatrix &A, const SparseMatrix &B,
                    SparseMatrix *OAB = NULL);
 
 /// Matrix product of sparse matrices. A and B do not need to be CSR matrices
-SparseMatrix *MultRowMatrix (const SparseRowMatrix &A, const SparseRowMatrix &B);
+SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A, const AbstractSparseMatrix &B);
 
 
 /** RAP matrix product. ORAP is like OAB above.
