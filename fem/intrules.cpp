@@ -189,9 +189,6 @@ IntegrationRules::IntegrationRules(int Ref)
 
    CubeIntRules.SetSize(32);
    CubeIntRules = NULL;
-
-   // Always set this one up because the Get function has a special case for it
-   PointIntegrationRule(0);
 }
 
 const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
@@ -200,7 +197,7 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
 
    switch (GeomType)
    {
-   case Geometry::POINT:       return *PointIntRules[0];
+   case Geometry::POINT:       ir_array = &PointIntRules; break;
    case Geometry::SEGMENT:     ir_array = &SegmentIntRules; break;
    case Geometry::TRIANGLE:    ir_array = &TriangleIntRules; break;
    case Geometry::SQUARE:      ir_array = &SquareIntRules; break;
