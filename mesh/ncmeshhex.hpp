@@ -105,7 +105,7 @@ public:
        the coarse and refined elements. */
    void MarkCoarseLevel() { leaf_elements.Copy(coarse_elements); }
 
-   /** Return an array of the structures 'FineTransform', one for each leaf
+   /** Return an array of structures 'FineTransform', one for each leaf
        element. This data can be used to transfer functions from a previous
        coarse level of the mesh (marked with 'MarkCoarseLevel') to a newly
        refined state of the mesh.
@@ -352,12 +352,13 @@ protected: // implementation
    void AddDependencies(Array<int>& master_dofs, Array<int>& slave_dofs,
                         DenseMatrix& I);
 
-   void ConstrainEdge(Node* v0, Node* v1,
-                      IsoparametricTransformation& edge_T,
+   void ConstrainEdge(Node* v0, Node* v1, double t0, double t1,
                       Array<int>& master_dofs, int level);
 
+   struct PointMatrix;
+
    void ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
-                      IsoparametricTransformation& face_T,
+                      const PointMatrix &pm,
                       Array<int>& master_dofs, int level);
 
    void ProcessMasterEdge(Node* node[2], Node* edge);

@@ -1179,18 +1179,6 @@ int NCMeshHex::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
       return 2; // face split "horizontally"
 }
 
-static void make_point_mat(double v0[], double v1[], double v2[], double v3[],
-                           DenseMatrix& pm)
-{
-   for (int i = 0; i < 2; i++)
-   {
-      pm(i,0) = v0[i];
-      pm(i,1) = v1[i];
-      pm(i,2) = v2[i];
-      pm(i,3) = v3[i];
-   }
-}
-
 int NCMeshHex::find_node(Element* elem, Node* node)
 {
    for (int i = 0; i < 8; i++)
@@ -1278,22 +1266,25 @@ void NCMeshHex::AddDependencies(Array<int>& master_dofs,
    }
 }
 
-void NCMeshHex::ConstrainEdge(Node* v0, Node* v1,
-                              IsoparametricTransformation& edge_T,
+void NCMeshHex::ConstrainEdge(Node* v0, Node* v1, double t0, double t1,
                               Array<int>& master_dofs, int level)
 {
    Node* mid = nodes.Peek(v0, v1);
    if (!mid) return;
-
-   DenseMatrix& pm = edge_T.GetPointMat();
-   double t0 = pm(0,0), t1 = pm(0,1);
-   double tmid = (t0 + t1) / 2;
 
    if (mid->edge && level > 0)
    {
       // we need to make this edge constrained; get its DOFs
       Array<int> slave_dofs;
       space->GetEdgeDofs(mid->edge->index, slave_dofs);
+
+      // prepare edge transformation
+      IsoparametricTransformation edge_T;
+      edge_T.SetFE(&SegmentFE);
+
+      DenseMatrix& pm = edge_T.GetPointMat();
+      pm.SetSize(1, 2);
+      pm(0,0) = t0, pm(0,1) = t1;
 
       // handle slave edge orientation
       if (v0->vertex->index > v1->vertex->index)
@@ -1311,15 +1302,13 @@ void NCMeshHex::ConstrainEdge(Node* v0, Node* v1,
    }
 
    // recurse deeper
-   pm(0,0) = t0; pm(0,1) = tmid;
-   ConstrainEdge(v0, mid, edge_T, master_dofs, level+1);
-
-   pm(0,0) = tmid; pm(0,1) = t1;
-   ConstrainEdge(mid, v1, edge_T, master_dofs, level+1);
+   double tmid = (t0 + t1) / 2;
+   ConstrainEdge(v0, mid, t0, tmid, master_dofs, level+1);
+   ConstrainEdge(mid, v1, tmid, t1, master_dofs, level+1);
 }
 
 void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
-                              IsoparametricTransformation& face_T,
+                              const PointMatrix& pm,
                               Array<int>& master_dofs, int level)
 {
    if (level > 0)
@@ -1331,6 +1320,11 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
          // yes, we need to make this face constrained; get its DOFs
          Array<int> slave_dofs;
          space->GetFaceDofs(face->index, slave_dofs);
+
+         // prepare face transformation
+         IsoparametricTransformation face_T;
+         face_T.SetFE(&QuadrilateralFE);
+         pm.GetMatrix(face_T.GetPointMat());
 
          // reorder face_T point matrix according to slave face orientation
          ReorderFacePointMat(v0, v1, v2, v3, face->GetSingleElement(),
@@ -1349,93 +1343,62 @@ void NCMeshHex::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
       }
    }
 
-   // we need to recurse deeper, now determine how
+   // we need to recurse deeper
    Node* mid[4];
    int split = FaceSplitType(v0, v1, v2, v3, mid);
-   if (!split) return;
-
-   // prepare also the middle points for the transformation
-   DenseMatrix& pm = face_T.GetPointMat();
-   double tmid[4][2] =
-   {
-      { (pm(0,0) + pm(0,1)) / 2,  (pm(1,0) + pm(1,1)) / 2 }, // bottom (0)
-      { (pm(0,1) + pm(0,2)) / 2,  (pm(1,1) + pm(1,2)) / 2 }, // right (1)
-      { (pm(0,2) + pm(0,3)) / 2,  (pm(1,2) + pm(1,3)) / 2 }, // top (2)
-      { (pm(0,3) + pm(0,0)) / 2,  (pm(1,3) + pm(1,0)) / 2 }  // left (3)
-   };
-   double tv[4][2] = // backup of original points
-   {
-      { pm(0,0), pm(1,0) },
-      { pm(0,1), pm(1,1) },
-      { pm(0,2), pm(1,2) },
-      { pm(0,3), pm(1,3) },
-   };
-
-   // TODO: use the PointMatrix class!
 
    if (split == 1) // "X" split face
    {
-      make_point_mat(tv[0], tmid[0], tmid[2], tv[3], pm);
-      ConstrainFace (  v0,   mid[0],  mid[2],   v3,
-                     face_T, master_dofs, level+1);
+      Point mid0(pm(0), pm(1)), mid2(pm(2), pm(3));
 
-      make_point_mat(tmid[0], tv[1], tv[2], tmid[2], pm);
-      ConstrainFace ( mid[0],   v1,    v2,   mid[2],
-                     face_T, master_dofs, level+1);
+      ConstrainFace(v0, mid[0], mid[2], v3,
+                    PointMatrix(pm(0), mid0, mid2, pm(3)),
+                    master_dofs, level+1);
+
+      ConstrainFace(mid[0], v1, v2, mid[2],
+                    PointMatrix(mid0, pm(1), pm(2), mid2),
+                    master_dofs, level+1);
    }
    else if (split == 2) // "Y" split face
    {
-      make_point_mat(tv[0], tv[1], tmid[1], tmid[3], pm);
-      ConstrainFace (  v0,    v1,   mid[1],  mid[3],
-                     face_T, master_dofs, level+1);
+      Point mid1(pm(1), pm(2)), mid3(pm(3), pm(0));
 
-      make_point_mat(tmid[3], tmid[1], tv[2], tv[3], pm);
-      ConstrainFace ( mid[3],  mid[1],   v2,    v3,
-                     face_T, master_dofs, level+1);
+      ConstrainFace(v0, v1, mid[1], mid[3],
+                    PointMatrix(pm(0), pm(1), mid1, mid3),
+                    master_dofs, level+1);
+
+      ConstrainFace(mid[3], mid[1], v2, v3,
+                    PointMatrix(mid3, mid1, pm(2), pm(3)),
+                    master_dofs, level+1);
    }
 }
 
 void NCMeshHex::ProcessMasterEdge(Node* node[2], Node* edge)
 {
-   // set up a face transformation that will keep track of our position
-   // within the master edge
-   IsoparametricTransformation edge_T;
-   edge_T.SetFE(&SegmentFE);
-
-   // initial transformation is identity (interval 0..1)
-   DenseMatrix& pm = edge_T.GetPointMat();
-   pm.SetSize(1, 2);
-   pm(0,0) = 0;
-   pm(0,1) = 1;
-
-   if (node[0]->vertex->index > node[1]->vertex->index)
-      std::swap(pm(0,0), pm(0,1));
-
    // get a list of DOFs on the master edge
    Array<int> master_dofs;
    space->GetEdgeDofs(edge->edge->index, master_dofs);
 
-   ConstrainEdge(node[0], node[1], edge_T, master_dofs, 0);
+   // we'll keep track of our position within the master edge;
+   // the initial transformation is identity (interval 0..1)
+   double t0 = 0.0, t1 = 1.0;
+   if (node[0]->vertex->index > node[1]->vertex->index)
+      std::swap(t0, t1);
+
+   ConstrainEdge(node[0], node[1], t0, t1, master_dofs, 0);
 }
 
 void NCMeshHex::ProcessMasterFace(Node* node[4], Face* face)
 {
-   // set up a face transformation that will keep track of our position
-   // within the master face
-   IsoparametricTransformation face_T;
-   face_T.SetFE(&QuadrilateralFE);
-
-   // initial transformation is identity (vertices of the unit square)
-   DenseMatrix& pm = face_T.GetPointMat();
-   pm.SetSize(2, 4);
-   pm(0,0) = 0;  pm(0,1) = 1;  pm(0,2) = 1;  pm(0,3) = 0;
-   pm(1,0) = 0;  pm(1,1) = 0;  pm(1,2) = 1;  pm(1,3) = 1;
-
    // get a list of DOFs on the master face
    Array<int> master_dofs;
    space->GetFaceDofs(face->index, master_dofs);
 
-   ConstrainFace(node[0], node[1], node[2], node[3], face_T, master_dofs, 0);
+   // we'll keep track of our position within the master face;
+   // the initial transformation is identity (vertices of the unit square)
+   PointMatrix pm(Point(0,0), Point(1,0), Point(1,1), Point(0,1));
+
+   ConstrainFace(node[0], node[1], node[2], node[3], pm, master_dofs, 0);
 }
 
 bool NCMeshHex::DofFinalizable(DofData& dd)
