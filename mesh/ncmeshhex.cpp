@@ -16,6 +16,9 @@
 
 #include "ncmeshhex.hpp"
 
+namespace mfem
+{
+
 /** This holds in one place the constants about the geometries we support
     (triangles, quads, cubes) */
 struct GeomInfo
@@ -62,7 +65,7 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
    // create the NCMeshHex::Element struct for each Mesh element
    for (int i = 0; i < mesh->GetNE(); i++)
    {
-      const ::Element *elem = mesh->GetElement(i);
+      const mfem::Element *elem = mesh->GetElement(i);
       const int *v = elem->GetVertices();
 
       int geom = elem->GetGeometryType();
@@ -106,7 +109,7 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
    // store boundary element attributes
    for (int i = 0; i < mesh->GetNBE(); i++)
    {
-      const ::Element *be = mesh->GetBdrElement(i);
+      const mfem::Element *be = mesh->GetBdrElement(i);
       const int *v = be->GetVertices();
 
       Node* node[4];
@@ -117,7 +120,7 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
             MFEM_ABORT("Boundary elements inconsistent.");
       }
 
-      if (be->GetType() == ::Element::QUADRILATERAL)
+      if (be->GetType() == mfem::Element::QUADRILATERAL)
       {
          Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
          if (!face)
@@ -125,7 +128,7 @@ NCMeshHex::NCMeshHex(const Mesh *mesh)
 
          face->attribute = be->GetAttribute();
       }
-      else if (be->GetType() == ::Element::SEGMENT)
+      else if (be->GetType() == mfem::Element::SEGMENT)
       {
          Edge* edge = nodes.Peek(node[0], node[1])->edge;
          if (!edge)
@@ -1063,9 +1066,9 @@ void NCMeshHex::UpdateLeafElements()
       GetLeafElements(root_elements[i]);
 }
 
-void NCMeshHex::GetVerticesElementsBoundary(Array< ::Vertex>& vertices,
-                                            Array< ::Element*>& elements,
-                                            Array< ::Element*>& boundary)
+void NCMeshHex::GetVerticesElementsBoundary(Array<mfem::Vertex>& vertices,
+                                            Array<mfem::Element*>& elements,
+                                            Array<mfem::Element*>& boundary)
 {
    // count vertices and assign indices
    int num_vert = 0;
@@ -1091,8 +1094,8 @@ void NCMeshHex::GetVerticesElementsBoundary(Array< ::Vertex>& vertices,
       Node** node = nc_elem->node;
       GeomInfo& gi = GI[nc_elem->geom];
 
-      // create an ::Element for each leaf Element
-      ::Element* elem = NULL;
+      // create an mfem::Element for each leaf Element
+      mfem::Element* elem = NULL;
       switch (nc_elem->geom)
       {
       case Geometry::CUBE: elem = new Hexahedron; break;
@@ -2019,3 +2022,5 @@ long NCMeshHex::MemoryUsage()
           leaf_elements.Size() * sizeof(Element*) +
           sizeof(*this);
 }
+
+} // namespace mfem

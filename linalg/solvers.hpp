@@ -12,9 +12,14 @@
 #ifndef MFEM_SOLVERS
 #define MFEM_SOLVERS
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_SUITESPARSE
 #include <umfpack.h>
 #endif
+
+namespace mfem
+{
 
 /// Abstract base class for iterative solver
 class IterativeSolver : public Solver
@@ -106,6 +111,24 @@ public:
 
 #ifdef MFEM_USE_MPI
    GMRESSolver(MPI_Comm _comm) : IterativeSolver(_comm) { m = 50; }
+#endif
+
+   void SetKDim(int dim) { m = dim; }
+
+   virtual void Mult(const Vector &x, Vector &y) const;
+};
+
+/// FGMRES method
+class FGMRESSolver : public IterativeSolver
+{
+protected:
+   int m;
+
+public:
+   FGMRESSolver() { m = 50; }
+
+#ifdef MFEM_USE_MPI
+   FGMRESSolver(MPI_Comm _comm) : IterativeSolver(_comm) { m = 50; }
 #endif
 
    void SetKDim(int dim) { m = dim; }
@@ -302,5 +325,6 @@ public:
 
 #endif // MFEM_USE_SUITESPARSE
 
-#endif // MFEM_SOLVERS
+}
 
+#endif // MFEM_SOLVERS

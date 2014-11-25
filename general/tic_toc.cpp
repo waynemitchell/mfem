@@ -9,11 +9,15 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include <limits.h>
-#include <sys/times.h>
-#include <unistd.h>
-
 #include "tic_toc.hpp"
+
+#ifndef MFEM_USE_POSIX_CLOCKS
+#include <climits>
+#include <unistd.h>
+#endif
+
+namespace mfem
+{
 
 StopWatch::StopWatch()
 {
@@ -205,4 +209,6 @@ void tic()
 double toc()
 {
    return tic_toc.UserTime();
+}
+
 }

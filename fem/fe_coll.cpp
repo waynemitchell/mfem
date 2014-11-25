@@ -14,6 +14,11 @@
 #include <cstring>
 #include <cstdio>
 
+namespace mfem
+{
+
+using namespace std;
+
 int FiniteElementCollection::HasFaceDofs(int GeomType) const
 {
    switch (GeomType)
@@ -1645,6 +1650,16 @@ Local_FECollection::Local_FECollection(const char *fe_name)
       GeomType = Geometry::CUBE;
       Local_Element = new Nedelec1HexFiniteElement;
    }
+   else if (!strncmp(fe_name, "H1_", 3))
+   {
+      GeomType = Geometry::SQUARE;
+      Local_Element = new H1_QuadrilateralElement(atoi(fe_name + 7));
+   }
+   else if (!strncmp(fe_name, "L2_", 3))
+   {
+      GeomType = Geometry::SQUARE;
+      Local_Element = new L2_QuadrilateralElement(atoi(fe_name + 7));
+   }
    else
    {
       cerr << "Local_FECollection::Local_FECollection : fe_name = "
@@ -1694,4 +1709,6 @@ int *NURBSFECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
    mfem_error("NURBSFECollection::DofOrderForOrientation");
    return NULL;
+}
+
 }

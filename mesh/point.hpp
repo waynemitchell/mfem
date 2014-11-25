@@ -12,6 +12,11 @@
 #ifndef MFEM_POINT
 #define MFEM_POINT
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Data type point element
 class Point : public Element
 {
@@ -51,5 +56,7 @@ public:
 };
 
 extern PointFiniteElement PointFE;
+
+}
 
 #endif

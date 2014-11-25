@@ -16,9 +16,11 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "../config.hpp"
 #include "error.hpp"
 
-using namespace std;
+namespace mfem
+{
 
 /// Base class for array container.
 class BaseArray
@@ -125,6 +127,7 @@ public:
 
    /// Return the last element in the array
    inline T &Last();
+   inline const T &Last() const;
 
    /// Append element when it is not yet in the array, return index
    inline int Union(const T & el);
@@ -157,14 +160,18 @@ public:
    inline void GetSubArray(int offset, int sa_size, Array<T> &sa);
 
    /// Prints array to stream with width elements per row
-   void Print(ostream &out, int width);
+   void Print(std::ostream &out, int width);
 
    /// Prints array to stream out
-   void Save(ostream &out);
+   void Save(std::ostream &out);
 
    /** Finds the maximal element in the array.
        (uses the comparison operator '<' for class T)  */
    T Max() const;
+
+   /** Finds the minimal element in the array.
+       (uses the comparison operator '<' for class T)  */
+   T Min() const;
 
    /// Sorts the array.
    void Sort();
@@ -351,6 +358,13 @@ inline T &Array<T>::Last()
 }
 
 template <class T>
+inline const T &Array<T>::Last() const
+{
+   MFEM_ASSERT(size > 0, "Array size is zero: " << size);
+   return ((T*)data)[size-1];
+}
+
+template <class T>
 inline int Array<T>::Union(const T &el)
 {
    int i = 0;
@@ -502,6 +516,8 @@ inline T &Array3D<T>::operator()(int i, int j, int k)
                << i << ',' << j << ',' << k << ") in array of size ("
                << array1d.Size() / N2 / N3 << ',' << N2 << ',' << N3 << ").");
    return array1d[(i*N2+j)*N3+k];
+}
+
 }
 
 #endif

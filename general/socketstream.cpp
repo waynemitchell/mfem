@@ -18,6 +18,9 @@
 #include <sys/socket.h> // socket, setsockopt, connect, recv, send
 #include <unistd.h>     // close
 
+namespace mfem
+{
+
 int socketbuf::attach(int sd)
 {
    int old_sd = socket_descriptor;
@@ -237,4 +240,6 @@ int socketserver::accept(socketstream &sockstr)
       sockstr.rdbuf()->attach(socketd);
    }
    return socketd;
+}
+
 }

@@ -13,6 +13,12 @@
 #define MFEM_GRIDFUNC
 
 #include <limits>
+#include <ostream>
+#include <string>
+#include "../config.hpp"
+
+namespace mfem
+{
 
 /// Class for grid function - Vector with asociated FE space.
 class GridFunction : public Vector
@@ -24,7 +30,7 @@ protected:
    /// Used when the grid function is read from a file
    FiniteElementCollection *fec;
 
-   void SaveSTLTri(ostream &out, double p1[], double p2[], double p3[]);
+   void SaveSTLTri(std::ostream &out, double p1[], double p2[], double p3[]);
 
    void GetVectorGradientHat(ElementTransformation &T, DenseMatrix &gh);
 
@@ -41,7 +47,7 @@ public:
    GridFunction(FiniteElementSpace *f) : Vector(f->GetVSize())
    { fes = f; fec = NULL; }
 
-   GridFunction(Mesh *m, istream &input);
+   GridFunction(Mesh *m, std::istream &input);
 
    GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces);
 
@@ -119,7 +125,7 @@ public:
    void ImposeBounds(int i, const Vector &weights,
                      const Vector &_lo, const Vector &_hi);
    void ImposeBounds(int i, const Vector &weights,
-                     double _min = 0.0, double _max = numeric_limits<double>::infinity());
+                     double _min = 0.0, double _max = std::numeric_limits<double>::infinity());
 
    /** Project the given 'src' GridFunction to 'this' GridFunction, both of
        which must be on the same mesh. The current implementation assumes that
@@ -173,7 +179,7 @@ public:
    double ComputeMaxError(Coefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
    {
-      return ComputeLpError(numeric_limits<double>::infinity(),
+      return ComputeLpError(std::numeric_limits<double>::infinity(),
                             exsol, NULL, irs);
    }
 
@@ -183,7 +189,7 @@ public:
    double ComputeMaxError(VectorCoefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
    {
-      return ComputeLpError(numeric_limits<double>::infinity(),
+      return ComputeLpError(std::numeric_limits<double>::infinity(),
                             exsol, NULL, NULL, irs);
    }
 
@@ -241,14 +247,14 @@ public:
    void Update(FiniteElementSpace *f, Vector &v, int v_offset);
 
    /// Save the GridFunction to an output stream.
-   virtual void Save(ostream &out);
+   virtual void Save(std::ostream &out);
 
    /** Write the GridFunction in VTK format. Note that Mesh::PrintVTK must be
        called first. The parameter ref must match the one used in
        Mesh::PrintVTK. */
-   void SaveVTK(ostream &out, const string &field_name, int ref);
+   void SaveVTK(std::ostream &out, const std::string &field_name, int ref);
 
-   void SaveSTL(ostream &out, int TimesToRefine = 1);
+   void SaveSTL(std::ostream &out, int TimesToRefine = 1);
 
    /// Destroys grid function.
    virtual ~GridFunction();
@@ -275,12 +281,14 @@ public:
    ExtrudeCoefficient(Mesh *m, Coefficient &s, int _n)
       : n(_n), mesh_in(m), sol_in(s) { }
    virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip);
-   virtual void Read(istream &in) { }
+   virtual void Read(std::istream &in) { }
    virtual ~ExtrudeCoefficient() { }
 };
 
 /// Extrude a scalar 1D GridFunction, after extruding the mesh with Extrude1D.
 GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
                                     GridFunction *sol, const int ny);
+
+}
 
 #endif

@@ -12,8 +12,11 @@
 #ifndef MFEM_HASH
 #define MFEM_HASH
 
+#include "../config.hpp"
 #include "idgenerator.hpp"
 
+namespace mfem
+{
 
 /** A concept for items that should be used in HashTable and be accessible by
  *  hashing two IDs.
@@ -426,6 +429,8 @@ long HashTable<ItemT>::MemoryUsage() const
    return sizeof(*this) +
           ((mask+1) + id_to_item.Size()) * sizeof(ItemT*) +
           num_items * sizeof(ItemT);
+}
+
 }
 
 #endif

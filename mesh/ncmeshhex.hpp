@@ -12,8 +12,12 @@
 #ifndef MFEM_NCMESHHEX
 #define MFEM_NCMESHHEX
 
+#include "../config.hpp"
 #include "../fem/geom.hpp"
 #include "../general/hash.hpp"
+
+namespace mfem
+{
 
 // TODO: these won't be needed once this module is purely geometric
 class SparseMatrix;
@@ -116,9 +120,9 @@ public:
 
 protected: // interface for Mesh to be able to construct itself from us
 
-   void GetVerticesElementsBoundary(Array< ::Vertex>& vertices,
-                                    Array< ::Element*>& elements,
-                                    Array< ::Element*>& boundary);
+   void GetVerticesElementsBoundary(Array<mfem::Vertex>& vertices,
+                                    Array<mfem::Element*>& elements,
+                                    Array<mfem::Element*>& boundary);
    friend class Mesh;
 
 
@@ -441,5 +445,6 @@ protected: // implementation
 
 };
 
+}
 
 #endif
