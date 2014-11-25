@@ -1,16 +1,16 @@
-//                     MFEM Example 1 - AMR Version
+//                                MFEM Example 6
 //
-// Compile with: make ex1amr
+// Compile with: make ex6
 //
-// Sample runs:  ex1amr ../data/square-disc.mesh 1
-//               ex1amr ../data/square-disc.mesh 2
-//               ex1amr ../data/square-disc-nurbs.mesh 2
-//               ex1amr ../data/star.mesh 3
-//               ex1amr ../data/escher.mesh 1
-//               ex1amr ../data/fichera.mesh 2
-//               ex1amr ../data/disc-nurbs.mesh 2
-//               ex1amr ../data/ball-nurbs.mesh
-//               ex1amr ../data/pipe-nurbs.mesh
+// Sample runs:  ex6 ../data/square-disc.mesh 1
+//               ex6 ../data/square-disc.mesh 2
+//               ex6 ../data/square-disc-nurbs.mesh 2
+//               ex6 ../data/star.mesh 3
+//               ex6 ../data/escher.mesh 1
+//               ex6 ../data/fichera.mesh 2
+//               ex6 ../data/disc-nurbs.mesh 2
+//               ex6 ../data/ball-nurbs.mesh
+//               ex6 ../data/pipe-nurbs.mesh
 //
 // Description:  This is a follow-up to "ex1.cpp" and a minimal adaptive mesh
 //               refinement (AMR) code using MFEM. The problem being solved is
@@ -24,15 +24,18 @@
 //               linear and curved meshes. Interpolation of functions from
 //               coarse to fine meshes is also covered.
 
-#include <fstream>
 #include "mfem.hpp"
+#include <fstream>
+
+using namespace std;
+using namespace mfem;
 
 
 int main(int argc, char *argv[])
 {
    if (argc == 1)
    {
-      cout << "Usage: ex1 <mesh_file> [poly_order]" << endl;
+      cout << "Usage: ex6 <mesh_file> [poly_order]" << endl;
       return 1;
    }
 
