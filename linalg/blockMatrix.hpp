@@ -88,7 +88,7 @@ public:
    virtual MatrixInverse * Inverse() const { mfem_error("BlockMatrix::Inverse not implemented \n"); return static_cast<MatrixInverse*>(NULL); }
    //@}
 
-   //@name SparseRowMatrix interface
+   //@name AbstractSparseMatrix interface
    //@{
    //! Returns the width (total number of columns) of the matrix.
    virtual int Width() const {return col_offsets[nColBlocks];}

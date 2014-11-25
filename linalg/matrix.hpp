@@ -93,7 +93,7 @@ public:
    virtual void AddMultTranspose(const Vector & x, Vector & y, const double val = 1.) const = 0;
 
 
-   /// Destroys SparseRowMatrix.
+   /// Destroys AbstractSparseMatrix.
    virtual ~AbstractSparseMatrix() { };
 };
 
