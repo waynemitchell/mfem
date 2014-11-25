@@ -430,12 +430,12 @@ double ComputeLpNorm(double p, VectorCoefficient &coeff, Mesh &mesh,
 /** Compute the global Lp norm of a function f.
     \| f \|_{Lp} = ( \int_\Omega | f |^p d\Omega)^{1/p} */
 double ComputeGlobalLpNorm(double p, Coefficient &coeff, ParMesh &pmesh,
-                     const IntegrationRule *irs[]);
+                           const IntegrationRule *irs[]);
 
 /** Compute the global Lp norm of a vector function f = {f_i}_i=1...N.
     \| f \|_{Lp} = ( \sum_i \| f_i \|_{Lp}^p )^{1/p} */
 double ComputeGlobalLpNorm(double p, VectorCoefficient &coeff, ParMesh &pmesh,
-                     const IntegrationRule *irs[]);
+                           const IntegrationRule *irs[]);
 #endif
 
 }

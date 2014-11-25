@@ -240,9 +240,9 @@ public:
        If the matrix is finalized (i.e. in CSR format), 'cols' and 'srow'
        will simply be references to the specific portion of the J and A
        arrays.
-	   As required by the SparseRowMatrix interface this method returns:
-	   0 if cols and srow are copies of the values in the matrix (i.e. when the matrix is open).
-	   1 if cols and srow are views of the values in the matrix (i.e. when the matrix is finalized). */
+       As required by the SparseRowMatrix interface this method returns:
+       0 if cols and srow are copies of the values in the matrix (i.e. when the matrix is open).
+       1 if cols and srow are views of the values in the matrix (i.e. when the matrix is finalized). */
    virtual int GetRow(const int row, Array<int> &cols, Vector &srow) const;
 
    void SetRow(const int row, const Array<int> &cols, const Vector &srow);

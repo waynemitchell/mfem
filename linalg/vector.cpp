@@ -555,20 +555,20 @@ double Vector::Norml1() const
 
 double Vector::Normlp(double p) const
 {
-	MFEM_ASSERT( p>0., "Vector::Normlp");
-	if( p == 1. )
-		return Norml1();
-	if( p == 2. )
-		return Norml2();
-	if(p < std::numeric_limits<double>::infinity() )
-	{
-		double sum = 0.0;
-		for (int i = 0; i < size; i++)
-			sum += pow( fabs(data[i]), p);
-		return pow(sum, 1./p);
-	}
-	else
-		return Normlinf();
+   MFEM_ASSERT( p>0., "Vector::Normlp");
+   if( p == 1. )
+      return Norml1();
+   if( p == 2. )
+      return Norml2();
+   if(p < std::numeric_limits<double>::infinity() )
+   {
+      double sum = 0.0;
+      for (int i = 0; i < size; i++)
+         sum += pow( fabs(data[i]), p);
+      return pow(sum, 1./p);
+   }
+   else
+      return Normlinf();
 }
 
 double Vector::Max() const

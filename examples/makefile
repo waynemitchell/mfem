@@ -98,7 +98,7 @@ ex4p: ex4p.cpp
 
 ex5: ex5.cpp
 	$(CC) $(COPTS) ex5.cpp -o ex5 $(LIBS)
-	
+
 ex5p: ex5p.cpp
 	$(MPICC) $(MPIOPTS) ex5p.cpp -o ex5p $(MPILIBS)
 
