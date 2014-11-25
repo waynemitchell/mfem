@@ -65,7 +65,9 @@ public:
 
    ~BlockOperator();
 
-   int owns_block;
+   //! Controls the ownership of the blocks: if nonzero, BlockOperator will
+   //! delete all blocks that are set (non-NULL); the default value is zero.
+   int owns_blocks;
 
 private:
    //! Number of block rows
@@ -120,7 +122,10 @@ public:
 
    ~BlockDiagonalPreconditioner();
 
-   int owns_block;
+   //! Controls the ownership of the blocks: if nonzero,
+   //! BlockDiagonalPreconditioner will delete all blocks that are set
+   //! (non-NULL); the default value is zero.
+   int owns_blocks;
 
 private:
    //! Number of Blocks
