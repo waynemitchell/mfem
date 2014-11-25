@@ -96,11 +96,11 @@ int main (int argc, char *argv[])
    //    use the lowest order Raviart-Thomas finite elements, but we can easily
    //    switch to higher-order spaces by changing the value of *order*.
    int order = 0;
-   FiniteElementCollection * hdiv_coll(new RT_FECollection(order, pmesh->Dimension()));
-   FiniteElementCollection * l2_coll(new L2_FECollection(order, pmesh->Dimension()));
+   FiniteElementCollection *hdiv_coll(new RT_FECollection(order, pmesh->Dimension()));
+   FiniteElementCollection *l2_coll(new L2_FECollection(order, pmesh->Dimension()));
 
-   ParFiniteElementSpace * R_space = new ParFiniteElementSpace(pmesh, hdiv_coll);
-   ParFiniteElementSpace * W_space = new ParFiniteElementSpace(pmesh, l2_coll);
+   ParFiniteElementSpace *R_space = new ParFiniteElementSpace(pmesh, hdiv_coll);
+   ParFiniteElementSpace *W_space = new ParFiniteElementSpace(pmesh, l2_coll);
 
    int dimR = R_space->GlobalTrueVSize();
    int dimW = W_space->GlobalTrueVSize();
@@ -154,7 +154,7 @@ int main (int argc, char *argv[])
 
    ParLinearForm *gform(new ParLinearForm);
    gform->Update(W_space, rhs.GetBlock(1), 0);
-   gform->AddDomainIntegrator( new DomainLFIntegrator(gcoeff));
+   gform->AddDomainIntegrator(new DomainLFIntegrator(gcoeff));
    gform->Assemble();
    gform->ParallelAssemble(trueRhs.GetBlock(1));
 
@@ -182,9 +182,9 @@ int main (int argc, char *argv[])
    B = bVarf->ParallelAssemble();
    (*B) *= -1;
 
-   HypreParMatrix * BT = B->Transpose();
+   HypreParMatrix *BT = B->Transpose();
 
-   BlockOperator * darcyOp = new BlockOperator(block_trueOffsets);
+   BlockOperator *darcyOp = new BlockOperator(block_trueOffsets);
    darcyOp->SetBlock(0,0, M);
    darcyOp->SetBlock(0,1, BT);
    darcyOp->SetBlock(1,0, B);
@@ -202,7 +202,7 @@ int main (int argc, char *argv[])
    M->GetDiag(*Md);
 
    MinvBt->InvScaleRows(*Md);
-   HypreParMatrix * S = ParMult(B, MinvBt );
+   HypreParMatrix *S = ParMult(B, MinvBt);
 
    HypreSolver *invM, *invS;
    invM = new HypreDiagScale(*M);
@@ -212,8 +212,8 @@ int main (int argc, char *argv[])
    invS->iterative_mode = false;
 
    BlockDiagonalPreconditioner *darcyPr = new BlockDiagonalPreconditioner(block_trueOffsets);
-   darcyPr->SetDiagonalBlock(0, invM );
-   darcyPr->SetDiagonalBlock(1, invS );
+   darcyPr->SetDiagonalBlock(0, invM);
+   darcyPr->SetDiagonalBlock(1, invS);
 
    // 11. Solve the linear system with MINRES.
    //     Check the norm of the unpreconditioned residual.
@@ -257,7 +257,7 @@ int main (int argc, char *argv[])
    p->Distribute(&(trueX.GetBlock(1)));
 
    int order_quad = max(2, 2*order+1);
-   const IntegrationRule * irs[Geometry::NumGeom];
+   const IntegrationRule *irs[Geometry::NumGeom];
    for(int i(0); i < Geometry::NumGeom; ++i)
       irs[i] = &(IntRules.Get(i, order_quad));
 
@@ -346,8 +346,8 @@ void uFun_ex(const Vector & x, Vector & u)
 {
    double xi(x(0));
    double yi(x(1));
-   double zi( 0. );
-   if(x.Size() == 3)
+   double zi(0.0);
+   if (x.Size() == 3)
       zi = x(2);
 
    u(0) = - exp(xi)*sin(yi)*cos(zi);
@@ -357,9 +357,8 @@ void uFun_ex(const Vector & x, Vector & u)
       u(2) = exp(xi)*sin(yi)*sin(zi);
 }
 
-
 // Change if needed
-double pFun_ex( Vector & x)
+double pFun_ex(Vector & x)
 {
    double xi(x(0));
    double yi(x(1));
@@ -370,7 +369,6 @@ double pFun_ex( Vector & x)
 
    return exp(xi)*sin(yi)*cos(zi);
 }
-
 
 void fFun(const Vector & x, Vector & f)
 {

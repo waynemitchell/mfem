@@ -437,7 +437,7 @@ void SparseMatrix::GetRowSums(Vector &x) const
 
 double SparseMatrix::GetRowNorml1(int irow) const
 {
-   if(irow >= size)
+   if (irow >= size)
       mfem_error("SparseMatrix::GetRowNorml1");
 
    double a = 0.0;
@@ -449,7 +449,6 @@ double SparseMatrix::GetRowNorml1(int irow) const
          a += fabs(np->Value);
 
    return a;
-
 }
 
 void SparseMatrix::Finalize(int skip_zeros)
@@ -2305,10 +2304,10 @@ SparseMatrix * Add(Array<SparseMatrix *> & Ai)
    SparseMatrix * accumulate = Ai[0];
    SparseMatrix * result;
 
-   for(int i(1); i < Ai.Size(); ++i)
+   for(int i=1; i < Ai.Size(); ++i)
    {
       result = Add(*accumulate, *Ai[i]);
-      if(i != 1)
+      if (i != 1)
          delete accumulate;
 
       accumulate = result;

@@ -113,7 +113,6 @@ void ParGridFunction::ParallelAverage(Vector &tv) const
    pfes->DivideByGroupSize(tv);
 }
 
-
 void ParGridFunction::ParallelAverage(HypreParVector &tv) const
 {
    pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
@@ -381,23 +380,21 @@ double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm)
    if (p < numeric_limits<double>::infinity())
    {
       // negative quadrature weights may cause the error to be negative
-      if (loc_norm < 0.)
+      if (loc_norm < 0.0)
          loc_norm = -pow(-loc_norm, p);
       else
          loc_norm = pow(loc_norm, p);
 
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM,
-                    comm);
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
 
-      if (glob_norm < 0.)
-         glob_norm = -pow(-glob_norm, 1./p);
+      if (glob_norm < 0.0)
+         glob_norm = -pow(-glob_norm, 1.0/p);
       else
-         glob_norm = pow(glob_norm, 1./p);
+         glob_norm = pow(glob_norm, 1.0/p);
    }
    else
    {
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX,
-                    comm);
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX, comm);
    }
 
    return glob_norm;

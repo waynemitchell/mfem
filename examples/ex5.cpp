@@ -70,16 +70,15 @@ int main (int argc, char *argv[])
          mesh->UniformRefinement();
    }
 
-
    // 3. Define a finite element space on the mesh. Here we use the lowest order
    //    Raviart-Thomas finite elements, but we can easily switch to
    //    higher-order spaces by changing the value of *order*.
    int order = 0;
-   FiniteElementCollection * hdiv_coll(new RT_FECollection(order, mesh->Dimension()));
-   FiniteElementCollection * l2_coll(new L2_FECollection(order, mesh->Dimension()));
+   FiniteElementCollection *hdiv_coll(new RT_FECollection(order, mesh->Dimension()));
+   FiniteElementCollection *l2_coll(new L2_FECollection(order, mesh->Dimension()));
 
-   FiniteElementSpace * R_space = new FiniteElementSpace(mesh, hdiv_coll);
-   FiniteElementSpace * W_space = new FiniteElementSpace(mesh, l2_coll);
+   FiniteElementSpace *R_space = new FiniteElementSpace(mesh, hdiv_coll);
+   FiniteElementSpace *W_space = new FiniteElementSpace(mesh, l2_coll);
 
    // 4. Define the BlockStructure of the problem, i.e. define the array of
    //    offsets for each variable. The last component of the Array is the sum
@@ -111,7 +110,7 @@ int main (int argc, char *argv[])
    //    linear forms fform and gform for the right hand side.  The data
    //    allocated by x and rhs are passed as a reference to the grid fuctions
    //    (u,p) and the linear forms (fform, gform).
-   BlockVector x(block_offsets), rhs( block_offsets );
+   BlockVector x(block_offsets), rhs(block_offsets);
 
    LinearForm *fform(new LinearForm);
    fform->Update(R_space, rhs.GetBlock(0), 0);
@@ -121,7 +120,7 @@ int main (int argc, char *argv[])
 
    LinearForm *gform(new LinearForm);
    gform->Update(W_space, rhs.GetBlock(1), 0);
-   gform->AddDomainIntegrator( new DomainLFIntegrator(gcoeff));
+   gform->AddDomainIntegrator(new DomainLFIntegrator(gcoeff));
    gform->Assemble();
 
    // 7. Assemble the finite element matrices for the Darcy operator
@@ -164,7 +163,7 @@ int main (int argc, char *argv[])
    M.GetDiag(Md);
    for (int i = 0; i < Md.Size(); i++)
       MinvBt->ScaleRow(i, 1./Md(i));
-   SparseMatrix *S = Mult(B, *MinvBt );
+   SparseMatrix *S = Mult(B, *MinvBt);
 
    Solver *invM, *invS;
    invM = new DSmoother(M);
@@ -215,7 +214,7 @@ int main (int argc, char *argv[])
    p.Update(W_space, x.GetBlock(1), 0);
 
    int order_quad = max(2, 2*order+1);
-   const IntegrationRule * irs[Geometry::NumGeom];
+   const IntegrationRule *irs[Geometry::NumGeom];
    for(int i(0); i < Geometry::NumGeom; ++i)
       irs[i] = &(IntRules.Get(i, order_quad));
 
@@ -286,8 +285,8 @@ void uFun_ex(const Vector & x, Vector & u)
 {
    double xi(x(0));
    double yi(x(1));
-   double zi( 0. );
-   if(x.Size() == 3)
+   double zi(0.0);
+   if (x.Size() == 3)
       zi = x(2);
 
    u(0) = - exp(xi)*sin(yi)*cos(zi);
@@ -297,9 +296,8 @@ void uFun_ex(const Vector & x, Vector & u)
       u(2) = exp(xi)*sin(yi)*sin(zi);
 }
 
-
 // Change if needed
-double pFun_ex( Vector & x)
+double pFun_ex(Vector & x)
 {
    double xi(x(0));
    double yi(x(1));
@@ -310,7 +308,6 @@ double pFun_ex( Vector & x)
 
    return exp(xi)*sin(yi)*cos(zi);
 }
-
 
 void fFun(const Vector & x, Vector & f)
 {

@@ -682,8 +682,7 @@ void HypreParMatrix::InvScaleRows(const Vector &diag)
 
 void HypreParMatrix::operator*=(double s)
 {
-
-   if(hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
+   if (hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
       mfem_error("Row does not match");
 
    int size=hypre_CSRMatrixNumRows(A->diag);

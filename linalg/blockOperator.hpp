@@ -16,6 +16,7 @@
 
 namespace mfem
 {
+
 //! @class BlockOperator
 /**
  * \brief A class to handle Block systems in a matrix-free implementation.
@@ -30,17 +31,20 @@ namespace mfem
 class BlockOperator : public Operator
 {
 public:
-   //! Constructor for BlockOperators with the same block-structure for rows and columns.
+   //! Constructor for BlockOperators with the same block-structure for rows and
+   //! columns.
    /**
-    *  offsets: offsets that mark the start of each row/column block (size nRowBlocks+1).
-    *  Note: BlockOperator will not own/copy the data contained in offsets.
+    *  offsets: offsets that mark the start of each row/column block (size
+    *  nRowBlocks+1).  Note: BlockOperator will not own/copy the data contained
+    *  in offsets.
     */
    BlockOperator(const Array<int> & offsets);
    //! Constructor for general BlockOperators.
    /**
-    *  row_offsets: offsets that mark the start of each row block (size nRowBlocks+1).
-    *  col_offsets: offsets that mark the start of each column block (size nColBlocks+1).
-    *  Note: BlockOperator will not own/copy the data contained in offsets.
+    *  row_offsets: offsets that mark the start of each row block (size
+    *  nRowBlocks+1).  col_offsets: offsets that mark the start of each column
+    *  block (size nColBlocks+1).  Note: BlockOperator will not own/copy the
+    *  data contained in offsets.
     */
    BlockOperator(const Array<int> & row_offsets, const Array<int> & col_offsets);
 
@@ -85,7 +89,6 @@ private:
    mutable BlockVector xblock;
    mutable BlockVector yblock;
    mutable Vector tmp;
-
 };
 
 //! @class BlockDiagonalPreconditioner
@@ -134,10 +137,10 @@ private:
    Array<int> offsets;
    //! 1D array that stores each block of the operator.
    Array<Operator *> op;
-   //! Temporary Vectors used to efficiently apply the Mult and MultTranspose methods.
+   //! Temporary Vectors used to efficiently apply the Mult and MultTranspose
+   //! methods.
    mutable BlockVector xblock;
    mutable BlockVector yblock;
-
 };
 
 }

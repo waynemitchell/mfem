@@ -9,7 +9,6 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-
 #ifndef MFEM_BLOCKVECTOR
 #define MFEM_BLOCKVECTOR
 
@@ -25,7 +24,6 @@ namespace mfem
  */
 class BlockVector: public Vector
 {
-
 protected:
 
    //! Number of blocks in the blockVector
@@ -44,7 +42,8 @@ public:
 
    //! Constructor
    /**
-    * bOffsets is an array of integers (length nBlocks+1) that tells the offsets of each block start.
+    * bOffsets is an array of integers (length nBlocks+1) that tells the offsets
+    * of each block start.
     */
    BlockVector(const Array<int> & bOffsets);
 
@@ -53,8 +52,9 @@ public:
 
    //! View constructor
    /*
-    * data is an array of double of length at least blockOffsets[numBlocks] that contain all the values of the monolithic vector.
-    * bOffsets is an array of integers (length nBlocks+1) that tells the offsets of each block start.
+    * data is an array of double of length at least blockOffsets[numBlocks] that
+    * contain all the values of the monolithic vector.  bOffsets is an array of
+    * integers (length nBlocks+1) that tells the offsets of each block start.
     * nBlocks is the number of blocks.
     */
    BlockVector(double *data, const Array<int> & bOffsets);
@@ -79,12 +79,12 @@ public:
 
    //! Update method
    /**
-    * data is an array of double of length at least blockOffsets[numBlocks] that contain all the values of the monolithic vector.
-    * bOffsets is an array of integers (length nBlocks+1) that tells the offsets of each block start.
+    * data is an array of double of length at least blockOffsets[numBlocks] that
+    * contain all the values of the monolithic vector.  bOffsets is an array of
+    * integers (length nBlocks+1) that tells the offsets of each block start.
     * nBlocks is the number of blocks.
     */
    void Update(double *data, const Array<int> & bOffsets);
-
 };
 
 }

@@ -45,7 +45,8 @@ public:
    int NumCols() const {return col_offsets[nColBlocks];}
    //! Return a reference to block (i,j). Reference may be invalid if Aij(i,j) == NULL
    SparseMatrix & GetBlock(int i, int j);
-   //! Return a reference to block (i,j). Reference may be invalid if Aij(i,j) == NULL. (const version)
+   //! Return a reference to block (i,j). Reference may be invalid if Aij(i,j)
+   //! == NULL. (const version)
    const SparseMatrix & GetBlock(int i, int j) const;
    //! Check if block (i,j) is a zero block.
    int IsZeroBlock(int i, int j) const {return (Aij(i,j)==NULL) ? 1 : 0; }
@@ -63,7 +64,8 @@ public:
    /**
     * ess_bc_dofs: marker of the degree of freedom to be eliminated
     *              dof i is eliminated if ess_bc_dofs[i] = 1.
-    * sol: vector that stores the values of the degree of freedom that need to be eliminated
+    * sol: vector that stores the values of the degree of freedom that need to
+    *       be eliminated
     * rhs: vector that stores the rhs of the system.
     */
    void EliminateRowCol(Array<int> & ess_bc_dofs, Vector & sol, Vector & rhs);
@@ -85,7 +87,11 @@ public:
    /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
    virtual const double& Elem (int i, int j) const;
    /// Returns a pointer to (approximation) of the matrix inverse.
-   virtual MatrixInverse * Inverse() const { mfem_error("BlockMatrix::Inverse not implemented \n"); return static_cast<MatrixInverse*>(NULL); }
+   virtual MatrixInverse * Inverse() const
+   {
+      mfem_error("BlockMatrix::Inverse not implemented \n");
+      return static_cast<MatrixInverse*>(NULL);
+   }
    //@}
 
    //@name AbstractSparseMatrix interface
@@ -97,7 +103,8 @@ public:
    /// Gets the columns indexes and values for row *row*.
    /// The return value is always 0 since cols and srow are copies of the values in the matrix.
    virtual int GetRow(const int row, Array<int> &cols, Vector &srow) const;
-   //! If the matrix is square, it will place 1 on the diagonal (i,i) if row i has "almost" zero l1-norm.
+   //! If the matrix is square, it will place 1 on the diagonal (i,i) if row i
+   //! has "almost" zero l1-norm.
    /**
     * If entry (i,i) does not belong to the sparsity pattern of A, then a error will occur.
     */
@@ -119,7 +126,6 @@ public:
    int owns_blocks;
 
 private:
-
    //! Given a global row iglobal finds to which row iloc in block iblock belongs to.
    inline void findGlobalRow(int iglobal, int & iblock, int & iloc) const;
    //! Given a global column jglobal finds to which column jloc in block jblock belongs to.
@@ -133,7 +139,8 @@ private:
    Array<int> row_offsets;
    //! column offsets for each block start (length nColBlocks+1).
    Array<int> col_offsets;
-   //! 2D array that stores each block of the BlockMatrix. Aij(iblock, jblock) == NULL if block (iblock, jblock) is all zeros.
+   //! 2D array that stores each block of the BlockMatrix. Aij(iblock, jblock)
+   //! == NULL if block (iblock, jblock) is all zeros.
    Array2D<SparseMatrix *> Aij;
 };
 

@@ -340,11 +340,11 @@ SparseMatrix *Mult_AtDA(const SparseMatrix &A, const Vector &D,
                         SparseMatrix *OAtDA = NULL);
 
 
-/// Matrix addition res = A + B.
+/// Matrix addition result = A + B.
 SparseMatrix * Add(const SparseMatrix & A, const SparseMatrix & B);
-/// Matrix addition res = a*A + b*B
+/// Matrix addition result = a*A + b*B
 SparseMatrix * Add(double a, const SparseMatrix & A, double b, const SparseMatrix & B);
-/// Matrix addition res = sum_i A_i
+/// Matrix addition result = sum_i A_i
 SparseMatrix * Add(Array<SparseMatrix *> & Ai);
 
 
