@@ -4935,24 +4935,6 @@ void Mesh::AverageVertices(int * indexes, int n, int result)
       vertices[result](k) *= (1.0 / n);
 }
 
-void Mesh::UpdateNodes()
-{
-   FiniteElementSpace *cfes = Nodes->FESpace()->SaveUpdate();
-   SparseMatrix *R =
-      Nodes->FESpace()->GlobalRestrictionMatrix(cfes, 0);
-   delete cfes;
-   {
-      Vector cNodes = *Nodes;
-      Nodes->Update();
-      R->MultTranspose(cNodes, *Nodes);
-   }
-   delete R;
-
-   SetState(Mesh::TWO_LEVEL_FINE);
-
-   // update the vertices?
-}
-
 void Mesh::QuadUniformRefinement()
 {
    int i, j, *v, vv[2], attr, wtls = WantTwoLevelState;
@@ -5090,7 +5072,7 @@ void Mesh::QuadUniformRefinement()
 
    if (Nodes)  // curved mesh
    {
-      UpdateNodes();
+      Nodes->FESpace()->UpdateAndInterpolate(Nodes);
       UseTwoLevelState(wtls);
    }
 
@@ -5313,7 +5295,7 @@ void Mesh::HexUniformRefinement()
 
    if (Nodes)  // curved mesh
    {
-      UpdateNodes();
+      Nodes->FESpace()->UpdateAndInterpolate(Nodes);
       UseTwoLevelState(wtls);
    }
 
@@ -5649,7 +5631,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
 
    if (Nodes)  // curved mesh
    {
-      UpdateNodes();
+      Nodes->FESpace()->UpdateAndInterpolate(Nodes);
       UseTwoLevelState(wtls);
    }
 
@@ -5658,7 +5640,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
 #endif
 }
 
-void Mesh::NonconformingRefinement(const Array<NCRefinement> &refinements,
+void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
                                    int nc_limit)
 {
    if (NURBSext)
@@ -5806,7 +5788,7 @@ void Mesh::UniformRefinement()
       mfem_error("Mesh::UniformRefinement()");
 }
 
-void Mesh::GeneralRefinement(Array<int> &el_to_refine, int nonconforming,
+void Mesh::GeneralRefinement(Array<Refinement> &refinements, int nonconforming,
                              int nc_limit)
 {
    if (nonconforming < 0)
@@ -5821,18 +5803,28 @@ void Mesh::GeneralRefinement(Array<int> &el_to_refine, int nonconforming,
 
    if (nonconforming)
    {
-      Array<NCRefinement> refinements;
-      for (int i = 0; i < el_to_refine.Size(); i++)
-         refinements.Append(NCRefinement(el_to_refine[i]));
-
       // non-conforming refinement (hanging nodes)
       NonconformingRefinement(refinements, nc_limit);
    }
    else
    {
+      Array<int> el_to_refine;
+      for (int i = 0; i < refinements.Size(); i++)
+         el_to_refine.Append(refinements[i].index);
+
       // red-green refinement, no hanging nodes
       LocalRefinement(el_to_refine);
    }
+}
+
+void Mesh::GeneralRefinement(Array<int> &el_to_refine, int nonconforming,
+                             int nc_limit)
+{
+   Array<Refinement> refinements;
+   for (int i = 0; i < el_to_refine.Size(); i++)
+      refinements.Append(Refinement(el_to_refine[i]));
+
+   GeneralRefinement(refinements, nonconforming, nc_limit);
 }
 
 void Mesh::Bisection(int i, const DSTable &v_to_v,

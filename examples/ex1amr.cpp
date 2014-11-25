@@ -20,9 +20,9 @@
 //               according to an error estimator.
 //
 //               The example demostrates MFEM's capability to work with both
-//               conforming and nonconforming refinements, in 2D and 3D, linear
-//               and curved meshes. Interpolation of functions from coarse to
-//               fine meshes is also covered.
+//               conforming and nonconforming refinements, in 2D and 3D, on
+//               linear and curved meshes. Interpolation of functions from
+//               coarse to fine meshes is also covered.
 
 #include <fstream>
 #include "mfem.hpp"
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
       // 10. Take care of nonconforming meshes by applying the interpolation
       //     matrix P to a, b and x, so that slave degrees of freedom get
       //     eliminated from the linear system. The system becomes P'AP x = P'b.
-      //     (If the mesh is conforming this step does nothing.)
+      //     (If the mesh is conforming, P is identity.)
       a.ConformingAssemble(x, b);
 
       // 11. As usual, we also need to eliminate the essential BC from the
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
       // 13. For nonconforming meshes, bring the solution vector back from
       //     the conforming space to the nonconforming (cut) space, i.e.,
       //     x = Px. Slave DOFs receive the correct values to make the solution
-      //     continuous. (This step does nothing if the mesh is conforming.)
+      //     continuous.
       x.ConformingProlongate();
 
       // 14. Send solution by socket to the GLVis server.

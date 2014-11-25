@@ -995,12 +995,12 @@ void NCMeshHex::Refine(Element* elem, int ref_type)
 }
 
 
-void NCMeshHex::Refine(const Array<NCRefinement>& refinements)
+void NCMeshHex::Refine(const Array<Refinement>& refinements)
 {
    // push all refinements on the stack in reverse order
    for (int i = refinements.Size()-1; i >= 0; i--)
    {
-      const NCRefinement& ref = refinements[i];
+      const Refinement& ref = refinements[i];
       ref_stack.Append(RefStackItem(leaf_elements[ref.index], ref.ref_type));
    }
 
@@ -1864,28 +1864,34 @@ NCMeshHex::FineTransform* NCMeshHex::GetFineTransforms()
    for (int i = 0; i < coarse_elements.Size(); i++)
    {
       Element* c_elem = coarse_elements[i];
-
-      if (c_elem->geom == Geometry::CUBE)
+      if (c_elem->ref_type)
       {
-         PointMatrix pm(Point(0,0,0), Point(1,0,0), Point(1,1,0), Point(0,1,0),
-                        Point(0,0,1), Point(1,0,1), Point(1,1,1), Point(0,1,1));
-
-         GetFineTransforms(c_elem, i, transforms, pm);
-      }
-      else if (c_elem->geom == Geometry::SQUARE)
-      {
-         PointMatrix pm(Point(0,0), Point(1,0), Point(1,1), Point(0,1));
-         GetFineTransforms(c_elem, i, transforms, pm);
-      }
-      else if (c_elem->geom == Geometry::TRIANGLE)
-      {
-         PointMatrix pm(Point(0,0), Point(1,0), Point(0,1));
-         GetFineTransforms(c_elem, i, transforms, pm);
+         if (c_elem->geom == Geometry::CUBE)
+         {
+            PointMatrix pm
+               (Point(0,0,0), Point(1,0,0), Point(1,1,0), Point(0,1,0),
+                Point(0,0,1), Point(1,0,1), Point(1,1,1), Point(0,1,1));
+            GetFineTransforms(c_elem, i, transforms, pm);
+         }
+         else if (c_elem->geom == Geometry::SQUARE)
+         {
+            PointMatrix pm(Point(0,0), Point(1,0), Point(1,1), Point(0,1));
+            GetFineTransforms(c_elem, i, transforms, pm);
+         }
+         else if (c_elem->geom == Geometry::TRIANGLE)
+         {
+            PointMatrix pm(Point(0,0), Point(1,0), Point(0,1));
+            GetFineTransforms(c_elem, i, transforms, pm);
+         }
+         else
+            MFEM_ABORT("Bad geometry.");
       }
       else
-         MFEM_ABORT("Bad geometry.");
-
-      // TODO: detect non-refined elements and return empty matrices as identities
+      {
+         // element not refined, return identity transform
+         transforms[c_elem->index].coarse_index = i;
+         // leave point_matrix empty...
+      }
    }
 
    return transforms;
@@ -1956,7 +1962,7 @@ void NCMeshHex::LimitNCLevel(int max_level)
    {
       UpdateLeafElements();
 
-      Array<NCRefinement> refinements;
+      Array<Refinement> refinements;
       for (int i = 0; i < leaf_elements.Size(); i++)
       {
          int splits[3];
@@ -1970,7 +1976,7 @@ void NCMeshHex::LimitNCLevel(int max_level)
          // TODO: isotropic meshes should only be modified with iso refinements
 
          if (ref_type)
-            refinements.Append(NCRefinement(i, ref_type));
+            refinements.Append(Refinement(i, ref_type));
       }
 
       if (!refinements.Size()) break;

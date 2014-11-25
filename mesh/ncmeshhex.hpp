@@ -21,13 +21,16 @@ class DenseMatrix;
 class IsoparametricTransformation;
 class FiniteElementSpace;
 
-/** */
-struct NCRefinement
+/** Represents the index of an element to refine, plus a refinement type.
+    The refinement type is needed for anisotropic refinement of quads and hexes.
+    Bits 0,1 and 2 of 'ref_type' specify whether the element should be split
+    in the X, Y and Z directions, respectively (Z is ignored for quads). */
+struct Refinement
 {
    int index; ///< Mesh element number
    int ref_type; ///< refinement XYZ bit mask (7 = full isotropic)
 
-   NCRefinement(int index, int type = 7)
+   Refinement(int index, int type = 7)
       : index(index), ref_type(type) {}
 };
 
@@ -63,7 +66,7 @@ public:
        of anisotropic splits additional refinements may be necessary to keep
        the mesh consistent. However, the function always performas at least the
        requested refinements. */
-   void Refine(const Array<NCRefinement> &refinements);
+   void Refine(const Array<Refinement> &refinements);
 
    /** Derefine -- not implemented yet */
    //void Derefine(Element* elem);
@@ -72,23 +75,40 @@ public:
        of hanging nodes is not greater than 'max_level'. */
    void LimitNCLevel(int max_level);
 
-   /** */
+   /** Calculate the conforming interpolation matrix P that ties slave DOFs to
+       independent DOFs. P is rectangular with M rows and N columns, where M
+       is the number of DOFs of the nonconforming ('cut') space, and N is the
+       number of independent ('true') DOFs. If x is a solution vector containing
+       the values of the independent DOFs, Px can be used to obtain the values
+       of all DOFs, including the slave DOFs. */
    SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* space);
 
-   /** */
+   /** Represents the relation of a fine element to its parent (coarse) element
+       from a previous mesh state. (Note that the parent can be an indirect
+       parent.) The point matrix determines where in the reference domain of the
+       coarse element the fine element is located. */
    struct FineTransform
    {
-      int coarse_index; ///< coarse mesh element index
+      int coarse_index; ///< coarse Mesh element index
       DenseMatrix point_matrix; ///< for use in IsoparametricTransformation
+
+      /// As an optimization, identity transform is "stored" as empty matrix.
+      bool IsIdentity() const { return !point_matrix.Data(); }
    };
 
-   /** */
+   /** Store the current layer of leaf elements before the mesh is refined.
+       This is later used by 'GetFineTransforms' to determine the relations of
+       the coarse and refined elements. */
    void MarkCoarseLevel() { leaf_elements.Copy(coarse_elements); }
 
-   /** */
+   /** Return an array of the structures 'FineTransform', one for each leaf
+       element. This data can be used to transfer functions from a previous
+       coarse level of the mesh (marked with 'MarkCoarseLevel') to a newly
+       refined state of the mesh.
+       NOTE: the caller needs to free the returned array. */
    FineTransform* GetFineTransforms();
 
-   /// Return total number of bytes allocated.
+   /** Return total number of bytes allocated. */
    long MemoryUsage();
 
    ~NCMeshHex();

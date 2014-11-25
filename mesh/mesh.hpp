@@ -17,6 +17,7 @@
 class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;
+struct Refinement;
 
 #ifdef MFEM_USE_MPI
 class ParMesh;
@@ -156,7 +157,7 @@ protected:
    void AverageVertices (int * indexes, int n, int result);
 
    /// Update the nodes of a curved mesh after refinement
-   void UpdateNodes();
+   //void UpdateNodes();
 
    /// Refine quadrilateral mesh.
    virtual void QuadUniformRefinement();
@@ -166,6 +167,13 @@ protected:
 
    /// Refine NURBS mesh.
    virtual void NURBSUniformRefinement();
+
+   /// This function is not public anymore. Use GeneralRefinement instead.
+   virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
+
+   /// This function is not public anymore. Use GeneralRefinement instead.
+   void NonconformingRefinement(const Array<Refinement> &refinements,
+                                int nc_limit = 0);
 
    /// Read NURBS patch/macro-element mesh
    void LoadPatchTopo(istream &input, Array<int> &edge_to_knot);
@@ -595,16 +603,22 @@ public:
    // use the provided GridFunction as Nodes
    void NewNodes(GridFunction &nodes, bool make_owner = false);
 
-   /// Refine the given list of marked elements.
-   virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
-
-   /** Refine the given list of marked elements. The resulting mesh is
-       nonconforming, i.e. it has hanging nodes. */
-   void NonconformingRefinement(const Array<NCRefinement> &refinements,
-                                int nc_limit = 0);
-
+   /** Refine all mesh elements. */
    void UniformRefinement();
 
+   /** Refine selected mesh elements. Refinement type can be specified for each
+       element. The function can do conforming refinement of triangles and
+       tetrahedra and non-conforming refinement (i.e., with hanging-nodes) of
+       triangles, quadrilaterals and hexahedrons. If 'nonconforming' = -1,
+       suitable refinement method is selected automatically (namely, conforming
+       refinement for triangles). Use noncoforming = 0/1 to force the method.
+       For nonconforming refinements, nc_limit optionally specifies the maximum
+       level of hanging nodes (unlimited by default). */
+   void GeneralRefinement(Array<Refinement> &refinements,
+                          int nonconforming = -1, int nc_limit = 0);
+
+   /** Simplified version of GeneralRefinement taking a simple list of elements
+       to refine, without refinement types. */
    void GeneralRefinement(Array<int> &el_to_refine,
                           int nonconforming = -1, int nc_limit = 0);
 

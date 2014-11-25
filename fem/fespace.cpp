@@ -221,53 +221,67 @@ DenseMatrix * FiniteElementSpace::LocalInterpolation
    return RefData[l] -> I;
 }
 
+// helper to set submatrix of A repeated vdim times
+static void SetVDofSubMatrixTranspose(SparseMatrix& A,
+                                      Array<int>& rows, Array<int>& cols,
+                                      const DenseMatrix& subm, int vdim)
+{
+   if (vdim == 1)
+   {
+      A.SetSubMatrixTranspose(rows, cols, subm, 1);
+   }
+   else
+   {
+      int nr = subm.Width(), nc = subm.Height();
+      for (int d = 0; d < vdim; d++)
+      {
+         Array<int> rows_sub(rows.GetData() + d*nr, nr); // (not owner)
+         Array<int> cols_sub(cols.GetData() + d*nc, nc); // (not owner)
+         A.SetSubMatrixTranspose(rows_sub, cols_sub, subm, 1);
+      }
+   }
+}
+
+// helper to set a row of A to the specified value
+static void SetRow(DenseMatrix& A, int row, double value)
+{
+   for (int j = 0; j < A.Width(); j++)
+      A(row, j) = value;
+}
+
 SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
 (FiniteElementSpace * cfes, int one_vdim)
 {
    int k;
    SparseMatrix * R;
    DenseMatrix * r;
-   Array<int> rows, cols, rs, cs;
+   Array<int> rows, cols;
 
    if (one_vdim == -1)
       one_vdim = (ordering == Ordering::byNODES) ? 1 : 0;
 
-   mesh -> SetState (Mesh::TWO_LEVEL_COARSE);
-   if (vdim == 1 || one_vdim == 1)
-      R = new SparseMatrix (cfes -> GetNDofs(), ndofs);
-   else
-      R = new SparseMatrix (cfes -> GetVSize(), vdim*ndofs);
+   mesh->SetState(Mesh::TWO_LEVEL_COARSE);
+   int vdim_or_1 = (one_vdim ? 1 : vdim);
+   R = new SparseMatrix(vdim_or_1 * cfes->GetNDofs(), vdim_or_1 * ndofs);
 
    for (k = 0; k < mesh -> GetNE(); k++)
    {
-      cfes -> GetElementDofs (k, rows);
-      mesh -> SetState (Mesh::TWO_LEVEL_FINE);
-      r = LocalInterpolation (k, rows.Size(),
-                              mesh -> GetRefinementType(k), cols);
-      if (vdim == 1 || one_vdim == 1)
-         R -> SetSubMatrixTranspose (rows, cols, *r, 1);
-      else
+      cfes->GetElementDofs(k, rows);
+
+      mesh->SetState(Mesh::TWO_LEVEL_FINE);
+      r = LocalInterpolation(k, rows.Size(), mesh->GetRefinementType(k), cols);
+
+      if (vdim_or_1 != 1)
       {
-         int d, nr = rows.Size(), nc = cols.Size();
-         cfes -> DofsToVDofs (rows);
-         DofsToVDofs (cols);
-         for (d = 0; d < vdim; d++)
-         {
-            rows.GetSubArray (d*nr, nr, rs);
-            cols.GetSubArray (d*nc, nc, cs);
-            R -> SetSubMatrixTranspose (rs, cs, *r, 1);
-         }
+         cfes->DofsToVDofs(rows);
+         DofsToVDofs(cols);
       }
-      mesh -> SetState (Mesh::TWO_LEVEL_COARSE);
+      SetVDofSubMatrixTranspose(*R, rows, cols, *r, vdim_or_1);
+
+      mesh->SetState(Mesh::TWO_LEVEL_COARSE);
    }
 
    return R;
-}
-
-static void SetRow(DenseMatrix& A, int row, double value)
-{
-   for (int j = 0; j < A.Width(); j++)
-      A(row, j) = value;
 }
 
 SparseMatrix* FiniteElementSpace
@@ -282,8 +296,8 @@ SparseMatrix* FiniteElementSpace
 
    // we mark each fine DOF the first time its column is set so that slave node
    // values don't get represented twice in R
-   Array<int> mark;
-   mark.SetSize(this->GetNDofs(), 0);
+   Array<int> mark(this->GetNDofs());
+   mark = 0;
 
    // loop over the fine elements, get interpolations of the coarse elements
    for (int k = 0; k < mesh->GetNE(); k++)
@@ -294,40 +308,37 @@ SparseMatrix* FiniteElementSpace
       mesh->SetState(Mesh::TWO_LEVEL_FINE);
       this->GetElementDofs(k, cols);
 
-      int geom = mesh->GetElementBaseGeometry(k);
-      const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
-
-      IsoparametricTransformation trans;
-      trans.SetFE(linfec.FiniteElementForGeometry(geom));
-      trans.GetPointMat() = transforms[k].point_matrix;
-
-      DenseMatrix I(fe->GetDof());
-      fe->GetLocalInterpolation(trans, I);
-
-      // make sure we don't set any column of R more than once
-      for (int i = 0; i < I.Height(); i++)
+      if (!transforms[k].IsIdentity())
       {
-         if (mark[cols[i]]) SetRow(I, i, 0); // zero the i-th row of I
-         mark[cols[i]] = 1;
-      }
+         int geom = mesh->GetElementBaseGeometry(k);
+         const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
 
-      if (vdim == 1)
-      {
-         R->SetSubMatrixTranspose(rows, cols, I, 1);
-      }
-      else
-      {
-         int nr = rows.Size(), nc = cols.Size();
+         IsoparametricTransformation trans;
+         trans.SetFE(linfec.FiniteElementForGeometry(geom));
+         trans.GetPointMat() = transforms[k].point_matrix;
+
+         DenseMatrix I(fe->GetDof());
+         fe->GetLocalInterpolation(trans, I);
+         // TODO: use std::unordered_map to cache I matrices (point_matrix as key)
+
+         // make sure we don't set any column of R more than once
+         for (int i = 0; i < I.Height(); i++)
+            if (mark[cols[i]]++)
+               SetRow(I, i, 0); // zero the i-th row of I
+
          cfes->DofsToVDofs(rows);
-         DofsToVDofs(cols);
-         for (int d = 0; d < vdim; d++)
-         {
-            rows.GetSubArray(d*nr, nr, rs);
-            cols.GetSubArray(d*nc, nc, cs);
-            R->SetSubMatrixTranspose(rs, cs, I, 1);
-         }
+         this->DofsToVDofs(cols);
+         SetVDofSubMatrixTranspose(*R, rows, cols, I, vdim);
       }
-      // TODO: detect non-refined elements and insert identities directly
+      else // optimization: insert identity for elements that were not refined
+      {
+         MFEM_ASSERT(rows.Size() == cols.Size(), "");
+         for (int i = 0; i < rows.Size(); i++)
+            if (!mark[cols[i]]++)
+               for (int vd = 0; vd < vdim; vd++)
+                  R->Set(cfes->DofToVDof(rows[i], vd),
+                         this->DofToVDof(cols[i], vd), 1.0);
+      }
    }
 
    delete [] transforms;
