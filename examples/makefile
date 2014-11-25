@@ -39,7 +39,7 @@ OPENMP_LIBS_YES = -fopenmp
 OPENMP_LIBS     = $(OPENMP_LIBS_$(USE_OPENMP))
 
 # The LAPACK and BLAS libraries (needed if MFEM was compiled with LAPACK support)
-USE_LAPACK = YES
+USE_LAPACK = NO
 LAPACK_DIR = $(HOME)/lapack
 LAPACK_LIB = -L$(LAPACK_DIR) -llapack
 BLAS_DIR   = $(HOME)/lapack
@@ -51,7 +51,7 @@ LAPACK_LIBS_YES = $(LAPACK_LIB) $(BLAS_LIB)
 LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
 
 # The SuiteSparse library
-USE_SUITESPARSE = YES
+USE_SUITESPARSE = NO
 SUITESPARSE_DIR = ../../SuiteSparse
 SUITESPARSE_OPT_NO  =
 SUITESPARSE_OPT_YES = -I$(SUITESPARSE_DIR)/include

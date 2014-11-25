@@ -755,7 +755,7 @@ void Mesh::InitMesh(int _Dim, int NVert, int NElem, int NBdrElem)
    boundary.SetSize(NBdrElem);  // just allocate space for Element *
 }
 
-void Mesh::AddVertex(double *x)
+void Mesh::AddVertex(const double *x)
 {
    double *y = vertices[NumOfVertices]();
 
@@ -764,22 +764,22 @@ void Mesh::AddVertex(double *x)
    NumOfVertices++;
 }
 
-void Mesh::AddTri(int *vi, int attr)
+void Mesh::AddTri(const int *vi, int attr)
 {
    elements[NumOfElements++] = new Triangle(vi, attr);
 }
 
-void Mesh::AddTriangle(int *vi, int attr)
+void Mesh::AddTriangle(const int *vi, int attr)
 {
    elements[NumOfElements++] = new Triangle(vi, attr);
 }
 
-void Mesh::AddQuad(int *vi, int attr)
+void Mesh::AddQuad(const int *vi, int attr)
 {
    elements[NumOfElements++] = new Quadrilateral(vi, attr);
 }
 
-void Mesh::AddTet(int *vi, int attr)
+void Mesh::AddTet(const int *vi, int attr)
 {
 #ifdef MFEM_USE_MEMALLOC
    Tetrahedron *tet;
@@ -792,12 +792,12 @@ void Mesh::AddTet(int *vi, int attr)
 #endif
 }
 
-void Mesh::AddHex(int *vi, int attr)
+void Mesh::AddHex(const int *vi, int attr)
 {
    elements[NumOfElements++] = new Hexahedron(vi, attr);
 }
 
-void Mesh::AddHexAsTets(int *vi, int attr)
+void Mesh::AddHexAsTets(const int *vi, int attr)
 {
    static const int hex_to_tet[6][4] =
       { { 0, 1, 2, 6 }, { 0, 5, 1, 6 }, { 0, 4, 5, 6 },
@@ -812,22 +812,22 @@ void Mesh::AddHexAsTets(int *vi, int attr)
    }
 }
 
-void Mesh::AddBdrSegment(int *vi, int attr)
+void Mesh::AddBdrSegment(const int *vi, int attr)
 {
    boundary[NumOfBdrElements++] = new Segment(vi, attr);
 }
 
-void Mesh::AddBdrTriangle(int *vi, int attr)
+void Mesh::AddBdrTriangle(const int *vi, int attr)
 {
    boundary[NumOfBdrElements++] = new Triangle(vi, attr);
 }
 
-void Mesh::AddBdrQuad(int *vi, int attr)
+void Mesh::AddBdrQuad(const int *vi, int attr)
 {
    boundary[NumOfBdrElements++] = new Quadrilateral(vi, attr);
 }
 
-void Mesh::AddBdrQuadAsTriangles(int *vi, int attr)
+void Mesh::AddBdrQuadAsTriangles(const int *vi, int attr)
 {
    static const int quad_to_tri[2][3] = { { 0, 1, 2 }, { 0, 2, 3 } };
    int ti[3];

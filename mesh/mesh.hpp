@@ -284,19 +284,19 @@ public:
 
    Element *NewElement(int geom);
 
-   void AddVertex (double *);
-   void AddTri (int *vi, int attr = 1);
-   void AddTriangle (int *vi, int attr = 1);
-   void AddQuad (int *vi, int attr = 1);
-   void AddTet (int *vi, int attr = 1);
-   void AddHex (int *vi, int attr = 1);
-   void AddHexAsTets(int *vi, int attr = 1);
+   void AddVertex(const double *);
+   void AddTri(const int *vi, int attr = 1);
+   void AddTriangle(const int *vi, int attr = 1);
+   void AddQuad(const int *vi, int attr = 1);
+   void AddTet(const int *vi, int attr = 1);
+   void AddHex(const int *vi, int attr = 1);
+   void AddHexAsTets(const int *vi, int attr = 1);
    // 'elem' should be allocated using the NewElement method
-   void AddElement (Element *elem)  { elements[NumOfElements++] = elem; }
-   void AddBdrSegment (int *vi, int attr = 1);
-   void AddBdrTriangle (int *vi, int attr = 1);
-   void AddBdrQuad (int *vi, int attr = 1);
-   void AddBdrQuadAsTriangles(int *vi, int attr = 1);
+   void AddElement(Element *elem)  { elements[NumOfElements++] = elem; }
+   void AddBdrSegment(const int *vi, int attr = 1);
+   void AddBdrTriangle(const int *vi, int attr = 1);
+   void AddBdrQuad(const int *vi, int attr = 1);
+   void AddBdrQuadAsTriangles(const int *vi, int attr = 1);
    void GenerateBoundaryElements();
    void FinalizeTriMesh(int generate_edges = 0, int refine = 0,
                         bool fix_orientation = true);

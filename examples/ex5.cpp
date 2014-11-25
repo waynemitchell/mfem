@@ -32,82 +32,105 @@ double analytic_rhs (Vector & input)
 
 int main (int argc, char *argv[])
 {
-   if (argc == 1)
+   if (argc != 3)
    {
-      cout << "\nUsage: ex5 <number_of_refinements>\n" << endl;
+      cout << "\nUsage: ex5 <poly_degree> <number_of_refinements>\n" << endl;
       return 1;
    }
 
-   // Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
-   const int Nvert = 6;
-   const int NElem = 8;
+   // Type of elements to use: 0 - triangles, 1 - quads
+   int elem_type = 1;
+
+   // If true, snap nodes to the sphere initilially and after each refinement;
+   // otherwise, snap only after the last refinement.
+   bool always_snap = false;
+
+   int Nvert, NElem;
+   if (elem_type == 0)
+   {
+      Nvert = 6;
+      NElem = 8;
+   }
+   else
+   {
+      Nvert = 8;
+      NElem = 6;
+   }
 
    Mesh mesh(2, Nvert, NElem, 0, 3);
 
-   // Sets vertices and the corresponding coordinates
-   double v[Nvert*3] =
+   if (elem_type == 0)
+   {
+      const double tri_v[6][3] =
+         {{ 1,  0,  0}, { 0,  1,  0}, {-1,  0,  0},
+          { 0, -1,  0}, { 0,  0,  1}, { 0,  0, -1}};
+      const int tri_e[8][3] =
+         {{0, 1, 4}, {1, 2, 4}, {2, 3, 4}, {3, 0, 4},
+          {1, 0, 5}, {2, 1, 5}, {3, 2, 5}, {0, 3, 5}};
+
+      for (int j = 0; j < Nvert; j++)
       {
-         1,             0,             0,
-         0,             1,             0,
-         -1,            0,             0,
-         0,             -1,            0,
-         0,             0,             1,
-         0,             0,            -1
-      };
-
-
-   for (int j = 0; j < Nvert; j++)
-   {
-      mesh.AddVertex(v+3*j);
-   }
-
-   int e[NElem*3] =
+         mesh.AddVertex(tri_v[j]);
+      }
+      for (int j = 0; j < NElem; j++)
       {
-         0, 1, 4,
-         1, 2, 4,
-         2, 3, 4,
-         3, 0, 4,
-         1, 0, 5,
-         2, 1, 5,
-         3, 2, 5,
-         0, 3, 5
-      };
-
-   // Sets the elements and the corresponding indices of vertices
-   for (int j = 0; j < NElem; j++)
-   {
-      mesh.AddTriangle(e+3*j,1);
+         int attribute = j + 1;
+         mesh.AddTriangle(tri_e[j], attribute);
+      }
+      mesh.FinalizeTriMesh(1, 1, true);
    }
-
-   mesh.FinalizeTriMesh(1,1,1);
-
-   // Refine the mesh
-   const int ref_levels = atoi(argv[1]);
-   for (int l = 0; l < ref_levels; l++)
+   else
    {
-      mesh.UniformRefinement();
+      const double quad_v[8][3] =
+         {{-1, -1, -1}, {+1, -1, -1}, {+1, +1, -1}, {-1, +1, -1},
+          {-1, -1, +1}, {+1, -1, +1}, {+1, +1, +1}, {-1, +1, +1}};
+      const int quad_e[6][4] =
+         {{3, 2, 1, 0}, {0, 1, 5, 4}, {1, 2, 6, 5},
+          {2, 3, 7, 6}, {3, 0, 4, 7}, {4, 5, 6, 7}};
+
+      for (int j = 0; j < Nvert; j++)
+      {
+         mesh.AddVertex(quad_v[j]);
+      }
+      for (int j = 0; j < NElem; j++)
+      {
+         int attribute = j + 1;
+         mesh.AddQuad(quad_e[j], attribute);
+      }
+      mesh.FinalizeQuadMesh(1, 1, true);
    }
 
    // Order of the mesh and the solution space.
-   int order = 2;
+   int order = atoi(argv[1]);
 
    // Set the mesh nodes according to 'order'.
    H1_FECollection fec(order, mesh.Dimension());
    FiniteElementSpace nodal_fes(&mesh, &fec, mesh.spaceDimension());
    mesh.SetNodalFESpace(&nodal_fes);
 
-   // Snap the nodes of the refined mesh back to sphere surface.
-   GridFunction &nodes = *mesh.GetNodes();
-   Vector node(mesh.spaceDimension());
-   for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
+   // Refine the mesh
+   const int ref_levels = atoi(argv[2]);
+   for (int l = 0; l <= ref_levels; l++)
    {
-      for (int d = 0; d < mesh.spaceDimension(); d++)
-         node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
+      if (l > 0) // for l == 0 just perform snapping
+         mesh.UniformRefinement();
 
-      node /= node.Norml2();
+      // Snap the nodes of the refined mesh back to sphere surface.
+      if (always_snap || l == ref_levels)
+      {
+         GridFunction &nodes = *mesh.GetNodes();
+         Vector node(mesh.spaceDimension());
+         for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
+         {
+            for (int d = 0; d < mesh.spaceDimension(); d++)
+               node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
 
-      for (int d = 0; d < mesh.spaceDimension(); d++)
-         nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
+            node /= node.Norml2();
+
+            for (int d = 0; d < mesh.spaceDimension(); d++)
+               nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
+         }
+      }
    }
 
    // 3. Define a finite element space on the mesh. Here we use isoparametric
@@ -149,7 +172,7 @@ int main (int argc, char *argv[])
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
-   PCG(A, M, *b, x, 0, 10000, 1e-12, 0.0);
+   PCG(A, M, *b, x, 0, 1000, 1e-28, 0.0);
 #else
    // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
@@ -169,6 +192,25 @@ int main (int argc, char *argv[])
       ofstream sol_ofs("sol.gf");
       sol_ofs.precision(8);
       x.Save(sol_ofs);
+   }
+
+   // 9. Visualization
+   {
+      const char vishost[] = "localhost";
+      const int visport = 19916;
+      socketstream out(vishost, visport);
+      if (out.good())
+      {
+         out.precision(8);
+         out << "solution\n";
+         mesh.Print(out);
+         x.Save(out);
+         out << flush;
+      }
+      else
+      {
+         cout << "Unable to connect to " << vishost << ':' << visport << endl;
+      }
    }
 
    // 10. Free the used memory.
