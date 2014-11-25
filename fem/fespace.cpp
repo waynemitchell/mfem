@@ -290,12 +290,12 @@ SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
 }
 
 SparseMatrix* FiniteElementSpace
-   ::NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes, NCMeshHex* ncmesh)
+   ::NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes, NCMesh* ncmesh)
 {
    Array<int> rows, cols, rs, cs;
    LinearFECollection linfec;
 
-   NCMeshHex::FineTransform* transforms = ncmesh->GetFineTransforms();
+   NCMesh::FineTransform* transforms = ncmesh->GetFineTransforms();
 
    SparseMatrix* R = new SparseMatrix(cfes->GetVSize(), this->GetVSize());
 

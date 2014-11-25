@@ -5672,7 +5672,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    if (!ncmesh)
    {
       // start tracking refinement hierarchy
-      ncmesh = new NCMeshHex(this);
+      ncmesh = new NCMesh(this);
    }
 
    // do the refinements
@@ -5705,7 +5705,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    }
 }
 
-Mesh::Mesh(NCMeshHex &ncmesh)
+Mesh::Mesh(NCMesh &ncmesh)
 {
    Dim = ncmesh.Dimension();
 

@@ -280,7 +280,7 @@ public:
    Array<int> bdr_attributes;
 
    NURBSExtension *NURBSext;
-   NCMeshHex *ncmesh;
+   NCMesh *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
@@ -352,7 +352,7 @@ public:
    Mesh(Mesh *mesh_array[], int num_pieces);
 
    /// Create from a non-conforming hex mesh
-   Mesh(NCMeshHex& ncmesh);
+   Mesh(NCMesh& ncmesh);
 
    /* This is similar to the above mesh constructor, but here the current
       mesh is destroyed and another one created based on the data stream

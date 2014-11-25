@@ -53,7 +53,7 @@ public:
 };
 
 class NURBSExtension;
-class NCMeshHex;
+class NCMesh;
 
 /// Abstract finite element space.
 class FiniteElementSpace
@@ -301,7 +301,7 @@ public:
        (Also, the coarse level must have been marked in 'ncmesh' before
        refinement). */
    SparseMatrix *NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes,
-                                            NCMeshHex* ncmesh);
+                                            NCMesh* ncmesh);
 
    virtual void Update();
 
