@@ -12,8 +12,8 @@
 #include "../general/array.hpp"
 #include "matrix.hpp"
 #include "sparsemat.hpp"
-#include "blockVector.hpp"
-#include "blockMatrix.hpp"
+#include "blockvector.hpp"
+#include "blockmatrix.hpp"
 
 namespace mfem
 {

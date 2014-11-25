@@ -19,7 +19,7 @@
 
 #include "../general/array.hpp"
 #include "vector.hpp"
-#include "blockVector.hpp"
+#include "blockvector.hpp"
 
 namespace mfem
 {

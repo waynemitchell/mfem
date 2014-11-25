@@ -12,8 +12,8 @@
 
 #include "../general/array.hpp"
 #include "operator.hpp"
-#include "blockVector.hpp"
-#include "blockOperator.hpp"
+#include "blockvector.hpp"
+#include "blockoperator.hpp"
 
 namespace mfem
 {
