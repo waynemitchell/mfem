@@ -88,7 +88,7 @@ general/socketstream.cpp general/sort_pairs.cpp general/stable3d.cpp           \
 general/table.cpp general/tic_toc.cpp linalg/densemat.cpp linalg/hypre.cpp     \
 linalg/matrix.cpp linalg/ode.cpp linalg/operator.cpp linalg/solvers.cpp        \
 linalg/sparsemat.cpp linalg/sparsesmoothers.cpp linalg/vector.cpp              \
-linalg/blockMatrix.cpp linalg/blockOperator.cpp linalg/blockVector.cpp         \
+linalg/blockmatrix.cpp linalg/blockoperator.cpp linalg/blockvector.cpp         \
 mesh/element.cpp mesh/hexahedron.cpp mesh/mesh.cpp mesh/mesquite.cpp           \
 mesh/ncmesh.cpp mesh/nurbs.cpp mesh/pmesh.cpp mesh/point.cpp                   \
 mesh/quadrilateral.cpp mesh/segment.cpp mesh/tetrahedron.cpp mesh/triangle.cpp \
@@ -107,7 +107,7 @@ general/sets.hpp general/socketstream.hpp general/sort_pairs.hpp               \
 general/stable3d.hpp general/table.hpp general/tic_toc.hpp linalg/densemat.hpp \
 linalg/hypre.hpp linalg/linalg.hpp linalg/matrix.hpp linalg/ode.hpp            \
 linalg/operator.hpp linalg/solvers.hpp linalg/sparsemat.hpp                    \
-linalg/blockMatrix.hpp linalg/blockOperator.hpp linalg/blockVector.hpp         \
+linalg/blockmatrix.hpp linalg/blockoperator.hpp linalg/blockvector.hpp         \
 linalg/sparsesmoothers.hpp linalg/vector.hpp mesh/element.hpp                  \
 mesh/hexahedron.hpp mesh/mesh_headers.hpp mesh/mesh.hpp mesh/mesquite.hpp      \
 mesh/ncmesh.hpp mesh/nurbs.hpp mesh/pmesh.hpp mesh/point.hpp                   \
