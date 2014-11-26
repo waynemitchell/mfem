@@ -305,6 +305,10 @@ public:
 
    virtual void Update();
 
+   /** Updates the space after the underlying mesh has been refined and
+       interpolates one or more GridFunctions so that they represent the same
+       functions on the new mesh. The grid functions are passed as pointers
+       after 'num_grid_fns'. */
    virtual void UpdateAndInterpolate(int num_grid_fns, ...);
 
    /// A shortcut for passing only one GridFunction to UndateAndInterpolate.
