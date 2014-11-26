@@ -4948,6 +4948,12 @@ void Mesh::AverageVertices(int * indexes, int n, int result)
       vertices[result](k) *= (1.0 / n);
 }
 
+void Mesh::UpdateNodes()
+{
+   Nodes->FESpace()->UpdateAndInterpolate(Nodes);
+   // update the vertices?
+}
+
 void Mesh::QuadUniformRefinement()
 {
    int i, j, *v, vv[2], attr, wtls = WantTwoLevelState;
@@ -5085,7 +5091,7 @@ void Mesh::QuadUniformRefinement()
 
    if (Nodes)  // curved mesh
    {
-      Nodes->FESpace()->UpdateAndInterpolate(Nodes);
+      UpdateNodes();
       UseTwoLevelState(wtls);
    }
 
@@ -5308,7 +5314,7 @@ void Mesh::HexUniformRefinement()
 
    if (Nodes)  // curved mesh
    {
-      Nodes->FESpace()->UpdateAndInterpolate(Nodes);
+      UpdateNodes();
       UseTwoLevelState(wtls);
    }
 
@@ -5644,7 +5650,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
 
    if (Nodes)  // curved mesh
    {
-      Nodes->FESpace()->UpdateAndInterpolate(Nodes);
+      UpdateNodes();
       UseTwoLevelState(wtls);
    }
 
@@ -5703,7 +5709,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
 
    if (Nodes) // curved mesh
    {
-      Nodes->FESpace()->UpdateAndInterpolate(Nodes);
+      UpdateNodes();
       UseTwoLevelState(wtls);
    }
 }

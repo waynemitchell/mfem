@@ -1441,7 +1441,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          {
             c_el_to_face = el_to_face;
             el_to_face = NULL;
-            Swap(faces_info, fc_faces_info);
+            mfem::Swap(faces_info, fc_faces_info);
          }
          RefineGroups(v_to_v, middle);
          // GetElementToFaceTable(); // Called by RefineGroups
@@ -1739,7 +1739,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          if (WantTwoLevelState)
          {
             c_el_to_edge = el_to_edge;
-            Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
+            mfem::Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
             f_el_to_edge = new Table;
             NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
             el_to_edge = f_el_to_edge;

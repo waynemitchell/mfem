@@ -163,7 +163,7 @@ protected:
    void AverageVertices (int * indexes, int n, int result);
 
    /// Update the nodes of a curved mesh after refinement
-   //void UpdateNodes();
+   void UpdateNodes();
 
    /// Refine quadrilateral mesh.
    virtual void QuadUniformRefinement();
