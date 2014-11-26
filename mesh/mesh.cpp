@@ -661,6 +661,9 @@ void Mesh::DeleteTables()
       delete edge_vertex;
 
    InitTables();
+
+   delete nc_coarse_level;
+   nc_coarse_level = NULL;
 }
 
 void Mesh::DeleteCoarseTables()
