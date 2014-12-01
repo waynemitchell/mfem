@@ -68,9 +68,9 @@ POSIX_CLOCKS_LIB_NO  =
 POSIX_CLOCKS_LIB_YES = -lrt
 POSIX_CLOCKS_LIB = $(POSIX_CLOCKS_LIB_$(USE_POSIX_CLOCKS))
 
-serial: ex1 ex2 ex3 ex4
+serial: ex1 ex2 ex3 ex4 ex5
 
-parallel: ex1p ex2p ex3p ex4p
+parallel: ex1p ex2p ex3p ex4p ex5p
 
 ex1: ex1.cpp
 	$(CC) $(COPTS) ex1.cpp -o ex1 $(LIBS)
@@ -96,6 +96,12 @@ ex4: ex4.cpp
 ex4p: ex4p.cpp
 	$(MPICC) $(MPIOPTS) ex4p.cpp -o ex4p $(MPILIBS)
 
+ex5: ex5.cpp
+	$(CC) $(COPTS) ex5.cpp -o ex5 $(LIBS)
+
+ex5p: ex5p.cpp
+	$(MPICC) $(MPIOPTS) ex5p.cpp -o ex5p $(MPILIBS)
+
 debug:
 	$(MAKE) "OPTS=$(DEBUG_OPTS)" serial
 
@@ -103,5 +109,5 @@ pdebug:
 	$(MAKE) "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
 
 clean:
-	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p
-	rm -f refined.mesh displaced.mesh sol.* mesh.*
+	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p
+	rm -f refined.mesh displaced.mesh sol.* mesh.* ex5.mesh sol_u.* sol_p.*

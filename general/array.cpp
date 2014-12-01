@@ -119,12 +119,23 @@ void Array<T>::Sort()
 template <class T>
 void Array<T>::PartialSum()
 {
-   T sum = operator[](0);
-   for (int i = 1; i < size; i++)
+   T sum = static_cast<T>(0);
+   for (int i = 0; i < size; i++)
    {
       sum+=operator[](i);
       operator[](i) = sum;
    }
+}
+
+// Sum
+template <class T>
+T Array<T>::Sum()
+{
+   T sum = static_cast<T>(0);
+   for (int i = 0; i < size; i++)
+      sum+=operator[](i);
+
+   return sum;
 }
 
 template <class T>

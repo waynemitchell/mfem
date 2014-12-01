@@ -200,6 +200,8 @@ public:
    void ScaleRows(const Vector & s);
    /// Scale the local row i by 1./s(i)
    void InvScaleRows(const Vector & s);
+   /// Scale all entries by s: A_scaled = s*A.
+   void operator*=(double s);
 
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, int offi = 0, int offj = 0);

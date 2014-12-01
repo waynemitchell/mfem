@@ -680,6 +680,24 @@ void HypreParMatrix::InvScaleRows(const Vector &diag)
    }
 }
 
+void HypreParMatrix::operator*=(double s)
+{
+   if (hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
+      mfem_error("Row does not match");
+
+   int size=hypre_CSRMatrixNumRows(A->diag);
+   int jj;
+
+   double     *Adiag_data   = hypre_CSRMatrixData(A->diag);
+   HYPRE_Int  *Adiag_i      = hypre_CSRMatrixI(A->diag);
+   for (jj = 0; jj < Adiag_i[size]; ++jj)
+      Adiag_data[jj] *= s;
+
+   double     *Aoffd_data   = hypre_CSRMatrixData(A->offd);
+   HYPRE_Int  *Aoffd_i      = hypre_CSRMatrixI(A->offd);
+   for (jj = 0; jj < Aoffd_i[size]; ++jj)
+      Aoffd_data[jj] *= s;
+}
 
 void HypreParMatrix::Print(const char *fname, int offi, int offj)
 {
