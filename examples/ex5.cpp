@@ -1,222 +1,328 @@
 //                                MFEM Example 5
 //
+// Compile with: make ex5
 //
-// Description:  This example code demonstrates the use of MFEM to define a
-//               triangulation of a unit sphere and a simple isoparametric
-//               finite element discretization of the Laplace problem
-//               -Delta u + u = f on a triangulated sphere using linear finite
-//               elements.  The example highlights mesh generation, the use of
-//               mesh refinement, finite element grid functions, as well as
-//               linear and bilinear forms corresponding to the left-hand side
-//               and right-hand side of the discrete linear system.
+// Sample runs:  ex5 ../data/square-disc.mesh
+//               ex5 ../data/star.mesh
+//               ex5 ../data/beam-tet.mesh
+//               ex5 ../data/beam-hex.mesh
+//               ex5 ../data/escher.mesh
+//               ex5 ../data/fichera.mesh
+//
+// Description:  This example code solves a simple 2D/3D mixed Darcy problem
+//               corresponding to the saddle point system
+//                                 k*u + grad p = f
+//                                 - div u      = g
+//               with natural boundary condition -p = <given pressure>.
+//               Here, we use a given exact solution (u,p) and compute the
+//               corresponding r.h.s. (f,g).  We discretize with Raviart-Thomas
+//               finite elements (velocity u) and piecewise discontinuous
+//               polynomials (pressure p).
+//
+//               The example demonstrates the use of the BlockMatrix class.
+//
+//               We recommend viewing examples 1-4 before viewing this example.
 
 #include <fstream>
 #include "mfem.hpp"
-#include <cassert>
-
 using namespace std;
+
 using namespace mfem;
 
-double analytic_solution (Vector & input)
-{
-   double l2 = (input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
-   return input[0]*input[1]/l2;
-}
-
-
-double analytic_rhs (Vector & input)
-{
-   double l2 = (input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
-   return 7*input[0]*input[1]/l2;
-}
+// Define the analytical solution and forcing terms / boundary conditions
+void uFun_ex(const Vector & x, Vector & u);
+double pFun_ex(Vector & x);
+void fFun(const Vector & x, Vector & f);
+double gFun(Vector & x);
+double f_natural(Vector & x);
 
 int main (int argc, char *argv[])
 {
-   if (argc != 3)
+   StopWatch chrono;
+   Mesh *mesh;
+
+   if (argc == 1)
    {
-      cout << "\nUsage: ex5 <poly_degree> <number_of_refinements>\n" << endl;
+      cout << "\nUsage: ./ex5 <mesh_file>\n" << endl;
       return 1;
    }
 
-   // Type of elements to use: 0 - triangles, 1 - quads
-   int elem_type = 1;
-
-   // If true, snap nodes to the sphere initilially and after each refinement;
-   // otherwise, snap only after the last refinement.
-   bool always_snap = false;
-
-   int Nvert, NElem;
-   if (elem_type == 0)
+   // 1. Read the (serial) mesh from the given mesh file.  We can handle
+   //    triangular, quadrilateral, tetrahedral or hexahedral elements with the
+   //    same code.
+   ifstream imesh(argv[1]);
+   if (!imesh)
    {
-      Nvert = 6;
-      NElem = 8;
+      cerr << "\nCan not open mesh file: " << argv[1] << '\n' << endl;
+      return 2;
    }
-   else
+   mesh = new Mesh(imesh, 1, 1);
+   imesh.close();
+
+   // 2. Refine the serial mesh to increase the resolution. In this example we
+   //    do 'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
+   //    largest number that gives a final mesh with no more than 10,000
+   //    elements.
    {
-      Nvert = 8;
-      NElem = 6;
-   }
-
-   Mesh mesh(2, Nvert, NElem, 0, 3);
-
-   if (elem_type == 0)
-   {
-      const double tri_v[6][3] =
-         {{ 1,  0,  0}, { 0,  1,  0}, {-1,  0,  0},
-          { 0, -1,  0}, { 0,  0,  1}, { 0,  0, -1}};
-      const int tri_e[8][3] =
-         {{0, 1, 4}, {1, 2, 4}, {2, 3, 4}, {3, 0, 4},
-          {1, 0, 5}, {2, 1, 5}, {3, 2, 5}, {0, 3, 5}};
-
-      for (int j = 0; j < Nvert; j++)
-      {
-         mesh.AddVertex(tri_v[j]);
-      }
-      for (int j = 0; j < NElem; j++)
-      {
-         int attribute = j + 1;
-         mesh.AddTriangle(tri_e[j], attribute);
-      }
-      mesh.FinalizeTriMesh(1, 1, true);
-   }
-   else
-   {
-      const double quad_v[8][3] =
-         {{-1, -1, -1}, {+1, -1, -1}, {+1, +1, -1}, {-1, +1, -1},
-          {-1, -1, +1}, {+1, -1, +1}, {+1, +1, +1}, {-1, +1, +1}};
-      const int quad_e[6][4] =
-         {{3, 2, 1, 0}, {0, 1, 5, 4}, {1, 2, 6, 5},
-          {2, 3, 7, 6}, {3, 0, 4, 7}, {4, 5, 6, 7}};
-
-      for (int j = 0; j < Nvert; j++)
-      {
-         mesh.AddVertex(quad_v[j]);
-      }
-      for (int j = 0; j < NElem; j++)
-      {
-         int attribute = j + 1;
-         mesh.AddQuad(quad_e[j], attribute);
-      }
-      mesh.FinalizeQuadMesh(1, 1, true);
+      int ref_levels =
+         (int)floor(log(10000./mesh->GetNE())/log(2.)/mesh->Dimension());
+      for (int l = 0; l < ref_levels; l++)
+         mesh->UniformRefinement();
    }
 
-   // Order of the mesh and the solution space.
-   int order = atoi(argv[1]);
+   // 3. Define a finite element space on the mesh. Here we use the lowest order
+   //    Raviart-Thomas finite elements, but we can easily switch to
+   //    higher-order spaces by changing the value of *order*.
+   int order = 0;
+   FiniteElementCollection *hdiv_coll(new RT_FECollection(order, mesh->Dimension()));
+   FiniteElementCollection *l2_coll(new L2_FECollection(order, mesh->Dimension()));
 
-   // Set the mesh nodes according to 'order'.
-   H1_FECollection fec(order, mesh.Dimension());
-   FiniteElementSpace nodal_fes(&mesh, &fec, mesh.spaceDimension());
-   mesh.SetNodalFESpace(&nodal_fes);
+   FiniteElementSpace *R_space = new FiniteElementSpace(mesh, hdiv_coll);
+   FiniteElementSpace *W_space = new FiniteElementSpace(mesh, l2_coll);
 
-   // Refine the mesh
-   const int ref_levels = atoi(argv[2]);
-   for (int l = 0; l <= ref_levels; l++)
-   {
-      if (l > 0) // for l == 0 just perform snapping
-         mesh.UniformRefinement();
+   // 4. Define the BlockStructure of the problem, i.e. define the array of
+   //    offsets for each variable. The last component of the Array is the sum
+   //    of the dimensions of each block.
+   Array<int> block_offsets(3); // number of variables + 1
+   block_offsets[0] = 0;
+   block_offsets[1] = R_space->GetVSize();
+   block_offsets[2] = W_space->GetVSize();
+   block_offsets.PartialSum();
 
-      // Snap the nodes of the refined mesh back to sphere surface.
-      if (always_snap || l == ref_levels)
-      {
-         GridFunction &nodes = *mesh.GetNodes();
-         Vector node(mesh.spaceDimension());
-         for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
-         {
-            for (int d = 0; d < mesh.spaceDimension(); d++)
-               node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
+   std::cout << "***********************************************************\n";
+   std::cout << "dim(R) = " << block_offsets[1] - block_offsets[0] << "\n";
+   std::cout << "dim(W) = " << block_offsets[2] - block_offsets[1] << "\n";
+   std::cout << "dim(R+W) = " << block_offsets.Last() << "\n";
+   std::cout << "***********************************************************\n";
 
-            node /= node.Norml2();
+   // 5. Define the coefficients, analytical solution, and rhs of the PDE
+   ConstantCoefficient k(1.0);
 
-            for (int d = 0; d < mesh.spaceDimension(); d++)
-               nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
-         }
-      }
-   }
+   VectorFunctionCoefficient fcoeff(mesh->Dimension(), fFun);
+   FunctionCoefficient fnatcoeff(f_natural);
+   FunctionCoefficient gcoeff(gFun);
 
-   // 3. Define a finite element space on the mesh. Here we use isoparametric
-   //    finite elements -- the same as the mesh nodes.
-   FiniteElementSpace *fespace = new FiniteElementSpace(&mesh, &fec);
-   cout << "Number of unknowns: " << fespace->GetVSize() << endl;
+   VectorFunctionCoefficient ucoeff(mesh->Dimension(), uFun_ex);
+   FunctionCoefficient pcoeff(pFun_ex);
 
-   // 4. Set up the linear form b(.) which corresponds to the right-hand side of
-   //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
-   //    the basis functions in the finite element fespace.
-   LinearForm *b = new LinearForm(fespace);
-   ConstantCoefficient one(1.0);
-   FunctionCoefficient rhs_coef (analytic_rhs);
-   FunctionCoefficient sol_coef (analytic_solution);
+   // 6. Allocate memory (x, rhs) for the analytical solution and the right hand
+   //    side.  Define the GridFunction u,p for the finite element solution and
+   //    linear forms fform and gform for the right hand side.  The data
+   //    allocated by x and rhs are passed as a reference to the grid fuctions
+   //    (u,p) and the linear forms (fform, gform).
+   BlockVector x(block_offsets), rhs(block_offsets);
 
-   b->AddDomainIntegrator(new DomainLFIntegrator(rhs_coef));
-   b->Assemble();
+   LinearForm *fform(new LinearForm);
+   fform->Update(R_space, rhs.GetBlock(0), 0);
+   fform->AddDomainIntegrator(new VectorFEDomainLFIntegrator(fcoeff));
+   fform->AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator(fnatcoeff));
+   fform->Assemble();
 
-   // 5. Define the solution vector x as a finite element grid function
-   //    corresponding to fespace. Initialize x with initial guess of zero,
-   //    which satisfies the boundary conditions.
-   GridFunction x(fespace);
-   x = 0.0;
+   LinearForm *gform(new LinearForm);
+   gform->Update(W_space, rhs.GetBlock(1), 0);
+   gform->AddDomainIntegrator(new DomainLFIntegrator(gcoeff));
+   gform->Assemble();
 
-   // 6. Set up the bilinear form a(.,.) on the finite element space
-   //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
-   //    domain integrator and imposing homogeneous Dirichlet boundary
-   //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential (Dirichlet). After
-   //    assembly and finalizing we extract the corresponding sparse matrix A.
-   BilinearForm *a = new BilinearForm(fespace);
-   a->AddDomainIntegrator(new DiffusionIntegrator(one));
-   a->AddDomainIntegrator(new MassIntegrator(one));
-   a->Assemble();
-   a->Finalize();
-   const SparseMatrix &A = a->SpMat();
+   // 7. Assemble the finite element matrices for the Darcy operator
+   //
+   //                            D = [ M  B^T ]
+   //                                [ B   0  ]
+   //     where:
+   //
+   //     M = \int_\Omega k u_h \cdot v_h d\Omega   u_h, v_h \in R_h
+   //     B   = -\int_\Omega \div u_h q_h d\Omega   u_h \in R_h, q_h \in W_h
+   BilinearForm *mVarf(new BilinearForm(R_space));
+   MixedBilinearForm *bVarf(new MixedBilinearForm(R_space, W_space));
 
+   mVarf->AddDomainIntegrator(new VectorFEMassIntegrator(k));
+   mVarf->Assemble();
+   mVarf->Finalize();
+   SparseMatrix &M(mVarf->SpMat());
+
+   bVarf->AddDomainIntegrator(new VectorFEDivergenceIntegrator);
+   bVarf->Assemble();
+   bVarf->Finalize();
+   SparseMatrix & B(bVarf->SpMat());
+   B *= -1.;
+   SparseMatrix *BT = Transpose(B);
+
+   BlockMatrix darcyMatrix(block_offsets);
+   darcyMatrix.SetBlock(0,0, &M);
+   darcyMatrix.SetBlock(0,1, BT);
+   darcyMatrix.SetBlock(1,0, &B);
+
+   // 8. Construct the operators for preconditioner
+   //
+   //                 P = [ diag(M)         0         ]
+   //                     [  0       B diag(M)^-1 B^T ]
+   //
+   //     Here we use Symmetric Gauss-Seidel to approximate the inverse of the
+   //     pressure Schur Complement
+   SparseMatrix *MinvBt = Transpose(B);
+   Vector Md(M.Size());
+   M.GetDiag(Md);
+   for (int i = 0; i < Md.Size(); i++)
+      MinvBt->ScaleRow(i, 1./Md(i));
+   SparseMatrix *S = Mult(B, *MinvBt);
+
+   Solver *invM, *invS;
+   invM = new DSmoother(M);
 #ifndef MFEM_USE_SUITESPARSE
-   // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
-   //    solve the system Ax=b with PCG.
-   GSSmoother M(A);
-   PCG(A, M, *b, x, 0, 1000, 1e-28, 0.0);
+   invS = new GSSmoother(*S);
 #else
-   // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
-   UMFPackSolver umf_solver;
-   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-   umf_solver.SetOperator(A);
-   umf_solver.Mult(*b, x);
+   invS = new UMFPackSolver(*S);
 #endif
 
-   // compare with exact solution
-   cout<<"L2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;
+   invM->iterative_mode = false;
+   invS->iterative_mode = false;
 
-   // 8. Save the solution and the mesh.
+   BlockDiagonalPreconditioner darcyPrec(block_offsets);
+   darcyPrec.SetDiagonalBlock(0, invM);
+   darcyPrec.SetDiagonalBlock(1, invS);
+
+   // 9. Solve the linear system with MINRES.
+   //    Check the norm of the unpreconditioned residual.
+
+   int maxIter(500);
+   double rtol(1.e-6);
+   double atol(1.e-10);
+
+   chrono.Clear();
+   chrono.Start();
+   MINRESSolver solver;
+   solver.SetAbsTol(atol);
+   solver.SetRelTol(rtol);
+   solver.SetMaxIter(maxIter);
+   solver.SetOperator(darcyMatrix);
+   solver.SetPreconditioner(darcyPrec);
+   solver.SetPrintLevel(1);
+   x = 0.0;
+   solver.Mult(rhs, x);
+   chrono.Stop();
+
+   if (solver.GetConverged())
+      std::cout << "MINRES converged in " << solver.GetNumIterations()
+                << " iterations with a residual norm of " << solver.GetFinalNorm() << ".\n";
+   else
+      std::cout << "MINRES did not converge in " << solver.GetNumIterations()
+                << " iterations. Residual norm is " << solver.GetFinalNorm() << ".\n";
+   std::cout << "MINRES solver took " << chrono.RealTime() << "s. \n";
+
+   // 10. Create the grid functions u and p. Compute the L2 error norms.
+   GridFunction u, p;
+   u.Update(R_space, x.GetBlock(0), 0);
+   p.Update(W_space, x.GetBlock(1), 0);
+
+   int order_quad = max(2, 2*order+1);
+   const IntegrationRule *irs[Geometry::NumGeom];
+   for(int i(0); i < Geometry::NumGeom; ++i)
+      irs[i] = &(IntRules.Get(i, order_quad));
+
+   double err_u  = u.ComputeL2Error(ucoeff, irs);
+   double norm_u = ComputeLpNorm(2., ucoeff, *mesh, irs);
+   double err_p  = p.ComputeL2Error(pcoeff, irs);
+   double norm_p = ComputeLpNorm(2., pcoeff, *mesh, irs);
+
+   std::cout << "|| u_h - u_ex || / || u_ex || = " << err_u / norm_u << "\n";
+   std::cout << "|| p_h - p_ex || / || p_ex || = " << err_p / norm_p << "\n";
+
+   // 11. Save the mesh and the solution. This output can be viewed later using
+   //     GLVis: "glvis -m ex5.mesh -g sol_u.gf" or "glvis -m ex5.mesh -g
+   //     sol_p.gf".
    {
-      ofstream mesh_ofs("sphere_refined.mesh");
+      ofstream mesh_ofs("ex5.mesh");
       mesh_ofs.precision(8);
-      mesh.Print(mesh_ofs);
-      ofstream sol_ofs("sol.gf");
-      sol_ofs.precision(8);
-      x.Save(sol_ofs);
+      mesh->Print(mesh_ofs);
+
+      ofstream u_ofs("sol_u.gf");
+      u_ofs.precision(8);
+      u.Save(u_ofs);
+
+      ofstream p_ofs("sol_p.gf");
+      p_ofs.precision(8);
+      p.Save(p_ofs);
    }
 
-   // 9. Visualization
+   // 12. (Optional) Send the solution by socket to a GLVis server.
    {
-      const char vishost[] = "localhost";
-      const int visport = 19916;
-      socketstream out(vishost, visport);
-      if (out.good())
-      {
-         out.precision(8);
-         out << "solution\n";
-         mesh.Print(out);
-         x.Save(out);
-         out << flush;
-      }
-      else
-      {
-         cout << "Unable to connect to " << vishost << ':' << visport << endl;
-      }
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      socketstream u_sock(vishost, visport);
+      u_sock << "solution\n";
+      u_sock.precision(8);
+      mesh->Print(u_sock);
+      u.Save(u_sock);
+      u_sock << "window_title 'Velocity'" << endl;
+      socketstream p_sock(vishost, visport);
+      p_sock << "solution\n";
+      p_sock.precision(8);
+      mesh->Print(p_sock);
+      p.Save(p_sock);
+      p_sock << "window_title 'Pressure'" << endl;
    }
 
-   // 10. Free the used memory.
-   delete a;
-   delete b;
-   delete fespace;
+   // 13. Free the used memory.
+   delete fform;
+   delete gform;
+   delete invM;
+   delete invS;
+   delete S;
+   delete MinvBt;
+   delete BT;
+   delete mVarf;
+   delete bVarf;
+   delete W_space;
+   delete R_space;
+   delete l2_coll;
+   delete hdiv_coll;
+   delete mesh;
 
    return 0;
+}
+
+
+void uFun_ex(const Vector & x, Vector & u)
+{
+   double xi(x(0));
+   double yi(x(1));
+   double zi(0.0);
+   if (x.Size() == 3)
+      zi = x(2);
+
+   u(0) = - exp(xi)*sin(yi)*cos(zi);
+   u(1) = - exp(xi)*cos(yi)*cos(zi);
+
+   if (x.Size() == 3)
+      u(2) = exp(xi)*sin(yi)*sin(zi);
+}
+
+// Change if needed
+double pFun_ex(Vector & x)
+{
+   double xi(x(0));
+   double yi(x(1));
+   double zi(0.0);
+
+   if (x.Size() == 3)
+      zi = x(2);
+
+   return exp(xi)*sin(yi)*cos(zi);
+}
+
+void fFun(const Vector & x, Vector & f)
+{
+   f = 0.0;
+}
+
+double gFun(Vector & x)
+{
+   if (x.Size() == 3)
+      return -pFun_ex(x);
+   else
+      return 0;
+}
+
+double f_natural(Vector & x)
+{
+   return (-pFun_ex(x));
 }

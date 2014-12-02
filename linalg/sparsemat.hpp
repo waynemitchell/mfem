@@ -31,7 +31,7 @@ public:
 };
 
 /// Data type sparse matrix
-class SparseMatrix : public Matrix
+class SparseMatrix : public AbstractSparseMatrix
 {
 private:
 
@@ -143,7 +143,10 @@ public:
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const;
 
+   /// for all i compute x_i = \sum_j A_{ij}
    void GetRowSums(Vector &x) const;
+   /// for i = irow compute x_i = \sum_j | A_{i, j} |
+   double GetRowNorml1(int irow) const;
 
    /// Returns a pointer to approximation of the matrix inverse.
    virtual MatrixInverse *Inverse() const;
@@ -236,8 +239,11 @@ public:
    /** Extract all column indices and values from a given row.
        If the matrix is finalized (i.e. in CSR format), 'cols' and 'srow'
        will simply be references to the specific portion of the J and A
-       arrays. */
-   void GetRow(const int row, Array<int> &cols, Vector &srow) const;
+       arrays.
+       As required by the AbstractSparseMatrix interface this method returns:
+       0 if cols and srow are copies of the values in the matrix (i.e. when the matrix is open).
+       1 if cols and srow are views of the values in the matrix (i.e. when the matrix is finalized). */
+   virtual int GetRow(const int row, Array<int> &cols, Vector &srow) const;
 
    void SetRow(const int row, const Array<int> &cols, const Vector &srow);
    void AddRow(const int row, const Array<int> &cols, const Vector &srow);
@@ -285,7 +291,7 @@ public:
    void Symmetrize();
 
    /// Returns the number of the nonzero elements in the matrix
-   int NumNonZeroElems() const;
+   virtual int NumNonZeroElems() const;
 
    double MaxNorm() const;
 
@@ -307,8 +313,8 @@ void SparseMatrixFunction(SparseMatrix &S, double (*f)(double));
 
 /// Transpose of a sparse matrix. A must be finalized.
 SparseMatrix *Transpose(const SparseMatrix &A);
-/// Transpose of a sparse matrix. A does not need to be finalized.
-SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth);
+/// Transpose of a sparse matrix. A does not need to be a CSR matrix.
+SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A, int useActualWidth);
 
 /** Matrix product A.B.
     If OAB is not NULL, we assume it has the structure
@@ -319,8 +325,8 @@ SparseMatrix *TransposeRowMatrix (const SparseMatrix &A, int useActualWidth);
 SparseMatrix *Mult(const SparseMatrix &A, const SparseMatrix &B,
                    SparseMatrix *OAB = NULL);
 
-/// Matrix product of sparse matrices. A and B do not need to be finalized.
-SparseMatrix *MultRowMatrix (const SparseMatrix &A, const SparseMatrix &B);
+/// Matrix product of sparse matrices. A and B do not need to be CSR matrices
+SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A, const AbstractSparseMatrix &B);
 
 
 /** RAP matrix product. ORAP is like OAB above.
@@ -332,6 +338,14 @@ SparseMatrix *RAP(const SparseMatrix &A, const SparseMatrix &R,
     All matrices must be finalized.  */
 SparseMatrix *Mult_AtDA(const SparseMatrix &A, const Vector &D,
                         SparseMatrix *OAtDA = NULL);
+
+
+/// Matrix addition result = A + B.
+SparseMatrix * Add(const SparseMatrix & A, const SparseMatrix & B);
+/// Matrix addition result = a*A + b*B
+SparseMatrix * Add(double a, const SparseMatrix & A, double b, const SparseMatrix & B);
+/// Matrix addition result = sum_i A_i
+SparseMatrix * Add(Array<SparseMatrix *> & Ai);
 
 
 // Inline methods
