@@ -2355,7 +2355,7 @@ void DenseMatrix::SetRow(int row, double value)
 
 void DenseMatrix::SetCol(int col, double value)
 {
-   for (int i = 0; i < Size(); i++)
+   for (int i = 0; i < Height(); i++)
       (*this)(i, col) = value;
 }
 

@@ -1701,8 +1701,11 @@ void GridFunction::ConformingProlongate(const Vector &x)
 
 void GridFunction::ConformingProlongate()
 {
-   Vector x = *this;
-   ConformingProlongate(x);
+   if (fes->GetConformingProlongation())
+   {
+      Vector x = *this;
+      ConformingProlongate(x);
+   }
 }
 
 void GridFunction::ConformingProject(Vector &x) const
@@ -1732,9 +1735,12 @@ void GridFunction::ConformingProject(Vector &x) const
 
 void GridFunction::ConformingProject()
 {
-   Vector x;
-   ConformingProject(x);
-   static_cast<Vector&>(*this) = x;
+   if (fes->GetConformingProlongation())
+   {
+      Vector x;
+      ConformingProject(x);
+      static_cast<Vector&>(*this) = x;
+   }
 }
 
 void GridFunction::Save(std::ostream &out)

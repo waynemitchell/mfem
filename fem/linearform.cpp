@@ -102,9 +102,12 @@ void LinearForm::ConformingAssemble(Vector &b) const
 
 void LinearForm::ConformingAssemble()
 {
-   Vector b;
-   ConformingAssemble(b);
-   static_cast<Vector&>(*this) = b;
+   if (fes->GetConformingProlongation())
+   {
+      Vector b;
+      ConformingAssemble(b);
+      static_cast<Vector&>(*this) = b;
+   }
 }
 
 void LinearForm::Update(FiniteElementSpace *f, Vector &v, int v_offset)
