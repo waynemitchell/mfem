@@ -143,9 +143,9 @@ public:
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const;
 
-   /// for all i compute x_i = \sum_j A_{ij}
+   /// For all i compute \f$ x_i = \sum_j A_{ij} \f$
    void GetRowSums(Vector &x) const;
-   /// for i = irow compute x_i = \sum_j | A_{i, j} |
+   /// For i = irow compute \f$ x_i = \sum_j | A_{i, j} | \f$
    double GetRowNorml1(int irow) const;
 
    /// Returns a pointer to approximation of the matrix inverse.

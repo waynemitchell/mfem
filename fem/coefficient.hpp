@@ -417,23 +417,23 @@ public:
 };
 
 /** Compute the Lp norm of a function f.
-    \| f \|_{Lp} = ( \int_\Omega | f |^p d\Omega)^{1/p} */
+    \f$ \| f \|_{Lp} = ( \int_\Omega | f |^p d\Omega)^{1/p} \f$ */
 double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
                      const IntegrationRule *irs[]);
 
 /** Compute the Lp norm of a vector function f = {f_i}_i=1...N.
-    \| f \|_{Lp} = ( \sum_i \| f_i \|_{Lp}^p )^{1/p} */
+    \f$ \| f \|_{Lp} = ( \sum_i \| f_i \|_{Lp}^p )^{1/p} \f$ */
 double ComputeLpNorm(double p, VectorCoefficient &coeff, Mesh &mesh,
                      const IntegrationRule *irs[]);
 
 #ifdef MFEM_USE_MPI
 /** Compute the global Lp norm of a function f.
-    \| f \|_{Lp} = ( \int_\Omega | f |^p d\Omega)^{1/p} */
+    \f$ \| f \|_{Lp} = ( \int_\Omega | f |^p d\Omega)^{1/p} \f$ */
 double ComputeGlobalLpNorm(double p, Coefficient &coeff, ParMesh &pmesh,
                            const IntegrationRule *irs[]);
 
 /** Compute the global Lp norm of a vector function f = {f_i}_i=1...N.
-    \| f \|_{Lp} = ( \sum_i \| f_i \|_{Lp}^p )^{1/p} */
+    \f$ \| f \|_{Lp} = ( \sum_i \| f_i \|_{Lp}^p )^{1/p} \f$ */
 double ComputeGlobalLpNorm(double p, VectorCoefficient &coeff, ParMesh &pmesh,
                            const IntegrationRule *irs[]);
 #endif
