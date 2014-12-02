@@ -12,24 +12,27 @@
 //               ex6 ../data/ball-nurbs.mesh
 //               ex6 ../data/pipe-nurbs.mesh
 //
-// Description:  This is a follow-up to "ex1.cpp" and a minimal adaptive mesh
-//               refinement (AMR) code using MFEM. The problem being solved is
-//               again the Laplace equation -\Delta u = 1 with homogeneous
-//               Dirichlet boundary conditions. The problem is solved on a
-//               sequence of meshes. In each step the mesh is refined locally
-//               according to an error estimator.
+// Description:  This is a version of Example 1 with a simple adaptive mesh
+//               refinement loop. The problem being solved is again the Laplace
+//               equation -Delta u = 1 with homogeneous Dirichlet boundary
+//               conditions. The problem is solved on a sequence of meshes which
+//               a locally refined in a conforming (triangles, tetrahedrons) or
+//               non-conforming (quadrilateral, hexahedrons) manner according to
+//               a simple ZZ error estimator.
 //
-//               The example demostrates MFEM's capability to work with both
+//               The example demonstrates MFEM's capability to work with both
 //               conforming and nonconforming refinements, in 2D and 3D, on
 //               linear and curved meshes. Interpolation of functions from
-//               coarse to fine meshes is also covered.
+//               coarse to fine meshes, as well as persistent GLVis
+//               visualization are also covered.
+//
+//               We recommend viewing Example 1 before viewing this example.
 
 #include "mfem.hpp"
 #include <fstream>
-
 using namespace std;
-using namespace mfem;
 
+using namespace mfem;
 
 int main(int argc, char *argv[])
 {
@@ -74,7 +77,7 @@ int main(int argc, char *argv[])
    H1_FECollection fec(poly_order, dim);
    FiniteElementSpace fespace(&mesh, &fec);
 
-   // 4. As in ex1.cpp, we set up bilinear and linear forms corresponding to
+   // 4. As in Example 1, we set up bilinear and linear forms corresponding to
    //    the Laplace problem -\Delta u = 1. We don't assemble the discrete
    //    problem yet, this will be done in the main loop.
    BilinearForm a(&fespace);
@@ -95,7 +98,7 @@ int main(int argc, char *argv[])
    Array<int> ess_bdr(mesh.bdr_attributes.Max());
    ess_bdr = 1;
 
-   // 7. Connect to GLVis
+   // 7. (Optional) Connect to GLVis.
    char vishost[] = "localhost";
    int  visport   = 19916;
    osockstream sol_sock(visport, vishost);
@@ -149,7 +152,7 @@ int main(int argc, char *argv[])
       //     continuous.
       x.ConformingProlongate();
 
-      // 14. Send solution by socket to the GLVis server.
+      // 14. (Optional) Send solution by socket to the GLVis server.
       sol_sock << "solution\n";
       sol_sock.precision(8);
       mesh.Print(sol_sock);
@@ -167,8 +170,8 @@ int main(int argc, char *argv[])
          ZZErrorEstimator(flux_integrator, x, flux, errors, 1);
       }
 
-      // 16. Make a list of elements whose error is larger than some fraction of
-      //     the maximum element error. These elements will be refined.
+      // 16. Make a list of elements whose error is larger than a fraction (0.7)
+      //     of the maximum element error. These elements will be refined.
       Array<int> ref_list;
       double emax = errors.Max();
       for (int i = 0; i < errors.Size(); i++)
@@ -191,10 +194,10 @@ int main(int argc, char *argv[])
       fespace.UpdateAndInterpolate(&x);
 
       // Note: If interpolation was not needed, we could just use the following
-      //     two calls to update the space and the grid function. (No need for
-      //     UseTwoLevelState in this case.)
-      //fespace.Update();
-      //x.Update();
+      //     two calls to update the space and the grid function. (No need to
+      //     call UseTwoLevelState in this case.)
+      // fespace.Update();
+      // x.Update();
 
       // 19. Inform also the bilinear and linear forms that the space has
       //     changed.
@@ -204,4 +207,3 @@ int main(int argc, char *argv[])
 
    return 0;
 }
-
