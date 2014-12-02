@@ -198,8 +198,8 @@ void MatrixArrayCoefficient::Eval (DenseMatrix &K, ElementTransformation &T,
          K(i,j) = Coeff[i*vdim+j] -> Eval(T, ip, GetTime());
 }
 
-double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
-                     const IntegrationRule *irs[])
+double LpNormLoop(double p, Coefficient &coeff, Mesh &mesh,
+                  const IntegrationRule *irs[])
 {
    double norm = 0.0;
    ElementTransformation *tr;
@@ -224,17 +224,133 @@ double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
          }
       }
    }
+   return norm;
+}
 
-   if (p < numeric_limits<double>::infinity())
+double LpNormLoop(double p, VectorCoefficient &coeff, Mesh &mesh,
+                  const IntegrationRule *irs[])
+{
+   double norm = 0.0;
+   ElementTransformation *tr;
+   int vdim = coeff.GetVDim();
+   Vector vval(vdim);
+   double val;
+
+   for (int i = 0; i < mesh.GetNE(); i++)
    {
-      // negative quadrature weights may cause norm to be negative
-      if (norm < 0.)
-         norm = -pow(-norm, 1. / p);
-      else
-         norm = pow(norm, 1. / p);
+      tr = mesh.GetElementTransformation(i);
+      const IntegrationRule &ir = *irs[mesh.GetElementType(i)];
+      for (int j = 0; j < ir.GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir.IntPoint(j);
+         tr->SetIntPoint(&ip);
+         coeff.Eval(vval, *tr, ip);
+         if (p < numeric_limits<double>::infinity())
+         {
+            for(int idim(0); idim < vdim; ++idim)
+               norm += ip.weight * tr->Weight() * pow(fabs( vval(idim) ), p);
+         }
+         else
+         {
+            for(int idim(0); idim < vdim; ++idim)
+            {
+               val = fabs(vval(idim));
+               if (norm < val)
+                  norm = val;
+            }
+         }
+      }
    }
 
    return norm;
 }
+
+double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
+                     const IntegrationRule *irs[])
+{
+   double norm = LpNormLoop(p, coeff, mesh, irs);
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // negative quadrature weights may cause norm to be negative
+      if (norm < 0.0)
+         norm = -pow(-norm, 1.0/p);
+      else
+         norm = pow(norm, 1.0/p);
+   }
+
+   return norm;
+}
+
+double ComputeLpNorm(double p, VectorCoefficient &coeff, Mesh &mesh,
+                     const IntegrationRule *irs[])
+{
+   double norm = LpNormLoop(p, coeff, mesh, irs);
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // negative quadrature weights may cause norm to be negative
+      if (norm < 0.0)
+         norm = -pow(-norm, 1.0/p);
+      else
+         norm = pow(norm, 1.0/p);
+   }
+
+   return norm;
+}
+
+#ifdef MFEM_USE_MPI
+double ComputeGlobalLpNorm(double p, Coefficient &coeff, ParMesh &pmesh,
+                           const IntegrationRule *irs[])
+{
+   double loc_norm = LpNormLoop(p, coeff, pmesh, irs);
+   double glob_norm = 0;
+
+   MPI_Comm comm = pmesh.GetComm();
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+
+      // negative quadrature weights may cause norm to be negative
+      if (glob_norm < 0.0)
+         glob_norm = -pow(-glob_norm, 1.0/p);
+      else
+         glob_norm = pow(glob_norm, 1.0/p);
+   }
+   else
+   {
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX, comm);
+   }
+
+   return glob_norm;
+}
+
+double ComputeGlobalLpNorm(double p, VectorCoefficient &coeff, ParMesh &pmesh,
+                           const IntegrationRule *irs[])
+{
+   double loc_norm = LpNormLoop(p, coeff, pmesh, irs);
+   double glob_norm = 0;
+
+   MPI_Comm comm = pmesh.GetComm();
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+
+      // negative quadrature weights may cause norm to be negative
+      if (glob_norm < 0.0)
+         glob_norm = -pow(-glob_norm, 1.0/p);
+      else
+         glob_norm = pow(glob_norm, 1.0/p);
+   }
+   else
+   {
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX, comm);
+   }
+
+   return glob_norm;
+}
+#endif
 
 }

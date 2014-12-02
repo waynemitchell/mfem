@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <limits>
 
 #include "vector.hpp"
 
@@ -550,6 +551,24 @@ double Vector::Norml1() const
       sum += fabs (data[i]);
 
    return sum;
+}
+
+double Vector::Normlp(double p) const
+{
+   MFEM_ASSERT(p > 0.0, "Vector::Normlp");
+   if (p == 1.0)
+      return Norml1();
+   if (p == 2.0)
+      return Norml2();
+   if (p < std::numeric_limits<double>::infinity())
+   {
+      double sum = 0.0;
+      for (int i = 0; i < size; i++)
+         sum += pow(fabs(data[i]), p);
+      return pow(sum, 1.0/p);
+   }
+   else
+      return Normlinf();
 }
 
 double Vector::Max() const
