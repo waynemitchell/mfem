@@ -128,9 +128,7 @@ int main (int argc, char *argv[])
    {
       Array<int> ess_bdr(pmesh->bdr_attributes.Max());
       ess_bdr = 1;
-      Array<int> ess_dofs;
-      fespace->GetEssentialVDofs(ess_bdr, ess_dofs);
-      a->EliminateEssentialBCFromDofs(ess_dofs, x, *b);
+      a->EliminateEssentialBC(ess_bdr, x, *b);
    }
    a->Finalize();
 
