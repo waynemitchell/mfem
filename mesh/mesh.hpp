@@ -351,7 +351,7 @@ public:
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
 
-   /// Create from a non-conforming hex mesh
+   /// Create from a nonconforming mesh.
    Mesh(NCMesh& ncmesh);
 
    /* This is similar to the above mesh constructor, but here the current

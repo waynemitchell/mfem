@@ -247,13 +247,6 @@ static void SetVDofSubMatrixTranspose(SparseMatrix& A,
    }
 }
 
-// helper to set a row of A to the specified value
-static void SetRow(DenseMatrix& A, int row, double value)
-{
-   for (int j = 0; j < A.Width(); j++)
-      A(row, j) = value;
-}
-
 SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
 (FiniteElementSpace * cfes, int one_vdim)
 {
@@ -329,7 +322,7 @@ SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
          // make sure we don't set any column of R more than once
          for (int i = 0; i < I.Height(); i++)
             if (mark[cols[i]]++)
-               SetRow(I, i, 0); // zero the i-th row of I
+               I.SetRow(i, 0); // zero the i-th row of I
 
          cfes->DofsToVDofs(rows);
          this->DofsToVDofs(cols);

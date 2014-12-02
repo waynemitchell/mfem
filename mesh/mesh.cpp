@@ -5735,7 +5735,9 @@ Mesh::Mesh(NCMesh &ncmesh)
    {
       GetElementToFaceTable();
       GenerateFaces();
-      //CheckBdrElementOrientation();
+#ifdef MFEM_DEBUG
+      CheckBdrElementOrientation();
+#endif
    }
 
    el_to_edge = new Table;

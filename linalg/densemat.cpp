@@ -2347,6 +2347,17 @@ void DenseMatrix::AdjustDofDirection(Array<int> &dofs)
    }
 }
 
+void DenseMatrix::SetRow(int row, double value)
+{
+   for (int j = 0; j < Width(); j++)
+      (*this)(row, j) = value;
+}
+
+void DenseMatrix::SetCol(int col, double value)
+{
+   for (int i = 0; i < Size(); i++)
+      (*this)(i, col) = value;
+}
 
 void DenseMatrix::Print(std::ostream &out, int width) const
 {

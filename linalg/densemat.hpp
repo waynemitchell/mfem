@@ -247,6 +247,11 @@ public:
        then (*this)(i,j) = -(*this)(i,j).  */
    void AdjustDofDirection(Array<int> &dofs);
 
+   /// Set all entries of a row to the specified value.
+   void SetRow(int row, double value);
+   /// Set all entries of a column to the specified value.
+   void SetCol(int col, double value);
+
    /** Count the number of entries in the matrix for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */
    int CheckFinite() const { return mfem::CheckFinite(data, size*height); }
