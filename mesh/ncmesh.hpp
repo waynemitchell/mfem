@@ -157,7 +157,7 @@ protected: // implementation
 
       Vertex() {}
       Vertex(double x, double y, double z) : index(-1)
-         { pos[0] = x, pos[1] = y, pos[2] = z; }
+      { pos[0] = x, pos[1] = y, pos[2] = z; }
    };
 
    /** An NC mesh edge. Edges don't do much more than just exist. */
@@ -214,7 +214,7 @@ protected: // implementation
       Element* elem[2]; ///< up to 2 elements sharing the face
 
       Face(int id) : Hashed4<Face>(id), attribute(-1), index(-1)
-         { elem[0] = elem[1] = NULL; }
+      { elem[0] = elem[1] = NULL; }
 
       bool Boundary() const { return attribute >= 0; }
 
@@ -347,7 +347,7 @@ protected: // implementation
    static int find_node(Element* elem, Node* node);
 
    void ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
-                           Element* elem, DenseMatrix& pm);
+                            Element* elem, DenseMatrix& pm);
 
    void AddDependencies(Array<int>& master_dofs, Array<int>& slave_dofs,
                         DenseMatrix& I);
@@ -395,7 +395,7 @@ protected: // implementation
          dim = p0.dim;
          for (int i = 0; i < dim; i++)
             coord[i] = (p0.coord[i] + p1.coord[i] + p2.coord[i] + p3.coord[i])
-                        * 0.25;
+               * 0.25;
       }
 
       Point& operator=(const Point& src)

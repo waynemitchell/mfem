@@ -93,19 +93,19 @@ public:
    // item pointer variants of the above for convenience
    template<typename OtherT>
    ItemT* Get(OtherT* i1, OtherT* i2)
-      { return Get(i1->id, i2->id); }
+   { return Get(i1->id, i2->id); }
 
    template<typename OtherT>
    ItemT* Get(OtherT* i1, OtherT* i2, OtherT* i3, OtherT* i4)
-      { return Get(i1->id, i2->id, i3->id, i4->id); }
+   { return Get(i1->id, i2->id, i3->id, i4->id); }
 
    template<typename OtherT>
    ItemT* Peek(OtherT* i1, OtherT* i2) const
-      { return Peek(i1->id, i2->id); }
+   { return Peek(i1->id, i2->id); }
 
    template<typename OtherT>
    ItemT* Peek(OtherT* i1, OtherT* i2, OtherT* i3, OtherT* i4) const
-      { return Peek(i1->id, i2->id, i3->id, i4->id); }
+   { return Peek(i1->id, i2->id, i3->id, i4->id); }
 
    /// Obtains an item given its ID.
    ItemT* Peek(int id) const { return id_to_item[id]; }
@@ -149,17 +149,17 @@ protected:
 
    // hash functions (NOTE: the constants are arbitrary)
    inline int hash(int p1, int p2) const
-      { return (984120265*p1 + 125965121*p2) & mask; }
+   { return (984120265*p1 + 125965121*p2) & mask; }
 
    inline int hash(int p1, int p2, int p3) const
-      { return (984120265*p1 + 125965121*p2 + 495698413*p3) & mask; }
+   { return (984120265*p1 + 125965121*p2 + 495698413*p3) & mask; }
 
    // Remove() uses one of the following two overloads:
    inline int hash(const Hashed2<ItemT>* item) const
-      { return hash(item->p1, item->p2); }
+   { return hash(item->p1, item->p2); }
 
    inline int hash(const Hashed4<ItemT>* item) const
-      { return hash(item->p1, item->p2, item->p3); }
+   { return hash(item->p1, item->p2, item->p3); }
 
    ItemT* SearchList(ItemT* item, int p1, int p2) const;
    ItemT* SearchList(ItemT* item, int p1, int p2, int p3) const;
@@ -222,15 +222,15 @@ inline void sort4(int &a, int &b, int &c, int &d)
 template<typename ItemT>
 ItemT* HashTable<ItemT>::Peek(int p1, int p2) const
 {
-  if (p1 > p2) std::swap(p1, p2);
-  return SearchList(table[hash(p1, p2)], p1, p2);
+   if (p1 > p2) std::swap(p1, p2);
+   return SearchList(table[hash(p1, p2)], p1, p2);
 }
 
 template<typename ItemT>
 ItemT* HashTable<ItemT>::Peek(int p1, int p2, int p3, int p4) const
 {
-  detail::sort4(p1, p2, p3, p4);
-  return SearchList(table[hash(p1, p2, p3)], p1, p2, p3);
+   detail::sort4(p1, p2, p3, p4);
+   return SearchList(table[hash(p1, p2, p3)], p1, p2, p3);
 }
 
 template<typename ItemT>
@@ -245,56 +245,56 @@ void HashTable<ItemT>::Insert(int idx, ItemT* item)
 template<typename ItemT>
 ItemT* HashTable<ItemT>::Get(int p1, int p2)
 {
-  // search for the item in the hashtable
-  if (p1 > p2) std::swap(p1, p2);
-  int idx = hash(p1, p2);
-  ItemT* node = SearchList(table[idx], p1, p2);
-  if (node) return node;
+   // search for the item in the hashtable
+   if (p1 > p2) std::swap(p1, p2);
+   int idx = hash(p1, p2);
+   ItemT* node = SearchList(table[idx], p1, p2);
+   if (node) return node;
 
-  // not found - create a new one
-  ItemT* newitem = new ItemT(id_gen.Get());
-  newitem->p1 = p1;
-  newitem->p2 = p2;
+   // not found - create a new one
+   ItemT* newitem = new ItemT(id_gen.Get());
+   newitem->p1 = p1;
+   newitem->p2 = p2;
 
-  // insert into hashtable
-  Insert(idx, newitem);
+   // insert into hashtable
+   Insert(idx, newitem);
 
-  // also, maintain the mapping ID -> item
-  if (id_to_item.Size() <= newitem->id) {
-     id_to_item.SetSize(newitem->id + 1, NULL);
-  }
-  id_to_item[newitem->id] = newitem;
+   // also, maintain the mapping ID -> item
+   if (id_to_item.Size() <= newitem->id) {
+      id_to_item.SetSize(newitem->id + 1, NULL);
+   }
+   id_to_item[newitem->id] = newitem;
 
-  Rehash();
-  return newitem;
+   Rehash();
+   return newitem;
 }
 
 template<typename ItemT>
 ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
 {
-  // search for the item in the hashtable
-  detail::sort4(p1, p2, p3, p4);
-  int idx = hash(p1, p2, p3);
-  ItemT* node = SearchList(table[idx], p1, p2, p3);
-  if (node) return node;
+   // search for the item in the hashtable
+   detail::sort4(p1, p2, p3, p4);
+   int idx = hash(p1, p2, p3);
+   ItemT* node = SearchList(table[idx], p1, p2, p3);
+   if (node) return node;
 
-  // not found - create a new one
-  ItemT* newitem = new ItemT(id_gen.Get());
-  newitem->p1 = p1;
-  newitem->p2 = p2;
-  newitem->p3 = p3;
+   // not found - create a new one
+   ItemT* newitem = new ItemT(id_gen.Get());
+   newitem->p1 = p1;
+   newitem->p2 = p2;
+   newitem->p3 = p3;
 
-  // insert into hashtable
-  Insert(idx, newitem);
+   // insert into hashtable
+   Insert(idx, newitem);
 
-  // also, maintain the mapping ID -> item
-  if (id_to_item.Size() <= newitem->id) {
-     id_to_item.SetSize(newitem->id + 1, NULL);
-  }
-  id_to_item[newitem->id] = newitem;
+   // also, maintain the mapping ID -> item
+   if (id_to_item.Size() <= newitem->id) {
+      id_to_item.SetSize(newitem->id + 1, NULL);
+   }
+   id_to_item[newitem->id] = newitem;
 
-  Rehash();
-  return newitem;
+   Rehash();
+   return newitem;
 }
 
 template<typename ItemT>
@@ -337,7 +337,7 @@ void HashTable<ItemT>::Rehash()
       mask = new_size-1;
 
       /*std::cout << __PRETTY_FUNCTION__ << ": rehashing to size " << new_size
-                << std::endl;*/
+	<< std::endl;*/
 
       // reinsert all items
       num_items = 0;
@@ -427,8 +427,8 @@ template<typename ItemT>
 long HashTable<ItemT>::MemoryUsage() const
 {
    return sizeof(*this) +
-          ((mask+1) + id_to_item.Size()) * sizeof(ItemT*) +
-          num_items * sizeof(ItemT);
+      ((mask+1) + id_to_item.Size()) * sizeof(ItemT*) +
+      num_items * sizeof(ItemT);
 }
 
 }

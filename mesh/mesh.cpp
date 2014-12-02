@@ -5811,7 +5811,7 @@ void Mesh::GeneralRefinement(Array<Refinement> &refinements, int nonconforming,
                              int nc_limit)
 {
    if (nonconforming < 0)
-   {      
+   {
       // determine if nonconforming refinement is suitable
       int type = elements[0]->GetType();
       if (type == Element::HEXAHEDRON || type == Element::QUADRILATERAL)

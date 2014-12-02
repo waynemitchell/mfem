@@ -289,8 +289,8 @@ SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
    return R;
 }
 
-SparseMatrix* FiniteElementSpace
-   ::NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes, NCMesh* ncmesh)
+SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
+(FiniteElementSpace* cfes, NCMesh* ncmesh)
 {
    Array<int> rows, cols, rs, cs;
    LinearFECollection linfec;
