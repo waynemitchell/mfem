@@ -5833,8 +5833,19 @@ void Mesh::GeneralRefinement(Array<Refinement> &refinements, int nonconforming,
       for (int i = 0; i < refinements.Size(); i++)
          el_to_refine.Append(refinements[i].index);
 
+      // infer 'type' of local refinement from first element's 'ref_type'
+      int type, rt = (refinements.Size() ? refinements[0].ref_type : 7);
+      if (rt == 1 || rt == 2 || rt == 4)
+         type = 1;
+      else if (rt == 3 || rt == 5 || rt == 6)
+         type = 2;
+      else
+         type = 3;
+
+      cout << "type = " << type << endl;
+
       // red-green refinement, no hanging nodes
-      LocalRefinement(el_to_refine);
+      LocalRefinement(el_to_refine, type);
    }
 }
 
@@ -5843,7 +5854,7 @@ void Mesh::GeneralRefinement(Array<int> &el_to_refine, int nonconforming,
 {
    Array<Refinement> refinements;
    for (int i = 0; i < el_to_refine.Size(); i++)
-      refinements.Append(Refinement(el_to_refine[i]));
+      refinements.Append(Refinement(el_to_refine[i], 7));
 
    GeneralRefinement(refinements, nonconforming, nc_limit);
 }
