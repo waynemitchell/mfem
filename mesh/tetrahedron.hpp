@@ -85,7 +85,8 @@ public:
    virtual int GetNFaces(int &nFaceVertices) const
    { nFaceVertices = 3; return 4; }
 
-   virtual const int *GetFaceVertices(int fi) const { return NULL; }
+   virtual const int *GetFaceVertices(int fi) const
+   { return NULL; /* TODO: not implemented yet. */ }
 
    virtual Element *Duplicate(Mesh *m) const;
 
