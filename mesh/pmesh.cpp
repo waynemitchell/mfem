@@ -36,6 +36,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    MPI_Comm_rank(MyComm, &MyRank);
 
    Dim = mesh.Dim;
+   spaceDim = mesh.spaceDim;
 
    if (partitioning_)
       partitioning = partitioning_;
@@ -576,8 +577,8 @@ void ParMesh::GetFaceNbrElementTransformation(
       const int nv = elem->GetNVertices();
       const int *v = elem->GetVertices();
 
-      pointmat.SetSize(Dim, nv);
-      for (int k = 0; k < Dim; k++)
+      pointmat.SetSize(spaceDim, nv);
+      for (int k = 0; k < spaceDim; k++)
          for (int j = 0; j < nv; j++)
             pointmat(k, j) = face_nbr_vertices[v[j]](k);
 
@@ -590,9 +591,9 @@ void ParMesh::GetFaceNbrElementTransformation(
       if (pNodes)
       {
          pNodes->ParFESpace()->GetFaceNbrElementVDofs(i, vdofs);
-         int n = vdofs.Size()/Dim;
+         int n = vdofs.Size()/spaceDim;
          pointmat.SetSize(Dim, n);
-         for (int k = 0; k < Dim; k++)
+         for (int k = 0; k < spaceDim; k++)
             for (int j = 0; j < n; j++)
                pointmat(k,j) = (pNodes->FaceNbrData())(vdofs[n*k+j]);
 
@@ -2387,7 +2388,10 @@ void ParMesh::Print(std::ostream &out) const
 
    if (Dim > 1)
    {
-      shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
+	  if(bdr_attributes.Size())
+          shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
+	  else
+		  shared_bdr_attr = MyRank + 1;
       for (i = 0; i < s2l_face.Size(); i++)
       {
          // Modify the attrributes of the faces (not used otherwise?)
@@ -2398,11 +2402,11 @@ void ParMesh::Print(std::ostream &out) const
    out << "\nvertices\n" << NumOfVertices << '\n';
    if (Nodes == NULL)
    {
-      out << Dim << '\n';
+      out << spaceDim << '\n';
       for (i = 0; i < NumOfVertices; i++)
       {
          out << vertices[i](0);
-         for (j = 1; j < Dim; j++)
+         for (j = 1; j < spaceDim; j++)
             out << ' ' << vertices[i](j);
          out << '\n';
       }
