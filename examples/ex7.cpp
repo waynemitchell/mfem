@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
    // Set the space for the high-order mesh nodes.
    int order = atoi(argv[1]); // order of the mesh and the solution space.
    H1_FECollection fec(order, mesh.Dimension());
-   FiniteElementSpace nodal_fes(&mesh, &fec, mesh.spaceDimension());
+   FiniteElementSpace nodal_fes(&mesh, &fec, mesh.SpaceDimension());
    mesh.SetNodalFESpace(&nodal_fes);
 
    // 2. Refine the mesh while snapping nodes to the sphere. Number of
@@ -115,15 +115,15 @@ int main(int argc, char *argv[])
       if (always_snap || l == ref_levels)
       {
          GridFunction &nodes = *mesh.GetNodes();
-         Vector node(mesh.spaceDimension());
+         Vector node(mesh.SpaceDimension());
          for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
          {
-            for (int d = 0; d < mesh.spaceDimension(); d++)
+            for (int d = 0; d < mesh.SpaceDimension(); d++)
                node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
 
             node /= node.Norml2();
 
-            for (int d = 0; d < mesh.spaceDimension(); d++)
+            for (int d = 0; d < mesh.SpaceDimension(); d++)
                nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
          }
       }

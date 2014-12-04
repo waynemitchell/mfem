@@ -381,7 +381,7 @@ public:
    { return NumOfVertices - NumOfEdges + NumOfElements; }
 
    int Dimension() const { return Dim; }
-   int spaceDimension() const { return spaceDim; }
+   int SpaceDimension() const { return spaceDim; }
 
    /// Return pointer to vertex i's coordinates
    const double *GetVertex(int i) const { return vertices[i](); }

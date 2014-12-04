@@ -2694,7 +2694,7 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
    InitTables();
 
    Dim = mesh_array[0]->Dimension();
-   spaceDim = mesh_array[0]->spaceDimension();
+   spaceDim = mesh_array[0]->SpaceDimension();
 
    if (mesh_array[0]->NURBSext)
    {
