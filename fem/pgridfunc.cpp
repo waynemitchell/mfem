@@ -107,6 +107,12 @@ HypreParVector *ParGridFunction::GetTrueDofs() const
    return tv;
 }
 
+void ParGridFunction::ParallelAverage(Vector &tv) const
+{
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
+   pfes->DivideByGroupSize(tv);
+}
+
 void ParGridFunction::ParallelAverage(HypreParVector &tv) const
 {
    pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
@@ -118,6 +124,11 @@ HypreParVector *ParGridFunction::ParallelAverage() const
    HypreParVector *tv = pfes->NewTrueDofVector();
    ParallelAverage(*tv);
    return tv;
+}
+
+void ParGridFunction::ParallelAssemble(Vector &tv) const
+{
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
 }
 
 void ParGridFunction::ParallelAssemble(HypreParVector &tv) const
@@ -234,35 +245,6 @@ void ParGridFunction::ProjectCoefficient(Coefficient &coeff)
 
       (*this) *= (delta_c->Scale() / glob_integral);
    }
-}
-
-double ParGridFunction::GlobalLpNorm(const double p, double loc_norm) const
-{
-   double glob_norm;
-
-   if (p < numeric_limits<double>::infinity())
-   {
-      // negative quadrature weights may cause the error to be negative
-      if (loc_norm < 0.)
-         loc_norm = -pow(-loc_norm, p);
-      else
-         loc_norm = pow(loc_norm, p);
-
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM,
-                    pfes->GetComm());
-
-      if (glob_norm < 0.)
-         glob_norm = -pow(-glob_norm, 1./p);
-      else
-         glob_norm = pow(glob_norm, 1./p);
-   }
-   else
-   {
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX,
-                    pfes->GetComm());
-   }
-
-   return glob_norm;
 }
 
 void ParGridFunction::Save(std::ostream &out)
@@ -389,6 +371,33 @@ void ParGridFunction::SaveAsOne(std::ostream &out)
    delete [] nedofs;
    delete [] nfdofs;
    delete [] nrdofs;
+}
+
+double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm)
+{
+   double glob_norm;
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // negative quadrature weights may cause the error to be negative
+      if (loc_norm < 0.0)
+         loc_norm = -pow(-loc_norm, p);
+      else
+         loc_norm = pow(loc_norm, p);
+
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+
+      if (glob_norm < 0.0)
+         glob_norm = -pow(-glob_norm, 1.0/p);
+      else
+         glob_norm = pow(glob_norm, 1.0/p);
+   }
+   else
+   {
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX, comm);
+   }
+
+   return glob_norm;
 }
 
 }

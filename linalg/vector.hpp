@@ -184,6 +184,8 @@ public:
    double Normlinf() const;
    /// Returns the l_1 norm of the vector.
    double Norml1() const;
+   /// Returns the l_p norm of the vector.
+   double Normlp(double p) const;
    /// Returns the maximal element of the vector.
    double Max() const;
    /// Returns the minimal element of the vector.
