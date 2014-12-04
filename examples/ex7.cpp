@@ -19,14 +19,13 @@
 
 #include <fstream>
 #include "mfem.hpp"
-#include <cassert>
 
 using namespace std;
 using namespace mfem;
 
 // Exact solution and r.h.s., see below for implementation.
-double analytic_solution(Vector & input);
-double analytic_rhs(Vector & input);
+double analytic_solution(Vector &x);
+double analytic_rhs(Vector &x);
 
 int main(int argc, char *argv[])
 {
@@ -181,7 +180,7 @@ int main(int argc, char *argv[])
    cout<<"L2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;
 
    // 9. Save the refined mesh and the solution. This output can be viewed
-   //    later using GLVis: "glvis -m "sphere_refined.mesh -g sol.gf".
+   //    later using GLVis: "glvis -m sphere_refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("sphere_refined.mesh");
       mesh_ofs.precision(8);
@@ -206,7 +205,8 @@ int main(int argc, char *argv[])
       }
       else
       {
-         cout << "Unable to connect to " << vishost << ':' << visport << endl;
+         cout << "Unable to connect to GLVis at "
+              << vishost << ':' << visport << endl;
       }
    }
 
@@ -218,15 +218,14 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-double analytic_solution(Vector & input)
+double analytic_solution(Vector &x)
 {
-   double l2 = (input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
-   return input[0]*input[1]/l2;
+   double l2 = x(0)*x(0) + x(1)*x(1) + x(2)*x(2);
+   return x(0)*x(1)/l2;
 }
 
-double analytic_rhs(Vector & input)
+double analytic_rhs(Vector &x)
 {
-   double l2 = (input[0]*input[0] + input[1]*input[1] +input[2]*input[2]);
-   return 7*input[0]*input[1]/l2;
+   double l2 = x(0)*x(0) + x(1)*x(1) + x(2)*x(2);
+   return 7*x(0)*x(1)/l2;
 }
-

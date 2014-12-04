@@ -112,6 +112,6 @@ pdebug:
 	$(MAKE) "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
 
 clean:
-	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p
+	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p ex7
 	rm -f refined.mesh displaced.mesh sol.* mesh.* ex5.mesh sol_u.* sol_p.*
 	rm -f sphere_refined.mesh

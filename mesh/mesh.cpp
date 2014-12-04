@@ -3032,35 +3032,26 @@ void XYZ_VectorFunction(const Vector &p, Vector &v)
       int d;
       for (d = 0; d < p.Size(); d++)
          v(d) = p(d);
-      for (d = 0; d < v.Size(); d++)
+      for ( ; d < v.Size(); d++)
          v(d) = 0.0;
    }
 }
 
 void Mesh::SetNodalFESpace(FiniteElementSpace *nfes)
 {
-   int newSpaceDim = nfes->GetVDim();
+   const int newSpaceDim = nfes->GetVDim();
    GridFunction *nodes = new GridFunction(nfes);
    VectorFunctionCoefficient xyz(newSpaceDim, XYZ_VectorFunction);
    nodes->ProjectCoefficient(xyz);
 
-   if (own_nodes) delete Nodes;
-   Nodes = nodes;
-   spaceDim = newSpaceDim;
-   own_nodes = 1;
-
-   if (NURBSext != nfes->GetNURBSext())
-   {
-      delete NURBSext;
-      NURBSext = nfes->StealNURBSext();
-   }
+   NewNodes(*nodes, true);
 }
 
 void Mesh::SetNodalGridFunction(GridFunction *nodes)
 {
    if (Nodes == NULL || Nodes->FESpace() != nodes->FESpace())
    {
-      int newSpaceDim = nodes->FESpace()->GetVDim();
+      const int newSpaceDim = nodes->FESpace()->GetVDim();
       VectorFunctionCoefficient xyz(newSpaceDim, XYZ_VectorFunction);
       nodes->ProjectCoefficient(xyz);
    }
@@ -4943,7 +4934,6 @@ void Mesh::SetNodes(const Vector &node_coord)
 }
 
 void Mesh::NewNodes(GridFunction &nodes, bool make_owner)
-
 {
    if (own_nodes) delete Nodes;
    Nodes = &nodes;
