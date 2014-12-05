@@ -277,8 +277,7 @@ public:
    {
       if (_spaceDim == -1)
          _spaceDim = _Dim;
-      else
-         InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
+      InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
    Element *NewElement(int geom);

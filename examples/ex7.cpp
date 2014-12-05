@@ -26,6 +26,7 @@ using namespace mfem;
 // Exact solution and r.h.s., see below for implementation.
 double analytic_solution(Vector &x);
 double analytic_rhs(Vector &x);
+void SnapNodes(Mesh &mesh);
 
 int main(int argc, char *argv[])
 {
@@ -113,20 +114,7 @@ int main(int argc, char *argv[])
 
       // Snap the nodes of the refined mesh back to sphere surface.
       if (always_snap || l == ref_levels)
-      {
-         GridFunction &nodes = *mesh.GetNodes();
-         Vector node(mesh.SpaceDimension());
-         for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
-         {
-            for (int d = 0; d < mesh.SpaceDimension(); d++)
-               node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
-
-            node /= node.Norml2();
-
-            for (int d = 0; d < mesh.SpaceDimension(); d++)
-               nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
-         }
-      }
+         SnapNodes(mesh);
    }
 
    // 3. Define a finite element space on the mesh. Here we use isoparametric
@@ -228,4 +216,20 @@ double analytic_rhs(Vector &x)
 {
    double l2 = x(0)*x(0) + x(1)*x(1) + x(2)*x(2);
    return 7*x(0)*x(1)/l2;
+}
+
+void SnapNodes(Mesh &mesh)
+{
+   GridFunction &nodes = *mesh.GetNodes();
+   Vector node(mesh.SpaceDimension());
+   for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
+   {
+      for (int d = 0; d < mesh.SpaceDimension(); d++)
+         node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
+
+      node /= node.Norml2();
+
+      for (int d = 0; d < mesh.SpaceDimension(); d++)
+         nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
+   }
 }

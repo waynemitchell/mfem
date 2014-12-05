@@ -26,6 +26,7 @@ using namespace mfem;
 // Exact solution and r.h.s., see below for implementation.
 double analytic_solution(Vector &x);
 double analytic_rhs(Vector &x);
+void SnapNodes(Mesh &mesh);
 
 int main(int argc, char *argv[])
 {
@@ -38,7 +39,9 @@ int main(int argc, char *argv[])
 
    if (argc != 3)
    {
-      cout << "\nUsage: mpirun -n np ex7p <poly_degree> <number_of_refinements>\n" << endl;
+      if (myid == 0)
+         cout << "\nUsage: mpirun -n np ex7p <poly_degree>"
+            " <number_of_refinements>\n" << endl;
       MPI_Finalize();
       return 1;
    }
@@ -120,21 +123,8 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
 
       // Snap the nodes of the refined mesh back to sphere surface.
-      if (always_snap || l == ref_levels)
-      {
-         GridFunction &nodes = *mesh->GetNodes();
-         Vector node(mesh->SpaceDimension());
-         for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
-         {
-            for (int d = 0; d < mesh->SpaceDimension(); d++)
-               node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
-
-            node /= node.Norml2();
-
-            for (int d = 0; d < mesh->SpaceDimension(); d++)
-               nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
-         }
-      }
+      if (always_snap)
+         SnapNodes(*mesh);
    }
 
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
@@ -146,28 +136,19 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
 
          // Snap the nodes of the refined mesh back to sphere surface.
-         if (always_snap || l == par_ref_levels)
-         {
-            GridFunction &nodes = *mesh->GetNodes();
-            Vector node(mesh->SpaceDimension());
-            for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
-            {
-               for (int d = 0; d < mesh->SpaceDimension(); d++)
-                  node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
-
-               node /= node.Norml2();
-
-               for (int d = 0; d < mesh->SpaceDimension(); d++)
-                  nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
-            }
-         }
+         if (always_snap)
+            SnapNodes(*pmesh);
       }
+      if (!always_snap || par_ref_levels < 1)
+         SnapNodes(*pmesh);
    }
 
    // 3. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements -- the same as the mesh nodes.
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, &fec);
-   cout << "Number of unknowns: " << fespace->GetVSize() << endl;
+   int size = fespace->GlobalTrueVSize();
+   if (myid == 0)
+      cout << "Number of unknowns: " << size << endl;
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
@@ -223,11 +204,11 @@ int main(int argc, char *argv[])
    // 9. Save the refined mesh and the solution. This output can be viewed
    //    later using GLVis: "glvis -m sphere_refined.mesh -g sol.gf".
    {
-	  ostringstream mesh_name, sol_name;
-	  mesh_name << "sphere_refined." << setfill('0') << setw(6) << myid;
-	  sol_name << "sol." << setfill('0') << setw(6) << myid;
+      ostringstream mesh_name, sol_name;
+      mesh_name << "sphere_refined." << setfill('0') << setw(6) << myid;
+      sol_name << "sol." << setfill('0') << setw(6) << myid;
 
-	  ofstream mesh_ofs(mesh_name.str().c_str());
+      ofstream mesh_ofs(mesh_name.str().c_str());
       mesh_ofs.precision(8);
       pmesh->Print(mesh_ofs);
       ofstream sol_ofs(sol_name.str().c_str());
@@ -280,4 +261,20 @@ double analytic_rhs(Vector &x)
 {
    double l2 = x(0)*x(0) + x(1)*x(1) + x(2)*x(2);
    return 7*x(0)*x(1)/l2;
+}
+
+void SnapNodes(Mesh &mesh)
+{
+   GridFunction &nodes = *mesh.GetNodes();
+   Vector node(mesh.SpaceDimension());
+   for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
+   {
+      for (int d = 0; d < mesh.SpaceDimension(); d++)
+         node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
+
+      node /= node.Norml2();
+
+      for (int d = 0; d < mesh.SpaceDimension(); d++)
+         nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
+   }
 }
