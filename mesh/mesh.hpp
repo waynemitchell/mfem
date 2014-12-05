@@ -242,7 +242,6 @@ protected:
    void GenerateFaces();
 
    /// Begin construction of a mesh
-   void InitMesh(int _Dim, int NVert, int NElem, int NBdrElem);
    void InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem);
 
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
@@ -277,7 +276,7 @@ public:
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
       if (_spaceDim == -1)
-         InitMesh(_Dim, NVert, NElem, NBdrElem);
+         _spaceDim = _Dim;
       else
          InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
