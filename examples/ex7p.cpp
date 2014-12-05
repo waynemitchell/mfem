@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
    // Set the space for the high-order mesh nodes.
    int order = atoi(argv[1]); // order of the mesh and the solution space.
    H1_FECollection fec(order, mesh->Dimension());
-   FiniteElementSpace nodal_fes(mesh, &fec, mesh->spaceDimension());
+   FiniteElementSpace nodal_fes(mesh, &fec, mesh->SpaceDimension());
    mesh->SetNodalFESpace(&nodal_fes);
 
    // 2. Refine the mesh while snapping nodes to the sphere. Number of
@@ -123,15 +123,15 @@ int main(int argc, char *argv[])
       if (always_snap || l == ref_levels)
       {
          GridFunction &nodes = *mesh->GetNodes();
-         Vector node(mesh->spaceDimension());
+         Vector node(mesh->SpaceDimension());
          for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
          {
-            for (int d = 0; d < mesh->spaceDimension(); d++)
+            for (int d = 0; d < mesh->SpaceDimension(); d++)
                node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
 
             node /= node.Norml2();
 
-            for (int d = 0; d < mesh->spaceDimension(); d++)
+            for (int d = 0; d < mesh->SpaceDimension(); d++)
                nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
          }
       }
@@ -142,7 +142,26 @@ int main(int argc, char *argv[])
    {
       int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
+      {
          pmesh->UniformRefinement();
+
+         // Snap the nodes of the refined mesh back to sphere surface.
+         if (always_snap || l == par_ref_levels)
+         {
+            GridFunction &nodes = *mesh->GetNodes();
+            Vector node(mesh->SpaceDimension());
+            for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
+            {
+               for (int d = 0; d < mesh->SpaceDimension(); d++)
+                  node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
+
+               node /= node.Norml2();
+
+               for (int d = 0; d < mesh->SpaceDimension(); d++)
+                  nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
+            }
+         }
+      }
    }
 
    // 3. Define a finite element space on the mesh. Here we use isoparametric
@@ -159,14 +178,13 @@ int main(int argc, char *argv[])
    FunctionCoefficient sol_coef (analytic_solution);
    b->AddDomainIntegrator(new DomainLFIntegrator(rhs_coef));
    b->Assemble();
-   HypreParVector * B = b->ParallelAssemble();
+
 
    // 5. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    ParGridFunction x(fespace);
    x = 0.0;
-   HypreParVector * X = x.ParallelAverage();
 
    // 6. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
@@ -179,7 +197,13 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new MassIntegrator(one));
    a->Assemble();
    a->Finalize();
+
    HypreParMatrix * A = a->ParallelAssemble();
+   HypreParVector * B = b->ParallelAssemble();
+   HypreParVector * X = x.ParallelAverage();
+
+   delete a;
+   delete b;
 
    HypreSolver *amg = new HypreBoomerAMG(*A);
    HyprePCG *pcg = new HyprePCG(*A);
@@ -192,7 +216,9 @@ int main(int argc, char *argv[])
    x = *X;
 
    // 8. Compute and print the L^2 norm of the error.
-   cout<<"L2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;
+   double err = x.ComputeL2Error(sol_coef);
+   if(myid == 0)
+      cout<<"L2 norm of error: " << err << endl;
 
    // 9. Save the refined mesh and the solution. This output can be viewed
    //    later using GLVis: "glvis -m sphere_refined.mesh -g sol.gf".
@@ -231,9 +257,13 @@ int main(int argc, char *argv[])
    }
 
    // 11. Free the used memory.
-   delete a;
-   delete b;
+   delete pcg;
+   delete amg;
+   delete X;
+   delete B;
+   delete A;
    delete fespace;
+   delete pmesh;
 
    MPI_Finalize();
 
