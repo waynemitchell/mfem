@@ -104,7 +104,7 @@ ex5p: ex5p.cpp
 
 ex7: ex7.cpp
 	$(CC) $(COPTS) ex7.cpp -o ex7 $(LIBS)
-	
+
 ex7p: ex7p.cpp
 	$(MPICC) $(MPIOPTS) ex7p.cpp -o ex7p $(MPILIBS)
 
@@ -117,4 +117,4 @@ pdebug:
 clean:
 	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p ex7 ex7p
 	rm -f refined.mesh displaced.mesh sol.* mesh.* ex5.mesh sol_u.* sol_p.*
-	rm -f sphere_refined.*s
+	rm -f sphere_refined.*
