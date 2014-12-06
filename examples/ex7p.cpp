@@ -1,8 +1,8 @@
-//                                MFEM Example 7
+//                       MFEM Example 7 - Parallel Version
 //
-// Compile with: make ex7
+// Compile with: make ex7p
 //
-// Sample runs:  ex7 2 4
+// Sample runs:  mpirun -np 4 ex7p 2 4
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               triangulation of a unit sphere and a simple isoparametric
@@ -15,7 +15,6 @@
 //               and right-hand side of the discrete linear system.
 //
 //               We recommend viewing examples 1-4 before viewing this example.
-
 
 #include <fstream>
 #include "mfem.hpp"
@@ -40,7 +39,7 @@ int main(int argc, char *argv[])
    if (argc != 3)
    {
       if (myid == 0)
-         cout << "\nUsage: mpirun -n np ex7p <poly_degree>"
+         cout << "\nUsage: mpirun -np <np> ex7p <poly_degree>"
             " <number_of_refinements>\n" << endl;
       MPI_Finalize();
       return 1;
@@ -53,13 +52,13 @@ int main(int argc, char *argv[])
    //    mesh is given by the first command line argument.
 
    int elem_type = 1; // Type of elements to use: 0 - triangles, 1 - quads
-   int Nvert = 8, NElem = 6;
+   int Nvert = 8, Nelem = 6;
    if (elem_type == 0)
    {
       Nvert = 6;
-      NElem = 8;
+      Nelem = 8;
    }
-   Mesh * mesh = new Mesh(2, Nvert, NElem, 0, 3);
+   Mesh *mesh = new Mesh(2, Nvert, Nelem, 0, 3);
 
    if (elem_type == 0) // inscribed octahedron
    {
@@ -74,7 +73,7 @@ int main(int argc, char *argv[])
       {
          mesh->AddVertex(tri_v[j]);
       }
-      for (int j = 0; j < NElem; j++)
+      for (int j = 0; j < Nelem; j++)
       {
          int attribute = j + 1;
          mesh->AddTriangle(tri_e[j], attribute);
@@ -94,7 +93,7 @@ int main(int argc, char *argv[])
       {
          mesh->AddVertex(quad_v[j]);
       }
-      for (int j = 0; j < NElem; j++)
+      for (int j = 0; j < Nelem; j++)
       {
          int attribute = j + 1;
          mesh->AddQuad(quad_e[j], attribute);
@@ -108,8 +107,9 @@ int main(int argc, char *argv[])
    FiniteElementSpace nodal_fes(mesh, &fec, mesh->SpaceDimension());
    mesh->SetNodalFESpace(&nodal_fes);
 
-   // 2. Refine the mesh while snapping nodes to the sphere. Number of
-   //    refinements is given by the second command line argument.
+   // 2. Refine the mesh while snapping nodes to the sphere. Number of serial
+   //    refinements is given by the second command line argument, number of
+   //    parallel refinements is fixed to 2.
 
    const int ref_levels = atoi(argv[2]);
 
@@ -160,7 +160,6 @@ int main(int argc, char *argv[])
    b->AddDomainIntegrator(new DomainLFIntegrator(rhs_coef));
    b->Assemble();
 
-
    // 5. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
@@ -171,14 +170,15 @@ int main(int argc, char *argv[])
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
    //    domain integrator and imposing homogeneous Dirichlet boundary
    //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential (Dirichlet). After
-   //    assembly and finalizing we extract the corresponding sparse matrix A.
+   //    boundary attributes from the mesh as essential (Dirichlet).
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddDomainIntegrator(new MassIntegrator(one));
    a->Assemble();
    a->Finalize();
 
+   // 7. Define the parallel (hypre) matrix and vectors representing a(.,.),
+   //    b(.) and the finite element approximation.
    HypreParMatrix * A = a->ParallelAssemble();
    HypreParVector * B = b->ParallelAssemble();
    HypreParVector * X = x.ParallelAverage();
@@ -186,6 +186,10 @@ int main(int argc, char *argv[])
    delete a;
    delete b;
 
+   // 8. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   //    preconditioner from hypre. Extract the parallel grid function x
+   //    corresponding to the finite element approximation X. This is the local
+   //    solution on each processor.
    HypreSolver *amg = new HypreBoomerAMG(*A);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
@@ -193,16 +197,15 @@ int main(int argc, char *argv[])
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
    pcg->Mult(*B, *X);
-
    x = *X;
 
-   // 8. Compute and print the L^2 norm of the error.
+   // 9. Compute and print the L^2 norm of the error.
    double err = x.ComputeL2Error(sol_coef);
    if(myid == 0)
       cout<<"L2 norm of error: " << err << endl;
 
-   // 9. Save the refined mesh and the solution. This output can be viewed
-   //    later using GLVis: "glvis -m sphere_refined.mesh -g sol.gf".
+   // 10. Save the refined mesh and the solution. This output can be viewed
+   //     later using GLVis: "glvis -np <np> -m sphere_refined -g sol".
    {
       ostringstream mesh_name, sol_name;
       mesh_name << "sphere_refined." << setfill('0') << setw(6) << myid;
@@ -211,33 +214,32 @@ int main(int argc, char *argv[])
       ofstream mesh_ofs(mesh_name.str().c_str());
       mesh_ofs.precision(8);
       pmesh->Print(mesh_ofs);
+
       ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
       x.Save(sol_ofs);
    }
 
-   // 10. (Optional) Send the solution by socket to a GLVis server.
+   // 11. (Optional) Send the solution by socket to a GLVis server.
+   const char vishost[] = "localhost";
+   const int visport = 19916;
+   socketstream out(vishost, visport);
+   if (out.good())
    {
-      const char vishost[] = "localhost";
-      const int visport = 19916;
-      socketstream out(vishost, visport);
-      if (out.good())
-      {
-         out.precision(8);
-         out << "parallel " << num_procs << " " << myid << "\n";
-         out << "solution\n";
-         pmesh->Print(out);
-         x.Save(out);
-         out << flush;
-      }
-      else
-      {
-         cout << "Unable to connect to GLVis at "
-              << vishost << ':' << visport << endl;
-      }
+      out.precision(8);
+      out << "parallel " << num_procs << " " << myid << "\n";
+      out << "solution\n";
+      pmesh->Print(out);
+      x.Save(out);
+      out << flush;
+   }
+   else
+   {
+      cout << "Unable to connect to GLVis at "
+           << vishost << ':' << visport << endl;
    }
 
-   // 11. Free the used memory.
+   // 12. Free the used memory.
    delete pcg;
    delete amg;
    delete X;

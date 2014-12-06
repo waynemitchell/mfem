@@ -1319,7 +1319,7 @@ void Mesh::Make3D(int nx, int ny, int nz, Element::Type type,
       NBdrElem *= 2;
    }
 
-   InitMesh(3,3, NVert, NElem, NBdrElem);
+   InitMesh(3, 3, NVert, NElem, NBdrElem);
 
    double coord[3];
    int ind[8];
@@ -6871,7 +6871,7 @@ ElementTransformation * Mesh::GetFineElemTrans(int i, int j)
 
 void Mesh::PrintXG(std::ostream &out) const
 {
-   MFEM_ASSERT(Dim==spaceDim, "2d Manifold meshes not supported");
+   MFEM_ASSERT(Dim==spaceDim, "2D Manifold meshes not supported");
    int i, j;
    Array<int> v;
 

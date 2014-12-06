@@ -11,6 +11,8 @@
 //               ex1 ../data/square-disc-nurbs.mesh
 //               ex1 ../data/disc-nurbs.mesh
 //               ex1 ../data/pipe-nurbs.mesh
+//               ex1 ../data/star-surf.mesh
+//               ex1 ../data/square-disc-surf.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple isoparametric finite element discretization of the
@@ -44,7 +46,8 @@ int main (int argc, char *argv[])
    }
 
    // 1. Read the mesh from the given mesh file. We can handle triangular,
-   //    quadrilateral, tetrahedral or hexahedral elements with the same code.
+   //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
+   //    the same code.
    ifstream imesh(argv[1]);
    if (!imesh)
    {

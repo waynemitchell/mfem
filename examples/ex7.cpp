@@ -16,7 +16,6 @@
 //
 //               We recommend viewing examples 1-4 before viewing this example.
 
-
 #include <fstream>
 #include "mfem.hpp"
 
@@ -43,13 +42,13 @@ int main(int argc, char *argv[])
    //    mesh is given by the first command line argument.
 
    int elem_type = 1; // Type of elements to use: 0 - triangles, 1 - quads
-   int Nvert = 8, NElem = 6;
+   int Nvert = 8, Nelem = 6;
    if (elem_type == 0)
    {
       Nvert = 6;
-      NElem = 8;
+      Nelem = 8;
    }
-   Mesh mesh(2, Nvert, NElem, 0, 3);
+   Mesh *mesh = new Mesh(2, Nvert, Nelem, 0, 3);
 
    if (elem_type == 0) // inscribed octahedron
    {
@@ -62,14 +61,14 @@ int main(int argc, char *argv[])
 
       for (int j = 0; j < Nvert; j++)
       {
-         mesh.AddVertex(tri_v[j]);
+         mesh->AddVertex(tri_v[j]);
       }
-      for (int j = 0; j < NElem; j++)
+      for (int j = 0; j < Nelem; j++)
       {
          int attribute = j + 1;
-         mesh.AddTriangle(tri_e[j], attribute);
+         mesh->AddTriangle(tri_e[j], attribute);
       }
-      mesh.FinalizeTriMesh(1, 1, true);
+      mesh->FinalizeTriMesh(1, 1, true);
    }
    else // inscribed cube
    {
@@ -82,21 +81,21 @@ int main(int argc, char *argv[])
 
       for (int j = 0; j < Nvert; j++)
       {
-         mesh.AddVertex(quad_v[j]);
+         mesh->AddVertex(quad_v[j]);
       }
-      for (int j = 0; j < NElem; j++)
+      for (int j = 0; j < Nelem; j++)
       {
          int attribute = j + 1;
-         mesh.AddQuad(quad_e[j], attribute);
+         mesh->AddQuad(quad_e[j], attribute);
       }
-      mesh.FinalizeQuadMesh(1, 1, true);
+      mesh->FinalizeQuadMesh(1, 1, true);
    }
 
    // Set the space for the high-order mesh nodes.
    int order = atoi(argv[1]); // order of the mesh and the solution space.
-   H1_FECollection fec(order, mesh.Dimension());
-   FiniteElementSpace nodal_fes(&mesh, &fec, mesh.SpaceDimension());
-   mesh.SetNodalFESpace(&nodal_fes);
+   H1_FECollection fec(order, mesh->Dimension());
+   FiniteElementSpace nodal_fes(mesh, &fec, mesh->SpaceDimension());
+   mesh->SetNodalFESpace(&nodal_fes);
 
    // 2. Refine the mesh while snapping nodes to the sphere. Number of
    //    refinements is given by the second command line argument.
@@ -110,16 +109,16 @@ int main(int argc, char *argv[])
    for (int l = 0; l <= ref_levels; l++)
    {
       if (l > 0) // for l == 0 just perform snapping
-         mesh.UniformRefinement();
+         mesh->UniformRefinement();
 
       // Snap the nodes of the refined mesh back to sphere surface.
       if (always_snap || l == ref_levels)
-         SnapNodes(mesh);
+         SnapNodes(*mesh);
    }
 
    // 3. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements -- the same as the mesh nodes.
-   FiniteElementSpace *fespace = new FiniteElementSpace(&mesh, &fec);
+   FiniteElementSpace *fespace = new FiniteElementSpace(mesh, &fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;
 
    // 4. Set up the linear form b(.) which corresponds to the right-hand side of
@@ -172,36 +171,35 @@ int main(int argc, char *argv[])
    {
       ofstream mesh_ofs("sphere_refined.mesh");
       mesh_ofs.precision(8);
-      mesh.Print(mesh_ofs);
+      mesh->Print(mesh_ofs);
       ofstream sol_ofs("sol.gf");
       sol_ofs.precision(8);
       x.Save(sol_ofs);
    }
 
    // 10. (Optional) Send the solution by socket to a GLVis server.
+   const char vishost[] = "localhost";
+   const int visport = 19916;
+   socketstream out(vishost, visport);
+   if (out.good())
    {
-      const char vishost[] = "localhost";
-      const int visport = 19916;
-      socketstream out(vishost, visport);
-      if (out.good())
-      {
-         out.precision(8);
-         out << "solution\n";
-         mesh.Print(out);
-         x.Save(out);
-         out << flush;
-      }
-      else
-      {
-         cout << "Unable to connect to GLVis at "
-              << vishost << ':' << visport << endl;
-      }
+      out.precision(8);
+      out << "solution\n";
+      mesh->Print(out);
+      x.Save(out);
+      out << flush;
+   }
+   else
+   {
+      cout << "Unable to connect to GLVis at "
+           << vishost << ':' << visport << endl;
    }
 
    // 11. Free the used memory.
    delete a;
    delete b;
    delete fespace;
+   delete mesh;
 
    return 0;
 }
