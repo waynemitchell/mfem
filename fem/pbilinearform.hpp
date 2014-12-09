@@ -12,6 +12,11 @@
 #ifndef MFEM_PBILINEARFORM
 #define MFEM_PBILINEARFORM
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Class for parallel bilinear form
 class ParBilinearForm : public BilinearForm
 {
@@ -52,6 +57,28 @@ public:
    virtual ~ParBilinearForm() { }
 };
 
+/// Class for parallel bilinear form
+class ParMixedBilinearForm : public MixedBilinearForm
+{
+protected:
+   ParFiniteElementSpace *trial_pfes;
+   ParFiniteElementSpace *test_pfes;
+
+public:
+   ParMixedBilinearForm(ParFiniteElementSpace *trial_fes,
+                        ParFiniteElementSpace *test_fes)
+      : MixedBilinearForm(trial_fes, test_fes)
+   {
+      trial_pfes = trial_fes;
+      test_pfes  = test_fes;
+   }
+
+   /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
+   HypreParMatrix *ParallelAssemble();
+
+   virtual ~ParMixedBilinearForm() { }
+};
+
 /** The parallel matrix representation a linear operator between parallel finite
     element spaces */
 class ParDiscreteLinearOperator : public DiscreteLinearOperator
@@ -76,5 +103,7 @@ public:
 
    virtual ~ParDiscreteLinearOperator() { }
 };
+
+}
 
 #endif

@@ -18,6 +18,9 @@
 #include <fstream>
 #include "mfem.hpp"
 
+using namespace std;
+using namespace mfem;
+
 double exact_sol(Vector &);
 double exact_rhs(Vector &);
 

@@ -12,7 +12,13 @@
 // Implementation of Bilinear Form Integrators
 
 #include "fem.hpp"
-#include <math.h>
+#include <cmath>
+#include <algorithm>
+
+using namespace std;
+
+namespace mfem
+{
 
 void BilinearFormIntegrator::AssembleElementMatrix (
    const FiniteElement &el, ElementTransformation &Trans,
@@ -97,7 +103,7 @@ void DiffusionIntegrator::AssembleElementMatrix
    int dim = el.GetDim();
    double w;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    DenseMatrix dshape(nd,dim), dshapedxt(nd,dim), invdfdx(dim);
 #else
    dshape.SetSize(nd,dim);
@@ -234,7 +240,7 @@ void DiffusionIntegrator::AssembleElementVector(
    int dim = el.GetDim();
    double w;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    DenseMatrix dshape(nd,dim), invdfdx(dim), mq(dim);
 #else
    dshape.SetSize(nd,dim);
@@ -302,7 +308,7 @@ void DiffusionIntegrator::ComputeElementFlux
    nd = el.GetDof();
    dim = el.GetDim();
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    DenseMatrix dshape(nd,dim), invdfdx(dim);
 #else
    dshape.SetSize(nd,dim);
@@ -357,7 +363,7 @@ double DiffusionIntegrator::ComputeFluxEnergy
    nd = fluxelem.GetDof();
    dim = fluxelem.GetDim();
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    DenseMatrix invdfdx;
 #endif
 
@@ -721,7 +727,7 @@ void VectorFEDivergenceIntegrator::AssembleElementMatrix2(
 {
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    Vector divshape(trial_nd), shape(test_nd);
 #else
    divshape.SetSize(trial_nd);
@@ -761,7 +767,7 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
    int dim = trial_fe.GetDim();
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshapeTrial(trial_nd, dim);
    DenseMatrix curlshapeTrial_dFT(trial_nd, dim);
    DenseMatrix vshapeTest(test_nd, dim);
@@ -921,7 +927,7 @@ void CurlCurlIntegrator::AssembleElementMatrix
    int dim = el.GetDim();
    double w;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    DenseMatrix Curlshape(nd,dim), Curlshape_dFt(nd,dim);
 #else
    Curlshape.SetSize(nd,dim);
@@ -961,6 +967,114 @@ void CurlCurlIntegrator::AssembleElementMatrix
 }
 
 
+void VectorCurlCurlIntegrator::AssembleElementMatrix(
+   const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
+{
+   int dim = el.GetDim();
+   int dof = el.GetDof();
+   int cld = (dim*(dim-1))/2;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape_hat(dof, dim), dshape(dof, dim);
+   DenseMatrix curlshape(dim*dof, cld), Jadj(dim);
+#else
+   dshape_hat.SetSize(dof, dim);
+   dshape.SetSize(dof, dim);
+   curlshape.SetSize(dim*dof, cld);
+   Jadj.SetSize(dim);
+#endif
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // use the same integration rule as diffusion
+      int order = 2 * Trans.OrderGrad(&el);
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elmat = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      el.CalcDShape(ip, dshape_hat);
+
+      Trans.SetIntPoint(&ip);
+      CalcAdjugate(Trans.Jacobian(), Jadj);
+      double w = ip.weight / Trans.Weight();
+
+      Mult(dshape_hat, Jadj, dshape);
+      dshape.GradToCurl(curlshape);
+
+      if (Q)
+         w *= Q->Eval(Trans, ip);
+
+      AddMult_a_AAt(w, curlshape, elmat);
+   }
+}
+
+double VectorCurlCurlIntegrator::GetElementEnergy(
+   const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun)
+{
+   int dim = el.GetDim();
+   int dof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape_hat(dof, dim), Jadj(dim), grad_hat(dim), grad(dim);
+#else
+   dshape_hat.SetSize(dof, dim);
+   Jadj.SetSize(dim);
+   grad_hat.SetSize(dim);
+   grad.SetSize(dim);
+#endif
+   DenseMatrix elfun_mat(elfun.GetData(), dof, dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // use the same integration rule as diffusion
+      int order = 2 * Tr.OrderGrad(&el);
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double energy = 0.;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      el.CalcDShape(ip, dshape_hat);
+
+      MultAtB(elfun_mat, dshape_hat, grad_hat);
+
+      Tr.SetIntPoint(&ip);
+      CalcAdjugate(Tr.Jacobian(), Jadj);
+      double w = ip.weight / Tr.Weight();
+
+      Mult(grad_hat, Jadj, grad);
+
+      if (dim == 2)
+      {
+         double curl = grad(0,1) - grad(1,0);
+         w *= curl * curl;
+      }
+      else
+      {
+         double curl_x = grad(2,1) - grad(1,2);
+         double curl_y = grad(0,2) - grad(2,0);
+         double curl_z = grad(1,0) - grad(0,1);
+         w *= curl_x * curl_x + curl_y * curl_y + curl_z * curl_z;
+      }
+
+      if (Q)
+         w *= Q->Eval(Tr, ip);
+
+      energy += w;
+   }
+
+   elfun_mat.ClearExternalData();
+
+   return 0.5 * energy;
+}
+
+
 void VectorFEMassIntegrator::AssembleElementMatrix(
    const FiniteElement &el,
    ElementTransformation &Trans,
@@ -971,12 +1085,16 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
 
    double w;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    Vector D(VQ ? VQ->GetVDim() : 0);
    DenseMatrix vshape(dof, dim);
+   DenseMatrix K(MQ ? MQ->GetVDim() : 0, MQ ? MQ->GetVDim() : 0);
 #else
    vshape.SetSize(dof,dim);
+   D.SetSize(VQ ? VQ->GetVDim() : 0);
+   K.SetSize(MQ ? MQ->GetVDim() : 0, MQ ? MQ->GetVDim() : 0);
 #endif
+   DenseMatrix tmp(vshape.Height(), K.Width());
 
    elmat.SetSize(dof);
    elmat = 0.0;
@@ -998,7 +1116,14 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
       el.CalcVShape(Trans, vshape);
 
       w = ip.weight * Trans.Weight();
-      if (VQ)
+      if (MQ)
+      {
+         MQ->Eval(K, Trans, ip);
+         K *= w;
+         Mult(vshape,K,tmp);
+         AddMultABt(tmp,vshape,elmat);
+      }
+      else if (VQ)
       {
          VQ->Eval(D, Trans, ip);
          D *= w;
@@ -1023,11 +1148,11 @@ void VectorFEMassIntegrator::AssembleElementMatrix2(
    int test_dof = test_fe.GetDof();
    double w;
 
-   if (VQ)
+   if (VQ || MQ)
       mfem_error("VectorFEMassIntegrator::AssembleElementMatrix2(...)\n"
-                 "   is not implemented for vector permeability");
+                 "   is not implemented for vector/tensor permeability");
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    DenseMatrix vshape(trial_dof, dim);
    Vector shape(test_dof);
 #else
@@ -1133,7 +1258,7 @@ void DivDivIntegrator::AssembleElementMatrix(
    int dof = el.GetDof();
    double c;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    Vector divshape(dof);
 #else
    divshape.SetSize(dof);
@@ -1233,7 +1358,7 @@ void ElasticityIntegrator::AssembleElementMatrix(
    int dim = el.GetDim();
    double w, L, M;
 
-#ifdef MFEM_USE_OPENMP
+#ifdef MFEM_THREAD_SAFE
    DenseMatrix dshape(dof, dim), Jinv(dim), gshape(dof, dim), pelmat(dof);
    Vector divshape(dim*dof);
 #else
@@ -1419,7 +1544,7 @@ void DGDiffusionIntegrator::AssembleFaceMatrix(
 {
    int dim, ndof1, ndof2, ndofs;
    bool kappa_is_nonzero = (kappa != 0.);
-   double w, wq;
+   double w, wq = 0.0;
 
    dim = el1.GetDim();
    ndof1 = el1.GetDof();
@@ -1739,3 +1864,4 @@ void NTMassJumpIntegrator::AssembleFaceMatrix(const FiniteElement &el1,
    }
 }
 
+}

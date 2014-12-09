@@ -12,6 +12,15 @@
 #ifndef MFEM_SOLVERS
 #define MFEM_SOLVERS
 
+#include "../config.hpp"
+
+#ifdef MFEM_USE_SUITESPARSE
+#include <umfpack.h>
+#endif
+
+namespace mfem
+{
+
 /// Abstract base class for iterative solver
 class IterativeSolver : public Solver
 {
@@ -102,6 +111,24 @@ public:
 
 #ifdef MFEM_USE_MPI
    GMRESSolver(MPI_Comm _comm) : IterativeSolver(_comm) { m = 50; }
+#endif
+
+   void SetKDim(int dim) { m = dim; }
+
+   virtual void Mult(const Vector &x, Vector &y) const;
+};
+
+/// FGMRES method
+class FGMRESSolver : public IterativeSolver
+{
+protected:
+   int m;
+
+public:
+   FGMRESSolver() { m = 50; }
+
+#ifdef MFEM_USE_MPI
+   FGMRESSolver(MPI_Comm _comm) : IterativeSolver(_comm) { m = 50; }
 #endif
 
    void SetKDim(int dim) { m = dim; }
@@ -219,4 +246,85 @@ void SLI(const Operator &A, const Operator &B,
          int print_iter = 0, int max_num_iter = 1000,
          double RTOLERANCE = 1e-12, double ATOLERANCE = 1e-24);
 
+
+/** SLBQP: (S)ingle (L)inearly Constrained with (B)ounds (Q)uadratic (P)rogram
+
+    minimize 1/2 ||x - x_t||^2, subject to:
+    lo_i <= x_i <= hi_i
+    sum_i w_i x_i = a
+*/
+class SLBQPOptimizer : public IterativeSolver
+{
+protected:
+   Vector lo, hi, w;
+   double a;
+
+   /// Solve QP at fixed lambda
+   inline double solve(double l, const Vector &xt, Vector &x, int &nclip) const
+   {
+      add(xt, l, w, x);
+      x.median(lo,hi);
+      nclip++;
+      return Dot(w,x)-a;
+   }
+
+   inline void print_iteration(int it, double r, double l) const;
+
+public:
+   SLBQPOptimizer() {}
+
+#ifdef MFEM_USE_MPI
+   SLBQPOptimizer(MPI_Comm _comm) : IterativeSolver(_comm) {}
 #endif
+
+   void SetBounds(const Vector &_lo, const Vector &_hi);
+   void SetLinearConstraint(const Vector &_w, double _a);
+
+   // For this problem type, we let the target values play the role of the
+   // initial vector xt, from which the operator generates the optimal vector x.
+   virtual void Mult(const Vector &xt, Vector &x) const;
+
+   /// These are not currently meaningful for this solver and will error out.
+   virtual void SetPreconditioner(Solver &pr);
+   virtual void SetOperator(const Operator &op);
+};
+
+
+#ifdef MFEM_USE_SUITESPARSE
+
+/// Direct sparse solver using UMFPACK
+class UMFPackSolver : public Solver
+{
+protected:
+   bool use_long_ints;
+   SparseMatrix *mat;
+   void *Numeric;
+   SuiteSparse_long *AI, *AJ;
+
+   void Init();
+
+public:
+   double Control[UMFPACK_CONTROL];
+   mutable double Info[UMFPACK_INFO];
+
+   UMFPackSolver(bool _use_long_ints = false)
+      : use_long_ints(_use_long_ints) { Init(); }
+   UMFPackSolver(SparseMatrix &A, bool _use_long_ints = false)
+      : use_long_ints(_use_long_ints) { Init(); SetOperator(A); }
+
+   // Works on sparse matrices only; calls SparseMatrix::SortColumnIndices().
+   virtual void SetOperator(const Operator &op);
+
+   void SetPrintLevel(int print_lvl) { Control[UMFPACK_PRL] = print_lvl; }
+
+   virtual void Mult(const Vector &b, Vector &x) const;
+   virtual void MultTranspose(const Vector &b, Vector &x) const;
+
+   virtual ~UMFPackSolver();
+};
+
+#endif // MFEM_USE_SUITESPARSE
+
+}
+
+#endif // MFEM_SOLVERS

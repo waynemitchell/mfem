@@ -12,6 +12,11 @@
 #ifndef MFEM_PFESPACE
 #define MFEM_PFESPACE
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Abstract parallel finite element space.
 class ParFiniteElementSpace : public FiniteElementSpace
 {
@@ -107,7 +112,7 @@ public:
    /** Create and return a new HypreParVector on the true dofs, which is
        owned by (i.e. it must be destroyed by) the calling function. */
    HypreParVector *NewTrueDofVector()
-   { return (new HypreParVector(GlobalTrueVSize(), GetTrueDofOffsets())); }
+   { return (new HypreParVector(MyComm,GlobalTrueVSize(),GetTrueDofOffsets()));}
 
    /// Scale a vector of true dofs
    void DivideByGroupSize(double *vec);
@@ -155,5 +160,7 @@ public:
 
    virtual ~ParFiniteElementSpace() { delete gcomm; delete P; }
 };
+
+}
 
 #endif

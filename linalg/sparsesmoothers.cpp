@@ -17,6 +17,9 @@
 #include "sparsemat.hpp"
 #include "sparsesmoothers.hpp"
 
+namespace mfem
+{
+
 void SparseSmoother::SetOperator(const Operator &a)
 {
    oper = dynamic_cast<const SparseMatrix*>(&a);
@@ -72,8 +75,14 @@ void DSmoother::Mult(const Vector &x, Vector &y) const
    {
       if (type == 0)
          oper->Jacobi(x, *p, *r, scale);
-      else
+      else if (type == 1)
          oper->Jacobi2(x, *p, *r, scale);
+      else if (type == 2)
+         oper->Jacobi3(x, *p, *r, scale);
+      else
+         mfem_error("DSmoother::Mult wrong type");
       Swap<Vector*>(r, p);
    }
+}
+
 }

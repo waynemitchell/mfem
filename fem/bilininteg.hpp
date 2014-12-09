@@ -12,6 +12,11 @@
 #ifndef MFEM_BILININTEG
 #define MFEM_BILININTEG
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Abstract base class BilinearFormIntegrator
 class BilinearFormIntegrator : public NonlinearFormIntegrator
 {
@@ -114,7 +119,7 @@ class DiffusionIntegrator: public BilinearFormIntegrator
 {
 private:
    Vector vec, pointflux, shape, te_shape;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    DenseMatrix dshape, dshapedxt, invdfdx, mq;
    DenseMatrix te_dshape, te_dshapedxt, te_invdfdx, te_mq;
 #endif
@@ -277,7 +282,7 @@ class VectorFEDivergenceIntegrator : public BilinearFormIntegrator
 {
 private:
    Coefficient *Q;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    Vector divshape, shape;
 #endif
 public:
@@ -298,7 +303,7 @@ class VectorFECurlIntegrator: public BilinearFormIntegrator
 {
 private:
    Coefficient *Q;
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    DenseMatrix curlshapeTrial;
    DenseMatrix vshapeTest;
    DenseMatrix curlshapeTrial_dFT;
@@ -361,7 +366,7 @@ public:
 class CurlCurlIntegrator: public BilinearFormIntegrator
 {
 private:
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    DenseMatrix Curlshape, Curlshape_dFt;
 #endif
    Coefficient *Q;
@@ -378,25 +383,56 @@ public:
                                       DenseMatrix &elmat);
 };
 
+/** Integrator for (curl u, curl v) for FE spaces defined by 'dim' copies of a
+    scalar FE space. */
+class VectorCurlCurlIntegrator: public BilinearFormIntegrator
+{
+private:
+#ifndef MFEM_THREAD_SAFE
+   DenseMatrix dshape_hat, dshape, curlshape, Jadj, grad_hat, grad;
+#endif
+   Coefficient *Q;
+
+public:
+   VectorCurlCurlIntegrator() { Q = NULL; }
+
+   VectorCurlCurlIntegrator(Coefficient &q) : Q(&q) { }
+
+   /// Assemble an element matrix
+   virtual void AssembleElementMatrix(const FiniteElement &el,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat);
+   /// Compute element energy: (1/2) (curl u, curl u)_E
+   virtual double GetElementEnergy(const FiniteElement &el,
+                                   ElementTransformation &Tr,
+                                   const Vector &elfun);
+};
+
 /// Integrator for (Q u, v) for VectorFiniteElements
 class VectorFEMassIntegrator: public BilinearFormIntegrator
 {
 private:
    Coefficient *Q;
    VectorCoefficient *VQ;
+   MatrixCoefficient *MQ;
+   void Init(Coefficient *q, VectorCoefficient *vq, MatrixCoefficient *mq)
+   { Q = q; VQ = vq; MQ = mq; }
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    Vector shape;
    Vector D;
+   DenseMatrix K;
    DenseMatrix vshape;
 #endif
 
 public:
-   VectorFEMassIntegrator() { Q = NULL; VQ= NULL; }
-   VectorFEMassIntegrator(Coefficient *_q) { Q = _q; VQ= NULL; }
-   VectorFEMassIntegrator(Coefficient &q) { Q = &q; VQ= NULL; }
-   VectorFEMassIntegrator(VectorCoefficient *_vq) { VQ = _vq; Q = NULL; }
-   VectorFEMassIntegrator(VectorCoefficient &vq) { VQ = &vq; Q = NULL; }
+   VectorFEMassIntegrator() { Init(NULL, NULL, NULL); }
+   VectorFEMassIntegrator(Coefficient *_q) { Init(_q, NULL, NULL); }
+   VectorFEMassIntegrator(Coefficient &q) { Init(&q, NULL, NULL); }
+   VectorFEMassIntegrator(VectorCoefficient *_vq) { Init(NULL, _vq, NULL); }
+   VectorFEMassIntegrator(VectorCoefficient &vq) { Init(NULL, &vq, NULL); }
+   VectorFEMassIntegrator(MatrixCoefficient *_mq) { Init(NULL, NULL, _mq); }
+   VectorFEMassIntegrator(MatrixCoefficient &mq) { Init(NULL, NULL, &mq); }
 
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
@@ -438,7 +474,7 @@ class DivDivIntegrator: public BilinearFormIntegrator
 private:
    Coefficient *Q;
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    Vector divshape;
 #endif
 
@@ -483,7 +519,7 @@ private:
    double q_lambda, q_mu;
    Coefficient *lambda, *mu;
 
-#ifndef MFEM_USE_OPENMP
+#ifndef MFEM_THREAD_SAFE
    DenseMatrix dshape, Jinv, gshape, pelmat;
    Vector divshape;
 #endif
@@ -662,5 +698,7 @@ public:
                                        DenseMatrix &elmat)
    { ran_fe.ProjectDiv(dom_fe, Trans, elmat); }
 };
+
+}
 
 #endif

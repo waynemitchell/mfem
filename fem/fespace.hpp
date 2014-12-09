@@ -12,6 +12,12 @@
 #ifndef MFEM_FESPACE
 #define MFEM_FESPACE
 
+#include <iostream>
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /* Class FiniteElementSpace - responsible for providing FEM view of the mesh
    (mainly managing the set of degrees of freedom). */
 
@@ -187,6 +193,8 @@ public:
        including the dofs for the vertices of the edge. */
    void GetEdgeDofs(int i, Array<int> &dofs) const;
 
+   void GetVertexDofs(int i, Array<int> &dofs) const;
+
    void GetElementInteriorDofs(int i, Array<int> &dofs) const;
 
    void GetEdgeInteriorDofs(int i, Array<int> &dofs) const;
@@ -235,6 +243,9 @@ public:
 
    const FiniteElement *GetFaceElement(int i) const;
 
+   /// Return the trace element from element 'i' to the given 'geom_type'
+   const FiniteElement *GetTraceElement(int i, int geom_type) const;
+
    /** Return the restriction matrix from this FE space to the coarse FE space
        'cfes'. Both FE spaces must use the same FE collection and be defined on
        the same Mesh which must be in TWO_LEVEL_* state.  When vdim > 1,
@@ -281,9 +292,11 @@ public:
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
 
-   void Save (ostream &out) const;
+   void Save (std::ostream &out) const;
 
    virtual ~FiniteElementSpace();
 };
+
+}
 
 #endif

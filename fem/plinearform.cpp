@@ -9,15 +9,26 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+
+namespace mfem
+{
 
 void ParLinearForm::Update(ParFiniteElementSpace *pf)
 {
    if (pf) pfes = pf;
 
    LinearForm::Update(pfes);
+}
+
+void ParLinearForm::Update(ParFiniteElementSpace *pf, Vector &v, int v_offset)
+{
+   pfes = pf;
+   LinearForm::Update(pf,v,v_offset);
 }
 
 void ParLinearForm::ParallelAssemble(Vector &tv)
@@ -30,6 +41,8 @@ HypreParVector *ParLinearForm::ParallelAssemble()
    HypreParVector *tv = pfes->NewTrueDofVector();
    pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, *tv);
    return tv;
+}
+
 }
 
 #endif

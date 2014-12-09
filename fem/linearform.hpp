@@ -12,6 +12,11 @@
 #ifndef MFEM_LINEARFORM
 #define MFEM_LINEARFORM
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Class for linear form - Vector with asociated FE space and LFIntegrators.
 class LinearForm : public Vector
 {
@@ -33,6 +38,8 @@ public:
    LinearForm (FiniteElementSpace * f) : Vector (f -> GetVSize())
    { fes = f; };
 
+   LinearForm(){ fes = NULL; }
+
    FiniteElementSpace * GetFES() { return fes; };
 
    /// Adds new Domain Integrator.
@@ -53,8 +60,12 @@ public:
 
    void Update(FiniteElementSpace *f) { fes = f; SetSize(f->GetVSize()); }
 
+   void Update(FiniteElementSpace *f, Vector &v, int v_offset);
+
    /// Destroys linear form.
    ~LinearForm();
 };
+
+}
 
 #endif

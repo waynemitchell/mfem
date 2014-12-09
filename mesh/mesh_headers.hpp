@@ -16,7 +16,7 @@
 
 #include <iostream>
 #include <iomanip>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "../general/array.hpp"
 #include "../general/table.hpp"
@@ -26,6 +26,7 @@
 #include "../fem/geom.hpp"
 #include "../fem/fe.hpp"
 #include "../fem/eltrans.hpp"
+#include "../fem/coefficient.hpp"
 
 #include "vertex.hpp"
 #include "element.hpp"

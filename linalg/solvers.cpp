@@ -14,6 +14,11 @@
 #include <cmath>
 #include "linalg.hpp"
 
+namespace mfem
+{
+
+using namespace std;
+
 IterativeSolver::IterativeSolver()
    : Solver(0, true)
 {
@@ -132,7 +137,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
 
    if (print_level == 1)
       cout << "   Iteration : " << setw(3) << 0 << "  (B r, r) = "
-           << nom << endl;
+           << nom << '\n';
 
    r0 = fmax(nom*rel_tol*rel_tol, abs_tol*abs_tol);
    if (nom <= r0)
@@ -148,7 +153,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
 
    if (print_level >= 0 && den < 0.0)
    {
-      cout << "Negative denominator in step 0 of PCG: " << den << endl;
+      cout << "Negative denominator in step 0 of PCG: " << den << '\n';
    }
 
    if (den == 0.0)
@@ -180,17 +185,17 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
 
       if (print_level == 1)
          cout << "   Iteration : " << setw(3) << i << "  (B r, r) = "
-              << betanom << endl;
+              << betanom << '\n';
 
       if (betanom < r0)
       {
          if (print_level == 2)
-            cout << "Number of PCG iterations: " << i << endl;
+            cout << "Number of PCG iterations: " << i << '\n';
          else
             if (print_level == 3)
-               cout << "(B r_0, r_0) = " << nom0 << endl
-                    << "(B r_N, r_N) = " << betanom << endl
-                    << "Number of PCG iterations: " << i << endl;
+               cout << "(B r_0, r_0) = " << nom0 << '\n'
+                    << "(B r_N, r_N) = " << betanom << '\n'
+                    << "Number of PCG iterations: " << i << '\n';
          converged = 1;
          final_iter = i;
          break;
@@ -210,21 +215,21 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       {
          if (print_level >= 0 && Dot(d, d) > 0.0)
             cout <<"PCG: The operator is not postive definite. (Ad, d) = "
-                 << den << endl;
+                 << den << '\n';
       }
       nom = betanom;
    }
    if (print_level >= 0 && !converged)
    {
-      cerr << "PCG: No convergence!" << endl;
-      cout << "(B r_0, r_0) = " << nom0 << endl
-           << "(B r_N, r_N) = " << betanom << endl
-           << "Number of PCG iterations: " << final_iter << endl;
+      cerr << "PCG: No convergence!" << '\n';
+      cout << "(B r_0, r_0) = " << nom0 << '\n'
+           << "(B r_N, r_N) = " << betanom << '\n'
+           << "Number of PCG iterations: " << final_iter << '\n';
    }
    if (print_level >= 1 || (print_level >= 0 && !converged))
    {
       cout << "Average reduction factor = "
-           << pow (betanom/nom0, 0.5/final_iter) << endl;
+           << pow (betanom/nom0, 0.5/final_iter) << '\n';
    }
    final_norm = sqrt(betanom);
 }
@@ -354,7 +359,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    if (print_level >= 0)
       cout << "   Pass : " << setw(2) << 1
            << "   Iteration : " << setw(3) << 0
-           << "  ||B r|| = " << beta << endl;
+           << "  ||B r|| = " << beta << '\n';
 
    Array<Vector *> v(m+1);
    v = NULL;
@@ -398,7 +403,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
          if (print_level >= 0)
             cout << "   Pass : " << setw(2) << (j-1)/m+1
                  << "   Iteration : " << setw(3) << j
-                 << "  ||B r|| = " << resid << endl;
+                 << "  ||B r|| = " << resid << '\n';
 
          if (resid <= final_norm)
          {
@@ -413,7 +418,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
       }
 
       if (print_level >= 0 && j <= max_iter)
-         cout << "Restarting..." << endl;
+         cout << "Restarting..." << '\n';
 
       Update(x, i-1, H, s, v);
 
@@ -446,12 +451,146 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    converged = 0;
 }
 
+void FGMRESSolver::Mult(const Vector &b, Vector &x) const
+{
+   DenseMatrix H(m+1,m);
+   Vector s(m+1), cs(m+1), sn(m+1);
+   Vector av(b.Size());
+   Vector r(b.Size());
+
+   int i, j, k;
+
+
+   if (iterative_mode)
+   {
+      oper->Mult(x, r);
+      subtract(b,r,r);
+   }
+   else
+   {
+      x = 0.;
+      r = b;
+   }
+   double beta = Norm(r);  // beta = ||r||
+
+   final_norm = fmax(rel_tol*beta, abs_tol);
+
+   if (beta <= final_norm)
+   {
+      final_norm = beta;
+      final_iter = 0;
+      converged = 1;
+      return;
+   }
+
+   if (print_level>=0)
+      cout << "   Pass : " << setw(2) << 1
+           << "   Iteration : " << setw(3) << 0
+           << "  || r || = " << beta << endl;
+
+   Array<Vector*> v(m+1);
+   Array<Vector*> z(m+1);
+   for (i= 0; i<=m; i++)
+   {
+      v[i] = NULL;
+      z[i] = NULL;
+   }
+
+   j = 1;
+   while (j <= max_iter)
+   {
+      if (v[0] == NULL) v[0] = new Vector(b.Size());
+      (*v[0]) = 0.0;
+      v[0] -> Add (1.0/beta, r);   // v[0] = r / ||r||
+      s = 0.0; s(0) = beta;
+
+      for (i = 0; i < m && j <= max_iter; i++)
+      {
+
+         if (z[i] == NULL)  z[i] = new Vector(b.Size());
+         (*z[i]) = 0.0;
+
+         prec->Mult(*v[i], *z[i]);
+         oper->Mult(*z[i], r);
+
+         for (k = 0; k <= i; k++)
+         {
+            H(k,i) = Dot( r, *v[k]); // H(k,i) = r * v[k]
+            r.Add(-H(k,i), (*v[k])); // r -= H(k,i) * v[k]
+         }
+
+         H(i+1,i)  = Norm(r);       // H(i+1,i) = ||r||
+         if (v[i+1] == NULL) v[i+1] = new Vector(b.Size());
+         (*v[i+1]) = 0.0;
+         v[i+1] -> Add (1.0/H(i+1,i), r); // v[i+1] = r / H(i+1,i)
+
+         for (k = 0; k < i; k++)
+            ApplyPlaneRotation(H(k,i), H(k+1,i), cs(k), sn(k));
+
+         GeneratePlaneRotation(H(i,i), H(i+1,i), cs(i), sn(i));
+         ApplyPlaneRotation(H(i,i), H(i+1,i), cs(i), sn(i));
+         ApplyPlaneRotation(s(i), s(i+1), cs(i), sn(i));
+
+         double resid = fabs(s(i+1));
+         if (print_level >= 0)
+            cout << "   Pass : " << setw(2) << j
+                 << "   Iteration : " << setw(3) << i+1
+                 << "  || r || = " << resid << endl;
+
+         if ( resid <= final_norm) {
+            Update(x, i, H, s, z);
+            final_norm = resid;
+            final_iter = (j-1)*m + i;
+            converged = 1;
+            for (i= 0; i<=m; i++){
+               if (v[i])  delete v[i];
+               if (z[i])  delete z[i];
+            }
+            return;
+         }
+      }
+
+      if (print_level>=0)
+         cout << "Restarting..." << endl;
+
+      Update(x, i-1, H, s, z);
+
+      oper->Mult(x, r);
+      subtract(b,r,r);
+      beta = Norm(r);
+      if ( beta <= final_norm)
+      {
+         final_norm = beta;
+         final_iter = j*m;
+         converged = 1;
+         for (i= 0; i<=m; i++){
+            if (v[i])  delete v[i];
+            if (z[i])  delete z[i];
+         }
+         return;
+      }
+
+      j++;
+   }
+
+   for (i = 0; i <= m; i++)
+   {
+      if (v[i])  delete v[i];
+      if (z[i])  delete z[i];
+   }
+   converged = 0;
+   return;
+
+}
+
+
 int GMRES(const Operator &A, Vector &x, const Vector &b, Solver &M,
           int &max_iter, int m, double &tol, double atol, int printit)
 {
    GMRESSolver gmres;
    gmres.SetPrintLevel(printit);
    gmres.SetMaxIter(max_iter);
+   gmres.SetKDim(m);
    gmres.SetRelTol(sqrt(tol));
    gmres.SetAbsTol(sqrt(atol));
    gmres.SetOperator(A);
@@ -505,7 +644,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
    resid = Norm(r);
    if (print_level >= 0)
       cout << "   Iteration : " << setw(3) << 0
-           << "   ||r|| = " << resid << endl;
+           << "   ||r|| = " << resid << '\n';
 
    tol_goal = fmax(resid*rel_tol, abs_tol);
 
@@ -524,7 +663,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
       {
          if (print_level >= 0)
             cout << "   Iteration : " << setw(3) << i
-                 << "   ||r|| = " << resid << endl;
+                 << "   ||r|| = " << resid << '\n';
          final_norm = resid;
          final_iter = i;
          converged = 0;
@@ -551,7 +690,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
          x.Add(alpha, phat);  //  x = x + alpha * phat
          if (print_level >= 0)
             cout << "   Iteration : " << setw(3) << i
-                 << "   ||s|| = " << resid << endl;
+                 << "   ||s|| = " << resid << '\n';
          final_norm = resid;
          final_iter = i;
          converged = 1;
@@ -573,7 +712,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
       rho_2 = rho_1;
       resid = Norm(r);
       if (print_level >= 0)
-         cout << "   ||r|| = " << resid << endl;
+         cout << "   ||r|| = " << resid << '\n';
       if (resid < tol_goal)
       {
          final_norm = resid;
@@ -665,7 +804,7 @@ void MINRESSolver::Mult(const Vector &b, Vector &x) const
 
    if (print_level == 1 || print_level == 3)
       cout << "MINRES: iteration " << setw(3) << 0 << ": ||r||_B = "
-           << eta << endl;
+           << eta << '\n';
 
    if (eta <= norm_goal)
    {
@@ -720,7 +859,7 @@ void MINRESSolver::Mult(const Vector &b, Vector &x) const
 
       if (print_level == 1)
          cout << "MINRES: iteration " << setw(3) << it << ": ||r||_B = "
-              << fabs(eta) << endl;
+              << fabs(eta) << '\n';
 
       if (fabs(eta) <= norm_goal)
          goto loop_end;
@@ -738,10 +877,10 @@ loop_end:
    final_norm = fabs(eta);
 
    if (print_level == 2)
-      cout << "MINRES: number of iterations: " << it << endl;
+      cout << "MINRES: number of iterations: " << it << '\n';
    else if (print_level == 3)
       cout << "MINRES: iteration " << setw(3) << it << ": ||r||_B = "
-           << fabs(eta) << endl;
+           << fabs(eta) << '\n';
 #if 0
    if (print_level >= 1)
    {
@@ -751,11 +890,11 @@ loop_end:
          prec->Mult(v1, u1);
       eta = sqrt(Dot(*z, v1));
       cout << "MINRES: iteration " << setw(3) << it << ": ||r||_B = "
-           << eta << " (re-computed)" << endl;
+           << eta << " (re-computed)" << '\n';
    }
 #endif
    if (!converged && print_level >= 0)
-      cerr << "MINRES: No convergence!" << endl;
+      cerr << "MINRES: No convergence!" << '\n';
 }
 
 void MINRES(const Operator &A, const Vector &b, Vector &x, int print_it,
@@ -809,7 +948,7 @@ void NewtonSolver::Mult(const Vector &b, Vector &x) const
    {
       if (print_level >= 0)
          cout << "Newton iteration " << setw(2) << it
-              << " : ||r|| = " << norm << endl;
+              << " : ||r|| = " << norm << '\n';
 
       if (norm <= norm_goal)
       {
@@ -878,7 +1017,7 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
    if (printit)
       cout << "   Pass : " << setw(2) << 1
            << "   Iteration : " << setw(3) << 0
-           << "  (r, r) = " << beta*beta << endl;
+           << "  (r, r) = " << beta*beta << '\n';
 
    tol *= (normb*normb);
    tol = (atol > tol) ? atol : tol;
@@ -922,7 +1061,7 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
          if (printit)
             cout << "   Pass : " << setw(2) << j
                  << "   Iteration : " << setw(3) << i+1
-                 << "  (r, r) = " << resid*resid << endl;
+                 << "  (r, r) = " << resid*resid << '\n';
 
          if ( resid*resid < tol) {
             Update(x, i, H, s, v);
@@ -935,7 +1074,7 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
       }
 
       if (printit)
-         cout << "Restarting..." << endl;
+         cout << "Restarting..." << '\n';
 
       Update(x, i-1, H, s, v);
 
@@ -998,19 +1137,19 @@ void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
               << nom;
          if (i > 1)
             cout << "\tConv. rate: " << cf;
-         cout << endl;
+         cout << '\n';
       }
       nomold = nom;
 
       if (nom < r0) {
          if (print_iter == 2)
-            cout << "Number of iterations: " << i << endl
-                 << "Conv. rate: " << cf << endl;
+            cout << "Number of iterations: " << i << '\n'
+                 << "Conv. rate: " << cf << '\n';
          else
             if (print_iter == 3)
-               cout << "(B r_0, r_0) = " << nom0 << endl
-                    << "(B r_N, r_N) = " << nom << endl
-                    << "Number of iterations: " << i << endl;
+               cout << "(B r_0, r_0) = " << nom0 << '\n'
+                    << "(B r_N, r_N) = " << nom << '\n'
+                    << "Number of iterations: " << i << '\n';
          break;
       }
 
@@ -1019,9 +1158,395 @@ void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
 
    if (i == max_num_iter)
    {
-      cerr << "No convergence!" << endl;
-      cout << "(B r_0, r_0) = " << nom0 << endl
-           << "(B r_N, r_N) = " << nom << endl
-           << "Number of iterations: " << i << endl;
+      cerr << "No convergence!" << '\n';
+      cout << "(B r_0, r_0) = " << nom0 << '\n'
+           << "(B r_N, r_N) = " << nom << '\n'
+           << "Number of iterations: " << i << '\n';
    }
+}
+
+void SLBQPOptimizer::SetBounds(const Vector &_lo, const Vector &_hi)
+{
+   lo.SetDataAndSize(_lo.GetData(), _lo.Size());
+   hi.SetDataAndSize(_hi.GetData(), _hi.Size());
+}
+
+void SLBQPOptimizer::SetLinearConstraint(const Vector &_w, double _a)
+{
+   w.SetDataAndSize(_w.GetData(), _w.Size());
+   a = _a;
+}
+
+void SLBQPOptimizer::SetPreconditioner(Solver &pr)
+{
+   mfem_error("SLBQPOptimizer::SetPreconditioner() : "
+              "not meaningful for this solver");
+}
+
+void SLBQPOptimizer::SetOperator(const Operator &op)
+{
+   mfem_error("SLBQPOptimizer::SetOperator() : "
+              "not meaningful for this solver");
+}
+
+inline void SLBQPOptimizer::print_iteration(int it, double r, double l) const
+{
+   if (print_level > 1)
+      cout << "SLBQP iteration " << it << ": residual = " << r
+           << ", lambda = " << l << '\n';
+}
+
+void SLBQPOptimizer::Mult(const Vector& xt, Vector& x) const
+{
+   // Based on code provided by Denis Ridzal, dridzal@sandia.gov.
+   // Algorithm adapted from Dai and Fletcher, "New Algorithms for
+   // Singly Linearly Constrained Quadratic Programs Subject to Lower
+   // and Upper Bounds", Numerical Analysis Report NA/216, 2003.
+
+   // Set some algorithm-specific constants and temporaries.
+   int nclip   = 0;
+   double l    = 0;
+   double llow = 0;
+   double lupp = 0;
+   double lnew = 0;
+   double dl   = 2;
+   double r    = 0;
+   double rlow = 0;
+   double rupp = 0;
+   double s    = 0;
+
+   const double smin = 0.1;
+
+   const double tol = max(abs_tol, rel_tol*a);
+
+   // *** Start bracketing phase of SLBQP ***
+   if (print_level > 1)
+      cout << "SLBQP bracketing phase" << '\n';
+
+   // Solve QP with fixed Lagrange multiplier
+   r = solve(l,xt,x,nclip);
+   print_iteration(nclip, r, l);
+
+
+   // If x=xt was already within bounds and satisfies the linear
+   // constraint, then we already have the solution.
+   if (fabs(r) <= tol)
+   {
+      converged = true;
+      goto slbqp_done;
+   }
+
+   if (r < 0)
+   {
+      llow = l;  rlow = r;  l = l + dl;
+
+      // Solve QP with fixed Lagrange multiplier
+      r = solve(l,xt,x,nclip);
+      print_iteration(nclip, r, l);
+
+      while ((r < 0) && (nclip < max_iter))
+      {
+         llow = l;
+         s = rlow/r - 1.0;
+         if (s < smin) { s = smin; }
+         dl = dl + dl/s;
+         l = l + dl;
+
+         // Solve QP with fixed Lagrange multiplier
+         r = solve(l,xt,x,nclip);
+         print_iteration(nclip, r, l);
+      }
+
+      lupp = l;  rupp = r;
+   }
+   else
+   {
+      lupp = l;  rupp = r;  l = l - dl;
+
+      // Solve QP with fixed Lagrange multiplier
+      r = solve(l,xt,x,nclip);
+      print_iteration(nclip, r, l);
+
+      while ((r > 0) && (nclip < max_iter))
+      {
+         lupp = l;
+         s = rupp/r - 1.0;
+         if (s < smin) { s = smin; }
+         dl = dl + dl/s;
+         l = l - dl;
+
+         // Solve QP with fixed Lagrange multiplier
+         r = solve(l,xt,x,nclip);
+         print_iteration(nclip, r, l);
+      }
+
+      llow = l;  rlow = r;
+   }
+
+   // *** Stop bracketing phase of SLBQP ***
+
+
+   // *** Start secant phase of SLBQP ***
+   if (print_level > 1)
+      cout << "SLBQP secant phase" << '\n';
+
+   s = 1.0 - rlow/rupp;  dl = dl/s;  l = lupp - dl;
+
+   // Solve QP with fixed Lagrange multiplier
+   r = solve(l,xt,x,nclip);
+   print_iteration(nclip, r, l);
+
+   while ( (fabs(r) > tol) && (nclip < max_iter) )
+   {
+      if (r > 0)
+      {
+         if (s <= 2.0)
+         {
+            lupp = l;  rupp = r;  s = 1.0 - rlow/rupp;
+            dl = (lupp - llow)/s;  l = lupp - dl;
+         }
+         else
+         {
+            s = rupp/r - 1.0;
+            if (s < smin) { s = smin; }
+            dl = (lupp - l)/s;
+            lnew = 0.75*llow + 0.25*l;
+            if (lnew < l-dl) { lnew = l-dl; }
+            lupp = l;  rupp = r;  l = lnew;
+            s = (lupp - llow)/(lupp - l);
+         }
+
+      }
+      else
+      {
+         if (s >= 2.0)
+         {
+            llow = l;  rlow = r;  s = 1.0 - rlow/rupp;
+            dl = (lupp - llow)/s;  l = lupp - dl;
+         }
+         else
+         {
+            s = rlow/r - 1.0;
+            if (s < smin) { s = smin; }
+            dl = (l - llow)/s;
+            lnew = 0.75*lupp + 0.25*l;
+            if (lnew < l+dl) { lnew = l+dl; }
+            llow = l;  rlow = r; l = lnew;
+            s = (lupp - llow)/(lupp - l);
+         }
+      }
+
+      // Solve QP with fixed Lagrange multiplier
+      r = solve(l,xt,x,nclip);
+      print_iteration(nclip, r, l);
+   }
+
+   // *** Stop secant phase of SLBQP ***
+
+   converged = (fabs(r) <= tol);
+   if (!converged && print_level >= 0)
+      cerr << "SLBQP not converged!" << '\n';
+
+slbqp_done:
+
+   final_iter = nclip;
+   final_norm = r;
+
+   if (print_level == 1 || (!converged && print_level >= 0))
+   {
+      cout << "SLBQP iterations = " << nclip << '\n';
+      cout << "SLBQP lamba      = " << l << '\n';
+      cout << "SLBQP residual   = " << r << '\n';
+   }
+}
+
+#ifdef MFEM_USE_SUITESPARSE
+
+void UMFPackSolver::Init()
+{
+   mat = NULL;
+   Numeric = NULL;
+   AI = AJ = NULL;
+   if (!use_long_ints)
+      umfpack_di_defaults(Control);
+   else
+      umfpack_dl_defaults(Control);
+}
+
+void UMFPackSolver::SetOperator(const Operator &op)
+{
+   int *Ap, *Ai;
+   void *Symbolic;
+   double *Ax;
+
+   if (Numeric)
+   {
+      if (!use_long_ints)
+      {
+         umfpack_di_free_numeric(&Numeric);
+      }
+      else
+      {
+         umfpack_dl_free_numeric(&Numeric);
+      }
+   }
+
+   mat = const_cast<SparseMatrix *>(dynamic_cast<const SparseMatrix *>(&op));
+   if (mat == NULL)
+      mfem_error("UMFPackSolver::SetOperator : not a SparseMatrix!");
+
+   // UMFPack requires that the column-indices in mat corresponding to each
+   // row be sorted.
+   // Generally, this will modify the ordering of the entries of mat.
+   mat->SortColumnIndices();
+
+   size = mat->Size();
+   Ap = mat->GetI();
+   Ai = mat->GetJ();
+   Ax = mat->GetData();
+
+   if (!use_long_ints)
+   {
+      int status = umfpack_di_symbolic(size, size, Ap, Ai, Ax, &Symbolic,
+                                       Control, Info);
+      if (status < 0)
+      {
+         umfpack_di_report_info(Control, Info);
+         umfpack_di_report_status(Control, status);
+         mfem_error("UMFPackSolver::SetOperator :"
+                    " umfpack_di_symbolic() failed!");
+      }
+
+      status = umfpack_di_numeric(Ap, Ai, Ax, Symbolic, &Numeric,
+                                  Control, Info);
+      if (status < 0)
+      {
+         umfpack_di_report_info(Control, Info);
+         umfpack_di_report_status(Control, status);
+         mfem_error("UMFPackSolver::SetOperator :"
+                    " umfpack_di_numeric() failed!");
+      }
+      umfpack_di_free_symbolic(&Symbolic);
+   }
+   else
+   {
+      SuiteSparse_long status;
+
+      delete [] AJ;
+      delete [] AI;
+      AI = new SuiteSparse_long[size + 1];
+      AJ = new SuiteSparse_long[Ap[size]];
+      for (int i = 0; i <= size; i++)
+         AI[i] = (SuiteSparse_long)(Ap[i]);
+      for (int i = 0; i <= Ap[size]; i++)
+         AJ[i] = (SuiteSparse_long)(Ai[i]);
+
+      status = umfpack_dl_symbolic(size, size, AI, AJ, Ax, &Symbolic,
+                                   Control, Info);
+      if (status < 0)
+      {
+         umfpack_dl_report_info(Control, Info);
+         umfpack_dl_report_status(Control, status);
+         mfem_error("UMFPackSolver::SetOperator :"
+                    " umfpack_dl_symbolic() failed!");
+      }
+
+      status = umfpack_dl_numeric(AI, AJ, Ax, Symbolic, &Numeric,
+                                  Control, Info);
+      if (status < 0)
+      {
+         umfpack_dl_report_info(Control, Info);
+         umfpack_dl_report_status(Control, status);
+         mfem_error("UMFPackSolver::SetOperator :"
+                    " umfpack_dl_numeric() failed!");
+      }
+      umfpack_dl_free_symbolic(&Symbolic);
+   }
+}
+
+void UMFPackSolver::Mult(const Vector &b, Vector &x) const
+{
+   if (mat == NULL)
+      mfem_error("UMFPackSolver::Mult : matrix is not set!"
+                 " Call SetOperator first!");
+
+   if (!use_long_ints)
+   {
+      int status =
+         umfpack_di_solve(UMFPACK_At, mat->GetI(), mat->GetJ(),
+                          mat->GetData(), x, b, Numeric, Control, Info);
+      umfpack_di_report_info(Control, Info);
+      if (status < 0)
+      {
+         umfpack_di_report_status(Control, status);
+         mfem_error("UMFPackSolver::Mult : umfpack_di_solve() failed!");
+      }
+   }
+   else
+   {
+      SuiteSparse_long status =
+         umfpack_dl_solve(UMFPACK_At, AI, AJ, mat->GetData(), x, b,
+                          Numeric, Control, Info);
+      umfpack_dl_report_info(Control, Info);
+      if (status < 0)
+      {
+         umfpack_dl_report_status(Control, status);
+         mfem_error("UMFPackSolver::Mult : umfpack_dl_solve() failed!");
+      }
+   }
+}
+
+void UMFPackSolver::MultTranspose(const Vector &b, Vector &x) const
+{
+   if (mat == NULL)
+      mfem_error("UMFPackSolver::MultTranspose : matrix is not set!"
+                 " Call SetOperator first!");
+
+   if (!use_long_ints)
+   {
+      int status =
+         umfpack_di_solve(UMFPACK_A, mat->GetI(), mat->GetJ(),
+                          mat->GetData(), x, b, Numeric, Control, Info);
+      umfpack_di_report_info(Control, Info);
+      if (status < 0)
+      {
+         umfpack_di_report_status(Control, status);
+         mfem_error("UMFPackSolver::MultTranspose :"
+                    " umfpack_di_solve() failed!");
+      }
+   }
+   else
+   {
+      SuiteSparse_long status =
+         umfpack_dl_solve(UMFPACK_A, AI, AJ, mat->GetData(), x, b,
+                          Numeric, Control, Info);
+      umfpack_dl_report_info(Control, Info);
+      if (status < 0)
+      {
+         umfpack_dl_report_status(Control, status);
+         mfem_error("UMFPackSolver::MultTranspose :"
+                    " umfpack_dl_solve() failed!");
+      }
+   }
+}
+
+UMFPackSolver::~UMFPackSolver()
+{
+   delete [] AJ;
+   delete [] AI;
+   if (Numeric)
+   {
+      if (!use_long_ints)
+      {
+         umfpack_di_free_numeric(&Numeric);
+      }
+      else
+      {
+         umfpack_dl_free_numeric(&Numeric);
+      }
+   }
+}
+
+#endif // MFEM_USE_SUITESPARSE
+
 }

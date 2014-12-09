@@ -11,8 +11,13 @@
 
 // Implementation of FiniteElementSpace
 
+#include <cmath>
 #include "fem.hpp"
-#include <math.h>
+
+using namespace std;
+
+namespace mfem
+{
 
 int FiniteElementSpace::GetOrder(int i) const
 {
@@ -816,6 +821,16 @@ void FiniteElementSpace::GetEdgeDofs(int i, Array<int> &dofs) const
       dofs[nv+j] = k;
 }
 
+void FiniteElementSpace::GetVertexDofs(int i, Array<int> &dofs) const
+{
+   int j, nv;
+
+   nv = fec->DofForGeometry(Geometry::POINT);
+   dofs.SetSize(nv);
+   for (j = 0; j < nv; j++)
+      dofs[j] = i*nv+j;
+}
+
 void FiniteElementSpace::GetElementInteriorDofs (int i, Array<int> &dofs) const
 {
    int j, k, nb;
@@ -879,6 +894,12 @@ const FiniteElement *FiniteElementSpace::GetFaceElement(int i) const
    //    NURBSext->LoadFaceElement(i, fe);
 
    return fe;
+}
+
+const FiniteElement *FiniteElementSpace::GetTraceElement(
+   int i, int geom_type) const
+{
+   return fec->TraceFiniteElementForGeometry(geom_type);
 }
 
 FiniteElementSpace::~FiniteElementSpace()
@@ -991,10 +1012,12 @@ void FiniteElementSpace::ConstructRefinementData (int k, int num_c_dofs,
    RefData.Append(data);
 }
 
-void FiniteElementSpace::Save(ostream &out) const
+void FiniteElementSpace::Save(std::ostream &out) const
 {
    out << "FiniteElementSpace\n"
        << "FiniteElementCollection: " << fec->Name() << '\n'
        << "VDim: " << vdim << '\n'
        << "Ordering: " << ordering << '\n';
+}
+
 }

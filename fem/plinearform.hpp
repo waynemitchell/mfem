@@ -12,6 +12,11 @@
 #ifndef MFEM_PLINEARFORM
 #define MFEM_PLINEARFORM
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Class for parallel linear form
 class ParLinearForm : public LinearForm
 {
@@ -19,9 +24,13 @@ protected:
    ParFiniteElementSpace *pfes;
 
 public:
+   ParLinearForm() : LinearForm() { pfes = NULL; }
+
    ParLinearForm(ParFiniteElementSpace *pf) : LinearForm(pf) { pfes = pf; }
 
    void Update(ParFiniteElementSpace *pf = NULL);
+
+   void Update(ParFiniteElementSpace *pf, Vector &v, int v_offset);
 
    /// Assemble the vector on the true dofs, i.e. P^t v.
    void ParallelAssemble(Vector &tv);
@@ -29,5 +38,7 @@ public:
    /// Returns the vector assembled on the true dofs, i.e. P^t v.
    HypreParVector *ParallelAssemble();
 };
+
+}
 
 #endif

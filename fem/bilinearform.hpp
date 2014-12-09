@@ -12,6 +12,10 @@
 #ifndef MFEM_BILINEARFORM
 #define MFEM_BILINEARFORM
 
+#include "../config.hpp"
+
+namespace mfem
+{
 
 /** Class for bilinear form - "Matrix" with asociated FE space and
     BLFIntegrators. */
@@ -69,6 +73,11 @@ public:
        present in the bilinear form. */
    void UsePrecomputedSparsity(int ps = 1) { precompute_sparsity = ps; }
 
+   /** Pre-allocate the internal SparseMatrix before assembly. If the flag
+       'precompute sparsity' is set, the matrix is allocated in CSR format (i.e.
+       finalized) and the entries are initialized with zeros. */
+   void AllocateMatrix() { if (mat == NULL) AllocMat(); }
+
    Array<BilinearFormIntegrator*> *GetDBFI() { return &dbfi; }
 
    Array<BilinearFormIntegrator*> *GetBBFI() { return &bbfi; }
@@ -111,6 +120,7 @@ public:
    /// Returns a reference to the sparse martix
    const SparseMatrix &SpMat() const { return *mat; }
    SparseMatrix &SpMat() { return *mat; }
+   SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
 
    /// Adds new Domain Integrator.
    void AddDomainIntegrator(BilinearFormIntegrator *bfi);
@@ -252,6 +262,7 @@ public:
 
    const SparseMatrix &SpMat() const { return *mat; };
    SparseMatrix &SpMat() { return *mat; };
+   SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
 
    void AddDomainIntegrator (BilinearFormIntegrator * bfi);
 
@@ -259,12 +270,18 @@ public:
 
    void AddFaceIntegrator (BilinearFormIntegrator * bfi);
 
+   Array<BilinearFormIntegrator*> *GetDBFI() { return &dom; }
+
+   Array<BilinearFormIntegrator*> *GetBBFI() { return &bdr; }
+
    void operator= (const double a) { *mat = a; }
 
    virtual void Assemble (int skip_zeros = 1);
 
    void EliminateTrialDofs (Array<int> &bdr_attr_is_ess,
                             Vector &sol, Vector &rhs);
+
+   void EliminateEssentialBCFromTrialDofs ( Array<int> &marked_vdofs, Vector &sol, Vector &rhs);
 
    virtual void EliminateTestDofs (Array<int> &bdr_attr_is_ess);
 
@@ -314,7 +331,11 @@ public:
    void AddDomainInterpolator(DiscreteInterpolator *di)
    { AddDomainIntegrator(di); }
 
+   Array<BilinearFormIntegrator*> *GetDI() { return &dom; }
+
    virtual void Assemble(int skip_zeros = 1);
 };
+
+}
 
 #endif

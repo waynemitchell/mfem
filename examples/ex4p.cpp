@@ -27,8 +27,12 @@
 //
 //               We recommend viewing examples 1-3 before viewing this example.
 
-#include <fstream>
 #include "mfem.hpp"
+#include <fstream>
+#include <iostream>
+using namespace std;
+
+using namespace mfem;
 
 // Exact solution, F, and r.h.s., f. See below for implementation.
 void F_exact(const Vector &, Vector &);
@@ -95,7 +99,7 @@ int main (int argc, char *argv[])
 
    // 5. Define a parallel finite element space on the parallel mesh. Here we
    //    use the lowest order Raviart-Thomas finite elements, but we can easily
-   //    swich to higher-order spaces by changing the value of p.
+   //    switch to higher-order spaces by changing the value of p.
    int p = 1;
    FiniteElementCollection *fec = new RT_FECollection(p-1, pmesh -> Dimension());
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);

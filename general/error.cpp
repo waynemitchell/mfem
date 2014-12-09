@@ -9,12 +9,31 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <iostream>
 #include "error.hpp"
+
+#ifdef MFEM_USE_MPI
+#include <mpi.h>
+#endif
+
+namespace mfem
+{
 
 void mfem_error (const char *msg)
 {
    if (msg)
+   {
+      // NOTE: This endl also flushes the I/O stream, which can be a very bad
+      // thing if all your processors try to do it at the same time.
       std::cerr << msg << std::endl;
-   abort(); // force crash by calling abort
+   }
+#ifdef MFEM_USE_MPI
+   MPI_Abort(MPI_COMM_WORLD, 1);
+#else
+   std::abort(); // force crash by calling abort
+#endif
+
+}
+
 }

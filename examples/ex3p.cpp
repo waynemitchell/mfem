@@ -24,8 +24,12 @@
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
-#include <fstream>
 #include "mfem.hpp"
+#include <fstream>
+#include <iostream>
+using namespace std;
+
+using namespace mfem;
 
 // Exact solution, E, and r.h.s., f. See below for implementation.
 void E_exact(const Vector &, Vector &);
@@ -97,7 +101,7 @@ int main (int argc, char *argv[])
    pmesh->ReorientTetMesh();
 
    // 5. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Nedelec finite elements, but we can easily swich
+   //    use the lowest order Nedelec finite elements, but we can easily switch
    //    to higher-order spaces by changing the value of p.
    int p = 1;
    FiniteElementCollection *fec = new ND_FECollection(p, pmesh -> Dimension());
@@ -118,7 +122,7 @@ int main (int argc, char *argv[])
    // 7. Define the solution vector x as a parallel finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary edges will be used
-   //    when eliminating the non-homogenious boundary condition to modify the
+   //    when eliminating the non-homogeneous boundary condition to modify the
    //    r.h.s. vector b.
    ParGridFunction x(fespace);
    VectorFunctionCoefficient E(3, E_exact);

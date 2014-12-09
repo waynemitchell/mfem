@@ -27,8 +27,12 @@
 //
 //               We recommend viewing examples 1-3 before viewing this example.
 
-#include <fstream>
 #include "mfem.hpp"
+#include <fstream>
+#include <iostream>
+using namespace std;
+
+using namespace mfem;
 
 // Exact solution, F, and r.h.s., f. See below for implementation.
 void F_exact(const Vector &, Vector &);
@@ -70,8 +74,8 @@ int main (int argc, char *argv[])
    }
 
    // 3. Define a finite element space on the mesh. Here we use the lowest order
-   //    Raviart-Thomas finite elements, but we can easily swich to higher-order
-   //    spaces by changing the value of p.
+   //    Raviart-Thomas finite elements, but we can easily switch to
+   //    higher-order spaces by changing the value of p.
    int p = 1;
    FiniteElementCollection *fec = new RT_FECollection(p-1, mesh -> Dimension());
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
@@ -89,7 +93,7 @@ int main (int argc, char *argv[])
    // 5. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary faces will be used
-   //    when eliminating the non-homogenious boundary condition to modify the
+   //    when eliminating the non-homogeneous boundary condition to modify the
    //    r.h.s. vector b.
    GridFunction x(fespace);
    VectorFunctionCoefficient F(dim, F_exact);
@@ -113,11 +117,19 @@ int main (int argc, char *argv[])
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 
+#ifndef MFEM_USE_SUITESPARSE
    // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
    x = 0.0;
    PCG(A, M, *b, x, 1, 10000, 1e-20, 0.0);
+#else
+   // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   UMFPackSolver umf_solver;
+   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   umf_solver.SetOperator(A);
+   umf_solver.Mult(*b, x);
+#endif
 
    // 8. Compute and print the L^2 norm of the error.
    cout << "\n|| F_h - F ||_{L^2} = " << x.ComputeL2Error(F) << '\n' << endl;

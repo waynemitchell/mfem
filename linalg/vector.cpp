@@ -13,11 +13,15 @@
 
 #include <iostream>
 #include <iomanip>
-#include <math.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cmath>
+#include <cstdlib>
+#include <ctime>
+#include <limits>
 
 #include "vector.hpp"
+
+namespace mfem
+{
 
 Vector::Vector(const Vector &v)
 {
@@ -36,7 +40,7 @@ Vector::Vector(const Vector &v)
    }
 }
 
-void Vector::Load(istream **in, int np, int *dim)
+void Vector::Load(std::istream **in, int np, int *dim)
 {
    int i, j, s;
 
@@ -52,7 +56,7 @@ void Vector::Load(istream **in, int np, int *dim)
          *in[i] >> data[p++];
 }
 
-void Vector::Load(istream &in, int Size)
+void Vector::Load(std::istream &in, int Size)
 {
    SetSize(Size);
 
@@ -110,8 +114,8 @@ Vector &Vector::operator=(const Vector &v)
 
 Vector &Vector::operator=(double value)
 {
-   register int i, s = size;
-   register double *p = data, v = value;
+   int i, s = size;
+   double *p = data, v = value;
    for (i = 0; i < s; i++)
       *(p++) = v;
    return *this;
@@ -383,6 +387,19 @@ void subtract(const double a, const Vector &x, const Vector &y, Vector &z)
    }
 }
 
+void Vector::median(const Vector &lo, const Vector &hi)
+{
+   double *v = data;
+
+   for (int i = 0; i < size; i++)
+   {
+      if (v[i] < lo[i])
+         v[i] = lo[i];
+      else if (v[i] > hi[i])
+         v[i] = hi[i];
+   }
+}
+
 void Vector::GetSubVector(const Array<int> &dofs, Vector &elemvect) const
 {
    int i, j, n = dofs.Size();
@@ -463,7 +480,7 @@ void Vector::AddElementVector(const Array<int> &dofs, const double a,
          data[-1-j] -= a * elemvect(i);
 }
 
-void Vector::Print(ostream &out, int width) const
+void Vector::Print(std::ostream &out, int width) const
 {
    for (int i = 0; 1; )
    {
@@ -479,11 +496,11 @@ void Vector::Print(ostream &out, int width) const
    out << '\n';
 }
 
-void Vector::Print_HYPRE(ostream &out) const
+void Vector::Print_HYPRE(std::ostream &out) const
 {
    int i;
-   ios::fmtflags old_fmt = out.flags();
-   out.setf(ios::scientific);
+   std::ios::fmtflags old_fmt = out.flags();
+   out.setf(std::ios::scientific);
    int old_prec = out.precision(14);
 
    out << size << '\n';  // number of rows
@@ -510,12 +527,12 @@ void Vector::Randomize(int seed)
       data[i] = fabs(rand()/max);
 }
 
-double Vector::Norml2()
+double Vector::Norml2() const
 {
    return sqrt((*this)*(*this));
 }
 
-double Vector::Normlinf()
+double Vector::Normlinf() const
 {
    double max = fabs(data[0]);
 
@@ -526,7 +543,7 @@ double Vector::Normlinf()
    return max;
 }
 
-double Vector::Norml1()
+double Vector::Norml1() const
 {
    double sum = 0.0;
 
@@ -536,7 +553,25 @@ double Vector::Norml1()
    return sum;
 }
 
-double Vector::Max()
+double Vector::Normlp(double p) const
+{
+   MFEM_ASSERT(p > 0.0, "Vector::Normlp");
+   if (p == 1.0)
+      return Norml1();
+   if (p == 2.0)
+      return Norml2();
+   if (p < std::numeric_limits<double>::infinity())
+   {
+      double sum = 0.0;
+      for (int i = 0; i < size; i++)
+         sum += pow(fabs(data[i]), p);
+      return pow(sum, 1.0/p);
+   }
+   else
+      return Normlinf();
+}
+
+double Vector::Max() const
 {
    double max = data[0];
 
@@ -547,7 +582,7 @@ double Vector::Max()
    return max;
 }
 
-double Vector::Min()
+double Vector::Min() const
 {
    double min = data[0];
 
@@ -558,7 +593,7 @@ double Vector::Min()
    return min;
 }
 
-double Vector::Sum()
+double Vector::Sum() const
 {
    double sum = 0.0;
 
@@ -571,4 +606,6 @@ double Vector::Sum()
 double Vector::DistanceTo(const double *p) const
 {
    return Distance(data, p, size);
+}
+
 }

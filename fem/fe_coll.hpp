@@ -12,6 +12,11 @@
 #ifndef MFEM_FE_COLLECTION
 #define MFEM_FE_COLLECTION
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /** Collection of finite elements from the same family in multiple dimensions.
     This class is used to match the degrees of fredom of a FiniteElementSpace
     between elements, and to provide the finite element restriction from an
@@ -29,6 +34,12 @@ public:
    virtual const char * Name() const { return "Undefined"; };
 
    int HasFaceDofs(int GeomType) const;
+
+   virtual const FiniteElement *TraceFiniteElementForGeometry(
+      int GeomType) const
+   {
+      return FiniteElementForGeometry(GeomType);
+   }
 
    virtual ~FiniteElementCollection() { };
 
@@ -57,12 +68,36 @@ public:
    virtual ~H1_FECollection();
 };
 
+/// Arbitrary order H1-conforming (continuous) finite elements with positive basis functions.
+class H1Pos_FECollection : public FiniteElementCollection
+{
+private:
+   char h1_name[32];
+   FiniteElement *H1Pos_Elements[Geometry::NumGeom];
+   int H1Pos_dof[Geometry::NumGeom];
+   int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
+
+public:
+   explicit H1Pos_FECollection(const int p, const int dim = 3);
+
+   virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
+   { return H1Pos_Elements[GeomType]; }
+   virtual int DofForGeometry(int GeomType) const
+   { return H1Pos_dof[GeomType]; }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const;
+   virtual const char *Name() const { return h1_name; }
+
+   virtual ~H1Pos_FECollection();
+};
+
 /// Arbitrary order "L2-conforming" discontinuous finite elements.
 class L2_FECollection : public FiniteElementCollection
 {
 private:
    char d_name[32];
    FiniteElement *L2_Elements[Geometry::NumGeom];
+   FiniteElement *Tr_Elements[Geometry::NumGeom];
+   int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:
    L2_FECollection(const int p, const int dim, const int type = 0);
@@ -75,9 +110,14 @@ public:
          return L2_Elements[GeomType]->GetDof();
       return 0;
    }
-   virtual int *DofOrderForOrientation(int GeomType, int Or) const
-   { return NULL; }
+   virtual int *DofOrderForOrientation(int GeomType, int Or) const;
    virtual const char *Name() const { return d_name; }
+
+   virtual const FiniteElement *TraceFiniteElementForGeometry(
+      int GeomType) const
+   {
+      return Tr_Elements[GeomType];
+   }
 
    virtual ~L2_FECollection();
 };
@@ -716,5 +756,7 @@ public:
 
    virtual ~Local_FECollection() { delete Local_Element; }
 };
+
+}
 
 #endif

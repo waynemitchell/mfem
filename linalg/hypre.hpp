@@ -12,6 +12,8 @@
 #ifndef MFEM_HYPRE
 #define MFEM_HYPRE
 
+#include "../config.hpp"
+
 // Enable internal hypre timing routines
 #define HYPRE_TIMING
 
@@ -20,7 +22,11 @@
 #include "_hypre_parcsr_mv.h"
 #include "_hypre_parcsr_ls.h"
 
+namespace mfem
+{
+
 class ParFiniteElementSpace;
+class HypreParMatrix;
 
 /// Wrapper for hypre's parallel vector class
 class HypreParVector : public Vector
@@ -36,12 +42,14 @@ private:
 public:
    /** Creates vector with given global size and partitioning of the columns.
        Processor P owns columns [col[P],col[P+1]) */
-   HypreParVector(int glob_size, int *col);
+   HypreParVector(MPI_Comm comm, int glob_size, int *col);
    /** Creates vector with given global size, partitioning of the columns,
        and data. The data must be allocated and destroyed outside. */
-   HypreParVector(int glob_size, double *_data, int *col);
+   HypreParVector(MPI_Comm comm, int glob_size, double *_data, int *col);
    /// Creates vector compatible with y
    HypreParVector(const HypreParVector &y);
+   /// Creates vector compatible with (i.e. in the domain of) A or A^T
+   HypreParVector(HypreParMatrix &A, int tr = 0);
    /// Creates vector wrapping y
    HypreParVector(HYPRE_ParVector y);
    /// Create a true dof parallel vector on a given ParFiniteElementSpace
@@ -49,8 +57,10 @@ public:
 
    /// Typecasting to hypre's hypre_ParVector*
    operator hypre_ParVector*() const;
+#ifndef HYPRE_PAR_VECTOR_STRUCT
    /// Typecasting to hypre's HYPRE_ParVector, a.k.a. void *
    operator HYPRE_ParVector() const;
+#endif
    /// Changes the ownership of the the vector
    hypre_ParVector *StealParVector() { own_ParVector = 0; return x; }
 
@@ -101,19 +111,21 @@ public:
    HypreParMatrix(hypre_ParCSRMatrix *a) : A(a)
    { size = GetNumRows(); X = Y = 0; CommPkg = 0; }
    /// Creates block-diagonal square parallel matrix. Diagonal given by diag.
-   HypreParMatrix(int size, int *row, SparseMatrix *diag);
+   HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *diag);
    /** Creates block-diagonal rectangular parallel matrix. Diagonal
        given by diag. */
-   HypreParMatrix(int M, int N, int *row, int *col, SparseMatrix *diag);
+   HypreParMatrix(MPI_Comm comm, int M, int N,
+                  int *row, int *col, SparseMatrix *diag);
    /// Creates general (rectangular) parallel matrix
-   HypreParMatrix(int M, int N, int *row, int *col, SparseMatrix *diag,
-                  SparseMatrix *offd, int *cmap);
+   HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
+                  SparseMatrix *diag, SparseMatrix *offd, int *cmap);
 
    /// Creates a parallel matrix from SparseMatrix on processor 0.
-   HypreParMatrix(int *row, int *col, SparseMatrix *a);
+   HypreParMatrix(MPI_Comm comm, int *row, int *col, SparseMatrix *a);
 
    /// Creates boolean block-diagonal rectangular parallel matrix.
-   HypreParMatrix(int M, int N, int *row, int *col, Table *diag);
+   HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
+                  Table *diag);
    /// Creates boolean rectangular parallel matrix (which owns its data)
    HypreParMatrix(MPI_Comm comm, int id, int np, int *row, int *col,
                   int *i_diag, int *j_diag, int *i_offd, int *j_offd,
@@ -131,10 +143,15 @@ public:
    void CheckCommPkg();
    void DestroyCommPkg();
 
+   /// MPI communicator
+   MPI_Comm GetComm() { return A->comm; }
+
    /// Typecasting to hypre's hypre_ParCSRMatrix*
    operator hypre_ParCSRMatrix*();
+#ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
    /// Typecasting to hypre's HYPRE_ParCSRMatrix, a.k.a. void *
    operator HYPRE_ParCSRMatrix();
+#endif
    /// Changes the ownership of the the matrix
    hypre_ParCSRMatrix* StealData();
 
@@ -179,10 +196,17 @@ public:
    virtual void Mult(const Vector &x, Vector &y) const;
    virtual void MultTranspose(const Vector &x, Vector &y) const;
 
+   /// Scale the local row i by s(i).
+   void ScaleRows(const Vector & s);
+   /// Scale the local row i by 1./s(i)
+   void InvScaleRows(const Vector & s);
+   /// Scale all entries by s: A_scaled = s*A.
+   void operator*=(double s);
+
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, int offi = 0, int offj = 0);
    /// Reads the matrix from a file
-   void Read(const char *fname);
+   void Read(MPI_Comm comm, const char *fname);
 
    /// Calls hypre's destroy function
    virtual ~HypreParMatrix();
@@ -193,6 +217,8 @@ HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B);
 
 /// Returns the matrix P^t * A * P
 HypreParMatrix * RAP(HypreParMatrix *A, HypreParMatrix *P);
+/// Returns the matrix Rt^t * A * P
+HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P);
 
 /** Eliminate essential b.c. specified by ess_dof_list from the solution x to
     the r.h.s. b. Here A is matrix with eliminated b.c., while Ae is such that
@@ -212,6 +238,8 @@ protected:
    mutable HypreParVector *B, *X;
    /// Temporary vectors
    mutable HypreParVector *V, *Z;
+   /// FIR Filter Temporary Vectors
+   mutable HypreParVector *X0, *X1;
 
    /** Hypre relaxation type (from hypre_ParCSRRelax() in ams.c). Options are:
        1  = l1-scaled Jacobi
@@ -227,33 +255,54 @@ protected:
    double relax_weight;
    /// SOR parameter (usually in (0,2))
    double omega;
-   /// Order of the Chebyshev polynomial
-   int cheby_order;
-   /// Fraction of spectrum to smooth for Chebyshev relaxation
-   double cheby_fraction;
+   /// Order of the smoothing polynomial
+   int poly_order;
+   /// Fraction of spectrum to smooth for polynomial relaxation
+   double poly_fraction;
+   /// Apply the polynomial smoother to A or D^{-1/2} A D^{-1/2}
+   int poly_scale;
+
+   /// Taubin's lambda-mu method parameters
+   double lambda;
+   double mu;
+   int taubin_iter;
 
    /// l1 norms of the rows of A
    double *l1_norms;
-   /// Maximal eigenvalue estimate for the Chebyshev polynomial
+   /// Maximal eigenvalue estimate for polynomial smoothing
    double max_eig_est;
-   /// Minimal eigenvalue estimate for the Chebyshev polynomial
+   /// Minimal eigenvalue estimate for polynomial smoothing
    double min_eig_est;
+   /// Paramters for windowing function of FIR filter
+   double window_params[3];
+
+   /// Combined coefficients for windowing and Chebyshev polynomials.
+   double* fir_coeffs;
 
 public:
-   enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev };
+   enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev, Taubin, FIR };
 
    HypreSmoother();
 
    HypreSmoother(HypreParMatrix &_A, int type = 2,
                  int relax_times = 1, double relax_weight = 1.0, double omega = 1.0,
-                 int cheby_order = 2, double cheby_fraction = .3);
+                 int poly_order = 2, double poly_fraction = .3);
 
    /// Set some of the more common used relaxation types and number of sweeps
    void SetType(HypreSmoother::Type type, int relax_times = 1);
    /// Set SOR-related parameters
    void SetSOROptions(double relax_weight, double omega);
-   /// Set Chebyshev-related parameters
-   void SetChebyshevOptions(int cheby_order, double cheby_fraction);
+   /// Set parameters for polynomial smoothing
+   void SetPolyOptions(int poly_order, double poly_fraction);
+   /// Set parameters for Taubin's lambda-mu method
+   void SetTaubinOptions(double lambda, double mu, int iter);
+
+   /// Convenience function for setting canonical windowing parameters
+   void SetWindowByName(const char* window_name);
+   /// Set parameters for windowing function for FIR smoother.
+   void SetWindowParameters(double a, double b, double c);
+   /// Compute window and Chebyshev coefficients for given polynomial order.
+   void SetFIRCoefficients(double max_eig);
 
    virtual void SetOperator(const Operator &op);
 
@@ -404,6 +453,8 @@ public:
 class HypreDiagScale : public HypreSolver
 {
 public:
+   HypreDiagScale() : HypreSolver() { }
+   explicit HypreDiagScale(HypreParMatrix &A) : HypreSolver(&A) { }
    virtual operator HYPRE_Solver() const { return NULL; }
 
    virtual HYPRE_PtrToParSolverFcn SetupFcn() const
@@ -529,5 +580,7 @@ public:
 
    virtual ~HypreADS();
 };
+
+}
 
 #endif

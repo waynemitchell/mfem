@@ -34,8 +34,12 @@
 //
 //               We recommend viewing example 1 before viewing this example.
 
-#include <fstream>
 #include "mfem.hpp"
+#include <fstream>
+#include <iostream>
+using namespace std;
+
+using namespace mfem;
 
 int main (int argc, char *argv[])
 {
@@ -163,10 +167,18 @@ int main (int argc, char *argv[])
    cout << "done." << endl;
    const SparseMatrix &A = a->SpMat();
 
+#ifndef MFEM_USE_SUITESPARSE
    // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
    PCG(A, M, *b, x, 1, 500, 1e-8, 0.0);
+#else
+   // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   UMFPackSolver umf_solver;
+   umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   umf_solver.SetOperator(A);
+   umf_solver.Mult(*b, x);
+#endif
 
    // 9. For non-NURBS meshes, make the mesh curved based on the finite element
    //    space. This means that we define the mesh elements through a fespace

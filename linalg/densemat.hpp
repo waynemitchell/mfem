@@ -12,6 +12,11 @@
 #ifndef MFEM_DENSEMAT
 #define MFEM_DENSEMAT
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Data type dense matrix
 class DenseMatrix : public Matrix
 {
@@ -102,6 +107,19 @@ public:
    /// Compute y^t A x
    double InnerProduct(const double *x, const double *y) const;
 
+   /// LeftScaling this = diag(s) * this
+   void LeftScaling(const Vector & s);
+   /// InvLeftScaling this = diag(1./s) * this
+   void InvLeftScaling(const Vector & s);
+   /// RightScaling: this = this * diag(s);
+   void RightScaling(const Vector & s);
+   /// InvRightScaling: this = this * diag(1./s);
+   void InvRightScaling(const Vector & s);
+   /// SymmetricScaling this = diag(sqrt(s)) * this * diag(sqrt(s))
+   void SymmetricScaling(const Vector & s);
+   /// InvSymmetricScaling this = diag(sqrt(1./s)) * this * diag(sqrt(1./s))
+   void InvSymmetricScaling(const Vector & s);
+
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const
    { return InnerProduct((const double *)x, (const double *)y); }
@@ -118,7 +136,7 @@ public:
    double Weight() const;
 
    /// Adds the matrix A multiplied by the number c to the matrix
-   void Add(const double c, DenseMatrix &A);
+   void Add(const double c, const DenseMatrix &A);
 
    /// Sets the matrix elements equal to constant c
    DenseMatrix &operator=(double c);
@@ -157,8 +175,9 @@ public:
    { Eigensystem(ev, &evect); }
 
    void SingularValues(Vector &sv) const;
+   int Rank(double tol) const;
 
-   /// Return the i-th singular value (decreasing order) of a 2x2 or 3x3 matrix
+   /// Return the i-th singular value (decreasing order) of NxN matrix, N=1,2,3.
    double CalcSingularvalue(const int i) const;
 
    /** Return the eigenvalues (in increasing order) and eigenvectors of a
@@ -169,6 +188,11 @@ public:
 
    void GetColumnReference(int c, Vector &col)
    { col.SetDataAndSize(data + c * height, height); }
+
+   /// Returns the diagonal of the matrix
+   void GetDiag(Vector &d);
+   /// Returns the l1 norm of the rows of the matrix v_i = sum_j |a_ij|
+   void Getl1Diag(Vector &l);
 
    /// Creates n x n diagonal matrix with diagonal elements c
    void Diag(double c, int n);
@@ -184,10 +208,10 @@ public:
 
    void Lump();
 
-   /** Given a DShape matrix (from a scalar FE), stored in *this,
-       returns the CurlShape matrix. If *this is a N by 3 matrix,
-       then curl is a 3*N by 3 matrix. The size of curl must be
-       set outside.  */
+   /** Given a DShape matrix (from a scalar FE), stored in *this, returns the
+       CurlShape matrix. If *this is a N by D matrix, then curl is a D*N by
+       D*(D-1)/2 matrix. The size of curl must be set outside. The dimension D
+       can be either 2 or 3. */
    void GradToCurl(DenseMatrix &curl);
    /** Given a DShape matrix (from a scalar FE), stored in *this,
        returns the DivShape vector. If *this is a N by dim matrix,
@@ -225,12 +249,13 @@ public:
 
    /** Count the number of entries in the matrix for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */
-   int CheckFinite() const { return ::CheckFinite(data, size*height); }
+   int CheckFinite() const { return mfem::CheckFinite(data, size*height); }
 
    /// Prints matrix to stream out.
-   virtual void Print(ostream &out = cout, int width = 4) const;
+   virtual void Print(std::ostream &out = std::cout, int width = 4) const;
+   virtual void PrintMatlab(std::ostream &out = std::cout) const;
    /// Prints the transpose matrix to stream out.
-   virtual void PrintT(ostream &out = cout, int width = 4) const;
+   virtual void PrintT(std::ostream &out = std::cout, int width = 4) const;
 
    /// Invert and print the numerical conditioning of the inversion.
    void TestInversion();
@@ -458,6 +483,8 @@ inline const double &DenseMatrix::operator()(int i, int j) const
 #endif
 
    return data[i+j*height];
+}
+
 }
 
 #endif

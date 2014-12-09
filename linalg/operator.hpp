@@ -12,7 +12,11 @@
 #ifndef MFEM_OPERATOR
 #define MFEM_OPERATOR
 
+#include <iostream>
 #include "vector.hpp"
+
+namespace mfem
+{
 
 /// Abstract operator
 class Operator
@@ -42,7 +46,7 @@ public:
    }
 
    /// Prints operator with input size n and output size m in matlab format.
-   void PrintMatlab (ostream & out, int n = 0, int m = 0);
+   void PrintMatlab (std::ostream & out, int n = 0, int m = 0);
 
    virtual ~Operator() { }
 };
@@ -61,6 +65,15 @@ public:
    virtual double GetTime() const { return t; }
 
    virtual void SetTime(const double _t) { t = _t; }
+
+   /** Solve the equation: k = f(x + dt*k, t), for the unknown k.
+       This method allows for the abstract implementation of some time
+       integration methods, including diagonal implicit Runge-Kutta (DIRK)
+       methods and the backward Euler method in particular. */
+   virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k)
+   {
+      mfem_error("TimeDependentOperator::ImplicitSolve() is not overloaded!");
+   }
 
    virtual ~TimeDependentOperator() { }
 };
@@ -99,11 +112,11 @@ public:
 class TransposeOperator : public Operator
 {
 private:
-   Operator * A;
+   const Operator * A;
 
 public:
    /// Saves the operator
-   TransposeOperator (Operator * a) : A(a) { size = A -> Size(); }
+   TransposeOperator (const Operator * a) : A(a) { size = A -> Size(); }
 
    /// Operator application
    virtual void Mult (const Vector & x, Vector & y) const
@@ -114,5 +127,7 @@ public:
 
    ~TransposeOperator() { }
 };
+
+}
 
 #endif

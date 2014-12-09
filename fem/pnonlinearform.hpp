@@ -12,6 +12,11 @@
 #ifndef MFEM_PNONLINEARFORM
 #define MFEM_PNONLINEARFORM
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /// Parallel non-linear operator on the true dofs
 class ParNonlinearForm : public NonlinearForm
 {
@@ -31,6 +36,10 @@ public:
    virtual void SetEssentialBC(const Array<int> &bdr_attr_is_ess,
                                Vector *rhs = NULL);
 
+   /// Compute the energy of a ParGridFunction
+   virtual double GetEnergy(const ParGridFunction &x) const;
+
+   /// Comute the energy of a true-dof vector 'x'
    virtual double GetEnergy(const Vector &x) const;
 
    virtual void Mult(const Vector &x, Vector &y) const;
@@ -39,5 +48,7 @@ public:
 
    virtual ~ParNonlinearForm() { delete pGrad; }
 };
+
+}
 
 #endif

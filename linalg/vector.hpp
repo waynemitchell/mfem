@@ -14,8 +14,12 @@
 
 // Data type vector
 
-#include <math.h>
 #include "../general/array.hpp"
+#include <cmath>
+#include <iostream>
+
+namespace mfem
+{
 
 /** Count the number of entries in an array of doubles for which isfinite
     is false, i.e. the entry is a NaN or +/-Inf. */
@@ -44,13 +48,13 @@ public:
    { data = _data; size = _size; allocsize = -size; }
 
    /// Reads a vector from multpile files
-   void Load (istream ** in, int np, int * dim);
+   void Load (std::istream ** in, int np, int * dim);
 
    /// Load a vector from an input stream.
-   void Load(istream &in, int Size);
+   void Load(std::istream &in, int Size);
 
    /// Load a vector from an input stream.
-   void Load(istream &in) { int s; in >> s; Load (in, s); };
+   void Load(std::istream &in) { int s; in >> s; Load (in, s); };
 
    /// Resizes the vector if the new size is different
    void SetSize(int s);
@@ -151,6 +155,9 @@ public:
    friend void subtract(const double a, const Vector &x,
                         const Vector &y, Vector &z);
 
+   /// v = median(v,lo,hi) entrywise.  Implementation assumes lo <= hi.
+   void median(const Vector &lo, const Vector &hi);
+
    void GetSubVector(const Array<int> &dofs, Vector &elemvect) const;
    void GetSubVector(const Array<int> &dofs, double *elem_data) const;
 
@@ -164,31 +171,33 @@ public:
                          const Vector & elemvect);
 
    /// Prints vector to stream out.
-   void Print(ostream & out = cout, int width = 8) const;
+   void Print(std::ostream & out = std::cout, int width = 8) const;
 
    /// Prints vector to stream out in HYPRE_Vector format.
-   void Print_HYPRE(ostream &out) const;
+   void Print_HYPRE(std::ostream &out) const;
 
    /// Set random values in the vector.
    void Randomize(int seed = 0);
    /// Returns the l2 norm of the vector.
-   double Norml2();
+   double Norml2() const;
    /// Returns the l_infinity norm of the vector.
-   double Normlinf();
+   double Normlinf() const;
    /// Returns the l_1 norm of the vector.
-   double Norml1();
+   double Norml1() const;
+   /// Returns the l_p norm of the vector.
+   double Normlp(double p) const;
    /// Returns the maximal element of the vector.
-   double Max();
+   double Max() const;
    /// Returns the minimal element of the vector.
-   double Min();
+   double Min() const;
    /// Return the sum of the vector entries
-   double Sum();
+   double Sum() const;
    /// Compute the Euclidian distance to another vector.
    double DistanceTo (const double *p) const;
 
    /** Count the number of entries in the Vector for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */
-   int CheckFinite() const { return ::CheckFinite(data, size); }
+   int CheckFinite() const { return mfem::CheckFinite(data, size); }
 
    /// Destroys vector.
    ~Vector ();
@@ -198,10 +207,21 @@ public:
 
 inline int CheckFinite(const double *v, const int n)
 {
+   // isfinite didn't appear in a standard until C99, and later C++11
+   // It wasn't standard in C89 or C++98.  PGI as of 14.7 still defines
+   // it as a macro, which sort of screws up everybody else.
    int bad = 0;
    for (int i = 0; i < n; i++)
+   {
+#ifdef isfinite
       if (!isfinite(v[i]))
-         bad++;
+#else
+         if (!std::isfinite(v[i]))
+#endif
+         {
+            bad++;
+         }
+   }
    return bad;
 }
 
@@ -270,12 +290,15 @@ inline Vector::~Vector()
 
 inline double Distance(const double *x, const double *y, const int n)
 {
+   using namespace std;
    double d = 0.0;
 
    for (int i = 0; i < n; i++)
       d += (x[i]-y[i])*(x[i]-y[i]);
 
    return sqrt(d);
+}
+
 }
 
 #endif

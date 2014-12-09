@@ -12,6 +12,11 @@
 #ifndef MFEM_INTRULES
 #define MFEM_INTRULES
 
+#include "../config.hpp"
+
+namespace mfem
+{
+
 /* Classes for IntegrationPoint, IntegrationRule, and container class
    IntegrationRules.  Declares the global variable IntRules */
 
@@ -25,6 +30,9 @@ public:
 
    void Set(const double *p, const int dim)
    { x = p[0]; if (dim > 1) { y = p[1]; if (dim > 2) z = p[2]; } }
+
+   void Get(double *p, const int dim) const
+   { p[0] = x; if (dim > 1) { p[1] = y; if (dim > 2) p[2] = z; } }
 
    void Set(const double x1, const double x2, const double x3, const double w)
    { x = x1; y = x2; z = x3; weight = w; }
@@ -62,8 +70,8 @@ private:
    /// Defines composite trapezoidal integration rule on [0,1]
    void UniformRule();
 
-   /// Define tetrahedron rule of order (2s+1)
-   void GrundmannMollerTetrahedronRule(int s);
+   /// Define n-simplex rule (triangle/tetrahedron for n=2/3) of order (2s+1)
+   void GrundmannMollerSimplexRule(int s, int n = 3);
 
    void AddTriMidPoint(const int off, const double weight)
    { IntPoint(off).Set2w(1./3., 1./3., weight); }
@@ -180,7 +188,11 @@ public:
    IntegrationRule() : Array<IntegrationPoint>() { }
 
    /// Construct an integration rule with given number of points
-   explicit IntegrationRule(int NP) : Array<IntegrationPoint>(NP) { }
+   explicit IntegrationRule(int NP) : Array<IntegrationPoint>(NP)
+   {
+      for (int i = 0; i < this->Size(); i++)
+         (*this)[i].Init();
+   }
 
    /// Tensor product of two 1D integration rules
    IntegrationRule(IntegrationRule &irx, IntegrationRule &iry);
@@ -202,7 +214,7 @@ public:
 class IntegrationRules
 {
 private:
-   int own_rules;
+   int own_rules, refined;
 
    Array<IntegrationRule *> PointIntRules;
    Array<IntegrationRule *> SegmentIntRules;
@@ -211,18 +223,30 @@ private:
    Array<IntegrationRule *> TetrahedronIntRules;
    Array<IntegrationRule *> CubeIntRules;
 
-   void PointIntegrationRules();
-   void SegmentIntegrationRules(int refined);
-   void TriangleIntegrationRules(int refined);
-   void SquareIntegrationRules();
-   void TetrahedronIntegrationRules(int refined);
-   void CubeIntegrationRules();
+   void AllocIntRule(Array<IntegrationRule *> &ir_array, int Order)
+   {
+      if (ir_array.Size() <= Order)
+         ir_array.SetSize(Order + 1, NULL);
+   }
+   bool HaveIntRule(Array<IntegrationRule *> &ir_array, int Order)
+   {
+      return (ir_array.Size() > Order && ir_array[Order] != NULL);
+   }
+
+   IntegrationRule *GenerateIntegrationRule(int GeomType, int Order);
+   IntegrationRule *PointIntegrationRule(int Order);
+   IntegrationRule *SegmentIntegrationRule(int Order);
+   IntegrationRule *TriangleIntegrationRule(int Order);
+   IntegrationRule *SquareIntegrationRule(int Order);
+   IntegrationRule *TetrahedronIntegrationRule(int Order);
+   IntegrationRule *CubeIntegrationRule(int Order);
 
    void DeleteIntRuleArray(Array<IntegrationRule *> &ir_array);
 
 public:
-   /// Defines all integration rules
-   explicit IntegrationRules(int refined = 0);
+   /// Sets initial sizes for the integration rule arrays, but rules
+   /// are defined the first time they are requested with the Get method.
+   explicit IntegrationRules(int Ref = 0);
 
    /// Returns an integration rule for given GeomType and Order.
    const IntegrationRule &Get(int GeomType, int Order);
@@ -240,5 +264,7 @@ extern IntegrationRules IntRules;
 
 /// A global object with all refined integration rules
 extern IntegrationRules RefinedIntRules;
+
+}
 
 #endif

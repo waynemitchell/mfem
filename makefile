@@ -28,24 +28,32 @@ USE_OPENMP = NO
 # Which version of the METIS library should be used, 4 (default) or 5?
 USE_METIS_5 = NO
 
+# The LAPACK library
+USE_LAPACK = NO
+
 # The MESQUITE library
-MESQUITE_DIR  = ../../mesquite-2.99
+USE_MESQUITE = NO
+MESQUITE_DIR = ../../mesquite-2.99
+
+# The SuiteSparse library
+USE_SUITESPARSE = NO
+SUITESPARSE_DIR = ../../SuiteSparse
 
 # Internal mfem options
-USE_MEMALLOC     = YES
-USE_LAPACK       = NO
-USE_MESQUITE     = NO
-
-USE_MEMALLOC_NO  =
-USE_MEMALLOC_YES = -DMFEM_USE_MEMALLOC
-USE_MEMALLOC_DEF = $(USE_MEMALLOC_$(USE_MEMALLOC))
+USE_MEMALLOC = YES
+# Use high-resolution POSIX clocks, link with -lrt
+USE_POSIX_CLOCKS = NO
 
 USE_LAPACK_NO  =
 USE_LAPACK_YES = -DMFEM_USE_LAPACK
 USE_LAPACK_DEF = $(USE_LAPACK_$(USE_LAPACK))
 
+USE_MEMALLOC_NO  =
+USE_MEMALLOC_YES = -DMFEM_USE_MEMALLOC
+USE_MEMALLOC_DEF = $(USE_MEMALLOC_$(USE_MEMALLOC))
+
 USE_OPENMP_NO  =
-USE_OPENMP_YES = -fopenmp -DMFEM_USE_OPENMP
+USE_OPENMP_YES = -fopenmp -DMFEM_USE_OPENMP -DMFEM_THREAD_SAFE
 USE_OPENMP_DEF = $(USE_OPENMP_$(USE_OPENMP))
 
 USE_METIS_5_NO  =
@@ -59,10 +67,19 @@ USE_MESQUITE_OPTS_NO  =
 USE_MESQUITE_OPTS_YES = -I$(MESQUITE_DIR)/include
 USE_MESQUITE_OPTS     = $(USE_MESQUITE_OPTS_$(USE_MESQUITE))
 
-DEFS = $(USE_LAPACK_DEF) $(USE_MEMALLOC_DEF) $(USE_OPENMP_DEF) \
-       $(USE_METIS_5_DEF) $(USE_MESQUITE_DEF)
+SUITESPARSE_OPT_NO  =
+SUITESPARSE_OPT_YES = -DMFEM_USE_SUITESPARSE -I$(SUITESPARSE_DIR)/include
+SUITESPARSE_OPT     = $(SUITESPARSE_OPT_$(USE_SUITESPARSE))
 
-CCC = $(CC) $(CCOPTS) $(DEFS) $(USE_MESQUITE_OPTS)
+POSIX_CLOCKS_DEF_NO  =
+POSIX_CLOCKS_DEF_YES = -DMFEM_USE_POSIX_CLOCKS
+POSIX_CLOCKS_DEF = $(POSIX_CLOCKS_DEF_$(USE_POSIX_CLOCKS))
+
+DEFS = $(USE_LAPACK_DEF) $(USE_MEMALLOC_DEF) $(USE_OPENMP_DEF) \
+       $(USE_METIS_5_DEF) $(USE_MESQUITE_DEF) $(POSIX_CLOCKS_DEF)
+
+LIBS_OPT = $(USE_MESQUITE_OPTS) $(SUITESPARSE_OPT)
+CCC = $(CC) $(CCOPTS) $(DEFS) $(LIBS_OPT)
 
 # Generate with 'echo general/*.cpp linalg/*.cpp mesh/*.cpp fem/*.cpp'
 SOURCE_FILES = general/array.cpp general/communication.cpp general/error.cpp   \
@@ -71,6 +88,7 @@ general/socketstream.cpp general/sort_pairs.cpp general/stable3d.cpp           \
 general/table.cpp general/tic_toc.cpp linalg/densemat.cpp linalg/hypre.cpp     \
 linalg/matrix.cpp linalg/ode.cpp linalg/operator.cpp linalg/solvers.cpp        \
 linalg/sparsemat.cpp linalg/sparsesmoothers.cpp linalg/vector.cpp              \
+linalg/blockmatrix.cpp linalg/blockoperator.cpp linalg/blockvector.cpp         \
 mesh/element.cpp mesh/hexahedron.cpp mesh/mesh.cpp mesh/mesquite.cpp           \
 mesh/ncmesh.cpp mesh/nurbs.cpp mesh/pmesh.cpp mesh/point.cpp                   \
 mesh/quadrilateral.cpp mesh/segment.cpp mesh/tetrahedron.cpp mesh/triangle.cpp \
@@ -89,6 +107,7 @@ general/sets.hpp general/socketstream.hpp general/sort_pairs.hpp               \
 general/stable3d.hpp general/table.hpp general/tic_toc.hpp linalg/densemat.hpp \
 linalg/hypre.hpp linalg/linalg.hpp linalg/matrix.hpp linalg/ode.hpp            \
 linalg/operator.hpp linalg/solvers.hpp linalg/sparsemat.hpp                    \
+linalg/blockmatrix.hpp linalg/blockoperator.hpp linalg/blockvector.hpp         \
 linalg/sparsesmoothers.hpp linalg/vector.hpp mesh/element.hpp                  \
 mesh/hexahedron.hpp mesh/mesh_headers.hpp mesh/mesh.hpp mesh/mesquite.hpp      \
 mesh/ncmesh.hpp mesh/nurbs.hpp mesh/pmesh.hpp mesh/point.hpp                   \
@@ -105,10 +124,10 @@ fem/pnonlinearform.hpp
 	cd $(<D); $(CCC) -c $(<F)
 
 serial:
-	$(MAKE) "CCC=$(CC) $(DEFS) $(CCOPTS) $(USE_MESQUITE_OPTS)" lib
+	$(MAKE) "CCC=$(CC) $(DEFS) $(CCOPTS) $(LIBS_OPT)" lib
 
 parallel:
-	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(USE_MESQUITE_OPTS)" lib
+	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIOPTS) $(LIBS_OPT)" lib
 
 lib: libmfem.a mfem_defs.hpp
 
@@ -116,7 +135,7 @@ debug:
 	$(MAKE) "CCOPTS=$(DEBUG_OPTS)"
 
 pdebug:
-	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIDEBUG) $(USE_MESQUITE_OPTS)" lib
+	$(MAKE) "CCC=$(MPICC) $(DEFS) -DMFEM_USE_MPI $(MPIDEBUG) $(LIBS_OPT)" lib
 
 opt: serial
 

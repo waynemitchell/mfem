@@ -9,10 +9,15 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
 #include "../general/sort_pairs.hpp"
+
+namespace mfem
+{
 
 ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
    : FiniteElementSpace(pf)
@@ -254,7 +259,7 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       dof_offsets.SetSize(3);
       tdof_offsets.SetSize(3);
 
-      MPI_Scan(&ldof, &dof_offsets[0], 2, MPI_INT, MPI_SUM, MyComm);
+      MPI_Scan(ldof, &dof_offsets[0], 2, MPI_INT, MPI_SUM, MyComm);
 
       tdof_offsets[1] = dof_offsets[1];
       tdof_offsets[0] = tdof_offsets[1] - ldof[1];
@@ -269,7 +274,7 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
          ldof[1] = tdof_offsets[1];
       }
 
-      MPI_Bcast(&ldof, 2, MPI_INT, NRanks-1, MyComm);
+      MPI_Bcast(ldof, 2, MPI_INT, NRanks-1, MyComm);
       dof_offsets[2] = ldof[0];
       tdof_offsets[2] = ldof[1];
    }
@@ -821,6 +826,8 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
    ConstructTrueDofs();
    GenerateGlobalOffsets();
    return cpfes;
+}
+
 }
 
 #endif

@@ -12,6 +12,12 @@
 #ifndef MFEM_MESH
 #define MFEM_MESH
 
+#include <iostream>
+#include "../config.hpp"
+
+namespace mfem
+{
+
 // Data type mesh
 
 class NURBSExtension;
@@ -46,6 +52,8 @@ protected:
    int f_NumOfEdges, f_NumOfFaces;
 
    Array<Element *> elements;
+   // Vertices are only at the corners of elements, where you would expect them
+   // in the lowest-order mesh.
    Array<Vertex> vertices;
    Array<Element *> boundary;
    Array<Element *> faces;
@@ -68,9 +76,12 @@ protected:
    Array<FaceInfo> fc_faces_info;      // for 3D two-level state
 
    IsoparametricTransformation Transformation, Transformation2;
-   IsoparametricTransformation FaceTransformation;
+   IsoparametricTransformation FaceTransformation, EdgeTransformation;
    FaceElementTransformations FaceElemTr;
 
+   // Nodes are only active for higher order meshes, and share locations with
+   // the vertecies, plus all the higher- order control points within the
+   // element and along the edges and on the faces.
    GridFunction *Nodes;
    int own_nodes;
 
@@ -97,11 +108,11 @@ protected:
        Usefull in refinement methods to destroy the coarse tables. */
    void DeleteCoarseTables();
 
-   Element *ReadElementWithoutAttr(istream &);
-   static void PrintElementWithoutAttr(Element *, ostream &);
+   Element *ReadElementWithoutAttr(std::istream &);
+   static void PrintElementWithoutAttr(const Element *, std::ostream &);
 
-   Element *ReadElement(istream &);
-   static void PrintElement(Element *, ostream &);
+   Element *ReadElement(std::istream &);
+   static void PrintElement(const Element *, std::ostream &);
 
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;
@@ -115,8 +126,8 @@ protected:
    void GetEdgeOrdering(DSTable &v_to_v, Array<int> &order);
    void MarkTetMeshForRefinement();
 
-   void PrepareNodeReorder(DSTable **old_v_to_v);
-   void DoNodeReorder(DSTable *old_v_to_v);
+   void PrepareNodeReorder(DSTable **old_v_to_v, Table **old_elem_vert);
+   void DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert);
 
    STable3D *GetFacesTable();
    STable3D *GetElementToFaceTable(int ret_ftbl = 0);
@@ -159,11 +170,11 @@ protected:
    virtual void NURBSUniformRefinement();
 
    /// Read NURBS patch/macro-element mesh
-   void LoadPatchTopo(istream &input, Array<int> &edge_to_knot);
+   void LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot);
 
    void UpdateNURBS();
 
-   void PrintTopo(ostream &out, const Array<int> &e_to_k) const;
+   void PrintTopo(std::ostream &out, const Array<int> &e_to_k) const;
 
    void BisectTriTrans (DenseMatrix &pointmat, Triangle *tri,
                         int child);
@@ -229,6 +240,26 @@ protected:
 
    void GenerateFaces();
 
+   /// Begin construction of a mesh
+   void InitMesh(int _Dim, int NVert, int NElem, int NBdrElem);
+
+   /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
+       nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
+       if type=TETRAHEDRON. If generate_edges = 0 (default) edges are not
+       generated, if 1 edges are generated. */
+   void Make3D(int nx, int ny, int nz, Element::Type type, int generate_edges,
+               double sx, double sy, double sz);
+
+   /** Creates mesh for the rectangle [0,sx]x[0,sy], divided into nx*ny
+       quadrilaterals if type = QUADRILATERAL or into 2*nx*ny triangles if
+       type = TRIANGLE. If generate_edges = 0 (default) edges are not generated,
+       if 1 edges are generated. */
+   void Make2D(int nx, int ny, Element::Type type, int generate_edges,
+               double sx, double sy);
+
+   /// Creates a 1D mesh for the interval [0,sx] divided into n equal intervals.
+   void Make1D(int n, double sx = 1.0);
+
 public:
 
    enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
@@ -241,7 +272,10 @@ public:
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
-   Mesh (int _Dim, int NVert, int NElem, int NBdrElem = 0);
+   Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0)
+   {
+      InitMesh(_Dim, NVert, NElem, NBdrElem);
+   }
 
    Element *NewElement(int geom);
 
@@ -251,39 +285,55 @@ public:
    void AddQuad (int *vi, int attr = 1);
    void AddTet (int *vi, int attr = 1);
    void AddHex (int *vi, int attr = 1);
+   void AddHexAsTets(int *vi, int attr = 1);
    // 'elem' should be allocated using the NewElement method
    void AddElement (Element *elem)  { elements[NumOfElements++] = elem; }
    void AddBdrSegment (int *vi, int attr = 1);
    void AddBdrTriangle (int *vi, int attr = 1);
    void AddBdrQuad (int *vi, int attr = 1);
+   void AddBdrQuadAsTriangles(int *vi, int attr = 1);
    void GenerateBoundaryElements();
-   void FinalizeTriMesh (int generate_edges = 0, int refine = 0);
-   void FinalizeQuadMesh (int generate_edges = 0, int refine = 0);
-   void FinalizeTetMesh (int generate_edges = 0, int refine = 0);
-   void FinalizeHexMesh (int generate_edges = 0, int refine = 0);
+   void FinalizeTriMesh(int generate_edges = 0, int refine = 0,
+                        bool fix_orientation = true);
+   void FinalizeQuadMesh(int generate_edges = 0, int refine = 0,
+                         bool fix_orientation = true);
+   void FinalizeTetMesh(int generate_edges = 0, int refine = 0,
+                        bool fix_orientation = true);
+   void FinalizeHexMesh(int generate_edges = 0, int refine = 0,
+                        bool fix_orientation = true);
 
    void SetAttributes();
-   /** Creates mesh for the unit cube, divided into nx * ny *nz hexahedrals
-       if type=HEXAHEDRON or into 2*nx*ny*nz tetrahedrons if type=TETRAHEDRON.
-       If generate_edges = 0 (default) edges are not generated, if 1 edges
-       are generated. The type=TETRAHEDRON is NOT implemented yet! */
-   Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
-        double sx = 1.0, double sy = 1.0, double sz = 1.0);
 
-   /** Creates mesh for the unit square, divided into nx * ny quadrilaterals
-       if type = QUADRILATERAL or into 2*nx*ny triangles if type = TRIANGLE.
-       If generate_edges = 0 (default) edges are not generated, if 1 edges
-       are generated. */
+   /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
+       nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
+       if type=TETRAHEDRON. If generate_edges = 0 (default) edges are not
+       generated, if 1 edges are generated. */
+   Mesh(int nx, int ny, int nz, Element::Type type, int generate_edges = 0,
+        double sx = 1.0, double sy = 1.0, double sz = 1.0)
+   {
+      Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
+   }
+
+   /** Creates mesh for the rectangle [0,sx]x[0,sy], divided into nx*ny
+       quadrilaterals if type = QUADRILATERAL or into 2*nx*ny triangles if
+       type = TRIANGLE. If generate_edges = 0 (default) edges are not generated,
+       if 1 edges are generated. */
    Mesh(int nx, int ny, Element::Type type, int generate_edges = 0,
-        double sx = 1.0, double sy = 1.0);
+        double sx = 1.0, double sy = 1.0)
+   {
+      Make2D(nx, ny, type, generate_edges, sx, sy);
+   }
 
    /** Creates 1D mesh , divided into n equal intervals. */
-   explicit Mesh(int n);
+   explicit Mesh(int n, double sx = 1.0)
+   {
+      Make1D(n, sx);
+   }
 
    /** Creates mesh by reading data stream in MFEM, netgen, or VTK format. If
        generate_edges = 0 (default) edges are not generated, if 1 edges are
        generated. */
-   Mesh(istream &input, int generate_edges = 0, int refine = 1,
+   Mesh(std::istream &input, int generate_edges = 0, int refine = 1,
         bool fix_orientation = true);
 
    /// Create a disjoint mesh from the given mesh array
@@ -293,7 +343,7 @@ public:
       mesh is destroyed and another one created based on the data stream
       again given in MFEM, netgen, or VTK format. If generate_edges = 0
       (default) edges are not generated, if 1 edges are generated. */
-   void Load(istream &input, int generate_edges = 0, int refine = 1,
+   void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
    void SetNodalFESpace(FiniteElementSpace *nfes);
@@ -303,7 +353,8 @@ public:
    /// Truegrid or NetGen?
    inline int MeshGenerator() { return meshgen; }
 
-   /// Returns number of vertices.
+   /** Returns number of vertices.  Vertices are only at the corners of
+       elements, where you would expect them in the lowest-order mesh. */
    inline int GetNV() const { return NumOfVertices; }
 
    /// Returns number of elements.
@@ -437,6 +488,13 @@ public:
    /// Returns the transformation defining the given face element
    ElementTransformation *GetFaceTransformation(int FaceNo);
 
+   /** Returns the transformation defining the given edge element.
+       The transformation is stored in a user-defined variable. */
+   void GetEdgeTransformation(int i, IsoparametricTransformation *EdTr);
+
+   /// Returns the transformation defining the given face element
+   ElementTransformation *GetEdgeTransformation(int EdgeNo);
+
    /** Returns (a poiter to a structure containing) the following data:
        1) Elem1No - the index of the first element that contains this face
        this is the element that has the same outward unit normal
@@ -468,6 +526,10 @@ public:
 
    FaceElementTransformations *GetBdrFaceTransformations (int BdrElemNo);
 
+   bool FaceIsInterior(int FaceNo) const
+   {
+      return (faces_info[FaceNo].Elem2No >= 0);
+   }
    void GetFaceElements (int Face, int *Elem1, int *Elem2);
    void GetFaceInfos (int Face, int *Inf1, int *Inf2);
 
@@ -511,10 +573,16 @@ public:
    void CheckPartitioning(int *partitioning);
 
    void CheckDisplacements(const Vector &displacements, double &tmax);
+
+   // Vertices are only at the corners of elements, where you would expect them
+   // in the lowest-order mesh.
    void MoveVertices(const Vector &displacements);
    void GetVertices(Vector &vert_coord) const;
    void SetVertices(const Vector &vert_coord);
 
+   // Nodes are only active for higher order meshes, and share locations with
+   // the vertecies, plus all the higher- order control points within the
+   // element and along the edges and on the faces.
    void GetNode(int i, double *coord);
    void SetNode(int i, const double *coord);
 
@@ -572,31 +640,38 @@ public:
    ElementTransformation * GetFineElemTrans (int i, int j);
 
    /// Print the mesh to the given stream using Netgen/Truegrid format.
-   virtual void PrintXG(ostream &out = cout) const;
+   virtual void PrintXG(std::ostream &out = std::cout) const;
 
    /// Print the mesh to the given stream using the default MFEM mesh format.
-   virtual void Print(ostream &out = cout) const;
+   virtual void Print(std::ostream &out = std::cout) const;
 
    /// Print the mesh in VTK format (linear and quadratic meshes only).
-   void PrintVTK(ostream &out);
+   void PrintVTK(std::ostream &out);
 
    /** Print the mesh in VTK format. The parameter ref specifies an element
        subdivision number (useful for high order fields and curved meshes).
        If the optional field_data is set, we also add a FIELD section in the
        beginning of the file with additional dataset information. */
-   void PrintVTK(ostream &out, int ref, int field_data=0);
+   void PrintVTK(std::ostream &out, int ref, int field_data=0);
 
    void GetElementColoring(Array<int> &colors, int el0 = 0);
 
    /** Prints the mesh with bdr elements given by the boundary of
        the subdomains, so that the boundary of subdomain i has bdr
-       attribute i. */
+       attribute i+1. */
    void PrintWithPartitioning (int *partitioning,
-                               ostream &out, int elem_attr = 0) const;
+                               std::ostream &out, int elem_attr = 0) const;
 
    void PrintElementsWithPartitioning (int *partitioning,
-                                       ostream &out,
+                                       std::ostream &out,
                                        int interior_faces = 0);
+
+   /// Print set of disjoint surfaces:
+   /*!
+    * If Aface_face(i,j) != 0, print face j as a boundary
+    * element with attribute i+1.
+    */
+   void PrintSurfaces(const Table &Aface_face, std::ostream &out) const;
 
    void ScaleSubdomains (double sf);
    void ScaleElements (double sf);
@@ -620,6 +695,28 @@ public:
 };
 
 
+/// Class used to exrude the nodes of a mesh
+class NodeExtrudeCoefficient : public VectorCoefficient
+{
+private:
+   int n, layer;
+   double p[2], s;
+   Vector tip;
+public:
+   NodeExtrudeCoefficient(const int dim, const int _n, const double _s);
+   void SetLayer(const int l) { layer = l; }
+   using VectorCoefficient::Eval;
+   virtual void Eval(Vector &V, ElementTransformation &T,
+                     const IntegrationPoint &ip);
+   virtual ~NodeExtrudeCoefficient() { }
+};
+
+
+/// Extrude a 1D mesh
+Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy,
+                const bool closed = false);
+
+
 // inline functions
 inline void Mesh::ShiftL2R(int &a, int &b, int &c)
 {
@@ -641,6 +738,8 @@ inline void Mesh::Rotate3(int &a, int &b, int &c)
       else
          ShiftL2R(a, b, c);
    }
+}
+
 }
 
 #endif
