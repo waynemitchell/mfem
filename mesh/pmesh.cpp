@@ -2390,9 +2390,9 @@ void ParMesh::Print(std::ostream &out) const
    if (Dim > 1)
    {
       if(bdr_attributes.Size())
-	 shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
+         shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
       else
-	 shared_bdr_attr = MyRank + 1;
+         shared_bdr_attr = MyRank + 1;
       for (i = 0; i < s2l_face.Size(); i++)
       {
          // Modify the attrributes of the faces (not used otherwise?)
