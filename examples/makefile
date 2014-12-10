@@ -68,9 +68,9 @@ POSIX_CLOCKS_LIB_NO  =
 POSIX_CLOCKS_LIB_YES = -lrt
 POSIX_CLOCKS_LIB = $(POSIX_CLOCKS_LIB_$(USE_POSIX_CLOCKS))
 
-serial: ex1 ex2 ex3 ex4 ex5 ex-dpg ex-dpg-hdiv ex-dpg-schur
+serial: ex1 ex2 ex3 ex4 ex5 ex8
 
-parallel: ex1p ex2p ex3p ex4p ex5p ex-dpg-hdiv-ams ex-dpg-schur-ams
+parallel: ex1p ex2p ex3p ex4p ex5p
 
 ex1: ex1.cpp
 	$(CC) $(COPTS) ex1.cpp -o ex1 $(LIBS)
@@ -102,20 +102,8 @@ ex5: ex5.cpp
 ex5p: ex5p.cpp
 	$(MPICC) $(MPIOPTS) ex5p.cpp -o ex5p $(MPILIBS)
 
-ex-dpg: ex-dpg.cpp
-	$(CC) $(COPTS) ex-dpg.cpp -o ex-dpg $(LIBS)
-
-ex-dpg-hdiv: ex-dpg-hdiv.cpp
-	$(CC) $(COPTS) ex-dpg-hdiv.cpp -o ex-dpg-hdiv $(LIBS)
-
-ex-dpg-hdiv-ams: ex-dpg-hdiv-ams.cpp
-	$(MPICC) $(MPIOPTS) ex-dpg-hdiv-ams.cpp -o ex-dpg-hdiv-ams $(MPILIBS)
-
-ex-dpg-schur: ex-dpg-schur.cpp
-	$(CC) $(COPTS) ex-dpg-schur.cpp -o ex-dpg-schur $(LIBS)
-
-ex-dpg-schur-ams: ex-dpg-schur-ams.cpp
-	$(MPICC) $(MPIOPTS) ex-dpg-schur-ams.cpp -o ex-dpg-schur-ams $(MPILIBS)
+ex8: ex8.cpp
+	$(CC) $(COPTS) ex8.cpp -o ex8 $(LIBS)
 
 debug:
 	$(MAKE) "OPTS=$(DEBUG_OPTS)" serial
@@ -124,5 +112,5 @@ pdebug:
 	$(MAKE) "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
 
 clean:
-	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p ex-dpg ex-dpg-hdiv ex-dpg-hdiv-ams ex-dpg-schur ex-dpg-schur-ams
+	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p ex8
 	rm -f refined.mesh displaced.mesh sol.* mesh.* ex5.mesh sol_u.* sol_p.*
