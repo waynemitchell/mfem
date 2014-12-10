@@ -2620,7 +2620,7 @@ void ParMesh::PrintAsOne(std::ostream &out)
          vert.SetSize(NumOfVertices*spaceDim);
          for (i = 0; i < NumOfVertices; i++)
             for (j = 0; j < spaceDim; j++)
-               vert[i*Dim+j] = vertices[i](j);
+               vert[i*spaceDim+j] = vertices[i](j);
          MPI_Send(&vert[0], NumOfVertices*spaceDim, MPI_DOUBLE, 0, 449, MyComm);
       }
    }

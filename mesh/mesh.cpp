@@ -237,7 +237,7 @@ void Mesh::GetBdrElementTransformation(int i, IsoparametricTransformation* ElTr)
       Array<int> vdofs;
       Nodes->FESpace()->GetBdrElementVDofs(i, vdofs);
       int n = vdofs.Size()/spaceDim;
-      pm.SetSize(Dim, n);
+      pm.SetSize(spaceDim, n);
       for (int k = 0; k < spaceDim; k++)
          for (int j = 0; j < n; j++)
             pm(k,j) = (*Nodes)(vdofs[n*k+j]);
