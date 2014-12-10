@@ -1,4 +1,4 @@
-//                                MFEM Example 5
+//                       MFEM Example 5 - Parallel Version
 //
 // Compile with: make ex5p
 //

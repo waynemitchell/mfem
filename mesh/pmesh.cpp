@@ -36,6 +36,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    MPI_Comm_rank(MyComm, &MyRank);
 
    Dim = mesh.Dim;
+   spaceDim = mesh.spaceDim;
 
    if (partitioning_)
       partitioning = partitioning_;
@@ -576,8 +577,8 @@ void ParMesh::GetFaceNbrElementTransformation(
       const int nv = elem->GetNVertices();
       const int *v = elem->GetVertices();
 
-      pointmat.SetSize(Dim, nv);
-      for (int k = 0; k < Dim; k++)
+      pointmat.SetSize(spaceDim, nv);
+      for (int k = 0; k < spaceDim; k++)
          for (int j = 0; j < nv; j++)
             pointmat(k, j) = face_nbr_vertices[v[j]](k);
 
@@ -590,9 +591,9 @@ void ParMesh::GetFaceNbrElementTransformation(
       if (pNodes)
       {
          pNodes->ParFESpace()->GetFaceNbrElementVDofs(i, vdofs);
-         int n = vdofs.Size()/Dim;
-         pointmat.SetSize(Dim, n);
-         for (int k = 0; k < Dim; k++)
+         int n = vdofs.Size()/spaceDim;
+         pointmat.SetSize(spaceDim, n);
+         for (int k = 0; k < spaceDim; k++)
             for (int j = 0; j < n; j++)
                pointmat(k,j) = (pNodes->FaceNbrData())(vdofs[n*k+j]);
 
@@ -2185,6 +2186,7 @@ void ParMesh::NURBSUniformRefinement()
 
 void ParMesh::PrintXG(std::ostream &out) const
 {
+   MFEM_ASSERT(Dim == spaceDim, "2D manifolds not supported");
    if (Dim == 3 && meshgen == 1)
    {
       int i, j, nv;
@@ -2387,7 +2389,10 @@ void ParMesh::Print(std::ostream &out) const
 
    if (Dim > 1)
    {
-      shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
+      if(bdr_attributes.Size())
+	 shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
+      else
+	 shared_bdr_attr = MyRank + 1;
       for (i = 0; i < s2l_face.Size(); i++)
       {
          // Modify the attrributes of the faces (not used otherwise?)
@@ -2398,11 +2403,11 @@ void ParMesh::Print(std::ostream &out) const
    out << "\nvertices\n" << NumOfVertices << '\n';
    if (Nodes == NULL)
    {
-      out << Dim << '\n';
+      out << spaceDim << '\n';
       for (i = 0; i < NumOfVertices; i++)
       {
          out << vertices[i](0);
-         for (j = 1; j < Dim; j++)
+         for (j = 1; j < spaceDim; j++)
             out << ' ' << vertices[i](j);
          out << '\n';
       }
@@ -2587,24 +2592,24 @@ void ParMesh::PrintAsOne(std::ostream &out)
    {
       if (MyRank == 0)
       {
-         out << Dim << '\n';
+         out << spaceDim << '\n';
          for (i = 0; i < NumOfVertices; i++)
          {
             out << vertices[i](0);
-            for (j = 1; j < Dim; j++)
+            for (j = 1; j < spaceDim; j++)
                out << ' ' << vertices[i](j);
             out << '\n';
          }
          for (p = 1; p < NRanks; p++)
          {
             MPI_Recv(&nv, 1, MPI_INT, p, 448, MyComm, &status);
-            vert.SetSize(nv*Dim);
-            MPI_Recv(&vert[0], nv*Dim, MPI_DOUBLE, p, 449, MyComm, &status);
+            vert.SetSize(nv*spaceDim);
+            MPI_Recv(&vert[0], nv*spaceDim, MPI_DOUBLE, p, 449, MyComm, &status);
             for (i = 0; i < nv; i++)
             {
-               out << vert[i*Dim];
-               for (j = 1; j < Dim; j++)
-                  out << ' ' << vert[i*Dim+j];
+               out << vert[i*spaceDim];
+               for (j = 1; j < spaceDim; j++)
+                  out << ' ' << vert[i*spaceDim+j];
                out << '\n';
             }
          }
@@ -2612,11 +2617,11 @@ void ParMesh::PrintAsOne(std::ostream &out)
       else
       {
          MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 448, MyComm);
-         vert.SetSize(NumOfVertices*Dim);
+         vert.SetSize(NumOfVertices*spaceDim);
          for (i = 0; i < NumOfVertices; i++)
-            for (j = 0; j < Dim; j++)
-               vert[i*Dim+j] = vertices[i](j);
-         MPI_Send(&vert[0], NumOfVertices*Dim, MPI_DOUBLE, 0, 449, MyComm);
+            for (j = 0; j < spaceDim; j++)
+               vert[i*spaceDim+j] = vertices[i](j);
+         MPI_Send(&vert[0], NumOfVertices*spaceDim, MPI_DOUBLE, 0, 449, MyComm);
       }
    }
    else
@@ -2646,6 +2651,7 @@ void ParMesh::PrintAsOne(std::ostream &out)
 
 void ParMesh::PrintAsOneXG(std::ostream &out)
 {
+   MFEM_ASSERT(Dim == spaceDim, "2D Manifolds not supported.");
    if (Dim == 3 && meshgen == 1)
    {
       int i, j, k, nv, ne, p;
