@@ -5739,33 +5739,9 @@ Mesh::Mesh(NCMesh &ncmesh)
 
    ncmesh.GetVerticesElementsBoundary(vertices, elements, boundary);
 
-<<<<<<< HEAD
    NumOfVertices = vertices.Size();
    NumOfElements = elements.Size();
    NumOfBdrElements = boundary.Size();
-=======
-      // count and enumerate the new vertices (including dependent vertices)
-      num_vert = NumOfVertices;
-      for (NCMesh::AllVertex_iterator vi(*ncmesh); vi; ++vi)
-         if (vi->id < 0)
-            vi->id = num_vert++;
-      vertices.SetSize(num_vert);
-      // set the coordinates of the new vertices
-      for (NCMesh::AllVertex_iterator vi(*ncmesh); vi; ++vi)
-         if (vi->id >= NumOfVertices)
-         {
-            NCMesh::Vertex *pv[2];
-            vi.parent_vertices(pv);
-#ifdef MFEM_DEBUG
-            if (pv[1] == NULL)
-               mfem_error("Mesh::NonconformingRefinement : oops!");
-#endif
-            for (int d = 0; d < spaceDim; d++)
-               vertices[vi->id](d) = (vertices[pv[0]->id](d) +
-                                      vertices[pv[1]->id](d))/2;
-         }
-      NumOfVertices = num_vert;
->>>>>>> master
 
    meshgen = 2;
 
