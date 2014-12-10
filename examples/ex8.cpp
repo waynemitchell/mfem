@@ -145,8 +145,8 @@ public:
       Vector y2(y.GetData()+s0+s1,s2), x2(x.GetData()+s0+s1,s2); // test
 
       y = 0.0;
-      CG(*X0pc, x0, y0, -1, 1000, 1e-24, 0);
-      CG(*Xhatpc, x1, y1, -1, 1000, 1e-24, 0);
+      CG(*X0pc, x0, y0, -1, 300, 1e-24, 0);
+      CG(*Xhatpc, x1, y1, -1, 300, 1e-24, 0);
       Sinvpc->Mult(x2,y2);
    }
 
@@ -300,7 +300,7 @@ int main(int argc, char *argv[])
 
       A = new DPG2x2Operator(matB0, matBhat, matSinv);
 
-      CG(*A, b, X, 1, 10000, 1e-16, 0);
+      CG(*A, b, X, 1, 300, 1e-16, 0);
    }
    else
    {
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
       DPG3x3Preconditioner *B =
          new DPG3x3Preconditioner(matS0, matBhat, matSinv);
 
-      MINRES(*A, *B, b, X, 1, 10000, 1e-16, 0.);
+      MINRES(*A, *B, b, X, 1, 300, 1e-16, 0.);
 
       delete B;
       delete S0;
