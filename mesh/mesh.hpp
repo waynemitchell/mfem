@@ -37,6 +37,7 @@ class Mesh
 
 protected:
    int Dim;
+   int spaceDim;
 
    int NumOfVertices, NumOfElements, NumOfBdrElements;
    int NumOfEdges, NumOfFaces;
@@ -241,7 +242,7 @@ protected:
    void GenerateFaces();
 
    /// Begin construction of a mesh
-   void InitMesh(int _Dim, int NVert, int NElem, int NBdrElem);
+   void InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem);
 
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
        nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
@@ -272,26 +273,28 @@ public:
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
-   Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0)
+   Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
-      InitMesh(_Dim, NVert, NElem, NBdrElem);
+      if (_spaceDim == -1)
+         _spaceDim = _Dim;
+      InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
    Element *NewElement(int geom);
 
-   void AddVertex (double *);
-   void AddTri (int *vi, int attr = 1);
-   void AddTriangle (int *vi, int attr = 1);
-   void AddQuad (int *vi, int attr = 1);
-   void AddTet (int *vi, int attr = 1);
-   void AddHex (int *vi, int attr = 1);
-   void AddHexAsTets(int *vi, int attr = 1);
+   void AddVertex(const double *);
+   void AddTri(const int *vi, int attr = 1);
+   void AddTriangle(const int *vi, int attr = 1);
+   void AddQuad(const int *vi, int attr = 1);
+   void AddTet(const int *vi, int attr = 1);
+   void AddHex(const int *vi, int attr = 1);
+   void AddHexAsTets(const int *vi, int attr = 1);
    // 'elem' should be allocated using the NewElement method
-   void AddElement (Element *elem)  { elements[NumOfElements++] = elem; }
-   void AddBdrSegment (int *vi, int attr = 1);
-   void AddBdrTriangle (int *vi, int attr = 1);
-   void AddBdrQuad (int *vi, int attr = 1);
-   void AddBdrQuadAsTriangles(int *vi, int attr = 1);
+   void AddElement(Element *elem)  { elements[NumOfElements++] = elem; }
+   void AddBdrSegment(const int *vi, int attr = 1);
+   void AddBdrTriangle(const int *vi, int attr = 1);
+   void AddBdrQuad(const int *vi, int attr = 1);
+   void AddBdrQuadAsTriangles(const int *vi, int attr = 1);
    void GenerateBoundaryElements();
    void FinalizeTriMesh(int generate_edges = 0, int refine = 0,
                         bool fix_orientation = true);
@@ -376,6 +379,7 @@ public:
    { return NumOfVertices - NumOfEdges + NumOfElements; }
 
    int Dimension() const { return Dim; }
+   int SpaceDimension() const { return spaceDim; }
 
    /// Return pointer to vertex i's coordinates
    const double *GetVertex(int i) const { return vertices[i](); }

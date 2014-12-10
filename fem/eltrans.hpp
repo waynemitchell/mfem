@@ -33,7 +33,7 @@ public:
 
    virtual void Transform(const IntegrationPoint &, Vector &) = 0;
    virtual void Transform(const IntegrationRule &, DenseMatrix &) = 0;
-   /** Return the jacobian of the transformation at the IntPoint.
+   /** Return the Jacobian of the transformation at the IntPoint.
        The first column contains the x derivatives of the
        transformation, the second -- the y derivatives, etc.  */
    virtual const DenseMatrix & Jacobian() = 0;
@@ -43,6 +43,9 @@ public:
    virtual int OrderW() = 0;
    /// order of adj(J)^t.grad(fi)
    virtual int OrderGrad(const FiniteElement *fe) = 0;
+   /** Get dimension of target space (we support 2D meshes embedded in 3D; in
+       this case the function should return "3"). */
+   virtual int GetSpaceDim() = 0;
 
    virtual ~ElementTransformation() { }
 };
@@ -71,6 +74,11 @@ public:
    virtual int OrderJ();
    virtual int OrderW();
    virtual int OrderGrad(const FiniteElement *fe);
+   virtual int GetSpaceDim()
+   {
+      // this function should only be called after PointMat is initialised
+      return PointMat.Height();
+   }
 
    virtual ~IsoparametricTransformation() { }
 };
