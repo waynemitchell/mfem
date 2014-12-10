@@ -101,14 +101,16 @@ void DiffusionIntegrator::AssembleElementMatrix
 {
    int nd = el.GetDof();
    int dim = el.GetDim();
+   int spaceDim = Trans.GetSpaceDim();
+   bool square = (dim == spaceDim);
    double w;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix dshape(nd,dim), dshapedxt(nd,dim), invdfdx(dim);
+   DenseMatrix dshape(nd,dim), dshapedxt(nd,spaceDim), invdfdx(dim,spaceDim);
 #else
    dshape.SetSize(nd,dim);
-   dshapedxt.SetSize(nd,dim);
-   invdfdx.SetSize(dim);
+   dshapedxt.SetSize(nd,spaceDim);
+   invdfdx.SetSize(dim,spaceDim);
 #endif
    elmat.SetSize(nd);
 
@@ -135,8 +137,18 @@ void DiffusionIntegrator::AssembleElementMatrix
       el.CalcDShape(ip, dshape);
 
       Trans.SetIntPoint(&ip);
-      CalcAdjugate(Trans.Jacobian(), invdfdx); // invdfdx = adj(J)
-      w = ip.weight / Trans.Weight();
+      // Compute invdfdx = / adj(J),         if J is square
+      //                   \ adj(J^t.J).J^t, otherwise
+      CalcAdjugate(Trans.Jacobian(), invdfdx);
+      if (square)
+      {
+         w = ip.weight / Trans.Weight();
+      }
+      else
+      {
+         w = Trans.Weight();
+         w = ip.weight / (w * w * w);
+      }
       Mult(dshape, invdfdx, dshapedxt);
       if (!MQ)
       {

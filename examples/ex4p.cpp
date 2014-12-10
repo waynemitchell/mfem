@@ -1,6 +1,6 @@
-//                                MFEM Example 4
+//                       MFEM Example 4 - Parallel Version
 //
-// Compile with: make ex4
+// Compile with: make ex4p
 //
 // Sample runs:  mpirun -np 4 ex4p ../data/square-disc.mesh
 //               mpirun -np 4 ex4p ../data/star.mesh

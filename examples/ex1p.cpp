@@ -12,6 +12,8 @@
 //               mpirun -np 4 ex1p ../data/disc-nurbs.mesh
 //               mpirun -np 4 ex1p ../data/pipe-nurbs.mesh
 //               mpirun -np 4 ex1p ../data/ball-nurbs.mesh
+//               mpirun -np 4 ex1p ../data/star-surf.mesh
+//               mpirun -np 4 ex1p ../data/square-disc-surf.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple isoparametric finite element discretization of the
@@ -53,9 +55,9 @@ int main (int argc, char *argv[])
       return 1;
    }
 
-   // 2. Read the (serial) mesh from the given mesh file on all processors.
-   //    We can handle triangular, quadrilateral, tetrahedral or hexahedral
-   //    elements with the same code.
+   // 2. Read the (serial) mesh from the given mesh file on all processors.  We
+   //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
+   //    and volume meshes with the same code.
    ifstream imesh(argv[1]);
    if (!imesh)
    {
