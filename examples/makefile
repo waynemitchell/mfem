@@ -68,11 +68,7 @@ POSIX_CLOCKS_LIB_NO  =
 POSIX_CLOCKS_LIB_YES = -lrt
 POSIX_CLOCKS_LIB = $(POSIX_CLOCKS_LIB_$(USE_POSIX_CLOCKS))
 
-<<<<<<< HEAD
-serial: ex1 ex2 ex3 ex4 ex5 ex6
-=======
-serial: ex1 ex2 ex3 ex4 ex5 ex7
->>>>>>> master
+serial: ex1 ex2 ex3 ex4 ex5 ex6 ex7
 
 parallel: ex1p ex2p ex3p ex4p ex5p ex7p
 
