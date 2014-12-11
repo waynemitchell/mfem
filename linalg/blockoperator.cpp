@@ -92,15 +92,15 @@ void BlockOperator::MultTranspose (const Vector & x, Vector & y) const
    xblock.Update(x.GetData(),row_offsets);
    yblock.Update(y.GetData(),col_offsets);
 
-   for (int iRow=0; iRow < nRowBlocks; ++iRow)
+   for (int iRow=0; iRow < nColBlocks; ++iRow)
    {
-      tmp.SetSize(row_offsets[iRow+1] - row_offsets[iRow]);
-      for (int jCol=0; jCol < nColBlocks; ++jCol)
+      tmp.SetSize(col_offsets[iRow+1] - col_offsets[iRow]);
+      for (int jCol=0; jCol < nRowBlocks; ++jCol)
       {
          if (op(jCol,iRow))
          {
-            op(jCol,iRow)->MultTranspose(xblock.GetBlock(iRow), tmp);
-            yblock.GetBlock(jCol) += tmp;
+            op(jCol,iRow)->MultTranspose(xblock.GetBlock(jCol), tmp);
+            yblock.GetBlock(iRow) += tmp;
          }
       }
    }
