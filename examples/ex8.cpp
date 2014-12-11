@@ -333,6 +333,10 @@ int main(int argc, char *argv[])
 
       MINRES(*A, *B, b, X, 1, 300, 1e-16, 0.);
 
+      double res2;
+      res2 = matS.InnerProduct(Xtest, Xtest);
+      std::cout << "|| Xtest||_S = || B0*x0 + Bhat*xhat - F ||_{S^-1} = " << sqrt(res2) << "\n";
+
       delete B;
       delete S0;
       delete S;
