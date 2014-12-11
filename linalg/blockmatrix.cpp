@@ -328,8 +328,8 @@ void BlockMatrix::MultTranspose(const Vector & x, Vector & y) const
    y = 0.;
    Vector xblockview, yblockview;
 
-   for (int iblock = 0; iblock != nRowBlocks; ++iblock)
-      for (int jblock = 0; jblock != nColBlocks; ++jblock)
+   for (int iblock = 0; iblock != nColBlocks; ++iblock)
+      for (int jblock = 0; jblock != nRowBlocks; ++jblock)
       {
          if (Aij(jblock, iblock) != NULL)
          {
@@ -349,8 +349,8 @@ void BlockMatrix::AddMultTranspose(const Vector & x, Vector & y, const double va
 
    Vector xblockview, yblockview;
 
-   for (int iblock = 0; iblock != nRowBlocks; ++iblock)
-      for (int jblock = 0; jblock != nColBlocks; ++jblock)
+   for (int iblock = 0; iblock != nColBlocks; ++iblock)
+      for (int jblock = 0; jblock != nRowBlocks; ++jblock)
       {
          if (Aij(jblock, iblock) != NULL)
          {
