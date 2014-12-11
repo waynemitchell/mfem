@@ -68,7 +68,7 @@ POSIX_CLOCKS_LIB_NO  =
 POSIX_CLOCKS_LIB_YES = -lrt
 POSIX_CLOCKS_LIB = $(POSIX_CLOCKS_LIB_$(USE_POSIX_CLOCKS))
 
-serial: ex1 ex2 ex3 ex4 ex5 ex7 ex8
+serial: ex1 ex2 ex3 ex4 ex5 ex7 ex8 ex8-3by3
 
 parallel: ex1p ex2p ex3p ex4p ex5p ex7p
 
@@ -110,6 +110,9 @@ ex7p: ex7p.cpp
 
 ex8: ex8.cpp
 	$(CC) $(COPTS) ex8.cpp -o ex8 $(LIBS)
+	
+ex8-3by3: ex8-3by3.cpp
+	$(CC) $(COPTS) ex8-3by3.cpp -o ex8-3by3 $(LIBS)
 
 debug:
 	$(MAKE) "OPTS=$(DEBUG_OPTS)" serial
