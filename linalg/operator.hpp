@@ -116,7 +116,7 @@ private:
 
 public:
    /// Saves the operator
-   TransposeOperator (const Operator * a) : A(a) { size = A -> Size(); }
+   TransposeOperator (const Operator * a, int s = -1) : A(a) { size = (s == -1) ? A -> Size() : s; }
 
    /// Operator application
    virtual void Mult (const Vector & x, Vector & y) const
