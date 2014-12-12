@@ -91,6 +91,11 @@ protected:
    // a set of intermediate partially conforming dofs, e.g. the dofs associated
    // with a "cut" space on a non-conforming mesh.
    SparseMatrix *cP;
+   // Conforming restriction matrix such that cR.cP=I.
+   SparseMatrix *cR;
+
+   void MarkDependency(const SparseMatrix *D, const Array<int> &row_marker,
+                       Array<int> &col_marker);
 
    void UpdateNURBS();
 
@@ -121,6 +126,8 @@ public:
 
    SparseMatrix *GetConformingProlongation() { return cP; }
    const SparseMatrix *GetConformingProlongation() const { return cP; }
+   SparseMatrix *GetConformingRestriction() { return cR; }
+   const SparseMatrix *GetConformingRestriction() const { return cR; }
 
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }
@@ -250,6 +257,8 @@ public:
 
    const FiniteElement *GetFaceElement(int i) const;
 
+   const FiniteElement *GetEdgeElement(int i) const;
+
    /// Return the trace element from element 'i' to the given 'geom_type'
    const FiniteElement *GetTraceElement(int i, int geom_type) const;
 
@@ -270,8 +279,23 @@ public:
 
    /** For a partially conforming FE space, convert a marker array (negative
        entries are true) on the partially conforming dofs to a marker array on
-       the conforming dofs. */
-   void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs);
+       the conforming dofs. A conforming dofs is marked iff at least one of its
+       dependent dofs (as defined by the conforming prolongation matrix) is
+       marked. */
+   void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs)
+   {
+      MarkDependency(cP, dofs, cdofs);
+   }
+
+   /** For a partially conforming FE space, convert a marker array (negative
+       entries are true) on the conforming dofs to a marker array on the
+       (partially conforming) dofs. A dofs is marked iff at least one of the
+       conforming dofs that dependent on it (as defined by the conforming
+       restriction matrix) is marked. */
+   void ConvertFromConformingVDofs(const Array<int> &cdofs, Array<int> &dofs)
+   {
+      MarkDependency(cR, cdofs, dofs);
+   }
 
    void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,
                                     Array<int> &bdr_attr_is_ess,

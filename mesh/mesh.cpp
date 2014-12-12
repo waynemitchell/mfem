@@ -1523,12 +1523,12 @@ void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
       for (i = 0; i < nx; i++)
       {
          boundary[i] = new Segment(i, i+1, 1);
-         boundary[nx+i] = new Segment(m+i, m+i+1, 3);
+         boundary[nx+i] = new Segment(m+i+1, m+i, 3);
       }
       m = nx+1;
       for (j = 0; j < ny; j++)
       {
-         boundary[2*nx+j] = new Segment(j*m, (j+1)*m,  4);
+         boundary[2*nx+j] = new Segment((j+1)*m, j*m, 4);
          boundary[2*nx+ny+j] = new Segment(j*m+nx, (j+1)*m+nx, 2);
       }
    }
@@ -1583,12 +1583,12 @@ void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
       for (i = 0; i < nx; i++)
       {
          boundary[i] = new Segment(i, i+1, 1);
-         boundary[nx+i] = new Segment(m+i, m+i+1, 3);
+         boundary[nx+i] = new Segment(m+i+1, m+i, 3);
       }
       m = nx+1;
       for (j = 0; j < ny; j++)
       {
-         boundary[2*nx+j] = new Segment(j*m, (j+1)*m,  4);
+         boundary[2*nx+j] = new Segment((j+1)*m, j*m, 4);
          boundary[2*nx+ny+j] = new Segment(j*m+nx, (j+1)*m+nx, 2);
       }
 
@@ -1724,6 +1724,25 @@ void Mesh::PrintElement(const Element *el, std::ostream &out)
 {
    out << el->GetAttribute() << ' ';
    PrintElementWithoutAttr(el, out);
+}
+
+void Mesh::SetMeshGen()
+{
+   meshgen = 0;
+   for (int i = 0; i < NumOfElements; i++)
+   {
+      switch (elements[i]->GetType())
+      {
+      case Element::SEGMENT:
+      case Element::TRIANGLE:
+      case Element::TETRAHEDRON:
+         meshgen |= 1; break;
+
+      case Element::QUADRILATERAL:
+      case Element::HEXAHEDRON:
+         meshgen |= 2;
+      }
+   }
 }
 
 // see Tetrahedron::edges
@@ -2574,24 +2593,11 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    //  5c) if curved != 0 and read_gf == 0,
    //         vertices and Nodes must be defined
 
-   // set the mesh type ('meshgen')
    if (spaceDim == 0)
       spaceDim = Dim;
-   meshgen = 0;
-   for (i = 0; i < NumOfElements; i++)
-   {
-      switch (elements[i]->GetType())
-      {
-      case Element::SEGMENT:
-      case Element::TRIANGLE:
-      case Element::TETRAHEDRON:
-         meshgen |= 1; break;
 
-      case Element::QUADRILATERAL:
-      case Element::HEXAHEDRON:
-         meshgen |= 2;
-      }
-   }
+   // set the mesh type ('meshgen')
+   SetMeshGen();
 
    if (NumOfBdrElements == 0 && Dim > 2)
    {
@@ -5710,6 +5716,9 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    // create a second mesh containing the finest elements from 'ncmesh'
    Mesh* mesh2 = new Mesh(*ncmesh);
 
+   ncmesh->SetEdgeIndicesFromMesh(mesh2);
+   ncmesh->SetFaceIndicesFromMesh(mesh2);
+
    // now swap the meshes, the second mesh will become the old coarse mesh
    // and this mesh will be the new fine mesh
    Swap(*mesh2, false);
@@ -5743,7 +5752,8 @@ Mesh::Mesh(NCMesh &ncmesh)
    NumOfElements = elements.Size();
    NumOfBdrElements = boundary.Size();
 
-   meshgen = 2;
+   // set the mesh type ('meshgen')
+   SetMeshGen();
 
    NumOfEdges = NumOfFaces = 0;
 
@@ -5857,8 +5867,6 @@ void Mesh::GeneralRefinement(Array<Refinement> &refinements, int nonconforming,
          type = 2;
       else
          type = 3;
-
-      cout << "type = " << type << endl;
 
       // red-green refinement, no hanging nodes
       LocalRefinement(el_to_refine, type);

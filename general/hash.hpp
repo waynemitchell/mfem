@@ -461,7 +461,7 @@ template<typename ItemT>
 long HashTable<ItemT>::MemoryUsage() const
 {
    return sizeof(*this) +
-      ((mask+1) + id_to_item.Size()) * sizeof(ItemT*) +
+      ((mask+1) + id_to_item.Capacity()) * sizeof(ItemT*) +
       num_items * sizeof(ItemT);
 }
 

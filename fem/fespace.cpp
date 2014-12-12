@@ -364,25 +364,26 @@ void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
       }
 }
 
-void FiniteElementSpace::ConvertToConformingVDofs(const Array<int> &dofs,
-                                                  Array<int> &cdofs)
+void FiniteElementSpace::MarkDependency(const SparseMatrix *D,
+                                        const Array<int> &row_marker,
+                                        Array<int> &col_marker)
 {
-   if (cP)
+   if (D)
    {
-      cdofs.SetSize(cP->Width());
-      cdofs = 0;
+      col_marker.SetSize(D->Width());
+      col_marker = 0;
 
-      for (int i = 0; i < cP->Size(); i++)
-         if (dofs[i] < 0)
+      for (int i = 0; i < D->Size(); i++)
+         if (row_marker[i] < 0)
          {
-            int *col = cP->GetRowColumns(i), n = cP->RowSize(i);
+            const int *col = D->GetRowColumns(i), n = D->RowSize(i);
             for (int j = 0; j < n; j++)
-               cdofs[col[j]] = -1;
+               col_marker[col[j]] = -1;
          }
    }
    else
    {
-      dofs.Copy(cdofs);
+      row_marker.Copy(col_marker);
    }
 }
 
@@ -483,30 +484,19 @@ FiniteElementSpace::D2Const_GlobalRestrictionMatrix(FiniteElementSpace *cfes)
 SparseMatrix *
 FiniteElementSpace::H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes)
 {
-   int i, j;
    SparseMatrix *R;
    DenseMatrix loc_restr;
-   Vector shape;
    Array<int> l_dofs, h_dofs;
 
    R = new SparseMatrix (lfes -> GetNDofs(), ndofs);
 
    const FiniteElement *h_fe = this -> GetFE (0);
    const FiniteElement *l_fe = lfes -> GetFE (0);
-   shape.SetSize (l_fe -> GetDof());
-   loc_restr.SetSize (l_fe -> GetDof(), h_fe -> GetDof());
-   for (i = 0; i < h_fe -> GetDof(); i++)
-   {
-      l_fe -> CalcShape (h_fe -> GetNodes().IntPoint(i), shape);
-      for (j = 0; j < shape.Size(); j++)
-      {
-         if (fabs (shape(j)) < 1.0e-6)
-            shape(j) = 0.0;
-         loc_restr(j,i) = shape(j);
-      }
-   }
+   IsoparametricTransformation T;
+   T.SetIdentityTransformation(h_fe->GetGeomType());
+   h_fe->Project(*l_fe, T, loc_restr);
 
-   for (i = 0; i < mesh -> GetNE(); i++)
+   for (int i = 0; i < mesh -> GetNE(); i++)
    {
       this -> GetElementDofs (i, h_dofs);
       lfes -> GetElementDofs (i, l_dofs);
@@ -542,7 +532,9 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
    own_ext = 0;
 
    cP = fes.cP;
+   cR = fes.cR;
    fes.cP = NULL;
+   fes.cR = NULL;
 
    fes.bdofs = NULL;
    fes.fdofs = NULL;
@@ -582,7 +574,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
             own_ext = 1;
          }
          UpdateNURBS();
-         cP = NULL;
+         cP = cR = NULL;
       }
    }
    else
@@ -670,7 +662,7 @@ void FiniteElementSpace::Constructor()
 
    if (mesh->ncmesh && ndofs > nbdofs)
    {
-      cP = mesh->ncmesh->GetInterpolation(mesh, this);
+      cP = mesh->ncmesh->GetInterpolation(this, &cR);
       if (vdim > 1)
       {
          Array<int> cdofs, vcdofs;
@@ -692,10 +684,28 @@ void FiniteElementSpace::Constructor()
          delete cP;
          vec_cP->Finalize();
          cP = vec_cP;
+
+         SparseMatrix *vec_cR =
+            new SparseMatrix(vdim*cR->Size(), vdim*cR->Width());
+         for (int i = 0; i < cR->Size(); i++)
+         {
+            cR->GetRow(i, cdofs, srow); // here, cdofs are partially conf. dofs
+            for (int vd = 0; vd < vdim; vd++)
+            {
+               cdofs.Copy(vcdofs); // here, vcdofs are partially conf. dofs
+               DofsToVDofs(vd, vcdofs);
+               ndofs = cR->Size(); // make DofToVDof work on conf. dofs
+               vec_cR->SetRow(DofToVDof(i, vd), vcdofs, srow);
+               ndofs = cR->Width();
+            }
+         }
+         delete cR;
+         vec_cR->Finalize();
+         cR = vec_cR;
       }
    }
    else
-      cP = NULL;
+      cP = cR = NULL;
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
@@ -978,6 +988,11 @@ const FiniteElement *FiniteElementSpace::GetFaceElement(int i) const
    return fe;
 }
 
+const FiniteElement *FiniteElementSpace::GetEdgeElement(int i) const
+{
+   return fec->FiniteElementForGeometry(Geometry::SEGMENT);
+}
+
 const FiniteElement *FiniteElementSpace::GetTraceElement(
    int i, int geom_type) const
 {
@@ -994,6 +1009,7 @@ FiniteElementSpace::~FiniteElementSpace()
 
 void FiniteElementSpace::Destructor()
 {
+   delete cR;
    delete cP;
 
    dof_elem_array.DeleteAll();

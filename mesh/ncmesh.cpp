@@ -62,6 +62,9 @@ NCMesh::NCMesh(const Mesh *mesh)
 {
    Dim = mesh->Dimension();
 
+   vertex_nodeId.SetSize(mesh->GetNV());
+   vertex_nodeId = -1;
+
    // create the NCMesh::Element struct for each Mesh element
    for (int i = 0; i < mesh->GetNE(); i++)
    {
@@ -93,6 +96,7 @@ NCMesh::NCMesh(const Mesh *mesh)
             // create a vertex in the node and initialize its position
             const double* pos = mesh->GetVertex(v[j]);
             node->vertex = new Vertex(pos[0], pos[1], pos[2]);
+            vertex_nodeId[v[j]] = node->id;
          }
 
          nc_elem->node[j] = node;
@@ -1027,10 +1031,13 @@ void NCMesh::Refine(const Array<Refinement>& refinements)
       the batch. A forced refinement would be combined with ref_pending to
       (possibly) stop the propagation earlier. */
 
+#ifdef MFEM_DEBUG
    std::cout << "Refined " << refinements.Size() << " + " << nforced
              << " elements" << std::endl;
+#endif
 
    UpdateLeafElements();
+   UpdateVertices();
 }
 
 
@@ -1038,6 +1045,22 @@ void NCMesh::Refine(const Array<Refinement>& refinements)
   {
 
   }*/
+
+
+void NCMesh::UpdateVertices()
+{
+   int num_vert = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->vertex)
+         it->vertex->index = num_vert++;
+
+   vertex_nodeId.SetSize(num_vert);
+
+   num_vert = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->vertex)
+         vertex_nodeId[num_vert++] = it->id;
+}
 
 
 //// Mesh Interface ////////////////////////////////////////////////////////////
@@ -1070,20 +1093,12 @@ void NCMesh::GetVerticesElementsBoundary(Array<mfem::Vertex>& vertices,
                                          Array<mfem::Element*>& elements,
                                          Array<mfem::Element*>& boundary)
 {
-   // count vertices and assign indices
-   int num_vert = 0;
-   for (HashTable<Node>::Iterator it(nodes); it; ++it)
-      if (it->vertex)
-         it->vertex->index = num_vert++;
-
-   // copy vertices
-   vertices.SetSize(num_vert);
+   // copy vertex coordinates
+   vertices.SetSize(vertex_nodeId.Size());
    int i = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->vertex)
          vertices[i++].SetCoords(it->vertex->pos);
-
-   UpdateLeafElements();
 
    elements.SetSize(leaf_elements.Size());
    boundary.SetSize(0);
@@ -1186,6 +1201,7 @@ int NCMesh::find_node(Element* elem, Node* node)
          return i;
 
    MFEM_ABORT("Node not found.");
+   return -1;
 }
 
 static int find_hex_face(int a, int b, int c)
@@ -1201,6 +1217,7 @@ static int find_hex_face(int a, int b, int c)
       }
    }
    MFEM_ABORT("Face not found.");
+   return -1;
 }
 
 void NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
@@ -1410,45 +1427,9 @@ bool NCMesh::DofFinalizable(DofData& dd)
    return true;
 }
 
-SparseMatrix* NCMesh::GetInterpolation(Mesh* mesh, FiniteElementSpace *space)
+SparseMatrix* NCMesh::GetInterpolation(FiniteElementSpace *space,
+                                       SparseMatrix **cR_ptr)
 {
-   // get a list of our Vertices
-   Node** vertex_nodes = new Node*[mesh->GetNV()];
-   for (HashTable<Node>::Iterator it(nodes); it; ++it)
-   {
-      if (it->vertex)
-      {
-         MFEM_ASSERT(it->vertex->index != -1, "Vertices not indexed.");
-         vertex_nodes[it->vertex->index] = it;
-      }
-   }
-
-   // pull edge numbering from the Mesh
-   {
-      Array<int> ev;
-      for (int i = 0; i < mesh->GetNEdges(); i++)
-      {
-         mesh->GetEdgeVertices(i, ev);
-         Node* node = nodes.Peek(vertex_nodes[ev[0]], vertex_nodes[ev[1]]);
-
-         MFEM_ASSERT(node && node->edge, "Edge not found.");
-         node->edge->index = i;
-      }
-   }
-
-   // pull face numbering from the Mesh
-   for (int i = 0; i < mesh->GetNFaces(); i++)
-   {
-      const int* fv = mesh->GetFace(i)->GetVertices();
-      Face* face = faces.Peek(vertex_nodes[fv[0]], vertex_nodes[fv[1]],
-                              vertex_nodes[fv[2]], vertex_nodes[fv[3]]);
-
-      MFEM_ASSERT(face, "Face not found.");
-      face->index = i;
-   }
-
-   delete [] vertex_nodes;
-
    // allocate temporary data for each DOF
    int n_dofs = space->GetNDofs();
    dof_data = new DofData[n_dofs];
@@ -1506,15 +1487,34 @@ SparseMatrix* NCMesh::GetInterpolation(Mesh* mesh, FiniteElementSpace *space)
          n_true_dofs++;
    }
 
+   // create the conforming restiction matrix
+   int *cR_J;
+   SparseMatrix *cR;
+   if (cR_ptr)
+   {
+      int *cR_I = new int[n_true_dofs+1];
+      double *cR_A = new double[n_true_dofs];
+      cR_J = new int[n_true_dofs];
+      for (int i = 0; i < n_true_dofs; i++)
+      {
+         cR_I[i] = i;
+         cR_A[i] = 1.0;
+      }
+      cR_I[n_true_dofs] = n_true_dofs;
+      cR = new SparseMatrix(cR_I, cR_J, cR_A, n_true_dofs, n_dofs);
+   }
+
    // create the conforming prolongation matrix
    SparseMatrix* cP = new SparseMatrix(n_dofs, n_true_dofs);
 
-   // put identity in the matrix for true DOFs
+   // put identity in the restiction and prolongation matrices for true DOFs
    for (int i = 0, true_dof = 0; i < n_dofs; i++)
    {
       DofData& dd = dof_data[i];
       if (dd.Independent())
       {
+         if (cR_ptr)
+            cR_J[true_dof] = i;
          cP->Add(i, true_dof++, 1.0);
          dd.finalized = true;
       }
@@ -1523,6 +1523,8 @@ SparseMatrix* NCMesh::GetInterpolation(Mesh* mesh, FiniteElementSpace *space)
    // resolve dependencies of slave DOFs
    bool finished;
    int n_finalized = n_true_dofs;
+   Array<int> cols;
+   Vector srow;
    do
    {
       finished = true;
@@ -1535,12 +1537,9 @@ SparseMatrix* NCMesh::GetInterpolation(Mesh* mesh, FiniteElementSpace *space)
             {
                Dependency& dep = dd.dep_list[j];
 
-               Array<int> cols;
-               Vector srow;
                cP->GetRow(dep.dof, cols, srow);
-
-               for (int k = 0; k < cols.Size(); k++)
-                  cP->Add(i, cols[k], dep.coef * srow[k]);
+               srow *= dep.coef;
+               cP->AddRow(i, cols, srow);
             }
 
             dd.finalized = true;
@@ -1557,6 +1556,9 @@ SparseMatrix* NCMesh::GetInterpolation(Mesh* mesh, FiniteElementSpace *space)
       MFEM_ABORT("Error creating cP matrix.");
 
    delete [] dof_data;
+
+   if (cR_ptr)
+      *cR_ptr = cR;
 
    cP->Finalize();
    return cP;
@@ -1861,6 +1863,69 @@ NCMesh::FineTransform* NCMesh::GetFineTransforms()
    return transforms;
 }
 
+void NCMesh::SetEdgeIndicesFromMesh(Mesh *mesh)
+{
+   Table *edge_vertex = mesh->GetEdgeVertexTable();
+
+   for (int i = 0; i < edge_vertex->Size(); i++)
+   {
+      const int *ev = edge_vertex->GetRow(i);
+      Node* node = nodes.Peek(vertex_nodeId[ev[0]], vertex_nodeId[ev[1]]);
+
+      MFEM_ASSERT(node && node->edge, "Edge not found.");
+      node->edge->index = i;
+   }
+}
+
+void NCMesh::SetFaceIndicesFromMesh(Mesh *mesh)
+{
+   for (int i = 0; i < mesh->GetNFaces(); i++)
+   {
+      const int* fv = mesh->GetFace(i)->GetVertices();
+      Face* face = faces.Peek(vertex_nodeId[fv[0]], vertex_nodeId[fv[1]],
+                              vertex_nodeId[fv[2]], vertex_nodeId[fv[3]]);
+
+      MFEM_ASSERT(face, "Face not found.");
+      face->index = i;
+   }
+}
+
+int NCMesh::GetEdgeMaster(Node *n) const
+{
+   MFEM_ASSERT(n != NULL && n->p1 != n->p2, "Invalid node.");
+
+   Node *n1 = nodes.Peek(n->p1);
+   Node *n2 = nodes.Peek(n->p2);
+
+   if (n1->id == n2->p1 || n1->id == n2->p2)
+   {
+      // (n1) is parent of (n2):
+      // (n1)--(n)--(n2)----(*)  or  (*)----(n2)--(n)--(n1)
+      if (n2->edge)
+         return n2->edge->index;
+      return GetEdgeMaster(n2);
+   }
+
+   if (n2->id == n1->p1 || n2->id == n1->p2)
+   {
+      // (n2) is parent of (n1):
+      // (n2)--(n)--(n1)----(*)  or  (*)----(n1)--(n)--(n2)
+      if (n1->edge)
+         return n1->edge->index;
+      return GetEdgeMaster(n1);
+   }
+
+   return n->edge ? n->edge->index : -1;
+}
+
+int NCMesh::GetEdgeMaster(int v1, int v2) const
+{
+   Node *n = nodes.Peek(vertex_nodeId[v1], vertex_nodeId[v2]);
+   int master_edge = GetEdgeMaster(n);
+   MFEM_ASSERT(n->edge != NULL, "Invalid edge.");
+   return (n->edge->index != master_edge) ? master_edge : -1;
+}
+
 
 //// Utility ///////////////////////////////////////////////////////////////////
 
@@ -1924,8 +1989,6 @@ void NCMesh::LimitNCLevel(int max_level)
 
    while (1)
    {
-      UpdateLeafElements();
-
       Array<Refinement> refinements;
       for (int i = 0; i < leaf_elements.Size(); i++)
       {
@@ -1979,8 +2042,9 @@ long NCMesh::MemoryUsage()
       num_edges * sizeof(Edge) +
       nodes.MemoryUsage() +
       faces.MemoryUsage() +
-      root_elements.Size() * sizeof(Element*) +
-      leaf_elements.Size() * sizeof(Element*) +
+      root_elements.Capacity() * sizeof(Element*) +
+      leaf_elements.Capacity() * sizeof(Element*) +
+      vertex_nodeId.Capacity() * sizeof(int) +
       sizeof(*this);
 }
 

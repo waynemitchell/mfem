@@ -120,6 +120,8 @@ protected:
    Element *ReadElement(std::istream &);
    static void PrintElement(const Element *, std::ostream &);
 
+   void SetMeshGen(); // set 'meshgen'
+
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;
 
@@ -273,6 +275,13 @@ protected:
    /// Creates a 1D mesh for the interval [0,sx] divided into n equal intervals.
    void Make1D(int n, double sx = 1.0);
 
+   /// Create from a nonconforming mesh.
+   Mesh(NCMesh& ncmesh);
+
+   /// Swaps internal data with another mesh. By default, non-geometry members
+   /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
+   void Swap(Mesh& other, bool non_geometry = false);
+
 public:
 
    enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
@@ -353,9 +362,6 @@ public:
 
    /// Create a disjoint mesh from the given mesh array
    Mesh(Mesh *mesh_array[], int num_pieces);
-
-   /// Create from a nonconforming mesh.
-   Mesh(NCMesh& ncmesh);
 
    /* This is similar to the above mesh constructor, but here the current
       mesh is destroyed and another one created based on the data stream
@@ -720,10 +726,6 @@ public:
    void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL);
 
    void MesquiteSmooth(const int mesquite_option = 0);
-
-   /// Swaps internal data with another mesh. By default, non-geometry members
-   /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
-   void Swap(Mesh& other, bool non_geometry = false);
 
    /// Destroys mesh.
    virtual ~Mesh();

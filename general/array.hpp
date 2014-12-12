@@ -91,6 +91,9 @@ public:
    /// Returns the data
    inline const T *GetData() const { return (T *)data; }
 
+   /// Return true if the data will be deleted by the array
+   inline bool OwnData() const { return (allocsize >= 0); }
+
    /// Changes the ownership of the the data
    inline void StealData(T **p)
    { *p = (T*)data; data = 0; size = allocsize = 0; }
@@ -103,6 +106,10 @@ public:
 
    /// Logical size of the array
    inline int Size() const { return size; };
+
+   /** Maximum number of entries the array can store without allocating more
+       memory. */
+   inline int Capacity() const { return abs(allocsize); }
 
    /// Change logical size of the array, keep existing entries
    inline void SetSize(int nsize);

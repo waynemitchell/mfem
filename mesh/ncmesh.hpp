@@ -85,7 +85,8 @@ public:
        number of independent ('true') DOFs. If x is a solution vector containing
        the values of the independent DOFs, Px can be used to obtain the values
        of all DOFs, including the slave DOFs. */
-   SparseMatrix* GetInterpolation(Mesh* mesh, FiniteElementSpace* space);
+   SparseMatrix* GetInterpolation(FiniteElementSpace* space,
+                                  SparseMatrix **cR_ptr = NULL);
 
    /** Represents the relation of a fine element to its parent (coarse) element
        from a previous mesh state. (Note that the parent can be an indirect
@@ -112,6 +113,11 @@ public:
        NOTE: the caller needs to free the returned array. */
    FineTransform* GetFineTransforms();
 
+   /** Given an edge (by its vertex indices v1 and v2) return the first
+       (geometric) parent edge that exists in the Mesh or -1 if there is no such
+       parent. */
+   int GetEdgeMaster(int v1, int v2) const;
+
    /** Return total number of bytes allocated. */
    long MemoryUsage();
 
@@ -123,6 +129,10 @@ protected: // interface for Mesh to be able to construct itself from us
    void GetVerticesElementsBoundary(Array<mfem::Vertex>& vertices,
                                     Array<mfem::Element*>& elements,
                                     Array<mfem::Element*>& boundary);
+
+   void SetEdgeIndicesFromMesh(Mesh *mesh);
+   void SetFaceIndicesFromMesh(Mesh *mesh);
+
    friend class Mesh;
 
 
@@ -251,6 +261,8 @@ protected: // implementation
    Array<Element*> leaf_elements; // finest level, updated by UpdateLeafElements
    Array<Element*> coarse_elements; // coarse level, set by MarkCoarseLevel
 
+   Array<int> vertex_nodeId; // vertex-index to node-id map
+
    HashTable<Node> nodes; // associative container holding all Nodes
    HashTable<Face> faces; // associative container holding all Faces
 
@@ -266,6 +278,8 @@ protected: // implementation
    Array<RefStackItem> ref_stack; ///< stack of scheduled refinements
 
    void Refine(Element* elem, int ref_type);
+
+   void UpdateVertices(); // update the indices of vertices and vertex_nodeId
 
    void GetLeafElements(Element* e);
    void UpdateLeafElements();
@@ -403,6 +417,7 @@ protected: // implementation
          dim = src.dim;
          for (int i = 0; i < dim; i++)
             coord[i] = src.coord[i];
+         return *this;
       }
    };
 
@@ -434,6 +449,8 @@ protected: // implementation
 
    void GetFineTransforms(Element* elem, int coarse_index,
                           FineTransform *transforms, const PointMatrix &pm);
+
+   int GetEdgeMaster(Node *n) const;
 
    // utility
 
