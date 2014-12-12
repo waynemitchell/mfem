@@ -2,8 +2,7 @@
 //
 // Compile with: make ex7p
 //
-// Sample runs:  mpirun -np 4 ex7p -e 0 -o 2 -r 4
-//               mpirun -np 4 ex7p -e 1 -o 2 -r 4 -snap
+// Sample runs:  mpirun -np 4 ex7p 2 4
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               triangulation of a unit sphere and a simple isoparametric
@@ -18,9 +17,9 @@
 //               We recommend viewing examples 1-4 before viewing this example.
 
 #include <fstream>
-using namespace std;
-
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 // Exact solution and r.h.s., see below for implementation.
@@ -30,48 +29,29 @@ void SnapNodes(Mesh &mesh);
 
 int main(int argc, char *argv[])
 {
-   // 1. Initialize MPI
    int num_procs, myid;
+
+   // 1. Initialize MPI
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   // 2. Parse command-line options
-   int elem_type = 1;
-   int ref_levels = 2;
-   int order = 2;
-   bool always_snap = false;
-   bool visualization = 1;
-
-   OptionsParser args(argc, argv);
-   args.AddOption(&elem_type, "-e", "--elem",
-                  "Type of elements to use: 0 - triangles, 1 - quads.");
-   args.AddOption(&order, "-o", "--order",
-                  "Finite element order (polynomial degree).");
-   args.AddOption(&ref_levels, "-r", "--refine",
-                  "Number of times to refine the mesh uniformly.");
-   args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
-                  "--no-visualization",
-                  "Enable or disable GLVis visualization.");
-   args.AddOption(&always_snap, "-snap", "--always-snap", "-no-snap",
-                  "--snap-at-the-end",
-                  "If true, snap nodes to the sphere initially and after each refinement "
-                  "otherwise, snap only after the last refinement");
-   args.Parse();
-   if (!args.Good())
+   if (argc != 3)
    {
       if (myid == 0)
-         args.PrintUsage(cout);
+         cout << "\nUsage: mpirun -np <np> ex7p <poly_degree>"
+            " <number_of_refinements>\n" << endl;
       MPI_Finalize();
       return 1;
    }
-   if (myid == 0)
-      args.PrintOptions(cout);
 
-   // 3. Generate an initial high-order (surface) mesh on the unit sphere. The
+   // 1. Generate an initial high-order (surface) mesh on the unit sphere. The
    //    Mesh object represents a 2D mesh in 3 spatial dimensions. We first add
    //    the elements and the vertices of the mesh, and then make it high-order
-   //    by specifying a finite element space for its nodes.
+   //    by specifying a finite element space for its nodes. The order of the
+   //    mesh is given by the first command line argument.
+
+   int elem_type = 1; // Type of elements to use: 0 - triangles, 1 - quads
    int Nvert = 8, Nelem = 6;
    if (elem_type == 0)
    {
@@ -122,12 +102,21 @@ int main(int argc, char *argv[])
    }
 
    // Set the space for the high-order mesh nodes.
+   int order = atoi(argv[1]); // order of the mesh and the solution space.
    H1_FECollection fec(order, mesh->Dimension());
    FiniteElementSpace nodal_fes(mesh, &fec, mesh->SpaceDimension());
    mesh->SetNodalFESpace(&nodal_fes);
 
-   // 2. Refine the mesh while snapping nodes to the sphere. Number of parallel
-   //    refinements is fixed to 2.
+   // 2. Refine the mesh while snapping nodes to the sphere. Number of serial
+   //    refinements is given by the second command line argument, number of
+   //    parallel refinements is fixed to 2.
+
+   const int ref_levels = atoi(argv[2]);
+
+   // If true, snap nodes to the sphere initially and after each refinement;
+   // otherwise, snap only after the last refinement.
+   bool always_snap = false;
+
    for (int l = 0; l <= ref_levels; l++)
    {
       if (l > 0) // for l == 0 just perform snapping
@@ -212,7 +201,7 @@ int main(int argc, char *argv[])
 
    // 9. Compute and print the L^2 norm of the error.
    double err = x.ComputeL2Error(sol_coef);
-   if (myid == 0)
+   if(myid == 0)
       cout<<"L2 norm of error: " << err << endl;
 
    // 10. Save the refined mesh and the solution. This output can be viewed
@@ -231,26 +220,23 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 11. Send the solution by socket to a GLVis server.
-   if (visualization)
+   // 11. (Optional) Send the solution by socket to a GLVis server.
+   const char vishost[] = "localhost";
+   const int visport = 19916;
+   socketstream out(vishost, visport);
+   if (out.good())
    {
-      const char vishost[] = "localhost";
-      const int visport = 19916;
-      socketstream out(vishost, visport);
-      if (out.good())
-      {
-         out.precision(8);
-         out << "parallel " << num_procs << " " << myid << "\n";
-         out << "solution\n";
-         pmesh->Print(out);
-         x.Save(out);
-         out << flush;
-      }
-      else
-      {
-         cout << "Unable to connect to GLVis at "
-              << vishost << ':' << visport << endl;
-      }
+      out.precision(8);
+      out << "parallel " << num_procs << " " << myid << "\n";
+      out << "solution\n";
+      pmesh->Print(out);
+      x.Save(out);
+      out << flush;
+   }
+   else
+   {
+      cout << "Unable to connect to GLVis at "
+           << vishost << ':' << visport << endl;
    }
 
    // 12. Free the used memory.

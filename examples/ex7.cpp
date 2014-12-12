@@ -2,8 +2,7 @@
 //
 // Compile with: make ex7
 //
-// Sample runs:  ex7 -e 0 -o 2 -r 4
-//               ex7 -e 1 -o 2 -r 4 -snap
+// Sample runs:  ex7 2 4
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               triangulation of a unit sphere and a simple isoparametric
@@ -18,9 +17,9 @@
 //               We recommend viewing examples 1-4 before viewing this example.
 
 #include <fstream>
-using namespace std;
-
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 // Exact solution and r.h.s., see below for implementation.
@@ -30,39 +29,19 @@ void SnapNodes(Mesh &mesh);
 
 int main(int argc, char *argv[])
 {
-   // 1. Parse command-line options
-   int elem_type = 1;
-   int ref_levels = 2;
-   int order = 2;
-   bool always_snap = false;
-   bool visualization = 1;
-
-   OptionsParser args(argc, argv);
-   args.AddOption(&elem_type, "-e", "--elem",
-                  "Type of elements to use: 0 - triangles, 1 - quads.");
-   args.AddOption(&order, "-o", "--order",
-                  "Finite element order (polynomial degree).");
-   args.AddOption(&ref_levels, "-r", "--refine",
-                  "Number of times to refine the mesh uniformly.");
-   args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
-                  "--no-visualization",
-                  "Enable or disable GLVis visualization.");
-   args.AddOption(&always_snap, "-snap", "--always-snap", "-no-snap",
-                  "--snap-at-the-end",
-                  "If true, snap nodes to the sphere initially and after each refinement "
-                  "otherwise, snap only after the last refinement");
-   args.Parse();
-   if (!args.Good())
+   if (argc != 3)
    {
-      args.PrintUsage(cout);
+      cout << "\nUsage: ex7 <poly_degree> <number_of_refinements>\n" << endl;
       return 1;
    }
-   args.PrintOptions(cout);
 
-   // 2. Generate an initial high-order (surface) mesh on the unit sphere. The
+   // 1. Generate an initial high-order (surface) mesh on the unit sphere. The
    //    Mesh object represents a 2D mesh in 3 spatial dimensions. We first add
    //    the elements and the vertices of the mesh, and then make it high-order
-   //    by specifying a finite element space for its nodes.
+   //    by specifying a finite element space for its nodes. The order of the
+   //    mesh is given by the first command line argument.
+
+   int elem_type = 1; // Type of elements to use: 0 - triangles, 1 - quads
    int Nvert = 8, Nelem = 6;
    if (elem_type == 0)
    {
@@ -113,11 +92,20 @@ int main(int argc, char *argv[])
    }
 
    // Set the space for the high-order mesh nodes.
+   int order = atoi(argv[1]); // order of the mesh and the solution space.
    H1_FECollection fec(order, mesh->Dimension());
    FiniteElementSpace nodal_fes(mesh, &fec, mesh->SpaceDimension());
    mesh->SetNodalFESpace(&nodal_fes);
 
-   // 3. Refine the mesh while snapping nodes to the sphere.
+   // 2. Refine the mesh while snapping nodes to the sphere. Number of
+   //    refinements is given by the second command line argument.
+
+   const int ref_levels = atoi(argv[2]);
+
+   // If true, snap nodes to the sphere initially and after each refinement;
+   // otherwise, snap only after the last refinement.
+   bool always_snap = false;
+
    for (int l = 0; l <= ref_levels; l++)
    {
       if (l > 0) // for l == 0 just perform snapping
@@ -128,12 +116,12 @@ int main(int argc, char *argv[])
          SnapNodes(*mesh);
    }
 
-   // 4. Define a finite element space on the mesh. Here we use isoparametric
+   // 3. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements -- the same as the mesh nodes.
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, &fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;
 
-   // 5. Set up the linear form b(.) which corresponds to the right-hand side of
+   // 4. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
    //    the basis functions in the finite element fespace.
    LinearForm *b = new LinearForm(fespace);
@@ -143,13 +131,13 @@ int main(int argc, char *argv[])
    b->AddDomainIntegrator(new DomainLFIntegrator(rhs_coef));
    b->Assemble();
 
-   // 6. Define the solution vector x as a finite element grid function
+   // 5. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    GridFunction x(fespace);
    x = 0.0;
 
-   // 7. Set up the bilinear form a(.,.) on the finite element space
+   // 6. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
    //    domain integrator and imposing homogeneous Dirichlet boundary
    //    conditions. The boundary conditions are implemented by marking all the
@@ -163,23 +151,23 @@ int main(int argc, char *argv[])
    const SparseMatrix &A = a->SpMat();
 
 #ifndef MFEM_USE_SUITESPARSE
-   // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
+   // 7. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
    PCG(A, M, *b, x, 0, 1000, 1e-28, 0.0);
 #else
-   // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   // 7. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
    umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    umf_solver.SetOperator(A);
    umf_solver.Mult(*b, x);
 #endif
 
-   // 9. Compute and print the L^2 norm of the error.
+   // 8. Compute and print the L^2 norm of the error.
    cout<<"L2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;
 
-   // 10. Save the refined mesh and the solution. This output can be viewed
-   //     later using GLVis: "glvis -m sphere_refined.mesh -g sol.gf".
+   // 9. Save the refined mesh and the solution. This output can be viewed
+   //    later using GLVis: "glvis -m sphere_refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("sphere_refined.mesh");
       mesh_ofs.precision(8);
@@ -189,28 +177,25 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 11. Send the solution by socket to a GLVis server.
-   if (visualization)
+   // 10. (Optional) Send the solution by socket to a GLVis server.
+   const char vishost[] = "localhost";
+   const int visport = 19916;
+   socketstream out(vishost, visport);
+   if (out.good())
    {
-      const char vishost[] = "localhost";
-      const int visport = 19916;
-      socketstream out(vishost, visport);
-      if (out.good())
-      {
-         out.precision(8);
-         out << "solution\n";
-         mesh->Print(out);
-         x.Save(out);
-         out << flush;
-      }
-      else
-      {
-         cout << "Unable to connect to GLVis at "
-              << vishost << ':' << visport << endl;
-      }
+      out.precision(8);
+      out << "solution\n";
+      mesh->Print(out);
+      x.Save(out);
+      out << flush;
+   }
+   else
+   {
+      cout << "Unable to connect to GLVis at "
+           << vishost << ':' << visport << endl;
    }
 
-   // 12. Free the used memory.
+   // 11. Free the used memory.
    delete a;
    delete b;
    delete fespace;

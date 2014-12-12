@@ -15,4 +15,3 @@
 #include "general/isockstream.hpp"
 #include "general/osockstream.hpp"
 #include "general/socketstream.hpp"
-#include "general/optparser.hpp"

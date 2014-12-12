@@ -2,12 +2,12 @@
 //
 // Compile with: make ex5
 //
-// Sample runs:  ex5 -m ../data/square-disc.mesh
-//               ex5 -m ../data/star.mesh
-//               ex5 -m ../data/beam-tet.mesh
-//               ex5 -m ../data/beam-hex.mesh
-//               ex5 -m ../data/escher.mesh
-//               ex5 -m ../data/fichera.mesh
+// Sample runs:  ex5 ../data/square-disc.mesh
+//               ex5 ../data/star.mesh
+//               ex5 ../data/beam-tet.mesh
+//               ex5 ../data/beam-hex.mesh
+//               ex5 ../data/escher.mesh
+//               ex5 ../data/fichera.mesh
 //
 // Description:  This example code solves a simple 2D/3D mixed Darcy problem
 //               corresponding to the saddle point system
@@ -24,9 +24,9 @@
 //               We recommend viewing examples 1-4 before viewing this example.
 
 #include <fstream>
+#include "mfem.hpp"
 using namespace std;
 
-#include "mfem.hpp"
 using namespace mfem;
 
 // Define the analytical solution and forcing terms / boundary conditions
@@ -39,41 +39,25 @@ double f_natural(Vector & x);
 int main (int argc, char *argv[])
 {
    StopWatch chrono;
+   Mesh *mesh;
 
-   // 1. Parse command-line options
-   const char *mesh_file = "../data/star.mesh";
-   int order = 1;
-   bool visualization = 1;
-
-   OptionsParser args(argc, argv);
-   args.AddOption(&mesh_file, "-m", "--mesh",
-                  "Mesh file to use.");
-   args.AddOption(&order, "-o", "--order",
-                  "Finite element order (polynomial degree).");
-   args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
-                  "--no-visualization",
-                  "Enable or disable GLVis visualization.");
-   args.Parse();
-   if (!args.Good())
+   if (argc == 1)
    {
-      args.PrintUsage(cout);
+      cout << "\nUsage: ./ex5 <mesh_file>\n" << endl;
       return 1;
    }
-   args.PrintOptions(cout);
 
-   // 2. Read the mesh from the given mesh file. We can handle triangular,
-   //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
-   //    the same code.
-   Mesh *mesh;
-   ifstream imesh(mesh_file);
+   // 1. Read the (serial) mesh from the given mesh file.  We can handle
+   //    triangular, quadrilateral, tetrahedral or hexahedral elements with the
+   //    same code.
+   ifstream imesh(argv[1]);
    if (!imesh)
    {
-      cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      cerr << "\nCan not open mesh file: " << argv[1] << '\n' << endl;
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   int dim = mesh->Dimension();
 
    // 2. Refine the serial mesh to increase the resolution. In this example we
    //    do 'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
@@ -81,7 +65,7 @@ int main (int argc, char *argv[])
    //    elements.
    {
       int ref_levels =
-         (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(10000./mesh->GetNE())/log(2.)/mesh->Dimension());
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }
@@ -89,8 +73,9 @@ int main (int argc, char *argv[])
    // 3. Define a finite element space on the mesh. Here we use the lowest order
    //    Raviart-Thomas finite elements, but we can easily switch to
    //    higher-order spaces by changing the value of *order*.
-   FiniteElementCollection *hdiv_coll(new RT_FECollection(order, dim));
-   FiniteElementCollection *l2_coll(new L2_FECollection(order, dim));
+   int order = 0;
+   FiniteElementCollection *hdiv_coll(new RT_FECollection(order, mesh->Dimension()));
+   FiniteElementCollection *l2_coll(new L2_FECollection(order, mesh->Dimension()));
 
    FiniteElementSpace *R_space = new FiniteElementSpace(mesh, hdiv_coll);
    FiniteElementSpace *W_space = new FiniteElementSpace(mesh, l2_coll);
@@ -113,11 +98,11 @@ int main (int argc, char *argv[])
    // 5. Define the coefficients, analytical solution, and rhs of the PDE
    ConstantCoefficient k(1.0);
 
-   VectorFunctionCoefficient fcoeff(dim, fFun);
+   VectorFunctionCoefficient fcoeff(mesh->Dimension(), fFun);
    FunctionCoefficient fnatcoeff(f_natural);
    FunctionCoefficient gcoeff(gFun);
 
-   VectorFunctionCoefficient ucoeff(dim, uFun_ex);
+   VectorFunctionCoefficient ucoeff(mesh->Dimension(), uFun_ex);
    FunctionCoefficient pcoeff(pFun_ex);
 
    // 6. Allocate memory (x, rhs) for the analytical solution and the right hand
@@ -230,7 +215,7 @@ int main (int argc, char *argv[])
 
    int order_quad = max(2, 2*order+1);
    const IntegrationRule *irs[Geometry::NumGeom];
-   for (int i=0; i < Geometry::NumGeom; ++i)
+   for(int i(0); i < Geometry::NumGeom; ++i)
       irs[i] = &(IntRules.Get(i, order_quad));
 
    double err_u  = u.ComputeL2Error(ucoeff, irs);
@@ -258,8 +243,7 @@ int main (int argc, char *argv[])
       p.Save(p_ofs);
    }
 
-   // 12. Send the solution by socket to a GLVis server.
-   if (visualization)
+   // 12. (Optional) Send the solution by socket to a GLVis server.
    {
       char vishost[] = "localhost";
       int  visport   = 19916;

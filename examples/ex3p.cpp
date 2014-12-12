@@ -2,13 +2,13 @@
 //
 // Compile with: make ex3p
 //
-// Sample runs:  mpirun -np 4 ex3p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex3p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex3p -m ../data/escher.mesh
-//               mpirun -np 4 ex3p -m ../data/fichera.mesh
-//               mpirun -np 4 ex3p -m ../data/fichera-q2.vtk
-//               mpirun -np 4 ex3p -m ../data/fichera-q3.mesh
-//               mpirun -np 4 ex3p -m ../data/beam-hex-nurbs.mesh
+// Sample runs:  mpirun -np 4 ex3p ../data/beam-tet.mesh
+//               mpirun -np 4 ex3p ../data/beam-hex.mesh
+//               mpirun -np 4 ex3p ../data/escher.mesh
+//               mpirun -np 4 ex3p ../data/fichera.mesh
+//               mpirun -np 4 ex3p ../data/fichera-q2.vtk
+//               mpirun -np 4 ex3p ../data/fichera-q3.mesh
+//               mpirun -np 4 ex3p ../data/beam-hex-nurbs.mesh
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -24,11 +24,11 @@
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
+#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
 using namespace std;
 
-#include "mfem.hpp"
 using namespace mfem;
 
 // Exact solution, E, and r.h.s., f. See below for implementation.
@@ -37,52 +37,37 @@ void f_exact(const Vector &, Vector &);
 
 int main (int argc, char *argv[])
 {
-   // 1. Initialize MPI
    int num_procs, myid;
+
+   // 1. Initialize MPI
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   // 2. Parse command-line options
-   const char *mesh_file = "../data/star.mesh";
-   int order = 1;
-   bool visualization = 1;
+   Mesh *mesh;
 
-   OptionsParser args(argc, argv);
-   args.AddOption(&mesh_file, "-m", "--mesh",
-                  "Mesh file to use.");
-   args.AddOption(&order, "-o", "--order",
-                  "Finite element order (polynomial degree).");
-   args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
-                  "--no-visualization",
-                  "Enable or disable GLVis visualization.");
-   args.Parse();
-   if (!args.Good())
+   if (argc == 1)
    {
       if (myid == 0)
-         args.PrintUsage(cout);
+         cout << "\nUsage: mpirun -np <np> ex3p <mesh_file>\n" << endl;
       MPI_Finalize();
       return 1;
    }
-   if (myid == 0)
-      args.PrintOptions(cout);
 
-   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
-   //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
-   //    and volume meshes with the same code.
-   Mesh *mesh;
-   ifstream imesh(mesh_file);
+   // 2. Read the (serial) mesh from the given mesh file on all processors.
+   //    In this 3D example, we can handle tetrahedral or hexahedral meshes
+   //    with the same code.
+   ifstream imesh(argv[1]);
    if (!imesh)
    {
       if (myid == 0)
-         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+         cerr << "\nCan not open mesh file: " << argv[1] << '\n' << endl;
       MPI_Finalize();
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   int dim = mesh->Dimension();
-   if (dim != 3)
+   if (mesh -> Dimension() != 3)
    {
       if (myid == 0)
          cerr << "\nThis example requires a 3D mesh\n" << endl;
@@ -90,18 +75,18 @@ int main (int argc, char *argv[])
       return 3;
    }
 
-   // 4. Refine the serial mesh on all processors to increase the resolution. In
+   // 3. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
    {
       int ref_levels =
-         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(1000./mesh->GetNE())/log(2.)/mesh->Dimension());
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }
 
-   // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
+   // 4. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
    //    parallel mesh is defined, the serial mesh can be deleted. Tetrahedral
    //    meshes need to be reoriented before we can define high-order Nedelec
@@ -115,16 +100,17 @@ int main (int argc, char *argv[])
    }
    pmesh->ReorientTetMesh();
 
-   // 6. Define a parallel finite element space on the parallel mesh. Here we
+   // 5. Define a parallel finite element space on the parallel mesh. Here we
    //    use the lowest order Nedelec finite elements, but we can easily switch
    //    to higher-order spaces by changing the value of p.
-   FiniteElementCollection *fec = new ND_FECollection(order, dim);
+   int p = 1;
+   FiniteElementCollection *fec = new ND_FECollection(p, pmesh -> Dimension());
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    int size = fespace->GlobalTrueVSize();
    if (myid == 0)
       cout << "Number of unknowns: " << size << endl;
 
-   // 7. Set up the parallel linear form b(.) which corresponds to the
+   // 6. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
    //    (f,phi_i) where f is given by the function f_exact and phi_i are the
    //    basis functions in the finite element fespace.
@@ -133,7 +119,7 @@ int main (int argc, char *argv[])
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
 
-   // 8. Define the solution vector x as a parallel finite element grid function
+   // 7. Define the solution vector x as a parallel finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary edges will be used
    //    when eliminating the non-homogeneous boundary condition to modify the
@@ -142,7 +128,7 @@ int main (int argc, char *argv[])
    VectorFunctionCoefficient E(3, E_exact);
    x.ProjectCoefficient(E);
 
-   // 9. Set up the parallel bilinear form corresponding to the EM diffusion
+   // 8. Set up the parallel bilinear form corresponding to the EM diffusion
    //    operator curl muinv curl + sigma I, by adding the curl-curl and the
    //    mass domain integrators and finally imposing non-homogeneous Dirichlet
    //    boundary conditions. The boundary conditions are implemented by
@@ -164,8 +150,8 @@ int main (int argc, char *argv[])
    }
    a->Finalize();
 
-   // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //     b(.) and the finite element approximation.
+   // 9. Define the parallel (hypre) matrix and vectors representing a(.,.),
+   //    b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
    HypreParVector *X = x.ParallelAverage();
@@ -176,7 +162,7 @@ int main (int argc, char *argv[])
    delete muinv;
    delete b;
 
-   // 11. Define and apply a parallel PCG solver for AX=B with the AMS
+   // 10. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
    HypreSolver *ams = new HypreAMS(*A, fespace);
    HyprePCG *pcg = new HyprePCG(*A);
@@ -186,18 +172,18 @@ int main (int argc, char *argv[])
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*B, *X);
 
-   // 12. Extract the parallel grid function corresponding to the finite element
+   // 11. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
    x = *X;
 
-   // 13. Compute and print the L^2 norm of the error.
+   // 12. Compute and print the L^2 norm of the error.
    {
       double err = x.ComputeL2Error(E);
       if (myid == 0)
          cout << "\n|| E_h - E ||_{L^2} = " << err << '\n' << endl;
    }
 
-   // 14. Save the refined mesh and the solution in parallel. This output can
+   // 13. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, sol_name;
@@ -213,21 +199,18 @@ int main (int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 15. Send the solution by socket to a GLVis server.
-   if (visualization)
-   {
-      char vishost[] = "localhost";
-      int  visport   = 19916;
-      osockstream sol_sock(visport, vishost);
-      sol_sock << "parallel " << num_procs << " " << myid << "\n";
-      sol_sock << "solution\n";
-      sol_sock.precision(8);
-      pmesh->Print(sol_sock);
-      x.Save(sol_sock);
-      sol_sock.send();
-   }
+   // 14. (Optional) Send the solution by socket to a GLVis server.
+   char vishost[] = "localhost";
+   int  visport   = 19916;
+   osockstream sol_sock(visport, vishost);
+   sol_sock << "parallel " << num_procs << " " << myid << "\n";
+   sol_sock << "solution\n";
+   sol_sock.precision(8);
+   pmesh->Print(sol_sock);
+   x.Save(sol_sock);
+   sol_sock.send();
 
-   // 16. Free the used memory.
+   // 15. Free the used memory.
    delete pcg;
    delete ams;
    delete X;
