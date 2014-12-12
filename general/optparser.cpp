@@ -10,6 +10,7 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "optparser.hpp"
+#include "../linalg/vector.hpp"
 #include <cctype>
 
 namespace mfem
@@ -88,6 +89,34 @@ int isValidAsDouble(char * s)
 
 }
 
+void parseArray(char * str, Array<int> & var)
+{
+	var.SetSize(0);
+	std::stringstream input(str);
+	int val;
+	while( input >> val)
+		var.Append(val);
+}
+
+void parseVector(char * str, Vector & var)
+{
+	int nentries = 0;
+	   double val;
+	{
+	   std::stringstream input(str);
+	   while( input >> val)
+		 ++nentries;
+	}
+
+	var.SetSize(nentries);
+	{
+	   nentries = 0;
+	   std::stringstream input(str);
+       while( input >> val)
+		 var(nentries++) = val;
+	}
+}
+
 void OptionsParser::Parse()
 {
 	option_check.SetSize(options.Size());
@@ -152,6 +181,12 @@ void OptionsParser::Parse()
                *(bool *)(options[j].var_ptr) = false;
                option_check[j-1] = 1;  //Do not allow to use the ENABLE Option
                break;
+            case ARRAY:
+            	parseArray(argv[i++], *(Array<int>*)(options[j].var_ptr) );
+            	break;
+            case VECTOR:
+            	parseVector(argv[i++], *(Vector*)(options[j].var_ptr) );
+            	break;
             }
 
             if(!isValid)
@@ -200,6 +235,14 @@ void OptionsParser::PrintOptions(ostream &out) const
          case STRING:
             out << *(const char **)(options[j].var_ptr);
             break;
+         case ARRAY:
+        	 ((Array<int>*)(options[j].var_ptr))->Print(
+        			 out, ((Array<int>*)(options[j].var_ptr))->Size() );
+        	 break;
+         case VECTOR:
+        	 ((Vector*)(options[j].var_ptr))->Print(
+        			 out, ((Vector*)(options[j].var_ptr))->Size() );
+        	 break;
          }
       }
       out << '\n';
@@ -275,6 +318,14 @@ void OptionsParser::PrintUsage(ostream &out) const
          case STRING:
             out << *(const char **)(options[j].var_ptr);
             break;
+         case ARRAY:
+        	 ((Array<int>*)(options[j].var_ptr))->Print(
+        			 out, ((Array<int>*)(options[j].var_ptr))->Size() );
+        	 break;
+         case VECTOR:
+        	 ((Vector*)(options[j].var_ptr))->Print(
+        			 out, ((Vector*)(options[j].var_ptr))->Size() );
+        	 break;
          }
       }
       out << descr_sep;

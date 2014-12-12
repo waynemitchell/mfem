@@ -20,15 +20,17 @@ namespace mfem
 /** Class for parsing command-line options.
 
     The class is initialized with argc and argv, and new options are added with
-    the AddOption method. Currently options of type bool, int, double and char*
-    are supported.
+    the AddOption method. Currently options of type bool, int, double and char*,
+    mfem::Array<int>, mfem::Vector are supported.
 
     See the MFEM examples for sample use.
 */
+class Vector;
+
 class OptionsParser
 {
 public:
-   enum OptionType { INT, DOUBLE, STRING, ENABLE, DISABLE };
+   enum OptionType { INT, DOUBLE, STRING, ENABLE, DISABLE, ARRAY, VECTOR };
 
 private:
    struct Option
@@ -81,6 +83,17 @@ public:
    {
       options.Append(Option(STRING, var, short_name, long_name, description));
    }
+   void AddOption(Array<int> * var, const char *short_name,
+                     const char *long_name, const char *description)
+   {
+         options.Append(Option(ARRAY, var, short_name, long_name, description));
+   }
+   void AddOption(Vector * var, const char *short_name,
+                     const char *long_name, const char *description)
+   {
+         options.Append(Option(VECTOR, var, short_name, long_name, description));
+   }
+
 
    void Parse();
    bool Good() const { return (error == 0); }
