@@ -10,11 +10,83 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "optparser.hpp"
+#include <cctype>
 
 namespace mfem
 {
 
 using namespace std;
+
+int isValidAsInt(char * s)
+{
+	if ( s == NULL || *s == '\0' )
+		return 0; //Empty string
+
+	if ( *s == '+' || *s == '-' )
+		++s;
+
+	if ( *s == '\0')
+		return 0;  //sign character only
+
+	while(*s)
+	{
+		if( !isdigit(*s) )
+			return 0;
+		++s;
+	}
+
+	return 1;
+}
+
+int isValidAsDouble(char * s)
+{
+	//A valid floating point number for atof using the "C" locale is formed by
+	// - an optional sign character (+ or -),
+	// - followed by a sequence of digits, optionally containing a decimal-point character (.),
+	// - optionally followed by an exponent part (an e or E character followed by an optional sign and a sequence of digits).
+
+	if ( s == NULL || *s == '\0' )
+		return 0; //Empty string
+
+	if ( *s == '+' || *s == '-' )
+		++s;
+
+	if ( *s == '\0')
+		return 0;  //sign character only
+
+	while(*s)
+	{
+		if(!isdigit(*s))
+			break;
+		++s;
+	}
+
+	if(*s == '\0')
+		return 1; //s = "123"
+
+	if(*s == '.')
+	{
+		++s;
+		while(*s)
+		{
+			if(!isdigit(*s))
+				break;
+			++s;
+		}
+		if(*s == '\0')
+			return 1; //this is a fixed point double s = "123." or "123.45"
+	}
+
+	if(*s == 'e' || *s == 'E')
+	{
+		++s;
+		return isValidAsInt(s);
+	}
+	else
+		return 0; //we have encounter a wrong character
+
+
+}
 
 void OptionsParser::Parse()
 {
@@ -58,12 +130,15 @@ void OptionsParser::Parse()
                return;
             }
 
+            int isValid = 1;
             switch (options[j].type)
             {
             case INT:
+               isValid = isValidAsInt(argv[i]);
                *(int *)(options[j].var_ptr) = atoi(argv[i++]);
                break;
             case DOUBLE:
+               isValid = isValidAsDouble(argv[i]);
                *(double *)(options[j].var_ptr) = atof(argv[i++]);
                break;
             case STRING:
@@ -77,6 +152,12 @@ void OptionsParser::Parse()
                *(bool *)(options[j].var_ptr) = false;
                option_check[j-1] = 1;  //Do not allow to use the ENABLE Option
                break;
+            }
+
+            if(!isValid)
+            {
+            	error = 2*argc + i - 1;
+            	return;
             }
 
             break;
@@ -142,7 +223,7 @@ void OptionsParser::PrintUsage(ostream &out) const
    {
       out << "Unrecognized option: " << argv[error] << '\n' << line_sep;
    }
-   else if ( error >= argc )
+   else if ( error >= argc && error < 2*argc)
    {
 	   if(options[error - argc].type == ENABLE )
 		  out << "Option " << options[error - argc].long_name << " or "
@@ -152,6 +233,10 @@ void OptionsParser::PrintUsage(ostream &out) const
 		      << options[error - argc].long_name << " provided multiple times\n" << line_sep;
 	   else
 	      out << "Option " << options[error - argc].long_name << " provided multiple times\n" << line_sep;
+   }
+   else if (error > 2*argc)
+   {
+	   out << "Wrong option format " << argv[error - 2 * argc -1] << " " << argv[error - 2 * argc] << "\n";
    }
 
    out << "Usage: " << argv[0] << " [options] ...\n" << line_sep
