@@ -2,18 +2,18 @@
 //
 // Compile with: make ex1p
 //
-// Sample runs:  mpirun -np 4 ex1p ../data/square-disc.mesh
-//               mpirun -np 4 ex1p ../data/star.mesh
-//               mpirun -np 4 ex1p ../data/escher.mesh
-//               mpirun -np 4 ex1p ../data/fichera.mesh
-//               mpirun -np 4 ex1p ../data/square-disc-p2.vtk
-//               mpirun -np 4 ex1p ../data/square-disc-p3.mesh
-//               mpirun -np 4 ex1p ../data/square-disc-nurbs.mesh
-//               mpirun -np 4 ex1p ../data/disc-nurbs.mesh
-//               mpirun -np 4 ex1p ../data/pipe-nurbs.mesh
-//               mpirun -np 4 ex1p ../data/ball-nurbs.mesh
-//               mpirun -np 4 ex1p ../data/star-surf.mesh
-//               mpirun -np 4 ex1p ../data/square-disc-surf.mesh
+// Sample runs:  mpirun -np 4 ex1p -m ../data/square-disc.mesh
+//               mpirun -np 4 ex1p -m ../data/star.mesh
+//               mpirun -np 4 ex1p -m ../data/escher.mesh
+//               mpirun -np 4 ex1p -m ../data/fichera.mesh
+//               mpirun -np 4 ex1p -m ../data/square-disc-p2.vtk -o 2
+//               mpirun -np 4 ex1p -m ../data/square-disc-p3.mesh -o 3
+//               mpirun -np 4 ex1p -m ../data/square-disc-nurbs.mesh
+//               mpirun -np 4 ex1p -m ../data/disc-nurbs.mesh
+//               mpirun -np 4 ex1p -m ../data/pipe-nurbs.mesh
+//               mpirun -np 4 ex1p -m ../data/ball-nurbs.mesh
+//               mpirun -np 4 ex1p -m ../data/star-surf.mesh
+//               mpirun -np 4 ex1p -m ../data/square-disc-surf.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple isoparametric finite element discretization of the
@@ -29,58 +29,73 @@
 //               of boundary conditions on all boundary edges, and the optional
 //               connection to the GLVis tool for visualization.
 
-#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
 using namespace std;
 
+#include "mfem.hpp"
 using namespace mfem;
 
 int main (int argc, char *argv[])
 {
-   int num_procs, myid;
-
    // 1. Initialize MPI
+   int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   Mesh *mesh;
+   // 2. Parse command-line options
+   const char *mesh_file = "../data/star.mesh";
+   int order = 1;
+   bool visualization = 1;
 
-   if (argc == 1)
+   OptionsParser args(argc, argv);
+   args.AddOption(&mesh_file, "-m", "--mesh",
+                  "Mesh file to use.");
+   args.AddOption(&order, "-o", "--order",
+                  "Finite element order (polynomial degree).");
+   args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
+                  "--no-visualization",
+                  "Enable or disable GLVis visualization.");
+   args.Parse();
+   if (!args.Good())
    {
       if (myid == 0)
-         cout << "\nUsage: mpirun -np <np> ex1p <mesh_file>\n" << endl;
+         args.PrintUsage(cout);
       MPI_Finalize();
       return 1;
    }
+   if (myid == 0)
+      args.PrintOptions(cout);
 
-   // 2. Read the (serial) mesh from the given mesh file on all processors.  We
+   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
-   ifstream imesh(argv[1]);
+   Mesh *mesh;
+   ifstream imesh(mesh_file);
    if (!imesh)
    {
       if (myid == 0)
-         cerr << "\nCan not open mesh file: " << argv[1] << '\n' << endl;
+         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
       MPI_Finalize();
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
+   int dim = mesh->Dimension();
 
-   // 3. Refine the serial mesh on all processors to increase the resolution. In
+   // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 10,000 elements.
    {
       int ref_levels =
-         (int)floor(log(10000./mesh->GetNE())/log(2.)/mesh->Dimension());
+         (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }
 
-   // 4. Define a parallel mesh by a partitioning of the serial mesh. Refine
+   // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
@@ -91,20 +106,15 @@ int main (int argc, char *argv[])
          pmesh->UniformRefinement();
    }
 
-   // 5. Define a parallel finite element space on the parallel mesh. Here we
-   //    use isoparametric finite elements coming from the mesh nodes (linear
-   //    by default).
-   FiniteElementCollection *fec;
-   if (pmesh->GetNodes())
-      fec = pmesh->GetNodes()->OwnFEC();
-   else
-      fec = new LinearFECollection;
+   // 6. Define a parallel finite element space on the parallel mesh. Here we
+   //    use continuous Lagrange finite elements of the specified order.
+   FiniteElementCollection *fec = new H1_FECollection(order, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    int size = fespace->GlobalTrueVSize();
    if (myid == 0)
       cout << "Number of unknowns: " << size << endl;
 
-   // 6. Set up the parallel linear form b(.) which corresponds to the
+   // 7. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
    //    (1,phi_i) where phi_i are the basis functions in fespace.
    ParLinearForm *b = new ParLinearForm(fespace);
@@ -112,13 +122,13 @@ int main (int argc, char *argv[])
    b->AddDomainIntegrator(new DomainLFIntegrator(one));
    b->Assemble();
 
-   // 7. Define the solution vector x as a parallel finite element grid function
+   // 8. Define the solution vector x as a parallel finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    ParGridFunction x(fespace);
    x = 0.0;
 
-   // 8. Set up the parallel bilinear form a(.,.) on the finite element space
+   // 9. Set up the parallel bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
    //    domain integrator and imposing homogeneous Dirichlet boundary
    //    conditions. The boundary conditions are implemented by marking all the
@@ -136,8 +146,8 @@ int main (int argc, char *argv[])
    }
    a->Finalize();
 
-   // 9. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //    b(.) and the finite element approximation.
+   // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
+   //     b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
    HypreParVector *X = x.ParallelAverage();
@@ -145,7 +155,7 @@ int main (int argc, char *argv[])
    delete a;
    delete b;
 
-   // 10. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
    HypreSolver *amg = new HypreBoomerAMG(*A);
    HyprePCG *pcg = new HyprePCG(*A);
@@ -155,11 +165,11 @@ int main (int argc, char *argv[])
    pcg->SetPreconditioner(*amg);
    pcg->Mult(*B, *X);
 
-   // 11. Extract the parallel grid function corresponding to the finite element
+   // 12. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
    x = *X;
 
-   // 12. Save the refined mesh and the solution in parallel. This output can
+   // 13. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, sol_name;
@@ -175,18 +185,21 @@ int main (int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 13. (Optional) Send the solution by socket to a GLVis server.
-   char vishost[] = "localhost";
-   int  visport   = 19916;
-   osockstream sol_sock(visport, vishost);
-   sol_sock << "parallel " << num_procs << " " << myid << "\n";
-   sol_sock << "solution\n";
-   sol_sock.precision(8);
-   pmesh->Print(sol_sock);
-   x.Save(sol_sock);
-   sol_sock.send();
+   // 14. Send the solution by socket to a GLVis server.
+   if (visualization)
+   {
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      osockstream sol_sock(visport, vishost);
+      sol_sock << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock << "solution\n";
+      sol_sock.precision(8);
+      pmesh->Print(sol_sock);
+      x.Save(sol_sock);
+      sol_sock.send();
+   }
 
-   // 14. Free the used memory.
+   // 15. Free the used memory.
    delete pcg;
    delete amg;
    delete X;
