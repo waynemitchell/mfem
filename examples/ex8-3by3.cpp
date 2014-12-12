@@ -110,6 +110,7 @@ int main(int argc, char *argv[])
    BlockVector x(offsets), b(offsets);
 
    x = 0.;
+   b = 0.;
 
    // 5. Set up the linear form F(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (f,phi_i) where f=1.0 and
@@ -257,10 +258,13 @@ int main(int argc, char *argv[])
    // 12. Free the used memory.
    delete S0inv;
    delete Shatinv;
+   delete B0t;
+   delete Bhatt;
    delete Shat;
    delete Bhat;
    delete B0;
    delete S;
+   delete S0;
    delete Sinv;
    delete test_space;
    delete test_fec;

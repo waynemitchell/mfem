@@ -280,6 +280,7 @@ int main(int argc, char *argv[])
    delete Shat;
    delete Bhat;
    delete B0;
+   delete S0;
    delete Sinv;
    delete test_space;
    delete test_fec;

@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
    //    Check the weighted norm of residual for the DPG least square problem
    //    Wrap the primal variable in a GridFunction for visualization purposes.
    Vector SinvF(true_s_test);
-   Vector * trueF = F->ParallelAssemble();
+   HypreParVector * trueF = F->ParallelAssemble();
    matSinv->Mult(*trueF,SinvF);
    B.MultTranspose(SinvF, b);
 
@@ -310,6 +310,9 @@ int main(int argc, char *argv[])
    delete Bhat;
    delete B0;
    delete Sinv;
+   delete S0;
+   delete x0;
+   delete F;
    delete test_space;
    delete test_fec;
    delete xhat_space;
