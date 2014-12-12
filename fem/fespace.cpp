@@ -553,7 +553,12 @@ void FiniteElementSpace::Constructor()
       nedofs = 0;
 
    nfdofs = 0;
+   nbdofs = 0;
    fdofs = NULL;
+   cP = NULL;
+
+   if (!mesh->GetNE()) return;
+   
    if (mesh->Dimension() == 3)
    {
       // Here we assume that all faces in the mesh have the same base
@@ -575,7 +580,6 @@ void FiniteElementSpace::Constructor()
       }
    }
 
-   nbdofs = 0;
    bdofs = new int[mesh->GetNE()+1];
    bdofs[0] = 0;
    for (i = 0; i < mesh->GetNE(); i++)
@@ -612,8 +616,6 @@ void FiniteElementSpace::Constructor()
          cP = vec_cP;
       }
    }
-   else
-      cP = NULL;
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
@@ -912,7 +914,7 @@ FiniteElementSpace::~FiniteElementSpace()
 
 void FiniteElementSpace::Destructor()
 {
-   delete cP;
+   if (cP) delete cP;
 
    dof_elem_array.DeleteAll();
    dof_ldof_array.DeleteAll();
