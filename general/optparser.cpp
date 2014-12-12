@@ -18,6 +18,8 @@ using namespace std;
 
 void OptionsParser::Parse()
 {
+	option_check.SetSize(options.Size());
+	option_check = 0;
    for (int i = 1; i < argc; )
    {
       if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
@@ -41,6 +43,13 @@ void OptionsParser::Parse()
          {
             OptionType type = options[j].type;
 
+            if( option_check[j] )
+            {
+            	error = argc + j;
+            	return;
+            }
+            option_check[j] = 1;
+
             i++;
             if (type != ENABLE && type != DISABLE && i >= argc)
             {
@@ -62,9 +71,11 @@ void OptionsParser::Parse()
                break;
             case ENABLE:
                *(bool *)(options[j].var_ptr) = true;
+               option_check[j+1] = 1;  //Do not allow to use the DISABLE Option
                break;
             case DISABLE:
                *(bool *)(options[j].var_ptr) = false;
+               option_check[j-1] = 1;  //Do not allow to use the ENABLE Option
                break;
             }
 
@@ -129,7 +140,18 @@ void OptionsParser::PrintUsage(ostream &out) const
    }
    else if (error > 0 && error < argc)
    {
-      out << "Unrecongnized option: " << argv[error] << '\n' << line_sep;
+      out << "Unrecognized option: " << argv[error] << '\n' << line_sep;
+   }
+   else if ( error >= argc )
+   {
+	   if(options[error - argc].type == ENABLE )
+		  out << "Option " << options[error - argc].long_name << " or "
+		      << options[error - argc + 1].long_name << " provided multiple times\n" << line_sep;
+	   else if(options[error - argc].type == DISABLE)
+		  out << "Option " << options[error - argc - 1].long_name << " or "
+		      << options[error - argc].long_name << " provided multiple times\n" << line_sep;
+	   else
+	      out << "Option " << options[error - argc].long_name << " provided multiple times\n" << line_sep;
    }
 
    out << "Usage: " << argv[0] << " [options] ...\n" << line_sep

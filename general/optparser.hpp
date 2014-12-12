@@ -48,6 +48,7 @@ private:
    int argc;
    char **argv;
    Array<Option> options;
+   Array<int> option_check;
    int error;
 
 public:
