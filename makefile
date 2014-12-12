@@ -117,7 +117,7 @@ fem/eltrans.hpp fem/fe_coll.hpp fem/fe.hpp fem/fem.hpp fem/fespace.hpp         \
 fem/geom.hpp fem/gridfunc.hpp fem/intrules.hpp fem/linearform.hpp              \
 fem/lininteg.hpp fem/nonlinearform.hpp fem/nonlininteg.hpp                     \
 fem/pbilinearform.hpp fem/pfespace.hpp fem/pgridfunc.hpp fem/plinearform.hpp   \
-fem/pnonlinearform.hpp
+fem/pnonlinearform.hpp library/picojson/picojson.hpp
 
 .SUFFIXES: .cpp .o
 .cpp.o:
