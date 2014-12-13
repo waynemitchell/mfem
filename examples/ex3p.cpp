@@ -141,11 +141,9 @@ int main (int argc, char *argv[])
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
-   {
-      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-      ess_bdr = 1;
-      a->EliminateEssentialBC(ess_bdr, x, *b);
-   }
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 9. Define the parallel (hypre) matrix and vectors representing a(.,.),
