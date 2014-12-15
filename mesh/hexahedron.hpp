@@ -13,6 +13,7 @@
 #define MFEM_HEXAHEDRON
 
 #include "../config.hpp"
+#include "element.hpp"
 
 namespace mfem
 {

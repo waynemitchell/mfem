@@ -1294,27 +1294,30 @@ void NCMesh::ConstrainEdge(Node* v0, Node* v1, double t0, double t1,
       Array<int> slave_dofs;
       space->GetEdgeDofs(mid->edge->index, slave_dofs);
 
-      // prepare edge transformation
-      IsoparametricTransformation edge_T;
-      edge_T.SetFE(&SegmentFE);
+      if (slave_dofs.Size() > 0)
+      {
+         // prepare edge transformation
+         IsoparametricTransformation edge_T;
+         edge_T.SetFE(&SegmentFE);
 
-      DenseMatrix& pm = edge_T.GetPointMat();
-      pm.SetSize(1, 2);
-      pm(0,0) = t0, pm(0,1) = t1;
+         DenseMatrix& pm = edge_T.GetPointMat();
+         pm.SetSize(1, 2);
+         pm(0,0) = t0, pm(0,1) = t1;
 
-      // handle slave edge orientation
-      if (v0->vertex->index > v1->vertex->index)
-         std::swap(pm(0,0), pm(0,1));
+         // handle slave edge orientation
+         if (v0->vertex->index > v1->vertex->index)
+            std::swap(pm(0,0), pm(0,1));
 
-      // obtain the local interpolation matrix
-      const FiniteElement* edge_fe =
-         space->FEColl()->FiniteElementForGeometry(Geometry::SEGMENT);
+         // obtain the local interpolation matrix
+         const FiniteElement* edge_fe =
+               space->FEColl()->FiniteElementForGeometry(Geometry::SEGMENT);
 
-      DenseMatrix I(edge_fe->GetDof());
-      edge_fe->GetLocalInterpolation(edge_T, I);
+         DenseMatrix I(edge_fe->GetDof());
+         edge_fe->GetLocalInterpolation(edge_T, I);
 
-      // make each slave DOF dependent on all master edge DOFs
-      AddDependencies(master_dofs, slave_dofs, I);
+         // make each slave DOF dependent on all master edge DOFs
+         AddDependencies(master_dofs, slave_dofs, I);
+      }
    }
 
    // recurse deeper
@@ -1337,24 +1340,27 @@ void NCMesh::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
          Array<int> slave_dofs;
          space->GetFaceDofs(face->index, slave_dofs);
 
-         // prepare face transformation
-         IsoparametricTransformation face_T;
-         face_T.SetFE(&QuadrilateralFE);
-         pm.GetMatrix(face_T.GetPointMat());
+         if (slave_dofs.Size() > 0)
+         {
+            // prepare face transformation
+            IsoparametricTransformation face_T;
+            face_T.SetFE(&QuadrilateralFE);
+            pm.GetMatrix(face_T.GetPointMat());
 
-         // reorder face_T point matrix according to slave face orientation
-         ReorderFacePointMat(v0, v1, v2, v3, face->GetSingleElement(),
-                             face_T.GetPointMat());
+            // reorder face_T point matrix according to slave face orientation
+            ReorderFacePointMat(v0, v1, v2, v3, face->GetSingleElement(),
+                                face_T.GetPointMat());
 
-         // obtain the local interpolation matrix
-         const FiniteElement* face_fe =
-            space->FEColl()->FiniteElementForGeometry(Geometry::SQUARE);
+            // obtain the local interpolation matrix
+            const FiniteElement* face_fe =
+                  space->FEColl()->FiniteElementForGeometry(Geometry::SQUARE);
 
-         DenseMatrix I(face_fe->GetDof());
-         face_fe->GetLocalInterpolation(face_T, I);
+            DenseMatrix I(face_fe->GetDof());
+            face_fe->GetLocalInterpolation(face_T, I);
 
-         // make each slave DOF dependent on all master face DOFs
-         AddDependencies(master_dofs, slave_dofs, I);
+            // make each slave DOF dependent on all master face DOFs
+            AddDependencies(master_dofs, slave_dofs, I);
+         }
          return;
       }
    }
@@ -1395,13 +1401,16 @@ void NCMesh::ProcessMasterEdge(Node* node[2], Node* edge)
    Array<int> master_dofs;
    space->GetEdgeDofs(edge->edge->index, master_dofs);
 
-   // we'll keep track of our position within the master edge;
-   // the initial transformation is identity (interval 0..1)
-   double t0 = 0.0, t1 = 1.0;
-   if (node[0]->vertex->index > node[1]->vertex->index)
-      std::swap(t0, t1);
+   if (master_dofs.Size() > 0)
+   {
+      // we'll keep track of our position within the master edge;
+      // the initial transformation is identity (interval 0..1)
+      double t0 = 0.0, t1 = 1.0;
+      if (node[0]->vertex->index > node[1]->vertex->index)
+         std::swap(t0, t1);
 
-   ConstrainEdge(node[0], node[1], t0, t1, master_dofs, 0);
+      ConstrainEdge(node[0], node[1], t0, t1, master_dofs, 0);
+   }
 }
 
 void NCMesh::ProcessMasterFace(Node* node[4], Face* face)
@@ -1410,11 +1419,14 @@ void NCMesh::ProcessMasterFace(Node* node[4], Face* face)
    Array<int> master_dofs;
    space->GetFaceDofs(face->index, master_dofs);
 
-   // we'll keep track of our position within the master face;
-   // the initial transformation is identity (vertices of the unit square)
-   PointMatrix pm(Point(0,0), Point(1,0), Point(1,1), Point(0,1));
+   if (master_dofs.Size() > 0)
+   {
+      // we'll keep track of our position within the master face;
+      // the initial transformation is identity (vertices of the unit square)
+      PointMatrix pm(Point(0,0), Point(1,0), Point(1,1), Point(0,1));
 
-   ConstrainFace(node[0], node[1], node[2], node[3], pm, master_dofs, 0);
+      ConstrainFace(node[0], node[1], node[2], node[3], pm, master_dofs, 0);
+   }
 }
 
 bool NCMesh::DofFinalizable(DofData& dd)
@@ -1485,6 +1497,15 @@ SparseMatrix* NCMesh::GetInterpolation(FiniteElementSpace *space,
       DofData& dd = dof_data[i];
       if (dd.Independent())
          n_true_dofs++;
+   }
+
+   // if all dofs are true dofs return empty (NULL) matrices
+   if (n_true_dofs == n_dofs)
+   {
+      delete [] dof_data;
+      if (cR_ptr)
+         *cR_ptr = NULL;
+      return NULL;
    }
 
    // create the conforming restiction matrix

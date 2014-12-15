@@ -13,6 +13,11 @@
 #define MFEM_BILINEARFORM
 
 #include "../config.hpp"
+#include "../linalg/linalg.hpp"
+#include "fespace.hpp"
+#include "gridfunc.hpp"
+#include "linearform.hpp"
+#include "bilininteg.hpp"
 
 namespace mfem
 {

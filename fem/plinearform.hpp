@@ -14,6 +14,11 @@
 
 #include "../config.hpp"
 
+#ifdef MFEM_USE_MPI
+
+#include "pfespace.hpp"
+#include "linearform.hpp"
+
 namespace mfem
 {
 
@@ -40,5 +45,7 @@ public:
 };
 
 }
+
+#endif // MFEM_USE_MPI
 
 #endif

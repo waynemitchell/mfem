@@ -14,12 +14,20 @@
 
 #include <iostream>
 #include "../config.hpp"
+#include "../general/stable3d.hpp"
+#include "triangle.hpp"
+#include "tetrahedron.hpp"
+#include "vertex.hpp"
+#include "ncmesh.hpp"
+#include "../fem/eltrans.hpp"
+#include "../fem/coefficient.hpp"
 
 namespace mfem
 {
 
 // Data type mesh
 
+class KnotVector;
 class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;

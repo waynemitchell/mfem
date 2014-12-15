@@ -14,6 +14,9 @@
 
 #include <iostream>
 #include "../config.hpp"
+#include "../linalg/sparsemat.hpp"
+#include "../mesh/mesh.hpp"
+#include "fe_coll.hpp"
 
 namespace mfem
 {
@@ -53,7 +56,6 @@ public:
 };
 
 class NURBSExtension;
-class NCMesh;
 
 /// Abstract finite element space.
 class FiniteElementSpace
@@ -113,6 +115,14 @@ protected:
    DenseMatrix *LocalInterpolation(int k, int cdofs,
                                    RefinementType type,
                                    Array<int> &rows);
+
+   /** Construct the restriction matrix from the coarse FE space 'cfes' to
+       (*this) space, where both spaces use the same FE collection and
+       their meshes are obtained from different levels of a single NCMesh.
+       (Also, the coarse level must have been marked in 'ncmesh' before
+       refinement). */
+   SparseMatrix *NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes,
+                                            NCMesh* ncmesh);
 
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
@@ -318,14 +328,6 @@ public:
        (*this) to the lower degree FE space given by (*lfes) which
        is defined on the same mesh. */
    SparseMatrix *H2L_GlobalRestrictionMatrix(FiniteElementSpace *lfes);
-
-   /** Construct the restriction matrix from the coarse FE space 'cfes' to
-       (*this) space, where both spaces use the same FE collection and
-       their meshes are obtained from different levels of a single NCMesh.
-       (Also, the coarse level must have been marked in 'ncmesh' before
-       refinement). */
-   SparseMatrix *NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes,
-                                            NCMesh* ncmesh);
 
    virtual void Update();
 

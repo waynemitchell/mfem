@@ -258,6 +258,13 @@ SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
    if (one_vdim == -1)
       one_vdim = (ordering == Ordering::byNODES) ? 1 : 0;
 
+   if (mesh->ncmesh)
+   {
+      MFEM_VERIFY(vdim == 1 || one_vdim == 0,
+                  "parameter 'one_vdim' must be 0 for nonconforming mesh.");
+      return NC_GlobalRestrictionMatrix(cfes, mesh->ncmesh);
+   }
+
    mesh->SetState(Mesh::TWO_LEVEL_COARSE);
    int vdim_or_1 = (one_vdim ? 1 : vdim);
    R = new SparseMatrix(vdim_or_1 * cfes->GetNDofs(), vdim_or_1 * ndofs);
@@ -321,8 +328,13 @@ SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
 
          // make sure we don't set any column of R more than once
          for (int i = 0; i < I.Height(); i++)
-            if (mark[cols[i]]++)
+         {
+            int col = cols[i];
+            if (col < 0)
+               col = -1 - col;
+            if (mark[col]++)
                I.SetRow(i, 0); // zero the i-th row of I
+         }
 
          cfes->DofsToVDofs(rows);
          this->DofsToVDofs(cols);
@@ -332,10 +344,15 @@ SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
       {
          MFEM_ASSERT(rows.Size() == cols.Size(), "");
          for (int i = 0; i < rows.Size(); i++)
-            if (!mark[cols[i]]++)
+         {
+            int col = cols[i];
+            if (col < 0)
+               col = -1 - col;
+            if (!mark[col]++)
                for (int vd = 0; vd < vdim; vd++)
                   R->Set(cfes->DofToVDof(rows[i], vd),
                          this->DofToVDof(cols[i], vd), 1.0);
+         }
       }
    }
 
@@ -663,7 +680,7 @@ void FiniteElementSpace::Constructor()
    if (mesh->ncmesh && ndofs > nbdofs)
    {
       cP = mesh->ncmesh->GetInterpolation(this, &cR);
-      if (vdim > 1)
+      if (cP && vdim > 1)
       {
          Array<int> cdofs, vcdofs;
          Vector srow;
@@ -1060,11 +1077,7 @@ void FiniteElementSpace::UpdateAndInterpolate(int num_grid_fns, ...)
    FiniteElementSpace *cfes = SaveUpdate();
 
    // obtain the (transpose of) interpolation matrix between mesh levels
-   SparseMatrix *R;
-   if (mesh->ncmesh)
-      R = NC_GlobalRestrictionMatrix(cfes, mesh->ncmesh);
-   else
-      R = GlobalRestrictionMatrix(cfes, 0);
+   SparseMatrix *R = GlobalRestrictionMatrix(cfes, 0);
 
    delete cfes;
 

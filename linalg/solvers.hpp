@@ -13,6 +13,11 @@
 #define MFEM_SOLVERS
 
 #include "../config.hpp"
+#include "operator.hpp"
+
+#ifdef MFEM_USE_MPI
+#include <mpi.h>
+#endif
 
 #ifdef MFEM_USE_SUITESPARSE
 #include <umfpack.h>

@@ -13,6 +13,10 @@
 #define MFEM_ELEMENT
 
 #include "../config.hpp"
+#include "../general/array.hpp"
+#include "../general/table.hpp"
+#include "../linalg/densemat.hpp"
+#include "../fem/geom.hpp"
 
 namespace mfem
 {

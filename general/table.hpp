@@ -15,6 +15,7 @@
 // Data types for Table.
 
 #include "mem_alloc.hpp"
+#include "array.hpp"
 
 namespace mfem
 {

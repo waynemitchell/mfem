@@ -12,9 +12,14 @@
 #ifndef MFEM_PGRIDFUNC
 #define MFEM_PGRIDFUNC
 
+#include "../config.hpp"
+
+#ifdef MFEM_USE_MPI
+
 #include <iostream>
 #include <limits>
-#include "../config.hpp"
+#include "pfespace.hpp"
+#include "gridfunc.hpp"
 
 namespace mfem
 {
@@ -187,5 +192,7 @@ public:
 };
 
 }
+
+#endif // MFEM_USE_MPI
 
 #endif

@@ -16,6 +16,8 @@
 #include <ostream>
 #include <string>
 #include "../config.hpp"
+#include "fespace.hpp"
+#include "coefficient.hpp"
 
 namespace mfem
 {

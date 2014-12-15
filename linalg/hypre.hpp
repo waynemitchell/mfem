@@ -14,6 +14,10 @@
 
 #include "../config.hpp"
 
+#ifdef MFEM_USE_MPI
+
+#include <mpi.h>
+
 // Enable internal hypre timing routines
 #define HYPRE_TIMING
 
@@ -21,6 +25,8 @@
 #include "seq_mv.h"
 #include "_hypre_parcsr_mv.h"
 #include "_hypre_parcsr_ls.h"
+
+#include "sparsemat.hpp"
 
 namespace mfem
 {
@@ -582,5 +588,7 @@ public:
 };
 
 }
+
+#endif // MFEM_USE_MPI
 
 #endif

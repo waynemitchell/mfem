@@ -5706,8 +5706,10 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
       ncmesh = new NCMesh(this);
    }
 
+   if (WantTwoLevelState)
+      ncmesh->MarkCoarseLevel();
+
    // do the refinements
-   ncmesh->MarkCoarseLevel();
    ncmesh->Refine(refinements);
 
    if (nc_limit > 0)
@@ -6248,6 +6250,7 @@ void Mesh::SetState(int s)
       {
          delete nc_coarse_level;
          nc_coarse_level = NULL;
+         ncmesh->ClearCoarseLevel();
       }
       else if ((State == Mesh::TWO_LEVEL_COARSE && s == Mesh::TWO_LEVEL_FINE) ||
                (State == Mesh::TWO_LEVEL_FINE && s == Mesh::TWO_LEVEL_COARSE))

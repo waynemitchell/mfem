@@ -13,15 +13,18 @@
 #define MFEM_NCMESH
 
 #include "../config.hpp"
-#include "../fem/geom.hpp"
 #include "../general/hash.hpp"
+#include "../linalg/densemat.hpp"
+#include "element.hpp"
+#include "vertex.hpp"
+#include "../fem/geom.hpp"
 
 namespace mfem
 {
 
 // TODO: these won't be needed once this module is purely geometric
 class SparseMatrix;
-class DenseMatrix;
+class Mesh;
 class IsoparametricTransformation;
 class FiniteElementSpace;
 
@@ -105,6 +108,9 @@ public:
        This is later used by 'GetFineTransforms' to determine the relations of
        the coarse and refined elements. */
    void MarkCoarseLevel() { leaf_elements.Copy(coarse_elements); }
+
+   /// Free the internally stored array of coarse leaf elements.
+   void ClearCoarseLevel() { coarse_elements.DeleteAll(); }
 
    /** Return an array of structures 'FineTransform', one for each leaf
        element. This data can be used to transfer functions from a previous

@@ -14,6 +14,13 @@
 
 #include "../config.hpp"
 
+#ifdef MFEM_USE_MPI
+
+#include <mpi.h>
+#include "array.hpp"
+#include "table.hpp"
+#include "sets.hpp"
+
 namespace mfem
 {
 
@@ -124,5 +131,7 @@ public:
 };
 
 }
+
+#endif
 
 #endif

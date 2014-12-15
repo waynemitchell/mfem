@@ -105,7 +105,7 @@ public:
    void MakeDataOwner() { allocsize = abs(allocsize); }
 
    /// Logical size of the array
-   inline int Size() const { return size; };
+   inline int Size() const { return size; }
 
    /** Maximum number of entries the array can store without allocating more
        memory. */

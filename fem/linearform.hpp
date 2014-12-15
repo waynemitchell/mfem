@@ -13,6 +13,8 @@
 #define MFEM_LINEARFORM
 
 #include "../config.hpp"
+#include "lininteg.hpp"
+#include "fespace.hpp"
 
 namespace mfem
 {

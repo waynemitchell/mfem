@@ -13,6 +13,10 @@
 #define MFEM_FE
 
 #include "../config.hpp"
+#include "../general/array.hpp"
+#include "../linalg/linalg.hpp"
+#include "intrules.hpp"
+#include "geom.hpp"
 
 namespace mfem
 {
@@ -38,11 +42,31 @@ class KnotVector;
 class FiniteElement
 {
 protected:
-   int Dim, GeomType, Dof, Order, FuncSpace, RangeType;
+   int Dim, GeomType, Dof, Order, FuncSpace, RangeType, MapType;
    IntegrationRule Nodes;
 
 public:
+   /// Enumeration for RangeType
    enum { SCALAR, VECTOR };
+
+   /** Enumeration for MapType: defines how reference functions, uh(xh), are
+       mapped to functions on a general element, u(x):
+
+       VALUE       u(x) = uh(xh)
+       INTEGRAL    u(x) = (1/w) * uh(xh)
+       H_DIV       u(x) = (J/w) * uh(xh)
+       H_CURL      u(x) = J^{-t} * uh(xh)           (square J)
+       H_CURL      u(x) = J*(J^t*J)^{-1} * uh(xh)   (general J)
+
+       where
+
+       x = T(xh) is the image of the reference point xh,
+       J = J(xh) is the Jacobian matrix of the transformation T, and
+       w = w(xh) = / det(J),           for square J,
+                   \ det(J^t*J)^{1/2}, for general J,
+       is the transformation weight factor.
+   */
+   enum { VALUE, INTEGRAL, H_DIV, H_CURL };
 
    /** Construct Finite Element with given
        (D)im      - space dimension,
@@ -68,6 +92,8 @@ public:
    int Space() const { return FuncSpace; }
 
    int GetRangeType() const { return RangeType; }
+
+   int GetMapType() const { return MapType; }
 
    /** pure virtual function which evaluates the values of all
        shape functions at a given point ip and stores
@@ -188,6 +214,12 @@ public:
 #endif
    { }
 
+   void SetMapType(int M)
+   {
+      MFEM_VERIFY(M == VALUE || M == INTEGRAL, "unknown MapType");
+      MapType = M;
+   }
+
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const
    { NodalLocalInterpolation (Trans, I, *this); }
@@ -209,6 +241,7 @@ public:
                            ElementTransformation &Trans,
                            DenseMatrix &div) const;
 };
+
 
 class PositiveFiniteElement : public FiniteElement
 {
@@ -284,14 +317,14 @@ protected:
                               DenseMatrix &I) const;
 
 public:
-   VectorFiniteElement (int D, int G, int Do, int O,
+   VectorFiniteElement (int D, int G, int Do, int O, int M,
                         int F = FunctionSpace::Pk) :
 #ifdef MFEM_THREAD_SAFE
       FiniteElement(D, G, Do, O, F)
 #else
       FiniteElement(D, G, Do, O, F), Jinv(D), vshape(Do, D)
 #endif
-   { RangeType = VECTOR; }
+   { RangeType = VECTOR; MapType = M; }
 };
 
 class PointFiniteElement : public NodalFiniteElement
@@ -1316,7 +1349,7 @@ public:
    const Array<int> &GetDofMap() const { return dof_map; }
 };
 
-class H1Pos_SegmentElement : public FiniteElement
+class H1Pos_SegmentElement : public PositiveFiniteElement
 {
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -1333,14 +1366,11 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   using FiniteElement::Project;
-   virtual void Project(Coefficient &coeff,
-                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
-class H1Pos_QuadrilateralElement : public FiniteElement
+class H1Pos_QuadrilateralElement : public PositiveFiniteElement
 {
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -1354,14 +1384,11 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   using FiniteElement::Project;
-   virtual void Project(Coefficient &coeff,
-                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
-class H1Pos_HexahedronElement : public FiniteElement
+class H1Pos_HexahedronElement : public PositiveFiniteElement
 {
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -1375,9 +1402,6 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   using FiniteElement::Project;
-   virtual void Project(Coefficient &coeff,
-                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
@@ -1417,6 +1441,9 @@ public:
 };
 
 
+// TODO: define H1Pos_ FEs on triangle and tetrahedron
+
+
 class L2_SegmentElement : public NodalFiniteElement
 {
 private:
@@ -1448,15 +1475,6 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
-};
-
-
-class L2Vol_SegmentElement : public L2_SegmentElement
-{
-public:
-   L2Vol_SegmentElement(const int p) : L2_SegmentElement(p) { }
-   virtual void GetLocalInterpolation(ElementTransformation &Trans,
-                                      DenseMatrix &I) const;
 };
 
 
