@@ -82,10 +82,11 @@ LIBS_OPT = $(USE_MESQUITE_OPTS) $(SUITESPARSE_OPT)
 CCC = $(CC) $(CCOPTS) $(DEFS) $(LIBS_OPT)
 
 # Generate with 'echo general/*.cpp linalg/*.cpp mesh/*.cpp fem/*.cpp'
-SOURCE_FILES = general/array.cpp general/communication.cpp general/error.cpp   \
-general/isockstream.cpp general/osockstream.cpp general/sets.cpp               \
-general/socketstream.cpp general/sort_pairs.cpp general/stable3d.cpp           \
-general/table.cpp general/tic_toc.cpp linalg/densemat.cpp linalg/hypre.cpp     \
+SOURCE_FILES = general/array.cpp general/communication.cpp                     \
+general/datacollection.cpp general/error.cpp general/isockstream.cpp           \
+general/osockstream.cpp general/sets.cpp general/socketstream.cpp              \
+ general/sort_pairs.cpp general/stable3d.cpp general/table.cpp                 \
+ general/tic_toc.cpp linalg/densemat.cpp linalg/hypre.cpp                      \
 linalg/matrix.cpp linalg/ode.cpp linalg/operator.cpp linalg/solvers.cpp        \
 linalg/sparsemat.cpp linalg/sparsesmoothers.cpp linalg/vector.cpp              \
 linalg/blockmatrix.cpp linalg/blockoperator.cpp linalg/blockvector.cpp         \
@@ -101,7 +102,8 @@ fem/pfespace.cpp fem/pgridfunc.cpp fem/plinearform.cpp fem/pnonlinearform.cpp
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 # Generated with 'echo general/*.hpp linalg/*.hpp mesh/*.hpp fem/*.hpp'
-HEADER_FILES = general/array.hpp general/communication.hpp general/error.hpp   \
+HEADER_FILES = general/array.hpp general/communication.hpp                     \
+general/datacollection.hpp general/error.hpp                                   \
 general/isockstream.hpp general/mem_alloc.hpp general/osockstream.hpp          \
 general/sets.hpp general/socketstream.hpp general/sort_pairs.hpp               \
 general/stable3d.hpp general/table.hpp general/tic_toc.hpp linalg/densemat.hpp \
