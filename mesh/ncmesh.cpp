@@ -1163,6 +1163,34 @@ void NCMesh::GetVerticesElementsBoundary(Array<mfem::Vertex>& vertices,
 }
 
 
+void NCMesh::SetEdgeIndicesFromMesh(Mesh *mesh)
+{
+   Table *edge_vertex = mesh->GetEdgeVertexTable();
+
+   for (int i = 0; i < edge_vertex->Size(); i++)
+   {
+      const int *ev = edge_vertex->GetRow(i);
+      Node* node = nodes.Peek(vertex_nodeId[ev[0]], vertex_nodeId[ev[1]]);
+
+      MFEM_ASSERT(node && node->edge, "Edge not found.");
+      node->edge->index = i;
+   }
+}
+
+void NCMesh::SetFaceIndicesFromMesh(Mesh *mesh)
+{
+   for (int i = 0; i < mesh->GetNFaces(); i++)
+   {
+      const int* fv = mesh->GetFace(i)->GetVertices();
+      Face* face = faces.Peek(vertex_nodeId[fv[0]], vertex_nodeId[fv[1]],
+                              vertex_nodeId[fv[2]], vertex_nodeId[fv[3]]);
+
+      MFEM_ASSERT(face, "Face not found.");
+      face->index = i;
+   }
+}
+
+
 //// Interpolation /////////////////////////////////////////////////////////////
 
 int NCMesh::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
@@ -1884,32 +1912,8 @@ NCMesh::FineTransform* NCMesh::GetFineTransforms()
    return transforms;
 }
 
-void NCMesh::SetEdgeIndicesFromMesh(Mesh *mesh)
-{
-   Table *edge_vertex = mesh->GetEdgeVertexTable();
 
-   for (int i = 0; i < edge_vertex->Size(); i++)
-   {
-      const int *ev = edge_vertex->GetRow(i);
-      Node* node = nodes.Peek(vertex_nodeId[ev[0]], vertex_nodeId[ev[1]]);
-
-      MFEM_ASSERT(node && node->edge, "Edge not found.");
-      node->edge->index = i;
-   }
-}
-
-void NCMesh::SetFaceIndicesFromMesh(Mesh *mesh)
-{
-   for (int i = 0; i < mesh->GetNFaces(); i++)
-   {
-      const int* fv = mesh->GetFace(i)->GetVertices();
-      Face* face = faces.Peek(vertex_nodeId[fv[0]], vertex_nodeId[fv[1]],
-                              vertex_nodeId[fv[2]], vertex_nodeId[fv[3]]);
-
-      MFEM_ASSERT(face, "Face not found.");
-      face->index = i;
-   }
-}
+//// Utility ///////////////////////////////////////////////////////////////////
 
 int NCMesh::GetEdgeMaster(Node *n) const
 {
@@ -1946,9 +1950,6 @@ int NCMesh::GetEdgeMaster(int v1, int v2) const
    MFEM_ASSERT(n->edge != NULL, "Invalid edge.");
    return (n->edge->index != master_edge) ? master_edge : -1;
 }
-
-
-//// Utility ///////////////////////////////////////////////////////////////////
 
 void NCMesh::FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
                             int& h_level, int& v_level)
