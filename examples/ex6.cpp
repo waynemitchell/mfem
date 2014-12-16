@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
       UMFPackSolver umf_solver;
       umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
       umf_solver.SetOperator(A);
-      umf_solver.Mult(*b, x);
+      umf_solver.Mult(b, x);
 #endif
 
       // 13. For nonconforming meshes, bring the solution vector back from
