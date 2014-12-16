@@ -410,7 +410,7 @@ namespace picojson {
 #define MAP(val, sym) case val: copy(sym, oi); break
 	MAP('"', "\\\"");
 	MAP('\\', "\\\\");
-	MAP('/', "\\/");
+	//MAP('/', "\\/");
 	MAP('\b', "\\b");
 	MAP('\f', "\\f");
 	MAP('\n', "\\n");

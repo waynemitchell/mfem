@@ -88,7 +88,7 @@ DEPCCC = $(DEPCC) $(CCOPTS) $(MODE_OPTS) $(DEFS)
 DEFINES = $(subst -D,,$(filter -DMFEM_%,$(CCC)))
 
 # Source dirs in logical order
-DIRS = general linalg mesh fem library/picojson
+DIRS = general linalg mesh fem
 SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 

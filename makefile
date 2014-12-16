@@ -106,20 +106,20 @@ HEADER_FILES = general/array.hpp general/communication.hpp                     \
 general/datacollection.hpp general/error.hpp                                   \
 general/isockstream.hpp general/mem_alloc.hpp general/osockstream.hpp          \
 general/sets.hpp general/socketstream.hpp general/sort_pairs.hpp               \
-general/stable3d.hpp general/table.hpp general/tic_toc.hpp linalg/densemat.hpp \
-linalg/hypre.hpp linalg/linalg.hpp linalg/matrix.hpp linalg/ode.hpp            \
-linalg/operator.hpp linalg/solvers.hpp linalg/sparsemat.hpp                    \
-linalg/blockmatrix.hpp linalg/blockoperator.hpp linalg/blockvector.hpp         \
-linalg/sparsesmoothers.hpp linalg/vector.hpp mesh/element.hpp                  \
-mesh/hexahedron.hpp mesh/mesh_headers.hpp mesh/mesh.hpp mesh/mesquite.hpp      \
-mesh/ncmesh.hpp mesh/nurbs.hpp mesh/pmesh.hpp mesh/point.hpp                   \
+general/picojson.hpp general/stable3d.hpp general/table.hpp                    \
+general/tic_toc.hpp linalg/densemat.hpp linalg/hypre.hpp linalg/linalg.hpp     \
+linalg/matrix.hpp linalg/ode.hpp linalg/operator.hpp linalg/solvers.hpp        \
+linalg/sparsemat.hpp linalg/blockmatrix.hpp linalg/blockoperator.hpp           \
+linalg/blockvector.hpp linalg/sparsesmoothers.hpp linalg/vector.hpp            \
+mesh/element.hpp mesh/hexahedron.hpp mesh/mesh_headers.hpp mesh/mesh.hpp       \
+mesh/mesquite.hpp mesh/ncmesh.hpp mesh/nurbs.hpp mesh/pmesh.hpp mesh/point.hpp \
 mesh/quadrilateral.hpp mesh/segment.hpp mesh/tetrahedron.hpp mesh/triangle.hpp \
 mesh/vertex.hpp fem/bilinearform.hpp fem/bilininteg.hpp fem/coefficient.hpp    \
 fem/eltrans.hpp fem/fe_coll.hpp fem/fe.hpp fem/fem.hpp fem/fespace.hpp         \
 fem/geom.hpp fem/gridfunc.hpp fem/intrules.hpp fem/linearform.hpp              \
 fem/lininteg.hpp fem/nonlinearform.hpp fem/nonlininteg.hpp                     \
 fem/pbilinearform.hpp fem/pfespace.hpp fem/pgridfunc.hpp fem/plinearform.hpp   \
-fem/pnonlinearform.hpp library/picojson/picojson.hpp
+fem/pnonlinearform.hpp
 
 .SUFFIXES: .cpp .o
 .cpp.o:
