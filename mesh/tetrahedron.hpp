@@ -87,7 +87,7 @@ public:
    { nFaceVertices = 3; return 4; }
 
    virtual const int *GetFaceVertices(int fi) const
-   { return NULL; /* TODO: not implemented yet. */ }
+   { MFEM_ABORT("not implemented"); return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const;
 

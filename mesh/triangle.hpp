@@ -66,7 +66,8 @@ public:
    virtual int GetNFaces(int &nFaceVertices) const
    { nFaceVertices = 0; return 0; }
 
-   virtual const int *GetFaceVertices(int fi) const { return NULL; }
+   virtual const int *GetFaceVertices(int fi) const
+   { MFEM_ABORT("not implemented"); return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const
    { return new Triangle(indices, attribute); }
