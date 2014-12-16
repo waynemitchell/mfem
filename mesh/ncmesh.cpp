@@ -1918,7 +1918,7 @@ int NCMesh::GetEdgeMaster(Node *n) const
    Node *n1 = nodes.Peek(n->p1);
    Node *n2 = nodes.Peek(n->p2);
 
-   if (n1->id == n2->p1 || n1->id == n2->p2)
+   if ((n2->p1 != n2->p2) && (n1->id == n2->p1 || n1->id == n2->p2))
    {
       // (n1) is parent of (n2):
       // (n1)--(n)--(n2)----(*)  or  (*)----(n2)--(n)--(n1)
@@ -1927,7 +1927,7 @@ int NCMesh::GetEdgeMaster(Node *n) const
       return GetEdgeMaster(n2);
    }
 
-   if (n2->id == n1->p1 || n2->id == n1->p2)
+   if ((n1->p1 != n1->p2) && (n2->id == n1->p1 || n2->id == n1->p2))
    {
       // (n2) is parent of (n1):
       // (n2)--(n)--(n1)----(*)  or  (*)----(n1)--(n)--(n2)

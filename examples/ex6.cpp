@@ -173,9 +173,11 @@ int main(int argc, char *argv[])
       // 16. Make a list of elements whose error is larger than a fraction (0.7)
       //     of the maximum element error. These elements will be refined.
       Array<int> ref_list;
-      double emax = errors.Max();
+      const double frac = 0.7;
+      // the 'errors' are squared, so we need to square the fraction
+      double threshold = (frac*frac) * errors.Max();
       for (int i = 0; i < errors.Size(); i++)
-         if (errors[i] >= 0.7*emax)
+         if (errors[i] >= threshold)
             ref_list.Append(i);
 
       // 17. Refine the selected elements. Since we are going to transfer the
