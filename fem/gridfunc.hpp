@@ -237,7 +237,10 @@ public:
        GridFunction onto the conforming vector x. */
    void ConformingProject(Vector &x) const;
 
-   /** As above, but the destination is 'this'. */
+   /** Same as above, but the destination conforming vector is 'this'.
+       NOTE: the GridFunction's functionality is limited after this call,
+       as the underlying vector shrinks to the number of conforming DOFs.
+       Normal state is restored with ConformingProlongate. */
    void ConformingProject();
 
    FiniteElementSpace *FESpace() { return fes; }
