@@ -409,6 +409,9 @@ FiniteElementSpace::H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes)
 
    R = new SparseMatrix (lfes -> GetNDofs(), ndofs);
 
+   if (!lfes->GetNE())
+      return R;
+
    const FiniteElement *h_fe = this -> GetFE (0);
    const FiniteElement *l_fe = lfes -> GetFE (0);
    shape.SetSize (l_fe -> GetDof());
@@ -552,13 +555,16 @@ void FiniteElementSpace::Constructor()
    else
       nedofs = 0;
 
+   ndofs = 0;
    nfdofs = 0;
    nbdofs = 0;
+   bdofs = NULL;
    fdofs = NULL;
    cP = NULL;
 
-   if (!mesh->GetNE()) return;
-   
+   if (!mesh->GetNE())
+      return;
+
    if (mesh->Dimension() == 3)
    {
       // Here we assume that all faces in the mesh have the same base

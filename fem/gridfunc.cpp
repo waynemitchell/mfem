@@ -159,6 +159,9 @@ void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
 
 int GridFunction::VectorDim() const
 {
+   if (!fes->GetNE())
+      return 0;
+
    const FiniteElement *fe = fes->GetFE(0);
 
    if (fe->GetRangeType() == FiniteElement::SCALAR)
@@ -800,6 +803,10 @@ void GridFunction::ProjectGridFunction(const GridFunction &src)
    // Assuming that the projection matrix is the same for all elements
    Mesh *mesh = fes->GetMesh();
    DenseMatrix P;
+
+   if (!fes->GetNE())
+      return;
+
    fes->GetFE(0)->Project(*src.fes->GetFE(0),
                           *mesh->GetElementTransformation(0), P);
    int vdim = fes->GetVDim();
@@ -903,6 +910,12 @@ void GridFunction::GetNodalValues(Vector &nval, int vdim) const
 void GridFunction::ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
                                            double &integral)
 {
+   if (!fes->GetNE())
+   {
+      integral = 0.0;
+      return;
+   }
+
    Mesh *mesh = fes->GetMesh();
    const int dim = mesh->Dimension();
    const double *center = delta_coeff.Center();
