@@ -13,6 +13,7 @@
 #define MFEM_SPARSEMATSMOOTHERS
 
 #include "../config.hpp"
+#include "sparsemat.hpp"
 
 namespace mfem
 {

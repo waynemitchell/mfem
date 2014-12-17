@@ -97,7 +97,23 @@ int *SparseMatrix::GetRowColumns(const int row)
    return J + I[row];
 }
 
+const int *SparseMatrix::GetRowColumns(const int row) const
+{
+   if (Rows)
+      mfem_error("SparseMatrix::GetRowColumns : matrix is not Finalized!");
+
+   return J + I[row];
+}
+
 double *SparseMatrix::GetRowEntries(const int row)
+{
+   if (Rows)
+      mfem_error("SparseMatrix::GetRowEntries : matrix is not Finalized!");
+
+   return A + I[row];
+}
+
+const double *SparseMatrix::GetRowEntries(const int row) const
 {
    if (Rows)
       mfem_error("SparseMatrix::GetRowEntries : matrix is not Finalized!");

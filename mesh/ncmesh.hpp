@@ -13,590 +13,461 @@
 #define MFEM_NCMESH
 
 #include "../config.hpp"
+#include "../general/hash.hpp"
+#include "../linalg/densemat.hpp"
+#include "element.hpp"
+#include "vertex.hpp"
+#include "../fem/geom.hpp"
 
 namespace mfem
 {
 
+// TODO: these won't be needed once this module is purely geometric
+class SparseMatrix;
 class Mesh;
+class IsoparametricTransformation;
 class FiniteElementSpace;
-class GridFunction;
 
-class NonconformingMesh;
-// Declare a short name for NonconformingMesh = NCMesh
-typedef NonconformingMesh NCMesh;
-
-/** A class for general nonconforming mesh (with hanging nodes), supporting
-    local refinement and de-refinement. */
-class NonconformingMesh
+/** Represents the index of an element to refine, plus a refinement type.
+    The refinement type is needed for anisotropic refinement of quads and hexes.
+    Bits 0,1 and 2 of 'ref_type' specify whether the element should be split
+    in the X, Y and Z directions, respectively (Z is ignored for quads). */
+struct Refinement
 {
-public:
-   class Face;
-   class Edge;
-   class Vertex;
-
-   /** Base class for managing data associated with vertices, edges, faces.
-       This can be achieved by deriving new data-manager classes that define new
-       vertex, edge, face sub-classes extended with relevant data. The role of
-       this class is to maintain the extended data by implementing the virtual
-       methods in the base class which will be called when the nonconforming
-       mesh is refined or de-refined. The base class provides support for
-       encoding and accessing vertex location relative to the coarse-level
-       vertices, edges, faces. The NonconformingMesh class has a pointer to a
-       Data_manager which is optional (i.e. it may be NULL) and should be used
-       only when necessary. */
-   class Data_manager
-   {
-   protected:
-      int c_face_idx, c_face_nv;
-      int *c_face_edges;
-      Face *c_face;
-      Vertex *c_face_verts[4];
-      const IntegrationRule *ref_verts;
-
-      // assumes that 'c_edge_idx' is an edge of the current coarse face
-      int GetEdgeCoords(double a, int c_edge_idx, double *x);
-
-      void Avg(const Vertex *v0, const Vertex *v1, Vertex *v);
-      void Avg(const Edge *edge, Vertex *v)
-      { Avg(edge->vertex[0], edge->vertex[1], v); }
-      void Avg(const Face *quad, Vertex *v)
-      { Avg(quad->edge[0]->child[0]->vertex[1],
-            quad->edge[2]->child[0]->vertex[1], v); }
-
-      const IntegrationPoint &GetCoarseVertexCoords(const Vertex *v);
-      void GetVertexCoords(const Vertex *v, double *y);
-
-   public:
-      NonconformingMesh *ncmesh;
-      Data_manager() { c_face_idx = -1; ncmesh = NULL; }
-      virtual void SetCoarseFace(int _c_face_idx);
-
-      // Adjust the interior data on the given edge assuming that (at least)
-      // one of its vertices was adjusted (moved). It is also assumed that all
-      // interior vertices are dependent, i.e. the edge is a real edge.
-      virtual void AdjustRealEdgeData(Edge *edge) { }
-
-      virtual void AdjustInteriorFaceData(Face *face) { }
-
-      void GetFaceToCoarseFacePointMatrix(Face *face, DenseMatrix &pm);
-      void GetFaceToCoarseFaceIPT(
-         Face *face, IntegrationPointTransformation &ipT);
-      const IntegrationRule &GetReferenceVertices() { return *ref_verts; }
-
-      // Adjust the dependent interior data on the given edge assuming the
-      // given vertices were adjusted (moved). The 'edge' must have only
-      // truly-refined ancestors.
-      void AdjustEdgeData(Edge *edge, bool v0, bool v1);
-
-      // Adjust the dependent interior data of the given triangle face assuming
-      // some of its edges were adjusted. A vertex is also assumed to have been
-      // adjusted if both of its adjacent edges were adjusted.
-      void AdjustTriangleData(Face *face, bool e0, bool e1, bool e2);
-
-      // Adjust the dependent interior data of the given quad face assuming
-      // some of its edges were adjusted. A vertex is also assumed to have been
-      // adjusted if both of its adjacent edges were adjusted.
-      void AdjustQuadData(Face *face, bool e0, bool e1, bool e2, bool e3);
-
-      // Adjust the dependent interior data of the given face assuming
-      // the given edge was adjusted (moved).
-      void AdjustFaceData(Face *face, Edge *edge);
-
-      virtual Vertex *NewCoarseVertex(int c_vert_idx);
-      virtual Vertex *NewEdgeVertex(Edge *edge);
-      virtual Vertex *NewQuadVertex(Face *quad);
-      virtual Edge *NewEdge(Edge *parent) { return new Edge(parent); }
-      virtual Face *NewFace(Face *parent) { return new Face(parent); }
-
-      virtual void TrulyRefineEdge(Edge *edge, Face *newly_refined_face) { }
-      virtual void DerefineEdge(Edge *edge, Face *derefined_face) { }
-      virtual void RefineFace(Face *face) { }
-      virtual void DerefineFace(Face *face) { }
-
-      virtual void FreeVertex(Vertex *vtx) { delete vtx; }
-      virtual void FreeEdge(Edge *edge) { delete edge; }
-      virtual void FreeFace(Face *face) { delete face; }
-
-      virtual ~Data_manager() { }
-   };
-
-   /** A vertex with an integer 'id' and two double 'coordinates'. The base
-       Data_manager class can be used to maintains the vertex coordinates in
-       encoded form relative the coarse-level vertices, edges, faces. */
-   class Vertex
-   {
-   public:
-      int id;
-      double x[2];
-
-      Vertex() { id = -1; }
-      Vertex(int c_vert_idx) { id = -1; x[0] = 0.0; x[1] = -c_vert_idx; }
-
-      void Set(const double z0, const double z1)
-      { x[0] = z0; x[1] = z1; }
-
-      void Set(Vertex *parent0, Vertex *parent1)
-      {
-         x[0] = (parent0->x[0] + parent1->x[0])/2;
-         x[1] = (parent0->x[1] + parent1->x[1])/2;
-      }
-   };
-
-   /// Edge with at most 2 adjacent faces
-   class Edge
-   {
-   public:
-      int id;
-      Edge *parent;
-      Edge *child[2];
-      Face *face[2];
-      Vertex *vertex[2];
-
-      Edge(Edge *my_parent);
-
-      bool isRefined() const { return (child[0] != NULL); }
-
-      /** Check to see if the edge and its adjacent faces are refined.
-          Valid only if all the ancestors of 'this' are truly refined. */
-      inline bool isTrulyRefined() const;
-
-      /// Refine an edge when an adjacent face is being refined
-      void Refine(Face *newly_refined_face, Face *child0, Face *child1,
-                  Data_manager *man = NULL);
-
-      /// De-refine an edge when an adjacent face is being de-refined
-      void Derefine(Face *derefined_face, Data_manager *man = NULL);
-
-      /** Set the coordinates, x, of the interior vertices on this edge
-          based on the coordinates of the vertices of this edge. */
-      void SetInteriorVertices();
-
-      int Check() const;
-
-      void FreeHierarchy(Data_manager *man = NULL, bool free_this = true);
-
-      // ~Edge();
-   };
-
-   /// Triangular or quadrilateral face
-   class Face
-   {
-   public:
-      int id;
-      Face *parent;
-      Face *child[4];
-      Edge *edge[4];
-
-      Face(Face *my_parent);
-
-      bool isRefined() const { return (child[0] != NULL); }
-
-      bool isQuad() const { return (edge[3] != NULL); }
-
-      /// Refine the face
-      void Refine(Data_manager *man = NULL);
-
-      /// De-refine the face
-      void Derefine(Data_manager *man = NULL);
-
-      /** Fill the 'face_vert' array with pointers to the vertices of
-          the face and return number of vertices, 3 or 4. */
-      int GetVertices(Vertex **face_vert);
-
-      void SetReferenceVertices();
-
-      void SetInteriorVertices();
-
-      int Check() const;
-
-      void FreeHierarchy(Data_manager *man = NULL, bool free_this = true);
-
-      // ~Face();
-   };
-
-   class Face_iterator_base
-   {
-   protected:
-      Face *face;
-
-      Face_iterator_base() { }
-      Face_iterator_base(Face *_face) { face = _face; }
-
-   public:
-      operator Face *() const { return face; }
-      Face &operator*() const { return *face; }
-      Face *operator->() const { return face; }
-   };
-
-   /// Iterator over the tree specified by the given root
-   class SimpleFace_iterator : public Face_iterator_base
-   {
-   protected:
-      Face *root;
-
-      void find_leaf() { while (face->isRefined()) face = face->child[3]; }
-
-   public:
-      SimpleFace_iterator(Face *_root, bool forward = true)
-      { root = _root; if (forward) start(); else end(); }
-
-      void start() { face = root; }
-      void end() { face = root; if (face) find_leaf(); }
-
-      void next();
-      void prev();
-
-      /// Prefix increment
-      SimpleFace_iterator &operator++() { next(); return *this; }
-      /// Prefix decrement
-      SimpleFace_iterator &operator--() { prev(); return *this; }
-      /// Postfix decrement
-      Face *operator--(int) { Face *f = face; prev(); return f; }
-   };
-
-   /// Iterator over all faces (all levels) of a nonconforming mesh
-   class AllFace_iterator : public Face_iterator_base
-   {
-   protected:
-      int c_face_idx;
-      const Array<Face *> &c_faces;
-
-      inline void next_coarse();
-      void next_up();
-
-   public:
-      /// Construct an iterator to the first face of a nonconforming mesh
-      AllFace_iterator(const NonconformingMesh &ncmesh, int c_face_start = 0);
-
-      int CoarseFace() const { return c_face_idx; }
-
-      inline void next()
-      { if (face->isRefined()) face = face->child[0]; else next_up(); }
-
-      /// Prefix increment
-      AllFace_iterator &operator++() { next(); return *this; }
-   };
-
-   /// Iterator over the fine faces (the leaves) of a nonconforming mesh
-   class Face_iterator : public AllFace_iterator
-   {
-   protected:
-      inline void find_leaf()
-      { while (face->isRefined()) face = face->child[0]; }
-
-   public:
-      /// Construct an iterator to the first face of a nonconforming mesh
-      Face_iterator(const NonconformingMesh &ncmesh, int c_face_start = 0)
-         : AllFace_iterator(ncmesh, c_face_start) { if (face) find_leaf(); }
-
-      inline void next() { next_up(); if (face) find_leaf(); }
-
-      /// Prefix increment
-      Face_iterator &operator++() { next(); return *this; }
-   };
-
-   /// Iterator over the refined faces of a nonconforming mesh
-   class RefinedFace_iterator : public AllFace_iterator
-   {
-   public:
-      RefinedFace_iterator(const NonconformingMesh &ncmesh);
-      RefinedFace_iterator(const RefinedFace_iterator &it)
-         : AllFace_iterator(it) { }
-
-      void next();
-
-      /// Prefix increment
-      RefinedFace_iterator &operator++() { next(); return *this; }
-   };
-
-   class Edge_iterator_base
-   {
-   protected:
-      Edge *edge;
-
-      Edge_iterator_base() { }
-      Edge_iterator_base(Edge *e) { edge = e; }
-
-   public:
-      operator Edge *() const { return edge; }
-      Edge &operator*() const { return *edge; }
-      Edge *operator->() const { return edge; }
-   };
-
-   /// Iterator over the tree specified by the given root
-   class SimpleEdge_iterator : public Edge_iterator_base
-   {
-   protected:
-      Edge *root;
-
-      void find_leaf() { while (edge->isRefined()) edge = edge->child[1]; }
-
-   public:
-      SimpleEdge_iterator(Edge *_root, bool forward = true)
-      { root = _root; if (forward) start(); else end(); }
-
-      void start() { edge = root; }
-      void end() { edge = root; if (edge) find_leaf(); }
-
-      void next_up();
-      void next();
-      void prev();
-
-      /// Prefix increment
-      SimpleEdge_iterator &operator++() { next(); return *this; }
-      /// Prefix decrement
-      SimpleEdge_iterator &operator--() { prev(); return *this; }
-      /// Postfix decrement
-      Edge *operator--(int) { Edge *e = edge; prev(); return e; }
-   };
-
-   class AllVertex_iterator;
-
-   /// Iterator over all edges of a nonconforming mesh
-   class AllEdge_iterator : public Edge_iterator_base
-   {
-   protected:
-      RefinedFace_iterator face;
-      int c_edge_idx;
-      const Array<Edge *> &c_edges;
-
-      friend class AllVertex_iterator;
-
-      Vertex *next_up();
-
-      inline Vertex *next_or_vertex();
-
-   public:
-      /// Construct an iterator to the first edge of a nonconforming mesh
-      AllEdge_iterator(const NonconformingMesh &ncmesh, int c_edge_start = 0);
-
-      int CoarseEdge() const { return c_edge_idx; }
-      int CoarseFace() const { return face.CoarseFace(); }
-
-      void next()
-      { if (edge->isRefined()) edge = edge->child[0]; else next_up(); }
-
-      /// Prefix increment
-      AllEdge_iterator &operator++() { next(); return *this; }
-   };
-
-   class Vertex_iterator;
-
-   /** Iterator over all truly refined edges of a nonconforming mesh.
-       A truly refined edge is one that satisfies both:
-       a) its parent (if not NULL) is truly refined, and
-       b) 'isTrulyRefined' is true for that edge. */
-   class TrulyRefinedEdge_iterator : public AllEdge_iterator
-   {
-   protected:
-      friend class Vertex_iterator;
-
-      Vertex *next_or_vertex();
-
-   public:
-      TrulyRefinedEdge_iterator(const NonconformingMesh &ncmesh);
-
-      void next();
-
-      /// Prefix increment
-      TrulyRefinedEdge_iterator &operator++() { next(); return *this; }
-   };
-
-   /** Iterator over the real edges of a nonconforming mesh.
-       A real edge is one that satifies:
-       a) its parent (if not NULL) is truly refined, and
-       b) the edge itself is not truly refined. */
-   class Edge_iterator : public AllEdge_iterator
-   {
-      inline void find_real_edge()
-      { while (edge->isTrulyRefined()) edge = edge->child[0]; }
-
-   public:
-      /// Construct an iterator to the first edge of a nonconforming mesh
-      Edge_iterator(const NonconformingMesh &ncmesh, int c_edge_start = 0)
-         : AllEdge_iterator(ncmesh, c_edge_start)
-      { if (edge) find_real_edge(); }
-
-      void next() { next_up(); if (edge) find_real_edge(); }
-
-      /// Prefix increment
-      Edge_iterator &operator++() { next(); return *this; }
-   };
-
-   class Vertex_iterator_base
-   {
-   protected:
-      Vertex *vert;
-
-      Vertex_iterator_base() { }
-
-   public:
-      operator Vertex *() const { return vert; }
-      Vertex &operator*() const { return *vert; }
-      Vertex *operator->() const { return vert; }
-   };
-
-   /// Iterator over all vertices of a nonconforming mesh
-   class AllVertex_iterator : public Vertex_iterator_base
-   {
-   protected:
-      int c_vert_idx;
-      const Array<Vertex *> &c_verts;
-      AllEdge_iterator edge;
-
-   public:
-      /// Construct an iterator to the first edge of a nonconforming mesh
-      AllVertex_iterator(const NonconformingMesh &ncmesh)
-         : c_verts(ncmesh.c_verts), edge(ncmesh)
-      { vert = c_verts[c_vert_idx = 0]; }
-
-      void next();
-
-      void parent_vertices(Vertex **pv);
-
-      /// Prefix increment
-      AllVertex_iterator &operator++() { next(); return *this; }
-   };
-
-   /// Iterator over the independent vertices of a nonconforming mesh
-   class Vertex_iterator : public Vertex_iterator_base
-   {
-   protected:
-      int c_vert_idx;
-      const Array<Vertex *> &c_verts;
-      TrulyRefinedEdge_iterator edge;
-
-   public:
-      /// Construct an iterator to the first vertex of a nonconforming mesh
-      Vertex_iterator(const NonconformingMesh &ncmesh)
-         : c_verts(ncmesh.c_verts), edge(ncmesh)
-      { vert = c_verts[c_vert_idx = 0]; }
-
-      void next();
-
-      /// Prefix increment
-      Vertex_iterator &operator++() { next(); return *this; }
-   };
-
-   /// Iterator over the dependent vertices on a given real edge
-   class DependentVertex_iterator : public Vertex_iterator_base
-   {
-   protected:
-      SimpleEdge_iterator edge;
-
-   public:
-      DependentVertex_iterator(Edge *e) : edge(e)
-      { vert = (edge->isRefined()) ? edge->child[0]->vertex[1] : NULL; }
-
-      const Edge *parent() { return edge; }
-
-      inline void next();
-
-      /// Prefix increment
-      DependentVertex_iterator &operator++() { next(); return *this; }
-   };
-
-   // NonconformingMesh members
-   Array<Vertex *> c_verts;
-   Array<Edge *> c_edges;
-   Array<Face *> c_faces;
-
-   // Coarse edge indices per coarse face (stride is 4). If an edge of a
-   // coarse face is not a coarse edge, the index must be set to -1.
-   // Needed only when data_manager is not NULL.
-   Array<int> c_face_edge;
-
-   Data_manager *data_manager;
-
-   /** Create a nonconforming mesh with one coarse element: Geometry::TRIANGLE
-       or Geometry::SQUARE. */
-   NonconformingMesh(int geom);
-
-   /// Create a nonconforming mesh from a 2D mesh
-   NonconformingMesh(const Mesh *mesh, Data_manager *man = NULL);
-
-   /// Refine a face
-   void Refine(const AllFace_iterator &face)
-   {
-      if (data_manager)
-         data_manager->SetCoarseFace(face.CoarseFace());
-      face->Refine(data_manager);
-   }
-   /// De-refine a face
-   void Derefine(const AllFace_iterator &face)
-   {
-      if (data_manager)
-         data_manager->SetCoarseFace(face.CoarseFace());
-      face->Derefine(data_manager);
-   }
-
-   /** Reconstruct a (refined) nonconforming mesh as a 2D mesh. The new mesh is
-       cut along edges containing dependent nodes. The option for 'bdr_type'
-       are:
-       0) inherit the boundary from the original mesh
-       1) generate the boundary from the new mesh topology
-       2) generate boundary from the coarse edges. */
-   Mesh *GetRefinedMesh(Mesh *c_mesh, bool remove_curv = false,
-                        int bdr_type = 0) const;
-
-   /** Interpolate a GridFunction on the refined mesh. The
-       FiniteElementCollection of the fine GridFunction must be:
-       1) the same as the FiniteElementCollection of the coarse GridFunction or
-       2) a collection of nodal FiniteElements. */
-   void GetRefinedGridFunction(Mesh *c_mesh, GridFunction *c_sol,
-                               Mesh *f_mesh, GridFunction *f_sol) const;
-
-   /** Interpolate a GridFunction on the refined mesh. If 'linearize' is true
-       the new GridFunction uses LinearFECollection, otherwise it uses the
-       same FiniteElementCollection as 'c_sol'. The new GridFunction owns the
-       new FiniteElementCollection (LinearFECollection or a copy of the coarse
-       one) and the new FiniteElementSpace. */
-   GridFunction *GetRefinedGridFunction(Mesh *c_mesh, GridFunction *c_sol,
-                                        Mesh *f_mesh, bool linearize) const;
-
-   SparseMatrix *GetInterpolation(Mesh *f_mesh, FiniteElementSpace *f_fes);
-
-   ~NonconformingMesh();
+   int index; ///< Mesh element number
+   int ref_type; ///< refinement XYZ bit mask (7 = full isotropic)
+
+   Refinement(int index, int type = 7)
+      : index(index), ref_type(type) {}
 };
 
 
-// Inline methods
-
-inline bool NCMesh::Edge::isTrulyRefined() const
+/** \brief A class for non-conforming AMR on higher-order hexahedral,
+ *  quadrilateral or triangular meshes.
+ *
+ *  The class is used as follows:
+ *
+ *  1. NCMesh is constructed from elements of an existing Mesh. The elements
+ *     are copied and become the roots of the refinement hierarchy.
+ *
+ *  2. Some elements are refined with the Refine() method. Both isotropic and
+ *     anisotropic refinements of quads/hexes are supported.
+ *
+ *  3. A new Mesh is created from NCMesh containing the leaf elements.
+ *     This new mesh may have non-conforming (hanging) edges and faces.
+ *
+ *  4. A conforming interpolation matrix is obtained using GetInterpolation().
+ *     The matrix can be used to constrain the hanging DOFs so a continous
+ *     solution is obtained.
+ *
+ *  5. Refine some more leaf elements, i.e., repeat from step 2.
+ */
+class NCMesh
 {
-   // check to see if the edge and its adjacent faces are refined
-   return (this->isRefined() &&
-           (!face[0] || face[0]->isRefined()) &&
-           (!face[1] || face[1]->isRefined()));
-}
+public:
+   NCMesh(const Mesh *mesh);
 
-inline void NCMesh::AllFace_iterator::next_coarse()
-{
-   if (++c_face_idx < c_faces.Size())
-      face = c_faces[c_face_idx];
-   else
-      face = NULL;
-}
+   int Dimension() const { return Dim; }
 
-inline NCMesh::Vertex *NCMesh::AllEdge_iterator::next_or_vertex()
-{
-   if (edge->isRefined())
-      edge = edge->child[0];
-   else
-      return next_up();
-   return NULL;
-}
+   /** Perform the given batch of refinements. Please note that in the presence
+       of anisotropic splits additional refinements may be necessary to keep
+       the mesh consistent. However, the function always performas at least the
+       requested refinements. */
+   void Refine(const Array<Refinement> &refinements);
 
-inline void NCMesh::DependentVertex_iterator::next()
-{
-   for (++edge; edge; ++edge)
-      if (edge->isRefined())
-      {
-         vert = edge->child[0]->vertex[1];
-         return;
+   /** Derefine -- not implemented yet */
+   //void Derefine(Element* elem);
+
+   /** Check mesh and potentially refine some elements so that the maximum level
+       of hanging nodes is not greater than 'max_level'. */
+   void LimitNCLevel(int max_level);
+
+   /** Calculate the conforming interpolation matrix P that ties slave DOFs to
+       independent DOFs. P is rectangular with M rows and N columns, where M
+       is the number of DOFs of the nonconforming ('cut') space, and N is the
+       number of independent ('true') DOFs. If x is a solution vector containing
+       the values of the independent DOFs, Px can be used to obtain the values
+       of all DOFs, including the slave DOFs. */
+   SparseMatrix* GetInterpolation(FiniteElementSpace* space,
+                                  SparseMatrix **cR_ptr = NULL);
+
+   /** Represents the relation of a fine element to its parent (coarse) element
+       from a previous mesh state. (Note that the parent can be an indirect
+       parent.) The point matrix determines where in the reference domain of the
+       coarse element the fine element is located. */
+   struct FineTransform
+   {
+      int coarse_index; ///< coarse Mesh element index
+      DenseMatrix point_matrix; ///< for use in IsoparametricTransformation
+
+      /// As an optimization, identity transform is "stored" as empty matrix.
+      bool IsIdentity() const { return !point_matrix.Data(); }
+   };
+
+   /** Store the current layer of leaf elements before the mesh is refined.
+       This is later used by 'GetFineTransforms' to determine the relations of
+       the coarse and refined elements. */
+   void MarkCoarseLevel() { leaf_elements.Copy(coarse_elements); }
+
+   /// Free the internally stored array of coarse leaf elements.
+   void ClearCoarseLevel() { coarse_elements.DeleteAll(); }
+
+   /** Return an array of structures 'FineTransform', one for each leaf
+       element. This data can be used to transfer functions from a previous
+       coarse level of the mesh (marked with 'MarkCoarseLevel') to a newly
+       refined state of the mesh.
+       NOTE: the caller needs to free the returned array. */
+   FineTransform* GetFineTransforms();
+
+   /** Given an edge (by its vertex indices v1 and v2) return the first
+       (geometric) parent edge that exists in the Mesh or -1 if there is no such
+       parent. */
+   int GetEdgeMaster(int v1, int v2) const;
+
+   /** Return total number of bytes allocated. */
+   long MemoryUsage();
+
+   ~NCMesh();
+
+
+protected: // interface for Mesh to be able to construct itself from us
+
+   void GetVerticesElementsBoundary(Array<mfem::Vertex>& vertices,
+                                    Array<mfem::Element*>& elements,
+                                    Array<mfem::Element*>& boundary);
+
+   void SetEdgeIndicesFromMesh(Mesh *mesh);
+   void SetFaceIndicesFromMesh(Mesh *mesh);
+
+   friend class Mesh;
+
+
+protected: // implementation
+
+   int Dim;
+
+   /** We want vertices and edges to autodestruct when elements stop using
+       (i.e., referencing) them. This base class does the reference counting. */
+   struct RefCount
+   {
+      int ref_count;
+
+      RefCount() : ref_count(0) {}
+
+      int Ref() {
+         return ++ref_count;
       }
-   vert = NULL;
-}
+      int Unref() {
+         int ret = --ref_count;
+         if (!ret) delete this;
+         return ret;
+      }
+   };
+
+   /** A vertex in the NC mesh. Elements point to vertices indirectly through
+       their Nodes. */
+   struct Vertex : public RefCount
+   {
+      double pos[3]; ///< 3D position
+      int index;     ///< vertex number in the Mesh
+
+      Vertex() {}
+      Vertex(double x, double y, double z) : index(-1)
+      { pos[0] = x, pos[1] = y, pos[2] = z; }
+   };
+
+   /** An NC mesh edge. Edges don't do much more than just exist. */
+   struct Edge : public RefCount
+   {
+      int attribute; ///< boundary element attribute, -1 if internal edge
+      int index;     ///< edge number in the Mesh
+
+      Edge() : attribute(-1), index(-1) {}
+      bool Boundary() const { return attribute >= 0; }
+   };
+
+   /** A Node can hold a Vertex, an Edge, or both. Elements directly point to
+       their corner nodes, but edge nodes also exist and can be accessed using
+       a hash-table given their two end-point node IDs. All nodes can be
+       accessed in this way, with the exception of top-level vertex nodes.
+       When an element is being refined, the mid-edge nodes are readily
+       available with this mechanism. The new elements "sign in" into the nodes
+       to have vertices and edges created for them or to just have their
+       reference counts increased. The parent element "signs off" its nodes,
+       which decrements the vertex and edge reference counts. Vertices and edges
+       are destroyed when their reference count drops to zero. */
+   struct Node : public Hashed2<Node>
+   {
+      Vertex* vertex;
+      Edge* edge;
+
+      Node(int id) : Hashed2<Node>(id), vertex(NULL), edge(NULL) {}
+
+      // Bump ref count on a vertex or an edge, or create them. Used when an
+      // element starts using a vertex or an edge.
+      void RefVertex();
+      void RefEdge();
+
+      // Decrement ref on vertex or edge when an element is not using them
+      // anymore. The vertex, edge or the whole Node can autodestruct.
+      // (The hash-table pointer needs to be known then to remove the node.)
+      void UnrefVertex(HashTable<Node>& nodes);
+      void UnrefEdge(HashTable<Node>& nodes);
+
+      ~Node();
+   };
+
+   struct Element;
+
+   /** Similarly to nodes, faces can be accessed by hashing their four vertex
+       node IDs. A face knows about the one or two elements that are using it.
+       A face that is not on the boundary and only has one element referencing
+       it is either a master or a slave face. */
+   struct Face : public RefCount, public Hashed4<Face>
+   {
+      int attribute;    ///< boundary element attribute, -1 if internal face
+      int index;        ///< face number in the Mesh
+      Element* elem[2]; ///< up to 2 elements sharing the face
+
+      Face(int id) : Hashed4<Face>(id), attribute(-1), index(-1)
+      { elem[0] = elem[1] = NULL; }
+
+      bool Boundary() const { return attribute >= 0; }
+
+      // add or remove an element from the 'elem[2]' array
+      void RegisterElement(Element* e);
+      void ForgetElement(Element* e);
+
+      // return one of elem[0] or elem[1] and make sure the other is NULL
+      Element* GetSingleElement() const;
+
+      // overloaded Unref without auto-destruction
+      int Unref() { return --ref_count; }
+   };
+
+   /** This is an element in the refinement hierarchy. Each element has
+       either been refined and points to its children, or is a leaf and points
+       to its vertex nodes. */
+   struct Element
+   {
+      int geom;     // Geometry::Type of the element
+      int attribute;
+      int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
+      int index;    // element number in the Mesh, -1 if refined
+      union
+      {
+         Node* node[8];  // element corners (if ref_type == 0)
+         Element* child[8]; // 2-8 children (if ref_type != 0)
+      };
+
+      Element(int geom, int attr);
+   };
+
+   Array<Element*> root_elements; // initialized by constructor
+   Array<Element*> leaf_elements; // finest level, updated by UpdateLeafElements
+   Array<Element*> coarse_elements; // coarse level, set by MarkCoarseLevel
+
+   Array<int> vertex_nodeId; // vertex-index to node-id map
+
+   HashTable<Node> nodes; // associative container holding all Nodes
+   HashTable<Face> faces; // associative container holding all Faces
+
+   struct RefStackItem
+   {
+      Element* elem;
+      int ref_type;
+
+      RefStackItem(Element* elem, int type)
+         : elem(elem), ref_type(type) {}
+   };
+
+   Array<RefStackItem> ref_stack; ///< stack of scheduled refinements
+
+   void Refine(Element* elem, int ref_type);
+
+   void UpdateVertices(); // update the indices of vertices and vertex_nodeId
+
+   void GetLeafElements(Element* e);
+   void UpdateLeafElements();
+
+   void DeleteHierarchy(Element* elem);
+
+   Element* NewHexahedron(Node* n0, Node* n1, Node* n2, Node* n3,
+                          Node* n4, Node* n5, Node* n6, Node* n7,
+                          int attr,
+                          int fattr0, int fattr1, int fattr2,
+                          int fattr3, int fattr4, int fattr5);
+
+   Element* NewQuadrilateral(Node* n0, Node* n1, Node* n2, Node* n3,
+                             int attr,
+                             int eattr0, int eattr1, int eattr2, int eattr3);
+
+   Element* NewTriangle(Node* n0, Node* n1, Node* n2,
+                        int attr, int eattr0, int eattr1, int eattr2);
+
+   Vertex* NewVertex(Node* v1, Node* v2);
+
+   Node* GetMidEdgeVertex(Node* v1, Node* v2);
+   Node* GetMidEdgeVertexSimple(Node* v1, Node* v2);
+   Node* GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4);
+
+   int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
+                     Node* mid[4] = NULL /* optional output of mid-edge nodes*/);
+
+   void ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4);
+
+   void CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
+                       Node* mid12, Node* mid34, int level = 0);
+
+   void CheckIsoFace(Node* v1, Node* v2, Node* v3, Node* v4,
+                     Node* e1, Node* e2, Node* e3, Node* e4, Node* midf);
+
+   void RefElementNodes(Element *elem);
+   void UnrefElementNodes(Element *elem);
+   void RegisterFaces(Element* elem);
+
+   Node* PeekAltParents(Node* v1, Node* v2);
+
+   bool NodeSetX1(Node* node, Node** n);
+   bool NodeSetX2(Node* node, Node** n);
+   bool NodeSetY1(Node* node, Node** n);
+   bool NodeSetY2(Node* node, Node** n);
+   bool NodeSetZ1(Node* node, Node** n);
+   bool NodeSetZ2(Node* node, Node** n);
+
+
+   // interpolation
+
+   struct Dependency
+   {
+      int dof;
+      double coef;
+
+      Dependency(int dof, double coef)
+         : dof(dof), coef(coef) {}
+   };
+
+   typedef Array<Dependency> DepList;
+
+   /** Holds temporary data for each nonconforming (FESpace-assigned) DOF
+       during the interpolation algorithm. */
+   struct DofData
+   {
+      bool finalized; ///< true if cP matrix row is known for this DOF
+      DepList dep_list; ///< list of other DOFs this DOF depends on
+
+      DofData() : finalized(false) {}
+      bool Independent() const { return !dep_list.Size(); }
+   };
+
+   DofData* dof_data; ///< DOF temporary data
+
+   FiniteElementSpace* space;
+
+   static int find_node(Element* elem, Node* node);
+
+   void ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
+                            Element* elem, DenseMatrix& pm);
+
+   void AddDependencies(Array<int>& master_dofs, Array<int>& slave_dofs,
+                        DenseMatrix& I);
+
+   void ConstrainEdge(Node* v0, Node* v1, double t0, double t1,
+                      Array<int>& master_dofs, int level);
+
+   struct PointMatrix;
+
+   void ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
+                      const PointMatrix &pm,
+                      Array<int>& master_dofs, int level);
+
+   void ProcessMasterEdge(Node* node[2], Node* edge);
+   void ProcessMasterFace(Node* node[4], Face* face);
+
+   bool DofFinalizable(DofData& vd);
+
+
+   // coarse to fine transformations
+
+   struct Point
+   {
+      int dim;
+      double coord[3];
+
+      Point()
+      { dim = 0; }
+
+      Point(double x, double y)
+      { dim = 2; coord[0] = x; coord[1] = y; }
+
+      Point(double x, double y, double z)
+      { dim = 3; coord[0] = x; coord[1] = y; coord[2] = z; }
+
+      Point(const Point& p0, const Point& p1)
+      {
+         dim = p0.dim;
+         for (int i = 0; i < dim; i++)
+            coord[i] = (p0.coord[i] + p1.coord[i]) * 0.5;
+      }
+
+      Point(const Point& p0, const Point& p1, const Point& p2, const Point& p3)
+      {
+         dim = p0.dim;
+         for (int i = 0; i < dim; i++)
+            coord[i] = (p0.coord[i] + p1.coord[i] + p2.coord[i] + p3.coord[i])
+               * 0.25;
+      }
+
+      Point& operator=(const Point& src)
+      {
+         dim = src.dim;
+         for (int i = 0; i < dim; i++)
+            coord[i] = src.coord[i];
+         return *this;
+      }
+   };
+
+   struct PointMatrix
+   {
+      int np;
+      Point points[8];
+
+      PointMatrix(const Point& p0, const Point& p1, const Point& p2)
+      { np = 3; points[0] = p0; points[1] = p1; points[2] = p2; }
+
+      PointMatrix(const Point& p0, const Point& p1, const Point& p2, const Point& p3)
+      { np = 4; points[0] = p0; points[1] = p1; points[2] = p2; points[3] = p3; }
+
+      PointMatrix(const Point& p0, const Point& p1, const Point& p2,
+                  const Point& p3, const Point& p4, const Point& p5,
+                  const Point& p6, const Point& p7)
+      {
+         np = 8;
+         points[0] = p0; points[1] = p1; points[2] = p2; points[3] = p3;
+         points[4] = p4; points[5] = p5; points[6] = p6; points[7] = p7;
+      }
+
+      Point& operator()(int i) { return points[i]; }
+      const Point& operator()(int i) const { return points[i]; }
+
+      void GetMatrix(DenseMatrix& point_matrix) const;
+   };
+
+   void GetFineTransforms(Element* elem, int coarse_index,
+                          FineTransform *transforms, const PointMatrix &pm);
+
+   int GetEdgeMaster(Node *n) const;
+
+   // utility
+
+   void FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
+                       int& h_level, int& v_level);
+
+   void CountSplits(Element* elem, int splits[3]);
+
+   int CountElements(Element* elem);
+
+};
 
 }
 

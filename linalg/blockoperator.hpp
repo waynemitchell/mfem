@@ -13,6 +13,9 @@
 #define MFEM_BLOCKOPERATOR
 
 #include "../config.hpp"
+#include "../general/array.hpp"
+#include "operator.hpp"
+#include "blockvector.hpp"
 
 namespace mfem
 {
@@ -92,7 +95,7 @@ private:
 };
 
 //! @class BlockDiagonalPreconditioner
-/*
+/**
  * \brief A class to handle Block diagonal preconditioners in a matrix-free implementation.
  *
  * Usage:

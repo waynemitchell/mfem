@@ -13,6 +13,7 @@
 #define MFEM_SEGMENT
 
 #include "../config.hpp"
+#include "element.hpp"
 
 namespace mfem
 {
@@ -48,7 +49,12 @@ public:
 
    virtual int GetNEdges() const { return(0); }
 
-   virtual const int *GetEdgeVertices(int ei) const { return(NULL); }
+   virtual const int *GetEdgeVertices(int ei) const { return NULL; }
+
+   virtual int GetNFaces(int &nFaceVertices) const
+   { nFaceVertices = 0; return 0; }
+
+   virtual const int *GetFaceVertices(int fi) const { return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const
    { return new Segment(indices, attribute); }

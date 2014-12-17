@@ -14,6 +14,11 @@
 
 #include "../config.hpp"
 
+#ifdef MFEM_USE_MPI
+
+#include "pgridfunc.hpp"
+#include "nonlinearform.hpp"
+
 namespace mfem
 {
 
@@ -50,5 +55,7 @@ public:
 };
 
 }
+
+#endif // MFEM_USE_MPI
 
 #endif

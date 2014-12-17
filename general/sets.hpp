@@ -13,6 +13,8 @@
 #define MFEM_SETS
 
 #include "../config.hpp"
+#include "array.hpp"
+#include "table.hpp"
 
 namespace mfem
 {
