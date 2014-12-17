@@ -652,6 +652,7 @@ void FiniteElementSpace::Constructor()
    bdofs = NULL;
    fdofs = NULL;
    cP = NULL;
+   cR = NULL;
 
    if (!mesh->GetNE())
       return;
@@ -731,8 +732,6 @@ void FiniteElementSpace::Constructor()
          cR = vec_cR;
       }
    }
-   else
-      cP = cR = NULL;
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
@@ -1036,8 +1035,10 @@ FiniteElementSpace::~FiniteElementSpace()
 
 void FiniteElementSpace::Destructor()
 {
-   delete cR;
-   delete cP;
+   if (cR)
+      delete cR;
+   if (cP)
+      delete cP;
 
    dof_elem_array.DeleteAll();
    dof_ldof_array.DeleteAll();
