@@ -1338,7 +1338,7 @@ void NCMesh::ConstrainEdge(Node* v0, Node* v1, double t0, double t1,
 
          // obtain the local interpolation matrix
          const FiniteElement* edge_fe =
-               space->FEColl()->FiniteElementForGeometry(Geometry::SEGMENT);
+            space->FEColl()->FiniteElementForGeometry(Geometry::SEGMENT);
 
          DenseMatrix I(edge_fe->GetDof());
          edge_fe->GetLocalInterpolation(edge_T, I);
@@ -1381,7 +1381,7 @@ void NCMesh::ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
 
             // obtain the local interpolation matrix
             const FiniteElement* face_fe =
-                  space->FEColl()->FiniteElementForGeometry(Geometry::SQUARE);
+               space->FEColl()->FiniteElementForGeometry(Geometry::SQUARE);
 
             DenseMatrix I(face_fe->GetDof());
             face_fe->GetLocalInterpolation(face_T, I);

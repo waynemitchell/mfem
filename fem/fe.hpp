@@ -63,7 +63,7 @@ public:
        x = T(xh) is the image of the reference point xh,
        J = J(xh) is the Jacobian matrix of the transformation T, and
        w = w(xh) = / det(J),           for square J,
-                   \ det(J^t*J)^{1/2}, for general J,
+       .           \ det(J^t*J)^{1/2}, for general J,
        is the transformation weight factor.
    */
    enum { VALUE, INTEGRAL, H_DIV, H_CURL };
