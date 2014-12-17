@@ -18,6 +18,8 @@
 namespace mfem
 {
 
+class Vector;
+
 /** Class for parsing command-line options.
 
     The class is initialized with argc and argv, and new options are added with
@@ -26,8 +28,6 @@ namespace mfem
 
     See the MFEM examples for sample use.
 */
-class Vector;
-
 class OptionsParser
 {
 public:

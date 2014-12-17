@@ -18,9 +18,10 @@
 //               We recommend viewing examples 1-4 before viewing this example.
 
 #include <fstream>
-using namespace std;
-
+#include <iostream>
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 // Exact solution and r.h.s., see below for implementation.
@@ -192,22 +193,11 @@ int main(int argc, char *argv[])
    // 11. Send the solution by socket to a GLVis server.
    if (visualization)
    {
-      const char vishost[] = "localhost";
-      const int visport = 19916;
-      socketstream out(vishost, visport);
-      if (out.good())
-      {
-         out.precision(8);
-         out << "solution\n";
-         mesh->Print(out);
-         x.Save(out);
-         out << flush;
-      }
-      else
-      {
-         cout << "Unable to connect to GLVis at "
-              << vishost << ':' << visport << endl;
-      }
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      socketstream sol_sock(vishost, visport);
+      sol_sock.precision(8);
+      sol_sock << "solution\n" << *mesh << x << flush;
    }
 
    // 12. Free the used memory.

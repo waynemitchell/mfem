@@ -26,9 +26,9 @@
 
 #include <fstream>
 #include <iostream>
-using namespace std;
-
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 // Exact solution, E, and r.h.s., f. See below for implementation.
@@ -214,13 +214,10 @@ int main (int argc, char *argv[])
    {
       char vishost[] = "localhost";
       int  visport   = 19916;
-      osockstream sol_sock(visport, vishost);
+      socketstream sol_sock(vishost, visport);
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
-      sol_sock << "solution\n";
       sol_sock.precision(8);
-      pmesh->Print(sol_sock);
-      x.Save(sol_sock);
-      sol_sock.send();
+      sol_sock << "solution\n" << *pmesh << x << flush;
    }
 
    // 16. Free the used memory.

@@ -24,9 +24,10 @@
 //               We recommend viewing examples 1-4 before viewing this example.
 
 #include <fstream>
-using namespace std;
-
+#include <iostream>
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 // Define the analytical solution and forcing terms / boundary conditions
@@ -264,17 +265,11 @@ int main (int argc, char *argv[])
       char vishost[] = "localhost";
       int  visport   = 19916;
       socketstream u_sock(vishost, visport);
-      u_sock << "solution\n";
       u_sock.precision(8);
-      mesh->Print(u_sock);
-      u.Save(u_sock);
-      u_sock << "window_title 'Velocity'" << endl;
+      u_sock << "solution\n" << *mesh << u << "window_title 'Velocity'" << endl;
       socketstream p_sock(vishost, visport);
-      p_sock << "solution\n";
       p_sock.precision(8);
-      mesh->Print(p_sock);
-      p.Save(p_sock);
-      p_sock << "window_title 'Pressure'" << endl;
+      p_sock << "solution\n" << *mesh << p << "window_title 'Pressure'" << endl;
    }
 
    // 13. Free the used memory.

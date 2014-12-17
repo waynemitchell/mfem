@@ -29,6 +29,7 @@
 //               We recommend viewing Example 1 before viewing this example.
 
 #include <fstream>
+#include <iostream>
 #include "mfem.hpp"
 
 using namespace std;
@@ -113,9 +114,9 @@ int main(int argc, char *argv[])
    // 8. (Optional) Connect to GLVis.
    char vishost[] = "localhost";
    int  visport   = 19916;
-   osockstream *sol_sock = NULL;
+   socketstream sol_sock;
    if (visualization)
-     sol_sock = new osockstream(visport, vishost);
+      sol_sock.open(vishost, visport);
 
    // 9. The main AMR loop. In each iteration we solve the problem on the
    //    current mesh, visualize the solution, estimate the error on all
@@ -153,7 +154,8 @@ int main(int argc, char *argv[])
       GSSmoother M(A);
       PCG(A, M, b, x, 1, 200, 1e-12, 0.0);
 #else
-      // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+      // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
+      //     the linear system.
       UMFPackSolver umf_solver;
       umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
       umf_solver.SetOperator(A);
@@ -167,17 +169,15 @@ int main(int argc, char *argv[])
       x.ConformingProlongate();
 
       // 15. (Optional) Send solution by socket to the GLVis server.
-      if (visualization)
+      if (visualization && sol_sock.good())
       {
-         *sol_sock << "solution\n";
-         sol_sock->precision(8);
-         mesh.Print(*sol_sock);
-         x.Save(*sol_sock);
-         sol_sock->send();
+         sol_sock.precision(8);
+         sol_sock << "solution\n" << mesh << x << flush;
       }
 
       // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
-      //     The bilinear form integrator must have 'ComputeElementFlux' defined.
+      //     The bilinear form integrator must have the 'ComputeElementFlux'
+      //     method defined.
       Vector errors(mesh.GetNE());
       {
          FiniteElementSpace flux_fespace(&mesh, &fec, dim);
@@ -223,9 +223,6 @@ int main(int argc, char *argv[])
       a.Update();
       b.Update();
    }
-
-   if (visualization)
-      delete sol_sock;
 
    return 0;
 }

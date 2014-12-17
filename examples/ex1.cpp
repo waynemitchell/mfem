@@ -8,18 +8,19 @@
 //               ex1 -m ../data/fichera.mesh
 //               ex1 -m ../data/square-disc-p2.vtk -o 2
 //               ex1 -m ../data/square-disc-p3.mesh -o 3
-//               ex1 -m ../data/square-disc-nurbs.mesh
-//               ex1 -m ../data/disc-nurbs.mesh
-//               ex1 -m ../data/pipe-nurbs.mesh
+//               ex1 -m ../data/square-disc-nurbs.mesh -o -1
+//               ex1 -m ../data/disc-nurbs.mesh -o -1
+//               ex1 -m ../data/pipe-nurbs.mesh -o -1
 //               ex1 -m ../data/star-surf.mesh
 //               ex1 -m ../data/square-disc-surf.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
-//               simple isoparametric finite element discretization of the
-//               Laplace problem -Delta u = 1 with homogeneous Dirichlet
-//               boundary conditions. Specifically, we discretize with the
-//               FE space coming from the mesh (linear by default, quadratic
-//               for quadratic curvilinear mesh, NURBS for NURBS mesh, etc.)
+//               simple finite element discretization of the Laplace problem
+//               -Delta u = 1 with homogeneous Dirichlet boundary conditions.
+//               Specifically, we discretize using a FE space of the specified
+//               order or if order < 1 using an isoparametric/isogeometric space
+//               (i.e. quadratic for quadratic curvilinear mesh, NURBS for NURBS
+//               mesh, etc.)
 //
 //               The example highlights the use of mesh refinement, finite
 //               element grid functions, as well as linear and bilinear forms
@@ -30,9 +31,9 @@
 
 #include <fstream>
 #include <iostream>
-using namespace std;
-
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 int main (int argc, char *argv[])
@@ -46,7 +47,8 @@ int main (int argc, char *argv[])
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
-                  "Finite element order (polynomial degree).");
+                  "Finite element order (polynomial degree) or -1 for"
+                  " isoparametric space.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -84,8 +86,15 @@ int main (int argc, char *argv[])
    }
 
    // 4. Define a finite element space on the mesh. Here we use continuous
-   //    Lagrange finite elements of the specified order.
-   FiniteElementCollection *fec = new H1_FECollection(order, dim);
+   //    Lagrange finite elements of the specified order. If order < 1, we
+   //    insted use an isoparametric/isogeometric space.
+   FiniteElementCollection *fec;
+   if (order > 0)
+      fec = new H1_FECollection(order, dim);
+   else if (mesh->GetNodes())
+      fec = mesh->GetNodes()->OwnFEC();
+   else
+      fec = new H1_FECollection(order = 1, dim);
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;
 
@@ -145,19 +154,16 @@ int main (int argc, char *argv[])
    {
       char vishost[] = "localhost";
       int  visport   = 19916;
-      osockstream sol_sock(visport, vishost);
-      sol_sock << "solution\n";
+      socketstream sol_sock(vishost, visport);
       sol_sock.precision(8);
-      mesh->Print(sol_sock);
-      x.Save(sol_sock);
-      sol_sock.send();
+      sol_sock << "solution\n" << *mesh << x << flush;
    }
 
    // 11. Free the used memory.
    delete a;
    delete b;
    delete fespace;
-   if (!mesh->GetNodes())
+   if (order > 0)
       delete fec;
    delete mesh;
 

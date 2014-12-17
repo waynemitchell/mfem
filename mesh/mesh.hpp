@@ -739,6 +739,10 @@ public:
    virtual ~Mesh();
 };
 
+/** Overload operator<< for std::ostream and Mesh; valid also for the derived
+    class ParMesh */
+std::ostream &operator<<(std::ostream &out, const Mesh &mesh);
+
 
 /// Class used to exrude the nodes of a mesh
 class NodeExtrudeCoefficient : public VectorCoefficient

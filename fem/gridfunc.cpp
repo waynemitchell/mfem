@@ -1785,7 +1785,7 @@ void GridFunction::ConformingProject()
    }
 }
 
-void GridFunction::Save(std::ostream &out)
+void GridFunction::Save(std::ostream &out) const
 {
    fes->Save(out);
    out << '\n';
@@ -1963,6 +1963,12 @@ void GridFunction::SaveSTL(std::ostream &out, int TimesToRefine)
         << endl;
 
    out << "endsolid GridFunction" << endl;
+}
+
+std::ostream &operator<<(std::ostream &out, const GridFunction &sol)
+{
+   sol.Save(out);
+   return out;
 }
 
 

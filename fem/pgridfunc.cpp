@@ -247,7 +247,7 @@ void ParGridFunction::ProjectCoefficient(Coefficient &coeff)
    }
 }
 
-void ParGridFunction::Save(std::ostream &out)
+void ParGridFunction::Save(std::ostream &out) const
 {
    for (int i = 0; i < size; i++)
       if (pfes->GetDofSign(i) < 0)

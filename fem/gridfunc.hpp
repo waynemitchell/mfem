@@ -252,7 +252,7 @@ public:
    void Update(FiniteElementSpace *f, Vector &v, int v_offset);
 
    /// Save the GridFunction to an output stream.
-   virtual void Save(std::ostream &out);
+   virtual void Save(std::ostream &out) const;
 
    /** Write the GridFunction in VTK format. Note that Mesh::PrintVTK must be
        called first. The parameter ref must match the one used in
@@ -264,6 +264,11 @@ public:
    /// Destroys grid function.
    virtual ~GridFunction();
 };
+
+/** Overload operator<< for std::ostream and GridFunction; valid also for the
+    derived class ParGridFunction */
+std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
+
 
 void ComputeFlux(BilinearFormIntegrator &blfi,
                  GridFunction &u,
