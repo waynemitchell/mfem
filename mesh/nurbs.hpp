@@ -14,9 +14,17 @@
 
 #include <iostream>
 #include "../config.hpp"
+#include "../general/table.hpp"
+#include "../general/communication.hpp"
+#include "../linalg/vector.hpp"
+#include "element.hpp"
+#include "mesh.hpp"
 
 namespace mfem
 {
+
+class GridFunction;
+
 
 class KnotVector
 {

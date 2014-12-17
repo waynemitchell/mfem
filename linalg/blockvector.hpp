@@ -13,6 +13,8 @@
 #define MFEM_BLOCKVECTOR
 
 #include "../config.hpp"
+#include "../general/array.hpp"
+#include "vector.hpp"
 
 namespace mfem
 {

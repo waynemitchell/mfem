@@ -13,6 +13,7 @@
 #define MFEM_TETRAHEDRON
 
 #include "../config.hpp"
+#include "element.hpp"
 
 namespace mfem
 {
@@ -81,6 +82,12 @@ public:
    virtual int GetNEdges() const { return(6); }
 
    virtual const int *GetEdgeVertices(int ei) const { return(edges[ei]); }
+
+   virtual int GetNFaces(int &nFaceVertices) const
+   { nFaceVertices = 3; return 4; }
+
+   virtual const int *GetFaceVertices(int fi) const
+   { MFEM_ABORT("not implemented"); return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const;
 

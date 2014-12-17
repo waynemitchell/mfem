@@ -14,6 +14,9 @@
 
 #include <iostream>
 #include "../config.hpp"
+#include "../linalg/sparsemat.hpp"
+#include "../mesh/mesh.hpp"
+#include "fe_coll.hpp"
 
 namespace mfem
 {
@@ -90,6 +93,11 @@ protected:
    // a set of intermediate partially conforming dofs, e.g. the dofs associated
    // with a "cut" space on a non-conforming mesh.
    SparseMatrix *cP;
+   // Conforming restriction matrix such that cR.cP=I.
+   SparseMatrix *cR;
+
+   void MarkDependency(const SparseMatrix *D, const Array<int> &row_marker,
+                       Array<int> &col_marker);
 
    void UpdateNURBS();
 
@@ -108,6 +116,14 @@ protected:
                                    RefinementType type,
                                    Array<int> &rows);
 
+   /** Construct the restriction matrix from the coarse FE space 'cfes' to
+       (*this) space, where both spaces use the same FE collection and
+       their meshes are obtained from different levels of a single NCMesh.
+       (Also, the coarse level must have been marked in 'ncmesh' before
+       refinement). */
+   SparseMatrix *NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes,
+                                            NCMesh* ncmesh);
+
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
                       int dim = 1, int order = Ordering::byNODES);
@@ -120,6 +136,8 @@ public:
 
    SparseMatrix *GetConformingProlongation() { return cP; }
    const SparseMatrix *GetConformingProlongation() const { return cP; }
+   SparseMatrix *GetConformingRestriction() { return cR; }
+   const SparseMatrix *GetConformingRestriction() const { return cR; }
 
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }
@@ -131,6 +149,12 @@ public:
    inline int GetNDofs() const { return ndofs; }
 
    inline int GetVSize() const { return vdim * ndofs; }
+
+   /// Returns the number of conforming ("true") degrees of freedom
+   /// (if the space is on a nonconforming mesh with hanging nodes).
+   inline int GetNConformingDofs() const { return cP ? cP->Width() : ndofs; }
+
+   inline int GetConformingVSize() const { return vdim * GetNConformingDofs(); }
 
    /// Return the ordering method.
    inline int GetOrdering() const { return ordering; }
@@ -243,6 +267,8 @@ public:
 
    const FiniteElement *GetFaceElement(int i) const;
 
+   const FiniteElement *GetEdgeElement(int i) const;
+
    /// Return the trace element from element 'i' to the given 'geom_type'
    const FiniteElement *GetTraceElement(int i, int geom_type) const;
 
@@ -263,8 +289,23 @@ public:
 
    /** For a partially conforming FE space, convert a marker array (negative
        entries are true) on the partially conforming dofs to a marker array on
-       the conforming dofs. */
-   void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs);
+       the conforming dofs. A conforming dofs is marked iff at least one of its
+       dependent dofs (as defined by the conforming prolongation matrix) is
+       marked. */
+   void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs)
+   {
+      MarkDependency(cP, dofs, cdofs);
+   }
+
+   /** For a partially conforming FE space, convert a marker array (negative
+       entries are true) on the conforming dofs to a marker array on the
+       (partially conforming) dofs. A dofs is marked iff at least one of the
+       conforming dofs that dependent on it (as defined by the conforming
+       restriction matrix) is marked. */
+   void ConvertFromConformingVDofs(const Array<int> &cdofs, Array<int> &dofs)
+   {
+      MarkDependency(cR, cdofs, dofs);
+   }
 
    void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,
                                     Array<int> &bdr_attr_is_ess,
@@ -289,6 +330,16 @@ public:
    SparseMatrix *H2L_GlobalRestrictionMatrix(FiniteElementSpace *lfes);
 
    virtual void Update();
+
+   /** Updates the space after the underlying mesh has been refined and
+       interpolates one or more GridFunctions so that they represent the same
+       functions on the new mesh. The grid functions are passed as pointers
+       after 'num_grid_fns'. */
+   virtual void UpdateAndInterpolate(int num_grid_fns, ...);
+
+   /// A shortcut for passing only one GridFunction to UndateAndInterpolate.
+   void UpdateAndInterpolate(GridFunction* gf) { UpdateAndInterpolate(1, gf); }
+
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
 

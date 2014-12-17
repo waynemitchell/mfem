@@ -1036,12 +1036,13 @@ void GridFunction::ProjectCoefficient(VectorCoefficient &vcoeff)
 
 void GridFunction::ProjectCoefficient(Coefficient *coeff[])
 {
-   int i, j, fdof, d, ind;
+   int i, j, fdof, d, ind, vdim;
    double val;
    const FiniteElement *fe;
    ElementTransformation *transf;
    Array<int> vdofs;
 
+   vdim = fes->GetVDim();
    for (i = 0; i < fes->GetNE(); i++)
    {
       fe = fes->GetFE(i);
@@ -1053,7 +1054,7 @@ void GridFunction::ProjectCoefficient(Coefficient *coeff[])
       {
          const IntegrationPoint &ip = ir.IntPoint(j);
          transf->SetIntPoint(&ip);
-         for (d = 0; d < fes->GetVDim(); d++)
+         for (d = 0; d < vdim; d++)
          {
             val = coeff[d]->Eval(*transf, ip);
             if ( (ind = vdofs[fdof*d+j]) < 0 )
@@ -1067,12 +1068,13 @@ void GridFunction::ProjectCoefficient(Coefficient *coeff[])
 void GridFunction::ProjectBdrCoefficient(
    Coefficient *coeff[], Array<int> &attr)
 {
-   int i, j, fdof, d, ind;
+   int i, j, fdof, d, ind, vdim;
    double val;
    const FiniteElement *fe;
    ElementTransformation *transf;
    Array<int> vdofs;
 
+   vdim = fes->GetVDim();
    for (i = 0; i < fes->GetNBE(); i++)
    {
       if ( attr[fes->GetBdrAttribute(i)-1] )
@@ -1086,12 +1088,63 @@ void GridFunction::ProjectBdrCoefficient(
          {
             const IntegrationPoint &ip = ir.IntPoint(j);
             transf->SetIntPoint(&ip);
-            for (d = 0; d < fes->GetVDim(); d++)
+            for (d = 0; d < vdim; d++)
             {
                val = coeff[d]->Eval(*transf, ip);
                if ( (ind = vdofs[fdof*d+j]) < 0 )
                   val = -val, ind = -1-ind;
                (*this)(ind) = val;
+            }
+         }
+      }
+   }
+
+   // In the case of partially conforming space, i.e. (fes->cP != NULL), we need
+   // to set the values of all dofs on which the dofs set above depend.
+   // Dependency is defined from the matrix A = cP.cR: dof i depends on dof j
+   // iff A_ij != 0. It is sufficient to resolve just the first level of
+   // dependency since A is a projection matrix: A^n = A due to cR.cP = I.
+   // Cases like this arise in 3D when boundary edges are constraint by (depend
+   // on) internal faces/elements.
+
+   if (fes->GetConformingProlongation() && fes->GetMesh()->Dimension() > 1)
+   {
+      Vector vals;
+      Array<int> edges, edges_ori;
+      Mesh *mesh = fes->GetMesh();
+      NCMesh *ncmesh = mesh->ncmesh;
+      Table *edge_vertex = mesh->GetEdgeVertexTable();
+
+      for (i = 0; i < mesh->GetNBE(); i++)
+      {
+         if (attr[mesh->GetBdrAttribute(i)-1] == 0)
+            continue;
+         mesh->GetBdrElementEdges(i, edges, edges_ori);
+         for (j = 0; j < edges.Size(); j++)
+         {
+            // Note: here we only set values at master edges that contain
+            // (geometrically) the current edge. Generally, the edge may depend
+            // on other edges and vertices.
+            int edge = edges[j];
+            while (true)
+            {
+               const int *ev = edge_vertex->GetRow(edge);
+               edge = ncmesh->GetEdgeMaster(ev[0], ev[1]);
+               if (edge < 0)
+                  break;
+               fes->GetEdgeVDofs(edge, vdofs);
+               if (vdofs.Size() == 0)
+                  continue;
+               transf = mesh->GetEdgeTransformation(edge);
+               transf->Attribute = mesh->GetBdrAttribute(i);
+               fe = fes->GetEdgeElement(edge);
+               vals.SetSize(fe->GetDof());
+               for (d = 0; d < vdim; d++)
+               {
+                  fe->Project(*coeff[d], *transf, vals);
+                  for (int k = 0; k < vals.Size(); k++)
+                     (*this)(vdofs[d*vals.Size()+k]) = vals(k);
+               }
             }
          }
       }
@@ -1698,24 +1751,54 @@ GridFunction & GridFunction::operator=(const GridFunction &v)
    return this->operator=((const Vector &)v);
 }
 
-void GridFunction::ConformingProject(Vector &x) const
+void GridFunction::ConformingProlongate(const Vector &x)
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
-   const int *I = P->GetI(), *J = P->GetJ(), s = P->Size();
-   const double *A = P->GetData();
-
-   x.SetSize(P->Width());
-
-   for (int i = 0, j = 0; i < s; i++)
+   if (P)
    {
-      const int end = I[i+1];
-      if (j + 1 == end) // exactly one entry in row i
-         x(J[j]) = (*this)(i) / A[j];
-      j = end;
+      this->SetSize(P->Size());
+      P->Mult(x, *this);
+   }
+   else // assume conforming mesh
+   {
+      *this = x;
    }
 }
 
-void GridFunction::Save(std::ostream &out)
+void GridFunction::ConformingProlongate()
+{
+   if (fes->GetConformingProlongation())
+   {
+      Vector x = *this;
+      ConformingProlongate(x);
+   }
+}
+
+void GridFunction::ConformingProject(Vector &x) const
+{
+   const SparseMatrix *R = fes->GetConformingRestriction();
+   if (R)
+   {
+      x.SetSize(R->Size());
+      R->Mult(*this, x);
+   }
+   else // assume conforming mesh
+   {
+      x = *this;
+   }
+}
+
+void GridFunction::ConformingProject()
+{
+   if (fes->GetConformingProlongation())
+   {
+      Vector x;
+      ConformingProject(x);
+      static_cast<Vector&>(*this) = x;
+   }
+}
+
+void GridFunction::Save(std::ostream &out) const
 {
    fes->Save(out);
    out << '\n';
@@ -1895,6 +1978,12 @@ void GridFunction::SaveSTL(std::ostream &out, int TimesToRefine)
    out << "endsolid GridFunction" << endl;
 }
 
+std::ostream &operator<<(std::ostream &out, const GridFunction &sol)
+{
+   sol.Save(out);
+   return out;
+}
+
 
 void ComputeFlux(BilinearFormIntegrator &blfi,
                  GridFunction &u,
@@ -1940,6 +2029,17 @@ void ComputeFlux(BilinearFormIntegrator &blfi,
    for (i = 0; i < overlap.Size(); i++)
       if (overlap[i] != 0)
          flux(i) /= overlap[i];
+
+   if (ffes->GetConformingProlongation())
+   {
+      // On a partially conforming flux space, project on the conforming space.
+      // Using this code may lead to worse refinements in ex6, so we do not use
+      // it by default.
+
+      // Vector conf_flux;
+      // flux.ConformingProject(conf_flux);
+      // flux.ConformingProlongate(conf_flux);
+   }
 }
 
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
