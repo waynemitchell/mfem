@@ -20,113 +20,113 @@ using namespace std;
 
 int isValidAsInt(char * s)
 {
-	if ( s == NULL || *s == '\0' )
-		return 0; //Empty string
+   if ( s == NULL || *s == '\0' )
+      return 0; //Empty string
 
-	if ( *s == '+' || *s == '-' )
-		++s;
+   if ( *s == '+' || *s == '-' )
+      ++s;
 
-	if ( *s == '\0')
-		return 0;  //sign character only
+   if ( *s == '\0')
+      return 0;  //sign character only
 
-	while(*s)
-	{
-		if( !isdigit(*s) )
-			return 0;
-		++s;
-	}
+   while(*s)
+   {
+      if( !isdigit(*s) )
+         return 0;
+      ++s;
+   }
 
-	return 1;
+   return 1;
 }
 
 int isValidAsDouble(char * s)
 {
-	//A valid floating point number for atof using the "C" locale is formed by
-	// - an optional sign character (+ or -),
-	// - followed by a sequence of digits, optionally containing a decimal-point character (.),
-	// - optionally followed by an exponent part (an e or E character followed by an optional sign and a sequence of digits).
+   //A valid floating point number for atof using the "C" locale is formed by
+   // - an optional sign character (+ or -),
+   // - followed by a sequence of digits, optionally containing a decimal-point
+   //   character (.),
+   // - optionally followed by an exponent part (an e or E character followed by
+   //   an optional sign and a sequence of digits).
 
-	if ( s == NULL || *s == '\0' )
-		return 0; //Empty string
+   if ( s == NULL || *s == '\0' )
+      return 0; //Empty string
 
-	if ( *s == '+' || *s == '-' )
-		++s;
+   if ( *s == '+' || *s == '-' )
+      ++s;
 
-	if ( *s == '\0')
-		return 0;  //sign character only
+   if ( *s == '\0')
+      return 0;  //sign character only
 
-	while(*s)
-	{
-		if(!isdigit(*s))
-			break;
-		++s;
-	}
+   while(*s)
+   {
+      if(!isdigit(*s))
+         break;
+      ++s;
+   }
 
-	if(*s == '\0')
-		return 1; //s = "123"
+   if(*s == '\0')
+      return 1; //s = "123"
 
-	if(*s == '.')
-	{
-		++s;
-		while(*s)
-		{
-			if(!isdigit(*s))
-				break;
-			++s;
-		}
-		if(*s == '\0')
-			return 1; //this is a fixed point double s = "123." or "123.45"
-	}
+   if(*s == '.')
+   {
+      ++s;
+      while(*s)
+      {
+         if(!isdigit(*s))
+            break;
+         ++s;
+      }
+      if(*s == '\0')
+         return 1; //this is a fixed point double s = "123." or "123.45"
+   }
 
-	if(*s == 'e' || *s == 'E')
-	{
-		++s;
-		return isValidAsInt(s);
-	}
-	else
-		return 0; //we have encounter a wrong character
-
-
+   if(*s == 'e' || *s == 'E')
+   {
+      ++s;
+      return isValidAsInt(s);
+   }
+   else
+      return 0; //we have encounter a wrong character
 }
 
 void parseArray(char * str, Array<int> & var)
 {
-	var.SetSize(0);
-	std::stringstream input(str);
-	int val;
-	while( input >> val)
-		var.Append(val);
+   var.SetSize(0);
+   std::stringstream input(str);
+   int val;
+   while( input >> val)
+      var.Append(val);
 }
 
 void parseVector(char * str, Vector & var)
 {
-	int nentries = 0;
-	   double val;
-	{
-	   std::stringstream input(str);
-	   while( input >> val)
-		 ++nentries;
-	}
+   int nentries = 0;
+   double val;
+   {
+      std::stringstream input(str);
+      while( input >> val)
+         ++nentries;
+   }
 
-	var.SetSize(nentries);
-	{
-	   nentries = 0;
-	   std::stringstream input(str);
-       while( input >> val)
-		 var(nentries++) = val;
-	}
+   var.SetSize(nentries);
+   {
+      nentries = 0;
+      std::stringstream input(str);
+      while( input >> val)
+         var(nentries++) = val;
+   }
 }
 
 void OptionsParser::Parse()
 {
-	option_check.SetSize(options.Size());
-	option_check = 0;
+   option_check.SetSize(options.Size());
+   option_check = 0;
    for (int i = 1; i < argc; )
    {
       if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
       {
          // print help message
-         error = -2;
+         error_type = 1;
          return;
       }
 
@@ -135,7 +135,8 @@ void OptionsParser::Parse()
          if (j >= options.Size())
          {
             // unrecognized option
-            error = i;
+            error_type = 2;
+            error_idx = i;
             return;
          }
 
@@ -146,8 +147,9 @@ void OptionsParser::Parse()
 
             if( option_check[j] )
             {
-            	error = argc + j;
-            	return;
+               error_type = 4;
+               error_idx = j;
+               return;
             }
             option_check[j] = 1;
 
@@ -155,7 +157,8 @@ void OptionsParser::Parse()
             if (type != ENABLE && type != DISABLE && i >= argc)
             {
                // missing argument
-               error = -1;
+               error_type = 3;
+               error_idx = j;
                return;
             }
 
@@ -182,17 +185,18 @@ void OptionsParser::Parse()
                option_check[j-1] = 1;  //Do not allow to use the ENABLE Option
                break;
             case ARRAY:
-            	parseArray(argv[i++], *(Array<int>*)(options[j].var_ptr) );
-            	break;
+               parseArray(argv[i++], *(Array<int>*)(options[j].var_ptr) );
+               break;
             case VECTOR:
-            	parseVector(argv[i++], *(Vector*)(options[j].var_ptr) );
-            	break;
+               parseVector(argv[i++], *(Vector*)(options[j].var_ptr) );
+               break;
             }
 
             if(!isValid)
             {
-            	error = 2*argc + i - 1;
-            	return;
+               error_type = 5;
+               error_idx = i;
+               return;
             }
 
             break;
@@ -200,7 +204,63 @@ void OptionsParser::Parse()
       }
    }
 
-   error = 0;
+   // check for missing required options
+   for (int i = 0; i < options.Size(); i++)
+      if (options[i].required &&
+          (option_check[i] == 0 ||
+           (options[i].type == ENABLE && option_check[++i] == 0)))
+      {
+         error_type = 6; // required option missing
+         error_idx = i; // for a boolean option i is the index of DISABLE
+         return;
+      }
+
+   error_type = 0;
+}
+
+void OptionsParser::WriteValue(const Option &opt, std::ostream &out)
+{
+   switch (opt.type)
+   {
+   case INT:
+      out << *(int *)(opt.var_ptr);
+      break;
+
+   case DOUBLE:
+      out << *(double *)(opt.var_ptr);
+      break;
+
+   case STRING:
+      out << *(const char **)(opt.var_ptr);
+      break;
+
+   case ARRAY:
+   {
+      Array<int> &list = *(Array<int>*)(opt.var_ptr);
+      out << '\'';
+      if (list.Size() > 0)
+         out << list[0];
+      for (int i = 0; i < list.Size(); i++)
+         out << ' ' << list[i];
+      out << '\'';
+      break;
+   }
+
+   case VECTOR:
+   {
+      Vector &list = *(Vector*)(opt.var_ptr);
+      out << '\'';
+      if (list.Size() > 0)
+         out << list(0);
+      for (int i = 1; i < list.Size(); i++)
+         out << ' ' << list(i);
+      out << '\'';
+      break;
+   }
+
+   default: // provide a default to suppress warning
+      break;
+   }
 }
 
 void OptionsParser::PrintOptions(ostream &out) const
@@ -224,26 +284,7 @@ void OptionsParser::PrintOptions(ostream &out) const
       else
       {
          out << options[j].long_name << " ";
-         switch (type)
-         {
-         case INT:
-            out << *(int *)(options[j].var_ptr);
-            break;
-         case DOUBLE:
-            out << *(double *)(options[j].var_ptr);
-            break;
-         case STRING:
-            out << *(const char **)(options[j].var_ptr);
-            break;
-         case ARRAY:
-        	 ((Array<int>*)(options[j].var_ptr))->Print(
-        			 out, ((Array<int>*)(options[j].var_ptr))->Size() );
-        	 break;
-         case VECTOR:
-        	 ((Vector*)(options[j].var_ptr))->Print(
-        			 out, ((Vector*)(options[j].var_ptr))->Size() );
-        	 break;
-         }
+         WriteValue(options[j], out);
       }
       out << '\n';
    }
@@ -255,31 +296,44 @@ void OptionsParser::PrintUsage(ostream &out) const
    static const char *seprtr = ", ";
    static const char *descr_sep = "\n\t";
    static const char *line_sep = "";
-   static const char *types[] = { " <int>", " <double>", " <string>", "", "" };
+   static const char *types[] = { " <int>", " <double>", " <string>", "", "",
+                                  " '<int>...'", " '<double>...'" };
 
    out << line_sep;
-   if (error == -1)
+   switch (error_type)
    {
-      out << "Missing option after: " << argv[argc-1] << '\n' << line_sep;
-   }
-   else if (error > 0 && error < argc)
-   {
-      out << "Unrecognized option: " << argv[error] << '\n' << line_sep;
-   }
-   else if ( error >= argc && error < 2*argc)
-   {
-	   if(options[error - argc].type == ENABLE )
-		  out << "Option " << options[error - argc].long_name << " or "
-		      << options[error - argc + 1].long_name << " provided multiple times\n" << line_sep;
-	   else if(options[error - argc].type == DISABLE)
-		  out << "Option " << options[error - argc - 1].long_name << " or "
-		      << options[error - argc].long_name << " provided multiple times\n" << line_sep;
-	   else
-	      out << "Option " << options[error - argc].long_name << " provided multiple times\n" << line_sep;
-   }
-   else if (error > 2*argc)
-   {
-	   out << "Wrong option format " << argv[error - 2 * argc -1] << " " << argv[error - 2 * argc] << "\n";
+   case 2:
+      out << "Unrecognized option: " << argv[error_idx] << '\n' << line_sep;
+      break;
+
+   case 3:
+      out << "Missing argument for the last option: " << argv[argc-1] << '\n'
+          << line_sep;
+      break;
+
+   case 4:
+      if(options[error_idx].type == ENABLE )
+         out << "Option " << options[error_idx].long_name << " or "
+             << options[error_idx + 1].long_name
+             << " provided multiple times\n" << line_sep;
+      else if(options[error_idx].type == DISABLE)
+         out << "Option " << options[error_idx - 1].long_name << " or "
+             << options[error_idx].long_name
+             << " provided multiple times\n" << line_sep;
+      else
+         out << "Option " << options[error_idx].long_name
+             << " provided multiple times\n" << line_sep;
+      break;
+
+   case 5:
+      out << "Wrong option format: " << argv[error_idx - 1] << " "
+          << argv[error_idx] << '\n' << line_sep;
+      break;
+
+   case 6:
+      out << "Missing required option: " << options[error_idx].long_name
+          << '\n' << line_sep;
+      break;
    }
 
    out << "Usage: " << argv[0] << " [options] ...\n" << line_sep
@@ -293,39 +347,27 @@ void OptionsParser::PrintUsage(ostream &out) const
       out << indent << options[j].short_name << types[type]
           << seprtr << options[j].long_name << types[type]
           << seprtr;
-      if (type == ENABLE)
+      if (options[j].required)
       {
-         j++;
-         out << options[j].short_name << types[type] << seprtr
-             << options[j].long_name << types[type] << seprtr
-             << "current option: ";
-         if (*(bool *)(options[j].var_ptr) == true)
-            out << options[j-1].long_name;
-         else
-            out << options[j].long_name;
+         out << "(required)";
       }
       else
       {
-         out << "current value: ";
-         switch (type)
+         if (type == ENABLE)
          {
-         case INT:
-            out << *(int *)(options[j].var_ptr);
-            break;
-         case DOUBLE:
-            out << *(double *)(options[j].var_ptr);
-            break;
-         case STRING:
-            out << *(const char **)(options[j].var_ptr);
-            break;
-         case ARRAY:
-        	 ((Array<int>*)(options[j].var_ptr))->Print(
-        			 out, ((Array<int>*)(options[j].var_ptr))->Size() );
-        	 break;
-         case VECTOR:
-        	 ((Vector*)(options[j].var_ptr))->Print(
-        			 out, ((Vector*)(options[j].var_ptr))->Size() );
-        	 break;
+            j++;
+            out << options[j].short_name << types[type] << seprtr
+                << options[j].long_name << types[type] << seprtr
+                << "current option: ";
+            if (*(bool *)(options[j].var_ptr) == true)
+               out << options[j-1].long_name;
+            else
+               out << options[j].long_name;
+         }
+         else
+         {
+            out << "current value: ";
+            WriteValue(options[j], out);
          }
       }
       out << descr_sep;
