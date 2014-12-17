@@ -8150,6 +8150,12 @@ Mesh::~Mesh()
    DeleteTables();
 }
 
+std::ostream &operator<<(std::ostream &out, const Mesh &mesh)
+{
+   mesh.Print(out);
+   return out;
+}
+
 
 NodeExtrudeCoefficient::NodeExtrudeCoefficient(const int dim, const int _n,
                                                const double _s)
