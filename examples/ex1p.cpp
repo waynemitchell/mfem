@@ -137,13 +137,9 @@ int main (int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
-   {
-      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-      ess_bdr = 1;
-      Array<int> ess_dofs;
-      fespace->GetEssentialVDofs(ess_bdr, ess_dofs);
-      a->EliminateEssentialBCFromDofs(ess_dofs, x, *b);
-   }
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),

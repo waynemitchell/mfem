@@ -1381,8 +1381,9 @@ RT_FECollection::RT_FECollection(const int p, const int dim)
       RT_Elements[Geometry::SQUARE] = new RT_QuadrilateralElement(p);
       RT_dof[Geometry::SQUARE] = 2*p*pp1;
 
-      // RT_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p);
-      RT_Elements[Geometry::SEGMENT] = new L2Vol_SegmentElement(p);
+      L2_SegmentElement *l2_seg = new L2_SegmentElement(p);
+      l2_seg->SetMapType(FiniteElement::INTEGRAL);
+      RT_Elements[Geometry::SEGMENT] = l2_seg;
       RT_dof[Geometry::SEGMENT] = pp1;
 
       SegDofOrd[0] = new int[2*pp1];
@@ -1401,10 +1402,14 @@ RT_FECollection::RT_FECollection(const int p, const int dim)
       RT_Elements[Geometry::CUBE] = new RT_HexahedronElement(p);
       RT_dof[Geometry::CUBE] = 3*p*pp1*pp1;
 
-      RT_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p);
+      L2_TriangleElement *l2_tri = new L2_TriangleElement(p);
+      l2_tri->SetMapType(FiniteElement::INTEGRAL);
+      RT_Elements[Geometry::TRIANGLE] = l2_tri;
       RT_dof[Geometry::TRIANGLE] = pp1*pp2/2;
 
-      RT_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p);
+      L2_QuadrilateralElement *l2_quad = new L2_QuadrilateralElement(p);
+      l2_quad->SetMapType(FiniteElement::INTEGRAL);
+      RT_Elements[Geometry::SQUARE] = l2_quad;
       RT_dof[Geometry::SQUARE] = pp1*pp1;
 
       int TriDof = RT_dof[Geometry::TRIANGLE];
@@ -1506,7 +1511,9 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
       ND_Elements[Geometry::TRIANGLE] = new ND_TriangleElement(p);
       ND_dof[Geometry::TRIANGLE] = p*pm1;
 
-      ND_Elements[Geometry::SEGMENT] = new L2Vol_SegmentElement(p-1);
+      L2_SegmentElement *l2_seg = new L2_SegmentElement(p-1);
+      l2_seg->SetMapType(FiniteElement::INTEGRAL);
+      ND_Elements[Geometry::SEGMENT] = l2_seg;
       ND_dof[Geometry::SEGMENT] = p;
 
       SegDofOrd[0] = new int[2*p];

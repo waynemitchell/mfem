@@ -26,7 +26,7 @@ void mfem_error (const char *msg)
    {
       // NOTE: This endl also flushes the I/O stream, which can be a very bad
       // thing if all your processors try to do it at the same time.
-      std::cerr << msg << std::endl;
+      std::cerr << "\n\n" << msg << std::endl;
    }
 #ifdef MFEM_USE_MPI
    MPI_Abort(MPI_COMM_WORLD, 1);

@@ -13,6 +13,8 @@
 #define MFEM_NONLINEARFORM
 
 #include "../config.hpp"
+#include "nonlininteg.hpp"
+#include "fespace.hpp"
 
 namespace mfem
 {

@@ -13,6 +13,7 @@
 #define MFEM_BILININTEG
 
 #include "../config.hpp"
+#include "nonlininteg.hpp"
 
 namespace mfem
 {
