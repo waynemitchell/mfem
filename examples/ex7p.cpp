@@ -7,15 +7,16 @@
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               triangulation of a unit sphere and a simple isoparametric
-//               finite element discretization of the Laplace problem
-//                                -Delta u + u = f.
+//               finite element discretization of the Laplace problem with mass
+//               term, -Delta u + u = f.
 //
 //               The example highlights mesh generation, the use of mesh
 //               refinement, high-order meshes and finite elements, as well as
-//               linear and bilinear forms corresponding to the left-hand side
-//               and right-hand side of the discrete linear system.
+//               surface-based linear and bilinear forms corresponding to the
+//               left-hand side and right-hand side of the discrete linear
+//               system.
 //
-//               We recommend viewing examples 1-4 before viewing this example.
+//               We recommend viewing Example 1 before viewing this example.
 
 #include <fstream>
 #include <iostream>
@@ -31,13 +32,13 @@ void SnapNodes(Mesh &mesh);
 
 int main(int argc, char *argv[])
 {
-   // 1. Initialize MPI
+   // 1. Initialize MPI.
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   // 2. Parse command-line options
+   // 2. Parse command-line options.
    int elem_type = 1;
    int ref_levels = 2;
    int order = 2;
@@ -127,7 +128,7 @@ int main(int argc, char *argv[])
    FiniteElementSpace nodal_fes(mesh, &fec, mesh->SpaceDimension());
    mesh->SetNodalFESpace(&nodal_fes);
 
-   // 2. Refine the mesh while snapping nodes to the sphere. Number of parallel
+   // 4. Refine the mesh while snapping nodes to the sphere. Number of parallel
    //    refinements is fixed to 2.
    for (int l = 0; l <= ref_levels; l++)
    {
@@ -155,14 +156,14 @@ int main(int argc, char *argv[])
          SnapNodes(*pmesh);
    }
 
-   // 3. Define a finite element space on the mesh. Here we use isoparametric
+   // 5. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements -- the same as the mesh nodes.
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, &fec);
    int size = fespace->GlobalTrueVSize();
    if (myid == 0)
       cout << "Number of unknowns: " << size << endl;
 
-   // 4. Set up the linear form b(.) which corresponds to the right-hand side of
+   // 6. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
    //    the basis functions in the finite element fespace.
    ParLinearForm *b = new ParLinearForm(fespace);
@@ -172,13 +173,13 @@ int main(int argc, char *argv[])
    b->AddDomainIntegrator(new DomainLFIntegrator(rhs_coef));
    b->Assemble();
 
-   // 5. Define the solution vector x as a finite element grid function
+   // 7. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    ParGridFunction x(fespace);
    x = 0.0;
 
-   // 6. Set up the bilinear form a(.,.) on the finite element space
+   // 8. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
    //    domain integrator and imposing homogeneous Dirichlet boundary
    //    conditions. The boundary conditions are implemented by marking all the
@@ -189,7 +190,7 @@ int main(int argc, char *argv[])
    a->Assemble();
    a->Finalize();
 
-   // 7. Define the parallel (hypre) matrix and vectors representing a(.,.),
+   // 9. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //    b(.) and the finite element approximation.
    HypreParMatrix * A = a->ParallelAssemble();
    HypreParVector * B = b->ParallelAssemble();
@@ -198,10 +199,10 @@ int main(int argc, char *argv[])
    delete a;
    delete b;
 
-   // 8. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
-   //    preconditioner from hypre. Extract the parallel grid function x
-   //    corresponding to the finite element approximation X. This is the local
-   //    solution on each processor.
+   // 10. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   //     preconditioner from hypre. Extract the parallel grid function x
+   //     corresponding to the finite element approximation X. This is the local
+   //     solution on each processor.
    HypreSolver *amg = new HypreBoomerAMG(*A);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
@@ -211,12 +212,12 @@ int main(int argc, char *argv[])
    pcg->Mult(*B, *X);
    x = *X;
 
-   // 9. Compute and print the L^2 norm of the error.
+   // 11. Compute and print the L^2 norm of the error.
    double err = x.ComputeL2Error(sol_coef);
    if (myid == 0)
       cout<<"L2 norm of error: " << err << endl;
 
-   // 10. Save the refined mesh and the solution. This output can be viewed
+   // 12. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -np <np> -m sphere_refined -g sol".
    {
       ostringstream mesh_name, sol_name;
@@ -232,7 +233,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 11. Send the solution by socket to a GLVis server.
+   // 13. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -243,7 +244,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *pmesh << x << flush;
    }
 
-   // 12. Free the used memory.
+   // 14. Free the used memory.
    delete pcg;
    delete amg;
    delete X;

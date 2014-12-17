@@ -7,15 +7,16 @@
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               triangulation of a unit sphere and a simple isoparametric
-//               finite element discretization of the Laplace problem
-//                                -Delta u + u = f.
+//               finite element discretization of the Laplace problem with mass
+//               term, -Delta u + u = f.
 //
 //               The example highlights mesh generation, the use of mesh
 //               refinement, high-order meshes and finite elements, as well as
-//               linear and bilinear forms corresponding to the left-hand side
-//               and right-hand side of the discrete linear system.
+//               surface-based linear and bilinear forms corresponding to the
+//               left-hand side and right-hand side of the discrete linear
+//               system.
 //
-//               We recommend viewing examples 1-4 before viewing this example.
+//               We recommend viewing Example 1 before viewing this example.
 
 #include <fstream>
 #include <iostream>
@@ -31,7 +32,7 @@ void SnapNodes(Mesh &mesh);
 
 int main(int argc, char *argv[])
 {
-   // 1. Parse command-line options
+   // 1. Parse command-line options.
    int elem_type = 1;
    int ref_levels = 2;
    int order = 2;

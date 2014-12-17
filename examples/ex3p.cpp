@@ -37,13 +37,13 @@ void f_exact(const Vector &, Vector &);
 
 int main (int argc, char *argv[])
 {
-   // 1. Initialize MPI
+   // 1. Initialize MPI.
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   // 2. Parse command-line options
+   // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = 1;

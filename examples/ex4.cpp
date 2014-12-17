@@ -40,7 +40,7 @@ void f_exact(const Vector &, Vector &);
 
 int main (int argc, char *argv[])
 {
-   // 1. Parse command-line options
+   // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = 1;

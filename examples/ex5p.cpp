@@ -41,14 +41,14 @@ int main (int argc, char *argv[])
 {
    StopWatch chrono;
 
-   // 1. Initialize MPI
+   // 1. Initialize MPI.
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
    bool verbose = (myid == 0);
 
-   // 2. Parse command-line options
+   // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = 1;
@@ -111,8 +111,7 @@ int main (int argc, char *argv[])
    }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Raviart-Thomas finite elements, but we can easily
-   //    switch to higher-order spaces by changing the value of *order*.
+   //    use the Raviart-Thomas finite elements of the specified order.
    FiniteElementCollection *hdiv_coll(new RT_FECollection(order, dim));
    FiniteElementCollection *l2_coll(new L2_FECollection(order, dim));
 
@@ -148,7 +147,7 @@ int main (int argc, char *argv[])
    block_trueOffsets[2] = W_space->TrueVSize();
    block_trueOffsets.PartialSum();
 
-   // 8. Define the coefficients, analytical solution, and rhs of the PDE
+   // 8. Define the coefficients, analytical solution, and rhs of the PDE.
    ConstantCoefficient k(1.0);
 
    VectorFunctionCoefficient fcoeff(dim, fFun);
@@ -158,7 +157,8 @@ int main (int argc, char *argv[])
    VectorFunctionCoefficient ucoeff(dim, uFun_ex);
    FunctionCoefficient pcoeff(pFun_ex);
 
-   // 9. Define the parallel grid function and parallel linear forms, solution vector and rhs
+   // 9. Define the parallel grid function and parallel linear forms, solution
+   //    vector and rhs.
    BlockVector x(block_offsets), rhs(block_offsets);
    BlockVector trueX(block_trueOffsets), trueRhs(block_trueOffsets);
 
@@ -212,7 +212,7 @@ int main (int argc, char *argv[])
    //                     [  0       B diag(M)^-1 B^T ]
    //
    //     Here we use Symmetric Gauss-Seidel to approximate the inverse of the
-   //     pressure Schur Complement
+   //     pressure Schur Complement.
    HypreParMatrix *MinvBt = B->Transpose();
    HypreParVector *Md = new HypreParVector(MPI_COMM_WORLD, M->GetGlobalNumRows(),
                                            M->GetRowStarts());

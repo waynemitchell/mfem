@@ -19,9 +19,9 @@
 //               simple finite element discretization of the Laplace problem
 //               -Delta u = 1 with homogeneous Dirichlet boundary conditions.
 //               Specifically, we discretize using a FE space of the specified
-//               order or if order < 1 using an isoparametric/isogeometric space
-//               (i.e. quadratic for quadratic curvilinear mesh, NURBS for NURBS
-//               mesh, etc.)
+//               order, or if order < 1 using an isoparametric/isogeometric
+//               space (i.e. quadratic for quadratic curvilinear mesh, NURBS for
+//               NURBS mesh, etc.)
 //
 //               The example highlights the use of mesh refinement, finite
 //               element grid functions, as well as linear and bilinear forms
@@ -39,13 +39,13 @@ using namespace mfem;
 
 int main (int argc, char *argv[])
 {
-   // 1. Initialize MPI
+   // 1. Initialize MPI.
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   // 2. Parse command-line options
+   // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = 1;
@@ -110,7 +110,7 @@ int main (int argc, char *argv[])
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
-   //    order < 1, we insted use an isoparametric/isogeometric space.
+   //    order < 1, we instead use an isoparametric/isogeometric space.
    FiniteElementCollection *fec;
    if (order > 0)
       fec = new H1_FECollection(order, dim);

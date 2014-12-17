@@ -32,7 +32,7 @@
 //               meshes with curved elements, and the definition of piece-wise
 //               constant and vector coefficient objects.
 //
-//               We recommend viewing example 1 before viewing this example.
+//               We recommend viewing Example 1 before viewing this example.
 
 #include <fstream>
 #include <iostream>
@@ -43,7 +43,7 @@ using namespace mfem;
 
 int main (int argc, char *argv[])
 {
-   // 1. Parse command-line options
+   // 1. Parse command-line options.
    const char *mesh_file = "../data/beam-tri.mesh";
    int order = 1;
    bool visualization = 1;

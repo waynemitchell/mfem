@@ -41,7 +41,7 @@ int main (int argc, char *argv[])
 {
    StopWatch chrono;
 
-   // 1. Parse command-line options
+   // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = 1;
@@ -76,8 +76,8 @@ int main (int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
-   // 2. Refine the serial mesh to increase the resolution. In this example we
-   //    do 'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
+   // 3. Refine the mesh to increase the resolution. In this example we do
+   //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 10,000
    //    elements.
    {
@@ -87,16 +87,15 @@ int main (int argc, char *argv[])
          mesh->UniformRefinement();
    }
 
-   // 3. Define a finite element space on the mesh. Here we use the lowest order
-   //    Raviart-Thomas finite elements, but we can easily switch to
-   //    higher-order spaces by changing the value of *order*.
+   // 4. Define a finite element space on the mesh. Here we use the
+   //    Raviart-Thomas finite elements of the specified order.
    FiniteElementCollection *hdiv_coll(new RT_FECollection(order, dim));
    FiniteElementCollection *l2_coll(new L2_FECollection(order, dim));
 
    FiniteElementSpace *R_space = new FiniteElementSpace(mesh, hdiv_coll);
    FiniteElementSpace *W_space = new FiniteElementSpace(mesh, l2_coll);
 
-   // 4. Define the BlockStructure of the problem, i.e. define the array of
+   // 5. Define the BlockStructure of the problem, i.e. define the array of
    //    offsets for each variable. The last component of the Array is the sum
    //    of the dimensions of each block.
    Array<int> block_offsets(3); // number of variables + 1
@@ -111,7 +110,7 @@ int main (int argc, char *argv[])
    std::cout << "dim(R+W) = " << block_offsets.Last() << "\n";
    std::cout << "***********************************************************\n";
 
-   // 5. Define the coefficients, analytical solution, and rhs of the PDE
+   // 6. Define the coefficients, analytical solution, and rhs of the PDE.
    ConstantCoefficient k(1.0);
 
    VectorFunctionCoefficient fcoeff(dim, fFun);
@@ -121,7 +120,7 @@ int main (int argc, char *argv[])
    VectorFunctionCoefficient ucoeff(dim, uFun_ex);
    FunctionCoefficient pcoeff(pFun_ex);
 
-   // 6. Allocate memory (x, rhs) for the analytical solution and the right hand
+   // 7. Allocate memory (x, rhs) for the analytical solution and the right hand
    //    side.  Define the GridFunction u,p for the finite element solution and
    //    linear forms fform and gform for the right hand side.  The data
    //    allocated by x and rhs are passed as a reference to the grid fuctions
@@ -139,7 +138,7 @@ int main (int argc, char *argv[])
    gform->AddDomainIntegrator(new DomainLFIntegrator(gcoeff));
    gform->Assemble();
 
-   // 7. Assemble the finite element matrices for the Darcy operator
+   // 8. Assemble the finite element matrices for the Darcy operator
    //
    //                            D = [ M  B^T ]
    //                                [ B   0  ]
@@ -167,7 +166,7 @@ int main (int argc, char *argv[])
    darcyMatrix.SetBlock(0,1, BT);
    darcyMatrix.SetBlock(1,0, &B);
 
-   // 8. Construct the operators for preconditioner
+   // 9. Construct the operators for preconditioner
    //
    //                 P = [ diag(M)         0         ]
    //                     [  0       B diag(M)^-1 B^T ]
@@ -196,8 +195,8 @@ int main (int argc, char *argv[])
    darcyPrec.SetDiagonalBlock(0, invM);
    darcyPrec.SetDiagonalBlock(1, invS);
 
-   // 9. Solve the linear system with MINRES.
-   //    Check the norm of the unpreconditioned residual.
+   // 10. Solve the linear system with MINRES.
+   //     Check the norm of the unpreconditioned residual.
 
    int maxIter(500);
    double rtol(1.e-6);
@@ -224,7 +223,7 @@ int main (int argc, char *argv[])
                 << " iterations. Residual norm is " << solver.GetFinalNorm() << ".\n";
    std::cout << "MINRES solver took " << chrono.RealTime() << "s. \n";
 
-   // 10. Create the grid functions u and p. Compute the L2 error norms.
+   // 11. Create the grid functions u and p. Compute the L2 error norms.
    GridFunction u, p;
    u.Update(R_space, x.GetBlock(0), 0);
    p.Update(W_space, x.GetBlock(1), 0);
@@ -242,7 +241,7 @@ int main (int argc, char *argv[])
    std::cout << "|| u_h - u_ex || / || u_ex || = " << err_u / norm_u << "\n";
    std::cout << "|| p_h - p_ex || / || p_ex || = " << err_p / norm_p << "\n";
 
-   // 11. Save the mesh and the solution. This output can be viewed later using
+   // 12. Save the mesh and the solution. This output can be viewed later using
    //     GLVis: "glvis -m ex5.mesh -g sol_u.gf" or "glvis -m ex5.mesh -g
    //     sol_p.gf".
    {
@@ -259,7 +258,7 @@ int main (int argc, char *argv[])
       p.Save(p_ofs);
    }
 
-   // 12. Send the solution by socket to a GLVis server.
+   // 13. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -272,7 +271,7 @@ int main (int argc, char *argv[])
       p_sock << "solution\n" << *mesh << p << "window_title 'Pressure'" << endl;
    }
 
-   // 13. Free the used memory.
+   // 14. Free the used memory.
    delete fform;
    delete gform;
    delete invM;

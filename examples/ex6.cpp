@@ -11,6 +11,8 @@
 //               ex6 -m ../data/disc-nurbs.mesh -o 2
 //               ex6 -m ../data/ball-nurbs.mesh
 //               ex6 -m ../data/pipe-nurbs.mesh
+//               ex6 -m ../data/star-surf.mesh -o 2
+//               ex6 -m ../data/square-disc-surf.mesh -o 2
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace
@@ -22,9 +24,9 @@
 //
 //               The example demonstrates MFEM's capability to work with both
 //               conforming and nonconforming refinements, in 2D and 3D, on
-//               linear and curved meshes. Interpolation of functions from
-//               coarse to fine meshes, as well as persistent GLVis
-//               visualization are also covered.
+//               linear, curved and surface meshes. Interpolation of functions
+//               from coarse to fine meshes, as well as persistent GLVis
+//               visualization are also illustrated.
 //
 //               We recommend viewing Example 1 before viewing this example.
 
@@ -37,7 +39,7 @@ using namespace mfem;
 
 int main(int argc, char *argv[])
 {
-   // 1. Parse command-line options
+   // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool visualization = 1;
@@ -111,7 +113,7 @@ int main(int argc, char *argv[])
    Array<int> ess_bdr(mesh.bdr_attributes.Max());
    ess_bdr = 1;
 
-   // 8. (Optional) Connect to GLVis.
+   // 8. Connect to GLVis.
    char vishost[] = "localhost";
    int  visport   = 19916;
    socketstream sol_sock;
@@ -168,7 +170,7 @@ int main(int argc, char *argv[])
       //     continuous.
       x.ConformingProlongate();
 
-      // 15. (Optional) Send solution by socket to the GLVis server.
+      // 15. Send solution by socket to the GLVis server.
       if (visualization && sol_sock.good())
       {
          sol_sock.precision(8);
