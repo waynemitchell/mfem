@@ -1,7 +1,7 @@
 
 namespace mfem {
 
-/*! \mainpage MFEM - Finite Element Discretization Library
+/*! \mainpage MFEM
  *
  * <H3>Main mesh classes</H3>
  *  
