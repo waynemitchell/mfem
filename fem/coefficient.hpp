@@ -13,6 +13,9 @@
 #define MFEM_COEFFICIENT
 
 #include "../config.hpp"
+#include "../linalg/linalg.hpp"
+#include "intrules.hpp"
+#include "eltrans.hpp"
 
 namespace mfem
 {

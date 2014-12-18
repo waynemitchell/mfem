@@ -1442,7 +1442,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          {
             c_el_to_face = el_to_face;
             el_to_face = NULL;
-            Swap(faces_info, fc_faces_info);
+            mfem::Swap(faces_info, fc_faces_info);
          }
          RefineGroups(v_to_v, middle);
          // GetElementToFaceTable(); // Called by RefineGroups
@@ -1740,7 +1740,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          if (WantTwoLevelState)
          {
             c_el_to_edge = el_to_edge;
-            Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
+            mfem::Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
             f_el_to_edge = new Table;
             NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
             el_to_edge = f_el_to_edge;
@@ -2390,9 +2390,9 @@ void ParMesh::Print(std::ostream &out) const
    if (Dim > 1)
    {
       if(bdr_attributes.Size())
-	 shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
+         shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
       else
-	 shared_bdr_attr = MyRank + 1;
+         shared_bdr_attr = MyRank + 1;
       for (i = 0; i < s2l_face.Size(); i++)
       {
          // Modify the attrributes of the faces (not used otherwise?)

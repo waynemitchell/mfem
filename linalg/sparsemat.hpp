@@ -88,8 +88,10 @@ public:
    int MaxRowSize() const;
    /// Return a pointer to the column indices in a row
    int *GetRowColumns(const int row);
+   const int *GetRowColumns(const int row) const;
    /// Return a pointer to the entries in a row
    double *GetRowEntries(const int row);
+   const double *GetRowEntries(const int row) const;
 
    /// Change the width of a SparseMatrix.
    /*!

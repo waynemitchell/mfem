@@ -14,6 +14,13 @@
 
 #include "../config.hpp"
 
+#ifdef MFEM_USE_MPI
+
+#include <mpi.h>
+#include "../linalg/hypre.hpp"
+#include "pfespace.hpp"
+#include "bilinearform.hpp"
+
 namespace mfem
 {
 
@@ -105,5 +112,7 @@ public:
 };
 
 }
+
+#endif // MFEM_USE_MPI
 
 #endif

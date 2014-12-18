@@ -14,6 +14,13 @@
 
 #include "../config.hpp"
 
+#ifdef MFEM_USE_MPI
+
+#include <mpi.h>
+#include "array.hpp"
+#include "table.hpp"
+#include "sets.hpp"
+
 namespace mfem
 {
 
@@ -90,6 +97,9 @@ public:
    /// Allocate internal buffers after the GroupLDofTable is defined
    void Finalize();
 
+   /// Get a reference to the group topology object
+   GroupTopology & GetGroupTopology() { return gtopo; }
+
    /** Broadcast within each group where the master is the root.
        This method is instantiated for int and double. */
    template <class T> void Bcast(T *ldata);
@@ -124,5 +134,7 @@ public:
 };
 
 }
+
+#endif
 
 #endif

@@ -13,6 +13,8 @@
 #define MFEM_FE_COLLECTION
 
 #include "../config.hpp"
+#include "geom.hpp"
+#include "fe.hpp"
 
 namespace mfem
 {

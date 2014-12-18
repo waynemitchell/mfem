@@ -13,6 +13,11 @@
 #define MFEM_BILINEARFORM
 
 #include "../config.hpp"
+#include "../linalg/linalg.hpp"
+#include "fespace.hpp"
+#include "gridfunc.hpp"
+#include "linearform.hpp"
+#include "bilininteg.hpp"
 
 namespace mfem
 {
@@ -152,6 +157,14 @@ public:
        the conforming prolongation of the FE space. After this call the
        BilinearForm becomes an operator on the conforming FE space. */
    void ConformingAssemble();
+
+   /** A shortcut for converting the whole linear system to conforming DOFs. */
+   void ConformingAssemble(GridFunction& sol, LinearForm& rhs)
+   {
+      ConformingAssemble();
+      rhs.ConformingAssemble();
+      sol.ConformingProject();
+   }
 
    /// Compute and store internally all element matrices.
    void ComputeElementMatrices();

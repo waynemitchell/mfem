@@ -68,7 +68,7 @@ POSIX_CLOCKS_LIB_NO  =
 POSIX_CLOCKS_LIB_YES = -lrt
 POSIX_CLOCKS_LIB = $(POSIX_CLOCKS_LIB_$(USE_POSIX_CLOCKS))
 
-serial: ex1 ex2 ex3 ex4 ex5 ex7 ex8 ex8-3by3 ex8-2by2
+serial: ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex8-3by3 ex8-2by2
 
 parallel: ex1p ex2p ex3p ex4p ex5p ex7p ex8p
 
@@ -102,6 +102,9 @@ ex5: ex5.cpp
 ex5p: ex5p.cpp
 	$(MPICC) $(MPIOPTS) ex5p.cpp -o ex5p $(MPILIBS)
 
+ex6: ex6.cpp
+	$(CC) $(COPTS) ex6.cpp -o ex6 $(LIBS)
+
 ex7: ex7.cpp
 	$(CC) $(COPTS) ex7.cpp -o ex7 $(LIBS)
 
@@ -110,13 +113,13 @@ ex7p: ex7p.cpp
 
 ex8: ex8.cpp
 	$(CC) $(COPTS) ex8.cpp -o ex8 $(LIBS)
-	
+
 ex8-3by3: ex8-3by3.cpp
 	$(CC) $(COPTS) ex8-3by3.cpp -o ex8-3by3 $(LIBS)
-	
+
 ex8-2by2: ex8-2by2.cpp
 	$(CC) $(COPTS) ex8-2by2.cpp -o ex8-2by2 $(LIBS)
-	
+
 ex8p: ex8p.cpp
 	$(MPICC) $(MPIOPTS) ex8p.cpp -o ex8p $(MPILIBS)
 
@@ -127,6 +130,7 @@ pdebug:
 	$(MAKE) "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
 
 clean:
-	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p ex7 ex7p ex8 ex8-3by3 ex8-2by2 ex8p
+	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p ex6 ex7 ex7p
+	rm -f ex8 ex8-3by3 ex8-2by2 ex8p
 	rm -f refined.mesh displaced.mesh sol.* mesh.* ex5.mesh sol_u.* sol_p.*
 	rm -f sphere_refined.*

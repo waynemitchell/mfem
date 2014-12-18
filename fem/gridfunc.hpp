@@ -16,6 +16,8 @@
 #include <ostream>
 #include <string>
 #include "../config.hpp"
+#include "fespace.hpp"
+#include "coefficient.hpp"
 
 namespace mfem
 {
@@ -226,12 +228,20 @@ public:
 
    /** For partially conforming FE spaces, prolongate the conforming vector x
        to this partially conforming GridFunction. */
-   void ConformingProlongate(const Vector &x)
-   { fes->GetConformingProlongation()->Mult(x, *this); }
+   void ConformingProlongate(const Vector &x);
+
+   /** As above, but the destination is 'this'. */
+   void ConformingProlongate();
 
    /** For partially conforming FE spaces, project this partially conforming
        GridFunction onto the conforming vector x. */
    void ConformingProject(Vector &x) const;
+
+   /** Same as above, but the destination conforming vector is 'this'.
+       NOTE: the GridFunction's functionality is limited after this call,
+       as the underlying vector shrinks to the number of conforming DOFs.
+       Normal state is restored with ConformingProlongate. */
+   void ConformingProject();
 
    FiniteElementSpace *FESpace() { return fes; }
 
@@ -242,7 +252,7 @@ public:
    void Update(FiniteElementSpace *f, Vector &v, int v_offset);
 
    /// Save the GridFunction to an output stream.
-   virtual void Save(std::ostream &out);
+   virtual void Save(std::ostream &out) const;
 
    /** Write the GridFunction in VTK format. Note that Mesh::PrintVTK must be
        called first. The parameter ref must match the one used in
@@ -254,6 +264,11 @@ public:
    /// Destroys grid function.
    virtual ~GridFunction();
 };
+
+/** Overload operator<< for std::ostream and GridFunction; valid also for the
+    derived class ParGridFunction */
+std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
+
 
 void ComputeFlux(BilinearFormIntegrator &blfi,
                  GridFunction &u,

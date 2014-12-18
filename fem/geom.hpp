@@ -13,6 +13,8 @@
 #define MFEM_GEOM
 
 #include "../config.hpp"
+#include "../linalg/densemat.hpp"
+#include "intrules.hpp"
 
 namespace mfem
 {

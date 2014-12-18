@@ -13,6 +13,9 @@
 #define MFEM_ELEMENTTRANSFORM
 
 #include "../config.hpp"
+#include "../linalg/linalg.hpp"
+#include "intrules.hpp"
+#include "fe.hpp"
 
 namespace mfem
 {
