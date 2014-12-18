@@ -9,14 +9,6 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-//! @class BlockVector
-/*
- * \brief A class to handle Vectors in a block fashion
- *
- * All data is contained in Vector::data, while blockVector is just a viewer for this data
- *
- */
-
 #include "../general/array.hpp"
 #include "vector.hpp"
 #include "blockvector.hpp"
