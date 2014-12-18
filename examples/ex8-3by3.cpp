@@ -22,20 +22,21 @@
 //               We recommend viewing examples 1-5 before viewing this example.
 
 #include <fstream>
-using namespace std;
-
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 
-SparseMatrix * RAP(const SparseMatrix & Rt, const SparseMatrix & A, const SparseMatrix & P)
+SparseMatrix *RAP(const SparseMatrix & Rt, const SparseMatrix & A,
+                  const SparseMatrix & P)
 {
-	SparseMatrix * R = Transpose(Rt);
-	SparseMatrix * RA = Mult(*R,A);
-	delete R;
-	SparseMatrix * out = Mult(*RA, P);
-	delete RA;
-	return out;
+   SparseMatrix * R = Transpose(Rt);
+   SparseMatrix * RA = Mult(*R,A);
+   delete R;
+   SparseMatrix * out = Mult(*RA, P);
+   delete RA;
+   return out;
 }
 
 int main(int argc, char *argv[])
@@ -118,10 +119,10 @@ int main(int argc, char *argv[])
 
    ConstantCoefficient one(1.0);
    {
-	   LinearForm F;
-	   F.Update(test_space, b.GetBlock(test_var), 0);
-	   F.AddDomainIntegrator(new DomainLFIntegrator(one));
-	   F.Assemble();
+      LinearForm F;
+      F.Update(test_space, b.GetBlock(test_var), 0);
+      F.AddDomainIntegrator(new DomainLFIntegrator(one));
+      F.Assemble();
    }
 
 
@@ -179,8 +180,8 @@ int main(int argc, char *argv[])
    //    corresponding to the primal (x0), interfacial (x1) and test (x2)
    //    unknowns. This operator is indefinite.
 
-   Operator * B0t = new TransposeOperator(&matB0, matB0.Width());
-   Operator * Bhatt = new TransposeOperator(&matBhat, matBhat.Width());
+   Operator * B0t = new TransposeOperator(matB0);
+   Operator * Bhatt = new TransposeOperator(matBhat);
 
    BlockOperator A(offsets);
    A.SetBlock(0,2,B0t);

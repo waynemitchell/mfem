@@ -22,20 +22,33 @@ namespace mfem
 class Operator
 {
 protected:
-   int size;
+   int height, width;
 
 public:
-   /// Construct Operator with given size s (default 0)
-   explicit Operator (int s = 0) { size = s; }
+   /// Construct a square Operator with given size s (default 0)
+   explicit Operator(int s = 0) { height = width = s; }
 
-   /// Returns the size of the input
-   inline int Size() const { return size; }
+   /** Construct an Operator with the given height (output size) and width
+       (input size). */
+   Operator(int h, int w) { height = h; width = w; }
+
+   /// Get the height (size of output) of the Operator. Synonym with NumRows.
+   inline int Height() const { return height; }
+   /** Get the number of rows (size of output) of the Operator. Synonym with
+       Height. */
+   inline int NumRows() const { return height; }
+
+   /// Get the width (size of input) of the Operator. Synonym with NumCols.
+   inline int Width() const { return width; }
+   /** Get the number of columns (size of input) of the Operator. Synonym with
+       Width. */
+   inline int NumCols() const { return width; }
 
    /// Operator application
-   virtual void Mult (const Vector & x, Vector & y) const = 0;
+   virtual void Mult(const Vector &x, Vector &y) const = 0;
 
    /// Action of the transpose operator
-   virtual void MultTranspose (const Vector & x, Vector & y) const
+   virtual void MultTranspose(const Vector &x, Vector &y) const
    { mfem_error ("Operator::MultTranspose() is not overloaded!"); }
 
    /// Evaluate the gradient operator at the point x
@@ -59,8 +72,15 @@ protected:
    double t;
 
 public:
+   /** Construct a "square" time dependent Operator y = f(x,t), where x and y
+       have the same dimension 'n'. */
    explicit TimeDependentOperator(int n = 0, double _t = 0.0)
       : Operator(n) { t = _t; }
+
+   /** Construct a time dependent Operator y = f(x,t), where x and y have
+       dimensions 'w' and 'h', respectively. */
+   TimeDependentOperator(int h, int w, double _t = 0.0)
+      : Operator(h, w) { t = _t; }
 
    virtual double GetTime() const { return t; }
 
@@ -83,11 +103,18 @@ public:
 class Solver : public Operator
 {
 public:
-   // Use the second argument of Mult as an initial guess?
+   /// If true, use the second argument of Mult as an initial guess
    bool iterative_mode;
 
-   Solver(int s = 0, bool iter_mode = false)
+   /** Initialize a square Solver with size 's'.
+       WARNING: use a boolean expression for the second parameter (not an int)
+       to distinguish this call from the general rectangular constructor. */
+   explicit Solver(int s = 0, bool iter_mode = false)
       : Operator(s) { iterative_mode = iter_mode; }
+
+   /// Initialize a Solver with height 'h' and width 'w'
+   Solver(int h, int w, bool iter_mode = false)
+      : Operator(h, w) { iterative_mode = iter_mode; }
 
    /// Set/update the solver for the given operator
    virtual void SetOperator(const Operator &op) = 0;
@@ -99,31 +126,36 @@ class IdentityOperator : public Operator
 {
 public:
    /// Creates I_{nxn}
-   explicit IdentityOperator (int n) { size = n; }
+   explicit IdentityOperator(int n) : Operator(n) { }
 
    /// Operator application
-   virtual void Mult (const Vector & x, Vector & y) const { y = x; }
+   virtual void Mult(const Vector &x, Vector &y) const { y = x; }
 
    ~IdentityOperator() { }
 };
 
 
-/// The transpose of a given operator (square matrix)
+/// The transpose of a given operator
 class TransposeOperator : public Operator
 {
 private:
-   const Operator * A;
+   const Operator &A;
 
 public:
-   /// Saves the operator
-   TransposeOperator (const Operator * a, int s = -1) : A(a) { size = (s == -1) ? A -> Size() : s; }
+   /// Construct the transpose of a given operator
+   TransposeOperator(const Operator *a)
+      : Operator(a->Width(), a->Height()), A(*a) { }
+
+   /// Construct the transpose of a given operator
+   TransposeOperator(const Operator &a)
+      : Operator(a.Width(), a.Height()), A(a) { }
 
    /// Operator application
-   virtual void Mult (const Vector & x, Vector & y) const
-   { A -> MultTranspose(x,y); }
+   virtual void Mult(const Vector &x, Vector &y) const
+   { A.MultTranspose(x, y); }
 
-   virtual void MultTranspose (const Vector & x, Vector & y) const
-   { A -> Mult(x,y); }
+   virtual void MultTranspose(const Vector &x, Vector &y) const
+   { A.Mult(x, y); }
 
    ~TransposeOperator() { }
 };

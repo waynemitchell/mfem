@@ -73,6 +73,9 @@ public:
 
    BilinearForm(FiniteElementSpace *f, BilinearForm *bf, int ps = 0);
 
+   /// Get the size of the BilinearForm as a square matrix.
+   int Size() const { return height; }
+
    /** For scalar FE spaces, precompute the sparsity pattern of the matrix
        (assuming dense element matrices) based on the types of integrators
        present in the bilinear form. */
@@ -95,10 +98,10 @@ public:
 
    const double &operator()(int i, int j) { return (*mat)(i,j); }
 
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns reference to a_{ij}.
    virtual double &Elem(int i, int j);
 
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns constant reference to a_{ij}.
    virtual const double &Elem(int i, int j) const;
 
    /// Matrix vector multiplication.
@@ -241,13 +244,9 @@ protected:
    Array<BilinearFormIntegrator*> bdr;
    Array<BilinearFormIntegrator*> skt;
 
-   int width;
-
 public:
    MixedBilinearForm (FiniteElementSpace *tr_fes,
                       FiniteElementSpace *te_fes);
-
-   int Width() const { return width; };
 
    virtual double& Elem (int i, int j);
 
@@ -291,12 +290,13 @@ public:
 
    virtual void Assemble (int skip_zeros = 1);
 
-   void EliminateTrialDofs (Array<int> &bdr_attr_is_ess,
-                            Vector &sol, Vector &rhs);
+   void EliminateTrialDofs(Array<int> &bdr_attr_is_ess,
+                           Vector &sol, Vector &rhs);
 
-   void EliminateEssentialBCFromTrialDofs ( Array<int> &marked_vdofs, Vector &sol, Vector &rhs);
+   void EliminateEssentialBCFromTrialDofs(Array<int> &marked_vdofs,
+                                          Vector &sol, Vector &rhs);
 
-   virtual void EliminateTestDofs (Array<int> &bdr_attr_is_ess);
+   virtual void EliminateTestDofs(Array<int> &bdr_attr_is_ess);
 
    void Update();
 

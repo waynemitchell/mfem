@@ -33,7 +33,7 @@ BlockOperator::BlockOperator(const Array<int> & offsets):
 }
 
 BlockOperator::BlockOperator(const Array<int> & row_offsets_, const Array<int> & col_offsets_):
-   Operator(row_offsets_.Last()),
+   Operator(row_offsets_.Last(), col_offsets_.Last()),
    owns_blocks(0),
    nRowBlocks(row_offsets_.Size()-1),
    nColBlocks(col_offsets_.Size()-1),
@@ -55,12 +55,9 @@ void BlockOperator::SetBlock(int iRow, int iCol, Operator *opt)
 {
    op(iRow, iCol) = opt;
 
-   if (row_offsets[iRow+1] - row_offsets[iRow] != opt->Size())
-      mfem_error("BlockOperator::SetBlock Incompatible Row Size\n");
-
-   // Since Operator does not have the method Width we trust that the width is correct.
-   // if (col_offsets[iCol+1]-row_offsets[iCol] != opt->Width())
-   //    mfem_error("BlockOperator::SetBlock Incompatible Col Size\n");
+   MFEM_VERIFY(row_offsets[iRow+1] - row_offsets[iRow] == opt->NumRows() &&
+               col_offsets[iCol+1] - col_offsets[iCol] == opt->NumCols(),
+               "incompatible Operator dimensions");
 }
 
 // Operator application
@@ -130,8 +127,9 @@ BlockDiagonalPreconditioner::BlockDiagonalPreconditioner(const Array<int> & offs
 
 void BlockDiagonalPreconditioner::SetDiagonalBlock(int iblock, Operator *opt)
 {
-   if (offsets[iblock+1] - offsets[iblock] != opt->Size())
-      mfem_error("offsets[iblock+1] - offsets[iblock] != size");
+   MFEM_VERIFY(offsets[iblock+1] - offsets[iblock] == opt->Height() &&
+               offsets[iblock+1] - offsets[iblock] == opt->Width(),
+               "incompatible Operator dimensions");
 
    op[iblock] = opt;
 }

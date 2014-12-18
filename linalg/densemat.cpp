@@ -31,14 +31,12 @@ using namespace std;
 
 DenseMatrix::DenseMatrix() : Matrix(0)
 {
-   height = 0;
    data = NULL;
 }
 
-DenseMatrix::DenseMatrix(const DenseMatrix &m) : Matrix(m.size)
+DenseMatrix::DenseMatrix(const DenseMatrix &m) : Matrix(m.height, m.width)
 {
-   height = m.height;
-   int hw = size * height;
+   int hw = height * width;
    data = new double[hw];
    for (int i = 0; i < hw; i++)
       data[i] = m.data[i];
@@ -46,8 +44,6 @@ DenseMatrix::DenseMatrix(const DenseMatrix &m) : Matrix(m.size)
 
 DenseMatrix::DenseMatrix(int s) : Matrix(s)
 {
-   height = s;
-
    data = new double[s*s];
 
    for (int i = 0; i < s; i++)
@@ -55,10 +51,8 @@ DenseMatrix::DenseMatrix(int s) : Matrix(s)
          (*this)(i,j) = 0;
 }
 
-DenseMatrix::DenseMatrix(int m, int n) : Matrix(n)
+DenseMatrix::DenseMatrix(int m, int n) : Matrix(m, n)
 {
-   height = m;
-
    data = new double[m*n];
 
    for (int i = 0; i < m; i++)
@@ -66,27 +60,23 @@ DenseMatrix::DenseMatrix(int m, int n) : Matrix(n)
          (*this)(i,j) = 0;
 }
 
-DenseMatrix::DenseMatrix(const DenseMatrix &mat, char ch) : Matrix(mat.height)
+DenseMatrix::DenseMatrix(const DenseMatrix &mat, char ch)
+   : Matrix(mat.width, mat.height)
 {
-   if (ch == 't')
-   {
-      height = mat.size;
+   data = new double[height*width];
 
-      data = new double[size*height];
-
-      for (int i = 0; i < height; i++)
-         for (int j = 0; j < size; j++)
-            (*this)(i,j) = mat(j,i);
-   }
+   for (int i = 0; i < height; i++)
+      for (int j = 0; j < width; j++)
+         (*this)(i,j) = mat(j,i);
 }
 
 void DenseMatrix::SetSize(int s)
 {
-   if (Size() == s && Height() == s)
+   if (Height() == s && Width() == s)
       return;
    if (data != NULL)
       delete [] data;
-   size = height = s;
+   height = width = s;
    if (s > 0)
    {
       int ss = s*s;
@@ -100,12 +90,12 @@ void DenseMatrix::SetSize(int s)
 
 void DenseMatrix::SetSize(int h, int w)
 {
-   if (Size() == w && Height() == h)
+   if (Height() == h && Width() == w)
       return;
    if (data != NULL)
       delete [] data;
-   size = w;
    height = h;
+   width = w;
    if (h > 0 && w > 0)
    {
       int hw = h*w;
@@ -134,7 +124,7 @@ void DenseMatrix::Mult(const double *x, double *y) const
    for (int row = 0; row < height; row++)
       y[row] = x_col*d_col[row];
    d_col += height;
-   for (int col = 1; col < size; col++)
+   for (int col = 1; col < width; col++)
    {
       x_col = x[col];
       for (int row = 0; row < height; row++)
@@ -146,7 +136,7 @@ void DenseMatrix::Mult(const double *x, double *y) const
 void DenseMatrix::Mult(const Vector &x, Vector &y) const
 {
 #ifdef MFEM_DEBUG
-   if ( size != x.Size() || height != y.Size() )
+   if ( height != y.Size() || width != x.Size() )
       mfem_error("DenseMatrix::Mult");
 #endif
 
@@ -160,7 +150,7 @@ double DenseMatrix::operator *(const DenseMatrix &m) const
       mfem_error("DenseMatrix::operator *(...)");
 #endif
 
-   int hw = size * height;
+   int hw = height * width;
    double a = 0.0;
    for (int i = 0; i < hw; i++)
       a += data[i] * m.data[i];
@@ -171,7 +161,7 @@ double DenseMatrix::operator *(const DenseMatrix &m) const
 void DenseMatrix::MultTranspose(const double *x, double *y) const
 {
    double *d_col = data;
-   for (int col = 0; col < size; col++)
+   for (int col = 0; col < width; col++)
    {
       double y_col = 0.0;
       for (int row = 0; row < height; row++)
@@ -184,7 +174,7 @@ void DenseMatrix::MultTranspose(const double *x, double *y) const
 void DenseMatrix::MultTranspose(const Vector &x, Vector &y) const
 {
 #ifdef MFEM_DEBUG
-   if ( height != x.Size() || size != y.Size() )
+   if ( height != x.Size() || width != y.Size() )
       mfem_error("DenseMatrix::MultTranspose");
 #endif
 
@@ -194,13 +184,13 @@ void DenseMatrix::MultTranspose(const Vector &x, Vector &y) const
 void DenseMatrix::AddMult(const Vector &x, Vector &y) const
 {
 #ifdef MFEM_DEBUG
-   if ( size != x.Size() || height != y.Size() )
+   if ( height != y.Size() || width != x.Size() )
       mfem_error("DenseMatrix::AddMult");
 #endif
 
    const double *xp = x;
    double *d_col = data, *yp = y;
-   for (int col = 0; col < size; col++)
+   for (int col = 0; col < width; col++)
    {
       double x_col = xp[col];
       for (int row = 0; row < height; row++)
@@ -216,7 +206,7 @@ double DenseMatrix::InnerProduct(const double *x, const double *y) const
    for (int i = 0; i < height; i++)
    {
       double Axi = 0.0;
-      for (int j = 0; j < size; j++)
+      for (int j = 0; j < width; j++)
          Axi += (*this)(i,j) * x[j];
       prod += y[i] * Axi;
    }
@@ -228,7 +218,7 @@ double DenseMatrix::InnerProduct(const double *x, const double *y) const
 void DenseMatrix::LeftScaling(const Vector & s)
 {
    double * it_data = data;
-   for (int j = 0; j < size; ++j)
+   for (int j = 0; j < width; ++j)
       for (int i = 0; i < height; ++i)
          *(it_data++) *= s(i);
 }
@@ -237,7 +227,7 @@ void DenseMatrix::LeftScaling(const Vector & s)
 void DenseMatrix::InvLeftScaling(const Vector & s)
 {
    double * it_data = data;
-   for (int j = 0; j < size; ++j)
+   for (int j = 0; j < width; ++j)
       for (int i = 0; i < height; ++i)
          *(it_data++) /= s(i);
 }
@@ -247,7 +237,7 @@ void DenseMatrix::RightScaling(const Vector & s)
 {
    double sj;
    double * it_data = data;
-   for (int j = 0; j < size; ++j)
+   for (int j = 0; j < width; ++j)
    {
       sj = s(j);
       for (int i = 0; i < height; ++i)
@@ -260,7 +250,7 @@ void DenseMatrix::InvRightScaling(const Vector & s)
 {
    double sj;
    double * it_data = data;
-   for (int j = 0; j < size; ++j)
+   for (int j = 0; j < width; ++j)
    {
       sj = 1./s(j);
       for (int i = 0; i < height; ++i)
@@ -271,17 +261,17 @@ void DenseMatrix::InvRightScaling(const Vector & s)
 // SymmetricScaling this = diag(sqrt(s)) * this * diag(sqrt(s))
 void DenseMatrix::SymmetricScaling(const Vector & s)
 {
-   if(size != height || s.Size() != size)
+   if (height != width || s.Size() != height)
       mfem_error("DenseMatrix::SymmetricScaling");
 
-   double * ss = new double[size];
+   double * ss = new double[width];
    double * it_s = s.GetData();
    double * it_ss = ss;
-   for( double * end_s = it_s + size; it_s != end_s; ++it_s)
+   for( double * end_s = it_s + width; it_s != end_s; ++it_s)
       *(it_ss++) = sqrt(*it_s);
 
    double * it_data = data;
-   for (int j = 0; j < size; ++j)
+   for (int j = 0; j < width; ++j)
       for (int i = 0; i < height; ++i)
          *(it_data++) *= ss[i]*ss[j];
 
@@ -291,17 +281,17 @@ void DenseMatrix::SymmetricScaling(const Vector & s)
 // InvSymmetricScaling this = diag(sqrt(1./s)) * this * diag(sqrt(1./s))
 void DenseMatrix::InvSymmetricScaling(const Vector & s)
 {
-   if(size != height || s.Size() != size)
+   if (height != width || s.Size() != width)
       mfem_error("DenseMatrix::SymmetricScaling");
 
-   double * ss = new double[ size];
+   double * ss = new double[width];
    double * it_s = s.GetData();
    double * it_ss = ss;
-   for( double * end_s = it_s + size; it_s != end_s; ++it_s)
+   for( double * end_s = it_s + width; it_s != end_s; ++it_s)
       *(it_ss++) = 1./sqrt(*it_s);
 
    double * it_data = data;
-   for (int j = 0; j < size; ++j)
+   for (int j = 0; j < width; ++j)
       for (int i = 0; i < height; ++i)
          *(it_data++) *= ss[i]*ss[j];
 
@@ -317,7 +307,7 @@ double DenseMatrix::Trace() const
 
    double t = 0.0;
 
-   for (int i = 0; i < size; i++)
+   for (int i = 0; i < width; i++)
       t += (*this)(i, i);
 
    return t;
@@ -385,13 +375,13 @@ double DenseMatrix::Weight() const
 void DenseMatrix::Add(const double c, const DenseMatrix &A)
 {
    for (int i = 0; i < Height(); i++)
-      for (int j = 0; j < Size(); j++)
+      for (int j = 0; j < Width(); j++)
          (*this)(i,j) += c * A(i,j);
 }
 
 DenseMatrix &DenseMatrix::operator=(double c)
 {
-   int s = Size()*Height();
+   int s = Height()*Width();
    if (data != NULL)
       for (int i = 0; i < s; i++)
          data[i] = c;
@@ -402,7 +392,7 @@ DenseMatrix &DenseMatrix::operator=(const double *d)
 {
    if (data != NULL)
    {
-      int s = Size()*Height();
+      int s = Height()*Width();
       for (int i = 0; i < s; i++)
          data[i] = d[i];
    }
@@ -413,9 +403,9 @@ DenseMatrix &DenseMatrix::operator=(const DenseMatrix &m)
 {
    int i, hw;
 
-   SetSize(m.height, m.size);
+   SetSize(m.height, m.width);
 
-   hw = size * height;
+   hw = height * width;
    for (i = 0; i < hw; i++)
       data[i] = m.data[i];
 
@@ -427,7 +417,7 @@ DenseMatrix &DenseMatrix::operator+=(DenseMatrix &m)
    int i, j;
 
    for (i = 0; i < height; i++)
-      for (j = 0; j < size; j++)
+      for (j = 0; j < width; j++)
          (*this)(i, j) += m(i, j);
 
    return *this;
@@ -438,7 +428,7 @@ DenseMatrix &DenseMatrix::operator-=(DenseMatrix &m)
    int i, j;
 
    for (i = 0; i < height; i++)
-      for (j = 0; j < size; j++)
+      for (j = 0; j < width; j++)
          (*this)(i, j) -= m(i, j);
 
    return *this;
@@ -446,7 +436,7 @@ DenseMatrix &DenseMatrix::operator-=(DenseMatrix &m)
 
 DenseMatrix &DenseMatrix::operator*=(double c)
 {
-   int s = Size()*Height();
+   int s = Height()*Width();
    if (data != NULL)
       for (int i = 0; i < s; i++)
          data[i] *= c;
@@ -455,7 +445,7 @@ DenseMatrix &DenseMatrix::operator*=(double c)
 
 void DenseMatrix::Neg()
 {
-   int i, hw = Height() * Size();
+   int i, hw = Height() * Width();
 
    for (i = 0; i < hw; i++)
       data[i] = -data[i];
@@ -474,27 +464,27 @@ dgetri_(int *N, double *A, int *LDA, int *IPIV, double *WORK,
 void DenseMatrix::Invert()
 {
 #ifdef MFEM_DEBUG
-   if (Size() <= 0 || Size() != Height())
+   if (Height() <= 0 || Height() != Width())
       mfem_error("DenseMatrix::Invert()");
 #endif
 
 #ifdef MFEM_USE_LAPACK
-   int   *ipiv = new int[size];
+   int   *ipiv = new int[width];
    int    lwork = -1;
    double qwork, *work;
    int    info;
 
-   dgetrf_(&size, &size, data, &size, ipiv, &info);
+   dgetrf_(&width, &width, data, &width, ipiv, &info);
 
    if (info)
       mfem_error("DenseMatrix::Invert() : Error in DGETRF");
 
-   dgetri_(&size, data, &size, ipiv, &qwork, &lwork, &info);
+   dgetri_(&width, data, &width, ipiv, &qwork, &lwork, &info);
 
    lwork = (int) qwork;
    work = new double[lwork];
 
-   dgetri_(&size, data, &size, ipiv, work, &lwork, &info);
+   dgetri_(&width, data, &width, ipiv, work, &lwork, &info);
 
    if (info)
       mfem_error("DenseMatrix::Invert() : Error in DGETRI");
@@ -502,7 +492,7 @@ void DenseMatrix::Invert()
    delete [] work;
    delete [] ipiv;
 #else
-   int c, i, j, n = Size();
+   int c, i, j, n = Width();
    double a, b;
    Array<int> piv(n);
 
@@ -559,7 +549,7 @@ void DenseMatrix::Invert()
 
 void DenseMatrix::Norm2(double *v) const
 {
-   for (int j = 0; j < Size(); j++)
+   for (int j = 0; j < Width(); j++)
    {
       v[j] = 0.0;
       for (int i = 0; i < Height(); i++)
@@ -586,7 +576,7 @@ double DenseMatrix::MaxMaxNorm() const
 
 double DenseMatrix::FNorm() const
 {
-   int i, hw = Height() * Size();
+   int i, hw = Height() * Width();
    double max_norm = 0.0, entry, fnorm2;
 
    for (i = 0; i < hw; i++)
@@ -629,12 +619,12 @@ void dsyevr_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
 
 #ifdef MFEM_USE_LAPACK
 
-   ev.SetSize(a.Size());
+   ev.SetSize(a.Width());
 
    char      JOBZ     = 'N';
    char      RANGE    = 'A';
    char      UPLO     = 'U';
-   int       N        = a.Size();
+   int       N        = a.Width();
    double   *A        = new double[N*N];
    int       LDA      = N;
    double    VL       = 0.0;
@@ -771,7 +761,7 @@ void dsyev_Eigensystem(DenseMatrix &a, Vector &ev, DenseMatrix *evect)
 
 #ifdef MFEM_USE_LAPACK
 
-   int   N      = a.Size();
+   int   N      = a.Width();
    char  JOBZ   = 'N';
    char  UPLO   = 'U';
    int   LDA    = N;
@@ -1999,8 +1989,8 @@ void DenseMatrix::GetColumn(int c, Vector &col)
 
 void DenseMatrix::GetDiag(Vector &d)
 {
-   if(height != size)
-      mfem_error("DenseMatrix::GetDiag \n");
+   if (height != width)
+      mfem_error("DenseMatrix::GetDiag\n");
    d.SetSize(height);
 
    for (int i = 0; i < height; ++i)
@@ -2009,13 +1999,13 @@ void DenseMatrix::GetDiag(Vector &d)
 
 void DenseMatrix::Getl1Diag(Vector &l)
 {
-   if(height != size)
-      mfem_error("DenseMatrix::GetDiag \n");
+   if (height != width)
+      mfem_error("DenseMatrix::Getl1Diag\n");
    l.SetSize(height);
 
    l = 0.0;
 
-   for (int j = 0; j < size; ++j)
+   for (int j = 0; j < width; ++j)
       for (int i = 0; i < height; ++i)
          l(i) += fabs((*this)(i,j));
 }
@@ -2047,10 +2037,10 @@ void DenseMatrix::Transpose()
    int i, j;
    double t;
 
-   if (Size() == Height())
+   if (Width() == Height())
    {
       for (i = 0; i < Height(); i++)
-         for (j = i+1; j < Size(); j++)
+         for (j = i+1; j < Width(); j++)
          {
             t = (*this)(i,j);
             (*this)(i,j) = (*this)(j,i);
@@ -2066,10 +2056,10 @@ void DenseMatrix::Transpose()
 
 void DenseMatrix::Transpose(DenseMatrix &A)
 {
-   SetSize(A.Size(),A.Height());
+   SetSize(A.Width(),A.Height());
 
    for (int i = 0; i < Height(); i++)
-      for (int j = 0; j < Size(); j++)
+      for (int j = 0; j < Width(); j++)
          (*this)(i,j) = A(j,i);
 }
 
@@ -2169,7 +2159,7 @@ void DenseMatrix::GradToDiv(Vector &div)
 
    // div(dof*j+i) <-- (*this)(i,j)
 
-   int n = size * height;
+   int n = height * width;
    double *ddata = div.GetData();
 
    for (int i = 0; i < n; i++)
@@ -2178,10 +2168,10 @@ void DenseMatrix::GradToDiv(Vector &div)
 
 void DenseMatrix::CopyRows(DenseMatrix &A, int row1, int row2)
 {
-   SetSize(row2 - row1 + 1, A.Size());
+   SetSize(row2 - row1 + 1, A.Width());
 
    for (int i = row1; i <= row2; i++)
-      for (int j = 0; j < Size(); j++)
+      for (int j = 0; j < Width(); j++)
          (*this)(i-row1,j) = A(i,j);
 }
 
@@ -2210,7 +2200,7 @@ void DenseMatrix::CopyMN(DenseMatrix &A, int row_offset, int col_offset)
    int i, j;
    double *v = A.data;
 
-   for (j = 0; j < A.Size(); j++)
+   for (j = 0; j < A.Width(); j++)
       for (i = 0; i < A.Height(); i++)
          (*this)(row_offset+i,col_offset+j) = *(v++);
 }
@@ -2220,7 +2210,7 @@ void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
    int i, j;
    double *v = A.data;
 
-   for (i = 0; i < A.Size(); i++)
+   for (i = 0; i < A.Width(); i++)
       for (j = 0; j < A.Height(); j++)
          (*this)(row_offset+i,col_offset+j) = *(v++);
 }
@@ -2306,7 +2296,7 @@ void DenseMatrix::AddMatrix(double a, DenseMatrix &A, int ro, int co)
 
 void DenseMatrix::AddToVector(int offset, Vector &v) const
 {
-   int i, n = size * height;
+   int i, n = height * width;
    double *vdata = v.GetData() + offset;
 
    for (i = 0; i < n; i++)
@@ -2315,7 +2305,7 @@ void DenseMatrix::AddToVector(int offset, Vector &v) const
 
 void DenseMatrix::GetFromVector(int offset, const Vector &v)
 {
-   int i, n = size * height;
+   int i, n = height * width;
    const double *vdata = v.GetData() + offset;
 
    for (i = 0; i < n; i++)
@@ -2359,17 +2349,17 @@ void DenseMatrix::SetCol(int col, double value)
       (*this)(i, col) = value;
 }
 
-void DenseMatrix::Print(std::ostream &out, int width) const
+void DenseMatrix::Print(std::ostream &out, int width_) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int i = 0; i < height; i++)
    {
       out << "[row " << i << "]\n";
-      for (int j = 0; j < size; j++)
+      for (int j = 0; j < width; j++)
       {
          out << (*this)(i,j);
-         if (j+1 == size || (j+1) % width == 0)
+         if (j+1 == width || (j+1) % width_ == 0)
             out << '\n';
          else
             out << ' ';
@@ -2383,7 +2373,7 @@ void DenseMatrix::PrintMatlab(std::ostream &out) const
    out << setiosflags(ios::scientific | ios::showpos);
    for (int i = 0; i < height; i++)
    {
-      for (int j = 0; j < size; j++)
+      for (int j = 0; j < width; j++)
       {
          out << (*this)(i,j);
          out << ' ';
@@ -2392,17 +2382,17 @@ void DenseMatrix::PrintMatlab(std::ostream &out) const
    }
 }
 
-void DenseMatrix::PrintT(std::ostream &out, int width) const
+void DenseMatrix::PrintT(std::ostream &out, int width_) const
 {
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
-   for (int j = 0; j < size; j++)
+   for (int j = 0; j < width; j++)
    {
       out << "[col " << j << "]\n";
       for (int i = 0; i < height; i++)
       {
          out << (*this)(i,j);
-         if (i+1 == height || (i+1) % width == 0)
+         if (i+1 == height || (i+1) % width_ == 0)
             out << '\n';
          else
             out << ' ';
@@ -2412,19 +2402,19 @@ void DenseMatrix::PrintT(std::ostream &out, int width) const
 
 void DenseMatrix::TestInversion()
 {
-   DenseMatrix copy(*this), C(size);
+   DenseMatrix copy(*this), C(width);
    Invert();
    mfem::Mult(*this, copy, C);
 
    double i_max = 0.;
-   for (int j = 0; j < size; j++)
-      for (int i = 0; i < size; i++)
+   for (int j = 0; j < width; j++)
+      for (int i = 0; i < width; i++)
       {
          if (i == j)
             C(i,j) -= 1.;
          i_max = fmax(i_max, fabs(C(i, j)));
       }
-   cout << "size = " << size << ", i_max = " << i_max
+   cout << "size = " << width << ", i_max = " << i_max
         << ", cond_F = " << FNorm()*copy.FNorm() << endl;
 }
 
@@ -2440,7 +2430,7 @@ void Add(const DenseMatrix &A, const DenseMatrix &B,
          double alpha, DenseMatrix &C)
 {
    for (int i = 0; i < C.Height(); i++)
-      for (int j = 0; j < C.Size(); j++)
+      for (int j = 0; j < C.Width(); j++)
          C(i,j) = A(i,j) + alpha * B(i,j);
 }
 
@@ -2454,7 +2444,7 @@ dgemm_(char *, char *, int *, int *, int *, double *, double *,
 void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
 {
 #ifdef MFEM_DEBUG
-   if (a.height != b.height || a.size != c.size || b.size != c.height)
+   if (a.height != b.height || a.width != c.width || b.width != c.height)
       mfem_error("Mult (product of DenseMatrices)");
 #endif
 
@@ -2467,8 +2457,8 @@ void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
           c.Data(), &k, &beta, a.Data(), &m);
 #else
    int ah = a.height;
-   int as = a.size;
-   int bs = b.size;
+   int as = a.width;
+   int bs = b.width;
    double *ad = a.data;
    double *bd = b.data;
    double *cd = c.data;
@@ -2533,11 +2523,11 @@ void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
       return;
    }
 
-   if (a.Size() == 1)
+   if (a.Width() == 1)
    {
       adja(0,0) = 1.0;
    }
-   else if (a.Size() == 2)
+   else if (a.Width() == 2)
    {
       adja(0,0) =  a(1,1);
       adja(0,1) = -a(0,1);
@@ -2563,15 +2553,15 @@ void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
 void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat)
 {
 #ifdef MFEM_DEBUG
-   if (a.Height() != a.Size() || adjat.Height() != adjat.Size() ||
-       a.Size() != adjat.Size() || a.Size() < 1 || a.Size() > 3)
+   if (a.Height() != a.Width() || adjat.Height() != adjat.Width() ||
+       a.Width() != adjat.Width() || a.Width() < 1 || a.Width() > 3)
       mfem_error("CalcAdjugateTranspose(...)");
 #endif
-   if (a.Size() == 1)
+   if (a.Width() == 1)
    {
       adjat(0,0) = 1.0;
    }
-   else if (a.Size() == 2)
+   else if (a.Width() == 2)
    {
       adjat(0,0) =  a(1,1);
       adjat(1,0) = -a(0,1);
@@ -2682,7 +2672,7 @@ void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva)
 {
 #ifdef MFEM_DEBUG
-   if ( (a.Size() != a.Height()) || ( (a.Height()!= 1) && (a.Height()!= 2)
+   if ( (a.Width() != a.Height()) || ( (a.Height()!= 1) && (a.Height()!= 2)
                                       && (a.Height()!= 3) ) )
       mfem_error("CalcInverseTranspose(...)");
 #endif
@@ -2744,7 +2734,7 @@ void MultAAt(const DenseMatrix &a, DenseMatrix &aat)
       for (int j = 0; j <= i; j++)
       {
          double temp = 0.;
-         for (int k = 0; k < a.Size(); k++)
+         for (int k = 0; k < a.Width(); k++)
             temp += a(i,k) * a(j,k);
          aat(j,i) = aat(i,j) = temp;
       }
@@ -2960,8 +2950,8 @@ void MultAtB(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &AtB)
    int i, j, k;
    double d;
 
-   for (i = 0; i < A.Size(); i++)
-      for (j = 0; j < B.Size(); j++)
+   for (i = 0; i < A.Width(); i++)
+      for (j = 0; j < B.Width(); j++)
       {
          d = 0.0;
          for (k = 0; k < A.Height(); k++)
@@ -3019,7 +3009,7 @@ void MultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt)
    double vi;
 
 #ifdef MFEM_DEBUG
-   if (v.Size() != VWt.Height() || w.Size() != VWt.Size())
+   if (v.Size() != VWt.Height() || w.Size() != VWt.Width())
       mfem_error("MultVWt(...)");
 #endif
 
@@ -3091,10 +3081,11 @@ void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt)
 DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix &mat)
    : MatrixInverse(mat)
 {
+   MFEM_ASSERT(height == width, "not a square matrix")
    a = &mat;
-   data = new double[size*size];
+   data = new double[width*width];
 #ifdef MFEM_USE_LAPACK
-   ipiv = new int[size];
+   ipiv = new int[width];
 #endif
    Factor();
 }
@@ -3102,10 +3093,11 @@ DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix &mat)
 DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix *mat)
    : MatrixInverse(*mat)
 {
+   MFEM_ASSERT(height == width, "not a square matrix")
    a = mat;
-   data = new double[size*size];
+   data = new double[width*width];
 #ifdef MFEM_USE_LAPACK
-   ipiv = new int[size];
+   ipiv = new int[width];
 #endif
 }
 
@@ -3114,11 +3106,11 @@ void DenseMatrixInverse::Factor()
    const double *adata = a->data;
 
 #ifdef MFEM_USE_LAPACK
-   for (int i = 0; i < size*size; i++)
+   for (int i = 0; i < width*width; i++)
       data[i] = adata[i];
 
    int info;
-   dgetrf_(&size, &size, data, &size, ipiv, &info);
+   dgetrf_(&width, &width, data, &width, ipiv, &info);
 
    if (info)
       mfem_error("DenseMatrixInverse::Factor : Error in DGETRF");
@@ -3127,25 +3119,25 @@ void DenseMatrixInverse::Factor()
    int i, j, k;
 
    // perform LU factorization.
-   for (i = 0; i < size; i++)
+   for (i = 0; i < width; i++)
    {
 #ifdef MFEM_DEBUG
-      if (i > 0 && data[i-1+size*(i-1)] == 0.0)
+      if (i > 0 && data[i-1+width*(i-1)] == 0.0)
          mfem_error("DenseMatrixInverse::Factor()");
 #endif
       for (j = 0; j < i; j++)
       {
-         data[i+size*j] = adata[i+size*j];
+         data[i+width*j] = adata[i+width*j];
          for (k = 0; k < j; k++)
-            data[i+size*j] -= data[i+size*k] * data[k+size*j];
-         data[i+size*j] /= data[j+size*j];
+            data[i+width*j] -= data[i+width*k] * data[k+width*j];
+         data[i+width*j] /= data[j+width*j];
       }
 
-      for (j = i; j < size; j++)
+      for (j = i; j < width; j++)
       {
-         data[i+size*j] = adata[i+size*j];
+         data[i+width*j] = adata[i+width*j];
          for (k = 0; k < i; k++)
-            data[i+size*j] -= data[i+size*k] * data[k+size*j];
+            data[i+width*j] -= data[i+width*k] * data[k+width*j];
       }
    }
 #endif
@@ -3154,9 +3146,9 @@ void DenseMatrixInverse::Factor()
 void DenseMatrixInverse::Factor(const DenseMatrix &mat)
 {
 #ifdef MFEM_DEBUG
-   if (mat.height != mat.size)
+   if (mat.height != mat.width)
       mfem_error("DenseMatrixInverse::Factor #1");
-   if (size != mat.size)
+   if (width != mat.width)
       mfem_error("DenseMatrixInverse::Factor #2");
 #endif
    a = &mat;
@@ -3167,16 +3159,16 @@ void DenseMatrixInverse::Factor(const DenseMatrix &mat)
 void DenseMatrixInverse::SetOperator(const Operator &op)
 {
    a = dynamic_cast<const DenseMatrix*>(&op);
-   if (a == NULL)
-      mfem_error("DenseMatrixInverse::SetOperator : not a DenseMatrix!");
-   if (size != a->size)
+   MFEM_VERIFY(a != NULL, "Operator is not a DenseMatrix!");
+   MFEM_VERIFY(a->height == a->width, "DenseMatrix is not square!");
+   if (width != a->width)
    {
-      size = a->size;
+      height = width = a->width;
       delete [] data;
-      data = new double[size*size];
+      data = new double[width*width];
 #ifdef MFEM_USE_LAPACK
       delete [] ipiv;
-      ipiv = new int[size];
+      ipiv = new int[width];
 #endif
    }
    Factor();
@@ -3186,7 +3178,7 @@ void DenseMatrixInverse::Mult(const Vector &x, Vector &y) const
 {
 #ifdef MFEM_USE_LAPACK
    char trans = 'N';
-   int  n     = size;
+   int  n     = width;
    int  nrhs  = 1;
    int  info;
    y = x;
@@ -3199,23 +3191,23 @@ void DenseMatrixInverse::Mult(const Vector &x, Vector &y) const
    int i, j;
 
    // y <- L^{-1} x
-   for (i = 0; i < size; i++)
+   for (i = 0; i < width; i++)
    {
       y(i) = x(i);
       for (j = 0; j < i; j++)
-         y(i) -= data[i+size*j] * y(j);
+         y(i) -= data[i+width*j] * y(j);
    }
 
    // y <- U^{-1} y
-   for (i = size-1; i >= 0; i--)
+   for (i = width-1; i >= 0; i--)
    {
-      for (j = i+1; j < size; j++)
-         y(i) -= data[i+size*j] * y(j);
+      for (j = i+1; j < width; j++)
+         y(i) -= data[i+width*j] * y(j);
 #ifdef MFEM_DEBUG
-      if ((data[i+size*i]) == 0.0)
+      if ((data[i+width*i]) == 0.0)
          mfem_error("DenseMatrixInverse::Mult #2");
 #endif
-      y(i) /= data[i+size*i];
+      y(i) /= data[i+width*i];
    }
 #endif
 }
@@ -3232,7 +3224,7 @@ DenseMatrixInverse::~DenseMatrixInverse()
 DenseMatrixEigensystem::DenseMatrixEigensystem(DenseMatrix &m)
    : mat(m)
 {
-   n = mat.Size();
+   n = mat.Width();
    EVal.SetSize(n);
    EVect.SetSize(n);
    ev.SetDataAndSize(NULL, n);
@@ -3253,7 +3245,7 @@ DenseMatrixEigensystem::DenseMatrixEigensystem(DenseMatrix &m)
 void DenseMatrixEigensystem::Eval()
 {
 #ifdef MFEM_DEBUG
-   if (mat.Size() != n)
+   if (mat.Width() != n)
       mfem_error("DenseMatrixEigensystem::Eval()");
 #endif
 

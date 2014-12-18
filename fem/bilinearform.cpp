@@ -21,7 +21,7 @@ void BilinearForm::AllocMat()
 {
    if (precompute_sparsity == 0 || fes->GetVDim() > 1)
    {
-      mat = new SparseMatrix(size);
+      mat = new SparseMatrix(height);
       return;
    }
 
@@ -38,22 +38,22 @@ void BilinearForm::AllocMat()
          mfem::Mult(*face_elem, elem_dof, face_dof);
          delete face_elem;
       }
-      Transpose(face_dof, dof_face, size);
+      Transpose(face_dof, dof_face, height);
       mfem::Mult(dof_face, face_dof, dof_dof);
    }
    else
    {
       // the sparsity pattern is defined from the map: element->dof
       Table dof_elem;
-      Transpose(elem_dof, dof_elem, size);
+      Transpose(elem_dof, dof_elem, height);
       mfem::Mult(dof_elem, elem_dof, dof_dof);
    }
 
    int *I = dof_dof.GetI();
    int *J = dof_dof.GetJ();
-   double *data = new double[I[size]];
+   double *data = new double[I[height]];
 
-   mat = new SparseMatrix(I, J, data, size, size);
+   mat = new SparseMatrix(I, J, data, height, height);
    *mat = 0.0;
 
    dof_dof.LoseData();
@@ -328,9 +328,6 @@ void BilinearForm::Assemble (int skip_zeros)
 void BilinearForm::AssembleDomainInverse (int skip_zeros)
 {
    ElementTransformation *eltrans;
-   Mesh *mesh = fes -> GetMesh();
-
-   int i;
 
    if (mat == NULL)
       AllocMat();
@@ -345,7 +342,7 @@ void BilinearForm::AssembleDomainInverse (int skip_zeros)
 #endif
 
    if (dbfi.Size())
-      for (i = 0; i < fes -> GetNE(); i++)
+      for (int i = 0; i < fes -> GetNE(); i++)
       {
          DenseMatrix elmat;
          fes->GetElementVDofs(i, vdofs);
@@ -392,7 +389,8 @@ void BilinearForm::ConformingAssemble()
    mat = mfem::Mult(*RA, *P);
    delete RA;
 
-   size = mat->Size();
+   height = mat->Height();
+   width = mat->Width();
 }
 
 void BilinearForm::ComputeElementMatrices()
@@ -460,7 +458,7 @@ void BilinearForm::EliminateVDofs (
 void BilinearForm::EliminateVDofs(Array<int> &vdofs, int d)
 {
    if (mat_e == NULL)
-      mat_e = new SparseMatrix(size);
+      mat_e = new SparseMatrix(height);
 
    for (int i = 0; i < vdofs.Size(); i++)
    {
@@ -510,7 +508,7 @@ void BilinearForm::Update (FiniteElementSpace *nfes)
    delete mat;
    FreeElementMatrices();
 
-   size = fes->GetVSize();
+   height = width = fes->GetVSize();
 
    mat = mat_e = NULL;
 }
@@ -534,9 +532,8 @@ BilinearForm::~BilinearForm()
 
 MixedBilinearForm::MixedBilinearForm (FiniteElementSpace *tr_fes,
                                       FiniteElementSpace *te_fes)
-   : Matrix (te_fes->GetVSize())
+   : Matrix(te_fes->GetVSize(), tr_fes->GetVSize())
 {
-   width = tr_fes->GetVSize();
    trial_fes = tr_fes;
    test_fes = te_fes;
    mat = NULL;
@@ -616,7 +613,7 @@ void MixedBilinearForm::Assemble (int skip_zeros)
    Mesh *mesh = test_fes -> GetMesh();
 
    if (mat == NULL)
-      mat = new SparseMatrix(size, width);
+      mat = new SparseMatrix(height, width);
 
    if (dom.Size())
       for (i = 0; i < test_fes -> GetNE(); i++)
@@ -735,7 +732,7 @@ void MixedBilinearForm::Update()
 {
    delete mat;
    mat = NULL;
-   size = test_fes->GetVSize();
+   height = test_fes->GetVSize();
    width = trial_fes->GetVSize();
 }
 
@@ -758,7 +755,7 @@ void DiscreteLinearOperator::Assemble(int skip_zeros)
    DenseMatrix totelmat, elmat;
 
    if (mat == NULL)
-      mat = new SparseMatrix(size, width);
+      mat = new SparseMatrix(height, width);
 
    if (dom.Size() > 0)
       for (int i = 0; i < test_fes->GetNE(); i++)

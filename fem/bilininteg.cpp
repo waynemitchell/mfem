@@ -1753,18 +1753,18 @@ void NTMassIntegrator::AssembleElementMatrix(const FiniteElement &el1,
                                              DenseMatrix &elmat)
 {
    int i, j, ndof1;
-   int order, DPGdim,d;
+   int order, DPGdim;
 
    double w;
 
    switch (el1.GetGeomType())
    {
-   case Geometry::POINT:       DPGdim=1; d=1; break; // No face jacobian to take 0th root
-   case Geometry::SEGMENT:     DPGdim=1; d=2; break;
-   case Geometry::TRIANGLE:    DPGdim=2; d=3; break;
-   case Geometry::SQUARE:      DPGdim=2; d=3; break;
-   case Geometry::TETRAHEDRON: DPGdim=3; d=4; break; //this only happens for 4d domains
-   case Geometry::CUBE:        DPGdim=3; d=4; break; //this only happens for 4d domains
+   case Geometry::POINT:       DPGdim=1; break; // No face jacobian to take 0th root
+   case Geometry::SEGMENT:     DPGdim=1; break;
+   case Geometry::TRIANGLE:    DPGdim=2; break;
+   case Geometry::SQUARE:      DPGdim=2; break;
+   case Geometry::TETRAHEDRON: DPGdim=3; break; //this only happens for 4d domains
+   case Geometry::CUBE:        DPGdim=3; break; //this only happens for 4d domains
    default:
       mfem_error("NTMassIntegrator::AssembleFaceMatrix(...) : Unknown geometry type!");
       DPGdim=1;

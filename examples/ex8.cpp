@@ -22,9 +22,9 @@
 //               We recommend viewing examples 1-5 before viewing this example.
 
 #include <fstream>
-using namespace std;
-
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 
@@ -48,7 +48,7 @@ public:
       s0 = B0->Width();
       s1 = Bhat->Width();
       s2 = Sinv->Width();
-      size = s0+s1;
+      height = width = s0+s1;
    }
 
    virtual void Mult (const Vector & x, Vector & y) const
@@ -90,7 +90,7 @@ public:
       s0 = B0->Width();
       s1 = Bhat->Width();
       s2 = S->Width();
-      size = s0+s1+s2;
+      height = width = s0+s1+s2;
    }
 
    virtual void Mult (const Vector & x, Vector & y) const
@@ -135,7 +135,7 @@ public:
       s0 = X0pc->Width();
       s1 = Xhatpc->Width();
       s2 = Sinvpc->Width();
-      size = s0+s1+s2;
+      height = width = s0+s1+s2;
    }
 
    virtual void Mult (const Vector & x, Vector & y) const

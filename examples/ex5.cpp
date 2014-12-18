@@ -174,7 +174,7 @@ int main (int argc, char *argv[])
    //     Here we use Symmetric Gauss-Seidel to approximate the inverse of the
    //     pressure Schur Complement
    SparseMatrix *MinvBt = Transpose(B);
-   Vector Md(M.Size());
+   Vector Md(M.Height());
    M.GetDiag(Md);
    for (int i = 0; i < Md.Size(); i++)
       MinvBt->ScaleRow(i, 1./Md(i));

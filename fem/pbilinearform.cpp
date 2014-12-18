@@ -25,9 +25,9 @@ void ParBilinearForm::pAllocMat()
    if (precompute_sparsity == 0 || fes->GetVDim() > 1)
    {
       if (keep_nbr_block)
-         mat = new SparseMatrix(size + nbr_size, size + nbr_size);
+         mat = new SparseMatrix(height + nbr_size, width + nbr_size);
       else
-         mat = new SparseMatrix(size, size + nbr_size);
+         mat = new SparseMatrix(height, width + nbr_size);
       return;
    }
 
@@ -54,7 +54,7 @@ void ParBilinearForm::pAllocMat()
       for (int i = 0; i <= s2; i++)
          I[s1+i] = I2[i] + nnz1;
       for (int j = 0; j < nnz2; j++)
-         J[nnz1+j] = J2[j] + size;
+         J[nnz1+j] = J2[j] + height;
    }
    //   dof_elem x  elem_face x face_elem x elem_dof  (keep_nbr_block = true)
    // ldof_lelem x lelem_face x face_elem x elem_dof  (keep_nbr_block = false)
@@ -75,7 +75,7 @@ void ParBilinearForm::pAllocMat()
       if (keep_nbr_block)
       {
          Table dof_face;
-         Transpose(face_dof, dof_face, size + nbr_size);
+         Transpose(face_dof, dof_face, height + nbr_size);
          mfem::Mult(dof_face, face_dof, dof_dof);
       }
       else
@@ -86,7 +86,7 @@ void ParBilinearForm::pAllocMat()
             Table *face_lelem = fes->GetMesh()->GetFaceToElementTable();
             mfem::Mult(*face_lelem, lelem_ldof, face_ldof);
             delete face_lelem;
-            Transpose(face_ldof, ldof_face, size);
+            Transpose(face_ldof, ldof_face, height);
          }
          mfem::Mult(ldof_face, face_dof, dof_dof);
       }
@@ -97,7 +97,7 @@ void ParBilinearForm::pAllocMat()
    int nrows = dof_dof.Size();
    double *data = new double[I[nrows]];
 
-   mat = new SparseMatrix(I, J, data, nrows, size + nbr_size);
+   mat = new SparseMatrix(I, J, data, nrows, height + nbr_size);
    *mat = 0.0;
 
    dof_dof.LoseData();
@@ -157,7 +157,7 @@ void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
       pfes->GetFaceNbrElementVDofs(T->Elem2No, vdofs2);
       vdofs1.Copy(vdofs_all);
       for (int j = 0; j < vdofs2.Size(); j++)
-         vdofs2[j] += size;
+         vdofs2[j] += height;
       vdofs_all.Append(vdofs2);
       for (int k = 0; k < ifbfi.Size(); k++)
       {
@@ -197,7 +197,7 @@ HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(SparseMatrix *m)
 
    // remap to tdof local row and tdof global column indices
    SparseMatrix local(range_fes->TrueVSize(), domain_fes->GlobalTrueVSize());
-   for (int i = 0; i < m->Size(); i++)
+   for (int i = 0; i < m->Height(); i++)
    {
       int lti = range_fes->GetLocalTDofNumber(i);
       if (lti >= 0)
@@ -253,7 +253,7 @@ void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks) 
          // remap to tdof local row and tdof global column indices
          SparseMatrix local(range_fes->TrueVSize()/rdim,
                             domain_fes->GlobalTrueVSize()/ddim);
-         for (i = 0; i < lblocks(bi,bj)->Size(); i++)
+         for (i = 0; i < lblocks(bi,bj)->Height(); i++)
          {
             int lti = range_fes->GetLocalTDofNumber(i);
             if (lti >= 0)

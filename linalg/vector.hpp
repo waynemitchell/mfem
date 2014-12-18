@@ -83,8 +83,12 @@ public:
 
    inline operator const double *() const { return data; }
 
-   /// Changes the ownership of the the data
-   inline void StealData(double **p) { *p = data; data = 0; size = 0; }
+   /// Changes the ownership of the the data; after the call the Vector is empty
+   inline void StealData(double **p)
+   { *p = data; data = 0; size = allocsize = 0; }
+
+   /// Changes the ownership of the the data; after the call the Vector is empty
+   inline double *StealData() { double *p; StealData(&p); return p; }
 
    /// Sets value in vector. Index i = 0 .. size-1
    double & Elem (int i);

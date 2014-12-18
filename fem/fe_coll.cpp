@@ -1479,8 +1479,9 @@ NT_FECollection::NT_FECollection(const int p, const int dim)
 
    if (dim == 2)
    {
-      // NT_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p);
-      NT_Elements[Geometry::SEGMENT] = new L2Vol_SegmentElement(p);
+      L2_SegmentElement *l2_seg = new L2_SegmentElement(p);
+      l2_seg->SetMapType(FiniteElement::INTEGRAL);
+      NT_Elements[Geometry::SEGMENT] = l2_seg;
       NT_dof[Geometry::SEGMENT] = pp1;
 
       SegDofOrd[0] = new int[2*pp1];

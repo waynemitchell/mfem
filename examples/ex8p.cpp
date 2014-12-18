@@ -22,55 +22,56 @@
 //               We recommend viewing examples 1-5 before viewing this example.
 
 #include <fstream>
-using namespace std;
-
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 
 class RAPOperator : public Operator
 {
 public:
-	RAPOperator(Operator * Rt_, Operator *A_, Operator *P_, int size):
-		Operator(size),
-		Rt(Rt_),
-		A(A_),
-		P(P_),
-		Px(P->Size() ),
-		APx(A->Size() )
-	{
+   RAPOperator(Operator &Rt_, Operator &A_, Operator &P_)
+      : Operator(Rt_.Width(), P_.Width()),
+        Rt(Rt_),
+        A(A_),
+        P(P_),
+        Px(P.Height()),
+        APx(A.Height())
+   {
 
-	}
+   }
 
-	void Mult(const Vector & x, Vector & y) const
-	{
-		P->Mult(x,Px);
-		A->Mult(Px,APx);
-		Rt->MultTranspose(APx, y);
-	}
+   void Mult(const Vector & x, Vector & y) const
+   {
+      P.Mult(x, Px);
+      A.Mult(Px, APx);
+      Rt.MultTranspose(APx, y);
+   }
 
-	void MultTranspose(const Vector & x, Vector & y) const
-	{
-		Rt->Mult(x, APx);
-		A->MultTranspose(APx,Px);
-		P->MultTranspose(Px, y);
-	}
+   void MultTranspose(const Vector & x, Vector & y) const
+   {
+      Rt.Mult(x, APx);
+      A.MultTranspose(APx, Px);
+      P.MultTranspose(Px, y);
+   }
 private:
-	Operator * Rt;
-	Operator * A;
-	Operator * P;
-	mutable Vector Px;
-	mutable Vector APx;
+   Operator & Rt;
+   Operator & A;
+   Operator & P;
+   mutable Vector Px;
+   mutable Vector APx;
 };
+
 
 int main(int argc, char *argv[])
 {
-	int num_procs, myid;
+   int num_procs, myid;
 
-	// 1. Initialize MPI
-	MPI_Init(&argc, &argv);
-	MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-	MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+   // 1. Initialize MPI
+   MPI_Init(&argc, &argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    Mesh *mesh;
 
@@ -216,7 +217,7 @@ int main(int argc, char *argv[])
    B.SetBlock(0,0,matB0);
    B.SetBlock(0,1,matBhat);
 
-   RAPOperator A(&B, matSinv, &B, true_offsets.Last() );
+   RAPOperator A(B, *matSinv, B);
 
    // 8. Set up a block-diagonal preconditioner for the 2x2 normal equation
    //
@@ -233,9 +234,9 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace * rt_space = new ParFiniteElementSpace(pmesh, rt_fec);
    Solver * Shatinv;
    if(dim==2)
-	   Shatinv = new HypreAMS(*Shat, rt_space);
+      Shatinv = new HypreAMS(*Shat, rt_space);
    else
-	   Shatinv = new HypreADS(*Shat, rt_space);
+      Shatinv = new HypreADS(*Shat, rt_space);
 
    BlockDiagonalPreconditioner P(true_offsets);
    P.SetDiagonalBlock(0, S0inv);
@@ -265,7 +266,7 @@ int main(int argc, char *argv[])
    matSinv->Mult(*LSres, *tmp);
    double res2 = InnerProduct(LSres, tmp);
    if(myid == 0)
-	   std::cout << " || B0*x0 + Bhat*xhat - F ||_{S^-1} = " << sqrt(res2) << "\n";
+      std::cout << " || B0*x0 + Bhat*xhat - F ||_{S^-1} = " << sqrt(res2) << "\n";
    delete tmp;
    delete LSres;
 
@@ -273,12 +274,12 @@ int main(int argc, char *argv[])
    // 10. Save the refined pmesh and the solution. This output can be viewed later
    //     using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
-	  ostringstream mesh_name, sol_name;
-	  mesh_name << "mesh." << setfill('0') << setw(6) << myid;
-	  sol_name << "sol." << setfill('0') << setw(6) << myid;
+      ostringstream mesh_name, sol_name;
+      mesh_name << "mesh." << setfill('0') << setw(6) << myid;
+      sol_name << "sol." << setfill('0') << setw(6) << myid;
 
-	  ofstream mesh_ofs(mesh_name.str().c_str());
-	  mesh_ofs.precision(8);
+      ofstream mesh_ofs(mesh_name.str().c_str());
+      mesh_ofs.precision(8);
       pmesh->Print(mesh_ofs);
       ofstream sol_ofs("sol.gf");
       sol_ofs.precision(8);

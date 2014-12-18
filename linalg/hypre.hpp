@@ -115,23 +115,26 @@ private:
 public:
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a) : A(a)
-   { size = GetNumRows(); X = Y = 0; CommPkg = 0; }
+   { height = GetNumRows(); width = GetNumCols(); X = Y = 0; CommPkg = 0; }
    /// Creates block-diagonal square parallel matrix. Diagonal given by diag.
-   HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *diag);
+   HypreParMatrix(MPI_Comm comm, int glob_size, int *row_starts,
+                  SparseMatrix *diag);
    /** Creates block-diagonal rectangular parallel matrix. Diagonal
        given by diag. */
-   HypreParMatrix(MPI_Comm comm, int M, int N,
-                  int *row, int *col, SparseMatrix *diag);
+   HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
+                  int *row_starts, int *col_starts, SparseMatrix *diag);
    /// Creates general (rectangular) parallel matrix
-   HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
+   HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
+                  int *row_starts, int *col_starts,
                   SparseMatrix *diag, SparseMatrix *offd, int *cmap);
 
    /// Creates a parallel matrix from SparseMatrix on processor 0.
-   HypreParMatrix(MPI_Comm comm, int *row, int *col, SparseMatrix *a);
+   HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
+                  SparseMatrix *a);
 
    /// Creates boolean block-diagonal rectangular parallel matrix.
-   HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
-                  Table *diag);
+   HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
+                  int *row_starts, int *col_starts, Table *diag);
    /// Creates boolean rectangular parallel matrix (which owns its data)
    HypreParMatrix(MPI_Comm comm, int id, int np, int *row, int *col,
                   int *i_diag, int *j_diag, int *i_offd, int *j_offd,
@@ -180,6 +183,10 @@ public:
    /// Returns the number of rows in the diagonal block of the ParCSRMatrix
    int GetNumRows() const
    { return hypre_CSRMatrixNumRows(hypre_ParCSRMatrixDiag(A)); }
+
+   /// Returns the number of columns in the diagonal block of the ParCSRMatrix
+   int GetNumCols() const
+   { return hypre_CSRMatrixNumCols(hypre_ParCSRMatrixDiag(A)); }
 
    int GetGlobalNumRows() const { return hypre_ParCSRMatrixGlobalNumRows(A); }
 

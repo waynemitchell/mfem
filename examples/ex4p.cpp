@@ -239,37 +239,31 @@ int main (int argc, char *argv[])
 // The exact solution
 void F_exact(const Vector &p, Vector &F)
 {
-   double x,y,z;
-
    int dim = p.Size();
 
-   x = p(0);
-   y = p(1);
-   if(dim == 3)
-      z = p(2);
+   double x = p(0);
+   double y = p(1);
+   // double z = (dim == 3) ? p(2) : 0.0;
 
    F(0) = cos(M_PI*x)*sin(M_PI*y);
    F(1) = cos(M_PI*y)*sin(M_PI*x);
-   if(dim == 3)
+   if (dim == 3)
       F(2) = 0.0;
 }
 
 // The right hand side
 void f_exact(const Vector &p, Vector &f)
 {
-   double x,y,z;
-
    int dim = p.Size();
 
-   x = p(0);
-   y = p(1);
-   if(dim == 3)
-      z = p(2);
+   double x = p(0);
+   double y = p(1);
+   // double z = (dim == 3) ? p(2) : 0.0;
 
    double temp = 1 + 2*M_PI*M_PI;
 
    f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
    f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
-   if(dim == 3)
+   if (dim == 3)
       f(2) = 0;
 }

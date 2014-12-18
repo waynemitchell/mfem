@@ -4563,8 +4563,8 @@ void DetOfLinComb(const DenseMatrix &A, const DenseMatrix &B, Vector &c)
    const double *a = A.Data();
    const double *b = B.Data();
 
-   c.SetSize(A.Size()+1);
-   switch (A.Size())
+   c.SetSize(A.Width()+1);
+   switch (A.Width())
    {
    case 2:
    {

@@ -36,11 +36,11 @@ class SparseMatrix : public AbstractSparseMatrix
 private:
 
    /** Arrays for the connectivity information in the CSR storage.
-       I is of size "size+1", J is of size the number of nonzero entries
-       in the Sparse matrix (actually stored I[size]) */
-   int *I, *J, width;
+       I is of size "height+1", J is of size the number of nonzero entries
+       in the Sparse matrix (actually stored I[height]) */
+   int *I, *J;
 
-   /// The nonzero entries in the Sparse matrix with size I[size].
+   /// The nonzero entries in the Sparse matrix with size I[height].
    double *A;
 
    RowNode **Rows;
@@ -74,14 +74,15 @@ public:
 
    SparseMatrix(int *i, int *j, double *data, int m, int n);
 
+   /// For backward compatibility define Size to be synonym of Height()
+   int Size() const { return Height(); }
+
    /// Return the array I
    inline int *GetI() const { return I; }
    /// Return the array J
    inline int *GetJ() const { return J; }
    /// Return element data
    inline double *GetData() const { return A; }
-   /// Return the number of columns
-   inline int Width() const { return width; }
    /// Returns the number of elements in row i
    int RowSize(const int i) const;
    /// Returns the maximum number of elements among all rows
@@ -110,16 +111,16 @@ public:
    /// Sort the column indices corresponding to each row
    void SortColumnIndices();
 
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns reference to a_{ij}.
    virtual double &Elem(int i, int j);
 
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns constant reference to a_{ij}.
    virtual const double &Elem(int i, int j) const;
 
-   /// Returns reference to A[i][j].  Index i, j = 0 .. size-1
+   /// Returns reference to A[i][j].
    double &operator()(int i, int j);
 
-   /// Returns reference to A[i][j].  Index i, j = 0 .. size-1
+   /// Returns reference to A[i][j].
    const double &operator()(int i, int j) const;
 
    /// Returns the Diagonal of A
@@ -269,7 +270,7 @@ public:
    SparseMatrix &operator*=(double a);
 
    /// Prints matrix to stream out.
-   void Print(std::ostream &out = std::cout, int width = 4) const;
+   void Print(std::ostream &out = std::cout, int width_ = 4) const;
 
    /// Prints matrix in matlab format.
    void PrintMatlab(std::ostream &out = std::cout) const;

@@ -25,7 +25,8 @@ void SparseSmoother::SetOperator(const Operator &a)
    oper = dynamic_cast<const SparseMatrix*>(&a);
    if (oper == NULL)
       mfem_error("SparseSmoother::SetOperator : not a SparseMatrix!");
-   size = oper->Size();
+   height = oper->Height();
+   width = oper->Width();
 }
 
 /// Matrix vector multiplication with GS Smoother.
@@ -60,7 +61,7 @@ void DSmoother::Mult(const Vector &x, Vector &y) const
       return;
    }
 
-   z.SetSize(size);
+   z.SetSize(width);
 
    Vector *r = &y, *p = &z;
 

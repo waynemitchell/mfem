@@ -42,10 +42,6 @@ public:
    int NumRowBlocks() const {return nRowBlocks; }
    //! Return the number of column blocks
    int NumColBlocks() const {return nColBlocks; }
-   //! Return the total number of rows. (Alias of Size() )
-   int NumRows() const {return row_offsets[nRowBlocks];}
-   //! Return the total number of columns. ( Alias of Width() )
-   int NumCols() const {return col_offsets[nColBlocks];}
    //! Return a reference to block (i,j). Reference may be invalid if Aij(i,j) == NULL
    SparseMatrix & GetBlock(int i, int j);
    //! Return a reference to block (i,j). Reference may be invalid if Aij(i,j)
@@ -77,17 +73,11 @@ public:
    //! Export the monolithic matrix to file.
    void PrintMatlab(std::ostream & os = std::cout) const;
 
-   //@name Operator interface
-   //@{
-   // Return the size (number of rows) of the BlockMatrix.
-   virtual int Size() const { return row_offsets[nRowBlocks];}
-   //@}
-
    //@name Matrix interface
    //@{
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns reference to a_{ij}.
    virtual double& Elem (int i, int j);
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns constant reference to a_{ij}.
    virtual const double& Elem (int i, int j) const;
    /// Returns a pointer to (approximation) of the matrix inverse.
    virtual MatrixInverse * Inverse() const
@@ -99,8 +89,6 @@ public:
 
    //@name AbstractSparseMatrix interface
    //@{
-   //! Returns the width (total number of columns) of the matrix.
-   virtual int Width() const {return col_offsets[nColBlocks];}
    //! Returns the total number of non zeros in the matrix.
    virtual int NumNonZeroElems() const;
    /// Gets the columns indexes and values for row *row*.

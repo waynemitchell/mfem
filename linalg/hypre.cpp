@@ -175,11 +175,12 @@ double InnerProduct(HypreParVector &x, HypreParVector &y)
 }
 
 
-HypreParMatrix::HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *diag)
-   : Operator(size)
+HypreParMatrix::HypreParMatrix(MPI_Comm comm, int glob_size, int *row_starts,
+                               SparseMatrix *diag)
+   : Operator(diag->Height(), diag->Width())
 {
-   A = hypre_ParCSRMatrixCreate(comm, size, size, row, row,
-                                0, diag->NumNonZeroElems(), 0);
+   A = hypre_ParCSRMatrixCreate(comm, glob_size, glob_size, row_starts,
+                                row_starts, 0, diag->NumNonZeroElems(), 0);
    hypre_ParCSRMatrixSetDataOwner(A,0);
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
    hypre_ParCSRMatrixSetColStartsOwner(A,0);
@@ -191,7 +192,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *
    hypre_CSRMatrixSetRownnz(A->diag);
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
-   hypre_CSRMatrixI(A->offd)    = hypre_CTAlloc(int, diag->Size()+1);
+   hypre_CSRMatrixI(A->offd)    = hypre_CTAlloc(int, diag->Height()+1);
 
    /* Don't need to call these, since they allocate memory only
       if it was not already allocated */
@@ -210,10 +211,14 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *
 }
 
 
-HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
+HypreParMatrix::HypreParMatrix(MPI_Comm comm,
+                               int global_num_rows, int global_num_cols,
+                               int *row_starts, int *col_starts,
                                SparseMatrix *diag)
+   : Operator(diag->Height(), diag->Width())
 {
-   A = hypre_ParCSRMatrixCreate(comm, M, N, row, col,
+   A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
+                                row_starts, col_starts,
                                 0, diag->NumNonZeroElems(), 0);
    hypre_ParCSRMatrixSetDataOwner(A,0);
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
@@ -226,27 +231,29 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
    hypre_CSRMatrixSetRownnz(A->diag);
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
-   hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(int, diag->Size()+1);
+   hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(int, diag->Height()+1);
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
    /* Make sure that the first entry in each row is the diagonal one. */
-   if (row == col)
+   if (row_starts == col_starts)
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
 
    hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
    X = Y = NULL;
-
-   size = GetNumRows();
 }
 
-HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
+HypreParMatrix::HypreParMatrix(MPI_Comm comm,
+                               int global_num_rows, int global_num_cols,
+                               int *row_starts, int *col_starts,
                                SparseMatrix *diag, SparseMatrix *offd,
                                int *cmap)
+   : Operator(diag->Height(), diag->Width())
 {
-   A = hypre_ParCSRMatrixCreate(comm, M, N, row, col,
+   A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
+                                row_starts, col_starts,
                                 offd->Width(), diag->NumNonZeroElems(),
                                 offd->NumNonZeroElems());
    hypre_ParCSRMatrixSetDataOwner(A,0);
@@ -270,18 +277,16 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
    /* Make sure that the first entry in each row is the diagonal one. */
-   if (row == col)
+   if (row_starts == col_starts)
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
 
    hypre_MatvecCommPkgCreate(A);
 
    CommPkg = NULL;
    X = Y = NULL;
-
-   size = GetNumRows();
 }
 
-HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row, int *col,
+HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
                                SparseMatrix *sm_a)
 {
 #ifdef MFEM_DEBUG
@@ -291,7 +296,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row, int *col,
 
    hypre_CSRMatrix *csr_a;
 
-   csr_a = hypre_CSRMatrixCreate(sm_a -> Size(), sm_a -> Width(),
+   csr_a = hypre_CSRMatrixCreate(sm_a -> Height(), sm_a -> Width(),
                                  sm_a -> NumNonZeroElems());
 
    hypre_CSRMatrixSetDataOwner(csr_a,0);
@@ -300,25 +305,28 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row, int *col,
    hypre_CSRMatrixData(csr_a) = sm_a -> GetData();
    hypre_CSRMatrixSetRownnz(csr_a);
 
-   A = hypre_CSRMatrixToParCSRMatrix(comm,csr_a,row,col);
+   A = hypre_CSRMatrixToParCSRMatrix(comm, csr_a, row_starts, col_starts);
 
    CommPkg = NULL;
    X = Y = NULL;
 
-   size = GetNumRows();
+   height = GetNumRows();
+   width = GetNumCols();
 
    /* Make sure that the first entry in each row is the diagonal one. */
-   if (row == col)
+   if (row_starts == col_starts)
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
 
    hypre_MatvecCommPkgCreate(A);
 }
 
-HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
-                               Table *diag)
+HypreParMatrix::HypreParMatrix(MPI_Comm comm,
+                               int global_num_rows, int global_num_cols,
+                               int *row_starts, int *col_starts, Table *diag)
 {
    int nnz = diag->Size_of_connections();
-   A = hypre_ParCSRMatrixCreate(comm, M, N, row, col, 0, nnz, 0);
+   A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
+                                row_starts, col_starts, 0, nnz, 0);
    hypre_ParCSRMatrixSetDataOwner(A,1);
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
    hypre_ParCSRMatrixSetColStartsOwner(A,0);
@@ -339,7 +347,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
    /* Make sure that the first entry in each row is the diagonal one. */
-   if (row == col)
+   if (row_starts == col_starts)
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
 
    hypre_MatvecCommPkgCreate(A);
@@ -347,7 +355,8 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
    CommPkg = NULL;
    X = Y = NULL;
 
-   size = GetNumRows();
+   height = GetNumRows();
+   width = GetNumCols();
 }
 
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
@@ -414,7 +423,8 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
    CommPkg = NULL;
    X = Y = NULL;
 
-   size = GetNumRows();
+   height = GetNumRows();
+   width = GetNumCols();
 }
 
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
@@ -473,7 +483,8 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
 
    CommPkg = NULL;
    X = Y = NULL;
-   size = GetNumRows();
+   height = GetNumRows();
+   width = GetNumCols();
 }
 
 void HypreParMatrix::SetCommPkg(hypre_ParCSRCommPkg *comm_pkg)
@@ -1060,7 +1071,8 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (A == NULL)
       mfem_error("HypreSmoother::SetOperator : not HypreParMatrix!");
 
-   size = A->GetNumRows();
+   height = A->GetNumRows();
+   width = A->GetNumCols();
 
    if (B) delete B;
    if (X) delete X;
@@ -1248,17 +1260,14 @@ HypreSmoother::~HypreSmoother()
 
 HypreSolver::HypreSolver()
 {
-   size = 0;
-
    A = NULL;
    setup_called = 0;
    B = X = NULL;
 }
 
 HypreSolver::HypreSolver(HypreParMatrix *_A)
+   : Solver(_A->Height(), _A->Width())
 {
-   size = _A -> GetNumRows();
-
    A = _A;
    setup_called = 0;
    B = X = NULL;

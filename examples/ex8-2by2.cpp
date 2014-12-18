@@ -22,55 +22,56 @@
 //               We recommend viewing examples 1-5 before viewing this example.
 
 #include <fstream>
-using namespace std;
-
 #include "mfem.hpp"
+
+using namespace std;
 using namespace mfem;
 
 
-SparseMatrix * RAP(const SparseMatrix & Rt, const SparseMatrix & A, const SparseMatrix & P)
+SparseMatrix *RAP(const SparseMatrix & Rt, const SparseMatrix & A,
+                  const SparseMatrix & P)
 {
-	SparseMatrix * R = Transpose(Rt);
-	SparseMatrix * RA = Mult(*R,A);
-	delete R;
-	SparseMatrix * out = Mult(*RA, P);
-	delete RA;
-	return out;
+   SparseMatrix * R = Transpose(Rt);
+   SparseMatrix * RA = Mult(*R,A);
+   delete R;
+   SparseMatrix * out = Mult(*RA, P);
+   delete RA;
+   return out;
 }
 
 class RAPOperator : public Operator
 {
 public:
-	RAPOperator(Operator * Rt_, Operator *A_, Operator *P_, int size):
-		Operator(size),
-		Rt(Rt_),
-		A(A_),
-		P(P_),
-		Px(P->Size() ),
-		APx(A->Size() )
-	{
+   RAPOperator(Operator &Rt_, Operator &A_, Operator &P_)
+      : Operator(Rt_.Width(), P_.Width()),
+        Rt(Rt_),
+        A(A_),
+        P(P_),
+        Px(P.Height()),
+        APx(A.Height())
+   {
 
-	}
+   }
 
-	void Mult(const Vector & x, Vector & y) const
-	{
-		P->Mult(x,Px);
-		A->Mult(Px,APx);
-		Rt->MultTranspose(APx, y);
-	}
+   void Mult(const Vector & x, Vector & y) const
+   {
+      P.Mult(x, Px);
+      A.Mult(Px, APx);
+      Rt.MultTranspose(APx, y);
+   }
 
-	void MultTranspose(const Vector & x, Vector & y) const
-	{
-		Rt->Mult(x, APx);
-		A->MultTranspose(APx,Px);
-		P->MultTranspose(Px, y);
-	}
+   void MultTranspose(const Vector & x, Vector & y) const
+   {
+      Rt.Mult(x, APx);
+      A.MultTranspose(APx, Px);
+      P.MultTranspose(Px, y);
+   }
 private:
-	Operator * Rt;
-	Operator * A;
-	Operator * P;
-	mutable Vector Px;
-	mutable Vector APx;
+   Operator & Rt;
+   Operator & A;
+   Operator & P;
+   mutable Vector Px;
+   mutable Vector APx;
 };
 
 int main(int argc, char *argv[])
@@ -203,7 +204,7 @@ int main(int argc, char *argv[])
    B.SetBlock(0,0,&matB0);
    B.SetBlock(0,1,&matBhat);
 
-   RAPOperator A(&B, &matSinv, &B, offsets.Last() );
+   RAPOperator A(B, matSinv, B);
 
    // 8. Set up a block-diagonal preconditioner for the 2x2 normal equation
    //
