@@ -239,20 +239,20 @@ int main(int argc, char *argv[])
 
    SparseMatrix * Shat = RAP(matBhat, matSinv, matBhat);
 
-#ifdef MFEM_USE_UMFPACK
-   Operator * S0inv = new UMFPackSolver(matS0);
-   Operator * Shatinv = new UMFPackSolver(*Shat);
-#else
+#ifndef MFEM_USE_SUITESPARSE
    CGSolver * S0inv = new CGSolver;
    S0inv->SetOperator(matS0);
    S0inv->SetPrintLevel(-1);
-   S0inv->SetRelTol(1e-12);
+   S0inv->SetRelTol(1e-3);
    S0inv->SetMaxIter(300);
    CGSolver * Shatinv = new CGSolver;
    Shatinv->SetOperator(*Shat);
    Shatinv->SetPrintLevel(-1);
-   Shatinv->SetRelTol(1e-12);
+   Shatinv->SetRelTol(1e-3);
    Shatinv->SetMaxIter(300);
+#else
+   Operator * S0inv = new UMFPackSolver(matS0);
+   Operator * Shatinv = new UMFPackSolver(*Shat);
 #endif
 
    BlockDiagonalPreconditioner P(offsets);
