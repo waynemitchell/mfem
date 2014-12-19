@@ -12,70 +12,100 @@
 #ifndef MFEM_DATACOLLECTION
 #define MFEM_DATACOLLECTION
 
-#include "picojson.hpp"
+#include "../config.hpp"
+#include <string>
+#include <map>
 
 namespace mfem
 {
 
+class Mesh;
+class GridFunction;
 
 class FieldInfo
 {
 public:
-   FieldInfo(std::string a, int d) {assoc = a; depth = d;};
-   FieldInfo() {assoc = ""; depth = 0;};
-   std::string assoc;
-   int depth;
+   std::string association;
+   int num_components;
+   FieldInfo() {association = ""; num_components = 0;};
+   FieldInfo(std::string _association, int _num_components) {association = _association; num_components = _num_components;};
+};
+
+
+class RootData
+{
+public:
+   std::string base_name;
+   int cycle;
+   double time;
+   int spatial_dim, topo_dim;
+   int visit_max_levels_of_detail;
+   int num_ranks;
+   std::map<std::string, FieldInfo> field_info_map;
+
+   RootData();
+
+   /// Set FieldInfo
+   void SetFieldInfo(std::string name, std::string association, int num_components) {field_info_map[name] = FieldInfo(association, num_components);};
+   bool HasField(std::string name) {return field_info_map.count(name) == 1;};
+
+   /// Interact with the json Visit root strings
+   std::string GetVisitRootString();
+   void ParseVisitRootString(std::string json_str);
+
+   /// Interact with Visit Root files
+   void SaveVisitRootFile();
+   void LoadVisitRootFile(const char *fname);
+
+   /// String conversions that will go away in C++11
+   std::string to_padded_string(int i);
+   std::string to_string(int i);
+   int to_int(std::string str);
 };
 
 
 class DataCollection
 {
 protected:
-   std::string base_name;
-   int num_domains;
-   int spatial_dim;
-   int topo_dim;
-   int max_lods;
-   int cycle;
-   double time;
-   std::map<std::string, FieldInfo> field_map;
+   RootData root_data;
+   Mesh* mesh;
 
-   std::string to_string(int i);
-   int to_int(std::string str);
+   int my_rank;
+   std::map<std::string, GridFunction*> field_map;
+
+   /// Interact with the Mesh files
+   void SaveMesh();
+   void LoadMesh();
+
+   /// Interact with the Field files
+   void SaveFields();
+   void LoadFields();
 
 public:
    /// Construct passing in the necessary components
-   DataCollection(const char* bn, int nd, int sd, int td, int mlod);
+   DataCollection(const char* _colection_name, Mesh* _mesh);
 
    /// Accessors for the variables that can change
-   void SetNumDomains(int nd) {num_domains = nd;};
-   int GetNumDomains() {return num_domains;};
-   void SetSpatialDim(int sd) {spatial_dim = sd;};
-   int GetSpatialDim() {return spatial_dim;};
-   void SetTopoDim(int td) {topo_dim = td;};
-   int GetTopoDim() {return topo_dim;};  
-   void SetMaxLods(int mlod) {max_lods = mlod;};
-   int GetMaxLods() {return max_lods;};
-   void SetCycle(int c) {cycle = c;};
-   int GetCycle() {return cycle;};
-   void SetTime(double t) {time = t;};
-   double GetTime() {return time;};
+   void SetVisitParameters(int max_levels_of_detail) {root_data.visit_max_levels_of_detail = max_levels_of_detail;};
+
+   /// Various Accessors
+   void SetCycle(int c) {root_data.cycle = c;};
+   int GetCycle() {return root_data.cycle;};
+   void SetTime(double t) {root_data.time = t;};
+   double GetTime() {return root_data.time;};
+   Mesh *GetMesh() {return mesh;};
+   GridFunction *GetField(const char *field_name);
 
    /// Interact with the fields map
-   void SetField(const char *name, int depth);
+   void RegisterField(const char *field_name, GridFunction *gf);
    bool HasField(const char *name) {return field_map.count(name) == 1;};
-   int GetFieldDepth(const char *name);
 
-   /// Serialization to a Visit root file
-   std::string GetVisitRootString();
-   void SaveVisitRootFile();
+   /// Interact with Visit data files
+   void SaveVisitData();
+   void LoadVisitData(const char *_collection_name, int _cycle);
 
-   /// Parsing from Visit root file to Data collection object
-   void ParseVisitRootString(std::string json_str);
-   void LoadVisitRootFile(const char *fname);
-
-   /// Empty destructor
-   ~DataCollection() {};
+   /// For now we will leave the destructor empty and let the user delete the attached Mesh and GridFunctions
+   ~DataCollection();
 };
 
 }
