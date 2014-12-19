@@ -73,30 +73,52 @@ int main(int argc, char *argv[])
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   Mesh *mesh;
+   // 2. Parse command-line options.
+   const char *mesh_file = "../data/star.mesh";
+   int order = 1;
+   bool visualization = 1;
 
-   if (argc == 1)
+   OptionsParser args(argc, argv);
+   args.AddOption(&mesh_file, "-m", "--mesh",
+                  "Mesh file to use.");
+   args.AddOption(&order, "-o", "--order",
+                  "Finite element order (polynomial degree) or -1 for"
+                  " isoparametric space.");
+   args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
+                  "--no-visualization",
+                  "Enable or disable GLVis visualization.");
+   args.Parse();
+   if (!args.Good())
    {
-      cout << "\nUsage: ex8 <mesh_file>\n" << endl;
+      if (myid == 0)
+         args.PrintUsage(cout);
+      MPI_Finalize();
       return 1;
    }
+   if (myid == 0)
+      args.PrintOptions(cout);
 
-   // 1. Read the mesh from the given mesh file. We can handle triangular,
+   Mesh *mesh;
+
+   // 3. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral or hexahedral elements with the same code.
-   ifstream imesh(argv[1]);
+
+   ifstream imesh(mesh_file);
    if (!imesh)
    {
-      cerr << "\nCan not open mesh file: " << argv[1] << '\n' << endl;
+      cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      MPI_Finalize();
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    const int dim = mesh->Dimension();
 
-   // 2. Refine the mesh to increase the resolution. In this example we do
+   // 4. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
+
    {
       int ref_levels =
          (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
@@ -104,9 +126,10 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
    }
 
-   // 4. Define a parallel mesh by a partitioning of the serial mesh. Refine
+   // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
    //    parallel mesh is defined, the serial mesh can be deleted.
+
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
@@ -115,18 +138,20 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
    }
 
-   // 3. Define the trial, interfacial (numerical trace) and test DPG spaces:
+   // 6. Define the trial, interfacial (numerical trace) and test DPG spaces:
    //    - The trial space, x0_space, contains the non-interfacial unknowns and
    //      has the essential BC.
    //    - The interfacial space, xhat_space, contains the interfacial unknowns
    //      and does not have essential BC.
    //    - The test space, test_space, is an enriched space where the enrichment
-   //      degree depends on the dimension of the space.
-   int trial_order = 1;
+   //      degree depends on the spacial dimension of the domain.
+
+   int trial_order = order;
    int nt_order    = trial_order - 1;
    int test_order  = nt_order + dim;
    if (test_order < trial_order)
-      cerr << "Warning, test space not enriched enough to handle primal trial space\n";
+      if(myid == 0)
+         cerr << "Warning, test space not enriched enough to handle primal trial space\n";
 
    FiniteElementCollection *x0_fec   = new H1_FECollection(trial_order, dim);
    FiniteElementCollection *xhat_fec = new NT_FECollection(nt_order, dim);
@@ -136,7 +161,7 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace *xhat_space = new ParFiniteElementSpace(pmesh, xhat_fec);
    ParFiniteElementSpace *test_space = new ParFiniteElementSpace(pmesh, test_fec);
 
-   // 5. Set up the linear form F(.) which corresponds to the right-hand side of
+   // 7. Set up the linear form F(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (f,phi_i) where f=1.0 and
    //    phi_i are the basis functions in the finite element fespace.
 
@@ -148,9 +173,9 @@ int main(int argc, char *argv[])
    ParGridFunction * x0 = new ParGridFunction(x0_space);
    *x0 = 0.;
 
-   // 6. Set up the mixed bilinear form for the non interfacial unknowns, B0,
+   // 8. Set up the mixed bilinear form for the non interfacial unknowns, B0,
    //    the mixed bilinear form for the interfacial unknowns, Bhat,
-   //    the stiffness matrix and its inverse on the discontinuous test space, S and Sinv,
+   //    the inverse stiffness matrix  on the discontinuous test space, Sinv,
    //    the stiffness matrix on the continuous trial space, S0.
 
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
@@ -187,7 +212,7 @@ int main(int argc, char *argv[])
    HypreParMatrix * matSinv = Sinv->ParallelAssemble();
    HypreParMatrix * matS0   = S0->ParallelAssemble();
 
-   // 4. Define the block structure of the problem, by creating the offset variable.
+   // 9. Define the block structure of the problem, by creating the offset variable.
    // Also allocate two BlockVector objects to store the solution and rhs.
 
    enum {x0_var, xhat_var, NVAR};
@@ -209,9 +234,9 @@ int main(int argc, char *argv[])
    x = 0.;
    b = 0.;
 
-
-   // 7. Set up the 1x2 block Least Squares DPG operator B = [ B0   Bhat ]
-   //    and the normal equation operator A = B^t Sinv B
+   // 10. Set up the 1x2 block Least Squares DPG operator, B = [ B0   Bhat ],
+   //     the normal equation operator, A = B^t Sinv B,
+   //     the normal equation right-hand-size, b = B^t Sinv F.
 
    BlockOperator B(true_offsets_test, true_offsets);
    B.SetBlock(0,0,matB0);
@@ -219,37 +244,33 @@ int main(int argc, char *argv[])
 
    RAPOperator A(B, *matSinv, B);
 
-   // 8. Set up a block-diagonal preconditioner for the 2x2 normal equation
+   Vector SinvF(true_s_test);
+   HypreParVector * trueF = F->ParallelAssemble();
+   matSinv->Mult(*trueF,SinvF);
+   B.MultTranspose(SinvF, b);
+
+   // 11. Set up a block-diagonal preconditioner for the 2x2 normal equation
    //
    //        [ S0^{-1}     0     ]
    //        [   0     Shat^{-1} ]      Shat = (Bhat^T Sinv Bhat)
    //
-   //    corresponding to the primal (x0), interfacial (x1) unknowns.
+   //     corresponding to the primal (x0), interfacial (x1) unknowns.
 
    HypreParMatrix * Shat = RAP(matSinv, matBhat);
 
    HypreBoomerAMG * S0inv = new HypreBoomerAMG(*matS0);
-   // This is not a good preconditioner, should we try ADS instead?
-   FiniteElementCollection *rt_fec = new RT_FECollection(nt_order, dim);
-   ParFiniteElementSpace * rt_space = new ParFiniteElementSpace(pmesh, rt_fec);
-   Solver * Shatinv;
-   if(dim==2)
-      Shatinv = new HypreAMS(*Shat, rt_space);
-   else
-      Shatinv = new HypreADS(*Shat, rt_space);
+
+   HyprePCG * Shatinv(new HyprePCG(*Shat));
+   Shatinv->SetTol(1e-3);
+   Shatinv->SetZeroInintialIterate();
 
    BlockDiagonalPreconditioner P(true_offsets);
    P.SetDiagonalBlock(0, S0inv);
    P.SetDiagonalBlock(1, Shatinv);
 
-   // 9. Compute the reduced rhs for the Normal Equation problem and
-   //    compute the solution using PCG iterative solver.
+   // 12. Solve the Normal Equation system using PCG iterative solver.
    //    Check the weighted norm of residual for the DPG least square problem
    //    Wrap the primal variable in a GridFunction for visualization purposes.
-   Vector SinvF(true_s_test);
-   HypreParVector * trueF = F->ParallelAssemble();
-   matSinv->Mult(*trueF,SinvF);
-   B.MultTranspose(SinvF, b);
 
    CGSolver pcg(MPI_COMM_WORLD);
    pcg.SetOperator(A);
@@ -271,8 +292,10 @@ int main(int argc, char *argv[])
    delete LSres;
 
    x0->Distribute( &(x.GetBlock(x0_var)) );
-   // 10. Save the refined pmesh and the solution. This output can be viewed later
+
+   // 13. Save the refined pmesh and the solution. This output can be viewed later
    //     using GLVis: "glvis -m refined.mesh -g sol.gf".
+
    {
       ostringstream mesh_name, sol_name;
       mesh_name << "mesh." << setfill('0') << setw(6) << myid;
@@ -286,22 +309,22 @@ int main(int argc, char *argv[])
       x0->Save(sol_ofs);
    }
 
-   // 11. (Optional) Send the solution by socket to a GLVis server.
-   char vishost[] = "localhost";
-   int  visport   = 19916;
-   osockstream sol_sock(visport, vishost);
-   sol_sock << "parallel " << num_procs << " " << myid << "\n";
-   sol_sock << "solution\n";
-   sol_sock.precision(8);
-   pmesh->Print(sol_sock);
-   x0->Save(sol_sock);
-   sol_sock.send();
+   // 14. (Optional) Send the solution by socket to a GLVis server.
 
-   // 12. Free the used memory.
+   if(visualization)
+   {
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      socketstream sol_sock(vishost, visport);
+      sol_sock << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock.precision(8);
+      sol_sock << "solution\n" << *pmesh << *x0 << flush;
+   }
+
+   // 15. Free the used memory.
+
    delete trueF;
    delete Shatinv;
-   delete rt_fec;
-   delete rt_space;
    delete S0inv;
    delete Shat;
    delete matB0;
