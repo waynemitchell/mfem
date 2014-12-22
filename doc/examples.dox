@@ -12,12 +12,23 @@
  *
  * Users are encouraged to submit any example codes that they have
  * created and would like to share. Contact a member of the MFEM team.
+ *
+ * \htmlonly
+ * <label><input type="checkbox" id="laplace" onchange="el = document.getElementById('test'); el.style.display = (el.style.display == 'none') ? 'block' : 'none';" />Test!</label>
+ * \endhtmlonly
+ *
+ * \htmlonly
+ * <div id="test">
+ * \endhtmlonly
  * <h2> Equation (PDE) </h2>
  * - \ref laplace_page
  * - Elasticity Equations Example Codes
  * - definite Maxwell
  * - grad-div
  * - Darcy
+ * \htmlonly
+ * </div>
+ * \endhtmlonly
  *
  * <h2> Discretization </h2>
  * - \ref L2_disc
