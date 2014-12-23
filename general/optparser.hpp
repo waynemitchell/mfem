@@ -118,7 +118,10 @@ public:
 
    void Parse();
    bool Good() const { return (error_type == 0); }
+   bool Help() const { return (error_type == 1); }
    void PrintOptions(std::ostream &out) const;
+   void PrintError(std::ostream &out) const;
+   void PrintHelp(std::ostream &out) const;
    void PrintUsage(std::ostream &out) const;
 };
 
