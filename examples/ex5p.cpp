@@ -37,7 +37,7 @@ void fFun(const Vector & x, Vector & f);
 double gFun(Vector & x);
 double f_natural(Vector & x);
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    StopWatch chrono;
 

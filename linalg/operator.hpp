@@ -160,6 +160,33 @@ public:
    ~TransposeOperator() { }
 };
 
+
+/// The operator x -> R*A*P*x
+class RAPOperator : public Operator
+{
+private:
+   Operator & Rt;
+   Operator & A;
+   Operator & P;
+   mutable Vector Px;
+   mutable Vector APx;
+
+public:
+   /// Construct the RAP operator given R^T, A and P
+   RAPOperator(Operator &Rt_, Operator &A_, Operator &P_)
+      : Operator(Rt_.Width(), P_.Width()), Rt(Rt_), A(A_), P(P_),
+        Px(P.Height()), APx(A.Height()) { }
+
+   /// Operator application
+   void Mult(const Vector & x, Vector & y) const
+   { P.Mult(x, Px); A.Mult(Px, APx); Rt.MultTranspose(APx, y); }
+
+   void MultTranspose(const Vector & x, Vector & y) const
+   { Rt.Mult(x, APx); A.MultTranspose(APx, Px); P.MultTranspose(Px, y); }
+
+   ~RAPOperator() { }
+};
+
 }
 
 #endif

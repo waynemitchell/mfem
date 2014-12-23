@@ -337,6 +337,10 @@ SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A, const Abs
 SparseMatrix *RAP(const SparseMatrix &A, const SparseMatrix &R,
                   SparseMatrix *ORAP = NULL);
 
+/// General RAP with given R^T, A and P
+SparseMatrix *RAP(const SparseMatrix &Rt, const SparseMatrix &A,
+                  const SparseMatrix &P);
+
 /** Matrix multiplication A^t D A.
     All matrices must be finalized.  */
 SparseMatrix *Mult_AtDA(const SparseMatrix &A, const Vector &D,

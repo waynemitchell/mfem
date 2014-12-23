@@ -2674,7 +2674,7 @@ void CalcInverseTranspose(const DenseMatrix &a, DenseMatrix &inva)
 {
 #ifdef MFEM_DEBUG
    if ( (a.Width() != a.Height()) || ( (a.Height()!= 1) && (a.Height()!= 2)
-                                      && (a.Height()!= 3) ) )
+                                       && (a.Height()!= 3) ) )
       mfem_error("CalcInverseTranspose(...)");
 #endif
 
@@ -3083,7 +3083,7 @@ DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix &mat)
    : MatrixInverse(mat)
 {
    MFEM_ASSERT(height == width, "not a square matrix")
-   a = &mat;
+      a = &mat;
    data = new double[width*width];
 #ifdef MFEM_USE_LAPACK
    ipiv = new int[width];
@@ -3095,7 +3095,7 @@ DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix *mat)
    : MatrixInverse(*mat)
 {
    MFEM_ASSERT(height == width, "not a square matrix")
-   a = mat;
+      a = mat;
    data = new double[width*width];
 #ifdef MFEM_USE_LAPACK
    ipiv = new int[width];

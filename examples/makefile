@@ -126,5 +126,5 @@ pdebug:
 clean:
 	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p ex6 ex7 ex7p
 	rm -f ex8 ex8p
-	rm -f refined.mesh displaced.mesh sol.* mesh.* ex5.mesh sol_u.* sol_p.*
-	rm -f sphere_refined.*
+	rm -f refined.mesh displaced.mesh mesh.* ex5.mesh sphere_refined.*
+	rm -f sol.* sol_u.* sol_p.*

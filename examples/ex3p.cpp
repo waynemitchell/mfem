@@ -35,7 +35,7 @@ using namespace mfem;
 void E_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
    int num_procs, myid;

@@ -35,7 +35,7 @@ using namespace mfem;
 void E_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    const char *mesh_file = "../data/beam-tet.mesh";

@@ -6,14 +6,17 @@
 //               ex8 -m ../data/star.mesh
 //               ex8 -m ../data/escher.mesh
 //               ex8 -m ../data/fichera.mesh
+//               ex8 -m ../data/square-disc-p2.vtk
+//               ex8 -m ../data/square-disc-p3.mesh
+//               ex8 -m ../data/star-surf.mesh -o 2
 //
 // Description:  This example code demonstrates the use of the Discontinuous
-//               Petrov-Galerkin (DPG) method as a simple isoparametric finite
-//               element discretization of the Laplace problem -Delta u = f with
-//               homogeneous Dirichlet boundary conditions. Specifically, we
-//               discretize with the FE space coming from the mesh (linear by
-//               default, quadratic for quadratic curvilinear mesh, NURBS for
-//               NURBS mesh, etc.)
+//               Petrov-Galerkin (DPG) method in its primal 2x2 block form as a
+//               simple finite element discretization of the Laplace problem
+//               -Delta u = f with homogeneous Dirichlet boundary conditions. We
+//               use high-order continuous trial space, a high-order interfacial
+//               (trace) space, and a high-order discontinuous test space
+//               defining a local dual (H^{-1}) norm.
 //
 //               The example highlights the use of interfacial (trace) finite
 //               elements and spaces, trace face integrators and the definition
@@ -27,53 +30,6 @@
 using namespace std;
 using namespace mfem;
 
-
-SparseMatrix *RAP(const SparseMatrix & Rt, const SparseMatrix & A,
-                  const SparseMatrix & P)
-{
-   SparseMatrix * R = Transpose(Rt);
-   SparseMatrix * RA = Mult(*R,A);
-   delete R;
-   SparseMatrix * out = Mult(*RA, P);
-   delete RA;
-   return out;
-}
-
-class RAPOperator : public Operator
-{
-public:
-   RAPOperator(Operator &Rt_, Operator &A_, Operator &P_)
-      : Operator(Rt_.Width(), P_.Width()),
-        Rt(Rt_),
-        A(A_),
-        P(P_),
-        Px(P.Height()),
-        APx(A.Height())
-   {
-
-   }
-
-   void Mult(const Vector & x, Vector & y) const
-   {
-      P.Mult(x, Px);
-      A.Mult(Px, APx);
-      Rt.MultTranspose(APx, y);
-   }
-
-   void MultTranspose(const Vector & x, Vector & y) const
-   {
-      Rt.Mult(x, APx);
-      A.MultTranspose(APx, Px);
-      P.MultTranspose(Px, y);
-   }
-private:
-   Operator & Rt;
-   Operator & A;
-   Operator & P;
-   mutable Vector Px;
-   mutable Vector APx;
-};
-
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
@@ -85,10 +41,10 @@ int main(int argc, char *argv[])
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
-	              "Finite element order (polynomial degree).");
+                  "Finite element order (polynomial degree).");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
-	              "--no-visualization",
-	              "Enable or disable GLVis visualization.");
+                  "--no-visualization",
+                  "Enable or disable GLVis visualization.");
    args.Parse();
    if (!args.Good())
    {
@@ -97,10 +53,10 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
-   Mesh *mesh;
-
    // 2. Read the mesh from the given mesh file. We can handle triangular,
-   //    quadrilateral, tetrahedral or hexahedral elements with the same code.
+   //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
+   //    the same code.
+   Mesh *mesh;
    ifstream imesh(mesh_file);
    if (!imesh)
    {
@@ -109,15 +65,15 @@ int main(int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   const int dim = mesh->Dimension();
+   int dim = mesh->Dimension();
 
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
-   //    largest number that gives a final mesh with no more than 50,000
+   //    largest number that gives a final mesh with no more than 10,000
    //    elements.
    {
       int ref_levels =
-         (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }
@@ -128,13 +84,13 @@ int main(int argc, char *argv[])
    //    - The interfacial space, xhat_space, contains the interfacial unknowns
    //      and does not have essential BC.
    //    - The test space, test_space, is an enriched space where the enrichment
-   //      degree depends on the spatial dimension of the domain.
+   //      degree may depend on the spatial dimension of the domain.
    int trial_order = order;
    int trace_order = order - 1;
    int test_order  = order; // reduced order, full order is (order + dim - 1)
    if (test_order < trial_order)
-      cerr << "Warning, test space not enriched enough to handle primal trial"
-           << " space\n";
+      cerr << "Warning, test space not enriched enough to handle primal"
+           << " trial space\n";
 
    FiniteElementCollection *x0_fec, *xhat_fec, *test_fec;
 
@@ -149,7 +105,6 @@ int main(int argc, char *argv[])
    // 5. Define the block structure of the problem, by creating the offset
    //    variables. Also allocate two BlockVector objects to store the solution
    //    and rhs.
-
    enum {x0_var, xhat_var, NVAR};
 
    int s0 = x0_space->GetVSize();
@@ -165,29 +120,26 @@ int main(int argc, char *argv[])
    offsets_test[0] = 0;
    offsets_test[1] = s_test;
 
-   std::cout << "Number of Unknowns:\n"
+   std::cout << "\nNumber of Unknowns:\n"
              << " Trial space,     X0   : " << s0 << '\n'
              << " Interface space, Xhat : " << s1 << '\n'
-             << " Test space,      Y    : " << s_test << '\n';
+             << " Test space,      Y    : " << s_test << "\n\n";
 
    BlockVector x(offsets), b(offsets);
-
    x = 0.;
 
    // 6. Set up the linear form F(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (f,phi_i) where f=1.0 and
-   //    phi_i are the basis functions in the finite element fespace.
-
+   //    phi_i are the basis functions in the test finite element fespace.
    ConstantCoefficient one(1.0);
    LinearForm F(test_space);
    F.AddDomainIntegrator(new DomainLFIntegrator(one));
    F.Assemble();
 
-   // 7. Set up the mixed bilinear form for the primal trial unknowns, B0;
-   //    the mixed bilinear form for the interfacial unknowns, Bha;
-   //    the inverse stiffness matrix on the discontinuous test space, Sinv;
+   // 7. Set up the mixed bilinear form for the primal trial unknowns, B0,
+   //    the mixed bilinear form for the interfacial unknowns, Bhat,
+   //    the inverse stiffness matrix on the discontinuous test space, Sinv,
    //    and the stiffness matrix on the continuous trial space, S0.
-
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
 
@@ -203,10 +155,10 @@ int main(int argc, char *argv[])
    Bhat->Finalize();
 
    BilinearForm *Sinv = new BilinearForm(test_space);
-   SumIntegrator *sum = new SumIntegrator;
-   sum->AddIntegrator(new DiffusionIntegrator(one));
-   sum->AddIntegrator(new MassIntegrator(one));
-   Sinv->AddDomainIntegrator(new InverseIntegrator(sum));
+   SumIntegrator *Sum = new SumIntegrator;
+   Sum->AddIntegrator(new DiffusionIntegrator(one));
+   Sum->AddIntegrator(new MassIntegrator(one));
+   Sinv->AddDomainIntegrator(new InverseIntegrator(Sum));
    Sinv->Assemble();
    Sinv->Finalize();
 
@@ -222,16 +174,13 @@ int main(int argc, char *argv[])
    SparseMatrix &matSinv = Sinv->SpMat();
    SparseMatrix &matS0   = S0->SpMat();
 
-   // 8. Set up the 1x2 block Least Squares DPG operator, B = [ B0   Bhat ],
+   // 8. Set up the 1x2 block Least Squares DPG operator, B = [B0  Bhat],
    //    the normal equation operator, A = B^t Sinv B, and
    //    the normal equation right-hand-size, b = B^t Sinv F.
-
    BlockOperator B(offsets_test, offsets);
    B.SetBlock(0,0,&matB0);
    B.SetBlock(0,1,&matBhat);
-
    RAPOperator A(B, matSinv, B);
-
    {
       Vector SinvF(s_test);
       matSinv.Mult(F,SinvF);
@@ -244,18 +193,17 @@ int main(int argc, char *argv[])
    //        [   0     Shat^{-1} ]      Shat = (Bhat^T Sinv Bhat)
    //
    //    corresponding to the primal (x0) and interfacial (xhat) unknowns.
-
    SparseMatrix * Shat = RAP(matBhat, matSinv, matBhat);
 
 #ifndef MFEM_USE_SUITESPARSE
    const double prec_rtol = 1e-3;
-   const int prec_maxit = 300;
-   CGSolver * S0inv = new CGSolver;
+   const int prec_maxit = 200;
+   CGSolver *S0inv = new CGSolver;
    S0inv->SetOperator(matS0);
    S0inv->SetPrintLevel(-1);
    S0inv->SetRelTol(prec_rtol);
    S0inv->SetMaxIter(prec_maxit);
-   CGSolver * Shatinv = new CGSolver;
+   CGSolver *Shatinv = new CGSolver;
    Shatinv->SetOperator(*Shat);
    Shatinv->SetPrintLevel(-1);
    Shatinv->SetRelTol(prec_rtol);
@@ -265,26 +213,25 @@ int main(int argc, char *argv[])
    S0inv->iterative_mode = false;
    Shatinv->iterative_mode = false;
 #else
-   Operator * S0inv = new UMFPackSolver(matS0);
-   Operator * Shatinv = new UMFPackSolver(*Shat);
+   Operator *S0inv = new UMFPackSolver(matS0);
+   Operator *Shatinv = new UMFPackSolver(*Shat);
 #endif
 
    BlockDiagonalPreconditioner P(offsets);
    P.SetDiagonalBlock(0, S0inv);
    P.SetDiagonalBlock(1, Shatinv);
 
-   // 10. Solve the normal equation sytem using the PCG iterative solver.
+   // 10. Solve the normal equation system using the PCG iterative solver.
    //     Check the weighted norm of residual for the DPG least square problem.
    //     Wrap the primal variable in a GridFunction for visualization purposes.
-
-   PCG(A, P, b, x, 1, 300, 1e-16, 0.);
+   PCG(A, P, b, x, 1, 200, 1e-12, 0.0);
 
    {
       Vector LSres(s_test);
       B.Mult(x, LSres);
       LSres -= F;
       double res = sqrt(matSinv.InnerProduct(LSres, LSres));
-      cout << "\n || B0*x0 + Bhat*xhat - F ||_{S^-1} = " << res << endl;
+      cout << "\n|| B0*x0 + Bhat*xhat - F ||_{S^-1} = " << res << endl;
    }
 
    GridFunction x0;
@@ -301,7 +248,7 @@ int main(int argc, char *argv[])
       x0.Save(sol_ofs);
    }
 
-   // 12. (Optional) Send the solution by socket to a GLVis server.
+   // 12. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";

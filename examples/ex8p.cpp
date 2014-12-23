@@ -1,4 +1,4 @@
-//                                MFEM Example 8
+//                       MFEM Example 8 - Parallel Version
 //
 // Compile with: make ex8p
 //
@@ -6,14 +6,17 @@
 //               mpirun -np 4 ./ex8p -m ../data/star.mesh
 //               mpirun -np 4 ./ex8p -m ../data/escher.mesh
 //               mpirun -np 4 ./ex8p -m ../data/fichera.mesh
+//               mpirun -np 4 ./ex8p -m ../data/square-disc-p2.vtk
+//               mpirun -np 4 ./ex8p -m ../data/square-disc-p3.mesh
+//               mpirun -np 4 ./ex8p -m ../data/star-surf.mesh -o 2
 //
 // Description:  This example code demonstrates the use of the Discontinuous
-//               Petrov-Galerkin (DPG) method as a simple isoparametric finite
-//               element discretization of the Laplace problem -Delta u = f with
-//               homogeneous Dirichlet boundary conditions. Specifically, we
-//               discretize with the FE space coming from the mesh (linear by
-//               default, quadratic for quadratic curvilinear mesh, NURBS for
-//               NURBS mesh, etc.)
+//               Petrov-Galerkin (DPG) method in its primal 2x2 block form as a
+//               simple finite element discretization of the Laplace problem
+//               -Delta u = f with homogeneous Dirichlet boundary conditions. We
+//               use high-order continuous trial space, a high-order interfacial
+//               (trace) space, and a high-order discontinuous test space
+//               defining a local dual (H^{-1}) norm.
 //
 //               The example highlights the use of interfacial (trace) finite
 //               elements and spaces, trace face integrators and the definition
@@ -27,48 +30,10 @@
 using namespace std;
 using namespace mfem;
 
-
-class RAPOperator : public Operator
-{
-public:
-   RAPOperator(Operator &Rt_, Operator &A_, Operator &P_)
-      : Operator(Rt_.Width(), P_.Width()),
-        Rt(Rt_),
-        A(A_),
-        P(P_),
-        Px(P.Height()),
-        APx(A.Height())
-   {
-
-   }
-
-   void Mult(const Vector & x, Vector & y) const
-   {
-      P.Mult(x, Px);
-      A.Mult(Px, APx);
-      Rt.MultTranspose(APx, y);
-   }
-
-   void MultTranspose(const Vector & x, Vector & y) const
-   {
-      Rt.Mult(x, APx);
-      A.MultTranspose(APx, Px);
-      P.MultTranspose(Px, y);
-   }
-private:
-   Operator & Rt;
-   Operator & A;
-   Operator & P;
-   mutable Vector Px;
-   mutable Vector APx;
-};
-
-
 int main(int argc, char *argv[])
 {
+   // 1. Initialize MPI.
    int num_procs, myid;
-
-   // 1. Initialize MPI
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
@@ -97,11 +62,10 @@ int main(int argc, char *argv[])
    if (myid == 0)
       args.PrintOptions(cout);
 
+   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
+   //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
+   //    and volume meshes with the same code.
    Mesh *mesh;
-
-   // 3. Read the mesh from the given mesh file. We can handle triangular,
-   //    quadrilateral, tetrahedral or hexahedral elements with the same code.
-
    ifstream imesh(mesh_file);
    if (!imesh)
    {
@@ -112,16 +76,15 @@ int main(int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   const int dim = mesh->Dimension();
+   int dim = mesh->Dimension();
 
-   // 4. Refine the mesh to increase the resolution. In this example we do
-   //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
-   //    largest number that gives a final mesh with no more than 50,000
-   //    elements.
-
+   // 4. Refine the serial mesh on all processors to increase the resolution. In
+   //    this example we do 'ref_levels' of uniform refinement. We choose
+   //    'ref_levels' to be the largest number that gives a final mesh with no
+   //    more than 10,000 elements.
    {
       int ref_levels =
-         (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }
@@ -129,7 +92,6 @@ int main(int argc, char *argv[])
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
    //    parallel mesh is defined, the serial mesh can be deleted.
-
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
@@ -144,8 +106,7 @@ int main(int argc, char *argv[])
    //    - The interfacial space, xhat_space, contains the interfacial unknowns
    //      and does not have essential BC.
    //    - The test space, test_space, is an enriched space where the enrichment
-   //      degree depends on the spacial dimension of the domain.
-
+   //      degree may depend on the spatial dimension of the domain.
    int trial_order = order;
    int trace_order = order - 1;
    int test_order  = order; // reduced order, full order is (order + dim - 1)
@@ -171,16 +132,15 @@ int main(int argc, char *argv[])
    int glob_true_s_test = test_space->GlobalTrueVSize();
    if (myid == 0)
    {
-      cout << "Number of Unknowns:\n"
+      cout << "\nNumber of Unknowns:\n"
            << " Trial space,     X0   : " << glob_true_s0 << '\n'
            << " Interface space, Xhat : " << glob_true_s1 << '\n'
-           << " Test space,      Y    : " << glob_true_s_test << '\n';
+           << " Test space,      Y    : " << glob_true_s_test << "\n\n";
    }
 
    // 7. Set up the linear form F(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (f,phi_i) where f=1.0 and
-   //    phi_i are the basis functions in the finite element fespace.
-
+   //    phi_i are the basis functions in the test finite element fespace.
    ConstantCoefficient one(1.0);
    ParLinearForm * F = new ParLinearForm(test_space);
    F->AddDomainIntegrator(new DomainLFIntegrator(one));
@@ -193,7 +153,6 @@ int main(int argc, char *argv[])
    //    the mixed bilinear form for the interfacial unknowns, Bhat,
    //    the inverse stiffness matrix on the discontinuous test space, Sinv,
    //    and the stiffness matrix on the continuous trial space, S0.
-
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
    Array<int> ess_dof;
@@ -211,10 +170,10 @@ int main(int argc, char *argv[])
    Bhat->Finalize();
 
    ParBilinearForm *Sinv = new ParBilinearForm(test_space);
-   SumIntegrator *sum = new SumIntegrator;
-   sum->AddIntegrator(new DiffusionIntegrator(one));
-   sum->AddIntegrator(new MassIntegrator(one));
-   Sinv->AddDomainIntegrator(new InverseIntegrator(sum));
+   SumIntegrator *Sum = new SumIntegrator;
+   Sum->AddIntegrator(new DiffusionIntegrator(one));
+   Sum->AddIntegrator(new MassIntegrator(one));
+   Sinv->AddDomainIntegrator(new InverseIntegrator(Sum));
    Sinv->Assemble();
    Sinv->Finalize();
 
@@ -233,10 +192,9 @@ int main(int argc, char *argv[])
    // 9. Define the block structure of the problem, by creating the offset
    //    variables. Also allocate two BlockVector objects to store the solution
    //    and rhs.
-
    enum {x0_var, xhat_var, NVAR};
 
-   int true_s0     =   x0_space->TrueVSize();
+   int true_s0     = x0_space->TrueVSize();
    int true_s1     = xhat_space->TrueVSize();
    int true_s_test = test_space->TrueVSize();
 
@@ -250,13 +208,12 @@ int main(int argc, char *argv[])
    true_offsets_test[1] = true_s_test;
 
    BlockVector x(true_offsets), b(true_offsets);
-   x = 0.;
-   b = 0.;
+   x = 0.0;
+   b = 0.0;
 
-   // 10. Set up the 1x2 block Least Squares DPG operator, B = [ B0   Bhat ],
+   // 10. Set up the 1x2 block Least Squares DPG operator, B = [B0 Bhat],
    //     the normal equation operator, A = B^t Sinv B, and
    //     the normal equation right-hand-size, b = B^t Sinv F.
-
    BlockOperator B(true_offsets_test, true_offsets);
    B.SetBlock(0, 0, matB0);
    B.SetBlock(0, 1, matBhat);
@@ -275,31 +232,29 @@ int main(int argc, char *argv[])
    //        [ S0^{-1}     0     ]
    //        [   0     Shat^{-1} ]      Shat = (Bhat^T Sinv Bhat)
    //
-   //     corresponding to the primal (x0), interfacial (x1) unknowns.
-
+   //     corresponding to the primal (x0) and interfacial (xhat) unknowns.
    HypreBoomerAMG *S0inv = new HypreBoomerAMG(*matS0);
 
    HypreParMatrix *Shat = RAP(matSinv, matBhat);
 
    HyprePCG *Shatinv = new HyprePCG(*Shat);
    Shatinv->SetTol(1e-3);
-   Shatinv->SetMaxIter(300);
+   Shatinv->SetMaxIter(200);
    Shatinv->SetZeroInintialIterate();
 
    BlockDiagonalPreconditioner P(true_offsets);
    P.SetDiagonalBlock(0, S0inv);
    P.SetDiagonalBlock(1, Shatinv);
 
-   // 12. Solve the Normal Equation system using PCG iterative solver.
+   // 12. Solve the normal equation system using the PCG iterative solver.
    //     Check the weighted norm of residual for the DPG least square problem.
    //     Wrap the primal variable in a GridFunction for visualization purposes.
-
    CGSolver pcg(MPI_COMM_WORLD);
    pcg.SetOperator(A);
    pcg.SetPreconditioner(P);
-   pcg.SetMaxIter(300);
-   pcg.SetPrintLevel(1);
    pcg.SetRelTol(1e-6);
+   pcg.SetMaxIter(200);
+   pcg.SetPrintLevel(1);
    pcg.Mult(b, x);
 
    {
@@ -309,41 +264,39 @@ int main(int argc, char *argv[])
       matSinv->Mult(LSres, tmp);
       double res = sqrt(InnerProduct(LSres, tmp));
       if (myid == 0)
-         cout << "\n || B0*x0 + Bhat*xhat - F ||_{S^-1} = " << res << endl;
+         cout << "\n|| B0*x0 + Bhat*xhat - F ||_{S^-1} = " << res << endl;
    }
 
    x0->Distribute(x.GetBlock(x0_var));
 
-   // 13. Save the refined pmesh and the solution. This output can be viewed
-   //     later using GLVis: "glvis -np <num_proc> -m mesh -g sol".
-
+   // 13. Save the refined mesh and the solution in parallel. This output can
+   //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, sol_name;
       mesh_name << "mesh." << setfill('0') << setw(6) << myid;
-      sol_name  << "sol."  << setfill('0') << setw(6) << myid;
+      sol_name << "sol." << setfill('0') << setw(6) << myid;
 
       ofstream mesh_ofs(mesh_name.str().c_str());
       mesh_ofs.precision(8);
       pmesh->Print(mesh_ofs);
+
       ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
       x0->Save(sol_ofs);
    }
 
-   // 14. (Optional) Send the solution by socket to a GLVis server.
-
+   // 14. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
       int  visport   = 19916;
       socketstream sol_sock(vishost, visport);
-      sol_sock << "parallel " << num_procs << ' ' << myid << '\n';
+      sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
       sol_sock << "solution\n" << *pmesh << *x0 << flush;
    }
 
    // 15. Free the used memory.
-
    delete trueF;
    delete Shatinv;
    delete S0inv;

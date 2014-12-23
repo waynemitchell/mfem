@@ -2212,6 +2212,17 @@ SparseMatrix *RAP (const SparseMatrix &A, const SparseMatrix &R,
    return _RAP;
 }
 
+SparseMatrix *RAP(const SparseMatrix &Rt, const SparseMatrix &A,
+                  const SparseMatrix &P)
+{
+   SparseMatrix * R = Transpose(Rt);
+   SparseMatrix * RA = Mult(*R,A);
+   delete R;
+   SparseMatrix * out = Mult(*RA, P);
+   delete RA;
+   return out;
+}
+
 SparseMatrix *Mult_AtDA (const SparseMatrix &A, const Vector &D,
                          SparseMatrix *OAtDA)
 {
