@@ -13,6 +13,7 @@
 #define MFEM_LININTEG
 
 #include "../config.hpp"
+#include "coefficient.hpp"
 
 namespace mfem
 {

@@ -12,9 +12,14 @@
 #ifndef MFEM_PGRIDFUNC
 #define MFEM_PGRIDFUNC
 
+#include "../config.hpp"
+
+#ifdef MFEM_USE_MPI
+
 #include <iostream>
 #include <limits>
-#include "../config.hpp"
+#include "pfespace.hpp"
+#include "gridfunc.hpp"
 
 namespace mfem
 {
@@ -178,7 +183,7 @@ public:
    /** Save the local portion of the ParGridFunction. It differs from the
        serial GridFunction::Save in that it takes into account the signs of
        the local dofs. */
-   virtual void Save(std::ostream &out);
+   virtual void Save(std::ostream &out) const;
 
    /// Merge the local grid functions
    void SaveAsOne(std::ostream &out = std::cout);
@@ -187,5 +192,7 @@ public:
 };
 
 }
+
+#endif // MFEM_USE_MPI
 
 #endif

@@ -14,6 +14,13 @@
 
 #include "../config.hpp"
 
+#ifdef MFEM_USE_MPI
+
+#include "../linalg/hypre.hpp"
+#include "../mesh/pmesh.hpp"
+#include "../mesh/nurbs.hpp"
+#include "fespace.hpp"
+
 namespace mfem
 {
 
@@ -162,5 +169,7 @@ public:
 };
 
 }
+
+#endif // MFEM_USE_MPI
 
 #endif

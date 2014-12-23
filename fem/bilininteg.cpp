@@ -229,19 +229,20 @@ void DiffusionIntegrator::ComputeElementFlux
 ( const FiniteElement &el, ElementTransformation &Trans,
   Vector &u, const FiniteElement &fluxelem, Vector &flux, int wcoef )
 {
-   int i, j, nd, dim, fnd;
+   int i, j, nd, dim, spaceDim, fnd;
 
    nd = el.GetDof();
    dim = el.GetDim();
+   spaceDim = Trans.GetSpaceDim();
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix dshape(nd,dim), invdfdx(dim);
+   DenseMatrix dshape(nd,dim), invdfdx(dim, spaceDim);
 #else
    dshape.SetSize(nd,dim);
-   invdfdx.SetSize(dim);
+   invdfdx.SetSize(dim, spaceDim);
 #endif
    vec.SetSize(dim);
-   pointflux.SetSize(dim);
+   pointflux.SetSize(spaceDim);
 
    const IntegrationRule &ir = fluxelem.GetNodes();
    fnd = ir.GetNPoints();

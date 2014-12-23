@@ -13,6 +13,8 @@
 #define MFEM_LINEARFORM
 
 #include "../config.hpp"
+#include "lininteg.hpp"
+#include "fespace.hpp"
 
 namespace mfem
 {
@@ -54,7 +56,11 @@ public:
    /// Assembles the linear form i.e. sums over all domain/bdr integrators.
    void Assemble();
 
-   void ConformingAssemble(Vector &b);
+   /// Apply the conforming interpolation matrix and return 'b': b = P'*this.
+   void ConformingAssemble(Vector &b) const;
+
+   /// Apply the conforming interpolation matrix to 'this': this = P'*this
+   void ConformingAssemble();
 
    void Update() { SetSize(fes->GetVSize()); }
 

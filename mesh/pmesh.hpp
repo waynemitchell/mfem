@@ -12,8 +12,13 @@
 #ifndef MFEM_PMESH
 #define MFEM_PMESH
 
-#include <iostream>
 #include "../config.hpp"
+
+#ifdef MFEM_USE_MPI
+
+#include <iostream>
+#include "../general/communication.hpp"
+#include "mesh.hpp"
 
 namespace mfem
 {
@@ -140,5 +145,7 @@ public:
 };
 
 }
+
+#endif // MFEM_USE_MPI
 
 #endif

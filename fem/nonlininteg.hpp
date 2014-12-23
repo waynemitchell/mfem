@@ -13,6 +13,8 @@
 #define MFEM_NONLININTEG
 
 #include "../config.hpp"
+#include "fe.hpp"
+#include "coefficient.hpp"
 
 namespace mfem
 {

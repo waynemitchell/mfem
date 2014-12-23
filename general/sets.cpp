@@ -9,8 +9,6 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "array.hpp"
-#include "table.hpp"
 #include "sets.hpp"
 
 

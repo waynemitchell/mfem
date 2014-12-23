@@ -14,15 +14,24 @@
 
 #include <iostream>
 #include "../config.hpp"
+#include "../general/stable3d.hpp"
+#include "triangle.hpp"
+#include "tetrahedron.hpp"
+#include "vertex.hpp"
+#include "ncmesh.hpp"
+#include "../fem/eltrans.hpp"
+#include "../fem/coefficient.hpp"
 
 namespace mfem
 {
 
 // Data type mesh
 
+class KnotVector;
 class NURBSExtension;
 class FiniteElementSpace;
 class GridFunction;
+struct Refinement;
 
 #ifdef MFEM_USE_MPI
 class ParMesh;
@@ -86,6 +95,10 @@ protected:
    GridFunction *Nodes;
    int own_nodes;
 
+   // Backup of the coarse mesh. Only used if WantTwoLevelState == 1 and
+   // nonconforming refinements are used.
+   Mesh* nc_coarse_level;
+
    static const int tet_faces[4][3];
    static const int hex_faces[6][4];
 
@@ -114,6 +127,8 @@ protected:
 
    Element *ReadElement(std::istream &);
    static void PrintElement(const Element *, std::ostream &);
+
+   void SetMeshGen(); // set 'meshgen'
 
    /// Return the length of the segment from node i to node j.
    double GetLength(int i, int j) const;
@@ -169,6 +184,13 @@ protected:
 
    /// Refine NURBS mesh.
    virtual void NURBSUniformRefinement();
+
+   /// This function is not public anymore. Use GeneralRefinement instead.
+   virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
+
+   /// This function is not public anymore. Use GeneralRefinement instead.
+   void NonconformingRefinement(const Array<Refinement> &refinements,
+                                int nc_limit = 0);
 
    /// Read NURBS patch/macro-element mesh
    void LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot);
@@ -261,6 +283,13 @@ protected:
    /// Creates a 1D mesh for the interval [0,sx] divided into n equal intervals.
    void Make1D(int n, double sx = 1.0);
 
+   /// Create from a nonconforming mesh.
+   Mesh(NCMesh& ncmesh);
+
+   /// Swaps internal data with another mesh. By default, non-geometry members
+   /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
+   void Swap(Mesh& other, bool non_geometry = false);
+
 public:
 
    enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
@@ -269,7 +298,7 @@ public:
    Array<int> bdr_attributes;
 
    NURBSExtension *NURBSext;
-   NonconformingMesh *ncmesh;
+   NCMesh *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
@@ -602,14 +631,24 @@ public:
    // use the provided GridFunction as Nodes
    void NewNodes(GridFunction &nodes, bool make_owner = false);
 
-   /// Refine the given list of marked elements.
-   virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
-
-   /** Refine the given list of marked elements. The resulting mesh is
-       nonconforming, i.e. it has hanging nodes. */
-   void NonconformingRefinement(const Array<int> &marked_el);
-
+   /** Refine all mesh elements. */
    void UniformRefinement();
+
+   /** Refine selected mesh elements. Refinement type can be specified for each
+       element. The function can do conforming refinement of triangles and
+       tetrahedra and non-conforming refinement (i.e., with hanging-nodes) of
+       triangles, quadrilaterals and hexahedrons. If 'nonconforming' = -1,
+       suitable refinement method is selected automatically (namely, conforming
+       refinement for triangles). Use noncoforming = 0/1 to force the method.
+       For nonconforming refinements, nc_limit optionally specifies the maximum
+       level of hanging nodes (unlimited by default). */
+   void GeneralRefinement(Array<Refinement> &refinements,
+                          int nonconforming = -1, int nc_limit = 0);
+
+   /** Simplified version of GeneralRefinement taking a simple list of elements
+       to refine, without refinement types. */
+   void GeneralRefinement(Array<int> &el_to_refine,
+                          int nonconforming = -1, int nc_limit = 0);
 
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
@@ -626,6 +665,8 @@ public:
 
    /// Change the mesh state to NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE
    void SetState (int s);
+
+   int GetState() const { return State; }
 
    /** For a given coarse element i returns the number of
        subelements it is divided into. */
@@ -697,6 +738,10 @@ public:
    /// Destroys mesh.
    virtual ~Mesh();
 };
+
+/** Overload operator<< for std::ostream and Mesh; valid also for the derived
+    class ParMesh */
+std::ostream &operator<<(std::ostream &out, const Mesh &mesh);
 
 
 /// Class used to exrude the nodes of a mesh

@@ -13,6 +13,9 @@
 #define MFEM_BLOCKMATRIX
 
 #include "../config.hpp"
+#include "../general/array.hpp"
+#include "vector.hpp"
+#include "sparsemat.hpp"
 
 namespace mfem
 {
