@@ -55,7 +55,7 @@ public:
 
    /// Interact with Visit Root files
    void SaveVisitRootFile();
-   void LoadVisitRootFile(const char *fname);
+   void LoadVisitRootFile(std::string fname);
 
    /// String conversions that will go away in C++11
    std::string to_padded_string(int i);
@@ -83,12 +83,15 @@ protected:
 
 public:
    /// Construct passing in the necessary components
+   DataCollection() {my_rank = 0;};
+   DataCollection(int mpi_rank) {my_rank = mpi_rank;};
    DataCollection(const char* _colection_name, Mesh* _mesh);
 
    /// Accessors for the variables that can change
    void SetVisitParameters(int max_levels_of_detail) {root_data.visit_max_levels_of_detail = max_levels_of_detail;};
 
    /// Various Accessors
+   const char* GetCollectionName() {return root_data.base_name.c_str();};
    void SetCycle(int c) {root_data.cycle = c;};
    int GetCycle() {return root_data.cycle;};
    void SetTime(double t) {root_data.time = t;};
@@ -105,7 +108,7 @@ public:
    void LoadVisitData(const char *_collection_name, int _cycle);
 
    /// For now we will leave the destructor empty and let the user delete the attached Mesh and GridFunctions
-   ~DataCollection();
+   ~DataCollection(){};
 };
 
 }

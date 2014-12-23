@@ -9,8 +9,6 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-
-#include "datacollection.hpp"
 #include "picojson.hpp"
 #include "error.hpp"
 #include "../fem/fem.hpp"
@@ -21,12 +19,14 @@
 #endif
 
 #include <fstream>
+#include <sys/stat.h>
 
 namespace mfem
 {
 
 
 ///////////////////////////////// DataCollection Methods //////////////////////////////////////////
+
 
 DataCollection::DataCollection(const char *_collection_name, Mesh *_mesh) 
 {
@@ -72,13 +72,15 @@ GridFunction *DataCollection::GetField(const char *field_name)
 void DataCollection::SaveVisitData()
 {
    root_data.SaveVisitRootFile();
+   mkdir((root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle)).c_str(), 0777);     //We may need to implement a platform independ version of this
    SaveMesh();
    SaveFields();
 }
 
 
-void DataCollection::LoadVisitData(const char *root_fname, int _cycle)
+void DataCollection::LoadVisitData(const char *_collection_name, int _cycle)
 {
+   std::string root_fname = _collection_name + ("_" + root_data.to_padded_string(_cycle) + ".mfem_root");
    root_data.LoadVisitRootFile(root_fname);
    LoadMesh();
    LoadFields();
@@ -100,8 +102,13 @@ void DataCollection::SaveMesh()
 
 void DataCollection::LoadMesh()
 {
+   std::string mesh_fname = root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "/"
+                              + root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "."
+                              + root_data.to_padded_string(my_rank) + ".mesh";
 
-
+   std::ifstream file(mesh_fname.c_str());
+   mesh = new Mesh(file);
+   file.close();
 }
 
 
@@ -109,7 +116,7 @@ void DataCollection::SaveFields()
 {
    std::string path_left = root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "/"
                            + root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "_";
-   std::string path_right = root_data.to_padded_string(my_rank) + ".gf";
+   std::string path_right = "." + root_data.to_padded_string(my_rank) + ".gf";
 
    for (std::map<std::string,GridFunction*>::iterator it=field_map.begin(); it!=field_map.end(); ++it)
    {
@@ -124,10 +131,20 @@ void DataCollection::SaveFields()
 
 void DataCollection::LoadFields()
 {
+   std::string path_left = root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "/"
+                           + root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "_";
+   std::string path_right = "." + root_data.to_padded_string(my_rank) + ".gf";
 
-
+   field_map.erase(field_map.begin(), field_map.end());
+   for (std::map<std::string,FieldInfo>::iterator it=root_data.field_info_map.begin(); it!=root_data.field_info_map.end(); ++it)
+   {
+      std::string fname = path_left + it->first + path_right;
+      std::ifstream file(fname.c_str());
+      MFEM_ASSERT(file.is_open(), "Unable to open file for input:  " << fname);
+      field_map[it->first] = new GridFunction(mesh, file);
+      file.close();
+   }   
 }
-
 
 
 //////////////////////////////////////// RootData Methods /////////////////////////////////////////
@@ -156,9 +173,9 @@ void RootData::SaveVisitRootFile()
 }
 
 
-void RootData::LoadVisitRootFile(const char *fname)
+void RootData::LoadVisitRootFile(std::string fname)
 {
-   std::ifstream file(fname);
+   std::ifstream file(fname.c_str());
    MFEM_ASSERT(file.is_open(), "Unable to open Visit Root file for input:  " << fname);
    std::stringstream buffer;
    buffer << file.rdbuf();

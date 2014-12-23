@@ -13,6 +13,7 @@
 #define MFEM_FEM
 
 #include "../general/array.hpp"
+#include "../general/datacollection.hpp"
 #include "../linalg/linalg.hpp"
 #include "../mesh/mesh_headers.hpp"
 
