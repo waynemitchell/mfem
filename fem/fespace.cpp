@@ -26,7 +26,6 @@ int FiniteElementSpace::GetOrder(int i) const
    return fec->FiniteElementForGeometry(GeomType)->GetOrder();
 }
 
-
 void FiniteElementSpace::DofsToVDofs (Array<int> &dofs) const
 {
    int i, j, size;
@@ -507,6 +506,12 @@ FiniteElementSpace::H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes)
 
    R = new SparseMatrix (lfes -> GetNDofs(), ndofs);
 
+   if (!lfes->GetNE())
+   {
+      R->Finalize();
+      return R;
+   }
+
    const FiniteElement *h_fe = this -> GetFE (0);
    const FiniteElement *l_fe = lfes -> GetFE (0);
    IsoparametricTransformation T;
@@ -643,8 +648,17 @@ void FiniteElementSpace::Constructor()
    else
       nedofs = 0;
 
+   ndofs = 0;
    nfdofs = 0;
+   nbdofs = 0;
+   bdofs = NULL;
    fdofs = NULL;
+   cP = NULL;
+   cR = NULL;
+
+   if (!mesh->GetNE())
+      return;
+
    if (mesh->Dimension() == 3)
    {
       // Here we assume that all faces in the mesh have the same base
@@ -666,7 +680,6 @@ void FiniteElementSpace::Constructor()
       }
    }
 
-   nbdofs = 0;
    bdofs = new int[mesh->GetNE()+1];
    bdofs[0] = 0;
    for (i = 0; i < mesh->GetNE(); i++)
@@ -721,8 +734,6 @@ void FiniteElementSpace::Constructor()
          cR = vec_cR;
       }
    }
-   else
-      cP = cR = NULL;
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const

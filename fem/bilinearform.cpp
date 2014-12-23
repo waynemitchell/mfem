@@ -321,7 +321,7 @@ void BilinearForm::ConformingAssemble()
 
 void BilinearForm::ComputeElementMatrices()
 {
-   if (element_matrices || dbfi.Size() == 0)
+   if (element_matrices || dbfi.Size() == 0 || fes->GetNE() == 0)
       return;
 
    int num_elements = fes->GetNE();

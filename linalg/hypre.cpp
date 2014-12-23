@@ -1647,7 +1647,9 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    int amg_interp_type  = 6;
    int amg_Pmax         = 4;
 
-   int p = edge_fespace->GetOrder(0);
+   int p = 1;
+   if (edge_fespace->GetNE() > 0)
+      p = edge_fespace->GetOrder(0);
    int dim = edge_fespace->GetMesh()->Dimension();
 
    HYPRE_AMSCreate(&ams);
@@ -1789,7 +1791,9 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    int amg_Pmax         = 4;
    int ams_cycle_type   = 14;
 
-   int p = face_fespace->GetOrder(0);
+   int p = 1;
+   if (face_fespace->GetNE() > 0)
+      p = face_fespace->GetOrder(0);
 
    HYPRE_ADSCreate(&ads);
 
