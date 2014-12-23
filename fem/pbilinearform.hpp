@@ -32,7 +32,7 @@ protected:
 
    bool keep_nbr_block;
 
-   // called when (mat == NULL && ifbfi.Size() > 0)
+   // called when (mat == NULL && fbfi.Size() > 0)
    void pAllocMat();
 
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);

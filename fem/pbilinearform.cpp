@@ -109,7 +109,7 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
       return NULL;
 
    HypreParMatrix *A;
-   if (ifbfi.Size() == 0)
+   if (fbfi.Size() == 0)
    {
       // construct a parallel block-diagonal wrapper matrix A based on m
       A = new HypreParMatrix(pfes->GetComm(),
@@ -159,11 +159,11 @@ void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
       for (int j = 0; j < vdofs2.Size(); j++)
          vdofs2[j] += height;
       vdofs_all.Append(vdofs2);
-      for (int k = 0; k < ifbfi.Size(); k++)
+      for (int k = 0; k < fbfi.Size(); k++)
       {
-         ifbfi[k]->AssembleFaceMatrix(*pfes->GetFE(T->Elem1No),
-				      *pfes->GetFaceNbrFE(T->Elem2No),
-				      *T, elemmat);
+         fbfi[k]->AssembleFaceMatrix(*pfes->GetFE(T->Elem1No),
+                                     *pfes->GetFaceNbrFE(T->Elem2No),
+                                     *T, elemmat);
          if (keep_nbr_block)
             mat->AddSubMatrix(vdofs_all, vdofs_all, elemmat, skip_zeros);
          else
@@ -174,7 +174,7 @@ void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
 
 void ParBilinearForm::Assemble(int skip_zeros)
 {
-   if (mat == NULL && ifbfi.Size() > 0)
+   if (mat == NULL && fbfi.Size() > 0)
    {
       pfes->ExchangeFaceNbrData();
       pAllocMat();
@@ -182,7 +182,7 @@ void ParBilinearForm::Assemble(int skip_zeros)
 
    BilinearForm::Assemble(skip_zeros);
 
-   if (ifbfi.Size() > 0)
+   if (fbfi.Size() > 0)
       AssembleSharedFaces(skip_zeros);
 }
 

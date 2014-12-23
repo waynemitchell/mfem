@@ -168,7 +168,7 @@ public:
    inline int NNZ() { return A->num_nonzeros; }
    /// Returns the row partitioning
    inline int * RowPart() { return A->row_starts; }
-   /// Returns the row partitioning
+   /// Returns the column partitioning
    inline int * ColPart() { return A->col_starts; }
    /// Returns the global number of rows
    inline int M() { return A -> global_num_rows; }

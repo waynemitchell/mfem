@@ -29,7 +29,7 @@ void BilinearForm::AllocMat()
    const Table &elem_dof = fes->GetElementToDofTable();
    Table dof_dof;
 
-   if (ifbfi.Size() > 0)
+   if (fbfi.Size() > 0)
    {
       // the sparsity pattern is defined from the map: face->element->dof
       Table face_dof, dof_face;
@@ -91,10 +91,10 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    for (i = 0; i < bfi->Size(); i++)
       bbfi[i] = (*bfi)[i];
 
-   bfi = bf->GetIFBFI();
-   ifbfi.SetSize (bfi->Size());
+   bfi = bf->GetFBFI();
+   fbfi.SetSize (bfi->Size());
    for (i = 0; i < bfi->Size(); i++)
-      ifbfi[i] = (*bfi)[i];
+      fbfi[i] = (*bfi)[i];
 
    bfi = bf->GetBFBFI();
    bfbfi.SetSize (bfi->Size());
@@ -141,14 +141,9 @@ void BilinearForm::AddBoundaryIntegrator (BilinearFormIntegrator * bfi)
    bbfi.Append (bfi);
 }
 
-void BilinearForm::AddFaceIntegrator (BilinearFormIntegrator * bfi)
-{
-   fbfi.Append (bfi);
-}
-
 void BilinearForm::AddInteriorFaceIntegrator (BilinearFormIntegrator * bfi)
 {
-   ifbfi.Append (bfi);
+   fbfi.Append (bfi);
 }
 
 void BilinearForm::AddBdrFaceIntegrator (BilinearFormIntegrator * bfi)
@@ -203,7 +198,7 @@ void BilinearForm::Assemble (int skip_zeros)
    if (mat == NULL)
       AllocMat();
 
-#ifdef MFEM_THREAD_SAFE
+#ifdef MFEM_USE_OPENMP
    int free_element_matrices = 0;
    if (!element_matrices)
    {
@@ -213,6 +208,7 @@ void BilinearForm::Assemble (int skip_zeros)
 #endif
 
    if (dbfi.Size())
+   {
       for (i = 0; i < fes -> GetNE(); i++)
       {
          fes->GetElementVDofs(i, vdofs);
@@ -231,8 +227,10 @@ void BilinearForm::Assemble (int skip_zeros)
             }
          }
       }
+   }
 
    if (bbfi.Size())
+   {
       for (i = 0; i < fes -> GetNBE(); i++)
       {
          const FiniteElement &be = *fes->GetBE(i);
@@ -244,41 +242,14 @@ void BilinearForm::Assemble (int skip_zeros)
             mat -> AddSubMatrix (vdofs, vdofs, elemmat, skip_zeros);
          }
       }
-
-   if (fbfi.Size())
-   {
-      int nfaces;
-      if (mesh->Dimension() == 1)
-         nfaces = mesh->GetNV();
-      else if (mesh->Dimension() == 2)
-         nfaces = mesh->GetNEdges();
-      else
-         nfaces = mesh->GetNFaces();
-      for (i = 0; i < nfaces; i++)
-      {
-         const FiniteElement &fe = *fes->GetFaceElement(i);
-         fes -> GetFaceVDofs (i, vdofs);
-         eltrans = mesh -> GetFaceTransformation (i);
-         for (int k=0; k < fbfi.Size(); k++)
-         {
-            fbfi[k] -> AssembleElementMatrix(fe, *eltrans, elemmat);
-            mat -> AddSubMatrix (vdofs, vdofs, elemmat, skip_zeros);
-         }
-      }
    }
 
-   if (ifbfi.Size())
+   if (fbfi.Size())
    {
       FaceElementTransformations *tr;
       Array<int> vdofs2;
 
-      int nfaces;
-      if (mesh->Dimension() == 1)
-         nfaces = mesh->GetNV();
-      else if (mesh->Dimension() == 2)
-         nfaces = mesh->GetNEdges();
-      else
-         nfaces = mesh->GetNFaces();
+      int nfaces = mesh->GetNumFaces();
       for (i = 0; i < nfaces; i++)
       {
          tr = mesh -> GetInteriorFaceTransformations (i);
@@ -287,11 +258,11 @@ void BilinearForm::Assemble (int skip_zeros)
             fes -> GetElementVDofs (tr -> Elem1No, vdofs);
             fes -> GetElementVDofs (tr -> Elem2No, vdofs2);
             vdofs.Append (vdofs2);
-            for (int k = 0; k < ifbfi.Size(); k++)
+            for (int k = 0; k < fbfi.Size(); k++)
             {
-               ifbfi[k] -> AssembleFaceMatrix (*fes -> GetFE (tr -> Elem1No),
-					       *fes -> GetFE (tr -> Elem2No),
-					       *tr, elemmat);
+               fbfi[k] -> AssembleFaceMatrix (*fes -> GetFE (tr -> Elem1No),
+                                              *fes -> GetFE (tr -> Elem2No),
+                                              *tr, elemmat);
                mat -> AddSubMatrix (vdofs, vdofs, elemmat, skip_zeros);
             }
          }
@@ -319,52 +290,6 @@ void BilinearForm::Assemble (int skip_zeros)
       }
    }
 
-#ifdef MFEM_THREAD_SAFE
-   if (free_element_matrices)
-      FreeElementMatrices();
-#endif
-}
-
-void BilinearForm::AssembleDomainInverse (int skip_zeros)
-{
-   ElementTransformation *eltrans;
-
-   if (mat == NULL)
-      AllocMat();
-
-#ifdef MFEM_USE_OPENMP
-   int free_element_matrices = 0;
-   if (!element_matrices)
-   {
-      ComputeElementMatrices();
-      free_element_matrices = 1;
-   }
-#endif
-
-   if (dbfi.Size())
-      for (int i = 0; i < fes -> GetNE(); i++)
-      {
-         DenseMatrix elmat;
-         fes->GetElementVDofs(i, vdofs);
-         if (element_matrices)
-         {
-            mat->AddSubMatrix(vdofs, vdofs, (*element_matrices)(i), skip_zeros);
-         }
-         else
-         {
-            const FiniteElement &fe = *fes->GetFE(i);
-            eltrans = fes->GetElementTransformation(i);
-            dbfi[0]->AssembleElementMatrix(fe, *eltrans, elemmat);
-            for (int k = 1; k < dbfi.Size(); k++)
-            {
-               dbfi[k]->AssembleElementMatrix(fe, *eltrans, elmat);
-               elemmat += elmat;
-            }
-            elemmat.Invert();
-            mat->AddSubMatrix(vdofs, vdofs, elemmat, skip_zeros);
-         }
-      }
-
 #ifdef MFEM_USE_OPENMP
    if (free_element_matrices)
       FreeElementMatrices();
@@ -377,17 +302,29 @@ void BilinearForm::ConformingAssemble()
    // matrix which in turn will give rise to symmetric structure in the new
    // matrix. This ensures that subsequent calls to EliminateRowCol will work
    // correctly.
-   mat->Finalize(0);
+   Finalize(0);
 
    SparseMatrix *P = fes->GetConformingProlongation();
    if (!P) return; // assume conforming mesh
 
    SparseMatrix *R = Transpose(*P);
    SparseMatrix *RA = mfem::Mult(*R, *mat);
-   delete R;
    delete mat;
+   if (mat_e)
+   {
+      SparseMatrix *RAe = mfem::Mult(*R, *mat_e);
+      delete mat_e;
+      mat_e = RAe;
+   }
+   delete R;
    mat = mfem::Mult(*RA, *P);
    delete RA;
+   if (mat_e)
+   {
+      SparseMatrix *RAeP = mfem::Mult(*mat_e, *P);
+      delete mat_e;
+      mat_e = RAeP;
+   }
 
    height = mat->Height();
    width = mat->Width();
@@ -438,8 +375,15 @@ void BilinearForm::EliminateEssentialBC (
 {
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
-   EliminateEssentialBCFromDofs(conf_ess_dofs, sol, rhs, d);
+   if (fes->GetConformingProlongation() == NULL)
+   {
+      EliminateEssentialBCFromDofs(ess_dofs, sol, rhs, d);
+   }
+   else
+   {
+      fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
+      EliminateEssentialBCFromDofs(conf_ess_dofs, sol, rhs, d);
+   }
 }
 
 void BilinearForm::EliminateVDofs (
@@ -481,13 +425,24 @@ void BilinearForm::EliminateEssentialBC (Array<int> &bdr_attr_is_ess, int d)
 {
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
-   EliminateEssentialBCFromDofs(conf_ess_dofs, d);
+   if (fes->GetConformingProlongation() == NULL)
+   {
+      EliminateEssentialBCFromDofs(ess_dofs, d);
+   }
+   else
+   {
+      fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
+      EliminateEssentialBCFromDofs(conf_ess_dofs, d);
+   }
 }
 
 void BilinearForm::EliminateEssentialBCFromDofs (
    Array<int> &ess_dofs, Vector &sol, Vector &rhs, int d )
 {
+   MFEM_ASSERT(ess_dofs.Size() == height, "incorrect dof Array size");
+   MFEM_ASSERT(sol.Size() == height, "incorrect sol Vector size");
+   MFEM_ASSERT(rhs.Size() == height, "incorrect rhs Vector size");
+
    for (int i = 0; i < ess_dofs.Size(); i++)
       if (ess_dofs[i] < 0)
          mat -> EliminateRowCol (i, sol(i), rhs, d);
@@ -495,6 +450,8 @@ void BilinearForm::EliminateEssentialBCFromDofs (
 
 void BilinearForm::EliminateEssentialBCFromDofs (Array<int> &ess_dofs, int d)
 {
+   MFEM_ASSERT(ess_dofs.Size() == height, "incorrect dof Array size");
+
    for (int i = 0; i < ess_dofs.Size(); i++)
       if (ess_dofs[i] < 0)
          mat -> EliminateRowCol (i, d);
@@ -524,7 +481,7 @@ BilinearForm::~BilinearForm()
       int k;
       for (k=0; k < dbfi.Size(); k++) delete dbfi[k];
       for (k=0; k < bbfi.Size(); k++) delete bbfi[k];
-      for (k=0; k < ifbfi.Size(); k++) delete ifbfi[k];
+      for (k=0; k < fbfi.Size(); k++) delete fbfi[k];
       for (k=0; k < bfbfi.Size(); k++) delete bfbfi[k];
    }
 }
@@ -598,7 +555,7 @@ void MixedBilinearForm::AddBoundaryIntegrator (BilinearFormIntegrator * bfi)
    bdr.Append (bfi);
 }
 
-void MixedBilinearForm::AddFaceIntegrator (BilinearFormIntegrator * bfi)
+void MixedBilinearForm::AddTraceFaceIntegrator (BilinearFormIntegrator * bfi)
 {
    skt.Append (bfi);
 }
@@ -616,6 +573,7 @@ void MixedBilinearForm::Assemble (int skip_zeros)
       mat = new SparseMatrix(height, width);
 
    if (dom.Size())
+   {
       for (i = 0; i < test_fes -> GetNE(); i++)
       {
          trial_fes -> GetElementVDofs (i, tr_vdofs);
@@ -629,8 +587,10 @@ void MixedBilinearForm::Assemble (int skip_zeros)
             mat -> AddSubMatrix (te_vdofs, tr_vdofs, elemmat, skip_zeros);
          }
       }
+   }
 
    if (bdr.Size())
+   {
       for (i = 0; i < test_fes -> GetNBE(); i++)
       {
          trial_fes -> GetBdrElementVDofs (i, tr_vdofs);
@@ -644,43 +604,64 @@ void MixedBilinearForm::Assemble (int skip_zeros)
             mat -> AddSubMatrix (te_vdofs, tr_vdofs, elemmat, skip_zeros);
          }
       }
+   }
 
    if (skt.Size())
    {
       FaceElementTransformations *ftr;
       Array<int> te_vdofs2;
-      const FiniteElement *fe;
+      const FiniteElement *trial_face_fe, *test_fe1, *test_fe2;
 
-      int nfaces;
-      if (mesh->Dimension() == 1)
-         nfaces = mesh->GetNV();
-      else if (mesh->Dimension() == 2)
-         nfaces = mesh->GetNEdges();
-      else
-         nfaces = mesh->GetNFaces();
+      int nfaces = mesh->GetNumFaces();
       for (i = 0; i < nfaces; i++)
       {
-         ftr = mesh -> GetFaceElementTransformations (i);
-         if (ftr != NULL)
+         ftr = mesh->GetFaceElementTransformations(i);
+         trial_fes->GetFaceVDofs(i, tr_vdofs);
+         test_fes->GetElementVDofs(ftr->Elem1No, te_vdofs);
+         trial_face_fe = trial_fes->GetFaceElement(i);
+         test_fe1 = test_fes->GetFE(ftr->Elem1No);
+         if (ftr->Elem2No >= 0)
          {
-            trial_fes -> GetFaceDofs (i, tr_vdofs);
-            test_fes -> GetElementVDofs (ftr -> Elem1No, te_vdofs);
-            if ((ftr->Elem2No) >= 0) {
-               test_fes -> GetElementVDofs (ftr -> Elem2No, te_vdofs2);
-               te_vdofs.Append (te_vdofs2);
-               fe=test_fes->GetFE (ftr -> Elem2No);
-            }
-            else fe=NULL;
-            for (int k = 0; k < skt.Size(); k++)
-            {
-               skt[k] -> AssembleFaceMatrix (*test_fes -> GetFE (ftr -> Elem1No), *fe,
-                                             *trial_fes -> GetFaceElement(i),
-                                             *ftr, elemmat);
-               mat -> AddSubMatrix (te_vdofs, tr_vdofs, elemmat, skip_zeros);
-            }
+            test_fes->GetElementVDofs(ftr->Elem2No, te_vdofs2);
+            te_vdofs.Append(te_vdofs2);
+            test_fe2 = test_fes->GetFE(ftr->Elem2No);
+         }
+         else
+            test_fe2 = NULL;
+         for (int k = 0; k < skt.Size(); k++)
+         {
+            skt[k]->AssembleFaceMatrix(*trial_face_fe, *test_fe1, *test_fe2,
+                                       *ftr, elemmat);
+            mat->AddSubMatrix(te_vdofs, tr_vdofs, elemmat, skip_zeros);
          }
       }
    }
+}
+
+void MixedBilinearForm::ConformingAssemble()
+{
+   Finalize();
+
+   SparseMatrix *P2 = test_fes->GetConformingProlongation();
+   if (P2)
+   {
+      SparseMatrix *R = Transpose(*P2);
+      SparseMatrix *RA = mfem::Mult(*R, *mat);
+      delete R;
+      delete mat;
+      mat = RA;
+   }
+
+   SparseMatrix *P1 = trial_fes->GetConformingProlongation();
+   if (P1)
+   {
+      SparseMatrix *RAP = mfem::Mult(*mat, *P1);
+      delete mat;
+      mat = RAP;
+   }
+
+   height = mat->Height();
+   width = mat->Width();
 }
 
 void MixedBilinearForm::EliminateTrialDofs (

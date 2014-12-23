@@ -44,13 +44,10 @@ protected:
    /// Set of Boundary Integrators to be applied.
    Array<BilinearFormIntegrator*> bbfi;
 
-   /// Set of Face Integrators to be applied (on the union of elem boundaries).
+   /// Set of interior face Integrators to be applied.
    Array<BilinearFormIntegrator*> fbfi;
 
-   /// Set of interior Face Integrators to be applied.
-   Array<BilinearFormIntegrator*> ifbfi;
-
-   /// Set of boundary Face Integrators to be applied.
+   /// Set of boundary face Integrators to be applied.
    Array<BilinearFormIntegrator*> bfbfi;
 
    DenseMatrix elemmat;
@@ -91,8 +88,6 @@ public:
    Array<BilinearFormIntegrator*> *GetBBFI() { return &bbfi; }
 
    Array<BilinearFormIntegrator*> *GetFBFI() { return &fbfi; }
-
-   Array<BilinearFormIntegrator*> *GetIFBFI() { return &ifbfi; }
 
    Array<BilinearFormIntegrator*> *GetBFBFI() { return &bfbfi; }
 
@@ -136,9 +131,6 @@ public:
    /// Adds new Boundary Integrator.
    void AddBoundaryIntegrator(BilinearFormIntegrator *bfi);
 
-   /// Adds new Face Integrator.
-   void AddFaceIntegrator(BilinearFormIntegrator *bfi);
-
    /// Adds new interior Face Integrator.
    void AddInteriorFaceIntegrator(BilinearFormIntegrator *bfi);
 
@@ -150,10 +142,6 @@ public:
 
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
-
-   /** Assembles the local inverses of the domain integrator portion of the
-       form. */
-   void AssembleDomainInverse(int skip_zeros = 1);
 
    /** For partially conforming FE spaces, complete the assembly process by
        performing A := P^t A P where A is the internal sparse matrix and P is
@@ -242,7 +230,7 @@ protected:
 
    Array<BilinearFormIntegrator*> dom;
    Array<BilinearFormIntegrator*> bdr;
-   Array<BilinearFormIntegrator*> skt;
+   Array<BilinearFormIntegrator*> skt; // trace face integrators
 
 public:
    MixedBilinearForm (FiniteElementSpace *tr_fes,
@@ -261,7 +249,7 @@ public:
                                   const double a = 1.0) const;
 
    virtual void MultTranspose (const Vector & x, Vector & y) const
-   { y = 0.0; AddMultTranspose (x, y); };
+   { y = 0.0; AddMultTranspose (x, y); }
 
    virtual MatrixInverse * Inverse() const;
 
@@ -272,23 +260,35 @@ public:
        test and trial spaces, respectively. */
    void GetBlocks(Array2D<SparseMatrix *> &blocks) const;
 
-   const SparseMatrix &SpMat() const { return *mat; };
-   SparseMatrix &SpMat() { return *mat; };
+   const SparseMatrix &SpMat() const { return *mat; }
+   SparseMatrix &SpMat() { return *mat; }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
 
    void AddDomainIntegrator (BilinearFormIntegrator * bfi);
 
    void AddBoundaryIntegrator (BilinearFormIntegrator * bfi);
 
-   void AddFaceIntegrator (BilinearFormIntegrator * bfi);
+   /** Add a trace face integrator. This type of integrator assembles terms
+       over all faces of the mesh using the face FE from the trial space and the
+       two adjacent volume FEs from the test space. */
+   void AddTraceFaceIntegrator (BilinearFormIntegrator * bfi);
 
    Array<BilinearFormIntegrator*> *GetDBFI() { return &dom; }
 
    Array<BilinearFormIntegrator*> *GetBBFI() { return &bdr; }
 
+   Array<BilinearFormIntegrator*> *GetTFBFI() { return &skt; }
+
    void operator= (const double a) { *mat = a; }
 
-   virtual void Assemble (int skip_zeros = 1);
+   void Assemble (int skip_zeros = 1);
+
+   /** For partially conforming trial and/or test FE spaces, complete the
+       assembly process by performing A := P2^t A P1 where A is the internal
+       sparse matrix; P1 and P2 are the conforming prolongation matrices of the
+       trial and test FE spaces, respectively. After this call the
+       MixedBilinearForm becomes an operator on the conforming FE spaces. */
+   void ConformingAssemble();
 
    void EliminateTrialDofs(Array<int> &bdr_attr_is_ess,
                            Vector &sol, Vector &rhs);

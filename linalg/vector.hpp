@@ -36,7 +36,7 @@ protected:
 public:
 
    /// Default constructor for Vector. Sets size = 0 and data = NULL
-   Vector () { allocsize = size = 0; data = 0; };
+   Vector () { allocsize = size = 0; data = 0; }
 
    /// Copy constructor
    Vector(const Vector &);
@@ -54,7 +54,7 @@ public:
    void Load(std::istream &in, int Size);
 
    /// Load a vector from an input stream.
-   void Load(std::istream &in) { int s; in >> s; Load (in, s); };
+   void Load(std::istream &in) { int s; in >> s; Load (in, s); }
 
    /// Resizes the vector if the new size is different
    void SetSize(int s);
@@ -73,7 +73,7 @@ public:
    void Destroy();
 
    /// Returns the size of the vector.
-   inline int Size() const {return size;};
+   inline int Size() const { return size; }
 
    // double *GetData() { return data; }
 
@@ -83,11 +83,13 @@ public:
 
    inline operator const double *() const { return data; }
 
-   /// Changes the ownership of the the data; after the call the Vector is empty
+   inline bool OwnsData() const { return (allocsize > 0); }
+
+   /// Changes the ownership of the data; after the call the Vector is empty
    inline void StealData(double **p)
    { *p = data; data = 0; size = allocsize = 0; }
 
-   /// Changes the ownership of the the data; after the call the Vector is empty
+   /// Changes the ownership of the data; after the call the Vector is empty
    inline double *StealData() { double *p; StealData(&p); return p; }
 
    /// Sets value in vector. Index i = 0 .. size-1

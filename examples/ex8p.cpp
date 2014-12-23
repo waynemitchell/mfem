@@ -1,11 +1,11 @@
 //                                MFEM Example 8
 //
-// Compile with: make ex8
+// Compile with: make ex8p
 //
-// Sample runs:  ex8 ../data/square-disc.mesh
-//               ex8 ../data/star.mesh
-//               ex8 ../data/escher.mesh
-//               ex8 ../data/fichera.mesh
+// Sample runs:  mpirun -np 4 ./ex8p -m ../data/square-disc.mesh
+//               mpirun -np 4 ./ex8p -m ../data/star.mesh
+//               mpirun -np 4 ./ex8p -m ../data/escher.mesh
+//               mpirun -np 4 ./ex8p -m ../data/fichera.mesh
 //
 // Description:  This example code demonstrates the use of the Discontinuous
 //               Petrov-Galerkin (DPG) method as a simple isoparametric finite
@@ -15,9 +15,9 @@
 //               default, quadratic for quadratic curvilinear mesh, NURBS for
 //               NURBS mesh, etc.)
 //
-//               The example highlights the use of interfacial (numerical trace)
-//               finite elements, interior face boundary integrators and the
-//               definition of block operators and preconditioners.
+//               The example highlights the use of interfacial (trace) finite
+//               elements and spaces, trace face integrators and the definition
+//               of block operators and preconditioners.
 //
 //               We recommend viewing examples 1-5 before viewing this example.
 
@@ -82,8 +82,7 @@ int main(int argc, char *argv[])
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
-                  "Finite element order (polynomial degree) or -1 for"
-                  " isoparametric space.");
+                  "Finite element order (polynomial degree).");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -106,7 +105,8 @@ int main(int argc, char *argv[])
    ifstream imesh(mesh_file);
    if (!imesh)
    {
-      cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      if (myid == 0)
+         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
       MPI_Finalize();
       return 2;
    }
@@ -133,12 +133,12 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 0;
+      int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
          pmesh->UniformRefinement();
    }
 
-   // 6. Define the trial, interfacial (numerical trace) and test DPG spaces:
+   // 6. Define the trial, interfacial (trace) and test DPG spaces:
    //    - The trial space, x0_space, contains the non-interfacial unknowns and
    //      has the essential BC.
    //    - The interfacial space, xhat_space, contains the interfacial unknowns
@@ -147,19 +147,35 @@ int main(int argc, char *argv[])
    //      degree depends on the spacial dimension of the domain.
 
    int trial_order = order;
-   int nt_order    = trial_order - 1;
-   int test_order  = nt_order + dim;
+   int trace_order = order - 1;
+   int test_order  = order; // reduced order, full order is (order + dim - 1)
    if (test_order < trial_order)
       if(myid == 0)
-         cerr << "Warning, test space not enriched enough to handle primal trial space\n";
+         cerr << "Warning, test space not enriched enough to handle primal"
+              << " trial space\n";
 
-   FiniteElementCollection *x0_fec   = new H1_FECollection(trial_order, dim);
-   FiniteElementCollection *xhat_fec = new NT_FECollection(nt_order, dim);
-   FiniteElementCollection *test_fec = new L2_FECollection(test_order, dim);
+   FiniteElementCollection *x0_fec, *xhat_fec, *test_fec;
 
-   ParFiniteElementSpace *x0_space   = new ParFiniteElementSpace(pmesh, x0_fec);
-   ParFiniteElementSpace *xhat_space = new ParFiniteElementSpace(pmesh, xhat_fec);
-   ParFiniteElementSpace *test_space = new ParFiniteElementSpace(pmesh, test_fec);
+   x0_fec   = new H1_FECollection(trial_order, dim);
+   xhat_fec = new RT_Trace_FECollection(trace_order, dim);
+   test_fec = new L2_FECollection(test_order, dim);
+
+   ParFiniteElementSpace *x0_space, *xhat_space, *test_space;
+
+   x0_space   = new ParFiniteElementSpace(pmesh, x0_fec);
+   xhat_space = new ParFiniteElementSpace(pmesh, xhat_fec);
+   test_space = new ParFiniteElementSpace(pmesh, test_fec);
+
+   int glob_true_s0     =   x0_space->GlobalTrueVSize();
+   int glob_true_s1     = xhat_space->GlobalTrueVSize();
+   int glob_true_s_test = test_space->GlobalTrueVSize();
+   if (myid == 0)
+   {
+      cout << "Number of Unknowns:\n"
+           << " Trial space,     X0   : " << glob_true_s0 << '\n'
+           << " Interface space, Xhat : " << glob_true_s1 << '\n'
+           << " Test space,      Y    : " << glob_true_s_test << '\n';
+   }
 
    // 7. Set up the linear form F(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (f,phi_i) where f=1.0 and
@@ -173,10 +189,10 @@ int main(int argc, char *argv[])
    ParGridFunction * x0 = new ParGridFunction(x0_space);
    *x0 = 0.;
 
-   // 8. Set up the mixed bilinear form for the non interfacial unknowns, B0,
+   // 8. Set up the mixed bilinear form for the primal trial unknowns, B0,
    //    the mixed bilinear form for the interfacial unknowns, Bhat,
-   //    the inverse stiffness matrix  on the discontinuous test space, Sinv,
-   //    the stiffness matrix on the continuous trial space, S0.
+   //    the inverse stiffness matrix on the discontinuous test space, Sinv,
+   //    and the stiffness matrix on the continuous trial space, S0.
 
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
@@ -190,14 +206,16 @@ int main(int argc, char *argv[])
    B0->Finalize();
 
    ParMixedBilinearForm *Bhat = new ParMixedBilinearForm(xhat_space,test_space);
-   Bhat->AddFaceIntegrator(new NTMassJumpIntegrator());
+   Bhat->AddTraceFaceIntegrator(new TraceJumpIntegrator());
    Bhat->Assemble();
    Bhat->Finalize();
 
    ParBilinearForm *Sinv = new ParBilinearForm(test_space);
-   Sinv->AddDomainIntegrator(new DiffusionIntegrator(one));
-   Sinv->AddDomainIntegrator(new MassIntegrator(one));
-   Sinv->AssembleDomainInverse();
+   SumIntegrator *sum = new SumIntegrator;
+   sum->AddIntegrator(new DiffusionIntegrator(one));
+   sum->AddIntegrator(new MassIntegrator(one));
+   Sinv->AddDomainIntegrator(new InverseIntegrator(sum));
+   Sinv->Assemble();
    Sinv->Finalize();
 
    ParBilinearForm *S0 = new ParBilinearForm(x0_space);
@@ -207,18 +225,19 @@ int main(int argc, char *argv[])
    S0->EliminateEssentialBC(ess_bdr);
    S0->Finalize();
 
-   HypreParMatrix * matB0   = B0->ParallelAssemble();
-   HypreParMatrix * matBhat = Bhat->ParallelAssemble();
-   HypreParMatrix * matSinv = Sinv->ParallelAssemble();
-   HypreParMatrix * matS0   = S0->ParallelAssemble();
+   HypreParMatrix * matB0   = B0->ParallelAssemble();    delete B0;
+   HypreParMatrix * matBhat = Bhat->ParallelAssemble();  delete Bhat;
+   HypreParMatrix * matSinv = Sinv->ParallelAssemble();  delete Sinv;
+   HypreParMatrix * matS0   = S0->ParallelAssemble();    delete S0;
 
-   // 9. Define the block structure of the problem, by creating the offset variable.
-   // Also allocate two BlockVector objects to store the solution and rhs.
+   // 9. Define the block structure of the problem, by creating the offset
+   //    variables. Also allocate two BlockVector objects to store the solution
+   //    and rhs.
 
    enum {x0_var, xhat_var, NVAR};
 
-   int true_s0 = x0_space->TrueVSize();
-   int true_s1 = xhat_space->TrueVSize();
+   int true_s0     =   x0_space->TrueVSize();
+   int true_s1     = xhat_space->TrueVSize();
    int true_s_test = test_space->TrueVSize();
 
    Array<int> true_offsets(NVAR+1);
@@ -235,19 +254,21 @@ int main(int argc, char *argv[])
    b = 0.;
 
    // 10. Set up the 1x2 block Least Squares DPG operator, B = [ B0   Bhat ],
-   //     the normal equation operator, A = B^t Sinv B,
+   //     the normal equation operator, A = B^t Sinv B, and
    //     the normal equation right-hand-size, b = B^t Sinv F.
 
    BlockOperator B(true_offsets_test, true_offsets);
-   B.SetBlock(0,0,matB0);
-   B.SetBlock(0,1,matBhat);
+   B.SetBlock(0, 0, matB0);
+   B.SetBlock(0, 1, matBhat);
 
    RAPOperator A(B, *matSinv, B);
 
-   Vector SinvF(true_s_test);
-   HypreParVector * trueF = F->ParallelAssemble();
-   matSinv->Mult(*trueF,SinvF);
-   B.MultTranspose(SinvF, b);
+   HypreParVector *trueF = F->ParallelAssemble();
+   {
+      HypreParVector SinvF(test_space);
+      matSinv->Mult(*trueF, SinvF);
+      B.MultTranspose(SinvF, b);
+   }
 
    // 11. Set up a block-diagonal preconditioner for the 2x2 normal equation
    //
@@ -256,12 +277,13 @@ int main(int argc, char *argv[])
    //
    //     corresponding to the primal (x0), interfacial (x1) unknowns.
 
-   HypreParMatrix * Shat = RAP(matSinv, matBhat);
+   HypreBoomerAMG *S0inv = new HypreBoomerAMG(*matS0);
 
-   HypreBoomerAMG * S0inv = new HypreBoomerAMG(*matS0);
+   HypreParMatrix *Shat = RAP(matSinv, matBhat);
 
-   HyprePCG * Shatinv(new HyprePCG(*Shat));
+   HyprePCG *Shatinv = new HyprePCG(*Shat);
    Shatinv->SetTol(1e-3);
+   Shatinv->SetMaxIter(300);
    Shatinv->SetZeroInintialIterate();
 
    BlockDiagonalPreconditioner P(true_offsets);
@@ -269,54 +291,53 @@ int main(int argc, char *argv[])
    P.SetDiagonalBlock(1, Shatinv);
 
    // 12. Solve the Normal Equation system using PCG iterative solver.
-   //    Check the weighted norm of residual for the DPG least square problem
-   //    Wrap the primal variable in a GridFunction for visualization purposes.
+   //     Check the weighted norm of residual for the DPG least square problem.
+   //     Wrap the primal variable in a GridFunction for visualization purposes.
 
    CGSolver pcg(MPI_COMM_WORLD);
    pcg.SetOperator(A);
    pcg.SetPreconditioner(P);
    pcg.SetMaxIter(300);
-   pcg.SetPrintLevel(myid == 0);
+   pcg.SetPrintLevel(1);
    pcg.SetRelTol(1e-6);
-   pcg.Mult(b,x);
+   pcg.Mult(b, x);
 
-   HypreParVector * LSres = test_space->NewTrueDofVector();
-   HypreParVector * tmp = test_space->NewTrueDofVector();
-   B.Mult(x, *LSres);
-   LSres->Add(-1., *trueF);
-   matSinv->Mult(*LSres, *tmp);
-   double res2 = InnerProduct(LSres, tmp);
-   if(myid == 0)
-      std::cout << " || B0*x0 + Bhat*xhat - F ||_{S^-1} = " << sqrt(res2) << "\n";
-   delete tmp;
-   delete LSres;
+   {
+      HypreParVector LSres(test_space), tmp(test_space);
+      B.Mult(x, LSres);
+      LSres -= *trueF;
+      matSinv->Mult(LSres, tmp);
+      double res = sqrt(InnerProduct(LSres, tmp));
+      if (myid == 0)
+         cout << "\n || B0*x0 + Bhat*xhat - F ||_{S^-1} = " << res << endl;
+   }
 
-   x0->Distribute( &(x.GetBlock(x0_var)) );
+   x0->Distribute(x.GetBlock(x0_var));
 
-   // 13. Save the refined pmesh and the solution. This output can be viewed later
-   //     using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // 13. Save the refined pmesh and the solution. This output can be viewed
+   //     later using GLVis: "glvis -np <num_proc> -m mesh -g sol".
 
    {
       ostringstream mesh_name, sol_name;
       mesh_name << "mesh." << setfill('0') << setw(6) << myid;
-      sol_name << "sol." << setfill('0') << setw(6) << myid;
+      sol_name  << "sol."  << setfill('0') << setw(6) << myid;
 
       ofstream mesh_ofs(mesh_name.str().c_str());
       mesh_ofs.precision(8);
       pmesh->Print(mesh_ofs);
-      ofstream sol_ofs("sol.gf");
+      ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
       x0->Save(sol_ofs);
    }
 
    // 14. (Optional) Send the solution by socket to a GLVis server.
 
-   if(visualization)
+   if (visualization)
    {
       char vishost[] = "localhost";
       int  visport   = 19916;
       socketstream sol_sock(vishost, visport);
-      sol_sock << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock << "parallel " << num_procs << ' ' << myid << '\n';
       sol_sock.precision(8);
       sol_sock << "solution\n" << *pmesh << *x0 << flush;
    }
@@ -331,17 +352,13 @@ int main(int argc, char *argv[])
    delete matBhat;
    delete matSinv;
    delete matS0;
-   delete Bhat;
-   delete B0;
-   delete Sinv;
-   delete S0;
    delete x0;
    delete F;
    delete test_space;
-   delete test_fec;
    delete xhat_space;
-   delete xhat_fec;
    delete x0_space;
+   delete test_fec;
+   delete xhat_fec;
    delete x0_fec;
    delete pmesh;
 

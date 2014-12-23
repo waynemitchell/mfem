@@ -1071,8 +1071,8 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (A == NULL)
       mfem_error("HypreSmoother::SetOperator : not HypreParMatrix!");
 
-   height = A->GetNumRows();
-   width = A->GetNumCols();
+   height = A->Height();
+   width = A->Width();
 
    if (B) delete B;
    if (X) delete X;
