@@ -26,7 +26,6 @@ int FiniteElementSpace::GetOrder(int i) const
    return fec->FiniteElementForGeometry(GeomType)->GetOrder();
 }
 
-
 void FiniteElementSpace::DofsToVDofs (Array<int> &dofs) const
 {
    int i, j, size;
@@ -508,7 +507,10 @@ FiniteElementSpace::H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes)
    R = new SparseMatrix (lfes -> GetNDofs(), ndofs);
 
    if (!lfes->GetNE())
+   {
+      R->Finalize();
       return R;
+   }
 
    const FiniteElement *h_fe = this -> GetFE (0);
    const FiniteElement *l_fe = lfes -> GetFE (0);
@@ -1035,10 +1037,8 @@ FiniteElementSpace::~FiniteElementSpace()
 
 void FiniteElementSpace::Destructor()
 {
-   if (cR)
-      delete cR;
-   if (cP)
-      delete cP;
+   delete cR;
+   delete cP;
 
    dof_elem_array.DeleteAll();
    dof_ldof_array.DeleteAll();
