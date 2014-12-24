@@ -3082,8 +3082,8 @@ void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt)
 DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix &mat)
    : MatrixInverse(mat)
 {
-   MFEM_ASSERT(height == width, "not a square matrix")
-      a = &mat;
+   MFEM_ASSERT(height == width, "not a square matrix");
+   a = &mat;
    data = new double[width*width];
 #ifdef MFEM_USE_LAPACK
    ipiv = new int[width];
@@ -3094,8 +3094,8 @@ DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix &mat)
 DenseMatrixInverse::DenseMatrixInverse(const DenseMatrix *mat)
    : MatrixInverse(*mat)
 {
-   MFEM_ASSERT(height == width, "not a square matrix")
-      a = mat;
+   MFEM_ASSERT(height == width, "not a square matrix");
+   a = mat;
    data = new double[width*width];
 #ifdef MFEM_USE_LAPACK
    ipiv = new int[width];
