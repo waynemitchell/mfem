@@ -83,6 +83,8 @@ private:
    void ConstructTrueDofs();
    void ConstructTrueNURBSDofs();
 
+   void ApplyLDofSigns(Array<int> &dofs) const;
+
 public:
    // Face-neighbor data
    int num_face_nbr_dofs;
@@ -112,6 +114,10 @@ public:
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
    virtual void GetBdrElementDofs(int i, Array<int> &dofs) const;
+
+   /** Returns the indexes of the degrees of freedom for i'th face
+       including the dofs for the edges and the vertices of the face. */
+   virtual void GetFaceDofs(int i, Array<int> &dofs) const;
 
    /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix();
@@ -152,7 +158,6 @@ public:
    // Face-neighbor functions
    void ExchangeFaceNbrData();
    int GetFaceNbrVSize() const { return num_face_nbr_dofs; }
-   void GetSharedFaceVDofs(int sf, Array<int> &vdofs) const;
    void GetFaceNbrElementVDofs(int i, Array<int> &vdofs) const;
    const FiniteElement *GetFaceNbrFE(int i) const;
    int *GetFaceNbrGlobalDofMap() { return face_nbr_gdof.GetJ(); }

@@ -28,23 +28,26 @@ class Matrix : public Operator
 {
    friend class MatrixInverse;
 public:
-   /// Creates matrix of width s.
-   explicit Matrix (int s) : Operator(s){ }
+   /// Creates a square matrix of size s.
+   explicit Matrix(int s) : Operator(s) { }
 
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
-   virtual double& Elem (int i, int j) = 0;
+   /// Creates a matrix of the given height and width.
+   explicit Matrix(int h, int w) : Operator(h, w) { }
 
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
-   virtual const double& Elem (int i, int j) const = 0;
+   /// Returns reference to a_{ij}.
+   virtual double &Elem(int i, int j) = 0;
 
-   /// Returns a pointer to (approximation) of the matrix inverse.
-   virtual MatrixInverse * Inverse() const = 0;
+   /// Returns constant reference to a_{ij}.
+   virtual const double &Elem(int i, int j) const = 0;
+
+   /// Returns a pointer to (an approximation) of the matrix inverse.
+   virtual MatrixInverse *Inverse() const = 0;
 
    /// Finalizes the matrix initialization.
    virtual void Finalize(int) { }
 
    /// Prints matrix to stream out.
-   virtual void Print (std::ostream & out = std::cout, int width = 4) const;
+   virtual void Print (std::ostream & out = std::cout, int width_ = 4) const;
 
    /// Destroys matrix.
    virtual ~Matrix() { }
@@ -59,17 +62,19 @@ public:
 
    /// Creates approximation of the inverse of square matrix
    MatrixInverse(const Matrix &mat)
-      : Solver(mat.size) { }
+      : Solver(mat.height, mat.width) { }
 };
 
 /// Abstract data type for sparse matrices
 class AbstractSparseMatrix : public Matrix
 {
 public:
-   /// Creates matrix of width s.
-   explicit AbstractSparseMatrix (int s = 0 ):Matrix(s){};
-   /// Returns the Width of the matrix
-   virtual int Width() const = 0;
+   /// Creates a square matrix of the given size.
+   explicit AbstractSparseMatrix(int s = 0) : Matrix(s) { }
+
+   /// Creates a matrix of the given height and width.
+   explicit AbstractSparseMatrix(int h, int w) : Matrix(h, w) { }
+
    /// Returns the number of non-zeros in a matrix
    virtual int NumNonZeroElems() const = 0;
 
@@ -79,22 +84,25 @@ public:
        1 if cols and srow are views of the values in the matrix. */
    virtual int GetRow(const int row, Array<int> &cols, Vector &srow) const = 0;
 
-   /** If the matrix is square, it will place 1 on the diagonal (i,i) if row i has "almost" zero l1-norm.
-       If entry (i,i) does not belong to the sparsity pattern of A, then a error will occur. */
+   /** If the matrix is square, it will place 1 on the diagonal (i,i) if row i
+       has "almost" zero l1-norm.
+       If entry (i,i) does not belong to the sparsity pattern of A, then an
+       error will occur. */
    virtual void EliminateZeroRows() = 0;
 
    /// Matrix-Vector Multiplication y = A*x
-   virtual void Mult(const Vector & x, Vector & y) const = 0;
+   virtual void Mult(const Vector &x, Vector &y) const = 0;
    /// Matrix-Vector Multiplication y = y + val*A*x
-   virtual void AddMult(const Vector & x, Vector & y, const double val = 1.) const = 0;
+   virtual void AddMult(const Vector &x, Vector &y,
+                        const double val = 1.) const = 0;
    /// MatrixTranspose-Vector Multiplication y = A'*x
-   virtual void MultTranspose(const Vector & x, Vector & y) const = 0;
+   virtual void MultTranspose(const Vector &x, Vector &y) const = 0;
    /// MatrixTranspose-Vector Multiplication y = y + val*A'*x
-   virtual void AddMultTranspose(const Vector & x, Vector & y, const double val = 1.) const = 0;
-
+   virtual void AddMultTranspose(const Vector &x, Vector &y,
+                                 const double val = 1.) const = 0;
 
    /// Destroys AbstractSparseMatrix.
-   virtual ~AbstractSparseMatrix() { };
+   virtual ~AbstractSparseMatrix() { }
 };
 
 }

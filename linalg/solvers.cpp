@@ -95,7 +95,8 @@ void IterativeSolver::SetPreconditioner(Solver &pr)
 void IterativeSolver::SetOperator(const Operator &op)
 {
    oper = &op;
-   size = op.Size();
+   height = op.Height();
+   width = op.Width();
    if (prec)
       prec->SetOperator(*oper);
 }
@@ -103,9 +104,9 @@ void IterativeSolver::SetOperator(const Operator &op)
 
 void CGSolver::UpdateVectors()
 {
-   r.SetSize(size);
-   d.SetSize(size);
-   z.SetSize(size);
+   r.SetSize(width);
+   d.SetSize(width);
+   z.SetSize(width);
 }
 
 void CGSolver::Mult(const Vector &b, Vector &x) const
@@ -313,7 +314,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    // Generalized Minimum Residual method following the algorithm
    // on p. 20 of the SIAM Templates book.
 
-   int n = size;
+   int n = width;
 
    DenseMatrix H(m+1, m);
    Vector s(m+1), cs(m+1), sn(m+1);
@@ -610,14 +611,14 @@ void GMRES(const Operator &A, Solver &B, const Vector &b, Vector &x,
 
 void BiCGSTABSolver::UpdateVectors()
 {
-   p.SetSize(size);
-   phat.SetSize(size);
-   s.SetSize(size);
-   shat.SetSize(size);
-   t.SetSize(size);
-   v.SetSize(size);
-   r.SetSize(size);
-   rtilde.SetSize(size);
+   p.SetSize(width);
+   phat.SetSize(width);
+   s.SetSize(width);
+   shat.SetSize(width);
+   t.SetSize(width);
+   v.SetSize(width);
+   r.SetSize(width);
+   rtilde.SetSize(width);
 }
 
 void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
@@ -760,13 +761,13 @@ void BiCGSTAB(const Operator &A, Solver &B, const Vector &b, Vector &x,
 void MINRESSolver::SetOperator(const Operator &op)
 {
    IterativeSolver::SetOperator(op);
-   v0.SetSize(size);
-   v1.SetSize(size);
-   w0.SetSize(size);
-   w1.SetSize(size);
-   q.SetSize(size);
+   v0.SetSize(width);
+   v1.SetSize(width);
+   w0.SetSize(width);
+   w1.SetSize(width);
+   q.SetSize(width);
    if (prec)
-      u1.SetSize(size);
+      u1.SetSize(width);
 }
 
 void MINRESSolver::Mult(const Vector &b, Vector &x) const
@@ -928,14 +929,14 @@ void NewtonSolver::Mult(const Vector &b, Vector &x) const
    int it;
    double norm, norm_goal;
 
-   r.SetSize(size);
-   c.SetSize(size);
+   r.SetSize(width);
+   c.SetSize(width);
 
    if (!iterative_mode)
       x = 0.0;
 
    oper->Mult(x, r);
-   if (b.Size() == size)
+   if (b.Size() == Height())
       r -= b;
 
    norm = Norm(r);
@@ -969,7 +970,7 @@ void NewtonSolver::Mult(const Vector &b, Vector &x) const
       x -= c;
 
       oper->Mult(x, r);
-      if (b.Size() == size)
+      if (b.Size() == Height())
          r -= b;
       norm = Norm(r);
    }
@@ -984,7 +985,7 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
            int m_max, int m_min, int m_step, double cf,
            double &tol, double &atol, int printit)
 {
-   int n = A.Size();
+   int n = A.Width();
 
    int m = m_max;
 
@@ -1400,14 +1401,15 @@ void UMFPackSolver::SetOperator(const Operator &op)
    // Generally, this will modify the ordering of the entries of mat.
    mat->SortColumnIndices();
 
-   size = mat->Size();
+   height = mat->Height();
+   width = mat->Width();
    Ap = mat->GetI();
    Ai = mat->GetJ();
    Ax = mat->GetData();
 
    if (!use_long_ints)
    {
-      int status = umfpack_di_symbolic(size, size, Ap, Ai, Ax, &Symbolic,
+      int status = umfpack_di_symbolic(width, width, Ap, Ai, Ax, &Symbolic,
                                        Control, Info);
       if (status < 0)
       {
@@ -1434,14 +1436,14 @@ void UMFPackSolver::SetOperator(const Operator &op)
 
       delete [] AJ;
       delete [] AI;
-      AI = new SuiteSparse_long[size + 1];
-      AJ = new SuiteSparse_long[Ap[size]];
-      for (int i = 0; i <= size; i++)
+      AI = new SuiteSparse_long[width + 1];
+      AJ = new SuiteSparse_long[Ap[width]];
+      for (int i = 0; i <= width; i++)
          AI[i] = (SuiteSparse_long)(Ap[i]);
-      for (int i = 0; i <= Ap[size]; i++)
+      for (int i = 0; i <= Ap[width]; i++)
          AJ[i] = (SuiteSparse_long)(Ai[i]);
 
-      status = umfpack_dl_symbolic(size, size, AI, AJ, Ax, &Symbolic,
+      status = umfpack_dl_symbolic(width, width, AI, AJ, Ax, &Symbolic,
                                    Control, Info);
       if (status < 0)
       {

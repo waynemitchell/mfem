@@ -211,7 +211,7 @@ public:
 
    /** Returns the indexes of the degrees of freedom for i'th face
        including the dofs for the edges and the vertices of the face. */
-   void GetFaceDofs(int i, Array<int> &dofs) const;
+   virtual void GetFaceDofs(int i, Array<int> &dofs) const;
 
    /** Returns the indexes of the degrees of freedom for i'th edge
        including the dofs for the vertices of the edge. */

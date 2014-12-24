@@ -389,7 +389,7 @@ void FiniteElementSpace::MarkDependency(const SparseMatrix *D,
       col_marker.SetSize(D->Width());
       col_marker = 0;
 
-      for (int i = 0; i < D->Size(); i++)
+      for (int i = 0; i < D->Height(); i++)
          if (row_marker[i] < 0)
          {
             const int *col = D->GetRowColumns(i), n = D->RowSize(i);
@@ -409,7 +409,7 @@ void FiniteElementSpace::EliminateEssentialBCFromGRM
    int i, j, k, one_vdim;
    Array<int> dofs;
 
-   one_vdim = (cfes -> GetNDofs() == R -> Size()) ? 1 : 0;
+   one_vdim = (cfes -> GetNDofs() == R -> Height()) ? 1 : 0;
 
    mesh -> SetState (Mesh::TWO_LEVEL_COARSE);
    if (bdr_attr_is_ess.Size() != 0)
@@ -698,8 +698,8 @@ void FiniteElementSpace::Constructor()
          Array<int> cdofs, vcdofs;
          Vector srow;
          SparseMatrix *vec_cP =
-            new SparseMatrix(vdim*cP->Size(), vdim*cP->Width());
-         for (int i = 0; i < cP->Size(); i++)
+            new SparseMatrix(vdim*cP->Height(), vdim*cP->Width());
+         for (int i = 0; i < cP->Height(); i++)
          {
             cP->GetRow(i, cdofs, srow);
             for (int vd = 0; vd < vdim; vd++)
@@ -707,7 +707,7 @@ void FiniteElementSpace::Constructor()
                cdofs.Copy(vcdofs);
                ndofs = cP->Width(); // make DofsToVDofs work on conf. dofs
                DofsToVDofs(vd, vcdofs);
-               ndofs = cP->Size();
+               ndofs = cP->Height();
                vec_cP->SetRow(DofToVDof(i, vd), vcdofs, srow);
             }
          }
@@ -716,15 +716,15 @@ void FiniteElementSpace::Constructor()
          cP = vec_cP;
 
          SparseMatrix *vec_cR =
-            new SparseMatrix(vdim*cR->Size(), vdim*cR->Width());
-         for (int i = 0; i < cR->Size(); i++)
+            new SparseMatrix(vdim*cR->Height(), vdim*cR->Width());
+         for (int i = 0; i < cR->Height(); i++)
          {
             cR->GetRow(i, cdofs, srow); // here, cdofs are partially conf. dofs
             for (int vd = 0; vd < vdim; vd++)
             {
                cdofs.Copy(vcdofs); // here, vcdofs are partially conf. dofs
                DofsToVDofs(vd, vcdofs);
-               ndofs = cR->Size(); // make DofToVDof work on conf. dofs
+               ndofs = cR->Height(); // make DofToVDof work on conf. dofs
                vec_cR->SetRow(DofToVDof(i, vd), vcdofs, srow);
                ndofs = cR->Width();
             }

@@ -197,7 +197,7 @@ public:
 #endif
 
    virtual void SetPreconditioner(Solver &pr)
-   { IterativeSolver::SetPreconditioner(pr); if (oper) u1.SetSize(size); }
+   { IterativeSolver::SetPreconditioner(pr); if (oper) u1.SetSize(width); }
 
    virtual void SetOperator(const Operator &op);
 
@@ -218,7 +218,7 @@ void MINRES(const Operator &A, Solver &B, const Vector &b, Vector &x,
     The method GetGradient must be implemented for the operator.
     The preconditioner is used (in non-iterative mode) to evaluate
     the action of the inverse gradient of the operator.
-    If (b.Size() != oper->Size()), then the b is assumed to be zero. */
+    If (b.Size() != oper->Height()), then the b is assumed to be zero. */
 class NewtonSolver : public IterativeSolver
 {
 protected:

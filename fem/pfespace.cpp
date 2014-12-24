@@ -205,15 +205,9 @@ void ParFiniteElementSpace::GetGroupComm(
    gc.Finalize();
 }
 
-void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
+void ParFiniteElementSpace::ApplyLDofSigns(Array<int> &dofs) const
 {
-   if (elem_dof)
-   {
-      elem_dof->GetRow(i, dofs);
-      return;
-   }
-   FiniteElementSpace::GetElementDofs(i, dofs);
-   for (i = 0; i < dofs.Size(); i++)
+   for (int i = 0; i < dofs.Size(); i++)
       if (dofs[i] < 0)
       {
          if (ldof_sign[-1-dofs[i]] < 0)
@@ -226,6 +220,17 @@ void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
       }
 }
 
+void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
+{
+   if (elem_dof)
+   {
+      elem_dof->GetRow(i, dofs);
+      return;
+   }
+   FiniteElementSpace::GetElementDofs(i, dofs);
+   ApplyLDofSigns(dofs);
+}
+
 void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
 {
    if (bdrElem_dof)
@@ -234,17 +239,13 @@ void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
       return;
    }
    FiniteElementSpace::GetBdrElementDofs(i, dofs);
-   for (i = 0; i < dofs.Size(); i++)
-      if (dofs[i] < 0)
-      {
-         if (ldof_sign[-1-dofs[i]] < 0)
-            dofs[i] = -1-dofs[i];
-      }
-      else
-      {
-         if (ldof_sign[dofs[i]] < 0)
-            dofs[i] = -1-dofs[i];
-      }
+   ApplyLDofSigns(dofs);
+}
+
+void ParFiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
+{
+   FiniteElementSpace::GetFaceDofs(i, dofs);
+   ApplyLDofSigns(dofs);
 }
 
 void ParFiniteElementSpace::GenerateGlobalOffsets()
