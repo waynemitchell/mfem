@@ -2327,8 +2327,10 @@ SparseMatrix * Add(const SparseMatrix & A, const SparseMatrix & B)
 
 SparseMatrix * Add(Array<SparseMatrix *> & Ai)
 {
+   MFEM_ASSERT(Ai.Size() > 0, "invalid size Ai.Size() = " << Ai.Size());
+
    SparseMatrix * accumulate = Ai[0];
-   SparseMatrix * result;
+   SparseMatrix * result = accumulate;
 
    for(int i=1; i < Ai.Size(); ++i)
    {
