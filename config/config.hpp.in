@@ -23,7 +23,7 @@
 // #define MFEM_DEBUG
 
 // Use high-resolution POSIX clocks in class StopWatch, link with -lrt.
-#define MFEM_USE_POSIX_CLOCKS
+// #define MFEM_USE_POSIX_CLOCKS
 
 // Use LAPACK routines for various dense linear algebra operations.
 // #define MFEM_USE_LAPACK
@@ -42,6 +42,6 @@
 // #define MFEM_USE_SUITESPARSE
 
 // Internal MFEM option: enable group/batch allocation for some small objects.
-#define MFEM_USE_MEMALLOC
+// #define MFEM_USE_MEMALLOC
 
 #endif
