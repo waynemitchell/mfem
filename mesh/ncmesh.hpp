@@ -24,12 +24,6 @@
 namespace mfem
 {
 
-// TODO: these won't be needed once this module is purely geometric
-class SparseMatrix;
-class Mesh;
-class IsoparametricTransformation;
-class FiniteElementSpace;
-
 /** Represents the index of an element to refine, plus a refinement type.
     The refinement type is needed for anisotropic refinement of quads and hexes.
     Bits 0,1 and 2 of 'ref_type' specify whether the element should be split
@@ -140,16 +134,6 @@ public:
    /** Traverse leaf elements and build lists of conforming and nonconforming
        edges. The caller owns the result. */
    void BuildEdgeList(EdgeList &elist) const;
-
-
-   /** Calculate the conforming interpolation matrix P that ties slave DOFs to
-       independent DOFs. P is rectangular with M rows and N columns, where M
-       is the number of DOFs of the nonconforming ('cut') space, and N is the
-       number of independent ('true') DOFs. If x is a solution vector containing
-       the values of the independent DOFs, Px can be used to obtain the values
-       of all DOFs, including the slave DOFs. */
-   SparseMatrix* GetInterpolation(FiniteElementSpace* space,
-                                  SparseMatrix **cR_ptr = NULL);
 
    /** Represents the relation of a fine element to its parent (coarse) element
        from a previous mesh state. (Note that the parent can be an indirect
@@ -397,63 +381,19 @@ protected: // implementation
    bool NodeSetZ1(Node* node, Node** n);
    bool NodeSetZ2(Node* node, Node** n);
 
-
-   // interpolation
-
-   struct Dependency
-   {
-      int dof;
-      double coef;
-
-      Dependency(int dof, double coef)
-         : dof(dof), coef(coef) {}
-   };
-
-   typedef Array<Dependency> DepList;
-
-   /** Holds temporary data for each nonconforming (FESpace-assigned) DOF
-       during the interpolation algorithm. */
-   struct DofData
-   {
-      bool finalized; ///< true if cP matrix row is known for this DOF
-      DepList dep_list; ///< list of other DOFs this DOF depends on
-
-      DofData() : finalized(false) {}
-      bool Independent() const { return !dep_list.Size(); }
-   };
-
-   DofData* dof_data; ///< DOF temporary data
-
-   FiniteElementSpace* space;
+   // face / edge lists
 
    static int find_node(Element* elem, Node* node);
 
    void ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
                             Element* elem, DenseMatrix& mat) const;
-
-   void AddDependencies(Array<int>& master_dofs, Array<int>& slave_dofs,
-                        DenseMatrix& I);
-
-   void ConstrainEdge(Node* v0, Node* v1, double t0, double t1,
-                      Array<int>& master_dofs, int level);
-
    struct PointMatrix;
-
-   void ConstrainFace(Node* v0, Node* v1, Node* v2, Node* v3,
-                      const PointMatrix &pm,
-                      Array<int>& master_dofs, int level);
-
-   void ProcessMasterEdge(Node* node[2], Node* edge);
-   void ProcessMasterFace(Node* node[4], Face* face);
-
-   bool DofFinalizable(DofData& vd);
 
    void TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
                      const PointMatrix& pm, FaceList &flist, int level) const;
 
    Node* TraverseEdge(Node* v0, Node* v1, double t0, double t1,
                       EdgeList &elist, int level) const;
-
 
    // coarse to fine transformations
 
