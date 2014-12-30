@@ -124,6 +124,10 @@ protected:
    SparseMatrix *NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes,
                                             NCMesh* ncmesh);
 
+   /** Calculate the cP and cR matrices for a nonconforming mesh. */
+   void GetConformingInterpolation(const NCMesh::EdgeList &elist,
+                                   const NCMesh::FaceList &flist);
+
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
                       int dim = 1, int order = Ordering::byNODES);
@@ -136,6 +140,7 @@ public:
 
    SparseMatrix *GetConformingProlongation() { return cP; }
    const SparseMatrix *GetConformingProlongation() const { return cP; }
+
    SparseMatrix *GetConformingRestriction() { return cR; }
    const SparseMatrix *GetConformingRestriction() const { return cR; }
 
@@ -293,9 +298,7 @@ public:
        dependent dofs (as defined by the conforming prolongation matrix) is
        marked. */
    void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs)
-   {
-      MarkDependency(cP, dofs, cdofs);
-   }
+   {  MarkDependency(cP, dofs, cdofs); }
 
    /** For a partially conforming FE space, convert a marker array (negative
        entries are true) on the conforming dofs to a marker array on the
@@ -303,9 +306,7 @@ public:
        conforming dofs that dependent on it (as defined by the conforming
        restriction matrix) is marked. */
    void ConvertFromConformingVDofs(const Array<int> &cdofs, Array<int> &dofs)
-   {
-      MarkDependency(cR, cdofs, dofs);
-   }
+   { MarkDependency(cR, cdofs, dofs); }
 
    void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,
                                     Array<int> &bdr_attr_is_ess,

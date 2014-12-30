@@ -526,6 +526,238 @@ FiniteElementSpace::H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes)
    return R;
 }
 
+/** Helper class to hold a list of dependencies for each nonconforming
+    DOF. Used by GetConformingInterpolation to build cP and cR. */
+class DofDependencies
+{
+public:
+   struct Dependency
+   {
+      int dof;
+      double coef;
+      Dependency(int dof, double coef) : dof(dof), coef(coef) {}
+   };
+
+   typedef Array<Dependency> DepList;
+
+   DofDependencies(int ndofs) { dof_deps = new DofDeps[ndofs]; }
+   ~DofDependencies() { delete [] dof_deps; }
+
+   void AddDependencies(Array<int>& master_dofs, Array<int>& slave_dofs,
+                        DenseMatrix& I);
+
+   const DepList& GetDepList(int dof) const { return dof_deps[dof].dep_list; }
+
+   bool IsFinalized(int dof) const { return dof_deps[dof].finalized; }
+   bool IsFinalizable(int dof) const;
+   void Finalize(int dof) { dof_deps[dof].finalized = true; }
+
+   bool IsIndependent(int dof) const { return !dof_deps[dof].dep_list.Size(); }
+
+private:
+   struct DofDeps
+   {
+      bool finalized; ///< true if cP matrix row is known for this DOF
+      DepList dep_list; ///< list of other DOFs this DOF depends on
+      DofDeps() : finalized(false) {}
+   };
+
+   DofDeps* dof_deps;
+
+   inline int decode_dof(int dof, double& sign)
+   {
+      if (dof >= 0)
+         return (sign = 1.0, dof);
+      else
+         return (sign = -1.0, -1 - dof);
+   }
+};
+
+void DofDependencies::AddDependencies
+(Array<int>& master_dofs, Array<int>& slave_dofs, DenseMatrix& I)
+{
+   // make each slave DOF dependent on all master DOFs
+   for (int i = 0; i < slave_dofs.Size(); i++)
+   {
+      double ssign;
+      int sdof = decode_dof(slave_dofs[i], ssign);
+      DofDeps& sdeps = dof_deps[sdof];
+
+      if (!sdeps.dep_list.Size()) // not processed yet?
+      {
+         for (int j = 0; j < master_dofs.Size(); j++)
+         {
+            double coef = I(i, j);
+            if (std::abs(coef) > 1e-12)
+            {
+               double msign;
+               int mdof = decode_dof(master_dofs[j], msign);
+               if (mdof != sdof)
+                  sdeps.dep_list.Append(Dependency(mdof, coef * ssign * msign));
+            }
+         }
+      }
+   }
+}
+
+bool DofDependencies::IsFinalizable(int dof) const
+{
+   // are all constraining DOFs finalized?
+   const DepList& dep_list = GetDepList(dof);
+   for (int i = 0; i < dep_list.Size(); i++)
+      if (!dof_deps[dep_list[i].dof].finalized)
+         return false;
+
+   return true;
+}
+
+void FiniteElementSpace::GetConformingInterpolation
+(const NCMesh::EdgeList &elist, const NCMesh::FaceList &flist)
+{
+   DofDependencies deps(ndofs);
+
+   Array<int> master_dofs, slave_dofs;
+   const FiniteElement* fe;
+
+   // collect local edge dependencies
+   if (elist.masters.size())
+   {
+      IsoparametricTransformation edge_T;
+      edge_T.SetFE(&SegmentFE);
+
+      fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      DenseMatrix I(fe->GetDof());
+
+      // loop through all master edges, constrain their slave edges
+      for (int mi = 0; mi < elist.masters.size(); mi++)
+      {
+         const NCMesh::MasterFace &me = elist.masters[mi];
+         GetEdgeDofs(me.index, master_dofs);
+         if (!master_dofs.Size()) continue;
+
+         for (int si = me.slaves_begin; si < me.slaves_end; si++)
+         {
+            const NCMesh::SlaveFace &se = elist.slaves[si];
+            GetEdgeDofs(se.index, slave_dofs);
+            if (!slave_dofs.Size()) continue;
+
+            edge_T.GetPointMat() = se.point_matrix;
+            fe->GetLocalInterpolation(edge_T, I);
+
+            // make each slave DOF dependent on all master face DOFs
+            deps.AddDependencies(master_dofs, slave_dofs, I);
+         }
+      }
+   }
+
+   // collect local face dependencies
+   if (flist.masters.size())
+   {
+      IsoparametricTransformation face_T;
+      face_T.SetFE(&QuadrilateralFE);
+
+      fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
+      DenseMatrix I(fe->GetDof());
+
+      // loop through all master faces, constrain their slave faces
+      for (int mi = 0; mi < flist.masters.size(); mi++)
+      {
+         const NCMesh::MasterFace &mf = flist.masters[mi];
+         GetFaceDofs(mf.index, master_dofs);
+         if (!master_dofs.Size()) continue;
+
+         for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
+         {
+            const NCMesh::SlaveFace &sf = flist.slaves[si];
+            GetFaceDofs(sf.index, slave_dofs);
+            if (!slave_dofs.Size()) continue;
+
+            face_T.GetPointMat() = sf.point_matrix;
+            fe->GetLocalInterpolation(face_T, I);
+
+            // make each slave DOF dependent on all master face DOFs
+            deps.AddDependencies(master_dofs, slave_dofs, I);
+         }
+      }
+   }
+
+   // DOFs that stayed independent are true DOFs
+   int n_true_dofs = 0;
+   for (int i = 0; i < ndofs; i++)
+      if (deps.IsIndependent(i))
+         n_true_dofs++;
+
+   // if all dofs are true dofs leave cP and cR NULL
+   if (n_true_dofs == ndofs)
+   {
+      cP = cR = NULL; // will be treated as identities
+      return;
+   }
+
+   // create the conforming restiction matrix
+   int *cR_J;
+   {
+      int *cR_I = new int[n_true_dofs+1];
+      double *cR_A = new double[n_true_dofs];
+      cR_J = new int[n_true_dofs];
+      for (int i = 0; i < n_true_dofs; i++)
+      {
+         cR_I[i] = i;
+         cR_A[i] = 1.0;
+      }
+      cR_I[n_true_dofs] = n_true_dofs;
+      cR = new SparseMatrix(cR_I, cR_J, cR_A, n_true_dofs, ndofs);
+   }
+
+   // create the conforming prolongation matrix
+   cP = new SparseMatrix(ndofs, n_true_dofs);
+
+   // put identity in the restiction and prolongation matrices for true DOFs
+   for (int i = 0, true_dof = 0; i < ndofs; i++)
+      if (deps.IsIndependent(i))
+      {
+         cR_J[true_dof] = i;
+         cP->Add(i, true_dof++, 1.0);
+         deps.Finalize(i);
+      }
+
+   // resolve (indirect) dependencies of slave DOFs
+   bool finished;
+   int n_finalized = n_true_dofs;
+   Array<int> cols;
+   Vector srow;
+   do
+   {
+      finished = true;
+      for (int i = 0; i < ndofs; i++)
+      {
+         if (!deps.IsFinalized(i) && deps.IsFinalizable(i))
+         {
+            const DofDependencies::DepList &dep_list = deps.GetDepList(i);
+            for (int j = 0; j < dep_list.Size(); j++)
+            {
+               const DofDependencies::Dependency& dep = dep_list[j];
+               cP->GetRow(dep.dof, cols, srow);
+               srow *= dep.coef;
+               cP->AddRow(i, cols, srow);
+            }
+
+            deps.Finalize(i);
+            n_finalized++;
+            finished = false;
+         }
+      }
+   }
+   while (!finished);
+
+   // if everything is consistent (mesh, face orientations, etc.), we should
+   // be able to finalize all slave DOFs, otherwise it's a serious error
+   if (n_finalized != ndofs)
+      MFEM_ABORT("Error creating cP matrix.");
+
+   cP->Finalize();
+}
+
 FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
 {
    mesh = fes.mesh;
@@ -679,7 +911,12 @@ void FiniteElementSpace::Constructor()
 
    if (mesh->ncmesh && ndofs > nbdofs)
    {
-      cP = mesh->ncmesh->GetInterpolation(this, &cR);
+      NCMesh::EdgeList elist;
+      NCMesh::FaceList flist;
+      mesh->ncmesh->BuildEdgeList(elist);
+      mesh->ncmesh->BuildFaceList(flist);
+      GetConformingInterpolation(elist, flist);
+
       if (cP && vdim > 1)
       {
          Array<int> cdofs, vcdofs;

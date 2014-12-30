@@ -12,6 +12,8 @@
 #ifndef MFEM_NCMESH
 #define MFEM_NCMESH
 
+#include <vector>
+
 #include "../config.hpp"
 #include "../general/hash.hpp"
 #include "../linalg/densemat.hpp"
@@ -56,16 +58,14 @@ struct Refinement
  *  3. A new Mesh is created from NCMesh containing the leaf elements.
  *     This new mesh may have non-conforming (hanging) edges and faces.
  *
- *  4. A conforming interpolation matrix is obtained using GetInterpolation().
- *     The matrix can be used to constrain the hanging DOFs so a continous
- *     solution is obtained.
+ *  4. TODO
  *
  *  5. Refine some more leaf elements, i.e., repeat from step 2.
  */
 class NCMesh
 {
 public:
-   NCMesh(const Mesh *mesh);
+   NCMesh(const Mesh *coarse_mesh);
 
    int Dimension() const { return Dim; }
 
@@ -81,6 +81,66 @@ public:
    /** Check mesh and potentially refine some elements so that the maximum level
        of hanging nodes is not greater than 'max_level'. */
    void LimitNCLevel(int max_level);
+
+   /// Standard face.
+   struct ConformingFace
+   {
+      int index; ///< Mesh face number (negative for ghost faces in parallel)
+      int attribute;
+
+      ConformingFace(int index, int attr) : index(index), attribute(attr) {}
+      bool Boundary() const { return attribute >= 0; }
+   };
+
+   /** Nonconforming face that has more than one neighbor. The neighbors are
+       stored in FaceList::slaves[i], slaves_begin <= i < slaves_end. */
+   struct MasterFace
+   {
+      int index; ///< Mesh face number (negative for ghosts)
+      int slaves_begin, slaves_end; ///< slave faces
+
+      MasterFace(int index, int sb, int se)
+         : index(index), slaves_begin(sb), slaves_end(se) {}
+   };
+
+   /// Nonconforming face within a bigger face.
+   struct SlaveFace
+   {
+      int index; ///< Mesh face number (negative for ghosts)
+      int master; ///< master face number
+      DenseMatrix point_matrix; ///< position within the master face
+
+      SlaveFace(int index) : index(index), master(-1), point_matrix() {}
+   };
+
+   /** Lists all faces in the nonconforming mesh.
+       Returned by BuildFaceList. */
+   struct FaceList
+   {
+      std::vector<ConformingFace> cfaces;
+      std::vector<MasterFace> masters;
+      std::vector<SlaveFace> slaves;
+      // TODO: switch to Arrays when fixed for non-POD types
+   };
+
+   /** Lists all edges in the nonconforming mesh. Reuses the face structs
+       since they are the same. Returned by BuildEdgeList. */
+   struct EdgeList
+   {
+      std::vector<ConformingFace> cedges;
+      std::vector<MasterFace> masters;
+      std::vector<SlaveFace> slaves;
+      // TODO: switch to Arrays when fixed for non-POD types
+   };
+
+   /** Traverse leaf elements and build lists of conforming and nonconforming
+       faces. The caller owns the result. */
+   void BuildFaceList(FaceList &flist) const;
+
+   /** Traverse leaf elements and build lists of conforming and nonconforming
+       edges. The caller owns the result. */
+   void BuildEdgeList(EdgeList &elist) const;
+
 
    /** Calculate the conforming interpolation matrix P that ties slave DOFs to
        independent DOFs. P is rectangular with M rows and N columns, where M
@@ -132,12 +192,13 @@ public:
 
 protected: // interface for Mesh to be able to construct itself from us
 
-   void GetVerticesElementsBoundary(Array<mfem::Vertex>& vertices,
-                                    Array<mfem::Element*>& elements,
-                                    Array<mfem::Element*>& boundary);
+   void GetMeshComponents(Array<mfem::Vertex>& vertices,
+                          Array<mfem::Element*>& elements,
+                          Array<mfem::Element*>& boundary);
 
-   void SetEdgeIndicesFromMesh(Mesh *mesh);
-   void SetFaceIndicesFromMesh(Mesh *mesh);
+   /** Get edge and face numbering from 'mesh' (i.e., set all Edge/Face::index).
+       Faces/edges not in 'mesh' (i.e., ghosts) get a negative index. */
+   void SetEdgeFaceIndicesFromMesh(Mesh *mesh);
 
    friend class Mesh;
 
@@ -179,7 +240,7 @@ protected: // implementation
    /** An NC mesh edge. Edges don't do much more than just exist. */
    struct Edge : public RefCount
    {
-      int attribute; ///< boundary element attribute, -1 if internal edge
+      int attribute; ///< boundary element attribute, -1 if internal edge (2D)
       int index;     ///< edge number in the Mesh
 
       Edge() : attribute(-1), index(-1) {}
@@ -250,6 +311,7 @@ protected: // implementation
        to its vertex nodes. */
    struct Element
    {
+      // TODO: char geom, char ref_type?
       int geom;     // Geometry::Type of the element
       int attribute;
       int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
@@ -312,7 +374,7 @@ protected: // implementation
    Node* GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4);
 
    int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
-                     Node* mid[4] = NULL /* optional output of mid-edge nodes*/);
+                     Node* mid[4] = NULL /* optional output of mid-edge nodes*/) const;
 
    void ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4);
 
@@ -367,7 +429,7 @@ protected: // implementation
    static int find_node(Element* elem, Node* node);
 
    void ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
-                            Element* elem, DenseMatrix& pm);
+                            Element* elem, DenseMatrix& mat) const;
 
    void AddDependencies(Array<int>& master_dofs, Array<int>& slave_dofs,
                         DenseMatrix& I);
@@ -385,6 +447,12 @@ protected: // implementation
    void ProcessMasterFace(Node* node[4], Face* face);
 
    bool DofFinalizable(DofData& vd);
+
+   void TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
+                     const PointMatrix& pm, FaceList &flist, int level) const;
+
+   Node* TraverseEdge(Node* v0, Node* v1, double t0, double t1,
+                      EdgeList &elist, int level) const;
 
 
    // coarse to fine transformations

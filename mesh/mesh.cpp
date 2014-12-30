@@ -5718,8 +5718,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    // create a second mesh containing the finest elements from 'ncmesh'
    Mesh* mesh2 = new Mesh(*ncmesh);
 
-   ncmesh->SetEdgeIndicesFromMesh(mesh2);
-   ncmesh->SetFaceIndicesFromMesh(mesh2);
+   ncmesh->SetEdgeFaceIndicesFromMesh(mesh2);
 
    // now swap the meshes, the second mesh will become the old coarse mesh
    // and this mesh will be the new fine mesh
@@ -5748,7 +5747,7 @@ Mesh::Mesh(NCMesh &ncmesh)
    Init();
    InitTables();
 
-   ncmesh.GetVerticesElementsBoundary(vertices, elements, boundary);
+   ncmesh.GetMeshComponents(vertices, elements, boundary);
 
    NumOfVertices = vertices.Size();
    NumOfElements = elements.Size();
