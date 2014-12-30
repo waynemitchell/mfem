@@ -526,86 +526,37 @@ FiniteElementSpace::H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes)
    return R;
 }
 
-/** Helper class to hold a list of dependencies for each nonconforming
-    DOF. Used by GetConformingInterpolation to build cP and cR. */
-class DofDependencies
+static void AddDependencies(SparseMatrix& deps, Array<int>& master_dofs,
+                            Array<int>& slave_dofs, DenseMatrix& I)
 {
-public:
-   struct Dependency
-   {
-      int dof;
-      double coef;
-      Dependency(int dof, double coef) : dof(dof), coef(coef) {}
-   };
-
-   typedef Array<Dependency> DepList;
-
-   DofDependencies(int ndofs) { dof_deps = new DofDeps[ndofs]; }
-   ~DofDependencies() { delete [] dof_deps; }
-
-   void AddDependencies(Array<int>& master_dofs, Array<int>& slave_dofs,
-                        DenseMatrix& I);
-
-   const DepList& GetDepList(int dof) const { return dof_deps[dof].dep_list; }
-
-   bool IsFinalized(int dof) const { return dof_deps[dof].finalized; }
-   bool IsFinalizable(int dof) const;
-   void Finalize(int dof) { dof_deps[dof].finalized = true; }
-
-   bool IsIndependent(int dof) const { return !dof_deps[dof].dep_list.Size(); }
-
-private:
-   struct DofDeps
-   {
-      bool finalized; ///< true if cP matrix row is known for this DOF
-      DepList dep_list; ///< list of other DOFs this DOF depends on
-      DofDeps() : finalized(false) {}
-   };
-
-   DofDeps* dof_deps;
-
-   inline int decode_dof(int dof, double& sign)
-   {
-      if (dof >= 0)
-         return (sign = 1.0, dof);
-      else
-         return (sign = -1.0, -1 - dof);
-   }
-};
-
-void DofDependencies::AddDependencies
-(Array<int>& master_dofs, Array<int>& slave_dofs, DenseMatrix& I)
-{
-   // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
    {
-      double ssign;
-      int sdof = decode_dof(slave_dofs[i], ssign);
-      DofDeps& sdeps = dof_deps[sdof];
-
-      if (!sdeps.dep_list.Size()) // not processed yet?
+      int sdof = slave_dofs[i];
+      if (!deps.RowSize(sdof)) // not processed yet?
       {
          for (int j = 0; j < master_dofs.Size(); j++)
          {
             double coef = I(i, j);
             if (std::abs(coef) > 1e-12)
             {
-               double msign;
-               int mdof = decode_dof(master_dofs[j], msign);
+               int mdof = master_dofs[j];
                if (mdof != sdof)
-                  sdeps.dep_list.Append(Dependency(mdof, coef * ssign * msign));
+                  deps.Add(sdof, mdof, coef);
             }
          }
       }
    }
 }
 
-bool DofDependencies::IsFinalizable(int dof) const
+static bool DofFinalizable(int dof, const Array<bool>& finalized,
+                           const SparseMatrix& deps)
 {
+   const int* dep = deps.GetRowColumns(dof);
+   int ndep = deps.RowSize(dof);
+
    // are all constraining DOFs finalized?
-   const DepList& dep_list = GetDepList(dof);
-   for (int i = 0; i < dep_list.Size(); i++)
-      if (!dof_deps[dep_list[i].dof].finalized)
+   for (int i = 0; i < ndep; i++)
+      if (!finalized[dep[i]])
          return false;
 
    return true;
@@ -614,7 +565,10 @@ bool DofDependencies::IsFinalizable(int dof) const
 void FiniteElementSpace::GetConformingInterpolation
 (const NCMesh::EdgeList &elist, const NCMesh::FaceList &flist)
 {
-   DofDependencies deps(ndofs);
+   // For each slave DOF, the dependency matrix will contain a row that
+   // expresses the slave DOF as a linear combination of its immediate master
+   // DOFs. Rows of independent DOFs will remain empty.
+   SparseMatrix deps(ndofs);
 
    Array<int> master_dofs, slave_dofs;
    const FiniteElement* fe;
@@ -644,8 +598,8 @@ void FiniteElementSpace::GetConformingInterpolation
             edge_T.GetPointMat() = se.point_matrix;
             fe->GetLocalInterpolation(edge_T, I);
 
-            // make each slave DOF dependent on all master face DOFs
-            deps.AddDependencies(master_dofs, slave_dofs, I);
+            // make each slave DOF dependent on all master edge DOFs
+            AddDependencies(deps, master_dofs, slave_dofs, I);
          }
       }
    }
@@ -676,15 +630,17 @@ void FiniteElementSpace::GetConformingInterpolation
             fe->GetLocalInterpolation(face_T, I);
 
             // make each slave DOF dependent on all master face DOFs
-            deps.AddDependencies(master_dofs, slave_dofs, I);
+            AddDependencies(deps, master_dofs, slave_dofs, I);
          }
       }
    }
 
+   deps.Finalize();
+
    // DOFs that stayed independent are true DOFs
    int n_true_dofs = 0;
    for (int i = 0; i < ndofs; i++)
-      if (deps.IsIndependent(i))
+      if (!deps.RowSize(i))
          n_true_dofs++;
 
    // if all dofs are true dofs leave cP and cR NULL
@@ -694,7 +650,7 @@ void FiniteElementSpace::GetConformingInterpolation
       return;
    }
 
-   // create the conforming restiction matrix
+   // create the conforming restriction matrix
    int *cR_J;
    {
       int *cR_I = new int[n_true_dofs+1];
@@ -712,16 +668,25 @@ void FiniteElementSpace::GetConformingInterpolation
    // create the conforming prolongation matrix
    cP = new SparseMatrix(ndofs, n_true_dofs);
 
+   Array<bool> finalized(ndofs);
+   finalized = false;
+
    // put identity in the restiction and prolongation matrices for true DOFs
    for (int i = 0, true_dof = 0; i < ndofs; i++)
-      if (deps.IsIndependent(i))
+      if (!deps.RowSize(i))
       {
          cR_J[true_dof] = i;
          cP->Add(i, true_dof++, 1.0);
-         deps.Finalize(i);
+         finalized[i] = true;
       }
 
-   // resolve (indirect) dependencies of slave DOFs
+   // Now calculate cP rows of slave DOFs as combinations of cP rows of their
+   // master DOFs. It is possible that some slave DOFs depend on DOFs that are
+   // themselves slaves. Here we resolve such indirect constraints by first
+   // calculating rows of the cP matrix for DOFs whose master DOF cP rows are
+   // already known (in the first iteration these are the true DOFs). In the
+   // second iteration, slaves of slaves can be 'finalized' (given a row in the
+   // cP matrix), in the third iteration slaves of slaves of slaves, etc.
    bool finished;
    int n_finalized = n_true_dofs;
    Array<int> cols;
@@ -729,20 +694,22 @@ void FiniteElementSpace::GetConformingInterpolation
    do
    {
       finished = true;
-      for (int i = 0; i < ndofs; i++)
+      for (int dof = 0; dof < ndofs; dof++)
       {
-         if (!deps.IsFinalized(i) && deps.IsFinalizable(i))
+         if (!finalized[dof] && DofFinalizable(dof, finalized, deps))
          {
-            const DofDependencies::DepList &dep_list = deps.GetDepList(i);
-            for (int j = 0; j < dep_list.Size(); j++)
+            const int* dep_col = deps.GetRowColumns(dof);
+            const double* dep_coef = deps.GetRowEntries(dof);
+            int n_dep = deps.RowSize(dof);
+
+            for (int j = 0; j < n_dep; j++)
             {
-               const DofDependencies::Dependency& dep = dep_list[j];
-               cP->GetRow(dep.dof, cols, srow);
-               srow *= dep.coef;
-               cP->AddRow(i, cols, srow);
+               cP->GetRow(dep_col[j], cols, srow);
+               srow *= dep_coef[j];
+               cP->AddRow(dof, cols, srow);
             }
 
-            deps.Finalize(i);
+            finalized[dof] = true;
             n_finalized++;
             finished = false;
          }

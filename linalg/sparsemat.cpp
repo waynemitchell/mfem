@@ -54,11 +54,15 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
 
 int SparseMatrix::RowSize(const int i) const
 {
+   int gi = i;
+   if (gi < 0)
+      gi = -1-gi;
+
    if (I)
-      return I[i+1]-I[i];
+      return I[gi+1]-I[gi];
 
    int s = 0;
-   RowNode *row = Rows[i];
+   RowNode *row = Rows[gi];
    for ( ; row != NULL; row = row->Prev)
       if (row->Value != 0.0)
          s++;
