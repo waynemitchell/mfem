@@ -215,7 +215,7 @@ HashTable<ItemT>::HashTable(int init_size)
 {
    mask = init_size-1;
    if (init_size & mask)
-      mfem_error("HashTable(): init_size size must be a power of two.");
+      MFEM_ABORT("HashTable(): init_size size must be a power of two.");
 
    table = new ItemT*[init_size];
    memset(table, 0, init_size * sizeof(ItemT*));
@@ -396,7 +396,7 @@ void HashTable<ItemT>::Unlink(ItemT* item)
       }
       ptr = &((*ptr)->next);
    }
-   mfem_error("HashTable<>::Unlink: item not found!");
+   MFEM_ABORT("HashTable<>::Unlink: item not found!");
 }
 
 template<typename ItemT>

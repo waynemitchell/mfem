@@ -31,7 +31,7 @@ namespace mfem
 struct Refinement
 {
    int index; ///< Mesh element number
-   int ref_type; ///< refinement XYZ bit mask (7 = full isotropic)
+   char ref_type; ///< refinement XYZ bit mask (7 = full isotropic)
 
    Refinement(int index, int type = 7)
       : index(index), ref_type(type) {}
@@ -79,10 +79,13 @@ public:
    /// Standard face.
    struct ConformingFace
    {
-      int index; ///< Mesh face number (negative for ghost faces in parallel)
+      int index; ///< Mesh face number
       int attribute;
+      int rank;  ///< owner processor (MPI)
 
-      ConformingFace(int index, int attr) : index(index), attribute(attr) {}
+      ConformingFace(int index, int attr, int rank = -1)
+         : index(index), attribute(attr), rank(rank) {}
+
       bool Boundary() const { return attribute >= 0; }
    };
 
@@ -90,21 +93,24 @@ public:
        stored in FaceList::slaves[i], slaves_begin <= i < slaves_end. */
    struct MasterFace
    {
-      int index; ///< Mesh face number (negative for ghosts)
+      int index; ///< Mesh face number
       int slaves_begin, slaves_end; ///< slave faces
+      int rank;  ///< owner processor (MPI)
 
-      MasterFace(int index, int sb, int se)
-         : index(index), slaves_begin(sb), slaves_end(se) {}
+      MasterFace(int index, int sb, int se, int rank = -1)
+         : index(index), slaves_begin(sb), slaves_end(se), rank(rank) {}
    };
 
    /// Nonconforming face within a bigger face.
    struct SlaveFace
    {
-      int index; ///< Mesh face number (negative for ghosts)
+      int index;  ///< Mesh face number
       int master; ///< master face number
+      int rank;   ///< owner processor (MPI)
       DenseMatrix point_matrix; ///< position within the master face
 
-      SlaveFace(int index) : index(index), master(-1), point_matrix() {}
+      SlaveFace(int index, int rank = -1)
+         : index(index), master(-1), rank(rank), point_matrix() {}
    };
 
    /** Lists all faces in the nonconforming mesh.
@@ -180,9 +186,10 @@ protected: // interface for Mesh to be able to construct itself from us
                           Array<mfem::Element*>& elements,
                           Array<mfem::Element*>& boundary);
 
-   /** Get edge and face numbering from 'mesh' (i.e., set all Edge/Face::index).
-       Faces/edges not in 'mesh' (i.e., ghosts) get a negative index. */
+   /// Get edge and face numbering from 'mesh' (i.e., set all Edge/Face::index).
    void SetEdgeFaceIndicesFromMesh(Mesh *mesh);
+   // virtual?
+   //Faces/edges not in 'mesh' (i.e., ghosts) get a negative index.
 
    friend class Mesh;
 
@@ -278,6 +285,7 @@ protected: // implementation
       { elem[0] = elem[1] = NULL; }
 
       bool Boundary() const { return attribute >= 0; }
+      int Rank() const;
 
       // add or remove an element from the 'elem[2]' array
       void RegisterElement(Element* e);
@@ -295,18 +303,19 @@ protected: // implementation
        to its vertex nodes. */
    struct Element
    {
-      // TODO: char geom, char ref_type?
-      int geom;     // Geometry::Type of the element
+      char geom;     ///< Geometry::Type of the element
+      char ref_type; ///< bit mask of X,Y,Z refinements (bits 0,1,2 respectively)
+      int index;     ///< element number in the Mesh, -1 if refined or ghost
+      int rank;      ///< processor number (ParNCMesh)
       int attribute;
-      int ref_type; // bit mask of X,Y,Z refinements (bits 0,1,2, respectively)
-      int index;    // element number in the Mesh, -1 if refined
       union
       {
-         Node* node[8];  // element corners (if ref_type == 0)
-         Element* child[8]; // 2-8 children (if ref_type != 0)
+         Node* node[8];  ///< element corners (if ref_type == 0)
+         Element* child[8]; ///< 2-8 children (if ref_type != 0)
       };
 
       Element(int geom, int attr);
+      bool Ghost() const { return index < 0; }
    };
 
    Array<Element*> root_elements; // initialized by constructor
@@ -321,7 +330,7 @@ protected: // implementation
    struct RefStackItem
    {
       Element* elem;
-      int ref_type;
+      char ref_type;
 
       RefStackItem(Element* elem, int type)
          : elem(elem), ref_type(type) {}
@@ -329,12 +338,14 @@ protected: // implementation
 
    Array<RefStackItem> ref_stack; ///< stack of scheduled refinements
 
-   void Refine(Element* elem, int ref_type);
+   void Refine(Element* elem, char ref_type);
 
    void UpdateVertices(); // update the indices of vertices and vertex_nodeId
 
-   void GetLeafElements(Element* e);
+   void CollectLeafElements(Element* elem);
    void UpdateLeafElements();
+
+   virtual void AssignLeafIndices();
 
    void DeleteHierarchy(Element* elem);
 

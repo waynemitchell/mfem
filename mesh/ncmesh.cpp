@@ -22,7 +22,7 @@ namespace mfem
     (triangles, quads, cubes) */
 struct GeomInfo
 {
-   int nv, ne, nf, nfv; // number of: vertices, edge, faces, face vertices
+   int nv, ne, nf, nfv; // number of: vertices, edges, faces, face vertices
    int edges[12][2];    // edge vertices (up to 12 edges)
    int faces[6][4];     // face vertices (up to 6 faces)
 
@@ -305,6 +305,19 @@ NCMesh::Element* NCMesh::Face::GetSingleElement() const
    }
 }
 
+int NCMesh::Face::Rank() const
+{
+   // face rank is the smaller of ranks of its elements
+   if (elem[0] && elem[1])
+      return std::min(elem[0]->rank, elem[1]->rank);
+   else if (elem[0])
+      return elem[0]->rank;
+   else if (elem[1])
+      return elem[1]->rank;
+   else
+      return -1;
+}
+
 NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
 {
    Node* mid = nodes.Peek(v1, v2);
@@ -356,7 +369,7 @@ NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
 //// Refinement & Derefinement /////////////////////////////////////////////////
 
 NCMesh::Element::Element(int geom, int attr)
-   : geom(geom), attribute(attr), ref_type(0), index(-1)
+   : geom(geom), ref_type(0), index(-1), rank(-1), attribute(attr)
 {
    memset(node, 0, sizeof(node));
 
@@ -612,14 +625,14 @@ void NCMesh::CheckIsoFace(Node* v1, Node* v2, Node* v3, Node* v4,
 }
 
 
-void NCMesh::Refine(Element* elem, int ref_type)
+void NCMesh::Refine(Element* elem, char ref_type)
 {
    if (!ref_type) return;
 
    // handle elements that may have been (force-) refined already
    if (elem->ref_type)
    {
-      int remaining = ref_type & ~elem->ref_type;
+      char remaining = ref_type & ~elem->ref_type;
 
       // do the remaining splits on the children
       for (int i = 0; i < 8; i++)
@@ -995,9 +1008,15 @@ void NCMesh::Refine(Element* elem, int ref_type)
       if (child[i])
          RegisterFaces(child[i]);
 
+   // make the children inherit our rank
+   for (int i = 0; i < 8; i++)
+      if (child[i])
+         child[i]->rank = elem->rank;
+
    // finish the refinement
    elem->ref_type = ref_type;
    memcpy(elem->child, child, sizeof(elem->child));
+   elem->rank = -1;
 }
 
 
@@ -1063,28 +1082,36 @@ void NCMesh::UpdateVertices()
          vertex_nodeId[num_vert++] = it->id;
 }
 
-void NCMesh::GetLeafElements(Element* e)
+void NCMesh::CollectLeafElements(Element* elem)
 {
-   if (!e->ref_type)
+   if (!elem->ref_type)
    {
-      e->index = leaf_elements.Size();
-      leaf_elements.Append(e);
+      leaf_elements.Append(elem);
    }
    else
    {
-      e->index = -1;
       for (int i = 0; i < 8; i++)
-         if (e->child[i])
-            GetLeafElements(e->child[i]);
+         if (elem->child[i])
+            CollectLeafElements(elem->child[i]);
    }
+   elem->index = -1;
 }
 
 void NCMesh::UpdateLeafElements()
 {
-   // collect leaf elements
+   // collect leaf elements from all roots
    leaf_elements.SetSize(0);
    for (int i = 0; i < root_elements.Size(); i++)
-      GetLeafElements(root_elements[i]);
+      CollectLeafElements(root_elements[i]);
+
+   AssignLeafIndices();
+}
+
+void NCMesh::AssignLeafIndices()
+{
+   // (overridden in ParNCMesh to assign -1 to ghosts)
+   for (int i = 0; i < leaf_elements.Size(); i++)
+      leaf_elements[i]->index = i;
 }
 
 void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
@@ -1104,6 +1131,8 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* nc_elem = leaf_elements[i];
+      if (nc_elem->Ghost()) continue; // (MPI)
+
       Node** node = nc_elem->node;
       GeomInfo& gi = GI[nc_elem->geom];
 
@@ -1182,8 +1211,6 @@ void NCMesh::SetEdgeFaceIndicesFromMesh(Mesh *mesh)
       MFEM_ASSERT(face, "Face not found.");
       face->index = i;
    }
-
-   // TODO: assign ghost indices
 }
 
 
@@ -1277,10 +1304,11 @@ void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
    if (level > 0)
    {
       // check if we made it to a face that is not split further
-      if (Face* face = faces.Peek(v0, v1, v2, v3))
+      Face* face = faces.Peek(v0, v1, v2, v3);
+      if (face)
       {
          // we have a slave face, add it to the list
-         flist.slaves.push_back(SlaveFace(face->index));
+         flist.slaves.push_back(SlaveFace(face->index, face->Rank()));
          DenseMatrix &mat(flist.slaves.back().point_matrix);
          pm.GetMatrix(mat);
 
@@ -1343,7 +1371,8 @@ void NCMesh::BuildFaceList(FaceList &flist) const
          if (face->ref_count == 2 || face->Boundary())
          {
             // this is a conforming face, add it to the list
-            flist.cfaces.push_back(ConformingFace(face->index, face->attribute));
+            flist.cfaces.push_back(
+               ConformingFace(face->index, face->attribute, face->Rank()));
          }
          else
          {
@@ -1358,7 +1387,8 @@ void NCMesh::BuildFaceList(FaceList &flist) const
             if (sb < se)
             {
                // found slaves, so this is a master face; add it to the list
-               flist.masters.push_back(MasterFace(face->index, sb, se));
+               flist.masters.push_back(
+                  MasterFace(face->index, sb, se, face->Rank()));
 
                // also, set the master index for the slaves
                for (int i = sb; i < se; i++)
@@ -1448,6 +1478,8 @@ void NCMesh::BuildEdgeList(EdgeList &elist) const
          }
       }
    }
+
+   // TODO: edge ranks
 }
 
 
@@ -1854,7 +1886,7 @@ void NCMesh::LimitNCLevel(int max_level)
          int splits[3];
          CountSplits(leaf_elements[i], splits);
 
-         int ref_type = 0;
+         char ref_type = 0;
          for (int k = 0; k < 3; k++)
             if (splits[k] > max_level)
                ref_type |= (1 << k);
