@@ -102,6 +102,178 @@ void IterativeSolver::SetOperator(const Operator &op)
 }
 
 
+void SLISolver::UpdateVectors()
+{
+   r.SetSize(width);
+   z.SetSize(width);
+}
+
+void SLISolver::Mult(const Vector &b, Vector &x) const
+{
+   int i;
+
+   // Optimized preconditioned SLI with fixed number of iterations and given
+   // initial guess
+   if (!rel_tol && iterative_mode && prec)
+   {
+      for (i = 0; i < max_iter; i++)
+      {
+         oper->Mult(x, r);  // r = A x
+         subtract(b, r, r); // r = b - A x
+         prec->Mult(r, z);  // z = B r
+         add(x, 1.0, z, x); // x = x + B (b - A x)
+      }
+      converged = 1;
+      final_iter = i;
+      return;
+   }
+
+   // Optimized preconditioned SLI with fixed number of iterations and zero
+   // initial guess
+   if (!rel_tol && !iterative_mode && prec)
+   {
+      prec->Mult(b, x);     // x = B b (initial guess 0)
+      for (i = 1; i < max_iter; i++)
+      {
+         oper->Mult(x, r);  // r = A x
+         subtract(b, r, r); // r = b - A x
+         prec->Mult(r, z);  // z = B r
+         add(x, 1.0, z, x); // x = x + B (b - A x)
+      }
+      converged = 1;
+      final_iter = i;
+      return;
+   }
+
+   // General version of SLI with a relative tolerance, optional preconditioner
+   // and optional initial guess
+   double r0, nom, nom0, nomold = 1, cf;
+
+   if (iterative_mode)
+   {
+      oper->Mult(x, r);
+      subtract(b, r, r); // r = b - A x
+   }
+   else
+   {
+      r = b;
+      x = 0.0;
+   }
+
+   if (prec)
+   {
+      prec->Mult(r, z); // z = B r
+      nom0 = nom = Dot(z, r);
+   }
+   else
+   {
+      nom0 = nom = Dot(r, r);
+   }
+
+   if (print_level == 1)
+      cout << "   Iteration : " << setw(3) << 0 << "  (B r, r) = "
+           << nom << '\n';
+
+   r0 = fmax(nom*rel_tol*rel_tol, abs_tol*abs_tol);
+   if (nom <= r0)
+   {
+      converged = 1;
+      final_iter = 0;
+      final_norm = sqrt(nom);
+      return;
+   }
+
+   // start iteration
+   converged = 0;
+   final_iter = max_iter;
+   for (i = 1; true; )
+   {
+      if (prec) //  x = x + B (b - A x)
+         add(x, 1.0, z, x);
+      else
+         add(x, 1.0, r, x);
+
+      oper->Mult(x, r);
+      subtract(b, r, r); // r = b - A x
+
+      if (prec)
+      {
+         prec->Mult(r, z); //  z = B r
+         nom = Dot(z, r);
+      }
+      else
+      {
+         nom = Dot(r, r);
+      }
+
+      cf = sqrt(nom/nomold);
+      if (print_level == 1)
+         cout << "   Iteration : " << setw(3) << i << "  (B r, r) = "
+              << nom << "\tConv. rate: " << cf << '\n';
+      nomold = nom;
+
+      if (nom < r0)
+      {
+         if (print_level == 2)
+            cout << "Number of SLI iterations: " << i << '\n'
+                 << "Conv. rate: " << cf << '\n';
+         else
+            if (print_level == 3)
+               cout << "(B r_0, r_0) = " << nom0 << '\n'
+                    << "(B r_N, r_N) = " << nom << '\n'
+                    << "Number of SLI iterations: " << i << '\n';
+         converged = 1;
+         final_iter = i;
+         break;
+      }
+
+      if (++i > max_iter)
+         break;
+   }
+
+   if (print_level >= 0 && !converged)
+   {
+      cerr << "SLI: No convergence!" << '\n';
+      cout << "(B r_0, r_0) = " << nom0 << '\n'
+           << "(B r_N, r_N) = " << nom << '\n'
+           << "Number of SLI iterations: " << final_iter << '\n';
+   }
+   if (print_level >= 1 || (print_level >= 0 && !converged))
+   {
+      cout << "Average reduction factor = "
+           << pow (nom/nom0, 0.5/final_iter) << '\n';
+   }
+   final_norm = sqrt(nom);
+}
+
+void SLI(const Operator &A, const Vector &b, Vector &x,
+	 int print_iter, int max_num_iter,
+	 double RTOLERANCE, double ATOLERANCE)
+{
+   SLISolver sli;
+   sli.SetPrintLevel(print_iter);
+   sli.SetMaxIter(max_num_iter);
+   sli.SetRelTol(sqrt(RTOLERANCE));
+   sli.SetAbsTol(sqrt(ATOLERANCE));
+   sli.SetOperator(A);
+   sli.Mult(b, x);
+}
+
+void SLI(const Operator &A, Solver &B, const Vector &b, Vector &x,
+         int print_iter, int max_num_iter,
+         double RTOLERANCE, double ATOLERANCE)
+{
+   SLISolver sli;
+   sli.SetPrintLevel(print_iter);
+   sli.SetMaxIter(max_num_iter);
+   sli.SetRelTol(sqrt(RTOLERANCE));
+   sli.SetAbsTol(sqrt(ATOLERANCE));
+   sli.SetOperator(A);
+   sli.SetPreconditioner(B);
+   sli.Mult(b, x);
+}
+
+
 void CGSolver::UpdateVectors()
 {
    r.SetSize(width);
@@ -1108,63 +1280,6 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
    return 1;
 }
 
-
-// Preconditioned stationary linear iteration
-void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
-         int print_iter, int max_num_iter, double RTOLERANCE, double ATOLERANCE)
-{
-   int i, dim = x.Size();
-   double r0, nom, nomold = 1, nom0, cf;
-   Vector r(dim),  z(dim);
-
-   r0 = -1.0;
-
-   for(i = 1; i < max_num_iter ; i++) {
-      A.Mult(x, r);         //    r = A x
-      subtract(b, r, r);    //    r = b  - A x
-      B.Mult(r, z);         //    z = B r
-
-      nom = z * r;
-
-      if (r0 == -1.0) {
-         nom0 = nom;
-         r0 = nom * RTOLERANCE;
-         if (r0 < ATOLERANCE) r0 = ATOLERANCE;
-      }
-
-      cf = sqrt(nom/nomold);
-      if (print_iter == 1) {
-         cout << "   Iteration : " << setw(3) << i << "  (B r, r) = "
-              << nom;
-         if (i > 1)
-            cout << "\tConv. rate: " << cf;
-         cout << '\n';
-      }
-      nomold = nom;
-
-      if (nom < r0) {
-         if (print_iter == 2)
-            cout << "Number of iterations: " << i << '\n'
-                 << "Conv. rate: " << cf << '\n';
-         else
-            if (print_iter == 3)
-               cout << "(B r_0, r_0) = " << nom0 << '\n'
-                    << "(B r_N, r_N) = " << nom << '\n'
-                    << "Number of iterations: " << i << '\n';
-         break;
-      }
-
-      add(x, 1.0, z, x);  //  x = x + B (b - A x)
-   }
-
-   if (i == max_num_iter)
-   {
-      cerr << "No convergence!" << '\n';
-      cout << "(B r_0, r_0) = " << nom0 << '\n'
-           << "(B r_N, r_N) = " << nom << '\n'
-           << "Number of iterations: " << i << '\n';
-   }
-}
 
 void SLBQPOptimizer::SetBounds(const Vector &_lo, const Vector &_hi)
 {
