@@ -305,19 +305,6 @@ NCMesh::Element* NCMesh::Face::GetSingleElement() const
    }
 }
 
-int NCMesh::Face::Rank() const
-{
-   // face rank is the smaller of ranks of its elements
-   if (elem[0] && elem[1])
-      return std::min(elem[0]->rank, elem[1]->rank);
-   else if (elem[0])
-      return elem[0]->rank;
-   else if (elem[1])
-      return elem[1]->rank;
-   else
-      return -1;
-}
-
 NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
 {
    Node* mid = nodes.Peek(v1, v2);
@@ -1189,7 +1176,7 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
    }
 }
 
-void NCMesh::SetEdgeFaceIndicesFromMesh(Mesh *mesh)
+void NCMesh::OnMeshUpdated(Mesh *mesh)
 {
    Table *edge_vertex = mesh->GetEdgeVertexTable();
 
@@ -1308,7 +1295,7 @@ void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
       if (face)
       {
          // we have a slave face, add it to the list
-         flist.slaves.push_back(SlaveFace(face->index, face->Rank()));
+         flist.slaves.push_back(SlaveFace(face->index));
          DenseMatrix &mat(flist.slaves.back().point_matrix);
          pm.GetMatrix(mat);
 
@@ -1372,7 +1359,7 @@ void NCMesh::BuildFaceList(FaceList &flist) const
          {
             // this is a conforming face, add it to the list
             flist.cfaces.push_back(
-               ConformingFace(face->index, face->attribute, face->Rank()));
+               ConformingFace(face->index, elem, j, face->attribute));
          }
          else
          {
@@ -1387,8 +1374,7 @@ void NCMesh::BuildFaceList(FaceList &flist) const
             if (sb < se)
             {
                // found slaves, so this is a master face; add it to the list
-               flist.masters.push_back(
-                  MasterFace(face->index, sb, se, face->Rank()));
+               flist.masters.push_back(MasterFace(face->index, elem, j, sb, se));
 
                // also, set the master index for the slaves
                for (int i = sb; i < se; i++)
@@ -1409,7 +1395,7 @@ NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1,
    if (mid->edge && level > 0)
    {
       // we have a slave edge, add it to the list
-      elist.slaves.push_back(SlaveFace(mid->edge->index));
+      elist.slaves.push_back(SlaveEdge(mid->edge->index));
 
       DenseMatrix& mat = elist.slaves.back().point_matrix;
       mat.SetSize(1, 2);
@@ -1460,7 +1446,8 @@ void NCMesh::BuildEdgeList(EdgeList &elist) const
          if (sb < se)
          {
             // found slaves, this is a master face; add it to the list
-            elist.masters.push_back(MasterFace(edge->edge->index, sb, se));
+            elist.masters.push_back(
+               MasterEdge(edge->edge->index, elem, j, sb, se));
 
             // also, set the master index for the slaves
             for (int i = sb; i < se; i++)
@@ -1472,14 +1459,12 @@ void NCMesh::BuildEdgeList(EdgeList &elist) const
          {
             // no slaves, this is a conforming edge
             elist.cedges.push_back(
-               ConformingFace(edge->edge->index, edge->edge->attribute));
+               ConformingEdge(edge->edge->index, elem, j, edge->edge->attribute));
 
             // FIXME: check for duplicates in elist.cedges!!!
          }
       }
    }
-
-   // TODO: edge ranks
 }
 
 

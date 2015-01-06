@@ -5718,7 +5718,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    // create a second mesh containing the finest elements from 'ncmesh'
    Mesh* mesh2 = new Mesh(*ncmesh);
 
-   ncmesh->SetEdgeFaceIndicesFromMesh(mesh2);
+   ncmesh->OnMeshUpdated(mesh2);
 
    // now swap the meshes, the second mesh will become the old coarse mesh
    // and this mesh will be the new fine mesh

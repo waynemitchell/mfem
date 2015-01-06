@@ -16,43 +16,13 @@
 #include "mesh_headers.hpp"
 #include "pncmesh.hpp"
 
+#include <map>
+
 namespace mfem
 {
 
-void ElementId::ToBuffer(uint8_t*& buffer) const
-{
-   MFEM_ASSERT(root_index < (1 << 24) && length <= 0xff, "");
-
-   int root = root_index;
-   *buffer++ = (uint8_t) root;
-   root >>= 8;
-   *buffer++ = (uint8_t) root;
-   root >>= 8;
-   *buffer++ = (uint8_t) root;
-
-   *buffer++ = (uint8_t) length;
-   int bytes = (length + 1) & 0x1;
-   for (int i = 0; i < bytes; i++)
-      *buffer++ = path[i];
-}
-
-void ElementId::FromBuffer(uint8_t*& buffer)
-{
-   root_index = *buffer++;
-   root_index <= 8;
-   root_index |= *buffer++;
-   root_index << 8;
-   root_index |= *buffer++;
-
-   length = *buffer++;
-   int bytes = (length + 1) & 0x1;
-   for (int i = 0; i < bytes; i++)
-      path[i] = *buffer++;
-}
-
-
 ParNCMesh::ParNCMesh(MPI_Comm comm, const Mesh *coarse_mesh)
-   : NCMesh(coarse_mesh)
+   : NCMesh(coarse_mesh), gtopo(comm)
 {
    MyComm = comm;
    MPI_Comm_size(MyComm, &NRanks);
@@ -68,31 +38,6 @@ void ParNCMesh::InitialPartition()
    int n = leaf_elements.Size();
    for (int i = 0; i < n; i++)
       leaf_elements[i]->rank = i * NRanks / n;
-}
-
-void ParNCMesh::CollectLeafElements(Element* elem)
-{
-   // This function is an override of its serial version, called from
-   // UpdateLeafElements. The only difference is that this version doesn't
-   // assign elem->index to ghost elements, which will prevent them from getting
-   // into the Mesh (see NCMesh::GetMeshComponents).
-
-   if (!elem->ref_type)
-   {
-      if (elem->rank != MyRank)
-         elem->index = -1;
-      else
-         elem->index = leaf_elements.Size();
-
-      leaf_elements.Append(elem);
-   }
-   else
-   {
-      elem->index = -1;
-      for (int i = 0; i < 8; i++)
-         if (elem->child[i])
-            CollectLeafElements(elem->child[i]);
-   }
 }
 
 void ParNCMesh::AssignLeafIndices()
@@ -111,8 +56,248 @@ void ParNCMesh::AssignLeafIndices()
    }
 }
 
+void ParNCMesh::OnMeshUpdated(Mesh *mesh)
+{
+   // This is an override (or extension of) NCMesh::OnMeshUpdated().
+   // In addition to getting edge/face indices from 'mesh', we also
+   // assign indices to ghost edges/faces that don't exist in the 'mesh'.
 
+   // clear Edge:: and Face::index
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->edge) it->edge->index = -1;
+   for (HashTable<Face>::Iterator it(faces); it; ++it)
+      it->index = -1;
 
+   // go assign existing edge/face indices
+   NCMesh::OnMeshUpdated(mesh);
+
+   // assign ghost edge indices
+   NEdges = mesh->GetNEdges();
+   NGhostEdges = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->edge && it->edge->index < 0)
+         it->edge->index = NEdges + (NGhostEdges++);
+
+   // assign ghost face indices
+   NFaces = mesh->GetNFaces();
+   NGhostFaces = 0;
+   for (HashTable<Face>::Iterator it(faces); it; ++it)
+      if (it->index < 0)
+         it->index = NFaces + (NGhostFaces++);
+
+   CreateGroups();
+}
+
+void ParNCMesh::CreateGroups()
+{
+   // TODO
+}
+
+void ParNCMesh::ElementSet::SetInt(int pos, int value)
+{
+   // helper to put an int to the data array
+   data[pos] = value & 0xff;
+   data[pos+1] = (value >> 8) & 0xff;
+   data[pos+2] = (value >> 16) & 0xff;
+   data[pos+3] = (value >> 24) & 0xff;
+}
+
+int ParNCMesh::ElementSet::GetInt(int pos) const
+{
+   // helper to get an int from the data array
+   return (int) data[pos] +
+          ((int) data[pos+1] << 8) +
+          ((int) data[pos+2] << 16) +
+          ((int) data[pos+3] << 24);
+}
+
+bool ParNCMesh::ElementSet::EncodeTree
+(Element* elem, const std::set<Element*> &elements)
+{
+   // is 'elem' in the set?
+   if (elements.find(elem) != elements.end())
+   {
+      // we reached a 'leaf' of our subtree, mark this as zero child mask
+      data.Append(0);
+      return true;
+   }
+   else if (elem->ref_type)
+   {
+      // write a bit mask telling what subtrees contain elements from the set
+      data.Append(0);
+      unsigned char& mask = data.Last();
+
+      // check the subtrees
+      for (int i = 0; i < 8; i++)
+         if (elem->child[i])
+            if (EncodeTree(elem->child[i], elements))
+               mask |= (unsigned char) 1 << i;
+
+      // if we found no elements don't write anything
+      if (!mask)
+         data.DeleteLast();
+
+      return mask != 0;
+   }
+   return false;
+}
+
+ParNCMesh::ElementSet::ElementSet
+(const std::set<Element*> &elements, const Array<Element*> &ncmesh_roots)
+{
+   int header_pos = 0;
+   data.SetSize(4);
+
+   // Each refinement tree that contains at least one element from the set
+   // is encoded as HEADER + TREE, where HEADER is the root element number and
+   // TREE is the output of EncodeTree().
+   for (int i = 0; i < ncmesh_roots.Size(); i++)
+   {
+      if (EncodeTree(ncmesh_roots[i], elements))
+      {
+         SetInt(header_pos, i);
+
+         // make room for the next header
+         header_pos = data.Size();
+         data.SetSize(header_pos + 4);
+      }
+   }
+
+   // mark end of data
+   SetInt(header_pos, -1);
+}
+
+void ParNCMesh::ElementSet::DecodeTree
+(Element* elem, int &pos, Array<Element*> &elements) const
+{
+   int mask = data[pos++];
+   if (!mask)
+   {
+      elements.Append(elem);
+   }
+   else
+   {
+      for (int i = 0; i < 8; i++)
+         if (mask & (1 << i))
+            DecodeTree(elem->child[i], pos, elements);
+   }
+}
+
+void ParNCMesh::ElementSet::Get
+(Array<Element*> &elements, const Array<Element*> &ncmesh_roots) const
+{
+   int root, pos = 0;
+   while ((root = GetInt(pos)) >= 0)
+   {
+      pos += 4;
+      DecodeTree(ncmesh_roots[root], pos, elements);
+   }
+}
+
+template<typename T>
+static void write(std::ostream& os, T value)
+{
+   os.write((char*) &value, sizeof(T));
+}
+
+template<typename T>
+static T read(std::istream& is)
+{
+   T value;
+   is.read((char*) &value, sizeof(T));
+   return value;
+}
+
+void ParNCMesh::EncodeEdgesFaces
+(const Array<EdgeId> &edges, const Array<FaceId> &faces, std::ostream &os)
+{
+   std::map<Element*, int> element_id;
+
+   // get a list of elements involved, dump them to 'os' and create the mapping
+   // element_id: (Element* -> stream ID)
+   {
+      std::set<Element*> elements;
+      for (int i = 0; i < edges.Size(); i++)
+         elements.insert(edges[i].element);
+      for (int i = 0; i < faces.Size(); i++)
+         elements.insert(faces[i].element);
+
+      ElementSet eset(elements, root_elements);
+      eset.Dump(os);
+
+      Array<Element*> decoded;
+      eset.Get(decoded, root_elements);
+
+      for (int i = 0; i < decoded.Size(); i++)
+         element_id[decoded[i]] = i;
+   }
+
+   // write edges
+   write<int>(os, edges.Size());
+   for (int i = 0; i < edges.Size(); i++)
+   {
+      write<int>(os, element_id[edges[i].element]);
+      write<char>(os, edges[i].local);
+   }
+
+   // write faces
+   write<int>(os, faces.Size());
+   for (int i = 0; i < faces.Size(); i++)
+   {
+      write<int>(os, element_id[faces[i].element]);
+      write<char>(os, faces[i].local);
+   }
+}
+
+void ParNCMesh::DecodeEdgesFaces
+(Array<EdgeId> &edges, Array<FaceId> &faces, std::istream &is)
+{
+   // read the list of elements
+   ElementSet eset(is);
+
+   Array<Element*> elements;
+   eset.Get(elements, root_elements);
+
+/*   // read edges
+   int ne = read<int>(is);
+   edges.SetSize(ne);
+   for (int i = 0; i < ne; i++)
+   {
+      Element* elem = elements[read<int>(is)];
+      MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
+
+      EdgeId &eid = edges[i];
+      eid.element = elem;
+      eid.local = read<char>(is);
+
+      const int* ev = GI[elem->geom].edges[eid.local];
+      Node* node = nodes.Peek(elem->node[ev[0]], elem->node[ev[1]]);
+
+      MFEM_ASSERT(node && node->edge, "Edge not found.");
+      eid.index = node->edge->index;
+   }
+
+   // read faces
+   int nf = read<int>(is);
+   faces.SetSize(nf);
+   for (int i = 0; i < nf; i++)
+   {
+      Element* elem = elements[read<int>(is)];
+      MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
+
+      FaceId &fid = faces[i];
+      fid.element = elem;
+      fid.local = read<char>(is);
+
+      const int* fv = GI[elem->geom].faces[fid.local];
+      Face* face = this->faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
+                                    elem->node[fv[2]], elem->node[fv[3]]);
+
+      MFEM_ASSERT(face, "Face not found.");
+      fid.index = face->index;
+   }*/
+   // TODO: GI
+}
 
 } // namespace mfem
 

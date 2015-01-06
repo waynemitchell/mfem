@@ -6,63 +6,13 @@
 #ifdef MFEM_USE_MPI
 
 #include <cstring>
-#include <stdint.h> // <cstdint>
+#include <set>
 
 #include "ncmesh.hpp"
+#include "../general/communication.hpp"
 
 namespace mfem
 {
-
-/** Represents a unique leaf element ID, expressed as a root (coarse)
- *  element index and a refinement path to the leaf. Used to identify
- *  elements/refinements across processors. The path is stored as a sequence
- *  of child numbers, each taking half a uint8_t (i.e., elements can have
- *  up to 16 children).
- */
-class ElementId
-{
-   int root_index;
-   enum { PathBytes = 24 };
-   uint8_t path[PathBytes];
-   int length;
-
-public:
-   /// Initialize path root, set path length to zero.
-   ElementId(int root_index)
-      : root_index(root_index), length(0)
-   {
-      std::memset(path, 0, sizeof(path));
-   }
-
-   /// Return path length.
-   int Length() const { return length; }
-
-   /// Append child index to the refinement path.
-   void AppendPath(int child)
-   {
-      if (length >= PathBytes*2)
-         MFEM_ABORT("Refinement path too long, increase PathBytes.");
-
-      path[length / 2] |= (uint8_t) (child << (4*(length & 1)));
-      length++;
-   }
-
-   /// Return child index at path position 'pos', 0 <= pos < Length().
-   int GetChild(int pos) const
-   {
-      return (path[pos / 2] >> (4*(pos & 1))) & 0xf;
-   }
-
-   /// Dump content to a buffer, update buffer pointer.
-   void ToBuffer(uint8_t*& buffer) const;
-
-   /// Load content from a buffer, update buffer pointer.
-   void FromBuffer(uint8_t*& buffer);
-
-   /// Return the maximum number of bytes 'ToBuffer' will ever write.
-   int MaxBufferBytes() const { return 3 + 1 + PathBytes; }
-};
-
 
 /** \brief
  *
@@ -72,18 +22,104 @@ class ParNCMesh : public NCMesh
 public:
    ParNCMesh(MPI_Comm comm, const Mesh* coarse_mesh);
 
+   int EdgeOwner(int index) const { return gtopo.GetGroup(edge_group[index])[0]; }
+   int FaceOwner(int index) const { return gtopo.GetGroup(face_group[index])[0]; }
+
+   bool IsGhostEdge(int index) const { return index >= NEdges; }
+   bool IsGhostFace(int index) const { return index >= NFaces; }
+
+   void EncodeEdgesFaces(const Array<EdgeId> &edges, const Array<FaceId> &faces,
+                         std::ostream &os);
+
+   void DecodeEdgesFaces(Array<EdgeId> &edges, Array<FaceId> &faces,
+                         std::istream &is);
+
+
 protected:
 
    MPI_Comm MyComm;
    int NRanks, MyRank;
 
+   int NEdges, NGhostEdges;
+   int NFaces, NGhostFaces;
+
+   GroupTopology gtopo;
+
+   Array<int> face_group;
+   Array<int> edge_group;
+
    void InitialPartition();
 
    virtual void AssignLeafIndices(); // override
 
+   virtual void OnMeshUpdated(Mesh *mesh); // override
+
+   void CreateGroups();
+
+
+   /** Uniquely encodes a set of elements in the refinement hierarchy of an
+       NCMesh. Can be dumped to a stream, sent to another processor, loaded,
+       and decoded to identify the same set of elements (refinements) in a
+       different but compatible NCMesh. The elements don't have to be leaves,
+       but they must represent subtrees of 'ncmesh_roots'. */
+   class ElementSet
+   {
+   public:
+      ElementSet(const std::set<Element*> &elements,
+                 const Array<Element*> &ncmesh_roots);
+      void Dump(std::ostream &os) const;
+
+      ElementSet() {}
+      ElementSet(std::istream &is) { Load(is); }
+      void Load(std::istream &is);
+      void Get(Array<Element*> &elements,
+               const Array<Element*> &ncmesh_roots) const;
+
+   protected:
+      Array<unsigned char> data; ///< encoded refinement (sub-)trees
+
+      bool EncodeTree(Element* elem, const std::set<Element*> &elements);
+      void DecodeTree(Element* elem, int &pos, Array<Element*> &elements) const;
+
+      void SetInt(int pos, int value);
+      int GetInt(int pos) const;
+   };
 
 };
 
+/*
+NOTES
+
+- parallel Dependency (ParFiniteElementSpace): {cdof, rank, coef}
+- 1-to-1 dependencies, dep_list.Size() == 1, can be overruled by standard NC
+  dependencies
+
+P MATRIX ALGORITHM
+
+Phase 1 -- create dependency lists
+- for each master face/edge, send cdofs if slave rank different
+  (cdofs to be sent collected in a message for each neighbor)
+- for shared conforming edges/faces send cdofs if owner
+- for each slave/conforming non-owner, mark processors to receive from
+- actually send/receive the messages
+- local depencency algo as in serial, get cdofs from nonlocal faces/edges
+  from the messages
+- collect 1-to-1 deps for conforming from the messages
+
+Phase 2 -- construct P matrix
+- mark cdofs with empty deps as tdofs
+- create P matrix as diag, offd SparseMatrix
+- schedule recv from neighbors that own P rows we need
+- loop
+  - finalize cdofs that can be finalized locally, send (combinations of) P rows
+    to neighbors that need them
+  - wait for rows from neighbors
+
+MESSAGE (Phase 1)
+- list of {edge/face id, cdofs} + ElementSet
+- searchable by edge/face index
+
+*/
 
 } // namespace mfem
 

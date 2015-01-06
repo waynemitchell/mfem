@@ -58,6 +58,9 @@ struct Refinement
  */
 class NCMesh
 {
+protected:
+   struct Element; // forward
+
 public:
    NCMesh(const Mesh *coarse_mesh);
 
@@ -76,45 +79,49 @@ public:
        of hanging nodes is not greater than 'max_level'. */
    void LimitNCLevel(int max_level);
 
-   /// Standard face.
-   struct ConformingFace
+   /** Base class for all conforming/master/slave face types. Identifies a face
+       in both Mesh and NCMesh. */
+   struct FaceId
    {
       int index; ///< Mesh face number
+      int local; ///< local face number within 'element'
+      Element* element; ///< NCMesh::Element containing this face
+
+      FaceId(int index = -1, Element* element = NULL, int local = -1)
+         : index(index), local(local), element(element) {}
+   };
+
+   /// Standard face.
+   struct ConformingFace : public FaceId
+   {
       int attribute;
-      int rank;  ///< owner processor (MPI)
-
-      ConformingFace(int index, int attr, int rank = -1)
-         : index(index), attribute(attr), rank(rank) {}
-
       bool Boundary() const { return attribute >= 0; }
+
+      ConformingFace(int index, Element* element, int local, int attr)
+         : FaceId(index, element, local), attribute(attr) {}
    };
 
    /** Nonconforming face that has more than one neighbor. The neighbors are
        stored in FaceList::slaves[i], slaves_begin <= i < slaves_end. */
-   struct MasterFace
+   struct MasterFace : public FaceId
    {
-      int index; ///< Mesh face number
       int slaves_begin, slaves_end; ///< slave faces
-      int rank;  ///< owner processor (MPI)
 
-      MasterFace(int index, int sb, int se, int rank = -1)
-         : index(index), slaves_begin(sb), slaves_end(se), rank(rank) {}
+      MasterFace(int index, Element* element, int local, int sb, int se)
+         : FaceId(index, element, local), slaves_begin(sb), slaves_end(se) {}
    };
 
-   /// Nonconforming face within a bigger face.
-   struct SlaveFace
+   /** Nonconforming face within a bigger face. NOTE: only the 'index' member
+       of FaceId is currently valid. */
+   struct SlaveFace : public FaceId
    {
-      int index;  ///< Mesh face number
-      int master; ///< master face number
-      int rank;   ///< owner processor (MPI)
+      int master; ///< master face number (in Mesh numbering)
       DenseMatrix point_matrix; ///< position within the master face
 
-      SlaveFace(int index, int rank = -1)
-         : index(index), master(-1), rank(rank), point_matrix() {}
+      SlaveFace(int index) : FaceId(index), master(-1) {}
    };
 
-   /** Lists all faces in the nonconforming mesh.
-       Returned by BuildFaceList. */
+   /// Lists all faces in the nonconforming mesh. Returned by BuildFaceList.
    struct FaceList
    {
       std::vector<ConformingFace> cfaces;
@@ -123,23 +130,30 @@ public:
       // TODO: switch to Arrays when fixed for non-POD types
    };
 
-   /** Lists all edges in the nonconforming mesh. Reuses the face structs
-       since they are the same. Returned by BuildEdgeList. */
+   // edge structs are the same
+   typedef FaceId EdgeId;
+   typedef ConformingFace ConformingEdge;
+   typedef MasterFace MasterEdge;
+   typedef SlaveFace SlaveEdge;
+
+   /// Lists all edges in the nonconforming mesh. Returned by BuildEdgeList.
    struct EdgeList
    {
-      std::vector<ConformingFace> cedges;
-      std::vector<MasterFace> masters;
-      std::vector<SlaveFace> slaves;
+      std::vector<ConformingEdge> cedges;
+      std::vector<MasterEdge> masters;
+      std::vector<SlaveEdge> slaves;
       // TODO: switch to Arrays when fixed for non-POD types
    };
 
    /** Traverse leaf elements and build lists of conforming and nonconforming
        faces. The caller owns the result. */
    void BuildFaceList(FaceList &flist) const;
+   // TODO: maybe own by this class?
 
    /** Traverse leaf elements and build lists of conforming and nonconforming
        edges. The caller owns the result. */
    void BuildEdgeList(EdgeList &elist) const;
+   // TODO: maybe own by this class?
 
    /** Represents the relation of a fine element to its parent (coarse) element
        from a previous mesh state. (Note that the parent can be an indirect
@@ -182,14 +196,14 @@ public:
 
 protected: // interface for Mesh to be able to construct itself from us
 
+   /// Return the basic Mesh arrays for the current finest level.
    void GetMeshComponents(Array<mfem::Vertex>& vertices,
                           Array<mfem::Element*>& elements,
                           Array<mfem::Element*>& boundary);
 
-   /// Get edge and face numbering from 'mesh' (i.e., set all Edge/Face::index).
-   void SetEdgeFaceIndicesFromMesh(Mesh *mesh);
-   // virtual?
-   //Faces/edges not in 'mesh' (i.e., ghosts) get a negative index.
+   /** Get edge and face numbering from 'mesh' (i.e., set all Edge/Face::index)
+       after a new mesh was created from us. */
+   virtual void OnMeshUpdated(Mesh *mesh);
 
    friend class Mesh;
 
@@ -285,7 +299,6 @@ protected: // implementation
       { elem[0] = elem[1] = NULL; }
 
       bool Boundary() const { return attribute >= 0; }
-      int Rank() const;
 
       // add or remove an element from the 'elem[2]' array
       void RegisterElement(Element* e);
