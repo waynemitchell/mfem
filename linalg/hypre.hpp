@@ -259,6 +259,7 @@ protected:
        2  = l1-scaled block Gauss-Seidel/SSOR
        3  = Kaczmarz
        4  = truncated version of type 2
+       5  = lumped Jacobi
        16 = Chebyshev
        x  = BoomerAMG relaxation with relax_type = |x| */
    int type;
@@ -293,7 +294,7 @@ protected:
    double* fir_coeffs;
 
 public:
-   enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev, Taubin, FIR };
+   enum Type { Jacobi, GS, l1Jacobi, l1GS, lumpedJacobi, Chebyshev, Taubin, FIR };
 
    HypreSmoother();
 

@@ -1015,6 +1015,8 @@ void HypreSmoother::SetType(HypreSmoother::Type _type, int _relax_times)
       type = 1;
    else if (_type == HypreSmoother::l1GS)
       type = 4;
+   else if (_type == HypreSmoother::lumpedJacobi)
+      type = 5;
    else if (_type == HypreSmoother::Chebyshev)
       type = 16;
    else if (_type == HypreSmoother::Taubin)
@@ -1086,7 +1088,17 @@ void HypreSmoother::SetOperator(const Operator &op)
    X1 = X0 = Z = V = B = X = NULL;
 
    if (type >= 1 && type <= 4)
+   {
       hypre_ParCSRComputeL1Norms(*A, type, NULL, &l1_norms);
+   }
+   else if (type == 5)
+   {
+      Vector ones(height), diag(height);
+      ones = 1.0;
+      A->Mult(ones, diag);
+      l1_norms = diag.StealData();
+      type = 1;
+   }
    else
       l1_norms = NULL;
 
