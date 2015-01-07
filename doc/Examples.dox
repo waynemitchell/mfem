@@ -1,0 +1,226 @@
+/*! \mainpage Example Codes
+ *
+ * This file provides a brief overview of the MFEM example codes. For
+ * detailed documentation of the MFEM sources, including the examples, build the
+ * <a href="../../doc/CodeDocumentation.html">Doxygen documentation</a> in the <code>doc/</code> directory, or browse the
+ * <a href="http://doxygen.mfem.googlecode.com/hg/html/index.html">online version</a>.
+ *
+ * Clicking on any of the categories below displays examples that contain the
+ * described feature. Additionally, a comprehensive list of all examples follows
+ * the category lists. All examples support (arbitrarily) high-order meshes and
+ * finite element spaces.
+ *
+ * The numerical results from the example codes can be visualized using the
+ * GLVis visualization tool (based on MFEM). See the
+ * <a href="http://glvis.googlecode.com">GLVis website</a>, for more details.
+ *
+ * Users are encouraged to submit any example codes that they have created and
+ * would like to share.
+ *
+ * Contact a member of the MFEM team to report
+ * <a href="http://code.google.com/p/mfem/issues/entry?template=Defect%20report%20from%20user">bugs</a>
+ * or post
+ * <a href="http://code.google.com/p/mfem/issues/entry?template=Question%20or%20Comment">questions
+ * or comments</a>.
+ *
+ * \htmlonly
+ * <label><input type="checkbox" id="laplace" onchange="el = document.getElementById('test'); el.style.display = (el.style.display == 'none') ? 'block' : 'none';" />Test!</label>
+ * \endhtmlonly
+ *
+ * \htmlonly
+ * <div id="test">
+ * \endhtmlonly
+ * <h2> Equation (PDE) </h2>
+ * - \ref laplace_page
+ * - Elasticity Equations Example Codes
+ * - definite Maxwell
+ * - grad-div
+ * - Darcy
+ * \htmlonly
+ * </div>
+ * \endhtmlonly
+ *
+ * <h2> Discretization </h2>
+ * - \ref L2_disc
+ * - H1 nodal finite elements
+ * - H(curl) Nedelec finite elements
+ * - H(div) Raviart-Thomas finite elements
+ * - non-uniform rational B-splies (NURBS)
+ * - non-conforming adaptive mesh refinement
+ *
+ * <h2> Linear Solvers </h2>
+ * - Linear Solver
+ * - Jacobi
+ * - Gauss-Seidel
+ * - PCG
+ * - MINRES
+ * - Algebraic Multigrid (BoomerAMG)
+ * - Auxiliary-space Maxwell Solver (AMS)
+ * - Auxiliary-space Divergence Solver (ADS)
+ * - UMFPack (serial direct)
+ *
+ * <h2> Parallelization </h2>
+ *
+ * - Serial
+ * - MPI
+ */
+
+/*! \page laplace_page Laplace Equation Example Codes
+ *
+ * \ref ex1src
+ *
+ * \ref ex1psrc
+ * 
+ * This example code demonstrates the use of MFEM to define a simple
+ * isoparametric finite element discretization of the Laplace problem
+ *
+ * \f[
+ * -\Delta u = 1
+ * \f]
+ *
+ * with homogeneous Dirichlet boundary conditions. Specifically, we
+ * discretize with the FE space coming from the mesh (linear by
+ * default, quadratic for quadratic curvilinear mesh, NURBS for NURBS
+ * mesh, etc.)
+ *
+ * The example highlights the use of mesh refinement, finite element
+ * grid functions, as well as linear and bilinear forms corresponding
+ * to the left-hand side and right-hand side of the discrete linear
+ * system. We also cover the explicit elimination of boundary
+ * conditions on all boundary edges, and the optional connection to
+ * the GLVis tool for visualization.
+ *
+ *
+ * \ref ex6src
+ *
+ * This is a version of Example 1 with a simple adaptive mesh
+ * refinement loop. The problem being solved is again the Laplace
+ * equation
+ *
+ * \f[
+ * -\Delta u = 1
+ * \f]
+ *
+ * with homogeneous Dirichlet boundary conditions. The problem is
+ * solved on a sequence of meshes which are locally refined in a
+ * conforming (triangles, tetrahedrons) or non-conforming
+ * (quadrilateral, hexahedrons) manner according to a simple ZZ error
+ * estimator. The example demonstrates MFEM's capability to work with
+ * both conforming and nonconforming refinements, in 2D and 3D, on
+ * linear, curved and surface meshes. Interpolation of functions from
+ * coarse to fine meshes, as well as persistent GLVis visualization
+ * are also illustrated. We recommend viewing Example 1 before viewing
+ * this example.
+ *
+ * \ref ex7src
+ *
+ * \ref ex7psrc
+ *
+ *  This example code demonstrates the use of MFEM to define a
+ *  triangulation of a unit sphere and a simple isoparametric finite
+ *  element discretization of the Laplace problem with mass term,
+ * \f[
+ * -\Delta u + u = f.
+ * \f]
+ *
+ * The example highlights mesh generation, the use of mesh refinement,
+ * high-order meshes and finite elements, as well as surface-based
+ * linear and bilinear forms corresponding to the left-hand side and
+ * right-hand side of the discrete linear system.
+ *
+ * We recommend viewing Example 1 before viewing this example.
+ */
+
+/*! \page ex1src Example 1 Source Code
+ * \include ex1.cpp
+ */
+
+/*! \page ex1psrc Example 1 Parallel Source Code
+ * \include ex1p.cpp
+ */
+
+/*! \page ex2src Example 2 Source Code
+ * \include ex2.cpp
+ */
+
+/*! \page ex2psrc Example 2 Parallel Source Code
+ * \include ex2p.cpp
+ */
+
+/*! \page ex3src Example 3 Source Code
+ * \include ex3.cpp
+ */
+
+/*! \page ex3psrc Example 3 Parallel Source Code
+ * \include ex3p.cpp
+ */
+
+/*! \page ex4src Example 4 Source Code
+ * \include ex4.cpp
+ */
+
+/*! \page ex4psrc Example 4 Parallel Source Code
+ * \include ex4p.cpp
+ */
+
+/*! \page ex5src Example 5 Source Code
+ * \include ex5.cpp
+ */
+
+/*! \page ex5psrc Example 5 Parallel Source Code
+ * \include ex5p.cpp
+ */
+
+/*! \page ex6src Example 6 Source Code
+ * \include ex6.cpp
+ */
+
+/*! \page ex7src Example 7 Source Code
+ * \include ex7.cpp
+ */
+
+/*! \page ex7psrc Example 7 Parallel Source Code
+ * \include ex7p.cpp
+ */
+
+/*! \page elasticity_page Elasticity Equations Example Codes
+ *
+ * This example code demonstrates the use of MFEM to define a simple
+ * isoparametric finite element discretization of the Laplace problem
+ *
+ * -Delta u = 1
+ *
+ * with homogeneous Dirichlet boundary conditions. Specifically, we
+ * discretize with the FE space coming from the mesh (linear by
+ * default, quadratic for quadratic curvilinear mesh, NURBS for NURBS
+ * mesh, etc.)
+ *
+ * The example highlights the use of mesh refinement, finite element
+ * grid functions, as well as linear and bilinear forms corresponding
+ * to the left-hand side and right-hand side of the discrete linear
+ * system. We also cover the explicit elimination of boundary
+ * conditions on all boundary edges, and the optional connection to
+ * the GLVis tool for visualization.
+ */
+
+/*! \page L2_disc L2 Discontinuous Finite Elements
+ *
+ * \ref ex5src
+ *
+ *  This example code solves a simple 2D/3D mixed Darcy problem
+ *  corresponding to the saddle point system
+ * \f{eqnarray*}{
+ *                k\vec{u} + \nabla p         &=& \vec{f} \\
+ *                -\nabla \cdot \vec{u}       &=& g
+ * \f}
+ *
+ * with natural boundary condition -p = "given pressure". Here, we use
+ * a given exact solution (u,p) and compute the corresponding
+ * r.h.s. (f,g). We discretize with Raviart-Thomas finite elements
+ * (velocity u) and piecewise discontinuous polynomials (pressure p).
+ *
+ * The example demonstrates the use of the BlockMatrix class.
+ *
+ * We recommend viewing examples 1-4 before viewing this example. 
+ */
+
