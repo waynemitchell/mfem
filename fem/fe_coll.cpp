@@ -1181,6 +1181,8 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       L2_Elements[g] = NULL;
       Tr_Elements[g] = NULL;
    }
+   for (int i = 0; i < 2; i++)
+      SegDofOrd[i] = NULL;
    for (int i = 0; i < 6; i++)
       TriDofOrd[i] = NULL;
 
@@ -1192,6 +1194,15 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
          L2_Elements[Geometry::SEGMENT] = new L2Pos_SegmentElement(p);
 
       Tr_Elements[Geometry::POINT] = new PointFiniteElement;
+
+      const int pp1 = p + 1;
+      SegDofOrd[0] = new int[2*pp1];
+      SegDofOrd[1] = SegDofOrd[0] + pp1;
+      for (int i = 0; i <= p; i++)
+      {
+         SegDofOrd[0][i] = i;
+         SegDofOrd[1][i] = p - i;
+      }
    }
    else if (dim == 2)
    {
@@ -1251,7 +1262,13 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
 
 int *L2_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
-   if (GeomType == Geometry::TRIANGLE)
+   if (GeomType == Geometry::SEGMENT)
+   {
+      if (Or > 0)
+         return SegDofOrd[0];
+      return SegDofOrd[1];
+   }
+   else if (GeomType == Geometry::TRIANGLE)
    {
       return TriDofOrd[Or%6];
    }
@@ -1260,6 +1277,7 @@ int *L2_FECollection::DofOrderForOrientation(int GeomType, int Or) const
 
 L2_FECollection::~L2_FECollection()
 {
+   delete [] SegDofOrd[0];
    delete [] TriDofOrd[0];
    for (int i = 0; i < Geometry::NumGeom; i++)
    {

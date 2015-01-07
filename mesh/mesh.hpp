@@ -378,10 +378,6 @@ public:
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
-   void SetNodalFESpace(FiniteElementSpace *nfes);
-   void SetNodalGridFunction(GridFunction *nodes);
-   const FiniteElementSpace *GetNodalFESpace();
-
    /// Truegrid or NetGen?
    inline int MeshGenerator() { return meshgen; }
 
@@ -559,7 +555,7 @@ public:
 
    FaceElementTransformations *GetInteriorFaceTransformations (int FaceNo)
    { if (faces_info[FaceNo].Elem2No < 0) return NULL;
-      return GetFaceElementTransformations (FaceNo); };
+      return GetFaceElementTransformations (FaceNo); }
 
    FaceElementTransformations *GetBdrFaceTransformations (int BdrElemNo);
 
@@ -630,10 +626,27 @@ public:
    void GetNodes(Vector &node_coord) const;
    void SetNodes(const Vector &node_coord);
 
-   /// Return a pointer to the internal node grid function
-   GridFunction* GetNodes() { return Nodes; }
-   // use the provided GridFunction as Nodes
+   /// Return a pointer to the internal node GridFunction (may be NULL).
+   GridFunction *GetNodes() { return Nodes; }
+   /// Replace the internal node GridFunction with the given GridFunction.
    void NewNodes(GridFunction &nodes, bool make_owner = false);
+   /** Swap the internal node GridFunction pointer and onwership flag members
+       with the given ones. */
+   void SwapNodes(GridFunction *&nodes, int &own_nodes_);
+
+   /// Return the mesh nodes/vertices projected on the given GridFunction.
+   void GetNodes(GridFunction &nodes) const;
+   /** Replace the internal node GridFunction with a new GridFunction defined
+       on the given FiniteElementSpace. The new node coordinates are projected
+       (derived) from the current nodes/vertices. */
+   void SetNodalFESpace(FiniteElementSpace *nfes);
+   /** Replace the internal node GridFunction with the given GridFunction. The
+       given GridFunction is updated with node coordinates projected (derived)
+       from the current nodes/vertices. */
+   void SetNodalGridFunction(GridFunction *nodes, bool make_owner = false);
+   /** Return the FiniteElementSpace on which the current mesh nodes are
+       defined or NULL if the mesh does not have nodes. */
+   const FiniteElementSpace *GetNodalFESpace();
 
    /** Refine all mesh elements. */
    void UniformRefinement();

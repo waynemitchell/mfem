@@ -740,7 +740,6 @@ void Mesh::SetAttributes()
 
 void Mesh::InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem)
 {
-
    Dim = _Dim;
    spaceDim = _spaceDim;
 
@@ -916,7 +915,8 @@ void Mesh::FinalizeTriMesh(int generate_edges, int refine, bool fix_orientation)
 void Mesh::FinalizeQuadMesh(int generate_edges, int refine,
                             bool fix_orientation)
 {
-   CheckElementOrientation(fix_orientation);
+   if (fix_orientation)
+      CheckElementOrientation(fix_orientation);
 
    if (generate_edges)
    {
@@ -1183,6 +1183,9 @@ void Mesh::DoNodeReorder(DSTable *old_v_to_v, Table *old_elem_vert)
          int geom = elements[i]->GetGeometryType();
          switch (geom)
          {
+         case Geometry::SEGMENT:
+            new_or = (old_v[0] == new_v[0]) ? +1 : -1;
+            break;
          case Geometry::TRIANGLE:
             new_or = GetTriOrientation(old_v, new_v);
             break;
@@ -2616,6 +2619,9 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          MarkForRefinement();
    }
 
+   if (Dim == 1)
+      GenerateFaces();
+
    // generate the faces
    if (Dim > 2)
    {
@@ -3046,28 +3052,28 @@ void XYZ_VectorFunction(const Vector &p, Vector &v)
    }
 }
 
-void Mesh::SetNodalFESpace(FiniteElementSpace *nfes)
+void Mesh::GetNodes(GridFunction &nodes) const
 {
-   const int newSpaceDim = nfes->GetVDim();
-   GridFunction *nodes = new GridFunction(nfes);
-   VectorFunctionCoefficient xyz(newSpaceDim, XYZ_VectorFunction);
-   nodes->ProjectCoefficient(xyz);
-
-   NewNodes(*nodes, true);
-}
-
-void Mesh::SetNodalGridFunction(GridFunction *nodes)
-{
-   if (Nodes == NULL || Nodes->FESpace() != nodes->FESpace())
+   if (Nodes == NULL || Nodes->FESpace() != nodes.FESpace())
    {
-      const int newSpaceDim = nodes->FESpace()->GetVDim();
+      const int newSpaceDim = nodes.FESpace()->GetVDim();
       VectorFunctionCoefficient xyz(newSpaceDim, XYZ_VectorFunction);
-      nodes->ProjectCoefficient(xyz);
+      nodes.ProjectCoefficient(xyz);
    }
    else
-      *nodes = *Nodes;
+      nodes = *Nodes;
+}
 
-   NewNodes(*nodes);
+void Mesh::SetNodalFESpace(FiniteElementSpace *nfes)
+{
+   GridFunction *nodes = new GridFunction(nfes);
+   SetNodalGridFunction(nodes, true);
+}
+
+void Mesh::SetNodalGridFunction(GridFunction *nodes, bool make_owner)
+{
+   GetNodes(*nodes);
+   NewNodes(*nodes, make_owner);
 }
 
 const FiniteElementSpace *Mesh::GetNodalFESpace()
@@ -4967,6 +4973,16 @@ void Mesh::NewNodes(GridFunction &nodes, bool make_owner)
    }
 }
 
+void Mesh::SwapNodes(GridFunction *&nodes, int &own_nodes_)
+{
+   mfem::Swap<GridFunction*>(Nodes, nodes);
+   mfem::Swap<int>(own_nodes, own_nodes_);
+   // TODO:
+   // if (nodes)
+   //    nodes->FESpace()->MakeNURBSextOwner();
+   // NURBSext = (Nodes) ? Nodes->FESpace()->StealNURBSext() : NULL;
+}
+
 void Mesh::AverageVertices(int * indexes, int n, int result)
 {
    int j, k;
@@ -5377,7 +5393,13 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
 
    if (Dim == 1) // --------------------------------------------------------
    {
-      // does not support two-level state
+      if (WantTwoLevelState)
+      {
+         c_NumOfVertices    = NumOfVertices;
+         c_NumOfElements    = NumOfElements;
+         c_NumOfBdrElements = NumOfBdrElements;
+         c_NumOfEdges = 0;
+      }
       int cne = NumOfElements, cnv = NumOfVertices;
       NumOfVertices += marked_el.Size();
       NumOfElements += marked_el.Size();
@@ -5386,11 +5408,37 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       for (j = 0; j < marked_el.Size(); j++)
       {
          i = marked_el[j];
-         int *vert = elements[i]->GetVertices();
-         AverageVertices(vert, 2, cnv+j);
-         elements[cne+j] = new Segment(cnv+j, vert[1],
-                                       elements[i]->GetAttribute());
-         vert[1] = cnv+j;
+         Segment *c_seg = (Segment *)elements[i];
+         int *vert = c_seg->GetVertices(), attr = c_seg->GetAttribute();
+         int new_v = cnv + j, new_e = cne + j;
+         AverageVertices(vert, 2, new_v);
+         elements[new_e] = new Segment(new_v, vert[1], attr);
+         if (WantTwoLevelState)
+         {
+#ifdef MFEM_USE_MEMALLOC
+            BisectedElement *aux = BEMemory.Alloc();
+            aux->SetCoarseElem(c_seg);
+#else
+            BisectedElement *aux = new BisectedElement(c_seg);
+#endif
+            aux->FirstChild = new Segment(vert[0], new_v, attr);
+            aux->SecondChild = new_e;
+            elements[i] = aux;
+         }
+         else
+         {
+            vert[1] = new_v;
+         }
+      }
+      if (WantTwoLevelState)
+      {
+         f_NumOfVertices    = NumOfVertices;
+         f_NumOfElements    = NumOfElements;
+         f_NumOfBdrElements = NumOfBdrElements;
+         f_NumOfEdges = 0;
+
+         RefinedElement::State = RefinedElement::FINE;
+         State = Mesh::TWO_LEVEL_FINE;
       }
       GenerateFaces();
    } // end of 'if (Dim == 1)'
@@ -6184,7 +6232,7 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
 {
    Array<int> v;
    int j, v1[3], v2[3], v3[3], v4[3], v_new[3], bisect[3];
-   double coord[3];
+   Vertex V;
 
    if (elements[i]->GetType() == Element::TRIANGLE)
    {
@@ -6204,8 +6252,7 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
          {
             v_new[j] = NumOfVertices++;
             for (int d = 0; d < spaceDim; d++)
-               coord[d] = (vertices[v[j]](d) + vertices[v[(j+1)%3]](d))/2.;
-            Vertex V(coord, spaceDim);
+               V(d) = (vertices[v[j]](d) + vertices[v[(j+1)%3]](d))/2.;
             vertices.Append(V);
 
             // Put the element that may need refinement (because of this
@@ -6402,11 +6449,15 @@ void Mesh::SetState(int s)
 
 int Mesh::GetNumFineElems(int i)
 {
-   int t;
+   int t = elements[i]->GetType();
 
-   if (Dim == 2)
+   if (Dim == 1)
    {
-      t = elements[i]->GetType();
+      if (t == Element::BISECTED)
+         return 2;
+   }
+   else if (Dim == 2)
+   {
       if (t == Element::QUADRISECTED)
          return 4;
       else if (t == Element::BISECTED)
@@ -6431,7 +6482,6 @@ int Mesh::GetNumFineElems(int i)
       // assuming that the element is a BisectedElement,
       // OctasectedElement (with children that are regular elements) or
       // regular element
-      t = elements[i]->GetType();
       if (t == Element::BISECTED)
       {
          int n = 1;
@@ -6497,7 +6547,12 @@ int Mesh::GetRefinementType(int i)
 {
    int t;
 
-   if (Dim == 2)
+   if (Dim == 1)
+   {
+      if (elements[i]->GetType() == Element::BISECTED)
+         return 1;  // refinement type for bisected SEGMENT
+   }
+   else if (Dim == 2)
    {
       t = elements[i]->GetType();
       if (t == Element::QUADRISECTED)
@@ -6550,11 +6605,21 @@ int Mesh::GetRefinementType(int i)
 
 int Mesh::GetFineElem(int i, int j)
 {
-   int t;
+   int t = elements[i]->GetType();
 
-   if (Dim == 2)
+   if (Dim == 1)
    {
-      t = elements[i]->GetType();
+      if (t == Element::BISECTED)
+      {
+         switch (j)
+         {
+         case 0:  return i;
+         default: return ((BisectedElement *)elements[i])->SecondChild;
+         }
+      }
+   }
+   else if (Dim == 2)
+   {
       if (t == Element::QUADRISECTED)
       {
          QuadrisectedElement *aux = (QuadrisectedElement *) elements[i];
@@ -6601,7 +6666,6 @@ int Mesh::GetFineElem(int i, int j)
    }
    else if (Dim == 3)
    {
-      t = elements[i]->GetType();
       if (t == Element::BISECTED)
       {
          int n = 0;
@@ -6744,7 +6808,27 @@ ElementTransformation * Mesh::GetFineElemTrans(int i, int j)
 {
    int t;
 
-   if (Dim == 2)
+   if (Dim == 1)
+   {
+      DenseMatrix &pm = Transformation.GetPointMat();
+      Transformation.SetFE(&SegmentFE);
+      Transformation.Attribute = 0;
+      Transformation.ElementNo = 0;
+      pm.SetSize(1, 2);
+      if (elements[i]->GetType() == Element::BISECTED)
+      {
+         switch (j)
+         {
+         case 0:  pm(0,0) = 0.0;  pm(0,1) = 0.5;  break;
+         default: pm(0,0) = 0.5;  pm(0,1) = 1.0;  break;
+         }
+      }
+      else
+      {
+         pm(0,0) = 0.0;  pm(0,1) = 1.0;
+      }
+   }
+   else if (Dim == 2)
    {
       DenseMatrix &pm = Transformation.GetPointMat();
       Transformation.Attribute = 0;
@@ -8262,7 +8346,8 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
    if (!closed)
    {
       // 2D boundary from the 1D elements (bottom + top)
-      int nba = mesh->bdr_attributes.Max();
+      int nba = (mesh->bdr_attributes.Size() > 0 ?
+                 mesh->bdr_attributes.Max() : 0);
       for (int i = 0; i < mesh->GetNE(); i++)
       {
          const Element *elem = mesh->GetElement(i);
@@ -8281,7 +8366,7 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
       }
    }
 
-   mesh2d->FinalizeQuadMesh(1, 0);
+   mesh2d->FinalizeQuadMesh(1, 0, false);
 
    GridFunction *nodes = mesh->GetNodes();
    if (nodes)
@@ -8300,6 +8385,10 @@ Mesh *Extrude1D(Mesh *mesh, const int ny, const double sy, const bool closed)
          fec2d = new CubicFECollection;
       else if (!strncmp(name, "H1_", 3))
          fec2d = new H1_FECollection(atoi(name + 7), 2);
+      else if (!strncmp(name, "L2_T", 4))
+         fec2d = new L2_FECollection(atoi(name + 10), 2, atoi(name + 4));
+      else if (!strncmp(name, "L2_", 3))
+         fec2d = new L2_FECollection(atoi(name + 7), 2);
       else
       {
          delete mesh2d;

@@ -86,6 +86,7 @@ private:
    char d_name[32];
    FiniteElement *L2_Elements[Geometry::NumGeom];
    FiniteElement *Tr_Elements[Geometry::NumGeom];
+   int *SegDofOrd[2]; // for rotating segment dofs in 1D
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:
