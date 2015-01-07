@@ -1,13 +1,28 @@
-html: MFEM_CodeDocumentation.conf
-	doxygen MFEM_CodeDocumentation.conf
-	rm -f MFEM_CodeDocumentation.html
-	ln -s MFEM_CodeDocumentation_files/html/index.html MFEM_CodeDocumentation.html
+# Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at the
+# Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights reserved.
+# See file COPYRIGHT for details.
+#
+# This file is part of the MFEM library. For more information and source code
+# availability see http://mfem.googlecode.com.
+#
+# MFEM is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
 
-examples: MFEM_ExamplesDocumentation.conf
-	doxygen MFEM_ExamplesDocumentation.conf
-	cp -r MFEM_ExamplesDocumentation_files ../examples
-	ln -fs ../examples/MFEM_ExamplesDocumentation_files/html/index.html ../examples/README.html
+html: CodeDocumentation.conf
+	doxygen CodeDocumentation.conf
+	rm -f CodeDocumentation.html
+	ln -s CodeDocumentation/html/index.html CodeDocumentation.html
+
+examples: Examples.conf
+	doxygen Examples.conf
+	rm -rf ../examples/README_files
+	mv -f Examples/html ../examples/README_files
+	cd ../examples;	ln -fs README_files/index.html README.html
 
 clean:
-	rm -rf html* MFEM_CodeDocumentation_files* MFEM_CodeDocumentation.html MFEM_ExamplesDocumentation *~
+	rm -rf CodeDocumentation CodeDocumentation.html Examples *~
+
+distclean: clean
+	rm -rf ../examples/README_files ../examples/README.html
 
