@@ -37,7 +37,7 @@
 using namespace std;
 using namespace mfem;
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
    int num_procs, myid;

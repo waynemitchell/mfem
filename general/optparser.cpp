@@ -290,14 +290,9 @@ void OptionsParser::PrintOptions(ostream &out) const
    }
 }
 
-void OptionsParser::PrintUsage(ostream &out) const
+void OptionsParser::PrintError(ostream &out) const
 {
-   static const char *indent = "   ";
-   static const char *seprtr = ", ";
-   static const char *descr_sep = "\n\t";
    static const char *line_sep = "";
-   static const char *types[] = { " <int>", " <double>", " <string>", "", "",
-                                  " '<int>...'", " '<double>...'" };
 
    out << line_sep;
    switch (error_type)
@@ -335,9 +330,18 @@ void OptionsParser::PrintUsage(ostream &out) const
           << '\n' << line_sep;
       break;
    }
+   out << endl;
+}
 
-   out << "Usage: " << argv[0] << " [options] ...\n" << line_sep
-       << "Options:\n" << line_sep;
+void OptionsParser::PrintHelp(ostream &out) const
+{
+   static const char *indent = "   ";
+   static const char *seprtr = ", ";
+   static const char *descr_sep = "\n\t";
+   static const char *line_sep = "";
+   static const char *types[] = { " <int>", " <double>", " <string>", "", "",
+                                  " '<int>...'", " '<double>...'" };
+
    out << indent << "-h" << seprtr << "--help" << descr_sep
        << "Print this help message and exit.\n" << line_sep;
    for (int j = 0; j < options.Size(); j++)
@@ -376,6 +380,16 @@ void OptionsParser::PrintUsage(ostream &out) const
          out << options[j].description << '\n';
       out << line_sep;
    }
+}
+
+void OptionsParser::PrintUsage(ostream &out) const
+{
+   static const char *line_sep = "";
+
+   PrintError(out);
+   out << "Usage: " << argv[0] << " [options] ...\n" << line_sep
+       << "Options:\n" << line_sep;
+   PrintHelp(out);
 }
 
 }

@@ -33,14 +33,14 @@ double NonlinearFormIntegrator::GetElementEnergy(
 
 double InverseHarmonicModel::EvalW(const DenseMatrix &J) const
 {
-   Z.SetSize(J.Size());
+   Z.SetSize(J.Width());
    CalcAdjugateTranspose(J, Z);
    return 0.5*(Z*Z)/J.Det();
 }
 
 void InverseHarmonicModel::EvalP(const DenseMatrix &J, DenseMatrix &P) const
 {
-   int dim = J.Size();
+   int dim = J.Width();
    double t;
 
    Z.SetSize(dim);
@@ -134,7 +134,7 @@ inline void NeoHookeanModel::EvalCoeffs() const
 
 double NeoHookeanModel::EvalW(const DenseMatrix &J) const
 {
-   int dim = J.Size();
+   int dim = J.Width();
 
    if (have_coeffs)
       EvalCoeffs();
@@ -148,7 +148,7 @@ double NeoHookeanModel::EvalW(const DenseMatrix &J) const
 
 void NeoHookeanModel::EvalP(const DenseMatrix &J, DenseMatrix &P) const
 {
-   int dim = J.Size();
+   int dim = J.Width();
 
    if (have_coeffs)
       EvalCoeffs();

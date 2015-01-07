@@ -67,6 +67,7 @@ public:
    /** Set the grid function on (all) dofs from a given vector on the
        true dofs, i.e. P tv. */
    void Distribute(const Vector *tv);
+   void Distribute(const Vector &tv) { Distribute(&tv); }
 
    /// Short semantic for Distribute
    ParGridFunction &operator=(const HypreParVector &tv)

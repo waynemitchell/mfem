@@ -482,6 +482,8 @@ void Vector::AddElementVector(const Array<int> &dofs, const double a,
 
 void Vector::Print(std::ostream &out, int width) const
 {
+   if (!size) return;
+
    for (int i = 0; 1; )
    {
       out << data[i];

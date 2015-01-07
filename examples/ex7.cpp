@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
    // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
-   PCG(A, M, *b, x, 0, 1000, 1e-28, 0.0);
+   PCG(A, M, *b, x, 1, 200, 1e-12, 0.0);
 #else
    // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 #endif
 
    // 9. Compute and print the L^2 norm of the error.
-   cout<<"L2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;
+   cout<<"\nL2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;
 
    // 10. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m sphere_refined.mesh -g sol.gf".

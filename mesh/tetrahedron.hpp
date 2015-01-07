@@ -43,7 +43,7 @@ public:
    Tetrahedron() : Element(Geometry::TETRAHEDRON) { refinement_flag = 0; }
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
-   Tetrahedron(int *ind, int attr = 1);
+   Tetrahedron(const int *ind, int attr = 1);
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
    Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr = 1);

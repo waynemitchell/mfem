@@ -37,7 +37,7 @@ void fFun(const Vector & x, Vector & f);
 double gFun(Vector & x);
 double f_natural(Vector & x);
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    StopWatch chrono;
 
@@ -320,6 +320,9 @@ int main (int argc, char *argv[])
       u_sock.precision(8);
       u_sock << "solution\n" << *pmesh << *u << "window_title 'Velocity'"
              << endl;
+      // Make sure all ranks have sent their 'u' solution before initiating
+      // another set of GLVis connections (one from each rank):
+      MPI_Barrier(pmesh->GetComm());
       socketstream p_sock(vishost, visport);
       p_sock << "parallel " << num_procs << " " << myid << "\n";
       p_sock.precision(8);

@@ -32,7 +32,7 @@ protected:
 public:
    ParNonlinearForm(ParFiniteElementSpace *pf)
       : NonlinearForm(pf), X(pf), Y(pf)
-   { size = pf->TrueVSize(); pGrad = NULL; }
+   { height = width = pf->TrueVSize(); pGrad = NULL; }
 
    ParFiniteElementSpace *ParFESpace() const
    { return (ParFiniteElementSpace *)fes; }
