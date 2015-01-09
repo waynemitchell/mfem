@@ -93,6 +93,9 @@ void ParNCMesh::CreateGroups()
    // TODO
 }
 
+
+//// Message encoding //////////////////////////////////////////////////////////
+
 void ParNCMesh::ElementSet::SetInt(int pos, int value)
 {
    // helper to put an int to the data array
@@ -186,6 +189,7 @@ void ParNCMesh::ElementSet::DecodeTree
 void ParNCMesh::ElementSet::Get
 (Array<Element*> &elements, const Array<Element*> &ncmesh_roots) const
 {
+   // TODO: read from stream directly
    int root, pos = 0;
    while ((root = GetInt(pos)) >= 0)
    {
@@ -195,17 +199,29 @@ void ParNCMesh::ElementSet::Get
 }
 
 template<typename T>
-static void write(std::ostream& os, T value)
+static inline void write(std::ostream& os, T value)
 {
    os.write((char*) &value, sizeof(T));
 }
 
 template<typename T>
-static T read(std::istream& is)
+static inline T read(std::istream& is)
 {
    T value;
    is.read((char*) &value, sizeof(T));
    return value;
+}
+
+void ParNCMesh::ElementSet::Dump(std::ostream &os) const
+{
+   write<int>(os, data.Size()); // TODO: remove
+   os.write((char*) data.GetData(), data.Size());
+}
+
+void ParNCMesh::ElementSet::Load(std::istream &is)
+{
+   data.SetSize(read<int>(is)); // TODO: remove
+   is.read((char*) data.GetData(), data.Size());
 }
 
 void ParNCMesh::EncodeEdgesFaces
@@ -297,6 +313,30 @@ void ParNCMesh::DecodeEdgesFaces
       fid.index = face->index;
    }*/
    // TODO: GI
+}
+
+void ParNCMesh::NeighborDofMessage::Encode()
+{
+   Array<EdgeId> edges;
+   {
+   }
+
+   Array<FaceId> faces;
+   {
+      /*faces.Reserve(face_dofs.size());
+      IdToDof::const_iterator it;
+      for (it = face_dofs.begin(); it != face_dofs.end(); ++it)
+         faces.Append(it->first);*/
+   }
+
+   std::ostringstream stream(data);
+   //EncodeEdgesFaces(edges, faces, stream);
+
+   // dump the DOFs
+}
+
+void ParNCMesh::NeighborDofMessage::Decode()
+{
 }
 
 } // namespace mfem

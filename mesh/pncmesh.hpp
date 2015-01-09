@@ -5,7 +5,7 @@
 
 #ifdef MFEM_USE_MPI
 
-#include <cstring>
+#include <map>
 #include <set>
 
 #include "ncmesh.hpp"
@@ -13,6 +13,50 @@
 
 namespace mfem
 {
+
+/// A variable-length MPI message containing unspecific binary data.
+template<int Tag = 36898>
+struct Message
+{
+   std::string data;
+
+   /// Non-blocking send to processor 'rank'.
+   virtual MPI_Request Isend(int rank, MPI_Comm comm)
+   {
+      Encode();
+      MPI_Request request;
+      MPI_Isend(data.data(), data.length(), MPI_BYTE, rank, Tag, comm, &request);
+      return request;
+   }
+
+   /** Blocking probe for incoming message of this type from any rank.
+       Returns the rank and message size. */
+   static bool Probe(int &rank, int &size, MPI_Comm comm)
+   {
+      MPI_Status status;
+      MPI_Probe(MPI_ANY_SOURCE, Tag, comm, &status);
+      rank = status.MPI_SOURCE;
+      MPI_Get_count(&status, MPI_BYTE, &size);
+      return true;
+   }
+
+   /// Post-probe receive from processor 'rank' of message size 'size'.
+   virtual void Recv(int rank, int size, MPI_Comm comm)
+   {
+      data.resize(size);
+      MPI_Status status;
+      MPI_Recv((void*) data.data(), size, MPI_BYTE, rank, Tag, comm, &status);
+      Decode();
+      data.clear();
+   }
+
+protected:
+   virtual void Encode() {}
+   virtual void Decode() {}
+};
+
+
+
 
 /** \brief
  *
@@ -22,18 +66,54 @@ class ParNCMesh : public NCMesh
 public:
    ParNCMesh(MPI_Comm comm, const Mesh* coarse_mesh);
 
-   int EdgeOwner(int index) const { return gtopo.GetGroup(edge_group[index])[0]; }
-   int FaceOwner(int index) const { return gtopo.GetGroup(face_group[index])[0]; }
+   const int* EdgeGroup(int index, int &group_size) const
+   { return gtopo.GetGroup(edge_group[index]); }
+
+   const int* FaceGroup(int index, int &group_size) const
+   { return gtopo.GetGroup(face_group[index]); }
+
+   int EdgeOwner(int index) const;
+   int FaceOwner(int index) const;
 
    bool IsGhostEdge(int index) const { return index >= NEdges; }
    bool IsGhostFace(int index) const { return index >= NFaces; }
 
-   void EncodeEdgesFaces(const Array<EdgeId> &edges, const Array<FaceId> &faces,
-                         std::ostream &os);
+   /// Helper to get edge (type == 0) or face (type == 1) owner.
+   int GetOwner(int type, int index)
+   { return type ? FaceOwner(index) : EdgeOwner(index); }
 
-   void DecodeEdgesFaces(Array<EdgeId> &edges, Array<FaceId> &faces,
-                         std::istream &is);
+   /// Helper to get edge (type == 0) or face (type == 1) group and its size.
+   const int* GetGroup(int type, int index, int &group_size)
+   { return type ? FaceGroup(index, group_size) : EdgeGroup(index, group_size); }
 
+
+   /** */
+   class NeighborDofMessage : public Message<>
+   {
+   public:
+      void AddFaceDofs(const FaceId &fid, const Array<int> &dofs);
+      void AddEdgeDofs(const EdgeId &eid, const Array<int> &dofs);
+
+      void GetFaceDofs(const FaceId& fid, Array<int>& dofs);
+      void GetEdgeDofs(const EdgeId& eid, Array<int>& dofs);
+
+      /// Helper to call AddEdgeDofs (type == 0) or AddFaceDofs (type == 1)
+      void AddDofs(int type, const FaceId& fid, const Array<int> &dofs)
+      { if (type) AddFaceDofs(fid, dofs); else AddEdgeDofs(fid, dofs); }
+
+   protected:
+      // TODO: we need a Dictionary class if we want to avoid STL
+      typedef std::map<FaceId, std::vector<int> > IdToDofs;
+      IdToDofs face_dofs, edge_dofs;
+
+      virtual void Encode();
+      virtual void Decode();
+   };
+
+   class NeighborRowMessage
+   {
+      // TODO
+   };
 
 protected:
 
@@ -85,7 +165,17 @@ protected:
       int GetInt(int pos) const;
    };
 
+   void EncodeEdgesFaces(const Array<EdgeId> &edges, const Array<FaceId> &faces,
+                         std::ostream &os);
+
+   void DecodeEdgesFaces(Array<EdgeId> &edges, Array<FaceId> &faces,
+                         std::istream &is);
+
+
 };
+
+inline bool operator< (const NCMesh::FaceId &a, const NCMesh::FaceId &b)
+{ return a.index < b.index; }
 
 /*
 NOTES

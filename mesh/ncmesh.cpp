@@ -1043,6 +1043,9 @@ void NCMesh::Refine(const Array<Refinement>& refinements)
 
    UpdateLeafElements();
    UpdateVertices();
+
+   face_list.Clear();
+   edge_list.Clear();
 }
 
 
@@ -1286,7 +1289,7 @@ void NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
 }
 
 void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
-                          const PointMatrix& pm, FaceList &flist, int level) const
+                          const PointMatrix& pm, int level)
 {
    if (level > 0)
    {
@@ -1295,8 +1298,8 @@ void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
       if (face)
       {
          // we have a slave face, add it to the list
-         flist.slaves.push_back(SlaveFace(face->index));
-         DenseMatrix &mat(flist.slaves.back().point_matrix);
+         face_list.slaves.push_back(SlaveFace(face->index));
+         DenseMatrix &mat(face_list.slaves.back().point_matrix);
          pm.GetMatrix(mat);
 
          // reorder the point matrix according to slave face orientation
@@ -1315,28 +1318,26 @@ void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
       Point mid0(pm(0), pm(1)), mid2(pm(2), pm(3));
 
       TraverseFace(v0, mid[0], mid[2], v3,
-                   PointMatrix(pm(0), mid0, mid2, pm(3)), flist, level+1);
+                   PointMatrix(pm(0), mid0, mid2, pm(3)), level+1);
 
       TraverseFace(mid[0], v1, v2, mid[2],
-                   PointMatrix(mid0, pm(1), pm(2), mid2), flist, level+1);
+                   PointMatrix(mid0, pm(1), pm(2), mid2), level+1);
    }
    else if (split == 2) // "Y" split face
    {
       Point mid1(pm(1), pm(2)), mid3(pm(3), pm(0));
 
       TraverseFace(v0, v1, mid[1], mid[3],
-                   PointMatrix(pm(0), pm(1), mid1, mid3), flist, level+1);
+                   PointMatrix(pm(0), pm(1), mid1, mid3), level+1);
 
       TraverseFace(mid[3], mid[1], v2, v3,
-                   PointMatrix(mid3, mid1, pm(2), pm(3)), flist, level+1);
+                   PointMatrix(mid3, mid1, pm(2), pm(3)), level+1);
    }
 }
 
-void NCMesh::BuildFaceList(FaceList &flist) const
+void NCMesh::BuildFaceList()
 {
-   flist.cfaces.clear();
-   flist.masters.clear();
-   flist.slaves.clear();
+   face_list.Clear();
 
    // visit faces of leaf elements
    for (int i = 0; i < leaf_elements.Size(); i++)
@@ -1358,7 +1359,7 @@ void NCMesh::BuildFaceList(FaceList &flist) const
          if (face->ref_count == 2 || face->Boundary())
          {
             // this is a conforming face, add it to the list
-            flist.cfaces.push_back(
+            face_list.conforming.push_back(
                ConformingFace(face->index, elem, j, face->attribute));
          }
          else
@@ -1367,18 +1368,19 @@ void NCMesh::BuildFaceList(FaceList &flist) const
 
             // this is either a master face or a slave face, but we can't
             // tell until we traverse the face refinement 'tree'...
-            int sb = flist.slaves.size();
-            TraverseFace(node[0], node[1], node[2], node[3], pm, flist, 0);
+            int sb = face_list.slaves.size();
+            TraverseFace(node[0], node[1], node[2], node[3], pm, 0);
 
-            int se = flist.slaves.size();
+            int se = face_list.slaves.size();
             if (sb < se)
             {
                // found slaves, so this is a master face; add it to the list
-               flist.masters.push_back(MasterFace(face->index, elem, j, sb, se));
+               face_list.masters.push_back(
+                  MasterFace(face->index, elem, j, sb, se));
 
                // also, set the master index for the slaves
                for (int i = sb; i < se; i++)
-                  flist.slaves[i].master = face->index;
+                  face_list.slaves[i].master = face->index;
             }
          }
       }
@@ -1386,8 +1388,7 @@ void NCMesh::BuildFaceList(FaceList &flist) const
 }
 
 NCMesh::Node*
-NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1,
-                     EdgeList &elist, int level) const
+NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
 {
    Node* mid = nodes.Peek(v0, v1);
    if (!mid) return NULL;
@@ -1395,9 +1396,9 @@ NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1,
    if (mid->edge && level > 0)
    {
       // we have a slave edge, add it to the list
-      elist.slaves.push_back(SlaveEdge(mid->edge->index));
+      edge_list.slaves.push_back(SlaveEdge(mid->edge->index));
 
-      DenseMatrix& mat = elist.slaves.back().point_matrix;
+      DenseMatrix& mat = edge_list.slaves.back().point_matrix;
       mat.SetSize(1, 2);
       mat(0,0) = t0, mat(0,1) = t1;
 
@@ -1408,17 +1409,15 @@ NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1,
 
    // recurse deeper
    double tmid = (t0 + t1) / 2;
-   TraverseEdge(v0, mid, t0, tmid, elist, level+1);
-   TraverseEdge(mid, v1, tmid, t1, elist, level+1);
+   TraverseEdge(v0, mid, t0, tmid, level+1);
+   TraverseEdge(mid, v1, tmid, t1, level+1);
 
    return mid;
 }
 
-void NCMesh::BuildEdgeList(EdgeList &elist) const
+void NCMesh::BuildEdgeList()
 {
-   elist.cedges.clear();
-   elist.masters.clear();
-   elist.slaves.clear();
+   edge_list.Clear();
 
    // visit edges of leaf elements
    for (int i = 0; i < leaf_elements.Size(); i++)
@@ -1438,33 +1437,35 @@ void NCMesh::BuildEdgeList(EdgeList &elist) const
             std::swap(t0, t1);
 
          // try traversing this edge to find slave edges
-         int sb = elist.slaves.size();
-         Node* edge = TraverseEdge(node[0], node[1], t0, t1, elist, 0);
+         int sb = edge_list.slaves.size();
+         Node* edge = TraverseEdge(node[0], node[1], t0, t1, 0);
          MFEM_ASSERT(edge && edge->edge, "Edge not found!");
 
-         int se = elist.slaves.size();
+         int se = edge_list.slaves.size();
          if (sb < se)
          {
             // found slaves, this is a master face; add it to the list
-            elist.masters.push_back(
+            edge_list.masters.push_back(
                MasterEdge(edge->edge->index, elem, j, sb, se));
 
             // also, set the master index for the slaves
             for (int i = sb; i < se; i++)
-               elist.slaves[i].master = edge->edge->index;
+               edge_list.slaves[i].master = edge->edge->index;
 
             // FIXME: edge might not be the true master!!!
          }
          else
          {
             // no slaves, this is a conforming edge
-            elist.cedges.push_back(
+            edge_list.conforming.push_back(
                ConformingEdge(edge->edge->index, elem, j, edge->edge->attribute));
 
-            // FIXME: check for duplicates in elist.cedges!!!
+            // FIXME: check for duplicates in elist.conforming!!!
          }
       }
    }
+
+   // FIXME: masters that are also conforming
 }
 
 

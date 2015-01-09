@@ -124,10 +124,13 @@ public:
    /// Lists all faces in the nonconforming mesh. Returned by BuildFaceList.
    struct FaceList
    {
-      std::vector<ConformingFace> cfaces;
+      std::vector<ConformingFace> conforming;
       std::vector<MasterFace> masters;
       std::vector<SlaveFace> slaves;
       // TODO: switch to Arrays when fixed for non-POD types
+
+      void Clear() { conforming.clear(); masters.clear(); slaves.clear(); }
+      bool Empty() const { return !conforming.size() && !masters.size(); }
    };
 
    // edge structs are the same
@@ -135,25 +138,21 @@ public:
    typedef ConformingFace ConformingEdge;
    typedef MasterFace MasterEdge;
    typedef SlaveFace SlaveEdge;
+   typedef FaceList EdgeList;
 
-   /// Lists all edges in the nonconforming mesh. Returned by BuildEdgeList.
-   struct EdgeList
+   /// Return the current list of conforming and nonconforming faces.
+   const FaceList& GetFaceList()
    {
-      std::vector<ConformingEdge> cedges;
-      std::vector<MasterEdge> masters;
-      std::vector<SlaveEdge> slaves;
-      // TODO: switch to Arrays when fixed for non-POD types
-   };
+      if (face_list.Empty()) BuildFaceList();
+      return face_list;
+   }
 
-   /** Traverse leaf elements and build lists of conforming and nonconforming
-       faces. The caller owns the result. */
-   void BuildFaceList(FaceList &flist) const;
-   // TODO: maybe own by this class?
-
-   /** Traverse leaf elements and build lists of conforming and nonconforming
-       edges. The caller owns the result. */
-   void BuildEdgeList(EdgeList &elist) const;
-   // TODO: maybe own by this class?
+   /// Return the current list of conforming and nonconforming edges.
+   const EdgeList& GetEdgeList()
+   {
+      if (edge_list.Empty()) BuildEdgeList();
+      return edge_list;
+   }
 
    /** Represents the relation of a fine element to its parent (coarse) element
        from a previous mesh state. (Note that the parent can be an indirect
@@ -414,10 +413,15 @@ protected: // implementation
    struct PointMatrix;
 
    void TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
-                     const PointMatrix& pm, FaceList &flist, int level) const;
+                     const PointMatrix& pm, int level);
 
-   Node* TraverseEdge(Node* v0, Node* v1, double t0, double t1,
-                      EdgeList &elist, int level) const;
+   Node* TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level);
+
+   FaceList face_list;
+   EdgeList edge_list;
+
+   void BuildFaceList();
+   void BuildEdgeList();
 
    // coarse to fine transformations
 

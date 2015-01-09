@@ -797,6 +797,108 @@ void ParFiniteElementSpace::ConstructTrueNURBSDofs()
    gcomm->Bcast(ldof_ltdof);
 }
 
+void ParFiniteElementSpace::GetConformingDofs
+(int type, int index, Array<int>& cdofs)
+{
+   Array<int> dofs;
+   if (type)
+      GetFaceDofs(index, dofs);
+   else
+      GetEdgeDofs(index, dofs);
+
+   ConvertToConformingVDofs(dofs, cdofs);
+}
+
+void ParFiniteElementSpace::GetConformingInterpolation()
+{
+   ParNCMesh* pncmesh;// = pmesh->pncmesh;
+
+   // TODO: we need a Dictionary class if we want to avoid STL
+   typedef std::map<int, ParNCMesh::NeighborDofMessage> RankToMessage;
+   RankToMessage send_messages;
+   RankToMessage recv_messages;
+
+   // prepare neighbor DOF messages for relevant edges/faces
+   for (int type = 0; type <= 1; type++)
+   {
+      const NCMesh::FaceList &list = type ? pncmesh->GetFaceList()
+                                          : pncmesh->GetEdgeList();
+      Array<int> cdofs;
+
+      // collect master edge/face DOFs to send to neighbors
+      for (int mi = 0; mi < list.masters.size(); mi++)
+      {
+         const NCMesh::MasterFace &mf = list.masters[mi];
+         if (pncmesh->GetOwner(type, mf.index) == MyRank)
+         {
+            cdofs.SetSize(0);
+            for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
+            {
+               int slave_rank = pncmesh->GetOwner(type, list.slaves[si].index);
+               if (slave_rank != MyRank)
+               {
+                  // our master e/f constrains a remote slave, send master DOFs
+                  if (!cdofs.Size()) GetConformingDofs(type, mf.index, cdofs);
+                  send_messages[slave_rank].AddDofs(type, mf, cdofs);
+               }
+            }
+         }
+      }
+
+      // collect conforming edge/face DOFs to send to neighbors
+      for (int ci = 0, gsize; ci < list.conforming.size(); ci++)
+      {
+         const NCMesh::ConformingFace &cf = list.conforming[ci];
+         const int* group = pncmesh->GetGroup(type, cf.index, gsize);
+
+         cdofs.SetSize(0);
+         for (int i = 0; i < gsize; i++)
+            if (group[i] != MyRank)
+            {
+               // we own a conforming e/f DOFs, send them to others in group
+               if (!cdofs.Size()) GetConformingDofs(type, cf.index, cdofs);
+               send_messages[group[i]].AddDofs(type, cf, cdofs);
+            }
+      }
+
+      // prepare messages that will receive DOFs for slave edges/faces
+      for (int si = 0; si < list.slaves.size(); si++)
+      {
+         const NCMesh::SlaveFace &sf = list.slaves[si];
+         if (pncmesh->GetOwner(type, sf.index) == MyRank)
+         {
+            int master_rank = pncmesh->GetOwner(type, sf.master);
+            if (master_rank != MyRank)
+               recv_messages[master_rank]; // create incoming message
+         }
+      }
+   }
+
+   // non-blocking send of outgoing messages
+   MPI_Request* requests = new MPI_Request[send_messages.size()];
+   int msg_num = 0;
+   for (RankToMessage::iterator it = send_messages.begin();
+        it != send_messages.end(); ++it)
+   {
+      requests[msg_num++] = it->second.Isend(it->first, MyComm);
+   }
+
+   // blocking (kind of) receive of incoming messages
+   int recv_left = recv_messages.size();
+   while (recv_left > 0)
+   {
+      int rank, size;
+      Message<>::Probe(rank, size, MyComm);
+      recv_messages[rank].Recv(rank, size, MyComm);
+      --recv_left;
+   }
+
+
+   //
+   MPI_Waitall(send_messages.size(), requests, MPI_STATUSES_IGNORE);
+   delete [] requests;
+}
+
 void ParFiniteElementSpace::Update()
 {
    FiniteElementSpace::Update();

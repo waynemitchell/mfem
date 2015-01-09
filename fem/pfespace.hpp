@@ -83,6 +83,9 @@ private:
    void ConstructTrueDofs();
    void ConstructTrueNURBSDofs();
 
+   void GetConformingDofs(int type, int index, Array<int>& cdofs);
+   void GetConformingInterpolation(); // FIXME
+
 public:
    // Face-neighbor data
    int num_face_nbr_dofs;

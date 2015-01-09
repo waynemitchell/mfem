@@ -562,74 +562,67 @@ static bool DofFinalizable(int dof, const Array<bool>& finalized,
    return true;
 }
 
-void FiniteElementSpace::GetConformingInterpolation
-(const NCMesh::EdgeList &elist, const NCMesh::FaceList &flist)
+/** This is a helper function to get edge (type == 0) or face (type == 1) DOFs.
+    The function is aware of ghost edges/faces in parallel, for which an empty
+    DOF list is returned. */
+void FiniteElementSpace::GetEdgeFaceDofs(int type, int index, Array<int> &dofs)
+{
+   dofs.SetSize(0);
+   if (type)
+   {
+      if (index >= mesh->GetNFaces())
+         GetFaceDofs(index, dofs);
+   }
+   else
+   {
+      if (index >= mesh->GetNEdges())
+         GetEdgeDofs(index, dofs);
+   }
+}
+
+void FiniteElementSpace::GetConformingInterpolation()
 {
    // For each slave DOF, the dependency matrix will contain a row that
    // expresses the slave DOF as a linear combination of its immediate master
    // DOFs. Rows of independent DOFs will remain empty.
    SparseMatrix deps(ndofs);
 
-   Array<int> master_dofs, slave_dofs;
-   const FiniteElement* fe;
-
-   // collect local edge dependencies
-   if (elist.masters.size())
+   // collect local edge/face dependencies
+   for (int type = 0; type <= 1; type++)
    {
-      IsoparametricTransformation edge_T;
-      edge_T.SetFE(&SegmentFE);
+      const NCMesh::FaceList &list = type ? mesh->ncmesh->GetFaceList()
+                                          : mesh->ncmesh->GetEdgeList();
+      if (!list.masters.size()) continue;
 
-      fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      IsoparametricTransformation T;
+      if (type)
+         T.SetFE(&QuadrilateralFE);
+      else
+         T.SetFE(&SegmentFE);
+
+      const FiniteElement* fe = fec->FiniteElementForGeometry(
+         (type ? Geometry::SQUARE : Geometry::SEGMENT));
+
+      Array<int> master_dofs, slave_dofs;
       DenseMatrix I(fe->GetDof());
 
-      // loop through all master edges, constrain their slave edges
-      for (int mi = 0; mi < elist.masters.size(); mi++)
+      // loop through all master edges/faces, constrain their slave edges/faces
+      for (int mi = 0; mi < list.masters.size(); mi++)
       {
-         const NCMesh::MasterFace &me = elist.masters[mi];
-         GetEdgeDofs(me.index, master_dofs);
-         if (!master_dofs.Size()) continue;
-
-         for (int si = me.slaves_begin; si < me.slaves_end; si++)
-         {
-            const NCMesh::SlaveFace &se = elist.slaves[si];
-            GetEdgeDofs(se.index, slave_dofs);
-            if (!slave_dofs.Size()) continue;
-
-            edge_T.GetPointMat() = se.point_matrix;
-            fe->GetLocalInterpolation(edge_T, I);
-
-            // make each slave DOF dependent on all master edge DOFs
-            AddDependencies(deps, master_dofs, slave_dofs, I);
-         }
-      }
-   }
-
-   // collect local face dependencies
-   if (flist.masters.size())
-   {
-      IsoparametricTransformation face_T;
-      face_T.SetFE(&QuadrilateralFE);
-
-      fe = fec->FiniteElementForGeometry(Geometry::SQUARE);
-      DenseMatrix I(fe->GetDof());
-
-      // loop through all master faces, constrain their slave faces
-      for (int mi = 0; mi < flist.masters.size(); mi++)
-      {
-         const NCMesh::MasterFace &mf = flist.masters[mi];
-         GetFaceDofs(mf.index, master_dofs);
+         const NCMesh::MasterFace &mf = list.masters[mi];
+         GetEdgeFaceDofs(type, mf.index, master_dofs);
          if (!master_dofs.Size()) continue;
 
          for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
          {
-            const NCMesh::SlaveFace &sf = flist.slaves[si];
-            GetFaceDofs(sf.index, slave_dofs);
+            const NCMesh::SlaveFace &sf = list.slaves[si];
+            GetEdgeFaceDofs(type, sf.index, slave_dofs);
             if (!slave_dofs.Size()) continue;
 
-            face_T.GetPointMat() = sf.point_matrix;
-            fe->GetLocalInterpolation(face_T, I);
+            T.GetPointMat() = sf.point_matrix;
+            fe->GetLocalInterpolation(T, I);
 
-            // make each slave DOF dependent on all master face DOFs
+            // make each slave DOF dependent on all master DOFs
             AddDependencies(deps, master_dofs, slave_dofs, I);
          }
       }
@@ -878,11 +871,7 @@ void FiniteElementSpace::Constructor()
 
    if (mesh->ncmesh && ndofs > nbdofs)
    {
-      NCMesh::EdgeList elist;
-      NCMesh::FaceList flist;
-      mesh->ncmesh->BuildEdgeList(elist);
-      mesh->ncmesh->BuildFaceList(flist);
-      GetConformingInterpolation(elist, flist);
+      GetConformingInterpolation();
 
       if (cP && vdim > 1)
       {

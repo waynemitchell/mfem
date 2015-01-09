@@ -19,6 +19,7 @@
 #include <iostream>
 #include "../general/communication.hpp"
 #include "mesh.hpp"
+#include "pncmesh.hpp"
 
 namespace mfem
 {

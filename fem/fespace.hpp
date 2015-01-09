@@ -124,9 +124,10 @@ protected:
    SparseMatrix *NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes,
                                             NCMesh* ncmesh);
 
+   void GetEdgeFaceDofs(int type, int index, Array<int> &dofs);
+
    /** Calculate the cP and cR matrices for a nonconforming mesh. */
-   void GetConformingInterpolation(const NCMesh::EdgeList &elist,
-                                   const NCMesh::FaceList &flist);
+   void GetConformingInterpolation();
 
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
