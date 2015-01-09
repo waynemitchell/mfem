@@ -10,8 +10,8 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "picojson.hpp"
-#include "error.hpp"
-#include "../fem/fem.hpp"
+#include "../general/error.hpp"
+#include "fem.hpp"
 #include "../mesh/mesh.hpp"
 
 #ifdef MFEM_USE_MPI
@@ -36,7 +36,7 @@ public:
    FieldInfo(std::string _association, int _num_components) {association = _association; num_components = _num_components;};
 };
 
-
+/// This is a container for all the data in the collection that is shared across the mesh and all the fields
 class RootData
 {
 public:

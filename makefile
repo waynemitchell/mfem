@@ -82,30 +82,30 @@ LIBS_OPT = $(USE_MESQUITE_OPTS) $(SUITESPARSE_OPT)
 CCC = $(CC) $(CCOPTS) $(DEFS) $(LIBS_OPT)
 
 # Generate with 'echo general/*.cpp linalg/*.cpp mesh/*.cpp fem/*.cpp'
-SOURCE_FILES = general/array.cpp general/communication.cpp                     \
-general/datacollection.cpp general/error.cpp general/isockstream.cpp           \
-general/optparser.cpp general/osockstream.cpp general/sets.cpp                 \
-general/socketstream.cpp general/sort_pairs.cpp general/stable3d.cpp           \
-general/table.cpp general/tic_toc.cpp linalg/blockmatrix.cpp                   \
-linalg/blockoperator.cpp linalg/blockvector.cpp linalg/densemat.cpp            \
-linalg/hypre.cpp linalg/matrix.cpp linalg/ode.cpp linalg/operator.cpp          \
-linalg/solvers.cpp linalg/sparsemat.cpp linalg/sparsesmoothers.cpp             \
-linalg/vector.cpp mesh/element.cpp mesh/hexahedron.cpp mesh/mesh.cpp           \
-mesh/mesquite.cpp mesh/ncmesh.cpp mesh/nurbs.cpp mesh/pmesh.cpp mesh/point.cpp \
-mesh/quadrilateral.cpp mesh/segment.cpp mesh/tetrahedron.cpp mesh/triangle.cpp \
-mesh/vertex.cpp fem/bilinearform.cpp fem/bilininteg.cpp fem/coefficient.cpp    \
-fem/eltrans.cpp fem/fe_coll.cpp fem/fe.cpp fem/fespace.cpp fem/geom.cpp        \
-fem/gridfunc.cpp fem/intrules.cpp fem/linearform.cpp fem/lininteg.cpp          \
-fem/nonlinearform.cpp fem/nonlininteg.cpp fem/pbilinearform.cpp                \
-fem/pfespace.cpp fem/pgridfunc.cpp fem/plinearform.cpp fem/pnonlinearform.cpp
+SOURCE_FILES = general/array.cpp general/communication.cpp general/error.cpp   \
+general/isockstream.cpp general/optparser.cpp general/osockstream.cpp          \
+general/sets.cpp general/socketstream.cpp general/sort_pairs.cpp               \
+general/stable3d.cpp general/table.cpp general/tic_toc.cpp                     \
+linalg/blockmatrix.cpp linalg/blockoperator.cpp linalg/blockvector.cpp         \
+linalg/densemat.cpp linalg/hypre.cpp linalg/matrix.cpp linalg/ode.cpp          \
+linalg/operator.cpp linalg/solvers.cpp linalg/sparsemat.cpp                    \
+linalg/sparsesmoothers.cpp linalg/vector.cpp mesh/element.cpp                  \
+mesh/hexahedron.cpp mesh/mesh.cpp mesh/mesquite.cpp mesh/ncmesh.cpp            \
+mesh/nurbs.cpp mesh/pmesh.cpp mesh/point.cpp mesh/quadrilateral.cpp            \
+mesh/segment.cpp mesh/tetrahedron.cpp mesh/triangle.cpp mesh/vertex.cpp        \
+fem/bilinearform.cpp fem/bilininteg.cpp fem/coefficient.cpp                    \
+fem/datacollection.cpp fem/eltrans.cpp fem/fe_coll.cpp fem/fe.cpp              \
+fem/fespace.cpp fem/geom.cpp fem/gridfunc.cpp fem/intrules.cpp                 \
+fem/linearform.cpp fem/lininteg.cpp fem/nonlinearform.cpp fem/nonlininteg.cpp  \
+fem/pbilinearform.cpp fem/pfespace.cpp fem/pgridfunc.cpp fem/plinearform.cpp   \
+fem/pnonlinearform.cpp
 
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 # Generated with 'echo general/*.hpp linalg/*.hpp mesh/*.hpp fem/*.hpp'
-HEADER_FILES = general/array.hpp general/communication.hpp                     \
-general/datacollection.hpp general/error.hpp general/hash.hpp                  \
-general/isockstream.hpp general/mem_alloc.hpp general/optparser.hpp            \
-general/osockstream.hpp general/picojson.hpp general/sets.hpp                  \
+HEADER_FILES = general/array.hpp general/communication.hpp general/error.hpp   \
+general/hash.hpp general/isockstream.hpp general/mem_alloc.hpp                 \
+general/optparser.hpp general/osockstream.hpp general/sets.hpp                 \
 general/socketstream.hpp general/sort_pairs.hpp general/stable3d.hpp           \
 general/table.hpp general/tic_toc.hpp linalg/blockmatrix.hpp                   \
 linalg/blockoperator.hpp linalg/blockvector.hpp linalg/densemat.hpp            \
@@ -116,11 +116,11 @@ mesh/hexahedron.hpp mesh/mesh_headers.hpp mesh/mesh.hpp mesh/mesquite.hpp      \
 mesh/ncmesh.hpp mesh/nurbs.hpp mesh/pmesh.hpp mesh/point.hpp                   \
 mesh/quadrilateral.hpp mesh/segment.hpp mesh/tetrahedron.hpp mesh/triangle.hpp \
 mesh/vertex.hpp fem/bilinearform.hpp fem/bilininteg.hpp fem/coefficient.hpp    \
-fem/eltrans.hpp fem/fe_coll.hpp fem/fe.hpp fem/fem.hpp fem/fespace.hpp         \
-fem/geom.hpp fem/gridfunc.hpp fem/intrules.hpp fem/linearform.hpp              \
-fem/lininteg.hpp fem/nonlinearform.hpp fem/nonlininteg.hpp                     \
-fem/pbilinearform.hpp fem/pfespace.hpp fem/pgridfunc.hpp fem/plinearform.hpp   \
-fem/pnonlinearform.hpp
+fem/datacollection.hpp fem/eltrans.hpp fem/fe_coll.hpp fem/fe.hpp fem/fem.hpp  \
+fem/fespace.hpp fem/geom.hpp fem/gridfunc.hpp fem/intrules.hpp                 \
+fem/linearform.hpp fem/lininteg.hpp fem/nonlinearform.hpp fem/nonlininteg.hpp  \
+fem/pbilinearform.hpp fem/pfespace.hpp fem/pgridfunc.hpp fem/picojson.hpp      \
+fem/plinearform.hpp fem/pnonlinearform.hpp
 
 .SUFFIXES: .cpp .o
 .cpp.o:
