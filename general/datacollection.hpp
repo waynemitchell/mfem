@@ -21,94 +21,60 @@ namespace mfem
 
 class Mesh;
 class GridFunction;
-
-class FieldInfo
-{
-public:
-   std::string association;
-   int num_components;
-   FieldInfo() {association = ""; num_components = 0;};
-   FieldInfo(std::string _association, int _num_components) {association = _association; num_components = _num_components;};
-};
-
-
-class RootData
-{
-public:
-   std::string base_name;
-   int cycle;
-   double time;
-   int spatial_dim, topo_dim;
-   int visit_max_levels_of_detail;
-   int num_ranks;
-   std::map<std::string, FieldInfo> field_info_map;
-
-   RootData();
-
-   /// Set FieldInfo
-   void SetFieldInfo(std::string name, std::string association, int num_components) {field_info_map[name] = FieldInfo(association, num_components);};
-   bool HasField(std::string name) {return field_info_map.count(name) == 1;};
-
-   /// Interact with the json Visit root strings
-   std::string GetVisitRootString();
-   void ParseVisitRootString(std::string json_str);
-
-   /// Interact with Visit Root files
-   void SaveVisitRootFile();
-   void LoadVisitRootFile(std::string fname);
-
-   /// String conversions that will go away in C++11
-   std::string to_padded_string(int i);
-   std::string to_string(int i);
-   int to_int(std::string str);
-};
+class RootData;
 
 
 class DataCollection
 {
 protected:
-   RootData root_data;
-   Mesh* mesh;
+   RootData *root_data;
+   Mesh *mesh;
 
    int my_rank;
+   bool own_data;
    std::map<std::string, GridFunction*> field_map;
 
    /// Interact with the Mesh files
    void SaveMesh();
-   void LoadMesh();
 
    /// Interact with the Field files
    void SaveFields();
-   void LoadFields();
+   void LoadFieldsFromRootData();
 
 public:
-   /// Construct passing in the necessary components
-   DataCollection() {my_rank = 0;};
-   DataCollection(int mpi_rank) {my_rank = mpi_rank;};
-   DataCollection(const char* _colection_name, Mesh* _mesh);
+   /// Constructors for initializing an empty collection so we can load a mesh and fields into it.
+   /// If running in parallel, the mpi_rank is necessary 
+   DataCollection(const char *collection_name, int mpi_rank = 0);
 
-   /// Accessors for the variables that can change
-   void SetVisitParameters(int max_levels_of_detail) {root_data.visit_max_levels_of_detail = max_levels_of_detail;};
+   /// Constructor for initializing a collection with a mesh
+   DataCollection(const char *collection_name, Mesh *_mesh);
 
    /// Various Accessors
-   const char* GetCollectionName() {return root_data.base_name.c_str();};
-   void SetCycle(int c) {root_data.cycle = c;};
-   int GetCycle() {return root_data.cycle;};
-   void SetTime(double t) {root_data.time = t;};
-   double GetTime() {return root_data.time;};
-   Mesh *GetMesh() {return mesh;};
-   GridFunction *GetField(const char *field_name);
+   const char* GetCollectionName();
+   void SetOwnData(bool _own_data);
+   void SetCycle(int c);
+   int GetCycle();
+   void SetTime(double t);
+   double GetTime();
+   void SetVisitParameters(int max_levels_of_detail);
+   Mesh *GetMesh();
 
    /// Interact with the fields map
    void RegisterField(const char *field_name, GridFunction *gf);
    bool HasField(const char *name) {return field_map.count(name) == 1;};
+   GridFunction *GetField(const char *field_name);
+
+   /// Interact with MFEM data files
+   void SaveData();
+   void LoadMesh(int cycle = 0);
+   void LoadField(const char *field_name);
 
    /// Interact with Visit data files
    void SaveVisitData();
-   void LoadVisitData(const char *_collection_name, int _cycle);
+   void LoadVisitData(int cycle = 0);
 
-   /// For now we will leave the destructor empty and let the user delete the attached Mesh and GridFunctions
-   ~DataCollection(){};
+   /// We will delete the mesh and fields if we own them
+   ~DataCollection();
 };
 
 }

@@ -24,16 +24,80 @@
 namespace mfem
 {
 
+//////////////////////////////////// RootData Class Definition /////////////////////////////////////////
+
+
+class FieldInfo
+{
+public:
+   std::string association;
+   int num_components;
+   FieldInfo() {association = ""; num_components = 0;};
+   FieldInfo(std::string _association, int _num_components) {association = _association; num_components = _num_components;};
+};
+
+
+class RootData
+{
+public:
+   std::string base_name;
+   int cycle;
+   double time;
+   int spatial_dim, topo_dim;
+   int visit_max_levels_of_detail;
+   int num_ranks;
+   std::map<std::string, FieldInfo> field_info_map;
+
+   RootData();
+
+   /// Set FieldInfo
+   void SetFieldInfo(std::string name, std::string association, int num_components) {field_info_map[name] = FieldInfo(association, num_components);};
+   bool HasField(std::string name) {return field_info_map.count(name) == 1;};
+
+   /// Interact with the json Visit root strings
+   std::string GetVisitRootString();
+   void ParseVisitRootString(std::string json_str);
+
+   /// Interact with Visit Root files
+   void SaveVisitRootFile();
+   void LoadVisitRootFile(std::string fname);
+
+   /// String conversions that will go away in C++11
+   std::string to_padded_string(int i);
+   std::string to_string(int i);
+   int to_int(std::string str);
+};
+
 
 ///////////////////////////////// DataCollection Methods //////////////////////////////////////////
 
 
-DataCollection::DataCollection(const char *_collection_name, Mesh *_mesh) 
+DataCollection::DataCollection(const char *collection_name, int mpi_rank)
 {
-   root_data.base_name = _collection_name;
+   root_data = new RootData();
+   root_data->base_name = collection_name;
+   mesh = NULL;
+   my_rank = mpi_rank;
+   own_data = true;
+   root_data->num_ranks = 1;
+   root_data->cycle = 0;
+   root_data->time = 0.0;
+   root_data->spatial_dim = 0;
+   root_data->topo_dim = 0;
+   root_data->visit_max_levels_of_detail = 25;
+
+   field_map.erase(field_map.begin(), field_map.end());
+}
+
+
+DataCollection::DataCollection(const char *collection_name, Mesh *_mesh) 
+{
+   root_data = new RootData();
+   root_data->base_name = collection_name;
+
    mesh = _mesh;
    my_rank = 0;
-   root_data.num_ranks = 1;
+   root_data->num_ranks = 1;
 #ifdef MFEM_USE_MPI
    ParMesh *par_mesh = dynamic_cast<ParMesh>(mesh);
    if (par_mesh) {
@@ -42,11 +106,12 @@ DataCollection::DataCollection(const char *_collection_name, Mesh *_mesh)
    }
 #endif
 
-   root_data.cycle = 0;
-   root_data.time = 0.0;
-   root_data.spatial_dim = mesh->SpaceDimension();
-   root_data.topo_dim = mesh->Dimension();
-   root_data.visit_max_levels_of_detail = 25;
+   own_data = true;
+   root_data->cycle = 0;
+   root_data->time = 0.0;
+   root_data->spatial_dim = mesh->SpaceDimension();
+   root_data->topo_dim = mesh->Dimension();
+   root_data->visit_max_levels_of_detail = 25;
 
    field_map.erase(field_map.begin(), field_map.end());
 }
@@ -55,7 +120,7 @@ DataCollection::DataCollection(const char *_collection_name, Mesh *_mesh)
 void DataCollection::RegisterField(const char* name, GridFunction *gf)
 {
    field_map[name] = gf;
-   root_data.field_info_map[name] = FieldInfo("nodes", gf->VectorDim());
+   root_data->field_info_map[name] = FieldInfo("nodes", gf->VectorDim());
 }
 
 
@@ -67,31 +132,126 @@ GridFunction *DataCollection::GetField(const char *field_name)
       return NULL;
 }
 
+/// Basic Accessors
 
-
-void DataCollection::SaveVisitData()
+const char* DataCollection::GetCollectionName() 
 {
-   root_data.SaveVisitRootFile();
-   mkdir((root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle)).c_str(), 0777);     //We may need to implement a platform independ version of this
+   return root_data->base_name.c_str();
+}
+
+
+void DataCollection::SetOwnData(bool _own_data) 
+{
+   own_data = _own_data;
+}
+
+
+void DataCollection::SetCycle(int c) 
+{
+   root_data->cycle = c;
+}
+
+
+int DataCollection::GetCycle() 
+{
+   return root_data->cycle;
+}
+
+
+void DataCollection::SetTime(double t) 
+{
+   root_data->time = t;
+}
+
+
+double DataCollection::GetTime() 
+{
+   return root_data->time;
+}
+
+
+Mesh *DataCollection::GetMesh() 
+{
+   return mesh;
+}
+
+void DataCollection::SetVisitParameters(int max_levels_of_detail) 
+{
+   root_data->visit_max_levels_of_detail = max_levels_of_detail;
+}
+
+
+/// Methods for saving and loading data in the bare MFEM format
+
+void DataCollection::SaveData()
+{
+   mkdir((root_data->base_name + "_" + root_data->to_padded_string(root_data->cycle)).c_str(), 0777);
    SaveMesh();
    SaveFields();
 }
 
 
-void DataCollection::LoadVisitData(const char *_collection_name, int _cycle)
+void DataCollection::LoadMesh(int cycle)
 {
-   std::string root_fname = _collection_name + ("_" + root_data.to_padded_string(_cycle) + ".mfem_root");
-   root_data.LoadVisitRootFile(root_fname);
-   LoadMesh();
-   LoadFields();
+   root_data->cycle = cycle;
+   std::string mesh_fname = root_data->base_name + "_" + root_data->to_padded_string(root_data->cycle) + "/mesh."
+                           + root_data->to_padded_string(my_rank);
+   std::ifstream file(mesh_fname.c_str());
+   MFEM_ASSERT(file.is_open(), "Unable to open file for input:  " << mesh_fname);
+   mesh = new Mesh(file);
+   file.close();
+
+   //Use the loaded in mesh to fill in some of the root data
+#ifdef MFEM_USE_MPI
+   ParMesh *par_mesh = dynamic_cast<ParMesh>(mesh);
+   if (par_mesh) {
+      my_rank = par_mesh->GetMyRank();
+      num_ranks = par_mesh->GetNRanks();
+   }
+#endif
+   root_data->spatial_dim = mesh->SpaceDimension();
+   root_data->topo_dim = mesh->Dimension();
+}
+
+
+void DataCollection::LoadField(const char *field_name)
+{
+   std::string fname = root_data->base_name + "_" + root_data->to_padded_string(root_data->cycle) + "/"
+                        + field_name + "." + root_data->to_padded_string(my_rank);
+   std::ifstream file(fname.c_str());
+   MFEM_ASSERT(file.is_open(), "Unable to open file for input:  " << fname);
+   GridFunction* gf = new GridFunction(mesh, file);
+   file.close();
+
+   RegisterField(field_name, gf);
+}
+
+
+/// Methods for saving and loading data in the visit format with a root file
+
+void DataCollection::SaveVisitData()
+{
+   root_data->SaveVisitRootFile();
+   mkdir((root_data->base_name + "_" + root_data->to_padded_string(root_data->cycle)).c_str(), 0777);     //We may need to implement a platform independ version of this
+   SaveMesh();
+   SaveFields();
+}
+
+
+void DataCollection::LoadVisitData(int cycle)
+{
+   std::string root_fname = root_data->base_name + ("_" + root_data->to_padded_string(cycle) + ".mfem_root");
+   root_data->cycle = cycle;
+   root_data->LoadVisitRootFile(root_fname);
+   LoadMesh(cycle);
+   LoadFieldsFromRootData();
 }
 
 
 void DataCollection::SaveMesh()
 {
-   std::string mesh_fname = root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "/"
-                              + root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "."
-                              + root_data.to_padded_string(my_rank) + ".mesh";
+   std::string mesh_fname = root_data->base_name + "_" + root_data->to_padded_string(root_data->cycle) + "/mesh."
+                           + root_data->to_padded_string(my_rank);
 
    std::ofstream file(mesh_fname.c_str());
    MFEM_ASSERT(file.is_open(), "Unable to open file for output:  " << mesh_fname);
@@ -100,23 +260,10 @@ void DataCollection::SaveMesh()
 }
 
 
-void DataCollection::LoadMesh()
-{
-   std::string mesh_fname = root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "/"
-                              + root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "."
-                              + root_data.to_padded_string(my_rank) + ".mesh";
-
-   std::ifstream file(mesh_fname.c_str());
-   mesh = new Mesh(file);
-   file.close();
-}
-
-
 void DataCollection::SaveFields()
 {
-   std::string path_left = root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "/"
-                           + root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "_";
-   std::string path_right = "." + root_data.to_padded_string(my_rank) + ".gf";
+   std::string path_left = root_data->base_name + "_" + root_data->to_padded_string(root_data->cycle) + "/";
+   std::string path_right = "." + root_data->to_padded_string(my_rank);
 
    for (std::map<std::string,GridFunction*>::iterator it=field_map.begin(); it!=field_map.end(); ++it)
    {
@@ -129,14 +276,13 @@ void DataCollection::SaveFields()
 }
 
 
-void DataCollection::LoadFields()
+void DataCollection::LoadFieldsFromRootData()
 {
-   std::string path_left = root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "/"
-                           + root_data.base_name + "_" + root_data.to_padded_string(root_data.cycle) + "_";
-   std::string path_right = "." + root_data.to_padded_string(my_rank) + ".gf";
+   std::string path_left = root_data->base_name + "_" + root_data->to_padded_string(root_data->cycle) + "/";
+   std::string path_right = "." + root_data->to_padded_string(my_rank);
 
    field_map.erase(field_map.begin(), field_map.end());
-   for (std::map<std::string,FieldInfo>::iterator it=root_data.field_info_map.begin(); it!=root_data.field_info_map.end(); ++it)
+   for (std::map<std::string,FieldInfo>::iterator it=root_data->field_info_map.begin(); it!=root_data->field_info_map.end(); ++it)
    {
       std::string fname = path_left + it->first + path_right;
       std::ifstream file(fname.c_str());
@@ -146,8 +292,20 @@ void DataCollection::LoadFields()
    }   
 }
 
+DataCollection::~DataCollection()
+{
+   delete root_data;
+   if (own_data) 
+   {
+      delete mesh;
+      for (std::map<std::string,GridFunction*>::iterator it=field_map.begin(); it!=field_map.end(); ++it)
+         delete it->second;
+   }
+}
+
 
 //////////////////////////////////////// RootData Methods /////////////////////////////////////////
+
 
 RootData::RootData()
 {
@@ -187,7 +345,7 @@ void RootData::LoadVisitRootFile(std::string fname)
 std::string RootData::GetVisitRootString()
 {
    //Get the path string
-   std::string path_str = base_name + "_" + to_padded_string(cycle) + "/" + base_name + "_" + to_padded_string(cycle);
+   std::string path_str = base_name + "_" + to_padded_string(cycle) + "/";
 
    //We have to build the json tree inside out to get all the values in there
    picojson::object top, dsets, main, mesh, fields, field, mtags, ftags;
@@ -196,7 +354,7 @@ std::string RootData::GetVisitRootString()
    mtags["spatial_dim"] = picojson::value(to_string(spatial_dim));
    mtags["topo_dim"] = picojson::value(to_string(topo_dim));
    mtags["max_lods"] = picojson::value(to_string(visit_max_levels_of_detail));
-   mesh["path"] = picojson::value(path_str + ".%05d.mesh");
+   mesh["path"] = picojson::value(path_str + "mesh.%06d");
    mesh["tags"] = picojson::value(mtags);
 
    //Build the fields data entries
@@ -204,14 +362,14 @@ std::string RootData::GetVisitRootString()
    {
       ftags["assoc"] = picojson::value((it->second).association);
       ftags["comps"] = picojson::value(to_string((it->second).num_components));
-      field["path"] = picojson::value(path_str + "_" + it->first + ".%05d.gf");
+      field["path"] = picojson::value(path_str + it->first + ".%06d");
       field["tags"] = picojson::value(ftags);
       fields[it->first] = picojson::value(field);
    }
 
    main["cycle"] = picojson::value(double(cycle));
    main["time"] = picojson::value(time);
-   main["domains"] = picojson::value(double(num_ranks));        //TODO:  Need a way to get the number of domains out of mesh?
+   main["domains"] = picojson::value(double(num_ranks));
    main["mesh"] = picojson::value(mesh);
    if (!field_info_map.empty())
       main["fields"] = picojson::value(fields);
@@ -278,7 +436,7 @@ std::string RootData::to_string(int i)
 std::string RootData::to_padded_string(int i)
 {
    std::ostringstream oss;
-   oss << std::setw(5) << std::setfill('0') << i;
+   oss << std::setw(6) << std::setfill('0') << i;
    return oss.str();
 }
 
