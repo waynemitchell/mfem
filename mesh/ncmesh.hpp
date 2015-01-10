@@ -127,6 +127,7 @@ public:
       std::vector<ConformingFace> conforming;
       std::vector<MasterFace> masters;
       std::vector<SlaveFace> slaves;
+      std::vector<FaceId> nonslaves; // FIXME: remove
       // TODO: switch to Arrays when fixed for non-POD types
 
       void Clear() { conforming.clear(); masters.clear(); slaves.clear(); }
@@ -420,8 +421,11 @@ protected: // implementation
    FaceList face_list;
    EdgeList edge_list;
 
-   void BuildFaceList();
-   void BuildEdgeList();
+   virtual void BuildFaceList();
+   virtual void BuildEdgeList();
+
+   virtual void ElementHasEdge(Element* elem, Edge* edge) {}
+   virtual void ElementHasFace(Element* elem, Face* face) {}
 
    // coarse to fine transformations
 

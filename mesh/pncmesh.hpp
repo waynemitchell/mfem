@@ -14,16 +14,15 @@
 namespace mfem
 {
 
-/// A variable-length MPI message containing unspecific binary data.
-template<int Tag = 36898>
-struct Message
+/// Variable-length MPI message containing unspecific binary data.
+template<int Tag>
+struct VarMessage
 {
    std::string data;
 
    /// Non-blocking send to processor 'rank'.
-   virtual MPI_Request Isend(int rank, MPI_Comm comm)
+   MPI_Request Isend(int rank, MPI_Comm comm)
    {
-      Encode();
       MPI_Request request;
       MPI_Isend(data.data(), data.length(), MPI_BYTE, rank, Tag, comm, &request);
       return request;
@@ -41,18 +40,12 @@ struct Message
    }
 
    /// Post-probe receive from processor 'rank' of message size 'size'.
-   virtual void Recv(int rank, int size, MPI_Comm comm)
+   void Recv(int rank, int size, MPI_Comm comm)
    {
       data.resize(size);
       MPI_Status status;
       MPI_Recv((void*) data.data(), size, MPI_BYTE, rank, Tag, comm, &status);
-      Decode();
-      data.clear();
    }
-
-protected:
-   virtual void Encode() {}
-   virtual void Decode() {}
 };
 
 
@@ -66,33 +59,53 @@ class ParNCMesh : public NCMesh
 public:
    ParNCMesh(MPI_Comm comm, const Mesh* coarse_mesh);
 
-   const int* EdgeGroup(int index, int &group_size) const
-   { return gtopo.GetGroup(edge_group[index]); }
+   const EdgeList& GetSharedEdges() const { return shared_edges; }
+   const FaceList& GetSharedFaces() const { return shared_faces; }
 
-   const int* FaceGroup(int index, int &group_size) const
-   { return gtopo.GetGroup(face_group[index]); }
+   /// Return processor owning an edge.
+   int EdgeOwner(int index) const { edge_owner[index]; }
 
-   int EdgeOwner(int index) const;
-   int FaceOwner(int index) const;
+   /// Return processor owning a face.
+   int FaceOwner(int index) const { face_owner[index]; }
 
-   bool IsGhostEdge(int index) const { return index >= NEdges; }
-   bool IsGhostFace(int index) const { return index >= NFaces; }
+   /// Return a list of processors sharing an edge, and its size.
+   const int* EdgeGroup(int index, int &size) const
+   {
+      size = edge_ranks.RowSize(index);
+      return edge_ranks.GetRow(index);
+   }
+
+   /// Return a list of processors sharing a face, and its size.
+   const int* FaceGroup(int index, int &size) const
+   {
+      size = face_ranks.RowSize(index);
+      return face_ranks.GetRow(index);
+   }
 
    /// Helper to get edge (type == 0) or face (type == 1) owner.
    int GetOwner(int type, int index)
-   { return type ? FaceOwner(index) : EdgeOwner(index); }
+   {
+      return type ? FaceOwner(index) : EdgeOwner(index);
+   }
 
    /// Helper to get edge (type == 0) or face (type == 1) group and its size.
-   const int* GetGroup(int type, int index, int &group_size)
-   { return type ? FaceGroup(index, group_size) : EdgeGroup(index, group_size); }
+   const int* GetGroup(int type, int index, int &size)
+   {
+      return type ? FaceGroup(index, size) : EdgeGroup(index, size);
+   }
 
 
    /** */
-   class NeighborDofMessage : public Message<>
+   class NeighborDofMessage : public VarMessage<135>
    {
    public:
+      typedef VarMessage<135> Base;
+
       void AddFaceDofs(const FaceId &fid, const Array<int> &dofs);
       void AddEdgeDofs(const EdgeId &eid, const Array<int> &dofs);
+
+      MPI_Request Isend(int rank, MPI_Comm comm, const ParNCMesh &pncmesh);
+      void Recv(int rank, int size, MPI_Comm comm, const ParNCMesh &pncmesh);
 
       void GetFaceDofs(const FaceId& fid, Array<int>& dofs);
       void GetEdgeDofs(const EdgeId& eid, Array<int>& dofs);
@@ -101,16 +114,17 @@ public:
       void AddDofs(int type, const FaceId& fid, const Array<int> &dofs)
       { if (type) AddFaceDofs(fid, dofs); else AddEdgeDofs(fid, dofs); }
 
+      /// Helper to call GetEdgeDofs (type == 0) or GetFaceDofs (type == 1)
+      void GetDofs(int type, const FaceId& fid, Array<int> &dofs)
+      { if (type) GetFaceDofs(fid, dofs); else GetEdgeDofs(fid, dofs); }
+
    protected:
       // TODO: we need a Dictionary class if we want to avoid STL
       typedef std::map<FaceId, std::vector<int> > IdToDofs;
       IdToDofs face_dofs, edge_dofs;
-
-      virtual void Encode();
-      virtual void Decode();
    };
 
-   class NeighborRowMessage
+   class NeighborRowMessage : public VarMessage<312>
    {
       // TODO
    };
@@ -123,19 +137,40 @@ protected:
    int NEdges, NGhostEdges;
    int NFaces, NGhostFaces;
 
-   GroupTopology gtopo;
+   //
+   EdgeList shared_edges;
+   FaceList shared_faces;
 
-   Array<int> face_group;
-   Array<int> edge_group;
+   //
+   Array<int> edge_owner;
+   Array<int> face_owner;
+
+   //
+   Table edge_ranks;
+   Table face_ranks;
 
    void InitialPartition();
 
-   virtual void AssignLeafIndices(); // override
+   virtual void AssignLeafIndices();
 
-   virtual void OnMeshUpdated(Mesh *mesh); // override
+   virtual void OnMeshUpdated(Mesh *mesh);
 
-   void CreateGroups();
+   virtual void BuildFaceList();
+   virtual void BuildEdgeList();
 
+   virtual void ElementHasEdge(Element* elem, Edge* edge);
+   virtual void ElementHasFace(Element* elem, Face* face);
+
+   /// Struct to help sorting edges/faces
+   struct IndexRank
+   {
+      int index, rank;
+      IndexRank(int index, int rank) : index(index), rank(rank) {}
+      bool operator< (const IndexRank &other) { return index < other.index; }
+   };
+
+   Array<IndexRank> tmp_edge_ranks;
+   Array<IndexRank> tmp_face_ranks;
 
    /** Uniquely encodes a set of elements in the refinement hierarchy of an
        NCMesh. Can be dumped to a stream, sent to another processor, loaded,
@@ -166,12 +201,12 @@ protected:
    };
 
    void EncodeEdgesFaces(const Array<EdgeId> &edges, const Array<FaceId> &faces,
-                         std::ostream &os);
+                         std::ostream &os) const;
 
    void DecodeEdgesFaces(Array<EdgeId> &edges, Array<FaceId> &faces,
-                         std::istream &is);
+                         std::istream &is) const;
 
-
+   friend class NeighborDofMessage;
 };
 
 inline bool operator< (const NCMesh::FaceId &a, const NCMesh::FaceId &b)

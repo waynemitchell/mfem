@@ -1383,6 +1383,9 @@ void NCMesh::BuildFaceList()
                   face_list.slaves[i].master = face->index;
             }
          }
+
+         // continue processing in ParNCMesh
+         ElementHasFace(elem, face);
       }
    }
 }
@@ -1462,10 +1465,11 @@ void NCMesh::BuildEdgeList()
 
             // FIXME: check for duplicates in elist.conforming!!!
          }
+
+         // continue processing in ParNCMesh
+         ElementHasEdge(elem, edge->edge);
       }
    }
-
-   // FIXME: masters that are also conforming
 }
 
 

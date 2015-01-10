@@ -17,12 +17,13 @@
 #include "pncmesh.hpp"
 
 #include <map>
+#include <limits>
 
 namespace mfem
 {
 
 ParNCMesh::ParNCMesh(MPI_Comm comm, const Mesh *coarse_mesh)
-   : NCMesh(coarse_mesh), gtopo(comm)
+   : NCMesh(coarse_mesh)
 {
    MyComm = comm;
    MPI_Comm_size(MyComm, &NRanks);
@@ -84,13 +85,63 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    for (HashTable<Face>::Iterator it(faces); it; ++it)
       if (it->index < 0)
          it->index = NFaces + (NGhostFaces++);
-
-   CreateGroups();
 }
 
-void ParNCMesh::CreateGroups()
+void ParNCMesh::ElementHasEdge(Element *elem, Edge *edge)
 {
-   // TODO
+   // Called by NCMesh::BuildEdgeList when an edge is visited in a leaf element.
+   // This allows us to determine edge ownership and processors that share it
+   // without duplicating all the HashTable lookups in NCMesh::BuildEdgeList().
+
+   int &owner = edge_owner[edge->index];
+   owner = std::min(owner, elem->rank);
+
+   tmp_edge_ranks.Append(IndexRank(edge->index, elem->rank));
+}
+
+void ParNCMesh::BuildEdgeList()
+{
+   edge_owner = std::numeric_limits<int>::max();
+   tmp_edge_ranks.SetSize(12*leaf_elements.Size() * 3/2);
+
+   NCMesh::BuildEdgeList();
+
+
+   // conforming faces/edges: group contains the participating ranks, lowest it the master
+
+   // master faces/edges: initially the group contains ranks that share the master e/f and
+   // the lowest is the master, but after that the ranks of the slaves are added to the group
+
+   shared_edges.Clear();
+
+   tmp_edge_ranks.DeleteAll();
+}
+
+void ParNCMesh::ElementHasFace(Element* elem, Face* face)
+{
+   // Called by NCMesh::BuildFaceList when a face is visited in a leaf element.
+   // This allows us to determine face ownership and processors that share it
+   // without duplicating all the HashTable lookups in NCMesh::BuildFaceList().
+
+   int &owner = face_owner[face->index];
+   owner = std::min(owner, elem->rank);
+
+   tmp_face_ranks.Append(IndexRank(face->index, elem->rank));
+}
+
+void ParNCMesh::BuildFaceList()
+{
+   face_owner = std::numeric_limits<int>::max();
+   tmp_face_ranks.SetSize(6*leaf_elements.Size() * 3/2);
+
+   NCMesh::BuildFaceList();
+
+   shared_faces.Clear();
+
+
+   tmp_face_ranks.Sort();
+
+   tmp_face_ranks.DeleteAll();
 }
 
 
@@ -225,7 +276,7 @@ void ParNCMesh::ElementSet::Load(std::istream &is)
 }
 
 void ParNCMesh::EncodeEdgesFaces
-(const Array<EdgeId> &edges, const Array<FaceId> &faces, std::ostream &os)
+(const Array<EdgeId> &edges, const Array<FaceId> &faces, std::ostream &os) const
 {
    std::map<Element*, int> element_id;
 
@@ -266,7 +317,7 @@ void ParNCMesh::EncodeEdgesFaces
 }
 
 void ParNCMesh::DecodeEdgesFaces
-(Array<EdgeId> &edges, Array<FaceId> &faces, std::istream &is)
+(Array<EdgeId> &edges, Array<FaceId> &faces, std::istream &is) const
 {
    // read the list of elements
    ElementSet eset(is);
@@ -315,7 +366,8 @@ void ParNCMesh::DecodeEdgesFaces
    // TODO: GI
 }
 
-void ParNCMesh::NeighborDofMessage::Encode()
+MPI_Request ParNCMesh::NeighborDofMessage::Isend
+(int rank, MPI_Comm comm, const ParNCMesh &pncmesh)
 {
    Array<EdgeId> edges;
    {
@@ -330,13 +382,24 @@ void ParNCMesh::NeighborDofMessage::Encode()
    }
 
    std::ostringstream stream(data);
-   //EncodeEdgesFaces(edges, faces, stream);
+   pncmesh.EncodeEdgesFaces(edges, faces, stream);
 
    // dump the DOFs
+
+   face_dofs.clear();
+   edge_dofs.clear();
+
+   return Base::Isend(rank, comm);
 }
 
-void ParNCMesh::NeighborDofMessage::Decode()
+void ParNCMesh::NeighborDofMessage::Recv
+(int rank, int size, MPI_Comm comm, const ParNCMesh &pncmesh)
 {
+   Base::Recv(rank, size, comm);
+
+   // decode
+
+   data.clear();
 }
 
 } // namespace mfem
