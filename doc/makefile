@@ -17,7 +17,10 @@ html: CodeDocumentation.conf
 examples: Examples.conf
 	doxygen Examples.conf
 	rm -rf ../examples/README_files
+	rm -f Examples/html/*.js Examples/html/ftv*
+	rm -f Examples/html/graph* Examples/html/nav*
 	mv -f Examples/html ../examples/README_files
+	rm -rf Examples
 	cd ../examples;	ln -fs README_files/index.html README.html
 
 clean:

@@ -7,73 +7,74 @@ detailed documentation of the MFEM sources, including the examples, build the
 <a href="http://doxygen.mfem.googlecode.com/hg/html/index.html">online version</a>.
 
 Clicking on any of the categories below displays examples that contain the
-described feature. Additionally, a comprehensive list of all examples follows
-the category lists. All examples support (arbitrarily) high-order meshes and
-finite element spaces.
-
+described feature. <em> All examples support (arbitrarily) high-order meshes and
+finite element spaces</em>.
 The numerical results from the example codes can be visualized using the
 GLVis visualization tool (based on MFEM). See the
 <a href="http://glvis.googlecode.com">GLVis website</a>, for more details.
 
 Users are encouraged to submit any example codes that they have created and
 would like to share.
-
-Contact a member of the MFEM team to report
+<em>Contact a member of the MFEM team to report
 <a href="http://code.google.com/p/mfem/issues/entry?template=Defect%20report%20from%20user">bugs</a>
 or post
 <a href="http://code.google.com/p/mfem/issues/entry?template=Question%20or%20Comment">questions
-or comments</a>.
+or comments</a></em>.
 
 <hr>
 \htmlonly
 <div id="filters" style="overflow:auto">
-<div id="column1" style="float:left; width:18%;">
+<div id="column1" style="float:left; width:17%;">
    <h4>Equation (PDE)</h4>
-   <label><input type="checkbox" id="all1" onchange="update(this.id);" checked="checked" />All</label><br/>
-   <label><input type="checkbox" id="laplace" onchange="update(this.id);" />Laplace</label><br/>
-   <label><input type="checkbox" id="elasticity" onchange="update(this.id);" />Elasticity</label><br/>
-   <label><input type="checkbox" id="maxwell" onchange="update(this.id);" />Definite Maxwell</label><br/>
-   <label><input type="checkbox" id="graddiv" onchange="update(this.id);" />grad-div</label><br/>
-   <label><input type="checkbox" id="darcy" onchange="update(this.id);" />Darcy</label><br/>
+   <label><input type="radio" id="all1" onchange="update(this.id);" checked="checked" />All</label><br/>
+   <label><input type="radio" id="laplace" onchange="update(this.id);" />Laplace</label><br/>
+   <label><input type="radio" id="elasticity" onchange="update(this.id);" />Elasticity</label><br/>
+   <label><input type="radio" id="maxwell" onchange="update(this.id);" />definite Maxwell</label><br/>
+   <label><input type="radio" id="graddiv" onchange="update(this.id);" />grad-div</label><br/>
+   <label><input type="radio" id="darcy" onchange="update(this.id);" />Darcy</label><br/>
 </div>
 
-<div id="column2" style="float:left; width:30%;">
+<div id="column2" style="float:left; width:26%;">
+   <h4>Finite Elements</h4>
+   <label><input type="radio" id="all2" onchange="update(this.id);" checked="checked" />All</label><br/>
+   <label><input type="radio" id="l2" onchange="update(this.id);" />L2 discontinuous elements</label><br/>
+   <label><input type="radio" id="h1" onchange="update(this.id);" />H1 nodal elements</label><br/>
+   <label><input type="radio" id="hcurl" onchange="update(this.id);" />H(curl) Nedelec elements</label><br/>
+   <label><input type="radio" id="hdiv" onchange="update(this.id);" />H(div) Raviart-Thomas elements</label><br/>
+</div>
+
+<div id="column3" style="float:left; width:30%">
    <h4>Discretization</h4>
-   <label><input type="checkbox" id="all2" onchange="update(this.id);" checked="checked" />All</label><br/>
-   <label><input type="checkbox" id="l2" onchange="update(this.id);" />L2 discontinuous elements</label><br/>
-   <label><input type="checkbox" id="h1" onchange="update(this.id);" />H1 nodal elements</label><br/>
-   <label><input type="checkbox" id="hcurl" onchange="update(this.id);" />H(curl) Nedelec elements</label><br/>
-   <label><input type="checkbox" id="hdiv" onchange="update(this.id);" />H(div) Raviart-Thomas elements</label><br/>
-   <label><input type="checkbox" id="nurbs" onchange="update(this.id);" />NURBS</label><br/>
-   <label><input type="checkbox" id="amr" onchange="update(this.id);" />Adaptive mesh refinement (AMR)</label><br/>
+  <label><input type="radio" id="all3" onchange="update(this.id);" checked="checked" />All</label><br/>
+   <label><input type="radio" id="galerkin" onchange="update(this.id);" />Galerkin FEM</label><br/>
+   <label><input type="radio" id="mixed" onchange="update(this.id);" />Mixed FEM</label><br/>
+   <label><input type="radio" id="dg" onchange="update(this.id);" />Discontinuous Galerkin (DG)</label><br/>
+   <label><input type="radio" id="dpg" onchange="update(this.id);" />Discontinuous Petrov-Galerkin (DPG)</label><br/>
+   <label><input type="radio" id="nurbs" onchange="update(this.id);" />Isogeometric analysis (NURBS)</label><br/>
+   <label><input type="radio" id="amr" onchange="update(this.id);" />Adaptive mesh refinement (AMR)</label><br/>
 </div>
 
-<div id="column3" style="float:left; width:33%">
+<div id="column4" style="float:left; width:27%">
    <h4>Linear Solver</h4>
-   <label><input type="checkbox" id="all3" onchange="update(this.id);" checked="checked" />All</label><br/>
-   <label><input type="checkbox" id="jacobi" onchange="update(this.id);" />Jacobi</label> <br/>
-   <label><input type="checkbox" id="gs" onchange="update(this.id);" />Gauss-Seidel</label> <br/>
-   <label><input type="checkbox" id="pcg" onchange="update(this.id);" />PCG</label> <br/>
-   <label><input type="checkbox" id="minres" onchange="update(this.id);" />MINRES</label> <br/>
-   <label><input type="checkbox" id="amg" onchange="update(this.id);" />Algebraic Multigrid (BoomerAMG)</label> <br/>
-   <label><input type="checkbox" id="ams" onchange="update(this.id);" />Auxiliary-space Maxwell Solver (AMS)</label> <br/>
-   <label><input type="checkbox" id="ads" onchange="update(this.id);" />Auxiliary-space Divergence Solver (ADS)</label> <br/>
-   <label><input type="checkbox" id="umfpack" onchange="update(this.id);" />UMFPACK (serial direct)</label><br/>
+   <label><input type="radio" id="all4" onchange="update(this.id);" checked="checked" />All</label><br/>
+   <label><input type="radio" id="jacobi" onchange="update(this.id);" />Jacobi</label> <br/>
+   <label><input type="radio" id="gs" onchange="update(this.id);" />Gauss-Seidel</label> <br/>
+   <label><input type="radio" id="pcg" onchange="update(this.id);" />PCG</label> <br/>
+   <label><input type="radio" id="minres" onchange="update(this.id);" />MINRES</label> <br/>
+   <label><input type="radio" id="amg" onchange="update(this.id);" />Algebraic Multigrid (BoomerAMG)</label> <br/>
+   <label><input type="radio" id="ams" onchange="update(this.id);" />Auxiliary-space Maxwell Solver (AMS)</label> <br/>
+   <label><input type="radio" id="ads" onchange="update(this.id);" />Auxiliary-space Divergence Solver (ADS)</label> <br/>
+   <label><input type="radio" id="umfpack" onchange="update(this.id);" />UMFPACK (serial direct)</label><br/>
    <br/>
 </div>
 
-<div id="column3" style="float:left; width:18%">
-   <h4>Parallelization</h4>
-   <label><input type="checkbox" id="all4" onchange="update(this.id);" checked="checked" />All</label><br/>
-   <label><input type="checkbox" id="serial" onchange="update(this.id);" />Serial</label><br/>
-   <label><input type="checkbox" id="mpi" onchange="update(this.id);" />MPI</label><br/>
-</div>
 </div>
 \endhtmlonly
 
 <!----------------------------------------------------------------------------->
 <div id="ex1"><hr>
 <h2>Example 1</h2>
+
 This example code demonstrates the use of MFEM to define a
 simple isoparametric finite element discretization of the
 Laplace problem \f[ -\Delta u = 1 \f] with homogeneous Dirichlet
@@ -86,26 +87,12 @@ element grid functions, as well as linear and bilinear forms
 corresponding to the left-hand side and right-hand side of the
 discrete linear system. We also cover the explicit elimination
 of boundary conditions on all boundary edges, and the optional
-connection to the GLVis tool for visualization.
-</div>
-
-<!----------------------------------------------------------------------------->
-<div id="ex1p"><hr>
-<h2>Example 1 - Parallel Version</h2>
-This example code demonstrates the use of MFEM to define a
-simple isoparametric finite element discretization of the
-Laplace problem \f[ -\Delta u = 1 \f]
-<p>with homogeneous Dirichlet
-boundary conditions. Specifically, we discretize with the
-FE space coming from the mesh (linear by default, quadratic
-for quadratic curvilinear mesh, NURBS for NURBS mesh, etc.)
+connection to the <a href="http://glvis.googlecode.com">GLVis</a> tool for visualization.
+<center>
+<em>The example has a serial (ex1.cpp) and a parallel (ex1p.cpp) version.</em>
+</center>
 <p>
-The example highlights the use of mesh refinement, finite
-element grid functions, as well as linear and bilinear forms
-corresponding to the left-hand side and right-hand side of the
-discrete linear system. We also cover the explicit elimination
-of boundary conditions on all boundary edges, and the optional
-connection to the GLVis tool for visualization.
+
 </div>
 
 <!----------------------------------------------------------------------------->
@@ -133,36 +120,10 @@ The example demonstrates the use of high-order and NURBS vector
 finite element spaces with the linear elasticity bilinear form,
 meshes with curved elements, and the definition of piece-wise
 constant and vector coefficient objects.
-
-We recommend viewing Example 1 before viewing this example.
-</div>
-
-<!----------------------------------------------------------------------------->
-<div id="ex2p"><hr>
-<h2>Example 2 - Parallel Version</h2>
-This example code solves a simple linear elasticity problem
-describing a multi-material cantilever beam.
-Specifically, we approximate the weak form of
-\f[ -{\rm div}({\sigma}({\bf u})) = 0 \f]
-where
-\f[ {\sigma}({\bf u}) = \lambda\, {\rm div}({\bf u})\,I + \mu\,(\nabla{\bf u} + \nabla{\bf u}^T) \f]
-is the stress tensor corresponding to displacement field u, and lambda and mu
-are the material Lame constants. The boundary conditions are
-\f${\bf u}=0\f$ on the fixed part of the boundary with attribute 1, and
-\f${\sigma}({\bf u})\cdot n = f\f$ on the remainder with \f$f\f$ being
-a constant pull down vector on boundary elements with attribute 2, and zero
-otherwise. The geometry of the domain is assumed to be as follows:<pre>
-                  +----------+----------+
-     boundary --->| material | material |<--- boundary
-     attribute 1  |    1     |    2     |     attribute 2
-     (fixed)      +----------+----------+     (pull down)
-</pre>
-The example demonstrates the use of high-order and NURBS vector
-finite element spaces with the linear elasticity bilinear form,
-meshes with curved elements, and the definition of piece-wise
-constant and vector coefficient objects.
-
-We recommend viewing Example 1p before viewing this example.
+<center>
+<em>The example has a serial (ex2.cpp) and a parallel (ex2p.cpp) version.
+We recommend viewing Example 1 before viewing this example. </em>
+</center>
 </div>
 
 <!----------------------------------------------------------------------------->
@@ -175,33 +136,15 @@ equation
 with boundary condition \f$ E \times n \f$ = "given tangential field".
 Here, we use a given exact solution E and compute the corresponding r.h.s.
 \f$f\f$. We discretize with Nedelec finite elements.
-
-The example demonstrates the use of H(curl) finite element
-spaces with the curl-curl and the (vector finite element) mass
-bilinear form, as well as the computation of discretization
-error when the exact solution is known.
-
-We recommend viewing examples 1-2 before viewing this example.
-</div>
-
-<!----------------------------------------------------------------------------->
-<div id="ex3p"><hr>
-<h2>Example 3 - Parallel Version</h2>
 <p>
-This example code solves a simple 3D electromagnetic diffusion
-problem corresponding to the second order definite Maxwell
-equation
-\f[ {\rm curl\, curl}\, E + E = f \f]
-with boundary condition \f$ E \times n \f$ = "given tangential field".
-Here, we use a given exact solution E and compute the corresponding r.h.s.
-\f$f\f$. We discretize with Nedelec finite elements.
-
 The example demonstrates the use of H(curl) finite element
 spaces with the curl-curl and the (vector finite element) mass
 bilinear form, as well as the computation of discretization
 error when the exact solution is known.
-
-We recommend viewing examples 1-2 before viewing this example.
+<center>
+<em>The example has a serial (ex3.cpp) and a parallel (ex3p.cpp) version
+We recommend viewing examples 1-2 before viewing this example.</em>
+</center>
 </div>
 
 <!----------------------------------------------------------------------------->
@@ -214,32 +157,15 @@ with boundary condition \f$F \cdot n\f$ = "given normal field".
 Here, we use a given exact solution \f$F\f$
 and compute the corresponding r.h.s. \f$f\f$.  We discretize with the
 Raviart-Thomas finite elements.
-
+<p>
 The example demonstrates the use of H(div) finite element
 spaces with the grad-div and H(div) vector finite element mass
 bilinear form, as well as the computation of discretization
 error when the exact solution is known.
-
-We recommend viewing examples 1-3 before viewing this example.
-</div>
-
-<!----------------------------------------------------------------------------->
-<div id="ex4p"><hr>
-<h2>Example 4 - Parallel Version</h2>
-This example code solves a simple 2D/3D H(div) diffusion
-problem corresponding to the second order definite equation
-\f[ -{\rm grad}(\alpha\,{\rm div}(F)) + \beta F = f \f]
-with boundary condition \f$F \cdot n\f$ = "given normal field".
-Here, we use a given exact solution \f$F\f$
-and compute the corresponding r.h.s. \f$f\f$.  We discretize with the
-Raviart-Thomas finite elements.
-
-The example demonstrates the use of H(div) finite element
-spaces with the grad-div and H(div) vector finite element mass
-bilinear form, as well as the computation of discretization
-error when the exact solution is known.
-
-We recommend viewing examples 1-3 before viewing this example.
+<center>
+<em>The example has a serial (ex4.cpp) and a parallel (ex4p.cpp) version
+We recommend viewing examples 1-3 before viewing this example.</em>
+</center>
 </div>
 
 <!----------------------------------------------------------------------------->
@@ -256,31 +182,13 @@ Here, we use a given exact solution \f$({\bf u},p)\f$ and compute the
 corresponding r.h.s. \f$(f, g)\f$. We discretize with Raviart-Thomas
 finite elements (velocity \f$\bf u\f$) and piecewise discontinuous
 polynomials (pressure \f$p\f$).
-
-The example demonstrates the use of the BlockMatrix class.
-
-We recommend viewing examples 1-4 before viewing this example.
-</div>
-
-<!----------------------------------------------------------------------------->
-<div id="ex5p"><hr>
-<h2>Example 5 - Parallel Version</h2>
-
-This example code solves a simple 2D/3D mixed Darcy problem
-corresponding to the saddle point system
-\f[ \begin{array}{rcl}
-   k\,u + {\rm grad}\,p &=& f\\
-   -{\rm div}\,u &=& g,
-\end{array} \f]
-with natural boundary condition \f$-p\f$ = "given pressure".
-Here, we use a given exact solution \f$({\bf u},p)\f$ and compute the
-corresponding r.h.s. \f$(f, g)\f$. We discretize with Raviart-Thomas
-finite elements (velocity \f$\bf u\f$) and piecewise discontinuous
-polynomials (pressure \f$p\f$).
-
-The example demonstrates the use of the BlockOperator class.
-
-We recommend viewing examples 1-4 before viewing this example.
+<p>
+The example demonstrates the use of the BlockMatrix and BlockOperator
+classes.
+<center>
+<em>The example has a serial (ex5.cpp) and a parallel (ex5p.cpp) version
+We recommend viewing examples 1-4 before viewing this example.</em>
+</center>
 </div>
 
 <!----------------------------------------------------------------------------->
@@ -294,14 +202,16 @@ conditions. The problem is solved on a sequence of meshes which
 are locally refined in a conforming (triangles, tetrahedrons)
 or non-conforming (quadrilateral, hexahedrons) manner according
 to a simple ZZ error estimator.
-
+<p>
 The example demonstrates MFEM's capability to work with both
 conforming and nonconforming refinements, in 2D and 3D, on
 linear, curved and surface meshes. Interpolation of functions
 from coarse to fine meshes, as well as persistent <a href="http://glvis.googlecode.com">GLVis</a>
 visualization are also illustrated.
-
-We recommend viewing Example 1 before viewing this example.
+<center>
+<em>The example currently has only a serial version (ex6.cpp).
+We recommend viewing Example 1 before viewing this example. </em>
+</center>
 </div>
 
 <!----------------------------------------------------------------------------->
@@ -312,30 +222,16 @@ This example code demonstrates the use of MFEM to define a
 triangulation of a unit sphere and a simple isoparametric
 finite element discretization of the Laplace problem with mass
 term, \f[ -\Delta u + u = f. \f]
+<p>
 The example highlights mesh generation, the use of mesh
 refinement, high-order meshes and finite elements, as well as
 surface-based linear and bilinear forms corresponding to the
 left-hand side and right-hand side of the discrete linear
 system.
-
-We recommend viewing Example 1 before viewing this example.
-</div>
-
-<!----------------------------------------------------------------------------->
-<div id="ex7p"><hr>
-<h2>Example 7 - Parallel Version</h2>
-
-This example code demonstrates the use of MFEM to define a
-triangulation of a unit sphere and a simple isoparametric
-finite element discretization of the Laplace problem with mass
-term, \f[ -\Delta u + u = f. \f]
-The example highlights mesh generation, the use of mesh
-refinement, high-order meshes and finite elements, as well as
-surface-based linear and bilinear forms corresponding to the
-left-hand side and right-hand side of the discrete linear
-system.
-
-We recommend viewing Example 1p before viewing this example.
+<center>
+<em>The example has a serial (ex7.cpp) and a parallel (ex7p.cpp) version
+We recommend viewing Example 1 before viewing this example.</em>
+</center>
 </div>
 
 <!----------------------------------------------------------------------------->
@@ -349,31 +245,14 @@ simple finite element discretization of the Laplace problem
 use high-order continuous trial space, a high-order interfacial
 (trace) space, and a high-order discontinuous test space
 defining a local dual (\f$H^{-1}\f$) norm.
-
+<p>
 The example highlights the use of interfacial (trace) finite
 elements and spaces, trace face integrators and the definition
 of block operators and preconditioners.
-
-We recommend viewing examples 1-5 before viewing this example.
-</div>
-
-<!----------------------------------------------------------------------------->
-<div id="ex8p"><hr>
-<h2>Example 8 - Parallel Version</h2>
-
-This example code demonstrates the use of the Discontinuous
-Petrov-Galerkin (DPG) method in its primal 2x2 block form as a
-simple finite element discretization of the Laplace problem
-\f[ -\Delta u = f \f] with homogeneous Dirichlet boundary conditions. We
-use high-order continuous trial space, a high-order interfacial
-(trace) space, and a high-order discontinuous test space
-defining a local dual (\f$H^{-1}\f$) norm.
-
-The example highlights the use of interfacial (trace) finite
-elements and spaces, trace face integrators and the definition
-of block operators and preconditioners.
-
-We recommend viewing examples 1-5 before viewing this example.
+<center>
+<em>The example has a serial (ex8.cpp) and a parallel (ex8p.cpp) version
+We recommend viewing examples 1-5 before viewing this example.</em>
+</center>
 </div>
 
 <!----------------------------------------------------------------------------->
@@ -434,30 +313,23 @@ function exampleVisible(num)
 function update(id)
 {
    var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy"];
-   var group2 = ["all2", "l2", "h1", "hcurl", "hdiv", "nurbs", "amr"];
-   var group3 = ["all3", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack"];
-   var group4 = ["all4", "serial", "mpi"];
+   var group2 = ["all2", "l2", "h1", "hcurl", "hdiv"];
+   var group3 = ["all3", "galerkin", "mixed", "dg", "dpg", "nurbs", "amr" ];
+   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack"];
 
    updateGroup(group1, id);
    updateGroup(group2, id);
    updateGroup(group3, id);
    updateGroup(group4, id);
 
-   showElement("ex1",  laplace && (h1 || nurbs) && (gs || pcg || umfpack) && serial);
-   showElement("ex1p", laplace && (h1 || nurbs) && (amg || pcg) && mpi);
-   showElement("ex2",  elasticity && (h1 || nurbs) && (gs || pcg || umfpack) && serial);
-   showElement("ex2p", elasticity && (h1 || nurbs) && (amg || pcg) && mpi);
-   showElement("ex3",  maxwell && hcurl && (gs || pcg || umfpack) && serial);
-   showElement("ex3p", maxwell && hcurl && (ams || pcg) && mpi);
-   showElement("ex4",  graddiv && hdiv && (gs || pcg || umfpack) && serial);
-   showElement("ex4p", graddiv && hdiv && (ads || ams || pcg) && mpi);
-   showElement("ex5",  darcy && (l2 || hdiv) && (gs || jacobi || minres || umfpack) && serial);
-   showElement("ex5p", darcy && (l2 || hdiv) && (amg || minres) && mpi);
-   showElement("ex6",  laplace && (h1 || nurbs || amr) && (gs || pcg || umfpack) && serial);
-   showElement("ex7",  laplace && h1 && (gs || pcg || umfpack) && serial);
-   showElement("ex7p", laplace && h1 && (amg || pcg) && mpi);
-   showElement("ex8",  laplace && h1 && (gs || pcg || umfpack) && serial);
-   showElement("ex8p", laplace && h1 && (amg || pcg) && mpi);
+   showElement("ex1",  laplace && h1 && (galerkin || nurbs) && (gs || pcg || umfpack || amg));
+   showElement("ex2",  elasticity && h1 && (galerkin || nurbs) && (gs || pcg || umfpack || amg));
+   showElement("ex3",  maxwell && hcurl && galerkin && (gs || pcg || umfpack || ams));
+   showElement("ex4",  graddiv && hdiv && galerkin && (gs || pcg || umfpack || ads || ams));
+   showElement("ex5",  darcy && (l2 || hdiv) && mixed && (gs || jacobi || minres || umfpack || amg ));
+   showElement("ex6",  laplace && h1 && (galerkin || nurbs || amr) && (gs || pcg || umfpack));
+   showElement("ex7",  laplace && h1 && galerkin && (gs || pcg || umfpack || amg));
+   showElement("ex8",  laplace && h1 && dpg && (gs || pcg || umfpack || amg));
 
    // NOTE: update 'numExamples' below when adding examples!
    var numExamples = 8;
