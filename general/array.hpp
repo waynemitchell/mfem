@@ -15,6 +15,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 
 #include "../config.hpp"
 #include "error.hpp"
@@ -180,8 +181,16 @@ public:
        (uses the comparison operator '<' for class T)  */
    T Min() const;
 
-   /// Sorts the array.
-   void Sort();
+   /// Sorts the array. This requires operator< to be defined for T.
+   void Sort() { std::sort((T*) data, (T*) data + size); }
+
+   /** Removes duplicities from a sorted array. This requires operator== to be
+       defined for T. */
+   void Unique()
+   {
+      T* end = std::unique((T*) data, (T*) data + size);
+      SetSize(end - (T*) data);
+   }
 
    /// return true if the array is sorted.
    int IsSorted();

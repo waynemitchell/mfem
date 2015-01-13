@@ -100,7 +100,7 @@ T Array<T>::Min() const
    return min;
 }
 
-template <class T>
+/*template <class T>
 int Compare(const void *p, const void *q)
 {
    if (*((T*)p) < *((T*)q))  return -1;
@@ -113,7 +113,7 @@ void Array<T>::Sort()
 {
    // qsort((T*)data,0,size-1);
    qsort(data, size, sizeof(T), Compare<T>);  // use qsort from stdlib.h
-}
+}*/
 
 // Partial Sum
 template <class T>

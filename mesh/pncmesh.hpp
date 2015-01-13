@@ -59,27 +59,40 @@ class ParNCMesh : public NCMesh
 public:
    ParNCMesh(MPI_Comm comm, const Mesh* coarse_mesh);
 
-   const EdgeList& GetSharedEdges() const { return shared_edges; }
-   const FaceList& GetSharedFaces() const { return shared_faces; }
-
-   /// Return processor owning an edge.
-   int EdgeOwner(int index) const { edge_owner[index]; }
-
-   /// Return processor owning a face.
-   int FaceOwner(int index) const { face_owner[index]; }
-
-   /// Return a list of processors sharing an edge, and its size.
-   const int* EdgeGroup(int index, int &size) const
+   /** Return a list of edges shared by our processor and at least one other
+       processor. This is just a subset of the regular EdgeList. */
+   const EdgeList& GetSharedEdges()
    {
-      size = edge_ranks.RowSize(index);
-      return edge_ranks.GetRow(index);
+      if (edge_list.Empty()) BuildEdgeList();
+      return shared_edges;
    }
 
-   /// Return a list of processors sharing a face, and its size.
+   /** Return a list of faces shared by our processor and at least one other
+       processor. This is just a subset of the regular FaceList. */
+   const FaceList& GetSharedFaces()
+   {
+      if (face_list.Empty()) BuildFaceList();
+      return shared_faces;
+   }
+
+   /// Return processor owning an edge. (Note: any edge in the Mesh.)
+   int EdgeOwner(int index) const { edge_owner[index]; }
+
+   /// Return processor owning a face. (Note: any face in the Mesh.)
+   int FaceOwner(int index) const { face_owner[index]; }
+
+   /// Return a list of processors sharing an edge, and the list size.
+   const int* EdgeGroup(int index, int &size) const
+   {
+      size = edge_group.RowSize(index);
+      return edge_group.GetRow(index);
+   }
+
+   /// Return a list of processors sharing a face, and the list size.
    const int* FaceGroup(int index, int &size) const
    {
-      size = face_ranks.RowSize(index);
-      return face_ranks.GetRow(index);
+      size = face_group.RowSize(index);
+      return face_group.GetRow(index);
    }
 
    /// Helper to get edge (type == 0) or face (type == 1) owner.
@@ -93,7 +106,6 @@ public:
    {
       return type ? FaceGroup(index, size) : EdgeGroup(index, size);
    }
-
 
    /** */
    class NeighborDofMessage : public VarMessage<135>
@@ -146,8 +158,8 @@ protected:
    Array<int> face_owner;
 
    //
-   Table edge_ranks;
-   Table face_ranks;
+   Table edge_group;
+   Table face_group;
 
    void InitialPartition();
 
@@ -155,22 +167,28 @@ protected:
 
    virtual void OnMeshUpdated(Mesh *mesh);
 
-   virtual void BuildFaceList();
    virtual void BuildEdgeList();
+   virtual void BuildFaceList();
 
-   virtual void ElementHasEdge(Element* elem, Edge* edge);
-   virtual void ElementHasFace(Element* elem, Face* face);
+   virtual void ElementSharesEdge(Element* elem, Edge* edge);
+   virtual void ElementSharesFace(Element* elem, Face* face);
 
    /// Struct to help sorting edges/faces
    struct IndexRank
    {
       int index, rank;
       IndexRank(int index, int rank) : index(index), rank(rank) {}
-      bool operator< (const IndexRank &other) { return index < other.index; }
+      bool operator< (const IndexRank &rhs) const
+      { return (index == rhs.index) ? (rank < rhs.rank) : (index < rhs.index); }
+      bool operator== (const IndexRank &rhs) const
+      { return (index == rhs.index) && (rank == rhs.rank); }
    };
 
-   Array<IndexRank> tmp_edge_ranks;
-   Array<IndexRank> tmp_face_ranks;
+   Array<IndexRank> tmp_ranks;
+
+   void AddSlaveRanks(int nfaces, const FaceList& list);
+   void MakeGroups(int nfaces, Table &groups);
+   void MakeShared(const Table &groups, const FaceList &list, FaceList &shared);
 
    /** Uniquely encodes a set of elements in the refinement hierarchy of an
        NCMesh. Can be dumped to a stream, sent to another processor, loaded,

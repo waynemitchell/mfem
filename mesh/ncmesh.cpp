@@ -1385,7 +1385,7 @@ void NCMesh::BuildFaceList()
          }
 
          // continue processing in ParNCMesh
-         ElementHasFace(elem, face);
+         ElementSharesFace(elem, face);
       }
    }
 }
@@ -1467,7 +1467,7 @@ void NCMesh::BuildEdgeList()
          }
 
          // continue processing in ParNCMesh
-         ElementHasEdge(elem, edge->edge);
+         ElementSharesEdge(elem, edge->edge);
       }
    }
 }

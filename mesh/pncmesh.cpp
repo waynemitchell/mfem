@@ -87,7 +87,7 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
          it->index = NFaces + (NGhostFaces++);
 }
 
-void ParNCMesh::ElementHasEdge(Element *elem, Edge *edge)
+void ParNCMesh::ElementSharesEdge(Element *elem, Edge *edge)
 {
    // Called by NCMesh::BuildEdgeList when an edge is visited in a leaf element.
    // This allows us to determine edge ownership and processors that share it
@@ -96,52 +96,151 @@ void ParNCMesh::ElementHasEdge(Element *elem, Edge *edge)
    int &owner = edge_owner[edge->index];
    owner = std::min(owner, elem->rank);
 
-   tmp_edge_ranks.Append(IndexRank(edge->index, elem->rank));
+   tmp_ranks.Append(IndexRank(edge->index, elem->rank));
 }
 
-void ParNCMesh::BuildEdgeList()
+void ParNCMesh::ElementSharesFace(Element* elem, Face* face)
 {
-   edge_owner = std::numeric_limits<int>::max();
-   tmp_edge_ranks.SetSize(12*leaf_elements.Size() * 3/2);
-
-   NCMesh::BuildEdgeList();
-
-
-   // conforming faces/edges: group contains the participating ranks, lowest it the master
-
-   // master faces/edges: initially the group contains ranks that share the master e/f and
-   // the lowest is the master, but after that the ranks of the slaves are added to the group
-
-   shared_edges.Clear();
-
-   tmp_edge_ranks.DeleteAll();
-}
-
-void ParNCMesh::ElementHasFace(Element* elem, Face* face)
-{
-   // Called by NCMesh::BuildFaceList when a face is visited in a leaf element.
-   // This allows us to determine face ownership and processors that share it
-   // without duplicating all the HashTable lookups in NCMesh::BuildFaceList().
+   // Analogous to ElementHasEdge.
 
    int &owner = face_owner[face->index];
    owner = std::min(owner, elem->rank);
 
-   tmp_face_ranks.Append(IndexRank(face->index, elem->rank));
+   tmp_ranks.Append(IndexRank(face->index, elem->rank));
+}
+
+void ParNCMesh::BuildEdgeList()
+{
+   // This is an extension of NCMesh::BuildEdgeList() which also determines
+   // edge ownership, creates edge processor groups and lists shared edges.
+
+   int nedges = NEdges + NGhostEdges;
+   edge_owner.SetSize(nedges);
+   edge_owner = std::numeric_limits<int>::max();
+
+   tmp_ranks.SetSize(12*leaf_elements.Size() * 3/2);
+   tmp_ranks.SetSize(0);
+
+   NCMesh::BuildEdgeList();
+
+   AddSlaveRanks(nedges, edge_list);
+   MakeGroups(nedges, edge_group);
+   MakeShared(edge_group, edge_list, shared_edges);
+
+   tmp_ranks.DeleteAll();
 }
 
 void ParNCMesh::BuildFaceList()
 {
+   // This is an extension of NCMesh::BuildFaceList() which also determines
+   // face ownership, creates face processor groups and lists shared faces.
+
+   int nfaces = NEdges + NGhostEdges;
+   face_owner.SetSize(nfaces);
    face_owner = std::numeric_limits<int>::max();
-   tmp_face_ranks.SetSize(6*leaf_elements.Size() * 3/2);
+
+   tmp_ranks.SetSize(6*leaf_elements.Size() * 3/2);
+   tmp_ranks.SetSize(0);
 
    NCMesh::BuildFaceList();
 
-   shared_faces.Clear();
+   AddSlaveRanks(nfaces, face_list);
+   MakeGroups(nfaces, edge_group);
+   MakeShared(face_group, face_list, shared_faces);
 
+   tmp_ranks.DeleteAll();
+}
 
-   tmp_face_ranks.Sort();
+void ParNCMesh::AddSlaveRanks(int nfaces, const FaceList& list)
+{
+   // create a mapping from slave face index to master face index
+   Array<int> slave_to_master(nfaces);
+   slave_to_master = -1;
 
-   tmp_face_ranks.DeleteAll();
+   for (int i = 0; i < list.slaves.size(); i++)
+   {
+      const SlaveFace& sf = list.slaves[i];
+      slave_to_master[sf.index] = sf.master;
+   }
+
+   // We need the groups of master edges/faces to contain the ranks of their
+   // slaves (so that master DOFs get sent to the owners of the slaves).
+   // This can be done by appending more items to 'tmp_ranks' for the masters.
+   // (Note that a slave edge can be shared by more than one element/processor.)
+
+   int size = tmp_ranks.Size();
+   for (int i = 0; i < size; i++)
+   {
+      int master = slave_to_master[tmp_ranks[i].index];
+      if (master >= 0)
+         tmp_ranks.Append(IndexRank(master, tmp_ranks[i].rank));
+   }
+}
+
+void ParNCMesh::MakeGroups(int nfaces, Table &groups)
+{
+   // The list of processors for each edge/face is obtained by simply sorting
+   // the 'tmp_ranks' array, removing duplicities and converting to a Table.
+
+   tmp_ranks.Sort();
+   tmp_ranks.Unique();
+   int size = tmp_ranks.Size();
+
+   // create CSR array I of row beginnings
+   int* I = new int[nfaces+1];
+   int next_I = 0, last_index = -1;
+   for (int i = 0; i < size; i++)
+   {
+      if (tmp_ranks[i].index != last_index)
+      {
+         I[next_I++] = i;
+         last_index = tmp_ranks[i].index;
+      }
+   }
+   I[next_I] = size;
+   MFEM_ASSERT(next_I == nfaces, "");
+
+   // J array is ready-made
+   int* J = new int[size];
+   for (int i = 0; i < size; i++)
+      J[i] = tmp_ranks[i].rank;
+
+   // we have a CSR table of ranks for each edge/face
+   groups.SetIJ(I, J, nfaces);
+}
+
+// An edge/face is shared if its group contains more than one processor and
+// at the same time one of them is ourselves.
+static bool is_shared(const Table& groups, int index, int MyRank)
+{
+   int size = groups.RowSize(index);
+   if (size <= 1)
+      return false;
+
+   const int* group = groups.GetRow(index);
+   for (int i = 0; i < size; i++)
+      if (group[i] == MyRank)
+         return true;
+
+   return false;
+}
+
+void ParNCMesh::MakeShared
+(const Table &groups, const FaceList &list, FaceList &shared)
+{
+   // filter the full lists, only output items that are shared
+
+   for (int i = 0; i < list.conforming.size(); i++)
+      if (is_shared(groups, list.conforming[i].index, MyRank))
+         shared.conforming.push_back(list.conforming[i]);
+
+   for (int i = 0; i < list.masters.size(); i++)
+      if (is_shared(groups, list.masters[i].index, MyRank))
+         shared.masters.push_back(list.masters[i]);
+
+   for (int i = 0; i < list.slaves.size(); i++)
+      if (is_shared(groups, list.slaves[i].index, MyRank))
+         shared.slaves.push_back(list.slaves[i]);
 }
 
 

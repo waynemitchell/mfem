@@ -819,19 +819,24 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    RankToMessage send_messages;
    RankToMessage recv_messages;
 
-   // prepare neighbor DOF messages for standard or master shared edges/faces
+   // prepare neighbor DOF messages for shared edges/faces
    for (int type = 0; type <= 1; type++)
    {
       const NCMesh::FaceList &list = type ? pncmesh->GetSharedFaces()
                                           : pncmesh->GetSharedEdges();
-      Array<int> cdofs;
-      for (int i = 0, gsize; i < list.nonslaves.size(); i++)
+      Array<int> cdofs;      
+      int cs = list.conforming.size(), ms = list.masters.size(), gsize;
+      for (int i = 0; i < cs+ms; i++)
       {
-         const NCMesh::FaceId& fid = list.nonslaves[i];
+         // loop through all (shared) conforming+master edges/faces
+         const NCMesh::FaceId& fid =
+            (i < cs) ? (const NCMesh::FaceId&) list.conforming[i]
+                     : (const NCMesh::FaceId&) list.masters[i-cs];
+
          int owner = pncmesh->GetOwner(type, fid.index);
          if (owner == MyRank)
          {
-            // we own an edge/face, send its DOFs to others in group
+            // we own a shared edge/face, send its DOFs to others in group
             GetConformingDofs(type, fid.index, cdofs);
             const int* group = pncmesh->GetGroup(type, fid.index, gsize);
             for (int j = 0; j < gsize; j++)
@@ -844,53 +849,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             recv_messages[owner];
          }
       }
-/*      // collect master edge/face DOFs to send to neighbors
-      for (int mi = 0; mi < list.masters.size(); mi++)
-      {
-         const NCMesh::MasterFace &mf = list.masters[mi];
-         int master_rank = pncmesh->GetOwner(type, mf.index);
-         cdofs.SetSize(0);
-
-         for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
-         {
-            int slave_rank = pncmesh->GetOwner(type, list.slaves[si].index);
-            if (master_rank == MyRank && slave_rank != MyRank)
-            {
-               // our master e/f constrains a remote slave, send master DOFs
-               if (!cdofs.Size()) GetConformingDofs(type, mf.index, cdofs);
-               send_messages[slave_rank].AddDofs(type, mf, cdofs);
-            }
-            else if (master_rank != MyRank && slave_rank == MyRank)
-            {
-               // our slave e/f is constrained by a remote master, receive DOFs
-               recv_messages[master_rank]; // create incoming message
-            }
-         }
-      }
-
-      // collect conforming edge/face DOFs to send to neighbors
-      for (int ci = 0; ci < list.conforming.size(); ci++)
-      {
-         const NCMesh::ConformingFace &cf = list.conforming[ci];
-         int owner_rank = pncmesh->GetOwner(type, cf.index);
-         if (owner_rank == MyRank)
-         {
-            const int* group = pncmesh->GetGroup(type, cf.index, gsize);
-            cdofs.SetSize(0);
-            for (int i = 0; i < gsize; i++)
-               if (group[i] != MyRank)
-               {
-                  // we own a conforming e/f DOFs, send them to others in group
-                  if (!cdofs.Size()) GetConformingDofs(type, cf.index, cdofs);
-                  send_messages[group[i]].AddDofs(type, cf, cdofs);
-               }
-         }
-         else
-         {
-            // we don't own a conforming e/f, receive its DOFs from the owner
-            recv_messages[owner_rank]; // create incoming message
-         }
-      }*/
    }
 
    // non-blocking send of outgoing messages
