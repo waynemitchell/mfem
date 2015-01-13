@@ -64,6 +64,22 @@ public:
     */
    void SetBlock(int iRow, int iCol, Operator *op);
 
+   //! Return the number of row blocks
+   int NumRowBlocks() const { return nRowBlocks; }
+   //! Return the number of column blocks
+   int NumColBlocks() const { return nColBlocks; }
+
+   //! Check if block (i,j) is a zero block
+   int IsZeroBlock(int i, int j) const { return (op(i,j)==NULL) ? 1 : 0; }
+   //! Return a reference to block i,j
+   Operator & GetBlock(int i, int j)
+   { MFEM_VERIFY(op(i,j), ""); return *op(i,j); }
+
+   //! Return the row offsets for block starts
+   Array<int> & RowOffsets() { return row_offsets; }
+   //! Return the columns offsets for block starts
+   Array<int> & ColOffsets() { return col_offsets; }
+
    /// Operator application
    virtual void Mult (const Vector & x, Vector & y) const;
 
@@ -119,6 +135,16 @@ public:
    void SetDiagonalBlock(int iblock, Operator *op);
    //! This method is present since required by the abstract base class Solver
    virtual void SetOperator(const Operator &op){ }
+
+   //! Return the number of blocks
+   int NumBlocks() const { return nBlocks; }
+
+   //! Return a reference to block i,i.
+   Operator & GetDiagonalBlock(int iblock)
+   { MFEM_VERIFY(op[iblock], ""); return *op[iblock]; }
+
+   //! Return the offsets for block starts
+   Array<int> & Offsets() { return offsets; }
 
    /// Operator application
    virtual void Mult (const Vector & x, Vector & y) const;
