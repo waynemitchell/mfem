@@ -12,7 +12,7 @@
 #ifndef MFEM_COEFFICIENT
 #define MFEM_COEFFICIENT
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../linalg/linalg.hpp"
 #include "intrules.hpp"
 #include "eltrans.hpp"

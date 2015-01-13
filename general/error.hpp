@@ -12,7 +12,7 @@
 #ifndef MFEM_ERROR
 #define MFEM_ERROR
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include <iomanip>
 #include <sstream>
 

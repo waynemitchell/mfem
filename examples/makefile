@@ -10,8 +10,10 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 MFEM_DIR = ..
-
-include $(MFEM_DIR)/config/config.mk
+CONFIG_MK = $(MFEM_DIR)/config/config.mk
+ifneq (clean,$(MAKECMDGOALS))
+   -include $(CONFIG_MK)
+endif
 
 ifeq ($(MFEM_USE_MPI),NO)
    EXAMPLES = ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8
@@ -25,13 +27,13 @@ endif
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp $(MFEM_LIB_FILE)
+%: %.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
 	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ $(MFEM_LIBS)
 
 all: $(EXAMPLES)
 
 # Generate an error message if the MFEM library is not built and exit
-$(MFEM_LIB_FILE):
+$(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
 clean:

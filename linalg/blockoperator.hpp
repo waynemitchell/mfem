@@ -12,7 +12,7 @@
 #ifndef MFEM_BLOCKOPERATOR
 #define MFEM_BLOCKOPERATOR
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../general/array.hpp"
 #include "operator.hpp"
 #include "blockvector.hpp"

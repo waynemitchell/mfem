@@ -12,7 +12,7 @@
 #ifndef MFEM_PFESPACE
 #define MFEM_PFESPACE
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 

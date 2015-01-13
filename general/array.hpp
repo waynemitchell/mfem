@@ -12,7 +12,7 @@
 #ifndef MFEM_ARRAY
 #define MFEM_ARRAY
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "error.hpp"
 
 #include <iostream>

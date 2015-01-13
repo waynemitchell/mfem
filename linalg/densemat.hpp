@@ -12,7 +12,7 @@
 #ifndef MFEM_DENSEMAT
 #define MFEM_DENSEMAT
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "matrix.hpp"
 
 namespace mfem

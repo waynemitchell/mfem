@@ -12,7 +12,7 @@
 #ifndef MFEM_LINEARFORM
 #define MFEM_LINEARFORM
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "lininteg.hpp"
 #include "fespace.hpp"
 

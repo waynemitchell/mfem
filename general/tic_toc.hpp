@@ -12,7 +12,7 @@
 #ifndef MFEM_TIC_TOC
 #define MFEM_TIC_TOC
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifndef MFEM_TIMER_TYPE
 #ifndef _WIN32

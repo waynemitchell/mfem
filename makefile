@@ -30,11 +30,11 @@ SKIP_INCLUDE_TARGETS = config clean serial parallel debug pdebug
 HAVE_SKIP_INCLUDE_TARGET = $(filter $(SKIP_INCLUDE_TARGETS),$(MAKECMDGOALS))
 ifeq (,$(HAVE_SKIP_INCLUDE_TARGET))
    $(call mfem-info, Including $(CONFIG_MK))
-   include $(CONFIG_MK)
+   -include $(CONFIG_MK)
 else
    # Do not allow skip-include targets to be combined with other targets
    ifneq (1,$(words $(MAKECMDGOALS)))
-      $(error Target '$(firstword $(HAVE_SKIP_INCLDE_TARGET))' can not be\
+      $(error Target '$(firstword $(HAVE_SKIP_INCLUDE_TARGET))' can not be\
       combined with other targets)
    endif
    $(call mfem-info, NOT including $(CONFIG_MK))
@@ -198,6 +198,9 @@ deps:
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
 	$(MAKE) -C examples clean
+
+$(CONFIG_MK):
+	$(error Missing configuration file. Run '$(MAKE) config' first)
 
 config:
 	$(MAKE) -C config all
