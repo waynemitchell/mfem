@@ -205,10 +205,10 @@ int main(int argc, char *argv[])
       {
          sout.precision(precision);
          sout << "solution\n" << *mesh << u;
-         sout << "autopause on\n";
+         sout << "pause\n";
          sout << flush;
          cout << "GLVis visualization paused."
-              << " Press ctrl + space (in the GLVis window) to resume it.\n";
+              << " Press space (in the GLVis window) to resume it.\n";
       }
    }
 
