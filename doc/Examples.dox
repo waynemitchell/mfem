@@ -2,7 +2,7 @@
 
 This file provides a brief overview of the MFEM example codes. For
 detailed documentation of the MFEM sources, including the examples, build the
-<a href="../../doc/CodeDocumentation.html">Doxygen documentation</a> in the
+<a href="../../doc/CodeDocumentation/html/index.html">Doxygen documentation</a> in the
 <code>doc/</code> directory, or browse the
 <a href="http://doxygen.mfem.googlecode.com/hg/html/index.html">online version</a>.
 
