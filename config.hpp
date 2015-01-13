@@ -22,9 +22,6 @@
 // Enable debug checks in MFEM.
 // #define MFEM_DEBUG
 
-// Use high-resolution POSIX clocks in class StopWatch, link with -lrt.
-#define MFEM_USE_POSIX_CLOCKS
-
 // Use LAPACK routines for various dense linear algebra operations.
 // #define MFEM_USE_LAPACK
 
@@ -43,5 +40,20 @@
 
 // Internal MFEM option: enable group/batch allocation for some small objects.
 #define MFEM_USE_MEMALLOC
+
+// Which library functions to use in class StopWatch for measuring time.
+// The available options are:
+//   0 - use std::clock from <ctime>
+//   1 - use times from <sys/times.h>
+//   2 - use high-resolution POSIX clocks
+//   3 - use QueryPerformanceCounter from <windows.h>
+// If not defined, an option is selected automatically.
+#define MFEM_TIMER_TYPE 2
+
+// Windows specific options
+#ifdef _WIN32
+// Macro needed to get defines like M_PI from <cmath>. (Visual Studio C++ only?)
+#define _USE_MATH_DEFINES
+#endif
 
 #endif

@@ -29,9 +29,9 @@
 //               of boundary conditions on all boundary edges, and the optional
 //               connection to the GLVis tool for visualization.
 
+#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "mfem.hpp"
 
 using namespace std;
 using namespace mfem;

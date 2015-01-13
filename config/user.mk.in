@@ -34,8 +34,6 @@ HYPRE_LIB = -L$(HYPRE_DIR)/lib -lHYPRE
 METIS_DIR = @MFEM_DIR@/../metis-4.0
 METIS_LIB = -L$(METIS_DIR) -lmetis
 
-POSIX_CLOCKS_LIB = -lrt
-
 LAPACK_LIB = -llapack
 
 OPENMP_OPT = -fopenmp
@@ -50,22 +48,24 @@ SUITESPARSE_OPT = -I$(SUITESPARSE_DIR)/include
 SUITESPARSE_LIB = -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd -lamd\
  -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
 
+POSIX_CLOCKS_LIB = -lrt
+
 # YES/NO MFEM options exported to config.mk and config.hpp.
 # The values here are defaults for generating the actual values in config.mk
 # and config.hpp.
-MFEM_USE_MPI          = NO
-MFEM_USE_METIS_5      = NO
-MFEM_DEBUG            = NO
-MFEM_USE_LAPACK       = NO
-MFEM_THREAD_SAFE      = NO
-MFEM_USE_OPENMP       = NO
-MFEM_USE_MESQUITE     = NO
-MFEM_USE_SUITESPARSE  = NO
-MFEM_USE_MEMALLOC     = YES
+MFEM_USE_MPI         = NO
+MFEM_USE_METIS_5     = NO
+MFEM_DEBUG           = NO
+MFEM_USE_LAPACK      = NO
+MFEM_THREAD_SAFE     = NO
+MFEM_USE_OPENMP      = NO
+MFEM_USE_MESQUITE    = NO
+MFEM_USE_SUITESPARSE = NO
+MFEM_USE_MEMALLOC    = YES
 ifeq ($(shell uname -s),Darwin)
-   MFEM_USE_POSIX_CLOCKS = NO
+   MFEM_TIMER_TYPE ?= 0
 else
-   MFEM_USE_POSIX_CLOCKS = YES
+   MFEM_TIMER_TYPE ?= 2
 endif
 
 # If YES, enable some informational messages

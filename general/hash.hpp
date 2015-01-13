@@ -370,7 +370,7 @@ void HashTable<ItemT>::Rehash()
       mask = new_size-1;
 
 #ifdef MFEM_DEBUG
-      std::cout << __PRETTY_FUNCTION__ << ": rehashing to size " << new_size
+      std::cout << _MFEM_FUNC_NAME << ": rehashing to size " << new_size
                 << std::endl;
 #endif
 

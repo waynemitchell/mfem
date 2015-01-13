@@ -10,16 +10,16 @@
 # Software Foundation) version 2.1 dated February 1999.
 
 # Variables corresponding to defines in config.hpp (values 'YES' or 'NO')
-MFEM_USE_MPI          = NO
-MFEM_USE_METIS_5      = NO
-MFEM_DEBUG            = NO
-MFEM_USE_POSIX_CLOCKS = YES
-MFEM_USE_LAPACK       = NO
-MFEM_THREAD_SAFE      = NO
-MFEM_USE_OPENMP       = NO
-MFEM_USE_MESQUITE     = NO
-MFEM_USE_SUITESPARSE  = NO
-MFEM_USE_MEMALLOC     = YES
+MFEM_USE_MPI         = NO
+MFEM_USE_METIS_5     = NO
+MFEM_DEBUG           = NO
+MFEM_USE_LAPACK      = NO
+MFEM_THREAD_SAFE     = NO
+MFEM_USE_OPENMP      = NO
+MFEM_USE_MESQUITE    = NO
+MFEM_USE_SUITESPARSE = NO
+MFEM_USE_MEMALLOC    = YES
+MFEM_TIMER_TYPE      = 2
 
 # Compiler, compile options, and link options
 MFEM_CXX      = g++

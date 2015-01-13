@@ -79,17 +79,6 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-# Use POSIX clocks for timing unless kernel-name is 'Darwin' (mac)
-ifeq ($(shell uname -s),Darwin)
-   MFEM_USE_POSIX_CLOCKS ?= NO
-else
-   MFEM_USE_POSIX_CLOCKS ?= YES
-endif
-POSIX_CLOCKS_LIB ?= -lrt
-ifeq ($(MFEM_USE_POSIX_CLOCKS),YES)
-   ALL_LIBS += $(POSIX_CLOCKS_LIB)
-endif
-
 MFEM_USE_LAPACK ?= NO
 # LAPACK library configuration
 LAPACK_LIB ?= -llapack
@@ -135,8 +124,19 @@ endif
 
 MFEM_USE_MEMALLOC ?= YES
 
+# Use POSIX clocks for timing unless kernel-name is 'Darwin' (mac)
+ifeq ($(shell uname -s),Darwin)
+   MFEM_TIMER_TYPE ?= 0
+else
+   MFEM_TIMER_TYPE ?= 2
+endif
+POSIX_CLOCKS_LIB ?= -lrt
+ifeq ($(MFEM_TIMER_TYPE),2)
+   ALL_LIBS += $(POSIX_CLOCKS_LIB)
+endif
+
 # List of all defines that may be enabled in config.hpp and config.mk:
-MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_POSIX_CLOCKS\
+MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
  MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC
 
@@ -203,21 +203,21 @@ config:
 	$(MAKE) -C config all
 
 info:
-	$(info MFEM_USE_MPI          = $(MFEM_USE_MPI))
-	$(info MFEM_USE_METIS_5      = $(MFEM_USE_METIS_5))
-	$(info MFEM_DEBUG            = $(MFEM_DEBUG))
-	$(info MFEM_USE_POSIX_CLOCKS = $(MFEM_USE_POSIX_CLOCKS))
-	$(info MFEM_USE_LAPACK       = $(MFEM_USE_LAPACK))
-	$(info MFEM_THREAD_SAFE      = $(MFEM_THREAD_SAFE))
-	$(info MFEM_USE_OPENMP       = $(MFEM_USE_OPENMP))
-	$(info MFEM_USE_MESQUITE     = $(MFEM_USE_MESQUITE))
-	$(info MFEM_USE_SUITESPARSE  = $(MFEM_USE_SUITESPARSE))
-	$(info MFEM_USE_MEMALLOC     = $(MFEM_USE_MEMALLOC))
-	$(info MFEM_CXX              = $(value MFEM_CXX))
-	$(info MFEM_CPPFLAGS         = $(value MFEM_CPPFLAGS))
-	$(info MFEM_CXXFLAGS         = $(value MFEM_CXXFLAGS))
-	$(info MFEM_LIBFLAGS         = $(value MFEM_LIBFLAGS))
-	$(info MFEM_FLAGS            = $(value MFEM_FLAGS))
-	$(info MFEM_LIBS             = $(value MFEM_LIBS))
-	$(info MFEM_LIB_FILE         = $(value MFEM_LIB_FILE))
+	$(info MFEM_USE_MPI         = $(MFEM_USE_MPI))
+	$(info MFEM_USE_METIS_5     = $(MFEM_USE_METIS_5))
+	$(info MFEM_DEBUG           = $(MFEM_DEBUG))
+	$(info MFEM_USE_LAPACK      = $(MFEM_USE_LAPACK))
+	$(info MFEM_THREAD_SAFE     = $(MFEM_THREAD_SAFE))
+	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
+	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
+	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
+	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
+	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
+	$(info MFEM_CXX             = $(value MFEM_CXX))
+	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))
+	$(info MFEM_CXXFLAGS        = $(value MFEM_CXXFLAGS))
+	$(info MFEM_LIBFLAGS        = $(value MFEM_LIBFLAGS))
+	$(info MFEM_FLAGS           = $(value MFEM_FLAGS))
+	$(info MFEM_LIBS            = $(value MFEM_LIBS))
+	$(info MFEM_LIB_FILE        = $(value MFEM_LIB_FILE))
 	@true

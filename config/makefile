@@ -16,10 +16,9 @@ mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 # The actual value is set in ../makefile and exported to here.
 # MFEM_DEFINES = ...
 
-# Extract the enabled (=YES) defines
-DEFINES := $(foreach var,$(MFEM_DEFINES),$(var).$($(var)))
-DEFINES := $(DEFINES:%.YES=%)
-DEFINES := $(DEFINES:%.NO=)
+# Extract the enabled (!=NO) defines
+DEFINES = $(shell for def in $${MFEM_DEFINES}; do\
+   if [ "NO" != "$${!def}" ]; then echo $${def}; fi; done)
 
 # List of variables to set in config.mk using their current values:
 # The actual value is set in ../makefile and exported to here.
@@ -43,7 +42,8 @@ header:
 	$(call mfem-info, Writing $(CONFIG_HPP) ...)
 	@cp -f config.hpp.in $(CONFIG_HPP) && \
 	for def in $(DEFINES); do \
-	   sed "s|// \(#define $${def}\)|\1|" -i $(CONFIG_HPP); done
+	   sed -e "s|// \(#define $${def}\)|\1|" -e "s#@$${def}@#$${!def}#g" \
+	       -i $(CONFIG_HPP); done
 
 # Using the values of the shell variables listed in the shell variables
 # MFEM_DEFINES and MFEM_CONFIG_VARS

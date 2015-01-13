@@ -11,10 +11,10 @@
 
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
-
-#include <cmath>
-
 #include "ncmesh.hpp"
+
+#include <algorithm>
+#include <cmath>
 
 namespace mfem
 {
