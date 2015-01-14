@@ -345,7 +345,7 @@ void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
          yp[i] += d;
       }
 #else
-      #pragma omp parallel for private(j,end)
+#pragma omp parallel for private(j,end)
       for (i = 0; i < height; i++)
       {
          double d = 0.0;
