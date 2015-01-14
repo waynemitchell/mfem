@@ -294,7 +294,7 @@ protected:
    double* fir_coeffs;
 
 public:
-   enum Type { Jacobi, GS, l1Jacobi, l1GS, lumpedJacobi, Chebyshev, Taubin, FIR };
+   enum Type { Jacobi=0, GS=6, l1Jacobi=1, l1GS=4, lumpedJacobi=5, Chebyshev=16, Taubin=1001, FIR=1002 };
 
    HypreSmoother();
 
