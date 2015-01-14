@@ -21,15 +21,15 @@ or post
 <a href="http://code.google.com/p/mfem/issues/entry?template=Question%20or%20Comment">questions
 or comments</a></em>.
 
-<hr>
 \htmlonly
+<hr>
 <div id="filters" style="overflow:auto">
-<div id="column1" style="float:left; width:17%;">
+<div id="column1" style="float:left; width:16%;">
    <h4>Equation (PDE)</h4>
    <label><input type="radio" id="all1" onchange="update(this.id);" checked="checked" />All</label><br/>
    <label><input type="radio" id="laplace" onchange="update(this.id);" />Laplace</label><br/>
    <label><input type="radio" id="elasticity" onchange="update(this.id);" />Elasticity</label><br/>
-   <label><input type="radio" id="maxwell" onchange="update(this.id);" />definite Maxwell</label><br/>
+   <label><input type="radio" id="maxwell" onchange="update(this.id);" />Definite Maxwell</label><br/>
    <label><input type="radio" id="graddiv" onchange="update(this.id);" />grad-div</label><br/>
    <label><input type="radio" id="darcy" onchange="update(this.id);" />Darcy</label><br/>
 </div>
@@ -43,7 +43,7 @@ or comments</a></em>.
    <label><input type="radio" id="hdiv" onchange="update(this.id);" />H(div) Raviart-Thomas elements</label><br/>
 </div>
 
-<div id="column3" style="float:left; width:30%">
+<div id="column3" style="float:left; width:29%">
    <h4>Discretization</h4>
   <label><input type="radio" id="all3" onchange="update(this.id);" checked="checked" />All</label><br/>
    <label><input type="radio" id="galerkin" onchange="update(this.id);" />Galerkin FEM</label><br/>
@@ -54,7 +54,7 @@ or comments</a></em>.
    <label><input type="radio" id="amr" onchange="update(this.id);" />Adaptive mesh refinement (AMR)</label><br/>
 </div>
 
-<div id="column4" style="float:left; width:27%">
+<div id="column4" style="float:left; width:29%">
    <h4>Linear Solver</h4>
    <label><input type="radio" id="all4" onchange="update(this.id);" checked="checked" />All</label><br/>
    <label><input type="radio" id="jacobi" onchange="update(this.id);" />Jacobi</label> <br/>
@@ -67,12 +67,12 @@ or comments</a></em>.
    <label><input type="radio" id="umfpack" onchange="update(this.id);" />UMFPACK (serial direct)</label><br/>
    <br/>
 </div>
-
 </div>
 \endhtmlonly
 
 <!----------------------------------------------------------------------------->
-<div id="ex1"><hr>
+<div id="ex1">
+\htmlonly <hr style="clear:both;"/><img src="ex1.png" style="float:right;"> \endhtmlonly
 <h2>Example 1</h2>
 
 This example code demonstrates the use of MFEM to define a
@@ -92,12 +92,13 @@ connection to the <a href="http://glvis.googlecode.com">GLVis</a> tool for visua
 <em>The example has a serial (ex1.cpp) and a parallel (ex1p.cpp) version.</em>
 </center>
 <p>
-
 </div>
 
 <!----------------------------------------------------------------------------->
-<div id="ex2"><hr>
+<div id="ex2">
+\htmlonly <hr style="clear:both;"/><img src="ex2.png" style="float:right;"> \endhtmlonly
 <h2>Example 2</h2>
+
 This example code solves a simple linear elasticity problem
 describing a multi-material cantilever beam.
 Specifically, we approximate the weak form of
@@ -110,12 +111,7 @@ are the material Lame constants. The boundary conditions are
 \f${\sigma}({\bf u})\cdot n = f\f$ on the remainder with \f$f\f$ being
 a constant pull down vector on boundary elements with attribute 2, and zero
 otherwise. The geometry of the domain is assumed to be as follows:
-<pre>
-                  +----------+----------+
-     boundary --->| material | material |<--- boundary
-     attribute 1  |    1     |    2     |     attribute 2
-     (fixed)      +----------+----------+     (pull down)
-</pre>
+<img src="ex2-domain.png" >
 The example demonstrates the use of high-order and NURBS vector
 finite element spaces with the linear elasticity bilinear form,
 meshes with curved elements, and the definition of piece-wise
@@ -127,7 +123,8 @@ We recommend viewing Example 1 before viewing this example. </em>
 </div>
 
 <!----------------------------------------------------------------------------->
-<div id="ex3"><hr>
+<div id="ex3">
+\htmlonly <hr style="clear:both;"/><img src="ex3.png" style="float:right;"> \endhtmlonly
 <h2>Example 3</h2>
 This example code solves a simple 3D electromagnetic diffusion
 problem corresponding to the second order definite Maxwell
@@ -142,13 +139,14 @@ spaces with the curl-curl and the (vector finite element) mass
 bilinear form, as well as the computation of discretization
 error when the exact solution is known.
 <center>
-<em>The example has a serial (ex3.cpp) and a parallel (ex3p.cpp) version
+<em>The example has a serial (ex3.cpp) and a parallel (ex3p.cpp) version.
 We recommend viewing examples 1-2 before viewing this example.</em>
 </center>
 </div>
 
 <!----------------------------------------------------------------------------->
-<div id="ex4"><hr>
+<div id="ex4">
+\htmlonly <hr style="clear:both;"/><img src="ex4.png" style="float:right;"> \endhtmlonly
 <h2>Example 4</h2>
 This example code solves a simple 2D/3D H(div) diffusion
 problem corresponding to the second order definite equation
@@ -163,13 +161,14 @@ spaces with the grad-div and H(div) vector finite element mass
 bilinear form, as well as the computation of discretization
 error when the exact solution is known.
 <center>
-<em>The example has a serial (ex4.cpp) and a parallel (ex4p.cpp) version
+<em>The example has a serial (ex4.cpp) and a parallel (ex4p.cpp) version.
 We recommend viewing examples 1-3 before viewing this example.</em>
 </center>
 </div>
 
 <!----------------------------------------------------------------------------->
-<div id="ex5"><hr>
+<div id="ex5">
+\htmlonly <hr style="clear:both;"/><img src="ex5.png" style="float:right;"> \endhtmlonly
 <h2>Example 5</h2>
 This example code solves a simple 2D/3D mixed Darcy problem
 corresponding to the saddle point system
@@ -186,13 +185,14 @@ polynomials (pressure \f$p\f$).
 The example demonstrates the use of the BlockMatrix and BlockOperator
 classes.
 <center>
-<em>The example has a serial (ex5.cpp) and a parallel (ex5p.cpp) version
+<em>The example has a serial (ex5.cpp) and a parallel (ex5p.cpp) version.
 We recommend viewing examples 1-4 before viewing this example.</em>
 </center>
 </div>
 
 <!----------------------------------------------------------------------------->
-<div id="ex6"><hr>
+<div id="ex6">
+\htmlonly <hr style="clear:both;"/><img src="ex6.png" style="float:right;"> \endhtmlonly
 <h2>Example 6</h2>
 
 This is a version of Example 1 with a simple adaptive mesh
@@ -215,7 +215,8 @@ We recommend viewing Example 1 before viewing this example. </em>
 </div>
 
 <!----------------------------------------------------------------------------->
-<div id="ex7"><hr>
+<div id="ex7">
+\htmlonly <hr style="clear:both;"/><img src="ex7.png" style="float:right;"> \endhtmlonly
 <h2>Example 7</h2>
 
 This example code demonstrates the use of MFEM to define a
@@ -229,13 +230,14 @@ surface-based linear and bilinear forms corresponding to the
 left-hand side and right-hand side of the discrete linear
 system.
 <center>
-<em>The example has a serial (ex7.cpp) and a parallel (ex7p.cpp) version
+<em>The example has a serial (ex7.cpp) and a parallel (ex7p.cpp) version.
 We recommend viewing Example 1 before viewing this example.</em>
 </center>
 </div>
 
 <!----------------------------------------------------------------------------->
-<div id="ex8"><hr>
+<div id="ex8">
+\htmlonly <hr style="clear:both;"/><img src="ex8.png" style="float:right;"> \endhtmlonly
 <h2>Example 8</h2>
 
 This example code demonstrates the use of the Discontinuous
@@ -250,7 +252,7 @@ The example highlights the use of interfacial (trace) finite
 elements and spaces, trace face integrators and the definition
 of block operators and preconditioners.
 <center>
-<em>The example has a serial (ex8.cpp) and a parallel (ex8p.cpp) version
+<em>The example has a serial (ex8.cpp) and a parallel (ex8p.cpp) version.
 We recommend viewing examples 1-5 before viewing this example.</em>
 </center>
 </div>
@@ -265,6 +267,7 @@ No examples match your criteria.
 </div>
 
 \htmlonly
+<div style="clear:both;"/></div>
 <script type="text/javascript"><!--
 function isChecked(id)
 {
@@ -307,7 +310,7 @@ function elementVisible(id)
 
 function exampleVisible(num)
 {
-   return elementVisible("ex"+num) || elementVisible("ex"+num+"p");
+   return elementVisible("ex"+num);// || elementVisible("ex"+num+"p");
 }
 
 function update(id)
@@ -343,7 +346,11 @@ function update(id)
    showElement("nomatch", allHidden);
 }
 
+// make sure "no match" div is not visible after page is loaded
 window.onload = update;
+
+// force vertical scrollbar
+document.getElementsByTagName("body")[0].style = "overflow-y: scroll"
 
 //--></script>
 \endhtmlonly
