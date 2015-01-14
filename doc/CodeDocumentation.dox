@@ -38,12 +38,12 @@ namespace mfem {
  * - <a class="el" href="ex2_8cpp_source.html">Example 2</a>: vector FEM for linear elasticity
  * - <a class="el" href="ex2p_8cpp_source.html">Example 2p</a>: parallel vector FEM for linear elasticity
  * - <a class="el" href="ex3_8cpp_source.html">Example 3</a>: Nedelec H(curl) FEM for the definite Maxwell problem
- * - <a class="el" href="ex3p_8cpp_source.html">Example 3p</a>: parallel Nedelec H(curl) FEM for the definite Maxwel problem
+ * - <a class="el" href="ex3p_8cpp_source.html">Example 3p</a>: parallel Nedelec H(curl) FEM for the definite Maxwell problem
  * - <a class="el" href="ex4_8cpp_source.html">Example 4</a>: Raviart-Thomas H(div) FEM for the grad-div problem
  * - <a class="el" href="ex4p_8cpp_source.html">Example 4p</a>: parallel Raviart-Thomas H(div) FEM for the grad-div problem
  * - <a class="el" href="ex5_8cpp_source.html">Example 5</a>: mixed pressure-velocity FEM for the Darcy problem
  * - <a class="el" href="ex5p_8cpp_source.html">Example 5p</a>: parallel mixed pressure-velocity FEM for the Darcy problem
- * - <a class="el" href="ex6_8cpp_source.html">Example 6</a>: non-confoming adaptive mesh refinement for the Laplace problem
+ * - <a class="el" href="ex6_8cpp_source.html">Example 6</a>: non-conforming adaptive mesh refinement for the Laplace problem
  * - <a class="el" href="ex7_8cpp_source.html">Example 7</a>: Laplace problem on a surface (the unit sphere)
  * - <a class="el" href="ex7p_8cpp_source.html">Example 7p</a>: parallel Laplace problem on a surface (the unit sphere)
  * - <a class="el" href="ex8_8cpp_source.html">Example 8</a>: Discontinuous Petrov-Galerkin (DPG) for the Laplace problem

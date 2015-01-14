@@ -17,5 +17,3 @@ html: CodeDocumentation.conf
 clean:
 	rm -rf CodeDocumentation CodeDocumentation.html *~
 
-distclean: clean
-
