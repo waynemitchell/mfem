@@ -15,8 +15,7 @@ html: CodeDocumentation.conf
 	ln -s CodeDocumentation/html/index.html CodeDocumentation.html
 
 clean:
-	rm -rf CodeDocumentation CodeDocumentation.html Examples *~
+	rm -rf CodeDocumentation CodeDocumentation.html *~
 
 distclean: clean
-	rm -rf ../examples/README_files ../examples/README.html
 

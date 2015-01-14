@@ -20,8 +20,8 @@ examples: Examples.conf
 	cd ..; ln -fs README_files/index.html README.html
 
 clean:
-	rm -rf CodeDocumentation CodeDocumentation.html Examples *~
+	rm -rf Examples *~
 
 distclean: clean
-	rm -rf ../examples/README_files ../examples/README.html
+	rm -rf ../README_files ../README.html
 
