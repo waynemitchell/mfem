@@ -96,40 +96,28 @@ int SparseMatrix::MaxRowSize() const
 
 int *SparseMatrix::GetRowColumns(const int row)
 {
-   if (Rows)
-   {
-      mfem_error("SparseMatrix::GetRowColumns : matrix is not Finalized!");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    return J + I[row];
 }
 
 const int *SparseMatrix::GetRowColumns(const int row) const
 {
-   if (Rows)
-   {
-      mfem_error("SparseMatrix::GetRowColumns : matrix is not Finalized!");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    return J + I[row];
 }
 
 double *SparseMatrix::GetRowEntries(const int row)
 {
-   if (Rows)
-   {
-      mfem_error("SparseMatrix::GetRowEntries : matrix is not Finalized!");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    return A + I[row];
 }
 
 const double *SparseMatrix::GetRowEntries(const int row) const
 {
-   if (Rows)
-   {
-      mfem_error("SparseMatrix::GetRowEntries : matrix is not Finalized!");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    return A + I[row];
 }
@@ -174,10 +162,7 @@ void SparseMatrix::SetWidth(int newWidth)
 
 void SparseMatrix::SortColumnIndices()
 {
-   if (Rows)
-   {
-      mfem_error("SparseMatrix::SortColumnIndices : matrix is not Finalized!");
-   }
+   MFEM_VERIFY(!Rows, "Matrix is not Finalized!");
 
    Array<Pair<int,double> > row;
    for (int j = 0, i = 0; i < height; i++)
@@ -212,17 +197,14 @@ double &SparseMatrix::operator()(int i, int j)
 {
    int k, end;
 
-#ifdef MFEM_DEBUG
-   if (i >= height || i < 0 || j >= width || j < 0)
-   {
-      mfem_error("SparseMatrix::operator() #1");
-   }
-#endif
+   MFEM_ASSERT( i <= height && i >= 0 && j < width && j >= 0,
+                "Trying to access element outside of the matrix.  "
+                << "height = " << height << ", "
+                << "width = " << width << ", "
+                << "i = " << i << ", "
+                << "j = " << j);
 
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::operator() #2");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    end = I[i+1];
    for (k = I[i]; k < end; k++)
@@ -231,7 +213,7 @@ double &SparseMatrix::operator()(int i, int j)
          return A[k];
       }
 
-   mfem_error("SparseMatrix::operator() #3");
+   MFEM_ABORT("Did not find i = " << i <<", j = "<<j<< " in matrix.");
    return A[0];
 }
 
@@ -240,17 +222,14 @@ const double &SparseMatrix::operator()(int i, int j) const
    int k, end;
    static const double zero = 0.0;
 
-#ifdef MFEM_DEBUG
-   if (i >= height || i < 0 || j >= width || j < 0)
-   {
-      mfem_error("SparseMatrix::operator() const #1");
-   }
-#endif
+   MFEM_ASSERT( i <= height && i >= 0 && j < width && j >= 0,
+                "Trying to access element outside of the matrix.  "
+                << "height = " << height << ", "
+                << "width = " << width << ", "
+                << "i = " << i << ", "
+                << "j = " << j);
 
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::operator() const #2");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
    end = I[i+1];
    for (k = I[i]; k < end; k++)
       if (J[k] == j)
@@ -263,14 +242,9 @@ const double &SparseMatrix::operator()(int i, int j) const
 
 void SparseMatrix::GetDiag(Vector & d) const
 {
-
-   if (height != width)
-      mfem_error("SparseMatrix::GetDiag(Vector & d) this must be a square"
-                 " matrix");
-
-   if (A == NULL)
-      mfem_error("SparseMatrix::GetDiag(Vector & d) not implemented for non"
-                 " assembled matrices");
+   MFEM_VERIFY(height == width,
+               "Matrix must be square, not height = " << height << ", width = " << width);
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    d.SetSize(height);
 
@@ -302,12 +276,12 @@ void SparseMatrix::Mult(const Vector &x, Vector &y) const
 
 void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
 {
-#ifdef MFEM_DEBUG
-   if (( width != x.Size() ) || ( height != y.Size() ))
-   {
-      mfem_error("SparseMatrix::AddMult() #1");
-   }
-#endif
+   MFEM_ASSERT(width == x.Size(),
+               "Input vector size (" << x.Size() << ") must match matrix width (" << width
+               << ")");
+   MFEM_ASSERT(height == y.Size(),
+               "Output vector size (" << y.Size() << ") must match matrix height (" << height
+               << ")");
 
    int i, j, end;
    double *Ap = A, *yp = y.GetData();
@@ -378,12 +352,12 @@ void SparseMatrix::MultTranspose(const Vector &x, Vector &y) const
 void SparseMatrix::AddMultTranspose(const Vector &x, Vector &y,
                                     const double a) const
 {
-#ifdef MFEM_DEBUG
-   if (( height != x.Size() ) || ( width != y.Size() ))
-   {
-      mfem_error("SparseMatrix::AddMultTranspose() #1");
-   }
-#endif
+   MFEM_ASSERT(height == x.Size(),
+               "Input vector size (" << x.Size() << ") must match matrix height (" << height
+               << ")");
+   MFEM_ASSERT(width == y.Size(),
+               "Output vector size (" << y.Size() << ") must match matrix width (" << width
+               << ")");
 
    int i, j, end;
    double *yp = y.GetData();
@@ -417,46 +391,36 @@ void SparseMatrix::AddMultTranspose(const Vector &x, Vector &y,
 void SparseMatrix::PartMult(
    const Array<int> &rows, const Vector &x, Vector &y) const
 {
-   if (A)
+   MFEM_VERIFY(A.Finalized(), "Matrix must be finalized.");
+
+   for (int i = 0; i < rows.Size(); i++)
    {
-      for (int i = 0; i < rows.Size(); i++)
+      int r = rows[i];
+      int end = I[r + 1];
+      double a = 0.0;
+      for (int j = I[r]; j < end; j++)
       {
-         int r = rows[i];
-         int end = I[r+1];
-         double a = 0.0;
-         for (int j = I[r]; j < end; j++)
-         {
-            a += A[j] * x(J[j]);
-         }
-         y(r) = a;
+         a += A[j] * x(J[j]);
       }
-   }
-   else
-   {
-      mfem_error("SparseMatrix::PartMult");
+      y(r) = a;
    }
 }
 
 void SparseMatrix::PartAddMult(
    const Array<int> &rows, const Vector &x, Vector &y, const double a) const
 {
-   if (A)
+   MFEM_VERIFY(A.Finalized(), "Matrix must be finalized.");
+
+   for (int i = 0; i < rows.Size(); i++)
    {
-      for (int i = 0; i < rows.Size(); i++)
+      int r = rows[i];
+      int end = I[r + 1];
+      double val = 0.0;
+      for (int j = I[r]; j < end; j++)
       {
-         int r = rows[i];
-         int end = I[r+1];
-         double val = 0.0;
-         for (int j = I[r]; j < end; j++)
-         {
-            val += A[j] * x(J[j]);
-         }
-         y(r) += a*val;
+         val += A[j] * x(J[j]);
       }
-   }
-   else
-   {
-      mfem_error("SparseMatrix::PartAddMult");
+      y(r) += a * val;
    }
 }
 
@@ -503,10 +467,8 @@ void SparseMatrix::GetRowSums(Vector &x) const
 
 double SparseMatrix::GetRowNorml1(int irow) const
 {
-   if (irow >= height)
-   {
-      mfem_error("SparseMatrix::GetRowNorml1");
-   }
+   MFEM_VERIFY(irow < height,
+               "row " << irow <<" not in matrix with height "<< height);
 
    double a = 0.0;
    if (A)
@@ -577,10 +539,7 @@ void SparseMatrix::Finalize(int skip_zeros)
 
 void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 {
-   if (A)
-   {
-      mfem_error("SparseMatrix::GetBlocks : matrix is finalized!");
-   }
+   MFEM_VERIFY(!A.Finalized(), "Matrix must NOT be finalized.");
 
    int br = blocks.NumRows(), bc = blocks.NumCols();
    int nr = (height + br - 1)/br, nc = (width + bc - 1)/bc;
@@ -635,10 +594,7 @@ void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 
 double SparseMatrix::IsSymmetric() const
 {
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::IsSymmetric()");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    int i, j;
    double a, max;
@@ -660,10 +616,7 @@ double SparseMatrix::IsSymmetric() const
 
 void SparseMatrix::Symmetrize()
 {
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::Symmetrize()");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    int i, j;
    for (i = 1; i < height; i++)
@@ -758,17 +711,10 @@ void SparseMatrix::EliminateRow(int row, const double sol, Vector &rhs)
 {
    RowNode *aux;
 
-#ifdef MFEM_DEBUG
-   if ( row >= height || row < 0 )
-   {
-      mfem_error("SparseMatrix::EliminateRow () #1");
-   }
-#endif
+   MFEM_ASSERT(row < height && row >= 0,
+               "Row " << row << " not in matrix of height " << height);
 
-   if (Rows == NULL)
-   {
-      mfem_error("SparseMatrix::EliminateRow () #2");
-   }
+   MFEM_VERIFY( !A.Finalized(), "Matrix must NOT be finalized.");
 
    for (aux = Rows[row]; aux != NULL; aux = aux->Prev)
    {
@@ -781,17 +727,11 @@ void SparseMatrix::EliminateRow(int row, int setOneDiagonal)
 {
    RowNode *aux;
 
-#ifdef MFEM_DEBUG
-   if ( row >= height || row < 0 )
-   {
-      mfem_error("SparseMatrix::EliminateRow () #1");
-   }
-
-   if ( setOneDiagonal && height != width )
-   {
-      mfem_error("SparseMatrix::EliminateRow () #2");
-   }
-#endif
+   MFEM_ASSERT(row < height && row >= 0,
+               "Row " << row << " not in matrix of height " << height);
+   MFEM_ASSERT(!setOneDiagonal || height == width,
+               "if setOneDiagonal, must be rectangular matrix, not height = "
+               << height << ",  width = " << width);
 
    if (Rows == NULL)
       for (int i=I[row]; i < I[row+1]; ++i)
@@ -814,10 +754,7 @@ void SparseMatrix::EliminateCol(int col)
 {
    RowNode *aux;
 
-   if (Rows == NULL)
-   {
-      mfem_error("SparseMatrix::EliminateCol () #1");
-   }
+   MFEM_VERIFY( !A.Finalized(), "Matrix must NOT be finalized.");
 
    for (int i = 0; i < height; i++)
       for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
@@ -863,12 +800,8 @@ void SparseMatrix::EliminateRowCol(int rc, const double sol, Vector &rhs,
 {
    int col;
 
-#ifdef MFEM_DEBUG
-   if ( rc >= height || rc < 0 )
-   {
-      mfem_error("SparseMatrix::EliminateRowCol () #1");
-   }
-#endif
+   MFEM_ASSERT(rc < height && rc >= 0,
+               "Row " << rc << " not in matrix of height " << height);
 
    if (Rows == NULL)
       for (int j = I[rc]; j < I[rc+1]; j++)
@@ -932,16 +865,10 @@ void SparseMatrix::EliminateRowColMultipleRHS(int rc, const Vector &sol,
    int col;
    int num_rhs = rhs.Width();
 
-#ifdef MFEM_DEBUG
-   if (rc >= height || rc < 0)
-   {
-      mfem_error("SparseMatrix::EliminateRowColMultipleRHS() #1");
-   }
-   if (sol.Size() != num_rhs)
-   {
-      mfem_error("SparseMatrix::EliminateRowColMultipleRHS() #2");
-   }
-#endif
+   MFEM_ASSERT(rc < height && rc >= 0,
+               "Row " << rc << " not in matrix of height " << height);
+   MFEM_ASSERT( sol.Size() == num_rhs, "solution size (" << sol.Size()
+                << ") must match rhs width (" << num_rhs << ")");
 
    if (Rows == NULL)
       for (int j = I[rc]; j < I[rc+1]; j++)
@@ -1021,12 +948,8 @@ void SparseMatrix::EliminateRowCol(int rc, int d)
 {
    int col;
 
-#ifdef MFEM_DEBUG
-   if ( rc >= height || rc < 0 )
-   {
-      mfem_error("SparseMatrix::EliminateRowCol() #1");
-   }
-#endif
+   MFEM_ASSERT(rc < height && rc >= 0,
+               "Row " << rc << " not in matrix of height " << height);
 
    if (Rows == NULL)
    {
@@ -1339,10 +1262,7 @@ void SparseMatrix::Gauss_Seidel_back(const Vector &x, Vector &y) const
 
 double SparseMatrix::GetJacobiScaling() const
 {
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::GetJacobiScaling()");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    double sc = 1.0;
    for (int i = 0; i < height; i++)
@@ -1376,10 +1296,7 @@ double SparseMatrix::GetJacobiScaling() const
 void SparseMatrix::Jacobi(const Vector &b, const Vector &x0, Vector &x1,
                           double sc) const
 {
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::Jacobi(...)");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    for (int i = 0; i < height; i++)
    {
@@ -1409,10 +1326,7 @@ void SparseMatrix::Jacobi(const Vector &b, const Vector &x0, Vector &x1,
 
 void SparseMatrix::DiagScale(const Vector &b, Vector &x, double sc) const
 {
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::DiagScale(...)");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    bool scale = (sc != 1.0);
    for (int i = 0, j = 0; i < height; i++)
@@ -1420,12 +1334,12 @@ void SparseMatrix::DiagScale(const Vector &b, Vector &x, double sc) const
       int end = I[i+1];
       for ( ; true; j++)
       {
-         if (j == end)
-         {
-            goto diagscale_error;
-         }
+         MFEM_VERIFY( j != end, "Couldn't find diagonal in row. i = " << i
+                      << ", j = " << j
+                      << ", I[i+1] = " << end );
          if (J[j] == i)
          {
+            MFEM_VERIFY(std::abs(A[j]) > 0.0, "Diagonal "<<j<<" must be nonzero");
             if (A[j] == 0.0)
             {
                goto diagscale_error;
@@ -1444,18 +1358,12 @@ void SparseMatrix::DiagScale(const Vector &b, Vector &x, double sc) const
       j = end;
    }
    return;
-
-diagscale_error:
-   mfem_error("SparseMatrix::DiagScale(...) #2");
 }
 
 void SparseMatrix::Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
                            double sc) const
 {
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::Jacobi2(...)");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    for (int i = 0; i < height; i++)
    {
@@ -1471,7 +1379,7 @@ void SparseMatrix::Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
       }
       else
       {
-         mfem_error("SparseMatrix::Jacobi2(...) #2");
+         MFEM_ABORT( "L1 norm of row " << i << " is zero.");
       }
    }
 }
@@ -1479,10 +1387,7 @@ void SparseMatrix::Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
 void SparseMatrix::Jacobi3(const Vector &b, const Vector &x0, Vector &x1,
                            double sc) const
 {
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::Jacobi3(...)");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    for (int i = 0; i < height; i++)
    {
@@ -1498,7 +1403,7 @@ void SparseMatrix::Jacobi3(const Vector &b, const Vector &x0, Vector &x1,
       }
       else
       {
-         mfem_error("SparseMatrix::Jacobi3(...) #2");
+         MFEM_ABORT( "sum of row " << i << " is zero.");
       }
    }
 }
@@ -1513,23 +1418,17 @@ void SparseMatrix::AddSubMatrix(const Array<int> &rows, const Array<int> &cols,
    {
       if ((gi=rows[i]) < 0) { gi = -1-gi, s = -1; }
       else { s = 1; }
-#ifdef MFEM_DEBUG
-      if (gi >= height)
-      {
-         mfem_error("SparseMatrix::AddSubMatrix(...) #1");
-      }
-#endif
+      MFEM_ASSERT(gi < height,
+                  "Trying to insert a row " << gi << " outside the matrix height "
+                  << height);
       SetColPtr(gi);
       for (j = 0; j < cols.Size(); j++)
       {
          if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
          else { t = s; }
-#ifdef MFEM_DEBUG
-         if (gj >= width)
-         {
-            mfem_error("SparseMatrix::AddSubMatrix(...) #2");
-         }
-#endif
+         MFEM_ASSERT(gj < width,
+                     "Trying to insert a column " << gi << " outside the matrix width "
+                     << width);
          a = subm(i, j);
          if (skip_zeros && a == 0.0)
          {
@@ -1554,20 +1453,14 @@ void SparseMatrix::Set(const int i, const int j, const double A)
 
    if ((gi=i) < 0) { gi = -1-gi, s = -1; }
    else { s = 1; }
-#ifdef MFEM_DEBUG
-   if (gi >= height)
-   {
-      mfem_error("SparseMatrix::Set (...) #1");
-   }
-#endif
+   MFEM_ASSERT(gi < height,
+               "Trying to insert a row " << gi << " outside the matrix height "
+               << height);
    if ((gj=j) < 0) { gj = -1-gj, t = -s; }
    else { t = s; }
-#ifdef MFEM_DEBUG
-   if (gj >= width)
-   {
-      mfem_error("SparseMatrix::Set (...) #2");
-   }
-#endif
+   MFEM_ASSERT(gj < width,
+               "Trying to insert a column " << gi << " outside the matrix width "
+               << width);
    if (t < 0) { a = -a; }
    _Set_(gi, gj, a);
 }
@@ -1579,20 +1472,14 @@ void SparseMatrix::Add(const int i, const int j, const double A)
 
    if ((gi=i) < 0) { gi = -1-gi, s = -1; }
    else { s = 1; }
-#ifdef MFEM_DEBUG
-   if (gi >= height)
-   {
-      mfem_error("SparseMatrix::Add (...) #1");
-   }
-#endif
+   MFEM_ASSERT(gi < height,
+               "Trying to insert a row " << gi << " outside the matrix height "
+               << height);
    if ((gj=j) < 0) { gj = -1-gj, t = -s; }
    else { t = s; }
-#ifdef MFEM_DEBUG
-   if (gj >= width)
-   {
-      mfem_error("SparseMatrix::Add (...) #2");
-   }
-#endif
+   MFEM_ASSERT(gj < width,
+               "Trying to insert a column " << gi << " outside the matrix width "
+               << width);
    if (t < 0) { a = -a; }
    _Add_(gi, gj, a);
 }
@@ -1607,12 +1494,9 @@ void SparseMatrix::SetSubMatrix(const Array<int> &rows, const Array<int> &cols,
    {
       if ((gi=rows[i]) < 0) { gi = -1-gi, s = -1; }
       else { s = 1; }
-#ifdef MFEM_DEBUG
-      if (gi >= height)
-      {
-         mfem_error("SparseMatrix::SetSubMatrix(...) #1");
-      }
-#endif
+      MFEM_ASSERT(gi < height,
+                  "Trying to insert a row " << gi << " outside the matrix height "
+                  << height);
       SetColPtr(gi);
       for (j = 0; j < cols.Size(); j++)
       {
@@ -1623,12 +1507,9 @@ void SparseMatrix::SetSubMatrix(const Array<int> &rows, const Array<int> &cols,
          }
          if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
          else { t = s; }
-#ifdef MFEM_DEBUG
-         if (gj >= width)
-         {
-            mfem_error("SparseMatrix::SetSubMatrix(...) #2");
-         }
-#endif
+         MFEM_ASSERT(gj < width,
+                     "Trying to insert a column " << gi << " outside the matrix width "
+                     << width);
          if (t < 0) { a = -a; }
          _Set_(gj, a);
       }
@@ -1648,12 +1529,9 @@ void SparseMatrix::SetSubMatrixTranspose(const Array<int> &rows,
    {
       if ((gi=rows[i]) < 0) { gi = -1-gi, s = -1; }
       else { s = 1; }
-#ifdef MFEM_DEBUG
-      if (gi >= height)
-      {
-         mfem_error("SparseMatrix::SetSubMatrixTranspose (...) #1");
-      }
-#endif
+      MFEM_ASSERT(gi < height,
+                  "Trying to insert a row " << gi << " outside the matrix height "
+                  << height);
       SetColPtr(gi);
       for (j = 0; j < cols.Size(); j++)
       {
@@ -1664,12 +1542,9 @@ void SparseMatrix::SetSubMatrixTranspose(const Array<int> &rows,
          }
          if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
          else { t = s; }
-#ifdef MFEM_DEBUG
-         if (gj >= width)
-         {
-            mfem_error("SparseMatrix::SetSubMatrixTranspose (...) #2");
-         }
-#endif
+         MFEM_ASSERT(gj < width,
+                     "Trying to insert a column " << gi << " outside the matrix width "
+                     << width);
          if (t < 0) { a = -a; }
          _Set_(gj, a);
       }
@@ -1687,23 +1562,17 @@ void SparseMatrix::GetSubMatrix(const Array<int> &rows, const Array<int> &cols,
    {
       if ((gi=rows[i]) < 0) { gi = -1-gi, s = -1; }
       else { s = 1; }
-#ifdef MFEM_DEBUG
-      if (gi >= height)
-      {
-         mfem_error("SparseMatrix::GetSubMatrix(...) #1");
-      }
-#endif
+      MFEM_ASSERT(gi < height,
+                  "Trying to insert a row " << gi << " outside the matrix height "
+                  << height);
       SetColPtr(gi);
       for (j = 0; j < cols.Size(); j++)
       {
          if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
          else { t = s; }
-#ifdef MFEM_DEBUG
-         if (gj >= width)
-         {
-            mfem_error("SparseMatrix::GetSubMatrix(...) #2");
-         }
-#endif
+         MFEM_ASSERT(gj < width,
+                     "Trying to insert a column " << gi << " outside the matrix width "
+                     << width);
          a = _Get_(gj);
          subm(i, j) = (t < 0) ? (-a) : (a);
       }
@@ -1719,12 +1588,9 @@ bool SparseMatrix::RowIsEmpty(const int row) const
    {
       gi = -1-gi;
    }
-#ifdef MFEM_DEBUG
-   if (gi >= height)
-   {
-      mfem_error("SparseMatrix::RowIsEmpty(...) #1");
-   }
-#endif
+   MFEM_ASSERT(gi < height,
+               "Trying to insert a row " << gi << " outside the matrix height "
+               << height);
    if (Rows)
    {
       return (Rows[gi] == NULL);
@@ -1741,12 +1607,9 @@ int SparseMatrix::GetRow(const int row, Array<int> &cols, Vector &srow) const
    int j, gi;
 
    if ((gi=row) < 0) { gi = -1-gi; }
-#ifdef MFEM_DEBUG
-   if (gi >= height)
-   {
-      mfem_error("SparseMatrix::GetRow(...) #1");
-   }
-#endif
+   MFEM_ASSERT(gi < height,
+               "Trying to insert a row " << gi << " outside the matrix height "
+               << height);
    if (Rows)
    {
       for (n = Rows[gi], j = 0; n; n = n->Prev)
@@ -1772,12 +1635,7 @@ int SparseMatrix::GetRow(const int row, Array<int> &cols, Vector &srow) const
       j = I[gi];
       cols.MakeRef(J + j, I[gi+1]-j);
       srow.NewDataAndSize(A + j, cols.Size());
-#ifdef DEBUG
-      if (row < 0)
-      {
-         mfem_error("SparseMatrix::GetRow(...) #2");
-      }
-#endif
+      MFEM_ASSERT( row >= 0, "Row not valid: " << row );
       return 1;
    }
 }
@@ -1788,30 +1646,21 @@ void SparseMatrix::SetRow(const int row, const Array<int> &cols,
    int j, gi, gj, s, t;
    double a;
 
-   if (Rows == NULL)
-   {
-      mfem_error("SparseMatrix::SetRow(...) #0");
-   }
+   MFEM_VERIFY( !A.Finalized(), "Matrix must NOT be finalized.");
 
    if ((gi=row) < 0) { gi = -1-gi, s = -1; }
    else { s = 1; }
-#ifdef MFEM_DEBUG
-   if (gi >= height)
-   {
-      mfem_error("SparseMatrix::SetRow(...) #1");
-   }
-#endif
+   MFEM_ASSERT(gi < height,
+               "Trying to insert a row " << gi << " outside the matrix height "
+               << height);
    SetColPtr(gi);
    for (j = 0; j < cols.Size(); j++)
    {
       if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
       else { t = s; }
-#ifdef MFEM_DEBUG
-      if (gj >= width)
-      {
-         mfem_error("SparseMatrix::SetRow(...) #2");
-      }
-#endif
+      MFEM_ASSERT(gj < width,
+                  "Trying to insert a column " << gi << " outside the matrix width "
+                  << width);
       a = srow(j);
       if (t < 0) { a = -a; }
       _Set_(gj, a);
@@ -1825,30 +1674,21 @@ void SparseMatrix::AddRow(const int row, const Array<int> &cols,
    int j, gi, gj, s, t;
    double a;
 
-   if (Rows == NULL)
-   {
-      mfem_error("SparseMatrix::AddRow(...) #0");
-   }
+   MFEM_VERIFY( !A.Finalized(), "Matrix must NOT be finalized.");
 
    if ((gi=row) < 0) { gi = -1-gi, s = -1; }
    else { s = 1; }
-#ifdef MFEM_DEBUG
-   if (gi >= height)
-   {
-      mfem_error("SparseMatrix::AddRow(...) #1");
-   }
-#endif
+   MFEM_ASSERT(gi < height,
+               "Trying to insert a row " << gi << " outside the matrix height "
+               << height);
    SetColPtr(gi);
    for (j = 0; j < cols.Size(); j++)
    {
       if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
       else { t = s; }
-#ifdef MFEM_DEBUG
-      if (gj >= width)
-      {
-         mfem_error("SparseMatrix::AddRow(...) #2");
-      }
-#endif
+      MFEM_ASSERT(gj < width,
+                  "Trying to insert a column " << gi << " outside the matrix width "
+                  << width);
       a = srow(j);
       if (a == 0.0)
       {
@@ -1949,12 +1789,10 @@ void SparseMatrix::ScaleColumns(const Vector & sr)
 
 SparseMatrix &SparseMatrix::operator+=(SparseMatrix &B)
 {
-#ifdef MFEM_DEBUG
-   if (height != B.height || width != B.width)
-   {
-      mfem_error("SparseMatrix::operator+=(...) #1");
-   }
-#endif
+   MFEM_ASSERT( height == B.height && width == B.width,
+                "Mismatch of this matrix size and rhs.  This height = "
+                << height ", width = " << width << ", B.height = "
+                << B.height ", B.width = " << width);
 
    for (int i = 0; i < height; i++)
    {
@@ -2122,10 +1960,7 @@ void SparseMatrix::PrintMM(std::ostream & out) const
 
 void SparseMatrix::PrintCSR(std::ostream & out) const
 {
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::PrintCSR()");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    int i;
 
@@ -2149,10 +1984,7 @@ void SparseMatrix::PrintCSR(std::ostream & out) const
 
 void SparseMatrix::PrintCSR2(std::ostream & out) const
 {
-   if (A == NULL)
-   {
-      mfem_error("SparseMatrix::PrintCSR2()");
-   }
+   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
 
    int i;
 
@@ -2245,9 +2077,9 @@ void SparseMatrixFunction (SparseMatrix & S, double (*f)(double))
 
 SparseMatrix *Transpose (const SparseMatrix &A)
 {
-   if (!A.Finalized())
-      mfem_error("Finalize must be called before Transpose. Use"
-                 " TransposeRowMatrix instead");
+   MFEM_VERIFY(
+      A.Finalized(),
+      "Finalize must be called before Transpose. Use TransposeRowMatrix instead");
 
    int i, j, end;
    int m, n, nnz, *A_i, *A_j, *At_i, *At_j;
@@ -2390,10 +2222,8 @@ SparseMatrix *Mult (const SparseMatrix &A, const SparseMatrix &B,
    nrowsB = B.Height();
    ncolsB = B.Width();
 
-   if (ncolsA != nrowsB)
-   {
-      mfem_error("Sparse matrix multiplication, Mult (...) #1");
-   }
+   MFEM_VERIFY(ncolsA == nrowsB,
+               "columns of A (" << ncolsA << ") must equal rows of B (" << nrowsB << ")");
 
    A_i    = A.GetI();
    A_j    = A.GetJ();
@@ -2446,10 +2276,12 @@ SparseMatrix *Mult (const SparseMatrix &A, const SparseMatrix &B,
    {
       C = OAB;
 
-      if (nrowsA != C -> Height() || ncolsB != C -> Width())
-      {
-         mfem_error("Sparse matrix multiplication, Mult (...) #2");
-      }
+      MFEM_VERIFY( nrowsA == C -> Height() && ncolsB == C -> Width(),
+                   "Input matrix sizes do not match output sizes"
+                   <<" nrowsA = " << nrowsA
+                   <<", C->Height() = " << C->Height()
+                   <<" ncolsB = " << ncolsB
+                   <<", C->Width() = " << C->Width());
 
       C_i    = C -> GetI();
       C_j    = C -> GetJ();
@@ -2487,10 +2319,12 @@ SparseMatrix *Mult (const SparseMatrix &A, const SparseMatrix &B,
       }
    }
 
-   if (OAB != NULL && counter != OAB -> NumNonZeroElems())
-   {
-      mfem_error("Sparse matrix multiplication, Mult (...) #3");
-   }
+   MFEM_VERIFY(
+      OAB == NULL || counter == OAB->NumNonZeroElems(),
+      "With pre-allocated output matrix, number of non-zeros ("
+      << OAB->NumNonZeroElems()
+      << ") did not match number of entries changed from matrix-matrix multiply, "
+      << counter);
 
    delete [] B_marker;
 
@@ -2513,11 +2347,8 @@ SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A,
    nrowsB = B.Height();
    ncolsB = B.Width();
 
-   if (ncolsA != nrowsB)
-   {
-      mfem_error("Sparse matrix multiplication, Mult (...) #1");
-   }
-
+   MFEM_VERIFY(ncolsA == nrowsB,
+               "columns of A (" << ncolsA << ") must equal rows of B (" << nrowsB << ")");
 
    B_marker = new int[ncolsB];
 

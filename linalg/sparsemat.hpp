@@ -215,7 +215,7 @@ public:
        CSR (compressed sparse row) format. */
    virtual void Finalize(int skip_zeros = 1);
 
-   int Finalized() const { return (A != NULL); }
+   bool Finalized() const { return (A != NULL); }
 
    /** Split the matrix into M x N blocks of sparse matrices in CSR format.
        The 'blocks' array is M x N (i.e. M and N are determined by its
@@ -432,10 +432,7 @@ inline double &SparseMatrix::SearchRow(const int col)
    else
    {
       const int j = ColPtr.J[col];
-      if (j == -1)
-      {
-         mfem_error("SparseMatrix::SearchRow : entry is not allocated!");
-      }
+      MFEM_VERIFY( j != -1, "Entry for column " << col << " is not allocated.");
       return A[j];
    }
 }
@@ -461,6 +458,7 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
       RowNode *node_p;
 
       for (node_p = Rows[row]; 1; node_p = node_p->Prev)
+      {
          if (node_p == NULL)
          {
 #ifdef MFEM_USE_MEMALLOC
@@ -478,17 +476,20 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
          {
             break;
          }
+      }
       return node_p->Value;
    }
    else
    {
       int *Ip = I+row, *Jp = J;
       for (int k = Ip[0], end = Ip[1]; k < end; k++)
+      {
          if (Jp[k] == col)
          {
             return A[k];
          }
-      mfem_error("SparseMatrix::SearchRow(...)");
+      }
+      MFEM_ABORT( "Could not find entry for row = " << row << ", col = " << col);
    }
    return A[0];
 }
