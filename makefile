@@ -9,6 +9,44 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
+define MFEM_HELP_MSG
+
+MFEM makefile targets:
+
+   make config
+   make
+   make status or make info
+   make serial
+   make parallel
+   make debug
+   make pdebug
+   make clean
+   make distclean
+
+Examples:
+
+make config MFEM_USE_MPI=YES MFEM_DEBUG=YES MPICXX=mpiCC
+   Configure the make system for subsequent runs (analogous to a configure script).
+   The available options are documented in the INSTALL file.
+make -j 4
+   Build the code (in parallel) using the current configuration options.
+make status
+   Display information about the current configuration.
+make serial
+   A shortcut to configure and build the serial optimized version of the library.
+make parallel
+   A shortcut to configure and build the parallel optimized version of the library.
+make debug
+   A shortcut to configure and build the serial debug version of the library.
+make pdebug
+   A shortcut to configure and build the parallel debug version of the library.
+make clean
+   Clean the library and object files, but keep configuration.
+make distclean
+   Clean the library, object files and configuration.
+
+endef
+
 # Path to the mfem directory relative to the compile directory:
 MFEM_DIR = ..
 # ... or simply an absolute path
@@ -26,7 +64,7 @@ mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 $(call mfem-info, MAKECMDGOALS = $(MAKECMDGOALS))
 
 # Include $(CONFIG_MK) unless some of the $(SKIP_INCLUDE_TARGETS) are given
-SKIP_INCLUDE_TARGETS = config clean serial parallel debug pdebug
+SKIP_INCLUDE_TARGETS = help config clean distclean serial parallel debug pdebug
 HAVE_SKIP_INCLUDE_TARGET = $(filter $(SKIP_INCLUDE_TARGETS),$(MAKECMDGOALS))
 ifeq (,$(HAVE_SKIP_INCLUDE_TARGET))
    $(call mfem-info, Including $(CONFIG_MK))
@@ -46,7 +84,7 @@ MPICXX ?= mpicxx
 OPTIM_FLAGS ?= -O3
 DEBUG_FLAGS ?= -g -Wall
 # Compile flags used by MFEM: CPPFLAGS, CXXFLAGS, plus library flags
-LIBFLAGS = -I@MFEM_DIR@
+INCFLAGS = -I@MFEM_DIR@
 # Link flags used by MFEM: library link flags plus LDFLAGS (added last)
 ALL_LIBS = -L@MFEM_DIR@ -lmfem
 
@@ -64,6 +102,7 @@ HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
 # METIS library configuration
 METIS_DIR ?= @MFEM_DIR@/../metis-4.0
+METIS_OPT ?=
 METIS_LIB ?= -L$(METIS_DIR) -lmetis
 
 MFEM_USE_METIS_5 ?= NO
@@ -73,7 +112,7 @@ ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
 else
    MFEM_CXX ?= $(MPICXX)
-   LIBFLAGS += $(HYPRE_OPT)
+   INCFLAGS += $(METIS_OPT) $(HYPRE_OPT)
    ALL_LIBS += $(METIS_LIB) $(HYPRE_LIB)
 endif
 
@@ -95,7 +134,7 @@ ifeq ($(MFEM_USE_OPENMP),YES)
    ifneq ($(MFEM_THREAD_SAFE),YES)
       $(error Incompatible config: MFEM_USE_OPENMP requires MFEM_THREAD_SAFE)
    endif
-   LIBFLAGS += $(OPENMP_OPT)
+   INCFLAGS += $(OPENMP_OPT)
    ALL_LIBS += $(OPENMP_LIB)
 else
    MFEM_THREAD_SAFE ?= NO
@@ -107,7 +146,7 @@ MESQUITE_DIR ?= @MFEM_DIR@/../mesquite-2.99
 MESQUITE_OPT ?= -I$(MESQUITE_DIR)/include
 MESQUITE_LIB ?= -L$(MESQUITE_DIR)/lib -lmesquite
 ifeq ($(MFEM_USE_MESQUITE),YES)
-   LIBFLAGS += $(MESQUITE_OPT)
+   INCFLAGS += $(MESQUITE_OPT)
    ALL_LIBS += $(MESQUITE_LIB)
 endif
 
@@ -118,7 +157,7 @@ SUITESPARSE_OPT ?= -I$(SUITESPARSE_DIR)/include
 SUITESPARSE_LIB ?= -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd -lamd\
  -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
 ifeq ($(MFEM_USE_SUITESPARSE),YES)
-   LIBFLAGS += $(SUITESPARSE_OPT)
+   INCFLAGS += $(SUITESPARSE_OPT)
    ALL_LIBS += $(SUITESPARSE_LIB)
 endif
 
@@ -141,16 +180,17 @@ MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC
 
 # List of makefile variables that will be written to config.mk:
-MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_LIBFLAGS\
- MFEM_FLAGS MFEM_LIBS MFEM_LIB_FILE
+MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INCFLAGS\
+ MFEM_FLAGS MFEM_LIBS MFEM_LIB_FILE MFEM_BUILD_TAG
 
 # Config vars: values of the form @VAL@ are replaced by $(VAL) in config.mk
-MFEM_CPPFLAGS ?= $(CPPFLAGS)
-MFEM_CXXFLAGS ?= $(CXXFLAGS)
-MFEM_LIBFLAGS ?= $(LIBFLAGS)
-MFEM_FLAGS    ?= @MFEM_CPPFLAGS@ @MFEM_CXXFLAGS@ @MFEM_LIBFLAGS@
-MFEM_LIBS     ?= $(ALL_LIBS) $(LDFLAGS)
-MFEM_LIB_FILE ?= @MFEM_DIR@/libmfem.a
+MFEM_CPPFLAGS  ?= $(CPPFLAGS)
+MFEM_CXXFLAGS  ?= $(CXXFLAGS)
+MFEM_INCFLAGS  ?= $(INCFLAGS)
+MFEM_FLAGS     ?= @MFEM_CPPFLAGS@ @MFEM_CXXFLAGS@ @MFEM_INCFLAGS@
+MFEM_LIBS      ?= $(ALL_LIBS) $(LDFLAGS)
+MFEM_LIB_FILE  ?= @MFEM_DIR@/libmfem.a
+MFEM_BUILD_TAG ?= $(shell uname -snm)
 
 # If we have 'config' target, export variables used by config/makefile
 ifneq (,$(filter config,$(MAKECMDGOALS)))
@@ -199,13 +239,24 @@ clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
 	$(MAKE) -C examples clean
 
+distclean: clean
+	$(MAKE) -C config clean
+
 $(CONFIG_MK):
-	$(error Missing configuration file. Run '$(MAKE) config' first)
+	$(info )
+	$(info MFEM is not configured.)
+	$(info Run "make config" first, see "make help".)
+	$(info )
+	$(error )
 
 config:
 	$(MAKE) -C config all
 
-info:
+help:
+	$(info $(value MFEM_HELP_MSG))
+	@true
+
+status info:
 	$(info MFEM_USE_MPI         = $(MFEM_USE_MPI))
 	$(info MFEM_USE_METIS_5     = $(MFEM_USE_METIS_5))
 	$(info MFEM_DEBUG           = $(MFEM_DEBUG))
@@ -219,8 +270,9 @@ info:
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))
 	$(info MFEM_CXXFLAGS        = $(value MFEM_CXXFLAGS))
-	$(info MFEM_LIBFLAGS        = $(value MFEM_LIBFLAGS))
+	$(info MFEM_INCFLAGS        = $(value MFEM_INCFLAGS))
 	$(info MFEM_FLAGS           = $(value MFEM_FLAGS))
 	$(info MFEM_LIBS            = $(value MFEM_LIBS))
 	$(info MFEM_LIB_FILE        = $(value MFEM_LIB_FILE))
+	$(info MFEM_BUILD_TAG       = $(value MFEM_BUILD_TAG))
 	@true

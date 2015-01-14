@@ -12,17 +12,15 @@
 # Helper print-info function
 mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 
-# List of all defines that may be enabled in config.hpp and config.mk.
-# The actual value is set in ../makefile and exported to here.
-# MFEM_DEFINES = ...
+# The list of all defines that may be enabled in config.hpp and config.mk
+# is kept in the MFEM_DEFINES variable, exported here from ../makefile
 
 # Extract the enabled (!=NO) defines
 DEFINES = $(shell for def in $${MFEM_DEFINES}; do\
    if [ "NO" != "$${!def}" ]; then echo $${def}; fi; done)
 
-# List of variables to set in config.mk using their current values:
-# The actual value is set in ../makefile and exported to here.
-# MFEM_CONFIG_VARS = ...
+# The list of variables to set in config.mk using their current values
+# is kept in the MFEM_CONFIG_VARS variable, exported here from ../makefile
 
 # Debug output
 # $(foreach def,$(MFEM_DEFINES),$(info $(def) = $(value $(def))))
@@ -34,6 +32,12 @@ CONFIG_HPP = config.hpp
 # Output path + file name for the config makefile
 CONFIG_MK = config.mk
 
+ifeq ($(shell uname -s),Darwin)
+   SED_I = sed -i ''
+else
+   SED_I = sed -i
+endif
+
 .PHONY: all header makefile
 
 all: header makefile
@@ -42,15 +46,18 @@ header:
 	$(call mfem-info, Writing $(CONFIG_HPP) ...)
 	@cp -f config.hpp.in $(CONFIG_HPP) && \
 	for def in $(DEFINES); do \
-	   sed -e "s|// \(#define $${def}\)|\1|" -e "s#@$${def}@#$${!def}#g" \
-	       -i $(CONFIG_HPP); done
+	   $(SED_I) -e "s|// \(#define $${def}\)|\1|" \
+	            -e "s#@$${def}@#$${!def}#g" \
+	            $(CONFIG_HPP); done
 
-# Using the values of the shell variables listed in the shell variables
-# MFEM_DEFINES and MFEM_CONFIG_VARS
+# The target below uses the values of the shell variables listed in
+# the shell variables MFEM_DEFINES and MFEM_CONFIG_VARS
 makefile:
 	$(call mfem-info, Writing $(CONFIG_MK) ...)
 	@cp -f config.mk.in $(CONFIG_MK) && \
 	for ref in $${MFEM_DEFINES} $${MFEM_CONFIG_VARS}; do \
-	   # echo "@$${ref}@   --->   $${!ref}" && \
-	   sed "s#@$${ref}@#$${!ref}#g" -i $(CONFIG_MK); done && \
-	sed -e 's/@\([^@]*\)@/$$(\1)/g' -e 's/ *$$//g' -i $(CONFIG_MK)
+	   $(SED_I) "s#@$${ref}@#$${!ref}#g" $(CONFIG_MK); done && \
+	$(SED_I) -e 's/@\([^@]*\)@/$$(\1)/g' -e 's/ *$$//g' $(CONFIG_MK)
+
+clean:
+	rm -f $(CONFIG_HPP) $(CONFIG_MK)

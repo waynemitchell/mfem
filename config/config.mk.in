@@ -9,7 +9,7 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
-# Variables corresponding to defines in config.hpp (values 'YES' or 'NO')
+# Variables corresponding to defines in config.hpp (YES, NO, or value)
 MFEM_USE_MPI         = @MFEM_USE_MPI@
 MFEM_USE_METIS_5     = @MFEM_USE_METIS_5@
 MFEM_DEBUG           = @MFEM_DEBUG@
@@ -22,10 +22,11 @@ MFEM_USE_MEMALLOC    = @MFEM_USE_MEMALLOC@
 MFEM_TIMER_TYPE      = @MFEM_TIMER_TYPE@
 
 # Compiler, compile options, and link options
-MFEM_CXX      = @MFEM_CXX@
-MFEM_CPPFLAGS = @MFEM_CPPFLAGS@
-MFEM_CXXFLAGS = @MFEM_CXXFLAGS@
-MFEM_LIBFLAGS = @MFEM_LIBFLAGS@
-MFEM_FLAGS    = @MFEM_FLAGS@
-MFEM_LIBS     = @MFEM_LIBS@
-MFEM_LIB_FILE = @MFEM_LIB_FILE@
+MFEM_CXX       = @MFEM_CXX@
+MFEM_CPPFLAGS  = @MFEM_CPPFLAGS@
+MFEM_CXXFLAGS  = @MFEM_CXXFLAGS@
+MFEM_INCFLAGS  = @MFEM_INCFLAGS@
+MFEM_FLAGS     = @MFEM_FLAGS@
+MFEM_LIBS      = @MFEM_LIBS@
+MFEM_LIB_FILE  = @MFEM_LIB_FILE@
+MFEM_BUILD_TAG = @MFEM_BUILD_TAG@

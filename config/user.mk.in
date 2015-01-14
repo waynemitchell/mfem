@@ -32,6 +32,7 @@ HYPRE_OPT = -I$(HYPRE_DIR)/include
 HYPRE_LIB = -L$(HYPRE_DIR)/lib -lHYPRE
 
 METIS_DIR = @MFEM_DIR@/../metis-4.0
+METIS_OPT =
 METIS_LIB = -L$(METIS_DIR) -lmetis
 
 LAPACK_LIB = -llapack
@@ -70,3 +71,6 @@ endif
 
 # If YES, enable some informational messages
 VERBOSE = NO
+
+# Optional build tag
+MFEM_BUILD_TAG = $(shell uname -snm)
