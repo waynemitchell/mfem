@@ -96,28 +96,28 @@ int SparseMatrix::MaxRowSize() const
 
 int *SparseMatrix::GetRowColumns(const int row)
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    return J + I[row];
 }
 
 const int *SparseMatrix::GetRowColumns(const int row) const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    return J + I[row];
 }
 
 double *SparseMatrix::GetRowEntries(const int row)
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    return A + I[row];
 }
 
 const double *SparseMatrix::GetRowEntries(const int row) const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    return A + I[row];
 }
@@ -204,7 +204,7 @@ double &SparseMatrix::operator()(int i, int j)
                 << "i = " << i << ", "
                 << "j = " << j);
 
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    end = I[i+1];
    for (k = I[i]; k < end; k++)
@@ -229,7 +229,7 @@ const double &SparseMatrix::operator()(int i, int j) const
                 << "i = " << i << ", "
                 << "j = " << j);
 
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
    end = I[i+1];
    for (k = I[i]; k < end; k++)
       if (J[k] == j)
@@ -244,7 +244,7 @@ void SparseMatrix::GetDiag(Vector & d) const
 {
    MFEM_VERIFY(height == width,
                "Matrix must be square, not height = " << height << ", width = " << width);
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    d.SetSize(height);
 
@@ -391,7 +391,7 @@ void SparseMatrix::AddMultTranspose(const Vector &x, Vector &y,
 void SparseMatrix::PartMult(
    const Array<int> &rows, const Vector &x, Vector &y) const
 {
-   MFEM_VERIFY(A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY(Finalized(), "Matrix must be finalized.");
 
    for (int i = 0; i < rows.Size(); i++)
    {
@@ -409,7 +409,7 @@ void SparseMatrix::PartMult(
 void SparseMatrix::PartAddMult(
    const Array<int> &rows, const Vector &x, Vector &y, const double a) const
 {
-   MFEM_VERIFY(A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY(Finalized(), "Matrix must be finalized.");
 
    for (int i = 0; i < rows.Size(); i++)
    {
@@ -539,7 +539,7 @@ void SparseMatrix::Finalize(int skip_zeros)
 
 void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 {
-   MFEM_VERIFY(!A.Finalized(), "Matrix must NOT be finalized.");
+   MFEM_VERIFY(!Finalized(), "Matrix must NOT be finalized.");
 
    int br = blocks.NumRows(), bc = blocks.NumCols();
    int nr = (height + br - 1)/br, nc = (width + bc - 1)/bc;
@@ -594,7 +594,7 @@ void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 
 double SparseMatrix::IsSymmetric() const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    int i, j;
    double a, max;
@@ -616,7 +616,7 @@ double SparseMatrix::IsSymmetric() const
 
 void SparseMatrix::Symmetrize()
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    int i, j;
    for (i = 1; i < height; i++)
@@ -714,7 +714,7 @@ void SparseMatrix::EliminateRow(int row, const double sol, Vector &rhs)
    MFEM_ASSERT(row < height && row >= 0,
                "Row " << row << " not in matrix of height " << height);
 
-   MFEM_VERIFY( !A.Finalized(), "Matrix must NOT be finalized.");
+   MFEM_VERIFY( !Finalized(), "Matrix must NOT be finalized.");
 
    for (aux = Rows[row]; aux != NULL; aux = aux->Prev)
    {
@@ -754,7 +754,7 @@ void SparseMatrix::EliminateCol(int col)
 {
    RowNode *aux;
 
-   MFEM_VERIFY( !A.Finalized(), "Matrix must NOT be finalized.");
+   MFEM_VERIFY( !Finalized(), "Matrix must NOT be finalized.");
 
    for (int i = 0; i < height; i++)
       for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
@@ -1262,7 +1262,7 @@ void SparseMatrix::Gauss_Seidel_back(const Vector &x, Vector &y) const
 
 double SparseMatrix::GetJacobiScaling() const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    double sc = 1.0;
    for (int i = 0; i < height; i++)
@@ -1296,7 +1296,7 @@ double SparseMatrix::GetJacobiScaling() const
 void SparseMatrix::Jacobi(const Vector &b, const Vector &x0, Vector &x1,
                           double sc) const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    for (int i = 0; i < height; i++)
    {
@@ -1326,7 +1326,7 @@ void SparseMatrix::Jacobi(const Vector &b, const Vector &x0, Vector &x1,
 
 void SparseMatrix::DiagScale(const Vector &b, Vector &x, double sc) const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    bool scale = (sc != 1.0);
    for (int i = 0, j = 0; i < height; i++)
@@ -1340,10 +1340,6 @@ void SparseMatrix::DiagScale(const Vector &b, Vector &x, double sc) const
          if (J[j] == i)
          {
             MFEM_VERIFY(std::abs(A[j]) > 0.0, "Diagonal "<<j<<" must be nonzero");
-            if (A[j] == 0.0)
-            {
-               goto diagscale_error;
-            }
             if (scale)
             {
                x(i) = sc * b(i) / A[j];
@@ -1363,7 +1359,7 @@ void SparseMatrix::DiagScale(const Vector &b, Vector &x, double sc) const
 void SparseMatrix::Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
                            double sc) const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    for (int i = 0; i < height; i++)
    {
@@ -1387,7 +1383,7 @@ void SparseMatrix::Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
 void SparseMatrix::Jacobi3(const Vector &b, const Vector &x0, Vector &x1,
                            double sc) const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    for (int i = 0; i < height; i++)
    {
@@ -1646,7 +1642,7 @@ void SparseMatrix::SetRow(const int row, const Array<int> &cols,
    int j, gi, gj, s, t;
    double a;
 
-   MFEM_VERIFY( !A.Finalized(), "Matrix must NOT be finalized.");
+   MFEM_VERIFY( !Finalized(), "Matrix must NOT be finalized.");
 
    if ((gi=row) < 0) { gi = -1-gi, s = -1; }
    else { s = 1; }
@@ -1674,7 +1670,7 @@ void SparseMatrix::AddRow(const int row, const Array<int> &cols,
    int j, gi, gj, s, t;
    double a;
 
-   MFEM_VERIFY( !A.Finalized(), "Matrix must NOT be finalized.");
+   MFEM_VERIFY( !Finalized(), "Matrix must NOT be finalized.");
 
    if ((gi=row) < 0) { gi = -1-gi, s = -1; }
    else { s = 1; }
@@ -1791,8 +1787,8 @@ SparseMatrix &SparseMatrix::operator+=(SparseMatrix &B)
 {
    MFEM_ASSERT( height == B.height && width == B.width,
                 "Mismatch of this matrix size and rhs.  This height = "
-                << height ", width = " << width << ", B.height = "
-                << B.height ", B.width = " << width);
+                << height << ", width = " << width << ", B.height = "
+                << B.height << ", B.width = " << width);
 
    for (int i = 0; i < height; i++)
    {
@@ -1960,7 +1956,7 @@ void SparseMatrix::PrintMM(std::ostream & out) const
 
 void SparseMatrix::PrintCSR(std::ostream & out) const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    int i;
 
@@ -1984,7 +1980,7 @@ void SparseMatrix::PrintCSR(std::ostream & out) const
 
 void SparseMatrix::PrintCSR2(std::ostream & out) const
 {
-   MFEM_VERIFY( A.Finalized(), "Matrix must be finalized.");
+   MFEM_VERIFY( Finalized(), "Matrix must be finalized.");
 
    int i;
 
