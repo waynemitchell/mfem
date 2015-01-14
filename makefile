@@ -214,6 +214,8 @@ all: libmfem.a
 
 -include deps.mk
 
+$(OBJECT_FILES): $(CONFIG_MK)
+
 libmfem.a: $(OBJECT_FILES)
 	ar cruv libmfem.a $(OBJECT_FILES)
 	ranlib libmfem.a
@@ -245,7 +247,7 @@ distclean: clean
 $(CONFIG_MK):
 	$(info )
 	$(info MFEM is not configured.)
-	$(info Run "make config" first, see "make help".)
+	$(info Run "make config" first, or see "make help".)
 	$(info )
 	$(error )
 
