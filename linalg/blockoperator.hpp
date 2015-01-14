@@ -25,7 +25,7 @@ namespace mfem
  * \brief A class to handle Block systems in a matrix-free implementation.
  *
  * Usage:
- * - Use one of the constructors or the SetUp method to define the block structure.
+ * - Use one of the constructors to define the block structure.
  * - Use SetDiagonalBlock or SetBlock to fill the BlockOperator
  * - Use the method Mult and MultTranspose to apply the operator to a vector.
  *
@@ -115,7 +115,7 @@ private:
  * \brief A class to handle Block diagonal preconditioners in a matrix-free implementation.
  *
  * Usage:
- * - Use the constructors or the SetUp method to define the block structure
+ * - Use the constructors to define the block structure
  * - Use SetDiagonalBlock to fill the BlockOperator
  * - Use the method Mult and MultTranspose to apply the operator to a vector.
  *
