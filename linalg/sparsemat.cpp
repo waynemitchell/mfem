@@ -71,7 +71,7 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n, bool owni
      ColPtrJ(NULL),
      ColPtrNode(NULL),
      ownIJ(ownij),
-     ownA(owna),
+     ownA(owna)
 {
 #ifdef MFEM_USE_MEMALLOC
    NodesMem = NULL;
@@ -2054,6 +2054,7 @@ SparseMatrix::~SparseMatrix ()
 
    if (Rows != NULL)
    {
+#if !defined(MFEM_USE_MEMALLOC)
       for (int i = 0; i < height; i++)
       {
          RowNode *aux, *node_p = Rows[i];
@@ -2064,6 +2065,7 @@ SparseMatrix::~SparseMatrix ()
             delete aux;
          }
       }
+#endif
       delete [] Rows;
    }
 
