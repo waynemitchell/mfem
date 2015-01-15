@@ -33,7 +33,9 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
 
    Rows = new RowNode *[nrows];
    for (int i = 0; i < nrows; i++)
+   {
       Rows[i] = NULL;
+   }
    ColPtr.Node = NULL;
 
 #ifdef MFEM_USE_MEMALLOC
@@ -54,13 +56,17 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
 int SparseMatrix::RowSize(const int i) const
 {
    if (I)
+   {
       return I[i+1]-I[i];
+   }
 
    int s = 0;
    RowNode *row = Rows[i];
    for ( ; row != NULL; row = row->Prev)
       if (row->Value != 0.0)
+      {
          s++;
+      }
    return s;
 }
 
@@ -91,7 +97,9 @@ int SparseMatrix::MaxRowSize() const
 int *SparseMatrix::GetRowColumns(const int row)
 {
    if (Rows)
+   {
       mfem_error("SparseMatrix::GetRowColumns : matrix is not Finalized!");
+   }
 
    return J + I[row];
 }
@@ -99,7 +107,9 @@ int *SparseMatrix::GetRowColumns(const int row)
 const int *SparseMatrix::GetRowColumns(const int row) const
 {
    if (Rows)
+   {
       mfem_error("SparseMatrix::GetRowColumns : matrix is not Finalized!");
+   }
 
    return J + I[row];
 }
@@ -107,7 +117,9 @@ const int *SparseMatrix::GetRowColumns(const int row) const
 double *SparseMatrix::GetRowEntries(const int row)
 {
    if (Rows)
+   {
       mfem_error("SparseMatrix::GetRowEntries : matrix is not Finalized!");
+   }
 
    return A + I[row];
 }
@@ -115,25 +127,27 @@ double *SparseMatrix::GetRowEntries(const int row)
 const double *SparseMatrix::GetRowEntries(const int row) const
 {
    if (Rows)
+   {
       mfem_error("SparseMatrix::GetRowEntries : matrix is not Finalized!");
+   }
 
    return A + I[row];
 }
 
 void SparseMatrix::SetWidth(int newWidth)
 {
-   if(newWidth == width)
+   if (newWidth == width)
    {
       // Nothing to be done here
       return;
    }
-   else if( newWidth == -1)
+   else if ( newWidth == -1)
    {
       // Compute the actual width
       width = ActualWidth();
       // No need to reset the ColPtr, since the new ColPtr will be shorter.
    }
-   else if(newWidth > width)
+   else if (newWidth > width)
    {
       // We need to reset ColPtr, since now we may have additional columns.
       if (Rows != NULL)
@@ -151,7 +165,8 @@ void SparseMatrix::SetWidth(int newWidth)
    else
    {
       // Check that the new width is bigger or equal to the actual width.
-      MFEM_ASSERT( newWidth >= ActualWidth(), "The new width needs to be bigger or equal to the actual width");
+      MFEM_ASSERT( newWidth >= ActualWidth(),
+                   "The new width needs to be bigger or equal to the actual width");
       width = newWidth;
    }
 }
@@ -160,7 +175,9 @@ void SparseMatrix::SetWidth(int newWidth)
 void SparseMatrix::SortColumnIndices()
 {
    if (Rows)
+   {
       mfem_error("SparseMatrix::SortColumnIndices : matrix is not Finalized!");
+   }
 
    Array<Pair<int,double> > row;
    for (int j = 0, i = 0; i < height; i++)
@@ -197,16 +214,22 @@ double &SparseMatrix::operator()(int i, int j)
 
 #ifdef MFEM_DEBUG
    if (i >= height || i < 0 || j >= width || j < 0)
+   {
       mfem_error("SparseMatrix::operator() #1");
+   }
 #endif
 
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::operator() #2");
+   }
 
    end = I[i+1];
    for (k = I[i]; k < end; k++)
       if (J[k] == j)
+      {
          return A[k];
+      }
 
    mfem_error("SparseMatrix::operator() #3");
    return A[0];
@@ -219,15 +242,21 @@ const double &SparseMatrix::operator()(int i, int j) const
 
 #ifdef MFEM_DEBUG
    if (i >= height || i < 0 || j >= width || j < 0)
+   {
       mfem_error("SparseMatrix::operator() const #1");
+   }
 #endif
 
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::operator() const #2");
+   }
    end = I[i+1];
    for (k = I[i]; k < end; k++)
       if (J[k] == j)
+      {
          return A[k];
+      }
 
    return zero;
 }
@@ -259,7 +288,9 @@ void SparseMatrix::GetDiag(Vector & d) const
          }
       }
       if (j == end)
+      {
          d[i] = 0.;
+      }
    }
 }
 
@@ -273,7 +304,9 @@ void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
 {
 #ifdef MFEM_DEBUG
    if (( width != x.Size() ) || ( height != y.Size() ))
+   {
       mfem_error("SparseMatrix::AddMult() #1");
+   }
 #endif
 
    int i, j, end;
@@ -288,7 +321,9 @@ void SparseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
          RowNode *row = Rows[i];
          double b = 0.0;
          for ( ; row != NULL; row = row->Prev)
+         {
             b += row->Value * xp[row->Column];
+         }
          *yp += a * b;
          yp++;
       }
@@ -345,7 +380,9 @@ void SparseMatrix::AddMultTranspose(const Vector &x, Vector &y,
 {
 #ifdef MFEM_DEBUG
    if (( height != x.Size() ) || ( width != y.Size() ))
+   {
       mfem_error("SparseMatrix::AddMultTranspose() #1");
+   }
 #endif
 
    int i, j, end;
@@ -359,7 +396,9 @@ void SparseMatrix::AddMultTranspose(const Vector &x, Vector &y,
          RowNode *row = Rows[i];
          double b = a * x(i);
          for ( ; row != NULL; row = row->Prev)
+         {
             yp[row->Column] += row->Value * b;
+         }
       }
       return;
    }
@@ -368,7 +407,7 @@ void SparseMatrix::AddMultTranspose(const Vector &x, Vector &y,
    {
       double xi = a * x(i);
       end = I[i+1];
-      for(j = I[i]; j < end; j++)
+      for (j = I[i]; j < end; j++)
       {
          yp[J[j]] += A[j]*xi;
       }
@@ -386,7 +425,9 @@ void SparseMatrix::PartMult(
          int end = I[r+1];
          double a = 0.0;
          for (int j = I[r]; j < end; j++)
+         {
             a += A[j] * x(J[j]);
+         }
          y(r) = a;
       }
    }
@@ -407,7 +448,9 @@ void SparseMatrix::PartAddMult(
          int end = I[r+1];
          double val = 0.0;
          for (int j = I[r]; j < end; j++)
+         {
             val += A[j] * x(J[j]);
+         }
          y(r) += a*val;
       }
    }
@@ -425,10 +468,14 @@ double SparseMatrix::InnerProduct(const Vector &x, const Vector &y) const
       double a = 0.0;
       if (A)
          for (int j = I[i], end = I[i+1]; j < end; j++)
+         {
             a += A[j] * x(J[j]);
+         }
       else
          for (RowNode *np = Rows[i]; np != NULL; np = np->Prev)
+         {
             a += np->Value * x(np->Column);
+         }
       prod += a * y(i);
    }
 
@@ -442,10 +489,14 @@ void SparseMatrix::GetRowSums(Vector &x) const
       double a = 0.0;
       if (A)
          for (int j = I[i], end = I[i+1]; j < end; j++)
+         {
             a += A[j];
+         }
       else
          for (RowNode *np = Rows[i]; np != NULL; np = np->Prev)
+         {
             a += np->Value;
+         }
       x(i) = a;
    }
 }
@@ -453,15 +504,21 @@ void SparseMatrix::GetRowSums(Vector &x) const
 double SparseMatrix::GetRowNorml1(int irow) const
 {
    if (irow >= height)
+   {
       mfem_error("SparseMatrix::GetRowNorml1");
+   }
 
    double a = 0.0;
    if (A)
       for (int j = I[irow], end = I[irow+1]; j < end; j++)
+      {
          a += fabs(A[j]);
+      }
    else
       for (RowNode *np = Rows[irow]; np != NULL; np = np->Prev)
+      {
          a += fabs(np->Value);
+      }
 
    return a;
 }
@@ -471,7 +528,7 @@ void SparseMatrix::Finalize(int skip_zeros)
    int i, j, nr, nz;
    RowNode *aux;
 
-   if (A != NULL) return;
+   if (A != NULL) { return; }
 
    delete [] ColPtr.Node;
    ColPtr.J = NULL;
@@ -483,7 +540,9 @@ void SparseMatrix::Finalize(int skip_zeros)
       nr = 0;
       for (aux = Rows[i-1]; aux != NULL; aux = aux->Prev)
          if (!skip_zeros || aux->Value != 0.0)
+         {
             nr++;
+         }
       I[i] = I[i-1] + nr;
    }
    nz = I[height];
@@ -519,7 +578,9 @@ void SparseMatrix::Finalize(int skip_zeros)
 void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 {
    if (A)
+   {
       mfem_error("SparseMatrix::GetBlocks : matrix is finalized!");
+   }
 
    int br = blocks.NumRows(), bc = blocks.NumCols();
    int nr = (height + br - 1)/br, nc = (width + bc - 1)/bc;
@@ -529,7 +590,9 @@ void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
       {
          int *bI = new int[nr + 1];
          for (int k = 0; k <= nr; k++)
+         {
             bI[k] = 0;
+         }
          blocks(i,j) = new SparseMatrix(bI, NULL, NULL, nr, nc);
       }
 
@@ -538,7 +601,9 @@ void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
       int bi = gr/nr, i = gr%nr + 1;
       for (RowNode *n_p = Rows[gr]; n_p != NULL; n_p = n_p->Prev)
          if (n_p->Value != 0.0)
+         {
             blocks(bi,n_p->Column/nc)->I[i]++;
+         }
    }
 
    for (int j = 0; j < bc; j++)
@@ -547,7 +612,9 @@ void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
          SparseMatrix &b = *blocks(i,j);
          int nnz = 0, rs;
          for (int k = 1; k <= nr; k++)
+         {
             rs = b.I[k], b.I[k] = nnz, nnz += rs;
+         }
          b.J = new int[nnz];
          b.A = new double[nnz];
       }
@@ -569,7 +636,9 @@ void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 double SparseMatrix::IsSymmetric() const
 {
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::IsSymmetric()");
+   }
 
    int i, j;
    double a, max;
@@ -581,7 +650,9 @@ double SparseMatrix::IsSymmetric() const
          {
             a = fabs ( A[j] - (*this)(J[j],i) );
             if (max < a)
+            {
                max = a;
+            }
          }
 
    return max;
@@ -590,7 +661,9 @@ double SparseMatrix::IsSymmetric() const
 void SparseMatrix::Symmetrize()
 {
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::Symmetrize()");
+   }
 
    int i, j;
    for (i = 1; i < height; i++)
@@ -615,7 +688,9 @@ int SparseMatrix::NumNonZeroElems() const
 
       for (int i = 0; i < height; i++)
          for (RowNode *node_p = Rows[i]; node_p != NULL; node_p = node_p->Prev)
+         {
             nnz++;
+         }
 
       return nnz;
    }
@@ -629,13 +704,17 @@ double SparseMatrix::MaxNorm() const
    {
       int nnz = I[height];
       for (int j = 0; j < nnz; j++)
+      {
          m = fmax(m, fabs(A[j]));
+      }
    }
    else
    {
       for (int i = 0; i < height; i++)
          for (RowNode *n_p = Rows[i]; n_p != NULL; n_p = n_p->Prev)
+         {
             m = fmax(m, fabs(n_p->Value));
+         }
    }
    return m;
 }
@@ -651,7 +730,9 @@ int SparseMatrix::CountSmallElems(double tol) const
 
       for (i = 0; i < nz; i++)
          if (fabs(Ap[i]) < tol)
+         {
             counter++;
+         }
    }
    else
    {
@@ -660,7 +741,9 @@ int SparseMatrix::CountSmallElems(double tol) const
       for (i = 0; i < height; i++)
          for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
             if (fabs(aux -> Value) < tol)
+            {
                counter++;
+            }
    }
 
    return counter;
@@ -677,11 +760,15 @@ void SparseMatrix::EliminateRow(int row, const double sol, Vector &rhs)
 
 #ifdef MFEM_DEBUG
    if ( row >= height || row < 0 )
+   {
       mfem_error("SparseMatrix::EliminateRow () #1");
+   }
 #endif
 
    if (Rows == NULL)
+   {
       mfem_error("SparseMatrix::EliminateRow () #2");
+   }
 
    for (aux = Rows[row]; aux != NULL; aux = aux->Prev)
    {
@@ -696,21 +783,31 @@ void SparseMatrix::EliminateRow(int row, int setOneDiagonal)
 
 #ifdef MFEM_DEBUG
    if ( row >= height || row < 0 )
+   {
       mfem_error("SparseMatrix::EliminateRow () #1");
+   }
 
-   if( setOneDiagonal && height != width )
+   if ( setOneDiagonal && height != width )
+   {
       mfem_error("SparseMatrix::EliminateRow () #2");
+   }
 #endif
 
    if (Rows == NULL)
       for (int i=I[row]; i < I[row+1]; ++i)
+      {
          A[i]=0.0;
+      }
    else
       for (aux = Rows[row]; aux != NULL; aux = aux->Prev)
+      {
          aux->Value = 0.0;
+      }
 
-   if(setOneDiagonal)
+   if (setOneDiagonal)
+   {
       SearchRow(row, row) = 1.;
+   }
 }
 
 void SparseMatrix::EliminateCol(int col)
@@ -718,12 +815,16 @@ void SparseMatrix::EliminateCol(int col)
    RowNode *aux;
 
    if (Rows == NULL)
+   {
       mfem_error("SparseMatrix::EliminateCol () #1");
+   }
 
    for (int i = 0; i < height; i++)
       for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
          if (aux -> Column == col)
+         {
             aux->Value = 0.0;
+         }
 }
 
 void SparseMatrix::EliminateCols(Array<int> &cols, Vector *x, Vector *b)
@@ -735,7 +836,9 @@ void SparseMatrix::EliminateCols(Array<int> &cols, Vector *x, Vector *b)
             if (cols[ J[jpos]] )
             {
                if (x && b)
+               {
                   (*b)(i) -= A[jpos] * (*x)( J[jpos] );
+               }
                A[jpos] = 0.0;
             }
    }
@@ -747,7 +850,9 @@ void SparseMatrix::EliminateCols(Array<int> &cols, Vector *x, Vector *b)
             if (cols[aux -> Column])
             {
                if (x && b)
+               {
                   (*b)(i) -= aux -> Value * (*x)(aux -> Column);
+               }
                aux->Value = 0.0;
             }
    }
@@ -760,7 +865,9 @@ void SparseMatrix::EliminateRowCol(int rc, const double sol, Vector &rhs,
 
 #ifdef MFEM_DEBUG
    if ( rc >= height || rc < 0 )
+   {
       mfem_error("SparseMatrix::EliminateRowCol () #1");
+   }
 #endif
 
    if (Rows == NULL)
@@ -827,9 +934,13 @@ void SparseMatrix::EliminateRowColMultipleRHS(int rc, const Vector &sol,
 
 #ifdef MFEM_DEBUG
    if (rc >= height || rc < 0)
+   {
       mfem_error("SparseMatrix::EliminateRowColMultipleRHS() #1");
+   }
    if (sol.Size() != num_rhs)
+   {
       mfem_error("SparseMatrix::EliminateRowColMultipleRHS() #2");
+   }
 #endif
 
    if (Rows == NULL)
@@ -838,13 +949,17 @@ void SparseMatrix::EliminateRowColMultipleRHS(int rc, const Vector &sol,
             if (d)
             {
                for (int r = 0; r < num_rhs; r++)
+               {
                   rhs(rc,r) = A[j] * sol(r);
+               }
             }
             else
             {
                A[j] = 1.0;
                for (int r = 0; r < num_rhs; r++)
+               {
                   rhs(rc,r) = sol(r);
+               }
             }
          else
          {
@@ -857,7 +972,9 @@ void SparseMatrix::EliminateRowColMultipleRHS(int rc, const Vector &sol,
                else if (J[k] == rc)
                {
                   for (int r = 0; r < num_rhs; r++)
+                  {
                      rhs(col,r) -= sol(r) * A[k];
+                  }
                   A[k] = 0.0;
                   break;
                }
@@ -868,13 +985,17 @@ void SparseMatrix::EliminateRowColMultipleRHS(int rc, const Vector &sol,
             if (d)
             {
                for (int r = 0; r < num_rhs; r++)
+               {
                   rhs(rc,r) = aux->Value * sol(r);
+               }
             }
             else
             {
                aux->Value = 1.0;
                for (int r = 0; r < num_rhs; r++)
+               {
                   rhs(rc,r) = sol(r);
+               }
             }
          else
          {
@@ -887,7 +1008,9 @@ void SparseMatrix::EliminateRowColMultipleRHS(int rc, const Vector &sol,
                else if (node->Column == rc)
                {
                   for (int r = 0; r < num_rhs; r++)
+                  {
                      rhs(col,r) -= sol(r) * node->Value;
+                  }
                   node->Value = 0.0;
                   break;
                }
@@ -900,7 +1023,9 @@ void SparseMatrix::EliminateRowCol(int rc, int d)
 
 #ifdef MFEM_DEBUG
    if ( rc >= height || rc < 0 )
+   {
       mfem_error("SparseMatrix::EliminateRowCol() #1");
+   }
 #endif
 
    if (Rows == NULL)
@@ -909,7 +1034,9 @@ void SparseMatrix::EliminateRowCol(int rc, int d)
          if ((col = J[j]) == rc)
          {
             if (d == 0)
+            {
                A[j] = 1.0;
+            }
          }
          else
          {
@@ -935,7 +1062,9 @@ void SparseMatrix::EliminateRowCol(int rc, int d)
          if ((col = aux->Column) == rc)
          {
             if (d == 0)
+            {
                aux->Value = 1.0;
+            }
          }
          else
          {
@@ -1026,7 +1155,9 @@ void SparseMatrix::SetDiagIdentity()
 {
    for (int i = 0; i < height; i++)
       if (I[i+1] == I[i]+1 && fabs(A[I[i]]) < 1e-16)
+      {
          A[I[i]] = 1.0;
+      }
 }
 
 void SparseMatrix::EliminateZeroRows()
@@ -1034,16 +1165,24 @@ void SparseMatrix::EliminateZeroRows()
    int i, j;
    double zero;
 
-   for (i = 0; i < height; i++) {
+   for (i = 0; i < height; i++)
+   {
       zero = 0.0;
       for (j = I[i]; j < I[i+1]; j++)
+      {
          zero += fabs(A[j]);
-      if (zero < 1e-12) {
+      }
+      if (zero < 1e-12)
+      {
          for (j = I[i]; j < I[i+1]; j++)
             if (J[j] == i)
+            {
                A[j] = 1.0;
+            }
             else
+            {
                A[j] = 0.0;
+            }
       }
    }
 }
@@ -1064,17 +1203,26 @@ void SparseMatrix::Gauss_Seidel_forw(const Vector &x, Vector &y) const
          diag_p = NULL;
          for (n_p = R[i]; n_p != NULL; n_p = n_p->Prev)
             if ((c = n_p->Column) == i)
+            {
                diag_p = n_p;
+            }
             else
+            {
                sum += n_p->Value * yp[c];
+            }
 
          if (diag_p != NULL && diag_p->Value != 0.0)
+         {
             yp[i] = (xp[i] - sum) / diag_p->Value;
+         }
+         else if (xp[i] == sum)
+         {
+            yp[i] = sum;
+         }
          else
-            if (xp[i] == sum)
-               yp[i] = sum;
-            else
-               mfem_error("SparseMatrix::Gauss_Seidel_forw()");
+         {
+            mfem_error("SparseMatrix::Gauss_Seidel_forw()");
+         }
       }
    }
    else
@@ -1090,17 +1238,26 @@ void SparseMatrix::Gauss_Seidel_forw(const Vector &x, Vector &y) const
          d = -1;
          for ( ; j < end; j++)
             if ((c = Jp[j]) == i)
+            {
                d = j;
+            }
             else
+            {
                sum += Ap[j] * yp[c];
+            }
 
          if (d >= 0 && Ap[d] != 0.0)
+         {
             yp[i] = (xp[i] - sum) / Ap[d];
+         }
+         else if (xp[i] == sum)
+         {
+            yp[i] = sum;
+         }
          else
-            if (xp[i] == sum)
-               yp[i] = sum;
-            else
-               mfem_error("SparseMatrix::Gauss_Seidel_forw(...) #2");
+         {
+            mfem_error("SparseMatrix::Gauss_Seidel_forw(...) #2");
+         }
       }
    }
 }
@@ -1121,17 +1278,26 @@ void SparseMatrix::Gauss_Seidel_back(const Vector &x, Vector &y) const
          diag_p = NULL;
          for (n_p = R[i]; n_p != NULL; n_p = n_p->Prev)
             if ((c = n_p->Column) == i)
+            {
                diag_p = n_p;
+            }
             else
+            {
                sum += n_p->Value * yp[c];
+            }
 
          if (diag_p != NULL && diag_p->Value != 0.0)
+         {
             yp[i] = (xp[i] - sum) / diag_p->Value;
+         }
+         else if (xp[i] == sum)
+         {
+            yp[i] = sum;
+         }
          else
-            if (xp[i] == sum)
-               yp[i] = sum;
-            else
-               mfem_error("SparseMatrix::Gauss_Seidel_back()");
+         {
+            mfem_error("SparseMatrix::Gauss_Seidel_back()");
+         }
       }
    }
    else
@@ -1145,19 +1311,28 @@ void SparseMatrix::Gauss_Seidel_back(const Vector &x, Vector &y) const
          beg = Ip[i];
          sum = 0.;
          d = -1;
-         for( ; j >= beg; j--)
+         for ( ; j >= beg; j--)
             if ((c = Jp[j]) == i)
+            {
                d = j;
+            }
             else
+            {
                sum += Ap[j] * yp[c];
+            }
 
          if (d >= 0 && Ap[d] != 0.0)
+         {
             yp[i] = (xp[i] - sum) / Ap[d];
+         }
+         else if (xp[i] == sum)
+         {
+            yp[i] = sum;
+         }
          else
-            if (xp[i] == sum)
-               yp[i] = sum;
-            else
-               mfem_error("SparseMatrix::Gauss_Seidel_back(...) #2");
+         {
+            mfem_error("SparseMatrix::Gauss_Seidel_back(...) #2");
+         }
       }
    }
 }
@@ -1165,7 +1340,9 @@ void SparseMatrix::Gauss_Seidel_back(const Vector &x, Vector &y) const
 double SparseMatrix::GetJacobiScaling() const
 {
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::GetJacobiScaling()");
+   }
 
    double sc = 1.0;
    for (int i = 0; i < height; i++)
@@ -1175,17 +1352,23 @@ double SparseMatrix::GetJacobiScaling() const
       for (int j = I[i]; j < I[i+1]; j++)
       {
          if (J[j] == i)
+         {
             d = j;
+         }
          norm += fabs(A[j]);
       }
       if (d >= 0 && A[d] != 0.0)
       {
          double a = 1.8 * fabs(A[d]) / norm;
          if (a < sc)
+         {
             sc = a;
+         }
       }
       else
+      {
          mfem_error("SparseMatrix::GetJacobiScaling() #2");
+      }
    }
    return sc;
 }
@@ -1194,7 +1377,9 @@ void SparseMatrix::Jacobi(const Vector &b, const Vector &x0, Vector &x1,
                           double sc) const
 {
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::Jacobi(...)");
+   }
 
    for (int i = 0; i < height; i++)
    {
@@ -1203,21 +1388,31 @@ void SparseMatrix::Jacobi(const Vector &b, const Vector &x0, Vector &x1,
       for (int j = I[i]; j < I[i+1]; j++)
       {
          if (J[j] == i)
+         {
             d = j;
+         }
          else
+         {
             sum -= A[j] * x0(J[j]);
+         }
       }
       if (d >= 0 && A[d] != 0.0)
+      {
          x1(i) = sc * (sum / A[d]) + (1.0 - sc) * x0(i);
+      }
       else
+      {
          mfem_error("SparseMatrix::Jacobi(...) #2");
+      }
    }
 }
 
 void SparseMatrix::DiagScale(const Vector &b, Vector &x, double sc) const
 {
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::DiagScale(...)");
+   }
 
    bool scale = (sc != 1.0);
    for (int i = 0, j = 0; i < height; i++)
@@ -1226,15 +1421,23 @@ void SparseMatrix::DiagScale(const Vector &b, Vector &x, double sc) const
       for ( ; true; j++)
       {
          if (j == end)
+         {
             goto diagscale_error;
+         }
          if (J[j] == i)
          {
             if (A[j] == 0.0)
+            {
                goto diagscale_error;
+            }
             if (scale)
+            {
                x(i) = sc * b(i) / A[j];
+            }
             else
+            {
                x(i) = b(i) / A[j];
+            }
             break;
          }
       }
@@ -1250,7 +1453,9 @@ void SparseMatrix::Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
                            double sc) const
 {
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::Jacobi2(...)");
+   }
 
    for (int i = 0; i < height; i++)
    {
@@ -1261,9 +1466,13 @@ void SparseMatrix::Jacobi2(const Vector &b, const Vector &x0, Vector &x1,
          norm += fabs(A[j]);
       }
       if (norm > 0.0)
+      {
          x1(i) = x0(i) + sc * resi / norm;
+      }
       else
+      {
          mfem_error("SparseMatrix::Jacobi2(...) #2");
+      }
    }
 }
 
@@ -1271,7 +1480,9 @@ void SparseMatrix::Jacobi3(const Vector &b, const Vector &x0, Vector &x1,
                            double sc) const
 {
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::Jacobi3(...)");
+   }
 
    for (int i = 0; i < height; i++)
    {
@@ -1282,9 +1493,13 @@ void SparseMatrix::Jacobi3(const Vector &b, const Vector &x0, Vector &x1,
          sum  += A[j];
       }
       if (sum > 0.0)
+      {
          x1(i) = x0(i) + sc * resi / sum;
+      }
       else
+      {
          mfem_error("SparseMatrix::Jacobi3(...) #2");
+      }
    }
 }
 
@@ -1296,18 +1511,24 @@ void SparseMatrix::AddSubMatrix(const Array<int> &rows, const Array<int> &cols,
 
    for (i = 0; i < rows.Size(); i++)
    {
-      if ((gi=rows[i]) < 0) gi = -1-gi, s = -1; else s = 1;
+      if ((gi=rows[i]) < 0) { gi = -1-gi, s = -1; }
+      else { s = 1; }
 #ifdef MFEM_DEBUG
       if (gi >= height)
+      {
          mfem_error("SparseMatrix::AddSubMatrix(...) #1");
+      }
 #endif
       SetColPtr(gi);
       for (j = 0; j < cols.Size(); j++)
       {
-         if ((gj=cols[j]) < 0) gj = -1-gj, t = -s; else t = s;
+         if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
+         else { t = s; }
 #ifdef MFEM_DEBUG
          if (gj >= width)
+         {
             mfem_error("SparseMatrix::AddSubMatrix(...) #2");
+         }
 #endif
          a = subm(i, j);
          if (skip_zeros && a == 0.0)
@@ -1315,9 +1536,11 @@ void SparseMatrix::AddSubMatrix(const Array<int> &rows, const Array<int> &cols,
             // if the element is zero do not assemble it unless this breaks
             // the symmetric structure
             if (&rows != &cols || subm(j, i) == 0.0)
+            {
                continue;
+            }
          }
-         if (t < 0)  a = -a;
+         if (t < 0) { a = -a; }
          _Add_(gj, a);
       }
       ClearColPtr();
@@ -1329,17 +1552,23 @@ void SparseMatrix::Set(const int i, const int j, const double A)
    double a = A;
    int gi, gj, s, t;
 
-   if ((gi=i) < 0) gi = -1-gi, s = -1; else s = 1;
+   if ((gi=i) < 0) { gi = -1-gi, s = -1; }
+   else { s = 1; }
 #ifdef MFEM_DEBUG
    if (gi >= height)
+   {
       mfem_error("SparseMatrix::Set (...) #1");
+   }
 #endif
-   if ((gj=j) < 0) gj = -1-gj, t = -s; else t = s;
+   if ((gj=j) < 0) { gj = -1-gj, t = -s; }
+   else { t = s; }
 #ifdef MFEM_DEBUG
    if (gj >= width)
+   {
       mfem_error("SparseMatrix::Set (...) #2");
+   }
 #endif
-   if (t < 0)  a = -a;
+   if (t < 0) { a = -a; }
    _Set_(gi, gj, a);
 }
 
@@ -1348,17 +1577,23 @@ void SparseMatrix::Add(const int i, const int j, const double A)
    int gi, gj, s, t;
    double a = A;
 
-   if ((gi=i) < 0) gi = -1-gi, s = -1; else s = 1;
+   if ((gi=i) < 0) { gi = -1-gi, s = -1; }
+   else { s = 1; }
 #ifdef MFEM_DEBUG
    if (gi >= height)
+   {
       mfem_error("SparseMatrix::Add (...) #1");
+   }
 #endif
-   if ((gj=j) < 0) gj = -1-gj, t = -s; else t = s;
+   if ((gj=j) < 0) { gj = -1-gj, t = -s; }
+   else { t = s; }
 #ifdef MFEM_DEBUG
    if (gj >= width)
+   {
       mfem_error("SparseMatrix::Add (...) #2");
+   }
 #endif
-   if (t < 0)  a = -a;
+   if (t < 0) { a = -a; }
    _Add_(gi, gj, a);
 }
 
@@ -1370,23 +1605,31 @@ void SparseMatrix::SetSubMatrix(const Array<int> &rows, const Array<int> &cols,
 
    for (i = 0; i < rows.Size(); i++)
    {
-      if ((gi=rows[i]) < 0) gi = -1-gi, s = -1; else s = 1;
+      if ((gi=rows[i]) < 0) { gi = -1-gi, s = -1; }
+      else { s = 1; }
 #ifdef MFEM_DEBUG
       if (gi >= height)
+      {
          mfem_error("SparseMatrix::SetSubMatrix(...) #1");
+      }
 #endif
       SetColPtr(gi);
       for (j = 0; j < cols.Size(); j++)
       {
          a = subm(i, j);
          if (skip_zeros && a == 0.0)
+         {
             continue;
-         if ((gj=cols[j]) < 0) gj = -1-gj, t = -s; else t = s;
+         }
+         if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
+         else { t = s; }
 #ifdef MFEM_DEBUG
          if (gj >= width)
+         {
             mfem_error("SparseMatrix::SetSubMatrix(...) #2");
+         }
 #endif
-         if (t < 0)  a = -a;
+         if (t < 0) { a = -a; }
          _Set_(gj, a);
       }
       ClearColPtr();
@@ -1403,23 +1646,31 @@ void SparseMatrix::SetSubMatrixTranspose(const Array<int> &rows,
 
    for (i = 0; i < rows.Size(); i++)
    {
-      if ((gi=rows[i]) < 0) gi = -1-gi, s = -1; else s = 1;
+      if ((gi=rows[i]) < 0) { gi = -1-gi, s = -1; }
+      else { s = 1; }
 #ifdef MFEM_DEBUG
       if (gi >= height)
+      {
          mfem_error("SparseMatrix::SetSubMatrixTranspose (...) #1");
+      }
 #endif
       SetColPtr(gi);
       for (j = 0; j < cols.Size(); j++)
       {
          a = subm(j, i);
          if (skip_zeros && a == 0.0)
+         {
             continue;
-         if ((gj=cols[j]) < 0) gj = -1-gj, t = -s; else t = s;
+         }
+         if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
+         else { t = s; }
 #ifdef MFEM_DEBUG
          if (gj >= width)
+         {
             mfem_error("SparseMatrix::SetSubMatrixTranspose (...) #2");
+         }
 #endif
-         if (t < 0)  a = -a;
+         if (t < 0) { a = -a; }
          _Set_(gj, a);
       }
       ClearColPtr();
@@ -1434,18 +1685,24 @@ void SparseMatrix::GetSubMatrix(const Array<int> &rows, const Array<int> &cols,
 
    for (i = 0; i < rows.Size(); i++)
    {
-      if ((gi=rows[i]) < 0) gi = -1-gi, s = -1; else s = 1;
+      if ((gi=rows[i]) < 0) { gi = -1-gi, s = -1; }
+      else { s = 1; }
 #ifdef MFEM_DEBUG
       if (gi >= height)
+      {
          mfem_error("SparseMatrix::GetSubMatrix(...) #1");
+      }
 #endif
       SetColPtr(gi);
       for (j = 0; j < cols.Size(); j++)
       {
-         if ((gj=cols[j]) < 0) gj = -1-gj, t = -s; else t = s;
+         if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
+         else { t = s; }
 #ifdef MFEM_DEBUG
          if (gj >= width)
+         {
             mfem_error("SparseMatrix::GetSubMatrix(...) #2");
+         }
 #endif
          a = _Get_(gj);
          subm(i, j) = (t < 0) ? (-a) : (a);
@@ -1459,15 +1716,23 @@ bool SparseMatrix::RowIsEmpty(const int row) const
    int gi;
 
    if ((gi=row) < 0)
+   {
       gi = -1-gi;
+   }
 #ifdef MFEM_DEBUG
    if (gi >= height)
+   {
       mfem_error("SparseMatrix::RowIsEmpty(...) #1");
+   }
 #endif
    if (Rows)
+   {
       return (Rows[gi] == NULL);
+   }
    else
+   {
       return (I[gi] == I[gi+1]);
+   }
 }
 
 int SparseMatrix::GetRow(const int row, Array<int> &cols, Vector &srow) const
@@ -1475,15 +1740,19 @@ int SparseMatrix::GetRow(const int row, Array<int> &cols, Vector &srow) const
    RowNode *n;
    int j, gi;
 
-   if ((gi=row) < 0) gi = -1-gi;
+   if ((gi=row) < 0) { gi = -1-gi; }
 #ifdef MFEM_DEBUG
    if (gi >= height)
+   {
       mfem_error("SparseMatrix::GetRow(...) #1");
+   }
 #endif
    if (Rows)
    {
       for (n = Rows[gi], j = 0; n; n = n->Prev)
+      {
          j++;
+      }
       cols.SetSize(j);
       srow.SetSize(j);
       for (n = Rows[gi], j = 0; n; n = n->Prev, j++)
@@ -1492,7 +1761,9 @@ int SparseMatrix::GetRow(const int row, Array<int> &cols, Vector &srow) const
          srow(j) = n->Value;
       }
       if (row < 0)
+      {
          srow.Neg();
+      }
 
       return 0;
    }
@@ -1503,7 +1774,9 @@ int SparseMatrix::GetRow(const int row, Array<int> &cols, Vector &srow) const
       srow.NewDataAndSize(A + j, cols.Size());
 #ifdef DEBUG
       if (row < 0)
+      {
          mfem_error("SparseMatrix::GetRow(...) #2");
+      }
 #endif
       return 1;
    }
@@ -1516,23 +1789,31 @@ void SparseMatrix::SetRow(const int row, const Array<int> &cols,
    double a;
 
    if (Rows == NULL)
+   {
       mfem_error("SparseMatrix::SetRow(...) #0");
+   }
 
-   if ((gi=row) < 0) gi = -1-gi, s = -1; else s = 1;
+   if ((gi=row) < 0) { gi = -1-gi, s = -1; }
+   else { s = 1; }
 #ifdef MFEM_DEBUG
    if (gi >= height)
+   {
       mfem_error("SparseMatrix::SetRow(...) #1");
+   }
 #endif
    SetColPtr(gi);
    for (j = 0; j < cols.Size(); j++)
    {
-      if ((gj=cols[j]) < 0) gj = -1-gj, t = -s; else t = s;
+      if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
+      else { t = s; }
 #ifdef MFEM_DEBUG
       if (gj >= width)
+      {
          mfem_error("SparseMatrix::SetRow(...) #2");
+      }
 #endif
       a = srow(j);
-      if (t < 0)  a = -a;
+      if (t < 0) { a = -a; }
       _Set_(gj, a);
    }
    ClearColPtr();
@@ -1545,25 +1826,35 @@ void SparseMatrix::AddRow(const int row, const Array<int> &cols,
    double a;
 
    if (Rows == NULL)
+   {
       mfem_error("SparseMatrix::AddRow(...) #0");
+   }
 
-   if ((gi=row) < 0) gi = -1-gi, s = -1; else s = 1;
+   if ((gi=row) < 0) { gi = -1-gi, s = -1; }
+   else { s = 1; }
 #ifdef MFEM_DEBUG
    if (gi >= height)
+   {
       mfem_error("SparseMatrix::AddRow(...) #1");
+   }
 #endif
    SetColPtr(gi);
    for (j = 0; j < cols.Size(); j++)
    {
-      if ((gj=cols[j]) < 0) gj = -1-gj, t = -s; else t = s;
+      if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
+      else { t = s; }
 #ifdef MFEM_DEBUG
       if (gj >= width)
+      {
          mfem_error("SparseMatrix::AddRow(...) #2");
+      }
 #endif
       a = srow(j);
       if (a == 0.0)
+      {
          continue;
-      if (t < 0)  a = -a;
+      }
+      if (t < 0) { a = -a; }
       _Add_(gj, a);
    }
    ClearColPtr();
@@ -1574,20 +1865,26 @@ void SparseMatrix::ScaleRow(const int row, const double scale)
    int i;
 
    if ((i=row) < 0)
+   {
       i = -1-i;
+   }
    if (Rows != NULL)
    {
       RowNode *aux;
 
       for (aux = Rows[i]; aux != NULL; aux = aux -> Prev)
+      {
          aux -> Value *= scale;
+      }
    }
    else
    {
       int j, end = I[i+1];
 
       for (j = I[i]; j < end; j++)
+      {
          A[j] *= scale;
+      }
    }
 }
 
@@ -1601,7 +1898,9 @@ void SparseMatrix::ScaleRows(const Vector & sl)
       {
          scale = sl(i);
          for (aux = Rows[i]; aux != NULL; aux = aux -> Prev)
+         {
             aux -> Value *= scale;
+         }
       }
    }
    else
@@ -1613,7 +1912,9 @@ void SparseMatrix::ScaleRows(const Vector & sl)
          end = I[i+1];
          scale = sl(i);
          for (j = I[i]; j < end; j++)
+         {
             A[j] *= scale;
+         }
       }
    }
 }
@@ -1626,7 +1927,9 @@ void SparseMatrix::ScaleColumns(const Vector & sr)
       for (int i=0; i < height; ++i)
       {
          for (aux = Rows[i]; aux != NULL; aux = aux -> Prev)
+         {
             aux -> Value *= sr(aux->Column);
+         }
       }
    }
    else
@@ -1637,7 +1940,9 @@ void SparseMatrix::ScaleColumns(const Vector & sr)
       {
          end = I[i+1];
          for (j = I[i]; j < end; j++)
+         {
             A[j] *= sr(J[j]);
+         }
       }
    }
 }
@@ -1646,7 +1951,9 @@ SparseMatrix &SparseMatrix::operator+=(SparseMatrix &B)
 {
 #ifdef MFEM_DEBUG
    if (height != B.height || width != B.width)
+   {
       mfem_error("SparseMatrix::operator+=(...) #1");
+   }
 #endif
 
    for (int i = 0; i < height; i++)
@@ -1680,12 +1987,16 @@ void SparseMatrix::Add(const double a, SparseMatrix &B)
       if (Rows)
       {
          for (RowNode *np = Rows[i]; np != NULL; np = np->Prev)
+         {
             np->Value += a * B._Get_(np->Column);
+         }
       }
       else
       {
          for (int j = I[i]; j < I[i+1]; j++)
+         {
             A[j] += a * B._Get_(J[j]);
+         }
       }
       B.ClearColPtr();
    }
@@ -1695,12 +2006,16 @@ SparseMatrix &SparseMatrix::operator=(double a)
 {
    if (Rows == NULL)
       for (int i = 0, nnz = I[height]; i < nnz; i++)
+      {
          A[i] = a;
+      }
    else
       for (int i = 0; i < height; i++)
          for (RowNode *node_p = Rows[i]; node_p != NULL;
               node_p = node_p -> Prev)
+         {
             node_p -> Value = a;
+         }
 
    return (*this);
 }
@@ -1709,12 +2024,16 @@ SparseMatrix &SparseMatrix::operator*=(double a)
 {
    if (Rows == NULL)
       for (int i = 0, nnz = I[height]; i < nnz; i++)
+      {
          A[i] *= a;
+      }
    else
       for (int i = 0; i < height; i++)
          for (RowNode *node_p = Rows[i]; node_p != NULL;
               node_p = node_p -> Prev)
+         {
             node_p -> Value *= a;
+         }
 
    return (*this);
 }
@@ -1733,10 +2052,14 @@ void SparseMatrix::Print(std::ostream & out, int _width) const
          {
             out << " (" << nd->Column << ","<< nd->Value << ")";
             if ( !((j+1) % _width) )
+            {
                out << '\n';
+            }
          }
          if (j % _width)
+         {
             out << '\n';
+         }
       }
       return;
    }
@@ -1748,10 +2071,14 @@ void SparseMatrix::Print(std::ostream & out, int _width) const
       {
          out << " (" << J[j] << ","<< A[j] << ")";
          if ( !((j+1-I[i]) % _width) )
+         {
             out << '\n';
+         }
       }
       if ((j-I[i]) % _width)
+      {
          out << '\n';
+      }
    }
 }
 
@@ -1764,9 +2091,11 @@ void SparseMatrix::PrintMatlab(std::ostream & out) const
    out.setf(ios::scientific);
    int old_prec = out.precision(14);
 
-   for(i = 0; i < height; i++)
+   for (i = 0; i < height; i++)
       for (j = I[i]; j < I[i+1]; j++)
+      {
          out << i+1 << " " << J[j]+1 << " " << A[j] << '\n';
+      }
    out.precision(old_prec);
    out.flags(old_fmt);
 }
@@ -1782,9 +2111,11 @@ void SparseMatrix::PrintMM(std::ostream & out) const
        << "% Generated by MFEM" << '\n';
 
    out << height << " " << width << " " << NumNonZeroElems() << '\n';
-   for(i = 0; i < height; i++)
+   for (i = 0; i < height; i++)
       for (j = I[i]; j < I[i+1]; j++)
+      {
          out << i+1 << " " << J[j]+1 << " " << A[j] << '\n';
+      }
    out.precision(old_prec);
    out.flags(old_fmt);
 }
@@ -1792,26 +2123,36 @@ void SparseMatrix::PrintMM(std::ostream & out) const
 void SparseMatrix::PrintCSR(std::ostream & out) const
 {
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::PrintCSR()");
+   }
 
    int i;
 
    out << height << '\n';  // number of rows
 
    for (i = 0; i <= height; i++)
+   {
       out << I[i]+1 << '\n';
+   }
 
    for (i = 0; i < I[height]; i++)
+   {
       out << J[i]+1 << '\n';
+   }
 
    for (i = 0; i < I[height]; i++)
+   {
       out << A[i] << '\n';
+   }
 }
 
 void SparseMatrix::PrintCSR2(std::ostream & out) const
 {
    if (A == NULL)
+   {
       mfem_error("SparseMatrix::PrintCSR2()");
+   }
 
    int i;
 
@@ -1819,13 +2160,19 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
    out << width << '\n';  // number of columns
 
    for (i = 0; i <= height; i++)
+   {
       out << I[i] << '\n';
+   }
 
    for (i = 0; i < I[height]; i++)
+   {
       out << J[i] << '\n';
+   }
 
    for (i = 0; i < I[height]; i++)
+   {
       out << A[i] << '\n';
+   }
 }
 
 SparseMatrix::~SparseMatrix ()
@@ -1861,19 +2208,23 @@ SparseMatrix::~SparseMatrix ()
 int SparseMatrix::ActualWidth()
 {
    int awidth = 0;
-   if(A)
+   if (A)
    {
       int * start_j(J);
       int * end_j(J + I[height]);
-      for(int * jptr(start_j); jptr != end_j; ++jptr)
+      for (int * jptr(start_j); jptr != end_j; ++jptr)
+      {
          awidth = (*jptr > awidth) ? *jptr : awidth;
+      }
    }
    else
    {
       RowNode *aux;
       for (int i = 0; i < height; i++)
          for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
+         {
             awidth =(aux->Column > awidth) ? aux->Column : awidth;
+         }
    }
    ++awidth;
 
@@ -1887,7 +2238,9 @@ void SparseMatrixFunction (SparseMatrix & S, double (*f)(double))
    double * s = S.GetData();
 
    for (int i = 0; i < n; i++)
+   {
       s[i] = f(s[i]);
+   }
 }
 
 SparseMatrix *Transpose (const SparseMatrix &A)
@@ -1912,11 +2265,17 @@ SparseMatrix *Transpose (const SparseMatrix &A)
    At_data = new double[nnz];
 
    for (i = 0; i <= n; i++)
+   {
       At_i[i] = 0;
+   }
    for (i = 0; i < nnz; i++)
+   {
       At_i[A_j[i]+1]++;
+   }
    for (i = 1; i < n; i++)
+   {
       At_i[i+1] += At_i[i];
+   }
 
    for (i = j = 0; i < m; i++)
    {
@@ -1930,13 +2289,16 @@ SparseMatrix *Transpose (const SparseMatrix &A)
    }
 
    for (i = n; i > 0; i--)
+   {
       At_i[i] = At_i[i-1];
+   }
    At_i[0] = 0;
 
    return  new SparseMatrix (At_i, At_j, At_data, n, m);
 }
 
-SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A, int useActualWidth)
+SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A,
+                                             int useActualWidth)
 {
    int i, j;
    int m, n, nnz, *At_i, *At_j;
@@ -1956,7 +2318,9 @@ SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A, int 
          {
             tmp = Acols.Max();
             if (tmp > n)
+            {
                n = tmp;
+            }
          }
       }
       ++n;
@@ -1972,16 +2336,22 @@ SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A, int 
    At_data = new double[nnz];
 
    for (i = 0; i <= n; i++)
+   {
       At_i[i] = 0;
+   }
 
    for (i = 0; i < m; i++)
    {
       A.GetRow(i, Acols, Avals);
       for (j = 0; j<Acols.Size(); ++j)
+      {
          At_i[Acols[j]+1]++;
+      }
    }
    for (i = 1; i < n; i++)
+   {
       At_i[i+1] += At_i[i];
+   }
 
    for (i = 0; i < m; i++)
    {
@@ -1995,7 +2365,9 @@ SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A, int 
    }
 
    for (i = n; i > 0; i--)
+   {
       At_i[i] = At_i[i-1];
+   }
    At_i[0] = 0;
 
    return new SparseMatrix(At_i, At_j, At_data, n, m);
@@ -2019,7 +2391,9 @@ SparseMatrix *Mult (const SparseMatrix &A, const SparseMatrix &B,
    ncolsB = B.Width();
 
    if (ncolsA != nrowsB)
+   {
       mfem_error("Sparse matrix multiplication, Mult (...) #1");
+   }
 
    A_i    = A.GetI();
    A_j    = A.GetJ();
@@ -2031,7 +2405,9 @@ SparseMatrix *Mult (const SparseMatrix &A, const SparseMatrix &B,
    B_marker = new int[ncolsB];
 
    for (ib = 0; ib < ncolsB; ib++)
+   {
       B_marker[ib] = -1;
+   }
 
    if (OAB == NULL)
    {
@@ -2062,14 +2438,18 @@ SparseMatrix *Mult (const SparseMatrix &A, const SparseMatrix &B,
       C = new SparseMatrix (C_i, C_j, C_data, nrowsA, ncolsB);
 
       for (ib = 0; ib < ncolsB; ib++)
+      {
          B_marker[ib] = -1;
+      }
    }
    else
    {
       C = OAB;
 
       if (nrowsA != C -> Height() || ncolsB != C -> Width())
+      {
          mfem_error("Sparse matrix multiplication, Mult (...) #2");
+      }
 
       C_i    = C -> GetI();
       C_j    = C -> GetJ();
@@ -2093,25 +2473,32 @@ SparseMatrix *Mult (const SparseMatrix &A, const SparseMatrix &B,
             {
                B_marker[jb] = counter;
                if (OAB == NULL)
+               {
                   C_j[counter] = jb;
+               }
                C_data[counter] = a_entry*b_entry;
                counter++;
             }
             else
+            {
                C_data[B_marker[jb]] += a_entry*b_entry;
+            }
          }
       }
    }
 
    if (OAB != NULL && counter != OAB -> NumNonZeroElems())
+   {
       mfem_error("Sparse matrix multiplication, Mult (...) #3");
+   }
 
    delete [] B_marker;
 
    return C;
 }
 
-SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A, const AbstractSparseMatrix &B)
+SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A,
+                                        const AbstractSparseMatrix &B)
 {
    int nrowsA, ncolsA, nrowsB, ncolsB;
    int *C_i, *C_j, *B_marker;
@@ -2127,13 +2514,17 @@ SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A, const Abs
    ncolsB = B.Width();
 
    if (ncolsA != nrowsB)
+   {
       mfem_error("Sparse matrix multiplication, Mult (...) #1");
+   }
 
 
    B_marker = new int[ncolsB];
 
    for (ib = 0; ib < ncolsB; ib++)
+   {
       B_marker[ib] = -1;
+   }
 
    C_i = new int[nrowsA+1];
 
@@ -2167,7 +2558,9 @@ SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A, const Abs
    C = new SparseMatrix(C_i, C_j, C_data, nrowsA, ncolsB);
 
    for (ib = 0; ib < ncolsB; ib++)
+   {
       B_marker[ib] = -1;
+   }
 
    counter = 0;
    for (ic = 0; ic < nrowsA; ic++)
@@ -2191,7 +2584,9 @@ SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A, const Abs
                counter++;
             }
             else
+            {
                C_data[B_marker[jb]] += a_entry*b_entry;
+            }
          }
       }
    }
@@ -2234,13 +2629,16 @@ SparseMatrix *Mult_AtDA (const SparseMatrix &A, const Vector &D,
    At_j    = At -> GetJ();
    At_data = At -> GetData();
    for (i = 0; i < At_nnz; i++)
+   {
       At_data[i] *= D(At_j[i]);
+   }
    SparseMatrix *AtDA = Mult (*At, A, OAtDA);
    delete At;
    return AtDA;
 }
 
-SparseMatrix * Add(double a, const SparseMatrix & A, double b, const SparseMatrix & B)
+SparseMatrix * Add(double a, const SparseMatrix & A, double b,
+                   const SparseMatrix & B)
 {
    int nrows = A.Height();
    int ncols = A.Width();
@@ -2286,7 +2684,9 @@ SparseMatrix * Add(double a, const SparseMatrix & A, double b, const SparseMatri
    C_data = new double[num_nonzeros];
 
    for (int ia = 0; ia < ncols; ia++)
+   {
       marker[ia] = -1;
+   }
 
    int pos = 0;
    for (int ic = 0; ic < nrows; ic++)
@@ -2332,11 +2732,13 @@ SparseMatrix * Add(Array<SparseMatrix *> & Ai)
    SparseMatrix * accumulate = Ai[0];
    SparseMatrix * result = accumulate;
 
-   for(int i=1; i < Ai.Size(); ++i)
+   for (int i=1; i < Ai.Size(); ++i)
    {
       result = Add(*accumulate, *Ai[i]);
       if (i != 1)
+      {
          delete accumulate;
+      }
 
       accumulate = result;
    }

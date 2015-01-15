@@ -247,8 +247,8 @@ void SLISolver::Mult(const Vector &b, Vector &x) const
 }
 
 void SLI(const Operator &A, const Vector &b, Vector &x,
-	 int print_iter, int max_num_iter,
-	 double RTOLERANCE, double ATOLERANCE)
+         int print_iter, int max_num_iter,
+         double RTOLERANCE, double ATOLERANCE)
 {
    SLISolver sli;
    sli.SetPrintLevel(print_iter);
