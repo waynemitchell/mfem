@@ -19,6 +19,10 @@ MPICXX = mpicxx
 OPTIM_FLAGS = -O3
 DEBUG_FLAGS = -g -Wall
 
+# Destination location of make install
+# PREFIX = $(HOME)/mfem
+PREFIX = /usr/local/mfem
+
 # Set CXXFLAGS to overwrite the default selection of DEBUG_FLAGS/OPTIM_FLAGS
 # CXXFLAGS = -O3 -march=native
 

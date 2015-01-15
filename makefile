@@ -78,6 +78,9 @@ else
    $(call mfem-info, NOT including $(CONFIG_MK))
 endif
 
+# Default installation location
+PREFIX ?= /usr/local/mfem
+
 # Default serial and parallel compilers
 CXX ?= g++
 MPICXX ?= mpicxx
@@ -245,6 +248,21 @@ clean:
 
 distclean: clean
 	$(MAKE) -C config clean
+
+install:
+# install static library
+	mkdir -p $(PREFIX)/lib
+	/usr/bin/install -m 640 libmfem.a $(PREFIX)/lib/
+# install top level includes
+	mkdir -p $(PREFIX)/include
+	/usr/bin/install -m 640 mfem.hpp mfem_defs.hpp $(PREFIX)/include
+# install config includes
+	mkdir -p $(PREFIX)/include/config
+	/usr/bin/install -m 640 config/config.hpp $(PREFIX)/include/config
+# install remaining includes in each subdirectory
+	for dir in $(DIRS); do mkdir -p $(PREFIX)/include/$$dir; done 
+	for dir in $(DIRS); do /usr/bin/install -m 640 $$dir/*.hpp $(PREFIX)/include/$$dir; done
+
 
 $(CONFIG_MK):
 	$(info )
