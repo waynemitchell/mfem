@@ -25,18 +25,19 @@ namespace mfem
 using namespace std;
 
 SparseMatrix::SparseMatrix(int nrows, int ncols)
-   : AbstractSparseMatrix(nrows, ncols ? ncols : nrows)
+   : AbstractSparseMatrix(nrows, ncols ? ncols : nrows),
+     I(NULL),
+     J(NULL),
+     A(NULL),
+     Rows(new RowNode *[nrows]),
+     current_row(-1),
+     ColPtrJ(NULL),
+     ColPtrNode(NULL)
 {
-   I = NULL;
-   J = NULL;
-   A = NULL;
-
-   Rows = new RowNode *[nrows];
    for (int i = 0; i < nrows; i++)
    {
       Rows[i] = NULL;
    }
-   ColPtr.Node = NULL;
 
 #ifdef MFEM_USE_MEMALLOC
    NodesMem = new RowNodeAlloc;
@@ -44,10 +45,14 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
 }
 
 SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
-   : AbstractSparseMatrix(m, n), I(i), J(j), A(data)
+   : AbstractSparseMatrix(m, n),
+     I(i),
+     J(j),
+     A(data),
+     Rows(NULL),
+     ColPtrJ(NULL),
+     ColPtrNode(NULL)
 {
-   Rows = NULL;
-   ColPtr.J = NULL;
 #ifdef MFEM_USE_MEMALLOC
    NodesMem = NULL;
 #endif
@@ -140,13 +145,13 @@ void SparseMatrix::SetWidth(int newWidth)
       // We need to reset ColPtr, since now we may have additional columns.
       if (Rows != NULL)
       {
-         delete [] ColPtr.Node;
-         ColPtr.Node = static_cast<RowNode **>(NULL);
+         delete [] ColPtrNode;
+         ColPtrNode = static_cast<RowNode **>(NULL);
       }
       else
       {
-         delete [] ColPtr.J;
-         ColPtr.J = static_cast<int *>(NULL);
+         delete [] ColPtrJ;
+         ColPtrJ = static_cast<int *>(NULL);
       }
       width = newWidth;
    }
@@ -490,10 +495,13 @@ void SparseMatrix::Finalize(int skip_zeros)
    int i, j, nr, nz;
    RowNode *aux;
 
-   if (A != NULL) { return; }
+   if (Finalized())
+   {
+      return;
+   }
 
-   delete [] ColPtr.Node;
-   ColPtr.J = NULL;
+   delete [] ColPtrNode;
+   ColPtrNode = NULL;
 
    I = new int[height+1];
    I[0] = 0;
@@ -2005,12 +2013,21 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
 
 SparseMatrix::~SparseMatrix ()
 {
+   if( I != NULL)
+   {
+      delete [] I;
+   }
+   if( J != NULL)
+   {
+      delete [] J;
+   }
+   if (A != NULL)
+   {
+      delete [] A;
+   }
+
    if (Rows != NULL)
    {
-      delete [] ColPtr.Node;
-#ifdef MFEM_USE_MEMALLOC
-      delete NodesMem;
-#else
       for (int i = 0; i < height; i++)
       {
          RowNode *aux, *node_p = Rows[i];
@@ -2021,16 +2038,23 @@ SparseMatrix::~SparseMatrix ()
             delete aux;
          }
       }
-#endif
       delete [] Rows;
    }
-   if (A != NULL)
+
+   if (ColPtrJ != NULL)
    {
-      delete [] ColPtr.J;
-      delete [] I;
-      delete [] J;
-      delete [] A;
+      delete [] ColPtrJ;
    }
+   if (ColPtrNode != NULL)
+   {
+      delete [] ColPtrNode;
+   }
+#ifdef MFEM_USE_MEMALLOC
+   if (NodesMem != NULL)
+   {
+      delete NodesMem;
+   }
+#endif
 }
 
 int SparseMatrix::ActualWidth()
@@ -2582,7 +2606,7 @@ void Swap(SparseMatrix & A, SparseMatrix & B)
    Swap(A.A, B.A);
    Swap(A.Rows, B.Rows);
    Swap(A.current_row, B.current_row);
-   Swap(A.ColPtr.J, B.ColPtr.J);
+   Swap(A.ColPtrJ, B.ColPtrJ);
 
 #ifdef MFEM_USE_MEMALLOC
    Swap(A.NodesMem, B.NodesMem);
