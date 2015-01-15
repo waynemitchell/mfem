@@ -56,6 +56,9 @@ ParFiniteElementSpace::ParFiniteElementSpace(
 
    P = NULL;
 
+   if (pmesh->pncmesh)
+      return;
+
    if (NURBSext)
    {
       if (own_ext)
@@ -305,6 +308,12 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
 
    if (P)
       return P;
+
+   if (pmesh->pncmesh)
+   {
+      GetConformingInterpolation();
+      return P;
+   }
 
    int  ldof = GetVSize();
    int  ltdof = TrueVSize();
@@ -812,7 +821,7 @@ void ParFiniteElementSpace::GetConformingDofs
 
 void ParFiniteElementSpace::GetConformingInterpolation()
 {
-   ParNCMesh* pncmesh;// = pmesh->pncmesh;
+   ParNCMesh* pncmesh = pmesh->pncmesh;
 
    // TODO: we need a Dictionary class if we want to avoid STL
    typedef std::map<int, ParNCMesh::NeighborDofMessage> RankToMessage;
@@ -870,10 +879,14 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       --recv_left;
    }
 
+   MPI_Barrier(MPI_COMM_WORLD); /////////////////// DEBUG
 
    //
    MPI_Waitall(send_messages.size(), requests, MPI_STATUSES_IGNORE);
    delete [] requests;
+
+
+   MFEM_ABORT(""); // TODO
 }
 
 void ParFiniteElementSpace::Update()

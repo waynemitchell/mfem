@@ -108,15 +108,19 @@ public:
    /// Logical size of the array
    inline int Size() const { return size; }
 
-   /** Maximum number of entries the array can store without allocating more
-       memory. */
-   inline int Capacity() const { return abs(allocsize); }
-
    /// Change logical size of the array, keep existing entries
    inline void SetSize(int nsize);
 
    /// Same as SetSize(int) plus initialize new entries with 'initval'
    inline void SetSize(int nsize, const T &initval);
+
+   /** Maximum number of entries the array can store without allocating more
+       memory. */
+   inline int Capacity() const { return abs(allocsize); }
+
+   /// Ensures that the allocated size is at least the given size.
+   inline void Reserve(int capacity)
+   { if (capacity > abs(allocsize)) GrowSize(capacity, sizeof(T)); }
 
    /// Access element
    inline T & operator[](int i);

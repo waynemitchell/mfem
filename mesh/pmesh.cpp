@@ -38,6 +38,42 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    Dim = mesh.Dim;
    spaceDim = mesh.spaceDim;
 
+   if (mesh.ncmesh)
+   {
+      pncmesh = new ParNCMesh(comm, *mesh.ncmesh);
+      pncmesh->GetMeshComponents(vertices, elements, boundary);
+
+      // TODO: wrap this block somehow in a function
+      {
+         NumOfVertices = vertices.Size();
+         NumOfElements = elements.Size();
+         NumOfBdrElements = boundary.Size();
+
+         // set the mesh type ('meshgen')
+         SetMeshGen();
+
+         NumOfEdges = NumOfFaces = 0;
+
+         if (Dim > 2)
+         {
+            GetElementToFaceTable();
+            GenerateFaces();
+      #ifdef MFEM_DEBUG
+            CheckBdrElementOrientation();
+      #endif
+         }
+
+         el_to_edge = new Table;
+         NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+         c_el_to_edge = NULL;
+
+         SetAttributes();
+      }
+
+      pncmesh->OnMeshUpdated(this);
+      return;
+   }
+
    if (partitioning_)
       partitioning = partitioning_;
    else

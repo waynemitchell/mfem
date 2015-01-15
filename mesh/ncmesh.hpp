@@ -63,6 +63,7 @@ protected:
 
 public:
    NCMesh(const Mesh *coarse_mesh);
+   NCMesh(const NCMesh &other); // deep copy of 'other'
 
    int Dimension() const { return Dim; }
 
@@ -239,6 +240,7 @@ protected: // implementation
       Vertex() {}
       Vertex(double x, double y, double z) : index(-1)
       { pos[0] = x, pos[1] = y, pos[2] = z; }
+      Vertex(const Vertex& other) { std::memcpy(this, &other, sizeof(*this)); }
    };
 
    /** An NC mesh edge. Edges don't do much more than just exist. */
@@ -248,6 +250,7 @@ protected: // implementation
       int index;     ///< edge number in the Mesh
 
       Edge() : attribute(-1), index(-1) {}
+      Edge(const Edge &other) { std::memcpy(this, &other, sizeof(*this)); }
       bool Boundary() const { return attribute >= 0; }
    };
 
@@ -267,6 +270,8 @@ protected: // implementation
       Edge* edge;
 
       Node(int id) : Hashed2<Node>(id), vertex(NULL), edge(NULL) {}
+      Node(const Node &other);
+      ~Node();
 
       // Bump ref count on a vertex or an edge, or create them. Used when an
       // element starts using a vertex or an edge.
@@ -278,8 +283,6 @@ protected: // implementation
       // (The hash-table pointer needs to be known then to remove the node.)
       void UnrefVertex(HashTable<Node>& nodes);
       void UnrefEdge(HashTable<Node>& nodes);
-
-      ~Node();
    };
 
    struct Element;
@@ -294,8 +297,8 @@ protected: // implementation
       int index;        ///< face number in the Mesh
       Element* elem[2]; ///< up to 2 elements sharing the face
 
-      Face(int id) : Hashed4<Face>(id), attribute(-1), index(-1)
-      { elem[0] = elem[1] = NULL; }
+      Face(int id);
+      Face(const Face& other);
 
       bool Boundary() const { return attribute >= 0; }
 
@@ -327,6 +330,7 @@ protected: // implementation
       };
 
       Element(int geom, int attr);
+      Element(const Element& other) { std::memcpy(this, &other, sizeof(*this)); }
       bool Ghost() const { return index < 0; }
    };
 
@@ -359,6 +363,7 @@ protected: // implementation
 
    virtual void AssignLeafIndices();
 
+   Element* CopyHierarchy(Element* elem);
    void DeleteHierarchy(Element* elem);
 
    Element* NewHexahedron(Node* n0, Node* n1, Node* n2, Node* n3,
@@ -404,6 +409,7 @@ protected: // implementation
    bool NodeSetZ1(Node* node, Node** n);
    bool NodeSetZ2(Node* node, Node** n);
 
+
    // face / edge lists
 
    static int find_node(Element* elem, Node* node);
@@ -425,6 +431,7 @@ protected: // implementation
 
    virtual void ElementSharesEdge(Element* elem, Edge* edge) {}
    virtual void ElementSharesFace(Element* elem, Face* face) {}
+
 
    // coarse to fine transformations
 
@@ -497,6 +504,7 @@ protected: // implementation
 
    int GetEdgeMaster(Node *n) const;
 
+
    // utility
 
    void FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
@@ -506,6 +514,23 @@ protected: // implementation
 
    int CountElements(Element* elem);
 
+
+public: // TODO: maybe make this part of mfem::Geometry?
+
+   /** This holds in one place the constants about the geometries we support
+       (triangles, quads, cubes) */
+   struct GeomInfo
+   {
+      int nv, ne, nf, nfv; // number of: vertices, edges, faces, face vertices
+      int edges[12][2];    // edge vertices (up to 12 edges)
+      int faces[6][4];     // face vertices (up to 6 faces)
+
+      bool initialized;
+      GeomInfo() : initialized(false) {}
+      void Initialize(const mfem::Element* elem);
+   };
+
+   static GeomInfo GI[Geometry::NumGeom];
 };
 
 }

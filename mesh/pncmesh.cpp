@@ -22,8 +22,8 @@
 namespace mfem
 {
 
-ParNCMesh::ParNCMesh(MPI_Comm comm, const Mesh *coarse_mesh)
-   : NCMesh(coarse_mesh)
+ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
+   : NCMesh(ncmesh)
 {
    MyComm = comm;
    MPI_Comm_size(MyComm, &NRanks);
@@ -31,6 +31,7 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const Mesh *coarse_mesh)
 
    InitialPartition();
    AssignLeafIndices();
+   //PruneGhosts();
 }
 
 void ParNCMesh::InitialPartition()
@@ -135,7 +136,7 @@ void ParNCMesh::BuildFaceList()
    // This is an extension of NCMesh::BuildFaceList() which also determines
    // face ownership, creates face processor groups and lists shared faces.
 
-   int nfaces = NEdges + NGhostEdges;
+   int nfaces = NFaces + NGhostFaces;
    face_owner.SetSize(nfaces);
    face_owner = std::numeric_limits<int>::max();
 
@@ -145,7 +146,7 @@ void ParNCMesh::BuildFaceList()
    NCMesh::BuildFaceList();
 
    AddSlaveRanks(nfaces, face_list);
-   MakeGroups(nfaces, edge_group);
+   MakeGroups(nfaces, face_group);
    MakeShared(face_group, face_list, shared_faces);
 
    tmp_ranks.DeleteAll();
@@ -209,10 +210,11 @@ void ParNCMesh::MakeGroups(int nfaces, Table &groups)
    groups.SetIJ(I, J, nfaces);
 }
 
-// An edge/face is shared if its group contains more than one processor and
-// at the same time one of them is ourselves.
 static bool is_shared(const Table& groups, int index, int MyRank)
 {
+   // An edge/face is shared if its group contains more than one processor and
+   // at the same time one of them is ourselves.
+
    int size = groups.RowSize(index);
    if (size <= 1)
       return false;
@@ -228,7 +230,9 @@ static bool is_shared(const Table& groups, int index, int MyRank)
 void ParNCMesh::MakeShared
 (const Table &groups, const FaceList &list, FaceList &shared)
 {
-   // filter the full lists, only output items that are shared
+   // Filter the full lists, only output items that are shared.
+
+   shared.Clear();
 
    for (int i = 0; i < list.conforming.size(); i++)
       if (is_shared(groups, list.conforming[i].index, MyRank))
@@ -244,7 +248,7 @@ void ParNCMesh::MakeShared
 }
 
 
-//// Message encoding //////////////////////////////////////////////////////////
+//// ElementSet ////////////////////////////////////////////////////////////////
 
 void ParNCMesh::ElementSet::SetInt(int pos, int value)
 {
@@ -277,17 +281,19 @@ bool ParNCMesh::ElementSet::EncodeTree
    else if (elem->ref_type)
    {
       // write a bit mask telling what subtrees contain elements from the set
+      int mpos = data.Size();
       data.Append(0);
-      unsigned char& mask = data.Last();
 
       // check the subtrees
+      int mask = 0;
       for (int i = 0; i < 8; i++)
          if (elem->child[i])
             if (EncodeTree(elem->child[i], elements))
                mask |= (unsigned char) 1 << i;
 
-      // if we found no elements don't write anything
-      if (!mask)
+      if (mask)
+         data[mpos] = mask;
+      else
          data.DeleteLast();
 
       return mask != 0;
@@ -336,10 +342,9 @@ void ParNCMesh::ElementSet::DecodeTree
    }
 }
 
-void ParNCMesh::ElementSet::Get
+void ParNCMesh::ElementSet::Decode
 (Array<Element*> &elements, const Array<Element*> &ncmesh_roots) const
 {
-   // TODO: read from stream directly
    int root, pos = 0;
    while ((root = GetInt(pos)) >= 0)
    {
@@ -364,15 +369,18 @@ static inline T read(std::istream& is)
 
 void ParNCMesh::ElementSet::Dump(std::ostream &os) const
 {
-   write<int>(os, data.Size()); // TODO: remove
-   os.write((char*) data.GetData(), data.Size());
+   write<int>(os, data.Size());
+   os.write((const char*) data.GetData(), data.Size());
 }
 
 void ParNCMesh::ElementSet::Load(std::istream &is)
 {
-   data.SetSize(read<int>(is)); // TODO: remove
+   data.SetSize(read<int>(is));
    is.read((char*) data.GetData(), data.Size());
 }
+
+
+//// Edge/face ID encoding /////////////////////////////////////////////////////
 
 void ParNCMesh::EncodeEdgesFaces
 (const Array<EdgeId> &edges, const Array<FaceId> &faces, std::ostream &os) const
@@ -392,7 +400,7 @@ void ParNCMesh::EncodeEdgesFaces
       eset.Dump(os);
 
       Array<Element*> decoded;
-      eset.Get(decoded, root_elements);
+      eset.Decode(decoded, root_elements);
 
       for (int i = 0; i < decoded.Size(); i++)
          element_id[decoded[i]] = i;
@@ -402,7 +410,7 @@ void ParNCMesh::EncodeEdgesFaces
    write<int>(os, edges.Size());
    for (int i = 0; i < edges.Size(); i++)
    {
-      write<int>(os, element_id[edges[i].element]);
+      write<int>(os, element_id[edges[i].element]); // TODO: variable 1-4 bytes
       write<char>(os, edges[i].local);
    }
 
@@ -410,7 +418,7 @@ void ParNCMesh::EncodeEdgesFaces
    write<int>(os, faces.Size());
    for (int i = 0; i < faces.Size(); i++)
    {
-      write<int>(os, element_id[faces[i].element]);
+      write<int>(os, element_id[faces[i].element]); // TODO: variable 1-4 bytes
       write<char>(os, faces[i].local);
    }
 }
@@ -422,9 +430,9 @@ void ParNCMesh::DecodeEdgesFaces
    ElementSet eset(is);
 
    Array<Element*> elements;
-   eset.Get(elements, root_elements);
+   eset.Decode(elements, root_elements);
 
-/*   // read edges
+   // read edges, look up their indices
    int ne = read<int>(is);
    edges.SetSize(ne);
    for (int i = 0; i < ne; i++)
@@ -443,7 +451,7 @@ void ParNCMesh::DecodeEdgesFaces
       eid.index = node->edge->index;
    }
 
-   // read faces
+   // read faces, look up their indices
    int nf = read<int>(is);
    faces.SetSize(nf);
    for (int i = 0; i < nf; i++)
@@ -461,43 +469,110 @@ void ParNCMesh::DecodeEdgesFaces
 
       MFEM_ASSERT(face, "Face not found.");
       fid.index = face->index;
-   }*/
-   // TODO: GI
+   }
+}
+
+
+//// NeighborDofMessage ////////////////////////////////////////////////////////
+
+void ParNCMesh::NeighborDofMessage::AddFaceDofs
+(const FaceId &fid, const Array<int> &dofs)
+{
+   face_dofs[fid].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
+}
+
+void ParNCMesh::NeighborDofMessage::AddEdgeDofs
+(const EdgeId &eid, const Array<int> &dofs)
+{
+   edge_dofs[eid].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
+}
+
+void ParNCMesh::NeighborDofMessage::GetFaceDofs
+(const FaceId& fid, Array<int>& dofs)
+{
+   std::vector<int> &vec = face_dofs[fid];
+   dofs.MakeRef(vec.data(), vec.size());
+}
+
+void ParNCMesh::NeighborDofMessage::GetEdgeDofs
+(const EdgeId& eid, Array<int>& dofs)
+{
+   std::vector<int> &vec = edge_dofs[eid];
+   dofs.MakeRef(vec.data(), vec.size());
+}
+
+static void write_dofs(std::ostream &os, const std::vector<int> &dofs)
+{
+   write<int>(os, dofs.size());
+   // TODO: we should compress the ints, mostly they are contiguous ranges
+   os.write((const char*) dofs.data(), dofs.size() * sizeof(int));
+}
+
+static void read_dofs(std::istream &is, std::vector<int> &dofs)
+{
+   dofs.resize(read<int>(is));
+   is.read((char*) dofs.data(), dofs.size() * sizeof(int));
 }
 
 MPI_Request ParNCMesh::NeighborDofMessage::Isend
 (int rank, MPI_Comm comm, const ParNCMesh &pncmesh)
 {
+   IdToDofs::const_iterator it;
+
+   // collect edges & faces
    Array<EdgeId> edges;
-   {
-   }
+   edges.Reserve(edge_dofs.size());
+   for (it = edge_dofs.begin(); it != edge_dofs.end(); ++it)
+      edges.Append(it->first);
 
    Array<FaceId> faces;
-   {
-      /*faces.Reserve(face_dofs.size());
-      IdToDof::const_iterator it;
-      for (it = face_dofs.begin(); it != face_dofs.end(); ++it)
-         faces.Append(it->first);*/
-   }
+   faces.Reserve(face_dofs.size());
+   for (it = face_dofs.begin(); it != face_dofs.end(); ++it)
+      faces.Append(it->first);
 
-   std::ostringstream stream(data);
+   // encode edge & face IDs
+   std::ostringstream stream;
    pncmesh.EncodeEdgesFaces(edges, faces, stream);
 
    // dump the DOFs
+   for (it = edge_dofs.begin(); it != edge_dofs.end(); ++it)
+      write_dofs(stream, it->second);
+
+   for (it = face_dofs.begin(); it != face_dofs.end(); ++it)
+      write_dofs(stream, it->second);
 
    face_dofs.clear();
    edge_dofs.clear();
 
+   stream.str().swap(data);
+
+   // send the message
    return Base::Isend(rank, comm);
 }
 
 void ParNCMesh::NeighborDofMessage::Recv
 (int rank, int size, MPI_Comm comm, const ParNCMesh &pncmesh)
 {
+   // receive message
    Base::Recv(rank, size, comm);
 
-   // decode
+   // decode edge & face IDs
+   Array<EdgeId> edges;
+   Array<FaceId> faces;
 
+   std::istringstream stream(data);
+   pncmesh.DecodeEdgesFaces(edges, faces, stream);
+
+   // load DOFs
+   edge_dofs.clear();
+   for (int i = 0; i < edges.Size(); i++)
+      read_dofs(stream, edge_dofs[edges[i]]);
+
+   face_dofs.clear();
+   for (int i = 0; i < faces.Size(); i++)
+      read_dofs(stream, face_dofs[faces[i]]);
+
+   // no longer need the raw data
    data.clear();
 }
 

@@ -18,26 +18,13 @@
 namespace mfem
 {
 
-/** This holds in one place the constants about the geometries we support
-    (triangles, quads, cubes) */
-struct GeomInfo
-{
-   int nv, ne, nf, nfv; // number of: vertices, edges, faces, face vertices
-   int edges[12][2];    // edge vertices (up to 12 edges)
-   int faces[6][4];     // face vertices (up to 6 faces)
+NCMesh::GeomInfo NCMesh::GI[Geometry::NumGeom];
 
-   bool initialized;
-   GeomInfo() : initialized(false) {}
-   void Initialize(const Element* elem);
-};
+static NCMesh::GeomInfo& gi_hex  = NCMesh::GI[Geometry::CUBE];
+static NCMesh::GeomInfo& gi_quad = NCMesh::GI[Geometry::SQUARE];
+static NCMesh::GeomInfo& gi_tri  = NCMesh::GI[Geometry::TRIANGLE];
 
-static GeomInfo GI[Geometry::NumGeom];
-
-static GeomInfo& gi_hex  = GI[Geometry::CUBE];
-static GeomInfo& gi_quad = GI[Geometry::SQUARE];
-static GeomInfo& gi_tri  = GI[Geometry::TRIANGLE];
-
-void GeomInfo::Initialize(const Element* elem)
+void NCMesh::GeomInfo::Initialize(const mfem::Element* elem)
 {
    if (initialized) return;
 
@@ -147,10 +134,24 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
    UpdateLeafElements();
 }
 
-NCMesh::~NCMesh()
+NCMesh::Element* NCMesh::CopyHierarchy(Element* elem)
 {
-   for (int i = 0; i < root_elements.Size(); i++)
-      DeleteHierarchy(root_elements[i]);
+   Element* new_elem = new Element(*elem);
+   if (elem->ref_type)
+   {
+      for (int i = 0; i < 8; i++)
+         if (elem->child[i])
+            new_elem->child[i] = CopyHierarchy(elem->child[i]);
+   }
+   else
+   {
+      GeomInfo& gi = GI[elem->geom];
+      for (int i = 0; i < gi.nv; i++)
+         new_elem->node[i] = nodes.Peek(elem->node[i]->id);
+
+      RegisterFaces(new_elem);
+   }
+   return new_elem;
 }
 
 void NCMesh::DeleteHierarchy(Element* elem)
@@ -166,6 +167,24 @@ void NCMesh::DeleteHierarchy(Element* elem)
       UnrefElementNodes(elem);
    }
    delete elem;
+}
+
+NCMesh::NCMesh(const NCMesh &other)
+   : Dim(other.Dim), nodes(other.nodes), faces(other.faces)
+{
+   // NOTE: this copy constructor is used by ParNCMesh
+   root_elements.SetSize(other.root_elements.Size());
+   for (int i = 0; i < root_elements.Size(); i++)
+      root_elements[i] = CopyHierarchy(other.root_elements[i]);
+
+   UpdateLeafElements();
+   UpdateVertices();
+}
+
+NCMesh::~NCMesh()
+{
+   for (int i = 0; i < root_elements.Size(); i++)
+      DeleteHierarchy(root_elements[i]);
 }
 
 
@@ -196,6 +215,13 @@ void NCMesh::Node::UnrefEdge(HashTable<Node> &nodes)
    MFEM_ASSERT(edge, "Cannot unref a nonexistent edge.");
    if (!edge->Unref()) edge = NULL;
    if (!vertex && !edge) nodes.Delete(this);
+}
+
+NCMesh::Node::Node(const Node& other)
+{
+   std::memcpy(this, &other, sizeof(*this));
+   if (vertex) vertex = new Vertex(*vertex);
+   if (edge) edge= new Edge(*edge);
 }
 
 NCMesh::Node::~Node()
@@ -256,6 +282,18 @@ void NCMesh::UnrefElementNodes(Element *elem)
    // unref all vertices (possibly destroying them)
    for (int i = 0; i < gi.nv; i++)
       elem->node[i]->UnrefVertex(nodes);
+}
+
+NCMesh::Face::Face(int id)
+   : Hashed4<Face>(id), attribute(-1), index(-1)
+{
+   elem[0] = elem[1] = NULL;
+}
+
+NCMesh::Face::Face(const Face& other)
+{
+   std::memcpy(this, &other, sizeof(*this));
+   elem[0] = elem[1] = NULL;
 }
 
 void NCMesh::Face::RegisterElement(Element* e)
@@ -1116,12 +1154,14 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
          vertices[i++].SetCoords(it->vertex->pos);
 
    elements.SetSize(leaf_elements.Size());
+   elements.SetSize(0);
+
    boundary.SetSize(0);
 
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* nc_elem = leaf_elements[i];
-      if (nc_elem->Ghost()) continue; // (MPI)
+      if (nc_elem->Ghost()) continue; // ParNCMesh
 
       Node** node = nc_elem->node;
       GeomInfo& gi = GI[nc_elem->geom];
@@ -1135,7 +1175,7 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
       case Geometry::TRIANGLE: elem = new Triangle; break;
       }
 
-      elements[i] = elem;
+      elements.Append(elem);
       elem->SetAttribute(nc_elem->attribute);
       for (int j = 0; j < gi.nv; j++)
          elem->GetVertices()[j] = node[j]->vertex->index;

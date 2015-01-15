@@ -26,6 +26,8 @@ class IdGenerator
 {
 public:
    IdGenerator(int first_id = 0) : next(first_id) {}
+   IdGenerator(const IdGenerator& other) : next(other.next)
+   { other.reusable.Copy(reusable); }
 
    /// Generate a unique ID.
    int Get()
@@ -64,6 +66,7 @@ struct Hashed2
    int p1, p2;
    Derived* next;
 
+   Hashed2() {}
    Hashed2(int id) : id(id) {}
 };
 
@@ -77,6 +80,7 @@ struct Hashed4
    int p1, p2, p3; // NOTE: p4 is not hashed nor stored
    Derived* next;
 
+   Hashed4() {}
    Hashed4(int id) : id(id) {}
 };
 
@@ -113,6 +117,7 @@ class HashTable
 {
 public:
    HashTable(int init_size = 32*1024);
+   HashTable(const HashTable& other); // deep copy
    ~HashTable();
 
    /// Get an item whose parents are p1, p2... Create it if it doesn't exist.
@@ -154,7 +159,7 @@ public:
    class Iterator
    {
    public:
-      Iterator(HashTable<ItemT>& table)
+      Iterator(const HashTable<ItemT>& table)
          : hash_table(table), cur_id(-1), cur_item(NULL) { next(); }
 
       operator ItemT*() const { return cur_item; }
@@ -164,7 +169,7 @@ public:
       Iterator &operator++() { next(); return *this; }
 
    protected:
-      HashTable<ItemT>& hash_table;
+      const HashTable<ItemT>& hash_table;
       int cur_id;
       ItemT* cur_item;
 
@@ -218,9 +223,28 @@ HashTable<ItemT>::HashTable(int init_size)
       MFEM_ABORT("HashTable(): init_size size must be a power of two.");
 
    table = new ItemT*[init_size];
-   memset(table, 0, init_size * sizeof(ItemT*));
+   std::memset(table, 0, init_size * sizeof(ItemT*));
 
    num_items = 0;
+}
+
+template<typename ItemT>
+HashTable<ItemT>::HashTable(const HashTable& other)
+   : mask(other.mask), num_items(0), id_gen(other.id_gen)
+{
+   int size = mask+1;
+   table = new ItemT*[size];
+   std::memset(table, 0, size * sizeof(ItemT*));
+
+   id_to_item.SetSize(other.id_to_item.Size());
+   id_to_item = NULL;
+
+   for (Iterator it(other); it; ++it)
+   {
+      ItemT* item = new ItemT(*it);
+      Insert(hash(item), item);
+      id_to_item[item->id] = item;
+   }
 }
 
 template<typename ItemT>

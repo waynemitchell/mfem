@@ -570,12 +570,12 @@ void FiniteElementSpace::GetEdgeFaceDofs(int type, int index, Array<int> &dofs)
    dofs.SetSize(0);
    if (type)
    {
-      if (index >= mesh->GetNFaces())
+      if (index < mesh->GetNFaces())
          GetFaceDofs(index, dofs);
    }
    else
    {
-      if (index >= mesh->GetNEdges())
+      if (index < mesh->GetNEdges())
          GetEdgeDofs(index, dofs);
    }
 }

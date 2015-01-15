@@ -25,18 +25,18 @@ struct VarMessage
    {
       MPI_Request request;
       MPI_Isend(data.data(), data.length(), MPI_BYTE, rank, Tag, comm, &request);
+      std::cout << "Sent message length " << data.length() << std::endl;
       return request;
    }
 
    /** Blocking probe for incoming message of this type from any rank.
        Returns the rank and message size. */
-   static bool Probe(int &rank, int &size, MPI_Comm comm)
+   static void Probe(int &rank, int &size, MPI_Comm comm)
    {
       MPI_Status status;
       MPI_Probe(MPI_ANY_SOURCE, Tag, comm, &status);
       rank = status.MPI_SOURCE;
       MPI_Get_count(&status, MPI_BYTE, &size);
-      return true;
    }
 
    /// Post-probe receive from processor 'rank' of message size 'size'.
@@ -57,7 +57,7 @@ struct VarMessage
 class ParNCMesh : public NCMesh
 {
 public:
-   ParNCMesh(MPI_Comm comm, const Mesh* coarse_mesh);
+   ParNCMesh(MPI_Comm comm, const NCMesh& ncmesh);
 
    /** Return a list of edges shared by our processor and at least one other
        processor. This is just a subset of the regular EdgeList. */
@@ -67,8 +67,8 @@ public:
       return shared_edges;
    }
 
-   /** Return a list of faces shared by our processor and at least one other
-       processor. This is just a subset of the regular FaceList. */
+   /** Return a list of faces shared by our processor and another processor.
+       This is just a subset of the regular FaceList. */
    const FaceList& GetSharedFaces()
    {
       if (face_list.Empty()) BuildFaceList();
@@ -76,10 +76,10 @@ public:
    }
 
    /// Return processor owning an edge. (Note: any edge in the Mesh.)
-   int EdgeOwner(int index) const { edge_owner[index]; }
+   int EdgeOwner(int index) const { return edge_owner[index]; }
 
    /// Return processor owning a face. (Note: any face in the Mesh.)
-   int FaceOwner(int index) const { face_owner[index]; }
+   int FaceOwner(int index) const { return face_owner[index]; }
 
    /// Return a list of processors sharing an edge, and the list size.
    const int* EdgeGroup(int index, int &size) const
@@ -205,8 +205,8 @@ protected:
       ElementSet() {}
       ElementSet(std::istream &is) { Load(is); }
       void Load(std::istream &is);
-      void Get(Array<Element*> &elements,
-               const Array<Element*> &ncmesh_roots) const;
+      void Decode(Array<Element*> &elements,
+                  const Array<Element*> &ncmesh_roots) const;
 
    protected:
       Array<unsigned char> data; ///< encoded refinement (sub-)trees
@@ -218,13 +218,17 @@ protected:
       int GetInt(int pos) const;
    };
 
+   /// Write to 'os' a processor-independent encoding of given edge and face IDs.
    void EncodeEdgesFaces(const Array<EdgeId> &edges, const Array<FaceId> &faces,
                          std::ostream &os) const;
 
+   /// Read from 'is' a processor-independent encoding of edge and face IDs.
    void DecodeEdgesFaces(Array<EdgeId> &edges, Array<FaceId> &faces,
                          std::istream &is) const;
 
+   friend class ParMesh;
    friend class NeighborDofMessage;
+
 };
 
 inline bool operator< (const NCMesh::FaceId &a, const NCMesh::FaceId &b)

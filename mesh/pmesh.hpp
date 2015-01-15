@@ -83,6 +83,8 @@ public:
    Table            send_face_nbr_elements;
    Table            send_face_nbr_vertices;
 
+   ParNCMesh* pncmesh;
+
    int GetNGroups() { return gtopo.NGroups(); }
 
    // next 6 methods do not work for the 'local' group 0
