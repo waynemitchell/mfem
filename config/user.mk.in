@@ -9,6 +9,8 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
+# See the file INSTALL for description of the configuration options.
+
 # All variables in this file are optional.
 
 CXX = g++
@@ -35,6 +37,7 @@ METIS_DIR = @MFEM_DIR@/../metis-4.0
 METIS_OPT =
 METIS_LIB = -L$(METIS_DIR) -lmetis
 
+LAPACK_OPT =
 LAPACK_LIB = -llapack
 
 OPENMP_OPT = -fopenmp

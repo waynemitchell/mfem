@@ -120,8 +120,10 @@ DEP_CXX ?= $(MFEM_CXX)
 
 MFEM_USE_LAPACK ?= NO
 # LAPACK library configuration
+LAPACK_OPT ?=
 LAPACK_LIB ?= -llapack
 ifeq ($(MFEM_USE_LAPACK),YES)
+   INCFLAGS += $(LAPACK_OPT)
    ALL_LIBS += $(LAPACK_LIB)
 endif
 
