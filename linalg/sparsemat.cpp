@@ -32,7 +32,9 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
      Rows(new RowNode *[nrows]),
      current_row(-1),
      ColPtrJ(NULL),
-     ColPtrNode(NULL)
+     ColPtrNode(NULL),
+     ownIJ(true),
+     ownA(true)
 {
    for (int i = 0; i < nrows; i++)
    {
@@ -51,11 +53,35 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
      A(data),
      Rows(NULL),
      ColPtrJ(NULL),
-     ColPtrNode(NULL)
+     ColPtrNode(NULL),
+     ownIJ(true),
+     ownA(true)
 {
 #ifdef MFEM_USE_MEMALLOC
    NodesMem = NULL;
 #endif
+}
+
+SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij, bool owna)
+   : AbstractSparseMatrix(m, n),
+     I(i),
+     J(j),
+     A(data),
+     Rows(NULL),
+     ColPtrJ(NULL),
+     ColPtrNode(NULL),
+     ownIJ(ownij),
+     ownA(owna),
+{
+#ifdef MFEM_USE_MEMALLOC
+   NodesMem = NULL;
+#endif
+
+   if( A == NULL )
+   {
+     ownA = true;
+     A = new double[ I[height] ];
+   }
 }
 
 int SparseMatrix::RowSize(const int i) const
@@ -2013,15 +2039,15 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
 
 SparseMatrix::~SparseMatrix ()
 {
-   if( I != NULL)
+   if( I != NULL && ownIJ )
    {
       delete [] I;
    }
-   if( J != NULL)
+   if( J != NULL && ownIJ )
    {
       delete [] J;
    }
-   if (A != NULL)
+   if (A != NULL && ownA )
    {
       delete [] A;
    }

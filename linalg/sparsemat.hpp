@@ -58,6 +58,11 @@ private:
    RowNodeAlloc * NodesMem;
 #endif
 
+   /// Say whether we own the pointers for I and J (should we free them?).
+   bool ownIJ;
+   /// Say whether we own the pointers for A (should we free them?).
+   bool ownA;
+
    inline void SetColPtr(const int row);
    inline void ClearColPtr();
    inline double &SearchRow(const int col);
@@ -78,6 +83,8 @@ public:
    explicit SparseMatrix(int nrows, int ncols = 0);
 
    SparseMatrix(int *i, int *j, double *data, int m, int n);
+
+   SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij, bool owna );
 
    /// For backward compatibility define Size to be synonym of Height()
    int Size() const { return Height(); }
