@@ -32,6 +32,7 @@ or comments</a></em>.
    <label><input type="radio" id="maxwell" onchange="update(this.id);" />Definite Maxwell</label><br/>
    <label><input type="radio" id="graddiv" onchange="update(this.id);" />grad-div</label><br/>
    <label><input type="radio" id="darcy" onchange="update(this.id);" />Darcy</label><br/>
+   <label><input type="radio" id="advection" onchange="update(this.id);" />Advection</label><br/>
 </div>
 
 <div id="column2" style="float:left; width:26%;">
@@ -55,7 +56,7 @@ or comments</a></em>.
 </div>
 
 <div id="column4" style="float:left; width:29%">
-   <h4>Linear Solver</h4>
+   <h4>Solver</h4>
    <label><input type="radio" id="all4" onchange="update(this.id);" checked="checked" />All</label><br/>
    <label><input type="radio" id="jacobi" onchange="update(this.id);" />Jacobi</label> <br/>
    <label><input type="radio" id="gs" onchange="update(this.id);" />Gauss-Seidel</label> <br/>
@@ -65,6 +66,7 @@ or comments</a></em>.
    <label><input type="radio" id="ams" onchange="update(this.id);" />Auxiliary-space Maxwell Solver (AMS)</label> <br/>
    <label><input type="radio" id="ads" onchange="update(this.id);" />Auxiliary-space Divergence Solver (ADS)</label> <br/>
    <label><input type="radio" id="umfpack" onchange="update(this.id);" />UMFPACK (serial direct)</label><br/>
+   <label><input type="radio" id="rk" onchange="update(this.id);" />Runge-Kutta (ODE integration)</label><br/>
    <br/>
 </div>
 </div>
@@ -258,6 +260,24 @@ We recommend viewing examples 1-5 before viewing this example.</em>
 </div>
 
 <!----------------------------------------------------------------------------->
+<div id="ex9">
+\htmlonly <hr style="clear:both;"/><img src="ex9.png" style="float:right;"> \endhtmlonly
+<h2>Example 9</h2>
+
+This example code solves the simple time-dependent advection equation
+\f[ \frac{du}{dt} = v \cdot \nabla u, \f] where \f$v\f$ is the fluid
+velocity, and \f$u_0(x)=u(0,x)\f$ is a given initial condition.
+<p>
+The example demonstrates the use of Discontinuous Galerkin (DG) bilinear forms
+in MFEM (face integrators), the use of explicit ODE time integrators, the
+definition of periodic boundary conditions through periodic meshes, as well as
+the use of GLVis for the persistent visualization of time-evolving solution.
+<center>
+<em>The example has a serial (ex9.cpp) and a parallel (ex9p.cpp) version.</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
 <div id="nomatch"><hr>
 <br/><br/><br/>
 <center>
@@ -315,10 +335,10 @@ function exampleVisible(num)
 
 function update(id)
 {
-   var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy"];
+   var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy", "advection"];
    var group2 = ["all2", "l2", "h1", "hcurl", "hdiv"];
    var group3 = ["all3", "galerkin", "mixed", "dg", "dpg", "nurbs", "amr" ];
-   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack"];
+   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack", "rk"];
 
    updateGroup(group1, id);
    updateGroup(group2, id);
@@ -333,6 +353,7 @@ function update(id)
    showElement("ex6",  laplace && h1 && (galerkin || nurbs || amr) && (gs || pcg || umfpack));
    showElement("ex7",  laplace && h1 && galerkin && (gs || pcg || umfpack || amg));
    showElement("ex8",  laplace && h1 && dpg && (gs || pcg || umfpack || amg));
+   showElement("ex9",  advection && l2 && dg && (pcg || rk));
 
    // NOTE: update 'numExamples' below when adding examples!
    var numExamples = 8;

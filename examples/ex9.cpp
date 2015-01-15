@@ -1,21 +1,28 @@
-//                             MFEM Example 9
+//                                MFEM Example 9
 //
 // Compile with: make ex9
 //
-// Sample runs:
-//      ./ex9 -m ../data/periodic-segment.mesh -p 0 -r 2 -dt 0.005
-//      ./ex9 -m ../data/periodic-square.mesh -p 0 -r 2 -dt 0.01 -tf 10
-//      ./ex9 -m ../data/periodic-hexagon.mesh -p 0 -r 2 -dt 0.01 -tf 10
-//      ./ex9 -m ../data/periodic-square.mesh -p 1 -r 2 -dt 0.005 -tf 9
-//      ./ex9 -m ../data/periodic-hexagon.mesh -p 1 -r 2 -dt 0.005 -tf 9
-//      ./ex9 -m ../data/disc-nurbs.mesh -p 2 -r 3 -dt 0.005 -tf 9
-//      ./ex9 -m ../data/periodic-square.mesh -p 3 -r 4 -dt 0.0025 -tf 9 -vs 20
+// Sample runs:  ex9 -m ../data/periodic-segment.mesh -p 0 -r 2 -dt 0.005
+//               ex9 -m ../data/periodic-square.mesh -p 0 -r 2 -dt 0.01 -tf 10
+//               ex9 -m ../data/periodic-hexagon.mesh -p 0 -r 2 -dt 0.01 -tf 10
+//               ex9 -m ../data/periodic-square.mesh -p 1 -r 2 -dt 0.005 -tf 9
+//               ex9 -m ../data/periodic-hexagon.mesh -p 1 -r 2 -dt 0.005 -tf 9
+//               ex9 -m ../data/disc-nurbs.mesh -p 2 -r 3 -dt 0.005 -tf 9
+//               ex9 -m ../data/periodic-square.mesh -p 3 -r 4 -dt 0.0025 -tf 9 -vs 20
 //
-// Description:  TODO
+// Description:  This example code solves the simple time-dependent advection
+//               equation du/dt = v.grad(u), where v is the fluid velocity, and
+//               u0(x)=u(0,x) is a given initial condition.
+//
+//               The example demonstrates the use of Discontinuous Galerkin (DG)
+//               bilinear forms in MFEM (face integrators), the use of explicit
+//               ODE time integrators, the definition of periodic boundary
+//               conditions through periodic meshes, as well as the use of GLVis
+//               for the persistent visualization of time-evolving solution.
 
+#include "mfem.hpp"
 #include <iostream>
 #include <fstream>
-#include "mfem.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -34,7 +41,11 @@ double u0_function(Vector &x);
 double inflow_function(Vector &x);
 
 
-/// TODO: short description
+/** A time-dependent operator for the right-hand side of the ODE. The DG weak
+    form of du/dt = v.grad(u) is M du/dt = K u + b, where M and K are the mass
+    and advection matrices, and b describes the flow on the boundary. This can
+    be written as a general ODE, du/dt = M^{-1} (K u + b), and this class is used
+    to evaluate the right-hand side. */
 class FE_Evolution : public TimeDependentOperator
 {
 private:
@@ -56,8 +67,7 @@ public:
 
 int main(int argc, char *argv[])
 {
-   OptionsParser args(argc, argv);
-
+   // 1. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
    int ref_levels = 2;
@@ -65,14 +75,17 @@ int main(int argc, char *argv[])
    int ode_solver_type = 4;
    double t_final = 10.0;
    double dt = 0.01;
-
-   bool visualization = true;
+   bool visualization = 1;
    int vis_steps = 5;
 
+   int precision = 8;
+   cout.precision(precision);
+
+   OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&problem, "-p", "--problem",
-                  "Problem setup to use.");
+                  "Problem setup to use. See options in velocity_function().");
    args.AddOption(&ref_levels, "-r", "--refine",
                   "Number of times to refine the mesh uniformly.");
    args.AddOption(&order, "-o", "--order",
@@ -84,16 +97,11 @@ int main(int argc, char *argv[])
                   "Final time; start time is 0.");
    args.AddOption(&dt, "-dt", "--time-step",
                   "Time step.");
-
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
-
-   int precision = 8;
-
-   cout.precision(precision);
 
    args.Parse();
    if (!args.Good())
@@ -103,6 +111,8 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
+   // 2. Read the mesh from the given mesh file. We can handle geometrically
+   //    periodic meshes in this code.
    Mesh *mesh;
    {
       ifstream imesh(mesh_file);
@@ -113,7 +123,10 @@ int main(int argc, char *argv[])
       }
       mesh = new Mesh(imesh, 1, 1);
    }
+   int dim = mesh->Dimension();
 
+   // 3. Define the ODE solver used for time integration. Several explicit
+   //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
    switch (ode_solver_type)
    {
@@ -127,10 +140,13 @@ int main(int argc, char *argv[])
       return 3;
    }
 
+   // 4. Refine the mesh to increase the resolution. In this example we do
+   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
+   //    command-line parameter. If the mesh is of NURBS type, we convert it to
+   //    a (piecewise-polynomial) high-order mesh.
    for (int lev = 0; lev < ref_levels; lev++)
       mesh->UniformRefinement();
 
-   int dim = mesh->Dimension();
    if (mesh->NURBSext)
    {
       int mesh_order = std::max(order, 1);
@@ -140,18 +156,16 @@ int main(int argc, char *argv[])
       mesh->GetNodes()->MakeOwner(mfec);
    }
 
-   {
-      const char out_mesh_file[] = "ex9.mesh";
-      ofstream omesh(out_mesh_file);
-      omesh.precision(precision);
-      mesh->Print(omesh);
-   }
-
+   // 5. Define the discontinuous DG finite element space on the mesh of the
+   //    given polynomial order.
    DG_FECollection fec(order, dim);
    FiniteElementSpace fes(mesh, &fec);
 
    cout << "Total number of dofs = " << fes.GetVSize() << endl;
 
+   // 6. Set up and assemble the bilinear and linear forms corresponding to the
+   //    DG discretization. The DGTraceIntegrator object involves integrals over
+   //    the interior faces in the mesh.
    VectorFunctionCoefficient velocity(dim, velocity_function);
    FunctionCoefficient inflow(inflow_function);
    FunctionCoefficient u0(u0_function);
@@ -175,18 +189,19 @@ int main(int argc, char *argv[])
    K.Finalize(skip_zeros);
    b.Assemble();
 
+   // 7. Define the initial conditions, save the corresponding function to a
+   //    file and (optionally) initialize GLVis visualization.
    GridFunction u(&fes);
    u.ProjectCoefficient(u0);
 
    {
-      const char init_solution_file[] = "ex9-init.sol";
-      ofstream osol(init_solution_file);
+      ofstream omesh("ex9.mesh");
+      omesh.precision(precision);
+      mesh->Print(omesh);
+      ofstream osol("ex9-init.sol");
       osol.precision(precision);
       u.Save(osol);
    }
-
-   FE_Evolution adv(M.SpMat(), K.SpMat(), b);
-   ode_solver->Init(adv);
 
    socketstream sout;
    if (visualization)
@@ -212,7 +227,12 @@ int main(int argc, char *argv[])
       }
    }
 
-   // time stepping loop
+   // 8. Define the time-dependend evolution operator describing the ODE
+   //    right-hand side, and perform time-integration (looping over the time
+   //    iterations, ti, with a time-step dt).
+   FE_Evolution adv(M.SpMat(), K.SpMat(), b);
+   ode_solver->Init(adv);
+
    double t = 0.0;
    for (int ti = 0; true; )
    {
@@ -223,11 +243,10 @@ int main(int argc, char *argv[])
       ti++;
 
       if (visualization && (ti % vis_steps == 0))
-      {
          sout << "solution\n" << *mesh << u << flush;
-      }
    }
 
+   // 9. Save the final solution.
    {
       const char final_solution_file[] = "ex9-final.sol";
       ofstream osol(final_solution_file);
@@ -235,6 +254,7 @@ int main(int argc, char *argv[])
       u.Save(osol);
    }
 
+   // 10. Free the used memory.
    delete ode_solver;
    delete mesh;
 
