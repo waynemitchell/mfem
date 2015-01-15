@@ -66,7 +66,7 @@ or comments</a></em>.
    <label><input type="radio" id="ams" onchange="update(this.id);" />Auxiliary-space Maxwell Solver (AMS)</label> <br/>
    <label><input type="radio" id="ads" onchange="update(this.id);" />Auxiliary-space Divergence Solver (ADS)</label> <br/>
    <label><input type="radio" id="umfpack" onchange="update(this.id);" />UMFPACK (serial direct)</label><br/>
-   <label><input type="radio" id="rk" onchange="update(this.id);" />Runge-Kutta (ODE integration)</label><br/>
+   <label><input type="radio" id="rk" onchange="update(this.id);" />explicit Runge-Kutta (ODE integration)</label><br/>
    <br/>
 </div>
 </div>
@@ -278,6 +278,17 @@ the use of GLVis for the persistent visualization of time-evolving solution.
 </div>
 
 <!----------------------------------------------------------------------------->
+<div id="ex10">
+\htmlonly <hr style="clear:both;"/><img src="ex10.png" style="float:right;"> \endhtmlonly
+<h2>Example 10</h2>
+
+This example code solves nonlinear elasticity
+<center>
+<em>The example has a serial (ex10.cpp) and a parallel (ex10p.cpp) version.</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
 <div id="nomatch"><hr>
 <br/><br/><br/>
 <center>
@@ -354,6 +365,7 @@ function update(id)
    showElement("ex7",  laplace && h1 && galerkin && (gs || pcg || umfpack || amg));
    showElement("ex8",  laplace && h1 && dpg && (gs || pcg || umfpack || amg));
    showElement("ex9",  advection && l2 && dg && (pcg || rk));
+   showElement("ex10", elasticity && h1 && galerkin && (pcg || rk));
 
    // NOTE: update 'numExamples' below when adding examples!
    var numExamples = 8;

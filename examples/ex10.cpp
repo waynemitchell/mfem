@@ -1,16 +1,16 @@
-//                             MFEM Example 10
+//                                MFEM Example 10
 //
 // Compile with: make ex10
 //
-// Sample runs:  ./ex10 -m ../data/beam-quad.mesh -r 2 -o 2 -dt 0.03
-//               ./ex10 -m ../data/beam-hex.mesh -r 1 -o 2 -dt 0.05
+// Sample runs:  ex10 -m ../data/beam-quad.mesh -r 2 -o 2 -dt 0.03
+//               ex10 -m ../data/beam-hex.mesh -r 1 -o 2 -dt 0.05
 //
-// Description:  TODO
+// Description:  Time dependent nonlinear elasticity
 
+#include "mfem.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
-#include "mfem.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -78,8 +78,7 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
 
 int main(int argc, char *argv[])
 {
-   OptionsParser args(argc, argv);
-
+   // 1. Parse command-line options.
    const char *mesh_file = "../data/beam-quad.mesh";
    int ref_levels = 2;
    int order = 2;
@@ -87,10 +86,10 @@ int main(int argc, char *argv[])
    double t_final = 300.0;
    double dt = 0.03;
    double visc = 1e-2;
-
    bool visualization = true;
    int vis_steps = 20;
 
+   OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&ref_levels, "-r", "--refine",
@@ -106,7 +105,6 @@ int main(int argc, char *argv[])
                   "Time step.");
    args.AddOption(&visc, "-v", "--viscosity",
                   "Viscosity coefficient.");
-
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -121,6 +119,8 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
+   // 2. Read the mesh from the given mesh file. We can handle geometrically
+   //    periodic meshes in this code.
    Mesh *mesh;
    {
       ifstream imesh(mesh_file);
@@ -131,7 +131,10 @@ int main(int argc, char *argv[])
       }
       mesh = new Mesh(imesh, 1, 1);
    }
+   int dim = mesh->Dimension();
 
+   // 3. Define the ODE solver used for time integration. Several explicit
+   //    Runge-Kutta methods are available.
    ODESolver *ode_solver;
    switch (ode_solver_type)
    {
@@ -144,10 +147,12 @@ int main(int argc, char *argv[])
    default: ode_solver = new RK8Solver; break;
    }
 
+   // 4. Refine the mesh to increase the resolution. In this example we do
+   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
+   //    command-line parameter.
    for (int lev = 0; lev < ref_levels; lev++)
       mesh->UniformRefinement();
 
-   int dim = mesh->Dimension();
 
    H1_FECollection fe_coll(order, dim);
    FiniteElementSpace fespace(mesh, &fe_coll, dim);
@@ -226,6 +231,7 @@ int main(int argc, char *argv[])
       }
    }
 
+   // 11. Save the displaced mesh, the velocity and elastic energy.
    {
       GridFunction *nodes = &x;
       int owns_nodes = 0;
@@ -243,6 +249,7 @@ int main(int argc, char *argv[])
       w.Save(ee_ofs);
    }
 
+   // 10. Free the used memory.
    delete ode_solver;
    delete mesh;
 
