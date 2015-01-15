@@ -79,7 +79,7 @@ else
 endif
 
 # Default installation location
-PREFIX ?= /usr/local/mfem
+PREFIX ?= ./mfem
 
 # Default serial and parallel compilers
 CXX ?= g++
@@ -186,7 +186,7 @@ MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INCFLAGS\
- MFEM_FLAGS MFEM_LIBS MFEM_LIB_FILE MFEM_BUILD_TAG
+ MFEM_FLAGS MFEM_LIBS MFEM_LIB_FILE MFEM_BUILD_TAG MFEM_PREFIX
 
 # Config vars: values of the form @VAL@ are replaced by $(VAL) in config.mk
 MFEM_CPPFLAGS  ?= $(CPPFLAGS)
@@ -196,6 +196,7 @@ MFEM_FLAGS     ?= @MFEM_CPPFLAGS@ @MFEM_CXXFLAGS@ @MFEM_INCFLAGS@
 MFEM_LIBS      ?= $(ALL_LIBS) $(LDFLAGS)
 MFEM_LIB_FILE  ?= @MFEM_DIR@/libmfem.a
 MFEM_BUILD_TAG ?= $(shell uname -snm)
+MFEM_PREFIX    ?= $(PREFIX)
 
 # If we have 'config' target, export variables used by config/makefile
 ifneq (,$(filter config,$(MAKECMDGOALS)))
@@ -249,19 +250,21 @@ clean:
 distclean: clean
 	$(MAKE) -C config clean
 
-install:
+install: libmfem.a
 # install static library
-	mkdir -p $(PREFIX)/lib
-	/usr/bin/install -m 640 libmfem.a $(PREFIX)/lib/
+	mkdir -p $(MFEM_PREFIX)/lib
+	/usr/bin/install -m 640 libmfem.a $(MFEM_PREFIX)/lib/
 # install top level includes
-	mkdir -p $(PREFIX)/include
-	/usr/bin/install -m 640 mfem.hpp mfem_defs.hpp $(PREFIX)/include
-# install config includes
-	mkdir -p $(PREFIX)/include/config
-	/usr/bin/install -m 640 config/config.hpp $(PREFIX)/include/config
+	mkdir -p $(MFEM_PREFIX)/include
+	/usr/bin/install -m 640 mfem.hpp $(MFEM_PREFIX)/include
+# install config include
+	mkdir -p $(MFEM_PREFIX)/include/config
+	/usr/bin/install -m 640 config/config.hpp $(MFEM_PREFIX)/include/config
 # install remaining includes in each subdirectory
-	for dir in $(DIRS); do mkdir -p $(PREFIX)/include/$$dir; done 
-	for dir in $(DIRS); do /usr/bin/install -m 640 $$dir/*.hpp $(PREFIX)/include/$$dir; done
+	for dir in $(DIRS); do mkdir -p $(MFEM_PREFIX)/include/$$dir; done 
+	for dir in $(DIRS); do /usr/bin/install -m 640 $$dir/*.hpp $(MFEM_PREFIX)/include/$$dir; done
+# install config.mk at root of install tree
+	/usr/bin/install -m 640 config/config.mk $(MFEM_PREFIX)
 
 
 $(CONFIG_MK):
@@ -297,4 +300,5 @@ status info:
 	$(info MFEM_LIBS            = $(value MFEM_LIBS))
 	$(info MFEM_LIB_FILE        = $(value MFEM_LIB_FILE))
 	$(info MFEM_BUILD_TAG       = $(value MFEM_BUILD_TAG))
+	$(info MFEM_PREFIX          = $(value MFEM_PREFIX))
 	@true
