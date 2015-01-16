@@ -197,7 +197,6 @@ int main (int argc, char *argv[])
 
    // 10. Solve the linear system with MINRES.
    //     Check the norm of the unpreconditioned residual.
-
    int maxIter(500);
    double rtol(1.e-6);
    double atol(1.e-10);
@@ -258,6 +257,12 @@ int main (int argc, char *argv[])
       p.Save(p_ofs);
    }
 
+   // 13. Save data in the VisIt format
+   VisItDataCollection visit_dc("example5", mesh);
+   visit_dc.RegisterField("velocity", &u);
+   visit_dc.RegisterField("pressure", &p);
+   visit_dc.Save();
+
    // 13. Send the solution by socket to a GLVis server.
    if (visualization)
    {
@@ -271,7 +276,7 @@ int main (int argc, char *argv[])
       p_sock << "solution\n" << *mesh << p << "window_title 'Pressure'" << endl;
    }
 
-   // 14. Free the used memory.
+   // 15. Free the used memory.
    delete fform;
    delete gform;
    delete invM;

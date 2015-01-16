@@ -19,62 +19,128 @@
 namespace mfem
 {
 
-class Mesh;
-class GridFunction;
-class RootData;
-
-
+/** A class for collecting finite element data that is part of the same
+    simulation. Currently, this class groups together several grid functions
+    (fields) and the mesh that they are defined on. */
 class DataCollection
 {
 protected:
-   RootData *root_data;
+   /// Name of the collection, used as a directory name when saving
+   std::string name;
+
+   /// The fields and their names (used when saving)
+   std::map<std::string, GridFunction*> field_map;
+   /// The (common) mesh for the collected fields
    Mesh *mesh;
 
-   int my_rank;
+   /// Time cycle (for time-dependent simulations)
+   int cycle;
+   /// Physical time (for time-dependent simulations)
+   double time;
+
+   /// Serial or parallel run?
+   bool serial;
+   /// MPI rank (in parallel)
+   int myid;
+   /// Number of MPI ranks (in parallel)
+   int num_procs;
+
+   /// Should the collection delete its mesh and fields
    bool own_data;
-   std::map<std::string, GridFunction*> field_map;
-
-   /// Interact with the Mesh files
-   void SaveMesh();
-
-   /// Interact with the Field files
-   void SaveFields();
-   void LoadFieldsFromRootData();
 
 public:
-   /// Constructors for initializing an empty collection so we can load a mesh and fields into it.
-   /// If running in parallel, the mpi_rank is necessary 
-   DataCollection(const char *collection_name, int mpi_rank = 0);
-
-   /// Constructor for initializing a collection with a mesh
+   /** Create an empty collection with the given name. The myid parameter
+       specifies if we are running in serial or parallel. */
+   DataCollection(const char *collection_name, int _myid = 0);
+   /// Initialize the collection with its mesh
    DataCollection(const char *collection_name, Mesh *_mesh);
 
-   /// Various Accessors
-   const char* GetCollectionName();
-   void SetOwnData(bool _own_data);
-   void SetCycle(int c);
-   int GetCycle();
-   void SetTime(double t);
-   double GetTime();
-   void SetVisitParameters(int max_levels_of_detail);
-   Mesh *GetMesh();
-
-   /// Interact with the fields map
-   void RegisterField(const char *field_name, GridFunction *gf);
-   bool HasField(const char *name) {return field_map.count(name) == 1;};
+   /// Add a grid function to the collection
+   virtual void RegisterField(const char *field_name, GridFunction *gf);
+   /// Get a pointer to a grid function in the collection
    GridFunction *GetField(const char *field_name);
+   /// Check if a grid function is part of the collection
+   bool HasField(const char *name) { return field_map.count(name) == 1; }
+   /// Get a pointer to the mesh in the collection
+   Mesh *GetMesh() { return mesh; }
 
-   /// Interact with MFEM data files
-   void SaveData();
-   void LoadMesh(int cycle = 0);
-   void LoadField(const char *field_name);
+   /// Set time cycle (for time-dependent simulations)
+   void SetCycle(int c) { cycle = c; }
+   /// Set physical time (for time-dependent simulations)
+   void SetTime(double t) { time = t; }
 
-   /// Interact with Visit data files
-   void SaveVisitData();
-   void LoadVisitData(int cycle = 0);
+   /// Get time cycle (for time-dependent simulations)
+   int GetCycle() { return cycle; }
+   /// Get physical time (for time-dependent simulations)
+   double GetTime() { return time; }
+   /// Get the name of the collection
+   const char* GetCollectionName() { return name.c_str(); }
+   /// Set the ownership of collection data
+   void SetOwnData(bool o) { own_data = o; }
+
+   /** Save the collection to disk. By default, everything is saved in a
+       directory with name <collection_name> or <collection_name>_cycle for
+       time-dependent simulations. */
+   virtual void Save();
+
+   /// Delete the mesh and fields if owned by the collection
+   virtual ~DataCollection();
+};
+
+
+/// Helper class for VisIt visualization data
+class VisItFieldInfo
+{
+public:
+   std::string association;
+   int num_components;
+   VisItFieldInfo() { association = ""; num_components = 0; }
+   VisItFieldInfo(std::string _association, int _num_components)
+   { association = _association; num_components = _num_components; }
+};
+
+/// Data collection with VisIt I/O routines
+class VisItDataCollection : public DataCollection
+{
+protected:
+   // Additional data needed in the VisIt root file, which describes the mesh
+   // and all the fields in the collection
+   int spatial_dim, topo_dim;
+   int visit_max_levels_of_detail;
+   int num_ranks;
+   std::map<std::string, VisItFieldInfo> field_info_map;
+
+   /// Prepare the VisIt root file in JSON format for the current collection
+   std::string GetVisItRootString();
+   /// Read in a VisIt root file in JSON format
+   void ParseVisItRootString(std::string json);
+
+   // Helper functions for LoadVisItData()
+   void LoadVisItRootFile(std::string root_name);
+   void LoadMesh();
+   void LoadFields();
+
+public:
+   /** Create an empty collection with the given name. The myid parameter
+    specifies if we are running in serial or parallel. */
+   VisItDataCollection(const char *collection_name, int _myid = 0);
+   /// Initialize the collection with its mesh, fill-in the extra VisIt data
+   VisItDataCollection(const char *collection_name, Mesh *_mesh);
+
+   /// Add a grid function to the collection and update the root file
+   virtual void RegisterField(const char *field_name, GridFunction *gf);
+
+   /// Set additional VisIt parameters
+   void SetVisItParameters(int max_levels_of_detail);
+
+   /// Save the collection and a VisIt root file
+   virtual void Save();
+
+   /// Load the collection based on its VisIt data (described in its root file)
+   void Load(int _cycle = 0);
 
    /// We will delete the mesh and fields if we own them
-   ~DataCollection();
+   virtual ~VisItDataCollection() {}
 };
 
 }
