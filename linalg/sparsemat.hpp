@@ -63,6 +63,9 @@ private:
    /// Say whether we own the pointers for A (should we free them?).
    bool ownA;
 
+   /// Are the columns sorted already.
+   bool isSorted;
+
    inline void SetColPtr(const int row);
    inline void ClearColPtr();
    inline double &SearchRow(const int col);
@@ -84,7 +87,8 @@ public:
 
    SparseMatrix(int *i, int *j, double *data, int m, int n);
 
-   SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij, bool owna );
+   SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij, bool owna,
+                bool issorted );
 
    /// For backward compatibility define Size to be synonym of Height()
    int Size() const { return Height(); }
@@ -228,6 +232,7 @@ public:
    virtual void Finalize(int skip_zeros = 1);
 
    bool Finalized() const { return (A != NULL); }
+   bool areColumnsSorted() const {return isSorted; }
 
    /** Split the matrix into M x N blocks of sparse matrices in CSR format.
        The 'blocks' array is M x N (i.e. M and N are determined by its

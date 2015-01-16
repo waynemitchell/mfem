@@ -34,7 +34,8 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
      ColPtrJ(NULL),
      ColPtrNode(NULL),
      ownIJ(true),
-     ownA(true)
+     ownA(true),
+     isSorted(false)
 {
    for (int i = 0; i < nrows; i++)
    {
@@ -55,14 +56,16 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
      ColPtrJ(NULL),
      ColPtrNode(NULL),
      ownIJ(true),
-     ownA(true)
+     ownA(true),
+     isSorted(false)
 {
 #ifdef MFEM_USE_MEMALLOC
    NodesMem = NULL;
 #endif
 }
 
-SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij, bool owna)
+SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n,
+                           bool ownij, bool owna, bool issorted)
    : AbstractSparseMatrix(m, n),
      I(i),
      J(j),
@@ -71,16 +74,17 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n, bool owni
      ColPtrJ(NULL),
      ColPtrNode(NULL),
      ownIJ(ownij),
-     ownA(owna)
+     ownA(owna),
+     isSorted(issorted)
 {
 #ifdef MFEM_USE_MEMALLOC
    NodesMem = NULL;
 #endif
 
-   if( A == NULL )
+   if ( A == NULL )
    {
-     ownA = true;
-     A = new double[ I[height] ];
+      ownA = true;
+      A = new double[ I[height] ];
    }
 }
 
@@ -193,7 +197,12 @@ void SparseMatrix::SetWidth(int newWidth)
 
 void SparseMatrix::SortColumnIndices()
 {
-   MFEM_VERIFY(!Rows, "Matrix is not Finalized!");
+   MFEM_VERIFY(Finalized(), "Matrix is not Finalized!");
+
+   if (isSorted)
+   {
+      return;
+   }
 
    Array<Pair<int,double> > row;
    for (int j = 0, i = 0; i < height; i++)
@@ -212,6 +221,7 @@ void SparseMatrix::SortColumnIndices()
          A[j] = row[k].two;
       }
    }
+   isSorted = true;
 }
 
 double &SparseMatrix::Elem(int i, int j)
@@ -541,17 +551,33 @@ void SparseMatrix::Finalize(int skip_zeros)
          }
       I[i] = I[i-1] + nr;
    }
+
    nz = I[height];
    J = new int[nz];
    A = new double[nz];
+   // Assume we're sorted until we find out otherwise
+   isSorted = true;
    for (j = i = 0; i < height; i++)
+   {
+      int lastCol = -1;
       for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
+      {
          if (!skip_zeros || aux->Value != 0.0)
          {
             J[j] = aux->Column;
             A[j] = aux->Value;
+
+            if ( lastCol > J[j] )
+            {
+               isSorted = false;
+            }
+            lastCol = J[j];
+
             j++;
          }
+      }
+   }
+
 #ifdef MFEM_USE_MEMALLOC
    delete NodesMem;
    NodesMem = NULL;
@@ -567,6 +593,7 @@ void SparseMatrix::Finalize(int skip_zeros)
       }
    }
 #endif
+
    delete [] Rows;
    Rows = NULL;
 }
@@ -2039,11 +2066,11 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
 
 SparseMatrix::~SparseMatrix ()
 {
-   if( I != NULL && ownIJ )
+   if ( I != NULL && ownIJ )
    {
       delete [] I;
    }
-   if( J != NULL && ownIJ )
+   if ( J != NULL && ownIJ )
    {
       delete [] J;
    }
