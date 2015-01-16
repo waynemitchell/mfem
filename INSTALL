@@ -76,7 +76,15 @@ are also defined:
 Note that any of the above shortcuts accept configuration options, either at the
 command line or through a user configuration file.
 
-Information about the current configuration can be viewed using
+An optional installation of the library and the headers can be performed with
+
+   make install [PREFIX=<dir>]
+
+The library will be installed in $(PREFIX)/lib, the headers in
+$(PREFIX)/include, and the configuration makefile (config.mk) in $(PREFIX).
+The PREFIX option can also be set during configuration.
+
+Information about the current build configuration can be viewed using
 
    make status
    make info
@@ -108,10 +116,16 @@ Compilers:
    MPICXX - MPI C++ compiler, parallel build
 
 Compiler options:
-   OPTIM_FLAGS - options for optimized build
-   DEBUG_FLAGS - options for debug build
-   CXXFLAGS    - if not set, defined based on the above optimized/debug flags
-   CPPFLAGS    - additional compiler options
+   OPTIM_FLAGS - Options for optimized build
+   DEBUG_FLAGS - Options for debug build
+   CXXFLAGS    - If not set, defined based on the above optimized/debug flags
+   CPPFLAGS    - Additional compiler options
+
+Installation options:
+   PREFIX  - Specify the installation directory. The library (libmfem.a) will be
+             installed in $(PREFIX)/lib, the headers in $(PREFIX)/include, and
+             the configuration makefile (config.mk) in $(PREFIX).
+   INSTALL - Specify the install program, e.g /usr/bin/install
 
 MFEM library features/options
 -----------------------------
@@ -175,8 +189,8 @@ Two types of library configuration options are used:
    <LIBNAME>_LIB - for link options which usually specify link path and library
                    name, e.g.: -L/home/user/hypre/lib -lHYPRE
 
-Paths relative to the top-level MFEM directory can be specified using the string
-@MFEM_DIR@, e.g. HYPRE_OPT = -I@MFEM_DIR@/../hypre.
+If specifying relative paths, they should be relative to the top-level MFEM
+directory and use the string @MFEM_DIR@, e.g. HYPRE_OPT = -I@MFEM_DIR@/../hypre.
 
 The specific libraries and their options are:
 

@@ -15,11 +15,12 @@ MFEM makefile targets:
 
    make config
    make
-   make status or make info
+   make status  or  make info
    make serial
    make parallel
    make debug
    make pdebug
+   make install
    make clean
    make distclean
 
@@ -40,6 +41,8 @@ make debug
    A shortcut to configure and build the serial debug version of the library.
 make pdebug
    A shortcut to configure and build the parallel debug version of the library.
+make install PREFIX=<dir>
+   Install the library and headers in <dir>/lib and <dir>/include.
 make clean
    Clean the library and object files, but keep configuration.
 make distclean
@@ -80,6 +83,7 @@ endif
 
 # Default installation location
 PREFIX ?= ./mfem
+INSTALL ?= /usr/bin/install
 
 # Default serial and parallel compilers
 CXX ?= g++
@@ -87,9 +91,9 @@ MPICXX ?= mpicxx
 OPTIM_FLAGS ?= -O3
 DEBUG_FLAGS ?= -g -Wall
 # Compile flags used by MFEM: CPPFLAGS, CXXFLAGS, plus library flags
-INCFLAGS = -I@MFEM_DIR@
+INCFLAGS = -I@MFEM_INC_DIR@
 # Link flags used by MFEM: library link flags plus LDFLAGS (added last)
-ALL_LIBS = -L@MFEM_DIR@ -lmfem
+ALL_LIBS = -L@MFEM_LIB_DIR@ -lmfem
 
 # The default value of CXXFLAGS is based on the value of MFEM_DEBUG
 MFEM_DEBUG ?= NO
@@ -185,8 +189,9 @@ MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC
 
 # List of makefile variables that will be written to config.mk:
-MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INCFLAGS\
- MFEM_FLAGS MFEM_LIBS MFEM_LIB_FILE MFEM_BUILD_TAG MFEM_PREFIX
+MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
+ MFEM_INCFLAGS MFEM_FLAGS MFEM_LIB_DIR MFEM_LIBS MFEM_LIB_FILE MFEM_BUILD_TAG\
+ MFEM_PREFIX
 
 # Config vars: values of the form @VAL@ are replaced by $(VAL) in config.mk
 MFEM_CPPFLAGS  ?= $(CPPFLAGS)
@@ -194,12 +199,31 @@ MFEM_CXXFLAGS  ?= $(CXXFLAGS)
 MFEM_INCFLAGS  ?= $(INCFLAGS)
 MFEM_FLAGS     ?= @MFEM_CPPFLAGS@ @MFEM_CXXFLAGS@ @MFEM_INCFLAGS@
 MFEM_LIBS      ?= $(ALL_LIBS) $(LDFLAGS)
-MFEM_LIB_FILE  ?= @MFEM_DIR@/libmfem.a
+MFEM_LIB_FILE  ?= @MFEM_LIB_DIR@/libmfem.a
 MFEM_BUILD_TAG ?= $(shell uname -snm)
 MFEM_PREFIX    ?= $(PREFIX)
+MFEM_INC_DIR   ?= @MFEM_DIR@
+MFEM_LIB_DIR   ?= @MFEM_DIR@
 
 # If we have 'config' target, export variables used by config/makefile
 ifneq (,$(filter config,$(MAKECMDGOALS)))
+   export $(MFEM_DEFINES) MFEM_DEFINES $(MFEM_CONFIG_VARS) MFEM_CONFIG_VARS
+   export VERBOSE
+endif
+
+# If we have 'install' target, export variables used by config/makefile
+ifneq (,$(filter install,$(MAKECMDGOALS)))
+   ifneq (install,$(MAKECMDGOALS))
+      $(error Target 'install' can not be combined with other targets)
+   endif
+   # Allow changing the PREFIX during install with: make install PREFIX=<dir>
+   PREFIX := $(MFEM_PREFIX)
+   PREFIX_INC := $(PREFIX)/include
+   PREFIX_LIB := $(PREFIX)/lib
+   MFEM_PREFIX := $(abspath $(PREFIX))
+   MFEM_DIR := $(abspath .)
+   MFEM_INC_DIR = $(abspath $(PREFIX_INC))
+   MFEM_LIB_DIR = $(abspath $(PREFIX_LIB))
    export $(MFEM_DEFINES) MFEM_DEFINES $(MFEM_CONFIG_VARS) MFEM_CONFIG_VARS
    export VERBOSE
 endif
@@ -209,7 +233,8 @@ DIRS = general linalg mesh fem
 SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
-.PHONY: all clean config info deps serial parallel debug pdebug
+.PHONY: all clean distclean install config status info deps serial parallel\
+ debug pdebug
 
 .SUFFIXES: .cpp .o
 .cpp.o:
@@ -252,20 +277,22 @@ distclean: clean
 
 install: libmfem.a
 # install static library
-	mkdir -p $(MFEM_PREFIX)/lib
-	/usr/bin/install -m 640 libmfem.a $(MFEM_PREFIX)/lib/
+	mkdir -p $(PREFIX_LIB)
+	$(INSTALL) -m 640 libmfem.a $(PREFIX_LIB)
 # install top level includes
-	mkdir -p $(MFEM_PREFIX)/include
-	/usr/bin/install -m 640 mfem.hpp $(MFEM_PREFIX)/include
+	mkdir -p $(PREFIX_INC)
+	$(INSTALL) -m 640 mfem.hpp $(PREFIX_INC)
 # install config include
-	mkdir -p $(MFEM_PREFIX)/include/config
-	/usr/bin/install -m 640 config/config.hpp $(MFEM_PREFIX)/include/config
+	mkdir -p $(PREFIX_INC)/config
+	$(INSTALL) -m 640 config/config.hpp $(PREFIX_INC)/config
 # install remaining includes in each subdirectory
-	for dir in $(DIRS); do mkdir -p $(MFEM_PREFIX)/include/$$dir; done 
-	for dir in $(DIRS); do /usr/bin/install -m 640 $$dir/*.hpp $(MFEM_PREFIX)/include/$$dir; done
+	for dir in $(DIRS); do \
+	   mkdir -p $(PREFIX_INC)/$$dir && \
+	   $(INSTALL) -m 640 $$dir/*.hpp $(PREFIX_INC)/$$dir; done
 # install config.mk at root of install tree
-	/usr/bin/install -m 640 config/config.mk $(MFEM_PREFIX)
-
+	$(MAKE) -C config config-mk CONFIG_MK=config-install.mk
+	$(INSTALL) -m 640 config/config-install.mk $(PREFIX)/config.mk
+	rm -f config/config-install.mk
 
 $(CONFIG_MK):
 	$(info )

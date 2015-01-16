@@ -9,8 +9,13 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
+# Use the MFEM build directory
 MFEM_DIR = ..
 CONFIG_MK = $(MFEM_DIR)/config/config.mk
+# Use the MFEM install directory
+# MFEM_DIR = ../mfem
+# CONFIG_MK = $(MFEM_DIR)/config.mk
+
 ifneq (clean,$(MAKECMDGOALS))
    -include $(CONFIG_MK)
 endif
