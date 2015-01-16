@@ -18,6 +18,7 @@
 #include <sys/types.h>  // socket, setsockopt, connect, recv, send
 #include <sys/socket.h> // socket, setsockopt, connect, recv, send
 #include <unistd.h>     // close
+#include <netinet/in.h> // sockaddr_in
 #define closesocket (::close)
 #else
 #include <winsock.h>

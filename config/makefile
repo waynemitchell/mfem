@@ -15,10 +15,6 @@ mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 # The list of all defines that may be enabled in config.hpp and config.mk
 # is kept in the MFEM_DEFINES variable, exported here from ../makefile
 
-# Extract the enabled (!=NO) defines
-DEFINES = $(shell for def in $${MFEM_DEFINES}; do\
-   if [ "NO" != "$${!def}" ]; then echo $${def}; fi; done)
-
 # The list of variables to set in config.mk using their current values
 # is kept in the MFEM_CONFIG_VARS variable, exported here from ../makefile
 
@@ -32,32 +28,37 @@ CONFIG_HPP = config.hpp
 # Output path + file name for the config makefile
 CONFIG_MK = config.mk
 
-ifeq ($(shell uname -s),Darwin)
-   SED_I = sed -i ''
-else
-   SED_I = sed -i
-endif
+.PHONY: all header config-mk
 
-.PHONY: all header makefile
-
-all: header makefile
+all: header config-mk
 
 header:
 	$(call mfem-info, Writing $(CONFIG_HPP) ...)
 	@cp -f config.hpp.in $(CONFIG_HPP) && \
-	for def in $(DEFINES); do \
-	   $(SED_I) -e "s|// \(#define $${def}\)|\1|" \
-	            -e "s#@$${def}@#$${!def}#g" \
-	            $(CONFIG_HPP); done
+	set -- && \
+	for def in $${MFEM_DEFINES}; do \
+	   eval var=\$$$$def && \
+	   if [ "NO" != "$${var}" ]; then \
+	      set -- "$$@" "-e" "s|// \(#define $${def}\)|\1|" && \
+	      set -- "$$@" "-e" "s#@$${def}@#$${var}#g"; \
+           fi; \
+	done && \
+	sed "$$@" $(CONFIG_HPP) > $(CONFIG_HPP).tmp && \
+	mv -f $(CONFIG_HPP).tmp $(CONFIG_HPP)
 
 # The target below uses the values of the shell variables listed in
 # the shell variables MFEM_DEFINES and MFEM_CONFIG_VARS
-makefile:
+config-mk:
 	$(call mfem-info, Writing $(CONFIG_MK) ...)
 	@cp -f config.mk.in $(CONFIG_MK) && \
+	set -- && \
 	for ref in $${MFEM_DEFINES} $${MFEM_CONFIG_VARS}; do \
-	   $(SED_I) "s#@$${ref}@#$${!ref}#g" $(CONFIG_MK); done && \
-	$(SED_I) -e 's/@\([^@]*\)@/$$(\1)/g' -e 's/ *$$//g' $(CONFIG_MK)
+	   eval var=\$$$$ref && \
+	   set -- "$$@" "-e" "s#@$${ref}@#$${var}#g"; \
+	done && \
+	set -- "$$@" "-e" 's/@\([^@]*\)@/$$(\1)/g' "-e" 's/ *$$//g' && \
+	sed "$$@" $(CONFIG_MK) > $(CONFIG_MK).tmp && \
+	mv -f $(CONFIG_MK).tmp $(CONFIG_MK)
 
 clean:
 	rm -f $(CONFIG_HPP) $(CONFIG_MK)
