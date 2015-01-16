@@ -18,7 +18,7 @@ namespace mfem
 void ForwardEulerSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   dxdt.SetSize(f->Size());
+   dxdt.SetSize(f->Width());
 }
 
 void ForwardEulerSolver::Step(Vector &x, double &t, double &dt)
@@ -33,7 +33,7 @@ void ForwardEulerSolver::Step(Vector &x, double &t, double &dt)
 void RK2Solver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   int n = f->Size();
+   int n = f->Width();
    dxdt.SetSize(n);
    x1.SetSize(n);
 }
@@ -62,7 +62,7 @@ void RK2Solver::Step(Vector &x, double &t, double &dt)
 void RK3SSPSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   int n = f->Size();
+   int n = f->Width();
    y.SetSize(n);
    k.SetSize(n);
 }
@@ -94,7 +94,7 @@ void RK3SSPSolver::Step(Vector &x, double &t, double &dt)
 void RK4Solver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   int n = f->Size();
+   int n = f->Width();
    y.SetSize(n);
    k.SetSize(n);
    z.SetSize(n);
@@ -142,7 +142,7 @@ ExplicitRKSolver::ExplicitRKSolver(int _s, const double *_a, const double *_b,
 void ExplicitRKSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   int n = f->Size();
+   int n = f->Width();
    y.SetSize(n);
    for (int i = 0; i < s; i++)
       k[i].SetSize(n);
@@ -329,7 +329,7 @@ const double RK8Solver::c[] = {
 void BackwardEulerSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   k.SetSize(f->Size());
+   k.SetSize(f->Width());
 }
 
 void BackwardEulerSolver::Step(Vector &x, double &t, double &dt)
@@ -344,7 +344,7 @@ void BackwardEulerSolver::Step(Vector &x, double &t, double &dt)
 void ImplicitMidpointSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   k.SetSize(f->Size());
+   k.SetSize(f->Width());
 }
 
 void ImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
@@ -371,8 +371,8 @@ SDIRK23Solver::SDIRK23Solver(int gamma_opt)
 void SDIRK23Solver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   k.SetSize(f->Size());
-   y.SetSize(f->Size());
+   k.SetSize(f->Width());
+   y.SetSize(f->Width());
 }
 
 void SDIRK23Solver::Step(Vector &x, double &t, double &dt)
@@ -398,9 +398,9 @@ void SDIRK23Solver::Step(Vector &x, double &t, double &dt)
 void SDIRK34Solver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   k.SetSize(f->Size());
-   y.SetSize(f->Size());
-   z.SetSize(f->Size());
+   k.SetSize(f->Width());
+   y.SetSize(f->Width());
+   z.SetSize(f->Width());
 }
 
 void SDIRK34Solver::Step(Vector &x, double &t, double &dt)
@@ -435,8 +435,8 @@ void SDIRK34Solver::Step(Vector &x, double &t, double &dt)
 void SDIRK33Solver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   k.SetSize(f->Size());
-   y.SetSize(f->Size());
+   k.SetSize(f->Width());
+   y.SetSize(f->Width());
 }
 
 void SDIRK33Solver::Step(Vector &x, double &t, double &dt)

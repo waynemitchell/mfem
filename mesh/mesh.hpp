@@ -398,7 +398,11 @@ public:
    /// Return the number of edges.
    inline int GetNEdges() const { return NumOfEdges; }
 
+   /// Return the number of faces in a 3D mesh.
    inline int GetNFaces() const { return NumOfFaces; }
+
+   /// Return the number of faces (3D), edges (2D) or vertices (1D).
+   int GetNumFaces() const;
 
    /// Equals 1 + num_holes - num_loops
    inline int EulerNumber() const

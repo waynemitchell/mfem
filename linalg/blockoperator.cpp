@@ -18,28 +18,29 @@
 namespace mfem
 {
 
-BlockOperator::BlockOperator(const Array<int> & offsets):
-   Operator(offsets.Last()),
-   owns_blocks(0),
-   nRowBlocks(offsets.Size() - 1),
-   nColBlocks(offsets.Size() - 1),
-   row_offsets(0),
-   col_offsets(0),
-   op(nRowBlocks, nRowBlocks)
+BlockOperator::BlockOperator(const Array<int> & offsets)
+   : Operator(offsets.Last()),
+     owns_blocks(0),
+     nRowBlocks(offsets.Size() - 1),
+     nColBlocks(offsets.Size() - 1),
+     row_offsets(0),
+     col_offsets(0),
+     op(nRowBlocks, nRowBlocks)
 {
    op = static_cast<Operator *>(NULL);
    row_offsets.MakeRef(offsets);
    col_offsets.MakeRef(offsets);
 }
 
-BlockOperator::BlockOperator(const Array<int> & row_offsets_, const Array<int> & col_offsets_):
-   Operator(row_offsets_.Last()),
-   owns_blocks(0),
-   nRowBlocks(row_offsets_.Size()-1),
-   nColBlocks(col_offsets_.Size()-1),
-   row_offsets(0),
-   col_offsets(0),
-   op(nRowBlocks, nColBlocks)
+BlockOperator::BlockOperator(const Array<int> & row_offsets_,
+                             const Array<int> & col_offsets_)
+   : Operator(row_offsets_.Last(), col_offsets_.Last()),
+     owns_blocks(0),
+     nRowBlocks(row_offsets_.Size()-1),
+     nColBlocks(col_offsets_.Size()-1),
+     row_offsets(0),
+     col_offsets(0),
+     op(nRowBlocks, nColBlocks)
 {
    op = static_cast<Operator *>(NULL);
    row_offsets.MakeRef(row_offsets_);
@@ -55,17 +56,17 @@ void BlockOperator::SetBlock(int iRow, int iCol, Operator *opt)
 {
    op(iRow, iCol) = opt;
 
-   if (row_offsets[iRow+1] - row_offsets[iRow] != opt->Size())
-      mfem_error("BlockOperator::SetBlock Incompatible Row Size\n");
-
-   // Since Operator does not have the method Width we trust that the width is correct.
-   // if (col_offsets[iCol+1]-row_offsets[iCol] != opt->Width())
-   //    mfem_error("BlockOperator::SetBlock Incompatible Col Size\n");
+   MFEM_VERIFY(row_offsets[iRow+1] - row_offsets[iRow] == opt->NumRows() &&
+               col_offsets[iCol+1] - col_offsets[iCol] == opt->NumCols(),
+               "incompatible Operator dimensions");
 }
 
 // Operator application
 void BlockOperator::Mult (const Vector & x, Vector & y) const
 {
+   MFEM_ASSERT(x.Size() == width, "incorrect input Vector size");
+   MFEM_ASSERT(y.Size() == height, "incorrect output Vector size");
+
    yblock.Update(y.GetData(),row_offsets);
    xblock.Update(x.GetData(),col_offsets);
 
@@ -87,20 +88,23 @@ void BlockOperator::Mult (const Vector & x, Vector & y) const
 // Action of the transpose operator
 void BlockOperator::MultTranspose (const Vector & x, Vector & y) const
 {
+   MFEM_ASSERT(x.Size() == height, "incorrect input Vector size");
+   MFEM_ASSERT(y.Size() == width, "incorrect output Vector size");
+
    y = 0.0;
 
    xblock.Update(x.GetData(),row_offsets);
    yblock.Update(y.GetData(),col_offsets);
 
-   for (int iRow=0; iRow < nRowBlocks; ++iRow)
+   for (int iRow=0; iRow < nColBlocks; ++iRow)
    {
-      tmp.SetSize(row_offsets[iRow+1] - row_offsets[iRow]);
-      for (int jCol=0; jCol < nColBlocks; ++jCol)
+      tmp.SetSize(col_offsets[iRow+1] - col_offsets[iRow]);
+      for (int jCol=0; jCol < nRowBlocks; ++jCol)
       {
          if (op(jCol,iRow))
          {
-            op(jCol,iRow)->MultTranspose(xblock.GetBlock(iRow), tmp);
-            yblock.GetBlock(jCol) += tmp;
+            op(jCol,iRow)->MultTranspose(xblock.GetBlock(jCol), tmp);
+            yblock.GetBlock(iRow) += tmp;
          }
       }
    }
@@ -130,8 +134,9 @@ BlockDiagonalPreconditioner::BlockDiagonalPreconditioner(const Array<int> & offs
 
 void BlockDiagonalPreconditioner::SetDiagonalBlock(int iblock, Operator *opt)
 {
-   if (offsets[iblock+1] - offsets[iblock] != opt->Size())
-      mfem_error("offsets[iblock+1] - offsets[iblock] != size");
+   MFEM_VERIFY(offsets[iblock+1] - offsets[iblock] == opt->Height() &&
+               offsets[iblock+1] - offsets[iblock] == opt->Width(),
+               "incompatible Operator dimensions");
 
    op[iblock] = opt;
 }
@@ -139,7 +144,8 @@ void BlockDiagonalPreconditioner::SetDiagonalBlock(int iblock, Operator *opt)
 // Operator application
 void BlockDiagonalPreconditioner::Mult (const Vector & x, Vector & y) const
 {
-   y = 0.0;
+   MFEM_ASSERT(x.Size() == width, "incorrect input Vector size");
+   MFEM_ASSERT(y.Size() == height, "incorrect output Vector size");
 
    yblock.Update(y.GetData(), offsets);
    xblock.Update(x.GetData(), offsets);
@@ -154,7 +160,8 @@ void BlockDiagonalPreconditioner::Mult (const Vector & x, Vector & y) const
 // Action of the transpose operator
 void BlockDiagonalPreconditioner::MultTranspose (const Vector & x, Vector & y) const
 {
-   y = 0.0;
+   MFEM_ASSERT(x.Size() == height, "incorrect input Vector size");
+   MFEM_ASSERT(y.Size() == width, "incorrect output Vector size");
 
    yblock.Update(y.GetData(), offsets);
    xblock.Update(x.GetData(), offsets);

@@ -23,6 +23,8 @@ namespace mfem
 /*
  * \brief A class to handle Vectors in a block fashion
  *
+ * All data is contained in Vector::data, while blockVector is just a viewer for this data
+ *
  */
 class BlockVector: public Vector
 {

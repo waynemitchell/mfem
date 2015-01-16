@@ -36,7 +36,7 @@
 using namespace std;
 using namespace mfem;
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";

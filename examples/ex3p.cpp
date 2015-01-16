@@ -35,7 +35,7 @@ using namespace mfem;
 void E_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
    int num_procs, myid;
@@ -44,7 +44,7 @@ int main (int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../data/star.mesh";
+   const char *mesh_file = "../data/beam-tet.mesh";
    int order = 1;
    bool visualization = 1;
 

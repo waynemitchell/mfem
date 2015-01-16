@@ -24,7 +24,6 @@ class DenseMatrix : public Matrix
    friend class DenseTensor;
 
 private:
-   int height;
    double *data;
 
    friend class DenseMatrixInverse;
@@ -36,7 +35,7 @@ private:
 
 public:
    /** Default constructor for DenseMatrix.
-       Sets data = NULL size = height = 0 */
+       Sets data = NULL and height = width = 0. */
    DenseMatrix();
 
    /// Copy constructor
@@ -45,17 +44,20 @@ public:
    /// Creates square matrix of size s.
    explicit DenseMatrix(int s);
 
-   /// Creates rectangular matrix of size n and height m.
+   /// Creates rectangular matrix of size m x n.
    DenseMatrix(int m, int n);
 
    /// Creates rectangular matrix equal to the transpose of mat.
    DenseMatrix(const DenseMatrix &mat, char ch);
 
-   DenseMatrix(double *d, int h, int w) : Matrix(w) { data = d; height = h; }
+   DenseMatrix(double *d, int h, int w) : Matrix(h, w) { data = d; }
    void UseExternalData(double *d, int h, int w)
-   { data = d; height = h; size = w; }
+   { data = d; height = h; width = w; }
 
-   void ClearExternalData() { data = NULL; height = size = 0; }
+   void ClearExternalData() { data = NULL; height = width = 0; }
+
+   /// For backward compatibility define Size to be synonym of Width()
+   int Size() const { return Width(); }
 
    /// If the matrix is not a square matrix of size s then recreate it
    void SetSize(int s);
@@ -63,19 +65,13 @@ public:
    /// If the matrix is not a matrix of size (h x w) then recreate it
    void SetSize(int h, int w);
 
-   /// Returns the height of the matrix.
-   inline int Height() const { return height; }
-
-   /// Returns the width of the matrix.
-   inline int Width() const { return size; }
-
    /// Returns vector of the elements.
    inline double *Data() const { return data; }
 
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns reference to a_{ij}.
    inline double &operator()(int i, int j);
 
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns constant reference to a_{ij}.
    inline const double &operator()(int i, int j) const;
 
    /// Matrix inner product: tr(A^t B)
@@ -84,10 +80,10 @@ public:
    /// Trace of a square matrix
    double Trace() const;
 
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns reference to a_{ij}.
    virtual double &Elem(int i, int j);
 
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns constant reference to a_{ij}.
    virtual const double &Elem(int i, int j) const;
 
    /// Matrix vector multiplication.
@@ -255,13 +251,13 @@ public:
 
    /** Count the number of entries in the matrix for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */
-   int CheckFinite() const { return mfem::CheckFinite(data, size*height); }
+   int CheckFinite() const { return mfem::CheckFinite(data, height*width); }
 
    /// Prints matrix to stream out.
-   virtual void Print(std::ostream &out = std::cout, int width = 4) const;
+   virtual void Print(std::ostream &out = std::cout, int width_ = 4) const;
    virtual void PrintMatlab(std::ostream &out = std::cout) const;
    /// Prints the transpose matrix to stream out.
-   virtual void PrintT(std::ostream &out = std::cout, int width = 4) const;
+   virtual void PrintT(std::ostream &out = std::cout, int width_ = 4) const;
 
    /// Invert and print the numerical conditioning of the inversion.
    void TestInversion();
@@ -354,6 +350,9 @@ public:
 
    /// Same as above but does not factorize the matrix.
    DenseMatrixInverse(const DenseMatrix *mat);
+
+   ///  Get the size of the inverse matrix
+   int Size() const { return Width(); }
 
    /// Factor the current DenseMatrix, *a
    void Factor();
@@ -476,7 +475,7 @@ public:
 inline double &DenseMatrix::operator()(int i, int j)
 {
 #ifdef MFEM_DEBUG
-   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= size )
+   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
       mfem_error("DenseMatrix::operator()");
 #endif
 
@@ -486,7 +485,7 @@ inline double &DenseMatrix::operator()(int i, int j)
 inline const double &DenseMatrix::operator()(int i, int j) const
 {
 #ifdef MFEM_DEBUG
-   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= size )
+   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
       mfem_error("DenseMatrix::operator() const");
 #endif
 

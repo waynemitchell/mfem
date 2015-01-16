@@ -73,6 +73,38 @@ public:
 };
 
 
+/// Stationary linear iteration: x <- x + B (b - A x)
+class SLISolver : public IterativeSolver
+{
+protected:
+   mutable Vector r, z;
+
+   void UpdateVectors();
+
+public:
+   SLISolver() { }
+
+#ifdef MFEM_USE_MPI
+   SLISolver(MPI_Comm _comm) : IterativeSolver(_comm) { }
+#endif
+
+   virtual void SetOperator(const Operator &op)
+   { IterativeSolver::SetOperator(op); UpdateVectors(); }
+
+   virtual void Mult(const Vector &x, Vector &y) const;
+};
+
+/// Stationary linear iteration. (tolerances are squared)
+void SLI(const Operator &A, const Vector &b, Vector &x,
+         int print_iter = 0, int max_num_iter = 1000,
+         double RTOLERANCE = 1e-12, double ATOLERANCE = 1e-24);
+
+/// Preconditioned stationary linear iteration. (tolerances are squared)
+void SLI(const Operator &A, Solver &B, const Vector &b, Vector &x,
+         int print_iter = 0, int max_num_iter = 1000,
+         double RTOLERANCE = 1e-12, double ATOLERANCE = 1e-24);
+
+
 /// Conjugate gradient method
 class CGSolver : public IterativeSolver
 {
@@ -197,7 +229,7 @@ public:
 #endif
 
    virtual void SetPreconditioner(Solver &pr)
-   { IterativeSolver::SetPreconditioner(pr); if (oper) u1.SetSize(size); }
+   { IterativeSolver::SetPreconditioner(pr); if (oper) u1.SetSize(width); }
 
    virtual void SetOperator(const Operator &op);
 
@@ -218,7 +250,7 @@ void MINRES(const Operator &A, Solver &B, const Vector &b, Vector &x,
     The method GetGradient must be implemented for the operator.
     The preconditioner is used (in non-iterative mode) to evaluate
     the action of the inverse gradient of the operator.
-    If (b.Size() != oper->Size()), then the b is assumed to be zero. */
+    If (b.Size() != oper->Height()), then the b is assumed to be zero. */
 class NewtonSolver : public IterativeSolver
 {
 protected:
@@ -243,13 +275,6 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
            const Operator &M, int &max_iter,
            int m_max, int m_min, int m_step, double cf,
            double &tol, double &atol, int printit);
-
-
-/// Stationary linear iteration: x <- x + B (b - A x)
-void SLI(const Operator &A, const Operator &B,
-         const Vector &b, Vector &x,
-         int print_iter = 0, int max_num_iter = 1000,
-         double RTOLERANCE = 1e-12, double ATOLERANCE = 1e-24);
 
 
 /** SLBQP: (S)ingle (L)inearly Constrained with (B)ounds (Q)uadratic (P)rogram

@@ -92,7 +92,7 @@ public:
    inline const T *GetData() const { return (T *)data; }
 
    /// Return true if the data will be deleted by the array
-   inline bool OwnData() const { return (allocsize >= 0); }
+   inline bool OwnsData() const { return (allocsize > 0); }
 
    /// Changes the ownership of the the data
    inline void StealData(T **p)

@@ -21,8 +21,8 @@ namespace mfem
 void Operator::PrintMatlab (std::ostream & out, int n, int m)
 {
    using namespace std;
-   if (n == 0) n = size;
-   if (m == 0) m = size;
+   if (n == 0) n = width;
+   if (m == 0) m = height;
 
    Vector x(n), y(m);
    x = 0.0;

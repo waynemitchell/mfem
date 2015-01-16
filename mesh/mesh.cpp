@@ -3075,6 +3075,17 @@ const FiniteElementSpace *Mesh::GetNodalFESpace()
    return ((Nodes) ? Nodes->FESpace() : NULL);
 }
 
+int Mesh::GetNumFaces() const
+{
+   switch (Dim)
+   {
+   case 1: return GetNV();
+   case 2: return GetNEdges();
+   case 3: return GetNFaces();
+   }
+   return 0;
+}
+
 #if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
 static const char *fixed_or_not[] = { "fixed", "NOT FIXED" };
 #endif
@@ -4563,8 +4574,8 @@ void DetOfLinComb(const DenseMatrix &A, const DenseMatrix &B, Vector &c)
    const double *a = A.Data();
    const double *b = B.Data();
 
-   c.SetSize(A.Size()+1);
-   switch (A.Size())
+   c.SetSize(A.Width()+1);
+   switch (A.Width())
    {
    case 2:
    {

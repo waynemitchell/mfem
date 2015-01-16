@@ -115,23 +115,26 @@ private:
 public:
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a) : A(a)
-   { size = GetNumRows(); X = Y = 0; CommPkg = 0; }
+   { height = GetNumRows(); width = GetNumCols(); X = Y = 0; CommPkg = 0; }
    /// Creates block-diagonal square parallel matrix. Diagonal given by diag.
-   HypreParMatrix(MPI_Comm comm, int size, int *row, SparseMatrix *diag);
+   HypreParMatrix(MPI_Comm comm, int glob_size, int *row_starts,
+                  SparseMatrix *diag);
    /** Creates block-diagonal rectangular parallel matrix. Diagonal
        given by diag. */
-   HypreParMatrix(MPI_Comm comm, int M, int N,
-                  int *row, int *col, SparseMatrix *diag);
+   HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
+                  int *row_starts, int *col_starts, SparseMatrix *diag);
    /// Creates general (rectangular) parallel matrix
-   HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
+   HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
+                  int *row_starts, int *col_starts,
                   SparseMatrix *diag, SparseMatrix *offd, int *cmap);
 
    /// Creates a parallel matrix from SparseMatrix on processor 0.
-   HypreParMatrix(MPI_Comm comm, int *row, int *col, SparseMatrix *a);
+   HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
+                  SparseMatrix *a);
 
    /// Creates boolean block-diagonal rectangular parallel matrix.
-   HypreParMatrix(MPI_Comm comm, int M, int N, int *row, int *col,
-                  Table *diag);
+   HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
+                  int *row_starts, int *col_starts, Table *diag);
    /// Creates boolean rectangular parallel matrix (which owns its data)
    HypreParMatrix(MPI_Comm comm, int id, int np, int *row, int *col,
                   int *i_diag, int *j_diag, int *i_offd, int *j_offd,
@@ -165,7 +168,7 @@ public:
    inline int NNZ() { return A->num_nonzeros; }
    /// Returns the row partitioning
    inline int * RowPart() { return A->row_starts; }
-   /// Returns the row partitioning
+   /// Returns the column partitioning
    inline int * ColPart() { return A->col_starts; }
    /// Returns the global number of rows
    inline int M() { return A -> global_num_rows; }
@@ -180,6 +183,10 @@ public:
    /// Returns the number of rows in the diagonal block of the ParCSRMatrix
    int GetNumRows() const
    { return hypre_CSRMatrixNumRows(hypre_ParCSRMatrixDiag(A)); }
+
+   /// Returns the number of columns in the diagonal block of the ParCSRMatrix
+   int GetNumCols() const
+   { return hypre_CSRMatrixNumCols(hypre_ParCSRMatrixDiag(A)); }
 
    int GetGlobalNumRows() const { return hypre_ParCSRMatrixGlobalNumRows(A); }
 
@@ -247,13 +254,8 @@ protected:
    /// FIR Filter Temporary Vectors
    mutable HypreParVector *X0, *X1;
 
-   /** Hypre relaxation type (from hypre_ParCSRRelax() in ams.c). Options are:
-       1  = l1-scaled Jacobi
-       2  = l1-scaled block Gauss-Seidel/SSOR
-       3  = Kaczmarz
-       4  = truncated version of type 2
-       16 = Chebyshev
-       x  = BoomerAMG relaxation with relax_type = |x| */
+   /** Smoother type from hypre_ParCSRRelax() in ams.c plus extensions, see the
+       enumeartion Type below. */
    int type;
    /// Number of relaxation sweeps
    int relax_times;
@@ -286,15 +288,27 @@ protected:
    double* fir_coeffs;
 
 public:
-   enum Type { Jacobi, GS, l1Jacobi, l1GS, Chebyshev, Taubin, FIR };
+   /** Hypre smoother types:
+       0    = Jacobi
+       1    = l1-scaled Jacobi
+       2    = l1-scaled block Gauss-Seidel/SSOR
+       4    = truncated l1-scaled block Gauss-Seidel/SSOR
+       5    = lumped Jacobi
+       6    = Gauss-Seidel
+       16   = Chebyshev
+       1001 = Taubin polynomial smoother
+       1002 = FIR polynomial smoother. */
+   enum Type { Jacobi = 0, l1Jacobi = 1, l1GS = 2, l1GStr = 4, lumpedJacobi = 5,
+               GS = 6, Chebyshev = 16, Taubin = 1001, FIR = 1002 };
 
    HypreSmoother();
 
-   HypreSmoother(HypreParMatrix &_A, int type = 2,
-                 int relax_times = 1, double relax_weight = 1.0, double omega = 1.0,
-                 int poly_order = 2, double poly_fraction = .3);
+   HypreSmoother(HypreParMatrix &_A, int type = l1GS,
+                 int relax_times = 1, double relax_weight = 1.0,
+                 double omega = 1.0, int poly_order = 2,
+                 double poly_fraction = .3);
 
-   /// Set some of the more common used relaxation types and number of sweeps
+   /// Set the relaxation type and number of sweeps
    void SetType(HypreSmoother::Type type, int relax_times = 1);
    /// Set SOR-related parameters
    void SetSOROptions(double relax_weight, double omega);
@@ -310,6 +324,8 @@ public:
    /// Compute window and Chebyshev coefficients for given polynomial order.
    void SetFIRCoefficients(double max_eig);
 
+   /** Set/update the associated operator. Mult be called after setting the
+       HypreSmoother type and options. */
    virtual void SetOperator(const Operator &op);
 
    /// Relax the linear system Ax=b
