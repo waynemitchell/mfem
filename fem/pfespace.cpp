@@ -810,10 +810,12 @@ void ParFiniteElementSpace::GetConformingDofs
 (int type, int index, Array<int>& cdofs)
 {
    Array<int> dofs;
-   if (type)
-      GetFaceDofs(index, dofs);
-   else
-      GetEdgeDofs(index, dofs);
+   switch (type)
+   {
+   case 0: GetVertexDofs(index, dofs); break;
+   case 1: GetEdgeDofs(index, dofs); break;
+   case 2: GetFaceDofs(index, dofs); break;
+   }
 
    ConvertToConformingVDofs(dofs, cdofs);
    // TODO: remove invalid (non-conforming) DOFs
@@ -823,34 +825,35 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
-   // TODO: we need a Dictionary class if we want to avoid STL
+   // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors
+
    typedef std::map<int, ParNCMesh::NeighborDofMessage> RankToMessage;
    RankToMessage send_messages;
    RankToMessage recv_messages;
 
-   // prepare neighbor DOF messages for shared edges/faces
-   for (int type = 0; type <= 1; type++)
+   // prepare neighbor DOF messages for shared vertices/edges/faces
+   for (int type = 0; type < 3; type++)
    {
-      const NCMesh::FaceList &list = type ? pncmesh->GetSharedFaces()
-                                          : pncmesh->GetSharedEdges();
-      Array<int> cdofs;      
-      int cs = list.conforming.size(), ms = list.masters.size(), gsize;
+      const NCMesh::NCList &list = pncmesh->GetSharedList(type);
+      Array<int> cdofs;
+
+      int cs = list.conforming.size(), ms = list.masters.size();
       for (int i = 0; i < cs+ms; i++)
       {
-         // loop through all (shared) conforming+master edges/faces
-         const NCMesh::FaceId& fid =
-            (i < cs) ? (const NCMesh::FaceId&) list.conforming[i]
-                     : (const NCMesh::FaceId&) list.masters[i-cs];
+         // loop through all (shared) conforming+master vertices/edges/faces
+         const NCMesh::MeshId& id =
+            (i < cs) ? (const NCMesh::MeshId&) list.conforming[i]
+                     : (const NCMesh::MeshId&) list.masters[i-cs];
 
-         int owner = pncmesh->GetOwner(type, fid.index);
+         int owner = pncmesh->GetOwner(type, id.index), gsize;
          if (owner == MyRank)
          {
-            // we own a shared edge/face, send its DOFs to others in group
-            GetConformingDofs(type, fid.index, cdofs);
-            const int* group = pncmesh->GetGroup(type, fid.index, gsize);
+            // we own a shared v/e/f, send its DOFs to others in group
+            GetConformingDofs(type, id.index, cdofs);
+            const int* group = pncmesh->GetGroup(type, id.index, gsize);
             for (int j = 0; j < gsize; j++)
                if (group[j] != MyRank)
-                  send_messages[group[j]].AddDofs(type, fid, cdofs);
+                  send_messages[group[j]].AddDofs(type, id, cdofs);
          }
          else
          {
@@ -861,13 +864,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    }
 
    // non-blocking send of outgoing messages
-   MPI_Request* requests = new MPI_Request[send_messages.size()];
-   int msg_num = 0;
-   for (RankToMessage::iterator it = send_messages.begin();
-        it != send_messages.end(); ++it)
-   {
-      requests[msg_num++] = it->second.Isend(it->first, MyComm, *pncmesh);
-   }
+   RankToMessage::iterator it;
+   for (it = send_messages.begin(); it != send_messages.end(); ++it)
+      it->second.Isend(it->first, MyComm, *pncmesh);
 
    // blocking (kind of) receive of incoming messages
    int recv_left = recv_messages.size();
@@ -879,11 +878,72 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       --recv_left;
    }
 
-   MPI_Barrier(MPI_COMM_WORLD); /////////////////// DEBUG
+   // *** STEP 2: build dependency lists
 
-   //
-   MPI_Waitall(send_messages.size(), requests, MPI_STATUSES_IGNORE);
-   delete [] requests;
+   for (int type = 0; type < 3; type++)
+   {
+      const NCMesh::NCList &list = pncmesh->GetSharedList(type);
+
+      if (list.masters.size())
+      {
+         IsoparametricTransformation T;
+         if (type) T.SetFE(&QuadrilateralFE); else T.SetFE(&SegmentFE);
+
+         const FiniteElement* fe = fec->FiniteElementForGeometry(
+            (type ? Geometry::SQUARE : Geometry::SEGMENT));
+
+         Array<int> master_dofs, slave_dofs;
+         DenseMatrix I(fe->GetDof());
+
+         // loop through all master edges/faces, constrain their slaves
+         for (int mi = 0; mi < list.masters.size(); mi++)
+         {
+            const NCMesh::Master &mf = list.masters[mi];
+
+            // get master edge/face DOFs
+            int owner = pncmesh->GetOwner(type, mf.index);
+            if (owner == MyRank)
+               GetConformingDofs(type, mf.index, master_dofs);
+            else
+               recv_messages[owner].GetDofs(type, mf, master_dofs);
+
+            if (!master_dofs.Size()) continue;
+
+            for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
+            {
+               const NCMesh::Slave &sf = list.slaves[si]; // FIXME: full list!
+               GetEdgeFaceDofs(type, sf.index, slave_dofs);
+               if (!slave_dofs.Size()) continue;
+
+               T.GetPointMat() = sf.point_matrix;
+               fe->GetLocalInterpolation(T, I);
+
+               // make each slave DOF dependent on all master DOFs
+   //            AddSlaveDependencies(deps, owner, master_dofs, slave_dofs, I);
+            }
+         }
+      }
+
+      // add one-to-one dependencies between conforming vertices/edges/faces
+      Array<int> owner_dofs, my_dofs;
+      for (int i = 0; i < list.conforming.size(); i++)
+      {
+         const NCMesh::MeshId &id = list.conforming[i];
+         int owner = pncmesh->GetOwner(type, id.index);
+         if (owner != MyRank)
+         {
+            recv_messages[owner].GetDofs(type, id, owner_dofs);
+            GetConformingDofs(type, id.index, my_dofs);
+            //AddOneToOneDependencies(owner, owner_dofs, my_dofs);
+         }
+      }
+   }
+
+   // wait for all DOF messages to be sent
+   for (it = send_messages.begin(); it != send_messages.end(); ++it)
+      it->second.WaitSent();
+
+   // *** STEP 3: iteratively build the P matrix
 
 
    MFEM_ABORT(""); // TODO

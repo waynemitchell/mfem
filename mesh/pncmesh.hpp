@@ -19,14 +19,18 @@ template<int Tag>
 struct VarMessage
 {
    std::string data;
+   MPI_Request send_req;
 
    /// Non-blocking send to processor 'rank'.
-   MPI_Request Isend(int rank, MPI_Comm comm)
+   void Isend(int rank, MPI_Comm comm)
    {
-      MPI_Request request;
-      MPI_Isend(data.data(), data.length(), MPI_BYTE, rank, Tag, comm, &request);
-      std::cout << "Sent message length " << data.length() << std::endl;
-      return request;
+      MPI_Isend(data.data(), data.length(), MPI_BYTE, rank, Tag, comm, &send_req);
+   }
+
+   /// Wait for a preceding Isend to finish.
+   void WaitSent()
+   {
+      MPI_Wait(&send_req, MPI_STATUS_IGNORE);
    }
 
    /** Blocking probe for incoming message of this type from any rank.
@@ -59,52 +63,63 @@ class ParNCMesh : public NCMesh
 public:
    ParNCMesh(MPI_Comm comm, const NCMesh& ncmesh);
 
-   /** Return a list of edges shared by our processor and at least one other
-       processor. This is just a subset of the regular EdgeList. */
-   const EdgeList& GetSharedEdges()
+   /** Return a list of vertices shared by this processor and at least one other
+       processor. (NOTE: only NCList::conforming will be set.) */
+   const NCList& GetSharedVertices()
+   {
+      if (shared_vertices.Empty()) BuildSharedVertices();
+      return shared_vertices;
+   }
+
+   /** Return a list of edges shared by this processor and at least one other
+       processor. (NOTE: this is a subset of the NCMesh::edge_list; slaves are
+       empty.) */
+   const NCList& GetSharedEdges()
    {
       if (edge_list.Empty()) BuildEdgeList();
       return shared_edges;
    }
 
-   /** Return a list of faces shared by our processor and another processor.
-       This is just a subset of the regular FaceList. */
-   const FaceList& GetSharedFaces()
+   /** Return a list of faces shared by this processor and another processor.
+       (NOTE: this is a subset of NCMesh::face_list; slaves are empty.) */
+   const NCList& GetSharedFaces()
    {
       if (face_list.Empty()) BuildFaceList();
       return shared_faces;
    }
 
-   /// Return processor owning an edge. (Note: any edge in the Mesh.)
-   int EdgeOwner(int index) const { return edge_owner[index]; }
-
-   /// Return processor owning a face. (Note: any face in the Mesh.)
-   int FaceOwner(int index) const { return face_owner[index]; }
-
-   /// Return a list of processors sharing an edge, and the list size.
-   const int* EdgeGroup(int index, int &size) const
+   /// Helper to get shared vertices/edges/faces ('type' == 0/1/2 resp.).
+   const NCList& GetSharedList(int type)
    {
-      size = edge_group.RowSize(index);
-      return edge_group.GetRow(index);
+      switch (type)
+      {
+      case 0: return GetSharedVertices();
+      case 1: return GetSharedEdges();
+      default: return GetSharedFaces();
+      }
    }
 
-   /// Return a list of processors sharing a face, and the list size.
-   const int* FaceGroup(int index, int &size) const
-   {
-      size = face_group.RowSize(index);
-      return face_group.GetRow(index);
-   }
-
-   /// Helper to get edge (type == 0) or face (type == 1) owner.
+   /// Return vertex/edge/face ('type' == 0/1/2, resp.) owner.
    int GetOwner(int type, int index)
    {
-      return type ? FaceOwner(index) : EdgeOwner(index);
+      switch (type)
+      {
+      case 0: return vertex_owner[index];
+      case 1: return edge_owner[index];
+      default: return face_owner[index];
+      }
    }
 
-   /// Helper to get edge (type == 0) or face (type == 1) group and its size.
+   /** Return a list of processors sharing a vertex/edge/face
+       ('type' == 0/1/2, resp.) and the size of the list. */
    const int* GetGroup(int type, int index, int &size)
    {
-      return type ? FaceGroup(index, size) : EdgeGroup(index, size);
+      switch (type)
+      {
+      case 0: size = vertex_group.RowSize(index); return vertex_group.GetRow(index);
+      case 1: size = edge_group.RowSize(index); return edge_group.GetRow(index);
+      default: size = face_group.RowSize(index); return face_group.GetRow(index);
+      }
    }
 
    /** */
@@ -113,30 +128,31 @@ public:
    public:
       typedef VarMessage<135> Base;
 
-      void AddFaceDofs(const FaceId &fid, const Array<int> &dofs);
-      void AddEdgeDofs(const EdgeId &eid, const Array<int> &dofs);
+      /// Add vertex/edge/face DOFs to an outgoing message.
+      void AddDofs(int type, const MeshId &id, const Array<int> &dofs)
+      {
+         MFEM_ASSERT(type >= 0 && type < 3, "");
+         id_dofs[type][id].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
+      }
 
       MPI_Request Isend(int rank, MPI_Comm comm, const ParNCMesh &pncmesh);
       void Recv(int rank, int size, MPI_Comm comm, const ParNCMesh &pncmesh);
 
-      void GetFaceDofs(const FaceId& fid, Array<int>& dofs);
-      void GetEdgeDofs(const EdgeId& eid, Array<int>& dofs);
-
-      /// Helper to call AddEdgeDofs (type == 0) or AddFaceDofs (type == 1)
-      void AddDofs(int type, const FaceId& fid, const Array<int> &dofs)
-      { if (type) AddFaceDofs(fid, dofs); else AddEdgeDofs(fid, dofs); }
-
-      /// Helper to call GetEdgeDofs (type == 0) or GetFaceDofs (type == 1)
-      void GetDofs(int type, const FaceId& fid, Array<int> &dofs)
-      { if (type) GetFaceDofs(fid, dofs); else GetEdgeDofs(fid, dofs); }
+      /// Get vertex/edge/face DOFs from a received message.
+      void GetDofs(int type, const MeshId& id, Array<int>& dofs);
 
    protected:
       // TODO: we need a Dictionary class if we want to avoid STL
-      typedef std::map<FaceId, std::vector<int> > IdToDofs;
-      IdToDofs face_dofs, edge_dofs;
+      typedef std::map<MeshId, std::vector<int> > IdToDofs;
+      IdToDofs id_dofs[3];
    };
 
-   class NeighborRowMessage : public VarMessage<312>
+   class NeighborRowsRequest: public VarMessage<312>
+   {
+      // TODO
+   };
+
+   class NeighborRowsReply: public VarMessage<313>
    {
       // TODO
    };
@@ -146,18 +162,22 @@ protected:
    MPI_Comm MyComm;
    int NRanks, MyRank;
 
+   int NVertices;
    int NEdges, NGhostEdges;
    int NFaces, NGhostFaces;
 
    //
-   EdgeList shared_edges;
-   FaceList shared_faces;
+   NCList shared_vertices;
+   NCList shared_edges;
+   NCList shared_faces;
 
    //
+   Array<int> vertex_owner;
    Array<int> edge_owner;
    Array<int> face_owner;
 
    //
+   Table vertex_group;
    Table edge_group;
    Table face_group;
 
@@ -173,6 +193,8 @@ protected:
    virtual void ElementSharesEdge(Element* elem, Edge* edge);
    virtual void ElementSharesFace(Element* elem, Face* face);
 
+   void BuildSharedVertices();
+
    /// Struct to help sorting edges/faces
    struct IndexRank
    {
@@ -186,9 +208,9 @@ protected:
 
    Array<IndexRank> tmp_ranks;
 
-   void AddSlaveRanks(int nfaces, const FaceList& list);
-   void MakeGroups(int nfaces, Table &groups);
-   void MakeShared(const Table &groups, const FaceList &list, FaceList &shared);
+   void AddSlaveRanks(int nitems, const NCList& list);
+   void MakeGroups(int nitems, Table &groups);
+   void MakeShared(const Table &groups, const NCList &list, NCList &shared);
 
    /** Uniquely encodes a set of elements in the refinement hierarchy of an
        NCMesh. Can be dumped to a stream, sent to another processor, loaded,
@@ -218,20 +240,18 @@ protected:
       int GetInt(int pos) const;
    };
 
-   /// Write to 'os' a processor-independent encoding of given edge and face IDs.
-   void EncodeEdgesFaces(const Array<EdgeId> &edges, const Array<FaceId> &faces,
-                         std::ostream &os) const;
+   /// Write to 'os' a processor-independent encoding of vertex/edge/face IDs.
+   void EncodeMeshIds(std::ostream &os, Array<MeshId> ids[3]) const;
 
-   /// Read from 'is' a processor-independent encoding of edge and face IDs.
-   void DecodeEdgesFaces(Array<EdgeId> &edges, Array<FaceId> &faces,
-                         std::istream &is) const;
+   /// Read from 'is' a processor-independent encoding of vetex/edge/face IDs.
+   void DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const;
 
    friend class ParMesh;
    friend class NeighborDofMessage;
 
 };
 
-inline bool operator< (const NCMesh::FaceId &a, const NCMesh::FaceId &b)
+inline bool operator< (const NCMesh::MeshId &a, const NCMesh::MeshId &b)
 { return a.index < b.index; }
 
 /*
@@ -262,9 +282,12 @@ Phase 2 -- construct P matrix
     to neighbors that need them
   - wait for rows from neighbors
 
-MESSAGE (Phase 1)
-- list of {edge/face id, cdofs} + ElementSet
-- searchable by edge/face index
+TODO
++ shared vertices
+- fix NCMesh::BuildEdgeList
+- AddSlaveDependencies, AddOneOneDependencies
+- Phase 2
+- invalid CDOFs?
 
 */
 

@@ -1338,7 +1338,7 @@ void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
       if (face)
       {
          // we have a slave face, add it to the list
-         face_list.slaves.push_back(SlaveFace(face->index));
+         face_list.slaves.push_back(Slave(face->index));
          DenseMatrix &mat(face_list.slaves.back().point_matrix);
          pm.GetMatrix(mat);
 
@@ -1399,8 +1399,7 @@ void NCMesh::BuildFaceList()
          if (face->ref_count == 2 || face->Boundary())
          {
             // this is a conforming face, add it to the list
-            face_list.conforming.push_back(
-               ConformingFace(face->index, elem, j, face->attribute));
+            face_list.conforming.push_back(MeshId(face->index, elem, j));
          }
          else
          {
@@ -1415,8 +1414,7 @@ void NCMesh::BuildFaceList()
             if (sb < se)
             {
                // found slaves, so this is a master face; add it to the list
-               face_list.masters.push_back(
-                  MasterFace(face->index, elem, j, sb, se));
+               face_list.masters.push_back(Master(face->index, elem, j, sb, se));
 
                // also, set the master index for the slaves
                for (int i = sb; i < se; i++)
@@ -1439,7 +1437,7 @@ NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
    if (mid->edge && level > 0)
    {
       // we have a slave edge, add it to the list
-      edge_list.slaves.push_back(SlaveEdge(mid->edge->index));
+      edge_list.slaves.push_back(Slave(mid->edge->index));
 
       DenseMatrix& mat = edge_list.slaves.back().point_matrix;
       mat.SetSize(1, 2);
@@ -1489,7 +1487,7 @@ void NCMesh::BuildEdgeList()
          {
             // found slaves, this is a master face; add it to the list
             edge_list.masters.push_back(
-               MasterEdge(edge->edge->index, elem, j, sb, se));
+               Master(edge->edge->index, elem, j, sb, se));
 
             // also, set the master index for the slaves
             for (int i = sb; i < se; i++)
@@ -1500,8 +1498,7 @@ void NCMesh::BuildEdgeList()
          else
          {
             // no slaves, this is a conforming edge
-            edge_list.conforming.push_back(
-               ConformingEdge(edge->edge->index, elem, j, edge->edge->attribute));
+            edge_list.conforming.push_back(MeshId(edge->edge->index, elem, j));
 
             // FIXME: check for duplicates in elist.conforming!!!
          }

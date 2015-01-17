@@ -86,6 +86,9 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    for (HashTable<Face>::Iterator it(faces); it; ++it)
       if (it->index < 0)
          it->index = NFaces + (NGhostFaces++);
+
+   // there are no "ghost" vertices, the Mesh contains all of them
+   NVertices = mesh->GetNV();
 }
 
 void ParNCMesh::ElementSharesEdge(Element *elem, Edge *edge)
@@ -127,8 +130,6 @@ void ParNCMesh::BuildEdgeList()
    AddSlaveRanks(nedges, edge_list);
    MakeGroups(nedges, edge_group);
    MakeShared(edge_group, edge_list, shared_edges);
-
-   tmp_ranks.DeleteAll();
 }
 
 void ParNCMesh::BuildFaceList()
@@ -148,19 +149,17 @@ void ParNCMesh::BuildFaceList()
    AddSlaveRanks(nfaces, face_list);
    MakeGroups(nfaces, face_group);
    MakeShared(face_group, face_list, shared_faces);
-
-   tmp_ranks.DeleteAll();
 }
 
-void ParNCMesh::AddSlaveRanks(int nfaces, const FaceList& list)
+void ParNCMesh::AddSlaveRanks(int nitems, const NCList& list)
 {
    // create a mapping from slave face index to master face index
-   Array<int> slave_to_master(nfaces);
+   Array<int> slave_to_master(nitems);
    slave_to_master = -1;
 
    for (int i = 0; i < list.slaves.size(); i++)
    {
-      const SlaveFace& sf = list.slaves[i];
+      const Slave& sf = list.slaves[i];
       slave_to_master[sf.index] = sf.master;
    }
 
@@ -178,7 +177,7 @@ void ParNCMesh::AddSlaveRanks(int nfaces, const FaceList& list)
    }
 }
 
-void ParNCMesh::MakeGroups(int nfaces, Table &groups)
+void ParNCMesh::MakeGroups(int nitems, Table &groups)
 {
    // The list of processors for each edge/face is obtained by simply sorting
    // the 'tmp_ranks' array, removing duplicities and converting to a Table.
@@ -188,7 +187,7 @@ void ParNCMesh::MakeGroups(int nfaces, Table &groups)
    int size = tmp_ranks.Size();
 
    // create CSR array I of row beginnings
-   int* I = new int[nfaces+1];
+   int* I = new int[nitems+1];
    int next_I = 0, last_index = -1;
    for (int i = 0; i < size; i++)
    {
@@ -199,7 +198,7 @@ void ParNCMesh::MakeGroups(int nfaces, Table &groups)
       }
    }
    I[next_I] = size;
-   MFEM_ASSERT(next_I == nfaces, "");
+   MFEM_ASSERT(next_I == nitems, "");
 
    // J array is ready-made
    int* J = new int[size];
@@ -207,7 +206,9 @@ void ParNCMesh::MakeGroups(int nfaces, Table &groups)
       J[i] = tmp_ranks[i].rank;
 
    // we have a CSR table of ranks for each edge/face
-   groups.SetIJ(I, J, nfaces);
+   groups.SetIJ(I, J, nitems);
+
+   tmp_ranks.DeleteAll();
 }
 
 static bool is_shared(const Table& groups, int index, int MyRank)
@@ -228,9 +229,10 @@ static bool is_shared(const Table& groups, int index, int MyRank)
 }
 
 void ParNCMesh::MakeShared
-(const Table &groups, const FaceList &list, FaceList &shared)
+(const Table &groups, const NCList &list, NCList &shared)
 {
    // Filter the full lists, only output items that are shared.
+   // Slaves are skipped as they need to be obtained from the full list.
 
    shared.Clear();
 
@@ -241,10 +243,50 @@ void ParNCMesh::MakeShared
    for (int i = 0; i < list.masters.size(); i++)
       if (is_shared(groups, list.masters[i].index, MyRank))
          shared.masters.push_back(list.masters[i]);
+}
 
-   for (int i = 0; i < list.slaves.size(); i++)
-      if (is_shared(groups, list.slaves[i].index, MyRank))
-         shared.slaves.push_back(list.slaves[i]);
+void ParNCMesh::BuildSharedVertices()
+{
+   vertex_owner.SetSize(NVertices);
+   vertex_owner = std::numeric_limits<int>::max();
+
+   tmp_ranks.SetSize(8*leaf_elements.Size());
+   tmp_ranks.SetSize(0);
+
+   Array<MeshId> vertex_id(NVertices);
+
+   // similarly to edges/faces, we loop over the vertices of all leaf elements
+   // to determine which processors share each vertex
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      Element* elem = leaf_elements[i];
+      for (int j = 0; j < GI[elem->geom].nv; j++)
+      {
+         Node* node = elem->node[j];
+         int index = node->vertex->index;
+
+         int &owner = vertex_owner[index];
+         owner = std::min(owner, elem->rank);
+
+         tmp_ranks.Append(IndexRank(index, elem->rank));
+
+         MeshId &id = vertex_id[index];
+         id.index = (node->edge ? -1 : index);
+         id.element = elem;
+         id.local = j;
+      }
+   }
+
+   MakeGroups(NVertices, vertex_group);
+
+   // create a list of shared vertices, skip obviously slave vertices
+   // (for simplicity, we don't guarantee to skip all slave vertices)
+   shared_vertices.Clear();
+   for (int i = 0; i < NVertices; i++)
+   {
+      if (is_shared(vertex_group, i, MyRank) && vertex_id[i].index >= 0)
+         shared_vertices.conforming.push_back(vertex_id[i]);
+   }
 }
 
 
@@ -380,10 +422,9 @@ void ParNCMesh::ElementSet::Load(std::istream &is)
 }
 
 
-//// Edge/face ID encoding /////////////////////////////////////////////////////
+//// EncodeMeshIds/DecodeMeshIds ///////////////////////////////////////////////
 
-void ParNCMesh::EncodeEdgesFaces
-(const Array<EdgeId> &edges, const Array<FaceId> &faces, std::ostream &os) const
+void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[3]) const
 {
    std::map<Element*, int> element_id;
 
@@ -391,10 +432,9 @@ void ParNCMesh::EncodeEdgesFaces
    // element_id: (Element* -> stream ID)
    {
       std::set<Element*> elements;
-      for (int i = 0; i < edges.Size(); i++)
-         elements.insert(edges[i].element);
-      for (int i = 0; i < faces.Size(); i++)
-         elements.insert(faces[i].element);
+      for (int type = 0; type < 3; type++)
+         for (int i = 0; i < ids[type].Size(); i++)
+            elements.insert(ids[type][i].element);
 
       ElementSet eset(elements, root_elements);
       eset.Dump(os);
@@ -406,25 +446,20 @@ void ParNCMesh::EncodeEdgesFaces
          element_id[decoded[i]] = i;
    }
 
-   // write edges
-   write<int>(os, edges.Size());
-   for (int i = 0; i < edges.Size(); i++)
+   // write the IDs as element/local pairs
+   for (int type = 0; type < 3; type++)
    {
-      write<int>(os, element_id[edges[i].element]); // TODO: variable 1-4 bytes
-      write<char>(os, edges[i].local);
-   }
-
-   // write faces
-   write<int>(os, faces.Size());
-   for (int i = 0; i < faces.Size(); i++)
-   {
-      write<int>(os, element_id[faces[i].element]); // TODO: variable 1-4 bytes
-      write<char>(os, faces[i].local);
+      write<int>(os, ids[type].Size());
+      for (int i = 0; i < ids[type].Size(); i++)
+      {
+         const MeshId& id = ids[type][i];
+         write<int>(os, element_id[id.element]); // TODO: variable 1-4 bytes
+         write<char>(os, id.local);
+      }
    }
 }
 
-void ParNCMesh::DecodeEdgesFaces
-(Array<EdgeId> &edges, Array<FaceId> &faces, std::istream &is) const
+void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const
 {
    // read the list of elements
    ElementSet eset(is);
@@ -432,72 +467,64 @@ void ParNCMesh::DecodeEdgesFaces
    Array<Element*> elements;
    eset.Decode(elements, root_elements);
 
-   // read edges, look up their indices
-   int ne = read<int>(is);
-   edges.SetSize(ne);
-   for (int i = 0; i < ne; i++)
+   // read vertex/edge/face IDs
+   for (int type = 0; type < 3; type++)
    {
-      Element* elem = elements[read<int>(is)];
-      MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
+      int ne = read<int>(is);
+      ids[type].SetSize(ne);
 
-      EdgeId &eid = edges[i];
-      eid.element = elem;
-      eid.local = read<char>(is);
+      for (int i = 0; i < ne; i++)
+      {
+         Element* elem = elements[read<int>(is)];
+         MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
 
-      const int* ev = GI[elem->geom].edges[eid.local];
-      Node* node = nodes.Peek(elem->node[ev[0]], elem->node[ev[1]]);
+         MeshId &id = ids[type][i];
+         id.element = elem;
+         id.local = read<char>(is);
 
-      MFEM_ASSERT(node && node->edge, "Edge not found.");
-      eid.index = node->edge->index;
-   }
-
-   // read faces, look up their indices
-   int nf = read<int>(is);
-   faces.SetSize(nf);
-   for (int i = 0; i < nf; i++)
-   {
-      Element* elem = elements[read<int>(is)];
-      MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
-
-      FaceId &fid = faces[i];
-      fid.element = elem;
-      fid.local = read<char>(is);
-
-      const int* fv = GI[elem->geom].faces[fid.local];
-      Face* face = this->faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
-                                    elem->node[fv[2]], elem->node[fv[3]]);
-
-      MFEM_ASSERT(face, "Face not found.");
-      fid.index = face->index;
+         // find vertex/edge/face index
+         GeomInfo &gi = GI[elem->geom];
+         switch (type)
+         {
+            case 0:
+            {
+               id.index = elem->node[id.local]->vertex->index;
+               break;
+            }
+            case 1:
+            {
+               const int* ev = gi.edges[id.local];
+               Node* node = nodes.Peek(elem->node[ev[0]], elem->node[ev[1]]);
+               MFEM_ASSERT(node && node->edge, "Edge not found.");
+               id.index = node->edge->index;
+               break;
+            }
+            default:
+            {
+               const int* fv = gi.faces[id.local];
+               Face* face = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
+                                       elem->node[fv[2]], elem->node[fv[3]]);
+               MFEM_ASSERT(face, "Face not found.");
+               id.index = face->index;
+            }
+         }
+      }
    }
 }
 
 
 //// NeighborDofMessage ////////////////////////////////////////////////////////
 
-void ParNCMesh::NeighborDofMessage::AddFaceDofs
-(const FaceId &fid, const Array<int> &dofs)
+void ParNCMesh::NeighborDofMessage::GetDofs
+(int type, const MeshId& id, Array<int>& dofs)
 {
-   face_dofs[fid].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
-}
-
-void ParNCMesh::NeighborDofMessage::AddEdgeDofs
-(const EdgeId &eid, const Array<int> &dofs)
-{
-   edge_dofs[eid].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
-}
-
-void ParNCMesh::NeighborDofMessage::GetFaceDofs
-(const FaceId& fid, Array<int>& dofs)
-{
-   std::vector<int> &vec = face_dofs[fid];
-   dofs.MakeRef(vec.data(), vec.size());
-}
-
-void ParNCMesh::NeighborDofMessage::GetEdgeDofs
-(const EdgeId& eid, Array<int>& dofs)
-{
-   std::vector<int> &vec = edge_dofs[eid];
+   MFEM_ASSERT(type >= 0 && type < 3, "");
+#ifdef MFEM_DEBUG
+   if (id_dofs[type].find(id) == id_dofs[type].end())
+      MFEM_ABORT("Type/ID " << type << "/" << id.index
+                 << " not found in neighbor message.");
+#endif
+   std::vector<int> &vec = id_dofs[type][id];
    dofs.MakeRef(vec.data(), vec.size());
 }
 
@@ -519,34 +546,31 @@ MPI_Request ParNCMesh::NeighborDofMessage::Isend
 {
    IdToDofs::const_iterator it;
 
-   // collect edges & faces
-   Array<EdgeId> edges;
-   edges.Reserve(edge_dofs.size());
-   for (it = edge_dofs.begin(); it != edge_dofs.end(); ++it)
-      edges.Append(it->first);
+   // collect vertex/edge/face IDs
+   Array<MeshId> ids[3];
+   for (int type = 0; type < 3; type++)
+   {
+      ids[type].Reserve(id_dofs[type].size());
+      for (it = id_dofs[type].begin(); it != id_dofs[type].end(); ++it)
+         ids[type].Append(it->first);
+   }
 
-   Array<FaceId> faces;
-   faces.Reserve(face_dofs.size());
-   for (it = face_dofs.begin(); it != face_dofs.end(); ++it)
-      faces.Append(it->first);
-
-   // encode edge & face IDs
+   // encode the IDs
    std::ostringstream stream;
-   pncmesh.EncodeEdgesFaces(edges, faces, stream);
+   pncmesh.EncodeMeshIds(stream, ids);
 
    // dump the DOFs
-   for (it = edge_dofs.begin(); it != edge_dofs.end(); ++it)
-      write_dofs(stream, it->second);
+   for (int type = 0; type < 3; type++)
+   {
+      for (it = id_dofs[type].begin(); it != id_dofs[type].end(); ++it)
+         write_dofs(stream, it->second);
 
-   for (it = face_dofs.begin(); it != face_dofs.end(); ++it)
-      write_dofs(stream, it->second);
-
-   face_dofs.clear();
-   edge_dofs.clear();
-
-   stream.str().swap(data);
+      // no longer need the original data
+      id_dofs[type].clear();
+   }
 
    // send the message
+   stream.str().swap(data);
    return Base::Isend(rank, comm);
 }
 
@@ -555,22 +579,19 @@ void ParNCMesh::NeighborDofMessage::Recv
 {
    // receive message
    Base::Recv(rank, size, comm);
-
-   // decode edge & face IDs
-   Array<EdgeId> edges;
-   Array<FaceId> faces;
-
    std::istringstream stream(data);
-   pncmesh.DecodeEdgesFaces(edges, faces, stream);
+
+   // decode vertex/edge/face IDs
+   Array<MeshId> ids[3];
+   pncmesh.DecodeMeshIds(stream, ids);
 
    // load DOFs
-   edge_dofs.clear();
-   for (int i = 0; i < edges.Size(); i++)
-      read_dofs(stream, edge_dofs[edges[i]]);
-
-   face_dofs.clear();
-   for (int i = 0; i < faces.Size(); i++)
-      read_dofs(stream, face_dofs[faces[i]]);
+   for (int type = 0; type < 3; type++)
+   {
+      id_dofs[type].clear();
+      for (int i = 0; i < ids[type].Size(); i++)
+         read_dofs(stream, id_dofs[type][ids[type][i]]);
+   }
 
    // no longer need the raw data
    data.clear();

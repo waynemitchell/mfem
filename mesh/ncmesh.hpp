@@ -80,76 +80,58 @@ public:
        of hanging nodes is not greater than 'max_level'. */
    void LimitNCLevel(int max_level);
 
-   /** Base class for all conforming/master/slave face types. Identifies a face
-       in both Mesh and NCMesh. */
-   struct FaceId
+   /// Identifies a vertex/edge/face in both Mesh and NCMesh.
+   struct MeshId
    {
-      int index; ///< Mesh face number
-      int local; ///< local face number within 'element'
-      Element* element; ///< NCMesh::Element containing this face
+      int index; ///< Mesh number
+      int local; ///< local number within 'element'
+      Element* element; ///< NCMesh::Element containing this vertex/edge/face
 
-      FaceId(int index = -1, Element* element = NULL, int local = -1)
+      MeshId(int index = -1, Element* element = NULL, int local = -1)
          : index(index), local(local), element(element) {}
    };
 
-   /// Standard face.
-   struct ConformingFace : public FaceId
-   {
-      int attribute;
-      bool Boundary() const { return attribute >= 0; }
-
-      ConformingFace(int index, Element* element, int local, int attr)
-         : FaceId(index, element, local), attribute(attr) {}
-   };
-
-   /** Nonconforming face that has more than one neighbor. The neighbors are
-       stored in FaceList::slaves[i], slaves_begin <= i < slaves_end. */
-   struct MasterFace : public FaceId
+   /** Nonconforming edge/face that has more than one neighbor. The neighbors
+       are stored in NCList::slaves[i], slaves_begin <= i < slaves_end. */
+   struct Master : public MeshId
    {
       int slaves_begin, slaves_end; ///< slave faces
 
-      MasterFace(int index, Element* element, int local, int sb, int se)
-         : FaceId(index, element, local), slaves_begin(sb), slaves_end(se) {}
+      Master(int index, Element* element, int local, int sb, int se)
+         : MeshId(index, element, local), slaves_begin(sb), slaves_end(se) {}
    };
 
-   /** Nonconforming face within a bigger face. NOTE: only the 'index' member
-       of FaceId is currently valid. */
-   struct SlaveFace : public FaceId
+   /** Nonconforming edge/face within a bigger edge/face.
+       NOTE: only the 'index' member of MeshId is currently valid for slaves. */
+   struct Slave : public MeshId
    {
-      int master; ///< master face number (in Mesh numbering)
-      DenseMatrix point_matrix; ///< position within the master face
+      int master; ///< master number (in Mesh numbering)
+      DenseMatrix point_matrix; ///< position within the master
 
-      SlaveFace(int index) : FaceId(index), master(-1) {}
+      Slave(int index) : MeshId(index), master(-1) {}
    };
 
-   /// Lists all faces in the nonconforming mesh. Returned by BuildFaceList.
-   struct FaceList
+   /// Lists all edges/faces in the nonconforming mesh.
+   struct NCList
    {
-      std::vector<ConformingFace> conforming;
-      std::vector<MasterFace> masters;
-      std::vector<SlaveFace> slaves;
+      std::vector<MeshId> conforming;
+      std::vector<Master> masters;
+      std::vector<Slave> slaves;
       // TODO: switch to Arrays when fixed for non-POD types
 
       void Clear() { conforming.clear(); masters.clear(); slaves.clear(); }
       bool Empty() const { return !conforming.size() && !masters.size(); }
    };
 
-   // edge structs are the same
-   typedef FaceId EdgeId;
-   typedef ConformingFace ConformingEdge;
-   typedef MasterFace MasterEdge;
-   typedef SlaveFace SlaveEdge;
-   typedef FaceList EdgeList;
-
    /// Return the current list of conforming and nonconforming faces.
-   const FaceList& GetFaceList()
+   const NCList& GetFaceList()
    {
       if (face_list.Empty()) BuildFaceList();
       return face_list;
    }
 
    /// Return the current list of conforming and nonconforming edges.
-   const EdgeList& GetEdgeList()
+   const NCList& GetEdgeList()
    {
       if (edge_list.Empty()) BuildEdgeList();
       return edge_list;
@@ -423,8 +405,8 @@ protected: // implementation
 
    Node* TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level);
 
-   FaceList face_list;
-   EdgeList edge_list;
+   NCList face_list;
+   NCList edge_list;
 
    virtual void BuildFaceList();
    virtual void BuildEdgeList();
