@@ -12,7 +12,7 @@
 #ifndef MFEM_SOLVERS
 #define MFEM_SOLVERS
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "operator.hpp"
 
 #ifdef MFEM_USE_MPI

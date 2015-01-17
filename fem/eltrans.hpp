@@ -12,7 +12,7 @@
 #ifndef MFEM_ELEMENTTRANSFORM
 #define MFEM_ELEMENTTRANSFORM
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../linalg/linalg.hpp"
 #include "intrules.hpp"
 #include "fe.hpp"

@@ -11,6 +11,10 @@
 
 // Implementation of data type mesh
 
+#include "mesh_headers.hpp"
+#include "../fem/fem.hpp"
+#include "../general/sort_pairs.hpp"
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -18,10 +22,6 @@
 #include <cmath>
 #include <cstring>
 #include <ctime>
-
-#include "mesh_headers.hpp"
-#include "../fem/fem.hpp"
-#include "../general/sort_pairs.hpp"
 
 namespace mfem
 {
@@ -7413,8 +7413,8 @@ void Mesh::PrintVTK(std::ostream &out, int ref, int field_data)
    }
 
    Array<int> coloring;
-   srandom(time(0));
-   double a = double(random()) / (double(RAND_MAX) + 1.);
+   srand((unsigned)time(0));
+   double a = double(rand()) / (double(RAND_MAX) + 1.);
    int el0 = (int)floor(a * GetNE());
    GetElementColoring(coloring, el0);
    out << "SCALARS element_coloring int\n"

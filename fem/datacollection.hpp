@@ -12,7 +12,7 @@
 #ifndef MFEM_DATACOLLECTION
 #define MFEM_DATACOLLECTION
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include <string>
 #include <map>
 

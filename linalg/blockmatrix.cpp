@@ -436,7 +436,7 @@ void BlockMatrix::PrintMatlab(std::ostream & os) const
    int i, j;
    std::ios::fmtflags old_fmt = os.flags();
    os.setf(std::ios::scientific);
-   int old_prec = os.precision(14);
+   std::streamsize old_prec = os.precision(14);
    for (i = 0; i < row_offsets.Last(); i++)
    {
       GetRow(i, row_ind, row_data);

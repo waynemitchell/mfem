@@ -12,9 +12,9 @@
 #ifndef MFEM_ERROR
 #define MFEM_ERROR
 
+#include "../config/config.hpp"
 #include <iomanip>
 #include <sstream>
-#include "../config.hpp"
 
 namespace mfem
 {
@@ -23,10 +23,17 @@ void mfem_error (const char *msg = NULL);
 
 }
 
+#ifndef _MFEM_FUNC_NAME
+#ifndef _WIN32
 // This is nice because it shows the class and method name
 #define _MFEM_FUNC_NAME __PRETTY_FUNCTION__
 // This one is C99 standard.
 //#define _MFEM_FUNC_NAME __func__
+#else
+// for Visual Studio C++
+#define _MFEM_FUNC_NAME __FUNCSIG__
+#endif
+#endif
 
 // Common error message and abort macro
 #define _MFEM_MSG_ABORT(msg)                                            \
