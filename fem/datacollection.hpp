@@ -49,9 +49,8 @@ protected:
    bool own_data;
 
 public:
-   /** Create an empty collection with the given name. The myid parameter
-       specifies if we are running in serial or parallel. */
-   DataCollection(const char *collection_name, int _myid = 0);
+   /// Create an empty collection with the given name.
+   DataCollection(const char *collection_name);
    /// Initialize the collection with its mesh
    DataCollection(const char *collection_name, Mesh *_mesh);
 
@@ -121,9 +120,9 @@ protected:
    void LoadFields();
 
 public:
-   /** Create an empty collection with the given name. The myid parameter
-    specifies if we are running in serial or parallel. */
-   VisItDataCollection(const char *collection_name, int _myid = 0);
+   /** Create an empty collection with the given name, that will be filled in
+       later with the Load() function. Currently this only works in serial! */
+   VisItDataCollection(const char *collection_name);
    /// Initialize the collection with its mesh, fill-in the extra VisIt data
    VisItDataCollection(const char *collection_name, Mesh *_mesh);
 

@@ -19,7 +19,9 @@
 //               finite elements (velocity u) and piecewise discontinuous
 //               polynomials (pressure p).
 //
-//               The example demonstrates the use of the BlockMatrix class.
+//               The example demonstrates the use of the BlockMatrix class, as
+//               well as the collective saving of several grid functions in a
+//               VisIt (visit.llnl.gov) visualization format.
 //
 //               We recommend viewing examples 1-4 before viewing this example.
 
@@ -258,12 +260,12 @@ int main(int argc, char *argv[])
    }
 
    // 13. Save data in the VisIt format
-   VisItDataCollection visit_dc("example5", mesh);
+   VisItDataCollection visit_dc("Example5", mesh);
    visit_dc.RegisterField("velocity", &u);
    visit_dc.RegisterField("pressure", &p);
    visit_dc.Save();
 
-   // 13. Send the solution by socket to a GLVis server.
+   // 14. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";

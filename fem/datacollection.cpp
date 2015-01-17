@@ -26,9 +26,12 @@ namespace mfem
 
 using namespace std;
 
-// Helper string functions. Will go away in C++11
+// Number of digits and format used for the cycle and MPI rank
 
-const int num_ext_digits = 6;
+const int file_ext_digits = 5;
+const string file_ext_format = ".%05d";
+
+// Helper string functions. Will go away in C++11
 
 string to_string(int i)
 {
@@ -44,7 +47,7 @@ string to_string(int i)
 string to_padded_string(int i)
 {
    ostringstream oss;
-   oss << setw(num_ext_digits) << setfill('0') << i;
+   oss << setw(file_ext_digits) << setfill('0') << i;
    return oss.str();
 }
 
@@ -56,12 +59,17 @@ int to_int(string str)
 }
 
 // class DataCollection implementation
-DataCollection::DataCollection(const char *collection_name, int _myid)
+
+DataCollection::DataCollection(const char *collection_name)
 {
    name = collection_name;
-   myid = _myid;
+   myid = 0;
+   num_procs = 1;
+   serial = 0;
+   cycle = -1;
+   time = 0.0;
+   field_map.erase(field_map.begin(), field_map.end());
 }
-
 
 DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
 {
@@ -147,22 +155,21 @@ DataCollection::~DataCollection()
 
 
 // class VisItDataCollection implementation
-VisItDataCollection::VisItDataCollection(const char *collection_name, int _myid)
-   : DataCollection(collection_name, _myid)
+
+VisItDataCollection::VisItDataCollection(const char *collection_name)
+   : DataCollection(collection_name)
 {
-   // always assume a parallel run
-   serial = 0;
+   serial = 0; // just for the file extensions
    cycle  = 0;
 
    visit_max_levels_of_detail = 25;
    field_info_map.erase(field_info_map.begin(), field_info_map.end());
 }
 
-
 VisItDataCollection::VisItDataCollection(const char *collection_name, Mesh *mesh)
    : DataCollection(collection_name, mesh)
 {
-   // always assume a parallel run
+   // always assume a time-dependent parallel run
    serial = 0;
    cycle  = 0;
 
@@ -193,18 +200,23 @@ void VisItDataCollection::Save()
                   "Unable to open VisIt Root file for output:  " << root_name);
       root_file << GetVisItRootString();
       root_file.close();
-
-      DataCollection::Save();
    }
+
+   DataCollection::Save();
 }
 
 void VisItDataCollection::Load(int _cycle)
 {
+#ifdef MFEM_USE_MPI
+   MFEM_ABORT("VisItDataCollection::Load() does not work in parallel");
+#endif
+
    cycle = _cycle;
    string root_name = name + "_" + to_padded_string(cycle) + ".mfem_root";
    LoadVisItRootFile(root_name);
    LoadMesh();
    LoadFields();
+   own_data = true;
 }
 
 void VisItDataCollection::LoadVisItRootFile(string root_name)
@@ -224,19 +236,8 @@ void VisItDataCollection::LoadMesh()
       + to_padded_string(myid);
    ifstream file(mesh_fname.c_str());
    MFEM_ASSERT(file.is_open(), "Unable to open file for input:  " << mesh_fname);
-   mesh = new Mesh(file);
+   mesh = new Mesh(file); // todo in parallel
    file.close();
-
-   // Use the loaded in mesh to fill in some of the root data
-#ifdef MFEM_USE_MPI
-   ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
-   if (par_mesh)
-   {
-      myid = par_mesh->GetMyRank();
-      num_procs = par_mesh->GetNRanks();
-      serial = 0;
-   }
-#endif
    spatial_dim = mesh->SpaceDimension();
    topo_dim = mesh->Dimension();
 }
@@ -270,7 +271,7 @@ string VisItDataCollection::GetVisItRootString()
    mtags["spatial_dim"] = picojson::value(to_string(spatial_dim));
    mtags["topo_dim"] = picojson::value(to_string(topo_dim));
    mtags["max_lods"] = picojson::value(to_string(visit_max_levels_of_detail));
-   mesh["path"] = picojson::value(path_str + "mesh.%06d");
+   mesh["path"] = picojson::value(path_str + "mesh" + file_ext_format);
    mesh["tags"] = picojson::value(mtags);
 
    // Build the fields data entries
@@ -279,7 +280,7 @@ string VisItDataCollection::GetVisItRootString()
    {
       ftags["assoc"] = picojson::value((it->second).association);
       ftags["comps"] = picojson::value(to_string((it->second).num_components));
-      field["path"] = picojson::value(path_str + it->first + ".%06d");
+      field["path"] = picojson::value(path_str + it->first + file_ext_format);
       field["tags"] = picojson::value(ftags);
       fields[it->first] = picojson::value(field);
    }
