@@ -12,7 +12,7 @@
 #ifndef MFEM_VERTEX
 #define MFEM_VERTEX
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 namespace mfem
 {

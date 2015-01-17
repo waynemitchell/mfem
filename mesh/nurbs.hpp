@@ -13,7 +13,7 @@
 #define MFEM_NURBS
 
 #include <iostream>
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../general/table.hpp"
 #include "../general/communication.hpp"
 #include "../linalg/vector.hpp"

@@ -13,6 +13,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
+#ifdef _WIN32
+#define snprintf _snprintf_s
+#endif
 
 namespace mfem
 {
@@ -1637,7 +1640,7 @@ void NURBSFECollection::Allocate(int Order)
    QuadrilateralFE  = new NURBS2DFiniteElement(Order);
    ParallelepipedFE = new NURBS3DFiniteElement(Order);
 
-   sprintf(name, "NURBS%i", Order);
+   snprintf(name, 16, "NURBS%i", Order);
 }
 
 void NURBSFECollection::Deallocate()

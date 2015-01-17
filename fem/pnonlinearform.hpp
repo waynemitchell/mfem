@@ -12,7 +12,7 @@
 #ifndef MFEM_PNONLINEARFORM
 #define MFEM_PNONLINEARFORM
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 

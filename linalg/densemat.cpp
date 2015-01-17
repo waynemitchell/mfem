@@ -13,16 +13,16 @@
 // Implementation of data types dense matrix, inverse dense matrix
 
 
-#include <iostream>
-#include <iomanip>
-#include <limits>
-#include <cmath>
-#include <cstdlib>
-
 #include "vector.hpp"
 #include "matrix.hpp"
 #include "densemat.hpp"
 #include "../general/table.hpp"
+
+#include <iostream>
+#include <iomanip>
+#include <limits>
+#include <algorithm>
+#include <cstdlib>
 
 namespace mfem
 {

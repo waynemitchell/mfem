@@ -12,7 +12,7 @@
 #ifndef MFEM_OPTPARSER
 #define MFEM_OPTPARSER
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "array.hpp"
 
 namespace mfem

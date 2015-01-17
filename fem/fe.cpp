@@ -11,8 +11,8 @@
 
 // Finite Element classes
 
-#include <cmath>
 #include "fem.hpp"
+#include <cmath>
 
 namespace mfem
 {

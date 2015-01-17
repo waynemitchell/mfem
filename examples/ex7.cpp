@@ -18,9 +18,9 @@
 //
 //               We recommend viewing Example 1 before viewing this example.
 
+#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "mfem.hpp"
 
 using namespace std;
 using namespace mfem;

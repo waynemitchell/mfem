@@ -12,7 +12,7 @@
 #ifndef MFEM_COMMUNICATION
 #define MFEM_COMMUNICATION
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
