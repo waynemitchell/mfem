@@ -12,7 +12,7 @@
 #ifndef MFEM_NONLININTEG
 #define MFEM_NONLININTEG
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "fe.hpp"
 #include "coefficient.hpp"
 

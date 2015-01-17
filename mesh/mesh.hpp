@@ -12,8 +12,7 @@
 #ifndef MFEM_MESH
 #define MFEM_MESH
 
-#include <iostream>
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../general/stable3d.hpp"
 #include "triangle.hpp"
 #include "tetrahedron.hpp"
@@ -21,6 +20,7 @@
 #include "ncmesh.hpp"
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
+#include <iostream>
 
 namespace mfem
 {

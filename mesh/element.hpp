@@ -12,7 +12,7 @@
 #ifndef MFEM_ELEMENT
 #define MFEM_ELEMENT
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../general/array.hpp"
 #include "../general/table.hpp"
 #include "../linalg/densemat.hpp"

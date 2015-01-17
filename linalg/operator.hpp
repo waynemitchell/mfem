@@ -12,7 +12,6 @@
 #ifndef MFEM_OPERATOR
 #define MFEM_OPERATOR
 
-#include <iostream>
 #include "vector.hpp"
 
 namespace mfem
