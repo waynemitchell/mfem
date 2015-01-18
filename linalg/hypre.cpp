@@ -9,7 +9,7 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -1007,23 +1007,7 @@ HypreSmoother::HypreSmoother(HypreParMatrix &_A, int _type,
 
 void HypreSmoother::SetType(HypreSmoother::Type _type, int _relax_times)
 {
-   if (_type == HypreSmoother::Jacobi)
-      type = 0;
-   else if (_type == HypreSmoother::GS)
-      type = 6;
-   else if (_type == HypreSmoother::l1Jacobi)
-      type = 1;
-   else if (_type == HypreSmoother::l1GS)
-      type = 4;
-   else if (_type == HypreSmoother::lumpedJacobi)
-      type = 5;
-   else if (_type == HypreSmoother::Chebyshev)
-      type = 16;
-   else if (_type == HypreSmoother::Taubin)
-      type = 1001;
-   else if (_type == HypreSmoother::FIR)
-      type = 1002;
-
+   type = static_cast<int>(_type);
    relax_times = _relax_times;
 }
 

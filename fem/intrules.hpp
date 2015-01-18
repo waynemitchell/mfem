@@ -12,7 +12,7 @@
 #ifndef MFEM_INTRULES
 #define MFEM_INTRULES
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../general/array.hpp"
 
 namespace mfem

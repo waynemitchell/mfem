@@ -12,11 +12,11 @@
 #ifndef MFEM_FESPACE
 #define MFEM_FESPACE
 
-#include <iostream>
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../linalg/sparsemat.hpp"
 #include "../mesh/mesh.hpp"
 #include "fe_coll.hpp"
+#include <iostream>
 
 namespace mfem
 {

@@ -10,6 +10,7 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "../fem/fem.hpp"
+#include <algorithm>
 
 namespace mfem
 {

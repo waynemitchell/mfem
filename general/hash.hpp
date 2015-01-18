@@ -12,7 +12,7 @@
 #ifndef MFEM_HASH
 #define MFEM_HASH
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "array.hpp"
 
 namespace mfem
@@ -370,7 +370,7 @@ void HashTable<ItemT>::Rehash()
       mask = new_size-1;
 
 #ifdef MFEM_DEBUG
-      std::cout << __PRETTY_FUNCTION__ << ": rehashing to size " << new_size
+      std::cout << _MFEM_FUNC_NAME << ": rehashing to size " << new_size
                 << std::endl;
 #endif
 

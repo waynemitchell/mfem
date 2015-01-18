@@ -12,7 +12,7 @@
 #ifndef MFEM_ODE
 #define MFEM_ODE
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "operator.hpp"
 
 namespace mfem

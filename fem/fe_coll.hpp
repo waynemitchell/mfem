@@ -12,7 +12,7 @@
 #ifndef MFEM_FE_COLLECTION
 #define MFEM_FE_COLLECTION
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "geom.hpp"
 #include "fe.hpp"
 

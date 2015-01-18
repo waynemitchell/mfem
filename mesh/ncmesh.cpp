@@ -11,10 +11,10 @@
 
 #include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
-
-#include <cmath>
-
 #include "ncmesh.hpp"
+
+#include <algorithm>
+#include <cmath>
 
 namespace mfem
 {
@@ -1537,8 +1537,8 @@ SparseMatrix* NCMesh::GetInterpolation(FiniteElementSpace *space,
    }
 
    // create the conforming restiction matrix
-   int *cR_J;
-   SparseMatrix *cR;
+   int *cR_J = NULL;
+   SparseMatrix *cR = NULL;
    if (cR_ptr)
    {
       int *cR_I = new int[n_true_dofs+1];

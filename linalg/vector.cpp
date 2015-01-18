@@ -503,7 +503,7 @@ void Vector::Print_HYPRE(std::ostream &out) const
    int i;
    std::ios::fmtflags old_fmt = out.flags();
    out.setf(std::ios::scientific);
-   int old_prec = out.precision(14);
+   std::streamsize old_prec = out.precision(14);
 
    out << size << '\n';  // number of rows
 
@@ -520,10 +520,10 @@ void Vector::Randomize(int seed)
    const double max = (double)(RAND_MAX) + 1.;
 
    if (seed == 0)
-      seed = time(0);
+      seed = (int)time(0);
 
    // srand(seed++);
-   srand(seed);
+   srand((unsigned)seed);
 
    for (int i = 0; i < size; i++)
       data[i] = fabs(rand()/max);

@@ -12,7 +12,7 @@
 #ifndef MFEM_PMESH
 #define MFEM_PMESH
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 

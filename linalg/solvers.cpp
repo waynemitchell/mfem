@@ -9,10 +9,11 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "linalg.hpp"
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 #include <cmath>
-#include "linalg.hpp"
 
 namespace mfem
 {

@@ -12,7 +12,7 @@
 #ifndef MFEM_LININTEG
 #define MFEM_LININTEG
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "coefficient.hpp"
 
 namespace mfem
