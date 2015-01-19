@@ -22,7 +22,7 @@ namespace mfem
 /** Types of domains for integration rules and reference finite elements:
     Geometry::POINT    - a point
     Geometry::SEGMENT  - the interval [0,1]
-    Geometry::TRIANGLE - triangle with verteces (0,0), (1,0), (0,1)
+    Geometry::TRIANGLE - triangle with vertices (0,0), (1,0), (0,1)
     Geometry::SQUARE   - the unit square (0,1)x(0,1)
     Geometry::TETRAHEDRON - w/ vert. (0,0,0),(1,0,0),(0,1,0),(0,0,1)
     Geometry::CUBE - the unit cube                                    */

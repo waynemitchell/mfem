@@ -22,7 +22,7 @@
 namespace mfem
 {
 
-/** Class for bilinear form - "Matrix" with asociated FE space and
+/** Class for bilinear form - "Matrix" with associated FE space and
     BLFIntegrators. */
 class BilinearForm : public Matrix
 {
