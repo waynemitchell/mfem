@@ -63,7 +63,7 @@ void mfem_error (const char *msg = NULL);
                       << #x << ") is false: " << msg);  \
    }
 
-// Use this if the only place your variable is used is in ASSERT's
+// Use this if the only place your variable is used is in ASSERTs
 // For example, this code snippet:
 //   int err = MPI_Reduce(ldata, maxdata, 5, MPI_INT, MPI_MAX, 0, MyComm);
 //   MFEM_CONTRACT_VAR(err);

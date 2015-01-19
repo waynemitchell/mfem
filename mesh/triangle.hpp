@@ -43,7 +43,7 @@ public:
 
    /** Reorder the vertices so that the longest edge is from vertex 0
        to vertex 0. If called it should be once from the mesh constructor,
-       becouse the order may be used later for setting the edges. **/
+       because the order may be used later for setting the edges. **/
    virtual void MarkEdge(DenseMatrix & pmat);
 
    /// Mark the longest edge by assuming/changing the order of the vertices.

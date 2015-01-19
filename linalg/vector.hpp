@@ -47,7 +47,7 @@ public:
    Vector (double *_data, int _size)
    { data = _data; size = _size; allocsize = -size; }
 
-   /// Reads a vector from multpile files
+   /// Reads a vector from multiple files
    void Load (std::istream ** in, int np, int * dim);
 
    /// Load a vector from an input stream.
