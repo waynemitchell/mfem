@@ -61,7 +61,7 @@ private:
    /// Say whether we own the pointers for I and J (should we free them?).
    bool ownIJ;
    /// Say whether we own the pointers for A (should we free them?).
-   bool ownA;
+   bool ownData;
 
    /// Are the columns sorted already.
    bool isSorted;

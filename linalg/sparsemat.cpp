@@ -34,7 +34,7 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
      ColPtrJ(NULL),
      ColPtrNode(NULL),
      ownIJ(true),
-     ownA(true),
+     ownData(true),
      isSorted(false)
 {
    for (int i = 0; i < nrows; i++)
@@ -56,7 +56,7 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
      ColPtrJ(NULL),
      ColPtrNode(NULL),
      ownIJ(true),
-     ownA(true),
+     ownData(true),
      isSorted(false)
 {
 #ifdef MFEM_USE_MEMALLOC
@@ -74,7 +74,7 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n,
      ColPtrJ(NULL),
      ColPtrNode(NULL),
      ownIJ(ownij),
-     ownA(owna),
+     ownData(owna),
      isSorted(issorted)
 {
 #ifdef MFEM_USE_MEMALLOC
@@ -83,7 +83,7 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n,
 
    if ( A == NULL )
    {
-      ownA = true;
+      ownData = true;
       A = new double[ I[height] ];
    }
 }
@@ -2074,7 +2074,7 @@ SparseMatrix::~SparseMatrix ()
    {
       delete [] J;
    }
-   if (A != NULL && ownA )
+   if (A != NULL && ownData )
    {
       delete [] A;
    }
