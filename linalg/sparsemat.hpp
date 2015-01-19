@@ -59,7 +59,7 @@ private:
 #endif
 
    /// Say whether we own the pointers for I and J (should we free them?).
-   bool ownIJ;
+   bool ownGraph;
    /// Say whether we own the pointers for A (should we free them?).
    bool ownData;
 

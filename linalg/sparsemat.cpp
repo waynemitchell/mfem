@@ -33,7 +33,7 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
      current_row(-1),
      ColPtrJ(NULL),
      ColPtrNode(NULL),
-     ownIJ(true),
+     ownGraph(true),
      ownData(true),
      isSorted(false)
 {
@@ -55,7 +55,7 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
      Rows(NULL),
      ColPtrJ(NULL),
      ColPtrNode(NULL),
-     ownIJ(true),
+     ownGraph(true),
      ownData(true),
      isSorted(false)
 {
@@ -73,7 +73,7 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n,
      Rows(NULL),
      ColPtrJ(NULL),
      ColPtrNode(NULL),
-     ownIJ(ownij),
+     ownGraph(ownij),
      ownData(owna),
      isSorted(issorted)
 {
@@ -2066,11 +2066,11 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
 
 SparseMatrix::~SparseMatrix ()
 {
-   if ( I != NULL && ownIJ )
+   if ( I != NULL && ownGraph )
    {
       delete [] I;
    }
-   if ( J != NULL && ownIJ )
+   if ( J != NULL && ownGraph )
    {
       delete [] J;
    }
