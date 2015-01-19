@@ -33,8 +33,8 @@ SparseMatrix::SparseMatrix(int nrows, int ncols)
      current_row(-1),
      ColPtrJ(NULL),
      ColPtrNode(NULL),
-     ownIJ(true),
-     ownA(true),
+     ownGraph(true),
+     ownData(true),
      isSorted(false)
 {
    for (int i = 0; i < nrows; i++)
@@ -55,8 +55,8 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n)
      Rows(NULL),
      ColPtrJ(NULL),
      ColPtrNode(NULL),
-     ownIJ(true),
-     ownA(true),
+     ownGraph(true),
+     ownData(true),
      isSorted(false)
 {
 #ifdef MFEM_USE_MEMALLOC
@@ -73,8 +73,8 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n,
      Rows(NULL),
      ColPtrJ(NULL),
      ColPtrNode(NULL),
-     ownIJ(ownij),
-     ownA(owna),
+     ownGraph(ownij),
+     ownData(owna),
      isSorted(issorted)
 {
 #ifdef MFEM_USE_MEMALLOC
@@ -83,7 +83,7 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n,
 
    if ( A == NULL )
    {
-      ownA = true;
+      ownData = true;
       A = new double[ I[height] ];
    }
 }
@@ -2066,15 +2066,15 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
 
 SparseMatrix::~SparseMatrix ()
 {
-   if ( I != NULL && ownIJ )
+   if ( I != NULL && ownGraph )
    {
       delete [] I;
    }
-   if ( J != NULL && ownIJ )
+   if ( J != NULL && ownGraph )
    {
       delete [] J;
    }
-   if (A != NULL && ownA )
+   if (A != NULL && ownData )
    {
       delete [] A;
    }
