@@ -25,6 +25,7 @@ namespace mfem
 class
 #if defined(__alignas_is_defined)
 alignas(double)
+   4324
 #endif
    RowNode
 {
@@ -88,7 +89,7 @@ public:
    SparseMatrix(int *i, int *j, double *data, int m, int n);
 
    SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij, bool owna,
-                bool issorted );
+                bool issorted);
 
    /// For backward compatibility define Size to be synonym of Height()
    int Size() const { return Height(); }
@@ -232,7 +233,7 @@ public:
    virtual void Finalize(int skip_zeros = 1);
 
    bool Finalized() const { return (A != NULL); }
-   bool areColumnsSorted() const {return isSorted; }
+   bool areColumnsSorted() const { return isSorted; }
 
    /** Split the matrix into M x N blocks of sparse matrices in CSR format.
        The 'blocks' array is M x N (i.e. M and N are determined by its
@@ -449,7 +450,7 @@ inline double &SparseMatrix::SearchRow(const int col)
    else
    {
       const int j = ColPtrJ[col];
-      MFEM_VERIFY( j != -1, "Entry for column " << col << " is not allocated.");
+      MFEM_VERIFY(j != -1, "Entry for column " << col << " is not allocated.");
       return A[j];
    }
 }
@@ -506,7 +507,7 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
             return A[k];
          }
       }
-      MFEM_ABORT( "Could not find entry for row = " << row << ", col = " << col);
+      MFEM_ABORT("Could not find entry for row = " << row << ", col = " << col);
    }
    return A[0];
 }
