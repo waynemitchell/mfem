@@ -238,7 +238,7 @@ double &SparseMatrix::operator()(int i, int j)
 {
    int k, end;
 
-   MFEM_ASSERT( i <= height && i >= 0 && j < width && j >= 0,
+   MFEM_ASSERT( i < height && i >= 0 && j < width && j >= 0,
                 "Trying to access element outside of the matrix.  "
                 << "height = " << height << ", "
                 << "width = " << width << ", "
@@ -263,7 +263,7 @@ const double &SparseMatrix::operator()(int i, int j) const
    int k, end;
    static const double zero = 0.0;
 
-   MFEM_ASSERT( i <= height && i >= 0 && j < width && j >= 0,
+   MFEM_ASSERT( i < height && i >= 0 && j < width && j >= 0,
                 "Trying to access element outside of the matrix.  "
                 << "height = " << height << ", "
                 << "width = " << width << ", "
