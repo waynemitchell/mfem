@@ -25,7 +25,6 @@ namespace mfem
 class
 #if defined(__alignas_is_defined)
 alignas(double)
-   4324
 #endif
    RowNode
 {
