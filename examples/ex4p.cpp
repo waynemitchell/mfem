@@ -13,6 +13,7 @@
 //               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh
 //               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh
 //               mpirun -np 4 ex4p -m ../data/periodic-square.mesh
+//               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -73,7 +74,7 @@ int main(int argc, char *argv[])
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
-   //    and volume meshes with the same code.
+   //    and volume, as well as periodic meshes with the same code.
    Mesh *mesh;
    ifstream imesh(mesh_file);
    if (!imesh)

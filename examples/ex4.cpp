@@ -13,6 +13,7 @@
 //               ex4 -m ../data/square-disc-nurbs.mesh
 //               ex4 -m ../data/beam-hex-nurbs.mesh
 //               ex4 -m ../data/periodic-square.mesh
+//               ex4 -m ../data/periodic-cube.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -63,8 +64,8 @@ int main(int argc, char *argv[])
    args.PrintOptions(cout);
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
-   //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
-   //    the same code.
+   //    quadrilateral, tetrahedral, hexahedral, surface and volume, as well as
+   //    periodic meshes with the same code.
    Mesh *mesh;
    ifstream imesh(mesh_file);
    if (!imesh)
