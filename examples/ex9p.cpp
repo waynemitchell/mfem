@@ -1,4 +1,4 @@
-//                                MFEM Example 9
+//                       MFEM Example 9 - Parallel Version
 //
 // Compile with: make ex9p
 //
@@ -10,15 +10,15 @@
 //               mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rs 2 -rp 1 -dt 0.005 -tf 9
 //               mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rs 2 -rp 2 -dt 0.0025 -tf 9 -vs 20
 //
-// Description:  This example code solves the simple time-dependent advection
-//               equation du/dt = v.grad(u), where v is the fluid velocity, and
+// Description:  This example code solves the time-dependent advection equation
+//               du/dt = v.grad(u), where v is a given fluid velocity, and
 //               u0(x)=u(0,x) is a given initial condition.
 //
 //               The example demonstrates the use of Discontinuous Galerkin (DG)
 //               bilinear forms in MFEM (face integrators), the use of explicit
 //               ODE time integrators, the definition of periodic boundary
 //               conditions through periodic meshes, as well as the use of GLVis
-//               for the persistent visualization of time-evolving solution.
+//               for persistent visualization of a time-evolving solution.
 
 #include "mfem.hpp"
 #include <iostream>
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
    int ser_ref_levels = 2;
-   int par_ref_levels = 2;
+   int par_ref_levels = 0;
    int order = 3;
    int ode_solver_type = 4;
    double t_final = 10.0;
@@ -96,11 +96,11 @@ int main(int argc, char *argv[])
    args.AddOption(&ser_ref_levels, "-rs", "--refine_serial",
                   "Number of times to refine the mesh uniformly in serial.");
    args.AddOption(&par_ref_levels, "-rp", "--refine_parallel",
-                  "Number of times to refine the mesh uniformly in serial.");
+                  "Number of times to refine the mesh uniformly in parallel.");
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Forw. Euler, 2 - RK2 SSP, 3 - RK3 SSP,"
+                  "ODE solver: 1 - Forward Euler, 2 - RK2 SSP, 3 - RK3 SSP,"
                   " 4 - RK4, 6 - RK6.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
@@ -111,30 +111,30 @@ int main(int argc, char *argv[])
                   "Enable or disable GLVis visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
-
    args.Parse();
    if (!args.Good())
    {
-      args.PrintUsage(cout);
+      if (myid == 0)
+         args.PrintUsage(cout);
       MPI_Finalize();
       return 1;
    }
-   if(myid == 0)
+   if (myid == 0)
       args.PrintOptions(cout);
 
-   // 3. Read the mesh from the given mesh file. We can handle geometrically
-   //    periodic meshes in this code.
+   // 3. Read the serial mesh from the given mesh file on all processors. We can
+   //    handle geometrically periodic meshes in this code.
    Mesh *mesh;
+   ifstream imesh(mesh_file);
+   if (!imesh)
    {
-      ifstream imesh(mesh_file);
-      if (!imesh)
-      {
-         cout << "Can not open mesh: " << mesh_file << endl;
-         MPI_Finalize();
-         return 2;
-      }
-      mesh = new Mesh(imesh, 1, 1);
+      if (myid == 0)
+         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      MPI_Finalize();
+      return 2;
    }
+   mesh = new Mesh(imesh, 1, 1);
+   imesh.close();
    int dim = mesh->Dimension();
 
    // 4. Define the ODE solver used for time integration. Several explicit
@@ -148,16 +148,16 @@ int main(int argc, char *argv[])
    case 4: ode_solver = new RK4Solver; break;
    case 6: ode_solver = new RK6Solver; break;
    default:
-	  if(myid == 0)
+      if (myid == 0)
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
-	  MPI_Finalize();
+      MPI_Finalize();
       return 3;
    }
 
-   // 5. Refine the mesh in serial to increase the resolution. In this example we do
-   //    'ser_ref_levels' of uniform refinement, where 'ser_ref_levels' is a
-   //    command-line parameter. If the mesh is of NURBS type, we convert it to
-   //    a (piecewise-polynomial) high-order mesh.
+   // 5. Refine the mesh in serial to increase the resolution. In this example
+   //    we do 'ser_ref_levels' of uniform refinement, where 'ser_ref_levels' is
+   //    a command-line parameter. If the mesh is of NURBS type, we convert it
+   //    to a (piecewise-polynomial) high-order mesh.
    for (int lev = 0; lev < ser_ref_levels; lev++)
       mesh->UniformRefinement();
 
@@ -170,68 +170,64 @@ int main(int argc, char *argv[])
       mesh->GetNodes()->MakeOwner(mfec);
    }
 
-   // 6. Define the parallel mesh
-   ParMesh * pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+   // 6. Define the parallel mesh by a partitioning of the serial mesh. Refine
+   //    this mesh further in parallel to increase the resolution. Once the
+   //    parallel mesh is defined, the serial mesh can be deleted.
+   ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-
-   // 7. Refine the mesh in parallel to increase the resolution. In this example we do
-   //    'par_ref_levels' of uniform refinement, where 'par_ref_levels' is a
-   //    command-line parameter.
    for (int lev = 0; lev < par_ref_levels; lev++)
       pmesh->UniformRefinement();
 
-   // 8. Define the discontinuous DG finite element space on the mesh of the
-   //    given polynomial order.
+   // 7. Define the parallel discontinuous DG finite element space on the
+   //    parallel refined mesh of the given polynomial order.
    DG_FECollection fec(order, dim);
-   ParFiniteElementSpace * fes = new ParFiniteElementSpace(pmesh, &fec);
+   ParFiniteElementSpace *fes = new ParFiniteElementSpace(pmesh, &fec);
 
    int global_vSize = fes->GlobalTrueVSize();
-   if(myid == 0)
-      cout << "Total number of dofs = " << global_vSize << endl;
+   if (myid == 0)
+      cout << "Number of unknowns: " << global_vSize << endl;
 
-   // 9. Set up and assemble the bilinear and linear forms corresponding to the
-   //    DG discretization. The DGTraceIntegrator object involves integrals over
-   //    the interior faces in the mesh.
+   // 8. Set up and assemble the parallel bilinear and linear forms (and the
+   //    parallel hypre matrices) corresponding to the DG discretization. The
+   //    DGTraceIntegrator involves integrals over mesh interior faces.
    VectorFunctionCoefficient velocity(dim, velocity_function);
    FunctionCoefficient inflow(inflow_function);
    FunctionCoefficient u0(u0_function);
 
-   ParBilinearForm * mVarf, *kVarf;
-   mVarf = new ParBilinearForm(fes);
-   mVarf->AddDomainIntegrator(new MassIntegrator);
-   kVarf = new ParBilinearForm(fes);
-   kVarf->AddDomainIntegrator(new ConvectionIntegrator(velocity, -1.0));
-   kVarf->AddInteriorFaceIntegrator(
+   ParBilinearForm *m = new ParBilinearForm(fes);
+   m->AddDomainIntegrator(new MassIntegrator);
+   ParBilinearForm *k = new ParBilinearForm(fes);
+   k->AddDomainIntegrator(new ConvectionIntegrator(velocity, -1.0));
+   k->AddInteriorFaceIntegrator(
       new TransposeIntegrator(new DGTraceIntegrator(velocity, 1.0, -0.5)));
-   kVarf->AddBdrFaceIntegrator(
+   k->AddBdrFaceIntegrator(
       new TransposeIntegrator(new DGTraceIntegrator(velocity, 1.0, -0.5)));
 
-   ParLinearForm * bForm = new ParLinearForm(fes);
-   bForm->AddBdrFaceIntegrator(
+   ParLinearForm *b = new ParLinearForm(fes);
+   b->AddBdrFaceIntegrator(
       new BoundaryFlowIntegrator(inflow, velocity, -1.0, -0.5));
 
-   mVarf->Assemble();
-   mVarf->Finalize();
+   m->Assemble();
+   m->Finalize();
    int skip_zeros = 0;
-   kVarf->Assemble(skip_zeros);
-   kVarf->Finalize(skip_zeros);
-   bForm->Assemble();
+   k->Assemble(skip_zeros);
+   k->Finalize(skip_zeros);
+   b->Assemble();
 
-   HypreParMatrix * M = mVarf->ParallelAssemble();
-   HypreParMatrix * K = kVarf->ParallelAssemble();
-   HypreParVector * b = bForm->ParallelAssemble();
+   HypreParMatrix *M = m->ParallelAssemble();
+   HypreParMatrix *K = k->ParallelAssemble();
+   HypreParVector *B = b->ParallelAssemble();
 
-   // 10. Define the initial conditions, save the corresponding function to a
-   //    file and (optionally) initialize GLVis visualization.
+   // 9. Define the initial conditions, save the corresponding grid function to
+   //    a file and (optionally) initialize GLVis visualization.
    ParGridFunction *u = new ParGridFunction(fes);
    u->ProjectCoefficient(u0);
-   HypreParVector * x = u->GetTrueDofs();
+   HypreParVector *U = u->GetTrueDofs();
 
    {
       ostringstream mesh_name, sol_name;
-	  mesh_name << "ex9p." << setfill('0') << setw(6) << myid;
-	  sol_name << "ex9-init." << setfill('0') << setw(6) << myid;
-
+      mesh_name << "ex9-mesh." << setfill('0') << setw(6) << myid;
+      sol_name << "ex9-init." << setfill('0') << setw(6) << myid;
       ofstream omesh(mesh_name.str().c_str());
       omesh.precision(precision);
       pmesh->Print(omesh);
@@ -248,11 +244,11 @@ int main(int argc, char *argv[])
       sout.open(vishost, visport);
       if (!sout)
       {
-         if(myid == 0)
+         if (myid == 0)
             cout << "Unable to connect to GLVis server at "
                  << vishost << ':' << visport << endl;
          visualization = false;
-         if(myid == 0)
+         if (myid == 0)
             cout << "GLVis visualization disabled.\n";
       }
       else
@@ -262,16 +258,16 @@ int main(int argc, char *argv[])
          sout << "solution\n" << *pmesh << *u;
          sout << "pause\n";
          sout << flush;
-         if(myid==0)
+         if (myid == 0)
             cout << "GLVis visualization paused."
                  << " Press space (in the GLVis window) to resume it.\n";
       }
    }
 
-   // 11. Define the time-dependent evolution operator describing the ODE
-   //    right-hand side, and perform time-integration (looping over the time
-   //    iterations, ti, with a time-step dt).
-   FE_Evolution adv(*M, *K, *b);
+   // 10. Define the time-dependent evolution operator describing the ODE
+   //     right-hand side, and perform time-integration (looping over the time
+   //     iterations, ti, with a time-step dt).
+   FE_Evolution adv(*M, *K, *B);
    ode_solver->Init(adv);
 
    double t = 0.0;
@@ -280,21 +276,27 @@ int main(int argc, char *argv[])
       if (t >= t_final - dt/2)
          break;
 
-      ode_solver->Step(*x, t, dt);
+      ode_solver->Step(*U, t, dt);
       ti++;
 
       if (visualization && (ti % vis_steps == 0))
       {
-         *u = *x;
+         if (myid == 0)
+            cout << "time step: " << ti << ", time: " << t << endl;
+
+         // 11. Extract the parallel grid function corresponding to the finite
+         //     element approximation U (the local solution on each processor).
+         *u = *U;
          sout << "parallel " << num_procs << " " << myid << "\n";
          sout << "solution\n" << *pmesh << *u << flush;
       }
    }
 
-   // 12. Save the final solution.
+   // 12. Save the final solution in parallel. This output can be viewed later
+   //     using GLVis: "glvis -np <np> -m ex9-mesh -g ex9-final".
    {
-	  *u = *x;
-	  ostringstream sol_name;
+      *u = *U;
+      ostringstream sol_name;
       sol_name << "ex9-final." << setfill('0') << setw(6) << myid;
       ofstream osol(sol_name.str().c_str());
       osol.precision(precision);
@@ -302,14 +304,14 @@ int main(int argc, char *argv[])
    }
 
    // 13. Free the used memory.
-   delete x;
+   delete U;
    delete u;
+   delete B;
    delete b;
    delete K;
+   delete k;
    delete M;
-   delete bForm;
-   delete kVarf;
-   delete mVarf;
+   delete m;
    delete fes;
    delete pmesh;
    delete ode_solver;
@@ -322,11 +324,7 @@ int main(int argc, char *argv[])
 // Implementation of class FE_Evolution
 FE_Evolution::FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K, const Vector &_b)
    : TimeDependentOperator(_M.Height()),
-   M(_M),
-   K(_K),
-   b(_b),
-   M_solver(M.GetComm()),
-   z(_M.Height())
+     M(_M), K(_K), b(_b), M_solver(M.GetComm()), z(_M.Height())
 {
    M_prec.SetType(HypreSmoother::Jacobi);
    M_solver.SetPreconditioner(M_prec);

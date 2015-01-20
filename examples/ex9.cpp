@@ -10,15 +10,15 @@
 //               ex9 -m ../data/disc-nurbs.mesh -p 2 -r 3 -dt 0.005 -tf 9
 //               ex9 -m ../data/periodic-square.mesh -p 3 -r 4 -dt 0.0025 -tf 9 -vs 20
 //
-// Description:  This example code solves the simple time-dependent advection
-//               equation du/dt = v.grad(u), where v is the fluid velocity, and
+// Description:  This example code solves the time-dependent advection equation
+//               du/dt = v.grad(u), where v is a given fluid velocity, and
 //               u0(x)=u(0,x) is a given initial condition.
 //
 //               The example demonstrates the use of Discontinuous Galerkin (DG)
 //               bilinear forms in MFEM (face integrators), the use of explicit
 //               ODE time integrators, the definition of periodic boundary
 //               conditions through periodic meshes, as well as the use of GLVis
-//               for the persistent visualization of time-evolving solution.
+//               for persistent visualization of a time-evolving solution.
 
 #include "mfem.hpp"
 #include <iostream>
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");
    args.AddOption(&ode_solver_type, "-s", "--ode-solver",
-                  "ODE solver: 1 - Forw. Euler, 2 - RK2 SSP, 3 - RK3 SSP,"
+                  "ODE solver: 1 - Forward Euler, 2 - RK2 SSP, 3 - RK3 SSP,"
                   " 4 - RK4, 6 - RK6.");
    args.AddOption(&t_final, "-tf", "--t-final",
                   "Final time; start time is 0.");
@@ -102,7 +102,6 @@ int main(int argc, char *argv[])
                   "Enable or disable GLVis visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
-
    args.Parse();
    if (!args.Good())
    {
@@ -114,15 +113,13 @@ int main(int argc, char *argv[])
    // 2. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
    Mesh *mesh;
+   ifstream imesh(mesh_file);
+   if (!imesh)
    {
-      ifstream imesh(mesh_file);
-      if (!imesh)
-      {
-         cout << "Can not open mesh: " << mesh_file << endl;
-         return 2;
-      }
-      mesh = new Mesh(imesh, 1, 1);
+      cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      return 2;
    }
+   mesh = new Mesh(imesh, 1, 1);
    int dim = mesh->Dimension();
 
    // 3. Define the ODE solver used for time integration. Several explicit
@@ -156,41 +153,42 @@ int main(int argc, char *argv[])
       mesh->GetNodes()->MakeOwner(mfec);
    }
 
-   // 5. Define the discontinuous DG finite element space on the mesh of the
-   //    given polynomial order.
+   // 5. Define the discontinuous DG finite element space of the given
+   //    polynomial order on the refined mesh.
    DG_FECollection fec(order, dim);
    FiniteElementSpace fes(mesh, &fec);
 
-   cout << "Total number of dofs = " << fes.GetVSize() << endl;
+   cout << "Number of unknowns: " << fes.GetVSize() << endl;
 
    // 6. Set up and assemble the bilinear and linear forms corresponding to the
-   //    DG discretization. The DGTraceIntegrator object involves integrals over
-   //    the interior faces in the mesh.
+   //    DG discretization. The DGTraceIntegrator involves integrals over mesh
+   //    interior faces.
    VectorFunctionCoefficient velocity(dim, velocity_function);
    FunctionCoefficient inflow(inflow_function);
    FunctionCoefficient u0(u0_function);
 
-   BilinearForm M(&fes), K(&fes);
-   M.AddDomainIntegrator(new MassIntegrator);
-   K.AddDomainIntegrator(new ConvectionIntegrator(velocity, -1.0));
-   K.AddInteriorFaceIntegrator(
+   BilinearForm m(&fes);
+   m.AddDomainIntegrator(new MassIntegrator);
+   BilinearForm k(&fes);
+   k.AddDomainIntegrator(new ConvectionIntegrator(velocity, -1.0));
+   k.AddInteriorFaceIntegrator(
       new TransposeIntegrator(new DGTraceIntegrator(velocity, 1.0, -0.5)));
-   K.AddBdrFaceIntegrator(
+   k.AddBdrFaceIntegrator(
       new TransposeIntegrator(new DGTraceIntegrator(velocity, 1.0, -0.5)));
 
    LinearForm b(&fes);
    b.AddBdrFaceIntegrator(
       new BoundaryFlowIntegrator(inflow, velocity, -1.0, -0.5));
 
-   M.Assemble();
-   M.Finalize();
+   m.Assemble();
+   m.Finalize();
    int skip_zeros = 0;
-   K.Assemble(skip_zeros);
-   K.Finalize(skip_zeros);
+   k.Assemble(skip_zeros);
+   k.Finalize(skip_zeros);
    b.Assemble();
 
-   // 7. Define the initial conditions, save the corresponding function to a
-   //    file and (optionally) initialize GLVis visualization.
+   // 7. Define the initial conditions, save the corresponding grid function to
+   //    a file and (optionally) initialize GLVis visualization.
    GridFunction u(&fes);
    u.ProjectCoefficient(u0);
 
@@ -198,7 +196,7 @@ int main(int argc, char *argv[])
       ofstream omesh("ex9.mesh");
       omesh.precision(precision);
       mesh->Print(omesh);
-      ofstream osol("ex9-init.sol");
+      ofstream osol("ex9-init.gf");
       osol.precision(precision);
       u.Save(osol);
    }
@@ -227,10 +225,10 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 8. Define the time-dependend evolution operator describing the ODE
+   // 8. Define the time-dependent evolution operator describing the ODE
    //    right-hand side, and perform time-integration (looping over the time
    //    iterations, ti, with a time-step dt).
-   FE_Evolution adv(M.SpMat(), K.SpMat(), b);
+   FE_Evolution adv(m.SpMat(), k.SpMat(), b);
    ode_solver->Init(adv);
 
    double t = 0.0;
@@ -243,13 +241,16 @@ int main(int argc, char *argv[])
       ti++;
 
       if (visualization && (ti % vis_steps == 0))
+      {
+         cout << "time step: " << ti << ", time: " << t << endl;
          sout << "solution\n" << *mesh << u << flush;
+      }
    }
 
-   // 9. Save the final solution.
+   // 9. Save the final solution. This output can be viewed later using GLVis:
+   //    "glvis -m ex9.mesh -g ex9-final.gf".
    {
-      const char final_solution_file[] = "ex9-final.sol";
-      ofstream osol(final_solution_file);
+      ofstream osol("ex9-final.gf");
       osol.precision(precision);
       u.Save(osol);
    }

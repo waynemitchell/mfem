@@ -264,14 +264,14 @@ We recommend viewing examples 1-5 before viewing this example.</em>
 \htmlonly <hr style="clear:both;"/><img src="ex9.png" style="float:right;"> \endhtmlonly
 <h2>Example 9</h2>
 
-This example code solves the simple time-dependent advection equation
-\f[ \frac{du}{dt} = v \cdot \nabla u, \f] where \f$v\f$ is the fluid
+This example code solves the time-dependent advection equation
+\f[ \frac{du}{dt} = v \cdot \nabla u, \f] where \f$v\f$ is a given fluid
 velocity, and \f$u_0(x)=u(0,x)\f$ is a given initial condition.
 <p>
 The example demonstrates the use of Discontinuous Galerkin (DG) bilinear forms
 in MFEM (face integrators), the use of explicit ODE time integrators, the
 definition of periodic boundary conditions through periodic meshes, as well as
-the use of GLVis for the persistent visualization of time-evolving solution.
+the use of GLVis for persistent visualization of a time-evolving solution.
 <center>
 <em>The example has a serial (ex9.cpp) and a parallel (ex9p.cpp) version.</em>
 </center>
