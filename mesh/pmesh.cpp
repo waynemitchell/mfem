@@ -133,7 +133,6 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
             bdrelem_counter++;
          }
       }
-
    }
    else if (Dim == 2)
    {
@@ -170,6 +169,36 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          }
       }
    }
+   else if (Dim == 1)
+   {
+      NumOfBdrElements = 0;
+      for (i = 0; i < mesh.GetNBE(); i++)
+      {
+         int vert = mesh.boundary[i]->GetVertices()[0];
+         int el1, el2;
+         mesh.GetFaceElements(vert, &el1, &el2);
+         if (partitioning[el1] == MyRank)
+         {
+            NumOfBdrElements++;
+         }
+      }
+
+      bdrelem_counter = 0;
+      boundary.SetSize(NumOfBdrElements);
+      for (i = 0; i < mesh.GetNBE(); i++)
+      {
+         int vert = mesh.boundary[i]->GetVertices()[0];
+         int el1, el2;
+         mesh.GetFaceElements(vert, &el1, &el2);
+         if (partitioning[el1] == MyRank)
+         {
+            boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate(this);
+            int *v = boundary[bdrelem_counter]->GetVertices();
+            v[0] = vert_global_local[v[0]];
+            bdrelem_counter++;
+         }
+      }
+   }
 
    meshgen = mesh.MeshGenerator();
 
@@ -179,8 +208,13 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    // this is called by the default Mesh constructor
    // InitTables();
 
-   el_to_edge = new Table;
-   NumOfEdges = Mesh::GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   if (Dim > 1)
+   {
+      el_to_edge = new Table;
+      NumOfEdges = Mesh::GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
+   else
+      NumOfEdges = 0;
 
    STable3D *faces_tbl = NULL;
    if (Dim == 3)
@@ -233,7 +267,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    if (!edge_element)
    {
       edge_element = new Table;
-      Transpose(mesh.ElementToEdgeTable(), *edge_element, mesh.GetNEdges());
+      if (Dim == 1)
+         edge_element->SetDims(0,0);
+      else
+         Transpose(mesh.ElementToEdgeTable(), *edge_element, mesh.GetNEdges());
    }
    for (i = 0; i < edge_element->Size(); i++)
    {
@@ -1751,6 +1788,58 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          GenerateFaces();
       }
    } //  'if (Dim == 2)'
+
+   if (Dim == 1) // --------------------------------------------------------
+   {
+      if (WantTwoLevelState)
+      {
+         c_NumOfVertices    = NumOfVertices;
+         c_NumOfElements    = NumOfElements;
+         c_NumOfBdrElements = NumOfBdrElements;
+         c_NumOfEdges = 0;
+      }
+      int cne = NumOfElements, cnv = NumOfVertices;
+      NumOfVertices += marked_el.Size();
+      NumOfElements += marked_el.Size();
+      vertices.SetSize(NumOfVertices);
+      elements.SetSize(NumOfElements);
+      for (j = 0; j < marked_el.Size(); j++)
+      {
+         i = marked_el[j];
+         Segment *c_seg = (Segment *)elements[i];
+         int *vert = c_seg->GetVertices(), attr = c_seg->GetAttribute();
+         int new_v = cnv + j, new_e = cne + j;
+         AverageVertices(vert, 2, new_v);
+         elements[new_e] = new Segment(new_v, vert[1], attr);
+         if (WantTwoLevelState)
+         {
+#ifdef MFEM_USE_MEMALLOC
+            BisectedElement *aux = BEMemory.Alloc();
+            aux->SetCoarseElem(c_seg);
+#else
+            BisectedElement *aux = new BisectedElement(c_seg);
+#endif
+            aux->FirstChild = new Segment(vert[0], new_v, attr);
+            aux->SecondChild = new_e;
+            elements[i] = aux;
+         }
+         else
+         {
+            vert[1] = new_v;
+         }
+      }
+      if (WantTwoLevelState)
+      {
+         f_NumOfVertices    = NumOfVertices;
+         f_NumOfElements    = NumOfElements;
+         f_NumOfBdrElements = NumOfBdrElements;
+         f_NumOfEdges = 0;
+
+         RefinedElement::State = RefinedElement::FINE;
+         State = Mesh::TWO_LEVEL_FINE;
+      }
+      GenerateFaces();
+   } // end of 'if (Dim == 1)'
 
    if (Nodes)  // curved mesh
    {
