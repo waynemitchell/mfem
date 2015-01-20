@@ -9,6 +9,8 @@
 //               mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -rs 2 -rp 0 -dt 0.005 -tf 9
 //               mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rs 2 -rp 1 -dt 0.005 -tf 9
 //               mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rs 2 -rp 2 -dt 0.0025 -tf 9 -vs 20
+//               mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rs 2 -dt 0.005 -tf 8
+//               mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 2 -o 2 -rs 2 -dt 0.005 -tf 8
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt = v.grad(u), where v is a given fluid velocity, and
@@ -410,13 +412,12 @@ double u0_function(Vector &x)
       case 1:
          return exp(-40.*pow(x(0)-0.5,2));
       case 2:
+      case 3:
       {
          const double rx = 0.45, ry = 0.25, cx = 0., cy = -0.2, w = 10.;
          return ( erfc(w*(x(0)-cx-rx))*erfc(-w*(x(0)-cx+rx)) *
                   erfc(w*(x(1)-cy-ry))*erfc(-w*(x(1)-cy+ry)) )/16;
       }
-      case 3:
-         return 0.0;
       }
    }
    case 2:
