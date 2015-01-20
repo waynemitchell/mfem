@@ -12,6 +12,7 @@
 //               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh
 //               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh
 //               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex4p -m ../data/periodic-square.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -151,9 +152,12 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
    a->Assemble();
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   if (pmesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      a->EliminateEssentialBC(ess_bdr, x, *b);
+   }
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
