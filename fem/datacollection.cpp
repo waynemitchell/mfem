@@ -10,7 +10,7 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "fem.hpp"
-#include "picojson.hpp"
+#include "picojson.h"
 
 #include <fstream>
 #include <sys/stat.h>  // mkdir
@@ -420,8 +420,8 @@ void VisItDataCollection::ParseVisItRootString(string json)
       {
          picojson::value tags = it->second.get("tags");
          field_info_map[it->first] =
-	    VisItFieldInfo(tags.get("assoc").get<string>(),
-			   to_int(tags.get("comps").get<string>()));
+            VisItFieldInfo(tags.get("assoc").get<string>(),
+                           to_int(tags.get("comps").get<string>()));
       }
    }
 }
