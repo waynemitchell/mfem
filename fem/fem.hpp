@@ -30,6 +30,7 @@
 #include "linearform.hpp"
 #include "nonlinearform.hpp"
 #include "bilinearform.hpp"
+#include "datacollection.hpp"
 
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
