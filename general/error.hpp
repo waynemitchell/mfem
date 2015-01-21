@@ -61,11 +61,11 @@ void mfem_warning(const char *msg = NULL);
 #define MFEM_ABORT(msg) _MFEM_MESSAGE("MFEM abort: " << msg, 0)
 
 // Does a check, and then outputs lots of useful information if the test fails
-#define MFEM_VERIFY(x, msg)                        \
-   if (!(x))                                       \
-   {                                               \
-      _MFEM_MESSAGE("Verification failed: (" << #x \
-                    << ") is false: " << msg, 0);  \
+#define MFEM_VERIFY(x, msg)                             \
+   if (!(x))                                            \
+   {                                                    \
+      _MFEM_MESSAGE("Verification failed: ("            \
+                    << #x << ") is false: " << msg, 0); \
    }
 
 // Use this if the only place your variable is used is in ASSERT's
@@ -79,11 +79,11 @@ void mfem_warning(const char *msg = NULL);
 // Now set up some optional checks, but only if the right flags are on
 #ifdef MFEM_DEBUG
 
-#define MFEM_ASSERT(x, msg)                       \
-   if (!(x))                                      \
-   {                                              \
-      _MFEM_MESSAGE("Assertion failed: (" << #x   \
-                    << ") is false: " << msg, 0); \
+#define MFEM_ASSERT(x, msg)                             \
+   if (!(x))                                            \
+   {                                                    \
+      _MFEM_MESSAGE("Assertion failed: ("               \
+                    << #x << ") is false: " << msg, 0); \
    }
 
 #else

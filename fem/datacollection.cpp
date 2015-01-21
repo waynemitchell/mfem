@@ -408,7 +408,7 @@ void VisItDataCollection::ParseVisItRootString(string json)
    spatial_dim = to_int(mesh.get("tags").get("spatial_dim").get<string>());
    topo_dim = to_int(mesh.get("tags").get("topo_dim").get<string>());
    visit_max_levels_of_detail =
-         to_int(mesh.get("tags").get("max_lods").get<string>());
+      to_int(mesh.get("tags").get("max_lods").get<string>());
 
    // ... Process "fields"
    field_info_map.clear();
@@ -420,8 +420,8 @@ void VisItDataCollection::ParseVisItRootString(string json)
       {
          picojson::value tags = it->second.get("tags");
          field_info_map[it->first] =
-               VisItFieldInfo(tags.get("assoc").get<string>(),
-                              to_int(tags.get("comps").get<string>()));
+	    VisItFieldInfo(tags.get("assoc").get<string>(),
+			   to_int(tags.get("comps").get<string>()));
       }
    }
 }
