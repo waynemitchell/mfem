@@ -285,17 +285,29 @@ namespace picojson {
       ;
   }
   
+#if 0 /* mfem modification */
 #define GET(ctype, var)						\
   template <> inline const ctype& value::get<ctype>() const {	\
     PICOJSON_ASSERT("type mismatch! call is<type>() before get<type>()" \
-	   && is<ctype>());				        \
+           && is<ctype>());				        \
     return var;							\
   }								\
   template <> inline ctype& value::get<ctype>() {		\
     PICOJSON_ASSERT("type mismatch! call is<type>() before get<type>()"	\
-	   && is<ctype>());					\
+           && is<ctype>());					\
     return var;							\
   }
+#else
+#define GET(ctype, var)						\
+  template <> inline const ctype& value::get<ctype>() const {	\
+    do { if (! (is<ctype>())) throw std::runtime_error("type mismatch! call is<type>() before get<type>()"); } while (0); \
+    return var;							\
+  }								\
+  template <> inline ctype& value::get<ctype>() {		\
+    do { if (! (is<ctype>())) throw std::runtime_error("type mismatch! call is<type>() before get<type>()"); } while (0); \
+    return var;							\
+  }
+#endif
   GET(bool, u_.boolean_)
   GET(std::string, *u_.string_)
   GET(array, *u_.array_)
@@ -396,7 +408,7 @@ namespace picojson {
       __assume(0);
 #endif
     }
-    return std::string();
+    // return std::string(); // mfem modification
   }
   
   template <typename Iter> void copy(const std::string& s, Iter oi) {
@@ -680,7 +692,7 @@ namespace picojson {
 	out.push_back(ch);
       }
     }
-    return false;
+    // return false; // mfem modification
   }
   
   template <typename Context, typename Iter> inline bool _parse_array(Context& ctx, input<Iter>& in) {
@@ -972,7 +984,7 @@ namespace picojson {
 #ifdef _MSC_VER
     __assume(0);
 #endif
-    return false;
+    // return false; // mfem modification
   }
   
   inline bool operator!=(const value& x, const value& y) {
