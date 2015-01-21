@@ -39,3 +39,8 @@ Some building considerations:
   package. If not available (e.g. on Mac OS X), Graphviz can be downloaded from
 
      http://www.graphviz.org
+
+- Formulas in the documentation are rendered using LaTeX. A popular choice for
+  TeX typesetting is the TeX Live distribution
+
+     http://www.tug.org/texlive/

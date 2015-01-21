@@ -274,6 +274,7 @@ clean:
 
 distclean: clean
 	$(MAKE) -C config clean
+	$(MAKE) -C doc clean
 
 install: libmfem.a
 # install static library
@@ -328,4 +329,6 @@ status info:
 	$(info MFEM_LIB_FILE        = $(value MFEM_LIB_FILE))
 	$(info MFEM_BUILD_TAG       = $(value MFEM_BUILD_TAG))
 	$(info MFEM_PREFIX          = $(value MFEM_PREFIX))
+	$(info MFEM_INC_DIR         = $(value MFEM_INC_DIR))
+	$(info MFEM_LIB_DIR         = $(value MFEM_LIB_DIR))
 	@true
