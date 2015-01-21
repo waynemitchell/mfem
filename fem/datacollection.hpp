@@ -13,6 +13,7 @@
 #define MFEM_DATACOLLECTION
 
 #include "../config/config.hpp"
+#include "gridfunc.hpp"
 #include <string>
 #include <map>
 
@@ -33,25 +34,40 @@ protected:
    /// The (common) mesh for the collected fields
    Mesh *mesh;
 
-   /// Time cycle (for time-dependent simulations)
+   /** Time cycle; for time-dependent simulations cycle >= 0, otherwise = -1.
+       When cycle >= 0, it is appended to directory names. */
    int cycle;
    /// Physical time (for time-dependent simulations)
    double time;
 
-   /// Serial or parallel run?
+   /// Serial or parallel run? If false, append rank (myid) to file names
    bool serial;
    /// MPI rank (in parallel)
    int myid;
    /// Number of MPI ranks (in parallel)
    int num_procs;
 
+   /// Number of digits used for the cycle and MPI rank in filenames
+   int pad_digits;
+
+   /// Default value for pad_digits
+   static const int pad_digits_default = 6;
+
    /// Should the collection delete its mesh and fields
    bool own_data;
 
-public:
+   /// Error state
+   int error;
+
    /// Create an empty collection with the given name.
    DataCollection(const char *collection_name);
-   /// Initialize the collection with its mesh
+   /// Delete data owned by the DataCollection keeping field information
+   void DeleteData();
+   /// Delete data owned by the DataCollection including field information
+   void DeleteAll();
+
+public:
+   /// Initialize the collection with its name and Mesh.
    DataCollection(const char *collection_name, Mesh *_mesh);
 
    /// Add a grid function to the collection
@@ -60,6 +76,7 @@ public:
    GridFunction *GetField(const char *field_name);
    /// Check if a grid function is part of the collection
    bool HasField(const char *name) { return field_map.count(name) == 1; }
+
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }
 
@@ -77,6 +94,9 @@ public:
    /// Set the ownership of collection data
    void SetOwnData(bool o) { own_data = o; }
 
+   /// Set the number of digits used for the cycle and MPI rank in filenames
+   void SetPadDigits(int digits) { pad_digits = digits; }
+
    /** Save the collection to disk. By default, everything is saved in a
        directory with name <collection_name> or <collection_name>_cycle for
        time-dependent simulations. */
@@ -84,6 +104,14 @@ public:
 
    /// Delete the mesh and fields if owned by the collection
    virtual ~DataCollection();
+
+   /// Errors returned by Error()
+   enum { NO_ERROR = 0, READ_ERROR = 1, WRITE_ERROR = 2 };
+
+   /// Get the current error state
+   int Error() const { return error; }
+   /// Reset the error state
+   void ResetError(int err = NO_ERROR) { error = err; }
 };
 
 
@@ -106,7 +134,6 @@ protected:
    // and all the fields in the collection
    int spatial_dim, topo_dim;
    int visit_max_levels_of_detail;
-   int num_ranks;
    std::map<std::string, VisItFieldInfo> field_info_map;
 
    /// Prepare the VisIt root file in JSON format for the current collection
@@ -114,7 +141,7 @@ protected:
    /// Read in a VisIt root file in JSON format
    void ParseVisItRootString(std::string json);
 
-   // Helper functions for LoadVisItData()
+   // Helper functions for Load()
    void LoadVisItRootFile(std::string root_name);
    void LoadMesh();
    void LoadFields();
@@ -129,8 +156,12 @@ public:
    /// Add a grid function to the collection and update the root file
    virtual void RegisterField(const char *field_name, GridFunction *gf);
 
-   /// Set additional VisIt parameters
-   void SetVisItParameters(int max_levels_of_detail);
+   /// Set VisIt parameter: maximum levels of detail for the MultiresControl
+   void SetMaxLevelsOfDetail(int max_levels_of_detail);
+
+   /** Delete all data owned by VisItDataCollection including field data
+       information. */
+   void DeleteAll();
 
    /// Save the collection and a VisIt root file
    virtual void Save();

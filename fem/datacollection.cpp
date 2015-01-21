@@ -9,27 +9,17 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "picojson.hpp"
-#include "../general/error.hpp"
 #include "fem.hpp"
-#include "../mesh/mesh.hpp"
-
-#ifdef MFEM_USE_MPI
-#include "../mesh/pmesh.hpp"
-#endif
+#include "picojson.hpp"
 
 #include <fstream>
-#include <sys/stat.h>
+#include <sys/stat.h>  // mkdir
+#include <errno.h>     // errno
 
 namespace mfem
 {
 
 using namespace std;
-
-// Number of digits and format used for the cycle and MPI rank
-
-const int file_ext_digits = 5;
-const string file_ext_format = ".%05d";
 
 // Helper string functions. Will go away in C++11
 
@@ -44,10 +34,10 @@ string to_string(int i)
    return out_str;
 }
 
-string to_padded_string(int i)
+string to_padded_string(int i, int digits)
 {
    ostringstream oss;
-   oss << setw(file_ext_digits) << setfill('0') << i;
+   oss << setw(digits) << setfill('0') << i;
    return oss.str();
 }
 
@@ -63,12 +53,15 @@ int to_int(string str)
 DataCollection::DataCollection(const char *collection_name)
 {
    name = collection_name;
+   mesh = NULL;
    myid = 0;
    num_procs = 1;
-   serial = 0;
+   serial = true;
+   own_data = false;
    cycle = -1;
    time = 0.0;
-   field_map.erase(field_map.begin(), field_map.end());
+   pad_digits = pad_digits_default;
+   error = NO_ERROR;
 }
 
 DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
@@ -77,20 +70,21 @@ DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
    mesh = _mesh;
    myid = 0;
    num_procs = 1;
-   serial = 1;
+   serial = true;
 #ifdef MFEM_USE_MPI
    ParMesh *par_mesh = dynamic_cast<ParMesh*>(mesh);
    if (par_mesh)
    {
       myid = par_mesh->GetMyRank();
       num_procs = par_mesh->GetNRanks();
-      serial = 0;
+      serial = false;
    }
 #endif
    own_data = false;
    cycle = -1;
    time = 0.0;
-   field_map.erase(field_map.begin(), field_map.end());
+   pad_digits = pad_digits_default;
+   error = NO_ERROR;
 }
 
 void DataCollection::RegisterField(const char* name, GridFunction *gf)
@@ -108,38 +102,89 @@ GridFunction *DataCollection::GetField(const char *field_name)
 
 void DataCollection::Save()
 {
-   string dir_name = name;
+   string dir_name;
    if (cycle == -1)
       dir_name = name;
    else
-      dir_name = name + "_" + to_padded_string(cycle);
-   mkdir(dir_name.c_str(), 0777);
+      dir_name = name + "_" + to_padded_string(cycle, pad_digits);
+   int err;
+#ifndef MFEM_USE_MPI
+   err = mkdir(dir_name.c_str(), 0777);
+   err = (err && (errno != EEXIST)) ? 1 : 0;
+#else
+   ParMesh *pmesh = dynamic_cast<ParMesh*>(mesh);
+   if (myid == 0 || pmesh == NULL)
+   {
+      err = mkdir(dir_name.c_str(), 0777);
+      err = (err && (errno != EEXIST)) ? 1 : 0;
+      if (pmesh)
+         MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+   }
+   else
+   {
+      // Wait for rank 0 to create the directory
+      MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+   }
+#endif
+   if (err)
+   {
+      error = WRITE_ERROR;
+      MFEM_WARNING("Error creating directory: " << dir_name);
+      return; // do not even try to write mesh or fields
+   }
 
    string mesh_name;
    if (serial)
       mesh_name = dir_name + "/mesh";
    else
-      mesh_name = dir_name + "/mesh." + to_padded_string(myid);
+      mesh_name = dir_name + "/mesh." + to_padded_string(myid, pad_digits);
    ofstream mesh_file(mesh_name.c_str());
-   MFEM_ASSERT(mesh_file.is_open(),
-               "Unable to open file for output: " << mesh_name);
    mesh->Print(mesh_file);
+   if (!mesh_file)
+   {
+      error = WRITE_ERROR;
+      MFEM_WARNING("Error writing mesh to file: " << mesh_name);
+   }
    mesh_file.close();
 
+   string field_name;
    for (map<string,GridFunction*>::iterator it = field_map.begin();
         it != field_map.end(); ++it)
    {
-      string field_name;
       if (serial)
          field_name = dir_name + "/" + it->first;
       else
-         field_name = dir_name + "/" + it->first + "." + to_padded_string(myid);
+         field_name = dir_name + "/" + it->first + "." +
+            to_padded_string(myid, pad_digits);
       ofstream field_file(field_name.c_str());
-      MFEM_ASSERT(field_file.is_open(),
-                  "Unable to open file for output: " << field_name);
       (it->second)->Save(field_file);
-      field_file.close();
+      if (!field_file)
+      {
+         error = WRITE_ERROR;
+         MFEM_WARNING("Error writting field to file: " << field_name);
+      }
    }
+}
+
+void DataCollection::DeleteData()
+{
+   if (own_data)
+      delete mesh;
+   mesh = NULL;
+   for (map<string,GridFunction*>::iterator it = field_map.begin();
+        it != field_map.end(); ++it)
+   {
+      if (own_data)
+         delete it->second;
+      it->second = NULL;
+   }
+   own_data = false;
+}
+
+void DataCollection::DeleteAll()
+{
+   DeleteData();
+   field_map.clear();
 }
 
 DataCollection::~DataCollection()
@@ -159,24 +204,24 @@ DataCollection::~DataCollection()
 VisItDataCollection::VisItDataCollection(const char *collection_name)
    : DataCollection(collection_name)
 {
-   serial = 0; // just for the file extensions
-   cycle  = 0;
+   serial = false; // always include rank in file names
+   cycle  = 0;     // always include cycle in directory names
 
-   visit_max_levels_of_detail = 25;
-   field_info_map.erase(field_info_map.begin(), field_info_map.end());
+   spatial_dim = 0;
+   topo_dim = 0;
+   visit_max_levels_of_detail = 32;
 }
 
-VisItDataCollection::VisItDataCollection(const char *collection_name, Mesh *mesh)
+VisItDataCollection::VisItDataCollection(const char *collection_name,
+                                         Mesh *mesh)
    : DataCollection(collection_name, mesh)
 {
-   // always assume a time-dependent parallel run
-   serial = 0;
-   cycle  = 0;
+   serial = false; // always include rank in file names
+   cycle  = 0;     // always include cycle in directory names
 
    spatial_dim = mesh->SpaceDimension();
    topo_dim = mesh->Dimension();
-   visit_max_levels_of_detail = 25;
-   field_info_map.erase(field_info_map.begin(), field_info_map.end());
+   visit_max_levels_of_detail = 32;
 }
 
 void VisItDataCollection::RegisterField(const char* name, GridFunction *gf)
@@ -185,89 +230,118 @@ void VisItDataCollection::RegisterField(const char* name, GridFunction *gf)
    field_info_map[name] = VisItFieldInfo("nodes", gf->VectorDim());
 }
 
-void VisItDataCollection::SetVisItParameters(int max_levels_of_detail)
+void VisItDataCollection::SetMaxLevelsOfDetail(int max_levels_of_detail)
 {
    visit_max_levels_of_detail = max_levels_of_detail;
+}
+
+void VisItDataCollection::DeleteAll()
+{
+   field_info_map.clear();
+   DataCollection::DeleteAll();
 }
 
 void VisItDataCollection::Save()
 {
    if (myid == 0)
    {
-      string root_name = name + "_" + to_padded_string(cycle) + ".mfem_root";
+      string root_name = name + "_" + to_padded_string(cycle, pad_digits) +
+         ".mfem_root";
       ofstream root_file(root_name.c_str());
-      MFEM_ASSERT(root_file.is_open(),
-                  "Unable to open VisIt Root file for output:  " << root_name);
       root_file << GetVisItRootString();
-      root_file.close();
+      if (!root_file)
+      {
+         error = WRITE_ERROR;
+         MFEM_WARNING("Error writting VisIt Root file: " << root_name);
+      }
    }
-
    DataCollection::Save();
 }
 
 void VisItDataCollection::Load(int _cycle)
 {
-#ifdef MFEM_USE_MPI
-   MFEM_ABORT("VisItDataCollection::Load() does not work in parallel");
-#endif
-
+   DeleteAll();
    cycle = _cycle;
-   string root_name = name + "_" + to_padded_string(cycle) + ".mfem_root";
+   string root_name = name + "_" + to_padded_string(cycle, pad_digits) +
+      ".mfem_root";
    LoadVisItRootFile(root_name);
-   LoadMesh();
-   LoadFields();
-   own_data = true;
+   if (!error)
+      LoadMesh();
+   if (!error)
+      LoadFields();
+   if (!error)
+      own_data = true;
+   else
+      DeleteAll();
 }
 
 void VisItDataCollection::LoadVisItRootFile(string root_name)
 {
    ifstream root_file(root_name.c_str());
-   MFEM_ASSERT(root_file.is_open(),
-               "Unable to open VisIt Root file for input:  " << root_name);
    stringstream buffer;
    buffer << root_file.rdbuf();
-   ParseVisItRootString(buffer.str());
-   root_file.close();
+   if (!buffer)
+   {
+      error = READ_ERROR;
+      MFEM_WARNING("Error reading the VisIt Root file: " << root_name);
+   }
+   else
+   {
+      ParseVisItRootString(buffer.str());
+   }
 }
 
 void VisItDataCollection::LoadMesh()
 {
-   string mesh_fname = name + "_" + to_padded_string(cycle) + "/mesh."
-      + to_padded_string(myid);
+   string mesh_fname = name + "_" + to_padded_string(cycle, pad_digits) +
+      "/mesh." + to_padded_string(myid, pad_digits);
    ifstream file(mesh_fname.c_str());
-   MFEM_ASSERT(file.is_open(), "Unable to open file for input:  " << mesh_fname);
-   mesh = new Mesh(file); // todo in parallel
-   file.close();
+   if (!file)
+   {
+      error = READ_ERROR;
+      MFEM_WARNING("Unable to open mesh file: " << mesh_fname);
+      return;
+   }
+   // TODO: 1) load parallel mesh on one processor
+   //       2) load parallel mesh on the same number of processors
+   mesh = new Mesh(file, 1, 1);
    spatial_dim = mesh->SpaceDimension();
    topo_dim = mesh->Dimension();
 }
 
 void VisItDataCollection::LoadFields()
 {
-   string path_left = name + "_" + to_padded_string(cycle) + "/";
-   string path_right = "." + to_padded_string(myid);
+   string path_left = name + "_" + to_padded_string(cycle, pad_digits) + "/";
+   string path_right = "." + to_padded_string(myid, pad_digits);
 
-   field_map.erase(field_map.begin(), field_map.end());
+   field_map.clear();
    for (map<string,VisItFieldInfo>::iterator it = field_info_map.begin();
         it != field_info_map.end(); ++it)
    {
       string fname = path_left + it->first + path_right;
       ifstream file(fname.c_str());
-      MFEM_ASSERT(file.is_open(), "Unable to open file for input:  " << fname);
+      if (!file)
+      {
+         error = READ_ERROR;
+         MFEM_WARNING("Unable to open field file: " << fname);
+         return;
+      }
+      // TODO: 1) load parallel GridFunction on one processor
+      //       2) load parallel GridFunction on the same number of processors
       field_map[it->first] = new GridFunction(mesh, file);
-      file.close();
    }
 }
 
 string VisItDataCollection::GetVisItRootString()
 {
    // Get the path string
-   string path_str = name + "_" + to_padded_string(cycle) + "/";
+   string path_str = name + "_" + to_padded_string(cycle, pad_digits) + "/";
 
    // We have to build the json tree inside out to get all the values in there
    picojson::object top, dsets, main, mesh, fields, field, mtags, ftags;
 
    // Build the mesh data
+   string file_ext_format = ".%0" + to_string(pad_digits) + "d";
    mtags["spatial_dim"] = picojson::value(to_string(spatial_dim));
    mtags["topo_dim"] = picojson::value(to_string(topo_dim));
    mtags["max_lods"] = picojson::value(to_string(visit_max_levels_of_detail));
@@ -302,7 +376,12 @@ void VisItDataCollection::ParseVisItRootString(string json)
 {
    picojson::value top, dsets, main, mesh, fields;
    string parse_err = picojson::parse(top, json);
-   MFEM_ASSERT(parse_err.empty(), "Unable to parse visit root data.");
+   if (!parse_err.empty())
+   {
+      error = READ_ERROR;
+      MFEM_WARNING("Unable to parse visit root data.");
+      return;
+   }
 
    // Process "main"
    dsets = top.get("dsets");
@@ -314,25 +393,35 @@ void VisItDataCollection::ParseVisItRootString(string json)
    fields = main.get("fields");
 
    // ... Process "mesh"
+
+   // Set the DataCollection::name using the mesh path
    string path = mesh.get("path").get<string>();
    size_t right_sep = path.find('_');
-   MFEM_ASSERT(right_sep > 0, "Unable to parse visit root data.");
+   if (right_sep == string::npos)
+   {
+      error = READ_ERROR;
+      MFEM_WARNING("Unable to parse visit root data.");
+      return;
+   }
    name = path.substr(0, right_sep);
 
    spatial_dim = to_int(mesh.get("tags").get("spatial_dim").get<string>());
    topo_dim = to_int(mesh.get("tags").get("topo_dim").get<string>());
-   visit_max_levels_of_detail = to_int(mesh.get("tags").get("max_lods").get<string>());
+   visit_max_levels_of_detail =
+         to_int(mesh.get("tags").get("max_lods").get<string>());
 
    // ... Process "fields"
-   field_info_map.erase(field_info_map.begin(), field_info_map.end());
+   field_info_map.clear();
    if (fields.is<picojson::object>())
    {
       picojson::object fields_obj = fields.get<picojson::object>();
-      for (picojson::object::iterator it = fields_obj.begin(); it != fields_obj.end(); ++it)
+      for (picojson::object::iterator it = fields_obj.begin();
+           it != fields_obj.end(); ++it)
       {
          picojson::value tags = it->second.get("tags");
-         field_info_map[it->first] = VisItFieldInfo(tags.get("assoc").get<string>(),
-                                                    to_int(tags.get("comps").get<string>()));
+         field_info_map[it->first] =
+               VisItFieldInfo(tags.get("assoc").get<string>(),
+                              to_int(tags.get("comps").get<string>()));
       }
    }
 }

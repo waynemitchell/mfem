@@ -16,7 +16,6 @@
 #include "../linalg/linalg.hpp"
 #include "../mesh/mesh_headers.hpp"
 
-#include "datacollection.hpp"
 #include "intrules.hpp"
 #include "geom.hpp"
 #include "fe.hpp"
@@ -31,6 +30,7 @@
 #include "linearform.hpp"
 #include "nonlinearform.hpp"
 #include "bilinearform.hpp"
+#include "datacollection.hpp"
 
 #ifdef MFEM_USE_MPI
 #include <mpi.h>

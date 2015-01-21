@@ -199,7 +199,7 @@ int main(int argc, char *argv[])
 
    // 10. Solve the linear system with MINRES.
    //     Check the norm of the unpreconditioned residual.
-   int maxIter(500);
+   int maxIter(1000);
    double rtol(1.e-6);
    double atol(1.e-10);
 
