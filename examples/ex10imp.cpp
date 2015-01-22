@@ -4,6 +4,8 @@
 //
 // Sample runs:  ex10 -m ../data/beam-quad.mesh -r 2 -o 2 -dt 0.03
 //               ex10 -m ../data/beam-hex.mesh -r 1 -o 2 -dt 0.05
+//               ex10 -m ../data/beam-hex.mesh -s 0 -dt 0.3 -tf 30 -vs 1
+
 //
 // Description:  Time dependent nonlinear elasticity
 
@@ -16,8 +18,9 @@ using namespace std;
 using namespace mfem;
 
 // Represents the implicit nonlinear system:
-// M(k_v) = -H(x + dt * k_x) - S(v + dt * k_v),
-//   k_x  = v + dt * k_v.
+// M(k_v) + H(x + dt * k_x) + S(v + dt * k_v) = 0
+//   k_x  - v - dt * k_v = 0.
+// TODO: Explain what k_v and k_x are.....
 class ElasticNonlinearForm : public Operator
 {
 private:
@@ -52,6 +55,27 @@ public:
    virtual ~ElasticNonlinearForm();
 };
 
+// This class provides a solver for linear system involving the gradient
+//      | M + dt S      dt H'  |
+//  G = |                      |
+//      | dt I            I    |
+//  using GMRES, or FGMRES, preconditioned by
+//     | M + dtS + dt^2 H'    0 |
+// P = |                        |
+//     |       0              I |
+// where the block M + dtS + dt^2 H' is solved using a direct solver (UMFpack),
+// or using an inner GMRES interation with a very large tolerance (0.1).
+class ElasticNonlinearGradSolver : public Solver
+{
+private:
+	const BlockMatrix * Grad;
+public:
+	ElasticNonlinearGradSolver(int s);
+	~ElasticNonlinearGradSolver();
+	void SetOperator(const Operator & grad);
+	void Mult(const Vector & x, Vector & y) const;
+};
+
 
 /// TODO: short description
 class HyperelasticOperator : public TimeDependentOperator
@@ -74,7 +98,7 @@ private:
    // These are used for implicit time integration.
    NewtonSolver newton_solver;
    ElasticNonlinearForm newton_oper;
-   GMRESSolver gmres;
+   ElasticNonlinearGradSolver gradsolver;
 
 public:
    HyperelasticOperator(FiniteElementSpace &f, Array<int> &ess_bdr,
@@ -179,6 +203,7 @@ int main(int argc, char *argv[])
 
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
+   //TODO: Is this working both in implicit and explicit???
    ODESolver *ode_solver;
    switch (ode_solver_type)
    {
@@ -359,8 +384,8 @@ ElasticNonlinearForm::ElasticNonlinearForm(BilinearForm *_M,
       Grad_10 = new SparseMatrix(i, j, a10, height/2, height/2);
       Grad_11 = new SparseMatrix(i, j, a11, height/2, height/2);
    }
-   Grad_10->Finalize();
-   Grad_11->Finalize();
+
+   Grad_00 = NULL;
    Grad->SetBlock(1, 0, Grad_10);
    Grad->SetBlock(1, 1, Grad_11);
 }
@@ -398,6 +423,7 @@ Operator &ElasticNonlinearForm::GetGradient(const Vector &dvx_dt) const
    // 00 = M + dt * S.
    if(Grad_00)
       delete Grad_00;
+
    Grad_00 = Add(1.0, M->SpMat(), dt, S->SpMat());
    Grad->SetBlock(0, 0, Grad_00);
 
@@ -416,18 +442,103 @@ Operator &ElasticNonlinearForm::GetGradient(const Vector &dvx_dt) const
 ElasticNonlinearForm::~ElasticNonlinearForm()
 {
    delete Grad_00;
-   delete Grad_10->GetData();
+   delete[] Grad_10->GetData();
    Grad_10->LoseData();
    delete Grad_10;
    delete Grad_11;
    delete Grad;
 }
 
+ElasticNonlinearGradSolver::ElasticNonlinearGradSolver(int s):
+		Solver(s),
+		Grad(static_cast<const BlockMatrix*>(NULL))
+{
+
+}
+
+ElasticNonlinearGradSolver::~ElasticNonlinearGradSolver()
+{
+
+}
+void ElasticNonlinearGradSolver::SetOperator(const Operator & grad)
+{
+	//TODO Overload NewtonSolver::SetOperator.
+	const ElasticNonlinearForm * test = dynamic_cast<const ElasticNonlinearForm*>(&grad);
+
+	if(test)
+	{
+		height = width = test->Height();
+		Grad = static_cast<const BlockMatrix*>(NULL);
+		return;
+	}
+
+	Grad = dynamic_cast<const BlockMatrix*>(&grad);
+	MFEM_VERIFY(Grad, "grad should be an object of type BlockMatrix");
+	MFEM_VERIFY(Grad->NumRowBlocks() == 2 && Grad->NumColBlocks() == 2, "Grad should have a 2-by-2 block structure");
+	MFEM_VERIFY(Grad->Height() == Grad->Width(), "Grad should be a square operator");
+	MFEM_VERIFY(!Grad->IsZeroBlock(0,0), "Grad(0,0) must be non-zero");
+	MFEM_VERIFY(!Grad->IsZeroBlock(1,0), "Grad(1,0) must be non-zero");
+	MFEM_VERIFY(!Grad->IsZeroBlock(1,1), "Grad(1,1) must be non-zero");
+	MFEM_VERIFY(!Grad->IsZeroBlock(1,0), "Grad(0,1) must be non-zero");
+	height = width = Grad->Height();
+}
+void ElasticNonlinearGradSolver::Mult(const Vector & x, Vector & y) const
+{
+	MFEM_VERIFY(x.Size() == width, "Input vector x has wrong size");
+	MFEM_VERIFY(y.Size() == height, "Input vector y has wrong size");
+
+
+#ifdef MFEM_DEBUG
+	{
+		Vector diagblock11(Grad->GetBlock(1,1).Size());
+		Grad->GetBlock(1,1).GetDiag(diagblock11);
+		for(int i = 0; i < diagblock11.Size(); ++i)
+			MFEM_VERIFY(std::abs(diagblock11(i)-1) < 1e-9, "");
+	}
+#endif
+
+	SparseMatrix * b01b10 = mfem::Mult(Grad->GetBlock(0,1), Grad->GetBlock(1,0));
+	SparseMatrix * Schur = Add(1., Grad->GetBlock(0,0), -1., *b01b10);
+	delete b01b10;
+
+#ifndef MFEM_USE_SUITESPARSE
+	GSSmoother SchurPrec(*Schur);
+	GMRESSolver SchurInv;
+	SchurInv.SetRelTol(1e-1);
+	SchurInv.SetAbsTol(1e-2);
+	SchurInv.SetMaxIter(100);
+	SchurInv.SetPrintLevel(-1);
+	SchurInv.SetOperator(*Schur);
+	SchurInv.SetPreconditioner(SchurPrec);
+#else
+	UMFPACKSolver SchurInv(*Schur);
+#endif
+
+	BlockDiagonalPreconditioner GradPrec(Grad->RowOffsets());
+	GradPrec.SetDiagonalBlock(0, &SchurInv);
+	//Block 11 can be left null since it is a Identity
+
+	FGMRESSolver GradInv;
+	GradInv.SetRelTol(1e-9);
+	GradInv.SetAbsTol(1e-12);
+	GradInv.SetMaxIter(100);
+	GradInv.SetPrintLevel(-1);
+	GradInv.SetOperator(*Grad);
+	GradInv.SetPreconditioner(GradPrec);
+	GradInv.iterative_mode = iterative_mode;
+
+	GradInv.Mult(x,y);
+
+	MFEM_VERIFY(GradInv.GetConverged(), "ElasticNonlinearGradSolver did not converged.")
+
+   delete Schur;
+}
+
 HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
                                            Array<int> &ess_bdr, double visc)
    : TimeDependentOperator(2*f.GetVSize(), 0.0), fespace(f),
      M(&fespace), S(&fespace), H(&fespace), z(height/2),
-     newton_oper(&M, &S, &H)
+     newton_oper(&M, &S, &H),gradsolver(newton_oper.Height())
 {
    const double ref_density = 1.0; // density in the reference configuration
    ConstantCoefficient rho0(ref_density);
@@ -460,10 +571,8 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
       S.Finalize();
    }
 
-   gmres.SetPrintLevel(-1);
-   gmres.SetMaxIter(100);
-   gmres.SetKDim(100);
-   newton_solver.SetPreconditioner(gmres);
+   newton_solver.iterative_mode = false;
+   newton_solver.SetPreconditioner(gradsolver);
    newton_solver.SetOperator(newton_oper);
    newton_solver.SetPrintLevel(-1);
    newton_solver.SetAbsTol(1e-12);
@@ -492,6 +601,8 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    newton_oper.Update(dt, &vx);
    z = 0.0;
    newton_solver.Mult(z, dvx_dt);
+
+   MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge");
 }
 
 double HyperelasticOperator::ElasticEnergy(Vector &x) const
