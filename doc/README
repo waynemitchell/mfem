@@ -1,4 +1,5 @@
                     Finite Element Discretization Library
+                                 version 3.0
                                    __
                        _ __ ___   / _|  ___  _ __ ___
                       | '_ ` _ \ | |_  / _ \| '_ ` _ \
@@ -6,7 +7,6 @@
                       |_| |_| |_||_|   \___||_| |_| |_|
 
                          http://mfem.googlecode.com
-
 
 This directory contains Doxygen configuration files for building HTML
 documentation of the MFEM sources (including the example codes).
