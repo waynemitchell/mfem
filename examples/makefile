@@ -46,5 +46,5 @@ clean:
 	rm -f ex8 ex8p ex9 ex9p ex10
 	rm -f refined.mesh displaced.mesh mesh.* ex5.mesh Example5*
 	rm -f sphere_refined.* sol.* sol_u.* sol_p.*
-	rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.*
+	rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.* Example9*
 	rm -f deformed.mesh velocity.sol elastic_energy.sol

@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
    double t_final = 10.0;
    double dt = 0.01;
    bool visualization = 1;
+   bool visit = 0;
    int vis_steps = 5;
 
    int precision = 8;
@@ -111,6 +112,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
+                  "--no-visit-datafiles",
+                  "Save data files for VisIt (visit.llnl.gov) visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -221,7 +225,8 @@ int main(int argc, char *argv[])
    HypreParVector *B = b->ParallelAssemble();
 
    // 9. Define the initial conditions, save the corresponding grid function to
-   //    a file and (optionally) initialize GLVis visualization.
+   //    a file and (optionally) save data in the VisIt format and initialize
+   //    GLVis visualization.
    ParGridFunction *u = new ParGridFunction(fes);
    u->ProjectCoefficient(u0);
    HypreParVector *U = u->GetTrueDofs();
@@ -236,6 +241,15 @@ int main(int argc, char *argv[])
       ofstream osol(sol_name.str().c_str());
       osol.precision(precision);
       u->Save(osol);
+   }
+
+   VisItDataCollection visit_dc("Example9-Parallel", pmesh);
+   visit_dc.RegisterField("solution", u);
+   if (visit)
+   {
+      visit_dc.SetCycle(0);
+      visit_dc.SetTime(0.0);
+      visit_dc.Save();
    }
 
    socketstream sout;
@@ -281,7 +295,7 @@ int main(int argc, char *argv[])
       ode_solver->Step(*U, t, dt);
       ti++;
 
-      if (visualization && (ti % vis_steps == 0))
+      if (ti % vis_steps == 0)
       {
          if (myid == 0)
             cout << "time step: " << ti << ", time: " << t << endl;
@@ -289,8 +303,19 @@ int main(int argc, char *argv[])
          // 11. Extract the parallel grid function corresponding to the finite
          //     element approximation U (the local solution on each processor).
          *u = *U;
-         sout << "parallel " << num_procs << " " << myid << "\n";
-         sout << "solution\n" << *pmesh << *u << flush;
+
+         if (visualization)
+         {
+            sout << "parallel " << num_procs << " " << myid << "\n";
+            sout << "solution\n" << *pmesh << *u << flush;
+         }
+
+         if (visit)
+         {
+            visit_dc.SetCycle(ti);
+            visit_dc.SetTime(t);
+            visit_dc.Save();
+         }
       }
    }
 
