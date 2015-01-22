@@ -8,7 +8,6 @@
 
                          http://mfem.googlecode.com
 
-
 The MFEM library has a serial and an MPI-based parallel version, which largely
 share the same code base. The only prerequisite for building the serial version
 of MFEM is a (modern) C++ compiler, such as g++. The parallel version of MFEM

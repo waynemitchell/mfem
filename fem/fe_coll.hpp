@@ -20,7 +20,7 @@ namespace mfem
 {
 
 /** Collection of finite elements from the same family in multiple dimensions.
-    This class is used to match the degrees of fredom of a FiniteElementSpace
+    This class is used to match the degrees of freedom of a FiniteElementSpace
     between elements, and to provide the finite element restriction from an
     element to its boundary. */
 class FiniteElementCollection

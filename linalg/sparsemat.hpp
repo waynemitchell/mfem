@@ -22,12 +22,16 @@
 namespace mfem
 {
 
-class RowNode
+class
+#if defined(__alignas_is_defined)
+alignas(double)
+#endif
+   RowNode
 {
 public:
+   double Value;
    RowNode *Prev;
    int Column;
-   double Value;
 };
 
 /// Data type sparse matrix
@@ -46,12 +50,21 @@ private:
    RowNode **Rows;
 
    int current_row;
-   union { int *J; RowNode **Node; } ColPtr;
+   int* ColPtrJ;
+   RowNode ** ColPtrNode;
 
 #ifdef MFEM_USE_MEMALLOC
    typedef MemAlloc <RowNode, 1024> RowNodeAlloc;
    RowNodeAlloc * NodesMem;
 #endif
+
+   /// Say whether we own the pointers for I and J (should we free them?).
+   bool ownGraph;
+   /// Say whether we own the pointers for A (should we free them?).
+   bool ownData;
+
+   /// Are the columns sorted already.
+   bool isSorted;
 
    inline void SetColPtr(const int row);
    inline void ClearColPtr();
@@ -73,6 +86,9 @@ public:
    explicit SparseMatrix(int nrows, int ncols = 0);
 
    SparseMatrix(int *i, int *j, double *data, int m, int n);
+
+   SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij, bool owna,
+                bool issorted);
 
    /// For backward compatibility define Size to be synonym of Height()
    int Size() const { return Height(); }
@@ -215,7 +231,8 @@ public:
        CSR (compressed sparse row) format. */
    virtual void Finalize(int skip_zeros = 1);
 
-   int Finalized() const { return (A != NULL); }
+   bool Finalized() const { return (A != NULL); }
+   bool areColumnsSorted() const { return isSorted; }
 
    /** Split the matrix into M x N blocks of sparse matrices in CSR format.
        The 'blocks' array is M x N (i.e. M and N are determined by its
@@ -364,32 +381,32 @@ inline void SparseMatrix::SetColPtr(const int row)
 {
    if (Rows)
    {
-      if (ColPtr.Node == NULL)
+      if (ColPtrNode == NULL)
       {
-         ColPtr.Node = new RowNode *[width];
+         ColPtrNode = new RowNode *[width];
          for (int i = 0; i < width; i++)
          {
-            ColPtr.Node[i] = NULL;
+            ColPtrNode[i] = NULL;
          }
       }
       for (RowNode *node_p = Rows[row]; node_p != NULL; node_p = node_p->Prev)
       {
-         ColPtr.Node[node_p->Column] = node_p;
+         ColPtrNode[node_p->Column] = node_p;
       }
    }
    else
    {
-      if (ColPtr.J == NULL)
+      if (ColPtrJ == NULL)
       {
-         ColPtr.J = new int[width];
+         ColPtrJ = new int[width];
          for (int i = 0; i < width; i++)
          {
-            ColPtr.J[i] = -1;
+            ColPtrJ[i] = -1;
          }
       }
       for (int j = I[row], end = I[row+1]; j < end; j++)
       {
-         ColPtr.J[J[j]] = j;
+         ColPtrJ[J[j]] = j;
       }
    }
    current_row = row;
@@ -401,12 +418,12 @@ inline void SparseMatrix::ClearColPtr()
       for (RowNode *node_p = Rows[current_row]; node_p != NULL;
            node_p = node_p->Prev)
       {
-         ColPtr.Node[node_p->Column] = NULL;
+         ColPtrNode[node_p->Column] = NULL;
       }
    else
       for (int j = I[current_row], end = I[current_row+1]; j < end; j++)
       {
-         ColPtr.J[J[j]] = -1;
+         ColPtrJ[J[j]] = -1;
       }
 }
 
@@ -414,7 +431,7 @@ inline double &SparseMatrix::SearchRow(const int col)
 {
    if (Rows)
    {
-      RowNode *node_p = ColPtr.Node[col];
+      RowNode *node_p = ColPtrNode[col];
       if (node_p == NULL)
       {
 #ifdef MFEM_USE_MEMALLOC
@@ -425,17 +442,14 @@ inline double &SparseMatrix::SearchRow(const int col)
          node_p->Prev = Rows[current_row];
          node_p->Column = col;
          node_p->Value = 0.0;
-         Rows[current_row] = ColPtr.Node[col] = node_p;
+         Rows[current_row] = ColPtrNode[col] = node_p;
       }
       return node_p->Value;
    }
    else
    {
-      const int j = ColPtr.J[col];
-      if (j == -1)
-      {
-         mfem_error("SparseMatrix::SearchRow : entry is not allocated!");
-      }
+      const int j = ColPtrJ[col];
+      MFEM_VERIFY(j != -1, "Entry for column " << col << " is not allocated.");
       return A[j];
    }
 }
@@ -444,12 +458,12 @@ inline double SparseMatrix::_Get_(const int col)
 {
    if (Rows)
    {
-      RowNode *node_p = ColPtr.Node[col];
+      RowNode *node_p = ColPtrNode[col];
       return (node_p == NULL) ? 0.0 : node_p->Value;
    }
    else
    {
-      const int j = ColPtr.J[col];
+      const int j = ColPtrJ[col];
       return (j == -1) ? 0.0 : A[j];
    }
 }
@@ -461,6 +475,7 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
       RowNode *node_p;
 
       for (node_p = Rows[row]; 1; node_p = node_p->Prev)
+      {
          if (node_p == NULL)
          {
 #ifdef MFEM_USE_MEMALLOC
@@ -478,17 +493,20 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
          {
             break;
          }
+      }
       return node_p->Value;
    }
    else
    {
       int *Ip = I+row, *Jp = J;
       for (int k = Ip[0], end = Ip[1]; k < end; k++)
+      {
          if (Jp[k] == col)
          {
             return A[k];
          }
-      mfem_error("SparseMatrix::SearchRow(...)");
+      }
+      MFEM_ABORT("Could not find entry for row = " << row << ", col = " << col);
    }
    return A[0];
 }

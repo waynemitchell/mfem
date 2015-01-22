@@ -16,6 +16,7 @@ namespace mfem {
  * - FiniteElementSpace
  * - GridFunction
  * - BilinearFormIntegrator and LinearFormIntegrator
+ * - LinearForm, BilinearForm and MixedBilinearForm
  *
  * <H3>Main linear algebra classes and sources</H3>
  *

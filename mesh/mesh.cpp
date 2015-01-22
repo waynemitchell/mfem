@@ -1775,10 +1775,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    const int buflen = 1024;
    char buf[buflen];
 
-#ifdef MFEM_DEBUG
    if (!input)
-      mfem_error("Input file stream not opened : Mesh::Load");
-#endif
+      MFEM_ABORT("Input stream is not open");
 
    if (NumOfVertices != -1)
    {
@@ -2580,7 +2578,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    }
    else
    {
-      mfem_error("Mesh::Load : Unknown input mesh format!");
+      MFEM_ABORT("Unknown input mesh format");
       return;
    }
 

@@ -54,7 +54,7 @@ private:
 /** A concept for items that should be used in HashTable and be accessible by
  *  hashing two IDs.
  *
- *  NOTE: the CRTP pattern is needed for correct pointer arithmetics if the
+ *  NOTE: the CRTP pattern is needed for correct pointer arithmetic if the
  *        derived class uses multiple inheritance.
  */
 template<typename Derived>
