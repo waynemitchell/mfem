@@ -806,6 +806,82 @@ void ParFiniteElementSpace::ConstructTrueNURBSDofs()
    gcomm->Bcast(ldof_ltdof);
 }
 
+struct Dependency
+{
+   int rank, dof;
+   double coef;
+
+   typedef Array<Dependency> List;
+   Dependency(int r, int d, double c) : rank(r), dof(dof), coef(c) {}
+};
+
+inline int DecodeDof(int dof, double& sign)
+{
+   if (dof >= 0)
+      return (sign = 1.0, dof);
+   else
+      return (sign = -1.0, -1 - dof);
+}
+
+static void AddSlaveDependencies(Dependency::List deps[], int master_rank,
+   Array<int>& master_dofs, Array<int>& slave_dofs, DenseMatrix& I)
+{
+   // make each slave DOF dependent on all master DOFs
+   for (int i = 0; i < slave_dofs.Size(); i++)
+   {
+      double ssign;
+      int sdof = DecodeDof(slave_dofs[i], ssign);
+
+      Dependency::List &list = deps[sdof];
+      if (list.Size() <= 1) // slave dependencies override 1-to-1 dependencies
+      {
+         if (list.Size() == 1)
+            MFEM_ASSERT(std::abs(list[0].coef) == 1.0, "Invalid 1-to-1 dep.");
+
+         list.DeleteAll();
+         list.Reserve(master_dofs.Size());
+
+         for (int j = 0; j < master_dofs.Size(); j++)
+         {
+            double coef = I(i, j);
+            if (std::abs(coef) > 1e-12)
+            {
+               double msign;
+               int mdof = DecodeDof(master_dofs[j], msign);
+               if (mdof != sdof)
+                 list.Append(Dependency(master_rank, mdof, coef*ssign*msign));
+            }
+         }
+      }
+   }
+}
+
+static void Add1To1Dependencies(Dependency::List deps[], int owner_rank,
+   Array<int>& owner_dofs, Array<int>& dependent_dofs)
+{
+   MFEM_ASSERT(owner_dofs.Size() == dependent_dofs.Size(), "");
+   for (int i = 0; i < owner_dofs.Size(); i++)
+   {
+      double osign, dsign;
+      int odof = DecodeDof(owner_dofs[i], osign);
+      int ddof = DecodeDof(dependent_dofs[i], dsign);
+
+      Dependency::List &list = deps[ddof];
+      if (list.Size() <= 1) // don't touch existing slave dependencies
+      {
+         if (list.Size() == 0)
+         {
+            list.Append(Dependency(owner_rank, odof, osign*dsign));
+         }
+         else if (list[0].rank > owner_rank)
+         {
+            // 1-to-1 dependency already exists but lower rank takes precedence
+            list[0] = Dependency(owner_rank, odof, osign*dsign);
+         }
+      }
+   }
+}
+
 void ParFiniteElementSpace::GetConformingDofs
 (int type, int index, Array<int>& cdofs)
 {
@@ -821,15 +897,19 @@ void ParFiniteElementSpace::GetConformingDofs
    // TODO: remove invalid (non-conforming) DOFs
 }
 
+static bool IsTrueDof(const Dependency::List &list, int my_rank)
+{
+   return !list.Size() || (list.Size() == 1 && list[0].rank == my_rank);
+}
+
+
 void ParFiniteElementSpace::GetConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
-   // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors
+   // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
-   typedef std::map<int, ParNCMesh::NeighborDofMessage> RankToMessage;
-   RankToMessage send_messages;
-   RankToMessage recv_messages;
+   NeighborDofMessage::Map send_dofs, recv_dofs;
 
    // prepare neighbor DOF messages for shared vertices/edges/faces
    for (int type = 0; type < 3; type++)
@@ -853,32 +933,24 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             const int* group = pncmesh->GetGroup(type, id.index, gsize);
             for (int j = 0; j < gsize; j++)
                if (group[j] != MyRank)
-                  send_messages[group[j]].AddDofs(type, id, cdofs);
+                  send_dofs[group[j]].AddDofs(type, id, cdofs, pncmesh);
          }
          else
          {
-            // we don't own this edge/face and expect to receive DOFs for it
-            recv_messages[owner];
+            // we don't own this v/e/f and expect to receive DOFs for it
+            recv_dofs[owner].SetNCMesh(pncmesh);
          }
       }
    }
 
-   // non-blocking send of outgoing messages
-   RankToMessage::iterator it;
-   for (it = send_messages.begin(); it != send_messages.end(); ++it)
-      it->second.Isend(it->first, MyComm, *pncmesh);
+   // send/receive all DOF messages
+   NeighborDofMessage::IsendAll(send_dofs, MyComm);
+   NeighborDofMessage::RecvAll(recv_dofs, MyComm);
 
-   // blocking (kind of) receive of incoming messages
-   int recv_left = recv_messages.size();
-   while (recv_left > 0)
-   {
-      int rank, size;
-      ParNCMesh::NeighborDofMessage::Probe(rank, size, MyComm);
-      recv_messages[rank].Recv(rank, size, MyComm, *pncmesh);
-      --recv_left;
-   }
+   // *** STEP 2: build dependency lists ***
 
-   // *** STEP 2: build dependency lists
+   int num_cdofs = GetNConformingDofs();
+   Dependency::List* deps = new Dependency::List[num_cdofs];
 
    for (int type = 0; type < 3; type++)
    {
@@ -905,7 +977,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             if (owner == MyRank)
                GetConformingDofs(type, mf.index, master_dofs);
             else
-               recv_messages[owner].GetDofs(type, mf, master_dofs);
+               recv_dofs[owner].GetDofs(type, mf, master_dofs);
 
             if (!master_dofs.Size()) continue;
 
@@ -919,7 +991,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
                fe->GetLocalInterpolation(T, I);
 
                // make each slave DOF dependent on all master DOFs
-   //            AddSlaveDependencies(deps, owner, master_dofs, slave_dofs, I);
+               AddSlaveDependencies(deps, owner, master_dofs, slave_dofs, I);
             }
          }
       }
@@ -932,21 +1004,147 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          int owner = pncmesh->GetOwner(type, id.index);
          if (owner != MyRank)
          {
-            recv_messages[owner].GetDofs(type, id, owner_dofs);
+            recv_dofs[owner].GetDofs(type, id, owner_dofs);
             GetConformingDofs(type, id.index, my_dofs);
-            //AddOneToOneDependencies(owner, owner_dofs, my_dofs);
+            Add1To1Dependencies(deps, owner, owner_dofs, my_dofs);
          }
       }
    }
 
-   // wait for all DOF messages to be sent
-   for (it = send_messages.begin(); it != send_messages.end(); ++it)
-      it->second.WaitSent();
+   // *** STEP 3: request P matrix rows that we need from neighbors ***
 
-   // *** STEP 3: iteratively build the P matrix
+   NeighborRowRequest::Map send_requests, recv_requests;
 
+   // copy communication topology from the DOF messages
+   NeighborDofMessage::Map::iterator it;
+   for (it = send_dofs.begin(); it != send_dofs.end(); ++it)
+      recv_requests[it->first];
+   for (it = recv_dofs.begin(); it != recv_dofs.end(); ++it)
+      send_requests[it->first];
 
-   MFEM_ABORT(""); // TODO
+   // request rows we depend on
+   for (int i = 0; i < num_cdofs; i++)
+   {
+      const Dependency::List &list = deps[i];
+      for (int j = 0; j < list.Size(); j++)
+      {
+         const Dependency &dep = list[j];
+         if (dep.rank != MyRank)
+            send_requests[dep.rank].RequestRow(dep.dof);
+      }
+   }
+
+   NeighborRowRequest::IsendAll(send_requests, MyComm);
+   NeighborRowRequest::RecvAll(recv_requests, MyComm);
+
+   // *** STEP 4: iteratively build the P matrix ***
+
+   // DOFs that stayed independent or are ours are true DOFs
+   int loc_true_dofs = 0;
+   for (int i = 0; i < num_cdofs; i++)
+      if (IsTrueDof(deps[i], MyRank))
+         loc_true_dofs++;
+
+   // create the local part (local rows) of the P matrix
+   int glob_true_dofs;
+   MPI_Allreduce(&loc_true_dofs, &glob_true_dofs, 1, MPI_INT, MPI_SUM, MyComm);
+
+   SparseMatrix P(num_cdofs, glob_true_dofs);
+
+   Array<bool> finalized(num_cdofs);
+   finalized = false;
+
+   // put identity in P for true DOFs
+   for (int i = 0, true_dof = 0; i < ndofs; i++)
+      if (IsTrueDof(deps[i], MyRank))
+      {
+         P.Add(i, true_dof++, 1.0);
+         finalized[i] = true;
+      }
+
+   Array<int> cols;
+   Vector srow;
+
+   NeighborRowReply::Map recv_replies;
+   std::vector<NeighborRowReply::Map> send_replies;
+
+   int num_finalized = loc_true_dofs;
+   while (1)
+   {
+      // finalize what can currently be finalized
+      for (int dof = 0, i; dof < num_cdofs; dof++)
+      {
+         if (finalized[dof]) continue;
+
+         const Dependency::List &list = deps[dof];
+
+         // check that rows of all constraining DOFs are available
+         for (i = 0; i < list.Size(); i++)
+         {
+            const Dependency &dep = list[i];
+            if ((dep.rank == MyRank && !finalized[dep.dof]) ||
+                !recv_replies[dep.rank].HaveRow(dep.dof)) break;
+         }
+         if (i < list.Size()) continue;
+
+         // form a linear combination of rows that 'dof' depends on
+         for (i = 0; i < list.Size(); i++)
+         {
+            const Dependency &dep = list[i];
+            if (dep.rank == MyRank)
+               P.GetRow(dep.dof, cols, srow);
+            else
+               recv_replies[dep.rank].GetRow(dep.dof, cols, srow);
+
+            srow *= dep.coef;
+            P.AddRow(dof, cols, srow);
+         }
+
+         finalized[dof] = true;
+         num_finalized++;
+      }
+
+      // send rows that are requested by neighbors and are available
+      send_replies.push_back(NeighborRowReply::Map());
+
+      NeighborRowRequest::Map::iterator it;
+      for (it = recv_requests.begin(); it != recv_requests.end(); ++it)
+      {
+         NeighborRowRequest &req = it->second;
+         std::set<int>::iterator row;
+         for (row = req.rows.begin(); row != req.rows.end(); )
+            if (finalized[*row])
+            {
+               P.GetRow(*row, cols, srow);
+               send_replies.back()[it->first].AddRow(*row, cols, srow);
+               req.rows.erase(row++);
+            }
+            else
+               ++row;
+      }
+      NeighborRowReply::IsendAll(send_replies.back(), MyComm);
+
+      // are we finished?
+      if (num_finalized >= num_cdofs)
+         break;
+
+      // wait for a reply from neighbors
+      int rank, size;
+      NeighborRowReply::Probe(rank, size, MyComm);
+      recv_replies[rank].Recv(rank, size, MyComm);
+
+      // there may be more, receive all replies available
+      while (NeighborRowReply::IProbe(rank, size, MyComm))
+         recv_replies[rank].Recv(rank, size, MyComm);
+   }
+
+   delete [] deps;
+
+   // make sure we can discard all send buffers
+   NeighborDofMessage::WaitAllSent(send_dofs);
+   NeighborRowRequest::WaitAllSent(send_requests);
+   for (int i = 0; i < send_replies.size(); i++)
+      NeighborRowReply::WaitAllSent(send_replies[i]);
 }
 
 void ParFiniteElementSpace::Update()

@@ -14,47 +14,6 @@
 namespace mfem
 {
 
-/// Variable-length MPI message containing unspecific binary data.
-template<int Tag>
-struct VarMessage
-{
-   std::string data;
-   MPI_Request send_req;
-
-   /// Non-blocking send to processor 'rank'.
-   void Isend(int rank, MPI_Comm comm)
-   {
-      MPI_Isend(data.data(), data.length(), MPI_BYTE, rank, Tag, comm, &send_req);
-   }
-
-   /// Wait for a preceding Isend to finish.
-   void WaitSent()
-   {
-      MPI_Wait(&send_req, MPI_STATUS_IGNORE);
-   }
-
-   /** Blocking probe for incoming message of this type from any rank.
-       Returns the rank and message size. */
-   static void Probe(int &rank, int &size, MPI_Comm comm)
-   {
-      MPI_Status status;
-      MPI_Probe(MPI_ANY_SOURCE, Tag, comm, &status);
-      rank = status.MPI_SOURCE;
-      MPI_Get_count(&status, MPI_BYTE, &size);
-   }
-
-   /// Post-probe receive from processor 'rank' of message size 'size'.
-   void Recv(int rank, int size, MPI_Comm comm)
-   {
-      data.resize(size);
-      MPI_Status status;
-      MPI_Recv((void*) data.data(), size, MPI_BYTE, rank, Tag, comm, &status);
-   }
-};
-
-
-
-
 /** \brief
  *
  */
@@ -122,43 +81,7 @@ public:
       }
    }
 
-   /** */
-   class NeighborDofMessage : public VarMessage<135>
-   {
-   public:
-      typedef VarMessage<135> Base;
-
-      /// Add vertex/edge/face DOFs to an outgoing message.
-      void AddDofs(int type, const MeshId &id, const Array<int> &dofs)
-      {
-         MFEM_ASSERT(type >= 0 && type < 3, "");
-         id_dofs[type][id].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
-      }
-
-      MPI_Request Isend(int rank, MPI_Comm comm, const ParNCMesh &pncmesh);
-      void Recv(int rank, int size, MPI_Comm comm, const ParNCMesh &pncmesh);
-
-      /// Get vertex/edge/face DOFs from a received message.
-      void GetDofs(int type, const MeshId& id, Array<int>& dofs);
-
-   protected:
-      // TODO: we need a Dictionary class if we want to avoid STL
-      typedef std::map<MeshId, std::vector<int> > IdToDofs;
-      IdToDofs id_dofs[3];
-   };
-
-   class NeighborRowsRequest: public VarMessage<312>
-   {
-      // TODO
-   };
-
-   class NeighborRowsReply: public VarMessage<313>
-   {
-      // TODO
-   };
-
 protected:
-
    MPI_Comm MyComm;
    int NRanks, MyRank;
 
@@ -212,7 +135,7 @@ protected:
    void MakeGroups(int nitems, Table &groups);
    void MakeShared(const Table &groups, const NCList &list, NCList &shared);
 
-   /** Uniquely encodes a set of elements in the refinement hierarchy of an
+   /** Uniquely encodes a set of elements in the erefinement hierarchy of an
        NCMesh. Can be dumped to a stream, sent to another processor, loaded,
        and decoded to identify the same set of elements (refinements) in a
        different but compatible NCMesh. The elements don't have to be leaves,
@@ -248,48 +171,179 @@ protected:
 
    friend class ParMesh;
    friend class NeighborDofMessage;
-
 };
 
-inline bool operator< (const NCMesh::MeshId &a, const NCMesh::MeshId &b)
-{ return a.index < b.index; }
-
 /*
-NOTES
-
-- parallel Dependency (ParFiniteElementSpace): {cdof, rank, coef}
-- 1-to-1 dependencies, dep_list.Size() == 1, can be overruled by standard NC
-  dependencies
-
-P MATRIX ALGORITHM
-
-Phase 1 -- create dependency lists
-- for each master face/edge, send cdofs if slave rank different
-  (cdofs to be sent collected in a message for each neighbor)
-- for shared conforming edges/faces send cdofs if owner
-- for each slave/conforming non-owner, mark processors to receive from
-- actually send/receive the messages
-- local depencency algo as in serial, get cdofs from nonlocal faces/edges
-  from the messages
-- collect 1-to-1 deps for conforming from the messages
-
-Phase 2 -- construct P matrix
-- mark cdofs with empty deps as tdofs
-- create P matrix as diag, offd SparseMatrix
-- schedule recv from neighbors that own P rows we need
-- loop
-  - finalize cdofs that can be finalized locally, send (combinations of) P rows
-    to neighbors that need them
-  - wait for rows from neighbors
-
 TODO
 + shared vertices
 - fix NCMesh::BuildEdgeList
-- AddSlaveDependencies, AddOneOneDependencies
-- Phase 2
++ AddSlaveDependencies, AddOneOneDependencies
++ Phase 2
 - invalid CDOFs?
-
 */
+
+
+/// Variable-length MPI message containing unspecific binary data.
+template<int Tag>
+struct VarMessage
+{
+   std::string data;
+   MPI_Request send_request;
+
+   /// Non-blocking send to processor 'rank'.
+   void Isend(int rank, MPI_Comm comm)
+   {
+      Encode();
+      MPI_Isend(data.data(), data.length(), MPI_BYTE, rank, Tag, comm,
+                &send_request);
+   }
+
+   /// Helper to send all messages in a rank-to-message map container.
+   template<typename MapT>
+   static void IsendAll(MapT& rank_msg, MPI_Comm comm) // TODO: free function instead of static?
+   {
+      typename MapT::iterator it;
+      for (it = rank_msg.begin(); it != rank_msg.end(); ++it)
+         it->second.Isend(it->first, comm);
+   }
+
+   /// Helper to wait for all messages in a map container to be sent.
+   template<typename MapT>
+   static void WaitAllSent(MapT& rank_msg) // TODO: free function instead of static?
+   {
+      typename MapT::iterator it;
+      for (it = rank_msg.begin(); it != rank_msg.end(); ++it)
+      {
+         MPI_Wait(&it->second.send_request, MPI_STATUS_IGNORE);
+         it->second.Clear();
+      }
+   }
+
+   /** Blocking probe for incoming message of this type from any rank.
+       Returns the rank and message size. */
+   static void Probe(int &rank, int &size, MPI_Comm comm)
+   {
+      MPI_Status status;
+      MPI_Probe(MPI_ANY_SOURCE, Tag, comm, &status);
+      rank = status.MPI_SOURCE;
+      MPI_Get_count(&status, MPI_BYTE, &size);
+   }
+
+   /** Non-blocking probe for incoming message of this type from any rank.
+       If there is an incoming message, returns true and sets 'rank' and 'size'.
+       Otherwise returns false. */
+   static bool IProbe(int &rank, int &size, MPI_Comm comm)
+   {
+      int flag;
+      MPI_Status status;
+      MPI_Iprobe(MPI_ANY_SOURCE, Tag, comm, &flag, &status);
+      if (!flag) return false;
+
+      rank = status.MPI_SOURCE;
+      MPI_Get_count(&status, MPI_BYTE, &size);
+      return true;
+   }
+
+   /// Post-probe receive from processor 'rank' of message size 'size'.
+   void Recv(int rank, int size, MPI_Comm comm)
+   {
+      data.resize(size);
+      MPI_Status status;
+      MPI_Recv((void*) data.data(), size, MPI_BYTE, rank, Tag, comm, &status);
+      Decode();
+   }
+
+   /// Helper to receive all messages in a rank-to-message map container.
+   template<typename MapT>
+   static void RecvAll(MapT& rank_msg, MPI_Comm comm) // TODO: free function instead of static?
+   {
+      int recv_left = rank_msg.size();
+      while (recv_left > 0)
+      {
+         int rank, size;
+         Probe(rank, size, comm);
+         rank_msg[rank].Recv(rank, size, comm);
+         --recv_left;
+      }
+   }
+
+   VarMessage() : send_request(MPI_REQUEST_NULL) {}
+   void Clear() { data.clear(); send_request = MPI_REQUEST_NULL; }
+
+protected:
+   virtual void Encode() {}
+   virtual void Decode() {}
+};
+
+
+/** */
+class NeighborDofMessage : public VarMessage<135>
+{
+public:
+   /// Add vertex/edge/face DOFs to an outgoing message.
+   void AddDofs(int type, const NCMesh::MeshId &id, const Array<int> &dofs,
+                ParNCMesh* pncmesh);
+
+   /// Set pointer to ParNCMesh (needed to encode the message).
+   void SetNCMesh(ParNCMesh* pncmesh) { this->pncmesh = pncmesh; }
+
+   /// Get vertex/edge/face DOFs from a received message.
+   void GetDofs(int type, const NCMesh::MeshId& id, Array<int>& dofs);
+
+   typedef std::map<int, NeighborDofMessage> Map;
+
+protected:
+   // TODO: we need a Dictionary class if we want to avoid STL
+   typedef std::map<NCMesh::MeshId, std::vector<int> > IdToDofs;
+   IdToDofs id_dofs[3];
+
+   ParNCMesh* pncmesh;
+   virtual void Encode();
+   virtual void Decode();
+};
+
+
+/** */
+class NeighborRowRequest: public VarMessage<312>
+{
+public:
+   std::set<int> rows;
+
+   void RequestRow(int row) { rows.insert(row); }
+   void RemoveRequest(int row) { rows.erase(row); }
+
+   typedef std::map<int, NeighborRowRequest> Map;
+
+protected:
+   virtual void Encode();
+   virtual void Decode();
+};
+
+
+/** */
+class NeighborRowReply: public VarMessage<313>
+{
+public:
+   void AddRow(int row, const Array<int> &cols, const Vector &srow);
+
+   bool HaveRow(int row) const { return rows.find(row) != rows.end(); }
+   void GetRow(int row, Array<int> &cols, Vector &srow);
+
+   typedef std::map<int, NeighborRowReply> Map;
+
+protected:
+   struct Row { std::vector<int> cols; Vector srow; };
+   std::map<int, Row> rows;
+
+   virtual void Encode();
+   virtual void Decode();
+};
+
+
+// comparison operator so that MeshId can be used as key in std::map
+inline bool operator< (const NCMesh::MeshId &a, const NCMesh::MeshId &b)
+{ return a.index < b.index; }
+
 
 } // namespace mfem
 

@@ -164,7 +164,7 @@ void ParNCMesh::AddSlaveRanks(int nitems, const NCList& list)
    }
 
    // We need the groups of master edges/faces to contain the ranks of their
-   // slaves (so that master DOFs get sent to the owners of the slaves).
+   // slaves (so that master DOFs get sent to those who share the slaves).
    // This can be done by appending more items to 'tmp_ranks' for the masters.
    // (Note that a slave edge can be shared by more than one element/processor.)
 
@@ -513,10 +513,18 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const
 }
 
 
-//// NeighborDofMessage ////////////////////////////////////////////////////////
+//// Messages //////////////////////////////////////////////////////////////////
 
-void ParNCMesh::NeighborDofMessage::GetDofs
-(int type, const MeshId& id, Array<int>& dofs)
+void NeighborDofMessage::AddDofs
+(int type, const NCMesh::MeshId &id, const Array<int> &dofs, ParNCMesh* pncmesh)
+{
+   MFEM_ASSERT(type >= 0 && type < 3, "");
+   id_dofs[type][id].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
+   this->pncmesh = pncmesh;
+}
+
+void NeighborDofMessage::GetDofs
+(int type, const NCMesh::MeshId& id, Array<int>& dofs)
 {
    MFEM_ASSERT(type >= 0 && type < 3, "");
 #ifdef MFEM_DEBUG
@@ -541,13 +549,12 @@ static void read_dofs(std::istream &is, std::vector<int> &dofs)
    is.read((char*) dofs.data(), dofs.size() * sizeof(int));
 }
 
-MPI_Request ParNCMesh::NeighborDofMessage::Isend
-(int rank, MPI_Comm comm, const ParNCMesh &pncmesh)
+void NeighborDofMessage::Encode()
 {
    IdToDofs::const_iterator it;
 
    // collect vertex/edge/face IDs
-   Array<MeshId> ids[3];
+   Array<NCMesh::MeshId> ids[3];
    for (int type = 0; type < 3; type++)
    {
       ids[type].Reserve(id_dofs[type].size());
@@ -557,7 +564,7 @@ MPI_Request ParNCMesh::NeighborDofMessage::Isend
 
    // encode the IDs
    std::ostringstream stream;
-   pncmesh.EncodeMeshIds(stream, ids);
+   pncmesh->EncodeMeshIds(stream, ids);
 
    // dump the DOFs
    for (int type = 0; type < 3; type++)
@@ -569,21 +576,16 @@ MPI_Request ParNCMesh::NeighborDofMessage::Isend
       id_dofs[type].clear();
    }
 
-   // send the message
    stream.str().swap(data);
-   return Base::Isend(rank, comm);
 }
 
-void ParNCMesh::NeighborDofMessage::Recv
-(int rank, int size, MPI_Comm comm, const ParNCMesh &pncmesh)
+void NeighborDofMessage::Decode()
 {
-   // receive message
-   Base::Recv(rank, size, comm);
    std::istringstream stream(data);
 
    // decode vertex/edge/face IDs
-   Array<MeshId> ids[3];
-   pncmesh.DecodeMeshIds(stream, ids);
+   Array<NCMesh::MeshId> ids[3];
+   pncmesh->DecodeMeshIds(stream, ids);
 
    // load DOFs
    for (int type = 0; type < 3; type++)
@@ -594,6 +596,90 @@ void ParNCMesh::NeighborDofMessage::Recv
    }
 
    // no longer need the raw data
+   data.clear();
+}
+
+void NeighborRowRequest::Encode()
+{
+   std::ostringstream stream;
+
+   // write the int set to the stream
+   write<int>(stream, rows.size());
+   for (std::set<int>::iterator it = rows.begin(); it != rows.end(); ++it)
+      write<int>(stream, *it);
+
+   rows.clear();
+   stream.str().swap(data);
+}
+
+void NeighborRowRequest::Decode()
+{
+   std::istringstream stream(data);
+
+   // read the int set from the stream
+   rows.clear();
+   int size = read<int>(stream);
+   for (int i = 0; i < size; i++)
+      rows.insert(rows.end(), read<int>(stream));
+
+   data.clear();
+}
+
+void NeighborRowReply::AddRow
+(int row, const Array<int> &cols, const Vector &srow)
+{
+   Row& row_data = rows[row];
+   row_data.cols.assign(cols.GetData(), cols.GetData() + cols.Size());
+   row_data.srow = srow;
+}
+
+void NeighborRowReply::GetRow(int row, Array<int> &cols, Vector &srow)
+{
+#ifdef MFEM_DEBUG
+   if (rows.find(row) == rows.end())
+      MFEM_ABORT("Row " << row << " not found in neighbor message.");
+#endif
+   Row& row_data = rows[row];
+   cols.MakeRef(row_data.cols.data(), row_data.cols.size());
+   srow.SetDataAndSize(row_data.srow.GetData(), row_data.srow.Size());
+}
+
+void NeighborRowReply::Encode()
+{
+   std::ostringstream stream;
+
+   // dump the rows to the stream
+   write<int>(stream, rows.size());
+   for (std::map<int, Row>::iterator it = rows.begin(); it != rows.end(); ++it)
+   {
+      write<int>(stream, it->first); // row number
+      Row& row_data = it->second;
+      MFEM_ASSERT(row_data.cols.size() == row_data.srow.Size(), "");
+      write_dofs(stream, row_data.cols);
+      stream.write((const char*) row_data.srow.GetData(),
+                   sizeof(double) * row_data.srow.Size());
+   }
+
+   rows.clear();
+   stream.str().swap(data);
+}
+
+void NeighborRowReply::Decode()
+{
+   std::istringstream stream(data);
+
+   // read the rows
+   rows.clear();
+   int size = read<int>(stream);
+   for (int i = 0; i < size; i++)
+   {
+      Row& row_data = rows[read<int>(stream)];
+      read_dofs(stream, row_data.cols);
+      row_data.srow.SetSize(row_data.cols.size());
+      stream.read((char*) row_data.srow.GetData(),
+                  sizeof(double) * row_data.srow.Size());
+   }
+
    data.clear();
 }
 
