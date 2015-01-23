@@ -100,7 +100,7 @@ protected:
    Mesh* nc_coarse_level;
 
    static const int tet_faces[4][3];
-   static const int hex_faces[6][4];
+   static const int hex_faces[6][4]; // same as Hexahedron::faces
 
    static const int tri_orientations[6][3];
    static const int quad_orientations[8][4];
@@ -253,6 +253,13 @@ protected:
 
    void AddQuadFaceElement (int lf, int gf, int el,
                             int v0, int v1, int v2, int v3);
+   /** For a serial Mesh, return true if the face is interior. For a parallel
+       ParMesh return true if the face is interior or shared. In parallel, this
+       method only works if the face neighbor data is exchanged. */
+   bool FaceIsTrueInterior(int FaceNo) const
+   {
+      return FaceIsInterior(FaceNo) || (faces_info[FaceNo].Elem2Inf >= 0);
+   }
 
    // shift cyclically 3 integers left-to-right
    inline static void ShiftL2R(int &, int &, int &);
@@ -559,6 +566,7 @@ public:
 
    FaceElementTransformations *GetBdrFaceTransformations (int BdrElemNo);
 
+   /// Return true if the given face is interior
    bool FaceIsInterior(int FaceNo) const
    {
       return (faces_info[FaceNo].Elem2No >= 0);

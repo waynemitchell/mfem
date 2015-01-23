@@ -105,10 +105,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       NumOfBdrElements = 0;
       for (i = 0; i < mesh.GetNBE(); i++)
       {
-         int face = mesh.GetBdrElementEdgeIndex(i);
-         int el1, el2;
+         int face, o, el1, el2;
+         mesh.GetBdrElementFace(i, &face, &o);
          mesh.GetFaceElements(face, &el1, &el2);
-         if (partitioning[el1] == MyRank)
+         if (partitioning[(o % 2 == 0 || el2 < 0) ? el1 : el2] == MyRank)
          {
             NumOfBdrElements++;
             if (mesh.NURBSext)
@@ -120,10 +120,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       boundary.SetSize(NumOfBdrElements);
       for (i = 0; i < mesh.GetNBE(); i++)
       {
-         int face = mesh.GetBdrElementEdgeIndex(i);
-         int el1, el2;
+         int face, o, el1, el2;
+         mesh.GetBdrElementFace(i, &face, &o);
          mesh.GetFaceElements(face, &el1, &el2);
-         if (partitioning[el1] == MyRank)
+         if (partitioning[(o % 2 == 0 || el2 < 0) ? el1 : el2] == MyRank)
          {
             boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate(this);
             int *v = boundary[bdrelem_counter]->GetVertices();
@@ -2443,6 +2443,7 @@ void ParMesh::PrintXG(std::ostream &out) const
 
 void ParMesh::Print(std::ostream &out) const
 {
+   bool print_shared = true;
    int i, j, shared_bdr_attr;
    const Array<int> &s2l_face = ((Dim == 1) ? svert_lvert :
                                  ((Dim == 2) ? sedge_ledge : sface_lface));
@@ -2471,14 +2472,16 @@ void ParMesh::Print(std::ostream &out) const
    for (i = 0; i < NumOfElements; i++)
       PrintElement(elements[i], out);
 
-   out << "\nboundary\n" << NumOfBdrElements +
-      ((Dim > 1) ? s2l_face.Size() : 0) << '\n';
+   int num_bdr_elems = NumOfBdrElements;
+   if (print_shared && Dim > 1)
+      num_bdr_elems += s2l_face.Size();
+   out << "\nboundary\n" << num_bdr_elems << '\n';
    for (i = 0; i < NumOfBdrElements; i++)
       PrintElement(boundary[i], out);
 
-   if (Dim > 1)
+   if (print_shared && Dim > 1)
    {
-      if(bdr_attributes.Size())
+      if (bdr_attributes.Size())
          shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
       else
          shared_bdr_attr = MyRank + 1;

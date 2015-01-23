@@ -23,10 +23,10 @@ class Hexahedron : public Element
 {
 protected:
    int indices[8];
-   static const int edges[12][2];
-   static const int faces[6][4];
 
 public:
+   static const int edges[12][2];
+   static const int faces[6][4];  // same as Mesh::hex_faces
 
    Hexahedron() : Element(Geometry::CUBE) { }
 
