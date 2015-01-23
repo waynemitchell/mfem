@@ -12,8 +12,8 @@
 //               ex4 -m ../data/fichera-q3.mesh
 //               ex4 -m ../data/square-disc-nurbs.mesh
 //               ex4 -m ../data/beam-hex-nurbs.mesh
-//               ex4 -m ../data/periodic-square.mesh
-//               ex4 -m ../data/periodic-cube.mesh
+//               ex4 -m ../data/periodic-square.mesh -no-bc
+//               ex4 -m ../data/periodic-cube.mesh -no-bc
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -45,6 +45,7 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
+   bool set_bc = true;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -52,6 +53,8 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&set_bc, "-bc", "--impose-bc", "-no-bc", "--dont-impose-bc",
+                  "Impose or not essential boundary conditions.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -125,7 +128,7 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
    a->Assemble();
-   if (mesh->bdr_attributes.Size())
+   if (set_bc && mesh->bdr_attributes.Size())
    {
       Array<int> ess_bdr(mesh->bdr_attributes.Max());
       ess_bdr = 1;
