@@ -186,6 +186,16 @@ void ParBilinearForm::Assemble(int skip_zeros)
       AssembleSharedFaces(skip_zeros);
 }
 
+void ParBilinearForm::ParAddMult(const Vector &x, Vector &y, const double a) const
+{
+   X.Distribute(&x);
+
+   BilinearForm::Mult(X, Y);
+   Vector tmp(y.Size());
+   Y.ParallelAssemble(tmp);
+   y.Add(a,tmp);
+}
+
 HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(SparseMatrix *m)
 {
    if (m == NULL)

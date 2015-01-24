@@ -35,9 +35,9 @@
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
 #include "pfespace.hpp"
+#include "pgridfunc.hpp"
 #include "plinearform.hpp"
 #include "pbilinearform.hpp"
-#include "pgridfunc.hpp"
 #include "pnonlinearform.hpp"
 #endif
 
