@@ -45,15 +45,15 @@ using namespace mfem;
 class BackwardEulerOperator;
 
 /** After spatial discretization, the hyperelastic model can be written as a
-    system of ODEs:
-       dv/dt = -M^{-1}*(H(x) + S*v)
-       dx/dt = v,
-    where x is the vector representing the deformation, v is the velocity field,
-    M is the mass matrix, S is the viscosity matrix, and H(x) is the nonlinear
-    hyperelastic operator.
-
-    Class HyperelasticOperator represents the right-hand side of the above
-    system of ODEs. */
+ *  system of ODEs:
+ *     dv/dt = -M^{-1}*(H(x) + S*v)
+ *     dx/dt = v,
+ *  where x is the vector representing the deformation, v is the velocity field,
+ *  M is the mass matrix, S is the viscosity matrix, and H(x) is the nonlinear
+ *  hyperelastic operator.
+ *
+ *  Class HyperelasticOperator represents the right-hand side of the above
+ *  system of ODEs. */
 class HyperelasticOperator : public TimeDependentOperator
 {
 protected:
