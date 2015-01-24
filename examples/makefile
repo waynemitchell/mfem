@@ -44,7 +44,8 @@ $(CONFIG_MK) $(MFEM_LIB_FILE):
 clean:
 	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p ex6 ex7 ex7p
 	rm -f ex8 ex8p ex9 ex9p ex10
-	rm -f refined.mesh displaced.mesh mesh.* ex5.mesh Example5*
+	rm -f refined.mesh displaced.mesh mesh.* ex5.mesh
+	rm -rf Example5* Example9*
 	rm -f sphere_refined.* sol.* sol_u.* sol_p.*
-	rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.* Example9*
+	rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.*
 	rm -f deformed.mesh velocity.sol elastic_energy.sol
