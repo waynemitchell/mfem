@@ -23,7 +23,7 @@ endif
 ifeq ($(MFEM_USE_MPI),NO)
    EXAMPLES = ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10
 else
-   EXAMPLES = ex1p ex2p ex3p ex4p ex5p ex7p ex8p ex9p
+   EXAMPLES = ex1p ex2p ex3p ex4p ex5p ex7p ex8p ex9p ex10p
 endif
 
 .PHONY: all clean
@@ -49,3 +49,4 @@ clean:
 	rm -f sphere_refined.* sol.* sol_u.* sol_p.*
 	rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.*
 	rm -f deformed.mesh velocity.sol elastic_energy.sol
+	rm -f deformed.* velocity.* elastic_energy.*
