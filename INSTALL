@@ -28,9 +28,9 @@ Serial build:
    make serial -j 4
 
 Parallel build:
-   (download hypre 2.8.0b and METIS 4 from above URLs)
+   (download hypre 2.10.0b and METIS 4 from above URLs)
    (build METIS 4 in ../metis-4.0 relative to mfem)
-   (build hypre 2.8.0b in ../hypre-2.8.0b relative to mfem)
+   (build hypre 2.10.0b in ../hypre-2.10.0b relative to mfem)
    make parallel -j 4
 
 Example codes (serial/parallel, depending on the build):

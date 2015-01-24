@@ -35,7 +35,7 @@ INSTALL = /usr/bin/install
 # Note: symbols of the form @VAR@ will be replaced by $(VAR) in derived
 #       variables, like MFEM_FLAGS, defined in config.mk.
 
-HYPRE_DIR = @MFEM_DIR@/../hypre-2.8.0b/src/hypre
+HYPRE_DIR = @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT = -I$(HYPRE_DIR)/include
 HYPRE_LIB = -L$(HYPRE_DIR)/lib -lHYPRE
 

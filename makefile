@@ -103,7 +103,7 @@ endif
 CXXFLAGS ?= $(OPTIM_FLAGS)
 
 # HYPRE library configuration (needed to build the parallel version)
-HYPRE_DIR ?= @MFEM_DIR@/../hypre-2.8.0b/src/hypre
+HYPRE_DIR ?= @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT ?= -I$(HYPRE_DIR)/include
 HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
