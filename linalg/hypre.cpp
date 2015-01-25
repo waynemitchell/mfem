@@ -1065,7 +1065,7 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (V) delete V;
    if (Z) delete Z;
    if (l1_norms)
-      delete [] l1_norms;
+      hypre_TFree(l1_norms);
    delete X0;
    delete X1;
 
@@ -1077,10 +1077,10 @@ void HypreSmoother::SetOperator(const Operator &op)
    }
    else if (type == 5)
    {
-      Vector ones(height), diag(height);
+      l1_norms = hypre_CTAlloc(double, height);
+      Vector ones(height), diag(l1_norms, height);
       ones = 1.0;
       A->Mult(ones, diag);
-      l1_norms = diag.StealData();
       type = 1;
    }
    else
@@ -1246,7 +1246,7 @@ HypreSmoother::~HypreSmoother()
    if (V) delete V;
    if (Z) delete Z;
    if (l1_norms)
-      delete [] l1_norms;
+      hypre_TFree(l1_norms);
    if (fir_coeffs)
       delete [] fir_coeffs;
    if (X0) delete X0;
