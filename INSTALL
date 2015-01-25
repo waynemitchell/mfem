@@ -29,8 +29,8 @@ Serial build:
 
 Parallel build:
    (download hypre 2.10.0b and METIS 4 from above URLs)
-   (build METIS 4 in ../metis-4.0 relative to mfem)
-   (build hypre 2.10.0b in ../hypre-2.10.0b relative to mfem)
+   (build METIS 4 in ../metis-4.0 relative to mfem/)
+   (build hypre 2.10.0b in ../hypre-2.10.0b relative to mfem/)
    make parallel -j 4
 
 Example codes (serial/parallel, depending on the build):
@@ -227,7 +227,7 @@ The specific libraries and their options are:
 Building without GNU make
 =========================
 Before using another build system (e.g. Visual Studio) it is necessary to create
-proper configuration header file, config/config.hpp, using the template from
+a proper configuration header file, config/config.hpp, using the template from
 config/config.hpp.in:
 
    cp config/config.hpp.in config/config.hpp

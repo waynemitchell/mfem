@@ -15,7 +15,7 @@ MFEM makefile targets:
 
    make config
    make
-   make status  or  make info
+   make status/info
    make serial
    make parallel
    make debug
