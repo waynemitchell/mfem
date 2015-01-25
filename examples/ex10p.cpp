@@ -3,11 +3,12 @@
 // Compile with: make ex10
 //
 // Sample runs:
-//    mpirun -n 4 ex10p -m ../data/beam-tri.mesh -s 3 -rs 2 -rp 0 -o 2 -dt 3
-//    mpirun -n 4 ex10p -m ../data/beam-hex.mesh -s 2 -rs 1 -rp 0 -o 2 -dt 3
-//    mpirun -n 4 ex10p -m ../data/beam-tet.mesh -s 2 -rs 1 -rp 0 -o 2 -dt 3
-//    mpirun -n 4 ex10p -m ../data/beam-quad.mesh -s 14 -rs 2 -rp 0 -o 2 -dt 0.03 -vs 20
-//    mpirun -n 4 ex10p -m ../data/beam-hex.mesh -s 14 -rs 1 -rp 0 -o 2 -dt 0.05 -vs 20
+//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 3 -rs 2 -rp 0 -o 2 -dt 3
+//    mpirun -np 4 ex10p -m ../data/beam-tri.mesh -s 3 -rs 2 -rp 0 -o 2 -dt 3
+//    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 2 -rs 1 -rp 0 -o 2 -dt 3
+//    mpirun -np 4 ex10p -m ../data/beam-tet.mesh -s 2 -rs 1 -rp 0 -o 2 -dt 3
+//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 14 -rs 2 -rp 0 -o 2 -dt 0.03 -vs 20
+//    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 14 -rs 1 -rp 0 -o 2 -dt 0.05 -vs 20
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -64,9 +65,8 @@ protected:
    HyperelasticModel *model;
 
    HypreParMatrix * Mmat;
-
-   CGSolver M_solver; // Krylov solver for inverting the mass matrix M
-   HypreSmoother M_prec;  // Preconditioner for the mass matrix M
+   CGSolver M_solver;    // Krylov solver for inverting the mass matrix M
+   HypreSmoother M_prec; // Preconditioner for the mass matrix M
 
    /** Nonlinear operator defining the reduced backward Euler equation for the
        velocity. Used in the implementation of method ImplicitSolve. */
@@ -124,7 +124,7 @@ class ElasticEnergyCoefficient : public Coefficient
 {
 private:
    HyperelasticModel &model;
-   ParGridFunction      &x;
+   ParGridFunction   &x;
    DenseMatrix        J;
 
 public:
@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
       return 1;
    }
 
-   if(myid == 0)
+   if (myid == 0)
       args.PrintOptions(cout);
 
    // 3. Read the mesh from the given mesh file. We can handle triangular,
@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    for (int l = 0; l < par_ref_levels; l++)
-	   pmesh->UniformRefinement();
+      pmesh->UniformRefinement();
 
    // 6. Define the ODE solver used for time integration. Several implicit
    //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
@@ -282,22 +282,24 @@ int main(int argc, char *argv[])
 
    // 9. Initialize the hyperelastic operator, the GLVis visualization and print
    //    the initial energies.
-   HyperelasticOperator * oper = new HyperelasticOperator(*fespace, ess_bdr, visc);
+   HyperelasticOperator *oper = new HyperelasticOperator(*fespace, ess_bdr, visc);
 
    char vishost[] = "localhost";
    int  visport   = 19916;
    socketstream vis_v(vishost, visport);
-   socketstream vis_w;//(vishost, visport);
+   vis_v.precision(8);
    visualize(vis_v, pmesh, &x_gf, &v_gf, "Velocity", true);
+   socketstream vis_w(vishost, visport);
    if (vis_w)
    {
       oper->GetElasticEnergyDensity(x_gf, w_gf);
+      vis_w.precision(8);
       visualize(vis_w, pmesh, &x_gf, &w_gf, "Elastic energy density", true);
    }
 
    double ee0 = oper->ElasticEnergy(x_gf);
    double ke0 = oper->KineticEnergy(v_gf);
-   if(myid == 0)
+   if (myid == 0)
    {
       cout << "initial elastic energy (EE) = " << ee0 << endl;
       cout << "initial kinetic energy (KE) = " << ke0 << endl;
@@ -324,9 +326,9 @@ int main(int argc, char *argv[])
          double ee = oper->ElasticEnergy(x_gf);
          double ke = oper->KineticEnergy(v_gf);
 
-         if(myid == 0)
-         cout << "step " << ti << ", t = " << t << ", EE = " << ee << ", KE = "
-              << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
+         if (myid == 0)
+            cout << "step " << ti << ", t = " << t << ", EE = " << ee << ", KE = "
+                 << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
 
          visualize(vis_v, pmesh, &x_gf, &v_gf);
          if (vis_w)
@@ -397,7 +399,7 @@ void visualize(ostream &out, ParMesh *mesh, ParGridFunction *deformed_nodes,
 
    mesh->SwapNodes(nodes, owns_nodes);
 
-   if (init_vis && 0)
+   if (init_vis)
    {
       out << "window_size 800 800\n";
       out << "window_title '" << field_name << "'\n";
@@ -439,9 +441,9 @@ void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
 Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
 {
    delete Jacobian;
-   ParFiniteElementSpace * fes = M->ParFESpace();
+   ParFiniteElementSpace *fes = M->ParFESpace();
 
-   SparseMatrix * myJacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
+   SparseMatrix *myJacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
    add(*v, dt, k, w);
    add(*x, dt, w, z);
    ParGridFunction zd(fes);

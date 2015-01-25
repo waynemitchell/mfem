@@ -259,9 +259,9 @@ int main(int argc, char *argv[])
    char vishost[] = "localhost";
    int  visport   = 19916;
    socketstream vis_v(vishost, visport);
-   socketstream vis_w(vishost, visport);
    vis_v.precision(8);
    visualize(vis_v, mesh, &x, &v, "Velocity", true);
+   socketstream vis_w(vishost, visport);
    if (vis_w)
    {
       oper.GetElasticEnergyDensity(x, w);
