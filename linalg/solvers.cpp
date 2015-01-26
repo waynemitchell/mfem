@@ -1102,7 +1102,7 @@ void NewtonSolver::SetOperator(const Operator &op)
    oper = &op;
    height = op.Height();
    width = op.Width();
-   MFEM_ASSERT(height == width, "square Operator is required.")
+   MFEM_ASSERT(height == width, "square Operator is required.");
 
    r.SetSize(width);
    c.SetSize(width);
