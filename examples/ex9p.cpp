@@ -20,7 +20,9 @@
 //               bilinear forms in MFEM (face integrators), the use of explicit
 //               ODE time integrators, the definition of periodic boundary
 //               conditions through periodic meshes, as well as the use of GLVis
-//               for persistent visualization of a time-evolving solution.
+//               for persistent visualization of a time-evolving solution. The
+//               saving of time-dependent data files for external visualization
+//               with VisIt (visit.llnl.gov) is also illustrated.
 
 #include "mfem.hpp"
 #include <fstream>
