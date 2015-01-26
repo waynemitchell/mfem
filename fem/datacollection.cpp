@@ -13,8 +13,13 @@
 #include "picojson.h"
 
 #include <fstream>
+#include <cerrno>      // errno
+#ifndef _WIN32
 #include <sys/stat.h>  // mkdir
-#include <errno.h>     // errno
+#else
+#include <direct.h>    // _mkdir
+#define mkdir(dir, mode) _mkdir(dir)
+#endif
 
 namespace mfem
 {
