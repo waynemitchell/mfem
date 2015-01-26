@@ -49,9 +49,9 @@ private:
 
    RowNode **Rows;
 
-   int current_row;
-   int* ColPtrJ;
-   RowNode ** ColPtrNode;
+   mutable int current_row;
+   mutable int* ColPtrJ;
+   mutable RowNode ** ColPtrNode;
 
 #ifdef MFEM_USE_MEMALLOC
    typedef MemAlloc <RowNode, 1024> RowNodeAlloc;
@@ -66,14 +66,14 @@ private:
    /// Are the columns sorted already.
    bool isSorted;
 
-   inline void SetColPtr(const int row);
-   inline void ClearColPtr();
+   inline void SetColPtr(const int row) const;
+   inline void ClearColPtr() const;
    inline double &SearchRow(const int col);
    inline void _Add_(const int col, const double a)
    { SearchRow(col) += a; }
    inline void _Set_(const int col, const double a)
    { SearchRow(col) = a; }
-   inline double _Get_(const int col);
+   inline double _Get_(const int col) const;
 
    inline double &SearchRow(const int row, const int col);
    inline void _Add_(const int row, const int col, const double a)
@@ -280,7 +280,7 @@ public:
 
    /** Add the sparse matrix 'B' scaled by the scalar 'a' into '*this'.
        Only entries in the sparsity pattern of '*this' are added. */
-   void Add(const double a, SparseMatrix &B);
+   void Add(const double a, const SparseMatrix &B);
 
    SparseMatrix &operator=(double a);
 
@@ -377,7 +377,7 @@ SparseMatrix * Add(Array<SparseMatrix *> & Ai);
 
 // Inline methods
 
-inline void SparseMatrix::SetColPtr(const int row)
+inline void SparseMatrix::SetColPtr(const int row) const
 {
    if (Rows)
    {
@@ -412,7 +412,7 @@ inline void SparseMatrix::SetColPtr(const int row)
    current_row = row;
 }
 
-inline void SparseMatrix::ClearColPtr()
+inline void SparseMatrix::ClearColPtr() const
 {
    if (Rows)
       for (RowNode *node_p = Rows[current_row]; node_p != NULL;
@@ -454,7 +454,7 @@ inline double &SparseMatrix::SearchRow(const int col)
    }
 }
 
-inline double SparseMatrix::_Get_(const int col)
+inline double SparseMatrix::_Get_(const int col) const
 {
    if (Rows)
    {

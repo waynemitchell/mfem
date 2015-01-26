@@ -22,44 +22,20 @@
 #endif
 #endif
 
-#if (MFEM_TIMER_TYPE == 0)
-#include <ctime>
-#elif (MFEM_TIMER_TYPE == 1)
-#include <sys/times.h>
-#elif (MFEM_TIMER_TYPE == 2)
-#include <time.h>
-#if (!defined(CLOCK_MONOTONIC) || !defined(CLOCK_PROCESS_CPUTIME_ID))
-#error "CLOCK_MONOTONIC and CLOCK_PROCESS_CPUTIME_ID not defined in <time.h>"
-#endif
-#elif (MFEM_TIMER_TYPE == 3)
-#include <windows.h>
-#else
-#error "Unknown MFEM_TIMER_TYPE"
-#endif
-
 namespace mfem
 {
+
+namespace internal
+{
+class StopWatch;
+}
 
 /// Timing object
 class StopWatch
 {
 private:
-#if (MFEM_TIMER_TYPE == 0)
-   std::clock_t user_time, start_utime;
-#elif (MFEM_TIMER_TYPE == 1)
-   clock_t real_time, user_time, syst_time;
-   clock_t start_rtime, start_utime, start_stime;
-   long my_CLK_TCK;
-   void Current(clock_t *, clock_t *, clock_t *);
-#elif (MFEM_TIMER_TYPE == 2)
-   struct timespec real_time, user_time;
-   struct timespec start_rtime, start_utime;
-   inline void GetRealTime(struct timespec &tp);
-   inline void GetUserTime(struct timespec &tp);
-#elif (MFEM_TIMER_TYPE == 3)
-   LARGE_INTEGER frequency, real_time, start_rtime;
-#endif
-   short Running;
+   internal::StopWatch *M;
+
 public:
    StopWatch();
    void Clear();
@@ -69,6 +45,7 @@ public:
    double RealTime();
    double UserTime();
    double SystTime();
+   ~StopWatch();
 };
 
 

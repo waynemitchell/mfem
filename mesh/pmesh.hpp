@@ -16,9 +16,9 @@
 
 #ifdef MFEM_USE_MPI
 
-#include <iostream>
 #include "../general/communication.hpp"
 #include "mesh.hpp"
+#include <iostream>
 
 namespace mfem
 {

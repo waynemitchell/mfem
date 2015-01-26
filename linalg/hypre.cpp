@@ -575,7 +575,7 @@ int HypreParMatrix::Mult(HypreParVector &x, HypreParVector &y,
    return hypre_ParCSRMatrixMatvec(a, A, x, b, y);
 }
 
-void HypreParMatrix::Mult(const Vector &x, Vector &y) const
+void HypreParMatrix::Mult(double a, const Vector &x, double b, Vector &y) const
 {
    if (X == NULL)
    {
@@ -590,33 +590,36 @@ void HypreParMatrix::Mult(const Vector &x, Vector &y) const
    }
    else
    {
-      X -> SetData(x.GetData());
-      Y -> SetData(y.GetData());
+      X->SetData(x.GetData());
+      Y->SetData(y.GetData());
    }
 
-   hypre_ParCSRMatrixMatvec(1.0, A, *X, 0.0, *Y);
+   hypre_ParCSRMatrixMatvec(a, A, *X, b, *Y);
 }
 
-void HypreParMatrix::MultTranspose(const Vector &x, Vector &y) const
+void HypreParMatrix::MultTranspose(double a, const Vector &x,
+                                   double b, Vector &y) const
 {
+   // Note: x has the dimensions of Y (height), and
+   //       y has the dimensions of X (width)
    if (X == NULL)
    {
       X = new HypreParVector(A->comm,
                              GetGlobalNumCols(),
-                             x.GetData(),
+                             y.GetData(),
                              GetColStarts());
       Y = new HypreParVector(A->comm,
                              GetGlobalNumRows(),
-                             y.GetData(),
+                             x.GetData(),
                              GetRowStarts());
    }
    else
    {
-      X -> SetData(x.GetData());
-      Y -> SetData(y.GetData());
+      X->SetData(y.GetData());
+      Y->SetData(x.GetData());
    }
 
-   hypre_ParCSRMatrixMatvecT(1.0, A, *X, 0.0, *Y);
+   hypre_ParCSRMatrixMatvecT(a, A, *Y, b, *X);
 }
 
 int HypreParMatrix::Mult(HYPRE_ParVector x, HYPRE_ParVector y,
@@ -1065,7 +1068,7 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (V) delete V;
    if (Z) delete Z;
    if (l1_norms)
-      delete [] l1_norms;
+      hypre_TFree(l1_norms);
    delete X0;
    delete X1;
 
@@ -1077,10 +1080,10 @@ void HypreSmoother::SetOperator(const Operator &op)
    }
    else if (type == 5)
    {
-      Vector ones(height), diag(height);
+      l1_norms = hypre_CTAlloc(double, height);
+      Vector ones(height), diag(l1_norms, height);
       ones = 1.0;
       A->Mult(ones, diag);
-      l1_norms = diag.StealData();
       type = 1;
    }
    else
@@ -1246,7 +1249,7 @@ HypreSmoother::~HypreSmoother()
    if (V) delete V;
    if (Z) delete Z;
    if (l1_norms)
-      delete [] l1_norms;
+      hypre_TFree(l1_norms);
    if (fir_coeffs)
       delete [] fir_coeffs;
    if (X0) delete X0;

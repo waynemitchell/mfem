@@ -28,6 +28,7 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 using namespace mfem;

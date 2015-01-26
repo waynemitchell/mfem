@@ -188,7 +188,7 @@ public:
 
    /// Returns ElementTransformation for the i'th element.
    ElementTransformation *GetElementTransformation(int i) const
-   { return mesh->GetElementTransformation(i); };
+   { return mesh->GetElementTransformation(i); }
 
    /** Returns the transformation defining the i-th element in the user-defined
        variable. */

@@ -1874,7 +1874,7 @@ SparseMatrix &SparseMatrix::operator+=(SparseMatrix &B)
    return (*this);
 }
 
-void SparseMatrix::Add(const double a, SparseMatrix &B)
+void SparseMatrix::Add(const double a, const SparseMatrix &B)
 {
    for (int i = 0; i < height; i++)
    {

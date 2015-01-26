@@ -12,6 +12,8 @@
 //               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh
 //               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh
 //               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex4p -m ../data/periodic-square.mesh -no-bc
+//               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -49,6 +51,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
+   bool set_bc = true;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -56,6 +59,8 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&set_bc, "-bc", "--impose-bc", "-no-bc", "--dont-impose-bc",
+                  "Impose or not essential boundary conditions.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -72,7 +77,7 @@ int main(int argc, char *argv[])
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
-   //    and volume meshes with the same code.
+   //    and volume, as well as periodic meshes with the same code.
    Mesh *mesh;
    ifstream imesh(mesh_file);
    if (!imesh)
@@ -151,9 +156,12 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
    a->Assemble();
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   if (set_bc && pmesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      a->EliminateEssentialBC(ess_bdr, x, *b);
+   }
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),

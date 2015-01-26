@@ -8,7 +8,7 @@
                          http://mfem.googlecode.com
 
 
-Version 3.0, released on Jan xx, 2015
+Version 3.0, released on Jan 26, 2015
 =====================================
 
 Improved documentation and build system
@@ -25,38 +25,41 @@ Improved documentation and build system
   included in external makefiles. Library installation is also supported. See
   "make help" and the INSTALL file for details.
 
-- To build the examples use 'make' or 'make -j <np>' in the examples directory.
+- To build the examples use 'make' or 'make -j <np>' in the examples/ directory.
   Based on the current MFEM configuration this will build the serial or the
   parallel examples using the same config options as the library.
 
 New and updated examples
 ------------------------
-- Six new serial/parallel example codes, that demonstrate:
+- Six new serial/parallel example codes that demonstrate:
   * mixed pressure-velocity FEM for Darcy (Example 5)
   * non-conforming adaptive mesh refinement for Laplace (Example 6)
   * Laplace problem on a surface (Example 7)
   * Discontinuous Petrov-Galerkin (DPG) for Laplace (Example 8)
   * Discontinuous Galerkin (DG) time-dependent advection (Example 9)
-  * time-dependent nonlinear elasticity (Example 10)
+  * time-dependent implicit nonlinear elasticity (Example 10)
 
-- Added command line options to all examples, and modified several of the serial
+- Added command line options to all examples and modified several of the serial
   ones to optionally use the serial direct solver UMFPACK.
 
 - Simplified the elimination of Dirichlet boundary conditions in parallel.
 
 - Grouped and documented the example code features in examples/README.html
 
-Non-conforming adaptive mesh refinement
----------------------------------------
+Serial non-conforming adaptive mesh refinement
+----------------------------------------------
 - Added support for general, isotropic and anisotropic, local non-conforming
   mesh refinement (using hanging nodes) in 2D and 3D, on quadrilateral,
   triangular and hexahedral meshes. High-order curved and surface meshes are
   also supported.
 
+- The current implementation supports serial meshes (see example 6). Extension
+  to parallel meshes is in active development.
+
 - The mesh is refined with Mesh::GeneralRefinement. The non-conforming mesh is
   represented as a mesh that is "cut" along non-conforming edges and faces in
   the internal NCMesh class. The only thing the user has to do to obtain a
-  continous solution is to call BilinearForm::ConformingAssemble and
+  continuous solution is to call BilinearForm::ConformingAssemble and
   GridFunction::ConformingProlongate before and after solving the linear system.
   The finite element space and grid functions are then updated with
   FiniteElementSpace::UpdateAndInterpolate().
@@ -72,9 +75,9 @@ Time-dependent problems, non-linear operators and ODE integrators
 - Extended all coefficient classes to be optionally time-dependent.
 
 - Added classes for general nonlinear finite element operators (deriving from
-  NonlinearForm/ParNonlinearForm). Such operators have assemble-based action
-  (Mult), and also support assembly of the gradient operator to enable inversion
-  with Newton iteration.
+  NonlinearForm/ParNonlinearForm). Such operators have assemble-based action and
+  also support assembly of the gradient operator to enable inversion with Newton
+  iteration.
 
 Discontinuous Galerkin and Discontinuous Petrov-Galerkin methods
 ----------------------------------------------------------------
@@ -86,19 +89,19 @@ Discontinuous Galerkin and Discontinuous Petrov-Galerkin methods
   mesh (including interior and boundary faces), mainly intended for hybrid
   methods like HDG and DPG that employ facet (numerical trace) spaces.
 
-Block systems and more rectangular Operator
--------------------------------------------
+Block systems and rectangular operators
+---------------------------------------
 - Added classes BlockOperator, BlockVector and BlockMatrix for handling block
   systems with different components (e.g., pressure and velocity).
 
 - New abstract class AbstractSparseMatrix, between Matrix and SparseMatrix
 
 - Modified class Operator to have two separate sizes: "height" and "width" for
-  the output and input sizes, respectively. The Size method is now deprecated.
+  the output and input sizes, respectively. The Size method was removed.
 
-- For backward compatibility, Defined a method Size in the classes DenseMatrix
-  (returns width as before), SparseMatrix (returns height as before),
-  DenseMatrixInverse (square matrix), BilinearForm (square matrix).
+- For backward compatibility, the method Size is still present in the classes
+  DenseMatrix (returns width as before), SparseMatrix (returns height as
+  before), DenseMatrixInverse (square matrix) and BilinearForm (square matrix).
 
 Linear and non-linear solvers
 -----------------------------
@@ -122,7 +125,7 @@ Miscellaneous
   arbitrary order rules for all geometries 1D/2D/3D geometries.
 
 - Added support for saving collections of grid functions in format suitable for
-  visualization with VisIt (visit.llnl.gov).
+  visualization with VisIt (visit.llnl.gov). See examples 5 and 9.
 
 - Added support for 1D, surface and topologically periodic meshes, as well as a
   simple inline mesh format. See the data/ directory for examples.

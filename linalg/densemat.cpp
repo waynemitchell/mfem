@@ -1451,7 +1451,7 @@ inline void GetScalingFactor(const double &d_max, double &mult)
 double DenseMatrix::CalcSingularvalue(const int i) const
 {
 #ifdef MFEM_DEBUG
-   if (Height() != Width() || Height() < 2 || Height() > 3)
+   if (Height() != Width() || Height() < 1 || Height() > 3)
       mfem_error("DenseMatrix::CalcSingularvalue");
 #endif
 

@@ -206,8 +206,13 @@ public:
    int MultTranspose(HypreParVector &x, HypreParVector &y,
                      double alpha = 1.0, double beta = 0.0);
 
-   virtual void Mult(const Vector &x, Vector &y) const;
-   virtual void MultTranspose(const Vector &x, Vector &y) const;
+   void Mult(double a, const Vector &x, double b, Vector &y) const;
+   void MultTranspose(double a, const Vector &x, double b, Vector &y) const;
+
+   virtual void Mult(const Vector &x, Vector &y) const
+   { Mult(1.0, x, 0.0, y); }
+   virtual void MultTranspose(const Vector &x, Vector &y) const
+   { MultTranspose(1.0, x, 0.0, y); }
 
    /// Scale the local row i by s(i).
    void ScaleRows(const Vector & s);

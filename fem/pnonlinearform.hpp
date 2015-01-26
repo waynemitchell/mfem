@@ -49,6 +49,9 @@ public:
 
    virtual void Mult(const Vector &x, Vector &y) const;
 
+   /// Return the local gradient matrix for the given true-dof vector x
+   const SparseMatrix &GetLocalGradient(const Vector &x) const;
+
    virtual Operator &GetGradient(const Vector &x) const;
 
    virtual ~ParNonlinearForm() { delete pGrad; }

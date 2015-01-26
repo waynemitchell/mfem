@@ -1097,19 +1097,31 @@ void MINRES(const Operator &A, Solver &B, const Vector &b, Vector &x,
 }
 
 
-void NewtonSolver::Mult(const Vector &b, Vector &x) const
+void NewtonSolver::SetOperator(const Operator &op)
 {
-   int it;
-   double norm, norm_goal;
+   oper = &op;
+   height = op.Height();
+   width = op.Width();
+   MFEM_ASSERT(height == width, "square Operator is required.");
 
    r.SetSize(width);
    c.SetSize(width);
+}
+
+void NewtonSolver::Mult(const Vector &b, Vector &x) const
+{
+   MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
+   MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");
+
+   int it;
+   double norm, norm_goal;
+   bool have_b = (b.Size() == Height());
 
    if (!iterative_mode)
       x = 0.0;
 
    oper->Mult(x, r);
-   if (b.Size() == Height())
+   if (have_b)
       r -= b;
 
    norm = Norm(r);
@@ -1143,7 +1155,7 @@ void NewtonSolver::Mult(const Vector &b, Vector &x) const
       x -= c;
 
       oper->Mult(x, r);
-      if (b.Size() == Height())
+      if (have_b)
          r -= b;
       norm = Norm(r);
    }

@@ -11,13 +11,61 @@
 
 #include "tic_toc.hpp"
 
-#if (MFEM_TIMER_TYPE == 1)
+#if (MFEM_TIMER_TYPE == 0)
+#include <ctime>
+#elif (MFEM_TIMER_TYPE == 1)
+#include <sys/times.h>
 #include <climits>
 #include <unistd.h>
+#elif (MFEM_TIMER_TYPE == 2)
+#include <time.h>
+#if (!defined(CLOCK_MONOTONIC) || !defined(CLOCK_PROCESS_CPUTIME_ID))
+#error "CLOCK_MONOTONIC and CLOCK_PROCESS_CPUTIME_ID not defined in <time.h>"
+#endif
+#elif (MFEM_TIMER_TYPE == 3)
+#define NOMINMAX
+#include <windows.h>
+#undef NOMINMAX
+#else
+#error "Unknown MFEM_TIMER_TYPE"
 #endif
 
 namespace mfem
 {
+
+namespace internal
+{
+
+class StopWatch
+{
+private:
+#if (MFEM_TIMER_TYPE == 0)
+   std::clock_t user_time, start_utime;
+#elif (MFEM_TIMER_TYPE == 1)
+   clock_t real_time, user_time, syst_time;
+   clock_t start_rtime, start_utime, start_stime;
+   long my_CLK_TCK;
+   inline void Current(clock_t *, clock_t *, clock_t *);
+#elif (MFEM_TIMER_TYPE == 2)
+   struct timespec real_time, user_time;
+   struct timespec start_rtime, start_utime;
+   inline void GetRealTime(struct timespec &tp);
+   inline void GetUserTime(struct timespec &tp);
+#elif (MFEM_TIMER_TYPE == 3)
+   LARGE_INTEGER frequency, real_time, start_rtime;
+#endif
+   short Running;
+
+public:
+   StopWatch();
+   inline void Clear();
+   inline void Start();
+   inline void Stop();
+   inline double Resolution();
+   inline double RealTime();
+   inline double UserTime();
+   inline double SystTime();
+};
 
 StopWatch::StopWatch()
 {
@@ -37,7 +85,7 @@ StopWatch::StopWatch()
 }
 
 #if (MFEM_TIMER_TYPE == 1)
-void StopWatch::Current(clock_t *r, clock_t *u, clock_t *s)
+inline void StopWatch::Current(clock_t *r, clock_t *u, clock_t *s)
 {
    struct tms my_tms;
 
@@ -57,7 +105,7 @@ inline void StopWatch::GetUserTime(struct timespec &tp)
 }
 #endif
 
-void StopWatch::Clear()
+inline void StopWatch::Clear()
 {
 #if (MFEM_TIMER_TYPE == 0)
    user_time = 0;
@@ -82,7 +130,7 @@ void StopWatch::Clear()
 #endif
 }
 
-void StopWatch::Start()
+inline void StopWatch::Start()
 {
    if (Running) return;
 #if (MFEM_TIMER_TYPE == 0)
@@ -98,7 +146,7 @@ void StopWatch::Start()
    Running = 1;
 }
 
-void StopWatch::Stop()
+inline void StopWatch::Stop()
 {
    if (!Running) return;
 #if (MFEM_TIMER_TYPE == 0)
@@ -125,12 +173,12 @@ void StopWatch::Stop()
    Running = 0;
 }
 
-double StopWatch::Resolution()
+inline double StopWatch::Resolution()
 {
 #if (MFEM_TIMER_TYPE == 0)
    return 1.0 / CLOCKS_PER_SEC; // potential resolution
 #elif (MFEM_TIMER_TYPE == 1)
-   return static_cast<double>(1.) / static_cast<double>( my_CLK_TCK );
+   return 1.0 / my_CLK_TCK;
 #elif (MFEM_TIMER_TYPE == 2)
    // return the resolution of the "real time" clock, CLOCK_MONOTONIC, which may
    // be different from the resolution of the "user time" clock,
@@ -143,7 +191,7 @@ double StopWatch::Resolution()
 #endif
 }
 
-double StopWatch::RealTime()
+inline double StopWatch::RealTime()
 {
 #if (MFEM_TIMER_TYPE == 0)
    return UserTime();
@@ -180,7 +228,7 @@ double StopWatch::RealTime()
 #endif
 }
 
-double StopWatch::UserTime()
+inline double StopWatch::UserTime()
 {
 #if (MFEM_TIMER_TYPE == 0)
    std::clock_t utime = user_time;
@@ -214,7 +262,7 @@ double StopWatch::UserTime()
 #endif
 }
 
-double StopWatch::SystTime()
+inline double StopWatch::SystTime()
 {
 #if (MFEM_TIMER_TYPE == 1)
    clock_t curr_rtime, curr_utime, curr_stime;
@@ -228,6 +276,54 @@ double StopWatch::SystTime()
 #else
    return 0.0;
 #endif
+}
+
+} // namespace internal
+
+
+StopWatch::StopWatch()
+{
+   M = new internal::StopWatch;
+}
+
+void StopWatch::Clear()
+{
+   M->Clear();
+}
+
+void StopWatch::Start()
+{
+   M->Start();
+}
+
+void StopWatch::Stop()
+{
+   M->Stop();
+}
+
+double StopWatch::Resolution()
+{
+   return M->Resolution();
+}
+
+double StopWatch::RealTime()
+{
+   return M->RealTime();
+}
+
+double StopWatch::UserTime()
+{
+   return M->UserTime();
+}
+
+double StopWatch::SystTime()
+{
+   return M->SystTime();
+}
+
+StopWatch::~StopWatch()
+{
+   delete M;
 }
 
 

@@ -14,6 +14,7 @@
 //               mpirun -np 4 ex1p -m ../data/ball-nurbs.mesh -o 2
 //               mpirun -np 4 ex1p -m ../data/star-surf.mesh
 //               mpirun -np 4 ex1p -m ../data/square-disc-surf.mesh
+//               mpirun -np 4 ex1p -m ../data/inline-segment.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
