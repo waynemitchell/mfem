@@ -223,8 +223,10 @@ int main(int argc, char *argv[])
 
    // 5. Define the vector finite element spaces representing the mesh
    //    deformation x, the velocity v, and the initial configuration, x_ref.
-   //    Define also the elastic energy density, w, which is in discontinuous
-   //    higher-order space.
+   //    Define also the elastic energy density, w, which is in a discontinuous
+   //    higher-order space. Since x and v are integrated in time as a system,
+   //    we group them together in block vector vx, with offsets given by the
+   //    fe_offset array.
    H1_FECollection fe_coll(order, dim);
    FiniteElementSpace fespace(mesh, &fe_coll, dim);
 

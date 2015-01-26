@@ -247,10 +247,12 @@ int main(int argc, char *argv[])
    for (int lev = 0; lev < par_ref_levels; lev++)
       pmesh->UniformRefinement();
 
-   // 7. Define the vector finite element spaces representing the mesh
-   //    deformation x, the velocity v, and the initial configuration, x_ref.
-   //    Define also the elastic energy density, w, which is in discontinuous
-   //    higher-order space.
+   // 7. Define the parallel vector finite element spaces representing the mesh
+   //    deformation x_gf, the velocity v_gf, and the initial configuration,
+   //    x_ref. Define also the elastic energy density, w_gf, which is in a
+   //    discontinuous higher-order space. Since x and v are integrated in time
+   //    as a system, we group them together in block vector vx, on the unique
+   //    parallel degrees of freedom, with offsets given by array true_offset.
    H1_FECollection fe_coll(order, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, &fe_coll, dim);
 
@@ -270,8 +272,8 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace * w_fespace = new ParFiniteElementSpace(pmesh, &w_fec);
    ParGridFunction w_gf(w_fespace);
 
-   // 8. Set the initial conditions for v and x, and the boundary conditions on
-   //    a beam-like mesh (see description above).
+   // 8. Set the initial conditions for v_gf, x_gf and vx, and define the
+   //    boundary conditions on a beam-like mesh (see description above).
    VectorFunctionCoefficient velo(dim, InitialVelocity);
    v_gf.ProjectCoefficient(velo);
    VectorFunctionCoefficient deform(dim, InitialDeformation);
