@@ -2,14 +2,15 @@
 //
 // Compile with: make ex9p
 //
-// Sample runs:  mpirun -np 4 ex9p -m ../data/periodic-segment.mesh -p 0 -rs 2 -rp 0 -dt 0.005
-//               mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 0 -rs 2 -rp 0 -dt 0.01 -tf 10
-//               mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 0 -rs 2 -rp 0 -dt 0.01 -tf 10
-//               mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -rs 2 -rp 0 -dt 0.005 -tf 9
-//               mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -rs 2 -rp 0 -dt 0.005 -tf 9
-//               mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rs 2 -rp 1 -dt 0.005 -tf 9
-//               mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rs 2 -rp 2 -dt 0.0025 -tf 9 -vs 20
-//               mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rs 2 -rp 1 -dt 0.01 -tf 8
+// Sample runs:
+//    mpirun -np 4 ex9p -m ../data/periodic-segment.mesh -p 0 -rs 2 -rp 0 -dt 0.005
+//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 0 -rs 2 -rp 0 -dt 0.01 -tf 10
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 0 -rs 2 -rp 0 -dt 0.01 -tf 10
+//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -rs 2 -rp 0 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -rs 2 -rp 0 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rs 2 -rp 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rs 2 -rp 2 -dt 0.0025 -tf 9 -vs 20
+//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rs 2 -rp 1 -dt 0.01 -tf 8
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt = v.grad(u), where v is a given fluid velocity, and
@@ -22,8 +23,8 @@
 //               for persistent visualization of a time-evolving solution.
 
 #include "mfem.hpp"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 using namespace std;
 using namespace mfem;
@@ -95,9 +96,9 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&problem, "-p", "--problem",
                   "Problem setup to use. See options in velocity_function().");
-   args.AddOption(&ser_ref_levels, "-rs", "--refine_serial",
+   args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
                   "Number of times to refine the mesh uniformly in serial.");
-   args.AddOption(&par_ref_levels, "-rp", "--refine_parallel",
+   args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
                   "Number of times to refine the mesh uniformly in parallel.");
    args.AddOption(&order, "-o", "--order",
                   "Order (degree) of the finite elements.");

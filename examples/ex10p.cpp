@@ -1,6 +1,6 @@
-//                                MFEM Example 10
+//                       MFEM Example 10 - Parallel Version
 //
-// Compile with: make ex10
+// Compile with: make ex10p
 //
 // Sample runs:
 //    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 3 -rs 2 -rp 0 -o 2 -dt 3
@@ -186,48 +186,34 @@ int main(int argc, char *argv[])
                   "Enable or disable GLVis visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
-
    args.Parse();
    if (!args.Good())
    {
-      args.PrintUsage(cout);
+      if (myid == 0)
+         args.PrintUsage(cout);
       MPI_Finalize();
       return 1;
    }
-
    if (myid == 0)
       args.PrintOptions(cout);
 
-   // 3. Read the mesh from the given mesh file. We can handle triangular,
-   //    quadrilateral, tetrahedral and hexahedral meshes with the same code.
+   // 3. Read the serial mesh from the given mesh file on all processors. We can
+   //    handle triangular, quadrilateral, tetrahedral and hexahedral meshes
+   //    with the same code.
    Mesh *mesh;
+   ifstream imesh(mesh_file);
+   if (!imesh)
    {
-      ifstream imesh(mesh_file);
-      if (!imesh)
-      {
-         cout << "Can not open mesh: " << mesh_file << endl;
-         MPI_Finalize();
-         return 2;
-      }
-      mesh = new Mesh(imesh, 1, 1);
+      if (myid == 0)
+         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      MPI_Finalize();
+      return 2;
    }
+   mesh = new Mesh(imesh, 1, 1);
+   imesh.close();
    int dim = mesh->Dimension();
 
-   // 4. Refine the mesh to increase the resolution. In this example we do
-   //    'ref_levels' of uniform refinement, where 'ref_levels' is a
-   //    command-line parameter.
-   for (int lev = 0; lev < ser_ref_levels; lev++)
-      mesh->UniformRefinement();
-
-   // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
-   //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted.
-   ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
-   delete mesh;
-   for (int l = 0; l < par_ref_levels; l++)
-      pmesh->UniformRefinement();
-
-   // 6. Define the ODE solver used for time integration. Several implicit
+   // 4. Define the ODE solver used for time integration. Several implicit
    //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
    //    explicit Runge-Kutta methods are available.
    ODESolver *ode_solver;
@@ -240,16 +226,41 @@ int main(int argc, char *argv[])
    case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
    case 13: ode_solver = new RK3SSPSolver; break;
    case 14: ode_solver = new RK4Solver; break;
-   default: MFEM_ABORT("Incorrect ODE solver type");
+   default:
+      if (myid == 0)
+         cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
+      MPI_Finalize();
+      return 3;
    }
+
+   // 5. Refine the mesh in serial to increase the resolution. In this example
+   //    we do 'ser_ref_levels' of uniform refinement, where 'ser_ref_levels' is
+   //    a command-line parameter.
+   for (int lev = 0; lev < ser_ref_levels; lev++)
+      mesh->UniformRefinement();
+
+   // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
+   //    this mesh further in parallel to increase the resolution. Once the
+   //    parallel mesh is defined, the serial mesh can be deleted.
+   ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+   delete mesh;
+   for (int lev = 0; lev < par_ref_levels; lev++)
+      pmesh->UniformRefinement();
 
    // 7. Define the vector finite element spaces representing the mesh
    //    deformation x, the velocity v, and the initial configuration, x_ref.
    //    Define also the elastic energy density, w, which is in discontinuous
    //    higher-order space.
    H1_FECollection fe_coll(order, dim);
-   ParFiniteElementSpace * fespace = new ParFiniteElementSpace(pmesh, &fe_coll, dim);
+   ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, &fe_coll, dim);
 
+   int true_size = fespace->TrueVSize();
+   Array<int> true_offset(3);
+   true_offset[0] = 0;
+   true_offset[1] = true_size;
+   true_offset[2] = 2*true_size;
+
+   BlockVector vx(true_offset);
    ParGridFunction v_gf(fespace), x_gf(fespace);
 
    ParGridFunction x_ref(fespace);
@@ -266,13 +277,6 @@ int main(int argc, char *argv[])
    VectorFunctionCoefficient deform(dim, InitialDeformation);
    x_gf.ProjectCoefficient(deform);
 
-   int true_size = fespace->TrueVSize();
-   Array<int> true_offset(3);
-   true_offset[0] = 0;
-   true_offset[1] = true_size;
-   true_offset[2] = 2*true_size;
-
-   BlockVector vx(true_offset);
    v_gf.GetTrueDofs(vx.GetBlock(0));
    x_gf.GetTrueDofs(vx.GetBlock(1));
 
@@ -284,17 +288,21 @@ int main(int argc, char *argv[])
    //    the initial energies.
    HyperelasticOperator *oper = new HyperelasticOperator(*fespace, ess_bdr, visc);
 
-   char vishost[] = "localhost";
-   int  visport   = 19916;
-   socketstream vis_v(vishost, visport);
-   vis_v.precision(8);
-   visualize(vis_v, pmesh, &x_gf, &v_gf, "Velocity", true);
-   socketstream vis_w(vishost, visport);
-   if (vis_w)
+   socketstream vis_v, vis_w;
+   if (visualization)
    {
-      oper->GetElasticEnergyDensity(x_gf, w_gf);
-      vis_w.precision(8);
-      visualize(vis_w, pmesh, &x_gf, &w_gf, "Elastic energy density", true);
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      vis_v.open(vishost, visport);
+      vis_v.precision(8);
+      visualize(vis_v, pmesh, &x_gf, &v_gf, "Velocity", true);
+      vis_w.open(vishost, visport);
+      if (vis_w)
+      {
+         oper->GetElasticEnergyDensity(x_gf, w_gf);
+         vis_w.precision(8);
+         visualize(vis_w, pmesh, &x_gf, &w_gf, "Elastic energy density", true);
+      }
    }
 
    double ee0 = oper->ElasticEnergy(x_gf);
@@ -330,11 +338,14 @@ int main(int argc, char *argv[])
             cout << "step " << ti << ", t = " << t << ", EE = " << ee << ", KE = "
                  << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
 
-         visualize(vis_v, pmesh, &x_gf, &v_gf);
-         if (vis_w)
+         if (visualization)
          {
-            oper->GetElasticEnergyDensity(x_gf, w_gf);
-            visualize(vis_w, pmesh, &x_gf, &w_gf);
+            visualize(vis_v, pmesh, &x_gf, &v_gf);
+            if (vis_w)
+            {
+               oper->GetElasticEnergyDensity(x_gf, w_gf);
+               visualize(vis_w, pmesh, &x_gf, &w_gf);
+            }
          }
       }
    }
@@ -440,20 +451,17 @@ void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
 
 Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
 {
-   delete Jacobian;
-   ParFiniteElementSpace *fes = M->ParFESpace();
-
-   SparseMatrix *myJacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
+   SparseMatrix *localJ = Add(1.0, M->SpMat(), dt, S->SpMat());
    add(*v, dt, k, w);
    add(*x, dt, w, z);
-   ParGridFunction zd(fes);
+   ParGridFunction zd(M->ParFESpace());
    zd.Distribute(z);
+   SparseMatrix *grad_H = dynamic_cast<SparseMatrix*>(&(H->NonlinearForm::GetGradient(zd)));
+   localJ->Add(dt*dt, *grad_H);
 
-   SparseMatrix * grad_H = dynamic_cast<SparseMatrix*>( &(H->NonlinearForm::GetGradient(zd)) );
-   MFEM_VERIFY(grad_H, "");
-   myJacobian->Add(dt*dt, *grad_H);
-   Jacobian = M->ParallelAssemble(myJacobian);
-   delete myJacobian;
+   delete Jacobian;
+   Jacobian = M->ParallelAssemble(localJ);
+   delete localJ;
    return *Jacobian;
 }
 
@@ -505,7 +513,7 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
 
    MINRESSolver *J_minres = new MINRESSolver(f.GetComm());
    J_solver = J_minres;
-   HypreSmoother * J_hypreSmoother = new HypreSmoother;
+   HypreSmoother *J_hypreSmoother = new HypreSmoother;
    J_prec = J_hypreSmoother;
    J_hypreSmoother->SetType(HypreSmoother::l1Jacobi);
    J_minres->SetRelTol(1e-8);

@@ -26,6 +26,7 @@
 
 #include "mfem.hpp"
 #include <fstream>
+#include <iostream>
 
 using namespace std;
 using namespace mfem;

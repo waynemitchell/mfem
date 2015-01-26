@@ -176,7 +176,6 @@ int main(int argc, char *argv[])
                   "Enable or disable GLVis visualization.");
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
-
    args.Parse();
    if (!args.Good())
    {
@@ -188,15 +187,14 @@ int main(int argc, char *argv[])
    // 2. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral and hexahedral meshes with the same code.
    Mesh *mesh;
+   ifstream imesh(mesh_file);
+   if (!imesh)
    {
-      ifstream imesh(mesh_file);
-      if (!imesh)
-      {
-         cout << "Can not open mesh: " << mesh_file << endl;
-         return 2;
-      }
-      mesh = new Mesh(imesh, 1, 1);
+      cerr << "Can not open mesh: " << mesh_file << endl;
+      return 2;
    }
+   mesh = new Mesh(imesh, 1, 1);
+   imesh.close();
    int dim = mesh->Dimension();
 
    // 3. Define the ODE solver used for time integration. Several implicit
@@ -212,7 +210,9 @@ int main(int argc, char *argv[])
    case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
    case 13: ode_solver = new RK3SSPSolver; break;
    case 14: ode_solver = new RK4Solver; break;
-   default: MFEM_ABORT("Incorrect ODE solver type");
+   default:
+      cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
+      return 3;
    }
 
    // 4. Refine the mesh to increase the resolution. In this example we do
@@ -229,10 +229,15 @@ int main(int argc, char *argv[])
    FiniteElementSpace fespace(mesh, &fe_coll, dim);
 
    int fe_size = fespace.GetVSize();
-   Vector vx(2*fe_size);
+   Array<int> fe_offset(3);
+   fe_offset[0] = 0;
+   fe_offset[1] = fe_size;
+   fe_offset[2] = 2*fe_size;
+
+   BlockVector vx(fe_offset);
    GridFunction v, x;
-   v.Update(&fespace, vx, 0);
-   x.Update(&fespace, vx, fe_size);
+   v.Update(&fespace, vx.GetBlock(0), 0);
+   x.Update(&fespace, vx.GetBlock(1), 0);
 
    GridFunction x_ref(&fespace);
    mesh->GetNodes(x_ref);
@@ -256,17 +261,21 @@ int main(int argc, char *argv[])
    //    the initial energies.
    HyperelasticOperator oper(fespace, ess_bdr, visc);
 
-   char vishost[] = "localhost";
-   int  visport   = 19916;
-   socketstream vis_v(vishost, visport);
-   vis_v.precision(8);
-   visualize(vis_v, mesh, &x, &v, "Velocity", true);
-   socketstream vis_w(vishost, visport);
-   if (vis_w)
+   socketstream vis_v, vis_w;
+   if (visualization)
    {
-      oper.GetElasticEnergyDensity(x, w);
-      vis_w.precision(8);
-      visualize(vis_w, mesh, &x, &w, "Elastic energy density", true);
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      vis_v.open(vishost, visport);
+      vis_v.precision(8);
+      visualize(vis_v, mesh, &x, &v, "Velocity", true);
+      vis_w.open(vishost, visport);
+      if (vis_w)
+      {
+         oper.GetElasticEnergyDensity(x, w);
+         vis_w.precision(8);
+         visualize(vis_w, mesh, &x, &w, "Elastic energy density", true);
+      }
    }
 
    double ee0 = oper.ElasticEnergy(x);
@@ -296,11 +305,14 @@ int main(int argc, char *argv[])
          cout << "step " << ti << ", t = " << t << ", EE = " << ee << ", KE = "
               << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
 
-         visualize(vis_v, mesh, &x, &v);
-         if (vis_w)
+         if (visualization)
          {
-            oper.GetElasticEnergyDensity(x, w);
-            visualize(vis_w, mesh, &x, &w);
+            visualize(vis_v, mesh, &x, &v);
+            if (vis_w)
+            {
+               oper.GetElasticEnergyDensity(x, w);
+               visualize(vis_w, mesh, &x, &w);
+            }
          }
       }
    }

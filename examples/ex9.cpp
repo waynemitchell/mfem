@@ -23,8 +23,8 @@
 //               for persistent visualization of a time-evolving solution.
 
 #include "mfem.hpp"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 using namespace std;
 using namespace mfem;
@@ -126,6 +126,7 @@ int main(int argc, char *argv[])
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);
+   imesh.close();
    int dim = mesh->Dimension();
 
    // 3. Define the ODE solver used for time integration. Several explicit
