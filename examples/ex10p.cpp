@@ -3,12 +3,12 @@
 // Compile with: make ex10p
 //
 // Sample runs:
-//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 3 -rs 2 -rp 0 -o 2 -dt 3
-//    mpirun -np 4 ex10p -m ../data/beam-tri.mesh -s 3 -rs 2 -rp 0 -o 2 -dt 3
-//    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 2 -rs 1 -rp 0 -o 2 -dt 3
-//    mpirun -np 4 ex10p -m ../data/beam-tet.mesh -s 2 -rs 1 -rp 0 -o 2 -dt 3
-//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 14 -rs 2 -rp 0 -o 2 -dt 0.03 -vs 20
-//    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 14 -rs 1 -rp 0 -o 2 -dt 0.05 -vs 20
+//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 3 -rs 2 -dt 3
+//    mpirun -np 4 ex10p -m ../data/beam-tri.mesh -s 3 -rs 2 -dt 3
+//    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 2 -rs 1 -dt 3
+//    mpirun -np 4 ex10p -m ../data/beam-tet.mesh -s 2 -rs 1 -dt 3
+//    mpirun -np 4 ex10p -m ../data/beam-quad.mesh -s 14 -rs 2 -dt 0.03 -vs 20
+//    mpirun -np 4 ex10p -m ../data/beam-hex.mesh -s 14 -rs 1 -dt 0.05 -vs 20
 //
 // Description:  This examples solves a time dependent nonlinear elasticity
 //               problem of the form dv/dt = H(x) + S v, dx/dt = v, where H is a
@@ -64,7 +64,7 @@ protected:
    double viscosity;
    HyperelasticModel *model;
 
-   HypreParMatrix * Mmat;
+   HypreParMatrix *Mmat; // Mass matrix from ParallelAssemble()
    CGSolver M_solver;    // Krylov solver for inverting the mass matrix M
    HypreSmoother M_prec; // Preconditioner for the mass matrix M
 
@@ -111,8 +111,9 @@ private:
    mutable Vector w, z;
 
 public:
-   BackwardEulerOperator(ParBilinearForm *_M, ParBilinearForm *_S, ParNonlinearForm *_H);
-   void SetParameters(double _dt, const Vector *_v, const Vector *_x);
+   BackwardEulerOperator(ParBilinearForm *M_, ParBilinearForm *S_,
+                         ParNonlinearForm *H_);
+   void SetParameters(double dt_, const Vector *v_, const Vector *x_);
    virtual void Mult(const Vector &k, Vector &y) const;
    virtual Operator &GetGradient(const Vector &k) const;
    virtual ~BackwardEulerOperator();
@@ -128,8 +129,8 @@ private:
    DenseMatrix        J;
 
 public:
-   ElasticEnergyCoefficient(HyperelasticModel &m, ParGridFunction &_x)
-      : model(m), x(_x) { }
+   ElasticEnergyCoefficient(HyperelasticModel &m, ParGridFunction &x_)
+      : model(m), x(x_) { }
    virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip);
    virtual ~ElasticEnergyCoefficient() { }
 };
@@ -219,13 +220,19 @@ int main(int argc, char *argv[])
    ODESolver *ode_solver;
    switch (ode_solver_type)
    {
+   // Implicit L-stable methods
    case 1:  ode_solver = new BackwardEulerSolver; break;
    case 2:  ode_solver = new SDIRK23Solver(2); break;
    case 3:  ode_solver = new SDIRK33Solver; break;
+   // Explicit methods
    case 11: ode_solver = new ForwardEulerSolver; break;
    case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
    case 13: ode_solver = new RK3SSPSolver; break;
    case 14: ode_solver = new RK4Solver; break;
+   // Implicit A-stable methods (not L-stable)
+   case 22: ode_solver = new ImplicitMidpointSolver; break;
+   case 23: ode_solver = new SDIRK23Solver; break;
+   case 24: ode_solver = new SDIRK34Solver; break;
    default:
       if (myid == 0)
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
@@ -254,23 +261,26 @@ int main(int argc, char *argv[])
    //    as a system, we group them together in block vector vx, on the unique
    //    parallel degrees of freedom, with offsets given by array true_offset.
    H1_FECollection fe_coll(order, dim);
-   ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, &fe_coll, dim);
+   ParFiniteElementSpace fespace(pmesh, &fe_coll, dim);
 
-   int true_size = fespace->TrueVSize();
+   int glob_size = fespace.GlobalTrueVSize();
+   if (myid == 0)
+      cout << "Number of velocity/deformation unknowns: " << glob_size << endl;
+   int true_size = fespace.TrueVSize();
    Array<int> true_offset(3);
    true_offset[0] = 0;
    true_offset[1] = true_size;
    true_offset[2] = 2*true_size;
 
    BlockVector vx(true_offset);
-   ParGridFunction v_gf(fespace), x_gf(fespace);
+   ParGridFunction v_gf(&fespace), x_gf(&fespace);
 
-   ParGridFunction x_ref(fespace);
+   ParGridFunction x_ref(&fespace);
    pmesh->GetNodes(x_ref);
 
    L2_FECollection w_fec(order + 1, dim);
-   ParFiniteElementSpace * w_fespace = new ParFiniteElementSpace(pmesh, &w_fec);
-   ParGridFunction w_gf(w_fespace);
+   ParFiniteElementSpace w_fespace(pmesh, &w_fec);
+   ParGridFunction w_gf(&w_fespace);
 
    // 8. Set the initial conditions for v_gf, x_gf and vx, and define the
    //    boundary conditions on a beam-like mesh (see description above).
@@ -282,13 +292,13 @@ int main(int argc, char *argv[])
    v_gf.GetTrueDofs(vx.GetBlock(0));
    x_gf.GetTrueDofs(vx.GetBlock(1));
 
-   Array<int> ess_bdr(fespace->GetMesh()->bdr_attributes.Max());
+   Array<int> ess_bdr(fespace.GetMesh()->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1; // boundary attribute 1 (index 0) is fixed
 
    // 9. Initialize the hyperelastic operator, the GLVis visualization and print
    //    the initial energies.
-   HyperelasticOperator *oper = new HyperelasticOperator(*fespace, ess_bdr, visc);
+   HyperelasticOperator oper(fespace, ess_bdr, visc);
 
    socketstream vis_v, vis_w;
    if (visualization)
@@ -298,17 +308,20 @@ int main(int argc, char *argv[])
       vis_v.open(vishost, visport);
       vis_v.precision(8);
       visualize(vis_v, pmesh, &x_gf, &v_gf, "Velocity", true);
+      // Make sure all ranks have sent their 'v' solution before initiating
+      // another set of GLVis connections (one from each rank):
+      MPI_Barrier(pmesh->GetComm());
       vis_w.open(vishost, visport);
       if (vis_w)
       {
-         oper->GetElasticEnergyDensity(x_gf, w_gf);
+         oper.GetElasticEnergyDensity(x_gf, w_gf);
          vis_w.precision(8);
          visualize(vis_w, pmesh, &x_gf, &w_gf, "Elastic energy density", true);
       }
    }
 
-   double ee0 = oper->ElasticEnergy(x_gf);
-   double ke0 = oper->KineticEnergy(v_gf);
+   double ee0 = oper.ElasticEnergy(x_gf);
+   double ke0 = oper.KineticEnergy(v_gf);
    if (myid == 0)
    {
       cout << "initial elastic energy (EE) = " << ee0 << endl;
@@ -318,7 +331,7 @@ int main(int argc, char *argv[])
 
    // 10. Perform time-integration (looping over the time iterations, ti, with a
    //     time-step dt).
-   ode_solver->Init(*oper);
+   ode_solver->Init(oper);
    double t = 0.0;
 
    bool last_step = false;
@@ -328,24 +341,25 @@ int main(int argc, char *argv[])
          last_step = true;
 
       ode_solver->Step(vx, t, dt);
-      v_gf.Distribute(vx.GetBlock(0));
-      x_gf.Distribute(vx.GetBlock(1));
 
       if (last_step || (ti % vis_steps) == 0)
       {
-         double ee = oper->ElasticEnergy(x_gf);
-         double ke = oper->KineticEnergy(v_gf);
+         v_gf.Distribute(vx.GetBlock(0));
+         x_gf.Distribute(vx.GetBlock(1));
+
+         double ee = oper.ElasticEnergy(x_gf);
+         double ke = oper.KineticEnergy(v_gf);
 
          if (myid == 0)
-            cout << "step " << ti << ", t = " << t << ", EE = " << ee << ", KE = "
-                 << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
+            cout << "step " << ti << ", t = " << t << ", EE = " << ee
+                 << ", KE = " << ke << ", ΔTE = " << (ee+ke)-(ee0+ke0) << endl;
 
          if (visualization)
          {
             visualize(vis_v, pmesh, &x_gf, &v_gf);
             if (vis_w)
             {
-               oper->GetElasticEnergyDensity(x_gf, w_gf);
+               oper.GetElasticEnergyDensity(x_gf, w_gf);
                visualize(vis_w, pmesh, &x_gf, &w_gf);
             }
          }
@@ -372,15 +386,12 @@ int main(int argc, char *argv[])
       v_gf.Save(velo_ofs);
       ofstream ee_ofs(ee_name.str().c_str());
       ee_ofs.precision(8);
-      oper->GetElasticEnergyDensity(x_gf, w_gf);
+      oper.GetElasticEnergyDensity(x_gf, w_gf);
       w_gf.Save(ee_ofs);
    }
 
    // 10. Free the used memory.
    delete ode_solver;
-   delete oper;
-   delete w_fespace;
-   delete fespace;
    delete pmesh;
 
    MPI_Finalize();
@@ -394,21 +405,13 @@ void visualize(ostream &out, ParMesh *mesh, ParGridFunction *deformed_nodes,
    if (!out)
       return;
 
-   MPI_Comm comm = mesh->GetComm();
-   int num_procs, myid;
-   MPI_Comm_size(comm, &num_procs);
-   MPI_Comm_rank(comm, &myid);
-
    GridFunction *nodes = deformed_nodes;
    int owns_nodes = 0;
 
    mesh->SwapNodes(nodes, owns_nodes);
 
-   std::streamsize precision = out.precision();
-   out << "parallel " << num_procs << " " << myid << "\n";
-   out.precision(8);
+   out << "parallel " << mesh->GetNRanks() << " " << mesh->GetMyRank() << "\n";
    out << "solution\n" << *mesh << *field;
-   out.precision(precision);
 
    mesh->SwapNodes(nodes, owns_nodes);
 
@@ -426,19 +429,18 @@ void visualize(ostream &out, ParMesh *mesh, ParGridFunction *deformed_nodes,
       out << "pause\n";
    }
    out << flush;
-   MPI_Barrier(comm);
 }
 
 BackwardEulerOperator::BackwardEulerOperator(
-   ParBilinearForm *_M, ParBilinearForm *_S, ParNonlinearForm *_H)
-   : Operator(_M->ParFESpace()->TrueVSize()), M(_M), S(_S), H(_H),
+   ParBilinearForm *M_, ParBilinearForm *S_, ParNonlinearForm *H_)
+   : Operator(M_->ParFESpace()->TrueVSize()), M(M_), S(S_), H(H_),
      Jacobian(NULL), v(NULL), x(NULL), dt(0.0), w(height), z(height)
 { }
 
-void BackwardEulerOperator::SetParameters(double _dt, const Vector *_v,
-                                          const Vector *_x)
+void BackwardEulerOperator::SetParameters(double dt_, const Vector *v_,
+                                          const Vector *x_)
 {
-   dt = _dt;  v = _v;  x = _x;
+   dt = dt_;  v = v_;  x = x_;
 }
 
 void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
@@ -447,21 +449,17 @@ void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
    add(*v, dt, k, w);
    add(*x, dt, w, z);
    H->Mult(z, y);
-   M->ParAddMult(k, y);
-   S->ParAddMult(w, y);
+   M->TrueAddMult(k, y);
+   S->TrueAddMult(w, y);
 }
 
 Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
 {
+   delete Jacobian;
    SparseMatrix *localJ = Add(1.0, M->SpMat(), dt, S->SpMat());
    add(*v, dt, k, w);
    add(*x, dt, w, z);
-   ParGridFunction zd(M->ParFESpace());
-   zd.Distribute(z);
-   SparseMatrix *grad_H = dynamic_cast<SparseMatrix*>(&(H->NonlinearForm::GetGradient(zd)));
-   localJ->Add(dt*dt, *grad_H);
-
-   delete Jacobian;
+   localJ->Add(dt*dt, H->GetLocalGradient(z));
    Jacobian = M->ParallelAssemble(localJ);
    delete localJ;
    return *Jacobian;
@@ -479,6 +477,7 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
      M(&fespace), S(&fespace), H(&fespace), M_solver(f.GetComm()),
      newton_solver(f.GetComm()), z(height/2)
 {
+   const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
 
    const double ref_density = 1.0; // density in the reference configuration
@@ -490,7 +489,7 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    Mmat = M.ParallelAssemble();
 
    M_solver.iterative_mode = false;
-   M_solver.SetRelTol(1e-8);
+   M_solver.SetRelTol(rel_tol);
    M_solver.SetAbsTol(0.0);
    M_solver.SetMaxIter(30);
    M_solver.SetPrintLevel(0);
@@ -513,28 +512,30 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
 
    backward_euler_oper = new BackwardEulerOperator(&M, &S, &H);
 
-   MINRESSolver *J_minres = new MINRESSolver(f.GetComm());
-   J_solver = J_minres;
    HypreSmoother *J_hypreSmoother = new HypreSmoother;
-   J_prec = J_hypreSmoother;
    J_hypreSmoother->SetType(HypreSmoother::l1Jacobi);
-   J_minres->SetRelTol(1e-8);
+   J_prec = J_hypreSmoother;
+
+   MINRESSolver *J_minres = new MINRESSolver(f.GetComm());
+   J_minres->SetRelTol(rel_tol);
    J_minres->SetAbsTol(0.0);
    J_minres->SetMaxIter(300);
    J_minres->SetPrintLevel(-1);
    J_minres->SetPreconditioner(*J_prec);
+   J_solver = J_minres;
 
    newton_solver.iterative_mode = false;
    newton_solver.SetSolver(*J_solver);
    newton_solver.SetOperator(*backward_euler_oper);
    newton_solver.SetPrintLevel(1); // print Newton iterations
-   newton_solver.SetRelTol(1e-8);
+   newton_solver.SetRelTol(rel_tol);
    newton_solver.SetAbsTol(0.0);
    newton_solver.SetMaxIter(10);
 }
 
 void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
 {
+   // Create views to the sub-vectors v, x of vx, and dv_dt, dx_dt of dvx_dt
    int sc = height/2;
    Vector v(vx.GetData() +  0, sc);
    Vector x(vx.GetData() + sc, sc);
@@ -543,7 +544,7 @@ void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
 
    H.Mult(x, z);
    if (viscosity != 0.0)
-      S.ParAddMult(v, z);
+      S.TrueAddMult(v, z);
    z.Neg(); // z = -z
    M_solver.Mult(z, dv_dt);
 
@@ -560,7 +561,7 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    Vector dx_dt(dvx_dt.GetData() + sc, sc);
 
    // By eliminating kx from the coupled system:
-   //    kv = (M + dt*S)*kv + H(x + dt*kx) + S*v
+   //    kv = -M^{-1}*[H(x + dt*kx) + S*(v + dt*kv)]
    //    kx = v + dt*kv
    // we reduce it to a nonlinear equation for kv, represented by the
    // backward_euler_oper. This equation is solved with the newton_solver
@@ -580,9 +581,10 @@ double HyperelasticOperator::ElasticEnergy(ParGridFunction &x) const
 
 double HyperelasticOperator::KineticEnergy(ParGridFunction &v) const
 {
-   double loc_energy =  0.5*M.InnerProduct(v, v);
+   double loc_energy = 0.5*M.InnerProduct(v, v);
    double energy;
-   MPI_Allreduce(&loc_energy, &energy, 1, MPI_DOUBLE, MPI_SUM, H.ParFESpace()->GetComm() );
+   MPI_Allreduce(&loc_energy, &energy, 1, MPI_DOUBLE, MPI_SUM,
+                 fespace.GetComm());
    return energy;
 }
 

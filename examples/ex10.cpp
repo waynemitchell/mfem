@@ -110,8 +110,8 @@ private:
    mutable Vector w, z;
 
 public:
-   BackwardEulerOperator(BilinearForm *_M, BilinearForm *_S, NonlinearForm *_H);
-   void SetParameters(double _dt, const Vector *_v, const Vector *_x);
+   BackwardEulerOperator(BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_);
+   void SetParameters(double dt_, const Vector *v_, const Vector *x_);
    virtual void Mult(const Vector &k, Vector &y) const;
    virtual Operator &GetGradient(const Vector &k) const;
    virtual ~BackwardEulerOperator();
@@ -127,8 +127,8 @@ private:
    DenseMatrix        J;
 
 public:
-   ElasticEnergyCoefficient(HyperelasticModel &m, GridFunction &_x)
-      : model(m), x(_x) { }
+   ElasticEnergyCoefficient(HyperelasticModel &m, GridFunction &x_)
+      : model(m), x(x_) { }
    virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip);
    virtual ~ElasticEnergyCoefficient() { }
 };
@@ -203,13 +203,19 @@ int main(int argc, char *argv[])
    ODESolver *ode_solver;
    switch (ode_solver_type)
    {
+   // Implicit L-stable methods
    case 1:  ode_solver = new BackwardEulerSolver; break;
    case 2:  ode_solver = new SDIRK23Solver(2); break;
    case 3:  ode_solver = new SDIRK33Solver; break;
+   // Explicit methods
    case 11: ode_solver = new ForwardEulerSolver; break;
    case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
    case 13: ode_solver = new RK3SSPSolver; break;
    case 14: ode_solver = new RK4Solver; break;
+   // Implicit A-stable methods (not L-stable)
+   case 22: ode_solver = new ImplicitMidpointSolver; break;
+   case 23: ode_solver = new SDIRK23Solver; break;
+   case 24: ode_solver = new SDIRK34Solver; break;
    default:
       cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
       return 3;
@@ -231,6 +237,7 @@ int main(int argc, char *argv[])
    FiniteElementSpace fespace(mesh, &fe_coll, dim);
 
    int fe_size = fespace.GetVSize();
+   cout << "Number of velocity/deformation unknowns: " << fe_size << endl;
    Array<int> fe_offset(3);
    fe_offset[0] = 0;
    fe_offset[1] = fe_size;
@@ -376,15 +383,15 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
 }
 
 BackwardEulerOperator::BackwardEulerOperator(
-   BilinearForm *_M, BilinearForm *_S, NonlinearForm *_H)
-   : Operator(_M->Height()), M(_M), S(_S), H(_H), Jacobian(NULL),
+   BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_)
+   : Operator(M_->Height()), M(M_), S(S_), H(H_), Jacobian(NULL),
      v(NULL), x(NULL), dt(0.0), w(height), z(height)
 { }
 
-void BackwardEulerOperator::SetParameters(double _dt, const Vector *_v,
-                                          const Vector *_x)
+void BackwardEulerOperator::SetParameters(double dt_, const Vector *v_,
+                                          const Vector *x_)
 {
-   dt = _dt;  v = _v;  x = _x;
+   dt = dt_;  v = v_;  x = x_;
 }
 
 void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
@@ -419,6 +426,7 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    : TimeDependentOperator(2*f.GetVSize(), 0.0), fespace(f),
      M(&fespace), S(&fespace), H(&fespace), z(height/2)
 {
+   const double rel_tol = 1e-8;
    const int skip_zero_entries = 0;
 
    const double ref_density = 1.0; // density in the reference configuration
@@ -429,7 +437,7 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    M.Finalize(skip_zero_entries);
 
    M_solver.iterative_mode = false;
-   M_solver.SetRelTol(1e-8);
+   M_solver.SetRelTol(rel_tol);
    M_solver.SetAbsTol(0.0);
    M_solver.SetMaxIter(30);
    M_solver.SetPrintLevel(0);
@@ -452,14 +460,14 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    backward_euler_oper = new BackwardEulerOperator(&M, &S, &H);
 
 #ifndef MFEM_USE_SUITESPARSE
-   MINRESSolver *J_minres = new MINRESSolver;
-   J_solver = J_minres;
    J_prec = new DSmoother(1);
-   J_minres->SetRelTol(1e-8);
+   MINRESSolver *J_minres = new MINRESSolver;
+   J_minres->SetRelTol(rel_tol);
    J_minres->SetAbsTol(0.0);
    J_minres->SetMaxIter(300);
    J_minres->SetPrintLevel(-1);
    J_minres->SetPreconditioner(*J_prec);
+   J_solver = J_minres;
 #else
    J_solver = new UMFPackSolver;
    J_prec = NULL;
@@ -469,13 +477,14 @@ HyperelasticOperator::HyperelasticOperator(FiniteElementSpace &f,
    newton_solver.SetSolver(*J_solver);
    newton_solver.SetOperator(*backward_euler_oper);
    newton_solver.SetPrintLevel(1); // print Newton iterations
-   newton_solver.SetRelTol(1e-8);
+   newton_solver.SetRelTol(rel_tol);
    newton_solver.SetAbsTol(0.0);
    newton_solver.SetMaxIter(10);
 }
 
 void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
 {
+   // Create views to the sub-vectors v, x of vx, and dv_dt, dx_dt of dvx_dt
    int sc = height/2;
    Vector v(vx.GetData() +  0, sc);
    Vector x(vx.GetData() + sc, sc);
@@ -501,7 +510,7 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    Vector dx_dt(dvx_dt.GetData() + sc, sc);
 
    // By eliminating kx from the coupled system:
-   //    kv = (M + dt*S)*kv + H(x + dt*kx) + S*v
+   //    kv = -M^{-1}*[H(x + dt*kx) + S*(v + dt*kv)]
    //    kx = v + dt*kv
    // we reduce it to a nonlinear equation for kv, represented by the
    // backward_euler_oper. This equation is solved with the newton_solver

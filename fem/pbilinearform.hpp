@@ -29,7 +29,7 @@ class ParBilinearForm : public BilinearForm
 {
 protected:
    ParFiniteElementSpace *pfes;
-   mutable ParGridFunction X, Y;
+   mutable ParGridFunction X, Y; // used in TrueAddMult
 
    bool keep_nbr_block;
 
@@ -40,7 +40,7 @@ protected:
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-      : BilinearForm(pf), pfes(pf), X(pf), Y(pf)
+      : BilinearForm(pf), pfes(pf)
    { keep_nbr_block = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
@@ -64,8 +64,8 @@ public:
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
 
-   /// y += this*x, x and y should be of true size
-   void ParAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
+   /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
+   void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 
    ParFiniteElementSpace *ParFESpace() const { return pfes; }
 

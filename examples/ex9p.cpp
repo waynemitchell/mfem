@@ -3,14 +3,14 @@
 // Compile with: make ex9p
 //
 // Sample runs:
-//    mpirun -np 4 ex9p -m ../data/periodic-segment.mesh -p 0 -rs 2 -rp 0 -dt 0.005
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 0 -rs 2 -rp 0 -dt 0.01 -tf 10
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 0 -rs 2 -rp 0 -dt 0.01 -tf 10
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -rs 2 -rp 0 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -rs 2 -rp 0 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rs 2 -rp 1 -dt 0.005 -tf 9
-//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rs 2 -rp 2 -dt 0.0025 -tf 9 -vs 20
-//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rs 2 -rp 1 -dt 0.01 -tf 8
+//    mpirun -np 4 ex9p -m ../data/periodic-segment.mesh -p 0 -dt 0.005
+//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 0 -dt 0.01
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 0 -dt 0.01
+//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
+//    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt = v.grad(u), where v is a given fluid velocity, and
@@ -48,8 +48,8 @@ double inflow_function(Vector &x);
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
     form of du/dt = v.grad(u) is M du/dt = K u + b, where M and K are the mass
     and advection matrices, and b describes the flow on the boundary. This can
-    be written as a general ODE, du/dt = M^{-1} (K u + b), and this class is used
-    to evaluate the right-hand side. */
+    be written as a general ODE, du/dt = M^{-1} (K u + b), and this class is
+    used to evaluate the right-hand side. */
 class FE_Evolution : public TimeDependentOperator
 {
 private:
@@ -86,8 +86,8 @@ int main(int argc, char *argv[])
    int ode_solver_type = 4;
    double t_final = 10.0;
    double dt = 0.01;
-   bool visualization = 1;
-   bool visit = 0;
+   bool visualization = true;
+   bool visit = false;
    int vis_steps = 5;
 
    int precision = 8;

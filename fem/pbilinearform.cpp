@@ -131,8 +131,9 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
             glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
 
       A = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
-                             pfes->GlobalVSize(), m->GetI(), glob_J, m->GetData(),
-                             pfes->GetDofOffsets(), pfes->GetDofOffsets());
+                             pfes->GlobalVSize(), m->GetI(), glob_J,
+                             m->GetData(), pfes->GetDofOffsets(),
+                             pfes->GetDofOffsets());
    }
 
    HypreParMatrix *rap = RAP(A, pfes->Dof_TrueDof_Matrix());
@@ -186,15 +187,23 @@ void ParBilinearForm::Assemble(int skip_zeros)
       AssembleSharedFaces(skip_zeros);
 }
 
-void ParBilinearForm::ParAddMult(const Vector &x, Vector &y, const double a) const
+void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)
+   const
 {
-   X.Distribute(&x);
+   MFEM_VERIFY(fbfi.Size() == 0, "the case of interior face integrators is not"
+               " implemented");
 
-   BilinearForm::Mult(X, Y);
-   Vector tmp(y.Size());
-   Y.ParallelAssemble(tmp);
-   y.Add(a,tmp);
+   if (X.ParFESpace() != pfes)
+   {
+      X.Update(pfes);
+      Y.Update(pfes);
+   }
+
+   X.Distribute(&x);
+   mat->Mult(X, Y);
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
 }
+
 
 HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(SparseMatrix *m)
 {

@@ -64,6 +64,15 @@ void ParNonlinearForm::Mult(const Vector &x, Vector &y) const
    Y.GetTrueDofs(y);
 }
 
+const SparseMatrix &ParNonlinearForm::GetLocalGradient(const Vector &x) const
+{
+   X.Distribute(&x);
+
+   NonlinearForm::GetGradient(X); // (re)assemble Grad
+
+   return *Grad;
+}
+
 Operator &ParNonlinearForm::GetGradient(const Vector &x) const
 {
    ParFiniteElementSpace *pfes = ParFESpace();

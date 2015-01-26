@@ -27,6 +27,7 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 using namespace mfem;
@@ -48,8 +49,8 @@ double inflow_function(Vector &x);
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
     form of du/dt = v.grad(u) is M du/dt = K u + b, where M and K are the mass
     and advection matrices, and b describes the flow on the boundary. This can
-    be written as a general ODE, du/dt = M^{-1} (K u + b), and this class is used
-    to evaluate the right-hand side. */
+    be written as a general ODE, du/dt = M^{-1} (K u + b), and this class is
+    used to evaluate the right-hand side. */
 class FE_Evolution : public TimeDependentOperator
 {
 private:
@@ -79,8 +80,8 @@ int main(int argc, char *argv[])
    int ode_solver_type = 4;
    double t_final = 10.0;
    double dt = 0.01;
-   bool visualization = 1;
-   bool visit = 0;
+   bool visualization = true;
+   bool visit = false;
    int vis_steps = 5;
 
    int precision = 8;
