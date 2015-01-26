@@ -8,7 +8,7 @@
                          http://mfem.googlecode.com
 
 
-Version 3.0, released on Jan xx, 2015
+Version 3.0, released on Jan 26, 2015
 =====================================
 
 Improved documentation and build system
@@ -46,12 +46,15 @@ New and updated examples
 
 - Grouped and documented the example code features in examples/README.html
 
-Non-conforming adaptive mesh refinement
----------------------------------------
+Serial non-conforming adaptive mesh refinement
+----------------------------------------------
 - Added support for general, isotropic and anisotropic, local non-conforming
   mesh refinement (using hanging nodes) in 2D and 3D, on quadrilateral,
   triangular and hexahedral meshes. High-order curved and surface meshes are
   also supported.
+
+- The current implementation supports serial meshes (see example 6). Extension
+  to parallel meshes is in active development.
 
 - The mesh is refined with Mesh::GeneralRefinement. The non-conforming mesh is
   represented as a mesh that is "cut" along non-conforming edges and faces in
@@ -94,7 +97,7 @@ Block systems and rectangular operators
 - New abstract class AbstractSparseMatrix, between Matrix and SparseMatrix
 
 - Modified class Operator to have two separate sizes: "height" and "width" for
-  the output and input sizes, respectively. The Size method is now deprecated.
+  the output and input sizes, respectively. The Size method was removed.
 
 - For backward compatibility, the method Size is still present in the classes
   DenseMatrix (returns width as before), SparseMatrix (returns height as
@@ -122,7 +125,7 @@ Miscellaneous
   arbitrary order rules for all geometries 1D/2D/3D geometries.
 
 - Added support for saving collections of grid functions in format suitable for
-  visualization with VisIt (visit.llnl.gov).
+  visualization with VisIt (visit.llnl.gov). See examples 5 and 9.
 
 - Added support for 1D, surface and topologically periodic meshes, as well as a
   simple inline mesh format. See the data/ directory for examples.
