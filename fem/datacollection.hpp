@@ -98,7 +98,7 @@ public:
    void SetPadDigits(int digits) { pad_digits = digits; }
 
    /** Save the collection to disk. By default, everything is saved in a
-       directory with name <collection_name> or <collection_name>_cycle for
+       directory with name "collection_name" or "collection_name_cycle" for
        time-dependent simulations. */
    virtual void Save();
 

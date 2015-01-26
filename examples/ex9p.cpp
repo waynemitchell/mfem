@@ -364,7 +364,6 @@ FE_Evolution::FE_Evolution(HypreParMatrix &_M, HypreParMatrix &_K, const Vector 
    M_solver.SetAbsTol(0.0);
    M_solver.SetMaxIter(100);
    M_solver.SetPrintLevel(0);
-   // M_solver.SetPrintLevel(2);
 }
 
 void FE_Evolution::Mult(const Vector &x, Vector &y) const
@@ -470,7 +469,7 @@ double u0_function(Vector &x)
    return 0.0;
 }
 
-// Inflow boundary condition
+// Inflow boundary condition (zero for the problems considered in this example)
 double inflow_function(Vector &x)
 {
    switch (problem)
