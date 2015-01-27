@@ -1318,7 +1318,7 @@ void NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
       for (j = 0; j < 4; j++)
          if (fv[i] == master[j])
          {
-            // pm.column(i) = tmp.column(j)
+            // "pm.column(i) = tmp.column(j)"
             for (int k = 0; k < mat.Height(); k++)
                mat(k,i) = tmp(k,j);
             break;
@@ -1460,6 +1460,8 @@ void NCMesh::BuildEdgeList()
 {
    edge_list.Clear();
 
+   Array<char> processed;
+
    // visit edges of leaf elements
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
@@ -1473,34 +1475,45 @@ void NCMesh::BuildEdgeList()
          const int* ev = gi.edges[j];
          Node* node[2] = { elem->node[ev[0]], elem->node[ev[1]] };
 
+         Node* edge = nodes.Peek(node[0], node[1]);
+         MFEM_ASSERT(edge && edge->edge, "Edge not found!");
+
+         // skip slave edges here, they will be reached from their masters
+         if (GetEdgeMaster(edge))
+            continue;
+
+         // have we already processed this edge? skip if yes
+         int index = edge->edge->index;
+         if (index >= processed.Size())
+            processed.SetSize(index + 1, 0);
+         else if (processed[index])
+            continue;
+         else
+            processed[index] = 1;
+
+         // prepare edge interval for slave traversal, handle orientation
          double t0 = 0.0, t1 = 1.0;
          if (node[0]->vertex->index > node[1]->vertex->index)
             std::swap(t0, t1);
 
-         // try traversing this edge to find slave edges
+         // try traversing the edge to find slave edges
          int sb = edge_list.slaves.size();
-         Node* edge = TraverseEdge(node[0], node[1], t0, t1, 0);
-         MFEM_ASSERT(edge && edge->edge, "Edge not found!");
+         TraverseEdge(node[0], node[1], t0, t1, 0);
 
          int se = edge_list.slaves.size();
          if (sb < se)
          {
             // found slaves, this is a master face; add it to the list
-            edge_list.masters.push_back(
-               Master(edge->edge->index, elem, j, sb, se));
+            edge_list.masters.push_back(Master(index, elem, j, sb, se));
 
             // also, set the master index for the slaves
             for (int i = sb; i < se; i++)
-               edge_list.slaves[i].master = edge->edge->index;
-
-            // FIXME: edge might not be the true master!!!
+               edge_list.slaves[i].master = index;
          }
          else
          {
             // no slaves, this is a conforming edge
-            edge_list.conforming.push_back(MeshId(edge->edge->index, elem, j));
-
-            // FIXME: check for duplicates in elist.conforming!!!
+            edge_list.conforming.push_back(MeshId(index, elem, j));
          }
 
          // continue processing in ParNCMesh
@@ -1811,40 +1824,43 @@ NCMesh::FineTransform* NCMesh::GetFineTransforms()
 
 //// Utility ///////////////////////////////////////////////////////////////////
 
-int NCMesh::GetEdgeMaster(Node *n) const
+NCMesh::Node* NCMesh::GetEdgeMaster(Node* node) const
 {
-   MFEM_ASSERT(n != NULL && n->p1 != n->p2, "Invalid node.");
+   MFEM_ASSERT(node != NULL && node->p1 != node->p2, "Invalid edge node.");
 
-   Node *n1 = nodes.Peek(n->p1);
-   Node *n2 = nodes.Peek(n->p2);
+   Node *n1 = nodes.Peek(node->p1);
+   Node *n2 = nodes.Peek(node->p2);
 
    if ((n2->p1 != n2->p2) && (n1->id == n2->p1 || n1->id == n2->p2))
    {
-      // (n1) is parent of (n2):
-      // (n1)--(n)--(n2)----(*)  or  (*)----(n2)--(n)--(n1)
+      // n1 is parent of n2:
+      // (n1)--(n)--(n2)------(*)  or  (*)------(n2)--(n)--(n1)
       if (n2->edge)
-         return n2->edge->index;
-      return GetEdgeMaster(n2);
+         return n2;
+      else
+         return GetEdgeMaster(n2);
    }
 
    if ((n1->p1 != n1->p2) && (n2->id == n1->p1 || n2->id == n1->p2))
    {
-      // (n2) is parent of (n1):
-      // (n2)--(n)--(n1)----(*)  or  (*)----(n1)--(n)--(n2)
+      // n2 is parent of n1:
+      // (n2)--(n)--(n1)------(*)  or  (*)------(n1)--(n)--(n2)
       if (n1->edge)
-         return n1->edge->index;
-      return GetEdgeMaster(n1);
+         return n1;
+      else
+         return GetEdgeMaster(n1);
    }
 
-   return n->edge ? n->edge->index : -1;
+   return NULL;
 }
 
 int NCMesh::GetEdgeMaster(int v1, int v2) const
 {
-   Node *n = nodes.Peek(vertex_nodeId[v1], vertex_nodeId[v2]);
-   int master_edge = GetEdgeMaster(n);
-   MFEM_ASSERT(n->edge != NULL, "Invalid edge.");
-   return (n->edge->index != master_edge) ? master_edge : -1;
+   Node* node = nodes.Peek(vertex_nodeId[v1], vertex_nodeId[v2]);
+   MFEM_ASSERT(node->edge != NULL, "(v1, v2) is not an edge.");
+
+   Node* master = GetEdgeMaster(node);
+   return master ? master->edge->index : -1;
 }
 
 void NCMesh::FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,

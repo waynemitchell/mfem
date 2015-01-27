@@ -484,7 +484,7 @@ protected: // implementation
    void GetFineTransforms(Element* elem, int coarse_index,
                           FineTransform *transforms, const PointMatrix &pm);
 
-   int GetEdgeMaster(Node *n) const;
+   Node* GetEdgeMaster(Node* node) const;
 
 
    // utility
