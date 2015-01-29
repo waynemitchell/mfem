@@ -71,7 +71,7 @@ public:
 
    /** Return a list of processors sharing a vertex/edge/face
        ('type' == 0/1/2, resp.) and the size of the list. */
-   const int* GetGroup(int type, int index, int &size)
+   const int* GetGroup(int type, int index, int &size) const
    {
       switch (type)
       {
@@ -81,11 +81,22 @@ public:
       }
    }
 
+   /** */
+   bool RankInGroup(int type, int index, int rank) const
+   {
+      int size;
+      const int* group = GetGroup(type, index, size);
+      for (int i = 0; i < size; i++)
+         if (group[i] == rank)
+            return true;
+      return false;
+   }
+
 protected:
    MPI_Comm MyComm;
    int NRanks, MyRank;
 
-   int NVertices;
+   int NVertices, NGhostVertices;
    int NEdges, NGhostEdges;
    int NFaces, NGhostFaces;
 
@@ -106,6 +117,7 @@ protected:
 
    void InitialPartition();
 
+   virtual void UpdateVertices();
    virtual void AssignLeafIndices();
 
    virtual void OnMeshUpdated(Mesh *mesh);
@@ -176,10 +188,11 @@ protected:
 /*
 TODO
 + shared vertices
-- fix NCMesh::BuildEdgeList
++ fix NCMesh::BuildEdgeList
 + AddSlaveDependencies, AddOneOneDependencies
 + Phase 2
 - invalid CDOFs?
+- hypre matrix
 */
 
 

@@ -48,9 +48,6 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
 {
    Dim = coarse_mesh->Dimension();
 
-   vertex_nodeId.SetSize(coarse_mesh->GetNV());
-   vertex_nodeId = -1;
-
    // create the NCMesh::Element struct for each Mesh element
    for (int i = 0; i < coarse_mesh->GetNE(); i++)
    {
@@ -82,7 +79,6 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
             // create a vertex in the node and initialize its position
             const double* pos = coarse_mesh->GetVertex(v[j]);
             node->vertex = new Vertex(pos[0], pos[1], pos[2]);
-            vertex_nodeId[v[j]] = node->id;
          }
 
          nc_elem->node[j] = node;
@@ -132,6 +128,7 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
    }
 
    UpdateLeafElements();
+   UpdateVertices();
 }
 
 NCMesh::Element* NCMesh::CopyHierarchy(Element* elem)
@@ -1097,6 +1094,7 @@ void NCMesh::Refine(const Array<Refinement>& refinements)
 
 void NCMesh::UpdateVertices()
 {
+   // (overridden in ParNCMesh to assign special indices to ghost vertices)
    int num_vert = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->vertex)
@@ -1148,16 +1146,18 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
 {
    // copy vertex coordinates
    vertices.SetSize(vertex_nodeId.Size());
-   int i = 0;
-   for (HashTable<Node>::Iterator it(nodes); it; ++it)
-      if (it->vertex)
-         vertices[i++].SetCoords(it->vertex->pos);
+   for (int i = 0; i < vertices.Size(); i++)
+   {
+      Node* node = nodes.Peek(vertex_nodeId[i]);
+      vertices[i].SetCoords(node->vertex->pos);
+   }
 
    elements.SetSize(leaf_elements.Size());
    elements.SetSize(0);
 
    boundary.SetSize(0);
 
+   // create an mfem::Element for each leaf Element
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* nc_elem = leaf_elements[i];
@@ -1166,7 +1166,6 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
       Node** node = nc_elem->node;
       GeomInfo& gi = GI[nc_elem->geom];
 
-      // create an mfem::Element for each leaf Element
       mfem::Element* elem = NULL;
       switch (nc_elem->geom)
       {
@@ -1379,6 +1378,8 @@ void NCMesh::BuildFaceList()
 {
    face_list.Clear();
 
+   Array<char> processed;
+
    // visit faces of leaf elements
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
@@ -1396,10 +1397,21 @@ void NCMesh::BuildFaceList()
          Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
          MFEM_ASSERT(face, "Face not found!");
 
+         // tell ParNCMesh about the face
+         ElementSharesFace(elem, face);
+
+         // have we already processed this face? skip if yes
+         int index = face->index;
+         if (index >= processed.Size())
+            processed.SetSize(index + 1, 0);
+         else if (processed[index])
+            continue;
+         processed[index] = 1;
+
          if (face->ref_count == 2 || face->Boundary())
          {
             // this is a conforming face, add it to the list
-            face_list.conforming.push_back(MeshId(face->index, elem, j));
+            face_list.conforming.push_back(MeshId(index, elem, j));
          }
          else
          {
@@ -1414,16 +1426,13 @@ void NCMesh::BuildFaceList()
             if (sb < se)
             {
                // found slaves, so this is a master face; add it to the list
-               face_list.masters.push_back(Master(face->index, elem, j, sb, se));
+               face_list.masters.push_back(Master(index, elem, j, sb, se));
 
                // also, set the master index for the slaves
                for (int i = sb; i < se; i++)
-                  face_list.slaves[i].master = face->index;
+                  face_list.slaves[i].master = index;
             }
          }
-
-         // continue processing in ParNCMesh
-         ElementSharesFace(elem, face);
       }
    }
 }
@@ -1478,6 +1487,9 @@ void NCMesh::BuildEdgeList()
          Node* edge = nodes.Peek(node[0], node[1]);
          MFEM_ASSERT(edge && edge->edge, "Edge not found!");
 
+         // tell ParNCMesh about the edge
+         ElementSharesEdge(elem, edge->edge);
+
          // skip slave edges here, they will be reached from their masters
          if (GetEdgeMaster(edge))
             continue;
@@ -1488,8 +1500,7 @@ void NCMesh::BuildEdgeList()
             processed.SetSize(index + 1, 0);
          else if (processed[index])
             continue;
-         else
-            processed[index] = 1;
+         processed[index] = 1;
 
          // prepare edge interval for slave traversal, handle orientation
          double t0 = 0.0, t1 = 1.0;
@@ -1515,9 +1526,6 @@ void NCMesh::BuildEdgeList()
             // no slaves, this is a conforming edge
             edge_list.conforming.push_back(MeshId(index, elem, j));
          }
-
-         // continue processing in ParNCMesh
-         ElementSharesEdge(elem, edge->edge);
       }
    }
 }

@@ -31,6 +31,7 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
 
    InitialPartition();
    AssignLeafIndices();
+   UpdateVertices();
    //PruneGhosts();
 }
 
@@ -56,6 +57,42 @@ void ParNCMesh::AssignLeafIndices()
       else
          leaf->index = -1;
    }
+}
+
+void ParNCMesh::UpdateVertices()
+{
+   // This is an override of NCMesh::UpdateVertices. This version first
+   // assigns Vertex::index to vertices of elements of our rank. Only these
+   // vertices then make it to the Mesh in NCMesh::GetMeshComponents.
+   // The remaining (ghost) vertices are assigned indices greater or equal to
+   // Mesh::GetNV().
+
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->vertex)
+         it->vertex->index = -1;
+
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      Element* elem = leaf_elements[i];
+      if (elem->rank == MyRank)
+         for (int j = 0; j < GI[elem->geom].nv; j++)
+            elem->node[j]->vertex->index = 0; // mark vertices that we need
+   }
+
+   NVertices = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->vertex && it->vertex->index >= 0)
+         it->vertex->index = NVertices++;
+
+   vertex_nodeId.SetSize(NVertices);
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->vertex && it->vertex->index >= 0)
+         vertex_nodeId[it->vertex->index] = it->id;
+
+   NGhostVertices = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+      if (it->vertex && it->vertex->index < 0)
+         it->vertex->index = NVertices + (NGhostVertices++);
 }
 
 void ParNCMesh::OnMeshUpdated(Mesh *mesh)
@@ -86,9 +123,6 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    for (HashTable<Face>::Iterator it(faces); it; ++it)
       if (it->index < 0)
          it->index = NFaces + (NGhostFaces++);
-
-   // there are no "ghost" vertices, the Mesh contains all of them
-   NVertices = mesh->GetNV();
 }
 
 void ParNCMesh::ElementSharesEdge(Element *elem, Edge *edge)
@@ -232,7 +266,7 @@ void ParNCMesh::MakeShared
 (const Table &groups, const NCList &list, NCList &shared)
 {
    // Filter the full lists, only output items that are shared.
-   // Slaves are skipped as they need to be obtained from the full list.
+   // Slaves are omitted as they need to be obtained from the full list.
 
    shared.Clear();
 
@@ -247,13 +281,14 @@ void ParNCMesh::MakeShared
 
 void ParNCMesh::BuildSharedVertices()
 {
-   vertex_owner.SetSize(NVertices);
+   int nvertices = NVertices + NGhostVertices;
+   vertex_owner.SetSize(nvertices);
    vertex_owner = std::numeric_limits<int>::max();
 
    tmp_ranks.SetSize(8*leaf_elements.Size());
    tmp_ranks.SetSize(0);
 
-   Array<MeshId> vertex_id(NVertices);
+   Array<MeshId> vertex_id(nvertices);
 
    // similarly to edges/faces, we loop over the vertices of all leaf elements
    // to determine which processors share each vertex
@@ -277,12 +312,12 @@ void ParNCMesh::BuildSharedVertices()
       }
    }
 
-   MakeGroups(NVertices, vertex_group);
+   MakeGroups(nvertices, vertex_group);
 
    // create a list of shared vertices, skip obviously slave vertices
    // (for simplicity, we don't guarantee to skip all slave vertices)
    shared_vertices.Clear();
-   for (int i = 0; i < NVertices; i++)
+   for (int i = 0; i < nvertices; i++)
    {
       if (is_shared(vertex_group, i, MyRank) && vertex_id[i].index >= 0)
          shared_vertices.conforming.push_back(vertex_id[i]);
@@ -668,8 +703,10 @@ void NeighborRowReply::Decode()
 {
    std::istringstream stream(data);
 
+   // NOTE: there is no rows.clear() since a row reply can be received
+   // repeatedly and the received rows accumulate.
+
    // read the rows
-   rows.clear();
    int size = read<int>(stream);
    for (int i = 0; i < size; i++)
    {

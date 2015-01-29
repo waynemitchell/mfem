@@ -812,7 +812,7 @@ struct Dependency
    double coef;
 
    typedef Array<Dependency> List;
-   Dependency(int r, int d, double c) : rank(r), dof(dof), coef(c) {}
+   Dependency(int r, int d, double c) : rank(r), dof(d), coef(c) {}
 };
 
 inline int DecodeDof(int dof, double& sign)
@@ -883,9 +883,9 @@ static void Add1To1Dependencies(Dependency::List deps[], int owner_rank,
 }
 
 void ParFiniteElementSpace::GetConformingDofs
-(int type, int index, Array<int>& cdofs)
+(int type, int index, Array<int>& dofs)
 {
-   Array<int> dofs;
+//   Array<int> dofs;
    switch (type)
    {
    case 0: GetVertexDofs(index, dofs); break;
@@ -893,7 +893,7 @@ void ParFiniteElementSpace::GetConformingDofs
    case 2: GetFaceDofs(index, dofs); break;
    }
 
-   ConvertToConformingVDofs(dofs, cdofs);
+//   ConvertToConformingVDofs(dofs, cdofs);
    // TODO: remove invalid (non-conforming) DOFs
 }
 
@@ -949,55 +949,64 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    // *** STEP 2: build dependency lists ***
 
-   int num_cdofs = GetNConformingDofs();
+   int num_cdofs = ndofs;//GetNConformingDofs();
    Dependency::List* deps = new Dependency::List[num_cdofs];
 
+   Array<int> master_dofs, slave_dofs;
+   Array<int> owner_dofs, my_dofs;
+
+   // loop through *all* master edges/faces, constrain their slaves
+   for (int type = 1; type < 3; type++)
+   {
+      const NCMesh::NCList &list = (type > 1) ? pncmesh->GetFaceList()
+                                              : pncmesh->GetEdgeList();
+      if (!list.masters.size()) continue;
+
+      IsoparametricTransformation T;
+      if (type > 1) T.SetFE(&QuadrilateralFE); else T.SetFE(&SegmentFE);
+
+      const FiniteElement* fe = fec->FiniteElementForGeometry(
+         ((type > 1) ? Geometry::SQUARE : Geometry::SEGMENT));
+
+      DenseMatrix I(fe->GetDof());
+
+      // process masters that we own or that have slaves we own
+      for (int mi = 0; mi < list.masters.size(); mi++)
+      {
+         const NCMesh::Master &mf = list.masters[mi];
+         if (!pncmesh->RankInGroup(type, mf.index, MyRank)) continue;
+
+         // get master DOFs
+         int master_rank = pncmesh->GetOwner(type, mf.index);
+         if (master_rank == MyRank)
+            GetConformingDofs(type, mf.index, master_dofs);
+         else
+            recv_dofs[master_rank].GetDofs(type, mf, master_dofs);
+
+         if (!master_dofs.Size()) continue;
+
+         // constrain slaves that we own
+         for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
+         {
+            const NCMesh::Slave &sf = list.slaves[si];
+            if (pncmesh->GetOwner(type, sf.index) != MyRank) continue;
+
+            GetConformingDofs(type, sf.index, slave_dofs);
+            if (!slave_dofs.Size()) continue;
+
+            T.GetPointMat() = sf.point_matrix;
+            fe->GetLocalInterpolation(T, I);
+
+            // make each slave DOF dependent on all master DOFs
+            AddSlaveDependencies(deps, master_rank, master_dofs, slave_dofs, I);
+         }
+      }
+   }
+
+   // add one-to-one dependencies between shared conforming vertices/edges/faces
    for (int type = 0; type < 3; type++)
    {
       const NCMesh::NCList &list = pncmesh->GetSharedList(type);
-
-      if (list.masters.size())
-      {
-         IsoparametricTransformation T;
-         if (type) T.SetFE(&QuadrilateralFE); else T.SetFE(&SegmentFE);
-
-         const FiniteElement* fe = fec->FiniteElementForGeometry(
-            (type ? Geometry::SQUARE : Geometry::SEGMENT));
-
-         Array<int> master_dofs, slave_dofs;
-         DenseMatrix I(fe->GetDof());
-
-         // loop through all master edges/faces, constrain their slaves
-         for (int mi = 0; mi < list.masters.size(); mi++)
-         {
-            const NCMesh::Master &mf = list.masters[mi];
-
-            // get master edge/face DOFs
-            int owner = pncmesh->GetOwner(type, mf.index);
-            if (owner == MyRank)
-               GetConformingDofs(type, mf.index, master_dofs);
-            else
-               recv_dofs[owner].GetDofs(type, mf, master_dofs);
-
-            if (!master_dofs.Size()) continue;
-
-            for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
-            {
-               const NCMesh::Slave &sf = list.slaves[si]; // FIXME: full list!
-               GetEdgeFaceDofs(type, sf.index, slave_dofs);
-               if (!slave_dofs.Size()) continue;
-
-               T.GetPointMat() = sf.point_matrix;
-               fe->GetLocalInterpolation(T, I);
-
-               // make each slave DOF dependent on all master DOFs
-               AddSlaveDependencies(deps, owner, master_dofs, slave_dofs, I);
-            }
-         }
-      }
-
-      // add one-to-one dependencies between conforming vertices/edges/faces
-      Array<int> owner_dofs, my_dofs;
       for (int i = 0; i < list.conforming.size(); i++)
       {
          const NCMesh::MeshId &id = list.conforming[i];
@@ -1040,25 +1049,27 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    // *** STEP 4: iteratively build the P matrix ***
 
    // DOFs that stayed independent or are ours are true DOFs
-   int loc_true_dofs = 0;
+   ltdof_size = 0;
    for (int i = 0; i < num_cdofs; i++)
       if (IsTrueDof(deps[i], MyRank))
-         loc_true_dofs++;
+         ltdof_size++;
+
+   // FIXME: vdim
+   GenerateGlobalOffsets();
+   int glob_true_dofs = tdof_offsets[NRanks];
+   int glob_cdofs = dof_offsets[NRanks];
 
    // create the local part (local rows) of the P matrix
-   int glob_true_dofs;
-   MPI_Allreduce(&loc_true_dofs, &glob_true_dofs, 1, MPI_INT, MPI_SUM, MyComm);
-
-   SparseMatrix P(num_cdofs, glob_true_dofs);
+   SparseMatrix localP(num_cdofs, glob_true_dofs);
 
    Array<bool> finalized(num_cdofs);
    finalized = false;
 
    // put identity in P for true DOFs
-   for (int i = 0, true_dof = 0; i < ndofs; i++)
+   for (int i = 0, true_dof = 0; i < num_cdofs; i++)
       if (IsTrueDof(deps[i], MyRank))
       {
-         P.Add(i, true_dof++, 1.0);
+         localP.Add(i, tdof_offsets[MyRank] + true_dof++, 1.0);
          finalized[i] = true;
       }
 
@@ -1068,7 +1079,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    NeighborRowReply::Map recv_replies;
    std::vector<NeighborRowReply::Map> send_replies;
 
-   int num_finalized = loc_true_dofs;
+   int num_finalized = ltdof_size;
    while (1)
    {
       // finalize what can currently be finalized
@@ -1092,12 +1103,12 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          {
             const Dependency &dep = list[i];
             if (dep.rank == MyRank)
-               P.GetRow(dep.dof, cols, srow);
+               localP.GetRow(dep.dof, cols, srow);
             else
                recv_replies[dep.rank].GetRow(dep.dof, cols, srow);
 
             srow *= dep.coef;
-            P.AddRow(dof, cols, srow);
+            localP.AddRow(dof, cols, srow);
          }
 
          finalized[dof] = true;
@@ -1115,7 +1126,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          for (row = req.rows.begin(); row != req.rows.end(); )
             if (finalized[*row])
             {
-               P.GetRow(*row, cols, srow);
+               localP.GetRow(*row, cols, srow);
                send_replies.back()[it->first].AddRow(*row, cols, srow);
                req.rows.erase(row++);
             }
@@ -1139,12 +1150,21 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    }
 
    delete [] deps;
+   localP.Finalize();
+
+   // create the parallel matrix P
+   P = new HypreParMatrix(MyComm, num_cdofs, glob_cdofs, glob_true_dofs,
+                          localP.GetI(), localP.GetJ(), localP.GetData(),
+                          dof_offsets.GetData(), tdof_offsets.GetData());
 
    // make sure we can discard all send buffers
    NeighborDofMessage::WaitAllSent(send_dofs);
    NeighborRowRequest::WaitAllSent(send_requests);
    for (int i = 0; i < send_replies.size(); i++)
       NeighborRowReply::WaitAllSent(send_replies[i]);
+
+   ldof_sign.SetSize(num_cdofs);
+   ldof_sign = 1;
 }
 
 void ParFiniteElementSpace::Update()

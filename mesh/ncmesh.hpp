@@ -338,7 +338,7 @@ protected: // implementation
 
    void Refine(Element* elem, char ref_type);
 
-   void UpdateVertices(); // update the indices of vertices and vertex_nodeId
+   virtual void UpdateVertices(); ///< update Vertex::index and vertex_nodeId
 
    void CollectLeafElements(Element* elem);
    void UpdateLeafElements();
