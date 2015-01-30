@@ -12,7 +12,7 @@
 #ifndef MFEM_HASH
 #define MFEM_HASH
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "array.hpp"
 
 namespace mfem
@@ -54,7 +54,7 @@ private:
 /** A concept for items that should be used in HashTable and be accessible by
  *  hashing two IDs.
  *
- *  NOTE: the CRTP pattern is needed for correct pointer arithmetics if the
+ *  NOTE: the CRTP pattern is needed for correct pointer arithmetic if the
  *        derived class uses multiple inheritance.
  */
 template<typename Derived>
@@ -370,7 +370,7 @@ void HashTable<ItemT>::Rehash()
       mask = new_size-1;
 
 #ifdef MFEM_DEBUG
-      std::cout << __PRETTY_FUNCTION__ << ": rehashing to size " << new_size
+      std::cout << _MFEM_FUNC_NAME << ": rehashing to size " << new_size
                 << std::endl;
 #endif
 

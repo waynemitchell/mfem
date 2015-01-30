@@ -9,7 +9,7 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -131,8 +131,9 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
             glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
 
       A = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
-                             pfes->GlobalVSize(), m->GetI(), glob_J, m->GetData(),
-                             pfes->GetDofOffsets(), pfes->GetDofOffsets());
+                             pfes->GlobalVSize(), m->GetI(), glob_J,
+                             m->GetData(), pfes->GetDofOffsets(),
+                             pfes->GetDofOffsets());
    }
 
    HypreParMatrix *rap = RAP(A, pfes->Dof_TrueDof_Matrix());
@@ -185,6 +186,24 @@ void ParBilinearForm::Assemble(int skip_zeros)
    if (fbfi.Size() > 0)
       AssembleSharedFaces(skip_zeros);
 }
+
+void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)
+   const
+{
+   MFEM_VERIFY(fbfi.Size() == 0, "the case of interior face integrators is not"
+               " implemented");
+
+   if (X.ParFESpace() != pfes)
+   {
+      X.Update(pfes);
+      Y.Update(pfes);
+   }
+
+   X.Distribute(&x);
+   mat->Mult(X, Y);
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
+}
+
 
 HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(SparseMatrix *m)
 {

@@ -12,14 +12,14 @@
 #ifndef MFEM_LINEARFORM
 #define MFEM_LINEARFORM
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "lininteg.hpp"
 #include "fespace.hpp"
 
 namespace mfem
 {
 
-/// Class for linear form - Vector with asociated FE space and LFIntegrators.
+/// Class for linear form - Vector with associated FE space and LFIntegrators.
 class LinearForm : public Vector
 {
 private:

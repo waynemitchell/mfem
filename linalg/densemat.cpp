@@ -13,16 +13,20 @@
 // Implementation of data types dense matrix, inverse dense matrix
 
 
-#include <iostream>
-#include <iomanip>
-#include <limits>
-#include <cmath>
-#include <cstdlib>
-
 #include "vector.hpp"
 #include "matrix.hpp"
 #include "densemat.hpp"
 #include "../general/table.hpp"
+
+#include <iostream>
+#include <iomanip>
+#include <limits>
+#include <algorithm>
+#include <cstdlib>
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
+#include <float.h>
+#define copysign _copysign
+#endif
 
 namespace mfem
 {
@@ -1451,7 +1455,7 @@ inline void GetScalingFactor(const double &d_max, double &mult)
 double DenseMatrix::CalcSingularvalue(const int i) const
 {
 #ifdef MFEM_DEBUG
-   if (Height() != Width() || Height() < 2 || Height() > 3)
+   if (Height() != Width() || Height() < 1 || Height() > 3)
       mfem_error("DenseMatrix::CalcSingularvalue");
 #endif
 
@@ -1711,22 +1715,22 @@ double DenseMatrix::CalcSingularvalue(const int i) const
 
          if (i == 2)
          {
-            aa = fmin(fmin(b11, b22), b33);
+            aa = std::min(std::min(b11, b22), b33);
          }
          else if (i == 1)
          {
             if (b11 <= b22)
             {
-               aa = (b22 <= b33) ? b22 : fmax(b11, b33);
+               aa = (b22 <= b33) ? b22 : std::max(b11, b33);
             }
             else
             {
-               aa = (b11 <= b33) ? b11 : fmax(b33, b22);
+               aa = (b11 <= b33) ? b11 : std::max(b33, b22);
             }
          }
          else
          {
-            aa = fmax(fmax(b11, b22), b33);
+            aa = std::max(std::max(b11, b22), b33);
          }
       }
 
@@ -2413,7 +2417,7 @@ void DenseMatrix::TestInversion()
       {
          if (i == j)
             C(i,j) -= 1.;
-         i_max = fmax(i_max, fabs(C(i, j)));
+         i_max = std::max(i_max, fabs(C(i, j)));
       }
    cout << "size = " << width << ", i_max = " << i_max
         << ", cond_F = " << FNorm()*copy.FNorm() << endl;

@@ -2,13 +2,13 @@
 //
 // Compile with: make ex8p
 //
-// Sample runs:  mpirun -np 4 ./ex8p -m ../data/square-disc.mesh
-//               mpirun -np 4 ./ex8p -m ../data/star.mesh
-//               mpirun -np 4 ./ex8p -m ../data/escher.mesh
-//               mpirun -np 4 ./ex8p -m ../data/fichera.mesh
-//               mpirun -np 4 ./ex8p -m ../data/square-disc-p2.vtk
-//               mpirun -np 4 ./ex8p -m ../data/square-disc-p3.mesh
-//               mpirun -np 4 ./ex8p -m ../data/star-surf.mesh -o 2
+// Sample runs:  mpirun -np 4 ex8p -m ../data/square-disc.mesh
+//               mpirun -np 4 ex8p -m ../data/star.mesh
+//               mpirun -np 4 ex8p -m ../data/escher.mesh
+//               mpirun -np 4 ex8p -m ../data/fichera.mesh
+//               mpirun -np 4 ex8p -m ../data/square-disc-p2.vtk
+//               mpirun -np 4 ex8p -m ../data/square-disc-p3.mesh
+//               mpirun -np 4 ex8p -m ../data/star-surf.mesh -o 2
 //
 // Description:  This example code demonstrates the use of the Discontinuous
 //               Petrov-Galerkin (DPG) method in its primal 2x2 block form as a
@@ -24,8 +24,9 @@
 //
 //               We recommend viewing examples 1-5 before viewing this example.
 
-#include <fstream>
 #include "mfem.hpp"
+#include <fstream>
+#include <iostream>
 
 using namespace std;
 using namespace mfem;

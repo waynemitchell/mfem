@@ -12,7 +12,7 @@
 #ifndef MFEM_SEGMENT
 #define MFEM_SEGMENT
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "element.hpp"
 
 namespace mfem

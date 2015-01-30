@@ -12,7 +12,7 @@
 #ifndef MFEM_OPTPARSER
 #define MFEM_OPTPARSER
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "array.hpp"
 
 namespace mfem
@@ -23,8 +23,8 @@ class Vector;
 /** Class for parsing command-line options.
 
     The class is initialized with argc and argv, and new options are added with
-    the AddOption method. Currently options of type bool, int, double and char*,
-    mfem::Array<int>, mfem::Vector are supported.
+    the AddOption method. Currently options of type bool, int, double, char*,
+    mfem::Array<int>, and mfem::Vector are supported.
 
     See the MFEM examples for sample use.
 */

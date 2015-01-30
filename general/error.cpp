@@ -9,9 +9,9 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "error.hpp"
 #include <cstdlib>
 #include <iostream>
-#include "error.hpp"
 
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
@@ -20,7 +20,7 @@
 namespace mfem
 {
 
-void mfem_error (const char *msg)
+void mfem_error(const char *msg)
 {
    if (msg)
    {
@@ -33,7 +33,14 @@ void mfem_error (const char *msg)
 #else
    std::abort(); // force crash by calling abort
 #endif
+}
 
+void mfem_warning(const char *msg)
+{
+   if (msg)
+   {
+      std::cout << "\n\n" << msg << std::endl;
+   }
 }
 
 }

@@ -12,7 +12,7 @@
 #ifndef MFEM_FE_COLLECTION
 #define MFEM_FE_COLLECTION
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "geom.hpp"
 #include "fe.hpp"
 
@@ -20,7 +20,7 @@ namespace mfem
 {
 
 /** Collection of finite elements from the same family in multiple dimensions.
-    This class is used to match the degrees of fredom of a FiniteElementSpace
+    This class is used to match the degrees of freedom of a FiniteElementSpace
     between elements, and to provide the finite element restriction from an
     element to its boundary. */
 class FiniteElementCollection
@@ -86,6 +86,7 @@ private:
    char d_name[32];
    FiniteElement *L2_Elements[Geometry::NumGeom];
    FiniteElement *Tr_Elements[Geometry::NumGeom];
+   int *SegDofOrd[2]; // for rotating segment dofs in 1D
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:

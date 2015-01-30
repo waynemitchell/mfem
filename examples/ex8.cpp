@@ -24,8 +24,9 @@
 //
 //               We recommend viewing examples 1-5 before viewing this example.
 
-#include <fstream>
 #include "mfem.hpp"
+#include <fstream>
+#include <iostream>
 
 using namespace std;
 using namespace mfem;

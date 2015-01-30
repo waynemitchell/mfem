@@ -9,10 +9,11 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "linalg.hpp"
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 #include <cmath>
-#include "linalg.hpp"
 
 namespace mfem
 {
@@ -174,7 +175,7 @@ void SLISolver::Mult(const Vector &b, Vector &x) const
       cout << "   Iteration : " << setw(3) << 0 << "  (B r, r) = "
            << nom << '\n';
 
-   r0 = fmax(nom*rel_tol*rel_tol, abs_tol*abs_tol);
+   r0 = std::max(nom*rel_tol*rel_tol, abs_tol*abs_tol);
    if (nom <= r0)
    {
       converged = 1;
@@ -312,7 +313,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       cout << "   Iteration : " << setw(3) << 0 << "  (B r, r) = "
            << nom << '\n';
 
-   r0 = fmax(nom*rel_tol*rel_tol, abs_tol*abs_tol);
+   r0 = std::max(nom*rel_tol*rel_tol, abs_tol*abs_tol);
    if (nom <= r0)
    {
       converged = 1;
@@ -519,7 +520,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    }
    double beta = Norm(r);  // beta = ||r||
 
-   final_norm = fmax(rel_tol*beta, abs_tol);
+   final_norm = std::max(rel_tol*beta, abs_tol);
 
    if (beta <= final_norm)
    {
@@ -646,7 +647,7 @@ void FGMRESSolver::Mult(const Vector &b, Vector &x) const
    }
    double beta = Norm(r);  // beta = ||r||
 
-   final_norm = fmax(rel_tol*beta, abs_tol);
+   final_norm = std::max(rel_tol*beta, abs_tol);
 
    if (beta <= final_norm)
    {
@@ -819,7 +820,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
       cout << "   Iteration : " << setw(3) << 0
            << "   ||r|| = " << resid << '\n';
 
-   tol_goal = fmax(resid*rel_tol, abs_tol);
+   tol_goal = std::max(resid*rel_tol, abs_tol);
 
    if (resid <= tol_goal)
    {
@@ -973,7 +974,7 @@ void MINRESSolver::Mult(const Vector &b, Vector &x) const
    gamma0 = gamma1 = 1.;
    sigma0 = sigma1 = 0.;
 
-   norm_goal = fmax(rel_tol*eta, abs_tol);
+   norm_goal = std::max(rel_tol*eta, abs_tol);
 
    if (print_level == 1 || print_level == 3)
       cout << "MINRES: iteration " << setw(3) << 0 << ": ||r||_B = "
@@ -1096,23 +1097,35 @@ void MINRES(const Operator &A, Solver &B, const Vector &b, Vector &x,
 }
 
 
-void NewtonSolver::Mult(const Vector &b, Vector &x) const
+void NewtonSolver::SetOperator(const Operator &op)
 {
-   int it;
-   double norm, norm_goal;
+   oper = &op;
+   height = op.Height();
+   width = op.Width();
+   MFEM_ASSERT(height == width, "square Operator is required.");
 
    r.SetSize(width);
    c.SetSize(width);
+}
+
+void NewtonSolver::Mult(const Vector &b, Vector &x) const
+{
+   MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
+   MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");
+
+   int it;
+   double norm, norm_goal;
+   bool have_b = (b.Size() == Height());
 
    if (!iterative_mode)
       x = 0.0;
 
    oper->Mult(x, r);
-   if (b.Size() == Height())
+   if (have_b)
       r -= b;
 
    norm = Norm(r);
-   norm_goal = fmax(rel_tol*norm, abs_tol);
+   norm_goal = std::max(rel_tol*norm, abs_tol);
 
    prec->iterative_mode = false;
 
@@ -1142,7 +1155,7 @@ void NewtonSolver::Mult(const Vector &b, Vector &x) const
       x -= c;
 
       oper->Mult(x, r);
-      if (b.Size() == Height())
+      if (have_b)
          r -= b;
       norm = Norm(r);
    }

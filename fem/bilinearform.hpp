@@ -12,7 +12,7 @@
 #ifndef MFEM_BILINEARFORM
 #define MFEM_BILINEARFORM
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../linalg/linalg.hpp"
 #include "fespace.hpp"
 #include "gridfunc.hpp"
@@ -22,7 +22,7 @@
 namespace mfem
 {
 
-/** Class for bilinear form - "Matrix" with asociated FE space and
+/** Class for bilinear form - "Matrix" with associated FE space and
     BLFIntegrators. */
 class BilinearForm : public Matrix
 {

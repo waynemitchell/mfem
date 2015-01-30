@@ -12,7 +12,7 @@
 #ifndef MFEM_PNONLINEARFORM
 #define MFEM_PNONLINEARFORM
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -44,10 +44,13 @@ public:
    /// Compute the energy of a ParGridFunction
    virtual double GetEnergy(const ParGridFunction &x) const;
 
-   /// Comute the energy of a true-dof vector 'x'
+   /// Compute the energy of a true-dof vector 'x'
    virtual double GetEnergy(const Vector &x) const;
 
    virtual void Mult(const Vector &x, Vector &y) const;
+
+   /// Return the local gradient matrix for the given true-dof vector x
+   const SparseMatrix &GetLocalGradient(const Vector &x) const;
 
    virtual Operator &GetGradient(const Vector &x) const;
 

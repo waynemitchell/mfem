@@ -12,13 +12,13 @@
 #ifndef MFEM_PMESH
 #define MFEM_PMESH
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
-#include <iostream>
 #include "../general/communication.hpp"
 #include "mesh.hpp"
+#include <iostream>
 
 namespace mfem
 {

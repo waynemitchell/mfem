@@ -12,11 +12,11 @@
 #ifndef MFEM_FESPACE
 #define MFEM_FESPACE
 
-#include <iostream>
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../linalg/sparsemat.hpp"
 #include "../mesh/mesh.hpp"
 #include "fe_coll.hpp"
+#include <iostream>
 
 namespace mfem
 {
@@ -188,7 +188,7 @@ public:
 
    /// Returns ElementTransformation for the i'th element.
    ElementTransformation *GetElementTransformation(int i) const
-   { return mesh->GetElementTransformation(i); };
+   { return mesh->GetElementTransformation(i); }
 
    /** Returns the transformation defining the i-th element in the user-defined
        variable. */

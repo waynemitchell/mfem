@@ -12,8 +12,8 @@
 #ifndef MFEM_ISOCKSTREAM
 #define MFEM_ISOCKSTREAM
 
+#include "../config/config.hpp"
 #include <sstream>
-#include "../config.hpp"
 
 namespace mfem
 {
@@ -34,8 +34,8 @@ private:
 
 public:
 
-   /** The constructor takes as input the portnumber port on which
-       it establishes a server. */
+   /** The constructor takes as input the port number on which it
+       establishes a server. */
    explicit isockstream(int port);
 
    bool good() { return (!error); }

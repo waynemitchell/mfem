@@ -12,6 +12,8 @@
 //               ex4 -m ../data/fichera-q3.mesh
 //               ex4 -m ../data/square-disc-nurbs.mesh
 //               ex4 -m ../data/beam-hex-nurbs.mesh
+//               ex4 -m ../data/periodic-square.mesh -no-bc
+//               ex4 -m ../data/periodic-cube.mesh -no-bc
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -27,9 +29,9 @@
 //
 //               We recommend viewing examples 1-3 before viewing this example.
 
+#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "mfem.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -43,6 +45,7 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
+   bool set_bc = true;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -50,6 +53,8 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&set_bc, "-bc", "--impose-bc", "-no-bc", "--dont-impose-bc",
+                  "Impose or not essential boundary conditions.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -62,8 +67,8 @@ int main(int argc, char *argv[])
    args.PrintOptions(cout);
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
-   //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
-   //    the same code.
+   //    quadrilateral, tetrahedral, hexahedral, surface and volume, as well as
+   //    periodic meshes with the same code.
    Mesh *mesh;
    ifstream imesh(mesh_file);
    if (!imesh)
@@ -123,9 +128,12 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
    a->Assemble();
-   Array<int> ess_bdr(mesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   if (set_bc && mesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(mesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      a->EliminateEssentialBC(ess_bdr, x, *b);
+   }
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 

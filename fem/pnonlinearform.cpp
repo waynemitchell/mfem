@@ -9,7 +9,7 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -62,6 +62,15 @@ void ParNonlinearForm::Mult(const Vector &x, Vector &y) const
    ParFESpace()->GroupComm().Reduce<double>(Y, GroupCommunicator::Sum);
 
    Y.GetTrueDofs(y);
+}
+
+const SparseMatrix &ParNonlinearForm::GetLocalGradient(const Vector &x) const
+{
+   X.Distribute(&x);
+
+   NonlinearForm::GetGradient(X); // (re)assemble Grad
+
+   return *Grad;
 }
 
 Operator &ParNonlinearForm::GetGradient(const Vector &x) const

@@ -12,17 +12,17 @@
 #ifndef MFEM_GRIDFUNC
 #define MFEM_GRIDFUNC
 
+#include "../config/config.hpp"
+#include "fespace.hpp"
+#include "coefficient.hpp"
 #include <limits>
 #include <ostream>
 #include <string>
-#include "../config.hpp"
-#include "fespace.hpp"
-#include "coefficient.hpp"
 
 namespace mfem
 {
 
-/// Class for grid function - Vector with asociated FE space.
+/// Class for grid function - Vector with associated FE space.
 class GridFunction : public Vector
 {
 protected:

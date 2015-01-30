@@ -12,36 +12,30 @@
 #ifndef MFEM_TIC_TOC
 #define MFEM_TIC_TOC
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
-#ifndef MFEM_USE_POSIX_CLOCKS
-#include <sys/times.h>
+#ifndef MFEM_TIMER_TYPE
+#ifndef _WIN32
+#define MFEM_TIMER_TYPE 0
 #else
-#include <ctime>
-#if (!defined(CLOCK_MONOTONIC) || !defined(CLOCK_PROCESS_CPUTIME_ID))
-#error "CLOCK_MONOTONIC and CLOCK_PROCESS_CPUTIME_ID not defined in <time.h>"
+#define MFEM_TIMER_TYPE 3
 #endif
 #endif
 
 namespace mfem
 {
 
+namespace internal
+{
+class StopWatch;
+}
+
 /// Timing object
 class StopWatch
 {
 private:
-#ifndef MFEM_USE_POSIX_CLOCKS
-   clock_t real_time, user_time, syst_time;
-   clock_t start_rtime, start_utime, start_stime;
-   long my_CLK_TCK;
-   void Current(clock_t *, clock_t *, clock_t *);
-#else
-   struct timespec real_time, user_time;
-   struct timespec start_rtime, start_utime;
-   inline void GetRealTime(struct timespec &tp);
-   inline void GetUserTime(struct timespec &tp);
-#endif
-   short Running;
+   internal::StopWatch *M;
+
 public:
    StopWatch();
    void Clear();
@@ -51,6 +45,7 @@ public:
    double RealTime();
    double UserTime();
    double SystTime();
+   ~StopWatch();
 };
 
 

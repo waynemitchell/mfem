@@ -12,7 +12,7 @@
 #ifndef MFEM_SOLVERS
 #define MFEM_SOLVERS
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "operator.hpp"
 
 #ifdef MFEM_USE_MPI
@@ -262,6 +262,9 @@ public:
 #ifdef MFEM_USE_MPI
    NewtonSolver(MPI_Comm _comm) : IterativeSolver(_comm) { }
 #endif
+   virtual void SetOperator(const Operator &op);
+
+   void SetSolver(Solver &solver) { prec = &solver; }
 
    virtual void Mult(const Vector &b, Vector &x) const;
 };

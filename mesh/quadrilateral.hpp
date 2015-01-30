@@ -12,7 +12,7 @@
 #ifndef MFEM_QUADRILATERAL
 #define MFEM_QUADRILATERAL
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "element.hpp"
 
 namespace mfem

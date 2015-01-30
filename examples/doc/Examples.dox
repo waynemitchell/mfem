@@ -32,15 +32,17 @@ or comments</a></em>.
    <label><input type="radio" id="maxwell" onchange="update(this.id);" />Definite Maxwell</label><br/>
    <label><input type="radio" id="graddiv" onchange="update(this.id);" />grad-div</label><br/>
    <label><input type="radio" id="darcy" onchange="update(this.id);" />Darcy</label><br/>
+   <label><input type="radio" id="advection" onchange="update(this.id);" />Advection</label><br/>
 </div>
 
 <div id="column2" style="float:left; width:26%;">
    <h4>Finite Elements</h4>
    <label><input type="radio" id="all2" onchange="update(this.id);" checked="checked" />All</label><br/>
-   <label><input type="radio" id="l2" onchange="update(this.id);" />L2 discontinuous elements</label><br/>
-   <label><input type="radio" id="h1" onchange="update(this.id);" />H1 nodal elements</label><br/>
-   <label><input type="radio" id="hcurl" onchange="update(this.id);" />H(curl) Nedelec elements</label><br/>
-   <label><input type="radio" id="hdiv" onchange="update(this.id);" />H(div) Raviart-Thomas elements</label><br/>
+   <label><input type="radio" id="l2" onchange="update(this.id);" /><img src="L2.png", style="vertical-align:text-bottom;"> discontinuous elements</label><br/>
+   <label><input type="radio" id="h1" onchange="update(this.id);" /><img src="H1.png", style="vertical-align:text-bottom;"> nodal elements</label><br/>
+   <label><input type="radio" id="hcurl" onchange="update(this.id);" /><img src="Hcurl.png", style="vertical-align:text-bottom;"> Nedelec elements</label><br/>
+   <label><input type="radio" id="hdiv" onchange="update(this.id);" /><img src="Hdiv.png", style="vertical-align:text-bottom;"> Raviart-Thomas elements</label><br/>
+   <label><input type="radio" id="h12" onchange="update(this.id);" /><img src="H12.png", style="vertical-align:text-bottom;"> interfacial elements</label><br/>
 </div>
 
 <div id="column3" style="float:left; width:29%">
@@ -55,7 +57,7 @@ or comments</a></em>.
 </div>
 
 <div id="column4" style="float:left; width:29%">
-   <h4>Linear Solver</h4>
+   <h4>Solver</h4>
    <label><input type="radio" id="all4" onchange="update(this.id);" checked="checked" />All</label><br/>
    <label><input type="radio" id="jacobi" onchange="update(this.id);" />Jacobi</label> <br/>
    <label><input type="radio" id="gs" onchange="update(this.id);" />Gauss-Seidel</label> <br/>
@@ -65,7 +67,9 @@ or comments</a></em>.
    <label><input type="radio" id="ams" onchange="update(this.id);" />Auxiliary-space Maxwell Solver (AMS)</label> <br/>
    <label><input type="radio" id="ads" onchange="update(this.id);" />Auxiliary-space Divergence Solver (ADS)</label> <br/>
    <label><input type="radio" id="umfpack" onchange="update(this.id);" />UMFPACK (serial direct)</label><br/>
-   <br/>
+   <label><input type="radio" id="newton" onchange="update(this.id);" />Newton method (nonlinear solver)</label><br/>
+   <label><input type="radio" id="rk" onchange="update(this.id);" />Explicit Runge-Kutta (ODE integration)</label><br/>
+   <label><input type="radio" id="sdirk" onchange="update(this.id);" />Implicit Runge-Kutta (ODE integration)</label><br/>
 </div>
 </div>
 \endhtmlonly
@@ -73,7 +77,7 @@ or comments</a></em>.
 <!----------------------------------------------------------------------------->
 <div id="ex1">
 \htmlonly <hr style="clear:both;"/><img src="ex1.png" style="float:right;"> \endhtmlonly
-<h2>Example 1</h2>
+<h2>Example 1: Laplace Problem</h2>
 
 This example code demonstrates the use of MFEM to define a
 simple isoparametric finite element discretization of the
@@ -97,7 +101,7 @@ connection to the <a href="http://glvis.googlecode.com">GLVis</a> tool for visua
 <!----------------------------------------------------------------------------->
 <div id="ex2">
 \htmlonly <hr style="clear:both;"/><img src="ex2.png" style="float:right;"> \endhtmlonly
-<h2>Example 2</h2>
+<h2>Example 2: Linear Elasticity</h2>
 
 This example code solves a simple linear elasticity problem
 describing a multi-material cantilever beam.
@@ -105,13 +109,13 @@ Specifically, we approximate the weak form of
 \f[ -{\rm div}({\sigma}({\bf u})) = 0 \f]
 where
 \f[ {\sigma}({\bf u}) = \lambda\, {\rm div}({\bf u})\,I + \mu\,(\nabla{\bf u} + \nabla{\bf u}^T) \f]
-is the stress tensor corresponding to displacement field u, and lambda and mu
+is the stress tensor corresponding to displacement field \f${\bf u}\f$, and \f$\lambda\f$ and \f$\mu\f$
 are the material Lame constants. The boundary conditions are
 \f${\bf u}=0\f$ on the fixed part of the boundary with attribute 1, and
 \f${\sigma}({\bf u})\cdot n = f\f$ on the remainder with \f$f\f$ being
 a constant pull down vector on boundary elements with attribute 2, and zero
 otherwise. The geometry of the domain is assumed to be as follows:
-<img src="ex2-domain.png" >
+<img src="ex2-domain.png">
 The example demonstrates the use of high-order and NURBS vector
 finite element spaces with the linear elasticity bilinear form,
 meshes with curved elements, and the definition of piece-wise
@@ -125,16 +129,19 @@ We recommend viewing Example 1 before viewing this example. </em>
 <!----------------------------------------------------------------------------->
 <div id="ex3">
 \htmlonly <hr style="clear:both;"/><img src="ex3.png" style="float:right;"> \endhtmlonly
-<h2>Example 3</h2>
+<h2>Example 3: Definite Maxwell Problem</h2>
+
 This example code solves a simple 3D electromagnetic diffusion
 problem corresponding to the second order definite Maxwell
 equation
 \f[ {\rm curl\, curl}\, E + E = f \f]
 with boundary condition \f$ E \times n \f$ = "given tangential field".
-Here, we use a given exact solution E and compute the corresponding r.h.s.
+Here, we use a given exact solution \f$E\f$ and compute the corresponding r.h.s.
 \f$f\f$. We discretize with Nedelec finite elements.
 <p>
-The example demonstrates the use of H(curl) finite element
+The example demonstrates the use of
+\htmlonly<img src="Hcurl.png", style="vertical-align:text-bottom;"> \endhtmlonly
+finite element
 spaces with the curl-curl and the (vector finite element) mass
 bilinear form, as well as the computation of discretization
 error when the exact solution is known.
@@ -147,18 +154,22 @@ We recommend viewing examples 1-2 before viewing this example.</em>
 <!----------------------------------------------------------------------------->
 <div id="ex4">
 \htmlonly <hr style="clear:both;"/><img src="ex4.png" style="float:right;"> \endhtmlonly
-<h2>Example 4</h2>
-This example code solves a simple 2D/3D H(div) diffusion
-problem corresponding to the second order definite equation
+<h2>Example 4: grad-div Problem</h2>
+
+This example code solves a simple 2D/3D
+\htmlonly<img src="Hdiv.png", style="vertical-align:text-bottom;"> \endhtmlonly
+diffusion problem corresponding to the second order definite equation
 \f[ -{\rm grad}(\alpha\,{\rm div}(F)) + \beta F = f \f]
 with boundary condition \f$F \cdot n\f$ = "given normal field".
 Here, we use a given exact solution \f$F\f$
 and compute the corresponding r.h.s. \f$f\f$.  We discretize with the
 Raviart-Thomas finite elements.
 <p>
-The example demonstrates the use of H(div) finite element
-spaces with the grad-div and H(div) vector finite element mass
-bilinear form, as well as the computation of discretization
+The example demonstrates the use of
+\htmlonly<img src="Hdiv.png", style="vertical-align:text-bottom;"> \endhtmlonly
+finite element spaces with the grad-div and
+\htmlonly<img src="Hdiv.png", style="vertical-align:text-bottom;"> \endhtmlonly
+vector finite element mass bilinear form, as well as the computation of discretization
 error when the exact solution is known.
 <center>
 <em>The example has a serial (ex4.cpp) and a parallel (ex4p.cpp) version.
@@ -169,12 +180,13 @@ We recommend viewing examples 1-3 before viewing this example.</em>
 <!----------------------------------------------------------------------------->
 <div id="ex5">
 \htmlonly <hr style="clear:both;"/><img src="ex5.png" style="float:right;"> \endhtmlonly
-<h2>Example 5</h2>
+<h2>Example 5: Darcy Problem</h2>
+
 This example code solves a simple 2D/3D mixed Darcy problem
 corresponding to the saddle point system
 \f[ \begin{array}{rcl}
-   k\,u + {\rm grad}\,p &=& f\\
-   -{\rm div}\,u &=& g,
+   k\,{\bf u} + {\rm grad}\,p &=& f\\
+   -{\rm div}\,{\bf u} &=& g
 \end{array} \f]
 with natural boundary condition \f$-p\f$ = "given pressure".
 Here, we use a given exact solution \f$({\bf u},p)\f$ and compute the
@@ -183,7 +195,8 @@ finite elements (velocity \f$\bf u\f$) and piecewise discontinuous
 polynomials (pressure \f$p\f$).
 <p>
 The example demonstrates the use of the BlockMatrix and BlockOperator
-classes.
+classes, as well as the collective saving of several grid functions in
+a <a href="http://visit.llnl.gov">VisIt</a> visualization format.
 <center>
 <em>The example has a serial (ex5.cpp) and a parallel (ex5p.cpp) version.
 We recommend viewing examples 1-4 before viewing this example.</em>
@@ -193,7 +206,7 @@ We recommend viewing examples 1-4 before viewing this example.</em>
 <!----------------------------------------------------------------------------->
 <div id="ex6">
 \htmlonly <hr style="clear:both;"/><img src="ex6.png" style="float:right;"> \endhtmlonly
-<h2>Example 6</h2>
+<h2>Example 6: Laplace Problem with AMR</h2>
 
 This is a version of Example 1 with a simple adaptive mesh
 refinement loop. The problem being solved is again the Laplace
@@ -217,7 +230,7 @@ We recommend viewing Example 1 before viewing this example. </em>
 <!----------------------------------------------------------------------------->
 <div id="ex7">
 \htmlonly <hr style="clear:both;"/><img src="ex7.png" style="float:right;"> \endhtmlonly
-<h2>Example 7</h2>
+<h2>Example 7: Surface Meshes</h2>
 
 This example code demonstrates the use of MFEM to define a
 triangulation of a unit sphere and a simple isoparametric
@@ -238,7 +251,7 @@ We recommend viewing Example 1 before viewing this example.</em>
 <!----------------------------------------------------------------------------->
 <div id="ex8">
 \htmlonly <hr style="clear:both;"/><img src="ex8.png" style="float:right;"> \endhtmlonly
-<h2>Example 8</h2>
+<h2>Example 8: DPG for the Laplace Problem</h2>
 
 This example code demonstrates the use of the Discontinuous
 Petrov-Galerkin (DPG) method in its primal 2x2 block form as a
@@ -254,6 +267,49 @@ of block operators and preconditioners.
 <center>
 <em>The example has a serial (ex8.cpp) and a parallel (ex8p.cpp) version.
 We recommend viewing examples 1-5 before viewing this example.</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
+<div id="ex9">
+\htmlonly <hr style="clear:both;"/><img src="ex9.png" style="float:right;"> \endhtmlonly
+<h2>Example 9: DG Advection</h2>
+
+This example code solves the time-dependent advection equation
+\f[ \frac{du}{dt} = v \cdot \nabla u, \f] where \f$v\f$ is a given fluid
+velocity, and \f$u_0(x)=u(0,x)\f$ is a given initial condition.
+<p>
+The example demonstrates the use of Discontinuous Galerkin (DG) bilinear forms
+in MFEM (face integrators), the use of explicit ODE time integrators, the
+definition of periodic boundary conditions through periodic meshes, as well as
+the use of <a href="http://glvis.googlecode.com">GLVis</a> for persistent
+visualization of a time-evolving solution. The saving of time-dependent data
+files for external visualization with <a href="http://visit.llnl.gov">VisIt</a>
+is also illustrated.
+<center>
+<em>The example has a serial (ex9.cpp) and a parallel (ex9p.cpp) version.</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
+<div id="ex10">
+\htmlonly <hr style="clear:both;"/><img src="ex10.png" style="float:right;"> \endhtmlonly
+<h2>Example 10: Nonlinear Elasticity</h2>
+
+This examples solves a time dependent nonlinear elasticity problem of the form
+\f[ \frac{dv}{dt} = H(x) + S v\,,\qquad \frac{dx}{dt} = v\,, \f]
+where \f$H\f$ is a hyperelastic model and \f$S\f$ is a viscosity operator of
+Laplacian type. The geometry of the domain is assumed to be as follows:
+<img src="ex10-domain.png">
+<p>
+The example demonstrates the use of nonlinear operators, as well as their
+implicit time integration using a Newton method for solving an associated
+reduced backward-Euler type nonlinear equation. Each Newton step requires the
+inversion of a Jacobian matrix, which is done through a (preconditioned) inner
+solver.
+<center>
+<em>The example has a serial (ex10.cpp) and a parallel (ex10p.cpp) version.
+We recommend viewing examples 2 and 9 before viewing this example.</em>
 </center>
 </div>
 
@@ -315,10 +371,10 @@ function exampleVisible(num)
 
 function update(id)
 {
-   var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy"];
-   var group2 = ["all2", "l2", "h1", "hcurl", "hdiv"];
+   var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy", "advection"];
+   var group2 = ["all2", "l2", "h1", "hcurl", "hdiv", "h12"];
    var group3 = ["all3", "galerkin", "mixed", "dg", "dpg", "nurbs", "amr" ];
-   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack"];
+   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack", "newton", "rk", "sdirk"];
 
    updateGroup(group1, id);
    updateGroup(group2, id);
@@ -332,10 +388,12 @@ function update(id)
    showElement("ex5",  darcy && (l2 || hdiv) && mixed && (gs || jacobi || minres || umfpack || amg ));
    showElement("ex6",  laplace && h1 && (galerkin || nurbs || amr) && (gs || pcg || umfpack));
    showElement("ex7",  laplace && h1 && galerkin && (gs || pcg || umfpack || amg));
-   showElement("ex8",  laplace && h1 && dpg && (gs || pcg || umfpack || amg));
+   showElement("ex8",  laplace && (l2 || h1 || h12) && dpg && (gs || pcg || umfpack || amg));
+   showElement("ex9",  advection && l2 && dg && (pcg || rk));
+   showElement("ex10", elasticity && (l2 || h1) && galerkin && (jacobi || pcg || minres || umfpack || newton || rk || sdirk));
 
    // NOTE: update 'numExamples' below when adding examples!
-   var numExamples = 8;
+   var numExamples = 10;
    var allHidden = true;
    for (i = 1; i <= numExamples; i++) {
       if (exampleVisible(i)) {
