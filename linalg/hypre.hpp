@@ -112,6 +112,9 @@ private:
    /// Auxiliary vectors for typecasting
    mutable HypreParVector *X, *Y;
 
+   /// Flag indicating this class owns the data array in A->diag
+   bool diagDataOwner;
+
 public:
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a) : A(a)

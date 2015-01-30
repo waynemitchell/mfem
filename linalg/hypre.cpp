@@ -331,11 +331,12 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
    hypre_ParCSRMatrixSetColStartsOwner(A,0);
 
-   hypre_CSRMatrixSetDataOwner(A->diag,1);
+   hypre_CSRMatrixSetDataOwner(A->diag,0);
    hypre_CSRMatrixI(A->diag)    = diag->GetI();
    hypre_CSRMatrixJ(A->diag)    = diag->GetJ();
 
-   hypre_CSRMatrixData(A->diag) = hypre_TAlloc(double, nnz);
+   diagDataOwner = true;
+   hypre_CSRMatrixData(A->diag) = new double[nnz];
    for (int k = 0; k < nnz; k++)
       (hypre_CSRMatrixData(A->diag))[k] = 1.0;
 
@@ -742,6 +743,8 @@ HypreParMatrix::~HypreParMatrix()
       }
       else
       {
+	 if (diagDataOwner)
+	    delete [] hypre_CSRMatrixData(A->diag);
          if (hypre_CSRMatrixRownnz(A->diag))
             hypre_TFree(hypre_CSRMatrixRownnz(A->diag));
          hypre_TFree(A->diag);
