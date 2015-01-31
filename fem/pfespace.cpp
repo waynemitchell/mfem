@@ -57,7 +57,10 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    P = NULL;
 
    if (pmesh->pncmesh)
+   {
+      gcomm = NULL;
       return;
+   }
 
    if (NURBSext)
    {
@@ -429,6 +432,12 @@ void ParFiniteElementSpace::Synchronize(Array<int> &ldof_marker) const
 {
    if (ldof_marker.Size() != GetVSize())
       mfem_error("ParFiniteElementSpace::Synchronize");
+
+   if (pmesh->pncmesh)
+   {
+      std::cout << "FIXME!!! ParFiniteElementSpace::Synchronize for PNCMesh.\n";
+      return;
+   }
 
    // implement allreduce(|) as reduce(|) + broadcast
    gcomm->Reduce<int>(ldof_marker, GroupCommunicator::BitOR);
@@ -823,8 +832,14 @@ inline int DecodeDof(int dof, double& sign)
       return (sign = -1.0, -1 - dof);
 }
 
-static void AddSlaveDependencies(Dependency::List deps[], int master_rank,
-   Array<int>& master_dofs, Array<int>& slave_dofs, DenseMatrix& I)
+inline bool Is1To1(const Dependency::List &list)
+{
+   return !list.Size() || (list.Size() == 1 && std::abs(list[0].coef) == 1.0);
+}
+
+static void AddSlaveDependencies(Dependency::List deps[],
+   int master_rank, Array<int>& master_dofs,
+   int slave_rank, Array<int>& slave_dofs, DenseMatrix& I)
 {
    // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
@@ -833,11 +848,8 @@ static void AddSlaveDependencies(Dependency::List deps[], int master_rank,
       int sdof = DecodeDof(slave_dofs[i], ssign);
 
       Dependency::List &list = deps[sdof];
-      if (list.Size() <= 1) // slave dependencies override 1-to-1 dependencies
+      if (Is1To1(list)) // slave dependencies override 1-to-1 dependencies
       {
-         if (list.Size() == 1)
-            MFEM_ASSERT(std::abs(list[0].coef) == 1.0, "Invalid 1-to-1 dep.");
-
          list.DeleteAll();
          list.Reserve(master_dofs.Size());
 
@@ -848,7 +860,7 @@ static void AddSlaveDependencies(Dependency::List deps[], int master_rank,
             {
                double msign;
                int mdof = DecodeDof(master_dofs[j], msign);
-               if (mdof != sdof)
+               if (mdof != sdof || master_rank != slave_rank)
                  list.Append(Dependency(master_rank, mdof, coef*ssign*msign));
             }
          }
@@ -867,7 +879,7 @@ static void Add1To1Dependencies(Dependency::List deps[], int owner_rank,
       int ddof = DecodeDof(dependent_dofs[i], dsign);
 
       Dependency::List &list = deps[ddof];
-      if (list.Size() <= 1) // don't touch existing slave dependencies
+      if (Is1To1(list)) // don't touch existing slave dependencies
       {
          if (list.Size() == 0)
          {
@@ -989,7 +1001,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
          {
             const NCMesh::Slave &sf = list.slaves[si];
-            if (pncmesh->GetOwner(type, sf.index) != MyRank) continue;
+            int slave_rank = pncmesh->GetOwner(type, sf.index);
+            if (slave_rank != MyRank) continue;
 
             GetConformingDofs(type, sf.index, slave_dofs);
             if (!slave_dofs.Size()) continue;
@@ -998,7 +1011,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             fe->GetLocalInterpolation(T, I);
 
             // make each slave DOF dependent on all master DOFs
-            AddSlaveDependencies(deps, master_rank, master_dofs, slave_dofs, I);
+            AddSlaveDependencies(deps, master_rank, master_dofs,
+                                 slave_rank, slave_dofs, I);
          }
       }
    }
@@ -1011,7 +1025,12 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       {
          const NCMesh::MeshId &id = list.conforming[i];
          int owner = pncmesh->GetOwner(type, id.index);
-         if (owner != MyRank)
+         if (owner == MyRank)
+         {
+            GetConformingDofs(type, id.index, my_dofs);
+            Add1To1Dependencies(deps, owner, my_dofs, my_dofs);
+         }
+         else
          {
             recv_dofs[owner].GetDofs(type, id, owner_dofs);
             GetConformingDofs(type, id.index, my_dofs);
@@ -1093,8 +1112,10 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          for (i = 0; i < list.Size(); i++)
          {
             const Dependency &dep = list[i];
-            if ((dep.rank == MyRank && !finalized[dep.dof]) ||
-                !recv_replies[dep.rank].HaveRow(dep.dof)) break;
+            if (dep.rank == MyRank)
+               { if (!finalized[dep.dof]) break; }
+            else
+               if (!recv_replies[dep.rank].HaveRow(dep.dof)) break;
          }
          if (i < list.Size()) continue;
 
@@ -1151,6 +1172,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    delete [] deps;
    localP.Finalize();
+
+   std::cout << "MyRank = " << MyRank << std::endl;
+   localP.Print();
 
    // create the parallel matrix P
    P = new HypreParMatrix(MyComm, num_cdofs, glob_cdofs, glob_true_dofs,

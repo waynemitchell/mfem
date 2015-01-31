@@ -2391,8 +2391,28 @@ void ParMesh::PrintXG(std::ostream &out) const
 void ParMesh::Print(std::ostream &out) const
 {
    int i, j, shared_bdr_attr;
-   const Array<int> &s2l_face = ((Dim == 1) ? svert_lvert :
-                                 ((Dim == 2) ? sedge_ledge : sface_lface));
+   Array<int> nc_shared_faces;
+
+   const Array<int>* s2l_face;
+   if (!pncmesh)
+   {
+      s2l_face = ((Dim == 1) ? &svert_lvert :
+                  ((Dim == 2) ? &sedge_ledge : &sface_lface));
+   }
+   else
+   {
+      s2l_face = &nc_shared_faces;
+      if (Dim > 2)
+      {
+         const NCMesh::NCList& sfaces = pncmesh->GetSharedFaces();
+         for (int i = 0; i < sfaces.conforming.size(); i++)
+         {
+            int index = sfaces.conforming[i].index;
+            if (index < GetNFaces())
+               nc_shared_faces.Append(index);
+         }
+      }
+   }
 
    if (NURBSext)
    {
@@ -2419,7 +2439,7 @@ void ParMesh::Print(std::ostream &out) const
       PrintElement(elements[i], out);
 
    out << "\nboundary\n" << NumOfBdrElements +
-      ((Dim > 1) ? s2l_face.Size() : 0) << '\n';
+      ((Dim > 1) ? s2l_face->Size() : 0) << '\n';
    for (i = 0; i < NumOfBdrElements; i++)
       PrintElement(boundary[i], out);
 
@@ -2429,11 +2449,12 @@ void ParMesh::Print(std::ostream &out) const
          shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
       else
          shared_bdr_attr = MyRank + 1;
-      for (i = 0; i < s2l_face.Size(); i++)
+
+      for (i = 0; i < s2l_face->Size(); i++)
       {
          // Modify the attrributes of the faces (not used otherwise?)
-         faces[s2l_face[i]]->SetAttribute(shared_bdr_attr);
-         PrintElement(faces[s2l_face[i]], out);
+         faces[(*s2l_face)[i]]->SetAttribute(shared_bdr_attr);
+         PrintElement(faces[(*s2l_face)[i]], out);
       }
    }
    out << "\nvertices\n" << NumOfVertices << '\n';

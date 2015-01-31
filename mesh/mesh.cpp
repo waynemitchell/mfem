@@ -5820,13 +5820,16 @@ void Mesh::UniformRefinement()
 {
    if (NURBSext)
       NURBSUniformRefinement();
-   else if (meshgen == 1)
+   else if (meshgen == 1 || ncmesh)
    {
       Array<int> elem_to_refine(GetNE());
-
       for (int i = 0; i < elem_to_refine.Size(); i++)
          elem_to_refine[i] = i;
-      LocalRefinement(elem_to_refine);
+
+      if (!ncmesh)
+         LocalRefinement(elem_to_refine);
+      else
+         GeneralRefinement(elem_to_refine, 1);
    }
    else if (Dim == 2)
       QuadUniformRefinement();

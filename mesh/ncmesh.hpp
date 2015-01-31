@@ -414,6 +414,8 @@ protected: // implementation
    virtual void ElementSharesEdge(Element* elem, Edge* edge) {}
    virtual void ElementSharesFace(Element* elem, Face* face) {}
 
+   /*virtual bool IsSharedEdge(int index) { return false; }
+   virtual bool IsSharedFace(int index) { return false; }*/
 
    // coarse to fine transformations
 

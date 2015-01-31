@@ -45,6 +45,14 @@ int main (int argc, char *argv[])
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
+   /*if (myid == 0)
+   {
+      volatile int wait = 1;
+      cout << "pid " << getpid() << " waiting" << endl;
+      while (wait) ;
+   }
+   MPI_Barrier(MPI_COMM_WORLD);*/
+
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
@@ -90,11 +98,23 @@ int main (int argc, char *argv[])
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 10,000 elements.
-   {
+   /*{
       int ref_levels =
          (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
+   }*/
+   {
+      Array<Refinement> refs;
+      refs.Append(Refinement(0, 1));
+      mesh->GeneralRefinement(refs, 1);
+   }
+   /*mesh->UniformRefinement();
+   mesh->UniformRefinement();*/
+   {
+      Array<Refinement> refs;
+      refs.Append(Refinement(0, 2));
+      mesh->GeneralRefinement(refs, 1);
    }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -102,11 +122,11 @@ int main (int argc, char *argv[])
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-   {
+   /*{
       int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
          pmesh->UniformRefinement();
-   }
+   }*/
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
