@@ -177,7 +177,7 @@ double InnerProduct(HypreParVector &x, HypreParVector &y)
 
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int glob_size, int *row_starts,
                                SparseMatrix *diag)
-   : Operator(diag->Height(), diag->Width())
+   : Operator(diag->Height(), diag->Width()), diagDataOwner(false)
 {
    A = hypre_ParCSRMatrixCreate(comm, glob_size, glob_size, row_starts,
                                 row_starts, 0, diag->NumNonZeroElems(), 0);
@@ -215,7 +215,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
                                int global_num_rows, int global_num_cols,
                                int *row_starts, int *col_starts,
                                SparseMatrix *diag)
-   : Operator(diag->Height(), diag->Width())
+   : Operator(diag->Height(), diag->Width()), diagDataOwner(false)
 {
    A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
                                 row_starts, col_starts,
@@ -250,7 +250,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
                                int *row_starts, int *col_starts,
                                SparseMatrix *diag, SparseMatrix *offd,
                                int *cmap)
-   : Operator(diag->Height(), diag->Width())
+   : Operator(diag->Height(), diag->Width()), diagDataOwner(false)
 {
    A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
                                 row_starts, col_starts,
@@ -288,6 +288,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
 
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
                                SparseMatrix *sm_a)
+  : diagDataOwner(false)
 {
 #ifdef MFEM_DEBUG
    if (sm_a == NULL)
@@ -323,6 +324,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
 HypreParMatrix::HypreParMatrix(MPI_Comm comm,
                                int global_num_rows, int global_num_cols,
                                int *row_starts, int *col_starts, Table *diag)
+  : diagDataOwner(false)
 {
    int nnz = diag->Size_of_connections();
    A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
@@ -365,6 +367,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
                                int *i_diag, int *j_diag,
                                int *i_offd, int *j_offd,
                                int *cmap, int cmap_size)
+  : diagDataOwner(false)
 {
    int diag_col, offd_col;
 
@@ -431,6 +434,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
                                int glob_ncols, int *I, int *J, double *data,
                                int *rows, int *cols)
+  : diagDataOwner(false)
 {
    // construct the local CSR matrix
    int nnz = I[nrows];
@@ -767,8 +771,8 @@ HypreParMatrix::~HypreParMatrix()
       hypre_ParCSRMatrixDestroy(A);
    }
 
-   delete X;
-   delete Y;
+   if ( X != NULL ) delete X;
+   if ( Y != NULL ) delete Y;
 }
 
 HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B)
