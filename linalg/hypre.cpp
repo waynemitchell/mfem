@@ -288,7 +288,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
 
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
                                SparseMatrix *sm_a)
-  : diagDataOwner(false)
+   : diagDataOwner(false)
 {
 #ifdef MFEM_DEBUG
    if (sm_a == NULL)
@@ -324,7 +324,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
 HypreParMatrix::HypreParMatrix(MPI_Comm comm,
                                int global_num_rows, int global_num_cols,
                                int *row_starts, int *col_starts, Table *diag)
-  : diagDataOwner(false)
+   : diagDataOwner(false)
 {
    int nnz = diag->Size_of_connections();
    A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
@@ -367,7 +367,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
                                int *i_diag, int *j_diag,
                                int *i_offd, int *j_offd,
                                int *cmap, int cmap_size)
-  : diagDataOwner(false)
+   : diagDataOwner(false)
 {
    int diag_col, offd_col;
 
@@ -434,7 +434,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
                                int glob_ncols, int *I, int *J, double *data,
                                int *rows, int *cols)
-  : diagDataOwner(false)
+   : diagDataOwner(false)
 {
    // construct the local CSR matrix
    int nnz = I[nrows];
@@ -750,8 +750,8 @@ HypreParMatrix::~HypreParMatrix()
       }
       else
       {
-	 if (diagDataOwner)
-	    delete [] hypre_CSRMatrixData(A->diag);
+         if (diagDataOwner)
+            delete [] hypre_CSRMatrixData(A->diag);
          if (hypre_CSRMatrixRownnz(A->diag))
             hypre_TFree(hypre_CSRMatrixRownnz(A->diag));
          hypre_TFree(A->diag);
