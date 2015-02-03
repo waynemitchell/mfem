@@ -23,6 +23,36 @@ using namespace std;
 namespace mfem
 {
 
+ParMesh::ParMesh(const ParMesh &pmesh)
+   : Mesh(pmesh),
+     group_svert(pmesh.group_svert),
+     group_sedge(pmesh.group_sedge),
+     group_sface(pmesh.group_sface),
+     gtopo(pmesh.GetComm())
+{
+   MyComm = pmesh.MyComm;
+   NRanks = pmesh.NRanks;
+   MyRank = pmesh.MyRank;
+
+   // Duplicate the shared_edges
+   shared_edges.SetSize(pmesh.shared_edges.Size());
+   for (int i = 0; i < shared_edges.Size(); i++)
+      shared_edges[i] = pmesh.shared_edges[i]->Duplicate(this);
+
+   // Duplicate the shared_faces
+   shared_faces.SetSize(pmesh.shared_faces.Size());
+   for (int i = 0; i < shared_faces.Size(); i++)
+      shared_faces[i] = pmesh.shared_faces[i]->Duplicate(this);
+
+   // Copy the shared-to-local index Arrays
+   pmesh.svert_lvert.Copy(svert_lvert);
+   pmesh.sedge_ledge.Copy(sedge_ledge);
+   pmesh.sface_lface.Copy(sface_lface);
+
+   // Do not copy face-neighbor data (can be generated if needed)
+   have_face_nbr_data = false;
+}
+
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                  int part_method)
    : gtopo(comm)

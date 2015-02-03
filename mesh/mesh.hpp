@@ -118,8 +118,9 @@ protected:
 
    void DeleteTables();
 
-   /** Delete the 'el_to_el', 'face_edge' and 'edge_vertex' tables.
-       Usefull in refinement methods to destroy the coarse tables. */
+   /** Delete the 'el_to_el', 'face_edge' and 'edge_vertex' tables, and the
+       coarse non-conforming Mesh 'nc_coarse_level'. Usefull in refinement
+       methods to destroy these data members. */
    void DeleteCoarseTables();
 
    Element *ReadElementWithoutAttr(std::istream &);
@@ -308,6 +309,12 @@ public:
    NCMesh *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
+
+   /** Copy constructor. Performs a deep copy of (almost) all data, so that the
+       source mesh can be modified (e.g. deleted, refined) without affecting the
+       new mesh. The source mesh has to be in a NORMAL, i.e. not TWO_LEVEL_*,
+       state. */
+   explicit Mesh(const Mesh &mesh);
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {

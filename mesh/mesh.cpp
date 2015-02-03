@@ -1660,6 +1660,113 @@ void Mesh::Make1D(int n, double sx)
    bdr_attributes.Append(1); bdr_attributes.Append(2);
 }
 
+Mesh::Mesh(const Mesh &mesh)
+{
+   Dim = mesh.Dim;
+   spaceDim = mesh.spaceDim;
+   NumOfVertices = mesh.NumOfVertices;
+   NumOfElements = mesh.NumOfElements;
+   NumOfBdrElements = mesh.NumOfBdrElements;
+   NumOfEdges = mesh.NumOfEdges;
+   NumOfFaces = mesh.NumOfFaces;
+
+   meshgen = mesh.meshgen;
+
+   // Only allow copy of meshes in NORMAL (not TWO_LEVEL_*) state.
+   MFEM_VERIFY(mesh.State == NORMAL, "source mesh is not in a NORMAL state");
+   State = NORMAL;
+   WantTwoLevelState = mesh.WantTwoLevelState;
+
+   // Duplicate the elements
+   elements.SetSize(NumOfElements);
+   for (int i = 0; i < NumOfElements; i++)
+      elements[i] = mesh.elements[i]->Duplicate(this);
+
+   // Copy the vertices
+   MFEM_ASSERT(mesh.vertices.Size() == NumOfVertices, "internal MFEM error!");
+   mesh.vertices.Copy(vertices);
+
+   // Duplicte the boundary
+   boundary.SetSize(NumOfBdrElements);
+   for (int i = 0; i < NumOfBdrElements; i++)
+      boundary[i] = mesh.boundary[i]->Duplicate(this);
+
+   // Copy the element-to-face Table, el_to_face
+   el_to_face = (mesh.el_to_face) ? new Table(*mesh.el_to_face) : NULL;
+
+   // Copy the boundary-to-face Array, be_to_face.
+   mesh.be_to_face.Copy(be_to_face);
+
+   // Copy the element-to-edge Table, el_to_edge
+   el_to_edge = (mesh.el_to_edge) ? new Table(*mesh.el_to_edge) : NULL;
+
+   // Copy the boudary-to-edge Table, bel_to_edge (3D)
+   bel_to_edge = (mesh.bel_to_edge) ? new Table(*mesh.bel_to_edge) : NULL;
+
+   // Copy the boudary-to-edge Array, be_to_edge (2D)
+   mesh.be_to_edge.Copy(be_to_edge);
+
+   // Duplicate the faces and faces_info.
+   faces.SetSize(mesh.faces.Size());
+   for (int i = 0; i < faces.Size(); i++)
+   {
+      Element *face = mesh.faces[i]; // in 1D the faces are NULL
+      faces[i] = (face) ? face->Duplicate(this) : NULL;
+   }
+   mesh.faces_info.Copy(faces_info);
+
+   // Do NOT copy the element-to-element Table, el_to_el
+   el_to_el = NULL;
+
+   // Do NOT copy the face-to-edge Table, face_edge
+   face_edge = NULL;
+
+   // Copy the edge-to-vertex Table, edge_vertex
+   edge_vertex = (mesh.edge_vertex) ? new Table(*mesh.edge_vertex) : NULL;
+
+   // Do not copy any of the coarse (c_*), fine (f_*) or fine/coarse (fc_*)
+   // data members.
+
+   // Do NOT copy the coarse non-conforming Mesh, 'nc_coarse_level'
+   nc_coarse_level = NULL;
+
+   // Copy the attributes and bdr_attributes
+   mesh.attributes.Copy(attributes);
+   mesh.bdr_attributes.Copy(bdr_attributes);
+
+   // No support for NURBS meshes, yet. Need deep copy for NURBSExtension.
+   MFEM_VERIFY(mesh.NURBSext == NULL,
+               "coping NURBS meshes is not implemented");
+   NURBSext = NULL;
+
+   // No support for non-conforming meshes, yet. Need deep copy for NCMesh.
+   MFEM_VERIFY(mesh.ncmesh == NULL,
+               "coping non-conforming meshes is not implemented");
+   ncmesh = NULL;
+
+   // Duplicate the Nodes, including the FiniteElementCollection and the
+   // FiniteElementSpace
+   if (mesh.Nodes)
+   {
+      FiniteElementSpace *fes = mesh.Nodes->FESpace();
+      const FiniteElementCollection *fec = fes->FEColl();
+      FiniteElementCollection *fec_copy =
+         FiniteElementCollection::New(fec->Name());
+      FiniteElementSpace *fes_copy =
+         new FiniteElementSpace(this, fec_copy, fes->GetVDim(),
+                                fes->GetOrdering());
+      Nodes = new GridFunction(fes_copy);
+      Nodes->MakeOwner(fec_copy);
+      *Nodes = *mesh.Nodes;
+      own_nodes = 1;
+   }
+   else
+   {
+      Nodes = NULL;
+      own_nodes = 0;
+   }
+}
+
 Mesh::Mesh(std::istream &input, int generate_edges, int refine, bool fix_orientation)
 {
    Init();
@@ -3404,6 +3511,8 @@ void Mesh::GetFaceEdges(int i, Array<int> &edges, Array<int> &o) const
    if (Dim != 3)
       return;
 
+   MFEM_ASSERT(State != TWO_LEVEL_COARSE, "internal MFEM error!");
+
    GetFaceEdgeTable(); // generate face_edge Table (if not generated)
 
    face_edge->GetRow(i, edges);
@@ -3420,6 +3529,8 @@ void Mesh::GetFaceEdges(int i, Array<int> &edges, Array<int> &o) const
 
 void Mesh::GetEdgeVertices(int i, Array<int> &vert) const
 {
+   MFEM_ASSERT(State != TWO_LEVEL_COARSE, "internal MFEM error!");
+
    // the two vertices are sorted: vert[0] < vert[1]
    // this is consistent with the global edge orientation
    GetEdgeVertexTable(); // generate edge_vertex Table (if not generated)
