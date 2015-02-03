@@ -39,6 +39,9 @@ public:
    /// Creates an empty table
    Table() { size = -1; I = J = NULL; }
 
+   /// Copy constructor
+   Table(const Table &);
+
    /// Create a table with a fixed number of connections.
    explicit Table (int dim, int connections_per_row = 3);
 
@@ -84,10 +87,10 @@ public:
    const int *GetRow(int i) const { return J+I[i]; }
    int *GetRow(int i) { return J+I[i]; }
 
-   int *GetI() { return I; };
-   int *GetJ() { return J; };
-   const int *GetI() const { return I; };
-   const int *GetJ() const { return J; };
+   int *GetI() { return I; }
+   int *GetJ() { return J; }
+   const int *GetI() const { return I; }
+   const int *GetJ() const { return J; }
 
    void SetIJ(int *newI, int *newJ, int newsize = -1);
 
@@ -124,6 +127,12 @@ public:
    /// Destroys Table.
    ~Table();
 };
+
+/// Specialization of the template function Swap<> for class Table
+template <> inline void Swap<Table>(Table &a, Table &b)
+{
+   a.Swap(b);
+}
 
 ///  Transpose a Table
 void Transpose (const Table &A, Table &At, int _ncols_A = -1);
