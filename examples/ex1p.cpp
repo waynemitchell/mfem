@@ -34,6 +34,8 @@
 #include <iostream>
 #include "mfem.hpp"
 
+#include "HYPRE_sstruct_ls.h"
+
 using namespace std;
 using namespace mfem;
 
@@ -116,6 +118,7 @@ int main (int argc, char *argv[])
       refs.Append(Refinement(0, 2));
       mesh->GeneralRefinement(refs, 1);
    }
+   //mesh->UniformRefinement();
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -166,9 +169,9 @@ int main (int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+/*   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   a->EliminateEssentialBC(ess_bdr, x, *b);*/
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
@@ -179,6 +182,32 @@ int main (int argc, char *argv[])
 
    delete a;
    delete b;
+
+   // Eliminate essential BC from the parallel matrix...
+   {
+      Array<int> ess_attr(pmesh->bdr_attributes.Max()), ess_dofs;
+      ess_attr = 1;
+      fespace->GetEssentialVDofs(ess_attr, ess_dofs);
+
+      HypreParMatrix* P = fespace->Dof_TrueDof_Matrix();
+      HypreParVector mark(*P, 1);
+      MFEM_ASSERT(mark.Size() == ess_dofs.Size(), "");
+      for (int i = 0; i < mark.Size(); i++)
+         mark(i) = (ess_dofs[i] < 0) ? 1 : 0;
+
+      HypreParVector true_mark(*P, 0);
+      P->MultTranspose(mark, true_mark);
+
+      Array<int> elim_rows;
+      for (int i = 0; i < true_mark.Size(); i++)
+         if (true_mark(i))
+         {
+            elim_rows.Append(i);
+            (*B)(i) = 0;
+         }
+
+      HYPRE_SStructMaxwellEliminateRowsCols(*A, elim_rows.Size(), elim_rows.GetData());
+   }
 
    // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.

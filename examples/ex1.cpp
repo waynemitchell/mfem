@@ -78,12 +78,25 @@ int main (int argc, char *argv[])
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
-   {
+   /*{
       int ref_levels =
          (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
+   }*/
+   {
+      Array<Refinement> refs;
+      refs.Append(Refinement(0, 1));
+      mesh->GeneralRefinement(refs, 1);
    }
+   /*mesh->UniformRefinement();
+   mesh->UniformRefinement();*/
+   {
+      Array<Refinement> refs;
+      refs.Append(Refinement(0, 2));
+      mesh->GeneralRefinement(refs, 1);
+   }
+   //mesh->UniformRefinement();
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
@@ -97,6 +110,7 @@ int main (int argc, char *argv[])
       fec = new H1_FECollection(order = 1, dim);
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;
+   fespace->GetConformingProlongation()->Print();
 
    // 5. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
@@ -121,6 +135,7 @@ int main (int argc, char *argv[])
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
+   a->ConformingAssemble(x, *b);
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
    a->EliminateEssentialBC(ess_bdr, x, *b);
@@ -139,6 +154,7 @@ int main (int argc, char *argv[])
    umf_solver.SetOperator(A);
    umf_solver.Mult(*b, x);
 #endif
+   x.ConformingProlongate();
 
    // 9. Save the refined mesh and the solution. This output can be viewed later
    //    using GLVis: "glvis -m refined.mesh -g sol.gf".

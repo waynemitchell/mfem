@@ -83,7 +83,7 @@ private:
    void ConstructTrueDofs();
    void ConstructTrueNURBSDofs();
 
-   void GetConformingDofs(int type, int index, Array<int>& cdofs);
+   void GetDofs(int type, int index, Array<int>& dofs);
    void GetConformingInterpolation(); // FIXME
 
 public:

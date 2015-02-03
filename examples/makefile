@@ -72,10 +72,10 @@ serial: ex1 ex2 ex3 ex4 ex5 ex6 ex7
 
 parallel: ex1p ex2p ex3p ex4p ex5p ex7p
 
-ex1: ex1.cpp
+ex1: ex1.cpp ../libmfem.a
 	$(CC) $(COPTS) ex1.cpp -o ex1 $(LIBS)
 
-ex1p: ex1p.cpp
+ex1p: ex1p.cpp ../libmfem.a
 	$(MPICC) $(MPIOPTS) ex1p.cpp -o ex1p $(MPILIBS)
 
 ex2: ex2.cpp

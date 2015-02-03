@@ -819,9 +819,14 @@ struct Dependency
 {
    int rank, dof;
    double coef;
-
-   typedef Array<Dependency> List;
    Dependency(int r, int d, double c) : rank(r), dof(d), coef(c) {}
+};
+
+struct DepList
+{
+   Array<Dependency> list;
+   int type; // 0 = independent, 1 = one-to-one (conforming), 2 = slave
+   DepList() : type(0) {}
 };
 
 inline int DecodeDof(int dof, double& sign)
@@ -832,43 +837,55 @@ inline int DecodeDof(int dof, double& sign)
       return (sign = -1.0, -1 - dof);
 }
 
-inline bool Is1To1(const Dependency::List &list)
-{
-   return !list.Size() || (list.Size() == 1 && std::abs(list[0].coef) == 1.0);
-}
-
-static void AddSlaveDependencies(Dependency::List deps[],
+static void AddSlaveDependencies(DepList deps[],
    int master_rank, Array<int>& master_dofs,
    int slave_rank, Array<int>& slave_dofs, DenseMatrix& I)
 {
    // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
    {
-      double ssign;
-      int sdof = DecodeDof(slave_dofs[i], ssign);
+      double ss, ms;
+      int sdof = DecodeDof(slave_dofs[i], ss);
 
-      Dependency::List &list = deps[sdof];
-      if (Is1To1(list)) // slave dependencies override 1-to-1 dependencies
+      DepList &dl = deps[sdof];
+      if (dl.type < 2) // slave dependencies override 1-to-1 dependencies
       {
-         list.DeleteAll();
-         list.Reserve(master_dofs.Size());
-
+         Array<Dependency> tmp_list;
          for (int j = 0; j < master_dofs.Size(); j++)
          {
             double coef = I(i, j);
             if (std::abs(coef) > 1e-12)
             {
-               double msign;
-               int mdof = DecodeDof(master_dofs[j], msign);
+               int mdof = DecodeDof(master_dofs[j], ms);
                if (mdof != sdof || master_rank != slave_rank)
-                 list.Append(Dependency(master_rank, mdof, coef*ssign*msign));
+                  tmp_list.Append(Dependency(master_rank, mdof, coef * ms*ss));
+            }
+         }
+         if (tmp_list.Size() > 1)
+         {
+            // we have a standard slave depencency, put it into 'dl'
+            dl.type = 2;
+            tmp_list.Copy(dl.list);
+         }
+         else if (tmp_list.Size() == 1)
+         {
+            // in some cases we just produce a 1-to-1 dependency
+            MFEM_ASSERT(tmp_list[0].coef == 1.0, "");
+            if (dl.type == 0)
+            {
+               dl.type = 1;
+               tmp_list.Copy(dl.list);
+            }
+            else if (dl.list[0].rank > master_rank)
+            {
+               tmp_list.Copy(dl.list);
             }
          }
       }
    }
 }
 
-static void Add1To1Dependencies(Dependency::List deps[], int owner_rank,
+static void Add1To1Dependencies(DepList deps[], int owner_rank,
    Array<int>& owner_dofs, Array<int>& dependent_dofs)
 {
    MFEM_ASSERT(owner_dofs.Size() == dependent_dofs.Size(), "");
@@ -878,42 +895,34 @@ static void Add1To1Dependencies(Dependency::List deps[], int owner_rank,
       int odof = DecodeDof(owner_dofs[i], osign);
       int ddof = DecodeDof(dependent_dofs[i], dsign);
 
-      Dependency::List &list = deps[ddof];
-      if (Is1To1(list)) // don't touch existing slave dependencies
+      DepList &dl = deps[ddof];
+      if (dl.type == 0)
       {
-         if (list.Size() == 0)
-         {
-            list.Append(Dependency(owner_rank, odof, osign*dsign));
-         }
-         else if (list[0].rank > owner_rank)
-         {
-            // 1-to-1 dependency already exists but lower rank takes precedence
-            list[0] = Dependency(owner_rank, odof, osign*dsign);
-         }
+         dl.type = 1;
+         dl.list.Append(Dependency(owner_rank, odof, osign*dsign));
+      }
+      else if (dl.type == 1 && dl.list[0].rank > owner_rank)
+      {
+         // 1-to-1 dependency already exists but lower rank takes precedence
+         dl.list[0] = Dependency(owner_rank, odof, osign*dsign);
       }
    }
 }
 
-void ParFiniteElementSpace::GetConformingDofs
-(int type, int index, Array<int>& dofs)
+static bool IsTrueDof(const DepList& dl, int my_rank)
 {
-//   Array<int> dofs;
+   return dl.type == 0 || (dl.type == 1 && dl.list[0].rank == my_rank);
+}
+
+void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
+{
    switch (type)
    {
    case 0: GetVertexDofs(index, dofs); break;
    case 1: GetEdgeDofs(index, dofs); break;
-   case 2: GetFaceDofs(index, dofs); break;
+   default: GetFaceDofs(index, dofs); break;
    }
-
-//   ConvertToConformingVDofs(dofs, cdofs);
-   // TODO: remove invalid (non-conforming) DOFs
 }
-
-static bool IsTrueDof(const Dependency::List &list, int my_rank)
-{
-   return !list.Size() || (list.Size() == 1 && list[0].rank == my_rank);
-}
-
 
 void ParFiniteElementSpace::GetConformingInterpolation()
 {
@@ -927,7 +936,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    for (int type = 0; type < 3; type++)
    {
       const NCMesh::NCList &list = pncmesh->GetSharedList(type);
-      Array<int> cdofs;
+      Array<int> dofs;
 
       int cs = list.conforming.size(), ms = list.masters.size();
       for (int i = 0; i < cs+ms; i++)
@@ -941,11 +950,11 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          if (owner == MyRank)
          {
             // we own a shared v/e/f, send its DOFs to others in group
-            GetConformingDofs(type, id.index, cdofs);
-            const int* group = pncmesh->GetGroup(type, id.index, gsize);
+            GetDofs(type, id.index, dofs);
+            const int *group = pncmesh->GetGroup(type, id.index, gsize);
             for (int j = 0; j < gsize; j++)
                if (group[j] != MyRank)
-                  send_dofs[group[j]].AddDofs(type, id, cdofs, pncmesh);
+                  send_dofs[group[j]].AddDofs(type, id, dofs, pncmesh);
          }
          else
          {
@@ -962,7 +971,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    // *** STEP 2: build dependency lists ***
 
    int num_cdofs = ndofs;//GetNConformingDofs();
-   Dependency::List* deps = new Dependency::List[num_cdofs];
+   DepList* deps = new DepList[num_cdofs];
 
    Array<int> master_dofs, slave_dofs;
    Array<int> owner_dofs, my_dofs;
@@ -991,7 +1000,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          // get master DOFs
          int master_rank = pncmesh->GetOwner(type, mf.index);
          if (master_rank == MyRank)
-            GetConformingDofs(type, mf.index, master_dofs);
+            GetDofs(type, mf.index, master_dofs);
          else
             recv_dofs[master_rank].GetDofs(type, mf, master_dofs);
 
@@ -1004,7 +1013,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             int slave_rank = pncmesh->GetOwner(type, sf.index);
             if (slave_rank != MyRank) continue;
 
-            GetConformingDofs(type, sf.index, slave_dofs);
+            GetDofs(type, sf.index, slave_dofs);
             if (!slave_dofs.Size()) continue;
 
             T.GetPointMat() = sf.point_matrix;
@@ -1027,13 +1036,13 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          int owner = pncmesh->GetOwner(type, id.index);
          if (owner == MyRank)
          {
-            GetConformingDofs(type, id.index, my_dofs);
+            GetDofs(type, id.index, my_dofs);
             Add1To1Dependencies(deps, owner, my_dofs, my_dofs);
          }
          else
          {
             recv_dofs[owner].GetDofs(type, id, owner_dofs);
-            GetConformingDofs(type, id.index, my_dofs);
+            GetDofs(type, id.index, my_dofs);
             Add1To1Dependencies(deps, owner, owner_dofs, my_dofs);
          }
       }
@@ -1053,10 +1062,10 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    // request rows we depend on
    for (int i = 0; i < num_cdofs; i++)
    {
-      const Dependency::List &list = deps[i];
-      for (int j = 0; j < list.Size(); j++)
+      const DepList &dl = deps[i];
+      for (int j = 0; j < dl.list.Size(); j++)
       {
-         const Dependency &dep = list[j];
+         const Dependency &dep = dl.list[j];
          if (dep.rank != MyRank)
             send_requests[dep.rank].RequestRow(dep.dof);
       }
@@ -1072,6 +1081,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    for (int i = 0; i < num_cdofs; i++)
       if (IsTrueDof(deps[i], MyRank))
          ltdof_size++;
+
+   std::cout << MyRank << ": true dofs = " << ltdof_size << std::endl;
 
    // FIXME: vdim
    GenerateGlobalOffsets();
@@ -1106,23 +1117,22 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       {
          if (finalized[dof]) continue;
 
-         const Dependency::List &list = deps[dof];
-
          // check that rows of all constraining DOFs are available
-         for (i = 0; i < list.Size(); i++)
+         const DepList &dl = deps[dof];
+         for (i = 0; i < dl.list.Size(); i++)
          {
-            const Dependency &dep = list[i];
+            const Dependency &dep = dl.list[i];
             if (dep.rank == MyRank)
                { if (!finalized[dep.dof]) break; }
             else
                if (!recv_replies[dep.rank].HaveRow(dep.dof)) break;
          }
-         if (i < list.Size()) continue;
+         if (i < dl.list.Size()) continue;
 
          // form a linear combination of rows that 'dof' depends on
-         for (i = 0; i < list.Size(); i++)
+         for (i = 0; i < dl.list.Size(); i++)
          {
-            const Dependency &dep = list[i];
+            const Dependency &dep = dl.list[i];
             if (dep.rank == MyRank)
                localP.GetRow(dep.dof, cols, srow);
             else
