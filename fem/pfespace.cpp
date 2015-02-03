@@ -278,6 +278,12 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       MPI_Bcast(ldof, 2, MPI_INT, NRanks-1, MyComm);
       dof_offsets[2] = ldof[0];
       tdof_offsets[2] = ldof[1];
+
+      // Check for overflow
+      MFEM_VERIFY(dof_offsets[0] >= 0 && dof_offsets[1] >= 0,
+                  "overflow in global dof_offsets");
+      MFEM_VERIFY(tdof_offsets[0] >= 0 && tdof_offsets[1] >= 0,
+                  "overflow in global tdof_offsets");
    }
    else
    {
@@ -297,6 +303,12 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
          dof_offsets [i+1] += dof_offsets [i];
          tdof_offsets[i+1] += tdof_offsets[i];
       }
+
+      // Check for overflow
+      MFEM_VERIFY(dof_offsets[MyRank] >= 0 && dof_offsets[MyRank+1] >= 0,
+                  "overflow in global dof_offsets");
+      MFEM_VERIFY(tdof_offsets[MyRank] >= 0 && tdof_offsets[MyRank+1] >= 0,
+                  "overflow in global tdof_offsets");
    }
 }
 
