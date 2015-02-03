@@ -20,6 +20,8 @@
 #include "sets.hpp"
 #include "communication.hpp"
 #include <iostream>
+#include <map>
+
 using namespace std;
 
 namespace mfem
@@ -30,19 +32,23 @@ void GroupTopology::ProcToLProc()
    int NRanks;
    MPI_Comm_size(MyComm, &NRanks);
 
-   Array<int> proc_lproc(NRanks); // array of size number of processors!
-   proc_lproc = -1;
+   map<int, int> proc_lproc;
 
    int lproc_counter = 0;
    for (int i = 0; i < group_lproc.Size_of_connections(); i++)
-      if (proc_lproc[group_lproc.GetJ()[i]] < 0)
-         proc_lproc[group_lproc.GetJ()[i]] = lproc_counter++;
+   {
+      const pair<const int, int> p(group_lproc.GetJ()[i], lproc_counter);
+      if (proc_lproc.insert(p).second)
+         lproc_counter++;
+   }
    // Note: group_lproc.GetJ()[0] == MyRank --> proc_lproc[MyRank] == 0
 
    lproc_proc.SetSize(lproc_counter);
-   for (int i = 0; i < NRanks; i++)
-      if (proc_lproc[i] >= 0)
-         lproc_proc[proc_lproc[i]] = i;
+   for (map<int, int>::iterator it = proc_lproc.begin();
+        it != proc_lproc.end(); ++it)
+   {
+      lproc_proc[it->second] = it->first;
+   }
 
    for (int i = 0; i < group_lproc.Size_of_connections(); i++)
       group_lproc.GetJ()[i] = proc_lproc[group_lproc.GetJ()[i]];
