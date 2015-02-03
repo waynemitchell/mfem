@@ -210,20 +210,6 @@ void Vector::Neg()
       data[i] = -data[i];
 }
 
-void swap(Vector *v1, Vector *v2)
-{
-   int size = v1->size, allocsize = v1->allocsize;
-   double *data = v1->data;
-
-   v1->size      = v2->size;
-   v1->allocsize = v2->allocsize;
-   v1->data      = v2->data;
-
-   v2->size      = size;
-   v2->allocsize = allocsize;
-   v2->data      = data;
-}
-
 void add(const Vector &v1, const Vector &v2, Vector &v)
 {
 #ifdef MFEM_DEBUG

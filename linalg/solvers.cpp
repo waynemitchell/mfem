@@ -1039,9 +1039,9 @@ void MINRESSolver::Mult(const Vector &b, Vector &x) const
          goto loop_end;
 
       if (prec)
-         swap(&u1, &q);
-      swap(&v0, &v1);
-      swap(&w0, &w1);
+         Swap(u1, q);
+      Swap(v0, v1);
+      Swap(w0, w1);
    }
    converged = 0;
    it--;

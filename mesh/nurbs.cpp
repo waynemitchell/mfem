@@ -2533,7 +2533,7 @@ ParNURBSExtension::ParNURBSExtension(NURBSExtension *parent,
    Swap(el_to_IJK, parent->el_to_IJK);
    Swap(bel_to_IJK, parent->bel_to_IJK);
 
-   swap(&weights, &parent->weights);
+   Swap(weights, parent->weights);
 
    delete parent;
 

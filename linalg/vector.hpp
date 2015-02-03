@@ -142,8 +142,10 @@ public:
    /// (*this) = -(*this)
    void Neg();
 
-   /// Swap v1 and v2.
-   friend void swap(Vector *v1, Vector *v2);
+   /// Swap the contents of two Vectors
+   inline void Swap(Vector &other);
+   /// Swap v1 and v2 (deprecated).
+   friend void swap(Vector *v1, Vector *v2) { v1->Swap(*v2); }
 
    /// Do v = v1 + v2.
    friend void add(const Vector &v1, const Vector &v2, Vector &v);
@@ -274,22 +276,31 @@ inline void Vector::Destroy()
 
 inline double & Vector::operator() (int i)
 {
-#ifdef MFEM_DEBUG
-   if (data == 0 || i < 0 || i >= size)
-      mfem_error ("Vector::operator()");
-#endif
+   MFEM_ASSERT(data && i >= 0 && i < size,
+               "index [" << i << "] is out of range [0," << size << ")");
 
    return data[i];
 }
 
 inline const double & Vector::operator() (int i) const
 {
-#ifdef MFEM_DEBUG
-   if (data == 0 || i < 0 || i >= size)
-      mfem_error ("Vector::operator() const");
-#endif
+   MFEM_ASSERT(data && i >= 0 && i < size,
+               "index [" << i << "] is out of range [0," << size << ")");
 
    return data[i];
+}
+
+inline void Vector::Swap(Vector &other)
+{
+   mfem::Swap(size, other.size);
+   mfem::Swap(allocsize, other.allocsize);
+   mfem::Swap(data, other.data);
+}
+
+/// Specialization of the template function Swap<> for class Vector
+template<> inline void Swap<Vector>(Vector &a, Vector &b)
+{
+   a.Swap(b);
 }
 
 inline Vector::~Vector()
