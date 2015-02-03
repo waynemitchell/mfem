@@ -844,6 +844,12 @@ const int INVALID_DOF = INT_MAX;
 static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
                           const FiniteElementCollection *fec)
 {
+   // If a slave edge/face shares a vertex with its master, that vertex is
+   // not really a slave. In serial this is easily taken care of with the
+   // statement "if (mdof != sdof)" inside AddDependencies. In parallel this
+   // doesn't work as 'mdof' and 'sdof' may be on different processors.
+   // Here we detect these cases from the slave point matrix.
+
    if (pm.Width() == 2) // edge: exclude master endpoint vertices
    {
       if (pm(0,0) == 0.0 || pm(0,0) == 1.0) slave_dofs[0] = INVALID_DOF;
@@ -871,9 +877,8 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
    }
 }
 
-static void AddSlaveDependencies(DepList deps[],
-   int master_rank, Array<int>& master_dofs,
-   int slave_rank, Array<int>& slave_dofs, DenseMatrix& I)
+static void AddSlaveDependencies(DepList deps[], int master_rank,
+   Array<int>& master_dofs, Array<int>& slave_dofs, DenseMatrix& I)
 {
    // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
@@ -901,7 +906,7 @@ static void AddSlaveDependencies(DepList deps[],
             tmp_list.Copy(dl.list);
          }
          else
-            MFEM_ASSERT(0, "");
+            MFEM_ASSERT(0, ""); // TODO
       }
    }
 }
@@ -1042,8 +1047,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
             // make each slave DOF dependent on all master DOFs
             MaskSlaveDofs(slave_dofs, sf.point_matrix, fec);
-            AddSlaveDependencies(deps, master_rank, master_dofs,
-                                 slave_rank, slave_dofs, I);
+            AddSlaveDependencies(deps, master_rank, master_dofs, slave_dofs, I);
          }
       }
    }

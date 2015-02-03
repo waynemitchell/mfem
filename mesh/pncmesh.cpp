@@ -569,7 +569,8 @@ void NeighborDofMessage::GetDofs
                  << " not found in neighbor message.");
 #endif
    std::vector<int> &vec = id_dofs[type][id];
-   dofs.MakeRef(vec.data(), vec.size());
+   dofs.SetSize(vec.size());
+   dofs.Assign(vec.data());
 }
 
 static void write_dofs(std::ostream &os, const std::vector<int> &dofs)
@@ -676,8 +677,9 @@ void NeighborRowReply::GetRow(int row, Array<int> &cols, Vector &srow)
       MFEM_ABORT("Row " << row << " not found in neighbor message.");
 #endif
    Row& row_data = rows[row];
-   cols.MakeRef(row_data.cols.data(), row_data.cols.size());
-   srow.SetDataAndSize(row_data.srow.GetData(), row_data.srow.Size());
+   cols.SetSize(row_data.cols.size());
+   cols.Assign(row_data.cols.data());
+   srow = row_data.srow;
 }
 
 void NeighborRowReply::Encode()
@@ -716,6 +718,11 @@ void NeighborRowReply::Decode()
       row_data.srow.SetSize(row_data.cols.size());
       stream.read((char*) row_data.srow.GetData(),
                   sizeof(double) * row_data.srow.Size());
+
+      /*std::cout << "Received row: ";
+      for (int j = 0; j < row_data.cols.size(); j++)
+         std::cout << "(" << row_data.cols[j] << "," << row_data.srow(j) << ")";
+      std::cout << std::endl;*/
    }
 
    data.clear();
