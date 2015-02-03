@@ -192,7 +192,9 @@ TODO
 + AddSlaveDependencies, AddOneOneDependencies
 + Phase 2
 - invalid CDOFs?
-- hypre matrix
++ hypre matrix
++ essential BC
++ mask slave DOFs
 */
 
 

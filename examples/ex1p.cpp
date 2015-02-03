@@ -111,14 +111,24 @@ int main (int argc, char *argv[])
       refs.Append(Refinement(0, 1));
       mesh->GeneralRefinement(refs, 1);
    }
-   /*mesh->UniformRefinement();
-   mesh->UniformRefinement();*/
    {
       Array<Refinement> refs;
       refs.Append(Refinement(0, 2));
       mesh->GeneralRefinement(refs, 1);
    }
-   //mesh->UniformRefinement();
+
+   /*for (int i = 0; i < 3; i++)
+      mesh->UniformRefinement();*/
+
+   /*for (int i = 0; i < 5; i++)
+   {
+      Array<Refinement> refs;
+      for (int j = 0; j < mesh->GetNE(); j++)
+         if (!(rand() % 2))
+            refs.Append(Refinement(j, 7));
+
+      mesh->GeneralRefinement(refs);
+   }*/
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the

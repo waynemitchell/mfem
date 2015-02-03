@@ -265,9 +265,6 @@ static bool is_shared(const Table& groups, int index, int MyRank)
 void ParNCMesh::MakeShared
 (const Table &groups, const NCList &list, NCList &shared)
 {
-   // Filter the full lists, only output items that are shared.
-   // Slaves are omitted as they need to be obtained from the full list.
-
    shared.Clear();
 
    for (int i = 0; i < list.conforming.size(); i++)
@@ -277,6 +274,10 @@ void ParNCMesh::MakeShared
    for (int i = 0; i < list.masters.size(); i++)
       if (is_shared(groups, list.masters[i].index, MyRank))
          shared.masters.push_back(list.masters[i]);
+
+   for (int i = 0; i < list.slaves.size(); i++)
+      if (is_shared(groups, list.slaves[i].index, MyRank))
+         shared.slaves.push_back(list.slaves[i]);
 }
 
 void ParNCMesh::BuildSharedVertices()

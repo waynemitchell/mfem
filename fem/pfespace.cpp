@@ -16,6 +16,8 @@
 #include "fem.hpp"
 #include "../general/sort_pairs.hpp"
 
+#include <climits>
+
 namespace mfem
 {
 
@@ -837,6 +839,38 @@ inline int DecodeDof(int dof, double& sign)
       return (sign = -1.0, -1 - dof);
 }
 
+const int INVALID_DOF = INT_MAX;
+
+static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
+                          const FiniteElementCollection *fec)
+{
+   if (pm.Width() == 2) // edge: exclude master endpoint vertices
+   {
+      if (pm(0,0) == 0.0 || pm(0,0) == 1.0) slave_dofs[0] = INVALID_DOF;
+      if (pm(0,1) == 0.0 || pm(0,1) == 1.0) slave_dofs[1] = INVALID_DOF;
+   }
+   else // face: exclude master corner vertices + full edges if present
+   {
+      MFEM_ASSERT(pm.Width() == 4, "");
+      for (int i = 0; i < 4; i++)
+      {
+         double x = pm(0,i), y = pm(1,i);
+         if ((x == 0.0 || x == 1.0) && (y == 0.0 || y == 1.0))
+            slave_dofs[i] = INVALID_DOF;
+      }
+      for (int i = 0; i < 4; i++)
+      {
+         int j = (i+1) & 0x3;
+         if (slave_dofs[i] == INVALID_DOF && slave_dofs[j] == INVALID_DOF)
+         {
+            int n = fec->DofForGeometry(Geometry::SEGMENT);
+            for (int k = 0; k < n; k++)
+               slave_dofs[4 + i*n + k] = INVALID_DOF;
+         }
+      }
+   }
+}
+
 static void AddSlaveDependencies(DepList deps[],
    int master_rank, Array<int>& master_dofs,
    int slave_rank, Array<int>& slave_dofs, DenseMatrix& I)
@@ -846,6 +880,7 @@ static void AddSlaveDependencies(DepList deps[],
    {
       double ss, ms;
       int sdof = DecodeDof(slave_dofs[i], ss);
+      if (sdof == INVALID_DOF) continue;
 
       DepList &dl = deps[sdof];
       if (dl.type < 2) // slave dependencies override 1-to-1 dependencies
@@ -857,30 +892,16 @@ static void AddSlaveDependencies(DepList deps[],
             if (std::abs(coef) > 1e-12)
             {
                int mdof = DecodeDof(master_dofs[j], ms);
-               if (mdof != sdof || master_rank != slave_rank)
-                  tmp_list.Append(Dependency(master_rank, mdof, coef * ms*ss));
+               tmp_list.Append(Dependency(master_rank, mdof, coef * ms*ss));
             }
          }
-         if (tmp_list.Size() > 1)
+         if (tmp_list.Size())
          {
-            // we have a standard slave depencency, put it into 'dl'
             dl.type = 2;
             tmp_list.Copy(dl.list);
          }
-         else if (tmp_list.Size() == 1)
-         {
-            // in some cases we just produce a 1-to-1 dependency
-            MFEM_ASSERT(tmp_list[0].coef == 1.0, "");
-            if (dl.type == 0)
-            {
-               dl.type = 1;
-               tmp_list.Copy(dl.list);
-            }
-            else if (dl.list[0].rank > master_rank)
-            {
-               tmp_list.Copy(dl.list);
-            }
-         }
+         else
+            MFEM_ASSERT(0, "");
       }
    }
 }
@@ -1020,6 +1041,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             fe->GetLocalInterpolation(T, I);
 
             // make each slave DOF dependent on all master DOFs
+            MaskSlaveDofs(slave_dofs, sf.point_matrix, fec);
             AddSlaveDependencies(deps, master_rank, master_dofs,
                                  slave_rank, slave_dofs, I);
          }
