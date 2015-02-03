@@ -1660,7 +1660,7 @@ void Mesh::Make1D(int n, double sx)
    bdr_attributes.Append(1); bdr_attributes.Append(2);
 }
 
-Mesh::Mesh(const Mesh &mesh)
+Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 {
    Dim = mesh.Dim;
    spaceDim = mesh.spaceDim;
@@ -1736,17 +1736,17 @@ Mesh::Mesh(const Mesh &mesh)
 
    // No support for NURBS meshes, yet. Need deep copy for NURBSExtension.
    MFEM_VERIFY(mesh.NURBSext == NULL,
-               "coping NURBS meshes is not implemented");
+               "copying NURBS meshes is not implemented");
    NURBSext = NULL;
 
    // No support for non-conforming meshes, yet. Need deep copy for NCMesh.
    MFEM_VERIFY(mesh.ncmesh == NULL,
-               "coping non-conforming meshes is not implemented");
+               "copying non-conforming meshes is not implemented");
    ncmesh = NULL;
 
    // Duplicate the Nodes, including the FiniteElementCollection and the
    // FiniteElementSpace
-   if (mesh.Nodes)
+   if (mesh.Nodes && copy_nodes)
    {
       FiniteElementSpace *fes = mesh.Nodes->FESpace();
       const FiniteElementCollection *fec = fes->FEColl();
@@ -1762,7 +1762,7 @@ Mesh::Mesh(const Mesh &mesh)
    }
    else
    {
-      Nodes = NULL;
+      Nodes = mesh.Nodes;
       own_nodes = 0;
    }
 }

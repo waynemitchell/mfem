@@ -65,8 +65,9 @@ public:
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
        new mesh. The source mesh has to be in a NORMAL, i.e. not TWO_LEVEL_*,
-       state. */
-   explicit ParMesh(const ParMesh &pmesh);
+       state. If 'copy_nodes' is false, use a shallow (pointer) copy for the
+       nodes, if present. */
+   explicit ParMesh(const ParMesh &pmesh, bool copy_nodes = true);
 
    ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_ = NULL,
            int part_method = 1);

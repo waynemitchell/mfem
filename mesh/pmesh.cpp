@@ -23,8 +23,8 @@ using namespace std;
 namespace mfem
 {
 
-ParMesh::ParMesh(const ParMesh &pmesh)
-   : Mesh(pmesh),
+ParMesh::ParMesh(const ParMesh &pmesh, bool copy_nodes)
+   : Mesh(pmesh, false),
      group_svert(pmesh.group_svert),
      group_sedge(pmesh.group_sedge),
      group_sface(pmesh.group_sface),
@@ -51,6 +51,23 @@ ParMesh::ParMesh(const ParMesh &pmesh)
 
    // Do not copy face-neighbor data (can be generated if needed)
    have_face_nbr_data = false;
+
+   // Copy the Nodes as a ParGridFunction, including the FiniteElementCollection
+   // and the FiniteElementSpace (as a ParFiniteElementSpace)
+   if (pmesh.Nodes && copy_nodes)
+   {
+      FiniteElementSpace *fes = pmesh.Nodes->FESpace();
+      const FiniteElementCollection *fec = fes->FEColl();
+      FiniteElementCollection *fec_copy =
+         FiniteElementCollection::New(fec->Name());
+      ParFiniteElementSpace *pfes_copy =
+         new ParFiniteElementSpace(this, fec_copy, fes->GetVDim(),
+                                   fes->GetOrdering());
+      Nodes = new ParGridFunction(pfes_copy);
+      Nodes->MakeOwner(fec_copy);
+      *Nodes = *pmesh.Nodes;
+      own_nodes = 1;
+   }
 }
 
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
