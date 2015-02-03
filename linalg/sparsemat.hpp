@@ -47,6 +47,7 @@ private:
    /// The nonzero entries in the Sparse matrix with size I[height].
    double *A;
 
+   /// Array of linked lists, one for every row.
    RowNode **Rows;
 
    mutable int current_row;
@@ -82,13 +83,25 @@ private:
    { SearchRow(row, col) = a; }
 
 public:
-   /// Creates sparse matrix.
+   /** Create a sparse matrix with flexible sparsity structure using a row-wise
+       linked list format. New entries are added as needed by methods like
+       AddSubMatrix, SetSubMatrix, etc. Calling Finalize() will convert the
+       SparseMatrix to the more compact compressed sparse row (CSR) format. */
    explicit SparseMatrix(int nrows, int ncols = 0);
 
+   /** Create a sparse matrix in CSR format. Ownership of i, j, and data is
+       transferred to the SparseMatrix. */
    SparseMatrix(int *i, int *j, double *data, int m, int n);
 
-   SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij, bool owna,
-                bool issorted);
+   /** Create a sparse matrix in CSR format. Ownership of i, j, and data is
+       optionally transferred to the SparseMatrix. */
+   SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij,
+                bool owna, bool issorted);
+
+   /** Copy constructor (deep copy). If mat is finalized and copy_graph is
+       false, the I and J arrays will use a shallow copy (copy the pointers
+       only) without transferring ownership. */
+   SparseMatrix(const SparseMatrix &mat, bool copy_graph = true);
 
    /// For backward compatibility define Size to be synonym of Height()
    int Size() const { return Height(); }
@@ -321,7 +334,7 @@ public:
    /// Call this if data has been stolen.
    void LoseData() { I=0; J=0; A=0; }
 
-   friend void Swap(SparseMatrix & A, SparseMatrix & B);
+   void Swap(SparseMatrix &other);
 
    /// Destroys sparse matrix.
    virtual ~SparseMatrix();
@@ -509,6 +522,12 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
       MFEM_ABORT("Could not find entry for row = " << row << ", col = " << col);
    }
    return A[0];
+}
+
+/// Specialization of the template function Swap<> for class SparseMatrix
+template<> inline void Swap<SparseMatrix>(SparseMatrix &a, SparseMatrix &b)
+{
+   a.Swap(b);
 }
 
 }

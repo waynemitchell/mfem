@@ -11,14 +11,15 @@
 
 // Implementation of sparse matrix
 
+#include "linalg.hpp"
+#include "../general/table.hpp"
+#include "../general/sort_pairs.hpp"
+
 #include <iostream>
 #include <iomanip>
 #include <cmath>
 #include <algorithm>
-
-#include "linalg.hpp"
-#include "../general/table.hpp"
-#include "../general/sort_pairs.hpp"
+#include <cstring>
 
 namespace mfem
 {
@@ -87,6 +88,72 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n,
       ownData = true;
       A = new double[ I[height] ];
    }
+}
+
+SparseMatrix::SparseMatrix(const SparseMatrix &mat, bool copy_graph)
+   : AbstractSparseMatrix(mat.Height(), mat.Width())
+{
+   if (mat.Finalized())
+   {
+      const int nnz = mat.I[height];
+      if (copy_graph)
+      {
+         I = new int[height+1];
+         J = new int[nnz];
+         memcpy(I, mat.I, sizeof(int)*(height+1));
+         memcpy(J, mat.J, sizeof(int)*nnz);
+         ownGraph = true;
+      }
+      else
+      {
+         I = mat.I;
+         J = mat.J;
+         ownGraph = false;
+      }
+      A = new double[nnz];
+      memcpy(A, mat.A, sizeof(double)*nnz);
+      ownData = true;
+
+      Rows = NULL;
+#ifdef MFEM_USE_MEMALLOC
+      NodesMem = NULL;
+#endif
+   }
+   else
+   {
+#ifdef MFEM_USE_MEMALLOC
+      NodesMem = new RowNodeAlloc;
+#endif
+      Rows = new RowNode *[height];
+      for (int i = 0; i < height; i++)
+      {
+         RowNode **node_pp = &Rows[i];
+         for (RowNode *node_p = mat.Rows[i]; node_p; node_p = node_p->Prev)
+         {
+#ifdef MFEM_USE_MEMALLOC
+            RowNode *new_node_p = NodesMem->Alloc();
+#else
+            RowNode *new_node_p = new RowNode;
+#endif
+            new_node_p->Value = node_p->Value;
+            new_node_p->Column = node_p->Column;
+            *node_pp = new_node_p;
+            node_pp = &new_node_p->Prev;
+         }
+         *node_pp = NULL;
+      }
+
+      I = NULL;
+      J = NULL;
+      A = NULL;
+      ownGraph = true;
+      ownData = true;
+   }
+
+   current_row = -1;
+   ColPtrJ = NULL;
+   ColPtrNode = NULL;
+   isSorted = mat.isSorted;
 }
 
 int SparseMatrix::RowSize(const int i) const
@@ -2655,20 +2722,25 @@ SparseMatrix * Add(Array<SparseMatrix *> & Ai)
    return result;
 }
 
-void Swap(SparseMatrix & A, SparseMatrix & B)
+void SparseMatrix::Swap(SparseMatrix &other)
 {
-   Swap(A.width, B.width);
-   Swap(A.height, B.height);
-   Swap(A.I, B.I);
-   Swap(A.J, B.J);
-   Swap(A.A, B.A);
-   Swap(A.Rows, B.Rows);
-   Swap(A.current_row, B.current_row);
-   Swap(A.ColPtrJ, B.ColPtrJ);
+   mfem::Swap(width, other.width);
+   mfem::Swap(height, other.height);
+   mfem::Swap(I, other.I);
+   mfem::Swap(J, other.J);
+   mfem::Swap(A, other.A);
+   mfem::Swap(Rows, other.Rows);
+   mfem::Swap(current_row, other.current_row);
+   mfem::Swap(ColPtrJ, other.ColPtrJ);
+   mfem::Swap(ColPtrNode, other.ColPtrNode);
 
 #ifdef MFEM_USE_MEMALLOC
-   Swap(A.NodesMem, B.NodesMem);
+   mfem::Swap(NodesMem, other.NodesMem);
 #endif
+
+   mfem::Swap(ownGraph, other.ownGraph);
+   mfem::Swap(ownData, other.ownData);
+   mfem::Swap(isSorted, other.isSorted);
 }
 
 }
