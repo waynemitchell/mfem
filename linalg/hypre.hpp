@@ -106,27 +106,47 @@ private:
    /// The actual object
    hypre_ParCSRMatrix *A;
 
-   /// Internal communication object associated with A
-   hypre_ParCSRCommPkg *CommPkg;
-
    /// Auxiliary vectors for typecasting
    mutable HypreParVector *X, *Y;
 
-   /// Flag indicating this class owns the data array in A->diag
-   bool diagDataOwner;
+   // Flags indicating ownership of A->diag->{i,j,data}, A->offd->{i,j,data},
+   // and A->col_map_offd.
+   // The possible values for diagOwner are:
+   //  -1: no special treatment of A->diag (default)
+   //   0: prevent hypre from destroying A->diag->{i,j,data}
+   //   1: same as 0, plus take ownership of A->diag->{i,j}
+   //   2: same as 0, plus take ownership of A->diag->data
+   //   3: same as 0, plus take ownership of A->diag->{i,j,data}
+   // The same values and rules apply to offdOwner and A->offd.
+   // The possible values for colMapOwner are:
+   //  -1: no special treatment of A->col_map_offd (default)
+   //   0: prevent hypre from destroying A->col_map_offd
+   //   1: same as 0, plus take ownership of A->col_map_offd
+   // All owned arrays are destroyed with 'delete []'.
+   char diagOwner, offdOwner, colMapOwner;
+
+   // Initialize with defaults. Does not initalize inherited members.
+   void Init();
+
+   // Delete all owned data. Does not perform re-initialization with defaults.
+   void Destroy();
 
 public:
    /// Converts hypre's format to HypreParMatrix
-   HypreParMatrix(hypre_ParCSRMatrix *a) : A(a)
-   { height = GetNumRows(); width = GetNumCols(); X = Y = 0; CommPkg = 0; }
-   /// Creates block-diagonal square parallel matrix. Diagonal given by diag.
+   HypreParMatrix(hypre_ParCSRMatrix *a)
+   { Init(); A = a; height = GetNumRows(); width = GetNumCols(); }
+   /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
+       which must be in CSR format (finalized). The new HypreParMatrix does not
+       take ownership of any of the input arrays. */
    HypreParMatrix(MPI_Comm comm, int glob_size, int *row_starts,
                   SparseMatrix *diag);
-   /** Creates block-diagonal rectangular parallel matrix. Diagonal
-       given by diag. */
+   /** Creates block-diagonal rectangular parallel matrix. Diagonal is given by
+       diag which must be in CSR format (finalized). The new HypreParMatrix does
+       not take ownership of any of the input arrays. */
    HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
                   int *row_starts, int *col_starts, SparseMatrix *diag);
-   /// Creates general (rectangular) parallel matrix
+   /** Creates general (rectangular) parallel matrix. The new HypreParMatrix
+       does not take ownership of any of the input arrays. */
    HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
                   int *row_starts, int *col_starts,
                   SparseMatrix *diag, SparseMatrix *offd, int *cmap);
@@ -135,25 +155,23 @@ public:
    HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
                   SparseMatrix *a);
 
-   /// Creates boolean block-diagonal rectangular parallel matrix.
+   /** Creates boolean block-diagonal rectangular parallel matrix. The new
+       HypreParMatrix does not take ownership of any of the input arrays. */
    HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
                   int *row_starts, int *col_starts, Table *diag);
-   /// Creates boolean rectangular parallel matrix (which owns its data)
+   /** Creates boolean rectangular parallel matrix. The new HypreParMatrix takes
+       ownership of the arrays i_diag, j_diag, i_offd, j_offd, and cmap; does
+       not take ownership of the arrays row and col. */
    HypreParMatrix(MPI_Comm comm, int id, int np, int *row, int *col,
                   int *i_diag, int *j_diag, int *i_offd, int *j_offd,
                   int *cmap, int cmap_size);
 
    /** Creates a general parallel matrix from a local CSR matrix on each
        processor described by the I, J and data arrays. The local matrix should
-       be of size (local) nrows by (global) glob_ncols. The parallel matrix
-       contains copies of the rows and cols arrays (so they can be deleted). */
+       be of size (local) nrows by (global) glob_ncols. The new parallel matrix
+       contains copies of all input arrays (so they can be deleted). */
    HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows, int glob_ncols,
                   int *I, int *J, double *data, int *rows, int *cols);
-
-   // hypre's communication package object
-   void SetCommPkg(hypre_ParCSRCommPkg *comm_pkg);
-   void CheckCommPkg();
-   void DestroyCommPkg();
 
    /// MPI communicator
    MPI_Comm GetComm() { return A->comm; }
@@ -230,7 +248,7 @@ public:
    void Read(MPI_Comm comm, const char *fname);
 
    /// Calls hypre's destroy function
-   virtual ~HypreParMatrix();
+   virtual ~HypreParMatrix() { Destroy(); }
 };
 
 /// Returns the matrix A * B
