@@ -123,6 +123,36 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    for (HashTable<Face>::Iterator it(faces); it; ++it)
       if (it->index < 0)
          it->index = NFaces + (NGhostFaces++);
+
+   // One more thing: fix orientation of shared conforming faces (since the
+   // Mesh doesn't know about the ghost elements). NOTE: lower rank element
+   // keeps orientation zero, higher rank element adjusts its 'Elem1Inf'.
+
+   for (HashTable<Face>::Iterator it(faces); it; ++it)
+      if (it->ref_count == 2 && it->index < NFaces)
+      {
+         Element *e0 = it->elem[0];
+         Element *e1 = it->elem[1];
+         if (e0->rank != MyRank)
+            std::swap(e0, e1);
+
+         if (MyRank > e1->rank)
+         {
+/*            Mesh::FaceInfo& fi = mesh->faces_info[it->index];
+            MFEM_ASSERT(fi.Elem1No == e0->index && fi.Elem2No == -1, "");
+
+            int lf = fi.Elem1Inf / 64;
+            const int* fv = GI[Geometry::CUBE].faces[lf];
+
+            int e1_face[4] = {
+               find_node(e1, e0->node[fv[0]]), find_node(e1, e0->node[fv[1]]),
+               find_node(e1, e0->node[fv[2]]), find_node(e1, e0->node[fv[3]])
+            };
+            int oo = GetQuadOrientation(mesh->faces[gf]->GetVertices(), e1_face);
+
+*/
+         }
+      }
 }
 
 void ParNCMesh::ElementSharesEdge(Element *elem, Edge *edge)
@@ -275,9 +305,9 @@ void ParNCMesh::MakeShared
       if (is_shared(groups, list.masters[i].index, MyRank))
          shared.masters.push_back(list.masters[i]);
 
-   for (int i = 0; i < list.slaves.size(); i++)
+   /*for (int i = 0; i < list.slaves.size(); i++)
       if (is_shared(groups, list.slaves[i].index, MyRank))
-         shared.slaves.push_back(list.slaves[i]);
+         shared.slaves.push_back(list.slaves[i]);*/
 }
 
 void ParNCMesh::BuildSharedVertices()

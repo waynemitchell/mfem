@@ -1284,7 +1284,7 @@ int NCMesh::find_node(Element* elem, Node* node)
    return -1;
 }
 
-static int find_hex_face(int a, int b, int c)
+int NCMesh::find_hex_face(int a, int b, int c)
 {
    for (int i = 0; i < 6; i++)
    {

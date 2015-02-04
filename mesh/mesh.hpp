@@ -35,12 +35,14 @@ struct Refinement;
 
 #ifdef MFEM_USE_MPI
 class ParMesh;
+class ParNCMesh;
 #endif
 
 class Mesh
 {
 #ifdef MFEM_USE_MPI
    friend class ParMesh;
+   friend class ParNCMesh;
 #endif
    friend class NURBSExtension;
 

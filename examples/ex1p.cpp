@@ -114,13 +114,14 @@ int main (int argc, char *argv[])
    {
       Array<Refinement> refs;
       refs.Append(Refinement(0, 2));
+      refs.Append(Refinement(1, 2));
       mesh->GeneralRefinement(refs, 1);
    }
 
    /*for (int i = 0; i < 3; i++)
       mesh->UniformRefinement();*/
 
-   /*for (int i = 0; i < 5; i++)
+   /*for (int i = 0; i < 2; i++)
    {
       Array<Refinement> refs;
       for (int j = 0; j < mesh->GetNE(); j++)

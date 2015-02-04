@@ -395,6 +395,7 @@ protected: // implementation
    // face / edge lists
 
    static int find_node(Element* elem, Node* node);
+   static int find_hex_face(int a, int b, int c);
 
    void ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
                             Element* elem, DenseMatrix& mat) const;
@@ -414,8 +415,6 @@ protected: // implementation
    virtual void ElementSharesEdge(Element* elem, Edge* edge) {}
    virtual void ElementSharesFace(Element* elem, Face* face) {}
 
-   /*virtual bool IsSharedEdge(int index) { return false; }
-   virtual bool IsSharedFace(int index) { return false; }*/
 
    // coarse to fine transformations
 
