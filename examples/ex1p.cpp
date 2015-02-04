@@ -47,7 +47,7 @@ int main (int argc, char *argv[])
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   /*if (myid == 0)
+   /*if (myid == 1)
    {
       volatile int wait = 1;
       cout << "pid " << getpid() << " waiting" << endl;
@@ -106,7 +106,7 @@ int main (int argc, char *argv[])
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }*/
-   {
+   /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 1));
       mesh->GeneralRefinement(refs, 1);
@@ -116,20 +116,21 @@ int main (int argc, char *argv[])
       refs.Append(Refinement(0, 2));
       refs.Append(Refinement(1, 2));
       mesh->GeneralRefinement(refs, 1);
-   }
+   }*/
 
    /*for (int i = 0; i < 3; i++)
       mesh->UniformRefinement();*/
 
-   /*for (int i = 0; i < 2; i++)
+   for (int i = 0; i < 8; i++)
    {
       Array<Refinement> refs;
+      int types[] = { 7, 7, 3, 5, 6, 7 };
       for (int j = 0; j < mesh->GetNE(); j++)
          if (!(rand() % 2))
-            refs.Append(Refinement(j, 7));
+            refs.Append(Refinement(j, types[rand() % (sizeof(types)/sizeof(int))]));
 
       mesh->GeneralRefinement(refs);
-   }*/
+   }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
