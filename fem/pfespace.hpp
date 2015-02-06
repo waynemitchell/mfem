@@ -160,7 +160,7 @@ public:
    int GetFaceNbrVSize() const { return num_face_nbr_dofs; }
    void GetFaceNbrElementVDofs(int i, Array<int> &vdofs) const;
    const FiniteElement *GetFaceNbrFE(int i) const;
-   int *GetFaceNbrGlobalDofMap() { return face_nbr_gdof.GetJ(); }
+   const int *GetFaceNbrGlobalDofMap() { return face_nbr_gdof.GetJ(); }
 
    void Lose_Dof_TrueDof_Matrix();
    void LoseDofOffsets() { dof_offsets.LoseData(); }

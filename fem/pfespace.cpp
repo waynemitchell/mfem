@@ -339,13 +339,13 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
    col_starts = GetTrueDofOffsets();
    row_starts = GetDofOffsets();
 
-   i_diag = hypre_TAlloc(HYPRE_Int, ldof+1);
-   j_diag = hypre_TAlloc(HYPRE_Int, ltdof);
+   i_diag = new int[ldof+1];
+   j_diag = new int[ltdof];
 
-   i_offd = hypre_TAlloc(HYPRE_Int, ldof+1);
-   j_offd = hypre_TAlloc(HYPRE_Int, ldof-ltdof);
+   i_offd = new int[ldof+1];
+   j_offd = new int[ldof-ltdof];
 
-   cmap   = hypre_TAlloc(HYPRE_Int, ldof-ltdof);
+   cmap   = new int[ldof-ltdof];
 
    Array<Pair<int, int> > cmap_j_offd(ldof-ltdof);
 

@@ -119,7 +119,7 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    {
       // handle the case when 'm' contains offdiagonal
       int  lvsize = pfes->GetVSize();
-      int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
+      const int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
       int ldof_offset = pfes->GetMyDofOffset();
 
       Array<int> glob_J(m->NumNonZeroElems());
@@ -308,11 +308,16 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
    // construct the block-diagonal matrix A
    HypreParMatrix *A;
    if (HYPRE_AssumedPartitionCheck())
-      A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[2], trial_dof_off[2], test_dof_off, trial_dof_off, mat);
+      A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[2],
+                             trial_dof_off[2], test_dof_off, trial_dof_off,
+                             mat);
    else
-      A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[nproc], trial_dof_off[nproc], test_dof_off, trial_dof_off, mat);
+      A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[nproc],
+                             trial_dof_off[nproc], test_dof_off, trial_dof_off,
+                             mat);
 
-   HypreParMatrix *rap = RAP(test_pfes -> Dof_TrueDof_Matrix(), A, trial_pfes -> Dof_TrueDof_Matrix());
+   HypreParMatrix *rap = RAP(test_pfes->Dof_TrueDof_Matrix(), A,
+                             trial_pfes->Dof_TrueDof_Matrix());
 
    delete A;
 

@@ -175,13 +175,22 @@ double InnerProduct(HypreParVector &x, HypreParVector &y)
 }
 
 
+void HypreParMatrix::Init()
+{
+   A = NULL;
+   X = Y = NULL;
+   diagOwner = offdOwner = colMapOwner = -1;
+}
+
+// Square block-diagonal constructor
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int glob_size, int *row_starts,
                                SparseMatrix *diag)
    : Operator(diag->Height(), diag->Width())
 {
+   Init();
    A = hypre_ParCSRMatrixCreate(comm, glob_size, glob_size, row_starts,
                                 row_starts, 0, diag->NumNonZeroElems(), 0);
-   hypre_ParCSRMatrixSetDataOwner(A,0);
+   hypre_ParCSRMatrixSetDataOwner(A,1);
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
    hypre_ParCSRMatrixSetColStartsOwner(A,0);
 
@@ -190,6 +199,8 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int glob_size, int *row_starts,
    hypre_CSRMatrixJ(A->diag)    = diag->GetJ();
    hypre_CSRMatrixData(A->diag) = diag->GetData();
    hypre_CSRMatrixSetRownnz(A->diag);
+   // Prevent hypre from destroying A->diag->{i,j,data}
+   diagOwner = 0;
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
    hypre_CSRMatrixI(A->offd)    = hypre_CTAlloc(int, diag->Height()+1);
@@ -205,22 +216,20 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int glob_size, int *row_starts,
    hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
 
    hypre_MatvecCommPkgCreate(A);
-
-   CommPkg = NULL;
-   X = Y = NULL;
 }
 
-
+// Rectangular block-diagonal constructor
 HypreParMatrix::HypreParMatrix(MPI_Comm comm,
                                int global_num_rows, int global_num_cols,
                                int *row_starts, int *col_starts,
                                SparseMatrix *diag)
    : Operator(diag->Height(), diag->Width())
 {
+   Init();
    A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
                                 row_starts, col_starts,
                                 0, diag->NumNonZeroElems(), 0);
-   hypre_ParCSRMatrixSetDataOwner(A,0);
+   hypre_ParCSRMatrixSetDataOwner(A,1);
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
    hypre_ParCSRMatrixSetColStartsOwner(A,0);
 
@@ -229,6 +238,8 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
    hypre_CSRMatrixJ(A->diag)    = diag->GetJ();
    hypre_CSRMatrixData(A->diag) = diag->GetData();
    hypre_CSRMatrixSetRownnz(A->diag);
+   // Prevent hypre from destroying A->diag->{i,j,data}
+   diagOwner = 0;
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
    hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(int, diag->Height()+1);
@@ -240,11 +251,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
 
    hypre_MatvecCommPkgCreate(A);
-
-   CommPkg = NULL;
-   X = Y = NULL;
 }
 
+// General rectangular constructor with diagonal and off-diagonal
 HypreParMatrix::HypreParMatrix(MPI_Comm comm,
                                int global_num_rows, int global_num_cols,
                                int *row_starts, int *col_starts,
@@ -252,11 +261,12 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
                                int *cmap)
    : Operator(diag->Height(), diag->Width())
 {
+   Init();
    A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
                                 row_starts, col_starts,
                                 offd->Width(), diag->NumNonZeroElems(),
                                 offd->NumNonZeroElems());
-   hypre_ParCSRMatrixSetDataOwner(A,0);
+   hypre_ParCSRMatrixSetDataOwner(A,1);
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
    hypre_ParCSRMatrixSetColStartsOwner(A,0);
 
@@ -265,14 +275,20 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
    hypre_CSRMatrixJ(A->diag)    = diag->GetJ();
    hypre_CSRMatrixData(A->diag) = diag->GetData();
    hypre_CSRMatrixSetRownnz(A->diag);
+   // Prevent hypre from destroying A->diag->{i,j,data}
+   diagOwner = 0;
 
    hypre_CSRMatrixSetDataOwner(A->offd,0);
    hypre_CSRMatrixI(A->offd)    = offd->GetI();
    hypre_CSRMatrixJ(A->offd)    = offd->GetJ();
    hypre_CSRMatrixData(A->offd) = offd->GetData();
    hypre_CSRMatrixSetRownnz(A->offd);
+   // Prevent hypre from destroying A->offd->{i,j,data}
+   offdOwner = 0;
 
    hypre_ParCSRMatrixColMapOffd(A) = cmap;
+   // Prevent hypre from destroying A->col_map_offd
+   colMapOwner = 0;
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
@@ -281,21 +297,19 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
 
    hypre_MatvecCommPkgCreate(A);
-
-   CommPkg = NULL;
-   X = Y = NULL;
 }
 
+// Constructor from a CSR matrix on rank 0
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
                                SparseMatrix *sm_a)
 {
-#ifdef MFEM_DEBUG
-   if (sm_a == NULL)
-      mfem_error("HypreParMatrix::HypreParMatrix: sm_a==NULL");
-#endif
+   MFEM_ASSERT(sm_a != NULL, "invalid input");
+   MFEM_VERIFY(!HYPRE_AssumedPartitionCheck(),
+               "this method can not be used with assumed partition");
+
+   Init();
 
    hypre_CSRMatrix *csr_a;
-
    csr_a = hypre_CSRMatrixCreate(sm_a -> Height(), sm_a -> Width(),
                                  sm_a -> NumNonZeroElems());
 
@@ -307,8 +321,8 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
 
    A = hypre_CSRMatrixToParCSRMatrix(comm, csr_a, row_starts, col_starts);
 
-   CommPkg = NULL;
-   X = Y = NULL;
+   hypre_CSRMatrixI(csr_a) = NULL;
+   hypre_CSRMatrixDestroy(csr_a);
 
    height = GetNumRows();
    width = GetNumCols();
@@ -320,10 +334,12 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
    hypre_MatvecCommPkgCreate(A);
 }
 
+// Boolean, rectangular, block-diagonal constructor
 HypreParMatrix::HypreParMatrix(MPI_Comm comm,
                                int global_num_rows, int global_num_cols,
                                int *row_starts, int *col_starts, Table *diag)
 {
+   Init();
    int nnz = diag->Size_of_connections();
    A = hypre_ParCSRMatrixCreate(comm, global_num_rows, global_num_cols,
                                 row_starts, col_starts, 0, nnz, 0);
@@ -331,15 +347,15 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
    hypre_ParCSRMatrixSetRowStartsOwner(A,0);
    hypre_ParCSRMatrixSetColStartsOwner(A,0);
 
-   hypre_CSRMatrixSetDataOwner(A->diag,1);
+   hypre_CSRMatrixSetDataOwner(A->diag,0);
    hypre_CSRMatrixI(A->diag)    = diag->GetI();
    hypre_CSRMatrixJ(A->diag)    = diag->GetJ();
-
-   hypre_CSRMatrixData(A->diag) = hypre_TAlloc(double, nnz);
+   hypre_CSRMatrixData(A->diag) = new double[nnz];
    for (int k = 0; k < nnz; k++)
       (hypre_CSRMatrixData(A->diag))[k] = 1.0;
-
    hypre_CSRMatrixSetRownnz(A->diag);
+   // Prevent hypre from destroying A->diag->{i,j,data}, own A->diag->data
+   diagOwner = 2;
 
    hypre_CSRMatrixSetDataOwner(A->offd,1);
    hypre_CSRMatrixI(A->offd) = hypre_CTAlloc(int, diag->Size()+1);
@@ -352,13 +368,11 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
 
    hypre_MatvecCommPkgCreate(A);
 
-   CommPkg = NULL;
-   X = Y = NULL;
-
    height = GetNumRows();
    width = GetNumCols();
 }
 
+// Boolean, general rectangular constructor with diagonal and off-diagonal
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
                                int *row, int *col,
                                int *i_diag, int *j_diag,
@@ -367,6 +381,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 {
    int diag_col, offd_col;
 
+   Init();
    if (HYPRE_AssumedPartitionCheck())
    {
       diag_col = i_diag[row[1]-row[0]];
@@ -390,27 +405,33 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 
    int i;
 
-   double *a_diag = hypre_TAlloc(double, diag_col);
+   double *a_diag = new double[diag_col];
    for (i = 0; i < diag_col; i++)
       a_diag[i] = 1.0;
 
-   double *a_offd = hypre_TAlloc(double, offd_col);
+   double *a_offd = new double[offd_col];
    for (i = 0; i < offd_col; i++)
       a_offd[i] = 1.0;
 
-   hypre_CSRMatrixSetDataOwner(A->diag,1);
+   hypre_CSRMatrixSetDataOwner(A->diag,0);
    hypre_CSRMatrixI(A->diag)    = i_diag;
    hypre_CSRMatrixJ(A->diag)    = j_diag;
    hypre_CSRMatrixData(A->diag) = a_diag;
    hypre_CSRMatrixSetRownnz(A->diag);
+   // Prevent hypre from destroying A->diag->{i,j,data}, own A->diag->{i,j,data}
+   diagOwner = 3;
 
-   hypre_CSRMatrixSetDataOwner(A->offd,1);
+   hypre_CSRMatrixSetDataOwner(A->offd,0);
    hypre_CSRMatrixI(A->offd)    = i_offd;
    hypre_CSRMatrixJ(A->offd)    = j_offd;
    hypre_CSRMatrixData(A->offd) = a_offd;
    hypre_CSRMatrixSetRownnz(A->offd);
+   // Prevent hypre from destroying A->offd->{i,j,data}, own A->offd->{i,j,data}
+   offdOwner = 3;
 
    hypre_ParCSRMatrixColMapOffd(A) = cmap;
+   // Prevent hypre from destroying A->col_map_offd, own A->col_map_offd
+   colMapOwner = 1;
 
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
@@ -420,17 +441,18 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 
    hypre_MatvecCommPkgCreate(A);
 
-   CommPkg = NULL;
-   X = Y = NULL;
-
    height = GetNumRows();
    width = GetNumCols();
 }
 
+// General rectangular constructor with diagonal and off-diagonal constructed
+// from a CSR matrix that contains both diagonal and off-diagonal blocks
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
                                int glob_ncols, int *I, int *J, double *data,
                                int *rows, int *cols)
 {
+   Init();
+
    // construct the local CSR matrix
    int nnz = I[nrows];
    hypre_CSRMatrix *local = hypre_CSRMatrixCreate(nrows, glob_ncols, nnz);
@@ -481,47 +503,8 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
    hypre_CSRMatrixData(local) = NULL;
    hypre_CSRMatrixDestroy(local);
 
-   CommPkg = NULL;
-   X = Y = NULL;
    height = GetNumRows();
    width = GetNumCols();
-}
-
-void HypreParMatrix::SetCommPkg(hypre_ParCSRCommPkg *comm_pkg)
-{
-   CommPkg = comm_pkg;
-
-   if (hypre_ParCSRMatrixCommPkg(A))
-      hypre_MatvecCommPkgDestroy(hypre_ParCSRMatrixCommPkg(A));
-
-   hypre_ParCSRMatrixCommPkg(A) = comm_pkg;
-}
-
-void HypreParMatrix::CheckCommPkg()
-{
-#ifdef MFEM_DEBUG
-   if (CommPkg == NULL || CommPkg != hypre_ParCSRMatrixCommPkg(A))
-      mfem_error("\nHypreParMatrix::CheckCommPkg()");
-#endif
-}
-
-void HypreParMatrix::DestroyCommPkg()
-{
-   if (CommPkg == NULL)
-      return;
-   hypre_TFree(CommPkg->send_procs);
-   hypre_TFree(CommPkg->send_map_starts);
-   hypre_TFree(CommPkg->send_map_elmts);
-   hypre_TFree(CommPkg->recv_procs);
-   hypre_TFree(CommPkg->recv_vec_starts);
-   if (CommPkg->send_mpi_types)
-      hypre_TFree(CommPkg->send_mpi_types);
-   if (CommPkg->recv_mpi_types)
-      hypre_TFree(CommPkg->recv_mpi_types);
-   if (hypre_ParCSRMatrixCommPkg(A) == CommPkg)
-      hypre_ParCSRMatrixCommPkg(A) = NULL;
-   delete CommPkg;
-   CommPkg = NULL;
 }
 
 HypreParMatrix::operator hypre_ParCSRMatrix*()
@@ -538,8 +521,13 @@ HypreParMatrix::operator HYPRE_ParCSRMatrix()
 
 hypre_ParCSRMatrix* HypreParMatrix::StealData()
 {
+   // Only safe when (diagOwner == -1 && offdOwner == -1 && colMapOwner == -1)
+   // Otherwise, there may be memory leaks or hypre may destroy arrays allocated
+   // with operator new.
    hypre_ParCSRMatrix *R = A;
    A = NULL;
+   Destroy();
+   Init();
    return R;
 }
 
@@ -556,7 +544,6 @@ void HypreParMatrix::GetDiag(Vector &diag)
 #endif
    }
 }
-
 
 HypreParMatrix * HypreParMatrix::Transpose()
 {
@@ -720,52 +707,64 @@ void HypreParMatrix::Print(const char *fname, int offi, int offj)
 
 void HypreParMatrix::Read(MPI_Comm comm, const char *fname)
 {
-   if (A) hypre_ParCSRMatrixDestroy(A);
-   int io,jo;
-   hypre_ParCSRMatrixReadIJ(comm, fname, &io, &jo, &A);
+   Destroy();
+   Init();
+
+   int base_i, base_j;
+   hypre_ParCSRMatrixReadIJ(comm, fname, &base_i, &base_j, &A);
    hypre_ParCSRMatrixSetNumNonzeros(A);
 
    hypre_MatvecCommPkgCreate(A);
+
+   height = GetNumRows();
+   width = GetNumCols();
 }
 
-HypreParMatrix::~HypreParMatrix()
+void HypreParMatrix::Destroy()
 {
-   DestroyCommPkg();
+   if ( X != NULL ) delete X;
+   if ( Y != NULL ) delete Y;
 
-   if (A)
+   if (A == NULL) return;
+
+   if (diagOwner >= 0)
    {
-      if (hypre_ParCSRMatrixCommPkg(A))
-         hypre_MatvecCommPkgDestroy(hypre_ParCSRMatrixCommPkg(A));
-      hypre_ParCSRMatrixCommPkg(A) = NULL;
-
-      if (hypre_CSRMatrixOwnsData(A->diag))
+      if (diagOwner & 1)
       {
-         hypre_CSRMatrixDestroy(A->diag);
-         A->diag = NULL;
+         delete [] hypre_CSRMatrixI(A->diag);
+         delete [] hypre_CSRMatrixJ(A->diag);
       }
-      else
+      hypre_CSRMatrixI(A->diag) = NULL;
+      hypre_CSRMatrixJ(A->diag) = NULL;
+      if (diagOwner & 2)
       {
-         if (hypre_CSRMatrixRownnz(A->diag))
-            hypre_TFree(hypre_CSRMatrixRownnz(A->diag));
-         hypre_TFree(A->diag);
-         A->diag = NULL;
+         delete [] hypre_CSRMatrixData(A->diag);
       }
-
-      if (hypre_CSRMatrixOwnsData(A->offd))
+      hypre_CSRMatrixData(A->diag) = NULL;
+   }
+   if (offdOwner >= 0)
+   {
+      if (offdOwner & 1)
       {
-         hypre_CSRMatrixDestroy(A->offd);
-         A->offd = NULL;
+         delete [] hypre_CSRMatrixI(A->offd);
+         delete [] hypre_CSRMatrixJ(A->offd);
       }
-      else
+      hypre_CSRMatrixI(A->offd) = NULL;
+      hypre_CSRMatrixJ(A->offd) = NULL;
+      if (offdOwner & 2)
       {
-         if (hypre_CSRMatrixRownnz(A->offd))
-            hypre_TFree(hypre_CSRMatrixRownnz(A->offd));
+         delete [] hypre_CSRMatrixData(A->offd);
       }
-      hypre_ParCSRMatrixDestroy(A);
+      hypre_CSRMatrixData(A->offd) = NULL;
+   }
+   if (colMapOwner >= 0)
+   {
+      if (colMapOwner & 1)
+         delete [] hypre_ParCSRMatrixColMapOffd(A);
+      hypre_ParCSRMatrixColMapOffd(A) = NULL;
    }
 
-   delete X;
-   delete Y;
+   hypre_ParCSRMatrixDestroy(A);
 }
 
 HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B)
