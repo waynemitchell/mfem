@@ -404,11 +404,24 @@ function update(id)
    showElement("nomatch", allHidden);
 }
 
+function initButtons()
+{
+   var query = location.search.substr(1);
+   query.split("&").forEach(function(id)
+   {
+      setChecked(id, true);
+      update(id);
+   });
+}
+
 // make sure "no match" div is not visible after page is loaded
 window.onload = update;
 
 // force vertical scrollbar
 document.getElementsByTagName("body")[0].style = "overflow-y: scroll"
+
+// parse URL part after '?', e.g., http://.../index.html?elasticity&nurbs
+initButtons();
 
 //--></script>
 \endhtmlonly
