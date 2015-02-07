@@ -242,6 +242,9 @@ public:
    /// Scale all entries by s: A_scaled = s*A.
    void operator*=(double s);
 
+   /// If a row contains only zeros, set its diagonal to 1.
+   void EliminateZeroRows() { hypre_ParCSRMatrixFixZeroRows(A); }
+
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, int offi = 0, int offj = 0);
    /// Reads the matrix from a file
