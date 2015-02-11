@@ -8313,6 +8313,27 @@ void Mesh::Transform(void (*f)(const Vector&, Vector&))
       *Nodes = xnew;
    }
 }
+void Mesh::Transform(VectorCoefficient &deformation)
+{
+   MFEM_VERIFY(spaceDim == deformation.GetVDim(),
+               "incompatible vector dimensions");
+   if (Nodes == NULL)
+   {
+      LinearFECollection fec;
+      FiniteElementSpace fes(this, &fec, spaceDim, Ordering::byVDIM);
+      GridFunction xnew(&fes);
+      xnew.ProjectCoefficient(deformation);
+      for (int i = 0; i < NumOfVertices; i++)
+         for (int d = 0; d < spaceDim; d++)
+            vertices[i](d) = xnew(d + spaceDim*i);
+   }
+   else
+   {
+      GridFunction xnew(Nodes->FESpace());
+      xnew.ProjectCoefficient(deformation);
+      *Nodes = xnew;
+   }
+}
 
 void Mesh::FreeElement(Element *E)
 {

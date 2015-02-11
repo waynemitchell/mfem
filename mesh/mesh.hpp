@@ -755,6 +755,7 @@ public:
    void ScaleElements (double sf);
 
    void Transform(void (*f)(const Vector&, Vector&));
+   void Transform(VectorCoefficient &deformation);
 
    /** Get the size of the i-th element relative to the perfect
        reference element. */
