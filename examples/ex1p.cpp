@@ -106,22 +106,23 @@ int main (int argc, char *argv[])
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }*/
-   /*{
+   {
       Array<Refinement> refs;
       refs.Append(Refinement(0, 1));
       mesh->GeneralRefinement(refs, 1);
    }
-   {
+   /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 2));
-      refs.Append(Refinement(1, 2));
+      refs.Append(Refinement(1, 4));
       mesh->GeneralRefinement(refs, 1);
    }*/
 
    /*for (int i = 0; i < 3; i++)
       mesh->UniformRefinement();*/
 
-   for (int i = 0; i < 8; i++)
+   srand(0);
+   for (int i = 0; i < 4; i++)
    {
       Array<Refinement> refs;
       int types[] = { 7, 7, 3, 5, 6, 7 };
@@ -260,6 +261,7 @@ int main (int argc, char *argv[])
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
       sol_sock << "solution\n" << *pmesh << x << flush;
+      sol_sock << "keys AmiM\n";
    }
 
    // 15. Free the used memory.

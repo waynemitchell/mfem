@@ -920,6 +920,7 @@ static void Add1To1Dependencies(DepList deps[], int owner_rank,
       double osign, dsign;
       int odof = DecodeDof(owner_dofs[i], osign);
       int ddof = DecodeDof(dependent_dofs[i], dsign);
+      if (odof == INVALID_DOF || ddof == INVALID_DOF) continue;
 
       DepList &dl = deps[ddof];
       if (dl.type == 0)
@@ -935,9 +936,41 @@ static void Add1To1Dependencies(DepList deps[], int owner_rank,
    }
 }
 
-static bool IsTrueDof(const DepList& dl, int my_rank)
+void ParFiniteElementSpace::ReorderDofs(Array<int> &dofs, int type, int orient)
 {
-   return dl.type == 0 || (dl.type == 1 && dl.list[0].rank == my_rank);
+   if (type == 0) return;
+
+   Array<int> tmp;
+   dofs.Copy(tmp);
+
+   if (type == 1)
+   {
+      int nv = fec->DofForGeometry(Geometry::POINT);
+      const int* ind = fec->DofOrderForOrientation(Geometry::SEGMENT, orient);
+
+      int v_dofs = 2*nv;
+      for (int i = 0; i < v_dofs; i++)
+         dofs[i] = INVALID_DOF;
+
+      int e_dofs = dofs.Size() - v_dofs;
+      for (int i = 0; i < e_dofs; i++)
+         dofs[v_dofs + i] = tmp[v_dofs + ind[i]];
+   }
+   else
+   {
+      // NOTE: assuming quad faces here
+      int nv = fec->DofForGeometry(Geometry::POINT);
+      int ne = fec->DofForGeometry(Geometry::SEGMENT);
+      const int* ind = fec->DofOrderForOrientation(Geometry::SQUARE, orient);
+
+      int ve_dofs = 4*(nv + ne);
+      for (int i = 0; i < ve_dofs; i++)
+         dofs[i] = INVALID_DOF;
+
+      int f_dofs = dofs.Size() - ve_dofs;
+      for (int i = 0; i < f_dofs; i++)
+         dofs[ve_dofs + i] = tmp[ve_dofs + ind[i]];
+   }
 }
 
 void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
@@ -946,8 +979,13 @@ void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
    {
    case 0: GetVertexDofs(index, dofs); break;
    case 1: GetEdgeDofs(index, dofs); break;
-   default: GetFaceDofs(index, dofs); break;
+   default: GetFaceDofs(index, dofs);
    }
+}
+
+static bool IsTrueDof(const DepList& dl, int my_rank)
+{
+   return dl.type == 0 || (dl.type == 1 && dl.list[0].rank == my_rank);
 }
 
 void ParFiniteElementSpace::GetConformingInterpolation()
@@ -1017,7 +1055,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
       DenseMatrix I(fe->GetDof());
 
-      // process masters that we own or that have slaves we own
+      // process masters that we own or that affect our edges/faces
       for (int mi = 0; mi < list.masters.size(); mi++)
       {
          const NCMesh::Master &mf = list.masters[mi];
@@ -1032,12 +1070,13 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
          if (!master_dofs.Size()) continue;
 
-         // constrain slaves that we own
+         // constrain slaves that exist in our mesh
          for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
          {
             const NCMesh::Slave &sf = list.slaves[si];
-            int slave_rank = pncmesh->GetOwner(type, sf.index);
-            if (slave_rank != MyRank) continue;
+            if (pncmesh->IsGhost(type, sf.index)) continue;
+            /*int slave_rank = pncmesh->GetOwner(type, sf.index);
+            if (slave_rank != MyRank) continue;*/
 
             GetDofs(type, sf.index, slave_dofs);
             if (!slave_dofs.Size()) continue;
@@ -1049,6 +1088,15 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             MaskSlaveDofs(slave_dofs, sf.point_matrix, fec);
             AddSlaveDependencies(deps, master_rank, master_dofs, slave_dofs, I);
          }
+
+         // special case for master edges that we don't own but still exist in
+         // our mesh: this is a conforming-like situation, create 1-to-1 deps
+         if (master_rank != MyRank && !pncmesh->IsGhost(type, mf.index))
+         {
+            GetDofs(type, mf.index, my_dofs);
+            // TODO: orientation?
+            Add1To1Dependencies(deps, master_rank, master_dofs, my_dofs);
+         }
       }
    }
 
@@ -1059,17 +1107,19 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       for (int i = 0; i < list.conforming.size(); i++)
       {
          const NCMesh::MeshId &id = list.conforming[i];
+         GetDofs(type, id.index, my_dofs);
+
          int owner = pncmesh->GetOwner(type, id.index);
-         if (owner == MyRank)
+         if (owner != MyRank)
          {
-            GetDofs(type, id.index, my_dofs);
-            Add1To1Dependencies(deps, owner, my_dofs, my_dofs);
+            recv_dofs[owner].GetDofs(type, id, owner_dofs);
+            ReorderDofs(owner_dofs, type, pncmesh->GetOrientation(type, id.index));
+            Add1To1Dependencies(deps, owner, owner_dofs, my_dofs);
          }
          else
          {
-            recv_dofs[owner].GetDofs(type, id, owner_dofs);
-            GetDofs(type, id.index, my_dofs);
-            Add1To1Dependencies(deps, owner, owner_dofs, my_dofs);
+            // we own this v/e/f, assert the ownership of the DOFs
+            Add1To1Dependencies(deps, owner, my_dofs, my_dofs);
          }
       }
    }
@@ -1209,8 +1259,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    delete [] deps;
    localP.Finalize();
 
-   std::cout << "MyRank = " << MyRank << std::endl;
-   localP.Print();
+   /*std::cout << "MyRank = " << MyRank << std::endl;
+   localP.Print();*/
 
    // create the parallel matrix P
    P = new HypreParMatrix(MyComm, num_cdofs, glob_cdofs, glob_true_dofs,
@@ -1225,6 +1275,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    ldof_sign.SetSize(num_cdofs);
    ldof_sign = 1;
+
+   std::cout << "P done.\n";
 }
 
 void ParFiniteElementSpace::Update()

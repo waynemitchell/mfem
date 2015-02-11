@@ -123,46 +123,6 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    for (HashTable<Face>::Iterator it(faces); it; ++it)
       if (it->index < 0)
          it->index = NFaces + (NGhostFaces++);
-
-   // One more thing: fix orientation of shared conforming faces (since the
-   // Mesh doesn't know about the ghost elements). NOTE: lower rank element
-   // keeps orientation zero, higher rank element adjusts its 'Elem1Inf',
-   // 'Elem2No' stays -1 in both.
-
-   for (HashTable<Face>::Iterator it(faces); it; ++it)
-      if (it->ref_count == 2 && it->index < NFaces)
-      {
-         Element *e0 = it->elem[0];
-         Element *e1 = it->elem[1];
-         if (e0->rank != MyRank)
-            std::swap(e0, e1);
-
-         if (MyRank > e1->rank)
-         {
-            Mesh::FaceInfo& fi = mesh->faces_info[it->index];
-            MFEM_ASSERT(fi.Elem1No == e0->index && fi.Elem2No == -1, "");
-
-            int gf = it->index;
-            int lf = fi.Elem1Inf / 64;
-            const int* fv = GI[Geometry::CUBE].faces[lf];
-
-            int ind[3];
-            for (int i = 0; i < 3; i++)
-               ind[i] = find_node(e1, e0->node[fv[i]]);
-
-            int lf2 = find_hex_face(ind[0], ind[1], ind[2]);
-            fv = GI[Geometry::CUBE].faces[lf2];
-
-            int vert[4];
-            for (int i = 0; i < 4; i++)
-               vert[i] = e1->node[fv[i]]->vertex->index;
-
-            int oo = mesh->GetQuadOrientation(vert, mesh->faces[gf]->GetVertices());
-            fi.Elem1Inf = 64 * lf + oo;
-
-            std::cout << "Rank " << MyRank << ": correcting oo to " << oo << std::endl;
-         }
-      }
 }
 
 void ParNCMesh::ElementSharesEdge(Element *elem, Edge *edge)
@@ -204,6 +164,8 @@ void ParNCMesh::BuildEdgeList()
    AddSlaveRanks(nedges, edge_list);
    MakeGroups(nedges, edge_group);
    MakeShared(edge_group, edge_list, shared_edges);
+
+   CalcEdgeOrientations();
 }
 
 void ParNCMesh::BuildFaceList()
@@ -223,6 +185,8 @@ void ParNCMesh::BuildFaceList()
    AddSlaveRanks(nfaces, face_list);
    MakeGroups(nfaces, face_group);
    MakeShared(face_group, face_list, shared_faces);
+
+   CalcFaceOrientations();
 }
 
 void ParNCMesh::AddSlaveRanks(int nitems, const NCList& list)
@@ -365,6 +329,48 @@ void ParNCMesh::BuildSharedVertices()
    }
 }
 
+void ParNCMesh::CalcEdgeOrientations()
+{
+   edge_orient.SetSize(NEdges);
+   edge_orient = 1;
+
+
+
+
+
+}
+
+void ParNCMesh::CalcFaceOrientations()
+{
+   // Calculate orientation of shared conforming faces.
+   // NOTE: face orientation is calculated relative to its lower rank element.
+
+   face_orient.SetSize(NFaces);
+   face_orient = 0;
+
+   for (HashTable<Face>::Iterator it(faces); it; ++it)
+      if (it->ref_count == 2 && it->index < NFaces)
+      {
+         Element* e[2] = { it->elem[0], it->elem[1] };
+         if (e[0]->rank == e[1]->rank) continue;
+         if (e[0]->rank > e[1]->rank) std::swap(e[0], e[1]);
+
+         int ids[2][4];
+         for (int i = 0; i < 2; i++)
+         {
+            int f = find_hex_face(find_node(e[i], it->p1),
+                                  find_node(e[i], it->p2),
+                                  find_node(e[i], it->p3));
+
+            // get node IDs for the face as seen from e[i]
+            const int* fv = GI[Geometry::CUBE].faces[f];
+            for (int j = 0; j < 4; j++)
+               ids[i][j] = e[i]->node[fv[j]]->id;
+         }
+
+         face_orient[it->index] = Mesh::GetQuadOrientation(ids[0], ids[1]);
+      }
+}
 
 //// ElementSet ////////////////////////////////////////////////////////////////
 

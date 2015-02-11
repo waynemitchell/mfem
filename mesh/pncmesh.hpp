@@ -58,6 +58,17 @@ public:
       }
    }
 
+   /// Return (shared) edge/face ('type' == 1/2) orientation.
+   int GetOrientation(int type, int index)
+   {
+      switch (type)
+      {
+      case 0: return 0;
+      case 1: return edge_orient[index];
+      default: return face_orient[index];
+      }
+   }
+
    /// Return vertex/edge/face ('type' == 0/1/2, resp.) owner.
    int GetOwner(int type, int index)
    {
@@ -92,6 +103,17 @@ public:
       return false;
    }
 
+   /** */
+   bool IsGhost(int type, int index) const
+   {
+      switch (type)
+      {
+      case 0: return index >= NVertices;
+      case 1: return index >= NEdges;
+      case 2: return index >= NFaces;
+      }
+   }
+
 protected:
    MPI_Comm MyComm;
    int NRanks, MyRank;
@@ -115,6 +137,9 @@ protected:
    Table edge_group;
    Table face_group;
 
+   Array<char> edge_orient;
+   Array<char> face_orient;
+
    void InitialPartition();
 
    virtual void UpdateVertices();
@@ -129,6 +154,9 @@ protected:
    virtual void ElementSharesFace(Element* elem, Face* face);
 
    void BuildSharedVertices();
+
+   void CalcEdgeOrientations();
+   void CalcFaceOrientations();
 
    /// Struct to help sorting edges/faces
    struct IndexRank

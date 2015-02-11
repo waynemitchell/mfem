@@ -1284,6 +1284,16 @@ int NCMesh::find_node(Element* elem, Node* node)
    return -1;
 }
 
+int NCMesh::find_node(Element* elem, int node_id)
+{
+   for (int i = 0; i < 8; i++)
+      if (elem->node[i]->id == node_id)
+         return i;
+
+   MFEM_ABORT("Node not found.");
+   return -1;
+}
+
 int NCMesh::find_hex_face(int a, int b, int c)
 {
    for (int i = 0; i < 6; i++)

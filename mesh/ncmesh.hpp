@@ -395,6 +395,7 @@ protected: // implementation
    // face / edge lists
 
    static int find_node(Element* elem, Node* node);
+   static int find_node(Element* elem, int node_id);
    static int find_hex_face(int a, int b, int c);
 
    void ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
