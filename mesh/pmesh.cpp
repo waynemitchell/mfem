@@ -28,7 +28,7 @@ ParMesh::ParMesh(const ParMesh &pmesh, bool copy_nodes)
      group_svert(pmesh.group_svert),
      group_sedge(pmesh.group_sedge),
      group_sface(pmesh.group_sface),
-     gtopo(pmesh.GetComm())
+     gtopo(pmesh.gtopo)
 {
    MyComm = pmesh.MyComm;
    NRanks = pmesh.NRanks;

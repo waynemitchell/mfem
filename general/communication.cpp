@@ -27,6 +27,15 @@ using namespace std;
 namespace mfem
 {
 
+GroupTopology::GroupTopology(const GroupTopology &gt)
+   : MyComm(gt.MyComm),
+     group_lproc(gt.group_lproc)
+{
+   gt.groupmaster_lproc.Copy(groupmaster_lproc);
+   gt.lproc_proc.Copy(lproc_proc);
+   gt.group_mgroup.Copy(group_mgroup);
+}
+
 void GroupTopology::ProcToLProc()
 {
    int NRanks;

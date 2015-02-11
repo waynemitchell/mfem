@@ -45,6 +45,9 @@ private:
 public:
    GroupTopology(MPI_Comm comm) { MyComm = comm; }
 
+   /// Copy constructor
+   GroupTopology(const GroupTopology &gt);
+
    MPI_Comm GetComm() { return MyComm; }
    int MyRank() { int r; MPI_Comm_rank(MyComm, &r); return r; }
    int NRanks() { int s; MPI_Comm_size(MyComm, &s); return s; }
