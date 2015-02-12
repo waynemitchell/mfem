@@ -15,12 +15,14 @@
 namespace mfem
 {
 
-Point::Point( const int *ind, int attr ) : Element(Geometry::POINT) {
+Point::Point( const int *ind, int attr ) : Element(Geometry::POINT)
+{
    attribute = attr;
    indices[0] = ind[0];
 }
 
-void Point::GetVertices( Array<int> &v ) const {
+void Point::GetVertices( Array<int> &v ) const
+{
    v.SetSize( 1 );
    v[0] = indices[0];
 }

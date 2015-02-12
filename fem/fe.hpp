@@ -24,9 +24,11 @@ namespace mfem
 // Base and derived classes for finite elements
 
 /// Describes the space on each element
-class FunctionSpace {
+class FunctionSpace
+{
 public:
-   enum {
+   enum
+   {
       Pk, // polynomials of order k
       Qk, // tensor products of polynomials of order k
       rQk // refined tensor products of polynomials of order k
@@ -402,7 +404,7 @@ public:
                              DenseMatrix &h) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const
    { dofs = 0.0; dofs(vertex) = 1.0; }
-//      { dofs = 1.0; }
+   //      { dofs = 1.0; }
 };
 
 /// Class for linear FE on triangle with nodes at the 3 "Gaussian" points
@@ -557,7 +559,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-//   virtual void ProjectDelta(int vertex, Vector &dofs) const { dofs = 1.; }
+   //   virtual void ProjectDelta(int vertex, Vector &dofs) const { dofs = 1.; }
 };
 
 class BiCubic2DFiniteElement : public NodalFiniteElement
@@ -1211,7 +1213,7 @@ public:
    {
    private:
       int mode; // 0 - use change of basis, O(p^2) Evals
-                // 1 - use barycentric Lagrangian interpolation, O(p) Evals
+      // 1 - use barycentric Lagrangian interpolation, O(p) Evals
       DenseMatrix A;
       mutable Vector x, w;
 
@@ -1975,7 +1977,7 @@ public:
    NURBS2DFiniteElement(int p)
       : NURBSFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                            FunctionSpace::Qk), u(Dof),
-        shape_x(p + 1), shape_y(p + 1), dshape_x(p + 1), dshape_y(p + 1) { }
+      shape_x(p + 1), shape_y(p + 1), dshape_x(p + 1), dshape_y(p + 1) { }
 
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
@@ -1991,8 +1993,8 @@ public:
    NURBS3DFiniteElement(int p)
       : NURBSFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
                            FunctionSpace::Qk), u(Dof),
-        shape_x(p + 1), shape_y(p + 1), shape_z(p + 1),
-        dshape_x(p + 1), dshape_y(p + 1), dshape_z(p + 1) { }
+      shape_x(p + 1), shape_y(p + 1), shape_z(p + 1),
+      dshape_x(p + 1), dshape_y(p + 1), dshape_z(p + 1) { }
 
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,

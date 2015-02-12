@@ -194,12 +194,12 @@ private:
 
 public:
    DSTable(int nrows);
-   int NumberOfRows() const { return(NumRows); }
-   int NumberOfEntries() const { return(NumEntries); }
+   int NumberOfRows() const { return (NumRows); }
+   int NumberOfEntries() const { return (NumEntries); }
    int Push(int a, int b)
-   { return((a <= b) ? Push_(a, b) : Push_(b, a)); }
+   { return ((a <= b) ? Push_(a, b) : Push_(b, a)); }
    int operator()(int a, int b) const
-   { return((a <= b) ? Index(a, b) : Index(b, a)); }
+   { return ((a <= b) ? Index(a, b) : Index(b, a)); }
    ~DSTable();
 
    class RowIterator
@@ -208,10 +208,10 @@ public:
       Node *n;
    public:
       RowIterator (const DSTable &t, int r) { n = t.Rows[r]; }
-      int operator!() { return(n != NULL); }
+      int operator!() { return (n != NULL); }
       void operator++() { n = n->Prev; }
-      int Column() { return(n->Column); }
-      int Index() { return(n->Index); }
+      int Column() { return (n->Column); }
+      int Index() { return (n->Index); }
    };
 };
 

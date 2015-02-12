@@ -61,8 +61,10 @@ protected:
 
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
-   { fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
-      precompute_sparsity = 0; }
+   {
+      fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
+      precompute_sparsity = 0;
+   }
 
 public:
    /// Creates bilinear form associated with FE space *f.
@@ -81,7 +83,7 @@ public:
    /** Pre-allocate the internal SparseMatrix before assembly. If the flag
        'precompute sparsity' is set, the matrix is allocated in CSR format (i.e.
        finalized) and the entries are initialized with zeros. */
-   void AllocateMatrix() { if (mat == NULL) AllocMat(); }
+   void AllocateMatrix() { if (mat == NULL) { AllocMat(); } }
 
    Array<BilinearFormIntegrator*> *GetDBFI() { return &dbfi; }
 
@@ -138,7 +140,7 @@ public:
    void AddBdrFaceIntegrator(BilinearFormIntegrator *bfi);
 
    void operator=(const double a)
-   { if (mat != NULL) *mat = a; if (mat_e != NULL) *mat_e = a; }
+   { if (mat != NULL) { *mat = a; } if (mat_e != NULL) { *mat_e = a; } }
 
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);

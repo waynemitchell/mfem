@@ -69,7 +69,8 @@ public:
 
    void GetVectorValue(int i, const IntegrationPoint &ip, Vector &val) const;
 
-   void GetValues(int i, const IntegrationRule &ir, Vector &vals, int vdim = 1) const;
+   void GetValues(int i, const IntegrationRule &ir, Vector &vals,
+                  int vdim = 1) const;
 
    void GetValues(int i, const IntegrationRule &ir, Vector &vals,
                   DenseMatrix &tr, int vdim = 1) const;

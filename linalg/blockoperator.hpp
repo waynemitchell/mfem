@@ -134,7 +134,7 @@ public:
     */
    void SetDiagonalBlock(int iblock, Operator *op);
    //! This method is present since required by the abstract base class Solver
-   virtual void SetOperator(const Operator &op){ }
+   virtual void SetOperator(const Operator &op) { }
 
    //! Return the number of blocks
    int NumBlocks() const { return nBlocks; }

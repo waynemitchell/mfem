@@ -79,7 +79,9 @@ int main(int argc, char *argv[])
    if (mesh.NURBSext)
    {
       for (int i = 0; i < 2; i++)
+      {
          mesh.UniformRefinement();
+      }
 
       FiniteElementCollection* nfec = new H1_FECollection(2, dim);
       FiniteElementSpace* nfes = new FiniteElementSpace(&mesh, nfec, dim);
@@ -118,7 +120,9 @@ int main(int argc, char *argv[])
    int  visport   = 19916;
    socketstream sol_sock;
    if (visualization)
+   {
       sol_sock.open(vishost, visport);
+   }
 
    // 9. The main AMR loop. In each iteration we solve the problem on the
    //    current mesh, visualize the solution, estimate the error on all
@@ -197,7 +201,9 @@ int main(int argc, char *argv[])
       double threshold = (frac*frac) * errors.Max();
       for (int i = 0; i < errors.Size(); i++)
          if (errors[i] >= threshold)
+         {
             ref_list.Append(i);
+         }
 
       // 18. Refine the selected elements. Since we are going to transfer the
       //     grid function x from the coarse mesh to the new fine mesh in the

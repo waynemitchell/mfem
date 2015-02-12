@@ -20,7 +20,7 @@ namespace mfem
 
 void ParLinearForm::Update(ParFiniteElementSpace *pf)
 {
-   if (pf) pfes = pf;
+   if (pf) { pfes = pf; }
 
    LinearForm::Update(pfes);
 }

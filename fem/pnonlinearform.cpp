@@ -31,7 +31,9 @@ void ParNonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
       {
          int tdof = pfes->GetLocalTDofNumber(ess_vdofs[i]);
          if (tdof >= 0)
+         {
             (*rhs)(tdof) = 0.0;
+         }
       }
 }
 
