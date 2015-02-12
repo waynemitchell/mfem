@@ -13,6 +13,7 @@
 #define MFEM_TRIANGLE
 
 #include "../config/config.hpp"
+#include "../fem/fe.hpp"
 #include "element.hpp"
 
 namespace mfem
