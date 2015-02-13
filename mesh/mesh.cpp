@@ -2334,7 +2334,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       {
          input >> n >> ws;
          getline(input, buff);
-         if (buff == "SCALARS material int" || buff == "SCALARS material float")
+         if (!strncmp(buff.c_str(), "SCALARS material", 16)) // "SCALARS material dataType numComp"
          {
             getline(input, buff); // "LOOKUP_TABLE default"
             for (i = 0; i < NumOfElements; i++)
