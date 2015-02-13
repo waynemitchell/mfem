@@ -52,21 +52,16 @@ public:
    {
       switch (type)
       {
-      case 0: return GetSharedVertices();
-      case 1: return GetSharedEdges();
-      default: return GetSharedFaces();
+         case 0: return GetSharedVertices();
+         case 1: return GetSharedEdges();
+         default: return GetSharedFaces();
       }
    }
 
-   /// Return (shared) edge/face ('type' == 1/2) orientation.
-   int GetOrientation(int type, int index)
+   /// Return (shared) face orientation relative to the owner element.
+   int GetFaceOrientation(int index)
    {
-      switch (type)
-      {
-      case 0: return 0;
-      case 1: return edge_orient[index];
-      default: return face_orient[index];
-      }
+      return face_orient[index];
    }
 
    /// Return vertex/edge/face ('type' == 0/1/2, resp.) owner.
@@ -74,9 +69,9 @@ public:
    {
       switch (type)
       {
-      case 0: return vertex_owner[index];
-      case 1: return edge_owner[index];
-      default: return face_owner[index];
+         case 0: return vertex_owner[index];
+         case 1: return edge_owner[index];
+         default: return face_owner[index];
       }
    }
 
@@ -84,12 +79,15 @@ public:
        ('type' == 0/1/2, resp.) and the size of the list. */
    const int* GetGroup(int type, int index, int &size) const
    {
+      const Table* table;
       switch (type)
       {
-      case 0: size = vertex_group.RowSize(index); return vertex_group.GetRow(index);
-      case 1: size = edge_group.RowSize(index); return edge_group.GetRow(index);
-      default: size = face_group.RowSize(index); return face_group.GetRow(index);
+         case 0: table = &vertex_group; break;
+         case 1: table = &edge_group; break;
+         default: table = &face_group;
       }
+      size = table->RowSize(index);
+      return table->GetRow(index);
    }
 
    /** */
@@ -108,9 +106,9 @@ public:
    {
       switch (type)
       {
-      case 0: return index >= NVertices;
-      case 1: return index >= NEdges;
-      case 2: return index >= NFaces;
+         case 0: return index >= NVertices;
+         case 1: return index >= NEdges;
+         case 2: return index >= NFaces;
       }
    }
 
@@ -137,7 +135,6 @@ protected:
    Table edge_group;
    Table face_group;
 
-   Array<char> edge_orient;
    Array<char> face_orient;
 
    void InitialPartition();
@@ -155,7 +152,6 @@ protected:
 
    void BuildSharedVertices();
 
-   void CalcEdgeOrientations();
    void CalcFaceOrientations();
 
    /// Struct to help sorting edges/faces
@@ -224,7 +220,10 @@ TODO
 + essential BC
 + mask slave DOFs
 + MakeRef bug
-- shared face orientation
++ non-owned master edge bug
++ shared face orientation
++ shared edge orientation
++ outer loop
 */
 
 
@@ -245,7 +244,7 @@ struct VarMessage
 
    /// Helper to send all messages in a rank-to-message map container.
    template<typename MapT>
-   static void IsendAll(MapT& rank_msg, MPI_Comm comm) // TODO: free function instead of static?
+   static void IsendAll(MapT& rank_msg, MPI_Comm comm)
    {
       typename MapT::iterator it;
       for (it = rank_msg.begin(); it != rank_msg.end(); ++it)
@@ -254,7 +253,7 @@ struct VarMessage
 
    /// Helper to wait for all messages in a map container to be sent.
    template<typename MapT>
-   static void WaitAllSent(MapT& rank_msg) // TODO: free function instead of static?
+   static void WaitAllSent(MapT& rank_msg)
    {
       typename MapT::iterator it;
       for (it = rank_msg.begin(); it != rank_msg.end(); ++it)
@@ -300,7 +299,7 @@ struct VarMessage
 
    /// Helper to receive all messages in a rank-to-message map container.
    template<typename MapT>
-   static void RecvAll(MapT& rank_msg, MPI_Comm comm) // TODO: free function instead of static?
+   static void RecvAll(MapT& rank_msg, MPI_Comm comm)
    {
       int recv_left = rank_msg.size();
       while (recv_left > 0)
@@ -343,8 +342,11 @@ protected:
    IdToDofs id_dofs[3];
 
    ParNCMesh* pncmesh;
+
    virtual void Encode();
-   virtual void Decode();
+   virtual void Decode();   
+
+   void ReorderEdgeDofs(const NCMesh::MeshId &id, std::vector<int> &dofs);
 };
 
 

@@ -106,11 +106,11 @@ int main (int argc, char *argv[])
       for (int l = 0; l < ref_levels; l++)
          mesh->UniformRefinement();
    }*/
-   {
+   /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 1));
       mesh->GeneralRefinement(refs, 1);
-   }
+   }*/
    /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 2));
@@ -121,17 +121,20 @@ int main (int argc, char *argv[])
    /*for (int i = 0; i < 3; i++)
       mesh->UniformRefinement();*/
 
-   srand(0);
-   for (int i = 0; i < 4; i++)
+   srand(1);
+   mesh->UniformRefinement();
+   for (int i = 0; i < 6; i++)
    {
       Array<Refinement> refs;
-      int types[] = { 7, 7, 3, 5, 6, 7 };
+      int types[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
       for (int j = 0; j < mesh->GetNE(); j++)
          if (!(rand() % 2))
             refs.Append(Refinement(j, types[rand() % (sizeof(types)/sizeof(int))]));
 
       mesh->GeneralRefinement(refs);
    }
+
+   int attr_max = mesh->bdr_attributes.Max();
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -198,7 +201,7 @@ int main (int argc, char *argv[])
 
    // Eliminate essential BC from the parallel matrix...
    {
-      Array<int> ess_attr(pmesh->bdr_attributes.Max()), ess_dofs;
+      Array<int> ess_attr(attr_max), ess_dofs;
       ess_attr = 1;
       fespace->GetEssentialVDofs(ess_attr, ess_dofs);
 

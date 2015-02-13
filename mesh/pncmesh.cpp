@@ -164,8 +164,6 @@ void ParNCMesh::BuildEdgeList()
    AddSlaveRanks(nedges, edge_list);
    MakeGroups(nedges, edge_group);
    MakeShared(edge_group, edge_list, shared_edges);
-
-   CalcEdgeOrientations();
 }
 
 void ParNCMesh::BuildFaceList()
@@ -327,17 +325,6 @@ void ParNCMesh::BuildSharedVertices()
       if (is_shared(vertex_group, i, MyRank) && vertex_id[i].index >= 0)
          shared_vertices.conforming.push_back(vertex_id[i]);
    }
-}
-
-void ParNCMesh::CalcEdgeOrientations()
-{
-   edge_orient.SetSize(NEdges);
-   edge_orient = 1;
-
-
-
-
-
 }
 
 void ParNCMesh::CalcFaceOrientations()
@@ -619,6 +606,27 @@ void NeighborDofMessage::GetDofs
    dofs.Assign(vec.data());
 }
 
+void NeighborDofMessage::ReorderEdgeDofs
+(const NCMesh::MeshId &id, std::vector<int> &dofs)
+{
+   // Reorder the DOFs into/from a neutral ordering, independent of local
+   // edge orientation.
+
+   const int *ev = NCMesh::GI[id.element->geom].edges[id.local];
+   int v0 = id.element->node[ev[0]]->vertex->index;
+   int v1 = id.element->node[ev[1]]->vertex->index;
+
+   if ((v0 < v1 && ev[0] > ev[1]) || (v0 > v1 && ev[0] < ev[1]))
+   {
+      // "invert" the edge DOFs
+      // FIXME: assuming nv == 1
+      std::swap(dofs[0], dofs[1]);
+      int n = dofs.size() - 2;
+      for (int i = 0; i < n/2; i++)
+         std::swap(dofs[i + 2], dofs[dofs.size()-1 - i]);
+   }
+}
+
 static void write_dofs(std::ostream &os, const std::vector<int> &dofs)
 {
    write<int>(os, dofs.size());
@@ -634,7 +642,7 @@ static void read_dofs(std::istream &is, std::vector<int> &dofs)
 
 void NeighborDofMessage::Encode()
 {
-   IdToDofs::const_iterator it;
+   IdToDofs::iterator it;
 
    // collect vertex/edge/face IDs
    Array<NCMesh::MeshId> ids[3];
@@ -653,7 +661,10 @@ void NeighborDofMessage::Encode()
    for (int type = 0; type < 3; type++)
    {
       for (it = id_dofs[type].begin(); it != id_dofs[type].end(); ++it)
+      {
+         if (type == 1) ReorderEdgeDofs(it->first, it->second);
          write_dofs(stream, it->second);
+      }
 
       // no longer need the original data
       id_dofs[type].clear();
@@ -675,7 +686,11 @@ void NeighborDofMessage::Decode()
    {
       id_dofs[type].clear();
       for (int i = 0; i < ids[type].Size(); i++)
-         read_dofs(stream, id_dofs[type][ids[type][i]]);
+      {
+         const NCMesh::MeshId &id = ids[type][i];
+         read_dofs(stream, id_dofs[type][id]);
+         if (type == 1) ReorderEdgeDofs(id, id_dofs[type][id]);
+      }
    }
 
    // no longer need the raw data

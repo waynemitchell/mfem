@@ -900,13 +900,8 @@ static void AddSlaveDependencies(DepList deps[], int master_rank,
                tmp_list.Append(Dependency(master_rank, mdof, coef * ms*ss));
             }
          }
-         if (tmp_list.Size())
-         {
-            dl.type = 2;
-            tmp_list.Copy(dl.list);
-         }
-         else
-            MFEM_ASSERT(0, ""); // TODO
+         dl.type = 2;
+         tmp_list.Copy(dl.list);
       }
    }
 }
@@ -936,41 +931,24 @@ static void Add1To1Dependencies(DepList deps[], int owner_rank,
    }
 }
 
-void ParFiniteElementSpace::ReorderDofs(Array<int> &dofs, int type, int orient)
+void ParFiniteElementSpace::ReorderFaceDofs(Array<int> &dofs, int type,
+                                            int orient)
 {
-   if (type == 0) return;
-
    Array<int> tmp;
    dofs.Copy(tmp);
 
-   if (type == 1)
-   {
-      int nv = fec->DofForGeometry(Geometry::POINT);
-      const int* ind = fec->DofOrderForOrientation(Geometry::SEGMENT, orient);
+   // NOTE: assuming quad faces here
+   int nv = fec->DofForGeometry(Geometry::POINT);
+   int ne = fec->DofForGeometry(Geometry::SEGMENT);
+   const int* ind = fec->DofOrderForOrientation(Geometry::SQUARE, orient);
 
-      int v_dofs = 2*nv;
-      for (int i = 0; i < v_dofs; i++)
-         dofs[i] = INVALID_DOF;
+   int ve_dofs = 4*(nv + ne);
+   for (int i = 0; i < ve_dofs; i++)
+      dofs[i] = INVALID_DOF;
 
-      int e_dofs = dofs.Size() - v_dofs;
-      for (int i = 0; i < e_dofs; i++)
-         dofs[v_dofs + i] = tmp[v_dofs + ind[i]];
-   }
-   else
-   {
-      // NOTE: assuming quad faces here
-      int nv = fec->DofForGeometry(Geometry::POINT);
-      int ne = fec->DofForGeometry(Geometry::SEGMENT);
-      const int* ind = fec->DofOrderForOrientation(Geometry::SQUARE, orient);
-
-      int ve_dofs = 4*(nv + ne);
-      for (int i = 0; i < ve_dofs; i++)
-         dofs[i] = INVALID_DOF;
-
-      int f_dofs = dofs.Size() - ve_dofs;
-      for (int i = 0; i < f_dofs; i++)
-         dofs[ve_dofs + i] = tmp[ve_dofs + ind[i]];
-   }
+   int f_dofs = dofs.Size() - ve_dofs;
+   for (int i = 0; i < f_dofs; i++)
+      dofs[ve_dofs + i] = tmp[ve_dofs + ind[i]];
 }
 
 void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
@@ -1075,8 +1053,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          {
             const NCMesh::Slave &sf = list.slaves[si];
             if (pncmesh->IsGhost(type, sf.index)) continue;
-            /*int slave_rank = pncmesh->GetOwner(type, sf.index);
-            if (slave_rank != MyRank) continue;*/
 
             GetDofs(type, sf.index, slave_dofs);
             if (!slave_dofs.Size()) continue;
@@ -1094,7 +1070,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          if (master_rank != MyRank && !pncmesh->IsGhost(type, mf.index))
          {
             GetDofs(type, mf.index, my_dofs);
-            // TODO: orientation?
             Add1To1Dependencies(deps, master_rank, master_dofs, my_dofs);
          }
       }
@@ -1113,12 +1088,16 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          if (owner != MyRank)
          {
             recv_dofs[owner].GetDofs(type, id, owner_dofs);
-            ReorderDofs(owner_dofs, type, pncmesh->GetOrientation(type, id.index));
+            if (type == 2)
+            {
+               int fo = pncmesh->GetFaceOrientation(id.index);
+               ReorderFaceDofs(owner_dofs, type, fo);
+            }
             Add1To1Dependencies(deps, owner, owner_dofs, my_dofs);
          }
          else
          {
-            // we own this v/e/f, assert the ownership of the DOFs
+            // we own this v/e/f, assert ownership of the DOFs
             Add1To1Dependencies(deps, owner, my_dofs, my_dofs);
          }
       }
@@ -1188,39 +1167,46 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    int num_finalized = ltdof_size;
    while (1)
    {
-      // finalize what can currently be finalized
-      for (int dof = 0, i; dof < num_cdofs; dof++)
+      // finalize all rows that can currently be finalized
+      bool done;
+      do
       {
-         if (finalized[dof]) continue;
-
-         // check that rows of all constraining DOFs are available
-         const DepList &dl = deps[dof];
-         for (i = 0; i < dl.list.Size(); i++)
+         done = true;
+         for (int dof = 0, i; dof < num_cdofs; dof++)
          {
-            const Dependency &dep = dl.list[i];
-            if (dep.rank == MyRank)
-               { if (!finalized[dep.dof]) break; }
-            else
-               if (!recv_replies[dep.rank].HaveRow(dep.dof)) break;
+            if (finalized[dof]) continue;
+
+            // check that rows of all constraining DOFs are available
+            const DepList &dl = deps[dof];
+            for (i = 0; i < dl.list.Size(); i++)
+            {
+               const Dependency &dep = dl.list[i];
+               if (dep.rank == MyRank)
+                  { if (!finalized[dep.dof]) break; }
+               else
+                  if (!recv_replies[dep.rank].HaveRow(dep.dof)) break;
+            }
+            if (i < dl.list.Size()) continue;
+
+            // form a linear combination of rows that 'dof' depends on
+            for (i = 0; i < dl.list.Size(); i++)
+            {
+               const Dependency &dep = dl.list[i];
+               if (dep.rank == MyRank)
+                  localP.GetRow(dep.dof, cols, srow);
+               else
+                  recv_replies[dep.rank].GetRow(dep.dof, cols, srow);
+
+               srow *= dep.coef;
+               localP.AddRow(dof, cols, srow);
+            }
+
+            finalized[dof] = true;
+            num_finalized++;
+            done = false;
          }
-         if (i < dl.list.Size()) continue;
-
-         // form a linear combination of rows that 'dof' depends on
-         for (i = 0; i < dl.list.Size(); i++)
-         {
-            const Dependency &dep = dl.list[i];
-            if (dep.rank == MyRank)
-               localP.GetRow(dep.dof, cols, srow);
-            else
-               recv_replies[dep.rank].GetRow(dep.dof, cols, srow);
-
-            srow *= dep.coef;
-            localP.AddRow(dof, cols, srow);
-         }
-
-         finalized[dof] = true;
-         num_finalized++;
       }
+      while (!done);
 
       // send rows that are requested by neighbors and are available
       send_replies.push_back(NeighborRowReply::Map());
@@ -1258,9 +1244,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    delete [] deps;
    localP.Finalize();
-
-   /*std::cout << "MyRank = " << MyRank << std::endl;
-   localP.Print();*/
 
    // create the parallel matrix P
    P = new HypreParMatrix(MyComm, num_cdofs, glob_cdofs, glob_true_dofs,

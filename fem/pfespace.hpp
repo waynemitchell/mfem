@@ -84,7 +84,7 @@ private:
    void ConstructTrueNURBSDofs();
 
    void GetDofs(int type, int index, Array<int>& dofs);
-   void ReorderDofs(Array<int> &dofs, int type, int orient);
+   void ReorderFaceDofs(Array<int> &dofs, int type, int orient);
    void GetConformingInterpolation(); // FIXME
 
 public:
