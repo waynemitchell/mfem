@@ -234,7 +234,6 @@ endif
 
 # Source dirs in logical order
 DIRS = general linalg mesh fem
-HEADER_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.hpp))
 SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
@@ -338,8 +337,13 @@ status info:
 	$(info MFEM_LIB_DIR         = $(value MFEM_LIB_DIR))
 	@true
 
+ASTYLE = astyle --options=config/mfem.astylerc
+FORMAT_FILES = $(foreach dir,$(DIRS) examples,"$(dir)/*.?pp")
+
 style:
-	astyle --options=config/mfem.astylerc $(HEADER_FILES) $(SOURCE_FILES)
-	astyle --options=config/mfem.astylerc examples/*.cpp
-	@echo
-	@echo "Note: backups of modified files are saved with .orig extension."
+	@if $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\
+	   echo;\
+	   echo "Note: backups of modified files were saved with .orig extension.";\
+	else\
+	   echo "No source files were changed.";\
+	fi
