@@ -68,7 +68,11 @@ protected:
    Array<Element *> boundary;
    Array<Element *> faces;
 
-class FaceInfo { public: int Elem1No, Elem2No, Elem1Inf, Elem2Inf; };
+   class FaceInfo
+   {
+   public:
+      int Elem1No, Elem2No, Elem1Inf, Elem2Inf;
+   };
    Array<FaceInfo> faces_info;
 
    Table *el_to_edge;
