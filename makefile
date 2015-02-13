@@ -340,5 +340,6 @@ status info:
 
 style:
 	astyle --options=config/mfem.astylerc $(HEADER_FILES) $(SOURCE_FILES)
+	astyle --options=config/mfem.astylerc examples/*.cpp
 	@echo
 	@echo "Note: backups of modified files are saved with .orig extension."
