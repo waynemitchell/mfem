@@ -507,17 +507,23 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                         case 0:
                            switch (re[1])
                            {
-                              case 1: v[0] = tv[1]; v[1] = tv[2]; v[2] = tv[3]; break;
-                              case 4: v[0] = tv[3]; v[1] = tv[1]; v[2] = tv[2]; break;
-                              case 5: v[0] = tv[2]; v[1] = tv[3]; v[2] = tv[1]; break;
+                              case 1: v[0] = tv[1]; v[1] = tv[2]; v[2] = tv[3];
+                                 break;
+                              case 4: v[0] = tv[3]; v[1] = tv[1]; v[2] = tv[2];
+                                 break;
+                              case 5: v[0] = tv[2]; v[1] = tv[3]; v[2] = tv[1];
+                                 break;
                            }
                            break;
                         case 1:
                            switch (re[0])
                            {
-                              case 2: v[0] = tv[2]; v[1] = tv[0]; v[2] = tv[3]; break;
-                              case 3: v[0] = tv[0]; v[1] = tv[3]; v[2] = tv[2]; break;
-                              case 5: v[0] = tv[3]; v[1] = tv[2]; v[2] = tv[0]; break;
+                              case 2: v[0] = tv[2]; v[1] = tv[0]; v[2] = tv[3];
+                                 break;
+                              case 3: v[0] = tv[0]; v[1] = tv[3]; v[2] = tv[2];
+                                 break;
+                              case 5: v[0] = tv[3]; v[1] = tv[2]; v[2] = tv[0];
+                                 break;
                            }
                            break;
                         case 2:
@@ -1500,7 +1506,9 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
       // 4. Do the green refinement (to get conforming mesh).
       int need_refinement;
-      int refined_edge[5][3] = {{0, 0, 0},
+      int refined_edge[5][3] =
+      {
+         {0, 0, 0},
          {1, 0, 0},
          {1, 1, 0},
          {1, 0, 1},

@@ -416,7 +416,8 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       {
          if (HYPRE_AssumedPartitionCheck())
             cmap_j_offd[offd_counter].one =
-               tdof_nb_offsets[gt.GetGroupMaster(ldof_group[i])] + ldof_ltdof[i];
+               tdof_nb_offsets[gt.GetGroupMaster(ldof_group[i])] +
+               ldof_ltdof[i];
          else
          {
             cmap_j_offd[offd_counter].one = col_starts[proc] + ldof_ltdof[i];

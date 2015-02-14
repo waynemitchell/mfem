@@ -690,8 +690,8 @@ void Mesh::Init()
 
 void Mesh::InitTables()
 {
-   el_to_edge = el_to_face = el_to_el =
-                                bel_to_edge = face_edge = edge_vertex = NULL;
+   el_to_edge =
+      el_to_face = el_to_el = bel_to_edge = face_edge = edge_vertex = NULL;
 }
 
 void Mesh::DeleteTables()

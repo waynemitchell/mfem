@@ -127,7 +127,10 @@ public:
 
    double ComputeL2Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const
-   { return GlobalLpNorm(2.0, GridFunction::ComputeL2Error(exsol, irs), pfes->GetComm()); }
+   {
+      return GlobalLpNorm(2.0, GridFunction::ComputeL2Error(exsol, irs),
+                          pfes->GetComm());
+   }
 
    double ComputeL2Error(Coefficient &exsol,
                          const IntegrationRule *irs[] = NULL) const
@@ -145,7 +148,8 @@ public:
                           const IntegrationRule *irs[] = NULL) const
    {
       return GlobalLpNorm(std::numeric_limits<double>::infinity(),
-                          GridFunction::ComputeMaxError(exsol, irs), pfes->GetComm());
+                          GridFunction::ComputeMaxError(exsol, irs),
+                          pfes->GetComm());
    }
 
    double ComputeMaxError(Coefficient &exsol,

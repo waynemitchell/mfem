@@ -902,8 +902,8 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
       }
       if (prec)
       {
-         prec->Mult(p, phat);
-      }  //  phat = M^{-1} * p
+         prec->Mult(p, phat);   //  phat = M^{-1} * p
+      }
       else
       {
          phat = p;
@@ -928,8 +928,8 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
               << "   ||s|| = " << resid;
       if (prec)
       {
-         prec->Mult(s, shat);
-      }  //  shat = M^{-1} * s
+         prec->Mult(s, shat);  //  shat = M^{-1} * s
+      }
       else
       {
          shat = s;

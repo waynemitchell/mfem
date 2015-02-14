@@ -208,11 +208,11 @@ void OptionsParser::Parse()
                   break;
                case ENABLE:
                   *(bool *)(options[j].var_ptr) = true;
-                  option_check[j+1] = 1;  //Do not allow to use the DISABLE Option
+                  option_check[j+1] = 1;  // Do not allow the DISABLE Option
                   break;
                case DISABLE:
                   *(bool *)(options[j].var_ptr) = false;
-                  option_check[j-1] = 1;  //Do not allow to use the ENABLE Option
+                  option_check[j-1] = 1;  // Do not allow the ENABLE Option
                   break;
                case ARRAY:
                   parseArray(argv[i++], *(Array<int>*)(options[j].var_ptr) );

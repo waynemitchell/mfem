@@ -321,16 +321,16 @@ inline void Array<T>::SetSize(int nsize, const T &initval)
 template <class T>
 inline T &Array<T>::operator[](int i)
 {
-   MFEM_ASSERT( i>=0 &&
-                i<size, "Access element " << i << " of array, size = " << size );
+   MFEM_ASSERT( i>=0 && i<size,
+                "Access element " << i << " of array, size = " << size );
    return ((T*)data)[i];
 }
 
 template <class T>
 inline const T &Array<T>::operator[](int i) const
 {
-   MFEM_ASSERT( i>=0 &&
-                i<size, "Access element " << i << " of array, size = " << size );
+   MFEM_ASSERT( i>=0 && i<size,
+                "Access element " << i << " of array, size = " << size );
    return ((T*)data)[i];
 }
 
