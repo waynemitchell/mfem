@@ -121,12 +121,12 @@ int main (int argc, char *argv[])
    /*for (int i = 0; i < 3; i++)
       mesh->UniformRefinement();*/
 
-   srand(1);
+   srand(0);
    mesh->UniformRefinement();
-   for (int i = 0; i < 6; i++)
+   for (int i = 0; i < 5; i++)
    {
       Array<Refinement> refs;
-      int types[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+      int types[] = { 1, 2, 3, 4, 5, 6, 7, 7, 7 };
       for (int j = 0; j < mesh->GetNE(); j++)
          if (!(rand() % 2))
             refs.Append(Refinement(j, types[rand() % (sizeof(types)/sizeof(int))]));

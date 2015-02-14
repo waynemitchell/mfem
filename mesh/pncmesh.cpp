@@ -274,12 +274,15 @@ void ParNCMesh::MakeShared
          shared.conforming.push_back(list.conforming[i]);
 
    for (int i = 0; i < list.masters.size(); i++)
-      if (is_shared(groups, list.masters[i].index, MyRank))
-         shared.masters.push_back(list.masters[i]);
-
-   for (int i = 0; i < list.slaves.size(); i++)
-      //if (is_shared(groups, list.slaves[i].index, MyRank)) // FIXME!!!
-         shared.slaves.push_back(list.slaves[i]);
+   {
+      const Master& master = list.masters[i];
+      if (is_shared(groups, master.index, MyRank))
+      {
+         shared.masters.push_back(master);
+         for (int j = master.slaves_begin; j < master.slaves_end; j++)
+            shared.slaves.push_back(list.slaves[j]);
+      }
+   }
 }
 
 void ParNCMesh::BuildSharedVertices()
