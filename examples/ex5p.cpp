@@ -120,8 +120,8 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace *R_space = new ParFiniteElementSpace(pmesh, hdiv_coll);
    ParFiniteElementSpace *W_space = new ParFiniteElementSpace(pmesh, l2_coll);
 
-   int dimR = R_space->GlobalTrueVSize();
-   int dimW = W_space->GlobalTrueVSize();
+   HYPRE_Int dimR = R_space->GlobalTrueVSize();
+   HYPRE_Int dimW = W_space->GlobalTrueVSize();
 
    if (verbose)
    {

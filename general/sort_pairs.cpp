@@ -10,8 +10,11 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 
-#include <cstdlib>
 #include "sort_pairs.hpp"
+
+#ifdef MFEM_USE_MPI
+#include <HYPRE_utilities.h>
+#endif
 
 namespace mfem
 {
@@ -37,12 +40,16 @@ void SortPairs (Pair<A, B> *pairs, int size)
 }
 
 
-// Instantiate int-int, double-int pairs, and int-double pairs
+// Instantiate int-int, double-int, int-double pairs
 template int ComparePairs<int, int> (const void *, const void *);
 template int ComparePairs<double, int> (const void *, const void *);
 template int ComparePairs<int, double> (const void *, const void *);
 template void SortPairs<int, int> (Pair<int, int> *, int );
 template void SortPairs<double, int> (Pair<double, int> *, int );
 template void SortPairs<int, double> (Pair<int, double> *, int );
+#ifdef HYPRE_BIGINT
+template int ComparePairs<HYPRE_Int, int> (const void *, const void *);
+template void SortPairs<HYPRE_Int, int> (Pair<HYPRE_Int, int> *, int );
+#endif
 
 }

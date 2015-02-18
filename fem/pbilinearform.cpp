@@ -14,6 +14,7 @@
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+#include "../general/sort_pairs.hpp"
 
 namespace mfem
 {
@@ -118,11 +119,11 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    else
    {
       // handle the case when 'm' contains offdiagonal
-      int  lvsize = pfes->GetVSize();
-      const int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
-      int ldof_offset = pfes->GetMyDofOffset();
+      int lvsize = pfes->GetVSize();
+      const HYPRE_Int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
+      HYPRE_Int ldof_offset = pfes->GetMyDofOffset();
 
-      Array<int> glob_J(m->NumNonZeroElems());
+      Array<HYPRE_Int> glob_J(m->NumNonZeroElems());
       int *J = m->GetJ();
       for (int i = 0; i < glob_J.Size(); i++)
          if (J[i] < lvsize)
@@ -207,12 +208,13 @@ void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)
 
 HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(SparseMatrix *m)
 {
-   if (m == NULL)
-      return NULL;
+   if (m == NULL) return NULL;
 
    int *I = m->GetI();
    int *J = m->GetJ();
    double *data = m->GetData();
+
+#if 0
 
    // remap to tdof local row and tdof global column indices
    SparseMatrix local(range_fes->TrueVSize(), domain_fes->GlobalTrueVSize());
@@ -234,26 +236,159 @@ HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(SparseMatrix *m)
                              local.GetI(), local.GetJ(), local.GetData(),
                              range_fes->GetTrueDofOffsets(),
                              domain_fes->GetTrueDofOffsets());
+
+#else
+
+   int  range_ldofs =  range_fes->GetVSize(); // == m->Height()
+   int domain_ldofs = domain_fes->GetVSize(); // == m->Width()
+
+   int num_rows = range_fes->TrueVSize();
+   int diag_num_cols = domain_fes->TrueVSize();
+   int offd_num_cols = domain_ldofs - diag_num_cols;
+
+   HYPRE_Int *offd_col_map = new HYPRE_Int[offd_num_cols];
+   Array<int> ldof_edof(domain_ldofs);
+   ldof_edof = -1;
+   // create a numbering of the domain_fes external dofs (i.e. the ldofs that
+   // are not ltdofs; the numbering is obtained by sorting the external dofs by
+   // their global true-dof number
+   // * col_map_offd is the map edof -> global tdof (sorted)
+   // * ldof_edof    is the map ldof -> edof
+   {
+      Array<Pair<HYPRE_Int, int> > cmap_j_offd(offd_num_cols);
+      int edof_counter = 0;
+      for (int i = 0; i < domain_ldofs; i++)
+      {
+         int lti = domain_fes->GetLocalTDofNumber(i);
+         if (lti < 0)
+         {
+            cmap_j_offd[edof_counter].one = domain_fes->GetGlobalTDofNumber(i);
+            cmap_j_offd[edof_counter].two = i;
+            edof_counter++;
+         }
+      }
+      SortPairs<HYPRE_Int, int>(cmap_j_offd, offd_num_cols);
+      for (int i = 0; i < offd_num_cols; i++)
+      {
+         offd_col_map[i] = cmap_j_offd[i].one;
+         // ldof_edof is the inverse of the map i -> cmap_j_offd[i].two
+         ldof_edof[cmap_j_offd[i].two] = i;
+      }
+   }
+
+   HYPRE_Int *diag_i, *diag_j, *offd_i, *offd_j;
+   double *diag_data, *offd_data;
+
+   diag_i = new HYPRE_Int[num_rows+1];
+   offd_i = new HYPRE_Int[num_rows+1];
+   // count the number of entries in each row of diag and offd
+   for (int i = 0; i <= num_rows; i++)
+   {
+      diag_i[i] = 0;
+      offd_i[i] = 0;
+   }
+   for (int i = 0; i < range_ldofs; i++)
+   {
+      int lti = range_fes->GetLocalTDofNumber(i);
+      if (lti >= 0)
+      {
+         for (int j = I[i]; j < I[i+1]; j++)
+         {
+            int k = J[j];
+            int ltk = domain_fes->GetLocalTDofNumber(k);
+            if (ltk >= 0)
+            {
+               diag_i[lti]++;
+            }
+            else
+            {
+               offd_i[lti]++;
+            }
+         }
+      }
+   }
+   // convert row sizes into row offsets
+   HYPRE_Int diag_offset = 0, offd_offset = 0;
+   for (int i = 0; i < num_rows; i++)
+   {
+      HYPRE_Int diag_row_size = diag_i[i];
+      HYPRE_Int offd_row_size = offd_i[i];
+      diag_i[i] = diag_offset;
+      offd_i[i] = offd_offset;
+      diag_offset += diag_row_size;
+      offd_offset += offd_row_size;
+   }
+   diag_i[num_rows] = diag_offset;
+   offd_i[num_rows] = offd_offset;
+   // allocate the j and data arrays of diag and offd
+   diag_j = new HYPRE_Int[diag_offset];
+   diag_data = new double[diag_offset];
+   offd_j = new HYPRE_Int[offd_offset];
+   offd_data = new double[offd_offset];
+   // set the entries of the j and data arrays of diag and offd
+   for (int i = 0; i < range_ldofs; i++)
+   {
+      int lti = range_fes->GetLocalTDofNumber(i);
+      if (lti >= 0)
+      {
+         for (int j = I[i]; j < I[i+1]; j++)
+         {
+            int k = J[j];
+            int ltk = domain_fes->GetLocalTDofNumber(k);
+            if (ltk >= 0)
+            {
+               diag_j[diag_i[lti]] = ltk;
+               diag_data[diag_i[lti]] = data[j];
+               diag_i[lti]++;
+            }
+            else
+            {
+               offd_j[offd_i[lti]] = ldof_edof[k];
+               offd_data[offd_i[lti]] = data[j];
+               offd_i[lti]++;
+            }
+         }
+      }
+   }
+   // shift back the i arrays of diag and offd
+   diag_offset = offd_offset = 0;
+   for (int i = 0; i < num_rows; i++)
+   {
+      Swap(diag_i[i], diag_offset);
+      Swap(offd_i[i], offd_offset);
+   }
+
+   HypreParMatrix *glob_m =
+      new HypreParMatrix(range_fes->GetComm(),
+                         range_fes->GlobalTrueVSize(),
+                         domain_fes->GlobalTrueVSize(),
+                         range_fes->GetTrueDofOffsets(),
+                         domain_fes->GetTrueDofOffsets(),
+                         diag_i, diag_j, diag_data,
+                         offd_i, offd_j, offd_data,
+                         offd_num_cols, offd_col_map);
+
+   return glob_m;
+
+#endif
 }
 
 void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks) const
 {
+   // TODO
+   MFEM_ABORT("TODO");
+#if 0
+   // --------------------------------------------------------------------------
    int rdim = range_fes->GetVDim();
    int ddim = domain_fes->GetVDim();
 
    blocks.SetSize(rdim, ddim);
 
-   int i, j, n;
-
    // construct the scalar versions of the row/coll offset arrays
-   int *row_starts, *col_starts;
-   if (HYPRE_AssumedPartitionCheck())
-      n = 2;
-   else
-      n = range_fes->GetNRanks()+1;
-   row_starts = new int[n];
-   col_starts = new int[n];
-   for (i = 0; i < n; i++)
+   int n = HYPRE_AssumedPartitionCheck() ? 2 : range_fes->GetNRanks()+1;
+   HYPRE_Int *row_starts = new int[n];
+   HYPRE_Int *col_starts = new int[n];
+   for (int i = 0; i < n; i++)
    {
       row_starts[i] = (range_fes->GetTrueDofOffsets())[i] / rdim;
       col_starts[i] = (domain_fes->GetTrueDofOffsets())[i] / ddim;
@@ -287,34 +422,32 @@ void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks) 
 
          // construct and return a global ParCSR matrix by splitting the local
          // matrix into diag and offd parts
-         blocks(bi,bj) = new HypreParMatrix(range_fes->GetComm(),
-                                            range_fes->TrueVSize()/rdim,
-                                            range_fes->GlobalTrueVSize()/rdim,
-                                            domain_fes->GlobalTrueVSize()/ddim,
-                                            local.GetI(), local.GetJ(), local.GetData(),
-                                            row_starts, col_starts);
+         blocks(bi,bj) =
+            new HypreParMatrix(range_fes->GetComm(),
+                               range_fes->TrueVSize()/rdim,
+                               range_fes->GlobalTrueVSize()/rdim,
+                               domain_fes->GlobalTrueVSize()/ddim,
+                               local.GetI(), local.GetJ(), local.GetData(),
+                               row_starts, col_starts);
       }
 
+   // one of the blocks needs to own this arrays!
    delete [] row_starts;
    delete [] col_starts;
+   // --------------------------------------------------------------------------
+#endif
 }
 
 HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
 {
-   int  nproc   = trial_pfes -> GetNRanks();
-   int *trial_dof_off = trial_pfes -> GetDofOffsets();
-   int *test_dof_off  = test_pfes -> GetDofOffsets();
-
    // construct the block-diagonal matrix A
-   HypreParMatrix *A;
-   if (HYPRE_AssumedPartitionCheck())
-      A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[2],
-                             trial_dof_off[2], test_dof_off, trial_dof_off,
-                             mat);
-   else
-      A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[nproc],
-                             trial_dof_off[nproc], test_dof_off, trial_dof_off,
-                             mat);
+   HypreParMatrix *A =
+      new HypreParMatrix(trial_pfes->GetComm(),
+                         test_pfes->GlobalVSize(),
+                         trial_pfes->GlobalVSize(),
+                         test_pfes->GetDofOffsets(),
+                         trial_pfes->GetDofOffsets(),
+                         mat);
 
    HypreParMatrix *rap = RAP(test_pfes->Dof_TrueDof_Matrix(), A,
                              trial_pfes->Dof_TrueDof_Matrix());

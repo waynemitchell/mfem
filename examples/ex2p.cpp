@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
       fec = new H1_FECollection(order, dim);
       fespace = new ParFiniteElementSpace(pmesh, fec, dim, Ordering::byVDIM);
    }
-   int size = fespace->GlobalTrueVSize();
+   HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
       cout << "Number of unknowns: " << size << endl
            << "Assembling: " << flush;

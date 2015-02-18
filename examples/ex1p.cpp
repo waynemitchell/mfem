@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
    else
       fec = new H1_FECollection(order = 1, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
-   int size = fespace->GlobalTrueVSize();
+   HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
       cout << "Number of unknowns: " << size << endl;
 
