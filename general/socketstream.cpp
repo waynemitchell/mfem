@@ -62,6 +62,20 @@ int socketbuf::open(const char hostname[], int port)
    socket_descriptor = socket(hp->h_addrtype, SOCK_STREAM, 0);
    if (socket_descriptor < 0)
       return -1;
+
+#if defined __APPLE__
+   // OS X does not support the MSG_NOSIGNAL option of send().
+   // Instead we can use the SO_NOSIGPIPE socket option.
+   int on = 1;
+   if (setsockopt(socket_descriptor, SOL_SOCKET, SO_NOSIGPIPE,
+                  (char *)(&on), sizeof(on)) < 0)
+   {
+      closesocket(socket_descriptor);
+      socket_descriptor = -2;
+      return -1;
+   }
+#endif
+
    if (connect(socket_descriptor,
                (const struct sockaddr *)&sa, sizeof(sa)) < 0)
    {
