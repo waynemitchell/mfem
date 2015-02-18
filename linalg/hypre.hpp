@@ -152,11 +152,15 @@ private:
    // Copy (shallow or deep, based on HYPRE_BIGINT) the I and J arrays from csr
    // to hypre_csr. Shallow copy the data. Return the appropriate ownership
    // flag.
-   char CopyCSR(SparseMatrix *csr, hypre_CSRMatrix *hypre_csr);
+   static char CopyCSR(SparseMatrix *csr, hypre_CSRMatrix *hypre_csr);
    // Copy (shallow or deep, based on HYPRE_BIGINT) the I and J arrays from
    // bool_csr to hypre_csr. Allocate the data array and set it to all ones.
    // Return the appropriate ownership flag.
-   char CopyBoolCSR(Table *bool_csr, hypre_CSRMatrix *hypre_csr);
+   static char CopyBoolCSR(Table *bool_csr, hypre_CSRMatrix *hypre_csr);
+
+   // Copy the j array of a hypre_CSRMatrix to the given J array, converting
+   // the indices from HYPRE_Int to int.
+   static void CopyCSR_J(hypre_CSRMatrix *hypre_csr, int *J);
 
 public:
    /// Converts hypre's format to HypreParMatrix

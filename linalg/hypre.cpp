@@ -236,6 +236,13 @@ char HypreParMatrix::CopyBoolCSR(Table *bool_csr, hypre_CSRMatrix *hypre_csr)
 #endif
 }
 
+void HypreParMatrix::CopyCSR_J(hypre_CSRMatrix *hypre_csr, int *J)
+{
+   HYPRE_Int nnz = hypre_CSRMatrixNumNonzeros(hypre_csr);
+   for (HYPRE_Int j = 0; j < nnz; j++)
+      J[j] = int(hypre_CSRMatrixJ(hypre_csr)[j]);
+}
+
 // Square block-diagonal constructor
 HypreParMatrix::HypreParMatrix(MPI_Comm comm, HYPRE_Int glob_size,
                                HYPRE_Int *row_starts, SparseMatrix *diag)
@@ -264,6 +271,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, HYPRE_Int glob_size,
 
    /* Make sure that the first entry in each row is the diagonal one. */
    hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+#ifdef HYPRE_BIGINT
+   CopyCSR_J(A->diag, diag->GetJ());
+#endif
 
    hypre_MatvecCommPkgCreate(A);
 }
@@ -295,7 +305,12 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
 
    /* Make sure that the first entry in each row is the diagonal one. */
    if (row_starts == col_starts)
+   {
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+#ifdef HYPRE_BIGINT
+      CopyCSR_J(A->diag, diag->GetJ());
+#endif
+   }
 
    hypre_MatvecCommPkgCreate(A);
 }
@@ -334,7 +349,12 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
 
    /* Make sure that the first entry in each row is the diagonal one. */
    if (row_starts == col_starts)
+   {
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+#ifdef HYPRE_BIGINT
+      CopyCSR_J(A->diag, diag->GetJ());
+#endif
+   }
 
    hypre_MatvecCommPkgCreate(A);
 }
@@ -455,7 +475,12 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
 
    /* Make sure that the first entry in each row is the diagonal one. */
    if (row_starts == col_starts)
+   {
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+#ifdef HYPRE_BIGINT
+      CopyCSR_J(A->diag, diag->GetJ());
+#endif
+   }
 
    hypre_MatvecCommPkgCreate(A);
 
@@ -550,7 +575,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
 #ifndef HYPRE_BIGINT
    hypre_CSRMatrixI(local) = I;
 #else
-   hypre_CSRMatrixI(local) = internal::Duplicate_As_HYPRE_Int(I, nrows);
+   hypre_CSRMatrixI(local) = internal::Duplicate_As_HYPRE_Int(I, nrows+1);
 #endif
    hypre_CSRMatrixJ(local) = J;
    hypre_CSRMatrixData(local) = data;
@@ -572,26 +597,34 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
    }
 
    // copy in the row and column partitionings
-   HYPRE_Int *row_starts = hypre_TAlloc(HYPRE_Int, part_size);
-   HYPRE_Int *col_starts = hypre_TAlloc(HYPRE_Int, part_size);
-   for (int i = 0; i < part_size; i++)
+   HYPRE_Int *row_starts, *col_starts;
+   if (rows == cols)
    {
-      row_starts[i] = rows[i];
-      col_starts[i] = cols[i];
+      row_starts = col_starts = hypre_TAlloc(HYPRE_Int, part_size);
+      for (int i = 0; i < part_size; i++)
+         row_starts[i] = rows[i];
+   }
+   else
+   {
+      row_starts = hypre_TAlloc(HYPRE_Int, part_size);
+      col_starts = hypre_TAlloc(HYPRE_Int, part_size);
+      for (int i = 0; i < part_size; i++)
+      {
+         row_starts[i] = rows[i];
+         col_starts[i] = cols[i];
+      }
    }
 
    // construct the global ParCSR matrix
    A = hypre_ParCSRMatrixCreate(comm, glob_nrows, glob_ncols,
                                 row_starts, col_starts, 0, 0, 0);
-   hypre_ParCSRMatrixOwnsRowStarts(A) = 1;
-   hypre_ParCSRMatrixOwnsColStarts(A) = 1;
    // WARNING: This function creates a marker array with the size of
    // local->num_cols which is equal to glob_ncols in this case!
    // FIXME:
    GenerateDiagAndOffd(local, A, col_starts[myid], col_starts[myid+1]-1);
    hypre_ParCSRMatrixSetNumNonzeros(A);
    /* Make sure that the first entry in each row is the diagonal one. */
-   if (rows == cols)
+   if (row_starts == col_starts)
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
    hypre_MatvecCommPkgCreate(A);
 
