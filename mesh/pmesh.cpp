@@ -71,6 +71,28 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       }
 
       pncmesh->OnMeshUpdated(this);
+
+      if (mesh.GetNodes()) // curved mesh TODO
+      {
+         Nodes = new ParGridFunction(this, mesh.GetNodes());
+         own_nodes = 1;
+
+         ((ParGridFunction*) Nodes)->ParFESpace()->Dof_TrueDof_Matrix();
+
+         Array<int> gvdofs, lvdofs;
+         Vector lnodes;
+         int element_counter = 0;
+         for (i = 0; i < mesh.GetNE(); i++)
+            if (pncmesh->InitialPartition(i) == MyRank)
+            {
+               Nodes->FESpace()->GetElementVDofs(element_counter, lvdofs);
+               mesh.GetNodes()->FESpace()->GetElementVDofs(i, gvdofs);
+               mesh.GetNodes()->GetSubVector(gvdofs, lnodes);
+               Nodes->SetSubVector(lvdofs, lnodes);
+               element_counter++;
+            }
+      }
+
       return;
    }
 

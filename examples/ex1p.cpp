@@ -96,6 +96,18 @@ int main (int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
+   // Project NURBS to Nodes
+   if (mesh->NURBSext)
+   {
+      for (int i = 0; i < 2; i++)
+         mesh->UniformRefinement();
+
+      FiniteElementCollection* nfec = new H1_FECollection(2, dim);
+      FiniteElementSpace* nfes = new FiniteElementSpace(mesh, nfec, dim);
+      mesh->SetNodalFESpace(nfes);
+      mesh->GetNodes()->MakeOwner(nfec);
+   }
+
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
@@ -122,11 +134,11 @@ int main (int argc, char *argv[])
       mesh->UniformRefinement();*/
 
    srand(0);
-   mesh->UniformRefinement();
-   for (int i = 0; i < 5; i++)
+   for (int i = 0; i < 4; i++)
    {
       Array<Refinement> refs;
       int types[] = { 1, 2, 3, 4, 5, 6, 7, 7, 7 };
+      //int types[] = { 1, 2, 3, 3, 3 };
       for (int j = 0; j < mesh->GetNE(); j++)
          if (!(rand() % 2))
             refs.Append(Refinement(j, types[rand() % (sizeof(types)/sizeof(int))]));

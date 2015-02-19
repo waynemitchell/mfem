@@ -137,7 +137,9 @@ protected:
 
    Array<char> face_orient;
 
-   void InitialPartition();
+   /// Assigns elements to processors at the initial stage (ParMesh creation).
+   int InitialPartition(int index) const
+   { return index * NRanks / leaf_elements.Size(); }
 
    virtual void UpdateVertices();
    virtual void AssignLeafIndices();

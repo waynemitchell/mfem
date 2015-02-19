@@ -29,18 +29,13 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
    MPI_Comm_size(MyComm, &NRanks);
    MPI_Comm_rank(MyComm, &MyRank);
 
-   InitialPartition();
+   // assign leaf elements to the 'NRanks' processors
+   for (int i = 0; i < leaf_elements.Size(); i++)
+      leaf_elements[i]->rank = InitialPartition(i);
+
    AssignLeafIndices();
    UpdateVertices();
    //PruneGhosts();
-}
-
-void ParNCMesh::InitialPartition()
-{
-   // assign the 'n' leaves to the 'NRanks' processors
-   int n = leaf_elements.Size();
-   for (int i = 0; i < n; i++)
-      leaf_elements[i]->rank = i * NRanks / n;
 }
 
 void ParNCMesh::AssignLeafIndices()
