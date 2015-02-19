@@ -29,14 +29,14 @@
 //               of boundary conditions on all boundary edges, and the optional
 //               connection to the GLVis tool for visualization.
 
+#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "mfem.hpp"
 
 using namespace std;
 using namespace mfem;
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";

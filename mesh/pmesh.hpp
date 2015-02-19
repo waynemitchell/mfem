@@ -12,14 +12,14 @@
 #ifndef MFEM_PMESH
 #define MFEM_PMESH
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
-#include <iostream>
 #include "../general/communication.hpp"
 #include "mesh.hpp"
 #include "pncmesh.hpp"
+#include <iostream>
 
 namespace mfem
 {
@@ -63,12 +63,19 @@ private:
    void DeleteFaceNbrData();
 
 public:
+   /** Copy constructor. Performs a deep copy of (almost) all data, so that the
+       source mesh can be modified (e.g. deleted, refined) without affecting the
+       new mesh. The source mesh has to be in a NORMAL, i.e. not TWO_LEVEL_*,
+       state. If 'copy_nodes' is false, use a shallow (pointer) copy for the
+       nodes, if present. */
+   explicit ParMesh(const ParMesh &pmesh, bool copy_nodes = true);
+
    ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_ = NULL,
            int part_method = 1);
 
-   MPI_Comm GetComm() { return MyComm; }
-   int GetNRanks() { return NRanks; }
-   int GetMyRank() { return MyRank; }
+   MPI_Comm GetComm() const { return MyComm; }
+   int GetNRanks() const { return NRanks; }
+   int GetMyRank() const { return MyRank; }
 
    GroupTopology gtopo;
 

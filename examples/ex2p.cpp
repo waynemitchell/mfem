@@ -34,14 +34,14 @@
 //
 //               We recommend viewing Example 1 before viewing this example.
 
+#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "mfem.hpp"
 
 using namespace std;
 using namespace mfem;
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
    int num_procs, myid;

@@ -19,13 +19,16 @@
 //               finite elements (velocity u) and piecewise discontinuous
 //               polynomials (pressure p).
 //
-//               The example demonstrates the use of the BlockMatrix class.
+//               The example demonstrates the use of the BlockMatrix class, as
+//               well as the collective saving of several grid functions in a
+//               VisIt (visit.llnl.gov) visualization format.
 //
 //               We recommend viewing examples 1-4 before viewing this example.
 
+#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "mfem.hpp"
+#include <algorithm>
 
 using namespace std;
 using namespace mfem;
@@ -37,7 +40,7 @@ void fFun(const Vector & x, Vector & f);
 double gFun(Vector & x);
 double f_natural(Vector & x);
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    StopWatch chrono;
 
@@ -174,7 +177,7 @@ int main (int argc, char *argv[])
    //     Here we use Symmetric Gauss-Seidel to approximate the inverse of the
    //     pressure Schur Complement
    SparseMatrix *MinvBt = Transpose(B);
-   Vector Md(M.Size());
+   Vector Md(M.Height());
    M.GetDiag(Md);
    for (int i = 0; i < Md.Size(); i++)
       MinvBt->ScaleRow(i, 1./Md(i));
@@ -197,8 +200,7 @@ int main (int argc, char *argv[])
 
    // 10. Solve the linear system with MINRES.
    //     Check the norm of the unpreconditioned residual.
-
-   int maxIter(500);
+   int maxIter(1000);
    double rtol(1.e-6);
    double atol(1.e-10);
 
@@ -258,7 +260,13 @@ int main (int argc, char *argv[])
       p.Save(p_ofs);
    }
 
-   // 13. Send the solution by socket to a GLVis server.
+   // 13. Save data in the VisIt format
+   VisItDataCollection visit_dc("Example5", mesh);
+   visit_dc.RegisterField("velocity", &u);
+   visit_dc.RegisterField("pressure", &p);
+   visit_dc.Save();
+
+   // 14. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -271,7 +279,7 @@ int main (int argc, char *argv[])
       p_sock << "solution\n" << *mesh << p << "window_title 'Pressure'" << endl;
    }
 
-   // 14. Free the used memory.
+   // 15. Free the used memory.
    delete fform;
    delete gform;
    delete invM;

@@ -12,7 +12,7 @@
 #ifndef MFEM_BLOCKVECTOR
 #define MFEM_BLOCKVECTOR
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../general/array.hpp"
 #include "vector.hpp"
 
@@ -22,6 +22,8 @@ namespace mfem
 //! @class BlockVector
 /*
  * \brief A class to handle Vectors in a block fashion
+ *
+ * All data is contained in Vector::data, while blockVector is just a viewer for this data
  *
  */
 class BlockVector: public Vector

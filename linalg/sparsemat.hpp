@@ -22,12 +22,16 @@
 namespace mfem
 {
 
-class RowNode
+class
+#if defined(__alignas_is_defined)
+alignas(double)
+#endif
+   RowNode
 {
 public:
+   double Value;
    RowNode *Prev;
    int Column;
-   double Value;
 };
 
 /// Data type sparse matrix
@@ -36,31 +40,41 @@ class SparseMatrix : public AbstractSparseMatrix
 private:
 
    /** Arrays for the connectivity information in the CSR storage.
-       I is of size "size+1", J is of size the number of nonzero entries
-       in the Sparse matrix (actually stored I[size]) */
-   int *I, *J, width;
+       I is of size "height+1", J is of size the number of nonzero entries
+       in the Sparse matrix (actually stored I[height]) */
+   int *I, *J;
 
-   /// The nonzero entries in the Sparse matrix with size I[size].
+   /// The nonzero entries in the Sparse matrix with size I[height].
    double *A;
 
+   /// Array of linked lists, one for every row.
    RowNode **Rows;
 
-   int current_row;
-   union { int *J; RowNode **Node; } ColPtr;
+   mutable int current_row;
+   mutable int* ColPtrJ;
+   mutable RowNode ** ColPtrNode;
 
 #ifdef MFEM_USE_MEMALLOC
    typedef MemAlloc <RowNode, 1024> RowNodeAlloc;
    RowNodeAlloc * NodesMem;
 #endif
 
-   inline void SetColPtr(const int row);
-   inline void ClearColPtr();
+   /// Say whether we own the pointers for I and J (should we free them?).
+   bool ownGraph;
+   /// Say whether we own the pointers for A (should we free them?).
+   bool ownData;
+
+   /// Are the columns sorted already.
+   bool isSorted;
+
+   inline void SetColPtr(const int row) const;
+   inline void ClearColPtr() const;
    inline double &SearchRow(const int col);
    inline void _Add_(const int col, const double a)
    { SearchRow(col) += a; }
    inline void _Set_(const int col, const double a)
    { SearchRow(col) = a; }
-   inline double _Get_(const int col);
+   inline double _Get_(const int col) const;
 
    inline double &SearchRow(const int row, const int col);
    inline void _Add_(const int row, const int col, const double a)
@@ -69,10 +83,28 @@ private:
    { SearchRow(row, col) = a; }
 
 public:
-   /// Creates sparse matrix.
+   /** Create a sparse matrix with flexible sparsity structure using a row-wise
+       linked list format. New entries are added as needed by methods like
+       AddSubMatrix, SetSubMatrix, etc. Calling Finalize() will convert the
+       SparseMatrix to the more compact compressed sparse row (CSR) format. */
    explicit SparseMatrix(int nrows, int ncols = 0);
 
+   /** Create a sparse matrix in CSR format. Ownership of i, j, and data is
+       transferred to the SparseMatrix. */
    SparseMatrix(int *i, int *j, double *data, int m, int n);
+
+   /** Create a sparse matrix in CSR format. Ownership of i, j, and data is
+       optionally transferred to the SparseMatrix. */
+   SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij,
+                bool owna, bool issorted);
+
+   /** Copy constructor (deep copy). If mat is finalized and copy_graph is
+       false, the I and J arrays will use a shallow copy (copy the pointers
+       only) without transferring ownership. */
+   SparseMatrix(const SparseMatrix &mat, bool copy_graph = true);
+
+   /// For backward compatibility define Size to be synonym of Height()
+   int Size() const { return Height(); }
 
    /// Return the array I
    inline int *GetI() const { return I; }
@@ -80,8 +112,6 @@ public:
    inline int *GetJ() const { return J; }
    /// Return element data
    inline double *GetData() const { return A; }
-   /// Return the number of columns
-   inline int Width() const { return width; }
    /// Returns the number of elements in row i
    int RowSize(const int i) const;
    /// Returns the maximum number of elements among all rows
@@ -110,16 +140,16 @@ public:
    /// Sort the column indices corresponding to each row
    void SortColumnIndices();
 
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns reference to a_{ij}.
    virtual double &Elem(int i, int j);
 
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns constant reference to a_{ij}.
    virtual const double &Elem(int i, int j) const;
 
-   /// Returns reference to A[i][j].  Index i, j = 0 .. size-1
+   /// Returns reference to A[i][j].
    double &operator()(int i, int j);
 
-   /// Returns reference to A[i][j].  Index i, j = 0 .. size-1
+   /// Returns reference to A[i][j].
    const double &operator()(int i, int j) const;
 
    /// Returns the Diagonal of A
@@ -214,7 +244,8 @@ public:
        CSR (compressed sparse row) format. */
    virtual void Finalize(int skip_zeros = 1);
 
-   int Finalized() const { return (A != NULL); }
+   bool Finalized() const { return (A != NULL); }
+   bool areColumnsSorted() const { return isSorted; }
 
    /** Split the matrix into M x N blocks of sparse matrices in CSR format.
        The 'blocks' array is M x N (i.e. M and N are determined by its
@@ -262,14 +293,14 @@ public:
 
    /** Add the sparse matrix 'B' scaled by the scalar 'a' into '*this'.
        Only entries in the sparsity pattern of '*this' are added. */
-   void Add(const double a, SparseMatrix &B);
+   void Add(const double a, const SparseMatrix &B);
 
    SparseMatrix &operator=(double a);
 
    SparseMatrix &operator*=(double a);
 
    /// Prints matrix to stream out.
-   void Print(std::ostream &out = std::cout, int width = 4) const;
+   void Print(std::ostream &out = std::cout, int width_ = 4) const;
 
    /// Prints matrix in matlab format.
    void PrintMatlab(std::ostream &out = std::cout) const;
@@ -303,7 +334,7 @@ public:
    /// Call this if data has been stolen.
    void LoseData() { I=0; J=0; A=0; }
 
-   friend void Swap(SparseMatrix & A, SparseMatrix & B);
+   void Swap(SparseMatrix &other);
 
    /// Destroys sparse matrix.
    virtual ~SparseMatrix();
@@ -316,7 +347,8 @@ void SparseMatrixFunction(SparseMatrix &S, double (*f)(double));
 /// Transpose of a sparse matrix. A must be finalized.
 SparseMatrix *Transpose(const SparseMatrix &A);
 /// Transpose of a sparse matrix. A does not need to be a CSR matrix.
-SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A, int useActualWidth);
+SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A,
+                                             int useActualWidth);
 
 /** Matrix product A.B.
     If OAB is not NULL, we assume it has the structure
@@ -328,13 +360,18 @@ SparseMatrix *Mult(const SparseMatrix &A, const SparseMatrix &B,
                    SparseMatrix *OAB = NULL);
 
 /// Matrix product of sparse matrices. A and B do not need to be CSR matrices
-SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A, const AbstractSparseMatrix &B);
+SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A,
+                                        const AbstractSparseMatrix &B);
 
 
-/** RAP matrix product. ORAP is like OAB above.
+/** RAP matrix product (with P=R^T). ORAP is like OAB above.
     All matrices must be finalized.  */
 SparseMatrix *RAP(const SparseMatrix &A, const SparseMatrix &R,
                   SparseMatrix *ORAP = NULL);
+
+/// General RAP with given R^T, A and P
+SparseMatrix *RAP(const SparseMatrix &Rt, const SparseMatrix &A,
+                  const SparseMatrix &P);
 
 /** Matrix multiplication A^t D A.
     All matrices must be finalized.  */
@@ -345,56 +382,61 @@ SparseMatrix *Mult_AtDA(const SparseMatrix &A, const Vector &D,
 /// Matrix addition result = A + B.
 SparseMatrix * Add(const SparseMatrix & A, const SparseMatrix & B);
 /// Matrix addition result = a*A + b*B
-SparseMatrix * Add(double a, const SparseMatrix & A, double b, const SparseMatrix & B);
+SparseMatrix * Add(double a, const SparseMatrix & A, double b,
+                   const SparseMatrix & B);
 /// Matrix addition result = sum_i A_i
 SparseMatrix * Add(Array<SparseMatrix *> & Ai);
 
 
 // Inline methods
 
-inline void SparseMatrix::SetColPtr(const int row)
+inline void SparseMatrix::SetColPtr(const int row) const
 {
    if (Rows)
    {
-      if (ColPtr.Node == NULL)
+      if (ColPtrNode == NULL)
       {
-         ColPtr.Node = new RowNode *[width];
+         ColPtrNode = new RowNode *[width];
          for (int i = 0; i < width; i++)
-            ColPtr.Node[i] = NULL;
+         {
+            ColPtrNode[i] = NULL;
+         }
       }
       for (RowNode *node_p = Rows[row]; node_p != NULL; node_p = node_p->Prev)
       {
-         ColPtr.Node[node_p->Column] = node_p;
+         ColPtrNode[node_p->Column] = node_p;
       }
    }
    else
    {
-      if (ColPtr.J == NULL)
+      if (ColPtrJ == NULL)
       {
-         ColPtr.J = new int[width];
+         ColPtrJ = new int[width];
          for (int i = 0; i < width; i++)
-            ColPtr.J[i] = -1;
+         {
+            ColPtrJ[i] = -1;
+         }
       }
       for (int j = I[row], end = I[row+1]; j < end; j++)
       {
-         ColPtr.J[J[j]] = j;
+         ColPtrJ[J[j]] = j;
       }
    }
    current_row = row;
 }
 
-inline void SparseMatrix::ClearColPtr()
+inline void SparseMatrix::ClearColPtr() const
 {
    if (Rows)
       for (RowNode *node_p = Rows[current_row]; node_p != NULL;
            node_p = node_p->Prev)
       {
-         ColPtr.Node[node_p->Column] = NULL;
+         ColPtrNode[node_p->Column] = NULL;
       }
    else
       for (int j = I[current_row], end = I[current_row+1]; j < end; j++)
       {
-         ColPtr.J[J[j]] = -1;
+         ColPtrJ[J[j]] = -1;
       }
 }
 
@@ -402,7 +444,7 @@ inline double &SparseMatrix::SearchRow(const int col)
 {
    if (Rows)
    {
-      RowNode *node_p = ColPtr.Node[col];
+      RowNode *node_p = ColPtrNode[col];
       if (node_p == NULL)
       {
 #ifdef MFEM_USE_MEMALLOC
@@ -413,29 +455,28 @@ inline double &SparseMatrix::SearchRow(const int col)
          node_p->Prev = Rows[current_row];
          node_p->Column = col;
          node_p->Value = 0.0;
-         Rows[current_row] = ColPtr.Node[col] = node_p;
+         Rows[current_row] = ColPtrNode[col] = node_p;
       }
       return node_p->Value;
    }
    else
    {
-      const int j = ColPtr.J[col];
-      if (j == -1)
-         mfem_error("SparseMatrix::SearchRow : entry is not allocated!");
+      const int j = ColPtrJ[col];
+      MFEM_VERIFY(j != -1, "Entry for column " << col << " is not allocated.");
       return A[j];
    }
 }
 
-inline double SparseMatrix::_Get_(const int col)
+inline double SparseMatrix::_Get_(const int col) const
 {
    if (Rows)
    {
-      RowNode *node_p = ColPtr.Node[col];
+      RowNode *node_p = ColPtrNode[col];
       return (node_p == NULL) ? 0.0 : node_p->Value;
    }
    else
    {
-      const int j = ColPtr.J[col];
+      const int j = ColPtrJ[col];
       return (j == -1) ? 0.0 : A[j];
    }
 }
@@ -447,6 +488,7 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
       RowNode *node_p;
 
       for (node_p = Rows[row]; 1; node_p = node_p->Prev)
+      {
          if (node_p == NULL)
          {
 #ifdef MFEM_USE_MEMALLOC
@@ -464,17 +506,28 @@ inline double &SparseMatrix::SearchRow(const int row, const int col)
          {
             break;
          }
+      }
       return node_p->Value;
    }
    else
    {
       int *Ip = I+row, *Jp = J;
       for (int k = Ip[0], end = Ip[1]; k < end; k++)
+      {
          if (Jp[k] == col)
+         {
             return A[k];
-      mfem_error("SparseMatrix::SearchRow(...)");
+         }
+      }
+      MFEM_ABORT("Could not find entry for row = " << row << ", col = " << col);
    }
    return A[0];
+}
+
+/// Specialization of the template function Swap<> for class SparseMatrix
+template<> inline void Swap<SparseMatrix>(SparseMatrix &a, SparseMatrix &b)
+{
+   a.Swap(b);
 }
 
 }

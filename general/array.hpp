@@ -12,13 +12,13 @@
 #ifndef MFEM_ARRAY
 #define MFEM_ARRAY
 
+#include "../config/config.hpp"
+#include "error.hpp"
+
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
-
-#include "../config.hpp"
-#include "error.hpp"
 
 namespace mfem
 {
@@ -93,7 +93,7 @@ public:
    inline const T *GetData() const { return (T *)data; }
 
    /// Return true if the data will be deleted by the array
-   inline bool OwnData() const { return (allocsize >= 0); }
+   inline bool OwnsData() const { return (allocsize > 0); }
 
    /// Changes the ownership of the the data
    inline void StealData(T **p)
@@ -296,13 +296,10 @@ inline void Swap(T &a, T &b)
 template <class T>
 inline void Swap(Array<T> &a, Array<T> &b)
 {
-   int   s;
-   void *data;
-
-   data = a.data;   a.data = b.data;           b.data = data;
-   s = a.size;      a.size = b.size;           b.size = s;
-   s = a.allocsize; a.allocsize = b.allocsize; b.allocsize = s;
-   s = a.inc;       a.inc = b.inc;             b.inc = s;
+   Swap(a.data, b.data);
+   Swap(a.size, b.size);
+   Swap(a.allocsize, b.allocsize);
+   Swap(a.inc, b.inc);
 }
 
 template <class T>
@@ -513,9 +510,8 @@ inline T *Array2D<T>::operator[](int i)
 template <class T>
 inline void Swap(Array2D<T> &a, Array2D<T> &b)
 {
-   int s;
    Swap(a.array1d, b.array1d);
-   s = a.N;  a.N = b.N;  b.N = s;
+   Swap(a.N, b.N);
 }
 
 

@@ -11,8 +11,8 @@
 
 // Finite Element classes
 
-#include <cmath>
 #include "fem.hpp"
+#include <cmath>
 
 namespace mfem
 {
@@ -5731,7 +5731,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
 {
    if (mode == 0)
    {
-      CalcBasis(A.Size() - 1, y, x);
+      CalcBasis(A.Width() - 1, y, x);
       A.Mult(x, u);
    }
    else
@@ -5769,7 +5769,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
 {
    if (mode == 0)
    {
-      CalcBasis(A.Size() - 1, y, x, w);
+      CalcBasis(A.Width() - 1, y, x, w);
       A.Mult(x, u);
       A.Mult(w, d);
    }

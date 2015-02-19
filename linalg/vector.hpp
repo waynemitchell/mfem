@@ -17,6 +17,10 @@
 #include "../general/array.hpp"
 #include <cmath>
 #include <iostream>
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
+#include <float.h>
+#define isfinite _finite
+#endif
 
 namespace mfem
 {
@@ -36,7 +40,7 @@ protected:
 public:
 
    /// Default constructor for Vector. Sets size = 0 and data = NULL
-   Vector () { allocsize = size = 0; data = 0; };
+   Vector () { allocsize = size = 0; data = 0; }
 
    /// Copy constructor
    Vector(const Vector &);
@@ -47,14 +51,14 @@ public:
    Vector (double *_data, int _size)
    { data = _data; size = _size; allocsize = -size; }
 
-   /// Reads a vector from multpile files
+   /// Reads a vector from multiple files
    void Load (std::istream ** in, int np, int * dim);
 
    /// Load a vector from an input stream.
    void Load(std::istream &in, int Size);
 
    /// Load a vector from an input stream.
-   void Load(std::istream &in) { int s; in >> s; Load (in, s); };
+   void Load(std::istream &in) { int s; in >> s; Load (in, s); }
 
    /// Resizes the vector if the new size is different
    void SetSize(int s);
@@ -73,7 +77,7 @@ public:
    void Destroy();
 
    /// Returns the size of the vector.
-   inline int Size() const {return size;};
+   inline int Size() const { return size; }
 
    // double *GetData() { return data; }
 
@@ -83,8 +87,14 @@ public:
 
    inline operator const double *() const { return data; }
 
-   /// Changes the ownership of the the data
-   inline void StealData(double **p) { *p = data; data = 0; size = 0; }
+   inline bool OwnsData() const { return (allocsize > 0); }
+
+   /// Changes the ownership of the data; after the call the Vector is empty
+   inline void StealData(double **p)
+   { *p = data; data = 0; size = allocsize = 0; }
+
+   /// Changes the ownership of the data; after the call the Vector is empty
+   inline double *StealData() { double *p; StealData(&p); return p; }
 
    /// Sets value in vector. Index i = 0 .. size-1
    double & Elem (int i);
@@ -132,8 +142,10 @@ public:
    /// (*this) = -(*this)
    void Neg();
 
-   /// Swap v1 and v2.
-   friend void swap(Vector *v1, Vector *v2);
+   /// Swap the contents of two Vectors
+   inline void Swap(Vector &other);
+   /// Swap v1 and v2 (deprecated).
+   friend void swap(Vector *v1, Vector *v2) { v1->Swap(*v2); }
 
    /// Do v = v1 + v2.
    friend void add(const Vector &v1, const Vector &v2, Vector &v);
@@ -264,22 +276,31 @@ inline void Vector::Destroy()
 
 inline double & Vector::operator() (int i)
 {
-#ifdef MFEM_DEBUG
-   if (data == 0 || i < 0 || i >= size)
-      mfem_error ("Vector::operator()");
-#endif
+   MFEM_ASSERT(data && i >= 0 && i < size,
+               "index [" << i << "] is out of range [0," << size << ")");
 
    return data[i];
 }
 
 inline const double & Vector::operator() (int i) const
 {
-#ifdef MFEM_DEBUG
-   if (data == 0 || i < 0 || i >= size)
-      mfem_error ("Vector::operator() const");
-#endif
+   MFEM_ASSERT(data && i >= 0 && i < size,
+               "index [" << i << "] is out of range [0," << size << ")");
 
    return data[i];
+}
+
+inline void Vector::Swap(Vector &other)
+{
+   mfem::Swap(size, other.size);
+   mfem::Swap(allocsize, other.allocsize);
+   mfem::Swap(data, other.data);
+}
+
+/// Specialization of the template function Swap<> for class Vector
+template<> inline void Swap<Vector>(Vector &a, Vector &b)
+{
+   a.Swap(b);
 }
 
 inline Vector::~Vector()

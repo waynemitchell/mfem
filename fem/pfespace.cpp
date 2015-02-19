@@ -9,7 +9,7 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -213,15 +213,9 @@ void ParFiniteElementSpace::GetGroupComm(
    gc.Finalize();
 }
 
-void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
+void ParFiniteElementSpace::ApplyLDofSigns(Array<int> &dofs) const
 {
-   if (elem_dof)
-   {
-      elem_dof->GetRow(i, dofs);
-      return;
-   }
-   FiniteElementSpace::GetElementDofs(i, dofs);
-   for (i = 0; i < dofs.Size(); i++)
+   for (int i = 0; i < dofs.Size(); i++)
       if (dofs[i] < 0)
       {
          if (ldof_sign[-1-dofs[i]] < 0)
@@ -234,6 +228,17 @@ void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
       }
 }
 
+void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
+{
+   if (elem_dof)
+   {
+      elem_dof->GetRow(i, dofs);
+      return;
+   }
+   FiniteElementSpace::GetElementDofs(i, dofs);
+   ApplyLDofSigns(dofs);
+}
+
 void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
 {
    if (bdrElem_dof)
@@ -242,17 +247,13 @@ void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
       return;
    }
    FiniteElementSpace::GetBdrElementDofs(i, dofs);
-   for (i = 0; i < dofs.Size(); i++)
-      if (dofs[i] < 0)
-      {
-         if (ldof_sign[-1-dofs[i]] < 0)
-            dofs[i] = -1-dofs[i];
-      }
-      else
-      {
-         if (ldof_sign[dofs[i]] < 0)
-            dofs[i] = -1-dofs[i];
-      }
+   ApplyLDofSigns(dofs);
+}
+
+void ParFiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
+{
+   FiniteElementSpace::GetFaceDofs(i, dofs);
+   ApplyLDofSigns(dofs);
 }
 
 void ParFiniteElementSpace::GenerateGlobalOffsets()
@@ -285,6 +286,12 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       MPI_Bcast(ldof, 2, MPI_INT, NRanks-1, MyComm);
       dof_offsets[2] = ldof[0];
       tdof_offsets[2] = ldof[1];
+
+      // Check for overflow
+      MFEM_VERIFY(dof_offsets[0] >= 0 && dof_offsets[1] >= 0,
+                  "overflow in global dof_offsets");
+      MFEM_VERIFY(tdof_offsets[0] >= 0 && tdof_offsets[1] >= 0,
+                  "overflow in global tdof_offsets");
    }
    else
    {
@@ -304,6 +311,12 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
          dof_offsets [i+1] += dof_offsets [i];
          tdof_offsets[i+1] += tdof_offsets[i];
       }
+
+      // Check for overflow
+      MFEM_VERIFY(dof_offsets[MyRank] >= 0 && dof_offsets[MyRank+1] >= 0,
+                  "overflow in global dof_offsets");
+      MFEM_VERIFY(tdof_offsets[MyRank] >= 0 && tdof_offsets[MyRank+1] >= 0,
+                  "overflow in global tdof_offsets");
    }
 }
 
@@ -340,13 +353,13 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
    col_starts = GetTrueDofOffsets();
    row_starts = GetDofOffsets();
 
-   i_diag = hypre_TAlloc(HYPRE_Int, ldof+1);
-   j_diag = hypre_TAlloc(HYPRE_Int, ltdof);
+   i_diag = new int[ldof+1];
+   j_diag = new int[ltdof];
 
-   i_offd = hypre_TAlloc(HYPRE_Int, ldof+1);
-   j_offd = hypre_TAlloc(HYPRE_Int, ldof-ltdof);
+   i_offd = new int[ldof+1];
+   j_offd = new int[ldof-ltdof];
 
-   cmap   = hypre_TAlloc(HYPRE_Int, ldof-ltdof);
+   cmap   = new int[ldof-ltdof];
 
    Array<Pair<int, int> > cmap_j_offd(ldof-ltdof);
 

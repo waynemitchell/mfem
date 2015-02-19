@@ -12,7 +12,7 @@
 #ifndef MFEM_PBILINEARFORM
 #define MFEM_PBILINEARFORM
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -29,19 +29,19 @@ class ParBilinearForm : public BilinearForm
 {
 protected:
    ParFiniteElementSpace *pfes;
+   mutable ParGridFunction X, Y; // used in TrueAddMult
 
    bool keep_nbr_block;
 
    // called when (mat == NULL && fbfi.Size() > 0)
    void pAllocMat();
 
-   HypreParMatrix *ParallelAssemble(SparseMatrix *m);
-
    void AssembleSharedFaces(int skip_zeros = 1);
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-      : BilinearForm(pf) { pfes = pf; keep_nbr_block = false; }
+      : BilinearForm(pf), pfes(pf)
+   { keep_nbr_block = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
       : BilinearForm(pf, bf) { pfes = pf; keep_nbr_block = false; }
@@ -60,6 +60,14 @@ public:
 
    /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
    HypreParMatrix *ParallelAssembleElim() { return ParallelAssemble(mat_e); }
+
+   /// Return the matrix m assembled on the true dofs, i.e. P^t A P
+   HypreParMatrix *ParallelAssemble(SparseMatrix *m);
+
+   /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
+   void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
+
+   ParFiniteElementSpace *ParFESpace() const { return pfes; }
 
    virtual ~ParBilinearForm() { }
 };

@@ -14,7 +14,7 @@
 
 #include <vector>
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../general/hash.hpp"
 #include "../linalg/densemat.hpp"
 #include "element.hpp"

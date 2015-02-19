@@ -12,14 +12,14 @@
 #ifndef MFEM_PGRIDFUNC
 #define MFEM_PGRIDFUNC
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
-#include <iostream>
-#include <limits>
 #include "pfespace.hpp"
 #include "gridfunc.hpp"
+#include <iostream>
+#include <limits>
 
 namespace mfem
 {
@@ -67,6 +67,7 @@ public:
    /** Set the grid function on (all) dofs from a given vector on the
        true dofs, i.e. P tv. */
    void Distribute(const Vector *tv);
+   void Distribute(const Vector &tv) { Distribute(&tv); }
 
    /// Short semantic for Distribute
    ParGridFunction &operator=(const HypreParVector &tv)

@@ -18,9 +18,9 @@
 //
 //               We recommend viewing Example 1 before viewing this example.
 
+#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "mfem.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
    // 11. Compute and print the L^2 norm of the error.
    double err = x.ComputeL2Error(sol_coef);
    if (myid == 0)
-      cout<<"L2 norm of error: " << err << endl;
+      cout << "\nL2 norm of error: " << err << endl;
 
    // 12. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -np <np> -m sphere_refined -g sol".

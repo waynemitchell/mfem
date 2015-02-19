@@ -12,7 +12,7 @@
 #ifndef MFEM_BLOCKOPERATOR
 #define MFEM_BLOCKOPERATOR
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../general/array.hpp"
 #include "operator.hpp"
 #include "blockvector.hpp"
@@ -25,7 +25,7 @@ namespace mfem
  * \brief A class to handle Block systems in a matrix-free implementation.
  *
  * Usage:
- * - Use one of the constructors or the SetUp method to define the block structure.
+ * - Use one of the constructors to define the block structure.
  * - Use SetDiagonalBlock or SetBlock to fill the BlockOperator
  * - Use the method Mult and MultTranspose to apply the operator to a vector.
  *
@@ -64,6 +64,22 @@ public:
     */
    void SetBlock(int iRow, int iCol, Operator *op);
 
+   //! Return the number of row blocks
+   int NumRowBlocks() const { return nRowBlocks; }
+   //! Return the number of column blocks
+   int NumColBlocks() const { return nColBlocks; }
+
+   //! Check if block (i,j) is a zero block
+   int IsZeroBlock(int i, int j) const { return (op(i,j)==NULL) ? 1 : 0; }
+   //! Return a reference to block i,j
+   Operator & GetBlock(int i, int j)
+   { MFEM_VERIFY(op(i,j), ""); return *op(i,j); }
+
+   //! Return the row offsets for block starts
+   Array<int> & RowOffsets() { return row_offsets; }
+   //! Return the columns offsets for block starts
+   Array<int> & ColOffsets() { return col_offsets; }
+
    /// Operator application
    virtual void Mult (const Vector & x, Vector & y) const;
 
@@ -99,7 +115,7 @@ private:
  * \brief A class to handle Block diagonal preconditioners in a matrix-free implementation.
  *
  * Usage:
- * - Use the constructors or the SetUp method to define the block structure
+ * - Use the constructors to define the block structure
  * - Use SetDiagonalBlock to fill the BlockOperator
  * - Use the method Mult and MultTranspose to apply the operator to a vector.
  *
@@ -119,6 +135,16 @@ public:
    void SetDiagonalBlock(int iblock, Operator *op);
    //! This method is present since required by the abstract base class Solver
    virtual void SetOperator(const Operator &op){ }
+
+   //! Return the number of blocks
+   int NumBlocks() const { return nBlocks; }
+
+   //! Return a reference to block i,i.
+   Operator & GetDiagonalBlock(int iblock)
+   { MFEM_VERIFY(op[iblock], ""); return *op[iblock]; }
+
+   //! Return the offsets for block starts
+   Array<int> & Offsets() { return offsets; }
 
    /// Operator application
    virtual void Mult (const Vector & x, Vector & y) const;

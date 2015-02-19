@@ -9,7 +9,7 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -22,6 +22,53 @@ using namespace std;
 
 namespace mfem
 {
+
+ParMesh::ParMesh(const ParMesh &pmesh, bool copy_nodes)
+   : Mesh(pmesh, false),
+     group_svert(pmesh.group_svert),
+     group_sedge(pmesh.group_sedge),
+     group_sface(pmesh.group_sface),
+     gtopo(pmesh.gtopo)
+{
+   MyComm = pmesh.MyComm;
+   NRanks = pmesh.NRanks;
+   MyRank = pmesh.MyRank;
+
+   // Duplicate the shared_edges
+   shared_edges.SetSize(pmesh.shared_edges.Size());
+   for (int i = 0; i < shared_edges.Size(); i++)
+      shared_edges[i] = pmesh.shared_edges[i]->Duplicate(this);
+
+   // Duplicate the shared_faces
+   shared_faces.SetSize(pmesh.shared_faces.Size());
+   for (int i = 0; i < shared_faces.Size(); i++)
+      shared_faces[i] = pmesh.shared_faces[i]->Duplicate(this);
+
+   // Copy the shared-to-local index Arrays
+   pmesh.svert_lvert.Copy(svert_lvert);
+   pmesh.sedge_ledge.Copy(sedge_ledge);
+   pmesh.sface_lface.Copy(sface_lface);
+
+   // Do not copy face-neighbor data (can be generated if needed)
+   have_face_nbr_data = false;
+
+   // Copy the Nodes as a ParGridFunction, including the FiniteElementCollection
+   // and the FiniteElementSpace (as a ParFiniteElementSpace)
+   if (pmesh.Nodes && copy_nodes)
+   {
+      FiniteElementSpace *fes = pmesh.Nodes->FESpace();
+      const FiniteElementCollection *fec = fes->FEColl();
+      FiniteElementCollection *fec_copy =
+         FiniteElementCollection::New(fec->Name());
+      ParFiniteElementSpace *pfes_copy =
+         new ParFiniteElementSpace(this, fec_copy, fes->GetVDim(),
+                                   fes->GetOrdering());
+      Nodes = new ParGridFunction(pfes_copy);
+      Nodes->MakeOwner(fec_copy);
+      *Nodes = *pmesh.Nodes;
+      own_nodes = 1;
+   }
+}
 
 ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
                  int part_method)
@@ -163,10 +210,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       NumOfBdrElements = 0;
       for (i = 0; i < mesh.GetNBE(); i++)
       {
-         int face = mesh.GetBdrElementEdgeIndex(i);
-         int el1, el2;
+         int face, o, el1, el2;
+         mesh.GetBdrElementFace(i, &face, &o);
          mesh.GetFaceElements(face, &el1, &el2);
-         if (partitioning[el1] == MyRank)
+         if (partitioning[(o % 2 == 0 || el2 < 0) ? el1 : el2] == MyRank)
          {
             NumOfBdrElements++;
             if (mesh.NURBSext)
@@ -178,10 +225,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       boundary.SetSize(NumOfBdrElements);
       for (i = 0; i < mesh.GetNBE(); i++)
       {
-         int face = mesh.GetBdrElementEdgeIndex(i);
-         int el1, el2;
+         int face, o, el1, el2;
+         mesh.GetBdrElementFace(i, &face, &o);
          mesh.GetFaceElements(face, &el1, &el2);
-         if (partitioning[el1] == MyRank)
+         if (partitioning[(o % 2 == 0 || el2 < 0) ? el1 : el2] == MyRank)
          {
             boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate(this);
             int *v = boundary[bdrelem_counter]->GetVertices();
@@ -191,7 +238,6 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
             bdrelem_counter++;
          }
       }
-
    }
    else if (Dim == 2)
    {
@@ -228,6 +274,36 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          }
       }
    }
+   else if (Dim == 1)
+   {
+      NumOfBdrElements = 0;
+      for (i = 0; i < mesh.GetNBE(); i++)
+      {
+         int vert = mesh.boundary[i]->GetVertices()[0];
+         int el1, el2;
+         mesh.GetFaceElements(vert, &el1, &el2);
+         if (partitioning[el1] == MyRank)
+         {
+            NumOfBdrElements++;
+         }
+      }
+
+      bdrelem_counter = 0;
+      boundary.SetSize(NumOfBdrElements);
+      for (i = 0; i < mesh.GetNBE(); i++)
+      {
+         int vert = mesh.boundary[i]->GetVertices()[0];
+         int el1, el2;
+         mesh.GetFaceElements(vert, &el1, &el2);
+         if (partitioning[el1] == MyRank)
+         {
+            boundary[bdrelem_counter] = mesh.GetBdrElement(i)->Duplicate(this);
+            int *v = boundary[bdrelem_counter]->GetVertices();
+            v[0] = vert_global_local[v[0]];
+            bdrelem_counter++;
+         }
+      }
+   }
 
    meshgen = mesh.MeshGenerator();
 
@@ -237,8 +313,13 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    // this is called by the default Mesh constructor
    // InitTables();
 
-   el_to_edge = new Table;
-   NumOfEdges = Mesh::GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   if (Dim > 1)
+   {
+      el_to_edge = new Table;
+      NumOfEdges = Mesh::GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
+   else
+      NumOfEdges = 0;
 
    STable3D *faces_tbl = NULL;
    if (Dim == 3)
@@ -291,7 +372,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    if (!edge_element)
    {
       edge_element = new Table;
-      Transpose(mesh.ElementToEdgeTable(), *edge_element, mesh.GetNEdges());
+      if (Dim == 1)
+         edge_element->SetDims(0,0);
+      else
+         Transpose(mesh.ElementToEdgeTable(), *edge_element, mesh.GetNEdges());
    }
    for (i = 0; i < edge_element->Size(); i++)
    {
@@ -1810,6 +1894,58 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
    } //  'if (Dim == 2)'
 
+   if (Dim == 1) // --------------------------------------------------------
+   {
+      if (WantTwoLevelState)
+      {
+         c_NumOfVertices    = NumOfVertices;
+         c_NumOfElements    = NumOfElements;
+         c_NumOfBdrElements = NumOfBdrElements;
+         c_NumOfEdges = 0;
+      }
+      int cne = NumOfElements, cnv = NumOfVertices;
+      NumOfVertices += marked_el.Size();
+      NumOfElements += marked_el.Size();
+      vertices.SetSize(NumOfVertices);
+      elements.SetSize(NumOfElements);
+      for (j = 0; j < marked_el.Size(); j++)
+      {
+         i = marked_el[j];
+         Segment *c_seg = (Segment *)elements[i];
+         int *vert = c_seg->GetVertices(), attr = c_seg->GetAttribute();
+         int new_v = cnv + j, new_e = cne + j;
+         AverageVertices(vert, 2, new_v);
+         elements[new_e] = new Segment(new_v, vert[1], attr);
+         if (WantTwoLevelState)
+         {
+#ifdef MFEM_USE_MEMALLOC
+            BisectedElement *aux = BEMemory.Alloc();
+            aux->SetCoarseElem(c_seg);
+#else
+            BisectedElement *aux = new BisectedElement(c_seg);
+#endif
+            aux->FirstChild = new Segment(vert[0], new_v, attr);
+            aux->SecondChild = new_e;
+            elements[i] = aux;
+         }
+         else
+         {
+            vert[1] = new_v;
+         }
+      }
+      if (WantTwoLevelState)
+      {
+         f_NumOfVertices    = NumOfVertices;
+         f_NumOfElements    = NumOfElements;
+         f_NumOfBdrElements = NumOfBdrElements;
+         f_NumOfEdges = 0;
+
+         RefinedElement::State = RefinedElement::FINE;
+         State = Mesh::TWO_LEVEL_FINE;
+      }
+      GenerateFaces();
+   } // end of 'if (Dim == 1)'
+
    if (Nodes)  // curved mesh
    {
       UpdateNodes();
@@ -2412,6 +2548,7 @@ void ParMesh::PrintXG(std::ostream &out) const
 
 void ParMesh::Print(std::ostream &out) const
 {
+   bool print_shared = true;
    int i, j, shared_bdr_attr;
    Array<int> nc_shared_faces;
 
@@ -2470,14 +2607,16 @@ void ParMesh::Print(std::ostream &out) const
    for (i = 0; i < NumOfElements; i++)
       PrintElement(elements[i], out);
 
-   out << "\nboundary\n" << NumOfBdrElements +
-      ((Dim > 1) ? s2l_face->Size() : 0) << '\n';
+   int num_bdr_elems = NumOfBdrElements;
+   if (print_shared && Dim > 1)
+      num_bdr_elems += s2l_face.Size();
+   out << "\nboundary\n" << num_bdr_elems << '\n';
    for (i = 0; i < NumOfBdrElements; i++)
       PrintElement(boundary[i], out);
 
-   if (Dim > 1)
+   if (print_shared && Dim > 1)
    {
-      if(bdr_attributes.Size())
+      if (bdr_attributes.Size())
          shared_bdr_attr = bdr_attributes.Max() + MyRank + 1;
       else
          shared_bdr_attr = MyRank + 1;

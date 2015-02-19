@@ -23,6 +23,23 @@ namespace mfem
 
 using namespace std;
 
+Table::Table(const Table &table)
+{
+   size = table.size;
+   if (size >= 0)
+   {
+      const int nnz = table.I[size];
+      I = new int[size+1];
+      J = new int[nnz];
+      memcpy(I, table.I, sizeof(int)*(size+1));
+      memcpy(J, table.J, sizeof(int)*nnz);
+   }
+   else
+   {
+      I = J = NULL;
+   }
+}
+
 Table::Table (int dim, int connections_per_row)
 {
    int i, j, sum = dim * connections_per_row;
@@ -215,7 +232,7 @@ void Table::Finalize()
 
 int Table::Width() const
 {
-   int width = -1, nnz = I[size];
+   int width = -1, nnz = (size >= 0) ? I[size] : 0;
    for (int k = 0; k < nnz; k++)
       if (J[k] > width) width = J[k];
    return width + 1;
@@ -272,28 +289,27 @@ void Table::Clear()
 
 void Table::Copy(Table & copy) const
 {
-   int * i_copy = new int[size+1];
-   int * j_copy = new int[I[size]];
+   if (size >= 0)
+   {
+      int * i_copy = new int[size+1];
+      int * j_copy = new int[I[size]];
 
-   memcpy(i_copy, I, sizeof(int)*(size+1) );
-   memcpy(j_copy, J, sizeof(int)*size);
+      memcpy(i_copy, I, sizeof(int)*(size+1));
+      memcpy(j_copy, J, sizeof(int)*I[size]);
 
-   copy.SetIJ(i_copy, j_copy, size);
+      copy.SetIJ(i_copy, j_copy, size);
+   }
+   else
+   {
+      copy.Clear();
+   }
 }
 
 void Table::Swap(Table & other)
 {
-   int * I_backup = I;
-   int * J_backup = J;
-   int size_backup = size;
-
-   I = other.I;
-   J = other.J;
-   size = other.size;
-
-   other.I = I_backup;
-   other.J = J_backup;
-   other.size = size_backup;
+   mfem::Swap(size, other.size);
+   mfem::Swap(I, other.I);
+   mfem::Swap(J, other.J);
 }
 
 Table::~Table ()

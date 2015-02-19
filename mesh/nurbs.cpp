@@ -10,6 +10,11 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "../fem/fem.hpp"
+#include <algorithm>
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
+#include <float.h>
+#define copysign _copysign
+#endif
 
 namespace mfem
 {
@@ -2528,7 +2533,7 @@ ParNURBSExtension::ParNURBSExtension(NURBSExtension *parent,
    Swap(el_to_IJK, parent->el_to_IJK);
    Swap(bel_to_IJK, parent->bel_to_IJK);
 
-   swap(&weights, &parent->weights);
+   Swap(weights, parent->weights);
 
    delete parent;
 

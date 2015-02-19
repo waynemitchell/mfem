@@ -9,10 +9,11 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "linalg.hpp"
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 #include <cmath>
-#include "linalg.hpp"
 
 namespace mfem
 {
@@ -95,17 +96,190 @@ void IterativeSolver::SetPreconditioner(Solver &pr)
 void IterativeSolver::SetOperator(const Operator &op)
 {
    oper = &op;
-   size = op.Size();
+   height = op.Height();
+   width = op.Width();
    if (prec)
       prec->SetOperator(*oper);
 }
 
 
+void SLISolver::UpdateVectors()
+{
+   r.SetSize(width);
+   z.SetSize(width);
+}
+
+void SLISolver::Mult(const Vector &b, Vector &x) const
+{
+   int i;
+
+   // Optimized preconditioned SLI with fixed number of iterations and given
+   // initial guess
+   if (!rel_tol && iterative_mode && prec)
+   {
+      for (i = 0; i < max_iter; i++)
+      {
+         oper->Mult(x, r);  // r = A x
+         subtract(b, r, r); // r = b - A x
+         prec->Mult(r, z);  // z = B r
+         add(x, 1.0, z, x); // x = x + B (b - A x)
+      }
+      converged = 1;
+      final_iter = i;
+      return;
+   }
+
+   // Optimized preconditioned SLI with fixed number of iterations and zero
+   // initial guess
+   if (!rel_tol && !iterative_mode && prec)
+   {
+      prec->Mult(b, x);     // x = B b (initial guess 0)
+      for (i = 1; i < max_iter; i++)
+      {
+         oper->Mult(x, r);  // r = A x
+         subtract(b, r, r); // r = b - A x
+         prec->Mult(r, z);  // z = B r
+         add(x, 1.0, z, x); // x = x + B (b - A x)
+      }
+      converged = 1;
+      final_iter = i;
+      return;
+   }
+
+   // General version of SLI with a relative tolerance, optional preconditioner
+   // and optional initial guess
+   double r0, nom, nom0, nomold = 1, cf;
+
+   if (iterative_mode)
+   {
+      oper->Mult(x, r);
+      subtract(b, r, r); // r = b - A x
+   }
+   else
+   {
+      r = b;
+      x = 0.0;
+   }
+
+   if (prec)
+   {
+      prec->Mult(r, z); // z = B r
+      nom0 = nom = Dot(z, r);
+   }
+   else
+   {
+      nom0 = nom = Dot(r, r);
+   }
+
+   if (print_level == 1)
+      cout << "   Iteration : " << setw(3) << 0 << "  (B r, r) = "
+           << nom << '\n';
+
+   r0 = std::max(nom*rel_tol*rel_tol, abs_tol*abs_tol);
+   if (nom <= r0)
+   {
+      converged = 1;
+      final_iter = 0;
+      final_norm = sqrt(nom);
+      return;
+   }
+
+   // start iteration
+   converged = 0;
+   final_iter = max_iter;
+   for (i = 1; true; )
+   {
+      if (prec) //  x = x + B (b - A x)
+         add(x, 1.0, z, x);
+      else
+         add(x, 1.0, r, x);
+
+      oper->Mult(x, r);
+      subtract(b, r, r); // r = b - A x
+
+      if (prec)
+      {
+         prec->Mult(r, z); //  z = B r
+         nom = Dot(z, r);
+      }
+      else
+      {
+         nom = Dot(r, r);
+      }
+
+      cf = sqrt(nom/nomold);
+      if (print_level == 1)
+         cout << "   Iteration : " << setw(3) << i << "  (B r, r) = "
+              << nom << "\tConv. rate: " << cf << '\n';
+      nomold = nom;
+
+      if (nom < r0)
+      {
+         if (print_level == 2)
+            cout << "Number of SLI iterations: " << i << '\n'
+                 << "Conv. rate: " << cf << '\n';
+         else
+            if (print_level == 3)
+               cout << "(B r_0, r_0) = " << nom0 << '\n'
+                    << "(B r_N, r_N) = " << nom << '\n'
+                    << "Number of SLI iterations: " << i << '\n';
+         converged = 1;
+         final_iter = i;
+         break;
+      }
+
+      if (++i > max_iter)
+         break;
+   }
+
+   if (print_level >= 0 && !converged)
+   {
+      cerr << "SLI: No convergence!" << '\n';
+      cout << "(B r_0, r_0) = " << nom0 << '\n'
+           << "(B r_N, r_N) = " << nom << '\n'
+           << "Number of SLI iterations: " << final_iter << '\n';
+   }
+   if (print_level >= 1 || (print_level >= 0 && !converged))
+   {
+      cout << "Average reduction factor = "
+           << pow (nom/nom0, 0.5/final_iter) << '\n';
+   }
+   final_norm = sqrt(nom);
+}
+
+void SLI(const Operator &A, const Vector &b, Vector &x,
+         int print_iter, int max_num_iter,
+         double RTOLERANCE, double ATOLERANCE)
+{
+   SLISolver sli;
+   sli.SetPrintLevel(print_iter);
+   sli.SetMaxIter(max_num_iter);
+   sli.SetRelTol(sqrt(RTOLERANCE));
+   sli.SetAbsTol(sqrt(ATOLERANCE));
+   sli.SetOperator(A);
+   sli.Mult(b, x);
+}
+
+void SLI(const Operator &A, Solver &B, const Vector &b, Vector &x,
+         int print_iter, int max_num_iter,
+         double RTOLERANCE, double ATOLERANCE)
+{
+   SLISolver sli;
+   sli.SetPrintLevel(print_iter);
+   sli.SetMaxIter(max_num_iter);
+   sli.SetRelTol(sqrt(RTOLERANCE));
+   sli.SetAbsTol(sqrt(ATOLERANCE));
+   sli.SetOperator(A);
+   sli.SetPreconditioner(B);
+   sli.Mult(b, x);
+}
+
+
 void CGSolver::UpdateVectors()
 {
-   r.SetSize(size);
-   d.SetSize(size);
-   z.SetSize(size);
+   r.SetSize(width);
+   d.SetSize(width);
+   z.SetSize(width);
 }
 
 void CGSolver::Mult(const Vector &b, Vector &x) const
@@ -139,7 +313,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       cout << "   Iteration : " << setw(3) << 0 << "  (B r, r) = "
            << nom << '\n';
 
-   r0 = fmax(nom*rel_tol*rel_tol, abs_tol*abs_tol);
+   r0 = std::max(nom*rel_tol*rel_tol, abs_tol*abs_tol);
    if (nom <= r0)
    {
       converged = 1;
@@ -313,7 +487,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    // Generalized Minimum Residual method following the algorithm
    // on p. 20 of the SIAM Templates book.
 
-   int n = size;
+   int n = width;
 
    DenseMatrix H(m+1, m);
    Vector s(m+1), cs(m+1), sn(m+1);
@@ -346,7 +520,7 @@ void GMRESSolver::Mult(const Vector &b, Vector &x) const
    }
    double beta = Norm(r);  // beta = ||r||
 
-   final_norm = fmax(rel_tol*beta, abs_tol);
+   final_norm = std::max(rel_tol*beta, abs_tol);
 
    if (beta <= final_norm)
    {
@@ -473,7 +647,7 @@ void FGMRESSolver::Mult(const Vector &b, Vector &x) const
    }
    double beta = Norm(r);  // beta = ||r||
 
-   final_norm = fmax(rel_tol*beta, abs_tol);
+   final_norm = std::max(rel_tol*beta, abs_tol);
 
    if (beta <= final_norm)
    {
@@ -610,14 +784,14 @@ void GMRES(const Operator &A, Solver &B, const Vector &b, Vector &x,
 
 void BiCGSTABSolver::UpdateVectors()
 {
-   p.SetSize(size);
-   phat.SetSize(size);
-   s.SetSize(size);
-   shat.SetSize(size);
-   t.SetSize(size);
-   v.SetSize(size);
-   r.SetSize(size);
-   rtilde.SetSize(size);
+   p.SetSize(width);
+   phat.SetSize(width);
+   s.SetSize(width);
+   shat.SetSize(width);
+   t.SetSize(width);
+   v.SetSize(width);
+   r.SetSize(width);
+   rtilde.SetSize(width);
 }
 
 void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
@@ -646,7 +820,7 @@ void BiCGSTABSolver::Mult(const Vector &b, Vector &x) const
       cout << "   Iteration : " << setw(3) << 0
            << "   ||r|| = " << resid << '\n';
 
-   tol_goal = fmax(resid*rel_tol, abs_tol);
+   tol_goal = std::max(resid*rel_tol, abs_tol);
 
    if (resid <= tol_goal)
    {
@@ -760,13 +934,13 @@ void BiCGSTAB(const Operator &A, Solver &B, const Vector &b, Vector &x,
 void MINRESSolver::SetOperator(const Operator &op)
 {
    IterativeSolver::SetOperator(op);
-   v0.SetSize(size);
-   v1.SetSize(size);
-   w0.SetSize(size);
-   w1.SetSize(size);
-   q.SetSize(size);
+   v0.SetSize(width);
+   v1.SetSize(width);
+   w0.SetSize(width);
+   w1.SetSize(width);
+   q.SetSize(width);
    if (prec)
-      u1.SetSize(size);
+      u1.SetSize(width);
 }
 
 void MINRESSolver::Mult(const Vector &b, Vector &x) const
@@ -800,7 +974,7 @@ void MINRESSolver::Mult(const Vector &b, Vector &x) const
    gamma0 = gamma1 = 1.;
    sigma0 = sigma1 = 0.;
 
-   norm_goal = fmax(rel_tol*eta, abs_tol);
+   norm_goal = std::max(rel_tol*eta, abs_tol);
 
    if (print_level == 1 || print_level == 3)
       cout << "MINRES: iteration " << setw(3) << 0 << ": ||r||_B = "
@@ -865,9 +1039,9 @@ void MINRESSolver::Mult(const Vector &b, Vector &x) const
          goto loop_end;
 
       if (prec)
-         swap(&u1, &q);
-      swap(&v0, &v1);
-      swap(&w0, &w1);
+         Swap(u1, q);
+      Swap(v0, v1);
+      Swap(w0, w1);
    }
    converged = 0;
    it--;
@@ -923,23 +1097,35 @@ void MINRES(const Operator &A, Solver &B, const Vector &b, Vector &x,
 }
 
 
+void NewtonSolver::SetOperator(const Operator &op)
+{
+   oper = &op;
+   height = op.Height();
+   width = op.Width();
+   MFEM_ASSERT(height == width, "square Operator is required.");
+
+   r.SetSize(width);
+   c.SetSize(width);
+}
+
 void NewtonSolver::Mult(const Vector &b, Vector &x) const
 {
+   MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
+   MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");
+
    int it;
    double norm, norm_goal;
-
-   r.SetSize(size);
-   c.SetSize(size);
+   bool have_b = (b.Size() == Height());
 
    if (!iterative_mode)
       x = 0.0;
 
    oper->Mult(x, r);
-   if (b.Size() == size)
+   if (have_b)
       r -= b;
 
    norm = Norm(r);
-   norm_goal = fmax(rel_tol*norm, abs_tol);
+   norm_goal = std::max(rel_tol*norm, abs_tol);
 
    prec->iterative_mode = false;
 
@@ -969,7 +1155,7 @@ void NewtonSolver::Mult(const Vector &b, Vector &x) const
       x -= c;
 
       oper->Mult(x, r);
-      if (b.Size() == size)
+      if (have_b)
          r -= b;
       norm = Norm(r);
    }
@@ -984,7 +1170,7 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
            int m_max, int m_min, int m_step, double cf,
            double &tol, double &atol, int printit)
 {
-   int n = A.Size();
+   int n = A.Width();
 
    int m = m_max;
 
@@ -1107,63 +1293,6 @@ int aGMRES(const Operator &A, Vector &x, const Vector &b,
    return 1;
 }
 
-
-// Preconditioned stationary linear iteration
-void SLI(const Operator &A, const Operator &B, const Vector &b, Vector &x,
-         int print_iter, int max_num_iter, double RTOLERANCE, double ATOLERANCE)
-{
-   int i, dim = x.Size();
-   double r0, nom, nomold = 1, nom0, cf;
-   Vector r(dim),  z(dim);
-
-   r0 = -1.0;
-
-   for(i = 1; i < max_num_iter ; i++) {
-      A.Mult(x, r);         //    r = A x
-      subtract(b, r, r);    //    r = b  - A x
-      B.Mult(r, z);         //    z = B r
-
-      nom = z * r;
-
-      if (r0 == -1.0) {
-         nom0 = nom;
-         r0 = nom * RTOLERANCE;
-         if (r0 < ATOLERANCE) r0 = ATOLERANCE;
-      }
-
-      cf = sqrt(nom/nomold);
-      if (print_iter == 1) {
-         cout << "   Iteration : " << setw(3) << i << "  (B r, r) = "
-              << nom;
-         if (i > 1)
-            cout << "\tConv. rate: " << cf;
-         cout << '\n';
-      }
-      nomold = nom;
-
-      if (nom < r0) {
-         if (print_iter == 2)
-            cout << "Number of iterations: " << i << '\n'
-                 << "Conv. rate: " << cf << '\n';
-         else
-            if (print_iter == 3)
-               cout << "(B r_0, r_0) = " << nom0 << '\n'
-                    << "(B r_N, r_N) = " << nom << '\n'
-                    << "Number of iterations: " << i << '\n';
-         break;
-      }
-
-      add(x, 1.0, z, x);  //  x = x + B (b - A x)
-   }
-
-   if (i == max_num_iter)
-   {
-      cerr << "No convergence!" << '\n';
-      cout << "(B r_0, r_0) = " << nom0 << '\n'
-           << "(B r_N, r_N) = " << nom << '\n'
-           << "Number of iterations: " << i << '\n';
-   }
-}
 
 void SLBQPOptimizer::SetBounds(const Vector &_lo, const Vector &_hi)
 {
@@ -1400,14 +1529,15 @@ void UMFPackSolver::SetOperator(const Operator &op)
    // Generally, this will modify the ordering of the entries of mat.
    mat->SortColumnIndices();
 
-   size = mat->Size();
+   height = mat->Height();
+   width = mat->Width();
    Ap = mat->GetI();
    Ai = mat->GetJ();
    Ax = mat->GetData();
 
    if (!use_long_ints)
    {
-      int status = umfpack_di_symbolic(size, size, Ap, Ai, Ax, &Symbolic,
+      int status = umfpack_di_symbolic(width, width, Ap, Ai, Ax, &Symbolic,
                                        Control, Info);
       if (status < 0)
       {
@@ -1434,14 +1564,14 @@ void UMFPackSolver::SetOperator(const Operator &op)
 
       delete [] AJ;
       delete [] AI;
-      AI = new SuiteSparse_long[size + 1];
-      AJ = new SuiteSparse_long[Ap[size]];
-      for (int i = 0; i <= size; i++)
+      AI = new SuiteSparse_long[width + 1];
+      AJ = new SuiteSparse_long[Ap[width]];
+      for (int i = 0; i <= width; i++)
          AI[i] = (SuiteSparse_long)(Ap[i]);
-      for (int i = 0; i <= Ap[size]; i++)
+      for (int i = 0; i <= Ap[width]; i++)
          AJ[i] = (SuiteSparse_long)(Ai[i]);
 
-      status = umfpack_dl_symbolic(size, size, AI, AJ, Ax, &Symbolic,
+      status = umfpack_dl_symbolic(width, width, AI, AJ, Ax, &Symbolic,
                                    Control, Info);
       if (status < 0)
       {

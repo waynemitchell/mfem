@@ -12,8 +12,7 @@
 #ifndef MFEM_MESH
 #define MFEM_MESH
 
-#include <iostream>
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../general/stable3d.hpp"
 #include "triangle.hpp"
 #include "tetrahedron.hpp"
@@ -21,6 +20,7 @@
 #include "ncmesh.hpp"
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
+#include <iostream>
 
 namespace mfem
 {
@@ -102,7 +102,7 @@ protected:
    Mesh* nc_coarse_level;
 
    static const int tet_faces[4][3];
-   static const int hex_faces[6][4];
+   static const int hex_faces[6][4]; // same as Hexahedron::faces
 
    static const int tri_orientations[6][3];
    static const int quad_orientations[8][4];
@@ -120,8 +120,9 @@ protected:
 
    void DeleteTables();
 
-   /** Delete the 'el_to_el', 'face_edge' and 'edge_vertex' tables.
-       Usefull in refinement methods to destroy the coarse tables. */
+   /** Delete the 'el_to_el', 'face_edge' and 'edge_vertex' tables, and the
+       coarse non-conforming Mesh 'nc_coarse_level'. Usefull in refinement
+       methods to destroy these data members. */
    void DeleteCoarseTables();
 
    Element *ReadElementWithoutAttr(std::istream &);
@@ -255,6 +256,13 @@ protected:
 
    void AddQuadFaceElement (int lf, int gf, int el,
                             int v0, int v1, int v2, int v3);
+   /** For a serial Mesh, return true if the face is interior. For a parallel
+       ParMesh return true if the face is interior or shared. In parallel, this
+       method only works if the face neighbor data is exchanged. */
+   bool FaceIsTrueInterior(int FaceNo) const
+   {
+      return FaceIsInterior(FaceNo) || (faces_info[FaceNo].Elem2Inf >= 0);
+   }
 
    // shift cyclically 3 integers left-to-right
    inline static void ShiftL2R(int &, int &, int &);
@@ -303,6 +311,13 @@ public:
    NCMesh *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
+
+   /** Copy constructor. Performs a deep copy of (almost) all data, so that the
+       source mesh can be modified (e.g. deleted, refined) without affecting the
+       new mesh. The source mesh has to be in a NORMAL, i.e. not TWO_LEVEL_*,
+       state. If 'copy_nodes' is false, use a shallow (pointer) copy for the
+       nodes, if present. */
+   explicit Mesh(const Mesh &mesh, bool copy_nodes = true);
 
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
@@ -380,10 +395,6 @@ public:
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
-   void SetNodalFESpace(FiniteElementSpace *nfes);
-   void SetNodalGridFunction(GridFunction *nodes);
-   const FiniteElementSpace *GetNodalFESpace();
-
    /// Truegrid or NetGen?
    inline int MeshGenerator() { return meshgen; }
 
@@ -400,7 +411,11 @@ public:
    /// Return the number of edges.
    inline int GetNEdges() const { return NumOfEdges; }
 
+   /// Return the number of faces in a 3D mesh.
    inline int GetNFaces() const { return NumOfFaces; }
+
+   /// Return the number of faces (3D), edges (2D) or vertices (1D).
+   int GetNumFaces() const;
 
    /// Equals 1 + num_holes - num_loops
    inline int EulerNumber() const
@@ -557,10 +572,11 @@ public:
 
    FaceElementTransformations *GetInteriorFaceTransformations (int FaceNo)
    { if (faces_info[FaceNo].Elem2No < 0) return NULL;
-      return GetFaceElementTransformations (FaceNo); };
+      return GetFaceElementTransformations (FaceNo); }
 
    FaceElementTransformations *GetBdrFaceTransformations (int BdrElemNo);
 
+   /// Return true if the given face is interior
    bool FaceIsInterior(int FaceNo) const
    {
       return (faces_info[FaceNo].Elem2No >= 0);
@@ -628,10 +644,27 @@ public:
    void GetNodes(Vector &node_coord) const;
    void SetNodes(const Vector &node_coord);
 
-   /// Return a pointer to the internal node grid function
-   GridFunction* GetNodes() { return Nodes; }
-   // use the provided GridFunction as Nodes
+   /// Return a pointer to the internal node GridFunction (may be NULL).
+   GridFunction *GetNodes() { return Nodes; }
+   /// Replace the internal node GridFunction with the given GridFunction.
    void NewNodes(GridFunction &nodes, bool make_owner = false);
+   /** Swap the internal node GridFunction pointer and onwership flag members
+       with the given ones. */
+   void SwapNodes(GridFunction *&nodes, int &own_nodes_);
+
+   /// Return the mesh nodes/vertices projected on the given GridFunction.
+   void GetNodes(GridFunction &nodes) const;
+   /** Replace the internal node GridFunction with a new GridFunction defined
+       on the given FiniteElementSpace. The new node coordinates are projected
+       (derived) from the current nodes/vertices. */
+   void SetNodalFESpace(FiniteElementSpace *nfes);
+   /** Replace the internal node GridFunction with the given GridFunction. The
+       given GridFunction is updated with node coordinates projected (derived)
+       from the current nodes/vertices. */
+   void SetNodalGridFunction(GridFunction *nodes, bool make_owner = false);
+   /** Return the FiniteElementSpace on which the current mesh nodes are
+       defined or NULL if the mesh does not have nodes. */
+   const FiniteElementSpace *GetNodalFESpace();
 
    /** Refine all mesh elements. */
    void UniformRefinement();
@@ -724,6 +757,7 @@ public:
    void ScaleElements (double sf);
 
    void Transform(void (*f)(const Vector&, Vector&));
+   void Transform(VectorCoefficient &deformation);
 
    /** Get the size of the i-th element relative to the perfect
        reference element. */

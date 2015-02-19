@@ -16,6 +16,7 @@
 #include <string>
 #include <cmath>
 #include <iostream>
+#include <algorithm>
 #include "fem.hpp"
 
 namespace mfem
@@ -159,6 +160,9 @@ void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
 
 int GridFunction::VectorDim() const
 {
+   if (!fes->GetNE())
+      return 0;
+
    const FiniteElement *fe = fes->GetFE(0);
 
    if (fe->GetRangeType() == FiniteElement::SCALAR)
@@ -671,17 +675,12 @@ void GridFunction::GetVectorGradientHat(
    Vector loc_data;
    GetSubVector(vdofs, loc_data);
    // assuming scalar FE
+   int vdim = fes->GetVDim();
    DenseMatrix dshape(dof, dim);
    FElem->CalcDShape(T.GetIntPoint(), dshape);
-   gh.SetSize(dim);
-   for (int i = 0; i < dim; i++)
-      for (int j = 0; j < dim; j++)
-      {
-         double gij = 0.0;
-         for (int k = 0; k < dof; k++)
-            gij += loc_data(i * dof + k) * dshape(k, j);
-         gh(i, j) = gij;
-      }
+   gh.SetSize(vdim, dim);
+   DenseMatrix loc_data_mat(loc_data.StealData(), dof, vdim);
+   MultAtB(loc_data_mat, dshape, gh);
 }
 
 double GridFunction::GetDivergence(ElementTransformation &tr)
@@ -693,12 +692,12 @@ double GridFunction::GetDivergence(ElementTransformation &tr)
    {
       DenseMatrix grad_hat;
       GetVectorGradientHat(tr, grad_hat);
-      int dim = grad_hat.Size();
-      DenseMatrix Jinv(dim);
-      CalcInverse(tr.Jacobian(), Jinv);
+      const DenseMatrix &J = tr.Jacobian();
+      DenseMatrix Jinv(J.Width(), J.Height());
+      CalcInverse(J, Jinv);
       div_v = 0.0;
-      for (int i = 0; i < dim; i++)
-         for (int j = 0; j < dim; j++)
+      for (int i = 0; i < Jinv.Width(); i++)
+         for (int j = 0; j < Jinv.Height(); j++)
             div_v += grad_hat(i, j) * Jinv(j, i);
    }
    else
@@ -761,9 +760,10 @@ void GridFunction::GetVectorGradient(
 {
    DenseMatrix grad_hat;
    GetVectorGradientHat(tr, grad_hat);
-   DenseMatrix Jinv(grad_hat.Size());
-   CalcInverse(tr.Jacobian(), Jinv);
-   grad.SetSize(grad_hat.Size());
+   const DenseMatrix &J = tr.Jacobian();
+   DenseMatrix Jinv(J.Width(), J.Height());
+   CalcInverse(J, Jinv);
+   grad.SetSize(grad_hat.Height(), Jinv.Width());
    Mult(grad_hat, Jinv, grad);
 }
 
@@ -800,6 +800,10 @@ void GridFunction::ProjectGridFunction(const GridFunction &src)
    // Assuming that the projection matrix is the same for all elements
    Mesh *mesh = fes->GetMesh();
    DenseMatrix P;
+
+   if (!fes->GetNE())
+      return;
+
    fes->GetFE(0)->Project(*src.fes->GetFE(0),
                           *mesh->GetElementTransformation(0), P);
    int vdim = fes->GetVDim();
@@ -903,6 +907,12 @@ void GridFunction::GetNodalValues(Vector &nval, int vdim) const
 void GridFunction::ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
                                            double &integral)
 {
+   if (!fes->GetNE())
+   {
+      integral = 0.0;
+      return;
+   }
+
    Mesh *mesh = fes->GetMesh();
    const int dim = mesh->Dimension();
    const double *center = delta_coeff.Center();
@@ -1621,7 +1631,7 @@ double GridFunction::ComputeLpError(const double p, Coefficient &exsol,
          {
             if (weight)
                err *= weight->Eval(*T, ip);
-            error = fmax(error, err);
+            error = std::max(error, err);
          }
       }
    }
@@ -1702,7 +1712,7 @@ double GridFunction::ComputeLpError(const double p, VectorCoefficient &exsol,
          {
             if (weight)
                err *= weight->Eval(*T, ip);
-            error = fmax(error, err);
+            error = std::max(error, err);
          }
       }
    }
@@ -1743,7 +1753,7 @@ void GridFunction::ConformingProlongate(const Vector &x)
    const SparseMatrix *P = fes->GetConformingProlongation();
    if (P)
    {
-      this->SetSize(P->Size());
+      this->SetSize(P->Height());
       P->Mult(x, *this);
    }
    else // assume conforming mesh
@@ -1766,7 +1776,7 @@ void GridFunction::ConformingProject(Vector &x) const
    const SparseMatrix *R = fes->GetConformingRestriction();
    if (R)
    {
-      x.SetSize(R->Size());
+      x.SetSize(R->Height());
       R->Mult(*this, x);
    }
    else // assume conforming mesh

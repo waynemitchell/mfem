@@ -12,11 +12,11 @@
 #ifndef MFEM_FESPACE
 #define MFEM_FESPACE
 
-#include <iostream>
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include "../linalg/sparsemat.hpp"
 #include "../mesh/mesh.hpp"
 #include "fe_coll.hpp"
+#include <iostream>
 
 namespace mfem
 {
@@ -194,7 +194,7 @@ public:
 
    /// Returns ElementTransformation for the i'th element.
    ElementTransformation *GetElementTransformation(int i) const
-   { return mesh->GetElementTransformation(i); };
+   { return mesh->GetElementTransformation(i); }
 
    /** Returns the transformation defining the i-th element in the user-defined
        variable. */
@@ -217,7 +217,7 @@ public:
 
    /** Returns the indexes of the degrees of freedom for i'th face
        including the dofs for the edges and the vertices of the face. */
-   void GetFaceDofs(int i, Array<int> &dofs) const;
+   virtual void GetFaceDofs(int i, Array<int> &dofs) const;
 
    /** Returns the indexes of the degrees of freedom for i'th edge
        including the dofs for the vertices of the edge. */

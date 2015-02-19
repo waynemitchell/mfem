@@ -12,7 +12,7 @@
 #ifndef MFEM_MESQUITE
 #define MFEM_MESQUITE
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 #include"mesh.hpp"
 
 #ifdef MFEM_USE_MESQUITE
@@ -99,7 +99,7 @@ private:
               defaultValue(default_val) {}
 
          /** \brief Construct tag
-          *\param desc Tag description object
+          *\param descr Tag description object
           */
          inline TagData( const MfemTagDescription& descr )
             : desc(descr), elementData(0), elementCount(0),

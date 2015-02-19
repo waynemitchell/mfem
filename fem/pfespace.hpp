@@ -12,7 +12,7 @@
 #ifndef MFEM_PFESPACE
 #define MFEM_PFESPACE
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -83,6 +83,8 @@ private:
    void ConstructTrueDofs();
    void ConstructTrueNURBSDofs();
 
+   void ApplyLDofSigns(Array<int> &dofs) const;
+
    void GetDofs(int type, int index, Array<int>& dofs);
    void ReorderFaceDofs(Array<int> &dofs, int type, int orient);
    void GetConformingInterpolation(); // FIXME
@@ -116,6 +118,10 @@ public:
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
    virtual void GetBdrElementDofs(int i, Array<int> &dofs) const;
+
+   /** Returns the indexes of the degrees of freedom for i'th face
+       including the dofs for the edges and the vertices of the face. */
+   virtual void GetFaceDofs(int i, Array<int> &dofs) const;
 
    /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix();
@@ -156,10 +162,9 @@ public:
    // Face-neighbor functions
    void ExchangeFaceNbrData();
    int GetFaceNbrVSize() const { return num_face_nbr_dofs; }
-   void GetSharedFaceVDofs(int sf, Array<int> &vdofs) const;
    void GetFaceNbrElementVDofs(int i, Array<int> &vdofs) const;
    const FiniteElement *GetFaceNbrFE(int i) const;
-   int *GetFaceNbrGlobalDofMap() { return face_nbr_gdof.GetJ(); }
+   const int *GetFaceNbrGlobalDofMap() { return face_nbr_gdof.GetJ(); }
 
    void Lose_Dof_TrueDof_Matrix();
    void LoseDofOffsets() { dof_offsets.LoseData(); }

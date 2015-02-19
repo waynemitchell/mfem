@@ -31,7 +31,7 @@ BlockMatrix::BlockMatrix(const Array<int> & offsets):
 }
 
 BlockMatrix::BlockMatrix(const Array<int> & row_offsets_, const Array<int> & col_offsets_):
-   AbstractSparseMatrix(row_offsets_.Last()),
+   AbstractSparseMatrix(row_offsets_.Last(), col_offsets_.Last()),
    owns_blocks(false),
    nRowBlocks(row_offsets_.Size()-1),
    nColBlocks(col_offsets_.Size()-1),
@@ -57,7 +57,7 @@ void BlockMatrix::SetBlock(int i, int j, SparseMatrix * mat)
    if (nRowBlocks <= i || nColBlocks <= j)
       mfem_error("BlockMatrix::SetBlock #0");
 
-   if (mat->Size() != row_offsets[i+1] - row_offsets[i])
+   if (mat->Height() != row_offsets[i+1] - row_offsets[i])
       mfem_error("BlockMatrix::SetBlock #1");
 
    if (mat->Width() != col_offsets[j+1] - col_offsets[j])
@@ -240,7 +240,7 @@ void BlockMatrix::EliminateZeroRows()
       if (Aij(iblock,iblock))
       {
          double norm;
-         for (int i = 0; i < Aij(iblock, iblock)->Size(); ++i)
+         for (int i = 0; i < Aij(iblock, iblock)->NumRows(); ++i)
          {
             norm = 0.;
             for (int jblock = 0; jblock < nColBlocks; ++jblock)
@@ -282,21 +282,7 @@ void BlockMatrix::Mult(const Vector & x, Vector & y) const
       mfem_error("Error: x and y can't point to the same datas \n");
 
    y = 0.;
-
-   Vector xblockview, yblockview;
-
-   for (int iblock = 0; iblock != nRowBlocks; ++iblock)
-      for (int jblock = 0; jblock != nColBlocks; ++jblock)
-      {
-         if (Aij(iblock, jblock) != NULL)
-         {
-            xblockview.SetDataAndSize(x.GetData() + col_offsets[jblock],
-                                      col_offsets[jblock+1]-col_offsets[jblock]);
-            yblockview.SetDataAndSize(y.GetData() + row_offsets[iblock],
-                                      row_offsets[iblock+1]-row_offsets[iblock]);
-            Aij(iblock, jblock)->AddMult(xblockview, yblockview);
-         }
-      }
+   AddMult(x, y, 1.0);
 }
 
 void BlockMatrix::AddMult(const Vector & x, Vector & y, const double val) const
@@ -307,17 +293,22 @@ void BlockMatrix::AddMult(const Vector & x, Vector & y, const double val) const
    Vector xblockview, yblockview;
 
    for (int iblock = 0; iblock != nRowBlocks; ++iblock)
+   {
+      yblockview.SetDataAndSize(y.GetData() + row_offsets[iblock],
+                                row_offsets[iblock+1] - row_offsets[iblock]);
+
       for (int jblock = 0; jblock != nColBlocks; ++jblock)
       {
          if (Aij(iblock, jblock) != NULL)
          {
-            xblockview.SetDataAndSize(x.GetData() + col_offsets[jblock],
-                                      col_offsets[jblock+1]- col_offsets[jblock]);
-            yblockview.SetDataAndSize(y.GetData() + row_offsets[iblock],
-                                      row_offsets[iblock+1]- row_offsets[iblock]);
+            xblockview.SetDataAndSize(
+               x.GetData() + col_offsets[jblock],
+               col_offsets[jblock+1] - col_offsets[jblock]);
+
             Aij(iblock, jblock)->AddMult(xblockview, yblockview, val);
          }
       }
+   }
 }
 
 void BlockMatrix::MultTranspose(const Vector & x, Vector & y) const
@@ -326,41 +317,34 @@ void BlockMatrix::MultTranspose(const Vector & x, Vector & y) const
       mfem_error("Error: x and y can't point to the same datas \n");
 
    y = 0.;
-   Vector xblockview, yblockview;
-
-   for (int iblock = 0; iblock != nRowBlocks; ++iblock)
-      for (int jblock = 0; jblock != nColBlocks; ++jblock)
-      {
-         if (Aij(jblock, iblock) != NULL)
-         {
-            xblockview.SetDataAndSize(x.GetData() + row_offsets[jblock],
-                                      row_offsets[jblock+1]-row_offsets[jblock]);
-            yblockview.SetDataAndSize(y.GetData() + col_offsets[iblock],
-                                      col_offsets[iblock+1]-col_offsets[iblock]);
-            Aij(jblock, iblock)->AddMultTranspose(xblockview, yblockview);
-         }
-      }
+   AddMultTranspose(x, y, 1.0);
 }
 
-void BlockMatrix::AddMultTranspose(const Vector & x, Vector & y, const double val) const
+void BlockMatrix::AddMultTranspose(const Vector & x, Vector & y,
+                                   const double val) const
 {
    if (x.GetData() == y.GetData())
       mfem_error("Error: x and y can't point to the same datas \n");
 
    Vector xblockview, yblockview;
 
-   for (int iblock = 0; iblock != nRowBlocks; ++iblock)
-      for (int jblock = 0; jblock != nColBlocks; ++jblock)
+   for (int iblock = 0; iblock != nColBlocks; ++iblock)
+   {
+      yblockview.SetDataAndSize(y.GetData() + col_offsets[iblock],
+                                col_offsets[iblock+1] - col_offsets[iblock]);
+
+      for (int jblock = 0; jblock != nRowBlocks; ++jblock)
       {
          if (Aij(jblock, iblock) != NULL)
          {
-            xblockview.SetDataAndSize(x.GetData() + row_offsets[jblock],
-                                      row_offsets[jblock+1]- row_offsets[jblock]);
-            yblockview.SetDataAndSize(y.GetData() + col_offsets[iblock],
-                                      col_offsets[iblock+1]- col_offsets[iblock]);
+            xblockview.SetDataAndSize(
+               x.GetData() + row_offsets[jblock],
+               row_offsets[jblock+1] - row_offsets[jblock]);
+
             Aij(jblock, iblock)->AddMultTranspose(xblockview, yblockview, val);
          }
       }
+   }
 }
 
 SparseMatrix * BlockMatrix::CreateMonolithic() const
@@ -452,7 +436,7 @@ void BlockMatrix::PrintMatlab(std::ostream & os) const
    int i, j;
    std::ios::fmtflags old_fmt = os.flags();
    os.setf(std::ios::scientific);
-   int old_prec = os.precision(14);
+   std::streamsize old_prec = os.precision(14);
    for (i = 0; i < row_offsets.Last(); i++)
    {
       GetRow(i, row_ind, row_data);

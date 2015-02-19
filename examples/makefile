@@ -9,115 +9,44 @@
 # terms of the GNU Lesser General Public License (as published by the Free
 # Software Foundation) version 2.1 dated February 1999.
 
-# Serial compiler
-CC = g++
-OPTS = -O3
-DEBUG_OPTS = -g
-LIB_OPTS = -I$(MFEM_DIR) $(SUITESPARSE_OPT)
-COPTS = $(OPTS) $(LIB_OPTS)
-LIBS = $(MFEM_LIB) $(LAPACK_LIBS) $(OPENMP_LIBS) $(SUITESPARSE_LIB)\
- $(POSIX_CLOCKS_LIB)
-
-# Parallel compiler
-MPICC = mpicxx
-MPIOPTS = $(OPTS) $(LIB_OPTS) -I$(HYPRE_DIR)/include
-MPIDEBUG_OPTS = $(DEBUG_OPTS) $(LIB_OPTS) -I$(HYPRE_DIR)/include
-MPILIBS = $(LIBS) -L$(METIS_DIR) -lmetis -L$(HYPRE_DIR)/lib -lHYPRE
-
-# The MFEM library
+# Use the MFEM build directory
 MFEM_DIR = ..
-MFEM_LIB = -L$(MFEM_DIR) -lmfem
+CONFIG_MK = $(MFEM_DIR)/config/config.mk
+# Use the MFEM install directory
+# MFEM_DIR = ../mfem
+# CONFIG_MK = $(MFEM_DIR)/config.mk
 
-# The METIS and HYPRE libraries (needed for the parallel examples)
-METIS_DIR = ../../metis-4.0
-HYPRE_DIR = ../../hypre-2.8.0b/src/hypre
+ifneq (clean,$(MAKECMDGOALS))
+   -include $(CONFIG_MK)
+endif
 
-# Enable experimental OpenMP support
-USE_OPENMP = NO
-OPENMP_LIBS_NO  =
-OPENMP_LIBS_YES = -fopenmp
-OPENMP_LIBS     = $(OPENMP_LIBS_$(USE_OPENMP))
+ifeq ($(MFEM_USE_MPI),NO)
+   EXAMPLES = ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10
+else
+   EXAMPLES = ex1p ex2p ex3p ex4p ex5p ex7p ex8p ex9p ex10p
+endif
 
-# The LAPACK and BLAS libraries (needed if MFEM was compiled with LAPACK support)
-USE_LAPACK = NO
-LAPACK_DIR = $(HOME)/lapack
-LAPACK_LIB = -L$(LAPACK_DIR) -llapack
-BLAS_DIR   = $(HOME)/lapack
-BLAS_LIB   = -L$(LAPACK_DIR) -lblas -lgfortran
-# on a Mac:
-# BLAS_LIB   = -L$(LAPACK_DIR) -lblas
-LAPACK_LIBS_NO  =
-LAPACK_LIBS_YES = $(LAPACK_LIB) $(BLAS_LIB)
-LAPACK_LIBS     = $(LAPACK_LIBS_$(USE_LAPACK))
+.PHONY: all clean
 
-# The SuiteSparse library
-USE_SUITESPARSE = NO
-SUITESPARSE_DIR = ../../SuiteSparse
-SUITESPARSE_OPT_NO  =
-SUITESPARSE_OPT_YES = -I$(SUITESPARSE_DIR)/include
-SUITESPARSE_OPT     = $(SUITESPARSE_OPT_$(USE_SUITESPARSE))
-SUITESPARSE_LIB_NO  =
-SUITESPARSE_LIB_YES = -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd\
- -lamd -lcamd -lccolamd -lsuitesparseconfig -lrt -L$(METIS_DIR) -lmetis\
- $(LAPACK_LIB) $(BLAS_LIB)
-SUITESPARSE_LIB     = $(SUITESPARSE_LIB_$(USE_SUITESPARSE))
+# Remove built-in rule
+%: %.cpp
 
-# The high-resolution POSIX clocks may need -lrt
-USE_POSIX_CLOCKS = NO
-POSIX_CLOCKS_LIB_NO  =
-POSIX_CLOCKS_LIB_YES = -lrt
-POSIX_CLOCKS_LIB = $(POSIX_CLOCKS_LIB_$(USE_POSIX_CLOCKS))
+# Replace the default implicit rule for *.cpp files
+%: %.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
+	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ $(MFEM_LIBS)
 
-serial: ex1 ex2 ex3 ex4 ex5 ex6 ex7
+all: $(EXAMPLES)
 
-parallel: ex1p ex2p ex3p ex4p ex5p ex7p
-
-ex1: ex1.cpp ../libmfem.a
-	$(CC) $(COPTS) ex1.cpp -o ex1 $(LIBS)
-
-ex1p: ex1p.cpp ../libmfem.a
-	$(MPICC) $(MPIOPTS) ex1p.cpp -o ex1p $(MPILIBS)
-
-ex2: ex2.cpp
-	$(CC) $(COPTS) ex2.cpp -o ex2 $(LIBS)
-
-ex2p: ex2p.cpp
-	$(MPICC) $(MPIOPTS) ex2p.cpp -o ex2p $(MPILIBS)
-
-ex3: ex3.cpp
-	$(CC) $(COPTS) ex3.cpp -o ex3 $(LIBS)
-
-ex3p: ex3p.cpp
-	$(MPICC) $(MPIOPTS) ex3p.cpp -o ex3p $(MPILIBS)
-
-ex4: ex4.cpp
-	$(CC) $(COPTS) ex4.cpp -o ex4 $(LIBS)
-
-ex4p: ex4p.cpp
-	$(MPICC) $(MPIOPTS) ex4p.cpp -o ex4p $(MPILIBS)
-
-ex5: ex5.cpp
-	$(CC) $(COPTS) ex5.cpp -o ex5 $(LIBS)
-
-ex5p: ex5p.cpp
-	$(MPICC) $(MPIOPTS) ex5p.cpp -o ex5p $(MPILIBS)
-
-ex6: ex6.cpp
-	$(CC) $(COPTS) ex6.cpp -o ex6 $(LIBS)
-
-ex7: ex7.cpp
-	$(CC) $(COPTS) ex7.cpp -o ex7 $(LIBS)
-
-ex7p: ex7p.cpp
-	$(MPICC) $(MPIOPTS) ex7p.cpp -o ex7p $(MPILIBS)
-
-debug:
-	$(MAKE) "OPTS=$(DEBUG_OPTS)" serial
-
-pdebug:
-	$(MAKE) "MPIOPTS=$(MPIDEBUG_OPTS)" parallel
+# Generate an error message if the MFEM library is not built and exit
+$(CONFIG_MK) $(MFEM_LIB_FILE):
+	$(error The MFEM library is not built)
 
 clean:
 	rm -f *.o *~ ex1 ex1p ex2 ex2p ex3 ex3p ex4 ex4p ex5 ex5p ex6 ex7 ex7p
-	rm -f refined.mesh displaced.mesh sol.* mesh.* ex5.mesh sol_u.* sol_p.*
-	rm -f sphere_refined.*
+	rm -f ex8 ex8p ex9 ex9p ex10 ex10p
+	rm -f refined.mesh displaced.mesh mesh.* ex5.mesh
+	rm -rf Example5* Example9*
+	rm -f sphere_refined.* sol.* sol_u.* sol_p.*
+	rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.*
+	rm -f deformed.* velocity.* elastic_energy.*
+	rm -rf *.dSYM

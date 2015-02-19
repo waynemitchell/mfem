@@ -12,7 +12,7 @@
 #ifndef MFEM_COMMUNICATION
 #define MFEM_COMMUNICATION
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
@@ -44,6 +44,9 @@ private:
 
 public:
    GroupTopology(MPI_Comm comm) { MyComm = comm; }
+
+   /// Copy constructor
+   GroupTopology(const GroupTopology &gt);
 
    MPI_Comm GetComm() { return MyComm; }
    int MyRank() { int r; MPI_Comm_rank(MyComm, &r); return r; }

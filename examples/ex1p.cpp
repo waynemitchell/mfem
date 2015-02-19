@@ -14,6 +14,7 @@
 //               mpirun -np 4 ex1p -m ../data/ball-nurbs.mesh -o 2
 //               mpirun -np 4 ex1p -m ../data/star-surf.mesh
 //               mpirun -np 4 ex1p -m ../data/square-disc-surf.mesh
+//               mpirun -np 4 ex1p -m ../data/inline-segment.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -30,16 +31,16 @@
 //               of boundary conditions on all boundary edges, and the optional
 //               connection to the GLVis tool for visualization.
 
+#include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "mfem.hpp"
 
 #include "HYPRE_sstruct_ls.h"
 
 using namespace std;
 using namespace mfem;
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
    int num_procs, myid;
