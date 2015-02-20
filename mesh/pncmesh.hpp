@@ -156,18 +156,7 @@ protected:
 
    void CalcFaceOrientations();
 
-   /// Struct to help sorting edges/faces
-   struct IndexRank
-   {
-      int index, rank;
-      IndexRank(int index, int rank) : index(index), rank(rank) {}
-      bool operator< (const IndexRank &rhs) const
-      { return (index == rhs.index) ? (rank < rhs.rank) : (index < rhs.index); }
-      bool operator== (const IndexRank &rhs) const
-      { return (index == rhs.index) && (rank == rhs.rank); }
-   };
-
-   Array<IndexRank> tmp_ranks;
+   Array<Connection> index_rank;
 
    void AddSlaveRanks(int nitems, const NCList& list);
    void MakeGroups(int nitems, Table &groups);
@@ -207,6 +196,8 @@ protected:
    /// Read from 'is' a processor-independent encoding of vetex/edge/face IDs.
    void DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const;
 
+   void PruneGhosts();
+
    friend class ParMesh;
    friend class NeighborDofMessage;
 };
@@ -228,6 +219,8 @@ TODO
 + outer loop
 - assumed partition
 - nonzero essential BC
+- prune ghosts
+- parallel refine
 */
 
 

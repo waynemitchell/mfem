@@ -20,6 +20,14 @@
 namespace mfem
 {
 
+/// Helper struct for defining a connectivity Table.
+struct Connection
+{
+   int from, to;
+   Connection(int from, int to) : from(from), to(to) {}
+};
+
+
 /** Data type Table. Table stores the connectivity of elements of TYPE I
     to elements of TYPE II, for example, it may be Element-To-Face
     connectivity table, etc. */
@@ -44,6 +52,9 @@ public:
 
    /// Create a table with a fixed number of connections.
    explicit Table (int dim, int connections_per_row = 3);
+
+   /** Create a table from a list of connections, see MakeFromList. */
+   Table(int nrows, Array<Connection> &list) { MakeFromList(nrows, list); }
 
    /** Create a table with one entry per row with column indices given
        by 'partitioning'. */
@@ -107,6 +118,11 @@ public:
        will "freeze" the table and function Push will work no more.
        Note: The table is functional even without calling Finalize(). */
    void Finalize();
+
+   /** Create the table from a list of connections. The list is sorted, rid
+       of duplicities and converted to a CSR table.
+       NOTE: 'list' is modified by this function. */
+   void MakeFromList(int nrows, Array<Connection> &list);
 
    /// Returns the number of TYPE II elements (after Finalize() is called).
    int Width() const;

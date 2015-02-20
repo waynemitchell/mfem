@@ -230,6 +230,37 @@ void Table::Finalize()
    }
 }
 
+bool operator< (const Connection &a, const Connection &b)
+{
+   return (a.from == b.from) ? (a.to < b.to) : (a.from < b.from);
+}
+
+bool operator== (const Connection &a, const Connection &b)
+{
+   return (a.from == b.from) && (a.to == b.to);
+}
+
+void Table::MakeFromList(int nrows, Array<Connection> &list)
+{
+   Clear();
+   size = nrows;
+
+   list.Sort();
+   list.Unique();
+   int nnz = list.Size();
+
+   I = new int[size+1];
+   for (int i = 0, k = 0; i <= size; i++)
+   {
+      I[i] = k;
+      while (k < nnz && list[k].from == i) { k++; }
+   }
+
+   J = new int[nnz];
+   for (int i = 0; i < nnz; i++)
+      J[i] = list[i].to;
+}
+
 int Table::Width() const
 {
    int width = -1, nnz = (size >= 0) ? I[size] : 0;

@@ -35,7 +35,7 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
 
    AssignLeafIndices();
    UpdateVertices();
-   //PruneGhosts();
+   PruneGhosts();
 }
 
 void ParNCMesh::AssignLeafIndices()
@@ -129,7 +129,7 @@ void ParNCMesh::ElementSharesEdge(Element *elem, Edge *edge)
    int &owner = edge_owner[edge->index];
    owner = std::min(owner, elem->rank);
 
-   tmp_ranks.Append(IndexRank(edge->index, elem->rank));
+   index_rank.Append(Connection(edge->index, elem->rank));
 }
 
 void ParNCMesh::ElementSharesFace(Element* elem, Face* face)
@@ -139,7 +139,7 @@ void ParNCMesh::ElementSharesFace(Element* elem, Face* face)
    int &owner = face_owner[face->index];
    owner = std::min(owner, elem->rank);
 
-   tmp_ranks.Append(IndexRank(face->index, elem->rank));
+   index_rank.Append(Connection(face->index, elem->rank));
 }
 
 void ParNCMesh::BuildEdgeList()
@@ -151,13 +151,16 @@ void ParNCMesh::BuildEdgeList()
    edge_owner.SetSize(nedges);
    edge_owner = std::numeric_limits<int>::max();
 
-   tmp_ranks.SetSize(12*leaf_elements.Size() * 3/2);
-   tmp_ranks.SetSize(0);
+   index_rank.SetSize(12*leaf_elements.Size() * 3/2);
+   index_rank.SetSize(0);
 
    NCMesh::BuildEdgeList();
 
    AddSlaveRanks(nedges, edge_list);
-   MakeGroups(nedges, edge_group);
+
+   edge_group.MakeFromList(nedges, index_rank);
+   index_rank.DeleteAll();
+
    MakeShared(edge_group, edge_list, shared_edges);
 }
 
@@ -170,13 +173,16 @@ void ParNCMesh::BuildFaceList()
    face_owner.SetSize(nfaces);
    face_owner = std::numeric_limits<int>::max();
 
-   tmp_ranks.SetSize(6*leaf_elements.Size() * 3/2);
-   tmp_ranks.SetSize(0);
+   index_rank.SetSize(6*leaf_elements.Size() * 3/2);
+   index_rank.SetSize(0);
 
    NCMesh::BuildFaceList();
 
    AddSlaveRanks(nfaces, face_list);
-   MakeGroups(nfaces, face_group);
+
+   face_group.MakeFromList(nfaces, index_rank);
+   index_rank.DeleteAll();
+
    MakeShared(face_group, face_list, shared_faces);
 
    CalcFaceOrientations();
@@ -199,47 +205,13 @@ void ParNCMesh::AddSlaveRanks(int nitems, const NCList& list)
    // This can be done by appending more items to 'tmp_ranks' for the masters.
    // (Note that a slave edge can be shared by more than one element/processor.)
 
-   int size = tmp_ranks.Size();
+   int size = index_rank.Size();
    for (int i = 0; i < size; i++)
    {
-      int master = slave_to_master[tmp_ranks[i].index];
+      int master = slave_to_master[index_rank[i].from];
       if (master >= 0)
-         tmp_ranks.Append(IndexRank(master, tmp_ranks[i].rank));
+         index_rank.Append(Connection(master, index_rank[i].to));
    }
-}
-
-void ParNCMesh::MakeGroups(int nitems, Table &groups)
-{
-   // The list of processors for each edge/face is obtained by simply sorting
-   // the 'tmp_ranks' array, removing duplicities and converting to a Table.
-
-   tmp_ranks.Sort();
-   tmp_ranks.Unique();
-   int size = tmp_ranks.Size();
-
-   // create CSR array I of row beginnings
-   int* I = new int[nitems+1];
-   int next_I = 0, last_index = -1;
-   for (int i = 0; i < size; i++)
-   {
-      if (tmp_ranks[i].index != last_index)
-      {
-         I[next_I++] = i;
-         last_index = tmp_ranks[i].index;
-      }
-   }
-   I[next_I] = size;
-   MFEM_ASSERT(next_I == nitems, "");
-
-   // J array is ready-made
-   int* J = new int[size];
-   for (int i = 0; i < size; i++)
-      J[i] = tmp_ranks[i].rank;
-
-   // we have a CSR table of ranks for each edge/face
-   groups.SetIJ(I, J, nitems);
-
-   tmp_ranks.DeleteAll();
 }
 
 static bool is_shared(const Table& groups, int index, int MyRank)
@@ -286,8 +258,8 @@ void ParNCMesh::BuildSharedVertices()
    vertex_owner.SetSize(nvertices);
    vertex_owner = std::numeric_limits<int>::max();
 
-   tmp_ranks.SetSize(8*leaf_elements.Size());
-   tmp_ranks.SetSize(0);
+   index_rank.SetSize(8*leaf_elements.Size());
+   index_rank.SetSize(0);
 
    Array<MeshId> vertex_id(nvertices);
 
@@ -304,7 +276,7 @@ void ParNCMesh::BuildSharedVertices()
          int &owner = vertex_owner[index];
          owner = std::min(owner, elem->rank);
 
-         tmp_ranks.Append(IndexRank(index, elem->rank));
+         index_rank.Append(Connection(index, elem->rank));
 
          MeshId &id = vertex_id[index];
          id.index = (node->edge ? -1 : index);
@@ -313,7 +285,8 @@ void ParNCMesh::BuildSharedVertices()
       }
    }
 
-   MakeGroups(nvertices, vertex_group);
+   vertex_group.MakeFromList(nvertices, index_rank);
+   index_rank.DeleteAll();
 
    // create a list of shared vertices, skip obviously slave vertices
    // (for simplicity, we don't guarantee to skip all slave vertices)
@@ -355,6 +328,13 @@ void ParNCMesh::CalcFaceOrientations()
 
          face_orient[it->index] = Mesh::GetQuadOrientation(ids[0], ids[1]);
       }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void ParNCMesh::PruneGhosts()
+{
+
 }
 
 //// ElementSet ////////////////////////////////////////////////////////////////
@@ -578,7 +558,6 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const
       }
    }
 }
-
 
 //// Messages //////////////////////////////////////////////////////////////////
 
