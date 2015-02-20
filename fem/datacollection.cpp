@@ -197,7 +197,7 @@ void DataCollection::SaveOneField(
    else
       file_name = dir_name + "/" + it->first + "." +
          to_padded_string(myid, pad_digits);
-   ofstream field_file(file_name);
+   ofstream field_file(file_name.c_str());
    (it->second)->Save(field_file);
    if (!field_file)
    {
