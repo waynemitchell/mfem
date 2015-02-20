@@ -24,9 +24,7 @@ void SparseSmoother::SetOperator(const Operator &a)
 {
    oper = dynamic_cast<const SparseMatrix*>(&a);
    if (oper == NULL)
-   {
-      mfem_error("SparseSmoother::SetOperator : not a SparseMatrix!");
-   }
+   { mfem_error("SparseSmoother::SetOperator : not a SparseMatrix!"); }
    height = oper->Height();
    width = oper->Width();
 }
@@ -35,19 +33,13 @@ void SparseSmoother::SetOperator(const Operator &a)
 void GSSmoother::Mult(const Vector &x, Vector &y) const
 {
    if (!iterative_mode)
-   {
-      y = 0.0;
-   }
+   { y = 0.0; }
    for (int i = 0; i < iterations; i++)
    {
       if (type != 2)
-      {
-         oper->Gauss_Seidel_forw(x, y);
-      }
+      { oper->Gauss_Seidel_forw(x, y); }
       if (type != 1)
-      {
-         oper->Gauss_Seidel_back(x, y);
-      }
+      { oper->Gauss_Seidel_back(x, y); }
    }
 }
 
@@ -74,36 +66,22 @@ void DSmoother::Mult(const Vector &x, Vector &y) const
    Vector *r = &y, *p = &z;
 
    if (iterations % 2 == 0)
-   {
-      Swap<Vector*>(r, p);
-   }
+   { Swap<Vector*>(r, p); }
 
    if (!iterative_mode)
-   {
-      *p = 0.0;
-   }
+   { *p = 0.0; }
    else if (iterations % 2)
-   {
-      *p = y;
-   }
+   { *p = y; }
    for (int i = 0; i < iterations; i++)
    {
       if (type == 0)
-      {
-         oper->Jacobi(x, *p, *r, scale);
-      }
+      { oper->Jacobi(x, *p, *r, scale); }
       else if (type == 1)
-      {
-         oper->Jacobi2(x, *p, *r, scale);
-      }
+      { oper->Jacobi2(x, *p, *r, scale); }
       else if (type == 2)
-      {
-         oper->Jacobi3(x, *p, *r, scale);
-      }
+      { oper->Jacobi3(x, *p, *r, scale); }
       else
-      {
-         mfem_error("DSmoother::Mult wrong type");
-      }
+      { mfem_error("DSmoother::Mult wrong type"); }
       Swap<Vector*>(r, p);
    }
 }

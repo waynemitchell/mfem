@@ -82,9 +82,7 @@ int main(int argc, char *argv[])
       int ref_levels =
          (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      { mesh->UniformRefinement(); }
    }
 
    // 4. Define a finite element space on the mesh. Here we use continuous
@@ -92,17 +90,11 @@ int main(int argc, char *argv[])
    //    instead use an isoparametric/isogeometric space.
    FiniteElementCollection *fec;
    if (order > 0)
-   {
-      fec = new H1_FECollection(order, dim);
-   }
+   { fec = new H1_FECollection(order, dim); }
    else if (mesh->GetNodes())
-   {
-      fec = mesh->GetNodes()->OwnFEC();
-   }
+   { fec = mesh->GetNodes()->OwnFEC(); }
    else
-   {
-      fec = new H1_FECollection(order = 1, dim);
-   }
+   { fec = new H1_FECollection(order = 1, dim); }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;
 
@@ -172,9 +164,7 @@ int main(int argc, char *argv[])
    delete b;
    delete fespace;
    if (order > 0)
-   {
-      delete fec;
-   }
+   { delete fec; }
    delete mesh;
 
    return 0;

@@ -324,9 +324,7 @@ public:
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
       if (_spaceDim == -1)
-      {
-         _spaceDim = _Dim;
-      }
+      { _spaceDim = _Dim; }
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
@@ -479,9 +477,7 @@ public:
          vert.SetSize(1); vert[0] = i;
       }
       else
-      {
-         faces[i]->GetVertices(vert);
-      }
+      { faces[i]->GetVertices(vert); }
    }
 
    /// Returns the indices of the vertices of edge i.
@@ -702,9 +698,7 @@ public:
    void UseTwoLevelState (int use)
    {
       if (!use && State != Mesh::NORMAL)
-      {
-         SetState (Mesh::NORMAL);
-      }
+      { SetState (Mesh::NORMAL); }
       WantTwoLevelState = use;
    }
 
@@ -824,20 +818,14 @@ inline void Mesh::Rotate3(int &a, int &b, int &c)
    if (a < b)
    {
       if (a > c)
-      {
-         ShiftL2R(a, b, c);
-      }
+      { ShiftL2R(a, b, c); }
    }
    else
    {
       if (b < c)
-      {
-         ShiftL2R(c, b, a);
-      }
+      { ShiftL2R(c, b, a); }
       else
-      {
-         ShiftL2R(a, b, c);
-      }
+      { ShiftL2R(a, b, c); }
    }
 }
 

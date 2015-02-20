@@ -33,10 +33,7 @@ BlockVector::BlockVector(const Array<int> & bOffsets):
    tmp_block(numBlocks)
 {
    for (int i = 0; i < numBlocks; ++i)
-   {
-      tmp_block[i] =  new Vector(data+blockOffsets[i],
-                                 blockOffsets[i+1]-blockOffsets[i]);
-   }
+   { tmp_block[i] =  new Vector(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]); }
 }
 
 //! Copy constructor
@@ -47,10 +44,7 @@ BlockVector::BlockVector(const BlockVector & v):
    tmp_block(numBlocks)
 {
    for (int i = 0; i < numBlocks; ++i)
-   {
-      tmp_block[i] =  new Vector(data+blockOffsets[i],
-                                 blockOffsets[i+1]-blockOffsets[i]);
-   }
+   { tmp_block[i] =  new Vector(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]); }
 }
 
 //! View constructor
@@ -61,10 +55,7 @@ BlockVector::BlockVector(double *data, const Array<int> & bOffsets):
    tmp_block(numBlocks)
 {
    for (int i = 0; i < numBlocks; ++i)
-   {
-      tmp_block[i] =  new Vector(data+blockOffsets[i],
-                                 blockOffsets[i+1]-blockOffsets[i]);
-   }
+   { tmp_block[i] =  new Vector(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]); }
 }
 
 void BlockVector::Update(double *data, const Array<int> & bOffsets)
@@ -75,35 +66,24 @@ void BlockVector::Update(double *data, const Array<int> & bOffsets)
 
    int oldNumBlocks = tmp_block.Size();
    for (int i = numBlocks; i < oldNumBlocks; ++i)
-   {
-      delete tmp_block[i];
-   }
+   { delete tmp_block[i]; }
 
    tmp_block.SetSize(numBlocks);
    for (int i = oldNumBlocks; i < numBlocks; ++i)
-   {
-      tmp_block[i] =  new Vector(data+blockOffsets[i],
-                                 blockOffsets[i+1]-blockOffsets[i]);
-   }
+   { tmp_block[i] =  new Vector(data+blockOffsets[i], blockOffsets[i+1]-blockOffsets[i]); }
 }
 
 BlockVector & BlockVector::operator=(const BlockVector & original)
 {
    if (numBlocks!=original.numBlocks)
-   {
-      mfem_error("Number of Blocks don't match in BlockVector::operator=");
-   }
+   { mfem_error("Number of Blocks don't match in BlockVector::operator="); }
 
    for (int i(0); i <= numBlocks; ++i)
       if (blockOffsets[i]!=original.blockOffsets[i])
-      {
-         mfem_error("Size of Blocks don't match in BlockVector::operator=");
-      }
+      { mfem_error("Size of Blocks don't match in BlockVector::operator="); }
 
    for (int i = 0; i < original.size; i++)
-   {
-      data[i] = original.data[i];
-   }
+   { data[i] = original.data[i]; }
 
    return *this;
 }
@@ -118,9 +98,7 @@ BlockVector & BlockVector::operator=(double val)
 BlockVector::~BlockVector()
 {
    for (int i = 0; i < tmp_block.Size(); ++i)
-   {
-      delete tmp_block[i];
-   }
+   { delete tmp_block[i]; }
 }
 
 Vector & BlockVector::GetBlock(int i)

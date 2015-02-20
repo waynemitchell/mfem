@@ -76,9 +76,7 @@ int main(int argc, char *argv[])
       int ref_levels =
          (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      { mesh->UniformRefinement(); }
    }
 
    // 4. Define the trial, interfacial (trace) and test DPG spaces:

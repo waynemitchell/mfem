@@ -72,16 +72,14 @@ void Tetrahedron::CreateRefinementFlag(int refinement_edges[2], int type,
          break;
       case Tetrahedron::TYPE_O:
          if (flag == 0 && e1 == 5 && e2 == 5)
-         {
-            break;
-         }
+         { break; }
          mfem_error("Error in Tetrahedron::CreateRefinementFlag(...) #4");
          break;
       case Tetrahedron::TYPE_M:
          if (flag == 0)
          {
-            if (e1 == 5 && e2 == 1) { break; }
-            if (e1 == 2 && e2 == 5) { break; }
+            if (e1 == 5 && e2 == 1)  { break; }
+            if (e1 == 2 && e2 == 5)  { break; }
          }
          mfem_error("Error in Tetrahedron::CreateRefinementFlag(...) #5");
          break;
@@ -108,9 +106,7 @@ Tetrahedron::Tetrahedron(const int *ind, int attr)
 {
    attribute = attr;
    for (int i = 0; i < 4; i++)
-   {
-      indices[i] = ind[i];
-   }
+   { indices[i] = ind[i]; }
    refinement_flag = 0;
 }
 
@@ -147,9 +143,7 @@ int Tetrahedron::NeedRefinement(DSTable &v_to_v, int *middle) const
 void Tetrahedron::SetVertices(const int *ind)
 {
    for (int i = 0; i < 4; i++)
-   {
-      indices[i] = ind[i];
-   }
+   { indices[i] = ind[i]; }
 }
 
 void Tetrahedron::MarkEdge(const DSTable &v_to_v, const int *length)
@@ -165,9 +159,7 @@ void Tetrahedron::MarkEdge(const DSTable &v_to_v, const int *length)
    if ((l = length[v_to_v(indices[2], indices[3])]) > L) { L = l; j = 5; }
 
    for (i = 0; i < 4; i++)
-   {
-      ind[i] = indices[i];
-   }
+   { ind[i] = indices[i]; }
 
    switch (j)
    {

@@ -131,15 +131,11 @@ int main(int argc, char *argv[])
    for (int l = 0; l <= ref_levels; l++)
    {
       if (l > 0) // for l == 0 just perform snapping
-      {
-         mesh->UniformRefinement();
-      }
+      { mesh->UniformRefinement(); }
 
       // Snap the nodes of the refined mesh back to sphere surface.
       if (always_snap || l == ref_levels)
-      {
-         SnapNodes(*mesh);
-      }
+      { SnapNodes(*mesh); }
    }
 
    // 4. Define a finite element space on the mesh. Here we use isoparametric
@@ -241,15 +237,11 @@ void SnapNodes(Mesh &mesh)
    for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
    {
       for (int d = 0; d < mesh.SpaceDimension(); d++)
-      {
-         node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
-      }
+      { node(d) = nodes(nodes.FESpace()->DofToVDof(i, d)); }
 
       node /= node.Norml2();
 
       for (int d = 0; d < mesh.SpaceDimension(); d++)
-      {
-         nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
-      }
+      { nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d); }
    }
 }

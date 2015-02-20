@@ -44,14 +44,12 @@ void IsoparametricTransformation::SetIdentityTransformation(int GeomType)
    const IntegrationRule &nodes = FElem->GetNodes();
    PointMat.SetSize(dim, dof);
    for (int j = 0; j < dof; j++)
-   {
-      nodes.IntPoint(j).Get(&PointMat(0,j), dim);
-   }
+   { nodes.IntPoint(j).Get(&PointMat(0,j), dim); }
 }
 
 const DenseMatrix & IsoparametricTransformation::Jacobian()
 {
-   if (JacobianIsEvaluated) { return dFdx; }
+   if (JacobianIsEvaluated)  { return dFdx; }
 
    dshape.SetSize(FElem->GetDof(), FElem->GetDim());
    dFdx.SetSize(PointMat.Height(), dshape.Width());
@@ -67,13 +65,9 @@ const DenseMatrix & IsoparametricTransformation::Jacobian()
 double IsoparametricTransformation::Weight()
 {
    if (FElem->GetDim() == 0)
-   {
-      return 1.0;
-   }
+   { return 1.0; }
    if (WeightIsEvaluated)
-   {
-      return Wght;
-   }
+   { return Wght; }
    Jacobian();
    WeightIsEvaluated = 1;
    return (Wght = dFdx.Weight());
@@ -155,9 +149,7 @@ void IsoparametricTransformation::Transform (const IntegrationRule &ir,
       {
          tr(i, j) = 0.0;
          for (k = 0; k < dof; k++)
-         {
-            tr(i, j) += PointMat(i, k) * shape(k);
-         }
+         { tr(i, j) += PointMat(i, k) * shape(k); }
       }
    }
 }
@@ -181,9 +173,7 @@ void IntegrationPointTransformation::Transform (const IntegrationRule &ir1,
 
    n = ir1.GetNPoints();
    for (i = 0; i < n; i++)
-   {
-      Transform (ir1.IntPoint(i), ir2.IntPoint(i));
-   }
+   { Transform (ir1.IntPoint(i), ir2.IntPoint(i)); }
 }
 
 }

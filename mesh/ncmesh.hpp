@@ -409,9 +409,7 @@ protected: // implementation
       {
          dim = p0.dim;
          for (int i = 0; i < dim; i++)
-         {
-            coord[i] = (p0.coord[i] + p1.coord[i]) * 0.5;
-         }
+         { coord[i] = (p0.coord[i] + p1.coord[i]) * 0.5; }
       }
 
       Point(const Point& p0, const Point& p1, const Point& p2, const Point& p3)
@@ -426,9 +424,7 @@ protected: // implementation
       {
          dim = src.dim;
          for (int i = 0; i < dim; i++)
-         {
-            coord[i] = src.coord[i];
-         }
+         { coord[i] = src.coord[i]; }
          return *this;
       }
    };

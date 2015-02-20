@@ -19,24 +19,18 @@ IntegerSet::IntegerSet(IntegerSet &s)
    : me(s.me.Size())
 {
    for (int i = 0; i < me.Size(); i++)
-   {
-      me[i] = s.me[i];
-   }
+   { me[i] = s.me[i]; }
 }
 
 
 int IntegerSet::operator== (IntegerSet &s)
 {
    if (me.Size() != s.me.Size())
-   {
-      return 0;
-   }
+   { return 0; }
 
    for (int i = 0; i < me.Size(); i++)
       if (me[i] != s.me[i])
-      {
-         return 0;
-      }
+      { return 0; }
 
    return 1;
 }
@@ -47,9 +41,7 @@ int IntegerSet::PickRandomElement()
    unsigned int seed = 0;
 
    for (i = 0; i < size; i++)
-   {
-      seed += me[i];
-   }
+   { seed += me[i]; }
 
    srand(seed);
 
@@ -63,17 +55,13 @@ void IntegerSet::Recreate(const int n, const int *p)
    me.SetSize(n);
 
    for (i = 0; i < n; i++)
-   {
-      me[i] = p[i];
-   }
+   { me[i] = p[i]; }
 
    me.Sort();
 
    for (j = 0, i = 1; i < n; i++)
       if (me[i] != me[j])
-      {
-         me[++j] = me[i];
-      }
+      { me[++j] = me[i]; }
 
    me.SetSize(j+1);
 }
@@ -83,9 +71,7 @@ int ListOfIntegerSets::Insert(IntegerSet &s)
 {
    for (int i = 0; i < TheList.Size(); i++)
       if (*TheList[i] == s)
-      {
-         return i;
-      }
+      { return i; }
 
    TheList.Append(new IntegerSet(s));
 
@@ -96,9 +82,7 @@ int ListOfIntegerSets::Lookup(IntegerSet &s)
 {
    for (int i = 0; i < TheList.Size(); i++)
       if (*TheList[i] == s)
-      {
-         return i;
-      }
+      { return i; }
 
    mfem_error("ListOfIntegerSets::Lookup ()");
    return -1;
@@ -111,9 +95,7 @@ void ListOfIntegerSets::AsTable(Table & t)
    t.MakeI(Size());
 
    for (i = 0; i < Size(); i++)
-   {
-      t.AddColumnsInRow(i, TheList[i] -> Size());
-   }
+   { t.AddColumnsInRow(i, TheList[i] -> Size()); }
 
    t.MakeJ();
 
@@ -129,9 +111,7 @@ void ListOfIntegerSets::AsTable(Table & t)
 ListOfIntegerSets::~ListOfIntegerSets()
 {
    for (int i = 0; i < TheList.Size(); i++)
-   {
-      delete TheList[i];
-   }
+   { delete TheList[i]; }
 }
 
 }

@@ -31,9 +31,7 @@ Vector::Vector(const Vector &v)
       allocsize = size = s;
       data = new double[s];
       for (int i = 0; i < s; i++)
-      {
-         data[i] = v(i);
-      }
+      { data[i] = v(i); }
    }
    else
    {
@@ -48,18 +46,14 @@ void Vector::Load(std::istream **in, int np, int *dim)
 
    s = 0;
    for (i = 0; i < np; i++)
-   {
-      s += dim[i];
-   }
+   { s += dim[i]; }
 
    SetSize(s);
 
    int p = 0;
    for (i = 0; i < np; i++)
       for (j = 0; j < dim[i]; j++)
-      {
-         *in[i] >> data[p++];
-      }
+      { *in[i] >> data[p++]; }
 }
 
 void Vector::Load(std::istream &in, int Size)
@@ -67,9 +61,7 @@ void Vector::Load(std::istream &in, int Size)
    SetSize(Size);
 
    for (int i = 0; i < size; i++)
-   {
-      in >> data[i];
-   }
+   { in >> data[i]; }
 }
 
 double &Vector::Elem(int i)
@@ -91,9 +83,7 @@ double Vector::operator*(const double *v) const
    #pragma omp parallel for reduction(+:prod)
 #endif
    for (int i = 0; i < s; i++)
-   {
-      prod += d[i] * v[i];
-   }
+   { prod += d[i] * v[i]; }
    return prod;
 }
 
@@ -101,9 +91,7 @@ double Vector::operator*(const Vector &v) const
 {
 #ifdef MFEM_DEBUG
    if (v.size != size)
-   {
-      mfem_error("Vector::operator*(const Vector &) const");
-   }
+   { mfem_error("Vector::operator*(const Vector &) const"); }
 #endif
 
    return operator*(v.data);
@@ -112,9 +100,7 @@ double Vector::operator*(const Vector &v) const
 Vector &Vector::operator=(const double *v)
 {
    for (int i = 0; i < size; i++)
-   {
-      data[i] = v[i];
-   }
+   { data[i] = v[i]; }
    return *this;
 }
 
@@ -122,9 +108,7 @@ Vector &Vector::operator=(const Vector &v)
 {
    SetSize(v.Size());
    for (int i = 0; i < size; i++)
-   {
-      data[i] = v.data[i];
-   }
+   { data[i] = v.data[i]; }
    return *this;
 }
 
@@ -133,18 +117,14 @@ Vector &Vector::operator=(double value)
    int i, s = size;
    double *p = data, v = value;
    for (i = 0; i < s; i++)
-   {
-      *(p++) = v;
-   }
+   { *(p++) = v; }
    return *this;
 }
 
 Vector &Vector::operator*=(double c)
 {
    for (int i = 0; i < size; i++)
-   {
-      data[i] *= c;
-   }
+   { data[i] *= c; }
    return *this;
 }
 
@@ -152,18 +132,14 @@ Vector &Vector::operator/=(double c)
 {
    double m = 1.0/c;
    for (int i = 0; i < size; i++)
-   {
-      data[i] *= m;
-   }
+   { data[i] *= m; }
    return *this;
 }
 
 Vector &Vector::operator-=(double c)
 {
    for (int i = 0; i < size; i++)
-   {
-      data[i] -= c;
-   }
+   { data[i] -= c; }
    return *this;
 }
 
@@ -171,14 +147,10 @@ Vector &Vector::operator-=(const Vector &v)
 {
 #ifdef MFEM_DEBUG
    if (size != v.size)
-   {
-      mfem_error("Vector::operator-=(const Vector &)");
-   }
+   { mfem_error("Vector::operator-=(const Vector &)"); }
 #endif
    for (int i = 0; i < size; i++)
-   {
-      data[i] -= v(i);
-   }
+   { data[i] -= v(i); }
    return *this;
 }
 
@@ -186,14 +158,10 @@ Vector &Vector::operator+=(const Vector &v)
 {
 #ifdef MFEM_DEBUG
    if (size != v.size)
-   {
-      mfem_error("Vector::operator+=(const Vector &)");
-   }
+   { mfem_error("Vector::operator+=(const Vector &)"); }
 #endif
    for (int i = 0; i < size; i++)
-   {
-      data[i] += v(i);
-   }
+   { data[i] += v(i); }
    return *this;
 }
 
@@ -201,16 +169,12 @@ Vector &Vector::Add(const double a, const Vector &Va)
 {
 #ifdef MFEM_DEBUG
    if (size != Va.size)
-   {
-      mfem_error("Vector::Add(const double, const Vector &)");
-   }
+   { mfem_error("Vector::Add(const double, const Vector &)"); }
 #endif
    if (a != 0.0)
    {
       for (int i = 0; i < size; i++)
-      {
-         data[i] += a * Va(i);
-      }
+      { data[i] += a * Va(i); }
    }
    return *this;
 }
@@ -219,14 +183,10 @@ Vector &Vector::Set(const double a, const Vector &Va)
 {
 #ifdef MFEM_DEBUG
    if (size != Va.size)
-   {
-      mfem_error("Vector::Set(const double, const Vector &)");
-   }
+   { mfem_error("Vector::Set(const double, const Vector &)"); }
 #endif
    for (int i = 0; i < size; i++)
-   {
-      data[i] = a * Va(i);
-   }
+   { data[i] = a * Va(i); }
    return *this;
 }
 
@@ -237,50 +197,38 @@ void Vector::SetVector(const Vector &v, int offset)
 
 #ifdef MFEM_DEBUG
    if (offset+vs > size)
-   {
-      mfem_error("Vector::SetVector(const Vector &, int)");
-   }
+   { mfem_error("Vector::SetVector(const Vector &, int)"); }
 #endif
 
    for (int i = 0; i < vs; i++)
-   {
-      p[i] = vp[i];
-   }
+   { p[i] = vp[i]; }
 }
 
 void Vector::Neg()
 {
    for (int i = 0; i < size; i++)
-   {
-      data[i] = -data[i];
-   }
+   { data[i] = -data[i]; }
 }
 
 void add(const Vector &v1, const Vector &v2, Vector &v)
 {
 #ifdef MFEM_DEBUG
    if (v.size != v1.size || v.size != v2.size)
-   {
-      mfem_error("add(Vector &v1, Vector &v2, Vector &v)");
-   }
+   { mfem_error("add(Vector &v1, Vector &v2, Vector &v)"); }
 #endif
 
 #ifdef MFEM_USE_OPENMP
    #pragma omp parallel for
 #endif
    for (int i = 0; i < v.size; i++)
-   {
-      v.data[i] = v1.data[i] + v2.data[i];
-   }
+   { v.data[i] = v1.data[i] + v2.data[i]; }
 }
 
 void add(const Vector &v1, double alpha, const Vector &v2, Vector &v)
 {
 #ifdef MFEM_DEBUG
    if (v.size != v1.size || v.size != v2.size)
-   {
-      mfem_error ("add(Vector &v1, double alpha, Vector &v2, Vector &v)");
-   }
+   { mfem_error ("add(Vector &v1, double alpha, Vector &v2, Vector &v)"); }
 #endif
    if (alpha == 0.0)
    {
@@ -299,9 +247,7 @@ void add(const Vector &v1, double alpha, const Vector &v2, Vector &v)
       #pragma omp parallel for
 #endif
       for (int i = 0; i < s; i++)
-      {
-         vp[i] = v1p[i] + alpha*v2p[i];
-      }
+      { vp[i] = v1p[i] + alpha*v2p[i]; }
    }
 }
 
@@ -331,9 +277,7 @@ void add(const double a, const Vector &x, const Vector &y, Vector &z)
       #pragma omp parallel for
 #endif
       for (int i = 0; i < s; i++)
-      {
-         zp[i] = a * (xp[i] + yp[i]);
-      }
+      { zp[i] = a * (xp[i] + yp[i]); }
    }
 }
 
@@ -376,9 +320,7 @@ void add(const double a, const Vector &x,
       #pragma omp parallel for
 #endif
       for (int i = 0; i < s; i++)
-      {
-         zp[i] = a * xp[i] + b * yp[i];
-      }
+      { zp[i] = a * xp[i] + b * yp[i]; }
    }
 }
 
@@ -386,9 +328,7 @@ void subtract(const Vector &x, const Vector &y, Vector &z)
 {
 #ifdef MFEM_DEBUG
    if (x.size != y.size || x.size != z.size)
-   {
-      mfem_error ("subtract(const Vector &, const Vector &, Vector &)");
-   }
+   { mfem_error ("subtract(const Vector &, const Vector &, Vector &)"); }
 #endif
    const double *xp = x.data;
    const double *yp = y.data;
@@ -399,9 +339,7 @@ void subtract(const Vector &x, const Vector &y, Vector &z)
    #pragma omp parallel for
 #endif
    for (int i = 0; i < s; i++)
-   {
-      zp[i] = xp[i] - yp[i];
-   }
+   { zp[i] = xp[i] - yp[i]; }
 }
 
 void subtract(const double a, const Vector &x, const Vector &y, Vector &z)
@@ -431,9 +369,7 @@ void subtract(const double a, const Vector &x, const Vector &y, Vector &z)
       #pragma omp parallel for
 #endif
       for (int i = 0; i < s; i++)
-      {
-         zp[i] = a * (xp[i] - yp[i]);
-      }
+      { zp[i] = a * (xp[i] - yp[i]); }
    }
 }
 
@@ -444,13 +380,9 @@ void Vector::median(const Vector &lo, const Vector &hi)
    for (int i = 0; i < size; i++)
    {
       if (v[i] < lo[i])
-      {
-         v[i] = lo[i];
-      }
+      { v[i] = lo[i]; }
       else if (v[i] > hi[i])
-      {
-         v[i] = hi[i];
-      }
+      { v[i] = hi[i]; }
    }
 }
 
@@ -462,13 +394,9 @@ void Vector::GetSubVector(const Array<int> &dofs, Vector &elemvect) const
 
    for (i = 0; i < n; i++)
       if ((j=dofs[i]) >= 0)
-      {
-         elemvect(i) = data[j];
-      }
+      { elemvect(i) = data[j]; }
       else
-      {
-         elemvect(i) = -data[-1-j];
-      }
+      { elemvect(i) = -data[-1-j]; }
 }
 
 void Vector::GetSubVector(const Array<int> &dofs, double *elem_data) const
@@ -477,13 +405,9 @@ void Vector::GetSubVector(const Array<int> &dofs, double *elem_data) const
 
    for (i = 0; i < n; i++)
       if ((j=dofs[i]) >= 0)
-      {
-         elem_data[i] = data[j];
-      }
+      { elem_data[i] = data[j]; }
       else
-      {
-         elem_data[i] = -data[-1-j];
-      }
+      { elem_data[i] = -data[-1-j]; }
 }
 
 void Vector::SetSubVector(const Array<int> &dofs, const Vector &elemvect)
@@ -492,13 +416,9 @@ void Vector::SetSubVector(const Array<int> &dofs, const Vector &elemvect)
 
    for (i = 0; i < n; i++)
       if ((j=dofs[i]) >= 0)
-      {
-         data[j] = elemvect(i);
-      }
+      { data[j] = elemvect(i); }
       else
-      {
-         data[-1-j] = -elemvect(i);
-      }
+      { data[-1-j] = -elemvect(i); }
 }
 
 void Vector::SetSubVector(const Array<int> &dofs, double *elem_data)
@@ -507,13 +427,9 @@ void Vector::SetSubVector(const Array<int> &dofs, double *elem_data)
 
    for (i = 0; i < n; i++)
       if ((j=dofs[i]) >= 0)
-      {
-         data[j] = elem_data[i];
-      }
+      { data[j] = elem_data[i]; }
       else
-      {
-         data[-1-j] = -elem_data[i];
-      }
+      { data[-1-j] = -elem_data[i]; }
 }
 
 void Vector::AddElementVector(const Array<int> &dofs, const Vector &elemvect)
@@ -522,13 +438,9 @@ void Vector::AddElementVector(const Array<int> &dofs, const Vector &elemvect)
 
    for (i = 0; i < n; i++)
       if ((j=dofs[i]) >= 0)
-      {
-         data[j] += elemvect(i);
-      }
+      { data[j] += elemvect(i); }
       else
-      {
-         data[-1-j] -= elemvect(i);
-      }
+      { data[-1-j] -= elemvect(i); }
 }
 
 void Vector::AddElementVector(const Array<int> &dofs, double *elem_data)
@@ -537,13 +449,9 @@ void Vector::AddElementVector(const Array<int> &dofs, double *elem_data)
 
    for (i = 0; i < n; i++)
       if ((j=dofs[i]) >= 0)
-      {
-         data[j] += elem_data[i];
-      }
+      { data[j] += elem_data[i]; }
       else
-      {
-         data[-1-j] -= elem_data[i];
-      }
+      { data[-1-j] -= elem_data[i]; }
 }
 
 void Vector::AddElementVector(const Array<int> &dofs, const double a,
@@ -553,13 +461,9 @@ void Vector::AddElementVector(const Array<int> &dofs, const double a,
 
    for (i = 0; i < n; i++)
       if ((j=dofs[i]) >= 0)
-      {
-         data[j] += a * elemvect(i);
-      }
+      { data[j] += a * elemvect(i); }
       else
-      {
-         data[-1-j] -= a * elemvect(i);
-      }
+      { data[-1-j] -= a * elemvect(i); }
 }
 
 void Vector::Print(std::ostream &out, int width) const
@@ -571,17 +475,11 @@ void Vector::Print(std::ostream &out, int width) const
       out << data[i];
       i++;
       if (i == size)
-      {
-         break;
-      }
+      { break; }
       if ( i % width == 0 )
-      {
-         out << '\n';
-      }
+      { out << '\n'; }
       else
-      {
-         out << ' ';
-      }
+      { out << ' '; }
    }
    out << '\n';
 }
@@ -596,9 +494,7 @@ void Vector::Print_HYPRE(std::ostream &out) const
    out << size << '\n';  // number of rows
 
    for (i = 0; i < size; i++)
-   {
-      out << data[i] << '\n';
-   }
+   { out << data[i] << '\n'; }
 
    out.precision(old_prec);
    out.flags(old_fmt);
@@ -610,17 +506,13 @@ void Vector::Randomize(int seed)
    const double max = (double)(RAND_MAX) + 1.;
 
    if (seed == 0)
-   {
-      seed = (int)time(0);
-   }
+   { seed = (int)time(0); }
 
    // srand(seed++);
    srand((unsigned)seed);
 
    for (int i = 0; i < size; i++)
-   {
-      data[i] = fabs(rand()/max);
-   }
+   { data[i] = fabs(rand()/max); }
 }
 
 double Vector::Norml2() const
@@ -634,9 +526,7 @@ double Vector::Normlinf() const
 
    for (int i = 1; i < size; i++)
       if (fabs(data[i]) > max)
-      {
-         max = fabs(data[i]);
-      }
+      { max = fabs(data[i]); }
 
    return max;
 }
@@ -646,9 +536,7 @@ double Vector::Norml1() const
    double sum = 0.0;
 
    for (int i = 0; i < size; i++)
-   {
-      sum += fabs (data[i]);
-   }
+   { sum += fabs (data[i]); }
 
    return sum;
 }
@@ -657,26 +545,18 @@ double Vector::Normlp(double p) const
 {
    MFEM_ASSERT(p > 0.0, "Vector::Normlp");
    if (p == 1.0)
-   {
-      return Norml1();
-   }
+   { return Norml1(); }
    if (p == 2.0)
-   {
-      return Norml2();
-   }
+   { return Norml2(); }
    if (p < std::numeric_limits<double>::infinity())
    {
       double sum = 0.0;
       for (int i = 0; i < size; i++)
-      {
-         sum += pow(fabs(data[i]), p);
-      }
+      { sum += pow(fabs(data[i]), p); }
       return pow(sum, 1.0/p);
    }
    else
-   {
-      return Normlinf();
-   }
+   { return Normlinf(); }
 }
 
 double Vector::Max() const
@@ -685,9 +565,7 @@ double Vector::Max() const
 
    for (int i = 1; i < size; i++)
       if (data[i] > max)
-      {
-         max = data[i];
-      }
+      { max = data[i]; }
 
    return max;
 }
@@ -698,9 +576,7 @@ double Vector::Min() const
 
    for (int i = 1; i < size; i++)
       if (data[i] < min)
-      {
-         min = data[i];
-      }
+      { min = data[i]; }
 
    return min;
 }
@@ -710,9 +586,7 @@ double Vector::Sum() const
    double sum = 0.0;
 
    for (int i = 0; i < size; i++)
-   {
-      sum += data[i];
-   }
+   { sum += data[i]; }
 
    return sum;
 }

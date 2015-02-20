@@ -143,9 +143,7 @@ void NodalFiniteElement::NodalLocalInterpolation (
       CalcShape (f_ip, c_shape);
       for (int j = 0; j < Dof; j++)
          if (fabs (I (i,j) = c_shape (j)) < 1.0e-12)
-         {
-            I (i,j) = 0.0;
-         }
+         { I (i,j) = 0.0; }
    }
    if (MapType == INTEGRAL)
    {
@@ -166,9 +164,7 @@ void NodalFiniteElement::Project (
       Trans.SetIntPoint(&ip);
       dofs(i) = coeff.Eval (Trans, ip);
       if (MapType == INTEGRAL)
-      {
-         dofs(i) *= Trans.Weight();
-      }
+      { dofs(i) *= Trans.Weight(); }
    }
 }
 
@@ -186,13 +182,9 @@ void NodalFiniteElement::Project (
       Trans.SetIntPoint(&ip);
       vc.Eval (x, Trans, ip);
       if (MapType == INTEGRAL)
-      {
-         x *= Trans.Weight();
-      }
+      { x *= Trans.Weight(); }
       for (int j = 0; j < x.Size(); j++)
-      {
-         dofs(Dof*j+i) = v[j];
-      }
+      { dofs(Dof*j+i) = v[j]; }
    }
 }
 
@@ -210,9 +202,7 @@ void NodalFiniteElement::Project(
       {
          fe.CalcShape(Nodes.IntPoint(k), shape);
          for (int j = 0; j < shape.Size(); j++)
-         {
-            I(k,j) = (fabs(shape(j)) < 1e-12) ? 0.0 : shape(j);
-         }
+         { I(k,j) = (fabs(shape(j)) < 1e-12) ? 0.0 : shape(j); }
       }
    }
    else
@@ -225,14 +215,10 @@ void NodalFiniteElement::Project(
          Trans.SetIntPoint(&Nodes.IntPoint(k));
          fe.CalcVShape(Trans, vshape);
          if (MapType == INTEGRAL)
-         {
-            vshape *= Trans.Weight();
-         }
+         { vshape *= Trans.Weight(); }
          for (int j = 0; j < vshape.Height(); j++)
             for (int d = 0; d < vshape.Width(); d++)
-            {
-               I(k+d*Dof,j) = vshape(j,d);
-            }
+            { I(k+d*Dof,j) = vshape(j,d); }
       }
    }
 }
@@ -254,14 +240,10 @@ void NodalFiniteElement::ProjectGrad(
       CalcInverse(Trans.Jacobian(), Jinv);
       Mult(dshape, Jinv, grad_k);
       if (MapType == INTEGRAL)
-      {
-         grad_k *= Trans.Weight();
-      }
+      { grad_k *= Trans.Weight(); }
       for (int j = 0; j < grad_k.Height(); j++)
          for (int d = 0; d < Dim; d++)
-         {
-            grad(k+d*Dof,j) = grad_k(j,d);
-         }
+         { grad(k+d*Dof,j) = grad_k(j,d); }
    }
 }
 
@@ -282,16 +264,12 @@ void NodalFiniteElement::ProjectDiv(
          Trans.SetIntPoint(&ip);
          detJ = Trans.Weight();
          for (int j = 0; j < div_shape.Size(); j++)
-         {
-            div(k,j) = (fabs(div_shape(j)) < 1e-12) ? 0.0 : div_shape(j)/detJ;
-         }
+         { div(k,j) = (fabs(div_shape(j)) < 1e-12) ? 0.0 : div_shape(j)/detJ; }
       }
       else
       {
          for (int j = 0; j < div_shape.Size(); j++)
-         {
-            div(k,j) = (fabs(div_shape(j)) < 1e-12) ? 0.0 : div_shape(j);
-         }
+         { div(k,j) = (fabs(div_shape(j)) < 1e-12) ? 0.0 : div_shape(j); }
       }
    }
 }
@@ -428,22 +406,16 @@ void VectorFiniteElement::Project_RT(
          {
             double w = 1.0/Trans.Weight();
             for (int d = 0; d < Dim; d++)
-            {
-               vk[d] *= w;
-            }
+            { vk[d] *= w; }
          }
 
          for (int j = 0; j < shape.Size(); j++)
          {
             double s = shape(j);
             if (fabs(s) < 1e-12)
-            {
-               s = 0.0;
-            }
+            { s = 0.0; }
             for (int d = 0; d < Dim; d++)
-            {
-               I(k,j+d*shape.Size()) = s*vk[d];
-            }
+            { I(k,j+d*shape.Size()) = s*vk[d]; }
          }
       }
    }
@@ -458,9 +430,7 @@ void VectorFiniteElement::ProjectGrad_RT(
    ElementTransformation &Trans, DenseMatrix &grad) const
 {
    if (Dim != 2)
-   {
-      mfem_error("VectorFiniteElement::ProjectGrad_RT works only in 2D!");
-   }
+   { mfem_error("VectorFiniteElement::ProjectGrad_RT works only in 2D!"); }
 
    DenseMatrix dshape(fe.GetDof(), fe.GetDim());
    Vector grad_k(fe.GetDof());
@@ -474,9 +444,7 @@ void VectorFiniteElement::ProjectGrad_RT(
       tk[1] = -nk[d2n[k]*Dim];
       dshape.Mult(tk, grad_k);
       for (int j = 0; j < grad_k.Size(); j++)
-      {
-         grad(k,j) = (fabs(grad_k(j)) < 1e-12) ? 0.0 : grad_k(j);
-      }
+      { grad(k,j) = (fabs(grad_k(j)) < 1e-12) ? 0.0 : grad_k(j); }
    }
 }
 
@@ -493,9 +461,7 @@ void VectorFiniteElement::ProjectCurl_RT(
       fe.CalcCurlShape(Nodes.IntPoint(k), curl_shape);
       curl_shape.Mult(nk + d2n[k]*Dim, curl_k);
       for (int j = 0; j < curl_k.Size(); j++)
-      {
-         curl(k,j) = (fabs(curl_k(j)) < 1e-12) ? 0.0 : curl_k(j);
-      }
+      { curl(k,j) = (fabs(curl_k(j)) < 1e-12) ? 0.0 : curl_k(j); }
    }
 }
 
@@ -537,22 +503,16 @@ void VectorFiniteElement::Project_ND(
          {
             double w = 1.0/Trans.Weight();
             for (int d = 0; d < Dim; d++)
-            {
-               vk[d] *= w;
-            }
+            { vk[d] *= w; }
          }
 
          for (int j = 0; j < shape.Size(); j++)
          {
             double s = shape(j);
             if (fabs(s) < 1e-12)
-            {
-               s = 0.0;
-            }
+            { s = 0.0; }
             for (int d = 0; d < Dim; d++)
-            {
-               I(k, j + d*shape.Size()) = s*vk[d];
-            }
+            { I(k, j + d*shape.Size()) = s*vk[d]; }
          }
       }
    }
@@ -577,9 +537,7 @@ void VectorFiniteElement::ProjectGrad_ND(
       fe.CalcDShape(Nodes.IntPoint(k), dshape);
       dshape.Mult(tk + d2t[k]*Dim, grad_k);
       for (int j = 0; j < grad_k.Size(); j++)
-      {
-         grad(k,j) = (fabs(grad_k(j)) < 1e-12) ? 0.0 : grad_k(j);
-      }
+      { grad(k,j) = (fabs(grad_k(j)) < 1e-12) ? 0.0 : grad_k(j); }
    }
 }
 
@@ -611,9 +569,7 @@ void VectorFiniteElement::LocalInterpolation_RT(
       {
          double Ikj = 0.;
          for (int i = 0; i < Dim; i++)
-         {
-            Ikj += vshape(j, i) * vk[i];
-         }
+         { Ikj += vshape(j, i) * vk[i]; }
          I(k, j) = (fabs(Ikj) < 1e-12) ? 0.0 : Ikj;
       }
    }
@@ -645,9 +601,7 @@ void VectorFiniteElement::LocalInterpolation_ND(
       {
          double Ikj = 0.;
          for (int i = 0; i < Dim; i++)
-         {
-            Ikj += vshape(j, i) * vk[i];
-         }
+         { Ikj += vshape(j, i) * vk[i]; }
          I(k, j) = (fabs(Ikj) < 1e-12) ? 0.0 : Ikj;
       }
    }
@@ -1321,9 +1275,7 @@ void BiQuadPos2DFiniteElement::GetLocalInterpolation(
       CalcShape(tr_ip, shape);
       for (int j = 0; j < 9; j++)
          if (fabs(I(i,j) = s[j]) < 1.0e-12)
-         {
-            I(i,j) = 0.0;
-         }
+         { I(i,j) = 0.0; }
    }
    for (int i = 0; i < 9; i++)
    {
@@ -1369,9 +1321,7 @@ void BiQuadPos2DFiniteElement::Project (
       Trans.SetIntPoint(&ip);
       vc.Eval (x, Trans, ip);
       for (int j = 0; j < x.Size(); j++)
-      {
-         dofs(9*j+i) = v[j];
-      }
+      { dofs(9*j+i) = v[j]; }
    }
    for (int j = 0; j < x.Size(); j++)
    {
@@ -2435,9 +2385,7 @@ void RT0TriangleFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 3; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -2550,9 +2498,7 @@ void RT0QuadFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 4; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -2692,9 +2638,7 @@ void RT1TriangleFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 8; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -2874,9 +2818,7 @@ void RT1QuadFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 12; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -3034,9 +2976,7 @@ void RT2TriangleFiniteElement::CalcDivShape(const IntegrationPoint &ip,
    {
       double div = 0.0;
       for (int j = 0; j < 15; j++)
-      {
-         div += M[i][j] * DivB[j];
-      }
+      { div += M[i][j] * DivB[j]; }
       divshape(i) = div;
    }
 }
@@ -3326,9 +3266,7 @@ void RT2QuadFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 24; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -3421,9 +3359,7 @@ Lagrange1DFiniteElement::Lagrange1DFiniteElement(int degree)
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
    for (i = 1; i < m; i++)
-   {
-      Nodes.IntPoint(i+1).x = double(i) / m;
-   }
+   { Nodes.IntPoint(i+1).x = double(i) / m; }
 
    rwk.SetSize(degree+1);
 #ifndef MFEM_THREAD_SAFE
@@ -3432,17 +3368,11 @@ Lagrange1DFiniteElement::Lagrange1DFiniteElement(int degree)
 
    rwk(0) = 1.0;
    for (i = 1; i <= m; i++)
-   {
-      rwk(i) = rwk(i-1) * ( (double)(m) / (double)(i) );
-   }
+   { rwk(i) = rwk(i-1) * ( (double)(m) / (double)(i) ); }
    for (i = 0; i < m/2+1; i++)
-   {
-      rwk(m-i) = ( rwk(i) *= rwk(m-i) );
-   }
+   { rwk(m-i) = ( rwk(i) *= rwk(m-i) ); }
    for (i = m-1; i >= 0; i -= 2)
-   {
-      rwk(i) = -rwk(i);
-   }
+   { rwk(i) = -rwk(i); }
 }
 
 void Lagrange1DFiniteElement::CalcShape(const IntegrationPoint &ip,
@@ -3459,36 +3389,22 @@ void Lagrange1DFiniteElement::CalcShape(const IntegrationPoint &ip,
    wk = 1.0;
    for (i = 0; i <= m; i++)
       if (i != k)
-      {
-         wk *= ( rxxk(i) = x - (double)(i) / m );
-      }
+      { wk *= ( rxxk(i) = x - (double)(i) / m ); }
    w = wk * ( rxxk(k) = x - (double)(k) / m );
 
    if (k != 0)
-   {
-      shape(0) = w * rwk(0) / rxxk(0);
-   }
+   { shape(0) = w * rwk(0) / rxxk(0); }
    else
-   {
-      shape(0) = wk * rwk(0);
-   }
+   { shape(0) = wk * rwk(0); }
    if (k != m)
-   {
-      shape(1) = w * rwk(m) / rxxk(m);
-   }
+   { shape(1) = w * rwk(m) / rxxk(m); }
    else
-   {
-      shape(1) = wk * rwk(k);
-   }
+   { shape(1) = wk * rwk(k); }
    for (i = 1; i < m; i++)
       if (i != k)
-      {
-         shape(i+1) = w * rwk(i) / rxxk(i);
-      }
+      { shape(i+1) = w * rwk(i) / rxxk(i); }
       else
-      {
-         shape(k+1) = wk * rwk(k);
-      }
+      { shape(k+1) = wk * rwk(k); }
 }
 
 void Lagrange1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
@@ -3505,48 +3421,30 @@ void Lagrange1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    wk = 1.0;
    for (i = 0; i <= m; i++)
       if (i != k)
-      {
-         wk *= ( rxxk(i) = x - (double)(i) / m );
-      }
+      { wk *= ( rxxk(i) = x - (double)(i) / m ); }
    w = wk * ( rxxk(k) = x - (double)(k) / m );
 
    for (i = 0; i <= m; i++)
-   {
-      rxxk(i) = 1.0 / rxxk(i);
-   }
+   { rxxk(i) = 1.0 / rxxk(i); }
    srx = 0.0;
    for (i = 0; i <= m; i++)
       if (i != k)
-      {
-         srx += rxxk(i);
-      }
+      { srx += rxxk(i); }
    s = w * srx + wk;
 
    if (k != 0)
-   {
-      dshape(0,0) = (s - w * rxxk(0)) * rwk(0) * rxxk(0);
-   }
+   { dshape(0,0) = (s - w * rxxk(0)) * rwk(0) * rxxk(0); }
    else
-   {
-      dshape(0,0) = wk * srx * rwk(0);
-   }
+   { dshape(0,0) = wk * srx * rwk(0); }
    if (k != m)
-   {
-      dshape(1,0) = (s - w * rxxk(m)) * rwk(m) * rxxk(m);
-   }
+   { dshape(1,0) = (s - w * rxxk(m)) * rwk(m) * rxxk(m); }
    else
-   {
-      dshape(1,0) = wk * srx * rwk(k);
-   }
+   { dshape(1,0) = wk * srx * rwk(k); }
    for (i = 1; i < m; i++)
       if (i != k)
-      {
-         dshape(i+1,0) = (s - w * rxxk(i)) * rwk(i) * rxxk(i);
-      }
+      { dshape(i+1,0) = (s - w * rxxk(i)) * rwk(i) * rxxk(i); }
       else
-      {
-         dshape(k+1,0) = wk * srx * rwk(k);
-      }
+      { dshape(k+1,0) = wk * srx * rwk(k); }
 }
 
 
@@ -3792,9 +3690,7 @@ void LagrangeHexFiniteElement::CalcShape(const IntegrationPoint &ip,
    fe1d -> CalcShape(ipz, shape1dz);
 
    for (int n = 0; n < Dof; n++)
-   {
-      shape(n) = shape1dx(I[n]) *  shape1dy(J[n]) * shape1dz(K[n]);
-   }
+   { shape(n) = shape1dx(I[n]) *  shape1dy(J[n]) * shape1dz(K[n]); }
 }
 
 void LagrangeHexFiniteElement::CalcDShape(const IntegrationPoint &ip,
@@ -3916,9 +3812,7 @@ void RefinedLinear2DFiniteElement::CalcShape(const IntegrationPoint &ip,
    // T3 - 3,4,5
 
    for (i = 0; i < 6; i++)
-   {
-      shape(i) = 0.0;
-   }
+   { shape(i) = 0.0; }
 
    if (L0 >= 1.0)   // T0
    {
@@ -3963,9 +3857,7 @@ void RefinedLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
    for (i = 0; i < 6; i++)
       for (j = 0; j < 2; j++)
-      {
-         dshape(i,j) = 0.0;
-      }
+      { dshape(i,j) = 0.0; }
 
    if (L0 >= 1.0)   // T0
    {
@@ -4065,9 +3957,7 @@ void RefinedLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
    // T7 - 5,7,8,9
 
    for (i = 0; i < 10; i++)
-   {
-      shape(i) = 0.0;
-   }
+   { shape(i) = 0.0; }
 
    if (L0 >= 1.0)   // T0
    {
@@ -4150,9 +4040,7 @@ void RefinedLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
    for (i = 0; i < 10; i++)
       for (j = 0; j < 3; j++)
-      {
-         dshape(i,j) = 0.0;
-      }
+      { dshape(i,j) = 0.0; }
 
    if (L0 >= 1.0)   // T0
    {
@@ -4277,9 +4165,7 @@ void RefinedBiLinear2DFiniteElement::CalcShape(const IntegrationPoint &ip,
    // T3 - 3,6,7,8
 
    for (i = 0; i < 9; i++)
-   {
-      shape(i) = 0.0;
-   }
+   { shape(i) = 0.0; }
 
    if ((x <= 0.5) && (y <= 0.5))   // T0
    {
@@ -4322,9 +4208,7 @@ void RefinedBiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
    for (i = 0; i < 9; i++)
       for (j = 0; j < 2; j++)
-      {
-         dshape(i,j) = 0.0;
-      }
+      { dshape(i,j) = 0.0; }
 
    if ((x <= 0.5) && (y <= 0.5))   // T0
    {
@@ -4438,9 +4322,7 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
    double x = ip.x, y = ip.y, z = ip.z;
 
    for (i = 0; i < 27; i++)
-   {
-      shape(i) = 0.0;
-   }
+   { shape(i) = 0.0; }
 
    if ((x <= 0.5) && (y <= 0.5) && (z <= 0.5))   // T0
    {
@@ -4582,9 +4464,7 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
    for (i = 0; i < 27; i++)
       for (j = 0; j < 3; j++)
-      {
-         dshape(i,j) = 0.0;
-      }
+      { dshape(i,j) = 0.0; }
 
    if ((x <= 0.5) && (y <= 0.5) && (z <= 0.5))   // T0
    {
@@ -4958,9 +4838,7 @@ void Nedelec1HexFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 12; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -5124,9 +5002,7 @@ void Nedelec1TetFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 6; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -5274,9 +5150,7 @@ void RT0HexFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 6; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -5663,9 +5537,7 @@ void RT1HexFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 36; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -5798,9 +5670,7 @@ void RT0TetFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 4; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
-         {
-            I(k,j) = 0.0;
-         }
+         { I(k,j) = 0.0; }
    }
 }
 
@@ -5920,9 +5790,7 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
       {
          CalcBasis(p, nodes[i], x);
          for (int j = 0; j <= p; j++)
-         {
-            A(j, i) = x(j);
-         }
+         { A(j, i) = x(j); }
       }
 
       A.Invert();
@@ -5940,17 +5808,13 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
             w(j) *= -xij;
          }
       for (int i = 0; i <= p; i++)
-      {
-         w(i) = 1.0/w(i);
-      }
+      { w(i) = 1.0/w(i); }
 
 #ifdef MFEM_DEBUG
       // Make sure the nodes are increasing
       for (int i = 0; i < p; i++)
          if (x(i) >= x(i+1))
-         {
-            mfem_error("Poly_1D::Basis::Basis : nodes are not increasing!");
-         }
+         { mfem_error("Poly_1D::Basis::Basis : nodes are not increasing!"); }
 #endif
    }
 }
@@ -5976,28 +5840,20 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
       lk = 1.0;
       for (k = 0; k < p; k++)
          if (y >= (x(k) + x(k+1))/2)
-         {
-            lk *= y - x(k);
-         }
+         { lk *= y - x(k); }
          else
          {
             for (i = k+1; i <= p; i++)
-            {
-               lk *= y - x(i);
-            }
+            { lk *= y - x(i); }
             break;
          }
       l = lk * (y - x(k));
 
       for (i = 0; i < k; i++)
-      {
-         u(i) = l * w(i) / (y - x(i));
-      }
+      { u(i) = l * w(i) / (y - x(i)); }
       u(k) = lk * w(k);
       for (i++; i <= p; i++)
-      {
-         u(i) = l * w(i) / (y - x(i));
-      }
+      { u(i) = l * w(i) / (y - x(i)); }
    }
 }
 
@@ -6024,15 +5880,11 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
       lk = 1.0;
       for (k = 0; k < p; k++)
          if (y >= (x(k) + x(k+1))/2)
-         {
-            lk *= y - x(k);
-         }
+         { lk *= y - x(k); }
          else
          {
             for (i = k+1; i <= p; i++)
-            {
-               lk *= y - x(i);
-            }
+            { lk *= y - x(i); }
             break;
          }
       l = lk * (y - x(k));
@@ -6054,14 +5906,10 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
       lp = l * sk + lk;
 
       for (i = 0; i < k; i++)
-      {
-         d(i) = (lp * w(i) - u(i))/(y - x(i));
-      }
+      { d(i) = (lp * w(i) - u(i))/(y - x(i)); }
       d(k) = sk * u(k);
       for (i++; i <= p; i++)
-      {
-         d(i) = (lp * w(i) - u(i))/(y - x(i));
-      }
+      { d(i) = (lp * w(i) - u(i))/(y - x(i)); }
    }
 }
 
@@ -6074,9 +5922,7 @@ const int *Poly_1D::Binom(const int p)
       {
          binom(i,0) = binom(i,i) = 1;
          for (int j = 1; j < i; j++)
-         {
-            binom(i,j) = binom(i-1,j) + binom(i-1,j-1);
-         }
+         { binom(i,j) = binom(i-1,j) + binom(i-1,j-1); }
       }
    }
    return binom[p];
@@ -6091,9 +5937,7 @@ void Poly_1D::UniformPoints(const int p, double *x)
    else
    {
       for (int i = 0; i <= p; i++)
-      {
-         x[i] = double(i)/p;
-      }
+      { x[i] = double(i)/p; }
    }
 }
 
@@ -6102,9 +5946,7 @@ void Poly_1D::GaussPoints(const int p, double *x)
    int m = (p+1)/2, odd_p = p%2;
 
    if (!odd_p)
-   {
-      x[m] = 0.5;
-   }
+   { x[m] = 0.5; }
 
    for (int i = 0; i < m; i++)
    {
@@ -6125,9 +5967,7 @@ void Poly_1D::GaussPoints(const int p, double *x)
             {
                p0 = ((2*n+1)*z*p1 - n*p2)/(n + 1);
                if (n%2 == odd_p)
-               {
-                  d0 += (2*n+1)*p1;
-               }
+               { d0 += (2*n+1)*p1; }
                if (n == p) { break; }
                p2 = p1;
                p1 = p0;
@@ -6173,9 +6013,7 @@ void Poly_1D::GaussLobattoPoints(const int p, double *x)
       int m = (p - 1)/2, odd_p = p%2;
 
       if (!odd_p)
-      {
-         x[m+1] = 0.5;
-      }
+      { x[m+1] = 0.5; }
       for (int i = 0; i < m; )
       {
          double y, z, d0, s0;
@@ -6248,9 +6086,7 @@ void Poly_1D::CalcMono(const int p, const double x, double *u)
    double xn;
    u[0] = xn = 1.;
    for (int n = 1; n <= p; n++)
-   {
-      u[n] = (xn *= x);
-   }
+   { u[n] = (xn *= x); }
 }
 
 void Poly_1D::CalcMono(const int p, const double x, double *u, double *d)
@@ -6439,15 +6275,11 @@ const double *Poly_1D::OpenPoints(const int p)
       int i = open_pts.Size();
       open_pts.SetSize(p + 1);
       for ( ; i < p; i++)
-      {
-         open_pts[i] = NULL;
-      }
+      { open_pts[i] = NULL; }
       goto alloc_open;
    }
    if ((op = open_pts[p]) != NULL)
-   {
-      return op;
-   }
+   { return op; }
 alloc_open:
    open_pts[p] = op = new double[p + 1];
    GaussPoints(p, op);
@@ -6464,15 +6296,11 @@ const double *Poly_1D::ClosedPoints(const int p)
       int i = closed_pts.Size();
       closed_pts.SetSize(p + 1);
       for ( ; i < p; i++)
-      {
-         closed_pts[i] = NULL;
-      }
+      { closed_pts[i] = NULL; }
       goto alloc_closed;
    }
    if ((cp = closed_pts[p]) != NULL)
-   {
-      return cp;
-   }
+   { return cp; }
 alloc_closed:
    closed_pts[p] = cp = new double[p + 1];
    GaussLobattoPoints(p, cp);
@@ -6489,15 +6317,11 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p)
       int i = open_basis.Size();
       open_basis.SetSize(p + 1);
       for ( ; i < p; i++)
-      {
-         open_basis[i] = NULL;
-      }
+      { open_basis[i] = NULL; }
       goto alloc_obasis;
    }
    if ((ob = open_basis[p]) != NULL)
-   {
-      return *ob;
-   }
+   { return *ob; }
 alloc_obasis:
    open_basis[p] = ob = new Basis(p, OpenPoints(p));
    return *ob;
@@ -6512,15 +6336,11 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p)
       int i = closed_basis.Size();
       closed_basis.SetSize(p + 1);
       for ( ; i < p; i++)
-      {
-         closed_basis[i] = NULL;
-      }
+      { closed_basis[i] = NULL; }
       goto alloc_cbasis;
    }
    if ((cb = closed_basis[p]) != NULL)
-   {
-      return *cb;
-   }
+   { return *cb; }
 alloc_cbasis:
    closed_basis[p] = cb = new Basis(p, ClosedPoints(p));
    return *cb;
@@ -6529,21 +6349,13 @@ alloc_cbasis:
 Poly_1D::~Poly_1D()
 {
    for (int i = 0; i < open_pts.Size(); i++)
-   {
-      delete [] open_pts[i];
-   }
+   { delete [] open_pts[i]; }
    for (int i = 0; i < closed_pts.Size(); i++)
-   {
-      delete [] closed_pts[i];
-   }
+   { delete [] closed_pts[i]; }
    for (int i = 0; i < open_basis.Size(); i++)
-   {
-      delete open_basis[i];
-   }
+   { delete open_basis[i]; }
    for (int i = 0; i < closed_basis.Size(); i++)
-   {
-      delete closed_basis[i];
-   }
+   { delete closed_basis[i]; }
 }
 
 Poly_1D poly1d;
@@ -6564,9 +6376,7 @@ H1_SegmentElement::H1_SegmentElement(const int p)
    Nodes.IntPoint(0).x = cp[0];
    Nodes.IntPoint(1).x = cp[p];
    for (int i = 1; i < p; i++)
-   {
-      Nodes.IntPoint(i+1).x = cp[i];
-   }
+   { Nodes.IntPoint(i+1).x = cp[i]; }
 }
 
 void H1_SegmentElement::CalcShape(const IntegrationPoint &ip,
@@ -6583,9 +6393,7 @@ void H1_SegmentElement::CalcShape(const IntegrationPoint &ip,
    shape(0) = shape_x(0);
    shape(1) = shape_x(p);
    for (int i = 1; i < p; i++)
-   {
-      shape(i+1) = shape_x(i);
-   }
+   { shape(i+1) = shape_x(i); }
 }
 
 void H1_SegmentElement::CalcDShape(const IntegrationPoint &ip,
@@ -6602,9 +6410,7 @@ void H1_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    dshape(0,0) = dshape_x(0);
    dshape(1,0) = dshape_x(p);
    for (int i = 1; i < p; i++)
-   {
-      dshape(i+1,0) = dshape_x(i);
-   }
+   { dshape(i+1,0) = dshape_x(i); }
 }
 
 void H1_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
@@ -6618,18 +6424,14 @@ void H1_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
          dofs(0) = poly1d.CalcDelta(p, (1.0 - cp[0]));
          dofs(1) = poly1d.CalcDelta(p, (1.0 - cp[p]));
          for (int i = 1; i < p; i++)
-         {
-            dofs(i+1) = poly1d.CalcDelta(p, (1.0 - cp[i]));
-         }
+         { dofs(i+1) = poly1d.CalcDelta(p, (1.0 - cp[i])); }
          break;
 
       case 1:
          dofs(0) = poly1d.CalcDelta(p, cp[0]);
          dofs(1) = poly1d.CalcDelta(p, cp[p]);
          for (int i = 1; i < p; i++)
-         {
-            dofs(i+1) = poly1d.CalcDelta(p, cp[i]);
-         }
+         { dofs(i+1) = poly1d.CalcDelta(p, cp[i]); }
          break;
    }
 }
@@ -6660,35 +6462,23 @@ H1_QuadrilateralElement::H1_QuadrilateralElement(const int p)
    // edges
    int o = 4;
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + 0*p1] = o++;
-   }
+   { dof_map[i + 0*p1] = o++; }
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + i*p1] = o++;
-   }
+   { dof_map[p + i*p1] = o++; }
    for (int i = 1; i < p; i++)
-   {
-      dof_map[(p-i) + p*p1] = o++;
-   }
+   { dof_map[(p-i) + p*p1] = o++; }
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (p-i)*p1] = o++;
-   }
+   { dof_map[0 + (p-i)*p1] = o++; }
 
    // interior
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[i + j*p1] = o++;
-      }
+      { dof_map[i + j*p1] = o++; }
 
    o = 0;
    for (int j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
-      {
-         Nodes.IntPoint(dof_map[o++]).Set2(cp[i], cp[j]);
-      }
+      { Nodes.IntPoint(dof_map[o++]).Set2(cp[i], cp[j]); }
 }
 
 void H1_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
@@ -6705,9 +6495,7 @@ void H1_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
-      {
-         shape(dof_map[o++]) = shape_x(i)*shape_y(j);
-      }
+      { shape(dof_map[o++]) = shape_x(i)*shape_y(j); }
 }
 
 void H1_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
@@ -6750,30 +6538,22 @@ void H1_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
       case 0:
          for (int o = 0, j = 0; j <= p; j++)
             for (int i = 0; i <= p; i++)
-            {
-               dofs(dof_map[o++]) = shape_x(i)*shape_x(j);
-            }
+            { dofs(dof_map[o++]) = shape_x(i)*shape_x(j); }
          break;
       case 1:
          for (int o = 0, j = 0; j <= p; j++)
             for (int i = 0; i <= p; i++)
-            {
-               dofs(dof_map[o++]) = shape_y(i)*shape_x(j);
-            }
+            { dofs(dof_map[o++]) = shape_y(i)*shape_x(j); }
          break;
       case 2:
          for (int o = 0, j = 0; j <= p; j++)
             for (int i = 0; i <= p; i++)
-            {
-               dofs(dof_map[o++]) = shape_y(i)*shape_y(j);
-            }
+            { dofs(dof_map[o++]) = shape_y(i)*shape_y(j); }
          break;
       case 3:
          for (int o = 0, j = 0; j <= p; j++)
             for (int i = 0; i <= p; i++)
-            {
-               dofs(dof_map[o++]) = shape_x(i)*shape_y(j);
-            }
+            { dofs(dof_map[o++]) = shape_x(i)*shape_y(j); }
          break;
    }
 }
@@ -6810,101 +6590,61 @@ H1_HexahedronElement::H1_HexahedronElement(const int p)
    // edges (see Hexahedron::edges in mesh/hexahedron.cpp)
    int o = 8;
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + (0 + 0*p1)*p1] = o++;   // (0,1)
-   }
+   { dof_map[i + (0 + 0*p1)*p1] = o++; }  // (0,1)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + (i + 0*p1)*p1] = o++;   // (1,2)
-   }
+   { dof_map[p + (i + 0*p1)*p1] = o++; }  // (1,2)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + (p + 0*p1)*p1] = o++;   // (3,2)
-   }
+   { dof_map[i + (p + 0*p1)*p1] = o++; }  // (3,2)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (i + 0*p1)*p1] = o++;   // (0,3)
-   }
+   { dof_map[0 + (i + 0*p1)*p1] = o++; }  // (0,3)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + (0 + p*p1)*p1] = o++;   // (4,5)
-   }
+   { dof_map[i + (0 + p*p1)*p1] = o++; }  // (4,5)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + (i + p*p1)*p1] = o++;   // (5,6)
-   }
+   { dof_map[p + (i + p*p1)*p1] = o++; }  // (5,6)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + (p + p*p1)*p1] = o++;   // (7,6)
-   }
+   { dof_map[i + (p + p*p1)*p1] = o++; }  // (7,6)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (i + p*p1)*p1] = o++;   // (4,7)
-   }
+   { dof_map[0 + (i + p*p1)*p1] = o++; }  // (4,7)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (0 + i*p1)*p1] = o++;   // (0,4)
-   }
+   { dof_map[0 + (0 + i*p1)*p1] = o++; }  // (0,4)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + (0 + i*p1)*p1] = o++;   // (1,5)
-   }
+   { dof_map[p + (0 + i*p1)*p1] = o++; }  // (1,5)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + (p + i*p1)*p1] = o++;   // (2,6)
-   }
+   { dof_map[p + (p + i*p1)*p1] = o++; }  // (2,6)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (p + i*p1)*p1] = o++;   // (3,7)
-   }
+   { dof_map[0 + (p + i*p1)*p1] = o++; }  // (3,7)
 
    // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[i + ((p-j) + 0*p1)*p1] = o++;   // (3,2,1,0)
-      }
+      { dof_map[i + ((p-j) + 0*p1)*p1] = o++; }  // (3,2,1,0)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[i + (0 + j*p1)*p1] = o++;   // (0,1,5,4)
-      }
+      { dof_map[i + (0 + j*p1)*p1] = o++; }  // (0,1,5,4)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[p + (i + j*p1)*p1] = o++;   // (1,2,6,5)
-      }
+      { dof_map[p + (i + j*p1)*p1] = o++; }  // (1,2,6,5)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[(p-i) + (p + j*p1)*p1] = o++;   // (2,3,7,6)
-      }
+      { dof_map[(p-i) + (p + j*p1)*p1] = o++; }  // (2,3,7,6)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[0 + ((p-i) + j*p1)*p1] = o++;   // (3,0,4,7)
-      }
+      { dof_map[0 + ((p-i) + j*p1)*p1] = o++; }  // (3,0,4,7)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[i + (j + p*p1)*p1] = o++;   // (4,5,6,7)
-      }
+      { dof_map[i + (j + p*p1)*p1] = o++; }  // (4,5,6,7)
 
    // interior
    for (int k = 1; k < p; k++)
       for (int j = 1; j < p; j++)
          for (int i = 1; i < p; i++)
-         {
-            dof_map[i + (j + k*p1)*p1] = o++;
-         }
+         { dof_map[i + (j + k*p1)*p1] = o++; }
 
    o = 0;
    for (int k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
-         {
-            Nodes.IntPoint(dof_map[o++]).Set3(cp[i], cp[j], cp[k]);
-         }
+         { Nodes.IntPoint(dof_map[o++]).Set3(cp[i], cp[j], cp[k]); }
 }
 
 void H1_HexahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -6923,9 +6663,7 @@ void H1_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
-         {
-            shape(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_z(k);
-         }
+         { shape(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_z(k); }
 }
 
 void H1_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -6973,65 +6711,49 @@ void H1_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_x(k);
-               }
+               { dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_x(k); }
          break;
       case 1:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_x(k);
-               }
+               { dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_x(k); }
          break;
       case 2:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_x(k);
-               }
+               { dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_x(k); }
          break;
       case 3:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_x(k);
-               }
+               { dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_x(k); }
          break;
       case 4:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_y(k);
-               }
+               { dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_y(k); }
          break;
       case 5:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_y(k);
-               }
+               { dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_y(k); }
          break;
       case 6:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_y(k);
-               }
+               { dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_y(k); }
          break;
       case 7:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_y(k);
-               }
+               { dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_y(k); }
          break;
    }
 }
@@ -7050,9 +6772,7 @@ H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
    for (int i = 1; i < p; i++)
-   {
-      Nodes.IntPoint(i+1).x = double(i)/p;
-   }
+   { Nodes.IntPoint(i+1).x = double(i)/p; }
 }
 
 void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
@@ -7070,9 +6790,7 @@ void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
    shape(0) = shape_x(0);
    shape(1) = shape_x(p);
    for (int i = 1; i < p; i++)
-   {
-      shape(i+1) = shape_x(i);
-   }
+   { shape(i+1) = shape_x(i); }
 }
 
 void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
@@ -7090,9 +6808,7 @@ void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    dshape(0,0) = dshape_x(0);
    dshape(1,0) = dshape_x(p);
    for (int i = 1; i < p; i++)
-   {
-      dshape(i+1,0) = dshape_x(i);
-   }
+   { dshape(i+1,0) = dshape_x(i); }
 }
 
 void H1Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
@@ -7126,35 +6842,23 @@ H1Pos_QuadrilateralElement::H1Pos_QuadrilateralElement(const int p)
    // edges
    int o = 4;
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + 0*p1] = o++;
-   }
+   { dof_map[i + 0*p1] = o++; }
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + i*p1] = o++;
-   }
+   { dof_map[p + i*p1] = o++; }
    for (int i = 1; i < p; i++)
-   {
-      dof_map[(p-i) + p*p1] = o++;
-   }
+   { dof_map[(p-i) + p*p1] = o++; }
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (p-i)*p1] = o++;
-   }
+   { dof_map[0 + (p-i)*p1] = o++; }
 
    // interior
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[i + j*p1] = o++;
-      }
+      { dof_map[i + j*p1] = o++; }
 
    o = 0;
    for (int j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
-      {
-         Nodes.IntPoint(dof_map[o++]).Set2(double(i)/p, double(j)/p);
-      }
+      { Nodes.IntPoint(dof_map[o++]).Set2(double(i)/p, double(j)/p); }
 }
 
 void H1Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
@@ -7172,9 +6876,7 @@ void H1Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
    // Reorder so that vertices are at the beginning of the list
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
-      {
-         shape(dof_map[o++]) = shape_x(i)*shape_y(j);
-      }
+      { shape(dof_map[o++]) = shape_x(i)*shape_y(j); }
 }
 
 void H1Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
@@ -7235,93 +6937,55 @@ H1Pos_HexahedronElement::H1Pos_HexahedronElement(const int p)
    // edges (see Hexahedron::edges in mesh/hexahedron.cpp)
    int o = 8;
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + (0 + 0*p1)*p1] = o++;   // (0,1)
-   }
+   { dof_map[i + (0 + 0*p1)*p1] = o++; }  // (0,1)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + (i + 0*p1)*p1] = o++;   // (1,2)
-   }
+   { dof_map[p + (i + 0*p1)*p1] = o++; }  // (1,2)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + (p + 0*p1)*p1] = o++;   // (3,2)
-   }
+   { dof_map[i + (p + 0*p1)*p1] = o++; }  // (3,2)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (i + 0*p1)*p1] = o++;   // (0,3)
-   }
+   { dof_map[0 + (i + 0*p1)*p1] = o++; }  // (0,3)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + (0 + p*p1)*p1] = o++;   // (4,5)
-   }
+   { dof_map[i + (0 + p*p1)*p1] = o++; }  // (4,5)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + (i + p*p1)*p1] = o++;   // (5,6)
-   }
+   { dof_map[p + (i + p*p1)*p1] = o++; }  // (5,6)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[i + (p + p*p1)*p1] = o++;   // (7,6)
-   }
+   { dof_map[i + (p + p*p1)*p1] = o++; }  // (7,6)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (i + p*p1)*p1] = o++;   // (4,7)
-   }
+   { dof_map[0 + (i + p*p1)*p1] = o++; }  // (4,7)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (0 + i*p1)*p1] = o++;   // (0,4)
-   }
+   { dof_map[0 + (0 + i*p1)*p1] = o++; }  // (0,4)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + (0 + i*p1)*p1] = o++;   // (1,5)
-   }
+   { dof_map[p + (0 + i*p1)*p1] = o++; }  // (1,5)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[p + (p + i*p1)*p1] = o++;   // (2,6)
-   }
+   { dof_map[p + (p + i*p1)*p1] = o++; }  // (2,6)
    for (int i = 1; i < p; i++)
-   {
-      dof_map[0 + (p + i*p1)*p1] = o++;   // (3,7)
-   }
+   { dof_map[0 + (p + i*p1)*p1] = o++; }  // (3,7)
 
    // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[i + ((p-j) + 0*p1)*p1] = o++;   // (3,2,1,0)
-      }
+      { dof_map[i + ((p-j) + 0*p1)*p1] = o++; }  // (3,2,1,0)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[i + (0 + j*p1)*p1] = o++;   // (0,1,5,4)
-      }
+      { dof_map[i + (0 + j*p1)*p1] = o++; }  // (0,1,5,4)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[p + (i + j*p1)*p1] = o++;   // (1,2,6,5)
-      }
+      { dof_map[p + (i + j*p1)*p1] = o++; }  // (1,2,6,5)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[(p-i) + (p + j*p1)*p1] = o++;   // (2,3,7,6)
-      }
+      { dof_map[(p-i) + (p + j*p1)*p1] = o++; }  // (2,3,7,6)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[0 + ((p-i) + j*p1)*p1] = o++;   // (3,0,4,7)
-      }
+      { dof_map[0 + ((p-i) + j*p1)*p1] = o++; }  // (3,0,4,7)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[i + (j + p*p1)*p1] = o++;   // (4,5,6,7)
-      }
+      { dof_map[i + (j + p*p1)*p1] = o++; }  // (4,5,6,7)
 
    // interior
    for (int k = 1; k < p; k++)
       for (int j = 1; j < p; j++)
          for (int i = 1; i < p; i++)
-         {
-            dof_map[i + (j + k*p1)*p1] = o++;
-         }
+         { dof_map[i + (j + k*p1)*p1] = o++; }
 
    o = 0;
    for (int k = 0; k <= p; k++)
@@ -7347,9 +7011,7 @@ void H1Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
-         {
-            shape(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_z(k);
-         }
+         { shape(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_z(k); }
 }
 
 void H1Pos_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -7410,17 +7072,11 @@ H1_TriangleElement::H1_TriangleElement(const int p)
    // edges
    int o = 3;
    for (int i = 1; i < p; i++)
-   {
-      Nodes.IntPoint(o++).Set2(cp[i], cp[0]);
-   }
+   { Nodes.IntPoint(o++).Set2(cp[i], cp[0]); }
    for (int i = 1; i < p; i++)
-   {
-      Nodes.IntPoint(o++).Set2(cp[p-i], cp[i]);
-   }
+   { Nodes.IntPoint(o++).Set2(cp[p-i], cp[i]); }
    for (int i = 1; i < p; i++)
-   {
-      Nodes.IntPoint(o++).Set2(cp[0], cp[p-i]);
-   }
+   { Nodes.IntPoint(o++).Set2(cp[0], cp[p-i]); }
 
    // interior
    for (int j = 1; j < p; j++)
@@ -7440,9 +7096,7 @@ H1_TriangleElement::H1_TriangleElement(const int p)
       o = 0;
       for (int j = 0; j <= p; j++)
          for (int i = 0; i + j <= p; i++)
-         {
-            T(o++, k) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
-         }
+         { T(o++, k) = shape_x(i)*shape_y(j)*shape_l(p-i-j); }
    }
 
    T.Invert();
@@ -7464,9 +7118,7 @@ void H1_TriangleElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i + j <= p; i++)
-      {
-         u(o++) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
-      }
+      { u(o++) = shape_x(i)*shape_y(j)*shape_l(p-i-j); }
 
    T.Mult(u, shape);
 }
@@ -7531,29 +7183,17 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p)
    // edges (see Tetrahedron::edges in mesh/tetrahedron.cpp)
    int o = 4;
    for (int i = 1; i < p; i++)  // (0,1)
-   {
-      Nodes.IntPoint(o++).Set3(cp[i], cp[0], cp[0]);
-   }
+   { Nodes.IntPoint(o++).Set3(cp[i], cp[0], cp[0]); }
    for (int i = 1; i < p; i++)  // (0,2)
-   {
-      Nodes.IntPoint(o++).Set3(cp[0], cp[i], cp[0]);
-   }
+   { Nodes.IntPoint(o++).Set3(cp[0], cp[i], cp[0]); }
    for (int i = 1; i < p; i++)  // (0,3)
-   {
-      Nodes.IntPoint(o++).Set3(cp[0], cp[0], cp[i]);
-   }
+   { Nodes.IntPoint(o++).Set3(cp[0], cp[0], cp[i]); }
    for (int i = 1; i < p; i++)  // (1,2)
-   {
-      Nodes.IntPoint(o++).Set3(cp[p-i], cp[i], cp[0]);
-   }
+   { Nodes.IntPoint(o++).Set3(cp[p-i], cp[i], cp[0]); }
    for (int i = 1; i < p; i++)  // (1,3)
-   {
-      Nodes.IntPoint(o++).Set3(cp[p-i], cp[0], cp[i]);
-   }
+   { Nodes.IntPoint(o++).Set3(cp[p-i], cp[0], cp[i]); }
    for (int i = 1; i < p; i++)  // (2,3)
-   {
-      Nodes.IntPoint(o++).Set3(cp[0], cp[p-i], cp[i]);
-   }
+   { Nodes.IntPoint(o++).Set3(cp[0], cp[p-i], cp[i]); }
 
    // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
    for (int j = 1; j < p; j++)
@@ -7602,9 +7242,7 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p)
       for (int k = 0; k <= p; k++)
          for (int j = 0; j + k <= p; j++)
             for (int i = 0; i + j + k <= p; i++)
-            {
-               T(o++, m) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
-            }
+            { T(o++, m) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k); }
    }
 
    T.Invert();
@@ -7629,9 +7267,7 @@ void H1_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j + k <= p; j++)
          for (int i = 0; i + j + k <= p; i++)
-         {
-            u(o++) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
-         }
+         { u(o++) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k); }
 
    T.Mult(u, shape);
 }
@@ -7694,9 +7330,7 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
 #endif
 
    for (int i = 0; i <= p; i++)
-   {
-      Nodes.IntPoint(i).x = op[i];
-   }
+   { Nodes.IntPoint(i).x = op[i]; }
 }
 
 void L2_SegmentElement::CalcShape(const IntegrationPoint &ip,
@@ -7733,16 +7367,12 @@ void L2_SegmentElement::ProjectDelta(int vertex,
    {
       case 0:
          for (int i = 0; i <= p; i++)
-         {
-            dofs(i) = poly1d.CalcDelta(p,(1.0 - op[i]));
-         }
+         { dofs(i) = poly1d.CalcDelta(p,(1.0 - op[i])); }
          break;
 
       case 1:
          for (int i = 0; i <= p; i++)
-         {
-            dofs(i) = poly1d.CalcDelta(p,op[i]);
-         }
+         { dofs(i) = poly1d.CalcDelta(p,op[i]); }
          break;
    }
 }
@@ -7757,9 +7387,7 @@ L2Pos_SegmentElement::L2Pos_SegmentElement(const int p)
 #endif
 
    for (int i = 0; i <= p; i++)
-   {
-      Nodes.IntPoint(i).x = double(i)/p;
-   }
+   { Nodes.IntPoint(i).x = double(i)/p; }
 }
 
 void L2Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
@@ -7814,9 +7442,7 @@ L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
-      {
-         Nodes.IntPoint(o++).Set2(op[i], op[j]);
-      }
+      { Nodes.IntPoint(o++).Set2(op[i], op[j]); }
 }
 
 void L2_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
@@ -7833,9 +7459,7 @@ void L2_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
-      {
-         shape(o++) = shape_x(i)*shape_y(j);
-      }
+      { shape(o++) = shape_x(i)*shape_y(j); }
 }
 
 void L2_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
@@ -7885,30 +7509,22 @@ void L2_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
       case 0:
          for (int o = 0, j = 0; j <= p; j++)
             for (int i = 0; i <= p; i++)
-            {
-               dofs[o++] = shape_x(i)*shape_x(j);
-            }
+            { dofs[o++] = shape_x(i)*shape_x(j); }
          break;
       case 1:
          for (int o = 0, j = 0; j <= p; j++)
             for (int i = 0; i <= p; i++)
-            {
-               dofs[o++] = shape_y(i)*shape_x(j);
-            }
+            { dofs[o++] = shape_y(i)*shape_x(j); }
          break;
       case 2:
          for (int o = 0, j = 0; j <= p; j++)
             for (int i = 0; i <= p; i++)
-            {
-               dofs[o++] = shape_y(i)*shape_y(j);
-            }
+            { dofs[o++] = shape_y(i)*shape_y(j); }
          break;
       case 3:
          for (int o = 0, j = 0; j <= p; j++)
             for (int i = 0; i <= p; i++)
-            {
-               dofs[o++] = shape_x(i)*shape_y(j);
-            }
+            { dofs[o++] = shape_x(i)*shape_y(j); }
          break;
    }
 }
@@ -7927,9 +7543,7 @@ L2Pos_QuadrilateralElement::L2Pos_QuadrilateralElement(const int p)
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
-      {
-         Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
-      }
+      { Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p); }
 }
 
 void L2Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
@@ -7946,9 +7560,7 @@ void L2Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
-      {
-         shape(o++) = shape_x(i)*shape_y(j);
-      }
+      { shape(o++) = shape_x(i)*shape_y(j); }
 }
 
 void L2Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
@@ -8017,9 +7629,7 @@ L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
-         {
-            Nodes.IntPoint(o++).Set3(op[i], op[j], op[k]);
-         }
+         { Nodes.IntPoint(o++).Set3(op[i], op[j], op[k]); }
 }
 
 void L2_HexahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -8038,9 +7648,7 @@ void L2_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
-         {
-            shape(o++) = shape_x(i)*shape_y(j)*shape_z(k);
-         }
+         { shape(o++) = shape_x(i)*shape_y(j)*shape_z(k); }
 }
 
 void L2_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -8095,65 +7703,49 @@ void L2_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs[o++] = shape_x(i)*shape_x(j)*shape_x(k);
-               }
+               { dofs[o++] = shape_x(i)*shape_x(j)*shape_x(k); }
          break;
       case 1:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs[o++] = shape_y(i)*shape_x(j)*shape_x(k);
-               }
+               { dofs[o++] = shape_y(i)*shape_x(j)*shape_x(k); }
          break;
       case 2:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs[o++] = shape_y(i)*shape_y(j)*shape_x(k);
-               }
+               { dofs[o++] = shape_y(i)*shape_y(j)*shape_x(k); }
          break;
       case 3:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs[o++] = shape_x(i)*shape_y(j)*shape_x(k);
-               }
+               { dofs[o++] = shape_x(i)*shape_y(j)*shape_x(k); }
          break;
       case 4:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs[o++] = shape_x(i)*shape_x(j)*shape_y(k);
-               }
+               { dofs[o++] = shape_x(i)*shape_x(j)*shape_y(k); }
          break;
       case 5:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs[o++] = shape_y(i)*shape_x(j)*shape_y(k);
-               }
+               { dofs[o++] = shape_y(i)*shape_x(j)*shape_y(k); }
          break;
       case 6:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs[o++] = shape_y(i)*shape_y(j)*shape_y(k);
-               }
+               { dofs[o++] = shape_y(i)*shape_y(j)*shape_y(k); }
          break;
       case 7:
          for (int o = 0, k = 0; k <= p; k++)
             for (int j = 0; j <= p; j++)
                for (int i = 0; i <= p; i++)
-               {
-                  dofs[o++] = shape_x(i)*shape_y(j)*shape_y(k);
-               }
+               { dofs[o++] = shape_x(i)*shape_y(j)*shape_y(k); }
          break;
    }
 }
@@ -8175,9 +7767,7 @@ L2Pos_HexahedronElement::L2Pos_HexahedronElement(const int p)
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
-         {
-            Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p);
-         }
+         { Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p); }
 }
 
 void L2Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -8196,9 +7786,7 @@ void L2Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
-         {
-            shape(o++) = shape_x(i)*shape_y(j)*shape_z(k);
-         }
+         { shape(o++) = shape_x(i)*shape_y(j)*shape_z(k); }
 }
 
 void L2Pos_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -8287,9 +7875,7 @@ L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
 
       for (int o = 0, j = 0; j <= p; j++)
          for (int i = 0; i + j <= p; i++)
-         {
-            T(o++, k) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
-         }
+         { T(o++, k) = shape_x(i)*shape_y(j)*shape_l(p-i-j); }
    }
 
    T.Invert();
@@ -8311,9 +7897,7 @@ void L2_TriangleElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i + j <= p; i++)
-      {
-         u(o++) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
-      }
+      { u(o++) = shape_x(i)*shape_y(j)*shape_l(p-i-j); }
 
    T.Mult(u, shape);
 }
@@ -8410,9 +7994,7 @@ void L2Pos_TriangleElement::CalcShape(const IntegrationPoint &ip,
       Poly_1D::CalcBinomTerms(p - j, l1, l3, &shape(o));
       double s = bp[j]*z;
       for (int i = 0; i <= p - j; i++)
-      {
-         shape(o++) *= s;
-      }
+      { shape(o++) *= s; }
       z *= l2;
    }
 }
@@ -8434,9 +8016,7 @@ void L2Pos_TriangleElement::CalcDShape(const IntegrationPoint &ip,
       Poly_1D::CalcDBinomTerms(p - j, l1, l3, dshape_1d);
       double s = bp[j]*z;
       for (int i = 0; i <= p - j; i++)
-      {
-         dshape(o++,0) = s*dshape_1d(i);
-      }
+      { dshape(o++,0) = s*dshape_1d(i); }
       z *= l2;
    }
    z = 1.;
@@ -8513,9 +8093,7 @@ L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
       for (int o = 0, k = 0; k <= p; k++)
          for (int j = 0; j + k <= p; j++)
             for (int i = 0; i + j + k <= p; i++)
-            {
-               T(o++, m) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
-            }
+            { T(o++, m) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k); }
    }
 
    T.Invert();
@@ -8540,9 +8118,7 @@ void L2_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j + k <= p; j++)
          for (int i = 0; i + j + k <= p; i++)
-         {
-            u(o++) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
-         }
+         { u(o++) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k); }
 
    T.Mult(u, shape);
 }
@@ -8654,9 +8230,7 @@ void L2Pos_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
          Poly_1D::CalcBinomTerms(p - k - j, l1, l4, &shape(o));
          double ekj = ek*bpk[j]*l2j;
          for (int i = 0; i <= p - k - j; i++)
-         {
-            shape(o++) *= ekj;
-         }
+         { shape(o++) *= ekj; }
          l2j *= l2;
       }
       l3k *= l3;
@@ -8689,9 +8263,7 @@ void L2Pos_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
          Poly_1D::CalcDBinomTerms(p - k - j, l1, l4, dshape_1d);
          double ekj = ek*bpk[j]*l2j;
          for (int i = 0; i <= p - k - j; i++)
-         {
-            dshape(o++,0) = dshape_1d(i)*ekj;
-         }
+         { dshape(o++,0) = dshape_1d(i)*ekj; }
          l2j *= l2;
       }
       l3k *= l3;
@@ -8790,33 +8362,21 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p)
    // edges
    int o = 0;
    for (int i = 0; i <= p; i++)  // (0,1)
-   {
-      dof_map[1*dof2 + i + 0*(p + 1)] = o++;
-   }
+   { dof_map[1*dof2 + i + 0*(p + 1)] = o++; }
    for (int i = 0; i <= p; i++)  // (1,2)
-   {
-      dof_map[0*dof2 + (p + 1) + i*(p + 2)] = o++;
-   }
+   { dof_map[0*dof2 + (p + 1) + i*(p + 2)] = o++; }
    for (int i = 0; i <= p; i++)  // (2,3)
-   {
-      dof_map[1*dof2 + (p - i) + (p + 1)*(p + 1)] = o++;
-   }
+   { dof_map[1*dof2 + (p - i) + (p + 1)*(p + 1)] = o++; }
    for (int i = 0; i <= p; i++)  // (3,0)
-   {
-      dof_map[0*dof2 + 0 + (p - i)*(p + 2)] = o++;
-   }
+   { dof_map[0*dof2 + 0 + (p - i)*(p + 2)] = o++; }
 
    // interior
    for (int j = 0; j <= p; j++)  // x-components
       for (int i = 1; i <= p; i++)
-      {
-         dof_map[0*dof2 + i + j*(p + 2)] = o++;
-      }
+      { dof_map[0*dof2 + i + j*(p + 2)] = o++; }
    for (int j = 1; j <= p; j++)  // y-components
       for (int i = 0; i <= p; i++)
-      {
-         dof_map[1*dof2 + i + j*(p + 1)] = o++;
-      }
+      { dof_map[1*dof2 + i + j*(p + 1)] = o++; }
 
    // dof orientations
    // x-components
@@ -8899,13 +8459,9 @@ void RT_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
-         {
-            idx = -1 - idx, s = -1;
-         }
+         { idx = -1 - idx, s = -1; }
          else
-         {
-            s = +1;
-         }
+         { s = +1; }
          shape(idx,0) = s*shape_cx(i)*shape_oy(j);
          shape(idx,1) = 0.;
       }
@@ -8914,13 +8470,9 @@ void RT_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
-         {
-            idx = -1 - idx, s = -1;
-         }
+         { idx = -1 - idx, s = -1; }
          else
-         {
-            s = +1;
-         }
+         { s = +1; }
          shape(idx,0) = 0.;
          shape(idx,1) = s*shape_ox(i)*shape_cy(j);
       }
@@ -8947,13 +8499,9 @@ void RT_QuadrilateralElement::CalcDivShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
-         {
-            idx = -1 - idx, s = -1;
-         }
+         { idx = -1 - idx, s = -1; }
          else
-         {
-            s = +1;
-         }
+         { s = +1; }
          divshape(idx) = s*dshape_cx(i)*shape_oy(j);
       }
    for (int j = 0; j <= pp1; j++)
@@ -8961,13 +8509,9 @@ void RT_QuadrilateralElement::CalcDivShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
-         {
-            idx = -1 - idx, s = -1;
-         }
+         { idx = -1 - idx, s = -1; }
          else
-         {
-            s = +1;
-         }
+         { s = +1; }
          divshape(idx) = s*shape_ox(i)*dshape_cy(j);
       }
 }
@@ -9002,57 +8546,39 @@ RT_HexahedronElement::RT_HexahedronElement(const int p)
    int o = 0;
    for (int j = 0; j <= p; j++)  // (3,2,1,0) -- bottom
       for (int i = 0; i <= p; i++)
-      {
-         dof_map[2*dof3 + i + ((p - j) + 0*(p + 1))*(p + 1)] = o++;
-      }
+      { dof_map[2*dof3 + i + ((p - j) + 0*(p + 1))*(p + 1)] = o++; }
    for (int j = 0; j <= p; j++)  // (0,1,5,4) -- front
       for (int i = 0; i <= p; i++)
-      {
-         dof_map[1*dof3 + i + (0 + j*(p + 2))*(p + 1)] = o++;
-      }
+      { dof_map[1*dof3 + i + (0 + j*(p + 2))*(p + 1)] = o++; }
    for (int j = 0; j <= p; j++)  // (1,2,6,5) -- right
       for (int i = 0; i <= p; i++)
-      {
-         dof_map[0*dof3 + (p + 1) + (i + j*(p + 1))*(p + 2)] = o++;
-      }
+      { dof_map[0*dof3 + (p + 1) + (i + j*(p + 1))*(p + 2)] = o++; }
    for (int j = 0; j <= p; j++)  // (2,3,7,6) -- back
       for (int i = 0; i <= p; i++)
-      {
-         dof_map[1*dof3 + (p - i) + ((p + 1) + j*(p + 2))*(p + 1)] = o++;
-      }
+      { dof_map[1*dof3 + (p - i) + ((p + 1) + j*(p + 2))*(p + 1)] = o++; }
    for (int j = 0; j <= p; j++)  // (3,0,4,7) -- left
       for (int i = 0; i <= p; i++)
-      {
-         dof_map[0*dof3 + 0 + ((p - i) + j*(p + 1))*(p + 2)] = o++;
-      }
+      { dof_map[0*dof3 + 0 + ((p - i) + j*(p + 1))*(p + 2)] = o++; }
    for (int j = 0; j <= p; j++)  // (4,5,6,7) -- top
       for (int i = 0; i <= p; i++)
-      {
-         dof_map[2*dof3 + i + (j + (p + 1)*(p + 1))*(p + 1)] = o++;
-      }
+      { dof_map[2*dof3 + i + (j + (p + 1)*(p + 1))*(p + 1)] = o++; }
 
    // interior
    // x-components
    for (int k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 1; i <= p; i++)
-         {
-            dof_map[0*dof3 + i + (j + k*(p + 1))*(p + 2)] = o++;
-         }
+         { dof_map[0*dof3 + i + (j + k*(p + 1))*(p + 2)] = o++; }
    // y-components
    for (int k = 0; k <= p; k++)
       for (int j = 1; j <= p; j++)
          for (int i = 0; i <= p; i++)
-         {
-            dof_map[1*dof3 + i + (j + k*(p + 2))*(p + 1)] = o++;
-         }
+         { dof_map[1*dof3 + i + (j + k*(p + 2))*(p + 1)] = o++; }
    // z-components
    for (int k = 1; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
-         {
-            dof_map[2*dof3 + i + (j + k*(p + 1))*(p + 1)] = o++;
-         }
+         { dof_map[2*dof3 + i + (j + k*(p + 1))*(p + 1)] = o++; }
 
    // dof orientations
    // for odd p, do not change the orientations in the mid-planes
@@ -9162,13 +8688,9 @@ void RT_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             shape(idx,0) = s*shape_cx(i)*shape_oy(j)*shape_oz(k);
             shape(idx,1) = 0.;
             shape(idx,2) = 0.;
@@ -9180,13 +8702,9 @@ void RT_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             shape(idx,0) = 0.;
             shape(idx,1) = s*shape_ox(i)*shape_cy(j)*shape_oz(k);
             shape(idx,2) = 0.;
@@ -9198,13 +8716,9 @@ void RT_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             shape(idx,0) = 0.;
             shape(idx,1) = 0.;
             shape(idx,2) = s*shape_ox(i)*shape_oy(j)*shape_cz(k);
@@ -9237,13 +8751,9 @@ void RT_HexahedronElement::CalcDivShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             divshape(idx) = s*dshape_cx(i)*shape_oy(j)*shape_oz(k);
          }
    // y-components
@@ -9253,13 +8763,9 @@ void RT_HexahedronElement::CalcDivShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             divshape(idx) = s*shape_ox(i)*dshape_cy(j)*shape_oz(k);
          }
    // z-components
@@ -9269,13 +8775,9 @@ void RT_HexahedronElement::CalcDivShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             divshape(idx) = s*shape_ox(i)*shape_oy(j)*dshape_cz(k);
          }
 }
@@ -9642,144 +9144,90 @@ ND_HexahedronElement::ND_HexahedronElement(const int p)
    // edges
    int o = 0;
    for (int i = 0; i < p; i++)  // (0,1)
-   {
-      dof_map[0*dof3 + i + (0 + 0*(p + 1))*p] = o++;
-   }
+   { dof_map[0*dof3 + i + (0 + 0*(p + 1))*p] = o++; }
    for (int i = 0; i < p; i++)  // (1,2)
-   {
-      dof_map[1*dof3 + p + (i + 0*p)*(p + 1)] = o++;
-   }
+   { dof_map[1*dof3 + p + (i + 0*p)*(p + 1)] = o++; }
    for (int i = 0; i < p; i++)  // (3,2)
-   {
-      dof_map[0*dof3 + i + (p + 0*(p + 1))*p] = o++;
-   }
+   { dof_map[0*dof3 + i + (p + 0*(p + 1))*p] = o++; }
    for (int i = 0; i < p; i++)  // (0,3)
-   {
-      dof_map[1*dof3 + 0 + (i + 0*p)*(p + 1)] = o++;
-   }
+   { dof_map[1*dof3 + 0 + (i + 0*p)*(p + 1)] = o++; }
    for (int i = 0; i < p; i++)  // (4,5)
-   {
-      dof_map[0*dof3 + i + (0 + p*(p + 1))*p] = o++;
-   }
+   { dof_map[0*dof3 + i + (0 + p*(p + 1))*p] = o++; }
    for (int i = 0; i < p; i++)  // (5,6)
-   {
-      dof_map[1*dof3 + p + (i + p*p)*(p + 1)] = o++;
-   }
+   { dof_map[1*dof3 + p + (i + p*p)*(p + 1)] = o++; }
    for (int i = 0; i < p; i++)  // (7,6)
-   {
-      dof_map[0*dof3 + i + (p + p*(p + 1))*p] = o++;
-   }
+   { dof_map[0*dof3 + i + (p + p*(p + 1))*p] = o++; }
    for (int i = 0; i < p; i++)  // (4,7)
-   {
-      dof_map[1*dof3 + 0 + (i + p*p)*(p + 1)] = o++;
-   }
+   { dof_map[1*dof3 + 0 + (i + p*p)*(p + 1)] = o++; }
    for (int i = 0; i < p; i++)  // (0,4)
-   {
-      dof_map[2*dof3 + 0 + (0 + i*(p + 1))*(p + 1)] = o++;
-   }
+   { dof_map[2*dof3 + 0 + (0 + i*(p + 1))*(p + 1)] = o++; }
    for (int i = 0; i < p; i++)  // (1,5)
-   {
-      dof_map[2*dof3 + p + (0 + i*(p + 1))*(p + 1)] = o++;
-   }
+   { dof_map[2*dof3 + p + (0 + i*(p + 1))*(p + 1)] = o++; }
    for (int i = 0; i < p; i++)  // (2,6)
-   {
-      dof_map[2*dof3 + p + (p + i*(p + 1))*(p + 1)] = o++;
-   }
+   { dof_map[2*dof3 + p + (p + i*(p + 1))*(p + 1)] = o++; }
    for (int i = 0; i < p; i++)  // (3,7)
-   {
-      dof_map[2*dof3 + 0 + (p + i*(p + 1))*(p + 1)] = o++;
-   }
+   { dof_map[2*dof3 + 0 + (p + i*(p + 1))*(p + 1)] = o++; }
 
    // faces
    // (3,2,1,0) -- bottom
    for (int j = 1; j < p; j++) // x - components
       for (int i = 0; i < p; i++)
-      {
-         dof_map[0*dof3 + i + ((p - j) + 0*(p + 1))*p] = o++;
-      }
+      { dof_map[0*dof3 + i + ((p - j) + 0*(p + 1))*p] = o++; }
    for (int j = 0; j < p; j++) // y - components
       for (int i = 1; i < p; i++)
-      {
-         dof_map[1*dof3 + i + ((p - 1 - j) + 0*p)*(p + 1)] = -1 - (o++);
-      }
+      { dof_map[1*dof3 + i + ((p - 1 - j) + 0*p)*(p + 1)] = -1 - (o++); }
    // (0,1,5,4) -- front
    for (int k = 1; k < p; k++) // x - components
       for (int i = 0; i < p; i++)
-      {
-         dof_map[0*dof3 + i + (0 + k*(p + 1))*p] = o++;
-      }
+      { dof_map[0*dof3 + i + (0 + k*(p + 1))*p] = o++; }
    for (int k = 0; k < p; k++) // z - components
       for (int i = 1; i < p; i++ )
-      {
-         dof_map[2*dof3 + i + (0 + k*(p + 1))*(p + 1)] = o++;
-      }
+      { dof_map[2*dof3 + i + (0 + k*(p + 1))*(p + 1)] = o++; }
    // (1,2,6,5) -- right
    for (int k = 1; k < p; k++) // y - components
       for (int j = 0; j < p; j++)
-      {
-         dof_map[1*dof3 + p + (j + k*p)*(p + 1)] = o++;
-      }
+      { dof_map[1*dof3 + p + (j + k*p)*(p + 1)] = o++; }
    for (int k = 0; k < p; k++) // z - components
       for (int j = 1; j < p; j++)
-      {
-         dof_map[2*dof3 + p + (j + k*(p + 1))*(p + 1)] = o++;
-      }
+      { dof_map[2*dof3 + p + (j + k*(p + 1))*(p + 1)] = o++; }
    // (2,3,7,6) -- back
    for (int k = 1; k < p; k++) // x - components
       for (int i = 0; i < p; i++)
-      {
-         dof_map[0*dof3 + (p - 1 - i) + (p + k*(p + 1))*p] = -1 - (o++);
-      }
+      { dof_map[0*dof3 + (p - 1 - i) + (p + k*(p + 1))*p] = -1 - (o++); }
    for (int k = 0; k < p; k++) // z - components
       for (int i = 1; i < p; i++)
-      {
-         dof_map[2*dof3 + (p - i) + (p + k*(p + 1))*(p + 1)] = o++;
-      }
+      { dof_map[2*dof3 + (p - i) + (p + k*(p + 1))*(p + 1)] = o++; }
    // (3,0,4,7) -- left
    for (int k = 1; k < p; k++) // y - components
       for (int j = 0; j < p; j++)
-      {
-         dof_map[1*dof3 + 0 + ((p - 1 - j) + k*p)*(p + 1)] = -1 - (o++);
-      }
+      { dof_map[1*dof3 + 0 + ((p - 1 - j) + k*p)*(p + 1)] = -1 - (o++); }
    for (int k = 0; k < p; k++) // z - components
       for (int j = 1; j < p; j++)
-      {
-         dof_map[2*dof3 + 0 + ((p - j) + k*(p + 1))*(p + 1)] = o++;
-      }
+      { dof_map[2*dof3 + 0 + ((p - j) + k*(p + 1))*(p + 1)] = o++; }
    // (4,5,6,7) -- top
    for (int j = 1; j < p; j++) // x - components
       for (int i = 0; i < p; i++)
-      {
-         dof_map[0*dof3 + i + (j + p*(p + 1))*p] = o++;
-      }
+      { dof_map[0*dof3 + i + (j + p*(p + 1))*p] = o++; }
    for (int j = 0; j < p; j++) // y - components
       for (int i = 1; i < p; i++)
-      {
-         dof_map[1*dof3 + i + (j + p*p)*(p + 1)] = o++;
-      }
+      { dof_map[1*dof3 + i + (j + p*p)*(p + 1)] = o++; }
 
    // interior
    // x-components
    for (int k = 1; k < p; k++)
       for (int j = 1; j < p; j++)
          for (int i = 0; i < p; i++)
-         {
-            dof_map[0*dof3 + i + (j + k*(p + 1))*p] = o++;
-         }
+         { dof_map[0*dof3 + i + (j + k*(p + 1))*p] = o++; }
    // y-components
    for (int k = 1; k < p; k++)
       for (int j = 0; j < p; j++)
          for (int i = 1; i < p; i++)
-         {
-            dof_map[1*dof3 + i + (j + k*p)*(p + 1)] = o++;
-         }
+         { dof_map[1*dof3 + i + (j + k*p)*(p + 1)] = o++; }
    // z-components
    for (int k = 0; k < p; k++)
       for (int j = 1; j < p; j++)
          for (int i = 1; i < p; i++)
-         {
-            dof_map[2*dof3 + i + (j + k*(p + 1))*(p + 1)] = o++;
-         }
+         { dof_map[2*dof3 + i + (j + k*(p + 1))*(p + 1)] = o++; }
 
    // set dof2tk and Nodes
    o = 0;
@@ -9790,13 +9238,9 @@ ND_HexahedronElement::ND_HexahedronElement(const int p)
          {
             int idx;
             if ((idx = dof_map[o++]) < 0)
-            {
-               dof2tk[idx = -1 - idx] = 3;
-            }
+            { dof2tk[idx = -1 - idx] = 3; }
             else
-            {
-               dof2tk[idx] = 0;
-            }
+            { dof2tk[idx] = 0; }
             Nodes.IntPoint(idx).Set3(op[i], cp[j], cp[k]);
          }
    // y-components
@@ -9806,13 +9250,9 @@ ND_HexahedronElement::ND_HexahedronElement(const int p)
          {
             int idx;
             if ((idx = dof_map[o++]) < 0)
-            {
-               dof2tk[idx = -1 - idx] = 4;
-            }
+            { dof2tk[idx = -1 - idx] = 4; }
             else
-            {
-               dof2tk[idx] = 1;
-            }
+            { dof2tk[idx] = 1; }
             Nodes.IntPoint(idx).Set3(cp[i], op[j], cp[k]);
          }
    // z-components
@@ -9822,13 +9262,9 @@ ND_HexahedronElement::ND_HexahedronElement(const int p)
          {
             int idx;
             if ((idx = dof_map[o++]) < 0)
-            {
-               dof2tk[idx = -1 - idx] = 5;
-            }
+            { dof2tk[idx = -1 - idx] = 5; }
             else
-            {
-               dof2tk[idx] = 2;
-            }
+            { dof2tk[idx] = 2; }
             Nodes.IntPoint(idx).Set3(cp[i], cp[j], op[k]);
          }
 }
@@ -9858,13 +9294,9 @@ void ND_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             shape(idx,0) = s*shape_ox(i)*shape_cy(j)*shape_cz(k);
             shape(idx,1) = 0.;
             shape(idx,2) = 0.;
@@ -9876,13 +9308,9 @@ void ND_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             shape(idx,0) = 0.;
             shape(idx,1) = s*shape_cx(i)*shape_oy(j)*shape_cz(k);
             shape(idx,2) = 0.;
@@ -9894,13 +9322,9 @@ void ND_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             shape(idx,0) = 0.;
             shape(idx,1) = 0.;
             shape(idx,2) = s*shape_cx(i)*shape_cy(j)*shape_oz(k);
@@ -9933,13 +9357,9 @@ void ND_HexahedronElement::CalcCurlShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             curl_shape(idx,0) = 0.;
             curl_shape(idx,1) =  s*shape_ox(i)* shape_cy(j)*dshape_cz(k);
             curl_shape(idx,2) = -s*shape_ox(i)*dshape_cy(j)* shape_cz(k);
@@ -9951,13 +9371,9 @@ void ND_HexahedronElement::CalcCurlShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             curl_shape(idx,0) = -s* shape_cx(i)*shape_oy(j)*dshape_cz(k);
             curl_shape(idx,1) = 0.;
             curl_shape(idx,2) =  s*dshape_cx(i)*shape_oy(j)* shape_cz(k);
@@ -9969,13 +9385,9 @@ void ND_HexahedronElement::CalcCurlShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
-            {
-               idx = -1 - idx, s = -1;
-            }
+            { idx = -1 - idx, s = -1; }
             else
-            {
-               s = +1;
-            }
+            { s = +1; }
             curl_shape(idx,0) =   s* shape_cx(i)*dshape_cy(j)*shape_oz(k);
             curl_shape(idx,1) =  -s*dshape_cx(i)* shape_cy(j)*shape_oz(k);
             curl_shape(idx,2) = 0.;
@@ -10008,35 +9420,23 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p)
    // edges
    int o = 0;
    for (int i = 0; i < p; i++)  // (0,1)
-   {
-      dof_map[0*dof2 + i + 0*p] = o++;
-   }
+   { dof_map[0*dof2 + i + 0*p] = o++; }
    for (int j = 0; j < p; j++)  // (1,2)
-   {
-      dof_map[1*dof2 + p + j*(p + 1)] = o++;
-   }
+   { dof_map[1*dof2 + p + j*(p + 1)] = o++; }
    for (int i = 0; i < p; i++)  // (2,3)
-   {
-      dof_map[0*dof2 + (p - 1 - i) + p*p] = -1 - (o++);
-   }
+   { dof_map[0*dof2 + (p - 1 - i) + p*p] = -1 - (o++); }
    for (int j = 0; j < p; j++)  // (3,0)
-   {
-      dof_map[1*dof2 + 0 + (p - 1 - j)*(p + 1)] = -1 - (o++);
-   }
+   { dof_map[1*dof2 + 0 + (p - 1 - j)*(p + 1)] = -1 - (o++); }
 
    // interior
    // x-components
    for (int j = 1; j < p; j++)
       for (int i = 0; i < p; i++)
-      {
-         dof_map[0*dof2 + i + j*p] = o++;
-      }
+      { dof_map[0*dof2 + i + j*p] = o++; }
    // y-components
    for (int j = 0; j < p; j++)
       for (int i = 1; i < p; i++)
-      {
-         dof_map[1*dof2 + i + j*(p + 1)] = o++;
-      }
+      { dof_map[1*dof2 + i + j*(p + 1)] = o++; }
 
    // set dof2tk and Nodes
    o = 0;
@@ -10046,13 +9446,9 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p)
       {
          int idx;
          if ((idx = dof_map[o++]) < 0)
-         {
-            dof2tk[idx = -1 - idx] = 2;
-         }
+         { dof2tk[idx = -1 - idx] = 2; }
          else
-         {
-            dof2tk[idx] = 0;
-         }
+         { dof2tk[idx] = 0; }
          Nodes.IntPoint(idx).Set2(op[i], cp[j]);
       }
    // y-components
@@ -10061,13 +9457,9 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p)
       {
          int idx;
          if ((idx = dof_map[o++]) < 0)
-         {
-            dof2tk[idx = -1 - idx] = 3;
-         }
+         { dof2tk[idx = -1 - idx] = 3; }
          else
-         {
-            dof2tk[idx] = 1;
-         }
+         { dof2tk[idx] = 1; }
          Nodes.IntPoint(idx).Set2(cp[i], op[j]);
       }
 }
@@ -10093,13 +9485,9 @@ void ND_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
-         {
-            idx = -1 - idx, s = -1;
-         }
+         { idx = -1 - idx, s = -1; }
          else
-         {
-            s = +1;
-         }
+         { s = +1; }
          shape(idx,0) = s*shape_ox(i)*shape_cy(j);
          shape(idx,1) = 0.;
       }
@@ -10109,13 +9497,9 @@ void ND_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
-         {
-            idx = -1 - idx, s = -1;
-         }
+         { idx = -1 - idx, s = -1; }
          else
-         {
-            s = +1;
-         }
+         { s = +1; }
          shape(idx,0) = 0.;
          shape(idx,1) = s*shape_cx(i)*shape_oy(j);
       }
@@ -10520,9 +9904,7 @@ void NURBS1DFiniteElement::CalcShape(const IntegrationPoint &ip,
 
    double sum = 0.0;
    for (int i = 0; i <= Order; i++)
-   {
-      sum += (shape(i) *= weights(i));
-   }
+   { sum += (shape(i) *= weights(i)); }
 
    shape /= sum;
 }

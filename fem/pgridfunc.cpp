@@ -88,9 +88,7 @@ void ParGridFunction::GetTrueDofs(Vector &tv) const
    {
       int tdof = pfes->GetLocalTDofNumber(i);
       if (tdof >= 0)
-      {
-         tv(tdof) = (*this)(i);
-      }
+      { tv(tdof) = (*this)(i); }
    }
 #else
    hypre_ParCSRMatrix *P = *pfes->Dof_TrueDof_Matrix();
@@ -99,9 +97,7 @@ void ParGridFunction::GetTrueDofs(Vector &tv) const
    int *J = hypre_CSRMatrixJ(diag);
    for (int i = 0, j = 0; i < size; i++)
       if (j < I[i])
-      {
-         tv(J[j++]) = (*this)(i);
-      }
+      { tv(J[j++]) = (*this)(i); }
 #endif
 }
 
@@ -153,9 +149,7 @@ void ParGridFunction::ExchangeFaceNbrData()
    pfes->ExchangeFaceNbrData();
 
    if (pfes->GetFaceNbrVSize() <= 0)
-   {
-      return;
-   }
+   { return; }
 
    ParMesh *pmesh = pfes->GetParMesh();
 
@@ -174,9 +168,7 @@ void ParGridFunction::ExchangeFaceNbrData()
    MPI_Status  *statuses = new MPI_Status[num_face_nbrs];
 
    for (int i = 0; i < send_data.Size(); i++)
-   {
-      send_data[i] = data[send_ldof[i]];
-   }
+   { send_data[i] = data[send_ldof[i]]; }
 
    for (int fn = 0; fn < num_face_nbrs; fn++)
    {
@@ -260,17 +252,13 @@ void ParGridFunction::Save(std::ostream &out) const
 {
    for (int i = 0; i < size; i++)
       if (pfes->GetDofSign(i) < 0)
-      {
-         data[i] = -data[i];
-      }
+      { data[i] = -data[i]; }
 
    GridFunction::Save(out);
 
    for (int i = 0; i < size; i++)
       if (pfes->GetDofSign(i) < 0)
-      {
-         data[i] = -data[i];
-      }
+      { data[i] = -data[i]; }
 }
 
 void ParGridFunction::SaveAsOne(std::ostream &out)
@@ -317,9 +305,7 @@ void ParGridFunction::SaveAsOne(std::ostream &out)
       int vdim = pfes -> GetVDim();
 
       for (p = 0; p < NRanks; p++)
-      {
-         nrdofs[p] = nv[p]/vdim - nvdofs[p] - nedofs[p] - nfdofs[p];
-      }
+      { nrdofs[p] = nv[p]/vdim - nvdofs[p] - nedofs[p] - nfdofs[p]; }
 
       if (pfes->GetOrdering() == Ordering::byNODES)
       {
@@ -327,27 +313,19 @@ void ParGridFunction::SaveAsOne(std::ostream &out)
          {
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nvdofs[p]; i++)
-               {
-                  out << *values[p]++ << '\n';
-               }
+               { out << *values[p]++ << '\n'; }
 
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nedofs[p]; i++)
-               {
-                  out << *values[p]++ << '\n';
-               }
+               { out << *values[p]++ << '\n'; }
 
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nfdofs[p]; i++)
-               {
-                  out << *values[p]++ << '\n';
-               }
+               { out << *values[p]++ << '\n'; }
 
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nrdofs[p]; i++)
-               {
-                  out << *values[p]++ << '\n';
-               }
+               { out << *values[p]++ << '\n'; }
          }
       }
       else
@@ -355,30 +333,22 @@ void ParGridFunction::SaveAsOne(std::ostream &out)
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nvdofs[p]; i++)
                for (int d = 0; d < vdim; d++)
-               {
-                  out << *values[p]++ << '\n';
-               }
+               { out << *values[p]++ << '\n'; }
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nedofs[p]; i++)
                for (int d = 0; d < vdim; d++)
-               {
-                  out << *values[p]++ << '\n';
-               }
+               { out << *values[p]++ << '\n'; }
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nfdofs[p]; i++)
                for (int d = 0; d < vdim; d++)
-               {
-                  out << *values[p]++ << '\n';
-               }
+               { out << *values[p]++ << '\n'; }
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nrdofs[p]; i++)
                for (int d = 0; d < vdim; d++)
-               {
-                  out << *values[p]++ << '\n';
-               }
+               { out << *values[p]++ << '\n'; }
       }
 
       for (p = 1; p < NRanks; p++)
@@ -412,24 +382,16 @@ double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm)
    {
       // negative quadrature weights may cause the error to be negative
       if (loc_norm < 0.0)
-      {
-         loc_norm = -pow(-loc_norm, p);
-      }
+      { loc_norm = -pow(-loc_norm, p); }
       else
-      {
-         loc_norm = pow(loc_norm, p);
-      }
+      { loc_norm = pow(loc_norm, p); }
 
       MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
 
       if (glob_norm < 0.0)
-      {
-         glob_norm = -pow(-glob_norm, 1.0/p);
-      }
+      { glob_norm = -pow(-glob_norm, 1.0/p); }
       else
-      {
-         glob_norm = pow(glob_norm, 1.0/p);
-      }
+      { glob_norm = pow(glob_norm, 1.0/p); }
    }
    else
    {

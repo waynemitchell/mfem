@@ -215,9 +215,7 @@ HashTable<ItemT>::HashTable(int init_size)
 {
    mask = init_size-1;
    if (init_size & mask)
-   {
-      mfem_error("HashTable(): init_size size must be a power of two.");
-   }
+   { mfem_error("HashTable(): init_size size must be a power of two."); }
 
    table = new ItemT*[init_size];
    memset(table, 0, init_size * sizeof(ItemT*));
@@ -230,9 +228,7 @@ HashTable<ItemT>::~HashTable()
 {
    // delete all items
    for (Iterator it(*this); it; ++it)
-   {
-      delete it;
-   }
+   { delete it; }
 
    delete [] table;
 }
@@ -384,9 +380,7 @@ void HashTable<ItemT>::Rehash()
       // reinsert all items
       num_items = 0;
       for (Iterator it(*this); it; ++it)
-      {
-         Insert(hash(it), it);
-      }
+      { Insert(hash(it), it); }
    }
 }
 

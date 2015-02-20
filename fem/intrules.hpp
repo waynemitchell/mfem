@@ -192,9 +192,7 @@ public:
    explicit IntegrationRule(int NP) : Array<IntegrationPoint>(NP)
    {
       for (int i = 0; i < this->Size(); i++)
-      {
-         (*this)[i].Init();
-      }
+      { (*this)[i].Init(); }
    }
 
    /// Tensor product of two 1D integration rules
@@ -229,9 +227,7 @@ private:
    void AllocIntRule(Array<IntegrationRule *> &ir_array, int Order)
    {
       if (ir_array.Size() <= Order)
-      {
-         ir_array.SetSize(Order + 1, NULL);
-      }
+      { ir_array.SetSize(Order + 1, NULL); }
    }
    bool HaveIntRule(Array<IntegrationRule *> &ir_array, int Order)
    {

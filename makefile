@@ -341,9 +341,6 @@ ASTYLE = astyle --options=config/mfem.astylerc
 FORMAT_FILES = $(foreach dir,$(DIRS) examples,"$(dir)/*.?pp")
 
 style:
-	@if $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\
-	   echo;\
-	   echo "Note: backups of modified files were saved with .orig extension.";\
-	else\
+	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\
 	   echo "No source files were changed.";\
 	fi

@@ -56,16 +56,12 @@ int main(int argc, char *argv[])
    if (!args.Good())
    {
       if (myid == 0)
-      {
-         args.PrintUsage(cout);
-      }
+      { args.PrintUsage(cout); }
       MPI_Finalize();
       return 1;
    }
    if (myid == 0)
-   {
-      args.PrintOptions(cout);
-   }
+   { args.PrintOptions(cout); }
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -75,9 +71,7 @@ int main(int argc, char *argv[])
    if (!imesh)
    {
       if (myid == 0)
-      {
-         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-      }
+      { cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl; }
       MPI_Finalize();
       return 2;
    }
@@ -93,9 +87,7 @@ int main(int argc, char *argv[])
       int ref_levels =
          (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      { mesh->UniformRefinement(); }
    }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -106,9 +98,7 @@ int main(int argc, char *argv[])
    {
       int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
-      {
-         pmesh->UniformRefinement();
-      }
+      { pmesh->UniformRefinement(); }
    }
 
    // 6. Define the trial, interfacial (trace) and test DPG spaces:
@@ -275,9 +265,7 @@ int main(int argc, char *argv[])
       matSinv->Mult(LSres, tmp);
       double res = sqrt(InnerProduct(LSres, tmp));
       if (myid == 0)
-      {
-         cout << "\n|| B0*x0 + Bhat*xhat - F ||_{S^-1} = " << res << endl;
-      }
+      { cout << "\n|| B0*x0 + Bhat*xhat - F ||_{S^-1} = " << res << endl; }
    }
 
    x0->Distribute(x.GetBlock(x0_var));

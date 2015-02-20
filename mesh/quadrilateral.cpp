@@ -23,9 +23,7 @@ Quadrilateral::Quadrilateral( const int *ind, int attr )
 {
    attribute = attr;
    for (int i=0; i<4; i++)
-   {
-      indices[i] = ind[i];
-   }
+   { indices[i] = ind[i]; }
 }
 
 Quadrilateral::Quadrilateral( int ind1, int ind2, int ind3, int ind4,
@@ -41,18 +39,14 @@ Quadrilateral::Quadrilateral( int ind1, int ind2, int ind3, int ind4,
 void Quadrilateral::SetVertices(const int *ind)
 {
    for (int i=0; i<4; i++)
-   {
-      indices[i] = ind[i];
-   }
+   { indices[i] = ind[i]; }
 }
 
 void Quadrilateral::GetVertices( Array<int> &v ) const
 {
    v.SetSize( 4 );
    for (int i=0; i<4; i++)
-   {
-      v[i] = indices[i];
-   }
+   { v[i] = indices[i]; }
 }
 
 BiLinear2DFiniteElement QuadrilateralFE;

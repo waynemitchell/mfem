@@ -67,16 +67,12 @@ int main(int argc, char *argv[])
    if (!args.Good())
    {
       if (verbose)
-      {
-         args.PrintUsage(cout);
-      }
+      { args.PrintUsage(cout); }
       MPI_Finalize();
       return 1;
    }
    if (verbose)
-   {
-      args.PrintOptions(cout);
-   }
+   { args.PrintOptions(cout); }
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -86,9 +82,7 @@ int main(int argc, char *argv[])
    if (!imesh)
    {
       if (verbose)
-      {
-         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-      }
+      { cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl; }
       MPI_Finalize();
       return 2;
    }
@@ -104,9 +98,7 @@ int main(int argc, char *argv[])
       int ref_levels =
          (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      { mesh->UniformRefinement(); }
    }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -117,9 +109,7 @@ int main(int argc, char *argv[])
    {
       int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
-      {
-         pmesh->UniformRefinement();
-      }
+      { pmesh->UniformRefinement(); }
    }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
@@ -289,9 +279,7 @@ int main(int argc, char *argv[])
    int order_quad = max(2, 2*order+1);
    const IntegrationRule *irs[Geometry::NumGeom];
    for (int i=0; i < Geometry::NumGeom; ++i)
-   {
-      irs[i] = &(IntRules.Get(i, order_quad));
-   }
+   { irs[i] = &(IntRules.Get(i, order_quad)); }
 
    double err_u  = u->ComputeL2Error(ucoeff, irs);
    double norm_u = ComputeGlobalLpNorm(2, ucoeff, *pmesh, irs);
@@ -386,17 +374,13 @@ void uFun_ex(const Vector & x, Vector & u)
    double yi(x(1));
    double zi(0.0);
    if (x.Size() == 3)
-   {
-      zi = x(2);
-   }
+   { zi = x(2); }
 
    u(0) = - exp(xi)*sin(yi)*cos(zi);
    u(1) = - exp(xi)*cos(yi)*cos(zi);
 
    if (x.Size() == 3)
-   {
-      u(2) = exp(xi)*sin(yi)*sin(zi);
-   }
+   { u(2) = exp(xi)*sin(yi)*sin(zi); }
 }
 
 // Change if needed
@@ -407,9 +391,7 @@ double pFun_ex(Vector & x)
    double zi(0.0);
 
    if (x.Size() == 3)
-   {
-      zi = x(2);
-   }
+   { zi = x(2); }
 
    return exp(xi)*sin(yi)*cos(zi);
 }
@@ -422,13 +404,9 @@ void fFun(const Vector & x, Vector & f)
 double gFun(Vector & x)
 {
    if (x.Size() == 3)
-   {
-      return -pFun_ex(x);
-   }
+   { return -pFun_ex(x); }
    else
-   {
-      return 0;
-   }
+   { return 0; }
 }
 
 double f_natural(Vector & x)

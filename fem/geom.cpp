@@ -290,9 +290,7 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
 
    const double *cp = NULL;
    if (type)
-   {
-      cp = poly1d.ClosedPoints(Times);
-   }
+   { cp = poly1d.ClosedPoints(Times); }
 
    switch (Geom)
    {
@@ -300,9 +298,7 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
       {
          const int g = Geometry::SEGMENT;
          if (RGeom[g] != NULL && RGeom[g]->Times == Times)
-         {
-            return RGeom[g];
-         }
+         { return RGeom[g]; }
          delete RGeom[g];
          RGeom[g] = new RefinedGeometry(Times+1, 2*Times, 0);
          RGeom[g]->Times = Times;
@@ -326,14 +322,10 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
       {
          if (RGeom[2] != NULL && RGeom[2]->Times == Times &&
              RGeom[2]->ETimes == ETimes)
-         {
-            return RGeom[2];
-         }
+         { return RGeom[2]; }
 
          if (RGeom[2] != NULL)
-         {
-            delete RGeom[2];
-         }
+         { delete RGeom[2]; }
          RGeom[2] = new RefinedGeometry ((Times+1)*(Times+2)/2, 3*Times*Times,
                                          3*Times*(ETimes+1));
          RGeom[2]->Times = Times;
@@ -406,14 +398,10 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
       {
          if (RGeom[3] != NULL && RGeom[3]->Times == Times &&
              RGeom[3]->ETimes == ETimes)
-         {
-            return RGeom[3];
-         }
+         { return RGeom[3]; }
 
          if (RGeom[3] != NULL)
-         {
-            delete RGeom[3];
-         }
+         { delete RGeom[3]; }
          RGeom[3] = new RefinedGeometry ((Times+1)*(Times+1), 4*Times*Times,
                                          4*(ETimes+1)*Times);
          RGeom[3]->Times = Times;
@@ -470,14 +458,10 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
          const int g = Geometry::CUBE;
          if (RGeom[g] != NULL && RGeom[g]->Times == Times &&
              RGeom[g]->ETimes == ETimes)
-         {
-            return RGeom[g];
-         }
+         { return RGeom[g]; }
 
          if (RGeom[g] != NULL)
-         {
-            delete RGeom[g];
-         }
+         { delete RGeom[g]; }
          RGeom[g] = new RefinedGeometry ((Times+1)*(Times+1)*(Times+1),
                                          8*Times*Times*Times, 0);
          RGeom[g]->Times = Times;
@@ -523,14 +507,10 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
          const int g = Geometry::TETRAHEDRON;
          if (RGeom[g] != NULL && RGeom[g]->Times == Times &&
              RGeom[g]->ETimes == ETimes)
-         {
-            return RGeom[g];
-         }
+         { return RGeom[g]; }
 
          if (RGeom[g] != NULL)
-         {
-            delete RGeom[g];
-         }
+         { delete RGeom[g]; }
 
          // subdivide the tetrahedron with vertices
          // (0,0,0), (0,0,1), (1,1,1), (0,1,1)
@@ -579,9 +559,7 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
                   m++;
                }
          if (m != (n+3)*(n+2)*(n+1)/6)
-         {
-            mfem_error("GeometryRefiner::Refine() for TETRAHEDRON #1");
-         }
+         { mfem_error("GeometryRefiner::Refine() for TETRAHEDRON #1"); }
          // elements
          Array<int> &G = RGeom[g]->RefGeoms;
          m = 0;
@@ -637,14 +615,10 @@ RefinedGeometry * GeometryRefiner::Refine (int Geom, int Times, int ETimes)
                   }
                }
          if (m != 4*n*n*n)
-         {
-            mfem_error("GeometryRefiner::Refine() for TETRAHEDRON #2");
-         }
+         { mfem_error("GeometryRefiner::Refine() for TETRAHEDRON #2"); }
          for (i = 0; i < m; i++)
             if (G[i] < 0)
-            {
-               mfem_error("GeometryRefiner::Refine() for TETRAHEDRON #3");
-            }
+            { mfem_error("GeometryRefiner::Refine() for TETRAHEDRON #3"); }
 
          return RGeom[g];
       }
@@ -664,9 +638,7 @@ const IntegrationRule *GeometryRefiner::RefineInterior(int Geom, int Times)
       case Geometry::SEGMENT:
       {
          if (Times < 2)
-         {
-            return NULL;
-         }
+         { return NULL; }
          if (IntPts[g] == NULL || IntPts[g]->GetNPoints() != Times-1)
          {
             delete IntPts[g];
@@ -684,9 +656,7 @@ const IntegrationRule *GeometryRefiner::RefineInterior(int Geom, int Times)
       case Geometry::TRIANGLE:
       {
          if (Times < 3)
-         {
-            return NULL;
-         }
+         { return NULL; }
          if (IntPts[g] == NULL ||
              IntPts[g]->GetNPoints() != ((Times-1)*(Times-2))/2)
          {
@@ -707,9 +677,7 @@ const IntegrationRule *GeometryRefiner::RefineInterior(int Geom, int Times)
       case Geometry::SQUARE:
       {
          if (Times < 2)
-         {
-            return NULL;
-         }
+         { return NULL; }
          if (IntPts[g] == NULL || IntPts[g]->GetNPoints() != (Times-1)*(Times-1))
          {
             delete IntPts[g];

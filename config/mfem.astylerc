@@ -11,4 +11,10 @@
 --indent-labels
 --break-after-logical
 --add-brackets
+--add-one-line-brackets
 --indent-switches
+--convert-tabs
+--lineend=linux
+--suffix=none
+--preserve-date
+--formatted

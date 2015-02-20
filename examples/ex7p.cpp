@@ -63,16 +63,12 @@ int main(int argc, char *argv[])
    if (!args.Good())
    {
       if (myid == 0)
-      {
-         args.PrintUsage(cout);
-      }
+      { args.PrintUsage(cout); }
       MPI_Finalize();
       return 1;
    }
    if (myid == 0)
-   {
-      args.PrintOptions(cout);
-   }
+   { args.PrintOptions(cout); }
 
    // 3. Generate an initial high-order (surface) mesh on the unit sphere. The
    //    Mesh object represents a 2D mesh in 3 spatial dimensions. We first add
@@ -145,15 +141,11 @@ int main(int argc, char *argv[])
    for (int l = 0; l <= ref_levels; l++)
    {
       if (l > 0) // for l == 0 just perform snapping
-      {
-         mesh->UniformRefinement();
-      }
+      { mesh->UniformRefinement(); }
 
       // Snap the nodes of the refined mesh back to sphere surface.
       if (always_snap)
-      {
-         SnapNodes(*mesh);
-      }
+      { SnapNodes(*mesh); }
    }
 
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
@@ -166,14 +158,10 @@ int main(int argc, char *argv[])
 
          // Snap the nodes of the refined mesh back to sphere surface.
          if (always_snap)
-         {
-            SnapNodes(*pmesh);
-         }
+         { SnapNodes(*pmesh); }
       }
       if (!always_snap || par_ref_levels < 1)
-      {
-         SnapNodes(*pmesh);
-      }
+      { SnapNodes(*pmesh); }
    }
 
    // 5. Define a finite element space on the mesh. Here we use isoparametric
@@ -181,9 +169,7 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, &fec);
    int size = fespace->GlobalTrueVSize();
    if (myid == 0)
-   {
-      cout << "Number of unknowns: " << size << endl;
-   }
+   { cout << "Number of unknowns: " << size << endl; }
 
    // 6. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
@@ -237,9 +223,7 @@ int main(int argc, char *argv[])
    // 11. Compute and print the L^2 norm of the error.
    double err = x.ComputeL2Error(sol_coef);
    if (myid == 0)
-   {
-      cout << "\nL2 norm of error: " << err << endl;
-   }
+   { cout << "\nL2 norm of error: " << err << endl; }
 
    // 12. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -np <np> -m sphere_refined -g sol".
@@ -301,15 +285,11 @@ void SnapNodes(Mesh &mesh)
    for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
    {
       for (int d = 0; d < mesh.SpaceDimension(); d++)
-      {
-         node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
-      }
+      { node(d) = nodes(nodes.FESpace()->DofToVDof(i, d)); }
 
       node /= node.Norml2();
 
       for (int d = 0; d < mesh.SpaceDimension(); d++)
-      {
-         nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
-      }
+      { nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d); }
    }
 }

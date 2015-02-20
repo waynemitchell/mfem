@@ -37,13 +37,9 @@ double FunctionCoefficient::Eval(ElementTransformation & T,
    T.Transform(ip, transip);
 
    if (Function)
-   {
-      return ((*Function)(transip));
-   }
+   { return ((*Function)(transip)); }
    else
-   {
-      return (*TDFunction)(transip, GetTime());
-   }
+   { return (*TDFunction)(transip, GetTime()); }
 }
 
 double GridFunctionCoefficient::Eval (ElementTransformation &T,
@@ -90,34 +86,24 @@ void VectorFunctionCoefficient::Eval(Vector &V, ElementTransformation &T,
 
    V.SetSize(vdim);
    if (Function)
-   {
-      (*Function)(transip, V);
-   }
+   { (*Function)(transip, V); }
    else
-   {
-      (*TDFunction)(transip, GetTime(), V);
-   }
+   { (*TDFunction)(transip, GetTime(), V); }
    if (Q)
-   {
-      V *= Q->Eval(T, ip, GetTime());
-   }
+   { V *= Q->Eval(T, ip, GetTime()); }
 }
 
 VectorArrayCoefficient::VectorArrayCoefficient (int dim)
    : VectorCoefficient(dim), Coeff(dim)
 {
    for (int i = 0; i < dim; i++)
-   {
-      Coeff[i] = NULL;
-   }
+   { Coeff[i] = NULL; }
 }
 
 VectorArrayCoefficient::~VectorArrayCoefficient()
 {
    for (int i = 0; i < vdim; i++)
-   {
-      delete Coeff[i];
-   }
+   { delete Coeff[i]; }
 }
 
 void VectorArrayCoefficient::Eval(Vector &V, ElementTransformation &T,
@@ -125,9 +111,7 @@ void VectorArrayCoefficient::Eval(Vector &V, ElementTransformation &T,
 {
    V.SetSize(vdim);
    for (int i = 0; i < vdim; i++)
-   {
-      V(i) = Coeff[i]->Eval(T, ip, GetTime());
-   }
+   { V(i) = Coeff[i]->Eval(T, ip, GetTime()); }
 }
 
 VectorGridFunctionCoefficient::VectorGridFunctionCoefficient (
@@ -158,9 +142,7 @@ void VectorRestrictedCoefficient::Eval(Vector &V, ElementTransformation &T,
       c->Eval(V, T, ip);
    }
    else
-   {
-      V = 0.0;
-   }
+   { V = 0.0; }
 }
 
 void VectorRestrictedCoefficient::Eval(
@@ -189,13 +171,9 @@ void MatrixFunctionCoefficient::Eval(DenseMatrix &K, ElementTransformation &T,
    K.SetSize(vdim);
 
    if (Function)
-   {
-      (*Function)(transip, K);
-   }
+   { (*Function)(transip, K); }
    else
-   {
-      (*TDFunction)(transip, GetTime(), K);
-   }
+   { (*TDFunction)(transip, GetTime(), K); }
 }
 
 MatrixArrayCoefficient::MatrixArrayCoefficient (int dim)
@@ -207,9 +185,7 @@ MatrixArrayCoefficient::MatrixArrayCoefficient (int dim)
 MatrixArrayCoefficient::~MatrixArrayCoefficient ()
 {
    for (int i=0; i< vdim*vdim; i++)
-   {
-      delete Coeff[i];
-   }
+   { delete Coeff[i]; }
 }
 
 void MatrixArrayCoefficient::Eval (DenseMatrix &K, ElementTransformation &T,
@@ -219,9 +195,7 @@ void MatrixArrayCoefficient::Eval (DenseMatrix &K, ElementTransformation &T,
 
    for (i = 0; i < vdim; i++)
       for (j = 0; j < vdim; j++)
-      {
-         K(i,j) = Coeff[i*vdim+j] -> Eval(T, ip, GetTime());
-      }
+      { K(i,j) = Coeff[i*vdim+j] -> Eval(T, ip, GetTime()); }
 }
 
 double LpNormLoop(double p, Coefficient &coeff, Mesh &mesh,
@@ -246,9 +220,7 @@ double LpNormLoop(double p, Coefficient &coeff, Mesh &mesh,
          else
          {
             if (norm < val)
-            {
-               norm = val;
-            }
+            { norm = val; }
          }
       }
    }
@@ -276,9 +248,7 @@ double LpNormLoop(double p, VectorCoefficient &coeff, Mesh &mesh,
          if (p < numeric_limits<double>::infinity())
          {
             for (int idim(0); idim < vdim; ++idim)
-            {
-               norm += ip.weight * tr->Weight() * pow(fabs( vval(idim) ), p);
-            }
+            { norm += ip.weight * tr->Weight() * pow(fabs( vval(idim) ), p); }
          }
          else
          {
@@ -286,9 +256,7 @@ double LpNormLoop(double p, VectorCoefficient &coeff, Mesh &mesh,
             {
                val = fabs(vval(idim));
                if (norm < val)
-               {
-                  norm = val;
-               }
+               { norm = val; }
             }
          }
       }
@@ -306,13 +274,9 @@ double ComputeLpNorm(double p, Coefficient &coeff, Mesh &mesh,
    {
       // negative quadrature weights may cause norm to be negative
       if (norm < 0.0)
-      {
-         norm = -pow(-norm, 1.0/p);
-      }
+      { norm = -pow(-norm, 1.0/p); }
       else
-      {
-         norm = pow(norm, 1.0/p);
-      }
+      { norm = pow(norm, 1.0/p); }
    }
 
    return norm;
@@ -327,13 +291,9 @@ double ComputeLpNorm(double p, VectorCoefficient &coeff, Mesh &mesh,
    {
       // negative quadrature weights may cause norm to be negative
       if (norm < 0.0)
-      {
-         norm = -pow(-norm, 1.0/p);
-      }
+      { norm = -pow(-norm, 1.0/p); }
       else
-      {
-         norm = pow(norm, 1.0/p);
-      }
+      { norm = pow(norm, 1.0/p); }
    }
 
    return norm;
@@ -354,13 +314,9 @@ double ComputeGlobalLpNorm(double p, Coefficient &coeff, ParMesh &pmesh,
 
       // negative quadrature weights may cause norm to be negative
       if (glob_norm < 0.0)
-      {
-         glob_norm = -pow(-glob_norm, 1.0/p);
-      }
+      { glob_norm = -pow(-glob_norm, 1.0/p); }
       else
-      {
-         glob_norm = pow(glob_norm, 1.0/p);
-      }
+      { glob_norm = pow(glob_norm, 1.0/p); }
    }
    else
    {
@@ -384,13 +340,9 @@ double ComputeGlobalLpNorm(double p, VectorCoefficient &coeff, ParMesh &pmesh,
 
       // negative quadrature weights may cause norm to be negative
       if (glob_norm < 0.0)
-      {
-         glob_norm = -pow(-glob_norm, 1.0/p);
-      }
+      { glob_norm = -pow(-glob_norm, 1.0/p); }
       else
-      {
-         glob_norm = pow(glob_norm, 1.0/p);
-      }
+      { glob_norm = pow(glob_norm, 1.0/p); }
    }
    else
    {
