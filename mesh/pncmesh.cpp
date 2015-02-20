@@ -70,7 +70,7 @@ void ParNCMesh::UpdateVertices()
    {
       Element* elem = leaf_elements[i];
       if (elem->rank == MyRank)
-         for (int j = 0; j < GI[elem->geom].nv; j++)
+         for (int j = 0; j < GI[(int) elem->geom].nv; j++)
             elem->node[j]->vertex->index = 0; // mark vertices that we need
    }
 
@@ -188,7 +188,7 @@ void ParNCMesh::AddSlaveRanks(int nitems, const NCList& list)
    Array<int> slave_to_master(nitems);
    slave_to_master = -1;
 
-   for (int i = 0; i < list.slaves.size(); i++)
+   for (unsigned i = 0; i < list.slaves.size(); i++)
    {
       const Slave& sf = list.slaves[i];
       slave_to_master[sf.index] = sf.master;
@@ -264,11 +264,11 @@ void ParNCMesh::MakeShared
 {
    shared.Clear();
 
-   for (int i = 0; i < list.conforming.size(); i++)
+   for (unsigned i = 0; i < list.conforming.size(); i++)
       if (is_shared(groups, list.conforming[i].index, MyRank))
          shared.conforming.push_back(list.conforming[i]);
 
-   for (int i = 0; i < list.masters.size(); i++)
+   for (unsigned i = 0; i < list.masters.size(); i++)
    {
       const Master& master = list.masters[i];
       if (is_shared(groups, master.index, MyRank))
@@ -296,7 +296,7 @@ void ParNCMesh::BuildSharedVertices()
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* elem = leaf_elements[i];
-      for (int j = 0; j < GI[elem->geom].nv; j++)
+      for (int j = 0; j < GI[(int) elem->geom].nv; j++)
       {
          Node* node = elem->node[j];
          int index = node->vertex->index;
@@ -550,7 +550,7 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const
          id.local = read<char>(is);
 
          // find vertex/edge/face index
-         GeomInfo &gi = GI[elem->geom];
+         GeomInfo &gi = GI[(int) elem->geom];
          switch (type)
          {
             case 0:
@@ -610,7 +610,7 @@ void NeighborDofMessage::ReorderEdgeDofs
    // Reorder the DOFs into/from a neutral ordering, independent of local
    // edge orientation.
 
-   const int *ev = NCMesh::GI[id.element->geom].edges[id.local];
+   const int *ev = NCMesh::GI[(int) id.element->geom].edges[id.local];
    int v0 = id.element->node[ev[0]]->vertex->index;
    int v1 = id.element->node[ev[1]]->vertex->index;
 
@@ -751,7 +751,7 @@ void NeighborRowReply::Encode()
    {
       write<int>(stream, it->first); // row number
       Row& row_data = it->second;
-      MFEM_ASSERT(row_data.cols.size() == row_data.srow.Size(), "");
+      MFEM_ASSERT((int) row_data.cols.size() == row_data.srow.Size(), "");
       write_dofs(stream, row_data.cols);
       stream.write((const char*) row_data.srow.GetData(),
                    sizeof(double) * row_data.srow.Size());

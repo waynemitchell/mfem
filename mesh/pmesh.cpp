@@ -2565,17 +2565,17 @@ void ParMesh::Print(std::ostream &out) const
       {
          // get a list of all shared non-ghost faces
          const NCMesh::NCList& sfaces = pncmesh->GetSharedFaces();
-         for (int i = 0; i < sfaces.conforming.size(); i++)
+         for (unsigned i = 0; i < sfaces.conforming.size(); i++)
          {
             int index = sfaces.conforming[i].index;
             if (index < GetNFaces()) nc_shared_faces.Append(index);
          }
-         for (int i = 0; i < sfaces.masters.size(); i++)
+         for (unsigned i = 0; i < sfaces.masters.size(); i++)
          {
             int index = sfaces.masters[i].index;
             if (index < GetNFaces()) nc_shared_faces.Append(index);
          }
-         for (int i = 0; i < sfaces.slaves.size(); i++)
+         for (unsigned i = 0; i < sfaces.slaves.size(); i++)
          {
             int index = sfaces.slaves[i].index;
             if (index < GetNFaces()) nc_shared_faces.Append(index);

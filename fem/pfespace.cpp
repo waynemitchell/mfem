@@ -1047,7 +1047,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       DenseMatrix I(fe->GetDof());
 
       // process masters that we own or that affect our edges/faces
-      for (int mi = 0; mi < list.masters.size(); mi++)
+      for (unsigned mi = 0; mi < list.masters.size(); mi++)
       {
          const NCMesh::Master &mf = list.masters[mi];
          if (!pncmesh->RankInGroup(type, mf.index, MyRank)) continue;
@@ -1092,7 +1092,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    for (int type = 0; type < 3; type++)
    {
       const NCMesh::NCList &list = pncmesh->GetSharedList(type);
-      for (int i = 0; i < list.conforming.size(); i++)
+      for (unsigned i = 0; i < list.conforming.size(); i++)
       {
          const NCMesh::MeshId &id = list.conforming[i];
          GetDofs(type, id.index, my_dofs);
@@ -1266,7 +1266,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    // make sure we can discard all send buffers
    NeighborDofMessage::WaitAllSent(send_dofs);
    NeighborRowRequest::WaitAllSent(send_requests);
-   for (int i = 0; i < send_replies.size(); i++)
+   for (unsigned i = 0; i < send_replies.size(); i++)
       NeighborRowReply::WaitAllSent(send_replies[i]);
 
    ldof_sign.SetSize(num_cdofs);

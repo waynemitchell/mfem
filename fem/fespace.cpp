@@ -609,7 +609,7 @@ void FiniteElementSpace::GetConformingInterpolation()
       DenseMatrix I(fe->GetDof());
 
       // loop through all master edges/faces, constrain their slave edges/faces
-      for (int mi = 0; mi < list.masters.size(); mi++)
+      for (unsigned mi = 0; mi < list.masters.size(); mi++)
       {
          const NCMesh::Master &master = list.masters[mi];
          GetEdgeFaceDofs(type, master.index, master_dofs);

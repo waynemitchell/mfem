@@ -108,7 +108,7 @@ public:
       {
          case 0: return index >= NVertices;
          case 1: return index >= NEdges;
-         case 2: return index >= NFaces;
+         default: return index >= NFaces;
       }
    }
 

@@ -143,7 +143,7 @@ NCMesh::Element* NCMesh::CopyHierarchy(Element* elem)
    }
    else
    {
-      GeomInfo& gi = GI[elem->geom];
+      GeomInfo& gi = GI[(int) elem->geom];
       for (int i = 0; i < gi.nv; i++)
          new_elem->node[i] = nodes.Peek(elem->node[i]->id);
 
@@ -232,7 +232,7 @@ NCMesh::Node::~Node()
 void NCMesh::RefElementNodes(Element *elem)
 {
    Node** node = elem->node;
-   GeomInfo& gi = GI[elem->geom];
+   GeomInfo& gi = GI[(int) elem->geom];
 
    // ref all vertices
    for (int i = 0; i < gi.nv; i++)
@@ -258,7 +258,7 @@ void NCMesh::RefElementNodes(Element *elem)
 void NCMesh::UnrefElementNodes(Element *elem)
 {
    Node** node = elem->node;
-   GeomInfo& gi = GI[elem->geom];
+   GeomInfo& gi = GI[(int) elem->geom];
 
    // unref all faces (possibly destroying them)
    for (int i = 0; i < gi.nf; i++)
@@ -317,7 +317,7 @@ void NCMesh::Face::ForgetElement(Element* e)
 void NCMesh::RegisterFaces(Element* elem)
 {
    Node** node = elem->node;
-   GeomInfo& gi = GI[elem->geom];
+   GeomInfo& gi = GI[(int) elem->geom];
 
    for (int i = 0; i < gi.nf; i++)
    {
@@ -1165,7 +1165,7 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
       if (nc_elem->Ghost()) continue; // ParNCMesh
 
       Node** node = nc_elem->node;
-      GeomInfo& gi = GI[nc_elem->geom];
+      GeomInfo& gi = GI[(int) nc_elem->geom];
 
       mfem::Element* elem = NULL;
       switch (nc_elem->geom)
@@ -1397,7 +1397,7 @@ void NCMesh::BuildFaceList()
       Element* elem = leaf_elements[i];
       MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
 
-      GeomInfo& gi = GI[elem->geom];
+      GeomInfo& gi = GI[(int) elem->geom];
       for (int j = 0; j < gi.nf; j++)
       {
          // get nodes for this face
@@ -1488,7 +1488,7 @@ void NCMesh::BuildEdgeList()
       Element* elem = leaf_elements[i];
       MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
 
-      GeomInfo& gi = GI[elem->geom];
+      GeomInfo& gi = GI[(int) elem->geom];
       for (int j = 0; j < gi.ne; j++)
       {
          // get nodes for this edge
@@ -1917,7 +1917,7 @@ static int max4(int a, int b, int c, int d)
 void NCMesh::CountSplits(Element* elem, int splits[3])
 {
    Node** node = elem->node;
-   GeomInfo& gi = GI[elem->geom];
+   GeomInfo& gi = GI[(int) elem->geom];
 
    MFEM_ASSERT(elem->geom == Geometry::CUBE, "TODO");
    // TODO: triangles and quads
