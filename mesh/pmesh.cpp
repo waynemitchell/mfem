@@ -2609,7 +2609,7 @@ void ParMesh::Print(std::ostream &out) const
 
    int num_bdr_elems = NumOfBdrElements;
    if (print_shared && Dim > 1)
-      num_bdr_elems += s2l_face.Size();
+      num_bdr_elems += s2l_face->Size();
    out << "\nboundary\n" << num_bdr_elems << '\n';
    for (i = 0; i < NumOfBdrElements; i++)
       PrintElement(boundary[i], out);

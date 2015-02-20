@@ -1,7 +1,7 @@
 #ifndef MFEM_PNCMESH
 #define MFEM_PNCMESH
 
-#include "../config.hpp"
+#include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
 
