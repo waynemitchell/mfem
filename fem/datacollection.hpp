@@ -66,6 +66,9 @@ protected:
    /// Delete data owned by the DataCollection including field information
    void DeleteAll();
 
+   // Save one field to disk, assuming the collection directory exists
+   void SaveOneField(const std::map<std::string,GridFunction*>::iterator &it);
+
 public:
    /// Initialize the collection with its name and Mesh.
    DataCollection(const char *collection_name, Mesh *_mesh);
@@ -79,6 +82,8 @@ public:
 
    /// Get a pointer to the mesh in the collection
    Mesh *GetMesh() { return mesh; }
+   /// Set/change the mesh associated with the collection
+   virtual void SetMesh(Mesh *new_mesh);
 
    /// Set time cycle (for time-dependent simulations)
    void SetCycle(int c) { cycle = c; }
@@ -101,6 +106,10 @@ public:
        directory with name "collection_name" or "collection_name_cycle" for
        time-dependent simulations. */
    virtual void Save();
+   /// Save the mesh, creating the collection directory.
+   virtual void SaveMesh();
+   /// Save one filed, assuming the collection directory already exists.
+   virtual void SaveField(const char *field_name);
 
    /// Delete the mesh and fields if owned by the collection
    virtual ~DataCollection();
@@ -153,6 +162,9 @@ public:
    /// Initialize the collection with its mesh, fill-in the extra VisIt data
    VisItDataCollection(const char *collection_name, Mesh *_mesh);
 
+   /// Set/change the mesh associated with the collection
+   virtual void SetMesh(Mesh *new_mesh);
+
    /// Add a grid function to the collection and update the root file
    virtual void RegisterField(const char *field_name, GridFunction *gf);
 
@@ -165,6 +177,9 @@ public:
 
    /// Save the collection and a VisIt root file
    virtual void Save();
+
+   /// Save a VisIt root file for the collection
+   void SaveRootFile();
 
    /// Load the collection based on its VisIt data (described in its root file)
    void Load(int _cycle = 0);
