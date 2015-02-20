@@ -983,6 +983,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
+   ldof_sign.SetSize(GetNDofs());
+   ldof_sign = 1;
+
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
    NeighborDofMessage::Map send_dofs, recv_dofs;
@@ -1152,6 +1155,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    std::cout << MyRank << ": true dofs = " << ltdof_size << std::endl;
 
+   if (HYPRE_AssumedPartitionCheck())
+      MFEM_ABORT("hypre assumed partition not implemented yet.");
+
    // FIXME: vdim
    GenerateGlobalOffsets();
    int glob_true_dofs = tdof_offsets[NRanks];
@@ -1268,9 +1274,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    NeighborRowRequest::WaitAllSent(send_requests);
    for (unsigned i = 0; i < send_replies.size(); i++)
       NeighborRowReply::WaitAllSent(send_replies[i]);
-
-   ldof_sign.SetSize(num_cdofs);
-   ldof_sign = 1;
 
    std::cout << "P done.\n";
 }

@@ -226,6 +226,8 @@ TODO
 + shared face orientation
 + shared edge orientation
 + outer loop
+- assumed partition
+- nonzero essential BC
 */
 
 

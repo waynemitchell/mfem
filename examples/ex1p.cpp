@@ -123,8 +123,8 @@ int main(int argc, char *argv[])
       Array<Refinement> refs;
       refs.Append(Refinement(0, 1));
       mesh->GeneralRefinement(refs, 1);
-   }*/
-   /*{
+   }
+   {
       Array<Refinement> refs;
       refs.Append(Refinement(0, 2));
       refs.Append(Refinement(1, 4));
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
       mesh->UniformRefinement();*/
 
    srand(0);
-   for (int i = 0; i < 4; i++)
+   for (int i = 0; i < 3; i++)
    {
       Array<Refinement> refs;
       int types[] = { 1, 2, 3, 4, 5, 6, 7, 7, 7 };
