@@ -23,6 +23,7 @@ MFEM makefile targets:
    make install
    make clean
    make distclean
+   make style
 
 Examples:
 
@@ -47,6 +48,8 @@ make clean
    Clean the library and object files, but keep configuration.
 make distclean
    Clean the library, object files and configuration.
+make style
+   Format the MFEM C++ source files using Artistic Style (astyle).
 
 endef
 
@@ -67,7 +70,8 @@ mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 $(call mfem-info, MAKECMDGOALS = $(MAKECMDGOALS))
 
 # Include $(CONFIG_MK) unless some of the $(SKIP_INCLUDE_TARGETS) are given
-SKIP_INCLUDE_TARGETS = help config clean distclean serial parallel debug pdebug
+SKIP_INCLUDE_TARGETS = help config clean distclean serial parallel debug pdebug\
+ style
 HAVE_SKIP_INCLUDE_TARGET = $(filter $(SKIP_INCLUDE_TARGETS),$(MAKECMDGOALS))
 ifeq (,$(HAVE_SKIP_INCLUDE_TARGET))
    $(call mfem-info, Including $(CONFIG_MK))
@@ -234,7 +238,7 @@ SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .PHONY: all clean distclean install config status info deps serial parallel\
- debug pdebug
+ debug pdebug style
 
 .SUFFIXES: .cpp .o
 .cpp.o:
@@ -332,3 +336,11 @@ status info:
 	$(info MFEM_INC_DIR         = $(value MFEM_INC_DIR))
 	$(info MFEM_LIB_DIR         = $(value MFEM_LIB_DIR))
 	@true
+
+ASTYLE = astyle --options=config/mfem.astylerc
+FORMAT_FILES = $(foreach dir,$(DIRS) examples,"$(dir)/*.?pp")
+
+style:
+	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\
+	   echo "No source files were changed.";\
+	fi

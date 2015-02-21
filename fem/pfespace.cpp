@@ -112,7 +112,9 @@ void ParFiniteElementSpace::GetGroupComm(
       group_ldof_counter += nfd * pmesh->GroupNFaces(gr);
    }
    if (ldof_type)
+   {
       group_ldof_counter *= vdim;
+   }
    // allocate the I and J arrays in group_ldof
    group_ldof.SetDims(ng, group_ldof_counter);
 
@@ -137,13 +139,19 @@ void ParFiniteElementSpace::GetGroupComm(
             dofs.SetSize(nvd);
             m = nvd * k;
             for (l = 0; l < nvd; l++, m++)
+            {
                dofs[l] = m;
+            }
 
             if (ldof_type)
+            {
                DofsToVDofs(dofs);
+            }
 
             for (l = 0; l < dofs.Size(); l++)
+            {
                group_ldof.GetJ()[group_ldof_counter++] = dofs[l];
+            }
          }
 
       // edges
@@ -160,16 +168,24 @@ void ParFiniteElementSpace::GetGroupComm(
                {
                   dofs[l] = m + (-1-ind[l]);
                   if (ldof_sign)
+                  {
                      (*ldof_sign)[dofs[l]] = -1;
+                  }
                }
                else
+               {
                   dofs[l] = m + ind[l];
+               }
 
             if (ldof_type)
+            {
                DofsToVDofs(dofs);
+            }
 
             for (l = 0; l < dofs.Size(); l++)
+            {
                group_ldof.GetJ()[group_ldof_counter++] = dofs[l];
+            }
          }
 
       // faces
@@ -181,22 +197,30 @@ void ParFiniteElementSpace::GetGroupComm(
             dofs.SetSize(nfd);
             m = nvdofs+nedofs+fdofs[k];
             ind = fec->DofOrderForOrientation(
-               mesh->GetFaceBaseGeometry(k), o);
+                     mesh->GetFaceBaseGeometry(k), o);
             for (l = 0; l < nfd; l++)
                if (ind[l] < 0)
                {
                   dofs[l] = m + (-1-ind[l]);
                   if (ldof_sign)
+                  {
                      (*ldof_sign)[dofs[l]] = -1;
+                  }
                }
                else
+               {
                   dofs[l] = m + ind[l];
+               }
 
             if (ldof_type)
+            {
                DofsToVDofs(dofs);
+            }
 
             for (l = 0; l < dofs.Size(); l++)
+            {
                group_ldof.GetJ()[group_ldof_counter++] = dofs[l];
+            }
          }
 
       group_ldof.GetI()[gr+1] = group_ldof_counter;
@@ -211,12 +235,16 @@ void ParFiniteElementSpace::ApplyLDofSigns(Array<int> &dofs) const
       if (dofs[i] < 0)
       {
          if (ldof_sign[-1-dofs[i]] < 0)
+         {
             dofs[i] = -1-dofs[i];
+         }
       }
       else
       {
          if (ldof_sign[dofs[i]] < 0)
+         {
             dofs[i] = -1-dofs[i];
+         }
       }
 }
 
@@ -317,7 +345,9 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
    int  i;
 
    if (P)
+   {
       return P;
+   }
 
    int  ldof = GetVSize();
    int  ltdof = TrueVSize();
@@ -386,9 +416,12 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       {
          if (HYPRE_AssumedPartitionCheck())
             cmap_j_offd[offd_counter].one =
-               tdof_nb_offsets[gt.GetGroupMaster(ldof_group[i])] + ldof_ltdof[i];
+               tdof_nb_offsets[gt.GetGroupMaster(ldof_group[i])] +
+               ldof_ltdof[i];
          else
+         {
             cmap_j_offd[offd_counter].one = col_starts[proc] + ldof_ltdof[i];
+         }
          cmap_j_offd[offd_counter].two = offd_counter;
          offd_counter++;
       }
@@ -416,23 +449,31 @@ void ParFiniteElementSpace::DivideByGroupSize(double *vec)
 
    for (int i = 0; i < ldof_group.Size(); i++)
       if (gt.IAmMaster(ldof_group[i])) // we are the master
+      {
          vec[ldof_ltdof[i]] /= gt.GetGroupSize(ldof_group[i]);
+      }
 }
 
 GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 {
    GroupCommunicator *gc = new GroupCommunicator(GetGroupTopo());
    if (NURBSext)
+   {
       gc->Create(pNURBSext()->ldof_group);
+   }
    else
+   {
       GetGroupComm(*gc, 0);
+   }
    return gc;
 }
 
 void ParFiniteElementSpace::Synchronize(Array<int> &ldof_marker) const
 {
    if (ldof_marker.Size() != GetVSize())
+   {
       mfem_error("ParFiniteElementSpace::Synchronize");
+   }
 
    // implement allreduce(|) as reduce(|) + broadcast
    gcomm->Reduce<int>(ldof_marker, GroupCommunicator::BitOR);
@@ -452,9 +493,13 @@ void ParFiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
 int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
 {
    if (GetGroupTopo().IAmMaster(ldof_group[ldof]))
+   {
       return ldof_ltdof[ldof];
+   }
    else
+   {
       return -1;
+   }
 }
 
 int ParFiniteElementSpace::GetGlobalTDofNumber(int ldof)
@@ -462,13 +507,15 @@ int ParFiniteElementSpace::GetGlobalTDofNumber(int ldof)
    if (HYPRE_AssumedPartitionCheck())
    {
       if (!P)
+      {
          Dof_TrueDof_Matrix();
+      }
       return ldof_ltdof[ldof] +
-         tdof_nb_offsets[GetGroupTopo().GetGroupMaster(ldof_group[ldof])];
+             tdof_nb_offsets[GetGroupTopo().GetGroupMaster(ldof_group[ldof])];
    }
 
    return ldof_ltdof[ldof] +
-      tdof_offsets[GetGroupTopo().GetGroupMasterRank(ldof_group[ldof])];
+          tdof_offsets[GetGroupTopo().GetGroupMasterRank(ldof_group[ldof])];
 }
 
 int ParFiniteElementSpace::GetGlobalScalarTDofNumber(int sldof)
@@ -476,39 +523,47 @@ int ParFiniteElementSpace::GetGlobalScalarTDofNumber(int sldof)
    if (HYPRE_AssumedPartitionCheck())
    {
       if (!P)
+      {
          Dof_TrueDof_Matrix();
+      }
       if (ordering == Ordering::byNODES)
          return ldof_ltdof[sldof] +
-            tdof_nb_offsets[GetGroupTopo().GetGroupMaster(
-               ldof_group[sldof])] / vdim;
+                tdof_nb_offsets[GetGroupTopo().GetGroupMaster(
+                                   ldof_group[sldof])] / vdim;
       else
          return (ldof_ltdof[sldof*vdim] +
                  tdof_nb_offsets[GetGroupTopo().GetGroupMaster(
-                       ldof_group[sldof*vdim])]) / vdim;
+                                    ldof_group[sldof*vdim])]) / vdim;
    }
 
    if (ordering == Ordering::byNODES)
       return ldof_ltdof[sldof] +
-         tdof_offsets[GetGroupTopo().GetGroupMasterRank(
-            ldof_group[sldof])] / vdim;
+             tdof_offsets[GetGroupTopo().GetGroupMasterRank(
+                             ldof_group[sldof])] / vdim;
    else
       return (ldof_ltdof[sldof*vdim] +
               tdof_offsets[GetGroupTopo().GetGroupMasterRank(
-                    ldof_group[sldof*vdim])]) / vdim;
+                              ldof_group[sldof*vdim])]) / vdim;
 }
 
 int ParFiniteElementSpace::GetMyDofOffset()
 {
    if (HYPRE_AssumedPartitionCheck())
+   {
       return dof_offsets[0];
+   }
    else
+   {
       return dof_offsets[MyRank];
+   }
 }
 
 void ParFiniteElementSpace::ExchangeFaceNbrData()
 {
    if (num_face_nbr_dofs >= 0)
+   {
       return;
+   }
 
    pmesh->ExchangeFaceNbrData();
 
@@ -623,10 +678,14 @@ void ParFiniteElementSpace::ExchangeFaceNbrData()
       int  j_end     = send_I[send_el_off[fn+1]];
 
       for (int i = 0; i < num_ldofs; i++)
+      {
          ldof_marker[ldofs[i]] = i;
+      }
 
       for ( ; j < j_end; j++)
+      {
          send_J[j] = ldof_marker[send_J[j]];
+      }
    }
 
    MPI_Waitall(num_face_nbrs, recv_requests, statuses);
@@ -659,7 +718,9 @@ void ParFiniteElementSpace::ExchangeFaceNbrData()
       int j_end = recv_I[recv_el_off[fn+1]];
 
       for ( ; j < j_end; j++)
+      {
          recv_J[j] += shift;
+      }
    }
 
    MPI_Waitall(num_face_nbrs, send_requests, statuses);
@@ -671,7 +732,9 @@ void ParFiniteElementSpace::ExchangeFaceNbrData()
    int my_dof_offset = GetMyDofOffset();
    int tot_send_dofs = send_face_nbr_ldof.Size_of_connections();
    for (int i = 0; i < tot_send_dofs; i++)
+   {
       send_J[i] += my_dof_offset;
+   }
    for (int fn = 0; fn < num_face_nbrs; fn++)
    {
       int nbr_rank = pmesh->GetFaceNbrRank(fn);
@@ -690,7 +753,9 @@ void ParFiniteElementSpace::ExchangeFaceNbrData()
 
    // switch back to local dof numbers
    for (int i = 0; i < tot_send_dofs; i++)
+   {
       send_J[i] -= my_dof_offset;
+   }
 
    MPI_Waitall(num_face_nbrs, recv_requests, statuses);
 
@@ -749,18 +814,24 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       const int *ldofs = group_ldof.GetRow(gr);
       const int nldofs = group_ldof.RowSize(gr);
       for (i = 0; i < nldofs; i++)
+      {
          ldof_group[ldofs[i]] = gr;
+      }
 
       if (!gt.IAmMaster(gr)) // we are not the master
          for (i = 0; i < nldofs; i++)
+         {
             ldof_ltdof[ldofs[i]] = -2;
+         }
    }
 
    // count ltdof_size
    ltdof_size = 0;
    for (i = 0; i < n; i++)
       if (ldof_ltdof[i] == -1)
+      {
          ldof_ltdof[i] = ltdof_size++;
+      }
 
    // have the group masters broadcast their ltdofs to the rest of the group
    gcomm->Bcast(ldof_ltdof);
@@ -782,7 +853,9 @@ void ParFiniteElementSpace::ConstructTrueNURBSDofs()
       const int *scalar_ldof_group = pNURBSext()->ldof_group;
       ldof_group.SetSize(n);
       for (int i = 0; i < n; i++)
+      {
          ldof_group[i] = scalar_ldof_group[VDofToDof(i)];
+      }
    }
 
    gcomm->Create(ldof_group);

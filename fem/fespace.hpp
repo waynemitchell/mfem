@@ -39,7 +39,8 @@ public:
 typedef int RefinementType;
 
 /// Data kept for every type of refinement
-class RefinementData {
+class RefinementData
+{
 public:
    /// Refinement type
    RefinementType type;

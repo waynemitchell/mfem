@@ -97,7 +97,7 @@ public:
                                    const FiniteElement &el2,
                                    FaceElementTransformations &Trans,
                                    DenseMatrix &elmat);
-   virtual ~TransposeIntegrator() { if (own_bfi) delete bfi; }
+   virtual ~TransposeIntegrator() { if (own_bfi) { delete bfi; } }
 };
 
 class LumpedIntegrator : public BilinearFormIntegrator
@@ -114,7 +114,7 @@ public:
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
 
-   virtual ~LumpedIntegrator() { if (own_bfi) delete bfi; }
+   virtual ~LumpedIntegrator() { if (own_bfi) { delete bfi; } }
 };
 
 /// Integrator that inverts the matrix assembled by another integrator.
@@ -132,7 +132,7 @@ public:
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
 
-   virtual ~InverseIntegrator() { if (own_integrator) delete integrator; }
+   virtual ~InverseIntegrator() { if (own_integrator) { delete integrator; } }
 };
 
 /// Integrator defining a sum of multiple Integrators.

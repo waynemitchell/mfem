@@ -66,7 +66,7 @@ protected:
    /// Delete data owned by the DataCollection including field information
    void DeleteAll();
 
-   // Save one field to disk, assuming the collection directory exists
+   /// Save one field to disk, assuming the collection directory exists
    void SaveOneField(const std::map<std::string,GridFunction*>::iterator &it);
 
 public:
@@ -108,7 +108,7 @@ public:
    virtual void Save();
    /// Save the mesh, creating the collection directory.
    virtual void SaveMesh();
-   /// Save one filed, assuming the collection directory already exists.
+   /// Save one field, assuming the collection directory already exists.
    virtual void SaveField(const char *field_name);
 
    /// Delete the mesh and fields if owned by the collection

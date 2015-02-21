@@ -119,9 +119,9 @@ void LinearForm::Update(FiniteElementSpace *f, Vector &v, int v_offset)
 LinearForm::~LinearForm()
 {
    int k;
-   for (k=0; k < dlfi.Size(); k++) delete dlfi[k];
-   for (k=0; k < blfi.Size(); k++) delete blfi[k];
-   for (k=0; k < flfi.Size(); k++) delete flfi[k];
+   for (k=0; k < dlfi.Size(); k++) { delete dlfi[k]; }
+   for (k=0; k < blfi.Size(); k++) { delete blfi[k]; }
+   for (k=0; k < flfi.Size(); k++) { delete flfi[k]; }
 }
 
 }

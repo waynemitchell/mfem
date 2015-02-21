@@ -88,7 +88,9 @@ int main(int argc, char *argv[])
       int ref_levels =
          (int)floor(log(25000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
+      {
          mesh->UniformRefinement();
+      }
    }
 
    // 4. Define a finite element space on the mesh. Here we use the lowest order
@@ -200,7 +202,9 @@ void F_exact(const Vector &p, Vector &F)
    F(0) = cos(M_PI*x)*sin(M_PI*y);
    F(1) = cos(M_PI*y)*sin(M_PI*x);
    if (dim == 3)
+   {
       F(2) = 0.0;
+   }
 }
 
 // The right hand side
@@ -217,5 +221,7 @@ void f_exact(const Vector &p, Vector &f)
    f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
    f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
    if (dim == 3)
+   {
       f(2) = 0;
+   }
 }

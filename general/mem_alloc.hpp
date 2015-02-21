@@ -47,9 +47,13 @@ void Stack <Elem, Num>::Push (Elem E)
    if (UsedInTop == Num)
    {
       if (TopFreePart == NULL)
+      {
          aux = new StackPart <Elem, Num>;
+      }
       else
+      {
          TopFreePart = (aux = TopFreePart)->Prev;
+      }
       aux->Prev = TopPart;
       TopPart = aux;
       UsedInTop = 0;
@@ -120,7 +124,9 @@ Elem *MemAlloc <Elem, Num>::Alloc()
 {
    MemAllocNode <Elem, Num> *aux;
    if (UsedMem.Size() > 0)
+   {
       return UsedMem.Pop();
+   }
    if (AllocatedInLast == Num)
    {
       aux = Last;

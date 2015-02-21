@@ -48,10 +48,10 @@ public:
 
    virtual int GetNVertices() const { return 4; }
 
-   virtual int GetNEdges() const { return(4); }
+   virtual int GetNEdges() const { return (4); }
 
    virtual const int *GetEdgeVertices(int ei) const
-   { return(edges[ei]); }
+   { return (edges[ei]); }
 
    virtual int GetNFaces(int &nFaceVertices) const
    { nFaceVertices = 0; return 0; }

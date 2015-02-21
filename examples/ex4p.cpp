@@ -68,12 +68,16 @@ int main(int argc, char *argv[])
    if (!args.Good())
    {
       if (myid == 0)
+      {
          args.PrintUsage(cout);
+      }
       MPI_Finalize();
       return 1;
    }
    if (myid == 0)
+   {
       args.PrintOptions(cout);
+   }
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -83,7 +87,9 @@ int main(int argc, char *argv[])
    if (!imesh)
    {
       if (myid == 0)
+      {
          cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      }
       MPI_Finalize();
       return 2;
    }
@@ -99,7 +105,9 @@ int main(int argc, char *argv[])
       int ref_levels =
          (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
+      {
          mesh->UniformRefinement();
+      }
    }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -112,7 +120,9 @@ int main(int argc, char *argv[])
    {
       int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
+      {
          pmesh->UniformRefinement();
+      }
    }
    pmesh->ReorientTetMesh();
 
@@ -123,7 +133,9 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    int size = fespace->GlobalTrueVSize();
    if (myid == 0)
+   {
       cout << "Number of unknowns: " << size << endl;
+   }
 
    // 7. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
@@ -180,9 +192,13 @@ int main(int argc, char *argv[])
    //     3D ADS preconditioners from hypre.
    HypreSolver *prec;
    if (dim == 2)
+   {
       prec = new HypreAMS(*A, fespace);
+   }
    else
+   {
       prec = new HypreADS(*A, fespace);
+   }
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-10);
    pcg->SetMaxIter(500);
@@ -198,7 +214,9 @@ int main(int argc, char *argv[])
    {
       double err = x.ComputeL2Error(F);
       if (myid == 0)
+      {
          cout << "\n|| F_h - F ||_{L^2} = " << err << '\n' << endl;
+      }
    }
 
    // 14. Save the refined mesh and the solution in parallel. This output can
@@ -256,7 +274,9 @@ void F_exact(const Vector &p, Vector &F)
    F(0) = cos(M_PI*x)*sin(M_PI*y);
    F(1) = cos(M_PI*y)*sin(M_PI*x);
    if (dim == 3)
+   {
       F(2) = 0.0;
+   }
 }
 
 // The right hand side
@@ -273,5 +293,7 @@ void f_exact(const Vector &p, Vector &f)
    f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
    f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
    if (dim == 3)
+   {
       f(2) = 0;
+   }
 }

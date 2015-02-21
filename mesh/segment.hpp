@@ -47,7 +47,7 @@ public:
 
    virtual int GetNVertices() const { return 2; }
 
-   virtual int GetNEdges() const { return(0); }
+   virtual int GetNEdges() const { return (0); }
 
    virtual const int *GetEdgeVertices(int ei) const { return NULL; }
 
