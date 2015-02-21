@@ -32,12 +32,16 @@ void Operator::PrintMatlab (std::ostream & out, int n, int m)
    for (i = 0; i < n; i++)
    {
       if (i != 0)
-      { x(i-1) = 0.0; }
+      {
+         x(i-1) = 0.0;
+      }
       x(i) = 1.0;
       Mult(x,y);
       for (j = 0; j < m; j++)
          if (y(j))
-         { out << j+1 << " " << i+1 << " " << y(j) << '\n'; }
+         {
+            out << j+1 << " " << i+1 << " " << y(j) << '\n';
+         }
    }
 }
 

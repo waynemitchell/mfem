@@ -69,7 +69,10 @@ public:
    { data = d; size = s; allocsize = -s; }
 
    void NewDataAndSize(double *d, int s)
-   { if (allocsize > 0) { delete [] data; } SetDataAndSize(d, s); }
+   {
+      if (allocsize > 0) { delete [] data; }
+      SetDataAndSize(d, s);
+   }
 
    void MakeDataOwner() { allocsize = abs(allocsize); }
 
@@ -254,14 +257,18 @@ inline Vector::Vector (int s)
 inline void Vector::SetSize(int s)
 {
    if (s == size)
-   { return; }
+   {
+      return;
+   }
    if (s <= abs(allocsize))
    {
       size = s;
       return;
    }
    if (allocsize > 0)
-   { delete [] data; }
+   {
+      delete [] data;
+   }
    allocsize = size = s;
    data = new double[s];
 }
@@ -269,7 +276,9 @@ inline void Vector::SetSize(int s)
 inline void Vector::Destroy()
 {
    if (allocsize > 0)
-   { delete [] data; }
+   {
+      delete [] data;
+   }
    allocsize = size = 0;
    data = NULL;
 }
@@ -306,7 +315,9 @@ template<> inline void Swap<Vector>(Vector &a, Vector &b)
 inline Vector::~Vector()
 {
    if (allocsize > 0)
-   { delete [] data; }
+   {
+      delete [] data;
+   }
 }
 
 inline double Distance(const double *x, const double *y, const int n)
@@ -315,7 +326,9 @@ inline double Distance(const double *x, const double *y, const int n)
    double d = 0.0;
 
    for (int i = 0; i < n; i++)
-   { d += (x[i]-y[i])*(x[i]-y[i]); }
+   {
+      d += (x[i]-y[i])*(x[i]-y[i]);
+   }
 
    return sqrt(d);
 }

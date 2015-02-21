@@ -87,7 +87,9 @@ int main(int argc, char *argv[])
       int ref_levels =
          (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
-      { mesh->UniformRefinement(); }
+      {
+         mesh->UniformRefinement();
+      }
    }
 
    // 4. Define a finite element space on the mesh. Here we use the
@@ -180,7 +182,9 @@ int main(int argc, char *argv[])
    Vector Md(M.Height());
    M.GetDiag(Md);
    for (int i = 0; i < Md.Size(); i++)
-   { MinvBt->ScaleRow(i, 1./Md(i)); }
+   {
+      MinvBt->ScaleRow(i, 1./Md(i));
+   }
    SparseMatrix *S = Mult(B, *MinvBt);
 
    Solver *invM, *invS;
@@ -233,7 +237,9 @@ int main(int argc, char *argv[])
    int order_quad = max(2, 2*order+1);
    const IntegrationRule *irs[Geometry::NumGeom];
    for (int i=0; i < Geometry::NumGeom; ++i)
-   { irs[i] = &(IntRules.Get(i, order_quad)); }
+   {
+      irs[i] = &(IntRules.Get(i, order_quad));
+   }
 
    double err_u  = u.ComputeL2Error(ucoeff, irs);
    double norm_u = ComputeLpNorm(2., ucoeff, *mesh, irs);
@@ -305,13 +311,17 @@ void uFun_ex(const Vector & x, Vector & u)
    double yi(x(1));
    double zi(0.0);
    if (x.Size() == 3)
-   { zi = x(2); }
+   {
+      zi = x(2);
+   }
 
    u(0) = - exp(xi)*sin(yi)*cos(zi);
    u(1) = - exp(xi)*cos(yi)*cos(zi);
 
    if (x.Size() == 3)
-   { u(2) = exp(xi)*sin(yi)*sin(zi); }
+   {
+      u(2) = exp(xi)*sin(yi)*sin(zi);
+   }
 }
 
 // Change if needed
@@ -322,7 +332,9 @@ double pFun_ex(Vector & x)
    double zi(0.0);
 
    if (x.Size() == 3)
-   { zi = x(2); }
+   {
+      zi = x(2);
+   }
 
    return exp(xi)*sin(yi)*cos(zi);
 }
@@ -335,9 +347,13 @@ void fFun(const Vector & x, Vector & f)
 double gFun(Vector & x)
 {
    if (x.Size() == 3)
-   { return -pFun_ex(x); }
+   {
+      return -pFun_ex(x);
+   }
    else
-   { return 0; }
+   {
+      return 0;
+   }
 }
 
 double f_natural(Vector & x)

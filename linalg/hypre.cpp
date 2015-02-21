@@ -72,9 +72,13 @@ HypreParVector::HypreParVector(const HypreParVector &y) : Vector()
 HypreParVector::HypreParVector(HypreParMatrix &A, int tr) : Vector()
 {
    if (!tr)
-   { x = hypre_ParVectorInDomainOf(A); }
+   {
+      x = hypre_ParVectorInDomainOf(A);
+   }
    else
-   { x = hypre_ParVectorInRangeOf(A); }
+   {
+      x = hypre_ParVectorInRangeOf(A);
+   }
    SetDataAndSize(hypre_VectorData(hypre_ParVectorLocalVector(x)),
                   hypre_VectorSize(hypre_ParVectorLocalVector(x)));
    own_ParVector = 1;
@@ -134,11 +138,15 @@ HypreParVector& HypreParVector::operator=(const HypreParVector &y)
 {
 #ifdef MFEM_DEBUG
    if (size != y.Size())
-   { mfem_error("HypreParVector::operator="); }
+   {
+      mfem_error("HypreParVector::operator=");
+   }
 #endif
 
    for (int i = 0; i < size; i++)
-   { data[i] = y.data[i]; }
+   {
+      data[i] = y.data[i];
+   }
    return *this;
 }
 
@@ -160,7 +168,9 @@ void HypreParVector::Print(const char *fname)
 HypreParVector::~HypreParVector()
 {
    if (own_ParVector)
-   { hypre_ParVectorDestroy(x); }
+   {
+      hypre_ParVectorDestroy(x);
+   }
 }
 
 
@@ -248,7 +258,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
 
    /* Make sure that the first entry in each row is the diagonal one. */
    if (row_starts == col_starts)
-   { hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A)); }
+   {
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+   }
 
    hypre_MatvecCommPkgCreate(A);
 }
@@ -294,7 +306,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
 
    /* Make sure that the first entry in each row is the diagonal one. */
    if (row_starts == col_starts)
-   { hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A)); }
+   {
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+   }
 
    hypre_MatvecCommPkgCreate(A);
 }
@@ -329,7 +343,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
 
    /* Make sure that the first entry in each row is the diagonal one. */
    if (row_starts == col_starts)
-   { hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A)); }
+   {
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+   }
 
    hypre_MatvecCommPkgCreate(A);
 }
@@ -352,7 +368,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
    hypre_CSRMatrixJ(A->diag)    = diag->GetJ();
    hypre_CSRMatrixData(A->diag) = new double[nnz];
    for (int k = 0; k < nnz; k++)
-   { (hypre_CSRMatrixData(A->diag))[k] = 1.0; }
+   {
+      (hypre_CSRMatrixData(A->diag))[k] = 1.0;
+   }
    hypre_CSRMatrixSetRownnz(A->diag);
    // Prevent hypre from destroying A->diag->{i,j,data}, own A->diag->data
    diagOwner = 2;
@@ -364,7 +382,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm,
 
    /* Make sure that the first entry in each row is the diagonal one. */
    if (row_starts == col_starts)
-   { hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A)); }
+   {
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+   }
 
    hypre_MatvecCommPkgCreate(A);
 
@@ -407,11 +427,15 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 
    double *a_diag = new double[diag_col];
    for (i = 0; i < diag_col; i++)
-   { a_diag[i] = 1.0; }
+   {
+      a_diag[i] = 1.0;
+   }
 
    double *a_offd = new double[offd_col];
    for (i = 0; i < offd_col; i++)
-   { a_offd[i] = 1.0; }
+   {
+      a_offd[i] = 1.0;
+   }
 
    hypre_CSRMatrixSetDataOwner(A->diag,0);
    hypre_CSRMatrixI(A->diag)    = i_diag;
@@ -437,7 +461,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int id, int np,
 
    /* Make sure that the first entry in each row is the diagonal one. */
    if (row == col)
-   { hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A)); }
+   {
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+   }
 
    hypre_MatvecCommPkgCreate(A);
 
@@ -494,7 +520,9 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows,
    hypre_ParCSRMatrixSetNumNonzeros(A);
    /* Make sure that the first entry in each row is the diagonal one. */
    if (rows == cols)
-   { hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A)); }
+   {
+      hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
+   }
    hypre_MatvecCommPkgCreate(A);
 
    // delete the local CSR matrix
@@ -540,7 +568,9 @@ void HypreParMatrix::GetDiag(Vector &diag)
       diag(j) = A->diag->data[A->diag->i[j]];
 #ifdef MFEM_DEBUG
       if (A->diag->j[A->diag->i[j]] != j)
-      { mfem_error("HypreParMatrix::GetDiag"); }
+      {
+         mfem_error("HypreParMatrix::GetDiag");
+      }
 #endif
    }
 }
@@ -626,10 +656,14 @@ void HypreParMatrix::ScaleRows(const Vector &diag)
 {
 
    if (hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
-   { mfem_error("Row does not match"); }
+   {
+      mfem_error("Row does not match");
+   }
 
    if (hypre_CSRMatrixNumRows(A->diag) != diag.Size())
-   { mfem_error("Note the Vector diag is not of compatible dimensions with A\n"); }
+   {
+      mfem_error("Note the Vector diag is not of compatible dimensions with A\n");
+   }
 
    int size=hypre_CSRMatrixNumRows(A->diag);
    double     *Adiag_data   = hypre_CSRMatrixData(A->diag);
@@ -644,9 +678,13 @@ void HypreParMatrix::ScaleRows(const Vector &diag)
    {
       val = diag[i];
       for (jj = Adiag_i[i]; jj < Adiag_i[i+1]; ++jj)
-      { Adiag_data[jj] *= val; }
+      {
+         Adiag_data[jj] *= val;
+      }
       for (jj = Aoffd_i[i]; jj < Aoffd_i[i+1]; ++jj)
-      { Aoffd_data[jj] *= val; }
+      {
+         Aoffd_data[jj] *= val;
+      }
    }
 }
 
@@ -654,10 +692,14 @@ void HypreParMatrix::InvScaleRows(const Vector &diag)
 {
 
    if (hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
-   { mfem_error("Row does not match"); }
+   {
+      mfem_error("Row does not match");
+   }
 
    if (hypre_CSRMatrixNumRows(A->diag) != diag.Size())
-   { mfem_error("Note the Vector diag is not of compatible dimensions with A\n"); }
+   {
+      mfem_error("Note the Vector diag is not of compatible dimensions with A\n");
+   }
 
    int size=hypre_CSRMatrixNumRows(A->diag);
    double     *Adiag_data   = hypre_CSRMatrixData(A->diag);
@@ -672,20 +714,28 @@ void HypreParMatrix::InvScaleRows(const Vector &diag)
    {
 #ifdef MFEM_DEBUG
       if (0.0 == diag(i))
-      { mfem_error("HypreParMatrix::InvDiagScale : Division by 0"); }
+      {
+         mfem_error("HypreParMatrix::InvDiagScale : Division by 0");
+      }
 #endif
       val = 1./diag(i);
       for (jj = Adiag_i[i]; jj < Adiag_i[i+1]; ++jj)
-      { Adiag_data[jj] *= val; }
+      {
+         Adiag_data[jj] *= val;
+      }
       for (jj = Aoffd_i[i]; jj < Aoffd_i[i+1]; ++jj)
-      { Aoffd_data[jj] *= val; }
+      {
+         Aoffd_data[jj] *= val;
+      }
    }
 }
 
 void HypreParMatrix::operator*=(double s)
 {
    if (hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
-   { mfem_error("Row does not match"); }
+   {
+      mfem_error("Row does not match");
+   }
 
    int size=hypre_CSRMatrixNumRows(A->diag);
    int jj;
@@ -693,12 +743,16 @@ void HypreParMatrix::operator*=(double s)
    double     *Adiag_data   = hypre_CSRMatrixData(A->diag);
    HYPRE_Int  *Adiag_i      = hypre_CSRMatrixI(A->diag);
    for (jj = 0; jj < Adiag_i[size]; ++jj)
-   { Adiag_data[jj] *= s; }
+   {
+      Adiag_data[jj] *= s;
+   }
 
    double     *Aoffd_data   = hypre_CSRMatrixData(A->offd);
    HYPRE_Int  *Aoffd_i      = hypre_CSRMatrixI(A->offd);
    for (jj = 0; jj < Aoffd_i[size]; ++jj)
-   { Aoffd_data[jj] *= s; }
+   {
+      Aoffd_data[jj] *= s;
+   }
 }
 
 void HypreParMatrix::Print(const char *fname, int offi, int offj)
@@ -761,7 +815,9 @@ void HypreParMatrix::Destroy()
    if (colMapOwner >= 0)
    {
       if (colMapOwner & 1)
-      { delete [] hypre_ParCSRMatrixColMapOffd(A); }
+      {
+         delete [] hypre_ParCSRMatrixColMapOffd(A);
+      }
       hypre_ParCSRMatrixColMapOffd(A) = NULL;
    }
 
@@ -848,7 +904,9 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
       // Check that in the rows specified by the ess_dof_list, the matrix A has
       // only one entry -- the diagonal.
       if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
-      { mfem_error("EliminateBC (hypre.cpp)"); }
+      {
+         mfem_error("EliminateBC (hypre.cpp)");
+      }
 #endif
    }
 }
@@ -1038,11 +1096,13 @@ void HypreSmoother::SetWindowByName(const char* name)
 {
    double a = -1, b, c;
    if (!strcmp(name,"Rectangular")) { a = 1.0,  b = 0.0,  c = 0.0; }
-   if (!strcmp(name,"Hanning"))     { a = 0.5,  b = 0.5,  c = 0.0; }
-   if (!strcmp(name,"Hamming"))     { a = 0.54, b = 0.46, c = 0.0; }
-   if (!strcmp(name,"Blackman"))    { a = 0.42, b = 0.50, c = 0.08; }
+   if (!strcmp(name,"Hanning")) { a = 0.5,  b = 0.5,  c = 0.0; }
+   if (!strcmp(name,"Hamming")) { a = 0.54, b = 0.46, c = 0.0; }
+   if (!strcmp(name,"Blackman")) { a = 0.42, b = 0.50, c = 0.08; }
    if (a < 0)
-   { mfem_error("HypreSmoother::SetWindowByName : name not recognized!"); }
+   {
+      mfem_error("HypreSmoother::SetWindowByName : name not recognized!");
+   }
 
    SetWindowParameters(a, b, c);
 }
@@ -1058,7 +1118,9 @@ void HypreSmoother::SetOperator(const Operator &op)
 {
    A = const_cast<HypreParMatrix *>(dynamic_cast<const HypreParMatrix *>(&op));
    if (A == NULL)
-   { mfem_error("HypreSmoother::SetOperator : not HypreParMatrix!"); }
+   {
+      mfem_error("HypreSmoother::SetOperator : not HypreParMatrix!");
+   }
 
    height = A->Height();
    width = A->Width();
@@ -1068,7 +1130,9 @@ void HypreSmoother::SetOperator(const Operator &op)
    if (V) { delete V; }
    if (Z) { delete Z; }
    if (l1_norms)
-   { hypre_TFree(l1_norms); }
+   {
+      hypre_TFree(l1_norms);
+   }
    delete X0;
    delete X1;
 
@@ -1087,7 +1151,9 @@ void HypreSmoother::SetOperator(const Operator &op)
       type = 1;
    }
    else
-   { l1_norms = NULL; }
+   {
+      l1_norms = NULL;
+   }
 
    if (type == 16)
    {
@@ -1121,7 +1187,9 @@ void HypreSmoother::SetOperator(const Operator &op)
 void HypreSmoother::SetFIRCoefficients(double max_eig)
 {
    if (fir_coeffs)
-   { delete [] fir_coeffs; }
+   {
+      delete [] fir_coeffs;
+   }
 
    fir_coeffs = new double[poly_order+1];
 
@@ -1170,14 +1238,18 @@ void HypreSmoother::Mult(const HypreParVector &b, HypreParVector &x) const
       {
          HYPRE_ParCSRDiagScale(NULL, *A, b, x);
          if (relax_weight != 1.0)
-         { x *= relax_weight; }
+         {
+            x *= relax_weight;
+         }
          return;
       }
       x = 0.0;
    }
 
    if (V == NULL)
-   { V = new HypreParVector(*A); }
+   {
+      V = new HypreParVector(*A);
+   }
 
    if (type == 1001)
    {
@@ -1249,9 +1321,13 @@ HypreSmoother::~HypreSmoother()
    if (V) { delete V; }
    if (Z) { delete Z; }
    if (l1_norms)
-   { hypre_TFree(l1_norms); }
+   {
+      hypre_TFree(l1_norms);
+   }
    if (fir_coeffs)
-   { delete [] fir_coeffs; }
+   {
+      delete [] fir_coeffs;
+   }
    if (X0) { delete X0; }
    if (X1) { delete X1; }
 }
@@ -1286,7 +1362,9 @@ void HypreSolver::Mult(const HypreParVector &b, HypreParVector &x) const
    }
 
    if (!iterative_mode)
-   { x = 0.0; }
+   {
+      x = 0.0;
+   }
    SolveFcn()(*this, *A, b, x);
 }
 
@@ -1369,9 +1447,13 @@ void HyprePCG::SetResidualConvergenceOptions(int res_frequency, double rtol)
 {
    HYPRE_PCGSetTwoNorm(pcg_solver, 1);
    if (res_frequency > 0)
-   { HYPRE_PCGSetRecomputeResidualP(pcg_solver, res_frequency); }
+   {
+      HYPRE_PCGSetRecomputeResidualP(pcg_solver, res_frequency);
+   }
    if (rtol > 0.0)
-   { HYPRE_PCGSetResidualTol(pcg_solver, rtol); }
+   {
+      HYPRE_PCGSetResidualTol(pcg_solver, rtol);
+   }
 }
 
 void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
@@ -1411,7 +1493,9 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
    }
 
    if (!iterative_mode)
-   { x = 0.0; }
+   {
+      x = 0.0;
+   }
 
    HYPRE_ParCSRPCGSolve(pcg_solver, *A, b, x);
 
@@ -1533,7 +1617,9 @@ void HypreGMRES::Mult(const HypreParVector &b, HypreParVector &x) const
    }
 
    if (!iterative_mode)
-   { x = 0.0; }
+   {
+      x = 0.0;
+   }
 
    HYPRE_ParCSRGMRESSolve(gmres_solver, *A, b, x);
 
@@ -1657,7 +1743,9 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
 
    int p = 1;
    if (edge_fespace->GetNE() > 0)
-   { p = edge_fespace->GetOrder(0); }
+   {
+      p = edge_fespace->GetOrder(0);
+   }
    int dim = edge_fespace->GetMesh()->Dimension();
 
    HYPRE_AMSCreate(&ams);
@@ -1687,7 +1775,9 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
          x_coord(i) = coord[0];
          y_coord(i) = coord[1];
          if (dim == 3)
-         { z_coord(i) = coord[2]; }
+         {
+            z_coord(i) = coord[2];
+         }
       }
       x = x_coord.ParallelAverage();
       y = y_coord.ParallelAverage();
@@ -1748,7 +1838,9 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
          Pix = Pi_blocks(0,0);
          Piy = Pi_blocks(0,1);
          if (dim == 3)
-         { Piz = Pi_blocks(0,2); }
+         {
+            Piz = Pi_blocks(0,2);
+         }
       }
 
       delete id_ND;
@@ -1802,7 +1894,9 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
 
    int p = 1;
    if (face_fespace->GetNE() > 0)
-   { p = face_fespace->GetOrder(0); }
+   {
+      p = face_fespace->GetOrder(0);
+   }
 
    HYPRE_ADSCreate(&ads);
 

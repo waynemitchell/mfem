@@ -24,8 +24,8 @@ int ComparePairs (const void *_p, const void *_q)
    p = (Pair<A, B> *)_p;
    q = (Pair<A, B> *)_q;
 
-   if (p -> one < q -> one)  { return -1; }
-   if (q -> one < p -> one)  { return +1; }
+   if (p -> one < q -> one) { return -1; }
+   if (q -> one < p -> one) { return +1; }
    return 0;
 }
 
@@ -33,7 +33,9 @@ template <class A, class B>
 void SortPairs (Pair<A, B> *pairs, int size)
 {
    if (size > 0)
-   { qsort (pairs, size, sizeof(Pair<A, B>), ComparePairs<A, B>); }
+   {
+      qsort (pairs, size, sizeof(Pair<A, B>), ComparePairs<A, B>);
+   }
 }
 
 

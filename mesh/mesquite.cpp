@@ -24,11 +24,17 @@ using namespace std;
 MesquiteMesh::MeshTags::TagData::~TagData()
 {
    if (elementData)
-   { free(elementData); }
+   {
+      free(elementData);
+   }
    if (vertexData)
-   { free(vertexData); }
+   {
+      free(vertexData);
+   }
    if (defaultValue)
-   { free(defaultValue); }
+   {
+      free(defaultValue);
+   }
 }
 
 
@@ -37,7 +43,9 @@ void MesquiteMesh::MeshTags::clear()
    for (std::vector<TagData*>::iterator iter = tagList.begin();
         iter != tagList.end(); ++iter)
       if (*iter)
-      { delete *iter; }
+      {
+         delete *iter;
+      }
 
    tagList.clear();
 }
@@ -137,7 +145,9 @@ size_t MesquiteMesh::MeshTags::handle( const std::string& name,
 {
    for (size_t i = 0; i < tagList.size(); ++i)
       if (tagList[i] && tagList[i]->desc.name == name)
-      { return i+1; }
+      {
+         return i+1;
+      }
 
    return 0;
 }
@@ -179,7 +189,9 @@ void MesquiteMesh::MeshTags::set_element_data( size_t tag_index,
    size_t total = tag->elementCount;
    for (i = 0; i < num_indices; ++i)
       if (index_array[i] >= total)
-      { total = index_array[i] + 1; }
+      {
+         total = index_array[i] + 1;
+      }
 
    // If need more space
    if (total > tag->elementCount)
@@ -276,7 +288,9 @@ void MesquiteMesh::MeshTags::set_vertex_data( size_t tag_index,
    size_t total = tag->vertexCount;
    for (i = 0; i < num_indices; ++i)
       if (index_array[i] >= total)
-      { total = index_array[i] + 1; }
+      {
+         total = index_array[i] + 1;
+      }
 
    // If need more space
    if (total > tag->vertexCount)
@@ -384,7 +398,9 @@ MesquiteMesh::MeshTags::TagIterator MesquiteMesh::MeshTags::tag_begin()
 {
    size_t index = 0;
    while (index < tagList.size() && tagList[index] == NULL)
-   { ++index; }
+   {
+      ++index;
+   }
    return TagIterator( this, index );
 }
 
@@ -393,7 +409,9 @@ MesquiteMesh::MeshTags::TagIterator::operator++()
 {
    ++index;
    while (index < tags->tagList.size() && NULL == tags->tagList[index])
-   { ++index; }
+   {
+      ++index;
+   }
    return TagIterator( tags, index );
 }
 
@@ -402,7 +420,9 @@ MesquiteMesh::MeshTags::TagIterator::operator--()
 {
    --index;
    while (index < tags->tagList.size() && NULL == tags->tagList[index])
-   { --index; }
+   {
+      --index;
+   }
    return TagIterator( tags, index );
 }
 
@@ -412,7 +432,9 @@ MesquiteMesh::MeshTags::TagIterator::operator++(int)
    size_t old = index;
    ++index;
    while (index < tags->tagList.size() && NULL == tags->tagList[index])
-   { ++index; }
+   {
+      ++index;
+   }
    return TagIterator( tags, old );
 }
 
@@ -422,7 +444,9 @@ MesquiteMesh::MeshTags::TagIterator::operator--(int)
    size_t old = index;
    --index;
    while (index < tags->tagList.size() && NULL == tags->tagList[index])
-   { --index; }
+   {
+      --index;
+   }
    return TagIterator( tags, old );
 }
 
@@ -459,11 +483,17 @@ MesquiteMesh::MesquiteMesh(mfem::Mesh *mfem_mesh)
    for (int i = 0; i < mesh->GetNBE(); i++)
    {
       if (nodes)
-      { fes->GetBdrElementDofs(i, bdofs); }
+      {
+         fes->GetBdrElementDofs(i, bdofs);
+      }
       else
-      { mesh->GetBdrElementVertices(i, bdofs); }
+      {
+         mesh->GetBdrElementVertices(i, bdofs);
+      }
       for (int j = 0; j < bdofs.Size(); j++)
-      { mFixed[bdofs[j]] = true; }
+      {
+         mFixed[bdofs[j]] = true;
+      }
    }
 
 }
@@ -478,7 +508,9 @@ void MesquiteMesh::get_all_elements(std::vector<ElementHandle>& elements,
 {
    elements.resize(nelems);
    for (int i = 0; i < nelems; i++)
-   { elements[i] = (ElementHandle) i; }
+   {
+      elements[i] = (ElementHandle) i;
+   }
 }
 
 void MesquiteMesh::get_all_vertices(std::vector<VertexHandle>& vertices,
@@ -486,7 +518,9 @@ void MesquiteMesh::get_all_vertices(std::vector<VertexHandle>& vertices,
 {
    vertices.resize(ndofs);
    for (int i = 0; i < ndofs; i++)
-   { vertices[i] = (VertexHandle) i; }
+   {
+      vertices[i] = (VertexHandle) i;
+   }
 }
 
 void MesquiteMesh::vertices_get_coordinates(const VertexHandle vert_array[],
@@ -503,9 +537,13 @@ void MesquiteMesh::vertices_get_coordinates(const VertexHandle vert_array[],
       coordinates[i].x(coords[0]);
       coordinates[i].y(coords[1]);
       if (mesh->Dimension() == 3 )
-      { coordinates[i].z(coords[2]); }
+      {
+         coordinates[i].z(coords[2]);
+      }
       else
-      { coordinates[i].z(0.0); }
+      {
+         coordinates[i].z(0.0);
+      }
    }
 }
 
@@ -535,7 +573,9 @@ void MesquiteMesh::vertices_set_byte(const VertexHandle *vert_array,
 {
    const size_t* indices = (const size_t*) vert_array;
    for (int i = 0; i < array_size; i++)
-   { mByte[indices[i]] = byte_array[i]; }
+   {
+      mByte[indices[i]] = byte_array[i];
+   }
 }
 
 void MesquiteMesh::vertex_get_byte(const VertexHandle vertex,
@@ -552,7 +592,9 @@ void MesquiteMesh::vertices_get_byte(const VertexHandle *vertex,
 {
    const size_t* indices = (const size_t*) vertex;
    for (int i = 0; i < array_size; i++)
-   { byte_array[i] = mByte[indices[i]]; }
+   {
+      byte_array[i] = mByte[indices[i]];
+   }
 }
 
 void MesquiteMesh::vertices_get_fixed_flag(const VertexHandle vert_array[],
@@ -563,7 +605,9 @@ void MesquiteMesh::vertices_get_fixed_flag(const VertexHandle vert_array[],
    fixed_flag_array.resize(num_vtx + 1);
    const size_t* indices = (const size_t*) vert_array;
    for (int i = 0; i < num_vtx; i++)
-   { fixed_flag_array[i] = mFixed[indices[i]]; }
+   {
+      fixed_flag_array[i] = mFixed[indices[i]];
+   }
 }
 
 void MesquiteMesh::vertices_set_fixed_flag(const VertexHandle vert_array[],
@@ -573,7 +617,9 @@ void MesquiteMesh::vertices_set_fixed_flag(const VertexHandle vert_array[],
 {
    const size_t* indices = (const size_t*) vert_array;
    for (int i = 0; i < num_vtx; i++)
-   { mFixed[indices[i]] = fixed_flag_array[i]; }
+   {
+      mFixed[indices[i]] = fixed_flag_array[i];
+   }
 }
 
 void MesquiteMesh::elements_get_attached_vertices(const ElementHandle
@@ -594,9 +640,13 @@ void MesquiteMesh::elements_get_attached_vertices(const ElementHandle
       offsets[i] = vert_handles.size();
       elem = mesh->GetElement(indices[i]);
       if (nodes)
-      { fes->GetElementDofs(indices[i],elem_dofs); }
+      {
+         fes->GetElementDofs(indices[i],elem_dofs);
+      }
       else
-      { elem->GetVertices(elem_dofs); }
+      {
+         elem->GetVertices(elem_dofs);
+      }
 
       for (int j = 0; j < elem_dofs.Size(); j++)
       {
@@ -624,7 +674,9 @@ void MesquiteMesh::vertices_get_attached_elements(const VertexHandle*
       offsets[i] = elements.size();
       int* vertex_elems = dof_elem->GetRow(indices[i]);
       for (int j = 0; j < dof_elem->RowSize(indices[i]); j++)
-      { elements.push_back( (ElementHandle) vertex_elems[j] ); }
+      {
+         elements.push_back( (ElementHandle) vertex_elems[j] );
+      }
    }
    offsets[num_vertex] = elements.size();
 }
@@ -655,7 +707,10 @@ void MesquiteMesh::elements_get_topologies(const ElementHandle
    int mfem_to_mesquite[9] = {0,0,8,9,11,12,0,0,0};
    const size_t* indices = (const size_t*) element_handle_array;
    for (int i = 0; i < num_elements; i++)
-   { element_topologies[i] = (EntityTopology) mfem_to_mesquite[mesh->GetElementType(indices[i])]; }
+   {
+      element_topologies[i] = (EntityTopology) mfem_to_mesquite[mesh->GetElementType(
+                                                                   indices[i])];
+   }
 }
 
 MesquiteMesh::~MesquiteMesh()
@@ -714,7 +769,10 @@ TagHandle MesquiteMesh::tag_get( const std::string& name, MsqError& err )
 {
    size_t index = myTags->handle( name, err ); MSQ_ERRZERO(err);
    if (!index)
-   { MSQ_SETERR(err)( MsqError::TAG_NOT_FOUND, "could not find tag \"%s\"", name.c_str() ); }
+   {
+      MSQ_SETERR(err)( MsqError::TAG_NOT_FOUND, "could not find tag \"%s\"",
+                       name.c_str() );
+   }
    return (TagHandle)index;
 }
 
@@ -867,9 +925,13 @@ static void BoundaryPreservingOptimization(mfem::MesquiteMesh &mesh)
    for (int i = 0; i < num_boundary_vertices; i++)
    {
       if (!mFixBndryInInterfaceSmooth)
-      { fixed_flags_boundary[i] = false; }
+      {
+         fixed_flags_boundary[i] = false;
+      }
       else
-      { fixed_flags_boundary[i] = app_fixed_boundary[i]; }
+      {
+         fixed_flags_boundary[i] = app_fixed_boundary[i];
+      }
 
       for (int j = 0; j < theCornerVertices.size(); j++)
       {
@@ -1103,7 +1165,9 @@ void mfem::Mesh::MesquiteSmooth(const int mesquite_option)
       method->set_slaved_ho_node_mode(Settings::SLAVE_NONE);
 
       if ( this->Dimension() == 3 )
-      { method->run_instructions(&msq_mesh, err); }
+      {
+         method->run_instructions(&msq_mesh, err);
+      }
       else
       {
          Vector3D normal(0,0,1);

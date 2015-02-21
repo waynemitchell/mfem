@@ -97,7 +97,9 @@ public:
    virtual int DofForGeometry(int GeomType) const
    {
       if (L2_Elements[GeomType])
-      { return L2_Elements[GeomType]->GetDof(); }
+      {
+         return L2_Elements[GeomType]->GetDof();
+      }
       return 0;
    }
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;

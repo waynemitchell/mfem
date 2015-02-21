@@ -21,18 +21,26 @@ using namespace std;
 int isValidAsInt(char * s)
 {
    if ( s == NULL || *s == '\0' )
-   { return 0; } //Empty string
+   {
+      return 0;   //Empty string
+   }
 
    if ( *s == '+' || *s == '-' )
-   { ++s; }
+   {
+      ++s;
+   }
 
    if ( *s == '\0')
-   { return 0; }  //sign character only
+   {
+      return 0;   //sign character only
+   }
 
    while (*s)
    {
       if ( !isdigit(*s) )
-      { return 0; }
+      {
+         return 0;
+      }
       ++s;
    }
 
@@ -49,23 +57,33 @@ int isValidAsDouble(char * s)
    //   an optional sign and a sequence of digits).
 
    if ( s == NULL || *s == '\0' )
-   { return 0; } //Empty string
+   {
+      return 0;   //Empty string
+   }
 
    if ( *s == '+' || *s == '-' )
-   { ++s; }
+   {
+      ++s;
+   }
 
    if ( *s == '\0')
-   { return 0; }  //sign character only
+   {
+      return 0;   //sign character only
+   }
 
    while (*s)
    {
       if (!isdigit(*s))
-      { break; }
+      {
+         break;
+      }
       ++s;
    }
 
    if (*s == '\0')
-   { return 1; } //s = "123"
+   {
+      return 1;   //s = "123"
+   }
 
    if (*s == '.')
    {
@@ -73,11 +91,15 @@ int isValidAsDouble(char * s)
       while (*s)
       {
          if (!isdigit(*s))
-         { break; }
+         {
+            break;
+         }
          ++s;
       }
       if (*s == '\0')
-      { return 1; } //this is a fixed point double s = "123." or "123.45"
+      {
+         return 1;   //this is a fixed point double s = "123." or "123.45"
+      }
    }
 
    if (*s == 'e' || *s == 'E')
@@ -86,7 +108,9 @@ int isValidAsDouble(char * s)
       return isValidAsInt(s);
    }
    else
-   { return 0; } //we have encounter a wrong character
+   {
+      return 0;   //we have encounter a wrong character
+   }
 }
 
 void parseArray(char * str, Array<int> & var)
@@ -95,7 +119,9 @@ void parseArray(char * str, Array<int> & var)
    std::stringstream input(str);
    int val;
    while ( input >> val)
-   { var.Append(val); }
+   {
+      var.Append(val);
+   }
 }
 
 void parseVector(char * str, Vector & var)
@@ -105,7 +131,9 @@ void parseVector(char * str, Vector & var)
    {
       std::stringstream input(str);
       while ( input >> val)
-      { ++nentries; }
+      {
+         ++nentries;
+      }
    }
 
    var.SetSize(nentries);
@@ -113,7 +141,9 @@ void parseVector(char * str, Vector & var)
       nentries = 0;
       std::stringstream input(str);
       while ( input >> val)
-      { var(nentries++) = val; }
+      {
+         var(nentries++) = val;
+      }
    }
 }
 
@@ -178,11 +208,11 @@ void OptionsParser::Parse()
                   break;
                case ENABLE:
                   *(bool *)(options[j].var_ptr) = true;
-                  option_check[j+1] = 1;  //Do not allow the DISABLE Option
+                  option_check[j+1] = 1;  // Do not allow the DISABLE Option
                   break;
                case DISABLE:
                   *(bool *)(options[j].var_ptr) = false;
-                  option_check[j-1] = 1;  //Do not allow the ENABLE Option
+                  option_check[j-1] = 1;  // Do not allow the ENABLE Option
                   break;
                case ARRAY:
                   parseArray(argv[i++], *(Array<int>*)(options[j].var_ptr) );
@@ -239,9 +269,13 @@ void OptionsParser::WriteValue(const Option &opt, std::ostream &out)
          Array<int> &list = *(Array<int>*)(opt.var_ptr);
          out << '\'';
          if (list.Size() > 0)
-         { out << list[0]; }
+         {
+            out << list[0];
+         }
          for (int i = 0; i < list.Size(); i++)
-         { out << ' ' << list[i]; }
+         {
+            out << ' ' << list[i];
+         }
          out << '\'';
          break;
       }
@@ -251,9 +285,13 @@ void OptionsParser::WriteValue(const Option &opt, std::ostream &out)
          Vector &list = *(Vector*)(opt.var_ptr);
          out << '\'';
          if (list.Size() > 0)
-         { out << list(0); }
+         {
+            out << list(0);
+         }
          for (int i = 1; i < list.Size(); i++)
-         { out << ' ' << list(i); }
+         {
+            out << ' ' << list(i);
+         }
          out << '\'';
          break;
       }
@@ -276,9 +314,13 @@ void OptionsParser::PrintOptions(ostream &out) const
       if (type == ENABLE)
       {
          if (*(bool *)(options[j].var_ptr) == true)
-         { out << options[j].long_name; }
+         {
+            out << options[j].long_name;
+         }
          else
-         { out << options[j+1].long_name; }
+         {
+            out << options[j+1].long_name;
+         }
          j++;
       }
       else
@@ -365,9 +407,13 @@ void OptionsParser::PrintHelp(ostream &out) const
                 << options[j].long_name << types[type] << seprtr
                 << "current option: ";
             if (*(bool *)(options[j].var_ptr) == true)
-            { out << options[j-1].long_name; }
+            {
+               out << options[j-1].long_name;
+            }
             else
-            { out << options[j].long_name; }
+            {
+               out << options[j].long_name;
+            }
          }
          else
          {
@@ -378,7 +424,9 @@ void OptionsParser::PrintHelp(ostream &out) const
       out << descr_sep;
 
       if (options[j].description)
-      { out << options[j].description << '\n'; }
+      {
+         out << options[j].description << '\n';
+      }
       out << line_sep;
    }
 }

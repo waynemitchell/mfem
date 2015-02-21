@@ -66,12 +66,16 @@ int main(int argc, char *argv[])
    if (!args.Good())
    {
       if (myid == 0)
-      { args.PrintUsage(cout); }
+      {
+         args.PrintUsage(cout);
+      }
       MPI_Finalize();
       return 1;
    }
    if (myid == 0)
-   { args.PrintOptions(cout); }
+   {
+      args.PrintOptions(cout);
+   }
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -81,7 +85,9 @@ int main(int argc, char *argv[])
    if (!imesh)
    {
       if (myid == 0)
-      { cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl; }
+      {
+         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      }
       MPI_Finalize();
       return 2;
    }
@@ -102,7 +108,9 @@ int main(int argc, char *argv[])
    // 4. Select the order of the finite element discretization space. For NURBS
    //    meshes, we increase the order by degree elevation.
    if (mesh->NURBSext && order > mesh->NURBSext->GetOrder())
-   { mesh->DegreeElevate(order - mesh->NURBSext->GetOrder()); }
+   {
+      mesh->DegreeElevate(order - mesh->NURBSext->GetOrder());
+   }
 
    // 5. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
@@ -112,7 +120,9 @@ int main(int argc, char *argv[])
       int ref_levels =
          (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
-      { mesh->UniformRefinement(); }
+      {
+         mesh->UniformRefinement();
+      }
    }
 
    // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -123,7 +133,9 @@ int main(int argc, char *argv[])
    {
       int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
-      { pmesh->UniformRefinement(); }
+      {
+         pmesh->UniformRefinement();
+      }
    }
 
    // 7. Define a parallel finite element space on the parallel mesh. Here we
@@ -159,7 +171,9 @@ int main(int argc, char *argv[])
    //    coefficient for its last component.
    VectorArrayCoefficient f(dim);
    for (int i = 0; i < dim-1; i++)
-   { f.Set(i, new ConstantCoefficient(0.0)); }
+   {
+      f.Set(i, new ConstantCoefficient(0.0));
+   }
    {
       Vector pull_force(pmesh->bdr_attributes.Max());
       pull_force = 0.0;
@@ -170,7 +184,9 @@ int main(int argc, char *argv[])
    ParLinearForm *b = new ParLinearForm(fespace);
    b->AddBoundaryIntegrator(new VectorBoundaryLFIntegrator(f));
    if (myid == 0)
-   { cout << "r.h.s. ... " << flush; }
+   {
+      cout << "r.h.s. ... " << flush;
+   }
    b->Assemble();
 
    // 9. Define the solution vector x as a parallel finite element grid function
@@ -196,7 +212,9 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func, mu_func));
    if (myid == 0)
-   { cout << "matrix ... " << flush; }
+   {
+      cout << "matrix ... " << flush;
+   }
    a->Assemble();
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 0;
@@ -204,7 +222,9 @@ int main(int argc, char *argv[])
    a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
    if (myid == 0)
-   { cout << "done." << endl; }
+   {
+      cout << "done." << endl;
+   }
 
    // 11. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
@@ -238,7 +258,9 @@ int main(int argc, char *argv[])
    //     the file) is not higher order curved mesh compared to the chosen FE
    //     space.
    if (!pmesh->NURBSext)
-   { pmesh->SetNodalFESpace(fespace); }
+   {
+      pmesh->SetNodalFESpace(fespace);
+   }
 
    // 15. Save in parallel the displaced mesh and the inverted solution (which
    //     gives the backward displacements to the original grid). This output

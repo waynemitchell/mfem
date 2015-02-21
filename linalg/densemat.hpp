@@ -477,7 +477,9 @@ inline double &DenseMatrix::operator()(int i, int j)
 {
 #ifdef MFEM_DEBUG
    if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
-   { mfem_error("DenseMatrix::operator()"); }
+   {
+      mfem_error("DenseMatrix::operator()");
+   }
 #endif
 
    return data[i+j*height];
@@ -487,7 +489,9 @@ inline const double &DenseMatrix::operator()(int i, int j) const
 {
 #ifdef MFEM_DEBUG
    if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
-   { mfem_error("DenseMatrix::operator() const"); }
+   {
+      mfem_error("DenseMatrix::operator() const");
+   }
 #endif
 
    return data[i+j*height];

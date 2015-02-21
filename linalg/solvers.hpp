@@ -229,7 +229,10 @@ public:
 #endif
 
    virtual void SetPreconditioner(Solver &pr)
-   { IterativeSolver::SetPreconditioner(pr); if (oper) { u1.SetSize(width); } }
+   {
+      IterativeSolver::SetPreconditioner(pr);
+      if (oper) { u1.SetSize(width); }
+   }
 
    virtual void SetOperator(const Operator &op);
 

@@ -120,10 +120,14 @@ void isockstream::receive(std::istringstream **in)
    char length[32];
 
    if ((*in) != NULL)
-   { delete (*in), *in = NULL; }
+   {
+      delete (*in), *in = NULL;
+   }
 
    if (portID == -1)
-   { return; }
+   {
+      return;
+   }
 
    if ((socketID = accept(portID, NULL, NULL)) < 0)
    {
@@ -140,13 +144,19 @@ void isockstream::receive(std::istringstream **in)
    size = atoi(length);
 
    if (Buf != NULL)
-   { delete [] Buf; }
+   {
+      delete [] Buf;
+   }
    Buf = new char[size+1];
    if (size != read_data(socketID, Buf, size))
-   { cout << "Not all the data has been read" << endl; }
+   {
+      cout << "Not all the data has been read" << endl;
+   }
 #ifdef DEBUG
    else
-   { cout << "Reading " << size << " bytes is successful" << endl; }
+   {
+      cout << "Reading " << size << " bytes is successful" << endl;
+   }
 #endif
    Buf[size] = '\0';
 
@@ -157,9 +167,13 @@ void isockstream::receive(std::istringstream **in)
 isockstream::~isockstream()
 {
    if (Buf != NULL)
-   { delete [] Buf; }
+   {
+      delete [] Buf;
+   }
    if (portID != -1)
-   { close(portID); }
+   {
+      close(portID);
+   }
 }
 
 }

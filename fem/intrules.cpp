@@ -110,12 +110,16 @@ void IntegrationRule::GrundmannMollerSimplexRule(int s, int n)
 
    fact(0) = 1.;
    for (int i = 1; i < fact.Size(); i++)
-   { fact(i) = fact(i - 1)*i; }
+   {
+      fact(i) = fact(i - 1)*i;
+   }
 
    // number of points is \binom{n + s + 1}{n + 1}
    int np = 1, f = 1;
    for (int i = 0; i <= n; i++)
-   { np *= (s + i + 1), f *= (i + 1); }
+   {
+      np *= (s + i + 1), f *= (i + 1);
+   }
    np /= f;
    SetSize(np);
 
@@ -127,7 +131,9 @@ void IntegrationRule::GrundmannMollerSimplexRule(int s, int n)
       weight = pow(2., -2*s)*pow(static_cast<double>(d + n - 2*i),
                                  d)/fact(i)/fact(d + n - i);
       if (i%2)
-      { weight = -weight; }
+      {
+         weight = -weight;
+      }
 
       // loop over all beta : beta_0 + ... + beta_{n-1} <= s - i
       int k = s - i;
@@ -140,19 +146,25 @@ void IntegrationRule::GrundmannMollerSimplexRule(int s, int n)
          ip.x = double(2*beta[0] + 1)/(d + n - 2*i);
          ip.y = double(2*beta[1] + 1)/(d + n - 2*i);
          if (n == 3)
-         { ip.z = double(2*beta[2] + 1)/(d + n - 2*i); }
+         {
+            ip.z = double(2*beta[2] + 1)/(d + n - 2*i);
+         }
 
          int j = 0;
          while (sums[j] == k)
          {
             beta[j++] = 0;
             if (j == n)
-            { goto done_beta; }
+            {
+               goto done_beta;
+            }
          }
          beta[j]++;
          sums[j]++;
          for (j--; j >= 0; j--)
-         { sums[j] = sums[j+1]; }
+         {
+            sums[j] = sums[j+1];
+         }
       }
    done_beta:
       ;
@@ -210,7 +222,9 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
    }
 
    if (!HaveIntRule(*ir_array, Order))
-   { GenerateIntegrationRule(GeomType, Order); }
+   {
+      GenerateIntegrationRule(GeomType, Order);
+   }
 
    return *(*ir_array)[Order];
 }
@@ -233,7 +247,9 @@ void IntegrationRules::Set(int GeomType, int Order, IntegrationRule &IntRule)
    }
 
    if (HaveIntRule(*ir_array, Order))
-   { MFEM_ABORT("Overwriting set rules is not supported!"); }
+   {
+      MFEM_ABORT("Overwriting set rules is not supported!");
+   }
 
    AllocIntRule(*ir_array, Order);
 
@@ -610,8 +626,8 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
 
       case 18: // 73 point - 19 degree (used for 18 as well)
       case 19:
-         TriangleIntRules[18]
-            = TriangleIntRules[19] = ir = new IntegrationRule(73);
+         TriangleIntRules[18] =
+            TriangleIntRules[19] = ir = new IntegrationRule(73);
          ir->AddTriMidPoint(0,  0.0164531656944595);
          ir->AddTriPoints3b(1,  0.020780025853987, 0.005165365945636);
          ir->AddTriPoints3b(4,  0.090926214604215, 0.011193623631508);
@@ -742,7 +758,9 @@ IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order)
    int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
 
    if (!HaveIntRule(SegmentIntRules, i))
-   { SegmentIntegrationRule(i); }
+   {
+      SegmentIntegrationRule(i);
+   }
    AllocIntRule(SquareIntRules, i);
    SquareIntRules[i-1] =
       SquareIntRules[i] =
@@ -856,7 +874,9 @@ IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
    int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
 
    if (!HaveIntRule(SegmentIntRules, i))
-   { SegmentIntegrationRule(i); }
+   {
+      SegmentIntegrationRule(i);
+   }
    AllocIntRule(CubeIntRules, i);
    np = SegmentIntRules[i] -> GetNPoints();
    CubeIntRules[i-1] = CubeIntRules[i] = new IntegrationRule(np*np*np);

@@ -25,9 +25,13 @@ void ParBilinearForm::pAllocMat()
    if (precompute_sparsity == 0 || fes->GetVDim() > 1)
    {
       if (keep_nbr_block)
-      { mat = new SparseMatrix(height + nbr_size, width + nbr_size); }
+      {
+         mat = new SparseMatrix(height + nbr_size, width + nbr_size);
+      }
       else
-      { mat = new SparseMatrix(height, width + nbr_size); }
+      {
+         mat = new SparseMatrix(height, width + nbr_size);
+      }
       return;
    }
 
@@ -48,13 +52,21 @@ void ParBilinearForm::pAllocMat()
 
       int *I = elem_dof.GetI(), *J = elem_dof.GetJ();
       for (int i = 0; i <= s1; i++)
-      { I[i] = I1[i]; }
+      {
+         I[i] = I1[i];
+      }
       for (int j = 0; j < nnz1; j++)
-      { J[j] = J1[j]; }
+      {
+         J[j] = J1[j];
+      }
       for (int i = 0; i <= s2; i++)
-      { I[s1+i] = I2[i] + nnz1; }
+      {
+         I[s1+i] = I2[i] + nnz1;
+      }
       for (int j = 0; j < nnz2; j++)
-      { J[nnz1+j] = J2[j] + height; }
+      {
+         J[nnz1+j] = J2[j] + height;
+      }
    }
    //   dof_elem x  elem_face x face_elem x elem_dof  (keep_nbr_block = true)
    // ldof_lelem x lelem_face x face_elem x elem_dof  (keep_nbr_block = false)
@@ -64,12 +76,18 @@ void ParBilinearForm::pAllocMat()
       {
          Table *face_elem = pfes->GetParMesh()->GetFaceToAllElementTable();
          if (nbr_size > 0)
-         { mfem::Mult(*face_elem, elem_dof, face_dof); }
+         {
+            mfem::Mult(*face_elem, elem_dof, face_dof);
+         }
          else
-         { mfem::Mult(*face_elem, lelem_ldof, face_dof); }
+         {
+            mfem::Mult(*face_elem, lelem_ldof, face_dof);
+         }
          delete face_elem;
          if (nbr_size > 0)
-         { elem_dof.Clear(); }
+         {
+            elem_dof.Clear();
+         }
       }
 
       if (keep_nbr_block)
@@ -106,7 +124,9 @@ void ParBilinearForm::pAllocMat()
 HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 {
    if (m == NULL)
-   { return NULL; }
+   {
+      return NULL;
+   }
 
    HypreParMatrix *A;
    if (fbfi.Size() == 0)
@@ -126,9 +146,13 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
       int *J = m->GetJ();
       for (int i = 0; i < glob_J.Size(); i++)
          if (J[i] < lvsize)
-         { glob_J[i] = J[i] + ldof_offset; }
+         {
+            glob_J[i] = J[i] + ldof_offset;
+         }
          else
-         { glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize]; }
+         {
+            glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
+         }
 
       A = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
                              pfes->GlobalVSize(), m->GetI(), glob_J,
@@ -158,7 +182,9 @@ void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
       pfes->GetFaceNbrElementVDofs(T->Elem2No, vdofs2);
       vdofs1.Copy(vdofs_all);
       for (int j = 0; j < vdofs2.Size(); j++)
-      { vdofs2[j] += height; }
+      {
+         vdofs2[j] += height;
+      }
       vdofs_all.Append(vdofs2);
       for (int k = 0; k < fbfi.Size(); k++)
       {
@@ -166,9 +192,13 @@ void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
                                      *pfes->GetFaceNbrFE(T->Elem2No),
                                      *T, elemmat);
          if (keep_nbr_block)
-         { mat->AddSubMatrix(vdofs_all, vdofs_all, elemmat, skip_zeros); }
+         {
+            mat->AddSubMatrix(vdofs_all, vdofs_all, elemmat, skip_zeros);
+         }
          else
-         { mat->AddSubMatrix(vdofs1, vdofs_all, elemmat, skip_zeros); }
+         {
+            mat->AddSubMatrix(vdofs1, vdofs_all, elemmat, skip_zeros);
+         }
       }
    }
 }
@@ -184,7 +214,9 @@ void ParBilinearForm::Assemble(int skip_zeros)
    BilinearForm::Assemble(skip_zeros);
 
    if (fbfi.Size() > 0)
-   { AssembleSharedFaces(skip_zeros); }
+   {
+      AssembleSharedFaces(skip_zeros);
+   }
 }
 
 void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)
@@ -208,7 +240,9 @@ const
 HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(SparseMatrix *m)
 {
    if (m == NULL)
-   { return NULL; }
+   {
+      return NULL;
+   }
 
    int *I = m->GetI();
    int *J = m->GetJ();
@@ -221,7 +255,9 @@ HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(SparseMatrix *m)
       int lti = range_fes->GetLocalTDofNumber(i);
       if (lti >= 0)
          for (int j = I[i]; j < I[i+1]; j++)
-         { local.Set(lti, domain_fes->GetGlobalTDofNumber(J[j]), data[j]); }
+         {
+            local.Set(lti, domain_fes->GetGlobalTDofNumber(J[j]), data[j]);
+         }
    }
    local.Finalize();
 
@@ -249,9 +285,13 @@ const
    // construct the scalar versions of the row/coll offset arrays
    int *row_starts, *col_starts;
    if (HYPRE_AssumedPartitionCheck())
-   { n = 2; }
+   {
+      n = 2;
+   }
    else
-   { n = range_fes->GetNRanks()+1; }
+   {
+      n = range_fes->GetNRanks()+1;
+   }
    row_starts = new int[n];
    col_starts = new int[n];
    for (i = 0; i < n; i++)

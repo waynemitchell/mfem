@@ -145,11 +145,15 @@ inline void BlockMatrix::findGlobalRow(int iglobal, int & iblock,
                                        int & iloc) const
 {
    if (iglobal > row_offsets[nRowBlocks])
-   { mfem_error("BlockMatrix::findGlobalRow"); }
+   {
+      mfem_error("BlockMatrix::findGlobalRow");
+   }
 
    for (iblock = 0; iblock < nRowBlocks; ++iblock)
       if (row_offsets[iblock+1] > iglobal)
-      { break; }
+      {
+         break;
+      }
 
    iloc = iglobal - row_offsets[iblock];
 }
@@ -158,11 +162,15 @@ inline void BlockMatrix::findGlobalCol(int jglobal, int & jblock,
                                        int & jloc) const
 {
    if (jglobal > col_offsets[nColBlocks])
-   { mfem_error("BlockMatrix::findGlobalCol"); }
+   {
+      mfem_error("BlockMatrix::findGlobalCol");
+   }
 
    for (jblock = 0; jblock < nColBlocks; ++jblock)
       if (col_offsets[jblock+1] > jglobal)
-      { break; }
+      {
+         break;
+      }
 
    jloc = jglobal - col_offsets[jblock];
 }

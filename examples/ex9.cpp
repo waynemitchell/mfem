@@ -152,7 +152,9 @@ int main(int argc, char *argv[])
    //    command-line parameter. If the mesh is of NURBS type, we convert it to
    //    a (piecewise-polynomial) high-order mesh.
    for (int lev = 0; lev < ref_levels; lev++)
-   { mesh->UniformRefinement(); }
+   {
+      mesh->UniformRefinement();
+   }
 
    if (mesh->NURBSext)
    {
@@ -255,7 +257,9 @@ int main(int argc, char *argv[])
    for (int ti = 0; true; )
    {
       if (t >= t_final - dt/2)
-      { break; }
+      {
+         break;
+      }
 
       ode_solver->Step(u, t, dt);
       ti++;
@@ -265,7 +269,9 @@ int main(int argc, char *argv[])
          cout << "time step: " << ti << ", time: " << t << endl;
 
          if (visualization)
-         { sout << "solution\n" << *mesh << u << flush; }
+         {
+            sout << "solution\n" << *mesh << u << flush;
+         }
 
          if (visit)
          {

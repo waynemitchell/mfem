@@ -145,7 +145,9 @@ void ExplicitRKSolver::Init(TimeDependentOperator &_f)
    int n = f->Width();
    y.SetSize(n);
    for (int i = 0; i < s; i++)
-   { k[i].SetSize(n); }
+   {
+      k[i].SetSize(n);
+   }
 }
 
 void ExplicitRKSolver::Step(Vector &x, double &t, double &dt)
@@ -164,13 +166,17 @@ void ExplicitRKSolver::Step(Vector &x, double &t, double &dt)
    {
       add(x, a[l++]*dt, k[0], y);
       for (int j = 1; j < i; j++)
-      { y.Add(a[l++]*dt, k[j]); }
+      {
+         y.Add(a[l++]*dt, k[j]);
+      }
 
       f->SetTime(t + c[i-1]*dt);
       f->Mult(y, k[i]);
    }
    for (int i = 0; i < s; i++)
-   { x.Add(b[i]*dt, k[i]); }
+   {
+      x.Add(b[i]*dt, k[i]);
+   }
    t += dt;
 }
 
@@ -365,13 +371,21 @@ void ImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
 SDIRK23Solver::SDIRK23Solver(int gamma_opt)
 {
    if (gamma_opt == 0)
-   { gamma = (3. - sqrt(3.))/6.; } // not A-stable, order 3
+   {
+      gamma = (3. - sqrt(3.))/6.;   // not A-stable, order 3
+   }
    else if (gamma_opt == 2)
-   { gamma = (2. - sqrt(2.))/2.; } // L-stable, order 2
+   {
+      gamma = (2. - sqrt(2.))/2.;   // L-stable, order 2
+   }
    else if (gamma_opt == 3)
-   { gamma = (2. + sqrt(2.))/2.; } // L-stable, order 2
+   {
+      gamma = (2. + sqrt(2.))/2.;   // L-stable, order 2
+   }
    else
-   { gamma = (3. + sqrt(3.))/6.; } // A-stable, order 3
+   {
+      gamma = (3. + sqrt(3.))/6.;   // A-stable, order 3
+   }
 }
 
 void SDIRK23Solver::Init(TimeDependentOperator &_f)

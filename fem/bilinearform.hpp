@@ -140,7 +140,10 @@ public:
    void AddBdrFaceIntegrator(BilinearFormIntegrator *bfi);
 
    void operator=(const double a)
-   { if (mat != NULL) { *mat = a; } if (mat_e != NULL) { *mat_e = a; } }
+   {
+      if (mat != NULL) { *mat = a; }
+      if (mat_e != NULL) { *mat_e = a; }
+   }
 
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);

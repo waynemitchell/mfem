@@ -21,7 +21,9 @@ Triangle::Triangle(const int *ind, int attr) : Element(Geometry::TRIANGLE)
 {
    attribute = attr;
    for (int i = 0; i < 3; i++)
-   { indices[i] = ind[i]; }
+   {
+      indices[i] = ind[i];
+   }
 }
 
 Triangle::Triangle(int ind1, int ind2, int ind3, int attr)
@@ -46,7 +48,9 @@ int Triangle::NeedRefinement(DSTable &v_to_v, int *middle) const
 void Triangle::SetVertices(const int *ind)
 {
    for (int i = 0; i < 3; i++)
-   { indices[i] = ind[i]; }
+   {
+      indices[i] = ind[i];
+   }
 }
 
 void Triangle::MarkEdge(DenseMatrix &pmat)
@@ -71,9 +75,9 @@ void Triangle::MarkEdge(DenseMatrix &pmat)
 
    if (d[0] >= d[1])
       if (d[0] >= d[2]) { shift = 0; }
-      else              { shift = 2; }
+      else { shift = 2; }
    else if (d[1] >= d[2]) { shift = 1; }
-   else              { shift = 2; }
+   else { shift = 2; }
 
    switch (shift)
    {
@@ -103,7 +107,9 @@ void Triangle::MarkEdge(const DSTable &v_to_v, const int *length)
    if ( (l = length[ v_to_v(indices[2], indices[0]) ]) > L ) { L = l; j = 2; }
 
    for (i = 0; i < 3; i++)
-   { ind[i] = indices[i]; }
+   {
+      ind[i] = indices[i];
+   }
 
    switch (j)
    {
@@ -120,7 +126,9 @@ void Triangle::GetVertices(Array<int> &v) const
 {
    v.SetSize(3);
    for (int i = 0; i < 3; i++)
-   { v[i] = indices[i]; }
+   {
+      v[i] = indices[i];
+   }
 }
 
 Linear2DFiniteElement TriangleFE;

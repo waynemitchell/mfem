@@ -22,7 +22,9 @@ void Element::SetVertices(const int *ind)
    v = GetVertices();
 
    for (i = 0; i < n; i++)
-   { v[i] = ind[i]; }
+   {
+      v[i] = ind[i];
+   }
 }
 
 }

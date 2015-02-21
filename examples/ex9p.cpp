@@ -123,12 +123,16 @@ int main(int argc, char *argv[])
    if (!args.Good())
    {
       if (myid == 0)
-      { args.PrintUsage(cout); }
+      {
+         args.PrintUsage(cout);
+      }
       MPI_Finalize();
       return 1;
    }
    if (myid == 0)
-   { args.PrintOptions(cout); }
+   {
+      args.PrintOptions(cout);
+   }
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
    //    handle geometrically periodic meshes in this code.
@@ -137,7 +141,9 @@ int main(int argc, char *argv[])
    if (!imesh)
    {
       if (myid == 0)
-      { cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl; }
+      {
+         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      }
       MPI_Finalize();
       return 2;
    }
@@ -157,7 +163,9 @@ int main(int argc, char *argv[])
       case 6: ode_solver = new RK6Solver; break;
       default:
          if (myid == 0)
-         { cout << "Unknown ODE solver type: " << ode_solver_type << '\n'; }
+         {
+            cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
+         }
          MPI_Finalize();
          return 3;
    }
@@ -167,7 +175,9 @@ int main(int argc, char *argv[])
    //    a command-line parameter. If the mesh is of NURBS type, we convert it
    //    to a (piecewise-polynomial) high-order mesh.
    for (int lev = 0; lev < ser_ref_levels; lev++)
-   { mesh->UniformRefinement(); }
+   {
+      mesh->UniformRefinement();
+   }
 
    if (mesh->NURBSext)
    {
@@ -184,7 +194,9 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    for (int lev = 0; lev < par_ref_levels; lev++)
-   { pmesh->UniformRefinement(); }
+   {
+      pmesh->UniformRefinement();
+   }
 
    // 7. Define the parallel discontinuous DG finite element space on the
    //    parallel refined mesh of the given polynomial order.
@@ -193,7 +205,9 @@ int main(int argc, char *argv[])
 
    int global_vSize = fes->GlobalTrueVSize();
    if (myid == 0)
-   { cout << "Number of unknowns: " << global_vSize << endl; }
+   {
+      cout << "Number of unknowns: " << global_vSize << endl;
+   }
 
    // 8. Set up and assemble the parallel bilinear and linear forms (and the
    //    parallel hypre matrices) corresponding to the DG discretization. The
@@ -267,7 +281,9 @@ int main(int argc, char *argv[])
                  << vishost << ':' << visport << endl;
          visualization = false;
          if (myid == 0)
-         { cout << "GLVis visualization disabled.\n"; }
+         {
+            cout << "GLVis visualization disabled.\n";
+         }
       }
       else
       {
@@ -292,7 +308,9 @@ int main(int argc, char *argv[])
    for (int ti = 0; true; )
    {
       if (t >= t_final - dt/2)
-      { break; }
+      {
+         break;
+      }
 
       ode_solver->Step(*U, t, dt);
       ti++;
@@ -300,7 +318,9 @@ int main(int argc, char *argv[])
       if (ti % vis_steps == 0)
       {
          if (myid == 0)
-         { cout << "time step: " << ti << ", time: " << t << endl; }
+         {
+            cout << "time step: " << ti << ", time: " << t << endl;
+         }
 
          // 11. Extract the parallel grid function corresponding to the finite
          //     element approximation U (the local solution on each processor).

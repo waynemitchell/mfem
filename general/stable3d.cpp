@@ -26,7 +26,9 @@ STable3D::STable3D (int nr)
    Size = nr;
    Rows = new STable3DNode *[nr];
    for (i = 0; i < nr; i++)
-   { Rows[i] = NULL; }
+   {
+      Rows[i] = NULL;
+   }
    NElem = 0;
 }
 
@@ -73,7 +75,9 @@ int STable3D::Push (int r, int c, int f)
    {
       if (node->Column == c)
          if (node->Floor == f)
-         { return node->Number; }
+         {
+            return node->Number;
+         }
    }
 
 #ifdef MFEM_USE_MEMALLOC
@@ -101,7 +105,9 @@ int STable3D::operator() (int r, int c, int f) const
    {
       if (node->Column == c)
          if (node->Floor == f)
-         { return node->Number; }
+         {
+            return node->Number;
+         }
    }
 
    MFEM_ABORT("(r,c,f) = (" << r << "," << c << "," << f << ")");
@@ -119,7 +125,9 @@ int STable3D::Index (int r, int c, int f) const
    {
       if (node->Column == c)
          if (node->Floor == f)
-         { return node->Number; }
+         {
+            return node->Number;
+         }
    }
 
    return -1;

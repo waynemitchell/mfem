@@ -421,7 +421,9 @@ inline double &NURBSPatch::operator()(int i, int j, int l)
 #ifdef MFEM_DEBUG
    if (data == 0 || i < 0 || i >= ni || j < 0 || j >= nj || nk > 0 ||
        l < 0 || l >= Dim)
-   { mfem_error("NURBSPatch::operator() 2D"); }
+   {
+      mfem_error("NURBSPatch::operator() 2D");
+   }
 #endif
 
    return data[(i+j*ni)*Dim+l];
@@ -432,7 +434,9 @@ inline const double &NURBSPatch::operator()(int i, int j, int l) const
 #ifdef MFEM_DEBUG
    if (data == 0 || i < 0 || i >= ni || j < 0 || j >= nj || nk > 0 ||
        l < 0 || l >= Dim)
-   { mfem_error("NURBSPatch::operator() const 2D"); }
+   {
+      mfem_error("NURBSPatch::operator() const 2D");
+   }
 #endif
 
    return data[(i+j*ni)*Dim+l];
@@ -443,7 +447,9 @@ inline double &NURBSPatch::operator()(int i, int j, int k, int l)
 #ifdef MFEM_DEBUG
    if (data == 0 || i < 0 || i >= ni || j < 0 || j >= nj || k < 0 ||
        k >= nk || l < 0 || l >= Dim)
-   { mfem_error("NURBSPatch::operator() 3D"); }
+   {
+      mfem_error("NURBSPatch::operator() 3D");
+   }
 #endif
 
    return data[(i+(j+k*nj)*ni)*Dim+l];
@@ -454,7 +460,9 @@ inline const double &NURBSPatch::operator()(int i, int j, int k, int l) const
 #ifdef MFEM_DEBUG
    if (data == 0 || i < 0 || i >= ni || j < 0 || j >= nj || k < 0 ||
        k >= nk ||  l < 0 || l >= Dim)
-   { mfem_error("NURBSPatch::operator() const 3D"); }
+   {
+      mfem_error("NURBSPatch::operator() const 3D");
+   }
 #endif
 
    return data[(i+(j+k*nj)*ni)*Dim+l];

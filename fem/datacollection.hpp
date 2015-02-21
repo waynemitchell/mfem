@@ -66,7 +66,7 @@ protected:
    /// Delete data owned by the DataCollection including field information
    void DeleteAll();
 
-   // Save one field to disk, assuming the collection directory exists
+   /// Save one field to disk, assuming the collection directory exists
    void SaveOneField(const std::map<std::string,GridFunction*>::iterator &it);
 
 public:

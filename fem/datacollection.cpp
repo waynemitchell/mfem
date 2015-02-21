@@ -117,9 +117,13 @@ void DataCollection::RegisterField(const char* name, GridFunction *gf)
 GridFunction *DataCollection::GetField(const char *field_name)
 {
    if (HasField(field_name))
-   { return field_map[field_name]; }
+   {
+      return field_map[field_name];
+   }
    else
-   { return NULL; }
+   {
+      return NULL;
+   }
 }
 
 void DataCollection::Save()
@@ -139,9 +143,13 @@ void DataCollection::SaveMesh()
 {
    string dir_name;
    if (cycle == -1)
-   { dir_name = name; }
+   {
+      dir_name = name;
+   }
    else
-   { dir_name = name + "_" + to_padded_string(cycle, pad_digits); }
+   {
+      dir_name = name + "_" + to_padded_string(cycle, pad_digits);
+   }
    int err;
 #ifndef MFEM_USE_MPI
    err = mkdir(dir_name.c_str(), 0777);
@@ -153,7 +161,9 @@ void DataCollection::SaveMesh()
       err = mkdir(dir_name.c_str(), 0777);
       err = (err && (errno != EEXIST)) ? 1 : 0;
       if (pmesh)
-      { MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm()); }
+      {
+         MPI_Bcast(&err, 1, MPI_INT, 0, pmesh->GetComm());
+      }
    }
    else
    {
@@ -170,9 +180,13 @@ void DataCollection::SaveMesh()
 
    string mesh_name;
    if (serial)
-   { mesh_name = dir_name + "/mesh"; }
+   {
+      mesh_name = dir_name + "/mesh";
+   }
    else
-   { mesh_name = dir_name + "/mesh." + to_padded_string(myid, pad_digits); }
+   {
+      mesh_name = dir_name + "/mesh." + to_padded_string(myid, pad_digits);
+   }
    ofstream mesh_file(mesh_name.c_str());
    mesh->Print(mesh_file);
    if (!mesh_file)
@@ -187,13 +201,19 @@ void DataCollection::SaveOneField(
 {
    string dir_name;
    if (cycle == -1)
-   { dir_name = name; }
+   {
+      dir_name = name;
+   }
    else
-   { dir_name = name + "_" + to_padded_string(cycle, pad_digits); }
+   {
+      dir_name = name + "_" + to_padded_string(cycle, pad_digits);
+   }
 
    string file_name;
    if (serial)
-   { file_name = dir_name + "/" + it->first; }
+   {
+      file_name = dir_name + "/" + it->first;
+   }
    else
       file_name = dir_name + "/" + it->first + "." +
                   to_padded_string(myid, pad_digits);
@@ -210,19 +230,25 @@ void DataCollection::SaveField(const char *field_name)
 {
    const map<string,GridFunction*>::iterator it = field_map.find(field_name);
    if (it != field_map.end())
-   { SaveOneField(it); }
+   {
+      SaveOneField(it);
+   }
 }
 
 void DataCollection::DeleteData()
 {
    if (own_data)
-   { delete mesh; }
+   {
+      delete mesh;
+   }
    mesh = NULL;
    for (map<string,GridFunction*>::iterator it = field_map.begin();
         it != field_map.end(); ++it)
    {
       if (own_data)
-      { delete it->second; }
+      {
+         delete it->second;
+      }
       it->second = NULL;
    }
    own_data = false;
@@ -241,7 +267,9 @@ DataCollection::~DataCollection()
       delete mesh;
       for (map<string,GridFunction*>::iterator it = field_map.begin();
            it != field_map.end(); ++it)
-      { delete it->second; }
+      {
+         delete it->second;
+      }
    }
 }
 
@@ -327,13 +355,21 @@ void VisItDataCollection::Load(int _cycle)
                       ".mfem_root";
    LoadVisItRootFile(root_name);
    if (!error)
-   { LoadMesh(); }
+   {
+      LoadMesh();
+   }
    if (!error)
-   { LoadFields(); }
+   {
+      LoadFields();
+   }
    if (!error)
-   { own_data = true; }
+   {
+      own_data = true;
+   }
    else
-   { DeleteAll(); }
+   {
+      DeleteAll();
+   }
 }
 
 void VisItDataCollection::LoadVisItRootFile(string root_name)
@@ -425,7 +461,9 @@ string VisItDataCollection::GetVisItRootString()
    main["domains"] = picojson::value(double(num_procs));
    main["mesh"] = picojson::value(mesh);
    if (!field_info_map.empty())
-   { main["fields"] = picojson::value(fields); }
+   {
+      main["fields"] = picojson::value(fields);
+   }
 
    dsets["main"] = picojson::value(main);
    top["dsets"] = picojson::value(dsets);
