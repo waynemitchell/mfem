@@ -230,12 +230,12 @@ void Table::Finalize()
    }
 }
 
-bool operator< (const Connection &a, const Connection &b)
+static bool operator< (const Connection &a, const Connection &b)
 {
    return (a.from == b.from) ? (a.to < b.to) : (a.from < b.from);
 }
 
-bool operator== (const Connection &a, const Connection &b)
+static bool operator== (const Connection &a, const Connection &b)
 {
    return (a.from == b.from) && (a.to == b.to);
 }
@@ -258,7 +258,9 @@ void Table::MakeFromList(int nrows, Array<Connection> &list)
 
    J = new int[nnz];
    for (int i = 0; i < nnz; i++)
+   {
       J[i] = list[i].to;
+   }
 }
 
 int Table::Width() const

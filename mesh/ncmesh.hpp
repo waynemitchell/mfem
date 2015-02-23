@@ -73,11 +73,8 @@ public:
        requested refinements. */
    void Refine(const Array<Refinement> &refinements);
 
-   /** Derefine -- not implemented yet */
-   //void Derefine(Element* elem);
-
-   /** Check mesh and potentially refine some elements so that the maximum level
-       of hanging nodes is not greater than 'max_level'. */
+   /** Check the mesh and potentially refine some elements so that the maximum
+       level of hanging nodes is not greater than 'max_level'. */
    void LimitNCLevel(int max_level);
 
    /// Identifies a vertex/edge/face in both Mesh and NCMesh.
@@ -337,6 +334,7 @@ protected: // implementation
    Array<RefStackItem> ref_stack; ///< stack of scheduled refinements
 
    void Refine(Element* elem, char ref_type);
+   void Derefine(Element* elem);
 
    virtual void UpdateVertices(); ///< update Vertex::index and vertex_nodeId
 
@@ -380,7 +378,7 @@ protected: // implementation
 
    void RefElementNodes(Element *elem);
    void UnrefElementNodes(Element *elem);
-   void RegisterFaces(Element* elem);
+   void RegisterFaces(Element* elem, int *fattr = NULL);
 
    Node* PeekAltParents(Node* v1, Node* v2);
 

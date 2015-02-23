@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace mfem
 {
@@ -251,7 +252,8 @@ void NCMesh::RefElementNodes(Element *elem)
       const int* fv = gi.faces[i];
       faces.Get(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]])->Ref();
       // NOTE: face->RegisterElement called elsewhere to avoid having
-      //       to store 3 element pointers temporarily in the face when refining
+      // to store 3 element pointers temporarily in the face when refining.
+      // See also NCMesh::RegisterFaces.
    }
 }
 
@@ -301,7 +303,7 @@ void NCMesh::Face::RegisterElement(Element* e)
    else if (elem[1] == NULL)
       elem[1] = e;
    else
-      MFEM_ASSERT(0, "Can't have 3 elements in Face::elem[2].");
+      MFEM_ABORT("Can't have 3 elements in Face::elem[2].");
 }
 
 void NCMesh::Face::ForgetElement(Element* e)
@@ -311,10 +313,10 @@ void NCMesh::Face::ForgetElement(Element* e)
    else if (elem[1] == e)
       elem[1] = NULL;
    else
-      MFEM_ASSERT(0, "Element not found in Face::elem[2].");
+      MFEM_ABORT("Element not found in Face::elem[2].");
 }
 
-void NCMesh::RegisterFaces(Element* elem)
+void NCMesh::RegisterFaces(Element* elem, int* fattr)
 {
    Node** node = elem->node;
    GeomInfo& gi = GI[(int) elem->geom];
@@ -324,6 +326,7 @@ void NCMesh::RegisterFaces(Element* elem)
       const int* fv = gi.faces[i];
       Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
       face->RegisterElement(elem);
+      if (fattr) face->attribute = fattr[i];
    }
 }
 
@@ -1085,10 +1088,76 @@ void NCMesh::Refine(const Array<Refinement>& refinements)
 }
 
 
-/*void NCMesh::Derefine(Element* elem)
-  {
+void NCMesh::Derefine(Element* elem)
+{
+   if (!elem->ref_type) return;
 
-  }*/
+   Element* child[8];
+   std::memcpy(child, elem->child, sizeof(child));
+
+   // first make sure that all children are leaves, derefine them if not
+   for (int i = 0; i < 8; i++)
+      if (child[i] && child[i]->ref_type)
+      {
+         Derefine(child[i]);
+      }
+
+   // retrieve original corner nodes and face attributes from the children
+   int fa[6];
+   if (elem->geom == Geometry::CUBE)
+   {
+      const int table[7][8 + 6] =
+      {
+         { 0, 1, 1, 0, 0, 1, 1, 0, /**/ 1, 1, 1, 0, 0, 0 }, // 1 - X
+         { 0, 0, 1, 1, 0, 0, 1, 1, /**/ 0, 0, 0, 1, 1, 1 }, // 2 - Y
+         { 0, 1, 2, 3, 0, 1, 2, 3, /**/ 1, 1, 1, 3, 3, 3 }, // 3 - XY
+         { 0, 0, 0, 0, 1, 1, 1, 1, /**/ 0, 0, 0, 1, 1, 1 }, // 4 - Z
+         { 0, 1, 1, 0, 3, 2, 2, 3, /**/ 1, 1, 1, 3, 3, 3 }, // 5 - XZ
+         { 0, 0, 1, 1, 2, 2, 3, 3, /**/ 0, 0, 0, 3, 3, 3 }, // 6 - YZ
+         { 0, 1, 2, 3, 4, 5, 6, 7, /**/ 1, 1, 1, 7, 7, 7 }  // 7 - iso
+      };
+      for (int i = 0; i < 8; i++)
+      {
+         elem->node[i] = child[table[elem->ref_type - 1][i]]->node[i];
+      }
+      for (int i = 0; i < 6; i++)
+      {
+         Element* ch = child[table[elem->ref_type - 1][i + 8]];
+
+         const int* fv = gi_hex.faces[i];
+         fa[i] = faces.Peek(ch->node[fv[0]], ch->node[fv[1]],
+                            ch->node[fv[2]], ch->node[fv[3]])->attribute;
+      }
+   }
+   else
+   {
+      MFEM_ABORT("Not implemented.");
+   }
+
+   // sign in to all nodes again
+   RefElementNodes(elem);
+
+   // delete children, determine rank
+   elem->rank = std::numeric_limits<int>::max();
+   for (int i = 0; i < 8; i++)
+      if (child[i])
+      {
+         elem->rank = std::min(elem->rank, child[i]->rank);
+         DeleteHierarchy(child[i]);
+      }
+
+   // set boundary attributes, register faces (3D)
+   if (elem->geom == Geometry::CUBE)
+   {
+      RegisterFaces(elem, fa);
+   }
+   else
+   {
+      MFEM_ABORT("Not implemented.");
+   }
+
+   elem->ref_type = 0;
+}
 
 
 //// Mesh Interface ////////////////////////////////////////////////////////////

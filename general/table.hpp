@@ -20,7 +20,7 @@
 namespace mfem
 {
 
-/// Helper struct for defining a connectivity Table.
+/// Helper struct for defining a connectivity table, see Table::MakeFromList.
 struct Connection
 {
    int from, to;
@@ -119,7 +119,8 @@ public:
        Note: The table is functional even without calling Finalize(). */
    void Finalize();
 
-   /** Create the table from a list of connections. The list is sorted, rid
+   /** Create the table from a list of connections {(from, to)}, where 'from'
+       is a TYPE I index and 'to' is a TYPE II index. The list is sorted, rid
        of duplicities and converted to a CSR table.
        NOTE: 'list' is modified by this function. */
    void MakeFromList(int nrows, Array<Connection> &list);
