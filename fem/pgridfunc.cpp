@@ -96,7 +96,7 @@ void ParGridFunction::GetTrueDofs(Vector &tv) const
    HYPRE_Int *J = hypre_CSRMatrixJ(diag);
    for (int i = 0, j = 0; i < size; i++)
       if (j < I[i])
-         tv(J[j++]) = (*this)(i);
+         tv(internal::to_int(J[j++])) = (*this)(i);
 #endif
 }
 

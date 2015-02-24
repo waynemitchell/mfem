@@ -569,34 +569,26 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
 {
    Init();
 
-   // construct the local CSR matrix
-   HYPRE_Int nnz = I[nrows];
-   hypre_CSRMatrix *local = hypre_CSRMatrixCreate(nrows, glob_ncols, nnz);
-#ifndef HYPRE_BIGINT
-   hypre_CSRMatrixI(local) = I;
-#else
-   hypre_CSRMatrixI(local) = internal::Duplicate_As_HYPRE_Int(I, nrows+1);
-#endif
-   hypre_CSRMatrixJ(local) = J;
-   hypre_CSRMatrixData(local) = data;
-   hypre_CSRMatrixRownnz(local) = NULL;
-   hypre_CSRMatrixOwnsData(local) = 1;
-   hypre_CSRMatrixNumRownnz(local) = nrows;
-
-   int part_size, myid;
+   // Determine partitioning size, and my column start and end
+   int part_size;
+   HYPRE_Int my_col_start, my_col_end; // my range: [my_col_start, my_col_end)
    if (HYPRE_AssumedPartitionCheck())
    {
-      myid = 0;
       part_size = 2;
+      my_col_start = cols[0];
+      my_col_end = cols[1];
    }
    else
    {
+      int myid;
       MPI_Comm_rank(comm, &myid);
       MPI_Comm_size(comm, &part_size);
       part_size++;
+      my_col_start = cols[myid];
+      my_col_end = cols[myid+1];
    }
 
-   // copy in the row and column partitionings
+   // Copy in the row and column partitionings
    HYPRE_Int *row_starts, *col_starts;
    if (rows == cols)
    {
@@ -615,27 +607,81 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
       }
    }
 
+   // Create a map for the off-diagonal indices - global to local. Count the
+   // number of diagonal and off-diagonal entries.
+   HYPRE_Int diag_nnz = 0, offd_nnz = 0, offd_num_cols = 0;
+   map<HYPRE_Int, HYPRE_Int> offd_map;
+   for (HYPRE_Int j = 0, loc_nnz = I[nrows]; j < loc_nnz; j++)
+   {
+      HYPRE_Int glob_col = J[j];
+      if (my_col_start <= glob_col && glob_col < my_col_end)
+      {
+         diag_nnz++;
+      }
+      else
+      {
+         offd_map.insert(pair<const HYPRE_Int, HYPRE_Int>(glob_col, -1));
+         offd_nnz++;
+      }
+   }
+   // count the number of columns in the off-diagonal and set the local indices
+   for (map<HYPRE_Int, HYPRE_Int>::iterator it = offd_map.begin();
+        it != offd_map.end(); ++it)
+   {
+      it->second = offd_num_cols++;
+   }
+
    // construct the global ParCSR matrix
    A = hypre_ParCSRMatrixCreate(comm, glob_nrows, glob_ncols,
-                                row_starts, col_starts, 0, 0, 0);
-   // WARNING: This function creates a marker array with the size of
-   // local->num_cols which is equal to glob_ncols in this case!
-   // FIXME:
-   GenerateDiagAndOffd(local, A, col_starts[myid], col_starts[myid+1]-1);
+                                row_starts, col_starts, offd_num_cols,
+                                diag_nnz, offd_nnz);
+   hypre_ParCSRMatrixInitialize(A);
+
+   HYPRE_Int *diag_i, *diag_j, *offd_i, *offd_j, *offd_col_map;
+   double *diag_data, *offd_data;
+   diag_i = A->diag->i;
+   diag_j = A->diag->j;
+   diag_data = A->diag->data;
+   offd_i = A->offd->i;
+   offd_j = A->offd->j;
+   offd_data = A->offd->data;
+   offd_col_map = A->col_map_offd;
+
+   diag_nnz = offd_nnz = 0;
+   for (HYPRE_Int i = 0, j = 0; i < nrows; i++)
+   {
+      diag_i[i] = diag_nnz;
+      offd_i[i] = offd_nnz;
+      for (HYPRE_Int j_end = I[i+1]; j < j_end; j++)
+      {
+         HYPRE_Int glob_col = J[j];
+         if (my_col_start <= glob_col && glob_col < my_col_end)
+         {
+            diag_j[diag_nnz] = glob_col - my_col_start;
+            diag_data[diag_nnz] = data[j];
+            diag_nnz++;
+         }
+         else
+         {
+            offd_j[offd_nnz] = offd_map[glob_col];
+            offd_data[offd_nnz] = data[j];
+            offd_nnz++;
+         }
+      }
+   }
+   diag_i[nrows] = diag_nnz;
+   offd_i[nrows] = offd_nnz;
+   for (map<HYPRE_Int, HYPRE_Int>::iterator it = offd_map.begin();
+        it != offd_map.end(); ++it)
+   {
+      offd_col_map[it->second] = it->first;
+   }
+
    hypre_ParCSRMatrixSetNumNonzeros(A);
    /* Make sure that the first entry in each row is the diagonal one. */
    if (row_starts == col_starts)
       hypre_CSRMatrixReorder(hypre_ParCSRMatrixDiag(A));
    hypre_MatvecCommPkgCreate(A);
-
-   // delete the local CSR matrix
-#ifdef HYPRE_BIGINT
-   delete [] hypre_CSRMatrixI(local);
-#endif
-   hypre_CSRMatrixI(local) = NULL;
-   hypre_CSRMatrixJ(local) = NULL;
-   hypre_CSRMatrixData(local) = NULL;
-   hypre_CSRMatrixDestroy(local);
 
    height = GetNumRows();
    width = GetNumCols();
