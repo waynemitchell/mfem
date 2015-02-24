@@ -257,14 +257,14 @@ public:
    int GetNumRows() const
    {
       return internal::to_int(
-               hypre_CSRMatrixNumRows(hypre_ParCSRMatrixDiag(A)));
+                hypre_CSRMatrixNumRows(hypre_ParCSRMatrixDiag(A)));
    }
 
    /// Returns the number of columns in the diagonal block of the ParCSRMatrix
    int GetNumCols() const
    {
       return internal::to_int(
-               hypre_CSRMatrixNumCols(hypre_ParCSRMatrixDiag(A)));
+                hypre_CSRMatrixNumCols(hypre_ParCSRMatrixDiag(A)));
    }
 
    HYPRE_Int GetGlobalNumRows() const
@@ -388,7 +388,8 @@ public:
        1001 = Taubin polynomial smoother
        1002 = FIR polynomial smoother. */
    enum Type { Jacobi = 0, l1Jacobi = 1, l1GS = 2, l1GStr = 4, lumpedJacobi = 5,
-               GS = 6, Chebyshev = 16, Taubin = 1001, FIR = 1002 };
+               GS = 6, Chebyshev = 16, Taubin = 1001, FIR = 1002
+             };
 
    HypreSmoother();
 

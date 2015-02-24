@@ -91,7 +91,9 @@ public:
    {
       int err = __buf.open(hostname, port);
       if (err)
+      {
          setstate(std::ios::failbit);
+      }
       return err;
    }
 

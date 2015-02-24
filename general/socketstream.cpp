@@ -61,7 +61,23 @@ int socketbuf::open(const char hostname[], int port)
    sa.sin_port = htons(port);
    socket_descriptor = socket(hp->h_addrtype, SOCK_STREAM, 0);
    if (socket_descriptor < 0)
+   {
       return -1;
+   }
+
+#if defined __APPLE__
+   // OS X does not support the MSG_NOSIGNAL option of send().
+   // Instead we can use the SO_NOSIGPIPE socket option.
+   int on = 1;
+   if (setsockopt(socket_descriptor, SOL_SOCKET, SO_NOSIGPIPE,
+                  (char *)(&on), sizeof(on)) < 0)
+   {
+      closesocket(socket_descriptor);
+      socket_descriptor = -2;
+      return -1;
+   }
+#endif
+
    if (connect(socket_descriptor,
                (const struct sockaddr *)&sa, sizeof(sa)) < 0)
    {
@@ -125,9 +141,13 @@ socketbuf::int_type socketbuf::underflow()
 socketbuf::int_type socketbuf::overflow(int_type c)
 {
    if (sync() < 0)
+   {
       return traits_type::eof();
+   }
    if (traits_type::eq_int_type(c, traits_type::eof()))
+   {
       return traits_type::not_eof(c);
+   }
    *pptr() = traits_type::to_char_type(c);
    pbump(1);
    return c;
@@ -153,7 +173,9 @@ std::streamsize socketbuf::xsgetn(char_type *__s, std::streamsize __n)
    {
       br = recv(socket_descriptor, end - remain, remain, 0);
       if (br <= 0)
+      {
          return (__n - remain);
+      }
       remain -= br;
    }
    return __n;
@@ -170,7 +192,9 @@ std::streamsize socketbuf::xsputn(const char_type *__s, std::streamsize __n)
       return __n;
    }
    if (sync() < 0)
+   {
       return 0;
+   }
    ssize_t bw;
    std::streamsize remain = __n;
    const char_type *end = __s + __n;
@@ -182,7 +206,9 @@ std::streamsize socketbuf::xsputn(const char_type *__s, std::streamsize __n)
       bw = send(socket_descriptor, end - remain, remain, 0);
 #endif
       if (bw < 0)
+      {
          return (__n - remain);
+      }
       remain -= bw;
    }
    if (remain > 0)
@@ -232,7 +258,9 @@ socketserver::socketserver(int port)
 int socketserver::close()
 {
    if (!good())
+   {
       return 0;
+   }
    int err = closesocket(listen_socket);
    listen_socket = -1;
    return err;
@@ -241,7 +269,9 @@ int socketserver::close()
 int socketserver::accept(socketstream &sockstr)
 {
    if (!good())
+   {
       return -1;
+   }
    int socketd = ::accept(listen_socket, NULL, NULL);
    if (socketd >= 0)
    {

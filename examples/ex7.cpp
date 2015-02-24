@@ -76,11 +76,15 @@ int main(int argc, char *argv[])
    if (elem_type == 0) // inscribed octahedron
    {
       const double tri_v[6][3] =
-         {{ 1,  0,  0}, { 0,  1,  0}, {-1,  0,  0},
-          { 0, -1,  0}, { 0,  0,  1}, { 0,  0, -1}};
+      {
+         { 1,  0,  0}, { 0,  1,  0}, {-1,  0,  0},
+         { 0, -1,  0}, { 0,  0,  1}, { 0,  0, -1}
+      };
       const int tri_e[8][3] =
-         {{0, 1, 4}, {1, 2, 4}, {2, 3, 4}, {3, 0, 4},
-          {1, 0, 5}, {2, 1, 5}, {3, 2, 5}, {0, 3, 5}};
+      {
+         {0, 1, 4}, {1, 2, 4}, {2, 3, 4}, {3, 0, 4},
+         {1, 0, 5}, {2, 1, 5}, {3, 2, 5}, {0, 3, 5}
+      };
 
       for (int j = 0; j < Nvert; j++)
       {
@@ -96,11 +100,15 @@ int main(int argc, char *argv[])
    else // inscribed cube
    {
       const double quad_v[8][3] =
-         {{-1, -1, -1}, {+1, -1, -1}, {+1, +1, -1}, {-1, +1, -1},
-          {-1, -1, +1}, {+1, -1, +1}, {+1, +1, +1}, {-1, +1, +1}};
+      {
+         {-1, -1, -1}, {+1, -1, -1}, {+1, +1, -1}, {-1, +1, -1},
+         {-1, -1, +1}, {+1, -1, +1}, {+1, +1, +1}, {-1, +1, +1}
+      };
       const int quad_e[6][4] =
-         {{3, 2, 1, 0}, {0, 1, 5, 4}, {1, 2, 6, 5},
-          {2, 3, 7, 6}, {3, 0, 4, 7}, {4, 5, 6, 7}};
+      {
+         {3, 2, 1, 0}, {0, 1, 5, 4}, {1, 2, 6, 5},
+         {2, 3, 7, 6}, {3, 0, 4, 7}, {4, 5, 6, 7}
+      };
 
       for (int j = 0; j < Nvert; j++)
       {
@@ -123,11 +131,15 @@ int main(int argc, char *argv[])
    for (int l = 0; l <= ref_levels; l++)
    {
       if (l > 0) // for l == 0 just perform snapping
+      {
          mesh->UniformRefinement();
+      }
 
       // Snap the nodes of the refined mesh back to sphere surface.
       if (always_snap || l == ref_levels)
+      {
          SnapNodes(*mesh);
+      }
    }
 
    // 4. Define a finite element space on the mesh. Here we use isoparametric
@@ -229,11 +241,15 @@ void SnapNodes(Mesh &mesh)
    for (int i = 0; i < nodes.FESpace()->GetNDofs(); i++)
    {
       for (int d = 0; d < mesh.SpaceDimension(); d++)
+      {
          node(d) = nodes(nodes.FESpace()->DofToVDof(i, d));
+      }
 
       node /= node.Norml2();
 
       for (int d = 0; d < mesh.SpaceDimension(); d++)
+      {
          nodes(nodes.FESpace()->DofToVDof(i, d)) = node(d);
+      }
    }
 }

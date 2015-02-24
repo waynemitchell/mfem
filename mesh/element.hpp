@@ -35,7 +35,8 @@ public:
 
    /// Constants for the classes derived from Element.
    enum Type { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON,
-               HEXAHEDRON, BISECTED, QUADRISECTED, OCTASECTED };
+               HEXAHEDRON, BISECTED, QUADRISECTED, OCTASECTED
+             };
 
    /// Default element constructor.
    explicit Element(int bg = Geometry::POINT) { attribute = -1; base_geom = bg; }
@@ -116,12 +117,12 @@ public:
 
    Element *IAm()
    {
-      if (State == RefinedElement::COARSE) return CoarseElem;
+      if (State == RefinedElement::COARSE) { return CoarseElem; }
       return FirstChild;
    }
    const Element *IAm() const
    {
-      if (State == RefinedElement::COARSE) return CoarseElem;
+      if (State == RefinedElement::COARSE) { return CoarseElem; }
       return FirstChild;
    }
 
@@ -133,10 +134,10 @@ public:
 
    virtual int GetNVertices() const { return IAm()->GetNVertices(); }
 
-   virtual int GetNEdges() const { return(IAm()->GetNEdges()); }
+   virtual int GetNEdges() const { return (IAm()->GetNEdges()); }
 
    virtual const int *GetEdgeVertices(int ei) const
-   { return(IAm()->GetEdgeVertices(ei)); }
+   { return (IAm()->GetEdgeVertices(ei)); }
 
    virtual int GetNFaces(int &nFaceVertices) const
    { return IAm()->GetNFaces(nFaceVertices); }
