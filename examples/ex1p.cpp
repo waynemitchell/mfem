@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
       sol_sock << "solution\n" << *pmesh << x << flush;
-      sol_sock << "keys AmiM\n";
+      sol_sock << "keys Am\n";
    }
 
    // 15. Free the used memory.

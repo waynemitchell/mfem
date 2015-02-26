@@ -117,7 +117,8 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          SetAttributes();
       }
 
-      pncmesh->OnMeshUpdated(this);
+      pncmesh->OnMeshUpdated(this);      
+      //pncmesh->PruneGhosts();
 
       if (mesh.GetNodes()) // curved mesh TODO
       {

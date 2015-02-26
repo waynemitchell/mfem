@@ -14,7 +14,12 @@
 namespace mfem
 {
 
-/** \brief
+/** TODO: explain
+ *
+ *  - leaf_elements vs. Mesh elements
+ *  - ghost numbering
+ *  - face/edge orientation
+ *  - who is a neighbor
  *
  */
 class ParNCMesh : public NCMesh
@@ -119,18 +124,19 @@ protected:
    int NVertices, NGhostVertices;
    int NEdges, NGhostEdges;
    int NFaces, NGhostFaces;
+   // int NNeighbors; TODO?
 
-   //
+   // lists of vertices/edges/faces shared by us and at least one more processor
    NCList shared_vertices;
    NCList shared_edges;
    NCList shared_faces;
 
-   //
+   // owner processor for each vertex/edge/face TODO: maybe not needed
    Array<int> vertex_owner;
    Array<int> edge_owner;
    Array<int> face_owner;
 
-   //
+   // list of processors sharing each vertex/edge/face
    Table vertex_group;
    Table edge_group;
    Table face_group;
@@ -196,7 +202,20 @@ protected:
    /// Read from 'is' a processor-independent encoding of vetex/edge/face IDs.
    void DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const;
 
+   /** Returns true if an element is on a processor boundary, i.e., if at least
+       one of its vertices, edges or faces is shared. */
+   bool OnProcessorBoundary(Element* elem) const;
+
+   void ElementNeighborProcessors(Array<int> &ranks) const;
+
+   /** Traverse the (local) refinement tree and determine which subtrees are
+       no longer needed, i.e., their leaves are not owned by us nor are they our
+       ghosts. These subtrees are then deleted. */
    void PruneGhosts();
+
+   /// Internal. Recursive part of PruneGhosts().
+   bool PruneTree(Element* elem);
+
 
    friend class ParMesh;
    friend class NeighborDofMessage;
@@ -286,6 +305,12 @@ protected:
 
    virtual void Encode();
    virtual void Decode();
+};
+
+/**  */
+class NeighborRefinementMessage : public VarMessage<289>
+{
+
 };
 
 

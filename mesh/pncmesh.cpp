@@ -35,7 +35,6 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
 
    AssignLeafIndices();
    UpdateVertices();
-   PruneGhosts();
 }
 
 void ParNCMesh::AssignLeafIndices()
@@ -202,7 +201,7 @@ void ParNCMesh::AddSlaveRanks(int nitems, const NCList& list)
 
    // We need the groups of master edges/faces to contain the ranks of their
    // slaves (so that master DOFs get sent to those who share the slaves).
-   // This can be done by appending more items to 'tmp_ranks' for the masters.
+   // This can be done by appending more items to 'index_rank' for the masters.
    // (Note that a slave edge can be shared by more than one element/processor.)
 
    int size = index_rank.Size();
@@ -332,10 +331,93 @@ void ParNCMesh::CalcFaceOrientations()
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool ParNCMesh::OnProcessorBoundary(Element* elem) const
+{
+   MFEM_ASSERT(!elem->ref_type, "This is for leaves only.");
+   const NCMesh::GeomInfo &gi = NCMesh::GI[(int) elem->geom];
+
+   // check vertices
+   for (int i = 0; i < gi.nv; i++)
+      if (is_shared(vertex_group, elem->node[i]->vertex->index, MyRank))
+      {
+         return true;
+      }
+
+   // check edges
+   for (int i = 0; i < gi.ne; i++)
+   {
+      const int* ev = gi.edges[i];
+      Node* node = nodes.Peek(elem->node[ev[0]], elem->node[ev[1]]);
+      MFEM_ASSERT(node && node->edge, "Edge not found.");
+
+      if (is_shared(edge_group, node->edge->index, MyRank))
+      {
+         return true;
+      }
+   }
+
+   // don't have to check the faces, the element is not shared if we got here
+   return false;
+}
+
+bool ParNCMesh::PruneTree(Element* elem)
+{
+   if (elem->ref_type)
+   {
+      bool remove[8];
+      bool removeAll = true;
+
+      // determine which subtrees can be removed (and whether it's all of them)
+      for (int i = 0; i < 8; i++)
+      {
+         remove[i] = false;
+         if (elem->child[i])
+         {
+            remove[i] = PruneTree(elem->child[i]);
+            if (!remove[i]) { removeAll = false; }
+         }
+      }
+
+      // all children can be removed, let the (maybe indirect) parent do it
+      if (removeAll) { return true; }
+
+      // not all children can be removed, but remove those that can be
+      for (int i = 0; i < 8; i++)
+         if (remove[i])
+         {
+            Derefine(elem->child[i]);
+         }
+
+      return false; // need to keep this element and up
+   }
+   else
+   {
+      // return true if this leaf can be removed
+      return (elem->rank != MyRank) && !OnProcessorBoundary(elem);
+   }
+}
+
 void ParNCMesh::PruneGhosts()
 {
+   GetSharedVertices();
+   GetSharedEdges();
 
+   // derefine subtrees whose leaves are all unneeded
+   for (int i = 0; i < root_elements.Size(); i++)
+   {
+      if (PruneTree(root_elements[i]))
+      {
+         Derefine(root_elements[i]);
+      }
+   }
+
+   UpdateLeafElements();
+   UpdateVertices();
+
+   face_list.Clear();
+   edge_list.Clear();
 }
+
 
 //// ElementSet ////////////////////////////////////////////////////////////////
 
