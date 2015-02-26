@@ -2104,7 +2104,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
          {
             Piz = Pi_blocks(0,2);
          }
-         // TODO: copy col-starts?
       }
 
       delete id_ND;
@@ -2260,7 +2259,6 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          ND_Pix = ND_Pi_blocks(0,0);
          ND_Piy = ND_Pi_blocks(0,1);
          ND_Piz = ND_Pi_blocks(0,2);
-         // TODO: copy col-starts and row-starts?
       }
 
       delete id_ND;
@@ -2296,7 +2294,6 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          RT_Pix = RT_Pi_blocks(0,0);
          RT_Piy = RT_Pi_blocks(0,1);
          RT_Piz = RT_Pi_blocks(0,2);
-         // TODO: copy col-starts?
       }
 
       delete id_RT;
