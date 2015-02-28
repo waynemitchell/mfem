@@ -514,6 +514,8 @@ template <> inline MPI_Datatype GroupCommunicator::Get_MPI_Datatype<double>()
    return MPI_DOUBLE;
 }
 
+// @cond DOXYGEN_SKIP
+
 // instantiate GroupCommunicator::Bcast and Reduce for int and double
 template void GroupCommunicator::Bcast<int>(int *);
 template void GroupCommunicator::Reduce<int>(int *, void (*)(OpData<int>));
@@ -521,6 +523,8 @@ template void GroupCommunicator::Reduce<int>(int *, void (*)(OpData<int>));
 template void GroupCommunicator::Bcast<double>(double *);
 template void GroupCommunicator::Reduce<double>(
    double *, void (*)(OpData<double>));
+
+// @endcond
 
 // instantiate reduce operators for int and double
 template void GroupCommunicator::Sum<int>(OpData<int>);

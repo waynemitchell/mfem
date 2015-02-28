@@ -323,10 +323,11 @@ public:
                         int F = FunctionSpace::Pk) :
 #ifdef MFEM_THREAD_SAFE
       FiniteElement(D, G, Do, O, F)
+   { RangeType = VECTOR; MapType = M; }
 #else
       FiniteElement(D, G, Do, O, F), Jinv(D), vshape(Do, D)
-#endif
    { RangeType = VECTOR; MapType = M; }
+#endif
 };
 
 class PointFiniteElement : public NodalFiniteElement
