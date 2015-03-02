@@ -71,7 +71,7 @@ public:
        of anisotropic splits additional refinements may be necessary to keep
        the mesh consistent. However, the function always performas at least the
        requested refinements. */
-   void Refine(const Array<Refinement> &refinements);
+   virtual void Refine(const Array<Refinement> &refinements);
 
    /** Check the mesh and potentially refine some elements so that the maximum
        level of hanging nodes is not greater than 'max_level'. */
@@ -322,19 +322,19 @@ protected: // implementation
    HashTable<Node> nodes; // associative container holding all Nodes
    HashTable<Face> faces; // associative container holding all Faces
 
-   struct RefStackItem
+   struct ElemRefType
    {
       Element* elem;
-      char ref_type;
+      int ref_type;
 
-      RefStackItem(Element* elem, int type)
+      ElemRefType(Element* elem, int type)
          : elem(elem), ref_type(type) {}
    };
 
-   Array<RefStackItem> ref_stack; ///< stack of scheduled refinements
+   Array<ElemRefType> ref_stack; ///< stack of scheduled refinements
 
-   void Refine(Element* elem, char ref_type);
-   void Derefine(Element* elem);
+   void RefineElement(Element* elem, char ref_type);
+   void DerefineElement(Element* elem);
 
    virtual void UpdateVertices(); ///< update Vertex::index and vertex_nodeId
 
@@ -342,6 +342,14 @@ protected: // implementation
    void UpdateLeafElements();
 
    virtual void AssignLeafIndices();
+
+   /** Apart from the primary data structure, which is the element/node/face
+       hierarchy, there is secondary data that is derived from the primary
+       structure and needs to be updated when the primary data changes.
+       Update() takes cares of that and needs to be called after refinement and
+       derefinement. Secondary data includes: leaf_elements, vertex_nodeId,
+       face_list, edge_list, and everything in ParNCMesh. */
+   virtual void Update();
 
    Element* CopyHierarchy(Element* elem);
    void DeleteHierarchy(Element* elem);

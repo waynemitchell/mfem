@@ -37,6 +37,15 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
    UpdateVertices();
 }
 
+void ParNCMesh::Update()
+{
+   NCMesh::Update();
+
+   shared_vertices.Clear();
+   shared_edges.Clear();
+   shared_faces.Clear();
+}
+
 void ParNCMesh::AssignLeafIndices()
 {
    // This is an override of NCMesh::AssignLeafIndices(). The difference is
@@ -329,11 +338,11 @@ void ParNCMesh::CalcFaceOrientations()
       }
 }
 
-////////////////////////////////////////////////////////////////////////////////
+//// PruneGhosts ///////////////////////////////////////////////////////////////
 
 bool ParNCMesh::OnProcessorBoundary(Element* elem) const
 {
-   MFEM_ASSERT(!elem->ref_type, "This is for leaves only.");
+   MFEM_ASSERT(!elem->ref_type, "Not a leaf.");
    const NCMesh::GeomInfo &gi = NCMesh::GI[(int) elem->geom];
 
    // check vertices
@@ -356,8 +365,60 @@ bool ParNCMesh::OnProcessorBoundary(Element* elem) const
       }
    }
 
-   // don't have to check the faces, the element is not shared if we got here
+   // don't have to check the faces -- the element is not shared if we got here
    return false;
+}
+
+static void append_ranks(Array<int> &ranks, const Table &groups,
+                         int index, int my_rank)
+{
+   const int *group = groups.GetRow(index);
+   int size = groups.RowSize(index);
+
+   for (int i = 0; i < size; i++)
+   {
+      int r = group[i];
+      if (r == my_rank) { continue; }
+      if (!ranks.Size() || ranks.Last() != r) { ranks.Append(r); }
+   }
+}
+
+void ParNCMesh::ElementNeighborProcessors(Element *elem, Array<int> &ranks) const
+{
+   MFEM_ASSERT(!elem->ref_type, "Not a leaf.");
+
+   ranks.SetSize(0); // preserve capacity
+
+   Node** node = elem->node;
+   const NCMesh::GeomInfo &gi = NCMesh::GI[(int) elem->geom];
+
+   // get vertex ranks
+   for (int i = 0; i < gi.nv; i++)
+   {
+      append_ranks(ranks, vertex_group, node[i]->vertex->index, MyRank);
+   }
+
+   // get edge ranks
+   for (int i = 0; i < gi.ne; i++)
+   {
+      const int* ev = gi.edges[i];
+      Node* edge = nodes.Peek(node[ev[0]], node[ev[1]]);
+      MFEM_ASSERT(edge && edge->edge, "Edge not found.");
+      append_ranks(ranks, edge_group, edge->edge->index, MyRank);
+   }
+
+   // get face ranks
+   for (int i = 0; i < gi.nf; i++)
+   {
+      const int* fv = gi.faces[i];
+      Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
+      MFEM_ASSERT(face, "Face not found.");
+      append_ranks(ranks, face_group, face->index, MyRank);
+   }
+
+   // now sort and get rid of duplicities
+   ranks.Sort();
+   ranks.Unique();
 }
 
 bool ParNCMesh::PruneTree(Element* elem)
@@ -385,7 +446,7 @@ bool ParNCMesh::PruneTree(Element* elem)
       for (int i = 0; i < 8; i++)
          if (remove[i])
          {
-            Derefine(elem->child[i]);
+            DerefineElement(elem->child[i]);
          }
 
       return false; // need to keep this element and up
@@ -407,15 +468,19 @@ void ParNCMesh::PruneGhosts()
    {
       if (PruneTree(root_elements[i]))
       {
-         Derefine(root_elements[i]);
+         DerefineElement(root_elements[i]);
       }
    }
 
-   UpdateLeafElements();
-   UpdateVertices();
+   Update();
+}
 
-   face_list.Clear();
-   edge_list.Clear();
+
+//// Refine ////////////////////////////////////////////////////////////////////
+
+void ParNCMesh::Refine(const Array<Refinement> &refinements)
+{
+
 }
 
 

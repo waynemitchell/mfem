@@ -10,6 +10,7 @@
 
 #include "ncmesh.hpp"
 #include "../general/communication.hpp"
+#include "../general/sort_pairs.hpp"
 
 namespace mfem
 {
@@ -26,6 +27,9 @@ class ParNCMesh : public NCMesh
 {
 public:
    ParNCMesh(MPI_Comm comm, const NCMesh& ncmesh);
+
+   /** */
+   virtual void Refine(const Array<Refinement> &refinements);
 
    /** Return a list of vertices shared by this processor and at least one other
        processor. (NOTE: only NCList::conforming will be set.) */
@@ -124,7 +128,6 @@ protected:
    int NVertices, NGhostVertices;
    int NEdges, NGhostEdges;
    int NFaces, NGhostFaces;
-   // int NNeighbors; TODO?
 
    // lists of vertices/edges/faces shared by us and at least one more processor
    NCList shared_vertices;
@@ -142,6 +145,8 @@ protected:
    Table face_group;
 
    Array<char> face_orient;
+
+   virtual void Update();
 
    /// Assigns elements to processors at the initial stage (ParMesh creation).
    int InitialPartition(int index) const
@@ -165,7 +170,6 @@ protected:
    Array<Connection> index_rank;
 
    void AddSlaveRanks(int nitems, const NCList& list);
-   void MakeGroups(int nitems, Table &groups);
    void MakeShared(const Table &groups, const NCList &list, NCList &shared);
 
    /** Uniquely encodes a set of elements in the erefinement hierarchy of an
@@ -202,19 +206,37 @@ protected:
    /// Read from 'is' a processor-independent encoding of vetex/edge/face IDs.
    void DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const;
 
-   /** Returns true if an element is on a processor boundary, i.e., if at least
+   /** Return true if an element is on a processor boundary, i.e., if at least
        one of its vertices, edges or faces is shared. */
    bool OnProcessorBoundary(Element* elem) const;
 
-   void ElementNeighborProcessors(Array<int> &ranks) const;
+   /** Return a list of processors that own elements in the immediate
+       neighborhood of 'elem' (i.e., vertex, edge and face neighbors),
+       and are not 'MyRank'. */
+   void ElementNeighborProcessors(Element* elem, Array<int> &ranks) const;
 
    /** Traverse the (local) refinement tree and determine which subtrees are
        no longer needed, i.e., their leaves are not owned by us nor are they our
-       ghosts. These subtrees are then deleted. */
+       ghosts. These subtrees are then derefined. */
    void PruneGhosts();
 
    /// Internal. Recursive part of PruneGhosts().
    bool PruneTree(Element* elem);
+
+
+   /**  */
+   class NeighborRefinementMessage : public VarMessage<289>
+   {
+   public:
+      Array<ElemRefType> refinements;
+
+      void AddRefinement(Element* elem, int ref_type)
+      { refinements.Append(ElemRefType(elem, ref_type)); }
+
+   protected:
+      virtual void Encode();
+      virtual void Decode();
+   };
 
 
    friend class ParMesh;
@@ -238,7 +260,7 @@ TODO
 + outer loop
 - assumed partition
 - nonzero essential BC
-- prune ghosts
++ prune ghosts
 - parallel refine
 */
 
@@ -305,12 +327,6 @@ protected:
 
    virtual void Encode();
    virtual void Decode();
-};
-
-/**  */
-class NeighborRefinementMessage : public VarMessage<289>
-{
-
 };
 
 

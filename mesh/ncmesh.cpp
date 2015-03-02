@@ -129,8 +129,16 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
                     "elements are supported.");
    }
 
+   Update();
+}
+
+void NCMesh::Update()
+{
    UpdateLeafElements();
    UpdateVertices();
+
+   face_list.Clear();
+   edge_list.Clear();
 }
 
 NCMesh::Element* NCMesh::CopyHierarchy(Element* elem)
@@ -176,8 +184,7 @@ NCMesh::NCMesh(const NCMesh &other)
    for (int i = 0; i < root_elements.Size(); i++)
       root_elements[i] = CopyHierarchy(other.root_elements[i]);
 
-   UpdateLeafElements();
-   UpdateVertices();
+   Update();
 }
 
 NCMesh::~NCMesh()
@@ -568,17 +575,17 @@ void NCMesh::ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4)
    if ((NodeSetX1(v1, nodes) && NodeSetX2(v2, nodes)) ||
        (NodeSetX1(v2, nodes) && NodeSetX2(v1, nodes)))
    {
-      ref_stack.Append(RefStackItem(elem, 1)); // X split
+      ref_stack.Append(ElemRefType(elem, 1)); // X split
    }
    else if ((NodeSetY1(v1, nodes) && NodeSetY2(v2, nodes)) ||
             (NodeSetY1(v2, nodes) && NodeSetY2(v1, nodes)))
    {
-      ref_stack.Append(RefStackItem(elem, 2)); // Y split
+      ref_stack.Append(ElemRefType(elem, 2)); // Y split
    }
    else if ((NodeSetZ1(v1, nodes) && NodeSetZ2(v2, nodes)) ||
             (NodeSetZ1(v2, nodes) && NodeSetZ2(v1, nodes)))
    {
-      ref_stack.Append(RefStackItem(elem, 4)); // Z split
+      ref_stack.Append(ElemRefType(elem, 4)); // Z split
    }
    else
       MFEM_ASSERT(0, "Inconsistent element/face structure.");
@@ -651,7 +658,7 @@ void NCMesh::CheckIsoFace(Node* v1, Node* v2, Node* v3, Node* v4,
 }
 
 
-void NCMesh::Refine(Element* elem, char ref_type)
+void NCMesh::RefineElement(Element* elem, char ref_type)
 {
    if (!ref_type) return;
 
@@ -663,7 +670,7 @@ void NCMesh::Refine(Element* elem, char ref_type)
       // do the remaining splits on the children
       for (int i = 0; i < 8; i++)
          if (elem->child[i])
-            Refine(elem->child[i], remaining);
+            RefineElement(elem->child[i], remaining);
 
       return;
    }
@@ -1052,18 +1059,18 @@ void NCMesh::Refine(const Array<Refinement>& refinements)
    for (int i = refinements.Size()-1; i >= 0; i--)
    {
       const Refinement& ref = refinements[i];
-      ref_stack.Append(RefStackItem(leaf_elements[ref.index], ref.ref_type));
+      ref_stack.Append(ElemRefType(leaf_elements[ref.index], ref.ref_type));
    }
 
    // keep refining as long as the stack contains something
    int nforced = 0;
    while (ref_stack.Size())
    {
-      RefStackItem ref = ref_stack.Last();
+      ElemRefType ref = ref_stack.Last();
       ref_stack.DeleteLast();
 
       int size = ref_stack.Size();
-      Refine(ref.elem, ref.ref_type);
+      RefineElement(ref.elem, ref.ref_type);
       nforced += ref_stack.Size() - size;
    }
 
@@ -1073,22 +1080,20 @@ void NCMesh::Refine(const Array<Refinement>& refinements)
       refinement that could stop the propagation. We should introduce the
       member Element::ref_pending that would show the intended refinement in
       the batch. A forced refinement would be combined with ref_pending to
-      (possibly) stop the propagation earlier. */
+      (possibly) stop the propagation earlier.
+
+      Update: what about a FIFO instead of ref_stack? */
 
 #ifdef MFEM_DEBUG
    std::cout << "Refined " << refinements.Size() << " + " << nforced
              << " elements" << std::endl;
 #endif
 
-   UpdateLeafElements();
-   UpdateVertices();
-
-   face_list.Clear();
-   edge_list.Clear();
+   Update();
 }
 
 
-void NCMesh::Derefine(Element* elem)
+void NCMesh::DerefineElement(Element* elem)
 {
    if (!elem->ref_type) return;
 
@@ -1099,7 +1104,7 @@ void NCMesh::Derefine(Element* elem)
    for (int i = 0; i < 8; i++)
       if (child[i] && child[i]->ref_type)
       {
-         Derefine(child[i]);
+         DerefineElement(child[i]);
       }
 
    // retrieve original corner nodes and face attributes from the children
