@@ -123,14 +123,14 @@ public:
    /// Return the current list of conforming and nonconforming faces.
    const NCList& GetFaceList()
    {
-      if (face_list.Empty()) BuildFaceList();
+      if (face_list.Empty()) { BuildFaceList(); }
       return face_list;
    }
 
    /// Return the current list of conforming and nonconforming edges.
    const NCList& GetEdgeList()
    {
-      if (edge_list.Empty()) BuildEdgeList();
+      if (edge_list.Empty()) { BuildEdgeList(); }
       return edge_list;
    }
 

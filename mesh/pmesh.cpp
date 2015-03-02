@@ -109,9 +109,9 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          {
             GetElementToFaceTable();
             GenerateFaces();
-      #ifdef MFEM_DEBUG
+#ifdef MFEM_DEBUG
             CheckBdrElementOrientation();
-      #endif
+#endif
          }
 
          el_to_edge = new Table;
@@ -121,7 +121,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          SetAttributes();
       }
 
-      pncmesh->OnMeshUpdated(this);      
+      pncmesh->OnMeshUpdated(this);
       //pncmesh->PruneGhosts();
 
       if (mesh.GetNodes()) // curved mesh TODO
@@ -2811,17 +2811,17 @@ void ParMesh::Print(std::ostream &out) const
          for (unsigned i = 0; i < sfaces.conforming.size(); i++)
          {
             int index = sfaces.conforming[i].index;
-            if (index < GetNFaces()) nc_shared_faces.Append(index);
+            if (index < GetNFaces()) { nc_shared_faces.Append(index); }
          }
          for (unsigned i = 0; i < sfaces.masters.size(); i++)
          {
             int index = sfaces.masters[i].index;
-            if (index < GetNFaces()) nc_shared_faces.Append(index);
+            if (index < GetNFaces()) { nc_shared_faces.Append(index); }
          }
          for (unsigned i = 0; i < sfaces.slaves.size(); i++)
          {
             int index = sfaces.slaves[i].index;
-            if (index < GetNFaces()) nc_shared_faces.Append(index);
+            if (index < GetNFaces()) { nc_shared_faces.Append(index); }
          }
       }
    }

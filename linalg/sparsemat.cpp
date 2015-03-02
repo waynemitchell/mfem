@@ -160,7 +160,9 @@ int SparseMatrix::RowSize(const int i) const
 {
    int gi = i;
    if (gi < 0)
+   {
       gi = -1-gi;
+   }
 
    if (I)
    {

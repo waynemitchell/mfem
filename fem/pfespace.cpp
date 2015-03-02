@@ -919,10 +919,8 @@ struct DepList
 
 inline int DecodeDof(int dof, double& sign)
 {
-   if (dof >= 0)
-      return (sign = 1.0, dof);
-   else
-      return (sign = -1.0, -1 - dof);
+   if (dof >= 0) { return (sign = 1.0, dof); }
+   else { return (sign = -1.0, -1 - dof); }
 }
 
 const int INVALID_DOF = INT_MAX;
@@ -938,8 +936,8 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
 
    if (pm.Width() == 2) // edge: exclude master endpoint vertices
    {
-      if (pm(0,0) == 0.0 || pm(0,0) == 1.0) slave_dofs[0] = INVALID_DOF;
-      if (pm(0,1) == 0.0 || pm(0,1) == 1.0) slave_dofs[1] = INVALID_DOF;
+      if (pm(0,0) == 0.0 || pm(0,0) == 1.0) { slave_dofs[0] = INVALID_DOF; }
+      if (pm(0,1) == 0.0 || pm(0,1) == 1.0) { slave_dofs[1] = INVALID_DOF; }
    }
    else // face: exclude master corner vertices + full edges if present
    {
@@ -948,7 +946,9 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
       {
          double x = pm(0,i), y = pm(1,i);
          if ((x == 0.0 || x == 1.0) && (y == 0.0 || y == 1.0))
+         {
             slave_dofs[i] = INVALID_DOF;
+         }
       }
       for (int i = 0; i < 4; i++)
       {
@@ -957,21 +957,23 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
          {
             int n = fec->DofForGeometry(Geometry::SEGMENT);
             for (int k = 0; k < n; k++)
+            {
                slave_dofs[4 + i*n + k] = INVALID_DOF;
+            }
          }
       }
    }
 }
 
 static void AddSlaveDependencies(DepList deps[], int master_rank,
-   Array<int>& master_dofs, Array<int>& slave_dofs, DenseMatrix& I)
+                                 Array<int>& master_dofs, Array<int>& slave_dofs, DenseMatrix& I)
 {
    // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
    {
       double ss, ms;
       int sdof = DecodeDof(slave_dofs[i], ss);
-      if (sdof == INVALID_DOF) continue;
+      if (sdof == INVALID_DOF) { continue; }
 
       DepList &dl = deps[sdof];
       if (dl.type < 2) // slave dependencies override 1-to-1 dependencies
@@ -993,7 +995,7 @@ static void AddSlaveDependencies(DepList deps[], int master_rank,
 }
 
 static void Add1To1Dependencies(DepList deps[], int owner_rank,
-   Array<int>& owner_dofs, Array<int>& dependent_dofs)
+                                Array<int>& owner_dofs, Array<int>& dependent_dofs)
 {
    MFEM_ASSERT(owner_dofs.Size() == dependent_dofs.Size(), "");
    for (int i = 0; i < owner_dofs.Size(); i++)
@@ -1001,7 +1003,7 @@ static void Add1To1Dependencies(DepList deps[], int owner_rank,
       double osign, dsign;
       int odof = DecodeDof(owner_dofs[i], osign);
       int ddof = DecodeDof(dependent_dofs[i], dsign);
-      if (odof == INVALID_DOF || ddof == INVALID_DOF) continue;
+      if (odof == INVALID_DOF || ddof == INVALID_DOF) { continue; }
 
       DepList &dl = deps[ddof];
       if (dl.type == 0)
@@ -1030,20 +1032,24 @@ void ParFiniteElementSpace::ReorderFaceDofs(Array<int> &dofs, int type,
 
    int ve_dofs = 4*(nv + ne);
    for (int i = 0; i < ve_dofs; i++)
+   {
       dofs[i] = INVALID_DOF;
+   }
 
    int f_dofs = dofs.Size() - ve_dofs;
    for (int i = 0; i < f_dofs; i++)
+   {
       dofs[ve_dofs + i] = tmp[ve_dofs + ind[i]];
+   }
 }
 
 void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
 {
    switch (type)
    {
-   case 0: GetVertexDofs(index, dofs); break;
-   case 1: GetEdgeDofs(index, dofs); break;
-   default: GetFaceDofs(index, dofs);
+      case 0: GetVertexDofs(index, dofs); break;
+      case 1: GetEdgeDofs(index, dofs); break;
+      default: GetFaceDofs(index, dofs);
    }
 }
 
@@ -1075,7 +1081,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          // loop through all (shared) conforming+master vertices/edges/faces
          const NCMesh::MeshId& id =
             (i < cs) ? (const NCMesh::MeshId&) list.conforming[i]
-                     : (const NCMesh::MeshId&) list.masters[i-cs];
+            : (const NCMesh::MeshId&) list.masters[i-cs];
 
          int owner = pncmesh->GetOwner(type, id.index), gsize;
          if (owner == MyRank)
@@ -1085,7 +1091,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             const int *group = pncmesh->GetGroup(type, id.index, gsize);
             for (int j = 0; j < gsize; j++)
                if (group[j] != MyRank)
+               {
                   send_dofs[group[j]].AddDofs(type, id, dofs, pncmesh);
+               }
          }
          else
          {
@@ -1111,14 +1119,15 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    for (int type = 1; type < 3; type++)
    {
       const NCMesh::NCList &list = (type > 1) ? pncmesh->GetFaceList()
-                                              : pncmesh->GetEdgeList();
-      if (!list.masters.size()) continue;
+                                   : pncmesh->GetEdgeList();
+      if (!list.masters.size()) { continue; }
 
       IsoparametricTransformation T;
-      if (type > 1) T.SetFE(&QuadrilateralFE); else T.SetFE(&SegmentFE);
+      if (type > 1) { T.SetFE(&QuadrilateralFE); }
+      else { T.SetFE(&SegmentFE); }
 
       const FiniteElement* fe = fec->FiniteElementForGeometry(
-         ((type > 1) ? Geometry::SQUARE : Geometry::SEGMENT));
+                                   ((type > 1) ? Geometry::SQUARE : Geometry::SEGMENT));
 
       DenseMatrix I(fe->GetDof());
 
@@ -1126,25 +1135,29 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       for (unsigned mi = 0; mi < list.masters.size(); mi++)
       {
          const NCMesh::Master &mf = list.masters[mi];
-         if (!pncmesh->RankInGroup(type, mf.index, MyRank)) continue;
+         if (!pncmesh->RankInGroup(type, mf.index, MyRank)) { continue; }
 
          // get master DOFs
          int master_rank = pncmesh->GetOwner(type, mf.index);
          if (master_rank == MyRank)
+         {
             GetDofs(type, mf.index, master_dofs);
+         }
          else
+         {
             recv_dofs[master_rank].GetDofs(type, mf, master_dofs);
+         }
 
-         if (!master_dofs.Size()) continue;
+         if (!master_dofs.Size()) { continue; }
 
          // constrain slaves that exist in our mesh
          for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
          {
             const NCMesh::Slave &sf = list.slaves[si];
-            if (pncmesh->IsGhost(type, sf.index)) continue;
+            if (pncmesh->IsGhost(type, sf.index)) { continue; }
 
             GetDofs(type, sf.index, slave_dofs);
-            if (!slave_dofs.Size()) continue;
+            if (!slave_dofs.Size()) { continue; }
 
             T.GetPointMat() = sf.point_matrix;
             fe->GetLocalInterpolation(T, I);
@@ -1199,9 +1212,13 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    // copy communication topology from the DOF messages
    NeighborDofMessage::Map::iterator it;
    for (it = send_dofs.begin(); it != send_dofs.end(); ++it)
+   {
       recv_requests[it->first];
+   }
    for (it = recv_dofs.begin(); it != recv_dofs.end(); ++it)
+   {
       send_requests[it->first];
+   }
 
    // request rows we depend on
    for (int i = 0; i < num_cdofs; i++)
@@ -1211,7 +1228,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       {
          const Dependency &dep = dl.list[j];
          if (dep.rank != MyRank)
+         {
             send_requests[dep.rank].RequestRow(dep.dof);
+         }
       }
    }
 
@@ -1224,12 +1243,16 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    ltdof_size = 0;
    for (int i = 0; i < num_cdofs; i++)
       if (IsTrueDof(deps[i], MyRank))
+      {
          ltdof_size++;
+      }
 
    std::cout << MyRank << ": true dofs = " << ltdof_size << std::endl;
 
    if (HYPRE_AssumedPartitionCheck())
+   {
       MFEM_ABORT("hypre assumed partition not implemented yet.");
+   }
 
    // FIXME: vdim
    GenerateGlobalOffsets();
@@ -1266,7 +1289,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          done = true;
          for (int dof = 0, i; dof < num_cdofs; dof++)
          {
-            if (finalized[dof]) continue;
+            if (finalized[dof]) { continue; }
 
             // check that rows of all constraining DOFs are available
             const DepList &dl = deps[dof];
@@ -1274,20 +1297,28 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             {
                const Dependency &dep = dl.list[i];
                if (dep.rank == MyRank)
-                  { if (!finalized[dep.dof]) break; }
-               else
-                  if (!recv_replies[dep.rank].HaveRow(dep.dof)) break;
+               {
+                  if (!finalized[dep.dof]) { break; }
+               }
+               else if (!recv_replies[dep.rank].HaveRow(dep.dof))
+               {
+                  break;
+               }
             }
-            if (i < dl.list.Size()) continue;
+            if (i < dl.list.Size()) { continue; }
 
             // form a linear combination of rows that 'dof' depends on
             for (i = 0; i < dl.list.Size(); i++)
             {
                const Dependency &dep = dl.list[i];
                if (dep.rank == MyRank)
+               {
                   localP.GetRow(dep.dof, cols, srow);
+               }
                else
+               {
                   recv_replies[dep.rank].GetRow(dep.dof, cols, srow);
+               }
 
                srow *= dep.coef;
                localP.AddRow(dof, cols, srow);
@@ -1315,14 +1346,12 @@ void ParFiniteElementSpace::GetConformingInterpolation()
                send_replies.back()[it->first].AddRow(*row, cols, srow);
                req.rows.erase(row++);
             }
-            else
-               ++row;
+            else { ++row; }
       }
       NeighborRowReply::IsendAll(send_replies.back(), MyComm);
 
       // are we finished?
-      if (num_finalized >= num_cdofs)
-         break;
+      if (num_finalized >= num_cdofs) { break; }
 
       // wait for a reply from neighbors
       int rank, size;
@@ -1331,7 +1360,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
       // there may be more, receive all replies available
       while (NeighborRowReply::IProbe(rank, size, MyComm))
+      {
          recv_replies[rank].Recv(rank, size, MyComm);
+      }
    }
 
    delete [] deps;
@@ -1346,7 +1377,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    NeighborDofMessage::WaitAllSent(send_dofs);
    NeighborRowRequest::WaitAllSent(send_requests);
    for (unsigned i = 0; i < send_replies.size(); i++)
+   {
       NeighborRowReply::WaitAllSent(send_replies[i]);
+   }
 
    std::cout << "P done.\n";
 }

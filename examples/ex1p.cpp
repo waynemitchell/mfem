@@ -107,7 +107,9 @@ int main(int argc, char *argv[])
    if (mesh->NURBSext)
    {
       for (int i = 0; i < 2; i++)
+      {
          mesh->UniformRefinement();
+      }
 
       FiniteElementCollection* nfec = new H1_FECollection(2, dim);
       FiniteElementSpace* nfes = new FiniteElementSpace(mesh, nfec, dim);
@@ -150,7 +152,9 @@ int main(int argc, char *argv[])
       //int types[] = { 1, 2, 3, 3, 3 };
       for (int j = 0; j < mesh->GetNE(); j++)
          if (!(rand() % 2))
+         {
             refs.Append(Refinement(j, types[rand() % (sizeof(types)/sizeof(int))]));
+         }
 
       mesh->GeneralRefinement(refs);
    }
@@ -216,9 +220,9 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
-/*   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);*/
+   /*   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      a->EliminateEssentialBC(ess_bdr, x, *b);*/
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
@@ -240,7 +244,9 @@ int main(int argc, char *argv[])
       HypreParVector mark(*P, 1);
       MFEM_ASSERT(mark.Size() == ess_dofs.Size(), "");
       for (int i = 0; i < mark.Size(); i++)
+      {
          mark(i) = (ess_dofs[i] < 0) ? 1 : 0;
+      }
 
       HypreParVector true_mark(*P, 0);
       P->MultTranspose(mark, true_mark);
@@ -253,7 +259,8 @@ int main(int argc, char *argv[])
             (*B)(i) = 0;
          }
 
-      HYPRE_SStructMaxwellEliminateRowsCols(*A, elim_rows.Size(), elim_rows.GetData());
+      HYPRE_SStructMaxwellEliminateRowsCols(*A, elim_rows.Size(),
+                                            elim_rows.GetData());
    }
 
    // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG

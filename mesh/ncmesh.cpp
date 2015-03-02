@@ -108,29 +108,20 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
       for (int i = 0; i < be->GetNVertices(); i++)
       {
          node[i] = nodes.Peek(v[i], v[i]);
-         if (!node[i])
-         {
-            MFEM_ABORT("Boundary elements inconsistent.");
-         }
+         if (!node[i]) { MFEM_ABORT("Boundary elements inconsistent."); }
       }
 
       if (be->GetType() == mfem::Element::QUADRILATERAL)
       {
          Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
-         if (!face)
-         {
-            MFEM_ABORT("Boundary face not found.");
-         }
+         if (!face) { MFEM_ABORT("Boundary face not found."); }
 
          face->attribute = be->GetAttribute();
       }
       else if (be->GetType() == mfem::Element::SEGMENT)
       {
          Edge* edge = nodes.Peek(node[0], node[1])->edge;
-         if (!edge)
-         {
-            MFEM_ABORT("Boundary edge not found.");
-         }
+         if (!edge) { MFEM_ABORT("Boundary edge not found."); }
 
          edge->attribute = be->GetAttribute();
       }
@@ -198,7 +189,9 @@ NCMesh::NCMesh(const NCMesh &other)
    // NOTE: this copy constructor is used by ParNCMesh
    root_elements.SetSize(other.root_elements.Size());
    for (int i = 0; i < root_elements.Size(); i++)
+   {
       root_elements[i] = CopyHierarchy(other.root_elements[i]);
+   }
 
    Update();
 }
@@ -206,7 +199,9 @@ NCMesh::NCMesh(const NCMesh &other)
 NCMesh::~NCMesh()
 {
    for (int i = 0; i < root_elements.Size(); i++)
+   {
       DeleteHierarchy(root_elements[i]);
+   }
 }
 
 
@@ -242,8 +237,8 @@ void NCMesh::Node::UnrefEdge(HashTable<Node> &nodes)
 NCMesh::Node::Node(const Node& other)
 {
    std::memcpy(this, &other, sizeof(*this));
-   if (vertex) vertex = new Vertex(*vertex);
-   if (edge) edge= new Edge(*edge);
+   if (vertex) { vertex = new Vertex(*vertex); }
+   if (edge) { edge= new Edge(*edge); }
 }
 
 NCMesh::Node::~Node()
@@ -325,34 +320,16 @@ NCMesh::Face::Face(const Face& other)
 
 void NCMesh::Face::RegisterElement(Element* e)
 {
-   if (elem[0] == NULL)
-   {
-      elem[0] = e;
-   }
-   else if (elem[1] == NULL)
-   {
-      elem[1] = e;
-   }
-   else
-   {
-      MFEM_ABORT("Can't have 3 elements in Face::elem[2].");
-   }
+   if (elem[0] == NULL) { elem[0] = e; }
+   else if (elem[1] == NULL) { elem[1] = e; }
+   else { MFEM_ABORT("Can't have 3 elements in Face::elem[2]."); }
 }
 
 void NCMesh::Face::ForgetElement(Element* e)
 {
-   if (elem[0] == e)
-   {
-      elem[0] = NULL;
-   }
-   else if (elem[1] == e)
-   {
-      elem[1] = NULL;
-   }
-   else
-   {
-      MFEM_ABORT("Element not found in Face::elem[2].");
-   }
+   if (elem[0] == e) { elem[0] = NULL; }
+   else if (elem[1] == e) { elem[1] = NULL; }
+   else { MFEM_ABORT("Element not found in Face::elem[2]."); }
 }
 
 void NCMesh::RegisterFaces(Element* elem, int* fattr)
@@ -365,7 +342,7 @@ void NCMesh::RegisterFaces(Element* elem, int* fattr)
       const int* fv = gi.faces[i];
       Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
       face->RegisterElement(elem);
-      if (fattr) face->attribute = fattr[i];
+      if (fattr) { face->attribute = fattr[i]; }
    }
 }
 
@@ -1096,7 +1073,9 @@ void NCMesh::RefineElement(Element* elem, char ref_type)
    // make the children inherit our rank
    for (int i = 0; i < 8; i++)
       if (child[i])
+      {
          child[i]->rank = elem->rank;
+      }
 
    // finish the refinement
    elem->ref_type = ref_type;
@@ -1147,7 +1126,7 @@ void NCMesh::Refine(const Array<Refinement>& refinements)
 
 void NCMesh::DerefineElement(Element* elem)
 {
-   if (!elem->ref_type) return;
+   if (!elem->ref_type) { return; }
 
    Element* child[8];
    std::memcpy(child, elem->child, sizeof(child));
@@ -1297,7 +1276,7 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* nc_elem = leaf_elements[i];
-      if (nc_elem->Ghost()) continue; // ParNCMesh
+      if (nc_elem->Ghost()) { continue; } // ParNCMesh
 
       Node** node = nc_elem->node;
       GeomInfo& gi = GI[(int) nc_elem->geom];
@@ -1407,28 +1386,16 @@ int NCMesh::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
    // only one way to access the mid-face node must always exist
    MFEM_ASSERT(!(midf1 && midf2), "Incorrectly split face!");
 
-   if (!midf1 && !midf2)
-   {
-      return 0;   // face not split
-   }
+   if (!midf1 && !midf2) { return 0; }  // face not split
 
-   if (midf1)
-   {
-      return 1;   // face split "vertically"
-   }
-   else
-   {
-      return 2;   // face split "horizontally"
-   }
+   if (midf1) { return 1; }  // face split "vertically"
+   else { return 2; }  // face split "horizontally"
 }
 
 int NCMesh::find_node(Element* elem, Node* node)
 {
    for (int i = 0; i < 8; i++)
-      if (elem->node[i] == node)
-      {
-         return i;
-      }
+      if (elem->node[i] == node) { return i; }
 
    MFEM_ABORT("Node not found.");
    return -1;
@@ -1437,8 +1404,7 @@ int NCMesh::find_node(Element* elem, Node* node)
 int NCMesh::find_node(Element* elem, int node_id)
 {
    for (int i = 0; i < 8; i++)
-      if (elem->node[i]->id == node_id)
-         return i;
+      if (elem->node[i]->id == node_id) { return i; }
 
    MFEM_ABORT("Node not found.");
    return -1;
@@ -1599,7 +1565,9 @@ void NCMesh::BuildFaceList()
 
                // also, set the master index for the slaves
                for (int i = sb; i < se; i++)
+               {
                   face_list.slaves[i].master = index;
+               }
             }
          }
       }
@@ -1610,7 +1578,7 @@ NCMesh::Node*
 NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
 {
    Node* mid = nodes.Peek(v0, v1);
-   if (!mid) return NULL;
+   if (!mid) { return NULL; }
 
    if (mid->edge && level > 0)
    {
@@ -1623,7 +1591,9 @@ NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
 
       // handle slave edge orientation
       if (v0->vertex->index > v1->vertex->index)
+      {
          std::swap(mat(0,0), mat(0,1));
+      }
    }
 
    // recurse deeper
@@ -1677,7 +1647,9 @@ void NCMesh::BuildEdgeList()
          // prepare edge interval for slave traversal, handle orientation
          double t0 = 0.0, t1 = 1.0;
          if (node[0]->vertex->index > node[1]->vertex->index)
+         {
             std::swap(t0, t1);
+         }
 
          // try traversing the edge to find slave edges
          int sb = edge_list.slaves.size();
@@ -1691,7 +1663,9 @@ void NCMesh::BuildEdgeList()
 
             // also, set the master index for the slaves
             for (int i = sb; i < se; i++)
+            {
                edge_list.slaves[i].master = index;
+            }
          }
          else
          {
@@ -2019,28 +1993,16 @@ NCMesh::Node* NCMesh::GetEdgeMaster(Node* node) const
    {
       // n1 is parent of n2:
       // (n1)--(n)--(n2)------(*)  or  (*)------(n2)--(n)--(n1)
-      if (n2->edge)
-      {
-         return n2;
-      }
-      else
-      {
-         return GetEdgeMaster(n2);
-      }
+      if (n2->edge) { return n2; }
+      else { return GetEdgeMaster(n2); }
    }
 
    if ((n1->p1 != n1->p2) && (n2->id == n1->p1 || n2->id == n1->p2))
    {
       // n2 is parent of n1:
       // (n2)--(n)--(n1)------(*)  or  (*)------(n1)--(n)--(n2)
-      if (n1->edge)
-      {
-         return n1;
-      }
-      else
-      {
-         return GetEdgeMaster(n1);
-      }
+      if (n1->edge) { return n1; }
+      else { return GetEdgeMaster(n1); }
    }
 
    return NULL;

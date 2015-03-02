@@ -611,7 +611,9 @@ static void AddDependencies(SparseMatrix& deps, Array<int>& master_dofs,
             {
                int mdof = master_dofs[j];
                if (mdof != sdof)
+               {
                   deps.Add(sdof, mdof, coef);
+               }
             }
          }
       }
@@ -627,7 +629,9 @@ static bool DofFinalizable(int dof, const Array<bool>& finalized,
    // are all constraining DOFs finalized?
    for (int i = 0; i < ndep; i++)
       if (!finalized[dep[i]])
+      {
          return false;
+      }
 
    return true;
 }
@@ -641,12 +645,16 @@ void FiniteElementSpace::GetEdgeFaceDofs(int type, int index, Array<int> &dofs)
    if (type)
    {
       if (index < mesh->GetNFaces())
+      {
          GetFaceDofs(index, dofs);
+      }
    }
    else
    {
       if (index < mesh->GetNEdges())
+      {
          GetEdgeDofs(index, dofs);
+      }
    }
 }
 
@@ -661,14 +669,15 @@ void FiniteElementSpace::GetConformingInterpolation()
    for (int type = 0; type <= 1; type++)
    {
       const NCMesh::NCList &list = type ? mesh->ncmesh->GetFaceList()
-                                        : mesh->ncmesh->GetEdgeList();
-      if (!list.masters.size()) continue;
+                                   : mesh->ncmesh->GetEdgeList();
+      if (!list.masters.size()) { continue; }
 
       IsoparametricTransformation T;
-      if (type) T.SetFE(&QuadrilateralFE); else T.SetFE(&SegmentFE);
+      if (type) { T.SetFE(&QuadrilateralFE); }
+      else { T.SetFE(&SegmentFE); }
 
       const FiniteElement* fe = fec->FiniteElementForGeometry(
-         (type ? Geometry::SQUARE : Geometry::SEGMENT));
+                                   (type ? Geometry::SQUARE : Geometry::SEGMENT));
 
       Array<int> master_dofs, slave_dofs;
       DenseMatrix I(fe->GetDof());
@@ -678,13 +687,13 @@ void FiniteElementSpace::GetConformingInterpolation()
       {
          const NCMesh::Master &master = list.masters[mi];
          GetEdgeFaceDofs(type, master.index, master_dofs);
-         if (!master_dofs.Size()) continue;
+         if (!master_dofs.Size()) { continue; }
 
          for (int si = master.slaves_begin; si < master.slaves_end; si++)
          {
             const NCMesh::Slave &slave = list.slaves[si];
             GetEdgeFaceDofs(type, slave.index, slave_dofs);
-            if (!slave_dofs.Size()) continue;
+            if (!slave_dofs.Size()) { continue; }
 
             T.GetPointMat() = slave.point_matrix;
             fe->GetLocalInterpolation(T, I);
@@ -701,7 +710,9 @@ void FiniteElementSpace::GetConformingInterpolation()
    int n_true_dofs = 0;
    for (int i = 0; i < ndofs; i++)
       if (!deps.RowSize(i))
+      {
          n_true_dofs++;
+      }
 
    // if all dofs are true dofs leave cP and cR NULL
    if (n_true_dofs == ndofs)
@@ -780,7 +791,9 @@ void FiniteElementSpace::GetConformingInterpolation()
    // if everything is consistent (mesh, face orientations, etc.), we should
    // be able to finalize all slave DOFs, otherwise it's a serious error
    if (n_finalized != ndofs)
+   {
       MFEM_ABORT("Error creating cP matrix.");
+   }
 
    cP->Finalize();
 }

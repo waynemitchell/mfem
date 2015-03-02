@@ -120,7 +120,7 @@ public:
 
    /// Ensures that the allocated size is at least the given size.
    inline void Reserve(int capacity)
-   { if (capacity > abs(allocsize)) GrowSize(capacity, sizeof(T)); }
+   { if (capacity > abs(allocsize)) { GrowSize(capacity, sizeof(T)); } }
 
    /// Access element
    inline T & operator[](int i);

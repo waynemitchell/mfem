@@ -31,7 +31,9 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
 
    // assign leaf elements to the 'NRanks' processors
    for (int i = 0; i < leaf_elements.Size(); i++)
+   {
       leaf_elements[i]->rank = InitialPartition(i);
+   }
 
    AssignLeafIndices();
    UpdateVertices();
@@ -56,9 +58,13 @@ void ParNCMesh::AssignLeafIndices()
    {
       Element* leaf = leaf_elements[i];
       if (leaf->rank == MyRank)
+      {
          leaf->index = index++;
+      }
       else
+      {
          leaf->index = -1;
+      }
    }
 }
 
@@ -72,30 +78,40 @@ void ParNCMesh::UpdateVertices()
 
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->vertex)
+      {
          it->vertex->index = -1;
+      }
 
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* elem = leaf_elements[i];
       if (elem->rank == MyRank)
          for (int j = 0; j < GI[(int) elem->geom].nv; j++)
-            elem->node[j]->vertex->index = 0; // mark vertices that we need
+         {
+            elem->node[j]->vertex->index = 0;   // mark vertices that we need
+         }
    }
 
    NVertices = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->vertex && it->vertex->index >= 0)
+      {
          it->vertex->index = NVertices++;
+      }
 
    vertex_nodeId.SetSize(NVertices);
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->vertex && it->vertex->index >= 0)
+      {
          vertex_nodeId[it->vertex->index] = it->id;
+      }
 
    NGhostVertices = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->vertex && it->vertex->index < 0)
+      {
          it->vertex->index = NVertices + (NGhostVertices++);
+      }
 }
 
 void ParNCMesh::OnMeshUpdated(Mesh *mesh)
@@ -106,9 +122,11 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
 
    // clear Edge:: and Face::index
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
-      if (it->edge) it->edge->index = -1;
+      if (it->edge) { it->edge->index = -1; }
    for (HashTable<Face>::Iterator it(faces); it; ++it)
+   {
       it->index = -1;
+   }
 
    // go assign existing edge/face indices
    NCMesh::OnMeshUpdated(mesh);
@@ -118,14 +136,18 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    NGhostEdges = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->edge && it->edge->index < 0)
+      {
          it->edge->index = NEdges + (NGhostEdges++);
+      }
 
    // assign ghost face indices
    NFaces = mesh->GetNFaces();
    NGhostFaces = 0;
    for (HashTable<Face>::Iterator it(faces); it; ++it)
       if (it->index < 0)
+      {
          it->index = NFaces + (NGhostFaces++);
+      }
 }
 
 void ParNCMesh::ElementSharesEdge(Element *elem, Edge *edge)
@@ -218,7 +240,9 @@ void ParNCMesh::AddSlaveRanks(int nitems, const NCList& list)
    {
       int master = slave_to_master[index_rank[i].from];
       if (master >= 0)
+      {
          index_rank.Append(Connection(master, index_rank[i].to));
+      }
    }
 }
 
@@ -229,24 +253,30 @@ static bool is_shared(const Table& groups, int index, int MyRank)
 
    int size = groups.RowSize(index);
    if (size <= 1)
+   {
       return false;
+   }
 
    const int* group = groups.GetRow(index);
    for (int i = 0; i < size; i++)
       if (group[i] == MyRank)
+      {
          return true;
+      }
 
    return false;
 }
 
-void ParNCMesh::MakeShared
-(const Table &groups, const NCList &list, NCList &shared)
+void ParNCMesh::MakeShared(const Table &groups, const NCList &list,
+                           NCList &shared)
 {
    shared.Clear();
 
    for (unsigned i = 0; i < list.conforming.size(); i++)
       if (is_shared(groups, list.conforming[i].index, MyRank))
+      {
          shared.conforming.push_back(list.conforming[i]);
+      }
 
    for (unsigned i = 0; i < list.masters.size(); i++)
    {
@@ -255,7 +285,9 @@ void ParNCMesh::MakeShared
       {
          shared.masters.push_back(master);
          for (int j = master.slaves_begin; j < master.slaves_end; j++)
+         {
             shared.slaves.push_back(list.slaves[j]);
+         }
       }
    }
 }
@@ -302,7 +334,9 @@ void ParNCMesh::BuildSharedVertices()
    for (int i = 0; i < nvertices; i++)
    {
       if (is_shared(vertex_group, i, MyRank) && vertex_id[i].index >= 0)
+      {
          shared_vertices.conforming.push_back(vertex_id[i]);
+      }
    }
 }
 
@@ -318,8 +352,8 @@ void ParNCMesh::CalcFaceOrientations()
       if (it->ref_count == 2 && it->index < NFaces)
       {
          Element* e[2] = { it->elem[0], it->elem[1] };
-         if (e[0]->rank == e[1]->rank) continue;
-         if (e[0]->rank > e[1]->rank) std::swap(e[0], e[1]);
+         if (e[0]->rank == e[1]->rank) { continue; }
+         if (e[0]->rank > e[1]->rank) { std::swap(e[0], e[1]); }
 
          int ids[2][4];
          for (int i = 0; i < 2; i++)
@@ -331,7 +365,9 @@ void ParNCMesh::CalcFaceOrientations()
             // get node IDs for the face as seen from e[i]
             const int* fv = GI[Geometry::CUBE].faces[f];
             for (int j = 0; j < 4; j++)
+            {
                ids[i][j] = e[i]->node[fv[j]]->id;
+            }
          }
 
          face_orient[it->index] = Mesh::GetQuadOrientation(ids[0], ids[1]);
@@ -383,7 +419,8 @@ static void append_ranks(Array<int> &ranks, const Table &groups,
    }
 }
 
-void ParNCMesh::ElementNeighborProcessors(Element *elem, Array<int> &ranks) const
+void ParNCMesh::ElementNeighborProcessors(Element *elem,
+                                          Array<int> &ranks) const
 {
    MFEM_ASSERT(!elem->ref_type, "Not a leaf.");
 
@@ -481,6 +518,8 @@ void ParNCMesh::PruneGhosts()
 void ParNCMesh::Refine(const Array<Refinement> &refinements)
 {
 
+
+
 }
 
 
@@ -525,20 +564,26 @@ bool ParNCMesh::ElementSet::EncodeTree
       for (int i = 0; i < 8; i++)
          if (elem->child[i])
             if (EncodeTree(elem->child[i], elements))
+            {
                mask |= (unsigned char) 1 << i;
+            }
 
       if (mask)
+      {
          data[mpos] = mask;
+      }
       else
+      {
          data.DeleteLast();
+      }
 
       return mask != 0;
    }
    return false;
 }
 
-ParNCMesh::ElementSet::ElementSet
-(const std::set<Element*> &elements, const Array<Element*> &ncmesh_roots)
+ParNCMesh::ElementSet::ElementSet(const std::set<Element*> &elements,
+                                  const Array<Element*> &ncmesh_roots)
 {
    int header_pos = 0;
    data.SetSize(4);
@@ -562,8 +607,8 @@ ParNCMesh::ElementSet::ElementSet
    SetInt(header_pos, -1);
 }
 
-void ParNCMesh::ElementSet::DecodeTree
-(Element* elem, int &pos, Array<Element*> &elements) const
+void ParNCMesh::ElementSet::DecodeTree(Element* elem, int &pos,
+                                       Array<Element*> &elements) const
 {
    int mask = data[pos++];
    if (!mask)
@@ -574,12 +619,14 @@ void ParNCMesh::ElementSet::DecodeTree
    {
       for (int i = 0; i < 8; i++)
          if (mask & (1 << i))
+         {
             DecodeTree(elem->child[i], pos, elements);
+         }
    }
 }
 
-void ParNCMesh::ElementSet::Decode
-(Array<Element*> &elements, const Array<Element*> &ncmesh_roots) const
+void ParNCMesh::ElementSet::Decode(Array<Element*> &elements,
+                                   const Array<Element*> &ncmesh_roots) const
 {
    int root, pos = 0;
    while ((root = GetInt(pos)) >= 0)
@@ -628,7 +675,9 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[3]) const
       std::set<Element*> elements;
       for (int type = 0; type < 3; type++)
          for (int i = 0; i < ids[type].Size(); i++)
+         {
             elements.insert(ids[type][i].element);
+         }
 
       ElementSet eset(elements, root_elements);
       eset.Dump(os);
@@ -637,7 +686,9 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[3]) const
       eset.Decode(decoded, root_elements);
 
       for (int i = 0; i < decoded.Size(); i++)
+      {
          element_id[decoded[i]] = i;
+      }
    }
 
    // write the IDs as element/local pairs
@@ -708,16 +759,16 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const
 
 //// Messages //////////////////////////////////////////////////////////////////
 
-void NeighborDofMessage::AddDofs
-(int type, const NCMesh::MeshId &id, const Array<int> &dofs, ParNCMesh* pncmesh)
+void NeighborDofMessage::AddDofs(int type, const NCMesh::MeshId &id,
+                                 const Array<int> &dofs, ParNCMesh* pncmesh)
 {
    MFEM_ASSERT(type >= 0 && type < 3, "");
    id_dofs[type][id].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
    this->pncmesh = pncmesh;
 }
 
-void NeighborDofMessage::GetDofs
-(int type, const NCMesh::MeshId& id, Array<int>& dofs)
+void NeighborDofMessage::GetDofs(int type, const NCMesh::MeshId& id,
+                                 Array<int>& dofs)
 {
    MFEM_ASSERT(type >= 0 && type < 3, "");
 #ifdef MFEM_DEBUG
@@ -730,8 +781,8 @@ void NeighborDofMessage::GetDofs
    dofs.Assign(vec.data());
 }
 
-void NeighborDofMessage::ReorderEdgeDofs
-(const NCMesh::MeshId &id, std::vector<int> &dofs)
+void NeighborDofMessage::ReorderEdgeDofs(const NCMesh::MeshId &id,
+                                         std::vector<int> &dofs)
 {
    // Reorder the DOFs into/from a neutral ordering, independent of local
    // edge orientation.
@@ -747,7 +798,9 @@ void NeighborDofMessage::ReorderEdgeDofs
       std::swap(dofs[0], dofs[1]);
       int n = dofs.size() - 2;
       for (int i = 0; i < n/2; i++)
+      {
          std::swap(dofs[i + 2], dofs[dofs.size()-1 - i]);
+      }
    }
 }
 
@@ -774,7 +827,9 @@ void NeighborDofMessage::Encode()
    {
       ids[type].Reserve(id_dofs[type].size());
       for (it = id_dofs[type].begin(); it != id_dofs[type].end(); ++it)
+      {
          ids[type].Append(it->first);
+      }
    }
 
    // encode the IDs
@@ -786,7 +841,7 @@ void NeighborDofMessage::Encode()
    {
       for (it = id_dofs[type].begin(); it != id_dofs[type].end(); ++it)
       {
-         if (type == 1) ReorderEdgeDofs(it->first, it->second);
+         if (type == 1) { ReorderEdgeDofs(it->first, it->second); }
          write_dofs(stream, it->second);
       }
 
@@ -813,7 +868,7 @@ void NeighborDofMessage::Decode()
       {
          const NCMesh::MeshId &id = ids[type][i];
          read_dofs(stream, id_dofs[type][id]);
-         if (type == 1) ReorderEdgeDofs(id, id_dofs[type][id]);
+         if (type == 1) { ReorderEdgeDofs(id, id_dofs[type][id]); }
       }
    }
 
@@ -828,7 +883,9 @@ void NeighborRowRequest::Encode()
    // write the int set to the stream
    write<int>(stream, rows.size());
    for (std::set<int>::iterator it = rows.begin(); it != rows.end(); ++it)
+   {
       write<int>(stream, *it);
+   }
 
    rows.clear();
    stream.str().swap(data);
@@ -842,13 +899,15 @@ void NeighborRowRequest::Decode()
    rows.clear();
    int size = read<int>(stream);
    for (int i = 0; i < size; i++)
+   {
       rows.insert(rows.end(), read<int>(stream));
+   }
 
    data.clear();
 }
 
-void NeighborRowReply::AddRow
-(int row, const Array<int> &cols, const Vector &srow)
+void NeighborRowReply::AddRow(int row, const Array<int> &cols,
+                              const Vector &srow)
 {
    Row& row_data = rows[row];
    row_data.cols.assign(cols.GetData(), cols.GetData() + cols.Size());
@@ -859,7 +918,9 @@ void NeighborRowReply::GetRow(int row, Array<int> &cols, Vector &srow)
 {
 #ifdef MFEM_DEBUG
    if (rows.find(row) == rows.end())
+   {
       MFEM_ABORT("Row " << row << " not found in neighbor message.");
+   }
 #endif
    Row& row_data = rows[row];
    cols.SetSize(row_data.cols.size());

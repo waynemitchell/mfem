@@ -35,7 +35,7 @@ public:
        processor. (NOTE: only NCList::conforming will be set.) */
    const NCList& GetSharedVertices()
    {
-      if (shared_vertices.Empty()) BuildSharedVertices();
+      if (shared_vertices.Empty()) { BuildSharedVertices(); }
       return shared_vertices;
    }
 
@@ -44,7 +44,7 @@ public:
        empty.) */
    const NCList& GetSharedEdges()
    {
-      if (edge_list.Empty()) BuildEdgeList();
+      if (edge_list.Empty()) { BuildEdgeList(); }
       return shared_edges;
    }
 
@@ -52,7 +52,7 @@ public:
        (NOTE: this is a subset of NCMesh::face_list; slaves are empty.) */
    const NCList& GetSharedFaces()
    {
-      if (face_list.Empty()) BuildFaceList();
+      if (face_list.Empty()) { BuildFaceList(); }
       return shared_faces;
    }
 
@@ -106,7 +106,9 @@ public:
       const int* group = GetGroup(type, index, size);
       for (int i = 0; i < size; i++)
          if (group[i] == rank)
+         {
             return true;
+         }
       return false;
    }
 
@@ -167,7 +169,7 @@ protected:
 
    void CalcFaceOrientations();
 
-   Array<Connection> index_rank;
+   Array<Connection> index_rank; // temporary
 
    void AddSlaveRanks(int nitems, const NCList& list);
    void MakeShared(const Table &groups, const NCList &list, NCList &shared);
@@ -245,23 +247,12 @@ protected:
 
 /*
 TODO
-+ shared vertices
-+ fix NCMesh::BuildEdgeList
-+ AddSlaveDependencies, AddOneOneDependencies
-+ Phase 2
 - invalid CDOFs?
-+ hypre matrix
-+ essential BC
-+ mask slave DOFs
-+ MakeRef bug
-+ non-owned master edge bug
-+ shared face orientation
-+ shared edge orientation
-+ outer loop
 - assumed partition
 - nonzero essential BC
 + prune ghosts
 - parallel refine
+- hcurl/hdiv
 */
 
 
@@ -289,7 +280,7 @@ protected:
    ParNCMesh* pncmesh;
 
    virtual void Encode();
-   virtual void Decode();   
+   virtual void Decode();
 
    void ReorderEdgeDofs(const NCMesh::MeshId &id, std::vector<int> &dofs);
 };
@@ -332,7 +323,9 @@ protected:
 
 // comparison operator so that MeshId can be used as key in std::map
 inline bool operator< (const NCMesh::MeshId &a, const NCMesh::MeshId &b)
-{ return a.index < b.index; }
+{
+   return a.index < b.index;
+}
 
 
 } // namespace mfem

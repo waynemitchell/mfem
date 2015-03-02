@@ -158,7 +158,9 @@ struct VarMessage
    {
       typename MapT::iterator it;
       for (it = rank_msg.begin(); it != rank_msg.end(); ++it)
+      {
          it->second.Isend(it->first, comm);
+      }
    }
 
    /// Helper to wait for all messages in a map container to be sent.
@@ -191,7 +193,7 @@ struct VarMessage
       int flag;
       MPI_Status status;
       MPI_Iprobe(MPI_ANY_SOURCE, Tag, comm, &flag, &status);
-      if (!flag) return false;
+      if (!flag) { return false; }
 
       rank = status.MPI_SOURCE;
       MPI_Get_count(&status, MPI_BYTE, &size);

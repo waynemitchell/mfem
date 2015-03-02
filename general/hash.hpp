@@ -26,6 +26,7 @@ class IdGenerator
 {
 public:
    IdGenerator(int first_id = 0) : next(first_id) {}
+
    IdGenerator(const IdGenerator& other) : next(other.next)
    { other.reusable.Copy(reusable); }
 
@@ -257,7 +258,6 @@ HashTable<ItemT>::~HashTable()
    {
       delete it;
    }
-
    delete [] table;
 }
 
