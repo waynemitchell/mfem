@@ -70,7 +70,11 @@ protected:
    Array<Element *> boundary;
    Array<Element *> faces;
 
-   class FaceInfo { public: int Elem1No, Elem2No, Elem1Inf, Elem2Inf; };
+   class FaceInfo
+   {
+   public:
+      int Elem1No, Elem2No, Elem1Inf, Elem2Inf;
+   };
    Array<FaceInfo> faces_info;
 
    Table *el_to_edge;
@@ -322,7 +326,9 @@ public:
    Mesh(int _Dim, int NVert, int NElem, int NBdrElem = 0, int _spaceDim= -1)
    {
       if (_spaceDim == -1)
+      {
          _spaceDim = _Dim;
+      }
       InitMesh(_Dim, _spaceDim, NVert, NElem, NBdrElem);
    }
 
@@ -475,7 +481,9 @@ public:
          vert.SetSize(1); vert[0] = i;
       }
       else
+      {
          faces[i]->GetVertices(vert);
+      }
    }
 
    /// Returns the indices of the vertices of edge i.
@@ -571,8 +579,10 @@ public:
                                                              int mask = 31);
 
    FaceElementTransformations *GetInteriorFaceTransformations (int FaceNo)
-   { if (faces_info[FaceNo].Elem2No < 0) return NULL;
-      return GetFaceElementTransformations (FaceNo); }
+   {
+      if (faces_info[FaceNo].Elem2No < 0) { return NULL; }
+      return GetFaceElementTransformations (FaceNo);
+   }
 
    FaceElementTransformations *GetBdrFaceTransformations (int BdrElemNo);
 
@@ -694,7 +704,9 @@ public:
    void UseTwoLevelState (int use)
    {
       if (!use && State != Mesh::NORMAL)
+      {
          SetState (Mesh::NORMAL);
+      }
       WantTwoLevelState = use;
    }
 
@@ -814,14 +826,20 @@ inline void Mesh::Rotate3(int &a, int &b, int &c)
    if (a < b)
    {
       if (a > c)
+      {
          ShiftL2R(a, b, c);
+      }
    }
    else
    {
       if (b < c)
+      {
          ShiftL2R(c, b, a);
+      }
       else
+      {
          ShiftL2R(a, b, c);
+      }
    }
 }
 

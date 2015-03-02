@@ -110,11 +110,15 @@ inline void StopWatch::Clear()
 #if (MFEM_TIMER_TYPE == 0)
    user_time = 0;
    if (Running)
+   {
       start_utime = std::clock();
+   }
 #elif (MFEM_TIMER_TYPE == 1)
    real_time = user_time = syst_time = 0;
    if (Running)
+   {
       Current(&start_rtime, &start_utime, &start_stime);
+   }
 #elif (MFEM_TIMER_TYPE == 2)
    real_time.tv_sec  = user_time.tv_sec  = 0;
    real_time.tv_nsec = user_time.tv_nsec = 0;
@@ -126,13 +130,15 @@ inline void StopWatch::Clear()
 #elif (MFEM_TIMER_TYPE == 3)
    real_time.QuadPart = 0;
    if (Running)
+   {
       QueryPerformanceCounter(&start_rtime);
+   }
 #endif
 }
 
 inline void StopWatch::Start()
 {
-   if (Running) return;
+   if (Running) { return; }
 #if (MFEM_TIMER_TYPE == 0)
    start_utime = std::clock();
 #elif (MFEM_TIMER_TYPE == 1)
@@ -148,7 +154,7 @@ inline void StopWatch::Start()
 
 inline void StopWatch::Stop()
 {
-   if (!Running) return;
+   if (!Running) { return; }
 #if (MFEM_TIMER_TYPE == 0)
    user_time += ( std::clock() - start_utime );
 #elif (MFEM_TIMER_TYPE == 1)
@@ -233,7 +239,9 @@ inline double StopWatch::UserTime()
 #if (MFEM_TIMER_TYPE == 0)
    std::clock_t utime = user_time;
    if (Running)
+   {
       utime += (std::clock() - start_utime);
+   }
    return (double)(utime) / CLOCKS_PER_SEC;
 #elif (MFEM_TIMER_TYPE == 1)
    clock_t curr_rtime, curr_utime, curr_stime;

@@ -326,7 +326,8 @@ void MultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt);
 void AddMultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt);
 
 /// VWt += a * v w^t
-void AddMult_a_VWt(const double a, const Vector &v, const Vector &w, DenseMatrix &VWt);
+void AddMult_a_VWt(const double a, const Vector &v, const Vector &w,
+                   DenseMatrix &VWt);
 
 /// VVt += a * v v^t
 void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt);
@@ -476,7 +477,9 @@ inline double &DenseMatrix::operator()(int i, int j)
 {
 #ifdef MFEM_DEBUG
    if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
+   {
       mfem_error("DenseMatrix::operator()");
+   }
 #endif
 
    return data[i+j*height];
@@ -486,7 +489,9 @@ inline const double &DenseMatrix::operator()(int i, int j) const
 {
 #ifdef MFEM_DEBUG
    if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
+   {
       mfem_error("DenseMatrix::operator() const");
+   }
 #endif
 
    return data[i+j*height];

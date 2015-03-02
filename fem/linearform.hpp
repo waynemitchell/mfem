@@ -40,7 +40,7 @@ public:
    LinearForm (FiniteElementSpace * f) : Vector (f -> GetVSize())
    { fes = f; };
 
-   LinearForm(){ fes = NULL; }
+   LinearForm() { fes = NULL; }
 
    FiniteElementSpace * GetFES() { return fes; };
 

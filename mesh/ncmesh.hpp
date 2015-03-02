@@ -199,12 +199,14 @@ protected: // implementation
 
       RefCount() : ref_count(0) {}
 
-      int Ref() {
+      int Ref()
+      {
          return ++ref_count;
       }
-      int Unref() {
+      int Unref()
+      {
          int ret = --ref_count;
-         if (!ret) delete this;
+         if (!ret) { delete this; }
          return ret;
       }
    };
@@ -443,7 +445,9 @@ protected: // implementation
       {
          dim = p0.dim;
          for (int i = 0; i < dim; i++)
+         {
             coord[i] = (p0.coord[i] + p1.coord[i]) * 0.5;
+         }
       }
 
       Point(const Point& p0, const Point& p1, const Point& p2, const Point& p3)
@@ -451,14 +455,16 @@ protected: // implementation
          dim = p0.dim;
          for (int i = 0; i < dim; i++)
             coord[i] = (p0.coord[i] + p1.coord[i] + p2.coord[i] + p3.coord[i])
-               * 0.25;
+                       * 0.25;
       }
 
       Point& operator=(const Point& src)
       {
          dim = src.dim;
          for (int i = 0; i < dim; i++)
+         {
             coord[i] = src.coord[i];
+         }
          return *this;
       }
    };

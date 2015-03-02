@@ -204,28 +204,30 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       // Implicit L-stable methods
-   case 1:  ode_solver = new BackwardEulerSolver; break;
-   case 2:  ode_solver = new SDIRK23Solver(2); break;
-   case 3:  ode_solver = new SDIRK33Solver; break;
+      case 1:  ode_solver = new BackwardEulerSolver; break;
+      case 2:  ode_solver = new SDIRK23Solver(2); break;
+      case 3:  ode_solver = new SDIRK33Solver; break;
       // Explicit methods
-   case 11: ode_solver = new ForwardEulerSolver; break;
-   case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
-   case 13: ode_solver = new RK3SSPSolver; break;
-   case 14: ode_solver = new RK4Solver; break;
+      case 11: ode_solver = new ForwardEulerSolver; break;
+      case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
+      case 13: ode_solver = new RK3SSPSolver; break;
+      case 14: ode_solver = new RK4Solver; break;
       // Implicit A-stable methods (not L-stable)
-   case 22: ode_solver = new ImplicitMidpointSolver; break;
-   case 23: ode_solver = new SDIRK23Solver; break;
-   case 24: ode_solver = new SDIRK34Solver; break;
-   default:
-      cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
-      return 3;
+      case 22: ode_solver = new ImplicitMidpointSolver; break;
+      case 23: ode_solver = new SDIRK23Solver; break;
+      case 24: ode_solver = new SDIRK34Solver; break;
+      default:
+         cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
+         return 3;
    }
 
    // 4. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
    //    command-line parameter.
    for (int lev = 0; lev < ref_levels; lev++)
+   {
       mesh->UniformRefinement();
+   }
 
    // 5. Define the vector finite element spaces representing the mesh
    //    deformation x, the velocity v, and the initial configuration, x_ref.
@@ -302,7 +304,9 @@ int main(int argc, char *argv[])
    for (int ti = 1; !last_step; ti++)
    {
       if (t + dt >= t_final - dt/2)
+      {
          last_step = true;
+      }
 
       ode_solver->Step(vx, t, dt);
 
@@ -355,7 +359,9 @@ void visualize(ostream &out, Mesh *mesh, GridFunction *deformed_nodes,
                GridFunction *field, const char *field_name, bool init_vis)
 {
    if (!out)
+   {
       return;
+   }
 
    GridFunction *nodes = deformed_nodes;
    int owns_nodes = 0;
@@ -493,7 +499,9 @@ void HyperelasticOperator::Mult(const Vector &vx, Vector &dvx_dt) const
 
    H.Mult(x, z);
    if (viscosity != 0.0)
+   {
       S.AddMult(v, z);
+   }
    z.Neg(); // z = -z
    M_solver.Mult(z, dv_dt);
 

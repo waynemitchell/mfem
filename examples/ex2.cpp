@@ -88,7 +88,9 @@ int main(int argc, char *argv[])
    // 3. Select the order of the finite element discretization space. For NURBS
    //    meshes, we increase the order by degree elevation.
    if (mesh->NURBSext && order > mesh->NURBSext->GetOrder())
+   {
       mesh->DegreeElevate(order - mesh->NURBSext->GetOrder());
+   }
 
    // 4. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
@@ -98,7 +100,9 @@ int main(int argc, char *argv[])
       int ref_levels =
          (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
+      {
          mesh->UniformRefinement();
+      }
    }
 
    // 5. Define a finite element space on the mesh. Here we use vector finite
@@ -131,7 +135,9 @@ int main(int argc, char *argv[])
    //    coefficient for its last component.
    VectorArrayCoefficient f(dim);
    for (int i = 0; i < dim-1; i++)
+   {
       f.Set(i, new ConstantCoefficient(0.0));
+   }
    {
       Vector pull_force(mesh->bdr_attributes.Max());
       pull_force = 0.0;
@@ -197,7 +203,9 @@ int main(int argc, char *argv[])
    //     the file) is not higher order curved mesh compared to the chosen FE
    //     space.
    if (!mesh->NURBSext)
+   {
       mesh->SetNodalFESpace(fespace);
+   }
 
    // 11. Save the displaced mesh and the inverted solution (which gives the
    //     backward displacements to the original grid). This output can be

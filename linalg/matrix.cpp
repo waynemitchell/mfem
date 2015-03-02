@@ -31,7 +31,9 @@ void Matrix::Print (std::ostream & out, int width_) const
       {
          out << Elem(i,j) << " ";
          if ( !((j+1) % width_) )
+         {
             out << '\n';
+         }
       }
       out << '\n';
    }

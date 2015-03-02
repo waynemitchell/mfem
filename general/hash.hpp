@@ -220,7 +220,9 @@ HashTable<ItemT>::HashTable(int init_size)
 {
    mask = init_size-1;
    if (init_size & mask)
+   {
       MFEM_ABORT("HashTable(): init_size size must be a power of two.");
+   }
 
    table = new ItemT*[init_size];
    std::memset(table, 0, init_size * sizeof(ItemT*));
@@ -252,25 +254,28 @@ HashTable<ItemT>::~HashTable()
 {
    // delete all items
    for (Iterator it(*this); it; ++it)
+   {
       delete it;
+   }
 
    delete [] table;
 }
 
-namespace internal {
+namespace internal
+{
 
 inline void sort3(int &a, int &b, int &c)
 {
-   if (a > b) std::swap(a, b);
-   if (a > c) std::swap(a, c);
-   if (b > c) std::swap(b, c);
+   if (a > b) { std::swap(a, b); }
+   if (a > c) { std::swap(a, c); }
+   if (b > c) { std::swap(b, c); }
 }
 
 inline void sort4(int &a, int &b, int &c, int &d)
 {
-   if (a > b) std::swap(a, b);
-   if (a > c) std::swap(a, c);
-   if (a > d) std::swap(a, d);
+   if (a > b) { std::swap(a, b); }
+   if (a > c) { std::swap(a, c); }
+   if (a > d) { std::swap(a, d); }
    sort3(b, c, d);
 }
 
@@ -279,7 +284,7 @@ inline void sort4(int &a, int &b, int &c, int &d)
 template<typename ItemT>
 ItemT* HashTable<ItemT>::Peek(int p1, int p2) const
 {
-   if (p1 > p2) std::swap(p1, p2);
+   if (p1 > p2) { std::swap(p1, p2); }
    return SearchList(table[hash(p1, p2)], p1, p2);
 }
 
@@ -303,10 +308,10 @@ template<typename ItemT>
 ItemT* HashTable<ItemT>::Get(int p1, int p2)
 {
    // search for the item in the hashtable
-   if (p1 > p2) std::swap(p1, p2);
+   if (p1 > p2) { std::swap(p1, p2); }
    int idx = hash(p1, p2);
    ItemT* node = SearchList(table[idx], p1, p2);
-   if (node) return node;
+   if (node) { return node; }
 
    // not found - create a new one
    ItemT* newitem = new ItemT(id_gen.Get());
@@ -317,7 +322,8 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2)
    Insert(idx, newitem);
 
    // also, maintain the mapping ID -> item
-   if (id_to_item.Size() <= newitem->id) {
+   if (id_to_item.Size() <= newitem->id)
+   {
       id_to_item.SetSize(newitem->id + 1, NULL);
    }
    id_to_item[newitem->id] = newitem;
@@ -333,7 +339,7 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
    internal::sort4(p1, p2, p3, p4);
    int idx = hash(p1, p2, p3);
    ItemT* node = SearchList(table[idx], p1, p2, p3);
-   if (node) return node;
+   if (node) { return node; }
 
    // not found - create a new one
    ItemT* newitem = new ItemT(id_gen.Get());
@@ -345,7 +351,8 @@ ItemT* HashTable<ItemT>::Get(int p1, int p2, int p3, int p4)
    Insert(idx, newitem);
 
    // also, maintain the mapping ID -> item
-   if (id_to_item.Size() <= newitem->id) {
+   if (id_to_item.Size() <= newitem->id)
+   {
       id_to_item.SetSize(newitem->id + 1, NULL);
    }
    id_to_item[newitem->id] = newitem;
@@ -359,7 +366,7 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2) const
 {
    while (item != NULL)
    {
-      if (item->p1 == p1 && item->p2 == p2) return item;
+      if (item->p1 == p1 && item->p2 == p2) { return item; }
       item = item->next;
    }
    return NULL;
@@ -370,7 +377,7 @@ ItemT* HashTable<ItemT>::SearchList(ItemT* item, int p1, int p2, int p3) const
 {
    while (item != NULL)
    {
-      if (item->p1 == p1 && item->p2 == p2 && item->p3 == p3) return item;
+      if (item->p1 == p1 && item->p2 == p2 && item->p3 == p3) { return item; }
       item = item->next;
    }
    return NULL;
@@ -401,7 +408,9 @@ void HashTable<ItemT>::Rehash()
       // reinsert all items
       num_items = 0;
       for (Iterator it(*this); it; ++it)
+      {
          Insert(hash(it), it);
+      }
    }
 }
 
@@ -443,7 +452,7 @@ void HashTable<ItemT>::Reparent(ItemT* item, int new_p1, int new_p2)
 {
    Unlink(item);
 
-   if (new_p1 > new_p2) std::swap(new_p1, new_p2);
+   if (new_p1 > new_p2) { std::swap(new_p1, new_p2); }
    item->p1 = new_p1;
    item->p2 = new_p2;
 
@@ -475,7 +484,7 @@ void HashTable<ItemT>::Iterator::next()
    {
       ++cur_id;
       cur_item = hash_table.id_to_item[cur_id];
-      if (cur_item) return;
+      if (cur_item) { return; }
    }
 
    // no more items
@@ -486,8 +495,8 @@ template<typename ItemT>
 long HashTable<ItemT>::MemoryUsage() const
 {
    return sizeof(*this) +
-      ((mask+1) + id_to_item.Capacity()) * sizeof(ItemT*) +
-      num_items * sizeof(ItemT);
+          ((mask+1) + id_to_item.Capacity()) * sizeof(ItemT*) +
+          num_items * sizeof(ItemT);
 }
 
 } // namespace mfem

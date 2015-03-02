@@ -148,7 +148,7 @@ public:
    inline int Find(const T &el) const;
 
    /// Delete the last entry
-   inline void DeleteLast() { if (size > 0) size--; }
+   inline void DeleteLast() { if (size > 0) { size--; } }
 
    /// Delete the first 'el' entry
    inline void DeleteFirst(const T &el);
@@ -307,7 +307,9 @@ inline void Array<T>::SetSize(int nsize)
 {
    MFEM_ASSERT( nsize>=0, "Size must be non-negative.  It is " << nsize );
    if (nsize > abs(allocsize))
+   {
       GrowSize(nsize, sizeof(T));
+   }
    size = nsize;
 }
 
@@ -318,9 +320,13 @@ inline void Array<T>::SetSize(int nsize, const T &initval)
    if (nsize > size)
    {
       if (nsize > abs(allocsize))
+      {
          GrowSize(nsize, sizeof(T));
+      }
       for (int i = size; i < nsize; i++)
+      {
          ((T*)data)[i] = initval;
+      }
    }
    size = nsize;
 }
@@ -328,14 +334,16 @@ inline void Array<T>::SetSize(int nsize, const T &initval)
 template <class T>
 inline T &Array<T>::operator[](int i)
 {
-   MFEM_ASSERT( i>=0 && i<size, "Access element " << i << " of array, size = " << size );
+   MFEM_ASSERT( i>=0 && i<size,
+                "Access element " << i << " of array, size = " << size );
    return ((T*)data)[i];
 }
 
 template <class T>
 inline const T &Array<T>::operator[](int i) const
 {
-   MFEM_ASSERT( i>=0 && i<size, "Access element " << i << " of array, size = " << size );
+   MFEM_ASSERT( i>=0 && i<size,
+                "Access element " << i << " of array, size = " << size );
    return ((T*)data)[i];
 }
 
@@ -354,7 +362,9 @@ inline int Array<T>::Append(const Array<T> & els)
 
    SetSize(size + els.Size());
    for (int i = 0; i < els.Size(); i++)
+   {
       ((T*)data)[old_size+i] = els[i];
+   }
    return size;
 }
 
@@ -364,7 +374,9 @@ inline int Array<T>::Prepend(const T &el)
 {
    SetSize(size+1);
    for (int i = size-1; i > 0; i--)
+   {
       ((T*)data)[i] = ((T*)data)[i-1];
+   }
    ((T*)data)[0] = el;
    return size;
 }
@@ -388,9 +400,11 @@ template <class T>
 inline int Array<T>::Union(const T &el)
 {
    int i = 0;
-   while ((i < size) && (((T*)data)[i] != el)) i++;
+   while ((i < size) && (((T*)data)[i] != el)) { i++; }
    if (i == size)
+   {
       Append(el);
+   }
    return i;
 }
 
@@ -399,7 +413,9 @@ inline int Array<T>::Find(const T &el) const
 {
    for (int i = 0; i < size; i++)
       if (((T*)data)[i] == el)
+      {
          return i;
+      }
    return -1;
 }
 
@@ -410,7 +426,9 @@ inline void Array<T>::DeleteFirst(const T &el)
       if (((T*)data)[i] == el)
       {
          for (i++; i < size; i++)
+         {
             ((T*)data)[i-1] = ((T*)data)[i];
+         }
          size--;
          return;
       }
@@ -420,7 +438,9 @@ template <class T>
 inline void Array<T>::DeleteAll()
 {
    if (allocsize > 0)
+   {
       delete [] (char*)data;
+   }
    data = NULL;
    size = allocsize = 0;
 }
@@ -429,7 +449,9 @@ template <class T>
 inline void Array<T>::MakeRef(T *p, int s)
 {
    if (allocsize > 0)
+   {
       delete [] (char*)data;
+   }
    data = p;
    size = s;
    allocsize = -s;
@@ -439,7 +461,9 @@ template <class T>
 inline void Array<T>::MakeRef(const Array &master)
 {
    if (allocsize > 0)
+   {
       delete [] (char*)data;
+   }
    data = master.data;
    size = master.size;
    allocsize = -abs(master.allocsize);
@@ -451,14 +475,18 @@ inline void Array<T>::GetSubArray(int offset, int sa_size, Array<T> &sa)
 {
    sa.SetSize(sa_size);
    for (int i = 0; i < sa_size; i++)
+   {
       sa[i] = (*this)[offset+i];
+   }
 }
 
 template <class T>
 inline void Array<T>::operator=(const T &a)
 {
    for (int i = 0; i < size; i++)
+   {
       ((T*)data)[i] = a;
+   }
 }
 
 template <class T>
