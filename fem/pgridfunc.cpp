@@ -95,12 +95,12 @@ void ParGridFunction::GetTrueDofs(Vector &tv) const
 #else
    hypre_ParCSRMatrix *P = *pfes->Dof_TrueDof_Matrix();
    hypre_CSRMatrix *diag = hypre_ParCSRMatrixDiag(P);
-   int *I = hypre_CSRMatrixI(diag) + 1;
-   int *J = hypre_CSRMatrixJ(diag);
+   HYPRE_Int *I = hypre_CSRMatrixI(diag) + 1;
+   HYPRE_Int *J = hypre_CSRMatrixJ(diag);
    for (int i = 0, j = 0; i < size; i++)
       if (j < I[i])
       {
-         tv(J[j++]) = (*this)(i);
+         tv(internal::to_int(J[j++])) = (*this)(i);
       }
 #endif
 }
@@ -164,7 +164,7 @@ void ParGridFunction::ExchangeFaceNbrData()
 
    int *send_offset = pfes->send_face_nbr_ldof.GetI();
    int *send_ldof = pfes->send_face_nbr_ldof.GetJ();
-   int *recv_offset = pfes->face_nbr_gdof.GetI();
+   int *recv_offset = pfes->face_nbr_ldof.GetI();
    MPI_Comm MyComm = pfes->GetComm();
 
    int num_face_nbrs = pmesh->GetNFaceNeighbors();

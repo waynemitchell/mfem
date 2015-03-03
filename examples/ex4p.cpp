@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
    //    switch to higher-order spaces by changing the value of p.
    FiniteElementCollection *fec = new RT_FECollection(order-1, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
-   int size = fespace->GlobalTrueVSize();
+   HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
    {
       cout << "Number of unknowns: " << size << endl;

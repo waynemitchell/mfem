@@ -13,6 +13,7 @@
 #define MFEM_SORT_PAIRS
 
 #include "../config/config.hpp"
+#include <cstdlib>
 
 namespace mfem
 {
