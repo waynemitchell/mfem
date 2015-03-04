@@ -1257,7 +1257,7 @@ void NCMesh::AssignLeafIndices()
 
 void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
                                Array<mfem::Element*>& elements,
-                               Array<mfem::Element*>& boundary)
+                               Array<mfem::Element*>& boundary) const
 {
    // copy vertex coordinates
    vertices.SetSize(vertex_nodeId.Size());
@@ -1267,7 +1267,7 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
       vertices[i].SetCoords(node->vertex->pos);
    }
 
-   elements.SetSize(leaf_elements.Size());
+   elements.SetSize(leaf_elements.Size()); // FIXME minus ghosts
    elements.SetSize(0);
 
    boundary.SetSize(0);

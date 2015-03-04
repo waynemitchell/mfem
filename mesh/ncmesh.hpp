@@ -178,7 +178,7 @@ protected: // interface for Mesh to be able to construct itself from us
    /// Return the basic Mesh arrays for the current finest level.
    void GetMeshComponents(Array<mfem::Vertex>& vertices,
                           Array<mfem::Element*>& elements,
-                          Array<mfem::Element*>& boundary);
+                          Array<mfem::Element*>& boundary) const;
 
    /** Get edge and face numbering from 'mesh' (i.e., set all Edge/Face::index)
        after a new mesh was created from us. */

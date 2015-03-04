@@ -60,6 +60,8 @@ public:
 
    ParFiniteElementSpace *ParFESpace() { return pfes; }
 
+   void Update() { Update(pfes); }
+
    void Update(ParFiniteElementSpace *f);
 
    void Update(ParFiniteElementSpace *f, Vector &v, int v_offset);

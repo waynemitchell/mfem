@@ -123,10 +123,7 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    // clear Edge:: and Face::index
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
       if (it->edge) { it->edge->index = -1; }
-   for (HashTable<Face>::Iterator it(faces); it; ++it)
-   {
-      it->index = -1;
-   }
+   for (HashTable<Face>::Iterator it(faces); it; ++it) { it->index = -1; }
 
    // go assign existing edge/face indices
    NCMesh::OnMeshUpdated(mesh);
@@ -148,6 +145,14 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
       {
          it->index = NFaces + (NGhostFaces++);
       }
+
+   // one more thing: create the Mesh element index to NCMesh::Element* map
+   index_leaf.SetSize(mesh->GetNE());
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      Element* leaf = leaf_elements[i];
+      if (leaf->index >= 0) { index_leaf[leaf->index] = leaf; }
+   }
 }
 
 void ParNCMesh::ElementSharesEdge(Element *elem, Edge *edge)
@@ -188,6 +193,8 @@ void ParNCMesh::BuildEdgeList()
 
    AddSlaveRanks(nedges, edge_list);
 
+   index_rank.Sort();
+   index_rank.Unique();
    edge_group.MakeFromList(nedges, index_rank);
    index_rank.DeleteAll();
 
@@ -210,6 +217,8 @@ void ParNCMesh::BuildFaceList()
 
    AddSlaveRanks(nfaces, face_list);
 
+   index_rank.Sort();
+   index_rank.Unique();
    face_group.MakeFromList(nfaces, index_rank);
    index_rank.DeleteAll();
 
@@ -325,6 +334,8 @@ void ParNCMesh::BuildSharedVertices()
       }
    }
 
+   index_rank.Sort();
+   index_rank.Unique();
    vertex_group.MakeFromList(nvertices, index_rank);
    index_rank.DeleteAll();
 
@@ -374,7 +385,8 @@ void ParNCMesh::CalcFaceOrientations()
       }
 }
 
-//// PruneGhosts ///////////////////////////////////////////////////////////////
+
+//// neighbors /////////////////////////////////////////////////////////////////
 
 bool ParNCMesh::OnProcessorBoundary(Element* elem) const
 {
@@ -388,20 +400,24 @@ bool ParNCMesh::OnProcessorBoundary(Element* elem) const
          return true;
       }
 
-   // check edges
-   for (int i = 0; i < gi.ne; i++)
+   if (Dim > 2)
    {
-      const int* ev = gi.edges[i];
-      Node* node = nodes.Peek(elem->node[ev[0]], elem->node[ev[1]]);
-      MFEM_ASSERT(node && node->edge, "Edge not found.");
-
-      if (is_shared(edge_group, node->edge->index, MyRank))
+      // check edges
+      for (int i = 0; i < gi.ne; i++)
       {
-         return true;
+         const int* ev = gi.edges[i];
+         Node* node = nodes.Peek(elem->node[ev[0]], elem->node[ev[1]]);
+         MFEM_ASSERT(node && node->edge, "Edge not found.");
+
+         if (is_shared(edge_group, node->edge->index, MyRank))
+         {
+            return true;
+         }
       }
    }
 
-   // don't have to check the faces -- the element is not shared if we got here
+   // NOTE: faces skipped in 3D
+
    return false;
 }
 
@@ -423,40 +439,88 @@ void ParNCMesh::ElementNeighborProcessors(Element *elem,
                                           Array<int> &ranks) const
 {
    MFEM_ASSERT(!elem->ref_type, "Not a leaf.");
-
    ranks.SetSize(0); // preserve capacity
 
    Node** node = elem->node;
    const NCMesh::GeomInfo &gi = NCMesh::GI[(int) elem->geom];
 
-   // get vertex ranks
+   // get vertex neighborhood
    for (int i = 0; i < gi.nv; i++)
    {
       append_ranks(ranks, vertex_group, node[i]->vertex->index, MyRank);
    }
 
-   // get edge ranks
-   for (int i = 0; i < gi.ne; i++)
+   if (Dim > 2)
    {
-      const int* ev = gi.edges[i];
-      Node* edge = nodes.Peek(node[ev[0]], node[ev[1]]);
-      MFEM_ASSERT(edge && edge->edge, "Edge not found.");
-      append_ranks(ranks, edge_group, edge->edge->index, MyRank);
-   }
-
-   // get face ranks
-   for (int i = 0; i < gi.nf; i++)
-   {
-      const int* fv = gi.faces[i];
-      Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
-      MFEM_ASSERT(face, "Face not found.");
-      append_ranks(ranks, face_group, face->index, MyRank);
+      // get edge neighborhood
+      for (int i = 0; i < gi.ne; i++)
+      {
+         const int* ev = gi.edges[i];
+         Node* edge = nodes.Peek(node[ev[0]], node[ev[1]]);
+         MFEM_ASSERT(edge && edge->edge, "Edge not found.");
+         append_ranks(ranks, edge_group, edge->edge->index, MyRank);
+      }
    }
 
    // now sort and get rid of duplicities
    ranks.Sort();
    ranks.Unique();
 }
+
+static void collect_ranks(std::set<int> &ranks, const Table &groups,
+                          int index, int my_rank)
+{
+   const int *group = groups.GetRow(index);
+   int size = groups.RowSize(index);
+
+   for (int i = 0; i < size; i++)
+   {
+      int r = group[i];
+      if (r != my_rank) { ranks.insert(r); }
+   }
+}
+
+void ParNCMesh::GetNeighbors(Array<int> &neighbors)
+{
+   GetSharedVertices();
+   GetSharedEdges();
+
+   std::set<int> ranks;
+
+   // go through all shared vertices and edges, collect their processors
+   for (unsigned i = 0; i < shared_vertices.conforming.size(); i++)
+   {
+      int index = shared_vertices.conforming[i].index;
+      collect_ranks(ranks, vertex_group, index, MyRank);
+   }
+   for (unsigned i = 0; i < shared_edges.conforming.size(); i++)
+   {
+      int index = shared_edges.conforming[i].index;
+      collect_ranks(ranks, edge_group, index, MyRank);
+   }
+   for (unsigned i = 0; i < shared_edges.masters.size(); i++)
+   {
+      int index = shared_edges.masters[i].index;
+      collect_ranks(ranks, edge_group, index, MyRank);
+   }
+   for (unsigned i = 0; i < shared_edges.slaves.size(); i++)
+   {
+      int index = shared_edges.slaves[i].index;
+      collect_ranks(ranks, edge_group, index, MyRank);
+   }
+
+   neighbors.DeleteAll();
+   neighbors.Reserve(ranks.size());
+
+   std::set<int>::iterator it;
+   for (it = ranks.begin(); it != ranks.end(); ++it)
+   {
+      neighbors.Append(*it);
+   }
+}
+
+
+//// Prune, Refine /////////////////////////////////////////////////////////////
 
 bool ParNCMesh::PruneTree(Element* elem)
 {
@@ -495,7 +559,7 @@ bool ParNCMesh::PruneTree(Element* elem)
    }
 }
 
-void ParNCMesh::PruneGhosts()
+void ParNCMesh::Prune()
 {
    GetSharedVertices();
    GetSharedEdges();
@@ -512,14 +576,65 @@ void ParNCMesh::PruneGhosts()
    Update();
 }
 
-
-//// Refine ////////////////////////////////////////////////////////////////////
-
 void ParNCMesh::Refine(const Array<Refinement> &refinements)
 {
+   NeighborRefinementMessage::Map send_ref;
 
+   // create refinement messages to all neighbors (NOTE: message may be empty)
+   Array<int> neighbors;
+   GetNeighbors(neighbors);
+   for (int i = 0; i < neighbors.Size(); i++)
+   {
+      send_ref[neighbors[i]].SetNCMesh(this);
+   }
 
+   // populate messages
+   Array<int> ranks;
+   ranks.Reserve(64);
+   for (int i = 0; i < refinements.Size(); i++)
+   {
+      const Refinement &ref = refinements[i];
+      Element* elem = index_leaf[ref.index];
+      ElementNeighborProcessors(elem, ranks);
+      for (int j = 0; j < ranks.Size(); j++)
+      {
+         MFEM_ASSERT(ref.ref_type == 7, "Aniso refinement not implemented in parallel.");
+         send_ref[ranks[j]].AddRefinement(elem, ref.ref_type);
+      }
+   }
 
+   // send the messages (overlap with local refinements)
+   NeighborRefinementMessage::IsendAll(send_ref, MyComm);
+
+   // do local refinements
+   for (int i = 0; i < refinements.Size(); i++)
+   {
+      const Refinement &ref = refinements[i];
+      NCMesh::RefineElement(index_leaf[ref.index], ref.ref_type);
+   }
+
+   // receive (ghost layer) refinements from all neighbors
+   for (int j = 0; j < neighbors.Size(); j++)
+   {
+      int rank, size;
+      NeighborRefinementMessage::Probe(rank, size, MyComm);
+
+      NeighborRefinementMessage msg;
+      msg.SetNCMesh(this);
+      msg.Recv(rank, size, MyComm);
+
+      // do the ghost refinements
+      for (unsigned i = 0; i < msg.refinements.size(); i++)
+      {
+         const ElemRefType &ref = msg.refinements[i];
+         NCMesh::RefineElement(ref.elem, ref.ref_type);
+      }
+   }
+
+   Update();
+
+   // make sure we can delete the send buffers
+   NeighborDofMessage::WaitAllSent(send_ref);
 }
 
 
@@ -969,6 +1084,42 @@ void NeighborRowReply::Decode()
       for (int j = 0; j < row_data.cols.size(); j++)
          std::cout << "(" << row_data.cols[j] << "," << row_data.srow(j) << ")";
       std::cout << std::endl;*/
+   }
+
+   data.clear();
+}
+
+void ParNCMesh::NeighborRefinementMessage::Encode()
+{
+   Array<MeshId> ids[3];
+
+   // abuse EncodeMeshIds() to encode the list of refinements
+   ids[0].Reserve(refinements.size());
+   for (unsigned i = 0; i < refinements.size(); i++)
+   {
+      const ElemRefType &ref = refinements[i];
+      ids[0].Append(MeshId(-1, ref.elem, ref.ref_type));
+   }
+
+   std::ostringstream stream;
+   pncmesh->EncodeMeshIds(stream, ids);
+
+   stream.str().swap(data);
+}
+
+void ParNCMesh::NeighborRefinementMessage::Decode()
+{
+   Array<NCMesh::MeshId> ids[3];
+
+   // inverse abuse to Encode()
+   std::istringstream stream(data);
+   pncmesh->DecodeMeshIds(stream, ids);
+
+   refinements.clear();
+   refinements.reserve(ids[0].Size());
+   for (int i = 0; i < ids[0].Size(); i++)
+   {
+      AddRefinement(ids[0][i].element, ids[0][i].local);
    }
 
    data.clear();

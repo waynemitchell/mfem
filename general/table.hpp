@@ -25,6 +25,11 @@ struct Connection
 {
    int from, to;
    Connection(int from, int to) : from(from), to(to) {}
+
+   bool operator== (const Connection &rhs) const
+   { return (from == rhs.from) && (to == rhs.to); }
+   bool operator< (const Connection &rhs) const
+   { return (from == rhs.from) ? (to < rhs.to) : (from < rhs.from); }
 };
 
 
@@ -120,10 +125,10 @@ public:
    void Finalize();
 
    /** Create the table from a list of connections {(from, to)}, where 'from'
-       is a TYPE I index and 'to' is a TYPE II index. The list is sorted, rid
-       of duplicities and converted to a CSR table.
-       NOTE: 'list' is modified by this function. */
-   void MakeFromList(int nrows, Array<Connection> &list);
+       is a TYPE I index and 'to' is a TYPE II index. The list is assumed to be
+       sorted and free of duplicities, i.e., you need to call Array::Sort and
+       Array::Unique before calling this method. */
+   void MakeFromList(int nrows, const Array<Connection> &list);
 
    /// Returns the number of TYPE II elements (after Finalize() is called).
    int Width() const;

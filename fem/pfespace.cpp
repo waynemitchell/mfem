@@ -61,6 +61,8 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    if (pmesh->pncmesh)
    {
       gcomm = NULL;
+      ldof_sign.SetSize(GetNDofs());
+      ldof_sign = 1; // FIXME
       return;
    }
 
@@ -1062,7 +1064,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
-   ldof_sign.SetSize(GetNDofs());
+   ldof_sign.SetSize(GetNDofs());  // FIXME
    ldof_sign = 1;
 
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
@@ -1402,8 +1404,16 @@ void ParFiniteElementSpace::Update()
    face_nbr_element_dof.Clear();
    face_nbr_gdof.Clear();
    send_face_nbr_ldof.Clear();
-   ConstructTrueDofs();
-   GenerateGlobalOffsets();
+   if (!pmesh->pncmesh)
+   {
+      ConstructTrueDofs();
+      GenerateGlobalOffsets();
+   }
+   else
+   {
+      ldof_sign.SetSize(GetNDofs());
+      ldof_sign = 1; // FIXME
+   }
 }
 
 FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()

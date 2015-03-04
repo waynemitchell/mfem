@@ -87,7 +87,7 @@ private:
 
    void GetDofs(int type, int index, Array<int>& dofs);
    void ReorderFaceDofs(Array<int> &dofs, int type, int orient);
-   void GetConformingInterpolation(); // FIXME
+   virtual void GetConformingInterpolation(); // FIXME
 
 public:
    // Face-neighbor data

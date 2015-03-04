@@ -255,23 +255,11 @@ void Table::Finalize()
    }
 }
 
-static bool operator< (const Connection &a, const Connection &b)
-{
-   return (a.from == b.from) ? (a.to < b.to) : (a.from < b.from);
-}
-
-static bool operator== (const Connection &a, const Connection &b)
-{
-   return (a.from == b.from) && (a.to == b.to);
-}
-
-void Table::MakeFromList(int nrows, Array<Connection> &list)
+void Table::MakeFromList(int nrows, const Array<Connection> &list)
 {
    Clear();
-   size = nrows;
 
-   list.Sort();
-   list.Unique();
+   size = nrows;
    int nnz = list.Size();
 
    I = new int[size+1];

@@ -92,37 +92,11 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    if (mesh.ncmesh)
    {
       pncmesh = new ParNCMesh(comm, *mesh.ncmesh);
-      pncmesh->GetMeshComponents(vertices, elements, boundary);
+      ncmesh = pncmesh;
 
-      // TODO: wrap this block somehow in a function
-      {
-         NumOfVertices = vertices.Size();
-         NumOfElements = elements.Size();
-         NumOfBdrElements = boundary.Size();
-
-         // set the mesh type ('meshgen')
-         SetMeshGen();
-
-         NumOfEdges = NumOfFaces = 0;
-
-         if (Dim > 2)
-         {
-            GetElementToFaceTable();
-            GenerateFaces();
-#ifdef MFEM_DEBUG
-            CheckBdrElementOrientation();
-#endif
-         }
-
-         el_to_edge = new Table;
-         NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-         c_el_to_edge = NULL;
-
-         SetAttributes();
-      }
-
+      Mesh::InitFromNCMesh(*pncmesh);
       pncmesh->OnMeshUpdated(this);
-      //pncmesh->PruneGhosts();
+      //pncmesh->Prune();
 
       if (mesh.GetNodes()) // curved mesh TODO
       {
@@ -2141,6 +2115,74 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
    CheckElementOrientation(false);
    CheckBdrElementOrientation(false);
 #endif
+}
+
+void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
+                                      int nc_limit)
+{
+   if (NURBSext)
+   {
+      MFEM_ABORT("ParMesh::NonconformingRefinement: NURBS meshes are not "
+                 "supported. Project the NURBS to Nodes first.");
+   }
+
+/*   int wtls = WantTwoLevelState;
+
+   if (Nodes) // curved mesh
+   {
+      UseTwoLevelState(1);
+   }
+
+   SetState(Mesh::NORMAL);
+   DeleteCoarseTables();*/
+
+   if (!pncmesh)
+   {
+      MFEM_ABORT("Can't convert conforming ParMesh to nonconforming ParMesh (you"
+                 " need to start the ParMesh from a nonconforming serial Mesh)");
+   }
+
+   /*if (WantTwoLevelState)
+   {
+      ncmesh->MarkCoarseLevel();
+   }*/
+
+   // do the refinements
+   pncmesh->Refine(refinements);
+
+   if (nc_limit > 0)
+   {
+      pncmesh->LimitNCLevel(nc_limit);
+   }
+
+   Mesh::InitFromNCMesh(*pncmesh);        // TODO: curved/two-level stuff
+   pncmesh->OnMeshUpdated(this);
+
+/*   // create a second mesh containing the finest elements from 'ncmesh'
+   Mesh* mesh2 = new Mesh(*ncmesh);
+
+   ncmesh->OnMeshUpdated(mesh2);
+
+   // now swap the meshes, the second mesh will become the old coarse mesh
+   // and this mesh will be the new fine mesh
+   Swap(*mesh2, false);
+
+   // retain the coarse mesh if two-level state was requested, delete otherwise
+   if (WantTwoLevelState)
+   {
+      nc_coarse_level = mesh2;
+      State = TWO_LEVEL_FINE;
+   }
+   else
+   {
+      delete mesh2;
+   }
+
+   if (Nodes) // curved mesh
+   {
+      UpdateNodes();
+      UseTwoLevelState(wtls);
+   }*/
 }
 
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)

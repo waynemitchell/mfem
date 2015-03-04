@@ -60,6 +60,13 @@ private:
 
    virtual void NURBSUniformRefinement();
 
+   /// This function is not public anymore. Use GeneralRefinement instead.
+   virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
+
+   /// This function is not public anymore. Use GeneralRefinement instead.
+   virtual void NonconformingRefinement(const Array<Refinement> &refinements,
+                                        int nc_limit = 0);
+
    void DeleteFaceNbrData();
 
 public:
@@ -123,9 +130,6 @@ public:
 
    /// See the remarks for the serial version in mesh.hpp
    virtual void ReorientTetMesh();
-
-   /// Refine the marked elements.
-   virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
 
    /// Update the groups after tet refinement
    void RefineGroups(const DSTable &v_to_v, int *middle);

@@ -40,6 +40,37 @@
 using namespace std;
 using namespace mfem;
 
+void HackZeroBC(ParFiniteElementSpace* fespace, int attr_max,
+                HypreParMatrix* A, HypreParVector* B)
+{
+   Array<int> ess_attr(attr_max), ess_dofs;
+   ess_attr = 1;
+   fespace->GetEssentialVDofs(ess_attr, ess_dofs);
+
+   HypreParMatrix* P = fespace->Dof_TrueDof_Matrix();
+   HypreParVector mark(*P, 1);
+   MFEM_ASSERT(mark.Size() == ess_dofs.Size(), "");
+   for (int i = 0; i < mark.Size(); i++)
+   {
+      mark(i) = (ess_dofs[i] < 0) ? 1 : 0;
+   }
+
+   HypreParVector true_mark(*P, 0);
+   P->MultTranspose(mark, true_mark);
+
+   Array<int> elim_rows;
+   for (int i = 0; i < true_mark.Size(); i++)
+      if (true_mark(i))
+      {
+         elim_rows.Append(i);
+         (*B)(i) = 0;
+      }
+
+   HYPRE_SStructMaxwellEliminateRowsCols(*A, elim_rows.Size(),
+                                         elim_rows.GetData());
+}
+
+
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
@@ -47,14 +78,6 @@ int main(int argc, char *argv[])
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-
-   /*if (myid == 1)
-   {
-      volatile int wait = 1;
-      cout << "pid " << getpid() << " waiting" << endl;
-      while (wait) ;
-   }
-   MPI_Barrier(MPI_COMM_WORLD);*/
 
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
@@ -144,8 +167,8 @@ int main(int argc, char *argv[])
    /*for (int i = 0; i < 3; i++)
       mesh->UniformRefinement();*/
 
-   srand(0);
-   for (int i = 0; i < 3; i++)
+   /*srand(0);
+   for (int i = 0; i < 1; i++)
    {
       Array<Refinement> refs;
       int types[] = { 1, 2, 3, 4, 5, 6, 7, 7, 7 };
@@ -157,7 +180,9 @@ int main(int argc, char *argv[])
          }
 
       mesh->GeneralRefinement(refs);
-   }
+   }*/
+
+   mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
 
    int attr_max = mesh->bdr_attributes.Max();
 
@@ -173,6 +198,11 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }*/
+   {
+      Array<Refinement> refs;
+      refs.Append(Refinement(0, 7));
+      pmesh->GeneralRefinement(refs, 1);
+   }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
@@ -235,33 +265,7 @@ int main(int argc, char *argv[])
    delete b;
 
    // Eliminate essential BC from the parallel matrix...
-   {
-      Array<int> ess_attr(attr_max), ess_dofs;
-      ess_attr = 1;
-      fespace->GetEssentialVDofs(ess_attr, ess_dofs);
-
-      HypreParMatrix* P = fespace->Dof_TrueDof_Matrix();
-      HypreParVector mark(*P, 1);
-      MFEM_ASSERT(mark.Size() == ess_dofs.Size(), "");
-      for (int i = 0; i < mark.Size(); i++)
-      {
-         mark(i) = (ess_dofs[i] < 0) ? 1 : 0;
-      }
-
-      HypreParVector true_mark(*P, 0);
-      P->MultTranspose(mark, true_mark);
-
-      Array<int> elim_rows;
-      for (int i = 0; i < true_mark.Size(); i++)
-         if (true_mark(i))
-         {
-            elim_rows.Append(i);
-            (*B)(i) = 0;
-         }
-
-      HYPRE_SStructMaxwellEliminateRowsCols(*A, elim_rows.Size(),
-                                            elim_rows.GetData());
-   }
+   HackZeroBC(fespace, attr_max, A, B);
 
    // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.

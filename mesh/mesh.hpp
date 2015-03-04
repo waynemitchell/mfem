@@ -196,8 +196,8 @@ protected:
    virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
 
    /// This function is not public anymore. Use GeneralRefinement instead.
-   void NonconformingRefinement(const Array<Refinement> &refinements,
-                                int nc_limit = 0);
+   virtual void NonconformingRefinement(const Array<Refinement> &refinements,
+                                        int nc_limit = 0);
 
    /// Read NURBS patch/macro-element mesh
    void LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot);
@@ -297,8 +297,11 @@ protected:
    /// Creates a 1D mesh for the interval [0,sx] divided into n equal intervals.
    void Make1D(int n, double sx = 1.0);
 
+   /// Initialize vertices/elements/boundary/tables from a nonconforming mesh.
+   void InitFromNCMesh(const NCMesh &ncmesh);
+
    /// Create from a nonconforming mesh.
-   Mesh(NCMesh& ncmesh);
+   Mesh(const NCMesh &ncmesh);
 
    /// Swaps internal data with another mesh. By default, non-geometry members
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
@@ -687,12 +690,12 @@ public:
        refinement for triangles). Use noncoforming = 0/1 to force the method.
        For nonconforming refinements, nc_limit optionally specifies the maximum
        level of hanging nodes (unlimited by default). */
-   void GeneralRefinement(Array<Refinement> &refinements,
+   void GeneralRefinement(const Array<Refinement> &refinements,
                           int nonconforming = -1, int nc_limit = 0);
 
    /** Simplified version of GeneralRefinement taking a simple list of elements
        to refine, without refinement types. */
-   void GeneralRefinement(Array<int> &el_to_refine,
+   void GeneralRefinement(const Array<int> &el_to_refine,
                           int nonconforming = -1, int nc_limit = 0);
 
    // NURBS mesh refinement methods

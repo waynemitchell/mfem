@@ -394,8 +394,10 @@ SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
             }
             if (!mark[col]++)
                for (int vd = 0; vd < vdim; vd++)
+               {
                   R->Set(cfes->DofToVDof(rows[i], vd),
                          this->DofToVDof(cols[i], vd), 1.0);
+               }
          }
       }
    }

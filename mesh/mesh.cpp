@@ -6423,7 +6423,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
 {
    if (NURBSext)
    {
-      mfem_error("Mesh::NonconformingRefinement: NURBS meshes are not supported."
+      MFEM_ABORT("Mesh::NonconformingRefinement: NURBS meshes are not supported."
                  " Project the NURBS to Nodes first.");
    }
 
@@ -6483,12 +6483,11 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    }
 }
 
-Mesh::Mesh(NCMesh &ncmesh)
+void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 {
-   Dim = ncmesh.Dimension();
+   DeleteTables();
 
-   Init();
-   InitTables();
+   Dim = ncmesh.Dimension();
 
    ncmesh.GetMeshComponents(vertices, elements, boundary);
 
@@ -6496,8 +6495,7 @@ Mesh::Mesh(NCMesh &ncmesh)
    NumOfElements = elements.Size();
    NumOfBdrElements = boundary.Size();
 
-   // set the mesh type ('meshgen')
-   SetMeshGen();
+   SetMeshGen(); // set the mesh type ('meshgen')
 
    NumOfEdges = NumOfFaces = 0;
 
@@ -6515,6 +6513,13 @@ Mesh::Mesh(NCMesh &ncmesh)
    c_el_to_edge = NULL;
 
    SetAttributes();
+}
+
+Mesh::Mesh(const NCMesh &ncmesh)
+{
+   Init();
+   InitTables();
+   InitFromNCMesh(ncmesh);
 }
 
 void Mesh::Swap(Mesh& other, bool non_geometry)
@@ -6596,8 +6601,8 @@ void Mesh::UniformRefinement()
    }
 }
 
-void Mesh::GeneralRefinement(Array<Refinement> &refinements, int nonconforming,
-                             int nc_limit)
+void Mesh::GeneralRefinement(const Array<Refinement> &refinements,
+                             int nonconforming, int nc_limit)
 {
    if (nonconforming < 0)
    {
@@ -6646,7 +6651,7 @@ void Mesh::GeneralRefinement(Array<Refinement> &refinements, int nonconforming,
    }
 }
 
-void Mesh::GeneralRefinement(Array<int> &el_to_refine, int nonconforming,
+void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
                              int nc_limit)
 {
    Array<Refinement> refinements;
@@ -6654,7 +6659,6 @@ void Mesh::GeneralRefinement(Array<int> &el_to_refine, int nonconforming,
    {
       refinements.Append(Refinement(el_to_refine[i], 7));
    }
-
    GeneralRefinement(refinements, nonconforming, nc_limit);
 }
 

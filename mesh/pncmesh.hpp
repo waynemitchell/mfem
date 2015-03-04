@@ -68,13 +68,13 @@ public:
    }
 
    /// Return (shared) face orientation relative to the owner element.
-   int GetFaceOrientation(int index)
+   int GetFaceOrientation(int index) const
    {
       return face_orient[index];
    }
 
    /// Return vertex/edge/face ('type' == 0/1/2, resp.) owner.
-   int GetOwner(int type, int index)
+   int GetOwner(int type, int index) const
    {
       switch (type)
       {
@@ -105,10 +105,7 @@ public:
       int size;
       const int* group = GetGroup(type, index, size);
       for (int i = 0; i < size; i++)
-         if (group[i] == rank)
-         {
-            return true;
-         }
+         if (group[i] == rank) { return true; }
       return false;
    }
 
@@ -147,6 +144,7 @@ protected:
    Table face_group;
 
    Array<char> face_orient;
+   Array<Element*> index_leaf;
 
    virtual void Update();
 
@@ -217,10 +215,14 @@ protected:
        and are not 'MyRank'. */
    void ElementNeighborProcessors(Element* elem, Array<int> &ranks) const;
 
+   /** Get a list of ranks that own elements in the neighborhood of our region.
+       NOTE: MyRank is not included. */
+   void GetNeighbors(Array<int> &neighbors);
+
    /** Traverse the (local) refinement tree and determine which subtrees are
        no longer needed, i.e., their leaves are not owned by us nor are they our
        ghosts. These subtrees are then derefined. */
-   void PruneGhosts();
+   void Prune();
 
    /// Internal. Recursive part of PruneGhosts().
    bool PruneTree(Element* elem);
@@ -230,12 +232,19 @@ protected:
    class NeighborRefinementMessage : public VarMessage<289>
    {
    public:
-      Array<ElemRefType> refinements;
+      std::vector<ElemRefType> refinements;
 
       void AddRefinement(Element* elem, int ref_type)
-      { refinements.Append(ElemRefType(elem, ref_type)); }
+      { refinements.push_back(ElemRefType(elem, ref_type)); }
+
+      /// Set pointer to ParNCMesh (needed to encode the message).
+      void SetNCMesh(ParNCMesh* pncmesh) { this->pncmesh = pncmesh; }
+
+      typedef std::map<int, NeighborRefinementMessage> Map;
 
    protected:
+      ParNCMesh* pncmesh;
+
       virtual void Encode();
       virtual void Decode();
    };
