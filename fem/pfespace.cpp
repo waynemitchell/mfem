@@ -493,7 +493,7 @@ void ParFiniteElementSpace::Synchronize(Array<int> &ldof_marker) const
 
    if (pmesh->pncmesh)
    {
-      std::cout << "FIXME!!! ParFiniteElementSpace::Synchronize for PNCMesh.\n";
+      // FIXME !!
       return;
    }
 
@@ -1382,8 +1382,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    {
       NeighborRowReply::WaitAllSent(send_replies[i]);
    }
-
-   std::cout << "P done.\n";
 }
 
 void ParFiniteElementSpace::Update()

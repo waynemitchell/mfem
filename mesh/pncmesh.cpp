@@ -780,7 +780,7 @@ void ParNCMesh::ElementSet::Load(std::istream &is)
 
 //// EncodeMeshIds/DecodeMeshIds ///////////////////////////////////////////////
 
-void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[3]) const
+void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[], int dim) const
 {
    std::map<Element*, int> element_id;
 
@@ -788,7 +788,7 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[3]) const
    // element_id: (Element* -> stream ID)
    {
       std::set<Element*> elements;
-      for (int type = 0; type < 3; type++)
+      for (int type = 0; type < dim; type++)
          for (int i = 0; i < ids[type].Size(); i++)
          {
             elements.insert(ids[type][i].element);
@@ -807,7 +807,7 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[3]) const
    }
 
    // write the IDs as element/local pairs
-   for (int type = 0; type < 3; type++)
+   for (int type = 0; type < dim; type++)
    {
       write<int>(os, ids[type].Size());
       for (int i = 0; i < ids[type].Size(); i++)
@@ -819,7 +819,8 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[3]) const
    }
 }
 
-void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const
+void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
+                              bool decode_indices) const
 {
    // read the list of elements
    ElementSet eset(is);
@@ -828,7 +829,7 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const
    eset.Decode(elements, root_elements);
 
    // read vertex/edge/face IDs
-   for (int type = 0; type < 3; type++)
+   for (int type = 0; type < dim; type++)
    {
       int ne = read<int>(is);
       ids[type].SetSize(ne);
@@ -841,6 +842,8 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const
          MeshId &id = ids[type][i];
          id.element = elem;
          id.local = read<char>(is);
+
+         if (!decode_indices) { continue; }
 
          // find vertex/edge/face index
          GeomInfo &gi = GI[(int) elem->geom];
@@ -949,7 +952,7 @@ void NeighborDofMessage::Encode()
 
    // encode the IDs
    std::ostringstream stream;
-   pncmesh->EncodeMeshIds(stream, ids);
+   pncmesh->EncodeMeshIds(stream, ids, 3);
 
    // dump the DOFs
    for (int type = 0; type < 3; type++)
@@ -973,7 +976,7 @@ void NeighborDofMessage::Decode()
 
    // decode vertex/edge/face IDs
    Array<NCMesh::MeshId> ids[3];
-   pncmesh->DecodeMeshIds(stream, ids);
+   pncmesh->DecodeMeshIds(stream, ids, 3, true);
 
    // load DOFs
    for (int type = 0; type < 3; type++)
@@ -1091,35 +1094,35 @@ void NeighborRowReply::Decode()
 
 void ParNCMesh::NeighborRefinementMessage::Encode()
 {
-   Array<MeshId> ids[3];
+   Array<MeshId> ids;
 
    // abuse EncodeMeshIds() to encode the list of refinements
-   ids[0].Reserve(refinements.size());
+   ids.Reserve(refinements.size());
    for (unsigned i = 0; i < refinements.size(); i++)
    {
       const ElemRefType &ref = refinements[i];
-      ids[0].Append(MeshId(-1, ref.elem, ref.ref_type));
+      ids.Append(MeshId(-1, ref.elem, ref.ref_type));
    }
 
    std::ostringstream stream;
-   pncmesh->EncodeMeshIds(stream, ids);
+   pncmesh->EncodeMeshIds(stream, &ids, 1);
 
    stream.str().swap(data);
 }
 
 void ParNCMesh::NeighborRefinementMessage::Decode()
 {
-   Array<NCMesh::MeshId> ids[3];
+   Array<NCMesh::MeshId> ids;
 
    // inverse abuse to Encode()
    std::istringstream stream(data);
-   pncmesh->DecodeMeshIds(stream, ids);
+   pncmesh->DecodeMeshIds(stream, &ids, 1, false);
 
    refinements.clear();
-   refinements.reserve(ids[0].Size());
-   for (int i = 0; i < ids[0].Size(); i++)
+   refinements.reserve(ids.Size());
+   for (int i = 0; i < ids.Size(); i++)
    {
-      AddRefinement(ids[0][i].element, ids[0][i].local);
+      AddRefinement(ids[i].element, ids[i].local);
    }
 
    data.clear();

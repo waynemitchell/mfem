@@ -200,13 +200,22 @@ int main(int argc, char *argv[])
    //    current mesh, visualize the solution, estimate the error on all
    //    elements, refine the worst elements and update all objects to work
    //    with the new mesh.
-   const int max_it = 15;
+   const int max_it = 25;
    for (int it = 0; it < max_it; it++)
    {
       if (myid == 0)
       {
          cout << "\nIteration " << it << endl;
          cout << "Number of unknowns: " << fespace.GetNConformingDofs() << endl;
+      }
+
+      if (myid == 0) { tic(); }
+
+      fespace.Dof_TrueDof_Matrix();
+
+      if (myid == 0)
+      {
+         cout << "P matrix time: " << tic_toc.RealTime() << endl;
       }
 
       // 10. Assemble the stiffness matrix and the right-hand side. Note that
@@ -260,6 +269,7 @@ int main(int argc, char *argv[])
          ParGridFunction flux(&flux_fespace);
          ComputeFlux(flux_integrator, x, flux);
          ZZErrorEstimator(flux_integrator, x, flux, errors, 1);
+         // FIXME: averaging across processor boundaries doesn't work properly
       }
 
       // 17. Make a list of elements whose error is larger than a fraction
@@ -277,7 +287,7 @@ int main(int argc, char *argv[])
       // 18. Refine the selected elements. Since we are going to transfer the
       //     grid function x from the coarse mesh to the new fine mesh in the
       //     next step, we need to request the "two-level state" of the mesh.
-      //mesh.UseTwoLevelState(1);
+      //pmesh.UseTwoLevelState(1);
       pmesh.GeneralRefinement(ref_list);
 
       // 19. Update the space to reflect the new state of the mesh. Also,
@@ -301,5 +311,6 @@ int main(int argc, char *argv[])
       b.Update();
    }
 
+   MPI_Finalize();
    return 0;
 }

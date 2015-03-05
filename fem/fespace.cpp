@@ -969,6 +969,8 @@ void FiniteElementSpace::Constructor()
 
    if (mesh->ncmesh && ndofs > nbdofs)
    {
+      // TODO: lazy initialization
+
       GetConformingInterpolation();
 
       if (cP && vdim > 1)

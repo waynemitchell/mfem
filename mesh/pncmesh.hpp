@@ -201,10 +201,11 @@ protected:
    };
 
    /// Write to 'os' a processor-independent encoding of vertex/edge/face IDs.
-   void EncodeMeshIds(std::ostream &os, Array<MeshId> ids[3]) const;
+   void EncodeMeshIds(std::ostream &os, Array<MeshId> ids[], int dim) const;
 
    /// Read from 'is' a processor-independent encoding of vetex/edge/face IDs.
-   void DecodeMeshIds(std::istream &is, Array<MeshId> ids[3]) const;
+   void DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
+                      bool decode_indices) const;
 
    /** Return true if an element is on a processor boundary, i.e., if at least
        one of its vertices, edges or faces is shared. */
@@ -256,12 +257,15 @@ protected:
 
 /*
 TODO
-- invalid CDOFs?
-- assumed partition
+- cP + P
+- vdim, vdofs
 - nonzero essential BC
 + prune ghosts
-- parallel refine
++ parallel refine
+- assumed partition
 - hcurl/hdiv
+- aniso refine
+- rebalance
 */
 
 
