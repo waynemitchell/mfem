@@ -47,7 +47,7 @@ void HackZeroBC(ParFiniteElementSpace* fespace, int attr_max,
    ess_attr = 1;
    fespace->GetEssentialVDofs(ess_attr, ess_dofs);
 
-   HypreParMatrix* P = fespace->Dof_TrueDof_Matrix();
+   /*HypreParMatrix* P = fespace->Dof_TrueDof_Matrix();
    HypreParVector mark(*P, 1);
    MFEM_ASSERT(mark.Size() == ess_dofs.Size(), "");
    for (int i = 0; i < mark.Size(); i++)
@@ -56,11 +56,14 @@ void HackZeroBC(ParFiniteElementSpace* fespace, int attr_max,
    }
 
    HypreParVector true_mark(*P, 0);
-   P->MultTranspose(mark, true_mark);
+   P->MultTranspose(mark, true_mark);*/
+
+   Array<int> true_mark;
+   fespace->GetRestrictionMatrix()->BooleanMult(ess_dofs, true_mark);
 
    Array<int> elim_rows;
    for (int i = 0; i < true_mark.Size(); i++)
-      if (true_mark(i))
+      if (true_mark[i])
       {
          elim_rows.Append(i);
          (*B)(i) = 0;

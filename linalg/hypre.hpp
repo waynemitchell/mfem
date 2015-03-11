@@ -196,8 +196,11 @@ public:
    /// Returns the global number of columns
    inline int N() { return A -> global_num_cols; }
 
-   /// Get the diagonal of the matrix
+   /// Get the local diagonal of the matrix.
    void GetDiag(Vector &diag);
+   /// Get the local diagonal block. NOTE: 'diag' will not own the data.
+   void GetDiag(SparseMatrix &diag);
+
    /// Returns the transpose of *this
    HypreParMatrix * Transpose();
 

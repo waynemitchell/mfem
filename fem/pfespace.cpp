@@ -39,6 +39,8 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
    Swap(ldof_sign, pf.ldof_sign);
    P = pf.P;
    pf.P = NULL;
+   R = pf.R;
+   pf.R = NULL;
    num_face_nbr_dofs = pf.num_face_nbr_dofs;
    pf.num_face_nbr_dofs = -1;
    Swap<Table>(face_nbr_element_dof, pf.face_nbr_element_dof);
@@ -57,6 +59,7 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    MPI_Comm_rank(MyComm, &MyRank);
 
    P = NULL;
+   R = NULL;
 
    if (pmesh->pncmesh)
    {
@@ -965,7 +968,8 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
 }
 
 static void AddSlaveDependencies(DepList deps[], int master_rank,
-                                 Array<int>& master_dofs, Array<int>& slave_dofs, DenseMatrix& I)
+                                 Array<int>& master_dofs, Array<int>& slave_dofs,
+                                 DenseMatrix& I)
 {
    // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
@@ -994,7 +998,8 @@ static void AddSlaveDependencies(DepList deps[], int master_rank,
 }
 
 static void Add1To1Dependencies(DepList deps[], int owner_rank,
-                                Array<int>& owner_dofs, Array<int>& dependent_dofs)
+                                Array<int>& owner_dofs,
+                                Array<int>& dependent_dofs)
 {
    MFEM_ASSERT(owner_dofs.Size() == dependent_dofs.Size(), "");
    for (int i = 0; i < owner_dofs.Size(); i++)
@@ -1126,7 +1131,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       else { T.SetFE(&SegmentFE); }
 
       const FiniteElement* fe = fec->FiniteElementForGeometry(
-                                   ((type > 1) ? Geometry::SQUARE : Geometry::SEGMENT));
+            ((type > 1) ? Geometry::SQUARE : Geometry::SEGMENT));
 
       DenseMatrix I(fe->GetDof());
 
@@ -1261,6 +1266,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    // create the local part (local rows) of the P matrix
    SparseMatrix localP(num_cdofs, glob_true_dofs);
 
+   // initialize the R matrix (also parallel but block-diagonal)
+   R = new SparseMatrix(ltdof_size, num_cdofs);
+
    Array<bool> finalized(num_cdofs);
    finalized = false;
 
@@ -1268,8 +1276,10 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    for (int i = 0, true_dof = 0; i < num_cdofs; i++)
       if (IsTrueDof(deps[i], MyRank))
       {
-         localP.Add(i, tdof_offsets[MyRank] + true_dof++, 1.0);
+         localP.Add(i, tdof_offsets[MyRank] + true_dof, 1.0);
+         R->Add(true_dof, i, 1.0);
          finalized[i] = true;
+         true_dof++;
       }
 
    Array<int> cols;
@@ -1371,6 +1381,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
                           localP.GetI(), localP.GetJ(), localP.GetData(),
                           dof_offsets.GetData(), tdof_offsets.GetData());
 
+   R->Finalize();
+
    // make sure we can discard all send buffers
    NeighborDofMessage::WaitAllSent(send_dofs);
    NeighborRowRequest::WaitAllSent(send_requests);
@@ -1392,6 +1404,8 @@ void ParFiniteElementSpace::Update()
    ldof_sign.DeleteAll();
    delete P;
    P = NULL;
+   delete R;
+   R = NULL;
    delete gcomm;
    gcomm = NULL;
    num_face_nbr_dofs = -1;

@@ -1119,8 +1119,7 @@ void GridFunction::ProjectCoefficient(Coefficient *coeff[])
    }
 }
 
-void GridFunction::ProjectBdrCoefficient(
-   Coefficient *coeff[], Array<int> &attr)
+void GridFunction::ProjectBdrCoefficient(Coefficient *coeff[], Array<int> &attr)
 {
    int i, j, fdof, d, ind, vdim;
    double val;
@@ -1131,13 +1130,14 @@ void GridFunction::ProjectBdrCoefficient(
    vdim = fes->GetVDim();
    for (i = 0; i < fes->GetNBE(); i++)
    {
-      if ( attr[fes->GetBdrAttribute(i)-1] )
+      if (attr[fes->GetBdrAttribute(i) - 1])
       {
          fe = fes->GetBE(i);
          fdof = fe->GetDof();
          transf = fes->GetBdrElementTransformation(i);
          const IntegrationRule &ir = fe->GetNodes();
          fes->GetBdrElementVDofs(i, vdofs);
+
          for (j = 0; j < fdof; j++)
          {
             const IntegrationPoint &ip = ir.IntPoint(j);
@@ -1173,10 +1173,8 @@ void GridFunction::ProjectBdrCoefficient(
 
       for (i = 0; i < mesh->GetNBE(); i++)
       {
-         if (attr[mesh->GetBdrAttribute(i)-1] == 0)
-         {
-            continue;
-         }
+         if (attr[mesh->GetBdrAttribute(i)-1] == 0) { continue; }
+
          mesh->GetBdrElementEdges(i, edges, edges_ori);
          for (j = 0; j < edges.Size(); j++)
          {
@@ -1188,15 +1186,11 @@ void GridFunction::ProjectBdrCoefficient(
             {
                const int *ev = edge_vertex->GetRow(edge);
                edge = ncmesh->GetEdgeMaster(ev[0], ev[1]);
-               if (edge < 0)
-               {
-                  break;
-               }
+               if (edge < 0) { break; }
+
                fes->GetEdgeVDofs(edge, vdofs);
-               if (vdofs.Size() == 0)
-               {
-                  continue;
-               }
+               if (vdofs.Size() == 0) { continue; }
+
                transf = mesh->GetEdgeTransformation(edge);
                transf->Attribute = mesh->GetBdrAttribute(i);
                fe = fes->GetEdgeElement(edge);

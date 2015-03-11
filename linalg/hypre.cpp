@@ -569,10 +569,25 @@ void HypreParMatrix::GetDiag(Vector &diag)
 #ifdef MFEM_DEBUG
       if (A->diag->j[A->diag->i[j]] != j)
       {
-         mfem_error("HypreParMatrix::GetDiag");
+         MFEM_ABORT("HypreParMatrix::GetDiag");
       }
 #endif
    }
+}
+
+void HypreParMatrix::GetDiag(SparseMatrix &diag)
+{
+#ifdef HYPRE_COMPLEX
+   MFEM_ABORT("HypreParMatrix::GetDiag can't retrieve complex matrix.");
+#endif
+   // create a wrapper SparseMatrix around A->diag
+   SparseMatrix tmp(hypre_CSRMatrixI(A->diag),
+                    hypre_CSRMatrixJ(A->diag),
+                    hypre_CSRMatrixData(A->diag),
+                    hypre_CSRMatrixNumRows(A->diag),
+                    hypre_CSRMatrixNumCols(A->diag),
+                    false, false, false);
+   diag.Swap(tmp);
 }
 
 HypreParMatrix * HypreParMatrix::Transpose()

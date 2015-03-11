@@ -62,6 +62,9 @@ private:
    /// The matrix P (interpolation from true dof to dof).
    HypreParMatrix *P;
 
+   /// The (block-diagonal) matrix R (restriction of dof to true dof)
+   SparseMatrix *R;
+
    ParNURBSExtension *pNURBSext()
    { return dynamic_cast<ParNURBSExtension *>(NURBSext); }
 
@@ -159,6 +162,9 @@ public:
    int GetGlobalScalarTDofNumber(int sldof);
    int GetMyDofOffset();
 
+   /// Get the R matrix which restricts a local dof vector to true dof vector.
+   const SparseMatrix *GetRestrictionMatrix() const { return R; }
+
    // Face-neighbor functions
    void ExchangeFaceNbrData();
    int GetFaceNbrVSize() const { return num_face_nbr_dofs; }
@@ -174,7 +180,7 @@ public:
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
 
-   virtual ~ParFiniteElementSpace() { delete gcomm; delete P; }
+   virtual ~ParFiniteElementSpace() { delete gcomm; delete P; delete R; }
 };
 
 }

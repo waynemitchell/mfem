@@ -2057,7 +2057,7 @@ void NCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
       for (int i = 0; i < boundary_faces.Size(); i++)
       {
          Face* face = boundary_faces[i];
-         if (bdr_attr_is_ess[face->attribute])
+         if (bdr_attr_is_ess[face->attribute - 1])
          {
             Node* node[4];
             find_face_nodes(face, node);
@@ -2086,7 +2086,7 @@ void NCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
       for (int i = 0; i < boundary_edges.Size(); i++)
       {
          Node* edge = boundary_edges[i];
-         if (bdr_attr_is_ess[edge->edge->attribute])
+         if (bdr_attr_is_ess[edge->edge->attribute - 1])
          {
             bdr_vertices.Append(nodes.Peek(edge->p1)->vertex->index);
             bdr_vertices.Append(nodes.Peek(edge->p2)->vertex->index);
