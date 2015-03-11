@@ -167,13 +167,24 @@ public:
        parent. */
    int GetEdgeMaster(int v1, int v2) const;
 
+   /** Get a list of vertices (2D/3D) and edges (3D) that coincide with boundary
+       elements with the specified attributes (marked in 'bdr_attr_is_ess').
+       In 3D this function also reveals "hidden" boundary edges. In parallel it
+       helps identifying boundary vertices/edges affected by non-local boundary
+       elements. */
+   virtual void GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
+                                   Array<int> &bdr_vertices,
+                                   Array<int> &bdr_edges);
+
    /** Return total number of bytes allocated. */
    long MemoryUsage();
 
    ~NCMesh();
 
 
-protected: // interface for Mesh to be able to construct itself from us
+protected: // interface for Mesh to be able to construct itself from NCMesh
+
+   friend class Mesh;
 
    /// Return the basic Mesh arrays for the current finest level.
    void GetMeshComponents(Array<mfem::Vertex>& vertices,
@@ -184,12 +195,16 @@ protected: // interface for Mesh to be able to construct itself from us
        after a new mesh was created from us. */
    virtual void OnMeshUpdated(Mesh *mesh);
 
-   friend class Mesh;
-
 
 protected: // implementation
 
    int Dim;
+
+   Element* CopyHierarchy(Element* elem);
+   void DeleteHierarchy(Element* elem);
+
+
+   // primary data
 
    /** We want vertices and edges to autodestruct when elements stop using
        (i.e., referencing) them. This base class does the reference counting. */
@@ -315,14 +330,42 @@ protected: // implementation
       bool Ghost() const { return index < 0; }
    };
 
-   Array<Element*> root_elements; // initialized by constructor
-   Array<Element*> leaf_elements; // finest level, updated by UpdateLeafElements
-   Array<Element*> coarse_elements; // coarse level, set by MarkCoarseLevel
-
-   Array<int> vertex_nodeId; // vertex-index to node-id map
+   Array<Element*> root_elements; // coarse mesh, initialized by constructor
 
    HashTable<Node> nodes; // associative container holding all Nodes
    HashTable<Face> faces; // associative container holding all Faces
+
+
+   // secondary data
+
+   /** Apart from the primary data structure, which is the element/node/face
+       hierarchy, there is secondary data that is derived from the primary
+       data and needs to be updated when the primary data changes. Update()
+       takes cares of that and needs to be called after refinement and
+       derefinement. Secondary data includes: leaf_elements, vertex_nodeId,
+       face_list, edge_list, and everything in ParNCMesh. */
+   virtual void Update();
+
+   Array<Element*> leaf_elements; // finest level, updated by UpdateLeafElements
+   Array<Element*> coarse_elements; // coarse level, set by MarkCoarseLevel
+
+   Array<int> vertex_nodeId; // vertex-index to node-id map, see UpdateVertices
+
+   NCList face_list; // lazy-initialized list of faces, see GetFaceList
+   NCList edge_list; // lazy-initialized list of edges, see GetEdgeList
+
+   Array<Face*> boundary_faces; // subset of all faces, set by BuildFaceList
+   Array<Node*> boundary_edges; // subset of all edges, set by BuildEdgeList
+
+   virtual void UpdateVertices(); ///< update Vertex::index and vertex_nodeId
+
+   void CollectLeafElements(Element* elem);
+   void UpdateLeafElements();
+
+   virtual void AssignLeafIndices();
+
+
+   // refinement
 
    struct ElemRefType
    {
@@ -333,28 +376,10 @@ protected: // implementation
          : elem(elem), ref_type(type) {}
    };
 
-   Array<ElemRefType> ref_stack; ///< stack of scheduled refinements
+   Array<ElemRefType> ref_stack; ///< stack of scheduled refinements (temporary)
 
    void RefineElement(Element* elem, char ref_type);
    void DerefineElement(Element* elem);
-
-   virtual void UpdateVertices(); ///< update Vertex::index and vertex_nodeId
-
-   void CollectLeafElements(Element* elem);
-   void UpdateLeafElements();
-
-   virtual void AssignLeafIndices();
-
-   /** Apart from the primary data structure, which is the element/node/face
-       hierarchy, there is secondary data that is derived from the primary
-       structure and needs to be updated when the primary data changes.
-       Update() takes cares of that and needs to be called after refinement and
-       derefinement. Secondary data includes: leaf_elements, vertex_nodeId,
-       face_list, edge_list, and everything in ParNCMesh. */
-   virtual void Update();
-
-   Element* CopyHierarchy(Element* elem);
-   void DeleteHierarchy(Element* elem);
 
    Element* NewHexahedron(Node* n0, Node* n1, Node* n2, Node* n3,
                           Node* n4, Node* n5, Node* n6, Node* n7,
@@ -400,7 +425,7 @@ protected: // implementation
    bool NodeSetZ2(Node* node, Node** n);
 
 
-   // face / edge lists
+   // face/edge lists
 
    static int find_node(Element* elem, Node* node);
    static int find_node(Element* elem, int node_id);
@@ -414,9 +439,6 @@ protected: // implementation
                      const PointMatrix& pm, int level);
 
    Node* TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level);
-
-   NCList face_list;
-   NCList edge_list;
 
    virtual void BuildFaceList();
    virtual void BuildEdgeList();
@@ -432,14 +454,17 @@ protected: // implementation
       int dim;
       double coord[3];
 
-      Point()
-      { dim = 0; }
+      Point() { dim = 0; }
 
       Point(double x, double y)
-      { dim = 2; coord[0] = x; coord[1] = y; }
+      {
+         dim = 2; coord[0] = x; coord[1] = y;
+      }
 
       Point(double x, double y, double z)
-      { dim = 3; coord[0] = x; coord[1] = y; coord[2] = z; }
+      {
+         dim = 3; coord[0] = x; coord[1] = y; coord[2] = z;
+      }
 
       Point(const Point& p0, const Point& p1)
       {
@@ -454,8 +479,10 @@ protected: // implementation
       {
          dim = p0.dim;
          for (int i = 0; i < dim; i++)
+         {
             coord[i] = (p0.coord[i] + p1.coord[i] + p2.coord[i] + p3.coord[i])
                        * 0.25;
+         }
       }
 
       Point& operator=(const Point& src)
@@ -498,10 +525,12 @@ protected: // implementation
    void GetFineTransforms(Element* elem, int coarse_index,
                           FineTransform *transforms, const PointMatrix &pm);
 
-   Node* GetEdgeMaster(Node* node) const;
-
 
    // utility
+
+   Node* GetEdgeMaster(Node* node) const;
+
+   static void find_face_nodes(const Face *face, Node* node[4]);
 
    void FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
                        int& h_level, int& v_level);

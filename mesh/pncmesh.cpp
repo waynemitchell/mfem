@@ -385,6 +385,27 @@ void ParNCMesh::CalcFaceOrientations()
       }
 }
 
+void ParNCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
+                                   Array<int> &bdr_vertices,
+                                   Array<int> &bdr_edges)
+{
+   NCMesh::GetBoundaryClosure(bdr_attr_is_ess, bdr_vertices, bdr_edges);
+
+   int i, j;
+   // filter out ghost vertices
+   for (i = j = 0; i < bdr_vertices.Size(); i++)
+   {
+      if (bdr_vertices[i] < NVertices) { bdr_vertices[j++] = bdr_vertices[i]; }
+   }
+   bdr_vertices.SetSize(j);
+
+   // filter out ghost edges
+   for (i = j = 0; i < bdr_edges.Size(); i++)
+   {
+      if (bdr_edges[i] < NEdges) { bdr_edges[j++] = bdr_edges[i]; }
+   }
+   bdr_edges.SetSize(j);
+}
 
 //// neighbors /////////////////////////////////////////////////////////////////
 
@@ -588,7 +609,9 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
       send_ref[neighbors[i]].SetNCMesh(this);
    }
 
-   // populate messages
+   // populate messages: all refinements that occur next to the processor
+   // boundary need to be sent to the adjoining neighbors so they can keep
+   // their ghost layer up to date
    Array<int> ranks;
    ranks.Reserve(64);
    for (int i = 0; i < refinements.Size(); i++)

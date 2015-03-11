@@ -110,6 +110,7 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
    }
 
    if (dim == 1)
+   {
       cout << endl
            << "Number of vertices : " << GetNV() << endl
            << "Number of elements : " << GetNE() << endl
@@ -117,7 +118,9 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
            << "h_min              : " << h_min << endl
            << "h_max              : " << h_max << endl
            << endl;
+   }
    else if (dim == 2)
+   {
       cout << endl
            << "Number of vertices : " << GetNV() << endl
            << "Number of edges    : " << GetNEdges() << endl
@@ -129,7 +132,9 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
            << "kappa_min          : " << kappa_min << endl
            << "kappa_max          : " << kappa_max << endl
            << endl;
+   }
    else
+   {
       cout << endl
            << "Number of vertices : " << GetNV() << endl
            << "Number of edges    : " << GetNEdges() << endl
@@ -142,6 +147,7 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
            << "kappa_min          : " << kappa_min << endl
            << "kappa_max          : " << kappa_max << endl
            << endl;
+   }
 }
 
 FiniteElement *Mesh::GetTransformationFEforElementType(int ElemType)
@@ -3805,8 +3811,7 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
 #endif
 }
 
-void Mesh::GetElementEdges(int i, Array<int> &edges, Array<int> &cor)
-const
+void Mesh::GetElementEdges(int i, Array<int> &edges, Array<int> &cor) const
 {
    if (el_to_edge)
    {
@@ -3826,8 +3831,7 @@ const
    }
 }
 
-void Mesh::GetBdrElementEdges(int i, Array<int> &edges, Array<int> &cor)
-const
+void Mesh::GetBdrElementEdges(int i, Array<int> &edges, Array<int> &cor) const
 {
    if (Dim == 2)
    {
@@ -6604,7 +6608,11 @@ void Mesh::UniformRefinement()
 void Mesh::GeneralRefinement(const Array<Refinement> &refinements,
                              int nonconforming, int nc_limit)
 {
-   if (nonconforming < 0)
+   if (Dim == 1)
+   {
+      nonconforming = 0;
+   }
+   else if (nonconforming < 0)
    {
       // determine if nonconforming refinement is suitable
       int type = elements[0]->GetType();

@@ -137,57 +137,58 @@ void FiniteElementSpace::AdjustVDofs (Array<int> &vdofs)
    for (int i = 0; i < n; i++)
    {
       int j;
-      if ((j=vdof[i]) < 0)
+      if ((j = vdof[i]) < 0)
       {
          vdof[i] = -1-j;
       }
    }
 }
 
-void FiniteElementSpace::GetElementVDofs(int iE, Array<int> &dofs) const
+void FiniteElementSpace::GetElementVDofs(int i, Array<int> &vdofs) const
 {
-   GetElementDofs(iE, dofs);
-   DofsToVDofs (dofs);
+   GetElementDofs(i, vdofs);
+   DofsToVDofs(vdofs);
 }
 
-void FiniteElementSpace::GetBdrElementVDofs (int iE, Array<int> &dofs) const
+void FiniteElementSpace::GetBdrElementVDofs(int i, Array<int> &vdofs) const
 {
-   GetBdrElementDofs(iE, dofs);
-   DofsToVDofs (dofs);
+   GetBdrElementDofs(i, vdofs);
+   DofsToVDofs(vdofs);
 }
 
-void FiniteElementSpace::GetFaceVDofs (int iF, Array<int> &dofs) const
+void FiniteElementSpace::GetFaceVDofs(int i, Array<int> &vdofs) const
 {
-   GetFaceDofs (iF, dofs);
-   DofsToVDofs (dofs);
+   GetFaceDofs(i, vdofs);
+   DofsToVDofs(vdofs);
 }
 
-void FiniteElementSpace::GetEdgeVDofs (int iE, Array<int> &dofs) const
+void FiniteElementSpace::GetEdgeVDofs(int i, Array<int> &vdofs) const
 {
-   GetEdgeDofs (iE, dofs);
-   DofsToVDofs (dofs);
+   GetEdgeDofs(i, vdofs);
+   DofsToVDofs(vdofs);
 }
 
-void FiniteElementSpace::GetElementInteriorVDofs (int i, Array<int> &vdofs)
-const
+void FiniteElementSpace::GetVertexVDofs(int i, Array<int> &vdofs) const
 {
-   GetElementInteriorDofs (i, vdofs);
-   DofsToVDofs (vdofs);
+   GetVertexDofs(i, vdofs);
+   DofsToVDofs(vdofs);
 }
 
-void FiniteElementSpace::GetEdgeInteriorVDofs (int i, Array<int> &vdofs)
-const
+void FiniteElementSpace::GetElementInteriorVDofs(int i, Array<int> &vdofs) const
 {
-   GetEdgeInteriorDofs (i, vdofs);
-   DofsToVDofs (vdofs);
+   GetElementInteriorDofs(i, vdofs);
+   DofsToVDofs(vdofs);
+}
+
+void FiniteElementSpace::GetEdgeInteriorVDofs(int i, Array<int> &vdofs) const
+{
+   GetEdgeInteriorDofs(i, vdofs);
+   DofsToVDofs(vdofs);
 }
 
 void FiniteElementSpace::BuildElementToDofTable()
 {
-   if (elem_dof)
-   {
-      return;
-   }
+   if (elem_dof) { return; }
 
    Table *el_dof = new Table;
    Array<int> dofs;
@@ -406,54 +407,65 @@ SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
    return R;
 }
 
-void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
-                                           Array<int> &ess_dofs) const
+static void mark_dofs(const Array<int> &dofs, Array<int> &mark_array)
 {
-   int i, j, k;
+   for (int i = 0; i < dofs.Size(); i++)
+   {
+      int k = dofs[i];
+      if (k < 0) { k = -1 - k; }
+      mark_array[k] = -1;
+   }
+}
+
+void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
+                                           Array<int> &ess_vdofs) const
+{
    Array<int> vdofs;
 
-   ess_dofs.SetSize(GetVSize());
-   ess_dofs = 0;
+   ess_vdofs.SetSize(GetVSize());
+   ess_vdofs = 0;
 
-   for (i = 0; i < GetNBE(); i++)
+   for (int i = 0; i < GetNBE(); i++)
+   {
       if (bdr_attr_is_ess[GetBdrAttribute(i)-1])
       {
          GetBdrElementVDofs(i, vdofs);
-         for (j = 0; j < vdofs.Size(); j++)
-            if ( (k = vdofs[j]) >= 0 )
-            {
-               ess_dofs[k] = -1;
-            }
-            else
-            {
-               ess_dofs[-1-k] = -1;
-            }
+         mark_dofs(vdofs, ess_vdofs);
       }
+   }
+
+   // mark possible hidden boundary edges in a non-conforming mesh, also
+   // local DOFs affected by boundary elements on other processors
+   if (mesh->ncmesh)
+   {
+      Array<int> bdr_verts, bdr_edges;
+      mesh->ncmesh->GetBoundaryClosure(bdr_attr_is_ess, bdr_verts, bdr_edges);
+
+      for (int i = 0; i < bdr_verts.Size(); i++)
+      {
+         GetVertexVDofs(bdr_verts[i], vdofs);
+         mark_dofs(vdofs, ess_vdofs);
+      }
+      for (int i = 0; i < bdr_edges.Size(); i++)
+      {
+         GetEdgeVDofs(bdr_edges[i], vdofs);
+         mark_dofs(vdofs, ess_vdofs);
+      }
+   }
 }
 
-void FiniteElementSpace::MarkDependency(const SparseMatrix *D,
-                                        const Array<int> &row_marker,
-                                        Array<int> &col_marker)
+void FiniteElementSpace::ConvertToConformingVDofs(const Array<int> &dofs,
+                                                  Array<int> &cdofs)
 {
-   if (D)
-   {
-      col_marker.SetSize(D->Width());
-      col_marker = 0;
+   if (cP) { cP->BooleanMultTranspose(dofs, cdofs); }
+   else { dofs.Copy(cdofs); }
+}
 
-      for (int i = 0; i < D->Height(); i++)
-         if (row_marker[i] < 0)
-         {
-            const int *col = D->GetRowColumns(i), n = D->RowSize(i);
-            for (int j = 0; j < n; j++)
-            {
-               col_marker[col[j]] = -1;
-            }
-         }
-   }
-   else
-   {
-      row_marker.Copy(col_marker);
-   }
+void FiniteElementSpace::ConvertFromConformingVDofs(const Array<int> &cdofs,
+                                                    Array<int> &dofs)
+{
+   if (cP) { cP->BooleanMult(cdofs, dofs); }
+   else { cdofs.Copy(dofs); }
 }
 
 void FiniteElementSpace::EliminateEssentialBCFromGRM
@@ -466,7 +478,9 @@ void FiniteElementSpace::EliminateEssentialBCFromGRM
 
    mesh -> SetState (Mesh::TWO_LEVEL_COARSE);
    if (bdr_attr_is_ess.Size() != 0)
-      for (i=0; i < cfes -> GetNBE(); i++)
+   {
+      for (i = 0; i < cfes -> GetNBE(); i++)
+      {
          if (bdr_attr_is_ess[cfes -> GetBdrAttribute (i)-1])
          {
             if (one_vdim == 1)
@@ -477,7 +491,8 @@ void FiniteElementSpace::EliminateEssentialBCFromGRM
             {
                cfes -> GetBdrElementVDofs (i, dofs);
             }
-            for (j=0; j < dofs.Size(); j++)
+            for (j = 0; j < dofs.Size(); j++)
+            {
                if ( (k = dofs[j]) >= 0 )
                {
                   R -> EliminateRow(k);
@@ -486,7 +501,10 @@ void FiniteElementSpace::EliminateEssentialBCFromGRM
                {
                   R -> EliminateRow(-1-k);
                }
+            }
          }
+      }
+   }
    R -> Finalize();
 }
 
@@ -723,7 +741,7 @@ void FiniteElementSpace::GetConformingInterpolation()
       return;
    }
 
-   // create the conforming restriction matrix
+   // create the conforming restriction matrix cR
    int *cR_J;
    {
       int *cR_I = new int[n_true_dofs+1];
@@ -738,7 +756,7 @@ void FiniteElementSpace::GetConformingInterpolation()
       cR = new SparseMatrix(cR_I, cR_J, cR_A, n_true_dofs, ndofs);
    }
 
-   // create the conforming prolongation matrix
+   // create the conforming prolongation matrix cP
    cP = new SparseMatrix(ndofs, n_true_dofs);
 
    Array<bool> finalized(ndofs);

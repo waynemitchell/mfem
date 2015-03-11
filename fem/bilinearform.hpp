@@ -173,8 +173,10 @@ public:
    void AssembleElementMatrix(int i, const DenseMatrix &elmat,
                               Array<int> &vdofs, int skip_zeros = 1);
 
-   /** If d == 0 the diagonal at the ess. b.c. is set to 1.0,
-       otherwise leave it the same.      */
+   /** Eliminate essential boundary DOFs from the system. The array
+       'bdr_attr_is_ess' marks boundary attributes that constitute the essential
+       part of the boundary. If d == 0, the diagonal at the essential DOFs is
+       set to 1.0, otherwise it is left the same. */
    void EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
                              Vector &sol, Vector &rhs, int d = 0);
 

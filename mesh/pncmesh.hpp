@@ -99,7 +99,8 @@ public:
       return table->GetRow(index);
    }
 
-   /** */
+   /** Returns true if 'rank' is in the processor group of a vertex/edge/face
+       ('type' == 0/1/2, resp.). */
    bool RankInGroup(int type, int index, int rank) const
    {
       int size;
@@ -109,7 +110,7 @@ public:
       return false;
    }
 
-   /** */
+   /// Returns true if the specified vertex/edge/face is a ghost.
    bool IsGhost(int type, int index) const
    {
       switch (type)
@@ -119,6 +120,13 @@ public:
          default: return index >= NFaces;
       }
    }
+
+   /** Extension of NCMesh::GetBoundaryClosure, filters out ghost vertices and
+       ghost edges from 'bdr_vertices' and 'bdr_edges'. */
+   virtual void GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
+                                   Array<int> &bdr_vertices,
+                                   Array<int> &bdr_edges);
+
 
 protected:
    MPI_Comm MyComm;
@@ -225,7 +233,7 @@ protected:
        ghosts. These subtrees are then derefined. */
    void Prune();
 
-   /// Internal. Recursive part of PruneGhosts().
+   /// Internal. Recursive part of Prune().
    bool PruneTree(Element* elem);
 
 
@@ -257,17 +265,17 @@ protected:
 
 /*
 TODO
+- R matrix
+- nonzero essential BC
+- assumed partition
 - cP + P
 - vdim, vdofs
-- nonzero essential BC
-+ prune ghosts
-+ parallel refine
-- assumed partition
+- curved/two-level parmesh
 - hcurl/hdiv
-- aniso refine
+- hilbert ordering
 - rebalance
+- parallel aniso refine
 */
-
 
 /** */
 class NeighborDofMessage : public VarMessage<135>

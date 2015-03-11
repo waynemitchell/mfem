@@ -467,10 +467,10 @@ public:
    { boundary[i]->GetVertices(dofs); }
 
    /// Return the indices and the orientations of all edges of element i.
-   void GetElementEdges(int i, Array<int> &, Array<int> &) const;
+   void GetElementEdges(int i, Array<int> &edges, Array<int> &cor) const;
 
    /// Return the indices and the orientations of all edges of bdr element i.
-   void GetBdrElementEdges(int i, Array<int> &, Array<int> &) const;
+   void GetBdrElementEdges(int i, Array<int> &edges, Array<int> &cor) const;
 
    /** Return the indices and the orientations of all edges of face i.
        Works for both 2D (face=edge) and 3D faces. */

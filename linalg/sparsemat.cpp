@@ -539,6 +539,51 @@ void SparseMatrix::PartAddMult(
    }
 }
 
+void SparseMatrix::BooleanMult(const Array<int> &x, Array<int> &y) const
+{
+   MFEM_ASSERT(Finalized(), "Matrix must be finalized.");
+   MFEM_ASSERT(x.Size() == Width(), "Input vector size (" << x.Size()
+               << ") must match matrix width (" << Width() << ")");
+
+   y.SetSize(Height());
+   y = 0;
+
+   for (int i = 0; i < Height(); i++)
+   {
+      int end = I[i+1];
+      for (int j = I[i]; j < end; j++)
+      {
+         if (x[J[j]])
+         {
+            y[i] = x[J[j]];
+            break;
+         }
+      }
+   }
+}
+
+void SparseMatrix::BooleanMultTranspose(const Array<int> &x, Array<int> &y) const
+{
+   MFEM_ASSERT(Finalized(), "Matrix must be finalized.");
+   MFEM_ASSERT(x.Size() == Height(), "Input vector size (" << x.Size()
+               << ") must match matrix height (" << Height() << ")");
+
+   y.SetSize(Width());
+   y = 0;
+
+   for (int i = 0; i < Height(); i++)
+   {
+      if (x[i])
+      {
+         int end = I[i+1];
+         for (int j = I[i]; j < end; j++)
+         {
+            y[J[j]] = x[i];
+         }
+      }
+   }
+}
+
 double SparseMatrix::InnerProduct(const Vector &x, const Vector &y) const
 {
    double prod = 0.0;
@@ -1182,6 +1227,7 @@ void SparseMatrix::EliminateRowCol(int rc, SparseMatrix &Ae, int d)
    else
    {
       for (int j = I[rc]; j < I[rc+1]; j++)
+      {
          if ((col = J[j]) == rc)
          {
             if (d == 0)
@@ -1195,6 +1241,7 @@ void SparseMatrix::EliminateRowCol(int rc, SparseMatrix &Ae, int d)
             Ae.Add(rc, col, A[j]);
             A[j] = 0.0;
             for (int k = I[col]; true; k++)
+            {
                if (k == I[col+1])
                {
                   mfem_error("SparseMatrix::EliminateRowCol");
@@ -1205,7 +1252,9 @@ void SparseMatrix::EliminateRowCol(int rc, SparseMatrix &Ae, int d)
                   A[k] = 0.0;
                   break;
                }
+            }
          }
+      }
    }
 }
 

@@ -242,16 +242,18 @@ public:
    static void AdjustVDofs(Array<int> &vdofs);
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
-   void GetElementVDofs(int i, Array<int> &dofs) const;
+   void GetElementVDofs(int i, Array<int> &vdofs) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
-   void GetBdrElementVDofs(int i, Array<int> &dofs) const;
+   void GetBdrElementVDofs(int i, Array<int> &vdofs) const;
 
    /// Returns indexes of degrees of freedom for i'th face element (2D and 3D).
-   void GetFaceVDofs(int iF, Array<int> &dofs) const;
+   void GetFaceVDofs(int i, Array<int> &vdofs) const;
 
    /// Returns indexes of degrees of freedom for i'th edge.
-   void GetEdgeVDofs(int iE, Array<int> &dofs) const;
+   void GetEdgeVDofs(int i, Array<int> &vdofs) const;
+
+   void GetVertexVDofs(int i, Array<int> &vdofs) const;
 
    void GetElementInteriorVDofs(int i, Array<int> &vdofs) const;
 
@@ -290,25 +292,22 @@ public:
    SparseMatrix *GlobalRestrictionMatrix(FiniteElementSpace *cfes,
                                          int one_vdim = -1);
 
-   /// Determine the boundary degrees of freedom
+   /** Mark degrees of freedom associated with boundary elements with
+       the specified boundary attributes (marked in 'bdr_attr_is_ess'). */
    virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
-                                  Array<int> &ess_dofs) const;
+                                  Array<int> &ess_vdofs) const;
 
-   /** For a partially conforming FE space, convert a marker array (negative
+   /** For a partially conforming FE space, convert a marker array (nonzero
        entries are true) on the partially conforming dofs to a marker array on
        the conforming dofs. A conforming dofs is marked iff at least one of its
-       dependent dofs (as defined by the conforming prolongation matrix) is
-       marked. */
-   void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs)
-   {  MarkDependency(cP, dofs, cdofs); }
+       dependent dofs is marked. */
+   void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs);
 
-   /** For a partially conforming FE space, convert a marker array (negative
+   /** For a partially conforming FE space, convert a marker array (nonzero
        entries are true) on the conforming dofs to a marker array on the
-       (partially conforming) dofs. A dofs is marked iff at least one of the
-       conforming dofs that dependent on it (as defined by the conforming
-       restriction matrix) is marked. */
-   void ConvertFromConformingVDofs(const Array<int> &cdofs, Array<int> &dofs)
-   { MarkDependency(cR, cdofs, dofs); }
+       (partially conforming) dofs. A dof is marked iff at least one of the
+       conforming dofs that it depends on is marked. */
+   void ConvertFromConformingVDofs(const Array<int> &cdofs, Array<int> &dofs);
 
    void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,
                                     Array<int> &bdr_attr_is_ess,

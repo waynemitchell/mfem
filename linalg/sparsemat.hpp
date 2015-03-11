@@ -172,6 +172,11 @@ public:
    void PartAddMult(const Array<int> &rows, const Vector &x, Vector &y,
                     const double a=1.0) const;
 
+   /// y = A * x, but treat all elements as booleans (zero=false, nonzero=true).
+   void BooleanMult(const Array<int> &x, Array<int> &y) const;
+   /// y = At * x, but treat all elements as booleans (zero=false, nonzero=true).
+   void BooleanMultTranspose(const Array<int> &x, Array<int> &y) const;
+
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const;
 

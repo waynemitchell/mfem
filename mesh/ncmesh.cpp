@@ -65,7 +65,7 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
           geom != Geometry::SQUARE &&
           geom != Geometry::CUBE)
       {
-         mfem_error("NCMesh: only triangles, quads and hexes are supported.");
+         MFEM_ABORT("NCMesh: only triangles, quads and hexes are supported.");
       }
 
       // initialize edge/face tables for this type of element
@@ -115,19 +115,19 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
       {
          Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
          if (!face) { MFEM_ABORT("Boundary face not found."); }
-
          face->attribute = be->GetAttribute();
       }
       else if (be->GetType() == mfem::Element::SEGMENT)
       {
          Edge* edge = nodes.Peek(node[0], node[1])->edge;
          if (!edge) { MFEM_ABORT("Boundary edge not found."); }
-
          edge->attribute = be->GetAttribute();
       }
       else
-         mfem_error("NCMesh: only segment and quadrilateral boundary "
+      {
+         MFEM_ABORT("NCMesh: only segment and quadrilateral boundary "
                     "elements are supported.");
+      }
    }
 
    Update();
@@ -314,6 +314,7 @@ NCMesh::Face::Face(int id)
 
 NCMesh::Face::Face(const Face& other)
 {
+   // (skip Hashed4 constructor)
    std::memcpy(this, &other, sizeof(*this));
    elem[0] = elem[1] = NULL;
 }
@@ -322,14 +323,14 @@ void NCMesh::Face::RegisterElement(Element* e)
 {
    if (elem[0] == NULL) { elem[0] = e; }
    else if (elem[1] == NULL) { elem[1] = e; }
-   else { MFEM_ABORT("Can't have 3 elements in Face::elem[2]."); }
+   else { MFEM_ABORT("Can't have 3 elements in Face::elem[]."); }
 }
 
 void NCMesh::Face::ForgetElement(Element* e)
 {
    if (elem[0] == e) { elem[0] = NULL; }
    else if (elem[1] == e) { elem[1] = NULL; }
-   else { MFEM_ABORT("Element not found in Face::elem[2]."); }
+   else { MFEM_ABORT("Element not found in Face::elem[]."); }
 }
 
 void NCMesh::RegisterFaces(Element* elem, int* fattr)
@@ -397,8 +398,10 @@ NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
          Node* w2 = w1 ? PeekAltParents(v1p2, v2p2) : NULL /* optimization */;
 
          if (!w1 || !w2) // one more try may be needed as p1, p2 are unordered
-            w1 = PeekAltParents(v1p1, v2p2),
+         {
+            w1 = PeekAltParents(v1p1, v2p2);
             w2 = w1 ? PeekAltParents(v1p2, v2p1) : NULL /* optimization */;
+         }
 
          if (w1 && w2) // got both alternate parents?
          {
@@ -1312,7 +1315,6 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
                {
                   quad->GetVertices()[j] = node[fv[j]]->vertex->index;
                }
-
                boundary.Append(quad);
             }
          }
@@ -1331,7 +1333,6 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
                {
                   segment->GetVertices()[j] = node[ev[j]]->vertex->index;
                }
-
                boundary.Append(segment);
             }
          }
@@ -1506,6 +1507,7 @@ void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
 void NCMesh::BuildFaceList()
 {
    face_list.Clear();
+   boundary_faces.SetSize(0);
 
    Array<char> processed;
 
@@ -1570,6 +1572,8 @@ void NCMesh::BuildFaceList()
                }
             }
          }
+
+         if (face->Boundary()) { boundary_faces.Append(face); }
       }
    }
 }
@@ -1607,6 +1611,7 @@ NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
 void NCMesh::BuildEdgeList()
 {
    edge_list.Clear();
+   boundary_edges.SetSize(0);
 
    Array<char> processed;
 
@@ -1628,6 +1633,9 @@ void NCMesh::BuildEdgeList()
 
          // tell ParNCMesh about the edge
          ElementSharesEdge(elem, edge->edge);
+
+         // (2D only, store boundary edges)
+         if (edge->edge->Boundary()) { boundary_edges.Append(edge); }
 
          // skip slave edges here, they will be reached from their masters
          if (GetEdgeMaster(edge)) { continue; }
@@ -2015,6 +2023,82 @@ int NCMesh::GetEdgeMaster(int v1, int v2) const
 
    Node* master = GetEdgeMaster(node);
    return master ? master->edge->index : -1;
+}
+
+void NCMesh::find_face_nodes(const Face *face, Node* node[4])
+{
+   // Obtain face nodes from one of its elements (note that face->p1, p2, p3
+   // cannot be used directly since they are not in order and p4 is missing).
+
+   Element* elem = face->elem[0];
+   if (!elem) { elem = face->elem[1]; }
+   MFEM_ASSERT(elem, "Face has no elements?");
+
+   int f = find_hex_face(find_node(elem, face->p1),
+                         find_node(elem, face->p2),
+                         find_node(elem, face->p3));
+
+   const int* fv = GI[Geometry::CUBE].faces[f];
+   for (int i = 0; i < 4; i++)
+   {
+      node[i] = elem->node[fv[i]];
+   }
+}
+
+void NCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
+                                Array<int> &bdr_vertices, Array<int> &bdr_edges)
+{
+   bdr_vertices.SetSize(0);
+   bdr_edges.SetSize(0);
+
+   if (Dim == 3)
+   {
+      GetFaceList();
+      for (int i = 0; i < boundary_faces.Size(); i++)
+      {
+         Face* face = boundary_faces[i];
+         if (bdr_attr_is_ess[face->attribute])
+         {
+            Node* node[4];
+            find_face_nodes(face, node);
+
+            for (int j = 0; j < 4; j++)
+            {
+               bdr_vertices.Append(node[j]->vertex->index);
+
+               Node* edge = nodes.Peek(node[j], node[(j+1) % 4]);
+               MFEM_ASSERT(edge && edge->edge, "Edge not found.");
+               bdr_edges.Append(edge->edge->index);
+
+               while ((edge = GetEdgeMaster(edge)) != NULL)
+               {
+                  // append master edges that may not be accessible from any
+                  // boundary element, this happens in 3D in re-entrant corners
+                  bdr_edges.Append(edge->edge->index);
+               }
+            }
+         }
+      }
+   }
+   else if (Dim == 2)
+   {
+      GetEdgeList();
+      for (int i = 0; i < boundary_edges.Size(); i++)
+      {
+         Node* edge = boundary_edges[i];
+         if (bdr_attr_is_ess[edge->edge->attribute])
+         {
+            bdr_vertices.Append(nodes.Peek(edge->p1)->vertex->index);
+            bdr_vertices.Append(nodes.Peek(edge->p2)->vertex->index);
+         }
+      }
+   }
+
+   bdr_vertices.Sort();
+   bdr_vertices.Unique();
+
+   bdr_edges.Sort();
+   bdr_edges.Unique();
 }
 
 void NCMesh::FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,

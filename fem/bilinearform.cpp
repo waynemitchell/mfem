@@ -388,23 +388,24 @@ void BilinearForm::ComputeElementMatrices()
    }
 }
 
-void BilinearForm::EliminateEssentialBC (
-   Array<int> &bdr_attr_is_ess, Vector &sol, Vector &rhs, int d )
+void BilinearForm::EliminateEssentialBC(
+   Array<int> &bdr_attr_is_ess, Vector &sol, Vector &rhs, int d)
 {
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   if (fes->GetConformingProlongation() == NULL)
+
+   if (fes->GetConformingRestriction() == NULL)
    {
       EliminateEssentialBCFromDofs(ess_dofs, sol, rhs, d);
    }
    else
    {
-      fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
+      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
       EliminateEssentialBCFromDofs(conf_ess_dofs, sol, rhs, d);
    }
 }
 
-void BilinearForm::EliminateVDofs (
+void BilinearForm::EliminateVDofs(
    Array<int> &vdofs, Vector &sol, Vector &rhs, int d)
 {
    for (int i = 0; i < vdofs.Size(); i++)

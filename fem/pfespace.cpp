@@ -491,12 +491,6 @@ void ParFiniteElementSpace::Synchronize(Array<int> &ldof_marker) const
       mfem_error("ParFiniteElementSpace::Synchronize");
    }
 
-   if (pmesh->pncmesh)
-   {
-      // FIXME !!
-      return;
-   }
-
    // implement allreduce(|) as reduce(|) + broadcast
    gcomm->Reduce<int>(ldof_marker, GroupCommunicator::BitOR);
    gcomm->Bcast(ldof_marker);
@@ -507,9 +501,12 @@ void ParFiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
 {
    FiniteElementSpace::GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
 
-   // Make sure that processors without boundary elements mark
-   // their boundary dofs (if they have any).
-   Synchronize(ess_dofs);
+   if (!pmesh->pncmesh)
+   {
+      // Make sure that processors without boundary elements mark
+      // their boundary dofs (if they have any).
+      Synchronize(ess_dofs);
+   }
 }
 
 int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
@@ -1321,7 +1318,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
                {
                   recv_replies[dep.rank].GetRow(dep.dof, cols, srow);
                }
-
                srow *= dep.coef;
                localP.AddRow(dof, cols, srow);
             }
