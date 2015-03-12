@@ -64,6 +64,14 @@ public:
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
 
+   /** Eliminate essential boundary DOFs from a parallel assembled system.
+       The array 'bdr_attr_is_ess' marks boundary attributes that constitute
+       the essential part of the boundary. */
+   void EliminateEssentialBCParallel(const Array<int> &bdr_attr_is_ess,
+                                     HypreParMatrix &A,
+                                     const HypreParVector &X,
+                                     HypreParVector &B) const;
+
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 

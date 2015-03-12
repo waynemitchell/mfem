@@ -180,21 +180,14 @@ public:
    void EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
                              Vector &sol, Vector &rhs, int d = 0);
 
-   /// Here, vdofs is a list of DOFs.
+   void EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d = 0);
+
+   /// Eliminate the given vdofs. NOTE: here, vdofs is a list of DOFs.
    void EliminateVDofs(Array<int> &vdofs, Vector &sol, Vector &rhs, int d = 0);
 
    /** Eliminate the given vdofs storing the eliminated part internally;
        vdofs is a list of DOFs. */
    void EliminateVDofs(Array<int> &vdofs, int d = 0);
-
-   /** Use the stored eliminated part of the matrix to modify r.h.s.;
-       vdofs is a list of DOFs (non-directional, i.e. >= 0). */
-   void EliminateVDofsInRHS(Array<int> &vdofs, const Vector &x, Vector &b);
-
-   double FullInnerProduct(const Vector &x, const Vector &y) const
-   { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
-
-   void EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d = 0);
 
    /** Similar to EliminateVDofs but here ess_dofs is a marker
        (boolean) array on all vdofs (ess_dofs[i] < 0 is true). */
@@ -204,6 +197,13 @@ public:
    /** Similar to EliminateVDofs but here ess_dofs is a marker
        (boolean) array on all vdofs (ess_dofs[i] < 0 is true). */
    void EliminateEssentialBCFromDofs(Array<int> &ess_dofs, int d = 0);
+
+   /** Use the stored eliminated part of the matrix to modify r.h.s.;
+       vdofs is a list of DOFs (non-directional, i.e. >= 0). */
+   void EliminateVDofsInRHS(Array<int> &vdofs, const Vector &x, Vector &b);
+
+   double FullInnerProduct(const Vector &x, const Vector &y) const
+   { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
 
    void Update(FiniteElementSpace *nfes = NULL);
 

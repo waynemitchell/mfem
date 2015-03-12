@@ -219,6 +219,24 @@ void ParBilinearForm::Assemble(int skip_zeros)
    }
 }
 
+void ParBilinearForm::EliminateEssentialBCParallel(
+      const Array<int> &bdr_attr_is_ess, HypreParMatrix &A,
+      const HypreParVector &X, HypreParVector &B) const
+{
+   Array<int> ess_dofs, true_ess_dofs, dof_list;
+
+   pfes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+   pfes->GetRestrictionMatrix()->BooleanMult(ess_dofs, true_ess_dofs);
+
+   for (int i = 0; i < true_ess_dofs.Size(); i++)
+   {
+      if (true_ess_dofs[i]) { dof_list.Append(i); }
+   }
+
+   // do the parallel elimination
+   mfem::EliminateBC(A, dof_list, X, B);
+}
+
 void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)
 const
 {

@@ -269,9 +269,14 @@ HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P);
     the r.h.s. b. Here A is matrix with eliminated b.c., while Ae is such that
     (A+Ae) is the original (Neumann) matrix before elimination. */
 void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
-                 Array<int> &ess_dof_list,
-                 HypreParVector &x, HypreParVector &b);
+                 const Array<int> &ess_dof_list,
+                 const HypreParVector &X, HypreParVector &B);
 
+/** Eliminate essential BC DOFs listed in 'ess_dof_list' from the general
+    parallel system A*X = B. */
+void EliminateBC(HypreParMatrix &A,
+                 const Array<int> &ess_dof_list,
+                 const HypreParVector &X, HypreParVector &B);
 
 /// Parallel smoothers in hypre
 class HypreSmoother : public Solver

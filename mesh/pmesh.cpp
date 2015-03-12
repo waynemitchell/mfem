@@ -98,6 +98,11 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       pncmesh->OnMeshUpdated(this);
       //pncmesh->Prune();
 
+      meshgen = mesh.MeshGenerator();
+
+      mesh.attributes.Copy(attributes);
+      mesh.bdr_attributes.Copy(bdr_attributes);
+
       if (mesh.GetNodes()) // curved mesh TODO
       {
          Nodes = new ParGridFunction(this, mesh.GetNodes());

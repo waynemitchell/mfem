@@ -896,11 +896,11 @@ HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P)
 }
 
 void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
-                 Array<int> &ess_dof_list,
-                 HypreParVector &x, HypreParVector &b)
+                 const Array<int> &ess_dof_list,
+                 const HypreParVector &X, HypreParVector &B)
 {
-   // b -= Ae*x
-   Ae.Mult(x, b, -1.0, 1.0);
+   // B -= Ae*X
+   Ae.Mult(X, B, -1.0, 1.0);
 
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag((hypre_ParCSRMatrix *)A);
    double *data = hypre_CSRMatrixData(A_diag);
@@ -914,17 +914,35 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
    for (int i = 0; i < ess_dof_list.Size(); i++)
    {
       int r = ess_dof_list[i];
-      b(r) = data[I[r]] * x(r);
+      B(r) = data[I[r]] * X(r);
 #ifdef MFEM_DEBUG
       // Check that in the rows specified by the ess_dof_list, the matrix A has
       // only one entry -- the diagonal.
       if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
       {
-         mfem_error("EliminateBC (hypre.cpp)");
+         MFEM_ABORT("'A' needs to have diagonal entries only in rows specified "
+                    "by 'ess_dof_list'.");
       }
 #endif
    }
 }
+
+
+#include "HYPRE_sstruct_ls.h"
+
+void EliminateBC(HypreParMatrix &A,
+                 const Array<int> &ess_dof_list,
+                 const HypreParVector &X, HypreParVector &B)
+{
+   for (int i = 0; i < ess_dof_list.Size(); i++)
+   {
+      B(ess_dof_list[i]) = 0.0;
+   }
+
+   HYPRE_SStructMaxwellEliminateRowsCols(A, ess_dof_list.Size(),
+                                         (int*) ess_dof_list.GetData());
+}
+
 
 // Taubin or "lambda-mu" scheme, which alternates between positive and
 // negative step sizes to approximate low-pass filter effect.

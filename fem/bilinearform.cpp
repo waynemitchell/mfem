@@ -388,8 +388,8 @@ void BilinearForm::ComputeElementMatrices()
    }
 }
 
-void BilinearForm::EliminateEssentialBC(
-   Array<int> &bdr_attr_is_ess, Vector &sol, Vector &rhs, int d)
+void BilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
+                                        Vector &sol, Vector &rhs, int d)
 {
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
@@ -405,8 +405,24 @@ void BilinearForm::EliminateEssentialBC(
    }
 }
 
-void BilinearForm::EliminateVDofs(
-   Array<int> &vdofs, Vector &sol, Vector &rhs, int d)
+void BilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d)
+{
+   Array<int> ess_dofs, conf_ess_dofs;
+   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+
+   if (fes->GetConformingRestriction() == NULL)
+   {
+      EliminateEssentialBCFromDofs(ess_dofs, d);
+   }
+   else
+   {
+      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
+      EliminateEssentialBCFromDofs(conf_ess_dofs, d);
+   }
+}
+
+void BilinearForm::EliminateVDofs(Array<int> &vdofs,
+                                  Vector &sol, Vector &rhs, int d)
 {
    for (int i = 0; i < vdofs.Size(); i++)
    {
@@ -443,30 +459,8 @@ void BilinearForm::EliminateVDofs(Array<int> &vdofs, int d)
    }
 }
 
-void BilinearForm::EliminateVDofsInRHS(
-   Array<int> &vdofs, const Vector &x, Vector &b)
-{
-   mat_e->AddMult(x, b, -1.);
-   mat->PartMult(vdofs, x, b);
-}
-
-void BilinearForm::EliminateEssentialBC (Array<int> &bdr_attr_is_ess, int d)
-{
-   Array<int> ess_dofs, conf_ess_dofs;
-   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   if (fes->GetConformingProlongation() == NULL)
-   {
-      EliminateEssentialBCFromDofs(ess_dofs, d);
-   }
-   else
-   {
-      fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
-      EliminateEssentialBCFromDofs(conf_ess_dofs, d);
-   }
-}
-
-void BilinearForm::EliminateEssentialBCFromDofs (
-   Array<int> &ess_dofs, Vector &sol, Vector &rhs, int d )
+void BilinearForm::EliminateEssentialBCFromDofs(
+   Array<int> &ess_dofs, Vector &sol, Vector &rhs, int d)
 {
    MFEM_ASSERT(ess_dofs.Size() == height, "incorrect dof Array size");
    MFEM_ASSERT(sol.Size() == height, "incorrect sol Vector size");
@@ -488,6 +482,13 @@ void BilinearForm::EliminateEssentialBCFromDofs (Array<int> &ess_dofs, int d)
       {
          mat -> EliminateRowCol (i, d);
       }
+}
+
+void BilinearForm::EliminateVDofsInRHS(
+   Array<int> &vdofs, const Vector &x, Vector &b)
+{
+   mat_e->AddMult(x, b, -1.);
+   mat->PartMult(vdofs, x, b);
 }
 
 void BilinearForm::Update (FiniteElementSpace *nfes)

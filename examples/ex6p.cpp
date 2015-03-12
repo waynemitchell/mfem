@@ -40,40 +40,6 @@ using namespace std;
 using namespace mfem;
 
 
-void HackZeroBC(ParFiniteElementSpace* fespace, int attr_max,
-                HypreParMatrix* A, HypreParVector* B)
-{
-   Array<int> ess_attr(attr_max), ess_dofs;
-   ess_attr = 1;
-   fespace->GetEssentialVDofs(ess_attr, ess_dofs);
-
-   /*HypreParMatrix* P = fespace->Dof_TrueDof_Matrix();
-   HypreParVector mark(*P, 1);
-   MFEM_ASSERT(mark.Size() == ess_dofs.Size(), "");
-   for (int i = 0; i < mark.Size(); i++)
-   {
-      mark(i) = (ess_dofs[i] < 0) ? 1 : 0;
-   }
-
-   HypreParVector true_mark(*P, 0);
-   P->MultTranspose(mark, true_mark);*/
-
-   Array<int> true_mark;
-   fespace->GetRestrictionMatrix()->BooleanMult(ess_dofs, true_mark);
-
-   Array<int> elim_rows;
-   for (int i = 0; i < true_mark.Size(); i++)
-      if (true_mark[i])
-      {
-         elim_rows.Append(i);
-         (*B)(i) = 0;
-      }
-
-   HYPRE_SStructMaxwellEliminateRowsCols(*A, elim_rows.Size(),
-                                         elim_rows.GetData());
-}
-
-
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
@@ -144,7 +110,6 @@ int main(int argc, char *argv[])
    }
 
    mesh->GeneralRefinement(Array<Refinement>()); // FIXME
-   int attr_max = mesh->bdr_attributes.Max();
 
    // 4. Define a parallel mesh by partitioning the serial mesh.
    //    Once the parallel mesh is defined, the serial mesh can be deleted.
@@ -172,6 +137,9 @@ int main(int argc, char *argv[])
    //    will be maintained over the AMR iterations. We initialize it to zero.
    ParGridFunction x(&fespace);
    x = 0;
+
+   Array<int> ess_bdr(pmesh.bdr_attributes.Max());
+   ess_bdr = 1;
 
    // 9. Connect to GLVis.
    char vishost[] = "localhost";
@@ -238,8 +206,7 @@ int main(int argc, char *argv[])
 
       // 12. As usual, we also need to eliminate the essential BC from the
       //     system. This needs to be done after ConformingAssemble.
-      //a.EliminateEssentialBC(ess_bdr, x, b);
-      HackZeroBC(&fespace, attr_max, A, B);
+      a.EliminateEssentialBCParallel(ess_bdr, *A, *X, *B);
 
       // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.
