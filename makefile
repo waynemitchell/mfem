@@ -267,6 +267,7 @@ debug:
 pdebug:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=YES && $(MAKE)
 
+deps: MFEM_DIR = .
 deps:
 	rm -f deps.mk
 	for i in $(SOURCE_FILES:.cpp=); do \
