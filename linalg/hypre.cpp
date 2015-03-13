@@ -15,6 +15,7 @@
 
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
+#include "eliminate.hpp"
 
 #include <fstream>
 #include <iomanip>
@@ -928,19 +929,25 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
 }
 
 
-#include "HYPRE_sstruct_ls.h"
-
 void EliminateBC(HypreParMatrix &A,
                  const Array<int> &ess_dof_list,
                  const HypreParVector &X, HypreParVector &B)
 {
+#ifdef MFEM_DEBUG
+   for (int i = 1; i < ess_dof_list.Size(); i++)
+   {
+      MFEM_ASSERT(ess_dof_list[i-1] < ess_dof_list[i],
+                  "ess_dof_list needs be sorted.");
+   }
+#endif
+
    for (int i = 0; i < ess_dof_list.Size(); i++)
    {
       B(ess_dof_list[i]) = 0.0;
    }
 
-   HYPRE_SStructMaxwellEliminateRowsCols(A, ess_dof_list.Size(),
-                                         (int*) ess_dof_list.GetData());
+   internal::hypre_ParCSRMatrixEliminateBC(A, ess_dof_list.Size(),
+                                           (int*) ess_dof_list.GetData());
 }
 
 

@@ -273,7 +273,7 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
                  const HypreParVector &X, HypreParVector &B);
 
 /** Eliminate essential BC DOFs listed in 'ess_dof_list' from the general
-    parallel system A*X = B. */
+    parallel system A*X = B. The DOF list needs to be sorted. */
 void EliminateBC(HypreParMatrix &A,
                  const Array<int> &ess_dof_list,
                  const HypreParVector &X, HypreParVector &B);
