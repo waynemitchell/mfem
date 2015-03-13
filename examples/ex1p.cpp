@@ -132,11 +132,11 @@ int main(int argc, char *argv[])
       mesh->GeneralRefinement(refs, 1);
    }*/
 
-   for (int i = 0; i < 2; i++)
+   for (int i = 0; i < 1; i++)
       mesh->UniformRefinement();
 
    srand(0);
-   for (int i = 0; i < 6; i++)
+   for (int i = 0; i < 3; i++)
    {
       Array<Refinement> refs;
       int types[] = { 1, 2, 3, 4, 5, 6, 7, 7, 7 };

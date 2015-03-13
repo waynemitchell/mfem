@@ -9,6 +9,10 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config/config.hpp"
+
+#ifdef MFEM_USE_MPI
+
 #include "_hypre_parcsr_mv.h"
 
 namespace mfem
@@ -18,8 +22,12 @@ namespace internal
 
 /** Parallel essential BC elimination, adapted from
     hypre_ParCSRMatrixEliminateRowsCols */
-HYPRE_Int hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
-                                        HYPRE_Int nrows_to_eliminate,
-                                        HYPRE_Int *rows_to_eliminate);
+void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
+                                   HYPRE_Int nrows_to_eliminate,
+                                   HYPRE_Int *rows_to_eliminate,
+                                   hypre_ParVector *X,
+                                   hypre_ParVector *B);
 
 } } // namespace mfem::internal
+
+#endif // MFEM_USE_MPI

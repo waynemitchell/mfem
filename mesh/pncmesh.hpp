@@ -265,8 +265,9 @@ protected:
 
 /*
 TODO
-- R matrix
++ R matrix
 - nonzero essential BC
+- conforming case R matrix
 - assumed partition
 - cP + P
 - vdim, vdofs

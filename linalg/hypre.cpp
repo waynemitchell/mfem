@@ -941,13 +941,9 @@ void EliminateBC(HypreParMatrix &A,
    }
 #endif
 
-   for (int i = 0; i < ess_dof_list.Size(); i++)
-   {
-      B(ess_dof_list[i]) = 0.0;
-   }
-
    internal::hypre_ParCSRMatrixEliminateBC(A, ess_dof_list.Size(),
-                                           (int*) ess_dof_list.GetData());
+                                           (HYPRE_Int*) ess_dof_list.GetData(),
+                                           X, B);
 }
 
 

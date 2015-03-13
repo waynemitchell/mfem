@@ -984,8 +984,11 @@ void SparseMatrix::EliminateRowCol(int rc, const double sol, Vector &rhs,
                "Row " << rc << " not in matrix of height " << height);
 
    if (Rows == NULL)
+   {
       for (int j = I[rc]; j < I[rc+1]; j++)
+      {
          if ((col = J[j]) == rc)
+         {
             if (d)
             {
                rhs(rc) = A[j] * sol;
@@ -995,10 +998,12 @@ void SparseMatrix::EliminateRowCol(int rc, const double sol, Vector &rhs,
                A[j] = 1.0;
                rhs(rc) = sol;
             }
+         }
          else
          {
             A[j] = 0.0;
             for (int k = I[col]; 1; k++)
+            {
                if (k == I[col+1])
                {
                   mfem_error("SparseMatrix::EliminateRowCol () #2");
@@ -1009,10 +1014,16 @@ void SparseMatrix::EliminateRowCol(int rc, const double sol, Vector &rhs,
                   A[k] = 0.0;
                   break;
                }
+            }
          }
+      }
+   }
    else
+   {
       for (RowNode *aux = Rows[rc]; aux != NULL; aux = aux->Prev)
+      {
          if ((col = aux->Column) == rc)
+         {
             if (d)
             {
                rhs(rc) = aux->Value * sol;
@@ -1022,10 +1033,12 @@ void SparseMatrix::EliminateRowCol(int rc, const double sol, Vector &rhs,
                aux->Value = 1.0;
                rhs(rc) = sol;
             }
+         }
          else
          {
             aux->Value = 0.0;
             for (RowNode *node = Rows[col]; 1; node = node->Prev)
+            {
                if (node == NULL)
                {
                   mfem_error("SparseMatrix::EliminateRowCol () #3");
@@ -1036,7 +1049,10 @@ void SparseMatrix::EliminateRowCol(int rc, const double sol, Vector &rhs,
                   node->Value = 0.0;
                   break;
                }
+            }
          }
+      }
+   }
 }
 
 void SparseMatrix::EliminateRowColMultipleRHS(int rc, const Vector &sol,
