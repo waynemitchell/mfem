@@ -71,7 +71,7 @@ public:
    hypre_ParVector *StealParVector() { own_ParVector = 0; return x; }
 
    /// Returns the global vector in each processor
-   Vector *GlobalVector();
+   Vector* GlobalVector() const;
 
    /// Set constant values
    HypreParVector& operator= (double d);

@@ -42,7 +42,15 @@ using namespace mfem;
 double boundary(Vector &p)
 {
    double x = p(0), y = p(1);
-   return x*x + y*y;
+   if (p.Size() == 2)
+   {
+      return x*x + y*y;
+   }
+   else
+   {
+      double z = p(2);
+      return x*x + y*y + z*z;
+   }
 }
 
 
@@ -127,7 +135,7 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   /*{
+   {
       Array<Refinement> refs;
       refs.Append(Refinement(0, 1));
       mesh->GeneralRefinement(refs, 1);
@@ -135,9 +143,8 @@ int main(int argc, char *argv[])
    {
       Array<Refinement> refs;
       refs.Append(Refinement(0, 2));
-      refs.Append(Refinement(1, 4));
       mesh->GeneralRefinement(refs, 1);
-   }*/
+   }
 
    /*for (int i = 0; i < 1; i++)
       mesh->UniformRefinement();
@@ -201,11 +208,14 @@ int main(int argc, char *argv[])
       cout << "Number of unknowns: " << size << endl;
    }
 
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
+
    // 7. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
    //    (1,phi_i) where phi_i are the basis functions in fespace.
    ParLinearForm *b = new ParLinearForm(fespace);
-   ConstantCoefficient one(-4.0);
+   ConstantCoefficient one(-2.0*dim); // FIXME
    b->AddDomainIntegrator(new DomainLFIntegrator(one));
    b->Assemble();
 
@@ -226,9 +236,7 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator());
    a->Assemble();
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   /*a->EliminateEssentialBC(ess_bdr, x, *b);*/
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
@@ -237,15 +245,19 @@ int main(int argc, char *argv[])
    HypreParVector *B = b->ParallelAssemble();
    HypreParVector *X = x.ParallelAverage();
 
+   A->Print("p_mat");
+   B->Print("p_rhs");
+   X->Print("p_sol");
+   fespace->Dof_TrueDof_Matrix()->Print("p_P");
+
    // Eliminate essential BC from the parallel system
-   /*Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);*/
+   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
    delete a;
    delete b;
 
-   B->Print("rhs.txt");
+   A->Print("p_mat_e");
+   B->Print("p_rhs_e");
 
    // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.

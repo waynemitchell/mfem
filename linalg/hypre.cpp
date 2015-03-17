@@ -119,7 +119,7 @@ HypreParVector::operator HYPRE_ParVector() const
 }
 #endif
 
-Vector * HypreParVector::GlobalVector()
+Vector * HypreParVector::GlobalVector() const
 {
    hypre_Vector *hv = hypre_ParVectorToVectorAll(*this);
    Vector *v = new Vector(hv->data, hv->size);

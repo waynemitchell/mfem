@@ -1375,6 +1375,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    delete [] deps;
    localP.Finalize();
+   //localP.SortColumnIndices();
 
    // create the parallel matrix P
    P = new HypreParMatrix(MyComm, num_cdofs, glob_cdofs, glob_true_dofs,
