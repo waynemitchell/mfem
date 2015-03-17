@@ -90,6 +90,15 @@ public:
    /// Returns a new vector averaged on the true dofs.
    HypreParVector *ParallelAverage() const;
 
+   /// Returns the vector restricted to the true dofs.
+   void ParallelProject(Vector &tv) const;
+
+   /// Returns the vector restricted to the true dofs.
+   void ParallelProject(HypreParVector &tv) const;
+
+   /// Returns a new vector restricted to the true dofs.
+   HypreParVector *ParallelProject() const;
+
    /// Returns the vector assembled on the true dofs.
    void ParallelAssemble(Vector &tv) const;
 

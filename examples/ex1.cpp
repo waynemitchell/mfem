@@ -36,19 +36,6 @@
 using namespace std;
 using namespace mfem;
 
-double boundary(Vector &p)
-{
-   double x = p(0), y = p(1);
-   if (p.Size() == 2)
-   {
-      return x*x + y*y;
-   }
-   else
-   {
-      double z = p(2);
-      return x*x + y*y + z*z;
-   }
-}
 
 int main(int argc, char *argv[])
 {
@@ -137,17 +124,15 @@ int main(int argc, char *argv[])
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
    //    the basis functions in the finite element fespace.
    LinearForm *b = new LinearForm(fespace);
-   ConstantCoefficient one(-2.0*dim); // FIXME
+   ConstantCoefficient one(1.0);
    b->AddDomainIntegrator(new DomainLFIntegrator(one));
    b->Assemble();
 
    // 6. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
-   FunctionCoefficient bc_coef(boundary);
    GridFunction x(fespace);
-   //x = 0.0;
-   x.ProjectCoefficient(bc_coef);
+   x = 0.0;
 
    // 7. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
@@ -159,31 +144,11 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DiffusionIntegrator());
    a->Assemble();
    a->ConformingAssemble(x, *b);
-
-   a->Finalize();
-   const SparseMatrix &A = a->SpMat();
-
-   {
-      ofstream f1("s_mat.txt");
-      A.PrintMatlab(f1);
-      ofstream f2("s_rhs.txt");
-      b->Print_HYPRE(f2);
-      ofstream f3("s_sol.txt");
-      x.Print_HYPRE(f3);
-      ofstream f4("s_P.txt");
-      fespace->GetConformingProlongation()->PrintMatlab(f4);
-   }
-
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
    a->EliminateEssentialBC(ess_bdr, x, *b);
-
-   {
-      ofstream f1("s_mat_e.txt");
-      A.PrintMatlab(f1);
-      ofstream f2("s_rhs_e.txt");
-      b->Print_HYPRE(f2);
-   }
+   a->Finalize();
+   const SparseMatrix &A = a->SpMat();
 
 #ifndef MFEM_USE_SUITESPARSE
    // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to

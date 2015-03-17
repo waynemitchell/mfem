@@ -114,24 +114,37 @@ HypreParVector *ParGridFunction::GetTrueDofs() const
 
 void ParGridFunction::ParallelAverage(Vector &tv) const
 {
-   /*pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
-   pfes->DivideByGroupSize(tv);*/
-
-   pfes->GetRestrictionMatrix()->Mult(*this, tv);
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
+   pfes->DivideByGroupSize(tv);
 }
 
 void ParGridFunction::ParallelAverage(HypreParVector &tv) const
 {
-   /*pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
-   pfes->DivideByGroupSize(tv);*/
-
-   pfes->GetRestrictionMatrix()->Mult(*this, tv);
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
+   pfes->DivideByGroupSize(tv);
 }
 
 HypreParVector *ParGridFunction::ParallelAverage() const
 {
    HypreParVector *tv = pfes->NewTrueDofVector();
    ParallelAverage(*tv);
+   return tv;
+}
+
+void ParGridFunction::ParallelProject(Vector &tv) const
+{
+   pfes->GetRestrictionMatrix()->Mult(*this, tv);
+}
+
+void ParGridFunction::ParallelProject(HypreParVector &tv) const
+{
+   pfes->GetRestrictionMatrix()->Mult(*this, tv);
+}
+
+HypreParVector *ParGridFunction::ParallelProject() const
+{
+   HypreParVector *tv = pfes->NewTrueDofVector();
+   ParallelProject(*tv);
    return tv;
 }
 
