@@ -86,19 +86,21 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   {
+   /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 1));
       mesh->GeneralRefinement(refs, 1);
-   }
+   }*/
    /*mesh->UniformRefinement();
    mesh->UniformRefinement();*/
-   {
+   /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 2));
       mesh->GeneralRefinement(refs, 1);
-   }
+   }*/
    //mesh->UniformRefinement();
+
+   mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
@@ -118,7 +120,7 @@ int main(int argc, char *argv[])
    }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;
-   fespace->GetConformingProlongation()->Print();
+   //fespace->GetConformingProlongation()->Print();
 
    // 5. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are

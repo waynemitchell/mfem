@@ -39,6 +39,13 @@ using namespace std;
 using namespace mfem;
 
 
+double boundary(Vector &p)
+{
+   double x = p(0), y = p(1);
+   return x*x + y*y;
+}
+
+
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
@@ -132,7 +139,7 @@ int main(int argc, char *argv[])
       mesh->GeneralRefinement(refs, 1);
    }*/
 
-   for (int i = 0; i < 1; i++)
+   /*for (int i = 0; i < 1; i++)
       mesh->UniformRefinement();
 
    srand(0);
@@ -148,9 +155,10 @@ int main(int argc, char *argv[])
          }
 
       mesh->GeneralRefinement(refs);
-   }
+   }*/
 
    mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
+   //mesh->UniformRefinement();
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -197,15 +205,17 @@ int main(int argc, char *argv[])
    //    right-hand side of the FEM linear system, which in this case is
    //    (1,phi_i) where phi_i are the basis functions in fespace.
    ParLinearForm *b = new ParLinearForm(fespace);
-   ConstantCoefficient one(1.0);
+   ConstantCoefficient one(-4.0);
    b->AddDomainIntegrator(new DomainLFIntegrator(one));
    b->Assemble();
 
    // 8. Define the solution vector x as a parallel finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
+   FunctionCoefficient bc_coef(boundary);
    ParGridFunction x(fespace);
-   x = 0.0;
+   //x = 0.0;
+   x.ProjectCoefficient(bc_coef);
 
    // 9. Set up the parallel bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
@@ -214,8 +224,11 @@ int main(int argc, char *argv[])
    //    boundary attributes from the mesh as essential. After serial and
    //    parallel assembly we extract the corresponding parallel matrix A.
    ParBilinearForm *a = new ParBilinearForm(fespace);
-   a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   a->AddDomainIntegrator(new DiffusionIntegrator());
    a->Assemble();
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
@@ -225,12 +238,14 @@ int main(int argc, char *argv[])
    HypreParVector *X = x.ParallelAverage();
 
    // Eliminate essential BC from the parallel system
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   /*Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
-   a->EliminateEssentialBCParallel(ess_bdr, *A, *X, *B);
+   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);*/
 
    delete a;
    delete b;
+
+   B->Print("rhs.txt");
 
    // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.

@@ -35,27 +35,32 @@ void hypre_CSRMatrixEliminateBC(hypre_CSRMatrix *A,
                                 hypre_Vector *B)
 {
    HYPRE_Int  i, j;
-   HYPRE_Int  irow, ibeg, iend;
+   HYPRE_Int  irow, jcol, ibeg, iend, pos;
    HYPRE_Real a;
 
-   HYPRE_Int   nnz   = hypre_CSRMatrixNumNonzeros(A);
    HYPRE_Int  *Ai    = hypre_CSRMatrixI(A);
    HYPRE_Int  *Aj    = hypre_CSRMatrixJ(A);
    HYPRE_Real *Adata = hypre_CSRMatrixData(A);
+   HYPRE_Int   nrows = hypre_CSRMatrixNumRows(A);
 
    HYPRE_Real *Xdata = hypre_VectorData(X);
    HYPRE_Real *Bdata = hypre_VectorData(B);
 
    /* eliminate the columns */
-   for (i = 0; i < nnz; i++)
+   for (i = 0; i < nrows; i++)
    {
-      irow = hypre_BinarySearch(rows_to_eliminate, Aj[i],
-                                nrows_to_eliminate);
-      if (irow != -1)
+      ibeg = Ai[i];
+      iend = Ai[i+1];
+      for (j = ibeg; j < iend; j++)
       {
-         a = Adata[i];
-         Adata[i] = 0.0;
-         Bdata[irow] -= a * Xdata[irow];
+         jcol = Aj[j];
+         pos = hypre_BinarySearch(rows_to_eliminate, jcol, nrows_to_eliminate);
+         if (pos != -1)
+         {
+            a = Adata[j];
+            Adata[j] = 0.0;
+            Bdata[i] -= a * Xdata[jcol];
+         }
       }
    }
 
@@ -72,7 +77,45 @@ void hypre_CSRMatrixEliminateBC(hypre_CSRMatrix *A,
          else
             Adata[j] = 0.0;
       }
-      Bdata[irow] = Xdata[irow];
+   }
+}
+
+/*
+  Function:  hypre_CSRMatrixEliminateCols
+
+  Eliminate the given sorted (!) list of columns of A, subtract them from B.
+*/
+void hypre_CSRMatrixEliminateOffdCols(hypre_CSRMatrix *A,
+                                      HYPRE_Int ncols_to_eliminate,
+                                      HYPRE_Int *eliminate_cols,
+                                      HYPRE_Real *eliminate_coefs,
+                                      hypre_Vector *B)
+{
+   HYPRE_Int i, j;
+   HYPRE_Int ibeg, iend, pos;
+   HYPRE_Real a;
+
+   HYPRE_Int *Ai = hypre_CSRMatrixI(A);
+   HYPRE_Int *Aj = hypre_CSRMatrixJ(A);
+   HYPRE_Real *Adata = hypre_CSRMatrixData(A);
+   HYPRE_Int nrows = hypre_CSRMatrixNumRows(A);
+
+   HYPRE_Real *Bdata = hypre_VectorData(B);
+
+   for (i = 0; i < nrows; i++)
+   {
+      ibeg = Ai[i];
+      iend = Ai[i+1];
+      for (j = ibeg; j < iend; j++)
+      {
+         pos = hypre_BinarySearch(eliminate_cols, Aj[j], ncols_to_eliminate);
+         if (pos != -1)
+         {
+            a = Adata[j];
+            Adata[j] = 0.0;
+            Bdata[i] -= a * eliminate_coefs[pos];
+         }
+      }
    }
 }
 
@@ -81,9 +124,9 @@ void hypre_CSRMatrixEliminateBC(hypre_CSRMatrix *A,
 
   Eliminate (zero) the given list of rows of A.
 */
-void hypre_CSRMatrixEliminateRows(hypre_CSRMatrix *A,
-                                  HYPRE_Int  nrows_to_eliminate,
-                                  HYPRE_Int *rows_to_eliminate)
+void hypre_CSRMatrixEliminateOffdRows(hypre_CSRMatrix *A,
+                                      HYPRE_Int  nrows_to_eliminate,
+                                      HYPRE_Int *rows_to_eliminate)
 {
    HYPRE_Int  *Ai    = hypre_CSRMatrixI(A);
    HYPRE_Real *Adata = hypre_CSRMatrixData(A);
@@ -103,44 +146,6 @@ void hypre_CSRMatrixEliminateRows(hypre_CSRMatrix *A,
    }
 }
 
-/*
-  Function:  hypre_CSRMatrixEliminateCols
-
-  Eliminate the given sorted (!) list of columns of A, subtract them from B.
-*/
-void hypre_CSRMatrixEliminateCols(hypre_CSRMatrix *A,
-                                  HYPRE_Int ncols_to_eliminate,
-                                  HYPRE_Int *eliminate_cols,
-                                  HYPRE_Real *eliminate_coefs,
-                                  hypre_Vector *B)
-{
-   HYPRE_Int i, j;
-   HYPRE_Int ibeg, iend, icol;
-   HYPRE_Real a;
-
-   HYPRE_Int *Ai = hypre_CSRMatrixI(A);
-   HYPRE_Int *Aj = hypre_CSRMatrixJ(A);
-   HYPRE_Real *Adata = hypre_CSRMatrixData(A);
-   HYPRE_Int nrows = hypre_CSRMatrixNumRows(A);
-
-   HYPRE_Real *Bdata = hypre_VectorData(B);
-
-   for (i = 0; i < nrows; i++)
-   {
-      ibeg = Ai[i];
-      iend = Ai[i+1];
-      for (j = ibeg; j < iend; j++)
-      {
-         icol = hypre_BinarySearch(eliminate_cols, Aj[j], ncols_to_eliminate);
-         if (icol != -1)
-         {
-            a = Adata[j];
-            Adata[j] = 0.0;
-            Bdata[i] -= a * eliminate_coefs[icol];
-         }
-      }
-   }
-}
 
 /*
   Function:  hypre_ParCSRMatrixEliminateBC
@@ -180,10 +185,11 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
    hypre_Vector *Xlocal = hypre_ParVectorLocalVector(X);
    hypre_Vector *Blocal = hypre_ParVectorLocalVector(B);
 
+   HYPRE_Real   *Bdata  = hypre_VectorData(Blocal);
    HYPRE_Real   *Xdata  = hypre_VectorData(Xlocal);
 
    HYPRE_Int  ncols_to_eliminate;
-   HYPRE_Int  *eliminate_cols;
+   HYPRE_Int  *cols_to_eliminate;
    HYPRE_Real *eliminate_coefs;
 
    /* figure out which offd cols should be eliminated and with what coef */
@@ -238,13 +244,8 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
                                               buf_data, eliminate_col);
 
    /* do sequential part of the elimination while stuff is getting sent */
-
-   /* take care of the diagonal part */
    hypre_CSRMatrixEliminateBC(diag, nrows_to_eliminate, rows_to_eliminate,
                               Xlocal, Blocal);
-
-   /* zero off-diagonal rows */
-   hypre_CSRMatrixEliminateRows(offd, nrows_to_eliminate, rows_to_eliminate);
 
    /* finish the communication */
    hypre_ParCSRCommHandleDestroy(comm_handle);
@@ -260,7 +261,7 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
       }
    }
 
-   eliminate_cols = hypre_CTAlloc(HYPRE_Int, ncols_to_eliminate);
+   cols_to_eliminate = hypre_CTAlloc(HYPRE_Int, ncols_to_eliminate);
    eliminate_coefs = hypre_CTAlloc(HYPRE_Real, ncols_to_eliminate);
 
    /* get a list of offd column indices and coefs */
@@ -270,7 +271,7 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
       coef = eliminate_col[i];
       if (coef == coef) // test for NaN
       {
-         eliminate_cols[ncols_to_eliminate] = i;
+         cols_to_eliminate[ncols_to_eliminate] = i;
          eliminate_coefs[ncols_to_eliminate] = coef;
          ncols_to_eliminate++;
       }
@@ -280,11 +281,20 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
    hypre_TFree(eliminate_row);
    hypre_TFree(eliminate_col);
 
-   /* eliminate the off-diagonal columns */
-   hypre_CSRMatrixEliminateCols(offd, ncols_to_eliminate, eliminate_cols,
+   /* eliminate the off-diagonal part */
+   hypre_CSRMatrixEliminateOffdCols(offd, ncols_to_eliminate, cols_to_eliminate,
                                 eliminate_coefs, Blocal);
 
-   hypre_TFree(eliminate_cols);
+   hypre_CSRMatrixEliminateOffdRows(offd, nrows_to_eliminate, rows_to_eliminate);
+
+   /* set boundary values in the rhs */
+   for (int i = 0; i < nrows_to_eliminate; i++)
+   {
+      irow = rows_to_eliminate[i];
+      Bdata[irow] = Xdata[irow];
+   }
+
+   hypre_TFree(cols_to_eliminate);
    hypre_TFree(eliminate_coefs);
 }
 

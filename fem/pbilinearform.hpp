@@ -67,7 +67,7 @@ public:
    /** Eliminate essential boundary DOFs from a parallel assembled system.
        The array 'bdr_attr_is_ess' marks boundary attributes that constitute
        the essential part of the boundary. */
-   void EliminateEssentialBCParallel(const Array<int> &bdr_attr_is_ess,
+   void ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
                                      HypreParMatrix &A,
                                      const HypreParVector &X,
                                      HypreParVector &B) const;

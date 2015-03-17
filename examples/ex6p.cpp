@@ -206,7 +206,7 @@ int main(int argc, char *argv[])
 
       // 12. As usual, we also need to eliminate the essential BC from the
       //     system. This needs to be done after ConformingAssemble.
-      a.EliminateEssentialBCParallel(ess_bdr, *A, *X, *B);
+      a.ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
       // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.

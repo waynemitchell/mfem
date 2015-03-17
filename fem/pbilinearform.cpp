@@ -219,7 +219,7 @@ void ParBilinearForm::Assemble(int skip_zeros)
    }
 }
 
-void ParBilinearForm::EliminateEssentialBCParallel(
+void ParBilinearForm::ParallelEliminateEssentialBC(
       const Array<int> &bdr_attr_is_ess, HypreParMatrix &A,
       const HypreParVector &X, HypreParVector &B) const
 {

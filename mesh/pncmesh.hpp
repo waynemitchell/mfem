@@ -268,6 +268,7 @@ TODO
 + R matrix
 - nonzero essential BC
 - conforming case R matrix
+- ProjectBdrCoefficient
 - assumed partition
 - cP + P
 - vdim, vdofs
