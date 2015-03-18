@@ -184,7 +184,7 @@ public:
 };
 
 #endif // MFEM_USE_MPI
-
+/*
 class BlockDiagonalMatrixInverse;
 
 class BlockDiagonalMatrix : public Matrix
@@ -204,8 +204,8 @@ public:
 
   inline DenseMatrix * GetBlock(const int i) { return blocks_[i]; }
 };
-
-class EPMatrix : public Operator
+*/
+class EPBilinearForm : public Operator
 {
 private:
   EPDoFs * epdofsL_;
@@ -225,11 +225,14 @@ private:
 
 protected:
 public:
-  EPMatrix(EPDoFs & epdofsL, EPDoFs & epdofsR, BilinearFormIntegrator & bfi);
+  EPBilinearForm(EPDoFs & epdofsL, EPDoFs & epdofsR,
+		 BilinearFormIntegrator & bfi);
 
-  ~EPMatrix();
+  ~EPBilinearForm();
 
   void Assemble();
+
+  void Finalize();
 
   void Mult(const EPField & x, EPField & y) const;
 
@@ -245,51 +248,59 @@ public:
   const Vector * ReducedRHS(const EPField & x) const;
 
   void SolvePrivateDoFs(const Vector & x, EPField & y) const;
+
+  void EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
+			    EPField & sol, EPField & rhs, int d = 0);
+
+  void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
+				    EPField & sol, EPField & rhs, int d = 0);
 };
 
 #ifdef MFEM_USE_MPI
 
-class ParEPMatrix : public EPMatrix
+class ParEPBilinearForm : public EPBilinearForm
 {
-private:
-  ParEPDoFs      * pepdofsL_;
-  ParEPDoFs      * pepdofsR_;
-
-  Operator       * preducedOp_;
-  HypreParVector * preducedRHS_;
-  Vector         * vec_;
-  Vector         * vecp_;
-
 protected:
 
   class ParReducedOp : public Operator {
   private:
     ParEPDoFs      * pepdofs_;
+    HypreParMatrix * HypreMrr_;
     HypreParMatrix * ParMrr_;
     HypreParMatrix * Pe_;
 
   public:
     ParReducedOp(ParEPDoFs * pepdofs, SparseMatrix * Mrr)
       : pepdofs_(pepdofs),
+	HypreMrr_(NULL),
 	ParMrr_(NULL),
 	Pe_(NULL)
     {
       Operator::width = pepdofs_->GetNParExposedDofs();
       Pe_  = pepdofs_->EDof_TrueEDof_Matrix();
 
-      HypreParMatrix * HypreMrr = new HypreParMatrix(Pe_->GetComm(),
-						     Pe_->M(),
-						     Pe_->RowPart(),Mrr);
-
-      ParMrr_ = RAP(HypreMrr,Pe_);
-
-      delete HypreMrr;
+      HypreMrr_ = new HypreParMatrix(Pe_->GetComm(),
+				     Pe_->M(),
+				     Pe_->RowPart(),Mrr);
     }
 
     ~ParReducedOp()
     {
-      if ( ParMrr_ != NULL ) delete ParMrr_;
+      if ( HypreMrr_ != NULL ) delete HypreMrr_;
+      if ( ParMrr_   != NULL ) delete ParMrr_;
     }
+
+    void Finalize()
+    {
+      ParMrr_ = RAP(HypreMrr_,Pe_);
+    }
+
+    // The following returns the reduced matrices from each process
+    // before combining shared DoFs
+    HypreParMatrix * ReducedDoFMat() { return HypreMrr_; }
+
+    // The following returns the final reduced matrix
+    HypreParMatrix * ReducedMat() { return ParMrr_; }
 
     inline void Mult(const Vector & x, Vector & y) const
     {
@@ -297,19 +308,33 @@ protected:
     }
   };
 
-public:
-  ParEPMatrix(ParEPDoFs & pepdofsL, ParEPDoFs & pepdofsR,
-	      BilinearFormIntegrator & bfi);
+private:
+  ParEPDoFs      * pepdofsL_;
+  ParEPDoFs      * pepdofsR_;
 
-  ~ParEPMatrix();
+  ParReducedOp   * preducedOp_;
+  HypreParVector * preducedRHS_;
+  Vector         * vec_;
+  Vector         * vecp_;
+
+public:
+  ParEPBilinearForm(ParEPDoFs & pepdofsL, ParEPDoFs & pepdofsR,
+		    BilinearFormIntegrator & bfi);
+
+  ~ParEPBilinearForm();
 
   void Assemble();
+
+  void Finalize();
 
   void Mult(const ParEPField & x, ParEPField & y) const;
 
   const Operator * ReducedOperator() const;
 
+  HypreParMatrix * ReducedMat() { return preducedOp_->ReducedMat(); }
+
   const HypreParVector * ReducedRHS(const ParEPField & x) const;
+
 };
 
 #endif // MFEM_USE_MPI
@@ -319,13 +344,13 @@ class EPSolver :
 public virtual Solver
 {
 private:
-  const EPMatrix * epMat_;
+  const EPBilinearForm * epMat_;
 protected:
 public:
   EPSolver() : Solver(), epMat_(NULL) {}
   ~EPSolver() {}
 
-  void SetOperator(const EPMatrix & A)
+  void SetOperator(const EPBilinearForm & A)
   {
     epMat_ = &A;
 
@@ -348,7 +373,7 @@ public:
 template<class Solver>
 class ParEPSolver: public EPSolver<Solver> {
 private:
-  const ParEPMatrix * pepMat_;
+  const ParEPBilinearForm * pepMat_;
 protected:
 public:
 
@@ -357,7 +382,7 @@ public:
       Solver(_comm),
       pepMat_(NULL) {}
 
-  void SetOperator(const ParEPMatrix & A)
+  void SetOperator(const ParEPBilinearForm & A)
   {
     pepMat_ = &A;
 

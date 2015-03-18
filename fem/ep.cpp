@@ -593,7 +593,7 @@ ParEPField::ParExposedDoFs(const unsigned int i)
   }
   return(ParExposedDoFs_[i]);
 }
-
+/*
 BlockDiagonalMatrix::BlockDiagonalMatrix(const int nBlocks,
 					 const int * blockOffsets)
   : Matrix(blockOffsets_[nBlocks]),
@@ -617,9 +617,9 @@ BlockDiagonalMatrix::~BlockDiagonalMatrix()
     delete [] blocks_;
   }
 }
-
-EPMatrix::EPMatrix(EPDoFs & epdofsL, EPDoFs & epdofsR,
-		   BilinearFormIntegrator & bfi): 
+*/
+EPBilinearForm::EPBilinearForm(EPDoFs & epdofsL, EPDoFs & epdofsR,
+			       BilinearFormIntegrator & bfi): 
   epdofsL_(&epdofsL),
   epdofsR_(&epdofsR),
   bfi_(&bfi),
@@ -633,7 +633,7 @@ EPMatrix::EPMatrix(EPDoFs & epdofsL, EPDoFs & epdofsR,
   vecp_(NULL)
 {}
 
-EPMatrix::~EPMatrix()
+EPBilinearForm::~EPBilinearForm()
 {
   if ( Mee_        != NULL ) delete Mee_;
   if ( Mep_        != NULL ) delete Mep_;
@@ -653,7 +653,7 @@ EPMatrix::~EPMatrix()
 }
 
 void
-EPMatrix::Assemble()
+EPBilinearForm::Assemble()
 {
   if ( epdofsL_ == epdofsR_ ) {
     reducedRHS_ = new Vector(epdofsR_->GetNExposedDofs());
@@ -748,7 +748,12 @@ EPMatrix::Assemble()
 }
 
 void
-EPMatrix::Mult(const EPField & x, EPField & y) const
+EPBilinearForm::Finalize()
+{
+}
+
+void
+EPBilinearForm::Mult(const EPField & x, EPField & y) const
 {
   Mee_->Mult(*x.ExposedDoFs(0),*y.ExposedDoFs(0));
   Mep_->AddMult(*x.PrivateDoFs(0),*y.ExposedDoFs(0));
@@ -769,13 +774,13 @@ EPMatrix::Mult(const EPField & x, EPField & y) const
 }
 
 void
-EPMatrix::Mult(const Vector & x, Vector & y) const
+EPBilinearForm::Mult(const Vector & x, Vector & y) const
 {
   assert(false);
 }
 
 const Vector *
-EPMatrix::ReducedRHS(const EPField & x) const
+EPBilinearForm::ReducedRHS(const EPField & x) const
 {
   int nElems = epdofsR_->GetNElements();
 
@@ -799,7 +804,7 @@ EPMatrix::ReducedRHS(const EPField & x) const
 }
 
 void
-EPMatrix::SolvePrivateDoFs(const Vector & x, EPField & y) const
+EPBilinearForm::SolvePrivateDoFs(const Vector & x, EPField & y) const
 {
   vecp_->Set(1.0,x);
   if ( Mpe_ != NULL )
@@ -823,9 +828,33 @@ EPMatrix::SolvePrivateDoFs(const Vector & x, EPField & y) const
   }
 }
 
-ParEPMatrix::ParEPMatrix(ParEPDoFs & pepdofsL, ParEPDoFs & pepdofsR,
-			 BilinearFormIntegrator & bfi)
-  : EPMatrix(pepdofsL,pepdofsR,bfi),
+void
+EPBilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
+				     EPField & sol, EPField & rhs,
+				     int d)
+{
+   Array<int> ess_dofs, conf_ess_dofs;
+   epdofsR_->FESpace()->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+   this->EliminateEssentialBCFromDofs(ess_dofs, sol, rhs, d);
+}
+
+void
+EPBilinearForm::EliminateEssentialBCFromDofs(Array<int> &ess_dofs,
+					     EPField & sol, EPField & rhs,
+					     int d)
+{
+  for (int i = 0; i < ess_dofs.Size(); i++) {
+    if (ess_dofs[i] < 0) {
+      Mrr_ -> EliminateRowCol (i, (*sol.ExposedDoFs())(i),
+			       *rhs.ExposedDoFs(), d);
+    }
+  }
+}
+
+ParEPBilinearForm::ParEPBilinearForm(ParEPDoFs & pepdofsL,
+				     ParEPDoFs & pepdofsR,
+				     BilinearFormIntegrator & bfi)
+  : EPBilinearForm(pepdofsL,pepdofsR,bfi),
     pepdofsL_(&pepdofsL),
     pepdofsR_(&pepdofsR),
     preducedRHS_(NULL),
@@ -833,7 +862,7 @@ ParEPMatrix::ParEPMatrix(ParEPDoFs & pepdofsL, ParEPDoFs & pepdofsR,
     vecp_(NULL)
 {}
 
-ParEPMatrix::~ParEPMatrix()
+ParEPBilinearForm::~ParEPBilinearForm()
 {
   if ( preducedOp_  != NULL ) delete preducedOp_;
   if ( preducedRHS_ != NULL ) delete preducedRHS_;
@@ -842,9 +871,9 @@ ParEPMatrix::~ParEPMatrix()
 }
 
 void
-ParEPMatrix::Assemble()
+ParEPBilinearForm::Assemble()
 {
-  this->EPMatrix::Assemble();
+  this->EPBilinearForm::Assemble();
 
   if ( pepdofsL_ == pepdofsR_ ) {
 
@@ -852,7 +881,7 @@ ParEPMatrix::Assemble()
     int numProcs  = pepdofsR_->GetNRanks();
     int * part    = pepdofsR_->GetTPartitioning();
     preducedOp_   = new ParReducedOp(pepdofsR_,
-				     this->EPMatrix::GetMrr());
+				     this->EPBilinearForm::GetMrr());
     preducedRHS_  = new HypreParVector(comm,part[numProcs],part);
     vec_          = new Vector(pepdofsR_->GetNExposedDofs());
     vecp_         = new Vector(pepdofsR_->GetNPrivateDofs());
@@ -860,14 +889,20 @@ ParEPMatrix::Assemble()
 }
 
 void
-ParEPMatrix::Mult(const ParEPField & x, ParEPField & y) const
+ParEPBilinearForm::Finalize()
 {
-  this->EPMatrix::Mult(x,y);
+  if ( preducedOp_ != NULL ) preducedOp_->Finalize();
+}
+
+void
+ParEPBilinearForm::Mult(const ParEPField & x, ParEPField & y) const
+{
+  this->EPBilinearForm::Mult(x,y);
   y.updateParExposedDoFs();
 }
 
 const Operator *
-ParEPMatrix::ReducedOperator() const
+ParEPBilinearForm::ReducedOperator() const
 {
   if ( preducedOp_ == NULL)
     std::cout << "Oops!  The Reduced Operator is NULL!" << std::endl;
@@ -875,7 +910,7 @@ ParEPMatrix::ReducedOperator() const
 }
 
 const HypreParVector *
-ParEPMatrix::ReducedRHS(const ParEPField & x) const
+ParEPBilinearForm::ReducedRHS(const ParEPField & x) const
 {
   int nElems = pepdofsR_->GetNElements();
 
