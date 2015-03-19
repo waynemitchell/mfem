@@ -780,7 +780,21 @@ EPBilinearForm::Mult(const Vector & x, Vector & y) const
 }
 
 const Vector *
-EPBilinearForm::ReducedRHS(const EPField & x) const
+EPBilinearForm::ReducedRHS(const EPField & b) const
+{
+  this->buildReducedRHS(*b.ExposedDoFs(),*b.PrivateDoFs());
+  return(reducedRHS_);
+}
+
+const Vector *
+EPBilinearForm::ReducedRHS(const Vector & bExp, const Vector & bPri) const
+{
+  this->buildReducedRHS(bExp,bPri);
+  return(reducedRHS_);
+}
+
+void
+EPBilinearForm::buildReducedRHS(const Vector & bExp, const Vector & bPri) const
 {
   int nElems = epdofsR_->GetNElements();
 
@@ -791,16 +805,14 @@ EPBilinearForm::ReducedRHS(const EPField & x) const
 
   for (int i=0; i<nElems; i++) {
     int size = MppInv_[i]->Size();
-    v1.SetDataAndSize(&x.PrivateDoFs(0)->GetData()[priOffL[i]],size);
+    v1.SetDataAndSize(&bPri.GetData()[priOffL[i]],size);
     v2.SetDataAndSize(&vecp_->GetData()[priOffR[i]],size);
     MppInv_[i]->Mult(v1,v2);
   }
 
-  reducedRHS_->Set(1.0,*x.ExposedDoFs());
+  reducedRHS_->Set(1.0,bExp);
 
   Mep_->AddMult(*vecp_,*reducedRHS_,-1.0);
-
-  return( reducedRHS_ );
 }
 
 void
@@ -843,10 +855,14 @@ EPBilinearForm::EliminateEssentialBCFromDofs(Array<int> &ess_dofs,
 					     EPField & sol, EPField & rhs,
 					     int d)
 {
+  // Force the construction of the reduced RHS vector
+  this->buildReducedRHS(*rhs.ExposedDoFs(),*rhs.PrivateDoFs());
+
+
   for (int i = 0; i < ess_dofs.Size(); i++) {
     if (ess_dofs[i] < 0) {
       Mrr_ -> EliminateRowCol (i, (*sol.ExposedDoFs())(i),
-			       *rhs.ExposedDoFs(), d);
+			       *reducedRHS_, d);
     }
   }
 }
@@ -910,8 +926,9 @@ ParEPBilinearForm::ReducedOperator() const
 }
 
 const HypreParVector *
-ParEPBilinearForm::ReducedRHS(const ParEPField & x) const
+ParEPBilinearForm::ReducedRHS(const ParEPField & b) const
 {
+  /*
   int nElems = pepdofsR_->GetNElements();
 
   const int * priOffR = pepdofsR_->GetPrivateOffsets();
@@ -923,7 +940,7 @@ ParEPBilinearForm::ReducedRHS(const ParEPField & x) const
 
   for (int i=0; i<nElems; i++) {
     int size = MppInv[i]->Size();
-    v1.SetDataAndSize(&x.PrivateDoFs(0)->GetData()[priOffL[i]],size);
+    v1.SetDataAndSize(&b.PrivateDoFs(0)->GetData()[priOffL[i]],size);
     v2.SetDataAndSize(&vecp_->GetData()[priOffR[i]],size);
     MppInv[i]->Mult(v1,v2);
   }
@@ -932,7 +949,15 @@ ParEPBilinearForm::ReducedRHS(const ParEPField & x) const
   pepdofsR_->EDof_TrueEDof_Matrix()->MultTranspose(*vec_,
 						   *preducedRHS_);
   (*preducedRHS_) *= -1.0;
-  (*preducedRHS_) += *x.ParExposedDoFs();
+  (*preducedRHS_) += *b.ParExposedDoFs();
+  */
+  pepdofsR_->EDof_TrueEDof_Matrix()->Mult(*b.ParExposedDoFs(),*vec_);
+
+  const Vector * reducedRHS = this->EPBilinearForm::ReducedRHS(*vec_,
+							       *b.PrivateDoFs());
+
+  pepdofsR_->EDof_TrueEDof_Matrix()->MultTranspose(*reducedRHS,
+						   *preducedRHS_);
 
   return( preducedRHS_ );
 }

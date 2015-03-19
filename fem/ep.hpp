@@ -224,6 +224,9 @@ private:
   Vector        *  vecp_;
 
 protected:
+
+  void buildReducedRHS(const Vector & bExp, const Vector & bPri) const;
+
 public:
   EPBilinearForm(EPDoFs & epdofsL, EPDoFs & epdofsR,
 		 BilinearFormIntegrator & bfi);
@@ -245,7 +248,8 @@ public:
 
   void Mult(const Vector & x, Vector & y) const;
 
-  const Vector * ReducedRHS(const EPField & x) const;
+  const Vector * ReducedRHS(const Vector & bExp, const Vector & bPri) const;
+  const Vector * ReducedRHS(const EPField & b) const;
 
   void SolvePrivateDoFs(const Vector & x, EPField & y) const;
 
