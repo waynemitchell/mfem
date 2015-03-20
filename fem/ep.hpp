@@ -128,7 +128,7 @@ private:
   void initVectors(const unsigned int num = 1);
 
 public:
-  EPField(ParEPDoFs & epdofs);
+  EPField(EPDoFs & epdofs);
 
   ~EPField();
 
@@ -250,6 +250,7 @@ public:
 
   const Vector * ReducedRHS(const Vector & bExp, const Vector & bPri) const;
   const Vector * ReducedRHS(const EPField & b) const;
+  const Vector * ReducedRHS() const;
 
   void SolvePrivateDoFs(const Vector & x, EPField & y) const;
 
@@ -338,6 +339,7 @@ public:
   HypreParMatrix * ReducedMat() { return preducedOp_->ReducedMat(); }
 
   const HypreParVector * ReducedRHS(const ParEPField & x) const;
+  const HypreParVector * ReducedRHS() const;
 
 };
 

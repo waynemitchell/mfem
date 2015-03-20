@@ -260,7 +260,7 @@ ParEPDoFs::~ParEPDoFs()
   if ( TExposedPart_ != NULL ) delete [] TExposedPart_;
 }
 
-EPField::EPField(ParEPDoFs & epdofs)
+EPField::EPField(EPDoFs & epdofs)
   : numFields_(0),
     epdofs_(&epdofs),
     ExposedDoFs_(NULL),
@@ -721,14 +721,19 @@ EPBilinearForm::Assemble()
     if ( MppInv_ != NULL ) {
       MppInv_[i] = (DenseMatrixInverse*)Mpp_[i]->Inverse();
 
+      vcMpe.SetSize(nPriR);
       vpR.SetSize(nPriR);
       veL.SetSize(expDoFsL.Size());
       mrr.SetSize(expDoFsL.Size(),expDoFsR.Size());
 
       for (int jj=0; jj<expDoFsR.Size(); jj++) {
+	/*
 	double * colMpe = &mep.Data()[jj*nPriR];
 
 	vcMpe.SetDataAndSize(colMpe,MppInv_[i]->Size());
+	*/
+	for (int kk=0; kk<nPriR; kk++)
+	  vcMpe(kk) = mep(jj,kk);
 	MppInv_[i]->Mult(vcMpe,vpR);
 
 	mep.Mult(vpR,veL);
@@ -790,6 +795,12 @@ const Vector *
 EPBilinearForm::ReducedRHS(const Vector & bExp, const Vector & bPri) const
 {
   this->buildReducedRHS(bExp,bPri);
+  return(reducedRHS_);
+}
+
+const Vector *
+EPBilinearForm::ReducedRHS() const
+{
   return(reducedRHS_);
 }
 
@@ -955,6 +966,17 @@ ParEPBilinearForm::ReducedRHS(const ParEPField & b) const
 
   const Vector * reducedRHS = this->EPBilinearForm::ReducedRHS(*vec_,
 							       *b.PrivateDoFs());
+
+  pepdofsR_->EDof_TrueEDof_Matrix()->MultTranspose(*reducedRHS,
+						   *preducedRHS_);
+
+  return( preducedRHS_ );
+}
+
+const HypreParVector *
+ParEPBilinearForm::ReducedRHS() const
+{
+  const Vector * reducedRHS = this->EPBilinearForm::ReducedRHS();
 
   pepdofsR_->EDof_TrueEDof_Matrix()->MultTranspose(*reducedRHS,
 						   *preducedRHS_);
