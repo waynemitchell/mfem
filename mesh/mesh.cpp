@@ -6491,9 +6491,9 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
 
 void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 {
-   DeleteTables();
-
    Dim = spaceDim = ncmesh.Dimension();
+
+   DeleteTables();
 
    ncmesh.GetMeshComponents(vertices, elements, boundary);
 

@@ -126,6 +126,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
             }
       }
 
+      have_face_nbr_data = false;
       return;
    }
 

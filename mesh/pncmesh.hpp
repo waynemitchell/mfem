@@ -271,12 +271,12 @@ protected:
 /*
 TODO
 + R matrix
-- nonzero essential BC
++ nonzero essential BC
+- assumed partition
+- vdim, vdofs
+- cP + P
 - conforming case R matrix
 - ProjectBdrCoefficient
-- assumed partition
-- cP + P
-- vdim, vdofs
 - curved/two-level parmesh
 - hcurl/hdiv
 - hilbert ordering
