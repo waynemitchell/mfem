@@ -727,11 +727,6 @@ EPBilinearForm::Assemble()
       mrr.SetSize(expDoFsL.Size(),expDoFsR.Size());
 
       for (int jj=0; jj<expDoFsR.Size(); jj++) {
-	/*
-	double * colMpe = &mep.Data()[jj*nPriR];
-
-	vcMpe.SetDataAndSize(colMpe,MppInv_[i]->Size());
-	*/
 	for (int kk=0; kk<nPriR; kk++)
 	  vcMpe(kk) = mep(jj,kk);
 	MppInv_[i]->Mult(vcMpe,vpR);
@@ -756,7 +751,7 @@ void
 EPBilinearForm::Finalize()
 {
 }
-
+/*
 void
 EPBilinearForm::Mult(const EPField & x, EPField & y) const
 {
@@ -777,17 +772,63 @@ EPBilinearForm::Mult(const EPField & x, EPField & y) const
   else
     Mep_->AddMultTranspose(*x.ExposedDoFs(0),*y.PrivateDoFs(0));
 }
-
+*/
 void
 EPBilinearForm::Mult(const Vector & x, Vector & y) const
 {
-  assert(false);
+  // Create temporary vectors for the exposed and private portions of x and y
+  const Vector xE(const_cast<double*>(&x[0]),epdofsR_->GetNExposedDofs());
+  const Vector xP(const_cast<double*>(&x[epdofsR_->GetNExposedDofs()]),
+		  epdofsR_->GetNPrivateDofs());
+
+  Vector yE(&y[0],epdofsL_->GetNExposedDofs());
+  Vector yP(&y[epdofsL_->GetNExposedDofs()],epdofsL_->GetNPrivateDofs());
+
+  this->Mult(xE,xP,yE,yP);
 }
 
+void
+EPBilinearForm::Mult(const Vector & xE, const Vector & xP,
+		     Vector & yE, Vector & yP) const
+{
+  // Compute the Exposed portion of the product
+  Mee_->Mult(xE,yE);
+  Mep_->AddMult(xP,yE);
+
+  // Compute the Private portion of the product
+  // Begin by multiplying the block diagonal portion element by element
+  int nElems = epdofsR_->GetNElements();
+
+  const int * priOffR = epdofsR_->GetPrivateOffsets();
+  const int * priOffL = epdofsL_->GetPrivateOffsets();
+
+  for (int i=0; i<nElems; i++)
+    Mpp_[i]->Mult(&xP[priOffL[i]],
+		  &yP[priOffR[i]]);
+
+  // Finish by multiplying the off-diagonal block
+  if ( Mpe_ != NULL )
+    Mpe_->AddMult(xE,yP);
+  else
+    Mep_->AddMultTranspose(xE,yP);
+}
+/*
 const Vector *
 EPBilinearForm::ReducedRHS(const EPField & b) const
 {
   this->buildReducedRHS(*b.ExposedDoFs(),*b.PrivateDoFs());
+  return(reducedRHS_);
+}
+*/
+const Vector *
+EPBilinearForm::ReducedRHS(const Vector & b) const
+{
+  // Create temporary vectors for the exposed and private portions of b
+  const Vector bE(const_cast<double*>(&b[0]),epdofsL_->GetNExposedDofs());
+  const Vector bP(const_cast<double*>(&b[epdofsL_->GetNExposedDofs()]),
+		  epdofsL_->GetNPrivateDofs());
+
+  this->buildReducedRHS(bE,bP);
   return(reducedRHS_);
 }
 
@@ -827,13 +868,28 @@ EPBilinearForm::buildReducedRHS(const Vector & bExp, const Vector & bPri) const
 }
 
 void
-EPBilinearForm::SolvePrivateDoFs(const Vector & x, EPField & y) const
+EPBilinearForm::SolvePrivateDoFs(const Vector & b, Vector & x) const
 {
-  vecp_->Set(1.0,x);
+  // Create temporary vectors for the exposed and private portions of b
+  const Vector bP(const_cast<double*>(&b[epdofsL_->GetNExposedDofs()]),
+		  epdofsL_->GetNPrivateDofs());
+
+  const Vector xE(const_cast<double*>(&x[0]),epdofsR_->GetNExposedDofs());
+  Vector xP(const_cast<double*>(&x[epdofsR_->GetNExposedDofs()]),
+	    epdofsR_->GetNPrivateDofs());
+
+  this->SolvePrivateDoFs(bP,xE,xP);
+}
+
+void
+EPBilinearForm::SolvePrivateDoFs(const Vector & bP, const Vector & xE,
+				 Vector & xP) const
+{
+  vecp_->Set(1.0,bP);
   if ( Mpe_ != NULL )
-    Mpe_->AddMult(*y.ExposedDoFs(),*vecp_,-1.0);
+    Mpe_->AddMult(xE,*vecp_,-1.0);
   else
-    Mep_->AddMultTranspose(*y.ExposedDoFs(),*vecp_,-1.0);
+    Mep_->AddMultTranspose(xE,*vecp_,-1.0);
 
   int nElems = epdofsR_->GetNElements();
 
@@ -845,7 +901,7 @@ EPBilinearForm::SolvePrivateDoFs(const Vector & x, EPField & y) const
   for (int i=0; i<nElems; i++) {
     int size = MppInv_[i]->Size();
     v1.SetDataAndSize(&vecp_->GetData()[priOffL[i]],size);
-    v2.SetDataAndSize(&y.PrivateDoFs(0)->GetData()[priOffR[i]],size);
+    v2.SetDataAndSize(&xP[priOffR[i]],size);
 
     MppInv_[i]->Mult(v1,v2);
   }
@@ -853,27 +909,41 @@ EPBilinearForm::SolvePrivateDoFs(const Vector & x, EPField & y) const
 
 void
 EPBilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
-				     EPField & sol, EPField & rhs,
+				     Vector & x, Vector & b,
 				     int d)
 {
    Array<int> ess_dofs, conf_ess_dofs;
    epdofsR_->FESpace()->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   this->EliminateEssentialBCFromDofs(ess_dofs, sol, rhs, d);
+   this->EliminateEssentialBCFromDofs(ess_dofs, x, b, d);
 }
 
 void
 EPBilinearForm::EliminateEssentialBCFromDofs(Array<int> &ess_dofs,
-					     EPField & sol, EPField & rhs,
+					     Vector & x, Vector & b,
+					     int d)
+{
+  // Create temporary vectors for the exposed and private portions of x and y
+  Vector xE(&x[0],epdofsR_->GetNExposedDofs());
+
+  Vector bE(&b[0],epdofsL_->GetNExposedDofs());
+  Vector bP(&b[epdofsL_->GetNExposedDofs()],epdofsL_->GetNPrivateDofs());
+
+  this->EliminateEssentialBCFromDofs(ess_dofs,xE,bE,bP,d);
+}
+
+void
+EPBilinearForm::EliminateEssentialBCFromDofs(Array<int> &ess_dofs,
+					     Vector & xE,
+					     Vector & bE, Vector & bP,
 					     int d)
 {
   // Force the construction of the reduced RHS vector
-  this->buildReducedRHS(*rhs.ExposedDoFs(),*rhs.PrivateDoFs());
+  this->buildReducedRHS(bE,bP);
 
 
   for (int i = 0; i < ess_dofs.Size(); i++) {
     if (ess_dofs[i] < 0) {
-      Mrr_ -> EliminateRowCol (i, (*sol.ExposedDoFs())(i),
-			       *reducedRHS_, d);
+      Mrr_ -> EliminateRowCol (i,xE[i],*reducedRHS_, d);
     }
   }
 }
@@ -920,14 +990,14 @@ ParEPBilinearForm::Finalize()
 {
   if ( preducedOp_ != NULL ) preducedOp_->Finalize();
 }
-
+/*
 void
 ParEPBilinearForm::Mult(const ParEPField & x, ParEPField & y) const
 {
   this->EPBilinearForm::Mult(x,y);
   y.updateParExposedDoFs();
 }
-
+*/
 const Operator *
 ParEPBilinearForm::ReducedOperator() const
 {

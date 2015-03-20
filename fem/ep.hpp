@@ -237,8 +237,6 @@ public:
 
   void Finalize();
 
-  void Mult(const EPField & x, EPField & y) const;
-
   inline SparseMatrix * GetMee() const { return Mee_; }
   inline SparseMatrix * GetMep() const { return Mep_; }
   inline SparseMatrix * GetMpe() const { return Mpe_; }
@@ -246,19 +244,33 @@ public:
   inline DenseMatrix ** GetMpp() const { return Mpp_; }
   inline DenseMatrixInverse ** GetMppInv() const { return MppInv_; }
 
+  // void Mult(const EPField & x, EPField & y) const;
   void Mult(const Vector & x, Vector & y) const;
+  void Mult(const Vector & xE, const Vector & xP,
+	    Vector & yE, Vector & yP) const;
 
   const Vector * ReducedRHS(const Vector & bExp, const Vector & bPri) const;
-  const Vector * ReducedRHS(const EPField & b) const;
+  const Vector * ReducedRHS(const Vector & b) const;
+  // const Vector * ReducedRHS(const EPField & b) const;
   const Vector * ReducedRHS() const;
 
-  void SolvePrivateDoFs(const Vector & x, EPField & y) const;
+  void SolvePrivateDoFs(const Vector & b, Vector & x) const;
+  // void SolvePrivateDoFs(const Vector & bP, EPField & x) const;
+  void SolvePrivateDoFs(const Vector & bP, const Vector & xE,
+			Vector & xP) const;
 
   void EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
-			    EPField & sol, EPField & rhs, int d = 0);
+			    Vector & x, Vector & b, int d = 0);
+
+  // void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
+  //			    EPField & sol, EPField & rhs, int d = 0);
 
   void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
-				    EPField & sol, EPField & rhs, int d = 0);
+				    Vector & x, Vector & b, int d = 0);
+
+  void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
+				    Vector & xE, Vector & bE, Vector & bP,
+				    int d = 0);
 };
 
 #ifdef MFEM_USE_MPI
@@ -332,7 +344,7 @@ public:
 
   void Finalize();
 
-  void Mult(const ParEPField & x, ParEPField & y) const;
+  // void Mult(const ParEPField & x, ParEPField & y) const;
 
   const Operator * ReducedOperator() const;
 
