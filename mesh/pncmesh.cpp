@@ -191,7 +191,7 @@ void ParNCMesh::BuildEdgeList()
 
    NCMesh::BuildEdgeList();
 
-   AddSlaveRanks(nedges, edge_list);
+   AddMasterSlaveRanks(nedges, edge_list);
 
    index_rank.Sort();
    index_rank.Unique();
@@ -215,7 +215,7 @@ void ParNCMesh::BuildFaceList()
 
    NCMesh::BuildFaceList();
 
-   AddSlaveRanks(nfaces, face_list);
+   AddMasterSlaveRanks(nfaces, face_list);
 
    index_rank.Sort();
    index_rank.Unique();
@@ -227,38 +227,64 @@ void ParNCMesh::BuildFaceList()
    CalcFaceOrientations();
 }
 
-void ParNCMesh::AddSlaveRanks(int nitems, const NCList& list)
+struct MasterSlaveInfo
 {
-   // create a mapping from slave face index to master face index
-   Array<int> slave_to_master(nitems);
-   slave_to_master = -1;
+   int master; // master index if this is a slave
+   int slaves_begin, slaves_end; // slave list if this is a master
+   MasterSlaveInfo() : master(-1), slaves_begin(0), slaves_end(0) {}
+};
 
+void ParNCMesh::AddMasterSlaveRanks(int nitems, const NCList& list)
+{
+   // create an auxiliary structure for each edge/face
+   std::vector<MasterSlaveInfo> info(nitems);
+
+   for (unsigned i = 0; i < list.masters.size(); i++)
+   {
+      const Master &mf = list.masters[i];
+      info[mf.index].slaves_begin = mf.slaves_begin;
+      info[mf.index].slaves_end = mf.slaves_end;
+   }
    for (unsigned i = 0; i < list.slaves.size(); i++)
    {
       const Slave& sf = list.slaves[i];
-      slave_to_master[sf.index] = sf.master;
+      info[sf.index].master = sf.master;
    }
 
-   // We need the groups of master edges/faces to contain the ranks of their
-   // slaves (so that master DOFs get sent to those who share the slaves).
-   // This can be done by appending more items to 'index_rank' for the masters.
-   // (Note that a slave edge can be shared by more than one element/processor.)
+   // We need the processor groups of master edges/faces to contain the ranks of
+   // their slaves (so that master DOFs get sent to those who share the slaves).
+   // Conversely, we need the groups of slave edges/faces to contain the ranks
+   // of their masters. Both can be done by appending more items to the
+   // 'index_rank' array, before it is sorted and converted to the group table.
+   // (Note that a master/slave edge can be shared by more than one processor.)
 
    int size = index_rank.Size();
    for (int i = 0; i < size; i++)
    {
-      int master = slave_to_master[index_rank[i].from];
-      if (master >= 0)
+      int index = index_rank[i].from;
+      int rank = index_rank[i].to;
+
+      const MasterSlaveInfo &msi = info[index];
+      if (msi.master >= 0)
       {
-         index_rank.Append(Connection(master, index_rank[i].to));
+         // 'index' is a slave, add its rank to the master's group
+         index_rank.Append(Connection(msi.master, rank));
+      }
+      else
+      {
+         for (int j = msi.slaves_begin; j < msi.slaves_end; j++)
+         {
+            // 'index' is a master, add its rank to the groups of the slaves
+            index_rank.Append(Connection(list.slaves[j].index, rank));
+         }
       }
    }
 }
 
 static bool is_shared(const Table& groups, int index, int MyRank)
 {
-   // An edge/face is shared if its group contains more than one processor and
-   // at the same time one of them is ourselves.
+   // A vertex/edge/face is shared if its group contains more than one processor
+   // and at the same time one of them is ourselves.
 
    int size = groups.RowSize(index);
    if (size <= 1)
@@ -282,21 +308,24 @@ void ParNCMesh::MakeShared(const Table &groups, const NCList &list,
    shared.Clear();
 
    for (unsigned i = 0; i < list.conforming.size(); i++)
+   {
       if (is_shared(groups, list.conforming[i].index, MyRank))
       {
          shared.conforming.push_back(list.conforming[i]);
       }
-
+   }
    for (unsigned i = 0; i < list.masters.size(); i++)
    {
-      const Master& master = list.masters[i];
-      if (is_shared(groups, master.index, MyRank))
+      if (is_shared(groups, list.masters[i].index, MyRank))
       {
-         shared.masters.push_back(master);
-         for (int j = master.slaves_begin; j < master.slaves_end; j++)
-         {
-            shared.slaves.push_back(list.slaves[j]);
-         }
+         shared.masters.push_back(list.masters[i]);
+      }
+   }
+   for (unsigned i = 0; i < list.slaves.size(); i++)
+   {
+      if (is_shared(groups, list.slaves[i].index, MyRank))
+      {
+         shared.slaves.push_back(list.slaves[i]);
       }
    }
 }
@@ -411,33 +440,39 @@ void ParNCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
 
 bool ParNCMesh::OnProcessorBoundary(Element* elem) const
 {
-   MFEM_ASSERT(!elem->ref_type, "Not a leaf.");
-   const NCMesh::GeomInfo &gi = NCMesh::GI[(int) elem->geom];
+   MFEM_ASSERT(!elem->ref_type, "not a leaf.");
+
+   Node** node = elem->node;
+   GeomInfo &gi = NCMesh::GI[(int) elem->geom];
 
    // check vertices
    for (int i = 0; i < gi.nv; i++)
-      if (is_shared(vertex_group, elem->node[i]->vertex->index, MyRank))
-      {
-         return true;
-      }
-
-   if (Dim > 2)
    {
-      // check edges
-      for (int i = 0; i < gi.ne; i++)
-      {
-         const int* ev = gi.edges[i];
-         Node* node = nodes.Peek(elem->node[ev[0]], elem->node[ev[1]]);
-         MFEM_ASSERT(node && node->edge, "Edge not found.");
-
-         if (is_shared(edge_group, node->edge->index, MyRank))
-         {
-            return true;
-         }
-      }
+      int index = node[i]->vertex->index;
+      if (is_shared(vertex_group, index, MyRank)) { return true; }
    }
 
-   // NOTE: faces skipped in 3D
+   // check edges
+   for (int i = 0; i < gi.ne; i++)
+   {
+      const int* ev = gi.edges[i];
+      Node* edge = nodes.Peek(node[ev[0]], node[ev[1]]);
+      MFEM_ASSERT(edge && edge->edge, "edge not found.");
+      if (is_shared(edge_group, edge->edge->index, MyRank)) { return true; }
+   }
+
+   // check faces
+   if (Dim > 2)
+   {
+      for (int i = 0; i < gi.nf; i++)
+      {
+         const int* fv = gi.faces[i];
+         Face* face = faces.Peek(node[fv[0]], node[fv[1]],
+                                 node[fv[2]], node[fv[3]]);
+         MFEM_ASSERT(face, "face not found");
+         if (is_shared(face_group, face->index, MyRank)) { return true; }
+      }
+   }
 
    return false;
 }
@@ -459,11 +494,11 @@ static void append_ranks(Array<int> &ranks, const Table &groups,
 void ParNCMesh::ElementNeighborProcessors(Element *elem,
                                           Array<int> &ranks) const
 {
-   MFEM_ASSERT(!elem->ref_type, "Not a leaf.");
+   MFEM_ASSERT(!elem->ref_type, "not a leaf.");
    ranks.SetSize(0); // preserve capacity
 
    Node** node = elem->node;
-   const NCMesh::GeomInfo &gi = NCMesh::GI[(int) elem->geom];
+   GeomInfo &gi = NCMesh::GI[(int) elem->geom];
 
    // get vertex neighborhood
    for (int i = 0; i < gi.nv; i++)
@@ -471,15 +506,25 @@ void ParNCMesh::ElementNeighborProcessors(Element *elem,
       append_ranks(ranks, vertex_group, node[i]->vertex->index, MyRank);
    }
 
+   // get edge neighborhood
+   for (int i = 0; i < gi.ne; i++)
+   {
+      const int* ev = gi.edges[i];
+      Node* edge = nodes.Peek(node[ev[0]], node[ev[1]]);
+      MFEM_ASSERT(edge && edge->edge, "edge not found.");
+      append_ranks(ranks, edge_group, edge->edge->index, MyRank);
+   }
+
+   // get face neighborhood
    if (Dim > 2)
    {
-      // get edge neighborhood
-      for (int i = 0; i < gi.ne; i++)
+      for (int i = 0; i < gi.nf; i++)
       {
-         const int* ev = gi.edges[i];
-         Node* edge = nodes.Peek(node[ev[0]], node[ev[1]]);
-         MFEM_ASSERT(edge && edge->edge, "Edge not found.");
-         append_ranks(ranks, edge_group, edge->edge->index, MyRank);
+         const int* fv = gi.faces[i];
+         Face* face = faces.Peek(node[fv[0]], node[fv[1]],
+                                 node[fv[2]], node[fv[3]]);
+         MFEM_ASSERT(face, "face not found");
+         append_ranks(ranks, face_group, face->index, MyRank);
       }
    }
 
@@ -488,8 +533,8 @@ void ParNCMesh::ElementNeighborProcessors(Element *elem,
    ranks.Unique();
 }
 
-static void collect_ranks(std::set<int> &ranks, const Table &groups,
-                          int index, int my_rank)
+static void collect_index_ranks(std::set<int> &ranks, const Table &groups,
+                                int index, int my_rank)
 {
    const int *group = groups.GetRow(index);
    int size = groups.RowSize(index);
@@ -501,33 +546,37 @@ static void collect_ranks(std::set<int> &ranks, const Table &groups,
    }
 }
 
+static void collect_shared_ranks(std::set<int> &ranks, const Table &groups,
+                                 const ParNCMesh::NCList &shared, int my_rank)
+{
+   for (unsigned i = 0; i < shared.conforming.size(); i++)
+   {
+      int index = shared.conforming[i].index;
+      collect_index_ranks(ranks, groups, index, my_rank);
+   }
+   for (unsigned i = 0; i < shared.masters.size(); i++)
+   {
+      int index = shared.masters[i].index;
+      collect_index_ranks(ranks, groups, index, my_rank);
+   }
+   for (unsigned i = 0; i < shared.slaves.size(); i++)
+   {
+      int index = shared.slaves[i].index;
+      collect_index_ranks(ranks, groups, index, my_rank);
+   }
+}
+
 void ParNCMesh::GetNeighbors(Array<int> &neighbors)
 {
    GetSharedVertices();
    GetSharedEdges();
 
    std::set<int> ranks;
-
-   // go through all shared vertices and edges, collect their processors
-   for (unsigned i = 0; i < shared_vertices.conforming.size(); i++)
+   collect_shared_ranks(ranks, vertex_group, shared_vertices, MyRank);
+   collect_shared_ranks(ranks, edge_group, shared_edges, MyRank);
+   if (Dim > 2)
    {
-      int index = shared_vertices.conforming[i].index;
-      collect_ranks(ranks, vertex_group, index, MyRank);
-   }
-   for (unsigned i = 0; i < shared_edges.conforming.size(); i++)
-   {
-      int index = shared_edges.conforming[i].index;
-      collect_ranks(ranks, edge_group, index, MyRank);
-   }
-   for (unsigned i = 0; i < shared_edges.masters.size(); i++)
-   {
-      int index = shared_edges.masters[i].index;
-      collect_ranks(ranks, edge_group, index, MyRank);
-   }
-   for (unsigned i = 0; i < shared_edges.slaves.size(); i++)
-   {
-      int index = shared_edges.slaves[i].index;
-      collect_ranks(ranks, edge_group, index, MyRank);
+      collect_shared_ranks(ranks, face_group, shared_faces, MyRank);
    }
 
    neighbors.DeleteAll();
@@ -621,7 +670,8 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
       ElementNeighborProcessors(elem, ranks);
       for (int j = 0; j < ranks.Size(); j++)
       {
-         MFEM_ASSERT(ref.ref_type == 7, "Aniso refinement not implemented in parallel.");
+         MFEM_ASSERT(ref.ref_type == 7, "ref_type = " << (int) ref.ref_type
+                     << " not implemented in parallel.");
          send_ref[ranks[j]].AddRefinement(elem, ref.ref_type);
       }
    }
@@ -860,7 +910,7 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
       for (int i = 0; i < ne; i++)
       {
          Element* elem = elements[read<int>(is)];
-         MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
+         MFEM_ASSERT(!elem->ref_type, "not a leaf element.");
 
          MeshId &id = ids[type][i];
          id.element = elem;
@@ -881,7 +931,7 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
             {
                const int* ev = gi.edges[id.local];
                Node* node = nodes.Peek(elem->node[ev[0]], elem->node[ev[1]]);
-               MFEM_ASSERT(node && node->edge, "Edge not found.");
+               MFEM_ASSERT(node && node->edge, "edge not found.");
                id.index = node->edge->index;
                break;
             }
@@ -890,7 +940,7 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
                const int* fv = gi.faces[id.local];
                Face* face = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
                                        elem->node[fv[2]], elem->node[fv[3]]);
-               MFEM_ASSERT(face, "Face not found.");
+               MFEM_ASSERT(face, "face not found.");
                id.index = face->index;
             }
          }
@@ -914,8 +964,8 @@ void NeighborDofMessage::GetDofs(int type, const NCMesh::MeshId& id,
    MFEM_ASSERT(type >= 0 && type < 3, "");
 #ifdef MFEM_DEBUG
    if (id_dofs[type].find(id) == id_dofs[type].end())
-      MFEM_ABORT("Type/ID " << type << "/" << id.index
-                 << " not found in neighbor message.");
+      MFEM_ABORT("type/ID " << type << "/" << id.index << " not found in "
+                 "neighbor message. Ghost layers out of sync?");
 #endif
    std::vector<int> &vec = id_dofs[type][id];
    dofs.SetSize(vec.size());
@@ -1060,7 +1110,7 @@ void NeighborRowReply::GetRow(int row, Array<int> &cols, Vector &srow)
 #ifdef MFEM_DEBUG
    if (rows.find(row) == rows.end())
    {
-      MFEM_ABORT("Row " << row << " not found in neighbor message.");
+      MFEM_ABORT("row " << row << " not found in neighbor message.");
    }
 #endif
    Row& row_data = rows[row];
@@ -1150,6 +1200,24 @@ void ParNCMesh::NeighborRefinementMessage::Decode()
 
    data.clear();
 }
+
+
+//// utility ///////////////////////////////////////////////////////////////////
+
+void ParNCMesh::GetDebugMesh(Mesh &debug_mesh) const
+{
+   // create a serial NCMesh containing all our elements (ghosts and all)
+   NCMesh copy(*this);
+
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      copy.leaf_elements[i]->attribute =
+         (leaf_elements[i]->rank == MyRank) ? 1 : 2;
+   }
+
+   debug_mesh.InitFromNCMesh(copy);
+}
+
 
 } // namespace mfem
 

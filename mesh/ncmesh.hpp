@@ -556,6 +556,9 @@ public: // TODO: maybe make this part of mfem::Geometry?
    };
 
    static GeomInfo GI[Geometry::NumGeom];
+
+
+   friend class ParNCMesh;
 };
 
 }

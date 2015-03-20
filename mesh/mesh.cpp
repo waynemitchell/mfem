@@ -776,6 +776,8 @@ void Mesh::SetAttributes()
          nattr++;
       }
 
+   // TODO: use Array::Sort + Array::Unique here
+
    bdr_attributes.SetSize(nattr);
    if (nattr > 0)
    {
@@ -6491,7 +6493,7 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 {
    DeleteTables();
 
-   Dim = ncmesh.Dimension();
+   Dim = spaceDim = ncmesh.Dimension();
 
    ncmesh.GetMeshComponents(vertices, elements, boundary);
 

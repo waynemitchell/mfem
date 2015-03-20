@@ -127,6 +127,11 @@ public:
                                    Array<int> &bdr_vertices,
                                    Array<int> &bdr_edges);
 
+   /** Extract a debugging Mesh containing all leaf elements, including ghosts.
+       The debug mesh will have element attributes set to 1 for real elements
+       and to 2 for ghost elements. */
+   void GetDebugMesh(Mesh &debug_mesh) const;
+
 
 protected:
    MPI_Comm MyComm;
@@ -177,7 +182,7 @@ protected:
 
    Array<Connection> index_rank; // temporary
 
-   void AddSlaveRanks(int nitems, const NCList& list);
+   void AddMasterSlaveRanks(int nitems, const NCList& list);
    void MakeShared(const Table &groups, const NCList &list, NCList &shared);
 
    /** Uniquely encodes a set of elements in the erefinement hierarchy of an

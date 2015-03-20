@@ -221,15 +221,15 @@ void NCMesh::Node::RefEdge()
 
 void NCMesh::Node::UnrefVertex(HashTable<Node> &nodes)
 {
-   MFEM_ASSERT(vertex, "Cannot unref a nonexistent vertex.");
+   MFEM_ASSERT(vertex, "cannot unref a nonexistent vertex.");
    if (!vertex->Unref()) { vertex = NULL; }
    if (!vertex && !edge) { nodes.Delete(this); }
 }
 
 void NCMesh::Node::UnrefEdge(HashTable<Node> &nodes)
 {
-   MFEM_ASSERT(this, "Node not found.");
-   MFEM_ASSERT(edge, "Cannot unref a nonexistent edge.");
+   MFEM_ASSERT(this, "node not found.");
+   MFEM_ASSERT(edge, "cannot unref a nonexistent edge.");
    if (!edge->Unref()) { edge = NULL; }
    if (!vertex && !edge) { nodes.Delete(this); }
 }
@@ -238,12 +238,12 @@ NCMesh::Node::Node(const Node& other)
 {
    std::memcpy(this, &other, sizeof(*this));
    if (vertex) { vertex = new Vertex(*vertex); }
-   if (edge) { edge= new Edge(*edge); }
+   if (edge) { edge = new Edge(*edge); }
 }
 
 NCMesh::Node::~Node()
 {
-   MFEM_ASSERT(!vertex && !edge, "Node was not unreffed properly.");
+   MFEM_ASSERT(!vertex && !edge, "node was not unreffed properly.");
    if (vertex) { delete vertex; }
    if (edge) { delete edge; }
 }
@@ -351,12 +351,12 @@ NCMesh::Element* NCMesh::Face::GetSingleElement() const
 {
    if (elem[0])
    {
-      MFEM_ASSERT(!elem[1], "Not a single element face.");
+      MFEM_ASSERT(!elem[1], "not a single element face.");
       return elem[0];
    }
    else
    {
-      MFEM_ASSERT(elem[1], "No elements in face.");
+      MFEM_ASSERT(elem[1], "no elements in face.");
       return elem[1];
    }
 }
@@ -583,7 +583,7 @@ void NCMesh::ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4)
    if (!face) { return; }
 
    Element* elem = face->GetSingleElement();
-   MFEM_ASSERT(!elem->ref_type, "Element already refined.");
+   MFEM_ASSERT(!elem->ref_type, "element already refined.");
 
    Node** nodes = elem->node;
 
@@ -605,7 +605,7 @@ void NCMesh::ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4)
    }
    else
    {
-      MFEM_ASSERT(0, "Inconsistent element/face structure.");
+      MFEM_ABORT("Inconsistent element/face structure.");
    }
 }
 
@@ -1349,7 +1349,7 @@ void NCMesh::OnMeshUpdated(Mesh *mesh)
       const int *ev = edge_vertex->GetRow(i);
       Node* node = nodes.Peek(vertex_nodeId[ev[0]], vertex_nodeId[ev[1]]);
 
-      MFEM_ASSERT(node && node->edge, "Edge not found.");
+      MFEM_ASSERT(node && node->edge, "edge not found.");
       node->edge->index = i;
    }
 
@@ -1359,7 +1359,7 @@ void NCMesh::OnMeshUpdated(Mesh *mesh)
       Face* face = faces.Peek(vertex_nodeId[fv[0]], vertex_nodeId[fv[1]],
                               vertex_nodeId[fv[2]], vertex_nodeId[fv[3]]);
 
-      MFEM_ASSERT(face, "Face not found.");
+      MFEM_ASSERT(face, "face not found.");
       face->index = i;
    }
 }
@@ -1385,7 +1385,7 @@ int NCMesh::FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
    if (e2 && e4) { midf2 = nodes.Peek(e2, e4); }
 
    // only one way to access the mid-face node must always exist
-   MFEM_ASSERT(!(midf1 && midf2), "Incorrectly split face!");
+   MFEM_ASSERT(!(midf1 && midf2), "incorrectly split face!");
 
    if (!midf1 && !midf2) { return 0; }  // face not split
 
@@ -1453,7 +1453,7 @@ void NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
             break;
          }
 
-      MFEM_ASSERT(j != 4, "Node not found.");
+      MFEM_ASSERT(j != 4, "node not found.");
    }
 }
 
@@ -1515,7 +1515,7 @@ void NCMesh::BuildFaceList()
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* elem = leaf_elements[i];
-      MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
+      MFEM_ASSERT(!elem->ref_type, "not a leaf element.");
 
       GeomInfo& gi = GI[(int) elem->geom];
       for (int j = 0; j < gi.nf; j++)
@@ -1528,7 +1528,7 @@ void NCMesh::BuildFaceList()
          }
 
          Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
-         MFEM_ASSERT(face, "Face not found!");
+         MFEM_ASSERT(face, "face not found!");
 
          // tell ParNCMesh about the face
          ElementSharesFace(elem, face);
@@ -1619,7 +1619,7 @@ void NCMesh::BuildEdgeList()
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* elem = leaf_elements[i];
-      MFEM_ASSERT(!elem->ref_type, "Not a leaf element.");
+      MFEM_ASSERT(!elem->ref_type, "not a leaf element.");
 
       GeomInfo& gi = GI[(int) elem->geom];
       for (int j = 0; j < gi.ne; j++)
@@ -1629,7 +1629,7 @@ void NCMesh::BuildEdgeList()
          Node* node[2] = { elem->node[ev[0]], elem->node[ev[1]] };
 
          Node* edge = nodes.Peek(node[0], node[1]);
-         MFEM_ASSERT(edge && edge->edge, "Edge not found!");
+         MFEM_ASSERT(edge && edge->edge, "edge not found!");
 
          // tell ParNCMesh about the edge
          ElementSharesEdge(elem, edge->edge);
