@@ -6672,6 +6672,29 @@ void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
    GeneralRefinement(refinements, nonconforming, nc_limit);
 }
 
+void Mesh::RefineAtVertex(int vertex, int levels, int nonconforming)
+{
+   Array<int> v;
+   for (int k = 0; k < levels; k++)
+   {
+      Array<Refinement> refinements;
+      for (int i = 0; i < GetNE(); i++)
+      {
+         GetElementVertices(i, v);
+         bool refine = false;
+         for (int j = 0; j < v.Size(); j++)
+         {
+            if (v[j] == vertex) { refine = true; break; }
+         }
+         if (refine)
+         {
+            refinements.Append(Refinement(i));
+         }
+      }
+      GeneralRefinement(refinements, nonconforming);
+   }
+}
+
 void Mesh::Bisection(int i, const DSTable &v_to_v,
                      int *edge1, int *edge2, int *middle)
 {

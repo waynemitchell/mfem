@@ -341,7 +341,7 @@ protected: // implementation
    /** Apart from the primary data structure, which is the element/node/face
        hierarchy, there is secondary data that is derived from the primary
        data and needs to be updated when the primary data changes. Update()
-       takes cares of that and needs to be called after refinement and
+       takes care of that and needs to be called after refinement and
        derefinement. Secondary data includes: leaf_elements, vertex_nodeId,
        face_list, edge_list, and everything in ParNCMesh. */
    virtual void Update();

@@ -97,12 +97,20 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 5,000
    //    elements.
    {
-      int ref_levels =
-         (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
+      mesh->GeneralRefinement(Array<int>(), 1);
+      //int ref_levels = (int) floor(log(5000. / mesh->GetNE()) / log(2.) / dim);
+      int ref_levels = 1;
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
+   }
+   {
+      int levels = 5;
+      mesh->RefineAtVertex(0, levels);
+      mesh->RefineAtVertex(3, levels);
+      mesh->RefineAtVertex(4, levels);
+      mesh->RefineAtVertex(7, levels);
    }
 
    // 5. Define a finite element space on the mesh. Here we use vector finite
@@ -174,6 +182,7 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func,mu_func));
    cout << "matrix ... " << flush;
    a->Assemble();
+   a->ConformingAssemble(x, *b);
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1;
@@ -194,6 +203,8 @@ int main(int argc, char *argv[])
    umf_solver.SetOperator(A);
    umf_solver.Mult(*b, x);
 #endif
+
+   x.ConformingProlongate();
 
    // 10. For non-NURBS meshes, make the mesh curved based on the finite element
    //     space. This means that we define the mesh elements through a fespace

@@ -698,6 +698,8 @@ public:
    void GeneralRefinement(const Array<int> &el_to_refine,
                           int nonconforming = -1, int nc_limit = 0);
 
+   void RefineAtVertex(int vertex, int levels, int nonconforming = -1);
+
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
    void DegreeElevate(int t);

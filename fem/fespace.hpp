@@ -97,9 +97,6 @@ protected:
    // Conforming restriction matrix such that cR.cP=I.
    SparseMatrix *cR;
 
-   void MarkDependency(const SparseMatrix *D, const Array<int> &row_marker,
-                       Array<int> &col_marker);
-
    void UpdateNURBS();
 
    void Constructor();
@@ -129,6 +126,8 @@ protected:
 
    /** Calculate the cP and cR matrices for a nonconforming mesh. */
    virtual void GetConformingInterpolation(); // FIXME not virtual
+
+   void MakeVDimMatrix(SparseMatrix &mat) const;
 
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
@@ -232,9 +231,9 @@ public:
 
    void DofsToVDofs(Array<int> &dofs) const;
 
-   void DofsToVDofs(int vd, Array<int> &dofs) const;
+   void DofsToVDofs(int vd, Array<int> &dofs, int ndofs = -1) const;
 
-   int DofToVDof(int dof, int vd) const;
+   int DofToVDof(int dof, int vd, int ndofs = -1) const;
 
    int VDofToDof(int vdof) const
    { return (ordering == Ordering::byNODES) ? (vdof%ndofs) : (vdof/vdim); }

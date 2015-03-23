@@ -65,11 +65,15 @@ void FiniteElementSpace::DofsToVDofs (Array<int> &dofs) const
    }
 }
 
-void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs) const
+void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs, int ndofs) const
 {
    if (vdim == 1)
    {
       return;
+   }
+   if (ndofs < 0)
+   {
+      ndofs = this->ndofs;
    }
    if (ordering == Ordering::byNODES)
    {
@@ -103,11 +107,15 @@ void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs) const
    }
 }
 
-int FiniteElementSpace::DofToVDof (int dof, int vd) const
+int FiniteElementSpace::DofToVDof(int dof, int vd, int ndofs) const
 {
    if (vdim == 1)
    {
       return dof;
+   }
+   if (ndofs < 0)
+   {
+      ndofs = this->ndofs;
    }
    if (ordering == Ordering::byNODES)
    {
@@ -816,7 +824,41 @@ void FiniteElementSpace::GetConformingInterpolation()
    }
 
    cP->Finalize();
+
+   if (vdim > 1)
+   {
+      MakeVDimMatrix(*cP);
+      MakeVDimMatrix(*cR);
+   }
 }
+
+void FiniteElementSpace::MakeVDimMatrix(SparseMatrix &mat) const
+{
+   if (vdim == 1) { return; }
+
+   int height = mat.Height();
+   int width = mat.Width();
+
+   SparseMatrix *vmat = new SparseMatrix(vdim*height, vdim*width);
+
+   Array<int> dofs, vdofs;
+   Vector srow;
+   for (int i = 0; i < height; i++)
+   {
+      mat.GetRow(i, dofs, srow);
+      for (int vd = 0; vd < vdim; vd++)
+      {
+         dofs.Copy(vdofs);
+         DofsToVDofs(vd, vdofs, width);
+         vmat->SetRow(DofToVDof(i, vd, height), vdofs, srow);
+      }
+   }
+   vmat->Finalize();
+
+   mat.Swap(*vmat);
+   delete vmat;
+}
+
 
 FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
 {
@@ -987,50 +1029,8 @@ void FiniteElementSpace::Constructor()
 
    if (mesh->ncmesh && ndofs > nbdofs)
    {
-      // TODO: lazy initialization
-
+      // TODO: lazy initialization?
       GetConformingInterpolation();
-
-      if (cP && vdim > 1)
-      {
-         Array<int> cdofs, vcdofs;
-         Vector srow;
-         SparseMatrix *vec_cP =
-            new SparseMatrix(vdim*cP->Height(), vdim*cP->Width());
-         for (int i = 0; i < cP->Height(); i++)
-         {
-            cP->GetRow(i, cdofs, srow);
-            for (int vd = 0; vd < vdim; vd++)
-            {
-               cdofs.Copy(vcdofs);
-               ndofs = cP->Width(); // make DofsToVDofs work on conf. dofs
-               DofsToVDofs(vd, vcdofs);
-               ndofs = cP->Height();
-               vec_cP->SetRow(DofToVDof(i, vd), vcdofs, srow);
-            }
-         }
-         delete cP;
-         vec_cP->Finalize();
-         cP = vec_cP;
-
-         SparseMatrix *vec_cR =
-            new SparseMatrix(vdim*cR->Height(), vdim*cR->Width());
-         for (int i = 0; i < cR->Height(); i++)
-         {
-            cR->GetRow(i, cdofs, srow); // here, cdofs are partially conf. dofs
-            for (int vd = 0; vd < vdim; vd++)
-            {
-               cdofs.Copy(vcdofs); // here, vcdofs are partially conf. dofs
-               DofsToVDofs(vd, vcdofs);
-               ndofs = cR->Height(); // make DofToVDof work on conf. dofs
-               vec_cR->SetRow(DofToVDof(i, vd), vcdofs, srow);
-               ndofs = cR->Width();
-            }
-         }
-         delete cR;
-         vec_cR->Finalize();
-         cR = vec_cR;
-      }
    }
 }
 
