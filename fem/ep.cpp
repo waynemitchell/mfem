@@ -1,4 +1,5 @@
 #include "ep.hpp"
+#include <fstream>
 
 namespace mfem {
 
@@ -192,56 +193,104 @@ ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
   MPI_Comm comm = pfes_->GetComm();
   int numProcs  = pfes_->GetNRanks();
   int nExposed  = this->GetNExposedDofs();
+  int nPrivate  = this->GetNPrivateDofs();
 
   int myRank = -1;
   MPI_Comm_rank(comm,&myRank);
 
-  ExposedPart_  = new int[numProcs+1];
-  TExposedPart_ = new int[numProcs+1];
+  int   nGlbRows = 0;
+  int   nGlbCols = 0;
+  int   nPriPS   = 0;
+  int   nPriTS   = 0;
+  int * nPri     = new int[numProcs];
 
-  ExposedPart_[0]  = 0;
-  TExposedPart_[0] = 0;
+  MPI_Allgather(&nPrivate,1,MPI_INT,nPri,1,MPI_INT,comm);
 
-  MPI_Allgather(&nExposed,1,MPI_INT,&ExposedPart_[1],1,MPI_INT,comm);
+  if ( HYPRE_AssumedPartitionCheck() ) {
+    ExposedPart_  = new int[3];
+    TExposedPart_ = new int[3];
 
-  for (int p=1; p<=numProcs; p++) {
-    ExposedPart_[p] += ExposedPart_[p-1];
+    MPI_Scan(&nPrivate,&nPriPS,1,MPI_INT,MPI_SUM,comm);
+    MPI_Allreduce(&nPrivate,&nPriTS,1,MPI_INT,MPI_SUM,comm);
+
+  } else {
+    ExposedPart_  = new int[numProcs+1];
+    TExposedPart_ = new int[numProcs+1];
+
+    ExposedPart_[0]  = 0;
+    TExposedPart_[0] = 0;
+
+    MPI_Allgather(&nExposed,1,MPI_INT,&ExposedPart_[1],1,MPI_INT,comm);
+
+    for (int p=1; p<numProcs; p++) {
+      ExposedPart_[p+1] += ExposedPart_[p];
+    }
+
+    nGlbRows = ExposedPart_[numProcs];
   }
 
   HypreParMatrix * P = pfes_->Dof_TrueDof_Matrix();
 
   int * DoFPart  = P->RowPart();
   int * TDoFPart = P->ColPart();
-  int * nPri     = new int[numProcs];
+  int * TDoFPartFull = NULL;
 
-  TExposedPart_[0] = 0;
+  if ( HYPRE_AssumedPartitionCheck() ) {
 
-  for (int p=0; p<numProcs; p++) {
-    nPri[p] = (DoFPart[p+1] - DoFPart[p]) - 
-      (ExposedPart_[p+1] - ExposedPart_[p]);
+    ExposedPart_[0]  = DoFPart[0] - (nPriPS-nPrivate);
+    ExposedPart_[1]  = DoFPart[1] - nPriPS;
+    ExposedPart_[2]  = DoFPart[2] - nPriTS;
 
-    TExposedPart_[p+1] = TExposedPart_[p] +
-      (TDoFPart[p+1] - TDoFPart[p]) - nPri[p];
+    TExposedPart_[0] = TDoFPart[0] - (nPriPS-nPrivate);
+    TExposedPart_[1] = TDoFPart[1] - nPriPS;
+    TExposedPart_[2] = TDoFPart[2] - nPriTS;
+
+    nGlbRows = ExposedPart_[2];
+    nGlbCols = TExposedPart_[2];
+
+    TDoFPartFull  = new int[numProcs+1];
+
+    MPI_Allgather(&TDoFPart[0],1,MPI_INT,TDoFPartFull,1,MPI_INT,comm);
+
+    nParExposedDofs_ = TExposedPart_[1]-TExposedPart_[0];
+
+  } else {
+
+    for (int p=0; p<numProcs; p++) {
+      TExposedPart_[p+1] = TExposedPart_[p] +
+	(TDoFPart[p+1] - TDoFPart[p]) - nPri[p];
+    }
+    nParExposedDofs_ = TExposedPart_[myRank+1]-TExposedPart_[myRank];
+
+    nGlbCols = TExposedPart_[numProcs];
   }
-
-  nParExposedDofs_ = TExposedPart_[myRank+1]-TExposedPart_[myRank];
 
   hypre_CSRMatrix * csr_P = hypre_MergeDiagAndOffd((hypre_ParCSRMatrix*)*P);
 
   int csr_P_nnz = hypre_CSRMatrixNumNonzeros(csr_P);
 
-  for (int j=0; j<csr_P_nnz; j++) {
-    int r = 0;
-    while ( hypre_CSRMatrixJ(csr_P)[j] >= TDoFPart[r+1] ) r++;
-
-    for (int p=0; p<r; p++)
-      hypre_CSRMatrixJ(csr_P)[j] -= nPri[p];
+  if ( HYPRE_AssumedPartitionCheck() ) {
+    for (int j=0; j<csr_P_nnz; j++) {
+      int r = 0;
+      while ( hypre_CSRMatrixJ(csr_P)[j] >= TDoFPartFull[r+1] ) r++;
+    
+      for (int p=0; p<r; p++)
+	hypre_CSRMatrixJ(csr_P)[j] -= nPri[p];
+    }
+  } else {
+    for (int j=0; j<csr_P_nnz; j++) {
+      int r = 0;
+      while ( hypre_CSRMatrixJ(csr_P)[j] >= TDoFPart[r+1] ) r++;
+    
+      for (int p=0; p<r; p++)
+	hypre_CSRMatrixJ(csr_P)[j] -= nPri[p];
+    }
   }
 
   Pe_ = new HypreParMatrix(comm,
-			   ExposedPart_[myRank+1]-ExposedPart_[myRank],
-			   ExposedPart_[numProcs],
-			   TExposedPart_[numProcs],
+			   nExposed,
+			   nGlbRows,
+			   nGlbCols,
 			   hypre_CSRMatrixI(csr_P),
 			   hypre_CSRMatrixJ(csr_P),
 			   hypre_CSRMatrixData(csr_P),
@@ -250,7 +299,8 @@ ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
 
   hypre_CSRMatrixDestroy(csr_P);
 
-  delete [] nPri;
+  if ( TDoFPartFull != NULL ) delete [] TDoFPartFull;
+  if ( nPri != NULL ) delete [] nPri;
 }
 
 ParEPDoFs::~ParEPDoFs()
@@ -260,6 +310,26 @@ ParEPDoFs::~ParEPDoFs()
   if ( TExposedPart_ != NULL ) delete [] TExposedPart_;
 }
 
+int
+ParEPDoFs::GlobalNExposedDofs()
+{
+  if ( HYPRE_AssumedPartitionCheck() ) {
+    return ExposedPart_[2];
+  } else {
+    return ExposedPart_[this->GetNRanks()];
+  }
+}
+
+int
+ParEPDoFs::GlobalNTrueExposedDofs()
+{
+  if ( HYPRE_AssumedPartitionCheck() ) {
+    return TExposedPart_[2];
+  } else {
+    return TExposedPart_[this->GetNRanks()];
+  }
+}
+/*
 EPField::EPField(EPDoFs & epdofs)
   : numFields_(0),
     epdofs_(&epdofs),
@@ -593,6 +663,7 @@ ParEPField::ParExposedDoFs(const unsigned int i)
   }
   return(ParExposedDoFs_[i]);
 }
+*/
 /*
 BlockDiagonalMatrix::BlockDiagonalMatrix(const int nBlocks,
 					 const int * blockOffsets)
@@ -1005,9 +1076,12 @@ ParEPBilinearForm::ReducedOperator() const
     std::cout << "Oops!  The Reduced Operator is NULL!" << std::endl;
   return( preducedOp_ );
 }
-
+/*
 const HypreParVector *
 ParEPBilinearForm::ReducedRHS(const ParEPField & b) const
+*/
+const HypreParVector *
+ParEPBilinearForm::ReducedRHS(const Vector & b) const
 {
   /*
   int nElems = pepdofsR_->GetNElements();
@@ -1032,10 +1106,20 @@ ParEPBilinearForm::ReducedRHS(const ParEPField & b) const
   (*preducedRHS_) *= -1.0;
   (*preducedRHS_) += *b.ParExposedDoFs();
   */
+  /*
   pepdofsR_->EDof_TrueEDof_Matrix()->Mult(*b.ParExposedDoFs(),*vec_);
 
   const Vector * reducedRHS = this->EPBilinearForm::ReducedRHS(*vec_,
 							       *b.PrivateDoFs());
+							       */
+  // Create temporary vectors for the exposed and private portions of b
+  const Vector bE(const_cast<double*>(&b[0]),pepdofsL_->GetNParExposedDofs());
+  const Vector bP(const_cast<double*>(&b[pepdofsL_->GetNParExposedDofs()]),
+		  pepdofsL_->GetNPrivateDofs());
+
+  pepdofsR_->EDof_TrueEDof_Matrix()->Mult(bE,*vec_);
+
+  const Vector * reducedRHS = this->EPBilinearForm::ReducedRHS(*vec_,bP);
 
   pepdofsR_->EDof_TrueEDof_Matrix()->MultTranspose(*reducedRHS,
 						   *preducedRHS_);

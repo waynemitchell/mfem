@@ -110,10 +110,12 @@ public:
   inline int      GetNParExposedDofs() { return nParExposedDofs_; }
   inline int *    GetPartitioning()    { return ExposedPart_; }
   inline int *    GetTPartitioning()   { return TExposedPart_; }
+  int GlobalNExposedDofs();
+  int GlobalNTrueExposedDofs();
 };
 
 #endif // MFEM_USE_MPI
-
+/*
 class EPField : protected Vector
 {
 protected:
@@ -184,6 +186,7 @@ public:
 };
 
 #endif // MFEM_USE_MPI
+*/
 /*
 class BlockDiagonalMatrixInverse;
 
@@ -350,13 +353,14 @@ public:
 
   HypreParMatrix * ReducedMat() { return preducedOp_->ReducedMat(); }
 
-  const HypreParVector * ReducedRHS(const ParEPField & x) const;
+  const HypreParVector * ReducedRHS(const Vector & b) const;
+  // const HypreParVector * ReducedRHS(const ParEPField & x) const;
   const HypreParVector * ReducedRHS() const;
 
 };
 
 #endif // MFEM_USE_MPI
-
+/*
 template<class Solver>
 class EPSolver :
 public virtual Solver
@@ -422,7 +426,7 @@ public:
 };
 
 #endif // MFEM_USE_MPI
-
+*/
 }
 
 #endif // MFEM_EP
