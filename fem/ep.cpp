@@ -4,7 +4,7 @@
 namespace mfem {
 
 using namespace std;
-
+/*
 MyHypreParVector::MyHypreParVector(MPI_Comm comm, int glob_size, int *col)
   : HypreParVector(comm,glob_size,col),
     comm_(comm)
@@ -38,7 +38,7 @@ MyHypreParVector::Normlinf()
 
   return( glb_nrm );
 }
-
+*/
 EPDoFs::EPDoFs(FiniteElementSpace & fes)
   : fes_(&fes), nExposedDofs_(0), nPrivateDofs_(0),
     expDoFsByElem_(NULL), priOffset_(NULL)
@@ -251,6 +251,8 @@ ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
     TDoFPartFull  = new int[numProcs+1];
 
     MPI_Allgather(&TDoFPart[0],1,MPI_INT,TDoFPartFull,1,MPI_INT,comm);
+
+    TDoFPartFull[numProcs] = TDoFPart[2];
 
     nParExposedDofs_ = TExposedPart_[1]-TExposedPart_[0];
 
@@ -1050,7 +1052,11 @@ ParEPBilinearForm::Assemble()
     int * part    = pepdofsR_->GetTPartitioning();
     preducedOp_   = new ParReducedOp(pepdofsR_,
 				     this->EPBilinearForm::GetMrr());
-    preducedRHS_  = new HypreParVector(comm,part[numProcs],part);
+    if ( HYPRE_AssumedPartitionCheck() ) {
+      preducedRHS_  = new HypreParVector(comm,part[2],part);
+    } else {
+      preducedRHS_  = new HypreParVector(comm,part[numProcs],part);
+    }
     vec_          = new Vector(pepdofsR_->GetNExposedDofs());
     vecp_         = new Vector(pepdofsR_->GetNPrivateDofs());
   }

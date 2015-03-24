@@ -33,7 +33,7 @@ dsptri_(char *, int *, double *, int *, double *,int *);
 namespace mfem {
 
 #ifdef MFEM_USE_MPI
-
+/*
 class MyHypreParVector : public HypreParVector {
 private:
   MPI_Comm comm_;
@@ -45,7 +45,7 @@ public:
 
   double Normlinf();
 };
-
+*/
 #endif // MFEM_USE_MPI
 
 class EPDoFs
