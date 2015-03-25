@@ -322,6 +322,7 @@ const
    GetBlocks(lblocks);
 
    for (int bi = 0; bi < rdim; bi++)
+   {
       for (int bj = 0; bj < ddim; bj++)
       {
          int *I = lblocks(bi,bj)->GetI();
@@ -353,6 +354,7 @@ const
                                             local.GetI(), local.GetJ(), local.GetData(),
                                             row_starts, col_starts);
       }
+   }
 
    delete [] row_starts;
    delete [] col_starts;

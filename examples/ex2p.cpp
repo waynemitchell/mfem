@@ -117,12 +117,20 @@ int main(int argc, char *argv[])
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
    {
-      int ref_levels =
-         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
+      mesh->GeneralRefinement(Array<int>(), 1);
+
+      //int ref_levels = (int) floor(log(1000. / mesh->GetNE()) / log(2.) / dim);
+      int ref_levels = 1;
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
+
+      int local_levels = 4;
+      mesh->RefineAtVertex(0, local_levels);
+      mesh->RefineAtVertex(3, local_levels);
+      mesh->RefineAtVertex(4, local_levels);
+      mesh->RefineAtVertex(7, local_levels);
    }
 
    // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -131,7 +139,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 1;
+      int par_ref_levels = 0;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -219,7 +227,7 @@ int main(int argc, char *argv[])
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   //a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
    if (myid == 0)
    {
@@ -230,7 +238,9 @@ int main(int argc, char *argv[])
    //     b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelAverage();
+   HypreParVector *X = x.ParallelProject();
+
+   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
    delete a;
    delete b;

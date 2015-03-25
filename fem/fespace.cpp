@@ -656,11 +656,9 @@ static bool DofFinalizable(int dof, const Array<bool>& finalized,
 
    // are all constraining DOFs finalized?
    for (int i = 0; i < ndep; i++)
-      if (!finalized[dep[i]])
-      {
-         return false;
-      }
-
+   {
+      if (!finalized[dep[i]]) { return false; }
+   }
    return true;
 }
 
@@ -672,17 +670,11 @@ void FiniteElementSpace::GetEdgeFaceDofs(int type, int index, Array<int> &dofs)
    dofs.SetSize(0);
    if (type)
    {
-      if (index < mesh->GetNFaces())
-      {
-         GetFaceDofs(index, dofs);
-      }
+      if (index < mesh->GetNFaces()) { GetFaceDofs(index, dofs); }
    }
    else
    {
-      if (index < mesh->GetNEdges())
-      {
-         GetEdgeDofs(index, dofs);
-      }
+      if (index < mesh->GetNEdges()) { GetEdgeDofs(index, dofs); }
    }
 }
 

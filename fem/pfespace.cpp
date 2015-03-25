@@ -49,8 +49,8 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
 }
 
 ParFiniteElementSpace::ParFiniteElementSpace(
-   ParMesh *pm, const FiniteElementCollection *f, int dim, int order)
-   : FiniteElementSpace(pm, f, dim, order)
+   ParMesh *pm, const FiniteElementCollection *f, int dim, int ordering)
+   : FiniteElementSpace(pm, f, dim, ordering)
 {
    mesh = pmesh = pm;
 
@@ -64,7 +64,7 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    if (pmesh->pncmesh)
    {
       gcomm = NULL;
-      ldof_sign.SetSize(GetNDofs());
+      ldof_sign.SetSize(GetVSize());
       ldof_sign = 1; // FIXME
       return;
    }
@@ -145,6 +145,7 @@ void ParFiniteElementSpace::GetGroupComm(
 
       // vertices
       if (nvd > 0)
+      {
          for (j = 0; j < nv; j++)
          {
             k = pmesh->GroupVertex(gr, j);
@@ -166,9 +167,11 @@ void ParFiniteElementSpace::GetGroupComm(
                group_ldof.GetJ()[group_ldof_counter++] = dofs[l];
             }
          }
+      }
 
       // edges
       if (ned > 0)
+      {
          for (j = 0; j < ne; j++)
          {
             pmesh->GroupEdge(gr, j, k, o);
@@ -200,9 +203,11 @@ void ParFiniteElementSpace::GetGroupComm(
                group_ldof.GetJ()[group_ldof_counter++] = dofs[l];
             }
          }
+      }
 
       // faces
       if (nfd > 0)
+      {
          for (j = 0; j < nf; j++)
          {
             pmesh->GroupFace(gr, j, k, o);
@@ -235,6 +240,7 @@ void ParFiniteElementSpace::GetGroupComm(
                group_ldof.GetJ()[group_ldof_counter++] = dofs[l];
             }
          }
+      }
 
       group_ldof.GetI()[gr+1] = group_ldof_counter;
    }
@@ -409,13 +415,15 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       int request_counter = 0;
       // send and receive neighbors' local tdof offsets
       for (i = 1; i <= nsize; i++)
+      {
          MPI_Irecv(&tdof_nb_offsets[i], 1, MPI_INT, gt.GetNeighborRank(i), 5365,
                    MyComm, &requests[request_counter++]);
-
+      }
       for (i = 1; i <= nsize; i++)
+      {
          MPI_Isend(&tdof_nb_offsets[0], 1, MPI_INT, gt.GetNeighborRank(i), 5365,
                    MyComm, &requests[request_counter++]);
-
+      }
       MPI_Waitall(request_counter, requests, statuses);
 
       delete [] statuses;
@@ -434,9 +442,11 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       else
       {
          if (HYPRE_AssumedPartitionCheck())
+         {
             cmap_j_offd[offd_counter].one =
                tdof_nb_offsets[gt.GetGroupMaster(ldof_group[i])] +
                ldof_ltdof[i];
+         }
          else
          {
             cmap_j_offd[offd_counter].one = col_starts[proc] + ldof_ltdof[i];
@@ -549,23 +559,31 @@ int ParFiniteElementSpace::GetGlobalScalarTDofNumber(int sldof)
          Dof_TrueDof_Matrix();
       }
       if (ordering == Ordering::byNODES)
+      {
          return ldof_ltdof[sldof] +
                 tdof_nb_offsets[GetGroupTopo().GetGroupMaster(
                                    ldof_group[sldof])] / vdim;
+      }
       else
+      {
          return (ldof_ltdof[sldof*vdim] +
                  tdof_nb_offsets[GetGroupTopo().GetGroupMaster(
                                     ldof_group[sldof*vdim])]) / vdim;
+      }
    }
 
    if (ordering == Ordering::byNODES)
+   {
       return ldof_ltdof[sldof] +
              tdof_offsets[GetGroupTopo().GetGroupMasterRank(
                              ldof_group[sldof])] / vdim;
+   }
    else
+   {
       return (ldof_ltdof[sldof*vdim] +
               tdof_offsets[GetGroupTopo().GetGroupMasterRank(
                               ldof_group[sldof*vdim])]) / vdim;
+   }
 }
 
 int ParFiniteElementSpace::GetMyDofOffset()
@@ -679,11 +697,13 @@ void ParFiniteElementSpace::ExchangeFaceNbrData()
       {
          GetElementVDofs(my_elems[i], ldofs);
          for (int j = 0; j < ldofs.Size(); j++)
+         {
             if (ldof_marker[ldofs[j]] != fn)
             {
                ldof_marker[ldofs[j]] = fn;
                send_face_nbr_ldof.AddConnection(fn, ldofs[j]);
             }
+         }
          send_nbr_elem_dof.AddConnections(
             send_el_off[fn] + i, ldofs, ldofs.Size());
       }
@@ -798,9 +818,10 @@ const FiniteElement *ParFiniteElementSpace::GetFaceNbrFE(int i) const
          pmesh->face_nbr_elements[i]->GetGeometryType());
 
    if (NURBSext)
+   {
       mfem_error("ParFiniteElementSpace::GetFaceNbrFE"
                  " does not support NURBS!");
-
+   }
    return FE;
 }
 
@@ -841,19 +862,23 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       }
 
       if (!gt.IAmMaster(gr)) // we are not the master
+      {
          for (i = 0; i < nldofs; i++)
          {
             ldof_ltdof[ldofs[i]] = -2;
          }
+      }
    }
 
    // count ltdof_size
    ltdof_size = 0;
    for (i = 0; i < n; i++)
+   {
       if (ldof_ltdof[i] == -1)
       {
          ldof_ltdof[i] = ltdof_size++;
       }
+   }
 
    // have the group masters broadcast their ltdofs to the rest of the group
    gcomm->Bcast(ldof_ltdof);
@@ -905,21 +930,7 @@ void ParFiniteElementSpace::ConstructTrueNURBSDofs()
    gcomm->Bcast(ldof_ltdof);
 }
 
-struct Dependency
-{
-   int rank, dof;
-   double coef;
-   Dependency(int r, int d, double c) : rank(r), dof(d), coef(c) {}
-};
-
-struct DepList
-{
-   Array<Dependency> list;
-   int type; // 0 = independent, 1 = one-to-one (conforming), 2 = slave
-   DepList() : type(0) {}
-};
-
-inline int DecodeDof(int dof, double& sign)
+inline int decode_dof(int dof, double& sign)
 {
    if (dof >= 0) { return (sign = 1.0, dof); }
    else { return (sign = -1.0, -1 - dof); }
@@ -967,64 +978,77 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
    }
 }
 
-static void AddSlaveDependencies(DepList deps[], int master_rank,
-                                 Array<int>& master_dofs, Array<int>& slave_dofs,
-                                 DenseMatrix& I)
+void ParFiniteElementSpace
+   ::AddSlaveDependencies(DepList deps[], int master_rank,
+                          const Array<int> &master_dofs,
+                          const Array<int> &slave_dofs,
+                          DenseMatrix& I)
 {
    // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
    {
       double ss, ms;
-      int sdof = DecodeDof(slave_dofs[i], ss);
+      int sdof = decode_dof(slave_dofs[i], ss);
       if (sdof == INVALID_DOF) { continue; }
 
-      DepList &dl = deps[sdof];
-      if (dl.type < 2) // slave dependencies override 1-to-1 dependencies
+      for (int vd = 0; vd < vdim; vd++)
       {
-         Array<Dependency> tmp_list;
-         for (int j = 0; j < master_dofs.Size(); j++)
+         DepList &dl = deps[DofToVDof(sdof, vd)];
+         if (dl.type < 2) // slave dependencies override 1-to-1 dependencies
          {
-            double coef = I(i, j);
-            if (std::abs(coef) > 1e-12)
+            Array<Dependency> tmp_list; // TODO remove, precalculate list size
+            for (int j = 0; j < master_dofs.Size(); j++)
             {
-               int mdof = DecodeDof(master_dofs[j], ms);
-               tmp_list.Append(Dependency(master_rank, mdof, coef * ms*ss));
+               double coef = I(i, j);
+               if (std::abs(coef) > 1e-12)
+               {
+                  int mvdof = DofToVDof(decode_dof(master_dofs[j], ms), vd);
+                  tmp_list.Append(Dependency(master_rank, mvdof, coef*ms*ss));
+               }
             }
+            dl.type = 2;
+            tmp_list.Copy(dl.list);
          }
-         dl.type = 2;
-         tmp_list.Copy(dl.list);
       }
    }
 }
 
-static void Add1To1Dependencies(DepList deps[], int owner_rank,
-                                Array<int>& owner_dofs,
-                                Array<int>& dependent_dofs)
+void ParFiniteElementSpace
+   ::Add1To1Dependencies(DepList deps[], int owner_rank,
+                         const Array<int> &owner_dofs,
+                         const Array<int> &dependent_dofs)
 {
    MFEM_ASSERT(owner_dofs.Size() == dependent_dofs.Size(), "");
-   for (int i = 0; i < owner_dofs.Size(); i++)
-   {
-      double osign, dsign;
-      int odof = DecodeDof(owner_dofs[i], osign);
-      int ddof = DecodeDof(dependent_dofs[i], dsign);
-      if (odof == INVALID_DOF || ddof == INVALID_DOF) { continue; }
 
-      DepList &dl = deps[ddof];
-      if (dl.type == 0)
+   for (int vd = 0; vd < vdim; vd++)
+   {
+      for (int i = 0; i < owner_dofs.Size(); i++)
       {
-         dl.type = 1;
-         dl.list.Append(Dependency(owner_rank, odof, osign*dsign));
-      }
-      else if (dl.type == 1 && dl.list[0].rank > owner_rank)
-      {
-         // 1-to-1 dependency already exists but lower rank takes precedence
-         dl.list[0] = Dependency(owner_rank, odof, osign*dsign);
+         double osign, dsign;
+         int odof = decode_dof(owner_dofs[i], osign);
+         int ddof = decode_dof(dependent_dofs[i], dsign);
+         if (odof == INVALID_DOF || ddof == INVALID_DOF) { continue; }
+
+         int ovdof = DofToVDof(odof, vd);
+         int dvdof = DofToVDof(ddof, vd);
+
+         DepList &dl = deps[dvdof];
+         if (dl.type == 0)
+         {
+            dl.type = 1;
+            dl.list.Append(Dependency(owner_rank, ovdof, osign*dsign));
+         }
+         else if (dl.type == 1 && dl.list[0].rank > owner_rank)
+         {
+            // 1-to-1 dependency already exists but lower rank takes precedence
+            dl.list[0] = Dependency(owner_rank, ovdof, osign*dsign);
+         }
       }
    }
 }
 
-void ParFiniteElementSpace::ReorderFaceDofs(Array<int> &dofs, int type,
-                                            int orient)
+void ParFiniteElementSpace
+   ::ReorderFaceDofs(Array<int> &dofs, int type, int orient)
 {
    Array<int> tmp;
    dofs.Copy(tmp);
@@ -1057,16 +1081,11 @@ void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
    }
 }
 
-static bool IsTrueDof(const DepList& dl, int my_rank)
-{
-   return dl.type == 0 || (dl.type == 1 && dl.list[0].rank == my_rank);
-}
-
 void ParFiniteElementSpace::GetConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
-   ldof_sign.SetSize(GetNDofs());  // FIXME
+   ldof_sign.SetSize(GetVSize());  // FIXME
    ldof_sign = 1;
 
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
@@ -1094,10 +1113,12 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             GetDofs(type, id.index, dofs);
             const int *group = pncmesh->GetGroup(type, id.index, gsize);
             for (int j = 0; j < gsize; j++)
+            {
                if (group[j] != MyRank)
                {
                   send_dofs[group[j]].AddDofs(type, id, dofs, pncmesh);
                }
+            }
          }
          else
          {
@@ -1113,8 +1134,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    // *** STEP 2: build dependency lists ***
 
-   int num_cdofs = ndofs;//GetNConformingDofs();
-   DepList* deps = new DepList[num_cdofs];
+   int num_cdofs = ndofs * vdim;//GetNConformingDofs();
+   DepList* deps = new DepList[num_cdofs]; // NOTE: 'deps' is over vdofs
 
    Array<int> master_dofs, slave_dofs;
    Array<int> owner_dofs, my_dofs;
@@ -1246,25 +1267,21 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    // DOFs that stayed independent or are ours are true DOFs
    ltdof_size = 0;
    for (int i = 0; i < num_cdofs; i++)
-      if (IsTrueDof(deps[i], MyRank))
-      {
-         ltdof_size++;
-      }
-
-   std::cout << MyRank << ": true dofs = " << ltdof_size << std::endl;
-
-   if (HYPRE_AssumedPartitionCheck())
    {
-      MFEM_ABORT("hypre assumed partition not implemented yet.");
+      if (deps[i].IsTrueDof(MyRank)) { ltdof_size++; }
    }
 
-   // FIXME: vdim
    GenerateGlobalOffsets();
-   int glob_true_dofs = tdof_offsets[NRanks];
-   int glob_cdofs = dof_offsets[NRanks];
+
+   HYPRE_Int glob_true_dofs = tdof_offsets.Last();
+   HYPRE_Int glob_cdofs = dof_offsets.Last();
+
+   bool ap = HYPRE_AssumedPartitionCheck();
+   HYPRE_Int my_tdof_offset = tdof_offsets[ap ? 0 : MyRank];
 
    // create the local part (local rows) of the P matrix
-   SparseMatrix localP(num_cdofs, glob_true_dofs);
+   MFEM_VERIFY(glob_true_dofs < (1ll << 31), "overflow of P matrix columns.")
+   SparseMatrix localP(num_cdofs, glob_true_dofs); // FIXME bigint
 
    // initialize the R matrix (also parallel but block-diagonal)
    R = new SparseMatrix(ltdof_size, num_cdofs);
@@ -1272,15 +1289,17 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    Array<bool> finalized(num_cdofs);
    finalized = false;
 
-   // put identity in P for true DOFs
+   // put identity in P and R for true DOFs
    for (int i = 0, true_dof = 0; i < num_cdofs; i++)
-      if (IsTrueDof(deps[i], MyRank))
+   {
+      if (deps[i].IsTrueDof(MyRank))
       {
-         localP.Add(i, tdof_offsets[MyRank] + true_dof, 1.0);
+         localP.Add(i, my_tdof_offset + true_dof, 1.0);
          R->Add(true_dof, i, 1.0);
          finalized[i] = true;
          true_dof++;
       }
+   }
 
    Array<int> cols;
    Vector srow;
@@ -1348,6 +1367,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          NeighborRowRequest &req = it->second;
          std::set<int>::iterator row;
          for (row = req.rows.begin(); row != req.rows.end(); )
+         {
             if (finalized[*row])
             {
                localP.GetRow(*row, cols, srow);
@@ -1355,6 +1375,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
                req.rows.erase(row++);
             }
             else { ++row; }
+         }
       }
       NeighborRowReply::IsendAll(send_replies.back(), MyComm);
 
@@ -1375,7 +1396,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    delete [] deps;
    localP.Finalize();
-   //localP.SortColumnIndices();
 
    // create the parallel matrix P
    P = new HypreParMatrix(MyComm, num_cdofs, glob_cdofs, glob_true_dofs,
@@ -1420,7 +1440,7 @@ void ParFiniteElementSpace::Update()
    }
    else
    {
-      ldof_sign.SetSize(GetNDofs());
+      ldof_sign.SetSize(GetVSize());
       ldof_sign = 1; // FIXME
    }
 }

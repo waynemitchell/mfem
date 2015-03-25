@@ -121,7 +121,7 @@ public:
       }
    }
 
-   /** Extension of NCMesh::GetBoundaryClosure, filters out ghost vertices and
+   /** Extension of NCMesh::GetBoundaryClosure. Filters out ghost vertices and
        ghost edges from 'bdr_vertices' and 'bdr_edges'. */
    virtual void GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
                                    Array<int> &bdr_vertices,
@@ -146,7 +146,7 @@ protected:
    NCList shared_edges;
    NCList shared_faces;
 
-   // owner processor for each vertex/edge/face TODO: maybe not needed
+   // owner processor for each vertex/edge/face
    Array<int> vertex_owner;
    Array<int> edge_owner;
    Array<int> face_owner;
@@ -276,6 +276,8 @@ TODO
 - conforming case R matrix
 - assumed partition
 - cP + P
+- big-int merge
+- big-int P matrix
 - ProjectBdrCoefficient
 - curved/two-level parmesh
 - hcurl/hdiv

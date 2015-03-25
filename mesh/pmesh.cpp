@@ -92,7 +92,6 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    if (mesh.ncmesh)
    {
       pncmesh = new ParNCMesh(comm, *mesh.ncmesh);
-      ncmesh = pncmesh;
 
       Mesh::Init();
       Mesh::InitTables();
@@ -101,6 +100,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       //pncmesh->Prune();
 
       meshgen = mesh.MeshGenerator();
+      ncmesh = pncmesh;
 
       mesh.attributes.Copy(attributes);
       mesh.bdr_attributes.Copy(bdr_attributes);

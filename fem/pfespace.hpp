@@ -88,8 +88,38 @@ private:
 
    void ApplyLDofSigns(Array<int> &dofs) const;
 
+   /// Helper struct to store DOF dependencies in a paralell NC mesh.
+   struct Dependency
+   {
+      int rank, dof; ///< master DOF, may be on another processor
+      double coef;
+      Dependency(int r, int d, double c) : rank(r), dof(d), coef(c) {}
+   };
+
+   /// Dependency list for a local vdof.
+   struct DepList
+   {
+      Array<Dependency> list;
+      int type; ///< 0 = independent, 1 = one-to-one (conforming), 2 = slave
+
+      DepList() : type(0) {}
+
+      bool IsTrueDof(int my_rank) const
+      { return type == 0 || (type == 1 && list[0].rank == my_rank); }
+   };
+
+   void AddSlaveDependencies(DepList deps[], int master_rank,
+                             const Array<int> &master_dofs,
+                             const Array<int> &slave_dofs,
+                             DenseMatrix& I);
+
+   void Add1To1Dependencies(DepList deps[], int owner_rank,
+                            const Array<int> &owner_dofs,
+                            const Array<int> &dependent_dofs);
+
    void GetDofs(int type, int index, Array<int>& dofs);
    void ReorderFaceDofs(Array<int> &dofs, int type, int orient);
+
    virtual void GetConformingInterpolation(); // FIXME
 
 public:
@@ -101,7 +131,7 @@ public:
    Table send_face_nbr_ldof;
 
    ParFiniteElementSpace(ParMesh *pm, const FiniteElementCollection *f,
-                         int dim = 1, int order = Ordering::byNODES);
+                         int dim = 1, int ordering = Ordering::byNODES);
 
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }

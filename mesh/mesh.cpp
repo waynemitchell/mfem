@@ -6517,8 +6517,6 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
    el_to_edge = new Table;
    NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
    c_el_to_edge = NULL;
-
-   SetAttributes();
 }
 
 Mesh::Mesh(const NCMesh &ncmesh)
@@ -6526,6 +6524,7 @@ Mesh::Mesh(const NCMesh &ncmesh)
    Init();
    InitTables();
    InitFromNCMesh(ncmesh);
+   SetAttributes();
 }
 
 void Mesh::Swap(Mesh& other, bool non_geometry)

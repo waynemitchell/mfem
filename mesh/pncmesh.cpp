@@ -570,6 +570,7 @@ void ParNCMesh::GetNeighbors(Array<int> &neighbors)
 {
    GetSharedVertices();
    GetSharedEdges();
+   GetSharedFaces();
 
    std::set<int> ranks;
    collect_shared_ranks(ranks, vertex_group, shared_vertices, MyRank);
@@ -1216,6 +1217,7 @@ void ParNCMesh::GetDebugMesh(Mesh &debug_mesh) const
    }
 
    debug_mesh.InitFromNCMesh(copy);
+   debug_mesh.SetAttributes();
 }
 
 
