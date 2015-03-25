@@ -52,8 +52,8 @@ class EPDoFs
 {
 private:
   FiniteElementSpace * fes_;
-  int nExposedDofs_;
-  int nPrivateDofs_;
+  // int nExposedDofs_;
+  // int nPrivateDofs_;
 
   Table * expDoFsByElem_;
   int   * priOffset_;
@@ -68,9 +68,12 @@ public:
 
   inline int GetNDofs()        { return fes_->GetNDofs(); }
   inline int GetNElements()    { return fes_->GetNE(); }
-  inline int GetNExposedDofs() { return nExposedDofs_; }
-  inline int GetNPrivateDofs() { return nPrivateDofs_; }
+  inline int GetNExposedDofs() { return fes_->GetNExDofs(); }
+  inline int GetNPrivateDofs() { return fes_->GetNPrDofs(); }
+  // inline int GetNExposedDofs() { return nExposedDofs_; }
+  // inline int GetNPrivateDofs() { return nPrivateDofs_; }
 
+  /*
   void BuildElementToDofTable();
 
   void GetElementDofs(const int elem,
@@ -81,11 +84,28 @@ public:
 		      int & PriOffset, int & numPri);
 
   inline const int * GetPrivateOffsets() const { return priOffset_; }
+  */
+  void GetElementDofs(const int elem,
+		      Array<int> & ExpDoFs)
+  {
+    fes_->GetElementDofs(elem,ExpDoFs);
+  }
+
+  void GetElementDofs(const int elem,
+		      Array<int> & ExpDoFs,
+		      int & PriOffset, int & numPri)
+  {
+    fes_->GetElementDofs(elem,ExpDoFs,PriOffset,numPri);
+  }
+
+  inline const int * GetPrivateOffsets() const
+  { return fes_->GetPrivateOffsets(); }
+
 };
 
 #ifdef MFEM_USE_MPI
 
-class ParEPDoFs : public EPDoFs
+class ParEPDoFs /*: public EPDoFs*/
 {
 private:
   ParFiniteElementSpace * pfes_;
@@ -108,6 +128,8 @@ public:
   inline MPI_Comm GetComm()            { return pfes_->GetComm(); }
   inline int      GetNRanks()          { return pfes_->GetNRanks(); }
   inline int      GetNParExposedDofs() { return nParExposedDofs_; }
+  inline int      GetNExDofs()         { return pfes_->GetNExDofs(); }
+  inline int      GetNPrDofs()         { return pfes_->GetNPrDofs(); }
   inline int *    GetPartitioning()    { return ExposedPart_; }
   inline int *    GetTPartitioning()   { return TExposedPart_; }
   int GlobalNExposedDofs();
@@ -211,8 +233,10 @@ public:
 class EPBilinearForm : public Operator
 {
 private:
-  EPDoFs * epdofsL_;
-  EPDoFs * epdofsR_;
+  // EPDoFs * epdofsL_;
+  // EPDoFs * epdofsR_;
+  FiniteElementSpace * epdofsL_;
+  FiniteElementSpace * epdofsR_;
 
   BilinearFormIntegrator * bfi_;
 
@@ -231,7 +255,8 @@ protected:
   void buildReducedRHS(const Vector & bExp, const Vector & bPri) const;
 
 public:
-  EPBilinearForm(EPDoFs & epdofsL, EPDoFs & epdofsR,
+  EPBilinearForm(/*EPDoFs & epdofsL, EPDoFs & epdofsR,*/
+		 FiniteElementSpace & epdofsL, FiniteElementSpace & epdofsR,
 		 BilinearFormIntegrator & bfi);
 
   ~EPBilinearForm();

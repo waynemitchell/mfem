@@ -71,6 +71,17 @@ protected:
    /// Number of degrees of freedom. Number of unknowns are ndofs*vdim.
    int ndofs;
 
+   /** Numbers of exposed and private degrees of freedom.
+
+       Private degrees of freedom are interior to an element and
+       cannot interact directly with other elements.
+
+       Exposed degrees of freedom are those on the surface of an
+       element which can be shared with other elements.
+   */
+   int nexdofs;
+   int nprdofs;  // Also used as a flag to activate static condensation
+
    /** Type of ordering of dofs.
        Ordering::byNODES - first nodes, then vector dimension,
        Ordering::byVDIM  - first vector dimension, then nodes  */
@@ -86,6 +97,15 @@ protected:
    Table *elem_dof;
    Table *bdrElem_dof;
    Array<int> dof_elem_array, dof_ldof_array;
+
+   /// Private degree of freedom offset array.
+   /** This array is of length number of elements plus one.  Its entries are
+       the indices of the first private (interior) degree of freedom
+       for each element.  The remaining private degrees of freedom are
+       assumed to be stored immediately following this first dof.
+    */
+   // This information is already stored in bdofs
+   // Array<int> pr_dof_offset;
 
    NURBSExtension *NURBSext;
    int own_ext;
@@ -126,8 +146,26 @@ protected:
                                             NCMesh* ncmesh);
 
 public:
+   /** Construct a finite element space to determine degrees of freedom
+
+       m - Mesh object to provide topology information
+
+       f - FiniteElementCollection to define degrees of freedom on
+           each topological entity
+
+       dim - Number of field values per degree of freedom (not the
+             spatial dimension)
+
+       order - Sort order for vdofs
+               Ordering::byNODES indicates dof index varies most rapidly
+               Ordering::byVDIM  indicates vector index varies most rapidly
+
+       pr_dofs - If true private dofs will be handled separately
+                 from exposed dofs
+    */
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
-                      int dim = 1, int order = Ordering::byNODES);
+                      int dim = 1, int order = Ordering::byNODES,
+		      bool pr_dofs = false);
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }
@@ -160,11 +198,18 @@ public:
    /// Return the ordering method.
    inline int GetOrdering() const { return ordering; }
 
+   /// Return true is private and exterior dofs are being handled separately
+   inline bool GetPrDofs() const { return(nprdofs != 0); }
+   inline int * GetPrivateOffsets() const { return bdofs; }
+
    const FiniteElementCollection *FEColl() const { return fec; }
 
    int GetNVDofs() const { return nvdofs; }
    int GetNEDofs() const { return nedofs; }
    int GetNFDofs() const { return nfdofs; }
+
+   int GetNExDofs() const { return nexdofs; } // Number of Exposed DoFs
+   int GetNPrDofs() const { return nprdofs; } // Number of Private DoFs
 
    /// Returns number of elements in the mesh.
    inline int GetNE() const { return mesh->GetNE(); }
@@ -206,6 +251,10 @@ public:
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
+   virtual void GetElementDofs(int i, Array<int> &dofs,
+	  		       int & pr_offset, int & npr) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
    virtual void GetBdrElementDofs(int i, Array<int> &dofs) const;

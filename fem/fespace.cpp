@@ -205,6 +205,21 @@ void FiniteElementSpace::BuildElementToDofTable()
    }
    el_dof -> ShiftUpI();
    elem_dof = el_dof;
+   /*
+   // The following information is already stored in bdofs
+   if ( nprdofs != 0 )
+   {
+      pr_dof_offset.SetSize(mesh -> GetNE() + 1);
+
+      pr_dof_offset[0] = 0;
+
+      for (int i = 0; i < mesh -> GetNE(); i++)
+      {
+ 	 int npr = fec->DofForGeometry(mesh->GetElementBaseGeometry(i));
+	 pr_dof_offset[i+1] = pr_dof_offset[i] + npr;
+      }
+   }
+   */
 }
 
 void FiniteElementSpace::BuildDofToArrays()
@@ -228,6 +243,21 @@ void FiniteElementSpace::BuildDofToArrays()
             dof_elem_array[dofs[j]] = i;
             dof_ldof_array[dofs[j]] = j;
          }
+      if ( nprdofs != 0 )
+      {
+	for (int j = bdofs[i]; j < bdofs[i+1]; j++)
+	{
+	   dof_elem_array[nexdofs+j] = i;
+	   dof_ldof_array[nexdofs+j] = j + n - bdofs[i];
+	}
+	/*
+	for (int j = pr_dof_offset[i]; j < pr_dof_offset[i+1]; j++)
+	{
+	   dof_elem_array[nexdofs+j] = i;
+	   dof_ldof_array[nexdofs+j] = j + n - pr_dof_offset[i];
+	}
+	*/
+      }
    }
 }
 
@@ -601,6 +631,8 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
    mesh = fes.mesh;
    vdim = fes.vdim;
    ndofs = fes.ndofs;
+   nexdofs = fes.nexdofs;
+   nprdofs = fes.nprdofs;
    ordering = fes.ordering;
    fec = fes.fec;
    nvdofs = fes.nvdofs;
@@ -614,6 +646,7 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
    bdrElem_dof = fes.bdrElem_dof;
    Swap(dof_elem_array, fes.dof_elem_array);
    Swap(dof_ldof_array, fes.dof_ldof_array);
+   // Swap(pr_dof_offset, fes.pr_dof_offset);
 
    NURBSext = fes.NURBSext;
    own_ext = 0;
@@ -631,12 +664,15 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
 
 FiniteElementSpace::FiniteElementSpace(Mesh *m,
                                        const FiniteElementCollection *f,
-                                       int dim, int order)
+                                       int dim, int order, bool pr_dofs)
 {
    mesh = m;
    fec = f;
    vdim = dim;
    ordering = order;
+
+   nexdofs = 0;
+   nprdofs = pr_dofs?-1:0;
 
    const NURBSFECollection *nurbs_fec =
       dynamic_cast<const NURBSFECollection *>(fec);
@@ -763,6 +799,11 @@ void FiniteElementSpace::Constructor()
 
    ndofs = nvdofs + nedofs + nfdofs + nbdofs;
 
+   if ( nprdofs != 0 ) {
+     nprdofs = nbdofs;
+   }
+   nexdofs = ndofs - nprdofs;
+
    if (mesh->ncmesh && ndofs > nbdofs)
    {
       cP = mesh->ncmesh->GetInterpolation(this, &cR);
@@ -843,7 +884,13 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
                nfd += fec->DofForGeometry(mesh->GetFaceBaseGeometry(F[k]));
             }
          }
-      nd = V.Size() * nv + E.Size() * ne + nfd + nb;
+      if ( nprdofs == 0 )
+	{
+	  nd = V.Size() * nv + E.Size() * ne + nfd + nb;
+	} else
+	{
+	  nd = V.Size() * nv + E.Size() * ne + nfd;
+	}
       dofs.SetSize(nd);
       if (nv > 0)
       {
@@ -892,12 +939,31 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
             ne += nf;
          }
       }
-      k = nvdofs + nedofs + nfdofs + bdofs[i];
-      for (j = 0; j < nb; j++)
-      {
-         dofs[ne+j] = k + j;
-      }
+      if ( nprdofs == 0 )
+	{
+	  k = nvdofs + nedofs + nfdofs + bdofs[i];
+	  for (j = 0; j < nb; j++)
+	    {
+	      dofs[ne+j] = k + j;
+	    }
+	}
    }
+}
+
+void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs,
+					 int & pr_offset, int & npr) const
+{
+  this->GetElementDofs(i,dofs);
+  if ( nprdofs == 0 )
+  {
+     pr_offset = 0;
+     npr = 0;
+  }
+  else 
+  {
+     pr_offset = bdofs[i];
+     npr = bdofs[i+1] - bdofs[i];
+  }
 }
 
 const FiniteElement *FiniteElementSpace::GetFE(int i) const
@@ -1173,6 +1239,7 @@ void FiniteElementSpace::Destructor()
 
    dof_elem_array.DeleteAll();
    dof_ldof_array.DeleteAll();
+   // pr_dof_offset.DeleteAll();
 
    if (NURBSext)
    {
