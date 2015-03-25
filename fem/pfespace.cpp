@@ -45,9 +45,10 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
    Swap<Table>(send_face_nbr_ldof, pf.send_face_nbr_ldof);
 }
 
-ParFiniteElementSpace::ParFiniteElementSpace(
-   ParMesh *pm, const FiniteElementCollection *f, int dim, int order)
-   : FiniteElementSpace(pm, f, dim, order)
+ParFiniteElementSpace::ParFiniteElementSpace(ParMesh *pm,
+					     const FiniteElementCollection *f,
+					     int dim, int order, bool pr_dofs)
+  : FiniteElementSpace(pm, f, dim, order, pr_dofs)
 {
    mesh = pmesh = pm;
 

@@ -1927,7 +1927,7 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
          FiniteElementCollection::New(fec->Name());
       FiniteElementSpace *fes_copy =
          new FiniteElementSpace(this, fec_copy, fes->GetVDim(),
-                                fes->GetOrdering());
+                                fes->GetOrdering(),fes->GetPrDofs());
       Nodes = new GridFunction(fes_copy);
       Nodes->MakeOwner(fec_copy);
       *Nodes = *mesh.Nodes;

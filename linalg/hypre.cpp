@@ -2077,10 +2077,12 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
       ParFiniteElementSpace *vert_fespace_d;
       if (cycle_type < 10)
          vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, dim,
-                                                    Ordering::byVDIM);
+                                                    Ordering::byVDIM,
+						    edge_fespace->GetPrDofs());
       else
          vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, dim,
-                                                    Ordering::byNODES);
+                                                    Ordering::byNODES,
+						    edge_fespace->GetPrDofs());
 
       ParDiscreteLinearOperator *id_ND;
       id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
