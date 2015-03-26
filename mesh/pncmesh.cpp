@@ -854,7 +854,8 @@ void ParNCMesh::ElementSet::Load(std::istream &is)
 
 //// EncodeMeshIds/DecodeMeshIds ///////////////////////////////////////////////
 
-void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[], int dim) const
+void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[],
+                              int dim) const
 {
    std::map<Element*, int> element_id;
 

@@ -219,9 +219,10 @@ void ParBilinearForm::Assemble(int skip_zeros)
    }
 }
 
-void ParBilinearForm::ParallelEliminateEssentialBC(
-      const Array<int> &bdr_attr_is_ess, HypreParMatrix &A,
-      const HypreParVector &X, HypreParVector &B) const
+void ParBilinearForm
+::ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
+                               HypreParMatrix &A, const HypreParVector &X,
+                               HypreParVector &B) const
 {
    Array<int> ess_dofs, true_ess_dofs, dof_list;
 

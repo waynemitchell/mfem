@@ -73,9 +73,13 @@ void hypre_CSRMatrixEliminateBC(hypre_CSRMatrix *A,
       for (j = ibeg; j < iend; j++)
       {
          if (Aj[j] == irow)
+         {
             Adata[j] = 1.0;
+         }
          else
+         {
             Adata[j] = 0.0;
+         }
       }
    }
 }
@@ -283,7 +287,7 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
 
    /* eliminate the off-diagonal part */
    hypre_CSRMatrixEliminateOffdCols(offd, ncols_to_eliminate, cols_to_eliminate,
-                                eliminate_coefs, Blocal);
+                                    eliminate_coefs, Blocal);
 
    hypre_CSRMatrixEliminateOffdRows(offd, nrows_to_eliminate, rows_to_eliminate);
 
@@ -298,7 +302,8 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
    hypre_TFree(eliminate_coefs);
 }
 
-} } // namespace mfem::internal
+}
+} // namespace mfem::internal
 
 
 #endif // MFEM_USE_MPI

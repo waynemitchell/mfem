@@ -2134,7 +2134,7 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
                  "supported. Project the NURBS to Nodes first.");
    }
 
-/*   int wtls = WantTwoLevelState;
+   /*int wtls = WantTwoLevelState;
 
    if (Nodes) // curved mesh
    {
@@ -2166,7 +2166,7 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
    Mesh::InitFromNCMesh(*pncmesh);        // TODO: curved/two-level stuff
    pncmesh->OnMeshUpdated(this);
 
-/*   // create a second mesh containing the finest elements from 'ncmesh'
+   /*// create a second mesh containing the finest elements from 'ncmesh'
    Mesh* mesh2 = new Mesh(*ncmesh);
 
    ncmesh->OnMeshUpdated(mesh2);

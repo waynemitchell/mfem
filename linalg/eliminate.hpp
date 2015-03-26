@@ -28,6 +28,7 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
                                    hypre_ParVector *X,
                                    hypre_ParVector *B);
 
-} } // namespace mfem::internal
+}
+} // namespace mfem::internal
 
 #endif // MFEM_USE_MPI

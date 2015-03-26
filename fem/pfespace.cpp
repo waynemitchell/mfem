@@ -490,6 +490,10 @@ GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
    {
       gc->Create(pNURBSext()->ldof_group);
    }
+   else if (pmesh->pncmesh)
+   {
+      return NULL;
+   }
    else
    {
       GetGroupComm(*gc, 0);
@@ -979,10 +983,10 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
 }
 
 void ParFiniteElementSpace
-   ::AddSlaveDependencies(DepList deps[], int master_rank,
-                          const Array<int> &master_dofs,
-                          const Array<int> &slave_dofs,
-                          DenseMatrix& I)
+::AddSlaveDependencies(DepList deps[], int master_rank,
+                       const Array<int> &master_dofs,
+                       const Array<int> &slave_dofs,
+                       DenseMatrix& I)
 {
    // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
@@ -1014,9 +1018,9 @@ void ParFiniteElementSpace
 }
 
 void ParFiniteElementSpace
-   ::Add1To1Dependencies(DepList deps[], int owner_rank,
-                         const Array<int> &owner_dofs,
-                         const Array<int> &dependent_dofs)
+::Add1To1Dependencies(DepList deps[], int owner_rank,
+                      const Array<int> &owner_dofs,
+                      const Array<int> &dependent_dofs)
 {
    MFEM_ASSERT(owner_dofs.Size() == dependent_dofs.Size(), "");
 
@@ -1048,7 +1052,7 @@ void ParFiniteElementSpace
 }
 
 void ParFiniteElementSpace
-   ::ReorderFaceDofs(Array<int> &dofs, int type, int orient)
+::ReorderFaceDofs(Array<int> &dofs, int type, int orient)
 {
    Array<int> tmp;
    dofs.Copy(tmp);
@@ -1151,8 +1155,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
       if (type > 1) { T.SetFE(&QuadrilateralFE); }
       else { T.SetFE(&SegmentFE); }
 
-      const FiniteElement* fe = fec->FiniteElementForGeometry(
-            ((type > 1) ? Geometry::SQUARE : Geometry::SEGMENT));
+      int geom = (type > 1) ? Geometry::SQUARE : Geometry::SEGMENT;
+      const FiniteElement* fe = fec->FiniteElementForGeometry(geom);
 
       DenseMatrix I(fe->GetDof());
 

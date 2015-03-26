@@ -272,9 +272,9 @@ protected:
 TODO
 + R matrix
 + nonzero essential BC
-- vdim, vdofs
++ vdim, vdofs
 - conforming case R matrix
-- assumed partition
++ assumed partition
 - cP + P
 - big-int merge
 - big-int P matrix

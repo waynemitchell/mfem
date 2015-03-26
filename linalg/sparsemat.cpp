@@ -562,7 +562,8 @@ void SparseMatrix::BooleanMult(const Array<int> &x, Array<int> &y) const
    }
 }
 
-void SparseMatrix::BooleanMultTranspose(const Array<int> &x, Array<int> &y) const
+void SparseMatrix::BooleanMultTranspose(const Array<int> &x,
+                                        Array<int> &y) const
 {
    MFEM_ASSERT(Finalized(), "Matrix must be finalized.");
    MFEM_ASSERT(x.Size() == Height(), "Input vector size (" << x.Size()
