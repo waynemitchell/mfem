@@ -111,9 +111,9 @@ private:
   ParFiniteElementSpace * pfes_;
   HypreParMatrix        * Pe_;
 
-  int   nParExposedDofs_;
-  int * ExposedPart_;
-  int * TExposedPart_;
+  // int   nParExposedDofs_;
+  // int * ExposedPart_;
+  // int * TExposedPart_;
 
 protected:
 public:
@@ -124,16 +124,18 @@ public:
   inline ParFiniteElementSpace * PFESpace() const { return pfes_; }
 
   inline HypreParMatrix * EDof_TrueEDof_Matrix() { return Pe_; }
+  inline HypreParMatrix * ExDof_TrueExDof_Matrix() { return pfes_->ExDof_TrueExDof_Matrix(); }
 
   inline MPI_Comm GetComm()            { return pfes_->GetComm(); }
   inline int      GetNRanks()          { return pfes_->GetNRanks(); }
-  inline int      GetNParExposedDofs() { return nParExposedDofs_; }
+  // inline int      GetNParExposedDofs() { return nParExposedDofs_; }
+  inline int      TrueExVSize()        { return pfes_->TrueExVSize(); }
   inline int      GetNExDofs()         { return pfes_->GetNExDofs(); }
   inline int      GetNPrDofs()         { return pfes_->GetNPrDofs(); }
-  inline int *    GetPartitioning()    { return ExposedPart_; }
-  inline int *    GetTPartitioning()   { return TExposedPart_; }
-  int GlobalNExposedDofs();
-  int GlobalNTrueExposedDofs();
+  // inline int *    GetPartitioning()    { return ExposedPart_; }
+  // inline int *    GetTPartitioning()   { return TExposedPart_; }
+  // int GlobalNExposedDofs();
+  // int GlobalNTrueExposedDofs();
 };
 
 #endif // MFEM_USE_MPI
@@ -309,20 +311,21 @@ protected:
 
   class ParReducedOp : public Operator {
   private:
-    ParEPDoFs      * pepdofs_;
+    // ParEPDoFs      * pepdofs_;
+    ParFiniteElementSpace * pepdofs_;
     HypreParMatrix * HypreMrr_;
     HypreParMatrix * ParMrr_;
     HypreParMatrix * Pe_;
 
   public:
-    ParReducedOp(ParEPDoFs * pepdofs, SparseMatrix * Mrr)
+    ParReducedOp(/*ParEPDoFs*/ParFiniteElementSpace * pepdofs, SparseMatrix * Mrr)
       : pepdofs_(pepdofs),
 	HypreMrr_(NULL),
 	ParMrr_(NULL),
 	Pe_(NULL)
     {
-      Operator::width = pepdofs_->GetNParExposedDofs();
-      Pe_  = pepdofs_->EDof_TrueEDof_Matrix();
+      Operator::width = pepdofs_->TrueExVSize();
+      Pe_  = pepdofs_->ExDof_TrueExDof_Matrix();
 
       HypreMrr_ = new HypreParMatrix(Pe_->GetComm(),
 				     Pe_->M(),
@@ -354,16 +357,20 @@ protected:
   };
 
 private:
+  /*
   ParEPDoFs      * pepdofsL_;
   ParEPDoFs      * pepdofsR_;
-
+  */
+  ParFiniteElementSpace * pepdofsL_;
+  ParFiniteElementSpace * pepdofsR_;
   ParReducedOp   * preducedOp_;
   HypreParVector * preducedRHS_;
   Vector         * vec_;
   Vector         * vecp_;
 
 public:
-  ParEPBilinearForm(ParEPDoFs & pepdofsL, ParEPDoFs & pepdofsR,
+  ParEPBilinearForm(/*ParEPDoFs*/ParFiniteElementSpace & pepdofsL,
+		    /*ParEPDoFs*/ParFiniteElementSpace & pepdofsR,
 		    BilinearFormIntegrator & bfi);
 
   ~ParEPBilinearForm();

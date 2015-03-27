@@ -186,8 +186,13 @@ public:
 
    /// Returns number of degrees of freedom.
    inline int GetNDofs() const { return ndofs; }
+   inline int GetNExDofs() const { return nexdofs; } // Number of Exposed DoFs
+   inline int GetNPrDofs() const { return nprdofs; } // Number of Private DoFs
 
    inline int GetVSize() const { return vdim * ndofs; }
+   inline int GetExVSize() const { return vdim * nexdofs; }
+   inline int GetPrVSize() const { return vdim * nprdofs; }
+
 
    /// Returns the number of conforming ("true") degrees of freedom
    /// (if the space is on a nonconforming mesh with hanging nodes).
@@ -207,9 +212,6 @@ public:
    int GetNVDofs() const { return nvdofs; }
    int GetNEDofs() const { return nedofs; }
    int GetNFDofs() const { return nfdofs; }
-
-   int GetNExDofs() const { return nexdofs; } // Number of Exposed DoFs
-   int GetNPrDofs() const { return nprdofs; } // Number of Private DoFs
 
    /// Returns number of elements in the mesh.
    inline int GetNE() const { return mesh->GetNE(); }

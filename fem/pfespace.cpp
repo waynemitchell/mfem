@@ -29,11 +29,17 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
    gcomm = pf.gcomm;
    pf.gcomm = NULL;
    ltdof_size = pf.ltdof_size;
+   ltexdof_size = pf.ltexdof_size;
    Swap(ldof_group, pf.ldof_group);
+   Swap(lexdof_group, pf.lexdof_group);
    Swap(ldof_ltdof, pf.ldof_ltdof);
+   Swap(lexdof_ltexdof, pf.lexdof_ltexdof);
    Swap(dof_offsets, pf.dof_offsets);
    Swap(tdof_offsets, pf.tdof_offsets);
+   Swap(exdof_offsets, pf.exdof_offsets);
+   Swap(texdof_offsets, pf.texdof_offsets);
    Swap(tdof_nb_offsets, pf.tdof_nb_offsets);
+   Swap(texdof_nb_offsets, pf.texdof_nb_offsets);
    Swap(ldof_sign, pf.ldof_sign);
    P = pf.P;
    pf.P = NULL;
@@ -282,15 +288,19 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
 {
    if (HYPRE_AssumedPartitionCheck())
    {
-      HYPRE_Int ldof[2];
+      HYPRE_Int ldof[4];
 
       ldof[0] = GetVSize();
       ldof[1] = TrueVSize();
+      ldof[2] = GetNPrDofs();
 
       dof_offsets.SetSize(3);
       tdof_offsets.SetSize(3);
 
-      MPI_Scan(ldof, &dof_offsets[0], 2, HYPRE_MPI_INT, MPI_SUM, MyComm);
+      exdof_offsets.SetSize(3);
+      texdof_offsets.SetSize(3);
+
+      MPI_Scan(ldof, &dof_offsets[0], 3, HYPRE_MPI_INT, MPI_SUM, MyComm);
 
       tdof_offsets[1] = dof_offsets[1];
       tdof_offsets[0] = tdof_offsets[1] - ldof[1];
@@ -298,30 +308,47 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       dof_offsets[1] = dof_offsets[0];
       dof_offsets[0] = dof_offsets[1] - ldof[0];
 
+      texdof_offsets[1] = tdof_offsets[1] - dof_offsets[2];
+      texdof_offsets[0] = texdof_offsets[1] - (ldof[1] - vdim*ldof[2]);
+
+      exdof_offsets[1] = dof_offsets[1] - dof_offsets[2];
+      exdof_offsets[0] = exdof_offsets[1] - (ldof[0] - vdim*ldof[2]);
+
       // get the global sizes in (t)dof_offsets[2]
       if (MyRank == NRanks-1)
       {
          ldof[0] = dof_offsets[1];
          ldof[1] = tdof_offsets[1];
+         ldof[2] = exdof_offsets[1];
+         ldof[3] = texdof_offsets[1];
       }
 
-      MPI_Bcast(ldof, 2, HYPRE_MPI_INT, NRanks-1, MyComm);
+      MPI_Bcast(ldof, 4, HYPRE_MPI_INT, NRanks-1, MyComm);
       dof_offsets[2] = ldof[0];
       tdof_offsets[2] = ldof[1];
+      exdof_offsets[2] = ldof[2];
+      texdof_offsets[2] = ldof[3];
 
       // Check for overflow
       MFEM_VERIFY(dof_offsets[0] >= 0 && dof_offsets[1] >= 0,
                   "overflow in global dof_offsets");
       MFEM_VERIFY(tdof_offsets[0] >= 0 && tdof_offsets[1] >= 0,
                   "overflow in global tdof_offsets");
+      MFEM_VERIFY(exdof_offsets[0] >= 0 && exdof_offsets[1] >= 0,
+                  "overflow in global exdof_offsets");
+      MFEM_VERIFY(texdof_offsets[0] >= 0 && texdof_offsets[1] >= 0,
+                  "overflow in global texdof_offsets");
 
       // Communicate the neighbor offsets in tdof_nb_offsets
       GroupTopology &gt = GetGroupTopo();
       int nsize = gt.GetNumNeighbors()-1;
-      MPI_Request *requests = new MPI_Request[2*nsize];
-      MPI_Status  *statuses = new MPI_Status[2*nsize];
+      MPI_Request *requests = new MPI_Request[4*nsize];
+      MPI_Status  *statuses = new MPI_Status[4*nsize];
       tdof_nb_offsets.SetSize(nsize+1);
       tdof_nb_offsets[0] = tdof_offsets[0];
+
+      texdof_nb_offsets.SetSize(nsize+1);
+      texdof_nb_offsets[0] = texdof_offsets[0];
 
       int request_counter = 0;
       // send and receive neighbors' local tdof offsets
@@ -331,6 +358,15 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
 
       for (int i = 1; i <= nsize; i++)
          MPI_Isend(&tdof_nb_offsets[0], 1, HYPRE_MPI_INT, gt.GetNeighborRank(i),
+                   5365, MyComm, &requests[request_counter++]);
+
+      // send and receive neighbors' local texdof offsets
+      for (int i = 1; i <= nsize; i++)
+         MPI_Irecv(&texdof_nb_offsets[i], 1, HYPRE_MPI_INT, gt.GetNeighborRank(i),
+                   5365, MyComm, &requests[request_counter++]);
+
+      for (int i = 1; i <= nsize; i++)
+         MPI_Isend(&texdof_nb_offsets[0], 1, HYPRE_MPI_INT, gt.GetNeighborRank(i),
                    5365, MyComm, &requests[request_counter++]);
 
       MPI_Waitall(request_counter, requests, statuses);
@@ -343,20 +379,31 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       int i;
       HYPRE_Int ldof  = GetVSize();
       HYPRE_Int ltdof = TrueVSize();
+      HYPRE_Int lexdof  = GetExVSize();
+      HYPRE_Int ltexdof = TrueExVSize();
 
       dof_offsets.SetSize (NRanks+1);
       tdof_offsets.SetSize(NRanks+1);
+      exdof_offsets.SetSize (NRanks+1);
+      texdof_offsets.SetSize(NRanks+1);
 
       MPI_Allgather(&ldof, 1, HYPRE_MPI_INT,
                     &dof_offsets[1], 1, HYPRE_MPI_INT, MyComm);
       MPI_Allgather(&ltdof, 1, HYPRE_MPI_INT,
                     &tdof_offsets[1], 1, HYPRE_MPI_INT, MyComm);
+      MPI_Allgather(&lexdof, 1, HYPRE_MPI_INT,
+                    &exdof_offsets[1], 1, HYPRE_MPI_INT, MyComm);
+      MPI_Allgather(&ltexdof, 1, HYPRE_MPI_INT,
+                    &texdof_offsets[1], 1, HYPRE_MPI_INT, MyComm);
 
       dof_offsets[0] = tdof_offsets[0] = 0;
+      exdof_offsets[0] = texdof_offsets[0] = 0;
       for (i = 1; i < NRanks; i++)
       {
          dof_offsets [i+1] += dof_offsets [i];
          tdof_offsets[i+1] += tdof_offsets[i];
+         exdof_offsets [i+1] += exdof_offsets [i];
+         texdof_offsets[i+1] += texdof_offsets[i];
       }
 
       // Check for overflow
@@ -364,6 +411,10 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
                   "overflow in global dof_offsets");
       MFEM_VERIFY(tdof_offsets[MyRank] >= 0 && tdof_offsets[MyRank+1] >= 0,
                   "overflow in global tdof_offsets");
+      MFEM_VERIFY(exdof_offsets[MyRank] >= 0 && exdof_offsets[MyRank+1] >= 0,
+                  "overflow in global exdof_offsets");
+      MFEM_VERIFY(texdof_offsets[MyRank] >= 0 && texdof_offsets[MyRank+1] >= 0,
+                  "overflow in global texdof_offsets");
    }
 }
 
@@ -423,6 +474,65 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
                           i_diag, j_diag, i_offd, j_offd, cmap, offd_counter);
 
    return P;
+}
+
+HypreParMatrix *ParFiniteElementSpace::ExDof_TrueExDof_Matrix() // matrix Pex
+{
+   if (Pex)
+   {
+      return Pex;
+   }
+
+   int ldof  = GetExVSize();
+   int ltdof = TrueExVSize();
+
+   HYPRE_Int *i_diag = new HYPRE_Int[ldof+1];
+   HYPRE_Int *j_diag = new HYPRE_Int[ltdof];
+   int diag_counter;
+
+   HYPRE_Int *i_offd = new HYPRE_Int[ldof+1];
+   HYPRE_Int *j_offd = new HYPRE_Int[ldof-ltdof];
+   int offd_counter;
+
+   HYPRE_Int *cmap   = new HYPRE_Int[ldof-ltdof];
+
+   HYPRE_Int *col_starts = GetTrueExDofOffsets();
+   HYPRE_Int *row_starts = GetExDofOffsets();
+
+   Array<Pair<HYPRE_Int, int> > cmap_j_offd(ldof-ltdof);
+
+   i_diag[0] = i_offd[0] = 0;
+   diag_counter = offd_counter = 0;
+   for (int i = 0; i < ldof; i++)
+   {
+      int ltdof = GetLocalTExDofNumber(i);
+      if (ltdof >= 0)
+      {
+         j_diag[diag_counter++] = ltdof;
+      }
+      else
+      {
+         cmap_j_offd[offd_counter].one = GetGlobalTExDofNumber(i);
+         cmap_j_offd[offd_counter].two = offd_counter;
+         offd_counter++;
+      }
+      i_diag[i+1] = diag_counter;
+      i_offd[i+1] = offd_counter;
+   }
+
+   SortPairs<HYPRE_Int, int>(cmap_j_offd, offd_counter);
+
+   for (int i = 0; i < offd_counter; i++)
+   {
+      cmap[i] = cmap_j_offd[i].one;
+      j_offd[cmap_j_offd[i].two] = i;
+   }
+
+   Pex = new HypreParMatrix(MyComm, MyRank, NRanks, row_starts, col_starts,
+			    i_diag, j_diag, i_offd, j_offd, cmap,
+			    offd_counter);
+
+   return Pex;
 }
 
 void ParFiniteElementSpace::DivideByGroupSize(double *vec)
@@ -529,6 +639,66 @@ HYPRE_Int ParFiniteElementSpace::GetMyDofOffset()
    else
    {
       return dof_offsets[MyRank];
+   }
+}
+
+int ParFiniteElementSpace::GetLocalTExDofNumber(int ldof)
+{
+   if (GetGroupTopo().IAmMaster(lexdof_group[ldof]))
+   {
+      return lexdof_ltexdof[ldof];
+   }
+   else
+   {
+      return -1;
+   }
+}
+
+HYPRE_Int ParFiniteElementSpace::GetGlobalTExDofNumber(int ldof)
+{
+   if (HYPRE_AssumedPartitionCheck())
+   {
+      return lexdof_ltexdof[ldof] +
+             texdof_nb_offsets[GetGroupTopo().GetGroupMaster(lexdof_group[ldof])];
+   }
+
+   return lexdof_ltexdof[ldof] +
+          texdof_offsets[GetGroupTopo().GetGroupMasterRank(lexdof_group[ldof])];
+}
+
+HYPRE_Int ParFiniteElementSpace::GetGlobalScalarTExDofNumber(int sldof)
+{
+   if (HYPRE_AssumedPartitionCheck())
+   {
+      if (ordering == Ordering::byNODES)
+         return lexdof_ltexdof[sldof] +
+                texdof_nb_offsets[GetGroupTopo().GetGroupMaster(
+                                   lexdof_group[sldof])] / vdim;
+      else
+         return (lexdof_ltexdof[sldof*vdim] +
+                 texdof_nb_offsets[GetGroupTopo().GetGroupMaster(
+                                    lexdof_group[sldof*vdim])]) / vdim;
+   }
+
+   if (ordering == Ordering::byNODES)
+      return lexdof_ltexdof[sldof] +
+             texdof_offsets[GetGroupTopo().GetGroupMasterRank(
+                             lexdof_group[sldof])] / vdim;
+   else
+      return (lexdof_ltexdof[sldof*vdim] +
+              texdof_offsets[GetGroupTopo().GetGroupMasterRank(
+                              lexdof_group[sldof*vdim])]) / vdim;
+}
+
+HYPRE_Int ParFiniteElementSpace::GetMyExDofOffset()
+{
+   if (HYPRE_AssumedPartitionCheck())
+   {
+      return exdof_offsets[0];
+   }
+   else
+   {
+      return exdof_offsets[MyRank];
    }
 }
 
@@ -784,7 +954,7 @@ void ParFiniteElementSpace::Lose_Dof_TrueDof_Matrix()
 
 void ParFiniteElementSpace::ConstructTrueDofs()
 {
-   int i, gr, n = GetVSize();
+   int i, gr, n = GetVSize(), nex = GetExVSize();
    GroupTopology &gt = pmesh->gtopo;
    gcomm = new GroupCommunicator(gt);
    Table &group_ldof = gcomm->GroupLDofTable();
@@ -796,8 +966,12 @@ void ParFiniteElementSpace::ConstructTrueDofs()
    //   -2 for ldof that is in a group with another master
    ldof_group.SetSize(n);
    ldof_ltdof.SetSize(n);
+   lexdof_group.SetSize(n);
+   lexdof_ltexdof.SetSize(n);
    ldof_group = 0;
    ldof_ltdof = -1;
+   lexdof_group = 0;
+   lexdof_ltexdof = -1;
 
    for (gr = 1; gr < group_ldof.Size(); gr++)
    {
@@ -806,12 +980,14 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       for (i = 0; i < nldofs; i++)
       {
          ldof_group[ldofs[i]] = gr;
+         lexdof_group[ldofs[i]] = gr;
       }
 
       if (!gt.IAmMaster(gr)) // we are not the master
          for (i = 0; i < nldofs; i++)
          {
             ldof_ltdof[ldofs[i]] = -2;
+            lexdof_ltexdof[ldofs[i]] = -2;
          }
    }
 
@@ -823,8 +999,22 @@ void ParFiniteElementSpace::ConstructTrueDofs()
          ldof_ltdof[i] = ltdof_size++;
       }
 
+   ltexdof_size = 0;
+   for (i = 0; i < nex; i++)
+      if (lexdof_ltexdof[i] == -1)
+      {
+         lexdof_ltexdof[i] = ltexdof_size++;
+      }
+
+   // Check for consistency
+   MFEM_VERIFY(ltdof_size == ltexdof_size + this->GetNPrDofs(),
+	       "mismatch in number of true dofs and true exposed plus private dofs");
+
    // have the group masters broadcast their ltdofs to the rest of the group
    gcomm->Bcast(ldof_ltdof);
+
+   // have the group masters broadcast their ltexdofs to the rest of the group
+   gcomm->Bcast(lexdof_ltexdof);
 }
 
 void ParFiniteElementSpace::ConstructTrueNURBSDofs()
@@ -868,6 +1058,8 @@ void ParFiniteElementSpace::ConstructTrueNURBSDofs()
          ldof_ltdof[i] = -2;
       }
    }
+
+   ltexdof_size = ltdof_size - this->GetNPrDofs();
 
    // have the group masters broadcast their ltdofs to the rest of the group
    gcomm->Bcast(ldof_ltdof);

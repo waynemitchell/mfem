@@ -188,9 +188,9 @@ EPDoFs::GetElementDofs(const int elem,
 }
 */
 ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
-  : /*EPDoFs(pfes),*/ pfes_(&pfes), Pe_(NULL),
+  : /*EPDoFs(pfes),*/ pfes_(&pfes), Pe_(NULL)/*,
     nParExposedDofs_(-1),
-    ExposedPart_(NULL) , TExposedPart_(NULL) 
+    ExposedPart_(NULL) , TExposedPart_(NULL) */
 {
   MPI_Comm comm = pfes_->GetComm();
   int numProcs  = pfes_->GetNRanks();
@@ -202,14 +202,14 @@ ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
   int myRank = -1;
   MPI_Comm_rank(comm,&myRank);
 
-  int   nGlbRows = 0;
-  int   nGlbCols = 0;
+  int   nGlbRows = pfes_->GlobalExVSize();
+  int   nGlbCols = pfes_->GlobalTrueExVSize();
   int   nPriPS   = 0;
   int   nPriTS   = 0;
   int * nPri     = new int[numProcs];
 
   MPI_Allgather(&nPrivate,1,MPI_INT,nPri,1,MPI_INT,comm);
-
+  /*
   if ( HYPRE_AssumedPartitionCheck() ) {
     ExposedPart_  = new int[3];
     TExposedPart_ = new int[3];
@@ -232,7 +232,7 @@ ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
 
     nGlbRows = ExposedPart_[numProcs];
   }
-
+  */
   HypreParMatrix * P = pfes_->Dof_TrueDof_Matrix();
 
   int * DoFPart  = P->RowPart();
@@ -240,7 +240,7 @@ ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
   int * TDoFPartFull = NULL;
 
   if ( HYPRE_AssumedPartitionCheck() ) {
-
+    /*
     ExposedPart_[0]  = DoFPart[0] - (nPriPS-nPrivate);
     ExposedPart_[1]  = DoFPart[1] - nPriPS;
     ExposedPart_[2]  = DoFPart[2] - nPriTS;
@@ -251,24 +251,25 @@ ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
 
     nGlbRows = ExposedPart_[2];
     nGlbCols = TExposedPart_[2];
-
+    */
     TDoFPartFull  = new int[numProcs+1];
 
     MPI_Allgather(&TDoFPart[0],1,MPI_INT,TDoFPartFull,1,MPI_INT,comm);
 
     TDoFPartFull[numProcs] = TDoFPart[2];
 
-    nParExposedDofs_ = TExposedPart_[1]-TExposedPart_[0];
-
+    // nParExposedDofs_ = TExposedPart_[1]-TExposedPart_[0];
+    /*
   } else {
 
     for (int p=0; p<numProcs; p++) {
       TExposedPart_[p+1] = TExposedPart_[p] +
 	(TDoFPart[p+1] - TDoFPart[p]) - nPri[p];
     }
-    nParExposedDofs_ = TExposedPart_[myRank+1]-TExposedPart_[myRank];
+    // nParExposedDofs_ = TExposedPart_[myRank+1]-TExposedPart_[myRank];
 
     nGlbCols = TExposedPart_[numProcs];
+    */
   }
 
   hypre_CSRMatrix * csr_P = hypre_MergeDiagAndOffd((hypre_ParCSRMatrix*)*P);
@@ -300,8 +301,9 @@ ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
 			   hypre_CSRMatrixI(csr_P),
 			   hypre_CSRMatrixJ(csr_P),
 			   hypre_CSRMatrixData(csr_P),
-			   ExposedPart_,
-			   TExposedPart_);
+			   pfes_->GetExDofOffsets(),
+			   pfes_->GetTrueExDofOffsets()
+			   );
 
   hypre_CSRMatrixDestroy(csr_P);
 
@@ -312,10 +314,10 @@ ParEPDoFs::ParEPDoFs(ParFiniteElementSpace & pfes)
 ParEPDoFs::~ParEPDoFs()
 {
   if ( Pe_           != NULL ) delete    Pe_;
-  if ( ExposedPart_  != NULL ) delete [] ExposedPart_;
-  if ( TExposedPart_ != NULL ) delete [] TExposedPart_;
+  // if ( ExposedPart_  != NULL ) delete [] ExposedPart_;
+  // if ( TExposedPart_ != NULL ) delete [] TExposedPart_;
 }
-
+/*
 int
 ParEPDoFs::GlobalNExposedDofs()
 {
@@ -335,6 +337,7 @@ ParEPDoFs::GlobalNTrueExposedDofs()
     return TExposedPart_[this->GetNRanks()];
   }
 }
+*/
 /*
 EPField::EPField(EPDoFs & epdofs)
   : numFields_(0),
@@ -1029,10 +1032,10 @@ EPBilinearForm::EliminateEssentialBCFromDofs(Array<int> &ess_dofs,
   }
 }
 
-ParEPBilinearForm::ParEPBilinearForm(ParEPDoFs & pepdofsL,
-				     ParEPDoFs & pepdofsR,
+ParEPBilinearForm::ParEPBilinearForm(/*ParEPDoFs*/ParFiniteElementSpace & pepdofsL,
+				     /*ParEPDoFs*/ParFiniteElementSpace & pepdofsR,
 				     BilinearFormIntegrator & bfi)
-  : EPBilinearForm(*pepdofsL.PFESpace(),*pepdofsR.PFESpace(),bfi),
+  : EPBilinearForm(pepdofsL,pepdofsR,bfi),
     pepdofsL_(&pepdofsL),
     pepdofsR_(&pepdofsR),
     preducedRHS_(NULL),
@@ -1056,15 +1059,33 @@ ParEPBilinearForm::Assemble()
   if ( pepdofsL_ == pepdofsR_ ) {
 
     MPI_Comm comm = pepdofsR_->GetComm();
-    int numProcs  = pepdofsR_->GetNRanks();
-    int * part    = pepdofsR_->GetTPartitioning();
+    // int numProcs  = pepdofsR_->GetNRanks();
+    // int myRank    = pepdofsR_->PFESpace()->GetMyRank();
+    // int * Tpart    = pepdofsR_->GetTPartitioning();
+    // int * Cpart    = pepdofsR_->EDof_TrueEDof_Matrix()->ColPart();
+    int * part    = pepdofsR_->GetTrueExDofOffsets();
+    int size      = pepdofsR_->GlobalTrueExVSize();
+
+    // cout << myRank << ":    TPart = " << Tpart[0] << "\t" << Tpart[1] << "\t" << Tpart[2] << endl;
+    // cout << myRank << ":    CPart = " << Cpart[0] << "\t" << Cpart[1] << "\t" << Cpart[2] << endl;
+    // cout << myRank << ":     Part = " << part[0] << "\t" << part[1] << "\t" << part[2] << endl;
+
+    // HypreParMatrix * Pe = pepdofsR_->EDof_TrueEDof_Matrix();
+    // if ( Pe == NULL ) cout << "Pe seems to be NULL" << endl;
+    // if ( Pe->ColPart() == NULL ) cout << "ColPart seems to be NULL" << endl;
+
+    // cout << myRank << ":  ColPart = " << Pe->ColPart()[0] << "\t" << Pe->ColPart()[1] << "\t" << Pe->ColPart()[2] << endl;
+
     preducedOp_   = new ParReducedOp(pepdofsR_,
 				     this->EPBilinearForm::GetMrr());
+    /*
     if ( HYPRE_AssumedPartitionCheck() ) {
       preducedRHS_  = new HypreParVector(comm,part[2],part);
     } else {
       preducedRHS_  = new HypreParVector(comm,part[numProcs],part);
     }
+    */
+    preducedRHS_  = new HypreParVector(comm,size,part);
     vec_          = new Vector(pepdofsR_->GetNExDofs());
     vecp_         = new Vector(pepdofsR_->GetNPrDofs());
   }
@@ -1127,16 +1148,16 @@ ParEPBilinearForm::ReducedRHS(const Vector & b) const
 							       *b.PrivateDoFs());
 							       */
   // Create temporary vectors for the exposed and private portions of b
-  const Vector bE(const_cast<double*>(&b[0]),pepdofsL_->GetNParExposedDofs());
-  const Vector bP(const_cast<double*>(&b[pepdofsL_->GetNParExposedDofs()]),
+  const Vector bE(const_cast<double*>(&b[0]),pepdofsL_->TrueExVSize());
+  const Vector bP(const_cast<double*>(&b[pepdofsL_->TrueExVSize()]),
 		  pepdofsL_->GetNPrDofs());
 
-  pepdofsR_->EDof_TrueEDof_Matrix()->Mult(bE,*vec_);
+  pepdofsR_->ExDof_TrueExDof_Matrix()->Mult(bE,*vec_);
 
   const Vector * reducedRHS = this->EPBilinearForm::ReducedRHS(*vec_,bP);
 
-  pepdofsR_->EDof_TrueEDof_Matrix()->MultTranspose(*reducedRHS,
-						   *preducedRHS_);
+  pepdofsR_->ExDof_TrueExDof_Matrix()->MultTranspose(*reducedRHS,
+						     *preducedRHS_);
 
   return( preducedRHS_ );
 }
@@ -1146,8 +1167,8 @@ ParEPBilinearForm::ReducedRHS() const
 {
   const Vector * reducedRHS = this->EPBilinearForm::ReducedRHS();
 
-  pepdofsR_->EDof_TrueEDof_Matrix()->MultTranspose(*reducedRHS,
-						   *preducedRHS_);
+  pepdofsR_->ExDof_TrueExDof_Matrix()->MultTranspose(*reducedRHS,
+						     *preducedRHS_);
 
   return( preducedRHS_ );
 }

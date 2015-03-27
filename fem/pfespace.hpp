@@ -41,11 +41,20 @@ private:
    /// Number of true dofs in this processor (local true dofs).
    int ltdof_size;
 
+   /// Number of true exposed dofs in this processor (local true exposed dofs).
+   int ltexdof_size;
+
    /// The group of each local dof.
    Array<int> ldof_group;
 
+   /// The group of each local exposed dof.
+   Array<int> lexdof_group;
+
    /// For a local dof: the local true dof number in the master of its group.
    Array<int> ldof_ltdof;
+
+   /// For a local exposed dof: the local true exposed dof number in the master of its group.
+   Array<int> lexdof_ltexdof;
 
    /// Offsets for the dofs in each processor in global numbering.
    Array<HYPRE_Int> dof_offsets;
@@ -56,11 +65,23 @@ private:
    /// Offsets for the true dofs in neighbor processor in global numbering.
    Array<HYPRE_Int> tdof_nb_offsets;
 
+   /// Offsets for the true exposed dofs in neighbor processor in global numbering.
+   Array<HYPRE_Int> texdof_nb_offsets;
+
+   /// Offsets for the exposed dofs in each processor in global numbering.
+   Array<HYPRE_Int> exdof_offsets;
+
+   /// Offsets for the true exposed dofs in each processor in global numbering.
+   Array<HYPRE_Int> texdof_offsets;
+
    /// The sign of the basis functions at the scalar local dofs.
    Array<int> ldof_sign;
 
    /// The matrix P (interpolation from true dof to dof).
    HypreParMatrix *P;
+
+   /// The matrix Pex (interpolation from true exposed dof to exposed dof).
+   HypreParMatrix *Pex;
 
    ParNURBSExtension *pNURBSext()
    { return dynamic_cast<ParNURBSExtension *>(NURBSext); }
@@ -109,9 +130,12 @@ public:
    inline ParMesh *GetParMesh() { return pmesh; }
 
    int TrueVSize() { return ltdof_size; }
+   int TrueExVSize() { return ltexdof_size; }
    int GetDofSign(int i) { return NURBSext ? 1 : ldof_sign[VDofToDof(i)]; }
    HYPRE_Int *GetDofOffsets()     { return dof_offsets; }
    HYPRE_Int *GetTrueDofOffsets() { return tdof_offsets; }
+   HYPRE_Int *GetExDofOffsets()     { return exdof_offsets; }
+   HYPRE_Int *GetTrueExDofOffsets() { return texdof_offsets; }
    HYPRE_Int GlobalVSize()
    {
       return Dof_TrueDof_Matrix()->GetGlobalNumRows();
@@ -119,6 +143,20 @@ public:
    HYPRE_Int GlobalTrueVSize()
    {
       return Dof_TrueDof_Matrix()->GetGlobalNumCols();
+   }
+   HYPRE_Int GlobalExVSize()
+   {
+    if (HYPRE_AssumedPartitionCheck())
+      return vdim*exdof_offsets[2];
+    else
+      return vdim*exdof_offsets[NRanks];
+   }
+   HYPRE_Int GlobalTrueExVSize()
+   {
+    if (HYPRE_AssumedPartitionCheck())
+      return vdim*texdof_offsets[2];
+    else
+      return vdim*texdof_offsets[NRanks];
    }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
@@ -134,10 +172,19 @@ public:
    /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix();
 
+   /// The true exposed dof-to-exposed dof interpolation matrix
+   HypreParMatrix *ExDof_TrueExDof_Matrix();
+
    /** Create and return a new HypreParVector on the true dofs, which is
        owned by (i.e. it must be destroyed by) the calling function. */
    HypreParVector *NewTrueDofVector()
    { return (new HypreParVector(MyComm,GlobalTrueVSize(),GetTrueDofOffsets()));}
+
+   /** Create and return a new HypreParVector on the true exposed dofs,
+       which is owned by (i.e. it must be destroyed by) the calling
+       function. */
+   HypreParVector *NewTrueExDofVector()
+   { return (new HypreParVector(MyComm,GlobalTrueExVSize(),GetTrueExDofOffsets()));}
 
    /// Scale a vector of true dofs
    void DivideByGroupSize(double *vec);
@@ -166,6 +213,17 @@ public:
        be a scalar local dof. */
    HYPRE_Int GetGlobalScalarTDofNumber(int sldof);
    HYPRE_Int GetMyDofOffset();
+
+   /** If the given ldof is owned by the current processor, return its local
+       texdof number, otherwise return -1 */
+   int GetLocalTExDofNumber(int ldof);
+   /// Returns the global texdof number of the given local degree of freedom
+   HYPRE_Int GetGlobalTExDofNumber(int ldof);
+   /** Returns the global texdof number of the given local degree of freedom in
+       the scalar vesion of the current finite element space. The input should
+       be a scalar local dof. */
+   HYPRE_Int GetGlobalScalarTExDofNumber(int sldof);
+   HYPRE_Int GetMyExDofOffset();
 
    // Face-neighbor functions
    void ExchangeFaceNbrData();
