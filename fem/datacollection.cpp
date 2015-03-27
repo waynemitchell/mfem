@@ -65,6 +65,7 @@ DataCollection::DataCollection(const char *collection_name)
    own_data = false;
    cycle = -1;
    time = 0.0;
+   precision = precision_default;
    pad_digits = pad_digits_default;
    error = NO_ERROR;
 }
@@ -88,6 +89,7 @@ DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
    own_data = false;
    cycle = -1;
    time = 0.0;
+   precision = precision_default;
    pad_digits = pad_digits_default;
    error = NO_ERROR;
 }
@@ -188,6 +190,7 @@ void DataCollection::SaveMesh()
       mesh_name = dir_name + "/mesh." + to_padded_string(myid, pad_digits);
    }
    ofstream mesh_file(mesh_name.c_str());
+   mesh_file.precision(precision);
    mesh->Print(mesh_file);
    if (!mesh_file)
    {
@@ -218,6 +221,7 @@ void DataCollection::SaveOneField(
       file_name = dir_name + "/" + it->first + "." +
                   to_padded_string(myid, pad_digits);
    ofstream field_file(file_name.c_str());
+   field_file.precision(precision);
    (it->second)->Save(field_file);
    if (!field_file)
    {
