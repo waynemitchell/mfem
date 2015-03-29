@@ -1055,12 +1055,12 @@ void
 ParEPBilinearForm::Assemble()
 {
   this->EPBilinearForm::Assemble();
-
+  cout << "Serial assemble completed" << endl;
   if ( pepdofsL_ == pepdofsR_ ) {
 
     MPI_Comm comm = pepdofsR_->GetComm();
     // int numProcs  = pepdofsR_->GetNRanks();
-    // int myRank    = pepdofsR_->PFESpace()->GetMyRank();
+    int myRank    = pepdofsR_->GetMyRank();
     // int * Tpart    = pepdofsR_->GetTPartitioning();
     // int * Cpart    = pepdofsR_->EDof_TrueEDof_Matrix()->ColPart();
     int * part    = pepdofsR_->GetTrueExDofOffsets();
@@ -1068,7 +1068,7 @@ ParEPBilinearForm::Assemble()
 
     // cout << myRank << ":    TPart = " << Tpart[0] << "\t" << Tpart[1] << "\t" << Tpart[2] << endl;
     // cout << myRank << ":    CPart = " << Cpart[0] << "\t" << Cpart[1] << "\t" << Cpart[2] << endl;
-    // cout << myRank << ":     Part = " << part[0] << "\t" << part[1] << "\t" << part[2] << endl;
+    cout << myRank << ":     Part = " << part[0] << "\t" << part[1] << "\t" << "" << endl;
 
     // HypreParMatrix * Pe = pepdofsR_->EDof_TrueEDof_Matrix();
     // if ( Pe == NULL ) cout << "Pe seems to be NULL" << endl;

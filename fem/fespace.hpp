@@ -284,6 +284,9 @@ public:
    int VDofToDof(int vdof) const
    { return (ordering == Ordering::byNODES) ? (vdof%ndofs) : (vdof/vdim); }
 
+   int VExDofToExDof(int vexdof) const
+   { return (ordering == Ordering::byNODES) ? (vexdof%nexdofs) : (vexdof/vdim); }
+
    static void AdjustVDofs(Array<int> &vdofs);
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
