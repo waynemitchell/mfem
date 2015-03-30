@@ -148,7 +148,7 @@ struct VarMessage
    void Isend(int rank, MPI_Comm comm)
    {
       Encode();
-      MPI_Isend(data.data(), data.length(), MPI_BYTE, rank, Tag, comm,
+      MPI_Isend((void*) data.data(), data.length(), MPI_BYTE, rank, Tag, comm,
                 &send_request);
    }
 
