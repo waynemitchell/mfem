@@ -370,13 +370,17 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
    // construct the block-diagonal matrix A
    HypreParMatrix *A;
    if (HYPRE_AssumedPartitionCheck())
+   {
       A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[2],
                              trial_dof_off[2], test_dof_off, trial_dof_off,
                              mat);
+   }
    else
+   {
       A = new HypreParMatrix(trial_pfes->GetComm(), test_dof_off[nproc],
                              trial_dof_off[nproc], test_dof_off, trial_dof_off,
                              mat);
+   }
 
    HypreParMatrix *rap = RAP(test_pfes->Dof_TrueDof_Matrix(), A,
                              trial_pfes->Dof_TrueDof_Matrix());

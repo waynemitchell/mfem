@@ -190,7 +190,9 @@ public:
        the scalar vesion of the current finite element space. The input should
        be a scalar local dof. */
    int GetGlobalScalarTDofNumber(int sldof);
+
    int GetMyDofOffset();
+   HYPRE_Int GetMyTDofOffset() const;
 
    /// Get the R matrix which restricts a local dof vector to true dof vector.
    const SparseMatrix *GetRestrictionMatrix() const { return R; }

@@ -474,6 +474,11 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
 
 void ParFiniteElementSpace::DivideByGroupSize(double *vec)
 {
+   if (pmesh->pncmesh)
+   {
+      MFEM_ABORT("Not implemented for NC mesh.");
+   }
+
    GroupTopology &gt = GetGroupTopo();
 
    for (int i = 0; i < ldof_group.Size(); i++)
@@ -485,14 +490,15 @@ void ParFiniteElementSpace::DivideByGroupSize(double *vec)
 
 GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 {
+   if (pmesh->pncmesh)
+   {
+      return NULL; // FIXME
+   }
+
    GroupCommunicator *gc = new GroupCommunicator(GetGroupTopo());
    if (NURBSext)
    {
       gc->Create(pNURBSext()->ldof_group);
-   }
-   else if (pmesh->pncmesh)
-   {
-      return NULL;
    }
    else
    {
@@ -503,6 +509,11 @@ GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 
 void ParFiniteElementSpace::Synchronize(Array<int> &ldof_marker) const
 {
+   if (pmesh->pncmesh)
+   {
+      MFEM_ABORT("Not implemented for NC mesh.");
+   }
+
    if (ldof_marker.Size() != GetVSize())
    {
       mfem_error("ParFiniteElementSpace::Synchronize");
@@ -528,6 +539,11 @@ void ParFiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
 
 int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
 {
+   if (pmesh->pncmesh)
+   {
+      Dof_TrueDof_Matrix();
+      return ldof_ltdof[ldof];
+   }
    if (GetGroupTopo().IAmMaster(ldof_group[ldof]))
    {
       return ldof_ltdof[ldof];
@@ -540,6 +556,11 @@ int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
 
 int ParFiniteElementSpace::GetGlobalTDofNumber(int ldof)
 {
+   if (pmesh->pncmesh)
+   {
+      MFEM_ABORT("Not implemented for NC mesh.");
+   }
+
    if (HYPRE_AssumedPartitionCheck())
    {
       if (!P)
@@ -556,6 +577,11 @@ int ParFiniteElementSpace::GetGlobalTDofNumber(int ldof)
 
 int ParFiniteElementSpace::GetGlobalScalarTDofNumber(int sldof)
 {
+   if (pmesh->pncmesh)
+   {
+      MFEM_ABORT("Not implemented for NC mesh.");
+   }
+
    if (HYPRE_AssumedPartitionCheck())
    {
       if (!P)
@@ -592,22 +618,17 @@ int ParFiniteElementSpace::GetGlobalScalarTDofNumber(int sldof)
 
 int ParFiniteElementSpace::GetMyDofOffset()
 {
-   if (HYPRE_AssumedPartitionCheck())
-   {
-      return dof_offsets[0];
-   }
-   else
-   {
-      return dof_offsets[MyRank];
-   }
+   return HYPRE_AssumedPartitionCheck() ? dof_offsets[0] : dof_offsets[MyRank];
+}
+
+HYPRE_Int ParFiniteElementSpace::GetMyTDofOffset() const
+{
+   return HYPRE_AssumedPartitionCheck()? tdof_offsets[0] : tdof_offsets[MyRank];
 }
 
 void ParFiniteElementSpace::ExchangeFaceNbrData()
 {
-   if (num_face_nbr_dofs >= 0)
-   {
-      return;
-   }
+   if (num_face_nbr_dofs >= 0) { return; }
 
    pmesh->ExchangeFaceNbrData();
 
@@ -1280,9 +1301,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    HYPRE_Int glob_true_dofs = tdof_offsets.Last();
    HYPRE_Int glob_cdofs = dof_offsets.Last();
 
-   bool ap = HYPRE_AssumedPartitionCheck();
-   HYPRE_Int my_tdof_offset = tdof_offsets[ap ? 0 : MyRank];
-
    // create the local part (local rows) of the P matrix
    MFEM_VERIFY(glob_true_dofs < (1ll << 31), "overflow of P matrix columns.")
    SparseMatrix localP(num_cdofs, glob_true_dofs); // FIXME bigint
@@ -1293,7 +1311,10 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    Array<bool> finalized(num_cdofs);
    finalized = false;
 
-   // put identity in P and R for true DOFs
+   // put identity in P and R for true DOFs, set ldof_ltdof
+   HYPRE_Int my_tdof_offset = GetMyTDofOffset();
+   ldof_ltdof.SetSize(num_cdofs);
+   ldof_ltdof = -1;
    for (int i = 0, true_dof = 0; i < num_cdofs; i++)
    {
       if (deps[i].IsTrueDof(MyRank))
@@ -1301,6 +1322,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          localP.Add(i, my_tdof_offset + true_dof, 1.0);
          R->Add(true_dof, i, 1.0);
          finalized[i] = true;
+         ldof_ltdof[i] = true_dof;
          true_dof++;
       }
    }

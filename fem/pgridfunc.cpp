@@ -93,7 +93,9 @@ void ParGridFunction::GetTrueDofs(Vector &tv) const
       }
    }
 #else
-   hypre_ParCSRMatrix *P = *pfes->Dof_TrueDof_Matrix();
+   pfes->GetRestrictionMatrix()->Mult(*this, tv);
+
+   /*hypre_ParCSRMatrix *P = *pfes->Dof_TrueDof_Matrix();
    hypre_CSRMatrix *diag = hypre_ParCSRMatrixDiag(P);
    int *I = hypre_CSRMatrixI(diag) + 1;
    int *J = hypre_CSRMatrixJ(diag);
@@ -101,7 +103,7 @@ void ParGridFunction::GetTrueDofs(Vector &tv) const
       if (j < I[i])
       {
          tv(J[j++]) = (*this)(i);
-      }
+      }*/
 #endif
 }
 
