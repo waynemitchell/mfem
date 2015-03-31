@@ -541,7 +541,8 @@ int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
 {
    if (pmesh->pncmesh)
    {
-      Dof_TrueDof_Matrix();
+      MFEM_ASSERT(P, "Dof_TrueDof_Matrix() needs to be called before "
+                     "GetLocalTDofNumber()");
       return ldof_ltdof[ldof];
    }
    if (GetGroupTopo().IAmMaster(ldof_group[ldof]))
@@ -1129,7 +1130,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          // loop through all (shared) conforming+master vertices/edges/faces
          const NCMesh::MeshId& id =
             (i < cs) ? (const NCMesh::MeshId&) list.conforming[i]
-            : (const NCMesh::MeshId&) list.masters[i-cs];
+            /*    */ : (const NCMesh::MeshId&) list.masters[i-cs];
 
          int owner = pncmesh->GetOwner(type, id.index), gsize;
          if (owner == MyRank)
@@ -1141,14 +1142,14 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             {
                if (group[j] != MyRank)
                {
-                  send_dofs[group[j]].AddDofs(type, id, dofs, pncmesh);
+                  send_dofs[group[j]].AddDofs(type, id, dofs, pncmesh, fec);
                }
             }
          }
          else
          {
             // we don't own this v/e/f and expect to receive DOFs for it
-            recv_dofs[owner].SetNCMesh(pncmesh);
+            recv_dofs[owner].Init(pncmesh, fec);
          }
       }
    }
@@ -1169,7 +1170,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    for (int type = 1; type < 3; type++)
    {
       const NCMesh::NCList &list = (type > 1) ? pncmesh->GetFaceList()
-                                   : pncmesh->GetEdgeList();
+                                   /*      */ : pncmesh->GetEdgeList();
       if (!list.masters.size()) { continue; }
 
       IsoparametricTransformation T;
@@ -1178,6 +1179,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
       int geom = (type > 1) ? Geometry::SQUARE : Geometry::SEGMENT;
       const FiniteElement* fe = fec->FiniteElementForGeometry(geom);
+      if (!fe) { continue; }
 
       DenseMatrix I(fe->GetDof());
 

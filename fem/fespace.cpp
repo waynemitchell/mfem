@@ -696,8 +696,9 @@ void FiniteElementSpace::GetConformingInterpolation()
       if (type) { T.SetFE(&QuadrilateralFE); }
       else { T.SetFE(&SegmentFE); }
 
-      const FiniteElement* fe = fec->FiniteElementForGeometry(
-                                   (type ? Geometry::SQUARE : Geometry::SEGMENT));
+      int geom = type ? Geometry::SQUARE : Geometry::SEGMENT;
+      const FiniteElement* fe = fec->FiniteElementForGeometry(geom);
+      if (!fe) { continue; }
 
       Array<int> master_dofs, slave_dofs;
       DenseMatrix I(fe->GetDof());

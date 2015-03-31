@@ -15,6 +15,7 @@
 
 #include "mesh_headers.hpp"
 #include "pncmesh.hpp"
+#include "../fem/fe_coll.hpp"
 
 #include <map>
 #include <limits>
@@ -953,11 +954,12 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
 //// Messages //////////////////////////////////////////////////////////////////
 
 void NeighborDofMessage::AddDofs(int type, const NCMesh::MeshId &id,
-                                 const Array<int> &dofs, ParNCMesh* pncmesh)
+                                 const Array<int> &dofs, ParNCMesh* pncmesh,
+                                 const FiniteElementCollection *fec)
 {
    MFEM_ASSERT(type >= 0 && type < 3, "");
    id_dofs[type][id].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
-   this->pncmesh = pncmesh;
+   Init(pncmesh, fec);
 }
 
 void NeighborDofMessage::GetDofs(int type, const NCMesh::MeshId& id,
@@ -978,7 +980,8 @@ void NeighborDofMessage::ReorderEdgeDofs(const NCMesh::MeshId &id,
                                          std::vector<int> &dofs)
 {
    // Reorder the DOFs into/from a neutral ordering, independent of local
-   // edge orientation.
+   // edge orientation. The processor neutral edge orientation is given by
+   // the element local vertex numbering, not the mesh vertex numbering.
 
    const int *ev = NCMesh::GI[(int) id.element->geom].edges[id.local];
    int v0 = id.element->node[ev[0]]->vertex->index;
@@ -986,13 +989,15 @@ void NeighborDofMessage::ReorderEdgeDofs(const NCMesh::MeshId &id,
 
    if ((v0 < v1 && ev[0] > ev[1]) || (v0 > v1 && ev[0] < ev[1]))
    {
-      // "invert" the edge DOFs
-      // FIXME: assuming nv == 1
-      std::swap(dofs[0], dofs[1]);
-      int n = dofs.size() - 2;
-      for (int i = 0; i < n/2; i++)
+      int nv = fec->DofForGeometry(Geometry::POINT);
+      for (int i = 0; i < nv; i++)
       {
-         std::swap(dofs[i + 2], dofs[dofs.size()-1 - i]);
+         std::swap(dofs[i], dofs[nv+i]);
+      }
+      int ne = dofs.size() - 2*nv;
+      for (int i = 0; i < ne/2; i++)
+      {
+         std::swap(dofs[i + 2*nv], dofs[dofs.size()-1 - i]);
       }
    }
 }

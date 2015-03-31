@@ -98,6 +98,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       Mesh::InitFromNCMesh(*pncmesh);
       pncmesh->OnMeshUpdated(this);
       //pncmesh->Prune();
+      //InitNCSharedElements();
 
       meshgen = mesh.MeshGenerator();
       ncmesh = pncmesh;
@@ -677,6 +678,25 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
    have_face_nbr_data = false;
 }
+
+/*void ParMesh::InitNCSharedElements()
+{
+   for (int type = 1; type < 3; type++)
+   {
+      const NCMesh::NCList &list = pncmesh->GetSharedList();
+      Array<Element*> &shared = (type == 1) ? shared_edges : shared_faces;
+
+      shared.SetSize(list.conforming.size() +
+                     list.masters.size() +
+                     list.slaves.size());
+
+      int k = 0;
+      for (unsigned i = 0; i < list.conforming.size(); i++)
+      {
+         shared[k++] = GetEdge(list.conforming[i].index
+      }
+   }
+}*/
 
 void ParMesh::GroupEdge(int group, int i, int &edge, int &o)
 {
@@ -3081,7 +3101,7 @@ void ParMesh::PrintAsOne(std::ostream &out)
       {
          MPI_Recv(nv_ne, 2, MPI_INT, p, 446, MyComm, &status);
          ints.SetSize(ne);
-         MPI_Recv(&ints[0], ne, MPI_INT, p, 447, MyComm, &status);
+         MPI_Recv(ints.GetData(), ne, MPI_INT, p, 447, MyComm, &status);
          for (i = 0; i < ne; )
          {
             // processor number + 1 as bdr. attr. and bdr. geometry type
@@ -3135,7 +3155,7 @@ void ParMesh::PrintAsOne(std::ostream &out)
             ints[j++] = v[k];
          }
       }
-      MPI_Send(&ints[0], ne, MPI_INT, 0, 447, MyComm);
+      MPI_Send(ints.GetData(), ne, MPI_INT, 0, 447, MyComm);
    }
 
    // vertices / nodes

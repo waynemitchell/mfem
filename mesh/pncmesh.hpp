@@ -286,16 +286,19 @@ TODO
 - parallel aniso refine
 */
 
+class FiniteElementCollection; // needed for edge orientation handling
+
 /** */
 class NeighborDofMessage : public VarMessage<135>
 {
 public:
    /// Add vertex/edge/face DOFs to an outgoing message.
    void AddDofs(int type, const NCMesh::MeshId &id, const Array<int> &dofs,
-                ParNCMesh* pncmesh);
+                ParNCMesh* pncmesh, const FiniteElementCollection* fec);
 
-   /// Set pointer to ParNCMesh (needed to encode the message).
-   void SetNCMesh(ParNCMesh* pncmesh) { this->pncmesh = pncmesh; }
+   /// Set pointers to ParNCMesh & FECollection (needed to encode the message).
+   void Init(ParNCMesh* pncmesh, const FiniteElementCollection* fec)
+   { this->pncmesh = pncmesh; this->fec = fec; }
 
    /// Get vertex/edge/face DOFs from a received message.
    void GetDofs(int type, const NCMesh::MeshId& id, Array<int>& dofs);
@@ -308,6 +311,7 @@ protected:
    IdToDofs id_dofs[3];
 
    ParNCMesh* pncmesh;
+   const FiniteElementCollection* fec;
 
    virtual void Encode();
    virtual void Decode();
