@@ -13,7 +13,7 @@
 
 #ifdef MFEM_USE_MPI
 
-#include "eliminate.hpp"
+#include "hypre_ext.hpp"
 #include <limits>
 
 namespace mfem
@@ -175,11 +175,11 @@ void hypre_CSRMatrixEliminateOffdRows(hypre_CSRMatrix *A,
                         \ B_b /          \        X_b       /
 
 */
-void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
-                                   HYPRE_Int nrows_to_eliminate,
-                                   HYPRE_Int *rows_to_eliminate,
-                                   hypre_ParVector *X,
-                                   hypre_ParVector *B)
+void hypre_ParCSRMatrixEliminateAXB(hypre_ParCSRMatrix *A,
+                                    HYPRE_Int num_rowscols_to_elim,
+                                    HYPRE_Int *rowscols_to_elim,
+                                    hypre_ParVector *X,
+                                    hypre_ParVector *B)
 {
    hypre_CSRMatrix *diag = hypre_ParCSRMatrixDiag(A);
    hypre_CSRMatrix *offd = hypre_ParCSRMatrixOffd(A);
@@ -192,8 +192,8 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
    HYPRE_Real   *Bdata  = hypre_VectorData(Blocal);
    HYPRE_Real   *Xdata  = hypre_VectorData(Xlocal);
 
-   HYPRE_Int  ncols_to_eliminate;
-   HYPRE_Int  *cols_to_eliminate;
+   HYPRE_Int  num_offd_cols_to_elim;
+   HYPRE_Int  *offd_cols_to_elim;
    HYPRE_Real *eliminate_coefs;
 
    /* figure out which offd cols should be eliminated and with what coef */
@@ -222,9 +222,9 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
    {
       eliminate_row[i] = std::numeric_limits<HYPRE_Real>::quiet_NaN();
    }
-   for (i = 0; i < nrows_to_eliminate; i++)
+   for (i = 0; i < num_rowscols_to_elim; i++)
    {
-      irow = rows_to_eliminate[i];
+      irow = rowscols_to_elim[i];
       eliminate_row[irow] = Xdata[irow];
    }
 
@@ -248,36 +248,36 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
                                               buf_data, eliminate_col);
 
    /* do sequential part of the elimination while stuff is getting sent */
-   hypre_CSRMatrixEliminateBC(diag, nrows_to_eliminate, rows_to_eliminate,
+   hypre_CSRMatrixEliminateBC(diag, num_rowscols_to_elim, rowscols_to_elim,
                               Xlocal, Blocal);
 
    /* finish the communication */
    hypre_ParCSRCommHandleDestroy(comm_handle);
 
    /* received eliminate_col[], count offd columns to eliminate */
-   ncols_to_eliminate = 0;
+   num_offd_cols_to_elim = 0;
    for (i = 0; i < offd_ncols; i++)
    {
       coef = eliminate_col[i];
       if (coef == coef) // test for NaN
       {
-         ncols_to_eliminate++;
+         num_offd_cols_to_elim++;
       }
    }
 
-   cols_to_eliminate = hypre_CTAlloc(HYPRE_Int, ncols_to_eliminate);
-   eliminate_coefs = hypre_CTAlloc(HYPRE_Real, ncols_to_eliminate);
+   offd_cols_to_elim = hypre_CTAlloc(HYPRE_Int, num_offd_cols_to_elim);
+   eliminate_coefs = hypre_CTAlloc(HYPRE_Real, num_offd_cols_to_elim);
 
    /* get a list of offd column indices and coefs */
-   ncols_to_eliminate = 0;
+   num_offd_cols_to_elim = 0;
    for (i = 0; i < offd_ncols; i++)
    {
       coef = eliminate_col[i];
       if (coef == coef) // test for NaN
       {
-         cols_to_eliminate[ncols_to_eliminate] = i;
-         eliminate_coefs[ncols_to_eliminate] = coef;
-         ncols_to_eliminate++;
+         offd_cols_to_elim[num_offd_cols_to_elim] = i;
+         eliminate_coefs[num_offd_cols_to_elim] = coef;
+         num_offd_cols_to_elim++;
       }
    }
 
@@ -286,24 +286,34 @@ void hypre_ParCSRMatrixEliminateBC(hypre_ParCSRMatrix *A,
    hypre_TFree(eliminate_col);
 
    /* eliminate the off-diagonal part */
-   hypre_CSRMatrixEliminateOffdCols(offd, ncols_to_eliminate, cols_to_eliminate,
+   hypre_CSRMatrixEliminateOffdCols(offd, num_offd_cols_to_elim, offd_cols_to_elim,
                                     eliminate_coefs, Blocal);
 
-   hypre_CSRMatrixEliminateOffdRows(offd, nrows_to_eliminate, rows_to_eliminate);
+   hypre_CSRMatrixEliminateOffdRows(offd, num_rowscols_to_elim,
+                                    rowscols_to_elim);
 
    /* set boundary values in the rhs */
-   for (int i = 0; i < nrows_to_eliminate; i++)
+   for (int i = 0; i < num_rowscols_to_elim; i++)
    {
-      irow = rows_to_eliminate[i];
+      irow = rowscols_to_elim[i];
       Bdata[irow] = Xdata[irow];
    }
 
-   hypre_TFree(cols_to_eliminate);
+   hypre_TFree(offd_cols_to_elim);
    hypre_TFree(eliminate_coefs);
 }
 
-}
-} // namespace mfem::internal
 
+void hypre_ParCSRMatrixEliminate(hypre_ParCSRMatrix *A,
+                                 hypre_ParCSRMatrix **Ae,
+                                 HYPRE_Int num_rowscols_to_elim,
+                                 HYPRE_Int *rowscols_to_elim)
+{
+   // TODO
+}
+
+}
+
+} // namespace mfem::internal
 
 #endif // MFEM_USE_MPI

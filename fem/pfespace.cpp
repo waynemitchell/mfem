@@ -541,17 +541,21 @@ int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
 {
    if (pmesh->pncmesh)
    {
-      MFEM_ASSERT(P, "Dof_TrueDof_Matrix() needs to be called before "
+      MFEM_VERIFY(P, "Dof_TrueDof_Matrix() needs to be called before "
                      "GetLocalTDofNumber()");
-      return ldof_ltdof[ldof];
-   }
-   if (GetGroupTopo().IAmMaster(ldof_group[ldof]))
-   {
-      return ldof_ltdof[ldof];
+
+      return ldof_ltdof[ldof]; // NOTE: contains -1 for slaves/DOFs we don't own
    }
    else
    {
-      return -1;
+      if (GetGroupTopo().IAmMaster(ldof_group[ldof]))
+      {
+         return ldof_ltdof[ldof];
+      }
+      else
+      {
+         return -1;
+      }
    }
 }
 

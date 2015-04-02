@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
       mesh->GeneralRefinement(refs, 1);
    }*/
 
-   /*for (int i = 0; i < 1; i++)
+   for (int i = 0; i < 1; i++)
       mesh->UniformRefinement();
 
    srand(0);
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
          }
 
       mesh->GeneralRefinement(refs);
-   }*/
+   }
 
    mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
    //mesh->UniformRefinement();
@@ -157,13 +157,13 @@ int main(int argc, char *argv[])
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-   {
+   /*{
       int par_ref_levels = 4;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
       }
-   }
+   }*/
    /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 7));

@@ -235,7 +235,7 @@ void ParBilinearForm
    }
 
    // do the parallel elimination
-   mfem::EliminateBC(A, dof_list, X, B);
+   A.EliminateRowsCols(dof_list, X, B);
 }
 
 void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)

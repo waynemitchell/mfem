@@ -15,7 +15,7 @@
 
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
-#include "eliminate.hpp"
+#include "hypre_ext.hpp"
 
 #include <fstream>
 #include <iomanip>
@@ -771,6 +771,40 @@ void HypreParMatrix::operator*=(double s)
    }
 }
 
+static void check_sorted(const Array<int> &array)
+{
+#ifdef MFEM_DEBUG
+   for (int i = 1; i < array.Size(); i++)
+   {
+      MFEM_ASSERT(array[i-1] < array[i],
+                  "ess_dof_list needs be sorted.");
+   }
+#endif
+}
+
+void HypreParMatrix::EliminateRowsCols(const Array<int> &rows_cols,
+                                       const HypreParVector &X,
+                                       HypreParVector &B)
+{
+   check_sorted(rows_cols);
+   internal::hypre_ParCSRMatrixEliminateAXB(
+      A, rows_cols.Size(), (HYPRE_Int*) rows_cols.GetData(), X, B);
+}
+
+void HypreParMatrix::EliminateRowsCols(HypreParMatrix &Ae,
+                                       const Array<int> &rows_cols)
+{
+   Ae.Destroy();
+   Ae.Init();
+
+   check_sorted(rows_cols);
+   internal::hypre_ParCSRMatrixEliminate(
+      A, &Ae.A, rows_cols.Size(), (HYPRE_Int*) rows_cols.GetData());
+
+   Ae.height = Ae.GetNumRows();
+   Ae.width = Ae.GetNumCols();
+}
+
 void HypreParMatrix::Print(const char *fname, int offi, int offj)
 {
    hypre_ParCSRMatrixPrintIJ(A,offi,offj,fname);
@@ -927,25 +961,6 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
 #endif
    }
 }
-
-
-void EliminateBC(HypreParMatrix &A,
-                 const Array<int> &ess_dof_list,
-                 const HypreParVector &X, HypreParVector &B)
-{
-#ifdef MFEM_DEBUG
-   for (int i = 1; i < ess_dof_list.Size(); i++)
-   {
-      MFEM_ASSERT(ess_dof_list[i-1] < ess_dof_list[i],
-                  "ess_dof_list needs be sorted.");
-   }
-#endif
-
-   internal::hypre_ParCSRMatrixEliminateBC(A, ess_dof_list.Size(),
-                                           (HYPRE_Int*) ess_dof_list.GetData(),
-                                           X, B);
-}
-
 
 // Taubin or "lambda-mu" scheme, which alternates between positive and
 // negative step sizes to approximate low-pass filter effect.

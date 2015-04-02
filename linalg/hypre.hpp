@@ -248,6 +248,17 @@ public:
    /// If a row contains only zeros, set its diagonal to 1.
    void EliminateZeroRows() { hypre_ParCSRMatrixFixZeroRows(A); }
 
+   /** Eliminate rows and columns from the matrix, and rows from the vector B.
+       Modify B with the BC values in X.
+       NOTE: the row/column list needs to be sorted. */
+   void EliminateRowsCols(const Array<int> &rows_cols, const HypreParVector &X,
+                          HypreParVector &B);
+
+   /** Eliminate rows and columns from the matrix and store the eliminated
+       elements in a new matrix Ae, so that the modified matrix and Ae sum to
+       the original matrix. NOTE: the DOF list needs to be sorted. */
+   void EliminateRowsCols(HypreParMatrix &Ae, const Array<int> &ess_dof_list);
+
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, int offi = 0, int offj = 0);
    /// Reads the matrix from a file
@@ -265,18 +276,13 @@ HypreParMatrix * RAP(HypreParMatrix *A, HypreParMatrix *P);
 /// Returns the matrix Rt^t * A * P
 HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P);
 
-/** Eliminate essential b.c. specified by ess_dof_list from the solution x to
-    the r.h.s. b. Here A is matrix with eliminated b.c., while Ae is such that
+/** Eliminate essential BC specified by 'ess_dof_list' from the solution X to
+    the r.h.s. B. Here A is a matrix with eliminated BC, while Ae is such that
     (A+Ae) is the original (Neumann) matrix before elimination. */
 void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
                  const Array<int> &ess_dof_list,
                  const HypreParVector &X, HypreParVector &B);
 
-/** Eliminate essential BC DOFs listed in 'ess_dof_list' from the general
-    parallel system A*X = B. The DOF list needs to be sorted. */
-void EliminateBC(HypreParMatrix &A,
-                 const Array<int> &ess_dof_list,
-                 const HypreParVector &X, HypreParVector &B);
 
 /// Parallel smoothers in hypre
 class HypreSmoother : public Solver
