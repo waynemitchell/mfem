@@ -123,10 +123,10 @@ void ParBilinearForm::pAllocMat()
 
 HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 {
-   if (m == NULL)
-   {
-      return NULL;
-   }
+   if (m == NULL) { return NULL; }
+
+   MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
+                               "ParallelAssemble");
 
    HypreParMatrix *A;
    if (fbfi.Size() == 0)

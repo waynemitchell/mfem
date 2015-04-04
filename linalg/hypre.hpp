@@ -249,15 +249,14 @@ public:
    void EliminateZeroRows() { hypre_ParCSRMatrixFixZeroRows(A); }
 
    /** Eliminate rows and columns from the matrix, and rows from the vector B.
-       Modify B with the BC values in X.
-       NOTE: the row/column list needs to be sorted. */
+       Modify B with the BC values in X. */
    void EliminateRowsCols(const Array<int> &rows_cols, const HypreParVector &X,
                           HypreParVector &B);
 
    /** Eliminate rows and columns from the matrix and store the eliminated
-       elements in a new matrix Ae, so that the modified matrix and Ae sum to
-       the original matrix. NOTE: the DOF list needs to be sorted. */
-   void EliminateRowsCols(HypreParMatrix &Ae, const Array<int> &ess_dof_list);
+       elements in a new matrix Ae (returned), so that the modified matrix and
+       Ae sum to the original matrix. */
+   HypreParMatrix* EliminateRowsCols(const Array<int> &rows_cols);
 
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, int offi = 0, int offj = 0);

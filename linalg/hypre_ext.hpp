@@ -18,14 +18,15 @@
 namespace mfem
 {
 
-// This module contains functions that are logically part of HYPRE.
-// It can be thought of a an extension of HYPRE.
+// This module contains functions that are logically part of HYPRE, and might
+// become part of HYPRE at some point. In the meantime the module can be
+// thought of a an extension of HYPRE.
 
 namespace internal
 {
 
 /** Parallel essential BC elimination from the system A*X = B.
-    Adapted from hypre_ParCSRMatrixEliminateRowsCols. */
+    (Adapted from hypre_ParCSRMatrixEliminateRowsCols.) */
 void hypre_ParCSRMatrixEliminateAXB(hypre_ParCSRMatrix *A,
                                     HYPRE_Int num_rowscols_to_elim,
                                     HYPRE_Int *rowscols_to_elim,
@@ -33,12 +34,12 @@ void hypre_ParCSRMatrixEliminateAXB(hypre_ParCSRMatrix *A,
                                     hypre_ParVector *B);
 
 /** Parallel essential BC elimination from matrix A only. The eliminated
-    elements are stored in a new matrix Ae, so that the modified A matrix and
-    the Ae matrix sum to the original A matrix. */
-void hypre_ParCSRMatrixEliminate(hypre_ParCSRMatrix *A,
-                                 hypre_ParCSRMatrix **Ae,
-                                 HYPRE_Int num_rowscols_to_elim,
-                                 HYPRE_Int *rowscols_to_elim);
+    elements are stored in a new matrix Ae, so that (A + Ae) equals the original
+    matrix A. */
+void hypre_ParCSRMatrixEliminateAAe(hypre_ParCSRMatrix *A,
+                                    hypre_ParCSRMatrix **Ae,
+                                    HYPRE_Int num_rowscols_to_elim,
+                                    HYPRE_Int *rowscols_to_elim);
 
 }
 

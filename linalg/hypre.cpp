@@ -771,38 +771,40 @@ void HypreParMatrix::operator*=(double s)
    }
 }
 
-static void check_sorted(const Array<int> &array)
+static void get_sorted_rows_cols(const Array<int> &rows_cols,
+                                 Array<HYPRE_Int> &hypre_sorted)
 {
-#ifdef MFEM_DEBUG
-   for (int i = 1; i < array.Size(); i++)
+   hypre_sorted.SetSize(rows_cols.Size());
+   bool sorted = true;
+   for (int i = 0; i < rows_cols.Size(); i++)
    {
-      MFEM_ASSERT(array[i-1] < array[i],
-                  "ess_dof_list needs be sorted.");
+      hypre_sorted[i] = rows_cols[i];
+      if (i && rows_cols[i-1] > rows_cols[i]) { sorted = false; }
    }
-#endif
+   if (!sorted) { hypre_sorted.Sort(); }
 }
 
 void HypreParMatrix::EliminateRowsCols(const Array<int> &rows_cols,
                                        const HypreParVector &X,
                                        HypreParVector &B)
 {
-   check_sorted(rows_cols);
+   Array<HYPRE_Int> rc_sorted;
+   get_sorted_rows_cols(rows_cols, rc_sorted);
+
    internal::hypre_ParCSRMatrixEliminateAXB(
-      A, rows_cols.Size(), (HYPRE_Int*) rows_cols.GetData(), X, B);
+      A, rc_sorted.Size(), rc_sorted.GetData(), X, B);
 }
 
-void HypreParMatrix::EliminateRowsCols(HypreParMatrix &Ae,
-                                       const Array<int> &rows_cols)
+HypreParMatrix* HypreParMatrix::EliminateRowsCols(const Array<int> &rows_cols)
 {
-   Ae.Destroy();
-   Ae.Init();
+   Array<HYPRE_Int> rc_sorted;
+   get_sorted_rows_cols(rows_cols, rc_sorted);
 
-   check_sorted(rows_cols);
-   internal::hypre_ParCSRMatrixEliminate(
-      A, &Ae.A, rows_cols.Size(), (HYPRE_Int*) rows_cols.GetData());
+   hypre_ParCSRMatrix* Ae;
+   internal::hypre_ParCSRMatrixEliminateAAe(
+      A, &Ae, rc_sorted.Size(), rc_sorted.GetData());
 
-   Ae.height = Ae.GetNumRows();
-   Ae.width = Ae.GetNumCols();
+   return new HypreParMatrix(Ae);
 }
 
 void HypreParMatrix::Print(const char *fname, int offi, int offj)
@@ -950,7 +952,7 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
    {
       int r = ess_dof_list[i];
       B(r) = data[I[r]] * X(r);
-#ifdef MFEM_DEBUG
+/*#ifdef MFEM_DEBUG
       // Check that in the rows specified by the ess_dof_list, the matrix A has
       // only one entry -- the diagonal.
       if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
@@ -958,7 +960,7 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
          MFEM_ABORT("'A' needs to have diagonal entries only in rows specified "
                     "by 'ess_dof_list'.");
       }
-#endif
+#endif*/
    }
 }
 
