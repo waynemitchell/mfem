@@ -2224,6 +2224,20 @@ void DenseMatrix::Getl1Diag(Vector &l)
       }
 }
 
+void DenseMatrix::GetRowSums(Vector &l) const
+{
+   l.SetSize(height);
+   for (int i = 0; i < height; i++)
+   {
+      double d = 0.0;
+      for (int j = 0; j < width; j++)
+      {
+         d += operator()(i, j);
+      }
+      l(i) = d;
+   }
+}
+
 void DenseMatrix::Diag(double c, int n)
 {
    SetSize(n);
