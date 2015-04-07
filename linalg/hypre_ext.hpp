@@ -38,7 +38,7 @@ void hypre_ParCSRMatrixEliminateAXB(hypre_ParCSRMatrix *A,
     matrix A. */
 void hypre_ParCSRMatrixEliminateAAe(hypre_ParCSRMatrix *A,
                                     hypre_ParCSRMatrix **Ae,
-                                    HYPRE_Int num_rowscols_to_elim,
+                                    HYPRE_Int nrowscols_to_elim,
                                     HYPRE_Int *rowscols_to_elim);
 
 }
