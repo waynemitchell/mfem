@@ -43,6 +43,8 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
    Swap(ldof_sign, pf.ldof_sign);
    P = pf.P;
    pf.P = NULL;
+   Pex = pf.Pex;
+   pf.Pex = NULL;
    num_face_nbr_dofs = pf.num_face_nbr_dofs;
    pf.num_face_nbr_dofs = -1;
    Swap<Table>(face_nbr_element_dof, pf.face_nbr_element_dof);
@@ -62,7 +64,8 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParMesh *pm,
    MPI_Comm_size(MyComm, &NRanks);
    MPI_Comm_rank(MyComm, &MyRank);
 
-   P = NULL;
+   P   = NULL;
+   Pex = NULL;
 
    if (NURBSext)
    {

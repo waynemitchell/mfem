@@ -666,7 +666,6 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
                                        const FiniteElementCollection *f,
                                        int dim, int order, bool pr_dofs)
 {
-  cout << "in FiniteElementSpace ctor with pr_dofs " << pr_dofs << endl;
    mesh = m;
    fec = f;
    vdim = dim;
@@ -679,7 +678,6 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
       dynamic_cast<const NURBSFECollection *>(fec);
    if (nurbs_fec)
    {
-     cout << "nurbs_fec is true" << endl;
       if (!mesh->NURBSext)
       {
          mfem_error("FiniteElementSpace::FiniteElementSpace :\n"
@@ -707,7 +705,6 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
    }
    else
    {
-     cout << "nurbs_fec is false" << endl;
       NURBSext = NULL;
       own_ext = 0;
       Constructor();

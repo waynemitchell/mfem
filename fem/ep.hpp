@@ -325,6 +325,7 @@ protected:
 	Pe_(NULL)
     {
       Operator::width = pepdofs_->TrueExVSize();
+
       Pe_  = pepdofs_->ExDof_TrueExDof_Matrix();
 
       HypreMrr_ = new HypreParMatrix(Pe_->GetComm(),
