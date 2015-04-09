@@ -189,8 +189,8 @@ void Table::GetRow(int i, Array<int> &row) const
 
 void Table::SetIJ(int *newI, int *newJ, int newsize)
 {
-   delete [] I;
-   delete [] J;
+   if ( I != NULL ) delete [] I;
+   if ( J != NULL ) delete [] J;
    I = newI;
    J = newJ;
    if (newsize >= 0)
