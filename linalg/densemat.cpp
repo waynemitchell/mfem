@@ -2488,6 +2488,24 @@ void DenseMatrix::CopyMNDiag(double *diag, int n, int row_offset,
    }
 }
 
+void DenseMatrix::AddMN(DenseMatrix &A, int m, int n, int Aro, int Aco)
+{
+   int i, j;
+
+#ifdef MFEM_DEBUG
+   if (n > Width() || m > Height())
+   {
+      mfem_error("DenseMatrix::AddMN(...) 1");
+   }
+#endif
+
+   for (j = 0; j < n; j++)
+      for (i = 0; i < m; i++)
+      {
+         (*this)(i,j) += A(Aro+i,Aco+j);
+      }
+}
+
 void DenseMatrix::AddMatrix(DenseMatrix &A, int ro, int co)
 {
    int h, ah, aw;
@@ -2615,6 +2633,8 @@ void DenseMatrix::SetCol(int col, double value)
 
 void DenseMatrix::Print(std::ostream &out, int width_) const
 {
+   // save current output flags
+   ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int i = 0; i < height; i++)
@@ -2633,10 +2653,14 @@ void DenseMatrix::Print(std::ostream &out, int width_) const
          }
       }
    }
+   // reset output flags to original values
+   out.flags(old_flags);
 }
 
 void DenseMatrix::PrintMatlab(std::ostream &out) const
 {
+   // save current output flags
+   ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int i = 0; i < height; i++)
@@ -2648,10 +2672,14 @@ void DenseMatrix::PrintMatlab(std::ostream &out) const
       }
       out << "\n";
    }
+   // reset output flags to original values
+   out.flags(old_flags);
 }
 
 void DenseMatrix::PrintT(std::ostream &out, int width_) const
 {
+   // save current output flags
+   ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int j = 0; j < width; j++)
@@ -2670,6 +2698,8 @@ void DenseMatrix::PrintT(std::ostream &out, int width_) const
          }
       }
    }
+   // reset output flags to original values
+   out.flags(old_flags);
 }
 
 void DenseMatrix::TestInversion()

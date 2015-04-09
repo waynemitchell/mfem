@@ -167,7 +167,7 @@ public:
    inline void GetSubArray(int offset, int sa_size, Array<T> &sa);
 
    /// Prints array to stream with width elements per row
-   void Print(std::ostream &out, int width);
+   void Print(std::ostream &out = std::cout, int width = 4);
 
    /// Prints array to stream out
    void Save(std::ostream &out);

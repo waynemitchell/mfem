@@ -231,6 +231,9 @@ public:
    /// Copy diag on the diagonal of size n to *this at row_offset, col_offset
    void CopyMNDiag(double *diag, int n, int row_offset, int col_offset);
 
+   /// Add the m x n submatrix of A at (Aro)ffset, (Aco)loffset to *this
+   void AddMN(DenseMatrix &A, int m, int n, int Aro, int Aco);
+
    /// Perform (ro+i,co+j)+=A(i,j) for 0<=i<A.Height, 0<=j<A.Width
    void AddMatrix(DenseMatrix &A, int ro, int co);
    /// Perform (ro+i,co+j)+=a*A(i,j) for 0<=i<A.Height, 0<=j<A.Width
