@@ -53,6 +53,9 @@ void BilinearForm::AllocMat()
 	 mat_pp = new DenseMatrix*[fes->GetNE()];
 	 mat_pp_inv = new DenseMatrixInverse*[fes->GetNE()];
 	 for (int i=0; i<fes->GetNE(); i++) mat_pp[i] = new DenseMatrix();
+
+	 rhs_r = new Vector(fes->GetExVSize());
+	 tmp_p = new Vector(fes->GetPrVSize());
       }
       return;
    }
@@ -153,6 +156,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f)
    mat_ee = mat_ep = mat_pe = mat_rr = NULL;
    mat_pp = NULL;
    mat_pp_inv = NULL;
+   rhs_r = tmp_p = NULL;
    extern_bfs = 0;
    element_matrices = NULL;
    precompute_sparsity = 0;
@@ -169,6 +173,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    mat_ee = mat_ep = mat_pe = mat_rr = NULL;
    mat_pp = NULL;
    mat_pp_inv = NULL;
+   rhs_r = tmp_p = NULL;
    extern_bfs = 1;
    element_matrices = NULL;
    precompute_sparsity = ps;
@@ -216,7 +221,109 @@ const double& BilinearForm::Elem (int i, int j) const
 
 void BilinearForm::Mult (const Vector & x, Vector & y) const
 {
-   mat -> Mult (x, y);
+   if ( mat != NULL )
+   {
+      mat -> Mult (x, y);
+   }
+   else
+   {
+      // Create temporary vectors for the exposed and private
+      // portions of x and y
+      const Vector x_e(const_cast<double*>(&x[0]),fes->GetNExDofs());
+      const Vector x_p(const_cast<double*>(&x[fes->GetNExDofs()]),
+		       fes->GetNPrDofs());
+
+      Vector y_e(&y[0],fes->GetNExDofs());
+      Vector y_p(&y[fes->GetNExDofs()],fes->GetNPrDofs());
+
+      // Compute the Exposed portion of the product
+      mat_ee->Mult(x_e,y_e);
+      mat_ep->AddMult(x_p,y_e);
+
+      // Compute the Private portion of the product
+      // Begin by multiplying the block diagonal portion element by element
+
+      const int * pr_offset = fes->GetPrivateOffsets();
+
+      for (int i=0; i<fes->GetNE(); i++)
+      {
+	 mat_pp[i]->Mult(&x_p[pr_offset[i]],
+			 &y_p[pr_offset[i]]);
+      }
+
+      // Finish by multiplying the off-diagonal block
+      if ( mat_pe != NULL )
+      {
+	 mat_pe->AddMult(x_e,y_p);
+      }
+      else
+      {
+ 	 mat_ep->AddMultTranspose(x_e,y_p);
+      }
+   }
+}
+
+const Vector &
+BilinearForm::RHS_R(const Vector & rhs) const
+{
+   // Create temporary vectors for the exposed and private portions of rhs
+   const Vector rhs_e(const_cast<double*>(&rhs[0]),fes->GetNExDofs());
+   const Vector rhs_p(const_cast<double*>(&rhs[fes->GetNExDofs()]),
+		    fes->GetNPrDofs());
+
+   const int * pr_offset = fes->GetPrivateOffsets();
+
+   Vector v1,v2;
+
+   for (int i=0; i<fes->GetNE(); i++)
+   {
+      int size = mat_pp_inv[i]->Size();
+      v1.SetDataAndSize(&rhs_p.GetData()[pr_offset[i]],size);
+      v2.SetDataAndSize(&rhs_r->GetData()[pr_offset[i]],size);
+      mat_pp_inv[i]->Mult(v1,v2);
+   }
+
+   rhs_r->Set(1.0,rhs_e);
+
+   mat_ep->AddMult(*tmp_p,*rhs_r,-1.0);
+
+   return *rhs_r;
+}
+
+void
+BilinearForm::UpdatePrivateDoFs(const Vector &rhs, const Vector &sol) const
+{
+   // Create temporary vectors for the private portion of rhs
+   const Vector rhs_p(const_cast<double*>(&rhs[fes->GetNExDofs()]),
+		      fes->GetNPrDofs());
+
+   // Create temporary vectors for the exposed and private portions of sol
+   const Vector sol_e(const_cast<double*>(&sol[0]),fes->GetNExDofs());
+   Vector sol_p(const_cast<double*>(&sol[fes->GetNExDofs()]),
+		fes->GetNPrDofs());
+
+   tmp_p->Set(1.0,rhs_p);
+   if ( mat_pe != NULL )
+   {
+      mat_pe->AddMult(sol_e,*tmp_p,-1.0);
+   }
+   else
+   {
+      mat_ep->AddMultTranspose(sol_e,*tmp_p,-1.0);
+   }
+
+   const int * pr_offsets = fes->GetPrivateOffsets();
+
+   Vector v1,v2;
+
+   for (int i=0; i<fes->GetNE(); i++)
+   {
+      int size = mat_pp_inv[i]->Size();
+      v1.SetDataAndSize(&tmp_p->GetData()[pr_offsets[i]],size);
+      v2.SetDataAndSize(&sol_p[pr_offsets[i]],size);
+
+      mat_pp_inv[i]->Mult(v1,v2);
+   }
 }
 
 MatrixInverse * BilinearForm::Inverse() const
@@ -234,8 +341,11 @@ void BilinearForm::Finalize (int skip_zeros)
    {
       mat_ee -> Finalize (skip_zeros);
       mat_ep -> Finalize (skip_zeros);
-      mat_pe -> Finalize (skip_zeros);
       mat_rr -> Finalize (skip_zeros);
+      if ( mat_pe != NULL )
+      {
+	 mat_pe -> Finalize (skip_zeros);
+      }
    }
    if (mat_e)
    {
@@ -742,7 +852,6 @@ BilinearForm::~BilinearForm()
    if ( mat_ep != NULL ) delete mat_ep;
    if ( mat_pe != NULL ) delete mat_pe;
    if ( mat_rr != NULL ) delete mat_rr;
-
    if ( mat_pp != NULL )
    {
      for (int i=0; i<fes->GetNE(); i++)
@@ -759,6 +868,8 @@ BilinearForm::~BilinearForm()
      }
      delete [] mat_pp_inv;
    }
+   if ( rhs_r != NULL ) delete rhs_r;
+   if ( tmp_p != NULL ) delete tmp_p;
 
    if (!extern_bfs)
    {

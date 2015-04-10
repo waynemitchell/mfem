@@ -41,6 +41,10 @@ protected:
    DenseMatrix  **mat_pp; // The private-private dense blocks
    DenseMatrixInverse **mat_pp_inv; // The inverses of the mat_pp blocks
 
+   // Vectors associated with static condensation
+   Vector *rhs_r; // A reduced version of a rhs vector
+   Vector *tmp_p; // A temporary vector compatible with the private DoFs
+
    /// FE space on which the form lives.
    FiniteElementSpace *fes;
 
@@ -73,6 +77,7 @@ protected:
       fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
       mat_ee = mat_ep = mat_pe = mat_rr = NULL;
       mat_pp = NULL; mat_pp_inv = NULL;
+      rhs_r = tmp_p = NULL;
       precompute_sparsity = 0;
    }
 
@@ -136,6 +141,25 @@ public:
    const SparseMatrix &SpMat() const { return *mat; }
    SparseMatrix &SpMat() { return *mat; }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
+
+   /// Access the static condensation Matrices and Vectors
+   const SparseMatrix &SPMatEE() const { return *mat_ee; }
+   const SparseMatrix &SPMatEP() const { return *mat_ep; }
+   const SparseMatrix &SPMatPE() const { return *mat_pe; }
+   const SparseMatrix &SPMatRR() const { return *mat_rr; }
+
+   SparseMatrix &SpMatEE() { return *mat_ee; }
+   SparseMatrix &SpMatEP() { return *mat_ep; }
+   SparseMatrix &SpMatPE() { return *mat_pe; }
+   SparseMatrix &SpMatRR() { return *mat_rr; }
+
+   const Vector &RHS_R(const Vector & rhs) const;
+   const Vector &RHS_R() const { return *rhs_r; }
+   Vector &RHS_R() { return *rhs_r; }
+
+   // Given a rhs vector and a solution vector with its exposed DoFs
+   // already computed, update the private DoFs of sol
+   void UpdatePrivateDoFs(const Vector &rhs, const Vector &sol) const;
 
    /// Adds new Domain Integrator.
    void AddDomainIntegrator(BilinearFormIntegrator *bfi);
