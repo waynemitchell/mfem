@@ -33,6 +33,14 @@ protected:
    // Matrix used to eliminate b.c.
    SparseMatrix *mat_e;
 
+   // Matrices associated with static condensation
+   SparseMatrix  *mat_ee; // The exposed-exposed block of the assembled matrix
+   SparseMatrix  *mat_ep; // The exposed-private block of the assembled matrix
+   SparseMatrix  *mat_pe; // The private-exposed block of the assembled matrix
+   SparseMatrix  *mat_rr; // The Schur Complement of the assembled matrix
+   DenseMatrix  **mat_pp; // The private-private dense blocks
+   DenseMatrixInverse **mat_pp_inv; // The inverses of the mat_pp blocks
+
    /// FE space on which the form lives.
    FiniteElementSpace *fes;
 
@@ -63,6 +71,8 @@ protected:
    BilinearForm() : Matrix (0)
    {
       fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
+      mat_ee = mat_ep = mat_pe = mat_rr = NULL;
+      mat_pp = NULL; mat_pp_inv = NULL;
       precompute_sparsity = 0;
    }
 
@@ -83,7 +93,7 @@ public:
    /** Pre-allocate the internal SparseMatrix before assembly. If the flag
        'precompute sparsity' is set, the matrix is allocated in CSR format (i.e.
        finalized) and the entries are initialized with zeros. */
-   void AllocateMatrix() { if (mat == NULL) { AllocMat(); } }
+   void AllocateMatrix() { if (mat == NULL && mat_ee == NULL) { AllocMat(); } }
 
    Array<BilinearFormIntegrator*> *GetDBFI() { return &dbfi; }
 

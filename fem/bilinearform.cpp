@@ -19,15 +19,47 @@ namespace mfem
 
 void BilinearForm::AllocMat()
 {
+   bool symInt = true;
+   if ( fes->GetNPrDofs() != 0 )
+   {
+     if ( fbfi.Size() > 0 ) symInt = false;
+     if ( dbfi.Size() > 0 )
+     {
+       for (int k = 1; k < dbfi.Size(); k++)
+       {
+	 if ( !dbfi[k]->IsSymmetric() )
+	 {
+	   symInt = false;
+	 }
+       }
+     }
+   }
+
    if (precompute_sparsity == 0 || fes->GetVDim() > 1)
    {
-      mat = new SparseMatrix(height);
+      if ( fes->GetNPrDofs() == 0 )
+      {
+	 mat = new SparseMatrix(height);
+      }
+      else
+      {
+	 mat_ee = new SparseMatrix(fes->GetExVSize());
+ 	 mat_ep = new SparseMatrix(fes->GetExVSize(),fes->GetPrVSize());
+	 if ( !symInt )
+	 {
+	    mat_pe = new SparseMatrix(fes->GetPrVSize(),fes->GetExVSize());
+	 }
+	 mat_rr = new SparseMatrix(fes->GetExVSize());
+	 mat_pp = new DenseMatrix*[fes->GetNE()];
+	 mat_pp_inv = new DenseMatrixInverse*[fes->GetNE()];
+	 for (int i=0; i<fes->GetNE(); i++) mat_pp[i] = new DenseMatrix();
+      }
       return;
    }
 
    fes->BuildElementToDofTable();
    const Table &elem_dof = fes->GetElementToDofTable();
-   Table dof_dof;
+   Table dof_dof, dof_prdof, prdof_dof;
 
    if (fbfi.Size() > 0)
    {
@@ -44,17 +76,71 @@ void BilinearForm::AllocMat()
    else
    {
       // the sparsity pattern is defined from the map: element->dof
-      Table dof_elem;
-      Transpose(elem_dof, dof_elem, height);
+      Table dof_elem, elem_pr, pr_elem;
+      Transpose(elem_dof, dof_elem, fes->GetExVSize());
       mfem::Mult(dof_elem, elem_dof, dof_dof);
+
+      if ( fes->GetNPrDofs() > 0 )
+      {
+ 	 int * pr_offsets = fes->GetPrivateOffsets();
+	 int * pr_j = new int[pr_offsets[fes->GetNE()]];
+	 for (int j=0; j<pr_offsets[fes->GetNE()]; j++) pr_j[j] = j;
+	 elem_pr.SetIJ(pr_offsets,pr_j,fes->GetNE());
+	 mfem::Mult(dof_elem, elem_pr,dof_prdof);
+	 if ( !symInt )
+	 {
+	    Transpose(elem_pr, pr_elem, fes->GetPrVSize());
+	    mfem::Mult(pr_elem,elem_dof, prdof_dof);
+	 }
+	 elem_pr.LoseData();
+	 delete [] pr_j;
+      }
    }
 
    int *I = dof_dof.GetI();
    int *J = dof_dof.GetJ();
-   double *data = new double[I[height]];
 
-   mat = new SparseMatrix(I, J, data, height, height);
-   *mat = 0.0;
+   if ( fes->GetNPrDofs() == 0  )
+   {
+      mat = new SparseMatrix(I, J, NULL, dof_dof.Size(), dof_dof.Size(),
+			     true, true, false);
+      *mat = 0.0;
+   }
+   else
+   {
+      int * I_pr = dof_prdof.GetI();
+      int * J_pr = dof_prdof.GetJ();
+
+      mat_ee = new SparseMatrix(I, J, NULL, dof_dof.Size(), dof_dof.Size(),
+				true, true, false);
+      mat_rr = new SparseMatrix(I, J, NULL, dof_dof.Size(), dof_dof.Size(),
+				false, true, false);
+      mat_ep = new SparseMatrix(I_pr, J_pr, NULL,
+				dof_dof.Size(), dof_prdof.Size(),
+				true, true, false);
+      mat_pp = new DenseMatrix*[fes->GetNE()];
+      for (int i=0; i<fes->GetNE(); i++) mat_pp[i] = new DenseMatrix();
+
+      mat_pp_inv = new DenseMatrixInverse*[fes->GetNE()];
+
+      *mat_ee = 0.0;
+      *mat_rr = 0.0;
+      *mat_ep = 0.0;
+
+      dof_prdof.LoseData();
+
+      if ( !symInt )
+      {
+	 int * I_pr_T = prdof_dof.GetI();
+	 int * J_pr_T = prdof_dof.GetJ();
+
+	 mat_pe = new SparseMatrix(I_pr_T, J_pr_T, NULL,
+				   prdof_dof.Size(), dof_dof.Size(),
+				   true, true, false);
+	 *mat_pe = 0.0;
+	 prdof_dof.LoseData();
+      }
+   }
 
    dof_dof.LoseData();
 }
@@ -64,6 +150,9 @@ BilinearForm::BilinearForm (FiniteElementSpace * f)
 {
    fes = f;
    mat = mat_e = NULL;
+   mat_ee = mat_ep = mat_pe = mat_rr = NULL;
+   mat_pp = NULL;
+   mat_pp_inv = NULL;
    extern_bfs = 0;
    element_matrices = NULL;
    precompute_sparsity = 0;
@@ -77,6 +166,9 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
 
    fes = f;
    mat_e = NULL;
+   mat_ee = mat_ep = mat_pe = mat_rr = NULL;
+   mat_pp = NULL;
+   mat_pp_inv = NULL;
    extern_bfs = 1;
    element_matrices = NULL;
    precompute_sparsity = ps;
@@ -134,7 +226,17 @@ MatrixInverse * BilinearForm::Inverse() const
 
 void BilinearForm::Finalize (int skip_zeros)
 {
-   mat -> Finalize (skip_zeros);
+   if ( mat != NULL )
+   {
+      mat -> Finalize (skip_zeros);
+   }
+   else
+   {
+      mat_ee -> Finalize (skip_zeros);
+      mat_ep -> Finalize (skip_zeros);
+      mat_pe -> Finalize (skip_zeros);
+      mat_rr -> Finalize (skip_zeros);
+   }
    if (mat_e)
    {
       mat_e -> Finalize (skip_zeros);
@@ -207,7 +309,7 @@ void BilinearForm::Assemble (int skip_zeros)
 
    int i;
 
-   if (mat == NULL)
+   if (mat == NULL && mat_ee == NULL )
    {
       AllocMat();
    }
@@ -223,23 +325,129 @@ void BilinearForm::Assemble (int skip_zeros)
 
    if (dbfi.Size())
    {
-      for (i = 0; i < fes -> GetNE(); i++)
+      if ( fes->GetNPrDofs() == 0 )
       {
-         fes->GetElementVDofs(i, vdofs);
-         if (element_matrices)
-         {
-            mat->AddSubMatrix(vdofs, vdofs, (*element_matrices)(i), skip_zeros);
-         }
-         else
-         {
-            const FiniteElement &fe = *fes->GetFE(i);
-            eltrans = fes->GetElementTransformation(i);
-            for (int k = 0; k < dbfi.Size(); k++)
-            {
-               dbfi[k]->AssembleElementMatrix(fe, *eltrans, elemmat);
-               mat->AddSubMatrix(vdofs, vdofs, elemmat, skip_zeros);
-            }
-         }
+	 for (i = 0; i < fes -> GetNE(); i++)
+	 {
+	    fes->GetElementVDofs(i, vdofs);
+	    if (element_matrices)
+	    {
+	       mat->AddSubMatrix(vdofs, vdofs, (*element_matrices)(i),
+				 skip_zeros);
+	    }
+	    else
+	    {
+	       const FiniteElement &fe = *fes->GetFE(i);
+	       eltrans = fes->GetElementTransformation(i);
+	       for (int k = 0; k < dbfi.Size(); k++)
+	       {
+		  dbfi[k]->AssembleElementMatrix(fe, *eltrans, elemmat);
+		  mat->AddSubMatrix(vdofs, vdofs, elemmat, skip_zeros);
+	       }
+	    }
+	 }
+      }
+      else
+      {
+ 	 DenseMatrix mee,mpe,mep,mrr;
+	 Vector vpR,veL,vcMpe;
+
+	 *mat_ee = 0.0;
+
+	 for (i = 0; i < fes -> GetNE(); i++)
+	 {
+ 	    int vdim = fes->GetVDim();
+	    int pr_offset, npri;
+	    fes->GetElementDofs(i, vdofs, pr_offset, npri);
+	    // fes->DofsToVDofs(vdofs);
+	    if (element_matrices)
+	    {
+	       mee.CopyMN((*element_matrices)(i),
+			  vdofs.Size(),vdofs.Size(),0,0);
+	       mep.CopyMN((*element_matrices)(i),
+			  vdofs.Size(),vdim*npri,0,vdofs.Size());
+	       if ( mat_pe != NULL )
+	       {
+		  mpe.CopyMN((*element_matrices)(i),
+			     vdim*npri,vdofs.Size(),vdofs.Size(),0);
+	       }
+
+	       mat_pp[i]->CopyMN((*element_matrices)(i),
+				 vdim*npri, vdim*npri,
+				 vdofs.Size(), vdofs.Size());
+	    }
+	    else
+	    {
+	       const FiniteElement &fe = *fes->GetFE(i);
+	       eltrans = fes->GetElementTransformation(i);
+
+	       mee.SetSize(vdofs.Size(),vdofs.Size());
+	       mep.SetSize(vdofs.Size(),vdim*npri);
+	       mat_pp[i]->SetSize(vdim*npri,vdim*npri);
+
+	       mee = 0.0;
+	       mep = 0.0;
+	       *mat_pp[i] = 0.0;
+
+	       if ( mat_pe != NULL )
+	       {
+		  mpe.SetSize(vdim*npri,vdofs.Size());
+		  mpe = 0.0;
+	       }
+
+	       for (int k = 0; k < dbfi.Size(); k++)
+	       {
+		  dbfi[k]->AssembleElementMatrix(fe, *eltrans, elemmat);
+
+		  mee.AddMN(elemmat,
+			    vdofs.Size(),vdofs.Size(),0,0);
+		  mep.AddMN(elemmat,
+			    vdofs.Size(),vdim*npri,0,vdofs.Size());
+		  if ( mat_pe != NULL )
+		  {
+		     mpe.AddMN(elemmat,
+			       vdim*npri,vdofs.Size(),vdofs.Size(),0);
+		  }
+		  mat_pp[i]->AddMN(elemmat,vdim*npri,vdim*npri,
+				   vdofs.Size(),vdofs.Size());
+	       }
+	    }
+
+	    mat_ee->AddSubMatrix(vdofs, vdofs, mee, skip_zeros);
+
+	    for (int ii=0; ii<vdofs.Size(); ii++)
+	      for (int jj=0; jj<vdim*npri; jj++)
+		mat_ep->Add(vdofs[ii],vdim*pr_offset+jj,mep(ii,jj));
+
+	    if ( mat_pe != NULL )
+	    {
+	       for (int ii=0; ii<vdim*npri; ii++)
+		  for (int jj=0; jj<vdofs.Size(); jj++)
+		     mat_pe->Add(vdim*pr_offset+ii,vdofs[jj],mpe(ii,jj));
+	    }
+
+	    mat_pp_inv[i] = (DenseMatrixInverse*)mat_pp[i]->Inverse();
+
+	    vcMpe.SetSize(vdim*npri);
+	    vpR.SetSize(vdim*npri);
+	    veL.SetSize(vdofs.Size());
+	    mrr.SetSize(vdofs.Size(),vdofs.Size());
+
+	    for (int jj=0; jj<vdofs.Size(); jj++)
+	    {
+	       for (int kk=0; kk<vdim*npri; kk++)
+		  vcMpe(kk) = mep(jj,kk);
+	       mat_pp_inv[i]->Mult(vcMpe,vpR);
+
+	       mep.Mult(vpR,veL);
+
+	       for (int ii=0; ii<vdofs.Size(); ii++)
+		  mrr(ii,jj) = -veL(ii);
+	    }
+
+	    mrr += mee;
+	    mat_rr->AddSubMatrix(vdofs, vdofs, mrr, skip_zeros);
+	 }
       }
    }
 
@@ -493,20 +701,64 @@ void BilinearForm::Update (FiniteElementSpace *nfes)
 {
    if (nfes) { fes = nfes; }
 
-   delete mat_e;
-   delete mat;
+   if ( mat_e != NULL ) delete mat_e;
+   if ( mat != NULL ) delete mat;
+   if ( mat_ee != NULL ) delete mat_ee;
+   if ( mat_ep != NULL ) delete mat_ep;
+   if ( mat_pe != NULL ) delete mat_pe;
+   if ( mat_rr != NULL ) delete mat_rr;
+
+   if ( mat_pp != NULL )
+   {
+     for (int i=0; i<fes->GetNE(); i++)
+     {
+        if ( mat_pp[i] != NULL ) delete mat_pp[i];
+     }
+     delete [] mat_pp;
+   }
+   if ( mat_pp_inv != NULL )
+   {
+     for (int i=0; i<fes->GetNE(); i++)
+     {
+        if ( mat_pp_inv[i] != NULL ) delete mat_pp_inv[i];
+     }
+     delete [] mat_pp_inv;
+   }
+
    FreeElementMatrices();
 
    height = width = fes->GetVSize();
 
-   mat = mat_e = NULL;
+   mat = mat_e = mat_ee = mat_ep = mat_pe = mat_rr = NULL;
 }
 
 BilinearForm::~BilinearForm()
 {
-   delete mat_e;
-   delete mat;
+   if ( mat_e != NULL )delete mat_e;
+   if ( mat != NULL ) delete mat;
    delete element_matrices;
+
+   if ( mat_ee != NULL ) delete mat_ee;
+   if ( mat_ep != NULL ) delete mat_ep;
+   if ( mat_pe != NULL ) delete mat_pe;
+   if ( mat_rr != NULL ) delete mat_rr;
+
+   if ( mat_pp != NULL )
+   {
+     for (int i=0; i<fes->GetNE(); i++)
+     {
+        if ( mat_pp[i] != NULL ) delete mat_pp[i];
+     }
+     delete [] mat_pp;
+   }
+   if ( mat_pp_inv != NULL )
+   {
+     for (int i=0; i<fes->GetNE(); i++)
+     {
+        if ( mat_pp_inv[i] != NULL ) delete mat_pp_inv[i];
+     }
+     delete [] mat_pp_inv;
+   }
 
    if (!extern_bfs)
    {
@@ -562,7 +814,8 @@ MatrixInverse * MixedBilinearForm::Inverse() const
 
 void MixedBilinearForm::Finalize (int skip_zeros)
 {
-   mat -> Finalize (skip_zeros);
+   if ( mat != NULL )
+     mat -> Finalize (skip_zeros);
 }
 
 void MixedBilinearForm::GetBlocks(Array2D<SparseMatrix *> &blocks) const
