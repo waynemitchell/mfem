@@ -9,6 +9,9 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#ifndef MFEM_HYPRE_EXT
+#define MFEM_HYPRE_EXT
+
 #include "../config/config.hpp"
 
 #ifdef MFEM_USE_MPI
@@ -38,7 +41,7 @@ void hypre_ParCSRMatrixEliminateAXB(hypre_ParCSRMatrix *A,
     matrix A. */
 void hypre_ParCSRMatrixEliminateAAe(hypre_ParCSRMatrix *A,
                                     hypre_ParCSRMatrix **Ae,
-                                    HYPRE_Int nrowscols_to_elim,
+                                    HYPRE_Int num_rowscols_to_elim,
                                     HYPRE_Int *rowscols_to_elim);
 
 }
@@ -46,3 +49,5 @@ void hypre_ParCSRMatrixEliminateAAe(hypre_ParCSRMatrix *A,
 } // namespace mfem::internal
 
 #endif // MFEM_USE_MPI
+
+#endif

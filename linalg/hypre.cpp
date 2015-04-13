@@ -961,6 +961,8 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
                     "by 'ess_dof_list'.");
       }
 #endif*/
+      // NOTE: if A was eliminated in parallel the above check no longer works
+      // as there are stored zeros in the eliminated rows/columns in A.
    }
 }
 
