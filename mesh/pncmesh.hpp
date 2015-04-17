@@ -185,7 +185,7 @@ protected:
    void AddMasterSlaveRanks(int nitems, const NCList& list);
    void MakeShared(const Table &groups, const NCList &list, NCList &shared);
 
-   /** Uniquely encodes a set of elements in the erefinement hierarchy of an
+   /** Uniquely encodes a set of elements in the refinement hierarchy of an
        NCMesh. Can be dumped to a stream, sent to another processor, loaded,
        and decoded to identify the same set of elements (refinements) in a
        different but compatible NCMesh. The elements don't have to be leaves,
@@ -270,20 +270,22 @@ protected:
 
 /*
 TODO
-+ R matrix
-+ nonzero essential BC
-+ vdim, vdofs
+- vdim fix
 - conforming case R matrix
-+ assumed partition
-- cP + P
-- big-int merge
-- big-int P matrix
-- ProjectBdrCoefficient
+- master merge
 - curved/two-level parmesh
 - hcurl/hdiv
+- saving/reading nc meshes
+- visualization, VisIt?
+- ProjectBdrCoefficient
 - hilbert ordering
-- rebalance
+- performance/scaling study
+
+- big-int P matrix
+- DG
 - parallel aniso refine
+- cP + P
+- rebalance
 */
 
 class FiniteElementCollection; // needed for edge orientation handling
@@ -293,15 +295,17 @@ class NeighborDofMessage : public VarMessage<135>
 {
 public:
    /// Add vertex/edge/face DOFs to an outgoing message.
-   void AddDofs(int type, const NCMesh::MeshId &id, const Array<int> &dofs,
-                ParNCMesh* pncmesh, const FiniteElementCollection* fec);
+   void AddDofs(int type, const NCMesh::MeshId &id, const Array<int> &dofs);
 
-   /// Set pointers to ParNCMesh & FECollection (needed to encode the message).
-   void Init(ParNCMesh* pncmesh, const FiniteElementCollection* fec)
-   { this->pncmesh = pncmesh; this->fec = fec; }
+   /** Set pointers to ParNCMesh & FECollection (needed to encode the message),
+       set the space size to be sent. */
+   void Init(ParNCMesh* pncmesh, const FiniteElementCollection* fec, int ndofs)
+   { this->pncmesh = pncmesh; this->fec = fec; this->ndofs = ndofs; }
 
-   /// Get vertex/edge/face DOFs from a received message.
-   void GetDofs(int type, const NCMesh::MeshId& id, Array<int>& dofs);
+   /** Get vertex/edge/face DOFs from a received message. 'ndofs' receives
+       the remote space size. */
+   void GetDofs(int type, const NCMesh::MeshId& id,
+                Array<int>& dofs, int &ndofs);
 
    typedef std::map<int, NeighborDofMessage> Map;
 
@@ -312,6 +316,7 @@ protected:
 
    ParNCMesh* pncmesh;
    const FiniteElementCollection* fec;
+   int ndofs;
 
    virtual void Encode();
    virtual void Decode();

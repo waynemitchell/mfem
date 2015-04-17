@@ -954,16 +954,14 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
 //// Messages //////////////////////////////////////////////////////////////////
 
 void NeighborDofMessage::AddDofs(int type, const NCMesh::MeshId &id,
-                                 const Array<int> &dofs, ParNCMesh* pncmesh,
-                                 const FiniteElementCollection *fec)
+                                 const Array<int> &dofs)
 {
    MFEM_ASSERT(type >= 0 && type < 3, "");
    id_dofs[type][id].assign(dofs.GetData(), dofs.GetData() + dofs.Size());
-   Init(pncmesh, fec);
 }
 
 void NeighborDofMessage::GetDofs(int type, const NCMesh::MeshId& id,
-                                 Array<int>& dofs)
+                                 Array<int>& dofs, int &ndofs)
 {
    MFEM_ASSERT(type >= 0 && type < 3, "");
 #ifdef MFEM_DEBUG
@@ -974,6 +972,7 @@ void NeighborDofMessage::GetDofs(int type, const NCMesh::MeshId& id,
    std::vector<int> &vec = id_dofs[type][id];
    dofs.SetSize(vec.size());
    dofs.Assign(vec.data());
+   ndofs = this->ndofs;
 }
 
 void NeighborDofMessage::ReorderEdgeDofs(const NCMesh::MeshId &id,
@@ -1047,6 +1046,8 @@ void NeighborDofMessage::Encode()
       id_dofs[type].clear();
    }
 
+   write<int>(stream, ndofs);
+
    stream.str().swap(data);
 }
 
@@ -1069,6 +1070,8 @@ void NeighborDofMessage::Decode()
          if (type == 1) { ReorderEdgeDofs(id, id_dofs[type][id]); }
       }
    }
+
+   ndofs = read<int>(stream);
 
    // no longer need the raw data
    data.clear();

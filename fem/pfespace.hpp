@@ -109,12 +109,11 @@ private:
    };
 
    void AddSlaveDependencies(DepList deps[], int master_rank,
-                             const Array<int> &master_dofs,
-                             const Array<int> &slave_dofs,
-                             DenseMatrix& I);
+                             const Array<int> &master_dofs, int master_ndofs,
+                             const Array<int> &slave_dofs, DenseMatrix& I);
 
    void Add1To1Dependencies(DepList deps[], int owner_rank,
-                            const Array<int> &owner_dofs,
+                            const Array<int> &owner_dofs, int owner_ndofs,
                             const Array<int> &dependent_dofs);
 
    void GetDofs(int type, int index, Array<int>& dofs);

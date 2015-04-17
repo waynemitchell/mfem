@@ -1010,9 +1010,8 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
 
 void ParFiniteElementSpace
 ::AddSlaveDependencies(DepList deps[], int master_rank,
-                       const Array<int> &master_dofs,
-                       const Array<int> &slave_dofs,
-                       DenseMatrix& I)
+                       const Array<int> &master_dofs, int master_ndofs,
+                       const Array<int> &slave_dofs, DenseMatrix& I)
 {
    // make each slave DOF dependent on all master DOFs
    for (int i = 0; i < slave_dofs.Size(); i++)
@@ -1032,7 +1031,8 @@ void ParFiniteElementSpace
                double coef = I(i, j);
                if (std::abs(coef) > 1e-12)
                {
-                  int mvdof = DofToVDof(decode_dof(master_dofs[j], ms), vd);
+                  int mdof = decode_dof(master_dofs[j], ms);
+                  int mvdof = DofToVDof(mdof, vd, master_ndofs);
                   tmp_list.Append(Dependency(master_rank, mvdof, coef*ms*ss));
                }
             }
@@ -1045,7 +1045,7 @@ void ParFiniteElementSpace
 
 void ParFiniteElementSpace
 ::Add1To1Dependencies(DepList deps[], int owner_rank,
-                      const Array<int> &owner_dofs,
+                      const Array<int> &owner_dofs, int owner_ndofs,
                       const Array<int> &dependent_dofs)
 {
    MFEM_ASSERT(owner_dofs.Size() == dependent_dofs.Size(), "");
@@ -1059,8 +1059,8 @@ void ParFiniteElementSpace
          int ddof = decode_dof(dependent_dofs[i], dsign);
          if (odof == INVALID_DOF || ddof == INVALID_DOF) { continue; }
 
-         int ovdof = DofToVDof(odof, vd);
-         int dvdof = DofToVDof(ddof, vd);
+         int ovdof = DofToVDof(odof, vd, owner_ndofs);
+         int dvdof = DofToVDof(ddof, vd, ndofs);
 
          DepList &dl = deps[dvdof];
          if (dl.type == 0)
@@ -1146,14 +1146,16 @@ void ParFiniteElementSpace::GetConformingInterpolation()
             {
                if (group[j] != MyRank)
                {
-                  send_dofs[group[j]].AddDofs(type, id, dofs, pncmesh, fec);
+                  NeighborDofMessage &send_msg = send_dofs[group[j]];
+                  send_msg.Init(pncmesh, fec, ndofs);
+                  send_msg.AddDofs(type, id, dofs);
                }
             }
          }
          else
          {
             // we don't own this v/e/f and expect to receive DOFs for it
-            recv_dofs[owner].Init(pncmesh, fec);
+            recv_dofs[owner].Init(pncmesh, fec, 0);
          }
       }
    }
@@ -1194,14 +1196,15 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          if (!pncmesh->RankInGroup(type, mf.index, MyRank)) { continue; }
 
          // get master DOFs
-         int master_rank = pncmesh->GetOwner(type, mf.index);
+         int master_ndofs, master_rank = pncmesh->GetOwner(type, mf.index);
          if (master_rank == MyRank)
          {
             GetDofs(type, mf.index, master_dofs);
+            master_ndofs = ndofs;
          }
          else
          {
-            recv_dofs[master_rank].GetDofs(type, mf, master_dofs);
+            recv_dofs[master_rank].GetDofs(type, mf, master_dofs, master_ndofs);
          }
 
          if (!master_dofs.Size()) { continue; }
@@ -1220,7 +1223,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
             // make each slave DOF dependent on all master DOFs
             MaskSlaveDofs(slave_dofs, sf.point_matrix, fec);
-            AddSlaveDependencies(deps, master_rank, master_dofs, slave_dofs, I);
+            AddSlaveDependencies(deps, master_rank, master_dofs, master_ndofs,
+                                 slave_dofs, I);
          }
 
          // special case for master edges that we don't own but still exist in
@@ -1228,7 +1232,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          if (master_rank != MyRank && !pncmesh->IsGhost(type, mf.index))
          {
             GetDofs(type, mf.index, my_dofs);
-            Add1To1Dependencies(deps, master_rank, master_dofs, my_dofs);
+            Add1To1Dependencies(deps, master_rank, master_dofs, master_ndofs,
+                                my_dofs);
          }
       }
    }
@@ -1242,21 +1247,21 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          const NCMesh::MeshId &id = list.conforming[i];
          GetDofs(type, id.index, my_dofs);
 
-         int owner = pncmesh->GetOwner(type, id.index);
+         int owner_ndofs, owner = pncmesh->GetOwner(type, id.index);
          if (owner != MyRank)
          {
-            recv_dofs[owner].GetDofs(type, id, owner_dofs);
+            recv_dofs[owner].GetDofs(type, id, owner_dofs, owner_ndofs);
             if (type == 2)
             {
                int fo = pncmesh->GetFaceOrientation(id.index);
                ReorderFaceDofs(owner_dofs, type, fo);
             }
-            Add1To1Dependencies(deps, owner, owner_dofs, my_dofs);
+            Add1To1Dependencies(deps, owner, owner_dofs, owner_ndofs, my_dofs);
          }
          else
          {
             // we own this v/e/f, assert ownership of the DOFs
-            Add1To1Dependencies(deps, owner, my_dofs, my_dofs);
+            Add1To1Dependencies(deps, owner, my_dofs, ndofs, my_dofs);
          }
       }
    }
