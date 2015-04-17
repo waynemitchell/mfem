@@ -255,6 +255,9 @@ public:
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
+   virtual void GetElementExDofs(int i, Array<int> &dofs) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs,
 	  		       int & pr_offset, int & npr) const;
 
