@@ -154,6 +154,7 @@ public:
    SparseMatrix &SpMatRR() { return *mat_rr; }
 
    const Vector &RHS_R(const Vector & rhs) const;
+   const Vector &RHS_R(const Vector & rhs_e, const Vector & rhs_p) const;
    const Vector &RHS_R() const { return *rhs_r; }
    Vector &RHS_R() { return *rhs_r; }
 
@@ -207,26 +208,21 @@ public:
    void AssembleElementMatrix(int i, const DenseMatrix &elmat,
                               Array<int> &vdofs, int skip_zeros = 1);
 
-   /** If d == 0 the diagonal at the ess. b.c. is set to 1.0,
-       otherwise leave it the same.      */
+   /** Eliminate essential boundary DOFs from the system. The array
+       'bdr_attr_is_ess' marks boundary attributes that constitute the essential
+       part of the boundary. If d == 0, the diagonal at the essential DOFs is
+       set to 1.0, otherwise it is left the same. */
    void EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
                              Vector &sol, Vector &rhs, int d = 0);
 
-   /// Here, vdofs is a list of DOFs.
+   void EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d = 0);
+
+   /// Eliminate the given vdofs. NOTE: here, vdofs is a list of DOFs.
    void EliminateVDofs(Array<int> &vdofs, Vector &sol, Vector &rhs, int d = 0);
 
    /** Eliminate the given vdofs storing the eliminated part internally;
        vdofs is a list of DOFs. */
    void EliminateVDofs(Array<int> &vdofs, int d = 0);
-
-   /** Use the stored eliminated part of the matrix to modify r.h.s.;
-       vdofs is a list of DOFs (non-directional, i.e. >= 0). */
-   void EliminateVDofsInRHS(Array<int> &vdofs, const Vector &x, Vector &b);
-
-   double FullInnerProduct(const Vector &x, const Vector &y) const
-   { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
-
-   void EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d = 0);
 
    /** Similar to EliminateVDofs but here ess_dofs is a marker
        (boolean) array on all vdofs (ess_dofs[i] < 0 is true). */
@@ -236,6 +232,13 @@ public:
    /** Similar to EliminateVDofs but here ess_dofs is a marker
        (boolean) array on all vdofs (ess_dofs[i] < 0 is true). */
    void EliminateEssentialBCFromDofs(Array<int> &ess_dofs, int d = 0);
+
+   /** Use the stored eliminated part of the matrix to modify r.h.s.;
+       vdofs is a list of DOFs (non-directional, i.e. >= 0). */
+   void EliminateVDofsInRHS(Array<int> &vdofs, const Vector &x, Vector &b);
+
+   double FullInnerProduct(const Vector &x, const Vector &y) const
+   { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
 
    void Update(FiniteElementSpace *nfes = NULL);
 

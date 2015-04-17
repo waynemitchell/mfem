@@ -1024,7 +1024,6 @@ EPBilinearForm::EliminateEssentialBCFromDofs(Array<int> &ess_dofs,
   // Force the construction of the reduced RHS vector
   this->buildReducedRHS(bE,bP);
 
-
   for (int i = 0; i < ess_dofs.Size(); i++) {
     if (ess_dofs[i] < 0) {
       Mrr_ -> EliminateRowCol (i,xE[i],*reducedRHS_, d);

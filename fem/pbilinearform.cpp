@@ -168,6 +168,63 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    return rap;
 }
 
+HypreParMatrix *ParBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
+{
+   if (m == NULL)
+   {
+      return NULL;
+   }
+
+   HypreParMatrix *A;
+
+   // construct a parallel block-diagonal wrapper matrix A based on m
+   A = new HypreParMatrix(pfes->GetComm(),
+			  pfes->GlobalExVSize(), pfes->GetExDofOffsets(), m);
+
+   HypreParMatrix *rap = RAP(A, pfes->ExDof_TrueExDof_Matrix());
+
+   delete A;
+
+   return rap;
+}
+
+const HypreParVector &
+ParBilinearForm::RHS_R(const Vector & rhs)
+{
+   if ( prhs_r == NULL )
+   {
+      prhs_r = new HypreParVector(pfes->GetComm(),
+				  pfes->GlobalTrueExVSize(),
+				  pfes->GetTrueExDofOffsets());
+   }
+   /*
+   if ( tmp_e == NULL )
+   {
+      tmp_e = new Vector(pfes->GetNExDofs());
+   }
+
+   // Create temporary vectors for the exposed and private portions of rhs
+   const Vector rhs_e(const_cast<double*>(&rhs[0]),pfes->TrueExVSize());
+   const Vector rhs_p(const_cast<double*>(&rhs[pfes->TrueExVSize()]),
+		      pfes->GetNPrDofs());
+
+   pfes->ExDof_TrueExDof_Matrix()->Mult(rhs_e,*tmp_e);
+
+   const Vector & reducedRHS = this->BilinearForm::RHS_R(*tmp_e,rhs_p);
+   */
+   // Create temporary vectors for the exposed and private portions of rhs
+   const Vector rhs_e(const_cast<double*>(&rhs[0]),pfes->GetNExDofs());
+   const Vector rhs_p(const_cast<double*>(&rhs[pfes->GetNExDofs()]),
+		      pfes->GetNPrDofs());
+
+   const Vector & reducedRHS = this->BilinearForm::RHS_R(rhs_e,rhs_p);
+
+   pfes->ExDof_TrueExDof_Matrix()->MultTranspose(reducedRHS,
+						 *prhs_r);
+
+   return *prhs_r;
+}
+
 void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
 {
    ParMesh *pmesh = pfes->GetParMesh();

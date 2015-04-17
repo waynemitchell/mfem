@@ -22,6 +22,9 @@ void BilinearForm::AllocMat()
    bool symInt = true;
    if ( fes->GetNPrDofs() != 0 )
    {
+     rhs_r = new Vector(fes->GetExVSize());
+     tmp_p = new Vector(fes->GetPrVSize());
+
      if ( fbfi.Size() > 0 ) symInt = false;
      if ( dbfi.Size() > 0 )
      {
@@ -53,9 +56,6 @@ void BilinearForm::AllocMat()
 	 mat_pp = new DenseMatrix*[fes->GetNE()];
 	 mat_pp_inv = new DenseMatrixInverse*[fes->GetNE()];
 	 for (int i=0; i<fes->GetNE(); i++) mat_pp[i] = new DenseMatrix();
-
-	 rhs_r = new Vector(fes->GetExVSize());
-	 tmp_p = new Vector(fes->GetPrVSize());
       }
       return;
    }
@@ -119,7 +119,7 @@ void BilinearForm::AllocMat()
       mat_rr = new SparseMatrix(I, J, NULL, dof_dof.Size(), dof_dof.Size(),
 				false, true, false);
       mat_ep = new SparseMatrix(I_pr, J_pr, NULL,
-				dof_dof.Size(), dof_prdof.Size(),
+				dof_dof.Size(), fes->GetPrVSize(),
 				true, true, false);
       mat_pp = new DenseMatrix*[fes->GetNE()];
       for (int i=0; i<fes->GetNE(); i++) mat_pp[i] = new DenseMatrix();
@@ -138,7 +138,7 @@ void BilinearForm::AllocMat()
 	 int * J_pr_T = prdof_dof.GetJ();
 
 	 mat_pe = new SparseMatrix(I_pr_T, J_pr_T, NULL,
-				   prdof_dof.Size(), dof_dof.Size(),
+				   fes->GetPrVSize(), dof_dof.Size(),
 				   true, true, false);
 	 *mat_pe = 0.0;
 	 prdof_dof.LoseData();
@@ -271,17 +271,35 @@ BilinearForm::RHS_R(const Vector & rhs) const
    const Vector rhs_p(const_cast<double*>(&rhs[fes->GetNExDofs()]),
 		    fes->GetNPrDofs());
 
+   this->RHS_R(rhs_e,rhs_p);
+
+   return *rhs_r;
+}
+
+const Vector &
+BilinearForm::RHS_R(const Vector & rhs_e, const Vector & rhs_p) const
+{
    const int * pr_offset = fes->GetPrivateOffsets();
 
    Vector v1,v2;
 
+   // std::cout << "rhs_p ";
+   // rhs_p.Print();
+
    for (int i=0; i<fes->GetNE(); i++)
    {
       int size = mat_pp_inv[i]->Size();
+      // std::cout << i << ":  " << size << " " << pr_offset[i] << std::endl;
       v1.SetDataAndSize(&rhs_p.GetData()[pr_offset[i]],size);
-      v2.SetDataAndSize(&rhs_r->GetData()[pr_offset[i]],size);
+      v2.SetDataAndSize(&(tmp_p->GetData())[pr_offset[i]],size);
+      // std::cout << "v1 ";
+      // v1.Print();
+      // std::cout << "v2 ";
+      // v2.Print();
       mat_pp_inv[i]->Mult(v1,v2);
    }
+   // std::cout << "tmp_p ";
+   // tmp_p->Print();
 
    rhs_r->Set(1.0,rhs_e);
 
@@ -463,6 +481,10 @@ void BilinearForm::Assemble (int skip_zeros)
 	 Vector vpR,veL,vcMpe;
 
 	 *mat_ee = 0.0;
+	 *mat_ep = 0.0;
+	 *mat_rr = 0.0;
+	 if ( mat_pe != NULL )
+	   *mat_pe = 0.0;
 
 	 for (i = 0; i < fes -> GetNE(); i++)
 	 {

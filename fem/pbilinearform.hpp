@@ -32,6 +32,9 @@ protected:
    ParFiniteElementSpace *pfes;
    mutable ParGridFunction X, Y; // used in TrueAddMult
 
+   HypreParVector * prhs_r; // reduced rhs vector
+   Vector * tmp_e;  // temporary vector of exposed DoFs
+
    bool keep_nbr_block;
 
    // called when (mat == NULL && fbfi.Size() > 0)
@@ -41,11 +44,12 @@ protected:
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-      : BilinearForm(pf), pfes(pf)
+     : BilinearForm(pf), pfes(pf), prhs_r(NULL), tmp_e(NULL)
    { keep_nbr_block = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
-      : BilinearForm(pf, bf) { pfes = pf; keep_nbr_block = false; }
+     : BilinearForm(pf, bf), prhs_r(NULL), tmp_e(NULL)
+   { pfes = pf; keep_nbr_block = false; }
 
    /** When set to true and the ParBilinearForm has interior face integrators,
        the local SparseMatrix will include the rows (in addition to the columns)
@@ -59,11 +63,30 @@ public:
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
 
+   /// Returns the matrix assembled on the true dofs, i.e. P^t A_rr P.
+   HypreParMatrix *ParallelAssembleReduced()
+   { return ParallelAssembleReduced(mat_rr); }
+
    /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
    HypreParMatrix *ParallelAssembleElim() { return ParallelAssemble(mat_e); }
 
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
+
+   /// Return the matrix m assembled on the true exposed dofs, i.e. P^t A P
+   HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m);
+
+   const HypreParVector &RHS_R(const Vector & rhs) /*const*/;
+   //const HypreParVector &RHS_R() const { return *prhs_r; }
+   HypreParVector &RHS_R() { return *prhs_r; }
+
+   /** Eliminate essential boundary DOFs from a parallel assembled system.
+       The array 'bdr_attr_is_ess' marks boundary attributes that constitute
+       the essential part of the boundary. */
+   void ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
+                                     HypreParMatrix &A,
+                                     const HypreParVector &X,
+                                     HypreParVector &B) const;
 
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
