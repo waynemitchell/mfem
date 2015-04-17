@@ -106,7 +106,7 @@ public:
    HYPRE_Int Randomize(HYPRE_Int seed);
 
    /// Prints the locally owned rows in parallel
-   void Print(const char *fname);
+   void Print(const char *fname) const;
 
    /// Calls hypre's destroy function
    ~HypreParVector();
@@ -304,6 +304,16 @@ public:
 
    /// If a row contains only zeros, set its diagonal to 1.
    void EliminateZeroRows() { hypre_ParCSRMatrixFixZeroRows(A); }
+
+   /** Eliminate rows and columns from the matrix, and rows from the vector B.
+       Modify B with the BC values in X. */
+   void EliminateRowsCols(const Array<int> &rows_cols, const HypreParVector &X,
+                          HypreParVector &B);
+
+   /** Eliminate rows and columns from the matrix and store the eliminated
+       elements in a new matrix Ae (returned), so that the modified matrix and
+       Ae sum to the original matrix. */
+   HypreParMatrix* EliminateRowsCols(const Array<int> &rows_cols);
 
    /// Prints the locally owned rows in parallel
    void Print(const char *fname, HYPRE_Int offi = 0, HYPRE_Int offj = 0);
