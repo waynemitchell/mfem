@@ -7756,9 +7756,16 @@ L2Pos_SegmentElement::L2Pos_SegmentElement(const int p)
    dshape_x.SetDataAndSize(NULL, p + 1);
 #endif
 
-   for (int i = 0; i <= p; i++)
+   if (p == 0)
    {
-      Nodes.IntPoint(i).x = double(i)/p;
+      Nodes.IntPoint(0).x = 0.5;
+   }
+   else
+   {
+      for (int i = 0; i <= p; i++)
+      {
+         Nodes.IntPoint(i).x = double(i)/p;
+      }
    }
 }
 
@@ -7925,11 +7932,18 @@ L2Pos_QuadrilateralElement::L2Pos_QuadrilateralElement(const int p)
    dshape_y.SetSize(p + 1);
 #endif
 
-   for (int o = 0, j = 0; j <= p; j++)
-      for (int i = 0; i <= p; i++)
-      {
-         Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
-      }
+   if (p == 0)
+   {
+      Nodes.IntPoint(0).Set2(0.5, 0.5);
+   }
+   else
+   {
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+         {
+            Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
+         }
+   }
 }
 
 void L2Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
@@ -8172,12 +8186,19 @@ L2Pos_HexahedronElement::L2Pos_HexahedronElement(const int p)
    dshape_z.SetSize(p + 1);
 #endif
 
-   for (int o = 0, k = 0; k <= p; k++)
-      for (int j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-         {
-            Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p);
-         }
+   if (p == 0)
+   {
+      Nodes.IntPoint(0).Set3(0.5, 0.5, 0.5);
+   }
+   else
+   {
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p);
+            }
+   }
 }
 
 void L2Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -8384,11 +8405,18 @@ L2Pos_TriangleElement::L2Pos_TriangleElement(const int p)
    dshape_1d.SetSize(p + 1);
 #endif
 
-   for (int o = 0, j = 0; j <= p; j++)
-      for (int i = 0; i + j <= p; i++)
-      {
-         Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
-      }
+   if (p == 0)
+   {
+      Nodes.IntPoint(0).Set2(1./3, 1./3);
+   }
+   else
+   {
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i + j <= p; i++)
+         {
+            Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
+         }
+   }
 }
 
 void L2Pos_TriangleElement::CalcShape(const IntegrationPoint &ip,
@@ -8623,12 +8651,19 @@ L2Pos_TetrahedronElement::L2Pos_TetrahedronElement(const int p)
    dshape_1d.SetSize(p + 1);
 #endif
 
-   for (int o = 0, k = 0; k <= p; k++)
-      for (int j = 0; j + k <= p; j++)
-         for (int i = 0; i + j + k <= p; i++)
-         {
-            Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p);
-         }
+   if (p == 0)
+   {
+      Nodes.IntPoint(0).Set3(0.25, 0.25, 0.25);
+   }
+   else
+   {
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j + k <= p; j++)
+            for (int i = 0; i + j + k <= p; i++)
+            {
+               Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p);
+            }
+   }
 }
 
 void L2Pos_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
