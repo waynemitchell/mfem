@@ -193,7 +193,6 @@ public:
    inline int GetExVSize() const { return vdim * nexdofs; }
    inline int GetPrVSize() const { return vdim * nprdofs; }
 
-
    /// Returns the number of conforming ("true") degrees of freedom
    /// (if the space is on a nonconforming mesh with hanging nodes).
    inline int GetNConformingDofs() const { return cP ? cP->Width() : ndofs; }
@@ -203,7 +202,7 @@ public:
    /// Return the ordering method.
    inline int GetOrdering() const { return ordering; }
 
-   /// Return true is private and exterior dofs are being handled separately
+   /// Return true if private and exterior dofs are being handled separately
    inline bool GetPrDofs() const { return(nprdofs != 0); }
    inline int * GetPrivateOffsets() const { return bdofs; }
 
@@ -255,11 +254,17 @@ public:
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
+   virtual void GetElementDofs(int i, Array<int> &dofs,
+	  		       int & pr_offset, int & npr) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementExDofs(int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
-   virtual void GetElementDofs(int i, Array<int> &dofs,
-	  		       int & pr_offset, int & npr) const;
+   virtual void GetElementPrDofs(int i, Array<int> &dofs) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
+   virtual void GetElementPrDofs(int i, int & pr_offset, int & npr) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
    virtual void GetBdrElementDofs(int i, Array<int> &dofs) const;

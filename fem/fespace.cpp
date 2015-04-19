@@ -219,21 +219,6 @@ void FiniteElementSpace::BuildElementToDofTable()
    }
    el_dof -> ShiftUpI();
    elem_dof = el_dof;
-   /*
-   // The following information is already stored in bdofs
-   if ( nprdofs != 0 )
-   {
-      pr_dof_offset.SetSize(mesh -> GetNE() + 1);
-
-      pr_dof_offset[0] = 0;
-
-      for (int i = 0; i < mesh -> GetNE(); i++)
-      {
- 	 int npr = fec->DofForGeometry(mesh->GetElementBaseGeometry(i));
-	 pr_dof_offset[i+1] = pr_dof_offset[i] + npr;
-      }
-   }
-   */
 }
 
 void FiniteElementSpace::BuildDofToArrays()
@@ -1064,6 +1049,33 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs,
 					 int & pr_offset, int & npr) const
 {
   this->GetElementExDofs(i,dofs);
+  if ( nprdofs == 0 )
+  {
+     pr_offset = 0;
+     npr = 0;
+  }
+  else 
+  {
+     pr_offset = bdofs[i];
+     npr = bdofs[i+1] - bdofs[i];
+  }
+}
+
+void FiniteElementSpace::GetElementPrDofs (int i, Array<int> &dofs) const
+{
+  if ( nprdofs == 0 )
+  {
+     dofs.SetSize(0);
+  }
+  else 
+  {
+    this->GetElementInteriorDofs(i,dofs);
+  }
+}
+
+void FiniteElementSpace::GetElementPrDofs (int i,
+					   int & pr_offset, int & npr) const
+{
   if ( nprdofs == 0 )
   {
      pr_offset = 0;
