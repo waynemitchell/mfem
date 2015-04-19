@@ -1022,7 +1022,7 @@ void ParFiniteElementSpace::ConstructTrueDofs()
 
 void ParFiniteElementSpace::ConstructTrueNURBSDofs()
 {
-   int n = GetVSize(), nex = GetExVSize();
+   int n = GetVSize();
    GroupTopology &gt = pNURBSext()->gtopo;
    gcomm = new GroupCommunicator(gt);
 
@@ -1038,14 +1038,6 @@ void ParFiniteElementSpace::ConstructTrueNURBSDofs()
       for (int i = 0; i < n; i++)
       {
          ldof_group[i] = scalar_ldof_group[VDofToDof(i)];
-      }
-   }
-   {
-      const int *scalar_ldof_group = pNURBSext()->ldof_group;
-      lexdof_group.SetSize(nex);
-      for (int i = 0; i < nex; i++)
-      {
-         lexdof_group[i] = scalar_ldof_group[VExDofToExDof(i)];
       }
    }
 
@@ -1070,26 +1062,8 @@ void ParFiniteElementSpace::ConstructTrueNURBSDofs()
       }
    }
 
-   ltexdof_size = 0;
-   lexdof_ltexdof.SetSize(nex);
-   for (int i = 0; i < nex; i++)
-   {
-      if (gt.IAmMaster(lexdof_group[i]))
-      {
-         lexdof_ltexdof[i] = ltexdof_size;
-         ltexdof_size++;
-      }
-      else
-      {
-         lexdof_ltexdof[i] = -2;
-      }
-   }
-
    // have the group masters broadcast their ltdofs to the rest of the group
    gcomm->Bcast(ldof_ltdof);
-
-   // have the group masters broadcast their ltexdofs to the rest of the group
-   gcomm->Bcast(lexdof_ltexdof);
 }
 
 void ParFiniteElementSpace::Update()
