@@ -22,7 +22,6 @@ void BilinearForm::AllocMat()
    bool symInt = true;
    if ( fes->GetNPrDofs() != 0 )
    {
-     rhs_r = new Vector(fes->GetExVSize());
      tmp_p = new Vector(fes->GetPrVSize());
 
      if ( fbfi.Size() > 0 ) symInt = false;
@@ -156,7 +155,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f)
    mat_ee = mat_ep = mat_pe = mat_rr = NULL;
    mat_pp = NULL;
    mat_pp_inv = NULL;
-   rhs_r = tmp_p = NULL;
+   tmp_p = NULL;
    extern_bfs = 0;
    element_matrices = NULL;
    precompute_sparsity = 0;
@@ -173,7 +172,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    mat_ee = mat_ep = mat_pe = mat_rr = NULL;
    mat_pp = NULL;
    mat_pp_inv = NULL;
-   rhs_r = tmp_p = NULL;
+   tmp_p = NULL;
    extern_bfs = 1;
    element_matrices = NULL;
    precompute_sparsity = ps;
@@ -263,7 +262,7 @@ void BilinearForm::Mult (const Vector & x, Vector & y) const
    }
 }
 
-const Vector &
+Vector *
 BilinearForm::RHS_R(const Vector & rhs) const
 {
    // Create temporary vectors for the exposed and private portions of rhs
@@ -271,41 +270,31 @@ BilinearForm::RHS_R(const Vector & rhs) const
    const Vector rhs_p(const_cast<double*>(&rhs[fes->GetNExDofs()]),
 		    fes->GetNPrDofs());
 
-   this->RHS_R(rhs_e,rhs_p);
-
-   return *rhs_r;
+   return this->RHS_R(rhs_e,rhs_p);
 }
 
-const Vector &
+Vector *
 BilinearForm::RHS_R(const Vector & rhs_e, const Vector & rhs_p) const
 {
    const int * pr_offset = fes->GetPrivateOffsets();
 
    Vector v1,v2;
 
-   // std::cout << "rhs_p ";
-   // rhs_p.Print();
-
    for (int i=0; i<fes->GetNE(); i++)
    {
       int size = mat_pp_inv[i]->Size();
-      // std::cout << i << ":  " << size << " " << pr_offset[i] << std::endl;
       v1.SetDataAndSize(&rhs_p.GetData()[pr_offset[i]],size);
       v2.SetDataAndSize(&(tmp_p->GetData())[pr_offset[i]],size);
-      // std::cout << "v1 ";
-      // v1.Print();
-      // std::cout << "v2 ";
-      // v2.Print();
       mat_pp_inv[i]->Mult(v1,v2);
    }
-   // std::cout << "tmp_p ";
-   // tmp_p->Print();
+
+   Vector * rhs_r = new Vector(fes->GetExVSize());
 
    rhs_r->Set(1.0,rhs_e);
 
    mat_ep->AddMult(*tmp_p,*rhs_r,-1.0);
 
-   return *rhs_r;
+   return rhs_r;
 }
 
 void
@@ -890,7 +879,6 @@ BilinearForm::~BilinearForm()
      }
      delete [] mat_pp_inv;
    }
-   if ( rhs_r != NULL ) delete rhs_r;
    if ( tmp_p != NULL ) delete tmp_p;
 
    if (!extern_bfs)

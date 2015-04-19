@@ -32,7 +32,6 @@ protected:
    ParFiniteElementSpace *pfes;
    mutable ParGridFunction X, Y; // used in TrueAddMult
 
-   HypreParVector * prhs_r; // reduced rhs vector
    Vector * tmp_e;  // temporary vector of exposed DoFs
 
    bool keep_nbr_block;
@@ -44,11 +43,11 @@ protected:
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-     : BilinearForm(pf), pfes(pf), prhs_r(NULL), tmp_e(NULL)
+     : BilinearForm(pf), pfes(pf), tmp_e(NULL)
    { keep_nbr_block = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
-     : BilinearForm(pf, bf), prhs_r(NULL), tmp_e(NULL)
+     : BilinearForm(pf, bf), tmp_e(NULL)
    { pfes = pf; keep_nbr_block = false; }
 
    /** When set to true and the ParBilinearForm has interior face integrators,
@@ -76,9 +75,7 @@ public:
    /// Return the matrix m assembled on the true exposed dofs, i.e. P^t A P
    HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m);
 
-   const HypreParVector &RHS_R(const Vector & rhs) /*const*/;
-   //const HypreParVector &RHS_R() const { return *prhs_r; }
-   HypreParVector &RHS_R() { return *prhs_r; }
+   HypreParVector *RHS_R(const Vector & rhs) const;
 
    /** Eliminate essential boundary DOFs from a parallel assembled system.
        The array 'bdr_attr_is_ess' marks boundary attributes that constitute

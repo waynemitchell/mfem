@@ -42,7 +42,6 @@ protected:
    DenseMatrixInverse **mat_pp_inv; // The inverses of the mat_pp blocks
 
    // Vectors associated with static condensation
-   Vector *rhs_r; // A reduced version of a rhs vector
    Vector *tmp_p; // A temporary vector compatible with the private DoFs
 
    /// FE space on which the form lives.
@@ -77,7 +76,7 @@ protected:
       fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
       mat_ee = mat_ep = mat_pe = mat_rr = NULL;
       mat_pp = NULL; mat_pp_inv = NULL;
-      rhs_r = tmp_p = NULL;
+      tmp_p = NULL;
       precompute_sparsity = 0;
    }
 
@@ -153,10 +152,8 @@ public:
    SparseMatrix &SpMatPE() { return *mat_pe; }
    SparseMatrix &SpMatRR() { return *mat_rr; }
 
-   const Vector &RHS_R(const Vector & rhs) const;
-   const Vector &RHS_R(const Vector & rhs_e, const Vector & rhs_p) const;
-   const Vector &RHS_R() const { return *rhs_r; }
-   Vector &RHS_R() { return *rhs_r; }
+   Vector *RHS_R(const Vector & rhs) const;
+   Vector *RHS_R(const Vector & rhs_e, const Vector & rhs_p) const;
 
    // Given a rhs vector and a solution vector with its exposed DoFs
    // already computed, update the private DoFs of sol
