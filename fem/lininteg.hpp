@@ -39,7 +39,7 @@ public:
 
    void SetIntRule(const IntegrationRule *ir) { IntRule = ir; }
 
-   virtual ~LinearFormIntegrator() { };
+   virtual ~LinearFormIntegrator() { }
 };
 
 

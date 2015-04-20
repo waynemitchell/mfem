@@ -38,11 +38,11 @@ private:
 public:
    /// Creates linear form associated with FE space *f.
    LinearForm (FiniteElementSpace * f) : Vector (f -> GetVSize())
-   { fes = f; };
+   { fes = f; }
 
    LinearForm() { fes = NULL; }
 
-   FiniteElementSpace * GetFES() { return fes; };
+   FiniteElementSpace * GetFES() { return fes; }
 
    /// Adds new Domain Integrator.
    void AddDomainIntegrator (LinearFormIntegrator * lfi);

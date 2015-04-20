@@ -143,7 +143,7 @@ public:
    { return IAm()->GetNFaces(nFaceVertices); }
 
    virtual const int *GetFaceVertices(int fi) const
-   { return IAm()->GetFaceVertices(fi); };
+   { return IAm()->GetFaceVertices(fi); }
 
    virtual void MarkEdge(DenseMatrix &pmat) { IAm()->MarkEdge(pmat); }
 

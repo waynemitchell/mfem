@@ -48,7 +48,7 @@ public:
 
    int operator() (int r, int c, int f, int t) const;
 
-   int NumberOfElements() { return NElem; };
+   int NumberOfElements() { return NElem; }
 
    ~STable3D ();
 };

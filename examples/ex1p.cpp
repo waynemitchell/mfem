@@ -131,10 +131,10 @@ int main(int argc, char *argv[])
       mesh->GeneralRefinement(refs, 1);
    }*/
 
-   for (int i = 0; i < 1; i++)
+   for (int i = 0; i < 3; i++)
       mesh->UniformRefinement();
 
-   srand(0);
+   /*srand(0);
    for (int i = 0; i < 3; i++)
    {
       Array<Refinement> refs;
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
          }
 
       mesh->GeneralRefinement(refs);
-   }
+   }*/
 
    mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
    //mesh->UniformRefinement();
@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
       fec = new H1_FECollection(order = 1, dim);
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
-   int size = fespace->GlobalTrueVSize();
+   HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
    {
       cout << "Number of unknowns: " << size << endl;

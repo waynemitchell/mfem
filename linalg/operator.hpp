@@ -54,7 +54,7 @@ public:
    virtual Operator &GetGradient(const Vector &x) const
    {
       mfem_error("Operator::GetGradient() is not overloaded!");
-      return *((Operator *)this);
+      return const_cast<Operator &>(*this);
    }
 
    /// Prints operator with input size n and output size m in matlab format.

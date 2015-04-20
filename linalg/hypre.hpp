@@ -34,6 +34,20 @@ namespace mfem
 class ParFiniteElementSpace;
 class HypreParMatrix;
 
+namespace internal
+{
+
+// Convert a HYPRE_Int to int
+inline int to_int(HYPRE_Int i)
+{
+#ifdef HYPRE_BIGINT
+   MFEM_ASSERT(HYPRE_Int(int(i)) == i, "overflow converting HYPRE_Int to int");
+#endif
+   return int(i);
+}
+
+}
+
 /// Wrapper for hypre's parallel vector class
 class HypreParVector : public Vector
 {
@@ -45,13 +59,17 @@ private:
 
    friend class HypreParMatrix;
 
+   // Set Vector::data and Vector::size from *x
+   inline void _SetDataAndSize_();
+
 public:
    /** Creates vector with given global size and partitioning of the columns.
        Processor P owns columns [col[P],col[P+1]) */
-   HypreParVector(MPI_Comm comm, int glob_size, int *col);
+   HypreParVector(MPI_Comm comm, HYPRE_Int glob_size, HYPRE_Int *col);
    /** Creates vector with given global size, partitioning of the columns,
        and data. The data must be allocated and destroyed outside. */
-   HypreParVector(MPI_Comm comm, int glob_size, double *_data, int *col);
+   HypreParVector(MPI_Comm comm, HYPRE_Int glob_size, double *_data,
+                  HYPRE_Int *col);
    /// Creates vector compatible with y
    HypreParVector(const HypreParVector &y);
    /// Creates vector compatible with (i.e. in the domain of) A or A^T
@@ -85,7 +103,7 @@ public:
    void SetData(double *_data);
 
    /// Set random values
-   int Randomize(int seed);
+   HYPRE_Int Randomize(HYPRE_Int seed);
 
    /// Prints the locally owned rows in parallel
    void Print(const char *fname);
@@ -131,6 +149,19 @@ private:
    // Delete all owned data. Does not perform re-initialization with defaults.
    void Destroy();
 
+   // Copy (shallow or deep, based on HYPRE_BIGINT) the I and J arrays from csr
+   // to hypre_csr. Shallow copy the data. Return the appropriate ownership
+   // flag.
+   static char CopyCSR(SparseMatrix *csr, hypre_CSRMatrix *hypre_csr);
+   // Copy (shallow or deep, based on HYPRE_BIGINT) the I and J arrays from
+   // bool_csr to hypre_csr. Allocate the data array and set it to all ones.
+   // Return the appropriate ownership flag.
+   static char CopyBoolCSR(Table *bool_csr, hypre_CSRMatrix *hypre_csr);
+
+   // Copy the j array of a hypre_CSRMatrix to the given J array, converting
+   // the indices from HYPRE_Int to int.
+   static void CopyCSR_J(hypre_CSRMatrix *hypre_csr, int *J);
+
 public:
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a)
@@ -138,40 +169,52 @@ public:
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new HypreParMatrix does not
        take ownership of any of the input arrays. */
-   HypreParMatrix(MPI_Comm comm, int glob_size, int *row_starts,
+   HypreParMatrix(MPI_Comm comm, HYPRE_Int glob_size, HYPRE_Int *row_starts,
                   SparseMatrix *diag);
    /** Creates block-diagonal rectangular parallel matrix. Diagonal is given by
        diag which must be in CSR format (finalized). The new HypreParMatrix does
        not take ownership of any of the input arrays. */
-   HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
-                  int *row_starts, int *col_starts, SparseMatrix *diag);
+   HypreParMatrix(MPI_Comm comm, HYPRE_Int global_num_rows,
+                  HYPRE_Int global_num_cols, HYPRE_Int *row_starts,
+                  HYPRE_Int *col_starts, SparseMatrix *diag);
    /** Creates general (rectangular) parallel matrix. The new HypreParMatrix
        does not take ownership of any of the input arrays. */
-   HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
-                  int *row_starts, int *col_starts,
-                  SparseMatrix *diag, SparseMatrix *offd, int *cmap);
+   HypreParMatrix(MPI_Comm comm, HYPRE_Int global_num_rows,
+                  HYPRE_Int global_num_cols, HYPRE_Int *row_starts,
+                  HYPRE_Int *col_starts, SparseMatrix *diag, SparseMatrix *offd,
+                  HYPRE_Int *cmap);
+   /** Creates general (rectangular) parallel matrix. The new HypreParMatrix
+       takes ownership of all input arrays, except col_starts and row_starts. */
+   HypreParMatrix(MPI_Comm comm,
+                  HYPRE_Int global_num_rows, HYPRE_Int global_num_cols,
+                  HYPRE_Int *row_starts, HYPRE_Int *col_starts,
+                  HYPRE_Int *diag_i, HYPRE_Int *diag_j, double *diag_data,
+                  HYPRE_Int *offd_i, HYPRE_Int *offd_j, double *offd_data,
+                  HYPRE_Int offd_num_cols, HYPRE_Int *offd_col_map);
 
    /// Creates a parallel matrix from SparseMatrix on processor 0.
-   HypreParMatrix(MPI_Comm comm, int *row_starts, int *col_starts,
+   HypreParMatrix(MPI_Comm comm, HYPRE_Int *row_starts, HYPRE_Int *col_starts,
                   SparseMatrix *a);
 
    /** Creates boolean block-diagonal rectangular parallel matrix. The new
        HypreParMatrix does not take ownership of any of the input arrays. */
-   HypreParMatrix(MPI_Comm comm, int global_num_rows, int global_num_cols,
-                  int *row_starts, int *col_starts, Table *diag);
+   HypreParMatrix(MPI_Comm comm, HYPRE_Int global_num_rows,
+                  HYPRE_Int global_num_cols, HYPRE_Int *row_starts,
+                  HYPRE_Int *col_starts, Table *diag);
    /** Creates boolean rectangular parallel matrix. The new HypreParMatrix takes
        ownership of the arrays i_diag, j_diag, i_offd, j_offd, and cmap; does
        not take ownership of the arrays row and col. */
-   HypreParMatrix(MPI_Comm comm, int id, int np, int *row, int *col,
-                  int *i_diag, int *j_diag, int *i_offd, int *j_offd,
-                  int *cmap, int cmap_size);
+   HypreParMatrix(MPI_Comm comm, int id, int np, HYPRE_Int *row, HYPRE_Int *col,
+                  HYPRE_Int *i_diag, HYPRE_Int *j_diag, HYPRE_Int *i_offd,
+                  HYPRE_Int *j_offd, HYPRE_Int *cmap, HYPRE_Int cmap_size);
 
    /** Creates a general parallel matrix from a local CSR matrix on each
        processor described by the I, J and data arrays. The local matrix should
        be of size (local) nrows by (global) glob_ncols. The new parallel matrix
        contains copies of all input arrays (so they can be deleted). */
-   HypreParMatrix(MPI_Comm comm, int nrows, int glob_nrows, int glob_ncols,
-                  int *I, int *J, double *data, int *rows, int *cols);
+   HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
+                  HYPRE_Int glob_ncols, int *I, HYPRE_Int *J,
+                  double *data, HYPRE_Int *rows, HYPRE_Int *cols);
 
    /// MPI communicator
    MPI_Comm GetComm() { return A->comm; }
@@ -185,16 +228,25 @@ public:
    /// Changes the ownership of the the matrix
    hypre_ParCSRMatrix* StealData();
 
-   /// Returns the number of nonzeros
-   inline int NNZ() { return A->num_nonzeros; }
+   /** If the HypreParMatrix does not own the row-starts array, make a copy of
+       it that the HypreParMatrix will own. If the col-starts array is the same
+       as the row-starts array, col-starts is also replaced. */
+   void CopyRowStarts();
+   /** If the HypreParMatrix does not own the col-starts array, make a copy of
+       it that the HypreParMatrix will own. If the row-starts array is the same
+       as the col-starts array, row-starts is also replaced. */
+   void CopyColStarts();
+
+   /// Returns the global number of nonzeros
+   inline HYPRE_Int NNZ() { return A->num_nonzeros; }
    /// Returns the row partitioning
-   inline int * RowPart() { return A->row_starts; }
+   inline HYPRE_Int *RowPart() { return A->row_starts; }
    /// Returns the column partitioning
-   inline int * ColPart() { return A->col_starts; }
+   inline HYPRE_Int *ColPart() { return A->col_starts; }
    /// Returns the global number of rows
-   inline int M() { return A -> global_num_rows; }
+   inline HYPRE_Int M() { return A->global_num_rows; }
    /// Returns the global number of columns
-   inline int N() { return A -> global_num_cols; }
+   inline HYPRE_Int N() { return A->global_num_cols; }
 
    /// Get the local diagonal of the matrix.
    void GetDiag(Vector &diag);
@@ -206,29 +258,37 @@ public:
 
    /// Returns the number of rows in the diagonal block of the ParCSRMatrix
    int GetNumRows() const
-   { return hypre_CSRMatrixNumRows(hypre_ParCSRMatrixDiag(A)); }
+   {
+      return internal::to_int(
+                hypre_CSRMatrixNumRows(hypre_ParCSRMatrixDiag(A)));
+   }
 
    /// Returns the number of columns in the diagonal block of the ParCSRMatrix
    int GetNumCols() const
-   { return hypre_CSRMatrixNumCols(hypre_ParCSRMatrixDiag(A)); }
+   {
+      return internal::to_int(
+                hypre_CSRMatrixNumCols(hypre_ParCSRMatrixDiag(A)));
+   }
 
-   int GetGlobalNumRows() const { return hypre_ParCSRMatrixGlobalNumRows(A); }
+   HYPRE_Int GetGlobalNumRows() const
+   { return hypre_ParCSRMatrixGlobalNumRows(A); }
 
-   int GetGlobalNumCols() const { return hypre_ParCSRMatrixGlobalNumCols(A); }
+   HYPRE_Int GetGlobalNumCols() const
+   { return hypre_ParCSRMatrixGlobalNumCols(A); }
 
-   int *GetRowStarts() const { return hypre_ParCSRMatrixRowStarts(A); }
+   HYPRE_Int *GetRowStarts() const { return hypre_ParCSRMatrixRowStarts(A); }
 
-   int *GetColStarts() const { return hypre_ParCSRMatrixColStarts(A); }
+   HYPRE_Int *GetColStarts() const { return hypre_ParCSRMatrixColStarts(A); }
 
    /// Computes y = alpha * A * x + beta * y
-   int Mult(HypreParVector &x, HypreParVector &y,
-            double alpha = 1.0, double beta = 0.0);
+   HYPRE_Int Mult(HypreParVector &x, HypreParVector &y,
+                  double alpha = 1.0, double beta = 0.0);
    /// Computes y = alpha * A * x + beta * y
-   int Mult(HYPRE_ParVector x, HYPRE_ParVector y,
-            double alpha = 1.0, double beta = 0.0);
+   HYPRE_Int Mult(HYPRE_ParVector x, HYPRE_ParVector y,
+                  double alpha = 1.0, double beta = 0.0);
    /// Computes y = alpha * A^t * x + beta * y
-   int MultTranspose(HypreParVector &x, HypreParVector &y,
-                     double alpha = 1.0, double beta = 0.0);
+   HYPRE_Int MultTranspose(HypreParVector &x, HypreParVector &y,
+                           double alpha = 1.0, double beta = 0.0);
 
    void Mult(double a, const Vector &x, double b, Vector &y) const;
    void MultTranspose(double a, const Vector &x, double b, Vector &y) const;
@@ -259,7 +319,7 @@ public:
    HypreParMatrix* EliminateRowsCols(const Array<int> &rows_cols);
 
    /// Prints the locally owned rows in parallel
-   void Print(const char *fname, int offi = 0, int offj = 0);
+   void Print(const char *fname, HYPRE_Int offi = 0, HYPRE_Int offj = 0);
    /// Reads the matrix from a file
    void Read(MPI_Comm comm, const char *fname);
 
@@ -442,7 +502,11 @@ public:
    void SetZeroInintialIterate() { iterative_mode = false; }
 
    void GetNumIterations(int &num_iterations)
-   { HYPRE_ParCSRPCGGetNumIterations(pcg_solver, &num_iterations); }
+   {
+      HYPRE_Int num_it;
+      HYPRE_ParCSRPCGGetNumIterations(pcg_solver, &num_it);
+      num_iterations = internal::to_int(num_it);
+   }
 
    /// The typecast to HYPRE_Solver returns the internal pcg_solver
    virtual operator HYPRE_Solver() const { return pcg_solver; }

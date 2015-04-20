@@ -47,9 +47,13 @@ protected:
    /// Number of MPI ranks (in parallel)
    int num_procs;
 
+   /// Precision (number of digits) used for the text output of doubles
+   int precision;
    /// Number of digits used for the cycle and MPI rank in filenames
    int pad_digits;
 
+   /// Default value for precision
+   static const int precision_default = 6;
    /// Default value for pad_digits
    static const int pad_digits_default = 6;
 
@@ -99,6 +103,8 @@ public:
    /// Set the ownership of collection data
    void SetOwnData(bool o) { own_data = o; }
 
+   /// Set the precision (number of digits) used for the text output of doubles
+   void SetPrecision(int prec) { precision = prec; }
    /// Set the number of digits used for the cycle and MPI rank in filenames
    void SetPadDigits(int digits) { pad_digits = digits; }
 

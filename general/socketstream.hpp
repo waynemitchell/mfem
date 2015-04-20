@@ -94,6 +94,10 @@ public:
       {
          setstate(std::ios::failbit);
       }
+      else
+      {
+         clear();
+      }
       return err;
    }
 

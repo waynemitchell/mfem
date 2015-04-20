@@ -190,6 +190,8 @@ public:
    void GetDiag(Vector &d);
    /// Returns the l1 norm of the rows of the matrix v_i = sum_j |a_ij|
    void Getl1Diag(Vector &l);
+   /// Compute the row sums of the DenseMatrix
+   void GetRowSums(Vector &l) const;
 
    /// Creates n x n diagonal matrix with diagonal elements c
    void Diag(double c, int n);
@@ -453,6 +455,8 @@ public:
    }
 
    DenseMatrix &operator()(int k) { Mk.data = GetData(k); return Mk; }
+   const DenseMatrix &operator()(int k) const
+   { return const_cast<DenseTensor&>(*this)(k); }
 
    double &operator()(int i, int j, int k)
    { return tdata[i+SizeI()*(j+SizeJ()*k)]; }

@@ -19,6 +19,7 @@
 #include <mpi.h>
 #include "../linalg/hypre.hpp"
 #include "pfespace.hpp"
+#include "pgridfunc.hpp"
 #include "bilinearform.hpp"
 
 namespace mfem
@@ -110,7 +111,15 @@ protected:
    ParFiniteElementSpace *domain_fes;
    ParFiniteElementSpace *range_fes;
 
-   HypreParMatrix *ParallelAssemble(SparseMatrix *m);
+   HypreParMatrix *ParallelAssemble(SparseMatrix *m,
+                                    HYPRE_Int *true_row_starts,
+                                    HYPRE_Int *true_col_starts,
+                                    bool scalar) const;
+   HypreParMatrix *ParallelAssemble(SparseMatrix *m)
+   {
+      return ParallelAssemble(m, range_fes->GetTrueDofOffsets(),
+                              domain_fes->GetTrueDofOffsets(), false);
+   }
 
 public:
    ParDiscreteLinearOperator(ParFiniteElementSpace *dfes,
