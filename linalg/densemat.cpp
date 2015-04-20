@@ -2726,6 +2726,16 @@ void Add(const DenseMatrix &A, const DenseMatrix &B,
       }
 }
 
+void Add(double alpha, const DenseMatrix &A,
+         double beta,  const DenseMatrix &B, DenseMatrix &C)
+{
+   for (int i = 0; i < C.Height(); i++)
+      for (int j = 0; j < C.Width(); j++)
+      {
+         C(i,j) = alpha * A(i,j) + beta * B(i,j);
+      }
+}
+
 
 #ifdef MFEM_USE_LAPACK
 extern "C" void
