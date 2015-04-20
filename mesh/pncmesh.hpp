@@ -270,8 +270,8 @@ protected:
 
 /*
 TODO
-- vdim fix
-- conforming case R matrix
++ vdim fix
++ conforming case R matrix
 - master merge
 - curved/two-level parmesh
 - hcurl/hdiv

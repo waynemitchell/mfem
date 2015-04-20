@@ -469,6 +469,10 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
    P = new HypreParMatrix(MyComm, MyRank, NRanks, row_starts, col_starts,
                           i_diag, j_diag, i_offd, j_offd, cmap, offd_counter);
 
+   SparseMatrix Pdiag(0, 0);
+   P->GetDiag(Pdiag);
+   R = Transpose(Pdiag);
+
    return P;
 }
 
@@ -1022,7 +1026,7 @@ void ParFiniteElementSpace
 
       for (int vd = 0; vd < vdim; vd++)
       {
-         DepList &dl = deps[DofToVDof(sdof, vd)];
+         DepList &dl = deps[DofToVDof(sdof, vd, ndofs)];
          if (dl.type < 2) // slave dependencies override 1-to-1 dependencies
          {
             Array<Dependency> tmp_list; // TODO remove, precalculate list size
