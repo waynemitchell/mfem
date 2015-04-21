@@ -295,7 +295,7 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
 
       ldof[0] = GetVSize();
       ldof[1] = TrueVSize();
-      ldof[2] = GetNPrDofs();
+      ldof[2] = GetPrVSize();
 
       dof_offsets.SetSize(3);
       tdof_offsets.SetSize(3);
@@ -312,10 +312,10 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       dof_offsets[0] = dof_offsets[1] - ldof[0];
 
       texdof_offsets[1] = tdof_offsets[1] - dof_offsets[2];
-      texdof_offsets[0] = texdof_offsets[1] - (ldof[1] - vdim*ldof[2]);
+      texdof_offsets[0] = texdof_offsets[1] - (ldof[1] - ldof[2]);
 
       exdof_offsets[1] = dof_offsets[1] - dof_offsets[2];
-      exdof_offsets[0] = exdof_offsets[1] - (ldof[0] - vdim*ldof[2]);
+      exdof_offsets[0] = exdof_offsets[1] - (ldof[0] - ldof[2]);
 
       // get the global sizes in (t)dof_offsets[2]
       if (MyRank == NRanks-1)
@@ -1010,7 +1010,7 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       }
 
    // Check for consistency
-   MFEM_VERIFY(ltdof_size == ltexdof_size + this->GetNPrDofs(),
+   MFEM_VERIFY(ltdof_size == ltexdof_size + this->GetPrVSize(),
 	       "mismatch in number of true dofs and true exposed plus private dofs");
 
    // have the group masters broadcast their ltdofs to the rest of the group

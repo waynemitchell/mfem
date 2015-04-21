@@ -146,17 +146,17 @@ public:
    }
    HYPRE_Int GlobalExVSize()
    {
-    if (HYPRE_AssumedPartitionCheck())
-      return vdim*exdof_offsets[2];
-    else
-      return vdim*exdof_offsets[NRanks];
+      if (HYPRE_AssumedPartitionCheck())
+	 return exdof_offsets[2];
+      else
+	 return exdof_offsets[NRanks];
    }
    HYPRE_Int GlobalTrueExVSize()
    {
-    if (HYPRE_AssumedPartitionCheck())
-      return vdim*texdof_offsets[2];
-    else
-      return vdim*texdof_offsets[NRanks];
+      if (HYPRE_AssumedPartitionCheck())
+	 return texdof_offsets[2];
+      else
+	 return texdof_offsets[NRanks];
    }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
