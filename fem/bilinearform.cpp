@@ -481,8 +481,10 @@ void BilinearForm::Assemble(int skip_zeros)
 
 	 for (i = 0; i < fes -> GetNE(); i++)
 	 {
+	    int vdim = fes->GetVDim();
 	    int vpr_offset, nvpri;
 	    fes->GetElementVDofs(i, vdofs, vpr_offset, nvpri);
+
 	    if (element_matrices)
 	    {
 	       mee.CopyMN((*element_matrices)(i),
@@ -518,7 +520,6 @@ void BilinearForm::Assemble(int skip_zeros)
 		  mpe = 0.0;
 	       }
 
-	       int vdim = fes->GetVDim();
 	       for (int k = 0; k < dbfi.Size(); k++)
 	       {
 		  dbfi[k]->AssembleElementMatrix(fe, *eltrans, elemmat);
@@ -533,16 +534,25 @@ void BilinearForm::Assemble(int skip_zeros)
 		     mpe.AddMN(elemmat,
 			       nvpri,vdofs.Size(),vdofs.Size(),0);
 		  }
-		  mat_pp[i]->AddMN(elemmat,nvpri,nvpri,
-				   vdofs.Size(),vdofs.Size());
+		  // mat_pp[i]->AddMN(elemmat,nvpri,nvpri,
+		  //          	      vdofs.Size(),vdofs.Size());
+		  for (int ii=0; ii<nvpri/vdim; ii++)
+		    for (int jj=0; jj<nvpri/vdim; jj++)
+		      for (int di=0; di<vdim; di++)
+			for (int dj=0; dj<vdim; dj++)
+			  (*mat_pp[i])(vdim*ii+di,vdim*jj+dj)
+		  	    += elemmat(vdofs.Size()+nvpri*di/vdim+ii,
+				       vdofs.Size()+nvpri*dj/vdim+jj);
 	       }
 	    }
 
 	    mat_ee->AddSubMatrix(vdofs, vdofs, mee, skip_zeros);
 
 	    for (int ii=0; ii<vdofs.Size(); ii++)
-	      for (int jj=0; jj<nvpri; jj++)
-		mat_ep->Add(vdofs[ii],vpr_offset+jj,mep(ii,jj));
+	       for (int jj=0; jj<nvpri/vdim; jj++)
+		  for (int dj=0; dj<vdim; dj++)
+		    mat_ep->Add(vdofs[ii],vpr_offset+vdim*jj+dj,
+				mep(ii,nvpri*dj/vdim+jj));
 
 	    if ( mat_pe != NULL )
 	    {
@@ -560,11 +570,16 @@ void BilinearForm::Assemble(int skip_zeros)
 
 	    for (int jj=0; jj<vdofs.Size(); jj++)
 	    {
-	       for (int kk=0; kk<nvpri; kk++)
-		  vcMpe(kk) = mep(jj,kk);
+	       for (int kk=0; kk<nvpri/vdim; kk++)
+		 for (int dk=0; dk<vdim; dk++)
+		   vcMpe(vdim*kk+dk) = mep(jj,nvpri*dk/vdim+kk);
 	       mat_pp_inv[i]->Mult(vcMpe,vpR);
 
-	       mep.Mult(vpR,veL);
+	       for (int kk=0; kk<nvpri/vdim; kk++)
+		 for (int dk=0; dk<vdim; dk++)
+		   vcMpe(nvpri*dk/vdim+kk) = vpR(vdim*kk+dk);
+
+	       mep.Mult(vcMpe,veL);
 
 	       for (int ii=0; ii<vdofs.Size(); ii++)
 		  mrr(ii,jj) = -veL(ii);
