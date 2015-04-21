@@ -255,7 +255,7 @@ public:
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs,
-	  		       int & pr_offset, int & npr) const;
+	  		       int &pr_offset, int &npr) const;
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementExDofs(int i, Array<int> &dofs) const;
@@ -264,7 +264,7 @@ public:
    virtual void GetElementPrDofs(int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
-   virtual void GetElementPrDofs(int i, int & pr_offset, int & npr) const;
+   virtual void GetElementPrDofs(int i, int &pr_offset, int &npr) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
    virtual void GetBdrElementDofs(int i, Array<int> &dofs) const;
@@ -299,6 +299,19 @@ public:
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    void GetElementVDofs(int i, Array<int> &dofs) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
+   void GetElementVDofs(int i, Array<int> &dofs,
+			int &pr_offset, int &npr) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
+   void GetElementExVDofs(int i, Array<int> &dofs) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
+   void GetElementPrVDofs(int i, Array<int> &dofs) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
+   void GetElementPrVDofs(int i, int &pr_offset, int &npr) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
    void GetBdrElementVDofs(int i, Array<int> &dofs) const;

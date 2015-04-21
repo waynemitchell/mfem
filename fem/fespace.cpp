@@ -150,6 +150,35 @@ void FiniteElementSpace::GetElementVDofs(int iE, Array<int> &dofs) const
    DofsToVDofs (dofs);
 }
 
+void FiniteElementSpace::GetElementVDofs(int iE, Array<int> &dofs,
+					 int &pr_offset, int &npr) const
+{
+   GetElementDofs(iE, dofs, pr_offset, npr);
+   DofsToVDofs (dofs);
+   pr_offset *= vdim;
+   npr *= vdim;
+}
+
+void FiniteElementSpace::GetElementExVDofs(int iE, Array<int> &dofs) const
+{
+   GetElementExDofs(iE, dofs);
+   DofsToVDofs (dofs);
+}
+
+void FiniteElementSpace::GetElementPrVDofs(int iE, Array<int> &dofs) const
+{
+   GetElementPrDofs(iE, dofs);
+   DofsToVDofs (dofs);
+}
+
+void FiniteElementSpace::GetElementPrVDofs(int iE,
+					   int & pr_offset, int & npr) const
+{
+   GetElementPrDofs(iE, pr_offset, npr);
+   pr_offset *= vdim;
+   npr *= vdim;
+}
+
 void FiniteElementSpace::GetBdrElementVDofs (int iE, Array<int> &dofs) const
 {
    GetBdrElementDofs(iE, dofs);
