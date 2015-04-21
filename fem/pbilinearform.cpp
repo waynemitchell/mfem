@@ -196,9 +196,9 @@ ParBilinearForm::RHS_R(const Vector & rhs) const
 						pfes->GetTrueExDofOffsets());
 
    // Create temporary vectors for the exposed and private portions of rhs
-   const Vector rhs_e(const_cast<double*>(&rhs[0]),pfes->GetNExDofs());
-   const Vector rhs_p(const_cast<double*>(&rhs[pfes->GetNExDofs()]),
-		      pfes->GetNPrDofs());
+   const Vector rhs_e(const_cast<double*>(&rhs[0]),pfes->GetExVSize());
+   const Vector rhs_p(const_cast<double*>(&rhs[pfes->GetExVSize()]),
+		      pfes->GetPrVSize());
 
    Vector *rhs_r = this->BilinearForm::RHS_R(rhs_e,rhs_p);
 

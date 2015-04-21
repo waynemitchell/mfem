@@ -84,9 +84,10 @@ void BilinearForm::AllocMat()
 
       if ( fes->GetNPrDofs() > 0 )
       {
+  	 int vdim = fes->GetVDim();
  	 int * pr_offsets = fes->GetPrivateOffsets();
-	 int * pr_j = new int[pr_offsets[fes->GetNE()]];
-	 for (int j=0; j<pr_offsets[fes->GetNE()]; j++) pr_j[j] = j;
+	 int * pr_j = new int[vdim*pr_offsets[fes->GetNE()]];
+	 for (int j=0; j<vdim*pr_offsets[fes->GetNE()]; j++) pr_j[j] = j;
 	 elem_pr.SetIJ(pr_offsets,pr_j,fes->GetNE());
 	 mfem::Mult(dof_elem, elem_pr,dof_prdof);
 	 if ( !symInt )
@@ -228,12 +229,12 @@ void BilinearForm::Mult (const Vector & x, Vector & y) const
    {
       // Create temporary vectors for the exposed and private
       // portions of x and y
-      const Vector x_e(const_cast<double*>(&x[0]),fes->GetNExDofs());
-      const Vector x_p(const_cast<double*>(&x[fes->GetNExDofs()]),
-		       fes->GetNPrDofs());
+      const Vector x_e(const_cast<double*>(&x[0]),fes->GetExVSize());
+      const Vector x_p(const_cast<double*>(&x[fes->GetExVSize()]),
+		       fes->GetPrVSize());
 
-      Vector y_e(&y[0],fes->GetNExDofs());
-      Vector y_p(&y[fes->GetNExDofs()],fes->GetNPrDofs());
+      Vector y_e(&y[0],fes->GetExVSize());
+      Vector y_p(&y[fes->GetExVSize()],fes->GetPrVSize());
 
       // Compute the Exposed portion of the product
       mat_ee->Mult(x_e,y_e);
@@ -242,12 +243,13 @@ void BilinearForm::Mult (const Vector & x, Vector & y) const
       // Compute the Private portion of the product
       // Begin by multiplying the block diagonal portion element by element
 
+      int vdim = fes->GetVDim();
       const int * pr_offset = fes->GetPrivateOffsets();
 
       for (int i=0; i<fes->GetNE(); i++)
       {
-	 mat_pp[i]->Mult(&x_p[pr_offset[i]],
-			 &y_p[pr_offset[i]]);
+	 mat_pp[i]->Mult(&x_p[vdim*pr_offset[i]],
+			 &y_p[vdim*pr_offset[i]]);
       }
 
       // Finish by multiplying the off-diagonal block
@@ -266,9 +268,9 @@ Vector *
 BilinearForm::RHS_R(const Vector & rhs) const
 {
    // Create temporary vectors for the exposed and private portions of rhs
-   const Vector rhs_e(const_cast<double*>(&rhs[0]),fes->GetNExDofs());
-   const Vector rhs_p(const_cast<double*>(&rhs[fes->GetNExDofs()]),
-		    fes->GetNPrDofs());
+   const Vector rhs_e(const_cast<double*>(&rhs[0]),fes->GetExVSize());
+   const Vector rhs_p(const_cast<double*>(&rhs[fes->GetExVSize()]),
+		    fes->GetPrVSize());
 
    return this->RHS_R(rhs_e,rhs_p);
 }
@@ -276,6 +278,7 @@ BilinearForm::RHS_R(const Vector & rhs) const
 Vector *
 BilinearForm::RHS_R(const Vector & rhs_e, const Vector & rhs_p) const
 {
+   int vdim = fes->GetVDim();
    const int * pr_offset = fes->GetPrivateOffsets();
 
    Vector v1,v2;
@@ -283,8 +286,8 @@ BilinearForm::RHS_R(const Vector & rhs_e, const Vector & rhs_p) const
    for (int i=0; i<fes->GetNE(); i++)
    {
       int size = mat_pp_inv[i]->Size();
-      v1.SetDataAndSize(&rhs_p.GetData()[pr_offset[i]],size);
-      v2.SetDataAndSize(&(tmp_p->GetData())[pr_offset[i]],size);
+      v1.SetDataAndSize(&rhs_p.GetData()[vdim*pr_offset[i]],size);
+      v2.SetDataAndSize(&(tmp_p->GetData())[vdim*pr_offset[i]],size);
       mat_pp_inv[i]->Mult(v1,v2);
    }
 
@@ -301,13 +304,13 @@ void
 BilinearForm::UpdatePrivateDoFs(const Vector &rhs, const Vector &sol) const
 {
    // Create temporary vectors for the private portion of rhs
-   const Vector rhs_p(const_cast<double*>(&rhs[fes->GetNExDofs()]),
-		      fes->GetNPrDofs());
+   const Vector rhs_p(const_cast<double*>(&rhs[fes->GetExVSize()]),
+		      fes->GetPrVSize());
 
    // Create temporary vectors for the exposed and private portions of sol
-   const Vector sol_e(const_cast<double*>(&sol[0]),fes->GetNExDofs());
-   Vector sol_p(const_cast<double*>(&sol[fes->GetNExDofs()]),
-		fes->GetNPrDofs());
+   const Vector sol_e(const_cast<double*>(&sol[0]),fes->GetExVSize());
+   Vector sol_p(const_cast<double*>(&sol[fes->GetExVSize()]),
+		fes->GetPrVSize());
 
    tmp_p->Set(1.0,rhs_p);
    if ( mat_pe != NULL )
@@ -319,6 +322,7 @@ BilinearForm::UpdatePrivateDoFs(const Vector &rhs, const Vector &sol) const
       mat_ep->AddMultTranspose(sol_e,*tmp_p,-1.0);
    }
 
+   int vdim = fes->GetVDim();
    const int * pr_offsets = fes->GetPrivateOffsets();
 
    Vector v1,v2;
@@ -326,8 +330,8 @@ BilinearForm::UpdatePrivateDoFs(const Vector &rhs, const Vector &sol) const
    for (int i=0; i<fes->GetNE(); i++)
    {
       int size = mat_pp_inv[i]->Size();
-      v1.SetDataAndSize(&tmp_p->GetData()[pr_offsets[i]],size);
-      v2.SetDataAndSize(&sol_p[pr_offsets[i]],size);
+      v1.SetDataAndSize(&tmp_p->GetData()[vdim*pr_offsets[i]],size);
+      v2.SetDataAndSize(&sol_p[vdim*pr_offsets[i]],size);
 
       mat_pp_inv[i]->Mult(v1,v2);
    }
@@ -419,7 +423,7 @@ void BilinearForm::AssembleElementMatrix(
    mat->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
 }
 
-void BilinearForm::Assemble (int skip_zeros)
+void BilinearForm::Assemble(int skip_zeros)
 {
    ElementTransformation *eltrans;
    Mesh *mesh = fes -> GetMesh();
@@ -477,24 +481,22 @@ void BilinearForm::Assemble (int skip_zeros)
 
 	 for (i = 0; i < fes -> GetNE(); i++)
 	 {
- 	    int vdim = fes->GetVDim();
-	    int pr_offset, npri;
-	    fes->GetElementDofs(i, vdofs, pr_offset, npri);
-	    // fes->DofsToVDofs(vdofs);
+	    int vpr_offset, nvpri;
+	    fes->GetElementVDofs(i, vdofs, vpr_offset, nvpri);
 	    if (element_matrices)
 	    {
 	       mee.CopyMN((*element_matrices)(i),
 			  vdofs.Size(),vdofs.Size(),0,0);
 	       mep.CopyMN((*element_matrices)(i),
-			  vdofs.Size(),vdim*npri,0,vdofs.Size());
+			  vdofs.Size(),nvpri,0,vdofs.Size());
 	       if ( mat_pe != NULL )
 	       {
 		  mpe.CopyMN((*element_matrices)(i),
-			     vdim*npri,vdofs.Size(),vdofs.Size(),0);
+			     nvpri,vdofs.Size(),vdofs.Size(),0);
 	       }
 
 	       mat_pp[i]->CopyMN((*element_matrices)(i),
-				 vdim*npri, vdim*npri,
+				 nvpri, nvpri,
 				 vdofs.Size(), vdofs.Size());
 	    }
 	    else
@@ -503,8 +505,8 @@ void BilinearForm::Assemble (int skip_zeros)
 	       eltrans = fes->GetElementTransformation(i);
 
 	       mee.SetSize(vdofs.Size(),vdofs.Size());
-	       mep.SetSize(vdofs.Size(),vdim*npri);
-	       mat_pp[i]->SetSize(vdim*npri,vdim*npri);
+	       mep.SetSize(vdofs.Size(),nvpri);
+	       mat_pp[i]->SetSize(nvpri,nvpri);
 
 	       mee = 0.0;
 	       mep = 0.0;
@@ -512,24 +514,26 @@ void BilinearForm::Assemble (int skip_zeros)
 
 	       if ( mat_pe != NULL )
 	       {
-		  mpe.SetSize(vdim*npri,vdofs.Size());
+		  mpe.SetSize(nvpri,vdofs.Size());
 		  mpe = 0.0;
 	       }
 
+	       int vdim = fes->GetVDim();
 	       for (int k = 0; k < dbfi.Size(); k++)
 	       {
 		  dbfi[k]->AssembleElementMatrix(fe, *eltrans, elemmat);
+		  permuteElementMatrix(elemmat,vdim,nvpri/vdim);
 
 		  mee.AddMN(elemmat,
 			    vdofs.Size(),vdofs.Size(),0,0);
 		  mep.AddMN(elemmat,
-			    vdofs.Size(),vdim*npri,0,vdofs.Size());
+			    vdofs.Size(),nvpri,0,vdofs.Size());
 		  if ( mat_pe != NULL )
 		  {
 		     mpe.AddMN(elemmat,
-			       vdim*npri,vdofs.Size(),vdofs.Size(),0);
+			       nvpri,vdofs.Size(),vdofs.Size(),0);
 		  }
-		  mat_pp[i]->AddMN(elemmat,vdim*npri,vdim*npri,
+		  mat_pp[i]->AddMN(elemmat,nvpri,nvpri,
 				   vdofs.Size(),vdofs.Size());
 	       }
 	    }
@@ -537,26 +541,26 @@ void BilinearForm::Assemble (int skip_zeros)
 	    mat_ee->AddSubMatrix(vdofs, vdofs, mee, skip_zeros);
 
 	    for (int ii=0; ii<vdofs.Size(); ii++)
-	      for (int jj=0; jj<vdim*npri; jj++)
-		mat_ep->Add(vdofs[ii],vdim*pr_offset+jj,mep(ii,jj));
+	      for (int jj=0; jj<nvpri; jj++)
+		mat_ep->Add(vdofs[ii],vpr_offset+jj,mep(ii,jj));
 
 	    if ( mat_pe != NULL )
 	    {
-	       for (int ii=0; ii<vdim*npri; ii++)
+	       for (int ii=0; ii<nvpri; ii++)
 		  for (int jj=0; jj<vdofs.Size(); jj++)
-		     mat_pe->Add(vdim*pr_offset+ii,vdofs[jj],mpe(ii,jj));
+		     mat_pe->Add(vpr_offset+ii,vdofs[jj],mpe(ii,jj));
 	    }
 
 	    mat_pp_inv[i] = (DenseMatrixInverse*)mat_pp[i]->Inverse();
 
-	    vcMpe.SetSize(vdim*npri);
-	    vpR.SetSize(vdim*npri);
+	    vcMpe.SetSize(nvpri);
+	    vpR.SetSize(nvpri);
 	    veL.SetSize(vdofs.Size());
 	    mrr.SetSize(vdofs.Size(),vdofs.Size());
 
 	    for (int jj=0; jj<vdofs.Size(); jj++)
 	    {
-	       for (int kk=0; kk<vdim*npri; kk++)
+	       for (int kk=0; kk<nvpri; kk++)
 		  vcMpe(kk) = mep(jj,kk);
 	       mat_pp_inv[i]->Mult(vcMpe,vpR);
 
@@ -639,6 +643,30 @@ void BilinearForm::Assemble (int skip_zeros)
       FreeElementMatrices();
    }
 #endif
+}
+
+void BilinearForm::permuteElementMatrix(DenseMatrix &mat, int vdim, int npr)
+{
+   int h = mat.Height(), w = mat.Width();
+   int ndof = h/vdim;
+   int nex  = ndof-npr;
+
+   DenseMatrix pmat(h,w);
+
+   pmat = 0.0;
+   for (int dj = 0; dj<vdim; dj++)
+   {
+      for (int di = 0; di<vdim; di++)
+      {
+         pmat.CopyMN(mat,nex,nex,ndof*di,ndof*dj,nex*di,nex*dj);
+         pmat.CopyMN(mat,nex,npr,ndof*di,ndof*dj+nex,nex*di,nex*vdim+npr*dj);
+         pmat.CopyMN(mat,npr,nex,ndof*di+nex,ndof*dj,nex*vdim+npr*di,nex*dj);
+         pmat.CopyMN(mat,npr,npr,ndof*di+nex,ndof*dj+nex,
+		     nex*vdim+npr*di,nex*vdim+npr*dj);
+      }
+   }
+
+   mat = pmat;
 }
 
 void BilinearForm::ConformingAssemble()

@@ -70,6 +70,8 @@ protected:
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
 
+  void permuteElementMatrix(DenseMatrix & mat, int vdim, int npr);
+
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
    {
