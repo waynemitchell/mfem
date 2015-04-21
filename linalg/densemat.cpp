@@ -2457,6 +2457,23 @@ void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
       }
 }
 
+void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco,
+			 int row_offset, int col_offset)
+{
+   int i, j;
+
+   MFEM_VERIFY(row_offset+m <= this->Height() && col_offset+n <= this->Width(),
+	       "this DenseMatrix is too small to accomodate the submatrix.");
+   MFEM_VERIFY(Aro+m <= A.Height() && Aco+n <= A.Width(),
+	       "The A DenseMatrix is too small to accomodate the submatrix.");
+
+   for (j = 0; j < n; j++)
+      for (i = 0; i < m; i++)
+      {
+	(*this)(row_offset+i,col_offset+j) = A(Aro+i,Aco+j);
+      }
+}
+
 void DenseMatrix::CopyMNDiag(double c, int n, int row_offset, int col_offset)
 {
    int i, j;

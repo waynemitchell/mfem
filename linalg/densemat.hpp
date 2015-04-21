@@ -226,6 +226,10 @@ public:
    void CopyMN(DenseMatrix &A, int row_offset, int col_offset);
    /// Copy matrix A^t to the location in *this at row_offset, col_offset
    void CopyMNt(DenseMatrix &A, int row_offset, int col_offset);
+   /// Copy the m x n submatrix of A at (Aro)ffset, (Aco)loffset to *this
+   /// at row_offset, col_offset
+   void CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco,
+	       int row_offset, int col_offset);
    /// Copy c on the diagonal of size n to *this at row_offset, col_offset
    void CopyMNDiag(double c, int n, int row_offset, int col_offset);
    /// Copy diag on the diagonal of size n to *this at row_offset, col_offset
