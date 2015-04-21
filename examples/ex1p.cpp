@@ -131,9 +131,6 @@ int main(int argc, char *argv[])
       mesh->GeneralRefinement(refs, 1);
    }*/
 
-   for (int i = 0; i < 3; i++)
-      mesh->UniformRefinement();
-
    /*srand(0);
    for (int i = 0; i < 3; i++)
    {
@@ -150,7 +147,9 @@ int main(int argc, char *argv[])
    }*/
 
    mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
-   //mesh->UniformRefinement();
+
+   for (int i = 0; i < 2; i++)
+      mesh->UniformRefinement();
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the

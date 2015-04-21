@@ -617,10 +617,9 @@ bool ParNCMesh::PruneTree(Element* elem)
 
       // not all children can be removed, but remove those that can be
       for (int i = 0; i < 8; i++)
-         if (remove[i])
-         {
-            DerefineElement(elem->child[i]);
-         }
+      {
+         if (remove[i]) { DerefineElement(elem->child[i]); }
+      }
 
       return false; // need to keep this element and up
    }
@@ -635,6 +634,7 @@ void ParNCMesh::Prune()
 {
    GetSharedVertices();
    GetSharedEdges();
+   if (Dim > 2) GetSharedFaces();
 
    // derefine subtrees whose leaves are all unneeded
    for (int i = 0; i < root_elements.Size(); i++)

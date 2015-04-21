@@ -148,10 +148,12 @@ NCMesh::Element* NCMesh::CopyHierarchy(Element* elem)
    if (elem->ref_type)
    {
       for (int i = 0; i < 8; i++)
+      {
          if (elem->child[i])
          {
             new_elem->child[i] = CopyHierarchy(elem->child[i]);
          }
+      }
    }
    else
    {
@@ -689,11 +691,9 @@ void NCMesh::RefineElement(Element* elem, char ref_type)
 
       // do the remaining splits on the children
       for (int i = 0; i < 8; i++)
-         if (elem->child[i])
-         {
-            RefineElement(elem->child[i], remaining);
-         }
-
+      {
+         if (elem->child[i]) { RefineElement(elem->child[i], remaining); }
+      }
       return;
    }
 
@@ -1058,27 +1058,24 @@ void NCMesh::RefineElement(Element* elem, char ref_type)
 
    // start using the nodes of the children, create edges & faces
    for (int i = 0; i < 8; i++)
-      if (child[i])
-      {
-         RefElementNodes(child[i]);
-      }
+   {
+      if (child[i]) { RefElementNodes(child[i]); }
+   }
 
    // sign off of all nodes of the parent, clean up unused nodes
    UnrefElementNodes(elem);
 
    // register the children in their faces once the parent is out of the way
    for (int i = 0; i < 8; i++)
-      if (child[i])
-      {
-         RegisterFaces(child[i]);
-      }
+   {
+      if (child[i]) { RegisterFaces(child[i]); }
+   }
 
    // make the children inherit our rank
    for (int i = 0; i < 8; i++)
-      if (child[i])
-      {
-         child[i]->rank = elem->rank;
-      }
+   {
+      if (child[i]) { child[i]->rank = elem->rank; }
+   }
 
    // finish the refinement
    elem->ref_type = ref_type;
