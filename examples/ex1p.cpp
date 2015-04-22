@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 
    mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
 
-   for (int i = 0; i < 2; i++)
+   for (int i = 0; i < 1; i++)
       mesh->UniformRefinement();
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -163,11 +163,11 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }*/
-   /*{
+   {
       Array<Refinement> refs;
       refs.Append(Refinement(0, 7));
       pmesh->GeneralRefinement(refs, 1);
-   }*/
+   }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If

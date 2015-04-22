@@ -252,6 +252,7 @@ void ParFiniteElementSpace::GetGroupComm(
 void ParFiniteElementSpace::ApplyLDofSigns(Array<int> &dofs) const
 {
    for (int i = 0; i < dofs.Size(); i++)
+   {
       if (dofs[i] < 0)
       {
          if (ldof_sign[-1-dofs[i]] < 0)
@@ -266,6 +267,7 @@ void ParFiniteElementSpace::ApplyLDofSigns(Array<int> &dofs) const
             dofs[i] = -1-dofs[i];
          }
       }
+   }
 }
 
 void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
@@ -1487,8 +1489,11 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
 {
    ParFiniteElementSpace *cpfes = new ParFiniteElementSpace(*this);
    Constructor();
-   ConstructTrueDofs();
-   GenerateGlobalOffsets();
+   if (!pmesh->pncmesh)
+   {
+      ConstructTrueDofs();
+      GenerateGlobalOffsets();
+   }
    return cpfes;
 }
 

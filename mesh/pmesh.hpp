@@ -44,6 +44,9 @@ private:
    Array<int> sedge_ledge;
    Array<int> sface_lface;
 
+   /// Create from a nonconforming mesh.
+   ParMesh(const ParNCMesh &pncmesh);
+
    //InitNCSharedElements();
 
    /// Return a number(0-1) identifying how the given edge has been split

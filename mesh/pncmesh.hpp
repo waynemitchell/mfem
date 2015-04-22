@@ -277,6 +277,7 @@ TODO
 - hcurl/hdiv
 - saving/reading nc meshes
 - visualization, VisIt?
+- parallel ZZ estimator
 - ProjectBdrCoefficient
 - hilbert ordering
 - performance/scaling study
@@ -310,7 +311,6 @@ public:
    typedef std::map<int, NeighborDofMessage> Map;
 
 protected:
-   // TODO: we need a Dictionary class if we want to avoid STL
    typedef std::map<NCMesh::MeshId, std::vector<int> > IdToDofs;
    IdToDofs id_dofs[3];
 

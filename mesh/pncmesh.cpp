@@ -808,10 +808,12 @@ void ParNCMesh::ElementSet::DecodeTree(Element* elem, int &pos,
    else
    {
       for (int i = 0; i < 8; i++)
+      {
          if (mask & (1 << i))
          {
             DecodeTree(elem->child[i], pos, elements);
          }
+      }
    }
 }
 

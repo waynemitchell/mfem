@@ -1688,10 +1688,12 @@ void NCMesh::PointMatrix::GetMatrix(DenseMatrix& point_matrix) const
 {
    point_matrix.SetSize(points[0].dim, np);
    for (int i = 0; i < np; i++)
+   {
       for (int j = 0; j < points[0].dim; j++)
       {
          point_matrix(j, i) = points[i].coord[j];
       }
+   }
 }
 
 void NCMesh::GetFineTransforms(Element* elem, int coarse_index,
@@ -1701,9 +1703,12 @@ void NCMesh::GetFineTransforms(Element* elem, int coarse_index,
    if (!elem->ref_type)
    {
       // we got to a leaf, store the fine element transformation
-      FineTransform& ft = transforms[elem->index];
-      ft.coarse_index = coarse_index;
-      pm.GetMatrix(ft.point_matrix);
+      if (!elem->Ghost())
+      {
+         FineTransform& ft = transforms[elem->index];
+         ft.coarse_index = coarse_index;
+         pm.GetMatrix(ft.point_matrix);
+      }
       return;
    }
 
@@ -1934,6 +1939,18 @@ void NCMesh::GetFineTransforms(Element* elem, int coarse_index,
 
       GetFineTransforms(elem->child[3], coarse_index, transforms,
                         PointMatrix(mid01, mid12, mid20));
+   }
+}
+
+void NCMesh::MarkCoarseLevel()
+{
+   coarse_elements.SetSize(leaf_elements.Size());
+   coarse_elements.SetSize(0);
+
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      Element* e = leaf_elements[i];
+      if (!e->Ghost()) { coarse_elements.Append(e); }
    }
 }
 

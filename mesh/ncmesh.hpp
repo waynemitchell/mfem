@@ -150,7 +150,7 @@ public:
    /** Store the current layer of leaf elements before the mesh is refined.
        This is later used by 'GetFineTransforms' to determine the relations of
        the coarse and refined elements. */
-   void MarkCoarseLevel() { leaf_elements.Copy(coarse_elements); }
+   void MarkCoarseLevel();
 
    /// Free the internally stored array of coarse leaf elements.
    void ClearCoarseLevel() { coarse_elements.DeleteAll(); }

@@ -377,10 +377,8 @@ SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
          for (int i = 0; i < I.Height(); i++)
          {
             int col = cols[i];
-            if (col < 0)
-            {
-               col = -1 - col;
-            }
+            if (col < 0) { col = -1 - col; }
+
             if (mark[col]++)
             {
                I.SetRow(i, 0);   // zero the i-th row of I
@@ -397,16 +395,16 @@ SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
          for (int i = 0; i < rows.Size(); i++)
          {
             int col = cols[i];
-            if (col < 0)
-            {
-               col = -1 - col;
-            }
+            if (col < 0) { col = -1 - col; }
+
             if (!mark[col]++)
+            {
                for (int vd = 0; vd < vdim; vd++)
                {
                   R->Set(cfes->DofToVDof(rows[i], vd),
                          this->DofToVDof(cols[i], vd), 1.0);
                }
+            }
          }
       }
    }
@@ -689,7 +687,7 @@ void FiniteElementSpace::GetConformingInterpolation()
    for (int type = 0; type <= 1; type++)
    {
       const NCMesh::NCList &list = type ? mesh->ncmesh->GetFaceList()
-                                   : mesh->ncmesh->GetEdgeList();
+                                   /**/ : mesh->ncmesh->GetEdgeList();
       if (!list.masters.size()) { continue; }
 
       IsoparametricTransformation T;
