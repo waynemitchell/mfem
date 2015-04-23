@@ -3187,6 +3187,42 @@ void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
 #endif
 }
 
+void MultADBt(const DenseMatrix &A, const Vector &D,
+              const DenseMatrix &B, DenseMatrix &ADBt)
+{
+#ifdef MFEM_DEBUG
+   if (A.Height() != ADBt.Height() || B.Height() != ABt.Width() ||
+       A.Width() != B.Width() || A.Width() != D.Size())
+   {
+      mfem_error("AddMultADBt(...)");
+   }
+#endif
+
+   const int ah = A.Height();
+   const int bh = B.Height();
+   const int aw = A.Width();
+   const double *ad = A.Data();
+   const double *bd = B.Data();
+   const double *dd = D.GetData();
+   double *cd = ADBt.Data();
+
+   for (int k = 0; k < aw; k++)
+   {
+      double *cp = cd;
+      for (int j = 0; j < bh; j++)
+      {
+         const double bjk = bd[j];
+         for (int i = 0; i < ah; i++)
+         {
+            cp[i] += ad[i] * dd[k] * bjk;
+         }
+         cp += ah;
+      }
+      ad += ah;
+      bd += bh;
+   }
+}
+
 void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
 {
 #ifdef MFEM_DEBUG

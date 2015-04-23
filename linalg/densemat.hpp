@@ -311,6 +311,10 @@ void AddMultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt);
 /// Multiply a matrix A with the transpose of a matrix B:   A*Bt
 void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt);
 
+/// ADBt = A D B^t, where D is diagonal
+void MultADBt(const DenseMatrix &A, const Vector &D,
+              const DenseMatrix &B, DenseMatrix &ADAt);
+
 /// ABt += A * B^t
 void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt);
 
