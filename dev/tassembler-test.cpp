@@ -4,6 +4,7 @@
 // #include <iostream> // included by mfem.hpp
 
 using namespace std;
+using namespace mfem;
 
 #ifdef BGQPROF
 #include <mpi.h>

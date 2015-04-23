@@ -2,6 +2,8 @@
 #include "tmatrix.hpp"
 #include "mfem.hpp"
 
+namespace mfem {
+
 // Dim = spatial dimension
 // P = polynomial degree,
 // Q = number of quadrature points in one spatial direction
@@ -403,4 +405,6 @@ void TensorProductBasis<Dim, P, Q, N>::SetInterp(
       }
    }
 #endif
+}
+
 }

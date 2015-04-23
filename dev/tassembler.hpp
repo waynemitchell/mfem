@@ -4,6 +4,7 @@
 #include "tinteg.hpp"
 #include "mfem.hpp"
 
+namespace mfem {
 
 template <class Integ, class Basis, bool isDG>
 class TAssembler : public Operator
@@ -67,7 +68,7 @@ TAssembler<Integ,Basis,isDG>::TAssembler(FiniteElementSpace *_fes)
 
    mesh = _fes->GetMesh();
    fes = _fes;
-   size = fes->GetVSize();
+   height = width = fes->GetVSize();
 
    if (Integ::num_inputs != 2)
       mfem_error("TAssembler<>::TAssembler: Integ::num_inputs != 2");
@@ -350,7 +351,7 @@ void TAssembler<Integ,Basis,isDG>::Assemble()
 {
    int num_elem_blocks = mesh->GetNE() / Basis::num_entries;
    const double *mesh_node_data = mesh->GetNodes()->GetData();
-   int comp_size = size;
+   int comp_size = Height();
    const int *el_dof;
 
    const int num_integ_calls =
@@ -415,7 +416,6 @@ void TAssembler<Integ,Basis,isDG>::MultAssembled(
    int num_elem_blocks = mesh->GetNE() / Basis::num_entries;
    const double *u_data = u.GetData();
    double *v_data = v.GetData();
-   int comp_size = size;
    const int *el_dof;
 
    const int num_integ_calls =
@@ -520,7 +520,7 @@ void TAssembler<Integ,Basis,isDG>::MultNotAssembled(
    const double *mesh_node_data = mesh->GetNodes()->GetData();
    const double *u_data = u.GetData();
    double *v_data = v.GetData();
-   int comp_size = size;
+   int comp_size = Height();
    const int *el_dof;
 
    const int num_integ_calls =
@@ -703,4 +703,6 @@ void TAssembler<Integ,Basis,isDG>::PrintBasis()
    std::cout << "num_entries = " << Basis::num_entries << std::endl;
    std::cout << "total_dofs  = " << Basis::total_dofs << std::endl;
    std::cout << "total_qpts  = " << Basis::total_qpts << std::endl;
+}
+
 }

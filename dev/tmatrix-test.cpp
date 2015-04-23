@@ -4,6 +4,7 @@
 #include "tmatrix.hpp"
 
 using namespace std;
+using namespace mfem;
 
 
 // #define TEST_EIGEN 1

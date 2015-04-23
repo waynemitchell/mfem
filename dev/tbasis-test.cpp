@@ -4,6 +4,7 @@
 #include "mfem.hpp"
 
 using namespace std;
+using namespace mfem;
 
 const int p = 3;
 const int q = 6;
