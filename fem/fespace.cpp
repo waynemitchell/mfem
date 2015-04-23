@@ -65,6 +65,84 @@ void FiniteElementSpace::DofsToVDofs (Array<int> &dofs) const
    }
 }
 
+void FiniteElementSpace::ExDofsToExVDofs (Array<int> &dofs) const
+{
+   int i, j, size;
+
+   if (vdim == 1) { return; }
+
+   size = dofs.Size();
+   dofs.SetSize (size * vdim);
+
+   switch (ordering)
+   {
+      case Ordering::byNODES:
+         for (i = 1; i < vdim; i++)
+            for (j = 0; j < size; j++)
+               if (dofs[j] < 0)
+               {
+                  dofs[size * i + j] = -1 - ( nexdofs * i + (-1-dofs[j]) );
+               }
+               else
+               {
+                  dofs[size * i + j] = nexdofs * i + dofs[j];
+               }
+         break;
+
+      case Ordering::byVDIM:
+         for (i = vdim-1; i >= 0; i--)
+            for (j = 0; j < size; j++)
+               if (dofs[j] < 0)
+               {
+                  dofs[size * i + j] = -1 - ( (-1-dofs[j]) * vdim + i );
+               }
+               else
+               {
+                  dofs[size * i + j] = dofs[j] * vdim + i;
+               }
+         break;
+   }
+}
+
+void FiniteElementSpace::PrDofsToPrVDofs (Array<int> &dofs) const
+{
+   int i, j, size;
+
+   if (vdim == 1) { return; }
+
+   size = dofs.Size();
+   dofs.SetSize (size * vdim);
+
+   switch (ordering)
+   {
+      case Ordering::byNODES:
+         for (i = 1; i < vdim; i++)
+            for (j = 0; j < size; j++)
+               if (dofs[j] < 0)
+               {
+                  dofs[size * i + j] = -1 - ( nprdofs * i + (-1-dofs[j]) );
+               }
+               else
+               {
+                  dofs[size * i + j] = nprdofs * i + dofs[j];
+               }
+         break;
+
+      case Ordering::byVDIM:
+         for (i = vdim-1; i >= 0; i--)
+            for (j = 0; j < size; j++)
+               if (dofs[j] < 0)
+               {
+                  dofs[size * i + j] = -1 - ( (-1-dofs[j]) * vdim + i );
+               }
+               else
+               {
+                  dofs[size * i + j] = dofs[j] * vdim + i;
+               }
+         break;
+   }
+}
+
 void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs) const
 {
    if (vdim == 1)
@@ -154,29 +232,25 @@ void FiniteElementSpace::GetElementVDofs(int iE, Array<int> &dofs,
 					 int &pr_offset, int &npr) const
 {
    GetElementDofs(iE, dofs, pr_offset, npr);
-   DofsToVDofs (dofs);
-   pr_offset *= vdim;
-   npr *= vdim;
+   ExDofsToExVDofs (dofs);
 }
 
 void FiniteElementSpace::GetElementExVDofs(int iE, Array<int> &dofs) const
 {
    GetElementExDofs(iE, dofs);
-   DofsToVDofs (dofs);
+   ExDofsToExVDofs (dofs);
 }
 
 void FiniteElementSpace::GetElementPrVDofs(int iE, Array<int> &dofs) const
 {
    GetElementPrDofs(iE, dofs);
-   DofsToVDofs (dofs);
+   PrDofsToPrVDofs (dofs);
 }
 
 void FiniteElementSpace::GetElementPrVDofs(int iE,
 					   int & pr_offset, int & npr) const
 {
    GetElementPrDofs(iE, pr_offset, npr);
-   pr_offset *= vdim;
-   npr *= vdim;
 }
 
 void FiniteElementSpace::GetBdrElementVDofs (int iE, Array<int> &dofs) const

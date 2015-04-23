@@ -285,6 +285,10 @@ public:
 
    void DofsToVDofs(Array<int> &dofs) const;
 
+   void ExDofsToExVDofs(Array<int> &dofs) const;
+
+   void PrDofsToPrVDofs(Array<int> &dofs) const;
+
    void DofsToVDofs(int vd, Array<int> &dofs) const;
 
    int DofToVDof(int dof, int vd) const;

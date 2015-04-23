@@ -43,6 +43,8 @@ protected:
 
    // Vectors associated with static condensation
    Vector *tmp_p; // A temporary vector compatible with the private DoFs
+   Vector *v1_e, *v1_p; // Temporary vectors which may be only shells
+   Vector *v2_e, *v2_p; // Temporary vectors which may be only shells
 
    /// FE space on which the form lives.
    FiniteElementSpace *fes;
@@ -70,7 +72,7 @@ protected:
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
 
-  void permuteElementMatrix(DenseMatrix & mat, int vdim, int npr);
+   void permuteElementMatrix(DenseMatrix & mat, int vdim, int npr);
 
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
@@ -79,6 +81,7 @@ protected:
       mat_ee = mat_ep = mat_pe = mat_rr = NULL;
       mat_pp = NULL; mat_pp_inv = NULL;
       tmp_p = NULL;
+      v1_e = v1_p = v2_e = v2_p = NULL;
       precompute_sparsity = 0;
    }
 
@@ -159,7 +162,10 @@ public:
 
    // Given a rhs vector and a solution vector with its exposed DoFs
    // already computed, update the private DoFs of sol
-   void UpdatePrivateDoFs(const Vector &rhs, const Vector &sol) const;
+   void UpdatePrivateDoFs(const Vector &rhs, Vector &sol) const;
+
+   void SplitExposedPrivate(const Vector &x, Vector *x_e, Vector *x_p) const;
+   void MergeExposedPrivate(Vector *x_e, Vector *x_p, Vector &x) const;
 
    /// Adds new Domain Integrator.
    void AddDomainIntegrator(BilinearFormIntegrator *bfi);

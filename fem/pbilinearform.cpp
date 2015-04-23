@@ -196,14 +196,14 @@ ParBilinearForm::RHS_R(const Vector & rhs) const
 						pfes->GetTrueExDofOffsets());
 
    // Create temporary vectors for the exposed and private portions of rhs
-   const Vector rhs_e(const_cast<double*>(&rhs[0]),pfes->GetExVSize());
-   const Vector rhs_p(const_cast<double*>(&rhs[pfes->GetExVSize()]),
-		      pfes->GetPrVSize());
+   this->SplitExposedPrivate(rhs,v1_e,v1_p);
 
-   Vector *rhs_r = this->BilinearForm::RHS_R(rhs_e,rhs_p);
+   Vector *rhs_r = this->BilinearForm::RHS_R(*v1_e,*v1_p);
 
    pfes->ExDof_TrueExDof_Matrix()->MultTranspose(*rhs_r,
 						 *prhs_r);
+
+   delete rhs_r;
 
    return prhs_r;
 }

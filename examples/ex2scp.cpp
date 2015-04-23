@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/beam-tri.mesh";
    int order = 1;
    bool visualization = 1;
+   bool byNodes = false;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -62,6 +63,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&byNodes, "-bn", "--by-nodes", "-bv",
+                  "--by-vdim",
+                  "Enable ordering by Nodes as opposed to VDim.");
    args.Parse();
    if (!args.Good())
    {
@@ -116,6 +120,7 @@ int main(int argc, char *argv[])
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
+   /*
    {
       int ref_levels =
          (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
@@ -124,12 +129,13 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
-
+   */
    // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
+   /*
    {
       int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
@@ -137,7 +143,7 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }
-
+   */
    // 7. Define a parallel finite element space on the parallel mesh. Here we
    //    use vector finite elements, i.e. dim copies of a scalar finite element
    //    space. We use the ordering by vector dimension (the last argument of
@@ -154,8 +160,12 @@ int main(int argc, char *argv[])
    else
    {
       fec = new H1_FECollection(order, dim);
-      fespace = new ParFiniteElementSpace(pmesh, fec, dim,
-					  Ordering::byVDIM, true);
+      if ( byNodes )
+	fespace = new ParFiniteElementSpace(pmesh, fec, dim,
+					    Ordering::byNODES, true);
+      else
+	fespace = new ParFiniteElementSpace(pmesh, fec, dim,
+					    Ordering::byVDIM, true);
    }
    HYPRE_Int size = fespace->GlobalTrueVSize();
    HYPRE_Int esize = fespace->GlobalTrueExVSize();
@@ -244,10 +254,33 @@ int main(int argc, char *argv[])
    }
 
    // do the parallel elimination
-   HypreParVector XE(MPI_COMM_WORLD,fespace->GlobalTrueExVSize(),
-		     X->GetData(),fespace->GetTrueExDofOffsets());
+   Vector * xe = NULL;
+   HypreParVector * XE = NULL;
 
-   A->EliminateRowsCols(dof_list, XE, *B);
+   if ( fespace->GetOrdering() == Ordering::byNODES &&
+	fespace->GetVDim() > 1 )
+   {
+     xe = new Vector(fespace->GetExVSize());
+     a->SplitExposedPrivate(x,xe,NULL);
+
+     HypreParVector hxe(MPI_COMM_WORLD,
+			fespace->GlobalExVSize(),
+			xe->GetData(),
+			fespace->GetExDofOffsets());
+
+     XE = new HypreParVector(MPI_COMM_WORLD,fespace->GlobalTrueExVSize(),
+			     fespace->GetTrueExDofOffsets());
+
+     fespace->ExDof_TrueExDof_Matrix()->MultTranspose(hxe,*XE);
+
+   }
+   else
+   {
+     XE = new HypreParVector(MPI_COMM_WORLD,fespace->GlobalTrueExVSize(),
+			     X->GetData(),fespace->GetTrueExDofOffsets());
+   }
+
+   A->EliminateRowsCols(dof_list, *XE, *B);
 
    if (myid == 0)
    {
@@ -260,18 +293,34 @@ int main(int argc, char *argv[])
    amg->SetSystemsOptions(dim);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-8);
-   pcg->SetMaxIter(500);
+   pcg->SetMaxIter(1000);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
-   pcg->Mult(*B, XE);
+   pcg->Mult(*B, *XE);
 
    // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   x = *X;
+   if ( fespace->GetOrdering() == Ordering::byNODES &&
+	fespace->GetVDim() > 1 )
+   {
+     HypreParVector hxe(MPI_COMM_WORLD,
+			fespace->GlobalExVSize(),
+			xe->GetData(),
+			fespace->GetExDofOffsets());
+
+     fespace->ExDof_TrueExDof_Matrix()->Mult(*XE,hxe);
+
+     a->MergeExposedPrivate(&hxe,NULL,x);
+   }
+   else
+   {
+     x = *X;
+   }
    a->UpdatePrivateDoFs(*b,x);
 
    delete a;
    delete b;
+   if ( xe != NULL ) delete xe;
 
    // 14. For non-NURBS meshes, make the mesh curved based on the finite element
    //     space. This means that we define the mesh elements through a fespace
@@ -322,6 +371,7 @@ int main(int argc, char *argv[])
    delete pcg;
    delete amg;
    delete X;
+   delete XE;
    delete B;
    delete A;
 
