@@ -12,6 +12,12 @@
 #ifndef MFEM_QUADRILATERAL
 #define MFEM_QUADRILATERAL
 
+#include "../config/config.hpp"
+#include "element.hpp"
+
+namespace mfem
+{
+
 /// Data type quadrilateral element
 class Quadrilateral : public Element
 {
@@ -42,10 +48,15 @@ public:
 
    virtual int GetNVertices() const { return 4; }
 
-   virtual int GetNEdges() const { return(4); }
+   virtual int GetNEdges() const { return (4); }
 
    virtual const int *GetEdgeVertices(int ei) const
-   { return(edges[ei]); }
+   { return (edges[ei]); }
+
+   virtual int GetNFaces(int &nFaceVertices) const
+   { nFaceVertices = 0; return 0; }
+
+   virtual const int *GetFaceVertices(int fi) const { return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const
    { return new Quadrilateral(indices, attribute); }
@@ -54,5 +65,7 @@ public:
 };
 
 extern BiLinear2DFiniteElement QuadrilateralFE;
+
+}
 
 #endif

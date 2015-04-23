@@ -12,6 +12,20 @@
 #ifndef MFEM_NURBS
 #define MFEM_NURBS
 
+#include "../config/config.hpp"
+#include "../general/table.hpp"
+#include "../general/communication.hpp"
+#include "../linalg/vector.hpp"
+#include "element.hpp"
+#include "mesh.hpp"
+#include <iostream>
+
+namespace mfem
+{
+
+class GridFunction;
+
+
 class KnotVector
 {
 protected:
@@ -23,9 +37,9 @@ protected:
 public:
    /// Create KnotVector
    KnotVector() { }
-   KnotVector(istream &input);
+   KnotVector(std::istream &input);
    KnotVector(int Order_, int NCP);
-   KnotVector(const KnotVector &kv){ (*this) = kv; }
+   KnotVector(const KnotVector &kv) { (*this) = kv; }
 
    KnotVector &operator=(const KnotVector &kv);
 
@@ -56,7 +70,7 @@ public:
 
    void Flip();
 
-   void Print(ostream &out) const;
+   void Print(std::ostream &out) const;
 
    /// Destroys KnotVector
    ~KnotVector() { }
@@ -88,14 +102,14 @@ protected:
    NURBSPatch(NURBSPatch *parent, int dir, int Order, int NCP);
 
 public:
-   NURBSPatch(istream &input);
+   NURBSPatch(std::istream &input);
    NURBSPatch(KnotVector *kv0, KnotVector *kv1, int dim_);
    NURBSPatch(KnotVector *kv0, KnotVector *kv1, KnotVector *kv2, int dim_);
    NURBSPatch(Array<KnotVector *> &kv, int dim_);
 
    ~NURBSPatch();
 
-   void Print(ostream &out);
+   void Print(std::ostream &out);
 
    void DegreeElevate(int dir, int t);
    void KnotInsert   (int dir, const KnotVector &knot);
@@ -248,7 +262,7 @@ protected:
 
 public:
    /// Read-in a NURBSExtension
-   NURBSExtension(istream &input);
+   NURBSExtension(std::istream &input);
    /** Create a NURBSExtension with elevated order by repeating the endpoints
        of the knot vectors and using uniform weights of 1. */
    NURBSExtension(NURBSExtension *parent, int Order);
@@ -262,8 +276,8 @@ public:
    virtual ~NURBSExtension();
 
    // Print functions
-   void Print(ostream &out) const;
-   void PrintCharacteristics(ostream &out);
+   void Print(std::ostream &out) const;
+   void PrintCharacteristics(std::ostream &out);
 
    // Meta data functions
    int Dimension() { return patchTopo->Dimension(); }
@@ -407,7 +421,9 @@ inline double &NURBSPatch::operator()(int i, int j, int l)
 #ifdef MFEM_DEBUG
    if (data == 0 || i < 0 || i >= ni || j < 0 || j >= nj || nk > 0 ||
        l < 0 || l >= Dim)
+   {
       mfem_error("NURBSPatch::operator() 2D");
+   }
 #endif
 
    return data[(i+j*ni)*Dim+l];
@@ -418,7 +434,9 @@ inline const double &NURBSPatch::operator()(int i, int j, int l) const
 #ifdef MFEM_DEBUG
    if (data == 0 || i < 0 || i >= ni || j < 0 || j >= nj || nk > 0 ||
        l < 0 || l >= Dim)
+   {
       mfem_error("NURBSPatch::operator() const 2D");
+   }
 #endif
 
    return data[(i+j*ni)*Dim+l];
@@ -429,7 +447,9 @@ inline double &NURBSPatch::operator()(int i, int j, int k, int l)
 #ifdef MFEM_DEBUG
    if (data == 0 || i < 0 || i >= ni || j < 0 || j >= nj || k < 0 ||
        k >= nk || l < 0 || l >= Dim)
+   {
       mfem_error("NURBSPatch::operator() 3D");
+   }
 #endif
 
    return data[(i+(j+k*nj)*ni)*Dim+l];
@@ -440,7 +460,9 @@ inline const double &NURBSPatch::operator()(int i, int j, int k, int l) const
 #ifdef MFEM_DEBUG
    if (data == 0 || i < 0 || i >= ni || j < 0 || j >= nj || k < 0 ||
        k >= nk ||  l < 0 || l >= Dim)
+   {
       mfem_error("NURBSPatch::operator() const 3D");
+   }
 #endif
 
    return data[(i+(j+k*nj)*ni)*Dim+l];
@@ -480,14 +502,14 @@ inline int NURBSPatchMap::Or2D(const int n1, const int n2,
    // Needs testing
    switch (Or)
    {
-   case 0: return n1 + n2*N1;
-   case 1: return n2 + n1*N2;
-   case 2: return n2 + (N1 - 1 - n1)*N2;
-   case 3: return (N1 - 1 - n1) + n2*N1;
-   case 4: return (N1 - 1 - n1) + (N2 - 1 - n2)*N1;
-   case 5: return (N2 - 1 - n2) + (N1 - 1 - n1)*N2;
-   case 6: return (N2 - 1 - n2) + n1*N2;
-   case 7: return n1 + (N2 - 1 - n2)*N1;
+      case 0: return n1 + n2*N1;
+      case 1: return n2 + n1*N2;
+      case 2: return n2 + (N1 - 1 - n1)*N2;
+      case 3: return (N1 - 1 - n1) + n2*N1;
+      case 4: return (N1 - 1 - n1) + (N2 - 1 - n2)*N1;
+      case 5: return (N2 - 1 - n2) + (N1 - 1 - n1)*N2;
+      case 6: return (N2 - 1 - n2) + n1*N2;
+      case 7: return n1 + (N2 - 1 - n2)*N1;
    }
 #ifdef MFEM_DEBUG
    mfem_error("NURBSPatchMap::Or2D");
@@ -500,9 +522,9 @@ inline int NURBSPatchMap::operator()(const int i) const
    int i1 = i - 1;
    switch (F(i1, I))
    {
-   case 0: return verts[0];
-   case 1: return pOffset + Or1D(i1, I, opatch);
-   case 2: return verts[1];
+      case 0: return verts[0];
+      case 1: return pOffset + Or1D(i1, I, opatch);
+      case 2: return verts[1];
    }
 #ifdef MFEM_DEBUG
    mfem_error("NURBSPatchMap::operator() const 1D");
@@ -515,15 +537,15 @@ inline int NURBSPatchMap::operator()(const int i, const int j) const
    int i1 = i - 1, j1 = j - 1;
    switch (3*F(j1, J) + F(i1, I))
    {
-   case 0: return verts[0];
-   case 1: return edges[0] + Or1D(i1, I, oedge[0]);
-   case 2: return verts[1];
-   case 3: return edges[3] + Or1D(j1, J, -oedge[3]);
-   case 4: return pOffset + Or2D(i1, j1, I, J, opatch);
-   case 5: return edges[1] + Or1D(j1, J, oedge[1]);
-   case 6: return verts[3];
-   case 7: return edges[2] + Or1D(i1, I, -oedge[2]);
-   case 8: return verts[2];
+      case 0: return verts[0];
+      case 1: return edges[0] + Or1D(i1, I, oedge[0]);
+      case 2: return verts[1];
+      case 3: return edges[3] + Or1D(j1, J, -oedge[3]);
+      case 4: return pOffset + Or2D(i1, j1, I, J, opatch);
+      case 5: return edges[1] + Or1D(j1, J, oedge[1]);
+      case 6: return verts[3];
+      case 7: return edges[2] + Or1D(i1, I, -oedge[2]);
+      case 8: return verts[2];
    }
 #ifdef MFEM_DEBUG
    mfem_error("NURBSPatchMap::operator() const 2D");
@@ -532,44 +554,46 @@ inline int NURBSPatchMap::operator()(const int i, const int j) const
 }
 
 inline int NURBSPatchMap::operator()(const int i, const int j, const int k)
-   const
+const
 {
    // Needs testing
    int i1 = i - 1, j1 = j - 1, k1 = k - 1;
    switch (3*(3*F(k1, K) + F(j1, J)) + F(i1, I))
    {
-   case  0: return verts[0];
-   case  1: return edges[0] + Or1D(i1, I, oedge[0]);
-   case  2: return verts[1];
-   case  3: return edges[3] + Or1D(j1, J, oedge[3]);
-   case  4: return faces[0] + Or2D(i1, J - 1 - j1, I, J, oface[0]);
-   case  5: return edges[1] + Or1D(j1, J, oedge[1]);
-   case  6: return verts[3];
-   case  7: return edges[2] + Or1D(i1, I, oedge[2]);
-   case  8: return verts[2];
-   case  9: return edges[8] + Or1D(k1, K, oedge[8]);
-   case 10: return faces[1] + Or2D(i1, k1, I, K, oface[1]);
-   case 11: return edges[9] + Or1D(k1, K, oedge[9]);
-   case 12: return faces[4] + Or2D(J - 1 - j1, k1, J, K, oface[4]);
-   case 13: return pOffset + I*(J*k1 + j1) + i1;
-   case 14: return faces[2] + Or2D(j1, k1, J, K, oface[2]);
-   case 15: return edges[11] + Or1D(k1, K, oedge[11]);
-   case 16: return faces[3] + Or2D(I - 1 - i1, k1, I, K, oface[3]);
-   case 17: return edges[10] + Or1D(k1, K, oedge[10]);
-   case 18: return verts[4];
-   case 19: return edges[4] + Or1D(i1, I, oedge[4]);
-   case 20: return verts[5];
-   case 21: return edges[7] + Or1D(j1, J, oedge[7]);
-   case 22: return faces[5] + Or2D(i1, j1, I, J, oface[5]);
-   case 23: return edges[5] + Or1D(j1, J, oedge[5]);
-   case 24: return verts[7];
-   case 25: return edges[6] + Or1D(i1, I, oedge[6]);
-   case 26: return verts[6];
+      case  0: return verts[0];
+      case  1: return edges[0] + Or1D(i1, I, oedge[0]);
+      case  2: return verts[1];
+      case  3: return edges[3] + Or1D(j1, J, oedge[3]);
+      case  4: return faces[0] + Or2D(i1, J - 1 - j1, I, J, oface[0]);
+      case  5: return edges[1] + Or1D(j1, J, oedge[1]);
+      case  6: return verts[3];
+      case  7: return edges[2] + Or1D(i1, I, oedge[2]);
+      case  8: return verts[2];
+      case  9: return edges[8] + Or1D(k1, K, oedge[8]);
+      case 10: return faces[1] + Or2D(i1, k1, I, K, oface[1]);
+      case 11: return edges[9] + Or1D(k1, K, oedge[9]);
+      case 12: return faces[4] + Or2D(J - 1 - j1, k1, J, K, oface[4]);
+      case 13: return pOffset + I*(J*k1 + j1) + i1;
+      case 14: return faces[2] + Or2D(j1, k1, J, K, oface[2]);
+      case 15: return edges[11] + Or1D(k1, K, oedge[11]);
+      case 16: return faces[3] + Or2D(I - 1 - i1, k1, I, K, oface[3]);
+      case 17: return edges[10] + Or1D(k1, K, oedge[10]);
+      case 18: return verts[4];
+      case 19: return edges[4] + Or1D(i1, I, oedge[4]);
+      case 20: return verts[5];
+      case 21: return edges[7] + Or1D(j1, J, oedge[7]);
+      case 22: return faces[5] + Or2D(i1, j1, I, J, oface[5]);
+      case 23: return edges[5] + Or1D(j1, J, oedge[5]);
+      case 24: return verts[7];
+      case 25: return edges[6] + Or1D(i1, I, oedge[6]);
+      case 26: return verts[6];
    }
 #ifdef MFEM_DEBUG
    mfem_error("NURBSPatchMap::operator() const 3D");
 #endif
    return -1;
+}
+
 }
 
 #endif

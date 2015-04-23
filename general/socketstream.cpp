@@ -12,11 +12,23 @@
 #include "socketstream.hpp"
 
 #include <cstring>      // memset, memcpy
+#ifndef _WIN32
 #include <netdb.h>      // gethostbyname
 #include <arpa/inet.h>  // htons
 #include <sys/types.h>  // socket, setsockopt, connect, recv, send
 #include <sys/socket.h> // socket, setsockopt, connect, recv, send
 #include <unistd.h>     // close
+#include <netinet/in.h> // sockaddr_in
+#define closesocket (::close)
+#else
+#include <winsock.h>
+typedef int ssize_t;
+// Link with ws2_32.lib
+#pragma comment(lib, "ws2_32.lib")
+#endif
+
+namespace mfem
+{
 
 int socketbuf::attach(int sd)
 {
@@ -49,11 +61,27 @@ int socketbuf::open(const char hostname[], int port)
    sa.sin_port = htons(port);
    socket_descriptor = socket(hp->h_addrtype, SOCK_STREAM, 0);
    if (socket_descriptor < 0)
+   {
       return -1;
+   }
+
+#if defined __APPLE__
+   // OS X does not support the MSG_NOSIGNAL option of send().
+   // Instead we can use the SO_NOSIGPIPE socket option.
+   int on = 1;
+   if (setsockopt(socket_descriptor, SOL_SOCKET, SO_NOSIGPIPE,
+                  (char *)(&on), sizeof(on)) < 0)
+   {
+      closesocket(socket_descriptor);
+      socket_descriptor = -2;
+      return -1;
+   }
+#endif
+
    if (connect(socket_descriptor,
                (const struct sockaddr *)&sa, sizeof(sa)) < 0)
    {
-      ::close(socket_descriptor);
+      closesocket(socket_descriptor);
       socket_descriptor = -2;
       return -1;
    }
@@ -65,7 +93,7 @@ int socketbuf::close()
    if (is_open())
    {
       pubsync();
-      int err = ::close(socket_descriptor);
+      int err = closesocket(socket_descriptor);
       socket_descriptor = -1;
       return err;
    }
@@ -113,9 +141,13 @@ socketbuf::int_type socketbuf::underflow()
 socketbuf::int_type socketbuf::overflow(int_type c)
 {
    if (sync() < 0)
+   {
       return traits_type::eof();
+   }
    if (traits_type::eq_int_type(c, traits_type::eof()))
+   {
       return traits_type::not_eof(c);
+   }
    *pptr() = traits_type::to_char_type(c);
    pbump(1);
    return c;
@@ -141,7 +173,9 @@ std::streamsize socketbuf::xsgetn(char_type *__s, std::streamsize __n)
    {
       br = recv(socket_descriptor, end - remain, remain, 0);
       if (br <= 0)
+      {
          return (__n - remain);
+      }
       remain -= br;
    }
    return __n;
@@ -158,7 +192,9 @@ std::streamsize socketbuf::xsputn(const char_type *__s, std::streamsize __n)
       return __n;
    }
    if (sync() < 0)
+   {
       return 0;
+   }
    ssize_t bw;
    std::streamsize remain = __n;
    const char_type *end = __s + __n;
@@ -170,7 +206,9 @@ std::streamsize socketbuf::xsputn(const char_type *__s, std::streamsize __n)
       bw = send(socket_descriptor, end - remain, remain, 0);
 #endif
       if (bw < 0)
+      {
          return (__n - remain);
+      }
       remain -= bw;
    }
    if (remain > 0)
@@ -191,9 +229,9 @@ socketserver::socketserver(int port)
    }
    int on = 1;
    if (setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR,
-                  &on, sizeof(on)) < 0)
+                  (char *)(&on), sizeof(on)) < 0)
    {
-      ::close(listen_socket);
+      closesocket(listen_socket);
       listen_socket = -2;
       return;
    }
@@ -204,14 +242,14 @@ socketserver::socketserver(int port)
    sa.sin_addr.s_addr = INADDR_ANY;
    if (bind(listen_socket, (const struct sockaddr *)&sa, sizeof(sa)))
    {
-      ::close(listen_socket);
+      closesocket(listen_socket);
       listen_socket = -3;
       return;
    }
    const int backlog = 4;
    if (listen(listen_socket, backlog) < 0)
    {
-      ::close(listen_socket);
+      closesocket(listen_socket);
       listen_socket = -4;
       return;
    }
@@ -220,8 +258,10 @@ socketserver::socketserver(int port)
 int socketserver::close()
 {
    if (!good())
+   {
       return 0;
-   int err = ::close(listen_socket);
+   }
+   int err = closesocket(listen_socket);
    listen_socket = -1;
    return err;
 }
@@ -229,7 +269,9 @@ int socketserver::close()
 int socketserver::accept(socketstream &sockstr)
 {
    if (!good())
+   {
       return -1;
+   }
    int socketd = ::accept(listen_socket, NULL, NULL);
    if (socketd >= 0)
    {
@@ -237,4 +279,6 @@ int socketserver::accept(socketstream &sockstr)
       sockstr.rdbuf()->attach(socketd);
    }
    return socketd;
+}
+
 }

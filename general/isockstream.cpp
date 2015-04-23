@@ -11,15 +11,28 @@
 
 #include "isockstream.hpp"
 #include <iostream>
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 #include <errno.h>
+#ifndef _WIN32
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#else
+#include <winsock.h>
+typedef int ssize_t;
+typedef int socklen_t;
+#define close closesocket
+// Link with ws2_32.lib
+#pragma comment(lib, "ws2_32.lib")
+#endif
 
+using namespace std;
+
+namespace mfem
+{
 
 isockstream::isockstream(int port)
 {
@@ -49,7 +62,7 @@ int isockstream::establish()
            << "isockstream::establish(): gethostname() returned: '"
            << myname << "'" << endl;
       error = 1;
-      return(-1);
+      return (-1);
    }
 
    sa.sin_family= hp->h_addrtype;
@@ -59,55 +72,62 @@ int isockstream::establish()
    {
       cerr << "isockstream::establish(): socket() failed!" << endl;
       error = 2;
-      return(-1);
+      return (-1);
    }
 
    int on=1;
-   setsockopt(port, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+   setsockopt(port, SOL_SOCKET, SO_REUSEADDR, (char *)(&on), sizeof(on));
 
-   if (bind(port,(const sockaddr*)&sa,sizeof(struct sockaddr_in)) < 0)
+   if (bind(port,(const sockaddr*)&sa,(socklen_t)sizeof(struct sockaddr_in)) < 0)
    {
       cerr << "isockstream::establish(): bind() failed!" << endl;
       close(port);
       error = 3;
-      return(-1);
+      return (-1);
    }
 
    listen(port, 4);
    error = 0;
-   return(port);
+   return (port);
 }
 
-int isockstream::read_data(int s, char *buf, int n){
+int isockstream::read_data(int s, char *buf, int n)
+{
    int bcount;                      // counts bytes read
    int br;                          // bytes read this pass
 
    bcount= 0;
    br= 0;
-   while (bcount < n) {             // loop until full buffer
-      if ((br= read(s,buf,n-bcount)) > 0) {
+   while (bcount < n)               // loop until full buffer
+   {
+      if ((br = recv(s, buf, n - bcount, 0)) > 0)
+      {
          bcount += br;                // increment byte counter
          buf += br;                   // move buffer ptr for next read
       }
       else if (br < 0)               // signal an error to the caller
       {
          error = 4;
-         return(-1);
+         return (-1);
       }
    }
-   return(bcount);
+   return (bcount);
 }
 
-void isockstream::receive(istringstream **in)
+void isockstream::receive(std::istringstream **in)
 {
    int size;
    char length[32];
 
    if ((*in) != NULL)
+   {
       delete (*in), *in = NULL;
+   }
 
    if (portID == -1)
+   {
       return;
+   }
 
    if ((socketID = accept(portID, NULL, NULL)) < 0)
    {
@@ -116,7 +136,7 @@ void isockstream::receive(istringstream **in)
       return;
    }
 
-   if (read(socketID, length, 32) < 0)
+   if (recv(socketID, length, 32, 0) < 0)
    {
       error = 6;
       return;
@@ -124,13 +144,19 @@ void isockstream::receive(istringstream **in)
    size = atoi(length);
 
    if (Buf != NULL)
+   {
       delete [] Buf;
+   }
    Buf = new char[size+1];
    if (size != read_data(socketID, Buf, size))
+   {
       cout << "Not all the data has been read" << endl;
+   }
 #ifdef DEBUG
    else
+   {
       cout << "Reading " << size << " bytes is successful" << endl;
+   }
 #endif
    Buf[size] = '\0';
 
@@ -141,7 +167,13 @@ void isockstream::receive(istringstream **in)
 isockstream::~isockstream()
 {
    if (Buf != NULL)
+   {
       delete [] Buf;
+   }
    if (portID != -1)
+   {
       close(portID);
+   }
+}
+
 }

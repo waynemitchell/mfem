@@ -9,8 +9,10 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include <math.h>
 #include "mesh_headers.hpp"
+
+namespace mfem
+{
 
 void Element::SetVertices(const int *ind)
 {
@@ -20,5 +22,9 @@ void Element::SetVertices(const int *ind)
    v = GetVertices();
 
    for (i = 0; i < n; i++)
+   {
       v[i] = ind[i];
+   }
+}
+
 }

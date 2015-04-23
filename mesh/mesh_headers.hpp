@@ -14,10 +14,6 @@
 
 // Mesh header file
 
-#include <iostream>
-#include <iomanip>
-#include <stdlib.h>
-
 #include "../general/array.hpp"
 #include "../general/table.hpp"
 #include "../general/stable3d.hpp"

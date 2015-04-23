@@ -12,6 +12,18 @@
 #ifndef MFEM_COMMUNICATION
 #define MFEM_COMMUNICATION
 
+#include "../config/config.hpp"
+
+#ifdef MFEM_USE_MPI
+
+#include <mpi.h>
+#include "array.hpp"
+#include "table.hpp"
+#include "sets.hpp"
+
+namespace mfem
+{
+
 class GroupTopology
 {
 private:
@@ -32,6 +44,9 @@ private:
 
 public:
    GroupTopology(MPI_Comm comm) { MyComm = comm; }
+
+   /// Copy constructor
+   GroupTopology(const GroupTopology &gt);
 
    MPI_Comm GetComm() { return MyComm; }
    int MyRank() { int r; MPI_Comm_rank(MyComm, &r); return r; }
@@ -85,6 +100,9 @@ public:
    /// Allocate internal buffers after the GroupLDofTable is defined
    void Finalize();
 
+   /// Get a reference to the group topology object
+   GroupTopology & GetGroupTopology() { return gtopo; }
+
    /** Broadcast within each group where the master is the root.
        This method is instantiated for int and double. */
    template <class T> void Bcast(T *ldata);
@@ -117,5 +135,9 @@ public:
 
    ~GroupCommunicator();
 };
+
+}
+
+#endif
 
 #endif

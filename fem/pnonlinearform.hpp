@@ -12,6 +12,16 @@
 #ifndef MFEM_PNONLINEARFORM
 #define MFEM_PNONLINEARFORM
 
+#include "../config/config.hpp"
+
+#ifdef MFEM_USE_MPI
+
+#include "pgridfunc.hpp"
+#include "nonlinearform.hpp"
+
+namespace mfem
+{
+
 /// Parallel non-linear operator on the true dofs
 class ParNonlinearForm : public NonlinearForm
 {
@@ -22,7 +32,7 @@ protected:
 public:
    ParNonlinearForm(ParFiniteElementSpace *pf)
       : NonlinearForm(pf), X(pf), Y(pf)
-   { size = pf->TrueVSize(); pGrad = NULL; }
+   { height = width = pf->TrueVSize(); pGrad = NULL; }
 
    ParFiniteElementSpace *ParFESpace() const
    { return (ParFiniteElementSpace *)fes; }
@@ -31,13 +41,24 @@ public:
    virtual void SetEssentialBC(const Array<int> &bdr_attr_is_ess,
                                Vector *rhs = NULL);
 
+   /// Compute the energy of a ParGridFunction
+   virtual double GetEnergy(const ParGridFunction &x) const;
+
+   /// Compute the energy of a true-dof vector 'x'
    virtual double GetEnergy(const Vector &x) const;
 
    virtual void Mult(const Vector &x, Vector &y) const;
+
+   /// Return the local gradient matrix for the given true-dof vector x
+   const SparseMatrix &GetLocalGradient(const Vector &x) const;
 
    virtual Operator &GetGradient(const Vector &x) const;
 
    virtual ~ParNonlinearForm() { delete pGrad; }
 };
+
+}
+
+#endif // MFEM_USE_MPI
 
 #endif

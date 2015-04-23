@@ -12,9 +12,15 @@
 #ifndef MFEM_MESQUITE
 #define MFEM_MESQUITE
 
+#include "../config/config.hpp"
+#include"mesh.hpp"
+
 #ifdef MFEM_USE_MESQUITE
 
 #include "Mesquite_all_headers.hpp"
+
+namespace mfem
+{
 
 using namespace Mesquite;
 
@@ -23,7 +29,8 @@ class MesquiteMesh : public Mesquite::Mesh
    // tagging interface definition
 private:
 
-   struct MfemTagDescription {
+   struct MfemTagDescription
+   {
 
       std::string name;       //!< Tag name
       Mesh::TagType type;     //!< Tag data type
@@ -32,7 +39,7 @@ private:
       inline MfemTagDescription( std::string n,
                                  Mesh::TagType t,
                                  size_t s)
-         : name(n), type(t), size(s){}
+         : name(n), type(t), size(s) {}
 
       inline MfemTagDescription( )
          : type(Mesh::BYTE), size(0) {}
@@ -50,7 +57,8 @@ private:
     * The tag element and vertex data sets are maps between some element
     * or vertex index and a tag value.
     */
-   class MeshTags {
+   class MeshTags
+   {
    public:
 
       ~MeshTags() { clear(); }
@@ -58,7 +66,8 @@ private:
       /** \class TagData
        * Store data for a single tag
        */
-      struct TagData  {
+      struct TagData
+      {
 
          //! tag meta data
          const MfemTagDescription desc;
@@ -93,7 +102,7 @@ private:
               defaultValue(default_val) {}
 
          /** \brief Construct tag
-          *\param desc Tag description object
+          *\param descr Tag description object
           */
          inline TagData( const MfemTagDescription& descr )
             : desc(descr), elementData(0), elementCount(0),
@@ -205,22 +214,24 @@ private:
 
    // data members
 private:
-   int ndofs;                 // number of nodes (or vertices) in mesh
-   int nelems;                // number of elements in mesh
-   ::Mesh    *mesh;           // pointer to mfem mesh object
-   ::Element *elem;           // pointer to mfem element object
-   ::GridFunction *nodes;     // pointer to mfem grid function object for nodes
-   ::FiniteElementSpace *fes; // pointer to mfem finite element space object
-   ::Table *dof_elem;         // dof to element table
-   std::vector<char> mByte;   // length = ndofs
-   std::vector<bool> mFixed;  // length = ndofs
+   int ndofs;                      // number of nodes (or vertices) in mesh
+   int nelems;                     // number of elements in mesh
+   mfem::Mesh *mesh;               // pointer to mfem mesh object
+   mfem::Element *elem;            // pointer to mfem element object
+   mfem::GridFunction *nodes;      // pointer to mfem grid function object
+   // for nodes
+   mfem::FiniteElementSpace *fes;  // pointer to mfem finite element
+   // space object
+   mfem::Table *dof_elem;          // dof to element table
+   std::vector<char> mByte;        // length = ndofs
+   std::vector<bool> mFixed;       // length = ndofs
 
    MeshTags* myTags;
 
 public:
 
    // The constructor
-   MesquiteMesh(::Mesh *mfem_mesh);
+   MesquiteMesh(mfem::Mesh *mfem_mesh);
 
    // The mesh dimension
    int get_geometric_dimension(MsqError &err);
@@ -291,7 +302,7 @@ public:
    void vertices_get_slaved_flag( const VertexHandle vert_array[],
                                   std::vector<bool>& slaved_flag_array,
                                   size_t num_vtx,
-                                  MsqError &err ){};
+                                  MsqError &err ) {};
 
    TagHandle tag_create( const std::string& tag_name,
                          TagType type, unsigned length,
@@ -335,9 +346,11 @@ public:
 
    void release_entity_handles(const EntityHandle *handle_array,
                                size_t num_handles,
-                               MsqError &err){};
-   void release(){};
+                               MsqError &err) {};
+   void release() {};
 };
+
+}
 
 #endif
 

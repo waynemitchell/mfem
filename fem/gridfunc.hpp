@@ -12,9 +12,17 @@
 #ifndef MFEM_GRIDFUNC
 #define MFEM_GRIDFUNC
 
+#include "../config/config.hpp"
+#include "fespace.hpp"
+#include "coefficient.hpp"
 #include <limits>
+#include <ostream>
+#include <string>
 
-/// Class for grid function - Vector with asociated FE space.
+namespace mfem
+{
+
+/// Class for grid function - Vector with associated FE space.
 class GridFunction : public Vector
 {
 protected:
@@ -24,7 +32,7 @@ protected:
    /// Used when the grid function is read from a file
    FiniteElementCollection *fec;
 
-   void SaveSTLTri(ostream &out, double p1[], double p2[], double p3[]);
+   void SaveSTLTri(std::ostream &out, double p1[], double p2[], double p3[]);
 
    void GetVectorGradientHat(ElementTransformation &T, DenseMatrix &gh);
 
@@ -41,7 +49,7 @@ public:
    GridFunction(FiniteElementSpace *f) : Vector(f->GetVSize())
    { fes = f; fec = NULL; }
 
-   GridFunction(Mesh *m, istream &input);
+   GridFunction(Mesh *m, std::istream &input);
 
    GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces);
 
@@ -61,7 +69,8 @@ public:
 
    void GetVectorValue(int i, const IntegrationPoint &ip, Vector &val) const;
 
-   void GetValues(int i, const IntegrationRule &ir, Vector &vals, int vdim = 1) const;
+   void GetValues(int i, const IntegrationRule &ir, Vector &vals,
+                  int vdim = 1) const;
 
    void GetValues(int i, const IntegrationRule &ir, Vector &vals,
                   DenseMatrix &tr, int vdim = 1) const;
@@ -111,6 +120,15 @@ public:
        where \f$ \psi_i \f$ are the basis functions for the FE space of avgs.
        Both FE spaces should be scalar and on the same mesh. */
    void GetElementAverages(GridFunction &avgs);
+
+   /** Impose the given bounds on the function's DOFs while preserving its local
+    *  integral (described in terms of the given weights) on the i'th element
+    *  through SLBPQ optimization.
+    *  Intended to be used for discontinuos FE functions. */
+   void ImposeBounds(int i, const Vector &weights,
+                     const Vector &_lo, const Vector &_hi);
+   void ImposeBounds(int i, const Vector &weights,
+                     double _min = 0.0, double _max = std::numeric_limits<double>::infinity());
 
    /** Project the given 'src' GridFunction to 'this' GridFunction, both of
        which must be on the same mesh. The current implementation assumes that
@@ -164,7 +182,7 @@ public:
    double ComputeMaxError(Coefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
    {
-      return ComputeLpError(numeric_limits<double>::infinity(),
+      return ComputeLpError(std::numeric_limits<double>::infinity(),
                             exsol, NULL, irs);
    }
 
@@ -174,7 +192,7 @@ public:
    double ComputeMaxError(VectorCoefficient &exsol,
                           const IntegrationRule *irs[] = NULL) const
    {
-      return ComputeLpError(numeric_limits<double>::infinity(),
+      return ComputeLpError(std::numeric_limits<double>::infinity(),
                             exsol, NULL, NULL, irs);
    }
 
@@ -211,12 +229,20 @@ public:
 
    /** For partially conforming FE spaces, prolongate the conforming vector x
        to this partially conforming GridFunction. */
-   void ConformingProlongate(const Vector &x)
-   { fes->GetConformingProlongation()->Mult(x, *this); }
+   void ConformingProlongate(const Vector &x);
+
+   /** As above, but the destination is 'this'. */
+   void ConformingProlongate();
 
    /** For partially conforming FE spaces, project this partially conforming
        GridFunction onto the conforming vector x. */
    void ConformingProject(Vector &x) const;
+
+   /** Same as above, but the destination conforming vector is 'this'.
+       NOTE: the GridFunction's functionality is limited after this call,
+       as the underlying vector shrinks to the number of conforming DOFs.
+       Normal state is restored with ConformingProlongate. */
+   void ConformingProject();
 
    FiniteElementSpace *FESpace() { return fes; }
 
@@ -227,18 +253,23 @@ public:
    void Update(FiniteElementSpace *f, Vector &v, int v_offset);
 
    /// Save the GridFunction to an output stream.
-   virtual void Save(ostream &out);
+   virtual void Save(std::ostream &out) const;
 
    /** Write the GridFunction in VTK format. Note that Mesh::PrintVTK must be
        called first. The parameter ref must match the one used in
        Mesh::PrintVTK. */
-   void SaveVTK(ostream &out, const string &field_name, int ref);
+   void SaveVTK(std::ostream &out, const std::string &field_name, int ref);
 
-   void SaveSTL(ostream &out, int TimesToRefine = 1);
+   void SaveSTL(std::ostream &out, int TimesToRefine = 1);
 
    /// Destroys grid function.
    virtual ~GridFunction();
 };
+
+/** Overload operator<< for std::ostream and GridFunction; valid also for the
+    derived class ParGridFunction */
+std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
+
 
 void ComputeFlux(BilinearFormIntegrator &blfi,
                  GridFunction &u,
@@ -261,12 +292,13 @@ public:
    ExtrudeCoefficient(Mesh *m, Coefficient &s, int _n)
       : n(_n), mesh_in(m), sol_in(s) { }
    virtual double Eval(ElementTransformation &T, const IntegrationPoint &ip);
-   virtual void Read(istream &in) { }
    virtual ~ExtrudeCoefficient() { }
 };
 
 /// Extrude a scalar 1D GridFunction, after extruding the mesh with Extrude1D.
 GridFunction *Extrude1DGridFunction(Mesh *mesh, Mesh *mesh2d,
                                     GridFunction *sol, const int ny);
+
+}
 
 #endif

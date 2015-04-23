@@ -10,12 +10,48 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 
-#include <math.h>
+#include <cmath>
 #include "fem.hpp"
+
+namespace mfem
+{
+
+ElementTransformation::ElementTransformation():
+   JacobianIsEvaluated(0),
+   WeightIsEvaluated(0),
+   IntPoint(static_cast<IntegrationPoint *>(NULL)),
+   Attribute(-1),
+   ElementNo(-1)
+{
+
+}
+
+void IsoparametricTransformation::SetIdentityTransformation(int GeomType)
+{
+   switch (GeomType)
+   {
+      case Geometry::POINT :       FElem = &PointFE; break;
+      case Geometry::SEGMENT :     FElem = &SegmentFE; break;
+      case Geometry::TRIANGLE :    FElem = &TriangleFE; break;
+      case Geometry::SQUARE :      FElem = &QuadrilateralFE; break;
+      case Geometry::TETRAHEDRON : FElem = &TetrahedronFE; break;
+      case Geometry::CUBE :        FElem = &HexahedronFE; break;
+      default:
+         MFEM_ABORT("unknown Geometry::Type!");
+   }
+   int dim = FElem->GetDim();
+   int dof = FElem->GetDof();
+   const IntegrationRule &nodes = FElem->GetNodes();
+   PointMat.SetSize(dim, dof);
+   for (int j = 0; j < dof; j++)
+   {
+      nodes.IntPoint(j).Get(&PointMat(0,j), dim);
+   }
+}
 
 const DenseMatrix & IsoparametricTransformation::Jacobian()
 {
-   if (JacobianIsEvaluated)  return dFdx;
+   if (JacobianIsEvaluated) { return dFdx; }
 
    dshape.SetSize(FElem->GetDof(), FElem->GetDim());
    dFdx.SetSize(PointMat.Height(), dshape.Width());
@@ -31,9 +67,13 @@ const DenseMatrix & IsoparametricTransformation::Jacobian()
 double IsoparametricTransformation::Weight()
 {
    if (FElem->GetDim() == 0)
+   {
       return 1.0;
+   }
    if (WeightIsEvaluated)
+   {
       return Wght;
+   }
    Jacobian();
    WeightIsEvaluated = 1;
    return (Wght = dFdx.Weight());
@@ -43,12 +83,12 @@ int IsoparametricTransformation::OrderJ()
 {
    switch (FElem->Space())
    {
-   case FunctionSpace::Pk:
-      return (FElem->GetOrder()-1);
-   case FunctionSpace::Qk:
-      return (FElem->GetOrder());
-   default:
-      mfem_error("IsoparametricTransformation::OrderJ()");
+      case FunctionSpace::Pk:
+         return (FElem->GetOrder()-1);
+      case FunctionSpace::Qk:
+         return (FElem->GetOrder());
+      default:
+         mfem_error("IsoparametricTransformation::OrderJ()");
    }
    return 0;
 }
@@ -57,12 +97,12 @@ int IsoparametricTransformation::OrderW()
 {
    switch (FElem->Space())
    {
-   case FunctionSpace::Pk:
-      return (FElem->GetOrder() - 1) * FElem->GetDim();
-   case FunctionSpace::Qk:
-      return (FElem->GetOrder() * FElem->GetDim() - 1);
-   default:
-      mfem_error("IsoparametricTransformation::OrderW()");
+      case FunctionSpace::Pk:
+         return (FElem->GetOrder() - 1) * FElem->GetDim();
+      case FunctionSpace::Qk:
+         return (FElem->GetOrder() * FElem->GetDim() - 1);
+      default:
+         mfem_error("IsoparametricTransformation::OrderW()");
    }
    return 0;
 }
@@ -76,10 +116,10 @@ int IsoparametricTransformation::OrderGrad(const FiniteElement *fe)
       int l = fe->GetOrder();
       switch (fe->Space())
       {
-      case FunctionSpace::Pk:
-         return ((k-1)*(d-1)+(l-1));
-      case FunctionSpace::Qk:
-         return (k*(d-1)+(l-1));
+         case FunctionSpace::Pk:
+            return ((k-1)*(d-1)+(l-1));
+         case FunctionSpace::Qk:
+            return (k*(d-1)+(l-1));
       }
    }
    mfem_error("IsoparametricTransformation::OrderGrad(...)");
@@ -115,7 +155,9 @@ void IsoparametricTransformation::Transform (const IntegrationRule &ir,
       {
          tr(i, j) = 0.0;
          for (k = 0; k < dof; k++)
+         {
             tr(i, j) += PointMat(i, k) * shape(k);
+         }
       }
    }
 }
@@ -139,5 +181,9 @@ void IntegrationPointTransformation::Transform (const IntegrationRule &ir1,
 
    n = ir1.GetNPoints();
    for (i = 0; i < n; i++)
+   {
       Transform (ir1.IntPoint(i), ir2.IntPoint(i));
+   }
+}
+
 }

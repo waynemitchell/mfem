@@ -11,8 +11,14 @@
 
 // Implementation of FiniteElementSpace
 
+#include <cmath>
+#include <cstdarg>
 #include "fem.hpp"
-#include <math.h>
+
+using namespace std;
+
+namespace mfem
+{
 
 int FiniteElementSpace::GetOrder(int i) const
 {
@@ -20,51 +26,64 @@ int FiniteElementSpace::GetOrder(int i) const
    return fec->FiniteElementForGeometry(GeomType)->GetOrder();
 }
 
-
 void FiniteElementSpace::DofsToVDofs (Array<int> &dofs) const
 {
    int i, j, size;
 
-   if (vdim == 1)  return;
+   if (vdim == 1) { return; }
 
    size = dofs.Size();
    dofs.SetSize (size * vdim);
 
-   switch(ordering)
+   switch (ordering)
    {
-   case Ordering::byNODES:
-      for (i = 1; i < vdim; i++)
-         for (j = 0; j < size; j++)
-            if (dofs[j] < 0)
-               dofs[size * i + j] = -1 - ( ndofs * i + (-1-dofs[j]) );
-            else
-               dofs[size * i + j] = ndofs * i + dofs[j];
-      break;
+      case Ordering::byNODES:
+         for (i = 1; i < vdim; i++)
+            for (j = 0; j < size; j++)
+               if (dofs[j] < 0)
+               {
+                  dofs[size * i + j] = -1 - ( ndofs * i + (-1-dofs[j]) );
+               }
+               else
+               {
+                  dofs[size * i + j] = ndofs * i + dofs[j];
+               }
+         break;
 
-   case Ordering::byVDIM:
-      for (i = vdim-1; i >= 0; i--)
-         for (j = 0; j < size; j++)
-            if (dofs[j] < 0)
-               dofs[size * i + j] = -1 - ( (-1-dofs[j]) * vdim + i );
-            else
-               dofs[size * i + j] = dofs[j] * vdim + i;
-      break;
+      case Ordering::byVDIM:
+         for (i = vdim-1; i >= 0; i--)
+            for (j = 0; j < size; j++)
+               if (dofs[j] < 0)
+               {
+                  dofs[size * i + j] = -1 - ( (-1-dofs[j]) * vdim + i );
+               }
+               else
+               {
+                  dofs[size * i + j] = dofs[j] * vdim + i;
+               }
+         break;
    }
 }
 
 void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs) const
 {
    if (vdim == 1)
+   {
       return;
+   }
    if (ordering == Ordering::byNODES)
    {
       for (int i = 0; i < dofs.Size(); i++)
       {
          int dof = dofs[i];
          if (dof < 0)
+         {
             dofs[i] = -1 - ((-1-dof) + vd * ndofs);
+         }
          else
+         {
             dofs[i] = dof + vd * ndofs;
+         }
       }
    }
    else
@@ -73,9 +92,13 @@ void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs) const
       {
          int dof = dofs[i];
          if (dof < 0)
+         {
             dofs[i] = -1 - ((-1-dof) * vdim + vd);
+         }
          else
+         {
             dofs[i] = dof * vdim + vd;
+         }
       }
    }
 }
@@ -83,18 +106,28 @@ void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs) const
 int FiniteElementSpace::DofToVDof (int dof, int vd) const
 {
    if (vdim == 1)
+   {
       return dof;
+   }
    if (ordering == Ordering::byNODES)
    {
       if (dof < 0)
+      {
          return -1 - ((-1-dof) + vd * ndofs);
+      }
       else
+      {
          return dof + vd * ndofs;
+      }
    }
    if (dof < 0)
+   {
       return -1 - ((-1-dof) * vdim + vd);
+   }
    else
+   {
       return dof * vdim + vd;
+   }
 }
 
 // static function
@@ -105,7 +138,9 @@ void FiniteElementSpace::AdjustVDofs (Array<int> &vdofs)
    {
       int j;
       if ((j=vdof[i]) < 0)
+      {
          vdof[i] = -1-j;
+      }
    }
 }
 
@@ -134,14 +169,14 @@ void FiniteElementSpace::GetEdgeVDofs (int iE, Array<int> &dofs) const
 }
 
 void FiniteElementSpace::GetElementInteriorVDofs (int i, Array<int> &vdofs)
-   const
+const
 {
    GetElementInteriorDofs (i, vdofs);
    DofsToVDofs (vdofs);
 }
 
 void FiniteElementSpace::GetEdgeInteriorVDofs (int i, Array<int> &vdofs)
-   const
+const
 {
    GetEdgeInteriorDofs (i, vdofs);
    DofsToVDofs (vdofs);
@@ -150,7 +185,9 @@ void FiniteElementSpace::GetEdgeInteriorVDofs (int i, Array<int> &vdofs)
 void FiniteElementSpace::BuildElementToDofTable()
 {
    if (elem_dof)
+   {
       return;
+   }
 
    Table *el_dof = new Table;
    Array<int> dofs;
@@ -173,7 +210,9 @@ void FiniteElementSpace::BuildElementToDofTable()
 void FiniteElementSpace::BuildDofToArrays()
 {
    if (dof_elem_array.Size())
+   {
       return;
+   }
    BuildElementToDofTable();
 
    dof_elem_array.SetSize (ndofs);
@@ -210,14 +249,38 @@ DenseMatrix * FiniteElementSpace::LocalInterpolation
    int num_fine_elems = RefData[l] -> num_fine_elems;
    rows.SetSize(RefData[l] -> num_fine_dofs);
 
-   for (i = 0; i < num_fine_elems; i++) {
+   for (i = 0; i < num_fine_elems; i++)
+   {
       GetElementDofs(mesh->GetFineElem(k,i),g_dofs); // TWO_LEVEL_FINE
       RefData[l] -> fl_to_fc -> GetRow (i, l_dofs);
       for (j = 0; j < l_dofs.Size(); j++)
+      {
          rows[l_dofs[j]] = g_dofs[j];
+      }
    }
 
    return RefData[l] -> I;
+}
+
+// helper to set submatrix of A repeated vdim times
+static void SetVDofSubMatrixTranspose(SparseMatrix& A,
+                                      Array<int>& rows, Array<int>& cols,
+                                      const DenseMatrix& subm, int vdim)
+{
+   if (vdim == 1)
+   {
+      A.SetSubMatrixTranspose(rows, cols, subm, 1);
+   }
+   else
+   {
+      int nr = subm.Width(), nc = subm.Height();
+      for (int d = 0; d < vdim; d++)
+      {
+         Array<int> rows_sub(rows.GetData() + d*nr, nr); // (not owner)
+         Array<int> cols_sub(cols.GetData() + d*nc, nc); // (not owner)
+         A.SetSubMatrixTranspose(rows_sub, cols_sub, subm, 1);
+      }
+   }
 }
 
 SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
@@ -226,40 +289,118 @@ SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
    int k;
    SparseMatrix * R;
    DenseMatrix * r;
-   Array<int> rows, cols, rs, cs;
+   Array<int> rows, cols;
 
    if (one_vdim == -1)
+   {
       one_vdim = (ordering == Ordering::byNODES) ? 1 : 0;
+   }
 
-   mesh -> SetState (Mesh::TWO_LEVEL_COARSE);
-   if (vdim == 1 || one_vdim == 1)
-      R = new SparseMatrix (cfes -> GetNDofs(), ndofs);
-   else
-      R = new SparseMatrix (cfes -> GetVSize(), vdim*ndofs);
+   if (mesh->ncmesh)
+   {
+      MFEM_VERIFY(vdim == 1 || one_vdim == 0,
+                  "parameter 'one_vdim' must be 0 for nonconforming mesh.");
+      return NC_GlobalRestrictionMatrix(cfes, mesh->ncmesh);
+   }
+
+   mesh->SetState(Mesh::TWO_LEVEL_COARSE);
+   int vdim_or_1 = (one_vdim ? 1 : vdim);
+   R = new SparseMatrix(vdim_or_1 * cfes->GetNDofs(), vdim_or_1 * ndofs);
 
    for (k = 0; k < mesh -> GetNE(); k++)
    {
-      cfes -> GetElementDofs (k, rows);
-      mesh -> SetState (Mesh::TWO_LEVEL_FINE);
-      r = LocalInterpolation (k, rows.Size(),
-                              mesh -> GetRefinementType(k), cols);
-      if (vdim == 1 || one_vdim == 1)
-         R -> SetSubMatrixTranspose (rows, cols, *r, 1);
-      else
+      cfes->GetElementDofs(k, rows);
+
+      mesh->SetState(Mesh::TWO_LEVEL_FINE);
+      r = LocalInterpolation(k, rows.Size(), mesh->GetRefinementType(k), cols);
+
+      if (vdim_or_1 != 1)
       {
-         int d, nr = rows.Size(), nc = cols.Size();
-         cfes -> DofsToVDofs (rows);
-         DofsToVDofs (cols);
-         for (d = 0; d < vdim; d++)
-         {
-            rows.GetSubArray (d*nr, nr, rs);
-            cols.GetSubArray (d*nc, nc, cs);
-            R -> SetSubMatrixTranspose (rs, cs, *r, 1);
-         }
+         cfes->DofsToVDofs(rows);
+         DofsToVDofs(cols);
       }
-      mesh -> SetState (Mesh::TWO_LEVEL_COARSE);
+      SetVDofSubMatrixTranspose(*R, rows, cols, *r, vdim_or_1);
+
+      mesh->SetState(Mesh::TWO_LEVEL_COARSE);
    }
 
+   return R;
+}
+
+SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
+(FiniteElementSpace* cfes, NCMesh* ncmesh)
+{
+   Array<int> rows, cols, rs, cs;
+   LinearFECollection linfec;
+
+   NCMesh::FineTransform* transforms = ncmesh->GetFineTransforms();
+
+   SparseMatrix* R = new SparseMatrix(cfes->GetVSize(), this->GetVSize());
+
+   // we mark each fine DOF the first time its column is set so that slave node
+   // values don't get represented twice in R
+   Array<int> mark(this->GetNDofs());
+   mark = 0;
+
+   // loop over the fine elements, get interpolations of the coarse elements
+   for (int k = 0; k < mesh->GetNE(); k++)
+   {
+      mesh->SetState(Mesh::TWO_LEVEL_COARSE);
+      cfes->GetElementDofs(transforms[k].coarse_index, rows);
+
+      mesh->SetState(Mesh::TWO_LEVEL_FINE);
+      this->GetElementDofs(k, cols);
+
+      if (!transforms[k].IsIdentity())
+      {
+         int geom = mesh->GetElementBaseGeometry(k);
+         const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
+
+         IsoparametricTransformation trans;
+         trans.SetFE(linfec.FiniteElementForGeometry(geom));
+         trans.GetPointMat() = transforms[k].point_matrix;
+
+         DenseMatrix I(fe->GetDof());
+         fe->GetLocalInterpolation(trans, I);
+         // TODO: use std::unordered_map to cache I matrices (point_matrix as key)
+
+         // make sure we don't set any column of R more than once
+         for (int i = 0; i < I.Height(); i++)
+         {
+            int col = cols[i];
+            if (col < 0)
+            {
+               col = -1 - col;
+            }
+            if (mark[col]++)
+            {
+               I.SetRow(i, 0);   // zero the i-th row of I
+            }
+         }
+
+         cfes->DofsToVDofs(rows);
+         this->DofsToVDofs(cols);
+         SetVDofSubMatrixTranspose(*R, rows, cols, I, vdim);
+      }
+      else // optimization: insert identity for elements that were not refined
+      {
+         MFEM_ASSERT(rows.Size() == cols.Size(), "");
+         for (int i = 0; i < rows.Size(); i++)
+         {
+            int col = cols[i];
+            if (col < 0)
+            {
+               col = -1 - col;
+            }
+            if (!mark[col]++)
+               for (int vd = 0; vd < vdim; vd++)
+                  R->Set(cfes->DofToVDof(rows[i], vd),
+                         this->DofToVDof(cols[i], vd), 1.0);
+         }
+      }
+   }
+
+   delete [] transforms;
    return R;
 }
 
@@ -278,25 +419,39 @@ void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
          GetBdrElementVDofs(i, vdofs);
          for (j = 0; j < vdofs.Size(); j++)
             if ( (k = vdofs[j]) >= 0 )
+            {
                ess_dofs[k] = -1;
+            }
             else
+            {
                ess_dofs[-1-k] = -1;
+            }
       }
 }
 
-void FiniteElementSpace::ConvertToConformingVDofs(const Array<int> &dofs,
-                                                  Array<int> &cdofs)
+void FiniteElementSpace::MarkDependency(const SparseMatrix *D,
+                                        const Array<int> &row_marker,
+                                        Array<int> &col_marker)
 {
-   cdofs.SetSize(cP->Width());
-   cdofs = 0;
+   if (D)
+   {
+      col_marker.SetSize(D->Width());
+      col_marker = 0;
 
-   for (int i = 0; i < cP->Size(); i++)
-      if (dofs[i] < 0)
-      {
-         int *col = cP->GetRowColumns(i), n = cP->RowSize(i);
-         for (int j = 0; j < n; j++)
-            cdofs[col[j]] = -1;
-      }
+      for (int i = 0; i < D->Height(); i++)
+         if (row_marker[i] < 0)
+         {
+            const int *col = D->GetRowColumns(i), n = D->RowSize(i);
+            for (int j = 0; j < n; j++)
+            {
+               col_marker[col[j]] = -1;
+            }
+         }
+   }
+   else
+   {
+      row_marker.Copy(col_marker);
+   }
 }
 
 void FiniteElementSpace::EliminateEssentialBCFromGRM
@@ -305,7 +460,7 @@ void FiniteElementSpace::EliminateEssentialBCFromGRM
    int i, j, k, one_vdim;
    Array<int> dofs;
 
-   one_vdim = (cfes -> GetNDofs() == R -> Size()) ? 1 : 0;
+   one_vdim = (cfes -> GetNDofs() == R -> Height()) ? 1 : 0;
 
    mesh -> SetState (Mesh::TWO_LEVEL_COARSE);
    if (bdr_attr_is_ess.Size() != 0)
@@ -313,14 +468,22 @@ void FiniteElementSpace::EliminateEssentialBCFromGRM
          if (bdr_attr_is_ess[cfes -> GetBdrAttribute (i)-1])
          {
             if (one_vdim == 1)
+            {
                cfes -> GetBdrElementDofs (i, dofs);
+            }
             else
+            {
                cfes -> GetBdrElementVDofs (i, dofs);
+            }
             for (j=0; j < dofs.Size(); j++)
                if ( (k = dofs[j]) >= 0 )
+               {
                   R -> EliminateRow(k);
+               }
                else
+               {
                   R -> EliminateRow(-1-k);
+               }
          }
    R -> Finalize();
 }
@@ -352,11 +515,15 @@ FiniteElementSpace::D2C_GlobalRestrictionMatrix (FiniteElementSpace *cfes)
 
 #ifdef MFEM_DEBUG
       if (d_vdofs.Size() != c_vdofs.Size())
+      {
          mfem_error ("FiniteElementSpace::D2C_GlobalRestrictionMatrix (...)");
+      }
 #endif
 
       for (j = 0; j < d_vdofs.Size(); j++)
+      {
          R -> Set (c_vdofs[j], d_vdofs[j], 1.0);
+      }
    }
 
    R -> Finalize();
@@ -385,7 +552,9 @@ FiniteElementSpace::D2Const_GlobalRestrictionMatrix(FiniteElementSpace *cfes)
 #endif
 
       for (j = 0; j < d_dofs.Size(); j++)
+      {
          R -> Set (c_dofs[0], d_dofs[j], 1.0);
+      }
    }
 
    R -> Finalize();
@@ -396,30 +565,25 @@ FiniteElementSpace::D2Const_GlobalRestrictionMatrix(FiniteElementSpace *cfes)
 SparseMatrix *
 FiniteElementSpace::H2L_GlobalRestrictionMatrix (FiniteElementSpace *lfes)
 {
-   int i, j;
    SparseMatrix *R;
    DenseMatrix loc_restr;
-   Vector shape;
    Array<int> l_dofs, h_dofs;
 
    R = new SparseMatrix (lfes -> GetNDofs(), ndofs);
 
-   const FiniteElement *h_fe = this -> GetFE (0);
-   const FiniteElement *l_fe = lfes -> GetFE (0);
-   shape.SetSize (l_fe -> GetDof());
-   loc_restr.SetSize (l_fe -> GetDof(), h_fe -> GetDof());
-   for (i = 0; i < h_fe -> GetDof(); i++)
+   if (!lfes->GetNE())
    {
-      l_fe -> CalcShape (h_fe -> GetNodes().IntPoint(i), shape);
-      for (j = 0; j < shape.Size(); j++)
-      {
-         if (fabs (shape(j)) < 1.0e-6)
-            shape(j) = 0.0;
-         loc_restr(j,i) = shape(j);
-      }
+      R->Finalize();
+      return R;
    }
 
-   for (i = 0; i < mesh -> GetNE(); i++)
+   const FiniteElement *h_fe = this -> GetFE (0);
+   const FiniteElement *l_fe = lfes -> GetFE (0);
+   IsoparametricTransformation T;
+   T.SetIdentityTransformation(h_fe->GetGeomType());
+   h_fe->Project(*l_fe, T, loc_restr);
+
+   for (int i = 0; i < mesh -> GetNE(); i++)
    {
       this -> GetElementDofs (i, h_dofs);
       lfes -> GetElementDofs (i, l_dofs);
@@ -455,7 +619,9 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
    own_ext = 0;
 
    cP = fes.cP;
+   cR = fes.cR;
    fes.cP = NULL;
+   fes.cR = NULL;
 
    fes.bdofs = NULL;
    fes.fdofs = NULL;
@@ -495,7 +661,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
             own_ext = 1;
          }
          UpdateNURBS();
-         cP = NULL;
+         cP = cR = NULL;
       }
    }
    else
@@ -509,7 +675,9 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
 NURBSExtension *FiniteElementSpace::StealNURBSext()
 {
    if (NURBSext && !own_ext)
+   {
       mfem_error("FiniteElementSpace::StealNURBSext");
+   }
    own_ext = 0;
 
    return NURBSext;
@@ -543,12 +711,27 @@ void FiniteElementSpace::Constructor()
    nvdofs = mesh->GetNV() * fec->DofForGeometry(Geometry::POINT);
 
    if ( mesh->Dimension() > 1 )
+   {
       nedofs = mesh->GetNEdges() * fec->DofForGeometry(Geometry::SEGMENT);
+   }
    else
+   {
       nedofs = 0;
+   }
 
+   ndofs = 0;
    nfdofs = 0;
+   nbdofs = 0;
+   bdofs = NULL;
    fdofs = NULL;
+   cP = NULL;
+   cR = NULL;
+
+   if (!mesh->GetNE())
+   {
+      return;
+   }
+
    if (mesh->Dimension() == 3)
    {
       // Here we assume that all faces in the mesh have the same base
@@ -570,7 +753,6 @@ void FiniteElementSpace::Constructor()
       }
    }
 
-   nbdofs = 0;
    bdofs = new int[mesh->GetNE()+1];
    bdofs[0] = 0;
    for (i = 0; i < mesh->GetNE(); i++)
@@ -583,14 +765,14 @@ void FiniteElementSpace::Constructor()
 
    if (mesh->ncmesh && ndofs > nbdofs)
    {
-      cP = mesh->ncmesh->GetInterpolation(mesh, this);
-      if (vdim > 1)
+      cP = mesh->ncmesh->GetInterpolation(this, &cR);
+      if (cP && vdim > 1)
       {
          Array<int> cdofs, vcdofs;
          Vector srow;
          SparseMatrix *vec_cP =
-            new SparseMatrix(vdim*cP->Size(), vdim*cP->Width());
-         for (int i = 0; i < cP->Size(); i++)
+            new SparseMatrix(vdim*cP->Height(), vdim*cP->Width());
+         for (int i = 0; i < cP->Height(); i++)
          {
             cP->GetRow(i, cdofs, srow);
             for (int vd = 0; vd < vdim; vd++)
@@ -598,17 +780,33 @@ void FiniteElementSpace::Constructor()
                cdofs.Copy(vcdofs);
                ndofs = cP->Width(); // make DofsToVDofs work on conf. dofs
                DofsToVDofs(vd, vcdofs);
-               ndofs = cP->Size();
+               ndofs = cP->Height();
                vec_cP->SetRow(DofToVDof(i, vd), vcdofs, srow);
             }
          }
          delete cP;
          vec_cP->Finalize();
          cP = vec_cP;
+
+         SparseMatrix *vec_cR =
+            new SparseMatrix(vdim*cR->Height(), vdim*cR->Width());
+         for (int i = 0; i < cR->Height(); i++)
+         {
+            cR->GetRow(i, cdofs, srow); // here, cdofs are partially conf. dofs
+            for (int vd = 0; vd < vdim; vd++)
+            {
+               cdofs.Copy(vcdofs); // here, vcdofs are partially conf. dofs
+               DofsToVDofs(vd, vcdofs);
+               ndofs = cR->Height(); // make DofToVDof work on conf. dofs
+               vec_cR->SetRow(DofToVDof(i, vd), vcdofs, srow);
+               ndofs = cR->Width();
+            }
+         }
+         delete cR;
+         vec_cR->Finalize();
+         cR = vec_cR;
       }
    }
-   else
-      cP = NULL;
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
@@ -628,16 +826,22 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
       ne = (dim > 1) ? ( fec->DofForGeometry(Geometry::SEGMENT) ) : ( 0 );
       nb = fec->DofForGeometry(mesh->GetElementBaseGeometry(i));
       if (nv > 0)
+      {
          mesh->GetElementVertices(i, V);
+      }
       if (ne > 0)
+      {
          mesh->GetElementEdges(i, E, Eo);
+      }
       nfd = 0;
       if (dim == 3)
          if (fec->HasFaceDofs(mesh->GetElementBaseGeometry(i)))
          {
             mesh->GetElementFaces(i, F, Fo);
             for (k = 0; k < F.Size(); k++)
+            {
                nfd += fec->DofForGeometry(mesh->GetFaceBaseGeometry(F[k]));
+            }
          }
       nd = V.Size() * nv + E.Size() * ne + nfd + nb;
       dofs.SetSize(nd);
@@ -645,7 +849,9 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
       {
          for (k = 0; k < V.Size(); k++)
             for (j = 0; j < nv; j++)
+            {
                dofs[k*nv+j] = V[k]*nv+j;
+            }
          nv *= V.Size();
       }
       if (ne > 0)
@@ -655,9 +861,13 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
             ind = fec->DofOrderForOrientation(Geometry::SEGMENT, Eo[k]);
             for (j = 0; j < ne; j++)
                if (ind[j] < 0)
+               {
                   dofs[nv+k*ne+j] = -1 - ( nvdofs+E[k]*ne+(-1-ind[j]) );
+               }
                else
+               {
                   dofs[nv+k*ne+j] = nvdofs+E[k]*ne+ind[j];
+               }
          }
       ne = nv + ne * E.Size();
       if (nfd > 0)
@@ -671,9 +881,13 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
             for (j = 0; j < nf; j++)
             {
                if (ind[j] < 0)
+               {
                   dofs[ne+j] = -1 - ( nvdofs+nedofs+fdofs[F[k]]+(-1-ind[j]) );
+               }
                else
+               {
                   dofs[ne+j] = nvdofs+nedofs+fdofs[F[k]]+ind[j];
+               }
             }
             ne += nf;
          }
@@ -692,7 +906,9 @@ const FiniteElement *FiniteElementSpace::GetFE(int i) const
       fec->FiniteElementForGeometry(mesh->GetElementBaseGeometry(i));
 
    if (NURBSext)
+   {
       NURBSext->LoadFE(i, FE);
+   }
 
    return FE;
 }
@@ -712,10 +928,14 @@ void FiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
       dim = mesh->Dimension();
       nv = fec->DofForGeometry(Geometry::POINT);
       if (nv > 0)
+      {
          mesh->GetBdrElementVertices(i, V);
+      }
       ne = (dim > 1) ? ( fec->DofForGeometry(Geometry::SEGMENT) ) : ( 0 );
       if (ne > 0)
+      {
          mesh->GetBdrElementEdges(i, E, Eo);
+      }
       nd = V.Size() * nv + E.Size() * ne;
       nf = (dim == 3) ? (fec->DofForGeometry(
                             mesh->GetBdrElementBaseGeometry(i))) : (0);
@@ -729,7 +949,9 @@ void FiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
       {
          for (k = 0; k < V.Size(); k++)
             for (j = 0; j < nv; j++)
+            {
                dofs[k*nv+j] = V[k]*nv+j;
+            }
          nv *= V.Size();
       }
       if (ne > 0)
@@ -739,9 +961,13 @@ void FiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
             ind = fec->DofOrderForOrientation(Geometry::SEGMENT, Eo[k]);
             for (j = 0; j < ne; j++)
                if (ind[j] < 0)
+               {
                   dofs[nv+k*ne+j] = -1 - ( nvdofs+E[k]*ne+(-1-ind[j]) );
+               }
                else
+               {
                   dofs[nv+k*ne+j] = nvdofs+E[k]*ne+ind[j];
+               }
          }
       if (nf > 0)
          // if (dim == 3)
@@ -752,9 +978,13 @@ void FiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
          for (j = 0; j < nf; j++)
          {
             if (ind[j] < 0)
+            {
                dofs[ne+j] = -1 - ( nvdofs+nedofs+fdofs[iF]+(-1-ind[j]) );
+            }
             else
+            {
                dofs[ne+j] = nvdofs+nedofs+fdofs[iF]+ind[j];
+            }
          }
       }
    }
@@ -770,16 +1000,22 @@ void FiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
    nv = fec->DofForGeometry(Geometry::POINT);
    ne = (dim > 1) ? fec->DofForGeometry(Geometry::SEGMENT) : 0;
    if (nv > 0)
+   {
       mesh->GetFaceVertices(i, V);
+   }
    if (ne > 0)
+   {
       mesh->GetFaceEdges(i, E, Eo);
+   }
    nf = (fdofs) ? (fdofs[i+1]-fdofs[i]) : (0);
    nd = V.Size() * nv + E.Size() * ne + nf;
    dofs.SetSize(nd);
    if (nv > 0)
       for (k = 0; k < V.Size(); k++)
          for (j = 0; j < nv; j++)
+         {
             dofs[k*nv+j] = V[k]*nv+j;
+         }
    nv *= V.Size();
    if (ne > 0)
       for (k = 0; k < E.Size(); k++)
@@ -787,14 +1023,20 @@ void FiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
          ind = fec->DofOrderForOrientation(Geometry::SEGMENT, Eo[k]);
          for (j = 0; j < ne; j++)
             if (ind[j] < 0)
+            {
                dofs[nv+k*ne+j] = -1 - ( nvdofs+E[k]*ne+(-1-ind[j]) );
+            }
             else
+            {
                dofs[nv+k*ne+j] = nvdofs+E[k]*ne+ind[j];
+            }
       }
    ne = nv + ne * E.Size();
    if (nf > 0)
       for (j = nvdofs+nedofs+fdofs[i], k = 0; k < nf; j++, k++)
+      {
          dofs[ne+k] = j;
+      }
 }
 
 void FiniteElementSpace::GetEdgeDofs(int i, Array<int> &dofs) const
@@ -804,16 +1046,22 @@ void FiniteElementSpace::GetEdgeDofs(int i, Array<int> &dofs) const
 
    nv = fec->DofForGeometry(Geometry::POINT);
    if (nv > 0)
+   {
       mesh->GetEdgeVertices(i, V);
+   }
    ne = fec->DofForGeometry(Geometry::SEGMENT);
    dofs.SetSize(2*nv+ne);
    if (nv > 0)
       for (k = 0; k < 2; k++)
          for (j = 0; j < nv; j++)
+         {
             dofs[k*nv+j] = V[k]*nv+j;
+         }
    nv *= 2;
    for (j = 0, k = nvdofs+i*ne; j < ne; j++, k++)
+   {
       dofs[nv+j] = k;
+   }
 }
 
 void FiniteElementSpace::GetVertexDofs(int i, Array<int> &dofs) const
@@ -823,7 +1071,9 @@ void FiniteElementSpace::GetVertexDofs(int i, Array<int> &dofs) const
    nv = fec->DofForGeometry(Geometry::POINT);
    dofs.SetSize(nv);
    for (j = 0; j < nv; j++)
+   {
       dofs[j] = i*nv+j;
+   }
 }
 
 void FiniteElementSpace::GetElementInteriorDofs (int i, Array<int> &dofs) const
@@ -845,7 +1095,9 @@ void FiniteElementSpace::GetEdgeInteriorDofs (int i, Array<int> &dofs) const
    ne = fec -> DofForGeometry (Geometry::SEGMENT);
    dofs.SetSize (ne);
    for (j = 0, k = nvdofs+i*ne; j < ne; j++, k++)
+   {
       dofs[j] = k;
+   }
 }
 
 const FiniteElement *FiniteElementSpace::GetBE (int i) const
@@ -854,18 +1106,20 @@ const FiniteElement *FiniteElementSpace::GetBE (int i) const
 
    switch ( mesh->Dimension() )
    {
-   case 1:
-      BE = fec->FiniteElementForGeometry(Geometry::POINT);
-   case 2:
-      BE = fec->FiniteElementForGeometry(Geometry::SEGMENT);
-   case 3:
-   default:
-      BE = fec->FiniteElementForGeometry(
-         mesh->GetBdrElementBaseGeometry(i));
+      case 1:
+         BE = fec->FiniteElementForGeometry(Geometry::POINT);
+      case 2:
+         BE = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      case 3:
+      default:
+         BE = fec->FiniteElementForGeometry(
+                 mesh->GetBdrElementBaseGeometry(i));
    }
 
    if (NURBSext)
+   {
       NURBSext->LoadBE(i, BE);
+   }
 
    return BE;
 }
@@ -876,13 +1130,13 @@ const FiniteElement *FiniteElementSpace::GetFaceElement(int i) const
 
    switch (mesh->Dimension())
    {
-   case 1:
-      fe = fec->FiniteElementForGeometry(Geometry::POINT);
-   case 2:
-      fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
-   case 3:
-   default:
-      fe = fec->FiniteElementForGeometry(mesh->GetFaceBaseGeometry(i));
+      case 1:
+         fe = fec->FiniteElementForGeometry(Geometry::POINT);
+      case 2:
+         fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      case 3:
+      default:
+         fe = fec->FiniteElementForGeometry(mesh->GetFaceBaseGeometry(i));
    }
 
    // if (NURBSext)
@@ -891,16 +1145,30 @@ const FiniteElement *FiniteElementSpace::GetFaceElement(int i) const
    return fe;
 }
 
+const FiniteElement *FiniteElementSpace::GetEdgeElement(int i) const
+{
+   return fec->FiniteElementForGeometry(Geometry::SEGMENT);
+}
+
+const FiniteElement *FiniteElementSpace::GetTraceElement(
+   int i, int geom_type) const
+{
+   return fec->TraceFiniteElementForGeometry(geom_type);
+}
+
 FiniteElementSpace::~FiniteElementSpace()
 {
    Destructor();
    // delete RefData
    for (int i = 0; i < RefData.Size(); i++)
+   {
       delete RefData[i];
+   }
 }
 
 void FiniteElementSpace::Destructor()
 {
+   delete cR;
    delete cP;
 
    dof_elem_array.DeleteAll();
@@ -908,7 +1176,7 @@ void FiniteElementSpace::Destructor()
 
    if (NURBSext)
    {
-      if (own_ext) delete NURBSext;
+      if (own_ext) { delete NURBSext; }
    }
    else
    {
@@ -940,6 +1208,43 @@ FiniteElementSpace *FiniteElementSpace::SaveUpdate()
    return cfes;
 }
 
+void FiniteElementSpace::UpdateAndInterpolate(int num_grid_fns, ...)
+{
+   if (mesh->GetState() == Mesh::NORMAL)
+   {
+      MFEM_ABORT("Mesh must be in two-level state, please call "
+                 "Mesh::UseTwoLevelState before refining.");
+   }
+
+   FiniteElementSpace *cfes = SaveUpdate();
+
+   // obtain the (transpose of) interpolation matrix between mesh levels
+   SparseMatrix *R = GlobalRestrictionMatrix(cfes, 0);
+
+   delete cfes;
+
+   // interpolate the grid functions
+   std::va_list vl;
+   va_start(vl, num_grid_fns);
+   for (int i = 0; i < num_grid_fns; i++)
+   {
+      GridFunction* gf = va_arg(vl, GridFunction*);
+      if (gf->FESpace() != this)
+      {
+         MFEM_ABORT("Cannot interpolate: grid function is not based "
+                    "on this space.");
+      }
+
+      Vector coarse_gf = *gf;
+      gf->Update();
+      R->MultTranspose(coarse_gf, *gf);
+   }
+   va_end(vl);
+
+   delete R;
+   mesh->SetState(Mesh::TWO_LEVEL_FINE);
+}
+
 void FiniteElementSpace::ConstructRefinementData (int k, int num_c_dofs,
                                                   RefinementType type)
 {
@@ -954,10 +1259,13 @@ void FiniteElementSpace::ConstructRefinementData (int k, int num_c_dofs,
    // we assume that each fine element has <= dofs than the
    // initial coarse element
    data -> fl_to_fc = new Table(data -> num_fine_elems, num_c_dofs);
-   for (i = 0; i < data -> num_fine_elems; i++) {
+   for (i = 0; i < data -> num_fine_elems; i++)
+   {
       GetElementDofs(mesh -> GetFineElem(k,i), g_dofs); // TWO_LEVEL_FINE
       for (j = 0; j < g_dofs.Size(); j++)
+      {
          data -> fl_to_fc -> Push (i,dofs.Union(g_dofs[j]));
+      }
    }
    data -> fl_to_fc -> Finalize();
    data -> num_fine_dofs = dofs.Size();
@@ -979,7 +1287,8 @@ void FiniteElementSpace::ConstructRefinementData (int k, int num_c_dofs,
    DenseMatrix I (nedofs);
    data -> I = new DenseMatrix(data -> num_fine_dofs, nedofs);
 
-   for (i=0; i < data -> num_fine_elems; i++) {
+   for (i=0; i < data -> num_fine_elems; i++)
+   {
 
       trans = mesh -> GetFineElemTrans(k,i);
       // trans -> Transform(ir,tr);
@@ -994,17 +1303,21 @@ void FiniteElementSpace::ConstructRefinementData (int k, int num_c_dofs,
            fe -> CalcShape(ip, shape);
          */
          for (l=0; l < nedofs; l++)
+         {
             (*(data->I))(row[j],l) = I(j,l);
+         }
       }
    }
 
    RefData.Append(data);
 }
 
-void FiniteElementSpace::Save(ostream &out) const
+void FiniteElementSpace::Save(std::ostream &out) const
 {
    out << "FiniteElementSpace\n"
        << "FiniteElementCollection: " << fec->Name() << '\n'
        << "VDim: " << vdim << '\n'
        << "Ordering: " << ordering << '\n';
+}
+
 }

@@ -12,6 +12,18 @@
 #ifndef MFEM_PFESPACE
 #define MFEM_PFESPACE
 
+#include "../config/config.hpp"
+
+#ifdef MFEM_USE_MPI
+
+#include "../linalg/hypre.hpp"
+#include "../mesh/pmesh.hpp"
+#include "../mesh/nurbs.hpp"
+#include "fespace.hpp"
+
+namespace mfem
+{
+
 /// Abstract parallel finite element space.
 class ParFiniteElementSpace : public FiniteElementSpace
 {
@@ -36,13 +48,13 @@ private:
    Array<int> ldof_ltdof;
 
    /// Offsets for the dofs in each processor in global numbering.
-   Array<int> dof_offsets;
+   Array<HYPRE_Int> dof_offsets;
 
    /// Offsets for the true dofs in each processor in global numbering.
-   Array<int> tdof_offsets;
+   Array<HYPRE_Int> tdof_offsets;
 
    /// Offsets for the true dofs in neighbor processor in global numbering.
-   Array<int> tdof_nb_offsets;
+   Array<HYPRE_Int> tdof_nb_offsets;
 
    /// The sign of the basis functions at the scalar local dofs.
    Array<int> ldof_sign;
@@ -71,12 +83,19 @@ private:
    void ConstructTrueDofs();
    void ConstructTrueNURBSDofs();
 
+   void ApplyLDofSigns(Array<int> &dofs) const;
+
 public:
    // Face-neighbor data
+   // Number of face-neighbor dofs
    int num_face_nbr_dofs;
+   // Face-neighbor-element to face-neighbor dof
    Table face_nbr_element_dof;
-   Table face_nbr_gdof;
-   // Local face-neighbor data
+   // Face-neighbor to ldof in the face-neighbor numbering
+   Table face_nbr_ldof;
+   // The global ldof indices of the face-neighbor dofs
+   Array<HYPRE_Int> face_nbr_glob_dof_map;
+   // Local face-neighbor data: face-neighbor to ldof
    Table send_face_nbr_ldof;
 
    ParFiniteElementSpace(ParMesh *pm, const FiniteElementCollection *f,
@@ -88,18 +107,28 @@ public:
 
    inline ParMesh *GetParMesh() { return pmesh; }
 
-   int TrueVSize()          { return ltdof_size; }
-   int *GetDofOffsets()     { return dof_offsets; }
-   int *GetTrueDofOffsets() { return tdof_offsets; }
-   int GlobalVSize()        { return Dof_TrueDof_Matrix()->GetGlobalNumRows(); }
-   int GlobalTrueVSize()    { return Dof_TrueDof_Matrix()->GetGlobalNumCols(); }
-   int GetDofSign(int i)    { return NURBSext ? 1 : ldof_sign[VDofToDof(i)]; }
+   int TrueVSize() { return ltdof_size; }
+   int GetDofSign(int i) { return NURBSext ? 1 : ldof_sign[VDofToDof(i)]; }
+   HYPRE_Int *GetDofOffsets()     { return dof_offsets; }
+   HYPRE_Int *GetTrueDofOffsets() { return tdof_offsets; }
+   HYPRE_Int GlobalVSize()
+   {
+      return Dof_TrueDof_Matrix()->GetGlobalNumRows();
+   }
+   HYPRE_Int GlobalTrueVSize()
+   {
+      return Dof_TrueDof_Matrix()->GetGlobalNumCols();
+   }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
    virtual void GetBdrElementDofs(int i, Array<int> &dofs) const;
+
+   /** Returns the indexes of the degrees of freedom for i'th face
+       including the dofs for the edges and the vertices of the face. */
+   virtual void GetFaceDofs(int i, Array<int> &dofs) const;
 
    /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix();
@@ -130,20 +159,19 @@ public:
        tdof number, otherwise return -1 */
    int GetLocalTDofNumber(int ldof);
    /// Returns the global tdof number of the given local degree of freedom
-   int GetGlobalTDofNumber(int ldof);
+   HYPRE_Int GetGlobalTDofNumber(int ldof);
    /** Returns the global tdof number of the given local degree of freedom in
        the scalar vesion of the current finite element space. The input should
        be a scalar local dof. */
-   int GetGlobalScalarTDofNumber(int sldof);
-   int GetMyDofOffset();
+   HYPRE_Int GetGlobalScalarTDofNumber(int sldof);
+   HYPRE_Int GetMyDofOffset();
 
    // Face-neighbor functions
    void ExchangeFaceNbrData();
    int GetFaceNbrVSize() const { return num_face_nbr_dofs; }
-   void GetSharedFaceVDofs(int sf, Array<int> &vdofs) const;
    void GetFaceNbrElementVDofs(int i, Array<int> &vdofs) const;
    const FiniteElement *GetFaceNbrFE(int i) const;
-   int *GetFaceNbrGlobalDofMap() { return face_nbr_gdof.GetJ(); }
+   const HYPRE_Int *GetFaceNbrGlobalDofMap() { return face_nbr_glob_dof_map; }
 
    void Lose_Dof_TrueDof_Matrix();
    void LoseDofOffsets() { dof_offsets.LoseData(); }
@@ -155,5 +183,9 @@ public:
 
    virtual ~ParFiniteElementSpace() { delete gcomm; delete P; }
 };
+
+}
+
+#endif // MFEM_USE_MPI
 
 #endif

@@ -9,9 +9,14 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config/config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+
+namespace mfem
+{
 
 void ParNonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
                                       Vector *rhs)
@@ -26,22 +31,28 @@ void ParNonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
       {
          int tdof = pfes->GetLocalTDofNumber(ess_vdofs[i]);
          if (tdof >= 0)
+         {
             (*rhs)(tdof) = 0.0;
+         }
       }
 }
 
-double ParNonlinearForm::GetEnergy(const Vector &x) const
+double ParNonlinearForm::GetEnergy(const ParGridFunction &x) const
 {
    double loc_energy, glob_energy;
 
-   X.Distribute(&x);
-
-   loc_energy = NonlinearForm::GetEnergy(X);
+   loc_energy = NonlinearForm::GetEnergy(x);
 
    MPI_Allreduce(&loc_energy, &glob_energy, 1, MPI_DOUBLE, MPI_SUM,
                  ParFESpace()->GetComm());
 
    return glob_energy;
+}
+
+double ParNonlinearForm::GetEnergy(const Vector &x) const
+{
+   X.Distribute(&x);
+   return GetEnergy(X);
 }
 
 void ParNonlinearForm::Mult(const Vector &x, Vector &y) const
@@ -53,6 +64,15 @@ void ParNonlinearForm::Mult(const Vector &x, Vector &y) const
    ParFESpace()->GroupComm().Reduce<double>(Y, GroupCommunicator::Sum);
 
    Y.GetTrueDofs(y);
+}
+
+const SparseMatrix &ParNonlinearForm::GetLocalGradient(const Vector &x) const
+{
+   X.Distribute(&x);
+
+   NonlinearForm::GetGradient(X); // (re)assemble Grad
+
+   return *Grad;
 }
 
 Operator &ParNonlinearForm::GetGradient(const Vector &x) const
@@ -75,6 +95,8 @@ Operator &ParNonlinearForm::GetGradient(const Vector &x) const
    delete A;
 
    return *pGrad;
+}
+
 }
 
 #endif

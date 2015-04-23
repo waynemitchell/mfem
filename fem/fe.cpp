@@ -11,14 +11,20 @@
 
 // Finite Element classes
 
-#include <math.h>
 #include "fem.hpp"
+#include <cmath>
+
+namespace mfem
+{
+
+using namespace std;
 
 FiniteElement::FiniteElement(int D, int G, int Do, int O, int F)
    : Nodes(Do)
 {
    Dim = D ; GeomType = G ; Dof = Do ; Order = O ; FuncSpace = F;
    RangeType = SCALAR;
+   MapType = VALUE;
 }
 
 void FiniteElement::CalcVShape (
@@ -128,6 +134,8 @@ void NodalFiniteElement::NodalLocalInterpolation (
    Vector c_shape(Dof);
 #endif
 
+   MFEM_ASSERT(MapType == fine_fe.GetMapType(), "");
+
    for (int i = 0; i < fine_fe.Dof; i++)
    {
       Trans.Transform (fine_fe.Nodes.IntPoint (i), vv);
@@ -135,7 +143,15 @@ void NodalFiniteElement::NodalLocalInterpolation (
       CalcShape (f_ip, c_shape);
       for (int j = 0; j < Dof; j++)
          if (fabs (I (i,j) = c_shape (j)) < 1.0e-12)
+         {
             I (i,j) = 0.0;
+         }
+   }
+   if (MapType == INTEGRAL)
+   {
+      // assuming Trans is linear; this should be ok for all refinement types
+      Trans.SetIntPoint(&Geometries.GetCenter(GeomType));
+      I *= Trans.Weight();
    }
 }
 
@@ -149,13 +165,18 @@ void NodalFiniteElement::Project (
       // as the second argument of Eval
       Trans.SetIntPoint(&ip);
       dofs(i) = coeff.Eval (Trans, ip);
+      if (MapType == INTEGRAL)
+      {
+         dofs(i) *= Trans.Weight();
+      }
    }
 }
 
 void NodalFiniteElement::Project (
-   VectorCoefficient &vc, ElementTransformation &Trans,
-   Vector &dofs) const
+   VectorCoefficient &vc, ElementTransformation &Trans, Vector &dofs) const
 {
+   MFEM_ASSERT(vc.GetVDim() <= 3, "");
+
    double v[3];
    Vector x (v, vc.GetVDim());
 
@@ -164,8 +185,14 @@ void NodalFiniteElement::Project (
       const IntegrationPoint &ip = Nodes.IntPoint(i);
       Trans.SetIntPoint(&ip);
       vc.Eval (x, Trans, ip);
+      if (MapType == INTEGRAL)
+      {
+         x *= Trans.Weight();
+      }
       for (int j = 0; j < x.Size(); j++)
+      {
          dofs(Dof*j+i) = v[j];
+      }
    }
 }
 
@@ -174,6 +201,8 @@ void NodalFiniteElement::Project(
 {
    if (fe.GetRangeType() == SCALAR)
    {
+      MFEM_ASSERT(MapType == fe.GetMapType(), "");
+
       Vector shape(fe.GetDof());
 
       I.SetSize(Dof, fe.GetDof());
@@ -181,7 +210,9 @@ void NodalFiniteElement::Project(
       {
          fe.CalcShape(Nodes.IntPoint(k), shape);
          for (int j = 0; j < shape.Size(); j++)
+         {
             I(k,j) = (fabs(shape(j)) < 1e-12) ? 0.0 : shape(j);
+         }
       }
    }
    else
@@ -193,9 +224,15 @@ void NodalFiniteElement::Project(
       {
          Trans.SetIntPoint(&Nodes.IntPoint(k));
          fe.CalcVShape(Trans, vshape);
+         if (MapType == INTEGRAL)
+         {
+            vshape *= Trans.Weight();
+         }
          for (int j = 0; j < vshape.Height(); j++)
             for (int d = 0; d < vshape.Width(); d++)
+            {
                I(k+d*Dof,j) = vshape(j,d);
+            }
       }
    }
 }
@@ -204,6 +241,8 @@ void NodalFiniteElement::ProjectGrad(
    const FiniteElement &fe, ElementTransformation &Trans,
    DenseMatrix &grad) const
 {
+   MFEM_ASSERT(fe.GetMapType() == VALUE, "");
+
    DenseMatrix dshape(fe.GetDof(), Dim), grad_k(fe.GetDof(), Dim), Jinv(Dim);
 
    grad.SetSize(Dim*Dof, fe.GetDof());
@@ -214,14 +253,20 @@ void NodalFiniteElement::ProjectGrad(
       Trans.SetIntPoint(&ip);
       CalcInverse(Trans.Jacobian(), Jinv);
       Mult(dshape, Jinv, grad_k);
+      if (MapType == INTEGRAL)
+      {
+         grad_k *= Trans.Weight();
+      }
       for (int j = 0; j < grad_k.Height(); j++)
          for (int d = 0; d < Dim; d++)
+         {
             grad(k+d*Dof,j) = grad_k(j,d);
+         }
    }
 }
 
 void NodalFiniteElement::ProjectDiv(
-   const FiniteElement &fe,ElementTransformation &Trans,
+   const FiniteElement &fe, ElementTransformation &Trans,
    DenseMatrix &div) const
 {
    double detJ;
@@ -232,10 +277,22 @@ void NodalFiniteElement::ProjectDiv(
    {
       const IntegrationPoint &ip = Nodes.IntPoint(k);
       fe.CalcDivShape(ip, div_shape);
-      Trans.SetIntPoint(&ip);
-      detJ = Trans.Weight();
-      for (int j = 0; j < div_shape.Size(); j++)
-         div(k,j) = (fabs(div_shape(j)) < 1e-12) ? 0.0 : div_shape(j)/detJ;
+      if (MapType == VALUE)
+      {
+         Trans.SetIntPoint(&ip);
+         detJ = Trans.Weight();
+         for (int j = 0; j < div_shape.Size(); j++)
+         {
+            div(k,j) = (fabs(div_shape(j)) < 1e-12) ? 0.0 : div_shape(j)/detJ;
+         }
+      }
+      else
+      {
+         for (int j = 0; j < div_shape.Size(); j++)
+         {
+            div(k,j) = (fabs(div_shape(j)) < 1e-12) ? 0.0 : div_shape(j);
+         }
+      }
    }
 }
 
@@ -264,9 +321,16 @@ void PositiveFiniteElement::Project(
    }
    else
    {
-      mfem_error("PositiveFiniteElement::Project() (fe version) :\n"
-                 "   the other FE must be nodal and have the same number"
-                 " of DOFs!");
+      // local L2 projection
+      DenseMatrix pos_mass, mixed_mass;
+      MassIntegrator mass_integ;
+
+      mass_integ.AssembleElementMatrix(*this, Trans, pos_mass);
+      mass_integ.AssembleElementMatrix2(fe, *this, Trans, mixed_mass);
+
+      pos_mass.Invert();
+      I.SetSize(Dof, fe.GetDof());
+      Mult(pos_mass, mixed_mass, I);
    }
 }
 
@@ -360,14 +424,26 @@ void VectorFiniteElement::Project_RT(
          Trans.SetIntPoint(&ip);
          CalcAdjugateTranspose(Trans.Jacobian(), Jinv);
          Jinv.Mult(nk + d2n[k]*Dim, vk);
+         if (fe.GetMapType() == INTEGRAL)
+         {
+            double w = 1.0/Trans.Weight();
+            for (int d = 0; d < Dim; d++)
+            {
+               vk[d] *= w;
+            }
+         }
 
          for (int j = 0; j < shape.Size(); j++)
          {
             double s = shape(j);
             if (fabs(s) < 1e-12)
+            {
                s = 0.0;
+            }
             for (int d = 0; d < Dim; d++)
+            {
                I(k,j+d*shape.Size()) = s*vk[d];
+            }
          }
       }
    }
@@ -382,7 +458,9 @@ void VectorFiniteElement::ProjectGrad_RT(
    ElementTransformation &Trans, DenseMatrix &grad) const
 {
    if (Dim != 2)
+   {
       mfem_error("VectorFiniteElement::ProjectGrad_RT works only in 2D!");
+   }
 
    DenseMatrix dshape(fe.GetDof(), fe.GetDim());
    Vector grad_k(fe.GetDof());
@@ -396,7 +474,9 @@ void VectorFiniteElement::ProjectGrad_RT(
       tk[1] = -nk[d2n[k]*Dim];
       dshape.Mult(tk, grad_k);
       for (int j = 0; j < grad_k.Size(); j++)
+      {
          grad(k,j) = (fabs(grad_k(j)) < 1e-12) ? 0.0 : grad_k(j);
+      }
    }
 }
 
@@ -413,7 +493,9 @@ void VectorFiniteElement::ProjectCurl_RT(
       fe.CalcCurlShape(Nodes.IntPoint(k), curl_shape);
       curl_shape.Mult(nk + d2n[k]*Dim, curl_k);
       for (int j = 0; j < curl_k.Size(); j++)
+      {
          curl(k,j) = (fabs(curl_k(j)) < 1e-12) ? 0.0 : curl_k(j);
+      }
    }
 }
 
@@ -451,14 +533,26 @@ void VectorFiniteElement::Project_ND(
          fe.CalcShape(ip, shape);
          Trans.SetIntPoint(&ip);
          Trans.Jacobian().Mult(tk + d2t[k]*Dim, vk);
+         if (fe.GetMapType() == INTEGRAL)
+         {
+            double w = 1.0/Trans.Weight();
+            for (int d = 0; d < Dim; d++)
+            {
+               vk[d] *= w;
+            }
+         }
 
          for (int j = 0; j < shape.Size(); j++)
          {
             double s = shape(j);
             if (fabs(s) < 1e-12)
+            {
                s = 0.0;
+            }
             for (int d = 0; d < Dim; d++)
+            {
                I(k, j + d*shape.Size()) = s*vk[d];
+            }
          }
       }
    }
@@ -472,6 +566,8 @@ void VectorFiniteElement::ProjectGrad_ND(
    const double *tk, const Array<int> &d2t, const FiniteElement &fe,
    ElementTransformation &Trans, DenseMatrix &grad) const
 {
+   MFEM_ASSERT(fe.GetMapType() == VALUE, "");
+
    DenseMatrix dshape(fe.GetDof(), fe.GetDim());
    Vector grad_k(fe.GetDof());
 
@@ -481,7 +577,9 @@ void VectorFiniteElement::ProjectGrad_ND(
       fe.CalcDShape(Nodes.IntPoint(k), dshape);
       dshape.Mult(tk + d2t[k]*Dim, grad_k);
       for (int j = 0; j < grad_k.Size(); j++)
+      {
          grad(k,j) = (fabs(grad_k(j)) < 1e-12) ? 0.0 : grad_k(j);
+      }
    }
 }
 
@@ -513,7 +611,9 @@ void VectorFiniteElement::LocalInterpolation_RT(
       {
          double Ikj = 0.;
          for (int i = 0; i < Dim; i++)
+         {
             Ikj += vshape(j, i) * vk[i];
+         }
          I(k, j) = (fabs(Ikj) < 1e-12) ? 0.0 : Ikj;
       }
    }
@@ -545,7 +645,9 @@ void VectorFiniteElement::LocalInterpolation_ND(
       {
          double Ikj = 0.;
          for (int i = 0; i < Dim; i++)
+         {
             Ikj += vshape(j, i) * vk[i];
+         }
          I(k, j) = (fabs(Ikj) < 1e-12) ? 0.0 : Ikj;
       }
    }
@@ -926,9 +1028,9 @@ void Quad2DFiniteElement::ProjectDelta(int vertex, Vector &dofs) const
    dofs(vertex) = 1.;
    switch (vertex)
    {
-   case 0: dofs(3) = 0.25; dofs(5) = 0.25; break;
-   case 1: dofs(3) = 0.25; dofs(4) = 0.25; break;
-   case 2: dofs(4) = 0.25; dofs(5) = 0.25; break;
+      case 0: dofs(3) = 0.25; dofs(5) = 0.25; break;
+      case 1: dofs(3) = 0.25; dofs(4) = 0.25; break;
+      case 2: dofs(4) = 0.25; dofs(5) = 0.25; break;
    }
 #endif
 }
@@ -1101,10 +1203,10 @@ void BiQuad2DFiniteElement::ProjectDelta(int vertex, Vector &dofs) const
    dofs(vertex) = 1.;
    switch (vertex)
    {
-   case 0: dofs(4) = 0.25; dofs(7) = 0.25; break;
-   case 1: dofs(4) = 0.25; dofs(5) = 0.25; break;
-   case 2: dofs(5) = 0.25; dofs(6) = 0.25; break;
-   case 3: dofs(6) = 0.25; dofs(7) = 0.25; break;
+      case 0: dofs(4) = 0.25; dofs(7) = 0.25; break;
+      case 1: dofs(4) = 0.25; dofs(5) = 0.25; break;
+      case 2: dofs(5) = 0.25; dofs(6) = 0.25; break;
+      case 3: dofs(6) = 0.25; dofs(7) = 0.25; break;
    }
    dofs(8) = 1./16.;
 #endif
@@ -1219,7 +1321,9 @@ void BiQuadPos2DFiniteElement::GetLocalInterpolation(
       CalcShape(tr_ip, shape);
       for (int j = 0; j < 9; j++)
          if (fabs(I(i,j) = s[j]) < 1.0e-12)
+         {
             I(i,j) = 0.0;
+         }
    }
    for (int i = 0; i < 9; i++)
    {
@@ -1229,7 +1333,7 @@ void BiQuadPos2DFiniteElement::GetLocalInterpolation(
       d[6] = 2. * d[6] - 0.5 * (d[2] + d[3]);
       d[7] = 2. * d[7] - 0.5 * (d[3] + d[0]);
       d[8] = 4. * d[8] - 0.5 * (d[4] + d[5] + d[6] + d[7]) -
-         0.25 * (d[0] + d[1] + d[2] + d[3]);
+             0.25 * (d[0] + d[1] + d[2] + d[3]);
    }
 }
 
@@ -1249,7 +1353,7 @@ void BiQuadPos2DFiniteElement::Project(
    d[6] = 2. * d[6] - 0.5 * (d[2] + d[3]);
    d[7] = 2. * d[7] - 0.5 * (d[3] + d[0]);
    d[8] = 4. * d[8] - 0.5 * (d[4] + d[5] + d[6] + d[7]) -
-      0.25 * (d[0] + d[1] + d[2] + d[3]);
+          0.25 * (d[0] + d[1] + d[2] + d[3]);
 }
 
 void BiQuadPos2DFiniteElement::Project (
@@ -1265,7 +1369,9 @@ void BiQuadPos2DFiniteElement::Project (
       Trans.SetIntPoint(&ip);
       vc.Eval (x, Trans, ip);
       for (int j = 0; j < x.Size(); j++)
+      {
          dofs(9*j+i) = v[j];
+      }
    }
    for (int j = 0; j < x.Size(); j++)
    {
@@ -1276,7 +1382,7 @@ void BiQuadPos2DFiniteElement::Project (
       d[6] = 2. * d[6] - 0.5 * (d[2] + d[3]);
       d[7] = 2. * d[7] - 0.5 * (d[3] + d[0]);
       d[8] = 4. * d[8] - 0.5 * (d[4] + d[5] + d[6] + d[7]) -
-         0.25 * (d[0] + d[1] + d[2] + d[3]);
+             0.25 * (d[0] + d[1] + d[2] + d[3]);
    }
 }
 
@@ -1587,9 +1693,9 @@ void Cubic1DFiniteElement::CalcShape(const IntegrationPoint &ip,
 {
    double x = ip.x;
    double l1 = x,
-      l2 = (1.0-x),
-      l3 = (0.33333333333333333333-x),
-      l4 = (0.66666666666666666667-x);
+          l2 = (1.0-x),
+          l3 = (0.33333333333333333333-x),
+          l4 = (0.66666666666666666667-x);
 
    shape(0) =   4.5 * l2 * l3 * l4;
    shape(1) =   4.5 * l1 * l3 * l4;
@@ -1639,8 +1745,8 @@ void Cubic2DFiniteElement::CalcShape(const IntegrationPoint &ip,
 {
    double x = ip.x, y = ip.y;
    double l1 = (-1. + x + y),
-      lx = (-1. + 3.*x),
-      ly = (-1. + 3.*y);
+          lx = (-1. + 3.*x),
+          ly = (-1. + 3.*y);
 
    shape(0) = -0.5*l1*(3.*l1 + 1.)*(3.*l1 + 2.);
    shape(1) =  0.5*x*(lx - 1.)*lx;
@@ -1985,7 +2091,7 @@ void Linear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 void Linear3DFiniteElement::GetFaceDofs (int face, int **dofs, int *ndofs)
-   const
+const
 {
    static int face_dofs[4][3] = {{1, 2, 3}, {0, 2, 3}, {0, 1, 3}, {0, 1, 2}};
 
@@ -2249,7 +2355,7 @@ void CrouzeixRaviartQuadFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 RT0TriangleFiniteElement::RT0TriangleFiniteElement()
-   : VectorFiniteElement (2, Geometry::TRIANGLE, 3, 1)
+   : VectorFiniteElement(2, Geometry::TRIANGLE, 3, 1, H_DIV)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.0;
@@ -2299,11 +2405,11 @@ void RT0TriangleFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 3; j++)
       {
          double d = vshape(j,0)*nk[k][0]+vshape(j,1)*nk[k][1];
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT0TriangleFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -2329,7 +2435,9 @@ void RT0TriangleFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 3; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -2357,7 +2465,7 @@ void RT0TriangleFiniteElement::Project (
 }
 
 RT0QuadFiniteElement::RT0QuadFiniteElement()
-   : VectorFiniteElement (2, Geometry::SQUARE, 4, 1, FunctionSpace::Qk)
+   : VectorFiniteElement(2, Geometry::SQUARE, 4, 1, H_DIV, FunctionSpace::Qk)
 {
    Nodes.IntPoint(0).x = 0.5;
    Nodes.IntPoint(0).y = 0.0;
@@ -2412,11 +2520,11 @@ void RT0QuadFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 4; j++)
       {
          double d = vshape(j,0)*nk[k][0]+vshape(j,1)*nk[k][1];
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT0QuadFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -2442,7 +2550,9 @@ void RT0QuadFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 4; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -2470,7 +2580,7 @@ void RT0QuadFiniteElement::Project (
 }
 
 RT1TriangleFiniteElement::RT1TriangleFiniteElement()
-   : VectorFiniteElement (2, Geometry::TRIANGLE, 8, 2)
+   : VectorFiniteElement(2, Geometry::TRIANGLE, 8, 2, H_DIV)
 {
    Nodes.IntPoint(0).x = 0.33333333333333333333;
    Nodes.IntPoint(0).y = 0.0;
@@ -2552,11 +2662,11 @@ void RT1TriangleFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 8; j++)
       {
          double d = vshape(j,0)*nk[k][0]+vshape(j,1)*nk[k][1];
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT1QuadFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -2582,7 +2692,9 @@ void RT1TriangleFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 8; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -2610,7 +2722,7 @@ void RT1TriangleFiniteElement::Project (
 }
 
 RT1QuadFiniteElement::RT1QuadFiniteElement()
-   : VectorFiniteElement (2, Geometry::SQUARE, 12, 2, FunctionSpace::Qk)
+   : VectorFiniteElement(2, Geometry::SQUARE, 12, 2, H_DIV, FunctionSpace::Qk)
 {
    // y = 0
    Nodes.IntPoint(0).x  = 1./3.;
@@ -2732,11 +2844,11 @@ void RT1QuadFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 12; j++)
       {
          double d = vshape(j,0)*nk[k][0]+vshape(j,1)*nk[k][1];
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT1QuadFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -2762,7 +2874,9 @@ void RT1QuadFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 12; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -2789,45 +2903,64 @@ void RT1QuadFiniteElement::Project (
 }
 
 const double RT2TriangleFiniteElement::M[15][15] =
-{{ 0, -5.3237900077244501311, 5.3237900077244501311, 16.647580015448900262,
-   0, 24.442740046346700787, -16.647580015448900262, -12.,
-   -19.118950038622250656, -47.237900077244501311, 0, -34.414110069520051180,
-   12., 30.590320061795601049, 15.295160030897800524},
- { 0, 1.5, -1.5, -15., 0, 2.625, 15., 15., -4.125, 30., 0, -14.625, -15.,
-   -15., 10.5},
- { 0, -0.67620999227554986889, 0.67620999227554986889, 7.3524199845510997378,
-   0, -3.4427400463467007866, -7.3524199845510997378, -12.,
-   4.1189500386222506555, -0.76209992275549868892, 0, 7.4141100695200511800,
-   12., -6.5903200617956010489, -3.2951600308978005244},
- { 0, 0, 1.5, 0, 0, 1.5, -11.471370023173350393, 0, 2.4713700231733503933,
-   -11.471370023173350393, 0, 2.4713700231733503933, 15.295160030897800524,
-   0, -3.2951600308978005244},
- { 0, 0, 4.875, 0, 0, 4.875, -16.875, 0, -16.875, -16.875, 0, -16.875, 10.5,
-   36., 10.5},
- { 0, 0, 1.5, 0, 0, 1.5, 2.4713700231733503933, 0, -11.471370023173350393,
-   2.4713700231733503933, 0, -11.471370023173350393, -3.2951600308978005244,
-   0, 15.295160030897800524},
- { -0.67620999227554986889, 0, -3.4427400463467007866, 0,
-   7.3524199845510997378, 0.67620999227554986889, 7.4141100695200511800, 0,
-   -0.76209992275549868892, 4.1189500386222506555, -12.,
-   -7.3524199845510997378, -3.2951600308978005244, -6.5903200617956010489,
-   12.},
- { 1.5, 0, 2.625, 0, -15., -1.5, -14.625, 0, 30., -4.125, 15., 15., 10.5,
-   -15., -15.},
- { -5.3237900077244501311, 0, 24.442740046346700787, 0, 16.647580015448900262,
-   5.3237900077244501311, -34.414110069520051180, 0, -47.237900077244501311,
-   -19.118950038622250656, -12., -16.647580015448900262, 15.295160030897800524,
-   30.590320061795601049, 12.},
- { 0, 0, 18., 0, 0, 6., -42., 0, -30., -26., 0, -14., 24., 32., 8.},
- { 0, 0, 6., 0, 0, 18., -14., 0, -26., -30., 0, -42., 8., 32., 24.},
- { 0, 0, -6., 0, 0, -4., 30., 0, 4., 22., 0, 4., -24., -16., 0},
- { 0, 0, -4., 0, 0, -8., 20., 0, 8., 36., 0, 8., -16., -32., 0},
- { 0, 0, -8., 0, 0, -4., 8., 0, 36., 8., 0, 20., 0, -32., -16.},
- { 0, 0, -4., 0, 0, -6., 4., 0, 22., 4., 0, 30., 0, -16., -24.}
+{
+   {
+      0, -5.3237900077244501311, 5.3237900077244501311, 16.647580015448900262,
+      0, 24.442740046346700787, -16.647580015448900262, -12.,
+      -19.118950038622250656, -47.237900077244501311, 0, -34.414110069520051180,
+      12., 30.590320061795601049, 15.295160030897800524
+   },
+   {
+      0, 1.5, -1.5, -15., 0, 2.625, 15., 15., -4.125, 30., 0, -14.625, -15.,
+      -15., 10.5
+   },
+   {
+      0, -0.67620999227554986889, 0.67620999227554986889, 7.3524199845510997378,
+      0, -3.4427400463467007866, -7.3524199845510997378, -12.,
+      4.1189500386222506555, -0.76209992275549868892, 0, 7.4141100695200511800,
+      12., -6.5903200617956010489, -3.2951600308978005244
+   },
+   {
+      0, 0, 1.5, 0, 0, 1.5, -11.471370023173350393, 0, 2.4713700231733503933,
+      -11.471370023173350393, 0, 2.4713700231733503933, 15.295160030897800524,
+      0, -3.2951600308978005244
+   },
+   {
+      0, 0, 4.875, 0, 0, 4.875, -16.875, 0, -16.875, -16.875, 0, -16.875, 10.5,
+      36., 10.5
+   },
+   {
+      0, 0, 1.5, 0, 0, 1.5, 2.4713700231733503933, 0, -11.471370023173350393,
+      2.4713700231733503933, 0, -11.471370023173350393, -3.2951600308978005244,
+      0, 15.295160030897800524
+   },
+   {
+      -0.67620999227554986889, 0, -3.4427400463467007866, 0,
+      7.3524199845510997378, 0.67620999227554986889, 7.4141100695200511800, 0,
+      -0.76209992275549868892, 4.1189500386222506555, -12.,
+      -7.3524199845510997378, -3.2951600308978005244, -6.5903200617956010489,
+      12.
+   },
+   {
+      1.5, 0, 2.625, 0, -15., -1.5, -14.625, 0, 30., -4.125, 15., 15., 10.5,
+      -15., -15.
+   },
+   {
+      -5.3237900077244501311, 0, 24.442740046346700787, 0, 16.647580015448900262,
+      5.3237900077244501311, -34.414110069520051180, 0, -47.237900077244501311,
+      -19.118950038622250656, -12., -16.647580015448900262, 15.295160030897800524,
+      30.590320061795601049, 12.
+   },
+   { 0, 0, 18., 0, 0, 6., -42., 0, -30., -26., 0, -14., 24., 32., 8.},
+   { 0, 0, 6., 0, 0, 18., -14., 0, -26., -30., 0, -42., 8., 32., 24.},
+   { 0, 0, -6., 0, 0, -4., 30., 0, 4., 22., 0, 4., -24., -16., 0},
+   { 0, 0, -4., 0, 0, -8., 20., 0, 8., 36., 0, 8., -16., -32., 0},
+   { 0, 0, -8., 0, 0, -4., 8., 0, 36., 8., 0, 20., 0, -32., -16.},
+   { 0, 0, -4., 0, 0, -6., 4., 0, 22., 4., 0, 30., 0, -16., -24.}
 };
 
 RT2TriangleFiniteElement::RT2TriangleFiniteElement()
-   : VectorFiniteElement (2, Geometry::TRIANGLE, 15, 3)
+   : VectorFiniteElement(2, Geometry::TRIANGLE, 15, 3, H_DIV)
 {
    const double p = 0.11270166537925831148;
 
@@ -2869,9 +3002,11 @@ void RT2TriangleFiniteElement::CalcVShape(const IntegrationPoint &ip,
    double x = ip.x, y = ip.y;
 
    double Bx[15] = {1., 0., x, 0., y, 0., x*x, 0., x*y, 0., y*y, 0., x*x*x,
-                    x*x*y, x*y*y};
+                    x*x*y, x*y*y
+                   };
    double By[15] = {0., 1., 0., x, 0., y, 0., x*x, 0., x*y, 0., y*y,
-                    x*x*y, x*y*y, y*y*y};
+                    x*x*y, x*y*y, y*y*y
+                   };
 
    for (int i = 0; i < 15; i++)
    {
@@ -2892,13 +3027,16 @@ void RT2TriangleFiniteElement::CalcDivShape(const IntegrationPoint &ip,
    double x = ip.x, y = ip.y;
 
    double DivB[15] = {0., 0., 1., 0., 0., 1., 2.*x, 0., y, x, 0., 2.*y,
-                      4.*x*x, 4.*x*y, 4.*y*y};
+                      4.*x*x, 4.*x*y, 4.*y*y
+                     };
 
    for (int i = 0; i < 15; i++)
    {
       double div = 0.0;
       for (int j = 0; j < 15; j++)
+      {
          div += M[i][j] * DivB[j];
+      }
       divshape(i) = div;
    }
 }
@@ -2908,7 +3046,7 @@ const double RT2QuadFiniteElement::pt[4] = {0.,1./3.,2./3.,1.};
 const double RT2QuadFiniteElement::dpt[3] = {0.25,0.5,0.75};
 
 RT2QuadFiniteElement::RT2QuadFiniteElement()
-   : VectorFiniteElement (2, Geometry::SQUARE, 24, 3, FunctionSpace::Qk)
+   : VectorFiniteElement(2, Geometry::SQUARE, 24, 3, H_DIV, FunctionSpace::Qk)
 {
    // y = 0 (pt[0])
    Nodes.IntPoint(0).x  = dpt[0];  Nodes.IntPoint(0).y  =  pt[0];
@@ -3158,11 +3296,11 @@ void RT2QuadFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 24; j++)
       {
          double d = vshape(j,0)*nk[k][0]+vshape(j,1)*nk[k][1];
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT2QuadFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -3188,7 +3326,9 @@ void RT2QuadFiniteElement::GetLocalInterpolation (
       vk[1] = Jinv(1,0)*nk[k][0]+Jinv(1,1)*nk[k][1];
       for (j = 0; j < 24; j++)
          if (fabs (I(k,j) = vshape(j,0)*vk[0]+vshape(j,1)*vk[1]) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -3281,7 +3421,9 @@ Lagrange1DFiniteElement::Lagrange1DFiniteElement(int degree)
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
    for (i = 1; i < m; i++)
+   {
       Nodes.IntPoint(i+1).x = double(i) / m;
+   }
 
    rwk.SetSize(degree+1);
 #ifndef MFEM_THREAD_SAFE
@@ -3290,11 +3432,17 @@ Lagrange1DFiniteElement::Lagrange1DFiniteElement(int degree)
 
    rwk(0) = 1.0;
    for (i = 1; i <= m; i++)
+   {
       rwk(i) = rwk(i-1) * ( (double)(m) / (double)(i) );
+   }
    for (i = 0; i < m/2+1; i++)
+   {
       rwk(m-i) = ( rwk(i) *= rwk(m-i) );
+   }
    for (i = m-1; i >= 0; i -= 2)
+   {
       rwk(i) = -rwk(i);
+   }
 }
 
 void Lagrange1DFiniteElement::CalcShape(const IntegrationPoint &ip,
@@ -3311,22 +3459,36 @@ void Lagrange1DFiniteElement::CalcShape(const IntegrationPoint &ip,
    wk = 1.0;
    for (i = 0; i <= m; i++)
       if (i != k)
+      {
          wk *= ( rxxk(i) = x - (double)(i) / m );
+      }
    w = wk * ( rxxk(k) = x - (double)(k) / m );
 
    if (k != 0)
+   {
       shape(0) = w * rwk(0) / rxxk(0);
+   }
    else
+   {
       shape(0) = wk * rwk(0);
+   }
    if (k != m)
+   {
       shape(1) = w * rwk(m) / rxxk(m);
+   }
    else
+   {
       shape(1) = wk * rwk(k);
+   }
    for (i = 1; i < m; i++)
       if (i != k)
+      {
          shape(i+1) = w * rwk(i) / rxxk(i);
+      }
       else
+      {
          shape(k+1) = wk * rwk(k);
+      }
 }
 
 void Lagrange1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
@@ -3343,30 +3505,48 @@ void Lagrange1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
    wk = 1.0;
    for (i = 0; i <= m; i++)
       if (i != k)
+      {
          wk *= ( rxxk(i) = x - (double)(i) / m );
+      }
    w = wk * ( rxxk(k) = x - (double)(k) / m );
 
    for (i = 0; i <= m; i++)
+   {
       rxxk(i) = 1.0 / rxxk(i);
+   }
    srx = 0.0;
    for (i = 0; i <= m; i++)
       if (i != k)
+      {
          srx += rxxk(i);
+      }
    s = w * srx + wk;
 
    if (k != 0)
+   {
       dshape(0,0) = (s - w * rxxk(0)) * rwk(0) * rxxk(0);
+   }
    else
+   {
       dshape(0,0) = wk * srx * rwk(0);
+   }
    if (k != m)
+   {
       dshape(1,0) = (s - w * rxxk(m)) * rwk(m) * rxxk(m);
+   }
    else
+   {
       dshape(1,0) = wk * srx * rwk(k);
+   }
    for (i = 1; i < m; i++)
       if (i != k)
+      {
          dshape(i+1,0) = (s - w * rxxk(i)) * rwk(i) * rxxk(i);
+      }
       else
+      {
          dshape(k+1,0) = wk * srx * rwk(k);
+      }
 }
 
 
@@ -3612,7 +3792,9 @@ void LagrangeHexFiniteElement::CalcShape(const IntegrationPoint &ip,
    fe1d -> CalcShape(ipz, shape1dz);
 
    for (int n = 0; n < Dof; n++)
+   {
       shape(n) = shape1dx(I[n]) *  shape1dy(J[n]) * shape1dz(K[n]);
+   }
 }
 
 void LagrangeHexFiniteElement::CalcDShape(const IntegrationPoint &ip,
@@ -3635,7 +3817,8 @@ void LagrangeHexFiniteElement::CalcDShape(const IntegrationPoint &ip,
    fe1d -> CalcDShape(ipy, dshape1dy);
    fe1d -> CalcDShape(ipz, dshape1dz);
 
-   for (int n = 0; n < Dof; n++) {
+   for (int n = 0; n < Dof; n++)
+   {
       dshape(n,0) = dshape1dx(I[n],0) * shape1dy(J[n])    * shape1dz(K[n]);
       dshape(n,1) = shape1dx(I[n])    * dshape1dy(J[n],0) * shape1dz(K[n]);
       dshape(n,2) = shape1dx(I[n])    * shape1dy(J[n])    * dshape1dz(K[n],0);
@@ -3665,11 +3848,14 @@ void RefinedLinear1DFiniteElement::CalcShape(const IntegrationPoint &ip,
 {
    double x = ip.x;
 
-   if (x <= 0.5) {
+   if (x <= 0.5)
+   {
       shape(0) = 1.0 - 2.0 * x;
       shape(1) = 0.0;
       shape(2) = 2.0 * x;
-   } else {
+   }
+   else
+   {
       shape(0) = 0.0;
       shape(1) = 2.0 * x - 1.0;
       shape(2) = 2.0 - 2.0 * x;
@@ -3681,11 +3867,14 @@ void RefinedLinear1DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 {
    double x = ip.x;
 
-   if (x <= 0.5) {
+   if (x <= 0.5)
+   {
       dshape(0,0) = - 2.0;
       dshape(1,0) =   0.0;
       dshape(2,0) =   2.0;
-   } else {
+   }
+   else
+   {
       dshape(0,0) =   0.0;
       dshape(1,0) =   2.0;
       dshape(2,0) = - 2.0;
@@ -3727,24 +3916,30 @@ void RefinedLinear2DFiniteElement::CalcShape(const IntegrationPoint &ip,
    // T3 - 3,4,5
 
    for (i = 0; i < 6; i++)
+   {
       shape(i) = 0.0;
+   }
 
-   if (L0 >= 1.0) { // T0
+   if (L0 >= 1.0)   // T0
+   {
       shape(0) = L0 - 1.0;
       shape(3) =       L1;
       shape(5) =       L2;
    }
-   else if (L1 >= 1.0) { // T1
+   else if (L1 >= 1.0)   // T1
+   {
       shape(3) =       L0;
       shape(1) = L1 - 1.0;
       shape(4) =       L2;
    }
-   else if (L2 >= 1.0) { // T2
+   else if (L2 >= 1.0)   // T2
+   {
       shape(5) =       L0;
       shape(4) =       L1;
       shape(2) = L2 - 1.0;
    }
-   else { // T3
+   else   // T3
+   {
       shape(3) = 1.0 - L2;
       shape(4) = 1.0 - L0;
       shape(5) = 1.0 - L1;
@@ -3768,31 +3963,41 @@ void RefinedLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
    for (i = 0; i < 6; i++)
       for (j = 0; j < 2; j++)
+      {
          dshape(i,j) = 0.0;
+      }
 
-   if (L0 >= 1.0) { // T0
-      for (j = 0; j < 2; j++) {
+   if (L0 >= 1.0)   // T0
+   {
+      for (j = 0; j < 2; j++)
+      {
          dshape(0,j) = DL0[j];
          dshape(3,j) = DL1[j];
          dshape(5,j) = DL2[j];
       }
    }
-   else if (L1 >= 1.0) { // T1
-      for (j = 0; j < 2; j++) {
+   else if (L1 >= 1.0)   // T1
+   {
+      for (j = 0; j < 2; j++)
+      {
          dshape(3,j) = DL0[j];
          dshape(1,j) = DL1[j];
          dshape(4,j) = DL2[j];
       }
    }
-   else if (L2 >= 1.0) { // T2
-      for (j = 0; j < 2; j++) {
+   else if (L2 >= 1.0)   // T2
+   {
+      for (j = 0; j < 2; j++)
+      {
          dshape(5,j) = DL0[j];
          dshape(4,j) = DL1[j];
          dshape(2,j) = DL2[j];
       }
    }
-   else { // T3
-      for (j = 0; j < 2; j++) {
+   else   // T3
+   {
+      for (j = 0; j < 2; j++)
+      {
          dshape(3,j) = - DL2[j];
          dshape(4,j) = - DL0[j];
          dshape(5,j) = - DL1[j];
@@ -3860,51 +4065,61 @@ void RefinedLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
    // T7 - 5,7,8,9
 
    for (i = 0; i < 10; i++)
+   {
       shape(i) = 0.0;
+   }
 
-   if (L0 >= 1.0) { // T0
+   if (L0 >= 1.0)   // T0
+   {
       shape(0) = L0 - 1.0;
       shape(4) =       L1;
       shape(5) =       L2;
       shape(6) =       L3;
    }
-   else if (L1 >= 1.0) { // T1
+   else if (L1 >= 1.0)   // T1
+   {
       shape(4) =       L0;
       shape(1) = L1 - 1.0;
       shape(7) =       L2;
       shape(8) =       L3;
    }
-   else if (L2 >= 1.0) { // T2
+   else if (L2 >= 1.0)   // T2
+   {
       shape(5) =       L0;
       shape(7) =       L1;
       shape(2) = L2 - 1.0;
       shape(9) =       L3;
    }
-   else if (L3 >= 1.0) { // T3
+   else if (L3 >= 1.0)   // T3
+   {
       shape(6) =       L0;
       shape(8) =       L1;
       shape(9) =       L2;
       shape(3) = L3 - 1.0;
    }
-   else if ((L4 <= 1.0) && (L5 <= 1.0)) { // T4
+   else if ((L4 <= 1.0) && (L5 <= 1.0))   // T4
+   {
       shape(4) = 1.0 - L5;
       shape(5) =       L2;
       shape(6) = 1.0 - L4;
       shape(8) = 1.0 - L0;
    }
-   else if ((L4 >= 1.0) && (L5 <= 1.0)) { // T5
+   else if ((L4 >= 1.0) && (L5 <= 1.0))   // T5
+   {
       shape(4) = 1.0 - L5;
       shape(5) = 1.0 - L1;
       shape(7) = L4 - 1.0;
       shape(8) =       L3;
    }
-   else if ((L4 <= 1.0) && (L5 >= 1.0)) { // T6
+   else if ((L4 <= 1.0) && (L5 >= 1.0))   // T6
+   {
       shape(5) = 1.0 - L3;
       shape(6) = 1.0 - L4;
       shape(8) =       L1;
       shape(9) = L5 - 1.0;
    }
-   else if ((L4 >= 1.0) && (L5 >= 1.0)) { // T7
+   else if ((L4 >= 1.0) && (L5 >= 1.0))   // T7
+   {
       shape(5) =       L0;
       shape(7) = L4 - 1.0;
       shape(8) = 1.0 - L2;
@@ -3935,66 +4150,84 @@ void RefinedLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
    for (i = 0; i < 10; i++)
       for (j = 0; j < 3; j++)
+      {
          dshape(i,j) = 0.0;
+      }
 
-   if (L0 >= 1.0) { // T0
-      for (j = 0; j < 3; j++) {
+   if (L0 >= 1.0)   // T0
+   {
+      for (j = 0; j < 3; j++)
+      {
          dshape(0,j) = DL0[j];
          dshape(4,j) = DL1[j];
          dshape(5,j) = DL2[j];
          dshape(6,j) = DL3[j];
       }
    }
-   else if (L1 >= 1.0) { // T1
-      for (j = 0; j < 3; j++) {
+   else if (L1 >= 1.0)   // T1
+   {
+      for (j = 0; j < 3; j++)
+      {
          dshape(4,j) = DL0[j];
          dshape(1,j) = DL1[j];
          dshape(7,j) = DL2[j];
          dshape(8,j) = DL3[j];
       }
    }
-   else if (L2 >= 1.0) { // T2
-      for (j = 0; j < 3; j++) {
+   else if (L2 >= 1.0)   // T2
+   {
+      for (j = 0; j < 3; j++)
+      {
          dshape(5,j) = DL0[j];
          dshape(7,j) = DL1[j];
          dshape(2,j) = DL2[j];
          dshape(9,j) = DL3[j];
       }
    }
-   else if (L3 >= 1.0) { // T3
-      for (j = 0; j < 3; j++) {
+   else if (L3 >= 1.0)   // T3
+   {
+      for (j = 0; j < 3; j++)
+      {
          dshape(6,j) = DL0[j];
          dshape(8,j) = DL1[j];
          dshape(9,j) = DL2[j];
          dshape(3,j) = DL3[j];
       }
    }
-   else if ((L4 <= 1.0) && (L5 <= 1.0)) { // T4
-      for (j = 0; j < 3; j++) {
+   else if ((L4 <= 1.0) && (L5 <= 1.0))   // T4
+   {
+      for (j = 0; j < 3; j++)
+      {
          dshape(4,j) = - DL5[j];
          dshape(5,j) =   DL2[j];
          dshape(6,j) = - DL4[j];
          dshape(8,j) = - DL0[j];
       }
    }
-   else if ((L4 >= 1.0) && (L5 <= 1.0)) { // T5
-      for (j = 0; j < 3; j++) {
+   else if ((L4 >= 1.0) && (L5 <= 1.0))   // T5
+   {
+      for (j = 0; j < 3; j++)
+      {
          dshape(4,j) = - DL5[j];
          dshape(5,j) = - DL1[j];
          dshape(7,j) =   DL4[j];
          dshape(8,j) =   DL3[j];
       }
    }
-   else if ((L4 <= 1.0) && (L5 >= 1.0)) { // T6
-      for (j = 0; j < 3; j++) {
+   else if ((L4 <= 1.0) && (L5 >= 1.0))   // T6
+   {
+      for (j = 0; j < 3; j++)
+      {
          dshape(5,j) = - DL3[j];
          dshape(6,j) = - DL4[j];
          dshape(8,j) =   DL1[j];
          dshape(9,j) =   DL5[j];
       }
    }
-   else if ((L4 >= 1.0) && (L5 >= 1.0)) { // T7
-      for (j = 0; j < 3; j++) {
+   else if ((L4 >= 1.0) && (L5 >= 1.0))   // T7
+   {
+      for (j = 0; j < 3; j++)
+      {
          dshape(5,j) =   DL0[j];
          dshape(7,j) =   DL4[j];
          dshape(8,j) = - DL2[j];
@@ -4044,27 +4277,33 @@ void RefinedBiLinear2DFiniteElement::CalcShape(const IntegrationPoint &ip,
    // T3 - 3,6,7,8
 
    for (i = 0; i < 9; i++)
+   {
       shape(i) = 0.0;
+   }
 
-   if ((x <= 0.5) && (y <= 0.5)) { // T0
+   if ((x <= 0.5) && (y <= 0.5))   // T0
+   {
       shape(0) = (Lx - 1.0) * (Ly - 1.0);
       shape(4) = (2.0 - Lx) * (Ly - 1.0);
       shape(8) = (2.0 - Lx) * (2.0 - Ly);
       shape(7) = (Lx - 1.0) * (2.0 - Ly);
    }
-   else if ((x >= 0.5) && (y <= 0.5)) { // T1
+   else if ((x >= 0.5) && (y <= 0.5))   // T1
+   {
       shape(4) =        Lx  * (Ly - 1.0);
       shape(1) = (1.0 - Lx) * (Ly - 1.0);
       shape(5) = (1.0 - Lx) * (2.0 - Ly);
       shape(8) =        Lx  * (2.0 - Ly);
    }
-   else if ((x >= 0.5) && (y >= 0.5)) { // T2
+   else if ((x >= 0.5) && (y >= 0.5))   // T2
+   {
       shape(8) =        Lx  *        Ly ;
       shape(5) = (1.0 - Lx) *        Ly ;
       shape(2) = (1.0 - Lx) * (1.0 - Ly);
       shape(6) =        Lx  * (1.0 - Ly);
    }
-   else if ((x <= 0.5) && (y >= 0.5)) { // T3
+   else if ((x <= 0.5) && (y >= 0.5))   // T3
+   {
       shape(7) = (Lx - 1.0) *        Ly ;
       shape(8) = (2.0 - Lx) *        Ly ;
       shape(6) = (2.0 - Lx) * (1.0 - Ly);
@@ -4083,9 +4322,12 @@ void RefinedBiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
    for (i = 0; i < 9; i++)
       for (j = 0; j < 2; j++)
+      {
          dshape(i,j) = 0.0;
+      }
 
-   if ((x <= 0.5) && (y <= 0.5)) { // T0
+   if ((x <= 0.5) && (y <= 0.5))   // T0
+   {
       dshape(0,0) =  2.0 * (1.0 - Ly);
       dshape(0,1) =  2.0 * (1.0 - Lx);
 
@@ -4098,7 +4340,8 @@ void RefinedBiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       dshape(7,0) = -2.0 * (2.0 - Ly);
       dshape(7,0) =  2.0 * (Lx - 1.0);
    }
-   else if ((x >= 0.5) && (y <= 0.5)) { // T1
+   else if ((x >= 0.5) && (y <= 0.5))   // T1
+   {
       dshape(4,0) = -2.0 * (Ly - 1.0);
       dshape(4,1) = -2.0 * Lx;
 
@@ -4111,7 +4354,8 @@ void RefinedBiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       dshape(8,0) = -2.0 * (2.0 - Ly);
       dshape(8,1) =  2.0 * Lx;
    }
-   else if ((x >= 0.5) && (y >= 0.5)) { // T2
+   else if ((x >= 0.5) && (y >= 0.5))   // T2
+   {
       dshape(8,0) = -2.0 * Ly;
       dshape(8,1) = -2.0 * Lx;
 
@@ -4124,7 +4368,8 @@ void RefinedBiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       dshape(6,0) = -2.0 * (1.0 - Ly);
       dshape(6,1) =  2.0 * Lx;
    }
-   else if ((x <= 0.5) && (y >= 0.5)) { // T3
+   else if ((x <= 0.5) && (y >= 0.5))   // T3
+   {
       dshape(7,0) = -2.0 * Ly;
       dshape(7,1) = -2.0 * (Lx - 1.0);
 
@@ -4177,7 +4422,8 @@ RefinedTriLinear3DFiniteElement::RefinedTriLinear3DFiniteElement()
    // element
    I[26] = 0.5; J[26] = 0.5; K[26] = 0.5;
 
-   for (int n = 0; n < 27; n++) {
+   for (int n = 0; n < 27; n++)
+   {
       Nodes.IntPoint(n).x = I[n];
       Nodes.IntPoint(n).y = J[n];
       Nodes.IntPoint(n).z = K[n];
@@ -4192,9 +4438,12 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
    double x = ip.x, y = ip.y, z = ip.z;
 
    for (i = 0; i < 27; i++)
+   {
       shape(i) = 0.0;
+   }
 
-   if ((x <= 0.5) && (y <= 0.5) && (z <= 0.5)) { // T0
+   if ((x <= 0.5) && (y <= 0.5) && (z <= 0.5))   // T0
+   {
       Lx = 1.0 - 2.0 * x;
       Ly = 1.0 - 2.0 * y;
       Lz = 1.0 - 2.0 * z;
@@ -4208,7 +4457,8 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
       N[6] = 26;
       N[7] = 24;
    }
-   else if ((x >= 0.5) && (y <= 0.5) && (z <= 0.5)) { // T1
+   else if ((x >= 0.5) && (y <= 0.5) && (z <= 0.5))   // T1
+   {
       Lx = 2.0 - 2.0 * x;
       Ly = 1.0 - 2.0 * y;
       Lz = 1.0 - 2.0 * z;
@@ -4222,7 +4472,8 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
       N[6] = 22;
       N[7] = 26;
    }
-   else if ((x <= 0.5) && (y >= 0.5) && (z <= 0.5)) { // T2
+   else if ((x <= 0.5) && (y >= 0.5) && (z <= 0.5))   // T2
+   {
       Lx = 2.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 1.0 - 2.0 * z;
@@ -4236,7 +4487,8 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
       N[6] = 18;
       N[7] = 23;
    }
-   else if ((x >= 0.5) && (y >= 0.5) && (z <= 0.5)) { // T3
+   else if ((x >= 0.5) && (y >= 0.5) && (z <= 0.5))   // T3
+   {
       Lx = 1.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 1.0 - 2.0 * z;
@@ -4250,7 +4502,8 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
       N[6] = 23;
       N[7] = 19;
    }
-   else if ((x <= 0.5) && (y <= 0.5) && (z >= 0.5)) { // T4
+   else if ((x <= 0.5) && (y <= 0.5) && (z >= 0.5))   // T4
+   {
       Lx = 1.0 - 2.0 * x;
       Ly = 1.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -4264,7 +4517,8 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
       N[6] = 25;
       N[7] = 15;
    }
-   else if ((x >= 0.5) && (y <= 0.5) && (z >= 0.5)) { // T5
+   else if ((x >= 0.5) && (y <= 0.5) && (z >= 0.5))   // T5
+   {
       Lx = 2.0 - 2.0 * x;
       Ly = 1.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -4278,7 +4532,8 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
       N[6] = 13;
       N[7] = 25;
    }
-   else if ((x <= 0.5) && (y >= 0.5) && (z >= 0.5)) { // T6
+   else if ((x <= 0.5) && (y >= 0.5) && (z >= 0.5))   // T6
+   {
       Lx = 2.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -4292,7 +4547,8 @@ void RefinedTriLinear3DFiniteElement::CalcShape(const IntegrationPoint &ip,
       N[6] =  6;
       N[7] = 14;
    }
-   else { // T7
+   else   // T7
+   {
       Lx = 1.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -4326,9 +4582,12 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
    for (i = 0; i < 27; i++)
       for (j = 0; j < 3; j++)
+      {
          dshape(i,j) = 0.0;
+      }
 
-   if ((x <= 0.5) && (y <= 0.5) && (z <= 0.5)) { // T0
+   if ((x <= 0.5) && (y <= 0.5) && (z <= 0.5))   // T0
+   {
       Lx = 1.0 - 2.0 * x;
       Ly = 1.0 - 2.0 * y;
       Lz = 1.0 - 2.0 * z;
@@ -4342,7 +4601,8 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       N[6] = 26;
       N[7] = 24;
    }
-   else if ((x >= 0.5) && (y <= 0.5) && (z <= 0.5)) { // T1
+   else if ((x >= 0.5) && (y <= 0.5) && (z <= 0.5))   // T1
+   {
       Lx = 2.0 - 2.0 * x;
       Ly = 1.0 - 2.0 * y;
       Lz = 1.0 - 2.0 * z;
@@ -4356,7 +4616,8 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       N[6] = 22;
       N[7] = 26;
    }
-   else if ((x <= 0.5) && (y >= 0.5) && (z <= 0.5)) { // T2
+   else if ((x <= 0.5) && (y >= 0.5) && (z <= 0.5))   // T2
+   {
       Lx = 2.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 1.0 - 2.0 * z;
@@ -4370,7 +4631,8 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       N[6] = 18;
       N[7] = 23;
    }
-   else if ((x >= 0.5) && (y >= 0.5) && (z <= 0.5)) { // T3
+   else if ((x >= 0.5) && (y >= 0.5) && (z <= 0.5))   // T3
+   {
       Lx = 1.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 1.0 - 2.0 * z;
@@ -4384,7 +4646,8 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       N[6] = 23;
       N[7] = 19;
    }
-   else if ((x <= 0.5) && (y <= 0.5) && (z >= 0.5)) { // T4
+   else if ((x <= 0.5) && (y <= 0.5) && (z >= 0.5))   // T4
+   {
       Lx = 1.0 - 2.0 * x;
       Ly = 1.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -4398,7 +4661,8 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       N[6] = 25;
       N[7] = 15;
    }
-   else if ((x >= 0.5) && (y <= 0.5) && (z >= 0.5)) { // T5
+   else if ((x >= 0.5) && (y <= 0.5) && (z >= 0.5))   // T5
+   {
       Lx = 2.0 - 2.0 * x;
       Ly = 1.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -4412,7 +4676,8 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       N[6] = 13;
       N[7] = 25;
    }
-   else if ((x <= 0.5) && (y >= 0.5) && (z >= 0.5)) { // T6
+   else if ((x <= 0.5) && (y >= 0.5) && (z >= 0.5))   // T6
+   {
       Lx = 2.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -4426,7 +4691,8 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       N[6] =  6;
       N[7] = 14;
    }
-   else { // T7
+   else   // T7
+   {
       Lx = 1.0 - 2.0 * x;
       Ly = 2.0 - 2.0 * y;
       Lz = 2.0 - 2.0 * z;
@@ -4476,7 +4742,7 @@ void RefinedTriLinear3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 
 
 Nedelec1HexFiniteElement::Nedelec1HexFiniteElement()
-   : VectorFiniteElement (3, Geometry::CUBE, 12, 1, FunctionSpace::Qk)
+   : VectorFiniteElement(3, Geometry::CUBE, 12, 1, H_CURL, FunctionSpace::Qk)
 {
    // not real nodes ...
    Nodes.IntPoint(0).x = 0.5;
@@ -4585,7 +4851,7 @@ void Nedelec1HexFiniteElement::CalcVShape(const IntegrationPoint &ip,
 
 void Nedelec1HexFiniteElement::CalcCurlShape(const IntegrationPoint &ip,
                                              DenseMatrix &curl_shape)
-   const
+const
 {
    double x = ip.x, y = ip.y, z = ip.z;
 
@@ -4639,9 +4905,11 @@ void Nedelec1HexFiniteElement::CalcCurlShape(const IntegrationPoint &ip,
 }
 
 const double Nedelec1HexFiniteElement::tk[12][3] =
-{{1,0,0}, {0,1,0}, {1,0,0}, {0,1,0},
- {1,0,0}, {0,1,0}, {1,0,0}, {0,1,0},
- {0,0,1}, {0,0,1}, {0,0,1}, {0,0,1}};
+{
+   {1,0,0}, {0,1,0}, {1,0,0}, {0,1,0},
+   {1,0,0}, {0,1,0}, {1,0,0}, {0,1,0},
+   {0,0,1}, {0,0,1}, {0,0,1}, {0,0,1}
+};
 
 void Nedelec1HexFiniteElement::GetLocalInterpolation (
    ElementTransformation &Trans, DenseMatrix &I) const
@@ -4659,11 +4927,11 @@ void Nedelec1HexFiniteElement::GetLocalInterpolation (
       {
          double d = ( vshape(j,0)*tk[k][0] + vshape(j,1)*tk[k][1] +
                       vshape(j,2)*tk[k][2] );
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "Nedelec1HexFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -4690,7 +4958,9 @@ void Nedelec1HexFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 12; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -4717,7 +4987,7 @@ void Nedelec1HexFiniteElement::Project (
 
 
 Nedelec1TetFiniteElement::Nedelec1TetFiniteElement()
-   : VectorFiniteElement (3, Geometry::TETRAHEDRON, 6, 1)
+   : VectorFiniteElement(3, Geometry::TETRAHEDRON, 6, 1, H_CURL)
 {
    // not real nodes ...
    Nodes.IntPoint(0).x = 0.5;
@@ -4777,7 +5047,7 @@ void Nedelec1TetFiniteElement::CalcVShape(const IntegrationPoint &ip,
 
 void Nedelec1TetFiniteElement::CalcCurlShape(const IntegrationPoint &ip,
                                              DenseMatrix &curl_shape)
-   const
+const
 {
    curl_shape(0,0) =  0.;
    curl_shape(0,1) = -2.;
@@ -4823,11 +5093,11 @@ void Nedelec1TetFiniteElement::GetLocalInterpolation (
       {
          double d = ( vshape(j,0)*tk[k][0] + vshape(j,1)*tk[k][1] +
                       vshape(j,2)*tk[k][2] );
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "Nedelec1TetFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -4854,7 +5124,9 @@ void Nedelec1TetFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 6; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -4880,7 +5152,7 @@ void Nedelec1TetFiniteElement::Project (
 }
 
 RT0HexFiniteElement::RT0HexFiniteElement()
-   : VectorFiniteElement (3, Geometry::CUBE, 6, 1, FunctionSpace::Qk)
+   : VectorFiniteElement(3, Geometry::CUBE, 6, 1, H_DIV, FunctionSpace::Qk)
 {
    // not real nodes ...
    // z = 0, y = 0, x = 1, y = 1, x = 0, z = 1
@@ -4970,11 +5242,11 @@ void RT0HexFiniteElement::GetLocalInterpolation (
       {
          double d = ( vshape(j,0)*nk[k][0] + vshape(j,1)*nk[k][1] +
                       vshape(j,2)*nk[k][2] );
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT0HexFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -5002,7 +5274,9 @@ void RT0HexFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 6; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -5032,7 +5306,7 @@ void RT0HexFiniteElement::Project (
 }
 
 RT1HexFiniteElement::RT1HexFiniteElement()
-   : VectorFiniteElement (3, Geometry::CUBE, 36, 2, FunctionSpace::Qk)
+   : VectorFiniteElement(3, Geometry::CUBE, 36, 2, H_DIV, FunctionSpace::Qk)
 {
    // z = 0
    Nodes.IntPoint(2).x  = 1./3.;
@@ -5357,11 +5631,11 @@ void RT1HexFiniteElement::GetLocalInterpolation (
       {
          double d = ( vshape(j,0)*nk[k][0] + vshape(j,1)*nk[k][1] +
                       vshape(j,2)*nk[k][2] );
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT0HexFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -5389,7 +5663,9 @@ void RT1HexFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 36; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -5419,7 +5695,7 @@ void RT1HexFiniteElement::Project (
 }
 
 RT0TetFiniteElement::RT0TetFiniteElement()
-   : VectorFiniteElement (3, Geometry::TETRAHEDRON, 4, 1)
+   : VectorFiniteElement(3, Geometry::TETRAHEDRON, 4, 1, H_DIV)
 {
    // not real nodes ...
    Nodes.IntPoint(0).x = 0.33333333333333333333;
@@ -5490,11 +5766,11 @@ void RT0TetFiniteElement::GetLocalInterpolation (
       {
          double d = ( vshape(j,0)*nk[k][0] + vshape(j,1)*nk[k][1] +
                       vshape(j,2)*nk[k][2] );
-         if (j == k) d -= 1.0;
+         if (j == k) { d -= 1.0; }
          if (fabs(d) > 1.0e-12)
          {
             cerr << "RT0TetFiniteElement::GetLocalInterpolation (...)\n"
-               " k = " << k << ", j = " << j << ", d = " << d << endl;
+                 " k = " << k << ", j = " << j << ", d = " << d << endl;
             mfem_error();
          }
       }
@@ -5522,7 +5798,9 @@ void RT0TetFiniteElement::GetLocalInterpolation (
       for (j = 0; j < 4; j++)
          if (fabs (I(k,j) = (vshape(j,0)*vk[0]+vshape(j,1)*vk[1]+
                              vshape(j,2)*vk[2])) < 1.0e-12)
+         {
             I(k,j) = 0.0;
+         }
    }
 }
 
@@ -5642,7 +5920,9 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
       {
          CalcBasis(p, nodes[i], x);
          for (int j = 0; j <= p; j++)
+         {
             A(j, i) = x(j);
+         }
       }
 
       A.Invert();
@@ -5660,13 +5940,17 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
             w(j) *= -xij;
          }
       for (int i = 0; i <= p; i++)
+      {
          w(i) = 1.0/w(i);
+      }
 
 #ifdef MFEM_DEBUG
       // Make sure the nodes are increasing
       for (int i = 0; i < p; i++)
          if (x(i) >= x(i+1))
+         {
             mfem_error("Poly_1D::Basis::Basis : nodes are not increasing!");
+         }
 #endif
    }
 }
@@ -5675,7 +5959,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
 {
    if (mode == 0)
    {
-      CalcBasis(A.Size() - 1, y, x);
+      CalcBasis(A.Width() - 1, y, x);
       A.Mult(x, u);
    }
    else
@@ -5692,20 +5976,28 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
       lk = 1.0;
       for (k = 0; k < p; k++)
          if (y >= (x(k) + x(k+1))/2)
+         {
             lk *= y - x(k);
+         }
          else
          {
             for (i = k+1; i <= p; i++)
+            {
                lk *= y - x(i);
+            }
             break;
          }
       l = lk * (y - x(k));
 
       for (i = 0; i < k; i++)
+      {
          u(i) = l * w(i) / (y - x(i));
+      }
       u(k) = lk * w(k);
       for (i++; i <= p; i++)
+      {
          u(i) = l * w(i) / (y - x(i));
+      }
    }
 }
 
@@ -5713,7 +6005,7 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
 {
    if (mode == 0)
    {
-      CalcBasis(A.Size() - 1, y, x, w);
+      CalcBasis(A.Width() - 1, y, x, w);
       A.Mult(x, u);
       A.Mult(w, d);
    }
@@ -5732,11 +6024,15 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
       lk = 1.0;
       for (k = 0; k < p; k++)
          if (y >= (x(k) + x(k+1))/2)
+         {
             lk *= y - x(k);
+         }
          else
          {
             for (i = k+1; i <= p; i++)
+            {
                lk *= y - x(i);
+            }
             break;
          }
       l = lk * (y - x(k));
@@ -5758,10 +6054,14 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
       lp = l * sk + lk;
 
       for (i = 0; i < k; i++)
+      {
          d(i) = (lp * w(i) - u(i))/(y - x(i));
+      }
       d(k) = sk * u(k);
       for (i++; i <= p; i++)
+      {
          d(i) = (lp * w(i) - u(i))/(y - x(i));
+      }
    }
 }
 
@@ -5774,7 +6074,9 @@ const int *Poly_1D::Binom(const int p)
       {
          binom(i,0) = binom(i,i) = 1;
          for (int j = 1; j < i; j++)
+         {
             binom(i,j) = binom(i-1,j) + binom(i-1,j-1);
+         }
       }
    }
    return binom[p];
@@ -5789,7 +6091,9 @@ void Poly_1D::UniformPoints(const int p, double *x)
    else
    {
       for (int i = 0; i <= p; i++)
+      {
          x[i] = double(i)/p;
+      }
    }
 }
 
@@ -5798,7 +6102,9 @@ void Poly_1D::GaussPoints(const int p, double *x)
    int m = (p+1)/2, odd_p = p%2;
 
    if (!odd_p)
+   {
       x[m] = 0.5;
+   }
 
    for (int i = 0; i < m; i++)
    {
@@ -5819,20 +6125,22 @@ void Poly_1D::GaussPoints(const int p, double *x)
             {
                p0 = ((2*n+1)*z*p1 - n*p2)/(n + 1);
                if (n%2 == odd_p)
+               {
                   d0 += (2*n+1)*p1;
-               if (n == p) break;
+               }
+               if (n == p) { break; }
                p2 = p1;
                p1 = p0;
             }
             // d0 = (p + 1)*(z*p0 - p1)/(z*z - 1); // alternative formula
          }
 
-         if (fabs(p0/d0) < 2e-16) break;
+         if (fabs(p0/d0) < 2e-16) { break; }
 
          if (++k == 5)
          {
             std::cout << "Poly_1D::GaussPoints : No convergence!"
-               " p = " << p << ", i = " << i << ", p0/d0 = " << p0/d0
+                      " p = " << p << ", i = " << i << ", p0/d0 = " << p0/d0
                       << std::endl;
             break;
          }
@@ -5859,13 +6167,15 @@ void Poly_1D::GaussLobattoPoints(const int p, double *x)
    {
       x[0] = 0.;
       x[p] = 1.;
-      if (p == 1) return;
+      if (p == 1) { return; }
 
       // x[1],...,x[p-1] are the (shifted) roots of P'_p
       int m = (p - 1)/2, odd_p = p%2;
 
       if (!odd_p)
+      {
          x[m+1] = 0.5;
+      }
       for (int i = 0; i < m; )
       {
          double y, z, d0, s0;
@@ -5896,18 +6206,18 @@ void Poly_1D::GaussLobattoPoints(const int p, double *x)
                   {
                      d1 += (2*n+1)*p1;
                   }
-                  if (n == p - 1) break;
+                  if (n == p - 1) { break; }
                   p2 = p1;
                   p1 = p0;
                }
             }
 
-            if (fabs(d0/s0) < 2e-16) break;
+            if (fabs(d0/s0) < 2e-16) { break; }
 
             if (++k == 6)
             {
                std::cout << "Poly_1D::GaussLobattoPoints : No convergence!"
-                  " p = " << p << ", i = " << i << ", d0/s0 = " << d0/s0
+                         " p = " << p << ", i = " << i << ", d0/s0 = " << d0/s0
                          << std::endl;
                break;
             }
@@ -5938,7 +6248,9 @@ void Poly_1D::CalcMono(const int p, const double x, double *u)
    double xn;
    u[0] = xn = 1.;
    for (int n = 1; n <= p; n++)
+   {
       u[n] = (xn *= x);
+   }
 }
 
 void Poly_1D::CalcMono(const int p, const double x, double *u, double *d)
@@ -6053,7 +6365,7 @@ void Poly_1D::CalcLegendre(const int p, const double x, double *u)
    // (n+1)*P_{n+1}(z) = (2*n+1)*z*P_n(z)-n*P_{n-1}(z)
    double z;
    u[0] = 1.;
-   if (p == 0) return;
+   if (p == 0) { return; }
    u[1] = z = 2.*x - 1.;
    for (int n = 1; n < p; n++)
    {
@@ -6070,7 +6382,7 @@ void Poly_1D::CalcLegendre(const int p, const double x, double *u, double *d)
    double z;
    u[0] = 1.;
    d[0] = 0.;
-   if (p == 0) return;
+   if (p == 0) { return; }
    u[1] = z = 2.*x - 1.;
    d[1] = 2.;
    for (int n = 1; n < p; n++)
@@ -6087,7 +6399,7 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u)
    // T_{n+1}(z) = 2*z*T_n(z) - T_{n-1}(z)
    double z;
    u[0] = 1.;
-   if (p == 0) return;
+   if (p == 0) { return; }
    u[1] = z = 2.*x - 1.;
    for (int n = 1; n < p; n++)
    {
@@ -6108,7 +6420,7 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
    double z;
    u[0] = 1.;
    d[0] = 0.;
-   if (p == 0) return;
+   if (p == 0) { return; }
    u[1] = z = 2.*x - 1.;
    d[1] = 2.;
    for (int n = 1; n < p; n++)
@@ -6127,11 +6439,15 @@ const double *Poly_1D::OpenPoints(const int p)
       int i = open_pts.Size();
       open_pts.SetSize(p + 1);
       for ( ; i < p; i++)
+      {
          open_pts[i] = NULL;
+      }
       goto alloc_open;
    }
    if ((op = open_pts[p]) != NULL)
+   {
       return op;
+   }
 alloc_open:
    open_pts[p] = op = new double[p + 1];
    GaussPoints(p, op);
@@ -6148,11 +6464,15 @@ const double *Poly_1D::ClosedPoints(const int p)
       int i = closed_pts.Size();
       closed_pts.SetSize(p + 1);
       for ( ; i < p; i++)
+      {
          closed_pts[i] = NULL;
+      }
       goto alloc_closed;
    }
    if ((cp = closed_pts[p]) != NULL)
+   {
       return cp;
+   }
 alloc_closed:
    closed_pts[p] = cp = new double[p + 1];
    GaussLobattoPoints(p, cp);
@@ -6169,11 +6489,15 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p)
       int i = open_basis.Size();
       open_basis.SetSize(p + 1);
       for ( ; i < p; i++)
+      {
          open_basis[i] = NULL;
+      }
       goto alloc_obasis;
    }
    if ((ob = open_basis[p]) != NULL)
+   {
       return *ob;
+   }
 alloc_obasis:
    open_basis[p] = ob = new Basis(p, OpenPoints(p));
    return *ob;
@@ -6188,11 +6512,15 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p)
       int i = closed_basis.Size();
       closed_basis.SetSize(p + 1);
       for ( ; i < p; i++)
+      {
          closed_basis[i] = NULL;
+      }
       goto alloc_cbasis;
    }
    if ((cb = closed_basis[p]) != NULL)
+   {
       return *cb;
+   }
 alloc_cbasis:
    closed_basis[p] = cb = new Basis(p, ClosedPoints(p));
    return *cb;
@@ -6201,13 +6529,21 @@ alloc_cbasis:
 Poly_1D::~Poly_1D()
 {
    for (int i = 0; i < open_pts.Size(); i++)
+   {
       delete [] open_pts[i];
+   }
    for (int i = 0; i < closed_pts.Size(); i++)
+   {
       delete [] closed_pts[i];
+   }
    for (int i = 0; i < open_basis.Size(); i++)
+   {
       delete open_basis[i];
+   }
    for (int i = 0; i < closed_basis.Size(); i++)
+   {
       delete closed_basis[i];
+   }
 }
 
 Poly_1D poly1d;
@@ -6228,7 +6564,9 @@ H1_SegmentElement::H1_SegmentElement(const int p)
    Nodes.IntPoint(0).x = cp[0];
    Nodes.IntPoint(1).x = cp[p];
    for (int i = 1; i < p; i++)
+   {
       Nodes.IntPoint(i+1).x = cp[i];
+   }
 }
 
 void H1_SegmentElement::CalcShape(const IntegrationPoint &ip,
@@ -6245,7 +6583,9 @@ void H1_SegmentElement::CalcShape(const IntegrationPoint &ip,
    shape(0) = shape_x(0);
    shape(1) = shape_x(p);
    for (int i = 1; i < p; i++)
+   {
       shape(i+1) = shape_x(i);
+   }
 }
 
 void H1_SegmentElement::CalcDShape(const IntegrationPoint &ip,
@@ -6262,7 +6602,9 @@ void H1_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    dshape(0,0) = dshape_x(0);
    dshape(1,0) = dshape_x(p);
    for (int i = 1; i < p; i++)
+   {
       dshape(i+1,0) = dshape_x(i);
+   }
 }
 
 void H1_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
@@ -6272,19 +6614,23 @@ void H1_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 
    switch (vertex)
    {
-   case 0:
-      dofs(0) = poly1d.CalcDelta(p, (1.0 - cp[0]));
-      dofs(1) = poly1d.CalcDelta(p, (1.0 - cp[p]));
-      for (int i = 1; i < p; i++)
-         dofs(i+1) = poly1d.CalcDelta(p, (1.0 - cp[i]));
-      break;
+      case 0:
+         dofs(0) = poly1d.CalcDelta(p, (1.0 - cp[0]));
+         dofs(1) = poly1d.CalcDelta(p, (1.0 - cp[p]));
+         for (int i = 1; i < p; i++)
+         {
+            dofs(i+1) = poly1d.CalcDelta(p, (1.0 - cp[i]));
+         }
+         break;
 
-   case 1:
-      dofs(0) = poly1d.CalcDelta(p, cp[0]);
-      dofs(1) = poly1d.CalcDelta(p, cp[p]);
-      for (int i = 1; i < p; i++)
-         dofs(i+1) = poly1d.CalcDelta(p, cp[i]);
-      break;
+      case 1:
+         dofs(0) = poly1d.CalcDelta(p, cp[0]);
+         dofs(1) = poly1d.CalcDelta(p, cp[p]);
+         for (int i = 1; i < p; i++)
+         {
+            dofs(i+1) = poly1d.CalcDelta(p, cp[i]);
+         }
+         break;
    }
 }
 
@@ -6314,23 +6660,35 @@ H1_QuadrilateralElement::H1_QuadrilateralElement(const int p)
    // edges
    int o = 4;
    for (int i = 1; i < p; i++)
+   {
       dof_map[i + 0*p1] = o++;
+   }
    for (int i = 1; i < p; i++)
+   {
       dof_map[p + i*p1] = o++;
+   }
    for (int i = 1; i < p; i++)
+   {
       dof_map[(p-i) + p*p1] = o++;
+   }
    for (int i = 1; i < p; i++)
+   {
       dof_map[0 + (p-i)*p1] = o++;
+   }
 
    // interior
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
+      {
          dof_map[i + j*p1] = o++;
+      }
 
    o = 0;
    for (int j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
+      {
          Nodes.IntPoint(dof_map[o++]).Set2(cp[i], cp[j]);
+      }
 }
 
 void H1_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
@@ -6347,7 +6705,9 @@ void H1_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
+      {
          shape(dof_map[o++]) = shape_x(i)*shape_y(j);
+      }
 }
 
 void H1_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
@@ -6387,26 +6747,34 @@ void H1_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 
    switch (vertex)
    {
-   case 0:
-      for (int o = 0, j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-            dofs(dof_map[o++]) = shape_x(i)*shape_x(j);
-      break;
-   case 1:
-      for (int o = 0, j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-            dofs(dof_map[o++]) = shape_y(i)*shape_x(j);
-      break;
-   case 2:
-      for (int o = 0, j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-            dofs(dof_map[o++]) = shape_y(i)*shape_y(j);
-      break;
-   case 3:
-      for (int o = 0, j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-            dofs(dof_map[o++]) = shape_x(i)*shape_y(j);
-      break;
+      case 0:
+         for (int o = 0, j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               dofs(dof_map[o++]) = shape_x(i)*shape_x(j);
+            }
+         break;
+      case 1:
+         for (int o = 0, j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               dofs(dof_map[o++]) = shape_y(i)*shape_x(j);
+            }
+         break;
+      case 2:
+         for (int o = 0, j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               dofs(dof_map[o++]) = shape_y(i)*shape_y(j);
+            }
+         break;
+      case 3:
+         for (int o = 0, j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               dofs(dof_map[o++]) = shape_x(i)*shape_y(j);
+            }
+         break;
    }
 }
 
@@ -6442,61 +6810,101 @@ H1_HexahedronElement::H1_HexahedronElement(const int p)
    // edges (see Hexahedron::edges in mesh/hexahedron.cpp)
    int o = 8;
    for (int i = 1; i < p; i++)
-      dof_map[i + (0 + 0*p1)*p1] = o++;  // (0,1)
+   {
+      dof_map[i + (0 + 0*p1)*p1] = o++;   // (0,1)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[p + (i + 0*p1)*p1] = o++;  // (1,2)
+   {
+      dof_map[p + (i + 0*p1)*p1] = o++;   // (1,2)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[i + (p + 0*p1)*p1] = o++;  // (3,2)
+   {
+      dof_map[i + (p + 0*p1)*p1] = o++;   // (3,2)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[0 + (i + 0*p1)*p1] = o++;  // (0,3)
+   {
+      dof_map[0 + (i + 0*p1)*p1] = o++;   // (0,3)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[i + (0 + p*p1)*p1] = o++;  // (4,5)
+   {
+      dof_map[i + (0 + p*p1)*p1] = o++;   // (4,5)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[p + (i + p*p1)*p1] = o++;  // (5,6)
+   {
+      dof_map[p + (i + p*p1)*p1] = o++;   // (5,6)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[i + (p + p*p1)*p1] = o++;  // (7,6)
+   {
+      dof_map[i + (p + p*p1)*p1] = o++;   // (7,6)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[0 + (i + p*p1)*p1] = o++;  // (4,7)
+   {
+      dof_map[0 + (i + p*p1)*p1] = o++;   // (4,7)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[0 + (0 + i*p1)*p1] = o++;  // (0,4)
+   {
+      dof_map[0 + (0 + i*p1)*p1] = o++;   // (0,4)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[p + (0 + i*p1)*p1] = o++;  // (1,5)
+   {
+      dof_map[p + (0 + i*p1)*p1] = o++;   // (1,5)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[p + (p + i*p1)*p1] = o++;  // (2,6)
+   {
+      dof_map[p + (p + i*p1)*p1] = o++;   // (2,6)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[0 + (p + i*p1)*p1] = o++;  // (3,7)
+   {
+      dof_map[0 + (p + i*p1)*p1] = o++;   // (3,7)
+   }
 
    // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[i + ((p-j) + 0*p1)*p1] = o++;  // (3,2,1,0)
+      {
+         dof_map[i + ((p-j) + 0*p1)*p1] = o++;   // (3,2,1,0)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[i + (0 + j*p1)*p1] = o++;  // (0,1,5,4)
+      {
+         dof_map[i + (0 + j*p1)*p1] = o++;   // (0,1,5,4)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[p + (i + j*p1)*p1] = o++;  // (1,2,6,5)
+      {
+         dof_map[p + (i + j*p1)*p1] = o++;   // (1,2,6,5)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[(p-i) + (p + j*p1)*p1] = o++;  // (2,3,7,6)
+      {
+         dof_map[(p-i) + (p + j*p1)*p1] = o++;   // (2,3,7,6)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[0 + ((p-i) + j*p1)*p1] = o++;  // (3,0,4,7)
+      {
+         dof_map[0 + ((p-i) + j*p1)*p1] = o++;   // (3,0,4,7)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[i + (j + p*p1)*p1] = o++;  // (4,5,6,7)
+      {
+         dof_map[i + (j + p*p1)*p1] = o++;   // (4,5,6,7)
+      }
 
    // interior
    for (int k = 1; k < p; k++)
       for (int j = 1; j < p; j++)
          for (int i = 1; i < p; i++)
+         {
             dof_map[i + (j + k*p1)*p1] = o++;
+         }
 
    o = 0;
    for (int k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
+         {
             Nodes.IntPoint(dof_map[o++]).Set3(cp[i], cp[j], cp[k]);
+         }
 }
 
 void H1_HexahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -6515,7 +6923,9 @@ void H1_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
+         {
             shape(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_z(k);
+         }
 }
 
 void H1_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -6559,60 +6969,76 @@ void H1_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
    switch (vertex)
    {
-   case 0:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_x(k);
-      break;
-   case 1:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_x(k);
-      break;
-   case 2:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_x(k);
-      break;
-   case 3:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_x(k);
-      break;
-   case 4:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_y(k);
-      break;
-   case 5:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_y(k);
-      break;
-   case 6:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_y(k);
-      break;
-   case 7:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_y(k);
-      break;
+      case 0:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_x(k);
+               }
+         break;
+      case 1:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_x(k);
+               }
+         break;
+      case 2:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_x(k);
+               }
+         break;
+      case 3:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_x(k);
+               }
+         break;
+      case 4:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs(dof_map[o++]) = shape_x(i)*shape_x(j)*shape_y(k);
+               }
+         break;
+      case 5:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs(dof_map[o++]) = shape_y(i)*shape_x(j)*shape_y(k);
+               }
+         break;
+      case 6:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs(dof_map[o++]) = shape_y(i)*shape_y(j)*shape_y(k);
+               }
+         break;
+      case 7:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_y(k);
+               }
+         break;
    }
 }
 
 
 H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
-   : FiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
+   : PositiveFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
 {
 #ifndef MFEM_THREAD_SAFE
    // thread private versions; see class header.
@@ -6624,7 +7050,9 @@ H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
    for (int i = 1; i < p; i++)
+   {
       Nodes.IntPoint(i+1).x = double(i)/p;
+   }
 }
 
 void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
@@ -6642,7 +7070,9 @@ void H1Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
    shape(0) = shape_x(0);
    shape(1) = shape_x(p);
    for (int i = 1; i < p; i++)
+   {
       shape(i+1) = shape_x(i);
+   }
 }
 
 void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
@@ -6660,17 +7090,8 @@ void H1Pos_SegmentElement::CalcDShape(const IntegrationPoint &ip,
    dshape(0,0) = dshape_x(0);
    dshape(1,0) = dshape_x(p);
    for (int i = 1; i < p; i++)
-      dshape(i+1,0) = dshape_x(i);
-}
-
-void H1Pos_SegmentElement::Project(
-   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
-{
-   for (int i = 0; i < Dof; i++)
    {
-      const IntegrationPoint &ip = Nodes.IntPoint(i);
-      Trans.SetIntPoint(&ip);
-      dofs(i) = coeff.Eval(Trans, ip);
+      dshape(i+1,0) = dshape_x(i);
    }
 }
 
@@ -6682,7 +7103,8 @@ void H1Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 
 
 H1Pos_QuadrilateralElement::H1Pos_QuadrilateralElement(const int p)
-   : FiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p, FunctionSpace::Qk),
+   : PositiveFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
+                           FunctionSpace::Qk),
      dof_map((p + 1)*(p + 1))
 {
    const int p1 = p + 1;
@@ -6704,23 +7126,35 @@ H1Pos_QuadrilateralElement::H1Pos_QuadrilateralElement(const int p)
    // edges
    int o = 4;
    for (int i = 1; i < p; i++)
+   {
       dof_map[i + 0*p1] = o++;
+   }
    for (int i = 1; i < p; i++)
+   {
       dof_map[p + i*p1] = o++;
+   }
    for (int i = 1; i < p; i++)
+   {
       dof_map[(p-i) + p*p1] = o++;
+   }
    for (int i = 1; i < p; i++)
+   {
       dof_map[0 + (p-i)*p1] = o++;
+   }
 
    // interior
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
+      {
          dof_map[i + j*p1] = o++;
+      }
 
    o = 0;
    for (int j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
+      {
          Nodes.IntPoint(dof_map[o++]).Set2(double(i)/p, double(j)/p);
+      }
 }
 
 void H1Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
@@ -6738,7 +7172,9 @@ void H1Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
    // Reorder so that vertices are at the beginning of the list
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
+      {
          shape(dof_map[o++]) = shape_x(i)*shape_y(j);
+      }
 }
 
 void H1Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
@@ -6762,17 +7198,6 @@ void H1Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
       }
 }
 
-void H1Pos_QuadrilateralElement::Project(
-   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
-{
-   for (int i = 0; i < Dof; i++)
-   {
-      const IntegrationPoint &ip = Nodes.IntPoint(i);
-      Trans.SetIntPoint(&ip);
-      dofs(i) = coeff.Eval(Trans, ip);
-   }
-}
-
 void H1Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    dofs = 0.0;
@@ -6781,8 +7206,8 @@ void H1Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 
 
 H1Pos_HexahedronElement::H1Pos_HexahedronElement(const int p)
-   : FiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
-                   FunctionSpace::Qk),
+   : PositiveFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
+                           FunctionSpace::Qk),
      dof_map((p + 1)*(p + 1)*(p + 1))
 {
    const int p1 = p + 1;
@@ -6810,55 +7235,93 @@ H1Pos_HexahedronElement::H1Pos_HexahedronElement(const int p)
    // edges (see Hexahedron::edges in mesh/hexahedron.cpp)
    int o = 8;
    for (int i = 1; i < p; i++)
-      dof_map[i + (0 + 0*p1)*p1] = o++;  // (0,1)
+   {
+      dof_map[i + (0 + 0*p1)*p1] = o++;   // (0,1)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[p + (i + 0*p1)*p1] = o++;  // (1,2)
+   {
+      dof_map[p + (i + 0*p1)*p1] = o++;   // (1,2)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[i + (p + 0*p1)*p1] = o++;  // (3,2)
+   {
+      dof_map[i + (p + 0*p1)*p1] = o++;   // (3,2)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[0 + (i + 0*p1)*p1] = o++;  // (0,3)
+   {
+      dof_map[0 + (i + 0*p1)*p1] = o++;   // (0,3)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[i + (0 + p*p1)*p1] = o++;  // (4,5)
+   {
+      dof_map[i + (0 + p*p1)*p1] = o++;   // (4,5)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[p + (i + p*p1)*p1] = o++;  // (5,6)
+   {
+      dof_map[p + (i + p*p1)*p1] = o++;   // (5,6)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[i + (p + p*p1)*p1] = o++;  // (7,6)
+   {
+      dof_map[i + (p + p*p1)*p1] = o++;   // (7,6)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[0 + (i + p*p1)*p1] = o++;  // (4,7)
+   {
+      dof_map[0 + (i + p*p1)*p1] = o++;   // (4,7)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[0 + (0 + i*p1)*p1] = o++;  // (0,4)
+   {
+      dof_map[0 + (0 + i*p1)*p1] = o++;   // (0,4)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[p + (0 + i*p1)*p1] = o++;  // (1,5)
+   {
+      dof_map[p + (0 + i*p1)*p1] = o++;   // (1,5)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[p + (p + i*p1)*p1] = o++;  // (2,6)
+   {
+      dof_map[p + (p + i*p1)*p1] = o++;   // (2,6)
+   }
    for (int i = 1; i < p; i++)
-      dof_map[0 + (p + i*p1)*p1] = o++;  // (3,7)
+   {
+      dof_map[0 + (p + i*p1)*p1] = o++;   // (3,7)
+   }
 
    // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[i + ((p-j) + 0*p1)*p1] = o++;  // (3,2,1,0)
+      {
+         dof_map[i + ((p-j) + 0*p1)*p1] = o++;   // (3,2,1,0)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[i + (0 + j*p1)*p1] = o++;  // (0,1,5,4)
+      {
+         dof_map[i + (0 + j*p1)*p1] = o++;   // (0,1,5,4)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[p + (i + j*p1)*p1] = o++;  // (1,2,6,5)
+      {
+         dof_map[p + (i + j*p1)*p1] = o++;   // (1,2,6,5)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[(p-i) + (p + j*p1)*p1] = o++;  // (2,3,7,6)
+      {
+         dof_map[(p-i) + (p + j*p1)*p1] = o++;   // (2,3,7,6)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[0 + ((p-i) + j*p1)*p1] = o++;  // (3,0,4,7)
+      {
+         dof_map[0 + ((p-i) + j*p1)*p1] = o++;   // (3,0,4,7)
+      }
    for (int j = 1; j < p; j++)
       for (int i = 1; i < p; i++)
-         dof_map[i + (j + p*p1)*p1] = o++;  // (4,5,6,7)
+      {
+         dof_map[i + (j + p*p1)*p1] = o++;   // (4,5,6,7)
+      }
 
    // interior
    for (int k = 1; k < p; k++)
       for (int j = 1; j < p; j++)
          for (int i = 1; i < p; i++)
+         {
             dof_map[i + (j + k*p1)*p1] = o++;
+         }
 
    o = 0;
    for (int k = 0; k <= p; k++)
@@ -6884,7 +7347,9 @@ void H1Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
+         {
             shape(dof_map[o++]) = shape_x(i)*shape_y(j)*shape_z(k);
+         }
 }
 
 void H1Pos_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -6909,17 +7374,6 @@ void H1Pos_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
             dshape(dof_map[o],1) =  shape_x(i)*dshape_y(j)* shape_z(k);
             dshape(dof_map[o],2) =  shape_x(i)* shape_y(j)*dshape_z(k);  o++;
          }
-}
-
-void H1Pos_HexahedronElement::Project(
-   Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
-{
-   for (int i = 0; i < Dof; i++)
-   {
-      const IntegrationPoint &ip = Nodes.IntPoint(i);
-      Trans.SetIntPoint(&ip);
-      dofs(i) = coeff.Eval(Trans, ip);
-   }
 }
 
 void H1Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
@@ -6956,11 +7410,17 @@ H1_TriangleElement::H1_TriangleElement(const int p)
    // edges
    int o = 3;
    for (int i = 1; i < p; i++)
+   {
       Nodes.IntPoint(o++).Set2(cp[i], cp[0]);
+   }
    for (int i = 1; i < p; i++)
+   {
       Nodes.IntPoint(o++).Set2(cp[p-i], cp[i]);
+   }
    for (int i = 1; i < p; i++)
+   {
       Nodes.IntPoint(o++).Set2(cp[0], cp[p-i]);
+   }
 
    // interior
    for (int j = 1; j < p; j++)
@@ -6980,7 +7440,9 @@ H1_TriangleElement::H1_TriangleElement(const int p)
       o = 0;
       for (int j = 0; j <= p; j++)
          for (int i = 0; i + j <= p; i++)
+         {
             T(o++, k) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
+         }
    }
 
    T.Invert();
@@ -7002,7 +7464,9 @@ void H1_TriangleElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i + j <= p; i++)
+      {
          u(o++) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
+      }
 
    T.Mult(u, shape);
 }
@@ -7067,17 +7531,29 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p)
    // edges (see Tetrahedron::edges in mesh/tetrahedron.cpp)
    int o = 4;
    for (int i = 1; i < p; i++)  // (0,1)
+   {
       Nodes.IntPoint(o++).Set3(cp[i], cp[0], cp[0]);
+   }
    for (int i = 1; i < p; i++)  // (0,2)
+   {
       Nodes.IntPoint(o++).Set3(cp[0], cp[i], cp[0]);
+   }
    for (int i = 1; i < p; i++)  // (0,3)
+   {
       Nodes.IntPoint(o++).Set3(cp[0], cp[0], cp[i]);
+   }
    for (int i = 1; i < p; i++)  // (1,2)
+   {
       Nodes.IntPoint(o++).Set3(cp[p-i], cp[i], cp[0]);
+   }
    for (int i = 1; i < p; i++)  // (1,3)
+   {
       Nodes.IntPoint(o++).Set3(cp[p-i], cp[0], cp[i]);
+   }
    for (int i = 1; i < p; i++)  // (2,3)
+   {
       Nodes.IntPoint(o++).Set3(cp[0], cp[p-i], cp[i]);
+   }
 
    // faces (see Mesh::GenerateFaces in mesh/mesh.cpp)
    for (int j = 1; j < p; j++)
@@ -7126,7 +7602,9 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p)
       for (int k = 0; k <= p; k++)
          for (int j = 0; j + k <= p; j++)
             for (int i = 0; i + j + k <= p; i++)
+            {
                T(o++, m) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
+            }
    }
 
    T.Invert();
@@ -7151,7 +7629,9 @@ void H1_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j + k <= p; j++)
          for (int i = 0; i + j + k <= p; i++)
+         {
             u(o++) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
+         }
 
    T.Mult(u, shape);
 }
@@ -7198,14 +7678,14 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-   case 0:
-      basis1d = &poly1d.OpenBasis(p);
-      op = poly1d.OpenPoints(p);
-      break;
-   case 1:
-   default:
-      basis1d = &poly1d.ClosedBasis(p);
-      op = poly1d.ClosedPoints(p);
+      case 0:
+         basis1d = &poly1d.OpenBasis(p);
+         op = poly1d.OpenPoints(p);
+         break;
+      case 1:
+      default:
+         basis1d = &poly1d.ClosedBasis(p);
+         op = poly1d.ClosedPoints(p);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -7214,7 +7694,9 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
 #endif
 
    for (int i = 0; i <= p; i++)
+   {
       Nodes.IntPoint(i).x = op[i];
+   }
 }
 
 void L2_SegmentElement::CalcShape(const IntegrationPoint &ip,
@@ -7242,22 +7724,26 @@ void L2_SegmentElement::ProjectDelta(int vertex,
 
    switch (type)
    {
-   case 0: op = poly1d.OpenPoints(p); break;
-   case 1:
-   default: op = poly1d.ClosedPoints(p);
+      case 0: op = poly1d.OpenPoints(p); break;
+      case 1:
+      default: op = poly1d.ClosedPoints(p);
    }
 
    switch (vertex)
    {
-   case 0:
-      for (int i = 0; i <= p; i++)
-         dofs(i) = poly1d.CalcDelta(p,(1.0 - op[i]));
-      break;
+      case 0:
+         for (int i = 0; i <= p; i++)
+         {
+            dofs(i) = poly1d.CalcDelta(p,(1.0 - op[i]));
+         }
+         break;
 
-   case 1:
-      for (int i = 0; i <= p; i++)
-         dofs(i) = poly1d.CalcDelta(p,op[i]);
-      break;
+      case 1:
+         for (int i = 0; i <= p; i++)
+         {
+            dofs(i) = poly1d.CalcDelta(p,op[i]);
+         }
+         break;
    }
 }
 
@@ -7270,8 +7756,17 @@ L2Pos_SegmentElement::L2Pos_SegmentElement(const int p)
    dshape_x.SetDataAndSize(NULL, p + 1);
 #endif
 
-   for (int i = 0; i <= p; i++)
-      Nodes.IntPoint(i).x = double(i)/p;
+   if (p == 0)
+   {
+      Nodes.IntPoint(0).x = 0.5;
+   }
+   else
+   {
+      for (int i = 0; i <= p; i++)
+      {
+         Nodes.IntPoint(i).x = double(i)/p;
+      }
+   }
 }
 
 void L2Pos_SegmentElement::CalcShape(const IntegrationPoint &ip,
@@ -7298,32 +7793,6 @@ void L2Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 }
 
 
-void L2Vol_SegmentElement::GetLocalInterpolation(
-   ElementTransformation &Trans, DenseMatrix &I) const
-{
-   double v[3], w;
-   Vector vv(v, Dim);
-   IntegrationPoint f_ip;
-
-#ifdef MFEM_THREAD_SAFE
-   Vector c_shape(Dof);
-#endif
-
-   // assuming Trans is linear; this should be ok for all refinement types
-   Trans.SetIntPoint(&Geometries.GetCenter(GeomType));
-   w = Trans.Weight();
-   for (int i = 0; i < Dof; i++)
-   {
-      Trans.Transform(Nodes.IntPoint(i), vv);
-      f_ip.Set(v, Dim);
-      CalcShape(f_ip, c_shape);
-      for (int j = 0; j < Dof; j++)
-         if (fabs(I(i,j) = w * c_shape(j)) < 1.0e-12)
-            I(i,j) = 0.0;
-   }
-}
-
-
 L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                         FunctionSpace::Qk)
@@ -7333,14 +7802,14 @@ L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-   case 0:
-      basis1d = &poly1d.OpenBasis(p);
-      op = poly1d.OpenPoints(p);
-      break;
-   case 1:
-   default:
-      basis1d = &poly1d.ClosedBasis(p);
-      op = poly1d.ClosedPoints(p);
+      case 0:
+         basis1d = &poly1d.OpenBasis(p);
+         op = poly1d.OpenPoints(p);
+         break;
+      case 1:
+      default:
+         basis1d = &poly1d.ClosedBasis(p);
+         op = poly1d.ClosedPoints(p);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -7352,7 +7821,9 @@ L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
+      {
          Nodes.IntPoint(o++).Set2(op[i], op[j]);
+      }
 }
 
 void L2_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
@@ -7369,7 +7840,9 @@ void L2_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
+      {
          shape(o++) = shape_x(i)*shape_y(j);
+      }
 }
 
 void L2_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
@@ -7399,9 +7872,9 @@ void L2_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 
    switch (type)
    {
-   case 0: op = poly1d.OpenPoints(p); break;
-   case 1:
-   default: op = poly1d.ClosedPoints(p);
+      case 0: op = poly1d.OpenPoints(p); break;
+      case 1:
+      default: op = poly1d.ClosedPoints(p);
    }
 
 #ifdef MFEM_THREAD_SAFE
@@ -7416,26 +7889,34 @@ void L2_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 
    switch (vertex)
    {
-   case 0:
-      for (int o = 0, j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-            dofs[o++] = shape_x(i)*shape_x(j);
-      break;
-   case 1:
-      for (int o = 0, j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-            dofs[o++] = shape_y(i)*shape_x(j);
-      break;
-   case 2:
-      for (int o = 0, j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-            dofs[o++] = shape_y(i)*shape_y(j);
-      break;
-   case 3:
-      for (int o = 0, j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-            dofs[o++] = shape_x(i)*shape_y(j);
-      break;
+      case 0:
+         for (int o = 0, j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               dofs[o++] = shape_x(i)*shape_x(j);
+            }
+         break;
+      case 1:
+         for (int o = 0, j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               dofs[o++] = shape_y(i)*shape_x(j);
+            }
+         break;
+      case 2:
+         for (int o = 0, j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               dofs[o++] = shape_y(i)*shape_y(j);
+            }
+         break;
+      case 3:
+         for (int o = 0, j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               dofs[o++] = shape_x(i)*shape_y(j);
+            }
+         break;
    }
 }
 
@@ -7451,9 +7932,18 @@ L2Pos_QuadrilateralElement::L2Pos_QuadrilateralElement(const int p)
    dshape_y.SetSize(p + 1);
 #endif
 
-   for (int o = 0, j = 0; j <= p; j++)
-      for (int i = 0; i <= p; i++)
-         Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
+   if (p == 0)
+   {
+      Nodes.IntPoint(0).Set2(0.5, 0.5);
+   }
+   else
+   {
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i <= p; i++)
+         {
+            Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
+         }
+   }
 }
 
 void L2Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
@@ -7470,7 +7960,9 @@ void L2Pos_QuadrilateralElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i <= p; i++)
+      {
          shape(o++) = shape_x(i)*shape_y(j);
+      }
 }
 
 void L2Pos_QuadrilateralElement::CalcDShape(const IntegrationPoint &ip,
@@ -7500,10 +7992,10 @@ void L2Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
    dofs = 0.0;
    switch (vertex)
    {
-   case 0: dofs[0] = 1.0; break;
-   case 1: dofs[p] = 1.0; break;
-   case 2: dofs[p*(p + 2)] = 1.0; break;
-   case 3: dofs[p*(p + 1)] = 1.0; break;
+      case 0: dofs[0] = 1.0; break;
+      case 1: dofs[p] = 1.0; break;
+      case 2: dofs[p*(p + 2)] = 1.0; break;
+      case 3: dofs[p*(p + 1)] = 1.0; break;
    }
 }
 
@@ -7517,14 +8009,14 @@ L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-   case 0:
-      basis1d = &poly1d.OpenBasis(p);
-      op = poly1d.OpenPoints(p);
-      break;
-   case 1:
-   default:
-      basis1d = &poly1d.ClosedBasis(p);
-      op = poly1d.ClosedPoints(p);
+      case 0:
+         basis1d = &poly1d.OpenBasis(p);
+         op = poly1d.OpenPoints(p);
+         break;
+      case 1:
+      default:
+         basis1d = &poly1d.ClosedBasis(p);
+         op = poly1d.ClosedPoints(p);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -7539,7 +8031,9 @@ L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
+         {
             Nodes.IntPoint(o++).Set3(op[i], op[j], op[k]);
+         }
 }
 
 void L2_HexahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -7558,7 +8052,9 @@ void L2_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
+         {
             shape(o++) = shape_x(i)*shape_y(j)*shape_z(k);
+         }
 }
 
 void L2_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -7592,9 +8088,9 @@ void L2_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
    switch (type)
    {
-   case 0: op = poly1d.OpenPoints(p); break;
-   case 1:
-   default: op = poly1d.ClosedPoints(p);
+      case 0: op = poly1d.OpenPoints(p); break;
+      case 1:
+      default: op = poly1d.ClosedPoints(p);
    }
 
 #ifdef MFEM_THREAD_SAFE
@@ -7609,54 +8105,70 @@ void L2_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
    switch (vertex)
    {
-   case 0:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs[o++] = shape_x(i)*shape_x(j)*shape_x(k);
-      break;
-   case 1:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs[o++] = shape_y(i)*shape_x(j)*shape_x(k);
-      break;
-   case 2:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs[o++] = shape_y(i)*shape_y(j)*shape_x(k);
-      break;
-   case 3:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs[o++] = shape_x(i)*shape_y(j)*shape_x(k);
-      break;
-   case 4:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs[o++] = shape_x(i)*shape_x(j)*shape_y(k);
-      break;
-   case 5:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs[o++] = shape_y(i)*shape_x(j)*shape_y(k);
-      break;
-   case 6:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs[o++] = shape_y(i)*shape_y(j)*shape_y(k);
-      break;
-   case 7:
-      for (int o = 0, k = 0; k <= p; k++)
-         for (int j = 0; j <= p; j++)
-            for (int i = 0; i <= p; i++)
-               dofs[o++] = shape_x(i)*shape_y(j)*shape_y(k);
-      break;
+      case 0:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs[o++] = shape_x(i)*shape_x(j)*shape_x(k);
+               }
+         break;
+      case 1:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs[o++] = shape_y(i)*shape_x(j)*shape_x(k);
+               }
+         break;
+      case 2:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs[o++] = shape_y(i)*shape_y(j)*shape_x(k);
+               }
+         break;
+      case 3:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs[o++] = shape_x(i)*shape_y(j)*shape_x(k);
+               }
+         break;
+      case 4:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs[o++] = shape_x(i)*shape_x(j)*shape_y(k);
+               }
+         break;
+      case 5:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs[o++] = shape_y(i)*shape_x(j)*shape_y(k);
+               }
+         break;
+      case 6:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs[o++] = shape_y(i)*shape_y(j)*shape_y(k);
+               }
+         break;
+      case 7:
+         for (int o = 0, k = 0; k <= p; k++)
+            for (int j = 0; j <= p; j++)
+               for (int i = 0; i <= p; i++)
+               {
+                  dofs[o++] = shape_x(i)*shape_y(j)*shape_y(k);
+               }
+         break;
    }
 }
 
@@ -7674,10 +8186,19 @@ L2Pos_HexahedronElement::L2Pos_HexahedronElement(const int p)
    dshape_z.SetSize(p + 1);
 #endif
 
-   for (int o = 0, k = 0; k <= p; k++)
-      for (int j = 0; j <= p; j++)
-         for (int i = 0; i <= p; i++)
-            Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p);
+   if (p == 0)
+   {
+      Nodes.IntPoint(0).Set3(0.5, 0.5, 0.5);
+   }
+   else
+   {
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j <= p; j++)
+            for (int i = 0; i <= p; i++)
+            {
+               Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p);
+            }
+   }
 }
 
 void L2Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -7696,7 +8217,9 @@ void L2Pos_HexahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
+         {
             shape(o++) = shape_x(i)*shape_y(j)*shape_z(k);
+         }
 }
 
 void L2Pos_HexahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -7730,14 +8253,14 @@ void L2Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
    dofs = 0.0;
    switch (vertex)
    {
-   case 0: dofs[0] = 1.0; break;
-   case 1: dofs[p] = 1.0; break;
-   case 2: dofs[p*(p + 2)] = 1.0; break;
-   case 3: dofs[p*(p + 1)] = 1.0; break;
-   case 4: dofs[p*(p + 1)*(p + 1)] = 1.0; break;
-   case 5: dofs[p + p*(p + 1)*(p + 1)] = 1.0; break;
-   case 6: dofs[Dof - 1] = 1.0; break;
-   case 7: dofs[Dof - p - 1] = 1.0; break;
+      case 0: dofs[0] = 1.0; break;
+      case 1: dofs[p] = 1.0; break;
+      case 2: dofs[p*(p + 2)] = 1.0; break;
+      case 3: dofs[p*(p + 1)] = 1.0; break;
+      case 4: dofs[p*(p + 1)*(p + 1)] = 1.0; break;
+      case 5: dofs[p + p*(p + 1)*(p + 1)] = 1.0; break;
+      case 6: dofs[Dof - 1] = 1.0; break;
+      case 7: dofs[Dof - p - 1] = 1.0; break;
    }
 }
 
@@ -7751,9 +8274,9 @@ L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-   case 0: op = poly1d.OpenPoints(p); break;
-   case 1:
-   default: op = poly1d.ClosedPoints(p);
+      case 0: op = poly1d.OpenPoints(p); break;
+      case 1:
+      default: op = poly1d.ClosedPoints(p);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -7785,7 +8308,9 @@ L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
 
       for (int o = 0, j = 0; j <= p; j++)
          for (int i = 0; i + j <= p; i++)
+         {
             T(o++, k) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
+         }
    }
 
    T.Invert();
@@ -7807,7 +8332,9 @@ void L2_TriangleElement::CalcShape(const IntegrationPoint &ip,
 
    for (int o = 0, j = 0; j <= p; j++)
       for (int i = 0; i + j <= p; i++)
+      {
          u(o++) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
+      }
 
    T.Mult(u, shape);
 }
@@ -7845,27 +8372,27 @@ void L2_TriangleElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    switch (vertex)
    {
-   case 0:
-      for (int i = 0; i < Dof; i++)
-      {
-         const IntegrationPoint &ip = Nodes.IntPoint(i);
-         dofs[i] = pow(1.0 - ip.x - ip.y, Order);
-      }
-      break;
-   case 1:
-      for (int i = 0; i < Dof; i++)
-      {
-         const IntegrationPoint &ip = Nodes.IntPoint(i);
-         dofs[i] = pow(ip.x, Order);
-      }
-      break;
-   case 2:
-      for (int i = 0; i < Dof; i++)
-      {
-         const IntegrationPoint &ip = Nodes.IntPoint(i);
-         dofs[i] = pow(ip.y, Order);
-      }
-      break;
+      case 0:
+         for (int i = 0; i < Dof; i++)
+         {
+            const IntegrationPoint &ip = Nodes.IntPoint(i);
+            dofs[i] = pow(1.0 - ip.x - ip.y, Order);
+         }
+         break;
+      case 1:
+         for (int i = 0; i < Dof; i++)
+         {
+            const IntegrationPoint &ip = Nodes.IntPoint(i);
+            dofs[i] = pow(ip.x, Order);
+         }
+         break;
+      case 2:
+         for (int i = 0; i < Dof; i++)
+         {
+            const IntegrationPoint &ip = Nodes.IntPoint(i);
+            dofs[i] = pow(ip.y, Order);
+         }
+         break;
    }
 }
 
@@ -7878,11 +8405,18 @@ L2Pos_TriangleElement::L2Pos_TriangleElement(const int p)
    dshape_1d.SetSize(p + 1);
 #endif
 
-   for (int o = 0, j = 0; j <= p; j++)
-      for (int i = 0; i + j <= p; i++)
-      {
-         Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
-      }
+   if (p == 0)
+   {
+      Nodes.IntPoint(0).Set2(1./3, 1./3);
+   }
+   else
+   {
+      for (int o = 0, j = 0; j <= p; j++)
+         for (int i = 0; i + j <= p; i++)
+         {
+            Nodes.IntPoint(o++).Set2(double(i)/p, double(j)/p);
+         }
+   }
 }
 
 void L2Pos_TriangleElement::CalcShape(const IntegrationPoint &ip,
@@ -7904,7 +8438,9 @@ void L2Pos_TriangleElement::CalcShape(const IntegrationPoint &ip,
       Poly_1D::CalcBinomTerms(p - j, l1, l3, &shape(o));
       double s = bp[j]*z;
       for (int i = 0; i <= p - j; i++)
+      {
          shape(o++) *= s;
+      }
       z *= l2;
    }
 }
@@ -7926,7 +8462,9 @@ void L2Pos_TriangleElement::CalcDShape(const IntegrationPoint &ip,
       Poly_1D::CalcDBinomTerms(p - j, l1, l3, dshape_1d);
       double s = bp[j]*z;
       for (int i = 0; i <= p - j; i++)
+      {
          dshape(o++,0) = s*dshape_1d(i);
+      }
       z *= l2;
    }
    z = 1.;
@@ -7948,9 +8486,9 @@ void L2Pos_TriangleElement::ProjectDelta(int vertex, Vector &dofs) const
    dofs = 0.0;
    switch (vertex)
    {
-   case 0: dofs[0] = 1.0; break;
-   case 1: dofs[Order] = 1.0; break;
-   case 2: dofs[Dof-1] = 1.0; break;
+      case 0: dofs[0] = 1.0; break;
+      case 1: dofs[Order] = 1.0; break;
+      case 2: dofs[Dof-1] = 1.0; break;
    }
 }
 
@@ -7964,9 +8502,9 @@ L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-   case 0: op = poly1d.OpenPoints(p); break;
-   case 1:
-   default: op = poly1d.ClosedPoints(p);
+      case 0: op = poly1d.OpenPoints(p); break;
+      case 1:
+      default: op = poly1d.ClosedPoints(p);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8003,7 +8541,9 @@ L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
       for (int o = 0, k = 0; k <= p; k++)
          for (int j = 0; j + k <= p; j++)
             for (int i = 0; i + j + k <= p; i++)
+            {
                T(o++, m) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
+            }
    }
 
    T.Invert();
@@ -8028,7 +8568,9 @@ void L2_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
    for (int o = 0, k = 0; k <= p; k++)
       for (int j = 0; j + k <= p; j++)
          for (int i = 0; i + j + k <= p; i++)
+         {
             u(o++) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
+         }
 
    T.Mult(u, shape);
 }
@@ -8070,33 +8612,33 @@ void L2_TetrahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 {
    switch (vertex)
    {
-   case 0:
-      for (int i = 0; i < Dof; i++)
-      {
-         const IntegrationPoint &ip = Nodes.IntPoint(i);
-         dofs[i] = pow(1.0 - ip.x - ip.y - ip.z, Order);
-      }
-      break;
-   case 1:
-      for (int i = 0; i < Dof; i++)
-      {
-         const IntegrationPoint &ip = Nodes.IntPoint(i);
-         dofs[i] = pow(ip.x, Order);
-      }
-      break;
-   case 2:
-      for (int i = 0; i < Dof; i++)
-      {
-         const IntegrationPoint &ip = Nodes.IntPoint(i);
-         dofs[i] = pow(ip.y, Order);
-      }
-   case 3:
-      for (int i = 0; i < Dof; i++)
-      {
-         const IntegrationPoint &ip = Nodes.IntPoint(i);
-         dofs[i] = pow(ip.z, Order);
-      }
-      break;
+      case 0:
+         for (int i = 0; i < Dof; i++)
+         {
+            const IntegrationPoint &ip = Nodes.IntPoint(i);
+            dofs[i] = pow(1.0 - ip.x - ip.y - ip.z, Order);
+         }
+         break;
+      case 1:
+         for (int i = 0; i < Dof; i++)
+         {
+            const IntegrationPoint &ip = Nodes.IntPoint(i);
+            dofs[i] = pow(ip.x, Order);
+         }
+         break;
+      case 2:
+         for (int i = 0; i < Dof; i++)
+         {
+            const IntegrationPoint &ip = Nodes.IntPoint(i);
+            dofs[i] = pow(ip.y, Order);
+         }
+      case 3:
+         for (int i = 0; i < Dof; i++)
+         {
+            const IntegrationPoint &ip = Nodes.IntPoint(i);
+            dofs[i] = pow(ip.z, Order);
+         }
+         break;
    }
 }
 
@@ -8109,12 +8651,19 @@ L2Pos_TetrahedronElement::L2Pos_TetrahedronElement(const int p)
    dshape_1d.SetSize(p + 1);
 #endif
 
-   for (int o = 0, k = 0; k <= p; k++)
-      for (int j = 0; j + k <= p; j++)
-         for (int i = 0; i + j + k <= p; i++)
-         {
-            Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p);
-         }
+   if (p == 0)
+   {
+      Nodes.IntPoint(0).Set3(0.25, 0.25, 0.25);
+   }
+   else
+   {
+      for (int o = 0, k = 0; k <= p; k++)
+         for (int j = 0; j + k <= p; j++)
+            for (int i = 0; i + j + k <= p; i++)
+            {
+               Nodes.IntPoint(o++).Set3(double(i)/p, double(j)/p, double(k)/p);
+            }
+   }
 }
 
 void L2Pos_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -8140,7 +8689,9 @@ void L2Pos_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
          Poly_1D::CalcBinomTerms(p - k - j, l1, l4, &shape(o));
          double ekj = ek*bpk[j]*l2j;
          for (int i = 0; i <= p - k - j; i++)
+         {
             shape(o++) *= ekj;
+         }
          l2j *= l2;
       }
       l3k *= l3;
@@ -8173,7 +8724,9 @@ void L2Pos_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
          Poly_1D::CalcDBinomTerms(p - k - j, l1, l4, dshape_1d);
          double ekj = ek*bpk[j]*l2j;
          for (int i = 0; i <= p - k - j; i++)
+         {
             dshape(o++,0) = dshape_1d(i)*ekj;
+         }
          l2j *= l2;
       }
       l3k *= l3;
@@ -8239,10 +8792,10 @@ void L2Pos_TetrahedronElement::ProjectDelta(int vertex, Vector &dofs) const
    dofs = 0.0;
    switch (vertex)
    {
-   case 0: dofs[0] = 1.0; break;
-   case 1: dofs[Order] = 1.0; break;
-   case 2: dofs[(Order*(Order+3))/2] = 1.0; break;
-   case 3: dofs[Dof-1] = 1.0; break;
+      case 0: dofs[0] = 1.0; break;
+      case 1: dofs[Order] = 1.0; break;
+      case 2: dofs[(Order*(Order+3))/2] = 1.0; break;
+      case 3: dofs[Dof-1] = 1.0; break;
    }
 }
 
@@ -8252,7 +8805,7 @@ const double RT_QuadrilateralElement::nk[8] =
 
 RT_QuadrilateralElement::RT_QuadrilateralElement(const int p)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1,
-                         FunctionSpace::Qk),
+                         H_DIV, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p + 1)), obasis1d(poly1d.OpenBasis(p)),
      dof_map(Dof), dof2nk(Dof)
 {
@@ -8272,21 +8825,33 @@ RT_QuadrilateralElement::RT_QuadrilateralElement(const int p)
    // edges
    int o = 0;
    for (int i = 0; i <= p; i++)  // (0,1)
+   {
       dof_map[1*dof2 + i + 0*(p + 1)] = o++;
+   }
    for (int i = 0; i <= p; i++)  // (1,2)
+   {
       dof_map[0*dof2 + (p + 1) + i*(p + 2)] = o++;
+   }
    for (int i = 0; i <= p; i++)  // (2,3)
+   {
       dof_map[1*dof2 + (p - i) + (p + 1)*(p + 1)] = o++;
+   }
    for (int i = 0; i <= p; i++)  // (3,0)
+   {
       dof_map[0*dof2 + 0 + (p - i)*(p + 2)] = o++;
+   }
 
    // interior
    for (int j = 0; j <= p; j++)  // x-components
       for (int i = 1; i <= p; i++)
+      {
          dof_map[0*dof2 + i + j*(p + 2)] = o++;
+      }
    for (int j = 1; j <= p; j++)  // y-components
       for (int i = 0; i <= p; i++)
+      {
          dof_map[1*dof2 + i + j*(p + 1)] = o++;
+      }
 
    // dof orientations
    // x-components
@@ -8369,9 +8934,13 @@ void RT_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
+         {
             idx = -1 - idx, s = -1;
+         }
          else
+         {
             s = +1;
+         }
          shape(idx,0) = s*shape_cx(i)*shape_oy(j);
          shape(idx,1) = 0.;
       }
@@ -8380,9 +8949,13 @@ void RT_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
+         {
             idx = -1 - idx, s = -1;
+         }
          else
+         {
             s = +1;
+         }
          shape(idx,0) = 0.;
          shape(idx,1) = s*shape_ox(i)*shape_cy(j);
       }
@@ -8409,9 +8982,13 @@ void RT_QuadrilateralElement::CalcDivShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
+         {
             idx = -1 - idx, s = -1;
+         }
          else
+         {
             s = +1;
+         }
          divshape(idx) = s*dshape_cx(i)*shape_oy(j);
       }
    for (int j = 0; j <= pp1; j++)
@@ -8419,9 +8996,13 @@ void RT_QuadrilateralElement::CalcDivShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
+         {
             idx = -1 - idx, s = -1;
+         }
          else
+         {
             s = +1;
+         }
          divshape(idx) = s*shape_ox(i)*dshape_cy(j);
       }
 }
@@ -8432,7 +9013,7 @@ const double RT_HexahedronElement::nk[18] =
 
 RT_HexahedronElement::RT_HexahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::CUBE, 3*(p + 1)*(p + 1)*(p + 2), p + 1,
-                         FunctionSpace::Qk),
+                         H_DIV, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p + 1)), obasis1d(poly1d.OpenBasis(p)),
      dof_map(Dof), dof2nk(Dof)
 {
@@ -8456,39 +9037,57 @@ RT_HexahedronElement::RT_HexahedronElement(const int p)
    int o = 0;
    for (int j = 0; j <= p; j++)  // (3,2,1,0) -- bottom
       for (int i = 0; i <= p; i++)
+      {
          dof_map[2*dof3 + i + ((p - j) + 0*(p + 1))*(p + 1)] = o++;
+      }
    for (int j = 0; j <= p; j++)  // (0,1,5,4) -- front
       for (int i = 0; i <= p; i++)
+      {
          dof_map[1*dof3 + i + (0 + j*(p + 2))*(p + 1)] = o++;
+      }
    for (int j = 0; j <= p; j++)  // (1,2,6,5) -- right
       for (int i = 0; i <= p; i++)
+      {
          dof_map[0*dof3 + (p + 1) + (i + j*(p + 1))*(p + 2)] = o++;
+      }
    for (int j = 0; j <= p; j++)  // (2,3,7,6) -- back
       for (int i = 0; i <= p; i++)
+      {
          dof_map[1*dof3 + (p - i) + ((p + 1) + j*(p + 2))*(p + 1)] = o++;
+      }
    for (int j = 0; j <= p; j++)  // (3,0,4,7) -- left
       for (int i = 0; i <= p; i++)
+      {
          dof_map[0*dof3 + 0 + ((p - i) + j*(p + 1))*(p + 2)] = o++;
+      }
    for (int j = 0; j <= p; j++)  // (4,5,6,7) -- top
       for (int i = 0; i <= p; i++)
+      {
          dof_map[2*dof3 + i + (j + (p + 1)*(p + 1))*(p + 1)] = o++;
+      }
 
    // interior
    // x-components
    for (int k = 0; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 1; i <= p; i++)
+         {
             dof_map[0*dof3 + i + (j + k*(p + 1))*(p + 2)] = o++;
+         }
    // y-components
    for (int k = 0; k <= p; k++)
       for (int j = 1; j <= p; j++)
          for (int i = 0; i <= p; i++)
+         {
             dof_map[1*dof3 + i + (j + k*(p + 2))*(p + 1)] = o++;
+         }
    // z-components
    for (int k = 1; k <= p; k++)
       for (int j = 0; j <= p; j++)
          for (int i = 0; i <= p; i++)
+         {
             dof_map[2*dof3 + i + (j + k*(p + 1))*(p + 1)] = o++;
+         }
 
    // dof orientations
    // for odd p, do not change the orientations in the mid-planes
@@ -8598,9 +9197,13 @@ void RT_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             shape(idx,0) = s*shape_cx(i)*shape_oy(j)*shape_oz(k);
             shape(idx,1) = 0.;
             shape(idx,2) = 0.;
@@ -8612,9 +9215,13 @@ void RT_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             shape(idx,0) = 0.;
             shape(idx,1) = s*shape_ox(i)*shape_cy(j)*shape_oz(k);
             shape(idx,2) = 0.;
@@ -8626,9 +9233,13 @@ void RT_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             shape(idx,0) = 0.;
             shape(idx,1) = 0.;
             shape(idx,2) = s*shape_ox(i)*shape_oy(j)*shape_cz(k);
@@ -8661,9 +9272,13 @@ void RT_HexahedronElement::CalcDivShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             divshape(idx) = s*dshape_cx(i)*shape_oy(j)*shape_oz(k);
          }
    // y-components
@@ -8673,9 +9288,13 @@ void RT_HexahedronElement::CalcDivShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             divshape(idx) = s*shape_ox(i)*dshape_cy(j)*shape_oz(k);
          }
    // z-components
@@ -8685,9 +9304,13 @@ void RT_HexahedronElement::CalcDivShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             divshape(idx) = s*shape_ox(i)*shape_oy(j)*dshape_cz(k);
          }
 }
@@ -8700,7 +9323,7 @@ const double RT_TriangleElement::c = 1./3.;
 
 RT_TriangleElement::RT_TriangleElement(const int p)
    : VectorFiniteElement(2, Geometry::TRIANGLE, (p + 1)*(p + 3), p + 1,
-                         FunctionSpace::Pk), dof2nk(Dof), T(Dof)
+                         H_DIV, FunctionSpace::Pk), dof2nk(Dof), T(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
    const double *bop = poly1d.OpenPoints(p);
@@ -8849,7 +9472,7 @@ const double RT_TetrahedronElement::c = 1./4.;
 
 RT_TetrahedronElement::RT_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, (p + 1)*(p + 2)*(p + 4)/2,
-                         p + 1, FunctionSpace::Pk), dof2nk(Dof), T(Dof)
+                         p + 1, H_DIV, FunctionSpace::Pk), dof2nk(Dof), T(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
    const double *bop = poly1d.OpenPoints(p);
@@ -9031,7 +9654,7 @@ const double ND_HexahedronElement::tk[18] =
 
 ND_HexahedronElement::ND_HexahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::CUBE, 3*p*(p + 1)*(p + 1), p,
-                         FunctionSpace::Qk),
+                         H_CURL, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p)), obasis1d(poly1d.OpenBasis(p - 1)),
      dof_map(Dof), dof2tk(Dof)
 {
@@ -9054,90 +9677,144 @@ ND_HexahedronElement::ND_HexahedronElement(const int p)
    // edges
    int o = 0;
    for (int i = 0; i < p; i++)  // (0,1)
+   {
       dof_map[0*dof3 + i + (0 + 0*(p + 1))*p] = o++;
+   }
    for (int i = 0; i < p; i++)  // (1,2)
+   {
       dof_map[1*dof3 + p + (i + 0*p)*(p + 1)] = o++;
+   }
    for (int i = 0; i < p; i++)  // (3,2)
+   {
       dof_map[0*dof3 + i + (p + 0*(p + 1))*p] = o++;
+   }
    for (int i = 0; i < p; i++)  // (0,3)
+   {
       dof_map[1*dof3 + 0 + (i + 0*p)*(p + 1)] = o++;
+   }
    for (int i = 0; i < p; i++)  // (4,5)
+   {
       dof_map[0*dof3 + i + (0 + p*(p + 1))*p] = o++;
+   }
    for (int i = 0; i < p; i++)  // (5,6)
+   {
       dof_map[1*dof3 + p + (i + p*p)*(p + 1)] = o++;
+   }
    for (int i = 0; i < p; i++)  // (7,6)
+   {
       dof_map[0*dof3 + i + (p + p*(p + 1))*p] = o++;
+   }
    for (int i = 0; i < p; i++)  // (4,7)
+   {
       dof_map[1*dof3 + 0 + (i + p*p)*(p + 1)] = o++;
+   }
    for (int i = 0; i < p; i++)  // (0,4)
+   {
       dof_map[2*dof3 + 0 + (0 + i*(p + 1))*(p + 1)] = o++;
+   }
    for (int i = 0; i < p; i++)  // (1,5)
+   {
       dof_map[2*dof3 + p + (0 + i*(p + 1))*(p + 1)] = o++;
+   }
    for (int i = 0; i < p; i++)  // (2,6)
+   {
       dof_map[2*dof3 + p + (p + i*(p + 1))*(p + 1)] = o++;
+   }
    for (int i = 0; i < p; i++)  // (3,7)
+   {
       dof_map[2*dof3 + 0 + (p + i*(p + 1))*(p + 1)] = o++;
+   }
 
    // faces
    // (3,2,1,0) -- bottom
    for (int j = 1; j < p; j++) // x - components
       for (int i = 0; i < p; i++)
+      {
          dof_map[0*dof3 + i + ((p - j) + 0*(p + 1))*p] = o++;
+      }
    for (int j = 0; j < p; j++) // y - components
       for (int i = 1; i < p; i++)
+      {
          dof_map[1*dof3 + i + ((p - 1 - j) + 0*p)*(p + 1)] = -1 - (o++);
+      }
    // (0,1,5,4) -- front
    for (int k = 1; k < p; k++) // x - components
       for (int i = 0; i < p; i++)
+      {
          dof_map[0*dof3 + i + (0 + k*(p + 1))*p] = o++;
+      }
    for (int k = 0; k < p; k++) // z - components
       for (int i = 1; i < p; i++ )
+      {
          dof_map[2*dof3 + i + (0 + k*(p + 1))*(p + 1)] = o++;
+      }
    // (1,2,6,5) -- right
    for (int k = 1; k < p; k++) // y - components
       for (int j = 0; j < p; j++)
+      {
          dof_map[1*dof3 + p + (j + k*p)*(p + 1)] = o++;
+      }
    for (int k = 0; k < p; k++) // z - components
       for (int j = 1; j < p; j++)
+      {
          dof_map[2*dof3 + p + (j + k*(p + 1))*(p + 1)] = o++;
+      }
    // (2,3,7,6) -- back
    for (int k = 1; k < p; k++) // x - components
       for (int i = 0; i < p; i++)
+      {
          dof_map[0*dof3 + (p - 1 - i) + (p + k*(p + 1))*p] = -1 - (o++);
+      }
    for (int k = 0; k < p; k++) // z - components
       for (int i = 1; i < p; i++)
+      {
          dof_map[2*dof3 + (p - i) + (p + k*(p + 1))*(p + 1)] = o++;
+      }
    // (3,0,4,7) -- left
    for (int k = 1; k < p; k++) // y - components
       for (int j = 0; j < p; j++)
+      {
          dof_map[1*dof3 + 0 + ((p - 1 - j) + k*p)*(p + 1)] = -1 - (o++);
+      }
    for (int k = 0; k < p; k++) // z - components
       for (int j = 1; j < p; j++)
+      {
          dof_map[2*dof3 + 0 + ((p - j) + k*(p + 1))*(p + 1)] = o++;
+      }
    // (4,5,6,7) -- top
    for (int j = 1; j < p; j++) // x - components
       for (int i = 0; i < p; i++)
+      {
          dof_map[0*dof3 + i + (j + p*(p + 1))*p] = o++;
+      }
    for (int j = 0; j < p; j++) // y - components
       for (int i = 1; i < p; i++)
+      {
          dof_map[1*dof3 + i + (j + p*p)*(p + 1)] = o++;
+      }
 
    // interior
    // x-components
    for (int k = 1; k < p; k++)
       for (int j = 1; j < p; j++)
          for (int i = 0; i < p; i++)
+         {
             dof_map[0*dof3 + i + (j + k*(p + 1))*p] = o++;
+         }
    // y-components
    for (int k = 1; k < p; k++)
       for (int j = 0; j < p; j++)
          for (int i = 1; i < p; i++)
+         {
             dof_map[1*dof3 + i + (j + k*p)*(p + 1)] = o++;
+         }
    // z-components
    for (int k = 0; k < p; k++)
       for (int j = 1; j < p; j++)
          for (int i = 1; i < p; i++)
+         {
             dof_map[2*dof3 + i + (j + k*(p + 1))*(p + 1)] = o++;
+         }
 
    // set dof2tk and Nodes
    o = 0;
@@ -9148,9 +9825,13 @@ ND_HexahedronElement::ND_HexahedronElement(const int p)
          {
             int idx;
             if ((idx = dof_map[o++]) < 0)
+            {
                dof2tk[idx = -1 - idx] = 3;
+            }
             else
+            {
                dof2tk[idx] = 0;
+            }
             Nodes.IntPoint(idx).Set3(op[i], cp[j], cp[k]);
          }
    // y-components
@@ -9160,9 +9841,13 @@ ND_HexahedronElement::ND_HexahedronElement(const int p)
          {
             int idx;
             if ((idx = dof_map[o++]) < 0)
+            {
                dof2tk[idx = -1 - idx] = 4;
+            }
             else
+            {
                dof2tk[idx] = 1;
+            }
             Nodes.IntPoint(idx).Set3(cp[i], op[j], cp[k]);
          }
    // z-components
@@ -9172,9 +9857,13 @@ ND_HexahedronElement::ND_HexahedronElement(const int p)
          {
             int idx;
             if ((idx = dof_map[o++]) < 0)
+            {
                dof2tk[idx = -1 - idx] = 5;
+            }
             else
+            {
                dof2tk[idx] = 2;
+            }
             Nodes.IntPoint(idx).Set3(cp[i], cp[j], op[k]);
          }
 }
@@ -9204,9 +9893,13 @@ void ND_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             shape(idx,0) = s*shape_ox(i)*shape_cy(j)*shape_cz(k);
             shape(idx,1) = 0.;
             shape(idx,2) = 0.;
@@ -9218,9 +9911,13 @@ void ND_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             shape(idx,0) = 0.;
             shape(idx,1) = s*shape_cx(i)*shape_oy(j)*shape_cz(k);
             shape(idx,2) = 0.;
@@ -9232,9 +9929,13 @@ void ND_HexahedronElement::CalcVShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             shape(idx,0) = 0.;
             shape(idx,1) = 0.;
             shape(idx,2) = s*shape_cx(i)*shape_cy(j)*shape_oz(k);
@@ -9267,9 +9968,13 @@ void ND_HexahedronElement::CalcCurlShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             curl_shape(idx,0) = 0.;
             curl_shape(idx,1) =  s*shape_ox(i)* shape_cy(j)*dshape_cz(k);
             curl_shape(idx,2) = -s*shape_ox(i)*dshape_cy(j)* shape_cz(k);
@@ -9281,9 +9986,13 @@ void ND_HexahedronElement::CalcCurlShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             curl_shape(idx,0) = -s* shape_cx(i)*shape_oy(j)*dshape_cz(k);
             curl_shape(idx,1) = 0.;
             curl_shape(idx,2) =  s*dshape_cx(i)*shape_oy(j)* shape_cz(k);
@@ -9295,9 +10004,13 @@ void ND_HexahedronElement::CalcCurlShape(const IntegrationPoint &ip,
          {
             int idx, s;
             if ((idx = dof_map[o++]) < 0)
+            {
                idx = -1 - idx, s = -1;
+            }
             else
+            {
                s = +1;
+            }
             curl_shape(idx,0) =   s* shape_cx(i)*dshape_cy(j)*shape_oz(k);
             curl_shape(idx,1) =  -s*dshape_cx(i)* shape_cy(j)*shape_oz(k);
             curl_shape(idx,2) = 0.;
@@ -9310,7 +10023,7 @@ const double ND_QuadrilateralElement::tk[8] =
 
 ND_QuadrilateralElement::ND_QuadrilateralElement(const int p)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p,
-                         FunctionSpace::Qk),
+                         H_CURL, FunctionSpace::Qk),
      cbasis1d(poly1d.ClosedBasis(p)), obasis1d(poly1d.OpenBasis(p - 1)),
      dof_map(Dof), dof2tk(Dof)
 {
@@ -9330,23 +10043,35 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p)
    // edges
    int o = 0;
    for (int i = 0; i < p; i++)  // (0,1)
+   {
       dof_map[0*dof2 + i + 0*p] = o++;
+   }
    for (int j = 0; j < p; j++)  // (1,2)
+   {
       dof_map[1*dof2 + p + j*(p + 1)] = o++;
+   }
    for (int i = 0; i < p; i++)  // (2,3)
+   {
       dof_map[0*dof2 + (p - 1 - i) + p*p] = -1 - (o++);
+   }
    for (int j = 0; j < p; j++)  // (3,0)
+   {
       dof_map[1*dof2 + 0 + (p - 1 - j)*(p + 1)] = -1 - (o++);
+   }
 
    // interior
    // x-components
    for (int j = 1; j < p; j++)
       for (int i = 0; i < p; i++)
+      {
          dof_map[0*dof2 + i + j*p] = o++;
+      }
    // y-components
    for (int j = 0; j < p; j++)
       for (int i = 1; i < p; i++)
+      {
          dof_map[1*dof2 + i + j*(p + 1)] = o++;
+      }
 
    // set dof2tk and Nodes
    o = 0;
@@ -9356,9 +10081,13 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p)
       {
          int idx;
          if ((idx = dof_map[o++]) < 0)
+         {
             dof2tk[idx = -1 - idx] = 2;
+         }
          else
+         {
             dof2tk[idx] = 0;
+         }
          Nodes.IntPoint(idx).Set2(op[i], cp[j]);
       }
    // y-components
@@ -9367,9 +10096,13 @@ ND_QuadrilateralElement::ND_QuadrilateralElement(const int p)
       {
          int idx;
          if ((idx = dof_map[o++]) < 0)
+         {
             dof2tk[idx = -1 - idx] = 3;
+         }
          else
+         {
             dof2tk[idx] = 1;
+         }
          Nodes.IntPoint(idx).Set2(cp[i], op[j]);
       }
 }
@@ -9395,9 +10128,13 @@ void ND_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
+         {
             idx = -1 - idx, s = -1;
+         }
          else
+         {
             s = +1;
+         }
          shape(idx,0) = s*shape_ox(i)*shape_cy(j);
          shape(idx,1) = 0.;
       }
@@ -9407,9 +10144,13 @@ void ND_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
       {
          int idx, s;
          if ((idx = dof_map[o++]) < 0)
+         {
             idx = -1 - idx, s = -1;
+         }
          else
+         {
             s = +1;
+         }
          shape(idx,0) = 0.;
          shape(idx,1) = s*shape_cx(i)*shape_oy(j);
       }
@@ -9429,7 +10170,7 @@ const double ND_TetrahedronElement::c = 1./4.;
 
 ND_TetrahedronElement::ND_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, p*(p + 2)*(p + 3)/2, p,
-                         FunctionSpace::Pk), dof2tk(Dof), T(Dof)
+                         H_CURL, FunctionSpace::Pk), dof2tk(Dof), T(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *fop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;
@@ -9690,7 +10431,7 @@ const double ND_TriangleElement::c = 1./3.;
 
 ND_TriangleElement::ND_TriangleElement(const int p)
    : VectorFiniteElement(2, Geometry::TRIANGLE, p*(p + 2), p,
-                         FunctionSpace::Pk), dof2tk(Dof), T(Dof)
+                         H_CURL, FunctionSpace::Pk), dof2tk(Dof), T(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *iop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;
@@ -9757,7 +10498,7 @@ ND_TriangleElement::ND_TriangleElement(const int p)
          }
       for (int j = 0; j <= pm1; j++)
       {
-         T(n++ ,m) =
+         T(n++, m) =
             shape_x(pm1-j)*shape_y(j)*((ip.y - c)*tm[0] - (ip.x - c)*tm[1]);
       }
    }
@@ -9794,6 +10535,7 @@ void ND_TriangleElement::CalcVShape(const IntegrationPoint &ip,
       double s = shape_x(pm1-j)*shape_y(j);
       u(n,0) =  s*(ip.y - c);
       u(n,1) = -s*(ip.x - c);
+      n++;
    }
 
    Mult(T, u, shape);
@@ -9813,7 +10555,9 @@ void NURBS1DFiniteElement::CalcShape(const IntegrationPoint &ip,
 
    double sum = 0.0;
    for (int i = 0; i <= Order; i++)
+   {
       sum += (shape(i) *= weights(i));
+   }
 
    shape /= sum;
 }
@@ -9959,4 +10703,6 @@ void NURBS3DFiniteElement::CalcDShape(const IntegrationPoint &ip,
       dshape(o,1) = dshape(o,1)*sum - u(o)*dsum[1];
       dshape(o,2) = dshape(o,2)*sum - u(o)*dsum[2];
    }
+}
+
 }

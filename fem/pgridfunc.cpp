@@ -9,9 +9,17 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config/config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+#include <iostream>
+#include <limits>
+using namespace std;
+
+namespace mfem
+{
 
 ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf)
 {
@@ -25,13 +33,33 @@ ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, HypreParVector *tv)
    Distribute(tv);
 }
 
-ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf)
+ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf,
+                                 int * partitioning)
 {
    // duplicate the FiniteElementCollection from 'gf'
    fec = FiniteElementCollection::New(gf->FESpace()->FEColl()->Name());
    fes = pfes = new ParFiniteElementSpace(pmesh, fec, gf->FESpace()->GetVDim(),
                                           gf->FESpace()->GetOrdering());
    SetSize(pfes->GetVSize());
+
+   if (partitioning)
+   {
+      Array<int> gvdofs, lvdofs;
+      Vector lnodes;
+      int element_counter = 0;
+      Mesh & mesh(*gf->FESpace()->GetMesh());
+      int MyRank;
+      MPI_Comm_rank(pfes->GetComm(), &MyRank);
+      for (int i = 0; i < mesh.GetNE(); i++)
+         if (partitioning[i] == MyRank)
+         {
+            pfes->GetElementVDofs(element_counter, lvdofs);
+            gf->FESpace()->GetElementVDofs(i, gvdofs);
+            gf->GetSubVector(gvdofs, lnodes);
+            SetSubVector(lvdofs, lnodes);
+            element_counter++;
+         }
+   }
 }
 
 void ParGridFunction::Update(ParFiniteElementSpace *f)
@@ -60,16 +88,20 @@ void ParGridFunction::GetTrueDofs(Vector &tv) const
    {
       int tdof = pfes->GetLocalTDofNumber(i);
       if (tdof >= 0)
+      {
          tv(tdof) = (*this)(i);
+      }
    }
 #else
    hypre_ParCSRMatrix *P = *pfes->Dof_TrueDof_Matrix();
    hypre_CSRMatrix *diag = hypre_ParCSRMatrixDiag(P);
-   int *I = hypre_CSRMatrixI(diag) + 1;
-   int *J = hypre_CSRMatrixJ(diag);
+   HYPRE_Int *I = hypre_CSRMatrixI(diag) + 1;
+   HYPRE_Int *J = hypre_CSRMatrixJ(diag);
    for (int i = 0, j = 0; i < size; i++)
       if (j < I[i])
-         tv(J[j++]) = (*this)(i);
+      {
+         tv(internal::to_int(J[j++])) = (*this)(i);
+      }
 #endif
 }
 
@@ -78,6 +110,12 @@ HypreParVector *ParGridFunction::GetTrueDofs() const
    HypreParVector *tv = pfes->NewTrueDofVector();
    GetTrueDofs(*tv);
    return tv;
+}
+
+void ParGridFunction::ParallelAverage(Vector &tv) const
+{
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
+   pfes->DivideByGroupSize(tv);
 }
 
 void ParGridFunction::ParallelAverage(HypreParVector &tv) const
@@ -91,6 +129,11 @@ HypreParVector *ParGridFunction::ParallelAverage() const
    HypreParVector *tv = pfes->NewTrueDofVector();
    ParallelAverage(*tv);
    return tv;
+}
+
+void ParGridFunction::ParallelAssemble(Vector &tv) const
+{
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(*this, tv);
 }
 
 void ParGridFunction::ParallelAssemble(HypreParVector &tv) const
@@ -110,7 +153,9 @@ void ParGridFunction::ExchangeFaceNbrData()
    pfes->ExchangeFaceNbrData();
 
    if (pfes->GetFaceNbrVSize() <= 0)
+   {
       return;
+   }
 
    ParMesh *pmesh = pfes->GetParMesh();
 
@@ -119,7 +164,7 @@ void ParGridFunction::ExchangeFaceNbrData()
 
    int *send_offset = pfes->send_face_nbr_ldof.GetI();
    int *send_ldof = pfes->send_face_nbr_ldof.GetJ();
-   int *recv_offset = pfes->face_nbr_gdof.GetI();
+   int *recv_offset = pfes->face_nbr_ldof.GetI();
    MPI_Comm MyComm = pfes->GetComm();
 
    int num_face_nbrs = pmesh->GetNFaceNeighbors();
@@ -129,7 +174,9 @@ void ParGridFunction::ExchangeFaceNbrData()
    MPI_Status  *statuses = new MPI_Status[num_face_nbrs];
 
    for (int i = 0; i < send_data.Size(); i++)
+   {
       send_data[i] = data[send_ldof[i]];
+   }
 
    for (int fn = 0; fn < num_face_nbrs; fn++)
    {
@@ -153,7 +200,7 @@ void ParGridFunction::ExchangeFaceNbrData()
 }
 
 double ParGridFunction::GetValue(int i, const IntegrationPoint &ip, int vdim)
-   const
+const
 {
    Array<int> dofs;
    Vector DofVal, LocVec;
@@ -209,49 +256,24 @@ void ParGridFunction::ProjectCoefficient(Coefficient &coeff)
    }
 }
 
-double ParGridFunction::GlobalLpNorm(const double p, double loc_norm) const
-{
-   double glob_norm;
-
-   if (p < numeric_limits<double>::infinity())
-   {
-      // negative quadrature weights may cause the error to be negative
-      if (loc_norm < 0.)
-         loc_norm = -pow(-loc_norm, p);
-      else
-         loc_norm = pow(loc_norm, p);
-
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM,
-                    pfes->GetComm());
-
-      if (glob_norm < 0.)
-         glob_norm = -pow(-glob_norm, 1./p);
-      else
-         glob_norm = pow(glob_norm, 1./p);
-   }
-   else
-   {
-      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX,
-                    pfes->GetComm());
-   }
-
-   return glob_norm;
-}
-
-void ParGridFunction::Save(ostream &out)
+void ParGridFunction::Save(std::ostream &out) const
 {
    for (int i = 0; i < size; i++)
       if (pfes->GetDofSign(i) < 0)
+      {
          data[i] = -data[i];
+      }
 
    GridFunction::Save(out);
 
    for (int i = 0; i < size; i++)
       if (pfes->GetDofSign(i) < 0)
+      {
          data[i] = -data[i];
+      }
 }
 
-void ParGridFunction::SaveAsOne(ostream &out)
+void ParGridFunction::SaveAsOne(std::ostream &out)
 {
    int i, p;
 
@@ -295,7 +317,9 @@ void ParGridFunction::SaveAsOne(ostream &out)
       int vdim = pfes -> GetVDim();
 
       for (p = 0; p < NRanks; p++)
+      {
          nrdofs[p] = nv[p]/vdim - nvdofs[p] - nedofs[p] - nfdofs[p];
+      }
 
       if (pfes->GetOrdering() == Ordering::byNODES)
       {
@@ -303,19 +327,27 @@ void ParGridFunction::SaveAsOne(ostream &out)
          {
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nvdofs[p]; i++)
+               {
                   out << *values[p]++ << '\n';
+               }
 
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nedofs[p]; i++)
+               {
                   out << *values[p]++ << '\n';
+               }
 
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nfdofs[p]; i++)
+               {
                   out << *values[p]++ << '\n';
+               }
 
             for (p = 0; p < NRanks; p++)
                for (i = 0; i < nrdofs[p]; i++)
+               {
                   out << *values[p]++ << '\n';
+               }
          }
       }
       else
@@ -323,22 +355,30 @@ void ParGridFunction::SaveAsOne(ostream &out)
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nvdofs[p]; i++)
                for (int d = 0; d < vdim; d++)
+               {
                   out << *values[p]++ << '\n';
+               }
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nedofs[p]; i++)
                for (int d = 0; d < vdim; d++)
+               {
                   out << *values[p]++ << '\n';
+               }
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nfdofs[p]; i++)
                for (int d = 0; d < vdim; d++)
+               {
                   out << *values[p]++ << '\n';
+               }
 
          for (p = 0; p < NRanks; p++)
             for (i = 0; i < nrdofs[p]; i++)
                for (int d = 0; d < vdim; d++)
+               {
                   out << *values[p]++ << '\n';
+               }
       }
 
       for (p = 1; p < NRanks; p++)
@@ -362,6 +402,43 @@ void ParGridFunction::SaveAsOne(ostream &out)
    delete [] nedofs;
    delete [] nfdofs;
    delete [] nrdofs;
+}
+
+double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm)
+{
+   double glob_norm;
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // negative quadrature weights may cause the error to be negative
+      if (loc_norm < 0.0)
+      {
+         loc_norm = -pow(-loc_norm, p);
+      }
+      else
+      {
+         loc_norm = pow(loc_norm, p);
+      }
+
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+
+      if (glob_norm < 0.0)
+      {
+         glob_norm = -pow(-glob_norm, 1.0/p);
+      }
+      else
+      {
+         glob_norm = pow(glob_norm, 1.0/p);
+      }
+   }
+   else
+   {
+      MPI_Allreduce(&loc_norm, &glob_norm, 1, MPI_DOUBLE, MPI_MAX, comm);
+   }
+
+   return glob_norm;
+}
+
 }
 
 #endif

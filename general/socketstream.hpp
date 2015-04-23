@@ -12,7 +12,11 @@
 #ifndef MFEM_SOCKETSTREAM
 #define MFEM_SOCKETSTREAM
 
+#include "../config/config.hpp"
 #include <iostream>
+
+namespace mfem
+{
 
 class socketbuf : public std::streambuf
 {
@@ -87,7 +91,13 @@ public:
    {
       int err = __buf.open(hostname, port);
       if (err)
+      {
          setstate(std::ios::failbit);
+      }
+      else
+      {
+         clear();
+      }
       return err;
    }
 
@@ -115,5 +125,7 @@ public:
 
    ~socketserver() { close(); }
 };
+
+}
 
 #endif
