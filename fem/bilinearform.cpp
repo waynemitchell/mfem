@@ -259,12 +259,47 @@ void BilinearForm::Mult (const Vector & x, Vector & y) const
       // Begin by multiplying the block diagonal portion element by element
 
       int vdim = fes->GetVDim();
-      const int * pr_offset = fes->GetPrivateOffsets();
+      int npr  = fes->GetNPrDofs();
+      const int * pr_offsets = fes->GetPrivateOffsets();
+
+      Vector v1,v2;
 
       for (int i=0; i<fes->GetNE(); i++)
       {
-	mat_pp[i]->Mult(&(*v1_p)[vdim*pr_offset[i]],
-			&(*v2_p)[vdim*pr_offset[i]]);
+	 if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
+	 {
+	    int size = mat_pp[i]->Size();
+	    v1.SetSize(size);
+	    v2.SetSize(size);
+
+	    int jj = 0;
+	    for (int dj=0; dj<vdim; dj++)
+	    {
+	       for (int j=pr_offsets[i]; j<pr_offsets[i+1]; j++)
+	       {
+		  v1(jj) = (*v1_p)(dj*npr+j);
+		  jj++;
+	       }
+	    }
+
+	    mat_pp[i]->Mult(v1,v2);
+
+	    jj = 0;
+	    for (int dj=0; dj<vdim; dj++)
+	    {
+	       for (int j=pr_offsets[i]; j<pr_offsets[i+1]; j++)
+	       {
+		  (*v2_p)(dj*npr+j) = v2(jj);
+		  jj++;
+	       }
+	    }
+
+	 }
+	 else
+	 {
+	    mat_pp[i]->Mult(&(*v1_p)[vdim*pr_offsets[i]],
+			    &(*v2_p)[vdim*pr_offsets[i]]);
+	 }
       }
 
       // Finish by multiplying the off-diagonal block
@@ -343,16 +378,49 @@ Vector *
 BilinearForm::RHS_R(const Vector & rhs_e, const Vector & rhs_p) const
 {
    int vdim = fes->GetVDim();
-   const int * pr_offset = fes->GetPrivateOffsets();
+   int npr  = fes->GetNPrDofs();
+   const int * pr_offsets = fes->GetPrivateOffsets();
 
    Vector v1,v2;
 
    for (int i=0; i<fes->GetNE(); i++)
    {
       int size = mat_pp_inv[i]->Size();
-      v1.SetDataAndSize(&rhs_p.GetData()[vdim*pr_offset[i]],size);
-      v2.SetDataAndSize(&(tmp_p->GetData())[vdim*pr_offset[i]],size);
+      if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
+      {
+	v1.SetSize(size);
+	v2.SetSize(size);
+
+	int jj = 0;
+	for (int dj=0; dj<vdim; dj++)
+	{
+	   for (int j=pr_offsets[i]; j<pr_offsets[i+1]; j++)
+	   {
+	      v1(jj) = (*tmp_p)(dj*npr+j);
+	      jj++;
+	   }
+	}
+      }
+      else
+      {
+	 v1.SetDataAndSize(&rhs_p.GetData()[vdim*pr_offsets[i]],size);
+	 v2.SetDataAndSize(&(tmp_p->GetData())[vdim*pr_offsets[i]],size);
+      }
+
       mat_pp_inv[i]->Mult(v1,v2);
+
+      if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
+      {
+	int jj = 0;
+	for (int dj=0; dj<vdim; dj++)
+	{
+	   for (int j=pr_offsets[i]; j<pr_offsets[i+1]; j++)
+	   {
+	     (*v2_p)(dj*npr+j) = v2(jj);
+	      jj++;
+	   }
+	}
+      }
    }
 
    Vector * rhs_r = new Vector(fes->GetExVSize());
@@ -360,10 +428,6 @@ BilinearForm::RHS_R(const Vector & rhs_e, const Vector & rhs_p) const
    rhs_r->Set(1.0,rhs_e);
 
    mat_ep->AddMult(*tmp_p,*rhs_r,-1.0);
-
-   std::ofstream ofs("rhs_r");
-   rhs_r->Print(ofs,1);
-   ofs.close();
 
    return rhs_r;
 }
@@ -388,6 +452,7 @@ BilinearForm::UpdatePrivateDoFs(const Vector &rhs, Vector &sol) const
    }
 
    int vdim = fes->GetVDim();
+   int npr  = fes->GetNPrDofs();
    const int * pr_offsets = fes->GetPrivateOffsets();
 
    Vector v1,v2;
@@ -395,10 +460,51 @@ BilinearForm::UpdatePrivateDoFs(const Vector &rhs, Vector &sol) const
    for (int i=0; i<fes->GetNE(); i++)
    {
       int size = mat_pp_inv[i]->Size();
-      v1.SetDataAndSize(&tmp_p->GetData()[vdim*pr_offsets[i]],size);
-      v2.SetDataAndSize(&(*v2_p)[vdim*pr_offsets[i]],size);
+      if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
+      {
+	 v1.SetSize(size);
+	 v2.SetSize(size);
 
+	 int jj = 0;
+	 for (int dj=0; dj<vdim; dj++)
+	 {
+	    for (int j=pr_offsets[i]; j<pr_offsets[i+1]; j++)
+	    {
+	       v1(jj) = (*tmp_p)(dj*npr+j);
+	       jj++;
+	    }
+	 }
+      }
+      else
+      {
+ 	 v1.SetDataAndSize(&tmp_p->GetData()[vdim*pr_offsets[i]],size);
+	 v2.SetDataAndSize(&(*v2_p)[vdim*pr_offsets[i]],size);
+      }
+      /*
+      v1.SetDataAndSize(&tmp_p->GetData()[vdim*pr_offsets[i]],size);
+      if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
+      {
+	 v2.SetSize(size);
+      }
+      else
+      {
+	 v2.SetDataAndSize(&(*v2_p)[vdim*pr_offsets[i]],size);
+      }
+      */
       mat_pp_inv[i]->Mult(v1,v2);
+
+      if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
+      {
+	int jj = 0;
+	for (int dj=0; dj<vdim; dj++)
+	{
+	   for (int j=pr_offsets[i]; j<pr_offsets[i+1]; j++)
+	   {
+	     (*v2_p)(dj*npr+j) = v2(jj);
+	      jj++;
+	   }
+	}
+      }
    }
 
    if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
@@ -425,11 +531,6 @@ void BilinearForm::Finalize (int skip_zeros)
       {
 	 mat_pe -> Finalize (skip_zeros);
       }
-
-      std::ofstream ofs("Mat_rr.mat");
-      // (*mat_pp)[0].Print(ofs,1);
-      mat_rr->Print(ofs,1);
-      ofs.close();
    }
    if (mat_e)
    {
@@ -552,6 +653,8 @@ void BilinearForm::Assemble(int skip_zeros)
 	 if ( mat_pe != NULL )
 	   *mat_pe = 0.0;
 
+	 int npr = fes->GetNPrDofs();
+
 	 for (i = 0; i < fes -> GetNE(); i++)
 	 {
 	    int vdim = fes->GetVDim();
@@ -636,9 +739,10 @@ void BilinearForm::Assemble(int skip_zeros)
 	    if ( fes->GetOrdering() == Ordering::byNODES )
 	    {
 	      for (int ii=0; ii<vdofs.Size(); ii++)
-		for (int jj=0; jj<vdim*npri; jj++)
-		  mat_ep->Add(vdofs[ii],vdim*pr_offset+jj,
-			      mep(ii,jj));
+		for (int dj=0; dj<vdim; dj++)
+		  for (int jj=0; jj<npri; jj++)
+		    mat_ep->Add(vdofs[ii],npr*dj+pr_offset+jj,
+				mep(ii,npri*dj+jj));
 	    }
 	    else
 	    {
@@ -653,10 +757,11 @@ void BilinearForm::Assemble(int skip_zeros)
 	    {
 	      if ( fes->GetOrdering() == Ordering::byNODES )
 	      {
-		for (int ii=0; ii<vdim*npri; ii++)
-		  for (int jj=0; jj<vdofs.Size(); jj++)
-		    mat_pe->Add(vdim*pr_offset+ii,vdofs[jj],
-				mpe(ii,jj));
+		 for (int di=0; di<vdim; di++)
+		   for (int ii=0; ii<npri; ii++)
+		     for (int jj=0; jj<vdofs.Size(); jj++)
+		       mat_pe->Add(npr*di+pr_offset+ii,vdofs[jj],
+				   mpe(npri*di+ii,jj));
 	      }
 	      else
 	      {
