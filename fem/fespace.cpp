@@ -259,6 +259,12 @@ void FiniteElementSpace::GetBdrElementVDofs (int iE, Array<int> &dofs) const
    DofsToVDofs (dofs);
 }
 
+void FiniteElementSpace::GetBdrElementExVDofs (int iE, Array<int> &dofs) const
+{
+   GetBdrElementDofs(iE, dofs);
+   ExDofsToExVDofs (dofs);
+}
+
 void FiniteElementSpace::GetFaceVDofs (int iF, Array<int> &dofs) const
 {
    GetFaceDofs (iF, dofs);
@@ -549,6 +555,31 @@ void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
       if (bdr_attr_is_ess[GetBdrAttribute(i)-1])
       {
          GetBdrElementVDofs(i, vdofs);
+         for (j = 0; j < vdofs.Size(); j++)
+            if ( (k = vdofs[j]) >= 0 )
+            {
+               ess_dofs[k] = -1;
+            }
+            else
+            {
+               ess_dofs[-1-k] = -1;
+            }
+      }
+}
+
+void FiniteElementSpace::GetEssentialExVDofs(const Array<int> &bdr_attr_is_ess,
+					     Array<int> &ess_dofs) const
+{
+   int i, j, k;
+   Array<int> vdofs;
+
+   ess_dofs.SetSize(GetExVSize());
+   ess_dofs = 0;
+
+   for (i = 0; i < GetNBE(); i++)
+      if (bdr_attr_is_ess[GetBdrAttribute(i)-1])
+      {
+         GetBdrElementExVDofs(i, vdofs);
          for (j = 0; j < vdofs.Size(); j++)
             if ( (k = vdofs[j]) >= 0 )
             {

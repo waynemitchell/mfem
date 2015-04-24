@@ -320,6 +320,9 @@ public:
    /// Returns indexes of degrees of freedom for i'th boundary element.
    void GetBdrElementVDofs(int i, Array<int> &dofs) const;
 
+   /// Returns indexes of degrees of freedom for i'th boundary element.
+   void GetBdrElementExVDofs(int i, Array<int> &dofs) const;
+
    /// Returns indexes of degrees of freedom for i'th face element (2D and 3D).
    void GetFaceVDofs(int iF, Array<int> &dofs) const;
 
@@ -366,6 +369,10 @@ public:
    /// Determine the boundary degrees of freedom
    virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
                                   Array<int> &ess_dofs) const;
+
+   /// Determine the boundary degrees of freedom
+   virtual void GetEssentialExVDofs(const Array<int> &bdr_attr_is_ess,
+				    Array<int> &ess_dofs) const;
 
    /** For a partially conforming FE space, convert a marker array (negative
        entries are true) on the partially conforming dofs to a marker array on
