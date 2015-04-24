@@ -86,8 +86,8 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParMesh *pm,
    else
    {
       ConstructTrueDofs();
+      ConstructTrueExDofs();
    }
-
    GenerateGlobalOffsets();
 
    num_face_nbr_dofs = -1;
@@ -236,7 +236,152 @@ void ParFiniteElementSpace::GetGroupComm(
 
       group_ldof.GetI()[gr+1] = group_ldof_counter;
    }
+   gc.Finalize();
+}
 
+void ParFiniteElementSpace::GetExGroupComm(
+   GroupCommunicator &gc, int ldof_type, Array<int> *lexdof_sign)
+{
+   int gr;
+   int ng = pmesh->GetNGroups();
+   int nvd, ned, nfd;
+   Array<int> dofs;
+
+   int group_lexdof_counter;
+   Table &group_lexdof = gc.GroupLDofTable();
+
+   nvd = fec->DofForGeometry(Geometry::POINT);
+   ned = fec->DofForGeometry(Geometry::SEGMENT);
+   nfd = (fdofs) ? (fdofs[1]-fdofs[0]) : (0);
+
+   if (lexdof_sign)
+   {
+      lexdof_sign->SetSize(GetNExDofs());
+      *lexdof_sign = 1;
+   }
+
+   // count the number of ldofs in all groups (excluding the local group 0)
+   group_lexdof_counter = 0;
+   for (gr = 1; gr < ng; gr++)
+   {
+      group_lexdof_counter += nvd * pmesh->GroupNVertices(gr);
+      group_lexdof_counter += ned * pmesh->GroupNEdges(gr);
+      group_lexdof_counter += nfd * pmesh->GroupNFaces(gr);
+   }
+   if (ldof_type)
+   {
+      group_lexdof_counter *= vdim;
+   }
+   // allocate the I and J arrays in group_ldof
+   group_lexdof.SetDims(ng, group_lexdof_counter);
+
+   // build the full group_ldof table
+   group_lexdof_counter = 0;
+   group_lexdof.GetI()[0] = group_lexdof.GetI()[1] = 0;
+   for (gr = 1; gr < ng; gr++)
+   {
+      int j, k, l, m, o, nv, ne, nf;
+      const int *ind;
+
+      nv = pmesh->GroupNVertices(gr);
+      ne = pmesh->GroupNEdges(gr);
+      nf = pmesh->GroupNFaces(gr);
+
+      // vertices
+      if (nvd > 0)
+         for (j = 0; j < nv; j++)
+         {
+            k = pmesh->GroupVertex(gr, j);
+
+            dofs.SetSize(nvd);
+            m = nvd * k;
+            for (l = 0; l < nvd; l++, m++)
+            {
+               dofs[l] = m;
+            }
+
+            if (ldof_type)
+            {
+               ExDofsToExVDofs(dofs);
+            }
+
+            for (l = 0; l < dofs.Size(); l++)
+            {
+               group_lexdof.GetJ()[group_lexdof_counter++] = dofs[l];
+            }
+         }
+
+      // edges
+      if (ned > 0)
+         for (j = 0; j < ne; j++)
+         {
+            pmesh->GroupEdge(gr, j, k, o);
+
+            dofs.SetSize(ned);
+            m = nvdofs+k*ned;
+            ind = fec->DofOrderForOrientation(Geometry::SEGMENT, o);
+            for (l = 0; l < ned; l++)
+               if (ind[l] < 0)
+               {
+                  dofs[l] = m + (-1-ind[l]);
+                  if (lexdof_sign)
+                  {
+                     (*lexdof_sign)[dofs[l]] = -1;
+                  }
+               }
+               else
+               {
+                  dofs[l] = m + ind[l];
+               }
+
+            if (ldof_type)
+            {
+               ExDofsToExVDofs(dofs);
+            }
+
+            for (l = 0; l < dofs.Size(); l++)
+            {
+               group_lexdof.GetJ()[group_lexdof_counter++] = dofs[l];
+            }
+         }
+
+      // faces
+      if (nfd > 0)
+         for (j = 0; j < nf; j++)
+         {
+            pmesh->GroupFace(gr, j, k, o);
+
+            dofs.SetSize(nfd);
+            m = nvdofs+nedofs+fdofs[k];
+            ind = fec->DofOrderForOrientation(
+                     mesh->GetFaceBaseGeometry(k), o);
+            for (l = 0; l < nfd; l++)
+               if (ind[l] < 0)
+               {
+                  dofs[l] = m + (-1-ind[l]);
+                  if (lexdof_sign)
+                  {
+                     (*lexdof_sign)[dofs[l]] = -1;
+                  }
+               }
+               else
+               {
+                  dofs[l] = m + ind[l];
+               }
+
+            if (ldof_type)
+            {
+               ExDofsToExVDofs(dofs);
+            }
+
+            for (l = 0; l < dofs.Size(); l++)
+            {
+               group_lexdof.GetJ()[group_lexdof_counter++] = dofs[l];
+            }
+         }
+
+      group_lexdof.GetI()[gr+1] = group_lexdof_counter;
+   }
    gc.Finalize();
 }
 
@@ -957,7 +1102,7 @@ void ParFiniteElementSpace::Lose_Dof_TrueDof_Matrix()
 
 void ParFiniteElementSpace::ConstructTrueDofs()
 {
-   int i, gr, n = GetVSize(), nex = GetExVSize();
+  int i, gr, n = GetVSize();
    GroupTopology &gt = pmesh->gtopo;
    gcomm = new GroupCommunicator(gt);
    Table &group_ldof = gcomm->GroupLDofTable();
@@ -969,12 +1114,8 @@ void ParFiniteElementSpace::ConstructTrueDofs()
    //   -2 for ldof that is in a group with another master
    ldof_group.SetSize(n);
    ldof_ltdof.SetSize(n);
-   lexdof_group.SetSize(nex);
-   lexdof_ltexdof.SetSize(nex);
    ldof_group = 0;
    ldof_ltdof = -1;
-   lexdof_group = 0;
-   lexdof_ltexdof = -1;
 
    for (gr = 1; gr < group_ldof.Size(); gr++)
    {
@@ -983,14 +1124,12 @@ void ParFiniteElementSpace::ConstructTrueDofs()
       for (i = 0; i < nldofs; i++)
       {
          ldof_group[ldofs[i]] = gr;
-         lexdof_group[ldofs[i]] = gr;
       }
 
       if (!gt.IAmMaster(gr)) // we are not the master
          for (i = 0; i < nldofs; i++)
          {
             ldof_ltdof[ldofs[i]] = -2;
-            lexdof_ltexdof[ldofs[i]] = -2;
          }
    }
 
@@ -1002,6 +1141,43 @@ void ParFiniteElementSpace::ConstructTrueDofs()
          ldof_ltdof[i] = ltdof_size++;
       }
 
+   // have the group masters broadcast their ltdofs to the rest of the group
+   gcomm->Bcast(ldof_ltdof);
+}
+
+void ParFiniteElementSpace::ConstructTrueExDofs()
+{
+   int i, gr, nex = GetExVSize();
+   GroupTopology &gt = pmesh->gtopo;
+   exgcomm = new GroupCommunicator(gt);
+   Table &group_ldof = exgcomm->GroupLDofTable();
+
+   GetExGroupComm(*exgcomm, 1, &lexdof_sign);
+
+   // Define ldof_group and mark ldof_ltdof with
+   //   -1 for ldof that is ours
+   //   -2 for ldof that is in a group with another master
+   lexdof_group.SetSize(nex);
+   lexdof_ltexdof.SetSize(nex);
+   lexdof_group = 0;
+   lexdof_ltexdof = -1;
+
+   for (gr = 1; gr < group_ldof.Size(); gr++)
+   {
+      const int *ldofs = group_ldof.GetRow(gr);
+      const int nldofs = group_ldof.RowSize(gr);
+      for (i = 0; i < nldofs; i++)
+      {
+         lexdof_group[ldofs[i]] = gr;
+      }
+      if (!gt.IAmMaster(gr)) // we are not the master
+         for (i = 0; i < nldofs; i++)
+         {
+            lexdof_ltexdof[ldofs[i]] = -2;
+         }
+   }
+
+   // count ltexdof_size
    ltexdof_size = 0;
    for (i = 0; i < nex; i++)
       if (lexdof_ltexdof[i] == -1)
@@ -1009,15 +1185,8 @@ void ParFiniteElementSpace::ConstructTrueDofs()
          lexdof_ltexdof[i] = ltexdof_size++;
       }
 
-   // Check for consistency
-   MFEM_VERIFY(ltdof_size == ltexdof_size + this->GetPrVSize(),
-	       "mismatch in number of true dofs and true exposed plus private dofs");
-
-   // have the group masters broadcast their ltdofs to the rest of the group
-   gcomm->Bcast(ldof_ltdof);
-
    // have the group masters broadcast their ltexdofs to the rest of the group
-   gcomm->Bcast(lexdof_ltexdof);
+   exgcomm->Bcast(lexdof_ltexdof);
 }
 
 void ParFiniteElementSpace::ConstructTrueNURBSDofs()

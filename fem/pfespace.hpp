@@ -38,6 +38,9 @@ private:
    /// GroupCommunicator on the local VDofs
    GroupCommunicator *gcomm;
 
+   /// GroupCommunicator on the local ExVDofs
+   GroupCommunicator *exgcomm;
+
    /// Number of true dofs in this processor (local true dofs).
    int ltdof_size;
 
@@ -77,6 +80,9 @@ private:
    /// The sign of the basis functions at the scalar local dofs.
    Array<int> ldof_sign;
 
+   /// The sign of the basis functions at the scalar local dofs.
+   Array<int> lexdof_sign;
+
    /// The matrix P (interpolation from true dof to dof).
    HypreParMatrix *P;
 
@@ -97,11 +103,16 @@ private:
    void GetGroupComm(GroupCommunicator &gcomm, int ldof_type,
                      Array<int> *ldof_sign = NULL);
 
+   // ldof_type = 0 : DOFs communicator, otherwise VDOFs communicator
+   void GetExGroupComm(GroupCommunicator &gcomm, int ldof_type,
+		       Array<int> *ldof_sign = NULL);
+
    /// Construct dof_offsets and tdof_offsets using global communication.
    void GenerateGlobalOffsets();
 
    /// Construct ldof_group and ldof_ltdof.
    void ConstructTrueDofs();
+   void ConstructTrueExDofs();
    void ConstructTrueNURBSDofs();
 
    void ApplyLDofSigns(Array<int> &dofs) const;
