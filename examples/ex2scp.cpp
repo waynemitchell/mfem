@@ -120,7 +120,6 @@ int main(int argc, char *argv[])
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
-   /*
    {
       int ref_levels =
          (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
@@ -129,13 +128,12 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
-   */
+
    // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-   /*
    {
       int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
@@ -143,7 +141,7 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }
-   */
+
    // 7. Define a parallel finite element space on the parallel mesh. Here we
    //    use vector finite elements, i.e. dim copies of a scalar finite element
    //    space. We use the ordering by vector dimension (the last argument of
@@ -243,7 +241,7 @@ int main(int argc, char *argv[])
    ess_bdr[0] = 1;
 
    Array<int> ess_bdr_v, dof_list;
-   fespace->GetEssentialVDofs(ess_bdr,ess_bdr_v);
+   fespace->GetEssentialExVDofs(ess_bdr,ess_bdr_v);
 
    for (int i = 0; i < ess_bdr_v.Size(); i++)
    {
