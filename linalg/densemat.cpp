@@ -3191,7 +3191,7 @@ void MultADBt(const DenseMatrix &A, const Vector &D,
               const DenseMatrix &B, DenseMatrix &ADBt)
 {
 #ifdef MFEM_DEBUG
-   if (A.Height() != ADBt.Height() || B.Height() != ABt.Width() ||
+   if (A.Height() != ADBt.Height() || B.Height() != ADBt.Width() ||
        A.Width() != B.Width() || A.Width() != D.Size())
    {
       mfem_error("AddMultADBt(...)");
