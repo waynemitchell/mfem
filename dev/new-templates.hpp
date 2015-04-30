@@ -12,6 +12,7 @@
 #ifndef MFEM_TEMPLATE
 #define MFEM_TEMPLATE
 
+#include "mfem.hpp"
 #include <cstdlib> // std::rand()
 #include <ctime>   // std::time()
 
@@ -442,6 +443,29 @@ public:
 };
 
 template <int P>
+class H1_FiniteElement<Geometry::TRIANGLE, P> : public H1_TriangleElement
+{
+public:
+   static const int geom   = Geometry::TRIANGLE;
+   static const int dim    = 2;
+   static const int degree = P;
+   static const int dofs   = ((P + 1)*(P + 2))/2;
+
+   static const bool tensor_prod = false;
+
+   H1_FiniteElement() : H1_TriangleElement(P) { }
+
+   void CalcShapeMatrix(const IntegrationRule &ir, double *B) const
+   {
+      MFEM_WARNING("TODO");
+   }
+   void CalcGradTensor(const IntegrationRule &ir, double *G) const
+   {
+      MFEM_WARNING("TODO");
+   }
+};
+
+template <int P>
 class H1_FiniteElement<Geometry::SQUARE, P> : public H1_QuadrilateralElement
 {
 public:
@@ -469,6 +493,29 @@ public:
       MFEM_WARNING("TODO");
    }
    void Calc1DGradMatrix(const IntegrationRule &ir_1d, double *G) const
+   {
+      MFEM_WARNING("TODO");
+   }
+};
+
+template <int P>
+class H1_FiniteElement<Geometry::TETRAHEDRON, P> : public H1_TetrahedronElement
+{
+public:
+   static const int geom   = Geometry::TETRAHEDRON;
+   static const int dim    = 3;
+   static const int degree = P;
+   static const int dofs   = ((P + 1)*(P + 2)*(P + 3))/6;
+
+   static const bool tensor_prod = false;
+
+   H1_FiniteElement() : H1_TetrahedronElement(P) { }
+
+   void CalcShapeMatrix(const IntegrationRule &ir, double *B) const
+   {
+      MFEM_WARNING("TODO");
+   }
+   void CalcGradTensor(const IntegrationRule &ir, double *G) const
    {
       MFEM_WARNING("TODO");
    }
@@ -571,6 +618,48 @@ class TIntegrationRule<Geometry::SQUARE, Order>
 template <int Order>
 class TIntegrationRule<Geometry::CUBE, Order>
    : public GaussIntegrationRule<3, Order/2+1> { };
+
+// Triangle integration rules (based on intrules.cpp)
+// These specializations define the number of quadrature points for each rule
+// as a compile-time constant.
+// TODO: add higher order rules
+template <> class TIntegrationRule<Geometry::TRIANGLE, 0>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 1, 0> { };
+template <> class TIntegrationRule<Geometry::TRIANGLE, 1>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 1, 1> { };
+template <> class TIntegrationRule<Geometry::TRIANGLE, 2>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 3, 2> { };
+template <> class TIntegrationRule<Geometry::TRIANGLE, 3>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 4, 3> { };
+template <> class TIntegrationRule<Geometry::TRIANGLE, 4>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 6, 4> { };
+template <> class TIntegrationRule<Geometry::TRIANGLE, 5>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 7, 5> { };
+template <> class TIntegrationRule<Geometry::TRIANGLE, 6>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 12, 6> { };
+template <> class TIntegrationRule<Geometry::TRIANGLE, 7>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 12, 7> { };
+
+// Tetrahedron integration rules (based on intrules.cpp)
+// These specializations define the number of quadrature points for each rule
+// as a compile-time constant.
+// TODO: add higher order rules
+template <> class TIntegrationRule<Geometry::TETRAHEDRON, 0>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 1, 0> { };
+template <> class TIntegrationRule<Geometry::TETRAHEDRON, 1>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 1, 1> { };
+template <> class TIntegrationRule<Geometry::TETRAHEDRON, 2>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 4, 2> { };
+template <> class TIntegrationRule<Geometry::TETRAHEDRON, 3>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 5, 3> { };
+template <> class TIntegrationRule<Geometry::TETRAHEDRON, 4>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 11, 4> { };
+template <> class TIntegrationRule<Geometry::TETRAHEDRON, 5>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 14, 5> { };
+template <> class TIntegrationRule<Geometry::TETRAHEDRON, 6>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 24, 6> { };
+template <> class TIntegrationRule<Geometry::TETRAHEDRON, 7>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 31, 7> { };
 
 
 // Shape evaluators
