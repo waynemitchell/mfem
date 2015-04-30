@@ -101,6 +101,9 @@ public:
    /// y += A.x
    void AddMult(const Vector &x, Vector &y) const;
 
+   /// y += a * A.x
+   void AddMult_a(double a, const Vector &x, Vector &y) const;
+
    /// Compute y^t A x
    double InnerProduct(const double *x, const double *y) const;
 

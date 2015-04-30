@@ -245,6 +245,28 @@ void DenseMatrix::AddMult(const Vector &x, Vector &y) const
    }
 }
 
+void DenseMatrix::AddMult_a(double a, const Vector &x, Vector &y) const
+{
+#ifdef MFEM_DEBUG
+   if ( height != y.Size() || width != x.Size() )
+   {
+      mfem_error("DenseMatrix::AddMult_a");
+   }
+#endif
+
+   const double *xp = x;
+   double *d_col = data, *yp = y;
+   for (int col = 0; col < width; col++)
+   {
+      double x_col = a*xp[col];
+      for (int row = 0; row < height; row++)
+      {
+         yp[row] += x_col*d_col[row];
+      }
+      d_col += height;
+   }
+}
+
 double DenseMatrix::InnerProduct(const double *x, const double *y) const
 {
    double prod = 0.0;
