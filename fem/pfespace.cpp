@@ -1,4 +1,4 @@
-// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+﻿// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
 // the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
 // reserved. See file COPYRIGHT for details.
 //
@@ -62,7 +62,7 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    P = NULL;
    R = NULL;
 
-   if (pmesh->pncmesh)
+   if (Nonconforming())
    {
       gcomm = NULL;
       ldof_sign.SetSize(GetVSize());
@@ -335,7 +335,7 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       MFEM_VERIFY(tdof_offsets[0] >= 0 && tdof_offsets[1] >= 0,
                   "overflow in global tdof_offsets");
 
-      if (!pmesh->pncmesh)
+      if (!Nonconforming())
       {
          // Communicate the neighbor offsets in tdof_nb_offsets
          GroupTopology &gt = GetGroupTopo();
@@ -405,7 +405,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
       return P;
    }
 
-   if (pmesh->pncmesh)
+   if (Nonconforming())
    {
       GetConformingInterpolation();
       return P;
@@ -468,7 +468,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
 
 void ParFiniteElementSpace::DivideByGroupSize(double *vec)
 {
-   if (pmesh->pncmesh)
+   if (Nonconforming())
    {
       MFEM_ABORT("Not implemented for NC mesh.");
    }
@@ -484,7 +484,7 @@ void ParFiniteElementSpace::DivideByGroupSize(double *vec)
 
 GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 {
-   if (pmesh->pncmesh)
+   if (Nonconforming())
    {
       return NULL; // FIXME
    }
@@ -503,7 +503,7 @@ GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 
 void ParFiniteElementSpace::Synchronize(Array<int> &ldof_marker) const
 {
-   if (pmesh->pncmesh)
+   if (Nonconforming())
    {
       MFEM_ABORT("Not implemented for NC mesh.");
    }
@@ -523,7 +523,7 @@ void ParFiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
 {
    FiniteElementSpace::GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
 
-   if (!pmesh->pncmesh)
+   if (!Nonconforming())
    {
       // Make sure that processors without boundary elements mark
       // their boundary dofs (if they have any).
@@ -533,7 +533,7 @@ void ParFiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
 
 int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
 {
-   if (pmesh->pncmesh)
+   if (Nonconforming())
    {
       MFEM_VERIFY(P, "Dof_TrueDof_Matrix() needs to be called before "
                      "GetLocalTDofNumber()");
@@ -555,24 +555,30 @@ int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
 
 HYPRE_Int ParFiniteElementSpace::GetGlobalTDofNumber(int ldof)
 {
-   if (pmesh->pncmesh)
+   if (Nonconforming())
    {
-      MFEM_ABORT("Not implemented for NC mesh.");
-   }
+      MFEM_VERIFY(ldof_ltdof[ldof] >= 0, "ldof " << ldof << " not a true DOF.");
 
-   if (HYPRE_AssumedPartitionCheck())
+      return GetMyTDofOffset() + ldof_ltdof[ldof];
+   }
+   else
    {
-      return ldof_ltdof[ldof] +
-             tdof_nb_offsets[GetGroupTopo().GetGroupMaster(ldof_group[ldof])];
+      if (HYPRE_AssumedPartitionCheck())
+      {
+         return ldof_ltdof[ldof] +
+                tdof_nb_offsets[GetGroupTopo().GetGroupMaster(ldof_group[ldof])];
+      }
+      else
+      {
+         return ldof_ltdof[ldof] +
+                tdof_offsets[GetGroupTopo().GetGroupMasterRank(ldof_group[ldof])];
+      }
    }
-
-   return ldof_ltdof[ldof] +
-          tdof_offsets[GetGroupTopo().GetGroupMasterRank(ldof_group[ldof])];
 }
 
 HYPRE_Int ParFiniteElementSpace::GetGlobalScalarTDofNumber(int sldof)
 {
-   if (pmesh->pncmesh)
+   if (Nonconforming())
    {
       MFEM_ABORT("Not implemented for NC mesh.");
    }
@@ -964,8 +970,7 @@ void ParFiniteElementSpace::ConstructTrueNURBSDofs()
 
 inline int decode_dof(int dof, double& sign)
 {
-   if (dof >= 0) { return (sign = 1.0, dof); }
-   else { return (sign = -1.0, -1 - dof); }
+   return (dof >= 0) ? (sign = 1, dof) : (sign = -1, (-1 - dof));
 }
 
 const int INVALID_DOF = INT_MAX;
@@ -979,31 +984,53 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
    // doesn't work as 'mdof' and 'sdof' may be on different processors.
    // Here we detect these cases from the slave point matrix.
 
+   int k, i;
+   int nv = fec->DofForGeometry(Geometry::POINT);
+   int ne = fec->DofForGeometry(Geometry::SEGMENT);
+
    if (pm.Width() == 2) // edge: exclude master endpoint vertices
    {
-      if (pm(0,0) == 0.0 || pm(0,0) == 1.0) { slave_dofs[0] = INVALID_DOF; }
-      if (pm(0,1) == 0.0 || pm(0,1) == 1.0) { slave_dofs[1] = INVALID_DOF; }
+      if (nv)
+      {
+         for (i = 0; i < 2; i++)
+         {
+            if (pm(0, i) == 0.0 || pm(0, i) == 1.0)
+            {
+               for (k = 0; k < nv; k++) { slave_dofs[i*nv + k] = INVALID_DOF; }
+            }
+         }
+      }
    }
    else // face: exclude master corner vertices + full edges if present
    {
       MFEM_ASSERT(pm.Width() == 4, "");
-      for (int i = 0; i < 4; i++)
+
+      bool corner[4];
+      for (i = 0; i < 4; i++)
       {
          double x = pm(0,i), y = pm(1,i);
-         if ((x == 0.0 || x == 1.0) && (y == 0.0 || y == 1.0))
+         corner[i] = ((x == 0.0 || x == 1.0) && (y == 0.0 || y == 1.0));
+      }
+      if (nv)
+      {
+         for (i = 0; i < 4; i++)
          {
-            slave_dofs[i] = INVALID_DOF;
+            if (corner[i])
+            {
+               for (k = 0; k < nv; k++) { slave_dofs[i*nv + k] = INVALID_DOF; }
+            }
          }
       }
-      for (int i = 0; i < 4; i++)
+      if (ne)
       {
-         int j = (i+1) & 0x3;
-         if (slave_dofs[i] == INVALID_DOF && slave_dofs[j] == INVALID_DOF)
+         for (i = 0; i < 4; i++)
          {
-            int n = fec->DofForGeometry(Geometry::SEGMENT);
-            for (int k = 0; k < n; k++)
+            if (corner[i] && corner[(i+1) & 0x3])
             {
-               slave_dofs[4 + i*n + k] = INVALID_DOF;
+               for (k = 0; k < ne; k++)
+               {
+                  slave_dofs[4*nv + i*ne + k] = INVALID_DOF;
+               }
             }
          }
       }
@@ -1099,7 +1126,14 @@ void ParFiniteElementSpace
    int f_dofs = dofs.Size() - ve_dofs;
    for (int i = 0; i < f_dofs; i++)
    {
-      dofs[ve_dofs + i] = tmp[ve_dofs + ind[i]];
+      if (ind[i] >= 0)
+      {
+         dofs[ve_dofs + i] = tmp[ve_dofs + ind[i]];
+      }
+      else
+      {
+         dofs[ve_dofs + i] = -1 - tmp[ve_dofs + (-1 - ind[i])];
+      }
    }
 }
 
@@ -1473,7 +1507,7 @@ void ParFiniteElementSpace::Update()
    face_nbr_ldof.Clear();
    face_nbr_glob_dof_map.DeleteAll();
    send_face_nbr_ldof.Clear();
-   if (!pmesh->pncmesh)
+   if (!Nonconforming())
    {
       ConstructTrueDofs();
       GenerateGlobalOffsets();
@@ -1489,7 +1523,7 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
 {
    ParFiniteElementSpace *cpfes = new ParFiniteElementSpace(*this);
    Constructor();
-   if (!pmesh->pncmesh)
+   if (!Nonconforming())
    {
       ConstructTrueDofs();
       GenerateGlobalOffsets();

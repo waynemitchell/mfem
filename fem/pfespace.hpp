@@ -218,6 +218,8 @@ public:
    void LoseDofOffsets() { dof_offsets.LoseData(); }
    void LoseTrueDofOffsets() { tdof_offsets.LoseData(); }
 
+   bool Nonconforming() const { return pmesh->pncmesh != NULL; }
+
    virtual void Update();
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();

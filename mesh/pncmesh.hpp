@@ -273,7 +273,7 @@ TODO
 + vdim fix
 + conforming case R matrix
 + master merge
-- curved/two-level parmesh
++ curved/two-level parmesh
 - hcurl/hdiv
 - saving/reading nc meshes
 - visualization, VisIt?

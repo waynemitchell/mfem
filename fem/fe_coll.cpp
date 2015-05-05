@@ -1625,7 +1625,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
    }
    else
    {
-      mfem_error("ND_FECollection::ND_FECollection : dim != 2 or 3");
+      MFEM_ABORT("ND_FECollection::ND_FECollection : dim != 2 or 3");
    }
 
    if (dim == 3)
@@ -1644,6 +1644,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
       }
       // see Mesh::GetQuadOrientation in mesh/mesh.cpp
       for (int j = 0; j < pm1; j++)
+      {
          for (int i = 0; i < p; i++)
          {
             int d1 = i + j*p;            // x-component
@@ -1677,6 +1678,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
             QuadDofOrd[7][d1] = i + (pm2 - j)*p;
             QuadDofOrd[7][d2] = -1 - (p*pm1 + j + (pm1 - i)*pm1);
          }
+      }
 
       int TriDof = ND_dof[Geometry::TRIANGLE];
       TriDofOrd[0] = new int[6*TriDof];
@@ -1687,6 +1689,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
       // see Mesh::GetTriOrientation in mesh/mesh.cpp,
       // the constructor of H1_FECollection
       for (int j = 0; j <= pm2; j++)
+      {
          for (int i = 0; i + j <= pm2; i++)
          {
             int k1 = p*pm1 - (p - j)*(pm1 - j) + 2*i;
@@ -1702,6 +1705,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
             // interface. The method Mesh::ReorientTetMesh will ensure that
             // only orientations 0 and 5 are generated.
          }
+      }
    }
 }
 
@@ -1719,11 +1723,9 @@ int *ND_FECollection::DofOrderForOrientation(int GeomType, int Or) const
    {
       if (Or != 0 && Or != 5)
       {
-         cerr <<
-              "ND_FECollection::DofOrderForOrientation :\n"
-              "  triangle face orientation " << Or << " is not supported!\n"
-              "  Use Mesh::ReorientTetMesh to fix it." << endl;
-         mfem_error();
+         MFEM_ABORT("ND_FECollection::DofOrderForOrientation: "
+                    "triangle face orientation " << Or << " is not supported! "
+                    "Use Mesh::ReorientTetMesh to fix it.");
       }
       return TriDofOrd[Or%6];
    }

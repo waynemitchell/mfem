@@ -437,7 +437,7 @@ void ParNCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
    bdr_edges.SetSize(j);
 }
 
-//// neighbors /////////////////////////////////////////////////////////////////
+//// Neighbors /////////////////////////////////////////////////////////////////
 
 bool ParNCMesh::OnProcessorBoundary(Element* elem) const
 {
@@ -968,8 +968,10 @@ void NeighborDofMessage::GetDofs(int type, const NCMesh::MeshId& id,
    MFEM_ASSERT(type >= 0 && type < 3, "");
 #ifdef MFEM_DEBUG
    if (id_dofs[type].find(id) == id_dofs[type].end())
+   {
       MFEM_ABORT("type/ID " << type << "/" << id.index << " not found in "
                  "neighbor message. Ghost layers out of sync?");
+   }
 #endif
    std::vector<int> &vec = id_dofs[type][id];
    dofs.SetSize(vec.size());
@@ -990,15 +992,27 @@ void NeighborDofMessage::ReorderEdgeDofs(const NCMesh::MeshId &id,
 
    if ((v0 < v1 && ev[0] > ev[1]) || (v0 > v1 && ev[0] < ev[1]))
    {
+      std::vector<int> tmp(dofs);
+
       int nv = fec->DofForGeometry(Geometry::POINT);
-      for (int i = 0; i < nv; i++)
+      int ne = fec->DofForGeometry(Geometry::SEGMENT);
+      MFEM_ASSERT((int) dofs.size() == 2*nv + ne, "");
+
+      // swap the two vertex DOFs
+      for (int i = 0; i < 2; i++)
       {
-         std::swap(dofs[i], dofs[nv+i]);
+         for (int k = 0; k < nv; k++)
+         {
+            dofs[nv*i + k] = tmp[nv*(1-i) + k];
+         }
       }
-      int ne = dofs.size() - 2*nv;
-      for (int i = 0; i < ne/2; i++)
+
+      // reorder the edge DOFs
+      int* ind = fec->DofOrderForOrientation(Geometry::SEGMENT, 0);
+      for (int i = 0; i < ne; i++)
       {
-         std::swap(dofs[i + 2*nv], dofs[dofs.size()-1 - i]);
+         dofs[2*nv + i] = (ind[i] >= 0) ? tmp[2*nv + ind[i]]
+                          /*         */ : -1 - tmp[2*nv + (-1 - ind[i])];
       }
    }
 }
@@ -1214,7 +1228,7 @@ void ParNCMesh::NeighborRefinementMessage::Decode()
 }
 
 
-//// utility ///////////////////////////////////////////////////////////////////
+//// Utility ///////////////////////////////////////////////////////////////////
 
 void ParNCMesh::GetDebugMesh(Mesh &debug_mesh) const
 {
