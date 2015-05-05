@@ -68,6 +68,9 @@ public:
        true dofs, i.e. P tv. */
    void Distribute(const Vector *tv);
    void Distribute(const Vector &tv) { Distribute(&tv); }
+   void AddDistribute(double a, const Vector *tv);
+   void AddDistribute(double a, const Vector &tv)
+   { AddDistribute(a, &tv); }
 
    /// Short semantic for Distribute
    ParGridFunction &operator=(const HypreParVector &tv)
