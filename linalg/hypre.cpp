@@ -30,14 +30,15 @@ namespace mfem
 namespace internal
 {
 
-HYPRE_Int *Duplicate_As_HYPRE_Int(int *array, int size)
+template<typename TargetT, typename SourceT>
+TargetT *DuplicateAs(const SourceT *array, int size)
 {
-   HYPRE_Int *HYPRE_array = new HYPRE_Int[size];
+   TargetT *target_array = new TargetT[size];
    for (int i = 0; i < size; i++)
    {
-      HYPRE_array[i] = array[i];
+      target_array[i] = array[i];
    }
-   return HYPRE_array;
+   return target_array;
 }
 
 }
@@ -219,9 +220,9 @@ char HypreParMatrix::CopyCSR(SparseMatrix *csr, hypre_CSRMatrix *hypre_csr)
    return 0;
 #else
    hypre_CSRMatrixI(hypre_csr) =
-      internal::Duplicate_As_HYPRE_Int(csr->GetI(), csr->Height()+1);
+      internal::DuplicateAs<HYPRE_Int>(csr->GetI(), csr->Height()+1);
    hypre_CSRMatrixJ(hypre_csr) =
-      internal::Duplicate_As_HYPRE_Int(csr->GetJ(), csr->NumNonZeroElems());
+      internal::DuplicateAs<HYPRE_Int>(csr->GetJ(), csr->NumNonZeroElems());
    // Prevent hypre from destroying hypre_csr->{i,j,data}, own {i,j}
    return 1;
 #endif
@@ -243,9 +244,9 @@ char HypreParMatrix::CopyBoolCSR(Table *bool_csr, hypre_CSRMatrix *hypre_csr)
    return 2;
 #else
    hypre_CSRMatrixI(hypre_csr) =
-      internal::Duplicate_As_HYPRE_Int(bool_csr->GetI(), bool_csr->Size()+1);
+      internal::DuplicateAs<HYPRE_Int>(bool_csr->GetI(), bool_csr->Size()+1);
    hypre_CSRMatrixJ(hypre_csr) =
-      internal::Duplicate_As_HYPRE_Int(bool_csr->GetJ(), nnz);
+      internal::DuplicateAs<HYPRE_Int>(bool_csr->GetJ(), nnz);
    // Prevent hypre from destroying hypre_csr->{i,j,data}, own {i,j,data}
    return 3;
 #endif
@@ -918,19 +919,83 @@ void HypreParMatrix::MultTranspose(double a, const Vector &x,
 HYPRE_Int HypreParMatrix::Mult(HYPRE_ParVector x, HYPRE_ParVector y,
                                double a, double b)
 {
-   return hypre_ParCSRMatrixMatvec(a,A,(hypre_ParVector *)x,b,
-                                   (hypre_ParVector *)y);
+   return hypre_ParCSRMatrixMatvec(a, A, (hypre_ParVector *) x, b,
+                                   (hypre_ParVector *) y);
 }
 
 HYPRE_Int HypreParMatrix::MultTranspose(HypreParVector & x, HypreParVector & y,
                                         double a, double b)
 {
-   return hypre_ParCSRMatrixMatvecT(a,A,x,b,y);
+   return hypre_ParCSRMatrixMatvecT(a, A, x, b, y);
+}
+
+HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
+                                             HYPRE_Int* row_starts) const
+{
+   int np = 2;
+   if (!HYPRE_AssumedPartitionCheck()) { MPI_Comm_size(GetComm(), &np); }
+
+   bool same_rows = (D.Height() == hypre_CSRMatrixNumRows(A->diag));
+   HYPRE_Int global_num_rows;
+
+   if (same_rows)
+   {
+      row_starts = hypre_ParCSRMatrixRowStarts(A);
+      global_num_rows = hypre_ParCSRMatrixGlobalNumRows(A);
+   }
+   else
+   {
+      MFEM_VERIFY(row_starts != NULL, "");
+      global_num_rows = row_starts[np];
+   }
+
+   HYPRE_Int *col_starts = hypre_ParCSRMatrixColStarts(A);
+   HYPRE_Int *col_map_offd = hypre_ParCSRMatrixColMapOffd(A);
+
+   // get the diag and offd blocks as SparseMatrix wrappers
+   SparseMatrix A_diag(hypre_CSRMatrixI(A->diag), hypre_CSRMatrixJ(A->diag),
+                       hypre_CSRMatrixData(A->diag),
+                       hypre_CSRMatrixNumRows(A->diag),
+                       hypre_CSRMatrixNumCols(A->diag), false, false, false);
+
+   SparseMatrix A_offd(hypre_CSRMatrixI(A->offd), hypre_CSRMatrixJ(A->offd),
+                       hypre_CSRMatrixData(A->offd),
+                       hypre_CSRMatrixNumRows(A->offd),
+                       hypre_CSRMatrixNumCols(A->offd), false, false, false);
+
+   // multiply the blocks with D and create a new HypreParMatrix
+   SparseMatrix* DA_diag = mfem::Mult(D, A_diag);
+   SparseMatrix* DA_offd = mfem::Mult(D, A_offd);
+
+   HypreParMatrix* DA =
+      new HypreParMatrix(GetComm(),
+                         global_num_rows, hypre_ParCSRMatrixGlobalNumCols(A),
+                         internal::DuplicateAs<HYPRE_Int>(row_starts, np+1),
+                         internal::DuplicateAs<HYPRE_Int>(col_starts, np+1),
+                         DA_diag, DA_offd,
+                         internal::DuplicateAs<HYPRE_Int>(col_map_offd,
+                                                          A_offd.Width()));
+
+   DA_diag->LoseData();
+   DA_offd->LoseData();
+
+   delete DA_diag;
+   delete DA_offd;
+
+   hypre_CSRMatrixSetDataOwner(DA->A->diag, 1);
+   hypre_CSRMatrixSetDataOwner(DA->A->offd, 1);
+
+   hypre_ParCSRMatrixSetDataOwner(DA->A, 1);
+   hypre_ParCSRMatrixSetRowStartsOwner(DA->A, 1);
+   hypre_ParCSRMatrixSetColStartsOwner(DA->A, 1);
+
+   DA->diagOwner = DA->offdOwner = DA->colMapOwner = -1;
+
+   return DA;
 }
 
 void HypreParMatrix::ScaleRows(const Vector &diag)
 {
-
    if (hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
    {
       mfem_error("Row does not match");
@@ -966,7 +1031,6 @@ void HypreParMatrix::ScaleRows(const Vector &diag)
 
 void HypreParMatrix::InvScaleRows(const Vector &diag)
 {
-
    if (hypre_CSRMatrixNumRows(A->diag) != hypre_CSRMatrixNumRows(A->offd))
    {
       mfem_error("Row does not match");
@@ -2044,7 +2108,7 @@ HypreBoomerAMG::~HypreBoomerAMG()
 HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    : HypreSolver(&A)
 {
-   int cycle_type       = 13;
+   int cycle_type       = 1; // FIXME: 13
    int rlx_type         = 2;
    int rlx_sweeps       = 1;
    double rlx_weight    = 1.0;
@@ -2089,13 +2153,10 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
          coord = pmesh -> GetVertex(i);
          x_coord(i) = coord[0];
          y_coord(i) = coord[1];
-         if (dim == 3)
-         {
-            z_coord(i) = coord[2];
-         }
+         if (dim == 3) { z_coord(i) = coord[2]; }
       }
-      x = x_coord.ParallelAverage();
-      y = y_coord.ParallelAverage();
+      x = x_coord.ParallelProject();
+      y = y_coord.ParallelProject();
       if (dim == 2)
       {
          z = NULL;
@@ -2103,7 +2164,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
       }
       else
       {
-         z = z_coord.ParallelAverage();
+         z = z_coord.ParallelProject();
          HYPRE_AMSSetCoordinateVectors(ams, *x, *y, *z);
       }
    }
@@ -2121,7 +2182,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    grad->Assemble();
    grad->Finalize();
    G = grad->ParallelAssemble();
-   G->CopyColStarts(); // copy col-starts in G, since we'll delete vert_fespace
    HYPRE_AMSSetDiscreteGradient(ams, *G);
    delete grad;
 
@@ -2131,11 +2191,15 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    {
       ParFiniteElementSpace *vert_fespace_d;
       if (cycle_type < 10)
+      {
          vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, dim,
                                                     Ordering::byVDIM);
+      }
       else
+      {
          vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, dim,
                                                     Ordering::byNODES);
+      }
 
       ParDiscreteLinearOperator *id_ND;
       id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
@@ -2146,8 +2210,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
       {
          id_ND->Finalize();
          Pi = id_ND->ParallelAssemble();
-         // copy the col-starts in Pi, since we'll delete vert_fespace_d
-         Pi->CopyColStarts();
       }
       else
       {
@@ -2155,10 +2217,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
          id_ND->GetParBlocks(Pi_blocks);
          Pix = Pi_blocks(0,0);
          Piy = Pi_blocks(0,1);
-         if (dim == 3)
-         {
-            Piz = Pi_blocks(0,2);
-         }
+         if (dim == 3) { Piz = Pi_blocks(0,2); }
       }
 
       delete id_ND;
@@ -2246,9 +2305,9 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          y_coord(i) = coord[1];
          z_coord(i) = coord[2];
       }
-      x = x_coord.ParallelAverage();
-      y = y_coord.ParallelAverage();
-      z = z_coord.ParallelAverage();
+      x = x_coord.ParallelProject();
+      y = y_coord.ParallelProject();
+      z = z_coord.ParallelProject();
       HYPRE_ADSSetCoordinateVectors(ads, *x, *y, *z);
    }
    else

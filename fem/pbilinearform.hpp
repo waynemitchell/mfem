@@ -115,10 +115,14 @@ protected:
                                     HYPRE_Int *true_row_starts,
                                     HYPRE_Int *true_col_starts,
                                     bool scalar) const;
+
    HypreParMatrix *ParallelAssemble(SparseMatrix *m)
    {
-      return ParallelAssemble(m, range_fes->GetTrueDofOffsets(),
-                              domain_fes->GetTrueDofOffsets(), false);
+      SparseMatrix* RA = mfem::Mult(*range_fes->GetRestrictionMatrix(), *m);
+      HypreParMatrix* P = domain_fes->Dof_TrueDof_Matrix();
+      HypreParMatrix* RAP = P->LeftDiagMult(*RA, range_fes->GetTrueDofOffsets());
+      delete RA;
+      return RAP;
    }
 
 public:

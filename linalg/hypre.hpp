@@ -165,24 +165,33 @@ private:
 public:
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a)
-   { Init(); A = a; height = GetNumRows(); width = GetNumCols(); }
+   {
+      Init();
+      A = a;
+      height = GetNumRows();
+      width = GetNumCols();
+   }
+
    /** Creates block-diagonal square parallel matrix. Diagonal is given by diag
        which must be in CSR format (finalized). The new HypreParMatrix does not
        take ownership of any of the input arrays. */
    HypreParMatrix(MPI_Comm comm, HYPRE_Int glob_size, HYPRE_Int *row_starts,
                   SparseMatrix *diag);
+
    /** Creates block-diagonal rectangular parallel matrix. Diagonal is given by
        diag which must be in CSR format (finalized). The new HypreParMatrix does
        not take ownership of any of the input arrays. */
    HypreParMatrix(MPI_Comm comm, HYPRE_Int global_num_rows,
                   HYPRE_Int global_num_cols, HYPRE_Int *row_starts,
                   HYPRE_Int *col_starts, SparseMatrix *diag);
+
    /** Creates general (rectangular) parallel matrix. The new HypreParMatrix
        does not take ownership of any of the input arrays. */
    HypreParMatrix(MPI_Comm comm, HYPRE_Int global_num_rows,
                   HYPRE_Int global_num_cols, HYPRE_Int *row_starts,
                   HYPRE_Int *col_starts, SparseMatrix *diag, SparseMatrix *offd,
                   HYPRE_Int *cmap);
+
    /** Creates general (rectangular) parallel matrix. The new HypreParMatrix
        takes ownership of all input arrays, except col_starts and row_starts. */
    HypreParMatrix(MPI_Comm comm,
@@ -201,6 +210,7 @@ public:
    HypreParMatrix(MPI_Comm comm, HYPRE_Int global_num_rows,
                   HYPRE_Int global_num_cols, HYPRE_Int *row_starts,
                   HYPRE_Int *col_starts, Table *diag);
+
    /** Creates boolean rectangular parallel matrix. The new HypreParMatrix takes
        ownership of the arrays i_diag, j_diag, i_offd, j_offd, and cmap; does
        not take ownership of the arrays row and col. */
@@ -217,7 +227,7 @@ public:
                   double *data, HYPRE_Int *rows, HYPRE_Int *cols);
 
    /// MPI communicator
-   MPI_Comm GetComm() { return A->comm; }
+   MPI_Comm GetComm() const { return A->comm; }
 
    /// Typecasting to hypre's hypre_ParCSRMatrix*
    operator hypre_ParCSRMatrix*();
@@ -297,6 +307,13 @@ public:
    { Mult(1.0, x, 0.0, y); }
    virtual void MultTranspose(const Vector &x, Vector &y) const
    { MultTranspose(1.0, x, 0.0, y); }
+
+   /** Multiply A on the left by a block-diagonal parallel matrix D. Return
+       a new parallel matrix, D*A. If D has a different number of rows than A,
+       D's row starts array needs to be given.
+       NOTE: this operation is local and does not require communication. */
+   HypreParMatrix* LeftDiagMult(const SparseMatrix &D,
+                                HYPRE_Int* row_starts = NULL) const;
 
    /// Scale the local row i by s(i).
    void ScaleRows(const Vector & s);

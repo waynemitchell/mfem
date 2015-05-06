@@ -411,6 +411,18 @@ HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(
 void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks)
 const
 {
+   /* TODO NC:
+
+     1. assemble: R * L (local), RL * P (local)
+     2. blocks: extract R, P block (local), do 1 for L blocks
+
+     New operations on HypreParMatrix:
+
+     - GetBlock
+     - local mult with SparseMatrix
+
+     */
+
    int rdim = range_fes->GetVDim();
    int ddim = domain_fes->GetVDim();
 

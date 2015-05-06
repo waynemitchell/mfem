@@ -569,10 +569,10 @@ void MixedBilinearForm::Finalize (int skip_zeros)
 
 void MixedBilinearForm::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 {
-   if (trial_fes->GetOrdering() != Ordering::byNODES ||
-       test_fes->GetOrdering() != Ordering::byNODES)
-      mfem_error("MixedBilinearForm::GetBlocks :\n"
-                 " Both trial and test spaces must use Ordering::byNODES!");
+   MFEM_VERIFY(trial_fes->GetOrdering() == Ordering::byNODES &&
+               test_fes->GetOrdering() == Ordering::byNODES,
+               "MixedBilinearForm::GetBlocks: both trial and test spaces "
+               "must use Ordering::byNODES!");
 
    blocks.SetSize(test_fes->GetVDim(), trial_fes->GetVDim());
 
