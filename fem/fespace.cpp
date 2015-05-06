@@ -636,7 +636,7 @@ static void AddDependencies(SparseMatrix& deps, Array<int>& master_dofs,
             if (std::abs(coef) > 1e-12)
             {
                int mdof = master_dofs[j];
-               if (mdof != sdof)
+               if (mdof != sdof && mdof != (-1-sdof))
                {
                   deps.Add(sdof, mdof, coef);
                }
