@@ -94,6 +94,15 @@ private:
       int rank, dof; ///< master DOF, may be on another processor
       double coef;
       Dependency(int r, int d, double c) : rank(r), dof(d), coef(c) {}
+
+#ifdef MFEM_DEBUG
+      bool operator==(const Dependency &other) const
+      { return rank == other.rank && dof == other.dof && coef == other.coef; }
+
+      bool operator<(const Dependency &other) const
+      { return (rank != other.rank) ? (rank < other.rank) :
+               (dof != other.dof) ? (dof < other.dof) : (coef < other.coef); }
+#endif
    };
 
    /// Dependency list for a local vdof.

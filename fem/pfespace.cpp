@@ -1052,7 +1052,9 @@ void ParFiniteElementSpace
       for (int vd = 0; vd < vdim; vd++)
       {
          DepList &dl = deps[DofToVDof(sdof, vd, ndofs)];
+#ifndef MFEM_DEBUG
          if (dl.type < 2) // slave dependencies override 1-to-1 dependencies
+#endif
          {
             Array<Dependency> tmp_list; // TODO remove, precalculate list size
             for (int j = 0; j < master_dofs.Size(); j++)
@@ -1065,8 +1067,23 @@ void ParFiniteElementSpace
                   tmp_list.Append(Dependency(master_rank, mvdof, coef*ms*ss));
                }
             }
+#ifndef MFEM_DEBUG
             dl.type = 2;
             tmp_list.Copy(dl.list);
+#else
+            tmp_list.Sort();
+            if (dl.type < 2)
+            {
+               dl.type = 2;
+               tmp_list.Copy(dl.list);
+            }
+            else // check
+            {
+               MFEM_ASSERT(dl.list.Size() == tmp_list.Size(), "");
+               for (int i = 0; i < dl.list.Size(); i++)
+                  MFEM_ASSERT(dl.list[i] == tmp_list[i], "");
+            }
+#endif
          }
       }
    }

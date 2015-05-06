@@ -77,13 +77,17 @@ int main(int argc, char *argv[])
       return 3;
    }
 
+   Array<Refinement> refs;
+   refs.Append(Refinement(0, 7));
+   mesh->GeneralRefinement(refs, 1);
+
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
    {
-      int ref_levels =
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = 1;
+         //(int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -130,9 +134,12 @@ int main(int argc, char *argv[])
    a->Assemble();
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   //a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
+
+   a->ConformingAssemble(x, *b);
+   a->EliminateEssentialBC(ess_bdr, x, *b);
 
 #ifndef MFEM_USE_SUITESPARSE
    // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
@@ -147,6 +154,8 @@ int main(int argc, char *argv[])
    umf_solver.SetOperator(A);
    umf_solver.Mult(*b, x);
 #endif
+
+   x.ConformingProlongate();
 
    // 9. Compute and print the L^2 norm of the error.
    cout << "\n|| E_h - E ||_{L^2} = " << x.ComputeL2Error(E) << '\n' << endl;

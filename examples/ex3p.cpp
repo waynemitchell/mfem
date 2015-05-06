@@ -28,6 +28,8 @@
 #include <fstream>
 #include <iostream>
 
+#define PROJTEST 0
+
 using namespace std;
 using namespace mfem;
 
@@ -98,13 +100,19 @@ int main(int argc, char *argv[])
       return 3;
    }
 
+   //mesh->GeneralRefinement(Array<int>(), 1);
+   Array<Refinement> refs;
+   refs.Append(Refinement(0, 4));
+   mesh->GeneralRefinement(refs, 1);
+   //mesh->GeneralRefinement(refs, 1);
+
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
    {
-      int ref_levels =
-         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = 1;
+         //(int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -119,12 +127,22 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 2;
+      int par_ref_levels = 0;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
       }
    }
+   /*{
+      Array<Refinement> refs;
+      if (myid == 0)
+      {
+         for (int i = 0; i < pmesh->GetNE(); i++)
+            refs.Append(Refinement(i, 7));
+      }
+      pmesh->GeneralRefinement(refs, 1);
+   }*/
+
    pmesh->ReorientTetMesh();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
@@ -137,6 +155,16 @@ int main(int argc, char *argv[])
    {
       cout << "Number of unknowns: " << size << endl;
    }
+
+   HypreParMatrix* P = fespace->Dof_TrueDof_Matrix();
+   P->Print("P");
+   //P->LeftDiagMult(*fespace->GetRestrictionMatrix(), fespace->GetTrueDofOffsets())->Print("RP");
+
+
+
+
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
 
    // 7. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
@@ -156,6 +184,7 @@ int main(int argc, char *argv[])
    VectorFunctionCoefficient E(3, E_exact);
    x.ProjectCoefficient(E);
 
+#if !PROJTEST
    // 9. Set up the parallel bilinear form corresponding to the EM diffusion
    //    operator curl muinv curl + sigma I, by adding the curl-curl and the
    //    mass domain integrators and finally imposing non-homogeneous Dirichlet
@@ -169,16 +198,23 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   //a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelAverage();
+#endif
+   HypreParVector *X = x.ParallelProject();
+
+   //B->Print("B");
+
+
+#if !PROJTEST
+   // Eliminate essential BC from the parallel system
+   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
+
    *X = 0.0;
 
    delete a;
@@ -190,15 +226,16 @@ int main(int argc, char *argv[])
    //     preconditioner from hypre.
    HypreSolver *ams = new HypreAMS(*A, fespace);
    HyprePCG *pcg = new HyprePCG(*A);
-   pcg->SetTol(1e-12);
+   pcg->SetTol(1e-15);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*B, *X);
 
+#endif
    // 12. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   x = *X;
+   x = *B;
 
    // 13. Compute and print the L^2 norm of the error.
    {
@@ -237,11 +274,15 @@ int main(int argc, char *argv[])
    }
 
    // 16. Free the used memory.
+#if !PROJTEST
    delete pcg;
    delete ams;
+#endif
    delete X;
+#if !PROJTEST
    delete B;
    delete A;
+#endif
    delete fespace;
    delete fec;
    delete pmesh;
@@ -256,9 +297,15 @@ const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {
+#if PROJTEST
+   E(0) = 10*x(1)*x(2);
+   E(1) = 3*x(0)*x(2) + 5;
+   E(2) = 2*x(1);
+#else
    E(0) = sin(kappa * x(1));
    E(1) = sin(kappa * x(2));
    E(2) = sin(kappa * x(0));
+#endif
 }
 
 void f_exact(const Vector &x, Vector &f)

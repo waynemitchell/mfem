@@ -1133,10 +1133,12 @@ void NCMesh::DerefineElement(Element* elem)
 
    // first make sure that all children are leaves, derefine them if not
    for (int i = 0; i < 8; i++)
+   {
       if (child[i] && child[i]->ref_type)
       {
          DerefineElement(child[i]);
       }
+   }
 
    // retrieve original corner nodes and face attributes from the children
    int fa[6];
@@ -1176,11 +1178,13 @@ void NCMesh::DerefineElement(Element* elem)
    // delete children, determine rank
    elem->rank = std::numeric_limits<int>::max();
    for (int i = 0; i < 8; i++)
+   {
       if (child[i])
       {
          elem->rank = std::min(elem->rank, child[i]->rank);
          DeleteHierarchy(child[i]);
       }
+   }
 
    // set boundary attributes, register faces (3D)
    if (elem->geom == Geometry::CUBE)
@@ -1440,6 +1444,7 @@ void NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
    for (int i = 0, j; i < 4; i++)
    {
       for (j = 0; j < 4; j++)
+      {
          if (fv[i] == master[j])
          {
             // "pm.column(i) = tmp.column(j)"
@@ -1449,7 +1454,7 @@ void NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
             }
             break;
          }
-
+      }
       MFEM_ASSERT(j != 4, "node not found.");
    }
 }
