@@ -1369,8 +1369,11 @@ NURBSExtension::NURBSExtension(Mesh *mesh_array[], int num_pieces)
 
 NURBSExtension::~NURBSExtension()
 {
-   delete bel_dof;
-   delete el_dof;
+   if (patches.Size() == 0)
+   {
+      delete bel_dof;
+      delete el_dof;
+   }
 
    for (int i = 0; i < knotVectors.Size(); i++)
    {
@@ -1391,24 +1394,36 @@ NURBSExtension::~NURBSExtension()
 void NURBSExtension::Print(std::ostream &out) const
 {
    patchTopo->PrintTopo(out, edge_to_knot);
-   out << "\nknotvectors\n" << NumOfKnotVectors << '\n';
-   for (int i = 0; i < NumOfKnotVectors; i++)
+   if (patches.Size() == 0)
    {
-      knotVectors[i]->Print(out);
-   }
+      out << "\nknotvectors\n" << NumOfKnotVectors << '\n';
+      for (int i = 0; i < NumOfKnotVectors; i++)
+      {
+         knotVectors[i]->Print(out);
+      }
 
-   if (NumOfActiveElems < NumOfElements)
+      if (NumOfActiveElems < NumOfElements)
+      {
+         out << "\nmesh_elements\n" << NumOfActiveElems << '\n';
+         for (int i = 0; i < NumOfElements; i++)
+            if (activeElem[i])
+            {
+               out << i << '\n';
+            }
+      }
+
+      out << "\nweights\n";
+      weights.Print(out, 1);
+   }
+   else
    {
-      out << "\nmesh_elements\n" << NumOfActiveElems << '\n';
-      for (int i = 0; i < NumOfElements; i++)
-         if (activeElem[i])
-         {
-            out << i << '\n';
-         }
+      out << "\npatches\n";
+      for (int p = 0; p < patches.Size(); p++)
+      {
+         out << "\n# patch " << p << "\n\n";
+         patches[p]->Print(out);
+      }
    }
-
-   out << "\nweights\n";
-   weights.Print(out, 1);
 }
 
 void NURBSExtension::PrintCharacteristics(std::ostream &out)

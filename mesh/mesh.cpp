@@ -7998,9 +7998,15 @@ void Mesh::Print(std::ostream &out) const
 
    if (NURBSext)
    {
+      // general format
       NURBSext->Print(out);
       out << '\n';
       Nodes->Save(out);
+
+      // patch-wise format
+      // NURBSext->ConvertToPatches(*Nodes);
+      // NURBSext->Print(out);
+
       return;
    }
 
