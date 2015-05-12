@@ -129,8 +129,10 @@ int main(int argc, char *argv[])
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use the lowest order Nedelec finite elements, but we can easily switch
    //    to higher-order spaces by changing the value of p.
+   FiniteElementCollection *H1Fec    = new H1_FECollection(order, dim);
    FiniteElementCollection *HcurlFec = new ND_FECollection(order, dim);
    FiniteElementCollection *HdivFec  = new RT_FECollection(order, dim);
+   ParFiniteElementSpace *H1Fespace = new ParFiniteElementSpace(pmesh, H1Fec);
    ParFiniteElementSpace *HcurlFespace = new ParFiniteElementSpace(pmesh, HcurlFec);
    ParFiniteElementSpace *HdivFespace = new ParFiniteElementSpace(pmesh, HdivFec);
    HYPRE_Int size = HcurlFespace->GlobalTrueVSize();
@@ -170,6 +172,12 @@ int main(int argc, char *argv[])
    HypreParMatrix *Ct = curlT->ParallelAssemble()->Transpose();
    HypreParMatrix *CtC = ParMult(Ct, C);
 
+   ParDiscreteLinearOperator *grad = new ParDiscreteLinearOperator(HcurlFespace, H1Fespace);
+   grad->AddDomainInterpolator(new GradientInterpolator);
+   grad->Assemble();
+   grad->Finalize();   
+   HypreParMatrix *G = grad->ParallelAssemble()->Transpose();
+
    // 9. Project J for the solenoid on to the jdirty in H(Curl).  This may have
    //    left over divergence so we will clean that up by solving for u in 
    //    a least squares sense s.t. b = curl u = jdirty, and then taking curl u to
@@ -181,8 +189,62 @@ int main(int argc, char *argv[])
    jdirty->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    jdirty->Assemble();
    HypreParVector *JDIRTY = jdirty->ParallelAssemble();
-   HypreParVector *CtJDIRTY = new HypreParVector(*Ct);
-   Ct->Mult(*JDIRTY, *CtJDIRTY);
+   // HypreParVector *CtJDIRTY = new HypreParVector(*Ct);
+   HypreParVector *JCLEAN = new HypreParVector(HcurlFespace);
+   // Ct->Mult(*JDIRTY, *CtJDIRTY);
+   HypreParVector * DivJ = new HypreParVector(H1Fespace);
+   HypreParVector * Psi  = new HypreParVector(H1Fespace);
+
+   // The problem is that JDIRTY may have a non-zero divergence so we
+   // need to approximate its divergence.
+   //
+   // We are free to modify J by adding the gradient of a scalar
+   // function so we want to find a scalar function whose gradient
+   // will cancel the portion of J that has a non-zero divergence.
+   // The scalar function will be called Psi.
+   //
+   // We need to solve:
+   // Div(Grad(Psi)) = Div(JDIRTY)
+   //
+   // We can then compute JCLEAN as:
+   // JCLEAN = JDIRTY - Grad(Psi)
+   //
+
+   // Compute the weak divergence of JDIRTY
+   G->MultTranspose(*JDIRTY,*DivJ);
+
+   // Compute the Div(Grad()) operator
+   ParBilinearForm *a_psi = new ParBilinearForm(H1Fespace);
+   ConstantCoefficient one(1.0);
+   a_psi->AddDomainIntegrator(new DiffusionIntegrator(one));
+   a_psi->Assemble();
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   if ( ess_bdr.Size() > 1 ) ess_bdr[1] = 0;
+
+   a_psi->EliminateEssentialBC(ess_bdr, *Psi, *DivJ);
+   a_psi->Finalize();
+
+   // Solve for Psi
+   HypreParMatrix *A_psi = a_psi->ParallelAssemble();
+   HypreSolver *amg_psi = new HypreBoomerAMG(*A_psi);
+   HyprePCG *pcg_psi = new HyprePCG(*A_psi);
+   pcg_psi->SetTol(1e-12);
+   pcg_psi->SetMaxIter(200);
+   pcg_psi->SetPrintLevel(2);
+   pcg_psi->SetPreconditioner(*amg_psi);
+   pcg_psi->Mult(*DivJ, *Psi);
+
+   // Modify J
+   ParBilinearForm *m1 = new ParBilinearForm(HcurlFespace);
+   m1->AddDomainIntegrator(new VectorFEMassIntegrator(one));
+   m1->Assemble();
+   m1->Finalize();
+   HypreParMatrix *M1 = m1->ParallelAssemble();
+
+   *JCLEAN = *JDIRTY;
+   G->Mult(*Psi,*JDIRTY);
+   M1->Mult(*JDIRTY,*JCLEAN,-1.0,1.0);
 
    //Set up U
    ParGridFunction u(HcurlFespace);
@@ -198,7 +260,7 @@ int main(int argc, char *argv[])
    pcg_u->SetMaxIter(1000);
    pcg_u->SetPrintLevel(2);
    pcg_u->SetPreconditioner(*diag_scale);
-   pcg_u->Mult(*CtJDIRTY, *U);
+   pcg_u->Mult(*JCLEAN, *U);
 
    //Now B = C*U
    HypreParVector *B = new HypreParVector(*C, 1);
@@ -282,7 +344,7 @@ int main(int argc, char *argv[])
    delete Ct;
    delete CtC;
    delete JDIRTY;
-   delete CtJDIRTY;
+   delete JCLEAN;
    delete BFIELD;
 
    MPI_Finalize();
