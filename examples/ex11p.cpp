@@ -170,9 +170,9 @@ int main(int argc, char *argv[])
    curlT->Assemble();
    curlT->Finalize();   
    HypreParMatrix *Ct = curlT->ParallelAssemble()->Transpose();
-   HypreParMatrix *CtC = ParMult(Ct, C);
+   // HypreParMatrix *CtC = ParMult(Ct, C);
 
-   ParDiscreteLinearOperator *grad = new ParDiscreteLinearOperator(HcurlFespace, H1Fespace);
+   ParDiscreteLinearOperator *grad = new ParDiscreteLinearOperator(H1Fespace, HcurlFespace);
    grad->AddDomainInterpolator(new GradientInterpolator);
    grad->Assemble();
    grad->Finalize();   
@@ -220,7 +220,6 @@ int main(int argc, char *argv[])
    a_psi->Assemble();
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
-   if ( ess_bdr.Size() > 1 ) ess_bdr[1] = 0;
 
    a_psi->EliminateEssentialBC(ess_bdr, *Psi, *DivJ);
    a_psi->Finalize();
@@ -251,7 +250,7 @@ int main(int argc, char *argv[])
    u.ProjectCoefficient(zerovectorcoeff);
    HypreParVector *U = u.ParallelAverage();
    *U = 0.0;
-
+   /*
    //Solve for U
    std::cout << "Solving the curl u = J system." << std::endl;
    HypreSolver *diag_scale = new HypreDiagScale();
@@ -260,12 +259,12 @@ int main(int argc, char *argv[])
    pcg_u->SetMaxIter(1000);
    pcg_u->SetPrintLevel(2);
    pcg_u->SetPreconditioner(*diag_scale);
-   pcg_u->Mult(*JCLEAN, *U);
+   pcg_u->Mult(*JDIRTY, *U);
 
    //Now B = C*U
    HypreParVector *B = new HypreParVector(*C, 1);
    C->Mult(*U, *B);
-
+   */
    // 10. Set up the parallel bilinear form corresponding to the magnetic diffusion
    //     operator curl muinv curl, by adding the curl-curl and the
    //     mass domain integrators and finally imposing non-homogeneous Dirichlet
@@ -287,7 +286,7 @@ int main(int argc, char *argv[])
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
    *X = 0.0;
-   pcg->Mult(*B, *X);
+   pcg->Mult(*JCLEAN, *X);
 
    // 12. Interpolate to values of the BFIELD = curl X.     
    //     We could probably reformulate the problem to avoid this interpolation, but
@@ -323,9 +322,9 @@ int main(int argc, char *argv[])
 
    // 16. Free the used memory.
    delete pcg;
-   delete pcg_u;
+   // delete pcg_u;
    delete ams;
-   delete diag_scale;
+   // delete diag_scale;
    delete HcurlFespace;
    delete HdivFespace;
    delete HcurlFec;
@@ -338,11 +337,11 @@ int main(int argc, char *argv[])
    delete jdirty;
    delete X;
    delete U;
-   delete B;
+   // delete B;
    delete A;
    delete C;
    delete Ct;
-   delete CtC;
+   // delete CtC;
    delete JDIRTY;
    delete JCLEAN;
    delete BFIELD;
