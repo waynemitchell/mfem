@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
    //    more than 1,000 elements.
    {
       int ref_levels =
-         (int)floor(log(100./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -126,9 +126,7 @@ int main(int argc, char *argv[])
    }
    pmesh->ReorientTetMesh();
 
-   // 6. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Nedelec finite elements, but we can easily switch
-   //    to higher-order spaces by changing the value of p.
+   // 6. Define parallel finite element spaces on the parallel mesh. 
    FiniteElementCollection *H1Fec    = new H1_FECollection(order, dim);
    FiniteElementCollection *HcurlFec = new ND_FECollection(order, dim);
    FiniteElementCollection *HdivFec  = new RT_FECollection(order, dim);
@@ -141,57 +139,43 @@ int main(int argc, char *argv[])
       cout << "Number of unknowns: " << size << endl;
    }
 
+   /// 7. Set up discrete gradient and curl operators
+   ParDiscreteLinearOperator *grad = new ParDiscreteLinearOperator(H1Fespace, HcurlFespace);
+   grad->AddDomainInterpolator(new GradientInterpolator);
+   grad->Assemble();
+   grad->Finalize();   
+   HypreParMatrix *G = grad->ParallelAssemble();
 
-   // 7. Define the solution vector x and bfield as a parallel finite element grid functions
-   //    corresponding to fespace. Initialize x with zeros. 
-   //    Note that only values from the boundary edges will be used
-   //    when eliminating the non-homogeneous boundary condition to modify the
-   //    r.h.s. vector b.
-   Vector zerovector(3);
-   zerovector = 0.0;
-   VectorConstantCoefficient zerovectorcoeff(zerovector);
-   ParGridFunction x(HcurlFespace);
-   ParGridFunction bfield(HdivFespace);
-   x.ProjectCoefficient(zerovectorcoeff);
-   bfield.ProjectCoefficient(zerovectorcoeff);
-   HypreParVector *X = x.ParallelAverage();
-   HypreParVector *BFIELD = bfield.ParallelAverage();
-
-   /// 8. Set up the discrete curl operator for the B-field computation.
-   ///    Alsoe set up C^t, and C^tC for the divergence cleaning operation on J.
    ParDiscreteLinearOperator *curl = new ParDiscreteLinearOperator(HcurlFespace, HdivFespace);
    curl->AddDomainInterpolator(new CurlInterpolator);
    curl->Assemble();
    curl->Finalize();
    HypreParMatrix *C = curl->ParallelAssemble();
 
-   ParDiscreteLinearOperator *curlT = new ParDiscreteLinearOperator(HcurlFespace, HdivFespace);
-   curlT->AddDomainInterpolator(new CurlInterpolator);
-   curlT->Assemble();
-   curlT->Finalize();   
-   HypreParMatrix *Ct = curlT->ParallelAssemble()->Transpose();
-   // HypreParMatrix *CtC = ParMult(Ct, C);
+   // 8. Define the solution vector x, bfield, and j as a parallel 
+   //    finite element grid functions corresponding to fespace.
+   Vector zerovector(3);
+   zerovector = 0.0;
+   VectorConstantCoefficient zerovectorcoeff(zerovector);
+   ParGridFunction x(HcurlFespace);
+   ParGridFunction bfield(HdivFespace);
+   ParGridFunction j(HcurlFespace);
+   x.ProjectCoefficient(zerovectorcoeff);
+   bfield.ProjectCoefficient(zerovectorcoeff);
+   HypreParVector *X = x.ParallelAverage();
+   HypreParVector *BFIELD = bfield.ParallelAverage();
 
-   ParDiscreteLinearOperator *grad = new ParDiscreteLinearOperator(H1Fespace, HcurlFespace);
-   grad->AddDomainInterpolator(new GradientInterpolator);
-   grad->Assemble();
-   grad->Finalize();   
-   HypreParMatrix *G = grad->ParallelAssemble()->Transpose();
-
-   // 9. Project J for the solenoid on to the jdirty in H(Curl).  This may have
-   //    left over divergence so we will clean that up by solving for u in 
-   //    a least squares sense s.t. b = curl u = jdirty, and then taking curl u to
-   //    get the divergence free version.  This least squares problem is C^tC U = C^t JDIRTY.
+   // 9. Define J the current of the solenoid.  In order to converge
+   //    we must ensure that the version of J on our RHS is divergence
+   //    free.
    VectorFunctionCoefficient f(3, J_exact);
-
-   //Set up the RHS
-   ParLinearForm *jdirty = new ParLinearForm(HcurlFespace);
-   jdirty->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
-   jdirty->Assemble();
-   HypreParVector *JDIRTY = jdirty->ParallelAssemble();
-   // HypreParVector *CtJDIRTY = new HypreParVector(*Ct);
+   ParLinearForm *jdirty_form = new ParLinearForm(HcurlFespace);
+   jdirty_form->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
+   jdirty_form->Assemble();
+   ParGridFunction jdirty(HcurlFespace);
+   jdirty = *jdirty_form;
+   HypreParVector *JDIRTY = jdirty_form->ParallelAssemble();
    HypreParVector *JCLEAN = new HypreParVector(HcurlFespace);
-   // Ct->Mult(*JDIRTY, *CtJDIRTY);
    HypreParVector * DivJ = new HypreParVector(H1Fespace);
    HypreParVector * Psi  = new HypreParVector(H1Fespace);
 
@@ -240,31 +224,11 @@ int main(int argc, char *argv[])
    m1->Assemble();
    m1->Finalize();
    HypreParMatrix *M1 = m1->ParallelAssemble();
-
    *JCLEAN = *JDIRTY;
    G->Mult(*Psi,*JDIRTY);
    M1->Mult(*JDIRTY,*JCLEAN,-1.0,1.0);
+   j = *JCLEAN;
 
-   //Set up U
-   ParGridFunction u(HcurlFespace);
-   u.ProjectCoefficient(zerovectorcoeff);
-   HypreParVector *U = u.ParallelAverage();
-   *U = 0.0;
-   /*
-   //Solve for U
-   std::cout << "Solving the curl u = J system." << std::endl;
-   HypreSolver *diag_scale = new HypreDiagScale();
-   HyprePCG *pcg_u = new HyprePCG(*CtC);
-   pcg_u->SetTol(1e-12);
-   pcg_u->SetMaxIter(1000);
-   pcg_u->SetPrintLevel(2);
-   pcg_u->SetPreconditioner(*diag_scale);
-   pcg_u->Mult(*JDIRTY, *U);
-
-   //Now B = C*U
-   HypreParVector *B = new HypreParVector(*C, 1);
-   C->Mult(*U, *B);
-   */
    // 10. Set up the parallel bilinear form corresponding to the magnetic diffusion
    //     operator curl muinv curl, by adding the curl-curl and the
    //     mass domain integrators and finally imposing non-homogeneous Dirichlet
@@ -273,19 +237,18 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(HcurlFespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->Assemble();
+   a->EliminateEssentialBC(ess_bdr, x, j);
    a->Finalize();
    HypreParMatrix *A = a->ParallelAssemble();
 
    // 12. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
-   std::cout << "\nSolving the curl curl A = J system." << std::endl;
    HypreSolver *ams = new HypreAMS(*A, HcurlFespace);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(200);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
-   *X = 0.0;
    pcg->Mult(*JCLEAN, *X);
 
    // 12. Interpolate to values of the BFIELD = curl X.     
@@ -318,13 +281,13 @@ int main(int argc, char *argv[])
    VisItDataCollection visit_dc("Example11p", pmesh);
    visit_dc.RegisterField("Afield", &x);
    visit_dc.RegisterField("BField", &bfield);
+   visit_dc.RegisterField("JField", &j);
+   visit_dc.RegisterField("JFieldDirty", &jdirty);
    visit_dc.Save();
 
    // 16. Free the used memory.
    delete pcg;
-   // delete pcg_u;
    delete ams;
-   // delete diag_scale;
    delete HcurlFespace;
    delete HdivFespace;
    delete HcurlFec;
@@ -333,15 +296,10 @@ int main(int argc, char *argv[])
    delete a;
    delete muinv;
    delete curl;
-   delete curlT;
-   delete jdirty;
+   delete jdirty_form;
    delete X;
-   delete U;
-   // delete B;
    delete A;
    delete C;
-   delete Ct;
-   // delete CtC;
    delete JDIRTY;
    delete JCLEAN;
    delete BFIELD;
@@ -355,13 +313,12 @@ int main(int argc, char *argv[])
 //an outer radius of 0.11 and a height (in x) of 2.0 centered on (4, 0.5, 0.5)
 void J_exact(const Vector &x, Vector &J)
 {
-   double rsqr = (x(1) - 0.5)*(x(1) - 0.5) + (x(2) - 0.5)*(x(2) - 0.5);
+   double r = sqrt((x(1) - 0.5)*(x(1) - 0.5) + (x(2) - 0.5)*(x(2) - 0.5));
    J(0) = J(1) = J(2) = 0.0;
 
-   if (rsqr >= 0.1 && rsqr <= 0.11 && x(0) >= 3.0 && x(0) <= 5.0)
+   if (r >= 0.1 && r <= 0.11 && x(0) >= 3.0 && x(0) <= 5.0)
    {
-      double r = sqrt(rsqr);
-      J(1) = -x(2) / r;
-      J(2) = x(1) / r;
+      J(1) = -(x(2) - 0.5) / r;
+      J(2) = (x(1) - 0.5) / r;
    }
 }
