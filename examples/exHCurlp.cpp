@@ -12,7 +12,6 @@
 //               mpirun -np 4 ex??p -m ../data/beam-hex-nurbs.mesh
 //
 // Description:  This example code solves a simple 3D magnetostatic
-
 //               problem corresponding to the second order
 //               semi-definite Maxwell equation
 //                  curl curl A = 0
@@ -20,6 +19,9 @@
 //                                / (0,0,1) on surface 1
 //                  n x (A x n) = |
 //                                \ (0,0,0) elsewhere
+//               This is a perfect electrical conductor (PEC) boundary
+//               condition which results in a magnetic field sasifying:
+//                  n . B = 0 on all surfaces
 //               We discretize with Nedelec finite elements.
 //
 //               The example demonstrates the use of H(curl) finite element
@@ -260,14 +262,16 @@ int main(int argc, char *argv[])
       socketstream sol_sock(vishost, visport);
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
-      sol_sock << "solution\n" << *pmesh << x << flush;
+      sol_sock << "solution\n" << *pmesh << x
+	       << "window_title 'Vector Potential'" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       socketstream curl_sock(vishost, visport);
       curl_sock << "parallel " << num_procs << " " << myid << "\n";
       curl_sock.precision(8);
-      curl_sock << "solution\n" << *pmesh << curlx << flush;
+      curl_sock << "solution\n" << *pmesh << curlx
+		<< "window_title 'Magnetic Field'" << flush;
 
    }
 
