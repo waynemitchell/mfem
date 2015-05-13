@@ -1163,7 +1163,8 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
 #ifdef MFEM_DEBUG
       // Check that in the rows specified by the ess_dof_list, the matrix A has
       // only one entry -- the diagonal.
-      if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
+      // if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
+      if (J[I[r]] != r)
       {
          mfem_error("EliminateBC (hypre.cpp)");
       }
