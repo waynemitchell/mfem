@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
 
    //mesh->GeneralRefinement(Array<int>(), 1);
    Array<Refinement> refs;
-   refs.Append(Refinement(0, 4));
+   refs.Append(Refinement(0, 7));
    mesh->GeneralRefinement(refs, 1);
    //mesh->GeneralRefinement(refs, 1);
 
@@ -133,16 +133,6 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }
-   /*{
-      Array<Refinement> refs;
-      if (myid == 0)
-      {
-         for (int i = 0; i < pmesh->GetNE(); i++)
-            refs.Append(Refinement(i, 7));
-      }
-      pmesh->GeneralRefinement(refs, 1);
-   }*/
-
    pmesh->ReorientTetMesh();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
@@ -155,13 +145,6 @@ int main(int argc, char *argv[])
    {
       cout << "Number of unknowns: " << size << endl;
    }
-
-   HypreParMatrix* P = fespace->Dof_TrueDof_Matrix();
-   P->Print("P");
-   //P->LeftDiagMult(*fespace->GetRestrictionMatrix(), fespace->GetTrueDofOffsets())->Print("RP");
-
-
-
 
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
@@ -184,7 +167,6 @@ int main(int argc, char *argv[])
    VectorFunctionCoefficient E(3, E_exact);
    x.ProjectCoefficient(E);
 
-#if !PROJTEST
    // 9. Set up the parallel bilinear form corresponding to the EM diffusion
    //    operator curl muinv curl + sigma I, by adding the curl-curl and the
    //    mass domain integrators and finally imposing non-homogeneous Dirichlet
@@ -205,13 +187,8 @@ int main(int argc, char *argv[])
    //     b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
-#endif
    HypreParVector *X = x.ParallelProject();
 
-   //B->Print("B");
-
-
-#if !PROJTEST
    // Eliminate essential BC from the parallel system
    a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
@@ -232,10 +209,9 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*B, *X);
 
-#endif
    // 12. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   x = *B;
+   x = *X;
 
    // 13. Compute and print the L^2 norm of the error.
    {
@@ -274,15 +250,11 @@ int main(int argc, char *argv[])
    }
 
    // 16. Free the used memory.
-#if !PROJTEST
    delete pcg;
    delete ams;
-#endif
    delete X;
-#if !PROJTEST
    delete B;
    delete A;
-#endif
    delete fespace;
    delete fec;
    delete pmesh;
@@ -297,15 +269,9 @@ const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {
-#if PROJTEST
-   E(0) = 10*x(1)*x(2);
-   E(1) = 3*x(0)*x(2) + 5;
-   E(2) = 2*x(1);
-#else
    E(0) = sin(kappa * x(1));
    E(1) = sin(kappa * x(2));
    E(2) = sin(kappa * x(0));
-#endif
 }
 
 void f_exact(const Vector &x, Vector &f)
