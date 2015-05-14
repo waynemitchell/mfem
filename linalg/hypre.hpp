@@ -654,7 +654,7 @@ private:
 
 public:
    HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
-        int singular_problem = 0);
+            int singular_problem = 0);
 
    /// The typecast to HYPRE_Solver returns the internal ams object
    virtual operator HYPRE_Solver() const { return ams; }

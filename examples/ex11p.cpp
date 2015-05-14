@@ -9,7 +9,7 @@
 //               problem corresponding to the second order definite Maxwell
 //               equation curl (1/mu) curl A = J with boundary condition
 //               A x n = 0.  A is the magnetic vector potential
-//               so that magnetic flux density B = curl A, and J is the 
+//               so that magnetic flux density B = curl A, and J is the
 //               electric current density.  We discretize with Nedelec finite elements.
 //
 //               The example demonstrates the use of H(curl) finite element
@@ -121,12 +121,13 @@ int main(int argc, char *argv[])
    }
    pmesh->ReorientTetMesh();
 
-   // 6. Define parallel finite element spaces on the parallel mesh. 
+   // 6. Define parallel finite element spaces on the parallel mesh.
    FiniteElementCollection *H1Fec    = new H1_FECollection(order, dim);
    FiniteElementCollection *HcurlFec = new ND_FECollection(order, dim);
    FiniteElementCollection *HdivFec  = new RT_FECollection(order, dim);
    ParFiniteElementSpace *H1Fespace = new ParFiniteElementSpace(pmesh, H1Fec);
-   ParFiniteElementSpace *HcurlFespace = new ParFiniteElementSpace(pmesh, HcurlFec);
+   ParFiniteElementSpace *HcurlFespace = new ParFiniteElementSpace(pmesh,
+                                                                   HcurlFec);
    ParFiniteElementSpace *HdivFespace = new ParFiniteElementSpace(pmesh, HdivFec);
    HYPRE_Int size = HcurlFespace->GlobalTrueVSize();
    if (myid == 0)
@@ -135,25 +136,27 @@ int main(int argc, char *argv[])
    }
 
    /// 7. Set up discrete gradient and curl operators
-   ParDiscreteLinearOperator *grad = new ParDiscreteLinearOperator(H1Fespace, HcurlFespace);
+   ParDiscreteLinearOperator *grad = new ParDiscreteLinearOperator(H1Fespace,
+                                                                   HcurlFespace);
    grad->AddDomainInterpolator(new GradientInterpolator);
    grad->Assemble();
-   grad->Finalize();   
+   grad->Finalize();
    HypreParMatrix *G = grad->ParallelAssemble();
 
-   ParDiscreteLinearOperator *curl = new ParDiscreteLinearOperator(HcurlFespace, HdivFespace);
+   ParDiscreteLinearOperator *curl = new ParDiscreteLinearOperator(HcurlFespace,
+                                                                   HdivFespace);
    curl->AddDomainInterpolator(new CurlInterpolator);
    curl->Assemble();
    curl->Finalize();
    HypreParMatrix *C = curl->ParallelAssemble();
 
-   // 8. Define the solution vector x, bfield, and j as a parallel 
+   // 8. Define the solution vector x, bfield, and j as a parallel
    //    finite element grid functions corresponding to fespace.
    ParGridFunction x(HcurlFespace);
    ParGridFunction bfield(HdivFespace);
    ParGridFunction j(HcurlFespace);
    HypreParVector *X = new HypreParVector(HcurlFespace);
-   HypreParVector *BFIELD = new HypreParVector(HcurlFespace);
+   HypreParVector *BFIELD = new HypreParVector(HdivFespace);
    *X = 0.0;
    *BFIELD = 0.0;
 
@@ -248,7 +251,7 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*JCLEAN, *X);
 
-   // 12. Interpolate to values of the BFIELD = curl X.     
+   // 12. Interpolate to values of the BFIELD = curl X.
    //     We could probably reformulate the problem to avoid this interpolation, but
    //     this will do for now.
    C->Mult(*X, *BFIELD);
@@ -271,7 +274,7 @@ int main(int argc, char *argv[])
 
       ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
-      x.Save(sol_ofs);
+      bfield.Save(sol_ofs);
    }
 
    // 15. Save data in the VisIt format
@@ -289,7 +292,7 @@ int main(int argc, char *argv[])
       socketstream sol_sock(vishost, visport);
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
-      sol_sock << "solution\n" << *pmesh << x << flush;
+      sol_sock << "solution\n" << *pmesh << bfield << flush;
    }
 
    // 17. Free the used memory.
