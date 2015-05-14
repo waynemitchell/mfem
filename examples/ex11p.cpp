@@ -1,14 +1,9 @@
 //                       MFEM Example 11 - Parallel Version
 //
-// Compile with: make ex3p
+// Compile with: make ex11p
 //
-// Sample runs:  mpirun -np 4 ex3p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex3p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex3p -m ../data/escher.mesh
-//               mpirun -np 4 ex3p -m ../data/fichera.mesh
-//               mpirun -np 4 ex3p -m ../data/fichera-q2.vtk
-//               mpirun -np 4 ex3p -m ../data/fichera-q3.mesh
-//               mpirun -np 4 ex3p -m ../data/beam-hex-nurbs.mesh
+// Sample runs:  mpirun -np 4 ex11p -m ../data/inline_hex.mesh
+
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -43,7 +38,7 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../data/beam-hex.mesh";
+   const char *mesh_file = "../data/inline-hex.mesh";
    int order = 1;
    bool visualization = 1;
 
@@ -103,7 +98,7 @@ int main(int argc, char *argv[])
    //    more than 1,000 elements.
    {
       int ref_levels =
-         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(20000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -154,16 +149,13 @@ int main(int argc, char *argv[])
 
    // 8. Define the solution vector x, bfield, and j as a parallel 
    //    finite element grid functions corresponding to fespace.
-   Vector zerovector(3);
-   zerovector = 0.0;
-   VectorConstantCoefficient zerovectorcoeff(zerovector);
    ParGridFunction x(HcurlFespace);
    ParGridFunction bfield(HdivFespace);
    ParGridFunction j(HcurlFespace);
-   x.ProjectCoefficient(zerovectorcoeff);
-   bfield.ProjectCoefficient(zerovectorcoeff);
-   HypreParVector *X = x.ParallelAverage();
-   HypreParVector *BFIELD = bfield.ParallelAverage();
+   HypreParVector *X = new HypreParVector(HcurlFespace);
+   HypreParVector *BFIELD = new HypreParVector(HcurlFespace);
+   *X = 0.0;
+   *BFIELD = 0.0;
 
    // 9. Define J the current of the solenoid.  In order to converge
    //    we must ensure that the version of J on our RHS is divergence
@@ -173,11 +165,15 @@ int main(int argc, char *argv[])
    jdirty_form->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    jdirty_form->Assemble();
    ParGridFunction jdirty(HcurlFespace);
+   ParGridFunction psi(H1Fespace);
+   ParGridFunction divj(H1Fespace);
    jdirty = *jdirty_form;
    HypreParVector *JDIRTY = jdirty_form->ParallelAssemble();
    HypreParVector *JCLEAN = new HypreParVector(HcurlFespace);
-   HypreParVector * DivJ = new HypreParVector(H1Fespace);
-   HypreParVector * Psi  = new HypreParVector(H1Fespace);
+   HypreParVector *DIVJ = new HypreParVector(H1Fespace);
+   HypreParVector *PSI  = new HypreParVector(H1Fespace);
+   *PSI = 0.0;
+   psi = *PSI;
 
    // The problem is that JDIRTY may have a non-zero divergence so we
    // need to approximate its divergence.
@@ -195,7 +191,8 @@ int main(int argc, char *argv[])
    //
 
    // Compute the weak divergence of JDIRTY
-   G->MultTranspose(*JDIRTY,*DivJ);
+   G->MultTranspose(*JDIRTY,*DIVJ);
+   divj = *DIVJ;
 
    // Compute the Div(Grad()) operator
    ParBilinearForm *a_psi = new ParBilinearForm(H1Fespace);
@@ -205,7 +202,7 @@ int main(int argc, char *argv[])
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
 
-   a_psi->EliminateEssentialBC(ess_bdr, *Psi, *DivJ);
+   a_psi->EliminateEssentialBC(ess_bdr, psi, divj);
    a_psi->Finalize();
 
    // Solve for Psi
@@ -216,7 +213,7 @@ int main(int argc, char *argv[])
    pcg_psi->SetMaxIter(200);
    pcg_psi->SetPrintLevel(2);
    pcg_psi->SetPreconditioner(*amg_psi);
-   pcg_psi->Mult(*DivJ, *Psi);
+   pcg_psi->Mult(*DIVJ, *PSI);
 
    // Modify J
    ParBilinearForm *m1 = new ParBilinearForm(HcurlFespace);
@@ -225,7 +222,7 @@ int main(int argc, char *argv[])
    m1->Finalize();
    HypreParMatrix *M1 = m1->ParallelAssemble();
    *JCLEAN = *JDIRTY;
-   G->Mult(*Psi,*JDIRTY);
+   G->Mult(*PSI,*JDIRTY);
    M1->Mult(*JDIRTY,*JCLEAN,-1.0,1.0);
    j = *JCLEAN;
 
@@ -243,7 +240,7 @@ int main(int argc, char *argv[])
 
    // 12. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
-   HypreSolver *ams = new HypreAMS(*A, HcurlFespace);
+   HypreSolver *ams = new HypreAMS(*A, HcurlFespace, 1);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(200);
@@ -282,10 +279,20 @@ int main(int argc, char *argv[])
    visit_dc.RegisterField("Afield", &x);
    visit_dc.RegisterField("BField", &bfield);
    visit_dc.RegisterField("JField", &j);
-   visit_dc.RegisterField("JFieldDirty", &jdirty);
    visit_dc.Save();
 
-   // 16. Free the used memory.
+   // 16. Send the solution by socket to a GLVis server.
+   if (visualization)
+   {
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      socketstream sol_sock(vishost, visport);
+      sol_sock << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock.precision(8);
+      sol_sock << "solution\n" << *pmesh << x << flush;
+   }
+
+   // 17. Free the used memory.
    delete pcg;
    delete ams;
    delete HcurlFespace;
@@ -295,10 +302,17 @@ int main(int argc, char *argv[])
    delete pmesh;
    delete a;
    delete muinv;
+   delete grad;
    delete curl;
+   delete m1;
    delete jdirty_form;
+   delete DIVJ;
+   delete PSI;
+   delete M1;
    delete X;
+   delete A_psi;
    delete A;
+   delete G;
    delete C;
    delete JDIRTY;
    delete JCLEAN;
@@ -309,14 +323,15 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-//Current going around an idealized solenoid that has an inner radius of 0.1
-//an outer radius of 0.11 and a height (in x) of 2.0 centered on (4, 0.5, 0.5)
+//Current going around an idealized solenoid that has an inner radius of 0.2
+//an outer radius of 0.22 and a height (in x) of 0.2 centered on (0.5, 0.5, 0.5)
 void J_exact(const Vector &x, Vector &J)
 {
+   const double sol_inner_r = 0.2;
    double r = sqrt((x(1) - 0.5)*(x(1) - 0.5) + (x(2) - 0.5)*(x(2) - 0.5));
    J(0) = J(1) = J(2) = 0.0;
 
-   if (r >= 0.1 && r <= 0.11 && x(0) >= 3.0 && x(0) <= 5.0)
+   if (r >= sol_inner_r && r <= 1.1*sol_inner_r && x(0) >= 0.4 && x(0) <= 0.5)
    {
       J(1) = -(x(2) - 0.5) / r;
       J(2) = (x(1) - 0.5) / r;
