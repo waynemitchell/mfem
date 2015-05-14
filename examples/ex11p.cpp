@@ -296,13 +296,18 @@ int main(int argc, char *argv[])
    }
 
    // 17. Free the used memory.
+   delete pcg_psi;
+   delete amg_psi;
    delete pcg;
    delete ams;
+   delete H1Fespace;
    delete HcurlFespace;
    delete HdivFespace;
+   delete H1Fec;
    delete HcurlFec;
    delete HdivFec;
    delete pmesh;
+   delete a_psi;
    delete a;
    delete muinv;
    delete grad;
