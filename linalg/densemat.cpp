@@ -2833,6 +2833,50 @@ void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
 #endif
 }
 
+void AddMult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
+{
+#ifdef MFEM_DEBUG
+   if (a.Height() != b.Height() || a.Width() != c.Width() ||
+       b.Width() != c.Height())
+   {
+      mfem_error("AddMult (product of DenseMatrices)");
+   }
+#endif
+
+#ifdef MFEM_USE_LAPACK
+   static char transa = 'N', transb = 'N';
+   static double alpha = 1.0, beta = 1.0;
+   int m = b.Height(), n = c.Width(), k = b.Width();
+
+   dgemm_(&transa, &transb, &m, &n, &k, &alpha, b.Data(), &m,
+          c.Data(), &k, &beta, a.Data(), &m);
+#else
+   int ah = a.Height();
+   int as = a.Width();
+   int bs = b.Width();
+   double *ad = a.Data();
+   double *bd = b.Data();
+   double *cd = c.Data();
+   int i, j, k;
+   double *bdd, *cdd;
+
+   for (j = 0; j < as; j++, cd += bs)
+   {
+      for (i = 0; i < ah; i++, ad++)
+      {
+         bdd = bd+i;
+         cdd = cd;
+         for (k = 0 ; k < bs; k++)
+         {
+            *ad += (*bdd) * (*cdd);
+            cdd++;
+            bdd += ah;
+         }
+      }
+   }
+#endif
+}
+
 void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja)
 {
 #ifdef MFEM_DEBUG
