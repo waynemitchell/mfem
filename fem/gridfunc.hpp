@@ -15,6 +15,7 @@
 #include "../config/config.hpp"
 #include "fespace.hpp"
 #include "coefficient.hpp"
+#include "bilininteg.hpp"
 #include <limits>
 #include <ostream>
 #include <string>

@@ -2105,7 +2105,8 @@ HypreBoomerAMG::~HypreBoomerAMG()
 }
 
 
-HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
+HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
+		   int singular_problem)
    : HypreSolver(&A)
 {
    int cycle_type       = 1; // FIXME: 13
@@ -2236,6 +2237,8 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
                                theta, amg_interp_type, amg_Pmax);
    HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                               theta, amg_interp_type, amg_Pmax);
+   if (singular_problem)
+     HYPRE_AMSSetBetaPoissonMatrix(ams,NULL);
 }
 
 HypreAMS::~HypreAMS()

@@ -101,6 +101,12 @@ public:
    /// y += A.x
    void AddMult(const Vector &x, Vector &y) const;
 
+   /// y += a * A.x
+   void AddMult_a(double a, const Vector &x, Vector &y) const;
+
+   // y += a * A^t x
+   void AddMultTranspose_a(double a, const Vector &x, Vector &y) const;
+
    /// Compute y^t A x
    double InnerProduct(const double *x, const double *y) const;
 
@@ -272,6 +278,10 @@ public:
 void Add(const DenseMatrix &A, const DenseMatrix &B,
          double alpha, DenseMatrix &C);
 
+/// C = alpha*A + beta*B
+void Add(double alpha, const DenseMatrix &A,
+         double beta,  const DenseMatrix &B, DenseMatrix &C);
+
 /// Matrix matrix multiplication.  A = B * C.
 void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a);
 
@@ -306,6 +316,10 @@ void AddMultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt);
 
 /// Multiply a matrix A with the transpose of a matrix B:   A*Bt
 void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt);
+
+/// ADBt = A D B^t, where D is diagonal
+void MultADBt(const DenseMatrix &A, const Vector &D,
+              const DenseMatrix &B, DenseMatrix &ADAt);
 
 /// ABt += A * B^t
 void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt);

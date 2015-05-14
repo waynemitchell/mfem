@@ -245,6 +245,51 @@ void DenseMatrix::AddMult(const Vector &x, Vector &y) const
    }
 }
 
+void DenseMatrix::AddMult_a(double a, const Vector &x, Vector &y) const
+{
+#ifdef MFEM_DEBUG
+   if ( height != y.Size() || width != x.Size() )
+   {
+      mfem_error("DenseMatrix::AddMult_a");
+   }
+#endif
+
+   const double *xp = x;
+   double *d_col = data, *yp = y;
+   for (int col = 0; col < width; col++)
+   {
+      double x_col = a*xp[col];
+      for (int row = 0; row < height; row++)
+      {
+         yp[row] += x_col*d_col[row];
+      }
+      d_col += height;
+   }
+}
+
+void DenseMatrix::AddMultTranspose_a(double a, const Vector &x,
+                                     Vector &y) const
+{
+#ifdef MFEM_DEBUG
+   if ( height != x.Size() || width != y.Size() )
+   {
+      mfem_error("DenseMatrix::AddMultTranspose_a");
+   }
+#endif
+
+   double *d_col = data;
+   for (int col = 0; col < width; col++)
+   {
+      double y_col = 0.0;
+      for (int row = 0; row < height; row++)
+      {
+         y_col += x[row]*d_col[row];
+      }
+      y[col] += a * y_col;
+      d_col += height;
+   }
+}
+
 double DenseMatrix::InnerProduct(const double *x, const double *y) const
 {
    double prod = 0.0;
@@ -2726,6 +2771,16 @@ void Add(const DenseMatrix &A, const DenseMatrix &B,
       }
 }
 
+void Add(double alpha, const DenseMatrix &A,
+         double beta,  const DenseMatrix &B, DenseMatrix &C)
+{
+   for (int i = 0; i < C.Height(); i++)
+      for (int j = 0; j < C.Width(); j++)
+      {
+         C(i,j) = alpha * A(i,j) + beta * B(i,j);
+      }
+}
+
 
 #ifdef MFEM_USE_LAPACK
 extern "C" void
@@ -3175,6 +3230,42 @@ void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
          ABt(i, j) = d;
       }
 #endif
+}
+
+void MultADBt(const DenseMatrix &A, const Vector &D,
+              const DenseMatrix &B, DenseMatrix &ADBt)
+{
+#ifdef MFEM_DEBUG
+   if (A.Height() != ADBt.Height() || B.Height() != ADBt.Width() ||
+       A.Width() != B.Width() || A.Width() != D.Size())
+   {
+      mfem_error("AddMultADBt(...)");
+   }
+#endif
+
+   const int ah = A.Height();
+   const int bh = B.Height();
+   const int aw = A.Width();
+   const double *ad = A.Data();
+   const double *bd = B.Data();
+   const double *dd = D.GetData();
+   double *cd = ADBt.Data();
+
+   for (int k = 0; k < aw; k++)
+   {
+      double *cp = cd;
+      for (int j = 0; j < bh; j++)
+      {
+         const double bjk = bd[j];
+         for (int i = 0; i < ah; i++)
+         {
+            cp[i] += ad[i] * dd[k] * bjk;
+         }
+         cp += ah;
+      }
+      ad += ah;
+      bd += bh;
+   }
 }
 
 void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)

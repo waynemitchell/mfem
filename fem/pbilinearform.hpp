@@ -87,6 +87,7 @@ class ParMixedBilinearForm : public MixedBilinearForm
 protected:
    ParFiniteElementSpace *trial_pfes;
    ParFiniteElementSpace *test_pfes;
+   mutable ParGridFunction X, Y; // used in TrueAddMult
 
 public:
    ParMixedBilinearForm(ParFiniteElementSpace *trial_fes,
@@ -99,6 +100,9 @@ public:
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
    HypreParMatrix *ParallelAssemble();
+
+   /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
+   void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 
    virtual ~ParMixedBilinearForm() { }
 };

@@ -483,6 +483,21 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
    return rap;
 }
 
+/// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
+void ParMixedBilinearForm::TrueAddMult(const Vector &x, Vector &y,
+                                       const double a) const
+{
+   if (X.ParFESpace() != trial_pfes)
+   {
+      X.Update(trial_pfes);
+      Y.Update(test_pfes);
+   }
+
+   X.Distribute(&x);
+   mat->Mult(X, Y);
+   test_pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
+}
+
 }
 
 #endif
