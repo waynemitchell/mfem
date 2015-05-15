@@ -131,7 +131,7 @@ protected:
 
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
-                      int dim = 1, int order = Ordering::byNODES);
+                      int vdim = 1, int ordering = Ordering::byNODES);
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }

@@ -887,12 +887,12 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
 
 FiniteElementSpace::FiniteElementSpace(Mesh *m,
                                        const FiniteElementCollection *f,
-                                       int dim, int order)
+                                       int vdim, int ordering)
 {
    mesh = m;
    fec = f;
-   vdim = dim;
-   ordering = order;
+   this->vdim = vdim;
+   this->ordering = ordering;
 
    const NURBSFECollection *nurbs_fec =
       dynamic_cast<const NURBSFECollection *>(fec);
