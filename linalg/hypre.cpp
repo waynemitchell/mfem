@@ -1152,8 +1152,9 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
    HYPRE_Int *I = hypre_CSRMatrixI(A_diag);
 #ifdef MFEM_DEBUG
    HYPRE_Int    *J   = hypre_CSRMatrixJ(A_diag);
-   HYPRE_Int *I_offd =
-      hypre_CSRMatrixI(hypre_ParCSRMatrixOffd((hypre_ParCSRMatrix *)A));
+   hypre_CSRMatrix *A_offd = hypre_ParCSRMatrixOffd((hypre_ParCSRMatrix *)A);
+   HYPRE_Int *I_offd = hypre_CSRMatrixI(A_offd);
+   double *data_offd = hypre_CSRMatrixData(A_offd);
 #endif
 
    for (int i = 0; i < ess_dof_list.Size(); i++)
@@ -1166,7 +1167,21 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
       // if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
       if (J[I[r]] != r)
       {
-         mfem_error("EliminateBC (hypre.cpp)");
+         MFEM_ABORT("the diagonal entry must be the first entry in the row!");
+      }
+      for (int j = I[r]+1; j < I[r+1]; j++)
+      {
+         if (data[j] != 0.0)
+         {
+            MFEM_ABORT("all off-diagonal entries must be zero!");
+         }
+      }
+      for (int j = I_offd[r]; j < I_offd[r+1]; j++)
+      {
+         if (data_offd[j] != 0.0)
+         {
+            MFEM_ABORT("all off-diagonal entries must be zero!");
+         }
       }
 #endif
    }
