@@ -2181,13 +2181,7 @@ void ComputeFlux(BilinearFormIntegrator &blfi,
       ufes->GetElementVDofs(i, udofs);
       ffes->GetElementVDofs(i, fdofs);
 
-      // TODO: GetSubVector
-      ul.SetSize(udofs.Size());
-      for (int j = 0; j < ul.Size(); j++)
-      {
-         int ud = udofs[j];
-         ul(j) = (ud >= 0) ? u(ud) : -u(-1 - ud);
-      }
+      u.GetSubVector(udofs, ul);
 
       Transf = ufes->GetElementTransformation(i);
       blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
@@ -2195,11 +2189,10 @@ void ComputeFlux(BilinearFormIntegrator &blfi,
 
       flux.AddElementVector(fdofs, fl);
 
+      FiniteElementSpace::AdjustVDofs(fdofs);
       for (int j = 0; j < fdofs.Size(); j++)
       {
-         int fd = fdofs[j];
-         if (fd < 0) { fd = -1 - fd; } // TODO: AdjustVDofs
-         overlap[fd]++;
+         overlap[fdofs[j]]++;
       }
    }
 

@@ -297,7 +297,7 @@ protected:
    void ProjectCurl_ND(const double *tk, const Array<int> &d2t,
                        const FiniteElement &fe, ElementTransformation &Trans,
                        DenseMatrix &curl) const;
-   // TODO: do we need 2 identical functions?
+
    void ProjectCurl_RT(const double *nk, const Array<int> &d2n,
                        const FiniteElement &fe, ElementTransformation &Trans,
                        DenseMatrix &curl) const;

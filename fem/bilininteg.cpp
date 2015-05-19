@@ -360,7 +360,7 @@ void DiffusionIntegrator::AssembleElementVector(
 
 void DiffusionIntegrator::ComputeElementFlux
 ( const FiniteElement &el, ElementTransformation &Trans,
-  Vector &u, const FiniteElement &fluxelem, Vector &flux, int wcoef )
+  Vector &u, const FiniteElement &fluxelem, Vector &flux, int with_coef )
 {
    int i, j, nd, dim, spaceDim, fnd;
 
@@ -391,16 +391,9 @@ void DiffusionIntegrator::ComputeElementFlux
       CalcInverse(Trans.Jacobian(), invdfdx);
       invdfdx.MultTranspose(vec, pointflux);
 
-      if (!wcoef)
+      if (!MQ)
       {
-         for (j = 0; j < dim; j++)
-         {
-            flux(fnd*j+i) = pointflux(j);
-         }
-      }
-      else if (!MQ)
-      {
-         if (Q)
+         if (Q && with_coef)
          {
             pointflux *= Q->Eval(Trans,ip);
          }
@@ -425,11 +418,8 @@ double DiffusionIntegrator::ComputeFluxEnergy
 ( const FiniteElement &fluxelem, ElementTransformation &Trans,
   Vector &flux)
 {
-   int i, j, k, nd, dim, order;
-   double energy, co;
-
-   nd = fluxelem.GetDof();
-   dim = fluxelem.GetDim();
+   int nd = fluxelem.GetDof();
+   int dim = fluxelem.GetDim();
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix mq;
@@ -443,34 +433,31 @@ double DiffusionIntegrator::ComputeFluxEnergy
       vec.SetSize(dim);
    }
 
-   order = 2 * fluxelem.GetOrder(); // <--
+   int order = 2 * fluxelem.GetOrder(); // <--
    const IntegrationRule *ir = &IntRules.Get(fluxelem.GetGeomType(), order);
 
-   energy = 0.0;
-   for (i = 0; i < ir->GetNPoints(); i++)
+   double energy = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
       fluxelem.CalcShape(ip, shape);
 
       pointflux = 0.0;
-      for (k = 0; k < dim; k++)
+      for (int k = 0; k < dim; k++)
       {
-         for (j = 0; j < nd; j++)
+         for (int j = 0; j < nd; j++)
          {
             pointflux(k) += flux(k*nd+j)*shape(j);
          }
       }
 
       Trans.SetIntPoint (&ip);
-      co = Trans.Weight() * ip.weight;
+      double co = Trans.Weight() * ip.weight;
 
       if (!MQ)
       {
-         co *= ( pointflux * pointflux );
-         if (Q)
-         {
-            co *= Q->Eval(Trans, ip);
-         }
+         co *= (pointflux * pointflux);
+         if (Q) { co *= Q->Eval(Trans, ip); }
       }
       else
       {
@@ -1042,7 +1029,7 @@ void CurlCurlIntegrator::AssembleElementMatrix
 
 void CurlCurlIntegrator::ComputeElementFlux(
    const FiniteElement &el, ElementTransformation &Trans,
-   Vector &u, const FiniteElement &fluxelem, Vector &flux, int wcoef)
+   Vector &u, const FiniteElement &fluxelem, Vector &flux, int with_coef)
 {
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix projcurl;
