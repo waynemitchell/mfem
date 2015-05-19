@@ -2,14 +2,8 @@
 //
 // Compile with: make ex??p
 //
-// Sample runs:  mpirun -np 4 ex??p -m ../data/square-torus.mesh
-//               mpirun -np 4 ex??p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex??p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex??p -m ../data/escher.mesh
-//               mpirun -np 4 ex??p -m ../data/fichera.mesh
-//               mpirun -np 4 ex??p -m ../data/fichera-q2.vtk
-//               mpirun -np 4 ex??p -m ../data/fichera-q3.mesh
-//               mpirun -np 4 ex??p -m ../data/beam-hex-nurbs.mesh
+// Sample runs:  mpirun -np 4 ex??p -m ../data/square-torus-n1.mesh
+//               mpirun -np 4 ex??p -m ../data/square-angled-pipe-n1.mesh
 //
 // Description:  This example code solves a simple 3D magnetostatic
 //               problem corresponding to the second order
@@ -152,17 +146,85 @@ for (int it = 1; it <= 15; it++)
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use the lowest order Nedelec finite elements, but we can easily switch
    //    to higher-order spaces by changing the value of p.
+   FiniteElementCollection *H1FEC        = new H1_FECollection(order, dim);
    FiniteElementCollection *HCurlFEC     = new ND_FECollection(order, dim);
    FiniteElementCollection *HDivFEC      = new RT_FECollection(order, dim);
+
+   ParFiniteElementSpace   *H1FESpace    = new ParFiniteElementSpace(pmesh,
+								     H1FEC);
    ParFiniteElementSpace   *HCurlFESpace = new ParFiniteElementSpace(pmesh,
 								     HCurlFEC);
    ParFiniteElementSpace   *HDivFESpace  = new ParFiniteElementSpace(pmesh,
 								     HDivFEC);
+
    HYPRE_Int size = HCurlFESpace->GlobalTrueVSize();
    if (myid == 0)
    {
       cout << "Number of unknowns: " << size << endl;
    }
+
+   // 7. - epsilon
+   ParLinearForm *b1 = new ParLinearForm(H1FESpace);
+   b1->Assemble();
+
+   ParGridFunction x1(H1FESpace);
+   ConstantCoefficient one(1.0);
+   ConstantCoefficient one_half(0.5);
+   ConstantCoefficient neg_one_half(-0.5);
+   x1 = 0.0;
+   Array<int> ess_bdr1_p(pmesh->bdr_attributes.Max());
+   Array<int> ess_bdr1_n(pmesh->bdr_attributes.Max());
+   ess_bdr1_p = 0; ess_bdr1_p[1] = 1;
+   ess_bdr1_n = 0; ess_bdr1_n[0] = 1;
+   x1.ProjectBdrCoefficient(one_half,ess_bdr1_p);
+   x1.ProjectBdrCoefficient(neg_one_half,ess_bdr1_n);
+
+   ParBilinearForm *a1 = new ParBilinearForm(H1FESpace);
+   PWConstCoefficient *sigma =
+     new PWConstCoefficient(pmesh->bdr_attributes.Max());
+   (*sigma) = 0.0; (*sigma)(3) = 1.0;
+   a1->AddBoundaryIntegrator(new DiffusionIntegrator(*sigma));
+   a1->Assemble();
+
+   Array<int> ess_bdr1(pmesh->bdr_attributes.Max());
+   ess_bdr1 = 0; ess_bdr1[0] = 1; ess_bdr1[1] = 1;
+   // a1->EliminateEssentialBC(ess_bdr1, x1, *b1);
+   a1->Finalize();
+
+   HypreParMatrix *A1 = a1->ParallelAssemble();
+   HypreParVector *B1 = b1->ParallelAssemble();
+   HypreParVector *X1 = x1.ParallelProject();
+
+   a1->ParallelEliminateEssentialBC(ess_bdr1, *A1, *X1, *B1);
+
+   delete a1;
+   delete b1;
+   delete sigma;
+
+   HypreSolver *amg1 = new HypreBoomerAMG(*A1);
+   HyprePCG *pcg1 = new HyprePCG(*A1);
+   pcg1->SetTol(1e-12);
+   pcg1->SetMaxIter(200);
+   pcg1->SetPrintLevel(2);
+   pcg1->SetPreconditioner(*amg1);
+   pcg1->Mult(*B1, *X1);
+
+   x1 = *X1;
+
+   ParDiscreteLinearOperator *grad =
+     new ParDiscreteLinearOperator(H1FESpace, HCurlFESpace);
+   grad->AddDomainInterpolator(new GradientInterpolator);
+   grad->Assemble();
+   grad->Finalize();
+   HypreParMatrix *Grad = grad->ParallelAssemble();
+   HypreParVector *GradX1 = new HypreParVector(HCurlFESpace);
+   Grad->Mult(*X1,*GradX1);
+   ParGridFunction gradx1(HCurlFESpace,GradX1);
+
+   delete grad;
+   delete X1;
+   delete B1;
+   delete A1;
 
    // 7. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
@@ -174,15 +236,14 @@ for (int it = 1; it <= 15; it++)
    // grid function corresponding to HCurlFESpace. Initialize x by
    // projecting the boundary conditions onto the appropriate edges.
    ParGridFunction x(HCurlFESpace);
-   Vector zHat(3); zHat = 0.0; zHat(2) = 1.0;
-   VectorConstantCoefficient UnitVecZ(zHat);
-
+   Vector vZero(3); vZero = 0.0;
+   VectorConstantCoefficient Zero(vZero);
    Array<int> ess_bdr_1(pmesh->bdr_attributes.Max());
-   ess_bdr_1 = 0; ess_bdr_1[0] = 1;
+   ess_bdr_1 = 1; ess_bdr_1[2] = 0;
 
    // Set x to be the unit vector in the z direction on the first surface
-   x = 0.0;
-   x.ProjectBdrCoefficientTangent(UnitVecZ,ess_bdr_1);
+   x = gradx1;
+   x.ProjectBdrCoefficientTangent(Zero,ess_bdr_1);
 
    // 9. Set up the parallel bilinear form corresponding to the
    // magnetostatic operator curl muinv curl, by adding the curl-curl
@@ -317,13 +378,16 @@ for (int it = 1; it <= 15; it++)
    // 18. Free the used memory.
    delete Curl;
    delete CurlX;
+   delete GradX1;
    delete X;
    delete B;
    delete A;
    delete HDivFESpace;
    delete HCurlFESpace;
+   delete H1FESpace;
    delete HDivFEC;
    delete HCurlFEC;
+   delete H1FEC;
 }
 
    delete pmesh;
