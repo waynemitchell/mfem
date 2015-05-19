@@ -3283,7 +3283,7 @@ void MultADBt(const DenseMatrix &A, const Vector &D,
    if (A.Height() != ADBt.Height() || B.Height() != ADBt.Width() ||
        A.Width() != B.Width() || A.Width() != D.Size())
    {
-      mfem_error("AddMultADBt(...)");
+      mfem_error("MultADBt(...)");
    }
 #endif
 
@@ -3295,6 +3295,10 @@ void MultADBt(const DenseMatrix &A, const Vector &D,
    const double *dd = D.GetData();
    double *cd = ADBt.Data();
 
+   for (int i = 0, s = ah*bh; i < s; i++)
+   {
+      cd[i] = 0.0;
+   }
    for (int k = 0; k < aw; k++)
    {
       double *cp = cd;
