@@ -104,13 +104,15 @@ int main(int argc, char *argv[])
       return 3;
    }
 
+   mesh->GeneralRefinement(Array<Refinement>(), 1);
+
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 100 elements.
    {
-      int ref_levels =
-         (int)floor(log(100./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = 1;
+         //(int)floor(log(100./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -125,13 +127,27 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 2;
+      int par_ref_levels = 0;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
       }
    }
    pmesh->ReorientTetMesh();
+
+   socketstream curl_sock;
+   if (visualization)
+   {
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+
+      curl_sock.open(vishost, visport);
+      curl_sock.precision(8);
+      //curl_sock << "window_title 'Magnetic Field'" << flush;
+   }
+
+for (int it = 1; it <= 15; it++)
+{
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use the lowest order Nedelec finite elements, but we can easily switch
@@ -175,9 +191,9 @@ int main(int argc, char *argv[])
    // marking all the boundary attributes from the mesh as essential
    // (Dirichlet). After serial and parallel assembly we extract the
    // parallel matrix A.
-   Coefficient *muinv = new ConstantCoefficient(1.0);
+   ConstantCoefficient muinv(1.0);
    ParBilinearForm *a = new ParBilinearForm(HCurlFESpace);
-   a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
+   a->AddDomainIntegrator(new CurlCurlIntegrator(muinv));
    a->Assemble();
 
    // The entire outer surface of the mesh is held fixed at zero
@@ -185,18 +201,18 @@ int main(int argc, char *argv[])
    // the z direction.
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   //a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelAverage();
-   *X = 0.0;
+   HypreParVector *X = x.ParallelProject();
+
+   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
    delete a;
-   delete muinv;
    delete b;
 
    // 11. Define and apply a parallel PCG solver for AX=B with the AMS
@@ -234,7 +250,7 @@ int main(int argc, char *argv[])
 
    // 14. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
-   {
+   /*{
       ostringstream mesh_name, sol_name, curl_name;
       mesh_name << "mesh." << setfill('0') << setw(6) << myid;
       sol_name  << "sol." << setfill('0') << setw(6) << myid;
@@ -251,31 +267,54 @@ int main(int argc, char *argv[])
       ofstream curl_ofs(curl_name.str().c_str());
       curl_ofs.precision(8);
       curlx.Save(curl_ofs);
-   }
+   }*/
 
    // 15. Send the solution by socket to a GLVis server.
    if (visualization)
    {
-      char vishost[] = "localhost";
-      int  visport   = 19916;
-
-      socketstream sol_sock(vishost, visport);
+      /*socketstream sol_sock(vishost, visport);
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
       sol_sock << "solution\n" << *pmesh << x
-	       << "window_title 'Vector Potential'" << flush;
+	       << "window_title 'Vector Potential'" << flush;*/
 
-      MPI_Barrier(pmesh->GetComm());
+      /*socketstream sol_sock(vishost, visport);
+      sol_sock << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock.precision(8);
+      sol_sock << "solution\n" << *pmesh << error_gf
+          << "window_title 'Error'" << flush;
 
-      socketstream curl_sock(vishost, visport);
+      MPI_Barrier(pmesh->GetComm());*/
+
       curl_sock << "parallel " << num_procs << " " << myid << "\n";
-      curl_sock.precision(8);
-      curl_sock << "solution\n" << *pmesh << curlx
-		<< "window_title 'Magnetic Field'" << flush;
-
+      curl_sock << "solution\n" << *pmesh << curlx << flush;
    }
 
-   // 16. Free the used memory.
+   // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
+   CurlCurlIntegrator flux_integrator(muinv);
+   ParGridFunction flux(HCurlFESpace);
+   Vector est_errors;
+   ZZErrorEstimator(flux_integrator, x, flux, est_errors, 1);
+
+   /*L2_FECollection l2_fec(0, dim);
+   ParFiniteElementSpace error_space(pmesh, &l2_fec);
+   ParGridFunction error_gf(&error_space);
+   error_gf = est_errors;*/
+
+   // 17. Make a list of elements whose error is larger than a fraction
+   //     of the maximum element error. These elements will be refined.
+   Array<int> ref_list;
+   const double frac = 0.7;
+   // the 'errors' are squared, so we need to square the fraction
+   double threshold = (frac*frac) * est_errors.Max();
+   for (int i = 0; i < est_errors.Size(); i++)
+   {
+      if (est_errors[i] >= threshold) { ref_list.Append(i); }
+   }
+   pmesh->GeneralRefinement(ref_list);
+
+
+   // 18. Free the used memory.
    delete Curl;
    delete CurlX;
    delete X;
@@ -285,6 +324,8 @@ int main(int argc, char *argv[])
    delete HCurlFESpace;
    delete HDivFEC;
    delete HCurlFEC;
+}
+
    delete pmesh;
 
    MPI_Finalize();

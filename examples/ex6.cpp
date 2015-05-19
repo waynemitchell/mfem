@@ -186,10 +186,9 @@ int main(int argc, char *argv[])
       //     method defined.
       Vector errors(mesh.GetNE());
       {
-         FiniteElementSpace flux_fespace(&mesh, &fec, dim);
          DiffusionIntegrator flux_integrator(one);
+         FiniteElementSpace flux_fespace(&mesh, &fec, dim);
          GridFunction flux(&flux_fespace);
-         ComputeFlux(flux_integrator, x, flux);
          ZZErrorEstimator(flux_integrator, x, flux, errors, 1);
       }
 
@@ -200,10 +199,9 @@ int main(int argc, char *argv[])
       // the 'errors' are squared, so we need to square the fraction
       double threshold = (frac*frac) * errors.Max();
       for (int i = 0; i < errors.Size(); i++)
-         if (errors[i] >= threshold)
-         {
-            ref_list.Append(i);
-         }
+      {
+         if (errors[i] >= threshold) { ref_list.Append(i); }
+      }
 
       // 18. Refine the selected elements. Since we are going to transfer the
       //     grid function x from the coarse mesh to the new fine mesh in the

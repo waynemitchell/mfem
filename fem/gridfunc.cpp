@@ -2155,56 +2155,58 @@ std::ostream &operator<<(std::ostream &out, const GridFunction &sol)
 
 void ComputeFlux(BilinearFormIntegrator &blfi,
                  GridFunction &u,
-                 GridFunction &flux, int wcoef, int sd)
+                 GridFunction &flux, int wcoef, int subdomain)
 {
-   int i, j, nfe;
-   FiniteElementSpace *ufes, *ffes;
    ElementTransformation *Transf;
 
-   ufes = u.FESpace();
-   ffes = flux.FESpace();
-   nfe = ufes->GetNE();
+   FiniteElementSpace *ufes = u.FESpace();
+   FiniteElementSpace *ffes = flux.FESpace();
+
+   int nfe = ufes->GetNE();
    Array<int> udofs;
    Array<int> fdofs;
    Array<int> overlap(flux.Size());
    Vector ul, fl;
 
    flux = 0.0;
+   overlap = 0;
 
-   for (i = 0; i < overlap.Size(); i++)
+   for (int i = 0; i < nfe; i++)
    {
-      overlap[i] = 0;
+      if (subdomain >= 0 && ufes->GetAttribute(i) != subdomain)
+      {
+         continue;
+      }
+
+      ufes->GetElementVDofs(i, udofs);
+      ffes->GetElementVDofs(i, fdofs);
+
+      // TODO: GetSubVector
+      ul.SetSize(udofs.Size());
+      for (int j = 0; j < ul.Size(); j++)
+      {
+         int ud = udofs[j];
+         ul(j) = (ud >= 0) ? u(ud) : -u(-1 - ud);
+      }
+
+      Transf = ufes->GetElementTransformation(i);
+      blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
+                              *ffes->GetFE(i), fl, wcoef);
+
+      flux.AddElementVector(fdofs, fl);
+
+      for (int j = 0; j < fdofs.Size(); j++)
+      {
+         int fd = fdofs[j];
+         if (fd < 0) { fd = -1 - fd; } // TODO: AdjustVDofs
+         overlap[fd]++;
+      }
    }
 
-   for (i = 0; i < nfe; i++)
-      if (sd < 0 || ufes->GetAttribute(i) == sd)
-      {
-         ufes->GetElementVDofs(i, udofs);
-         ffes->GetElementVDofs(i, fdofs);
-
-         ul.SetSize(udofs.Size());
-         for (j = 0; j < ul.Size(); j++)
-         {
-            ul(j) = u(udofs[j]);
-         }
-
-         Transf = ufes->GetElementTransformation(i);
-         blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
-                                 *ffes->GetFE(i), fl, wcoef);
-
-         flux.AddElementVector(fdofs, fl);
-
-         for (j = 0; j < fdofs.Size(); j++)
-         {
-            overlap[fdofs[j]]++;
-         }
-      }
-
-   for (i = 0; i < overlap.Size(); i++)
-      if (overlap[i] != 0)
-      {
-         flux(i) /= overlap[i];
-      }
+   for (int i = 0; i < overlap.Size(); i++)
+   {
+      if (overlap[i] != 0) { flux(i) /= overlap[i]; }
+   }
 
    if (ffes->GetConformingProlongation())
    {
@@ -2221,7 +2223,7 @@ void ComputeFlux(BilinearFormIntegrator &blfi,
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &u,
                       GridFunction &flux, Vector &ErrorEstimates,
-                      int wsd)
+                      int with_subdomains)
 {
    int i, j, s, nfe, nsd;
    FiniteElementSpace *ufes, *ffes;
@@ -2237,51 +2239,43 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
    ErrorEstimates.SetSize(nfe);
 
    nsd = 1;
-   if (wsd)
+   if (with_subdomains)
+   {
       for (i = 0; i < nfe; i++)
-         if ( (j=ufes->GetAttribute(i)) > nsd)
+      {
+         if ((j = ufes->GetAttribute(i)) > nsd)
          {
             nsd = j;
          }
+      }
+   }
 
    for (s = 1; s <= nsd; s++)
    {
-      if (wsd)
-      {
-         ComputeFlux(blfi, u, flux, 0, s);
-      }
-      else
-      {
-         ComputeFlux(blfi, u, flux, 0);
-      }
+      ComputeFlux(blfi, u, flux, 0, (with_subdomains ? s : 0));
 
       for (i = 0; i < nfe; i++)
-         if (!wsd || ufes->GetAttribute(i) == s)
+      {
+         if (with_subdomains && ufes->GetAttribute(i) != s)
          {
-            ufes->GetElementVDofs(i, udofs);
-            ffes->GetElementVDofs(i, fdofs);
-
-            ul.SetSize(udofs.Size());
-            for (j = 0; j < ul.Size(); j++)
-            {
-               ul(j) = u(udofs[j]);
-            }
-
-            fla.SetSize(fdofs.Size());
-            for (j = 0; j < fla.Size(); j++)
-            {
-               fla(j) = flux(fdofs[j]);
-            }
-
-            Transf = ufes->GetElementTransformation(i);
-            blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
-                                    *ffes->GetFE(i), fl, 0);
-
-            fl -= fla;
-
-            ErrorEstimates(i) = blfi.ComputeFluxEnergy(*ffes->GetFE(i),
-                                                       *Transf, fl);
+            continue;
          }
+
+         ufes->GetElementVDofs(i, udofs);
+         ffes->GetElementVDofs(i, fdofs);
+
+         u.GetSubVector(udofs, ul);
+         flux.GetSubVector(fdofs, fla);
+
+         Transf = ufes->GetElementTransformation(i);
+         blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
+                                 *ffes->GetFE(i), fl, 0);
+
+         fl -= fla;
+
+         ErrorEstimates(i) = blfi.ComputeFluxEnergy(*ffes->GetFE(i),
+                                                    *Transf, fl);
+      }
    }
 }
 

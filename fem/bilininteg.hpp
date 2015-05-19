@@ -388,8 +388,10 @@ public:
 class CurlCurlIntegrator: public BilinearFormIntegrator
 {
 private:
+   Vector vec, pointflux;
 #ifndef MFEM_THREAD_SAFE
-   DenseMatrix Curlshape, Curlshape_dFt;
+   DenseMatrix curlshape, curlshape_dFt;
+   DenseMatrix vshape, projcurl;
 #endif
    Coefficient *Q;
 
@@ -403,6 +405,15 @@ public:
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
+
+   virtual void ComputeElementFlux(const FiniteElement &el,
+                                   ElementTransformation &Trans,
+                                   Vector &u, const FiniteElement &fluxelem,
+                                   Vector &flux, int wcoef);
+
+   virtual double ComputeFluxEnergy(const FiniteElement &fluxelem,
+                                    ElementTransformation &Trans,
+                                    Vector &flux);
 };
 
 /** Integrator for (curl u, curl v) for FE spaces defined by 'dim' copies of a

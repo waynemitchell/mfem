@@ -271,8 +271,8 @@ private:
 
 protected:
 #ifndef MFEM_THREAD_SAFE
-   mutable DenseMatrix Jinv;
-   mutable DenseMatrix vshape;
+   mutable DenseMatrix J, Jinv;
+   mutable DenseMatrix vshape, curlshape, curlshape_J;
 #endif
 
    void CalcVShape_RT(ElementTransformation &Trans,
@@ -294,6 +294,10 @@ protected:
                        const FiniteElement &fe, ElementTransformation &Trans,
                        DenseMatrix &grad) const;
 
+   void ProjectCurl_ND(const double *tk, const Array<int> &d2t,
+                       const FiniteElement &fe, ElementTransformation &Trans,
+                       DenseMatrix &curl) const;
+   // TODO: do we need 2 identical functions?
    void ProjectCurl_RT(const double *nk, const Array<int> &d2n,
                        const FiniteElement &fe, ElementTransformation &Trans,
                        DenseMatrix &curl) const;
@@ -1786,28 +1790,41 @@ class ND_HexahedronElement : public VectorFiniteElement
 
 public:
    ND_HexahedronElement(const int p);
+
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
+
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
    { CalcVShape_ND(Trans, shape); }
+
    virtual void CalcCurlShape(const IntegrationPoint &ip,
                               DenseMatrix &curl_shape) const;
+
    virtual void GetLocalInterpolation(ElementTransformation &Trans,
                                       DenseMatrix &I) const
    { LocalInterpolation_ND(tk, dof2tk, Trans, I); }
+
    using FiniteElement::Project;
+
    virtual void Project(VectorCoefficient &vc,
                         ElementTransformation &Trans, Vector &dofs) const
    { Project_ND(tk, dof2tk, vc, Trans, dofs); }
+
    virtual void Project(const FiniteElement &fe,
                         ElementTransformation &Trans,
                         DenseMatrix &I) const
    { Project_ND(tk, dof2tk, fe, Trans, I); }
+
    virtual void ProjectGrad(const FiniteElement &fe,
                             ElementTransformation &Trans,
                             DenseMatrix &grad) const
    { ProjectGrad_ND(tk, dof2tk, fe, Trans, grad); }
+
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectCurl_ND(tk, dof2tk, fe, Trans, curl); }
 };
 
 

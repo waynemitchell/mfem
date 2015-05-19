@@ -157,13 +157,9 @@ public:
    HYPRE_Int *GetDofOffsets()     { return dof_offsets; }
    HYPRE_Int *GetTrueDofOffsets() { return tdof_offsets; }
    HYPRE_Int GlobalVSize()
-   {
-      return Dof_TrueDof_Matrix()->GetGlobalNumRows();
-   }
+   { return Dof_TrueDof_Matrix()->GetGlobalNumRows(); }
    HYPRE_Int GlobalTrueVSize()
-   {
-      return Dof_TrueDof_Matrix()->GetGlobalNumCols();
-   }
+   { return Dof_TrueDof_Matrix()->GetGlobalNumCols(); }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
@@ -214,7 +210,8 @@ public:
    HYPRE_Int GetMyTDofOffset() const;
 
    /// Get the R matrix which restricts a local dof vector to true dof vector.
-   const SparseMatrix *GetRestrictionMatrix() const { return R; }
+   const SparseMatrix *GetRestrictionMatrix()
+   { if (!R) { Dof_TrueDof_Matrix(); } return R; }
 
    // Face-neighbor functions
    void ExchangeFaceNbrData();

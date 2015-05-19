@@ -274,12 +274,12 @@ std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
 
 void ComputeFlux(BilinearFormIntegrator &blfi,
                  GridFunction &u,
-                 GridFunction &flux, int wcoef = 1, int sd = -1);
+                 GridFunction &flux, int wcoef = 1, int subdomain = -1);
 
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &u,
                       GridFunction &flux, Vector &ErrorEstimates,
-                      int wsd = 1);
+                      int with_subdomains = 1);
 
 
 /// Class used for extruding scalar GridFunctions
