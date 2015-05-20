@@ -357,6 +357,11 @@ public:
 
    void SetAttributes();
 
+#ifdef MFEM_USE_GECKO
+   void GetGeckoElementReordering(Array<int> &ordering);
+#endif
+   void ReorderElements(const Array<int> &ordering);
+
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
        nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
        if type=TETRAHEDRON. If generate_edges = 0 (default) edges are not

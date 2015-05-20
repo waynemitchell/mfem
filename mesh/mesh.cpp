@@ -23,6 +23,10 @@
 #include <cstring>
 #include <ctime>
 
+#ifdef MFEM_USE_GECKO
+#include "../../gecko/inc/graph.h"
+#endif
+
 namespace mfem
 {
 
@@ -1040,6 +1044,52 @@ void Mesh::FinalizeQuadMesh(int generate_edges, int refine,
 
    meshgen = 2;
 }
+
+
+#ifdef MFEM_USE_GECKO
+void Mesh::GetGeckoElementReordering(Array<int> &ordering)
+{
+   Gecko::Graph graph;
+
+   //We will put some accesors in for these later
+   Gecko::Functional* functional = new Gecko::FunctionalGeometric();   //ordering functional
+   unsigned int iterations = 1;                                        // number of V cycles
+   unsigned int window = 2;                                            // initial window size
+   unsigned int period = 1;                                            // iterations between window increment
+   unsigned int seed = 0;                                              // random number seed
+
+   //Run through all the elements and insert the nodes in the graph for them
+   for (int elemid = 0; elemid < GetNE(); ++elemid)
+   {
+      graph.insert();
+   }
+
+   //Run through all the faces and insert arcs to the graph for each element pair
+   //Indices in Gecko are 1 based hence the +1 on the insertion
+   for (int faceid = 0; faceid < GetNumFaces(); ++faceid)
+   {
+      graph.insert(faces_info[faceid].Elem1No + 1,  faces_info[faceid].Elem1No + 1);
+   }
+
+   //Get the reordering from Gecko and copy it into the ordering Array<int>
+   graph.order(functional, iterations, window, period, seed);
+   ordering.DeleteAll();
+   ordering.SetSize(GetNE());
+   for (Gecko::Node::Index gnodeid = 1; gnodeid <= GetNE(); ++gnodeid)
+   {
+      ordering[gnodeid - 1] = graph.rank(gnodeid);
+   }
+
+   delete functional;
+}
+#endif
+
+void Mesh::ReorderElements(const Array<int> &ordering)
+{
+
+
+}
+
 
 void Mesh::MarkForRefinement()
 {
