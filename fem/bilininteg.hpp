@@ -174,7 +174,7 @@ class DiffusionIntegrator: public BilinearFormIntegrator
 private:
    Vector vec, pointflux, shape;
 #ifndef MFEM_THREAD_SAFE
-   DenseMatrix dshape, dshapedxt, invdfdx, mq, dflux;
+   DenseMatrix dshape, dshapedxt, invdfdx, mq;
    DenseMatrix te_dshape, te_dshapedxt;
 #endif
    Coefficient *Q;

@@ -422,22 +422,13 @@ double DiffusionIntegrator::ComputeFluxEnergy
    int dim = fluxelem.GetDim();
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix dshape, dflux;
    DenseMatrix mq;
 #endif
 
    shape.SetSize(nd);
    pointflux.SetSize(dim);
-   if (d_energy)
-   {
-      dshape.SetSize(nd, dim);
-      dflux.SetSize(dim, dim);
-      vec.SetSize(dim);
-   }
-   if (MQ)
-   {
-      mq.SetSize(dim);
-   }
+   if (d_energy) { vec.SetSize(dim); }
+   if (MQ) { mq.SetSize(dim); }
 
    int order = 2 * fluxelem.GetOrder(); // <--
    const IntegrationRule *ir = &IntRules.Get(fluxelem.GetGeomType(), order);
@@ -452,20 +443,12 @@ double DiffusionIntegrator::ComputeFluxEnergy
       if (d_energy) { fluxelem.CalcDShape(ip, dshape); }
 
       pointflux = 0.0;
-      if (d_energy) { dflux = 0.0; }
-
       for (int k = 0; k < dim; k++)
       {
          for (int j = 0; j < nd; j++)
          {
             double f = flux(k*nd+j);
             pointflux(k) += f*shape(j);
-
-            if (d_energy)
-            {
-               for (int l = 0; l < dim; l++)
-               { dflux(k,l) += f*dshape(j,l); }
-            }
          }
       }
 
@@ -486,15 +469,13 @@ double DiffusionIntegrator::ComputeFluxEnergy
 
       if (d_energy)
       {
+         // transform pointflux to the ref. domain and integrate the components
+         Trans.Jacobian().MultTranspose(pointflux, vec);
          for (int k = 0; k < dim; k++)
          {
-            for (int l = 0; l < dim; l++)
-            {
-               double df = dflux(l,k);
-               (*d_energy)[k] += w * df * df;
-            }
-            // TODO: Q, MQ
+            (*d_energy)[k] += w * vec[k] * vec[k];
          }
+         // TODO: Q, MQ
       }
    }
 
