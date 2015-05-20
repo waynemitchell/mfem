@@ -97,7 +97,8 @@ private:
 
 #ifdef MFEM_DEBUG
       bool operator==(const Dependency &other) const
-      { return rank == other.rank && dof == other.dof && coef == other.coef; }
+      { return rank == other.rank && dof == other.dof &&
+               std::abs(coef - other.coef) < 1e-12; }
 
       bool operator<(const Dependency &other) const
       { return (rank != other.rank) ? (rank < other.rank) :

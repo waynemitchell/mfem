@@ -2215,44 +2215,45 @@ void ComputeFlux(BilinearFormIntegrator &blfi,
 
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &u,
-                      GridFunction &flux, Vector &ErrorEstimates,
+                      GridFunction &flux, Vector &error_estimates,
+                      Array<int>* aniso_flags,
                       int with_subdomains)
 {
-   int i, j, s, nfe, nsd;
-   FiniteElementSpace *ufes, *ffes;
+   FiniteElementSpace *ufes = u.FESpace();
+   FiniteElementSpace *ffes = flux.FESpace();
    ElementTransformation *Transf;
 
-   ufes = u.FESpace();
-   ffes = flux.FESpace();
-   nfe = ufes->GetNE();
+   int dim = ufes->GetMesh()->Dimension();
+   int nfe = ufes->GetNE();
+
    Array<int> udofs;
    Array<int> fdofs;
-   Vector ul, fl, fla;
+   Vector ul, fl, fla, d_xyz;
 
-   ErrorEstimates.SetSize(nfe);
+   error_estimates.SetSize(nfe);
+   if (aniso_flags)
+   {
+      aniso_flags->SetSize(nfe);
+      d_xyz.SetSize(dim);
+   }
 
-   nsd = 1;
+   int nsd = 1;
    if (with_subdomains)
    {
-      for (i = 0; i < nfe; i++)
+      for (int i = 0; i < nfe; i++)
       {
-         if ((j = ufes->GetAttribute(i)) > nsd)
-         {
-            nsd = j;
-         }
+         int attr = ufes->GetAttribute(i);
+         if (attr > nsd) { nsd = attr; }
       }
    }
 
-   for (s = 1; s <= nsd; s++)
+   for (int s = 1; s <= nsd; s++)
    {
       ComputeFlux(blfi, u, flux, 0, (with_subdomains ? s : 0));
 
-      for (i = 0; i < nfe; i++)
+      for (int i = 0; i < nfe; i++)
       {
-         if (with_subdomains && ufes->GetAttribute(i) != s)
-         {
-            continue;
-         }
+         if (with_subdomains && ufes->GetAttribute(i) != s) { continue; }
 
          ufes->GetElementVDofs(i, udofs);
          ffes->GetElementVDofs(i, fdofs);
@@ -2266,8 +2267,27 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
 
          fl -= fla;
 
-         ErrorEstimates(i) = blfi.ComputeFluxEnergy(*ffes->GetFE(i),
-                                                    *Transf, fl);
+         error_estimates(i) =
+            blfi.ComputeFluxEnergy(*ffes->GetFE(i), *Transf, fl,
+                                   (aniso_flags ? &d_xyz : NULL));
+
+         if (aniso_flags)
+         {
+            double sum = 0;
+            for (int k = 0; k < dim; k++)
+            {
+               sum += d_xyz[k];
+            }
+
+            double thresh = 0.2 * 3/dim;
+            int flag = 0;
+            for (int k = 0; k < dim; k++)
+            {
+               if (d_xyz[k] / sum > thresh) { flag |= (1 << k); }
+            }
+
+            (*aniso_flags)[i] = flag;
+         }
       }
    }
 }

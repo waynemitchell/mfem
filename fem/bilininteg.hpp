@@ -73,7 +73,8 @@ public:
 
    virtual double ComputeFluxEnergy(const FiniteElement &fluxelem,
                                     ElementTransformation &Trans,
-                                    Vector &flux) { return 0.0; }
+                                    Vector &flux, Vector *d_energy = NULL)
+   { return 0.0; }
 
    void SetIntRule(const IntegrationRule *ir) { IntRule = ir; }
 
@@ -173,7 +174,7 @@ class DiffusionIntegrator: public BilinearFormIntegrator
 private:
    Vector vec, pointflux, shape;
 #ifndef MFEM_THREAD_SAFE
-   DenseMatrix dshape, dshapedxt, invdfdx, mq;
+   DenseMatrix dshape, dshapedxt, invdfdx, mq, dflux;
    DenseMatrix te_dshape, te_dshapedxt;
 #endif
    Coefficient *Q;
@@ -209,11 +210,11 @@ public:
    virtual void ComputeElementFlux(const FiniteElement &el,
                                    ElementTransformation &Trans,
                                    Vector &u, const FiniteElement &fluxelem,
-                                   Vector &flux, int with_coef);
+                                   Vector &flux, int with_coef = 1);
 
    virtual double ComputeFluxEnergy(const FiniteElement &fluxelem,
                                     ElementTransformation &Trans,
-                                    Vector &flux);
+                                    Vector &flux, Vector *d_energy = NULL);
 };
 
 /** Class for local mass matrix assemblying a(u,v) := (Q u, v) */
@@ -425,7 +426,7 @@ public:
 
    virtual double ComputeFluxEnergy(const FiniteElement &fluxelem,
                                     ElementTransformation &Trans,
-                                    Vector &flux);
+                                    Vector &flux, Vector *d_energy = NULL);
 };
 
 /** Integrator for (curl u, curl v) for FE spaces defined by 'dim' copies of a

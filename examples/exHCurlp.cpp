@@ -355,7 +355,7 @@ for (int it = 1; it <= 15; it++)
    CurlCurlIntegrator flux_integrator(muinv);
    ParGridFunction flux(HCurlFESpace);
    Vector est_errors;
-   ZZErrorEstimator(flux_integrator, x, flux, est_errors, 1);
+   ZZErrorEstimator(flux_integrator, x, flux, est_errors);
 
    /*L2_FECollection l2_fec(0, dim);
    ParFiniteElementSpace error_space(pmesh, &l2_fec);

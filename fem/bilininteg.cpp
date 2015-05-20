@@ -416,56 +416,86 @@ void DiffusionIntegrator::ComputeElementFlux
 
 double DiffusionIntegrator::ComputeFluxEnergy
 ( const FiniteElement &fluxelem, ElementTransformation &Trans,
-  Vector &flux)
+  Vector &flux, Vector* d_energy)
 {
    int nd = fluxelem.GetDof();
    int dim = fluxelem.GetDim();
 
 #ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape, dflux;
    DenseMatrix mq;
 #endif
 
    shape.SetSize(nd);
    pointflux.SetSize(dim);
+   if (d_energy)
+   {
+      dshape.SetSize(nd, dim);
+      dflux.SetSize(dim, dim);
+      vec.SetSize(dim);
+   }
    if (MQ)
    {
       mq.SetSize(dim);
-      vec.SetSize(dim);
    }
 
    int order = 2 * fluxelem.GetOrder(); // <--
    const IntegrationRule *ir = &IntRules.Get(fluxelem.GetGeomType(), order);
 
    double energy = 0.0;
+   if (d_energy) { *d_energy = 0.0; }
+
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
       fluxelem.CalcShape(ip, shape);
+      if (d_energy) { fluxelem.CalcDShape(ip, dshape); }
 
       pointflux = 0.0;
+      if (d_energy) { dflux = 0.0; }
+
       for (int k = 0; k < dim; k++)
       {
          for (int j = 0; j < nd; j++)
          {
-            pointflux(k) += flux(k*nd+j)*shape(j);
+            double f = flux(k*nd+j);
+            pointflux(k) += f*shape(j);
+
+            if (d_energy)
+            {
+               for (int l = 0; l < dim; l++)
+               { dflux(k,l) += f*dshape(j,l); }
+            }
          }
       }
 
-      Trans.SetIntPoint (&ip);
-      double co = Trans.Weight() * ip.weight;
+      Trans.SetIntPoint(&ip);
+      double w = Trans.Weight() * ip.weight;
 
       if (!MQ)
       {
-         co *= (pointflux * pointflux);
-         if (Q) { co *= Q->Eval(Trans, ip); }
+         double e = (pointflux * pointflux);
+         if (Q) { e *= Q->Eval(Trans, ip); }
+         energy += w * e;
       }
       else
       {
          MQ->Eval(mq, Trans, ip);
-         co *= mq.InnerProduct(pointflux, pointflux);
+         energy += w * mq.InnerProduct(pointflux, pointflux);
       }
 
-      energy += co;
+      if (d_energy)
+      {
+         for (int k = 0; k < dim; k++)
+         {
+            for (int l = 0; l < dim; l++)
+            {
+               double df = dflux(l,k);
+               (*d_energy)[k] += w * df * df;
+            }
+            // TODO: Q, MQ
+         }
+      }
    }
 
    return energy;
@@ -1043,8 +1073,8 @@ void CurlCurlIntegrator::ComputeElementFlux(
    // TODO: Q, wcoef?
 }
 
-double CurlCurlIntegrator::ComputeFluxEnergy(
-   const FiniteElement &fluxelem, ElementTransformation &Trans, Vector &flux)
+double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
+   ElementTransformation &Trans, Vector &flux, Vector *d_energy)
 {
    int nd = fluxelem.GetDof();
    int dim = fluxelem.GetDim();

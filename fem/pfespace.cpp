@@ -278,7 +278,7 @@ void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
       return;
    }
    FiniteElementSpace::GetElementDofs(i, dofs);
-   ApplyLDofSigns(dofs);
+   ApplyLDofSigns(dofs); // TODO: skip for NC
 }
 
 void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
@@ -289,13 +289,13 @@ void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
       return;
    }
    FiniteElementSpace::GetBdrElementDofs(i, dofs);
-   ApplyLDofSigns(dofs);
+   ApplyLDofSigns(dofs); // TODO: skip for NC
 }
 
 void ParFiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
 {
    FiniteElementSpace::GetFaceDofs(i, dofs);
-   ApplyLDofSigns(dofs);
+   ApplyLDofSigns(dofs); // TODO: skip for NC
 }
 
 void ParFiniteElementSpace::GenerateGlobalOffsets()

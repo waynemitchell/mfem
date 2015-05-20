@@ -109,6 +109,7 @@ public:
        so that each row contains the derivatives of one shape function */
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const = 0;
+
    const IntegrationRule & GetNodes() const { return Nodes; }
 
    // virtual functions for finite elements on vector spaces

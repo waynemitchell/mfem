@@ -237,8 +237,7 @@ int main(int argc, char *argv[])
          ParFiniteElementSpace flux_fespace(&pmesh, &fec, dim);
          DiffusionIntegrator flux_integrator(one);
          ParGridFunction flux(&flux_fespace);
-         ComputeFlux(flux_integrator, x, flux);
-         ZZErrorEstimator(flux_integrator, x, flux, errors, 1);
+         ZZErrorEstimator(flux_integrator, x, flux, errors);
          // FIXME: averaging across processor boundaries doesn't work properly
       }
 

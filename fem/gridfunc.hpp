@@ -274,11 +274,14 @@ std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
 
 void ComputeFlux(BilinearFormIntegrator &blfi,
                  GridFunction &u,
-                 GridFunction &flux, int wcoef = 1, int subdomain = -1);
+                 GridFunction &flux,
+                 int wcoef = 1, int subdomain = -1);
 
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &u,
-                      GridFunction &flux, Vector &ErrorEstimates,
+                      GridFunction &flux,
+                      Vector &error_estimates,
+                      Array<int> *aniso_flags = NULL,
                       int with_subdomains = 1);
 
 
