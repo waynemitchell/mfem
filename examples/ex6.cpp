@@ -73,15 +73,14 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh.Dimension();
 
+   mesh.UniformRefinement();
+
    // 3. Since a NURBS mesh can currently only be refined uniformly, we need to
    //    convert it to a piecewise-polynomial curved mesh. First we refine the
-   //    NURBS mesh a bit and then project the curvature to quadratic Nodes.
+   //    NURBS mesh a bit more and then project the curvature to quadratic Nodes.
    if (mesh.NURBSext)
    {
-      for (int i = 0; i < 2; i++)
-      {
-         mesh.UniformRefinement();
-      }
+      mesh.UniformRefinement();
 
       FiniteElementCollection* nfec = new H1_FECollection(2, dim);
       FiniteElementSpace* nfes = new FiniteElementSpace(&mesh, nfec, dim);
@@ -185,22 +184,26 @@ int main(int argc, char *argv[])
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
       Vector errors(mesh.GetNE());
+      Array<int> aniso_flags;
       {
          DiffusionIntegrator flux_integrator(one);
          FiniteElementSpace flux_fespace(&mesh, &fec, dim);
          GridFunction flux(&flux_fespace);
-         ZZErrorEstimator(flux_integrator, x, flux, errors, 1);
+         ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
       }
 
       // 17. Make a list of elements whose error is larger than a fraction (0.7)
       //     of the maximum element error. These elements will be refined.
-      Array<int> ref_list;
+      Array<Refinement> ref_list;
       const double frac = 0.7;
       // the 'errors' are squared, so we need to square the fraction
       double threshold = (frac*frac) * errors.Max();
       for (int i = 0; i < errors.Size(); i++)
       {
-         if (errors[i] >= threshold) { ref_list.Append(i); }
+         if (errors[i] >= threshold)
+         {
+            ref_list.Append(Refinement(i, aniso_flags[i]));
+         }
       }
 
       // 18. Refine the selected elements. Since we are going to transfer the
