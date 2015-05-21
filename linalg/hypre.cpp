@@ -31,9 +31,10 @@ namespace internal
 {
 
 template<typename TargetT, typename SourceT>
-TargetT *DuplicateAs(const SourceT *array, int size)
+TargetT *DuplicateAs(const SourceT *array, int size, bool cplusplus = true)
 {
-   TargetT *target_array = new TargetT[size];
+   TargetT *target_array = cplusplus ? new TargetT[size]
+                           : (TargetT*) malloc(size * sizeof(TargetT));
    for (int i = 0; i < size; i++)
    {
       target_array[i] = array[i];
@@ -932,8 +933,9 @@ HYPRE_Int HypreParMatrix::MultTranspose(HypreParVector & x, HypreParVector & y,
 HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
                                              HYPRE_Int* row_starts) const
 {
-   int np = 2;
-   if (!HYPRE_AssumedPartitionCheck()) { MPI_Comm_size(GetComm(), &np); }
+   int np;
+   MPI_Comm_size(GetComm(), &np);
+   if (np > 2 && !HYPRE_AssumedPartitionCheck()) { np = 2; }
 
    bool same_rows = (D.Height() == hypre_CSRMatrixNumRows(A->diag));
    HYPRE_Int global_num_rows;
@@ -967,14 +969,16 @@ HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
    SparseMatrix* DA_diag = mfem::Mult(D, A_diag);
    SparseMatrix* DA_offd = mfem::Mult(D, A_offd);
 
+   using internal::DuplicateAs;
+
    HypreParMatrix* DA =
       new HypreParMatrix(GetComm(),
                          global_num_rows, hypre_ParCSRMatrixGlobalNumCols(A),
-                         internal::DuplicateAs<HYPRE_Int>(row_starts, np+1),
-                         internal::DuplicateAs<HYPRE_Int>(col_starts, np+1),
+                         DuplicateAs<HYPRE_Int>(row_starts, np+1, false),
+                         DuplicateAs<HYPRE_Int>(col_starts, np+1, false),
                          DA_diag, DA_offd,
-                         internal::DuplicateAs<HYPRE_Int>(col_map_offd,
-                                                          A_offd.Width()));
+                         DuplicateAs<HYPRE_Int>(col_map_offd,
+                                                A_offd.Width()));
 
    DA_diag->LoseData();
    DA_offd->LoseData();
@@ -989,7 +993,8 @@ HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
    hypre_ParCSRMatrixSetRowStartsOwner(DA->A, 1);
    hypre_ParCSRMatrixSetColStartsOwner(DA->A, 1);
 
-   DA->diagOwner = DA->offdOwner = DA->colMapOwner = -1;
+   DA->diagOwner = DA->offdOwner = 3;
+   DA->colMapOwner = 1;
 
    return DA;
 }
