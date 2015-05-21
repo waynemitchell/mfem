@@ -390,6 +390,7 @@ void ParNCMesh::CalcFaceOrientations()
    face_orient = 0;
 
    for (HashTable<Face>::Iterator it(faces); it; ++it)
+   {
       if (it->ref_count == 2 && it->index < NFaces)
       {
          Element* e[2] = { it->elem[0], it->elem[1] };
@@ -413,6 +414,7 @@ void ParNCMesh::CalcFaceOrientations()
 
          face_orient[it->index] = Mesh::GetQuadOrientation(ids[0], ids[1]);
       }
+   }
 }
 
 void ParNCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,

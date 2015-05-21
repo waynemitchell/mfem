@@ -3871,6 +3871,9 @@ ParMesh::~ParMesh()
 {
    int i;
 
+   delete pncmesh;
+   ncmesh = pncmesh = NULL;
+
    DeleteFaceNbrData();
 
    for (i = 0; i < shared_faces.Size(); i++)
