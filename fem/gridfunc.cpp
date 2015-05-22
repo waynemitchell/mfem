@@ -2279,7 +2279,7 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                sum += d_xyz[k];
             }
 
-            double thresh = 0.2 * 3/dim;
+            double thresh = 0.15 * 3.0/dim;
             int flag = 0;
             for (int k = 0; k < dim; k++)
             {

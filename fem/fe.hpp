@@ -62,7 +62,7 @@ public:
 
        where
 
-       x = T(xh) is the image of the reference point xh,
+       x = T(xh) is the image of the reference point xh ("x hat"),
        J = J(xh) is the Jacobian matrix of the transformation T, and
        w = w(xh) = / det(J),           for square J,
        .           \ det(J^t*J)^{1/2}, for general J,

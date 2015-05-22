@@ -1062,27 +1062,50 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
 
    vshape.SetSize(nd, dim);
    pointflux.SetSize(dim);
+   if (d_energy) { vec.SetSize(dim); }
 
    int order = 2 * fluxelem.GetOrder(); // <--
    const IntegrationRule &ir = IntRules.Get(fluxelem.GetGeomType(), order);
 
    double energy = 0.0;
+   if (d_energy) { *d_energy = 0.0; }
+
    for (int i = 0; i < ir.GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir.IntPoint(i);
-      fluxelem.CalcVShape(ip, vshape);
+      Trans.SetIntPoint(&ip);
 
+      fluxelem.CalcVShape(Trans, vshape);
       vshape.MultTranspose(flux, pointflux);
 
-      Trans.SetIntPoint(&ip);
-      double co = Trans.Weight() * ip.weight * (pointflux * pointflux);
+      double w = Trans.Weight() * ip.weight;
+
+      double e = w * (pointflux * pointflux);
 
       if (Q)
       {
          // TODO
       }
 
-      energy += co;
+      energy += e;
+
+      if (d_energy)
+      {
+         //Trans.Jacobian().MultTranspose(pointflux, vec);
+
+         DenseMatrix Jadj(dim, dim);
+         CalcAdjugate(Trans.Jacobian(), Jadj);
+         Jadj.Mult(pointflux, vec);
+
+         /*(*d_energy)[0] += w * (vec[1]*vec[1] + vec[2]*vec[2]);
+         (*d_energy)[1] += w * (vec[2]*vec[2] + vec[0]*vec[0]);
+         (*d_energy)[2] += w * (vec[0]*vec[0] + vec[1]*vec[1]);*/
+
+         for (int k = 0; k < dim; k++)
+         {
+            (*d_energy)[k] += w * vec[k] * vec[k];
+         }
+      }
    }
 
    return energy;

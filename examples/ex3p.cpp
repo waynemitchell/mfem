@@ -49,12 +49,15 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/beam-tet.mesh";
    int order = 1;
    bool visualization = 1;
+   int ref_levels = 1;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&ref_levels, "-r", "--ref-levels",
+                  "Number of refinement levels.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -100,23 +103,13 @@ int main(int argc, char *argv[])
       return 3;
    }
 
-   //mesh->GeneralRefinement(Array<int>(), 1);
-   Array<Refinement> refs;
-   refs.Append(Refinement(0, 7));
-   mesh->GeneralRefinement(refs, 1);
-   //mesh->GeneralRefinement(refs, 1);
+   mesh->GeneralRefinement(Array<int>(), 1);
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
-   //    this example we do 'ref_levels' of uniform refinement. We choose
-   //    'ref_levels' to be the largest number that gives a final mesh with no
-   //    more than 1,000 elements.
+   //    this example we do 'ref_levels' of uniform refinement.
+   for (int l = 0; l < ref_levels; l++)
    {
-      int ref_levels = 1;
-         //(int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
-      for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      mesh->UniformRefinement();
    }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine

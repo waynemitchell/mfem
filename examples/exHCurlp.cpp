@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/square-torus-n1.mesh";
    int order = 1;
+   int ref_levels = 1;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -53,6 +54,8 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&ref_levels, "-r", "--ref-levels",
+                  "Number of refinement levels.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -105,8 +108,6 @@ int main(int argc, char *argv[])
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 100 elements.
    {
-      int ref_levels = 1;
-         //(int)floor(log(100./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -130,19 +131,17 @@ int main(int argc, char *argv[])
    pmesh->ReorientTetMesh();
 
    socketstream curl_sock;
+   char vishost[] = "localhost";
+   int  visport   = 19916;
    if (visualization)
    {
-      char vishost[] = "localhost";
-      int  visport   = 19916;
-
       curl_sock.open(vishost, visport);
       curl_sock.precision(8);
       //curl_sock << "window_title 'Magnetic Field'" << flush;
    }
 
-for (int it = 1; it <= 15; it++)
+for (int it = 1; it <= 100; it++)
 {
-
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use the lowest order Nedelec finite elements, but we can easily switch
    //    to higher-order spaces by changing the value of p.
@@ -185,16 +184,15 @@ for (int it = 1; it <= 15; it++)
    (*sigma) = 0.0; (*sigma)(3) = 1.0;
    a1->AddBoundaryIntegrator(new DiffusionIntegrator(*sigma));
    a1->Assemble();
-
-   Array<int> ess_bdr1(pmesh->bdr_attributes.Max());
-   ess_bdr1 = 0; ess_bdr1[0] = 1; ess_bdr1[1] = 1;
-   // a1->EliminateEssentialBC(ess_bdr1, x1, *b1);
    a1->Finalize();
 
    HypreParMatrix *A1 = a1->ParallelAssemble();
    HypreParVector *B1 = b1->ParallelAssemble();
    HypreParVector *X1 = x1.ParallelProject();
 
+   Array<int> ess_bdr1(pmesh->bdr_attributes.Max());
+   ess_bdr1 = 0; ess_bdr1[0] = 1; ess_bdr1[1] = 1;
+   // a1->EliminateEssentialBC(ess_bdr1, x1, *b1);
    a1->ParallelEliminateEssentialBC(ess_bdr1, *A1, *X1, *B1);
 
    delete a1;
@@ -205,9 +203,12 @@ for (int it = 1; it <= 15; it++)
    HyprePCG *pcg1 = new HyprePCG(*A1);
    pcg1->SetTol(1e-12);
    pcg1->SetMaxIter(200);
-   pcg1->SetPrintLevel(2);
+   pcg1->SetPrintLevel(1);
    pcg1->SetPreconditioner(*amg1);
    pcg1->Mult(*B1, *X1);
+
+   delete pcg1;
+   delete amg1;
 
    x1 = *X1;
 
@@ -221,6 +222,7 @@ for (int it = 1; it <= 15; it++)
    Grad->Mult(*X1,*GradX1);
    ParGridFunction gradx1(HCurlFESpace,GradX1);
 
+   delete Grad;
    delete grad;
    delete X1;
    delete B1;
@@ -256,13 +258,6 @@ for (int it = 1; it <= 15; it++)
    ParBilinearForm *a = new ParBilinearForm(HCurlFESpace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(muinv));
    a->Assemble();
-
-   // The entire outer surface of the mesh is held fixed at zero
-   // except for the first surface which is set to he unit vector in
-   // the z direction.
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   //a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
@@ -271,6 +266,11 @@ for (int it = 1; it <= 15; it++)
    HypreParVector *B = b->ParallelAssemble();
    HypreParVector *X = x.ParallelProject();
 
+   // The entire outer surface of the mesh is held fixed at zero
+   // except for the first surface which is set to he unit vector in
+   // the z direction.
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
    a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
    delete a;
@@ -283,7 +283,7 @@ for (int it = 1; it <= 15; it++)
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);
-   pcg->SetPrintLevel(2);
+   pcg->SetPrintLevel(1);
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*B, *X);
 
@@ -355,7 +355,8 @@ for (int it = 1; it <= 15; it++)
    CurlCurlIntegrator flux_integrator(muinv);
    ParGridFunction flux(HCurlFESpace);
    Vector est_errors;
-   ZZErrorEstimator(flux_integrator, x, flux, est_errors);
+   Array<int> aniso_flags;
+   ZZErrorEstimator(flux_integrator, x, flux, est_errors, &aniso_flags);
 
    /*L2_FECollection l2_fec(0, dim);
    ParFiniteElementSpace error_space(pmesh, &l2_fec);
@@ -364,13 +365,17 @@ for (int it = 1; it <= 15; it++)
 
    // 17. Make a list of elements whose error is larger than a fraction
    //     of the maximum element error. These elements will be refined.
-   Array<int> ref_list;
+   Array<Refinement> ref_list;
    const double frac = 0.7;
    // the 'errors' are squared, so we need to square the fraction
    double threshold = (frac*frac) * est_errors.Max();
    for (int i = 0; i < est_errors.Size(); i++)
    {
-      if (est_errors[i] >= threshold) { ref_list.Append(i); }
+      if (est_errors[i] >= threshold)
+      {
+         ref_list.Append(Refinement(i, aniso_flags[i]));
+         //ref_list.Append(Refinement(i, 7));
+      }
    }
    pmesh->GeneralRefinement(ref_list);
 
