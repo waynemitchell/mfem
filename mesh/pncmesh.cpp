@@ -684,11 +684,16 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    NeighborRefinementMessage::IsendAll(send_ref, MyComm);
 
    // do local refinements
+#if 0
    for (int i = 0; i < refinements.Size(); i++)
    {
       const Refinement &ref = refinements[i];
       NCMesh::RefineElement(index_leaf[ref.index], ref.ref_type);
    }
+#else
+   // TODO: support aniso ref in parallel
+   NCMesh::Refine(refinements); // FIXME double Update()
+#endif
 
    // receive (ghost layer) refinements from all neighbors
    for (int j = 0; j < neighbors.Size(); j++)
