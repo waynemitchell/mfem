@@ -679,6 +679,7 @@ ParMesh::ParMesh(const ParNCMesh &pncmesh)
    , NRanks(pncmesh.NRanks)
    , MyRank(pncmesh.MyRank)
    , gtopo(MyComm)
+   , pncmesh(NULL)
 {
    Mesh::Init();
    Mesh::InitTables();
@@ -3869,18 +3870,16 @@ void ParMesh::PrintInfo(std::ostream &out)
 
 ParMesh::~ParMesh()
 {
-   int i;
-
    delete pncmesh;
    ncmesh = pncmesh = NULL;
 
    DeleteFaceNbrData();
 
-   for (i = 0; i < shared_faces.Size(); i++)
+   for (int i = 0; i < shared_faces.Size(); i++)
    {
       FreeElement(shared_faces[i]);
    }
-   for (i = 0; i < shared_edges.Size(); i++)
+   for (int i = 0; i < shared_edges.Size(); i++)
    {
       FreeElement(shared_edges[i]);
    }
