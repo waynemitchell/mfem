@@ -86,6 +86,9 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
+   Array<int> ordering;
+   mesh->GetGeckoElementReordering(ordering);
+   mesh->ReorderElements(ordering);
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
