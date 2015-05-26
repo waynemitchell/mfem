@@ -101,7 +101,10 @@ int main(int argc, char *argv[])
       return 3;
    }
 
-   mesh->GeneralRefinement(Array<Refinement>(), 1);
+   if (mesh->MeshGenerator() == 2)
+   {
+      mesh->GeneralRefinement(Array<Refinement>(), 1);
+   }
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
@@ -128,9 +131,12 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }
-   pmesh->ReorientTetMesh();
+   if (order >= 2)
+   {
+      pmesh->ReorientTetMesh();
+   }
 
-   socketstream curl_sock;
+   socketstream curl_sock, flux_sock, err_sock;
    char vishost[] = "localhost";
    int  visport   = 19916;
    if (visualization)
@@ -138,6 +144,16 @@ int main(int argc, char *argv[])
       curl_sock.open(vishost, visport);
       curl_sock.precision(8);
       //curl_sock << "window_title 'Magnetic Field'" << flush;
+
+      MPI_Barrier(MPI_COMM_WORLD);
+
+      flux_sock.open(vishost, visport);
+      flux_sock.precision(8);
+
+      MPI_Barrier(MPI_COMM_WORLD);
+
+      err_sock.open(vishost, visport);
+      err_sock.precision(8);
    }
 
 for (int it = 1; it <= 100; it++)
@@ -147,7 +163,7 @@ for (int it = 1; it <= 100; it++)
    //    to higher-order spaces by changing the value of p.
    FiniteElementCollection *H1FEC        = new H1_FECollection(order, dim);
    FiniteElementCollection *HCurlFEC     = new ND_FECollection(order, dim);
-   FiniteElementCollection *HDivFEC      = new RT_FECollection(order, dim);
+   FiniteElementCollection *HDivFEC      = new RT_FECollection(order-1, dim);
 
    ParFiniteElementSpace   *H1FESpace    = new ParFiniteElementSpace(pmesh,
 								     H1FEC);
@@ -199,14 +215,14 @@ for (int it = 1; it <= 100; it++)
    delete b1;
    delete sigma;
 
-   HypreSolver *amg1 = new HypreBoomerAMG(*A1);
+   HypreBoomerAMG *amg1 = new HypreBoomerAMG(*A1);
+   amg1->SetPrintLevel(0);
    HyprePCG *pcg1 = new HyprePCG(*A1);
    pcg1->SetTol(1e-12);
    pcg1->SetMaxIter(200);
-   pcg1->SetPrintLevel(1);
+   pcg1->SetPrintLevel(2);
    pcg1->SetPreconditioner(*amg1);
    pcg1->Mult(*B1, *X1);
-
    delete pcg1;
    delete amg1;
 
@@ -222,6 +238,7 @@ for (int it = 1; it <= 100; it++)
    Grad->Mult(*X1,*GradX1);
    ParGridFunction gradx1(HCurlFESpace,GradX1);
 
+   delete GradX1;
    delete Grad;
    delete grad;
    delete X1;
@@ -283,7 +300,7 @@ for (int it = 1; it <= 100; it++)
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);
-   pcg->SetPrintLevel(1);
+   pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*B, *X);
 
@@ -307,6 +324,8 @@ for (int it = 1; it <= 100; it++)
    Curl->Mult(*X,*CurlX);
    ParGridFunction curlx(HDivFESpace,CurlX);
 
+   delete CurlX;
+   delete Curl;
    delete curl;
 
    // 14. Save the refined mesh and the solution in parallel. This output can
@@ -349,41 +368,54 @@ for (int it = 1; it <= 100; it++)
 
       curl_sock << "parallel " << num_procs << " " << myid << "\n";
       curl_sock << "solution\n" << *pmesh << curlx << flush;
+      curl_sock << "window_title 'Flux in H(div)'\n" << flush;
    }
 
    // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
+   ND_FECollection flux_fec(order+1, dim);
+   ParFiniteElementSpace flux_fes(pmesh, &flux_fec);
    CurlCurlIntegrator flux_integrator(muinv);
-   ParGridFunction flux(HCurlFESpace);
+   // ParGridFunction flux(HCurlFESpace);
+   ParGridFunction flux(&flux_fes);
    Vector est_errors;
    Array<int> aniso_flags;
    ZZErrorEstimator(flux_integrator, x, flux, est_errors, &aniso_flags);
+
+   if (visualization)
+   {
+      L2_FECollection l2_fec(order+1, dim, 1);
+      ParFiniteElementSpace flux_error_fes(pmesh, &l2_fec, dim);
+      ParGridFunction hdiv_flux(&flux_error_fes);
+      ParGridFunction flux_error(&flux_error_fes);
+      curlx.ProjectVectorFieldOn(hdiv_flux);
+      flux.ProjectVectorFieldOn(flux_error);
+      subtract(flux_error, hdiv_flux, flux_error);
+
+      flux_sock << "parallel " << num_procs << " " << myid << "\n";
+      // flux_sock << "solution\n" << *pmesh << flux << flush;
+      // flux_sock << "window_title 'Averaged Flux'\n" << flush;
+      flux_sock << "solution\n" << *pmesh << flux_error << flush;
+      flux_sock << "window_title 'Flux Error'\n" << flush;
+   }
+
+   if (visualization)
+   {
+      L2_FECollection l2_fec(0, dim);
+      ParFiniteElementSpace err_fes(pmesh, &l2_fec);
+      ParGridFunction errs(&err_fes);
+      errs = est_errors;
+
+      err_sock << "parallel " << num_procs << " " << myid << "\n";
+      err_sock << "solution\n" << *pmesh << errs << flush;
+      err_sock << "window_title 'Scalar Error Estimates'\n" << flush;
+   }
 
    /*L2_FECollection l2_fec(0, dim);
    ParFiniteElementSpace error_space(pmesh, &l2_fec);
    ParGridFunction error_gf(&error_space);
    error_gf = est_errors;*/
 
-   // 17. Make a list of elements whose error is larger than a fraction
-   //     of the maximum element error. These elements will be refined.
-   Array<Refinement> ref_list;
-   const double frac = 0.7;
-   // the 'errors' are squared, so we need to square the fraction
-   double threshold = (frac*frac) * est_errors.Max();
-   for (int i = 0; i < est_errors.Size(); i++)
-   {
-      if (est_errors[i] >= threshold)
-      {
-         ref_list.Append(Refinement(i, aniso_flags[i]));
-         //ref_list.Append(Refinement(i, 7));
-      }
-   }
-   pmesh->GeneralRefinement(ref_list);
-
-
    // 18. Free the used memory.
-   delete Curl;
-   delete CurlX;
-   delete GradX1;
    delete X;
    delete B;
    delete A;
@@ -393,6 +425,57 @@ for (int it = 1; it <= 100; it++)
    delete HDivFEC;
    delete HCurlFEC;
    delete H1FEC;
+
+   // 17. Make a list of elements whose error is larger than a fraction
+   //     of the maximum element error. These elements will be refined.
+   const double frac = 0.5;
+   // the 'errors' are squared, so we need to square the fraction
+   double threshold = (frac*frac) * est_errors.Max();
+   if (pmesh->MeshGenerator() == 2)
+   {
+      Array<Refinement> ref_list;
+      for (int i = 0; i < est_errors.Size(); i++)
+      {
+         if (est_errors[i] >= threshold)
+         {
+            MFEM_VERIFY(aniso_flags[i] != 0, "");
+            ref_list.Append(Refinement(i, aniso_flags[i]));
+            // ref_list.Append(Refinement(i, 7));
+         }
+      }
+      cout << "Refining " << ref_list.Size() << " / " << pmesh->GetNE()
+           << " elements ..." << endl;
+      pmesh->GeneralRefinement(ref_list, -1, 1);
+   }
+   else if (order == 1)
+   {
+      Array<int> ref_list;
+      for (int i = 0; i < est_errors.Size(); i++)
+      {
+         if (est_errors[i] >= threshold)
+         {
+            ref_list.Append(i);
+         }
+      }
+      cout << "Refining " << ref_list.Size() << " / " << pmesh->GetNE()
+           << " elements ..." << endl;
+      pmesh->GeneralRefinement(ref_list);
+   }
+   else
+   {
+      break;
+   }
+
+   char c;
+   if (myid == 0)
+   {
+      cout << "press (q)uit or (c)ontinue --> " << flush;
+      cin >> c;
+   }
+   MPI_Bcast(&c, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+   if (c != 'c')
+      break;
 }
 
    delete pmesh;
