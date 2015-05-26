@@ -1070,12 +1070,19 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
    double energy = 0.0;
    if (d_energy) { *d_energy = 0.0; }
 
+   Vector* pfluxes;
+   if (d_energy)
+   {
+      pfluxes = new Vector[ir.GetNPoints()];
+   }
+
    for (int i = 0; i < ir.GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir.IntPoint(i);
       Trans.SetIntPoint(&ip);
 
       fluxelem.CalcVShape(Trans, vshape);
+      //fluxelem.CalcVShape(ip, vshape);
       vshape.MultTranspose(flux, pointflux);
 
       double w = Trans.Weight() * ip.weight;
@@ -1089,7 +1096,7 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
 
       energy += e;
 
-      if (d_energy)
+      /*if (d_energy)
       {
          //Trans.Jacobian().MultTranspose(pointflux, vec);
 
@@ -1097,15 +1104,62 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
          CalcAdjugate(Trans.Jacobian(), Jadj);
          Jadj.Mult(pointflux, vec);
 
-         /*(*d_energy)[0] += w * (vec[1]*vec[1] + vec[2]*vec[2]);
-         (*d_energy)[1] += w * (vec[2]*vec[2] + vec[0]*vec[0]);
-         (*d_energy)[2] += w * (vec[0]*vec[0] + vec[1]*vec[1]);*/
+         //(*d_energy)[0] += w * (vec[1]*vec[1] + vec[2]*vec[2]);
+         //(*d_energy)[1] += w * (vec[2]*vec[2] + vec[0]*vec[0]);
+         //(*d_energy)[2] += w * (vec[0]*vec[0] + vec[1]*vec[1]);
 
          for (int k = 0; k < dim; k++)
          {
             (*d_energy)[k] += w * vec[k] * vec[k];
          }
+      }*/
+
+      if (d_energy)
+      {
+         pfluxes[i].SetSize(dim);
+         Trans.Jacobian().MultTranspose(pointflux, pfluxes[i]);
+
+         /*DenseMatrix Jadj(dim, dim);
+         CalcAdjugate(Trans.Jacobian(), Jadj);
+         pfluxes[i].SetSize(dim);
+         Jadj.Mult(pointflux, pfluxes[i]);*/
+
+         //pfluxes[i] = pointflux;
       }
+   }
+
+   if (d_energy)
+   {
+      *d_energy = 0.0;
+      Vector tmp;
+
+      int n = (int) round(pow(ir.GetNPoints(), 1.0/3.0));
+      MFEM_ASSERT(n*n*n == ir.GetNPoints(), "");
+
+      // hack: get total variation of 'pointflux' in the x,y,z directions
+      for (int k = 0; k < n; k++)
+         for (int l = 0; l < n; l++)
+            for (int m = 0; m < n; m++)
+            {
+               Vector &vec = pfluxes[(k*n + l)*n + m];
+               if (m > 0)
+               {
+                  tmp = vec; tmp -= pfluxes[(k*n + l)*n + (m-1)];
+                  (*d_energy)[0] += (tmp * tmp);
+               }
+               if (l > 0)
+               {
+                  tmp = vec; tmp -= pfluxes[(k*n + (l-1))*n + m];
+                  (*d_energy)[1] += (tmp * tmp);
+               }
+               if (k > 0)
+               {
+                  tmp = vec; tmp -= pfluxes[((k-1)*n + l)*n + m];
+                  (*d_energy)[2] += (tmp * tmp);
+               }
+            }
+
+      delete [] pfluxes;
    }
 
    return energy;
@@ -1168,6 +1222,7 @@ double VectorCurlCurlIntegrator::GetElementEnergy(
    DenseMatrix dshape_hat(dof, dim), Jadj(dim), grad_hat(dim), grad(dim);
 #else
    dshape_hat.SetSize(dof, dim);
+
    Jadj.SetSize(dim);
    grad_hat.SetSize(dim);
    grad.SetSize(dim);
