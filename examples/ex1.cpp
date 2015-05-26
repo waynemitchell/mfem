@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
+   //Now Reorder the matrix
    Array<int> ordering;
    mesh->GetGeckoElementReordering(ordering);
    mesh->ReorderElements(ordering);
@@ -170,7 +171,17 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 11. Free the used memory.
+   // 11.  Set the element attribute to the element number and 
+   //      save the data in the visit format.
+   for (int elem = 0; elem < mesh->GetNE(); ++elem)
+   {
+      mesh->GetElement(elem)->SetAttribute(elem + 1);
+   }
+   VisItDataCollection visit_dc("Example1", mesh);
+   visit_dc.RegisterField("solution", &x);
+   visit_dc.Save();
+
+   // 12. Free the used memory.
    delete a;
    delete b;
    delete fespace;

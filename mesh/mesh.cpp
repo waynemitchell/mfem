@@ -1091,32 +1091,85 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
 
 void Mesh::ReorderElements(const Array<int> &ordering)
 {
+   //We will need both the forward and inverse permutation vectors to make the Tables
+   Array<int> inv_ordering(GetNE());
+   for (int old_elid = 0; old_elid < GetNE(); ++old_elid)
+   {
+      int new_elid = ordering[old_elid];
+      inv_ordering[new_elid] = old_elid;
+   }
+
    //Get copy the the element pointers/attributes/Tables to old arrays and set up 
-   //TODO:  Have to actual manage the table creation
    Array<Element *> old_elements;
    elements.Copy(old_elements);
    Array<int> old_attributes;
    attributes.Copy(old_attributes);
 
-   Table *old_el_to_el = el_to_el;
+   //Reorder the el_to_* tables
    if (el_to_el)
    {
+      Table *old_el_to_el = el_to_el;
       el_to_el = new Table;
+      el_to_el->MakeI(GetNE());
+      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      {
+         int old_elid = inv_ordering[new_elid];
+         el_to_el->AddColumnsInRow(new_elid, old_el_to_el->RowSize(old_elid));
+      }
+      el_to_el->MakeJ();
+      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      {
+         int old_elid = inv_ordering[new_elid];
+         el_to_el->AddConnections(new_elid, old_el_to_el->GetRow(old_elid),
+                                            old_el_to_el->RowSize(old_elid));
+      }
+      el_to_el->ShiftUpI();
+      delete old_el_to_el;
    }
 
-   Table *old_el_to_face = el_to_face;
    if (el_to_face)
    {
+      Table *old_el_to_face = el_to_face;
       el_to_face = new Table;
+      el_to_face->MakeI(GetNE());
+      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      {
+         int old_elid = inv_ordering[new_elid];
+         el_to_face->AddColumnsInRow(new_elid, old_el_to_face->RowSize(old_elid));
+      }
+      el_to_face->MakeJ();
+      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      {
+         int old_elid = inv_ordering[new_elid];
+         el_to_face->AddConnections(new_elid, old_el_to_face->GetRow(old_elid),
+                                              old_el_to_face->RowSize(old_elid));
+      }
+      el_to_face->ShiftUpI();
+      delete old_el_to_face;
    }
 
-   Table *old_el_to_edge = el_to_edge;
    if (el_to_edge)
    {
+      Table *old_el_to_edge = el_to_edge;
       el_to_edge = new Table;
+      el_to_edge->MakeI(GetNE());
+      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      {
+         int old_elid = inv_ordering[new_elid];
+         el_to_edge->AddColumnsInRow(new_elid, old_el_to_edge->RowSize(old_elid));
+      }
+      el_to_edge->MakeJ();
+      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      {
+         int old_elid = inv_ordering[new_elid];
+         el_to_edge->AddConnections(new_elid, old_el_to_edge->GetRow(old_elid),
+                                              old_el_to_edge->RowSize(old_elid));
+      }
+      el_to_edge->ShiftUpI();
+      delete old_el_to_edge;  
    }
 
-   //Now shuffle the old data into the new positions
+   //Reorder the elements and the faces_info
    for (int old_elid = 0; old_elid < ordering.Size(); ++old_elid)
    {
       int new_elid = ordering[old_elid];
@@ -1125,44 +1178,19 @@ void Mesh::ReorderElements(const Array<int> &ordering)
          attributes[new_elid] = old_attributes[old_elid];
       }
 
-      if (el_to_el)
-      {
-         int *old_neighid = old_el_to_el->GetRow(old_elid);
-         for (int i = 0; i < old_el_to_el->RowSize(old_elid); ++i)
-         {
-            int new_neighid = ordering[old_neighid[i]];
-            el_to_el->Push(new_elid, new_neighid);
-         }
-         el_to_el->Finalize();
-         delete old_el_to_el;
-      }
-
-      if (el_to_face)
-      {
-         int *faceid = old_el_to_face->GetRow(old_elid);
-         for (int i = 0; i < old_el_to_face->RowSize(old_elid); ++i)
-         {
-            el_to_face->Push(new_elid, faceid[i]);
-         }
-         el_to_face->Finalize();
-         delete old_el_to_face;
-      }
-
-      if (el_to_edge)
-      {
-         int *edgeid = old_el_to_edge->GetRow(old_elid);
-         for (int i = 0; i < old_el_to_edge->RowSize(old_elid); ++i)
-         {
-            el_to_edge->Push(new_elid, edgeid[i]);
-         }
-         el_to_edge->Finalize();
-         delete old_el_to_edge;
-      }
-
       for (int faceid = 0; faceid < faces_info.Size(); ++faceid)
       {
-         faces_info[faceid].Elem1No = ordering[faces_info[faceid].Elem1No];
-         faces_info[faceid].Elem2No = ordering[faces_info[faceid].Elem2No];
+         int old_elem1 = faces_info[faceid].Elem1No;
+         if (old_elem1 > -1)
+         {
+            faces_info[faceid].Elem1No = ordering[old_elem1];
+         }
+
+         int old_elem2 = faces_info[faceid].Elem2No;
+         if (old_elem2 > -1)
+         {
+            faces_info[faceid].Elem2No = ordering[old_elem2];
+         }
       }
    }
 }
@@ -4395,7 +4423,7 @@ void Mesh::GetVertexToVertexTable(DSTable &v_to_v) const
    }
 }
 
-int Mesh::GetElementToEdgeTablec_NumOfEdges(Table & e_to_f, Array<int> &be_to_f)
+int Mesh::GetElementToEdgeTable(Table & e_to_f, Array<int> &be_to_f)
 {
    int i, NumberOfEdges;
 
