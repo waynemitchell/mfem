@@ -91,7 +91,8 @@ void test_direct_2D(TensorProductBasis<2, p, q, n> &T2,
                     Array<TMatrix<q, q> >          &B)
 {
    int m = A.Size()/n;
-   double rtime, flops;
+   double rtime, flops, rmops, wmops;
+   const double GiB = 1024.0*1024*1024;
 
    tic();
 #if 1
@@ -104,7 +105,11 @@ void test_direct_2D(TensorProductBasis<2, p, q, n> &T2,
 #endif
    rtime = tic_toc.RealTime();
    flops = double(q*(p+1)*(p+1) + q*(p+1)*q)*m*n;
+   rmops = double((p+1)*(p+1))*m*n*sizeof(double);
+   wmops = double(q*q)*m*n*sizeof(double);
    cout << "Calc 2D direct:     rtime = " << rtime << " s" << endl;
+   cout << "Calc 2D direct:       GiB = " << (rmops+wmops)/GiB << endl;
+   cout << "Calc 2D direct:     GiB/s = " << (rmops+wmops)/GiB/rtime << endl;
    cout << "Calc 2D direct:    Gflops = " << flops/1e9 << endl;
    cout << "Calc 2D direct:  Gflops/s = " << flops/rtime/1e9 << endl;
 
@@ -122,7 +127,11 @@ void test_direct_2D(TensorProductBasis<2, p, q, n> &T2,
 #endif
    rtime = tic_toc.RealTime();
    flops = double(q*q*(p+1) + (p+1)*q*(p+1))*m*n;
+   rmops = double(q*q + (p+1)*(p+1))*m*n*sizeof(double); // +=
+   wmops = double((p+1)*(p+1))*m*n*sizeof(double);
    cout << "CalcT 2D direct:    rtime = " << rtime << " s" << endl;
+   cout << "CalcT 2D direct:      GiB = " << (rmops+wmops)/GiB << endl;
+   cout << "CalcT 2D direct:    GiB/s = " << (rmops+wmops)/GiB/rtime << endl;
    cout << "CalcT 2D direct:   Gflops = " << flops/1e9 << endl;
    cout << "CalcT 2D direct: Gflops/s = " << flops/rtime/1e9 << endl;
 
@@ -135,12 +144,13 @@ void test_indirect_2D(TensorProductBasis<2, p, q, n> &T2,
                       const int *elem_dof_2D)
 {
    int m = A.Size()/n;
-   double rtime, flops;
+   double rtime, flops, rmops, wmops;
+   const double GiB = 1024.0*1024*1024;
 
    tic();
 #if 1
    for (int k = 0; k < m; k++)
-      T2.Calc(&elem_dof_2D[k*(p+1)*(p+1)],
+      T2.Calc(&elem_dof_2D[k*n*(p+1)*(p+1)],
               &A[0].data[0][0], &B[k*n].data[0][0]);
 #else
    // always use the same B[]s
@@ -150,7 +160,11 @@ void test_indirect_2D(TensorProductBasis<2, p, q, n> &T2,
 #endif
    rtime = tic_toc.RealTime();
    flops = double(q*(p+1)*(p+1) + q*(p+1)*q)*m*n;
+   rmops = double((p+1)*(p+1))*m*n*(sizeof(double)+sizeof(int));
+   wmops = double(q*q)*m*n*sizeof(double);
    cout << "Calc 2D indirect:     rtime = " << rtime << " s" << endl;
+   cout << "Calc 2D indirect:       GiB = " << (rmops+wmops)/GiB << endl;
+   cout << "Calc 2D indirect:     GiB/s = " << (rmops+wmops)/GiB/rtime << endl;
    cout << "Calc 2D indirect:    Gflops = " << flops/1e9 << endl;
    cout << "Calc 2D indirect:  Gflops/s = " << flops/rtime/1e9 << endl;
 
@@ -160,7 +174,7 @@ void test_indirect_2D(TensorProductBasis<2, p, q, n> &T2,
    const bool Add = true;
 #if 1
    for (int k = 0; k < m; k++)
-      T2.CalcT<Add>(&elem_dof_2D[k*(p+1)*(p+1)],
+      T2.CalcT<Add>(&elem_dof_2D[k*n*(p+1)*(p+1)],
                     &B[k*n].data[0][0], &A[0].data[0][0]);
 #else
    // always use the same B[]s
@@ -170,7 +184,12 @@ void test_indirect_2D(TensorProductBasis<2, p, q, n> &T2,
 #endif
    rtime = tic_toc.RealTime();
    flops = double(q*q*(p+1) + (p+1)*q*(p+1))*m*n;
+   rmops = double(q*q + (p+1)*(p+1))*m*n*sizeof(double);
+   rmops += double((p+1)*(p+1))*m*n*sizeof(int);
+   wmops = double((p+1)*(p+1))*m*n*sizeof(double);
    cout << "CalcT 2D indirect:    rtime = " << rtime << " s" << endl;
+   cout << "CalcT 2D indirect:      GiB = " << (rmops+wmops)/GiB << endl;
+   cout << "CalcT 2D indirect:    GiB/s = " << (rmops+wmops)/GiB/rtime << endl;
    cout << "CalcT 2D indirect:   Gflops = " << flops/1e9 << endl;
    cout << "CalcT 2D indirect: Gflops/s = " << flops/rtime/1e9 << endl;
 

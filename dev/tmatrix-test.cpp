@@ -22,7 +22,8 @@ const int M = 1;
 
 void template_test(TMatrix<S,S> &A,
                    Array<TMatrix<S,S> > &B,
-                   Array<TMatrix<S,S> > &C);
+                   Array<TMatrix<S,S> > &C,
+                   Array<double> &gflops);
 
 void mfem_test(TMatrix<S,S> &A,
                Array<TMatrix<S,S> > &B,
@@ -77,11 +78,22 @@ int main(int argc, char *argv[])
 
    cout << endl;
 
-   template_test(A, B, C);
+   Array<double> gflops(8);
 
-   template_test(A, B, C);
-
-#if 1
+   gflops = 0.0;
+   for (int i = 0; i < 4; i++)
+      template_test(A, B, C, gflops);
+   cout << "Summary: max GFlops:\n"
+        << "  A.B[]     = " << gflops[0] << '\n'
+        << "  B[].A     = " << gflops[1] << '\n'
+        << "  A^t.B[]   = " << gflops[2] << '\n'
+        << "  B[]^t.A   = " << gflops[3] << '\n'
+        << "  A.B[]^t   = " << gflops[4] << '\n'
+        << "  B[].A^t   = " << gflops[5] << '\n'
+        << "  A^t.B[]^t = " << gflops[6] << '\n'
+        << "  B[]^t.A^t = " << gflops[7] << '\n'
+        << endl;
+#if 0
 #ifndef MFEM_USE_LAPACK
    cout << "using MFEM (no LAPACK) ...\n" << endl;
 #else
@@ -145,7 +157,8 @@ int main(int argc, char *argv[])
 
 void template_test(TMatrix<S,S> &A,
                    Array<TMatrix<S,S> > &B,
-                   Array<TMatrix<S,S> > &C)
+                   Array<TMatrix<S,S> > &C,
+                   Array<double> &gflops)
 {
    int num_iter = B.Size();
    double utime, rtime, flops;
@@ -168,6 +181,7 @@ void template_test(TMatrix<S,S> &A,
             Mult(A, Bk[l], Ck[l]);
       }
    }
+   tic_toc.Stop();
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = double(S)*S*S*num_iter;
@@ -175,6 +189,35 @@ void template_test(TMatrix<S,S> &A,
    cout << "Mult  A.B[]    rtime: " << rtime << " s" << endl;
    cout << "Mult  A.B[]   Gflops: " << flops/1e9 << endl;
    cout << "Mult  A.B[] Gflops/s: " << flops/rtime/1e9 << endl;
+   gflops[0] = max(gflops[0], flops/rtime/1e9);
+
+   cout << endl;
+
+   tic();
+   if (M == 1)
+   {
+      for (int k = 0; k < num_iter; k++)
+         Mult(B[k], A, C[k]);
+   }
+   else
+   {
+      for (int k = 0; k < num_iter/M; k++)
+      {
+         Bk = &B[k*M];
+         Ck = &C[k*M];
+         for (int l = 0; l < M; l++)
+            Mult(Bk[l], A, Ck[l]);
+      }
+   }
+   tic_toc.Stop();
+   utime = tic_toc.UserTime();
+   rtime = tic_toc.RealTime();
+   flops = double(S)*S*S*num_iter;
+   cout << "Mult  B[].A    utime: " << utime << " s" << endl;
+   cout << "Mult  B[].A    rtime: " << rtime << " s" << endl;
+   cout << "Mult  B[].A   Gflops: " << flops/1e9 << endl;
+   cout << "Mult  B[].A Gflops/s: " << flops/rtime/1e9 << endl;
+   gflops[1] = max(gflops[1], flops/rtime/1e9);
 
    cout << endl;
 
@@ -194,6 +237,7 @@ void template_test(TMatrix<S,S> &A,
             MultAtB(A, Bk[l], Ck[l]);
       }
    }
+   tic_toc.Stop();
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = double(S)*S*S*num_iter;
@@ -201,6 +245,35 @@ void template_test(TMatrix<S,S> &A,
    cout << "Mult  A^t.B[]    rtime: " << rtime << " s" << endl;
    cout << "Mult  A^t.B[]   Gflops: " << flops/1e9 << endl;
    cout << "Mult  A^t.B[] Gflops/s: " << flops/rtime/1e9 << endl;
+   gflops[2] = max(gflops[2], flops/rtime/1e9);
+
+   cout << endl;
+
+   tic();
+   if (M == 1)
+   {
+      for (int k = 0; k < num_iter; k++)
+         MultAtB(B[k], A, C[k]);
+   }
+   else
+   {
+      for (int k = 0; k < num_iter/M; k++)
+      {
+         Bk = &B[k*M];
+         Ck = &C[k*M];
+         for (int l = 0; l < M; l++)
+            MultAtB(Bk[l], A, Ck[l]);
+      }
+   }
+   tic_toc.Stop();
+   utime = tic_toc.UserTime();
+   rtime = tic_toc.RealTime();
+   flops = double(S)*S*S*num_iter;
+   cout << "Mult  B[]^t.A    utime: " << utime << " s" << endl;
+   cout << "Mult  B[]^t.A    rtime: " << rtime << " s" << endl;
+   cout << "Mult  B[]^t.A   Gflops: " << flops/1e9 << endl;
+   cout << "Mult  B[]^t.A Gflops/s: " << flops/rtime/1e9 << endl;
+   gflops[3] = max(gflops[3], flops/rtime/1e9);
 
    cout << endl;
 
@@ -220,6 +293,7 @@ void template_test(TMatrix<S,S> &A,
             MultABt(A, Bk[l], Ck[l]);
       }
    }
+   tic_toc.Stop();
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = double(S)*S*S*num_iter;
@@ -227,6 +301,35 @@ void template_test(TMatrix<S,S> &A,
    cout << "Mult  A.B[]^t    rtime: " << rtime << " s" << endl;
    cout << "Mult  A.B[]^t   Gflops: " << flops/1e9 << endl;
    cout << "Mult  A.B[]^t Gflops/s: " << flops/rtime/1e9 << endl;
+   gflops[4] = max(gflops[4], flops/rtime/1e9);
+
+   cout << endl;
+
+   tic();
+   if (M == 1)
+   {
+      for (int k = 0; k < num_iter; k++)
+         MultABt(B[k], A, C[k]);
+   }
+   else
+   {
+      for (int k = 0; k < num_iter/M; k++)
+      {
+         Bk = &B[k*M];
+         Ck = &C[k*M];
+         for (int l = 0; l < M; l++)
+            MultABt(Bk[l], A, Ck[l]);
+      }
+   }
+   tic_toc.Stop();
+   utime = tic_toc.UserTime();
+   rtime = tic_toc.RealTime();
+   flops = double(S)*S*S*num_iter;
+   cout << "Mult  B[].A^t    utime: " << utime << " s" << endl;
+   cout << "Mult  B[].A^t    rtime: " << rtime << " s" << endl;
+   cout << "Mult  B[].A^t   Gflops: " << flops/1e9 << endl;
+   cout << "Mult  B[].A^t Gflops/s: " << flops/rtime/1e9 << endl;
+   gflops[5] = max(gflops[5], flops/rtime/1e9);
 
    cout << endl;
 
@@ -246,6 +349,7 @@ void template_test(TMatrix<S,S> &A,
             MultAtBt(A, Bk[l], Ck[l]);
       }
    }
+   tic_toc.Stop();
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = double(S)*S*S*num_iter;
@@ -253,6 +357,35 @@ void template_test(TMatrix<S,S> &A,
    cout << "Mult  A^t.B[]^t    rtime: " << rtime << " s" << endl;
    cout << "Mult  A^t.B[]^t   Gflops: " << flops/1e9 << endl;
    cout << "Mult  A^t.B[]^t Gflops/s: " << flops/rtime/1e9 << endl;
+   gflops[6] = max(gflops[6], flops/rtime/1e9);
+
+   cout << endl;
+
+   tic();
+   if (M == 1)
+   {
+      for (int k = 0; k < num_iter; k++)
+         MultAtBt(B[k], A, C[k]);
+   }
+   else
+   {
+      for (int k = 0; k < num_iter/M; k++)
+      {
+         Bk = &B[k*M];
+         Ck = &C[k*M];
+         for (int l = 0; l < M; l++)
+            MultAtBt(Bk[l], A, Ck[l]);
+      }
+   }
+   tic_toc.Stop();
+   utime = tic_toc.UserTime();
+   rtime = tic_toc.RealTime();
+   flops = double(S)*S*S*num_iter;
+   cout << "Mult  B[]^t.A^t    utime: " << utime << " s" << endl;
+   cout << "Mult  B[]^t.A^t    rtime: " << rtime << " s" << endl;
+   cout << "Mult  B[]^t.A^t   Gflops: " << flops/1e9 << endl;
+   cout << "Mult  B[]^t.A^t Gflops/s: " << flops/rtime/1e9 << endl;
+   gflops[7] = max(gflops[7], flops/rtime/1e9);
 
    cout << endl;
 }
@@ -270,6 +403,7 @@ void mfem_test(TMatrix<S,S> &A,
 
    tic();
    Mult(mfem_A, mfem_B, mfem_C);
+   tic_toc.Stop();
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = double(S)*S*S*num_iter;
@@ -282,6 +416,7 @@ void mfem_test(TMatrix<S,S> &A,
 
    tic();
    MultAtB(mfem_A, mfem_B, mfem_C);
+   tic_toc.Stop();
    utime = tic_toc.UserTime();
    rtime = tic_toc.RealTime();
    flops = double(S)*S*S*num_iter;
