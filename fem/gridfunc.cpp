@@ -46,14 +46,15 @@ GridFunction::GridFunction(Mesh *m, std::istream &input)
    int ordering;
    input >> ordering;
    input.getline(buff, bufflen); // read the empty line
-   fes = new FiniteElementSpace(m, fec, vdim, ordering);
+   fes = new FiniteElementSpace(m, fec, vdim, (Ordering::Type)ordering);
    Vector::Load(input, fes->GetVSize());
 }
 
 GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
 {
    // all GridFunctions must have the same FE collection, vdim, ordering
-   int vdim, ordering;
+   int vdim;
+   Ordering::Type ordering;
 
    fes = gf_array[0]->FESpace();
    fec = FiniteElementCollection::New(fes->FEColl()->Name());

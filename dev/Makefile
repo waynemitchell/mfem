@@ -23,6 +23,35 @@ ifeq ($(ENABLE_BGQPROF),YES)
    MFEM_LIBS += -L/usr/local/tools/mpitrace/lib -lmpihpm -L/bgsys/drivers/ppcfloor/bgpm/lib -lbgpm -lrt -lstdc++ -lhpmprof
 endif
 
+# MFEM_CXXFLAGS = -O3
+# MFEM_CXXFLAGS += -march=native
+# MFEM_CXXFLAGS += -std=c++11
+
+# Default values in gcc 4.9.2/5.1.0 (from params.def)
+#  max-unrolled-insns                     . 200
+#  max-average-unrolled-insns             . 80
+#  max-unroll-times                       . 8
+#  max-peeled-insns                       . 100
+#  max-peel-times                         . 16
+#  max-peel-branches                      . 32
+#  max-completely-peeled-insns            . 100/200
+#  max-completely-peel-times              . 16
+#  max-once-peeled-insns (new?)           . 400
+#  max-completely-peel-loop-nest-depth    . 8
+
+# MFEM_CXXFLAGS += -fpeel-loops\
+#  --param max-unrolled-insns=400\
+#  --param max-average-unrolled-insns=160\
+#  --param max-unroll-times=8\
+#  --param max-peeled-insns=200\
+#  --param max-peel-times=16\
+#  --param max-peel-branches=32\
+#  --param max-completely-peeled-insns=200\
+#  --param max-completely-peel-times=16\
+#  --param max-completely-peel-loop-nest-depth=8
+
+# MFEM_CXXFLAGS += -fopt-info-all=all.info\
+#  -fdump-tree-optimized-blocks
 
 TESTS_CPP = $(wildcard *-test.cpp)
 TESTS = $(TESTS_CPP:.cpp=)
@@ -44,4 +73,5 @@ $(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
 clean:
-	rm -f $(TESTS) *~
+	rm -rf $(TESTS) *~ *.dSYM
+	rm -rf *.info *.optimized

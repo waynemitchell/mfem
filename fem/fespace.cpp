@@ -182,7 +182,7 @@ const
    DofsToVDofs (vdofs);
 }
 
-void FiniteElementSpace::BuildElementToDofTable()
+void FiniteElementSpace::BuildElementToDofTable() const
 {
    if (elem_dof)
    {
@@ -631,7 +631,7 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
 
 FiniteElementSpace::FiniteElementSpace(Mesh *m,
                                        const FiniteElementCollection *f,
-                                       int dim, int order)
+                                       int dim, Ordering::Type order)
 {
    mesh = m;
    fec = f;

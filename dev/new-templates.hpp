@@ -45,11 +45,35 @@ public:
       }
    }
 
+   void Set(const double *v)
+   {
+      for (int i = 0; i < size; i++)
+      {
+         data[i] = v[i];
+      }
+   }
+
+   void Assemble(double *v) const
+   {
+      for (int i = 0; i < size; i++)
+      {
+         v[i] += data[i];
+      }
+   }
+
    void Random()
    {
       for (int i = 0; i < size; i++)
       {
          data[i] = std::rand() / (RAND_MAX + 1.0);
+      }
+   }
+
+   void Scale(const double scale)
+   {
+      for (int i = 0; i < size; i++)
+      {
+         data[i] *= scale;
       }
    }
 };
@@ -60,16 +84,19 @@ struct TMatrix : public TVector<N1*N2>
    using TVector<N1*N2>::size;
    using TVector<N1*N2>::data;
 
-   static const int ind(int i1, int i2) { return (i1+N1*i2); }
+   static inline int ind(int i1, int i2) { return (i1+N1*i2); }
 
    double &operator()(int i, int j) { return data[ind(i,j)]; }
    const double &operator()(int i, int j) const { return data[ind(i,j)]; }
 
+   double &at(int i, int j) { return data[ind(i,j)]; }
+   const double &at(int i, int j) const { return data[ind(i,j)]; }
+
    // operator()(int) returns a column of the matrix
    TVector<N1> &operator()(int i2)
-   { return (TVector<N1> &)(operator()(0,i2)); }
+   { return reinterpret_cast<TVector<N1> &>(at(0,i2)); }
    const TVector<N1> &operator()(int i2) const
-   { return (const TVector<N1> &)(operator()(0,i2)); }
+   { return reinterpret_cast<const TVector<N1> &>(at(0,i2)); }
 
    template <bool Add>
    void Mult(const TVector<N2> &x, TVector<N1> &y) const
@@ -79,7 +106,7 @@ struct TMatrix : public TVector<N1*N2>
       {
          for (int i2 = 0; i2 < N2; i2++)
          {
-            y[i1] += operator()(i1,i2) * x[i2];
+            y[i1] += at(i1,i2) * x[i2];
          }
       }
    }
@@ -92,11 +119,78 @@ struct TMatrix : public TVector<N1*N2>
       {
          for (int i1 = 0; i1 < N1; i1++)
          {
-            y[i2] += operator()(i1,i2) * x[i1];
+            y[i2] += at(i1,i2) * x[i1];
          }
       }
    }
+
+   inline double Det() const;
+
+   inline void CalcAdjugate(TMatrix<N1,N2> &adj) const;
+
+   // Given the adjugate matrix, compute the determinant using the identity
+   // det(A) I = A.adj(A) which is more efficient than Det() for 3x3 and
+   // larger matrices
+   inline double Det(const TMatrix<N1,N2> &adj) const;
 };
+
+template <> inline double TMatrix<1,1>::Det() const
+{
+   return at(0,0);
+}
+
+template <> inline double TMatrix<2,2>::Det() const
+{
+   return at(0,0)*at(1,1) - at(1,0)*at(0,1);
+}
+
+template <> inline double TMatrix<3,3>::Det() const
+{
+   return (at(0,0)*(at(1,1)*at(2,2) - at(2,1)*at(1,2)) -
+           at(1,0)*(at(0,1)*at(2,2) - at(2,1)*at(0,2)) +
+           at(2,0)*(at(0,1)*at(1,2) - at(1,1)*at(0,2)));
+}
+
+template <> inline void TMatrix<1,1>::CalcAdjugate(TMatrix<1,1> &adj) const
+{
+   adj(0,0) = 1.;
+}
+
+template <> inline void TMatrix<2,2>::CalcAdjugate(TMatrix<2,2> &adj) const
+{
+   adj(0,0) =  at(1,1);
+   adj(0,1) = -at(0,1);
+   adj(1,0) = -at(1,0);
+   adj(1,1) =  at(0,0);
+}
+
+template <> inline void TMatrix<3,3>::CalcAdjugate(TMatrix<3,3> &adj) const
+{
+   adj(0,0) = at(1,1)*at(2,2) - at(1,2)*at(2,1);
+   adj(0,1) = at(0,2)*at(2,1) - at(0,1)*at(2,2);
+   adj(0,2) = at(0,1)*at(1,2) - at(0,2)*at(1,1);
+   adj(1,0) = at(1,2)*at(2,0) - at(1,0)*at(2,2);
+   adj(1,1) = at(0,0)*at(2,2) - at(0,2)*at(2,0);
+   adj(1,2) = at(0,2)*at(1,0) - at(0,0)*at(1,2);
+   adj(2,0) = at(1,0)*at(2,1) - at(1,1)*at(2,0);
+   adj(2,1) = at(0,1)*at(2,0) - at(0,0)*at(2,1);
+   adj(2,2) = at(0,0)*at(1,1) - at(0,1)*at(1,0);
+}
+
+template <> inline double TMatrix<1,1>::Det(const TMatrix<1,1> &adj) const
+{
+   return Det();
+}
+
+template <> inline double TMatrix<2,2>::Det(const TMatrix<2,2> &adj) const
+{
+   return Det();
+}
+
+template <> inline double TMatrix<3,3>::Det(const TMatrix<3,3> &adj) const
+{
+   return at(0,0)*adj(0,0) + at(1,0)*adj(0,1) + at(2,0)*adj(0,2);
+}
 
 template <int N1, int N2, int N3>
 struct TTensor : TVector<N1*N2*N3>
@@ -104,7 +198,8 @@ struct TTensor : TVector<N1*N2*N3>
    using TVector<N1*N2*N3>::size;
    using TVector<N1*N2*N3>::data;
 
-   static const int ind(int i1, int i2, int i3) { return (i1+N1*(i2+N2*i3)); }
+   static inline int ind(int i1, int i2, int i3)
+   { return (i1+N1*(i2+N2*i3)); }
 
    double &operator()(int i, int j, int k) { return data[ind(i,j,k)]; }
    const double &operator()(int i, int j, int k) const
@@ -113,9 +208,9 @@ struct TTensor : TVector<N1*N2*N3>
    // operator()(int) returns a sub-matrix of the tensor by fixing the given
    // last index
    TMatrix<N1,N2> &operator()(int i3)
-   { return (TMatrix<N1,N2> &)(operator()(0,0,i3)); }
+   { return reinterpret_cast<TMatrix<N1,N2> &>(operator()(0,0,i3)); }
    const TMatrix<N1,N2> &operator()(int i3) const
-   { return (const TMatrix<N1,N2> &)(operator()(0,0,i3)); }
+   { return reinterpret_cast<const TMatrix<N1,N2> &>(operator()(0,0,i3)); }
 };
 
 template <int N1, int N2, int N3, int N4>
@@ -124,7 +219,7 @@ struct TTensor4 : TVector<N1*N2*N3*N4>
    using TVector<N1*N2*N3*N4>::size;
    using TVector<N1*N2*N3*N4>::data;
 
-   static const int ind(int i1, int i2, int i3, int i4)
+   static inline int ind(int i1, int i2, int i3, int i4)
    { return (i1+N1*(i2+N2*(i3+N3*i4))); }
 
    double &operator()(int i, int j, int k, int l)
@@ -135,9 +230,9 @@ struct TTensor4 : TVector<N1*N2*N3*N4>
    // operator()(int) returns a rank-3 sub-tensor of the tensor by fixing the
    // given last index
    TTensor<N1,N2,N3> &operator()(int i4)
-   { return (TTensor<N1,N2,N3> &)(operator()(0,0,0,i4)); }
+   { return reinterpret_cast<TTensor<N1,N2,N3> &>(operator()(0,0,0,i4)); }
    const TTensor<N1,N2,N3> &operator()(int i4) const
-   { return (const TTensor<N1,N2,N3> &)(operator()(0,0,0,i4)); }
+   { return reinterpret_cast<const TTensor<N1,N2,N3> &>(operator()(0,0,0,i4)); }
 };
 
 template <int Dim, int N>
@@ -165,41 +260,41 @@ struct TCellData : public SquareTensor<Dim, N> { };
 
 // Reshape to (view as) TMatrix
 template <int N1, int N2>
-TMatrix<N1,N2> &Reshape(TVector<N1*N2> &tensor)
+inline TMatrix<N1,N2> &Reshape(TVector<N1*N2> &tensor)
 {
-   return (TMatrix<N1,N2> &)tensor;
+   return reinterpret_cast<TMatrix<N1,N2> &>(tensor);
 }
 
 template <int N1, int N2>
-const TMatrix<N1,N2> &Reshape(const TVector<N1*N2> &tensor)
+inline const TMatrix<N1,N2> &Reshape(const TVector<N1*N2> &tensor)
 {
-   return (const TMatrix<N1,N2> &)tensor;
+   return reinterpret_cast<const TMatrix<N1,N2> &>(tensor);
 }
 
 // Reshape to (view as) TTensor
 template <int N1, int N2, int N3>
-TTensor<N1,N2,N3> &Reshape(TVector<N1*N2*N3> &tensor)
+inline TTensor<N1,N2,N3> &Reshape(TVector<N1*N2*N3> &tensor)
 {
-   return (TTensor<N1,N2,N3> &)tensor;
+   return reinterpret_cast<TTensor<N1,N2,N3> &>(tensor);
 }
 
 template <int N1, int N2, int N3>
-const TTensor<N1,N2,N3> &Reshape(const TVector<N1*N2*N3> &tensor)
+inline const TTensor<N1,N2,N3> &Reshape(const TVector<N1*N2*N3> &tensor)
 {
-   return (const TTensor<N1,N2,N3> &)tensor;
+   return reinterpret_cast<const TTensor<N1,N2,N3> &>(tensor);
 }
 
 // Reshape to (view as) TTensor4
 template <int N1, int N2, int N3, int N4>
-TTensor4<N1,N2,N3,N4> &Reshape(TVector<N1*N2*N3*N4> &tensor)
+inline TTensor4<N1,N2,N3,N4> &Reshape(TVector<N1*N2*N3*N4> &tensor)
 {
-   return (TTensor4<N1,N2,N3,N4> &)tensor;
+   return reinterpret_cast<TTensor4<N1,N2,N3,N4> &>(tensor);
 }
 
 template <int N1, int N2, int N3, int N4>
-const TTensor4<N1,N2,N3,N4> &Reshape(const TVector<N1*N2*N3*N4> &tensor)
+inline const TTensor4<N1,N2,N3,N4> &Reshape(const TVector<N1*N2*N3*N4> &tensor)
 {
-   return (const TTensor4<N1,N2,N3,N4> &)tensor;
+   return reinterpret_cast<const TTensor4<N1,N2,N3,N4> &>(tensor);
 }
 
 
@@ -208,37 +303,80 @@ const TTensor4<N1,N2,N3,N4> &Reshape(const TVector<N1*N2*N3*N4> &tensor)
 // C_{i,j,k,l}  {=|+=}  \sum_s A_{i,s,j} B_{k,s,l}
 // The string '1234' in the name indicates the order of the ijkl indices
 // in the output tensor C.
-template <bool Add, int A1, int A2, int A3, int B1, int B3>
+template <int Impl, bool Add, int A1, int A2, int A3, int B1, int B3>
+inline
 void Mult_1234(const TTensor<A1,A2,A3> &A, const TTensor<B1,A2,B3> &B,
                TTensor4<A1,A3,B1,B3> &C)
 {
-   if (!Add) { C.Set(0.0); }
-   for (int l = 0; l < B3; l++)
+#define IND3(A,A1,A2,i1,i2,i3) \
+   ((A).data[(i1)+(A1)*((i2)+(A2)*(i3))])
+#define IND4(A,A1,A2,A3,i1,i2,i3,i4) \
+   ((A).data[(i1)+(A1)*((i2)+(A2)*((i3)+(A3)*(i4)))])
+
+   if (Impl == 0)
    {
-      for (int k = 0; k < B1; k++)
+      if (!Add) { C.Set(0.0); }
+
+      for (int i = 0; i < A1; i++)
       {
          for (int j = 0; j < A3; j++)
          {
-            for (int i = 0; i < A1; i++)
+            for (int k = 0; k < B1; k++)
             {
-               for (int s = 0; s < A2; s++)
+               for (int l = 0; l < B3; l++)
                {
-                  C(i,j,k,l) += A(i,s,j) * B(k,s,l);
+                  for (int s = 0; s < A2; s++)
+                  {
+                     // C(i,j,k,l) += A(i,s,j) * B(k,s,l);
+                     IND4(C,A1,A3,B1,i,j,k,l) +=
+                        IND3(A,A1,A2,i,s,j) * IND3(B,B1,A2,k,s,l);
+                  }
                }
             }
          }
       }
    }
+   else if (Impl == 1)
+   {
+      if (!Add) { C.Set(0.0); }
+
+      for (int s = 0; s < A2; s++)
+      {
+         for (int l = 0; l < B3; l++)
+         {
+            for (int k = 0; k < B1; k++)
+            {
+               for (int j = 0; j < A3; j++)
+               {
+                  for (int i = 0; i < A1; i++)
+                  {
+                     // C(i,j,k,l) += A(i,s,j) * B(k,s,l);
+                     IND4(C,A1,A3,B1,i,j,k,l) +=
+                        IND3(A,A1,A2,i,s,j) * IND3(B,B1,A2,k,s,l);
+                  }
+               }
+            }
+         }
+      }
+   }
+
+#undef IND4
+#undef IND3
 }
 
 // C_{i,k,l,j}  {=|+=}  \sum_s A_{i,s,j} B_{k,s,l}
 // The string '1342' in the name indicates the order of the ijkl indices
 // in the output tensor C.
 template <bool Add, int A1, int A2, int A3, int B1, int B3>
+inline
 void Mult_1342(const TTensor<A1,A2,A3> &A, const TTensor<B1,A2,B3> &B,
                TTensor4<A1,B1,B3,A3> &C)
 {
    if (!Add) { C.Set(0.0); }
+#define IND3(A,A1,A2,i1,i2,i3) \
+   ((A).data[(i1)+(A1)*((i2)+(A2)*(i3))])
+#define IND4(A,A1,A2,A3,i1,i2,i3,i4) \
+   ((A).data[(i1)+(A1)*((i2)+(A2)*((i3)+(A3)*(i4)))])
    for (int j = 0; j < A3; j++)
    {
       for (int l = 0; l < B3; l++)
@@ -249,56 +387,65 @@ void Mult_1342(const TTensor<A1,A2,A3> &A, const TTensor<B1,A2,B3> &B,
             {
                for (int s = 0; s < A2; s++)
                {
-                  C(i,k,l,j) += A(i,s,j) * B(k,s,l);
+                  // C(i,k,l,j) += A(i,s,j) * B(k,s,l);
+                  IND4(C,A1,B1,B3,i,k,l,j) +=
+                     IND3(A,A1,A2,i,s,j) * IND3(B,B1,A2,k,s,l);
                }
             }
          }
       }
    }
+#undef IND4
+#undef IND3
 }
 
 // C  {=|+=}  A.B
 template <bool Add, int A1, int A2, int B2>
+inline
 void Mult_AB(const TMatrix<A1,A2> &A, const TMatrix<A2,B2> &B,
              TMatrix<A1,B2> &C)
 {
-   Mult_1234<Add>(Reshape<A1,A2,1>(A),
-                  Reshape<1,A2,B2>(B),
-                  Reshape<A1,1,1,B2>(C));
+   Mult_1234<0,Add>(Reshape<A1,A2,1>(A),
+                    Reshape<1,A2,B2>(B),
+                    Reshape<A1,1,1,B2>(C));
 }
 
 // C  {=|+=}  At.B
 template <bool Add, int A1, int A2, int B2>
+inline
 void Mult_AtB(const TMatrix<A1,A2> &A, const TMatrix<A1,B2> &B,
               TMatrix<A2,B2> &C)
 {
-   Mult_1234<Add>(Reshape<1,A1,A2>(A),
-                  Reshape<1,A1,B2>(B),
-                  Reshape<1,A2,1,B2>(C));
+   Mult_1234<1,Add>(Reshape<1,A1,A2>(A),
+                    Reshape<1,A1,B2>(B),
+                    Reshape<1,A2,1,B2>(C));
 }
 
 // C  {=|+=}  A.Bt
 template <bool Add, int A1, int A2, int B1>
+inline
 void Mult_ABt(const TMatrix<A1,A2> &A, const TMatrix<B1,A2> &B,
               TMatrix<A1,B1> &C)
 {
-   Mult_1234<Add>(Reshape<A1,A2,1>(A),
-                  Reshape<B1,A2,1>(B),
-                  Reshape<A1,1,B1,1>(C));
+   Mult_1234<0,Add>(Reshape<A1,A2,1>(A),
+                    Reshape<B1,A2,1>(B),
+                    Reshape<A1,1,B1,1>(C));
 }
 
 // C  {=|+=}  At.Bt
 template <bool Add, int A1, int A2, int B1>
+inline
 void Mult_AtBt(const TMatrix<A1,A2> &A, const TMatrix<B1,A1> &B,
                TMatrix<A2,B1> &C)
 {
-   Mult_1234<Add>(Reshape<1,A1,A2>(A),
-                  Reshape<B1,A1,1>(B),
-                  Reshape<1,A2,B1,1>(C));
+   Mult_1234<0,Add>(Reshape<1,A1,A2>(A),
+                    Reshape<B1,A1,1>(B),
+                    Reshape<1,A2,B1,1>(C));
 }
 
 // C_{i,j,k}  {=|+=}  \sum_s A_{s,i} B_{s,j,k}
 template <bool Add, int A1, int A2, int B2, int B3>
+inline
 void Mult_1_1(const TMatrix<A1,A2> &A, const TTensor<A1,B2,B3> &B,
               TTensor<A2,B2,B3> &C)
 {
@@ -309,6 +456,7 @@ void Mult_1_1(const TMatrix<A1,A2> &A, const TTensor<A1,B2,B3> &B,
 
 // C_{i,j,k}  {=|+=}  \sum_s A_{s,j} B_{i,s,k}
 template <bool Add, int A1, int A2, int B1, int B3>
+inline
 void Mult_1_2(const TMatrix<A1,A2> &A, const TTensor<B1,A1,B3> &B,
               TTensor<B1,A2,B3> &C)
 {
@@ -319,6 +467,7 @@ void Mult_1_2(const TMatrix<A1,A2> &A, const TTensor<B1,A1,B3> &B,
 
 // C_{i,j,k}  {=|+=}  \sum_s A_{s,k} B_{i,j,s}
 template <bool Add, int A1, int A2, int B1, int B2>
+inline
 void Mult_1_3(const TMatrix<A1,A2> &A, const TTensor<B1,B2,A1> &B,
               TTensor<B1,B2,A2> &C)
 {
@@ -329,6 +478,7 @@ void Mult_1_3(const TMatrix<A1,A2> &A, const TTensor<B1,B2,A1> &B,
 
 // C_{i,j,k}  {=|+=}  \sum_s A_{i,s} B_{s,j,k}
 template <bool Add, int A1, int A2, int B2, int B3>
+inline
 void Mult_2_1(const TMatrix<A1,A2> &A, const TTensor<A2,B2,B3> &B,
               TTensor<A1,B2,B3> &C)
 {
@@ -339,6 +489,7 @@ void Mult_2_1(const TMatrix<A1,A2> &A, const TTensor<A2,B2,B3> &B,
 
 // C_{i,j,k}  {=|+=}  \sum_s A_{j,s} B_{i,s,k}
 template <bool Add, int A1, int A2, int B1, int B3>
+inline
 void Mult_2_2(const TMatrix<A1,A2> &A, const TTensor<B1,A2,B3> &B,
               TTensor<B1,A1,B3> &C)
 {
@@ -349,6 +500,7 @@ void Mult_2_2(const TMatrix<A1,A2> &A, const TTensor<B1,A2,B3> &B,
 
 // C_{i,j,k}  {=|+=}  \sum_s A_{k,s} B_{i,j,s}
 template <bool Add, int A1, int A2, int B1, int B2>
+inline
 void Mult_2_3(const TMatrix<A1,A2> &A, const TTensor<B1,B2,A2> &B,
               TTensor<B1,B2,A1> &C)
 {
@@ -359,6 +511,7 @@ void Mult_2_3(const TMatrix<A1,A2> &A, const TTensor<B1,B2,A2> &B,
 
 // C_{k,i,l,j}  {=|+=}  A_{s,i} A_{s,j} B_{k,s,l}
 template <bool Add, int A1, int A2, int B1, int B3>
+inline
 void TensorAssemble(const TMatrix<A1,A2> &A, const TTensor<B1,A1,B3> &B,
                     TTensor4<B1,A2,B3,A2> &C)
 {
@@ -383,6 +536,7 @@ void TensorAssemble(const TMatrix<A1,A2> &A, const TTensor<B1,A1,B3> &B,
 
 // D_{k,i,l,j}  {=|+=}  A_{s,i} B_{s,j} C_{k,s,l}
 template <bool Add, int A1, int A2, int B2, int C1, int C3>
+inline
 void TensorAssemble(const TMatrix<A1,A2> &A,
                     const TMatrix<A1,B2> &B,
                     const TTensor<C1,A1,C3> &C,
@@ -410,148 +564,335 @@ void TensorAssemble(const TMatrix<A1,A2> &A,
 
 // Finite elements
 
+void CalcShapeMatrix(const FiniteElement &fe, const IntegrationRule &ir,
+                     double *B, const Array<int> *dof_map = NULL)
+{
+   // - B must be (nip x dof) with column major storage
+   // - The inverse of dof_map is applied to reorder the local dofs.
+   int nip = ir.GetNPoints();
+   int dof = fe.GetDof();
+   Vector shape(dof);
+
+   for (int ip = 0; ip < nip; ip++)
+   {
+      fe.CalcShape(ir.IntPoint(ip), shape);
+      for (int id = 0; id < dof; id++)
+      {
+         int orig_id = dof_map ? (*dof_map)[id] : id;
+         B[ip+nip*id] = shape(orig_id);
+      }
+   }
+}
+
+void CalcGradTensor(const FiniteElement &fe, const IntegrationRule &ir,
+                    double *G, const Array<int> *dof_map = NULL)
+{
+   // - G must be (nip x dim x dof) with column major storage
+   // - The inverse of dof_map is applied to reorder the local dofs.
+   int dim = fe.GetDim();
+   int nip = ir.GetNPoints();
+   int dof = fe.GetDof();
+   DenseMatrix dshape(dof, dim);
+
+   for (int ip = 0; ip < nip; ip++)
+   {
+      fe.CalcDShape(ir.IntPoint(ip), dshape);
+      for (int id = 0; id < dof; id++)
+      {
+         int orig_id = dof_map ? (*dof_map)[id] : id;
+         for (int d = 0; d < dim; d++)
+         {
+            G[ip+nip*(d+dim*id)] = dshape(orig_id, d);
+         }
+      }
+   }
+}
+
+void CalcShapes(const FiniteElement &fe, const IntegrationRule &ir,
+                double *B, double *G, const Array<int> *dof_map)
+{
+   if (B) { mfem::CalcShapeMatrix(fe, ir, B, dof_map); }
+   if (G) { mfem::CalcGradTensor(fe, ir, G, dof_map); }
+}
+
 template <Geometry::Type G, int P>
 class H1_FiniteElement;
 
-template <int P>
-class H1_FiniteElement<Geometry::SEGMENT, P> : public H1_SegmentElement
+struct H1_FiniteElement_Basis
 {
-public:
-   static const int geom    = Geometry::SEGMENT;
-   static const int dim     = 1;
-   static const int degree  = P;
-   static const int dofs_1d = P+1;
-   static const int dofs    = P+1;
-
-   static const bool tensor_prod = true;
-
-   H1_FiniteElement() : H1_SegmentElement(P) { }
-
-   void CalcShapeMatrix(const IntegrationRule &ir, double *B) const
-   { Calc1DShapeMatrix(ir, B); }
-   void CalcGradTensor(const IntegrationRule &ir, double *G) const
-   { Calc1DGradMatrix(ir, G); }
-
-   void Calc1DShapeMatrix(const IntegrationRule &ir_1d, double *B) const
+   enum Type
    {
-      MFEM_WARNING("TODO");
-   }
-   void Calc1DGradMatrix(const IntegrationRule &ir_1d, double *G) const
-   {
-      MFEM_WARNING("TODO");
-   }
+      GaussLobatto = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
+      Positive     = 2  // Positive basis, Bernstein polynomials
+   };
 };
 
 template <int P>
-class H1_FiniteElement<Geometry::TRIANGLE, P> : public H1_TriangleElement
+class H1_FiniteElement<Geometry::SEGMENT, P>
 {
 public:
-   static const int geom   = Geometry::TRIANGLE;
+   static const Geometry::Type geom = Geometry::SEGMENT;
+   static const int dim    = 1;
+   static const int degree = P;
+   static const int dofs   = P+1;
+
+   static const bool tensor_prod = true;
+   static const int  dofs_1d     = P+1;
+
+   typedef TCellData<dim, dofs_1d> dof_data_type;
+   // Type for run-time parameter for the constructor
+   typedef H1_FiniteElement_Basis::Type parameter_type;
+
+protected:
+   const FiniteElement *my_fe;
+   const Array<int> *my_dof_map;
+   parameter_type type; // run-time specified basis type
+
+public:
+   H1_FiniteElement(
+      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
+      : type(type_)
+   {
+      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      {
+         H1_SegmentElement *fe = new H1_SegmentElement(P);
+         my_fe = fe;
+         my_dof_map = &fe->GetDofMap();
+      }
+      else if (type == H1_FiniteElement_Basis::Positive)
+      {
+         H1Pos_SegmentElement *fe = new H1Pos_SegmentElement(P);
+         my_fe = fe;
+         my_dof_map = &fe->GetDofMap();
+      }
+      else
+      {
+         MFEM_ABORT("invalid basis type!");
+      }
+   }
+   ~H1_FiniteElement() { delete my_fe; }
+
+   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
+   {
+      mfem::CalcShapes(*my_fe, ir, B, G, my_dof_map);
+   }
+   void Calc1DShapes(const IntegrationRule &ir, double *B, double *G) const
+   {
+      CalcShapes(ir, B, G);
+   }
+   const Array<int> *GetDofMap() const { return my_dof_map; }
+};
+
+template <int P>
+class H1_FiniteElement<Geometry::TRIANGLE, P>
+{
+public:
+   static const Geometry::Type geom = Geometry::TRIANGLE;
    static const int dim    = 2;
    static const int degree = P;
    static const int dofs   = ((P + 1)*(P + 2))/2;
 
    static const bool tensor_prod = false;
 
-   H1_FiniteElement() : H1_TriangleElement(P) { }
+   typedef TVector<dofs> dof_data_type;
+   // Type for run-time parameter for the constructor
+   typedef H1_FiniteElement_Basis::Type parameter_type;
 
-   void CalcShapeMatrix(const IntegrationRule &ir, double *B) const
+protected:
+   const FiniteElement *my_fe;
+   parameter_type type; // run-time specified basis type
+
+public:
+   H1_FiniteElement(
+      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
+      : type(type_)
    {
-      MFEM_WARNING("TODO");
+      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      {
+         my_fe = new H1_TriangleElement(P);
+      }
+      else if (type == H1_FiniteElement_Basis::Positive)
+      {
+         MFEM_ABORT("TODO: implement H1Pos_TriangleElement");
+         // my_fe = new H1Pos_TriangleElement(P);
+         my_fe = NULL;
+      }
+      else
+      {
+         MFEM_ABORT("invalid basis type!");
+      }
    }
-   void CalcGradTensor(const IntegrationRule &ir, double *G) const
+   ~H1_FiniteElement() { delete my_fe; }
+
+   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
    {
-      MFEM_WARNING("TODO");
+      mfem::CalcShapes(*my_fe, ir, B, G, NULL);
    }
+   const Array<int> *GetDofMap() const { return NULL; }
 };
 
 template <int P>
-class H1_FiniteElement<Geometry::SQUARE, P> : public H1_QuadrilateralElement
+class H1_FiniteElement<Geometry::SQUARE, P>
 {
 public:
-   static const int geom    = Geometry::SQUARE;
+   static const Geometry::Type geom = Geometry::SQUARE;
    static const int dim     = 2;
    static const int degree  = P;
-   static const int dofs_1d = P+1;
    static const int dofs    = (P+1)*(P+1);
 
    static const bool tensor_prod = true;
+   static const int dofs_1d = P+1;
 
-   H1_FiniteElement() : H1_QuadrilateralElement(P) { }
+   typedef TCellData<dim, dofs_1d> dof_data_type;
+   // Type for run-time parameter for the constructor
+   typedef H1_FiniteElement_Basis::Type parameter_type;
 
-   void CalcShapeMatrix(const IntegrationRule &ir, double *B) const
-   {
-      MFEM_WARNING("TODO");
-   }
-   void CalcGradTensor(const IntegrationRule &ir, double *G) const
-   {
-      MFEM_WARNING("TODO");
-   }
+protected:
+   const FiniteElement *my_fe, *my_fe_1d;
+   const Array<int> *my_dof_map;
+   parameter_type type; // run-time specified basis type
 
-   void Calc1DShapeMatrix(const IntegrationRule &ir_1d, double *B) const
+public:
+   H1_FiniteElement(
+      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
+      : type(type_)
    {
-      MFEM_WARNING("TODO");
+      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      {
+         H1_QuadrilateralElement *fe = new H1_QuadrilateralElement(P);
+         my_fe = fe;
+         my_dof_map = &fe->GetDofMap();
+         my_fe_1d = new L2_SegmentElement(P, type);
+      }
+      else if (type == H1_FiniteElement_Basis::Positive)
+      {
+         H1Pos_QuadrilateralElement *fe = new H1Pos_QuadrilateralElement(P);
+         my_fe = fe;
+         my_dof_map = &fe->GetDofMap();
+         my_fe_1d = new L2Pos_SegmentElement(P);
+      }
+      else
+      {
+         MFEM_ABORT("invalid basis type!");
+      }
    }
-   void Calc1DGradMatrix(const IntegrationRule &ir_1d, double *G) const
+   ~H1_FiniteElement() { delete my_fe; delete my_fe_1d; }
+
+   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
    {
-      MFEM_WARNING("TODO");
+      mfem::CalcShapes(*my_fe, ir, B, G, my_dof_map);
    }
+   void Calc1DShapes(const IntegrationRule &ir, double *B, double *G) const
+   {
+      mfem::CalcShapes(*my_fe_1d, ir, B, G, NULL);
+   }
+   const Array<int> *GetDofMap() const { return my_dof_map; }
 };
 
 template <int P>
-class H1_FiniteElement<Geometry::TETRAHEDRON, P> : public H1_TetrahedronElement
+class H1_FiniteElement<Geometry::TETRAHEDRON, P>
 {
 public:
-   static const int geom   = Geometry::TETRAHEDRON;
+   static const Geometry::Type geom = Geometry::TETRAHEDRON;
    static const int dim    = 3;
    static const int degree = P;
    static const int dofs   = ((P + 1)*(P + 2)*(P + 3))/6;
 
    static const bool tensor_prod = false;
 
-   H1_FiniteElement() : H1_TetrahedronElement(P) { }
+   typedef TVector<dofs> dof_data_type;
+   // Type for run-time parameter for the constructor
+   typedef H1_FiniteElement_Basis::Type parameter_type;
 
-   void CalcShapeMatrix(const IntegrationRule &ir, double *B) const
+protected:
+   const FiniteElement *my_fe;
+   parameter_type type; // run-time specified basis type
+
+public:
+   H1_FiniteElement(
+      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
+      : type(type_)
    {
-      MFEM_WARNING("TODO");
+      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      {
+         my_fe = new H1_TetrahedronElement(P);
+      }
+      else if (type == H1_FiniteElement_Basis::Positive)
+      {
+         MFEM_ABORT("TODO: implement H1Pos_TetrahedronElement");
+         // my_fe = new H1Pos_TetrahedronElement(P);
+         my_fe = NULL;
+      }
+      else
+      {
+         MFEM_ABORT("invalid basis type!");
+      }
    }
-   void CalcGradTensor(const IntegrationRule &ir, double *G) const
+   ~H1_FiniteElement() { delete my_fe; }
+
+   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
    {
-      MFEM_WARNING("TODO");
+      mfem::CalcShapes(*my_fe, ir, B, G, NULL);
    }
+   const Array<int> *GetDofMap() const { return NULL; }
 };
 
 template <int P>
-class H1_FiniteElement<Geometry::CUBE, P> : public H1_HexahedronElement
+class H1_FiniteElement<Geometry::CUBE, P>
 {
 public:
-   static const int geom    = Geometry::CUBE;
+   static const Geometry::Type geom = Geometry::CUBE;
    static const int dim     = 3;
    static const int degree  = P;
-   static const int dofs_1d = P+1;
    static const int dofs    = (P+1)*(P+1)*(P+1);
 
    static const bool tensor_prod = true;
+   static const int dofs_1d = P+1;
 
-   H1_FiniteElement() : H1_HexahedronElement(P) { }
+   typedef TCellData<dim, dofs_1d> dof_data_type;
+   // Type for run-time parameter for the constructor
+   typedef H1_FiniteElement_Basis::Type parameter_type;
 
-   void CalcShapeMatrix(const IntegrationRule &ir, double *B) const
-   {
-      MFEM_WARNING("TODO");
-   }
-   void CalcGradTensor(const IntegrationRule &ir, double *G) const
-   {
-      MFEM_WARNING("TODO");
-   }
+protected:
+   const FiniteElement *my_fe, *my_fe_1d;
+   const Array<int> *my_dof_map;
+   parameter_type type; // run-time specified basis type
 
-   void Calc1DShapeMatrix(const IntegrationRule &ir_1d, double *B) const
+public:
+   H1_FiniteElement(
+      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
+      : type(type_)
    {
-      MFEM_WARNING("TODO");
+      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      {
+         H1_HexahedronElement *fe = new H1_HexahedronElement(P);
+         my_fe = fe;
+         my_dof_map = &fe->GetDofMap();
+         my_fe_1d = new L2_SegmentElement(P, type);
+      }
+      else if (type == H1_FiniteElement_Basis::Positive)
+      {
+         H1Pos_HexahedronElement *fe = new H1Pos_HexahedronElement(P);
+         my_fe = fe;
+         my_dof_map = &fe->GetDofMap();
+         my_fe_1d = new L2Pos_SegmentElement(P);
+      }
+      else
+      {
+         MFEM_ABORT("invalid basis type!");
+      }
    }
-   void Calc1DGradMatrix(const IntegrationRule &ir_1d, double *G) const
+   ~H1_FiniteElement() { delete my_fe; delete my_fe_1d; }
+
+   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
    {
-      MFEM_WARNING("TODO");
+      mfem::CalcShapes(*my_fe, ir, B, G, my_dof_map);
    }
+   void Calc1DShapes(const IntegrationRule &ir, double *B, double *G) const
+   {
+      mfem::CalcShapes(*my_fe_1d, ir, B, G, NULL);
+   }
+   const Array<int> *GetDofMap() const { return my_dof_map; }
 };
 
 
@@ -561,30 +902,136 @@ template <Geometry::Type G, int Q, int Order>
 class GenericIntegrationRule
 {
 public:
-   static const int geom = G;
+   static const Geometry::Type geom = G;
+   static const int dim = Geometry::Constants<geom>::Dimension;
    static const int qpts = Q;
    static const int order = Order;
 
    static const bool tensor_prod = false;
 
+   typedef TVector<qpts> qpt_data_type;
+
+protected:
+   TVector<qpts> weights;
+
+public:
+   GenericIntegrationRule()
+   {
+      const IntegrationRule &ir = GetIntRule();
+      MFEM_ASSERT(ir.GetNPoints() == qpts, "quadrature rule mismatch");
+      for (int j = 0; j < qpts; j++)
+      {
+         weights[j] = ir.IntPoint(j).weight;
+      }
+   }
+
+   GenericIntegrationRule(const GenericIntegrationRule &ir)
+   {
+      weights.Set(ir.weights);
+   }
+
    static const IntegrationRule &GetIntRule()
    {
       return IntRules.Get(geom, order);
    }
+
+   void ApplyWeights(qpt_data_type &qpt_data) const
+   {
+      for (int j = 0; j < qpts; j++)
+      {
+         qpt_data.data[j] *= weights.data[j];
+      }
+   }
+};
+
+template <int Dim, int Q>
+class TProductIntegrationRule_base;
+
+template <int Q>
+class TProductIntegrationRule_base<1, Q>
+{
+protected:
+   TVector<Q> weights_1d;
+
+public:
+   void ApplyWeights(TVector<Q> &qpt_data) const
+   {
+      for (int j = 0; j < Q; j++)
+      {
+         qpt_data.data[j] *= weights_1d.data[j];
+      }
+   }
+};
+
+template <int Q>
+class TProductIntegrationRule_base<2, Q>
+{
+protected:
+   TVector<Q> weights_1d;
+
+public:
+   void ApplyWeights(TMatrix<Q,Q> &qpt_data) const
+   {
+      for (int j1 = 0; j1 < Q; j1++)
+      {
+         for (int j2 = 0; j2 < Q; j2++)
+         {
+            qpt_data(j1,j2) *= weights_1d.data[j1]*weights_1d.data[j2];
+         }
+      }
+   }
+};
+
+template <int Q>
+class TProductIntegrationRule_base<3, Q>
+{
+protected:
+   TVector<Q> weights_1d;
+
+public:
+   void ApplyWeights(TTensor<Q,Q,Q> &qpt_data) const
+   {
+      for (int j1 = 0; j1 < Q; j1++)
+      {
+         for (int j2 = 0; j2 < Q; j2++)
+         {
+            for (int j3 = 0; j3 < Q; j3++)
+            {
+               qpt_data(j1,j2,j3) *=
+                  weights_1d.data[j1]*weights_1d.data[j2]*weights_1d.data[j3];
+            }
+         }
+      }
+   }
 };
 
 template <int Dim, int Q, int Order>
-class TProductIntegrationRule
+class TProductIntegrationRule : public TProductIntegrationRule_base<Dim, Q>
 {
 public:
-   static const int geom = (Dim == 1) ? Geometry::SEGMENT :
-                           ((Dim == 2) ? Geometry::SQUARE : Geometry::CUBE);
+   static const Geometry::Type geom =
+      ((Dim == 1) ? Geometry::SEGMENT :
+       ((Dim == 2) ? Geometry::SQUARE : Geometry::CUBE));
    static const int dim = Dim;
    static const int qpts_1d = Q;
    static const int qpts = (Dim == 1) ? Q : ((Dim == 2) ? (Q*Q) : (Q*Q*Q));
    static const int order = Order;
 
    static const bool tensor_prod = true;
+
+   typedef TCellData<dim, qpts_1d> qpt_data_type;
+
+protected:
+   using TProductIntegrationRule_base<Dim, Q>::weights_1d;
+
+public:
+   TProductIntegrationRule() { }
+
+   TProductIntegrationRule(const TProductIntegrationRule &ir)
+   {
+      weights_1d.Set(ir.weights_1d);
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+   }
 };
 
 template <int Dim, int Q>
@@ -592,8 +1039,26 @@ class GaussIntegrationRule
    : public TProductIntegrationRule<Dim, Q, 2*Q-1>
 {
 public:
-   using TProductIntegrationRule<Dim, Q, 2*Q-1>::geom;
-   using TProductIntegrationRule<Dim, Q, 2*Q-1>::order;
+   typedef TProductIntegrationRule<Dim, Q, 2*Q-1> base_class;
+
+   using base_class::geom;
+   using base_class::order;
+   using base_class::qpts_1d;
+
+protected:
+   using base_class::weights_1d;
+
+public:
+   GaussIntegrationRule()
+   {
+      const IntegrationRule &ir_1d = Get1DIntRule();
+      MFEM_ASSERT(ir_1d.GetNPoints() == qpts_1d, "quadrature rule mismatch");
+      for (int j = 0; j < qpts_1d; j++)
+      {
+         weights_1d.data[j] = ir_1d.IntPoint(j).weight;
+      }
+   }
+
    static const IntegrationRule &Get1DIntRule()
    {
       return IntRules.Get(Geometry::SEGMENT, order);
@@ -670,35 +1135,32 @@ class ShapeEvaluator_base;
 template <class FE, class IR>
 class ShapeEvaluator_base<FE, IR, false>
 {
-protected:
+public:
    static const int DOF = FE::dofs;
    static const int NIP = IR::qpts;
    static const int DIM = FE::dim;
 
+protected:
    TMatrix<NIP, DOF> B;
    TTensor<NIP, DIM, DOF> G;
 
 public:
-   typedef TVector<DOF> dof_data_type;
-   typedef TVector<NIP> qpt_data_type;
+   typedef typename FE::dof_data_type dof_data_type;
+   typedef typename IR::qpt_data_type qpt_data_type;
    typedef TMatrix<NIP,DIM> grad_qpt_data_type;
    typedef TMatrix<DOF,DOF> asm_data_type;
 
-   // TODO: add an option to compute the gradient tensor as well
-   ShapeEvaluator_base()
+   ShapeEvaluator_base(const FE &fe)
    {
-      FE fe;
-      fe.CalcShapeMatrix(IR::GetIntRule(), B.data);
-      fe.CalcGradTensor(IR::GetIntRule(), G.data);
-      std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+      fe.CalcShapes(IR::GetIntRule(), B.data, G.data);
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
    }
 
-   // TODO: add an option to copy the gradient tensor as well
    ShapeEvaluator_base(const ShapeEvaluator_base &se)
    {
       B.Set(se.B);
       G.Set(se.G);
-      std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
    }
 
    void Calc(const dof_data_type &dof_data,
@@ -726,7 +1188,7 @@ public:
                   dof_data_type &dof_data) const
    {
       // dof_data[dof] = \sum_{nip,dim} G(nip,dim,dof) x grad_qpt_data(nip,dim)
-      Reshape<NIP*DIM,DOF>(G).template MultTranspose<false>(
+      Reshape<NIP*DIM,DOF>(G).template MultTranspose<Add>(
          grad_qpt_data, dof_data);
    }
 
@@ -754,23 +1216,23 @@ public:
 
    TProductShapeEvaluator()
    {
-      std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
    }
 
-   void Calc(const TCellData<1, DOF> &dof_data,
-             TCellData<1, NIP>       &qpt_data) const
+   void Calc(const TCellData<1,DOF> &dof_data,
+             TCellData<1,NIP>       &qpt_data) const
    {
       B_1d.template Mult<false>(dof_data, qpt_data);
    }
 
    template <bool Add>
-   void CalcT(const TCellData<1, NIP> &qpt_data,
-              TCellData<1, DOF>       &dof_data) const
+   void CalcT(const TCellData<1,NIP> &qpt_data,
+              TCellData<1,DOF>       &dof_data) const
    {
       B_1d.template MultTranspose<Add>(qpt_data, dof_data);
    }
 
-   void CalcGrad(const TCellData<1, DOF> &dof_data,
+   void CalcGrad(const TCellData<1,DOF> &dof_data,
                  grad_qpt_data_type &grad_qpt_data) const
    {
       G_1d.template Mult<false>(dof_data, grad_qpt_data);
@@ -778,12 +1240,12 @@ public:
 
    template <bool Add>
    void CalcGradT(const grad_qpt_data_type &grad_qpt_data,
-                  TCellData<1, DOF> &dof_data) const
+                  TCellData<1,DOF> &dof_data) const
    {
       G_1d.template MultTranspose<Add>(grad_qpt_data, dof_data);
    }
 
-   void Assemble(const TCellData<1, NIP> &qpt_data, TMatrix<TDOF,TDOF> &M) const
+   void Assemble(const TCellData<1,NIP> &qpt_data, TMatrix<TDOF,TDOF> &M) const
    {
       // M = B^t . diag(qpt_data) . B
       TensorAssemble<false>(B_1d, Reshape<1,NIP,1>(qpt_data),
@@ -804,7 +1266,7 @@ public:
 
    TProductShapeEvaluator()
    {
-      std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
    }
 
    template <bool Dx, bool Dy>
@@ -889,7 +1351,7 @@ public:
 
    TProductShapeEvaluator()
    {
-      std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
    }
 
    template <bool Dx, bool Dy, bool Dz>
@@ -987,25 +1449,21 @@ protected:
    using TProductShapeEvaluator<FE::dim, FE::dofs_1d, IR::qpts_1d>::TDOF;
 
 public:
-   typedef TCellData<FE::dim, FE::dofs_1d> dof_data_type;
-   typedef TCellData<IR::dim, IR::qpts_1d> qpt_data_type;
+   typedef typename FE::dof_data_type dof_data_type;
+   typedef typename IR::qpt_data_type qpt_data_type;
    typedef TMatrix<TDOF, TDOF> asm_data_type;
 
-   // TODO: add an option to compute the gradient matrix as well
-   ShapeEvaluator_base()
+   ShapeEvaluator_base(const FE &fe)
    {
-      FE fe;
-      fe.Calc1DShapeMatrix(IR::Get1DIntRule(), B_1d.data);
-      fe.Calc1DGradMatrix(IR::Get1DIntRule(), G_1d.data);
-      std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+      fe.Calc1DShapes(IR::Get1DIntRule(), B_1d.data, G_1d.data);
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
    }
 
-   // TODO: add an option to copy the gradient matrix as well
    ShapeEvaluator_base(const ShapeEvaluator_base &se)
    {
       B_1d.Set(se.B_1d);
       G_1d.Set(se.G_1d);
-      std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
    }
 };
 
@@ -1014,17 +1472,502 @@ class ShapeEvaluator
    : public ShapeEvaluator_base<FE, IR, FE::tensor_prod && IR::tensor_prod>
 {
 public:
+   static const int dim  = FE::dim;
+   static const int qpts = IR::qpts;
    static const bool tensor_prod = FE::tensor_prod && IR::tensor_prod;
+   typedef FE FE_type;
+   typedef IR IR_type;
+   typedef ShapeEvaluator_base<FE, IR, tensor_prod> base_class;
 
-   ShapeEvaluator()
+   using typename base_class::dof_data_type;
+   using typename base_class::qpt_data_type;
+   using typename base_class::grad_qpt_data_type;
+   using base_class::Calc;
+   using base_class::CalcT;
+   using base_class::CalcGrad;
+   using base_class::CalcGradT;
+
+   ShapeEvaluator(const FE &fe) : base_class(fe)
    {
-      std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
    }
 
-   ShapeEvaluator(const ShapeEvaluator &se)
-      : ShapeEvaluator_base<FE, IR, tensor_prod>(se)
+   ShapeEvaluator(const ShapeEvaluator &se) : base_class(se)
    {
-      std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+      // std::cout << '\n' << _MFEM_FUNC_NAME << std::endl;
+   }
+
+   template <int NumComp>
+   void CalcVec(const dof_data_type (&vdof_data)[NumComp],
+                qpt_data_type (&vqpt_data)[NumComp]) const
+   {
+      for (int i = 0; i < NumComp; i++)
+      {
+         Calc(vdof_data[i], vqpt_data[i]);
+      }
+   }
+
+   template <bool Add, int NumComp>
+   void CalcVecT(const qpt_data_type (&vqpt_data)[NumComp],
+                 dof_data_type (&vdof_data)[NumComp]) const
+   {
+      for (int i = 0; i < NumComp; i++)
+      {
+         CalcT<Add>(vqpt_data[i], vdof_data[i]);
+      }
+   }
+
+   template <int NumComp>
+   void CalcVecGrad(const dof_data_type (&vdof_data)[NumComp],
+                    grad_qpt_data_type (&vgrad_qpt_data)[NumComp]) const
+   {
+      for (int i = 0; i < NumComp; i++)
+      {
+         CalcGrad(vdof_data[i], vgrad_qpt_data[i]);
+      }
+   }
+
+   template <bool Add, int NumComp>
+   void CalcVecGradT(const grad_qpt_data_type (&vgrad_qpt_data)[NumComp],
+                     dof_data_type (&vdof_data)[NumComp]) const
+   {
+      for (int i = 0; i < NumComp; i++)
+      {
+         CalcGradT<Add>(vgrad_qpt_data[i], vdof_data[i]);
+      }
+   }
+
+   void GetPointGrad(int qpt_idx, const grad_qpt_data_type &grad_qpt_data,
+                     TVector<dim> &grad) const
+   {
+      for (int i = 0; i < dim; i++)
+      {
+         grad.data[i] = grad_qpt_data.data[qpt_idx+qpts*i];
+      }
+   }
+
+   template <int NumComp>
+   void GetPointVec(int qpt_idx,
+                    const qpt_data_type (&vqpt_data)[NumComp],
+                    TVector<NumComp> &vec) const
+   {
+      for (int comp = 0; comp < NumComp; comp++)
+      {
+         vec.data[comp] = vqpt_data[comp].data[qpt_idx+qpts*comp];
+      }
+   }
+
+   template <int NumComp>
+   void GetPointVecGrad(int qpt_idx,
+                        const grad_qpt_data_type (&vgrad_qpt_data)[NumComp],
+                        TMatrix<NumComp,dim> &vgrad) const
+   {
+      for (int comp = 0; comp < NumComp; comp++)
+      {
+         for (int der = 0; der < dim; der++)
+         {
+            vgrad(comp,der) = vgrad_qpt_data[comp].data[qpt_idx+qpts*der];
+         }
+      }
+   }
+};
+
+
+// Element-Dof-Operators
+
+class IndexVectorizer
+{
+protected:
+   Ordering::Type ordering;
+   int num_comp, scalar_size;
+
+public:
+   IndexVectorizer(Ordering::Type ordering_, int num_comp_,
+                   int scalar_size_)
+      : ordering(ordering_),
+        num_comp(num_comp_),
+        scalar_size(scalar_size_)
+   { }
+
+   IndexVectorizer(const FiniteElementSpace &fes)
+      : ordering(fes.GetOrdering()),
+        num_comp(fes.GetVDim()),
+        scalar_size(fes.GetNDofs())
+   { }
+
+   int NumComponents() const { return num_comp; }
+
+   int VectorIndex(int scalar_idx, int comp_idx) const
+   {
+      if (ordering == Ordering::byNODES)
+      {
+         return scalar_idx + comp_idx * scalar_size;
+      }
+      else
+      {
+         return comp_idx + num_comp * scalar_idx;
+      }
+   }
+};
+
+template <Ordering::Type Ord>
+class TIndexVectorizer_Ord
+{
+protected:
+   int num_comp, scalar_size;
+
+public:
+   TIndexVectorizer_Ord(int num_comp_, int scalar_size_)
+      : num_comp(num_comp_),
+        scalar_size(scalar_size_)
+   { }
+
+   TIndexVectorizer_Ord(const FiniteElementSpace &fes)
+      : num_comp(fes.GetVDim()),
+        scalar_size(fes.GetNDofs())
+   {
+      MFEM_ASSERT(fes.GetOrdering() == Ord, "ordering mismatch");
+   }
+
+   int NumComponents() const { return num_comp; }
+
+   int VectorIndex(int scalar_idx, int comp_idx) const
+   {
+      if (Ord == Ordering::byNODES)
+      {
+         return scalar_idx + comp_idx * scalar_size;
+      }
+      else
+      {
+         return comp_idx + num_comp * scalar_idx;
+      }
+   }
+};
+
+template <Ordering::Type Ord, int NumComp>
+class TIndexVectorizer
+{
+protected:
+   int scalar_size;
+
+public:
+   explicit TIndexVectorizer(int scalar_size_)
+      : scalar_size(scalar_size_) { }
+
+   TIndexVectorizer(const FiniteElementSpace &fes)
+      : scalar_size(fes.GetNDofs())
+   {
+      MFEM_ASSERT(fes.GetOrdering() == Ord, "ordering mismatch");
+      MFEM_ASSERT(fes.GetVDim() == NumComp, "vdim mismatch");
+   }
+
+   int NumComponents() const { return NumComp; }
+
+   int VectorIndex(int scalar_idx, int comp_idx) const
+   {
+      if (Ord == Ordering::byNODES)
+      {
+         return scalar_idx + comp_idx * scalar_size;
+      }
+      else
+      {
+         return comp_idx + NumComp * scalar_idx;
+      }
+   }
+};
+
+template <typename FE>
+class Table_ElementDofOperator
+{
+protected:
+   const int *el_dof_list, *loc_dof_list;
+   bool own_list;
+
+public:
+   typedef typename FE::dof_data_type dof_data_type;
+
+   Table_ElementDofOperator(const FE &fe, const FiniteElementSpace &fes)
+   {
+      const Array<int> *loc_dof_map = fe.GetDofMap();
+      fes.BuildElementToDofTable();
+      const Table &el_dof = fes.GetElementToDofTable();
+      MFEM_ASSERT(el_dof.Size_of_connections() == el_dof.Size() * FE::dofs,
+                  "the element-to-dof Table is not compatible with this FE!");
+      int num_dofs = el_dof.Size() * FE::dofs;
+      if (!loc_dof_map)
+      {
+         // no local dof reordering
+         el_dof_list = el_dof.GetJ();
+         own_list = false;
+      }
+      else
+      {
+         // reorder the local dofs according to loc_dof_map
+         int *el_dof_list_ = new int[num_dofs];
+         const int *loc_dof_map_ = loc_dof_map->GetData();
+         for (int i = 0; i < el_dof.Size(); i++)
+         {
+            MFEM_ASSERT(el_dof.RowSize(i) == FE::dofs,
+                        "incompatible element-to-dof Table!");
+            for (int j = 0; j < FE::dofs; j++)
+            {
+               el_dof_list_[j+FE::dofs*i] =
+                  el_dof.GetJ()[loc_dof_map_[j]+FE::dofs*i];
+            }
+         }
+         el_dof_list = el_dof_list_;
+         own_list = true;
+      }
+      loc_dof_list = el_dof_list; // point to element 0
+   }
+
+   // Shallow copy constructor
+   Table_ElementDofOperator(const Table_ElementDofOperator &orig)
+      : el_dof_list(orig.el_dof_list),
+        loc_dof_list(orig.loc_dof_list),
+        own_list(false)
+   { }
+
+   ~Table_ElementDofOperator() { if (own_list) { delete el_dof_list; } }
+
+   void SetElement(int elem_idx)
+   {
+      loc_dof_list = el_dof_list + elem_idx * FE::dofs;
+   }
+
+   void Extract(const double glob_dof_data[], dof_data_type &dof_data) const
+   {
+      for (int i = 0; i < FE::dofs; i++)
+      {
+         dof_data.data[i] = glob_dof_data[loc_dof_list[i]];
+      }
+   }
+
+   void Assemble(const dof_data_type &dof_data, double glob_dof_data[]) const
+   {
+      for (int i = 0; i < FE::dofs; i++)
+      {
+         glob_dof_data[loc_dof_list[i]] += dof_data.data[i];
+      }
+   }
+
+   template <typename IdxVectorizer>
+   void VectorExtract(IdxVectorizer &iv,
+                      const double glob_vdof_data[],
+                      dof_data_type vdof_data[]) const
+   {
+      const int nc = iv.NumComponents();
+      for (int j = 0; j < nc; j++)
+      {
+         for (int i = 0; i < FE::dofs; i++)
+         {
+            vdof_data[j].data[i] =
+               glob_vdof_data[iv.VectorIndex(loc_dof_list[i], j)];
+         }
+      }
+   }
+
+   template <typename IdxVectorizer>
+   void VectorAssemble(IdxVectorizer &iv,
+                       const dof_data_type vdof_data[],
+                       double glob_vdof_data[]) const
+   {
+      const int nc = iv.NumComponents();
+      for (int j = 0; j < nc; j++)
+      {
+         for (int i = 0; i < FE::dofs; i++)
+         {
+            glob_vdof_data[iv.VectorIndex(loc_dof_list[i], j)] +=
+               vdof_data[j].data[i];
+         }
+      }
+   }
+};
+
+template <typename FE>
+class DG_ElementDofOperator
+{
+protected:
+   int offset;
+
+public:
+   typedef typename FE::dof_data_type dof_data_type;
+
+   DG_ElementDofOperator(const FE &fe, const FiniteElementSpace &fes)
+   {
+      MFEM_ASSERT(fes.GetNDofs() == fes.GetNE() * FE::dofs,
+                  "the FE space is not compatible with this FE!");
+      offset = 0;
+   }
+
+   DG_ElementDofOperator(const DG_ElementDofOperator &orig)
+      : offset(orig.offset) { }
+
+   void SetElement(int elem_idx)
+   {
+      offset = FE::dofs * elem_idx;
+   }
+
+   void Extract(const double glob_dof_data[], dof_data_type &dof_data) const
+   {
+      dof_data.Set(&glob_dof_data[offset]);
+   }
+
+   void Assemble(const dof_data_type &dof_data,
+                 double glob_dof_data[]) const
+   {
+      dof_data.Assemble(&glob_dof_data[offset]);
+   }
+
+   template <typename IdxVectorizer>
+   void VectorExtract(IdxVectorizer &iv,
+                      const double glob_vdof_data[],
+                      dof_data_type vdof_data[]) const
+   {
+      const int nc = iv.NumComponents();
+      for (int j = 0; j < nc; j++)
+      {
+         for (int i = 0; i < FE::dofs; i++)
+         {
+            vdof_data[j].data[i] = glob_vdof_data[iv.VectorIndex(i+offset, j)];
+         }
+      }
+   }
+
+   template <typename IdxVectorizer>
+   void VectorAssemble(IdxVectorizer &iv,
+                       const dof_data_type vdof_data[],
+                       double glob_vdof_data[]) const
+   {
+      const int nc = iv.NumComponents();
+      for (int j = 0; j < nc; j++)
+      {
+         for (int i = 0; i < FE::dofs; i++)
+         {
+            glob_vdof_data[iv.VectorIndex(i+offset, j)] += vdof_data[j].data[i];
+         }
+      }
+   }
+};
+
+
+// Mass assembler
+
+template <typename meshFE, typename meshElemDof, typename meshVectorizer,
+          typename spaceFE, typename spaceElemDof, typename IR>
+class TMassAssembler : public Operator
+{
+protected:
+   typedef ShapeEvaluator<meshFE, IR> meshShapeEval;
+   typedef ShapeEvaluator<spaceFE, IR> spaceShapeEval;
+
+   static const int dim = meshFE::dim;
+   static const int qpts = IR::qpts;
+
+   meshFE mesh_fe;
+   spaceFE space_fe;
+
+   meshShapeEval meshEval;
+   spaceShapeEval spaceEval;
+
+   const FiniteElementSpace &meshFES;
+   GridFunction &meshNodes;
+
+   mutable meshElemDof meshElDof;
+   mutable spaceElemDof spaceElDof;
+
+   meshVectorizer meshVec;
+
+   IR int_rule;
+
+public:
+   TMassAssembler(const FiniteElementSpace &spaceFES)
+      : Operator(spaceFES.GetNDofs()),
+        mesh_fe(), space_fe(),
+        meshEval(mesh_fe), spaceEval(space_fe),
+        meshFES(*spaceFES.GetMesh()->GetNodalFESpace()),
+        meshNodes(*spaceFES.GetMesh()->GetNodes()),
+        meshElDof(mesh_fe, meshFES), spaceElDof(space_fe, spaceFES),
+        meshVec(meshFES), int_rule()
+   { }
+
+   ~TMassAssembler()
+   { }
+
+   virtual void Mult(const Vector &x, Vector &y) const
+   {
+      y = 0.0;
+
+      typename meshFE::dof_data_type nodes_dof[dim];
+      typename spaceFE::dof_data_type x_dof, y_dof;
+
+      typename meshShapeEval::grad_qpt_data_type J_qpt[dim];
+      typename spaceShapeEval::qpt_data_type x_qpt, y_qpt;
+
+      TMatrix<dim,dim> J;
+
+#if 1
+      const int NE = meshFES.GetNE();
+      for (int el = 0; el < NE; el++)
+      {
+         meshElDof.SetElement(el);
+         spaceElDof.SetElement(el);
+
+         meshElDof.VectorExtract(meshVec, meshNodes, nodes_dof);
+         meshEval.CalcVecGrad(nodes_dof, J_qpt);
+
+         spaceElDof.Extract(x, x_dof);
+         spaceEval.Calc(x_dof, x_qpt);
+
+         for (int j = 0; j < qpts; j++)
+         {
+            meshEval.GetPointVecGrad(j, J_qpt, J);
+
+            y_qpt.data[j] = J.Det() * x_qpt.data[j];
+         }
+
+         int_rule.ApplyWeights(y_qpt);
+
+         spaceEval.template CalcT<false>(y_qpt, y_dof);
+         spaceElDof.Assemble(y_dof, y);
+      }
+#else
+      // For better performance, create local copies of meshElDof, spaceElDof,
+      // meshEval, spaceEval, and int_rule.
+      // Is performance actually better with this implementation?
+      meshElemDof meshElDof_l(meshElDof);
+      spaceElemDof spaceElDof_l(spaceElDof);
+
+      meshShapeEval meshEval_l(meshEval);
+      spaceShapeEval spaceEval_l(spaceEval);
+
+      IR int_rule_l(int_rule);
+
+      const int NE = meshFES.GetNE();
+      for (int el = 0; el < NE; el++)
+      {
+         meshElDof_l.SetElement(el);
+         spaceElDof_l.SetElement(el);
+
+         meshElDof_l.VectorExtract(meshVec, meshNodes, nodes_dof);
+         meshEval_l.CalcVecGrad(nodes_dof, J_qpt);
+
+         spaceElDof_l.Extract(x, x_dof);
+         spaceEval_l.Calc(x_dof, x_qpt);
+
+         for (int j = 0; j < qpts; j++)
+         {
+            meshEval_l.GetPointVecGrad(j, J_qpt, J);
+
+            y_qpt.data[j] = J.Det() * x_qpt.data[j];
+         }
+
+         int_rule_l.ApplyWeights(y_qpt);
+
+         spaceEval_l.template CalcT<false>(y_qpt, y_dof);
+         spaceElDof_l.Assemble(y_dof, y);
+      }
+#endif
    }
 };
 

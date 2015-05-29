@@ -74,7 +74,7 @@ protected:
    /** Type of ordering of dofs.
        Ordering::byNODES - first nodes, then vector dimension,
        Ordering::byVDIM  - first vector dimension, then nodes  */
-   int ordering;
+   Ordering::Type ordering;
 
    const FiniteElementCollection *fec;
    int nvdofs, nedofs, nfdofs, nbdofs;
@@ -83,7 +83,7 @@ protected:
    /// Collection of currently known refinement data
    Array<RefinementData *> RefData;
 
-   Table *elem_dof;
+   mutable Table *elem_dof;
    Table *bdrElem_dof;
    Array<int> dof_elem_array, dof_ldof_array;
 
@@ -127,7 +127,7 @@ protected:
 
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
-                      int dim = 1, int order = Ordering::byNODES);
+                      int dim = 1, Ordering::Type order = Ordering::byNODES);
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }
@@ -158,7 +158,7 @@ public:
    inline int GetConformingVSize() const { return vdim * GetNConformingDofs(); }
 
    /// Return the ordering method.
-   inline int GetOrdering() const { return ordering; }
+   inline Ordering::Type GetOrdering() const { return ordering; }
 
    const FiniteElementCollection *FEColl() const { return fec; }
 
@@ -251,7 +251,7 @@ public:
 
    void GetEdgeInteriorVDofs(int i, Array<int> &vdofs) const;
 
-   void BuildElementToDofTable();
+   void BuildElementToDofTable() const;
 
    void BuildDofToArrays();
 

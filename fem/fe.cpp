@@ -6552,7 +6552,8 @@ Array2D<int> Poly_1D::binom;
 
 H1_SegmentElement::H1_SegmentElement(const int p)
    : NodalFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
-     basis1d(poly1d.ClosedBasis(p))
+     basis1d(poly1d.ClosedBasis(p)),
+     dof_map(Dof)
 {
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -6563,9 +6564,12 @@ H1_SegmentElement::H1_SegmentElement(const int p)
 
    Nodes.IntPoint(0).x = cp[0];
    Nodes.IntPoint(1).x = cp[p];
+   dof_map[0] = 0;
+   dof_map[p] = 1;
    for (int i = 1; i < p; i++)
    {
       Nodes.IntPoint(i+1).x = cp[i];
+      dof_map[i] = i+1;
    }
 }
 
@@ -7038,7 +7042,8 @@ void H1_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
 
 H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
-   : PositiveFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk)
+   : PositiveFiniteElement(1, Geometry::SEGMENT, p + 1, p, FunctionSpace::Pk),
+     dof_map(Dof)
 {
 #ifndef MFEM_THREAD_SAFE
    // thread private versions; see class header.
@@ -7049,9 +7054,12 @@ H1Pos_SegmentElement::H1Pos_SegmentElement(const int p)
    // Endpoints need to be first in the list, so reorder them.
    Nodes.IntPoint(0).x = 0.0;
    Nodes.IntPoint(1).x = 1.0;
+   dof_map[0] = 0;
+   dof_map[p] = 1;
    for (int i = 1; i < p; i++)
    {
       Nodes.IntPoint(i+1).x = double(i)/p;
+      dof_map[i] = i+1;
    }
 }
 

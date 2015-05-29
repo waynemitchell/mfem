@@ -1305,6 +1305,7 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mutable Vector shape_x, dshape_x;
 #endif
+   Array<int> dof_map;
 
 public:
    H1_SegmentElement(const int p);
@@ -1312,6 +1313,7 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   const Array<int> &GetDofMap() const { return dof_map; }
 };
 
 
@@ -1363,6 +1365,7 @@ private:
    // thread private thing.  Brunner, Jan 2014
    mutable Vector shape_x, dshape_x;
 #endif
+   Array<int> dof_map;
 
 public:
    H1Pos_SegmentElement(const int p);
@@ -1370,6 +1373,7 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   const Array<int> &GetDofMap() const { return dof_map; }
 };
 
 
@@ -1388,6 +1392,7 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   const Array<int> &GetDofMap() const { return dof_map; }
 };
 
 
@@ -1406,6 +1411,7 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   const Array<int> &GetDofMap() const { return dof_map; }
 };
 
 
