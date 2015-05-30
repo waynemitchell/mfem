@@ -308,10 +308,10 @@ inline
 void Mult_1234(const TTensor<A1,A2,A3> &A, const TTensor<B1,A2,B3> &B,
                TTensor4<A1,A3,B1,B3> &C)
 {
-#define IND3(A,A1,A2,i1,i2,i3) \
-   ((A).data[(i1)+(A1)*((i2)+(A2)*(i3))])
-#define IND4(A,A1,A2,A3,i1,i2,i3,i4) \
-   ((A).data[(i1)+(A1)*((i2)+(A2)*((i3)+(A3)*(i4)))])
+#define IND3(T,T1,T2,i1,i2,i3) \
+   ((T).data[(i1)+(T1)*((i2)+(T2)*(i3))])
+#define IND4(T,T1,T2,T3,i1,i2,i3,i4) \
+   ((T).data[(i1)+(T1)*((i2)+(T2)*((i3)+(T3)*(i4)))])
 
    if (Impl == 0)
    {
@@ -1501,6 +1501,8 @@ public:
    void CalcVec(const dof_data_type (&vdof_data)[NumComp],
                 qpt_data_type (&vqpt_data)[NumComp]) const
    {
+      // Note: It may be more efficient to implement this as "matrix"-"matrix"
+      //       product instead of multiple "matrix"-"vector" products.
       for (int i = 0; i < NumComp; i++)
       {
          Calc(vdof_data[i], vqpt_data[i]);
@@ -1511,6 +1513,8 @@ public:
    void CalcVecT(const qpt_data_type (&vqpt_data)[NumComp],
                  dof_data_type (&vdof_data)[NumComp]) const
    {
+      // Note: It may be more efficient to implement this as "matrix"-"matrix"
+      //       product instead of multiple "matrix"-"vector" products.
       for (int i = 0; i < NumComp; i++)
       {
          CalcT<Add>(vqpt_data[i], vdof_data[i]);
@@ -1521,6 +1525,8 @@ public:
    void CalcVecGrad(const dof_data_type (&vdof_data)[NumComp],
                     grad_qpt_data_type (&vgrad_qpt_data)[NumComp]) const
    {
+      // Note: It may be more efficient to implement this as "matrix"-"matrix"
+      //       product instead of multiple "matrix"-"vector" products.
       for (int i = 0; i < NumComp; i++)
       {
          CalcGrad(vdof_data[i], vgrad_qpt_data[i]);
@@ -1531,6 +1537,8 @@ public:
    void CalcVecGradT(const grad_qpt_data_type (&vgrad_qpt_data)[NumComp],
                      dof_data_type (&vdof_data)[NumComp]) const
    {
+      // Note: It may be more efficient to implement this as "matrix"-"matrix"
+      //       product instead of multiple "matrix"-"vector" products.
       for (int i = 0; i < NumComp; i++)
       {
          CalcGradT<Add>(vgrad_qpt_data[i], vdof_data[i]);
@@ -1880,6 +1888,8 @@ protected:
 
    IR int_rule;
 
+   typename IR::qpt_data_type *assembled_data;
+
 public:
    TMassAssembler(const FiniteElementSpace &spaceFES)
       : Operator(spaceFES.GetNDofs()),
@@ -1888,13 +1898,27 @@ public:
         meshFES(*spaceFES.GetMesh()->GetNodalFESpace()),
         meshNodes(*spaceFES.GetMesh()->GetNodes()),
         meshElDof(mesh_fe, meshFES), spaceElDof(space_fe, spaceFES),
-        meshVec(meshFES), int_rule()
+        meshVec(meshFES), int_rule(), assembled_data(NULL)
    { }
 
    ~TMassAssembler()
-   { }
+   {
+      delete [] assembled_data;
+   }
 
    virtual void Mult(const Vector &x, Vector &y) const
+   {
+      if (assembled_data)
+      {
+         MultAssembled(x, y);
+      }
+      else
+      {
+         MultUnassembled(x, y);
+      }
+   }
+
+   void MultUnassembled(const Vector &x, Vector &y) const
    {
       y = 0.0;
 
@@ -1968,6 +1992,60 @@ public:
          spaceElDof_l.Assemble(y_dof, y);
       }
 #endif
+   }
+
+   void Assemble()
+   {
+      typename meshFE::dof_data_type nodes_dof[dim];
+      typename meshShapeEval::grad_qpt_data_type J_qpt[dim];
+      TMatrix<dim,dim> J;
+
+      const int NE = meshFES.GetNE();
+      if (!assembled_data)
+      {
+         assembled_data = new typename IR::qpt_data_type[NE];
+      }
+      for (int el = 0; el < NE; el++)
+      {
+         meshElDof.SetElement(el);
+
+         meshElDof.VectorExtract(meshVec, meshNodes, nodes_dof);
+         meshEval.CalcVecGrad(nodes_dof, J_qpt);
+
+         for (int j = 0; j < qpts; j++)
+         {
+            meshEval.GetPointVecGrad(j, J_qpt, J);
+
+            assembled_data[el].data[j] = J.Det();
+         }
+
+         int_rule.ApplyWeights(assembled_data[el]);
+      }
+   }
+
+   void MultAssembled(const Vector &x, Vector &y) const
+   {
+      y = 0.0;
+
+      typename spaceFE::dof_data_type x_dof, y_dof;
+      typename spaceShapeEval::qpt_data_type x_qpt, y_qpt;
+
+      const int NE = meshFES.GetNE();
+      for (int el = 0; el < NE; el++)
+      {
+         spaceElDof.SetElement(el);
+
+         spaceElDof.Extract(x, x_dof);
+         spaceEval.Calc(x_dof, x_qpt);
+
+         for (int j = 0; j < qpts; j++)
+         {
+            y_qpt.data[j] = assembled_data[el].data[j] * x_qpt.data[j];
+         }
+
+         spaceEval.template CalcT<false>(y_qpt, y_dof);
+         spaceElDof.Assemble(y_dof, y);
+      }
    }
 };
 

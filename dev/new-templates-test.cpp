@@ -143,16 +143,29 @@ void Test()
            h1_fe, space_ElemDof, int_rule> mass_assembler_type;
 
    mass_assembler_type mass_oper(fes);
-   Vector r(mass_oper.Height());
-   r = 0.0; // touch 'r' to make sure the memory is actually allocated
+   Vector r1(mass_oper.Height()), r2(mass_oper.Height());
+   r1 = 0.0; // touch 'r1', 'r2' to make sure the memory is actually allocated
+   r2 = 0.0;
 
    x.Randomize();
 
    tic_toc.Clear();
    tic_toc.Start();
-   mass_oper.Mult(x, r);
+   mass_oper.Mult(x, r1);
    tic_toc.Stop();
    std::cout << "Unassembled Mult() time          = "
+             << tic_toc.RealTime() << " sec" << std::endl;
+   tic_toc.Clear();
+   tic_toc.Start();
+   mass_oper.Assemble();
+   tic_toc.Stop();
+   std::cout << "Assemble() time                  = "
+             << tic_toc.RealTime() << " sec" << std::endl;
+   tic_toc.Clear();
+   tic_toc.Start();
+   mass_oper.Mult(x, r2);
+   tic_toc.Stop();
+   std::cout << "Assembled Mult() time            = "
              << tic_toc.RealTime() << " sec" << std::endl;
 
    {
@@ -169,19 +182,23 @@ void Test()
       std::cout << "CSR Assemble() + Finalize() time = "
                 << tic_toc.RealTime() << " sec" << std::endl;
 
-      Vector r2(mass_form.Height());
-      r2 = 0.0; // touch 'r2' to make sure the memory is actually allocated
+      Vector r3(mass_form.Height());
+      r3 = 0.0; // touch 'r3' to make sure the memory is actually allocated
 
       tic_toc.Clear();
       tic_toc.Start();
-      mass_form.Mult(x, r2);
+      mass_form.Mult(x, r3);
       tic_toc.Stop();
       std::cout << "CSR Mult() time                  = "
                 << tic_toc.RealTime() << " sec" << std::endl;
 
-      r -= r2;
+      r1 -= r3;
+      r2 -= r3;
    }
-   std::cout << "\n max residual norm = " << r.Normlinf() << '\n' << std::endl;
+   std::cout << "\n max residual norm = " << r1.Normlinf()
+             << " (un-assembled)\n";
+   std::cout << " max residual norm = " << r2.Normlinf()
+             << " (assembled)\n" << std::endl;
 
    delete mesh;
 }
