@@ -372,11 +372,12 @@ inline
 void Mult_1342(const TTensor<A1,A2,A3> &A, const TTensor<B1,A2,B3> &B,
                TTensor4<A1,B1,B3,A3> &C)
 {
+#define IND3(T,T1,T2,i1,i2,i3) \
+   ((T).data[(i1)+(T1)*((i2)+(T2)*(i3))])
+#define IND4(T,T1,T2,T3,i1,i2,i3,i4) \
+   ((T).data[(i1)+(T1)*((i2)+(T2)*((i3)+(T3)*(i4)))])
+
    if (!Add) { C.Set(0.0); }
-#define IND3(A,A1,A2,i1,i2,i3) \
-   ((A).data[(i1)+(A1)*((i2)+(A2)*(i3))])
-#define IND4(A,A1,A2,A3,i1,i2,i3,i4) \
-   ((A).data[(i1)+(A1)*((i2)+(A2)*((i3)+(A3)*(i4)))])
    for (int j = 0; j < A3; j++)
    {
       for (int l = 0; l < B3; l++)
@@ -1945,7 +1946,7 @@ public:
 
          for (int j = 0; j < qpts; j++)
          {
-            meshEval.GetPointVecGrad(j, J_qpt, J);
+            meshEval.template GetPointVecGrad<dim>(j, J_qpt, J);
 
             y_qpt.data[j] = J.Det() * x_qpt.data[j];
          }
@@ -1981,7 +1982,7 @@ public:
 
          for (int j = 0; j < qpts; j++)
          {
-            meshEval_l.GetPointVecGrad(j, J_qpt, J);
+            meshEval_l.template GetPointVecGrad<dim>(j, J_qpt, J);
 
             y_qpt.data[j] = J.Det() * x_qpt.data[j];
          }
@@ -2014,7 +2015,7 @@ public:
 
          for (int j = 0; j < qpts; j++)
          {
-            meshEval.GetPointVecGrad(j, J_qpt, J);
+            meshEval.template GetPointVecGrad<dim>(j, J_qpt, J);
 
             assembled_data[el].data[j] = J.Det();
          }

@@ -81,10 +81,17 @@ void Test()
          mesh =  new Mesh(nx, ny, nz, Element::HEXAHEDRON, generate_edges);
          break;
    }
+   std::cout << "Number of dofs          = " << h1_fe::dofs
+             << " per element" << std::endl;
+   std::cout << "Number of quadr. points = "
+             << int_rule::qpts << " per element" << std::endl;
    std::cout << "Number of mesh elements = " << mesh->GetNE() << std::endl;
    H1_FECollection fec(P, h1_fe::dim);
    FiniteElementSpace fes(mesh, &fec);
-   std::cout << "Number of dofs          = " << fes.GetNDofs() << std::endl;
+   std::cout << "Number of dofs          = " << fes.GetNDofs()
+             << " total" << std::endl;
+   std::cout << "Number of quadr. points = "
+             << mesh->GetNE()*int_rule::qpts << " total" << std::endl;
    GridFunction x(&fes);
    x.Randomize();
 
@@ -191,6 +198,10 @@ void Test()
       tic_toc.Stop();
       std::cout << "CSR Mult() time                  = "
                 << tic_toc.RealTime() << " sec" << std::endl;
+
+      int nnz = mass_form.SpMat().NumNonZeroElems();
+      std::cout << "CSR avg. number of nonzeros per row = "
+                << double(nnz)/r3.Size() << std::endl;
 
       r1 -= r3;
       r2 -= r3;
