@@ -458,7 +458,7 @@ void ParGridFunction::ComputeFlux(
    Array<int> count(flux.Size());
    SumFluxAndCount(blfi, flux, count, 0, subdomain);
 
-   // Accumulate flux and count counts in parallel
+   // Accumulate flux and counts in parallel
 
    ffes->GroupComm().Reduce<double>(flux, GroupCommunicator::Sum);
    ffes->GroupComm().Bcast<double>(flux);
