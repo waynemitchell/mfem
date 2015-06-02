@@ -1,3 +1,4 @@
+
 // Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
 // the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
 // reserved. See file COPYRIGHT for details.
@@ -160,7 +161,7 @@ void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
 
 void GridFunction::SumFluxAndCount(BilinearFormIntegrator &blfi,
                                    GridFunction &flux,
-                                   Array<int>& overlap,
+                                   Array<int>& count,
                                    int wcoef,
                                    int subdomain)
 {
@@ -177,7 +178,7 @@ void GridFunction::SumFluxAndCount(BilinearFormIntegrator &blfi,
    Vector ul, fl;
 
    flux = 0.0;
-   overlap = 0;
+   count = 0;
 
    for (int i = 0; i < nfe; i++)
    {
@@ -200,7 +201,7 @@ void GridFunction::SumFluxAndCount(BilinearFormIntegrator &blfi,
       FiniteElementSpace::AdjustVDofs(fdofs);
       for (int j = 0; j < fdofs.Size(); j++)
       {
-         overlap[fdofs[j]]++;
+         count[fdofs[j]]++;
       }
    }
 }
@@ -209,14 +210,14 @@ void GridFunction::ComputeFlux(BilinearFormIntegrator &blfi,
                                GridFunction &flux, int wcoef,
                                int subdomain)
 {
-   Array<int> overlap(flux.Size());
+   Array<int> count(flux.Size());
    
-   SumFluxAndCount(blfi, flux, overlap, 0, subdomain);
+   SumFluxAndCount(blfi, flux, count, 0, subdomain);
 
    // complete averaging
-   for (int i = 0; i < overlap.Size(); i++)
+   for (int i = 0; i < count.Size(); i++)
    {
-      if (overlap[i] != 0) { flux(i) /= overlap[i]; }
+      if (count[i] != 0) { flux(i) /= count[i]; }
    }
 }
 

@@ -21,7 +21,6 @@ using namespace std;
 namespace mfem
 {
 
-   
 ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf)
 {
    fes = pfes = pf;
