@@ -2,17 +2,17 @@
 //
 // Compile with: make ex6p
 //
-// Sample runs:  mpirun -np 4 ex6 -m ../data/square-disc.mesh -o 1
-//               mpirun -np 4 ex6 -m ../data/square-disc.mesh -o 2
-//               mpirun -np 4 ex6 -m ../data/square-disc-nurbs.mesh -o 2
-//               mpirun -np 4 ex6 -m ../data/star.mesh -o 3
-//               mpirun -np 4 ex6 -m ../data/escher.mesh -o 1
-//               mpirun -np 4 ex6 -m ../data/fichera.mesh -o 2
-//               mpirun -np 4 ex6 -m ../data/disc-nurbs.mesh -o 2
-//               mpirun -np 4 ex6 -m ../data/ball-nurbs.mesh
-//               mpirun -np 4 ex6 -m ../data/pipe-nurbs.mesh
-//               mpirun -np 4 ex6 -m ../data/star-surf.mesh -o 2
-//               mpirun -np 4 ex6 -m ../data/square-disc-surf.mesh -o 2
+// Sample runs:  mpirun -np 4 ex6p -m ../data/square-disc.mesh -o 1
+//               mpirun -np 4 ex6p -m ../data/square-disc.mesh -o 2
+//               mpirun -np 4 ex6p -m ../data/square-disc-nurbs.mesh -o 2
+//               mpirun -np 4 ex6p -m ../data/star.mesh -o 3
+//               mpirun -np 4 ex6p -m ../data/escher.mesh -o 1
+//               mpirun -np 4 ex6p -m ../data/fichera.mesh -o 2
+//               mpirun -np 4 ex6p -m ../data/disc-nurbs.mesh -o 2
+//               mpirun -np 4 ex6p -m ../data/ball-nurbs.mesh
+//               mpirun -np 4 ex6p -m ../data/pipe-nurbs.mesh
+//               mpirun -np 4 ex6p -m ../data/star-surf.mesh -o 2
+//               mpirun -np 4 ex6p -m ../data/square-disc-surf.mesh -o 2
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace
