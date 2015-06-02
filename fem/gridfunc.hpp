@@ -42,6 +42,13 @@ protected:
    void ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
                                 double &integral);
 
+   // Sum fluxes to vertices and count element contributions
+   void SumFluxAndCount(BilinearFormIntegrator &blfi,
+                        GridFunction &flux,
+                        Array<int>& counts,
+                        int wcoef,
+                        int subdomain);
+   
 public:
 
    GridFunction() { fes = NULL; fec = NULL; }
@@ -253,6 +260,10 @@ public:
 
    void Update(FiniteElementSpace *f, Vector &v, int v_offset);
 
+   virtual void ComputeFlux(BilinearFormIntegrator &blfi,
+                            GridFunction &flux,
+                            int wcoef = 1, int subdomain = -1);
+   
    /// Save the GridFunction to an output stream.
    virtual void Save(std::ostream &out) const;
 
@@ -270,12 +281,6 @@ public:
 /** Overload operator<< for std::ostream and GridFunction; valid also for the
     derived class ParGridFunction */
 std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
-
-
-void ComputeFlux(BilinearFormIntegrator &blfi,
-                 GridFunction &u,
-                 GridFunction &flux,
-                 int wcoef = 1, int subdomain = -1);
 
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &u,

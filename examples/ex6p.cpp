@@ -238,7 +238,6 @@ int main(int argc, char *argv[])
          DiffusionIntegrator flux_integrator(one);
          ParGridFunction flux(&flux_fespace);
          ZZErrorEstimator(flux_integrator, x, flux, errors);
-         // FIXME: averaging across processor boundaries doesn't work properly
       }
 
       // 17. Make a list of elements whose error is larger than a fraction
