@@ -27,7 +27,6 @@ namespace mfem
 /// Compute a global Lp norm from the local Lp norms computed by each processor
 double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm);
 
-
 /// Class for parallel grid function
 class ParGridFunction : public GridFunction
 {
