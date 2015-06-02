@@ -27,6 +27,7 @@ namespace mfem
 /// Compute a global Lp norm from the local Lp norms computed by each processor
 double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm);
 
+
 /// Class for parallel grid function
 class ParGridFunction : public GridFunction
 {
@@ -211,6 +212,19 @@ public:
    virtual ~ParGridFunction() { }
 };
 
+
+void ComputeFlux(BilinearFormIntegrator &blfi,
+                 ParGridFunction &u,
+                 ParGridFunction &flux,
+                 int wcoef = 1, int subdomain = -1);
+
+void ZZErrorEstimator(BilinearFormIntegrator &blfi,
+                      ParGridFunction &u,
+                      ParGridFunction &flux,
+                      Vector &error_estimates,
+                      Array<int> *aniso_flags = NULL,
+                      int with_subdomains = 1);
+   
 }
 
 #endif // MFEM_USE_MPI

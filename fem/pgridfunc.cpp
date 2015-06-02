@@ -21,6 +21,155 @@ using namespace std;
 namespace mfem
 {
 
+
+void ComputeFlux(BilinearFormIntegrator &blfi,
+                 ParGridFunction &u,
+                 ParGridFunction &flux, int wcoef, int subdomain)
+{
+   ElementTransformation *Transf;
+
+   ParFiniteElementSpace *ufes = u.ParFESpace();
+   ParFiniteElementSpace *ffes = flux.ParFESpace();
+
+   int nfe = ufes->GetNE();
+   Array<int> udofs;
+   Array<int> fdofs;
+   Array<int> overlap(flux.Size());
+   Vector ul, fl;
+
+   flux = 0.0;
+   overlap = 0;
+
+   for (int i = 0; i < nfe; i++)
+   {
+      if (subdomain >= 0 && ufes->GetAttribute(i) != subdomain)
+      {
+         continue;
+      }
+
+      ufes->GetElementVDofs(i, udofs);
+      ffes->GetElementVDofs(i, fdofs);
+
+      u.GetSubVector(udofs, ul);
+
+      Transf = ufes->GetElementTransformation(i);
+      blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
+                              *ffes->GetFE(i), fl, wcoef);
+
+      flux.AddElementVector(fdofs, fl);
+
+      FiniteElementSpace::AdjustVDofs(fdofs);
+      for (int j = 0; j < fdofs.Size(); j++)
+      {
+         overlap[fdofs[j]]++;
+      }
+
+   }
+
+   // Accumulate flux and overlap counts in parallel
+
+   ffes->GroupComm().Reduce<double>(flux, GroupCommunicator::Sum);
+   ffes->GroupComm().Bcast<double>(flux);
+
+   ffes->GroupComm().Reduce<int>(overlap, GroupCommunicator::Sum);
+   ffes->GroupComm().Bcast<int>(overlap);
+
+   for (int i = 0; i < overlap.Size(); i++)
+   {
+      if (overlap[i] != 0) { flux(i) /= overlap[i]; }
+   }
+
+   if (ffes->GetConformingProlongation())
+   {
+      // On a partially conforming flux space, project on the conforming space.
+      // Using this code may lead to worse refinements in ex6, so we do not use
+      // it by default.
+
+      // Vector conf_flux;
+      // flux.ConformingProject(conf_flux);
+      // flux.ConformingProlongate(conf_flux);
+   }
+}
+   
+void ZZErrorEstimator(BilinearFormIntegrator &blfi,
+                      ParGridFunction &u,
+                      ParGridFunction &flux, Vector &error_estimates,
+                      Array<int>* aniso_flags,
+                      int with_subdomains)
+{
+   ParFiniteElementSpace *ufes = u.ParFESpace();
+   ParFiniteElementSpace *ffes = flux.ParFESpace();
+   ElementTransformation *Transf;
+
+   int dim = ufes->GetMesh()->Dimension();
+   int nfe = ufes->GetNE();
+
+   Array<int> udofs;
+   Array<int> fdofs;
+   Vector ul, fl, fla, d_xyz;
+
+   error_estimates.SetSize(nfe);
+   if (aniso_flags)
+   {
+      aniso_flags->SetSize(nfe);
+      d_xyz.SetSize(dim);
+   }
+
+   int nsd = 1;
+   if (with_subdomains)
+   {
+      for (int i = 0; i < nfe; i++)
+      {
+         int attr = ufes->GetAttribute(i);
+         if (attr > nsd) { nsd = attr; }
+      }
+   }
+
+   for (int s = 1; s <= nsd; s++)
+   {
+      ComputeFlux(blfi, u, flux, 0, (with_subdomains ? s : 0));
+
+      for (int i = 0; i < nfe; i++)
+      {
+         if (with_subdomains && ufes->GetAttribute(i) != s) { continue; }
+
+         ufes->GetElementVDofs(i, udofs);
+         ffes->GetElementVDofs(i, fdofs);
+
+         u.GetSubVector(udofs, ul);
+         flux.GetSubVector(fdofs, fla);
+
+         Transf = ufes->GetElementTransformation(i);
+         blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
+                                 *ffes->GetFE(i), fl, 0);
+
+         fl -= fla;
+
+         error_estimates(i) =
+            blfi.ComputeFluxEnergy(*ffes->GetFE(i), *Transf, fl,
+                                   (aniso_flags ? &d_xyz : NULL));
+
+         if (aniso_flags)
+         {
+            double sum = 0;
+            for (int k = 0; k < dim; k++)
+            {
+               sum += d_xyz[k];
+            }
+
+            double thresh = 0.15 * 3.0/dim;
+            int flag = 0;
+            for (int k = 0; k < dim; k++)
+            {
+               if (d_xyz[k] / sum > thresh) { flag |= (1 << k); }
+            }
+
+            (*aniso_flags)[i] = flag;
+         }
+      }
+   }
+}
+   
 ParGridFunction::ParGridFunction(ParFiniteElementSpace *pf, GridFunction *gf)
 {
    fes = pfes = pf;
