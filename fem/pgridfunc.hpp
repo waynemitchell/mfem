@@ -215,7 +215,7 @@ public:
 
    virtual ~ParGridFunction() { }
 };
-   
+
 }
 
 #endif // MFEM_USE_MPI
