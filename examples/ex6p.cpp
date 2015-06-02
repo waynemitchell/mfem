@@ -278,6 +278,11 @@ int main(int argc, char *argv[])
       //     changed.
       a.Update();
       b.Update();
+
+      delete A;
+      delete B;
+      delete X;
+
    }
 
    MPI_Finalize();
