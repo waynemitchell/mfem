@@ -1961,16 +1961,46 @@ HypreParaSails::~HypreParaSails()
 }
 
 
+HypreBoomerAMG::HypreBoomerAMG()
+{
+   amg_precond = NULL;
+   ResetAMGPrecond();
+}
+
 HypreBoomerAMG::HypreBoomerAMG(HypreParMatrix &A) : HypreSolver(&A)
 {
-   int coarsen_type = 10;
-   int agg_levels   = 1;
-   int relax_type   = 8;
-   int relax_sweeps = 1;
-   double theta     = 0.25;
-   int interp_type  = 6;
-   int Pmax         = 4;
-   int print_level  = 1;
+   amg_precond = NULL;
+   ResetAMGPrecond();
+}
+
+void HypreBoomerAMG::ResetAMGPrecond()
+{
+   HYPRE_Int coarsen_type = 10;
+   HYPRE_Int agg_levels   = 1;
+   HYPRE_Int relax_type   = 8;
+   HYPRE_Int relax_sweeps = 1;
+   double theta           = 0.25;
+   HYPRE_Int interp_type  = 6;
+   HYPRE_Int Pmax         = 4;
+   HYPRE_Int print_level  = 1;
+   HYPRE_Int dim          = 1;
+
+   hypre_ParAMGData *amg_data = (hypre_ParAMGData *)amg_precond;
+   if (amg_data)
+   {
+      // read options from amg_precond
+      HYPRE_BoomerAMGGetCoarsenType(amg_precond, &coarsen_type);
+      agg_levels = hypre_ParAMGDataAggNumLevels(amg_data);
+      relax_type = hypre_ParAMGDataUserRelaxType(amg_data);
+      relax_sweeps = hypre_ParAMGDataUserNumSweeps(amg_data);
+      HYPRE_BoomerAMGGetStrongThreshold(amg_precond, &theta);
+      hypre_BoomerAMGGetInterpType(amg_precond, &interp_type);
+      HYPRE_BoomerAMGGetPMaxElmts(amg_precond, &Pmax);
+      HYPRE_BoomerAMGGetPrintLevel(amg_precond, &print_level);
+      HYPRE_BoomerAMGGetNumFunctions(amg_precond, &dim);
+
+      HYPRE_BoomerAMGDestroy(amg_precond);
+   }
 
    HYPRE_BoomerAMGCreate(&amg_precond);
 
@@ -1985,6 +2015,23 @@ HypreBoomerAMG::HypreBoomerAMG(HypreParMatrix &A) : HypreSolver(&A)
    HYPRE_BoomerAMGSetInterpType(amg_precond, interp_type);
    HYPRE_BoomerAMGSetPMaxElmts(amg_precond, Pmax);
    HYPRE_BoomerAMGSetPrintLevel(amg_precond, print_level);
+   HYPRE_BoomerAMGSetNumFunctions(amg_precond, dim);
+}
+
+void HypreBoomerAMG::SetOperator(const Operator &op)
+{
+   const HypreParMatrix *new_A = dynamic_cast<const HypreParMatrix *>(&op);
+   MFEM_VERIFY(new_A, "new Operator must be a HypreParMatrix!");
+
+   if (A) { ResetAMGPrecond(); }
+
+   // update base classes: Operator, Solver, HypreSolver
+   height = new_A->Height();
+   width  = new_A->Width();
+   A = const_cast<HypreParMatrix *>(new_A);
+   setup_called = 0;
+   delete X;
+   delete B;
 }
 
 void HypreBoomerAMG::SetSystemsOptions(int dim)

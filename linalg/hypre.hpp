@@ -610,8 +610,17 @@ class HypreBoomerAMG : public HypreSolver
 private:
    HYPRE_Solver amg_precond;
 
+   // If amg_precond is NULL, allocates it and sets default options.
+   // Otherwise saves the options from amg_precond, destroys it, allocates a new
+   // one, and sets its options to the saved values.
+   void ResetAMGPrecond();
+
 public:
+   HypreBoomerAMG();
+
    HypreBoomerAMG(HypreParMatrix &A);
+
+   virtual void SetOperator(const Operator &op);
 
    /** More robust options for systems, such as elastisity. Note that BoomerAMG
        assumes Ordering::byVDIM in the finite element space used to generate the
