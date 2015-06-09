@@ -2032,6 +2032,7 @@ void HypreBoomerAMG::SetOperator(const Operator &op)
    setup_called = 0;
    delete X;
    delete B;
+   B = X = NULL;
 }
 
 void HypreBoomerAMG::SetSystemsOptions(int dim)
