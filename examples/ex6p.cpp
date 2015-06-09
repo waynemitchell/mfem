@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
 
       HypreParMatrix *A = a.ParallelAssemble();
       HypreParVector *B = b.ParallelAssemble();
-      HypreParVector *X = x.ParallelAverage();
+      HypreParVector *X = x.ParallelProject();
 
       // 12. As usual, we also need to eliminate the essential BC from the
       //     system. This needs to be done after ConformingAssemble.
