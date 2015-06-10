@@ -1099,77 +1099,11 @@ void Mesh::ReorderElements(const Array<int> &ordering)
       inv_ordering[new_elid] = old_elid;
    }
 
-   //Get copy the the element pointers/attributes/Tables to old arrays and set up 
+   //Reorder the elements and attributes
    Array<Element *> old_elements;
    elements.Copy(old_elements);
    Array<int> old_attributes;
    attributes.Copy(old_attributes);
-
-   //Reorder the el_to_* tables
-   if (el_to_el)
-   {
-      Table *old_el_to_el = el_to_el;
-      el_to_el = new Table;
-      el_to_el->MakeI(GetNE());
-      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
-      {
-         int old_elid = inv_ordering[new_elid];
-         el_to_el->AddColumnsInRow(new_elid, old_el_to_el->RowSize(old_elid));
-      }
-      el_to_el->MakeJ();
-      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
-      {
-         int old_elid = inv_ordering[new_elid];
-         el_to_el->AddConnections(new_elid, old_el_to_el->GetRow(old_elid),
-                                            old_el_to_el->RowSize(old_elid));
-      }
-      el_to_el->ShiftUpI();
-      delete old_el_to_el;
-   }
-
-   if (el_to_face)
-   {
-      Table *old_el_to_face = el_to_face;
-      el_to_face = new Table;
-      el_to_face->MakeI(GetNE());
-      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
-      {
-         int old_elid = inv_ordering[new_elid];
-         el_to_face->AddColumnsInRow(new_elid, old_el_to_face->RowSize(old_elid));
-      }
-      el_to_face->MakeJ();
-      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
-      {
-         int old_elid = inv_ordering[new_elid];
-         el_to_face->AddConnections(new_elid, old_el_to_face->GetRow(old_elid),
-                                              old_el_to_face->RowSize(old_elid));
-      }
-      el_to_face->ShiftUpI();
-      delete old_el_to_face;
-   }
-
-   if (el_to_edge)
-   {
-      Table *old_el_to_edge = el_to_edge;
-      el_to_edge = new Table;
-      el_to_edge->MakeI(GetNE());
-      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
-      {
-         int old_elid = inv_ordering[new_elid];
-         el_to_edge->AddColumnsInRow(new_elid, old_el_to_edge->RowSize(old_elid));
-      }
-      el_to_edge->MakeJ();
-      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
-      {
-         int old_elid = inv_ordering[new_elid];
-         el_to_edge->AddConnections(new_elid, old_el_to_edge->GetRow(old_elid),
-                                              old_el_to_edge->RowSize(old_elid));
-      }
-      el_to_edge->ShiftUpI();
-      delete old_el_to_edge;  
-   }
-
-   //Reorder the elements and the faces_info
    for (int old_elid = 0; old_elid < ordering.Size(); ++old_elid)
    {
       int new_elid = ordering[old_elid];
@@ -1177,21 +1111,29 @@ void Mesh::ReorderElements(const Array<int> &ordering)
       if (attributes.Size() == elements.Size()) {
          attributes[new_elid] = old_attributes[old_elid];
       }
+   }
 
-      for (int faceid = 0; faceid < faces_info.Size(); ++faceid)
-      {
-         int old_elem1 = faces_info[faceid].Elem1No;
-         if (old_elem1 > -1)
-         {
-            faces_info[faceid].Elem1No = ordering[old_elem1];
-         }
-
-         int old_elem2 = faces_info[faceid].Elem2No;
-         if (old_elem2 > -1)
-         {
-            faces_info[faceid].Elem2No = ordering[old_elem2];
-         }
-      }
+   //Regenerate all of the necessary tables
+   for (int i = 0; i < faces.Size(); ++i)
+   {
+      delete faces[i];
+   }
+   faces.DeleteAll();
+   DeleteTables();
+   be_to_edge.DeleteAll();
+   be_to_face.DeleteAll();
+   el_to_edge = new Table;
+   GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   if (Dim == 3) 
+   {
+     GetElementToFaceTable();
+   }
+   GenerateFaces();
+   if (GetElementType(0) == Element::TETRAHEDRON)
+   {
+      ReorientTetMesh();
+      GetElementToFaceTable();
+      GenerateFaces();   
    }
 }
 
@@ -4266,22 +4208,6 @@ int Mesh::GetFaceBaseGeometry(int i) const
          mfem_error("Mesh::GetFaceBaseGeometry(...) #1");
    }
    return (-1);
-#if 0
-   if (faces[i] == NULL)
-      switch (GetElementType(faces_info[i].Elem1No))
-      {
-         case Element::TETRAHEDRON:
-            return Geometry::TRIANGLE;
-         case Element::HEXAHEDRON:
-            return Geometry::SQUARE;
-         default:
-            mfem_error("Mesh::GetFaceBaseGeometry(...) #2");
-      }
-   else
-   {
-      return faces[i]->GetGeometryType();
-   }
-#endif
 }
 
 int Mesh::GetBdrElementEdgeIndex(int i) const
@@ -4437,7 +4363,7 @@ int Mesh::GetElementToEdgeTable(Table & e_to_f, Array<int> &be_to_f)
 
    if (Dim == 2)
    {
-      // Initialize the indeces for the boundary elements.
+      // Initialize the indices for the boundary elements.
       be_to_f.SetSize(NumOfBdrElements);
       for (i = 0; i < NumOfBdrElements; i++)
       {
@@ -4561,11 +4487,6 @@ void Mesh::AddPointFaceElement(int lf, int gf, int el)
    }
    else  //  this will be elem2
    {
-#ifdef MFEM_DEBUG
-      // int *v = faces[gf]->GetVertices();
-      // if (v[0] != gf)
-      //    mfem_error("Mesh::AddPointFaceElement(...)");
-#endif
       faces_info[gf].Elem2No  = el;
       faces_info[gf].Elem2Inf = 64 * lf + 1;
    }
@@ -4837,6 +4758,7 @@ void Mesh::ReorientTetMesh()
    DeleteCoarseTables();
 
    for (int i = 0; i < NumOfElements; i++)
+   {
       if (GetElementType(i) == Element::TETRAHEDRON)
       {
          v = elements[i]->GetVertices();
@@ -4851,14 +4773,17 @@ void Mesh::ReorientTetMesh()
             ShiftL2R(v[0], v[1], v[3]);
          }
       }
+   }
 
    for (int i = 0; i < NumOfBdrElements; i++)
+   {
       if (GetBdrElementType(i) == Element::TRIANGLE)
       {
          v = boundary[i]->GetVertices();
 
          Rotate3(v[0], v[1], v[2]);
       }
+   }
 
    if (!Nodes)
    {
