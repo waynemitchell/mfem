@@ -95,10 +95,10 @@ int main(int argc, char *argv[])
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
-   //    more than 1,000 elements.
+   //    more than 200000 elements.
    {
       int ref_levels =
-         (int)floor(log(20000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(200000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -172,6 +172,7 @@ int main(int argc, char *argv[])
    ParGridFunction divj(H1Fespace);
    jdirty = *jdirty_form;
    HypreParVector *JDIRTY = jdirty_form->ParallelAssemble();
+   HypreParVector *JTEMP = new HypreParVector(HcurlFespace);
    HypreParVector *JCLEAN = new HypreParVector(HcurlFespace);
    HypreParVector *DIVJ = new HypreParVector(H1Fespace);
    HypreParVector *PSI  = new HypreParVector(H1Fespace);
@@ -225,8 +226,9 @@ int main(int argc, char *argv[])
    m1->Finalize();
    HypreParMatrix *M1 = m1->ParallelAssemble();
    *JCLEAN = *JDIRTY;
-   G->Mult(*PSI,*JDIRTY);
-   M1->Mult(*JDIRTY,*JCLEAN,-1.0,1.0);
+   G->Mult(*PSI,*JTEMP);
+   M1->Mult(*JTEMP,*JCLEAN,-1.0,1.0);
+
    j = *JCLEAN;
 
    // 10. Set up the parallel bilinear form corresponding to the magnetic diffusion
@@ -237,9 +239,11 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(HcurlFespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->Assemble();
-   a->EliminateEssentialBC(ess_bdr, x, j);
    a->Finalize();
    HypreParMatrix *A = a->ParallelAssemble();
+   HypreParVector *B = j.ParallelAssemble();
+   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
+
 
    // 12. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
@@ -251,9 +255,7 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*JCLEAN, *X);
 
-   // 12. Interpolate to values of the BFIELD = curl X.
-   //     We could probably reformulate the problem to avoid this interpolation, but
-   //     this will do for now.
+   // 12. Compute the values of the BFIELD = curl X.
    C->Mult(*X, *BFIELD);
 
    // 13. Extract the parallel grid functions corresponding to the finite element
@@ -282,6 +284,7 @@ int main(int argc, char *argv[])
    visit_dc.RegisterField("Afield", &x);
    visit_dc.RegisterField("BField", &bfield);
    visit_dc.RegisterField("JField", &j);
+   visit_dc.RegisterField("JDirtyField", &jdirty);
    visit_dc.Save();
 
    // 16. Send the solution by socket to a GLVis server.
@@ -323,6 +326,7 @@ int main(int argc, char *argv[])
    delete G;
    delete C;
    delete JDIRTY;
+   delete JTEMP;
    delete JCLEAN;
    delete BFIELD;
 
@@ -339,9 +343,13 @@ void J_exact(const Vector &x, Vector &J)
    double r = sqrt((x(1) - 0.5)*(x(1) - 0.5) + (x(2) - 0.5)*(x(2) - 0.5));
    J(0) = J(1) = J(2) = 0.0;
 
-   if (r >= sol_inner_r && r <= 1.1*sol_inner_r && x(0) >= 0.4 && x(0) <= 0.5)
+   if (r >= sol_inner_r && r <= 1.1*sol_inner_r && x(0) >= 0.4 && x(0) <= 0.6)
    {
-      J(1) = -(x(2) - 0.5) / r;
-      J(2) = (x(1) - 0.5) / r;
+      J(1) = -(x(2) - 0.5);
+      J(2) = (x(1) - 0.5);
+
+      double len = sqrt(J(1)*J(1) + J(2)*J(2));
+      J(1) /= len;
+      J(2) /= len;
    }
 }
