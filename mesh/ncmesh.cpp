@@ -65,7 +65,7 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
           geom != Geometry::SQUARE &&
           geom != Geometry::CUBE)
       {
-         MFEM_ABORT("NCMesh: only triangles, quads and hexes are supported.");
+         MFEM_ABORT("only triangles, quads and hexes are supported by NCMesh.");
       }
 
       // initialize edge/face tables for this type of element
@@ -108,25 +108,25 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
       for (int i = 0; i < be->GetNVertices(); i++)
       {
          node[i] = nodes.Peek(v[i], v[i]);
-         if (!node[i]) { MFEM_ABORT("Boundary elements inconsistent."); }
+         if (!node[i]) { MFEM_ABORT("boundary elements inconsistent."); }
       }
 
       if (be->GetType() == mfem::Element::QUADRILATERAL)
       {
          Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
-         if (!face) { MFEM_ABORT("Boundary face not found."); }
+         if (!face) { MFEM_ABORT("boundary face not found."); }
          face->attribute = be->GetAttribute();
       }
       else if (be->GetType() == mfem::Element::SEGMENT)
       {
          Edge* edge = nodes.Peek(node[0], node[1])->edge;
-         if (!edge) { MFEM_ABORT("Boundary edge not found."); }
+         if (!edge) { MFEM_ABORT("boundary edge not found."); }
          edge->attribute = be->GetAttribute();
       }
       else
       {
-         MFEM_ABORT("NCMesh: only segment and quadrilateral boundary "
-                    "elements are supported.");
+         MFEM_ABORT("only segment and quadrilateral boundary "
+                    "elements are supported by NCMesh.");
       }
    }
 
@@ -211,7 +211,7 @@ NCMesh::~NCMesh()
 
 void NCMesh::Node::RefVertex()
 {
-   MFEM_ASSERT(vertex, "NCMesh::Node::RefVertex: can't create vertex here.");
+   MFEM_ASSERT(vertex, "can't create vertex here.");
    vertex->Ref();
 }
 
@@ -325,14 +325,14 @@ void NCMesh::Face::RegisterElement(Element* e)
 {
    if (elem[0] == NULL) { elem[0] = e; }
    else if (elem[1] == NULL) { elem[1] = e; }
-   else { MFEM_ABORT("Can't have 3 elements in Face::elem[]."); }
+   else { MFEM_ABORT("can't have 3 elements in Face::elem[]."); }
 }
 
 void NCMesh::Face::ForgetElement(Element* e)
 {
    if (elem[0] == e) { elem[0] = NULL; }
    else if (elem[1] == e) { elem[1] = NULL; }
-   else { MFEM_ABORT("Element not found in Face::elem[]."); }
+   else { MFEM_ABORT("element not found in Face::elem[]."); }
 }
 
 void NCMesh::RegisterFaces(Element* elem, int* fattr)
@@ -510,8 +510,7 @@ NCMesh::NewTriangle(Node* n0, Node* n1, Node* n2,
 
 NCMesh::Vertex* NCMesh::NewVertex(Node* v1, Node* v2)
 {
-   MFEM_ASSERT(v1->vertex && v2->vertex,
-               "NCMesh::NewVertex: missing parent vertices.");
+   MFEM_ASSERT(v1->vertex && v2->vertex, "missing parent vertices.");
 
    // get the midpoint between v1 and v2
    Vertex* v = new Vertex;
@@ -607,7 +606,7 @@ void NCMesh::ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4)
    }
    else
    {
-      MFEM_ABORT("Inconsistent element/face structure.");
+      MFEM_ABORT("inconsistent element/face structure.");
    }
 }
 
@@ -973,7 +972,7 @@ void NCMesh::RefineElement(Element* elem, char ref_type)
       }
       else
       {
-         MFEM_ABORT("Invalid refinement type.");
+         MFEM_ABORT("invalid refinement type.");
       }
    }
    else if (elem->geom == Geometry::SQUARE)
