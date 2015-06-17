@@ -38,13 +38,10 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../data/inline-hex.mesh";
    int order = 1;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
-   args.AddOption(&mesh_file, "-m", "--mesh",
-                  "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -65,61 +62,14 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
-   //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
-   //    and volume meshes with the same code.
-   Mesh *mesh;
-   ifstream imesh(mesh_file);
-   if (!imesh)
-   {
-      if (myid == 0)
-      {
-         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-      }
-      MPI_Finalize();
-      return 2;
-   }
-   mesh = new Mesh(imesh, 1, 1);
-   imesh.close();
+   // 3. Generate a reasonable mesh for this problem
+   Mesh *mesh = new Mesh(60, 60, 4, Element::HEXAHEDRON, 1, 1.0, 1.0, 1.0);
    int dim = mesh->Dimension();
-   if (dim != 3)
-   {
-      if (myid == 0)
-      {
-         cerr << "\nThis example requires a 3D mesh\n" << endl;
-      }
-      MPI_Finalize();
-      return 3;
-   }
-
-   // 4. Refine the serial mesh on all processors to increase the resolution. In
-   //    this example we do 'ref_levels' of uniform refinement. We choose
-   //    'ref_levels' to be the largest number that gives a final mesh with no
-   //    more than 200000 elements.
-   {
-      int ref_levels =
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
-      for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
-   }
-
-   // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
-   //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted. Tetrahedral
-   //    meshes need to be reoriented before we can define high-order Nedelec
-   //    spaces on them.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+   pmesh->UniformRefinement();
+   pmesh->UniformRefinement();
+   pmesh->UniformRefinement();
    delete mesh;
-   {
-      int par_ref_levels = 2;
-      for (int l = 0; l < par_ref_levels; l++)
-      {
-         pmesh->UniformRefinement();
-      }
-   }
-   pmesh->ReorientTetMesh();
 
    // 6. Define parallel finite element spaces on the parallel mesh.
    FiniteElementCollection *H1Fec    = new H1_FECollection(order, dim);
@@ -155,10 +105,6 @@ int main(int argc, char *argv[])
    ParGridFunction x(HcurlFespace);
    ParGridFunction bfield(HdivFespace);
    ParGridFunction j(HcurlFespace);
-   HypreParVector *X = new HypreParVector(HcurlFespace);
-   HypreParVector *BFIELD = new HypreParVector(HdivFespace);
-   *X = 0.0;
-   *BFIELD = 0.0;
 
    // 9. Define J the current of the solenoid.  In order to converge
    //    we must ensure that the version of J on our RHS is divergence
@@ -218,6 +164,9 @@ int main(int argc, char *argv[])
    pcg_psi->SetPrintLevel(2);
    pcg_psi->SetPreconditioner(*amg_psi);
    pcg_psi->Mult(*DIVJ, *PSI);
+   delete A_psi;
+   delete pcg_psi;
+   delete amg_psi;
 
    // Modify J
    ParBilinearForm *m1 = new ParBilinearForm(HcurlFespace);
@@ -228,8 +177,9 @@ int main(int argc, char *argv[])
    *JCLEAN = *JDIRTY;
    G->Mult(*PSI,*JTEMP);
    M1->Mult(*JTEMP,*JCLEAN,-1.0,1.0);
-
    j = *JCLEAN;
+   delete m1;
+   delete M1;
 
    // 10. Set up the parallel bilinear form corresponding to the magnetic diffusion
    //     operator curl muinv curl, by adding the curl-curl and the
@@ -242,6 +192,7 @@ int main(int argc, char *argv[])
    a->Finalize();
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = j.ParallelAssemble();
+   HypreParVector *X = x.ParallelAssemble();
    a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
 
@@ -256,6 +207,7 @@ int main(int argc, char *argv[])
    pcg->Mult(*JCLEAN, *X);
 
    // 12. Compute the values of the BFIELD = curl X.
+   HypreParVector *BFIELD = new HypreParVector(HdivFespace);
    C->Mult(*X, *BFIELD);
 
    // 13. Extract the parallel grid functions corresponding to the finite element
@@ -299,8 +251,6 @@ int main(int argc, char *argv[])
    }
 
    // 17. Free the used memory.
-   delete pcg_psi;
-   delete amg_psi;
    delete pcg;
    delete ams;
    delete H1Fespace;
@@ -310,18 +260,14 @@ int main(int argc, char *argv[])
    delete HcurlFec;
    delete HdivFec;
    delete pmesh;
-   delete a_psi;
    delete a;
    delete muinv;
    delete grad;
    delete curl;
-   delete m1;
    delete jdirty_form;
    delete DIVJ;
    delete PSI;
-   delete M1;
    delete X;
-   delete A_psi;
    delete A;
    delete G;
    delete C;
