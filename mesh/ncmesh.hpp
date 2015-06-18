@@ -13,6 +13,7 @@
 #define MFEM_NCMESH
 
 #include <vector>
+#include <iostream>
 
 #include "../config/config.hpp"
 #include "../general/hash.hpp"
@@ -62,8 +63,14 @@ protected:
    struct Element; // forward
 
 public:
-   NCMesh(const Mesh *coarse_mesh);
-   NCMesh(const NCMesh &other); // deep copy of 'other'
+
+   /** Initialize with elements from 'mesh'. If an already nonconforming mesh
+       is being loaded, 'vertex_parents' must point to a stream at the appropriate
+       section of the mesh file which contains the vertex hierarchy. */
+   NCMesh(const Mesh *mesh, std::istream *vertex_parents = NULL);
+
+   /// Deep copy of 'other'.
+   NCMesh(const NCMesh &other);
 
    int Dimension() const { return Dim; }
 
@@ -176,7 +183,23 @@ public:
                                    Array<int> &bdr_vertices,
                                    Array<int> &bdr_edges);
 
-   /** Return total number of bytes allocated. */
+   /// I/O: Print the "vertex_parents" section of the mesh file.
+   void PrintVertexParents(std::ostream &out) const;
+
+   /// I/O: Print the "coarse_elements" section of the mesh file.
+   void PrintCoarseElements(std::ostream &out) const;
+
+   /** I/O: Load the vertex parent hierachy from a mesh file. NOTE: called
+       indirectly through the constructor. */
+   void LoadVertexParents(std::istream &input);
+
+   /// I/O: Load the element refinement hierarchy from a mesh file.
+   void LoadCoarseElements(std::istream &input);
+
+   /// I/O: Set positions of all vertices (used by mesh loader).
+   void SetVertexPositions(const Array<mfem::Vertex> &vertices);
+
+   /// Return total number of bytes allocated.
    long MemoryUsage();
 
    ~NCMesh();

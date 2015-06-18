@@ -2087,17 +2087,19 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          FreeElement(elements[i]);
       }
       elements.DeleteAll();
+      NumOfElements = 0;
 
       // Delete the vertices.
       vertices.DeleteAll();
+      NumOfVertices = 0;
 
       // Delete the boundary elements.
       for (i = 0; i < NumOfBdrElements; i++)
-         // delete boundary[i];
       {
          FreeElement(boundary[i]);
       }
       boundary.DeleteAll();
+      NumOfBdrElements = 0;
 
       // Delete interior faces (if generated)
       for (i = 0; i < faces.Size(); i++)
@@ -2105,6 +2107,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          FreeElement(faces[i]);
       }
       faces.DeleteAll();
+      NumOfFaces = 0;
 
       faces_info.DeleteAll();
 
@@ -2112,32 +2115,49 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       DeleteTables();
       be_to_edge.DeleteAll();
       be_to_face.DeleteAll();
+      NumOfEdges = 0;
 
+      // TODO: make this a Destroy function
    }
 
-   InitTables();
-   if (own_nodes) { delete Nodes; }
+   if (ncmesh)
+   {
+      delete ncmesh;
+      ncmesh = NULL;
+   }
+
+   if (Nodes && own_nodes)
+   {
+      delete Nodes;
+   }
    Nodes = NULL;
+
+   InitTables();
    spaceDim = 0;
 
    string mesh_type;
    input >> ws;
    getline(input, mesh_type);
 
-   if (mesh_type == "MFEM mesh v1.0")
+   bool mfem_v10 = (mesh_type == "MFEM mesh v1.0");
+   bool mfem_v11 = (mesh_type == "MFEM mesh v1.1");
+
+   if (mfem_v10 || mfem_v11)
    {
       // Read MFEM mesh v1.0 format
       string ident;
 
       // read lines begining with '#' (comments)
       skip_comment_lines(input, '#');
-
       input >> ident; // 'dimension'
+
+      MFEM_VERIFY(ident == "dimension", "invalid mesh file");
       input >> Dim;
 
       skip_comment_lines(input, '#');
-
       input >> ident; // 'elements'
+
+      MFEM_VERIFY(ident == "elements", "invalid mesh file");
       input >> NumOfElements;
       elements.SetSize(NumOfElements);
       for (j = 0; j < NumOfElements; j++)
@@ -2146,8 +2166,9 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       }
 
       skip_comment_lines(input, '#');
-
       input >> ident; // 'boundary'
+
+      MFEM_VERIFY(ident == "boundary", "invalid mesh file");
       input >> NumOfBdrElements;
       boundary.SetSize(NumOfBdrElements);
       for (j = 0; j < NumOfBdrElements; j++)
@@ -2156,8 +2177,26 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       }
 
       skip_comment_lines(input, '#');
+      input >> ident;
 
-      input >> ident; // 'vertices'
+      if (ident == "vertex_parents" && mfem_v11)
+      {
+         ncmesh = new NCMesh(this, &input);
+         // NOTE: the constructor above will call LoadVertexParents
+
+         skip_comment_lines(input, '#');
+         input >> ident;
+
+         if (ident == "coarse_elements")
+         {
+            ncmesh->LoadCoarseElements(input);
+
+            skip_comment_lines(input, '#');
+            input >> ident;
+         }
+      }
+
+      MFEM_VERIFY(ident == "vertices", "invalid mesh file");
       input >> NumOfVertices;
       vertices.SetSize(NumOfVertices);
 
@@ -2167,10 +2206,15 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          // read the vertices
          spaceDim = atoi(ident.c_str());
          for (j = 0; j < NumOfVertices; j++)
+         {
             for (i = 0; i < spaceDim; i++)
             {
                input >> vertices[j](i);
             }
+         }
+
+         // initialize vertex positions in NCMesh
+         if (ncmesh) { ncmesh->SetVertexPositions(vertices); }
       }
       else
       {
@@ -3012,6 +3056,12 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    else
    {
       NumOfEdges = 0;
+   }
+
+   // tell NCMesh the numbering of edges/faces
+   if (ncmesh)
+   {
+      ncmesh->OnMeshUpdated(this);
    }
 
    // generate the arrays 'attributes' and ' bdr_attributes'
@@ -8046,7 +8096,7 @@ void Mesh::Print(std::ostream &out) const
       return;
    }
 
-   out << "MFEM mesh v1.0\n";
+   out << (ncmesh ? "MFEM mesh v1.1\n" : "MFEM mesh v1.0\n");
 
    // optional
    out <<
@@ -8070,6 +8120,12 @@ void Mesh::Print(std::ostream &out) const
    for (i = 0; i < NumOfBdrElements; i++)
    {
       PrintElement(boundary[i], out);
+   }
+
+   if (ncmesh)
+   {
+       out << "\nvertex_parents\n";
+       ncmesh->PrintVertexParents(out);
    }
 
    out << "\nvertices\n" << NumOfVertices << '\n';

@@ -35,29 +35,58 @@ void NCMesh::GeomInfo::Initialize(const mfem::Element* elem)
    nf = elem->GetNFaces(nfv);
 
    for (int i = 0; i < ne; i++)
+   {
       for (int j = 0; j < 2; j++)
       {
          edges[i][j] = elem->GetEdgeVertices(i)[j];
       }
-
+   }
    for (int i = 0; i < nf; i++)
+   {
       for (int j = 0; j < nfv; j++)
       {
          faces[i][j] = elem->GetFaceVertices(i)[j];
       }
+   }
 
    initialized = true;
 }
 
 
-NCMesh::NCMesh(const Mesh *coarse_mesh)
+NCMesh::NCMesh(const Mesh *mesh, std::istream *vertex_parents)
 {
-   Dim = coarse_mesh->Dimension();
+   Dim = mesh->Dimension();
+
+   // examine elements and reserve the first node IDs for top-level vertices
+   // (note: 'mesh' may not have vertices defined yet, e.g., on load)
+   int max_id = 0;
+   for (int i = 0; i < mesh->GetNE(); i++)
+   {
+      const mfem::Element *elem = mesh->GetElement(i);
+      const int *v = elem->GetVertices(), nv = elem->GetNVertices();
+      for (int j = 0; j < nv; j++)
+      {
+         max_id = std::max(max_id, v[j]);
+      }
+   }
+   for (int i = 0; i <= max_id; i++)
+   {
+      // top-level nodes are special: id == p1 == p2 == orig. vertex id
+      Node* node = nodes.Get(i, i);
+      MFEM_ASSERT(node->id == i, "");
+   }
+
+   // if a mesh file is being read, load the vertex hierarchy now;
+   // 'vertex_parents' must be at the appropriate section in the mesh file
+   if (vertex_parents)
+   {
+      LoadVertexParents(*vertex_parents);
+   }
 
    // create the NCMesh::Element struct for each Mesh element
-   for (int i = 0; i < coarse_mesh->GetNE(); i++)
+   for (int i = 0; i < mesh->GetNE(); i++)
    {
-      const mfem::Element *elem = coarse_mesh->GetElement(i);
+      const mfem::Element *elem = mesh->GetElement(i);
       const int *v = elem->GetVertices();
 
       int geom = elem->GetGeometryType();
@@ -77,16 +106,21 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
 
       for (int j = 0; j < GI[geom].nv; j++)
       {
-         // root nodes are special: they have p1 == p2 == orig. mesh vertex id
-         Node* node = nodes.Get(v[j], v[j]);
-
+         Node* node = nodes.Peek(v[j]);
          if (!node->vertex)
          {
-            // create a vertex in the node and initialize its position
-            const double* pos = coarse_mesh->GetVertex(v[j]);
-            node->vertex = new Vertex(pos[0], pos[1], pos[2]);
+            if (v[j] < mesh->GetNV())
+            {
+               // create a vertex in the node and initialize its position
+               const double* pos = mesh->GetVertex(v[j]);
+               node->vertex = new Vertex(pos[0], pos[1], pos[2]);
+            }
+            else
+            {
+               // the mesh may not have vertex positions defined yet
+               node->vertex = new Vertex(0.0, 0.0, 0.0);
+            }
          }
-
          nc_elem->node[j] = node;
       }
 
@@ -99,28 +133,28 @@ NCMesh::NCMesh(const Mesh *coarse_mesh)
    }
 
    // store boundary element attributes
-   for (int i = 0; i < coarse_mesh->GetNBE(); i++)
+   for (int i = 0; i < mesh->GetNBE(); i++)
    {
-      const mfem::Element *be = coarse_mesh->GetBdrElement(i);
+      const mfem::Element *be = mesh->GetBdrElement(i);
       const int *v = be->GetVertices();
 
       Node* node[4];
       for (int i = 0; i < be->GetNVertices(); i++)
       {
-         node[i] = nodes.Peek(v[i], v[i]);
-         if (!node[i]) { MFEM_ABORT("boundary elements inconsistent."); }
+         node[i] = nodes.Peek(v[i]);
+         MFEM_VERIFY(node[i], "boundary elements inconsistent.");
       }
 
       if (be->GetType() == mfem::Element::QUADRILATERAL)
       {
          Face* face = faces.Peek(node[0], node[1], node[2], node[3]);
-         if (!face) { MFEM_ABORT("boundary face not found."); }
+         MFEM_VERIFY(face, "boundary face not found.");
          face->attribute = be->GetAttribute();
       }
       else if (be->GetType() == mfem::Element::SEGMENT)
       {
          Edge* edge = nodes.Peek(node[0], node[1])->edge;
-         if (!edge) { MFEM_ABORT("boundary edge not found."); }
+         MFEM_VERIFY(edge, "boundary edge not found.");
          edge->attribute = be->GetAttribute();
       }
       else
@@ -162,7 +196,6 @@ NCMesh::Element* NCMesh::CopyHierarchy(Element* elem)
       {
          new_elem->node[i] = nodes.Peek(elem->node[i]->id);
       }
-
       RegisterFaces(new_elem);
    }
    return new_elem;
@@ -173,10 +206,9 @@ void NCMesh::DeleteHierarchy(Element* elem)
    if (elem->ref_type)
    {
       for (int i = 0; i < 8; i++)
-         if (elem->child[i])
-         {
-            DeleteHierarchy(elem->child[i]);
-         }
+      {
+         if (elem->child[i]) { DeleteHierarchy(elem->child[i]); }
+      }
    }
    else
    {
@@ -1206,19 +1238,17 @@ void NCMesh::UpdateVertices()
    // (overridden in ParNCMesh to assign special indices to ghost vertices)
    int num_vert = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
-      if (it->vertex)
-      {
-         it->vertex->index = num_vert++;
-      }
+   {
+      if (it->vertex) { it->vertex->index = num_vert++; }
+   }
 
    vertex_nodeId.SetSize(num_vert);
 
    num_vert = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
-      if (it->vertex)
-      {
-         vertex_nodeId[num_vert++] = it->id;
-      }
+   {
+      if (it->vertex) { vertex_nodeId[num_vert++] = it->id; }
+   }
 }
 
 void NCMesh::CollectLeafElements(Element* elem)
@@ -1230,10 +1260,9 @@ void NCMesh::CollectLeafElements(Element* elem)
    else
    {
       for (int i = 0; i < 8; i++)
-         if (elem->child[i])
-         {
-            CollectLeafElements(elem->child[i]);
-         }
+      {
+         if (elem->child[i]) { CollectLeafElements(elem->child[i]); }
+      }
    }
    elem->index = -1;
 }
@@ -2174,10 +2203,7 @@ void NCMesh::CountSplits(Element* elem, int splits[3])
 
 void NCMesh::LimitNCLevel(int max_level)
 {
-   if (max_level < 1)
-   {
-      MFEM_ABORT("'max_level' must be 1 or greater.");
-   }
+   MFEM_VERIFY(max_level >= 1, "'max_level' must be 1 or greater.");
 
    while (1)
    {
@@ -2189,10 +2215,12 @@ void NCMesh::LimitNCLevel(int max_level)
 
          char ref_type = 0;
          for (int k = 0; k < 3; k++)
+         {
             if (splits[k] > max_level)
             {
                ref_type |= (1 << k);
             }
+         }
 
          // TODO: isotropic meshes should only be modified with iso refinements
 
@@ -2208,16 +2236,90 @@ void NCMesh::LimitNCLevel(int max_level)
    }
 }
 
+void NCMesh::PrintVertexParents(std::ostream &out) const
+{
+   // count vertices with parents
+   int nv = 0;
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
+      if (it->vertex && it->p1 != it->p2) { nv++; }
+   }
+   out << nv << "\n";
+
+   // print the relations
+   for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
+      if (it->vertex && it->p1 != it->p2)
+      {
+         Node *p1 = nodes.Peek(it->p1),
+              *p2 = nodes.Peek(it->p2);
+
+         MFEM_ASSERT(p1 && p1->vertex, "");
+         MFEM_ASSERT(p2 && p2->vertex, "");
+
+         out << it->vertex->index << " "
+             << p1->vertex->index << " "
+             << p2->vertex->index << "\n";
+      }
+   }
+}
+
+void NCMesh::LoadVertexParents(std::istream &input)
+{
+   int nv;
+   input >> nv;
+   while (nv--)
+   {
+      int id, p1, p2;
+      input >> id >> p1 >> p2;
+      MFEM_VERIFY(input, "problem reading vertex parents.");
+
+      Node* node = nodes.Peek(id);
+      MFEM_VERIFY(node, "vertex " << id << " not found.");
+      MFEM_VERIFY(nodes.Peek(p1), "parent " << p1 << " not found.");
+      MFEM_VERIFY(nodes.Peek(p2), "parent " << p2 << " not found.");
+
+      // assign new parents for the node
+      nodes.Reparent(node, p1, p2);
+   }
+}
+
+void NCMesh::SetVertexPositions(const Array<mfem::Vertex> &vertices)
+{
+   for (int i = 0; i < vertices.Size(); i++)
+   {
+      Node* node = nodes.Peek(i);
+      MFEM_ASSERT(node && node->vertex, "");
+
+      const double* pos = vertices[i]();
+      memcpy(node->vertex->pos, pos, sizeof(node->vertex->pos));
+   }
+}
+
+void NCMesh::PrintCoarseElements(std::ostream &out) const
+{
+   out << "0\n";
+}
+
+void NCMesh::LoadCoarseElements(std::istream &input)
+{
+   int ne;
+   input >> ne;
+   while (ne--)
+   {
+
+   }
+}
+
 int NCMesh::CountElements(Element* elem)
 {
    int n = 1;
    if (elem->ref_type)
    {
       for (int i = 0; i < 8; i++)
-         if (elem->child[i])
-         {
-            n += CountElements(elem->child[i]);
-         }
+      {
+         if (elem->child[i]) { n += CountElements(elem->child[i]); }
+      }
    }
    return n;
 }

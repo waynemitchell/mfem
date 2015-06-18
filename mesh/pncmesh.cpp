@@ -58,14 +58,7 @@ void ParNCMesh::AssignLeafIndices()
    for (int i = 0, index = 0; i < leaf_elements.Size(); i++)
    {
       Element* leaf = leaf_elements[i];
-      if (leaf->rank == MyRank)
-      {
-         leaf->index = index++;
-      }
-      else
-      {
-         leaf->index = -1;
-      }
+      leaf->index = (leaf->rank == MyRank) ? index++ : -1;
    }
 }
 
@@ -78,10 +71,9 @@ void ParNCMesh::UpdateVertices()
    // Mesh::GetNV().
 
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
-      if (it->vertex)
-      {
-         it->vertex->index = -1;
-      }
+   {
+      if (it->vertex) { it->vertex->index = -1; }
+   }
 
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
@@ -142,10 +134,9 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    NFaces = mesh->GetNFaces();
    NGhostFaces = 0;
    for (HashTable<Face>::Iterator it(faces); it; ++it)
-      if (it->index < 0)
-      {
-         it->index = NFaces + (NGhostFaces++);
-      }
+   {
+      if (it->index < 0) { it->index = NFaces + (NGhostFaces++); }
+   }
 
    // one more thing: create the Mesh element index to NCMesh::Element* map
    index_leaf.SetSize(mesh->GetNE());
@@ -295,10 +286,9 @@ static bool is_shared(const Table& groups, int index, int MyRank)
 
    const int* group = groups.GetRow(index);
    for (int i = 0; i < size; i++)
-      if (group[i] == MyRank)
-      {
-         return true;
-      }
+   {
+      if (group[i] == MyRank) { return true; }
+   }
 
    return false;
 }
@@ -759,11 +749,15 @@ bool ParNCMesh::ElementSet::EncodeTree
       // check the subtrees
       int mask = 0;
       for (int i = 0; i < 8; i++)
+      {
          if (elem->child[i])
+         {
             if (EncodeTree(elem->child[i], elements))
             {
                mask |= (unsigned char) 1 << i;
             }
+         }
+      }
 
       if (mask)
       {
@@ -874,10 +868,12 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[],
    {
       std::set<Element*> elements;
       for (int type = 0; type < dim; type++)
+      {
          for (int i = 0; i < ids[type].Size(); i++)
          {
             elements.insert(ids[type][i].element);
          }
+      }
 
       ElementSet eset(elements, root_elements);
       eset.Dump(os);

@@ -89,16 +89,26 @@ int main(int argc, char *argv[])
    }*/
    {
       Array<Refinement> refs;
-      refs.Append(Refinement(0, 1));
+      refs.Append(Refinement(0, 7));
       mesh->GeneralRefinement(refs, 1);
    }
-   {
+   /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 2));
       mesh->GeneralRefinement(refs, 1);
-   }
+   }*/
 
-   mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
+   //mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
+
+   {
+      std::ofstream f("test.mesh");
+      mesh->Print(f);
+   }
+   {
+      std::ifstream f("test.mesh");
+      mesh->Load(f, 1, 1);
+      mesh->UniformRefinement();
+   }
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
