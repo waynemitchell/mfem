@@ -200,7 +200,7 @@ public:
    void SetVertexPositions(const Array<mfem::Vertex> &vertices);
 
    /// Return total number of bytes allocated.
-   long MemoryUsage();
+   long MemoryUsage() const;
 
    ~NCMesh();
 
@@ -560,7 +560,9 @@ protected: // implementation
 
    void CountSplits(Element* elem, int splits[3]);
 
-   int CountElements(Element* elem);
+   int CountElements(Element* elem) const;
+
+   int PrintElements(std::ostream &out, Element* elem, int &coarse_id) const;
 
 
 public: // TODO: maybe make this part of mfem::Geometry?

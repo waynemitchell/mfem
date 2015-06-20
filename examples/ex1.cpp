@@ -101,13 +101,13 @@ int main(int argc, char *argv[])
    //mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
 
    {
+      mesh->UniformRefinement();
       std::ofstream f("test.mesh");
       mesh->Print(f);
    }
    {
       std::ifstream f("test.mesh");
       mesh->Load(f, 1, 1);
-      mesh->UniformRefinement();
    }
 
    // 4. Define a finite element space on the mesh. Here we use continuous

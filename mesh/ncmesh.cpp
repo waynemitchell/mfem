@@ -2296,22 +2296,90 @@ void NCMesh::SetVertexPositions(const Array<mfem::Vertex> &vertices)
    }
 }
 
+static int ref_type_num_children[8] = {0, 2, 2, 4, 2, 4, 4, 8 };
+
+int NCMesh::PrintElements(std::ostream &out, Element* elem, int &coarse_id) const
+{
+   if (elem->ref_type)
+   {
+      int child_id[8], nc = 0;
+      for (int i = 0; i < 8; i++)
+      {
+         if (elem->child[i])
+         {
+            child_id[nc++] = PrintElements(out, elem->child[i], coarse_id);
+         }
+      }
+      MFEM_ASSERT(nc == ref_type_num_children[(int) elem->ref_type], "");
+
+      out << (int) elem->ref_type;
+      for (int i = 0; i < nc; i++)
+      {
+         out << " " << child_id[i];
+      }
+      out << "\n";
+      return coarse_id++; // return new id for this coarse element
+   }
+   else
+   {
+      return elem->index;
+   }
+}
+
 void NCMesh::PrintCoarseElements(std::ostream &out) const
 {
-   out << "0\n";
+   // print the number of non-leaf elements
+   int ne = 0;
+   for (int i = 0; i < root_elements.Size(); i++)
+   {
+      ne += CountElements(root_elements[i]);
+   }
+   out << (ne - leaf_elements.Size()) << "\n";
+
+   // print the hierarchy recursively
+   int coarse_id = leaf_elements.Size();
+   for (int i = 0; i < root_elements.Size(); i++)
+   {
+      PrintElements(out, root_elements[i], coarse_id);
+   }
 }
 
 void NCMesh::LoadCoarseElements(std::istream &input)
 {
+   std::map<int, Element*> coarse_el;
+   int nleaf = leaf_elements.Size();
+   int coarse_id = nleaf;
+
    int ne;
    input >> ne;
    while (ne--)
    {
+      int ref_type;
+      input >> ref_type;
 
+      Element* elem = new Element(0, 0);
+      elem->ref_type = ref_type;
+
+      // load child IDs and convert to Element*
+      int nch = ref_type_num_children[ref_type];
+      for (int i = 0, id; i < nch; i++)
+      {
+         input >> id;
+         elem->child[i] = (id < nleaf) ? leaf_elements[id] : coarse_el[id];
+
+         if (!i) // copy geom and attribute from first child
+         {
+            elem->geom = elem->child[i]->geom;
+            elem->attribute = elem->child[i]->attribute;
+         }
+      }
+
+      // assign new ID to the coarse element
+      coarse_el[coarse_id++] = elem;
    }
 }
 
-int NCMesh::CountElements(Element* elem)
+int NCMesh::CountElements(Element* elem) const
 {
    int n = 1;
    if (elem->ref_type)
@@ -2324,7 +2392,7 @@ int NCMesh::CountElements(Element* elem)
    return n;
 }
 
-long NCMesh::MemoryUsage()
+long NCMesh::MemoryUsage() const
 {
    int num_elem = 0;
    for (int i = 0; i < root_elements.Size(); i++)

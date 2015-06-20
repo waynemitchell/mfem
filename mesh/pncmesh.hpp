@@ -279,13 +279,13 @@ TODO
 - visualization, VisIt?
 - parallel ZZ estimator
 - ProjectBdrCoefficient
-- hilbert ordering
 - performance/scaling study
 
 - big-int P matrix
 - DG
 - parallel aniso refine
 - cP + P
+- hilbert ordering
 - rebalance
 */
 
