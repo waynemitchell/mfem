@@ -2346,12 +2346,15 @@ void NCMesh::PrintCoarseElements(std::ostream &out) const
 
 void NCMesh::LoadCoarseElements(std::istream &input)
 {
-   std::map<int, Element*> coarse_el;
-   int nleaf = leaf_elements.Size();
-   int coarse_id = nleaf;
-
    int ne;
    input >> ne;
+
+   Array<Element*> coarse, leaves;
+   coarse.Reserve(ne);
+   leaf_elements.Copy(leaves);
+   int nleaf = leaves.Size();
+
+   // load the coarse elements
    while (ne--)
    {
       int ref_type;
@@ -2365,7 +2368,16 @@ void NCMesh::LoadCoarseElements(std::istream &input)
       for (int i = 0, id; i < nch; i++)
       {
          input >> id;
-         elem->child[i] = (id < nleaf) ? leaf_elements[id] : coarse_el[id];
+         MFEM_VERIFY(id >= 0, "");
+         MFEM_VERIFY(id < nleaf || id - nleaf < coarse.Size(),
+                     "coarse element cannot be referenced before it is "
+                     "definined (id=" << id << ").");
+
+         Element* &child = (id < nleaf) ? leaves[id] : coarse[id - nleaf];
+
+         MFEM_VERIFY(child, "element " << id << " cannot have two parents.");
+         elem->child[i] = child;
+         child = NULL; // make sure the child can't be used again
 
          if (!i) // copy geom and attribute from first child
          {
@@ -2374,8 +2386,15 @@ void NCMesh::LoadCoarseElements(std::istream &input)
          }
       }
 
-      // assign new ID to the coarse element
-      coarse_el[coarse_id++] = elem;
+      // keep a list of coarse elements (and their IDs, implicitly)
+      coarse.Append(elem);
+   }
+
+   // coarse elements that have no parents are the original 'coarse_elements'
+   coarse_elements.SetSize(0);
+   for (int i = 0; i < coarse.Size(); i++)
+   {
+      if (coarse[i]) { coarse_elements.Append(coarse[i]); }
    }
 }
 

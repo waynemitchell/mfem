@@ -87,21 +87,31 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   {
-      Array<Refinement> refs;
-      refs.Append(Refinement(0, 7));
-      mesh->GeneralRefinement(refs, 1);
-   }
    /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 2));
       mesh->GeneralRefinement(refs, 1);
    }*/
+   srand(0);
+   for (int i = 0; i < 7; i++)
+   {
+      Array<Refinement> refs;
+      int types[] = { 1, 2, 3, 4, 5, 6, 7, 7, 7 };
+      //int types[] = { 1, 2, 3, 3, 3 };
+      for (int j = 0; j < mesh->GetNE(); j++)
+      {
+         if (!(rand() % 2))
+         {
+            refs.Append(Refinement(j, types[rand() % (sizeof(types)/sizeof(int))]));
+         }
+      }
+      mesh->GeneralRefinement(refs);
+   }
 
    //mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
 
    {
-      mesh->UniformRefinement();
+      //mesh->UniformRefinement();
       std::ofstream f("test.mesh");
       mesh->Print(f);
    }
