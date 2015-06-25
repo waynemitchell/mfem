@@ -4410,23 +4410,24 @@ const Table & Mesh::ElementToElementTable()
    }
    else
    {
-      el_to_el = new Table(NumOfElements, 6); // 6 is the max. # of faces
+      MFEM_ASSERT(faces_info.Size() == NumOfFaces, "faces were not generated!");
 
-#ifdef MFEM_DEBUG
-      if (faces_info.Size() != NumOfFaces)
-      {
-         mfem_error("Mesh::ElementToElementTable : faces were not generated!");
-      }
-#endif
+      Array<Connection> conn;
+      conn.Reserve(2*NumOfFaces);
 
       for (int i = 0; i < faces_info.Size(); i++)
-         if (faces_info[i].Elem2No >= 0)
+      {
+         const FaceInfo &fi = faces_info[i];
+         if (fi.Elem2No >= 0)
          {
-            el_to_el->Push(faces_info[i].Elem1No, faces_info[i].Elem2No);
-            el_to_el->Push(faces_info[i].Elem2No, faces_info[i].Elem1No);
+            conn.Append(Connection(fi.Elem1No, fi.Elem2No));
+            conn.Append(Connection(fi.Elem2No, fi.Elem1No));
          }
+      }
 
-      el_to_el->Finalize();
+      conn.Sort();
+      conn.Unique();
+      el_to_el = new Table(NumOfElements, conn);
    }
 
    return *el_to_el;
