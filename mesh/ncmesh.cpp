@@ -2302,18 +2302,18 @@ int NCMesh::PrintElements(std::ostream &out, Element* elem, int &coarse_id) cons
 {
    if (elem->ref_type)
    {
-      int child_id[8], nc = 0;
+      int child_id[8], nch = 0;
       for (int i = 0; i < 8; i++)
       {
          if (elem->child[i])
          {
-            child_id[nc++] = PrintElements(out, elem->child[i], coarse_id);
+            child_id[nch++] = PrintElements(out, elem->child[i], coarse_id);
          }
       }
-      MFEM_ASSERT(nc == ref_type_num_children[(int) elem->ref_type], "");
+      MFEM_ASSERT(nch == ref_type_num_children[(int) elem->ref_type], "");
 
       out << (int) elem->ref_type;
-      for (int i = 0; i < nc; i++)
+      for (int i = 0; i < nch; i++)
       {
          out << " " << child_id[i];
       }
@@ -2371,7 +2371,7 @@ void NCMesh::LoadCoarseElements(std::istream &input)
          MFEM_VERIFY(id >= 0, "");
          MFEM_VERIFY(id < nleaf || id - nleaf < coarse.Size(),
                      "coarse element cannot be referenced before it is "
-                     "definined (id=" << id << ").");
+                     "defined (id=" << id << ").");
 
          Element* &child = (id < nleaf) ? leaves[id] : coarse[id - nleaf];
 
@@ -2434,7 +2434,7 @@ long NCMesh::MemoryUsage() const
           root_elements.Capacity() * sizeof(Element*) +
           leaf_elements.Capacity() * sizeof(Element*) +
           vertex_nodeId.Capacity() * sizeof(int) +
-          sizeof(*this);
+          sizeof(*this);  // FIXME: this needs updating
 }
 
 } // namespace mfem

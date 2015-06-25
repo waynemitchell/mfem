@@ -293,37 +293,37 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
                                 Vector &vals, DenseMatrix &tr,
                                 int vdim) const
 {
-   int n, di;
+   int n, dir;
    FaceElementTransformations *Transf;
 
    n = ir.GetNPoints();
    IntegrationRule eir(n);  // ---
-   if (side == 2)
+   if (side == 2) // automatic choice of side
    {
       Transf = fes->GetMesh()->GetFaceElementTransformations(i, 0);
       if (Transf->Elem2No < 0 ||
           fes->GetAttribute(Transf->Elem1No) <=
           fes->GetAttribute(Transf->Elem2No))
       {
-         di = 0;
+         dir = 0;
       }
       else
       {
-         di = 1;
+         dir = 1;
       }
    }
    else
    {
       if (side == 1 && !fes->GetMesh()->FaceIsInterior(i))
       {
-         di = 0;
+         dir = 0;
       }
       else
       {
-         di = side;
+         dir = side;
       }
    }
-   if (di == 0)
+   if (dir == 0)
    {
       Transf = fes->GetMesh()->GetFaceElementTransformations(i, 4);
       Transf->Loc1.Transform(ir, eir);
@@ -336,7 +336,7 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
       GetValues(Transf->Elem2No, eir, vals, tr, vdim);
    }
 
-   return di;
+   return dir;
 }
 
 void GridFunction::GetVectorValues(ElementTransformation &T,
