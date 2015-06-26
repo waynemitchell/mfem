@@ -76,9 +76,9 @@ protected:
       int NCFace; /* -1 if this is a regular conforming/boundary face;
                      index into 'nc_faces_info' if >= 0. */
    };
-   // NOTE: in NC meshes, master faces have Elem2No == -1 (they are still
-   // faces though). Slave faces on the other hand have Elem2No and Elem2Inf
-   // set to the master face's element and its local face number.
+   // NOTE: in NC meshes, master faces have Elem2No == -1. Slave faces on the
+   // other hand have Elem2No and Elem2Inf set to the master face's element and
+   // its local face number.
 
    struct NCFaceInfo
    {
