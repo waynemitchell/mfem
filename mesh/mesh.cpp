@@ -569,7 +569,8 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
    //  setup the transformation for the second element
    //     return NULL in the Elem2 field if there's no second element, i.e.
    //     the face is on the "boundary"
-   if ((mask & 2) && (FaceElemTr.Elem2No = face_info.Elem2No) >= 0)
+   FaceElemTr.Elem2No = face_info.Elem2No;
+   if ((mask & 2) && FaceElemTr.Elem2No >= 0)
    {
 #ifdef MFEM_DEBUG
       if (NURBSext && (mask & 1)) { MFEM_ABORT("NURBS mesh not supported!"); }
@@ -628,6 +629,10 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
                GetLocalSegToQuadTransformation(FaceElemTr.Loc2.Transf,
                                                face_info.Elem2Inf);
             }
+            if (IsSlaveFace(face_info))
+            {
+               ApplySlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
+            }
          }
          break;
 
@@ -642,6 +647,10 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
          {
             GetLocalTriToTetTransformation(FaceElemTr.Loc2.Transf,
                                            face_info.Elem2Inf);
+            if (IsSlaveFace(face_info))
+            {
+               ApplySlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
+            }
          }
          break;
 
@@ -656,11 +665,33 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
          {
             GetLocalQuadToHexTransformation(FaceElemTr.Loc2.Transf,
                                             face_info.Elem2Inf);
+            if (IsSlaveFace(face_info))
+            {
+               ApplySlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
+            }
          }
          break;
    }
 
    return &FaceElemTr;
+}
+
+bool Mesh::IsSlaveFace(const FaceInfo &fi)
+{
+   return fi.NCFace >= 0 && nc_faces_info[fi.NCFace].Slave;
+}
+
+void Mesh::ApplySlaveTransformation(IsoparametricTransformation &transf,
+                                    const FaceInfo &fi)
+{
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix composition;
+#else
+   static DenseMatrix composition;
+#endif
+   MFEM_ASSERT(fi.NCFace >= 0, "");
+   transf.Transform(*nc_faces_info[fi.NCFace].PointMatrix, composition);
+   transf.GetPointMat() = composition;
 }
 
 FaceElementTransformations *Mesh::GetBdrFaceTransformations(int BdrElemNo)
@@ -3064,10 +3095,13 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       NumOfEdges = 0;
    }
 
-   // tell NCMesh the numbering of edges/faces
    if (ncmesh)
    {
+      // tell NCMesh the numbering of edges/faces
       ncmesh->OnMeshUpdated(this);
+
+      // update faces_info with NC relations
+      GenerateNCFaceInfo();
    }
 
    // generate the arrays 'attributes' and ' bdr_attributes'
@@ -4608,6 +4642,46 @@ void Mesh::GenerateFaces()
                MFEM_ABORT("Unexpected type of Element.");
          }
       }
+   }
+}
+
+void Mesh::GenerateNCFaceInfo()
+{
+   MFEM_VERIFY(ncmesh, "missing NCMesh.");
+
+   for (int i = 0; i < faces_info.Size(); i++)
+   {
+      faces_info[i].NCFace = -1;
+   }
+
+   const NCMesh::NCList &list = ncmesh->GetFaceList();
+
+   nc_faces_info.SetSize(0);
+   nc_faces_info.Reserve(list.masters.size() + list.slaves.size());
+
+   // add records for master faces
+   for (unsigned i = 0; i < list.masters.size(); i++)
+   {
+      const NCMesh::Master &master = list.masters[i];
+      faces_info[master.index].NCFace = nc_faces_info.Size();
+      nc_faces_info.Append(NCFaceInfo(false, master.local, NULL));
+      // NOTE: one of the unused members stores local face no. to be used below
+   }
+
+   // add records for slave faces
+   for (unsigned i = 0; i < list.slaves.size(); i++)
+   {
+      const NCMesh::Slave &slave = list.slaves[i];
+      FaceInfo &slave_fi = faces_info[slave.index];
+      FaceInfo &master_fi = faces_info[slave.master];
+      NCFaceInfo &master_nc = nc_faces_info[master_fi.NCFace];
+
+      slave_fi.NCFace = nc_faces_info.Size();
+      nc_faces_info.Append(NCFaceInfo(true, slave.master, &slave.point_matrix));
+
+      slave_fi.Elem2No = master_fi.Elem1No;
+      slave_fi.Elem2Inf = 64 * master_nc.MasterFace; // get lf no. stored above
+      // NOTE: orientation part of Elem2Inf is encoded in the point matrix
    }
 }
 
@@ -6537,6 +6611,8 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
       delete mesh2;
    }
 
+   GenerateNCFaceInfo();
+
    if (Nodes) // curved mesh
    {
       UpdateNodes();
@@ -6560,14 +6636,20 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 
    NumOfEdges = NumOfFaces = 0;
 
-   if (Dim > 2)
+   if (Dim == 2)
+   {
+      el_to_edge = new Table;
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
+   else if (Dim == 3)
    {
       GetElementToFaceTable();
-      GenerateFaces();
-#ifdef MFEM_DEBUG
-      CheckBdrElementOrientation(false);
-#endif
    }
+
+   GenerateFaces();
+#ifdef MFEM_DEBUG
+   CheckBdrElementOrientation(false);
+#endif
 
    el_to_edge = new Table;
    NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);

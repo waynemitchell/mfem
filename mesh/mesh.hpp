@@ -70,12 +70,29 @@ protected:
    Array<Element *> boundary;
    Array<Element *> faces;
 
-   class FaceInfo
+   struct FaceInfo
    {
-   public:
       int Elem1No, Elem2No, Elem1Inf, Elem2Inf;
+      int NCFace; /* -1 if this is a regular conforming/boundary face;
+                     index into 'nc_faces_info' if >= 0. */
    };
+   // NOTE: in NC meshes, master faces have Elem2No == -1 (they are still
+   // faces though). Slave faces on the other hand have Elem2No and Elem2Inf
+   // set to the master face's element and its local face number.
+
+   struct NCFaceInfo
+   {
+      bool Slave; // true if this is a slave face, false if master face
+      int MasterFace; // if Slave, this is the index of the master face
+      const DenseMatrix* PointMatrix; // if Slave, position within master face
+      // (NOTE: PointMatrix points to a matrix owned by NCMesh.)
+
+      NCFaceInfo(bool slave, int master, const DenseMatrix* pm)
+         : Slave(slave), MasterFace(master), PointMatrix(pm) {}
+   };
+
    Array<FaceInfo> faces_info;
+   Array<NCFaceInfo> nc_faces_info;
 
    Table *el_to_edge;
    Table *el_to_face;
@@ -227,7 +244,12 @@ protected:
                                         int i);
    /// Used in GetFaceElementTransformations (...)
    void GetLocalQuadToHexTransformation (IsoparametricTransformation &loc,
-                                         int i);
+                                         int i);   
+   /** Used in GetFaceElementTransformations to account for the fact that a
+       slave face occupies only a portion of its master face. */
+   void ApplySlaveTransformation(IsoparametricTransformation &transf,
+                                 const FaceInfo &fi);
+   bool IsSlaveFace(const FaceInfo &fi);
 
    /// Returns the orientation of "test" relative to "base"
    static int GetTriOrientation (const int * base, const int * test);
@@ -276,6 +298,7 @@ protected:
    void FreeElement (Element *E);
 
    void GenerateFaces();
+   void GenerateNCFaceInfo();
 
    /// Begin construction of a mesh
    void InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem);

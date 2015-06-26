@@ -36,16 +36,22 @@ public:
 
    virtual void Transform(const IntegrationPoint &, Vector &) = 0;
    virtual void Transform(const IntegrationRule &, DenseMatrix &) = 0;
+
+   /// Transform columns of 'matrix', store result in 'result'.
+   virtual void Transform(const DenseMatrix &matrix, DenseMatrix &result) = 0;
+
    /** Return the Jacobian of the transformation at the IntPoint.
        The first column contains the x derivatives of the
        transformation, the second -- the y derivatives, etc.  */
    virtual const DenseMatrix & Jacobian() = 0;
    virtual double Weight() = 0;
+
    virtual int Order() = 0;
    virtual int OrderJ() = 0;
    virtual int OrderW() = 0;
    /// order of adj(J)^t.grad(fi)
    virtual int OrderGrad(const FiniteElement *fe) = 0;
+
    /** Get dimension of target space (we support 2D meshes embedded in 3D; in
        this case the function should return "3"). */
    virtual int GetSpaceDim() = 0;
@@ -71,12 +77,16 @@ public:
 
    virtual void Transform(const IntegrationPoint &, Vector &);
    virtual void Transform(const IntegrationRule &, DenseMatrix &);
+   virtual void Transform(const DenseMatrix &matrix, DenseMatrix &result);
+
    virtual const DenseMatrix & Jacobian();
    virtual double Weight();
+
    virtual int Order() { return FElem->GetOrder(); }
    virtual int OrderJ();
    virtual int OrderW();
    virtual int OrderGrad(const FiniteElement *fe);
+
    virtual int GetSpaceDim()
    {
       // this function should only be called after PointMat is initialised

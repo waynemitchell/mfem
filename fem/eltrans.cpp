@@ -162,6 +162,31 @@ void IsoparametricTransformation::Transform (const IntegrationRule &ir,
    }
 }
 
+void IsoparametricTransformation::Transform (const DenseMatrix &matrix,
+                                             DenseMatrix &result)
+{
+   result.SetSize(PointMat.Height(), matrix.Width());
+
+   IntegrationPoint ip;
+   Vector col;
+
+   for (int j = 0; j < matrix.Width(); j++)
+   {
+      ip.x = matrix(0, j);
+      if (matrix.Height() > 1)
+      {
+         ip.y = matrix(1, j);
+         if (matrix.Height() > 2)
+         {
+            ip.z = matrix(2, j);
+         }
+      }
+
+      result.GetColumnReference(j, col);
+      Transform(ip, col);
+   }
+}
+
 void IntegrationPointTransformation::Transform (const IntegrationPoint &ip1,
                                                 IntegrationPoint &ip2)
 {
