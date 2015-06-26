@@ -184,10 +184,12 @@ void Mesh::GetElementTransformation(int i, IsoparametricTransformation *ElTr)
       int n = vdofs.Size()/spaceDim;
       pm.SetSize(spaceDim, n);
       for (int k = 0; k < spaceDim; k++)
+      {
          for (int j = 0; j < n; j++)
          {
             pm(k,j) = (*Nodes)(vdofs[n*k+j]);
          }
+      }
       ElTr->SetFE(Nodes->FESpace()->GetFE(i));
    }
 }
@@ -205,10 +207,12 @@ void Mesh::GetElementTransformation(int i, const Vector &nodes,
       int n = vertices.Size();
       pm.SetSize(spaceDim, nv);
       for (int k = 0; k < spaceDim; k++)
+      {
          for (int j = 0; j < nv; j++)
          {
             pm(k, j) = nodes(k*n+v[j]);
          }
+      }
       ElTr->SetFE(GetTransformationFEforElementType(GetElementType(i)));
    }
    else
@@ -218,10 +222,12 @@ void Mesh::GetElementTransformation(int i, const Vector &nodes,
       int n = vdofs.Size()/spaceDim;
       pm.SetSize(spaceDim, n);
       for (int k = 0; k < spaceDim; k++)
+      {
          for (int j = 0; j < n; j++)
          {
             pm(k,j) = nodes(vdofs[n*k+j]);
          }
+      }
       ElTr->SetFE(Nodes->FESpace()->GetFE(i));
    }
 }
@@ -257,10 +263,12 @@ void Mesh::GetBdrElementTransformation(int i, IsoparametricTransformation* ElTr)
       int n = vdofs.Size()/spaceDim;
       pm.SetSize(spaceDim, n);
       for (int k = 0; k < spaceDim; k++)
+      {
          for (int j = 0; j < n; j++)
          {
             pm(k,j) = (*Nodes)(vdofs[n*k+j]);
          }
+      }
       ElTr->SetFE(Nodes->FESpace()->GetBE(i));
    }
 }
@@ -276,10 +284,12 @@ void Mesh::GetFaceTransformation(int FaceNo, IsoparametricTransformation *FTr)
       const int nv = (Dim == 1) ? 1 : faces[FaceNo]->GetNVertices();
       pm.SetSize(spaceDim, nv);
       for (int i = 0; i < spaceDim; i++)
+      {
          for (int j = 0; j < nv; j++)
          {
             pm(i, j) = vertices[v[j]](i);
          }
+      }
       FTr->SetFE(GetTransformationFEforElementType(
                     (Dim == 1) ? Element::POINT : faces[FaceNo]->GetType()));
    }
@@ -293,10 +303,12 @@ void Mesh::GetFaceTransformation(int FaceNo, IsoparametricTransformation *FTr)
          int n = vdofs.Size()/spaceDim;
          pm.SetSize(spaceDim, n);
          for (int i = 0; i < spaceDim; i++)
+         {
             for (int j = 0; j < n; j++)
             {
                pm(i, j) = (*Nodes)(vdofs[n*i+j]);
             }
+         }
          FTr->SetFE(face_el);
       }
       else
@@ -372,10 +384,12 @@ void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
       const int nv = 2;
       pm.SetSize(spaceDim, nv);
       for (int i = 0; i < spaceDim; i++)
+      {
          for (int j = 0; j < nv; j++)
          {
             pm(i, j) = vertices[v[j]](i);
          }
+      }
       EdTr->SetFE(GetTransformationFEforElementType(Element::SEGMENT));
 
    }
@@ -386,10 +400,12 @@ void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
       int n = vdofs.Size()/spaceDim;
       pm.SetSize(spaceDim, n);
       for (int i = 0; i < spaceDim; i++)
+      {
          for (int j = 0; j < n; j++)
          {
             pm(i, j) = (*Nodes)(vdofs[n*i+j]);
          }
+      }
       EdTr->SetFE(GetTransformationFEforElementType(Element::SEGMENT));
    }
 }
@@ -704,35 +720,17 @@ void Mesh::InitTables()
 
 void Mesh::DeleteTables()
 {
-   if (el_to_edge != NULL)
-   {
-      delete el_to_edge;
-   }
+   delete el_to_edge;
+   delete el_to_face;
+   delete el_to_el;
 
-   if (el_to_face != NULL)
-   {
-      delete el_to_face;
-   }
-
-   if (el_to_el != NULL)
-   {
-      delete el_to_el;
-   }
-
-   if (Dim == 3 && bel_to_edge != NULL)
+   if (Dim == 3)
    {
       delete bel_to_edge;
    }
 
-   if (face_edge != NULL)
-   {
-      delete face_edge;
-   }
-
-   if (edge_vertex != NULL)
-   {
-      delete edge_vertex;
-   }
+   delete face_edge;
+   delete edge_vertex;
 
    InitTables();
 
@@ -773,10 +771,9 @@ void Mesh::SetAttributes()
       nattr = 0;
    }
    for (i = 1; i < attribs.Size(); i++)
-      if (attribs[i] != attribs[i-1])
-      {
-         nattr++;
-      }
+   {
+      if (attribs[i] != attribs[i-1]) { nattr++; }
+   }
 
    // TODO: use Array::Sort + Array::Unique here
 
@@ -965,19 +962,20 @@ void Mesh::GenerateBoundaryElements()
    // count the 'NumOfBdrElements'
    NumOfBdrElements = 0;
    for (i = 0; i < faces_info.Size(); i++)
-      if (faces_info[i].Elem2No < 0)
-      {
-         NumOfBdrElements++;
-      }
+   {
+      if (faces_info[i].Elem2No < 0) { NumOfBdrElements++; }
+   }
 
    boundary.SetSize(NumOfBdrElements);
    be2face.SetSize(NumOfBdrElements);
    for (j = i = 0; i < faces_info.Size(); i++)
+   {
       if (faces_info[i].Elem2No < 0)
       {
          boundary[j] = faces[i]->Duplicate(this);
          be2face[j++] = i;
       }
+   }
    // In 3D, 'bel_to_edge' is destroyed but it's not updated.
 }
 
@@ -985,7 +983,8 @@ typedef struct
 {
    int edge;
    double length;
-} edge_length;
+}
+edge_length;
 
 // Used by qsort to sort edges in increasing (according their length) order.
 static int edge_compare(const void *ii, const void *jj)
@@ -1072,11 +1071,13 @@ void Mesh::MarkTriMeshForRefinement()
    // vertex 0 - vertex 1 to be the longest element's edge.
    DenseMatrix pmat;
    for (int i = 0; i < NumOfElements; i++)
+   {
       if (elements[i]->GetType() == Element::TRIANGLE)
       {
          GetPointMatrix(i, pmat);
          elements[i]->MarkEdge(pmat);
       }
+   }
 }
 
 void Mesh::GetEdgeOrdering(DSTable &v_to_v, Array<int> &order)
@@ -1116,16 +1117,19 @@ void Mesh::MarkTetMeshForRefinement()
    GetEdgeOrdering(v_to_v, order);
 
    for (int i = 0; i < NumOfElements; i++)
+   {
       if (elements[i]->GetType() == Element::TETRAHEDRON)
       {
          elements[i]->MarkEdge(v_to_v, order);
       }
-
+   }
    for (int i = 0; i < NumOfBdrElements; i++)
+   {
       if (boundary[i]->GetType() == Element::TRIANGLE)
       {
          boundary[i]->MarkEdge(v_to_v, order);
       }
+   }
 }
 
 void Mesh::PrepareNodeReorder(DSTable **old_v_to_v, Table **old_elem_vert)
