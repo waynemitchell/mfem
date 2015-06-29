@@ -34,8 +34,6 @@
 #include <fstream>
 #include <iostream>
 
-#include "HYPRE_sstruct_ls.h"
-
 using namespace std;
 using namespace mfem;
 
@@ -180,15 +178,6 @@ int main(int argc, char *argv[])
          cout << "Number of unknowns: " << fespace.GetNConformingDofs() << endl;
       }
 
-      if (myid == 0) { tic(); }
-
-      fespace.Dof_TrueDof_Matrix();
-
-      if (myid == 0)
-      {
-         cout << "P matrix time: " << tic_toc.RealTime() << endl;
-      }
-
       // 10. Assemble the stiffness matrix and the right-hand side. Note that
       //     MFEM doesn't care at this point if the mesh is nonconforming (i.e.,
       //     contains hanging nodes). The FE space is considered 'cut' along
@@ -248,10 +237,9 @@ int main(int argc, char *argv[])
       // the 'errors' are squared, so we need to square the fraction
       double threshold = (frac*frac) * errors.Max();
       for (int i = 0; i < errors.Size(); i++)
-         if (errors[i] >= threshold)
-         {
-            ref_list.Append(i);
-         }
+      {
+         if (errors[i] >= threshold) { ref_list.Append(i); }
+      }
 
       // 18. Refine the selected elements. Since we are going to transfer the
       //     grid function x from the coarse mesh to the new fine mesh in the
