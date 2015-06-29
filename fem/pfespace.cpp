@@ -536,7 +536,7 @@ int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)
    if (Nonconforming())
    {
       MFEM_VERIFY(P, "Dof_TrueDof_Matrix() needs to be called before "
-                     "GetLocalTDofNumber()");
+                  "GetLocalTDofNumber()");
 
       return ldof_ltdof[ldof]; // NOTE: contains -1 for slaves/DOFs we don't own
    }

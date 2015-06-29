@@ -2251,8 +2251,8 @@ void NCMesh::PrintVertexParents(std::ostream &out) const
    {
       if (it->vertex && it->p1 != it->p2)
       {
-         Node *p1 = nodes.Peek(it->p1),
-              *p2 = nodes.Peek(it->p2);
+         Node *p1 = nodes.Peek(it->p1);
+         Node *p2 = nodes.Peek(it->p2);
 
          MFEM_ASSERT(p1 && p1->vertex, "");
          MFEM_ASSERT(p2 && p2->vertex, "");
@@ -2298,7 +2298,8 @@ void NCMesh::SetVertexPositions(const Array<mfem::Vertex> &vertices)
 
 static int ref_type_num_children[8] = {0, 2, 2, 4, 2, 4, 4, 8 };
 
-int NCMesh::PrintElements(std::ostream &out, Element* elem, int &coarse_id) const
+int NCMesh::PrintElements(std::ostream &out, Element* elem,
+                          int &coarse_id) const
 {
    if (elem->ref_type)
    {

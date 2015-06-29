@@ -626,7 +626,7 @@ void ParNCMesh::Prune()
 {
    GetSharedVertices();
    GetSharedEdges();
-   if (Dim > 2) GetSharedFaces();
+   if (Dim > 2) { GetSharedFaces(); }
 
    // derefine subtrees whose leaves are all unneeded
    for (int i = 0; i < root_elements.Size(); i++)

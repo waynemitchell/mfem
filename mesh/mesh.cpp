@@ -8211,11 +8211,11 @@ void Mesh::Print(std::ostream &out) const
 
    if (ncmesh)
    {
-       out << "\nvertex_parents\n";
-       ncmesh->PrintVertexParents(out);
+      out << "\nvertex_parents\n";
+      ncmesh->PrintVertexParents(out);
 
-       out << "\ncoarse_elements\n";
-       ncmesh->PrintCoarseElements(out);
+      out << "\ncoarse_elements\n";
+      ncmesh->PrintCoarseElements(out);
    }
 
    out << "\nvertices\n" << NumOfVertices << '\n';

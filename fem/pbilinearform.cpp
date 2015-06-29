@@ -127,7 +127,7 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    if (m == NULL) { return NULL; }
 
    MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
-                               "ParallelAssemble");
+               "ParallelAssemble");
 
    HypreParMatrix *A;
    if (fbfi.Size() == 0)

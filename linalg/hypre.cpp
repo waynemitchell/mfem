@@ -1271,17 +1271,17 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag((hypre_ParCSRMatrix *)A);
    double *data = hypre_CSRMatrixData(A_diag);
    HYPRE_Int *I = hypre_CSRMatrixI(A_diag);
-/*#ifdef MFEM_DEBUG
+  /*#ifdef MFEM_DEBUG
    HYPRE_Int *J   = hypre_CSRMatrixJ(A_diag);
    HYPRE_Int *I_offd =
       hypre_CSRMatrixI(hypre_ParCSRMatrixOffd((hypre_ParCSRMatrix *)A));
-#endif*/
+   #endif*/
 
    for (int i = 0; i < ess_dof_list.Size(); i++)
    {
       int r = ess_dof_list[i];
       B(r) = data[I[r]] * X(r);
-/*#ifdef MFEM_DEBUG
+      /*#ifdef MFEM_DEBUG
       // Check that in the rows specified by the ess_dof_list, the matrix A has
       // only one entry -- the diagonal.
       if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
@@ -1289,7 +1289,7 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
          MFEM_ABORT("'A' needs to have diagonal entries only in rows specified "
                     "by 'ess_dof_list'.");
       }
-#endif*/
+      #endif*/
       // NOTE: if A was eliminated in parallel the above check no longer works
       // as there are stored zeros in the eliminated rows/columns in A.
    }
@@ -2111,7 +2111,7 @@ HypreBoomerAMG::~HypreBoomerAMG()
 
 
 HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
-		   int singular_problem)
+                   int singular_problem)
    : HypreSolver(&A)
 {
    int cycle_type       = 1; // FIXME: 13
@@ -2243,7 +2243,9 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
    HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                               theta, amg_interp_type, amg_Pmax);
    if (singular_problem)
-     HYPRE_AMSSetBetaPoissonMatrix(ams,NULL);
+   {
+      HYPRE_AMSSetBetaPoissonMatrix(ams,NULL);
+   }
 }
 
 HypreAMS::~HypreAMS()

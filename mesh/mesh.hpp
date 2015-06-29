@@ -244,7 +244,7 @@ protected:
                                         int i);
    /// Used in GetFaceElementTransformations (...)
    void GetLocalQuadToHexTransformation (IsoparametricTransformation &loc,
-                                         int i);   
+                                         int i);
    /** Used in GetFaceElementTransformations to account for the fact that a
        slave face occupies only a portion of its master face. */
    void ApplySlaveTransformation(IsoparametricTransformation &transf,

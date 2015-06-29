@@ -1038,9 +1038,10 @@ void CurlCurlIntegrator::AssembleElementMatrix
    }
 }
 
-void CurlCurlIntegrator::ComputeElementFlux(
-   const FiniteElement &el, ElementTransformation &Trans,
-   Vector &u, const FiniteElement &fluxelem, Vector &flux, int with_coef)
+void CurlCurlIntegrator
+::ComputeElementFlux(const FiniteElement &el, ElementTransformation &Trans,
+                     Vector &u, const FiniteElement &fluxelem, Vector &flux,
+                     int with_coef)
 {
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix projcurl;
@@ -1055,7 +1056,8 @@ void CurlCurlIntegrator::ComputeElementFlux(
 }
 
 double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
-   ElementTransformation &Trans, Vector &flux, Vector *d_energy)
+                                             ElementTransformation &Trans,
+                                             Vector &flux, Vector *d_energy)
 {
    int nd = fluxelem.GetDof();
    int dim = fluxelem.GetDim();
