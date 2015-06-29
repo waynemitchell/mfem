@@ -30,13 +30,13 @@ namespace mfem
  *
  *  The ghost layer contains all vertex-, edge- and face-neighbors of the
  *  current processor's region. It is used to determine constraining relations
- *  and ownership of DOFs on the processor boundary. However, ghost elements
- *  are never seen by the rest of MFEM as they are skipped when a Mesh is
- *  created from the NCMesh.
+ *  and ownership of DOFs on the processor boundary. Ghost elements are never
+ *  seen by the rest of MFEM as they are skipped when a Mesh is created from
+ *  the NCMesh.
  *
  *  The processor that owns a vertex, edge or a face (and in turn its DOFs) is
  *  currently defined to be the one with the lowest rank in the group of
- *  processors that shares the entity.
+ *  processors that share the entity.
  *
  *  Vertices, edges and faces that are not shared by this ('MyRank') processor
  *  are ghosts, and are numbered after all real vertices/edges/faces, i.e.,
@@ -304,9 +304,10 @@ TODO
 + conforming case R matrix
 + master merge
 + curved/two-level parmesh
-- hcurl/hdiv
+- hcurl/hdiv (par-blocks)
 + saving/reading nc meshes
 + visualization, VisIt?
+- skip ldof_sign in pfespace.cpp
 - parallel ZZ estimator
 - ProjectBdrCoefficient
 - performance/scaling study
