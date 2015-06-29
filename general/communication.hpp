@@ -137,7 +137,7 @@ public:
 };
 
 
-/// Variable-length MPI message containing unspecific binary data.
+/// \brief Variable-length MPI message containing unspecific binary data.
 template<int Tag>
 struct VarMessage
 {

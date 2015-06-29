@@ -15,13 +15,38 @@
 namespace mfem
 {
 
-/** TODO: explain
+/** \brief A parallel extension of the NCMesh class.
  *
- *  - leaf_elements vs. Mesh elements
- *  - ghost numbering
- *  - face/edge orientation
- *  - who is a neighbor
+ *  The basic idea (and assumption) is that all processors share the coarsest
+ *  layer ('root_elements'). This has the advantage that refinements can easily
+ *  be exchanged between processors when rebalancing. Also individual elements
+ *  can be uniquely identified by the number of the root element and a path in
+ *  the refinement tree.
  *
+ *  Each leaf element is owned by one of the processors (NCMesh::Element::rank).
+ *  The underlying NCMesh stores not only elements for the current ('MyRank')
+ *  processor, but also a minimal layer of adjacent "ghost" elements owned by
+ *  other processors. The ghost layer is synchronized after refinement.
+ *
+ *  The ghost layer contains all vertex-, edge- and face-neighbors of the
+ *  current processor's region. It is used to determine constraining relations
+ *  and ownership of DOFs on the processor boundary. However, ghost elements
+ *  are never seen by the rest of MFEM as they are skipped when a Mesh is
+ *  created from the NCMesh.
+ *
+ *  The processor that owns a vertex, edge or a face (and in turn its DOFs) is
+ *  currently defined to be the one with the lowest rank in the group of
+ *  processors that shares the entity.
+ *
+ *  Vertices, edges and faces that are not shared by this ('MyRank') processor
+ *  are ghosts, and are numbered after all real vertices/edges/faces, i.e.,
+ *  they have indices greater than NVertices, NEdges, NFaces, respectively.
+ *
+ *  The interface of ParNCMesh is designed for its main customer, the
+ *  ParFiniteElementSpace class, which needs to know everything about the
+ *  vertices, edges and faces on the processor boundary.
+ *
+ *  TODO: what else to describe?
  */
 class ParNCMesh : public NCMesh
 {
@@ -106,7 +131,9 @@ public:
       int size;
       const int* group = GetGroup(type, index, size);
       for (int i = 0; i < size; i++)
+      {
          if (group[i] == rank) { return true; }
+      }
       return false;
    }
 
@@ -242,7 +269,10 @@ protected:
    bool PruneTree(Element* elem);
 
 
-   /**  */
+   /** Internal message; used to inform neighbors about refinement of elements
+    *  adjacent to the processor boundary. This is used by the neighbors to
+    *  update their ghost layers.
+    */
    class NeighborRefinementMessage : public VarMessage<289>
    {
    public:
@@ -276,7 +306,7 @@ TODO
 + curved/two-level parmesh
 - hcurl/hdiv
 + saving/reading nc meshes
-- visualization, VisIt?
++ visualization, VisIt?
 - parallel ZZ estimator
 - ProjectBdrCoefficient
 - performance/scaling study
@@ -291,7 +321,11 @@ TODO
 
 class FiniteElementCollection; // needed for edge orientation handling
 
-/** */
+/** Represents a message about DOF assignment of vertex, edge and face DOFs on
+ *  the boundary with another processor. This and other messages in this file
+ *  are only exchanged between immediate neighbors. Used by
+ *  ParFiniteElementSpace::GetConformingInterpolation().
+ */
 class NeighborDofMessage : public VarMessage<135>
 {
 public:
@@ -324,7 +358,10 @@ protected:
    void ReorderEdgeDofs(const NCMesh::MeshId &id, std::vector<int> &dofs);
 };
 
-/** */
+/** Used by ParFiniteElementSpace::GetConformingInterpolation() to request
+ *  finished non-local rows of the P matrix. This message is only sent once
+ *  to each neighbor.
+ */
 class NeighborRowRequest: public VarMessage<312>
 {
 public:
@@ -340,7 +377,12 @@ protected:
    virtual void Decode();
 };
 
-/** */
+/** Represents a reply to NeighborRowRequest. The reply contains a batch of
+ *  P matrix rows that have been finished by the sending processor. Multiple
+ *  batches may be sent depending on the number of iterations of the final part
+ *  of the function ParFiniteElementSpace::GetConformingInterpolation(). All
+ *  rows that are sent accumulate in the same NeighborRowReply instance.
+ */
 class NeighborRowReply: public VarMessage<313>
 {
 public:
@@ -365,7 +407,6 @@ inline bool operator< (const NCMesh::MeshId &a, const NCMesh::MeshId &b)
 {
    return a.index < b.index;
 }
-
 
 } // namespace mfem
 
