@@ -1117,7 +1117,7 @@ void Mesh::ReorderElements(const Array<int> &ordering)
 
    //Get the new vertex ordering permutation vectors and fill the new vertices
    Array<int> vertex_ordering(GetNV());
-   vertex_ordering.SetSize(GetNV(), -1);
+   vertex_ordering = -1;
    Array<int> inv_vertex_ordering(GetNV());
    Array<Vertex> new_vertices(GetNV());
    int new_vertex_ind = 0;
@@ -1159,17 +1159,28 @@ void Mesh::ReorderElements(const Array<int> &ordering)
       new_boundary[belid]->SetVertices(vert_ids.GetData());
    }
 
-   //TODO:  Do something for the Nodes here!!!
+   //Reorder the Nodes since the element order changed
    if (Nodes)
    {
-
+      FiniteElementSpace *fes = Nodes->FESpace();
+      GridFunction *new_Nodes = new GridFunction(fes);
+      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      {
+         int old_elid = inv_ordering[new_elid];
+         Array<int> old_dofs, new_dofs;
+         Vector vals;
+         fes->GetElementVDofs(old_elid, old_dofs);
+         fes->GetElementVDofs(new_elid, new_dofs);
+         Nodes->GetSubVector(old_dofs, vals);
+         new_Nodes->SetSubVector(new_dofs, vals);
+      }
+      delete Nodes;
+      Nodes = new_Nodes;
    }
 
    bool had_el_to_edge = (el_to_edge != NULL);
 
-   //Delete everything and start the mesh over
-   if (own_nodes) { delete Nodes; }
-
+   //Delete everything except the Nodes and start the mesh over
    for (int i = 0; i < NumOfElements; i++)
    {
       FreeElement(elements[i]);
@@ -1230,17 +1241,6 @@ void Mesh::ReorderElements(const Array<int> &ordering)
    {
       FinalizeQuadMesh(generate_edges, refine, fix_orientation);
    }
-
-/*
-   FiniteElementCollection *fec = GetNodalFESpace();
-   if (fec)
-   {
-      FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
-      delete Nodes;
-      Nodes = new GridFunction(fes);
-      Nodes->MakeOwner(fec);
-      own_nodes = 1;
-   }*/
 }
 
 
