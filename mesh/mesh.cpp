@@ -1089,6 +1089,7 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
 }
 #endif
 
+
 void Mesh::ReorderElements(const Array<int> &ordering)
 {
    //We will need both the forward and inverse permutation vectors to make the Tables
@@ -1099,42 +1100,147 @@ void Mesh::ReorderElements(const Array<int> &ordering)
       inv_ordering[new_elid] = old_elid;
    }
 
-   //Reorder the elements and attributes
-   Array<Element *> old_elements;
-   elements.Copy(old_elements);
-   Array<int> old_attributes;
-   attributes.Copy(old_attributes);
+   //Get the newly ordered elements
+   Array<Element *> new_elements(GetNE());
    for (int old_elid = 0; old_elid < ordering.Size(); ++old_elid)
    {
       int new_elid = ordering[old_elid];
-      elements[new_elid] = old_elements[old_elid];
-      if (attributes.Size() == elements.Size()) {
-         attributes[new_elid] = old_attributes[old_elid];
+      new_elements[new_elid] = elements[old_elid]->Duplicate(this);
+   }
+
+   //Get a new array of boundary elements
+   Array<Element *> new_boundary(GetNBE());
+   for (int belid = 0; belid < GetNBE(); ++belid)
+   {
+      new_boundary[belid] = boundary[belid]->Duplicate(this);
+   }
+
+   //Get the new vertex ordering permutation vectors and fill the new vertices
+   Array<int> vertex_ordering(GetNV());
+   vertex_ordering.SetSize(GetNV(), -1);
+   Array<int> inv_vertex_ordering(GetNV());
+   Array<Vertex> new_vertices(GetNV());
+   int new_vertex_ind = 0;
+   for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+   {
+      for (int vi = 0; vi < new_elements[new_elid]->GetNVertices(); ++vi)
+      {
+         int old_vertex_ind = new_elements[new_elid]->GetVertices()[vi];
+         if (vertex_ordering[old_vertex_ind] == -1)
+         {
+            vertex_ordering[old_vertex_ind] = new_vertex_ind;
+            inv_vertex_ordering[new_vertex_ind] = old_vertex_ind;
+            new_vertices[new_vertex_ind].SetCoords(vertices[old_vertex_ind]());
+            new_vertex_ind++;
+         }
       }
    }
 
-   //Regenerate all of the necessary tables
-   for (int i = 0; i < faces.Size(); ++i)
+   //Replace the vertex ids in the new_elements with the reordered vertex numbers
+   Array<int> vert_ids;
+   for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
    {
-      delete faces[i];
+      new_elements[new_elid]->GetVertices(vert_ids);
+      for (int vi = 0; vi < vert_ids.Size(); ++vi)
+      {
+         vert_ids[vi] = vertex_ordering[vert_ids[vi]];
+      }
+      new_elements[new_elid]->SetVertices(vert_ids.GetData());
    }
-   faces.DeleteAll();
+
+   //Replace the vertex ids in the new_belements with reorderd vertex numbers
+   for (int belid = 0; belid < GetNBE(); ++belid)
+   {
+      new_boundary[belid]->GetVertices(vert_ids);
+      for (int vi = 0; vi < vert_ids.Size(); ++vi)
+      {
+         vert_ids[vi] = vertex_ordering[vert_ids[vi]];
+      }
+      new_boundary[belid]->SetVertices(vert_ids.GetData());
+   }
+
+   //TODO:  Do something for the Nodes here!!!
+   if (Nodes)
+   {
+
+   }
+
+   bool had_el_to_edge = (el_to_edge != NULL);
+
+   //Delete everything and start the mesh over
+   if (own_nodes) { delete Nodes; }
+
+   for (int i = 0; i < NumOfElements; i++)
+   {
+      FreeElement(elements[i]);
+   }
+   elements.SetSize(0);
+
+   for (int i = 0; i < NumOfBdrElements; i++)
+   {
+      FreeElement(boundary[i]);
+   }
+   boundary.SetSize(0);
+
+   for (int i = 0; i < faces.Size(); i++)
+   {
+      FreeElement(faces[i]);
+   }
+   faces.SetSize(0);
+
    DeleteTables();
-   be_to_edge.DeleteAll();
-   be_to_face.DeleteAll();
-   el_to_edge = new Table;
-   GetElementToEdgeTable(*el_to_edge, be_to_edge);
-   if (Dim == 3) 
+   InitMesh(Dim, spaceDim, GetNV(), GetNE(), GetNBE());
+
+   //Add the vertices into the new mesh
+   for (int new_vid = 0; new_vid < new_vertices.Size(); ++new_vid)
    {
-     GetElementToFaceTable();
+      AddVertex(new_vertices[new_vid]());
    }
-   GenerateFaces();
-   if (GetElementType(0) == Element::TETRAHEDRON)
+
+   //Add the elements to the new mesh
+   for (int new_elid = 0; new_elid < new_elements.Size(); ++new_elid)
    {
-      ReorientTetMesh();
-      GetElementToFaceTable();
-      GenerateFaces();   
+      AddElement(new_elements[new_elid]);
    }
+
+   //Add the elements to the new mesh
+   for (int belid = 0; belid < new_boundary.Size(); ++belid)
+   {
+      AddBdrElement(new_boundary[belid]);
+   }
+
+   //Finalize the new mesh
+   int refine = 0;
+   bool fix_orientation = false;
+   bool generate_edges = had_el_to_edge;
+   int type = new_elements[0]->GetType();
+   if (type == Element::TETRAHEDRON)
+   {
+      FinalizeTetMesh(generate_edges, refine, fix_orientation);
+   }
+   else if (type == Element::HEXAHEDRON)
+   {
+      FinalizeHexMesh(generate_edges, refine, fix_orientation);
+   }
+   else if (type == Element::TRIANGLE)
+   {
+      FinalizeTriMesh(generate_edges, refine, fix_orientation);
+   }
+   else if (type == Element::QUADRILATERAL)
+   {
+      FinalizeQuadMesh(generate_edges, refine, fix_orientation);
+   }
+
+/*
+   FiniteElementCollection *fec = GetNodalFESpace();
+   if (fec)
+   {
+      FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+      delete Nodes;
+      Nodes = new GridFunction(fes);
+      Nodes->MakeOwner(fec);
+      own_nodes = 1;
+   }*/
 }
 
 

@@ -94,7 +94,7 @@ protected:
    FaceElementTransformations FaceElemTr;
 
    // Nodes are only active for higher order meshes, and share locations with
-   // the vertecies, plus all the higher- order control points within the
+   // the vertices, plus all the higher- order control points within the
    // element and along the edges and on the faces.
    GridFunction *Nodes;
    int own_nodes;
@@ -340,7 +340,8 @@ public:
    void AddHex(const int *vi, int attr = 1);
    void AddHexAsTets(const int *vi, int attr = 1);
    // 'elem' should be allocated using the NewElement method
-   void AddElement(Element *elem)  { elements[NumOfElements++] = elem; }
+   void AddElement(Element *elem)     { elements[NumOfElements++] = elem; }
+   void AddBdrElement(Element *elem)  { boundary[NumOfBdrElements++] = elem; }
    void AddBdrSegment(const int *vi, int attr = 1);
    void AddBdrTriangle(const int *vi, int attr = 1);
    void AddBdrQuad(const int *vi, int attr = 1);
