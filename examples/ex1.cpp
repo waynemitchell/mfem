@@ -86,10 +86,13 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
-   //Now Reorder the matrix
+
+#ifdef MFEM_USE_GECKO
+   //If we have Gecko, use it to reorder the elements in the mesh
    Array<int> ordering;
    mesh->GetGeckoElementReordering(ordering);
    mesh->ReorderElements(ordering);
+#endif
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
