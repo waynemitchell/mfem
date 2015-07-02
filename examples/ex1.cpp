@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 11.  Set the element attribute to the element number and 
+   // 11.  Set the element attribute to the element number and
    //      save the data in the visit format.
    for (int elem = 0; elem < mesh->GetNE(); ++elem)
    {

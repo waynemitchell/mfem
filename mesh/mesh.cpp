@@ -1052,11 +1052,12 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
    Gecko::Graph graph;
 
    //We will put some accesors in for these later
-   Gecko::Functional* functional = new Gecko::FunctionalGeometric();   //ordering functional
-   unsigned int iterations = 1;                                        // number of V cycles
-   unsigned int window = 2;                                            // initial window size
-   unsigned int period = 1;                                            // iterations between window increment
-   unsigned int seed = 0;                                              // random number seed
+   Gecko::Functional *functional =
+      new Gecko::FunctionalGeometric(); // ordering functional
+   unsigned int iterations = 1;         // number of V cycles
+   unsigned int window = 2;             // initial window size
+   unsigned int period = 1;             // iterations between window increment
+   unsigned int seed = 0;               // random number seed
 
    //Run through all the elements and insert the nodes in the graph for them
    for (int elemid = 0; elemid < GetNE(); ++elemid)
@@ -1070,7 +1071,7 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
    for (int elemid = 0; elemid < GetNE(); ++elemid)
    {
       const int *neighid = my_el_to_el.GetRow(elemid);
-      for (int i = 0; i < my_el_to_el.RowSize(elemid); ++i) 
+      for (int i = 0; i < my_el_to_el.RowSize(elemid); ++i)
       {
          graph.insert(elemid + 1,  neighid[i] + 1);
       }
