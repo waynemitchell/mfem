@@ -261,6 +261,50 @@ void ParGridFunction::ProjectCoefficient(Coefficient &coeff)
    }
 }
 
+void ParGridFunction::ProjectDiscCoefficient(VectorCoefficient &coeff)
+{
+   // local maximal element attribute for each dof
+   Array<int> ldof_attr;
+
+   // local projection
+   GridFunction::ProjectDiscCoefficient(coeff, ldof_attr);
+
+   // global maximal element attribute for each dof
+   Array<int> gdof_attr;
+   ldof_attr.Copy(gdof_attr);
+   GroupCommunicator &gcomm = pfes->GroupComm();
+   gcomm.Reduce<int>(gdof_attr, GroupCommunicator::Max);
+   gcomm.Bcast(gdof_attr);
+
+   // set local value to zero if global maximal element attribute is larger than
+   // the local one, and mark (in gdof_attr) if we have the correct value
+   for (int i = 0; i < pfes->GetVSize(); i++)
+   {
+      if (gdof_attr[i] > ldof_attr[i])
+      {
+         (*this)(i) = 0.0;
+         gdof_attr[i] = 0;
+      }
+      else
+      {
+         gdof_attr[i] = 1;
+      }
+   }
+
+   // parallel averaging plus interpolation to determine final values
+   HypreParVector *tv = pfes->NewTrueDofVector();
+   gcomm.Reduce<int>(gdof_attr, GroupCommunicator::Sum);
+   gcomm.Bcast(gdof_attr);
+   for (int i = 0; i < fes->GetVSize(); i++)
+   {
+      (*this)(i) /= gdof_attr[i];
+   }
+   this->ParallelAssemble(*tv);
+   this->Distribute(tv);
+   delete tv;
+}
+
+
 void ParGridFunction::Save(std::ostream &out) const
 {
    for (int i = 0; i < size; i++)

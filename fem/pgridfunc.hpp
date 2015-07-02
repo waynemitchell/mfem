@@ -113,6 +113,12 @@ public:
    using GridFunction::ProjectCoefficient;
    void ProjectCoefficient(Coefficient &coeff);
 
+   using GridFunction::ProjectDiscCoefficient;
+   /** Project a discontinuous vector coefficient as a grid function on a
+       continuous parallel finite element space. The values in shared dofs are
+       determined from the element with maximal attribute. */
+   void ProjectDiscCoefficient(VectorCoefficient &coeff);
+
    double ComputeL1Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const
    {
