@@ -27,7 +27,7 @@ using namespace std;
 using namespace mfem;
 
 // Current for the solenoid
-void J_exact(const Vector &, Vector &);
+void J4pi_exact(const Vector &, Vector &);
 
 int main(int argc, char *argv[])
 {
@@ -63,10 +63,9 @@ int main(int argc, char *argv[])
    }
 
    // 3. Generate a reasonable mesh for this problem
-   Mesh *mesh = new Mesh(60, 60, 4, Element::HEXAHEDRON, 1, 1.0, 1.0, 1.0);
+   Mesh *mesh = new Mesh(6, 50, 50, Element::HEXAHEDRON, 1, 1.0, 1.0, 1.0);
    int dim = mesh->Dimension();
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
-   pmesh->UniformRefinement();
    pmesh->UniformRefinement();
    pmesh->UniformRefinement();
    delete mesh;
@@ -85,20 +84,13 @@ int main(int argc, char *argv[])
       cout << "Number of unknowns: " << size << endl;
    }
 
-   /// 7. Set up discrete gradient and curl operators
+   /// 7. Set up discrete gradient
    ParDiscreteLinearOperator *grad = new ParDiscreteLinearOperator(H1Fespace,
                                                                    HcurlFespace);
    grad->AddDomainInterpolator(new GradientInterpolator);
    grad->Assemble();
    grad->Finalize();
    HypreParMatrix *G = grad->ParallelAssemble();
-
-   ParDiscreteLinearOperator *curl = new ParDiscreteLinearOperator(HcurlFespace,
-                                                                   HdivFespace);
-   curl->AddDomainInterpolator(new CurlInterpolator);
-   curl->Assemble();
-   curl->Finalize();
-   HypreParMatrix *C = curl->ParallelAssemble();
 
    // 8. Define the solution vector x, bfield, and j as a parallel
    //    finite element grid functions corresponding to fespace.
@@ -109,7 +101,7 @@ int main(int argc, char *argv[])
    // 9. Define J the current of the solenoid.  In order to converge
    //    we must ensure that the version of J on our RHS is divergence
    //    free.
-   VectorFunctionCoefficient f(3, J_exact);
+   VectorFunctionCoefficient f(3, J4pi_exact);
    ParLinearForm *jdirty_form = new ParLinearForm(HcurlFespace);
    jdirty_form->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    jdirty_form->Assemble();
@@ -159,7 +151,7 @@ int main(int argc, char *argv[])
    HypreParMatrix *A_psi = a_psi->ParallelAssemble();
    HypreSolver *amg_psi = new HypreBoomerAMG(*A_psi);
    HyprePCG *pcg_psi = new HyprePCG(*A_psi);
-   pcg_psi->SetTol(1e-12);
+   pcg_psi->SetTol(1e-18);
    pcg_psi->SetMaxIter(200);
    pcg_psi->SetPrintLevel(2);
    pcg_psi->SetPreconditioner(*amg_psi);
@@ -178,14 +170,16 @@ int main(int argc, char *argv[])
    G->Mult(*PSI,*JTEMP);
    M1->Mult(*JTEMP,*JCLEAN,-1.0,1.0);
    j = *JCLEAN;
+   delete grad;
+   delete G;
    delete m1;
    delete M1;
 
    // 10. Set up the parallel bilinear form corresponding to the magnetic diffusion
    //     operator curl muinv curl, by adding the curl-curl and the
    //     mass domain integrators and finally imposing non-homogeneous Dirichlet
-   //     boundary conditions.
-   Coefficient *muinv = new ConstantCoefficient(1.0 / (4.0e-7*M_PI));
+   //     boundary conditions.  We are using scaled CGS units so muinv = 1. in this case.
+   Coefficient *muinv = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(HcurlFespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->Assemble();
@@ -200,15 +194,28 @@ int main(int argc, char *argv[])
    //     preconditioner from hypre.
    HypreSolver *ams = new HypreAMS(*A, HcurlFespace, 1);
    HyprePCG *pcg = new HyprePCG(*A);
-   pcg->SetTol(1e-12);
+   pcg->SetTol(1e-10);
    pcg->SetMaxIter(200);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*JCLEAN, *X);
+   delete A;
+   delete a;
+   delete muinv;
+   delete pcg;
+   delete ams;
 
    // 12. Compute the values of the BFIELD = curl X.
+   ParDiscreteLinearOperator *curl = new ParDiscreteLinearOperator(HcurlFespace,
+                                                                   HdivFespace);
+   curl->AddDomainInterpolator(new CurlInterpolator);
+   curl->Assemble();
+   curl->Finalize();
+   HypreParMatrix *C = curl->ParallelAssemble();
    HypreParVector *BFIELD = new HypreParVector(HdivFespace);
    C->Mult(*X, *BFIELD);
+   delete curl;
+   delete C;
 
    // 13. Extract the parallel grid functions corresponding to the finite element
    //     approximations of X and BFIELD. This is the local solution on each processor.
@@ -251,8 +258,6 @@ int main(int argc, char *argv[])
    }
 
    // 17. Free the used memory.
-   delete pcg;
-   delete ams;
    delete H1Fespace;
    delete HcurlFespace;
    delete HdivFespace;
@@ -260,17 +265,10 @@ int main(int argc, char *argv[])
    delete HcurlFec;
    delete HdivFec;
    delete pmesh;
-   delete a;
-   delete muinv;
-   delete grad;
-   delete curl;
    delete jdirty_form;
    delete DIVJ;
    delete PSI;
    delete X;
-   delete A;
-   delete G;
-   delete C;
    delete JDIRTY;
    delete JTEMP;
    delete JCLEAN;
@@ -283,7 +281,7 @@ int main(int argc, char *argv[])
 
 //Current going around an idealized solenoid that has an inner radius of 0.2
 //an outer radius of 0.22 and a height (in x) of 0.2 centered on (0.5, 0.5, 0.5)
-void J_exact(const Vector &x, Vector &J)
+void J4pi_exact(const Vector &x, Vector &J)
 {
    const double sol_inner_r = 0.2;
    double r = sqrt((x(1) - 0.5)*(x(1) - 0.5) + (x(2) - 0.5)*(x(2) - 0.5));
@@ -294,8 +292,8 @@ void J_exact(const Vector &x, Vector &J)
       J(1) = -(x(2) - 0.5);
       J(2) = (x(1) - 0.5);
 
-      double len = sqrt(J(1)*J(1) + J(2)*J(2));
-      J(1) /= len;
-      J(2) /= len;
+      double scale = 4.*M_PI*sqrt(J(1)*J(1) + J(2)*J(2));
+      J(1) *= scale;
+      J(2) *= scale;
    }
 }
