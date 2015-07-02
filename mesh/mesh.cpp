@@ -24,7 +24,7 @@
 #include <ctime>
 
 #ifdef MFEM_USE_GECKO
-#include "gecko/inc/graph.h"
+#include "graph.h"
 #endif
 
 namespace mfem
@@ -1067,7 +1067,7 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
 
    //Run through all the elems and insert arcs to the graph for each element face
    //Indices in Gecko are 1 based hence the +1 on the insertion
-   const Table my_el_to_el = ElementToElementTable();
+   const Table &my_el_to_el = ElementToElementTable();
    for (int elemid = 0; elemid < GetNE(); ++elemid)
    {
       const int *neighid = my_el_to_el.GetRow(elemid);
