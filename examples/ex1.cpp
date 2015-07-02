@@ -87,13 +87,6 @@ int main(int argc, char *argv[])
       }
    }
 
-#ifdef MFEM_USE_GECKO
-   //If we have Gecko, use it to reorder the elements in the mesh
-   Array<int> ordering;
-   mesh->GetGeckoElementReordering(ordering);
-   mesh->ReorderElements(ordering);
-#endif
-
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
    //    instead use an isoparametric/isogeometric space.
@@ -174,17 +167,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 11.  Set the element attribute to the element number and
-   //      save the data in the visit format.
-   for (int elem = 0; elem < mesh->GetNE(); ++elem)
-   {
-      mesh->GetElement(elem)->SetAttribute(elem + 1);
-   }
-   VisItDataCollection visit_dc("Example1", mesh);
-   visit_dc.RegisterField("solution", &x);
-   visit_dc.Save();
-
-   // 12. Free the used memory.
+   // 11. Free the used memory.
    delete a;
    delete b;
    delete fespace;

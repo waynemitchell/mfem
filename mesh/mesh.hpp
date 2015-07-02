@@ -359,8 +359,15 @@ public:
    void SetAttributes();
 
 #ifdef MFEM_USE_GECKO
+   /** This is our integration with the Gecko library.  This will call the 
+       Gecko library to find an element ordering that will increase memory
+       coherency by putting elements that are in physical proximity closer in
+       memory. */
    void GetGeckoElementReordering(Array<int> &ordering);
 #endif
+
+   /** Rebuilds the mesh with a different order of elements.  The ordering
+       vector maps the old element number to the new element number.  */
    void ReorderElements(const Array<int> &ordering);
 
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into

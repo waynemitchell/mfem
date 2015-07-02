@@ -24,7 +24,7 @@
 #include <ctime>
 
 #ifdef MFEM_USE_GECKO
-#include "../../gecko/inc/graph.h"
+#include "gecko/inc/graph.h"
 #endif
 
 namespace mfem
