@@ -1,16 +1,16 @@
 //                                MFEM Example 9
 //
-// Compile with: make ex9_cvode_rk
+// Compile with: make ex9_sundials
 //
 // Sample runs:
-//    ex9 -m ../data/periodic-segment.mesh -p 0 -r 2 -dt 0.005
-//    ex9 -m ../data/periodic-square.mesh -p 0 -r 2 -dt 0.01 -tf 10
-//    ex9 -m ../data/periodic-hexagon.mesh -p 0 -r 2 -dt 0.01 -tf 10
-//    ex9 -m ../data/periodic-square.mesh -p 1 -r 2 -dt 0.005 -tf 9
-//    ex9 -m ../data/periodic-hexagon.mesh -p 1 -r 2 -dt 0.005 -tf 9
-//    ex9 -m ../data/disc-nurbs.mesh -p 2 -r 3 -dt 0.005 -tf 9
-//    ex9 -m ../data/periodic-square.mesh -p 3 -r 4 -dt 0.0025 -tf 9 -vs 20
-//    ex9 -m ../data/periodic-cube.mesh -p 0 -r 2 -o 2 -dt 0.02 -tf 8
+//    ex9_sundials -m ../data/periodic-segment.mesh -p 0 -r 2 -dt 0.005
+//    ex9_sundials -m ../data/periodic-square.mesh -p 0 -r 2 -dt 0.01 -tf 10
+//    ex9_sundials -m ../data/periodic-hexagon.mesh -p 0 -r 2 -dt 0.01 -tf 10
+//    ex9_sundials -m ../data/periodic-square.mesh -p 1 -r 2 -dt 0.005 -tf 9
+//    ex9_sundials -m ../data/periodic-hexagon.mesh -p 1 -r 2 -dt 0.005 -tf 9
+//    ex9_sundials -m ../data/disc-nurbs.mesh -p 2 -r 3 -dt 0.005 -tf 9
+//    ex9_sundials -m ../data/periodic-square.mesh -p 3 -r 4 -dt 0.0025 -tf 9 -vs 20
+//    ex9_sundials -m ../data/periodic-cube.mesh -p 0 -r 2 -o 2 -dt 0.02 -tf 8
 //
 // Description:  This example code solves the time-dependent advection equation
 //               du/dt = v.grad(u), where v is a given fluid velocity, and
@@ -32,10 +32,9 @@
 #include <stdlib.h>
 #include <math.h>
 
-/* Header files with a description of contents used in cvbanx.c */
+/* Header files with a description of contents used in CVbanx.c */
 
 #include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
-#include <cvode/cvode_band.h>        /* prototype for CVBand */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
 #include <sundials/sundials_band.h>  /* definitions of type DlsMat and macros */
 #include <sundials/sundials_types.h> /* definition of type realtype */
@@ -43,35 +42,11 @@
 
 /* Problem Constants */
 
-//#define XMAX  RCONST(2.0)    /* domain boundaries         */
-//#define YMAX  RCONST(1.0)
-//#define MX    10             /* mesh dimensions           */
-//#define MY    5
-//#define NEQ   MX*MY          /* number of equations       */
-#define NEQ   3072           /* number of equations       */
 #define RTOL  RCONST(1.0e-9) /* scalar absolute tolerance */
 #define ATOL  RCONST(1.0e-12)    /* scalar absolute tolerance */
 #define T0    RCONST(0.0)    /* initial time              */
-#define NOUT  10000            /* number of output times    */
 
 #define ZERO RCONST(0.0)
-//#define HALF RCONST(0.5)
-//#define ONE  RCONST(1.0)
-//#define TWO  RCONST(2.0)
-//#define FIVE RCONST(5.0)
-
-/* User-defined vector access macro IJth */
-
-/* IJth is defined in order to isolate the translation from the
-   mathematical 2-dimensional structure of the dependent variable vector
-   to the underlying 1-dimensional storage. 
-   IJth(vdata,i,j) references the element in the vdata array for
-   u at mesh point (i,j), where 1 <= i <= MX, 1 <= j <= MY.
-   The vdata array is obtained via the macro call vdata = NV_DATA_S(v),
-   where v is an N_Vector. 
-   The variables are ordered by the y index j, then by the x index i. */
-
-#define IJth(vdata,i,j) (vdata[(j-1) + (i-1)*MY])
 
 using namespace std;
 using namespace mfem;
@@ -93,7 +68,6 @@ double inflow_function(Vector &x);
 
 typedef struct {
   TimeDependentOperator* f_op;
-  GridFunction* u;
 } *UserData;
 
 /* Private function to check function return values */
@@ -129,8 +103,6 @@ public:
 
 int main(int argc, char *argv[])
 {
-
-
 
    // 1. Parse command-line options.
    problem = 0;
@@ -294,115 +266,88 @@ int main(int argc, char *argv[])
    //    right-hand side, and perform time-integration (looping over the time
    //    iterations, ti, with a time-step dt).
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
-
-      //Set up ODE part
    
-  cout<<"Testing ODE initialization"<<endl;
-  //goes into init
-  realtype reltol, abstol, tin, tout;
-  long int yin_length;
-  yin_length=u.Size();
-  long int n = adv.Width();
-  cout<<yin_length<<n<<endl;
-  //intial time
-  realtype t = 0.0;
-  realtype *yin, *ydotin;
-  N_Vector y;
-  N_Vector ydot;
-  yin; //= new realtype[yin_length];
-  ydotin= new realtype[yin_length];
-  
-  yin= (realtype*) u.GetData();
- /* for(long int i=0;i<=yin_length;i++)
-  {
-    yin[i]=u.Elem(i);
-  }*/
-  UserData data;
-  void *CVode_mem;
-  int iout, flag;
-  realtype tF=t_final;
-  long int nst;
+   // 9. Initialize the ODE solver
+   //goes into init
+   realtype reltol, abstol, tin, tout;
+   long int yin_length;
+   yin_length=u.Size();
+   long int n = adv.Width();
+   cout<<yin_length<<n<<endl;
+   //intial time
+   realtype t = 0.0;
+   realtype *yin;
+   N_Vector y;
+   yin= u.GetData();
+   UserData data;
+   void *cvode_mem;
+   int iout, flag;
+   realtype tF=t_final;
 
-  y = NULL;
-  ydot = NULL;
-  data = NULL;
-  CVode_mem = NULL;
-  /* Create a serial vector */
+   y = NULL;
+   data = NULL;
+   cvode_mem = NULL;
+   /* Create a serial vector */
 
-  y = N_VMake_Serial(n,yin);  /* Allocate y vector */
-  ydot = N_VMake_Serial(n,ydotin);  /* Allocate y vector */
-  if(check_flag((void*)y, "N_VNew_Serial", 0)) return(1);
-  if(check_flag((void*)ydot, "N_VNew_Serial", 0)) return(1);
+   y = N_VMake_Serial(n,yin);   /* Allocate y vector */
+   if(check_flag((void*)y, "N_VNew_Serial", 0)) return(1);
 
-  reltol = RTOL;  /* Set the tolerances */
-  abstol = ATOL;
+   reltol = RTOL;   /* Set the tolerances */
+   abstol = ATOL;
 
-  data = (UserData) malloc(sizeof *data);  /* Allocate data memory */
-  if(check_flag((void *)data, "malloc", 2)) return(1);
-  
-  TimeDependentOperator *tmp=&adv;
-  data->f_op=tmp;
-  data->u=&u;
+   data = (UserData) malloc(sizeof *data);   /* Allocate data memory */
+   if(check_flag((void *)data, "malloc", 2)) return(1);
+   
+   TimeDependentOperator *tmp=&adv;
+   data->f_op=tmp;
 
-//  cout<<"adv points to:"<<&adv<<endl;
-//  cout<<"tmp points to:"<<&tmp<<endl;
-//  cout<<"data points to:"<<&data<<endl;
-//  cout<<"f_op points to:"<<&(data->f_op)<<endl;
-  /*
-   y.SetSize(n);
-   k.SetSize(n);
-   z.SetSize(n);  */
-  /*f(tin,y,ydot,data);*/
-  /* Call CVodeCreate to create the solver memory and specify the 
-   * Backward Differentiation Formula and the use of a Newton iteration */
-  CVode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
-  if(check_flag((void *)CVode_mem, "CVodeCreate", 0)) return(1);
+   /* Call CVodeCreate to create the solver memory */
+   cvode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
+   if(check_flag((void *)cvode_mem, "CVodeCreate", 0)) return(1);
 
-  /* Call CVodeInit to initialize the integrator memory and specify the
-   * user's right hand side function in u'=f(t,u), the inital time T0, and
-   * the initial dependent variable vector u. */
-  flag = CVodeInit(CVode_mem, f, t, y);
-  if(check_flag(&flag, "CVodeInit", 1)) return(1);
+   /* Call CVodeInit to initialize the integrator memory and specify the
+    * user's right hand side function in u'=f(t,u), the inital time t, and
+    * the initial dependent variable vector y. */
+   flag = CVodeInit(cvode_mem, f, t, y);
+   if(check_flag(&flag, "CVodeInit", 1)) return(1);
 
-/*
-  flag = CVodeSetERKTableNum(CVode_mem, 3);
-  if(check_flag(&flag, "CVodeSetERKTableNum", 1)) return(1);
-*/
-  /* Call CVodeSStolerances to specify the scalar relative tolerance
-   * and scalar absolute tolerance */
-  flag = CVodeSStolerances(CVode_mem, reltol, abstol);
-  if (check_flag(&flag, "CVodeSStolerances", 1)) return(1);
+   /* Call CVodeSStolerances to specify the scalar relative tolerance
+    * and scalar absolute tolerance */
+   flag = CVodeSStolerances(cvode_mem, reltol, abstol);
+   if (check_flag(&flag, "CVodeSStolerances", 1)) return(1);
 
-  /* Set the pointer to user-defined data */
-  flag = CVodeSetUserData(CVode_mem, data);
-  if(check_flag(&flag, "CVodeSetUserData", 1)) return(1);
+   /* Set the pointer to user-defined data */
+   flag = CVodeSetUserData(cvode_mem, data);
+   if(check_flag(&flag, "CVodeSetUserData", 1)) return(1);
 
   /* Set the initial step size */
-/*  flag = CVodeSetFixedStep(CVode_mem, dt);
+/*  flag = CVodeSetFixedStep(cvode_mem, dt);
   if(check_flag(&flag, "CVodeSetInitStep", 1)) return(1);
 */
   /* Set the minimum step size*/
 /*  Since CVode has no fixed step, if you require too big of a minimum step, accuracy concerns stop the solver. */
 /*
-  flag = CVodeSetMinStep(CVode_mem, dt);
+  flag = CVodeSetMinStep(cvode_mem, dt);
   if(check_flag(&flag, "CVodeSetMinStep", 1)) return(1);
 */
   /* Set the maximum step size */
-  flag = CVodeSetMaxStep(CVode_mem, dt);
+  flag = CVodeSetMaxStep(cvode_mem, dt);
   if(check_flag(&flag, "CVodeSetMaxStep", 1)) return(1);
 
-  flag = CVodeSetStopTime(CVode_mem, tF);
+  flag = CVodeSetStopTime(cvode_mem, tF);
   if(check_flag(&flag, "CVodeSetStopTime", 1)) return(1);
+  
+   // 10. Loop over integration
+   cout<<"tF before integration: "<<tF<<"\ntout, t before integration"<<tout<<"\n"<<t<<endl;
+   for(iout=1, tout=dt; tout-1e-9<=tF; iout++, tout += dt) {
+      flag = CVode(cvode_mem, tout, y, &t, CV_ONE_STEP);
+//      flag = CVode(cvode_mem, tout, y, &t, CV_NORMAL);
+      if(check_flag(&flag, "CVode", 1)) break;
 
-  for(iout=1, tout=dt; (iout <= NOUT)&& tout<=tF; iout++, tout += dt) {
-//    flag = CVode(CVode_mem, tout, y, &t, CV_ONE_STEP);
-    flag = CVode(CVode_mem, tout, y, &t, CV_NORMAL);
-    if(check_flag(&flag, "CVode", 1)) break;
+      u.SetData(NV_DATA_S(y));
 
-    u.SetData(NV_DATA_S(y));
-
-    int ti=iout;
-    if (ti % vis_steps == 0)
+      int ti=iout;
+      if (ti % vis_steps == 0)
       {
          cout << "time step: " << ti << ", time: " << t << endl;
 
@@ -414,11 +359,13 @@ int main(int argc, char *argv[])
             visit_dc.SetCycle(ti);
             visit_dc.SetTime(t);
             visit_dc.Save();
-         }
-      }
-  }
+         } //end if visit
+      } //end if visualization step
+  } //end for over integrating
+  
+  cout<<"tF after integration: "<<tF<<"\ntout, t after integration: "<<tout<<"\n"<<t<<endl;
 
-/*
+/* Consider changing structure of for loop back to this:
    for (int ti = 0; true; )
    {
       if (t >= t_final - dt/2)
@@ -445,15 +392,48 @@ int main(int argc, char *argv[])
       
    }
 */
-   // 9. Save the final solution. This output can be viewed later using GLVis:
-   //    "glvis -m ex9.mesh -g ex9-final.gf".
+   // 11. Save the final solution. This output can be viewed later using GLVis:
+   //    "glvis -m ex9.mesh -g ex9_sundials-final.gf".
    {
-      ofstream osol("ex9_cvode_rk-final.gf");
+      ofstream osol("ex9_sundials-final.gf");
       osol.precision(precision);
       u.Save(osol);
    }
+   
+   // 12. Print solver statistics.
+   long int nst, nst_a, nf, nsetups, nje, nfeLS, nni, ncfn, netf;
+   /* Get/print some final statistics on how the solve progressed */
+   flag = CVodeGetNumSteps(cvode_mem, &nst);
+   check_flag(&flag, "CVodeGetNumSteps", 1);
+   
+   flag = CVodeGetNumRhsEvals(cvode_mem, &nf);
+   check_flag(&flag, "CVodeGetNumRhsEvals", 1);
+   /*
+   flag = CVodeGetNumLinSolvSetups(cvode_mem, &nsetups);
+   check_flag(&flag, "CVodeGetNumLinSolvSetups", 1);
+   */
+   flag = CVodeGetNumErrTestFails(cvode_mem, &netf);
+   check_flag(&flag, "CVodeGetNumErrTestFails", 1);
+   /*
+   flag = CVodeGetNumNonlinSolvIters(cvode_mem, &nni);
+   check_flag(&flag, "CVodeGetNumNonlinSolvIters", 1);
+   flag = CVodeGetNumNonlinSolvConvFails(cvode_mem, &ncfn);
+   check_flag(&flag, "CVodeGetNumNonlinSolvConvFails", 1);
+   flag = CVDlsGetNumJacEvals(cvode_mem, &nje);
+   check_flag(&flag, "CVDlsGetNumJacEvals", 1);
+   flag = CVDlsGetNumRhsEvals(cvode_mem, &nfeLS);
+   check_flag(&flag, "CVDlsGetNumRhsEvals", 1);
+   */
+   
+   printf("\nFinal Solver Statistics:\n");
+   printf("    Internal solver steps = %li (attempted = %li)\n", nst, nst_a);
+   printf("    Total RHS evals:   F = %li\n", nf);
+   printf("    Total number of error test failures = %li\n\n", netf);
 
-   // 10. Free the used memory.
+   // 13. Free the used memory.
+   /* Clean up and return with successful completion */
+   N_VDestroy_Serial(y);       /* Free y vector */
+   CVodeFree(&cvode_mem);   /* Free integrator memory */   
    delete mesh;
 
    return 0;
@@ -480,8 +460,6 @@ void FE_Evolution::Mult(const Vector &x, Vector &y) const
    K.Mult(x, z);
    z += b;
    M_solver.Mult(z, y);
-//   cout<<(x.Size())<<endl;
-//   cout<<(y.Size())<<endl;
 }
 
 static int f(realtype t, N_Vector y, N_Vector ydot,void *user_data)
@@ -494,42 +472,22 @@ static int f(realtype t, N_Vector y, N_Vector ydot,void *user_data)
   //ydata is now a pointer to the realtype data array in y
   ydata = NV_DATA_S(y);
   ylen = NV_LENGTH_S(y);
+  
   // probably unnecessary, since overwriting ydot as output
   //ydotdata is now a pointer to the realtype data array in ydot
   ydotdata = NV_DATA_S(ydot);
   ydotlen = NV_LENGTH_S(ydot);
-//  cout<<"ydotdata points to:"<<&ydotdata<<endl;
-//  cout<<"ydata points to:"<<&ydata<<endl;
-//  cout<<"user_data points to:"<<&user_data<<endl;
   
   //f_op is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
   TimeDependentOperator* f_op = udata->f_op;
   
-  //f_op is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
-  Vector* u = udata->u;
-  
   // Eventually add these MFEM Vectors to UserData struct
   // Creates mfem vectors with pointers to the data array in y and in ydot respectively
   // Have not explicitly set as owndata, so allocated size is -size
-  u->SetData((double*) ydata);
+  Vector mfem_vector_y((double*) ydata, ylen);
   Vector mfem_vector_ydot((double*) ydotdata, ydotlen);
-//  cout<<"ydotdata points to:"<<&ydotdata<<endl;
-//  cout<<"ydata points to:"<<&ydata<<endl;
-//  cout<<"mfem_vector_ydot.GetData points to:"<<(mfem_vector_ydot.GetData)<<endl;
-//  cout<<"f_op points to:"<<&f_op<<endl;
   f_op->SetTime(t);
-  f_op->Mult(*u,mfem_vector_ydot);
-  //Extract pointer to data portion of mfem version of ydot Vector
-  /*long int n=mfem_vector_ydot.Size();
-  for(long int i=0;i<=n;i++)
-  {
-    ydotdata[i]=mfem_vector_ydot.Elem(i);
-  }
-  NV_DATA_S(ydot)=ydotdata;*/
-  /*
-  cout<<"ydotdata points to:"<<&ydotdata<<endl;
-  cout<<"ydata points to:"<<&ydata<<endl;*/
-//  cout<<"mfem_vector_ydot.GetData points to:"<<(mfem_vector_ydot.GetData)<<endl;
+  f_op->Mult(mfem_vector_y,mfem_vector_ydot);
 
   return(0);
 }
