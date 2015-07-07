@@ -24,7 +24,7 @@
 #include <ctime>
 
 #ifdef MFEM_USE_GECKO
-#include "gecko/inc/graph.h"
+#include "graph.h"
 #endif
 
 namespace mfem
@@ -1094,12 +1094,12 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
 void Mesh::ReorderElements(const Array<int> &ordering)
 {
    //We will need both the forward and inverse permutation vectors to make the Tables
-   Array<int> inv_ordering(GetNE());
-   for (int old_elid = 0; old_elid < GetNE(); ++old_elid)
-   {
-      int new_elid = ordering[old_elid];
-      inv_ordering[new_elid] = old_elid;
-   }
+   //Array<int> inv_ordering(GetNE());
+   //for (int old_elid = 0; old_elid < GetNE(); ++old_elid)
+  // {
+   //   int new_elid = ordering[old_elid];
+   //   inv_ordering[new_elid] = old_elid;
+  // }
 
    //Get the newly ordered elements
    Array<Element *> new_elements(GetNE());
@@ -1119,7 +1119,6 @@ void Mesh::ReorderElements(const Array<int> &ordering)
    //Get the new vertex ordering permutation vectors and fill the new vertices
    Array<int> vertex_ordering(GetNV());
    vertex_ordering = -1;
-   Array<int> inv_vertex_ordering(GetNV());
    Array<Vertex> new_vertices(GetNV());
    int new_vertex_ind = 0;
    for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
@@ -1130,7 +1129,6 @@ void Mesh::ReorderElements(const Array<int> &ordering)
          if (vertex_ordering[old_vertex_ind] == -1)
          {
             vertex_ordering[old_vertex_ind] = new_vertex_ind;
-            inv_vertex_ordering[new_vertex_ind] = old_vertex_ind;
             new_vertices[new_vertex_ind].SetCoords(vertices[old_vertex_ind]());
             new_vertex_ind++;
          }
@@ -1160,23 +1158,21 @@ void Mesh::ReorderElements(const Array<int> &ordering)
       new_boundary[belid]->SetVertices(vert_ids.GetData());
    }
 
-   //Reorder the Nodes since the element order changed
+   //Save the locations of the Nodes so we can rebuild them later
+   Array<Vector*> old_elem_node_vals;
+   FiniteElementSpace *nodes_fes = NULL;
    if (Nodes)
    {
-      FiniteElementSpace *fes = Nodes->FESpace();
-      GridFunction *new_Nodes = new GridFunction(fes);
-      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      old_elem_node_vals.SetSize(GetNE());
+      nodes_fes = Nodes->FESpace();
+      Array<int> old_dofs;
+      Vector vals;
+      for (int old_elid = 0; old_elid < GetNE(); ++old_elid)
       {
-         int old_elid = inv_ordering[new_elid];
-         Array<int> old_dofs, new_dofs;
-         Vector vals;
-         fes->GetElementVDofs(old_elid, old_dofs);
-         fes->GetElementVDofs(new_elid, new_dofs);
+         nodes_fes->GetElementVDofs(old_elid, old_dofs);
          Nodes->GetSubVector(old_dofs, vals);
-         new_Nodes->SetSubVector(new_dofs, vals);
+         old_elem_node_vals[old_elid] = new Vector(vals);
       }
-      delete Nodes;
-      Nodes = new_Nodes;
    }
 
    bool had_el_to_edge = (el_to_edge != NULL);
@@ -1241,6 +1237,20 @@ void Mesh::ReorderElements(const Array<int> &ordering)
    else if (type == Element::QUADRILATERAL)
    {
       FinalizeQuadMesh(generate_edges, refine, fix_orientation);
+   }
+
+   //Build the nodes from the saved locations if they were around before
+   if (nodes_fes)
+   {
+      Nodes = new GridFunction(nodes_fes);
+      Array<int> new_dofs;
+      for (int old_elid = 0; old_elid < GetNE(); ++old_elid)
+      {
+         int new_elid = ordering[old_elid];
+         nodes_fes->GetElementVDofs(new_elid, new_dofs);
+         Nodes->SetSubVector(new_dofs, *(old_elem_node_vals[old_elid]));
+         delete old_elem_node_vals[old_elid];
+      }
    }
 }
 
