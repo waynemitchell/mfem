@@ -35,7 +35,6 @@
 /* Header files with a description of contents used in ARKbanx.c */
 
 #include <arkode/arkode.h>             /* prototypes for ARKODE fcts., consts. */
-#include <arkode/arkode_band.h>        /* prototype for ARKBand */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
 #include <sundials/sundials_band.h>  /* definitions of type DlsMat and macros */
 #include <sundials/sundials_types.h> /* definition of type realtype */
@@ -69,7 +68,6 @@ double inflow_function(Vector &x);
 
 typedef struct {
   TimeDependentOperator* f_op;
-  GridFunction* u;
 } *UserData;
 
 /* Private function to check function return values */
@@ -278,30 +276,21 @@ int main(int argc, char *argv[])
    cout<<yin_length<<n<<endl;
    //intial time
    realtype t = 0.0;
-   realtype *yin, *ydotin;
+   realtype *yin;
    N_Vector y;
-   N_Vector ydot;
-   yin= new realtype[yin_length];
-   ydotin= new realtype[yin_length];
-   for(long int i=0;i<=yin_length;i++)
-   {
-      yin[i]=u.Elem(i);
-   }
+   yin= u.GetData();
    UserData data;
    void *arkode_mem;
    int iout, flag;
    realtype tF=t_final;
 
    y = NULL;
-   ydot = NULL;
    data = NULL;
    arkode_mem = NULL;
    /* Create a serial vector */
 
    y = N_VMake_Serial(n,yin);   /* Allocate y vector */
-   ydot = N_VMake_Serial(n,ydotin);   /* Allocate y vector */
    if(check_flag((void*)y, "N_VNew_Serial", 0)) return(1);
-   if(check_flag((void*)ydot, "N_VNew_Serial", 0)) return(1);
 
    reltol = RTOL;   /* Set the tolerances */
    abstol = ATOL;
@@ -311,7 +300,6 @@ int main(int argc, char *argv[])
    
    TimeDependentOperator *tmp=&adv;
    data->f_op=tmp;
-   data->u=&u;
 
    /* Call ARKodeCreate to create the solver memory */
    arkode_mem=ARKodeCreate();
@@ -380,7 +368,7 @@ int main(int argc, char *argv[])
       } //end if visualization step
   } //end for over integrating
   
-  cout<<"tF after integration: "<<tF<<"\ntout, t after integration"<<tout<<"\n"<<t<<endl;
+  cout<<"tF after integration: "<<tF<<"\ntout, t after integration: "<<tout<<"\n"<<t<<endl;
 
 /* Consider changing structure of for loop back to this:
    for (int ti = 0; true; )
@@ -451,7 +439,6 @@ int main(int argc, char *argv[])
    // 13. Free the used memory.
    /* Clean up and return with successful completion */
    N_VDestroy_Serial(y);       /* Free y vector */
-   N_VDestroy_Serial(ydot);       /* Free y vector */
    ARKodeFree(&arkode_mem);   /* Free integrator memory */   
    delete mesh;
 
@@ -479,8 +466,6 @@ void FE_Evolution::Mult(const Vector &x, Vector &y) const
    K.Mult(x, z);
    z += b;
    M_solver.Mult(z, y);
-//   cout<<(x.Size())<<endl;
-//   cout<<(y.Size())<<endl;
 }
 
 static int f(realtype t, N_Vector y, N_Vector ydot,void *user_data)
@@ -493,42 +478,22 @@ static int f(realtype t, N_Vector y, N_Vector ydot,void *user_data)
   //ydata is now a pointer to the realtype data array in y
   ydata = NV_DATA_S(y);
   ylen = NV_LENGTH_S(y);
+  
   // probably unnecessary, since overwriting ydot as output
   //ydotdata is now a pointer to the realtype data array in ydot
   ydotdata = NV_DATA_S(ydot);
   ydotlen = NV_LENGTH_S(ydot);
-//  cout<<"ydotdata points to:"<<&ydotdata<<endl;
-//  cout<<"ydata points to:"<<&ydata<<endl;
-//  cout<<"user_data points to:"<<&user_data<<endl;
   
   //f_op is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
   TimeDependentOperator* f_op = udata->f_op;
   
-  //f_op is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
-  Vector* u = udata->u;
-  
   // Eventually add these MFEM Vectors to UserData struct
   // Creates mfem vectors with pointers to the data array in y and in ydot respectively
   // Have not explicitly set as owndata, so allocated size is -size
-  u->SetData((double*) ydata);
+  Vector mfem_vector_y((double*) ydata, ylen);
   Vector mfem_vector_ydot((double*) ydotdata, ydotlen);
-//  cout<<"ydotdata points to:"<<&ydotdata<<endl;
-//  cout<<"ydata points to:"<<&ydata<<endl;
-//  cout<<"mfem_vector_ydot.GetData points to:"<<(mfem_vector_ydot.GetData)<<endl;
-//  cout<<"f_op points to:"<<&f_op<<endl;
   f_op->SetTime(t);
-  f_op->Mult(*u,mfem_vector_ydot);
-  //Extract pointer to data portion of mfem version of ydot Vector
-  long int n=mfem_vector_ydot.Size();
-  for(long int i=0;i<=n;i++)
-  {
-    ydotdata[i]=mfem_vector_ydot.Elem(i);
-  }
-  NV_DATA_S(ydot)=ydotdata;
-  /*
-  cout<<"ydotdata points to:"<<&ydotdata<<endl;
-  cout<<"ydata points to:"<<&ydata<<endl;*/
-//  cout<<"mfem_vector_ydot.GetData points to:"<<(mfem_vector_ydot.GetData)<<endl;
+  f_op->Mult(mfem_vector_y,mfem_vector_ydot);
 
   return(0);
 }
