@@ -344,7 +344,7 @@ int main(int argc, char *argv[])
 */
    // 10. Loop over integration
    cout<<"tF before integration: "<<tF<<"\ntout, t before integration"<<tout<<"\n"<<t<<endl;
-   for(iout=1, tout=dt; tout-1e-9<=tF; iout++, tout += dt) {
+   for(iout=1, tout=dt; tout<tF+dt/2; iout++, tout = t + dt) {
       flag = ARKode(arkode_mem, tout, y, &t, ARK_ONE_STEP);
 //      flag = ARKode(arkode_mem, tout, y, &t, ARK_NORMAL);
       if(check_flag(&flag, "ARKode", 1)) break;
