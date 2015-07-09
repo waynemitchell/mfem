@@ -25,11 +25,13 @@
 
 /* Problem Constants */
 
-#define RTOL  RCONST(1.0e-9) /* scalar absolute tolerance */
-#define ATOL  RCONST(1.0e-12)    /* scalar absolute tolerance */
+#define RTOL  RCONST(1.0e-3) /* scalar absolute tolerance */
+#define ATOL  RCONST(1.0e-6)    /* scalar absolute tolerance */
 #define T0    RCONST(0.0)    /* initial time              */
 
 #define ZERO RCONST(0.0)
+
+//#define ASSUME_LIMITS 1
 
 using namespace std;
 
@@ -91,6 +93,11 @@ namespace mfem
 
    }
    
+   void CVODESolver::SetStopTime(double tf)
+   {
+     CVodeSetStopTime(ode_mem, tf);
+   }
+   
    void CVODESolver::SetIC(Vector &x, double&t, double&dt)
    {
    int flag=0;
@@ -106,8 +113,10 @@ namespace mfem
 //   if(check_flag(&flag, "CVodeSetMinStep", 1)) return;
 
    /* Set the maximum step size */
+   #ifdef ASSUME_LIMITS
    flag = CVodeSetMaxStep(ode_mem, dt);
    if(check_flag(&flag, "CVodeSetMaxStep", 1)) return;
+   #endif
    PtrToStep=&CVODESolver::GetY;
    }
    
@@ -125,13 +134,11 @@ namespace mfem
    (this->*PtrToStep)(x,t,dt);
    
    //Step
-/*   cout<<"t="<<t<<"tout="<<tout<<endl;*/
-//   flag = CVode(ode_mem, tout, y, &t, CV_ONE_STEP);
    flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
-   if(check_flag(&flag, "CVode", 1)) return;   
-/*   cout<<"t="<<t<<"tout="<<tout<<endl;*/
-//   x.SetData(NV_DATA_S(y));
+   if(check_flag(&flag, "CVode", 1)) return;
     return;
+   flag = CVodeGetLastStep(ode_mem, &dt);
+      if(check_flag(&flag, "CVodeGetLastStep", 1)) return;
    }
    
    CVODESolver::~CVODESolver()
@@ -184,11 +191,13 @@ namespace mfem
     * the initial dependent variable vector y. */
    flag = ARKodeInit(ode_mem, sun_f_fun, NULL, t, y);
    if(check_flag(&flag, "ARKodeInit", 1)) return;
-
+   
+   #ifdef ASSUME_LIMITS
    /* Call ARKodeSetERKTableNum to compare directly with method integration
     * in MFEM example 9. */
    flag = ARKodeSetERKTableNum(ode_mem, 3);
    if(check_flag(&flag, "ARKodeSetERKTableNum", 1)) return;
+   #endif
 
    /* Call ARKodeSStolerances to specify the scalar relative tolerance
     * and scalar absolute tolerance */
@@ -199,10 +208,11 @@ namespace mfem
    flag = ARKodeSetUserData(ode_mem, data);
    if(check_flag(&flag, "ARKodeSetUserData", 1)) return;
 
-/*
-   flag = ARKodeSetStopTime(ode_mem, tF+1e-9);
-   if(check_flag(&flag, "ARKodeSetStopTime", 1)) return;
-*/
+   }
+   
+   void ARKODESolver::SetStopTime(double tf)
+   {
+     ARKodeSetStopTime(ode_mem, tf);
    }
    
    void ARKODESolver::SetIC(Vector &x, double&t, double&dt)
@@ -213,20 +223,23 @@ namespace mfem
    yin=NULL;
    NV_DATA_S(y)= x.GetData();
    flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, t, y);
-   
+
+   #ifdef ASSUME_LIMITS   
    if(step_type==ARK_ONE_STEP)
    {
      flag = ARKodeSetFixedStep(ode_mem, dt);
      if(check_flag(&flag, "ARKodeSetInitStep", 1)) return;
    }
+   #endif
    
    /* Set the minimum step size */
 //   flag = ARKodeSetMinStep(ode_mem, dt);
 //   if(check_flag(&flag, "ARKodeSetMinStep", 1)) return;
-
+   #ifdef ASSUME_LIMITS
    /* Set the maximum step size */
    flag = ARKodeSetMaxStep(ode_mem, dt);
    if(check_flag(&flag, "ARKodeSetMaxStep", 1)) return;
+   #endif
    PtrToStep=&ARKODESolver::GetY;
    }
    
@@ -247,13 +260,10 @@ namespace mfem
    flag = ARKode(ode_mem, tout, y, &t, step_type);
    if(check_flag(&flag, "ARKode", 1)) return;   
 //   x.SetData(NV_DATA_S(y));
+   flag = ARKodeGetLastStep(ode_mem, &dt);
+      if(check_flag(&flag, "ARKodeGetLastStep", 1)) return;
     return;
    }
-
-   void ARKODESolver::SetStepType(int _step_type)
-   {
-     step_type=_step_type;
-   }   
    
    ARKODESolver::~ARKODESolver()
    {
@@ -269,6 +279,7 @@ namespace mfem
   { 
    y = NULL;
    f = NULL;
+   step_type=CV_NORMAL;
    PtrToStep=&SunODESolver::SetIC;
 
    data = (UserData) malloc(sizeof *data);   /* Allocate data memory */
@@ -316,6 +327,11 @@ namespace mfem
 
    }
    
+   void SunODESolver::SetStopTime(double tf)
+   {
+     CVodeSetStopTime(ode_mem, tf);
+   }
+   
    void SunODESolver::SetIC(Vector &x, double&t, double&dt)
    {
    int flag=0;
@@ -325,14 +341,15 @@ namespace mfem
    NV_DATA_S(y)= x.GetData();
    flag = CVodeReInit(ode_mem, t, y);       
    
-   
-   /* Set the minimum step size */
+   #ifdef ASSUME_LIMITS
+      /* Set the minimum step size */
 //   flag = CVodeSetMinStep(ode_mem, dt);
 //   if(check_flag(&flag, "CVodeSetMinStep", 1)) return;
 
    /* Set the maximum step size */
    flag = CVodeSetMaxStep(ode_mem, dt);
    if(check_flag(&flag, "CVodeSetMaxStep", 1)) return;
+   #endif
    PtrToStep=&SunODESolver::GetY;
    }
    
@@ -344,40 +361,37 @@ namespace mfem
    void SunODESolver::Step(Vector &x, double &t, double &dt)
    {
    int flag=0;
-/*   cout<<"dt="<<dt<<endl;*/
    realtype tout=t+dt;
 
    (this->*PtrToStep)(x,t,dt);
    
    //Step
-/*   cout<<"t="<<t<<"tout="<<tout<<endl;*/
-//   flag = CVode(ode_mem, tout, y, &t, CV_ONE_STEP);
    flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
-   if(check_flag(&flag, "CVode", 1)) return;   
-/*   cout<<"t="<<t<<"tout="<<tout<<endl;*/
-//   x.SetData(NV_DATA_S(y));
+   if(check_flag(&flag, "CVode", 1)) return;
+      flag = CVodeGetLastStep(ode_mem, &dt);
+      if(check_flag(&flag, "CVodeGetLastStep", 1)) return;
     return;
    }
-   /*
+   
    SunODESolver::~SunODESolver()
    {
    // Free the used memory.
    // Clean up and return with successful completion 
    if(NV_OWN_DATA_S(y)==true)
-   N_VDestroy_Serial(y);       /* Free y vector 
+   N_VDestroy_Serial(y);       /* Free y vector */
    if(ode_mem!=NULL)
-   CVodeFree(&ode_mem);   /* Free integrator memory 
+   CVodeFree(&ode_mem);   /* Free integrator memory */
    }
-*/
+
+   void SunODESolver::SetStepType(int _step_type)
+   {
+     step_type=_step_type;
+   }
+
    TimeDependentOperator* SunODESolver::GetFOperator()
    {
      return f;
    }
-
-   /*int f(realtype t, N_Vector y, N_Vector ydot, void *user_data)
-   {
-    return 5;
-   }*/
 
 /* Check function return value...
      opt == 0 means SUNDIALS function allocates memory so check if
@@ -438,40 +452,20 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
   //ydotdata is now a pointer to the realtype data array in ydot
   ydotdata = NV_DATA_S(ydot);
   ydotlen = NV_LENGTH_S(ydot);
-//  cout<<"ydotdata points to:"<<&ydotdata<<endl;
-//  cout<<"ydata points to:"<<&ydata<<endl;
-//  cout<<"user_data points to:"<<&user_data<<endl;
   
   //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
   mfem::TimeDependentOperator* f_op = udata->f_op;
-  
-  //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
+
+//if gridfunction information necessary for Mult, keep Vector in userdata
 //  Vector* u = udata->u;
-  
-  // Eventually add these MFEM Vectors to UserData struct
+//  u->SetData((double*) ydata);
   // Creates mfem vectors with pointers to the data array in y and in ydot respectively
   // Have not explicitly set as owndata, so allocated size is -size
-//  u->SetData((double*) ydata);
   mfem::Vector mfem_vector_y((double*) ydata, ylen);
   mfem::Vector mfem_vector_ydot((double*) ydotdata, ydotlen);
-//  cout<<"ydotdata points to:"<<&ydotdata<<endl;
-//  cout<<"ydata points to:"<<&ydata<<endl;
-//  cout<<"mfem_vector_ydot.GetData points to:"<<(mfem_vector_ydot.GetData)<<endl;
-//  cout<<"f points to:"<<&f<<endl;
+
   f_op->SetTime(t);
   f_op->Mult(mfem_vector_y,mfem_vector_ydot);
-  //Extract pointer to data portion of mfem version of ydot Vector
-  /*
-  long int n=mfem_vector_ydot.Size();
-  for(long int i=0;i<=n;i++)
-  {
-    ydotdata[i]=mfem_vector_ydot.Elem(i);
-  }
-  NV_DATA_S(ydot)=ydotdata;*/
-  /*
-  cout<<"ydotdata points to:"<<&ydotdata<<endl;
-  cout<<"ydata points to:"<<&ydata<<endl;*/
-//  cout<<"mfem_vector_ydot.GetData points to:"<<(mfem_vector_ydot.GetData)<<endl;
 
   return(0);
 }

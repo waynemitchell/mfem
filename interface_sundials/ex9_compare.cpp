@@ -136,6 +136,7 @@ int main(int argc, char *argv[])
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
    ODESolver *ode_solver = NULL;
+   ODESolver *ref_ode_solver = new RK4Solver;
    ARKODESolver *tmp_ptr = new ARKODESolver;
    switch (ode_solver_type)
    {
@@ -147,7 +148,7 @@ int main(int argc, char *argv[])
    case 10: ode_solver = new SunODESolver; break;
    case 11: ode_solver = new CVODESolver; break;
    case 12: ode_solver = new ARKODESolver; break;
-   case 13: tmp_ptr->SetStepType(ARK_ONE_STEP); 
+   case 13: tmp_ptr->SetStepType(ARK_ONE_STEP);  tmp_ptr->SetStopTime(t_final);
             ode_solver = tmp_ptr; tmp_ptr=NULL; break;
    default:
       cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
@@ -257,42 +258,138 @@ int main(int argc, char *argv[])
    //    iterations, ti, with a time-step dt).
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
    ode_solver->Init(adv);
+   ref_ode_solver->Init(adv);
    
-   double t = 0.0;
-   for (int ti = 0; true; )
+   GridFunction ref_u(&fes);
+   ref_u.ProjectCoefficient(u0); //Assume copy constructor properly defined
+
+   double ref_t = 0.0;
+   double ref_dt=min(max(dt*dt*dt*dt,dt/100),dt/10);
+   int ti = 0;
+   for (ti = 0; true; )
    {
-      if (t >= t_final - dt/2)
+      if (ref_t >= t_final - ref_dt/2)
          break;
 
-      ode_solver->Step(u, t, dt);
+      ref_ode_solver->Step(ref_u, ref_t, ref_dt);
       ti++;
 
       if (ti % vis_steps == 0)
       {
-         cout << "time step: " << ti << ", time: " << t << endl;
+         cout << "time step: " << ti << ", time: " << ref_t << endl;
 
          if (visualization)
-            sout << "solution\n" << *mesh << u << flush;
+            sout << "solution\n" << *mesh << ref_u << flush;
 
          if (visit)
          {
             visit_dc.SetCycle(ti);
-            visit_dc.SetTime(t);
+            visit_dc.SetTime(ref_t);
             visit_dc.Save();
          }
       }
    }
+   
+   double t = 0.0;
+   //If necessary, add this 
+   int max_steps=10000;
+   double time_step_history[max_steps];
+   if (ode_solver_type<10)
+   {
+     for (ti = 0; true; )
+     {
+        if (t >= t_final - dt/2)
+           break;
+
+        ode_solver->Step(u, t, dt);
+        ti++;
+
+        if (ti % vis_steps == 0)
+        {
+           cout << "time step: " << ti << ", time: " << t << endl;
+
+           if (visualization)
+              sout << "solution\n" << *mesh << u << flush;
+
+           if (visit)
+           {
+              visit_dc.SetCycle(ti);
+              visit_dc.SetTime(t);
+              visit_dc.Save();
+           }
+        }
+     }
+   }
+   else if (ode_solver_type==13)
+   {
+     for (ti = 0; true; )
+     {
+        if (t >= t_final - dt/2)
+           break;
+
+        ode_solver->Step(u, t, dt);
+        time_step_history[ti]=dt;
+        ti++;
+
+        if (ti % vis_steps == 0)
+        {
+           cout << "time step: " << ti << ", time: " << t << endl;
+
+           if (visualization)
+              sout << "solution\n" << *mesh << u << flush;
+
+           if (visit)
+           {
+              visit_dc.SetCycle(ti);
+              visit_dc.SetTime(t);
+              visit_dc.Save();
+           }
+        }
+     }
+     
+     //write to file
+     ofstream out("time_step_history.txt");
+     for(int i=0; i<ti;i++)
+        out<<time_step_history[i]<<endl;     
+     
+   }
+   else
+   {
+      //Integrate as one big step
+     dt = t_final;
+     ode_solver->Step(u, t, dt);
+   }
 
    // 9. Save the final solution. This output can be viewed later using GLVis:
-   //    "glvis -m ex9.mesh -g ex9_stripped-final.gf".
+   //    "glvis -m ex9.mesh -g ex9-final.gf".
    {
       ofstream osol("ex9_stripped-final.gf");
       osol.precision(precision);
       u.Save(osol);
    }
    
+   // 9. Save the final ref solution. This output can be viewed later using GLVis:
+   //    "glvis -m ex9.mesh -g ex9_stripped_ref-final.gf".
+   {
+      ofstream r_osol("ex9_stripped_ref-final.gf");
+      r_osol.precision(precision);
+      ref_u.Save(r_osol);
+   }
+   
+   cout<<"Distance from reference MFEM RK4 integrator: "<<(u.DistanceTo(ref_u.GetData()))<<endl;
+   
+   // 9. Save the final ref error solution. This output can be viewed later using GLVis:
+   //    "glvis -m ex9.mesh -g ex9_stripped_ref_err-final.gf".
+   {
+      ref_u-=u;
+      ofstream e_osol("ex9_stripped_ref_err-final.gf");
+      e_osol.precision(precision);
+      ref_u.Save(e_osol);
+   }
+   
    // 10. Free the used memory.
    delete ode_solver;
+   delete ref_ode_solver;
    delete mesh;
 
    return 0;

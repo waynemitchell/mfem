@@ -36,6 +36,7 @@ protected:
    UserData data;
    N_Vector y;   
    void* ode_mem;
+   int step_type;
 
 public:
    SunODESolver();
@@ -50,9 +51,13 @@ public:
 
    TimeDependentOperator* GetFOperator();
    
+   void SetStepType(int);
+   
+   void SetStopTime(double);
+   
    void (SunODESolver::*PtrToStep)(Vector &, double&, double&);
  
-//   ~SunODESolver();
+   ~SunODESolver();
 
 /* Private function to check function return values */
 
@@ -81,6 +86,8 @@ public:
    
    void GetY(Vector &, double&, double&);
    
+   void SetStopTime(double);
+
    void (CVODESolver::*PtrToStep)(Vector &, double&, double&);
 
    ~CVODESolver();
@@ -100,8 +107,6 @@ protected:
    N_Vector y;   
    void* ode_mem;
 */
-protected:
-   int step_type;
    
 public:
    ARKODESolver();
@@ -114,9 +119,9 @@ public:
    
    void GetY(Vector &, double&, double&);
    
+   void SetStopTime(double);
+
    void (ARKODESolver::*PtrToStep)(Vector &, double&, double&);
-   
-   void SetStepType(int);
 
    ~ARKODESolver();
 

@@ -71,7 +71,7 @@ OBJECTS_DEPENDENCIES = ${EXAMPLES_DEPENDENCIES:=.o}
 
 # -----------------------------------------------------------------------------------------
 
-all: ${OBJECTS} ex9_sundials ex9_arkode_rk ex9_mfem_rk ex9_stripped
+all: ${OBJECTS} ex9_stripped ex9_compare ex9_sundials ex9_arkode_rk ex9_mfem_rk
 	@for i in ${EXAMPLES} ; do \
 	  echo "${CC} -o $${i} $${i}.o ${OBJECTS_DEPENDENCIES} ${CFLAGS} ${LDFLAGS} ${INCLUDES} -L${libdir} ${LIBRARIES} ${LINKFLAGS}" ; \
 	  ${CC} -o $${i} $${i}.o ${OBJECTS_DEPENDENCIES} ${CFLAGS} ${LDFLAGS} ${INCLUDES} -L${libdir} ${LIBRARIES} ${LINKFLAGS} ; \
@@ -88,7 +88,7 @@ clean:
 	rm -f ${OBJECTS}
 	rm -f ${EXAMPLES}
 	rm -f ex9.mesh ex9-mesh.* ex9-init.* ex9-final.*
-	rm -f ex9 ex9_sundials ex9_cvode_euler ex9_mfem_euler ex9_arkode_rk ex9_mfem_rk ex9_stripped
+	rm -f ex9 ex9_sundials ex9_cvode_euler ex9_mfem_euler ex9_arkode_rk ex9_mfem_rk ex9_compare ex9_stripped
 # -----------------------------------------------------------------------------------------
 
 
