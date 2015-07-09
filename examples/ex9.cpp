@@ -28,6 +28,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include "../linalg/sundials.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -142,6 +143,9 @@ int main(int argc, char *argv[])
       case 3: ode_solver = new RK3SSPSolver; break;
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
+      case 11: ode_solver = new CVODESolver; break;
+      case 12: ode_solver = new ARKODESolver; break;
+      case 13: ode_solver = new ARKODESolver(ARK_ONE_STEP, t_final); break;
       default:
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
