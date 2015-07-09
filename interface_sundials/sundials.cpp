@@ -25,8 +25,8 @@
 
 /* Problem Constants */
 
-#define RTOL  RCONST(1.0e-3) /* scalar absolute tolerance */
-#define ATOL  RCONST(1.0e-6)    /* scalar absolute tolerance */
+#define RTOL  RCONST(1.0e-9) /* scalar absolute tolerance */
+#define ATOL  RCONST(1.0e-12)    /* scalar absolute tolerance */
 #define T0    RCONST(0.0)    /* initial time              */
 
 #define ZERO RCONST(0.0)

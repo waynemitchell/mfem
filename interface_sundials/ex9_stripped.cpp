@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
    case 10: ode_solver = new SunODESolver; break;
    case 11: ode_solver = new CVODESolver; break;
    case 12: ode_solver = new ARKODESolver; break;
-   case 13: tmp_ptr->SetStepType(ARK_ONE_STEP); 
+   case 13: tmp_ptr->SetStepType(ARK_ONE_STEP);  tmp_ptr->SetStopTime(t_final);
             ode_solver = tmp_ptr; tmp_ptr=NULL; break;
    default:
       cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
@@ -257,34 +257,86 @@ int main(int argc, char *argv[])
    //    iterations, ti, with a time-step dt).
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
    ode_solver->Init(adv);
+
+   int ti = 0;
    
    double t = 0.0;
-   for (int ti = 0; true; )
+   //If necessary, add this 
+   int max_steps=100000;
+   double time_history[max_steps];
+   double time_step_history[max_steps];
+   if (ode_solver_type<10)
    {
-      if (t >= t_final - dt/2)
-         break;
+     for (ti = 0; true; )
+     {
+        if (t >= t_final - dt/2)
+           break;
 
-      ode_solver->Step(u, t, dt);
-      ti++;
+        ode_solver->Step(u, t, dt);
+        ti++;
 
-      if (ti % vis_steps == 0)
-      {
-         cout << "time step: " << ti << ", time: " << t << endl;
+        if (ti % vis_steps == 0)
+        {
+           cout << "time step: " << ti << ", time: " << t << endl;
 
-         if (visualization)
-            sout << "solution\n" << *mesh << u << flush;
+           if (visualization)
+              sout << "solution\n" << *mesh << u << flush;
 
-         if (visit)
-         {
-            visit_dc.SetCycle(ti);
-            visit_dc.SetTime(t);
-            visit_dc.Save();
-         }
-      }
+           if (visit)
+           {
+              visit_dc.SetCycle(ti);
+              visit_dc.SetTime(t);
+              visit_dc.Save();
+           }
+        }
+     }
+   }
+   else if (ode_solver_type==13)
+   {
+     for (ti = 0; true; )
+     {
+        if (t >= t_final - dt/2)
+           break;
+        time_history[ti]=t;
+        ode_solver->Step(u, t, dt);
+        time_step_history[ti]=dt;
+        ti++;
+
+        if (ti % vis_steps == 0)
+        {
+           cout << "time step: " << ti << ", time: " << t << endl;
+
+           if (visualization)
+              sout << "solution\n" << *mesh << u << flush;
+
+           if (visit)
+           {
+              visit_dc.SetCycle(ti);
+              visit_dc.SetTime(t);
+              visit_dc.Save();
+           }
+        }
+     }
+     
+     //write to file
+     ofstream out("time_step_history.txt");
+     for(int i=0; i<ti;i++)
+        out<<time_step_history[i]<<endl;
+     out.close();
+     out.open("time_history.txt");
+     for(int i=0; i<ti;i++)
+        out<<time_history[i]<<endl;
+     
+   }
+   else
+   {
+      //Integrate as one big step
+     dt = t_final;
+     ode_solver->Step(u, t, dt);
    }
 
    // 9. Save the final solution. This output can be viewed later using GLVis:
-   //    "glvis -m ex9.mesh -g ex9_stripped-final.gf".
+   //    "glvis -m ex9.mesh -g ex9-final.gf".
    {
       ofstream osol("ex9_stripped-final.gf");
       osol.precision(precision);
