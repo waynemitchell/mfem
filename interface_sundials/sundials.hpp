@@ -43,8 +43,14 @@ public:
    void Init(TimeDependentOperator &);
 
    void Step(Vector &, double&, double&);
+   
+   void SetIC(Vector &, double&, double&);
+   
+   void GetY(Vector &, double&, double&);
 
    TimeDependentOperator* GetFOperator();
+   
+   void (SunODESolver::*PtrToStep)(Vector &, double&, double&);
  
 //   ~SunODESolver();
 
@@ -70,6 +76,12 @@ public:
    void Init(TimeDependentOperator &);
 
    void Step(Vector &, double&, double&);
+   
+   void SetIC(Vector &, double&, double&);
+   
+   void GetY(Vector &, double&, double&);
+   
+   void (CVODESolver::*PtrToStep)(Vector &, double&, double&);
 
    ~CVODESolver();
 
@@ -97,6 +109,12 @@ public:
    void Init(TimeDependentOperator &);
 
    void Step(Vector &, double&, double&);
+   
+   void SetIC(Vector &, double&, double&);
+   
+   void GetY(Vector &, double&, double&);
+   
+   void (ARKODESolver::*PtrToStep)(Vector &, double&, double&);
    
    void SetStepType(int);
 

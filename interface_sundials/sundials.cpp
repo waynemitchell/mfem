@@ -41,6 +41,7 @@ namespace mfem
   { 
    y = NULL;
    f = NULL;
+   PtrToStep=&CVODESolver::SetIC;
 
    data = (UserData) malloc(sizeof *data);   /* Allocate data memory */
    if(check_flag((void *)data, "malloc", 2)) return;
@@ -90,20 +91,14 @@ namespace mfem
 
    }
    
-   
-   void CVODESolver::Step(Vector &x, double &t, double &dt)
+   void CVODESolver::SetIC(Vector &x, double&t, double&dt)
    {
    int flag=0;
-/*   cout<<"dt="<<dt<<endl;*/
-   realtype tout=t+dt;
    realtype* yin=NV_DATA_S(y);
-   
-   if(t==0.0)
-   {
-       delete yin;
-       yin=NULL;
-       NV_DATA_S(y)= x.GetData();
-       flag = CVodeReInit(ode_mem, t, y);       
+   delete yin;
+   yin=NULL;
+   NV_DATA_S(y)= x.GetData();
+   flag = CVodeReInit(ode_mem, t, y);       
    
    
    /* Set the minimum step size */
@@ -113,10 +108,21 @@ namespace mfem
    /* Set the maximum step size */
    flag = CVodeSetMaxStep(ode_mem, dt);
    if(check_flag(&flag, "CVodeSetMaxStep", 1)) return;
-   
+   PtrToStep=&CVODESolver::GetY;
    }
-   else
+   
+   void CVODESolver::GetY(Vector &x, double&t, double&dt)
+   {
       NV_DATA_S(y)=x.GetData();
+   }
+   
+   void CVODESolver::Step(Vector &x, double &t, double &dt)
+   {
+   int flag=0;
+/*   cout<<"dt="<<dt<<endl;*/
+   realtype tout=t+dt;
+
+   (this->*PtrToStep)(x,t,dt);
    
    //Step
 /*   cout<<"t="<<t<<"tout="<<tout<<endl;*/
@@ -142,6 +148,7 @@ namespace mfem
    { 
     y = NULL;
     f = NULL;
+   PtrToStep=&ARKODESolver::SetIC;
 
    data = (UserData) malloc(sizeof *data);   /* Allocate data memory */
    if(check_flag((void *)data, "malloc", 2)) return;
@@ -198,29 +205,21 @@ namespace mfem
 */
    }
    
-   
-   void ARKODESolver::Step(Vector &x, double &t, double &dt)
+   void ARKODESolver::SetIC(Vector &x, double&t, double&dt)
    {
    int flag=0;
-/*   cout<<"dt="<<dt<<endl;*/
-   realtype tout=t+dt;
    realtype* yin=NV_DATA_S(y);
+   delete yin;
+   yin=NULL;
+   NV_DATA_S(y)= x.GetData();
+   flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, t, y);
    
-   if(t==0.0)
-   {
-       delete yin;
-       yin=NULL;
-       NV_DATA_S(y)= x.GetData();
-       flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, t, y);       
-   
-   
-      /* Set the initial step size */
    if(step_type==ARK_ONE_STEP)
    {
      flag = ARKodeSetFixedStep(ode_mem, dt);
      if(check_flag(&flag, "ARKodeSetInitStep", 1)) return;
    }
-
+   
    /* Set the minimum step size */
 //   flag = ARKodeSetMinStep(ode_mem, dt);
 //   if(check_flag(&flag, "ARKodeSetMinStep", 1)) return;
@@ -228,11 +227,22 @@ namespace mfem
    /* Set the maximum step size */
    flag = ARKodeSetMaxStep(ode_mem, dt);
    if(check_flag(&flag, "ARKodeSetMaxStep", 1)) return;
-   
+   PtrToStep=&ARKODESolver::GetY;
    }
-   else
-      NV_DATA_S(y)=x.GetData();
    
+   void ARKODESolver::GetY(Vector &x, double&t, double&dt)
+   {
+      NV_DATA_S(y)=x.GetData();
+   }
+   
+   void ARKODESolver::Step(Vector &x, double &t, double &dt)
+   {
+   int flag=0;
+/*   cout<<"dt="<<dt<<endl;*/
+   realtype tout=t+dt;
+
+   (this->*PtrToStep)(x,t,dt);
+      
    //Step
    flag = ARKode(ode_mem, tout, y, &t, step_type);
    if(check_flag(&flag, "ARKode", 1)) return;   
@@ -259,6 +269,7 @@ namespace mfem
   { 
    y = NULL;
    f = NULL;
+   PtrToStep=&SunODESolver::SetIC;
 
    data = (UserData) malloc(sizeof *data);   /* Allocate data memory */
    if(check_flag((void *)data, "malloc", 2)) return;
@@ -305,20 +316,14 @@ namespace mfem
 
    }
    
-   
-   void SunODESolver::Step(Vector &x, double &t, double &dt)
+   void SunODESolver::SetIC(Vector &x, double&t, double&dt)
    {
    int flag=0;
-/*   cout<<"dt="<<dt<<endl;*/
-   realtype tout=t+dt;
    realtype* yin=NV_DATA_S(y);
-   
-   if(t==0.0)
-   {
-       delete yin;
-       yin=NULL;
-       NV_DATA_S(y)= x.GetData();
-       flag = CVodeReInit(ode_mem, t, y);       
+   delete yin;
+   yin=NULL;
+   NV_DATA_S(y)= x.GetData();
+   flag = CVodeReInit(ode_mem, t, y);       
    
    
    /* Set the minimum step size */
@@ -328,10 +333,21 @@ namespace mfem
    /* Set the maximum step size */
    flag = CVodeSetMaxStep(ode_mem, dt);
    if(check_flag(&flag, "CVodeSetMaxStep", 1)) return;
-   
+   PtrToStep=&SunODESolver::GetY;
    }
-   else
+   
+   void SunODESolver::GetY(Vector &x, double&t, double&dt)
+   {
       NV_DATA_S(y)=x.GetData();
+   }
+   
+   void SunODESolver::Step(Vector &x, double &t, double &dt)
+   {
+   int flag=0;
+/*   cout<<"dt="<<dt<<endl;*/
+   realtype tout=t+dt;
+
+   (this->*PtrToStep)(x,t,dt);
    
    //Step
 /*   cout<<"t="<<t<<"tout="<<tout<<endl;*/
