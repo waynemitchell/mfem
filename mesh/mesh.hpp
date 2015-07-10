@@ -174,15 +174,22 @@ protected:
    /** Uniform Refinement. Element with index i is refined uniformly. */
    void UniformRefinement(int i, const DSTable &, int *, int *, int *);
 
-   /** Averages the vertices with given indexes and save the result in
+   /** Averages the vertices with given indexes and saves the result in
        vertices[result]. */
    void AverageVertices (int * indexes, int n, int result);
+
+   /** Averages the vertices, according to the given weights, with
+       given indexes and saves the result in vertices[result]. */
+   void AverageVertices (int * indexes, double * w, int n, int result);
 
    /// Update the nodes of a curved mesh after refinement
    void UpdateNodes();
 
    /// Refine quadrilateral mesh.
    virtual void QuadUniformRefinement();
+
+   /// Refine a quadrilateral mesh by a factor of n in each direction.
+   // virtual void QuadUniformRefinement(int n);
 
    /// Refine hexahedral mesh.
    virtual void HexUniformRefinement();
@@ -676,6 +683,12 @@ public:
 
    /** Refine all mesh elements. */
    void UniformRefinement();
+
+   /// Refine a quadrilateral mesh by a factor of n in each direction.
+   virtual void QuadUniformRefinement(int n);
+
+   /// Refine a hexahedral mesh by a factor of n in each direction.
+   virtual void HexUniformRefinement(int n);
 
    /** Refine selected mesh elements. Refinement type can be specified for each
        element. The function can do conforming refinement of triangles and

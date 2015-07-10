@@ -63,8 +63,7 @@ public:
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A_rr P.
-   HypreParMatrix *ParallelAssembleReduced()
-   { return ParallelAssembleReduced(mat_rr); }
+   HypreParMatrix *ParallelAssembleReduced();
 
    /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
    HypreParMatrix *ParallelAssembleElim() { return ParallelAssemble(mat_e); }

@@ -168,6 +168,18 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    return rap;
 }
 
+HypreParMatrix *ParBilinearForm::ParallelAssembleReduced()
+{
+  if ( fes->GetNPrDofs() == 0 )
+  {
+    return ParallelAssemble();
+  }
+  else
+  {
+    return ParallelAssembleReduced(mat_rr);
+  }
+}
+
 HypreParMatrix *ParBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
 {
    if (m == NULL)
@@ -191,21 +203,25 @@ HypreParMatrix *ParBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
 HypreParVector *
 ParBilinearForm::RHS_R(const Vector & rhs) const
 {
-   HypreParVector * prhs_r = new HypreParVector(pfes->GetComm(),
-						pfes->GlobalTrueExVSize(),
-						pfes->GetTrueExDofOffsets());
+  HypreParVector * prhs_r = new HypreParVector(pfes->GetComm(),
+					       pfes->GlobalTrueExVSize(),
+					       pfes->GetTrueExDofOffsets());
 
-   // Create temporary vectors for the exposed and private portions of rhs
-   this->SplitExposedPrivate(rhs,v1_e,v1_p);
+  // Create temporary vectors for the exposed and private portions of rhs
+  if ( v1_e == NULL || v1_p == NULL )
+  {
+    pfes->ExDof_TrueExDof_Matrix()->MultTranspose(rhs,
+						  *prhs_r);
+  } else {
+    this->SplitExposedPrivate(rhs,v1_e,v1_p);
+    Vector *rhs_r = this->BilinearForm::RHS_R(*v1_e,*v1_p);
+    pfes->ExDof_TrueExDof_Matrix()->MultTranspose(*rhs_r,
+						  *prhs_r);
 
-   Vector *rhs_r = this->BilinearForm::RHS_R(*v1_e,*v1_p);
+    delete rhs_r;
+  }
 
-   pfes->ExDof_TrueExDof_Matrix()->MultTranspose(*rhs_r,
-						 *prhs_r);
-
-   delete rhs_r;
-
-   return prhs_r;
+  return prhs_r;
 }
 
 void ParBilinearForm::AssembleSharedFaces(int skip_zeros)

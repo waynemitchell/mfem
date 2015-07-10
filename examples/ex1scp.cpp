@@ -98,9 +98,26 @@ int main(int argc, char *argv[])
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 10,000 elements.
+   /*
    {
       int ref_levels =
          (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+      for (int l = 0; l < ref_levels; l++)
+      {
+         mesh->UniformRefinement();
+      }
+   }
+   */
+   {
+      // int ref_levels = 2;
+     // int ref_levels =
+     //	 (int)floor((log(540000./mesh->GetNE())/dim-log(order))/log(2.));
+      int ref_levels =
+	 (int)floor((log(240000./mesh->GetNE())/dim-log(order))/log(2.));
+      if (myid == 0)
+      {
+	 cout << "Number of refinement levels: " << ref_levels << endl;
+      }
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -112,6 +129,7 @@ int main(int argc, char *argv[])
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
+   /*
    {
       int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
@@ -119,7 +137,7 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }
-
+   */
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
    //    order < 1, we instead use an isoparametric/isogeometric space.
@@ -137,7 +155,7 @@ int main(int argc, char *argv[])
       fec = new H1_FECollection(order = 1, dim);
    }
    ParFiniteElementSpace *fespace =
-     new ParFiniteElementSpace(pmesh, fec,1,mfem::Ordering::byNODES,true);
+     new ParFiniteElementSpace(pmesh, fec, 1, mfem::Ordering::byNODES, true);
 
    HYPRE_Int  size = fespace->GlobalTrueVSize();
    HYPRE_Int esize = fespace->GlobalTrueExVSize();
@@ -182,6 +200,7 @@ int main(int argc, char *argv[])
 
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
+   if ( ess_bdr.Size() > 1 ) ess_bdr[1] = 0;
 
    Array<int> ess_bdr_v, dof_list;
    fespace->GetEssentialVDofs(ess_bdr,ess_bdr_v);

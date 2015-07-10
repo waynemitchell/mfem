@@ -3673,6 +3673,22 @@ int Mesh::GetQuadOrientation(const int *base, const int *test)
 {
    int i;
 
+   if ( base == NULL )
+   {
+      int i0 = 0;
+      int vi0 = test[i0], vi1;
+      for (i=1; i<4; i++)
+      {
+	 vi1 = test[i];
+	 if ( vi1 < vi0 )
+	 {
+	    i0  = i;
+	    vi0 = vi1;
+	 }
+      }
+      return 2*i0 + (int)(test[(i0+1)%4] > test[(i0+3)%4]);
+   }
+
    for (i = 0; i < 4; i++)
       if (test[i] == base[0])
       {
@@ -5657,6 +5673,22 @@ void Mesh::AverageVertices(int * indexes, int n, int result)
    }
 }
 
+void Mesh::AverageVertices(int * indexes, double * w, int n, int result)
+{
+   int j, k;
+
+   for (k = 0; k < spaceDim; k++)
+   {
+      vertices[result](k) = w[0]*vertices[indexes[0]](k);
+   }
+
+   for (j = 1; j < n; j++)
+      for (k = 0; k < spaceDim; k++)
+      {
+         vertices[result](k) += w[j]*vertices[indexes[j]](k);
+      }
+}
+
 void Mesh::UpdateNodes()
 {
    Nodes->FESpace()->UpdateAndInterpolate(Nodes);
@@ -5804,6 +5836,172 @@ void Mesh::QuadUniformRefinement()
    {
       UpdateNodes();
       UseTwoLevelState(wtls);
+   }
+
+#ifdef MFEM_DEBUG
+   CheckElementOrientation(false);
+   CheckBdrElementOrientation(false);
+#endif
+}
+
+void Mesh::QuadUniformRefinement(int n)
+{
+   int i, j, k, *v, vv[2], attr;
+   double w[4];
+   Array<int> e, eo;
+
+   SetState(Mesh::NORMAL);
+
+   if (el_to_edge == NULL)
+   {
+      el_to_edge = new Table;
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
+
+   int oedge = NumOfVertices;
+   int oelem = oedge + (n-1)*NumOfEdges;
+
+   DeleteCoarseTables();
+
+   vertices.SetSize(oelem + (n-1)*(n-1)*NumOfElements);
+
+   for (i = 0; i < NumOfElements; i++)
+   {
+      v = elements[i]->GetVertices();
+      GetElementEdges(i,e,eo);
+
+      for (j=1; j < n; j++)
+      {
+ 	 w[0] = (double)(n-j)/n; w[1] = (double)j/n;
+
+	 vv[0] = (eo[0]>0)?v[0]:v[1];
+	 vv[1] = (eo[0]>0)?v[1]:v[0];
+	 AverageVertices(vv, w, 2, oedge+(n-1)*e[0]+j-1);
+
+	 vv[0] = (eo[1]>0)?v[1]:v[2];
+	 vv[1] = (eo[1]>0)?v[2]:v[1];
+	 AverageVertices(vv, w, 2, oedge+(n-1)*e[1]+j-1);
+
+	 vv[0] = (eo[2]>0)?v[2]:v[3];
+	 vv[1] = (eo[2]>0)?v[3]:v[2];
+	 AverageVertices(vv, w, 2, oedge+(n-1)*e[2]+j-1);
+
+	 vv[0] = (eo[3]>0)?v[3]:v[0];
+	 vv[1] = (eo[3]>0)?v[0]:v[3];
+	 AverageVertices(vv, w, 2, oedge+(n-1)*e[3]+j-1);
+
+	 for (k=1; k < n; k++)
+	 {
+	    w[0] = (double)((n-j)*(n-k))/(n*n);
+	    w[1] = (double)(j*(n-k))/(n*n);
+	    w[2] = (double)(j*k)/(n*n);
+	    w[3] = (double)((n-j)*k)/(n*n);
+
+	    AverageVertices(v, w, 4, oelem+(n-1)*(n-1)*i+(n-1)*(j-1)+k-1);
+	 }
+      }
+   }
+
+   elements.SetSize(n * n * NumOfElements);
+   for (i = 0; i < NumOfElements; i++)
+   {
+      attr = elements[i]->GetAttribute();
+      v = elements[i]->GetVertices();
+      GetElementEdges(i,e,eo);
+
+      int oe = oelem+(n-1)*(n-1)*i;
+
+      j = NumOfElements + (n*n-1) * i;
+
+      elements[j+0] = new Quadrilateral(oedge+(n-1)*e[0]+(n-2)*(1+eo[0])/2,
+					v[1],
+					oedge+(n-1)*e[1]+(n-2)*(1-eo[1])/2,
+                                        oe+(n-1)*(n-2),
+					attr);
+      elements[j+1] = new Quadrilateral(oe+(n-1)*(n-1)-1,
+					oedge+(n-1)*e[1]+(n-2)*(1+eo[1])/2,
+					v[2],
+					oedge+(n-1)*e[2]+(n-2)*(1-eo[2])/2,
+					attr);
+      elements[j+2] = new Quadrilateral(oedge+(n-1)*e[3]+(n-2)*(1-eo[3])/2,
+					oe+n-2,
+					oedge+(n-1)*e[2]+(n-2)*(1+eo[2])/2,
+					v[3],
+					attr);
+
+      v[1] = oedge+(n-1)*e[0]+(n-2)*(1-eo[0])/2;
+      v[2] = oe;
+      v[3] = oedge+(n-1)*e[3]+(n-2)*(1+eo[3])/2;
+
+      for (j=0;j<n-2;j++)
+      {
+	int oj = NumOfElements + (n*n-1) * i + 3 + j;
+
+	elements[0*(n-2)+oj] = new Quadrilateral(oedge+(n-1)*e[0]+(n-2-(n-2-2*j)*eo[0])/2,
+						 oedge+(n-1)*e[0]+(n-2-(n-4-2*j)*eo[0])/2,
+						 oe+(n-1)*(j+1),
+						 oe+(n-1)*j,
+						 attr);
+	elements[1*(n-2)+oj] = new Quadrilateral(oe+(n-1)*(n-2)+j,
+						 oedge+(n-1)*e[1]+(n-2-(n-2-2*j)*eo[1])/2,
+						 oedge+(n-1)*e[1]+(n-2-(n-4-2*j)*eo[1])/2,
+						 oe+(n-1)*(n-2)+j+1,
+						 attr);
+	elements[2*(n-2)+oj] = new Quadrilateral(oe+(n-1)*j+n-2,
+						 oe+(n-1)*(j+1)+n-2,
+						 oedge+(n-1)*e[2]+(n-2+(n-4-2*j)*eo[2])/2,
+						 oedge+(n-1)*e[2]+(n-2+(n-2-2*j)*eo[2])/2,
+						 attr);
+	elements[3*(n-2)+oj] = new Quadrilateral(oedge+(n-1)*e[3]+(n-2+(n-2-2*j)*eo[3])/2,
+						 oe+j,
+						 oe+j+1,
+						 oedge+(n-1)*e[3]+(n-2+(n-4-2*j)*eo[3])/2,
+						 attr);
+	for (k=0;k<n-2;k++)
+	{
+	   int ojk = NumOfElements + (n*n-1) * i + (n-2) * (j+4) + 3 + k;
+
+	   elements[ojk] = new Quadrilateral(oe+(n-1)*j+k,
+					     oe+(n-1)*(j+1)+k,
+					     oe+(n-1)*(j+1)+k+1,
+					     oe+(n-1)*j+k+1,
+					     attr);
+	}
+      }
+   }
+
+   boundary.SetSize(n * NumOfBdrElements);
+   for (i = 0; i < NumOfBdrElements; i++)
+   {
+      attr = boundary[i]->GetAttribute();
+      v = boundary[i]->GetVertices();
+      j = NumOfBdrElements + (n-1)*i + n-2;
+      int eob = (v[0]<v[1])?1:-1;
+
+      boundary[j] = new Segment(oedge+(n-1)*be_to_edge[i]+(n-2)*(1+eob)/2,
+				v[1], attr);
+
+      for (int j=0; j<n-2; j++)
+      {
+	int oj = NumOfBdrElements + (n-1)*i+j;
+
+	boundary[oj] = new Segment(oedge+(n-1)*be_to_edge[i]+(n-2-(n-2-2*j)*eob)/2,
+				   oedge+(n-1)*be_to_edge[i]+(n-2-(n-4-2*j)*eob)/2, attr);
+      }
+
+      v[1] = oedge+(n-1)*be_to_edge[i]+(n-2)*(1-eob)/2;
+   }
+
+   NumOfVertices    = oelem + (n-1)*(n-1)*NumOfElements;
+   NumOfElements    = n * n * NumOfElements;
+   NumOfBdrElements = n * NumOfBdrElements;
+   NumOfFaces       = 0;
+
+   if (el_to_edge != NULL)
+   {
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+
+      GenerateFaces();
    }
 
 #ifdef MFEM_DEBUG
@@ -6035,6 +6233,276 @@ void Mesh::HexUniformRefinement()
    //  When 'WantTwoLevelState' is true the coarse level
    //  'be_to_face' and 'faces'
    //  are destroyed !!!
+}
+
+void Mesh::HexUniformRefinement(int n)
+{
+   int i, j, k, l, *v, vv[4], attr;
+   double w[8];
+   Array<int> e, eo(12), fo(6);
+   const int * f;
+
+   SetState(Mesh::NORMAL);
+
+   if (el_to_edge == NULL)
+   {
+      el_to_edge = new Table;
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
+   if (el_to_face == NULL)
+   {
+      GetElementToFaceTable();
+   }
+
+   int oedge = NumOfVertices;
+   int oface = oedge + (n-1)*NumOfEdges;
+   int oelem = oface + (n-1)*(n-1)*NumOfFaces;
+
+   DeleteCoarseTables();
+   cout << "adjusting vertices" << endl;
+
+   vertices.SetSize(oelem + (n-1) * (n-1) * (n-1) * NumOfElements);
+   for (i = 0; i < NumOfElements; i++)
+   {
+      MFEM_ASSERT(elements[i]->GetType() == Element::HEXAHEDRON,
+                  "Element is not a hex!");
+      v = elements[i]->GetVertices();
+      GetElementEdges(i,e,eo);
+      f = el_to_face->GetRow(i);
+
+      for (j=0; j<6; j++)
+      {
+	for (k=0; k<4; k++)
+	{
+	   vv[k] = v[Hexahedron::faces[j][k]];
+	}
+	fo[j] = GetQuadOrientation(NULL,vv);
+      }
+
+      cout << "element " << i
+	   << ", eo = ";
+      eo.Print(cout,12);
+      cout << ", fo = ";
+      fo.Print(cout,6);
+      cout << endl;
+
+      for (j=1; j < n; j++)
+      {
+ 	 w[0] = (double)(n-j)/n; w[1] = (double)j/n;
+
+	 for (k=0; k<12; k++)
+	 {
+	    vv[0] = (eo[k]>0)?
+	       v[Hexahedron::edges[k][0]]:
+	       v[Hexahedron::edges[k][1]];
+	    vv[1] = (eo[k]>0)?
+	       v[Hexahedron::edges[k][1]]:
+	       v[Hexahedron::edges[k][0]];
+	    AverageVertices(vv, w, 2, oedge+(n-1)*e[k]+j-1);
+	 }
+
+	 for (k=1; k < n; k++)
+	 {
+	    w[0] = (double)(n-j)*(n-k)/(n*n);
+	    w[1] = (double)j*(n-k)/(n*n);
+	    w[2] = (double)(n-j)*k/(n*n);
+	    w[3] = (double)j*k/(n*n);
+
+	    for (l=0; l<6; l++)
+	    {
+	      int f0 = (int)fo[l]/2;
+	      int f1 = (fo[l]%2)?((f0+3)%4):((f0+1)%4);
+	      int f2 = (f1+(f1-f0)+4)%4;
+	      int f3 = (f2+(f2-f1)+4)%4;
+	      vv[0] = v[Hexahedron::faces[l][f0]];
+	      vv[1] = v[Hexahedron::faces[l][f1]];
+	      vv[2] = v[Hexahedron::faces[l][f2]];
+	      vv[3] = v[Hexahedron::faces[l][f3]];
+	      AverageVertices(vv, w, 4,
+			      oface+(n-1)*(n-1)*f[l]+(n-1)*(j-1)+k-1);
+	    }
+
+	    for (l=1; l < n; l++)
+	    {
+	       w[0] = (double)((n-j)*(n-k)*(n-l))/(n*n*n);
+	       w[1] = (double)(j*(n-k)*(n-l))/(n*n*n);
+	       w[2] = (double)(j*k*(n-l))/(n*n*n);
+	       w[3] = (double)((n-j)*k*(n-l))/(n*n*n);
+	       w[4] = (double)((n-j)*(n-k)*l)/(n*n*n);
+	       w[5] = (double)(j*(n-k)*l)/(n*n*n);
+	       w[6] = (double)(j*k*l)/(n*n*n);
+	       w[7] = (double)((n-j)*k*l)/(n*n*n);
+
+	       AverageVertices(v, w, 8,
+			       oelem+(n-1)*(n-1)*(n-1)*i+
+			       (n-1)*(n-1)*(j-1)+(n-1)*(k-1)+l-1);
+	    }
+	 }
+      }
+   }
+
+   cout << "adjusting elements" << endl;
+   elements.SetSize(n * n * n * NumOfElements);
+   for (i = 0; i < NumOfElements; i++)
+   {
+      attr = elements[i]->GetAttribute();
+      v = elements[i]->GetVertices();
+      GetElementEdges(i,e,eo);
+      f = el_to_face->GetRow(i);
+
+      for (j=0; j<6; j++)
+      {
+	for (k=0; k<4; k++)
+	{
+	   vv[k] = v[Hexahedron::faces[j][k]];
+	}
+	fo[j] = GetQuadOrientation(NULL,vv);
+      }
+
+      j = NumOfElements + (n*n*n-1) * i;
+      cout << i << " ";
+      fo.Print();
+      cout << endl;
+      elements[j+0] = new Hexahedron(oedge+(n-1)*e[0]+(n-2)*(1+eo[0])/2,
+				     v[1],
+				     oedge+(n-1)*e[1]+(n-2)*(1-eo[1])/2,
+				     oface+(n-1)*(n-1)*f[0],
+                                     oface+(n-1)*(n-1)*f[1],
+				     oedge+(n-1)*e[9]+(n-2)*(1-eo[9])/2,
+				     oface+(n-1)*(n-1)*f[2],
+                                     oelem+i,
+				     attr);
+      elements[j+1] = new Hexahedron(oface+(n-1)*(n-1)*f[0],
+				     oedge+(n-1)*e[1]+(n-2)*(1+eo[1])/2,
+				     v[2],
+				     oedge+(n-1)*e[2]+(n-2)*(1+eo[2])/2,
+                                     oelem+i,
+				     oface+(n-1)*(n-1)*f[2],
+				     oedge+(n-1)*e[10]+(n-2)*(1-eo[10])/2,
+                                     oface+(n-1)*(n-1)*f[3],
+				     attr);
+      elements[j+2] = new Hexahedron(oedge+(n-1)*e[3]+(n-2)*(1+eo[3])/2,
+				     oface+(n-1)*(n-1)*f[0],
+				     oedge+(n-1)*e[2]+(n-2)*(1-eo[2])/2,
+				     v[3],
+                                     oface+(n-1)*(n-1)*f[4],
+				     oelem+i,
+				     oface+(n-1)*(n-1)*f[3],
+                                     oedge+(n-1)*e[11]+(n-2)*(1-eo[11])/2,
+				     attr);
+      elements[j+3] = new Hexahedron(oedge+(n-1)*e[8]+(n-2)*(1+eo[8])/2,
+				     oface+(n-1)*(n-1)*f[1],
+				     oelem+i,
+                                     oface+(n-1)*(n-1)*f[4],
+				     v[4],
+				     oedge+(n-1)*e[4]+(n-2)*(1-eo[4])/2,
+				     oface+(n-1)*(n-1)*f[5],
+                                     oedge+(n-1)*e[7]+(n-2)*(1-eo[7])/2,
+				     attr);
+      elements[j+4] = new Hexahedron(oface+(n-1)*(n-1)*f[1],
+				     oedge+(n-1)*e[9]+(n-2)*(1+eo[9])/2,
+				     oface+(n-1)*(n-1)*f[2],
+                                     oelem+i,
+				     oedge+(n-1)*e[4]+(n-2)*(1+eo[4])/2,
+				     v[5],
+				     oedge+(n-1)*e[5]+(n-2)*(1-eo[5])/2,
+                                     oface+(n-1)*(n-1)*f[5],
+				     attr);
+      elements[j+5] = new Hexahedron(oelem+i,
+				     oface+(n-1)*(n-1)*f[2],
+				     oedge+(n-1)*e[10]+(n-2)*(1+eo[10])/2,
+                                     oface+(n-1)*(n-1)*f[3],
+				     oface+(n-1)*(n-1)*f[5],
+				     oedge+(n-1)*e[5]+(n-2)*(1+eo[5])/2,
+				     v[6],
+                                     oedge+(n-1)*e[6]+(n-2)*(1+eo[6])/2,
+				     attr);
+      elements[j+6] = new Hexahedron(oface+(n-1)*(n-1)*f[4],
+				     oelem+i,
+				     oface+(n-1)*(n-1)*f[3],
+                                     oedge+(n-1)*e[11]+(n-2)*(1+eo[11])/2,
+				     oedge+(n-1)*e[7]+(n-2)*(1+eo[7])/2,
+				     oface+(n-1)*(n-1)*f[5],
+                                     oedge+(n-1)*e[6]+(n-2)*(1-eo[6])/2,
+				     v[7],
+				     attr);
+
+      v[1] = oedge+(n-1)*e[0]+(n-2)*(1-eo[0])/2;
+      v[2] = oface+(n-1)*(n-1)*f[0];
+      v[3] = oedge+(n-1)*e[3]+(n-2)*(1-eo[3])/2;
+      v[4] = oedge+(n-1)*e[8]+(n-2)*(1-eo[8])/2;
+      v[5] = oface+(n-1)*(n-1)*f[1];
+      v[6] = oelem+i;
+      v[7] = oface+(n-1)*(n-1)*f[4];
+   }
+
+   cout << "adjusting boundary" << endl;
+   boundary.SetSize(n * n * NumOfBdrElements);
+   for (i = 0; i < NumOfBdrElements; i++)
+   {
+      cout << " i = " << i;
+      MFEM_ASSERT(boundary[i]->GetType() == Element::QUADRILATERAL,
+                  "boundary Element is not a quad!");
+      attr = boundary[i]->GetAttribute();
+      cout << ", attr =  " << attr << endl;
+      v = boundary[i]->GetVertices();
+      int * eb = bel_to_edge->GetRow(i);
+      int * fb = & be_to_face[i];
+
+      eo[0] = (v[0]<v[1])?1:-1;
+      eo[1] = (v[1]<v[2])?1:-1;
+      eo[2] = (v[2]<v[3])?1:-1;
+      eo[3] = (v[0]<v[3])?1:-1;
+
+      int fob = GetQuadOrientation(NULL,v);
+
+      // j = NumOfBdrElements + (n*n-1) * i;
+      j = NumOfBdrElements + 3 * i;
+      cout << ", j = " << j << ", fob = " << fob << endl;
+
+      boundary[j+0] = new Quadrilateral(oedge+(n-1)*eb[0]+(n-2)*(1+eo[0])/2,
+					v[1],
+					oedge+(n-1)*eb[1]+(n-2)*(1-eo[1])/2,
+                                        oface+(n-1)*(n-1)*fb[0],
+					attr);
+      boundary[j+1] = new Quadrilateral(oface+(n-1)*(n-1)*fb[0],
+					oedge+(n-1)*eb[1]+(n-2)*(1+eo[1])/2,
+					v[2],
+                                        oedge+(n-1)*eb[2]+(n-2)*(1-eo[2])/2,
+					attr);
+      boundary[j+2] = new Quadrilateral(oedge+(n-1)*eb[3]+(n-2)*(1+eo[3])/2,
+					oface+(n-1)*(n-1)*fb[0],
+					oedge+(n-1)*eb[2]+(n-2)*(1+eo[2])/2,
+                                        v[3],
+					attr);
+
+      v[1] = oedge+(n-1)*eb[0]+(n-2)*(1-eo[0])/2;
+      v[2] = oface+(n-1)*(n-1)*fb[0];
+      v[3] = oedge+(n-1)*eb[3]+(n-2)*(1-eo[3])/2;
+   }
+
+   NumOfVertices    = oelem + (n-1) * (n-1) * (n-1) * NumOfElements;
+   NumOfElements    = NumOfElements+7;
+   NumOfBdrElements += 3 * NumOfBdrElements;
+   // NumOfElements    = n * n * n * NumOfElements;
+   // NumOfBdrElements = n * n * NumOfBdrElements;
+   cout << "leaving HexUniformRefinement early" << endl;
+   return;
+
+   if (el_to_face != NULL)
+   {
+      GetElementToFaceTable();
+      GenerateFaces();
+   }
+
+#ifdef MFEM_DEBUG
+   CheckBdrElementOrientation(false);
+#endif
+
+   if (el_to_edge != NULL)
+   {
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
 }
 
 void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
@@ -8019,6 +8487,7 @@ void Mesh::Print(std::ostream &out) const
 
    out << "\ndimension\n" << Dim
        << "\n\nelements\n" << NumOfElements << '\n';
+
    for (i = 0; i < NumOfElements; i++)
    {
       PrintElement(elements[i], out);

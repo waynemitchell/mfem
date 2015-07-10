@@ -340,7 +340,7 @@ BilinearForm::SplitExposedPrivate(const Vector &x,
   {
      if ( x_e != NULL )
         x_e->SetDataAndSize(const_cast<double*>(&x[0]),fes->GetExVSize());
-     if ( x_p != NULL )
+     if ( x_p != NULL && (fes->GetPrVSize() > 0) )
         x_p->SetDataAndSize(const_cast<double*>(&x[fes->GetExVSize()]),
 			    fes->GetPrVSize());
   }
@@ -381,53 +381,58 @@ BilinearForm::RHS_R(const Vector & rhs_e, const Vector & rhs_p) const
    int npr  = fes->GetNPrDofs();
    const int * pr_offsets = fes->GetPrivateOffsets();
 
-   Vector v1,v2;
-
-   for (int i=0; i<fes->GetNE(); i++)
+   if ( mat_pp_inv != NULL )
    {
-      int size = mat_pp_inv[i]->Size();
-      if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
-      {
-	v1.SetSize(size);
-	v2.SetSize(size);
+     Vector v1,v2;
+     for (int i=0; i<fes->GetNE(); i++)
+     {
+       int size = mat_pp_inv[i]->Size();
+       if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
+       {
+	 v1.SetSize(size);
+	 v2.SetSize(size);
 
-	int jj = 0;
-	for (int dj=0; dj<vdim; dj++)
-	{
+	 int jj = 0;
+	 for (int dj=0; dj<vdim; dj++)
+	 {
 	   for (int j=pr_offsets[i]; j<pr_offsets[i+1]; j++)
 	   {
-	      v1(jj) = (*tmp_p)(dj*npr+j);
-	      jj++;
+	     v1(jj) = (*tmp_p)(dj*npr+j);
+	     jj++;
 	   }
-	}
-      }
-      else
-      {
+	 }
+       }
+       else
+       {
 	 v1.SetDataAndSize(&rhs_p.GetData()[vdim*pr_offsets[i]],size);
 	 v2.SetDataAndSize(&(tmp_p->GetData())[vdim*pr_offsets[i]],size);
-      }
+       }
 
-      mat_pp_inv[i]->Mult(v1,v2);
+       mat_pp_inv[i]->Mult(v1,v2);
 
-      if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
-      {
-	int jj = 0;
-	for (int dj=0; dj<vdim; dj++)
-	{
+       if ( fes->GetOrdering() == Ordering::byNODES && fes->GetVDim() > 1 )
+       {
+	 int jj = 0;
+	 for (int dj=0; dj<vdim; dj++)
+	 {
 	   for (int j=pr_offsets[i]; j<pr_offsets[i+1]; j++)
 	   {
 	     (*v2_p)(dj*npr+j) = v2(jj);
-	      jj++;
+	     jj++;
 	   }
-	}
-      }
+	 }
+       }
+     }
    }
 
    Vector * rhs_r = new Vector(fes->GetExVSize());
 
    rhs_r->Set(1.0,rhs_e);
 
-   mat_ep->AddMult(*tmp_p,*rhs_r,-1.0);
+   if ( mat_ep != NULL )
+   {
+     mat_ep->AddMult(*tmp_p,*rhs_r,-1.0);
+   }
 
    return rhs_r;
 }
@@ -435,6 +440,8 @@ BilinearForm::RHS_R(const Vector & rhs_e, const Vector & rhs_p) const
 void
 BilinearForm::UpdatePrivateDoFs(const Vector &rhs, Vector &sol) const
 {
+   if ( fes->GetNPrDofs() == 0 ) { return; }
+
    // Create temporary vectors for the private portion of rhs
    this->SplitExposedPrivate(rhs, NULL, v1_p);
 
@@ -624,6 +631,8 @@ void BilinearForm::Assemble(int skip_zeros)
       {
 	 for (i = 0; i < fes -> GetNE(); i++)
 	 {
+	    if ( 100*(i+1)/fes->GetNE() > 100*i/fes->GetNE() && false )
+	       std::cout << 100*(i+1)/fes->GetNE() << "%" << std::endl;
 	    fes->GetElementVDofs(i, vdofs);
 	    if (element_matrices)
 	    {
@@ -657,6 +666,8 @@ void BilinearForm::Assemble(int skip_zeros)
 
 	 for (i = 0; i < fes -> GetNE(); i++)
 	 {
+ 	    if ( 100*(i+1)/fes->GetNE() > 100*i/fes->GetNE() && false )
+	      std::cout << 100*(i+1)/fes->GetNE() << "%" << std::endl;
 	    int vdim = fes->GetVDim();
 	    int pr_offset, npri;
 	    fes->GetElementVDofs(i, vdofs, pr_offset, npri);
@@ -1084,7 +1095,7 @@ void BilinearForm::EliminateEssentialBCFromDofs (Array<int> &ess_dofs, int d)
       }
 }
 
-void BilinearForm::Update (FiniteElementSpace *nfes)
+void BilinearForm::Update(FiniteElementSpace *nfes)
 {
    if (nfes) { fes = nfes; }
 

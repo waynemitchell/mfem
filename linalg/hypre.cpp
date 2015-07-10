@@ -2037,6 +2037,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    double theta         = 0.25;
    int amg_interp_type  = 6;
    int amg_Pmax         = 4;
+   int singular_problem = 1;
 
    int p = 1;
    if (edge_fespace->GetNE() > 0)
@@ -2161,6 +2162,8 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
                                theta, amg_interp_type, amg_Pmax);
    HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                               theta, amg_interp_type, amg_Pmax);
+   if (singular_problem)
+     HYPRE_AMSSetBetaPoissonMatrix(ams,NULL);
 }
 
 HypreAMS::~HypreAMS()
