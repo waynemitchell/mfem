@@ -202,7 +202,7 @@ public:
    /// Return total number of bytes allocated.
    long MemoryUsage() const;
 
-   ~NCMesh();
+   virtual ~NCMesh();
 
 
 protected: // interface for Mesh to be able to construct itself from NCMesh

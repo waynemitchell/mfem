@@ -158,6 +158,68 @@ void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
    NewDataAndSize((double *)v + v_offset, fes->GetVSize());
 }
 
+void GridFunction::SumFluxAndCount(BilinearFormIntegrator &blfi,
+                                   GridFunction &flux,
+                                   Array<int>& count,
+                                   int wcoef,
+                                   int subdomain)
+{
+   GridFunction &u = *this;
+   
+   ElementTransformation *Transf;
+
+   FiniteElementSpace *ufes = u.FESpace();
+   FiniteElementSpace *ffes = flux.FESpace();
+
+   int nfe = ufes->GetNE();
+   Array<int> udofs;
+   Array<int> fdofs;
+   Vector ul, fl;
+
+   flux = 0.0;
+   count = 0;
+
+   for (int i = 0; i < nfe; i++)
+   {
+      if (subdomain >= 0 && ufes->GetAttribute(i) != subdomain)
+      {
+         continue;
+      }
+
+      ufes->GetElementVDofs(i, udofs);
+      ffes->GetElementVDofs(i, fdofs);
+
+      u.GetSubVector(udofs, ul);
+
+      Transf = ufes->GetElementTransformation(i);
+      blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
+                              *ffes->GetFE(i), fl, wcoef);
+
+      flux.AddElementVector(fdofs, fl);
+
+      FiniteElementSpace::AdjustVDofs(fdofs);
+      for (int j = 0; j < fdofs.Size(); j++)
+      {
+         count[fdofs[j]]++;
+      }
+   }
+}
+
+void GridFunction::ComputeFlux(BilinearFormIntegrator &blfi,
+                               GridFunction &flux, int wcoef,
+                               int subdomain)
+{
+   Array<int> count(flux.Size());
+   
+   SumFluxAndCount(blfi, flux, count, 0, subdomain);
+
+   // complete averaging
+   for (int i = 0; i < count.Size(); i++)
+   {
+      if (count[i] != 0) { flux(i) /= count[i]; }
+   }
+}
+
 int GridFunction::VectorDim() const
 {
    if (!fes->GetNE())
@@ -2153,65 +2215,6 @@ std::ostream &operator<<(std::ostream &out, const GridFunction &sol)
 }
 
 
-void ComputeFlux(BilinearFormIntegrator &blfi,
-                 GridFunction &u,
-                 GridFunction &flux, int wcoef, int subdomain)
-{
-   ElementTransformation *Transf;
-
-   FiniteElementSpace *ufes = u.FESpace();
-   FiniteElementSpace *ffes = flux.FESpace();
-
-   int nfe = ufes->GetNE();
-   Array<int> udofs;
-   Array<int> fdofs;
-   Array<int> overlap(flux.Size());
-   Vector ul, fl;
-
-   flux = 0.0;
-   overlap = 0;
-
-   for (int i = 0; i < nfe; i++)
-   {
-      if (subdomain >= 0 && ufes->GetAttribute(i) != subdomain)
-      {
-         continue;
-      }
-
-      ufes->GetElementVDofs(i, udofs);
-      ffes->GetElementVDofs(i, fdofs);
-
-      u.GetSubVector(udofs, ul);
-
-      Transf = ufes->GetElementTransformation(i);
-      blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
-                              *ffes->GetFE(i), fl, wcoef);
-
-      flux.AddElementVector(fdofs, fl);
-
-      FiniteElementSpace::AdjustVDofs(fdofs);
-      for (int j = 0; j < fdofs.Size(); j++)
-      {
-         overlap[fdofs[j]]++;
-      }
-   }
-
-   for (int i = 0; i < overlap.Size(); i++)
-   {
-      if (overlap[i] != 0) { flux(i) /= overlap[i]; }
-   }
-
-   if (ffes->GetConformingProlongation())
-   {
-      // On a partially conforming flux space, project on the conforming space.
-      // Using this code may lead to worse refinements in ex6, so we do not use
-      // it by default.
-
-      // Vector conf_flux;
-      // flux.ConformingProject(conf_flux);
-      // flux.ConformingProlongate(conf_flux);
-   }
-}
 
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &u,
@@ -2249,7 +2252,8 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
 
    for (int s = 1; s <= nsd; s++)
    {
-      ComputeFlux(blfi, u, flux, 0, (with_subdomains ? s : 0));
+      // This calls the parallel version when u is a ParGridFunction
+      u.ComputeFlux(blfi, flux, 0, (with_subdomains ? s : 0));
 
       for (int i = 0; i < nfe; i++)
       {

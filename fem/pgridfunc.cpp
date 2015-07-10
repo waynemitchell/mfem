@@ -442,6 +442,47 @@ double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm)
    return glob_norm;
 }
 
+
+void ParGridFunction::ComputeFlux(
+   BilinearFormIntegrator &blfi,
+   GridFunction &flux_, int wcoef, int subdomain)
+{
+   ParGridFunction &u = *this;
+
+   // In this context we know that flux should be a ParGridFunction
+   ParGridFunction& flux = dynamic_cast<ParGridFunction&>(flux_);
+   
+   ParFiniteElementSpace *ffes = flux.ParFESpace();
+
+   Array<int> count(flux.Size());
+   SumFluxAndCount(blfi, flux, count, 0, subdomain);
+
+   // Accumulate flux and counts in parallel
+
+   ffes->GroupComm().Reduce<double>(flux, GroupCommunicator::Sum);
+   ffes->GroupComm().Bcast<double>(flux);
+
+   ffes->GroupComm().Reduce<int>(count, GroupCommunicator::Sum);
+   ffes->GroupComm().Bcast<int>(count);
+
+   // complete averaging
+   for (int i = 0; i < count.Size(); i++)
+   {
+      if (count[i] != 0) { flux(i) /= count[i]; }
+   }
+
+   if (ffes->GetConformingProlongation())
+   {
+      // On a partially conforming flux space, project on the conforming space.
+      // Using this code may lead to worse refinements in ex6, so we do not use
+      // it by default.
+
+      // Vector conf_flux;
+      // flux.ConformingProject(conf_flux);
+      // flux.ConformingProlongate(conf_flux);
+   }
+}
+
 }
 
 #endif
