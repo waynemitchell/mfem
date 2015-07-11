@@ -24,16 +24,10 @@
 namespace mfem
 {
 
-typedef struct
-{
-   TimeDependentOperator* f_op;
-} *UserData;
-
 class CVODESolver: public ODESolver
 {
 protected:
    TimeDependentOperator *f; // f(.,t) : R^n --> R^n
-   UserData data;
    N_Vector y;
    void* ode_mem;
    int step_type;
@@ -74,7 +68,6 @@ class ARKODESolver: public ODESolver
 {
 protected:
    TimeDependentOperator *f; // f(.,t) : R^n --> R^n
-   UserData data;
    N_Vector y;
    void* ode_mem;
    int step_type;
@@ -87,9 +80,6 @@ public:
       y = NULL;
       f = NULL;
       PtrToStep=&ARKODESolver::SetIC;
-
-      data = (UserData) malloc(sizeof *data);   /* Allocate data memory */
-      if (check_flag((void *)data, "malloc", 2)) { return; }
 
       /* Call CVodeCreate to create the solver memory */
       ode_mem=ARKodeCreate();

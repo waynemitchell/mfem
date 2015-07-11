@@ -25,8 +25,8 @@
 
 /* Problem Constants */
 
-#define RTOL  RCONST(1.0e-9) /* scalar absolute tolerance */
-#define ATOL  RCONST(1.0e-12)    /* scalar absolute tolerance */
+#define RTOL  RCONST(1.0e-3) /* scalar absolute tolerance */
+#define ATOL  RCONST(1.0e-6)    /* scalar absolute tolerance */
 #define T0    RCONST(0.0)    /* initial time              */
 
 #define ZERO RCONST(0.0)
@@ -44,9 +44,6 @@ CVODESolver::CVODESolver()
    y = NULL;
    f = NULL;
    PtrToStep=&CVODESolver::SetIC;
-
-   data = (UserData) malloc(sizeof *data);   /* Allocate data memory */
-   if (check_flag((void *)data, "malloc", 2)) { return; }
 
    /* Call CVodeCreate to create the solver memory */
    ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
@@ -70,11 +67,6 @@ void CVODESolver::Init(TimeDependentOperator &_f)
    y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { return; }
 
-   data = (UserData) malloc(sizeof *data);   /* Allocate data memory */
-   if (check_flag((void *)data, "malloc", 2)) { return; }
-
-   data->f_op=f;
-
    /* Call CVodeInit to initialize the integrator memory and specify the
     * user's right hand side function in u'=f(t,u), the inital time t, and
     * the initial dependent variable vector y. */
@@ -88,7 +80,7 @@ void CVODESolver::Init(TimeDependentOperator &_f)
 
    /* Set the pointer to user-defined data */
    //currently pointed to something defined within this step
-   flag = CVodeSetUserData(ode_mem, data);
+   flag = CVodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "CVodeSetUserData", 1)) { return; }
 
 }
@@ -192,9 +184,6 @@ ARKODESolver::ARKODESolver()
    f = NULL;
    PtrToStep=&ARKODESolver::SetIC;
 
-   data = (UserData) malloc(sizeof *data);   /* Allocate data memory */
-   if (check_flag((void *)data, "malloc", 2)) { return; }
-
    /* Call CVodeCreate to create the solver memory */
    ode_mem=ARKodeCreate();
    step_type=ARK_NORMAL;
@@ -219,8 +208,6 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
    reltol = RTOL;   /* Set the tolerances */
    abstol = ATOL;
 
-   data->f_op=f;
-
    /* Call ARKodeInit to initialize the integrator memory and specify the
     * user's right hand side function in u'=f(t,u), the inital time t, and
     * the initial dependent variable vector y. */
@@ -240,7 +227,7 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
    if (check_flag(&flag, "ARKodeSStolerances", 1)) { return; }
 
    /* Set the pointer to user-defined data */
-   flag = ARKodeSetUserData(ode_mem, data);
+   flag = ARKodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "ARKodeSetUserData", 1)) { return; }
 
 }
@@ -351,22 +338,20 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 {
 
    //using namespace mfem;
-
-   mfem::UserData udata;
    realtype *ydata, *ydotdata;
    long int ylen, ydotlen;
 
-   udata = (mfem::UserData) user_data;
    //ydata is now a pointer to the realtype data array in y
    ydata = NV_DATA_S(y);
    ylen = NV_LENGTH_S(y);
+   
    // probably unnecessary, since overwriting ydot as output
    //ydotdata is now a pointer to the realtype data array in ydot
    ydotdata = NV_DATA_S(ydot);
    ydotlen = NV_LENGTH_S(ydot);
-
-   //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
-   mfem::TimeDependentOperator* f_op = udata->f_op;
+   
+  //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
+  mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
 
    //if gridfunction information necessary for Mult, keep Vector in userdata
    //  Vector* u = udata->u;
@@ -376,8 +361,8 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    mfem::Vector mfem_vector_y((double*) ydata, ylen);
    mfem::Vector mfem_vector_ydot((double*) ydotdata, ydotlen);
 
-   f_op->SetTime(t);
-   f_op->Mult(mfem_vector_y,mfem_vector_ydot);
+   f->SetTime(t);
+   f->Mult(mfem_vector_y,mfem_vector_ydot);
 
    return (0);
 }

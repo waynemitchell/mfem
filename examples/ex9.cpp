@@ -258,14 +258,16 @@ int main(int argc, char *argv[])
    ode_solver->Init(adv);
 
    double t = 0.0;
+   double dt_by_ref = dt;
    for (int ti = 0; true; )
    {
       if (t >= t_final - dt/2)
       {
          break;
       }
-
-      ode_solver->Step(u, t, dt);
+      
+      dt_by_ref=dt;
+      ode_solver->Step(u, t, dt_by_ref);
       ti++;
 
       if (ti % vis_steps == 0)
