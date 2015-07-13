@@ -257,8 +257,8 @@ int main(int argc, char *argv[])
    ode_solver->Init(adv);
 
    double t = 0.0;
-   
-   // Track past incremental time steps 
+
+   // Track past incremental time steps
    double dt_by_ref = dt;
    for (int ti = 0; true; )
    {
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
       {
          break;
       }
-      
+
       dt_by_ref=dt;
       ode_solver->Step(u, t, dt_by_ref);
       ti++;

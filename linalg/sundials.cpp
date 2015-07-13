@@ -149,32 +149,40 @@ CVODESolver::~CVODESolver()
 
 int CVODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 {
-  int *errflag;
+   int *errflag;
 
-  /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
+   /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
 
-  if (opt == 0 && flagvalue == NULL) {
-    fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
-            funcname);
-    return(1); }
+   if (opt == 0 && flagvalue == NULL)
+   {
+      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
+              funcname);
+      return (1);
+   }
 
-  /* Check if flag < 0 */
+   /* Check if flag < 0 */
 
-  else if (opt == 1) {
-    errflag = (int *) flagvalue;
-    if (*errflag < 0) {
-      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
-              funcname, *errflag);
-      return(1); }}
+   else if (opt == 1)
+   {
+      errflag = (int *) flagvalue;
+      if (*errflag < 0)
+      {
+         fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
+                 funcname, *errflag);
+         return (1);
+      }
+   }
 
-  /* Check if function returned NULL pointer - no memory allocated */
+   /* Check if function returned NULL pointer - no memory allocated */
 
-  else if (opt == 2 && flagvalue == NULL) {
-    fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
-            funcname);
-    return(1); }
+   else if (opt == 2 && flagvalue == NULL)
+   {
+      fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
+              funcname);
+      return (1);
+   }
 
-  return(0);
+   return (0);
 }
 
 
@@ -303,32 +311,40 @@ ARKODESolver::~ARKODESolver()
 
 int ARKODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 {
-  int *errflag;
+   int *errflag;
 
-  /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
+   /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
 
-  if (opt == 0 && flagvalue == NULL) {
-    fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
-            funcname);
-    return(1); }
+   if (opt == 0 && flagvalue == NULL)
+   {
+      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
+              funcname);
+      return (1);
+   }
 
-  /* Check if flag < 0 */
+   /* Check if flag < 0 */
 
-  else if (opt == 1) {
-    errflag = (int *) flagvalue;
-    if (*errflag < 0) {
-      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
-              funcname, *errflag);
-      return(1); }}
+   else if (opt == 1)
+   {
+      errflag = (int *) flagvalue;
+      if (*errflag < 0)
+      {
+         fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
+                 funcname, *errflag);
+         return (1);
+      }
+   }
 
-  /* Check if function returned NULL pointer - no memory allocated */
+   /* Check if function returned NULL pointer - no memory allocated */
 
-  else if (opt == 2 && flagvalue == NULL) {
-    fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
-            funcname);
-    return(1); }
+   else if (opt == 2 && flagvalue == NULL)
+   {
+      fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
+              funcname);
+      return (1);
+   }
 
-  return(0);
+   return (0);
 }
 
 }
@@ -344,14 +360,14 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    //ydata is now a pointer to the realtype data array in y
    ydata = NV_DATA_S(y);
    ylen = NV_LENGTH_S(y);
-   
+
    // probably unnecessary, since overwriting ydot as output
    //ydotdata is now a pointer to the realtype data array in ydot
    ydotdata = NV_DATA_S(ydot);
    ydotlen = NV_LENGTH_S(ydot);
-   
-  //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
-  mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
+
+   //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
+   mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
 
    //if gridfunction information necessary for Mult, keep Vector in userdata
    //  Vector* u = udata->u;
