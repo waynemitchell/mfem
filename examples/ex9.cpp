@@ -28,7 +28,6 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
-#include "../linalg/sundials.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -258,6 +257,8 @@ int main(int argc, char *argv[])
    ode_solver->Init(adv);
 
    double t = 0.0;
+   
+   // Track past incremental time steps 
    double dt_by_ref = dt;
    for (int ti = 0; true; )
    {

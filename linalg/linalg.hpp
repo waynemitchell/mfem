@@ -24,6 +24,7 @@
 #include "sparsesmoothers.hpp"
 #include "densemat.hpp"
 #include "ode.hpp"
+#include "sundials.hpp"
 
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
