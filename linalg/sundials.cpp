@@ -31,8 +31,6 @@
 
 #define ZERO RCONST(0.0)
 
-//#define ASSUME_LIMITS 1
-
 using namespace std;
 
 namespace mfem
@@ -65,13 +63,13 @@ void CVODESolver::Init(TimeDependentOperator &_f)
 
    // Create a serial vector
    y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
-   if (check_flag((void*)y, "N_VNew_Serial", 0)) { return; }
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
    /* Call CVodeInit to initialize the integrator memory and specify the
     * user's right hand side function in u'=f(t,u), the inital time t, and
     * the initial dependent variable vector y. */
    flag = CVodeInit(ode_mem, sun_f_fun, t, y);
-   if (check_flag(&flag, "CVodeInit", 1)) { return; }
+   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
 
    /* Call CVodeSStolerances to specify the scalar relative tolerance
     * and scalar absolute tolerance */
@@ -81,7 +79,7 @@ void CVODESolver::Init(TimeDependentOperator &_f)
    /* Set the pointer to user-defined data */
    //currently pointed to something defined within this step
    flag = CVodeSetUserData(ode_mem, this->f);
-   if (check_flag(&flag, "CVodeSetUserData", 1)) { return; }
+   if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
 
 }
 
@@ -99,16 +97,15 @@ void CVODESolver::SetIC(Vector &x, double&t, double&dt)
    NV_DATA_S(y)= x.GetData();
    flag = CVodeReInit(ode_mem, t, y);
 
-
    /* Set the minimum step size */
    //   flag = CVodeSetMinStep(ode_mem, dt);
    //   if(check_flag(&flag, "CVodeSetMinStep", 1)) return;
 
    /* Set the maximum step size */
-#ifdef ASSUME_LIMITS
-   flag = CVodeSetMaxStep(ode_mem, dt);
-   if (check_flag(&flag, "CVodeSetMaxStep", 1)) { return; }
-#endif
+
+   /*   flag = CVodeSetMaxStep(ode_mem, dt);
+      if (check_flag(&flag, "CVodeSetMaxStep", 1)) { return; }
+   */
    PtrToStep=&CVODESolver::GetY;
 }
 
@@ -120,14 +117,13 @@ void CVODESolver::GetY(Vector &x, double&t, double&dt)
 void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
-   /*   cout<<"dt="<<dt<<endl;*/
    realtype tout=t+dt;
 
    (this->*PtrToStep)(x,t,dt);
 
    //Step
    flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
-   if (check_flag(&flag, "CVode", 1)) { return; }
+   if (check_flag(&flag, "CVode", 1)) { MFEM_ABORT("CVode"); }
    return;
    flag = CVodeGetLastStep(ode_mem, &dt);
    if (check_flag(&flag, "CVodeGetLastStep", 1)) { return; }
@@ -150,13 +146,15 @@ CVODESolver::~CVODESolver()
 int CVODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 {
    int *errflag;
+   char str_buffer[80];
 
    /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
 
    if (opt == 0 && flagvalue == NULL)
    {
-      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
+      sprintf(str_buffer,"\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
               funcname);
+      mfem_error(str_buffer);
       return (1);
    }
 
@@ -167,8 +165,9 @@ int CVODESolver::check_flag(void *flagvalue, char *funcname, int opt)
       errflag = (int *) flagvalue;
       if (*errflag < 0)
       {
-         fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
+         sprintf(str_buffer, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
                  funcname, *errflag);
+         mfem_error(str_buffer);
          return (1);
       }
    }
@@ -177,8 +176,9 @@ int CVODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 
    else if (opt == 2 && flagvalue == NULL)
    {
-      fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
+      sprintf(str_buffer, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
               funcname);
+      mfem_error(str_buffer);
       return (1);
    }
 
@@ -211,7 +211,7 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
    // Create a serial vector
 
    y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
-   if (check_flag((void*)y, "N_VNew_Serial", 0)) { return; }
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
    reltol = RTOL;   /* Set the tolerances */
    abstol = ATOL;
@@ -220,14 +220,12 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
     * user's right hand side function in u'=f(t,u), the inital time t, and
     * the initial dependent variable vector y. */
    flag = ARKodeInit(ode_mem, sun_f_fun, NULL, t, y);
-   if (check_flag(&flag, "ARKodeInit", 1)) { return; }
+   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
 
-#ifdef ASSUME_LIMITS
    /* Call ARKodeSetERKTableNum to compare directly with method integration
     * in MFEM example 9. */
    flag = ARKodeSetERKTableNum(ode_mem, 3);
    if (check_flag(&flag, "ARKodeSetERKTableNum", 1)) { return; }
-#endif
 
    /* Call ARKodeSStolerances to specify the scalar relative tolerance
     * and scalar absolute tolerance */
@@ -236,7 +234,7 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
 
    /* Set the pointer to user-defined data */
    flag = ARKodeSetUserData(ode_mem, this->f);
-   if (check_flag(&flag, "ARKodeSetUserData", 1)) { return; }
+   if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
 
 }
 
@@ -254,22 +252,21 @@ void ARKODESolver::SetIC(Vector &x, double&t, double&dt)
    NV_DATA_S(y)= x.GetData();
    flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, t, y);
 
-#ifdef ASSUME_LIMITS
-   if (step_type==ARK_ONE_STEP)
-   {
-      flag = ARKodeSetFixedStep(ode_mem, dt);
-      if (check_flag(&flag, "ARKodeSetInitStep", 1)) { return; }
-   }
-#endif
-
+   /*
+      if (step_type==ARK_ONE_STEP)
+      {
+         flag = ARKodeSetFixedStep(ode_mem, dt);
+         if (check_flag(&flag, "ARKodeSetInitStep", 1)) { return; }
+      }
+   */
    /* Set the minimum step size */
    //   flag = ARKodeSetMinStep(ode_mem, dt);
    //   if(check_flag(&flag, "ARKodeSetMinStep", 1)) return;
-#ifdef ASSUME_LIMITS
    /* Set the maximum step size */
-   flag = ARKodeSetMaxStep(ode_mem, dt);
-   if (check_flag(&flag, "ARKodeSetMaxStep", 1)) { return; }
-#endif
+   /*
+      flag = ARKodeSetMaxStep(ode_mem, dt);
+      if (check_flag(&flag, "ARKodeSetMaxStep", 1)) { return; }
+   */
    PtrToStep=&ARKODESolver::GetY;
 }
 
@@ -281,15 +278,13 @@ void ARKODESolver::GetY(Vector &x, double&t, double&dt)
 void ARKODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
-   /*   cout<<"dt="<<dt<<endl;*/
    realtype tout=t+dt;
 
    (this->*PtrToStep)(x,t,dt);
 
    //Step
    flag = ARKode(ode_mem, tout, y, &t, step_type);
-   if (check_flag(&flag, "ARKode", 1)) { return; }
-   //   x.SetData(NV_DATA_S(y));
+   if (check_flag(&flag, "ARKode", 1)) { MFEM_ABORT("ARKode"); }
    flag = ARKodeGetLastStep(ode_mem, &dt);
    if (check_flag(&flag, "ARKodeGetLastStep", 1)) { return; }
    return;
@@ -312,13 +307,15 @@ ARKODESolver::~ARKODESolver()
 int ARKODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 {
    int *errflag;
+   char str_buffer[80];
 
    /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
 
    if (opt == 0 && flagvalue == NULL)
    {
-      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
+      sprintf(str_buffer,"\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
               funcname);
+      mfem_error(str_buffer);
       return (1);
    }
 
@@ -329,8 +326,9 @@ int ARKODESolver::check_flag(void *flagvalue, char *funcname, int opt)
       errflag = (int *) flagvalue;
       if (*errflag < 0)
       {
-         fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
+         sprintf(str_buffer, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
                  funcname, *errflag);
+         mfem_error(str_buffer);
          return (1);
       }
    }
@@ -339,8 +337,9 @@ int ARKODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 
    else if (opt == 2 && flagvalue == NULL)
    {
-      fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
+      sprintf(str_buffer, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
               funcname);
+      mfem_error(str_buffer);
       return (1);
    }
 
