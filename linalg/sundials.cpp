@@ -22,20 +22,13 @@
 #include <sundials/sundials_types.h> /* definition of type realtype */
 #include <sundials/sundials_math.h>  /* definition of ABS and EXP */
 
-
-/* Problem Constants */
-
-#define RTOL  RCONST(1.0e-3) /* scalar absolute tolerance */
-#define ATOL  RCONST(1.0e-6)    /* scalar absolute tolerance */
-#define T0    RCONST(0.0)    /* initial time              */
-
-#define ZERO RCONST(0.0)
+#define RELTOL RCONST(1.0e-6)
+#define ABSTOL RCONST(1.0e-3)
 
 using namespace std;
 
 namespace mfem
 {
-
 
 CVODESolver::CVODESolver()
 {
@@ -51,36 +44,135 @@ void CVODESolver::Init(TimeDependentOperator &_f)
 {
    //not checking that initial pointers set to NULL:
    f = &_f;
-   realtype reltol, abstol;
    long int yin_length=_f.Width(); //assume don't have initial condition in Init
    //intial time
    realtype t = 0.0;
    realtype *yin;
    yin= new realtype[yin_length];
-   int iout, flag;
-   reltol = RTOL;   /* Set the tolerances */
-   abstol = ATOL;
+   int flag;
 
    // Create a serial vector
    y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
    /* Call CVodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in u'=f(t,u), the inital time t, and
+    * user's right hand side function in x'=f(t,x), the inital time t, and
     * the initial dependent variable vector y. */
    flag = CVodeInit(ode_mem, sun_f_fun, t, y);
    if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
 
+   /* Set the pointer to user-defined data */
+   flag = CVodeSetUserData(ode_mem, this->f);
+   if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
+
+}
+
+void CVODESolver::Init(TimeDependentOperator &_f, Vector &x, double&t,
+                       double&dt)
+{
+   //not checking that initial pointers set to NULL:
+   f = &_f;
+   long int yin_length=_f.Width();
+   if (_f.Width()!=x.Size())
+   {
+      mfem_error("Function f takes argument of different size than intial condition");
+   }
+
+   realtype *yin = x.GetData();
+   int flag;
+
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+
+   /* Call CVodeInit to initialize the integrator memory and specify the
+    * user's right hand side function in x'=f(t,x), the inital time t, and
+    * the initial dependent variable vector y. */
+   flag = CVodeInit(ode_mem, sun_f_fun, (realtype) t, y);
+   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
+
+   /* Set the pointer to user-defined data */
+   flag = CVodeSetUserData(ode_mem, this->f);
+   if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
+
+   PtrToStep=&CVODESolver::GetY;
+
+}
+
+void CVODESolver::ReInit(TimeDependentOperator &_f)
+{
+   f = &_f;
+   long int yin_length=_f.Width(); //assume don't have initial condition in Init
+   //intial time
+   realtype t = 0.0;
+   realtype *yin;
+   yin= new realtype[yin_length];
+   int flag;
+
+
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+
+   /* Call CVodeInit to initialize the integrator memory and specify the
+    * user's right hand side function in x'=f(t,x), the inital time t, and
+    * the initial dependent variable vector y. */
+   flag = CVodeReInit(ode_mem, t, y);
+   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
+
+   //Come up with a better way to test whether this has already been set
+   SetSStolerances(RELTOL,ABSTOL);
+
+   /* Set the pointer to user-defined data */
+   flag = CVodeSetUserData(ode_mem, this->f);
+   if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
+
+   PtrToStep=&CVODESolver::SetIC;
+
+}
+
+void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &x, double&t,
+                         double&dt)
+{
+   //not checking that initial pointers set to NULL:
+   f = &_f;
+   long int yin_length=_f.Width();
+   if (_f.Width()!=x.Size())
+   {
+      mfem_error("Function f takes argument of different size than intial condition");
+   }
+
+   realtype *yin = x.GetData();
+   int flag;
+
+
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+
+   /* Call CVodeInit to initialize the integrator memory and specify the
+    * user's right hand side function in x'=f(t,x), the inital time t, and
+    * the initial dependent variable vector y. */
+   flag = CVodeReInit(ode_mem, (realtype) t, y);
+   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
+
+   //Come up with a better way to test whether this has already been set
+   SetSStolerances(RELTOL,ABSTOL);
+
+   /* Set the pointer to user-defined data */
+   flag = CVodeSetUserData(ode_mem, this->f);
+   if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
+   PtrToStep=&CVODESolver::GetY;
+
+}
+
+void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
+{
+   int flag=0;
    /* Call CVodeSStolerances to specify the scalar relative tolerance
     * and scalar absolute tolerance */
    flag = CVodeSStolerances(ode_mem, reltol, abstol);
    if (check_flag(&flag, "CVodeSStolerances", 1)) { return; }
-
-   /* Set the pointer to user-defined data */
-   //currently pointed to something defined within this step
-   flag = CVodeSetUserData(ode_mem, this->f);
-   if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
-
 }
 
 void CVODESolver::SetStopTime(double tf)
@@ -96,6 +188,9 @@ void CVODESolver::SetIC(Vector &x, double&t, double&dt)
    yin=NULL;
    NV_DATA_S(y)= x.GetData();
    flag = CVodeReInit(ode_mem, t, y);
+
+   //Come up with a better way to test whether this has already been set
+   SetSStolerances(RELTOL,ABSTOL);
 
    /* Set the minimum step size */
    //   flag = CVodeSetMinStep(ode_mem, dt);
@@ -197,27 +292,24 @@ ARKODESolver::ARKODESolver()
    step_type=ARK_NORMAL;
 }
 
+
 void ARKODESolver::Init(TimeDependentOperator &_f)
 {
    f = &_f;
-   realtype reltol, abstol;
    long int yin_length=_f.Width(); //assume don't have initial condition in Init
    //intial time
    realtype t = 0.0;
    realtype *yin;
    yin= new realtype[yin_length];
-   int iout, flag;
+   int flag;
 
    // Create a serial vector
 
    y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
-   reltol = RTOL;   /* Set the tolerances */
-   abstol = ATOL;
-
    /* Call ARKodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in u'=f(t,u), the inital time t, and
+    * user's right hand side function in x'=f(t,x), the inital time t, and
     * the initial dependent variable vector y. */
    flag = ARKodeInit(ode_mem, sun_f_fun, NULL, t, y);
    if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
@@ -227,15 +319,119 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
    flag = ARKodeSetERKTableNum(ode_mem, 3);
    if (check_flag(&flag, "ARKodeSetERKTableNum", 1)) { return; }
 
-   /* Call ARKodeSStolerances to specify the scalar relative tolerance
-    * and scalar absolute tolerance */
-   flag = ARKodeSStolerances(ode_mem, reltol, abstol);
-   if (check_flag(&flag, "ARKodeSStolerances", 1)) { return; }
+   /* Set the pointer to user-defined data */
+   flag = ARKodeSetUserData(ode_mem, this->f);
+   if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
+
+}
+
+void ARKODESolver::Init(TimeDependentOperator &_f, Vector &x, double&t,
+                        double&dt)
+{
+   //not checking that initial pointers set to NULL:
+   f = &_f;
+   long int yin_length=_f.Width();
+   if (_f.Width()!=x.Size())
+   {
+      mfem_error("Function f takes argument of different size than intial condition");
+   }
+
+   realtype *yin = x.GetData();
+   int flag;
+
+
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+
+   /* Call ARKodeInit to initialize the integrator memory and specify the
+    * user's right hand side function in x'=f(t,x), the inital time t, and
+    * the initial dependent variable vector y. */
+   flag = ARKodeInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
+   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
+
+   //Come up with a better way to test whether this has already been set
+   SetSStolerances(RELTOL,ABSTOL);
 
    /* Set the pointer to user-defined data */
    flag = ARKodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
 
+   PtrToStep=&ARKODESolver::GetY;
+
+}
+
+void ARKODESolver::ReInit(TimeDependentOperator &_f)
+{
+   f = &_f;
+   long int yin_length=_f.Width(); //assume don't have initial condition in Init
+   //intial time
+   realtype t = 0.0;
+   realtype *yin;
+   yin= new realtype[yin_length];
+   int flag;
+
+
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+
+   /* Call ARKodeInit to initialize the integrator memory and specify the
+    * user's right hand side function in x'=f(t,x), the inital time t, and
+    * the initial dependent variable vector y. */
+   flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, t, y);
+   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
+
+   //Come up with a better way to test whether this has already been set
+   SetSStolerances(RELTOL,ABSTOL);
+
+   /* Set the pointer to user-defined data */
+   flag = ARKodeSetUserData(ode_mem, this->f);
+   if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
+
+   PtrToStep=&ARKODESolver::SetIC;
+
+}
+
+void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &x, double&t,
+                          double&dt)
+{
+   //not checking that initial pointers set to NULL:
+   f = &_f;
+   long int yin_length=_f.Width();
+   if (_f.Width()!=x.Size())
+   {
+      mfem_error("Function f takes argument of different size than intial condition");
+   }
+
+   realtype *yin = x.GetData();
+   int flag;
+
+
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+
+   /* Call ARKodeInit to initialize the integrator memory and specify the
+    * user's right hand side function in x'=f(t,x), the inital time t, and
+    * the initial dependent variable vector y. */
+   flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
+   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
+
+   /* Set the pointer to user-defined data */
+   flag = ARKodeSetUserData(ode_mem, this->f);
+   if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
+   PtrToStep=&ARKODESolver::GetY;
+
+}
+
+void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
+{
+   int flag=0;
+   /* Call ARKodeSStolerances to specify the scalar relative tolerance
+    * and scalar absolute tolerance */
+   flag = ARKodeSStolerances(ode_mem, reltol, abstol);
+   if (check_flag(&flag, "ARKodeSStolerances", 1)) { return; }
 }
 
 void ARKODESolver::SetStopTime(double tf)
@@ -252,6 +448,8 @@ void ARKODESolver::SetIC(Vector &x, double&t, double&dt)
    NV_DATA_S(y)= x.GetData();
    flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, t, y);
 
+   //Come up with a better way to test whether this has already been set
+   SetSStolerances(RELTOL,ABSTOL);
    /*
       if (step_type==ARK_ONE_STEP)
       {

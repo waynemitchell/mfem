@@ -23,7 +23,7 @@
 
 namespace mfem
 {
-
+/// Wraps the CVode library of linear multistep methods
 class CVODESolver: public ODESolver
 {
 protected:
@@ -36,6 +36,14 @@ public:
    CVODESolver();
 
    void Init(TimeDependentOperator &);
+
+   void Init(TimeDependentOperator &, Vector &, double&, double&);
+
+   void ReInit(TimeDependentOperator &);
+
+   void ReInit(TimeDependentOperator &, Vector &, double&, double&);
+
+   void SetSStolerances(realtype reltol, realtype abstol);
 
    void Step(Vector &, double&, double&);
 
@@ -59,11 +67,12 @@ public:
 
    ~CVODESolver();
 
+private:
    /* Private function to check function return values */
-
    int check_flag(void *flagvalue, char *funcname, int opt);
 };
 
+/// Wraps the ARKode library of additive runge-kutta methods
 class ARKODESolver: public ODESolver
 {
 protected:
@@ -75,20 +84,15 @@ protected:
 public:
    ARKODESolver();
 
-   ARKODESolver(int _step_type, double _stop_time)
-   {
-      y = NULL;
-      f = NULL;
-      PtrToStep=&ARKODESolver::SetIC;
-
-      /* Call CVodeCreate to create the solver memory */
-      ode_mem=ARKodeCreate();
-
-      step_type = _step_type;
-      ARKodeSetStopTime(ode_mem, _stop_time);
-   }
-
    void Init(TimeDependentOperator &);
+
+   void Init(TimeDependentOperator &, Vector &, double&, double&);
+
+   void ReInit(TimeDependentOperator &);
+
+   void ReInit(TimeDependentOperator &, Vector &, double&, double&);
+
+   void SetSStolerances(realtype reltol, realtype abstol);
 
    void Step(Vector &, double&, double&);
 
@@ -112,14 +116,14 @@ public:
 
    ~ARKODESolver();
 
+private:
    /* Private function to check function return values */
-
    int check_flag(void *flagvalue, char *funcname, int opt);
 };
 
 
 }
-//leave N_Vector wrapping question for after SunODE_Solver inheritance finished
+
 int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 
 
