@@ -30,6 +30,8 @@ protected:
    N_Vector y;
    void* ode_mem;
    int step_type;
+   bool initial_condition_set;
+   bool tolerances_set;
    bool parallel;
 #ifdef MFEM_USE_MPI
    MPI_Comm comm;
@@ -69,7 +71,7 @@ public:
 
    void SetStopTime(double);
 
-   void (CVODESolver::*PtrToStep)(Vector &, double&, double&);
+//   void (CVODESolver::*PtrToStep)(Vector &, double&, double&);
 
    ~CVODESolver();
 
@@ -89,6 +91,8 @@ protected:
    N_Vector y;
    void* ode_mem;
    int step_type;
+   bool initial_condition_set;
+   bool tolerances_set;
    bool parallel;
 #ifdef MFEM_USE_MPI
    MPI_Comm comm;

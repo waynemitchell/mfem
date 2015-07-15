@@ -33,26 +33,26 @@ namespace mfem
 CVODESolver::CVODESolver()
 {
    f = NULL;
-
-   PtrToStep=&CVODESolver::SetIC;
+   initial_condition_set = false;
 
    /* Call CVodeCreate to create the solver memory */
    ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
    step_type=CV_NORMAL;
    parallel = false;
+   tolerances_set = false;
 }
 
 CVODESolver::CVODESolver(MPI_Comm _comm)
 {
    f = NULL;
-
-   PtrToStep=&CVODESolver::SetIC;
+   initial_condition_set = false;
 
    /* Call CVodeCreate to create the solver memory */
    ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
    step_type=CV_NORMAL;
    comm=_comm;
    parallel = true;
+   tolerances_set = false;
 }
 
 void CVODESolver::CreateNVector()
@@ -190,7 +190,7 @@ void CVODESolver::Init(TimeDependentOperator &_f)
    //intial time
    realtype t = 0.0;
    int flag;
-
+   
    CreateNVector();
 
    /* Call CVodeInit to initialize the integrator memory and specify the
@@ -199,12 +199,6 @@ void CVODESolver::Init(TimeDependentOperator &_f)
    flag = CVodeInit(ode_mem, sun_f_fun, t, y);
    if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
 
-   //Come up with a better way to test whether this has already been set
-   SetSStolerances(RELTOL,ABSTOL);
-   cout<<"f!=NULL"<<(f!=NULL)<<endl;
-   cout<<"&(*f):"<<&(*f)<<endl;
-   cout<<"&(_f):"<<&_f<<endl;
-
    /* Set the pointer to user-defined data */
    flag = CVodeSetUserData(ode_mem, this->f);
    //cout.flush();
@@ -212,6 +206,7 @@ void CVODESolver::Init(TimeDependentOperator &_f)
    MPI_Barrier(comm);
 #endif
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
+   initial_condition_set = false;
 
 }
 
@@ -241,27 +236,36 @@ void CVODESolver::Init(TimeDependentOperator &_f, Vector &x, double&t,
    flag = CVodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
 
-   PtrToStep=&CVODESolver::GetY;
+   initial_condition_set = true;
 
 }
 
 void CVODESolver::ReInit(TimeDependentOperator &_f)
 {
-   f = &_f;
+/*   f = &_f;
    int flag;
 
    //This addition may need destruction of previous vector data
    CreateNVector();
 
+   int flag=0;
+   // Call CVodeInit to initialize the integrator memory and specify the
+   // user's right hand side function in x'=f(t,x), the inital time t, and
+   // the initial dependent variable vector y. 
+   flag = CVodeReInit(ode_mem, (realtype) t, y);
+   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
+
    //Come up with a better way to test whether this has already been set
    SetSStolerances(RELTOL,ABSTOL);
 
-   /* Set the pointer to user-defined data */
+   // Set the pointer to user-defined data 
    flag = CVodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
 
-   PtrToStep=&CVODESolver::SetIC;
-
+   initial_condition_set = false;
+   */
+   cout<<"ReInit with only f meaningless for CVODE"<<endl;
+   mfem_error("ReInit with only f meaningless for CVODE");
 }
 
 void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &x, double&t,
@@ -275,21 +279,11 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &x, double&t,
       mfem_error("Function f takes argument of different size than intial condition");
    }
 
-   CreateNVector(x);
-
-   /* Call CVodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in x'=f(t,x), the inital time t, and
-    * the initial dependent variable vector y. */
-   flag = CVodeReInit(ode_mem, (realtype) t, y);
-   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
-
-   //Come up with a better way to test whether this has already been set
-   SetSStolerances(RELTOL,ABSTOL);
+   SetIC(x,t,dt);
 
    /* Set the pointer to user-defined data */
    flag = CVodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
-   PtrToStep=&CVODESolver::GetY;
 
 }
 
@@ -300,6 +294,7 @@ void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
     * and scalar absolute tolerance */
    flag = CVodeSStolerances(ode_mem, reltol, abstol);
    if (check_flag(&flag, "CVodeSStolerances", 1)) { mfem_error("CVodeSStolerances"); }
+   tolerances_set = true;
 }
 
 void CVODESolver::SetStopTime(double tf)
@@ -310,21 +305,19 @@ void CVODESolver::SetStopTime(double tf)
 void CVODESolver::SetIC(Vector &x, double&t, double&dt)
 {
    int flag=0;
+   
    CreateNVector(x);
-   flag = CVodeReInit(ode_mem, t, y);
-   //Come up with a better way to test whether this has already been set
-   /*   SetSStolerances(RELTOL,ABSTOL);*/
+   /* Call CVodeInit to initialize the integrator memory and specify the
+    * user's right hand side function in x'=f(t,x), the inital time t, and
+    * the initial dependent variable vector y. */
+   flag = CVodeReInit(ode_mem, (realtype) t, y);
+   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
+   initial_condition_set = true;
 
-   /* Set the minimum step size */
-   //   flag = CVodeSetMinStep(ode_mem, dt);
-   //   if(check_flag(&flag, "CVodeSetMinStep", 1)) return;
+   //If no tolerances have been set when integration is started, set some default tolerances
+   if(!tolerances_set)
+       SetSStolerances(RELTOL,ABSTOL);
 
-   /* Set the maximum step size */
-
-   /*   flag = CVodeSetMaxStep(ode_mem, dt);
-      if (check_flag(&flag, "CVodeSetMaxStep", 1)) { return; }
-   */
-   PtrToStep=&CVODESolver::GetY;
 }
 
 void CVODESolver::GetY(Vector &x, double&t, double&dt)
@@ -348,7 +341,10 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
    int flag=0;
    realtype tout=t+dt;
 
-   (this->*PtrToStep)(x,t,dt);
+   if(initial_condition_set)
+     GetY(x,t,dt);
+   else
+     SetIC(x,t,dt);
    /*   #ifdef MFEM_USE_MPI
       int nprocs, myid;
       MPI_Comm_size(comm,&nprocs);
