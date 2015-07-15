@@ -18,22 +18,28 @@
 #include <sundials/sundials_band.h>  /* definitions of type DlsMat and macros */
 #include <sundials/sundials_types.h> /* definition of type realtype */
 #include <sundials/sundials_math.h>  /* definition of ABS and EXP */
-
-/* Type : UserData (contains grid constants) */
-
+#ifdef MFEM_USE_MPI
+#include <mpi.h>
+#endif
 namespace mfem
 {
 /// Wraps the CVode library of linear multistep methods
 class CVODESolver: public ODESolver
 {
 protected:
-   TimeDependentOperator *f; // f(.,t) : R^n --> R^n
    N_Vector y;
    void* ode_mem;
    int step_type;
-
+   bool parallel;
+#ifdef MFEM_USE_MPI
+   MPI_Comm comm;
+#endif
 public:
    CVODESolver();
+
+#ifdef MFEM_USE_MPI
+   CVODESolver(MPI_Comm);
+#endif
 
    void Init(TimeDependentOperator &);
 
@@ -68,6 +74,10 @@ public:
    ~CVODESolver();
 
 private:
+   void CreateNVector();
+
+   void CreateNVector(Vector&);
+
    /* Private function to check function return values */
    int check_flag(void *flagvalue, char *funcname, int opt);
 };
@@ -76,14 +86,19 @@ private:
 class ARKODESolver: public ODESolver
 {
 protected:
-   TimeDependentOperator *f; // f(.,t) : R^n --> R^n
    N_Vector y;
    void* ode_mem;
    int step_type;
+   bool parallel;
+#ifdef MFEM_USE_MPI
+   MPI_Comm comm;
+#endif
 
 public:
    ARKODESolver();
-
+#ifdef MFEM_USE_MPI
+   ARKODESolver(MPI_Comm);
+#endif
    void Init(TimeDependentOperator &);
 
    void Init(TimeDependentOperator &, Vector &, double&, double&);
