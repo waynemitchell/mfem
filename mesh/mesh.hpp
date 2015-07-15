@@ -367,7 +367,8 @@ public:
 #endif
 
    /** Rebuilds the mesh with a different order of elements.  The ordering
-       vector maps the old element number to the new element number.  */
+       vector maps the old element number to the new element number.  This also
+       reorders the vertices and nodes edges and faces along with the elements.  */
    void ReorderElements(const Array<int> &ordering);
 
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into

@@ -1093,14 +1093,6 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
 
 void Mesh::ReorderElements(const Array<int> &ordering)
 {
-   //We will need both the forward and inverse permutation vectors to make the Tables
-   //Array<int> inv_ordering(GetNE());
-   //for (int old_elid = 0; old_elid < GetNE(); ++old_elid)
-  // {
-   //   int new_elid = ordering[old_elid];
-   //   inv_ordering[new_elid] = old_elid;
-  // }
-
    //Get the newly ordered elements
    Array<Element *> new_elements(GetNE());
    for (int old_elid = 0; old_elid < ordering.Size(); ++old_elid)
