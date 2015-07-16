@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -230,7 +230,7 @@ private:
    const Linear3DFiniteElement TetrahedronFE;
    const TriLinear3DFiniteElement ParallelepipedFE;
 public:
-   LinearFECollection() { };
+   LinearFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -239,7 +239,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "Linear"; };
+   virtual const char * Name() const { return "Linear"; }
 };
 
 /// Piecewise-(bi)quadratic continuous finite elements.
@@ -254,7 +254,7 @@ private:
    const LagrangeHexFiniteElement ParallelepipedFE;
 
 public:
-   QuadraticFECollection() : ParallelepipedFE(2) { };
+   QuadraticFECollection() : ParallelepipedFE(2) { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -263,7 +263,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "Quadratic"; };
+   virtual const char * Name() const { return "Quadratic"; }
 };
 
 /// Version of QuadraticFECollection with positive basis functions.
@@ -274,7 +274,7 @@ private:
    const BiQuadPos2DFiniteElement QuadrilateralFE;
 
 public:
-   QuadraticPosFECollection() { };
+   QuadraticPosFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -283,7 +283,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "QuadraticPos"; };
+   virtual const char * Name() const { return "QuadraticPos"; }
 };
 
 /// Piecewise-(bi)cubic continuous finite elements.
@@ -298,7 +298,7 @@ private:
    const LagrangeHexFiniteElement ParallelepipedFE;
 
 public:
-   CubicFECollection() : ParallelepipedFE(3) { };
+   CubicFECollection() : ParallelepipedFE(3) { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -307,7 +307,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "Cubic"; };
+   virtual const char * Name() const { return "Cubic"; }
 };
 
 /// Crouzeix-Raviart nonconforming elements in 2D.
@@ -318,7 +318,7 @@ private:
    const CrouzeixRaviartFiniteElement TriangleFE;
    const CrouzeixRaviartQuadFiniteElement QuadrilateralFE;
 public:
-   CrouzeixRaviartFECollection() : SegmentFE(1) { };
+   CrouzeixRaviartFECollection() : SegmentFE(1) { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -327,7 +327,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "CrouzeixRaviart"; };
+   virtual const char * Name() const { return "CrouzeixRaviart"; }
 };
 
 /// Piecewise-linear nonconforming finite elements in 3D.
@@ -340,7 +340,7 @@ private:
    const RotTriLinearHexFiniteElement ParallelepipedFE;
 
 public:
-   LinearNonConf3DFECollection () { };
+   LinearNonConf3DFECollection () { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -349,7 +349,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "LinearNonConf3D"; };
+   virtual const char * Name() const { return "LinearNonConf3D"; }
 };
 
 
@@ -362,7 +362,7 @@ private:
    const RT0TriangleFiniteElement TriangleFE;
    const RT0QuadFiniteElement QuadrilateralFE;
 public:
-   RT0_2DFECollection() : SegmentFE(0) { };
+   RT0_2DFECollection() : SegmentFE(0) { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -371,7 +371,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "RT0_2D"; };
+   virtual const char * Name() const { return "RT0_2D"; }
 };
 
 /** Second order Raviart-Thomas finite elements in 2D. This class is kept only
@@ -383,7 +383,7 @@ private:
    const RT1TriangleFiniteElement TriangleFE;
    const RT1QuadFiniteElement QuadrilateralFE;
 public:
-   RT1_2DFECollection() { };
+   RT1_2DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -392,7 +392,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "RT1_2D"; };
+   virtual const char * Name() const { return "RT1_2D"; }
 };
 
 /** Third order Raviart-Thomas finite elements in 2D. This class is kept only
@@ -404,7 +404,7 @@ private:
    const RT2TriangleFiniteElement TriangleFE;
    const RT2QuadFiniteElement QuadrilateralFE;
 public:
-   RT2_2DFECollection() { };
+   RT2_2DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -413,7 +413,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "RT2_2D"; };
+   virtual const char * Name() const { return "RT2_2D"; }
 };
 
 /** Piecewise-constant discontinuous finite elements in 2D. This class is kept
@@ -424,7 +424,7 @@ private:
    const P0TriangleFiniteElement TriangleFE;
    const P0QuadFiniteElement QuadrilateralFE;
 public:
-   Const2DFECollection() { };
+   Const2DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -433,7 +433,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "Const2D"; };
+   virtual const char * Name() const { return "Const2D"; }
 };
 
 /** Piecewise-linear discontinuous finite elements in 2D. This class is kept
@@ -445,7 +445,7 @@ private:
    const BiLinear2DFiniteElement QuadrilateralFE;
 
 public:
-   LinearDiscont2DFECollection() { };
+   LinearDiscont2DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -454,7 +454,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "LinearDiscont2D"; };
+   virtual const char * Name() const { return "LinearDiscont2D"; }
 };
 
 /// Version of LinearDiscont2DFECollection with dofs in the Gaussian points.
@@ -466,7 +466,7 @@ private:
    const GaussBiLinear2DFiniteElement QuadrilateralFE;
 
 public:
-   GaussLinearDiscont2DFECollection() { };
+   GaussLinearDiscont2DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -475,7 +475,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "GaussLinearDiscont2D"; };
+   virtual const char * Name() const { return "GaussLinearDiscont2D"; }
 };
 
 /// Linear (P1) finite elements on quadrilaterals.
@@ -484,12 +484,12 @@ class P1OnQuadFECollection : public FiniteElementCollection
 private:
    const P1OnQuadFiniteElement QuadrilateralFE;
 public:
-   P1OnQuadFECollection() { };
+   P1OnQuadFECollection() { }
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
    virtual int DofForGeometry(int GeomType) const;
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
-   virtual const char * Name() const { return "P1OnQuad"; };
+   virtual const char * Name() const { return "P1OnQuad"; }
 };
 
 /** Piecewise-quadratic discontinuous finite elements in 2D. This class is kept
@@ -501,7 +501,7 @@ private:
    const BiQuad2DFiniteElement QuadrilateralFE;
 
 public:
-   QuadraticDiscont2DFECollection() { };
+   QuadraticDiscont2DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -510,7 +510,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "QuadraticDiscont2D"; };
+   virtual const char * Name() const { return "QuadraticDiscont2D"; }
 };
 
 /// Version of QuadraticDiscont2DFECollection with positive basis functions.
@@ -520,13 +520,13 @@ private:
    const BiQuadPos2DFiniteElement QuadrilateralFE;
 
 public:
-   QuadraticPosDiscont2DFECollection() { };
+   QuadraticPosDiscont2DFECollection() { }
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
    virtual int DofForGeometry(int GeomType) const;
    virtual int * DofOrderForOrientation(int GeomType, int Or) const
-   { return NULL; };
-   virtual const char * Name() const { return "QuadraticPosDiscont2D"; };
+   { return NULL; }
+   virtual const char * Name() const { return "QuadraticPosDiscont2D"; }
 };
 
 /// Version of QuadraticDiscont2DFECollection with dofs in the Gaussian points.
@@ -538,7 +538,7 @@ private:
    const GaussBiQuad2DFiniteElement QuadrilateralFE;
 
 public:
-   GaussQuadraticDiscont2DFECollection() { };
+   GaussQuadraticDiscont2DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -547,7 +547,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "GaussQuadraticDiscont2D"; };
+   virtual const char * Name() const { return "GaussQuadraticDiscont2D"; }
 };
 
 /** Piecewise-cubic discontinuous finite elements in 2D. This class is kept
@@ -559,7 +559,7 @@ private:
    const BiCubic2DFiniteElement QuadrilateralFE;
 
 public:
-   CubicDiscont2DFECollection() { };
+   CubicDiscont2DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -568,7 +568,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "CubicDiscont2D"; };
+   virtual const char * Name() const { return "CubicDiscont2D"; }
 };
 
 /** Piecewise-constant discontinuous finite elements in 3D. This class is kept
@@ -580,7 +580,7 @@ private:
    const P0HexFiniteElement ParallelepipedFE;
 
 public:
-   Const3DFECollection () { };
+   Const3DFECollection () { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -589,7 +589,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "Const3D"; };
+   virtual const char * Name() const { return "Const3D"; }
 };
 
 /** Piecewise-linear discontinuous finite elements in 3D. This class is kept
@@ -601,7 +601,7 @@ private:
    const TriLinear3DFiniteElement ParallelepipedFE;
 
 public:
-   LinearDiscont3DFECollection () { };
+   LinearDiscont3DFECollection () { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -610,7 +610,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "LinearDiscont3D"; };
+   virtual const char * Name() const { return "LinearDiscont3D"; }
 };
 
 /** Piecewise-quadratic discontinuous finite elements in 3D. This class is kept
@@ -622,7 +622,7 @@ private:
    const LagrangeHexFiniteElement ParallelepipedFE;
 
 public:
-   QuadraticDiscont3DFECollection () : ParallelepipedFE(2) { };
+   QuadraticDiscont3DFECollection () : ParallelepipedFE(2) { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -631,7 +631,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "QuadraticDiscont3D"; };
+   virtual const char * Name() const { return "QuadraticDiscont3D"; }
 };
 
 /// Finite element collection on a macro-element.
@@ -646,7 +646,7 @@ private:
    const RefinedTriLinear3DFiniteElement ParallelepipedFE;
 
 public:
-   RefinedLinearFECollection() { };
+   RefinedLinearFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -655,7 +655,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "RefinedLinear"; };
+   virtual const char * Name() const { return "RefinedLinear"; }
 };
 
 /** Lowest order Nedelec finite elements in 3D. This class is kept only for
@@ -667,7 +667,7 @@ private:
    const Nedelec1TetFiniteElement TetrahedronFE;
 
 public:
-   ND1_3DFECollection() { };
+   ND1_3DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -676,7 +676,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "ND1_3D"; };
+   virtual const char * Name() const { return "ND1_3D"; }
 };
 
 /** First order Raviart-Thomas finite elements in 3D. This class is kept only
@@ -689,7 +689,7 @@ private:
    const RT0HexFiniteElement HexahedronFE;
    const RT0TetFiniteElement TetrahedronFE;
 public:
-   RT0_3DFECollection() { };
+   RT0_3DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -698,7 +698,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "RT0_3D"; };
+   virtual const char * Name() const { return "RT0_3D"; }
 };
 
 /** Second order Raviart-Thomas finite elements in 3D. This class is kept only
@@ -710,7 +710,7 @@ private:
    const BiLinear2DFiniteElement QuadrilateralFE;
    const RT1HexFiniteElement HexahedronFE;
 public:
-   RT1_3DFECollection() { };
+   RT1_3DFECollection() { }
 
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const;
@@ -719,7 +719,7 @@ public:
 
    virtual int * DofOrderForOrientation(int GeomType, int Or) const;
 
-   virtual const char * Name() const { return "RT1_3D"; };
+   virtual const char * Name() const { return "RT1_3D"; }
 };
 
 /// Discontinuous collection defined locally by a given finite element.

@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -259,6 +259,28 @@ void DenseMatrix::AddMultTranspose(const double *x, double *y,
    }
 }
 
+void DenseMatrix::AddMult_a(double a, const Vector &x, Vector &y) const
+{
+#ifdef MFEM_DEBUG
+   if ( height != y.Size() || width != x.Size() )
+   {
+      mfem_error("DenseMatrix::AddMult_a");
+   }
+#endif
+
+   const double *xp = x;
+   double *d_col = data, *yp = y;
+   for (int col = 0; col < width; col++)
+   {
+      double x_col = a*xp[col];
+      for (int row = 0; row < height; row++)
+      {
+         yp[row] += x_col*d_col[row];
+      }
+      d_col += height;
+   }
+}
+
 void DenseMatrix::AddMultTranspose(const Vector &x, Vector &y,
 				   const double a) const
 {
@@ -270,6 +292,29 @@ void DenseMatrix::AddMultTranspose(const Vector &x, Vector &y,
 #endif
 
    AddMultTranspose((const double *)x, (double *)y, a);
+}
+
+void DenseMatrix::AddMultTranspose_a(double a, const Vector &x,
+                                     Vector &y) const
+{
+#ifdef MFEM_DEBUG
+   if ( height != x.Size() || width != y.Size() )
+   {
+      mfem_error("DenseMatrix::AddMultTranspose_a");
+   }
+#endif
+
+   double *d_col = data;
+   for (int col = 0; col < width; col++)
+   {
+      double y_col = 0.0;
+      for (int row = 0; row < height; row++)
+      {
+         y_col += x[row]*d_col[row];
+      }
+      y[col] += a * y_col;
+      d_col += height;
+   }
 }
 
 double DenseMatrix::InnerProduct(const double *x, const double *y) const
@@ -2251,6 +2296,20 @@ void DenseMatrix::Getl1Diag(Vector &l)
       }
 }
 
+void DenseMatrix::GetRowSums(Vector &l) const
+{
+   l.SetSize(height);
+   for (int i = 0; i < height; i++)
+   {
+      double d = 0.0;
+      for (int j = 0; j < width; j++)
+      {
+         d += operator()(i, j);
+      }
+      l(i) = d;
+   }
+}
+
 void DenseMatrix::Diag(double c, int n)
 {
    SetSize(n);
@@ -2786,6 +2845,16 @@ void Add(const DenseMatrix &A, const DenseMatrix &B,
       }
 }
 
+void Add(double alpha, const DenseMatrix &A,
+         double beta,  const DenseMatrix &B, DenseMatrix &C)
+{
+   for (int i = 0; i < C.Height(); i++)
+      for (int j = 0; j < C.Width(); j++)
+      {
+         C(i,j) = alpha * A(i,j) + beta * B(i,j);
+      }
+}
+
 
 #ifdef MFEM_USE_LAPACK
 extern "C" void
@@ -2833,6 +2902,50 @@ void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
             bdd += ah;
          }
          *ad = d;
+      }
+   }
+#endif
+}
+
+void AddMult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a)
+{
+#ifdef MFEM_DEBUG
+   if (a.Height() != b.Height() || a.Width() != c.Width() ||
+       b.Width() != c.Height())
+   {
+      mfem_error("AddMult (product of DenseMatrices)");
+   }
+#endif
+
+#ifdef MFEM_USE_LAPACK
+   static char transa = 'N', transb = 'N';
+   static double alpha = 1.0, beta = 1.0;
+   int m = b.Height(), n = c.Width(), k = b.Width();
+
+   dgemm_(&transa, &transb, &m, &n, &k, &alpha, b.Data(), &m,
+          c.Data(), &k, &beta, a.Data(), &m);
+#else
+   int ah = a.Height();
+   int as = a.Width();
+   int bs = b.Width();
+   double *ad = a.Data();
+   double *bd = b.Data();
+   double *cd = c.Data();
+   int i, j, k;
+   double *bdd, *cdd;
+
+   for (j = 0; j < as; j++, cd += bs)
+   {
+      for (i = 0; i < ah; i++, ad++)
+      {
+         bdd = bd+i;
+         cdd = cd;
+         for (k = 0 ; k < bs; k++)
+         {
+            *ad += (*bdd) * (*cdd);
+            cdd++;
+            bdd += ah;
+         }
       }
    }
 #endif
@@ -3235,6 +3348,46 @@ void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)
          ABt(i, j) = d;
       }
 #endif
+}
+
+void MultADBt(const DenseMatrix &A, const Vector &D,
+              const DenseMatrix &B, DenseMatrix &ADBt)
+{
+#ifdef MFEM_DEBUG
+   if (A.Height() != ADBt.Height() || B.Height() != ADBt.Width() ||
+       A.Width() != B.Width() || A.Width() != D.Size())
+   {
+      mfem_error("MultADBt(...)");
+   }
+#endif
+
+   const int ah = A.Height();
+   const int bh = B.Height();
+   const int aw = A.Width();
+   const double *ad = A.Data();
+   const double *bd = B.Data();
+   const double *dd = D.GetData();
+   double *cd = ADBt.Data();
+
+   for (int i = 0, s = ah*bh; i < s; i++)
+   {
+      cd[i] = 0.0;
+   }
+   for (int k = 0; k < aw; k++)
+   {
+      double *cp = cd;
+      for (int j = 0; j < bh; j++)
+      {
+         const double bjk = bd[j];
+         for (int i = 0; i < ah; i++)
+         {
+            cp[i] += ad[i] * dd[k] * bjk;
+         }
+         cp += ah;
+      }
+      ad += ah;
+      bd += bh;
+   }
 }
 
 void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt)

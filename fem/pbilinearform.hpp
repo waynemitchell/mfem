@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -98,6 +98,7 @@ class ParMixedBilinearForm : public MixedBilinearForm
 protected:
    ParFiniteElementSpace *trial_pfes;
    ParFiniteElementSpace *test_pfes;
+   mutable ParGridFunction X, Y; // used in TrueAddMult
 
 public:
    ParMixedBilinearForm(ParFiniteElementSpace *trial_fes,
@@ -119,6 +120,9 @@ public:
 
    /// Return the matrix m assembled on the true exposed dofs, i.e. P^t A P
    HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m);
+
+   /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
+   void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 
    virtual ~ParMixedBilinearForm() { }
 };

@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -86,7 +86,12 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n,
    if ( A == NULL )
    {
       ownData = true;
-      A = new double[ I[height] ];
+      int nnz = I[height];
+      A = new double[ nnz ];
+      for (int i=0; i<nnz; ++i)
+      {
+         A[i] = 0.0;
+      }
    }
 }
 
