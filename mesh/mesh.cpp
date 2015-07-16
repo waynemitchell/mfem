@@ -3598,6 +3598,17 @@ const FiniteElementSpace *Mesh::GetNodalFESpace()
    return ((Nodes) ? Nodes->FESpace() : NULL);
 }
 
+void Mesh::ProjectNURBS(int order)
+{
+   if (NURBSext)
+   {
+      FiniteElementCollection* nfec = new H1_FECollection(order, Dim);
+      FiniteElementSpace* nfes = new FiniteElementSpace(this, nfec, Dim);
+      SetNodalFESpace(nfes);
+      Nodes->MakeOwner(nfec);
+   }
+}
+
 int Mesh::GetNumFaces() const
 {
    switch (Dim)
@@ -6809,26 +6820,47 @@ void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
    GeneralRefinement(refinements, nonconforming, nc_limit);
 }
 
-void Mesh::RefineAtVertex(int vertex, int levels, int nonconforming)
+void Mesh::RandomRefinement(int levels, int frac, bool aniso)
+{
+   for (int i = 0; i < levels; i++)
+   {
+      Array<Refinement> refs;
+      for (int j = 0; j < GetNE(); j++)
+      {
+         if (!(rand() % frac))
+         {
+            int type = 7;
+            if (aniso)
+            {
+               type = (Dim == 3) ? (rand() % 7 + 1) : (rand() % 3 + 1);
+            }
+            refs.Append(Refinement(j, type));
+         }
+      }
+      GeneralRefinement(refs);
+   }
+}
+
+void Mesh::RefineAtVertex(const Vertex& vert, int levels, int nonconforming)
 {
    Array<int> v;
    for (int k = 0; k < levels; k++)
    {
-      Array<Refinement> refinements;
+      Array<Refinement> refs;
       for (int i = 0; i < GetNE(); i++)
       {
          GetElementVertices(i, v);
          bool refine = false;
          for (int j = 0; j < v.Size(); j++)
          {
-            if (v[j] == vertex) { refine = true; break; }
+            if (vertices[v[j]] == vert) { refine = true; break; }
          }
          if (refine)
          {
-            refinements.Append(Refinement(i));
+            refs.Append(Refinement(i));
          }
       }
-      GeneralRefinement(refinements, nonconforming);
+      GeneralRefinement(refs, nonconforming);
    }
 }
 

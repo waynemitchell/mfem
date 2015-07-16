@@ -702,6 +702,10 @@ public:
        defined or NULL if the mesh does not have nodes. */
    const FiniteElementSpace *GetNodalFESpace();
 
+   /** If 'NURBSext' exists, project the NURBS curvature to Nodes of the given
+       order and get rid of the NURBS extension. */
+   void ProjectNURBS(int order);
+
    /** Refine all mesh elements. */
    void UniformRefinement();
 
@@ -721,7 +725,11 @@ public:
    void GeneralRefinement(const Array<int> &el_to_refine,
                           int nonconforming = -1, int nc_limit = 0);
 
-   void RefineAtVertex(int vertex, int levels, int nonconforming = -1);
+   /// Refine each element with 1/frac probability, repeat 'levels' times.
+   void RandomRefinement(int levels, int frac = 2, bool aniso = false);
+
+   /// Refine elements sharing the specified vertex, 'levels' times.
+   void RefineAtVertex(const Vertex& vert, int levels, int nonconforming = -1);
 
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
