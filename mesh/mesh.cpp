@@ -4593,6 +4593,7 @@ void Mesh::GenerateFaces()
    {
       faces[i] = NULL;
       faces_info[i].Elem1No = -1;
+      faces_info[i].NCFace = -1;
    }
    for (i = 0; i < NumOfElements; i++)
    {
