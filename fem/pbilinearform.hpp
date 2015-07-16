@@ -109,7 +109,16 @@ public:
    }
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
-   HypreParMatrix *ParallelAssemble();
+   HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
+
+   /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
+   HypreParMatrix *ParallelAssembleReduced();
+
+   /// Return the matrix m assembled on the true dofs, i.e. P^t A P
+   HypreParMatrix *ParallelAssemble(SparseMatrix *m);
+
+   /// Return the matrix m assembled on the true exposed dofs, i.e. P^t A P
+   HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m);
 
    virtual ~ParMixedBilinearForm() { }
 };
@@ -132,6 +141,16 @@ protected:
                               domain_fes->GetTrueDofOffsets(), false);
    }
 
+   HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m,
+                                    HYPRE_Int *true_ex_row_starts,
+                                    HYPRE_Int *true_ex_col_starts,
+                                    bool scalar) const;
+   HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m)
+   {
+      return ParallelAssembleReduced(m, range_fes->GetTrueExDofOffsets(),
+				     domain_fes->GetTrueExDofOffsets(), false);
+   }
+
 public:
    ParDiscreteLinearOperator(ParFiniteElementSpace *dfes,
                              ParFiniteElementSpace *rfes)
@@ -140,9 +159,18 @@ public:
    /// Returns the matrix "assembled" on the true dofs
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
 
-   /** Extract the parallel blocks corresponding to the vector dimensions of the
-       domain and range parallel finite element spaces */
+   /// Returns the matrix "assembled" on the true exposed dofs
+   HypreParMatrix *ParallelAssembleReduced();
+
+   /** Extract the parallel blocks corresponding to the vector
+       dimensions of the domain and range parallel finite element
+       spaces */
    void GetParBlocks(Array2D<HypreParMatrix *> &blocks) const;
+
+   /** Extract the parallel blocks corresponding to the vector
+       dimensions of the exposed portions of the domain and range
+       parallel finite element spaces */
+   void GetParBlocksReduced(Array2D<HypreParMatrix *> &blocks) const;
 
    virtual ~ParDiscreteLinearOperator() { }
 };

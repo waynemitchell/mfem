@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
    if ( ess_bdr.Size() > 1 ) ess_bdr[1] = 0;
 
    Array<int> ess_bdr_v, dof_list;
-   fespace->GetEssentialVDofs(ess_bdr,ess_bdr_v);
+   fespace->GetEssentialExVDofs(ess_bdr,ess_bdr_v);
 
    for (int i = 0; i < ess_bdr_v.Size(); i++)
    {

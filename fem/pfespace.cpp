@@ -404,6 +404,25 @@ void ParFiniteElementSpace::ApplyLDofSigns(Array<int> &dofs) const
       }
 }
 
+void ParFiniteElementSpace::ApplyLExDofSigns(Array<int> &dofs) const
+{
+   for (int i = 0; i < dofs.Size(); i++)
+      if (dofs[i] < 0)
+      {
+         if (lexdof_sign[-1-dofs[i]] < 0)
+         {
+            dofs[i] = -1-dofs[i];
+         }
+      }
+      else
+      {
+         if (lexdof_sign[dofs[i]] < 0)
+         {
+            dofs[i] = -1-dofs[i];
+         }
+      }
+}
+
 void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
 {
    if (elem_dof)
@@ -413,6 +432,24 @@ void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
    }
    FiniteElementSpace::GetElementDofs(i, dofs);
    ApplyLDofSigns(dofs);
+}
+
+void ParFiniteElementSpace::GetElementExDofs(int i, Array<int> &dofs) const
+{
+   if (elem_dof)
+   {
+      elem_dof->GetRow(i, dofs);
+
+      if ( nprdofs == 0 )
+      {
+	int nb = fec -> DofForGeometry (mesh -> GetElementBaseGeometry (i));
+	dofs.SetSize(dofs.Size()-nb);
+      }
+
+      return;
+   }
+   FiniteElementSpace::GetElementExDofs(i, dofs);
+   ApplyLExDofSigns(dofs);
 }
 
 void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const

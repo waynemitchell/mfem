@@ -223,7 +223,7 @@ void DenseMatrix::MultTranspose(const Vector &x, Vector &y) const
    MultTranspose((const double *)x, (double *)y);
 }
 
-void DenseMatrix::AddMult(const Vector &x, Vector &y) const
+void DenseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
 {
 #ifdef MFEM_DEBUG
    if ( height != y.Size() || width != x.Size() )
@@ -236,13 +236,40 @@ void DenseMatrix::AddMult(const Vector &x, Vector &y) const
    double *d_col = data, *yp = y;
    for (int col = 0; col < width; col++)
    {
-      double x_col = xp[col];
+      double x_col = a*xp[col];
       for (int row = 0; row < height; row++)
       {
          yp[row] += x_col*d_col[row];
       }
       d_col += height;
    }
+}
+
+void DenseMatrix::AddMultTranspose(const double *x, double *y,
+				   const double a) const
+{
+   double *d_col = data;
+   for (int col = 0; col < width; col++)
+   {
+      for (int row = 0; row < height; row++)
+      {
+         y[col] += a*x[row]*d_col[row];
+      }
+      d_col += height;
+   }
+}
+
+void DenseMatrix::AddMultTranspose(const Vector &x, Vector &y,
+				   const double a) const
+{
+#ifdef MFEM_DEBUG
+   if ( height != x.Size() || width != y.Size() )
+   {
+      mfem_error("DenseMatrix::AddMultTranspose");
+   }
+#endif
+
+   AddMultTranspose((const double *)x, (double *)y, a);
 }
 
 double DenseMatrix::InnerProduct(const double *x, const double *y) const

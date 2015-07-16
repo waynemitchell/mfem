@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/beam-hex.mesh";
    int order = 1;
+   int sr = 0, pr = 2;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -53,6 +54,10 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&sr, "-sr", "--serial-refinement",
+                  "Number of serial refinement levels.");
+   args.AddOption(&pr, "-pr", "--parallel-refinement",
+                  "Number of parallel refinement levels.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -103,8 +108,8 @@ int main(int argc, char *argv[])
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
    {
-      int ref_levels =
-         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = sr;
+      //  (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -119,8 +124,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-     // int par_ref_levels = 2;
-     int par_ref_levels = 1;
+     int par_ref_levels = pr;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -151,7 +155,7 @@ int main(int argc, char *argv[])
    ParLinearForm *b = new ParLinearForm(fespace);
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
-   cout << myid << ":  b assembled" << endl;
+
    // 8. Define the solution vector x as a parallel finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary edges will be used
@@ -160,7 +164,7 @@ int main(int argc, char *argv[])
    ParGridFunction x(fespace);
    VectorFunctionCoefficient E(3, E_exact);
    x.ProjectCoefficient(E);
-   cout << myid << ":  x projected" << endl;
+
    // 9. Set up the parallel bilinear form corresponding to the EM diffusion
    //    operator curl muinv curl + sigma I, by adding the curl-curl and the
    //    mass domain integrators and finally imposing non-homogeneous Dirichlet
@@ -174,38 +178,27 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
-   cout << myid << ":  A assembled" << endl;
-   /*
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
-   */
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
-   /*
-   HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelAverage();
-   *X = 0.0;
-   */
    HypreParMatrix *A = a->ParallelAssembleReduced();
    HypreParVector *B = a->RHS_R(*b);
    HypreParVector *X = x.ParallelAverage();
-   cout << myid << ":  ABX averaged" << endl;
+
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
-   // if ( ess_bdr.Size() > 1 ) ess_bdr[1] = 0;
 
    Array<int> ess_bdr_v, dof_list;
-   fespace->GetEssentialVDofs(ess_bdr,ess_bdr_v);
+   fespace->GetEssentialExVDofs(ess_bdr,ess_bdr_v);
 
    for (int i = 0; i < ess_bdr_v.Size(); i++)
    {
       if (ess_bdr_v[i]) {
 	int loctdof = fespace->GetLocalTExDofNumber(i);
-	if ( loctdof >= 0 ) dof_list.Append(loctdof);
+	if ( loctdof >= 0 ) {
+	  dof_list.Append(loctdof);
+	}
       }
    }
 
@@ -214,30 +207,25 @@ int main(int argc, char *argv[])
 		     X->GetData(),fespace->GetTrueExDofOffsets());
 
    A->EliminateRowsCols(dof_list, XE, *B);
-   cout << myid << ":  bc done" << endl;
-   // delete a;
+
    delete sigma;
    delete muinv;
-   // delete b;
 
    // 11. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
    HypreSolver *ams = new HypreAMS(*A, fespace);
-   cout << myid << ":  ams built" << endl;
    HyprePCG *pcg = new HyprePCG(*A);
-   cout << myid << ":  pcg built" << endl;
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
-   cout << myid << ":  ams set as precond" << endl;
    pcg->Mult(*B, XE);
-   cout << myid << ":  solved" << endl;
+
    // 12. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
    x = *X;
    a->UpdatePrivateDoFs(*b,x);
-   cout << myid << ":  x updated" << endl;
+
    delete a;
    delete b;
 

@@ -116,6 +116,7 @@ private:
    void ConstructTrueNURBSDofs();
 
    void ApplyLDofSigns(Array<int> &dofs) const;
+   void ApplyLExDofSigns(Array<int> &dofs) const;
 
 public:
    // Face-neighbor data
@@ -172,6 +173,13 @@ public:
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
+  // virtual void GetElementDofs(int i, Array<int> &dofs,
+  //  		       int &pr_offset, int &npr) const;
+
+   /// Returns indexes of degrees of freedom in array dofs for i'th element.
+   virtual void GetElementExDofs(int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
    virtual void GetBdrElementDofs(int i, Array<int> &dofs) const;

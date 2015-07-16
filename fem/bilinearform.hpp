@@ -69,6 +69,7 @@ protected:
    DenseTensor *element_matrices;
 
    int precompute_sparsity;
+
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
 
@@ -273,11 +274,29 @@ class MixedBilinearForm : public Matrix
 protected:
    SparseMatrix *mat;
 
+   // Matrices associated with static condensation
+   SparseMatrix  *mat_ee; // The exposed-exposed block of the assembled matrix
+   SparseMatrix  *mat_ep; // The exposed-private block of the assembled matrix
+   SparseMatrix  *mat_pe; // The private-exposed block of the assembled matrix
+   DenseMatrix  **mat_pp; // The private-private dense blocks
+
+   // Vectors associated with static condensation
+   Vector *v1_e, *v1_p; // Temporary vectors which may be only shells
+   Vector *v2_e, *v2_p; // Temporary vectors which may be only shells
+
+   // FE space for the column and row indices respectively
    FiniteElementSpace *trial_fes, *test_fes;
 
    Array<BilinearFormIntegrator*> dom;
    Array<BilinearFormIntegrator*> bdr;
    Array<BilinearFormIntegrator*> skt; // trace face integrators
+
+   // Allocate appropriate SparseMatrix and assign it to mat
+   void AllocMat();
+
+  void permuteElementMatrix(DenseMatrix & mat,
+			    int vdim_r, int npr_r,
+			    int vdim_c, int npr_c);
 
 public:
    MixedBilinearForm (FiniteElementSpace *tr_fes,
@@ -307,9 +326,30 @@ public:
        test and trial spaces, respectively. */
    void GetBlocks(Array2D<SparseMatrix *> &blocks) const;
 
+   /** Extract the associated matrix as SparseMatrix blocks. The number of
+       block rows and columns is given by the vector dimensions (vdim) of the
+       test and trial spaces, respectively. This version returns only the
+       blocks corresponding to exposed DoFs */
+   void GetBlocksReduced(Array2D<SparseMatrix *> &blocks) const;
+
    const SparseMatrix &SpMat() const { return *mat; }
    SparseMatrix &SpMat() { return *mat; }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
+
+   /// Access the static condensation Matrices and Vectors
+   const SparseMatrix &SPMatEE() const { return *mat_ee; }
+   const SparseMatrix &SPMatEP() const { return *mat_ep; }
+   const SparseMatrix &SPMatPE() const { return *mat_pe; }
+
+   SparseMatrix &SpMatEE() { return *mat_ee; }
+   SparseMatrix &SpMatEP() { return *mat_ep; }
+   SparseMatrix &SpMatPE() { return *mat_pe; }
+
+   void SplitExposedPrivate(const FiniteElementSpace &fes, const Vector &x,
+			    Vector *x_e, Vector *x_p) const;
+   void MergeExposedPrivate(const FiniteElementSpace &fes,
+			    Vector *x_e, Vector *x_p,
+			    Vector &x) const;
 
    void AddDomainIntegrator (BilinearFormIntegrator * bfi);
 

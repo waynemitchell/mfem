@@ -98,8 +98,16 @@ public:
    /// Multiply a vector with the transpose matrix.
    virtual void MultTranspose(const Vector &x, Vector &y) const;
 
-   /// y += A.x
-   void AddMult(const Vector &x, Vector &y) const;
+   /// y += a*A.x
+   void AddMult(const Vector &x, Vector &y, const double a = 1.0) const;
+
+   /// Multiply a vector with the transpose matrix.
+   void AddMultTranspose(const double *x, double *y,
+			 const double a = 1.0) const;
+
+   /// y += a*At.x
+   void AddMultTranspose(const Vector &x, Vector &y,
+			 const double a = 1.0) const;
 
    /// Compute y^t A x
    double InnerProduct(const double *x, const double *y) const;

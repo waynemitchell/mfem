@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/beam-tri.mesh";
    int order = 1;
    bool visualization = 1;
+   bool byNodes = false;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -62,6 +63,9 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
+   args.AddOption(&byNodes, "-bn", "--by-nodes", "-bv",
+                  "--by-vdim",
+                  "Enable ordering by Nodes as opposed to VDim.");
    args.Parse();
    if (!args.Good())
    {
@@ -154,7 +158,12 @@ int main(int argc, char *argv[])
    else
    {
       fec = new H1_FECollection(order, dim);
-      fespace = new ParFiniteElementSpace(pmesh, fec, dim, Ordering::byVDIM);
+      if ( byNodes )
+	fespace = new ParFiniteElementSpace(pmesh, fec, dim,
+					    Ordering::byNODES);
+      else
+	fespace = new ParFiniteElementSpace(pmesh, fec, dim,
+					    Ordering::byVDIM);
    }
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
@@ -241,7 +250,7 @@ int main(int argc, char *argv[])
    amg->SetSystemsOptions(dim);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-8);
-   pcg->SetMaxIter(500);
+   pcg->SetMaxIter(1000);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
    pcg->Mult(*B, *X);
