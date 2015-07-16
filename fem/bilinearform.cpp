@@ -286,7 +286,7 @@ void BilinearForm::Assemble (int skip_zeros)
    if (bfbfi.Size())
    {
       FaceElementTransformations *tr;
-      const FiniteElement *nfe = NULL;
+      const FiniteElement *fe1, *fe2;
 
       for (i = 0; i < fes -> GetNBE(); i++)
       {
@@ -294,10 +294,14 @@ void BilinearForm::Assemble (int skip_zeros)
          if (tr != NULL)
          {
             fes -> GetElementVDofs (tr -> Elem1No, vdofs);
+            fe1 = fes -> GetFE (tr -> Elem1No);
+            // The fe2 object is really a dummy and not used on the boundaries,
+            // but we can't dereference a NULL pointer, and we don't want to
+            // actually make a fake element.
+            fe2 = fe1;
             for (int k = 0; k < bfbfi.Size(); k++)
             {
-               bfbfi[k] -> AssembleFaceMatrix (*fes -> GetFE (tr -> Elem1No),
-                                               *nfe, *tr, elemmat);
+               bfbfi[k] -> AssembleFaceMatrix (*fe1, *fe2, *tr, elemmat);
                mat -> AddSubMatrix (vdofs, vdofs, elemmat, skip_zeros);
             }
          }
@@ -662,7 +666,10 @@ void MixedBilinearForm::Assemble (int skip_zeros)
          }
          else
          {
-            test_fe2 = NULL;
+            // The test_fe2 object is really a dummy and not used on the
+            // boundaries, but we can't dereference a NULL pointer, and we don't
+            // want to actually make a fake element.
+            test_fe2 = test_fe1;
          }
          for (int k = 0; k < skt.Size(); k++)
          {
