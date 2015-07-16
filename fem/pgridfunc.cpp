@@ -447,8 +447,6 @@ void ParGridFunction::ComputeFlux(
    BilinearFormIntegrator &blfi,
    GridFunction &flux_, int wcoef, int subdomain)
 {
-   ParGridFunction &u = *this;
-
    // In this context we know that flux should be a ParGridFunction
    ParGridFunction& flux = dynamic_cast<ParGridFunction&>(flux_);
    
@@ -457,13 +455,21 @@ void ParGridFunction::ComputeFlux(
    Array<int> count(flux.Size());
    SumFluxAndCount(blfi, flux, count, 0, subdomain);
 
-   // Accumulate flux and counts in parallel
+   if (&(ffes->GroupComm())) // FIXME: nonconforming
+   {
+      // Accumulate flux and counts in parallel
 
-   ffes->GroupComm().Reduce<double>(flux, GroupCommunicator::Sum);
-   ffes->GroupComm().Bcast<double>(flux);
+      ffes->GroupComm().Reduce<double>(flux, GroupCommunicator::Sum);
+      ffes->GroupComm().Bcast<double>(flux);
 
-   ffes->GroupComm().Reduce<int>(count, GroupCommunicator::Sum);
-   ffes->GroupComm().Bcast<int>(count);
+      ffes->GroupComm().Reduce<int>(count, GroupCommunicator::Sum);
+      ffes->GroupComm().Bcast<int>(count);
+   }
+   else
+   {
+      MFEM_WARNING("Averaging on processor boundaries not implemented for "
+                   "NC meshes yet.");
+   }
 
    // complete averaging
    for (int i = 0; i < count.Size(); i++)
