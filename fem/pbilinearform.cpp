@@ -447,9 +447,9 @@ HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(
 
 HypreParMatrix *ParDiscreteLinearOperator::ParallelAssembleReduced()
 {
-  if ( test_fes->GetNPrDofs() == 0 && trial_fes->GetNPrDofs() == 0 )
+  if ( test_fes->GetNPrDofs() == 0 || trial_fes->GetNPrDofs() == 0 )
   {
-    return ParallelAssemble();
+    return ParallelAssemble(mat);
   }
   else
   {

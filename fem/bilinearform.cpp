@@ -1688,7 +1688,7 @@ void MixedBilinearForm::GetBlocksReduced(Array2D<SparseMatrix *> &blocks) const
 
    blocks.SetSize(test_fes->GetVDim(), trial_fes->GetVDim());
 
-   if ( test_fes->GetNPrDofs() == 0 && trial_fes->GetNPrDofs() == 0 )
+   if ( test_fes->GetNPrDofs() == 0 || trial_fes->GetNPrDofs() == 0 )
    {
       mat->GetBlocks(blocks);
    }
