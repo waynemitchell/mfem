@@ -726,7 +726,8 @@ public:
                           int nonconforming = -1, int nc_limit = 0);
 
    /// Refine each element with 1/frac probability, repeat 'levels' times.
-   void RandomRefinement(int levels, int frac = 2, bool aniso = false);
+   void RandomRefinement(int levels, int frac = 2, bool aniso = false,
+                         int seed = 0 /* should be the same on all CPUs */);
 
    /// Refine elements sharing the specified vertex, 'levels' times.
    void RefineAtVertex(const Vertex& vert, int levels, int nonconforming = -1);

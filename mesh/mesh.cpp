@@ -6820,8 +6820,9 @@ void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
    GeneralRefinement(refinements, nonconforming, nc_limit);
 }
 
-void Mesh::RandomRefinement(int levels, int frac, bool aniso)
+void Mesh::RandomRefinement(int levels, int frac, bool aniso, int seed)
 {
+   srand(seed);
    for (int i = 0; i < levels; i++)
    {
       Array<Refinement> refs;
