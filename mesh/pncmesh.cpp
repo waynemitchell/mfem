@@ -642,6 +642,15 @@ void ParNCMesh::Prune()
 
 void ParNCMesh::Refine(const Array<Refinement> &refinements)
 {
+   for (int i = 0; i < refinements.Size(); i++)
+   {
+      const Refinement &ref = refinements[i];
+      MFEM_VERIFY((Dim == 3 && ref.ref_type == 7) ||
+                  (Dim == 2 && ref.ref_type == 3),
+                  "anisotropic parallel refinement not supported yet.");
+   }
+   MFEM_VERIFY(Iso, "parallel refinement of aniso meshes not supported yet.");
+
    NeighborRefinementMessage::Map send_ref;
 
    // create refinement messages to all neighbors (NOTE: message may be empty)
@@ -664,8 +673,6 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
       ElementNeighborProcessors(elem, ranks);
       for (int j = 0; j < ranks.Size(); j++)
       {
-         MFEM_ASSERT(ref.ref_type == 7, "ref_type = " << (int) ref.ref_type
-                     << " not implemented in parallel.");
          send_ref[ranks[j]].AddRefinement(elem, ref.ref_type);
       }
    }
@@ -674,14 +681,15 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    NeighborRefinementMessage::IsendAll(send_ref, MyComm);
 
    // do local refinements
-#if 0
+#if 1
    for (int i = 0; i < refinements.Size(); i++)
    {
       const Refinement &ref = refinements[i];
       NCMesh::RefineElement(index_leaf[ref.index], ref.ref_type);
    }
 #else
-   // TODO: support aniso ref in parallel
+   // TODO: support aniso ref in parallel, this will allow aniso in parallel on
+   // one processor but will break np > 1
    NCMesh::Refine(refinements); // FIXME double Update()
 #endif
 
@@ -917,8 +925,9 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
 
       for (int i = 0; i < ne; i++)
       {
-         Element* elem = elements[read<int>(is)];
-         MFEM_ASSERT(!elem->ref_type, "not a leaf element.");
+         int el_num = read<int>(is);
+         Element* elem = elements[el_num];
+         MFEM_VERIFY(!elem->ref_type, "not a leaf element: " << el_num);
 
          MeshId &id = ids[type][i];
          id.element = elem;
