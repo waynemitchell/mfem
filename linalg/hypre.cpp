@@ -2266,7 +2266,7 @@ HypreAMS::~HypreAMS()
 HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    : HypreSolver(&A)
 {
-   int cycle_type       = 11;
+   int cycle_type       = 1; // FIXME: 11
    int rlx_type         = 2;
    int rlx_sweeps       = 1;
    double rlx_weight    = 1.0;
