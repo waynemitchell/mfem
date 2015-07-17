@@ -56,6 +56,7 @@ void NCMesh::GeomInfo::Initialize(const mfem::Element* elem)
 NCMesh::NCMesh(const Mesh *mesh, std::istream *vertex_parents)
 {
    Dim = mesh->Dimension();
+   Iso = true;
 
    // examine elements and reserve the first node IDs for top-level vertices
    // (note: 'mesh' may not have vertices defined yet, e.g., on load)
@@ -218,7 +219,8 @@ void NCMesh::DeleteHierarchy(Element* elem)
 }
 
 NCMesh::NCMesh(const NCMesh &other)
-   : Dim(other.Dim), nodes(other.nodes), faces(other.faces)
+   : Dim(other.Dim), Iso(other.Iso)
+   , nodes(other.nodes), faces(other.faces)
 {
    // NOTE: this copy constructor is used by ParNCMesh
    root_elements.SetSize(other.root_elements.Size());
@@ -699,15 +701,18 @@ void NCMesh::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
 void NCMesh::CheckIsoFace(Node* v1, Node* v2, Node* v3, Node* v4,
                           Node* e1, Node* e2, Node* e3, Node* e4, Node* midf)
 {
-   /* If anisotropic refinements are present in the mesh, we need to check
-      isotropically split faces as well. The iso face can be thought to contain
-      four anisotropic cases as in the function CheckAnisoFace, that still need
-      to be checked for the correct parents. */
+   if (!Iso)
+   {
+      /* If anisotropic refinements are present in the mesh, we need to check
+         isotropically split faces as well. The iso face can be thought to
+         contain four anisotropic cases as in the function CheckAnisoFace, that
+         still need to be checked for the correct parents. */
 
-   CheckAnisoFace(v1, v2, e2, e4, e1, midf);
-   CheckAnisoFace(e4, e2, v3, v4, midf, e3);
-   CheckAnisoFace(v4, v1, e1, e3, e4, midf);
-   CheckAnisoFace(e3, e1, v2, v3, midf, e2);
+      CheckAnisoFace(v1, v2, e2, e4, e1, midf);
+      CheckAnisoFace(e4, e2, v3, v4, midf, e3);
+      CheckAnisoFace(v4, v1, e1, e3, e4, midf);
+      CheckAnisoFace(e3, e1, v2, v3, midf, e2);
+   }
 }
 
 
@@ -1006,6 +1011,8 @@ void NCMesh::RefineElement(Element* elem, char ref_type)
       {
          MFEM_ABORT("invalid refinement type.");
       }
+
+      if (ref_type != 7) { Iso = false; }
    }
    else if (elem->geom == Geometry::SQUARE)
    {
@@ -1064,6 +1071,8 @@ void NCMesh::RefineElement(Element* elem, char ref_type)
       {
          MFEM_ABORT("Invalid refinement type.");
       }
+
+      if (ref_type != 3) { Iso = false; }
    }
    else if (elem->geom == Geometry::TRIANGLE)
    {

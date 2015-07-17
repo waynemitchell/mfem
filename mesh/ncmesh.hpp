@@ -222,6 +222,7 @@ protected: // interface for Mesh to be able to construct itself from NCMesh
 protected: // implementation
 
    int Dim;
+   bool Iso; ///< true if the mesh only contains isotropic refinements
 
    Element* CopyHierarchy(Element* elem);
    void DeleteHierarchy(Element* elem);
