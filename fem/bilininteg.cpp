@@ -1098,24 +1098,7 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
 
       energy += e;
 
-      /*if (d_energy)
-      {
-         //Trans.Jacobian().MultTranspose(pointflux, vec);
-
-         DenseMatrix Jadj(dim, dim);
-         CalcAdjugate(Trans.Jacobian(), Jadj);
-         Jadj.Mult(pointflux, vec);
-
-         //(*d_energy)[0] += w * (vec[1]*vec[1] + vec[2]*vec[2]);
-         //(*d_energy)[1] += w * (vec[2]*vec[2] + vec[0]*vec[0]);
-         //(*d_energy)[2] += w * (vec[0]*vec[0] + vec[1]*vec[1]);
-
-         for (int k = 0; k < dim; k++)
-         {
-            (*d_energy)[k] += w * vec[k] * vec[k];
-         }
-      }*/
-
+#if ANISO_EXPERIMENTAL
       if (d_energy)
       {
          pfluxes[i].SetSize(dim);
@@ -1128,10 +1111,12 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
 
          //pfluxes[i] = pointflux;
       }
+#endif
    }
 
    if (d_energy)
    {
+#if ANISO_EXPERIMENTAL
       *d_energy = 0.0;
       Vector tmp;
 
@@ -1160,6 +1145,9 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
                   (*d_energy)[2] += (tmp * tmp);
                }
             }
+#else
+      *d_energy = 1.0;
+#endif
 
       delete [] pfluxes;
    }
