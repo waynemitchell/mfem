@@ -56,6 +56,9 @@ public:
    /** */
    virtual void Refine(const Array<Refinement> &refinements);
 
+   /** */
+   virtual void LimitNCLevel(int max_level);
+
    /** Return a list of vertices shared by this processor and at least one other
        processor. (NOTE: only NCList::conforming will be set.) */
    const NCList& GetSharedVertices()

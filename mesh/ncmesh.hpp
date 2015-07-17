@@ -82,7 +82,7 @@ public:
 
    /** Check the mesh and potentially refine some elements so that the maximum
        level of hanging nodes is not greater than 'max_level'. */
-   void LimitNCLevel(int max_level);
+   virtual void LimitNCLevel(int max_level);
 
    /// Identifies a vertex/edge/face in both Mesh and NCMesh.
    struct MeshId

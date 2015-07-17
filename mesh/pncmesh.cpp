@@ -718,6 +718,12 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
 }
 
 
+void ParNCMesh::LimitNCLevel(int /*max_level*/)
+{
+   MFEM_ABORT("not implemented in parallel yet.");
+}
+
+
 //// ElementSet ////////////////////////////////////////////////////////////////
 
 void ParNCMesh::ElementSet::SetInt(int pos, int value)

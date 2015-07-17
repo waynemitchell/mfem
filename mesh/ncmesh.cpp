@@ -2231,10 +2231,13 @@ void NCMesh::LimitNCLevel(int max_level)
             }
          }
 
-         // TODO: isotropic meshes should only be modified with iso refinements
-
          if (ref_type)
          {
+            if (Iso)
+            {
+               // iso only meshes should only be modified by iso refinements
+               ref_type = 7;
+            }
             refinements.Append(Refinement(i, ref_type));
          }
       }
