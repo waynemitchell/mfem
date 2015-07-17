@@ -16,7 +16,6 @@
 #include "fespace.hpp"
 #include "bilininteg.hpp"
 #include "coefficient.hpp"
-#include "bilininteg.hpp"
 #include <limits>
 #include <ostream>
 #include <string>

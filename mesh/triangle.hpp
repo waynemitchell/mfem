@@ -15,7 +15,6 @@
 #include "../config/config.hpp"
 #include "../fem/fe.hpp"
 #include "element.hpp"
-#include "../fem/fe.hpp"
 
 namespace mfem
 {
