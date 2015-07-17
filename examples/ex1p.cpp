@@ -94,19 +94,8 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
-   // Project NURBS to Nodes
-   if (mesh->NURBSext)
-   {
-      for (int i = 0; i < 2; i++)
-      {
-         mesh->UniformRefinement();
-      }
-
-      FiniteElementCollection* nfec = new H1_FECollection(2, dim);
-      FiniteElementSpace* nfes = new FiniteElementSpace(mesh, nfec, dim);
-      mesh->SetNodalFESpace(nfes);
-      mesh->GetNodes()->MakeOwner(nfec);
-   }
+   // Convert NURBS (if present) to nodal curvature.
+   mesh->ProjectNURBS(4);
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
@@ -120,53 +109,19 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   /*{
-      Array<Refinement> refs;
-      refs.Append(Refinement(0, 1));
-      mesh->GeneralRefinement(refs, 1);
-   }
-   {
-      Array<Refinement> refs;
-      refs.Append(Refinement(0, 2));
-      mesh->GeneralRefinement(refs, 1);
-   }*/
-
-   /*srand(0);
-   for (int i = 0; i < 3; i++)
-   {
-      Array<Refinement> refs;
-      int types[] = { 1, 2, 3, 4, 5, 6, 7, 7, 7 };
-      //int types[] = { 1, 2, 3, 3, 3 };
-      for (int j = 0; j < mesh->GetNE(); j++)
-         if (!(rand() % 2))
-         {
-            refs.Append(Refinement(j, types[rand() % (sizeof(types)/sizeof(int))]));
-         }
-
-      mesh->GeneralRefinement(refs);
-   }*/
-
-   mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
-
-   for (int i = 0; i < 1; i++)
-      mesh->UniformRefinement();
+   mesh->RandomRefinement(5, 2, false);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-   /*{
-      int par_ref_levels = 4;
+   {
+      int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
       }
-   }*/
-   {
-      Array<Refinement> refs;
-      refs.Append(Refinement(0, 7));
-      pmesh->GeneralRefinement(refs, 1);
    }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
@@ -192,9 +147,6 @@ int main(int argc, char *argv[])
       cout << "Number of unknowns: " << size << endl;
    }
 
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-
    // 7. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
    //    (1,phi_i) where phi_i are the basis functions in fespace.
@@ -218,7 +170,6 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator());
    a->Assemble();
-   /*a->EliminateEssentialBC(ess_bdr, x, *b);*/
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
@@ -228,6 +179,8 @@ int main(int argc, char *argv[])
    HypreParVector *X = x.ParallelProject();
 
    // Eliminate essential BC from the parallel system
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
    a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
    delete a;
@@ -272,7 +225,6 @@ int main(int argc, char *argv[])
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
       sol_sock << "solution\n" << *pmesh << x << flush;
-      sol_sock << "keys Am\n";
    }
 
    // 15. Free the used memory.

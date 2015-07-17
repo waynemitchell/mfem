@@ -94,20 +94,12 @@ int main(int argc, char *argv[])
 
    // 3. Refine the serial mesh on all processors to increase the resolution.
    //    Also project a NURBS mesh to a piecewise-quadratic curved mesh.
-   for (int i = 0; i < 1; i++)
-   {
-      mesh->UniformRefinement();
-   }
-
    if (mesh->NURBSext)
    {
-      FiniteElementCollection* nfec = new H1_FECollection(2, dim);
-      FiniteElementSpace* nfes = new FiniteElementSpace(mesh, nfec, dim);
-      mesh->SetNodalFESpace(nfes);
-      mesh->GetNodes()->MakeOwner(nfec);
+      mesh->UniformRefinement();
+      mesh->ProjectNURBS(2);
    }
-
-   mesh->GeneralRefinement(Array<Refinement>()); // FIXME
+   mesh->GeneralRefinement(Array<int>(), 1); // ensure NC mesh
 
    // 4. Define a parallel mesh by partitioning the serial mesh.
    //    Once the parallel mesh is defined, the serial mesh can be deleted.
@@ -159,10 +151,6 @@ int main(int argc, char *argv[])
       }
 
       sout.precision(8);
-      /*if (myid == 0)
-      {
-         sout << "keys Am\n";
-      }*/
    }
 
    // 9. The main AMR loop. In each iteration we solve the problem on the

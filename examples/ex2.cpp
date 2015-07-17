@@ -97,7 +97,6 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 5,000
    //    elements.
    {
-      mesh->GeneralRefinement(Array<int>(), 1);
       //int ref_levels = (int) floor(log(5000. / mesh->GetNE()) / log(2.) / dim);
       int ref_levels = 1;
       for (int l = 0; l < ref_levels; l++)
@@ -107,10 +106,10 @@ int main(int argc, char *argv[])
    }
    {
       int levels = 5;
-      mesh->RefineAtVertex(0, levels);
-      mesh->RefineAtVertex(3, levels);
-      mesh->RefineAtVertex(4, levels);
-      mesh->RefineAtVertex(7, levels);
+      mesh->RefineAtVertex(Vertex(0, 0, 0), levels);
+      mesh->RefineAtVertex(Vertex(0, 1, 0), levels);
+      mesh->RefineAtVertex(Vertex(0, 0, 1), levels);
+      mesh->RefineAtVertex(Vertex(0, 1, 1), levels);
    }
 
    // 5. Define a finite element space on the mesh. Here we use vector finite

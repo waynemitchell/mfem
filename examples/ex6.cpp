@@ -81,11 +81,7 @@ int main(int argc, char *argv[])
    if (mesh.NURBSext)
    {
       mesh.UniformRefinement();
-
-      FiniteElementCollection* nfec = new H1_FECollection(2, dim);
-      FiniteElementSpace* nfes = new FiniteElementSpace(&mesh, nfec, dim);
-      mesh.SetNodalFESpace(nfes);
-      mesh.GetNodes()->MakeOwner(nfec);
+      mesh.ProjectNURBS(2);
    }
 
    // 4. Define a finite element space on the mesh. The polynomial order is

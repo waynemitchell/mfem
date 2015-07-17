@@ -116,21 +116,21 @@ int main(int argc, char *argv[])
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
+   mesh->GeneralRefinement(Array<int>(), 1);
    {
-      mesh->GeneralRefinement(Array<int>(), 1);
-
       //int ref_levels = (int) floor(log(1000. / mesh->GetNE()) / log(2.) / dim);
       int ref_levels = 1;
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
-
-      int local_levels = 4;
-      mesh->RefineAtVertex(0, local_levels);
-      mesh->RefineAtVertex(3, local_levels);
-      mesh->RefineAtVertex(4, local_levels);
-      mesh->RefineAtVertex(7, local_levels);
+   }
+   {
+      int levels = 5;
+      mesh->RefineAtVertex(Vertex(0, 0, 0), levels);
+      mesh->RefineAtVertex(Vertex(0, 1, 0), levels);
+      mesh->RefineAtVertex(Vertex(0, 0, 1), levels);
+      mesh->RefineAtVertex(Vertex(0, 1, 1), levels);
    }
 
    // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -166,8 +166,10 @@ int main(int argc, char *argv[])
    }
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
+   {
       cout << "Number of unknowns: " << size << endl
            << "Assembling: " << flush;
+   }
 
    // 8. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system. In this case, b_i equals the
@@ -224,10 +226,6 @@ int main(int argc, char *argv[])
       cout << "matrix ... " << flush;
    }
    a->Assemble();
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 0;
-   ess_bdr[0] = 1;
-   //a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
    if (myid == 0)
    {
@@ -240,6 +238,10 @@ int main(int argc, char *argv[])
    HypreParVector *B = b->ParallelAssemble();
    HypreParVector *X = x.ParallelProject();
 
+   // Eliminate essential BC from the parallel system
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 0;
+   ess_bdr[0] = 1;
    a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
    delete a;

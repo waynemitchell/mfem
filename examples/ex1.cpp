@@ -75,50 +75,21 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
+   // Convert NURBS (if present) to nodal curvature.
+   mesh->ProjectNURBS(4);
+
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
    /*{
-      int ref_levels =
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
    }*/
-   /*{
-      Array<Refinement> refs;
-      refs.Append(Refinement(0, 2));
-      mesh->GeneralRefinement(refs, 1);
-   }*/
-   srand(0);
-   for (int i = 0; i < 7; i++)
-   {
-      Array<Refinement> refs;
-      int types[] = { 1, 2, 3, 4, 5, 6, 7, 7, 7 };
-      //int types[] = { 1, 2, 3, 3, 3 };
-      for (int j = 0; j < mesh->GetNE(); j++)
-      {
-         if (!(rand() % 2))
-         {
-            refs.Append(Refinement(j, types[rand() % (sizeof(types)/sizeof(int))]));
-         }
-      }
-      mesh->GeneralRefinement(refs);
-   }
-
-   //mesh->GeneralRefinement(Array<Refinement>(), 1); // ensure NC mesh
-
-   {
-      //mesh->UniformRefinement();
-      std::ofstream f("test.mesh");
-      mesh->Print(f);
-   }
-   {
-      std::ifstream f("test.mesh");
-      mesh->Load(f, 1, 1);
-   }
+   mesh->RandomRefinement(6, 2, true);
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
@@ -138,7 +109,6 @@ int main(int argc, char *argv[])
    }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;
-   //fespace->GetConformingProlongation()->Print();
 
    // 5. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are

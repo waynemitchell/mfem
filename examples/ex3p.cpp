@@ -28,8 +28,6 @@
 #include <fstream>
 #include <iostream>
 
-#define PROJTEST 0
-
 using namespace std;
 using namespace mfem;
 
@@ -49,15 +47,12 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/beam-tet.mesh";
    int order = 1;
    bool visualization = 1;
-   int ref_levels = 1;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
-   args.AddOption(&ref_levels, "-r", "--ref-levels",
-                  "Number of refinement levels.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -103,14 +98,16 @@ int main(int argc, char *argv[])
       return 3;
    }
 
-   mesh->GeneralRefinement(Array<int>(), 1);
-
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement.
-   for (int l = 0; l < ref_levels; l++)
-   {
-      mesh->UniformRefinement();
-   }
+   /*{
+      int ref_levels = (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      for (int l = 0; l < ref_levels; l++)
+      {
+         mesh->UniformRefinement();
+      }
+   }*/
+   mesh->RandomRefinement(4, 2, false);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -120,7 +117,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 0;
+      int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -138,9 +135,6 @@ int main(int argc, char *argv[])
    {
       cout << "Number of unknowns: " << size << endl;
    }
-
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
 
    // 7. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
@@ -173,7 +167,6 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
-   //a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
@@ -183,6 +176,8 @@ int main(int argc, char *argv[])
    HypreParVector *X = x.ParallelProject();
 
    // Eliminate essential BC from the parallel system
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
    a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
    *X = 0.0;
@@ -196,7 +191,7 @@ int main(int argc, char *argv[])
    //     preconditioner from hypre.
    HypreSolver *ams = new HypreAMS(*A, fespace);
    HyprePCG *pcg = new HyprePCG(*A);
-   pcg->SetTol(1e-15);
+   pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);

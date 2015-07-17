@@ -77,22 +77,18 @@ int main(int argc, char *argv[])
       return 3;
    }
 
-   Array<Refinement> refs;
-   refs.Append(Refinement(0, 7));
-   mesh->GeneralRefinement(refs, 1);
-
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
-   {
-      int ref_levels = 1;
-         //(int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+   /*{
+      int ref_levels = (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
-   }
+   }*/
+   mesh->RandomRefinement(5, 2, true);
    mesh->ReorientTetMesh();
 
    // 4. Define a finite element space on the mesh. Here we use the lowest order
@@ -132,13 +128,13 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
-   Array<int> ess_bdr(mesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   //a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 
    a->ConformingAssemble(x, *b);
+
+   Array<int> ess_bdr(mesh->bdr_attributes.Max());
+   ess_bdr = 1;
    a->EliminateEssentialBC(ess_bdr, x, *b);
 
 #ifndef MFEM_USE_SUITESPARSE
