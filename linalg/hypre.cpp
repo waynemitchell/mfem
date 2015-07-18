@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -1271,10 +1271,11 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag((hypre_ParCSRMatrix *)A);
    double *data = hypre_CSRMatrixData(A_diag);
    HYPRE_Int *I = hypre_CSRMatrixI(A_diag);
-  /*#ifdef MFEM_DEBUG
-   HYPRE_Int *J   = hypre_CSRMatrixJ(A_diag);
-   HYPRE_Int *I_offd =
-      hypre_CSRMatrixI(hypre_ParCSRMatrixOffd((hypre_ParCSRMatrix *)A));
+   /*#ifdef MFEM_DEBUG
+   HYPRE_Int    *J   = hypre_CSRMatrixJ(A_diag);
+   hypre_CSRMatrix *A_offd = hypre_ParCSRMatrixOffd((hypre_ParCSRMatrix *)A);
+   HYPRE_Int *I_offd = hypre_CSRMatrixI(A_offd);
+   double *data_offd = hypre_CSRMatrixData(A_offd);
    #endif*/
 
    for (int i = 0; i < ess_dof_list.Size(); i++)
@@ -1284,13 +1285,27 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
       /*#ifdef MFEM_DEBUG
       // Check that in the rows specified by the ess_dof_list, the matrix A has
       // only one entry -- the diagonal.
-      if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
+      // if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
+      if (J[I[r]] != r)
       {
-         MFEM_ABORT("'A' needs to have diagonal entries only in rows specified "
-                    "by 'ess_dof_list'.");
+         MFEM_ABORT("the diagonal entry must be the first entry in the row!");
+      }
+      for (int j = I[r]+1; j < I[r+1]; j++)
+      {
+         if (data[j] != 0.0)
+         {
+            MFEM_ABORT("all off-diagonal entries must be zero!");
+         }
+      }
+      for (int j = I_offd[r]; j < I_offd[r+1]; j++)
+      {
+         if (data_offd[j] != 0.0)
+         {
+            MFEM_ABORT("all off-diagonal entries must be zero!");
+         }
       }
       #endif*/
-      // NOTE: if A was eliminated in parallel the above check no longer works
+      // NOTE: if A was eliminated in parallel the above checks no longer work
       // as there are stored zeros in the eliminated rows/columns in A.
    }
 }
@@ -2069,16 +2084,46 @@ HypreParaSails::~HypreParaSails()
 }
 
 
+HypreBoomerAMG::HypreBoomerAMG()
+{
+   amg_precond = NULL;
+   ResetAMGPrecond();
+}
+
 HypreBoomerAMG::HypreBoomerAMG(HypreParMatrix &A) : HypreSolver(&A)
 {
-   int coarsen_type = 10;
-   int agg_levels   = 1;
-   int relax_type   = 8;
-   int relax_sweeps = 1;
-   double theta     = 0.25;
-   int interp_type  = 6;
-   int Pmax         = 4;
-   int print_level  = 1;
+   amg_precond = NULL;
+   ResetAMGPrecond();
+}
+
+void HypreBoomerAMG::ResetAMGPrecond()
+{
+   HYPRE_Int coarsen_type = 10;
+   HYPRE_Int agg_levels   = 1;
+   HYPRE_Int relax_type   = 8;
+   HYPRE_Int relax_sweeps = 1;
+   double theta           = 0.25;
+   HYPRE_Int interp_type  = 6;
+   HYPRE_Int Pmax         = 4;
+   HYPRE_Int print_level  = 1;
+   HYPRE_Int dim          = 1;
+
+   hypre_ParAMGData *amg_data = (hypre_ParAMGData *)amg_precond;
+   if (amg_data)
+   {
+      // read options from amg_precond
+      HYPRE_BoomerAMGGetCoarsenType(amg_precond, &coarsen_type);
+      agg_levels = hypre_ParAMGDataAggNumLevels(amg_data);
+      relax_type = hypre_ParAMGDataUserRelaxType(amg_data);
+      relax_sweeps = hypre_ParAMGDataUserNumSweeps(amg_data);
+      HYPRE_BoomerAMGGetStrongThreshold(amg_precond, &theta);
+      hypre_BoomerAMGGetInterpType(amg_precond, &interp_type);
+      HYPRE_BoomerAMGGetPMaxElmts(amg_precond, &Pmax);
+      HYPRE_BoomerAMGGetPrintLevel(amg_precond, &print_level);
+      HYPRE_BoomerAMGGetNumFunctions(amg_precond, &dim);
+
+      HYPRE_BoomerAMGDestroy(amg_precond);
+   }
 
    HYPRE_BoomerAMGCreate(&amg_precond);
 
@@ -2093,6 +2138,24 @@ HypreBoomerAMG::HypreBoomerAMG(HypreParMatrix &A) : HypreSolver(&A)
    HYPRE_BoomerAMGSetInterpType(amg_precond, interp_type);
    HYPRE_BoomerAMGSetPMaxElmts(amg_precond, Pmax);
    HYPRE_BoomerAMGSetPrintLevel(amg_precond, print_level);
+   HYPRE_BoomerAMGSetNumFunctions(amg_precond, dim);
+}
+
+void HypreBoomerAMG::SetOperator(const Operator &op)
+{
+   const HypreParMatrix *new_A = dynamic_cast<const HypreParMatrix *>(&op);
+   MFEM_VERIFY(new_A, "new Operator must be a HypreParMatrix!");
+
+   if (A) { ResetAMGPrecond(); }
+
+   // update base classes: Operator, Solver, HypreSolver
+   height = new_A->Height();
+   width  = new_A->Width();
+   A = const_cast<HypreParMatrix *>(new_A);
+   setup_called = 0;
+   delete X;
+   delete B;
+   B = X = NULL;
 }
 
 void HypreBoomerAMG::SetSystemsOptions(int dim)

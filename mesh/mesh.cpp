@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -8211,9 +8211,15 @@ void Mesh::Print(std::ostream &out) const
 
    if (NURBSext)
    {
+      // general format
       NURBSext->Print(out);
       out << '\n';
       Nodes->Save(out);
+
+      // patch-wise format
+      // NURBSext->ConvertToPatches(*Nodes);
+      // NURBSext->Print(out);
+
       return;
    }
 

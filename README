@@ -6,7 +6,7 @@
                       | | | | | ||  _||  __/| | | | | |
                       |_| |_| |_||_|   \___||_| |_| |_|
 
-                         http://mfem.googlecode.com
+                               http://mfem.org
 
 MFEM is a modular parallel C++ library for finite element methods. Its goal is
 to enable the research and development of scalable finite element discretization
@@ -53,4 +53,4 @@ the integrated scalable linear solvers from the hypre library. An experimental
 support for OpenMP acceleration is also included.
 
 For examples of using MFEM, see the examples/ directory, as well as the OpenGL
-visualization tool GLVis which is available at http://glvis.googlecode.com.
+visualization tool GLVis which is available at http://glvis.org.

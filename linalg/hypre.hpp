@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -640,8 +640,17 @@ class HypreBoomerAMG : public HypreSolver
 private:
    HYPRE_Solver amg_precond;
 
+   // If amg_precond is NULL, allocates it and sets default options.
+   // Otherwise saves the options from amg_precond, destroys it, allocates a new
+   // one, and sets its options to the saved values.
+   void ResetAMGPrecond();
+
 public:
+   HypreBoomerAMG();
+
    HypreBoomerAMG(HypreParMatrix &A);
+
+   virtual void SetOperator(const Operator &op);
 
    /** More robust options for systems, such as elastisity. Note that BoomerAMG
        assumes Ordering::byVDIM in the finite element space used to generate the
