@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -3283,7 +3283,7 @@ void MultADBt(const DenseMatrix &A, const Vector &D,
    if (A.Height() != ADBt.Height() || B.Height() != ADBt.Width() ||
        A.Width() != B.Width() || A.Width() != D.Size())
    {
-      mfem_error("AddMultADBt(...)");
+      mfem_error("MultADBt(...)");
    }
 #endif
 
@@ -3295,6 +3295,10 @@ void MultADBt(const DenseMatrix &A, const Vector &D,
    const double *dd = D.GetData();
    double *cd = ADBt.Data();
 
+   for (int i = 0, s = ah*bh; i < s; i++)
+   {
+      cd[i] = 0.0;
+   }
    for (int k = 0; k < aw; k++)
    {
       double *cp = cd;

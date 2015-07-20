@@ -6,7 +6,7 @@
                       | | | | | ||  _||  __/| | | | | |
                       |_| |_| |_||_|   \___||_| |_| |_|
 
-                         http://mfem.googlecode.com
+                               http://mfem.org
 
 This directory contains Doxygen configuration files for building HTML
 documentation of the MFEM sources (including the example codes).
@@ -22,7 +22,7 @@ create the file CodeDocumentation.html, which can be viewed in any web browser.
 
 Alternatively, the (pre-build) documentation can be browsed directly online at
 
-   http://doxygen.mfem.googlecode.com/hg/html/index.html
+   http://mfem.github.io/doxygen/html/index.html
 
 
 Some building considerations:
