@@ -49,6 +49,10 @@ LAPACK_LIB = -llapack
 OPENMP_OPT = -fopenmp
 OPENMP_LIB =
 
+GECKO_DIR = @MFEM_DIR@/../gecko
+GECKO_OPT = -I$(GECKO_DIR)/inc
+GECKO_LIB = -L$(GECKO_DIR)/lib -lgecko
+
 MESQUITE_DIR = @MFEM_DIR@/../mesquite-2.99
 MESQUITE_OPT = -I$(MESQUITE_DIR)/include
 MESQUITE_LIB = -L$(MESQUITE_DIR)/lib -lmesquite
@@ -72,6 +76,7 @@ MFEM_USE_OPENMP      = NO
 MFEM_USE_MESQUITE    = NO
 MFEM_USE_SUITESPARSE = NO
 MFEM_USE_MEMALLOC    = YES
+MFEM_USE_GECKO       = NO
 ifeq ($(shell uname -s),Darwin)
    MFEM_TIMER_TYPE ?= 0
 else

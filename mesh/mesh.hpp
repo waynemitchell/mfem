@@ -94,7 +94,7 @@ protected:
    FaceElementTransformations FaceElemTr;
 
    // Nodes are only active for higher order meshes, and share locations with
-   // the vertecies, plus all the higher- order control points within the
+   // the vertices, plus all the higher- order control points within the
    // element and along the edges and on the faces.
    GridFunction *Nodes;
    int own_nodes;
@@ -347,7 +347,8 @@ public:
    void AddHex(const int *vi, int attr = 1);
    void AddHexAsTets(const int *vi, int attr = 1);
    // 'elem' should be allocated using the NewElement method
-   void AddElement(Element *elem)  { elements[NumOfElements++] = elem; }
+   void AddElement(Element *elem)     { elements[NumOfElements++] = elem; }
+   void AddBdrElement(Element *elem)  { boundary[NumOfBdrElements++] = elem; }
    void AddBdrSegment(const int *vi, int attr = 1);
    void AddBdrTriangle(const int *vi, int attr = 1);
    void AddBdrQuad(const int *vi, int attr = 1);
@@ -363,6 +364,19 @@ public:
                         bool fix_orientation = true);
 
    void SetAttributes();
+
+#ifdef MFEM_USE_GECKO
+   /** This is our integration with the Gecko library.  This will call the
+       Gecko library to find an element ordering that will increase memory
+       coherency by putting elements that are in physical proximity closer in
+       memory. */
+   void GetGeckoElementReordering(Array<int> &ordering);
+#endif
+
+   /** Rebuilds the mesh with a different order of elements.  The ordering
+       vector maps the old element number to the new element number.  This also
+       reorders the vertices and nodes edges and faces along with the elements.  */
+   void ReorderElements(const Array<int> &ordering, bool reorder_vertices = true);
 
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
        nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
@@ -558,7 +572,7 @@ public:
    /// Returns the transformation defining the given face element
    ElementTransformation *GetEdgeTransformation(int EdgeNo);
 
-   /** Returns (a poiter to a structure containing) the following data:
+   /** Returns (a pointer to a structure containing) the following data:
        1) Elem1No - the index of the first element that contains this face
        this is the element that has the same outward unit normal
        vector as the face;

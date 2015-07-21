@@ -23,6 +23,10 @@
 #include <cstring>
 #include <ctime>
 
+#ifdef MFEM_USE_GECKO
+#include "graph.h"
+#endif
+
 namespace mfem
 {
 
@@ -1040,6 +1044,199 @@ void Mesh::FinalizeQuadMesh(int generate_edges, int refine,
 
    meshgen = 2;
 }
+
+
+#ifdef MFEM_USE_GECKO
+void Mesh::GetGeckoElementReordering(Array<int> &ordering)
+{
+   Gecko::Graph graph;
+
+   //We will put some accesors in for these later
+   Gecko::Functional *functional =
+      new Gecko::FunctionalGeometric(); // ordering functional
+   unsigned int iterations = 1;         // number of V cycles
+   unsigned int window = 2;             // initial window size
+   unsigned int period = 1;             // iterations between window increment
+   unsigned int seed = 0;               // random number seed
+
+   //Run through all the elements and insert the nodes in the graph for them
+   for (int elemid = 0; elemid < GetNE(); ++elemid)
+   {
+      graph.insert();
+   }
+
+   //Run through all the elems and insert arcs to the graph for each element face
+   //Indices in Gecko are 1 based hence the +1 on the insertion
+   const Table &my_el_to_el = ElementToElementTable();
+   for (int elemid = 0; elemid < GetNE(); ++elemid)
+   {
+      const int *neighid = my_el_to_el.GetRow(elemid);
+      for (int i = 0; i < my_el_to_el.RowSize(elemid); ++i)
+      {
+         graph.insert(elemid + 1,  neighid[i] + 1);
+      }
+   }
+
+   //Get the reordering from Gecko and copy it into the ordering Array<int>
+   graph.order(functional, iterations, window, period, seed);
+   ordering.DeleteAll();
+   ordering.SetSize(GetNE());
+   Gecko::Node::Index NE = GetNE();
+   for (Gecko::Node::Index gnodeid = 1; gnodeid <= NE; ++gnodeid)
+   {
+      ordering[gnodeid - 1] = graph.rank(gnodeid);
+   }
+
+   delete functional;
+}
+#endif
+
+
+void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
+{
+   if (NURBSext)
+   {
+      MFEM_WARNING("element reordering of NURBS meshes is not supported.");
+      return;
+   }
+   if (ncmesh)
+   {
+      MFEM_WARNING("element reordering of non-conforming meshes is not"
+                   " supported.");
+      return;
+   }
+   MFEM_VERIFY(ordering.Size() == GetNE(), "invalid reordering array.")
+   SetState(Mesh::NORMAL);
+
+   // Data members that need to be updated:
+
+   // - elements   - reorder of the pionters and the vertex ids if reordering
+   //                the vertices
+   // - vertices   - if reordering the vertices
+   // - boundary   - update the vertex ids, if reordering the vertices
+   // - faces      - regenerate
+   // - faces_info - regenerate
+
+   // Deleted by DeleteTables():
+   // - el_to_edge  - rebuild in 2D and 3D only
+   // - el_to_face  - rebuild in 3D only
+   // - bel_to_edge - rebuild in 3D only
+   // - el_to_el    - no need to rebuild
+   // - face_edge   - no need to rebuild
+   // - edge_vertex - no need to rebuild
+
+   // - be_to_edge  - 2D only
+   // - be_to_face  - 3D only
+
+   // - Nodes
+
+   //Save the locations of the Nodes so we can rebuild them later
+   Array<Vector*> old_elem_node_vals;
+   FiniteElementSpace *nodes_fes = NULL;
+   if (Nodes)
+   {
+      old_elem_node_vals.SetSize(GetNE());
+      nodes_fes = Nodes->FESpace();
+      Array<int> old_dofs;
+      Vector vals;
+      for (int old_elid = 0; old_elid < GetNE(); ++old_elid)
+      {
+         nodes_fes->GetElementVDofs(old_elid, old_dofs);
+         Nodes->GetSubVector(old_dofs, vals);
+         old_elem_node_vals[old_elid] = new Vector(vals);
+      }
+   }
+
+   //Get the newly ordered elements
+   Array<Element *> new_elements(GetNE());
+   for (int old_elid = 0; old_elid < ordering.Size(); ++old_elid)
+   {
+      int new_elid = ordering[old_elid];
+      new_elements[new_elid] = elements[old_elid];
+   }
+   mfem::Swap(elements, new_elements);
+   new_elements.DeleteAll();
+
+   if (reorder_vertices)
+   {
+      //Get the new vertex ordering permutation vectors and fill the new vertices
+      Array<int> vertex_ordering(GetNV());
+      vertex_ordering = -1;
+      Array<Vertex> new_vertices(GetNV());
+      int new_vertex_ind = 0;
+      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      {
+         int *elem_vert = elements[new_elid]->GetVertices();
+         int nv = elements[new_elid]->GetNVertices();
+         for (int vi = 0; vi < nv; ++vi)
+         {
+            int old_vertex_ind = elem_vert[vi];
+            if (vertex_ordering[old_vertex_ind] == -1)
+            {
+               vertex_ordering[old_vertex_ind] = new_vertex_ind;
+               new_vertices[new_vertex_ind] = vertices[old_vertex_ind];
+               new_vertex_ind++;
+            }
+         }
+      }
+      mfem::Swap(vertices, new_vertices);
+      new_vertices.DeleteAll();
+
+      //Replace the vertex ids in the elements with the reordered vertex numbers
+      for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
+      {
+         int *elem_vert = elements[new_elid]->GetVertices();
+         int nv = elements[new_elid]->GetNVertices();
+         for (int vi = 0; vi < nv; ++vi)
+         {
+            elem_vert[vi] = vertex_ordering[elem_vert[vi]];
+         }
+      }
+
+      //Replace the vertex ids in the boundary with reorderd vertex numbers
+      for (int belid = 0; belid < GetNBE(); ++belid)
+      {
+         int *be_vert = boundary[belid]->GetVertices();
+         int nv = boundary[belid]->GetNVertices();
+         for (int vi = 0; vi < nv; ++vi)
+         {
+            be_vert[vi] = vertex_ordering[be_vert[vi]];
+         }
+      }
+   }
+
+   // Destroy tables that need to be rebuild
+   DeleteTables();
+
+   if (Dim > 1)
+   {
+      // generate el_to_edge, be_to_edge (2D), bel_to_edge (3D)
+      el_to_edge = new Table;
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
+   if (Dim > 2)
+   {
+      // generate el_to_face, be_to_face
+      GetElementToFaceTable();
+   }
+   // Update faces and faces_info
+   GenerateFaces();
+
+   //Build the nodes from the saved locations if they were around before
+   if (Nodes)
+   {
+      nodes_fes->Update();
+      Array<int> new_dofs;
+      for (int old_elid = 0; old_elid < GetNE(); ++old_elid)
+      {
+         int new_elid = ordering[old_elid];
+         nodes_fes->GetElementVDofs(new_elid, new_dofs);
+         Nodes->SetSubVector(new_dofs, *(old_elem_node_vals[old_elid]));
+         delete old_elem_node_vals[old_elid];
+      }
+   }
+}
+
 
 void Mesh::MarkForRefinement()
 {
@@ -4127,22 +4324,6 @@ int Mesh::GetFaceBaseGeometry(int i) const
          mfem_error("Mesh::GetFaceBaseGeometry(...) #1");
    }
    return (-1);
-#if 0
-   if (faces[i] == NULL)
-      switch (GetElementType(faces_info[i].Elem1No))
-      {
-         case Element::TETRAHEDRON:
-            return Geometry::TRIANGLE;
-         case Element::HEXAHEDRON:
-            return Geometry::SQUARE;
-         default:
-            mfem_error("Mesh::GetFaceBaseGeometry(...) #2");
-      }
-   else
-   {
-      return faces[i]->GetGeometryType();
-   }
-#endif
 }
 
 int Mesh::GetBdrElementEdgeIndex(int i) const
@@ -4298,7 +4479,7 @@ int Mesh::GetElementToEdgeTable(Table & e_to_f, Array<int> &be_to_f)
 
    if (Dim == 2)
    {
-      // Initialize the indeces for the boundary elements.
+      // Initialize the indices for the boundary elements.
       be_to_f.SetSize(NumOfBdrElements);
       for (i = 0; i < NumOfBdrElements; i++)
       {
@@ -4422,11 +4603,6 @@ void Mesh::AddPointFaceElement(int lf, int gf, int el)
    }
    else  //  this will be elem2
    {
-#ifdef MFEM_DEBUG
-      // int *v = faces[gf]->GetVertices();
-      // if (v[0] != gf)
-      //    mfem_error("Mesh::AddPointFaceElement(...)");
-#endif
       faces_info[gf].Elem2No  = el;
       faces_info[gf].Elem2Inf = 64 * lf + 1;
    }
@@ -4698,6 +4874,7 @@ void Mesh::ReorientTetMesh()
    DeleteCoarseTables();
 
    for (int i = 0; i < NumOfElements; i++)
+   {
       if (GetElementType(i) == Element::TETRAHEDRON)
       {
          v = elements[i]->GetVertices();
@@ -4712,14 +4889,17 @@ void Mesh::ReorientTetMesh()
             ShiftL2R(v[0], v[1], v[3]);
          }
       }
+   }
 
    for (int i = 0; i < NumOfBdrElements; i++)
+   {
       if (GetBdrElementType(i) == Element::TRIANGLE)
       {
          v = boundary[i]->GetVertices();
 
          Rotate3(v[0], v[1], v[2]);
       }
+   }
 
    if (!Nodes)
    {
