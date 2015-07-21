@@ -359,7 +359,7 @@ public:
    void SetAttributes();
 
 #ifdef MFEM_USE_GECKO
-   /** This is our integration with the Gecko library.  This will call the 
+   /** This is our integration with the Gecko library.  This will call the
        Gecko library to find an element ordering that will increase memory
        coherency by putting elements that are in physical proximity closer in
        memory. */
