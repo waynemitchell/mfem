@@ -348,6 +348,7 @@ protected: // implementation
          Node* node[8];  ///< element corners (if ref_type == 0)
          Element* child[8]; ///< 2-8 children (if ref_type != 0)
       };
+      Element* parent; ///< parent element, NULL if this is a root element
 
       Element(int geom, int attr);
       Element(const Element& other) { std::memcpy(this, &other, sizeof(*this)); }

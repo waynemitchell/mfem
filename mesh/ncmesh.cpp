@@ -187,6 +187,7 @@ NCMesh::Element* NCMesh::CopyHierarchy(Element* elem)
          if (elem->child[i])
          {
             new_elem->child[i] = CopyHierarchy(elem->child[i]);
+            new_elem->child[i]->parent = new_elem;
          }
       }
    }
@@ -452,7 +453,7 @@ NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
 //// Refinement & Derefinement /////////////////////////////////////////////////
 
 NCMesh::Element::Element(int geom, int attr)
-   : geom(geom), ref_type(0), index(-1), rank(-1), attribute(attr)
+   : geom(geom), ref_type(0), index(-1), rank(-1), attribute(attr), parent(NULL)
 {
    memset(node, 0, sizeof(node));
 
@@ -1111,10 +1112,14 @@ void NCMesh::RefineElement(Element* elem, char ref_type)
       if (child[i]) { RegisterFaces(child[i]); }
    }
 
-   // make the children inherit our rank
+   // make the children inherit our rank, set the parent pointer
    for (int i = 0; i < 8; i++)
    {
-      if (child[i]) { child[i]->rank = elem->rank; }
+      if (child[i])
+      {
+         child[i]->rank = elem->rank;
+         child[i]->parent = elem;
+      }
    }
 
    // finish the refinement
