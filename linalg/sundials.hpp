@@ -35,11 +35,11 @@ protected:
 
 public:
    CVODESolver();
-   
+
    CVODESolver(TimeDependentOperator &, Vector &, double &);
-   
+
    void Init(TimeDependentOperator &);
-   
+
    void ReInit(TimeDependentOperator &, Vector &, double &);
 
    void SetSStolerances(realtype reltol, realtype abstol);
@@ -60,12 +60,13 @@ public:
 
    void SetStopTime(double);
 
-<<<<<<< HEAD
-//   void (CVODESolver::*PtrToStep)(Vector &, double&, double&);
+   <<<<<<< HEAD
+   //   void (CVODESolver::*PtrToStep)(Vector &, double&, double&);
 
-=======
->>>>>>> 6c57654... Changed serial implementation to constructor which also initializes
-   ~CVODESolver();
+   =======
+      >>>>>>> 6c57654... Changed serial implementation to constructor which also
+      initializes
+      ~CVODESolver();
 
 private:
    void CreateNVector();
@@ -88,11 +89,11 @@ protected:
 
 public:
    ARKODESolver();
-   
+
    ARKODESolver(TimeDependentOperator &, Vector &, double &);
-   
+
    void Init(TimeDependentOperator &);
-   
+
    void ReInit(TimeDependentOperator &, Vector &, double &);
 
    void SetSStolerances(realtype reltol, realtype abstol);
@@ -114,7 +115,7 @@ public:
    void SetStopTime(double);
 
    ~ARKODESolver();
-   
+
 private:
    /* Private function to check function return values */
    int check_flag(void *flagvalue, char *funcname, int opt);

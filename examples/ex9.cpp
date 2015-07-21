@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
       case 11: break;
-      case 12: ode_solver = new ARKODESolver; break;
+      case 12: break;
       default:
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
@@ -252,19 +252,21 @@ int main(int argc, char *argv[])
    // 8. Define the time-dependent evolution operator describing the ODE
    //    right-hand side, and perform time-integration (looping over the time
    //    iterations, ti, with a time-step dt).
-   FE_Evolution adv(m.SpMat(), k.SpMat(), b); 
+   FE_Evolution adv(m.SpMat(), k.SpMat(), b);
 
    double t = 0.0;
-   if(ode_solver_type==11)
+   if (ode_solver_type==11)
    {
       ode_solver = new CVODESolver(adv, u, t);
    }
-   else if(ode_solver_type==12)
+   else if (ode_solver_type==12)
    {
       ode_solver = new ARKODESolver(adv, u, t);
    }
    else
-     ode_solver->Init(adv);
+   {
+      ode_solver->Init(adv);
+   }
    // Track past incremental time steps
    double dt_by_ref = dt;
    for (int ti = 0; true; )

@@ -69,24 +69,24 @@ void CVODESolver::Init(TimeDependentOperator &_f)
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
 
-   if(initialized_sundials)
+   if (initialized_sundials)
    {
-   /* Call CVodeReInit to initialize the integrator memory and specify the inital time t,
-    * and the initial dependent variable vector y. */
-   flag = CVodeReInit(ode_mem, (realtype) t, y);
-   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }   
+      /* Call CVodeReInit to initialize the integrator memory and specify the inital time t,
+       * and the initial dependent variable vector y. */
+      flag = CVodeReInit(ode_mem, (realtype) t, y);
+      if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
    }
    else
    {
-   /* Call CVodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in x'=f(t,x), the inital time t, and
-    * the initial dependent variable vector y. */
-   flag = CVodeInit(ode_mem, sun_f_fun, (realtype) t, y);
-   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
-   initialized_sundials=true;
-   SetSStolerances(RELTOL,ABSTOL);
+      /* Call CVodeInit to initialize the integrator memory and specify the
+       * user's right hand side function in x'=f(t,x), the inital time t, and
+       * the initial dependent variable vector y. */
+      flag = CVodeInit(ode_mem, sun_f_fun, (realtype) t, y);
+      if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
+      initialized_sundials=true;
+      SetSStolerances(RELTOL,ABSTOL);
    }
-   
+
    /* Set the pointer to user-defined data */
    flag = CVodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
@@ -106,24 +106,24 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
    y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
-   if(initialized_sundials)
+   if (initialized_sundials)
    {
-   /* Call CVodeReInit to initialize the integrator memory and specify the inital time t,
-    * and the initial dependent variable vector y. */
-   flag = CVodeReInit(ode_mem, (realtype) _t, y);
-   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }  
+      /* Call CVodeReInit to initialize the integrator memory and specify the inital time t,
+       * and the initial dependent variable vector y. */
+      flag = CVodeReInit(ode_mem, (realtype) _t, y);
+      if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
    }
    else
    {
-   /* Call CVodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in x'=f(t,x), the inital time t, and
-    * the initial dependent variable vector y. */
-   flag = CVodeInit(ode_mem, sun_f_fun, (realtype) _t, y);
-   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
-   initialized_sundials=true;
-   SetSStolerances(RELTOL,ABSTOL);
+      /* Call CVodeInit to initialize the integrator memory and specify the
+       * user's right hand side function in x'=f(t,x), the inital time t, and
+       * the initial dependent variable vector y. */
+      flag = CVodeInit(ode_mem, sun_f_fun, (realtype) _t, y);
+      if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
+      initialized_sundials=true;
+      SetSStolerances(RELTOL,ABSTOL);
    }
-   
+
    /* Set the pointer to user-defined data */
    flag = CVodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
@@ -153,7 +153,7 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
    realtype tout=t+dt;
-   
+
    GetY(x);
 
    //Step
@@ -259,24 +259,24 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
 
-   if(initialized_sundials)
+   if (initialized_sundials)
    {
-   /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
-    * and the initial dependent variable vector y. */
-   flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
-   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }  
+      /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
+       * and the initial dependent variable vector y. */
+      flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
+      if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
    }
    else
    {
-   /* Call ARKodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in x'=f(t,x), the inital time t, and
-    * the initial dependent variable vector y. */
-   flag = ARKodeInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
-   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
-   initialized_sundials=true;
-   SetSStolerances(RELTOL,ABSTOL);
+      /* Call ARKodeInit to initialize the integrator memory and specify the
+       * user's right hand side function in x'=f(t,x), the inital time t, and
+       * the initial dependent variable vector y. */
+      flag = ARKodeInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
+      if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
+      initialized_sundials=true;
+      SetSStolerances(RELTOL,ABSTOL);
    }
-      
+
    /* Set the pointer to user-defined data */
    flag = ARKodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
@@ -296,24 +296,24 @@ void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
    y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
-   if(initialized_sundials)
+   if (initialized_sundials)
    {
-   /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
-    * and the initial dependent variable vector y. */
-   flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) _t, y);
-   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }  
+      /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
+       * and the initial dependent variable vector y. */
+      flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) _t, y);
+      if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
    }
    else
    {
-   /* Call ARKodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in x'=f(t,x), the inital time t, and
-    * the initial dependent variable vector y. */
-   flag = ARKodeInit(ode_mem, sun_f_fun, NULL, (realtype) _t, y);
-   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
-   initialized_sundials=true;
-   SetSStolerances(RELTOL,ABSTOL);
+      /* Call ARKodeInit to initialize the integrator memory and specify the
+       * user's right hand side function in x'=f(t,x), the inital time t, and
+       * the initial dependent variable vector y. */
+      flag = ARKodeInit(ode_mem, sun_f_fun, NULL, (realtype) _t, y);
+      if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
+      initialized_sundials=true;
+      SetSStolerances(RELTOL,ABSTOL);
    }
-   
+
    /* Set the pointer to user-defined data */
    flag = ARKodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
@@ -343,7 +343,7 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
    realtype tout=t+dt;
-   
+
    GetY(x);
 
    //Step
