@@ -18,7 +18,7 @@
 #include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
 #include <arkode/arkode.h>             /* prototypes for ARKODE fcts., consts. */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
-#include <nvector/nvector_parallel.h>  /* serial N_Vector types, fcts., macros */
+#include <sundials/sundials_band.h>  /* definitions of type DlsMat and macros */
 #include <sundials/sundials_types.h> /* definition of type realtype */
 #include <sundials/sundials_math.h>  /* definition of ABS and EXP */
 
@@ -32,259 +32,101 @@ namespace mfem
 
 CVODESolver::CVODESolver()
 {
+   y = NULL;
    f = NULL;
-   initial_condition_set = false;
 
    /* Call CVodeCreate to create the solver memory */
    ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
-   step_type=CV_NORMAL;
-   parallel = false;
-   tolerances_set = false;
+   initialized_sundials=false;
+   tolerances_set_sundials=false;
 }
 
-CVODESolver::CVODESolver(MPI_Comm _comm)
+CVODESolver::CVODESolver(TimeDependentOperator &_f, Vector &_x, double&_t)
 {
+   y = NULL;
    f = NULL;
-   initial_condition_set = false;
 
    /* Call CVodeCreate to create the solver memory */
    ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
-   step_type=CV_NORMAL;
-   comm=_comm;
-   parallel = true;
-   tolerances_set = false;
-}
-
-void CVODESolver::CreateNVector()
-{
-   long int local_size=f->Width(); //local length
-   long int yin_length=local_size;
-   //intial time
-   realtype t = 0.0;
-   realtype *yin;
-#ifdef MFEM_USE_MPI
-   if (parallel)
-   {
-      int nprocs, extra, myid, ilower, iupper;
-      MPI_Comm_size(comm,&nprocs);
-      MPI_Comm_rank(comm,&myid);
-
-      realtype in=local_size;
-      realtype out;
-      MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
-      yin_length= out;
-
-
-      int id=0;
-      while (id < nprocs)
-      {
-         if (myid == id)
-         {
-            cout<<"pid="<<myid<<" local_size="<<local_size<<" yin_length="<<yin_length<<endl;
-            fflush (stdout);
-            //cout.flush();
-         }
-         id++;
-         MPI_Barrier(comm);
-      }
-      yin= new realtype[local_size];
-      // Create a parallel vector
-      y = N_VMake_Parallel(comm, local_size, yin_length,
-                           yin);   /* Allocate y vector */
-      if (NV_DATA_P(y)==NULL)
-      {
-         cout<<"data in y unintialized"<<endl;
-      }
-      if (check_flag((void*)y, "N_VMake_Parallel", 0)) { MFEM_ABORT("N_VMake_Parallel"); }
-   }
-   else
-   {
-      yin= new realtype[yin_length];
-      // Create a serial vector
-      y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
-      if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
-   }
-#else
-   yin= new realtype[yin_length];
-   // Create a serial vector
-   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
-   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
-#endif
-}
-
-void CVODESolver::CreateNVector(Vector& x)
-{
-   cout<<"In setIC"<<endl;
-   long int local_size=f->Width(); //local length
-   long int yin_length=local_size;
-   //intial time
-   realtype t = 0.0;
-   realtype *yin;
-#ifdef MFEM_USE_MPI
-   if (parallel)
-   {
-      int nprocs, extra, myid, ilower, iupper;
-      MPI_Comm_size(comm,&nprocs);
-      MPI_Comm_rank(comm,&myid);
-
-      /*
-      realtype in=local_size;
-      realtype out;
-      MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
-      yin_length= out;
-
-      local_size = x.Size();
-      yin=NV_DATA_P(y);
-      if(yin!=NULL)
-        delete yin;
-      yin=NULL;*/
-      NV_DATA_P(y)=x.GetData();
-
-      int id=0;
-      while (id < nprocs)
-      {
-         if (myid == id)
-         {
-            cout<<"SetIC\tpid="<<myid<<" local_size="<<local_size<<" yin_length="<<yin_length<<endl;
-            fflush (stdout);
-            //cout.flush();
-         }
-         id++;
-         MPI_Barrier(comm);
-      }
-      // Create a parallel vector
-      //   y = N_VMake_Parallel(comm, local_size ,yin_length, yin);   /* Allocate y vector */
-      //   if (check_flag((void*)y, "N_VNew_Parallel", 0)) { MFEM_ABORT("N_VNew_Parallel"); }
-   }
-   else
-   {
-      realtype* yin=NV_DATA_S(y);
-      if (yin!=NULL)
-      {
-         delete yin;
-      }
-      yin=NULL;
-      yin=x.GetData();
-      // Create a serial vector
-      y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
-      if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
-   }
-#else
-   realtype* yin=NV_DATA_S(y);
-   if (yin!=NULL)
-   {
-      delete yin;
-   }
-   yin=NULL;
-   yin=x.GetData();
-   // Create a serial vector
-   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
-   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
-#endif
+   initialized_sundials=false;
+   tolerances_set_sundials=false;
+   ReInit(_f,_x,_t);
 }
 
 void CVODESolver::Init(TimeDependentOperator &_f)
 {
    //not checking that initial pointers set to NULL:
    f = &_f;
+   long int yin_length=_f.Width(); //assume don't have initial condition in Init
    //intial time
    realtype t = 0.0;
+   realtype *yin;
+   yin= new realtype[yin_length];
    int flag;
-   
-   CreateNVector();
 
-   /* Call CVodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in x'=f(t,x), the inital time t, and
-    * the initial dependent variable vector y. */
-   flag = CVodeInit(ode_mem, sun_f_fun, t, y);
-   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
-   /* Set the pointer to user-defined data */
-   flag = CVodeSetUserData(ode_mem, this->f);
-   //cout.flush();
-#ifdef MFEM_USE_MPI
-   MPI_Barrier(comm);
-#endif
-   if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
-   initial_condition_set = false;
 
-}
-
-void CVODESolver::Init(TimeDependentOperator &_f, Vector &x, double&t,
-                       double&dt)
-{
-   int flag;
-   //not checking that initial pointers set to NULL:
-   f = &_f;
-   if (_f.Width()!=x.Size())
+   if(initialized_sundials)
    {
-      mfem_error("Function f takes argument of different size than intial condition");
+   /* Call CVodeReInit to initialize the integrator memory and specify the inital time t,
+    * and the initial dependent variable vector y. */
+   flag = CVodeReInit(ode_mem, (realtype) t, y);
+   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }   
    }
-
-   CreateNVector(x);
-
+   else
+   {
    /* Call CVodeInit to initialize the integrator memory and specify the
     * user's right hand side function in x'=f(t,x), the inital time t, and
     * the initial dependent variable vector y. */
    flag = CVodeInit(ode_mem, sun_f_fun, (realtype) t, y);
    if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
-
-   //Come up with a better way to test whether this has already been set
+   initialized_sundials=true;
    SetSStolerances(RELTOL,ABSTOL);
-
+   }
+   
    /* Set the pointer to user-defined data */
    flag = CVodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
-
-   initial_condition_set = true;
-
 }
 
-void CVODESolver::ReInit(TimeDependentOperator &_f)
+void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
 {
-/*   f = &_f;
-   int flag;
-
-   //This addition may need destruction of previous vector data
-   CreateNVector();
-
-   int flag=0;
-   // Call CVodeInit to initialize the integrator memory and specify the
-   // user's right hand side function in x'=f(t,x), the inital time t, and
-   // the initial dependent variable vector y. 
-   flag = CVodeReInit(ode_mem, (realtype) t, y);
-   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
-
-   //Come up with a better way to test whether this has already been set
-   SetSStolerances(RELTOL,ABSTOL);
-
-   // Set the pointer to user-defined data 
-   flag = CVodeSetUserData(ode_mem, this->f);
-   if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
-
-   initial_condition_set = false;
-   */
-   cout<<"ReInit with only f meaningless for CVODE"<<endl;
-   mfem_error("ReInit with only f meaningless for CVODE");
-}
-
-void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &x, double&t,
-                         double&dt)
-{
-   int flag;
    //not checking that initial pointers set to NULL:
    f = &_f;
-   if (_f.Width()!=x.Size())
+   long int yin_length=_f.Width(); //assume don't have initial condition in Init
+   //intial time
+   realtype *yin;
+   yin= _x.GetData();
+   int flag;
+
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+
+   if(initialized_sundials)
    {
-      mfem_error("Function f takes argument of different size than intial condition");
+   /* Call CVodeReInit to initialize the integrator memory and specify the inital time t,
+    * and the initial dependent variable vector y. */
+   flag = CVodeReInit(ode_mem, (realtype) _t, y);
+   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }  
    }
-
-   SetIC(x,t,dt);
-
+   else
+   {
+   /* Call CVodeInit to initialize the integrator memory and specify the
+    * user's right hand side function in x'=f(t,x), the inital time t, and
+    * the initial dependent variable vector y. */
+   flag = CVodeInit(ode_mem, sun_f_fun, (realtype) _t, y);
+   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
+   initialized_sundials=true;
+   SetSStolerances(RELTOL,ABSTOL);
+   }
+   
    /* Set the pointer to user-defined data */
    flag = CVodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
-
 }
 
 void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
@@ -293,8 +135,8 @@ void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
    /* Call CVodeSStolerances to specify the scalar relative tolerance
     * and scalar absolute tolerance */
    flag = CVodeSStolerances(ode_mem, reltol, abstol);
-   if (check_flag(&flag, "CVodeSStolerances", 1)) { mfem_error("CVodeSStolerances"); }
-   tolerances_set = true;
+   if (check_flag(&flag, "CVodeSStolerances", 1)) { return; }
+   tolerances_set_sundials=true;
 }
 
 void CVODESolver::SetStopTime(double tf)
@@ -302,70 +144,24 @@ void CVODESolver::SetStopTime(double tf)
    CVodeSetStopTime(ode_mem, tf);
 }
 
-void CVODESolver::SetIC(Vector &x, double&t, double&dt)
+void CVODESolver::GetY(Vector &x)
 {
-   int flag=0;
-   
-   CreateNVector(x);
-   /* Call CVodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in x'=f(t,x), the inital time t, and
-    * the initial dependent variable vector y. */
-   flag = CVodeReInit(ode_mem, (realtype) t, y);
-   if (check_flag(&flag, "CVodeInit", 1)) { MFEM_ABORT("CVodeInit"); }
-   initial_condition_set = true;
-
-   //If no tolerances have been set when integration is started, set some default tolerances
-   if(!tolerances_set)
-       SetSStolerances(RELTOL,ABSTOL);
-
-}
-
-void CVODESolver::GetY(Vector &x, double&t, double&dt)
-{
-#ifdef MFEM_USE_MPI
-   if (parallel)
-   {
-      NV_DATA_P(y)=x.GetData();
-   }
-   else
-   {
-      NV_DATA_S(y)=x.GetData();
-   }
-#else
    NV_DATA_S(y)=x.GetData();
-#endif
 }
 
 void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
    realtype tout=t+dt;
+   
+   GetY(x);
 
-   if(initial_condition_set)
-     GetY(x,t,dt);
-   else
-     SetIC(x,t,dt);
-   /*   #ifdef MFEM_USE_MPI
-      int nprocs, myid;
-      MPI_Comm_size(comm,&nprocs);
-      MPI_Comm_rank(comm,&myid);
-
-      int id=0;
-      while (id < nprocs) {
-      if (myid == id) {
-          cout<<"pid="<<myid<<" local_size="<<x.Size()<<endl;
-          fflush (stdout);
-      }
-      id++;
-      MPI_Barrier(comm);
-      }
-      MPI_Barrier(comm);
-      #endif*/
    //Step
    flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
-   if (check_flag(&flag, "CVode", 1)) { mfem_error("CVode"); }
+   if (check_flag(&flag, "CVode", 1)) { MFEM_ABORT("CVode"); }
+   return;
    flag = CVodeGetLastStep(ode_mem, &dt);
-   if (check_flag(&flag, "CVodeGetLastStep", 1)) { mfem_error("CVodeGetLastStep"); }
+   if (check_flag(&flag, "CVodeGetLastStep", 1)) { return; }
 }
 
 CVODESolver::~CVODESolver()
@@ -374,11 +170,7 @@ CVODESolver::~CVODESolver()
    // Clean up and return with successful completion
    if (NV_OWN_DATA_S(y)==true)
    {
-#ifdef MFEM_USE_MPI
-      N_VDestroy_Parallel(y);
-#else
       N_VDestroy_Serial(y);   // Free y vector
-#endif
    }
    if (ode_mem!=NULL)
    {
@@ -428,34 +220,32 @@ int CVODESolver::check_flag(void *flagvalue, char *funcname, int opt)
    return (0);
 }
 
-
 ARKODESolver::ARKODESolver()
 {
    y = NULL;
    f = NULL;
 
-   PtrToStep=&ARKODESolver::SetIC;
-
    /* Call ARKodeCreate to create the solver memory */
    ode_mem=ARKodeCreate();
-   step_type=ARK_NORMAL;
+   initialized_sundials=false;
+   tolerances_set_sundials=false;
 }
 
-ARKODESolver::ARKODESolver(MPI_Comm _comm)
+ARKODESolver::ARKODESolver(TimeDependentOperator &_f, Vector &_x, double&_t)
 {
    y = NULL;
    f = NULL;
 
-   PtrToStep=&ARKODESolver::SetIC;
-
-   /* Call CVodeCreate to create the solver memory */
+   /* Call ARKodeCreate to create the solver memory */
    ode_mem=ARKodeCreate();
-   step_type=ARK_NORMAL;
-   comm=_comm;
+   initialized_sundials=false;
+   tolerances_set_sundials=false;
+   ReInit(_f,_x,_t);
 }
 
 void ARKODESolver::Init(TimeDependentOperator &_f)
 {
+   //not checking that initial pointers set to NULL:
    f = &_f;
    long int yin_length=_f.Width(); //assume don't have initial condition in Init
    //intial time
@@ -464,109 +254,69 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
    yin= new realtype[yin_length];
    int flag;
 
-
    // Create a serial vector
    y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
-   /* Call ARKodeInit to initialize the integrator memory and specify the
-    * user's right hand side function in x'=f(t,x), the inital time t, and
-    * the initial dependent variable vector y. */
-   flag = ARKodeInit(ode_mem, sun_f_fun, NULL, t, y);
-   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
 
-   /* Call ARKodeSetERKTableNum to compare directly with method integration
-    * in MFEM example 9. */
-   flag = ARKodeSetERKTableNum(ode_mem, 3);
-   if (check_flag(&flag, "ARKodeSetERKTableNum", 1)) { return; }
-
-   /* Set the pointer to user-defined data */
-   flag = ARKodeSetUserData(ode_mem, this->f);
-   if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
-
-}
-
-void ARKODESolver::Init(TimeDependentOperator &_f, Vector &x, double&t,
-                        double&dt)
-{
-   //not checking that initial pointers set to NULL:
-   f = &_f;
-   long int yin_length=_f.Width();
-   if (_f.Width()!=x.Size())
+   if(initialized_sundials)
    {
-      mfem_error("Function f takes argument of different size than intial condition");
+   /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
+    * and the initial dependent variable vector y. */
+   flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
+   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }  
    }
-
-   realtype *yin = x.GetData();
-   int flag;
-
-
-   // Create a serial vector
-   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
-   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
-
+   else
+   {
    /* Call ARKodeInit to initialize the integrator memory and specify the
     * user's right hand side function in x'=f(t,x), the inital time t, and
     * the initial dependent variable vector y. */
    flag = ARKodeInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
    if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
-
-   //Come up with a better way to test whether this has already been set
+   initialized_sundials=true;
    SetSStolerances(RELTOL,ABSTOL);
-
+   }
+      
    /* Set the pointer to user-defined data */
    flag = ARKodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
-
-   PtrToStep=&ARKODESolver::GetY;
-
 }
 
-void ARKODESolver::ReInit(TimeDependentOperator &_f)
-{
-   f = &_f;
-   int flag;
-
-   //Come up with a better way to test whether this has already been set
-   SetSStolerances(RELTOL,ABSTOL);
-
-   /* Set the pointer to user-defined data */
-   flag = ARKodeSetUserData(ode_mem, this->f);
-   if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
-
-   PtrToStep=&ARKODESolver::SetIC;
-
-}
-
-void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &x, double&t,
-                          double&dt)
+void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
 {
    //not checking that initial pointers set to NULL:
    f = &_f;
-   long int yin_length=_f.Width();
-   if (_f.Width()!=x.Size())
-   {
-      mfem_error("Function f takes argument of different size than intial condition");
-   }
-
-   realtype *yin = x.GetData();
+   long int yin_length=_f.Width(); //assume don't have initial condition in Init
+   //intial time
+   realtype *yin;
+   yin= _x.GetData();
    int flag;
 
    // Create a serial vector
    y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
+   if(initialized_sundials)
+   {
+   /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
+    * and the initial dependent variable vector y. */
+   flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) _t, y);
+   if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }  
+   }
+   else
+   {
    /* Call ARKodeInit to initialize the integrator memory and specify the
     * user's right hand side function in x'=f(t,x), the inital time t, and
     * the initial dependent variable vector y. */
-   flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
+   flag = ARKodeInit(ode_mem, sun_f_fun, NULL, (realtype) _t, y);
    if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
-
+   initialized_sundials=true;
+   SetSStolerances(RELTOL,ABSTOL);
+   }
+   
    /* Set the pointer to user-defined data */
    flag = ARKodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
-   PtrToStep=&ARKODESolver::GetY;
-
 }
 
 void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
@@ -576,6 +326,7 @@ void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
     * and scalar absolute tolerance */
    flag = ARKodeSStolerances(ode_mem, reltol, abstol);
    if (check_flag(&flag, "ARKodeSStolerances", 1)) { return; }
+   tolerances_set_sundials=true;
 }
 
 void ARKODESolver::SetStopTime(double tf)
@@ -583,36 +334,7 @@ void ARKODESolver::SetStopTime(double tf)
    ARKodeSetStopTime(ode_mem, tf);
 }
 
-void ARKODESolver::SetIC(Vector &x, double&t, double&dt)
-{
-   int flag=0;
-   realtype* yin=NV_DATA_S(y);
-   delete yin;
-   yin=NULL;
-   NV_DATA_S(y)= x.GetData();
-   flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, t, y);
-
-   //Come up with a better way to test whether this has already been set
-   SetSStolerances(RELTOL,ABSTOL);
-   /*
-      if (step_type==ARK_ONE_STEP)
-      {
-         flag = ARKodeSetFixedStep(ode_mem, dt);
-         if (check_flag(&flag, "ARKodeSetInitStep", 1)) { return; }
-      }
-   */
-   /* Set the minimum step size */
-   //   flag = ARKodeSetMinStep(ode_mem, dt);
-   //   if(check_flag(&flag, "ARKodeSetMinStep", 1)) return;
-   /* Set the maximum step size */
-   /*
-      flag = ARKodeSetMaxStep(ode_mem, dt);
-      if (check_flag(&flag, "ARKodeSetMaxStep", 1)) { return; }
-   */
-   PtrToStep=&ARKODESolver::GetY;
-}
-
-void ARKODESolver::GetY(Vector &x, double&t, double&dt)
+void ARKODESolver::GetY(Vector &x)
 {
    NV_DATA_S(y)=x.GetData();
 }
@@ -621,15 +343,15 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
    realtype tout=t+dt;
-
-   (this->*PtrToStep)(x,t,dt);
+   
+   GetY(x);
 
    //Step
-   flag = ARKode(ode_mem, tout, y, &t, step_type);
+   flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
    if (check_flag(&flag, "ARKode", 1)) { MFEM_ABORT("ARKode"); }
+   return;
    flag = ARKodeGetLastStep(ode_mem, &dt);
    if (check_flag(&flag, "ARKodeGetLastStep", 1)) { return; }
-   return;
 }
 
 ARKODESolver::~ARKODESolver()
@@ -638,11 +360,7 @@ ARKODESolver::~ARKODESolver()
    // Clean up and return with successful completion
    if (NV_OWN_DATA_S(y)==true)
    {
-#ifdef MFEM_USE_MPI
-      N_VDestroy_Parallel(y);
-#else
       N_VDestroy_Serial(y);   // Free y vector
-#endif
    }
    if (ode_mem!=NULL)
    {
@@ -701,53 +419,7 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    //using namespace mfem;
    realtype *ydata, *ydotdata;
    long int ylen, ydotlen;
-   mfem::Vector *vec_y, *vec_ydot;
 
-#ifdef MFEM_USE_MPI
-   if (true) //find a way to pass parallel here
-   {
-      MPI_Comm comm=NV_COMM_P(y); //find a way to pass comm here
-      //ydata is now a pointer to the realtype data array in y
-      ydata = NV_DATA_P(y);
-      ylen = NV_GLOBLENGTH_P(y);
-
-      // probably unnecessary, since overwriting ydot as output
-      //ydotdata is now a pointer to the realtype data array in ydot
-      ydotdata = NV_DATA_P(ydot);
-      ydotlen = NV_GLOBLENGTH_P(ydot);
-
-      //if gridfunction information necessary for Mult, keep Vector in userdata
-      //  Vector* u = udata->u;
-      //  u->SetData((double*) ydata);
-      // Creates mfem vectors with pointers to the data array in y and in ydot respectively
-      // Have not explicitly set as owndata, so allocated size is -size
-      mfem::HypreParVector mfem_vector_y(comm, ylen, (double*) ydata, NULL);
-      mfem::HypreParVector mfem_vector_ydot(comm, ydotlen, (double*) ydotdata, NULL);
-      vec_y=&mfem_vector_y;
-      vec_ydot=&mfem_vector_ydot;
-   }
-   else
-   {
-      //ydata is now a pointer to the realtype data array in y
-      ydata = NV_DATA_S(y);
-      ylen = NV_LENGTH_S(y);
-
-      // probably unnecessary, since overwriting ydot as output
-      //ydotdata is now a pointer to the realtype data array in ydot
-      ydotdata = NV_DATA_S(ydot);
-      ydotlen = NV_LENGTH_S(ydot);
-
-      //if gridfunction information necessary for Mult, keep Vector in userdata
-      //  Vector* u = udata->u;
-      //  u->SetData((double*) ydata);
-      // Creates mfem vectors with pointers to the data array in y and in ydot respectively
-      // Have not explicitly set as owndata, so allocated size is -size
-      mfem::Vector mfem_vector_y((double*) ydata, ylen);
-      mfem::Vector mfem_vector_ydot((double*) ydotdata, ydotlen);
-      vec_y=&mfem_vector_y;
-      vec_ydot=&mfem_vector_ydot;
-   }
-#else
    //ydata is now a pointer to the realtype data array in y
    ydata = NV_DATA_S(y);
    ylen = NV_LENGTH_S(y);
@@ -757,6 +429,9 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    ydotdata = NV_DATA_S(ydot);
    ydotlen = NV_LENGTH_S(ydot);
 
+   //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
+   mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
+
    //if gridfunction information necessary for Mult, keep Vector in userdata
    //  Vector* u = udata->u;
    //  u->SetData((double*) ydata);
@@ -764,17 +439,10 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    // Have not explicitly set as owndata, so allocated size is -size
    mfem::Vector mfem_vector_y((double*) ydata, ylen);
    mfem::Vector mfem_vector_ydot((double*) ydotdata, ydotlen);
-   vec_y=&mfem_vector_y;
-   vec_ydot=&mfem_vector_ydot;
-#endif
-
-   //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
-   mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
 
    f->SetTime(t);
-   f->Mult(*vec_y,*vec_ydot);
+   f->Mult(mfem_vector_y,mfem_vector_ydot);
 
    return (0);
 }
-
 

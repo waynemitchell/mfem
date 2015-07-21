@@ -30,34 +30,23 @@ protected:
    N_Vector y;
    void* ode_mem;
    int step_type;
-   bool initial_condition_set;
-   bool tolerances_set;
-   bool parallel;
-#ifdef MFEM_USE_MPI
-   MPI_Comm comm;
-#endif
+   bool initialized_sundials;
+   bool tolerances_set_sundials;
+
 public:
    CVODESolver();
-
-#ifdef MFEM_USE_MPI
-   CVODESolver(MPI_Comm);
-#endif
-
+   
+   CVODESolver(TimeDependentOperator &, Vector &, double &);
+   
    void Init(TimeDependentOperator &);
-
-   void Init(TimeDependentOperator &, Vector &, double&, double&);
-
-   void ReInit(TimeDependentOperator &);
-
-   void ReInit(TimeDependentOperator &, Vector &, double&, double&);
+   
+   void ReInit(TimeDependentOperator &, Vector &, double &);
 
    void SetSStolerances(realtype reltol, realtype abstol);
 
    void Step(Vector &, double&, double&);
 
-   void SetIC(Vector &, double&, double&);
-
-   void GetY(Vector &, double&, double&);
+   void GetY(Vector &);
 
    TimeDependentOperator* GetFOperator()
    {
@@ -71,8 +60,11 @@ public:
 
    void SetStopTime(double);
 
+<<<<<<< HEAD
 //   void (CVODESolver::*PtrToStep)(Vector &, double&, double&);
 
+=======
+>>>>>>> 6c57654... Changed serial implementation to constructor which also initializes
    ~CVODESolver();
 
 private:
@@ -91,33 +83,23 @@ protected:
    N_Vector y;
    void* ode_mem;
    int step_type;
-   bool initial_condition_set;
-   bool tolerances_set;
-   bool parallel;
-#ifdef MFEM_USE_MPI
-   MPI_Comm comm;
-#endif
+   bool initialized_sundials;
+   bool tolerances_set_sundials;
 
 public:
    ARKODESolver();
-#ifdef MFEM_USE_MPI
-   ARKODESolver(MPI_Comm);
-#endif
+   
+   ARKODESolver(TimeDependentOperator &, Vector &, double &);
+   
    void Init(TimeDependentOperator &);
-
-   void Init(TimeDependentOperator &, Vector &, double&, double&);
-
-   void ReInit(TimeDependentOperator &);
-
-   void ReInit(TimeDependentOperator &, Vector &, double&, double&);
+   
+   void ReInit(TimeDependentOperator &, Vector &, double &);
 
    void SetSStolerances(realtype reltol, realtype abstol);
 
    void Step(Vector &, double&, double&);
 
-   void SetIC(Vector &, double&, double&);
-
-   void GetY(Vector &, double&, double&);
+   void GetY(Vector &);
 
    TimeDependentOperator* GetFOperator()
    {
@@ -131,10 +113,8 @@ public:
 
    void SetStopTime(double);
 
-   void (ARKODESolver::*PtrToStep)(Vector &, double&, double&);
-
    ~ARKODESolver();
-
+   
 private:
    /* Private function to check function return values */
    int check_flag(void *flagvalue, char *funcname, int opt);
