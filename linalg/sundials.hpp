@@ -60,13 +60,7 @@ public:
 
    void SetStopTime(double);
 
-   <<<<<<< HEAD
-   //   void (CVODESolver::*PtrToStep)(Vector &, double&, double&);
-
-   =======
-      >>>>>>> 6c57654... Changed serial implementation to constructor which also
-      initializes
-      ~CVODESolver();
+   ~CVODESolver();
 
 private:
    void CreateNVector();
