@@ -375,6 +375,7 @@ void ParNCMesh::CalcFaceOrientations()
 {
    // Calculate orientation of shared conforming faces.
    // NOTE: face orientation is calculated relative to its lower rank element.
+   // Thanks to the ghost layer this can be done locally, without communication.
 
    face_orient.SetSize(NFaces);
    face_orient = 0;
@@ -646,14 +647,14 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    {
       const Refinement &ref = refinements[i];
       MFEM_VERIFY((Dim == 3 && ref.ref_type == 7) ||
-                  (Dim == 2 && ref.ref_type == 3),
+                  (Dim == 2 && (ref.ref_type == 3 || ref.ref_type == 7)),
                   "anisotropic parallel refinement not supported yet.");
    }
    MFEM_VERIFY(Iso, "parallel refinement of aniso meshes not supported yet.");
 
    NeighborRefinementMessage::Map send_ref;
 
-   // create refinement messages to all neighbors (NOTE: message may be empty)
+   // create refinement messages to all neighbors (NOTE: some may be empty)
    Array<int> neighbors;
    GetNeighbors(neighbors);
    for (int i = 0; i < neighbors.Size(); i++)
@@ -826,6 +827,13 @@ void ParNCMesh::ElementSet::DecodeTree(Element* elem, int &pos,
       {
          if (mask & (1 << i))
          {
+            /*if (!elem->ref_type)
+            {
+               MFEM_ABORT("error: "
+                          << elem->node[0]->vertex->pos[0] << ", "
+                          << elem->node[0]->vertex->pos[1] << ", "
+                          << elem->node[0]->vertex->pos[2]);
+            }*/
             DecodeTree(elem->child[i], pos, elements);
          }
       }
