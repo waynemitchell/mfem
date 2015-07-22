@@ -320,7 +320,7 @@ int main(int argc, char *argv[])
    }
    // Track past incremental time steps
    double dt_by_ref = dt;
-   
+
    for (int ti = 0; true; )
    {
       if (t >= t_final - dt/2)

@@ -59,15 +59,15 @@ public:
    void SetStopTime(double);
 
    ~CVODESolver();
-   
+
    virtual void CreateNVector(long int&, realtype*);
-   
+
    virtual void CreateNVector(long int&, Vector*);
-   
+
    virtual void TransferNVectorShallow(Vector*,N_Vector&);
-   
+
    virtual void DestroyNVector(N_Vector&);
-   
+
    virtual int WrapCVodeInit(void*,double&,N_Vector&);
 
 private:
@@ -81,22 +81,23 @@ class CVODEParSolver: public CVODESolver
 {
 protected:
    MPI_Comm comm;
-   
+
 public:
-   CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x, double &_t);
-   
+   CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x,
+                  double &_t);
+
    void CreateNVector();
 
    void CreateNVector(long int&, realtype*);
-   
+
    void CreateNVector(long int&, Vector*);
-   
+
    void TransferNVectorShallow(Vector*,N_Vector&);
-   
+
    void DestroyNVector(N_Vector&);
 
 private:
-   
+
    int WrapCVodeInit(void*,double&,N_Vector&);
 
 };

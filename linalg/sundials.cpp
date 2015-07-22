@@ -66,7 +66,8 @@ void CVODESolver::CreateNVector(long int& yin_length, Vector* _x)
 {
 
    // Create a serial vector
-   y = N_VMake_Serial(yin_length, (realtype*) _x->GetData());   /* Allocate y vector */
+   y = N_VMake_Serial(yin_length,
+                      (realtype*) _x->GetData());   /* Allocate y vector */
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
 
 }
@@ -87,9 +88,9 @@ void CVODESolver::DestroyNVector(N_Vector& _y)
 
 int CVODESolver::WrapCVodeInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
-      return CVodeInit(_ode_mem, sun_f_fun, (realtype) _t, _y);
+   return CVodeInit(_ode_mem, sun_f_fun, (realtype) _t, _y);
 }
-      
+
 void CVODESolver::Init(TimeDependentOperator &_f)
 {
    //not checking that initial pointers set to NULL:
@@ -136,7 +137,7 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
    printf("found local length %ld\n",yin_length);
    // Create an NVector
    CreateNVector(yin_length, &_x);
-   
+
    if (initialized_sundials)
    {
       /* Call CVodeReInit to initialize the integrator memory and specify the inital time t,
@@ -179,9 +180,9 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
    realtype tout=t+dt;
-//   printf("starting step\n");
+   //   printf("starting step\n");
    TransferNVectorShallow(&x,y);
-//   printf("called transfernvectorshallow\n");
+   //   printf("called transfernvectorshallow\n");
 
    //Step
    flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
@@ -245,54 +246,56 @@ int CVODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 }
 
 #ifdef MFEM_USE_MPI
-CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x, double &_t)
+CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
+                               Vector &_x, double &_t)
 {
-     y = NULL;
-     f = &_f;
-//     printf("entered constructor\n");
+   y = NULL;
+   f = &_f;
+   //     printf("entered constructor\n");
 
-     /* Call CVodeCreate to create the solver memory */
-     ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
-//     printf("called CVodeCreate\n");
-     initialized_sundials=false;
-     tolerances_set_sundials=false;
-     ReInit(_f,_x,_t);
-//     printf("called ReInit(_f...\n");
-     comm=_comm;
+   /* Call CVodeCreate to create the solver memory */
+   ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
+   //     printf("called CVodeCreate\n");
+   initialized_sundials=false;
+   tolerances_set_sundials=false;
+   ReInit(_f,_x,_t);
+   //     printf("called ReInit(_f...\n");
+   comm=_comm;
 }
 
 void CVODEParSolver::CreateNVector(long int& yin_length, realtype* ydata)
 {
    int nprocs, myid;
-//   nprocs=0;
-//   myid=-1;
+   //   nprocs=0;
+   //   myid=-1;
    long int global_length;
-//   global_length=-1;
-//   printf("proc id: %ld \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
+   //   global_length=-1;
+   //   printf("proc id: %ld \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
    MPI_Comm_size(comm,&nprocs);
-//   printf("proc id: %ld \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
+   //   printf("proc id: %ld \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
    MPI_Comm_rank(comm,&myid);
    realtype in=yin_length;
    realtype out;
    MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
    global_length= out;
    // Create a serial vector
-//   printf("proc id: %ld \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
+   //   printf("proc id: %ld \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
    fflush(stdout);
-   y = N_VMake_ParCsr(comm, yin_length, global_length, ydata);   /* Allocate y vector */
+   y = N_VMake_ParCsr(comm, yin_length, global_length,
+                      ydata);   /* Allocate y vector */
 }
 
 void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 {
    int nprocs, myid;
-//   nprocs=0;
-//   myid=-1;
+   //   nprocs=0;
+   //   myid=-1;
    long int global_length;
-//   global_length=-1;
-//   printf("proc id: %d \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
+   //   global_length=-1;
+   //   printf("proc id: %d \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
    comm=MPI_COMM_WORLD;
    MPI_Comm_size(comm,&nprocs);
-//   printf("proc id: %d \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
+   //   printf("proc id: %d \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
    MPI_Comm_rank(comm,&myid);
    fflush(stdout);
 
@@ -301,7 +304,7 @@ void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
    MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
    global_length= out;
    // Create a serial vector
-//   printf("proc id: %ld \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
+   //   printf("proc id: %ld \t local_length %ld \t global_length %ld\n",myid,yin_length, global_length);
    fflush(stdout);
    y = N_VNew_ParCsr(comm, yin_length, global_length);   /* Allocate y vector */
    TransferNVectorShallow(_x,y);
@@ -309,25 +312,26 @@ void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 
 void CVODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
-/*   printf("starting transfer\n");
-   printf("1\t");
-   fflush(stdout);
-//   HypreParVector* tmp_x = (HypreParVector*) _x;
-   printf("2\t");
-   fflush(stdout);
-   HypreParVector tmp_x(NV_COMM_PC(_y),NV_GLOBLENGTH_PC(_y), NV_DATA_PC(_y), hypre_ParVectorPartitioning(NV_HYPRE_PARCSR_PC(_y)));
-   printf("3\t");
-   printf("_x size %d, _y size is %ld",_x->Size(),   NV_LOCLENGTH_PC(_y));
-   fflush(stdout);
-   HYPRE_Int * part=hypre_ParVectorPartitioning((hypre_ParVector*) (*( (HypreParVector*) (_x))));
-   printf("partition starts at %d, ends at %d, with a y-length of %ld\n",(int) part[0], (int) part[1], NV_LOCLENGTH_PC(_y));
-   part=hypre_ParVectorPartitioning(NV_HYPRE_PARCSR_PC(_y));
-   printf("partition starts at %d, ends at %d, with a y-length of %ld\n",(int) part[0], (int) part[1], NV_LOCLENGTH_PC(_y));
-   printf("3\t");
-   printf("_x size %d, _y size is %ld\n",_x->Size(),   NV_LOCLENGTH_PC(_y));
-   fflush(stdout);*/
+   /*   printf("starting transfer\n");
+      printf("1\t");
+      fflush(stdout);
+   //   HypreParVector* tmp_x = (HypreParVector*) _x;
+      printf("2\t");
+      fflush(stdout);
+      HypreParVector tmp_x(NV_COMM_PC(_y),NV_GLOBLENGTH_PC(_y), NV_DATA_PC(_y), hypre_ParVectorPartitioning(NV_HYPRE_PARCSR_PC(_y)));
+      printf("3\t");
+      printf("_x size %d, _y size is %ld",_x->Size(),   NV_LOCLENGTH_PC(_y));
+      fflush(stdout);
+      HYPRE_Int * part=hypre_ParVectorPartitioning((hypre_ParVector*) (*( (HypreParVector*) (_x))));
+      printf("partition starts at %d, ends at %d, with a y-length of %ld\n",(int) part[0], (int) part[1], NV_LOCLENGTH_PC(_y));
+      part=hypre_ParVectorPartitioning(NV_HYPRE_PARCSR_PC(_y));
+      printf("partition starts at %d, ends at %d, with a y-length of %ld\n",(int) part[0], (int) part[1], NV_LOCLENGTH_PC(_y));
+      printf("3\t");
+      printf("_x size %d, _y size is %ld\n",_x->Size(),   NV_LOCLENGTH_PC(_y));
+      fflush(stdout);*/
    NV_DATA_PC(_y)=_x->GetData();
-   hypre_ParVectorPartitioning(NV_HYPRE_PARCSR_PC(_y))=hypre_ParVectorPartitioning((hypre_ParVector*) (*( (HypreParVector*) (_x))));
+   hypre_ParVectorPartitioning(NV_HYPRE_PARCSR_PC(_y))=
+      hypre_ParVectorPartitioning((hypre_ParVector*) (*( (HypreParVector*) (_x))));
    fflush(stdout);
 }
 
@@ -342,7 +346,7 @@ void CVODEParSolver::DestroyNVector(N_Vector& _y)
 
 int CVODEParSolver::WrapCVodeInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
-      return CVodeInit(_ode_mem, sun_f_fun_par, (realtype) _t, _y);
+   return CVodeInit(_ode_mem, sun_f_fun_par, (realtype) _t, _y);
 }
 
 #endif
@@ -588,7 +592,7 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    ydata = NV_DATA_PC(y);
    ylen = NV_LOCLENGTH_PC(y);
    yparvec = NV_HYPRE_PARCSR_PC(y);
-   
+
    col=hypre_ParVectorPartitioning(yparvec);
 
    // probably unnecessary, since overwriting ydot as output
@@ -596,7 +600,7 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    ydotdata = NV_DATA_PC(ydot);
    ydotlen = NV_LOCLENGTH_PC(ydot);
    ydotparvec = NV_HYPRE_PARCSR_PC(ydot);
-   
+
    col2=hypre_ParVectorPartitioning(ydotparvec);
 
    //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
@@ -608,9 +612,9 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    // Creates mfem vectors with pointers to the data array in y and in ydot respectively
    // Have not explicitly set as owndata, so allocated size is -size
    mfem::HypreParVector mfem_vector_y(comm, (HYPRE_Int) NV_GLOBLENGTH_PC(y),
-                               ydata, col);
+                                      ydata, col);
    mfem::HypreParVector mfem_vector_ydot(comm, (HYPRE_Int) NV_GLOBLENGTH_PC(ydot),
-                               ydotdata, col2);
+                                         ydotdata, col2);
    f->SetTime(t);
    f->Mult(mfem_vector_y,mfem_vector_ydot);
 
