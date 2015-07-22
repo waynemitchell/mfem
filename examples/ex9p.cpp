@@ -161,8 +161,8 @@ int main(int argc, char *argv[])
       case 3: ode_solver = new RK3SSPSolver; break;
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
-      case 11: ode_solver = new CVODESolver(MPI_COMM_WORLD); break;
-      case 21: ode_solver = new CVODESolver(); break;
+      case 11: break;
+      case 21: break;
       default:
          if (myid == 0)
          {
@@ -304,17 +304,31 @@ int main(int argc, char *argv[])
    //     right-hand side, and perform time-integration (looping over the time
    //     iterations, ti, with a time-step dt).
    FE_Evolution adv(*M, *K, *B);
-   ode_solver->Init(adv);
 
    double t = 0.0;
+   if (ode_solver_type==11)
+   {
+      ode_solver = new CVODEParSolver(MPI_COMM_WORLD, adv, *U, t);
+   }
+   else if (ode_solver_type==12)
+   {
+      ode_solver = new ARKODESolver(adv, *U, t);
+   }
+   else
+   {
+      ode_solver->Init(adv);
+   }
+   // Track past incremental time steps
+   double dt_by_ref = dt;
+   
    for (int ti = 0; true; )
    {
       if (t >= t_final - dt/2)
       {
          break;
       }
-
-      ode_solver->Step(*U, t, dt);
+      dt_by_ref=dt;
+      ode_solver->Step(*U, t, dt_by_ref);
       ti++;
 
       if (ti % vis_steps == 0)

@@ -46,8 +46,6 @@ public:
 
    void Step(Vector &, double&, double&);
 
-   void GetY(Vector &);
-
    TimeDependentOperator* GetFOperator()
    {
       return f;
@@ -61,15 +59,48 @@ public:
    void SetStopTime(double);
 
    ~CVODESolver();
+   
+   virtual void CreateNVector(long int&, realtype*);
+   
+   virtual void CreateNVector(long int&, Vector*);
+   
+   virtual void TransferNVectorShallow(Vector*,N_Vector&);
+   
+   virtual void DestroyNVector(N_Vector&);
+   
+   virtual int WrapCVodeInit(void*,double&,N_Vector&);
 
 private:
-   void CreateNVector();
-
-   void CreateNVector(Vector&);
 
    /* Private function to check function return values */
    int check_flag(void *flagvalue, char *funcname, int opt);
 };
+
+#ifdef MFEM_USE_MPI
+class CVODEParSolver: public CVODESolver
+{
+protected:
+   MPI_Comm comm;
+   
+public:
+   CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x, double &_t);
+   
+   void CreateNVector();
+
+   void CreateNVector(long int&, realtype*);
+   
+   void CreateNVector(long int&, Vector*);
+   
+   void TransferNVectorShallow(Vector*,N_Vector&);
+   
+   void DestroyNVector(N_Vector&);
+
+private:
+   
+   int WrapCVodeInit(void*,double&,N_Vector&);
+
+};
+#endif
 
 /// Wraps the ARKode library of additive runge-kutta methods
 class ARKODESolver: public ODESolver
@@ -120,5 +151,6 @@ private:
 
 int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 
+int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 
 #endif
