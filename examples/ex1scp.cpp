@@ -1,4 +1,5 @@
 //                       MFEM Example 1 - Parallel Version
+//                                        with Static Condensation
 //
 // Compile with: make ex1scp
 //
@@ -98,26 +99,9 @@ int main(int argc, char *argv[])
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 10,000 elements.
-   /*
    {
       int ref_levels =
          (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
-      for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
-   }
-   */
-   {
-      // int ref_levels = 2;
-     // int ref_levels =
-     //	 (int)floor((log(540000./mesh->GetNE())/dim-log(order))/log(2.));
-      int ref_levels =
-	 (int)floor((log(240000./mesh->GetNE())/dim-log(order))/log(2.));
-      if (myid == 0)
-      {
-	 cout << "Number of refinement levels: " << ref_levels << endl;
-      }
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -129,7 +113,6 @@ int main(int argc, char *argv[])
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-   /*
    {
       int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
@@ -137,7 +120,7 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }
-   */
+
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
    //    order < 1, we instead use an isoparametric/isogeometric space.

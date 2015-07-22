@@ -1,19 +1,20 @@
 //                       MFEM Example 4 - Parallel Version
+//                                        with Static Condensation
 //
 // Compile with: make ex4p
 //
-// Sample runs:  mpirun -np 4 ex4p -m ../data/square-disc.mesh
-//               mpirun -np 4 ex4p -m ../data/star.mesh
-//               mpirun -np 4 ex4p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex4p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex4p -m ../data/escher.mesh
-//               mpirun -np 4 ex4p -m ../data/fichera.mesh
-//               mpirun -np 4 ex4p -m ../data/fichera-q2.vtk
-//               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh
-//               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh
-//               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh
-//               mpirun -np 4 ex4p -m ../data/periodic-square.mesh -no-bc
-//               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
+// Sample runs:  mpirun -np 4 ex4scp -m ../data/square-disc.mesh
+//               mpirun -np 4 ex4scp -m ../data/star.mesh
+//               mpirun -np 4 ex4scp -m ../data/beam-tet.mesh
+//               mpirun -np 4 ex4scp -m ../data/beam-hex.mesh
+//               mpirun -np 4 ex4scp -m ../data/escher.mesh
+//               mpirun -np 4 ex4scp -m ../data/fichera.mesh
+//               mpirun -np 4 ex4scp -m ../data/fichera-q2.vtk
+//               mpirun -np 4 ex4scp -m ../data/fichera-q3.mesh
+//               mpirun -np 4 ex4scp -m ../data/square-disc-nurbs.mesh
+//               mpirun -np 4 ex4scp -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex4scp -m ../data/periodic-square.mesh -no-bc
+//               mpirun -np 4 ex4scp -m ../data/periodic-cube.mesh -no-bc
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -118,8 +119,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-     // int par_ref_levels = 2;
-      int par_ref_levels = 0;
+      int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -173,24 +173,10 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
    a->Assemble();
-   /*
-   if (set_bc && pmesh->bdr_attributes.Size())
-   {
-      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-      ess_bdr = 1;
-      a->EliminateEssentialBC(ess_bdr, x, *b);
-   }
-   */
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
-   /*
-   HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelAverage();
-   *X = 0.0;
-   */
    HypreParMatrix *A = a->ParallelAssembleReduced();
    HypreParVector *B = a->RHS_R(*b);
    HypreParVector *X = x.ParallelAverage();
@@ -226,8 +212,8 @@ int main(int argc, char *argv[])
    delete beta;
    // delete b;
 
-   // 11. Define and apply a parallel PCG solver for AX=B with the 2D AMS or the
-   //     3D ADS preconditioners from hypre.
+   // 11. Define and apply a parallel PCG solver for AX=B with the 2D AMS
+   //     or the 3D ADS preconditioners from hypre.
    HypreSolver *prec;
    if (dim == 2)
    {

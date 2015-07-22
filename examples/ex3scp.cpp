@@ -1,14 +1,15 @@
 //                       MFEM Example 3 - Parallel Version
+//                                        with Static Condensation
 //
 // Compile with: make ex3p
 //
-// Sample runs:  mpirun -np 4 ex3p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex3p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex3p -m ../data/escher.mesh
-//               mpirun -np 4 ex3p -m ../data/fichera.mesh
-//               mpirun -np 4 ex3p -m ../data/fichera-q2.vtk
-//               mpirun -np 4 ex3p -m ../data/fichera-q3.mesh
-//               mpirun -np 4 ex3p -m ../data/beam-hex-nurbs.mesh
+// Sample runs:  mpirun -np 4 ex3scp -m ../data/beam-tet.mesh
+//               mpirun -np 4 ex3scp -m ../data/beam-hex.mesh
+//               mpirun -np 4 ex3scp -m ../data/escher.mesh
+//               mpirun -np 4 ex3scp -m ../data/fichera.mesh
+//               mpirun -np 4 ex3scp -m ../data/fichera-q2.vtk
+//               mpirun -np 4 ex3scp -m ../data/fichera-q3.mesh
+//               mpirun -np 4 ex3scp -m ../data/beam-hex-nurbs.mesh
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell

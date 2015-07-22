@@ -1,13 +1,14 @@
 //                       MFEM Example 2 - Parallel Version
+//                                        with Static Condensation
 //
 // Compile with: make ex2p
 //
-// Sample runs:  mpirun -np 4 ex2p -m ../data/beam-tri.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-quad.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-quad-nurbs.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-hex-nurbs.mesh
+// Sample runs:  mpirun -np 4 ex2scp -m ../data/beam-tri.mesh
+//               mpirun -np 4 ex2scp -m ../data/beam-quad.mesh
+//               mpirun -np 4 ex2scp -m ../data/beam-tet.mesh
+//               mpirun -np 4 ex2scp -m ../data/beam-hex.mesh
+//               mpirun -np 4 ex2scp -m ../data/beam-quad-nurbs.mesh
+//               mpirun -np 4 ex2scp -m ../data/beam-hex-nurbs.mesh
 //
 // Description:  This example code solves a simple linear elasticity problem
 //               describing a multi-material cantilever beam.
