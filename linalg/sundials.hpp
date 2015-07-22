@@ -103,7 +103,7 @@ private:
 };
 #endif
 
-/// Wraps the ARKode library of additive runge-kutta methods
+/// Wraps the ARKode library of linear multistep methods
 class ARKODESolver: public ODESolver
 {
 protected:
@@ -124,9 +124,11 @@ public:
 
    void SetSStolerances(realtype reltol, realtype abstol);
 
-   void Step(Vector &, double&, double&);
+   void WrapSetERKTableNum(int&);
 
-   void GetY(Vector &);
+   void WrapSetFixedStep(realtype dt);
+
+   void Step(Vector &, double&, double&);
 
    TimeDependentOperator* GetFOperator()
    {
@@ -142,10 +144,52 @@ public:
 
    ~ARKODESolver();
 
+   virtual void CreateNVector(long int&, realtype*);
+
+   virtual void CreateNVector(long int&, Vector*);
+
+   virtual void TransferNVectorShallow(Vector*,N_Vector&);
+
+   virtual void DestroyNVector(N_Vector&);
+
+   virtual int WrapARKodeInit(void*,double&,N_Vector&);
+
+   virtual int WrapARKodeReInit(void*,double&,N_Vector&);
+
 private:
+
    /* Private function to check function return values */
    int check_flag(void *flagvalue, char *funcname, int opt);
 };
+
+#ifdef MFEM_USE_MPI
+class ARKODEParSolver: public ARKODESolver
+{
+protected:
+   MPI_Comm comm;
+
+public:
+   ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x,
+                   double &_t);
+
+   void CreateNVector();
+
+   void CreateNVector(long int&, realtype*);
+
+   void CreateNVector(long int&, Vector*);
+
+   void TransferNVectorShallow(Vector*,N_Vector&);
+
+   void DestroyNVector(N_Vector&);
+
+private:
+
+   int WrapARKodeReInit(void*,double&,N_Vector&);
+
+   int WrapARKodeInit(void*,double&,N_Vector&);
+
+};
+#endif
 
 
 }

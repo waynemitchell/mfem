@@ -162,7 +162,8 @@ int main(int argc, char *argv[])
       case 4: ode_solver = new RK4Solver; break;
       case 6: ode_solver = new RK6Solver; break;
       case 11: break;
-      case 21: break;
+      case 12: break;
+      case 13: break;
       default:
          if (myid == 0)
          {
@@ -306,17 +307,17 @@ int main(int argc, char *argv[])
    FE_Evolution adv(*M, *K, *B);
 
    double t = 0.0;
-   if (ode_solver_type==11)
+   int table_num = 3;
+   switch (ode_solver_type)
    {
-      ode_solver = new CVODEParSolver(MPI_COMM_WORLD, adv, *U, t);
-   }
-   else if (ode_solver_type==12)
-   {
-      ode_solver = new ARKODESolver(adv, *U, t);
-   }
-   else
-   {
-      ode_solver->Init(adv);
+      case 11: ode_solver = new CVODEParSolver(MPI_COMM_WORLD, adv, *U, t); break;
+      case 12: ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t); break;
+      case 13: ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t);
+         ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
+         ((ARKODESolver*) ode_solver)->WrapSetFixedStep((realtype) dt);
+         break;
+      default:
+         ode_solver->Init(adv);
    }
    // Track past incremental time steps
    double dt_by_ref = dt;

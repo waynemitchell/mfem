@@ -312,7 +312,6 @@ int CVODEParSolver::WrapCVodeInit(void* _ode_mem, double &_t, N_Vector &_y)
 }
 
 #endif
-
 ARKODESolver::ARKODESolver()
 {
    y = NULL;
@@ -336,6 +335,49 @@ ARKODESolver::ARKODESolver(TimeDependentOperator &_f, Vector &_x, double&_t)
    ReInit(_f,_x,_t);
 }
 
+void ARKODESolver::CreateNVector(long int& yin_length, realtype* ydata)
+{
+
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,ydata);   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+
+}
+
+void ARKODESolver::CreateNVector(long int& yin_length, Vector* _x)
+{
+
+   // Create a serial vector
+   y = N_VMake_Serial(yin_length,
+                      (realtype*) _x->GetData());   /* Allocate y vector */
+   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+
+}
+
+void ARKODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
+{
+   NV_DATA_S(_y)=_x->GetData();
+}
+
+void ARKODESolver::DestroyNVector(N_Vector& _y)
+{
+
+   if (NV_OWN_DATA_S(y)==true)
+   {
+      N_VDestroy_Serial(y);   // Free y vector
+   }
+}
+
+int ARKODESolver::WrapARKodeInit(void* _ode_mem, double &_t, N_Vector &_y)
+{
+   return ARKodeInit(_ode_mem, sun_f_fun, NULL, (realtype) _t, _y);
+}
+
+int ARKODESolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
+{
+   return ARKodeReInit(_ode_mem, sun_f_fun, NULL, (realtype) _t, _y);
+}
+
 void ARKODESolver::Init(TimeDependentOperator &_f)
 {
    //not checking that initial pointers set to NULL:
@@ -347,16 +389,14 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
    yin= new realtype[yin_length];
    int flag;
 
-   // Create a serial vector
-   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
-   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
-
+   // Create an NVector
+   CreateNVector(yin_length, yin);
 
    if (initialized_sundials)
    {
       /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
        * and the initial dependent variable vector y. */
-      flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
+      flag = WrapARKodeReInit(ode_mem, t, y);
       if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
    }
    else
@@ -364,7 +404,7 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
       /* Call ARKodeInit to initialize the integrator memory and specify the
        * user's right hand side function in x'=f(t,x), the inital time t, and
        * the initial dependent variable vector y. */
-      flag = ARKodeInit(ode_mem, sun_f_fun, NULL, (realtype) t, y);
+      flag = WrapARKodeInit(ode_mem, t, y);
       if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
       initialized_sundials=true;
       SetSStolerances(RELTOL,ABSTOL);
@@ -380,20 +420,16 @@ void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
    //not checking that initial pointers set to NULL:
    f = &_f;
    long int yin_length=_f.Width(); //assume don't have initial condition in Init
-   //intial time
-   realtype *yin;
-   yin= _x.GetData();
    int flag;
-
-   // Create a serial vector
-   y = N_VMake_Serial(yin_length,yin);   /* Allocate y vector */
-   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
+   printf("found local length %ld\n",yin_length);
+   // Create an NVector
+   CreateNVector(yin_length, &_x);
 
    if (initialized_sundials)
    {
       /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
        * and the initial dependent variable vector y. */
-      flag = ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) _t, y);
+      flag = WrapARKodeReInit(ode_mem, _t, y);
       if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
    }
    else
@@ -401,7 +437,7 @@ void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
       /* Call ARKodeInit to initialize the integrator memory and specify the
        * user's right hand side function in x'=f(t,x), the inital time t, and
        * the initial dependent variable vector y. */
-      flag = ARKodeInit(ode_mem, sun_f_fun, NULL, (realtype) _t, y);
+      flag = WrapARKodeInit(ode_mem, _t, y);
       if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
       initialized_sundials=true;
       SetSStolerances(RELTOL,ABSTOL);
@@ -422,22 +458,28 @@ void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
    tolerances_set_sundials=true;
 }
 
+void ARKODESolver::WrapSetERKTableNum(int& table_num)
+{
+   ARKodeSetERKTableNum(ode_mem, table_num);
+}
+
+void ARKODESolver::WrapSetFixedStep(realtype dt)
+{
+   ARKodeSetFixedStep(ode_mem, dt);
+}
+
 void ARKODESolver::SetStopTime(double tf)
 {
    ARKodeSetStopTime(ode_mem, tf);
-}
-
-void ARKODESolver::GetY(Vector &x)
-{
-   NV_DATA_S(y)=x.GetData();
 }
 
 void ARKODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
    realtype tout=t+dt;
-
-   GetY(x);
+   //   printf("starting step\n");
+   TransferNVectorShallow(&x,y);
+   //   printf("called transfernvectorshallow\n");
 
    //Step
    flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
@@ -451,10 +493,7 @@ ARKODESolver::~ARKODESolver()
 {
    // Free the used memory.
    // Clean up and return with successful completion
-   if (NV_OWN_DATA_S(y)==true)
-   {
-      N_VDestroy_Serial(y);   // Free y vector
-   }
+   DestroyNVector(y);
    if (ode_mem!=NULL)
    {
       ARKodeFree(&ode_mem);   // Free integrator memory
@@ -502,6 +541,80 @@ int ARKODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 
    return (0);
 }
+
+#ifdef MFEM_USE_MPI
+ARKODEParSolver::ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
+                                 Vector &_x, double &_t)
+{
+   y = NULL;
+   f = &_f;
+   //     printf("entered constructor\n");
+
+   /* Call ARKodeCreate to create the solver memory */
+   ode_mem=ARKodeCreate();
+   //     printf("called ARKodeCreate\n");
+   initialized_sundials=false;
+   tolerances_set_sundials=false;
+   comm=_comm;
+   ReInit(_f,_x,_t);
+   //     printf("called ReInit(_f...\n");
+}
+
+void ARKODEParSolver::CreateNVector(long int& yin_length, realtype* ydata)
+{
+   int nprocs, myid;
+   long int global_length;
+   MPI_Comm_size(comm,&nprocs);
+   MPI_Comm_rank(comm,&myid);
+   realtype in=yin_length;
+   realtype out;
+   MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
+   global_length= out;
+   y = N_VMake_ParCsr(comm, yin_length, global_length,
+                      ydata);   /* Allocate y vector */
+}
+
+void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
+{
+   int nprocs, myid;
+   long int global_length;
+   MPI_Comm_size(comm,&nprocs);
+   realtype in=yin_length;
+   realtype out;
+   MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
+   global_length= out;
+   y = N_VNew_ParCsr(comm, yin_length, global_length);   /* Allocate y vector */
+   TransferNVectorShallow(_x,y);
+}
+
+void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
+{
+   NV_DATA_PC(_y)=_x->GetData();
+   hypre_ParVectorPartitioning(NV_HYPRE_PARCSR_PC(_y))=
+      hypre_ParVectorPartitioning((hypre_ParVector*) (*( (HypreParVector*) (_x))));
+}
+
+void ARKODEParSolver::DestroyNVector(N_Vector& _y)
+{
+
+   if (NV_OWN_DATA_PC(y)==true)
+   {
+      N_VDestroy_ParCsr(y);   // Free y vector
+   }
+}
+
+int ARKODEParSolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
+{
+   return ARKodeInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t, _y);
+}
+
+int ARKODEParSolver::WrapARKodeInit(void* _ode_mem, double &_t, N_Vector &_y)
+{
+   return ARKodeInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t, _y);
+}
+
+#endif
+
 
 }
 

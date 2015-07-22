@@ -144,6 +144,7 @@ int main(int argc, char *argv[])
       case 6: ode_solver = new RK6Solver; break;
       case 11: break;
       case 12: break;
+      case 13: break;
       default:
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
@@ -255,17 +256,17 @@ int main(int argc, char *argv[])
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
 
    double t = 0.0;
-   if (ode_solver_type==11)
+   int table_num=3;
+   switch (ode_solver_type)
    {
-      ode_solver = new CVODESolver(adv, u, t);
-   }
-   else if (ode_solver_type==12)
-   {
-      ode_solver = new ARKODESolver(adv, u, t);
-   }
-   else
-   {
-      ode_solver->Init(adv);
+      case 11: ode_solver = new CVODESolver(adv, u, t); break;
+      case 12: ode_solver = new ARKODESolver(adv, u, t); break;
+      case 13: ode_solver = new ARKODESolver(adv, u, t);
+         ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
+         ((ARKODESolver*) ode_solver)->WrapSetFixedStep((realtype) dt);
+         break;
+      default:
+         ode_solver->Init(adv);
    }
    // Track past incremental time steps
    double dt_by_ref = dt;
