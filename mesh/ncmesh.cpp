@@ -1082,6 +1082,8 @@ void NCMesh::RefineElement(Element* elem, char ref_type)
       int ea1 = nodes.Peek(no[1], no[2])->edge->attribute;
       int ea2 = nodes.Peek(no[2], no[0])->edge->attribute;
 
+      ref_type = 3; // for consistence
+
       // isotropic split - the only ref_type available for triangles
       Node* mid01 = GetMidEdgeVertexSimple(no[0], no[1]);
       Node* mid12 = GetMidEdgeVertexSimple(no[1], no[2]);
@@ -1518,6 +1520,9 @@ void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
          // reorder the point matrix according to slave face orientation
          ReorderFacePointMat(v0, v1, v2, v3, face->GetSingleElement(), mat);
 
+         // also: help constructing the leaf-to-vertex table
+         ElementUsesVertices(v0, v1, v2, v3);
+
          return;
       }
    }
@@ -1553,13 +1558,18 @@ void NCMesh::BuildFaceList()
    face_list.Clear();
    boundary_faces.SetSize(0);
 
-   Array<char> processed;
+   if (Dim < 3) { return; }
+
+   BeginLeafToVertexTable();
 
    // visit faces of leaf elements
+   Array<char> processed_faces;
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* elem = leaf_elements[i];
       MFEM_ASSERT(!elem->ref_type, "not a leaf element.");
+
+      BeginLeafElement();
 
       GeomInfo& gi = GI[(int) elem->geom];
       for (int j = 0; j < gi.nf; j++)
@@ -1579,15 +1589,15 @@ void NCMesh::BuildFaceList()
 
          // have we already processed this face? skip if yes
          int index = face->index;
-         if (index >= processed.Size())
+         if (index >= processed_faces.Size())
          {
-            processed.SetSize(index + 1, 0);
+            processed_faces.SetSize(index + 1, 0);
          }
-         else if (processed[index])
+         else if (processed_faces[index])
          {
             continue;
          }
-         processed[index] = 1;
+         processed_faces[index] = 1;
 
          if (face->ref_count == 2 || face->Boundary())
          {
@@ -1619,14 +1629,17 @@ void NCMesh::BuildFaceList()
 
          if (face->Boundary()) { boundary_faces.Append(face); }
       }
+
+      FinishLeafElement(i);
    }
+
+   FinishLeafToVertexTable();
 }
 
-NCMesh::Node*
-NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
+void NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
 {
    Node* mid = nodes.Peek(v0, v1);
-   if (!mid) { return NULL; }
+   if (!mid) { return; }
 
    if (mid->edge && level > 0)
    {
@@ -1642,14 +1655,15 @@ NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
       {
          std::swap(mat(0,0), mat(0,1));
       }
+
+      // also: help constructing the leaf-to-vertex table
+      if (Dim == 2) { ElementUsesVertices(v0, v1); }
    }
 
    // recurse deeper
    double tmid = (t0 + t1) / 2;
    TraverseEdge(v0, mid, t0, tmid, level+1);
    TraverseEdge(mid, v1, tmid, t1, level+1);
-
-   return mid;
 }
 
 void NCMesh::BuildEdgeList()
@@ -1657,13 +1671,16 @@ void NCMesh::BuildEdgeList()
    edge_list.Clear();
    boundary_edges.SetSize(0);
 
-   Array<char> processed;
+   if (Dim == 2) { BeginLeafToVertexTable(); }
 
    // visit edges of leaf elements
+   Array<char> processed_edges;
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* elem = leaf_elements[i];
       MFEM_ASSERT(!elem->ref_type, "not a leaf element.");
+
+      if (Dim == 2) { BeginLeafElement(); }
 
       GeomInfo& gi = GI[(int) elem->geom];
       for (int j = 0; j < gi.ne; j++)
@@ -1686,15 +1703,15 @@ void NCMesh::BuildEdgeList()
 
          // have we already processed this edge? skip if yes
          int index = edge->edge->index;
-         if (index >= processed.Size())
+         if (index >= processed_edges.Size())
          {
-            processed.SetSize(index + 1, 0);
+            processed_edges.SetSize(index + 1, 0);
          }
-         else if (processed[index])
+         else if (processed_edges[index])
          {
             continue;
          }
-         processed[index] = 1;
+         processed_edges[index] = 1;
 
          // prepare edge interval for slave traversal, handle orientation
          double t0 = 0.0, t1 = 1.0;
@@ -1725,8 +1742,163 @@ void NCMesh::BuildEdgeList()
             edge_list.conforming.push_back(MeshId(index, elem, j));
          }
       }
+
+      if (Dim == 2) { FinishLeafElement(i); }
+   }
+
+   if (Dim == 2) { FinishLeafToVertexTable(); }
+}
+
+
+//// Neighbors /////////////////////////////////////////////////////////////////
+
+void NCMesh::BeginLeafToVertexTable()
+{
+   int nrows = leaf_elements.Size();
+   tmp_I = new int[nrows + 1];
+   tmp_J = new int*[nrows ];
+   tmp_vert.Reserve(100);
+   num_vertices = 0;
+}
+
+void NCMesh::BeginLeafElement()
+{
+   tmp_vert.SetSize(0);
+   // TODO: don't store corner vertices
+}
+
+void NCMesh::ElementUsesVertex(int index)
+{
+   tmp_vert.Append(index);
+   num_vertices = std::max(index + 1, num_vertices);
+}
+
+void NCMesh::ElementUsesVertices(Node* v0, Node* v1, Node* v2, Node* v3)
+{
+   ElementUsesVertex(v0->vertex->index);
+   ElementUsesVertex(v1->vertex->index);
+   ElementUsesVertex(v2->vertex->index);
+   ElementUsesVertex(v3->vertex->index);
+}
+
+void NCMesh::ElementUsesVertices(Node* v0, Node* v1)
+{
+   ElementUsesVertex(v0->vertex->index);
+   ElementUsesVertex(v1->vertex->index);
+}
+
+void NCMesh::FinishLeafElement(int index)
+{
+   Element* elem = leaf_elements[index];
+   for (int i = 0; i < GI[(int) elem->geom].nv; i++)
+   {
+      ElementUsesVertex(elem->node[i]->vertex->index);
+   }
+
+   tmp_vert.Sort();
+   tmp_vert.Unique();
+
+   int size = tmp_vert.Size();
+   tmp_I[index] = size;
+   tmp_J[index] = new int[size];
+   memcpy(tmp_J[index], tmp_vert.GetData(), size * sizeof(int));
+}
+
+void NCMesh::FinishLeafToVertexTable()
+{
+   int nrows = leaf_elements.Size();
+
+   // finalize the I array of the table
+   int n = 0;
+   for (int i = 0; i < nrows; i++)
+   {
+      int cnt = tmp_I[i];
+      tmp_I[i] = n;
+      n += cnt;
+   }
+   tmp_I[nrows] = n;
+
+   // copy the temporarily stored rows into one J array
+   int *J = new int[n];
+   n = 0;
+   for (int i = 0; i < nrows; i++)
+   {
+      int cnt = tmp_I[i+1] - tmp_I[i];
+      memcpy(J+n, tmp_J[i], cnt * sizeof(int));
+      delete [] tmp_J[i];
+      n += cnt;
+   }
+
+   leaf_vertex.SetIJ(tmp_I, J, nrows);
+
+   tmp_vert.DeleteAll();
+   delete [] tmp_J;
+   tmp_J = NULL;
+   tmp_I = NULL;
+}
+
+void NCMesh::FindNeighbors(const Array<char> &elem_set,
+                           Array<Element*> &neighbors)
+{
+   // make sure the table exists
+   (Dim < 3 ? GetEdgeList() : GetFaceList());
+
+   MFEM_VERIFY(elem_set.Size() == leaf_elements.Size(), "");
+   MFEM_ASSERT(leaf_vertex.Size() == elem_set.Size(), "");
+
+   // step 1: vertices = A^T * elem_set, i.e, find all vertices touching the
+   // element set
+
+   Array<char> vertices(num_vertices);
+   vertices = 0;
+
+   for (int i = 0; i < elem_set.Size(); i++)
+   {
+      if (elem_set[i])
+      {
+         int *v = leaf_vertex.GetRow(i);
+         int nv = leaf_vertex.RowSize(i);
+         for (int j = 0; j < nv; j++)
+         {
+            vertices[v[j]] = 1;
+         }
+      }
+   }
+
+   // step 2: neighbors = A * vertices, i.e., find all elements coinciding with
+   // vertices from step 1; NOTE: in the result we don't include elements from
+   // the original set
+
+   for (int i = 0; i < leaf_vertex.Size(); i++)
+   {
+      if (!elem_set[i])
+      {
+         int *v = leaf_vertex.GetRow(i);
+         int nv = leaf_vertex.RowSize(i);
+         for (int j = 0; j < nv; j++)
+         {
+            if (vertices[v[j]])
+            {
+               neighbors.Append(leaf_elements[i]);
+               break;
+            }
+         }
+      }
    }
 }
+
+#ifdef MFEM_DEBUG
+void NCMesh::DebugNeighbors(Array<char> &elem_set)
+{
+   Array<Element*> neighbors;
+   FindNeighbors(elem_set, neighbors);
+
+   for (int i = 0; i < neighbors.Size(); i++)
+   {
+      elem_set[neighbors[i]->index] = 2;
+   }
+}
+#endif
 
 
 //// Coarse to fine transformations ////////////////////////////////////////////

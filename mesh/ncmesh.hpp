@@ -376,11 +376,14 @@ protected: // implementation
 
    Array<int> vertex_nodeId; // vertex-index to node-id map, see UpdateVertices
 
-   NCList face_list; // lazy-initialized list of faces, see GetFaceList
-   NCList edge_list; // lazy-initialized list of edges, see GetEdgeList
+   NCList face_list; ///< lazy-initialized list of faces, see GetFaceList
+   NCList edge_list; ///< lazy-initialized list of edges, see GetEdgeList
 
-   Array<Face*> boundary_faces; // subset of all faces, set by BuildFaceList
-   Array<Node*> boundary_edges; // subset of all edges, set by BuildEdgeList
+   Array<Face*> boundary_faces; ///< subset of all faces, set by BuildFaceList
+   Array<Node*> boundary_edges; ///< subset of all edges, set by BuildEdgeList
+
+   Table leaf_vertex; ///< leaf-element to vertex table, see FindNeighbors
+   int num_vertices; ///< width of the table
 
    virtual void UpdateVertices(); ///< update Vertex::index and vertex_nodeId
 
@@ -463,13 +466,32 @@ protected: // implementation
    void TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
                      const PointMatrix& pm, int level);
 
-   Node* TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level);
+   void TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level);
 
    virtual void BuildFaceList();
    virtual void BuildEdgeList();
 
    virtual void ElementSharesEdge(Element* elem, Edge* edge) {}
    virtual void ElementSharesFace(Element* elem, Face* face) {}
+
+
+   // neighbors / leaf_vertex table
+
+   /** Return all vertex-, edge- and face-neighbors of a set of elements.
+       (The function is intended to be used for large sets of elements and its
+       complexity is linear in the number of leaf elements in the mesh.) */
+   void FindNeighbors(const Array<char> &elem_set, Array<Element*> &neighbors);
+
+   Array<int> tmp_vert, tmp_ignore;  // temporaries used when constructing the
+   int *tmp_I, **tmp_J;              // 'leaf_vertex' table
+
+   void BeginLeafToVertexTable();
+   void BeginLeafElement();
+   void ElementUsesVertex(int index);
+   void ElementUsesVertices(Node* v0, Node* v1, Node* v2, Node* v3);
+   void ElementUsesVertices(Node* v0, Node* v1);
+   void FinishLeafElement(int index);
+   void FinishLeafToVertexTable();
 
 
    // coarse to fine transformations
@@ -584,6 +606,10 @@ public: // TODO: maybe make this part of mfem::Geometry?
 
    static GeomInfo GI[Geometry::NumGeom];
 
+#ifdef MFEM_DEBUG
+public:
+   void DebugNeighbors(Array<char> &elem_set);
+#endif
 
    friend class ParNCMesh;
 };
