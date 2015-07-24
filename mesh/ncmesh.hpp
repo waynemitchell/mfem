@@ -340,7 +340,7 @@ protected: // implementation
    {
       char geom;     ///< Geometry::Type of the element
       char ref_type; ///< bit mask of X,Y,Z refinements (bits 0,1,2 respectively)
-      int index;     ///< element number in the Mesh, -1 if refined or ghost
+      int index;     ///< element number in the Mesh, -1 if refined
       int rank;      ///< processor number (ParNCMesh)
       int attribute;
       union
@@ -352,7 +352,6 @@ protected: // implementation
 
       Element(int geom, int attr);
       Element(const Element& other) { std::memcpy(this, &other, sizeof(*this)); }
-      bool Ghost() const { return index < 0; }
    };
 
    Array<Element*> root_elements; // coarse mesh, initialized by constructor
@@ -391,6 +390,9 @@ protected: // implementation
    void UpdateLeafElements();
 
    virtual void AssignLeafIndices();
+
+   virtual bool IsGhost(const Element* elem) const { return false; }
+   virtual int GetNumGhosts() const { return 0; }
 
 
    // refinement
@@ -471,8 +473,8 @@ protected: // implementation
    virtual void BuildFaceList();
    virtual void BuildEdgeList();
 
-   virtual void ElementSharesEdge(Element* elem, Edge* edge) {}
-   virtual void ElementSharesFace(Element* elem, Face* face) {}
+   virtual void ElementSharesEdge(Element* elem, Edge* edge) {} // ParNCMesh
+   virtual void ElementSharesFace(Element* elem, Face* face) {} // ParNCMesh
 
 
    // neighbors / leaf_vertex table
@@ -483,8 +485,16 @@ protected: // implementation
        that of leaf_elements.
        NOTE: the function is intended to be used for large sets of elements and
        its complexity is linear in the number of leaf elements in the mesh. */
-   void FindNeighbors(const Array<char> &elem_set, Array<Element*> *neighbors,
-                      Array<char> *neighbor_set = NULL);
+   void FindSetNeighbors(const Array<char> &elem_set,
+                         Array<Element*> *neighbors,
+                         Array<char> *neighbor_set = NULL);
+
+   /** Return all vertex-, edge- and face-neighbors of a single element.
+       You can limit the number of elements being checked using 'search_set'.
+       The complexity of the function is linear in the size of the search set.*/
+   void FindNeighbors(const Element* elem,
+                      Array<Element*> &neighbors,
+                      const Array<Element*> *search_set = NULL);
 
    Array<int> tmp_vert, tmp_ignore;  // temporaries used when constructing the
    int *tmp_I, **tmp_J;              // 'leaf_vertex' table

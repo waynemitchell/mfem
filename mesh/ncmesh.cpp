@@ -1280,7 +1280,6 @@ void NCMesh::CollectLeafElements(Element* elem)
          if (elem->child[i]) { CollectLeafElements(elem->child[i]); }
       }
    }
-   elem->index = -1;
 }
 
 void NCMesh::UpdateLeafElements()
@@ -1296,7 +1295,7 @@ void NCMesh::UpdateLeafElements()
 
 void NCMesh::AssignLeafIndices()
 {
-   // (overridden in ParNCMesh to assign -1 to ghosts)
+   // (overridden in ParNCMesh to handle ghost elements)
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       leaf_elements[i]->index = i;
@@ -1315,7 +1314,7 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
       vertices[i].SetCoords(node->vertex->pos);
    }
 
-   elements.SetSize(leaf_elements.Size()); // FIXME minus ghosts
+   elements.SetSize(leaf_elements.Size() - GetNumGhosts());
    elements.SetSize(0);
 
    boundary.SetSize(0);
@@ -1324,7 +1323,7 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* nc_elem = leaf_elements[i];
-      if (nc_elem->Ghost()) { continue; } // ParNCMesh
+      if (IsGhost(nc_elem)) { continue; } // ParNCMesh
 
       Node** node = nc_elem->node;
       GeomInfo& gi = GI[(int) nc_elem->geom];
@@ -1837,9 +1836,9 @@ void NCMesh::FinishLeafToVertexTable()
    tmp_I = NULL;
 }
 
-void NCMesh::FindNeighbors(const Array<char> &elem_set,
-                           Array<Element*> *neighbors,
-                           Array<char> *neighbor_set)
+void NCMesh::FindSetNeighbors(const Array<char> &elem_set,
+                              Array<Element*> *neighbors,
+                              Array<char> *neighbor_set)
 {
    // If A is the element-to-vertex table (see 'leaf_vertex') listing all
    // vertices touching each element, including hanging vertices, then A*A^T is
@@ -1901,7 +1900,7 @@ void NCMesh::FindNeighbors(const Array<char> &elem_set,
 void NCMesh::DebugNeighbors(Array<char> &elem_set)
 {
    Array<Element*> neighbors;
-   FindNeighbors(elem_set, &neighbors);
+   FindSetNeighbors(elem_set, &neighbors);
 
    for (int i = 0; i < neighbors.Size(); i++)
    {
@@ -1932,7 +1931,7 @@ void NCMesh::GetFineTransforms(Element* elem, int coarse_index,
    if (!elem->ref_type)
    {
       // we got to a leaf, store the fine element transformation
-      if (!elem->Ghost())
+      if (!IsGhost(elem))
       {
          FineTransform& ft = transforms[elem->index];
          ft.coarse_index = coarse_index;
@@ -2179,15 +2178,17 @@ void NCMesh::MarkCoarseLevel()
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* e = leaf_elements[i];
-      if (!e->Ghost()) { coarse_elements.Append(e); }
+      if (!IsGhost(e)) { coarse_elements.Append(e); }
    }
 }
 
 NCMesh::FineTransform* NCMesh::GetFineTransforms()
 {
    if (!coarse_elements.Size())
+   {
       MFEM_ABORT("You need to call MarkCoarseLevel before calling Refine and "
                  "GetFineTransformations.");
+   }
 
    FineTransform* transforms = new FineTransform[leaf_elements.Size()];
 

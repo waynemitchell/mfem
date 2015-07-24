@@ -181,6 +181,7 @@ protected:
    int NVertices, NGhostVertices;
    int NEdges, NGhostEdges;
    int NFaces, NGhostFaces;
+   int NElements, NGhostElements;
 
    // lists of vertices/edges/faces shared by us and at least one more processor
    NCList shared_vertices;
@@ -197,8 +198,19 @@ protected:
    Table edge_group;
    Table face_group;
 
-   Array<char> face_orient;
-   Array<Element*> index_leaf;
+   Array<char> face_orient; // see CalcFaceOrientations
+
+   //Array<Element*> index_leaf; ///< Mesh index to leaf Element* map
+
+   /** Type of each leaf element:
+         1 - our element (rank == MyRank),
+         3 - our element, and neighbor to the ghost layer,
+         2 - ghost layer element (existing element, but rank != MyRank),
+         0 - element beyond the ghost layer, may not be a real element.
+       See also UpdateLayers. */
+   Array<char> element_type;
+
+   Array<Element*> ghost_layer; ///< list of elements whose 'element_type' == 2.
 
    virtual void Update();
 
@@ -208,6 +220,11 @@ protected:
 
    virtual void UpdateVertices();
    virtual void AssignLeafIndices();
+
+   virtual bool IsGhost(const Element* elem) const
+   { return elem->rank != MyRank; }
+
+   virtual int GetNumGhosts() const { return NGhostElements; }
 
    virtual void OnMeshUpdated(Mesh *mesh);
 
@@ -220,6 +237,8 @@ protected:
    void BuildSharedVertices();
 
    void CalcFaceOrientations();
+
+   void UpdateLayers();
 
    Array<Connection> index_rank; // temporary
 

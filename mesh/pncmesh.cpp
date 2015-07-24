@@ -52,13 +52,26 @@ void ParNCMesh::Update()
 void ParNCMesh::AssignLeafIndices()
 {
    // This is an override of NCMesh::AssignLeafIndices(). The difference is
-   // that we don't assign a Mesh index to ghost elements. This will make them
-   // skipped in NCMesh::GetMeshComponents.
+   // that we shift all elements we own to the begginning of the array
+   // 'leaf_elements' and assign all ghost elements indices >= NElements. This
+   // will make the ghosts skipped in NCMesh::GetMeshComponents.
 
-   for (int i = 0, index = 0; i < leaf_elements.Size(); i++)
+   NElements = NGhostElements = 0;
+   for (int i = 0; i < leaf_elements.Size(); i++)
    {
-      Element* leaf = leaf_elements[i];
-      leaf->index = (leaf->rank == MyRank) ? index++ : -1;
+      if (leaf_elements[i]->rank == MyRank)
+      {
+         std::swap(leaf_elements[NElements++], leaf_elements[i]);
+      }
+      else
+      {
+         NGhostElements++;
+      }
+   }
+
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      leaf_elements[i]->index = i;
    }
 }
 
@@ -79,32 +92,40 @@ void ParNCMesh::UpdateVertices()
    {
       Element* elem = leaf_elements[i];
       if (elem->rank == MyRank)
+      {
          for (int j = 0; j < GI[(int) elem->geom].nv; j++)
          {
             elem->node[j]->vertex->index = 0;   // mark vertices that we need
          }
+      }
    }
 
    NVertices = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
       if (it->vertex && it->vertex->index >= 0)
       {
          it->vertex->index = NVertices++;
       }
+   }
 
    vertex_nodeId.SetSize(NVertices);
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
       if (it->vertex && it->vertex->index >= 0)
       {
          vertex_nodeId[it->vertex->index] = it->id;
       }
+   }
 
    NGhostVertices = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
       if (it->vertex && it->vertex->index < 0)
       {
          it->vertex->index = NVertices + (NGhostVertices++);
       }
+   }
 }
 
 void ParNCMesh::OnMeshUpdated(Mesh *mesh)
@@ -115,7 +136,9 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
 
    // clear Edge:: and Face::index
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
       if (it->edge) { it->edge->index = -1; }
+   }
    for (HashTable<Face>::Iterator it(faces); it; ++it) { it->index = -1; }
 
    // go assign existing edge/face indices
@@ -125,10 +148,12 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    NEdges = mesh->GetNEdges();
    NGhostEdges = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
+   {
       if (it->edge && it->edge->index < 0)
       {
          it->edge->index = NEdges + (NGhostEdges++);
       }
+   }
 
    // assign ghost face indices
    NFaces = mesh->GetNFaces();
@@ -136,14 +161,6 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    for (HashTable<Face>::Iterator it(faces); it; ++it)
    {
       if (it->index < 0) { it->index = NFaces + (NGhostFaces++); }
-   }
-
-   // one more thing: create the Mesh element index to NCMesh::Element* map
-   index_leaf.SetSize(mesh->GetNE());
-   for (int i = 0; i < leaf_elements.Size(); i++)
-   {
-      Element* leaf = leaf_elements[i];
-      if (leaf->index >= 0) { index_leaf[leaf->index] = leaf; }
    }
 }
 
@@ -670,7 +687,8 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    for (int i = 0; i < refinements.Size(); i++)
    {
       const Refinement &ref = refinements[i];
-      Element* elem = index_leaf[ref.index];
+      MFEM_ASSERT(ref.index < NElements, "");
+      Element* elem = leaf_elements[ref.index];
       ElementNeighborProcessors(elem, ranks);
       for (int j = 0; j < ranks.Size(); j++)
       {
@@ -686,7 +704,7 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    for (int i = 0; i < refinements.Size(); i++)
    {
       const Refinement &ref = refinements[i];
-      NCMesh::RefineElement(index_leaf[ref.index], ref.ref_type);
+      NCMesh::RefineElement(leaf_elements[ref.index], ref.ref_type);
    }
 #else
    // TODO: support aniso ref in parallel, this will allow aniso in parallel on
