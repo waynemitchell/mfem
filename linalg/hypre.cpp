@@ -717,18 +717,6 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
    width = GetNumCols();
 }
 
-HypreParMatrix::operator hypre_ParCSRMatrix*()
-{
-   return (this) ? A : NULL;
-}
-
-#ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
-HypreParMatrix::operator HYPRE_ParCSRMatrix()
-{
-   return (this) ? (HYPRE_ParCSRMatrix) A : (HYPRE_ParCSRMatrix) NULL;
-}
-#endif
-
 hypre_ParCSRMatrix* HypreParMatrix::StealData()
 {
    // Only safe when (diagOwner == -1 && offdOwner == -1 && colMapOwner == -1)

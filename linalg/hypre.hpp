@@ -220,10 +220,10 @@ public:
    MPI_Comm GetComm() { return A->comm; }
 
    /// Typecasting to hypre's hypre_ParCSRMatrix*
-   operator hypre_ParCSRMatrix*();
+   operator hypre_ParCSRMatrix*() { return A; }
 #ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
    /// Typecasting to hypre's HYPRE_ParCSRMatrix, a.k.a. void *
-   operator HYPRE_ParCSRMatrix();
+   operator HYPRE_ParCSRMatrix() { return (HYPRE_ParCSRMatrix) A; }
 #endif
    /// Changes the ownership of the the matrix
    hypre_ParCSRMatrix* StealData();
