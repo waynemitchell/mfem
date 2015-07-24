@@ -478,9 +478,13 @@ protected: // implementation
    // neighbors / leaf_vertex table
 
    /** Return all vertex-, edge- and face-neighbors of a set of elements.
-       (The function is intended to be used for large sets of elements and its
-       complexity is linear in the number of leaf elements in the mesh.) */
-   void FindNeighbors(const Array<char> &elem_set, Array<Element*> &neighbors);
+       The neighbors are returned as a list (neighbors != NULL), as a set
+       (neighbor_set != NULL), or both. The sizes of the set arrays must match
+       that of leaf_elements.
+       NOTE: the function is intended to be used for large sets of elements and
+       its complexity is linear in the number of leaf elements in the mesh. */
+   void FindNeighbors(const Array<char> &elem_set, Array<Element*> *neighbors,
+                      Array<char> *neighbor_set = NULL);
 
    Array<int> tmp_vert, tmp_ignore;  // temporaries used when constructing the
    int *tmp_I, **tmp_J;              // 'leaf_vertex' table

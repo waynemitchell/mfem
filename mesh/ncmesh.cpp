@@ -1838,8 +1838,15 @@ void NCMesh::FinishLeafToVertexTable()
 }
 
 void NCMesh::FindNeighbors(const Array<char> &elem_set,
-                           Array<Element*> &neighbors)
+                           Array<Element*> *neighbors,
+                           Array<char> *neighbor_set)
 {
+   // If A is the element-to-vertex table (see 'leaf_vertex') listing all
+   // vertices touching each element, including hanging vertices, then A*A^T is
+   // the element-to-neighbor table. Multiplying the element set with A*A^T
+   // gives the neighbor set. To save memory, this function only computes the
+   // action of A*A^T, the product itself is not stored anywhere.
+
    // make sure the table exists
    (Dim < 3 ? GetEdgeList() : GetFaceList());
 
@@ -1869,6 +1876,8 @@ void NCMesh::FindNeighbors(const Array<char> &elem_set,
    // vertices from step 1; NOTE: in the result we don't include elements from
    // the original set
 
+   if (neighbor_set) { *neighbor_set = 0; }
+
    for (int i = 0; i < leaf_vertex.Size(); i++)
    {
       if (!elem_set[i])
@@ -1879,7 +1888,8 @@ void NCMesh::FindNeighbors(const Array<char> &elem_set,
          {
             if (vertices[v[j]])
             {
-               neighbors.Append(leaf_elements[i]);
+               if (neighbors) { neighbors->Append(leaf_elements[i]); }
+               if (neighbor_set) { (*neighbor_set)[i] = 1; }
                break;
             }
          }
@@ -1891,7 +1901,7 @@ void NCMesh::FindNeighbors(const Array<char> &elem_set,
 void NCMesh::DebugNeighbors(Array<char> &elem_set)
 {
    Array<Element*> neighbors;
-   FindNeighbors(elem_set, neighbors);
+   FindNeighbors(elem_set, &neighbors);
 
    for (int i = 0; i < neighbors.Size(); i++)
    {
