@@ -134,7 +134,6 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
    f = &_f;
    long int yin_length=_f.Width(); //assume don't have initial condition in Init
    int flag;
-   printf("found local length %ld\n",yin_length);
    // Create an NVector
    CreateNVector(yin_length, &_x);
 
@@ -263,6 +262,7 @@ CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
    //     printf("called ReInit(_f...\n");
 }
 
+
 void CVODEParSolver::CreateNVector(long int& yin_length, realtype* ydata)
 {
    int nprocs, myid;
@@ -282,7 +282,9 @@ void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
    int nprocs, myid;
    long int global_length;
    MPI_Comm_size(comm,&nprocs);
+   MPI_Comm_rank(comm,&myid);
    realtype in=yin_length;
+   in=_x->Size();
    realtype out;
    MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
    global_length= out;
@@ -292,9 +294,16 @@ void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 
 void CVODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
-   NV_DATA_PC(_y)=_x->GetData();
-   hypre_ParVectorPartitioning(NV_HYPRE_PARCSR_PC(_y))=
-      hypre_ParVectorPartitioning((hypre_ParVector*) (*( (HypreParVector*) (_x))));
+   int nprocs, myid;
+   long int global_length;
+   //using namespace mfem;
+   realtype *ydata, *ydotdata;
+   long int ylen, ydotlen;
+   HYPRE_Int *col, *col2;
+   hypre_ParVector *yparvec, *ydotparvec;  
+   MPI_Comm_size(comm,&nprocs);
+   MPI_Comm_rank(comm,&myid);
+   NV_HYPRE_PARCSR_PC(_y)=((HypreParVector*) _x)->StealParVector();
 }
 
 void CVODEParSolver::DestroyNVector(N_Vector& _y)
@@ -421,7 +430,6 @@ void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
    f = &_f;
    long int yin_length=_f.Width(); //assume don't have initial condition in Init
    int flag;
-   printf("found local length %ld\n",yin_length);
    // Create an NVector
    CreateNVector(yin_length, &_x);
 
@@ -487,6 +495,7 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
    return;
    flag = ARKodeGetLastStep(ode_mem, &dt);
    if (check_flag(&flag, "ARKodeGetLastStep", 1)) { return; }
+   cout<<"end of step"<<endl;
 }
 
 ARKODESolver::~ARKODESolver()
@@ -579,7 +588,9 @@ void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
    int nprocs, myid;
    long int global_length;
    MPI_Comm_size(comm,&nprocs);
+   MPI_Comm_rank(comm,&myid);
    realtype in=yin_length;
+   in=_x->Size();
    realtype out;
    MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
    global_length= out;
@@ -589,9 +600,16 @@ void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 
 void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
-   NV_DATA_PC(_y)=_x->GetData();
-   hypre_ParVectorPartitioning(NV_HYPRE_PARCSR_PC(_y))=
-      hypre_ParVectorPartitioning((hypre_ParVector*) (*( (HypreParVector*) (_x))));
+   int nprocs, myid;
+   long int global_length;
+   //using namespace mfem;
+   realtype *ydata, *ydotdata;
+   long int ylen, ydotlen;
+   HYPRE_Int *col, *col2;
+   hypre_ParVector *yparvec, *ydotparvec;  
+   MPI_Comm_size(comm,&nprocs);
+   MPI_Comm_rank(comm,&myid);
+   NV_HYPRE_PARCSR_PC(_y)=((HypreParVector*) _x)->StealParVector();
 }
 
 void ARKODEParSolver::DestroyNVector(N_Vector& _y)
@@ -605,7 +623,7 @@ void ARKODEParSolver::DestroyNVector(N_Vector& _y)
 
 int ARKODEParSolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
-   return ARKodeInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t, _y);
+   return ARKodeReInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t, _y);
 }
 
 int ARKODEParSolver::WrapARKodeInit(void* _ode_mem, double &_t, N_Vector &_y)
@@ -658,38 +676,19 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 
    //using namespace mfem;
    realtype *ydata, *ydotdata;
+   int myid;
    long int ylen, ydotlen;
    HYPRE_Int *col, *col2;
    hypre_ParVector *yparvec, *ydotparvec;
-   MPI_Comm comm=MPI_COMM_WORLD;
-
-   //ydata is now a pointer to the realtype data array in y
-   ydata = NV_DATA_PC(y);
-   ylen = NV_LOCLENGTH_PC(y);
-   yparvec = NV_HYPRE_PARCSR_PC(y);
-
-   col=hypre_ParVectorPartitioning(yparvec);
-
-   // probably unnecessary, since overwriting ydot as output
-   //ydotdata is now a pointer to the realtype data array in ydot
-   ydotdata = NV_DATA_PC(ydot);
-   ydotlen = NV_LOCLENGTH_PC(ydot);
-   ydotparvec = NV_HYPRE_PARCSR_PC(ydot);
-
-   col2=hypre_ParVectorPartitioning(ydotparvec);
-
+   MPI_Comm comm=NV_COMM_PC(y);
+   MPI_Comm_rank(comm,&myid);
+   
    //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
    mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
+//   MPI_Barrier(comm);
+   mfem::HypreParVector mfem_vector_y=(mfem::HypreParVector) (NV_HYPRE_PARCSR_PC(y));
+   mfem::HypreParVector mfem_vector_ydot=(mfem::HypreParVector) (NV_HYPRE_PARCSR_PC(ydot));
 
-   //if gridfunction information necessary for Mult, keep Vector in userdata
-   //  Vector* u = udata->u;
-   //  u->SetData((double*) ydata);
-   // Creates mfem vectors with pointers to the data array in y and in ydot respectively
-   // Have not explicitly set as owndata, so allocated size is -size
-   mfem::HypreParVector mfem_vector_y(comm, (HYPRE_Int) NV_GLOBLENGTH_PC(y),
-                                      ydata, col);
-   mfem::HypreParVector mfem_vector_ydot(comm, (HYPRE_Int) NV_GLOBLENGTH_PC(ydot),
-                                         ydotdata, col2);
    f->SetTime(t);
    f->Mult(mfem_vector_y,mfem_vector_ydot);
 
