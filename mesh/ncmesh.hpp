@@ -496,7 +496,7 @@ protected: // implementation
                       Array<Element*> &neighbors,
                       const Array<Element*> *search_set = NULL);
 
-   Array<int> tmp_vert, tmp_ignore;  // temporaries used when constructing the
+   Array<int> tmp_vert/*, tmp_ignore*/;  // temporaries used when constructing the
    int *tmp_I, **tmp_J;              // 'leaf_vertex' table
 
    void BeginLeafToVertexTable();
@@ -506,6 +506,12 @@ protected: // implementation
    void ElementUsesVertices(Node* v0, Node* v1);
    void FinishLeafElement(int index);
    void FinishLeafToVertexTable();
+
+   void UpdateLeafToVertexTable()
+   {
+      // make the table if it doesn't exist
+      (Dim < 3 ? GetEdgeList() : GetFaceList());
+   }
 
 
    // coarse to fine transformations

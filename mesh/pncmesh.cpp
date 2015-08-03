@@ -47,6 +47,9 @@ void ParNCMesh::Update()
    shared_vertices.Clear();
    shared_edges.Clear();
    shared_faces.Clear();
+
+   element_type.SetSize(0);
+   ghost_layer.SetSize(0);
 }
 
 void ParNCMesh::AssignLeafIndices()
@@ -449,146 +452,70 @@ void ParNCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
 
 //// Neighbors /////////////////////////////////////////////////////////////////
 
+void ParNCMesh::UpdateLayers()
+{
+   if (element_type.Size()) { return; }
+
+   int nleaves = leaf_elements.Size();
+
+   element_type.SetSize(nleaves);
+   for (int i = 0; i < nleaves; i++)
+   {
+      element_type[i] = (leaf_elements[i]->rank == MyRank) ? 1 : 0;
+   }
+
+   Array<char> ghost_set;
+   FindSetNeighbors(element_type, NULL, &ghost_set);
+
+   Array<char> boundary_set;
+   FindSetNeighbors(ghost_set, NULL, &boundary_set);
+
+   ghost_layer.SetSize(0);
+   for (int i = 0; i < nleaves; i++)
+   {
+      if (ghost_set[i])
+      {
+         element_type[i] = 2;
+         ghost_layer.Append(leaf_elements[i]);
+      }
+      else if (boundary_set[i] && element_type[i])
+      {
+         element_type[i] = 3;
+      }
+   }
+}
+
 bool ParNCMesh::OnProcessorBoundary(Element* elem) const
 {
    MFEM_ASSERT(!elem->ref_type, "not a leaf.");
-
-   Node** node = elem->node;
-   GeomInfo &gi = NCMesh::GI[(int) elem->geom];
-
-   // check vertices
-   for (int i = 0; i < gi.nv; i++)
-   {
-      int index = node[i]->vertex->index;
-      if (is_shared(vertex_group, index, MyRank)) { return true; }
-   }
-
-   // check edges
-   for (int i = 0; i < gi.ne; i++)
-   {
-      const int* ev = gi.edges[i];
-      Node* edge = nodes.Peek(node[ev[0]], node[ev[1]]);
-      MFEM_ASSERT(edge && edge->edge, "edge not found.");
-      if (is_shared(edge_group, edge->edge->index, MyRank)) { return true; }
-   }
-
-   // check faces
-   if (Dim > 2)
-   {
-      for (int i = 0; i < gi.nf; i++)
-      {
-         const int* fv = gi.faces[i];
-         Face* face = faces.Peek(node[fv[0]], node[fv[1]],
-                                 node[fv[2]], node[fv[3]]);
-         MFEM_ASSERT(face, "face not found");
-         if (is_shared(face_group, face->index, MyRank)) { return true; }
-      }
-   }
-
-   return false;
-}
-
-static void append_ranks(Array<int> &ranks, const Table &groups,
-                         int index, int my_rank)
-{
-   const int *group = groups.GetRow(index);
-   int size = groups.RowSize(index);
-
-   for (int i = 0; i < size; i++)
-   {
-      int r = group[i];
-      if (r == my_rank) { continue; }
-      if (!ranks.Size() || ranks.Last() != r) { ranks.Append(r); }
-   }
+   return element_type[elem->index] == 3;
 }
 
 void ParNCMesh::ElementNeighborProcessors(Element *elem,
-                                          Array<int> &ranks) const
+                                          Array<int> &ranks)
 {
    MFEM_ASSERT(!elem->ref_type, "not a leaf.");
+
+   tmp_neighbors.SetSize(0);
+   FindNeighbors(elem, tmp_neighbors, &ghost_layer);
+
    ranks.SetSize(0); // preserve capacity
-
-   Node** node = elem->node;
-   GeomInfo &gi = NCMesh::GI[(int) elem->geom];
-
-   // get vertex neighborhood
-   for (int i = 0; i < gi.nv; i++)
+   for (int i = 0; i < tmp_neighbors.Size(); i++)
    {
-      append_ranks(ranks, vertex_group, node[i]->vertex->index, MyRank);
+      ranks.Append(tmp_neighbors[i]->rank);
    }
-
-   // get edge neighborhood
-   for (int i = 0; i < gi.ne; i++)
-   {
-      const int* ev = gi.edges[i];
-      Node* edge = nodes.Peek(node[ev[0]], node[ev[1]]);
-      MFEM_ASSERT(edge && edge->edge, "edge not found.");
-      append_ranks(ranks, edge_group, edge->edge->index, MyRank);
-   }
-
-   // get face neighborhood
-   if (Dim > 2)
-   {
-      for (int i = 0; i < gi.nf; i++)
-      {
-         const int* fv = gi.faces[i];
-         Face* face = faces.Peek(node[fv[0]], node[fv[1]],
-                                 node[fv[2]], node[fv[3]]);
-         MFEM_ASSERT(face, "face not found");
-         append_ranks(ranks, face_group, face->index, MyRank);
-      }
-   }
-
-   // now sort and get rid of duplicities
    ranks.Sort();
    ranks.Unique();
 }
 
-static void collect_index_ranks(std::set<int> &ranks, const Table &groups,
-                                int index, int my_rank)
+void ParNCMesh::NeighborProcessors(Array<int> &neighbors)
 {
-   const int *group = groups.GetRow(index);
-   int size = groups.RowSize(index);
-
-   for (int i = 0; i < size; i++)
-   {
-      int r = group[i];
-      if (r != my_rank) { ranks.insert(r); }
-   }
-}
-
-static void collect_shared_ranks(std::set<int> &ranks, const Table &groups,
-                                 const ParNCMesh::NCList &shared, int my_rank)
-{
-   for (unsigned i = 0; i < shared.conforming.size(); i++)
-   {
-      int index = shared.conforming[i].index;
-      collect_index_ranks(ranks, groups, index, my_rank);
-   }
-   for (unsigned i = 0; i < shared.masters.size(); i++)
-   {
-      int index = shared.masters[i].index;
-      collect_index_ranks(ranks, groups, index, my_rank);
-   }
-   for (unsigned i = 0; i < shared.slaves.size(); i++)
-   {
-      int index = shared.slaves[i].index;
-      collect_index_ranks(ranks, groups, index, my_rank);
-   }
-}
-
-void ParNCMesh::GetNeighbors(Array<int> &neighbors)
-{
-   GetSharedVertices();
-   GetSharedEdges();
-   GetSharedFaces();
+   UpdateLayers();
 
    std::set<int> ranks;
-   collect_shared_ranks(ranks, vertex_group, shared_vertices, MyRank);
-   collect_shared_ranks(ranks, edge_group, shared_edges, MyRank);
-   if (Dim > 2)
+   for (int i = 0; i < ghost_layer.Size(); i++)
    {
-      collect_shared_ranks(ranks, face_group, shared_faces, MyRank);
+      ranks.insert(ghost_layer[i]->rank);
    }
 
    neighbors.DeleteAll();
@@ -673,7 +600,7 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
 
    // create refinement messages to all neighbors (NOTE: some may be empty)
    Array<int> neighbors;
-   GetNeighbors(neighbors);
+   NeighborProcessors(neighbors);
    for (int i = 0; i < neighbors.Size(); i++)
    {
       send_ref[neighbors[i]].SetNCMesh(this);

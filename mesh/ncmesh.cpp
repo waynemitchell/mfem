@@ -1846,11 +1846,11 @@ void NCMesh::FindSetNeighbors(const Array<char> &elem_set,
    // gives the neighbor set. To save memory, this function only computes the
    // action of A*A^T, the product itself is not stored anywhere.
 
-   // make sure the table exists
-   (Dim < 3 ? GetEdgeList() : GetFaceList());
+   UpdateLeafToVertexTable();
 
-   MFEM_VERIFY(elem_set.Size() == leaf_elements.Size(), "");
-   MFEM_ASSERT(leaf_vertex.Size() == elem_set.Size(), "");
+   int nleaves = leaf_elements.Size();
+   MFEM_VERIFY(elem_set.Size() == nleaves, "");
+   MFEM_ASSERT(leaf_vertex.Size() == nleaves, "");
 
    // step 1: vertices = A^T * elem_set, i.e, find all vertices touching the
    // element set
@@ -1858,7 +1858,7 @@ void NCMesh::FindSetNeighbors(const Array<char> &elem_set,
    Array<char> vertices(num_vertices);
    vertices = 0;
 
-   for (int i = 0; i < elem_set.Size(); i++)
+   for (int i = 0; i < nleaves; i++)
    {
       if (elem_set[i])
       {
@@ -1875,9 +1875,13 @@ void NCMesh::FindSetNeighbors(const Array<char> &elem_set,
    // vertices from step 1; NOTE: in the result we don't include elements from
    // the original set
 
-   if (neighbor_set) { *neighbor_set = 0; }
+   if (neighbor_set)
+   {
+      neighbor_set->SetSize(nleaves);
+      *neighbor_set = 0;
+   }
 
-   for (int i = 0; i < leaf_vertex.Size(); i++)
+   for (int i = 0; i < nleaves; i++)
    {
       if (!elem_set[i])
       {
@@ -1889,6 +1893,48 @@ void NCMesh::FindSetNeighbors(const Array<char> &elem_set,
             {
                if (neighbors) { neighbors->Append(leaf_elements[i]); }
                if (neighbor_set) { (*neighbor_set)[i] = 1; }
+               break;
+            }
+         }
+      }
+   }
+}
+
+void NCMesh::FindNeighbors(const Element* elem,
+                           Array<Element*> &neighbors,
+                           const Array<Element*> *search_set)
+{
+   MFEM_ASSERT(!elem->ref_type, "not a leaf.");
+
+   UpdateLeafToVertexTable();
+
+   Array<char> vertices(num_vertices);
+   vertices = 0;
+
+   int *v = leaf_vertex.GetRow(elem->index);
+   int nv = leaf_vertex.RowSize(elem->index);
+   for (int i = 0; i < nv; i++)
+   {
+      vertices[v[i]] = 1;
+   }
+
+   if (!search_set)
+   {
+      search_set = &leaf_elements;
+   }
+
+   for (int i = 0; i < search_set->Size(); i++)
+   {
+      Element* testme = (*search_set)[i];
+      if (testme != elem)
+      {
+         int *v = leaf_vertex.GetRow(testme->index);
+         int nv = leaf_vertex.RowSize(testme->index);
+         for (int j = 0; j < nv; j++)
+         {
+            if (vertices[v[j]])
+            {
+               neighbors.Append(testme);
                break;
             }
          }

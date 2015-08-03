@@ -200,8 +200,6 @@ protected:
 
    Array<char> face_orient; // see CalcFaceOrientations
 
-   //Array<Element*> index_leaf; ///< Mesh index to leaf Element* map
-
    /** Type of each leaf element:
          1 - our element (rank == MyRank),
          3 - our element, and neighbor to the ghost layer,
@@ -284,14 +282,16 @@ protected:
        one of its vertices, edges or faces is shared. */
    bool OnProcessorBoundary(Element* elem) const;
 
+   Array<Element*> tmp_neighbors; // temporary used by ElementNeighborProcessors
+
    /** Return a list of processors that own elements in the immediate
        neighborhood of 'elem' (i.e., vertex, edge and face neighbors),
        and are not 'MyRank'. */
-   void ElementNeighborProcessors(Element* elem, Array<int> &ranks) const;
+   void ElementNeighborProcessors(Element* elem, Array<int> &ranks);
 
    /** Get a list of ranks that own elements in the neighborhood of our region.
        NOTE: MyRank is not included. */
-   void GetNeighbors(Array<int> &neighbors);
+   void NeighborProcessors(Array<int> &neighbors);
 
    /** Traverse the (local) refinement tree and determine which subtrees are
        no longer needed, i.e., their leaves are not owned by us nor are they our
