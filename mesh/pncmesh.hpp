@@ -344,7 +344,7 @@ TODO
 + saving/reading nc meshes
 + visualization, VisIt?
 + neighbor search algorithm
-- parallel refinement bug
++ parallel refinement bug
 - skip ldof_sign in pfespace.cpp
 - parallel ZZ estimator
 - ProjectBdrCoefficient

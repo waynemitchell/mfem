@@ -496,10 +496,17 @@ void ParNCMesh::ElementNeighborProcessors(Element *elem,
 {
    MFEM_ASSERT(!elem->ref_type, "not a leaf.");
 
+   ranks.SetSize(0); // preserve capacity
+
+   // big shortcut: there are no neighbors if element_type == 1
+   if (element_type[elem->index] == 1) { return; }
+
+   // ok, we do need to look for neigbors;
+   // at least we can only search in the ghost layer
    tmp_neighbors.SetSize(0);
    FindNeighbors(elem, tmp_neighbors, &ghost_layer);
 
-   ranks.SetSize(0); // preserve capacity
+   // return a list of processors
    for (int i = 0; i < tmp_neighbors.Size(); i++)
    {
       ranks.Append(tmp_neighbors[i]->rank);
