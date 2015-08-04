@@ -1846,6 +1846,10 @@ void NCMesh::FindSetNeighbors(const Array<char> &elem_set,
    // gives the neighbor set. To save memory, this function only computes the
    // action of A*A^T, the product itself is not stored anywhere.
 
+   // TODO: we should further optimize the 'leaf_vertex' table by not storing
+   // the obvious corner vertices in it. The table would therefore be empty
+   // for conforming meshes and very cheap for NC meshes.
+
    UpdateLeafToVertexTable();
 
    int nleaves = leaf_elements.Size();

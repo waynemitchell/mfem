@@ -31,7 +31,7 @@ namespace mfem
  *  The basic idea (and assumption) is that all processors share the coarsest
  *  layer ('root_elements'). This has the advantage that refinements can easily
  *  be exchanged between processors when rebalancing. Also individual elements
- *  can be uniquely identified by the number of the root element and a path in
+ *  can be uniquely identified by the index of the root element and a path in
  *  the refinement tree.
  *
  *  Each leaf element is owned by one of the processors (NCMesh::Element::rank).
@@ -58,13 +58,16 @@ namespace mfem
  *  vertices, edges and faces on the processor boundary.
  *
  *  TODO: what else to describe?
+ *   - how vertices/edges/faces are identified between processors
  */
 class ParNCMesh : public NCMesh
 {
 public:
    ParNCMesh(MPI_Comm comm, const NCMesh& ncmesh);
 
-   /** */
+   /** An override of NCMesh::Refine, which is called eventually, after making
+       sure that refinements that occur on the processor boundary are sent to
+       the neighbor processors so they can keep their ghost layers up to date.*/
    virtual void Refine(const Array<Refinement> &refinements);
 
    /** */
@@ -340,6 +343,8 @@ TODO
 - hcurl/hdiv (par-blocks)
 + saving/reading nc meshes
 + visualization, VisIt?
++ neighbor search algorithm
+- parallel refinement bug
 - skip ldof_sign in pfespace.cpp
 - parallel ZZ estimator
 - ProjectBdrCoefficient
