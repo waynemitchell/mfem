@@ -1204,16 +1204,17 @@ void ParNCMesh::NeighborRefinementMessage::Decode()
 void ParNCMesh::GetDebugMesh(Mesh &debug_mesh) const
 {
    // create a serial NCMesh containing all our elements (ghosts and all)
-   NCMesh copy(*this);
+   NCMesh* copy = new NCMesh(*this);
 
-   for (int i = 0; i < leaf_elements.Size(); i++)
+   Array<Element*> &cle = copy->leaf_elements;
+   for (int i = 0; i < cle.Size(); i++)
    {
-      copy.leaf_elements[i]->attribute =
-         (leaf_elements[i]->rank == MyRank) ? 1 : 2;
+      cle[i]->attribute = (cle[i]->rank == MyRank) ? 1 : 2;
    }
 
-   debug_mesh.InitFromNCMesh(copy);
+   debug_mesh.InitFromNCMesh(*copy);
    debug_mesh.SetAttributes();
+   debug_mesh.ncmesh = copy;
 }
 
 

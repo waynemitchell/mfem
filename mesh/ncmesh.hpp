@@ -381,8 +381,8 @@ protected: // implementation
    Array<Face*> boundary_faces; ///< subset of all faces, set by BuildFaceList
    Array<Node*> boundary_edges; ///< subset of all edges, set by BuildEdgeList
 
-   Table leaf_vertex; ///< leaf-element to vertex table, see FindNeighbors
-   int num_vertices; ///< width of the table
+   Table element_vertex; ///< leaf-element to vertex table, see FindSetNeighbors
+   int num_vertices;     ///< width of the table
 
    virtual void UpdateVertices(); ///< update Vertex::index and vertex_nodeId
 
@@ -477,7 +477,7 @@ protected: // implementation
    virtual void ElementSharesFace(Element* elem, Face* face) {} // ParNCMesh
 
 
-   // neighbors / leaf_vertex table
+   // neighbors / element_vertex table
 
    /** Return all vertex-, edge- and face-neighbors of a set of elements.
        The neighbors are returned as a list (neighbors != NULL), as a set
@@ -496,21 +496,14 @@ protected: // implementation
                       Array<Element*> &neighbors,
                       const Array<Element*> *search_set = NULL);
 
-   Array<int> tmp_vert/*, tmp_ignore*/;  // temporaries used when constructing the
-   int *tmp_I, **tmp_J;              // 'leaf_vertex' table
+   void CollectEdgeVertices(Node *v0, Node *v1, Array<int> &indices);
+   void CollectFaceVertices(Node* v0, Node* v1, Node* v2, Node* v3,
+                            Array<int> &indices);
+   void BuildElementToVertexTable();
 
-   void BeginLeafToVertexTable();
-   void BeginLeafElement();
-   void ElementUsesVertex(int index);
-   void ElementUsesVertices(Node* v0, Node* v1, Node* v2, Node* v3);
-   void ElementUsesVertices(Node* v0, Node* v1);
-   void FinishLeafElement(int index);
-   void FinishLeafToVertexTable();
-
-   void UpdateLeafToVertexTable()
+   void UpdateElementToVertexTable()
    {
-      // make the table if it doesn't exist
-      (Dim < 3 ? GetEdgeList() : GetFaceList());
+      if (element_vertex.Size() < 0) { BuildElementToVertexTable(); }
    }
 
 
