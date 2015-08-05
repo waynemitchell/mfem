@@ -3,7 +3,7 @@
 # See file COPYRIGHT for details.
 #
 # This file is part of the MFEM library. For more information and source code
-# availability see http://mfem.googlecode.com.
+# availability see http://mfem.org.
 #
 # MFEM is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free
@@ -176,6 +176,15 @@ endif
 
 MFEM_USE_MEMALLOC ?= YES
 
+MFEM_USE_GECKO ?= NO
+GECKO_DIR ?= @MFEM_DIR@/../gecko
+GECKO_OPT ?= -I$(GECKO_DIR)/inc
+GECKO_LIB ?= -L$(GECKO_DIR)/lib -lgecko
+ifeq ($(MFEM_USE_GECKO),YES)
+   INCFLAGS += $(GECKO_OPT)
+   ALL_LIBS += $(GECKO_LIB)
+endif
+
 # Use POSIX clocks for timing unless kernel-name is 'Darwin' (mac)
 ifeq ($(shell uname -s),Darwin)
    MFEM_TIMER_TYPE ?= 0
@@ -190,7 +199,7 @@ endif
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
- MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC
+ MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC MFEM_USE_GECKO
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -324,6 +333,7 @@ status info:
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
+	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))	
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))

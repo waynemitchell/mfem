@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -428,6 +428,8 @@ const
             row_starts = blocks(0,0)->GetRowStarts();
             col_starts = blocks(0,0)->GetColStarts();
          }
+
+         delete lblocks(bi, bj);
       }
 }
 
