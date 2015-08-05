@@ -281,10 +281,6 @@ protected:
    void DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
                       bool decode_indices) const;
 
-   /** Return true if an element is on a processor boundary, i.e., if at least
-       one of its vertices, edges or faces is shared. */
-   bool OnProcessorBoundary(Element* elem) const;
-
    Array<Element*> tmp_neighbors; // temporary used by ElementNeighborProcessors
 
    /** Return a list of processors that own elements in the immediate

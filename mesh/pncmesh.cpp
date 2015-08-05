@@ -464,9 +464,11 @@ void ParNCMesh::UpdateLayers()
       element_type[i] = (leaf_elements[i]->rank == MyRank) ? 1 : 0;
    }
 
+   // determine the ghost layer
    Array<char> ghost_set;
    FindSetNeighbors(element_type, NULL, &ghost_set);
 
+   // find the neighbors of the ghost layer
    Array<char> boundary_set;
    FindSetNeighbors(ghost_set, NULL, &boundary_set);
 
@@ -483,12 +485,6 @@ void ParNCMesh::UpdateLayers()
          element_type[i] = 3;
       }
    }
-}
-
-bool ParNCMesh::OnProcessorBoundary(Element* elem) const
-{
-   MFEM_ASSERT(!elem->ref_type, "not a leaf.");
-   return element_type[elem->index] == 3;
 }
 
 void ParNCMesh::ElementNeighborProcessors(Element *elem,
@@ -570,15 +566,19 @@ bool ParNCMesh::PruneTree(Element* elem)
    else
    {
       // return true if this leaf can be removed
-      return (elem->rank != MyRank) && !OnProcessorBoundary(elem);
+      return element_type[elem->index] == 0;
    }
 }
 
 void ParNCMesh::Prune()
 {
-   GetSharedVertices();
-   GetSharedEdges();
-   if (Dim > 2) { GetSharedFaces(); }
+   if (!Iso)
+   {
+      MFEM_WARNING("Can't prune aniso meshes yet.");
+      return;
+   }
+
+   UpdateLayers();
 
    // derefine subtrees whose leaves are all unneeded
    for (int i = 0; i < root_elements.Size(); i++)

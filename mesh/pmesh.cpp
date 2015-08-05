@@ -92,12 +92,12 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    if (mesh.ncmesh)
    {
       pncmesh = new ParNCMesh(comm, *mesh.ncmesh);
+      pncmesh->Prune();
 
       Mesh::Init();
       Mesh::InitTables();
       Mesh::InitFromNCMesh(*pncmesh);
       pncmesh->OnMeshUpdated(this);
-      //pncmesh->Prune();
       //InitNCSharedElements();
 
       meshgen = mesh.MeshGenerator();
