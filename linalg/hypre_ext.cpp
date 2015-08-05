@@ -255,12 +255,13 @@ void hypre_ParCSRMatrixEliminateAXB(hypre_ParCSRMatrix *A,
    MPI_Comm_size(comm_pkg->comm,&numProcs);
    MPI_Comm_rank(comm_pkg->comm,&myId);
 
-   for (int p=0; p<numProcs; p++) {
-     if ( p == myId )
-   /* do sequential part of the elimination while stuff is getting sent */
-   hypre_CSRMatrixEliminateAXB(diag, num_rowscols_to_elim, rowscols_to_elim,
-                               Xlocal, Blocal);
-     MPI_Barrier(comm_pkg->comm);
+   for (int p=0; p<numProcs; p++)
+   {
+      if ( p == myId )
+         /* do sequential part of the elimination while stuff is getting sent */
+         hypre_CSRMatrixEliminateAXB(diag, num_rowscols_to_elim, rowscols_to_elim,
+                                     Xlocal, Blocal);
+      MPI_Barrier(comm_pkg->comm);
    }
 
    /* finish the communication */

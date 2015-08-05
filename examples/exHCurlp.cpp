@@ -139,9 +139,9 @@ int main(int argc, char *argv[])
    FiniteElementCollection *HCurlFEC     = new ND_FECollection(order, dim);
    FiniteElementCollection *HDivFEC      = new RT_FECollection(order, dim);
    ParFiniteElementSpace   *HCurlFESpace = new ParFiniteElementSpace(pmesh,
-								     HCurlFEC);
+                                                                     HCurlFEC);
    ParFiniteElementSpace   *HDivFESpace  = new ParFiniteElementSpace(pmesh,
-								     HDivFEC);
+                                                                     HDivFEC);
    HYPRE_Int size = HCurlFESpace->GlobalTrueVSize();
    if (myid == 0)
    {
@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
    //     magnetic field corresponding to the vector potential
    //     represented by x.
    ParDiscreteLinearOperator *curl =
-     new ParDiscreteLinearOperator(HCurlFESpace, HDivFESpace);
+      new ParDiscreteLinearOperator(HCurlFESpace, HDivFESpace);
    curl->AddDomainInterpolator(new CurlInterpolator);
    curl->Assemble();
    curl->Finalize();
@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
       sol_sock << "parallel " << num_procs << " " << myid << "\n";
       sol_sock.precision(8);
       sol_sock << "solution\n" << *pmesh << x
-	       << "window_title 'Vector Potential'" << flush;
+               << "window_title 'Vector Potential'" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
       curl_sock << "parallel " << num_procs << " " << myid << "\n";
       curl_sock.precision(8);
       curl_sock << "solution\n" << *pmesh << curlx
-		<< "window_title 'Magnetic Field'" << flush;
+                << "window_title 'Magnetic Field'" << flush;
 
    }
 

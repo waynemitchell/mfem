@@ -177,27 +177,27 @@ int main(int argc, char *argv[])
    FiniteElementCollection *HDivFEC      = new RT_FECollection(order-1, dim);
 
    ParFiniteElementSpace   *H1FESpace    = new ParFiniteElementSpace(pmesh,
-								     H1FEC);
+                                                                     H1FEC);
    ParFiniteElementSpace   *HCurlFESpace = new ParFiniteElementSpace(pmesh,
-								     HCurlFEC);
+                                                                     HCurlFEC);
    ParFiniteElementSpace   *HDivFESpace  = new ParFiniteElementSpace(pmesh,
-								     HDivFEC);
+                                                                     HDivFEC);
 
    HYPRE_Int size_h1 = H1FESpace->GlobalTrueVSize();
    HYPRE_Int size_nd = HCurlFESpace->GlobalTrueVSize();
    HYPRE_Int size_rt = HDivFESpace->GlobalTrueVSize();
    if (myid == 0)
    {
-     cout << "Number of H1      unknowns: " << size_h1 << endl;
-     cout << "Number of H(Curl) unknowns: " << size_nd << endl;
-     cout << "Number of H(Div)  unknowns: " << size_rt << endl;
+      cout << "Number of H1      unknowns: " << size_h1 << endl;
+      cout << "Number of H(Curl) unknowns: " << size_nd << endl;
+      cout << "Number of H(Div)  unknowns: " << size_rt << endl;
    }
 
    // 7. Create the Gradient Operator and Mass matrix needed during
    // the divergence cleaning procedure.
    ParDiscreteLinearOperator *grad =
-     new ParDiscreteLinearOperator(H1FESpace,
-				   HCurlFESpace);
+      new ParDiscreteLinearOperator(H1FESpace,
+                                    HCurlFESpace);
    grad->AddDomainInterpolator(new GradientInterpolator);
    grad->Assemble();
    grad->Finalize();
@@ -248,11 +248,13 @@ int main(int argc, char *argv[])
 
    for (int i = 0; i < ess_bdr1_v.Size(); i++)
    {
-      if (ess_bdr1_v[i]) {
-	int loctdof = H1FESpace->GetLocalTDofNumber(i);
-	if ( loctdof >= 0 ) {
-	  dof_list1.Append(loctdof);
-	}
+      if (ess_bdr1_v[i])
+      {
+         int loctdof = H1FESpace->GetLocalTDofNumber(i);
+         if ( loctdof >= 0 )
+         {
+            dof_list1.Append(loctdof);
+         }
       }
    }
 
@@ -322,11 +324,13 @@ int main(int argc, char *argv[])
 
    for (int i = 0; i < ess_bdr_v.Size(); i++)
    {
-      if (ess_bdr_v[i]) {
-	int loctdof = HCurlFESpace->GetLocalTDofNumber(i);
-	if ( loctdof >= 0 ) {
-	  dof_list.Append(loctdof);
-	}
+      if (ess_bdr_v[i])
+      {
+         int loctdof = HCurlFESpace->GetLocalTDofNumber(i);
+         if ( loctdof >= 0 )
+         {
+            dof_list.Append(loctdof);
+         }
       }
    }
 
@@ -384,7 +388,7 @@ int main(int argc, char *argv[])
    //     magnetic field corresponding to the vector potential
    //     represented by x.
    ParDiscreteLinearOperator *curl =
-     new ParDiscreteLinearOperator(HCurlFESpace, HDivFESpace);
+      new ParDiscreteLinearOperator(HCurlFESpace, HDivFESpace);
    curl->AddDomainInterpolator(new CurlInterpolator);
    curl->Assemble();
    curl->Finalize();
@@ -400,59 +404,59 @@ int main(int argc, char *argv[])
    // 24. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
-     ostringstream mesh_name, psi_name, sol_name, curl_name;
-     mesh_name << "mesh." << setfill('0') << setw(6) << myid;
-     psi_name  << "psi." << setfill('0') << setw(6) << myid;
-     sol_name  << "sol." << setfill('0') << setw(6) << myid;
-     curl_name << "sol_curl." << setfill('0') << setw(6) << myid;
+      ostringstream mesh_name, psi_name, sol_name, curl_name;
+      mesh_name << "mesh." << setfill('0') << setw(6) << myid;
+      psi_name  << "psi." << setfill('0') << setw(6) << myid;
+      sol_name  << "sol." << setfill('0') << setw(6) << myid;
+      curl_name << "sol_curl." << setfill('0') << setw(6) << myid;
 
-     ofstream mesh_ofs(mesh_name.str().c_str());
-     mesh_ofs.precision(8);
-     pmesh->Print(mesh_ofs);
+      ofstream mesh_ofs(mesh_name.str().c_str());
+      mesh_ofs.precision(8);
+      pmesh->Print(mesh_ofs);
 
-     ofstream psi_ofs(psi_name.str().c_str());
-     psi_ofs.precision(8);
-     psi.Save(psi_ofs);
+      ofstream psi_ofs(psi_name.str().c_str());
+      psi_ofs.precision(8);
+      psi.Save(psi_ofs);
 
-     ofstream sol_ofs(sol_name.str().c_str());
-     sol_ofs.precision(8);
-     x.Save(sol_ofs);
+      ofstream sol_ofs(sol_name.str().c_str());
+      sol_ofs.precision(8);
+      x.Save(sol_ofs);
 
-     ofstream curl_ofs(curl_name.str().c_str());
-     curl_ofs.precision(8);
-     curlx.Save(curl_ofs);
+      ofstream curl_ofs(curl_name.str().c_str());
+      curl_ofs.precision(8);
+      curlx.Save(curl_ofs);
    }
 
    // 25. Send the solution by socket to a GLVis server.
    if (visualization)
    {
-     psi_sock << "parallel " << num_procs << " " << myid << "\n";
-     psi_sock << "solution\n" << *pmesh << psi
-	      << "window_title 'Divergence Cleaning Potential'" << flush;
+      psi_sock << "parallel " << num_procs << " " << myid << "\n";
+      psi_sock << "solution\n" << *pmesh << psi
+               << "window_title 'Divergence Cleaning Potential'" << flush;
 
-     MPI_Barrier(pmesh->GetComm());
+      MPI_Barrier(pmesh->GetComm());
 
-     j_raw_sock << "parallel " << num_procs << " " << myid << "\n";
-     j_raw_sock << "solution\n" << *pmesh << j_raw
-		<< "window_title 'J Raw'" << flush;
+      j_raw_sock << "parallel " << num_procs << " " << myid << "\n";
+      j_raw_sock << "solution\n" << *pmesh << j_raw
+                 << "window_title 'J Raw'" << flush;
 
-     MPI_Barrier(pmesh->GetComm());
+      MPI_Barrier(pmesh->GetComm());
 
-     j_sock << "parallel " << num_procs << " " << myid << "\n";
-     j_sock << "solution\n" << *pmesh << j
-	    << "window_title 'J'" << flush;
+      j_sock << "parallel " << num_procs << " " << myid << "\n";
+      j_sock << "solution\n" << *pmesh << j
+             << "window_title 'J'" << flush;
 
-     MPI_Barrier(pmesh->GetComm());
+      MPI_Barrier(pmesh->GetComm());
 
-     sol_sock << "parallel " << num_procs << " " << myid << "\n";
-     sol_sock << "solution\n" << *pmesh << x
-	      << "window_title 'Vector Potential'" << flush;
+      sol_sock << "parallel " << num_procs << " " << myid << "\n";
+      sol_sock << "solution\n" << *pmesh << x
+               << "window_title 'Vector Potential'" << flush;
 
-     MPI_Barrier(pmesh->GetComm());
+      MPI_Barrier(pmesh->GetComm());
 
-     curl_sock << "parallel " << num_procs << " " << myid << "\n";
-     curl_sock << "solution\n" << *pmesh << curlx
-	       << "window_title 'Magnetic Field'\n" << flush;
+      curl_sock << "parallel " << num_procs << " " << myid << "\n";
+      curl_sock << "solution\n" << *pmesh << curlx
+                << "window_title 'Magnetic Field'\n" << flush;
    }
 
    // 26. Free the used memory.
