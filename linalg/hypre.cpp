@@ -15,6 +15,7 @@
 
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
+#include "hypre_ext.hpp"
 
 #include <fstream>
 #include <iomanip>
@@ -1013,6 +1014,42 @@ void HypreParMatrix::operator*=(double s)
    {
       Aoffd_data[jj] *= s;
    }
+}
+
+static void get_sorted_rows_cols(const Array<int> &rows_cols,
+                                 Array<HYPRE_Int> &hypre_sorted)
+{
+   hypre_sorted.SetSize(rows_cols.Size());
+   bool sorted = true;
+   for (int i = 0; i < rows_cols.Size(); i++)
+   {
+      hypre_sorted[i] = rows_cols[i];
+      if (i && rows_cols[i-1] > rows_cols[i]) { sorted = false; }
+   }
+   if (!sorted) { hypre_sorted.Sort(); }
+}
+
+void HypreParMatrix::EliminateRowsCols(const Array<int> &rows_cols,
+                                       const HypreParVector &X,
+                                       HypreParVector &B)
+{
+   Array<HYPRE_Int> rc_sorted;
+   get_sorted_rows_cols(rows_cols, rc_sorted);
+
+   internal::hypre_ParCSRMatrixEliminateAXB(
+	  	    A, rc_sorted.Size(), rc_sorted.GetData(), X, B);
+}
+
+HypreParMatrix* HypreParMatrix::EliminateRowsCols(const Array<int> &rows_cols)
+{
+   Array<HYPRE_Int> rc_sorted;
+   get_sorted_rows_cols(rows_cols, rc_sorted);
+
+   hypre_ParCSRMatrix* Ae;
+   internal::hypre_ParCSRMatrixEliminateAAe(
+      A, &Ae, rc_sorted.Size(), rc_sorted.GetData());
+
+   return new HypreParMatrix(Ae);
 }
 
 void HypreParMatrix::Print(const char *fname, HYPRE_Int offi, HYPRE_Int offj)
