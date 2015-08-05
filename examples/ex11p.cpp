@@ -102,14 +102,12 @@ int main(int argc, char *argv[])
    //    we must ensure that the version of J on our RHS is divergence
    //    free.
    VectorFunctionCoefficient f(3, J4pi_exact);
-   ParLinearForm *jdirty_form = new ParLinearForm(HcurlFespace);
-   jdirty_form->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
-   jdirty_form->Assemble();
    ParGridFunction jdirty(HcurlFespace);
    ParGridFunction psi(H1Fespace);
    ParGridFunction divj(H1Fespace);
-   jdirty = *jdirty_form;
-   HypreParVector *JDIRTY = jdirty_form->ParallelAssemble();
+   jdirty.ProjectCoefficient(f);
+
+   HypreParVector *JDIRTY = jdirty.ParallelAssemble();
    HypreParVector *JTEMP = new HypreParVector(HcurlFespace);
    HypreParVector *JCLEAN = new HypreParVector(HcurlFespace);
    HypreParVector *DIVJ = new HypreParVector(H1Fespace);
@@ -242,6 +240,10 @@ int main(int argc, char *argv[])
    VisItDataCollection visit_dc("Example11p", pmesh);
    visit_dc.RegisterField("Afield", &x);
    visit_dc.RegisterField("BField", &bfield);
+
+   //Remove the factor of 4pi from j for plotting
+   j *= 1.0 / (4.0*M_PI);
+   jdirty *= 1.0 / (4.0*M_PI);
    visit_dc.RegisterField("JField", &j);
    visit_dc.RegisterField("JDirtyField", &jdirty);
    visit_dc.Save();
@@ -265,7 +267,6 @@ int main(int argc, char *argv[])
    delete HcurlFec;
    delete HdivFec;
    delete pmesh;
-   delete jdirty_form;
    delete DIVJ;
    delete PSI;
    delete X;
@@ -280,7 +281,8 @@ int main(int argc, char *argv[])
 }
 
 //Current going around an idealized solenoid that has an inner radius of 0.2
-//an outer radius of 0.22 and a height (in x) of 0.2 centered on (0.5, 0.5, 0.5)
+//an outer radius of 0.22 and a height (in x) of 0.2 centered on (0.5, 0.5, 0.5).
+//Since we are in scaled CGS units there is a factor of 4pi on the RHS.
 void J4pi_exact(const Vector &x, Vector &J)
 {
    const double sol_inner_r = 0.2;
@@ -292,7 +294,7 @@ void J4pi_exact(const Vector &x, Vector &J)
       J(1) = -(x(2) - 0.5);
       J(2) = (x(1) - 0.5);
 
-      double scale = 4.*M_PI*sqrt(J(1)*J(1) + J(2)*J(2));
+      double scale = 4.*M_PI/sqrt(J(1)*J(1) + J(2)*J(2));
       J(1) *= scale;
       J(2) *= scale;
    }
