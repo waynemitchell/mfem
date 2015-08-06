@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -79,6 +79,11 @@ void ParGridFunction::Update(ParFiniteElementSpace *f, Vector &v, int v_offset)
 void ParGridFunction::Distribute(const Vector *tv)
 {
    pfes->Dof_TrueDof_Matrix()->Mult(*tv, *this);
+}
+
+void ParGridFunction::AddDistribute(double a, const Vector *tv)
+{
+   pfes->Dof_TrueDof_Matrix()->Mult(a, *tv, 1.0, *this);
 }
 
 void ParGridFunction::GetTrueDofs(Vector &tv) const
@@ -255,6 +260,50 @@ void ParGridFunction::ProjectCoefficient(Coefficient &coeff)
       (*this) *= (delta_c->Scale() / glob_integral);
    }
 }
+
+void ParGridFunction::ProjectDiscCoefficient(VectorCoefficient &coeff)
+{
+   // local maximal element attribute for each dof
+   Array<int> ldof_attr;
+
+   // local projection
+   GridFunction::ProjectDiscCoefficient(coeff, ldof_attr);
+
+   // global maximal element attribute for each dof
+   Array<int> gdof_attr;
+   ldof_attr.Copy(gdof_attr);
+   GroupCommunicator &gcomm = pfes->GroupComm();
+   gcomm.Reduce<int>(gdof_attr, GroupCommunicator::Max);
+   gcomm.Bcast(gdof_attr);
+
+   // set local value to zero if global maximal element attribute is larger than
+   // the local one, and mark (in gdof_attr) if we have the correct value
+   for (int i = 0; i < pfes->GetVSize(); i++)
+   {
+      if (gdof_attr[i] > ldof_attr[i])
+      {
+         (*this)(i) = 0.0;
+         gdof_attr[i] = 0;
+      }
+      else
+      {
+         gdof_attr[i] = 1;
+      }
+   }
+
+   // parallel averaging plus interpolation to determine final values
+   HypreParVector *tv = pfes->NewTrueDofVector();
+   gcomm.Reduce<int>(gdof_attr, GroupCommunicator::Sum);
+   gcomm.Bcast(gdof_attr);
+   for (int i = 0; i < fes->GetVSize(); i++)
+   {
+      (*this)(i) /= gdof_attr[i];
+   }
+   this->ParallelAssemble(*tv);
+   this->Distribute(tv);
+   delete tv;
+}
+
 
 void ParGridFunction::Save(std::ostream &out) const
 {

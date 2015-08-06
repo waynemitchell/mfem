@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -428,6 +428,8 @@ const
             row_starts = blocks(0,0)->GetRowStarts();
             col_starts = blocks(0,0)->GetColStarts();
          }
+
+         delete lblocks(bi, bj);
       }
 }
 
@@ -448,6 +450,21 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
    delete A;
 
    return rap;
+}
+
+/// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
+void ParMixedBilinearForm::TrueAddMult(const Vector &x, Vector &y,
+                                       const double a) const
+{
+   if (X.ParFESpace() != trial_pfes)
+   {
+      X.Update(trial_pfes);
+      Y.Update(test_pfes);
+   }
+
+   X.Distribute(&x);
+   mat->Mult(X, Y);
+   test_pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
 }
 
 }

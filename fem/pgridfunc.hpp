@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -68,6 +68,9 @@ public:
        true dofs, i.e. P tv. */
    void Distribute(const Vector *tv);
    void Distribute(const Vector &tv) { Distribute(&tv); }
+   void AddDistribute(double a, const Vector *tv);
+   void AddDistribute(double a, const Vector &tv)
+   { AddDistribute(a, &tv); }
 
    /// Short semantic for Distribute
    ParGridFunction &operator=(const HypreParVector &tv)
@@ -109,6 +112,12 @@ public:
 
    using GridFunction::ProjectCoefficient;
    void ProjectCoefficient(Coefficient &coeff);
+
+   using GridFunction::ProjectDiscCoefficient;
+   /** Project a discontinuous vector coefficient as a grid function on a
+       continuous parallel finite element space. The values in shared dofs are
+       determined from the element with maximal attribute. */
+   void ProjectDiscCoefficient(VectorCoefficient &coeff);
 
    double ComputeL1Error(Coefficient *exsol[],
                          const IntegrationRule *irs[] = NULL) const

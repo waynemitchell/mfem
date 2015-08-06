@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -15,6 +15,7 @@
 #include "../config/config.hpp"
 #include "fespace.hpp"
 #include "coefficient.hpp"
+#include "bilininteg.hpp"
 #include <limits>
 #include <ostream>
 #include <string>
@@ -40,6 +41,11 @@ protected:
    // integral of the projection.
    void ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
                                 double &integral);
+
+   /** Project a discontinuous vector coefficient in a continuous space and
+       return in dof_attr the maximal attribute of the elements containing each
+       degree of freedom. */
+   void ProjectDiscCoefficient(VectorCoefficient &coeff, Array<int> &dof_attr);
 
 public:
 
@@ -143,6 +149,11 @@ public:
    void ProjectCoefficient(VectorCoefficient &vcoeff);
 
    void ProjectCoefficient(Coefficient *coeff[]);
+
+   /** Project a discontinuous vector coefficient as a grid function on a
+       continuous finite element space. The values in shared dofs are determined
+       from the element with maximal attribute. */
+   void ProjectDiscCoefficient(VectorCoefficient &coeff);
 
    void ProjectBdrCoefficient(Coefficient &coeff, Array<int> &attr)
    {

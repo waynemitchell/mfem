@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -1118,6 +1118,43 @@ void GridFunction::ProjectCoefficient(Coefficient *coeff[])
          }
       }
    }
+}
+
+void GridFunction::ProjectDiscCoefficient(VectorCoefficient &coeff,
+                                          Array<int> &dof_attr)
+{
+   Array<int> vdofs;
+   Vector vals;
+
+   // maximal element attribute for each dof
+   dof_attr.SetSize(fes->GetVSize());
+   dof_attr = -1;
+
+   // local projection
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      fes->GetElementVDofs(i, vdofs);
+      vals.SetSize(vdofs.Size());
+      fes->GetFE(i)->Project(coeff, *fes->GetElementTransformation(i), vals);
+
+      // the values in shared dofs are determined from the element with maximal
+      // attribute
+      int attr = fes->GetAttribute(i);
+      for (int j = 0; j < vdofs.Size(); j++)
+      {
+         if (attr > dof_attr[vdofs[j]])
+         {
+            (*this)(vdofs[j]) = vals[j];
+            dof_attr[vdofs[j]] = attr;
+         }
+      }
+   }
+}
+
+void GridFunction::ProjectDiscCoefficient(VectorCoefficient &coeff)
+{
+   Array<int> dof_attr;
+   ProjectDiscCoefficient(coeff, dof_attr);
 }
 
 void GridFunction::ProjectBdrCoefficient(

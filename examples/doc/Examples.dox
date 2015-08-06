@@ -4,21 +4,21 @@ This file provides a brief overview of the MFEM example codes. For
 detailed documentation of the MFEM sources, including the examples, build the
 <a href="../../doc/CodeDocumentation/html/index.html">Doxygen documentation</a> in the
 <code>doc/</code> directory, or browse the
-<a href="http://doxygen.mfem.googlecode.com/hg/html/index.html">online version</a>.
+<a href="http://mfem.github.io/doxygen/html/index.html">online version</a>.
 
 Clicking on any of the categories below displays examples that contain the
 described feature. <em> All examples support (arbitrarily) high-order meshes and
 finite element spaces</em>.
 The numerical results from the example codes can be visualized using the
 GLVis visualization tool (based on MFEM). See the
-<a href="http://glvis.googlecode.com">GLVis website</a>, for more details.
+<a href="http://glvis.org">GLVis website</a>, for more details.
 
 Users are encouraged to submit any example codes that they have created and
 would like to share.
 <em>Contact a member of the MFEM team to report
-<a href="http://code.google.com/p/mfem/issues/entry?template=Defect%20report%20from%20user">bugs</a>
+<a href="https://github.com/mfem/mfem/issues/new">bugs</a>
 or post
-<a href="http://code.google.com/p/mfem/issues/entry?template=Question%20or%20Comment">questions
+<a href="https://github.com/mfem/mfem/issues/new">questions
 or comments</a></em>.
 
 \htmlonly
@@ -91,7 +91,7 @@ element grid functions, as well as linear and bilinear forms
 corresponding to the left-hand side and right-hand side of the
 discrete linear system. We also cover the explicit elimination
 of boundary conditions on all boundary edges, and the optional
-connection to the <a href="http://glvis.googlecode.com">GLVis</a> tool for visualization.
+connection to the <a href="http://glvis.org">GLVis</a> tool for visualization.
 <center>
 <em>The example has a serial (ex1.cpp) and a parallel (ex1p.cpp) version.</em>
 </center>
@@ -219,7 +219,7 @@ to a simple ZZ error estimator.
 The example demonstrates MFEM's capability to work with both
 conforming and nonconforming refinements, in 2D and 3D, on
 linear, curved and surface meshes. Interpolation of functions
-from coarse to fine meshes, as well as persistent <a href="http://glvis.googlecode.com">GLVis</a>
+from coarse to fine meshes, as well as persistent <a href="http://glvis.org">GLVis</a>
 visualization are also illustrated.
 <center>
 <em>The example currently has only a serial version (ex6.cpp).
@@ -282,7 +282,7 @@ velocity, and \f$u_0(x)=u(0,x)\f$ is a given initial condition.
 The example demonstrates the use of Discontinuous Galerkin (DG) bilinear forms
 in MFEM (face integrators), the use of explicit ODE time integrators, the
 definition of periodic boundary conditions through periodic meshes, as well as
-the use of <a href="http://glvis.googlecode.com">GLVis</a> for persistent
+the use of <a href="http://glvis.org">GLVis</a> for persistent
 visualization of a time-evolving solution. The saving of time-dependent data
 files for external visualization with <a href="http://visit.llnl.gov">VisIt</a>
 is also illustrated.

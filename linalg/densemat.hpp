@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -100,6 +100,12 @@ public:
 
    /// y += A.x
    void AddMult(const Vector &x, Vector &y) const;
+
+   /// y += a * A.x
+   void AddMult_a(double a, const Vector &x, Vector &y) const;
+
+   // y += a * A^t x
+   void AddMultTranspose_a(double a, const Vector &x, Vector &y) const;
 
    /// Compute y^t A x
    double InnerProduct(const double *x, const double *y) const;
@@ -279,6 +285,9 @@ void Add(double alpha, const DenseMatrix &A,
 /// Matrix matrix multiplication.  A = B * C.
 void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a);
 
+/// Matrix matrix multiplication.  A += B * C.
+void AddMult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a);
+
 /** Calculate the adjugate of a matrix (for NxN matrices, N=1,2,3) or the matrix
     adj(A^t.A).A^t for rectangular matrices (2x1, 3x1, or 3x2). This operation
     is well defined even when the matrix is not full rank. */
@@ -310,6 +319,10 @@ void AddMultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt);
 
 /// Multiply a matrix A with the transpose of a matrix B:   A*Bt
 void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt);
+
+/// ADBt = A D B^t, where D is diagonal
+void MultADBt(const DenseMatrix &A, const Vector &D,
+              const DenseMatrix &B, DenseMatrix &ADAt);
 
 /// ABt += A * B^t
 void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt);
