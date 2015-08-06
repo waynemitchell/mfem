@@ -671,9 +671,13 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
 }
 
 
-void ParNCMesh::LimitNCLevel(int /*max_level*/)
+void ParNCMesh::LimitNCLevel(int max_level)
 {
-   MFEM_ABORT("not implemented in parallel yet.");
+   if (NRanks > 1)
+   {
+      MFEM_ABORT("not implemented in parallel yet.");
+   }
+   NCMesh::LimitNCLevel(max_level);
 }
 
 
