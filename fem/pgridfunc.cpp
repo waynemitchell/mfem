@@ -40,7 +40,7 @@ ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf,
    fec = FiniteElementCollection::New(gf->FESpace()->FEColl()->Name());
    fes = pfes = new ParFiniteElementSpace(pmesh, fec, gf->FESpace()->GetVDim(),
                                           gf->FESpace()->GetOrdering(),
-					  gf->FESpace()->GetPrDofs());
+                                          gf->FESpace()->GetPrDofs());
    SetSize(pfes->GetVSize());
 
    if (partitioning)

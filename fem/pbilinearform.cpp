@@ -170,14 +170,14 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 
 HypreParMatrix *ParBilinearForm::ParallelAssembleReduced()
 {
-  if ( fes->GetNPrDofs() == 0 )
-  {
-    return ParallelAssemble();
-  }
-  else
-  {
-    return ParallelAssembleReduced(mat_rr);
-  }
+   if ( fes->GetNPrDofs() == 0 )
+   {
+      return ParallelAssemble();
+   }
+   else
+   {
+      return ParallelAssembleReduced(mat_rr);
+   }
 }
 
 HypreParMatrix *ParBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
@@ -191,7 +191,7 @@ HypreParMatrix *ParBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
 
    // construct a parallel block-diagonal wrapper matrix A based on m
    A = new HypreParMatrix(pfes->GetComm(),
-			  pfes->GlobalExVSize(), pfes->GetExDofOffsets(), m);
+                          pfes->GlobalExVSize(), pfes->GetExDofOffsets(), m);
 
    HypreParMatrix *rap = RAP(A, pfes->ExDof_TrueExDof_Matrix());
 
@@ -203,25 +203,27 @@ HypreParMatrix *ParBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
 HypreParVector *
 ParBilinearForm::RHS_R(const Vector & rhs) const
 {
-  HypreParVector * prhs_r = new HypreParVector(pfes->GetComm(),
-					       pfes->GlobalTrueExVSize(),
-					       pfes->GetTrueExDofOffsets());
+   HypreParVector * prhs_r = new HypreParVector(pfes->GetComm(),
+                                                pfes->GlobalTrueExVSize(),
+                                                pfes->GetTrueExDofOffsets());
 
-  // Create temporary vectors for the exposed and private portions of rhs
-  if ( v1_e == NULL || v1_p == NULL )
-  {
-    pfes->ExDof_TrueExDof_Matrix()->MultTranspose(rhs,
-						  *prhs_r);
-  } else {
-    this->SplitExposedPrivate(rhs,v1_e,v1_p);
-    Vector *rhs_r = this->BilinearForm::RHS_R(*v1_e,*v1_p);
-    pfes->ExDof_TrueExDof_Matrix()->MultTranspose(*rhs_r,
-						  *prhs_r);
+   // Create temporary vectors for the exposed and private portions of rhs
+   if ( v1_e == NULL || v1_p == NULL )
+   {
+      pfes->ExDof_TrueExDof_Matrix()->MultTranspose(rhs,
+                                                    *prhs_r);
+   }
+   else
+   {
+      this->SplitExposedPrivate(rhs,v1_e,v1_p);
+      Vector *rhs_r = this->BilinearForm::RHS_R(*v1_e,*v1_p);
+      pfes->ExDof_TrueExDof_Matrix()->MultTranspose(*rhs_r,
+                                                    *prhs_r);
 
-    delete rhs_r;
-  }
+      delete rhs_r;
+   }
 
-  return prhs_r;
+   return prhs_r;
 }
 
 void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
@@ -447,14 +449,14 @@ HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(
 
 HypreParMatrix *ParDiscreteLinearOperator::ParallelAssembleReduced()
 {
-  if ( test_fes->GetNPrDofs() == 0 || trial_fes->GetNPrDofs() == 0 )
-  {
-    return ParallelAssemble(mat);
-  }
-  else
-  {
-    return ParallelAssembleReduced(mat_ee);
-  }
+   if ( test_fes->GetNPrDofs() == 0 || trial_fes->GetNPrDofs() == 0 )
+   {
+      return ParallelAssemble(mat);
+   }
+   else
+   {
+      return ParallelAssembleReduced(mat_ee);
+   }
 }
 
 HypreParMatrix *ParDiscreteLinearOperator::ParallelAssembleReduced(
@@ -655,7 +657,7 @@ const
 }
 
 void ParDiscreteLinearOperator::GetParBlocksReduced(
-				      Array2D<HypreParMatrix *> &blocks) const
+   Array2D<HypreParMatrix *> &blocks) const
 {
    int rdim = range_fes->GetVDim();
    int ddim = domain_fes->GetVDim();
@@ -679,7 +681,7 @@ void ParDiscreteLinearOperator::GetParBlocksReduced(
       for (int bj = 0; bj < ddim; bj++)
       {
          blocks(bi,bj) = ParallelAssembleReduced(lblocks(bi,bj),
-						 row_starts, col_starts, true);
+                                                 row_starts, col_starts, true);
 
          if (bi == 0 && bj == 0)
          {
@@ -722,14 +724,14 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble(SparseMatrix *m)
 
 HypreParMatrix *ParMixedBilinearForm::ParallelAssembleReduced()
 {
-  if ( test_fes->GetNPrDofs() == 0 && trial_fes->GetNPrDofs() == 0 )
-  {
-    return ParallelAssemble();
-  }
-  else
-  {
-    return ParallelAssembleReduced(mat_ee);
-  }
+   if ( test_fes->GetNPrDofs() == 0 && trial_fes->GetNPrDofs() == 0 )
+   {
+      return ParallelAssemble();
+   }
+   else
+   {
+      return ParallelAssembleReduced(mat_ee);
+   }
 }
 
 HypreParMatrix *ParMixedBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
@@ -743,13 +745,13 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
 
    // construct a parallel block-diagonal wrapper matrix A based on m
    A = new HypreParMatrix(trial_pfes->GetComm(),
-			  test_pfes->GlobalExVSize(),
-			  trial_pfes->GlobalExVSize(),
-			  test_pfes->GetExDofOffsets(),
-			  trial_pfes->GetExDofOffsets(), m);
+                          test_pfes->GlobalExVSize(),
+                          trial_pfes->GlobalExVSize(),
+                          test_pfes->GetExDofOffsets(),
+                          trial_pfes->GetExDofOffsets(), m);
 
    HypreParMatrix *rap = RAP(test_pfes->ExDof_TrueExDof_Matrix(), A,
-			     trial_pfes->ExDof_TrueExDof_Matrix());
+                             trial_pfes->ExDof_TrueExDof_Matrix());
 
    delete A;
 

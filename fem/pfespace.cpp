@@ -54,9 +54,9 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
 }
 
 ParFiniteElementSpace::ParFiniteElementSpace(ParMesh *pm,
-					     const FiniteElementCollection *f,
-					     int dim, int order, bool pr_dofs)
-  : FiniteElementSpace(pm, f, dim, order, pr_dofs)
+                                             const FiniteElementCollection *f,
+                                             int dim, int order, bool pr_dofs)
+   : FiniteElementSpace(pm, f, dim, order, pr_dofs)
 {
    mesh = pmesh = pm;
 
@@ -442,8 +442,8 @@ void ParFiniteElementSpace::GetElementExDofs(int i, Array<int> &dofs) const
 
       if ( nprdofs == 0 )
       {
-	int nb = fec -> DofForGeometry (mesh -> GetElementBaseGeometry (i));
-	dofs.SetSize(dofs.Size()-nb);
+         int nb = fec -> DofForGeometry (mesh -> GetElementBaseGeometry (i));
+         dofs.SetSize(dofs.Size()-nb);
       }
 
       return;
@@ -714,8 +714,8 @@ HypreParMatrix *ParFiniteElementSpace::ExDof_TrueExDof_Matrix() // matrix Pex
    }
 
    Pex = new HypreParMatrix(MyComm, MyRank, NRanks, row_starts, col_starts,
-			    i_diag, j_diag, i_offd, j_offd, cmap,
-			    offd_counter);
+                            i_diag, j_diag, i_offd, j_offd, cmap,
+                            offd_counter);
 
    return Pex;
 }
@@ -858,21 +858,21 @@ HYPRE_Int ParFiniteElementSpace::GetGlobalScalarTExDofNumber(int sldof)
       if (ordering == Ordering::byNODES)
          return lexdof_ltexdof[sldof] +
                 texdof_nb_offsets[GetGroupTopo().GetGroupMaster(
-                                   lexdof_group[sldof])] / vdim;
+                                     lexdof_group[sldof])] / vdim;
       else
          return (lexdof_ltexdof[sldof*vdim] +
                  texdof_nb_offsets[GetGroupTopo().GetGroupMaster(
-                                    lexdof_group[sldof*vdim])]) / vdim;
+                                      lexdof_group[sldof*vdim])]) / vdim;
    }
 
    if (ordering == Ordering::byNODES)
       return lexdof_ltexdof[sldof] +
              texdof_offsets[GetGroupTopo().GetGroupMasterRank(
-                             lexdof_group[sldof])] / vdim;
+                               lexdof_group[sldof])] / vdim;
    else
       return (lexdof_ltexdof[sldof*vdim] +
               texdof_offsets[GetGroupTopo().GetGroupMasterRank(
-                              lexdof_group[sldof*vdim])]) / vdim;
+                                lexdof_group[sldof*vdim])]) / vdim;
 }
 
 HYPRE_Int ParFiniteElementSpace::GetMyExDofOffset()
@@ -1139,7 +1139,7 @@ void ParFiniteElementSpace::Lose_Dof_TrueDof_Matrix()
 
 void ParFiniteElementSpace::ConstructTrueDofs()
 {
-  int i, gr, n = GetVSize();
+   int i, gr, n = GetVSize();
    GroupTopology &gt = pmesh->gtopo;
    gcomm = new GroupCommunicator(gt);
    Table &group_ldof = gcomm->GroupLDofTable();

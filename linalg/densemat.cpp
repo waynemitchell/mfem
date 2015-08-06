@@ -246,7 +246,7 @@ void DenseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
 }
 
 void DenseMatrix::AddMultTranspose(const double *x, double *y,
-				   const double a) const
+                                   const double a) const
 {
    double *d_col = data;
    for (int col = 0; col < width; col++)
@@ -282,7 +282,7 @@ void DenseMatrix::AddMult_a(double a, const Vector &x, Vector &y) const
 }
 
 void DenseMatrix::AddMultTranspose(const Vector &x, Vector &y,
-				   const double a) const
+                                   const double a) const
 {
 #ifdef MFEM_DEBUG
    if ( height != x.Size() || width != y.Size() )
@@ -2544,19 +2544,19 @@ void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
 }
 
 void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco,
-			 int row_offset, int col_offset)
+                         int row_offset, int col_offset)
 {
    int i, j;
 
    MFEM_VERIFY(row_offset+m <= this->Height() && col_offset+n <= this->Width(),
-	       "this DenseMatrix is too small to accomodate the submatrix.");
+               "this DenseMatrix is too small to accomodate the submatrix.");
    MFEM_VERIFY(Aro+m <= A.Height() && Aco+n <= A.Width(),
-	       "The A DenseMatrix is too small to accomodate the submatrix.");
+               "The A DenseMatrix is too small to accomodate the submatrix.");
 
    for (j = 0; j < n; j++)
       for (i = 0; i < m; i++)
       {
-	(*this)(row_offset+i,col_offset+j) = A(Aro+i,Aco+j);
+         (*this)(row_offset+i,col_offset+j) = A(Aro+i,Aco+j);
       }
 }
 

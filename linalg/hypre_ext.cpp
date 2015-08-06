@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -255,12 +255,13 @@ void hypre_ParCSRMatrixEliminateAXB(hypre_ParCSRMatrix *A,
    MPI_Comm_size(comm_pkg->comm,&numProcs);
    MPI_Comm_rank(comm_pkg->comm,&myId);
 
-   for (int p=0; p<numProcs; p++) {
-     if ( p == myId )
-   /* do sequential part of the elimination while stuff is getting sent */
-   hypre_CSRMatrixEliminateAXB(diag, num_rowscols_to_elim, rowscols_to_elim,
-                               Xlocal, Blocal);
-     MPI_Barrier(comm_pkg->comm);
+   for (int p=0; p<numProcs; p++)
+   {
+      if ( p == myId )
+         /* do sequential part of the elimination while stuff is getting sent */
+         hypre_CSRMatrixEliminateAXB(diag, num_rowscols_to_elim, rowscols_to_elim,
+                                     Xlocal, Blocal);
+      MPI_Barrier(comm_pkg->comm);
    }
 
    /* finish the communication */

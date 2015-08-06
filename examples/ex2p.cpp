@@ -159,11 +159,11 @@ int main(int argc, char *argv[])
    {
       fec = new H1_FECollection(order, dim);
       if ( byNodes )
-	fespace = new ParFiniteElementSpace(pmesh, fec, dim,
-					    Ordering::byNODES);
+         fespace = new ParFiniteElementSpace(pmesh, fec, dim,
+                                             Ordering::byNODES);
       else
-	fespace = new ParFiniteElementSpace(pmesh, fec, dim,
-					    Ordering::byVDIM);
+         fespace = new ParFiniteElementSpace(pmesh, fec, dim,
+                                             Ordering::byVDIM);
    }
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)

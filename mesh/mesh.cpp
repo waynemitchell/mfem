@@ -3876,12 +3876,12 @@ int Mesh::GetQuadOrientation(const int *base, const int *test)
       int vi0 = test[i0], vi1;
       for (i=1; i<4; i++)
       {
-	 vi1 = test[i];
-	 if ( vi1 < vi0 )
-	 {
-	    i0  = i;
-	    vi0 = vi1;
-	 }
+         vi1 = test[i];
+         if ( vi1 < vi0 )
+         {
+            i0  = i;
+            vi0 = vi1;
+         }
       }
       return 2*i0 + (int)(test[(i0+1)%4] > test[(i0+3)%4]);
    }
@@ -6052,33 +6052,33 @@ void Mesh::QuadUniformRefinement(int n)
 
       for (j=1; j < n; j++)
       {
- 	 w[0] = (double)(n-j)/n; w[1] = (double)j/n;
+         w[0] = (double)(n-j)/n; w[1] = (double)j/n;
 
-	 vv[0] = (eo[0]>0)?v[0]:v[1];
-	 vv[1] = (eo[0]>0)?v[1]:v[0];
-	 AverageVertices(vv, w, 2, oedge+(n-1)*e[0]+j-1);
+         vv[0] = (eo[0]>0)?v[0]:v[1];
+         vv[1] = (eo[0]>0)?v[1]:v[0];
+         AverageVertices(vv, w, 2, oedge+(n-1)*e[0]+j-1);
 
-	 vv[0] = (eo[1]>0)?v[1]:v[2];
-	 vv[1] = (eo[1]>0)?v[2]:v[1];
-	 AverageVertices(vv, w, 2, oedge+(n-1)*e[1]+j-1);
+         vv[0] = (eo[1]>0)?v[1]:v[2];
+         vv[1] = (eo[1]>0)?v[2]:v[1];
+         AverageVertices(vv, w, 2, oedge+(n-1)*e[1]+j-1);
 
-	 vv[0] = (eo[2]>0)?v[2]:v[3];
-	 vv[1] = (eo[2]>0)?v[3]:v[2];
-	 AverageVertices(vv, w, 2, oedge+(n-1)*e[2]+j-1);
+         vv[0] = (eo[2]>0)?v[2]:v[3];
+         vv[1] = (eo[2]>0)?v[3]:v[2];
+         AverageVertices(vv, w, 2, oedge+(n-1)*e[2]+j-1);
 
-	 vv[0] = (eo[3]>0)?v[3]:v[0];
-	 vv[1] = (eo[3]>0)?v[0]:v[3];
-	 AverageVertices(vv, w, 2, oedge+(n-1)*e[3]+j-1);
+         vv[0] = (eo[3]>0)?v[3]:v[0];
+         vv[1] = (eo[3]>0)?v[0]:v[3];
+         AverageVertices(vv, w, 2, oedge+(n-1)*e[3]+j-1);
 
-	 for (k=1; k < n; k++)
-	 {
-	    w[0] = (double)((n-j)*(n-k))/(n*n);
-	    w[1] = (double)(j*(n-k))/(n*n);
-	    w[2] = (double)(j*k)/(n*n);
-	    w[3] = (double)((n-j)*k)/(n*n);
+         for (k=1; k < n; k++)
+         {
+            w[0] = (double)((n-j)*(n-k))/(n*n);
+            w[1] = (double)(j*(n-k))/(n*n);
+            w[2] = (double)(j*k)/(n*n);
+            w[3] = (double)((n-j)*k)/(n*n);
 
-	    AverageVertices(v, w, 4, oelem+(n-1)*(n-1)*i+(n-1)*(j-1)+k-1);
-	 }
+            AverageVertices(v, w, 4, oelem+(n-1)*(n-1)*i+(n-1)*(j-1)+k-1);
+         }
       }
    }
 
@@ -6094,67 +6094,67 @@ void Mesh::QuadUniformRefinement(int n)
       j = NumOfElements + (n*n-1) * i;
 
       elements[j+0] = new Quadrilateral(oedge+(n-1)*e[0]+(n-2)*(1+eo[0])/2,
-					v[1],
-					oedge+(n-1)*e[1]+(n-2)*(1-eo[1])/2,
+                                        v[1],
+                                        oedge+(n-1)*e[1]+(n-2)*(1-eo[1])/2,
                                         oe+(n-1)*(n-2),
-					attr);
+                                        attr);
       elements[j+1] = new Quadrilateral(oe+(n-1)*(n-1)-1,
-					oedge+(n-1)*e[1]+(n-2)*(1+eo[1])/2,
-					v[2],
-					oedge+(n-1)*e[2]+(n-2)*(1-eo[2])/2,
-					attr);
+                                        oedge+(n-1)*e[1]+(n-2)*(1+eo[1])/2,
+                                        v[2],
+                                        oedge+(n-1)*e[2]+(n-2)*(1-eo[2])/2,
+                                        attr);
       elements[j+2] = new Quadrilateral(oedge+(n-1)*e[3]+(n-2)*(1-eo[3])/2,
-					oe+n-2,
-					oedge+(n-1)*e[2]+(n-2)*(1+eo[2])/2,
-					v[3],
-					attr);
+                                        oe+n-2,
+                                        oedge+(n-1)*e[2]+(n-2)*(1+eo[2])/2,
+                                        v[3],
+                                        attr);
 
       v[1] = oedge+(n-1)*e[0]+(n-2)*(1-eo[0])/2;
       v[2] = oe;
       v[3] = oedge+(n-1)*e[3]+(n-2)*(1+eo[3])/2;
 
-      for (j=0;j<n-2;j++)
+      for (j=0; j<n-2; j++)
       {
-	int oj = NumOfElements + (n*n-1) * i + 3 + j;
+         int oj = NumOfElements + (n*n-1) * i + 3 + j;
 
-	elements[0*(n-2)+oj] =
-	  new Quadrilateral(oedge+(n-1)*e[0]+(n-2-(n-2-2*j)*eo[0])/2,
-			    oedge+(n-1)*e[0]+(n-2-(n-4-2*j)*eo[0])/2,
-			    oe+(n-1)*(j+1),
-			    oe+(n-1)*j,
-			    attr);
+         elements[0*(n-2)+oj] =
+            new Quadrilateral(oedge+(n-1)*e[0]+(n-2-(n-2-2*j)*eo[0])/2,
+                              oedge+(n-1)*e[0]+(n-2-(n-4-2*j)*eo[0])/2,
+                              oe+(n-1)*(j+1),
+                              oe+(n-1)*j,
+                              attr);
 
-	elements[1*(n-2)+oj] =
-	  new Quadrilateral(oe+(n-1)*(n-2)+j,
-			    oedge+(n-1)*e[1]+(n-2-(n-2-2*j)*eo[1])/2,
-			    oedge+(n-1)*e[1]+(n-2-(n-4-2*j)*eo[1])/2,
-			    oe+(n-1)*(n-2)+j+1,
-			    attr);
+         elements[1*(n-2)+oj] =
+            new Quadrilateral(oe+(n-1)*(n-2)+j,
+                              oedge+(n-1)*e[1]+(n-2-(n-2-2*j)*eo[1])/2,
+                              oedge+(n-1)*e[1]+(n-2-(n-4-2*j)*eo[1])/2,
+                              oe+(n-1)*(n-2)+j+1,
+                              attr);
 
-	elements[2*(n-2)+oj] =
-	  new Quadrilateral(oe+(n-1)*j+n-2,
-			    oe+(n-1)*(j+1)+n-2,
-			    oedge+(n-1)*e[2]+(n-2+(n-4-2*j)*eo[2])/2,
-			    oedge+(n-1)*e[2]+(n-2+(n-2-2*j)*eo[2])/2,
-			    attr);
+         elements[2*(n-2)+oj] =
+            new Quadrilateral(oe+(n-1)*j+n-2,
+                              oe+(n-1)*(j+1)+n-2,
+                              oedge+(n-1)*e[2]+(n-2+(n-4-2*j)*eo[2])/2,
+                              oedge+(n-1)*e[2]+(n-2+(n-2-2*j)*eo[2])/2,
+                              attr);
 
-	elements[3*(n-2)+oj] =
-	  new Quadrilateral(oedge+(n-1)*e[3]+(n-2+(n-2-2*j)*eo[3])/2,
-			    oe+j,
-			    oe+j+1,
-			    oedge+(n-1)*e[3]+(n-2+(n-4-2*j)*eo[3])/2,
-			    attr);
+         elements[3*(n-2)+oj] =
+            new Quadrilateral(oedge+(n-1)*e[3]+(n-2+(n-2-2*j)*eo[3])/2,
+                              oe+j,
+                              oe+j+1,
+                              oedge+(n-1)*e[3]+(n-2+(n-4-2*j)*eo[3])/2,
+                              attr);
 
-	for (k=0;k<n-2;k++)
-	{
-	   int ojk = NumOfElements + (n*n-1) * i + (n-2) * (j + 4) + 3 + k;
+         for (k=0; k<n-2; k++)
+         {
+            int ojk = NumOfElements + (n*n-1) * i + (n-2) * (j + 4) + 3 + k;
 
-	   elements[ojk] = new Quadrilateral(oe+(n-1)*j+k,
-					     oe+(n-1)*(j+1)+k,
-					     oe+(n-1)*(j+1)+k+1,
-					     oe+(n-1)*j+k+1,
-					     attr);
-	}
+            elements[ojk] = new Quadrilateral(oe+(n-1)*j+k,
+                                              oe+(n-1)*(j+1)+k,
+                                              oe+(n-1)*(j+1)+k+1,
+                                              oe+(n-1)*j+k+1,
+                                              attr);
+         }
       }
    }
 
@@ -6167,15 +6167,15 @@ void Mesh::QuadUniformRefinement(int n)
       int eob = (v[0]<v[1])?1:-1;
 
       boundary[j] = new Segment(oedge+(n-1)*be_to_edge[i]+(n-2)*(1+eob)/2,
-				v[1], attr);
+                                v[1], attr);
 
       for (int j=0; j<n-2; j++)
       {
-	int oj = NumOfBdrElements + (n-1)*i+j;
+         int oj = NumOfBdrElements + (n-1)*i+j;
 
-	boundary[oj] =
-	  new Segment(oedge+(n-1)*be_to_edge[i]+(n-2-(n-2-2*j)*eob)/2,
-		      oedge+(n-1)*be_to_edge[i]+(n-2-(n-4-2*j)*eob)/2, attr);
+         boundary[oj] =
+            new Segment(oedge+(n-1)*be_to_edge[i]+(n-2-(n-2-2*j)*eob)/2,
+                        oedge+(n-1)*be_to_edge[i]+(n-2-(n-4-2*j)*eob)/2, attr);
       }
 
       v[1] = oedge+(n-1)*be_to_edge[i]+(n-2)*(1-eob)/2;
@@ -6464,67 +6464,67 @@ void Mesh::HexUniformRefinement(int n)
 
       for (j=0; j<6; j++)
       {
-	for (k=0; k<4; k++)
-	{
-	   vv[k] = v[Hexahedron::faces[j][k]];
-	}
-	fo[j] = GetQuadOrientation(NULL,vv);
+         for (k=0; k<4; k++)
+         {
+            vv[k] = v[Hexahedron::faces[j][k]];
+         }
+         fo[j] = GetQuadOrientation(NULL,vv);
       }
 
       for (j=1; j < n; j++)
       {
- 	 w[0] = (double)(n-j)/n; w[1] = (double)j/n;
+         w[0] = (double)(n-j)/n; w[1] = (double)j/n;
 
-	 for (k=0; k<12; k++)
-	 {
-	    vv[0] = (eo[k]>0)?
-	       v[Hexahedron::edges[k][0]]:
-	       v[Hexahedron::edges[k][1]];
-	    vv[1] = (eo[k]>0)?
-	       v[Hexahedron::edges[k][1]]:
-	       v[Hexahedron::edges[k][0]];
-	    AverageVertices(vv, w, 2, oedge+n1*e[k]+j-1);
-	 }
+         for (k=0; k<12; k++)
+         {
+            vv[0] = (eo[k]>0)?
+                    v[Hexahedron::edges[k][0]]:
+                    v[Hexahedron::edges[k][1]];
+            vv[1] = (eo[k]>0)?
+                    v[Hexahedron::edges[k][1]]:
+                    v[Hexahedron::edges[k][0]];
+            AverageVertices(vv, w, 2, oedge+n1*e[k]+j-1);
+         }
 
-	 for (k=1; k < n; k++)
-	 {
- 	    w[0] = (double)((n-j)*(n-k))/(n*n);
-	    w[1] = (double)(j*(n-k))/(n*n);
-	    w[2] = (double)(j*k)/(n*n);
-	    w[3] = (double)((n-j)*k)/(n*n);
+         for (k=1; k < n; k++)
+         {
+            w[0] = (double)((n-j)*(n-k))/(n*n);
+            w[1] = (double)(j*(n-k))/(n*n);
+            w[2] = (double)(j*k)/(n*n);
+            w[3] = (double)((n-j)*k)/(n*n);
 
-	    for (l=0; l<6; l++)
-	    {
-	      int f0 = (int)fo[l]/2;
-	      int f1 = (fo[l]%2)?((f0+3)%4):((f0+1)%4);
-	      int f2 = (f1+(f1-f0)+4)%4;
-	      int f3 = (f2+(f2-f1)+4)%4;
+            for (l=0; l<6; l++)
+            {
+               int f0 = (int)fo[l]/2;
+               int f1 = (fo[l]%2)?((f0+3)%4):((f0+1)%4);
+               int f2 = (f1+(f1-f0)+4)%4;
+               int f3 = (f2+(f2-f1)+4)%4;
 
-	      vv[0] = v[Hexahedron::faces[l][f0]];
-	      vv[1] = v[Hexahedron::faces[l][f1]];
-	      vv[2] = v[Hexahedron::faces[l][f2]];
-	      vv[3] = v[Hexahedron::faces[l][f3]];
+               vv[0] = v[Hexahedron::faces[l][f0]];
+               vv[1] = v[Hexahedron::faces[l][f1]];
+               vv[2] = v[Hexahedron::faces[l][f2]];
+               vv[3] = v[Hexahedron::faces[l][f3]];
 
-	      int vi = oface+n1n1*f[l]+n1*(j-1)+k-1;
-	      AverageVertices(vv, w, 4,vi);
-	    }
+               int vi = oface+n1n1*f[l]+n1*(j-1)+k-1;
+               AverageVertices(vv, w, 4,vi);
+            }
 
-	    for (l=1; l < n; l++)
-	    {
-	       w[0] = (double)((n-j)*(n-k)*(n-l))/(n*n*n);
-	       w[1] = (double)(j*(n-k)*(n-l))/(n*n*n);
-	       w[2] = (double)(j*k*(n-l))/(n*n*n);
-	       w[3] = (double)((n-j)*k*(n-l))/(n*n*n);
-	       w[4] = (double)((n-j)*(n-k)*l)/(n*n*n);
-	       w[5] = (double)(j*(n-k)*l)/(n*n*n);
-	       w[6] = (double)(j*k*l)/(n*n*n);
-	       w[7] = (double)((n-j)*k*l)/(n*n*n);
+            for (l=1; l < n; l++)
+            {
+               w[0] = (double)((n-j)*(n-k)*(n-l))/(n*n*n);
+               w[1] = (double)(j*(n-k)*(n-l))/(n*n*n);
+               w[2] = (double)(j*k*(n-l))/(n*n*n);
+               w[3] = (double)((n-j)*k*(n-l))/(n*n*n);
+               w[4] = (double)((n-j)*(n-k)*l)/(n*n*n);
+               w[5] = (double)(j*(n-k)*l)/(n*n*n);
+               w[6] = (double)(j*k*l)/(n*n*n);
+               w[7] = (double)((n-j)*k*l)/(n*n*n);
 
-	       AverageVertices(v, w, 8,
-			       oelem+n1n1n1*i+
-			       n1n1*(j-1)+n1*(k-1)+l-1);
-	    }
-	 }
+               AverageVertices(v, w, 8,
+                               oelem+n1n1n1*i+
+                               n1n1*(j-1)+n1*(k-1)+l-1);
+            }
+         }
       }
    }
 
@@ -6539,101 +6539,101 @@ void Mesh::HexUniformRefinement(int n)
 
       for (j=0; j<6; j++)
       {
-	for (k=0; k<4; k++)
-	{
-	   vv[k] = v[Hexahedron::faces[j][k]];
-	}
-	fo[j] = GetQuadOrientation(NULL,vv);
+         for (k=0; k<4; k++)
+         {
+            vv[k] = v[Hexahedron::faces[j][k]];
+         }
+         fo[j] = GetQuadOrientation(NULL,vv);
 
-	int j0 = fo[j]%2;
-	int j1 = (fo[j]/2)%2;
-	int j2 = fo[j]/4;
+         int j0 = fo[j]%2;
+         int j1 = (fo[j]/2)%2;
+         int j2 = fo[j]/4;
 
-	fof[j] = (n-2)*((1+(n-2)*j0)*j1+j2*(n-2*(1+(n-2)*j0)*j1));
-	fsj[j] = (1-2*j2)*(n-1-(n-2)*j0-n*j1);
-	fsk[j] = (1-2*j2)*(1+(n-2)*j1+(n-2)*j0*(1-2*j1));
+         fof[j] = (n-2)*((1+(n-2)*j0)*j1+j2*(n-2*(1+(n-2)*j0)*j1));
+         fsj[j] = (1-2*j2)*(n-1-(n-2)*j0-n*j1);
+         fsk[j] = (1-2*j2)*(1+(n-2)*j1+(n-2)*j0*(1-2*j1));
       }
 
       int oe = oelem+n1n1n1*i;
 
       j = NumOfElements + (n*n*n-1) * i;
-				     
+
       elements[j+0] =
-	new Hexahedron(oedge+n1*e[0]+n2*(1+eo[0])/2,
-		       v[1],
-		       oedge+n1*e[1]+n2*(1-eo[1])/2,
-		       oface+n1n1*f[0]+fof[0]+n2*fsj[0]+n2*fsk[0],
-		       oface+n1n1*f[1]+fof[1]+n2*fsj[1],
-		       oedge+n1*e[9]+n2*(1-eo[9])/2,
-		       oface+n1n1*f[2]+fof[2],
-		       oe+n1n1*n2,
-		       attr);
+         new Hexahedron(oedge+n1*e[0]+n2*(1+eo[0])/2,
+                        v[1],
+                        oedge+n1*e[1]+n2*(1-eo[1])/2,
+                        oface+n1n1*f[0]+fof[0]+n2*fsj[0]+n2*fsk[0],
+                        oface+n1n1*f[1]+fof[1]+n2*fsj[1],
+                        oedge+n1*e[9]+n2*(1-eo[9])/2,
+                        oface+n1n1*f[2]+fof[2],
+                        oe+n1n1*n2,
+                        attr);
 
       elements[j+1] =
-	new Hexahedron(oface+n1n1*f[0]+fof[0]+fsj[0]*n2,
-		       oedge+n1*e[1]+n2*(1+eo[1])/2,
-		       v[2],
-		       oedge+n1*e[2]+n2*(1+eo[2])/2,
-		       oe+n*n1*n2,
-		       oface+n1n1*f[2]+fof[2]+fsj[2]*n2,
-		       oedge+n1*e[10]+n2*(1-eo[10])/2,
-		       oface+n1n1*f[3]+fof[3],
-		       attr);
+         new Hexahedron(oface+n1n1*f[0]+fof[0]+fsj[0]*n2,
+                        oedge+n1*e[1]+n2*(1+eo[1])/2,
+                        v[2],
+                        oedge+n1*e[2]+n2*(1+eo[2])/2,
+                        oe+n*n1*n2,
+                        oface+n1n1*f[2]+fof[2]+fsj[2]*n2,
+                        oedge+n1*e[10]+n2*(1-eo[10])/2,
+                        oface+n1n1*f[3]+fof[3],
+                        attr);
 
       elements[j+2] =
-	new Hexahedron(oedge+n1*e[3]+n2*(1+eo[3])/2,
-		       oface+n1n1*f[0]+fof[0],
-		       oedge+n1*e[2]+n2*(1-eo[2])/2,
-		       v[3],
-		       oface+n1n1*f[4]+fof[4],
-		       oe+n1*n2,
-		       oface+n1n1*f[3]+fof[3]+fsj[3]*n2,
-		       oedge+n1*e[11]+n2*(1-eo[11])/2,
-		       attr);
+         new Hexahedron(oedge+n1*e[3]+n2*(1+eo[3])/2,
+                        oface+n1n1*f[0]+fof[0],
+                        oedge+n1*e[2]+n2*(1-eo[2])/2,
+                        v[3],
+                        oface+n1n1*f[4]+fof[4],
+                        oe+n1*n2,
+                        oface+n1n1*f[3]+fof[3]+fsj[3]*n2,
+                        oedge+n1*e[11]+n2*(1-eo[11])/2,
+                        attr);
 
       elements[j+3] =
-	new Hexahedron(oedge+n1*e[8]+n2*(1+eo[8])/2,
-		       oface+n1n1*f[1]+fof[1]+fsk[1]*n2,
-		       oe+n2,
-		       oface+n1n1*f[4]+fof[4]+fsj[4]*n2+fsk[4]*n2,
-		       v[4],
-		       oedge+n1*e[4]+n2*(1-eo[4])/2,
-		       oface+n1n1*f[5]+fof[5],
-		       oedge+n1*e[7]+n2*(1-eo[7])/2,
-		       attr);
+         new Hexahedron(oedge+n1*e[8]+n2*(1+eo[8])/2,
+                        oface+n1n1*f[1]+fof[1]+fsk[1]*n2,
+                        oe+n2,
+                        oface+n1n1*f[4]+fof[4]+fsj[4]*n2+fsk[4]*n2,
+                        v[4],
+                        oedge+n1*e[4]+n2*(1-eo[4])/2,
+                        oface+n1n1*f[5]+fof[5],
+                        oedge+n1*e[7]+n2*(1-eo[7])/2,
+                        attr);
 
       elements[j+4] =
-	new Hexahedron(oface+n1n1*f[1]+fof[1]+fsj[1]*n2+fsk[1]*n2,
-		       oedge+n1*e[9]+n2*(1+eo[9])/2,
-		       oface+n1n1*f[2]+fof[2]+fsk[2]*n2,
-		       oe+n1n1*n2+n2,
-		       oedge+n1*e[4]+n2*(1+eo[4])/2,
-		       v[5],
-		       oedge+n1*e[5]+n2*(1-eo[5])/2,
-		       oface+n1n1*f[5]+fof[5]+fsj[5]*n2,
-		       attr);
+         new Hexahedron(oface+n1n1*f[1]+fof[1]+fsj[1]*n2+fsk[1]*n2,
+                        oedge+n1*e[9]+n2*(1+eo[9])/2,
+                        oface+n1n1*f[2]+fof[2]+fsk[2]*n2,
+                        oe+n1n1*n2+n2,
+                        oedge+n1*e[4]+n2*(1+eo[4])/2,
+                        v[5],
+                        oedge+n1*e[5]+n2*(1-eo[5])/2,
+                        oface+n1n1*f[5]+fof[5]+fsj[5]*n2,
+                        attr);
 
       elements[j+5] =
-	new Hexahedron(oe+n*n1*n2+n2,
-		       oface+n1n1*f[2]+fof[2]+fsj[2]*n2+fsk[2]*n2,
-		       oedge+n1*e[10]+n2*(1+eo[10])/2,
-		       oface+n1n1*f[3]+fof[3]+fsk[3]*n2,
-		       oface+n1n1*f[5]+fof[5]+fsj[5]*n2+fsk[5]*n2,
-		       oedge+n1*e[5]+n2*(1+eo[5])/2,
-		       v[6],
-		       oedge+n1*e[6]+n2*(1+eo[6])/2,
-		       attr);
+         new Hexahedron(oe+n*n1*n2+n2,
+                        oface+n1n1*f[2]+fof[2]+fsj[2]*n2+fsk[2]*n2,
+                        oedge+n1*e[10]+n2*(1+eo[10])/2,
+                        oface+n1n1*f[3]+fof[3]+fsk[3]*n2,
+                        oface+n1n1*f[5]+fof[5]+fsj[5]*n2+fsk[5]*n2,
+                        oedge+n1*e[5]+n2*(1+eo[5])/2,
+                        v[6],
+                        oedge+n1*e[6]+n2*(1+eo[6])/2,
+                        attr);
 
       elements[j+6] =
-	new Hexahedron(oface+n1n1*f[4]+fof[4]+fsk[4]*n2,
-		       oe+n*n2,
-		       oface+n1n1*f[3]+fof[3]+fsj[3]*n2+fsk[3]*n2,
-		       oedge+n1*e[11]+n2*(1+eo[11])/2,
-		       oedge+n1*e[7]+n2*(1+eo[7])/2,
-		       oface+n1n1*f[5]+fof[5]+fsk[5]*n2,
-		       oedge+n1*e[6]+n2*(1-eo[6])/2,
-		       v[7],
-		       attr);
+         new Hexahedron(oface+n1n1*f[4]+fof[4]+fsk[4]*n2,
+                        oe+n*n2,
+                        oface+n1n1*f[3]+fof[3]+fsj[3]*n2+fsk[3]*n2,
+                        oedge+n1*e[11]+n2*(1+eo[11])/2,
+                        oedge+n1*e[7]+n2*(1+eo[7])/2,
+                        oface+n1n1*f[5]+fof[5]+fsk[5]*n2,
+                        oedge+n1*e[6]+n2*(1-eo[6])/2,
+                        v[7],
+                        attr);
 
       v[1] = oedge+n1*e[0]+n2*(1-eo[0])/2;
       v[2] = oface+n1n1*f[0]+fof[0]+fsk[0]*n2;
@@ -6643,229 +6643,229 @@ void Mesh::HexUniformRefinement(int n)
       v[6] = oe;
       v[7] = oface+n1n1*f[4]+fof[4]+fsj[4]*n2;
 
-      for (j=0;j<n2;j++)
+      for (j=0; j<n2; j++)
       {
-	int oj = NumOfElements + (n*n*n-1) * i + 7 + j;
+         int oj = NumOfElements + (n*n*n-1) * i + 7 + j;
 
-	elements[ 0*n2+oj] =
-	  new Hexahedron(oedge+n1*e[0]+eo[0]*j+n2*(1-eo[0])/2,
-			 oedge+n1*e[0]+eo[0]*(j+1)+n2*(1-eo[0])/2,
-			 oface+n1n1*f[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*n2,
-			 oface+n1n1*f[0]+fof[0]+fsj[0]*j+fsk[0]*n2,
-			 oface+n1n1*f[1]+fof[1]+fsj[1]*j,
-			 oface+n1n1*f[1]+fof[1]+fsj[1]*(j+1),
-			 oe+n1n1*(j+1),
-			 oe+n1n1*j,
-			 attr);
+         elements[ 0*n2+oj] =
+            new Hexahedron(oedge+n1*e[0]+eo[0]*j+n2*(1-eo[0])/2,
+                           oedge+n1*e[0]+eo[0]*(j+1)+n2*(1-eo[0])/2,
+                           oface+n1n1*f[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*n2,
+                           oface+n1n1*f[0]+fof[0]+fsj[0]*j+fsk[0]*n2,
+                           oface+n1n1*f[1]+fof[1]+fsj[1]*j,
+                           oface+n1n1*f[1]+fof[1]+fsj[1]*(j+1),
+                           oe+n1n1*(j+1),
+                           oe+n1n1*j,
+                           attr);
 
-	elements[ 1*n2+oj] =
-	  new Hexahedron(oface+n1n1*f[0]+fof[0]+fsj[0]*n2+fsk[0]*(n2-j),
-			 oedge+n1*e[1]+eo[1]*j+n2*(1-eo[1])/2,
-			 oedge+n1*e[1]+eo[1]*(j+1)+n2*(1-eo[1])/2,
-			 oface+n1n1*f[0]+fof[0]+fsj[0]*n2+fsk[0]*(n2-j-1),
-			 oe+n1*(n1*n2+j),
-			 oface+n1n1*f[2]+fof[2]+fsj[2]*j,
-			 oface+n1n1*f[2]+fof[2]+fsj[2]*(j+1),
-			 oe+n1*(n1*n2+j+1),
-			 attr);
+         elements[ 1*n2+oj] =
+            new Hexahedron(oface+n1n1*f[0]+fof[0]+fsj[0]*n2+fsk[0]*(n2-j),
+                           oedge+n1*e[1]+eo[1]*j+n2*(1-eo[1])/2,
+                           oedge+n1*e[1]+eo[1]*(j+1)+n2*(1-eo[1])/2,
+                           oface+n1n1*f[0]+fof[0]+fsj[0]*n2+fsk[0]*(n2-j-1),
+                           oe+n1*(n1*n2+j),
+                           oface+n1n1*f[2]+fof[2]+fsj[2]*j,
+                           oface+n1n1*f[2]+fof[2]+fsj[2]*(j+1),
+                           oe+n1*(n1*n2+j+1),
+                           attr);
 
-	elements[ 2*n2+oj] =
-	  new Hexahedron(oface+n1n1*f[0]+fof[0]+fsj[0]*j,
-			 oface+n1n1*f[0]+fof[0]+fsj[0]*(j+1),
-			 oedge+n1*e[2]+eo[2]*(j+1)+n2*(1-eo[2])/2,
-			 oedge+n1*e[2]+eo[2]*j+n2*(1-eo[2])/2,
-			 oe+n1*(n1*j+n2),
-			 oe+n1*(n1*(j+1)+n2),
-			 oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j-1),
-			 oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j),
-			 attr);
+         elements[ 2*n2+oj] =
+            new Hexahedron(oface+n1n1*f[0]+fof[0]+fsj[0]*j,
+                           oface+n1n1*f[0]+fof[0]+fsj[0]*(j+1),
+                           oedge+n1*e[2]+eo[2]*(j+1)+n2*(1-eo[2])/2,
+                           oedge+n1*e[2]+eo[2]*j+n2*(1-eo[2])/2,
+                           oe+n1*(n1*j+n2),
+                           oe+n1*(n1*(j+1)+n2),
+                           oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j-1),
+                           oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j),
+                           attr);
 
-	elements[ 3*n2+oj] =
-	  new Hexahedron(oedge+n1*e[3]+eo[3]*j+n2*(1-eo[3])/2,
-			 oface+n1n1*f[0]+fof[0]+fsk[0]*(n2-j),
-			 oface+n1n1*f[0]+fof[0]+fsk[0]*(n2-j-1),
-			 oedge+n1*e[3]+eo[3]*(j+1)+n2*(1-eo[3])/2,
-			 oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j),
-			 oe+n1*(0*n1*n2+j),
-			 oe+n1*(0*n1*n2+j+1),
-			 oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j-1),
-			 attr);
+         elements[ 3*n2+oj] =
+            new Hexahedron(oedge+n1*e[3]+eo[3]*j+n2*(1-eo[3])/2,
+                           oface+n1n1*f[0]+fof[0]+fsk[0]*(n2-j),
+                           oface+n1n1*f[0]+fof[0]+fsk[0]*(n2-j-1),
+                           oedge+n1*e[3]+eo[3]*(j+1)+n2*(1-eo[3])/2,
+                           oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j),
+                           oe+n1*(0*n1*n2+j),
+                           oe+n1*(0*n1*n2+j+1),
+                           oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j-1),
+                           attr);
 
-	elements[ 4*n2+oj] =
-	  new Hexahedron(oface+n1n1*f[1]+fof[1]+fsj[1]*j+fsk[1]*n2,
-			 oface+n1n1*f[1]+fof[1]+fsj[1]*(j+1)+fsk[1]*n2,
-			 oe+n1n1*(j+1)+n2,
-			 oe+n1n1*j+n2,
-			 oedge+n1*e[4]+eo[4]*j+n2*(1-eo[4])/2,
-			 oedge+n1*e[4]+eo[4]*(j+1)+n2*(1-eo[4])/2,
-			 oface+n1n1*f[5]+fof[5]+fsj[5]*(j+1),
-			 oface+n1n1*f[5]+fof[5]+fsj[5]*j,
-			 attr);
+         elements[ 4*n2+oj] =
+            new Hexahedron(oface+n1n1*f[1]+fof[1]+fsj[1]*j+fsk[1]*n2,
+                           oface+n1n1*f[1]+fof[1]+fsj[1]*(j+1)+fsk[1]*n2,
+                           oe+n1n1*(j+1)+n2,
+                           oe+n1n1*j+n2,
+                           oedge+n1*e[4]+eo[4]*j+n2*(1-eo[4])/2,
+                           oedge+n1*e[4]+eo[4]*(j+1)+n2*(1-eo[4])/2,
+                           oface+n1n1*f[5]+fof[5]+fsj[5]*(j+1),
+                           oface+n1n1*f[5]+fof[5]+fsj[5]*j,
+                           attr);
 
-	elements[ 5*n2+oj] =
-	  new Hexahedron(oe+n1*(n1*n2+j)+n2,
-			 oface+n1n1*f[2]+fof[2]+fsj[2]*j+fsk[2]*n2,
-			 oface+n1n1*f[2]+fof[2]+fsj[2]*(j+1)+fsk[2]*n2,
-			 oe+n1*(n1*n2+j+1)+n2,
-			 oface+n1n1*f[5]+fof[5]+fsj[5]*n2+fsk[5]*j,
-			 oedge+n1*e[5]+eo[5]*j+n2*(1-eo[5])/2,
-			 oedge+n1*e[5]+eo[5]*(j+1)+n2*(1-eo[5])/2,
-			 oface+n1n1*f[5]+fof[5]+fsj[5]*n2+fsk[5]*(j+1),
-			 attr);
+         elements[ 5*n2+oj] =
+            new Hexahedron(oe+n1*(n1*n2+j)+n2,
+                           oface+n1n1*f[2]+fof[2]+fsj[2]*j+fsk[2]*n2,
+                           oface+n1n1*f[2]+fof[2]+fsj[2]*(j+1)+fsk[2]*n2,
+                           oe+n1*(n1*n2+j+1)+n2,
+                           oface+n1n1*f[5]+fof[5]+fsj[5]*n2+fsk[5]*j,
+                           oedge+n1*e[5]+eo[5]*j+n2*(1-eo[5])/2,
+                           oedge+n1*e[5]+eo[5]*(j+1)+n2*(1-eo[5])/2,
+                           oface+n1n1*f[5]+fof[5]+fsj[5]*n2+fsk[5]*(j+1),
+                           attr);
 
-	elements[ 6*n2+oj] =
-	  new Hexahedron(oe+n1*(n1*j+n2)+n2,
-			 oe+n1*(n1*(j+1)+n2)+n2,
-			 oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j-1)+fsk[3]*n2,
-			 oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j)+fsk[3]*n2,
-			 oface+n1n1*f[5]+fof[5]+fsj[5]*j+fsk[5]*n2,
-			 oface+n1n1*f[5]+fof[5]+fsj[5]*(j+1)+fsk[5]*n2,
-			 oedge+n1*e[6]+eo[6]*(j+1)+n2*(1-eo[6])/2,
-			 oedge+n1*e[6]+eo[6]*j+n2*(1-eo[6])/2,
-			 attr);
+         elements[ 6*n2+oj] =
+            new Hexahedron(oe+n1*(n1*j+n2)+n2,
+                           oe+n1*(n1*(j+1)+n2)+n2,
+                           oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j-1)+fsk[3]*n2,
+                           oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j)+fsk[3]*n2,
+                           oface+n1n1*f[5]+fof[5]+fsj[5]*j+fsk[5]*n2,
+                           oface+n1n1*f[5]+fof[5]+fsj[5]*(j+1)+fsk[5]*n2,
+                           oedge+n1*e[6]+eo[6]*(j+1)+n2*(1-eo[6])/2,
+                           oedge+n1*e[6]+eo[6]*j+n2*(1-eo[6])/2,
+                           attr);
 
-	elements[ 7*n2+oj] =
-	  new Hexahedron(oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j)+fsk[4]*n2,
-			 oe+n1*j+n2,
-			 oe+n1*(j+1)+n2,
-			 oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j-1)+fsk[4]*n2,
-			 oedge+n1*e[7]+eo[7]*j+n2*(1-eo[7])/2,
-			 oface+n1n1*f[5]+fof[5]+fsk[5]*j,
-			 oface+n1n1*f[5]+fof[5]+fsk[5]*(j+1),
-			 oedge+n1*e[7]+eo[7]*(j+1)+n2*(1-eo[7])/2,
-			 attr);
+         elements[ 7*n2+oj] =
+            new Hexahedron(oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j)+fsk[4]*n2,
+                           oe+n1*j+n2,
+                           oe+n1*(j+1)+n2,
+                           oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j-1)+fsk[4]*n2,
+                           oedge+n1*e[7]+eo[7]*j+n2*(1-eo[7])/2,
+                           oface+n1n1*f[5]+fof[5]+fsk[5]*j,
+                           oface+n1n1*f[5]+fof[5]+fsk[5]*(j+1),
+                           oedge+n1*e[7]+eo[7]*(j+1)+n2*(1-eo[7])/2,
+                           attr);
 
-	elements[ 8*n2+oj] =
-	  new Hexahedron(oedge+n1*e[8]+eo[8]*j+n2*(1-eo[8])/2,
-			 oface+n1n1*f[1]+fof[1]+fsk[1]*j,
-			 oe+j,
-			 oface+n1n1*f[4]+fof[4]+fsj[4]*n2+fsk[4]*j,
-			 oedge+n1*e[8]+eo[8]*(j+1)+n2*(1-eo[8])/2,
-			 oface+n1n1*f[1]+fof[1]+fsk[1]*(j+1),
-			 oe+j+1,
-			 oface+n1n1*f[4]+fof[4]+fsj[4]*n2+fsk[4]*(j+1),
-			 attr);
+         elements[ 8*n2+oj] =
+            new Hexahedron(oedge+n1*e[8]+eo[8]*j+n2*(1-eo[8])/2,
+                           oface+n1n1*f[1]+fof[1]+fsk[1]*j,
+                           oe+j,
+                           oface+n1n1*f[4]+fof[4]+fsj[4]*n2+fsk[4]*j,
+                           oedge+n1*e[8]+eo[8]*(j+1)+n2*(1-eo[8])/2,
+                           oface+n1n1*f[1]+fof[1]+fsk[1]*(j+1),
+                           oe+j+1,
+                           oface+n1n1*f[4]+fof[4]+fsj[4]*n2+fsk[4]*(j+1),
+                           attr);
 
-	elements[ 9*n2+oj] =
-	  new Hexahedron(oface+n1n1*f[1]+fof[1]+fsj[1]*n2+fsk[1]*j,
-			 oedge+n1*e[9]+eo[9]*j+n2*(1-eo[9])/2,
-			 oface+n1n1*f[2]+fof[2]+fsk[2]*j,
-			 oe+n1n1*n2+j,
-			 oface+n1n1*f[1]+fof[1]+fsj[1]*n2+fsk[1]*(j+1),
-			 oedge+n1*e[9]+eo[9]*(j+1)+n2*(1-eo[9])/2,
-			 oface+n1n1*f[2]+fof[2]+fsk[2]*(j+1),
-			 oe+n1n1*n2+j+1,
-			 attr);
+         elements[ 9*n2+oj] =
+            new Hexahedron(oface+n1n1*f[1]+fof[1]+fsj[1]*n2+fsk[1]*j,
+                           oedge+n1*e[9]+eo[9]*j+n2*(1-eo[9])/2,
+                           oface+n1n1*f[2]+fof[2]+fsk[2]*j,
+                           oe+n1n1*n2+j,
+                           oface+n1n1*f[1]+fof[1]+fsj[1]*n2+fsk[1]*(j+1),
+                           oedge+n1*e[9]+eo[9]*(j+1)+n2*(1-eo[9])/2,
+                           oface+n1n1*f[2]+fof[2]+fsk[2]*(j+1),
+                           oe+n1n1*n2+j+1,
+                           attr);
 
-	elements[10*n2+oj] =
-	  new Hexahedron(oe+n*n1*n2+j,
-			 oface+n1n1*f[2]+fof[2]+fsj[2]*n2+fsk[2]*j,
-			 oedge+n1*e[10]+eo[10]*j+n2*(1-eo[10])/2,
-			 oface+n1n1*f[3]+fof[3]+fsk[3]*j,
-			 oe+n*n1*n2+j+1,
-			 oface+n1n1*f[2]+fof[2]+fsj[2]*n2+fsk[2]*(j+1),
-			 oedge+n1*e[10]+eo[10]*(j+1)+n2*(1-eo[10])/2,
-			 oface+n1n1*f[3]+fof[3]+fsk[3]*(j+1),
-			 attr);
+         elements[10*n2+oj] =
+            new Hexahedron(oe+n*n1*n2+j,
+                           oface+n1n1*f[2]+fof[2]+fsj[2]*n2+fsk[2]*j,
+                           oedge+n1*e[10]+eo[10]*j+n2*(1-eo[10])/2,
+                           oface+n1n1*f[3]+fof[3]+fsk[3]*j,
+                           oe+n*n1*n2+j+1,
+                           oface+n1n1*f[2]+fof[2]+fsj[2]*n2+fsk[2]*(j+1),
+                           oedge+n1*e[10]+eo[10]*(j+1)+n2*(1-eo[10])/2,
+                           oface+n1n1*f[3]+fof[3]+fsk[3]*(j+1),
+                           attr);
 
-	elements[11*n2+oj] =
-	  new Hexahedron(oface+n1n1*f[4]+fof[4]+fsk[4]*j,
-			 oe+n1*n2+j,
-			 oface+n1n1*f[3]+fof[3]+fsj[3]*n2+fsk[3]*j,
-			 oedge+n1*e[11]+eo[11]*j+n2*(1-eo[11])/2,
-			 oface+n1n1*f[4]+fof[4]+fsk[4]*(j+1),
-			 oe+n1*n2+j+1,
-			 oface+n1n1*f[3]+fof[3]+fsj[3]*n2+fsk[3]*(j+1),
-			 oedge+n1*e[11]+eo[11]*(j+1)+n2*(1-eo[11])/2,
-			 attr);
+         elements[11*n2+oj] =
+            new Hexahedron(oface+n1n1*f[4]+fof[4]+fsk[4]*j,
+                           oe+n1*n2+j,
+                           oface+n1n1*f[3]+fof[3]+fsj[3]*n2+fsk[3]*j,
+                           oedge+n1*e[11]+eo[11]*j+n2*(1-eo[11])/2,
+                           oface+n1n1*f[4]+fof[4]+fsk[4]*(j+1),
+                           oe+n1*n2+j+1,
+                           oface+n1n1*f[3]+fof[3]+fsj[3]*n2+fsk[3]*(j+1),
+                           oedge+n1*e[11]+eo[11]*(j+1)+n2*(1-eo[11])/2,
+                           attr);
 
-	for (k=0;k<n2;k++)
-	{
-	  int ojk = NumOfElements + (n*n*n-1) * i + n2 * (j + 12) + 7 + k;
+         for (k=0; k<n2; k++)
+         {
+            int ojk = NumOfElements + (n*n*n-1) * i + n2 * (j + 12) + 7 + k;
 
-	  elements[ 0*n2*n2+ojk] =
-	    new Hexahedron(oface+n1n1*f[0]+fof[0]+fsj[0]*j+fsk[0]*(n2-k),
-			   oface+n1n1*f[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*(n2-k),
-			   oface+n1n1*f[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*(n2-k-1),
-			   oface+n1n1*f[0]+fof[0]+fsj[0]*j+fsk[0]*(n2-k-1),
-			   
-			   oe+n1*(n1*j+k),
-			   oe+n1*(n1*(j+1)+k),
-			   oe+n1*(n1*(j+1)+k+1),
-			   oe+n1*(n1*j+k+1),
-			   attr);
+            elements[ 0*n2*n2+ojk] =
+               new Hexahedron(oface+n1n1*f[0]+fof[0]+fsj[0]*j+fsk[0]*(n2-k),
+                              oface+n1n1*f[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*(n2-k),
+                              oface+n1n1*f[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*(n2-k-1),
+                              oface+n1n1*f[0]+fof[0]+fsj[0]*j+fsk[0]*(n2-k-1),
 
-	  elements[ 1*n2*n2+ojk] =
-	    new Hexahedron(oface+n1n1*f[1]+fof[1]+fsj[1]*j+fsk[1]*k,
-			   oface+n1n1*f[1]+fof[1]+fsj[1]*(j+1)+fsk[1]*k,
-			   oe+n1*(n1*(j+1))+k,
-			   oe+n1*(n1*j)+k,
-			   oface+n1n1*f[1]+fof[1]+fsj[1]*j+fsk[1]*(k+1),
-			   oface+n1n1*f[1]+fof[1]+fsj[1]*(j+1)+fsk[1]*(k+1),
-			   oe+n1*(n1*(j+1))+k+1,
-			   oe+n1*(n1*j)+k+1,
-			   attr);
+                              oe+n1*(n1*j+k),
+                              oe+n1*(n1*(j+1)+k),
+                              oe+n1*(n1*(j+1)+k+1),
+                              oe+n1*(n1*j+k+1),
+                              attr);
 
-	  elements[ 2*n2*n2+ojk] =
-	    new Hexahedron(oe+n1*(n1*n2+j)+k,
-			   oface+n1n1*f[2]+fof[2]+fsj[2]*j+fsk[2]*k,
-			   oface+n1n1*f[2]+fof[2]+fsj[2]*(j+1)+fsk[2]*k,
-			   oe+n1*(n1*n2+j+1)+k,
-			   oe+n1*(n1*n2+j)+k+1,
-			   oface+n1n1*f[2]+fof[2]+fsj[2]*j+fsk[2]*(k+1),
-			   oface+n1n1*f[2]+fof[2]+fsj[2]*(j+1)+fsk[2]*(k+1),
-			   oe+n1*(n1*n2+j+1)+k+1,
-			   attr);
+            elements[ 1*n2*n2+ojk] =
+               new Hexahedron(oface+n1n1*f[1]+fof[1]+fsj[1]*j+fsk[1]*k,
+                              oface+n1n1*f[1]+fof[1]+fsj[1]*(j+1)+fsk[1]*k,
+                              oe+n1*(n1*(j+1))+k,
+                              oe+n1*(n1*j)+k,
+                              oface+n1n1*f[1]+fof[1]+fsj[1]*j+fsk[1]*(k+1),
+                              oface+n1n1*f[1]+fof[1]+fsj[1]*(j+1)+fsk[1]*(k+1),
+                              oe+n1*(n1*(j+1))+k+1,
+                              oe+n1*(n1*j)+k+1,
+                              attr);
 
-	  elements[ 3*n2*n2+ojk] =
-	    new Hexahedron(oe+n1*(n1*j+n2)+k,
-			   oe+n1*(n1*(j+1)+n2)+k,
-			   oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j-1)+fsk[3]*k,
-			   oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j)+fsk[3]*k,
-			   oe+n1*(n1*j+n2)+k+1,
-			   oe+n1*(n1*(j+1)+n2)+k+1,
-			   oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j-1)+fsk[3]*(k+1),
-			   oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j)+fsk[3]*(k+1),
-			   attr);
+            elements[ 2*n2*n2+ojk] =
+               new Hexahedron(oe+n1*(n1*n2+j)+k,
+                              oface+n1n1*f[2]+fof[2]+fsj[2]*j+fsk[2]*k,
+                              oface+n1n1*f[2]+fof[2]+fsj[2]*(j+1)+fsk[2]*k,
+                              oe+n1*(n1*n2+j+1)+k,
+                              oe+n1*(n1*n2+j)+k+1,
+                              oface+n1n1*f[2]+fof[2]+fsj[2]*j+fsk[2]*(k+1),
+                              oface+n1n1*f[2]+fof[2]+fsj[2]*(j+1)+fsk[2]*(k+1),
+                              oe+n1*(n1*n2+j+1)+k+1,
+                              attr);
 
-	  elements[ 4*n2*n2+ojk] =
-	    new Hexahedron(oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j)+fsk[4]*k,
-			   oe+n1*j+k,
-			   oe+n1*(j+1)+k,
-			   oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j-1)+fsk[4]*k,
-			   oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j)+fsk[4]*(k+1),
-			   oe+n1*j+k+1,
-			   oe+n1*(j+1)+k+1,
-			   oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j-1)+fsk[4]*(k+1),
-			   attr);
+            elements[ 3*n2*n2+ojk] =
+               new Hexahedron(oe+n1*(n1*j+n2)+k,
+                              oe+n1*(n1*(j+1)+n2)+k,
+                              oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j-1)+fsk[3]*k,
+                              oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j)+fsk[3]*k,
+                              oe+n1*(n1*j+n2)+k+1,
+                              oe+n1*(n1*(j+1)+n2)+k+1,
+                              oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j-1)+fsk[3]*(k+1),
+                              oface+n1n1*f[3]+fof[3]+fsj[3]*(n2-j)+fsk[3]*(k+1),
+                              attr);
 
-	  elements[ 5*n2*n2+ojk] =
-	    new Hexahedron(oe+n1*(n1*j+k)+n2,
-			   oe+n1*(n1*(j+1)+k)+n2,
-			   oe+n1*(n1*(j+1)+k+1)+n2,
-			   oe+n1*(n1*j+k+1)+n2,
-			   oface+n1n1*f[5]+fof[5]+fsj[5]*j+fsk[5]*k,
-			   oface+n1n1*f[5]+fof[5]+fsj[5]*(j+1)+fsk[5]*k,
-			   oface+n1n1*f[5]+fof[5]+fsj[5]*(j+1)+fsk[5]*(k+1),
-			   oface+n1n1*f[5]+fof[5]+fsj[5]*j+fsk[5]*(k+1),
-			   attr);
+            elements[ 4*n2*n2+ojk] =
+               new Hexahedron(oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j)+fsk[4]*k,
+                              oe+n1*j+k,
+                              oe+n1*(j+1)+k,
+                              oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j-1)+fsk[4]*k,
+                              oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j)+fsk[4]*(k+1),
+                              oe+n1*j+k+1,
+                              oe+n1*(j+1)+k+1,
+                              oface+n1n1*f[4]+fof[4]+fsj[4]*(n2-j-1)+fsk[4]*(k+1),
+                              attr);
 
-	  for (l=0;l<n2;l++)
-	  {
-	    int ojkl = NumOfElements + (n*n*n-1) * i +
-	      n2 * (n2 * (j + 6) + 12 + k) + 7 + l;
+            elements[ 5*n2*n2+ojk] =
+               new Hexahedron(oe+n1*(n1*j+k)+n2,
+                              oe+n1*(n1*(j+1)+k)+n2,
+                              oe+n1*(n1*(j+1)+k+1)+n2,
+                              oe+n1*(n1*j+k+1)+n2,
+                              oface+n1n1*f[5]+fof[5]+fsj[5]*j+fsk[5]*k,
+                              oface+n1n1*f[5]+fof[5]+fsj[5]*(j+1)+fsk[5]*k,
+                              oface+n1n1*f[5]+fof[5]+fsj[5]*(j+1)+fsk[5]*(k+1),
+                              oface+n1n1*f[5]+fof[5]+fsj[5]*j+fsk[5]*(k+1),
+                              attr);
 
-	    elements[ojkl] = new Hexahedron(oe+n1*(n1*j+k)+l,
-					    oe+n1*(n1*(j+1)+k)+l,
-					    oe+n1*(n1*(j+1)+k+1)+l,
-					    oe+n1*(n1*j+k+1)+l,
-					    oe+n1*(n1*j+k)+l+1,
-					    oe+n1*(n1*(j+1)+k)+l+1,
-					    oe+n1*(n1*(j+1)+k+1)+l+1,
-					    oe+n1*(n1*j+k+1)+l+1,
-					    attr);
-	  }
-	}
+            for (l=0; l<n2; l++)
+            {
+               int ojkl = NumOfElements + (n*n*n-1) * i +
+                          n2 * (n2 * (j + 6) + 12 + k) + 7 + l;
+
+               elements[ojkl] = new Hexahedron(oe+n1*(n1*j+k)+l,
+                                               oe+n1*(n1*(j+1)+k)+l,
+                                               oe+n1*(n1*(j+1)+k+1)+l,
+                                               oe+n1*(n1*j+k+1)+l,
+                                               oe+n1*(n1*j+k)+l+1,
+                                               oe+n1*(n1*(j+1)+k)+l+1,
+                                               oe+n1*(n1*(j+1)+k+1)+l+1,
+                                               oe+n1*(n1*j+k+1)+l+1,
+                                               attr);
+            }
+         }
       }
    }
 
@@ -6899,25 +6899,25 @@ void Mesh::HexUniformRefinement(int n)
       j = NumOfBdrElements + (n*n-1) * i;
 
       boundary[j+0] =
-	new Quadrilateral(oedge+n1*eb[0]+n2*(1+eo[0])/2,
-			  v[1],
-			  oedge+n1*eb[1]+n2*(1-eo[1])/2,
-			  oface+n1n1*fb[0]+fof[0]+fsj[0]*n2,
-			  attr);
+         new Quadrilateral(oedge+n1*eb[0]+n2*(1+eo[0])/2,
+                           v[1],
+                           oedge+n1*eb[1]+n2*(1-eo[1])/2,
+                           oface+n1n1*fb[0]+fof[0]+fsj[0]*n2,
+                           attr);
 
       boundary[j+1] =
-	new Quadrilateral(oface+n1n1*fb[0]+fof[0]+fsj[0]*n2+fsk[0]*n2,
-			  oedge+n1*eb[1]+n2*(1+eo[1])/2,
-			  v[2],
-			  oedge+n1*eb[2]+n2*(1-eo[2])/2,
-			  attr);
+         new Quadrilateral(oface+n1n1*fb[0]+fof[0]+fsj[0]*n2+fsk[0]*n2,
+                           oedge+n1*eb[1]+n2*(1+eo[1])/2,
+                           v[2],
+                           oedge+n1*eb[2]+n2*(1-eo[2])/2,
+                           attr);
 
       boundary[j+2] =
-	new Quadrilateral(oedge+n1*eb[3]+n2*(1+eo[3])/2,
-			  oface+n1n1*fb[0]+fof[0]+fsk[0]*n2,
-			  oedge+n1*eb[2]+n2*(1+eo[2])/2,
-			  v[3],
-			  attr);
+         new Quadrilateral(oedge+n1*eb[3]+n2*(1+eo[3])/2,
+                           oface+n1n1*fb[0]+fof[0]+fsk[0]*n2,
+                           oedge+n1*eb[2]+n2*(1+eo[2])/2,
+                           v[3],
+                           attr);
 
       v[1] = oedge+n1*eb[0]+n2*(1-eo[0])/2;
       v[2] = oface+n1n1*fb[0]+fof[0];
@@ -6925,48 +6925,48 @@ void Mesh::HexUniformRefinement(int n)
 
       for (j=0; j<n2; j++)
       {
-	int oj = NumOfBdrElements + (n*n-1)*i + 3 + j;
+         int oj = NumOfBdrElements + (n*n-1)*i + 3 + j;
 
-	boundary[0*n2+oj] =
-	  new Quadrilateral(oedge+n1*eb[0]+eo[0]*j+n2*(1-eo[0])/2,
-			    oedge+n1*eb[0]+eo[0]*(j+1)+n2*(1-eo[0])/2,
-			    oface+n1n1*fb[0]+fof[0]+fsj[0]*(j+1),
-			    oface+n1n1*fb[0]+fof[0]+fsj[0]*j,
-			    attr);
+         boundary[0*n2+oj] =
+            new Quadrilateral(oedge+n1*eb[0]+eo[0]*j+n2*(1-eo[0])/2,
+                              oedge+n1*eb[0]+eo[0]*(j+1)+n2*(1-eo[0])/2,
+                              oface+n1n1*fb[0]+fof[0]+fsj[0]*(j+1),
+                              oface+n1n1*fb[0]+fof[0]+fsj[0]*j,
+                              attr);
 
-	boundary[1*n2+oj] =
-	  new Quadrilateral(oface+n1n1*fb[0]+fof[0]+fsj[0]*n2+fsk[0]*j,
-			    oedge+n1*eb[1]+eo[1]*j+n2*(1-eo[1])/2,
-			    oedge+n1*eb[1]+eo[1]*(j+1)+n2*(1-eo[1])/2,
-			    oface+n1n1*fb[0]+fof[0]+fsj[0]*n2+fsk[0]*(j+1),
-			    attr);
+         boundary[1*n2+oj] =
+            new Quadrilateral(oface+n1n1*fb[0]+fof[0]+fsj[0]*n2+fsk[0]*j,
+                              oedge+n1*eb[1]+eo[1]*j+n2*(1-eo[1])/2,
+                              oedge+n1*eb[1]+eo[1]*(j+1)+n2*(1-eo[1])/2,
+                              oface+n1n1*fb[0]+fof[0]+fsj[0]*n2+fsk[0]*(j+1),
+                              attr);
 
-	boundary[2*n2+oj] =
-	  new Quadrilateral(oface+n1n1*fb[0]+fof[0]+fsj[0]*j+fsk[0]*n2,
-			    oface+n1n1*fb[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*n2,
-			    oedge+n1*eb[2]-eo[2]*(j+1)+n2*(1+eo[2])/2,
-			    oedge+n1*eb[2]-eo[2]*j+n2*(1+eo[2])/2,
-			    attr);
+         boundary[2*n2+oj] =
+            new Quadrilateral(oface+n1n1*fb[0]+fof[0]+fsj[0]*j+fsk[0]*n2,
+                              oface+n1n1*fb[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*n2,
+                              oedge+n1*eb[2]-eo[2]*(j+1)+n2*(1+eo[2])/2,
+                              oedge+n1*eb[2]-eo[2]*j+n2*(1+eo[2])/2,
+                              attr);
 
-	boundary[3*n2+oj] =
-	  new Quadrilateral(oedge+n1*eb[3]+eo[3]*j+n2*(1-eo[3])/2,
-			    oface+n1n1*fb[0]+fof[0]+fsk[0]*j,
-			    oface+n1n1*fb[0]+fof[0]+fsk[0]*(j+1),
-			    oedge+n1*eb[3]+eo[3]*(j+1)+n2*(1-eo[3])/2,
-			    attr);
+         boundary[3*n2+oj] =
+            new Quadrilateral(oedge+n1*eb[3]+eo[3]*j+n2*(1-eo[3])/2,
+                              oface+n1n1*fb[0]+fof[0]+fsk[0]*j,
+                              oface+n1n1*fb[0]+fof[0]+fsk[0]*(j+1),
+                              oedge+n1*eb[3]+eo[3]*(j+1)+n2*(1-eo[3])/2,
+                              attr);
 
-	for (k=0; k<n2; k++)
-	{
-	  int ojk = NumOfBdrElements + (n*n-1)*i + n2 * (j + 4) + 3 + k;
+         for (k=0; k<n2; k++)
+         {
+            int ojk = NumOfBdrElements + (n*n-1)*i + n2 * (j + 4) + 3 + k;
 
-	  boundary[ojk] =
-	    new Quadrilateral(oface+n1n1*fb[0]+fof[0]+fsj[0]*j+fsk[0]*k,
-			      oface+n1n1*fb[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*k,
-			      oface+n1n1*fb[0]+fof[0]+fsj[0]*(j+1)+
-			      fsk[0]*(k+1),
-			      oface+n1n1*fb[0]+fof[0]+fsj[0]*j+fsk[0]*(k+1),
-			      attr);
-	}
+            boundary[ojk] =
+               new Quadrilateral(oface+n1n1*fb[0]+fof[0]+fsj[0]*j+fsk[0]*k,
+                                 oface+n1n1*fb[0]+fof[0]+fsj[0]*(j+1)+fsk[0]*k,
+                                 oface+n1n1*fb[0]+fof[0]+fsj[0]*(j+1)+
+                                 fsk[0]*(k+1),
+                                 oface+n1n1*fb[0]+fof[0]+fsj[0]*j+fsk[0]*(k+1),
+                                 attr);
+         }
       }
    }
 

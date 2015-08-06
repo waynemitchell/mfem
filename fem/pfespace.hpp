@@ -105,7 +105,7 @@ private:
 
    // ldof_type = 0 : DOFs communicator, otherwise VDOFs communicator
    void GetExGroupComm(GroupCommunicator &gcomm, int ldof_type,
-		       Array<int> *ldof_sign = NULL);
+                       Array<int> *ldof_sign = NULL);
 
    /// Construct dof_offsets and tdof_offsets using global communication.
    void GenerateGlobalOffsets();
@@ -133,7 +133,7 @@ public:
 
    ParFiniteElementSpace(ParMesh *pm, const FiniteElementCollection *f,
                          int dim = 1, int order = Ordering::byNODES,
-			 bool pr_dofs = false);
+                         bool pr_dofs = false);
 
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }
@@ -159,24 +159,32 @@ public:
    HYPRE_Int GlobalExVSize()
    {
       if (HYPRE_AssumedPartitionCheck())
-	 return exdof_offsets[2];
+      {
+         return exdof_offsets[2];
+      }
       else
-	 return exdof_offsets[NRanks];
+      {
+         return exdof_offsets[NRanks];
+      }
    }
    HYPRE_Int GlobalTrueExVSize()
    {
       if (HYPRE_AssumedPartitionCheck())
-	 return texdof_offsets[2];
+      {
+         return texdof_offsets[2];
+      }
       else
-	 return texdof_offsets[NRanks];
+      {
+         return texdof_offsets[NRanks];
+      }
    }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
-  // virtual void GetElementDofs(int i, Array<int> &dofs,
-  //  		       int &pr_offset, int &npr) const;
+   // virtual void GetElementDofs(int i, Array<int> &dofs,
+   //               int &pr_offset, int &npr) const;
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementExDofs(int i, Array<int> &dofs) const;

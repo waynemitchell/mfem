@@ -43,11 +43,11 @@ protected:
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-     : BilinearForm(pf), pfes(pf), tmp_e(NULL)
+      : BilinearForm(pf), pfes(pf), tmp_e(NULL)
    { keep_nbr_block = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
-     : BilinearForm(pf, bf), tmp_e(NULL)
+      : BilinearForm(pf, bf), tmp_e(NULL)
    { pfes = pf; keep_nbr_block = false; }
 
    /** When set to true and the ParBilinearForm has interior face integrators,
@@ -146,13 +146,13 @@ protected:
    }
 
    HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m,
-                                    HYPRE_Int *true_ex_row_starts,
-                                    HYPRE_Int *true_ex_col_starts,
-                                    bool scalar) const;
+                                           HYPRE_Int *true_ex_row_starts,
+                                           HYPRE_Int *true_ex_col_starts,
+                                           bool scalar) const;
    HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m)
    {
       return ParallelAssembleReduced(m, range_fes->GetTrueExDofOffsets(),
-				     domain_fes->GetTrueExDofOffsets(), false);
+                                     domain_fes->GetTrueExDofOffsets(), false);
    }
 
 public:

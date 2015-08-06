@@ -160,18 +160,18 @@ int main(int argc, char *argv[])
    {
       fec = new H1_FECollection(order, dim);
       if ( byNodes )
-	fespace = new ParFiniteElementSpace(pmesh, fec, dim,
-					    Ordering::byNODES, true);
+         fespace = new ParFiniteElementSpace(pmesh, fec, dim,
+                                             Ordering::byNODES, true);
       else
-	fespace = new ParFiniteElementSpace(pmesh, fec, dim,
-					    Ordering::byVDIM, true);
+         fespace = new ParFiniteElementSpace(pmesh, fec, dim,
+                                             Ordering::byVDIM, true);
    }
    HYPRE_Int size = fespace->GlobalTrueVSize();
    HYPRE_Int esize = fespace->GlobalTrueExVSize();
    HYPRE_Int psize = size - esize;
    if (myid == 0)
-      cout << "Number of unknowns: " << size 
-	   << " (" << esize << " + " << psize << ")" << endl
+      cout << "Number of unknowns: " << size
+           << " (" << esize << " + " << psize << ")" << endl
            << "Assembling: " << flush;
 
    // 8. Set up the parallel linear form b(.) which corresponds to the
@@ -246,9 +246,10 @@ int main(int argc, char *argv[])
 
    for (int i = 0; i < ess_bdr_v.Size(); i++)
    {
-      if (ess_bdr_v[i]) {
-	int loctdof = fespace->GetLocalTExDofNumber(i);
-	if ( loctdof >= 0 ) dof_list.Append(loctdof);
+      if (ess_bdr_v[i])
+      {
+         int loctdof = fespace->GetLocalTExDofNumber(i);
+         if ( loctdof >= 0 ) { dof_list.Append(loctdof); }
       }
    }
 
@@ -257,26 +258,26 @@ int main(int argc, char *argv[])
    HypreParVector * XE = NULL;
 
    if ( fespace->GetOrdering() == Ordering::byNODES &&
-	fespace->GetVDim() > 1 )
+        fespace->GetVDim() > 1 )
    {
-     xe = new Vector(fespace->GetExVSize());
-     a->SplitExposedPrivate(x,xe,NULL);
+      xe = new Vector(fespace->GetExVSize());
+      a->SplitExposedPrivate(x,xe,NULL);
 
-     HypreParVector hxe(MPI_COMM_WORLD,
-			fespace->GlobalExVSize(),
-			xe->GetData(),
-			fespace->GetExDofOffsets());
+      HypreParVector hxe(MPI_COMM_WORLD,
+                         fespace->GlobalExVSize(),
+                         xe->GetData(),
+                         fespace->GetExDofOffsets());
 
-     XE = new HypreParVector(MPI_COMM_WORLD,fespace->GlobalTrueExVSize(),
-			     fespace->GetTrueExDofOffsets());
+      XE = new HypreParVector(MPI_COMM_WORLD,fespace->GlobalTrueExVSize(),
+                              fespace->GetTrueExDofOffsets());
 
-     fespace->ExDof_TrueExDof_Matrix()->MultTranspose(hxe,*XE);
+      fespace->ExDof_TrueExDof_Matrix()->MultTranspose(hxe,*XE);
 
    }
    else
    {
-     XE = new HypreParVector(MPI_COMM_WORLD,fespace->GlobalTrueExVSize(),
-			     X->GetData(),fespace->GetTrueExDofOffsets());
+      XE = new HypreParVector(MPI_COMM_WORLD,fespace->GlobalTrueExVSize(),
+                              X->GetData(),fespace->GetTrueExDofOffsets());
    }
 
    A->EliminateRowsCols(dof_list, *XE, *B);
@@ -300,26 +301,26 @@ int main(int argc, char *argv[])
    // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
    if ( fespace->GetOrdering() == Ordering::byNODES &&
-	fespace->GetVDim() > 1 )
+        fespace->GetVDim() > 1 )
    {
-     HypreParVector hxe(MPI_COMM_WORLD,
-			fespace->GlobalExVSize(),
-			xe->GetData(),
-			fespace->GetExDofOffsets());
+      HypreParVector hxe(MPI_COMM_WORLD,
+                         fespace->GlobalExVSize(),
+                         xe->GetData(),
+                         fespace->GetExDofOffsets());
 
-     fespace->ExDof_TrueExDof_Matrix()->Mult(*XE,hxe);
+      fespace->ExDof_TrueExDof_Matrix()->Mult(*XE,hxe);
 
-     a->MergeExposedPrivate(&hxe,NULL,x);
+      a->MergeExposedPrivate(&hxe,NULL,x);
    }
    else
    {
-     x = *X;
+      x = *X;
    }
    a->UpdatePrivateDoFs(*b,x);
 
    delete a;
    delete b;
-   if ( xe != NULL ) delete xe;
+   if ( xe != NULL ) { delete xe; }
 
    // 14. For non-NURBS meshes, make the mesh curved based on the finite element
    //     space. This means that we define the mesh elements through a fespace

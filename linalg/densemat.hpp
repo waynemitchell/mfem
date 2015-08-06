@@ -103,11 +103,11 @@ public:
 
    /// Multiply a vector with the transpose matrix.
    void AddMultTranspose(const double *x, double *y,
-			 const double a = 1.0) const;
+                         const double a = 1.0) const;
 
    /// y += a*At.x
    void AddMultTranspose(const Vector &x, Vector &y,
-			 const double a = 1.0) const;
+                         const double a = 1.0) const;
 
    /// y += a * A.x
    void AddMult_a(double a, const Vector &x, Vector &y) const;
@@ -245,7 +245,7 @@ public:
    /// Copy the m x n submatrix of A at (Aro)ffset, (Aco)loffset to *this
    /// at row_offset, col_offset
    void CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco,
-	       int row_offset, int col_offset);
+               int row_offset, int col_offset);
    /// Copy c on the diagonal of size n to *this at row_offset, col_offset
    void CopyMNDiag(double c, int n, int row_offset, int col_offset);
    /// Copy diag on the diagonal of size n to *this at row_offset, col_offset

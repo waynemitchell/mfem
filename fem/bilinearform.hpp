@@ -294,9 +294,9 @@ protected:
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
 
-  void permuteElementMatrix(DenseMatrix & mat,
-			    int vdim_r, int npr_r,
-			    int vdim_c, int npr_c);
+   void permuteElementMatrix(DenseMatrix & mat,
+                             int vdim_r, int npr_r,
+                             int vdim_c, int npr_c);
 
 public:
    MixedBilinearForm (FiniteElementSpace *tr_fes,
@@ -346,10 +346,10 @@ public:
    SparseMatrix &SpMatPE() { return *mat_pe; }
 
    void SplitExposedPrivate(const FiniteElementSpace &fes, const Vector &x,
-			    Vector *x_e, Vector *x_p) const;
+                            Vector *x_e, Vector *x_p) const;
    void MergeExposedPrivate(const FiniteElementSpace &fes,
-			    Vector *x_e, Vector *x_p,
-			    Vector &x) const;
+                            Vector *x_e, Vector *x_p,
+                            Vector &x) const;
 
    void AddDomainIntegrator (BilinearFormIntegrator * bfi);
 

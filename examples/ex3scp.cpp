@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-     int par_ref_levels = pr;
+      int par_ref_levels = pr;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -138,14 +138,14 @@ int main(int argc, char *argv[])
    //    to higher-order spaces by changing the value of p.
    FiniteElementCollection *fec = new ND_FECollection(order, dim);
    ParFiniteElementSpace *fespace =
-     new ParFiniteElementSpace(pmesh, fec, 1, mfem::Ordering::byNODES, true);
+      new ParFiniteElementSpace(pmesh, fec, 1, mfem::Ordering::byNODES, true);
    HYPRE_Int  size = fespace->GlobalTrueVSize();
    HYPRE_Int esize = fespace->GlobalTrueExVSize();
    HYPRE_Int psize = size - esize;
    if (myid == 0)
    {
       cout << "Number of unknowns: " << size
-	   << " (" << esize << " + " << psize << ")" << endl;
+           << " (" << esize << " + " << psize << ")" << endl;
    }
 
    // 7. Set up the parallel linear form b(.) which corresponds to the
@@ -195,17 +195,19 @@ int main(int argc, char *argv[])
 
    for (int i = 0; i < ess_bdr_v.Size(); i++)
    {
-      if (ess_bdr_v[i]) {
-	int loctdof = fespace->GetLocalTExDofNumber(i);
-	if ( loctdof >= 0 ) {
-	  dof_list.Append(loctdof);
-	}
+      if (ess_bdr_v[i])
+      {
+         int loctdof = fespace->GetLocalTExDofNumber(i);
+         if ( loctdof >= 0 )
+         {
+            dof_list.Append(loctdof);
+         }
       }
    }
 
    // do the parallel elimination
    HypreParVector XE(MPI_COMM_WORLD,fespace->GlobalTrueExVSize(),
-		     X->GetData(),fespace->GetTrueExDofOffsets());
+                     X->GetData(),fespace->GetTrueExDofOffsets());
 
    A->EliminateRowsCols(dof_list, XE, *B);
 

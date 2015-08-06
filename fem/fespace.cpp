@@ -229,7 +229,7 @@ void FiniteElementSpace::GetElementVDofs(int iE, Array<int> &dofs) const
 }
 
 void FiniteElementSpace::GetElementVDofs(int iE, Array<int> &dofs,
-					 int &pr_offset, int &npr) const
+                                         int &pr_offset, int &npr) const
 {
    GetElementDofs(iE, dofs, pr_offset, npr);
    ExDofsToExVDofs (dofs);
@@ -248,7 +248,7 @@ void FiniteElementSpace::GetElementPrVDofs(int iE, Array<int> &dofs) const
 }
 
 void FiniteElementSpace::GetElementPrVDofs(int iE,
-					   int & pr_offset, int & npr) const
+                                           int & pr_offset, int & npr) const
 {
    GetElementPrDofs(iE, pr_offset, npr);
 }
@@ -305,11 +305,11 @@ void FiniteElementSpace::BuildElementToDofTable()
    {
       if ( nprdofs == 0 )
       {
-	 GetElementDofs (i, dofs);
+         GetElementDofs (i, dofs);
       }
       else
       {
-	 GetElementExDofs (i, dofs);
+         GetElementExDofs (i, dofs);
       }
       el_dof -> AddColumnsInRow (i, dofs.Size());
    }
@@ -318,11 +318,11 @@ void FiniteElementSpace::BuildElementToDofTable()
    {
       if ( nprdofs == 0 )
       {
-	 GetElementDofs (i, dofs);
+         GetElementDofs (i, dofs);
       }
       else
       {
-	 GetElementExDofs (i, dofs);
+         GetElementExDofs (i, dofs);
       }
       el_dof -> AddConnections (i, (int *)dofs, dofs.Size());
    }
@@ -353,18 +353,18 @@ void FiniteElementSpace::BuildDofToArrays()
          }
       if ( nprdofs != 0 )
       {
-	for (int j = bdofs[i]; j < bdofs[i+1]; j++)
-	{
-	   dof_elem_array[nexdofs+j] = i;
-	   dof_ldof_array[nexdofs+j] = j + n - bdofs[i];
-	}
-	/*
-	for (int j = pr_dof_offset[i]; j < pr_dof_offset[i+1]; j++)
-	{
-	   dof_elem_array[nexdofs+j] = i;
-	   dof_ldof_array[nexdofs+j] = j + n - pr_dof_offset[i];
-	}
-	*/
+         for (int j = bdofs[i]; j < bdofs[i+1]; j++)
+         {
+            dof_elem_array[nexdofs+j] = i;
+            dof_ldof_array[nexdofs+j] = j + n - bdofs[i];
+         }
+         /*
+         for (int j = pr_dof_offset[i]; j < pr_dof_offset[i+1]; j++)
+         {
+            dof_elem_array[nexdofs+j] = i;
+            dof_ldof_array[nexdofs+j] = j + n - pr_dof_offset[i];
+         }
+         */
       }
    }
 }
@@ -568,7 +568,7 @@ void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
 }
 
 void FiniteElementSpace::GetEssentialExVDofs(const Array<int> &bdr_attr_is_ess,
-					     Array<int> &ess_dofs) const
+                                             Array<int> &ess_dofs) const
 {
    int i, j, k;
    Array<int> vdofs;
@@ -818,8 +818,8 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
       }
       else
       {
-	 // Private DoFs are not supported with nurbs meshes
-	 nprdofs = 0;
+         // Private DoFs are not supported with nurbs meshes
+         nprdofs = 0;
 
          int Order = nurbs_fec->GetOrder();
          if (mesh->NURBSext->GetOrder() == Order)
@@ -935,8 +935,9 @@ void FiniteElementSpace::Constructor()
 
    ndofs = nvdofs + nedofs + nfdofs + nbdofs;
 
-   if ( nprdofs != 0 ) {
-     nprdofs = nbdofs;
+   if ( nprdofs != 0 )
+   {
+      nprdofs = nbdofs;
    }
    nexdofs = ndofs - nprdofs;
 
@@ -994,9 +995,9 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
 
       if ( nprdofs != 0 )
       {
-	Array<int> int_dofs;
-	this->GetElementInteriorDofs(i,int_dofs);
-	dofs.Append(int_dofs);
+         Array<int> int_dofs;
+         this->GetElementInteriorDofs(i,int_dofs);
+         dofs.Append(int_dofs);
       }
    }
    else
@@ -1081,7 +1082,7 @@ void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
       k = nvdofs + nedofs + nfdofs + bdofs[i];
       for (j = 0; j < nb; j++)
       {
-	 dofs[ne+j] = k + j;
+         dofs[ne+j] = k + j;
       }
    }
 }
@@ -1094,8 +1095,8 @@ void FiniteElementSpace::GetElementExDofs (int i, Array<int> &dofs) const
 
       if ( nprdofs == 0 )
       {
-	int nb = fec -> DofForGeometry (mesh -> GetElementBaseGeometry (i));
-	dofs.SetSize(dofs.Size()-nb);
+         int nb = fec -> DofForGeometry (mesh -> GetElementBaseGeometry (i));
+         dofs.SetSize(dofs.Size()-nb);
       }
    }
    else
@@ -1180,46 +1181,46 @@ void FiniteElementSpace::GetElementExDofs (int i, Array<int> &dofs) const
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs,
-					 int & pr_offset, int & npr) const
+                                         int & pr_offset, int & npr) const
 {
-  this->GetElementExDofs(i,dofs);
-  if ( nprdofs == 0 )
-  {
-     pr_offset = 0;
-     npr = 0;
-  }
-  else 
-  {
-     pr_offset = bdofs[i];
-     npr = bdofs[i+1] - bdofs[i];
-  }
+   this->GetElementExDofs(i,dofs);
+   if ( nprdofs == 0 )
+   {
+      pr_offset = 0;
+      npr = 0;
+   }
+   else
+   {
+      pr_offset = bdofs[i];
+      npr = bdofs[i+1] - bdofs[i];
+   }
 }
 
 void FiniteElementSpace::GetElementPrDofs (int i, Array<int> &dofs) const
 {
-  if ( nprdofs == 0 )
-  {
-     dofs.SetSize(0);
-  }
-  else 
-  {
-    this->GetElementInteriorDofs(i,dofs);
-  }
+   if ( nprdofs == 0 )
+   {
+      dofs.SetSize(0);
+   }
+   else
+   {
+      this->GetElementInteriorDofs(i,dofs);
+   }
 }
 
 void FiniteElementSpace::GetElementPrDofs (int i,
-					   int & pr_offset, int & npr) const
+                                           int & pr_offset, int & npr) const
 {
-  if ( nprdofs == 0 )
-  {
-     pr_offset = 0;
-     npr = 0;
-  }
-  else 
-  {
-     pr_offset = bdofs[i];
-     npr = bdofs[i+1] - bdofs[i];
-  }
+   if ( nprdofs == 0 )
+   {
+      pr_offset = 0;
+      npr = 0;
+   }
+   else
+   {
+      pr_offset = bdofs[i];
+      npr = bdofs[i+1] - bdofs[i];
+   }
 }
 
 const FiniteElement *FiniteElementSpace::GetFE(int i) const

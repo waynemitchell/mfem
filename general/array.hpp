@@ -207,16 +207,16 @@ private:
 template <class T>
 inline bool operator==(const Array<T> &LHS, const Array<T> &RHS)
 {
-  if ( LHS.Size() != RHS.Size() ) { return false; }
-  for (int i=0; i<LHS.Size(); i++)
-    if ( LHS[i] != RHS[i] ) { return false; }
-  return true;
+   if ( LHS.Size() != RHS.Size() ) { return false; }
+   for (int i=0; i<LHS.Size(); i++)
+      if ( LHS[i] != RHS[i] ) { return false; }
+   return true;
 }
 
 template <class T>
 inline bool operator!=(const Array<T> &LHS, const Array<T> &RHS)
 {
-  return !( LHS == RHS );
+   return !( LHS == RHS );
 }
 
 template <class T>

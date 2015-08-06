@@ -165,7 +165,7 @@ public:
     */
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
                       int dim = 1, int order = Ordering::byNODES,
-		      bool pr_dofs = false);
+                      bool pr_dofs = false);
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }
@@ -203,7 +203,7 @@ public:
    inline int GetOrdering() const { return ordering; }
 
    /// Return true if private and exterior dofs are being handled separately
-   inline bool GetPrDofs() const { return(nprdofs != 0); }
+   inline bool GetPrDofs() const { return (nprdofs != 0); }
    inline int * GetPrivateOffsets() const { return bdofs; }
 
    const FiniteElementCollection *FEColl() const { return fec; }
@@ -255,7 +255,7 @@ public:
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs,
-	  		       int &pr_offset, int &npr) const;
+                               int &pr_offset, int &npr) const;
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementExDofs(int i, Array<int> &dofs) const;
@@ -306,7 +306,7 @@ public:
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    void GetElementVDofs(int i, Array<int> &dofs,
-			int &pr_offset, int &npr) const;
+                        int &pr_offset, int &npr) const;
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    void GetElementExVDofs(int i, Array<int> &dofs) const;
@@ -372,7 +372,7 @@ public:
 
    /// Determine the boundary degrees of freedom
    virtual void GetEssentialExVDofs(const Array<int> &bdr_attr_is_ess,
-				    Array<int> &ess_dofs) const;
+                                    Array<int> &ess_dofs) const;
 
    /** For a partially conforming FE space, convert a marker array (negative
        entries are true) on the partially conforming dofs to a marker array on

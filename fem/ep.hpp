@@ -30,7 +30,8 @@ dsptri_(char *, int *, double *, int *, double *,int *);
 
 #endif // MFEM_USE_MPI
 
-namespace mfem {
+namespace mfem
+{
 
 #ifdef MFEM_USE_MPI
 /*
@@ -51,55 +52,55 @@ public:
 class EPDoFs
 {
 private:
-  FiniteElementSpace * fes_;
-  // int nExposedDofs_;
-  // int nPrivateDofs_;
+   FiniteElementSpace * fes_;
+   // int nExposedDofs_;
+   // int nPrivateDofs_;
 
-  Table * expDoFsByElem_;
-  int   * priOffset_;
+   Table * expDoFsByElem_;
+   int   * priOffset_;
 
 protected:
 public:
-  EPDoFs(FiniteElementSpace & fes);
+   EPDoFs(FiniteElementSpace & fes);
 
-  ~EPDoFs();
+   ~EPDoFs();
 
-  inline FiniteElementSpace * FESpace() const { return fes_; }
+   inline FiniteElementSpace * FESpace() const { return fes_; }
 
-  inline int GetNDofs()        { return fes_->GetNDofs(); }
-  inline int GetNElements()    { return fes_->GetNE(); }
-  inline int GetNExposedDofs() { return fes_->GetNExDofs(); }
-  inline int GetNPrivateDofs() { return fes_->GetNPrDofs(); }
-  // inline int GetNExposedDofs() { return nExposedDofs_; }
-  // inline int GetNPrivateDofs() { return nPrivateDofs_; }
+   inline int GetNDofs()        { return fes_->GetNDofs(); }
+   inline int GetNElements()    { return fes_->GetNE(); }
+   inline int GetNExposedDofs() { return fes_->GetNExDofs(); }
+   inline int GetNPrivateDofs() { return fes_->GetNPrDofs(); }
+   // inline int GetNExposedDofs() { return nExposedDofs_; }
+   // inline int GetNPrivateDofs() { return nPrivateDofs_; }
 
-  /*
-  void BuildElementToDofTable();
+   /*
+   void BuildElementToDofTable();
 
-  void GetElementDofs(const int elem,
-		      Array<int> & ExpDoFs);
+   void GetElementDofs(const int elem,
+          Array<int> & ExpDoFs);
 
-  void GetElementDofs(const int elem,
-		      Array<int> & ExpDoFs,
-		      int & PriOffset, int & numPri);
+   void GetElementDofs(const int elem,
+          Array<int> & ExpDoFs,
+          int & PriOffset, int & numPri);
 
-  inline const int * GetPrivateOffsets() const { return priOffset_; }
-  */
-  void GetElementDofs(const int elem,
-		      Array<int> & ExpDoFs)
-  {
-    fes_->GetElementDofs(elem,ExpDoFs);
-  }
+   inline const int * GetPrivateOffsets() const { return priOffset_; }
+   */
+   void GetElementDofs(const int elem,
+                       Array<int> & ExpDoFs)
+   {
+      fes_->GetElementDofs(elem,ExpDoFs);
+   }
 
-  void GetElementDofs(const int elem,
-		      Array<int> & ExpDoFs,
-		      int & PriOffset, int & numPri)
-  {
-    fes_->GetElementDofs(elem,ExpDoFs,PriOffset,numPri);
-  }
+   void GetElementDofs(const int elem,
+                       Array<int> & ExpDoFs,
+                       int & PriOffset, int & numPri)
+   {
+      fes_->GetElementDofs(elem,ExpDoFs,PriOffset,numPri);
+   }
 
-  inline const int * GetPrivateOffsets() const
-  { return fes_->GetPrivateOffsets(); }
+   inline const int * GetPrivateOffsets() const
+   { return fes_->GetPrivateOffsets(); }
 
 };
 
@@ -108,34 +109,34 @@ public:
 class ParEPDoFs /*: public EPDoFs*/
 {
 private:
-  ParFiniteElementSpace * pfes_;
-  HypreParMatrix        * Pe_;
+   ParFiniteElementSpace * pfes_;
+   HypreParMatrix        * Pe_;
 
-  // int   nParExposedDofs_;
-  // int * ExposedPart_;
-  // int * TExposedPart_;
+   // int   nParExposedDofs_;
+   // int * ExposedPart_;
+   // int * TExposedPart_;
 
 protected:
 public:
-  ParEPDoFs(ParFiniteElementSpace & pfes);
+   ParEPDoFs(ParFiniteElementSpace & pfes);
 
-  ~ParEPDoFs();
+   ~ParEPDoFs();
 
-  inline ParFiniteElementSpace * PFESpace() const { return pfes_; }
+   inline ParFiniteElementSpace * PFESpace() const { return pfes_; }
 
-  inline HypreParMatrix * EDof_TrueEDof_Matrix() { return Pe_; }
-  inline HypreParMatrix * ExDof_TrueExDof_Matrix() { return pfes_->ExDof_TrueExDof_Matrix(); }
+   inline HypreParMatrix * EDof_TrueEDof_Matrix() { return Pe_; }
+   inline HypreParMatrix * ExDof_TrueExDof_Matrix() { return pfes_->ExDof_TrueExDof_Matrix(); }
 
-  inline MPI_Comm GetComm()            { return pfes_->GetComm(); }
-  inline int      GetNRanks()          { return pfes_->GetNRanks(); }
-  // inline int      GetNParExposedDofs() { return nParExposedDofs_; }
-  inline int      TrueExVSize()        { return pfes_->TrueExVSize(); }
-  inline int      GetNExDofs()         { return pfes_->GetNExDofs(); }
-  inline int      GetNPrDofs()         { return pfes_->GetNPrDofs(); }
-  // inline int *    GetPartitioning()    { return ExposedPart_; }
-  // inline int *    GetTPartitioning()   { return TExposedPart_; }
-  // int GlobalNExposedDofs();
-  // int GlobalNTrueExposedDofs();
+   inline MPI_Comm GetComm()            { return pfes_->GetComm(); }
+   inline int      GetNRanks()          { return pfes_->GetNRanks(); }
+   // inline int      GetNParExposedDofs() { return nParExposedDofs_; }
+   inline int      TrueExVSize()        { return pfes_->TrueExVSize(); }
+   inline int      GetNExDofs()         { return pfes_->GetNExDofs(); }
+   inline int      GetNPrDofs()         { return pfes_->GetNPrDofs(); }
+   // inline int *    GetPartitioning()    { return ExposedPart_; }
+   // inline int *    GetTPartitioning()   { return TExposedPart_; }
+   // int GlobalNExposedDofs();
+   // int GlobalNTrueExposedDofs();
 };
 
 #endif // MFEM_USE_MPI
@@ -235,72 +236,72 @@ public:
 class EPBilinearForm : public Operator
 {
 private:
-  // EPDoFs * epdofsL_;
-  // EPDoFs * epdofsR_;
-  FiniteElementSpace * epdofsL_;
-  FiniteElementSpace * epdofsR_;
+   // EPDoFs * epdofsL_;
+   // EPDoFs * epdofsR_;
+   FiniteElementSpace * epdofsL_;
+   FiniteElementSpace * epdofsR_;
 
-  BilinearFormIntegrator * bfi_;
+   BilinearFormIntegrator * bfi_;
 
-  SparseMatrix  *  Mee_;
-  SparseMatrix  *  Mep_;
-  SparseMatrix  *  Mpe_;
-  SparseMatrix  *  Mrr_;
-  DenseMatrix   ** Mpp_;
-  DenseMatrixInverse ** MppInv_;
+   SparseMatrix  *  Mee_;
+   SparseMatrix  *  Mep_;
+   SparseMatrix  *  Mpe_;
+   SparseMatrix  *  Mrr_;
+   DenseMatrix   ** Mpp_;
+   DenseMatrixInverse ** MppInv_;
 
-  Vector        *  reducedRHS_;
-  Vector        *  vecp_;
+   Vector        *  reducedRHS_;
+   Vector        *  vecp_;
 
 protected:
 
-  void buildReducedRHS(const Vector & bExp, const Vector & bPri) const;
+   void buildReducedRHS(const Vector & bExp, const Vector & bPri) const;
 
 public:
-  EPBilinearForm(/*EPDoFs & epdofsL, EPDoFs & epdofsR,*/
-		 FiniteElementSpace & epdofsL, FiniteElementSpace & epdofsR,
-		 BilinearFormIntegrator & bfi);
+   EPBilinearForm(/*EPDoFs & epdofsL, EPDoFs & epdofsR,*/
+      FiniteElementSpace & epdofsL, FiniteElementSpace & epdofsR,
+      BilinearFormIntegrator & bfi);
 
-  ~EPBilinearForm();
+   ~EPBilinearForm();
 
-  void Assemble();
+   void Assemble();
 
-  void Finalize();
+   void Finalize();
 
-  inline SparseMatrix * GetMee() const { return Mee_; }
-  inline SparseMatrix * GetMep() const { return Mep_; }
-  inline SparseMatrix * GetMpe() const { return Mpe_; }
-  inline SparseMatrix * GetMrr() const { return Mrr_; }
-  inline DenseMatrix ** GetMpp() const { return Mpp_; }
-  inline DenseMatrixInverse ** GetMppInv() const { return MppInv_; }
+   inline SparseMatrix * GetMee() const { return Mee_; }
+   inline SparseMatrix * GetMep() const { return Mep_; }
+   inline SparseMatrix * GetMpe() const { return Mpe_; }
+   inline SparseMatrix * GetMrr() const { return Mrr_; }
+   inline DenseMatrix ** GetMpp() const { return Mpp_; }
+   inline DenseMatrixInverse ** GetMppInv() const { return MppInv_; }
 
-  // void Mult(const EPField & x, EPField & y) const;
-  void Mult(const Vector & x, Vector & y) const;
-  void Mult(const Vector & xE, const Vector & xP,
-	    Vector & yE, Vector & yP) const;
+   // void Mult(const EPField & x, EPField & y) const;
+   void Mult(const Vector & x, Vector & y) const;
+   void Mult(const Vector & xE, const Vector & xP,
+             Vector & yE, Vector & yP) const;
 
-  const Vector * ReducedRHS(const Vector & bExp, const Vector & bPri) const;
-  const Vector * ReducedRHS(const Vector & b) const;
-  // const Vector * ReducedRHS(const EPField & b) const;
-  const Vector * ReducedRHS() const;
+   const Vector * ReducedRHS(const Vector & bExp, const Vector & bPri) const;
+   const Vector * ReducedRHS(const Vector & b) const;
+   // const Vector * ReducedRHS(const EPField & b) const;
+   const Vector * ReducedRHS() const;
 
-  void SolvePrivateDoFs(const Vector & b, Vector & x) const;
-  // void SolvePrivateDoFs(const Vector & bP, EPField & x) const;
-  void SolvePrivateDoFs(const Vector & bP, const Vector & xE,
-			Vector & xP) const;
+   void SolvePrivateDoFs(const Vector & b, Vector & x) const;
+   // void SolvePrivateDoFs(const Vector & bP, EPField & x) const;
+   void SolvePrivateDoFs(const Vector & bP, const Vector & xE,
+                         Vector & xP) const;
 
-  void EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
-			    Vector & x, Vector & b, int d = 0);
+   void EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
+                             Vector & x, Vector & b, int d = 0);
 
-  // void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
-  //			    EPField & sol, EPField & rhs, int d = 0);
+   // void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
+   //            EPField & sol, EPField & rhs, int d = 0);
 
-  void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
-				    Vector & x, Vector & b, int d = 0);
+   void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
+                                     Vector & x, Vector & b, int d = 0);
 
-  void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
-				    Vector & xE, Vector & bE, Vector & bP,
-				    int d = 0);
+   void EliminateEssentialBCFromDofs(Array<int> &bdr_attr_is_ess,
+                                     Vector & xE, Vector & bE, Vector & bP,
+                                     int d = 0);
 };
 
 #ifdef MFEM_USE_MPI
@@ -309,86 +310,87 @@ class ParEPBilinearForm : public EPBilinearForm
 {
 protected:
 
-  class ParReducedOp : public Operator {
-  private:
-    // ParEPDoFs      * pepdofs_;
-    ParFiniteElementSpace * pepdofs_;
-    HypreParMatrix * HypreMrr_;
-    HypreParMatrix * ParMrr_;
-    HypreParMatrix * Pe_;
+   class ParReducedOp : public Operator
+   {
+   private:
+      // ParEPDoFs      * pepdofs_;
+      ParFiniteElementSpace * pepdofs_;
+      HypreParMatrix * HypreMrr_;
+      HypreParMatrix * ParMrr_;
+      HypreParMatrix * Pe_;
 
-  public:
-    ParReducedOp(/*ParEPDoFs*/ParFiniteElementSpace * pepdofs, SparseMatrix * Mrr)
-      : pepdofs_(pepdofs),
-	HypreMrr_(NULL),
-	ParMrr_(NULL),
-	Pe_(NULL)
-    {
-      Operator::width = pepdofs_->TrueExVSize();
+   public:
+      ParReducedOp(/*ParEPDoFs*/ParFiniteElementSpace * pepdofs, SparseMatrix * Mrr)
+         : pepdofs_(pepdofs),
+           HypreMrr_(NULL),
+           ParMrr_(NULL),
+           Pe_(NULL)
+      {
+         Operator::width = pepdofs_->TrueExVSize();
 
-      Pe_  = pepdofs_->ExDof_TrueExDof_Matrix();
+         Pe_  = pepdofs_->ExDof_TrueExDof_Matrix();
 
-      HypreMrr_ = new HypreParMatrix(Pe_->GetComm(),
-				     Pe_->M(),
-				     Pe_->RowPart(),Mrr);
-    }
+         HypreMrr_ = new HypreParMatrix(Pe_->GetComm(),
+                                        Pe_->M(),
+                                        Pe_->RowPart(),Mrr);
+      }
 
-    ~ParReducedOp()
-    {
-      if ( HypreMrr_ != NULL ) delete HypreMrr_;
-      if ( ParMrr_   != NULL ) delete ParMrr_;
-    }
+      ~ParReducedOp()
+      {
+         if ( HypreMrr_ != NULL ) { delete HypreMrr_; }
+         if ( ParMrr_   != NULL ) { delete ParMrr_; }
+      }
 
-    void Finalize()
-    {
-      ParMrr_ = RAP(HypreMrr_,Pe_);
-    }
+      void Finalize()
+      {
+         ParMrr_ = RAP(HypreMrr_,Pe_);
+      }
 
-    // The following returns the reduced matrices from each process
-    // before combining shared DoFs
-    HypreParMatrix * ReducedDoFMat() { return HypreMrr_; }
+      // The following returns the reduced matrices from each process
+      // before combining shared DoFs
+      HypreParMatrix * ReducedDoFMat() { return HypreMrr_; }
 
-    // The following returns the final reduced matrix
-    HypreParMatrix * ReducedMat() { return ParMrr_; }
+      // The following returns the final reduced matrix
+      HypreParMatrix * ReducedMat() { return ParMrr_; }
 
-    inline void Mult(const Vector & x, Vector & y) const
-    {
-      ParMrr_->Mult(x,y);
-    }
-  };
+      inline void Mult(const Vector & x, Vector & y) const
+      {
+         ParMrr_->Mult(x,y);
+      }
+   };
 
 private:
-  /*
-  ParEPDoFs      * pepdofsL_;
-  ParEPDoFs      * pepdofsR_;
-  */
-  ParFiniteElementSpace * pepdofsL_;
-  ParFiniteElementSpace * pepdofsR_;
-  ParReducedOp   * preducedOp_;
-  HypreParVector * preducedRHS_;
-  Vector         * vec_;
-  Vector         * vecp_;
+   /*
+   ParEPDoFs      * pepdofsL_;
+   ParEPDoFs      * pepdofsR_;
+   */
+   ParFiniteElementSpace * pepdofsL_;
+   ParFiniteElementSpace * pepdofsR_;
+   ParReducedOp   * preducedOp_;
+   HypreParVector * preducedRHS_;
+   Vector         * vec_;
+   Vector         * vecp_;
 
 public:
-  ParEPBilinearForm(/*ParEPDoFs*/ParFiniteElementSpace & pepdofsL,
-		    /*ParEPDoFs*/ParFiniteElementSpace & pepdofsR,
-		    BilinearFormIntegrator & bfi);
+   ParEPBilinearForm(/*ParEPDoFs*/ParFiniteElementSpace & pepdofsL,
+                                  /*ParEPDoFs*/ParFiniteElementSpace & pepdofsR,
+                                  BilinearFormIntegrator & bfi);
 
-  ~ParEPBilinearForm();
+   ~ParEPBilinearForm();
 
-  void Assemble();
+   void Assemble();
 
-  void Finalize();
+   void Finalize();
 
-  // void Mult(const ParEPField & x, ParEPField & y) const;
+   // void Mult(const ParEPField & x, ParEPField & y) const;
 
-  const Operator * ReducedOperator() const;
+   const Operator * ReducedOperator() const;
 
-  HypreParMatrix * ReducedMat() { return preducedOp_->ReducedMat(); }
+   HypreParMatrix * ReducedMat() { return preducedOp_->ReducedMat(); }
 
-  const HypreParVector * ReducedRHS(const Vector & b) const;
-  // const HypreParVector * ReducedRHS(const ParEPField & x) const;
-  const HypreParVector * ReducedRHS() const;
+   const HypreParVector * ReducedRHS(const Vector & b) const;
+   // const HypreParVector * ReducedRHS(const ParEPField & x) const;
+   const HypreParVector * ReducedRHS() const;
 
 };
 
