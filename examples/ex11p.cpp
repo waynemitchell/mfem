@@ -26,8 +26,13 @@
 using namespace std;
 using namespace mfem;
 
+ConstantCoefficient muinv(1.0);
+
 // Current for the solenoid
 void J4pi_exact(const Vector &, Vector &);
+
+void Solve(int myid, int order, ParMesh* pmesh, DataCollection &result);
+
 
 int main(int argc, char *argv[])
 {
@@ -63,20 +68,81 @@ int main(int argc, char *argv[])
    }
 
    // 3. Generate a reasonable mesh for this problem
-   Mesh *mesh = new Mesh(6, 50, 50, Element::HEXAHEDRON, 1, 1.0, 1.0, 1.0);
-   int dim = mesh->Dimension();
+   Mesh *mesh = new Mesh(4, 4, 4, Element::HEXAHEDRON, 1, 1.0, 1.0, 1.0);
+   mesh->GeneralRefinement(Array<int>(), 1); // ensure NC mesh
+
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
-   pmesh->UniformRefinement();
-   pmesh->UniformRefinement();
    delete mesh;
+
+   socketstream sol_sock;
+   if (visualization)
+   {
+      char vishost[] = "localhost";
+      int  visport   = 19916;
+      sol_sock.open(vishost, visport);
+   }
+
+   DataCollection result("", pmesh);
+
+   for (int it = 0; it < 50; it++)
+   {
+      Solve(myid, order, pmesh, result);
+
+      GridFunction* A = result.GetField("AField");
+      GridFunction* B = result.GetField("BField");
+
+      // 16. Send the solution by socket to a GLVis server.
+      if (visualization)
+      {
+         sol_sock << "parallel " << num_procs << " " << myid << "\n";
+         sol_sock.precision(8);
+         sol_sock << "solution\n" << *pmesh << *B << flush;
+      }
+
+      Vector est_errors;
+      {
+         ND_FECollection flux_fec(order+1, pmesh->Dimension());
+         ParFiniteElementSpace flux_fes(pmesh, &flux_fec);
+         CurlCurlIntegrator flux_integrator(muinv);
+         ParGridFunction flux(&flux_fes);
+         ZZErrorEstimator(flux_integrator, *A, flux, est_errors);
+      }
+
+      double l_emax = est_errors.Max(), g_emax;
+      MPI_Allreduce(&l_emax, &g_emax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+      const double frac = 0.5;
+      double threshold = (frac*frac) * g_emax;
+
+      Array<int> ref_list;
+      for (int i = 0; i < est_errors.Size(); i++)
+      {
+         if (est_errors[i] >= threshold)
+         {
+            ref_list.Append(i);
+         }
+      }
+      cout << "Refining " << ref_list.Size() << " / " << pmesh->GetNE()
+           << " elements ..." << endl;
+      pmesh->GeneralRefinement(ref_list);
+   }
+
+
+   MPI_Finalize();
+   return 0;
+}
+
+
+void Solve(int myid, int order, ParMesh* pmesh, DataCollection &result)
+{
+   int dim = pmesh->Dimension();
 
    // 6. Define parallel finite element spaces on the parallel mesh.
    FiniteElementCollection *H1Fec    = new H1_FECollection(order, dim);
    FiniteElementCollection *HcurlFec = new ND_FECollection(order, dim);
    FiniteElementCollection *HdivFec  = new RT_FECollection(order, dim);
    ParFiniteElementSpace *H1Fespace = new ParFiniteElementSpace(pmesh, H1Fec);
-   ParFiniteElementSpace *HcurlFespace = new ParFiniteElementSpace(pmesh,
-                                                                   HcurlFec);
+   ParFiniteElementSpace *HcurlFespace = new ParFiniteElementSpace(pmesh, HcurlFec);
    ParFiniteElementSpace *HdivFespace = new ParFiniteElementSpace(pmesh, HdivFec);
    HYPRE_Int size = HcurlFespace->GlobalTrueVSize();
    if (myid == 0)
@@ -85,8 +151,9 @@ int main(int argc, char *argv[])
    }
 
    /// 7. Set up discrete gradient
-   ParDiscreteLinearOperator *grad = new ParDiscreteLinearOperator(H1Fespace,
-                                                                   HcurlFespace);
+   ParDiscreteLinearOperator *grad =
+         new ParDiscreteLinearOperator(H1Fespace, HcurlFespace);
+
    grad->AddDomainInterpolator(new GradientInterpolator);
    grad->Assemble();
    grad->Finalize();
@@ -94,20 +161,23 @@ int main(int argc, char *argv[])
 
    // 8. Define the solution vector x, bfield, and j as a parallel
    //    finite element grid functions corresponding to fespace.
-   ParGridFunction x(HcurlFespace);
-   ParGridFunction bfield(HdivFespace);
-   ParGridFunction j(HcurlFespace);
+   ParGridFunction* x      = new ParGridFunction(HcurlFespace);
+   ParGridFunction* bfield = new ParGridFunction(HdivFespace);
+   ParGridFunction* j      = new ParGridFunction(HcurlFespace);
+   ParGridFunction* jdirty = new ParGridFunction(HcurlFespace);
+
+   x->MakeOwner(HcurlFec);      // x and bfield will own the spaces too
+   bfield->MakeOwner(HdivFec);
 
    // 9. Define J the current of the solenoid.  In order to converge
    //    we must ensure that the version of J on our RHS is divergence
    //    free.
    VectorFunctionCoefficient f(3, J4pi_exact);
-   ParGridFunction jdirty(HcurlFespace);
    ParGridFunction psi(H1Fespace);
    ParGridFunction divj(H1Fespace);
-   jdirty.ProjectCoefficient(f);
+   jdirty->ProjectCoefficient(f);
 
-   HypreParVector *JDIRTY = jdirty.ParallelAssemble();
+   HypreParVector *JDIRTY = jdirty->ParallelAssemble();
    HypreParVector *JTEMP = new HypreParVector(HcurlFespace);
    HypreParVector *JCLEAN = new HypreParVector(HcurlFespace);
    HypreParVector *DIVJ = new HypreParVector(H1Fespace);
@@ -139,14 +209,16 @@ int main(int argc, char *argv[])
    ConstantCoefficient one(1.0);
    a_psi->AddDomainIntegrator(new DiffusionIntegrator(one));
    a_psi->Assemble();
+   //a_psi->EliminateEssentialBC(ess_bdr, psi, divj);
+   a_psi->Finalize();
+
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
 
-   a_psi->EliminateEssentialBC(ess_bdr, psi, divj);
-   a_psi->Finalize();
+   HypreParMatrix *A_psi = a_psi->ParallelAssemble();
+   a_psi->ParallelEliminateEssentialBC(ess_bdr, *A_psi, *PSI, *DIVJ);
 
    // Solve for Psi
-   HypreParMatrix *A_psi = a_psi->ParallelAssemble();
    HypreSolver *amg_psi = new HypreBoomerAMG(*A_psi);
    HyprePCG *pcg_psi = new HyprePCG(*A_psi);
    pcg_psi->SetTol(1e-18);
@@ -154,6 +226,7 @@ int main(int argc, char *argv[])
    pcg_psi->SetPrintLevel(2);
    pcg_psi->SetPreconditioner(*amg_psi);
    pcg_psi->Mult(*DIVJ, *PSI);
+   delete a_psi;
    delete A_psi;
    delete pcg_psi;
    delete amg_psi;
@@ -167,7 +240,7 @@ int main(int argc, char *argv[])
    *JCLEAN = *JDIRTY;
    G->Mult(*PSI,*JTEMP);
    M1->Mult(*JTEMP,*JCLEAN,-1.0,1.0);
-   j = *JCLEAN;
+   *j = *JCLEAN;
    delete grad;
    delete G;
    delete m1;
@@ -177,14 +250,13 @@ int main(int argc, char *argv[])
    //     operator curl muinv curl, by adding the curl-curl and the
    //     mass domain integrators and finally imposing non-homogeneous Dirichlet
    //     boundary conditions.  We are using scaled CGS units so muinv = 1. in this case.
-   Coefficient *muinv = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(HcurlFespace);
-   a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
+   a->AddDomainIntegrator(new CurlCurlIntegrator(muinv));
    a->Assemble();
    a->Finalize();
    HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *B = j.ParallelAssemble();
-   HypreParVector *X = x.ParallelAssemble();
+   HypreParVector *B = j->ParallelAssemble();
+   HypreParVector *X = x->ParallelAssemble();
    a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
 
@@ -198,8 +270,8 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*JCLEAN, *X);
    delete A;
+   delete B;
    delete a;
-   delete muinv;
    delete pcg;
    delete ams;
 
@@ -217,12 +289,12 @@ int main(int argc, char *argv[])
 
    // 13. Extract the parallel grid functions corresponding to the finite element
    //     approximations of X and BFIELD. This is the local solution on each processor.
-   x = *X;
-   bfield = *BFIELD;
+   *x = *X;
+   *bfield = *BFIELD;
 
    // 14. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
-   {
+   /*{
       ostringstream mesh_name, sol_name;
       mesh_name << "mesh." << setfill('0') << setw(6) << myid;
       sol_name << "sol." << setfill('0') << setw(6) << myid;
@@ -234,39 +306,29 @@ int main(int argc, char *argv[])
       ofstream sol_ofs(sol_name.str().c_str());
       sol_ofs.precision(8);
       bfield.Save(sol_ofs);
-   }
+   }*/
 
    // 15. Save data in the VisIt format
-   VisItDataCollection visit_dc("Example11p", pmesh);
+   /*VisItDataCollection visit_dc("Example11p", pmesh);
    visit_dc.RegisterField("Afield", &x);
-   visit_dc.RegisterField("BField", &bfield);
+   visit_dc.RegisterField("BField", &bfield);*/
 
    //Remove the factor of 4pi from j for plotting
-   j *= 1.0 / (4.0*M_PI);
-   jdirty *= 1.0 / (4.0*M_PI);
-   visit_dc.RegisterField("JField", &j);
+   *j *= 1.0 / (4.0*M_PI);
+   *jdirty *= 1.0 / (4.0*M_PI);
+   /*visit_dc.RegisterField("JField", &j);
    visit_dc.RegisterField("JDirtyField", &jdirty);
-   visit_dc.Save();
+   visit_dc.Save();*/
 
-   // 16. Send the solution by socket to a GLVis server.
-   if (visualization)
-   {
-      char vishost[] = "localhost";
-      int  visport   = 19916;
-      socketstream sol_sock(vishost, visport);
-      sol_sock << "parallel " << num_procs << " " << myid << "\n";
-      sol_sock.precision(8);
-      sol_sock << "solution\n" << *pmesh << bfield << flush;
-   }
+   result.RegisterField("AField", x);
+   result.RegisterField("BField", bfield);
+   result.RegisterField("JField", j);
+   result.RegisterField("JDirtyField", jdirty);
+   result.SetOwnData(true);
 
    // 17. Free the used memory.
    delete H1Fespace;
-   delete HcurlFespace;
-   delete HdivFespace;
    delete H1Fec;
-   delete HcurlFec;
-   delete HdivFec;
-   delete pmesh;
    delete DIVJ;
    delete PSI;
    delete X;
@@ -275,10 +337,14 @@ int main(int argc, char *argv[])
    delete JCLEAN;
    delete BFIELD;
 
-   MPI_Finalize();
-
-   return 0;
+   // these must now outlive this function:
+   //delete HcurlFespace;
+   //delete HdivFespace;
+   //delete HcurlFec;
+   //delete HdivFec;
+   //delete pmesh;
 }
+
 
 //Current going around an idealized solenoid that has an inner radius of 0.2
 //an outer radius of 0.22 and a height (in x) of 0.2 centered on (0.5, 0.5, 0.5).
