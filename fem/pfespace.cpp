@@ -67,6 +67,7 @@ ParFiniteElementSpace::ParFiniteElementSpace(
       gcomm = NULL;
       ldof_sign.SetSize(GetVSize());
       ldof_sign = 1; // FIXME
+      GetConformingInterpolation(); // needed here to initialize DOF offsets etc.
       return;
    }
 
