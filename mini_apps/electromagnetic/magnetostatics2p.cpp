@@ -50,18 +50,13 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../../data/square-torus-n1.mesh";
    int order = 1;
-   int sr = 1, pr = 0;
+   int pr = 2;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
-   args.AddOption(&mesh_file, "-m", "--mesh",
-                  "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
-   args.AddOption(&sr, "-sr", "--serial-ref-levels",
-                  "Number of serial refinement levels.");
    args.AddOption(&pr, "-pr", "--parallel-ref-levels",
                   "Number of parallel refinement levels.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -82,62 +77,18 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
-   //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
-   //    and volume meshes with the same code.
-   Mesh *mesh;
-   ifstream imesh(mesh_file);
-   if (!imesh)
-   {
-      if (myid == 0)
-      {
-         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-      }
-      MPI_Finalize();
-      return 2;
-   }
-   mesh = new Mesh(imesh, 1, 1);
-   imesh.close();
+   // 3. Create the serial mesh on (0, 0, 0) -> (1, 1, 1) and partition it into
+   //    parallel parts.  Once the parallel mesh is created we can delete the serial mesh.
+   Mesh *mesh = new Mesh(6, 50, 50, Element::HEXAHEDRON, 1, 1.0, 1.0, 1.0);
    int dim = mesh->Dimension();
-   if (dim != 3)
-   {
-      if (myid == 0)
-      {
-         cerr << "\nThis example requires a 3D mesh\n" << endl;
-      }
-      MPI_Finalize();
-      return 3;
-   }
-
-   // 4. Refine the serial mesh on all processors to increase the resolution. In
-   //    this example we do 'ref_levels' of uniform refinement. We choose
-   //    'ref_levels' to be the largest number that gives a final mesh with no
-   //    more than 100 elements.
-   {
-      int ref_levels = sr;
-      for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
-   }
-
-   // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
-   //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted. Tetrahedral
-   //    meshes need to be reoriented before we can define high-order Nedelec
-   //    spaces on them.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
+
+   // 5. Refine this mesh in parallel to increase the resolution.
+   int par_ref_levels = pr;
+   for (int l = 0; l < par_ref_levels; l++)
    {
-      int par_ref_levels = pr;
-      for (int l = 0; l < par_ref_levels; l++)
-      {
-         pmesh->UniformRefinement();
-      }
-   }
-   if (order >= 2)
-   {
-      pmesh->ReorientTetMesh();
+      pmesh->UniformRefinement();
    }
 
    socketstream psi_sock, j_raw_sock, j_sock, sol_sock, curl_sock;
@@ -492,7 +443,7 @@ void J4pi_exact(const Vector &x, Vector &J)
       J(1) = -(x(2) - 0.5);
       J(2) = (x(1) - 0.5);
 
-      double scale = 4.*M_PI*sqrt(J(1)*J(1) + J(2)*J(2));
+      double scale = 4.*M_PI/sqrt(J(1)*J(1) + J(2)*J(2));
       J(1) *= scale;
       J(2) *= scale;
    }
