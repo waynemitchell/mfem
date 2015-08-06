@@ -100,12 +100,13 @@ int main(int argc, char *argv[])
       }
 
       Vector est_errors;
+      Array<int> aniso_flags;
       {
          ND_FECollection flux_fec(order+1, pmesh->Dimension());
          ParFiniteElementSpace flux_fes(pmesh, &flux_fec);
          CurlCurlIntegrator flux_integrator(muinv);
          ParGridFunction flux(&flux_fes);
-         ZZErrorEstimator(flux_integrator, *A, flux, est_errors);
+         ZZErrorEstimator(flux_integrator, *A, flux, est_errors, &aniso_flags);
       }
 
       double l_emax = est_errors.Max(), g_emax;
@@ -114,12 +115,13 @@ int main(int argc, char *argv[])
       const double frac = 0.5;
       double threshold = (frac*frac) * g_emax;
 
-      Array<int> ref_list;
+      Array<Refinement> ref_list;
       for (int i = 0; i < est_errors.Size(); i++)
       {
          if (est_errors[i] >= threshold)
          {
-            ref_list.Append(i);
+            MFEM_VERIFY(aniso_flags[i] != 0, "");
+            ref_list.Append(Refinement(i, aniso_flags[i]));
          }
       }
       cout << "Refining " << ref_list.Size() << " / " << pmesh->GetNE()
