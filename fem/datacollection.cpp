@@ -113,6 +113,10 @@ void DataCollection::SetMesh(Mesh *new_mesh)
 
 void DataCollection::RegisterField(const char* name, GridFunction *gf)
 {
+   if (own_data && HasField(name))
+   {
+      delete field_map[name];
+   }
    field_map[name] = gf;
 }
 
@@ -124,6 +128,7 @@ GridFunction *DataCollection::GetField(const char *field_name)
    }
    else
    {
+      MFEM_ABORT("Field " << field_name << " not found.");
       return NULL;
    }
 }
