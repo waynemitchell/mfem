@@ -649,6 +649,8 @@ const
             row_starts = blocks(0,0)->GetRowStarts();
             col_starts = blocks(0,0)->GetColStarts();
          }
+
+         delete lblocks(bi, bj);
       }
 }
 

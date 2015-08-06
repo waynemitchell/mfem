@@ -718,18 +718,6 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
    width = GetNumCols();
 }
 
-HypreParMatrix::operator hypre_ParCSRMatrix*()
-{
-   return (this) ? A : NULL;
-}
-
-#ifndef HYPRE_PAR_CSR_MATRIX_STRUCT
-HypreParMatrix::operator HYPRE_ParCSRMatrix()
-{
-   return (this) ? (HYPRE_ParCSRMatrix) A : (HYPRE_ParCSRMatrix) NULL;
-}
-#endif
-
 hypre_ParCSRMatrix* HypreParMatrix::StealData()
 {
    // Only safe when (diagOwner == -1 && offdOwner == -1 && colMapOwner == -1)
@@ -2223,7 +2211,11 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
       }
       delete id_ND;
 
-      HYPRE_AMSSetInterpolations(ams, *Pi, *Pix, *Piy, *Piz);
+      HYPRE_ParCSRMatrix HY_Pi  = (Pi)  ? (HYPRE_ParCSRMatrix) *Pi  : NULL;
+      HYPRE_ParCSRMatrix HY_Pix = (Pix) ? (HYPRE_ParCSRMatrix) *Pix : NULL;
+      HYPRE_ParCSRMatrix HY_Piy = (Piy) ? (HYPRE_ParCSRMatrix) *Piy : NULL;
+      HYPRE_ParCSRMatrix HY_Piz = (Piz) ? (HYPRE_ParCSRMatrix) *Piz : NULL;
+      HYPRE_AMSSetInterpolations(ams, HY_Pi, HY_Pix, HY_Piy, HY_Piz);
 
       delete vert_fespace_d;
    }
