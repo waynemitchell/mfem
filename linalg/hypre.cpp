@@ -1219,18 +1219,22 @@ HypreParMatrix * RAP(HypreParMatrix *A, HypreParMatrix *P)
 {
    HYPRE_Int P_owns_its_col_starts =
       hypre_ParCSRMatrixOwnsColStarts((hypre_ParCSRMatrix*)(*P));
+
    hypre_ParCSRMatrix * rap;
    hypre_BoomerAMGBuildCoarseOperator(*P,*A,*P,&rap);
-
    hypre_ParCSRMatrixSetNumNonzeros(rap);
    // hypre_MatvecCommPkgCreate(rap);
-   if (!P_owns_its_col_starts)
+
+   /* Warning: hypre_BoomerAMGBuildCoarseOperator steals the col_starts
+      from P (even if it does not own them)! */
+   hypre_ParCSRMatrixSetRowStartsOwner(rap,0);
+   hypre_ParCSRMatrixSetColStartsOwner(rap,0);
+
+   if (P_owns_its_col_starts)
    {
-      /* Warning: hypre_BoomerAMGBuildCoarseOperator steals the col_starts
-         from P (even if it does not own them)! */
-      hypre_ParCSRMatrixSetRowStartsOwner(rap,0);
-      hypre_ParCSRMatrixSetColStartsOwner(rap,0);
+      hypre_ParCSRMatrixSetColStartsOwner(*P, 1);
    }
+
    return new HypreParMatrix(rap);
 }
 
