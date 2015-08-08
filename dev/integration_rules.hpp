@@ -120,9 +120,9 @@ public:
    {
       MFEM_STATIC_ASSERT(qpt_layout_t::rank > 1, "invalid rank");
       MFEM_STATIC_ASSERT(qpt_layout_t::dim_1 == Q*Q, "invalid size");
-      for (int j1 = 0; j1 < Q; j1++)
+      for (int j2 = 0; j2 < Q; j2++)
       {
-         for (int j2 = 0; j2 < Q; j2++)
+         for (int j1 = 0; j1 < Q; j1++)
          {
             TAssign<Op>(
                qpt_layout.ind1(TMatrix<Q,Q>::layout.ind(j1,j2)), qpt_data,
@@ -152,11 +152,11 @@ public:
    {
       MFEM_STATIC_ASSERT(qpt_layout_t::rank > 1, "invalid rank");
       MFEM_STATIC_ASSERT(qpt_layout_t::dim_1 == Q*Q*Q, "invalid size");
-      for (int j1 = 0; j1 < Q; j1++)
+      for (int j3 = 0; j3 < Q; j3++)
       {
          for (int j2 = 0; j2 < Q; j2++)
          {
-            for (int j3 = 0; j3 < Q; j3++)
+            for (int j1 = 0; j1 < Q; j1++)
             {
                TAssign<Op>(
                   qpt_layout.ind1(TTensor3<Q,Q,Q>::layout.ind(j1,j2,j3)),
