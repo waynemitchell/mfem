@@ -25,7 +25,9 @@ struct AssignOp
    {
       Set,   // a  = b
       Add,   // a += b
-      Mult   // a *= b
+      Mult,  // a *= b
+      Div,   // a /= b
+      rDiv   // a  = b/a
    };
 };
 
@@ -62,6 +64,26 @@ struct AssignOp_Impl<AssignOp::Mult>
    static inline lvalue_t &Assign(lvalue_t &a, const rvalue_t &b)
    {
       return (a *= b);
+   }
+};
+
+template <>
+struct AssignOp_Impl<AssignOp::Div>
+{
+   template <typename lvalue_t, typename rvalue_t>
+   static inline lvalue_t &Assign(lvalue_t &a, const rvalue_t &b)
+   {
+      return (a /= b);
+   }
+};
+
+template <>
+struct AssignOp_Impl<AssignOp::rDiv>
+{
+   template <typename lvalue_t, typename rvalue_t>
+   static inline lvalue_t &Assign(lvalue_t &a, const rvalue_t &b)
+   {
+      return (a = b/a);
    }
 };
 
