@@ -189,7 +189,8 @@ public:
       TMatrix<qpts,num_elem> xy_qpt;
 
       const int NE = mesh_fes.GetNE();
-      for (int el = 0; el < NE; el += num_elem)
+      const int bNE = NE-NE%num_elem;
+      for (int el = 0; el < bNE; el += num_elem)
       {
          spaceFES.SetElement(el);
 
@@ -208,7 +209,7 @@ public:
                                          xy_dof.layout, xy_dof);
          spaceFES.Assemble(xy_dof.layout, xy_dof, y);
       }
-      for (int el = NE-NE%num_elem; el < NE; el++)
+      for (int el = bNE; el < NE; el++)
       {
          spaceFES.SetElement(el);
 
