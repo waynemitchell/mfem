@@ -212,6 +212,7 @@ int main(int argc, char *argv[])
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
       case 13: ode_solver = new RK3SSPSolver; break;
       case 14: ode_solver = new RK4Solver; break;
+      case 15: break;
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
       case 23: ode_solver = new SDIRK23Solver; break;
@@ -297,8 +298,15 @@ int main(int argc, char *argv[])
 
    // 8. Perform time-integration (looping over the time iterations, ti, with a
    //    time-step dt).
-   ode_solver->Init(oper);
    double t = 0.0;
+   if (ode_solver_type==15)
+   {
+      ode_solver= new CVODESolver(oper,vx,t);
+   }
+   else
+   {
+      ode_solver->Init(oper);
+   }
 
    bool last_step = false;
    for (int ti = 1; !last_step; ti++)

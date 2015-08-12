@@ -4,7 +4,9 @@ echo "error">test_err.txt
 echo "compare mesh">test_mesh_out.txt
 echo "compare init">test_init_out.txt
 echo "compare sol">test_sol_out.txt
-declare -a arr=("-m ../data/periodic-segment.mesh -p 0 -dt 0.005" "-m ../data/periodic-square.mesh -p 0 -dt 0.01" "-m ../data/periodic-hexagon.mesh -p 0 -dt 0.01" "-m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9" "-m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9" "-m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9" "-m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20" "-m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8")
+#declare -a arr=("-m ../data/periodic-segment.mesh -p 0 -dt 0.005" "-m ../data/periodic-square.mesh -p 0 -dt 0.01" "-m ../data/periodic-hexagon.mesh -p 0 -dt 0.01" "-m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9" "-m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9" "-m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9" "-m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20" "-m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.1 -tf 8")
+
+declare -a arr=("-m ../data/periodic-segment.mesh -p 0 -dt 0.005" "-m ../data/periodic-square.mesh -p 0 -dt 0.01" "-m ../data/periodic-hexagon.mesh -p 0 -dt 0.01" "-m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9" "-m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9" "-m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9" "-m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.1 -tf 8")
 
 
 make clean

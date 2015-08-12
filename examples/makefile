@@ -21,7 +21,7 @@ ifneq (clean,$(MAKECMDGOALS))
 endif
 
 ifeq ($(MFEM_USE_MPI),NO)
-   EXAMPLES = ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10
+   EXAMPLES = ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex9_test_profile ex10
 else
    EXAMPLES = ex1p ex2p ex3p ex4p ex5p ex7p ex8p ex9p ex10p
 endif

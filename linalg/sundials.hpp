@@ -15,6 +15,9 @@
 #include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
 #include <arkode/arkode.h>           /* prototypes for ARKODE fcts., consts. */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
+#ifdef MFEM_USE_MPI
+#include <nvector/nvector_parhyp.h>  /* parallel hypre N_Vector types, fcts., macros */
+#endif
 #include <sundials/sundials_band.h>  /* definitions of type DlsMat and macros */
 #include <sundials/sundials_types.h> /* definition of type realtype */
 #include <sundials/sundials_math.h>  /* definition of ABS and EXP */

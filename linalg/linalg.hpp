@@ -29,7 +29,6 @@
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
 #include "hypre.hpp"
-#include "nvector_parcsr.hpp"
 #endif
 
 #include "solvers.hpp"

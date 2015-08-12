@@ -3,7 +3,6 @@
 #include "../linalg/operator.hpp"
 #include "../linalg/ode.hpp"
 #include "sundials.hpp"
-#include "nvector_parcsr.hpp"
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
@@ -18,12 +17,15 @@
 #include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
 #include <arkode/arkode.h>             /* prototypes for ARKODE fcts., consts. */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
+#ifdef MFEM_USE_MPI
+#include <nvector/nvector_parhyp.h>  /* parallel hypre N_Vector types, fcts., macros */
+#endif
 #include <sundials/sundials_band.h>  /* definitions of type DlsMat and macros */
 #include <sundials/sundials_types.h> /* definition of type realtype */
 #include <sundials/sundials_math.h>  /* definition of ABS and EXP */
 
 #define RELTOL RCONST(1.0e-6)
-#define ABSTOL RCONST(1.0e-3)
+#define ABSTOL RCONST(1.0e-9)
 
 using namespace std;
 
@@ -186,7 +188,6 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
    //Step
    flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
    if (check_flag(&flag, "CVode", 1)) { MFEM_ABORT("CVode"); }
-   return;
    flag = CVodeGetLastStep(ode_mem, &dt);
    if (check_flag(&flag, "CVodeGetLastStep", 1)) { return; }
 }
@@ -300,7 +301,7 @@ void CVODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
    realtype *ydata, *ydotdata;
    long int ylen, ydotlen;
    HYPRE_Int *col, *col2;
-   hypre_ParVector *yparvec, *ydotparvec;  
+   hypre_ParVector *yparvec, *ydotparvec;
    MPI_Comm_size(comm,&nprocs);
    MPI_Comm_rank(comm,&myid);
    NV_HYPRE_PARCSR_PC(_y)=((HypreParVector*) _x)->StealParVector();
@@ -492,10 +493,8 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
    //Step
    flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
    if (check_flag(&flag, "ARKode", 1)) { MFEM_ABORT("ARKode"); }
-   return;
    flag = ARKodeGetLastStep(ode_mem, &dt);
    if (check_flag(&flag, "ARKodeGetLastStep", 1)) { return; }
-   cout<<"end of step"<<endl;
 }
 
 ARKODESolver::~ARKODESolver()
@@ -606,7 +605,7 @@ void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
    realtype *ydata, *ydotdata;
    long int ylen, ydotlen;
    HYPRE_Int *col, *col2;
-   hypre_ParVector *yparvec, *ydotparvec;  
+   hypre_ParVector *yparvec, *ydotparvec;
    MPI_Comm_size(comm,&nprocs);
    MPI_Comm_rank(comm,&myid);
    NV_HYPRE_PARCSR_PC(_y)=((HypreParVector*) _x)->StealParVector();
@@ -682,12 +681,14 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    hypre_ParVector *yparvec, *ydotparvec;
    MPI_Comm comm=NV_COMM_PC(y);
    MPI_Comm_rank(comm,&myid);
-   
+
    //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
    mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
-//   MPI_Barrier(comm);
-   mfem::HypreParVector mfem_vector_y=(mfem::HypreParVector) (NV_HYPRE_PARCSR_PC(y));
-   mfem::HypreParVector mfem_vector_ydot=(mfem::HypreParVector) (NV_HYPRE_PARCSR_PC(ydot));
+   //   MPI_Barrier(comm);
+   mfem::HypreParVector mfem_vector_y=(mfem::HypreParVector) (NV_HYPRE_PARCSR_PC(
+                                                                 y));
+   mfem::HypreParVector mfem_vector_ydot=(mfem::HypreParVector) (
+                                            NV_HYPRE_PARCSR_PC(ydot));
 
    f->SetTime(t);
    f->Mult(mfem_vector_y,mfem_vector_ydot);
