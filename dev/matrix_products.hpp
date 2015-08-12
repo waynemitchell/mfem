@@ -96,14 +96,14 @@ void bMult_AB(const A_layout_t &A_layout, const A_data_t &A_data,
          // s_b == 0
          for (int a1_b = 0; a1_b < A1/bA1; a1_b++)
          {
-            sMult_AB<false>(
+            sMult_AB<Add>(
                A_layout.template sub<bA1,bA2>(a1_b*bA1,0), A_data,
                B_layout.template sub<bA2,bB2>(0,b2_b*bB2), B_data,
                C_layout.template sub<bA1,bB2>(a1_b*bA1,b2_b*bB2), C_data);
          }
          if (rA1)
          {
-            sMult_AB<false>(
+            sMult_AB<Add>(
                A_layout.template sub<rA1,bA2>(A1-rA1,0), A_data,
                B_layout.template sub<bA2,bB2>(0,b2_b*bB2), B_data,
                C_layout.template sub<rA1,bB2>(A1-rA1,b2_b*bB2), C_data);
@@ -128,7 +128,7 @@ void bMult_AB(const A_layout_t &A_layout, const A_data_t &A_data,
       }
       if (rA2)
       {
-         const bool rAdd = (A2/bA2 > 0);
+         const bool rAdd = Add || (A2/bA2 > 0);
          for (int a1_b = 0; a1_b < A1/bA1; a1_b++)
          {
             sMult_AB<rAdd>(
@@ -152,14 +152,14 @@ void bMult_AB(const A_layout_t &A_layout, const A_data_t &A_data,
          // s_b == 0
          for (int a1_b = 0; a1_b < A1/bA1; a1_b++)
          {
-            sMult_AB<false>(
+            sMult_AB<Add>(
                A_layout.template sub<bA1,bA2>(a1_b*bA1,0), A_data,
                B_layout.template sub<bA2,rB2>(0,B2-rB2), B_data,
                C_layout.template sub<bA1,rB2>(a1_b*bA1,B2-rB2), C_data);
          }
          if (rA1)
          {
-            sMult_AB<false>(
+            sMult_AB<Add>(
                A_layout.template sub<rA1,bA2>(A1-rA1,0), A_data,
                B_layout.template sub<bA2,rB2>(0,B2-rB2), B_data,
                C_layout.template sub<rA1,rB2>(A1-rA1,B2-rB2), C_data);
@@ -187,7 +187,7 @@ void bMult_AB(const A_layout_t &A_layout, const A_data_t &A_data,
       }
       if (rA2)
       {
-         const bool rAdd = (A2/bA2 > 0);
+         const bool rAdd = Add || (A2/bA2 > 0);
          for (int a1_b = 0; a1_b < A1/bA1; a1_b++)
          {
             sMult_AB<rAdd>(
