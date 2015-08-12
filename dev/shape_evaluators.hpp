@@ -62,6 +62,15 @@ public:
    void Calc(const dof_layout_t &dof_layout, const dof_data_t &dof_data,
              const qpt_layout_t &qpt_layout, qpt_data_t &qpt_data) const
    {
+      MFEM_STATIC_ASSERT(dof_layout_t::rank  == 2 &&
+                         dof_layout_t::dim_1 == DOF,
+                         "invalid dof_layout_t.");
+      MFEM_STATIC_ASSERT(qpt_layout_t::rank  == 2 &&
+                         qpt_layout_t::dim_1 == NIP,
+                         "invalid qpt_layout_t.");
+      MFEM_STATIC_ASSERT(dof_layout_t::dim_2 == qpt_layout_t::dim_2,
+                         "incompatible dof- and qpt- layouts.");
+
       Mult_AB<false>(B.layout, B,
                      dof_layout, dof_data,
                      qpt_layout, qpt_data);
@@ -75,6 +84,15 @@ public:
    void CalcT(const qpt_layout_t &qpt_layout, const qpt_data_t &qpt_data,
               const dof_layout_t &dof_layout, dof_data_t &dof_data) const
    {
+      MFEM_STATIC_ASSERT(dof_layout_t::rank  == 2 &&
+                         dof_layout_t::dim_1 == DOF,
+                         "invalid dof_layout_t.");
+      MFEM_STATIC_ASSERT(qpt_layout_t::rank  == 2 &&
+                         qpt_layout_t::dim_1 == NIP,
+                         "invalid qpt_layout_t.");
+      MFEM_STATIC_ASSERT(dof_layout_t::dim_2 == qpt_layout_t::dim_2,
+                         "incompatible dof- and qpt- layouts.");
+
       Mult_AB<Add>(Bt.layout, Bt,
                    qpt_layout, qpt_data,
                    dof_layout, dof_data);
@@ -89,6 +107,16 @@ public:
                  const grad_layout_t &grad_layout,
                  grad_data_t         &grad_data) const
    {
+      MFEM_STATIC_ASSERT(dof_layout_t::rank  == 2 &&
+                         dof_layout_t::dim_1 == DOF,
+                         "invalid dof_layout_t.");
+      MFEM_STATIC_ASSERT(grad_layout_t::rank  == 3 &&
+                         grad_layout_t::dim_1 == NIP &&
+                         grad_layout_t::dim_2 == DIM,
+                         "invalid grad_layout_t.");
+      MFEM_STATIC_ASSERT(dof_layout_t::dim_2 == grad_layout_t::dim_3,
+                         "incompatible dof- and grad- layouts.");
+
       Mult_AB<false>(G.layout.merge_12(), G,
                      dof_layout, dof_data,
                      grad_layout.merge_12(), grad_data);
@@ -104,6 +132,16 @@ public:
                   const dof_layout_t  &dof_layout,
                   dof_data_t          &dof_data) const
    {
+      MFEM_STATIC_ASSERT(dof_layout_t::rank  == 2 &&
+                         dof_layout_t::dim_1 == DOF,
+                         "invalid dof_layout_t.");
+      MFEM_STATIC_ASSERT(grad_layout_t::rank  == 3 &&
+                         grad_layout_t::dim_1 == NIP &&
+                         grad_layout_t::dim_2 == DIM,
+                         "invalid grad_layout_t.");
+      MFEM_STATIC_ASSERT(dof_layout_t::dim_2 == grad_layout_t::dim_3,
+                         "incompatible dof- and grad- layouts.");
+
       Mult_AB<Add>(Gt.layout.merge_23(), Gt,
                    grad_layout.merge_12(), grad_data,
                    dof_layout, dof_data);
