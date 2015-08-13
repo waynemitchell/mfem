@@ -24,7 +24,8 @@
 #include <sundials/sundials_types.h> /* definition of type realtype */
 #include <sundials/sundials_math.h>  /* definition of ABS and EXP */
 
-#define RELTOL RCONST(1.0e-6)
+/* Choose default tolerances to match ARKode defaults*/
+#define RELTOL RCONST(1.0e-4)
 #define ABSTOL RCONST(1.0e-9)
 
 using namespace std;
@@ -38,6 +39,7 @@ CVODESolver::CVODESolver()
    f = NULL;
 
    /* Call CVodeCreate to create the solver memory */
+   /* Assumes Adams methods and funcitonal iterations, rather than BDF or Newton solves */
    ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
    initialized_sundials=false;
    tolerances_set_sundials=false;
@@ -49,6 +51,7 @@ CVODESolver::CVODESolver(TimeDependentOperator &_f, Vector &_x, double&_t)
    f = NULL;
 
    /* Call CVodeCreate to create the solver memory */
+   /* Assumes Adams methods and funcitonal iterations, rather than BDF or Newton solves */
    ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
    initialized_sundials=false;
    tolerances_set_sundials=false;
@@ -181,15 +184,15 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
    realtype tout=t+dt;
-   //   printf("starting step\n");
    TransferNVectorShallow(&x,y);
-   //   printf("called transfernvectorshallow\n");
 
    //Step
    flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
    if (check_flag(&flag, "CVode", 1)) { MFEM_ABORT("CVode"); }
+
+   //Record last incremental step size
    flag = CVodeGetLastStep(ode_mem, &dt);
-   if (check_flag(&flag, "CVodeGetLastStep", 1)) { return; }
+
 }
 
 CVODESolver::~CVODESolver()
@@ -251,16 +254,14 @@ CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
 {
    y = NULL;
    f = &_f;
-   //     printf("entered constructor\n");
 
    /* Call CVodeCreate to create the solver memory */
    ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
-   //     printf("called CVodeCreate\n");
    initialized_sundials=false;
    tolerances_set_sundials=false;
+   //set MPI_Comm communicator
    comm=_comm;
    ReInit(_f,_x,_t);
-   //     printf("called ReInit(_f...\n");
 }
 
 
@@ -284,6 +285,8 @@ void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
    long int global_length;
    MPI_Comm_size(comm,&nprocs);
    MPI_Comm_rank(comm,&myid);
+
+   //Process appropriate sizes for creating y as a new ParHyp NVector
    realtype in=yin_length;
    in=_x->Size();
    realtype out;
@@ -296,14 +299,6 @@ void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 void CVODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
    int nprocs, myid;
-   long int global_length;
-   //using namespace mfem;
-   realtype *ydata, *ydotdata;
-   long int ylen, ydotlen;
-   HYPRE_Int *col, *col2;
-   hypre_ParVector *yparvec, *ydotparvec;
-   MPI_Comm_size(comm,&nprocs);
-   MPI_Comm_rank(comm,&myid);
    NV_HYPRE_PARCSR_PC(_y)=((HypreParVector*) _x)->StealParVector();
 }
 
@@ -380,11 +375,15 @@ void ARKODESolver::DestroyNVector(N_Vector& _y)
 
 int ARKODESolver::WrapARKodeInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
+   //Assumes integrating TimeDependentOperator f explicitly
+   //Consider adding a flag to switch between explicit and implicit
    return ARKodeInit(_ode_mem, sun_f_fun, NULL, (realtype) _t, _y);
 }
 
 int ARKODESolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
+   //Assumes integrating TimeDependentOperator f explicitly
+   //Consider adding a flag to switch between explicit and implicit
    return ARKodeReInit(_ode_mem, sun_f_fun, NULL, (realtype) _t, _y);
 }
 
@@ -436,8 +435,8 @@ void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
 
    if (initialized_sundials)
    {
-      /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
-       * and the initial dependent variable vector y. */
+      /* Call ARKodeReInit to initialize the integrator memory and specify the inital
+       * time t, and the initial dependent variable vector y. */
       flag = WrapARKodeReInit(ode_mem, _t, y);
       if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
    }
@@ -486,15 +485,13 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
 {
    int flag=0;
    realtype tout=t+dt;
-   //   printf("starting step\n");
    TransferNVectorShallow(&x,y);
-   //   printf("called transfernvectorshallow\n");
 
    //Step
    flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
    if (check_flag(&flag, "ARKode", 1)) { MFEM_ABORT("ARKode"); }
+   //Record last incremental step size
    flag = ARKodeGetLastStep(ode_mem, &dt);
-   if (check_flag(&flag, "ARKodeGetLastStep", 1)) { return; }
 }
 
 ARKODESolver::~ARKODESolver()
@@ -556,16 +553,14 @@ ARKODEParSolver::ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
 {
    y = NULL;
    f = &_f;
-   //     printf("entered constructor\n");
 
    /* Call ARKodeCreate to create the solver memory */
    ode_mem=ARKodeCreate();
-   //     printf("called ARKodeCreate\n");
    initialized_sundials=false;
    tolerances_set_sundials=false;
+   //Set MPI_Comm
    comm=_comm;
    ReInit(_f,_x,_t);
-   //     printf("called ReInit(_f...\n");
 }
 
 void ARKODEParSolver::CreateNVector(long int& yin_length, realtype* ydata)
@@ -588,6 +583,8 @@ void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
    long int global_length;
    MPI_Comm_size(comm,&nprocs);
    MPI_Comm_rank(comm,&myid);
+
+   //Process appropriate sizes for creating y as a new ParHyp NVector
    realtype in=yin_length;
    in=_x->Size();
    realtype out;
@@ -599,21 +596,11 @@ void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 
 void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
-   int nprocs, myid;
-   long int global_length;
-   //using namespace mfem;
-   realtype *ydata, *ydotdata;
-   long int ylen, ydotlen;
-   HYPRE_Int *col, *col2;
-   hypre_ParVector *yparvec, *ydotparvec;
-   MPI_Comm_size(comm,&nprocs);
-   MPI_Comm_rank(comm,&myid);
    NV_HYPRE_PARCSR_PC(_y)=((HypreParVector*) _x)->StealParVector();
 }
 
 void ARKODEParSolver::DestroyNVector(N_Vector& _y)
 {
-
    if (NV_OWN_DATA_PC(y)==true)
    {
       N_VDestroy_ParCsr(y);   // Free y vector
@@ -622,11 +609,15 @@ void ARKODEParSolver::DestroyNVector(N_Vector& _y)
 
 int ARKODEParSolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
+   //Assumes integrating TimeDependentOperator f explicitly
+   //Consider adding a flag to switch between explicit and implicit
    return ARKodeReInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t, _y);
 }
 
 int ARKODEParSolver::WrapARKodeInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
+   //Assumes integrating TimeDependentOperator f explicitly
+   //Consider adding a flag to switch between explicit and implicit
    return ARKodeInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t, _y);
 }
 
@@ -639,7 +630,6 @@ int ARKODEParSolver::WrapARKodeInit(void* _ode_mem, double &_t, N_Vector &_y)
 int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 {
 
-   //using namespace mfem;
    realtype *ydata, *ydotdata;
    long int ylen, ydotlen;
 
@@ -655,14 +645,12 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
    //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
    mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
 
-   //if gridfunction information necessary for Mult, keep Vector in userdata
-   //  Vector* u = udata->u;
-   //  u->SetData((double*) ydata);
    // Creates mfem vectors with pointers to the data array in y and in ydot respectively
    // Have not explicitly set as owndata, so allocated size is -size
    mfem::Vector mfem_vector_y((double*) ydata, ylen);
    mfem::Vector mfem_vector_ydot((double*) ydotdata, ydotlen);
 
+   //Apply ydot=f(t,y)
    f->SetTime(t);
    f->Mult(mfem_vector_y,mfem_vector_ydot);
 
@@ -673,7 +661,6 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 {
 
-   //using namespace mfem;
    realtype *ydata, *ydotdata;
    int myid;
    long int ylen, ydotlen;
@@ -684,12 +671,16 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 
    //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
    mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
-   //   MPI_Barrier(comm);
-   mfem::HypreParVector mfem_vector_y=(mfem::HypreParVector) (NV_HYPRE_PARCSR_PC(
-                                                                 y));
-   mfem::HypreParVector mfem_vector_ydot=(mfem::HypreParVector) (
-                                            NV_HYPRE_PARCSR_PC(ydot));
 
+   // Creates mfem HypreParVectors mfem_vector_y and mfem_vector_ydot by using the casting
+   // operators in HypreParVector to cast the hypre_ParVector in y and in ydot respectively
+   // Have not explicitly set as owndata, so allocated size is -size
+   mfem::HypreParVector mfem_vector_y=
+      (mfem::HypreParVector) (NV_HYPRE_PARCSR_PC(y));
+   mfem::HypreParVector mfem_vector_ydot=
+      (mfem::HypreParVector) (NV_HYPRE_PARCSR_PC(ydot));
+
+   //Apply ydot=f(t,y)
    f->SetTime(t);
    f->Mult(mfem_vector_y,mfem_vector_ydot);
 

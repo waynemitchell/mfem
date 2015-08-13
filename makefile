@@ -122,6 +122,8 @@ MFEM_USE_METIS_5 ?= NO
 SUNDIALS_DIR ?= @MFEM_DIR@/../sundials/install
 SUNDIALS_OPT ?= -I$(SUNDIALS_DIR)/include
 SUNDIALS_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_cvode\
+ -Wl,-lsundials_nvecserial -Wl,-rpath,$(SUNDIALS_DIR)/lib
+SUNDIALS_PAR_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_cvode\
  -Wl,-lsundials_nvecserial -Wl,-lsundials_nvecparallel -Wl,-lsundials_nvecparhyp -Wl,-rpath,$(SUNDIALS_DIR)/lib
 
 MFEM_USE_MPI ?= NO
@@ -132,7 +134,7 @@ ifneq ($(MFEM_USE_MPI),YES)
 else
    MFEM_CXX ?= $(MPICXX)
    INCFLAGS += $(METIS_OPT) $(SUNDIALS_OPT) $(HYPRE_OPT)
-   ALL_LIBS += $(METIS_LIB) $(SUNDIALS_LIB) $(HYPRE_LIB)
+   ALL_LIBS += $(METIS_LIB) $(SUNDIALS_PAR_LIB) $(HYPRE_LIB)
 endif
 
 DEP_CXX ?= $(MFEM_CXX)
