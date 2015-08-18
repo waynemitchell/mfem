@@ -213,6 +213,9 @@ int main(int argc, char *argv[])
       case 13: ode_solver = new RK3SSPSolver; break;
       case 14: ode_solver = new RK4Solver; break;
       case 15: break;
+      case 16: break;
+      case 17: break;
+
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
       case 23: ode_solver = new SDIRK23Solver; break;
@@ -302,6 +305,16 @@ int main(int argc, char *argv[])
    if (ode_solver_type==15)
    {
       ode_solver= new CVODESolver(oper,vx,t);
+   }
+   else if (ode_solver_type==16)
+   {
+      ode_solver = new CVODESolver(oper,vx,t);
+      ((CVODESolver*) ode_solver)->SetLinearSolve();
+   }
+   else if(ode_solver_type==17)
+   {
+      ode_solver = new ARKODESolver(oper, vx, t,false);
+         ((ARKODESolver*) ode_solver)->SetLinearSolve();
    }
    else
    {

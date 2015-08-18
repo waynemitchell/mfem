@@ -145,6 +145,8 @@ int main(int argc, char *argv[])
       case 11: break;
       case 12: break;
       case 13: break;
+      case 14: break;
+      case 15: break;
       default:
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
@@ -264,6 +266,12 @@ int main(int argc, char *argv[])
       case 13: ode_solver = new ARKODESolver(adv, u, t);
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
          ((ARKODESolver*) ode_solver)->WrapSetFixedStep((realtype) dt);
+         break;
+      case 14: ode_solver = new CVODESolver(adv, u, t, CV_BDF, CV_NEWTON);
+         ((CVODESolver*) ode_solver)->SetLinearSolve();
+         break;
+      case 15: ode_solver = new ARKODESolver(adv, u, t,false);
+         ((ARKODESolver*) ode_solver)->SetLinearSolve();
          break;
       default:
          ode_solver->Init(adv);
