@@ -725,12 +725,11 @@ void SparseMatrix::Finalize(int skip_zeros)
 
 void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 {
-   MFEM_VERIFY(!Finalized(), "Matrix must NOT be finalized.");
-
    int br = blocks.NumRows(), bc = blocks.NumCols();
    int nr = (height + br - 1)/br, nc = (width + bc - 1)/bc;
 
    for (int j = 0; j < bc; j++)
+   {
       for (int i = 0; i < br; i++)
       {
          int *bI = new int[nr + 1];
@@ -740,18 +739,35 @@ void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
          }
          blocks(i,j) = new SparseMatrix(bI, NULL, NULL, nr, nc);
       }
+   }
 
    for (int gr = 0; gr < height; gr++)
    {
       int bi = gr/nr, i = gr%nr + 1;
-      for (RowNode *n_p = Rows[gr]; n_p != NULL; n_p = n_p->Prev)
-         if (n_p->Value != 0.0)
+      if (Finalized())
+      {
+         for (int j = I[gr]; j < I[gr+1]; j++)
          {
-            blocks(bi,n_p->Column/nc)->I[i]++;
+            if (A[j] != 0.0)
+            {
+               blocks(bi, J[j]/nc)->I[i]++;
+            }
          }
+      }
+      else
+      {
+         for (RowNode *n_p = Rows[gr]; n_p != NULL; n_p = n_p->Prev)
+         {
+            if (n_p->Value != 0.0)
+            {
+               blocks(bi, n_p->Column/nc)->I[i]++;
+            }
+         }
+      }
    }
 
    for (int j = 0; j < bc; j++)
+   {
       for (int i = 0; i < br; i++)
       {
          SparseMatrix &b = *blocks(i,j);
@@ -763,18 +779,37 @@ void SparseMatrix::GetBlocks(Array2D<SparseMatrix *> &blocks) const
          b.J = new int[nnz];
          b.A = new double[nnz];
       }
+   }
 
    for (int gr = 0; gr < height; gr++)
    {
       int bi = gr/nr, i = gr%nr + 1;
-      for (RowNode *n_p = Rows[gr]; n_p != NULL; n_p = n_p->Prev)
-         if (n_p->Value != 0.0)
+      if (Finalized())
+      {
+         for (int j = I[gr]; j < I[gr+1]; j++)
          {
-            SparseMatrix &b = *blocks(bi,n_p->Column/nc);
-            b.J[b.I[i]] = n_p->Column % nc;
-            b.A[b.I[i]] = n_p->Value;
-            b.I[i]++;
+            if (A[j] != 0.0)
+            {
+               SparseMatrix &b = *blocks(bi, J[j]/nc);
+               b.J[b.I[i]] = J[j] % nc;
+               b.A[b.I[i]] = A[j];
+               b.I[i]++;
+            }
          }
+      }
+      else
+      {
+         for (RowNode *n_p = Rows[gr]; n_p != NULL; n_p = n_p->Prev)
+         {
+            if (n_p->Value != 0.0)
+            {
+               SparseMatrix &b = *blocks(bi, n_p->Column/nc);
+               b.J[b.I[i]] = n_p->Column % nc;
+               b.A[b.I[i]] = n_p->Value;
+               b.I[i]++;
+            }
+         }
+      }
    }
 }
 
