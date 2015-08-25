@@ -841,7 +841,7 @@ void HypreParMatrix::GetDiag(Vector &diag)
 void HypreParMatrix::GetDiag(SparseMatrix &diag)
 {
 #ifdef HYPRE_COMPLEX
-   MFEM_ABORT("HypreParMatrix::GetDiag can't retrieve complex matrix.");
+   MFEM_ABORT("Complex matrices not supported.");
 #endif
    // create a wrapper SparseMatrix around A->diag
    SparseMatrix tmp(hypre_CSRMatrixI(A->diag),
@@ -851,6 +851,22 @@ void HypreParMatrix::GetDiag(SparseMatrix &diag)
                     hypre_CSRMatrixNumCols(A->diag),
                     false, false, false);
    diag.Swap(tmp);
+}
+
+void HypreParMatrix::GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap)
+{
+#ifdef HYPRE_COMPLEX
+   MFEM_ABORT("Complex matrices not supported.");
+#endif
+   // create a wrapper SparseMatrix around A->offd
+   SparseMatrix tmp(hypre_CSRMatrixI(A->offd),
+                    hypre_CSRMatrixJ(A->offd),
+                    hypre_CSRMatrixData(A->offd),
+                    hypre_CSRMatrixNumRows(A->offd),
+                    hypre_CSRMatrixNumCols(A->offd),
+                    false, false, false);
+   offd.Swap(tmp);
+   cmap = A->col_map_offd;
 }
 
 HypreParMatrix * HypreParMatrix::Transpose()
@@ -935,7 +951,7 @@ HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
 {
    int np;
    MPI_Comm_size(GetComm(), &np);
-   if (np > 2 && !HYPRE_AssumedPartitionCheck()) { np = 2; }
+   np = HYPRE_AssumedPartitionCheck() ? 2 : np+1;
 
    bool same_rows = (D.Height() == hypre_CSRMatrixNumRows(A->diag));
    HYPRE_Int global_num_rows;
@@ -2181,7 +2197,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
                    int singular_problem)
    : HypreSolver(&A)
 {
-   int cycle_type       = 1; // FIXME: 13 orig, 1 hack
+   int cycle_type       = 13; // FIXME: 13 orig, 1 hack
    int rlx_type         = 2;
    int rlx_sweeps       = 1;
    double rlx_weight    = 1.0;
@@ -2278,10 +2294,10 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
       id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
       id_ND->AddDomainInterpolator(new IdentityInterpolator);
       id_ND->Assemble();
+      id_ND->Finalize();
 
       if (cycle_type < 10)
       {
-         id_ND->Finalize();
          Pi = id_ND->ParallelAssemble();
       }
       else

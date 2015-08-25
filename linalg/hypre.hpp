@@ -260,8 +260,10 @@ public:
 
    /// Get the local diagonal of the matrix.
    void GetDiag(Vector &diag);
-   /// Get the local diagonal block. NOTE: 'diag' will not own the data.
+   /// Get the local diagonal block. NOTE: 'diag' will not own any data.
    void GetDiag(SparseMatrix &diag);
+   /// Get the local offdiagonal block. NOTE: 'offd' will not own any data.
+   void GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap);
 
    /// Returns the transpose of *this
    HypreParMatrix * Transpose();

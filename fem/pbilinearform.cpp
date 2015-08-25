@@ -411,17 +411,8 @@ HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(
 void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks)
 const
 {
-   /* TODO NC:
-
-     1. assemble: R * L (local), RL * P (local)
-     2. blocks: extract R, P block (local), do 1 for L blocks
-
-     New operations on HypreParMatrix:
-
-     - GetBlock
-     - local mult with SparseMatrix
-
-     */
+   MFEM_VERIFY(mat->Finalized(), "local matrix needs to be finalized for "
+               "GetParBlocks");
 
    int rdim = range_fes->GetVDim();
    int ddim = domain_fes->GetVDim();
@@ -438,6 +429,7 @@ const
       col_starts[i] = (domain_fes->GetTrueDofOffsets())[i] / ddim;
    }
 
+#if 0
    Array2D<SparseMatrix *> lblocks;
    GetBlocks(lblocks);
 
@@ -462,6 +454,71 @@ const
          }
       }
    }
+#else
+
+   /* This function constructs the following product (example for 2 CPUs,
+   rdim == 3 and ddim == 2):
+
+   R * L * P =
+
+   [ R00         |             ]   [ L001 L001 |           ]
+   [     R01     |             ]   [ L010 L011 |           ]   [ P00     | O00     ]
+   [         R02 |             ]   [ L020 L021 |           ]   [     P01 |     O01 ]
+   [-------------|-------------] * [-----------|-----------] * [---------|---------]
+   [             | R10         ]   [           | L100 L101 ]   [ O10     | P10     ]
+   [             |     R11     ]   [           | L110 L111 ]   [     O11 |     P11 ]
+   [             |         R12 ]   [           | L120 L121 ]
+
+     [ R00*L001*P00 R00*L001*P01 | R00*L001*O00 R00*L001*O01 ]
+     [ R01*L010*P00 R01*L011*P01 | R01*L010*O00 R01*L011*O01 ]
+     [ R02*L020*P00 R02*L021*P01 | R02*L020*O00 R02*L021*O01 ]
+   = [ --------------------------|---------------------------]
+     [ R10*L100*O10 R10*L101*O11 | R10*L100*P10 R10*L101*P11 ]
+     [ R11*L110*O10 R11*L111*O11 | R11*L110*P10 R11*L111*P11 ]
+     [ R12*L120*O10 R12*L121*O11 | R12*L120*P10 R12*L121*P11 ]
+
+   This is then cut into blocks like
+
+                   [ R01*L010*P00 | R01*L010*O00 ]
+     blocks(1,0) = [ -------------|------------- ]
+                   [ R11*L110*O10 | R11*L110*P10 ]
+
+   There is no communication apart from that contained in the HyperParMatrix
+   constructor. */
+
+   SparseMatrix P(0), O(0);
+   HYPRE_Int* cmap;
+   domain_fes->Dof_TrueDof_Matrix()->GetDiag(P);
+   domain_fes->Dof_TrueDof_Matrix()->GetOffd(O, cmap);
+
+   SparseMatrix* RL = mfem::Mult(*range_fes->GetRestrictionMatrix(), *mat);
+   SparseMatrix* RLP = mfem::Mult(*RL, P);
+   SparseMatrix* RLO = mfem::Mult(*RL, O);
+   delete RL;
+
+   Array2D<SparseMatrix*> blocks_diag, blocks_offd;
+   blocks_diag.SetSize(rdim, ddim);
+   blocks_offd.SetSize(rdim, ddim);
+
+   RLP->GetBlocks(blocks_diag); delete RLP;
+   RLO->GetBlocks(blocks_offd); delete RLO;
+
+   HYPRE_Int global_rows = range_fes->GlobalTrueVSize() / rdim;
+   HYPRE_Int global_cols = domain_fes->GlobalTrueVSize() / ddim;
+
+   for (int bi = 0; bi < rdim; bi++)
+   {
+      for (int bj = 0; bj < ddim; bj++)
+      {
+         blocks(bi,bj) = new HypreParMatrix(range_fes->GetComm(),
+                                            global_rows, global_cols,
+                                            row_starts, col_starts,
+                                            blocks_diag(bi,bj),
+                                            blocks_offd(bi,bj), cmap);
+      }
+   }
+
+#endif
 }
 
 HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
