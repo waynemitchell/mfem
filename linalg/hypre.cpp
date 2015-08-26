@@ -2197,7 +2197,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
                    int singular_problem)
    : HypreSolver(&A)
 {
-   int cycle_type       = 13; // FIXME: 13 orig, 1 hack
+   int cycle_type       = 1; // FIXME: 13 orig, 1 hack
    int rlx_type         = 2;
    int rlx_sweeps       = 1;
    double rlx_weight    = 1.0;

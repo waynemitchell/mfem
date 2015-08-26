@@ -115,10 +115,10 @@ protected:
    ParFiniteElementSpace *domain_fes;
    ParFiniteElementSpace *range_fes;
 
-   HypreParMatrix *ParallelAssemble(SparseMatrix *m,
+   /*HypreParMatrix *ParallelAssemble(SparseMatrix *m,
                                     HYPRE_Int *true_row_starts,
                                     HYPRE_Int *true_col_starts,
-                                    bool scalar) const;
+                                    bool scalar) const;*/
 
    HypreParMatrix *ParallelAssemble(SparseMatrix *m)
    {

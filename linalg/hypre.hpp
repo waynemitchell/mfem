@@ -238,6 +238,10 @@ public:
    /// Changes the ownership of the the matrix
    hypre_ParCSRMatrix* StealData();
 
+   /// Explicitly set the three ownership flags, see docs for diagOwner etc.
+   void SetOwnerFlags(char diag, char offd, char colmap)
+   { diagOwner = diag, offdOwner = offd, colMapOwner = colmap; }
+
    /** If the HypreParMatrix does not own the row-starts array, make a copy of
        it that the HypreParMatrix will own. If the col-starts array is the same
        as the row-starts array, col-starts is also replaced. */

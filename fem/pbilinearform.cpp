@@ -257,7 +257,7 @@ const
 }
 
 
-HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(
+/*HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(
    SparseMatrix *m, HYPRE_Int *true_row_starts, HYPRE_Int *true_col_starts,
    bool scalar) const
 {
@@ -406,7 +406,7 @@ HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(
                          offd_num_cols, offd_col_map);
 
    return glob_m;
-}
+}*/
 
 void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks)
 const
@@ -418,43 +418,6 @@ const
    int ddim = domain_fes->GetVDim();
 
    blocks.SetSize(rdim, ddim);
-
-   // construct the scalar versions of the row/col offset arrays
-   int n = HYPRE_AssumedPartitionCheck() ? 2 : range_fes->GetNRanks()+1;
-   HYPRE_Int *row_starts = new HYPRE_Int[n];
-   HYPRE_Int *col_starts = new HYPRE_Int[n];
-   for (int i = 0; i < n; i++)
-   {
-      row_starts[i] = (range_fes->GetTrueDofOffsets())[i] / rdim;
-      col_starts[i] = (domain_fes->GetTrueDofOffsets())[i] / ddim;
-   }
-
-#if 0
-   Array2D<SparseMatrix *> lblocks;
-   GetBlocks(lblocks);
-
-   for (int bi = 0; bi < rdim; bi++)
-   {
-      for (int bj = 0; bj < ddim; bj++)
-      {
-         blocks(bi,bj) = ParallelAssemble(lblocks(bi,bj),
-                                          row_starts, col_starts, true);
-
-         if (bi == 0 && bj == 0)
-         {
-            // transfer ownership of row_starts and col_starts to blocks(0,0)
-            // (since ownership is given to hypre, the arrays need to be
-            // re-allocated)
-            blocks(0,0)->CopyRowStarts();
-            blocks(0,0)->CopyColStarts();
-            delete [] row_starts;
-            delete [] col_starts;
-            row_starts = blocks(0,0)->GetRowStarts();
-            col_starts = blocks(0,0)->GetColStarts();
-         }
-      }
-   }
-#else
 
    /* This function constructs the following product (example for 2 CPUs,
    rdim == 3 and ddim == 2):
@@ -486,6 +449,16 @@ const
    There is no communication apart from that contained in the HyperParMatrix
    constructor. */
 
+   // construct the scalar versions of the row/col offset arrays
+   int n = HYPRE_AssumedPartitionCheck() ? 2 : range_fes->GetNRanks()+1;
+   HYPRE_Int *row_starts = new HYPRE_Int[n];
+   HYPRE_Int *col_starts = new HYPRE_Int[n];
+   for (int i = 0; i < n; i++)
+   {
+      row_starts[i] = (range_fes->GetTrueDofOffsets())[i] / rdim;
+      col_starts[i] = (domain_fes->GetTrueDofOffsets())[i] / ddim;
+   }
+
    SparseMatrix P(0), O(0);
    HYPRE_Int* cmap;
    domain_fes->Dof_TrueDof_Matrix()->GetDiag(P);
@@ -506,6 +479,9 @@ const
    HYPRE_Int global_rows = range_fes->GlobalTrueVSize() / rdim;
    HYPRE_Int global_cols = domain_fes->GlobalTrueVSize() / ddim;
 
+   HYPRE_Int* cmap_copy = new HYPRE_Int[O.Width()];
+   std::memcpy(cmap_copy, cmap, sizeof(HYPRE_Int)*O.Width());
+
    for (int bi = 0; bi < rdim; bi++)
    {
       for (int bj = 0; bj < ddim; bj++)
@@ -514,11 +490,14 @@ const
                                             global_rows, global_cols,
                                             row_starts, col_starts,
                                             blocks_diag(bi,bj),
-                                            blocks_offd(bi,bj), cmap);
+                                            blocks_offd(bi,bj), cmap_copy);
+
+         blocks(bi, bj)->SetOwnerFlags(3, 3, (!bi && !bj) ? 1 : 0);
+
+         blocks_diag(bi, bj)->LoseData(); delete blocks_diag(bi, bj);
+         blocks_offd(bi, bj)->LoseData(); delete blocks_offd(bi, bj);
       }
    }
-
-#endif
 }
 
 HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
