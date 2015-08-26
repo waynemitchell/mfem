@@ -127,14 +127,22 @@ SUNDIALS_PAR_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_c
  -Wl,-lsundials_nvecserial -Wl,-lsundials_nvecparallel -Wl,-lsundials_nvecparhyp -Wl,-rpath,$(SUNDIALS_DIR)/lib
 
 MFEM_USE_MPI ?= NO
+MFEM_USE_SUNDIALS ?= NO
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
-   INCFLAGS += $(SUNDIALS_OPT)
-   ALL_LIBS += $(SUNDIALS_LIB)
+   ifeq ($(MFEM_USE_SUNDIALS),YES)
+     INCFLAGS += $(SUNDIALS_OPT)
+     ALL_LIBS += $(SUNDIALS_LIB)
+   endif
 else
    MFEM_CXX ?= $(MPICXX)
-   INCFLAGS += $(METIS_OPT) $(SUNDIALS_OPT) $(HYPRE_OPT)
-   ALL_LIBS += $(METIS_LIB) $(SUNDIALS_PAR_LIB) $(HYPRE_LIB)
+   ifeq ($(MFEM_USE_SUNDIALS),YES)
+     INCFLAGS += $(METIS_OPT) $(SUNDIALS_OPT) $(HYPRE_OPT)
+     ALL_LIBS += $(METIS_LIB) $(SUNDIALS_PAR_LIB) $(HYPRE_LIB)
+   else
+     INCFLAGS += $(METIS_OPT) $(HYPRE_OPT)
+     ALL_LIBS += $(METIS_LIB) $(HYPRE_LIB)
+   endif
 endif
 
 DEP_CXX ?= $(MFEM_CXX)
@@ -198,14 +206,14 @@ ifeq ($(MFEM_TIMER_TYPE),2)
 endif
 
 # List of all defines that may be enabled in config.hpp and config.mk:
-MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
+MFEM_DEFINES =  MFEM_USE_SUNDIALS MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
  MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
  MFEM_INCFLAGS MFEM_FLAGS MFEM_LIB_DIR MFEM_LIBS MFEM_LIB_FILE MFEM_BUILD_TAG\
- MFEM_PREFIX
+ MFEM_PREFIX 
 
 # Config vars: values of the form @VAL@ are replaced by $(VAL) in config.mk
 MFEM_CPPFLAGS  ?= $(CPPFLAGS)
@@ -267,9 +275,15 @@ libmfem.a: $(OBJECT_FILES)
 
 serial:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
-
+	
+serial_sundials:
+	$(MAKE) config MFEM_USE_MPI=NO MFEM_USE_SUNDIALS=YES MFEM_DEBUG=NO && $(MAKE)
+	
 parallel:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=NO && $(MAKE)
+
+parallel_sundials:
+	$(MAKE) config MFEM_USE_MPI=YES MFEM_USE_SUNDIALS=YES MFEM_DEBUG=NO && $(MAKE)
 
 debug:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=YES && $(MAKE)
@@ -333,6 +347,7 @@ status info:
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
+	$(info MFEM_USE_SUNDIALS    = $(MFEM_USE_SUNDIALS))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
 	$(info MFEM_CXX             = $(value MFEM_CXX))

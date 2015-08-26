@@ -1,13 +1,18 @@
 #ifndef MFEM_SUNDIALS
 #define MFEM_SUNDIALS
+#include "../config/config.hpp"
+#ifdef MFEM_USE_SUNDIALS
+
 #include "mfem.hpp"
 #include "../linalg/operator.hpp"
+#include "../linalg/solvers.hpp"
 #include "../linalg/ode.hpp"
+#include "../fem/bilinearform.hpp"
+#include "../fem/nonlinearform.hpp"
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "../config/config.hpp"
 
 // cvode header files
 #include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
@@ -27,6 +32,8 @@
 #endif
 namespace mfem
 {
+class SundialsLinearSolveOperator;
+
 /// Wraps the CVode library of linear multistep methods
 class CVODESolver: public ODESolver
 {
@@ -152,6 +159,9 @@ public:
    /** \brief Transfers the data owned by the Vector* by copying the double* pointer */
    virtual void TransferNVectorShallow(Vector*,N_Vector&);
 
+   /** \brief Transfers the data owned by the N_Vector by copying the double* pointer */
+   virtual void TransferNVectorShallow(N_Vector&,Vector*);
+
    /** \brief Destroys an NVector of the appropriate type */
    virtual void DestroyNVector(N_Vector&);
 
@@ -182,6 +192,9 @@ public:
 
    /** \brief Transfers the data owned by the Vector* by copying the double* pointer and the hypre_ParVector* pointer */
    void TransferNVectorShallow(Vector*,N_Vector&);
+
+   /** \brief Transfers the data owned by the N_Vector by copying the double* pointer and the hypre_ParVector* pointer */
+   void TransferNVectorShallow(N_Vector&,Vector*);
 
    void DestroyNVector(N_Vector&);
 
@@ -327,7 +340,7 @@ public:
    {
       step_type = _step_type;
    }
-   void SetLinearSolve();
+   void SetLinearSolve( Solver*,    SundialsLinearSolveOperator*);
 
    void SetStopTime(double);
 
@@ -390,6 +403,43 @@ private:
 };
 #endif
 
+class MFEMLinearSolverMemory
+{
+public:
+Vector* setup_y;
+Vector* setup_f;
+Vector* solve_y;
+Vector* solve_yn;
+Vector* solve_f;
+Vector* solve_b;
+Vector* vec_tmp;
+double weight;
+Solver* J_solve;
+SundialsLinearSolveOperator* op_for_gradient;
+
+MFEMLinearSolverMemory() { setup_y=NULL; setup_f=NULL; solve_y=NULL; solve_yn=NULL; solve_f=NULL; vec_tmp=NULL; J_solve=NULL; op_for_gradient=NULL;};
+
+};
+
+//temporary operator for testing ex10
+class SundialsLinearSolveOperator : public Operator
+{
+private:
+/*
+   BilinearForm *M, *S;
+   NonlinearForm *H;
+   mutable SparseMatrix *Jacobian;
+   const Vector *v, *x;
+   mutable Vector w, z;
+*/
+public:
+   SundialsLinearSolveOperator();
+   SundialsLinearSolveOperator(int s) : Operator(s) { };
+   SundialsLinearSolveOperator(BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_);
+   virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp, Solver* J_solve, double gamma) = 0;
+   void SetParameters(double, Vector&, Vector&);
+   virtual ~SundialsLinearSolveOperator() {};
+};
 
 }
 
@@ -414,7 +464,7 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
 static void WrapLinearCVSolveFree(CVodeMem cv_mem);
 
 ///Linear solve associated with ARKodeMem structs
-int MFEMLinearARKSolve(void *arkode_mem, int pretype, int maxl);
+int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver*, mfem::SundialsLinearSolveOperator*);
 
 /*
  The purpose of ark_linit is to complete initializations for a
@@ -495,7 +545,7 @@ static void WrapLinearARKSolveFree(ARKodeMem ark_mem);
 static int WrapLinearSolveSetup(void* lmem, double tn,
                                    mfem::Vector* ypred, mfem::Vector* fpred);
 
-static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b, mfem::Vector* ycur,
+static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b, mfem::Vector* ycur, mfem::Vector* yn,
                               mfem::Vector* fcur);
-
+#endif
 #endif

@@ -145,8 +145,7 @@ int main(int argc, char *argv[])
       case 11: break;
       case 12: break;
       case 13: break;
-      case 14: break;
-      case 15: break;
+      case 21: break;
       default:
          cout << "Unknown ODE solver type: " << ode_solver_type << '\n';
          return 3;
@@ -259,6 +258,10 @@ int main(int argc, char *argv[])
 
    double t = 0.0;
    int table_num=3;
+   double reltol=1e-1;
+   double abstol=1e-3;
+   ofstream out("time_step_history_ark_1e-3.txt");
+   ofstream out_time("time_history_ark_1e-3.txt");
    switch (ode_solver_type)
    {
       case 11: ode_solver = new CVODESolver(adv, u, t); break;
@@ -267,12 +270,10 @@ int main(int argc, char *argv[])
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
          ((ARKODESolver*) ode_solver)->WrapSetFixedStep((realtype) dt);
          break;
-      case 14: ode_solver = new CVODESolver(adv, u, t, CV_BDF, CV_NEWTON);
-         ((CVODESolver*) ode_solver)->SetLinearSolve();
+      case 21: ode_solver = new ARKODESolver(adv, u, t);
+         cout<<"Using arkode, setting tols\t"<<reltol<<"\t"<<abstol<<endl;
+         ((ARKODESolver*) ode_solver)->SetSStolerances(reltol, abstol);
          break;
-//      case 15: ode_solver = new ARKODESolver(adv, u, t,false);
-//         ((ARKODESolver*) ode_solver)->SetLinearSolve();
-//         break;
       default:
          ode_solver->Init(adv);
    }
@@ -287,6 +288,8 @@ int main(int argc, char *argv[])
 
       dt_by_ref=dt;
       ode_solver->Step(u, t, dt_by_ref);
+      out<<dt_by_ref<<endl;
+      out_time<<t<<endl;
       ti++;
 
       if (ti % vis_steps == 0)
