@@ -1,5 +1,6 @@
 #include "../config/config.hpp"
 #ifdef MFEM_USE_SUNDIALS
+#include "../general/tic_toc.hpp"
 #include "../linalg/operator.hpp"
 #include "../linalg/solvers.hpp"
 #include "../linalg/linalg.hpp"
@@ -559,7 +560,10 @@ void ARKODESolver::SetLinearSolve(Solver* solve,    SundialsLinearSolveOperator*
          SetSStolerances(RELTOL,ABSTOL);
       }
    }
-   ARKodeSetIRKTableNum(ode_mem, 11);
+   ARKodeSetIRKTableNum(ode_mem, 21);
+   /* Call ARKodeSetMaxNumSteps to increase default */
+   ARKodeSetMaxNumSteps(ode_mem, 10000);
+   SetSStolerances(1e-2,1e-4);
    MFEMLinearARKSolve(ode_mem, solve, op);
 
 }
@@ -964,10 +968,13 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
    ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),NV_LOCLENGTH_PH(b));
    #endif
 
-   lmem->weight = (N_VL1Norm(weight))/NV_LENGTH_S(weight); //NV_Ith_S(weight,0);
+//   lmem->weight = 1/NV_Ith_S(weight,1);//(N_VL1Norm(weight))/NV_LENGTH_S(weight); //NV_Ith_S(weight,0);
+// For arbitrary DIRK, this approximation to the weight vector is sufficient, although slow.
+// Consider inputting other DIRK as table from those used by MFEM to test other SDIRKs
+     lmem->weight = 1/NV_Ith_S(weight,1);
 //   cout<<lmem->weight<<endl;
 //   if(abs(lmem->weight)>1)
-      lmem->weight=ark_mem->ark_h;
+//      lmem->weight=ark_mem->ark_h;
 //   cout<<lmem->weight<<endl;
 //   lmem->weight=1;
    ark_mem->ark_lmem = lmem;
@@ -1003,8 +1010,11 @@ static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b, mfem::Vector*
    mfem::Vector x(ycur->GetData() + sc, sc);
    mfem::Vector dv_dt(dvx_dt.GetData() +  0, sc);
    mfem::Vector dx_dt(dvx_dt.GetData() + sc, sc);*/
-   
+   mfem::StopWatch timer;
+   timer.Start();
    (tmp_lmem->op_for_gradient)->SolveJacobian(b,ycur, yn, prec, tmp_lmem->weight);
+   timer.Stop();
+//   cout<<"SolveJacobian time: "<<(timer.RealTime());
 /*
    prec->SetOperator((tmp_lmem->op_for_gradient)->GetGradient(*ycur));
    prec->Mult(*b, *yn);  // c = [DF(x_i)]^{-1} [F(x_i)-b]

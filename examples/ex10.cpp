@@ -105,6 +105,7 @@ private:
    BilinearForm *M, *S;
    NonlinearForm *H;
    mutable SparseMatrix *Jacobian;
+   SparseMatrix *grad_H;
    double gamma;
    const Vector *v, *x;
    mutable Vector w, z;
@@ -114,7 +115,7 @@ public:
    BackwardEulerOperator(BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_);
    void SetParameters(double dt_, const Vector *v_, const Vector *x_);
    virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp, Solver* J_solve, double gamma);
-   virtual void Mult(const Vector &k, Vector &y) const {};
+   virtual void Mult(const Vector &k, Vector &y) const;
    virtual Operator &GetGradient(const Vector &k) const;
    virtual ~BackwardEulerOperator();
 };
@@ -334,7 +335,11 @@ int main(int argc, char *argv[])
       }
 
       dt_by_ref=dt;
+      mfem::StopWatch timer;
+      timer.Start();
       ode_solver->Step(vx, t, dt_by_ref);
+      timer.Stop();
+      cout<<" Whole step: "<<(timer.RealTime())<<endl;
 
       if (last_step || (ti % vis_steps) == 0)
       {
@@ -431,6 +436,8 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp, 
 //   cout<<"entered proper solveJac"<<endl;
 //   cout<<"started Jac,  b[10]="<<b->Elem(10)<<endl;
    int sc = b->Size()/2;
+   mfem::StopWatch timer, timer2;
+   timer.Start();
    Vector v(ycur->GetData() +  0, sc);
    Vector x(ycur->GetData() + sc, sc);
    Vector b_v(b->GetData() +  0, sc);
@@ -441,18 +448,27 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp, 
    Vector rhs_1(sc);
    Vector rhs_2(sc);
    Vector rhs(sc);
+   timer.Stop();
+//   cout<<"\n Time for creating vectors in SolveJacobian: "<<(timer.RealTime())<<endl;
 
    //big comment about operator, transfer gamma to getGradient
    this->SetParameters(gamma_, &v, &x);
    J_solve->SetOperator(this->GetGradient(v));
+   timer.Start();
    //update b_v to the proper rhs
    M->Mult(b_v, rhs_2);
 //   cout<<"scale sample,  rhs_2[10]="<<rhs_2.Elem(10)<<endl;
+   timer2.Start();
    SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(z));
+   timer2.Stop();
    ///////get h gamma in there somehow
    grad_H->Mult(b_x, rhs_1);
 //   cout<<"scale sample,  rhs_1[10]="<<rhs_1.Elem(10)<<endl;
    add(rhs_2,-gamma,rhs_1,rhs);
+   timer.Stop();
+//   cout<<"\n Time for calculating rhs SolveJacobian: "<<(timer.RealTime())<<endl;
+//   cout<<"\n Time for casting grad_H SolveJacobian: "<<(timer2.RealTime())<<endl;
+   
 //   cout<<"scale sample,  rhs[10]="<<rhs.Elem(10)<<endl;
    J_solve->Mult(rhs, dv_dt);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
 //   cout<<"scale sample,  dv_dt[10]="<<dv_dt.Elem(10)<<endl;
@@ -462,6 +478,18 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp, 
    *b=*tmp_empty;
 //   cout<<"finished Jac,  b[10]="<<b->Elem(10)<<endl;
 }
+
+
+void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
+{
+   // compute: y = H(x + dt*(v + dt*k)) + M*k + S*(v + dt*k)
+   add(*v, gamma, k, w);
+   add(*x, gamma, w, z);
+   H->Mult(z, y);
+   M->AddMult(k, y);
+   S->AddMult(w, y);
+}
+
 Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
 {
    delete Jacobian;
