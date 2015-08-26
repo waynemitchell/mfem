@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
    else if (ode_solver_type==16)
    {
       ode_solver = new CVODESolver(oper,vx,t);
-      ((CVODESolver*) ode_solver)->SetLinearSolve();
+      ((CVODESolver*) ode_solver)->SetLinearSolve(oper.J_solver,oper.backward_euler_oper);;
    }
    else if(ode_solver_type==17)
    {
