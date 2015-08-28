@@ -44,6 +44,13 @@ void hypre_ParCSRMatrixEliminateAAe(hypre_ParCSRMatrix *A,
                                     HYPRE_Int num_rowscols_to_elim,
                                     HYPRE_Int *rowscols_to_elim);
 
+/** Split matrix 'A' into nr x nc blocks, return nr x nc pointers to
+    new parallel matrices. The array 'blocks' needs to be preallocated to hold
+    nr x nc pointers. */
+void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
+                             HYPRE_Int nr, HYPRE_Int nc,
+                             hypre_ParCSRMatrix **blocks);
+
 }
 
 } // namespace mfem::internal
