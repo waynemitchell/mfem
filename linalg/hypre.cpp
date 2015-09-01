@@ -869,6 +869,25 @@ void HypreParMatrix::GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap)
    cmap = A->col_map_offd;
 }
 
+void HypreParMatrix::GetBlocks(Array2D<HypreParMatrix*> &blocks) const
+{
+   int nr = blocks.NumRows();
+   int nc = blocks.NumCols();
+
+   hypre_ParCSRMatrix **hypre_blocks = new hypre_ParCSRMatrix*[nr * nc];
+   internal::hypre_ParCSRMatrixSplit(A, nr, nc, hypre_blocks, 0);
+
+   for (int i = 0; i < nr; i++)
+   {
+      for (int j = 0; j < nc; j++)
+      {
+         blocks[i][j] = new HypreParMatrix(hypre_blocks[i*nc + j]);
+      }
+   }
+
+   delete [] hypre_blocks;
+}
+
 HypreParMatrix * HypreParMatrix::Transpose()
 {
    hypre_ParCSRMatrix * At;
@@ -2197,7 +2216,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
                    int singular_problem)
    : HypreSolver(&A)
 {
-   int cycle_type       = 1; // FIXME: 13 orig, 1 hack
+   int cycle_type       = 13; // FIXME: 13 orig, 1 hack
    int rlx_type         = 2;
    int rlx_sweeps       = 1;
    double rlx_weight    = 1.0;

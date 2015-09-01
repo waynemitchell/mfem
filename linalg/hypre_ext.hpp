@@ -46,10 +46,14 @@ void hypre_ParCSRMatrixEliminateAAe(hypre_ParCSRMatrix *A,
 
 /** Split matrix 'A' into nr x nc blocks, return nr x nc pointers to
     new parallel matrices. The array 'blocks' needs to be preallocated to hold
-    nr x nc pointers. */
+    nr x nc pointers. If 'interleaved' == 0 the matrix is split into contiguous
+    blocks (AAABBBCCC) otherwise the blocks are interleaved (ABCABCABC).
+    The local number of rows of A must be divisible by nr. The local number of
+    columns of A must be divisible by nc. */
 void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
                              HYPRE_Int nr, HYPRE_Int nc,
-                             hypre_ParCSRMatrix **blocks);
+                             hypre_ParCSRMatrix **blocks,
+                             int interleaved);
 
 }
 

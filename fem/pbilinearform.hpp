@@ -115,27 +115,13 @@ protected:
    ParFiniteElementSpace *domain_fes;
    ParFiniteElementSpace *range_fes;
 
-   /*HypreParMatrix *ParallelAssemble(SparseMatrix *m,
-                                    HYPRE_Int *true_row_starts,
-                                    HYPRE_Int *true_col_starts,
-                                    bool scalar) const;*/
-
-   HypreParMatrix *ParallelAssemble(SparseMatrix *m)
-   {
-      SparseMatrix* RA = mfem::Mult(*range_fes->GetRestrictionMatrix(), *m);
-      HypreParMatrix* P = domain_fes->Dof_TrueDof_Matrix();
-      HypreParMatrix* RAP = P->LeftDiagMult(*RA, range_fes->GetTrueDofOffsets());
-      delete RA;
-      return RAP;
-   }
-
 public:
    ParDiscreteLinearOperator(ParFiniteElementSpace *dfes,
                              ParFiniteElementSpace *rfes)
       : DiscreteLinearOperator(dfes, rfes) { domain_fes=dfes; range_fes=rfes; }
 
    /// Returns the matrix "assembled" on the true dofs
-   HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
+   HypreParMatrix *ParallelAssemble() const;
 
    /** Extract the parallel blocks corresponding to the vector dimensions of the
        domain and range parallel finite element spaces */

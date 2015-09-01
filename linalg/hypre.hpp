@@ -269,6 +269,10 @@ public:
    /// Get the local offdiagonal block. NOTE: 'offd' will not own any data.
    void GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap);
 
+   /** Split the matrix into M x N equally sized blocks of parallel matrices.
+       The size of 'blocks' must already be set to M x N. */
+   void GetBlocks(Array2D<HypreParMatrix*> &blocks) const;
+
    /// Returns the transpose of *this
    HypreParMatrix * Transpose();
 
