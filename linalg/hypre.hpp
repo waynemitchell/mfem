@@ -271,7 +271,9 @@ public:
 
    /** Split the matrix into M x N equally sized blocks of parallel matrices.
        The size of 'blocks' must already be set to M x N. */
-   void GetBlocks(Array2D<HypreParMatrix*> &blocks) const;
+   void GetBlocks(Array2D<HypreParMatrix*> &blocks,
+                  bool interleaved_rows = false,
+                  bool interleaved_cols = false) const;
 
    /// Returns the transpose of *this
    HypreParMatrix * Transpose();

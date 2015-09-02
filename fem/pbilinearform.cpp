@@ -10,7 +10,6 @@
 // Software Foundation) version 2.1 dated February 1999.
 
 #include "../config/config.hpp"
-#include <fstream>
 
 #ifdef MFEM_USE_MPI
 
@@ -272,14 +271,13 @@ const
    MFEM_VERIFY(mat->Finalized(), "local matrix needs to be finalized for "
                "GetParBlocks");
 
-   MFEM_VERIFY(trial_fes->GetOrdering() == Ordering::byNODES &&
-               test_fes->GetOrdering() == Ordering::byNODES,
-               "both trial and test spaces must use Ordering::byNODES!"); // TODO
-
    HypreParMatrix* RLP = ParallelAssemble();
 
    blocks.SetSize(range_fes->GetVDim(), domain_fes->GetVDim());
-   RLP->GetBlocks(blocks);
+
+   RLP->GetBlocks(blocks,
+                  range_fes->GetOrdering() == Ordering::byVDIM,
+                  domain_fes->GetOrdering() == Ordering::byVDIM);
 
    delete RLP;
 }

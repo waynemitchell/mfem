@@ -869,13 +869,16 @@ void HypreParMatrix::GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap)
    cmap = A->col_map_offd;
 }
 
-void HypreParMatrix::GetBlocks(Array2D<HypreParMatrix*> &blocks) const
+void HypreParMatrix::GetBlocks(Array2D<HypreParMatrix*> &blocks,
+                               bool interleaved_rows,
+                               bool interleaved_cols) const
 {
    int nr = blocks.NumRows();
    int nc = blocks.NumCols();
 
    hypre_ParCSRMatrix **hypre_blocks = new hypre_ParCSRMatrix*[nr * nc];
-   internal::hypre_ParCSRMatrixSplit(A, nr, nc, hypre_blocks, 0);
+   internal::hypre_ParCSRMatrixSplit(A, nr, nc, hypre_blocks,
+                                     interleaved_rows, interleaved_cols);
 
    for (int i = 0; i < nr; i++)
    {
@@ -2216,7 +2219,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
                    int singular_problem)
    : HypreSolver(&A)
 {
-   int cycle_type       = 13; // FIXME: 13 orig, 1 hack
+   int cycle_type       = 13;
    int rlx_type         = 2;
    int rlx_sweeps       = 1;
    double rlx_weight    = 1.0;
@@ -2307,6 +2310,8 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
       {
          vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, dim,
                                                     Ordering::byNODES);
+         // NOTE: ordering no longer needs to be byNODES for GetParBlocks,
+         //       but maybe there's another reason for it?
       }
 
       ParDiscreteLinearOperator *id_ND;
@@ -2368,7 +2373,7 @@ HypreAMS::~HypreAMS()
 HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    : HypreSolver(&A)
 {
-   int cycle_type       = 1; // FIXME: 11
+   int cycle_type       = 11;
    int rlx_type         = 2;
    int rlx_sweeps       = 1;
    double rlx_weight    = 1.0;
@@ -2470,10 +2475,10 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
       id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
       id_ND->AddDomainInterpolator(new IdentityInterpolator);
       id_ND->Assemble();
+      id_ND->Finalize();
 
       if (ams_cycle_type < 10)
       {
-         id_ND->Finalize();
          ND_Pi = id_ND->ParallelAssemble();
          ND_Pi->CopyColStarts(); // since we'll delete vert_fespace_d
          ND_Pi->CopyRowStarts(); // since we'll delete edge_fespace
@@ -2506,10 +2511,10 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
       id_RT = new ParDiscreteLinearOperator(vert_fespace_d, face_fespace);
       id_RT->AddDomainInterpolator(new IdentityInterpolator);
       id_RT->Assemble();
+      id_RT->Finalize();
 
       if (cycle_type < 10)
       {
-         id_RT->Finalize();
          RT_Pi = id_RT->ParallelAssemble();
          RT_Pi->CopyColStarts(); // since we'll delete vert_fespace_d
       }

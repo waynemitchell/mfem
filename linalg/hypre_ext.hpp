@@ -53,7 +53,7 @@ void hypre_ParCSRMatrixEliminateAAe(hypre_ParCSRMatrix *A,
 void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
                              HYPRE_Int nr, HYPRE_Int nc,
                              hypre_ParCSRMatrix **blocks,
-                             int interleaved);
+                             int interleaved_rows, int interleaved_cols);
 
 }
 

@@ -724,7 +724,7 @@ void hypre_CSRMatrixSplit(hypre_CSRMatrix *A,
 void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
                              HYPRE_Int nr, HYPRE_Int nc,
                              hypre_ParCSRMatrix **blocks,
-                             int interleaved)
+                             int interleaved_rows, int interleaved_cols)
 {
    HYPRE_Int i, j, k;
 
@@ -753,11 +753,11 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
 
    for (i = 0; i < local_rows; i++)
    {
-      row_block_num[i] = interleaved ? (i % nr) : (i / block_rows);
+      row_block_num[i] = interleaved_rows ? (i % nr) : (i / block_rows);
    }
    for (i = 0; i < local_cols; i++)
    {
-      col_block_num[i] = interleaved ? (i % nc) : (i / block_cols);
+      col_block_num[i] = interleaved_cols ? (i % nc) : (i / block_cols);
    }
 
    /* determine the block numbers for offd columns */
