@@ -833,6 +833,7 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
 
    for (i = 0; i < num_blocks; i++)
    {
+      hypre_TFree(hypre_ParCSRMatrixDiag(blocks[i]));
       hypre_ParCSRMatrixDiag(blocks[i]) = csr_blocks[i];
    }
 
@@ -854,6 +855,7 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
 
    for (i = 0; i < num_blocks; i++)
    {
+      hypre_TFree(hypre_ParCSRMatrixOffd(blocks[i]));
       hypre_ParCSRMatrixOffd(blocks[i]) = csr_blocks[i];
    }
 
