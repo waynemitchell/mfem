@@ -67,21 +67,6 @@ private:
    /// Are the columns sorted already.
    bool isSorted;
 
-   inline void SetColPtr(const int row) const;
-   inline void ClearColPtr() const;
-   inline double &SearchRow(const int col);
-   inline void _Add_(const int col, const double a)
-   { SearchRow(col) += a; }
-   inline void _Set_(const int col, const double a)
-   { SearchRow(col) = a; }
-   inline double _Get_(const int col) const;
-
-   inline double &SearchRow(const int row, const int col);
-   inline void _Add_(const int row, const int col, const double a)
-   { SearchRow(row, col) += a; }
-   inline void _Set_(const int row, const int col, const double a)
-   { SearchRow(row, col) = a; }
-
 public:
    /** Create a sparse matrix with flexible sparsity structure using a row-wise
        linked list format. New entries are added as needed by methods like
@@ -259,6 +244,21 @@ public:
 
    void GetSubMatrix(const Array<int> &rows, const Array<int> &cols,
                      DenseMatrix &subm);
+
+   inline void SetColPtr(const int row) const;
+   inline void ClearColPtr() const;
+   inline double &SearchRow(const int col);
+   inline void _Add_(const int col, const double a)
+   { SearchRow(col) += a; }
+   inline void _Set_(const int col, const double a)
+   { SearchRow(col) = a; }
+   inline double _Get_(const int col) const;
+
+   inline double &SearchRow(const int row, const int col);
+   inline void _Add_(const int row, const int col, const double a)
+   { SearchRow(row, col) += a; }
+   inline void _Set_(const int row, const int col, const double a)
+   { SearchRow(row, col) = a; }
 
    void Set(const int i, const int j, const double a);
    void Add(const int i, const int j, const double a);
