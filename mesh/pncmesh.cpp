@@ -783,13 +783,6 @@ void ParNCMesh::ElementSet::DecodeTree(Element* elem, int &pos,
       {
          if (mask & (1 << i))
          {
-            /*if (!elem->ref_type)
-            {
-               MFEM_ABORT("error: "
-                          << elem->node[0]->vertex->pos[0] << ", "
-                          << elem->node[0]->vertex->pos[1] << ", "
-                          << elem->node[0]->vertex->pos[2]);
-            }*/
             DecodeTree(elem->child[i], pos, elements);
          }
       }
