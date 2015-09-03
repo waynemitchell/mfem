@@ -92,7 +92,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    if (mesh.ncmesh)
    {
       pncmesh = new ParNCMesh(comm, *mesh.ncmesh);
-      pncmesh->Prune();
+      //pncmesh->Prune();
 
       Mesh::Init();
       Mesh::InitTables();

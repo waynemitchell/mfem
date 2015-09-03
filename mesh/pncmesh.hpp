@@ -73,6 +73,9 @@ public:
    /** */
    virtual void LimitNCLevel(int max_level);
 
+   /** */
+   void Rebalance();
+
    /** Return a list of vertices shared by this processor and at least one other
        processor. (NOTE: only NCList::conforming will be set.) */
    const NCList& GetSharedVertices()
@@ -215,9 +218,13 @@ protected:
 
    virtual void Update();
 
-   /// Assigns elements to processors at the initial stage (ParMesh creation).
+   /// Return the processor number for a global element number.
+   int Partition(long index, long total_elements) const
+   { return index * NRanks / total_elements; }
+
+   /// Helper to get the partition when the serial mesh is being split initially
    int InitialPartition(int index) const
-   { return index * NRanks / leaf_elements.Size(); }
+   { return Partition(index, leaf_elements.Size()); }
 
    virtual void UpdateVertices();
    virtual void AssignLeafIndices();

@@ -30,7 +30,8 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
    MPI_Comm_size(MyComm, &NRanks);
    MPI_Comm_rank(MyComm, &MyRank);
 
-   // assign leaf elements to the 'NRanks' processors
+   // assign leaf elements to the processors by simply splitting the natural
+   // sequence of leaf elements into 'NRanks' parts
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       leaf_elements[i]->rank = InitialPartition(i);
@@ -38,6 +39,10 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
 
    AssignLeafIndices();
    UpdateVertices();
+
+   // note that at this point all processors still have all the leaf elements;
+   // we however may now start pruning the refinement tree to get rid of
+   // branches that only contain someone else's leaves (see Prune())
 }
 
 void ParNCMesh::Update()
@@ -678,6 +683,36 @@ void ParNCMesh::LimitNCLevel(int max_level)
       MFEM_ABORT("not implemented in parallel yet.");
    }
    NCMesh::LimitNCLevel(max_level);
+}
+
+
+//// Rebalance /////////////////////////////////////////////////////////////////
+
+void ParNCMesh::Rebalance()
+{
+   // *** STEP 1: figure out new assigments for Element::rank ***
+
+   long local_elems = NElements, total_elems = 0;
+   MPI_Allreduce(&local_elems, &total_elems, 1, MPI_LONG, MPI_SUM, MyComm);
+
+   long first_elem_global = 0;
+   MPI_Scan(&local_elems, &first_elem_global, 1, MPI_LONG, MPI_SUM, MyComm);
+   first_elem_global -= local_elems;
+
+   Array<int> new_ranks(leaf_elements.Size());
+   new_ranks = -1;
+
+   for (int i = 0, j = 0; i < leaf_elements.Size(); i++)
+   {
+      if (leaf_elements[i]->rank == MyRank)
+      {
+         new_ranks[i] = Partition(first_elem_global + (j++), total_elems);
+      }
+   }
+
+   // *** STEP 2: communicate new rank assignments for the ghost layer ***
+
+
 }
 
 
