@@ -92,7 +92,15 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    if (mesh.ncmesh)
    {
       pncmesh = new ParNCMesh(comm, *mesh.ncmesh);
-      //pncmesh->Prune();
+
+      // save the element partitioning before Prune()
+      int* partition = new int[mesh.GetNE()];
+      for (int i = 0; i < mesh.GetNE(); i++)
+      {
+         partition[i] = pncmesh->InitialPartition(i);
+      }
+
+      pncmesh->Prune();
 
       Mesh::Init();
       Mesh::InitTables();
@@ -108,15 +116,10 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
 
       if (mesh.GetNodes())
       {
-         int* part = new int[mesh.GetNE()];
-         for (int i = 0; i < mesh.GetNE(); i++)
-         {
-            part[i] = pncmesh->InitialPartition(i);
-         }
-         Nodes = new ParGridFunction(this, mesh.GetNodes(), part);
+         Nodes = new ParGridFunction(this, mesh.GetNodes(), partition);
          own_nodes = 1;
-         delete [] part;
       }
+      delete [] partition;
 
       have_face_nbr_data = false;
       return;
