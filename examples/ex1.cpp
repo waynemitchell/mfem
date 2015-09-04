@@ -89,30 +89,7 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   mesh->RandomRefinement(6, 2, true);
-
-   {
-      Array<char> elem_set(mesh->GetNE());
-      elem_set = 0;
-      for (int i = 0; i < 1000; i++)
-      {
-         elem_set[rand() % elem_set.Size()] = 1;
-      }
-      mesh->ncmesh->DebugNeighbors(elem_set);
-
-      ofstream f1("neighbors.mesh");
-      mesh->Print(f1);
-
-      L2_FECollection l2_fec(0, dim);
-      FiniteElementSpace attr_fes(mesh, &l2_fec);
-      GridFunction attr(&attr_fes);
-      for (int i = 0; i < attr.Size(); i++)
-      {
-         attr(i) = elem_set[i];
-      }
-      ofstream f2("neighbors.gf");
-      f2 << attr;
-   }
+   mesh->RandomRefinement(5, 2, true);
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we

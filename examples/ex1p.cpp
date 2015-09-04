@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   mesh->RandomRefinement(5, 2, false);
+   mesh->RandomRefinement(4, 2, false);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
