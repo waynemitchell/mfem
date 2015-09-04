@@ -1190,7 +1190,7 @@ void NCMesh::DerefineElement(Element* elem)
    }
 
    // retrieve original corner nodes and face attributes from the children
-   int fa[6];
+   int fa[6], ea[4];
    if (elem->geom == Geometry::CUBE)
    {
       const int table[7][8 + 6] =
@@ -1210,15 +1210,43 @@ void NCMesh::DerefineElement(Element* elem)
       for (int i = 0; i < 6; i++)
       {
          Element* ch = child[table[elem->ref_type - 1][i + 8]];
-
          const int* fv = gi_hex.faces[i];
          fa[i] = faces.Peek(ch->node[fv[0]], ch->node[fv[1]],
                             ch->node[fv[2]], ch->node[fv[3]])->attribute;
       }
    }
+   else if (elem->geom == Geometry::SQUARE)
+   {
+      const int table[3][4 + 4] =
+      {
+         { 0, 1, 1, 0, /**/ 1, 1, 0, 0 }, // 1 - X
+         { 0, 0, 1, 1, /**/ 0, 0, 1, 1 }, // 2 - Y
+         { 0, 1, 2, 3, /**/ 1, 1, 3, 3 }  // 3 - iso
+      };
+      for (int i = 0; i < 4; i++)
+      {
+         elem->node[i] = child[table[elem->ref_type - 1][i]]->node[i];
+      }
+      for (int i = 0; i < 4; i++)
+      {
+         Element* ch = child[table[elem->ref_type - 1][i + 4]];
+         const int* ev = gi_quad.edges[i];
+         ea[i] = nodes.Peek(ch->node[ev[0]], ch->node[ev[1]])->edge->attribute;
+      }
+   }
+   else if (elem->geom == Geometry::TRIANGLE)
+   {
+      for (int i = 0; i < 3; i++)
+      {
+         Element* ch = child[i];
+         elem->node[i] = child[i]->node[i];
+         const int* ev = gi_tri.edges[i];
+         ea[i] = nodes.Peek(ch->node[ev[0]], ch->node[ev[1]])->edge->attribute;
+      }
+   }
    else
    {
-      MFEM_ABORT("Not implemented.");
+      MFEM_ABORT("Unsupported element geometry.");
    }
 
    // sign in to all nodes again
@@ -1230,7 +1258,7 @@ void NCMesh::DerefineElement(Element* elem)
    {
       if (child[i])
       {
-         elem->rank = std::min(elem->rank, child[i]->rank);
+         elem->rank = std::min(elem->rank, child[i]->rank); // TODO: ???
          DeleteHierarchy(child[i]);
       }
    }
@@ -1242,7 +1270,13 @@ void NCMesh::DerefineElement(Element* elem)
    }
    else
    {
-      MFEM_ABORT("Not implemented.");
+      Node** node = elem->node;
+      GeomInfo& gi = GI[(int) elem->geom];
+      for (int i = 0; i < gi.ne; i++)
+      {
+         const int* ev = gi.edges[i];
+         nodes.Peek(node[ev[0]], node[ev[1]])->edge->attribute = ea[i];
+      }
    }
 
    elem->ref_type = 0;
