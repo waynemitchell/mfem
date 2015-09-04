@@ -526,7 +526,7 @@ void ParNCMesh::NeighborProcessors(Array<int> &neighbors)
       ranks.insert(ghost_layer[i]->rank);
    }
 
-   neighbors.DeleteAll();
+   neighbors.SetSize(0);
    neighbors.Reserve(ranks.size());
 
    std::set<int>::iterator it;
@@ -711,6 +711,16 @@ void ParNCMesh::Rebalance()
    }
 
    // *** STEP 2: communicate new rank assignments for the ghost layer ***
+
+   NeighborProcessors(neighbors);
+
+
+
+   // *** STEP 3: send elements that no longer belong to us to new assignees ***
+
+
+   // *** STEP 4: prune the new refinement tree ***
+
 
 
 }
