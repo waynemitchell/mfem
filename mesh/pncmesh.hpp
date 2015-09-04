@@ -336,12 +336,14 @@ TODO
 + conforming case R matrix
 + master merge
 + curved/two-level parmesh
-- hcurl/hdiv (par-blocks)
++ hcurl/hdiv (par-blocks)
 + saving/reading nc meshes
 + visualization, VisIt?
 + neighbor search algorithm
 + parallel refinement bug
-- skip ldof_sign in pfespace.cpp
++ derefine 2D
++ limit NC 3D edges + 2D
++ skip ldof_sign in pfespace.cpp
 - parallel ZZ estimator
 - ProjectBdrCoefficient
 - performance/scaling study
