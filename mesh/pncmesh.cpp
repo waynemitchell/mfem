@@ -712,7 +712,7 @@ void ParNCMesh::Rebalance()
 
    // *** STEP 2: communicate new rank assignments for the ghost layer ***
 
-   NeighborProcessors(neighbors);
+   //NeighborProcessors(neighbors);
 
 
 
@@ -728,13 +728,13 @@ void ParNCMesh::Rebalance()
 
 //// ElementSet ////////////////////////////////////////////////////////////////
 
-void ParNCMesh::ElementSet::SetInt(int pos, int value)
+void ParNCMesh::ElementSet::WriteInt(int value)
 {
    // helper to put an int to the data array
-   data[pos] = value & 0xff;
-   data[pos+1] = (value >> 8) & 0xff;
-   data[pos+2] = (value >> 16) & 0xff;
-   data[pos+3] = (value >> 24) & 0xff;
+   data.Append(value & 0xff);
+   data.Append((value >> 8) & 0xff);
+   data.Append((value >> 16) & 0xff);
+   data.Append((value >> 24) & 0xff);
 }
 
 int ParNCMesh::ElementSet::GetInt(int pos) const
@@ -746,72 +746,71 @@ int ParNCMesh::ElementSet::GetInt(int pos) const
           ((int) data[pos+3] << 24);
 }
 
-bool ParNCMesh::ElementSet::EncodeTree
-(Element* elem, const std::set<Element*> &elements)
+void ParNCMesh::ElementSet::EncodeTree(Element* elem)
 {
-   // is 'elem' in the set?
-   if (elements.find(elem) != elements.end())
+   if (!elem->ref_type)
    {
-      // we reached a 'leaf' of our subtree, mark this as zero child mask
+      // we reached a leaf, mark this as zero child mask
       data.Append(0);
-      return true;
    }
-   else if (elem->ref_type)
+   else
    {
-      // write a bit mask telling what subtrees contain elements from the set
-      int mpos = data.Size();
-      data.Append(0);
-
-      // check the subtrees
+      // check which subtrees contain marked elements
       int mask = 0;
       for (int i = 0; i < 8; i++)
       {
-         if (elem->child[i])
+         if (elem->child[i] && elem->child[i]->flag)
          {
-            if (EncodeTree(elem->child[i], elements))
-            {
-               mask |= (unsigned char) 1 << i;
-            }
+            mask |= 1 << i;
          }
       }
 
-      if (mask)
-      {
-         data[mpos] = mask;
-      }
-      else
-      {
-         data.DeleteLast();
-      }
+      // write the bit mask and visit the subtrees
+      data.Append(mask);
 
-      return mask != 0;
+      for (int i = 0; i < 8; i++)
+      {
+         if (mask & (1 << i))
+         {
+            EncodeTree(elem->child[i]);
+         }
+      }
    }
-   return false;
 }
 
-ParNCMesh::ElementSet::ElementSet(const std::set<Element*> &elements,
+void ParNCMesh::ElementSet::FlagElements(const Array<Element*> &elements,
+                                         char flag)
+{
+   for (int i = 0; i < elements.Size(); i++)
+   {
+      Element* e = elements[i];
+      while (e && e->flag != flag)
+      {
+         e->flag = flag;
+         e = e->parent;
+      }
+   }
+}
+
+ParNCMesh::ElementSet::ElementSet(const Array<Element*> &elements,
                                   const Array<Element*> &ncmesh_roots)
 {
-   int header_pos = 0;
-   data.SetSize(4);
+   FlagElements(elements, 1);
 
    // Each refinement tree that contains at least one element from the set
    // is encoded as HEADER + TREE, where HEADER is the root element number and
    // TREE is the output of EncodeTree().
    for (int i = 0; i < ncmesh_roots.Size(); i++)
    {
-      if (EncodeTree(ncmesh_roots[i], elements))
+      if (ncmesh_roots[i]->flag)
       {
-         SetInt(header_pos, i);
-
-         // make room for the next header
-         header_pos = data.Size();
-         data.SetSize(header_pos + 4);
+         WriteInt(i);
+         EncodeTree(ncmesh_roots[i]);
       }
    }
+   WriteInt(-1); // mark end of data
 
-   // mark end of data
-   SetInt(header_pos, -1);
+   FlagElements(elements, 0);
 }
 
 void ParNCMesh::ElementSet::DecodeTree(Element* elem, int &pos,
@@ -882,12 +881,12 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[],
    // get a list of elements involved, dump them to 'os' and create the mapping
    // element_id: (Element* -> stream ID)
    {
-      std::set<Element*> elements;
+      Array<Element*> elements;
       for (int type = 0; type < dim; type++)
       {
          for (int i = 0; i < ids[type].Size(); i++)
          {
-            elements.insert(ids[type][i].element);
+            elements.Append(ids[type][i].element);
          }
       }
 

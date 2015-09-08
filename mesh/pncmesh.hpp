@@ -261,7 +261,7 @@ protected:
    class ElementSet
    {
    public:
-      ElementSet(const std::set<Element*> &elements,
+      ElementSet(const Array<Element*> &elements,
                  const Array<Element*> &ncmesh_roots);
       void Dump(std::ostream &os) const;
 
@@ -274,10 +274,11 @@ protected:
    protected:
       Array<unsigned char> data; ///< encoded refinement (sub-)trees
 
-      bool EncodeTree(Element* elem, const std::set<Element*> &elements);
+      void EncodeTree(Element* elem);
       void DecodeTree(Element* elem, int &pos, Array<Element*> &elements) const;
+      void FlagElements(const Array<Element *> &elements, char flag);
 
-      void SetInt(int pos, int value);
+      void WriteInt(int value);
       int GetInt(int pos) const;
    };
 

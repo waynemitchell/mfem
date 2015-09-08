@@ -455,7 +455,8 @@ NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
 //// Refinement & Derefinement /////////////////////////////////////////////////
 
 NCMesh::Element::Element(int geom, int attr)
-   : geom(geom), ref_type(0), index(-1), rank(-1), attribute(attr), parent(NULL)
+   : geom(geom), ref_type(0), flag(0), index(-1), rank(-1), attribute(attr)
+   , parent(NULL)
 {
    memset(node, 0, sizeof(node));
 
