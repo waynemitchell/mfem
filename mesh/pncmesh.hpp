@@ -309,22 +309,22 @@ protected:
    bool PruneTree(Element* elem);
 
 
-   /** Internal message; used to inform neighbors about refinement of elements
-    *  adjacent to the processor boundary. This is used by the neighbors to
-    *  update their ghost layers.
+   /** A base for internal messages used by Refine() and Rebalance(). Allows
+    *  sending values associated with a set of elements.
     */
-   class NeighborRefinementMessage : public VarMessage<289>
+   template<class ValueType, int Tag>
+   class ElementValueMessage : public VarMessage<Tag>
    {
    public:
-      std::vector<ElemRefType> refinements;
+      std::vector<Element*> elements;
+      std::vector<ValueType> values;
 
-      void AddRefinement(Element* elem, int ref_type)
-      { refinements.push_back(ElemRefType(elem, ref_type)); }
+      int Size() const { return elements.size(); }
 
       /// Set pointer to ParNCMesh (needed to encode the message).
       void SetNCMesh(ParNCMesh* pncmesh) { this->pncmesh = pncmesh; }
 
-      typedef std::map<int, NeighborRefinementMessage> Map;
+      ElementValueMessage() : pncmesh(NULL) {}
 
    protected:
       ParNCMesh* pncmesh;
@@ -333,6 +333,23 @@ protected:
       virtual void Decode();
    };
 
+   /** Used by ParNCMesh::Refine() to inform neighbors about refinements at
+    *  the processor boundary. This keeps their ghost layers synchronized.
+    */
+   class NeighborRefinementMessage : public ElementValueMessage<char, 289>
+   {
+   public:
+      void AddRefinement(Element* elem, char ref_type)
+      {
+         elements.push_back(elem);
+         values.push_back(ref_type);
+      }
+
+      typedef std::map<int, NeighborRefinementMessage> Map;
+   };
+
+
+   static bool compare_ranks(const Element* a, const Element* b);
 
    friend class ParMesh;
    friend class NeighborDofMessage;
@@ -349,7 +366,7 @@ TODO
 + visualization, VisIt?
 + neighbor search algorithm
 + parallel refinement bug
-- skip ldof_sign in pfespace.cpp
++ skip ldof_sign in pfespace.cpp
 - parallel ZZ estimator
 - ProjectBdrCoefficient
 - performance/scaling study

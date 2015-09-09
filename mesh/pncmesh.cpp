@@ -662,10 +662,9 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
       msg.Recv(rank, size, MyComm);
 
       // do the ghost refinements
-      for (unsigned i = 0; i < msg.refinements.size(); i++)
+      for (int i = 0; i < msg.Size(); i++)
       {
-         const ElemRefType &ref = msg.refinements[i];
-         NCMesh::RefineElement(ref.elem, ref.ref_type);
+         NCMesh::RefineElement(msg.elements[i], msg.values[i]);
       }
    }
 
@@ -1210,40 +1209,65 @@ void NeighborRowReply::Decode()
    data.clear();
 }
 
-void ParNCMesh::NeighborRefinementMessage::Encode()
+template<class ValueType, int Tag>
+void ParNCMesh::ElementValueMessage<ValueType, Tag>::Encode()
 {
-   Array<MeshId> ids;
+   typedef VarMessage<Tag> Base;
 
-   // abuse EncodeMeshIds() to encode the list of refinements
-   ids.Reserve(refinements.size());
-   for (unsigned i = 0; i < refinements.size(); i++)
+   std::ostringstream ostream;
+
+   Array<Element*> tmp_elements;
+   tmp_elements.MakeRef(elements.data(), elements.size());
+
+   ElementSet eset(tmp_elements, pncmesh->root_elements);
+   eset.Dump(ostream);
+
+   // decode the element set to obtain a local numbering of elements
+   Array<Element*> decoded;
+   eset.Decode(decoded, pncmesh->root_elements);
+
+   std::map<Element*, int> element_index;
+   for (int i = 0; i < decoded.Size(); i++)
    {
-      const ElemRefType &ref = refinements[i];
-      ids.Append(MeshId(-1, ref.elem, ref.ref_type));
+      element_index[decoded[i]] = i;
    }
 
-   std::ostringstream stream;
-   pncmesh->EncodeMeshIds(stream, &ids, 1);
+   write<int>(ostream, values.size());
+   MFEM_ASSERT(elements.size() == values.size(), "");
 
-   stream.str().swap(data);
+   for (unsigned i = 0; i < values.size(); i++)
+   {
+      write<int>(ostream, element_index[elements[i]]); // element number
+      write<ValueType>(ostream, values[i]);
+   }
+
+   ostream.str().swap(Base::data);
 }
 
-void ParNCMesh::NeighborRefinementMessage::Decode()
+template<class ValueType, int Tag>
+void ParNCMesh::ElementValueMessage<ValueType, Tag>::Decode()
 {
-   Array<NCMesh::MeshId> ids;
+   typedef VarMessage<Tag> Base;
 
-   // inverse abuse to Encode()
-   std::istringstream stream(data);
-   pncmesh->DecodeMeshIds(stream, &ids, 1, false);
+   std::istringstream istream(Base::data);
 
-   refinements.clear();
-   refinements.reserve(ids.Size());
-   for (int i = 0; i < ids.Size(); i++)
+   ElementSet eset(istream);
+
+   Array<Element*> tmp_elements;
+   eset.Decode(tmp_elements, pncmesh->root_elements);
+
+   Element** el = tmp_elements.GetData();
+   elements.assign(el, el + tmp_elements.Size());
+   values.resize(elements.size());
+
+   int count = read<int>(istream);
+   for (int i = 0; i < count; i++)
    {
-      AddRefinement(ids[i].element, ids[i].local);
+      values[read<int>(istream)] = read<ValueType>(istream);
    }
 
-   data.clear();
+   // no longer need the raw data
+   Base::data.clear();
 }
 
 
