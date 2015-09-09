@@ -55,6 +55,7 @@ void ParNCMesh::Update()
 
    element_type.SetSize(0);
    ghost_layer.SetSize(0);
+   boundary_layer.SetSize(0);
 }
 
 void ParNCMesh::AssignLeafIndices()
@@ -478,6 +479,7 @@ void ParNCMesh::UpdateLayers()
    FindSetNeighbors(ghost_set, NULL, &boundary_set);
 
    ghost_layer.SetSize(0);
+   boundary_layer.SetSize(0);
    for (int i = 0; i < nleaves; i++)
    {
       if (ghost_set[i])
@@ -488,6 +490,7 @@ void ParNCMesh::UpdateLayers()
       else if (boundary_set[i] && element_type[i])
       {
          element_type[i] = 3;
+         boundary_layer.Append(leaf_elements[i]);
       }
    }
 }
@@ -687,6 +690,11 @@ void ParNCMesh::LimitNCLevel(int max_level)
 
 //// Rebalance /////////////////////////////////////////////////////////////////
 
+bool ParNCMesh::compare_ranks(const Element* a, const Element* b)
+{
+   return a->rank < b->rank;
+}
+
 void ParNCMesh::Rebalance()
 {
    // *** STEP 1: figure out new assigments for Element::rank ***
@@ -711,9 +719,63 @@ void ParNCMesh::Rebalance()
 
    // *** STEP 2: communicate new rank assignments for the ghost layer ***
 
-   //NeighborProcessors(neighbors);
+   NeighborElementRankMessage::Map send_ghost_ranks, recv_ghost_ranks;
 
+   ghost_layer.Sort(compare_ranks);
+   {
+      Array<Element*> rank_neighbors;
 
+      // loop over neighbor ranks and their elements
+      int begin = 0, end = 0;
+      while (end < ghost_layer.Size())
+      {
+         // find range of elements belonging to one rank
+         int rank = ghost_layer[begin]->rank;
+         while (end < ghost_layer.Size() &&
+                ghost_layer[end]->rank == rank) { end++; }
+
+         // find elements within boundary_layer that are neighbors to 'rank'
+         Array<Element*> rank_elems;
+         rank_elems.MakeRef(&ghost_layer[begin], end - begin);
+
+         rank_neighbors.SetSize(0);
+         FindSmallSetNeighbors(rank_elems, rank_neighbors, boundary_layer);
+
+         // send a message with new rank assignments in 'rank_neighbors'
+         NeighborElementRankMessage& msg = send_ghost_ranks[rank];
+         msg.SetNCMesh(this);
+
+         msg.Reserve(rank_neighbors.Size());
+         for (int i = 0; i < rank_neighbors.Size(); i++)
+         {
+            Element* e = rank_neighbors[i];
+            msg.AddElementRank(e, new_ranks[e->index]);
+         }
+
+         msg.Isend(rank, MyComm);
+
+         // prepare to receive a message from the neighbor too, these will
+         // be new the new rank assignments for our ghost layer
+         recv_ghost_ranks[rank].SetNCMesh(this);
+
+         begin = end;
+      }
+   }
+
+   NeighborElementRankMessage::RecvAll(recv_ghost_ranks, MyComm);
+
+   // read new ranks for the ghost layer from messages received
+   NeighborElementRankMessage::Map::iterator it;
+   for (it = recv_ghost_ranks.begin(); it != recv_ghost_ranks.end(); ++it)
+   {
+      NeighborElementRankMessage &msg = it->second;
+      for (int i = 0; i < msg.Size(); i++)
+      {
+         int ghost_index = msg.elements[i]->index;
+         MFEM_ASSERT(element_type[ghost_index] == 2, "");
+         new_ranks[ghost_index] = msg.values[i];
+      }
+   }
 
    // *** STEP 3: send elements that no longer belong to us to new assignees ***
 
@@ -721,7 +783,10 @@ void ParNCMesh::Rebalance()
    // *** STEP 4: prune the new refinement tree ***
 
 
+   Update();
 
+   // make sure we can delete all send buffers
+   NeighborElementRankMessage::WaitAllSent(send_ghost_ranks);
 }
 
 

@@ -490,6 +490,10 @@ protected: // implementation
                          Array<Element*> *neighbors,
                          Array<char> *neighbor_set = NULL);
 
+   void FindSmallSetNeighbors(const Array<Element*> &elements,
+                              Array<Element*> &neighbors,
+                              const Array<Element*> &search_set);
+
    /** Return all vertex-, edge- and face-neighbors of a single element.
        You can limit the number of elements being checked using 'search_set'.
        The complexity of the function is linear in the size of the search set.*/

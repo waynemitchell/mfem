@@ -188,6 +188,10 @@ public:
    /// Sorts the array. This requires operator< to be defined for T.
    void Sort() { std::sort((T*) data, (T*) data + size); }
 
+   /// Sorts the array using the supplied comparison function object.
+   template<class Compare>
+   void Sort(Compare cmp) { std::sort((T*) data, (T*) data + size, cmp); }
+
    /** Removes duplicities from a sorted array. This requires operator== to be
        defined for T. */
    void Unique()

@@ -215,6 +215,7 @@ protected:
    Array<char> element_type;
 
    Array<Element*> ghost_layer; ///< list of elements whose 'element_type' == 2.
+   Array<Element*> boundary_layer; ///< list of type 3 elements
 
    virtual void Update();
 
@@ -320,6 +321,7 @@ protected:
       std::vector<ValueType> values;
 
       int Size() const { return elements.size(); }
+      void Reserve(int size) { elements.reserve(size); values.reserve(size); }
 
       /// Set pointer to ParNCMesh (needed to encode the message).
       void SetNCMesh(ParNCMesh* pncmesh) { this->pncmesh = pncmesh; }
@@ -344,8 +346,21 @@ protected:
          elements.push_back(elem);
          values.push_back(ref_type);
       }
-
       typedef std::map<int, NeighborRefinementMessage> Map;
+   };
+
+   /**
+    *
+    */
+   class NeighborElementRankMessage : public ElementValueMessage<int, 156>
+   {
+   public:
+      void AddElementRank(Element* elem, int rank)
+      {
+         elements.push_back(elem);
+         values.push_back(rank);
+      }
+      typedef std::map<int, NeighborElementRankMessage> Map;
    };
 
 
