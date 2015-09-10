@@ -721,6 +721,7 @@ void ParNCMesh::Rebalance()
 
    NeighborElementRankMessage::Map send_ghost_ranks, recv_ghost_ranks;
 
+   UpdateLayers();
    ghost_layer.Sort(compare_ranks);
    {
       Array<Element*> rank_neighbors;
@@ -739,7 +740,7 @@ void ParNCMesh::Rebalance()
          rank_elems.MakeRef(&ghost_layer[begin], end - begin);
 
          rank_neighbors.SetSize(0);
-         FindSmallSetNeighbors(rank_elems, rank_neighbors, boundary_layer);
+         NeighborExpand(rank_elems, rank_neighbors, &boundary_layer);
 
          // send a message with new rank assignments in 'rank_neighbors'
          NeighborElementRankMessage& msg = send_ghost_ranks[rank];

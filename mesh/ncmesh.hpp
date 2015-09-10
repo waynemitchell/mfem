@@ -483,16 +483,12 @@ protected: // implementation
    /** Return all vertex-, edge- and face-neighbors of a set of elements.
        The neighbors are returned as a list (neighbors != NULL), as a set
        (neighbor_set != NULL), or both. The sizes of the set arrays must match
-       that of leaf_elements.
-       NOTE: the function is intended to be used for large sets of elements and
-       its complexity is linear in the number of leaf elements in the mesh. */
+       that of leaf_elements. The function is intended to be used for large
+       sets of elements and its complexity is linear in the number of leaf
+       elements in the mesh. */
    void FindSetNeighbors(const Array<char> &elem_set,
                          Array<Element*> *neighbors,
                          Array<char> *neighbor_set = NULL);
-
-   void FindSmallSetNeighbors(const Array<Element*> &elements,
-                              Array<Element*> &neighbors,
-                              const Array<Element*> &search_set);
 
    /** Return all vertex-, edge- and face-neighbors of a single element.
        You can limit the number of elements being checked using 'search_set'.
@@ -500,6 +496,16 @@ protected: // implementation
    void FindNeighbors(const Element* elem,
                       Array<Element*> &neighbors,
                       const Array<Element*> *search_set = NULL);
+
+   /** Expand a set of elements by all vertex-, edge- and face-neighbors.
+       The output array 'expanded' will contain all items from 'elements'
+       (provided they are in 'search_set') plus their neighbors. The neighbor
+       search can be limited to the optional search set. The complexity is
+       linear in the sum of the sizes of 'elements' and 'search_set'. */
+   void NeighborExpand(const Array<Element*> &elements,
+                       Array<Element*> &expanded,
+                       const Array<Element*> *search_set = NULL);
+
 
    void CollectEdgeVertices(Node *v0, Node *v1, Array<int> &indices);
    void CollectFaceVertices(Node* v0, Node* v1, Node* v2, Node* v3,

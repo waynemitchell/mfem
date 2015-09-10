@@ -1933,6 +1933,7 @@ void NCMesh::FindNeighbors(const Element* elem,
       search_set = &leaf_elements;
    }
 
+   neighbors.SetSize(0);
    for (int i = 0; i < search_set->Size(); i++)
    {
       Element* testme = (*search_set)[i];
@@ -1947,6 +1948,48 @@ void NCMesh::FindNeighbors(const Element* elem,
                neighbors.Append(testme);
                break;
             }
+         }
+      }
+   }
+}
+
+void NCMesh::NeighborExpand(const Array<Element*> &elements,
+                            Array<Element*> &expanded,
+                            const Array<Element*> *search_set)
+{
+   UpdateElementToVertexTable();
+
+   Array<char> vertices(num_vertices);
+   vertices = 0;
+
+   for (int i = 0; i < elements.Size(); i++)
+   {
+      int index = elements[i]->index;
+      int *v = element_vertex.GetRow(index);
+      int nv = element_vertex.RowSize(index);
+      for (int j = 0; j < nv; j++)
+      {
+         vertices[v[j]] = 1;
+      }
+   }
+
+   if (!search_set)
+   {
+      search_set = &leaf_elements;
+   }
+
+   expanded.SetSize(0);
+   for (int i = 0; i < search_set->Size(); i++)
+   {
+      Element* testme = (*search_set)[i];
+      int *v = element_vertex.GetRow(testme->index);
+      int nv = element_vertex.RowSize(testme->index);
+      for (int j = 0; j < nv; j++)
+      {
+         if (vertices[v[j]])
+         {
+            expanded.Append(testme);
+            break;
          }
       }
    }
