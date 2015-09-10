@@ -363,6 +363,21 @@ protected:
       typedef std::map<int, NeighborElementRankMessage> Map;
    };
 
+   /**
+    *
+    */
+   class RebalanceMessage : public ElementValueMessage<int, 157>
+   {
+   public:
+      // TODO: element set refine
+      void AddElementRank(Element* elem, int rank)
+      {
+         elements.push_back(elem);
+         values.push_back(rank);
+      }
+      typedef std::map<int, RebalanceMessage> Map;
+   };
+
 
    static bool compare_ranks(const Element* a, const Element* b);
 

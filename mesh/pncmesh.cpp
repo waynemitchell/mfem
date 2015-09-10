@@ -697,6 +697,8 @@ bool ParNCMesh::compare_ranks(const Element* a, const Element* b)
 
 void ParNCMesh::Rebalance()
 {
+   UpdateLayers();
+
    // *** STEP 1: figure out new assigments for Element::rank ***
 
    long local_elems = NElements, total_elems = 0;
@@ -721,7 +723,6 @@ void ParNCMesh::Rebalance()
 
    NeighborElementRankMessage::Map send_ghost_ranks, recv_ghost_ranks;
 
-   UpdateLayers();
    ghost_layer.Sort(compare_ranks);
    {
       Array<Element*> rank_neighbors;
@@ -735,14 +736,14 @@ void ParNCMesh::Rebalance()
          while (end < ghost_layer.Size() &&
                 ghost_layer[end]->rank == rank) { end++; }
 
-         // find elements within boundary_layer that are neighbors to 'rank'
          Array<Element*> rank_elems;
          rank_elems.MakeRef(&ghost_layer[begin], end - begin);
 
+         // find elements within boundary_layer that are neighbors to 'rank'
          rank_neighbors.SetSize(0);
          NeighborExpand(rank_elems, rank_neighbors, &boundary_layer);
 
-         // send a message with new rank assignments in 'rank_neighbors'
+         // send a message with new rank assignments within 'rank_neighbors'
          NeighborElementRankMessage& msg = send_ghost_ranks[rank];
          msg.SetNCMesh(this);
 
@@ -778,16 +779,87 @@ void ParNCMesh::Rebalance()
       }
    }
 
+   recv_ghost_ranks.clear();
+
    // *** STEP 3: send elements that no longer belong to us to new assignees ***
 
+   /* The result thus far is just the array 'new_ranks' containing new owners
+      for elements that we currently own plus new owners for the ghost layer.
+      Next we keep elements that still belong to us and send ElementSets with
+      the remaining elements to their new owners. Each batch of elements needs
+      to be sent together with their neighbors so the receiver also gets a
+      ghost layer that is up to date (this is why we needed Step 2). */
 
-   // *** STEP 4: prune the new refinement tree ***
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      leaf_elements[i]->rank = new_ranks[i];
+   }
 
+   RebalanceMessage::Map send_elems;
+   {
+      // sort elements we own by the new rank
+      Array<Element*> owned_elements;
+      owned_elements.MakeRef(leaf_elements.GetData(), NElements);
+      owned_elements.Sort(compare_ranks);
+
+      Array<Element*> batch;
+      batch.Reserve(1024);
+
+      // send elements to new owners
+      int begin = 0, end = 0;
+      while (end < NElements)
+      {
+         // find range of elements belonging to one rank
+         int rank = owned_elements[begin]->rank;
+         while (end < owned_elements.Size() &&
+                owned_elements[end]->rank == rank) { end++; }
+
+         if (rank != MyRank)
+         {
+            Array<Element*> rank_elems;
+            rank_elems.MakeRef(&owned_elements[begin], end - begin);
+
+            // expand the 'rank_elems' set by its neighbor elements (ghosts)
+            batch.SetSize(0);
+            NeighborExpand(rank_elems, batch);
+
+            // send the batch
+            RebalanceMessage &msg = send_elems[rank];
+            msg.SetNCMesh(this);
+
+            msg.Reserve(batch.Size());
+            for (int i = 0; i < batch.Size(); i++)
+            {
+               Element* e = batch[i];
+               if ((element_type[e->index] & 1) || e->rank != rank)
+               {
+                  msg.AddElementRank(e, e->rank);
+               }
+               // NOTE: we skip 'ghosts' that are of the receiver's rank because
+               // they are not really ghosts and would get sent multiple times,
+               // disrupting the termination mechanism in Step 4.
+            }
+
+            msg.Isend(rank, MyComm);
+         }
+
+         begin = end;
+      }
+   }
+
+   // *** STEP 4: receive elements from others ***
+
+
+
+
+   // *** STEP 5: prune the new refinement tree ***
 
    Update();
+   Prune(); // get rid of stuff we don't need anymore
 
    // make sure we can delete all send buffers
    NeighborElementRankMessage::WaitAllSent(send_ghost_ranks);
+   NeighborElementRankMessage::WaitAllSent(send_elems);
 }
 
 
