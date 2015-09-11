@@ -719,6 +719,9 @@ void ParNCMesh::Rebalance()
       }
    }
 
+   int target_elements = PartitionFirstIndex(MyRank+1, total_elems) -
+                         PartitionFirstIndex(MyRank, total_elems);
+
    // *** STEP 2: communicate new rank assignments for the ghost layer ***
 
    NeighborElementRankMessage::Map send_ghost_ranks, recv_ghost_ranks;
@@ -790,9 +793,15 @@ void ParNCMesh::Rebalance()
       to be sent together with their neighbors so the receiver also gets a
       ghost layer that is up to date (this is why we needed Step 2). */
 
+   int received_elements = 0;
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
-      leaf_elements[i]->rank = new_ranks[i];
+      Element* e = leaf_elements[i];
+      if (e->rank == MyRank && new_ranks[i] == MyRank)
+      {
+         received_elements++; // initialize to number of elements we're keeping
+      }
+      e->rank = new_ranks[i];
    }
 
    RebalanceMessage::Map send_elems;
@@ -849,10 +858,29 @@ void ParNCMesh::Rebalance()
 
    // *** STEP 4: receive elements from others ***
 
+   /* We don't know from whom we're going to receive so we need to probe.
+      Fortunately we do know how many elements we're going to own eventually
+      so the termination condition is easy. */
 
+   RebalanceMessage msg;
+   while (received_elements < target_elements)
+   {
+      int rank, size;
+      RebalanceMessage::Probe(rank, size, MyComm);
 
+      // receive message; note: elements are created as the message is decoded
+      msg.Recv(rank, size, MyComm);
 
-   // *** STEP 5: prune the new refinement tree ***
+      for (int i = 0; i < msg.Size(); i++)
+      {
+         int elem_rank = msg.values[i];
+         msg.elements[i]->rank = elem_rank;
+
+         if (elem_rank == MyRank) { received_elements++; }
+      }
+   }
+
+   // *** STEP 5: prune the new refinement tree, clean up ***
 
    Update();
    Prune(); // get rid of stuff we don't need anymore

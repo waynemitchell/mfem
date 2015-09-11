@@ -227,6 +227,10 @@ protected:
    int InitialPartition(int index) const
    { return Partition(index, leaf_elements.Size()); }
 
+   /// Return the global index of the first element owned by processor 'rank'.
+   long PartitionFirstIndex(int rank, long total_elements) const
+   { return (rank * total_elements + NRanks-1) / NRanks; }
+
    virtual void UpdateVertices();
    virtual void AssignLeafIndices();
 
@@ -402,11 +406,13 @@ TODO
 - performance/scaling study
 
 - big-int P matrix
-- DG
+- DG for serial NC
+- DG for parallel NC
 - parallel aniso refine
 - cP + P
 - hilbert ordering
 - rebalance
+- DOF redistribution after rebalance
 */
 
 class FiniteElementCollection; // needed for edge orientation handling
