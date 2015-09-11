@@ -258,41 +258,42 @@ protected:
    void AddMasterSlaveRanks(int nitems, const NCList& list);
    void MakeShared(const Table &groups, const NCList &list, NCList &shared);
 
-   /** Uniquely encodes a set of elements in the refinement hierarchy of an
-       NCMesh. Can be dumped to a stream, sent to another processor, loaded,
+   /** Uniquely encodes a set of leaf elements in the refinement hierarchy of
+       an NCMesh. Can be dumped to a stream, sent to another processor, loaded,
        and decoded to identify the same set of elements (refinements) in a
-       different but compatible NCMesh. The elements don't have to be leaves,
-       but they must represent subtrees of 'ncmesh_roots'. */
+       different but compatible NCMesh. The encoding can optionally include
+       the refinement types needed to reach the leaves, so the element set can
+       be decoded (recreated) even if the receiver has an incomplete tree. */
    class ElementSet
    {
    public:
-      ElementSet(const Array<Element*> &elements,
-                 const Array<Element*> &ncmesh_roots);
+      ElementSet(NCMesh *ncmesh, bool include_ref_types = false)
+         : ncmesh(ncmesh), include_ref_types(include_ref_types) {}
+
+      void Encode(const Array<Element*> &elements);
       void Dump(std::ostream &os) const;
 
-      ElementSet() {}
-      ElementSet(std::istream &is) { Load(is); }
       void Load(std::istream &is);
-      void Decode(Array<Element*> &elements,
-                  const Array<Element*> &ncmesh_roots) const;
+      void Decode(Array<Element*> &elements) const;
 
    protected:
       Array<unsigned char> data; ///< encoded refinement (sub-)trees
+      NCMesh* ncmesh;
+      bool include_ref_types;
 
       void EncodeTree(Element* elem);
       void DecodeTree(Element* elem, int &pos, Array<Element*> &elements) const;
-      void FlagElements(const Array<Element *> &elements, char flag);
 
       void WriteInt(int value);
-      int GetInt(int pos) const;
+      int  GetInt(int pos) const;
+      void FlagElements(const Array<Element*> &elements, char flag);
    };
 
    /// Write to 'os' a processor-independent encoding of vertex/edge/face IDs.
-   void EncodeMeshIds(std::ostream &os, Array<MeshId> ids[], int dim) const;
+   void EncodeMeshIds(std::ostream &os, Array<MeshId> ids[]);
 
    /// Read from 'is' a processor-independent encoding of vetex/edge/face IDs.
-   void DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
-                      bool decode_indices) const;
+   void DecodeMeshIds(std::istream &is, Array<MeshId> ids[]);
 
    Array<Element*> tmp_neighbors; // temporary used by ElementNeighborProcessors
 
@@ -317,7 +318,7 @@ protected:
    /** A base for internal messages used by Refine() and Rebalance(). Allows
     *  sending values associated with a set of elements.
     */
-   template<class ValueType, int Tag>
+   template<class ValueType, bool RefTypes, int Tag>
    class ElementValueMessage : public VarMessage<Tag>
    {
    public:
@@ -342,7 +343,7 @@ protected:
    /** Used by ParNCMesh::Refine() to inform neighbors about refinements at
     *  the processor boundary. This keeps their ghost layers synchronized.
     */
-   class NeighborRefinementMessage : public ElementValueMessage<char, 289>
+   class NeighborRefinementMessage : public ElementValueMessage<char, false, 289>
    {
    public:
       void AddRefinement(Element* elem, char ref_type)
@@ -356,7 +357,7 @@ protected:
    /**
     *
     */
-   class NeighborElementRankMessage : public ElementValueMessage<int, 156>
+   class NeighborElementRankMessage : public ElementValueMessage<int, false, 156>
    {
    public:
       void AddElementRank(Element* elem, int rank)
@@ -370,10 +371,9 @@ protected:
    /**
     *
     */
-   class RebalanceMessage : public ElementValueMessage<int, 157>
+   class RebalanceMessage : public ElementValueMessage<int, true, 157>
    {
    public:
-      // TODO: element set refine
       void AddElementRank(Element* elem, int rank)
       {
          elements.push_back(elem);
@@ -395,7 +395,7 @@ TODO
 + conforming case R matrix
 + master merge
 + curved/two-level parmesh
-- hcurl/hdiv (par-blocks)
++ hcurl/hdiv (par-blocks)
 + saving/reading nc meshes
 + visualization, VisIt?
 + neighbor search algorithm

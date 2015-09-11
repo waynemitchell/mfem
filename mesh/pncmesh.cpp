@@ -719,8 +719,8 @@ void ParNCMesh::Rebalance()
       }
    }
 
-   int target_elements = PartitionFirstIndex(MyRank+1, total_elems) -
-                         PartitionFirstIndex(MyRank, total_elems);
+   int target_elements = PartitionFirstIndex(MyRank+1, total_elems)
+                         - PartitionFirstIndex(MyRank, total_elems);
 
    // *** STEP 2: communicate new rank assignments for the ghost layer ***
 
@@ -859,7 +859,7 @@ void ParNCMesh::Rebalance()
    // *** STEP 4: receive elements from others ***
 
    /* We don't know from whom we're going to receive so we need to probe.
-      Fortunately we do know how many elements we're going to own eventually
+      Fortunately, we do know how many elements we're going to own eventually
       so the termination condition is easy. */
 
    RebalanceMessage msg;
@@ -911,6 +911,20 @@ int ParNCMesh::ElementSet::GetInt(int pos) const
           ((int) data[pos+3] << 24);
 }
 
+void ParNCMesh::ElementSet::FlagElements(const Array<Element*> &elements,
+                                         char flag)
+{
+   for (int i = 0; i < elements.Size(); i++)
+   {
+      Element* e = elements[i];
+      while (e && e->flag != flag)
+      {
+         e->flag = flag;
+         e = e->parent;
+      }
+   }
+}
+
 void ParNCMesh::ElementSet::EncodeTree(Element* elem)
 {
    if (!elem->ref_type)
@@ -932,6 +946,10 @@ void ParNCMesh::ElementSet::EncodeTree(Element* elem)
 
       // write the bit mask and visit the subtrees
       data.Append(mask);
+      if (include_ref_types)
+      {
+         data.Append(elem->ref_type);
+      }
 
       for (int i = 0; i < 8; i++)
       {
@@ -943,34 +961,20 @@ void ParNCMesh::ElementSet::EncodeTree(Element* elem)
    }
 }
 
-void ParNCMesh::ElementSet::FlagElements(const Array<Element*> &elements,
-                                         char flag)
-{
-   for (int i = 0; i < elements.Size(); i++)
-   {
-      Element* e = elements[i];
-      while (e && e->flag != flag)
-      {
-         e->flag = flag;
-         e = e->parent;
-      }
-   }
-}
-
-ParNCMesh::ElementSet::ElementSet(const Array<Element*> &elements,
-                                  const Array<Element*> &ncmesh_roots)
+void ParNCMesh::ElementSet::Encode(const Array<Element*> &elements)
 {
    FlagElements(elements, 1);
 
    // Each refinement tree that contains at least one element from the set
    // is encoded as HEADER + TREE, where HEADER is the root element number and
    // TREE is the output of EncodeTree().
-   for (int i = 0; i < ncmesh_roots.Size(); i++)
+   Array<Element*> &roots = ncmesh->root_elements;
+   for (int i = 0; i < roots.Size(); i++)
    {
-      if (ncmesh_roots[i]->flag)
+      if (roots[i]->flag)
       {
          WriteInt(i);
-         EncodeTree(ncmesh_roots[i]);
+         EncodeTree(roots[i]);
       }
    }
    WriteInt(-1); // mark end of data
@@ -988,6 +992,17 @@ void ParNCMesh::ElementSet::DecodeTree(Element* elem, int &pos,
    }
    else
    {
+      if (include_ref_types)
+      {
+         int ref_type = data[pos++];
+         if (!elem->ref_type)
+         {
+            ncmesh->RefineElement(elem, ref_type);
+         }
+         else { MFEM_ASSERT(ref_type == elem->ref_type, "") }
+      }
+      else { MFEM_ASSERT(elem->ref_type != 0, ""); }
+
       for (int i = 0; i < 8; i++)
       {
          if (mask & (1 << i))
@@ -998,14 +1013,13 @@ void ParNCMesh::ElementSet::DecodeTree(Element* elem, int &pos,
    }
 }
 
-void ParNCMesh::ElementSet::Decode(Array<Element*> &elements,
-                                   const Array<Element*> &ncmesh_roots) const
+void ParNCMesh::ElementSet::Decode(Array<Element*> &elements) const
 {
    int root, pos = 0;
    while ((root = GetInt(pos)) >= 0)
    {
       pos += 4;
-      DecodeTree(ncmesh_roots[root], pos, elements);
+      DecodeTree(ncmesh->root_elements[root], pos, elements);
    }
 }
 
@@ -1038,8 +1052,7 @@ void ParNCMesh::ElementSet::Load(std::istream &is)
 
 //// EncodeMeshIds/DecodeMeshIds ///////////////////////////////////////////////
 
-void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[],
-                              int dim) const
+void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[])
 {
    std::map<Element*, int> element_id;
 
@@ -1047,7 +1060,7 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[],
    // element_id: (Element* -> stream ID)
    {
       Array<Element*> elements;
-      for (int type = 0; type < dim; type++)
+      for (int type = 0; type < 3; type++)
       {
          for (int i = 0; i < ids[type].Size(); i++)
          {
@@ -1055,11 +1068,12 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[],
          }
       }
 
-      ElementSet eset(elements, root_elements);
+      ElementSet eset(this);
+      eset.Encode(elements);
       eset.Dump(os);
 
       Array<Element*> decoded;
-      eset.Decode(decoded, root_elements);
+      eset.Decode(decoded);
 
       for (int i = 0; i < decoded.Size(); i++)
       {
@@ -1068,7 +1082,7 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[],
    }
 
    // write the IDs as element/local pairs
-   for (int type = 0; type < dim; type++)
+   for (int type = 0; type < 3; type++)
    {
       write<int>(os, ids[type].Size());
       for (int i = 0; i < ids[type].Size(); i++)
@@ -1080,17 +1094,17 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[],
    }
 }
 
-void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
-                              bool decode_indices) const
+void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[])
 {
    // read the list of elements
-   ElementSet eset(is);
+   ElementSet eset(this);
+   eset.Load(is);
 
    Array<Element*> elements;
-   eset.Decode(elements, root_elements);
+   eset.Decode(elements);
 
    // read vertex/edge/face IDs
-   for (int type = 0; type < dim; type++)
+   for (int type = 0; type < 3; type++)
    {
       int ne = read<int>(is);
       ids[type].SetSize(ne);
@@ -1104,8 +1118,6 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
          MeshId &id = ids[type][i];
          id.element = elem;
          id.local = read<char>(is);
-
-         if (!decode_indices) { continue; }
 
          // find vertex/edge/face index
          GeomInfo &gi = GI[(int) elem->geom];
@@ -1231,7 +1243,7 @@ void NeighborDofMessage::Encode()
 
    // encode the IDs
    std::ostringstream stream;
-   pncmesh->EncodeMeshIds(stream, ids, 3);
+   pncmesh->EncodeMeshIds(stream, ids);
 
    // dump the DOFs
    for (int type = 0; type < 3; type++)
@@ -1257,7 +1269,7 @@ void NeighborDofMessage::Decode()
 
    // decode vertex/edge/face IDs
    Array<NCMesh::MeshId> ids[3];
-   pncmesh->DecodeMeshIds(stream, ids, 3, true);
+   pncmesh->DecodeMeshIds(stream, ids);
 
    // load DOFs
    for (int type = 0; type < 3; type++)
@@ -1375,8 +1387,8 @@ void NeighborRowReply::Decode()
    data.clear();
 }
 
-template<class ValueType, int Tag>
-void ParNCMesh::ElementValueMessage<ValueType, Tag>::Encode()
+template<class ValueType, bool RefTypes, int Tag>
+void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Encode()
 {
    typedef VarMessage<Tag> Base;
 
@@ -1385,12 +1397,13 @@ void ParNCMesh::ElementValueMessage<ValueType, Tag>::Encode()
    Array<Element*> tmp_elements;
    tmp_elements.MakeRef(elements.data(), elements.size());
 
-   ElementSet eset(tmp_elements, pncmesh->root_elements);
+   ElementSet eset(pncmesh, RefTypes);
+   eset.Encode(tmp_elements);
    eset.Dump(ostream);
 
    // decode the element set to obtain a local numbering of elements
    Array<Element*> decoded;
-   eset.Decode(decoded, pncmesh->root_elements);
+   eset.Decode(decoded);
 
    std::map<Element*, int> element_index;
    for (int i = 0; i < decoded.Size(); i++)
@@ -1410,17 +1423,18 @@ void ParNCMesh::ElementValueMessage<ValueType, Tag>::Encode()
    ostream.str().swap(Base::data);
 }
 
-template<class ValueType, int Tag>
-void ParNCMesh::ElementValueMessage<ValueType, Tag>::Decode()
+template<class ValueType, bool RefTypes, int Tag>
+void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Decode()
 {
    typedef VarMessage<Tag> Base;
 
    std::istringstream istream(Base::data);
 
-   ElementSet eset(istream);
+   ElementSet eset(pncmesh, RefTypes);
+   eset.Load(istream);
 
    Array<Element*> tmp_elements;
-   eset.Decode(tmp_elements, pncmesh->root_elements);
+   eset.Decode(tmp_elements);
 
    Element** el = tmp_elements.GetData();
    elements.assign(el, el + tmp_elements.Size());
