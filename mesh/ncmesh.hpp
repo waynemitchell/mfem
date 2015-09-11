@@ -81,7 +81,8 @@ public:
    virtual void Refine(const Array<Refinement> &refinements);
 
    /** Check the mesh and potentially refine some elements so that the maximum
-       level of hanging nodes is not greater than 'max_level'. */
+       difference of refinement levels between adjacent elements is not greater
+       than 'max_level'. */
    virtual void LimitNCLevel(int max_level);
 
    /// Identifies a vertex/edge/face in both Mesh and NCMesh.
@@ -603,10 +604,11 @@ protected: // implementation
 
    static void find_face_nodes(const Face *face, Node* node[4]);
 
+   int  EdgeSplitLevel(Node* v1, Node* v2) const;
    void FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
-                       int& h_level, int& v_level);
+                       int& h_level, int& v_level) const;
 
-   void CountSplits(Element* elem, int splits[3]);
+   void CountSplits(Element* elem, int splits[3]) const;
 
    int CountElements(Element* elem) const;
 

@@ -65,8 +65,6 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    if (Nonconforming())
    {
       gcomm = NULL;
-      ldof_sign.SetSize(GetVSize());
-      ldof_sign = 1; // FIXME
       GetConformingInterpolation(); // needed here to initialize DOF offsets etc.
       return;
    }
@@ -279,7 +277,10 @@ void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
       return;
    }
    FiniteElementSpace::GetElementDofs(i, dofs);
-   ApplyLDofSigns(dofs); // TODO: skip for NC
+   if (!Nonconforming())
+   {
+      ApplyLDofSigns(dofs);
+   }
 }
 
 void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
@@ -290,13 +291,19 @@ void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
       return;
    }
    FiniteElementSpace::GetBdrElementDofs(i, dofs);
-   ApplyLDofSigns(dofs); // TODO: skip for NC
+   if (!Nonconforming())
+   {
+      ApplyLDofSigns(dofs);
+   }
 }
 
 void ParFiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
 {
    FiniteElementSpace::GetFaceDofs(i, dofs);
-   ApplyLDofSigns(dofs); // TODO: skip for NC
+   if (!Nonconforming())
+   {
+      ApplyLDofSigns(dofs);
+   }
 }
 
 void ParFiniteElementSpace::GenerateGlobalOffsets()
@@ -1152,9 +1159,6 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
-   ldof_sign.SetSize(GetVSize());  // FIXME
-   ldof_sign = 1;
-
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
    NeighborDofMessage::Map send_dofs, recv_dofs;
@@ -1512,11 +1516,6 @@ void ParFiniteElementSpace::Update()
    {
       ConstructTrueDofs();
       GenerateGlobalOffsets();
-   }
-   else
-   {
-      ldof_sign.SetSize(GetVSize());
-      ldof_sign = 1; // FIXME
    }
 }
 

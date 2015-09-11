@@ -1191,7 +1191,7 @@ void NCMesh::DerefineElement(Element* elem)
    }
 
    // retrieve original corner nodes and face attributes from the children
-   int fa[6];
+   int fa[6], ea[4];
    if (elem->geom == Geometry::CUBE)
    {
       const int table[7][8 + 6] =
@@ -1211,15 +1211,43 @@ void NCMesh::DerefineElement(Element* elem)
       for (int i = 0; i < 6; i++)
       {
          Element* ch = child[table[elem->ref_type - 1][i + 8]];
-
          const int* fv = gi_hex.faces[i];
          fa[i] = faces.Peek(ch->node[fv[0]], ch->node[fv[1]],
                             ch->node[fv[2]], ch->node[fv[3]])->attribute;
       }
    }
+   else if (elem->geom == Geometry::SQUARE)
+   {
+      const int table[3][4 + 4] =
+      {
+         { 0, 1, 1, 0, /**/ 1, 1, 0, 0 }, // 1 - X
+         { 0, 0, 1, 1, /**/ 0, 0, 1, 1 }, // 2 - Y
+         { 0, 1, 2, 3, /**/ 1, 1, 3, 3 }  // 3 - iso
+      };
+      for (int i = 0; i < 4; i++)
+      {
+         elem->node[i] = child[table[elem->ref_type - 1][i]]->node[i];
+      }
+      for (int i = 0; i < 4; i++)
+      {
+         Element* ch = child[table[elem->ref_type - 1][i + 4]];
+         const int* ev = gi_quad.edges[i];
+         ea[i] = nodes.Peek(ch->node[ev[0]], ch->node[ev[1]])->edge->attribute;
+      }
+   }
+   else if (elem->geom == Geometry::TRIANGLE)
+   {
+      for (int i = 0; i < 3; i++)
+      {
+         Element* ch = child[i];
+         elem->node[i] = child[i]->node[i];
+         const int* ev = gi_tri.edges[i];
+         ea[i] = nodes.Peek(ch->node[ev[0]], ch->node[ev[1]])->edge->attribute;
+      }
+   }
    else
    {
-      MFEM_ABORT("Not implemented.");
+      MFEM_ABORT("Unsupported element geometry.");
    }
 
    // sign in to all nodes again
@@ -1231,7 +1259,7 @@ void NCMesh::DerefineElement(Element* elem)
    {
       if (child[i])
       {
-         elem->rank = std::min(elem->rank, child[i]->rank);
+         elem->rank = std::min(elem->rank, child[i]->rank); // TODO: ???
          DeleteHierarchy(child[i]);
       }
    }
@@ -1243,7 +1271,13 @@ void NCMesh::DerefineElement(Element* elem)
    }
    else
    {
-      MFEM_ABORT("Not implemented.");
+      Node** node = elem->node;
+      GeomInfo& gi = GI[(int) elem->geom];
+      for (int i = 0; i < gi.ne; i++)
+      {
+         const int* ev = gi.edges[i];
+         nodes.Peek(node[ev[0]], node[ev[1]])->edge->attribute = ea[i];
+      }
    }
 
    elem->ref_type = 0;
@@ -2444,8 +2478,15 @@ void NCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
    bdr_edges.Unique();
 }
 
+int NCMesh::EdgeSplitLevel(Node *v1, Node *v2) const
+{
+   Node* mid = nodes.Peek(v1, v2);
+   if (!mid || !mid->vertex) { return 0; }
+   return 1 + std::max(EdgeSplitLevel(v1, mid), EdgeSplitLevel(mid, v2));
+}
+
 void NCMesh::FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
-                            int& h_level, int& v_level)
+                            int& h_level, int& v_level) const
 {
    int hl1, hl2, vl1, vl2;
    Node* mid[4];
@@ -2471,30 +2512,57 @@ void NCMesh::FaceSplitLevel(Node* v1, Node* v2, Node* v3, Node* v4,
    }
 }
 
-static int max4(int a, int b, int c, int d)
+static int max8(int a, int b, int c, int d, int e, int f, int g, int h)
 {
-   return std::max(std::max(a, b), std::max(c, d));
+   return std::max(std::max(std::max(a, b), std::max(c, d)),
+                   std::max(std::max(e, f), std::max(g, h)));
 }
 
-void NCMesh::CountSplits(Element* elem, int splits[3])
+void NCMesh::CountSplits(Element* elem, int splits[3]) const
 {
    Node** node = elem->node;
    GeomInfo& gi = GI[(int) elem->geom];
 
-   MFEM_ASSERT(elem->geom == Geometry::CUBE, "TODO");
-   // TODO: triangles and quads
+   int elevel[12];
+   for (int i = 0; i < gi.ne; i++)
+   {
+      const int* ev = gi.edges[i];
+      elevel[i] = EdgeSplitLevel(node[ev[0]], node[ev[1]]);
+   }
 
-   int level[6][2];
+   int flevel[6][2];
    for (int i = 0; i < gi.nf; i++)
    {
       const int* fv = gi.faces[i];
       FaceSplitLevel(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]],
-                     level[i][1], level[i][0]);
+                     flevel[i][1], flevel[i][0]);
    }
 
-   splits[0] = max4(level[0][0], level[1][0], level[3][0], level[5][0]);
-   splits[1] = max4(level[0][1], level[2][0], level[4][0], level[5][1]);
-   splits[2] = max4(level[1][1], level[2][1], level[3][1], level[4][1]);
+   if (elem->geom == Geometry::CUBE)
+   {
+      splits[0] = max8(flevel[0][0], flevel[1][0], flevel[3][0], flevel[5][0],
+                       elevel[0], elevel[2], elevel[4], elevel[6]);
+
+      splits[1] = max8(flevel[0][1], flevel[2][0], flevel[4][0], flevel[5][1],
+                       elevel[1], elevel[3], elevel[5], elevel[7]);
+
+      splits[2] = max8(flevel[1][1], flevel[2][1], flevel[3][1], flevel[4][1],
+                       elevel[8], elevel[9], elevel[10], elevel[11]);
+   }
+   else if (elem->geom == Geometry::SQUARE)
+   {
+      splits[0] = std::max(elevel[0], elevel[2]);
+      splits[1] = std::max(elevel[1], elevel[3]);
+   }
+   else if (elem->geom == Geometry::TRIANGLE)
+   {
+      splits[0] = std::max(elevel[0], std::max(elevel[1], elevel[2]));
+      splits[1] = splits[0];
+   }
+   else
+   {
+      MFEM_ABORT("Unsupported element geometry.");
+   }
 }
 
 void NCMesh::LimitNCLevel(int max_level)
@@ -2510,7 +2578,7 @@ void NCMesh::LimitNCLevel(int max_level)
          CountSplits(leaf_elements[i], splits);
 
          char ref_type = 0;
-         for (int k = 0; k < 3; k++)
+         for (int k = 0; k < Dim; k++)
          {
             if (splits[k] > max_level)
             {
@@ -2522,7 +2590,7 @@ void NCMesh::LimitNCLevel(int max_level)
          {
             if (Iso)
             {
-               // iso only meshes should only be modified by iso refinements
+               // iso meshes should only be modified by iso refinements
                ref_type = 7;
             }
             refinements.Append(Refinement(i, ref_type));

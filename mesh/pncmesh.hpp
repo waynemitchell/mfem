@@ -400,6 +400,8 @@ TODO
 + visualization, VisIt?
 + neighbor search algorithm
 + parallel refinement bug
++ derefine 2D
++ limit NC 3D edges + 2D
 + skip ldof_sign in pfespace.cpp
 - parallel ZZ estimator
 - ProjectBdrCoefficient

@@ -144,7 +144,8 @@ public:
    inline ParMesh *GetParMesh() { return pmesh; }
 
    int TrueVSize() { return ltdof_size; }
-   int GetDofSign(int i) { return NURBSext ? 1 : ldof_sign[VDofToDof(i)]; }
+   int GetDofSign(int i)
+   { return NURBSext || Nonconforming() ? 1 : ldof_sign[VDofToDof(i)]; }
    HYPRE_Int *GetDofOffsets()     { return dof_offsets; }
    HYPRE_Int *GetTrueDofOffsets() { return tdof_offsets; }
    HYPRE_Int GlobalVSize()
