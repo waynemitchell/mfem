@@ -863,6 +863,8 @@ void ParNCMesh::Rebalance()
       so the termination condition is easy. */
 
    RebalanceMessage msg;
+   msg.SetNCMesh(this);
+
    while (received_elements < target_elements)
    {
       int rank, size;

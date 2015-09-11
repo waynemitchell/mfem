@@ -139,6 +139,9 @@ public:
    /// Update the groups after tet refinement
    void RefineGroups(const DSTable &v_to_v, int *middle);
 
+   /// Load balance the mesh. NC meshes only.
+   void Rebalance();
+
    /** Print the part of the mesh in the calling processor adding the interface
        as boundary (for visualization purposes) using the default format. */
    virtual void Print(std::ostream &out = std::cout) const;

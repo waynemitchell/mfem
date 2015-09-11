@@ -2223,6 +2223,29 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
    }
 }
 
+void ParMesh::Rebalance()
+{
+   if (!pncmesh)
+   {
+      MFEM_ABORT("Load balancing is currently not supported for conforming"
+                 " meshes.");
+   }
+   if (Nodes)
+   {
+      MFEM_ABORT("Load balancing not supported for curved meshes yet.");
+   }
+
+   pncmesh->Rebalance();
+
+   ParMesh* pmesh2 = new ParMesh(*pncmesh);
+   pncmesh->OnMeshUpdated(pmesh2);
+
+   attributes.Copy(pmesh2->attributes);
+   bdr_attributes.Copy(pmesh2->bdr_attributes);
+
+   Swap(*pmesh2, false);
+}
+
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
 {
    int i, attr, newv[3], ind, f_ind, *v;
