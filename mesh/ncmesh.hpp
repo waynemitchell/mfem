@@ -203,6 +203,8 @@ public:
    /// Return total number of bytes allocated.
    long MemoryUsage() const;
 
+   void DebugLeafOrder() const;
+
    virtual ~NCMesh();
 
 
@@ -388,7 +390,7 @@ protected: // implementation
 
    virtual void UpdateVertices(); ///< update Vertex::index and vertex_nodeId
 
-   void CollectLeafElements(Element* elem);
+   void CollectLeafElements(Element* elem, int state);
    void UpdateLeafElements();
 
    virtual void AssignLeafIndices();

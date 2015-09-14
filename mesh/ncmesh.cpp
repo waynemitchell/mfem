@@ -1304,7 +1304,18 @@ void NCMesh::UpdateVertices()
    }
 }
 
-void NCMesh::CollectLeafElements(Element* elem)
+static int quad_hilbert_order[8][4] =
+{
+   {0,1,2,3}, {0,3,2,1}, {1,2,3,0}, {1,0,3,2},
+   {2,3,0,1}, {2,1,0,3}, {3,0,1,2}, {3,2,1,0}
+};
+static int quad_hilbert_state[8][4] =
+{
+   {1,0,0,5}, {0,1,1,4}, {3,2,2,7}, {2,3,3,6},
+   {5,4,4,1}, {4,5,5,0}, {7,6,6,3}, {6,7,7,2}
+};
+
+void NCMesh::CollectLeafElements(Element* elem, int state)
 {
    if (!elem->ref_type)
    {
@@ -1312,9 +1323,20 @@ void NCMesh::CollectLeafElements(Element* elem)
    }
    else
    {
-      for (int i = 0; i < 8; i++)
+      if (elem->geom == Geometry::SQUARE && elem->ref_type == 3)
       {
-         if (elem->child[i]) { CollectLeafElements(elem->child[i]); }
+         for (int i = 0; i < 4; i++)
+         {
+            CollectLeafElements(elem->child[quad_hilbert_order[state][i]],
+                                quad_hilbert_state[state][i]);
+         }
+      }
+      else
+      {
+         for (int i = 0; i < 8; i++)
+         {
+            if (elem->child[i]) { CollectLeafElements(elem->child[i], state); }
+         }
       }
    }
 }
@@ -1325,7 +1347,7 @@ void NCMesh::UpdateLeafElements()
    leaf_elements.SetSize(0);
    for (int i = 0; i < root_elements.Size(); i++)
    {
-      CollectLeafElements(root_elements[i]);
+      CollectLeafElements(root_elements[i], 0);
    }
    AssignLeafIndices();
 }
@@ -2803,6 +2825,29 @@ long NCMesh::MemoryUsage() const
           leaf_elements.Capacity() * sizeof(Element*) +
           vertex_nodeId.Capacity() * sizeof(int) +
           sizeof(*this);  // FIXME: this needs updating
+}
+
+void NCMesh::DebugLeafOrder() const
+{
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      Element* elem = leaf_elements[i];
+      for (int j = 0; j < Dim; j++)
+      {
+         double sum = 0.0;
+         int count = 0;
+         for (int k = 0; k < 8; k++)
+         {
+            if (elem->node[k])
+            {
+               sum += elem->node[k]->vertex->pos[j];
+               count++;
+            }
+         }
+         std::cout << sum / count << " ";
+      }
+      std::cout << "\n";
+   }
 }
 
 } // namespace mfem

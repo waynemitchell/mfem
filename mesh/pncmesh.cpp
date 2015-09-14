@@ -580,9 +580,9 @@ bool ParNCMesh::PruneTree(Element* elem)
 
 void ParNCMesh::Prune()
 {
-   if (!Iso)
+   if (!Iso && Dim == 3)
    {
-      MFEM_WARNING("Can't prune aniso meshes yet.");
+      MFEM_WARNING("Can't prune 3D aniso meshes yet.");
       return;
    }
 
