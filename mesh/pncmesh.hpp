@@ -412,8 +412,8 @@ TODO
 - DG for parallel NC
 - parallel aniso refine
 - cP + P
-- hilbert ordering
-- rebalance
++ hilbert ordering
++ rebalance
 - DOF redistribution after rebalance
 */
 

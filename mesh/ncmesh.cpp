@@ -1304,15 +1304,37 @@ void NCMesh::UpdateVertices()
    }
 }
 
-static int quad_hilbert_order[8][4] =
+static char quad_hilbert_child_order[8][4] =
 {
    {0,1,2,3}, {0,3,2,1}, {1,2,3,0}, {1,0,3,2},
    {2,3,0,1}, {2,1,0,3}, {3,0,1,2}, {3,2,1,0}
 };
-static int quad_hilbert_state[8][4] =
+static char quad_hilbert_child_state[8][4] =
 {
    {1,0,0,5}, {0,1,1,4}, {3,2,2,7}, {2,3,3,6},
    {5,4,4,1}, {4,5,5,0}, {7,6,6,3}, {6,7,7,2}
+};
+static char hex_hilbert_child_order[24][8] =
+{
+   {0,1,2,3,7,6,5,4}, {0,3,7,4,5,6,2,1}, {0,4,5,1,2,6,7,3},
+   {1,0,3,2,6,7,4,5}, {1,2,6,5,4,7,3,0}, {1,5,4,0,3,7,6,2},
+   {2,1,5,6,7,4,0,3}, {2,3,0,1,5,4,7,6}, {2,6,7,3,0,4,5,1},
+   {3,0,4,7,6,5,1,2}, {3,2,1,0,4,5,6,7}, {3,7,6,2,1,5,4,0},
+   {4,0,1,5,6,2,3,7}, {4,5,6,7,3,2,1,0}, {4,7,3,0,1,2,6,5},
+   {5,1,0,4,7,3,2,6}, {5,4,7,6,2,3,0,1}, {5,6,2,1,0,3,7,4},
+   {6,2,3,7,4,0,1,5}, {6,5,1,2,3,0,4,7}, {6,7,4,5,1,0,3,2},
+   {7,3,2,6,5,1,0,4}, {7,4,0,3,2,1,5,6}, {7,6,5,4,0,1,2,3}
+};
+static char hex_hilbert_child_state[24][8] =
+{
+   {1,2,2,7,7,21,21,17},     {2,0,0,22,22,16,16,8},    {0,1,1,15,15,6,6,23},
+   {4,5,5,10,10,18,18,14},   {5,3,3,19,19,13,13,11},   {3,4,4,12,12,9,9,20},
+   {8,7,7,17,17,23,23,2},    {6,8,8,0,0,15,15,22},     {7,6,6,21,21,1,1,16},
+   {11,10,10,14,14,20,20,5}, {9,11,11,3,3,12,12,19},   {10,9,9,18,18,4,4,13},
+   {13,14,14,5,5,19,19,10},  {14,12,12,20,20,11,11,4}, {12,13,13,9,9,3,3,18},
+   {16,17,17,2,2,22,22,7},   {17,15,15,23,23,8,8,1},   {15,16,16,6,6,0,0,21},
+   {20,19,19,11,11,14,14,3}, {18,20,20,4,4,10,10,12},  {19,18,18,13,13,5,5,9},
+   {23,22,22,8,8,17,17,0},   {21,23,23,1,1,7,7,15},    {22,21,21,16,16,2,2,6}
 };
 
 void NCMesh::CollectLeafElements(Element* elem, int state)
@@ -1327,8 +1349,18 @@ void NCMesh::CollectLeafElements(Element* elem, int state)
       {
          for (int i = 0; i < 4; i++)
          {
-            CollectLeafElements(elem->child[quad_hilbert_order[state][i]],
-                                quad_hilbert_state[state][i]);
+            int ch = quad_hilbert_child_order[state][i];
+            int st = quad_hilbert_child_state[state][i];
+            CollectLeafElements(elem->child[ch], st);
+         }
+      }
+      else if (elem->geom == Geometry::CUBE && elem->ref_type == 7)
+      {
+         for (int i = 0; i < 8; i++)
+         {
+            int ch = hex_hilbert_child_order[state][i];
+            int st = hex_hilbert_child_state[state][i];
+            CollectLeafElements(elem->child[ch], st);
          }
       }
       else
@@ -1348,6 +1380,8 @@ void NCMesh::UpdateLeafElements()
    for (int i = 0; i < root_elements.Size(); i++)
    {
       CollectLeafElements(root_elements[i], 0);
+      // TODO: root state should not always be 0, we need a precomputed array
+      // with root element states to ensure continuity where possible
    }
    AssignLeafIndices();
 }
@@ -2827,6 +2861,7 @@ long NCMesh::MemoryUsage() const
           sizeof(*this);  // FIXME: this needs updating
 }
 
+#ifdef MFEM_DEBUG
 void NCMesh::DebugLeafOrder() const
 {
    for (int i = 0; i < leaf_elements.Size(); i++)
@@ -2849,5 +2884,6 @@ void NCMesh::DebugLeafOrder() const
       std::cout << "\n";
    }
 }
+#endif
 
 } // namespace mfem

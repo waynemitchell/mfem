@@ -203,7 +203,10 @@ public:
    /// Return total number of bytes allocated.
    long MemoryUsage() const;
 
+#ifdef MFEM_DEBUG
+   /// Print the space-filling curve formed by the leaf elements.
    void DebugLeafOrder() const;
+#endif
 
    virtual ~NCMesh();
 
