@@ -390,7 +390,7 @@ protected:
 
 public:
    ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x,
-                   double &_t, int use_explicit=true, bool _use_hypre_parvec=false);
+                   double &_t, int use_explicit=true, bool _use_hypre_parvec=true);
 
    void CreateNVector();
 
