@@ -410,7 +410,8 @@ TODO
 - big-int P matrix
 - DG for serial NC
 - DG for parallel NC
-- parallel aniso refine
+- parallel 3D aniso refine
+- 3D aniso derefinement
 - cP + P
 + hilbert ordering
 + rebalance

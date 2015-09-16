@@ -9,7 +9,6 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-//#include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 #include "ncmesh.hpp"
 
@@ -691,10 +690,23 @@ void NCMesh::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
       }
    }
 
-   /* Also, this is the place where forced refinements begin. In the picture,
-      the edges mid12-midf and midf-mid34 should actually exist in the
-      neighboring elements, otherwise the mesh is inconsistent and needs to be
-      fixed. */
+   // Also, this is the place where forced refinements begin. In the picture
+   // above, edges mid12-midf and midf-mid34 should actually exist in the
+   // neighboring elements, otherwise the mesh is inconsistent and needs to be
+   // fixed. Example: suppose an element is being refined isotropically (!)
+   // whose neighbors across some face look like this:
+   //
+   //                         *--------*--------*
+   //                         |   d    |    e   |
+   //                         *--------*--------*
+   //                         |      c          |
+   //                         *--------*--------*
+   //                         |        |        |
+   //                         |   a    |    b   |
+   //                         |        |        |
+   //                         *--------*--------*
+   //
+   // Element 'c' needs to be refined vertically for the mesh to remain valid.
 
    if (level > 0)
    {
@@ -708,9 +720,8 @@ void NCMesh::CheckIsoFace(Node* v1, Node* v2, Node* v3, Node* v4,
    if (!Iso)
    {
       /* If anisotropic refinements are present in the mesh, we need to check
-         isotropically split faces as well. The iso face can be thought to
-         contain four anisotropic cases as in the function CheckAnisoFace, that
-         still need to be checked for the correct parents. */
+         isotropically split faces as well, see second comment in
+         CheckAnisoFace above. */
 
       CheckAnisoFace(v1, v2, e2, e4, e1, midf);
       CheckAnisoFace(e4, e2, v3, v4, midf, e3);
