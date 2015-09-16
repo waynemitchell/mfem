@@ -27,6 +27,7 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#define MFEM_USE_SUNIALS_PARHYP
 
 using namespace std;
 using namespace mfem;

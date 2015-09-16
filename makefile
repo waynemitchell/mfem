@@ -124,7 +124,7 @@ SUNDIALS_OPT ?= -I$(SUNDIALS_DIR)/include
 SUNDIALS_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_cvode\
  -Wl,-lsundials_nvecserial -Wl,-rpath,$(SUNDIALS_DIR)/lib
 SUNDIALS_PAR_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_cvode\
- -Wl,-lsundials_nvecserial -Wl,-lsundials_nvecparallel -Wl,-lsundials_nvecparhyp -Wl,-rpath,$(SUNDIALS_DIR)/lib
+ -Wl,-lsundials_nvecserial -Wl,-lsundials_nvecparhyp -Wl,-rpath,$(SUNDIALS_DIR)/lib
 
 MFEM_USE_MPI ?= NO
 MFEM_USE_SUNDIALS ?= NO

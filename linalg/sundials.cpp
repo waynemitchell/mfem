@@ -13,6 +13,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <typeinfo>
+#include <exception>
 
 #include <iomanip>
 #include <cmath>
@@ -153,10 +155,13 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
    long int yin_length=_f.Width(); //assume don't have initial condition in Init
    int flag;
    // Create an NVector
+   cout<<"0"<<endl;
    CreateNVector(yin_length, &_x);
+   cout<<"1"<<endl;
 
    if (initialized_sundials)
    {
+      cout<<"2"<<endl;
       /* Call CVodeReInit to initialize the integrator memory and specify the inital time t,
        * and the initial dependent variable vector y. */
       flag = CVodeReInit(ode_mem, (realtype) _t, y);
@@ -164,6 +169,7 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
    }
    else
    {
+      cout<<"3"<<endl;
       /* Call CVodeInit to initialize the integrator memory and specify the
        * user's right hand side function in x'=f(t,x), the inital time t, and
        * the initial dependent variable vector y. */
@@ -172,17 +178,18 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
       initialized_sundials=true;
       SetSStolerances(RELTOL,ABSTOL);
    }
-
+   cout<<"4"<<endl;
    /* Set the pointer to user-defined data */
    flag = CVodeSetUserData(ode_mem, this->f);
+   cout<<"5"<<endl;
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
-   
-   if(solver_iteration_type==CV_NEWTON)
+
+   if (solver_iteration_type==CV_NEWTON)
    {
-     SetSStolerances(1e-3,1e-6);
-     CVBand(ode_mem, yin_length, yin_length*.5, yin_length*.5);
+      SetSStolerances(1e-3,1e-6);
+      CVBand(ode_mem, yin_length, yin_length*.5, yin_length*.5);
    }
-    
+   cout<<"5"<<endl;
 }
 
 void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
@@ -194,7 +201,8 @@ void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
    if (check_flag(&flag, "CVodeSStolerances", 1)) { return; }
    tolerances_set_sundials=true;
 }
-void CVODESolver::SetLinearSolve( Solver* J_solve,    SundialsLinearSolveOperator* op)
+void CVODESolver::SetLinearSolve( Solver* J_solve,
+                                  SundialsLinearSolveOperator* op)
 {
 
    //  N_Vector y0 = N_VClone_Serial( ((CVodeMem) ode_mem)->cv_zn[0]);
@@ -296,7 +304,7 @@ int CVODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 
 #ifdef MFEM_USE_MPI
 CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
-                               Vector &_x, double &_t, int lmm, int iter)
+                               Vector &_x, double &_t, int lmm, int iter, bool _use_hypre_parvec)
 {
    y = NULL;
    f = &_f;
@@ -305,6 +313,7 @@ CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
    ode_mem=CVodeCreate(lmm,iter);
    initialized_sundials=false;
    tolerances_set_sundials=false;
+   use_hypre_parvec=_use_hypre_parvec;
    linear_multistep_method_type=lmm;
    solver_iteration_type=iter;
    //set MPI_Comm communicator
@@ -341,15 +350,25 @@ void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
    MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
    global_length= out;
    y = N_VNew_ParHyp(comm, yin_length, global_length);   /* Allocate y vector */
+   //   cout<<"before transfernvectorshallow"<<endl;
    TransferNVectorShallow(_x,y);
+   //   cout<<"end of createnvector(,vector)"<<endl;
 }
 
 void CVODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
+   //   cout<<"immediately before stealparvec"<<endl;
    int nprocs, myid;
-   NV_HYPRE_PARVEC_PH(_y)=((HypreParVector*) _x)->StealParVector();
-   NV_DATA_PH(_y)=_x->GetData();
-   NV_OWN_PARVEC_PH(_y)=true;
+   if (use_hypre_parvec)
+   {
+      NV_HYPRE_PARVEC_PH(_y)=((HypreParVector*) _x)->StealParVector();
+      NV_OWN_PARVEC_PH(_y)=true;
+   }
+   else
+   {
+      NV_DATA_PH(_y)=_x->GetData();
+   }
+
 }
 
 //don't forget to finish implementing transfer functions
@@ -545,7 +564,8 @@ void ARKODESolver::SetStopTime(double tf)
 {
    ARKodeSetStopTime(ode_mem, tf);
 }
-void ARKODESolver::SetLinearSolve(Solver* solve,    SundialsLinearSolveOperator* op)
+void ARKODESolver::SetLinearSolve(Solver* solve,
+                                  SundialsLinearSolveOperator* op)
 {
 
    if (use_explicit)
@@ -564,7 +584,7 @@ void ARKODESolver::SetLinearSolve(Solver* solve,    SundialsLinearSolveOperator*
          SetSStolerances(RELTOL,ABSTOL);
       }
    }
-   ARKodeSetIRKTableNum(ode_mem, 11);
+   //   ARKodeSetIRKTableNum(ode_mem, 21);
    /* Call ARKodeSetMaxNumSteps to increase default */
    ARKodeSetMaxNumSteps(ode_mem, 10000);
    SetSStolerances(1e-2,1e-4);
@@ -576,9 +596,10 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
    int flag=0;
    realtype tout=t+dt;
    TransferNVectorShallow(&x,y);
-
+   /*   cout<<"stepping, tout="<<tout<<endl;*/
    //Step
    flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
+   /*   cout<<"stepped"<<endl;*/
    if (check_flag(&flag, "ARKode", 1)) { MFEM_ABORT("ARKode"); }
    //Record last incremental step size
    flag = ARKodeGetLastStep(ode_mem, &dt);
@@ -639,7 +660,7 @@ int ARKODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 
 #ifdef MFEM_USE_MPI
 ARKODEParSolver::ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
-                                 Vector &_x, double &_t, int _use_explicit)
+                                 Vector &_x, double &_t, int _use_explicit, bool _use_hypre_parvec)
 {
    y = NULL;
    f = &_f;
@@ -648,6 +669,7 @@ ARKODEParSolver::ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
    ode_mem=ARKodeCreate();
    initialized_sundials=false;
    tolerances_set_sundials=false;
+   use_hypre_parvec=_use_hypre_parvec;
    use_explicit=_use_explicit;
    //Set MPI_Comm
    comm=_comm;
@@ -687,7 +709,15 @@ void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 
 void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
-   NV_HYPRE_PARVEC_PH(_y)=((HypreParVector*) _x)->StealParVector();
+   if (use_hypre_parvec)
+   {
+      NV_HYPRE_PARVEC_PH(_y)=((HypreParVector*) _x)->StealParVector();
+      NV_OWN_PARVEC_PH(_y)=true;
+   }
+   else
+   {
+      NV_DATA_PH(_y)=_x->GetData();
+   }
 }
 
 void ARKODEParSolver::DestroyNVector(N_Vector& _y)
@@ -703,15 +733,15 @@ int ARKODEParSolver::WrapARKodeInit(void* _ode_mem, double &_t, N_Vector &_y)
    //Assumes integrating TimeDependentOperator f explicitly
    //Consider adding a flag to switch between explicit and implicit
    return use_explicit ? ARKodeInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t,
-                                    _y) : ARKodeInit(_ode_mem, NULL, sun_f_fun, (realtype) _t, _y);
+                                    _y) : ARKodeInit(_ode_mem, NULL, sun_f_fun_par, (realtype) _t, _y);
 }
 
 int ARKODEParSolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
    //Assumes integrating TimeDependentOperator f explicitly
    //Consider adding a flag to switch between explicit and implicit
-   return use_explicit ? ARKodeReInit(_ode_mem, sun_f_fun, NULL, (realtype) _t,
-                                      _y) : ARKodeInit(_ode_mem, NULL, sun_f_fun, (realtype) _t, _y);
+   return use_explicit ? ARKodeReInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t,
+                                      _y) : ARKodeInit(_ode_mem, NULL, sun_f_fun_par, (realtype) _t, _y);
 }
 
 #endif
@@ -752,7 +782,7 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 #ifdef MFEM_USE_MPI
 int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 {
-
+   //printf("entered sun_f_fun_par function");
    realtype *ydata, *ydotdata;
    int myid;
    long int ylen, ydotlen;
@@ -763,19 +793,20 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 
    //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
    mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
-
+   //printf("1.3.12.5.3i fun create vectors\n");
    // Creates mfem HypreParVectors mfem_vector_y and mfem_vector_ydot by using the casting
    // operators in HypreParVector to cast the hypre_ParVector in y and in ydot respectively
    // Have not explicitly set as owndata, so allocated size is -size
    mfem::HypreParVector mfem_vector_y=
       (mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(y));
+   //printf("1.3.12.5.3i fun created y vector\n");
    mfem::HypreParVector mfem_vector_ydot=
       (mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(ydot));
-
+   //printf("1.3.12.5.3i fun created ydot vector\n");
    //Apply ydot=f(t,y)
    f->SetTime(t);
    f->Mult(mfem_vector_y,mfem_vector_ydot);
-
+   //printf("1.3.12.5.3i fun after mult\n");
    return (0);
 }
 #endif
@@ -790,8 +821,10 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
  ark_lfree fields in (*arkode_mem) to be LinearSolveInit,
  LinearSolveSetup, LinearSolve, and LinearSolveFree, respectively.
 ---------------------------------------------------------------*/
-int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve, mfem::SundialsLinearSolveOperator* op)
+int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve,
+                      mfem::SundialsLinearSolveOperator* op)
 {
+   //   cout<<"entered linearcvsolve"<<endl;
    CVodeMem cv_mem;
    int mxl;
 
@@ -809,100 +842,125 @@ int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve, mfem::SundialsLinearSo
    cv_mem->cv_setupNonNull = 1;
    // forces cvode to call lsetup prior to every time it calls lsolve
    cv_mem->cv_maxcor = 1;
-   
-  //void* for containing linear solver memory
+
+   //void* for containing linear solver memory
    mfem::MFEMLinearSolverMemory* lmem = new mfem::MFEMLinearSolverMemory();
 
-   #ifndef MFEM_USE_MPI
+#ifndef MFEM_USE_MPI
    lmem->setup_y = new mfem::Vector();
-//   cout<<"created setup_y"<<endl;
+   //   cout<<"created setup_y"<<endl;
    lmem->setup_f = new mfem::Vector();
    lmem->solve_y = new mfem::Vector();
    lmem->solve_yn = new mfem::Vector();
    lmem->solve_f = new mfem::Vector();
    lmem->solve_b = new mfem::Vector();
    lmem->vec_tmp = new mfem::Vector(NV_LENGTH_S(cv_mem->cv_zn[0]));
-   #else
-   lmem->setup_y = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(cv_mem->cv_y)));
-   lmem->setup_f = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(cv_mem->cv_fold)));
-   lmem->solve_y = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(cv_mem->cv_y)));
-   lmem->solve_f = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(cv_mem->cv_fold)));
-   lmem->solve_b = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(cv_mem->cv_fold)));
-   lmem->vec_tmp = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(cv_mem->cv_fold)));
-   #endif
-   
-//   cout<<"before J_solve"<<endl;
+#else
+   cv_mem->cv_zn[0];
+   cout<<"accessed zn[0]"<<endl;
+
+   //   (NV_HYPRE_PARVEC_PH(cv_mem->cv_zn[0]));
+   cout<<"accessed parvec of zn[0]"<<endl;
+   lmem->setup_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   cout<<"created setup_y"<<endl;
+   lmem->setup_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   lmem->solve_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   lmem->solve_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   lmem->solve_b = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   lmem->vec_tmp = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+#endif
+
+   cout<<"before J_solve"<<endl;
    lmem->J_solve=solve;
    lmem->op_for_gradient= op;
-   
-   cv_mem->cv_lmem = lmem;
-   
 
+   cv_mem->cv_lmem = lmem;
+
+   cout<<"finished setlinearsolve"<<endl;
    return (CVSPILS_SUCCESS);
 }
 
 static int WrapLinearCVSolveInit(CVodeMem cv_mem)
 {
-//   cout<<"entered init"<<endl;
+   //   cout<<"entered init"<<endl;
    return 0;
 }
 
 
 //ypred is the predicted y at the current time, fpred is f(t,ypred)
 static int WrapLinearCVSolveSetup(CVodeMem cv_mem, int convfail,
-                                   N_Vector ypred, N_Vector fpred,
-                                   booleantype *jcurPtr, N_Vector vtemp1,
-                                   N_Vector vtemp2, N_Vector vtemp3)
+                                  N_Vector ypred, N_Vector fpred,
+                                  booleantype *jcurPtr, N_Vector vtemp1,
+                                  N_Vector vtemp2, N_Vector vtemp3)
 {
-   mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*) cv_mem->cv_lmem;
-   
-   #ifndef MFEM_USE_MPI
+   mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*)
+                                       cv_mem->cv_lmem;
+   //   cout<<"entered cvsolvesetup"<<endl;
+#ifndef MFEM_USE_MPI
    lmem->setup_y->SetDataAndSize(NV_DATA_S(ypred),NV_LENGTH_S(ypred));
    lmem->setup_f->SetDataAndSize(NV_DATA_S(fpred),NV_LENGTH_S(fpred));
-   #else
+#else
    lmem->setup_y->SetData(NV_DATA_PH(ypred));
    lmem->setup_f->SetData(NV_DATA_PH(fpred));
-   #endif
+#endif
    *jcurPtr=TRUE;
-//   cout<<"Called setup at step "<<cv_mem->cv_nst<<endl;
-//   cout<<"entered setup at time "<<cv_mem->cv_tn<<endl;
-//   cout<<"entered setup at h "<<cv_mem->cv_h<<endl;
+   //   cout<<"Called setup at step "<<cv_mem->cv_nst<<endl;
+   //   cout<<"entered setup at time "<<cv_mem->cv_tn<<endl;
+   //   cout<<"entered setup at h "<<cv_mem->cv_h<<endl;
 
-//   (cv_mem->cv_lmem)->setup_y
+   //   (cv_mem->cv_lmem)->setup_y
    cv_mem->cv_lmem = lmem;
-   WrapLinearSolveSetup(cv_mem->cv_lmem, cv_mem->cv_tn, lmem->setup_y, lmem->setup_f);
+   WrapLinearSolveSetup(cv_mem->cv_lmem, cv_mem->cv_tn, lmem->setup_y,
+                        lmem->setup_f);
    return 0;
 }
 
 static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
-                              N_Vector weight, N_Vector ycur,
-                              N_Vector fcur)
+                             N_Vector weight, N_Vector ycur,
+                             N_Vector fcur)
 {
-   if(cv_mem->cv_tn>0)
+   //   cout<<"entered cvsolve"<<endl;
+   if (cv_mem->cv_tn>0)
    {
-   mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*) cv_mem->cv_lmem;
-   mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) cv_mem->cv_user_data;
-   #ifndef MFEM_USE_MPI
-   lmem->solve_y->SetDataAndSize(NV_DATA_S(ycur),NV_LENGTH_S(ycur));
-   lmem->solve_yn->SetDataAndSize(NV_DATA_S(cv_mem->cv_zn[0]),NV_LENGTH_S(ycur));
-   lmem->solve_f->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
-   lmem->solve_b->SetDataAndSize(NV_DATA_S(b),NV_LENGTH_S(b));
-//   lmem->vec_tmp->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
-   #else
-   ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),NV_LOCLENGTH_PH(ycur));
-   ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),NV_LOCLENGTH_PH(fcur));
-   ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),NV_LOCLENGTH_PH(b));
-   #endif
+      mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*)
+                                          cv_mem->cv_lmem;
+      mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*)
+                                       cv_mem->cv_user_data;
+#ifndef MFEM_USE_MPI
+      lmem->solve_y->SetDataAndSize(NV_DATA_S(ycur),NV_LENGTH_S(ycur));
+      lmem->solve_yn->SetDataAndSize(NV_DATA_S(cv_mem->cv_zn[0]),NV_LENGTH_S(ycur));
+      lmem->solve_f->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
+      lmem->solve_b->SetDataAndSize(NV_DATA_S(b),NV_LENGTH_S(b));
+      //   lmem->vec_tmp->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
+#else
+      ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),
+                                                              NV_LOCLENGTH_PH(ycur));
+      ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),
+                                                              NV_LOCLENGTH_PH(fcur));
+      ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),
+                                                              NV_LOCLENGTH_PH(b));
+#endif
 
-//   lmem->weight = 1/NV_Ith_S(weight,1);//(N_VL1Norm(weight))/NV_LENGTH_S(weight); //NV_Ith_S(weight,0);
-// For arbitrary DIRK, this approximation to the weight vector is sufficient, although slow.
-// Consider inputting other DIRK as table from those used by MFEM to test other SDIRKs
-     lmem->weight = 1/NV_Ith_S(weight,1);
+      //   lmem->weight = 1/NV_Ith_S(weight,1);//(N_VL1Norm(weight))/NV_LENGTH_S(weight); //NV_Ith_S(weight,0);
+      // For arbitrary DIRK, this approximation to the weight vector is sufficient, although slow.
+      lmem->weight = cv_mem->cv_gamma;
+      /*      cout<<"gamma: "<<cv_mem->cv_gamma<<endl;
+            cout<<"h: "<<cv_mem->cv_h<<endl;
+            cout<<"gammap: "<<cv_mem->cv_gammap<<endl;
+            cout<<"gamrat: "<<cv_mem->cv_gamrat<<endl;
+            cout<<"h/gamma: "<<((cv_mem->cv_h)/(cv_mem->cv_gamma))<<endl;
+      */
+      //      lmem->weight=cv_mem->cv_h;
 
-//      lmem->weight=cv_mem->cv_h;
-
-   cv_mem->cv_lmem = lmem;
-   WrapLinearSolve(cv_mem->cv_lmem, cv_mem->cv_tn, lmem->solve_b, lmem->solve_y, lmem->setup_y, lmem->solve_f);
+      cv_mem->cv_lmem = lmem;
+      WrapLinearSolve(cv_mem->cv_lmem, cv_mem->cv_tn, lmem->solve_b, lmem->solve_y,
+                      lmem->setup_y, lmem->solve_f);
    }
    return 0;
 }
@@ -910,13 +968,14 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
 
 static void WrapLinearCVSolveFree(CVodeMem cv_mem)
 {
-//   cout<<"entered free"<<endl;
+   //   cout<<"entered free"<<endl;
    return;
 }
 
-int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver* solve, mfem::SundialsLinearSolveOperator* op)
+int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver* solve,
+                       mfem::SundialsLinearSolveOperator* op)
 {
-//   cout<<"entered lineararksolve"<<endl;
+   //   cout<<"entered lineararksolve"<<endl;
    ARKodeMem ark_mem;
    int mxl;
 
@@ -936,46 +995,59 @@ int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver* solve, mfem::SundialsLine
    ark_mem->ark_setupNonNull = 1;
    // forces arkode to call lsetup prior to every time it calls lsolve
    ark_mem->ark_msbp = 0;
+   cout<<"ark_mem->tn="<<ark_mem->ark_tn<<endl;
 
    //void* for containing linear solver memory
    mfem::MFEMLinearSolverMemory* lmem = new mfem::MFEMLinearSolverMemory();
-//   cout<<"creating vectors"<<endl;
+   //   cout<<"creating vectors"<<endl;
    ark_mem->ark_y;
-//   cout<<"ark_y exists"<<endl;
+   //   cout<<"ark_y exists"<<endl;
    ark_mem->ark_fold;
-//   cout<<"ark_fold exists"<<endl;
-   #ifndef MFEM_USE_MPI
+   //   cout<<"ark_fold exists"<<endl;
+#ifndef MFEM_USE_MPI
    lmem->setup_y = new mfem::Vector();
-//   cout<<"created setup_y"<<endl;
+   //   cout<<"created setup_y"<<endl;
    lmem->setup_f = new mfem::Vector();
    lmem->solve_y = new mfem::Vector();
    lmem->solve_yn = new mfem::Vector();
    lmem->solve_f = new mfem::Vector();
    lmem->solve_b = new mfem::Vector();
-   lmem->vec_tmp = new mfem::Vector(NV_LENGTH_S(ark_mem->ark_fold));
-   #else
-   lmem->setup_y = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(ark_mem->ark_y)));
-   lmem->setup_f = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(ark_mem->ark_fold)));
-   lmem->solve_y = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(ark_mem->ark_y)));
-   lmem->solve_f = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(ark_mem->ark_fold)));
-   lmem->solve_b = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(ark_mem->ark_fold)));
-   lmem->vec_tmp = new mfem::HypreParVector((mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(ark_mem->ark_fold)));
-   #endif
-   
-//   cout<<"before J_solve"<<endl;
+   lmem->vec_tmp = new mfem::Vector();
+#else
+
+   (NV_HYPRE_PARVEC_PH(ark_mem->ark_ycur));
+   cout<<"accessed parvec of ycur"<<endl;
+   lmem->setup_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                ark_mem->ark_ycur)));
+   cout<<"created setup_y"<<endl;
+   lmem->setup_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                ark_mem->ark_ycur)));
+   lmem->solve_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                ark_mem->ark_ycur)));
+   lmem->solve_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                ark_mem->ark_ycur)));
+   lmem->solve_b = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                ark_mem->ark_ycur)));
+   lmem->vec_tmp = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                ark_mem->ark_ycur)));
+#endif
+
+   cout<<"before J_solve"<<endl;
    lmem->J_solve=solve;
    lmem->op_for_gradient= op;
-   
-//   cout<<"after op_for_gradient"<<endl;
+
    ark_mem->ark_lmem = lmem;
-   
+
+   /*   cout<<"finished setlinearsolve"<<endl;*/
    return (ARKSPILS_SUCCESS);
 }
+
 static int WrapLinearARKSolveInit(ARKodeMem ark_mem)
 {
-//   cout<<"Called init"<<endl;
+   /*   cout<<"entered init, tn="<<ark_mem->ark_tn<<endl;*/
    return 0;
 }
+
 
 //ypred is the predicted y at the current time, fpred is f(t,ypred)
 static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
@@ -983,27 +1055,26 @@ static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
                                    booleantype *jcurPtr, N_Vector vtemp1,
                                    N_Vector vtemp2, N_Vector vtemp3)
 {
-   mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*) ark_mem->ark_lmem;
-   
-   #ifndef MFEM_USE_MPI
+   /*   cout<<"entered arksolvesetup"<<endl;*/
+   mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*)
+                                       ark_mem->ark_lmem;
+
+#ifndef MFEM_USE_MPI
    lmem->setup_y->SetDataAndSize(NV_DATA_S(ypred),NV_LENGTH_S(ypred));
    lmem->setup_f->SetDataAndSize(NV_DATA_S(fpred),NV_LENGTH_S(fpred));
-   #else
+#else
    lmem->setup_y->SetData(NV_DATA_PH(ypred));
    lmem->setup_f->SetData(NV_DATA_PH(fpred));
-   #endif
+#endif
    *jcurPtr=TRUE;
-//   cout<<"Called setup at step "<<ark_mem->ark_nst<<endl;
-//   cout<<"entered setup at time "<<ark_mem->ark_tn<<endl;
-//   cout<<"entered setup at h "<<ark_mem->ark_h<<endl;
-   if (ark_mem->ark_mass_matrix)
-   {
-      cout<<"Assume dy/dt=f_I(y,t) for implicit solve"<<endl;
-      return -1;
-   }
-//   (ark_mem->ark_lmem)->setup_y
+   //   cout<<"Called setup at step "<<ark_mem->ark_nst<<endl;
+   //   cout<<"entered setup at time "<<ark_mem->ark_tn<<endl;
+   //   cout<<"entered setup at h "<<ark_mem->ark_h<<endl;
+
+   //   (ark_mem->ark_lmem)->setup_y
    ark_mem->ark_lmem = lmem;
-   WrapLinearSolveSetup(ark_mem->ark_lmem, ark_mem->ark_tn, lmem->setup_y, lmem->setup_f);
+   WrapLinearSolveSetup(ark_mem->ark_lmem, ark_mem->ark_tn, lmem->setup_y,
+                        lmem->setup_f);
    return 0;
 }
 
@@ -1011,49 +1082,63 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
                               N_Vector weight, N_Vector ycur,
                               N_Vector fcur)
 {
-   if(ark_mem->ark_tn>0)
+   //   cout<<"entered arksolve"<<endl;
+   if (ark_mem->ark_tn>0)
    {
-   mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*) ark_mem->ark_lmem;
-   mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) ark_mem->ark_user_data;
-   #ifndef MFEM_USE_MPI
-   lmem->solve_y->SetDataAndSize(NV_DATA_S(ycur),NV_LENGTH_S(ycur));
-   lmem->solve_yn->SetDataAndSize(NV_DATA_S(ark_mem->ark_ycur),NV_LENGTH_S(ycur));
-   lmem->solve_f->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
-   lmem->solve_b->SetDataAndSize(NV_DATA_S(b),NV_LENGTH_S(b));
-//   lmem->vec_tmp->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
-   #else
-   ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),NV_LOCLENGTH_PH(ycur));
-   ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),NV_LOCLENGTH_PH(fcur));
-   ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),NV_LOCLENGTH_PH(b));
-   #endif
+      mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*)
+                                          ark_mem->ark_lmem;
+      mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*)
+                                       ark_mem->ark_user_data;
+#ifndef MFEM_USE_MPI
+      lmem->solve_y->SetDataAndSize(NV_DATA_S(ycur),NV_LENGTH_S(ycur));
+      lmem->solve_yn->SetDataAndSize(NV_DATA_S(ark_mem->ark_y),NV_LENGTH_S(ycur));
+      lmem->solve_f->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
+      lmem->solve_b->SetDataAndSize(NV_DATA_S(b),NV_LENGTH_S(b));
+      //   lmem->vec_tmp->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
+#else
+      ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),
+                                                              NV_LOCLENGTH_PH(ycur));
+      ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),
+                                                              NV_LOCLENGTH_PH(fcur));
+      ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),
+                                                              NV_LOCLENGTH_PH(b));
+#endif
 
-//   lmem->weight = 1/NV_Ith_S(weight,1);//(N_VL1Norm(weight))/NV_LENGTH_S(weight); //NV_Ith_S(weight,0);
-// For arbitrary DIRK, this approximation to the weight vector is sufficient, although slow.
-// Consider inputting other DIRK as table from those used by MFEM to test other SDIRKs
-     lmem->weight = 1/NV_Ith_S(weight,1);
+      //   lmem->weight = 1/NV_Ith_S(weight,1);//(N_VL1Norm(weight))/NV_LENGTH_S(weight); //NV_Ith_S(weight,0);
+      // For arbitrary DIRK, this approximation to the weight vector is sufficient, although slow.
+      lmem->weight = ark_mem->ark_gamma;
+      /*      cout<<"gamma: "<<ark_mem->ark_gamma<<endl;
+            cout<<"h: "<<ark_mem->ark_h<<endl;
+            cout<<"gammap: "<<ark_mem->ark_gammap<<endl;
+            cout<<"gamrat: "<<ark_mem->ark_gamrat<<endl;
+            cout<<"h/gamma: "<<((ark_mem->ark_h)/(ark_mem->ark_gamma))<<endl;
+      */
+      //      lmem->weight=ark_mem->ark_h;
 
-//      lmem->weight=ark_mem->ark_h;
-
-   ark_mem->ark_lmem = lmem;
-   WrapLinearSolve(ark_mem->ark_lmem, ark_mem->ark_tn, lmem->solve_b, lmem->solve_y, lmem->setup_y, lmem->solve_f);
+      ark_mem->ark_lmem = lmem;
+      WrapLinearSolve(ark_mem->ark_lmem, ark_mem->ark_tn, lmem->solve_b,
+                      lmem->solve_y,
+                      lmem->setup_y, lmem->solve_f);
    }
    return 0;
 }
 
+
 static void WrapLinearARKSolveFree(ARKodeMem ark_mem)
 {
-
+   //   cout<<"entered free"<<endl;
    return;
 }
 
 static int WrapLinearSolveSetup(void* lmem, double tn,
-                                   mfem::Vector* ypred, mfem::Vector* fpred)
+                                mfem::Vector* ypred, mfem::Vector* fpred)
 {
 
-}                                  
+}
 
-static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b, mfem::Vector* ycur, mfem::Vector* yn,
-                              mfem::Vector* fcur)
+static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
+                           mfem::Vector* ycur, mfem::Vector* yn,
+                           mfem::Vector* fcur)
 {
    mfem::MFEMLinearSolverMemory* tmp_lmem= (mfem::MFEMLinearSolverMemory*) lmem;
    mfem::Solver* prec=tmp_lmem->J_solve;
@@ -1061,7 +1146,7 @@ static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b, mfem::Vector*
    (tmp_lmem->op_for_gradient)->SolveJacobian(b,ycur, yn, prec, tmp_lmem->weight);
 
 
-//   cout<<"Inside linear solve, b[10]="<<b->Elem(10)<<endl;
-   
+   //   cout<<"Inside linear solve, b[10]="<<b->Elem(10)<<endl;
+
 }
 #endif

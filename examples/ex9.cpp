@@ -268,11 +268,10 @@ int main(int argc, char *argv[])
          ((ARKODESolver*) ode_solver)->WrapSetFixedStep((realtype) dt);
          break;
       case 14: ode_solver = new CVODESolver(adv, u, t, CV_BDF, CV_NEWTON);
-         ((CVODESolver*) ode_solver)->SetLinearSolve();
          break;
-//      case 15: ode_solver = new ARKODESolver(adv, u, t,false);
-//         ((ARKODESolver*) ode_solver)->SetLinearSolve();
-//         break;
+      //      case 15: ode_solver = new ARKODESolver(adv, u, t,false);
+      //         ((ARKODESolver*) ode_solver)->SetLinearSolve();
+      //         break;
       default:
          ode_solver->Init(adv);
    }

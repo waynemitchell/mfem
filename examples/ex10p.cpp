@@ -68,19 +68,19 @@ protected:
    CGSolver M_solver;    // Krylov solver for inverting the mass matrix M
    HypreSmoother M_prec; // Preconditioner for the mass matrix M
 
-   /** Nonlinear operator defining the reduced backward Euler equation for the
-       velocity. Used in the implementation of method ImplicitSolve. */
-   BackwardEulerOperator *backward_euler_oper;
    /// Newton solver for the backward Euler equation
    NewtonSolver newton_solver;
-   /// Solver for the Jacobian solve in the Newton method
-   Solver *J_solver;
    /// Preconditioner for the Jacobian
    Solver *J_prec;
 
    mutable Vector z; // auxiliary vector
 
 public:
+   /** Nonlinear operator defining the reduced backward Euler equation for the
+       velocity. Used in the implementation of method ImplicitSolve. */
+   BackwardEulerOperator *backward_euler_oper;
+   /// Solver for the Jacobian solve in the Newton method
+   Solver *J_solver;
    HyperelasticOperator(ParFiniteElementSpace &f, Array<int> &ess_bdr,
                         double visc);
 
@@ -100,7 +100,7 @@ public:
 //       k --> (M + dt*S)*k + H(x + dt*v + dt^2*k) + S*v,
 // where M and S are given BilinearForms, H is a given NonlinearForm, v and x
 // are given vectors, and dt is a scalar.
-class BackwardEulerOperator : public Operator
+class BackwardEulerOperator : public SundialsLinearSolveOperator
 {
 private:
    ParBilinearForm *M, *S;
@@ -114,6 +114,8 @@ public:
    BackwardEulerOperator(ParBilinearForm *M_, ParBilinearForm *S_,
                          ParNonlinearForm *H_);
    void SetParameters(double dt_, const Vector *v_, const Vector *x_);
+   virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
+                              Solver* J_solve, double gamma);
    virtual void Mult(const Vector &k, Vector &y) const;
    virtual Operator &GetGradient(const Vector &k) const;
    virtual ~BackwardEulerOperator();
@@ -235,6 +237,9 @@ int main(int argc, char *argv[])
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
       case 13: ode_solver = new RK3SSPSolver; break;
       case 14: ode_solver = new RK4Solver; break;
+      case 15: break;
+      case 16: break;
+      case 17: break;
       // Implicit A-stable methods (not L-stable)
       case 22: ode_solver = new ImplicitMidpointSolver; break;
       case 23: ode_solver = new SDIRK23Solver; break;
@@ -345,9 +350,34 @@ int main(int argc, char *argv[])
 
    // 10. Perform time-integration (looping over the time iterations, ti, with a
    //     time-step dt).
-   ode_solver->Init(oper);
    double t = 0.0;
+   if (ode_solver_type==15)
+   {
+      ode_solver= new CVODEParSolver(MPI_COMM_WORLD,oper,vx,t,CV_BDF,CV_NEWTON);
+   }
+   else if (ode_solver_type==16)
+   {
+      ode_solver = new CVODEParSolver(MPI_COMM_WORLD,oper,vx,t,CV_BDF,CV_NEWTON,
+                                      false);
+      cout<<"initialized"<<endl;
+      ((CVODEParSolver*) ode_solver)->SetLinearSolve(oper.J_solver,
+                                                     oper.backward_euler_oper);;
+      ((CVODEParSolver*) ode_solver)->SetUseHypreParVec(false);
+   }
+   else if (ode_solver_type==17)
+   {
+      ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, vx, t,false,false);
+      ((ARKODEParSolver*) ode_solver)->SetLinearSolve(oper.J_solver,
+                                                      oper.backward_euler_oper);
+      ((ARKODEParSolver*) ode_solver)->SetUseHypreParVec(false);
+      //         ((ARKODESolver*) ode_solver)->WrapSetFixedStep(dt);
+   }
+   else
+   {
+      ode_solver->Init(oper);
+   }
 
+   double dt_by_ref=dt;
    bool last_step = false;
    for (int ti = 1; !last_step; ti++)
    {
@@ -356,7 +386,8 @@ int main(int argc, char *argv[])
          last_step = true;
       }
 
-      ode_solver->Step(vx, t, dt);
+      dt_by_ref=dt;
+      ode_solver->Step(vx, t, dt_by_ref);
 
       if (last_step || (ti % vis_steps) == 0)
       {
@@ -451,8 +482,10 @@ void visualize(ostream &out, ParMesh *mesh, ParGridFunction *deformed_nodes,
 
 BackwardEulerOperator::BackwardEulerOperator(
    ParBilinearForm *M_, ParBilinearForm *S_, ParNonlinearForm *H_)
-   : Operator(M_->ParFESpace()->TrueVSize()), M(M_), S(S_), H(H_),
-     Jacobian(NULL), v(NULL), x(NULL), dt(0.0), w(height), z(height)
+   : SundialsLinearSolveOperator(M_->ParFESpace()->TrueVSize()), M(M_), S(S_),
+     H(H_),
+     Jacobian(NULL),
+     v(NULL), x(NULL), w(height), z(height)
 { }
 
 void BackwardEulerOperator::SetParameters(double dt_, const Vector *v_,
@@ -469,6 +502,79 @@ void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
    H->Mult(z, y);
    M->TrueAddMult(k, y);
    S->TrueAddMult(w, y);
+}
+
+void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
+                                          Solver* J_solve, double gamma_)
+{
+   //   cout<<"entered proper solveJac"<<endl;
+   //   cout<<"started Jac,  b[10]="<<b->Elem(10)<<endl;
+   int sc = b->Size()/2;
+   mfem::StopWatch timer, timer2;
+   timer.Start();
+   Vector v(ycur->GetData() +  0, sc);
+   Vector x(ycur->GetData() + sc, sc);
+   Vector b_v(b->GetData() +  0, sc);
+   Vector b_x(b->GetData() + sc, sc);
+   Vector* tmp_empty=new Vector(2*sc);
+   Vector v_hat(tmp_empty->GetData() +  0, sc);
+   Vector x_hat(tmp_empty->GetData() + sc, sc);
+   Vector rhs_1(sc);
+   Vector rhs_2(sc);
+   Vector rhs(sc);
+
+   /*
+   if (X.ParFESpace() != pfes)
+   {
+      X.Update(pfes);
+      Y.Update(pfes);
+   }
+
+   X.Distribute(&x);
+   mat->Mult(X, Y);
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
+   */
+
+   timer.Stop();
+   //   cout<<"\n Time for creating vectors in SolveJacobian: "<<(timer.RealTime())<<endl;
+
+   //big comment about operator, transfer gamma to getGradient
+   this->SetParameters(gamma_, &v, &x);
+   delete Jacobian;
+   SparseMatrix *localJ = Add(1.0, M->SpMat(), gamma_, S->SpMat());
+   add(v, gamma_, v, w);
+   add(x, gamma_, w, z);
+   localJ->Add(gamma_*gamma_, H->GetLocalGradient(z));
+   Jacobian = M->ParallelAssemble(localJ);
+   delete localJ;
+
+   /*Transfered GetGradient into SolveJacobian code in order to reuse grad_H*/
+   J_solve->SetOperator(*Jacobian);
+   timer.Start();
+   //update b_v to the proper rhs
+   rhs_1=0.0;
+   rhs_2=0.0;
+   M->TrueAddMult(b_v, rhs_2);
+   //   cout<<"scale sample,  rhs_2[10]="<<rhs_2.Elem(10)<<endl;
+   timer2.Start();
+   //   SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(z));
+   timer2.Stop();
+   ///////get h gamma in there somehow
+   (H->GetGradient(z)).Mult(b_x, rhs_1);
+   //   cout<<"scale sample,  rhs_1[10]="<<rhs_1.Elem(10)<<endl;
+   add(rhs_2,-gamma_,rhs_1,rhs);
+   timer.Stop();
+   //   cout<<"\n Time for calculating rhs SolveJacobian: "<<(timer.RealTime())<<endl;
+   //   cout<<"\n Time for casting grad_H SolveJacobian: "<<(timer2.RealTime())<<endl;
+
+   //   cout<<"scale sample,  rhs[10]="<<rhs.Elem(10)<<endl;
+   J_solve->Mult(rhs, v_hat);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
+   //   cout<<"scale sample,  dv_dt[10]="<<dv_dt.Elem(10)<<endl;
+   add(b_x, gamma_, v_hat, x_hat);
+   //   cout<<"scale sample,  dx_dt[10]="<<dx_dt.Elem(10)<<endl;
+   //transfer solutions to proper vectors
+   *b=*tmp_empty;
+   //   cout<<"finished Jac,  b[10]="<<b->Elem(10)<<endl;
 }
 
 Operator &BackwardEulerOperator::GetGradient(const Vector &k) const

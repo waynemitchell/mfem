@@ -179,10 +179,12 @@ class CVODEParSolver: public CVODESolver
 {
 protected:
    MPI_Comm comm;
+   bool use_hypre_parvec;
 
 public:
    CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x,
-                  double &_t,int lmm=CV_ADAMS, int iter=CV_FUNCTIONAL);
+                  double &_t,int lmm=CV_ADAMS, int iter=CV_FUNCTIONAL,
+                  bool _use_hypre_parvec=true);
 
    void CreateNVector();
 
@@ -195,6 +197,11 @@ public:
 
    /** \brief Transfers the data owned by the N_Vector by copying the double* pointer and the hypre_ParVector* pointer */
    void TransferNVectorShallow(N_Vector&,Vector*);
+
+   void SetUseHypreParVec(bool _use_hypre_parvec)
+   {
+      use_hypre_parvec=_use_hypre_parvec;
+   }
 
    void DestroyNVector(N_Vector&);
 
@@ -379,10 +386,11 @@ class ARKODEParSolver: public ARKODESolver
 {
 protected:
    MPI_Comm comm;
+   bool use_hypre_parvec;
 
 public:
    ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x,
-                   double &_t, int use_explicit=true);
+                   double &_t, int use_explicit=true, bool _use_hypre_parvec=false);
 
    void CreateNVector();
 
@@ -391,6 +399,11 @@ public:
    void CreateNVector(long int&, Vector*);
 
    void TransferNVectorShallow(Vector*,N_Vector&);
+
+   void SetUseHypreParVec(bool _use_hypre_parvec)
+   {
+      use_hypre_parvec=_use_hypre_parvec;
+   }
 
    void DestroyNVector(N_Vector&);
 
@@ -406,18 +419,18 @@ private:
 class MFEMLinearSolverMemory
 {
 public:
-Vector* setup_y;
-Vector* setup_f;
-Vector* solve_y;
-Vector* solve_yn;
-Vector* solve_f;
-Vector* solve_b;
-Vector* vec_tmp;
-double weight;
-Solver* J_solve;
-SundialsLinearSolveOperator* op_for_gradient;
+   Vector* setup_y;
+   Vector* setup_f;
+   Vector* solve_y;
+   Vector* solve_yn;
+   Vector* solve_f;
+   Vector* solve_b;
+   Vector* vec_tmp;
+   double weight;
+   Solver* J_solve;
+   SundialsLinearSolveOperator* op_for_gradient;
 
-MFEMLinearSolverMemory() { setup_y=NULL; setup_f=NULL; solve_y=NULL; solve_yn=NULL; solve_f=NULL; vec_tmp=NULL; J_solve=NULL; op_for_gradient=NULL;};
+   MFEMLinearSolverMemory() { setup_y=NULL; setup_f=NULL; solve_y=NULL; solve_yn=NULL; solve_f=NULL; vec_tmp=NULL; J_solve=NULL; op_for_gradient=NULL;};
 
 };
 
@@ -425,18 +438,20 @@ MFEMLinearSolverMemory() { setup_y=NULL; setup_f=NULL; solve_y=NULL; solve_yn=NU
 class SundialsLinearSolveOperator : public Operator
 {
 private:
-/*
-   BilinearForm *M, *S;
-   NonlinearForm *H;
-   mutable SparseMatrix *Jacobian;
-   const Vector *v, *x;
-   mutable Vector w, z;
-*/
+   /*
+      BilinearForm *M, *S;
+      NonlinearForm *H;
+      mutable SparseMatrix *Jacobian;
+      const Vector *v, *x;
+      mutable Vector w, z;
+   */
 public:
    SundialsLinearSolveOperator();
    SundialsLinearSolveOperator(int s) : Operator(s) { };
-   SundialsLinearSolveOperator(BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_);
-   virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp, Solver* J_solve, double gamma) = 0;
+   SundialsLinearSolveOperator(BilinearForm *M_, BilinearForm *S_,
+                               NonlinearForm *H_);
+   virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
+                              Solver* J_solve, double gamma) = 0;
    void SetParameters(double, Vector&, Vector&);
    virtual ~SundialsLinearSolveOperator() {};
 };
@@ -448,7 +463,8 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 
 ///Linear solve associated with CVodeMem structs
-int MFEMLinearCVSolve(void *cvode_mem, mfem::Solver* solve, mfem::SundialsLinearSolveOperator* op);
+int MFEMLinearCVSolve(void *cvode_mem, mfem::Solver* solve,
+                      mfem::SundialsLinearSolveOperator* op);
 
 static int WrapLinearCVSolveInit(CVodeMem cv_mem);
 
@@ -464,14 +480,15 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
 static void WrapLinearCVSolveFree(CVodeMem cv_mem);
 
 ///Linear solve associated with ARKodeMem structs
-int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver*, mfem::SundialsLinearSolveOperator*);
+int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver*,
+                       mfem::SundialsLinearSolveOperator*);
 
 /*
  The purpose of ark_linit is to complete initializations for a
  specific linear solver, such as counters and statistics.
- An LInitFn should return 0 if it has successfully initialized 
+ An LInitFn should return 0 if it has successfully initialized
  the ARKODE linear solver and a negative value otherwise.
- If an error does occur, an appropriate message should be sent 
+ If an error does occur, an appropriate message should be sent
  to the error handler function.
  */
 static int WrapLinearARKSolveInit(ARKodeMem ark_mem);
@@ -524,12 +541,12 @@ static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
 /*
  ark_lsolve must solve the linear equation P x = b, where
  P is some approximation to (M - gamma J), M is the system mass
- matrix, J = (df/dy)(tn,ycur), and the RHS vector b is input. The 
- N-vector ycur contains the solver's current approximation to 
- y(tn) and the vector fcur contains the N_Vector f(tn,ycur). The 
- solution is to be returned in the vector b. ark_lsolve returns 
- a positive value for a recoverable error and a negative value 
- for an unrecoverable error. Success is indicated by a 0 return 
+ matrix, J = (df/dy)(tn,ycur), and the RHS vector b is input. The
+ N-vector ycur contains the solver's current approximation to
+ y(tn) and the vector fcur contains the N_Vector f(tn,ycur). The
+ solution is to be returned in the vector b. ark_lsolve returns
+ a positive value for a recoverable error and a negative value
+ for an unrecoverable error. Success is indicated by a 0 return
  value.
 */
 static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
@@ -543,9 +560,10 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
 static void WrapLinearARKSolveFree(ARKodeMem ark_mem);
 
 static int WrapLinearSolveSetup(void* lmem, double tn,
-                                   mfem::Vector* ypred, mfem::Vector* fpred);
+                                mfem::Vector* ypred, mfem::Vector* fpred);
 
-static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b, mfem::Vector* ycur, mfem::Vector* yn,
-                              mfem::Vector* fcur);
+static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
+                           mfem::Vector* ycur, mfem::Vector* yn,
+                           mfem::Vector* fcur);
 #endif
 #endif
