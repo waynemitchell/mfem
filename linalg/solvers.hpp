@@ -61,9 +61,9 @@ public:
    void SetMaxIter(int max_it) { max_iter = max_it; }
    void SetPrintLevel(int print_lvl);
 
-   int GetNumIterations() { return final_iter; }
-   int GetConverged() { return converged; }
-   double GetFinalNorm() { return final_norm; }
+   int GetNumIterations() const { return final_iter; }
+   int GetConverged() const { return converged; }
+   double GetFinalNorm() const { return final_norm; }
 
    /// This should be called before SetOperator
    virtual void SetPreconditioner(Solver &pr);

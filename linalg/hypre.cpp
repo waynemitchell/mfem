@@ -2326,7 +2326,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    double rlx_omega     = 1.0;
    int amg_coarsen_type = 10;
    int amg_agg_levels   = 1;
-   int amg_rlx_type     = 6;
+   int amg_rlx_type     = 8;
    double theta         = 0.25;
    int amg_interp_type  = 6;
    int amg_Pmax         = 4;
@@ -2430,15 +2430,6 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    {
       ParFiniteElementSpace *vert_fespace_d;
 
-      HYPRE_ParCSRMatrix HYPRE_RT_Pi  = NULL;
-      HYPRE_ParCSRMatrix HYPRE_RT_Pix = NULL;
-      HYPRE_ParCSRMatrix HYPRE_RT_Piy = NULL;
-      HYPRE_ParCSRMatrix HYPRE_RT_Piz = NULL;
-      HYPRE_ParCSRMatrix HYPRE_ND_Pi  = NULL;
-      HYPRE_ParCSRMatrix HYPRE_ND_Pix = NULL;
-      HYPRE_ParCSRMatrix HYPRE_ND_Piy = NULL;
-      HYPRE_ParCSRMatrix HYPRE_ND_Piz = NULL;
-
       if (ams_cycle_type < 10)
          vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
                                                     Ordering::byVDIM, pr_dofs);
@@ -2464,7 +2455,6 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          }
          ND_Pi->CopyColStarts(); // since we'll delete vert_fespace_d
          ND_Pi->CopyRowStarts(); // since we'll delete edge_fespace
-	 HYPRE_ND_Pi = *ND_Pi;
       }
       else
       {
@@ -2477,9 +2467,9 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          {
             id_ND->GetParBlocksReduced(ND_Pi_blocks);
          }
-         ND_Pix = ND_Pi_blocks(0,0); HYPRE_ND_Pix = *ND_Pix;
-         ND_Piy = ND_Pi_blocks(0,1); HYPRE_ND_Piy = *ND_Piy;
-         ND_Piz = ND_Pi_blocks(0,2); HYPRE_ND_Piz = *ND_Piz;
+         ND_Pix = ND_Pi_blocks(0,0);
+         ND_Piy = ND_Pi_blocks(0,1);
+         ND_Piz = ND_Pi_blocks(0,2);
       }
 
       delete id_ND;
@@ -2514,7 +2504,6 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
             RT_Pi = id_RT->ParallelAssembleReduced();
          }
          RT_Pi->CopyColStarts(); // since we'll delete vert_fespace_d
-	 HYPRE_RT_Pi = *RT_Pi;
       }
       else
       {
@@ -2527,23 +2516,26 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          {
             id_RT->GetParBlocksReduced(RT_Pi_blocks);
          }
-         RT_Pix = RT_Pi_blocks(0,0); HYPRE_RT_Pix = *RT_Pix;
-         RT_Piy = RT_Pi_blocks(0,1); HYPRE_RT_Piy = *RT_Piy;
-         RT_Piz = RT_Pi_blocks(0,2); HYPRE_RT_Piz = *RT_Piz;
+         RT_Pix = RT_Pi_blocks(0,0);
+         RT_Piy = RT_Pi_blocks(0,1);
+         RT_Piz = RT_Pi_blocks(0,2);
       }
 
       delete id_RT;
 
-      // The some of the following arguments will always by NULL pointers
-      // therefore dereferencing them is undefined.
-      // HYPRE_ADSSetInterpolations(ads,
-      //                            *RT_Pi, *RT_Pix, *RT_Piy, *RT_Piz,
-      //                            *ND_Pi, *ND_Pix, *ND_Piy, *ND_Piz);
+      HYPRE_ParCSRMatrix HY_RT_Pi, HY_RT_Pix, HY_RT_Piy, HY_RT_Piz;
+      HY_RT_Pi  = (RT_Pi)  ? (HYPRE_ParCSRMatrix) *RT_Pi  : NULL;
+      HY_RT_Pix = (RT_Pix) ? (HYPRE_ParCSRMatrix) *RT_Pix : NULL;
+      HY_RT_Piy = (RT_Piy) ? (HYPRE_ParCSRMatrix) *RT_Piy : NULL;
+      HY_RT_Piz = (RT_Piz) ? (HYPRE_ParCSRMatrix) *RT_Piz : NULL;
+      HYPRE_ParCSRMatrix HY_ND_Pi, HY_ND_Pix, HY_ND_Piy, HY_ND_Piz;
+      HY_ND_Pi  = (ND_Pi)  ? (HYPRE_ParCSRMatrix) *ND_Pi  : NULL;
+      HY_ND_Pix = (ND_Pix) ? (HYPRE_ParCSRMatrix) *ND_Pix : NULL;
+      HY_ND_Piy = (ND_Piy) ? (HYPRE_ParCSRMatrix) *ND_Piy : NULL;
+      HY_ND_Piz = (ND_Piz) ? (HYPRE_ParCSRMatrix) *ND_Piz : NULL;
       HYPRE_ADSSetInterpolations(ads,
-                                 HYPRE_RT_Pi,
-				 HYPRE_RT_Pix, HYPRE_RT_Piy, HYPRE_RT_Piz,
-                                 HYPRE_ND_Pi,
-				 HYPRE_ND_Pix, HYPRE_ND_Piy, HYPRE_ND_Piz);
+                                 HY_RT_Pi, HY_RT_Pix, HY_RT_Piy, HY_RT_Piz,
+                                 HY_ND_Pi, HY_ND_Pix, HY_ND_Piy, HY_ND_Piz);
 
       delete vert_fespace_d;
    }

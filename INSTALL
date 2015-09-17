@@ -216,7 +216,7 @@ The specific libraries and their options are:
   Options: MESQUITE_OPT, MESQUITE_LIB.
 
 - SuiteSparse (optional), used when MFEM_USE_SUITESPARSE = YES.
-  URL: http://www.cise.ufl.edu/research/sparse/SuiteSparse
+  URL: http://faculty.cse.tamu.edu/davis/suitesparse.html
   Options: SUITESPARSE_OPT, SUITESPARSE_LIB.
 
 - High-resolution POSIX clocks: when using MFEM_TIMER_TYPE = 2, it may be
