@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
 #include <cvode/cvode_band.h>             /* prototypes for CVODE fcts., consts. */
+#include <cvode/cvode_spgmr.h>
 #include <arkode/arkode.h>             /* prototypes for ARKODE fcts., consts. */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
 #ifdef MFEM_USE_MPI
@@ -178,11 +179,20 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
    flag = CVodeSetUserData(ode_mem, this->f);
    if (check_flag(&flag, "CVodeSetUserData", 1)) { MFEM_ABORT("CVodeSetUserData"); }
 
+#ifndef MFEM_USE_MPI
    if (solver_iteration_type==CV_NEWTON)
    {
       SetSStolerances(1e-3,1e-6);
       CVBand(ode_mem, yin_length, yin_length*.5, yin_length*.5);
    }
+#else
+   if (solver_iteration_type==CV_NEWTON)
+   {
+      printf("Entering spgmr\n");
+      SetSStolerances(1e-3,1e-6);
+      CVSpgmr(ode_mem, PREC_NONE, 0);
+   }
+#endif
 }
 
 void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
