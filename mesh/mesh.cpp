@@ -6459,7 +6459,9 @@ void Mesh::HexUniformRefinement(int n)
       MFEM_ASSERT(elements[i]->GetType() == Element::HEXAHEDRON,
                   "Element is not a hex!");
       v = elements[i]->GetVertices();
+
       GetElementEdges(i,e,eo);
+
       f = el_to_face->GetRow(i);
 
       for (j=0; j<6; j++)

@@ -1017,6 +1017,58 @@ static void get_sorted_rows_cols(const Array<int> &rows_cols,
    if (!sorted) { hypre_sorted.Sort(); }
 }
 
+void HypreParMatrix::Threshold(double threshold)
+{
+   int  ierr = 0;
+
+   MPI_Comm comm;
+   int num_procs;
+   hypre_CSRMatrix * csr_A;
+   hypre_CSRMatrix * csr_A_wo_z;
+   hypre_ParCSRMatrix * parcsr_A_ptr;
+   int * row_starts = NULL; int * col_starts = NULL; 
+   int row_start = -1;   int row_end = -1;
+   int col_start = -1;   int col_end = -1;
+
+   comm = hypre_ParCSRMatrixComm(A);
+
+   MPI_Comm_size(comm, &num_procs);
+
+   ierr += hypre_ParCSRMatrixGetLocalRange(A,
+					   &row_start,&row_end,
+					   &col_start,&col_end );
+
+   // ierr += HYPRE_ParCSRMatrixGetRowPartitioning(*A_ptr,&row_starts);
+   // ierr += HYPRE_ParCSRMatrixGetColPartitioning(*A_ptr,&col_starts);
+   row_starts = hypre_ParCSRMatrixRowStarts(A);
+   col_starts = hypre_ParCSRMatrixColStarts(A);
+
+   parcsr_A_ptr = hypre_ParCSRMatrixCreate(comm,row_starts[num_procs],
+					   col_starts[num_procs],row_starts,
+					   col_starts,0,0,0);
+
+   csr_A = hypre_MergeDiagAndOffd(A);
+
+   csr_A_wo_z =  hypre_CSRMatrixDeleteZeros(csr_A,threshold);
+
+   /* hypre_CSRMatrixDeleteZeros will return a NULL pointer
+      rather than a usable CSR matrix if it finds no non-zeros */
+   if (csr_A_wo_z == NULL) {
+      csr_A_wo_z = csr_A;
+   } else {
+      ierr += hypre_CSRMatrixDestroy(csr_A);
+   }
+
+   ierr += GenerateDiagAndOffd(csr_A_wo_z,parcsr_A_ptr,
+			       col_start,col_end);
+
+   ierr += hypre_CSRMatrixDestroy(csr_A_wo_z);
+
+   ierr += hypre_ParCSRMatrixDestroy(A);
+
+   A = parcsr_A_ptr;
+}
+
 void HypreParMatrix::EliminateRowsCols(const Array<int> &rows_cols,
                                        const HypreParVector &X,
                                        HypreParVector &B)
@@ -2378,6 +2430,15 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    {
       ParFiniteElementSpace *vert_fespace_d;
 
+      HYPRE_ParCSRMatrix HYPRE_RT_Pi  = NULL;
+      HYPRE_ParCSRMatrix HYPRE_RT_Pix = NULL;
+      HYPRE_ParCSRMatrix HYPRE_RT_Piy = NULL;
+      HYPRE_ParCSRMatrix HYPRE_RT_Piz = NULL;
+      HYPRE_ParCSRMatrix HYPRE_ND_Pi  = NULL;
+      HYPRE_ParCSRMatrix HYPRE_ND_Pix = NULL;
+      HYPRE_ParCSRMatrix HYPRE_ND_Piy = NULL;
+      HYPRE_ParCSRMatrix HYPRE_ND_Piz = NULL;
+
       if (ams_cycle_type < 10)
          vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
                                                     Ordering::byVDIM, pr_dofs);
@@ -2403,6 +2464,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          }
          ND_Pi->CopyColStarts(); // since we'll delete vert_fespace_d
          ND_Pi->CopyRowStarts(); // since we'll delete edge_fespace
+	 HYPRE_ND_Pi = *ND_Pi;
       }
       else
       {
@@ -2415,9 +2477,9 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          {
             id_ND->GetParBlocksReduced(ND_Pi_blocks);
          }
-         ND_Pix = ND_Pi_blocks(0,0);
-         ND_Piy = ND_Pi_blocks(0,1);
-         ND_Piz = ND_Pi_blocks(0,2);
+         ND_Pix = ND_Pi_blocks(0,0); HYPRE_ND_Pix = *ND_Pix;
+         ND_Piy = ND_Pi_blocks(0,1); HYPRE_ND_Piy = *ND_Piy;
+         ND_Piz = ND_Pi_blocks(0,2); HYPRE_ND_Piz = *ND_Piz;
       }
 
       delete id_ND;
@@ -2452,6 +2514,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
             RT_Pi = id_RT->ParallelAssembleReduced();
          }
          RT_Pi->CopyColStarts(); // since we'll delete vert_fespace_d
+	 HYPRE_RT_Pi = *RT_Pi;
       }
       else
       {
@@ -2464,16 +2527,23 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
          {
             id_RT->GetParBlocksReduced(RT_Pi_blocks);
          }
-         RT_Pix = RT_Pi_blocks(0,0);
-         RT_Piy = RT_Pi_blocks(0,1);
-         RT_Piz = RT_Pi_blocks(0,2);
+         RT_Pix = RT_Pi_blocks(0,0); HYPRE_RT_Pix = *RT_Pix;
+         RT_Piy = RT_Pi_blocks(0,1); HYPRE_RT_Piy = *RT_Piy;
+         RT_Piz = RT_Pi_blocks(0,2); HYPRE_RT_Piz = *RT_Piz;
       }
 
       delete id_RT;
 
+      // The some of the following arguments will always by NULL pointers
+      // therefore dereferencing them is undefined.
+      // HYPRE_ADSSetInterpolations(ads,
+      //                            *RT_Pi, *RT_Pix, *RT_Piy, *RT_Piz,
+      //                            *ND_Pi, *ND_Pix, *ND_Piy, *ND_Piz);
       HYPRE_ADSSetInterpolations(ads,
-                                 *RT_Pi, *RT_Pix, *RT_Piy, *RT_Piz,
-                                 *ND_Pi, *ND_Pix, *ND_Piy, *ND_Piz);
+                                 HYPRE_RT_Pi,
+				 HYPRE_RT_Pix, HYPRE_RT_Piy, HYPRE_RT_Piz,
+                                 HYPRE_ND_Pi,
+				 HYPRE_ND_Pix, HYPRE_ND_Piy, HYPRE_ND_Piz);
 
       delete vert_fespace_d;
    }

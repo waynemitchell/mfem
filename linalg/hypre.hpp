@@ -302,6 +302,9 @@ public:
    /// Scale all entries by s: A_scaled = s*A.
    void operator*=(double s);
 
+   /// Remove values smaller in absolute value than some threshold
+   void Threshold(double threshold = 0.0);
+
    /// If a row contains only zeros, set its diagonal to 1.
    void EliminateZeroRows() { hypre_ParCSRMatrixFixZeroRows(A); }
 
