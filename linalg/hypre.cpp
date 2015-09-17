@@ -2127,7 +2127,8 @@ HypreBoomerAMG::~HypreBoomerAMG()
 }
 
 
-HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
+HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
+		   int singular_problem)
    : HypreSolver(&A)
 {
    int cycle_type       = 13;
@@ -2141,7 +2142,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    double theta         = 0.25;
    int amg_interp_type  = 6;
    int amg_Pmax         = 4;
-   int singular_problem = 1;
 
    int p = 1;
    if (edge_fespace->GetNE() > 0)
