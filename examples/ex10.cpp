@@ -111,7 +111,6 @@ private:
    mutable Vector w, z;
 
 public:
-   BackwardEulerOperator() {};
    BackwardEulerOperator(BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_);
    void SetParameters(double dt_, const Vector *v_, const Vector *x_);
    virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
@@ -213,6 +212,7 @@ int main(int argc, char *argv[])
       case 3:  ode_solver = new SDIRK33Solver; break;
       case 4: break;
       case 5: break;
+      case 6: break;
       // Explicit methods
       case 11: ode_solver = new ForwardEulerSolver; break;
       case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
@@ -310,16 +310,22 @@ int main(int argc, char *argv[])
    double t = 0.0;
    switch (ode_solver_type)
    {
-      case 4: ode_solver= new CVODESolver(oper,vx,t,CV_BDF,CV_NEWTON); break;
-      case 5: ode_solver = new CVODESolver(oper,vx,t,CV_BDF,CV_NEWTON);
-      ((CVODESolver*) ode_solver)->SetLinearSolve(oper.J_solver,
+      case 4:
+         ode_solver = new CVODESolver(oper,vx,t,CV_BDF,CV_NEWTON); break;
+      case 5:
+         ode_solver = new CVODESolver(oper,vx,t,CV_BDF,CV_NEWTON);
+         ((CVODESolver*) ode_solver)->SetLinearSolve(oper.J_solver,
                                                      oper.backward_euler_oper);
-      case 6: ode_solver = new ARKODESolver( oper, vx, t,false);
-      ((ARKODESolver*) ode_solver)->SetLinearSolve(oper.J_solver,
+         break;
+      case 6:
+         ode_solver = new ARKODESolver( oper, vx, t,false);
+         ((ARKODESolver*) ode_solver)->SetLinearSolve(oper.J_solver,
                                                       oper.backward_euler_oper);
          break;
-      case 15: ode_solver = new CVODESolver(oper,vx,t,CV_ADAMS,CV_FUNCTIONAL); break;
-      case 16: ode_solver = new ARKODESolver(oper, vx, t,true); break;
+      case 15:
+         ode_solver = new CVODESolver(oper,vx,t,CV_ADAMS,CV_FUNCTIONAL); break;
+      case 16:
+         ode_solver = new ARKODESolver(oper, vx, t,true); break;
       default:
          ode_solver->Init(oper);
    }
@@ -442,13 +448,9 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
    Vector rhs_2(sc);
    Vector rhs(sc);
 
-   //big comment about operator, transfer gamma to getGradient
-   this->SetParameters(gamma_, &v, &x);
    delete Jacobian;
    Jacobian = Add(1.0, M->SpMat(), gamma, S->SpMat());
-   add(v, gamma, v, w);
-   add(x, gamma, w, z);
-   SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(z));
+   SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(x));
    Jacobian->Add(gamma*gamma, *grad_H);
 
    /*Transfered GetGradient into SolveJacobian code in order to reuse grad_H*/

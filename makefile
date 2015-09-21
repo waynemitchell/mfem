@@ -119,7 +119,7 @@ METIS_LIB ?= -L$(METIS_DIR) -lmetis
 MFEM_USE_METIS_5 ?= NO
 
 # SUNDIALS library configuration
-SUNDIALS_DIR ?= @MFEM_DIR@/../sundials/install
+SUNDIALS_DIR ?= @MFEM_DIR@/../../sundials_new/install
 SUNDIALS_OPT ?= -I$(SUNDIALS_DIR)/include
 SUNDIALS_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_cvode\
  -Wl,-lsundials_nvecserial -Wl,-rpath,$(SUNDIALS_DIR)/lib
@@ -127,7 +127,7 @@ SUNDIALS_PAR_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_c
  -Wl,-lsundials_nvecserial -Wl,-lsundials_nvecparhyp -Wl,-rpath,$(SUNDIALS_DIR)/lib
 
 MFEM_USE_MPI ?= NO
-MFEM_USE_SUNDIALS ?= NO
+MFEM_USE_SUNDIALS ?= YES
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
    ifeq ($(MFEM_USE_SUNDIALS),YES)

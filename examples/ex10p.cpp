@@ -506,8 +506,6 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
                                           Solver* J_solve, double gamma_)
 {
    int sc = b->Size()/2;
-   mfem::StopWatch timer, timer2;
-   timer.Start();
    Vector v(ycur->GetData() +  0, sc);
    Vector x(ycur->GetData() + sc, sc);
    Vector b_v(b->GetData() +  0, sc);
@@ -519,13 +517,10 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
    Vector rhs_2(sc);
    Vector rhs(sc);
 
-   //big comment about operator, transfer gamma to getGradient
    this->SetParameters(gamma_, &v, &x);
    delete Jacobian;
    SparseMatrix *localJ = Add(1.0, M->SpMat(), gamma_, S->SpMat());
-   add(v, gamma_, v, w);
-   add(x, gamma_, w, z);
-   localJ->Add(gamma_*gamma_, H->GetLocalGradient(z));
+   localJ->Add(gamma_*gamma_, H->GetLocalGradient(x));
    Jacobian = M->ParallelAssemble(localJ);
    delete localJ;
 
@@ -536,7 +531,7 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
    rhs_2=0.0;
    M->TrueAddMult(b_v, rhs_2);
    ///////get h gamma in there somehow
-   (H->GetGradient(z)).Mult(b_x, rhs_1);
+   (H->GetGradient(x)).Mult(b_x, rhs_1);
    add(rhs_2,-gamma_,rhs_1,rhs);
 
    J_solve->Mult(rhs, v_hat);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
