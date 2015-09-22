@@ -18,6 +18,10 @@
 
 #include <climits>
 
+#include "general/tic_toc.hpp" // DEBUG
+extern mfem::StopWatch P_time_setup, P_time_step1, P_time_deps, P_time_step3,
+                       P_time_step4, P_time_final;
+
 namespace mfem
 {
 
@@ -1159,11 +1163,20 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
+   // DEBUG
+   ::P_time_setup.Start();
+   for (int type = 0; type < 3; type++)
+   {
+      pncmesh->GetSharedList(type);
+   }
+   ::P_time_setup.Stop();
+
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
    NeighborDofMessage::Map send_dofs, recv_dofs;
 
    // prepare neighbor DOF messages for shared vertices/edges/faces
+   ::P_time_step1.Start();
    for (int type = 0; type < 3; type++)
    {
       const NCMesh::NCList &list = pncmesh->GetSharedList(type);
@@ -1204,9 +1217,11 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    // send/receive all DOF messages
    NeighborDofMessage::IsendAll(send_dofs, MyComm);
    NeighborDofMessage::RecvAll(recv_dofs, MyComm);
+   ::P_time_step1.Stop();
 
    // *** STEP 2: build dependency lists ***
 
+   ::P_time_deps.Start();
    int num_cdofs = ndofs * vdim;//GetNConformingDofs();
    DepList* deps = new DepList[num_cdofs]; // NOTE: 'deps' is over vdofs
 
@@ -1306,9 +1321,11 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          }
       }
    }
+   ::P_time_deps.Stop();
 
    // *** STEP 3: request P matrix rows that we need from neighbors ***
 
+   ::P_time_step3.Start();
    NeighborRowRequest::Map send_requests, recv_requests;
 
    // copy communication topology from the DOF messages
@@ -1338,9 +1355,11 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    NeighborRowRequest::IsendAll(send_requests, MyComm);
    NeighborRowRequest::RecvAll(recv_requests, MyComm);
+   ::P_time_step3.Stop();
 
    // *** STEP 4: iteratively build the P matrix ***
 
+   ::P_time_step4.Start();
    // DOFs that stayed independent or are ours are true DOFs
    ltdof_size = 0;
    for (int i = 0; i < num_cdofs; i++)
@@ -1471,7 +1490,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          recv_replies[rank].Recv(rank, size, MyComm);
       }
    }
+   ::P_time_step4.Stop();
 
+   ::P_time_final.Start();
    delete [] deps;
    localP.Finalize();
 
@@ -1489,6 +1510,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    {
       NeighborRowReply::WaitAllSent(send_replies[i]);
    }
+   ::P_time_final.Stop();
 }
 
 void ParFiniteElementSpace::Update()
