@@ -20,6 +20,9 @@
 #include <map>
 #include <limits>
 
+#include "general/tic_toc.hpp"
+extern mfem::StopWatch rfn_time[6];
+
 namespace mfem
 {
 
@@ -611,6 +614,7 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    MFEM_VERIFY(Iso || Dim < 3,
                "parallel refinement of 3D aniso meshes not supported yet.");
 
+   rfn_time[0].Start();
    NeighborRefinementMessage::Map send_ref;
 
    // create refinement messages to all neighbors (NOTE: some may be empty)
@@ -620,10 +624,12 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    {
       send_ref[neighbors[i]].SetNCMesh(this);
    }
+   rfn_time[0].Stop();
 
    // populate messages: all refinements that occur next to the processor
    // boundary need to be sent to the adjoining neighbors so they can keep
    // their ghost layer up to date
+   rfn_time[1].Start();
    Array<int> ranks;
    ranks.Reserve(64);
    for (int i = 0; i < refinements.Size(); i++)
@@ -637,11 +643,15 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
          send_ref[ranks[j]].AddRefinement(elem, ref.ref_type);
       }
    }
+   rfn_time[1].Stop();
 
    // send the messages (overlap with local refinements)
+   rfn_time[2].Start();
    NeighborRefinementMessage::IsendAll(send_ref, MyComm);
+   rfn_time[2].Stop();
 
    // do local refinements
+   rfn_time[3].Start();
 #if 1
    for (int i = 0; i < refinements.Size(); i++)
    {
@@ -653,8 +663,10 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    // one processor but will break np > 1
    NCMesh::Refine(refinements); // FIXME double Update()
 #endif
+   rfn_time[3].Stop();
 
    // receive (ghost layer) refinements from all neighbors
+   rfn_time[4].Start();
    for (int j = 0; j < neighbors.Size(); j++)
    {
       int rank, size;
@@ -670,11 +682,14 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
          NCMesh::RefineElement(msg.elements[i], msg.values[i]);
       }
    }
+   rfn_time[4].Stop();
 
+   rfn_time[5].Start();
    Update();
 
    // make sure we can delete the send buffers
    NeighborDofMessage::WaitAllSent(send_ref);
+   rfn_time[5].Stop();
 }
 
 
