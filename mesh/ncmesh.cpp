@@ -454,7 +454,7 @@ NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
 //// Refinement & Derefinement /////////////////////////////////////////////////
 
 NCMesh::Element::Element(int geom, int attr)
-   : geom(geom), ref_type(0), flag(0), index(-1), rank(-1), attribute(attr)
+   : geom(geom), ref_type(0), flag(0), index(-1), rank(0), attribute(attr)
    , parent(NULL)
 {
    memset(node, 0, sizeof(node));
@@ -1141,7 +1141,6 @@ void NCMesh::RefineElement(Element* elem, char ref_type)
    // finish the refinement
    elem->ref_type = ref_type;
    memcpy(elem->child, child, sizeof(elem->child));
-   elem->rank = -1;
 }
 
 
@@ -1352,7 +1351,10 @@ void NCMesh::CollectLeafElements(Element* elem, int state)
 {
    if (!elem->ref_type)
    {
-      leaf_elements.Append(elem);
+      if (elem->rank >= 0)
+      {
+         leaf_elements.Append(elem);
+      }
    }
    else
    {

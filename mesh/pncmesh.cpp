@@ -485,15 +485,20 @@ void ParNCMesh::UpdateLayers()
    boundary_layer.SetSize(0);
    for (int i = 0; i < nleaves; i++)
    {
+      char &etype = element_type[i];
       if (ghost_set[i])
       {
-         element_type[i] = 2;
+         etype = 2;
          ghost_layer.Append(leaf_elements[i]);
       }
-      else if (boundary_set[i] && element_type[i])
+      else if (boundary_set[i] && etype)
       {
-         element_type[i] = 3;
+         etype = 3;
          boundary_layer.Append(leaf_elements[i]);
+      }
+      else if (!etype)
+      {
+         leaf_elements[i]->rank = -1;
       }
    }
 }
