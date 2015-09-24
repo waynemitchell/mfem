@@ -582,7 +582,7 @@ bool ParNCMesh::PruneTree(Element* elem)
    else
    {
       // return true if this leaf can be removed
-      return element_type[elem->index] == 0;
+      return elem->rank < 0; // (see UpdateLayers)
    }
 }
 
