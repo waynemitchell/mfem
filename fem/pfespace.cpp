@@ -1174,6 +1174,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
    NeighborDofMessage::Map send_dofs, recv_dofs;
+   NeighborRowRequest::Map recv_requests;
 
    // prepare neighbor DOF messages for shared vertices/edges/faces
    //::P_time_step1.Start();
@@ -1203,6 +1204,9 @@ void ParFiniteElementSpace::GetConformingInterpolation()
                   NeighborDofMessage &send_msg = send_dofs[group[j]];
                   send_msg.Init(pncmesh, fec, ndofs);
                   send_msg.AddDofs(type, id, dofs);
+
+                  // DEBUG: calculate results of Step 3 here
+                  recv_requests[group[j]].AddDofs(dofs);
                }
             }
          }
@@ -1325,6 +1329,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    // *** STEP 3: request P matrix rows that we need from neighbors ***
 
+#if 0
    //::P_time_step3.Start();
    NeighborRowRequest::Map send_requests, recv_requests;
 
@@ -1356,6 +1361,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
    NeighborRowRequest::IsendAll(send_requests, MyComm);
    NeighborRowRequest::RecvAll(recv_requests, MyComm);
    //::P_time_step3.Stop();
+#endif
 
    // *** STEP 4: iteratively build the P matrix ***
 
@@ -1505,7 +1511,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    // make sure we can discard all send buffers
    NeighborDofMessage::WaitAllSent(send_dofs);
-   NeighborRowRequest::WaitAllSent(send_requests);
+   //NeighborRowRequest::WaitAllSent(send_requests);
    for (unsigned i = 0; i < send_replies.size(); i++)
    {
       NeighborRowReply::WaitAllSent(send_replies[i]);

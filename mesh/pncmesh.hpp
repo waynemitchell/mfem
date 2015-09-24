@@ -469,6 +469,12 @@ public:
    void RequestRow(int row) { rows.insert(row); }
    void RemoveRequest(int row) { rows.erase(row); }
 
+   // DEBUG
+   void AddDofs(const Array<int> &dofs)
+   {
+      for (int i = 0; i < dofs.Size(); i++) { RequestRow(dofs[i]); }
+   }
+
    typedef std::map<int, NeighborRowRequest> Map;
 
 protected:
