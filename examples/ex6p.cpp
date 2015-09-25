@@ -233,6 +233,7 @@ int main(int argc, char *argv[])
       //     next step, we need to request the "two-level state" of the mesh.
       //pmesh.UseTwoLevelState(1);
       pmesh.GeneralRefinement(ref_list);
+      pmesh.Rebalance();
 
       // 19. Update the space to reflect the new state of the mesh. Also,
       //     interpolate the solution x so that it lies in the new space but
