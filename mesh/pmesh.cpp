@@ -2244,6 +2244,7 @@ void ParMesh::Rebalance()
    bdr_attributes.Copy(pmesh2->bdr_attributes);
 
    Swap(*pmesh2, false);
+   delete pmesh2;
 }
 
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)

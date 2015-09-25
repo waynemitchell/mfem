@@ -1163,18 +1163,10 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
-   // DEBUG
-   //::P_time_setup.Start();
-   for (int type = 0; type < 3; type++)
-   {
-      pncmesh->GetSharedList(type);
-   }
-   //::P_time_setup.Stop();
-
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
    NeighborDofMessage::Map send_dofs, recv_dofs;
-   NeighborRowRequest::Map recv_requests;
+   //NeighborRowRequest::Map recv_requests2;
 
    // prepare neighbor DOF messages for shared vertices/edges/faces
    //::P_time_step1.Start();
@@ -1206,7 +1198,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
                   send_msg.AddDofs(type, id, dofs);
 
                   // DEBUG: calculate results of Step 3 here
-                  recv_requests[group[j]].AddDofs(dofs);
+                  //recv_requests2[group[j]].AddDofs(dofs);
                }
             }
          }
@@ -1220,7 +1212,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    // send/receive all DOF messages
    NeighborDofMessage::IsendAll(send_dofs, MyComm);
-   NeighborDofMessage::RecvAll(recv_dofs, MyComm);
+   //NeighborDofMessage::RecvAll(recv_dofs, MyComm);
    //::P_time_step1.Stop();
 
    // *** STEP 2: build dependency lists ***
@@ -1264,7 +1256,14 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          }
          else
          {
-            recv_dofs[master_rank].GetDofs(type, mf, master_dofs, master_ndofs);
+            NeighborDofMessage &msg = recv_dofs[master_rank];
+            if (!msg.received)
+            {
+               int size;
+               NeighborDofMessage::ProbeRank(master_rank, size, MyComm);
+               msg.Recv(master_rank, size, MyComm);
+            }
+            msg.GetDofs(type, mf, master_dofs, master_ndofs);
          }
 
          if (!master_dofs.Size()) { continue; }
@@ -1310,7 +1309,14 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          int owner_ndofs, owner = pncmesh->GetOwner(type, id.index);
          if (owner != MyRank)
          {
-            recv_dofs[owner].GetDofs(type, id, owner_dofs, owner_ndofs);
+            NeighborDofMessage &msg = recv_dofs[owner];
+            if (!msg.received)
+            {
+               int size;
+               NeighborDofMessage::ProbeRank(owner, size, MyComm);
+               msg.Recv(owner, size, MyComm);
+            }
+            msg.GetDofs(type, id, owner_dofs, owner_ndofs);
             if (type == 2)
             {
                int fo = pncmesh->GetFaceOrientation(id.index);
@@ -1329,7 +1335,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    // *** STEP 3: request P matrix rows that we need from neighbors ***
 
-#if 0
+#if 1
    //::P_time_step3.Start();
    NeighborRowRequest::Map send_requests, recv_requests;
 
@@ -1357,9 +1363,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          }
       }
    }
-
    NeighborRowRequest::IsendAll(send_requests, MyComm);
-   NeighborRowRequest::RecvAll(recv_requests, MyComm);
    //::P_time_step3.Stop();
 #endif
 
@@ -1409,6 +1413,8 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    NeighborRowReply::Map recv_replies;
    std::vector<NeighborRowReply::Map> send_replies;
+
+   NeighborRowRequest::RecvAll(recv_requests, MyComm); // finish Step 3
 
    int num_finalized = ltdof_size;
    while (1)
