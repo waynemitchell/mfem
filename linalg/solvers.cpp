@@ -1692,7 +1692,7 @@ void UMFPackSolver::SetOperator(const Operator &op)
       {
          AI[i] = (SuiteSparse_long)(Ap[i]);
       }
-      for (int i = 0; i <= Ap[width]; i++)
+      for (int i = 0; i < Ap[width]; i++)
       {
          AJ[i] = (SuiteSparse_long)(Ai[i]);
       }
