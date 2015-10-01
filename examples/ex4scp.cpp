@@ -38,6 +38,7 @@ using namespace std;
 using namespace mfem;
 
 // Exact solution, F, and r.h.s., f. See below for implementation.
+static int tf = 0;
 void F_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
 
@@ -52,6 +53,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
+   int sr = 0, pr = 2;
    bool set_bc = true;
    bool visualization = 1;
 
@@ -60,6 +62,12 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&tf, "-f", "--function",
+                  "Choice of test function");
+   args.AddOption(&sr, "-sr", "--serial-refinement",
+                  "Number of serial refinement levels.");
+   args.AddOption(&pr, "-pr", "--parallel-refinement",
+                  "Number of parallel refinement levels.");
    args.AddOption(&set_bc, "-bc", "--impose-bc", "-no-bc", "--dont-impose-bc",
                   "Impose or not essential boundary conditions.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -103,8 +111,8 @@ int main(int argc, char *argv[])
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
    {
-      int ref_levels =
-         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = sr;
+      // (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -119,7 +127,8 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 2;
+      // int par_ref_levels = 2;
+      int par_ref_levels = pr;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -167,9 +176,12 @@ int main(int argc, char *argv[])
    //    marking all the boundary attributes from the mesh as essential
    //    (Dirichlet). After serial and parallel assembly we extract the
    //    parallel matrix A.
+   MPI_Barrier(MPI_COMM_WORLD);
+   tic();
    Coefficient *alpha = new ConstantCoefficient(1.0);
    Coefficient *beta  = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(fespace);
+   //a->UsePrecomputedSparsity();
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
    a->Assemble();
@@ -205,8 +217,12 @@ int main(int argc, char *argv[])
                      X->GetData(),fespace->GetTrueExDofOffsets());
 
    A->EliminateRowsCols(dof_list, XE, *B);
-   A->Print("A4scp.mat");
-   B->Print("B4scp.vec");
+
+   MPI_Barrier(MPI_COMM_WORLD);
+   double utime = toc();
+   if ( myid == 0 )
+     cout << endl << "Assemble time:  " << utime << endl << endl;
+
    // delete a;
    delete alpha;
    delete beta;
@@ -295,15 +311,33 @@ void F_exact(const Vector &p, Vector &F)
 {
    int dim = p.Size();
 
-   double x = p(0);
-   double y = p(1);
-   // double z = (dim == 3) ? p(2) : 0.0;
-
-   F(0) = cos(M_PI*x)*sin(M_PI*y);
-   F(1) = cos(M_PI*y)*sin(M_PI*x);
-   if (dim == 3)
+   switch (tf) {
+   case 0:
    {
-      F(2) = 0.0;
+      double x = p(0);
+      double y = p(1);
+      // double z = (dim == 3) ? p(2) : 0.0;
+
+      F(0) = cos(M_PI*x)*sin(M_PI*y);
+      F(1) = cos(M_PI*y)*sin(M_PI*x);
+      if (dim == 3)
+      {
+	 F(2) = 0.0;
+      }
+      break;
+   }
+   case 1:
+   {
+      double x = p(0);
+      double y = p(1);
+      double z = p(2);
+      double a = sqrt(29.0)-5.0;
+      double tmp = 0.25*a*exp(-(x*x+y*y+z*z)/a);
+      F(0) = tmp*x;
+      F(1) = tmp*y;
+      F(2) = tmp*z;
+      break;
+   }
    }
 }
 
@@ -312,16 +346,35 @@ void f_exact(const Vector &p, Vector &f)
 {
    int dim = p.Size();
 
-   double x = p(0);
-   double y = p(1);
-   // double z = (dim == 3) ? p(2) : 0.0;
-
-   double temp = 1 + 2*M_PI*M_PI;
-
-   f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
-   f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
-   if (dim == 3)
+   switch (tf) {
+   case 0:
    {
-      f(2) = 0;
+      double x = p(0);
+      double y = p(1);
+      // double z = (dim == 3) ? p(2) : 0.0;
+
+      double temp = 1 + 2*M_PI*M_PI;
+
+      f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
+      f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
+      if (dim == 3)
+      {
+	 f(2) = 0;
+      }
+      break;
+   }
+   case 1:
+   {
+      double x = p(0);
+      double y = p(1);
+      double z = p(2);
+      double a = sqrt(29.0)-5.0;
+      double r2 = x*x+y*y+z*z;
+      double tmp = (1.0-r2)*exp(-r2/a);
+      f(0) = tmp*x;
+      f(1) = tmp*y;
+      f(2) = tmp*z;
+      break;
+   }
    }
 }

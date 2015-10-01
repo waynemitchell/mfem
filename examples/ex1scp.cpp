@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
+   int sr = 0, pr = 2;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -59,6 +60,10 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&sr, "-sr", "--serial-refinement",
+                  "Number of serial refinement levels.");
+   args.AddOption(&pr, "-pr", "--parallel-refinement",
+                  "Number of parallel refinement levels.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -100,8 +105,8 @@ int main(int argc, char *argv[])
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 10,000 elements.
    {
-      int ref_levels =
-         (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = sr;
+      // (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -114,7 +119,8 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 2;
+      // int par_ref_levels = 2;
+      int par_ref_levels = pr;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -169,8 +175,10 @@ int main(int argc, char *argv[])
    //    conditions. The boundary conditions are implemented by marking all the
    //    boundary attributes from the mesh as essential. After serial and
    //    parallel assembly we extract the corresponding parallel matrix A.
+   MPI_Barrier(MPI_COMM_WORLD);
+   tic();
    ParBilinearForm *a = new ParBilinearForm(fespace);
-   a->UsePrecomputedSparsity();
+   // a->UsePrecomputedSparsity();
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
    a->Finalize();
@@ -203,6 +211,10 @@ int main(int argc, char *argv[])
 
    A->EliminateRowsCols(dof_list, XE, *B);
 
+   MPI_Barrier(MPI_COMM_WORLD);
+   double utime = toc();
+   if ( myid == 0 )
+     cout << endl << "Assemble time:  " << utime << endl << endl;
 
    // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.

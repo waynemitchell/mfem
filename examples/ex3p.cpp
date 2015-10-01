@@ -32,6 +32,7 @@ using namespace std;
 using namespace mfem;
 
 // Exact solution, E, and r.h.s., f. See below for implementation.
+static int tf = 0;
 void E_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
 
@@ -54,6 +55,8 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&tf, "-f", "--function",
+                  "Choice of test function");
    args.AddOption(&sr, "-sr", "--serial-refinement",
                   "Number of serial refinement levels.");
    args.AddOption(&pr, "-pr", "--parallel-refinement",
@@ -168,9 +171,12 @@ int main(int argc, char *argv[])
    //    marking all the boundary attributes from the mesh as essential
    //    (Dirichlet). After serial and parallel assembly we extract the
    //    parallel matrix A.
+   MPI_Barrier(MPI_COMM_WORLD);
+   tic();
    Coefficient *muinv = new ConstantCoefficient(1.0);
    Coefficient *sigma = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(fespace);
+   // a->UsePrecomputedSparsity();
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
@@ -186,6 +192,11 @@ int main(int argc, char *argv[])
    HypreParVector *X = x.ParallelAverage();
    *X = 0.0;
 
+   MPI_Barrier(MPI_COMM_WORLD);
+   double utime = toc();
+   if ( myid == 0 )
+     cout << endl << "Assemble time:  " << utime << endl << endl;
+
    delete a;
    delete sigma;
    delete muinv;
@@ -196,7 +207,7 @@ int main(int argc, char *argv[])
    HypreSolver *ams = new HypreAMS(*A, fespace);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
-   pcg->SetMaxIter(500);
+   pcg->SetMaxIter(10000);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*B, *X);
@@ -261,14 +272,50 @@ const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {
-   E(0) = sin(kappa * x(1));
-   E(1) = sin(kappa * x(2));
-   E(2) = sin(kappa * x(0));
+   switch (tf) {
+   case 0:
+      E(0) = sin(kappa * x(1));
+      E(1) = sin(kappa * x(2));
+      E(2) = sin(kappa * x(0));
+      break;
+   case 1:
+   {
+      double a = sqrt(29.0)-5.0;
+      double r2 = x(0)*x(0)+x(1)*x(1)+x(2)*x(2);
+      double tmp = 0.25*a*a*exp(-r2/a);
+      E(0) = 0.0;
+      E(1) = -tmp*x(2);
+      E(2) =  tmp*x(1);
+      break;
+   }
+   default:
+      E(0) = 0.0;
+      E(1) = 0.0;
+      E(2) = 0.0;
+   }
 }
 
 void f_exact(const Vector &x, Vector &f)
 {
-   f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
-   f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
-   f(2) = (1. + kappa * kappa) * sin(kappa * x(0));
+   switch (tf) {
+   case 0:
+      f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
+      f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
+      f(2) = (1. + kappa * kappa) * sin(kappa * x(0));
+      break;
+   case 1:
+   {
+      double a = sqrt(29.0)-5.0;
+      double r2 = x(0)*x(0)+x(1)*x(1)+x(2)*x(2);
+      double tmp = (1.0-r2)*exp(-r2/a);
+      f(0) = 0.0;
+      f(1) = -tmp*x(2);
+      f(2) =  tmp*x(1);
+      break;
+   }
+   default:
+      f(0) = 0.0;
+      f(1) = 0.0;
+      f(2) = 0.0;
+   }
 }
