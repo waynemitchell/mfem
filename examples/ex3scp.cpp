@@ -216,6 +216,7 @@ int main(int argc, char *argv[])
                      X->GetData(),fespace->GetTrueExDofOffsets());
 
    A->EliminateRowsCols(dof_list, XE, *B);
+   XE = 0.0;
 
    MPI_Barrier(MPI_COMM_WORLD);
    double utime = toc();
