@@ -1212,7 +1212,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
 
    // send/receive all DOF messages
    NeighborDofMessage::IsendAll(send_dofs, MyComm);
-   //NeighborDofMessage::RecvAll(recv_dofs, MyComm);
+   NeighborDofMessage::RecvAll(recv_dofs, MyComm);
    //::P_time_step1.Stop();
 
    // *** STEP 2: build dependency lists ***
@@ -1256,14 +1256,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          }
          else
          {
-            NeighborDofMessage &msg = recv_dofs[master_rank];
-            if (!msg.received)
-            {
-               int size;
-               NeighborDofMessage::ProbeRank(master_rank, size, MyComm);
-               msg.Recv(master_rank, size, MyComm);
-            }
-            msg.GetDofs(type, mf, master_dofs, master_ndofs);
+            recv_dofs[master_rank].GetDofs(type, mf, master_dofs, master_ndofs);
          }
 
          if (!master_dofs.Size()) { continue; }
@@ -1309,14 +1302,7 @@ void ParFiniteElementSpace::GetConformingInterpolation()
          int owner_ndofs, owner = pncmesh->GetOwner(type, id.index);
          if (owner != MyRank)
          {
-            NeighborDofMessage &msg = recv_dofs[owner];
-            if (!msg.received)
-            {
-               int size;
-               NeighborDofMessage::ProbeRank(owner, size, MyComm);
-               msg.Recv(owner, size, MyComm);
-            }
-            msg.GetDofs(type, id, owner_dofs, owner_ndofs);
+            recv_dofs[owner].GetDofs(type, id, owner_dofs, owner_ndofs);
             if (type == 2)
             {
                int fo = pncmesh->GetFaceOrientation(id.index);
