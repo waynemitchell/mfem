@@ -166,11 +166,11 @@ int main(int argc, char *argv[])
       FiniteElementCollection *HDivFEC      = new RT_FECollection(order-1, dim);
 
       ParFiniteElementSpace   *H1FESpace    = new ParFiniteElementSpace(pmesh,
-                                H1FEC);
+                                                                        H1FEC);
       ParFiniteElementSpace   *HCurlFESpace = new ParFiniteElementSpace(pmesh,
-                                HCurlFEC);
+                                                                        HCurlFEC);
       ParFiniteElementSpace   *HDivFESpace  = new ParFiniteElementSpace(pmesh,
-                                HDivFEC);
+                                                                        HDivFEC);
 
       HYPRE_Int size = HCurlFESpace->GlobalTrueVSize();
       if (myid == 0)
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 
       ParBilinearForm *a1 = new ParBilinearForm(H1FESpace);
       PWConstCoefficient *sigma =
-        new PWConstCoefficient(pmesh->bdr_attributes.Max());
+         new PWConstCoefficient(pmesh->bdr_attributes.Max());
       (*sigma) = 0.0; (*sigma)(3) = 1.0;
       a1->AddBoundaryIntegrator(new DiffusionIntegrator(*sigma));
       a1->Assemble();
@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
       x1 = *X1;
 
       ParDiscreteLinearOperator *grad =
-        new ParDiscreteLinearOperator(H1FESpace, HCurlFESpace);
+         new ParDiscreteLinearOperator(H1FESpace, HCurlFESpace);
       grad->AddDomainInterpolator(new GradientInterpolator);
       grad->Assemble();
       grad->Finalize();
@@ -315,7 +315,7 @@ int main(int argc, char *argv[])
       //     magnetic field corresponding to the vector potential
       //     represented by x.
       ParDiscreteLinearOperator *curl =
-        new ParDiscreteLinearOperator(HCurlFESpace, HDivFESpace);
+         new ParDiscreteLinearOperator(HCurlFESpace, HDivFESpace);
       curl->AddDomainInterpolator(new CurlInterpolator);
       curl->Assemble();
       curl->Finalize();
@@ -475,7 +475,9 @@ int main(int argc, char *argv[])
       MPI_Bcast(&c, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
       if (c != 'c')
+      {
          break;
+      }
    }
 
    delete pmesh;

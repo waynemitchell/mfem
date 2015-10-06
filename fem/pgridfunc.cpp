@@ -491,7 +491,7 @@ void ParGridFunction::ComputeFlux(
 {
    // In this context we know that flux should be a ParGridFunction
    ParGridFunction& flux = dynamic_cast<ParGridFunction&>(flux_);
-   
+
    ParFiniteElementSpace *ffes = flux.ParFESpace();
 
    Array<int> count(flux.Size());

@@ -48,7 +48,7 @@ protected:
                         Array<int>& counts,
                         int wcoef,
                         int subdomain);
-   
+
    /** Project a discontinuous vector coefficient in a continuous space and
        return in dof_attr the maximal attribute of the elements containing each
        degree of freedom. */
@@ -273,7 +273,7 @@ public:
    virtual void ComputeFlux(BilinearFormIntegrator &blfi,
                             GridFunction &flux,
                             int wcoef = 1, int subdomain = -1);
-   
+
    /// Save the GridFunction to an output stream.
    virtual void Save(std::ostream &out) const;
 
