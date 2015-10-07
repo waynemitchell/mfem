@@ -143,7 +143,7 @@ private:
    // All owned arrays are destroyed with 'delete []'.
    char diagOwner, offdOwner, colMapOwner;
 
-   // Initialize with defaults. Does not initalize inherited members.
+   // Initialize with defaults. Does not initialize inherited members.
    void Init();
 
    // Delete all owned data. Does not perform re-initialization with defaults.
@@ -386,7 +386,7 @@ protected:
    mutable HypreParVector *X0, *X1;
 
    /** Smoother type from hypre_ParCSRRelax() in ams.c plus extensions, see the
-       enumeartion Type below. */
+       enumeration Type below. */
    int type;
    /// Number of relaxation sweeps
    int relax_times;
@@ -412,7 +412,7 @@ protected:
    double max_eig_est;
    /// Minimal eigenvalue estimate for polynomial smoothing
    double min_eig_est;
-   /// Paramters for windowing function of FIR filter
+   /// Parameters for windowing function of FIR filter
    double window_params[3];
 
    /// Combined coefficients for windowing and Chebyshev polynomials.
@@ -664,7 +664,7 @@ public:
 
    virtual void SetOperator(const Operator &op);
 
-   /** More robust options for systems, such as elastisity. Note that BoomerAMG
+   /** More robust options for systems, such as elasticity. Note that BoomerAMG
        assumes Ordering::byVDIM in the finite element space used to generate the
        matrix A. */
    void SetSystemsOptions(int dim);
