@@ -277,7 +277,7 @@ protected:
    /// Write to 'os' a processor-independent encoding of vertex/edge/face IDs.
    void EncodeMeshIds(std::ostream &os, Array<MeshId> ids[], int dim) const;
 
-   /// Read from 'is' a processor-independent encoding of vetex/edge/face IDs.
+   /// Read from 'is' a processor-independent encoding of vertex/edge/face IDs.
    void DecodeMeshIds(std::istream &is, Array<MeshId> ids[], int dim,
                       bool decode_indices) const;
 
@@ -352,7 +352,7 @@ TODO
 - DG
 - parallel aniso refine
 - cP + P
-- hilbert ordering
+- Hilbert ordering
 - rebalance
 */
 

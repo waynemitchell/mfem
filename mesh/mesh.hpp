@@ -142,7 +142,7 @@ protected:
    void DeleteTables();
 
    /** Delete the 'el_to_el', 'face_edge' and 'edge_vertex' tables, and the
-       coarse non-conforming Mesh 'nc_coarse_level'. Usefull in refinement
+       coarse non-conforming Mesh 'nc_coarse_level'. Useful in refinement
        methods to destroy these data members. */
    void DeleteCoarseTables();
 
@@ -265,7 +265,7 @@ protected:
        in the table, then (j, i) is not stored. */
    void GetVertexToVertexTable(DSTable &) const;
 
-   /** Return element to edge table and the indeces for the boundary edges.
+   /** Return element to edge table and the indices for the boundary edges.
        The entries in the table are ordered according to the order of the
        nodes in the elements. For example, if T is the element to edge table
        T(i, 0) gives the index of edge in element i that connects vertex 0
