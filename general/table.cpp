@@ -263,16 +263,16 @@ void Table::MakeFromList(int nrows, const Array<Connection> &list)
    int nnz = list.Size();
 
    I = new int[size+1];
+   J = new int[nnz];
+
    for (int i = 0, k = 0; i <= size; i++)
    {
       I[i] = k;
-      while (k < nnz && list[k].from == i) { k++; }
-   }
-
-   J = new int[nnz];
-   for (int i = 0; i < nnz; i++)
-   {
-      J[i] = list[i].to;
+      while (k < nnz && list[k].from == i)
+      {
+         J[k] = list[k].to;
+         k++;
+      }
    }
 }
 
