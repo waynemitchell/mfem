@@ -447,8 +447,7 @@ double DiffusionIntegrator::ComputeFluxEnergy
       {
          for (int j = 0; j < nd; j++)
          {
-            double f = flux(k*nd+j);
-            pointflux(k) += f*shape(j);
+            pointflux(k) += flux(k*nd+j)*shape(j);
          }
       }
 

@@ -9,7 +9,6 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-//#include "mesh_headers.hpp"
 #include "../fem/fem.hpp"
 #include "ncmesh.hpp"
 
@@ -60,7 +59,7 @@ NCMesh::NCMesh(const Mesh *mesh, std::istream *vertex_parents)
 
    // examine elements and reserve the first node IDs for top-level vertices
    // (note: 'mesh' may not have vertices defined yet, e.g., on load)
-   int max_id = 0;
+   int max_id = -1;
    for (int i = 0; i < mesh->GetNE(); i++)
    {
       const mfem::Element *elem = mesh->GetElement(i);

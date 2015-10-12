@@ -306,8 +306,6 @@ protected: // implementation
       void UnrefEdge(HashTable<Node>& nodes);
    };
 
-   struct Element;
-
    /** Similarly to nodes, faces can be accessed by hashing their four vertex
        node IDs. A face knows about the one or two elements that are using it.
        A face that is not on the boundary and only has one element referencing
@@ -539,6 +537,7 @@ protected: // implementation
       Point(const Point& p0, const Point& p1, const Point& p2, const Point& p3)
       {
          dim = p0.dim;
+         MFEM_ASSERT(p1.dim == dim && p2.dim == dim && p3.dim == dim, "");
          for (int i = 0; i < dim; i++)
          {
             coord[i] = (p0.coord[i] + p1.coord[i] + p2.coord[i] + p3.coord[i])

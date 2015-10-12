@@ -1033,7 +1033,7 @@ static void MaskSlaveDofs(Array<int> &slave_dofs, const DenseMatrix &pm,
       {
          for (i = 0; i < 4; i++)
          {
-            if (corner[i] && corner[(i+1) & 0x3])
+            if (corner[i] && corner[(i+1) % 4])
             {
                for (k = 0; k < ne; k++)
                {
