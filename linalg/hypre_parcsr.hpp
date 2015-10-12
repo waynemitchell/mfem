@@ -9,8 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef MFEM_HYPRE_EXT
-#define MFEM_HYPRE_EXT
+#ifndef MFEM_HYPRE_PARCSR
+#define MFEM_HYPRE_PARCSR
 
 #include "../config/config.hpp"
 

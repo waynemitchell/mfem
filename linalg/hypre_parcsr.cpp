@@ -13,7 +13,7 @@
 
 #ifdef MFEM_USE_MPI
 
-#include "hypre_ext.hpp"
+#include "hypre_parcsr.hpp"
 #include <limits>
 
 namespace mfem

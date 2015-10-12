@@ -15,7 +15,7 @@
 
 #include "linalg.hpp"
 #include "../fem/fem.hpp"
-#include "hypre_ext.hpp"
+#include "hypre_parcsr.hpp"
 
 #include <fstream>
 #include <iomanip>
