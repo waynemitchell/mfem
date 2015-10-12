@@ -745,7 +745,8 @@ public:
                          int seed = 0 /* should be the same on all CPUs */);
 
    /// Refine elements sharing the specified vertex, 'levels' times.
-   void RefineAtVertex(const Vertex& vert, int levels, int nonconforming = -1);
+   void RefineAtVertex(const Vertex& vert, int levels,
+                       double eps = 0.0, int nonconforming = -1);
 
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
