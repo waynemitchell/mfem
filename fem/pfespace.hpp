@@ -166,6 +166,10 @@ public:
    /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix();
 
+   ///
+   HypreParMatrix *RebalanceMatrix(const Table &old_element_dofs,
+                                   HYPRE_Int old_dof_offset);
+
    /** Create and return a new HypreParVector on the true dofs, which is
        owned by (i.e. it must be destroyed by) the calling function. */
    HypreParVector *NewTrueDofVector()
@@ -216,6 +220,7 @@ public:
    void LoseDofOffsets() { dof_offsets.LoseData(); }
    void LoseTrueDofOffsets() { tdof_offsets.LoseData(); }
 
+   bool Conforming() const { return pmesh->pncmesh == NULL; }
    bool Nonconforming() const { return pmesh->pncmesh != NULL; }
 
    virtual void Update();

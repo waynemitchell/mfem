@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   mesh->RandomRefinement(4, 2, false);
+   //mesh->RandomRefinement(4, 2, false);
    //mesh->GeneralRefinement(Array<int>(), 1);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -118,11 +118,11 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 1;
+      /*int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
-      }
+      }*/
       /*for (int i = 0; i < 3; i++)
       {
          Array<Refinement> refs;
@@ -135,9 +135,15 @@ int main(int argc, char *argv[])
          }
          pmesh->GeneralRefinement(refs, 1);
       }*/
+      {
+         Array<Refinement> refs;
+         if (myid == 0)
+         {
+            refs.Append(Refinement(0));
+         }
+         pmesh->GeneralRefinement(refs, 1);
+      }
    }
-
-   //pmesh->Rebalance();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
@@ -214,6 +220,19 @@ int main(int argc, char *argv[])
    // 12. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
    x = *X;
+
+
+   // 13. Load balance the mesh, migrate grid functions
+   //
+   const Table &old_dofs = fespace->GetElementToDofTable();
+   HYPRE_Int old_dof_offset = fespace->GetMyDofOffset();
+
+   pmesh->Rebalance();
+
+   HypreParMatrix *M = fespace->RebalanceMatrix(old_dofs, old_dof_offset);
+   x.Rebalance(M);
+   delete M;
+
 
    // 13. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".

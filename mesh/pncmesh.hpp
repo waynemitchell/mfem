@@ -76,6 +76,9 @@ public:
    /** */
    void Rebalance();
 
+   void SendRebalanceDofs(const Table &old_element_dofs, long old_dof_offset);
+   void RecvRebalanceDofs();
+
    /** Return a list of vertices shared by this processor and at least one other
        processor. (NOTE: only NCList::conforming will be set.) */
    const NCList& GetSharedVertices()
@@ -382,6 +385,17 @@ protected:
       typedef std::map<int, RebalanceMessage> Map;
    };
 
+   /**
+    *
+    */
+   class RebalanceDofMessage : public VarMessage<158>
+   {
+   public:
+      Array<int> elements;
+      std::string elem_set;
+      typedef std::map<int, RebalanceMessage> Map;
+   };
+
 
    static bool compare_ranks(const Element* a, const Element* b);
 
@@ -407,15 +421,16 @@ TODO
 - ProjectBdrCoefficient
 - performance/scaling study
 
++ hilbert ordering
++ rebalance
+- DOF redistribution after rebalance
+- optimize P communication
 - big-int P matrix
 - DG for serial NC
 - DG for parallel NC
 - parallel 3D aniso refine
 - 3D aniso derefinement
 - cP + P
-+ hilbert ordering
-+ rebalance
-- DOF redistribution after rebalance
 */
 
 class FiniteElementCollection; // needed for edge orientation handling
@@ -468,12 +483,6 @@ public:
 
    void RequestRow(int row) { rows.insert(row); }
    void RemoveRequest(int row) { rows.erase(row); }
-
-   // DEBUG
-   void AddDofs(const Array<int> &dofs)
-   {
-      for (int i = 0; i < dofs.Size(); i++) { RequestRow(dofs[i]); }
-   }
 
    typedef std::map<int, NeighborRowRequest> Map;
 

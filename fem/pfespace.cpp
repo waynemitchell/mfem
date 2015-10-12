@@ -1551,6 +1551,25 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
    return cpfes;
 }
 
+HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
+   const Table &old_element_dofs, HYPRE_Int old_dof_offset)
+{
+   ParNCMesh* pncmesh = pmesh->pncmesh;
+   pncmesh->SendRebalanceDofs(old_element_dofs, old_dof_offset);
+
+
+   pncmesh->RecvRebalanceDofs();
+
+   int old_num_elems = old_element_dofs.Size();
+
+
+
+
+   HypreParMatrix *M = new HypreParMatrix();
+
+   return M;
+}
+
 }
 
 #endif
