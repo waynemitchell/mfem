@@ -116,7 +116,10 @@ int main(int argc, char *argv[])
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
-   mesh->GeneralRefinement(Array<int>(), 1);
+   if (mesh->MeshGenerator() & 2)
+   {
+      mesh->GeneralRefinement(Array<int>(), 1);
+   }
    {
       //int ref_levels = (int) floor(log(1000. / mesh->GetNE()) / log(2.) / dim);
       int ref_levels = 1;
