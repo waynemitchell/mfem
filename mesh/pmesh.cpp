@@ -2157,8 +2157,9 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
 
    if (!pncmesh)
    {
-      MFEM_ABORT("Can't convert conforming ParMesh to nonconforming ParMesh (you"
-                 " need to start the ParMesh from a nonconforming serial Mesh)");
+      MFEM_ABORT("Can't convert conforming ParMesh to nonconforming ParMesh "
+                 "(you need to initialize the ParMesh from a nonconforming "
+                 "serial Mesh)");
    }
 
    if (WantTwoLevelState)
