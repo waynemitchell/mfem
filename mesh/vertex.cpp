@@ -23,13 +23,4 @@ Vertex::Vertex (double *xx, int dim)
    }
 }
 
-bool Vertex::operator== (const Vertex &other) const
-{
-   for (int i = 0; i < 3; i++)
-   {
-      if (coord[i] != other.coord[i]) { return false; }
-   }
-   return true;
-}
-
 }
