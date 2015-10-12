@@ -34,7 +34,7 @@ template<typename TargetT, typename SourceT>
 TargetT *DuplicateAs(const SourceT *array, int size, bool cplusplus = true)
 {
    TargetT *target_array = cplusplus ? new TargetT[size]
-                           : (TargetT*) malloc(size * sizeof(TargetT));
+                           /*     */ : hypre_TAlloc(TargetT, size);
    for (int i = 0; i < size; i++)
    {
       target_array[i] = array[i];
@@ -2288,19 +2288,8 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
    Pi = Pix = Piy = Piz = NULL;
    if (p > 1)
    {
-      ParFiniteElementSpace *vert_fespace_d;
-      if (cycle_type < 10)
-      {
-         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, dim,
-                                                    Ordering::byVDIM);
-      }
-      else
-      {
-         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, dim,
-                                                    Ordering::byNODES);
-         // NOTE: ordering no longer needs to be byNODES for GetParBlocks,
-         //       but maybe there's another reason for it?
-      }
+      ParFiniteElementSpace *vert_fespace_d
+         = new ParFiniteElementSpace(pmesh, vert_fec, dim, Ordering::byVDIM);
 
       ParDiscreteLinearOperator *id_ND;
       id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
@@ -2454,14 +2443,8 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    ND_Pi = ND_Pix = ND_Piy = ND_Piz = NULL;
    if (p > 1)
    {
-      ParFiniteElementSpace *vert_fespace_d;
-
-      if (ams_cycle_type < 10)
-         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
-                                                    Ordering::byVDIM);
-      else
-         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
-                                                    Ordering::byNODES);
+      ParFiniteElementSpace *vert_fespace_d
+         = new ParFiniteElementSpace(pmesh, vert_fec, 3, Ordering::byVDIM);
 
       ParDiscreteLinearOperator *id_ND;
       id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
@@ -2486,18 +2469,9 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
 
       delete id_ND;
 
-      if (cycle_type < 10 && ams_cycle_type > 10)
-      {
-         delete vert_fespace_d;
-         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
-                                                    Ordering::byVDIM);
-      }
-      else if (cycle_type > 10 && ams_cycle_type < 10)
-      {
-         delete vert_fespace_d;
-         vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
-                                                    Ordering::byNODES);
-      }
+      delete vert_fespace_d;
+      vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
+                                                 Ordering::byVDIM);
 
       ParDiscreteLinearOperator *id_RT;
       id_RT = new ParDiscreteLinearOperator(vert_fespace_d, face_fespace);

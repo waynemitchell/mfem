@@ -53,12 +53,16 @@ namespace mfem
  *  are ghosts, and are numbered after all real vertices/edges/faces, i.e.,
  *  they have indices greater than NVertices, NEdges, NFaces, respectively.
  *
+ *  A shared vertex/edge/face is identified in an interprocessor message by a
+ *  pair of numbers. The first number specifies an element in an ElementSet
+ *  (typically sent at the beginning of the message) that contains the v/e/f.
+ *  The second number is the local index of the v/e/f in that element.
+ *
  *  The interface of ParNCMesh is designed for its main customer, the
  *  ParFiniteElementSpace class, which needs to know everything about the
  *  vertices, edges and faces on the processor boundary.
  *
  *  TODO: what else to describe?
- *   - how vertices/edges/faces are identified between processors
  */
 class ParNCMesh : public NCMesh
 {
@@ -330,31 +334,6 @@ protected:
    friend class NeighborDofMessage;
 };
 
-/*
-TODO
-+ vdim fix
-+ conforming case R matrix
-+ master merge
-+ curved/two-level parmesh
-+ hcurl/hdiv (par-blocks)
-+ saving/reading nc meshes
-+ visualization, VisIt?
-+ neighbor search algorithm
-+ parallel refinement bug
-+ derefine 2D
-+ limit NC 3D edges + 2D
-+ skip ldof_sign in pfespace.cpp
-- parallel ZZ estimator
-- ProjectBdrCoefficient
-- performance/scaling study
-
-- big-int P matrix
-- DG
-- parallel aniso refine
-- cP + P
-- Hilbert ordering
-- rebalance
-*/
 
 class FiniteElementCollection; // needed for edge orientation handling
 

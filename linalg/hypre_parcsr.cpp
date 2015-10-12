@@ -894,6 +894,8 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
       hypre_MatvecCommPkgCreate(blocks[i]);
 
       hypre_ParCSRMatrixOwnsData(blocks[i]) = 1;
+
+      /* only the first block will own the row/col_starts */
       hypre_ParCSRMatrixOwnsRowStarts(blocks[i]) = !i;
       hypre_ParCSRMatrixOwnsColStarts(blocks[i]) = !i;
    }

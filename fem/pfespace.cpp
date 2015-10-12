@@ -494,7 +494,8 @@ GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 {
    if (Nonconforming())
    {
-      return NULL; // FIXME
+      MFEM_ABORT("Not implemented for NC mesh.");
+      return NULL;
    }
 
    GroupCommunicator *gc = new GroupCommunicator(GetGroupTopo());

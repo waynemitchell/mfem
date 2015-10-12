@@ -45,7 +45,7 @@ struct Refinement
  *  The class is used as follows:
  *
  *  1. NCMesh is constructed from elements of an existing Mesh. The elements
- *     are copied and become the roots of the refinement hierarchy.
+ *     are copied and become roots of the refinement hierarchy.
  *
  *  2. Some elements are refined with the Refine() method. Both isotropic and
  *     anisotropic refinements of quads/hexes are supported.
@@ -53,9 +53,12 @@ struct Refinement
  *  3. A new Mesh is created from NCMesh containing the leaf elements.
  *     This new mesh may have non-conforming (hanging) edges and faces.
  *
- *  4. TODO
+ *  4. FiniteElementSpace asks NCMesh for a list of conforming, master and
+ *     slave edges/faces and creates the conforming interpolation matrix P.
  *
- *  5. Refine some more leaf elements, i.e., repeat from step 2.
+ *  5. A continous/conforming solution is obtained by solving P'*A*P x = P'*b.
+ *
+ *  6. Repeat from step 2.
  */
 class NCMesh
 {
@@ -184,10 +187,10 @@ public:
                                    Array<int> &bdr_vertices,
                                    Array<int> &bdr_edges);
 
-   /// I/O: Print the "vertex_parents" section of the mesh file.
+   /// I/O: Print the "vertex_parents" section of the mesh file (ver. >= 1.1).
    void PrintVertexParents(std::ostream &out) const;
 
-   /// I/O: Print the "coarse_elements" section of the mesh file.
+   /// I/O: Print the "coarse_elements" section of the mesh file (ver. >= 1.1).
    void PrintCoarseElements(std::ostream &out) const;
 
    /** I/O: Load the vertex parent hierachy from a mesh file. NOTE: called
