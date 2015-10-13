@@ -519,7 +519,7 @@ void ParGridFunction::ComputeFlux(
       if (count[i] != 0) { flux(i) /= count[i]; }
    }
 
-   if (ffes->GetConformingProlongation())
+   if (ffes->Nonconforming())
    {
       // On a partially conforming flux space, project on the conforming space.
       // Using this code may lead to worse refinements in ex6, so we do not use

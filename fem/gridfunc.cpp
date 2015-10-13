@@ -1263,7 +1263,7 @@ void GridFunction::ProjectBdrCoefficient(
    // Cases like this arise in 3D when boundary edges are constraint by (depend
    // on) internal faces/elements.
 
-   if (fes->GetConformingProlongation() && fes->GetMesh()->Dimension() > 1)
+   if (fes->Nonconforming() && fes->GetMesh()->Dimension() > 1)
    {
       Vector vals;
       Array<int> edges, edges_ori;
@@ -2011,7 +2011,7 @@ void GridFunction::ConformingProlongate(const Vector &x)
 
 void GridFunction::ConformingProlongate()
 {
-   if (fes->GetConformingProlongation())
+   if (fes->Nonconforming())
    {
       Vector x = *this;
       ConformingProlongate(x);
@@ -2034,7 +2034,7 @@ void GridFunction::ConformingProject(Vector &x) const
 
 void GridFunction::ConformingProject()
 {
-   if (fes->GetConformingProlongation())
+   if (fes->Nonconforming())
    {
       Vector x;
       ConformingProject(x);

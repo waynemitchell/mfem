@@ -851,6 +851,19 @@ void FiniteElementSpace::MakeVDimMatrix(SparseMatrix &mat) const
    delete vmat;
 }
 
+SparseMatrix* FiniteElementSpace::GetConformingProlongation()
+{
+   if (Conforming()) { return NULL; }
+   if (!cP) { GetConformingInterpolation(); }
+   return cP;
+}
+
+SparseMatrix* FiniteElementSpace::GetConformingRestriction()
+{
+   if (Conforming()) { return NULL; }
+   if (!cR) { GetConformingInterpolation(); }
+   return cR;
+}
 
 FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
 {
@@ -1018,12 +1031,6 @@ void FiniteElementSpace::Constructor()
    }
 
    ndofs = nvdofs + nedofs + nfdofs + nbdofs;
-
-   if (mesh->ncmesh && ndofs > nbdofs)
-   {
-      // TODO: lazy initialization?
-      GetConformingInterpolation();
-   }
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
