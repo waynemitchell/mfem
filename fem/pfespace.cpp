@@ -65,7 +65,8 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    if (Nonconforming())
    {
       gcomm = NULL;
-      GetConformingInterpolation(); // needed here to initialize DOF offsets etc.
+      // needed here to initialize DOF offsets etc.
+      GetParallelConformingInterpolation();
       return;
    }
 
@@ -277,7 +278,7 @@ void ParFiniteElementSpace::GetElementDofs(int i, Array<int> &dofs) const
       return;
    }
    FiniteElementSpace::GetElementDofs(i, dofs);
-   if (!Nonconforming())
+   if (Conforming())
    {
       ApplyLDofSigns(dofs);
    }
@@ -291,7 +292,7 @@ void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
       return;
    }
    FiniteElementSpace::GetBdrElementDofs(i, dofs);
-   if (!Nonconforming())
+   if (Conforming())
    {
       ApplyLDofSigns(dofs);
    }
@@ -300,7 +301,7 @@ void ParFiniteElementSpace::GetBdrElementDofs(int i, Array<int> &dofs) const
 void ParFiniteElementSpace::GetFaceDofs(int i, Array<int> &dofs) const
 {
    FiniteElementSpace::GetFaceDofs(i, dofs);
-   if (!Nonconforming())
+   if (Conforming())
    {
       ApplyLDofSigns(dofs);
    }
@@ -343,7 +344,7 @@ void ParFiniteElementSpace::GenerateGlobalOffsets()
       MFEM_VERIFY(tdof_offsets[0] >= 0 && tdof_offsets[1] >= 0,
                   "overflow in global tdof_offsets");
 
-      if (!Nonconforming())
+      if (Conforming())
       {
          // Communicate the neighbor offsets in tdof_nb_offsets
          GroupTopology &gt = GetGroupTopo();
@@ -415,7 +416,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
 
    if (Nonconforming())
    {
-      GetConformingInterpolation();
+      GetParallelConformingInterpolation();
       return P;
    }
 
@@ -532,7 +533,7 @@ void ParFiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
 {
    FiniteElementSpace::GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
 
-   if (!Nonconforming())
+   if (Conforming())
    {
       // Make sure that processors without boundary elements mark
       // their boundary dofs (if they have any).
@@ -1156,7 +1157,7 @@ void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
    }
 }
 
-void ParFiniteElementSpace::GetConformingInterpolation()
+void ParFiniteElementSpace::GetParallelConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
@@ -1513,7 +1514,7 @@ void ParFiniteElementSpace::Update()
    face_nbr_ldof.Clear();
    face_nbr_glob_dof_map.DeleteAll();
    send_face_nbr_ldof.Clear();
-   if (!Nonconforming())
+   if (Conforming())
    {
       ConstructTrueDofs();
       GenerateGlobalOffsets();
@@ -1524,7 +1525,7 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
 {
    ParFiniteElementSpace *cpfes = new ParFiniteElementSpace(*this);
    Constructor();
-   if (!Nonconforming())
+   if (Conforming())
    {
       ConstructTrueDofs();
       GenerateGlobalOffsets();

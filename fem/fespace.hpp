@@ -125,7 +125,7 @@ protected:
    void GetEdgeFaceDofs(int type, int index, Array<int> &dofs);
 
    /** Calculate the cP and cR matrices for a nonconforming mesh. */
-   virtual void GetConformingInterpolation(); // FIXME not virtual
+   void GetConformingInterpolation();
 
    void MakeVDimMatrix(SparseMatrix &mat) const;
 
