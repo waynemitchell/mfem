@@ -209,7 +209,7 @@ public:
    virtual void ComputeFlux(BilinearFormIntegrator &blfi,
                             GridFunction &flux,
                             int wcoef = 1, int subdomain = -1);
-   
+
    /** Save the local portion of the ParGridFunction. It differs from the
        serial GridFunction::Save in that it takes into account the signs of
        the local dofs. */

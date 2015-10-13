@@ -64,7 +64,7 @@ void ParNCMesh::Update()
 void ParNCMesh::AssignLeafIndices()
 {
    // This is an override of NCMesh::AssignLeafIndices(). The difference is
-   // that we shift all elements we own to the begginning of the array
+   // that we shift all elements we own to the beginning of the array
    // 'leaf_elements' and assign all ghost elements indices >= NElements. This
    // will make the ghosts skipped in NCMesh::GetMeshComponents.
 
@@ -513,7 +513,7 @@ void ParNCMesh::ElementNeighborProcessors(Element *elem,
    // big shortcut: there are no neighbors if element_type == 1
    if (element_type[elem->index] == 1) { return; }
 
-   // ok, we do need to look for neigbors;
+   // ok, we do need to look for neighbors;
    // at least we can only search in the ghost layer
    tmp_neighbors.SetSize(0);
    FindNeighbors(elem, tmp_neighbors, &ghost_layer);

@@ -37,7 +37,6 @@
 using namespace std;
 using namespace mfem;
 
-
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
@@ -92,7 +91,7 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
-   // 3. Refine the serial mesh on all processors to increase the resolution.
+   // 4. Refine the serial mesh on all processors to increase the resolution.
    //    Also project a NURBS mesh to a piecewise-quadratic curved mesh.
    if (mesh->NURBSext)
    {
@@ -101,17 +100,17 @@ int main(int argc, char *argv[])
    }
    mesh->GeneralRefinement(Array<int>(), 1); // ensure NC mesh
 
-   // 4. Define a parallel mesh by partitioning the serial mesh.
+   // 5. Define a parallel mesh by partitioning the serial mesh.
    //    Once the parallel mesh is defined, the serial mesh can be deleted.
    ParMesh pmesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
 
-   // 5. Define a finite element space on the mesh. The polynomial order is
+   // 6. Define a finite element space on the mesh. The polynomial order is
    //    one (linear) by default, but this can be changed on the command line.
    H1_FECollection fec(order, dim);
    ParFiniteElementSpace fespace(&pmesh, &fec);
 
-   // 6. As in Example 1p, we set up bilinear and linear forms corresponding to
+   // 7. As in Example 1p, we set up bilinear and linear forms corresponding to
    //    the Laplace problem -\Delta u = 1. We don't assemble the discrete
    //    problem yet, this will be done in the main loop.
    ParBilinearForm a(&fespace);
@@ -123,7 +122,7 @@ int main(int argc, char *argv[])
    a.AddDomainIntegrator(new DiffusionIntegrator(one));
    b.AddDomainIntegrator(new DomainLFIntegrator(one));
 
-   // 7. The solution vector x and the associated finite element grid function
+   // 8. The solution vector x and the associated finite element grid function
    //    will be maintained over the AMR iterations. We initialize it to zero.
    ParGridFunction x(&fespace);
    x = 0;
@@ -153,10 +152,10 @@ int main(int argc, char *argv[])
       sout.precision(8);
    }
 
-   // 9. The main AMR loop. In each iteration we solve the problem on the
-   //    current mesh, visualize the solution, estimate the error on all
-   //    elements, refine the worst elements and update all objects to work
-   //    with the new mesh.
+   // 10. The main AMR loop. In each iteration we solve the problem on the
+   //     current mesh, visualize the solution, estimate the error on all
+   //     elements, refine the worst elements and update all objects to work
+   //     with the new mesh.
    const int max_it = 25;
    for (int it = 0; it < max_it; it++)
    {
@@ -166,7 +165,7 @@ int main(int argc, char *argv[])
          cout << "Number of unknowns: " << fespace.GetNConformingDofs() << endl;
       }
 
-      // 10. Assemble the stiffness matrix and the right-hand side. Note that
+      // 11. Assemble the stiffness matrix and the right-hand side. Note that
       //     MFEM doesn't care at this point if the mesh is nonconforming (i.e.,
       //     contains hanging nodes). The FE space is considered 'cut' along
       //     hanging edges/faces.
@@ -185,7 +184,7 @@ int main(int argc, char *argv[])
       //     system. This needs to be done after ConformingAssemble.
       a.ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
-      // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+      // 13. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.
       HypreBoomerAMG amg(*A);
       HyprePCG pcg(*A);
@@ -195,11 +194,11 @@ int main(int argc, char *argv[])
       pcg.SetPreconditioner(amg);
       pcg.Mult(*B, *X);
 
-      // 12. Extract the parallel grid function corresponding to the finite element
+      // 14. Extract the parallel grid function corresponding to the finite element
       //     approximation X. This is the local solution on each processor.
       x = *X;
 
-      // 14. Send the solution by socket to a GLVis server.
+      // 15. Send the solution by socket to a GLVis server.
       if (visualization)
       {
          sout << "parallel " << num_procs << " " << myid << "\n";
@@ -258,7 +257,6 @@ int main(int argc, char *argv[])
       delete A;
       delete B;
       delete X;
-
    }
 
    MPI_Finalize();

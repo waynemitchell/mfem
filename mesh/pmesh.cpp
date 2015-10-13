@@ -106,7 +106,6 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       Mesh::InitTables();
       Mesh::InitFromNCMesh(*pncmesh);
       pncmesh->OnMeshUpdated(this);
-      //InitNCSharedElements();
 
       meshgen = mesh.MeshGenerator();
       ncmesh = pncmesh;
@@ -689,25 +688,6 @@ ParMesh::ParMesh(const ParNCMesh &pncmesh)
    Mesh::InitFromNCMesh(pncmesh);
    have_face_nbr_data = false;
 }
-
-/*void ParMesh::InitNCSharedElements()
-{
-   for (int type = 1; type < 3; type++)
-   {
-      const NCMesh::NCList &list = pncmesh->GetSharedList();
-      Array<Element*> &shared = (type == 1) ? shared_edges : shared_faces;
-
-      shared.SetSize(list.conforming.size() +
-                     list.masters.size() +
-                     list.slaves.size());
-
-      int k = 0;
-      for (unsigned i = 0; i < list.conforming.size(); i++)
-      {
-         shared[k++] = GetEdge(list.conforming[i].index
-      }
-   }
-}*/
 
 void ParMesh::GroupEdge(int group, int i, int &edge, int &o)
 {
@@ -2177,8 +2157,9 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
 
    if (!pncmesh)
    {
-      MFEM_ABORT("Can't convert conforming ParMesh to nonconforming ParMesh (you"
-                 " need to start the ParMesh from a nonconforming serial Mesh)");
+      MFEM_ABORT("Can't convert conforming ParMesh to nonconforming ParMesh "
+                 "(you need to initialize the ParMesh from a nonconforming "
+                 "serial Mesh)");
    }
 
    if (WantTwoLevelState)

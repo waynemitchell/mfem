@@ -165,7 +165,7 @@ void GridFunction::SumFluxAndCount(BilinearFormIntegrator &blfi,
                                    int subdomain)
 {
    GridFunction &u = *this;
-   
+
    ElementTransformation *Transf;
 
    FiniteElementSpace *ufes = u.FESpace();
@@ -210,7 +210,7 @@ void GridFunction::ComputeFlux(BilinearFormIntegrator &blfi,
                                int subdomain)
 {
    Array<int> count(flux.Size());
-   
+
    SumFluxAndCount(blfi, flux, count, 0, subdomain);
 
    // complete averaging

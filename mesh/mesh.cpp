@@ -7020,7 +7020,8 @@ void Mesh::RandomRefinement(int levels, int frac, bool aniso,
    }
 }
 
-void Mesh::RefineAtVertex(const Vertex& vert, int levels, int nonconforming)
+void Mesh::RefineAtVertex(const Vertex& vert, int levels, double eps,
+                          int nonconforming)
 {
    Array<int> v;
    for (int k = 0; k < levels; k++)
@@ -7032,7 +7033,13 @@ void Mesh::RefineAtVertex(const Vertex& vert, int levels, int nonconforming)
          bool refine = false;
          for (int j = 0; j < v.Size(); j++)
          {
-            if (vertices[v[j]] == vert) { refine = true; break; }
+            double dist = 0.0;
+            for (int l = 0; l < Dim; l++)
+            {
+               double d = vert(l) - vertices[v[j]](l);
+               dist += d*d;
+            }
+            if (dist <= eps*eps) { refine = true; break; }
          }
          if (refine)
          {

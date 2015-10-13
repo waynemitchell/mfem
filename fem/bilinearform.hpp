@@ -122,7 +122,7 @@ public:
    /// Finalizes the matrix initialization.
    virtual void Finalize(int skip_zeros = 1);
 
-   /// Returns a reference to the sparse martix
+   /// Returns a reference to the sparse matrix
    const SparseMatrix &SpMat() const { return *mat; }
    SparseMatrix &SpMat() { return *mat; }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }

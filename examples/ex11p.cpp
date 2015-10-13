@@ -144,7 +144,8 @@ void Solve(int myid, int order, ParMesh* pmesh, DataCollection &result)
    FiniteElementCollection *HcurlFec = new ND_FECollection(order, dim);
    FiniteElementCollection *HdivFec  = new RT_FECollection(order, dim);
    ParFiniteElementSpace *H1Fespace = new ParFiniteElementSpace(pmesh, H1Fec);
-   ParFiniteElementSpace *HcurlFespace = new ParFiniteElementSpace(pmesh, HcurlFec);
+   ParFiniteElementSpace *HcurlFespace = new ParFiniteElementSpace(pmesh,
+                                                                   HcurlFec);
    ParFiniteElementSpace *HdivFespace = new ParFiniteElementSpace(pmesh, HdivFec);
    HYPRE_Int size = HcurlFespace->GlobalTrueVSize();
    if (myid == 0)
@@ -154,7 +155,7 @@ void Solve(int myid, int order, ParMesh* pmesh, DataCollection &result)
 
    /// 7. Set up discrete gradient
    ParDiscreteLinearOperator *grad =
-         new ParDiscreteLinearOperator(H1Fespace, HcurlFespace);
+      new ParDiscreteLinearOperator(H1Fespace, HcurlFespace);
 
    grad->AddDomainInterpolator(new GradientInterpolator);
    grad->Assemble();

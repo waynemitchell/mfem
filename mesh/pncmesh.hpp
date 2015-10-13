@@ -53,12 +53,16 @@ namespace mfem
  *  are ghosts, and are numbered after all real vertices/edges/faces, i.e.,
  *  they have indices greater than NVertices, NEdges, NFaces, respectively.
  *
+ *  A shared vertex/edge/face is identified in an interprocessor message by a
+ *  pair of numbers. The first number specifies an element in an ElementSet
+ *  (typically sent at the beginning of the message) that contains the v/e/f.
+ *  The second number is the local index of the v/e/f in that element.
+ *
  *  The interface of ParNCMesh is designed for its main customer, the
  *  ParFiniteElementSpace class, which needs to know everything about the
  *  vertices, edges and faces on the processor boundary.
  *
  *  TODO: what else to describe?
- *   - how vertices/edges/faces are identified between processors
  */
 class ParNCMesh : public NCMesh
 {
