@@ -125,7 +125,7 @@ protected:
    void GetEdgeFaceDofs(int type, int index, Array<int> &dofs);
 
    /** Calculate the cP and cR matrices for a nonconforming mesh. */
-   virtual void GetConformingInterpolation(); // FIXME not virtual
+   void GetConformingInterpolation();
 
    void MakeVDimMatrix(SparseMatrix &mat) const;
 
@@ -139,11 +139,11 @@ public:
    NURBSExtension *GetNURBSext() { return NURBSext; }
    NURBSExtension *StealNURBSext();
 
-   SparseMatrix *GetConformingProlongation() { return cP; }
-   const SparseMatrix *GetConformingProlongation() const { return cP; }
+   bool Conforming() const { return mesh->ncmesh == NULL; }
+   bool Nonconforming() const { return mesh->ncmesh != NULL; }
 
-   SparseMatrix *GetConformingRestriction() { return cR; }
-   const SparseMatrix *GetConformingRestriction() const { return cR; }
+   SparseMatrix *GetConformingProlongation();
+   SparseMatrix *GetConformingRestriction();
 
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }

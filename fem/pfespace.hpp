@@ -119,7 +119,7 @@ private:
    void GetDofs(int type, int index, Array<int>& dofs);
    void ReorderFaceDofs(Array<int> &dofs, int type, int orient);
 
-   virtual void GetConformingInterpolation(); // FIXME
+   void GetParallelConformingInterpolation();
 
 public:
    // Face-neighbor data
