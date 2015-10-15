@@ -105,6 +105,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       Mesh::Init();
       Mesh::InitTables();
       Mesh::InitFromNCMesh(*pncmesh);
+      spaceDim = mesh.spaceDim;
       pncmesh->OnMeshUpdated(this);
 
       meshgen = mesh.MeshGenerator();

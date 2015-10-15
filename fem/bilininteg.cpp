@@ -420,13 +420,14 @@ double DiffusionIntegrator::ComputeFluxEnergy
 {
    int nd = fluxelem.GetDof();
    int dim = fluxelem.GetDim();
+   int space_dim = Trans.GetSpaceDim();
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix mq;
 #endif
 
    shape.SetSize(nd);
-   pointflux.SetSize(dim);
+   pointflux.SetSize(space_dim);
    if (d_energy) { vec.SetSize(dim); }
    if (MQ) { mq.SetSize(dim); }
 
