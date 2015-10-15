@@ -118,11 +118,11 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      /*int par_ref_levels = 1;
+      int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
-      }*/
+      }
       /*for (int i = 0; i < 3; i++)
       {
          Array<Refinement> refs;
@@ -135,14 +135,14 @@ int main(int argc, char *argv[])
          }
          pmesh->GeneralRefinement(refs, 1);
       }*/
-      {
+      /*{
          Array<Refinement> refs;
          if (myid == 0)
          {
             refs.Append(Refinement(0));
          }
          pmesh->GeneralRefinement(refs, 1);
-      }
+      }*/
    }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
@@ -224,13 +224,15 @@ int main(int argc, char *argv[])
 
    // 13. Load balance the mesh, migrate grid functions
    //
-   const Table &old_dofs = fespace->GetElementToDofTable();
-   HYPRE_Int old_dof_offset = fespace->GetMyDofOffset();
+   Table* old_dofs = fespace->GetElementToDofTable();
+   fespace->LoseElementToDofTable();
 
    pmesh->Rebalance();
 
-   HypreParMatrix *M = fespace->RebalanceMatrix(old_dofs, old_dof_offset);
-   x.Rebalance(M);
+   fespace->Update();
+
+   HypreParMatrix *M = fespace->RebalanceMatrix(old_dofs);
+   x.Transform(M);
    delete M;
 
 
