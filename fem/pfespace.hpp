@@ -167,8 +167,7 @@ public:
    HypreParMatrix *Dof_TrueDof_Matrix();
 
    ///
-   HypreParMatrix *RebalanceMatrix(const Table &old_element_dofs,
-                                   HYPRE_Int old_dof_offset);
+   HypreParMatrix *RebalanceMatrix(const Table &old_element_dofs);
 
    /** Create and return a new HypreParVector on the true dofs, which is
        owned by (i.e. it must be destroyed by) the calling function. */

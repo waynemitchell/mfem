@@ -1513,6 +1513,40 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    //::P_time_final.Stop();
 }
 
+
+HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
+   const Table &old_element_dofs)
+{
+   ParNCMesh* pncmesh = pmesh->pncmesh;
+   pncmesh->SendRebalanceDofs(old_element_dofs, old_dof_offset);
+
+   const Array<int> &old_ranks = pncmesh->GetRebalanceOldRanks();
+   MFEM_ASSERT(old_ranks.Size() == pmesh->GetNE(), "");
+
+   // prepare the local (diagonal) part of the matrix
+   Array<int> dofs;
+   for (int i = 0; i < pmesh->GetNE(); i++)
+   {
+      if (old_ranks[i] == MyRank) // element that didn't move
+      {
+         GetElementDofs(i, dofs);
+         // one number per row of matrix!
+      }
+   }
+
+   pncmesh->RecvRebalanceDofs();
+
+/*   int old_num_elems = old_element_dofs.Size();
+
+
+
+
+   HypreParMatrix *M = new HypreParMatrix();
+
+   return M;*/
+}
+
+
 void ParFiniteElementSpace::Update()
 {
    FiniteElementSpace::Update();
@@ -1551,25 +1585,6 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
       GenerateGlobalOffsets();
    }
    return cpfes;
-}
-
-HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
-   const Table &old_element_dofs, HYPRE_Int old_dof_offset)
-{
-   ParNCMesh* pncmesh = pmesh->pncmesh;
-   pncmesh->SendRebalanceDofs(old_element_dofs, old_dof_offset);
-
-
-   pncmesh->RecvRebalanceDofs();
-
-   int old_num_elems = old_element_dofs.Size();
-
-
-
-
-   HypreParMatrix *M = new HypreParMatrix();
-
-   return M;
 }
 
 }

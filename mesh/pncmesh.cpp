@@ -20,9 +20,6 @@
 #include <map>
 #include <limits>
 
-//#include "general/tic_toc.hpp"
-//extern mfem::StopWatch rfn_time[6];
-
 namespace mfem
 {
 
@@ -619,7 +616,6 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    MFEM_VERIFY(Iso || Dim < 3,
                "parallel refinement of 3D aniso meshes not supported yet.");
 
-   //rfn_time[0].Start();
    NeighborRefinementMessage::Map send_ref;
 
    // create refinement messages to all neighbors (NOTE: some may be empty)
@@ -629,12 +625,10 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    {
       send_ref[neighbors[i]].SetNCMesh(this);
    }
-   //rfn_time[0].Stop();
 
    // populate messages: all refinements that occur next to the processor
    // boundary need to be sent to the adjoining neighbors so they can keep
    // their ghost layer up to date
-   //rfn_time[1].Start();
    Array<int> ranks;
    ranks.Reserve(64);
    for (int i = 0; i < refinements.Size(); i++)
@@ -648,15 +642,11 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
          send_ref[ranks[j]].AddRefinement(elem, ref.ref_type);
       }
    }
-   //rfn_time[1].Stop();
 
    // send the messages (overlap with local refinements)
-   //rfn_time[2].Start();
    NeighborRefinementMessage::IsendAll(send_ref, MyComm);
-   //rfn_time[2].Stop();
 
    // do local refinements
-   //rfn_time[3].Start();
 #if 1
    for (int i = 0; i < refinements.Size(); i++)
    {
@@ -668,10 +658,8 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    // one processor but will break np > 1
    NCMesh::Refine(refinements); // FIXME double Update()
 #endif
-   //rfn_time[3].Stop();
 
    // receive (ghost layer) refinements from all neighbors
-   //rfn_time[4].Start();
    for (int j = 0; j < neighbors.Size(); j++)
    {
       int rank, size;
@@ -687,14 +675,11 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
          NCMesh::RefineElement(msg.elements[i], msg.values[i]);
       }
    }
-   //rfn_time[4].Stop();
 
-   //rfn_time[5].Start();
    Update();
 
    // make sure we can delete the send buffers
    NeighborDofMessage::WaitAllSent(send_ref);
-   //rfn_time[5].Stop();
 }
 
 
@@ -717,6 +702,9 @@ bool ParNCMesh::compare_ranks(const Element* a, const Element* b)
 
 void ParNCMesh::Rebalance()
 {
+   send_rebalance_dofs.clear();
+   recv_rebalance_dofs.clear();
+
    UpdateLayers();
 
    // *** STEP 1: figure out new assigments for Element::rank ***
@@ -870,6 +858,10 @@ void ParNCMesh::Rebalance()
             }
 
             msg.Isend(rank, MyComm);
+
+            // also: record what elements we sent (not counting the ghosts)
+            // so that SendRebalanceDofs can later send data for them
+            send_rebalance_dofs[rank].SetElements(rank_elems, this);
          }
 
          begin = end;
@@ -900,6 +892,9 @@ void ParNCMesh::Rebalance()
 
          if (elem_rank == MyRank) { received_elements++; }
       }
+
+      // save the ranks we received from for later use in RecvRebalanceDofs
+      recv_rebalance_dofs[rank].SetNCMesh(this);
    }
 
    // *** STEP 5: prune the new refinement tree, clean up ***
@@ -913,7 +908,50 @@ void ParNCMesh::Rebalance()
 }
 
 
+void ParNCMesh::SendRebalanceDofs(const Table &old_element_dofs,
+                                  long old_dof_offset)
+{
+   // fill the messages with element DOFs
+   RebalanceDofMessage::Map::iterator it;
+   for (it = send_rebalance_dofs.begin(); it != send_rebalance_dofs.end(); ++it)
+   {
+      RebalanceDofMessage &msg = it->second;
+      msg.dofs.clear();
+      int ne = msg.elem_ids.size();
+      if (ne)
+      {
+         msg.dofs.reserve(old_element_dofs.RowSize(msg.elem_ids[0]) * ne);
+      }
+      for (int i = 0; i < ne; i++)
+      {
+         int index = msg.elem_ids[i];
+         const int* beg_row = old_element_dofs.GetRow(index);
+         const int* end_row = old_element_dofs.GetRow(index + 1);
+         msg.dofs.insert(msg.dofs.end(), beg_row, end_row);
+      }
+      msg.dof_offset = old_dof_offset;
+   }
+
+   // send the DOFs to element recipients from last Rebalance()
+   RebalanceDofMessage::IsendAll(send_rebalance_dofs, MyComm);
+}
+
+void ParNCMesh::RecvRebalanceDofs(Array<int> &elements, Array<long> &dofs)
+{
+   RebalanceDofMessage::RecvAll(recv_rebalance_dofs, MyComm);
+
+
+   RebalanceDofMessage::WaitAllSent(send_rebalance_dofs);
+}
+
+
 //// ElementSet ////////////////////////////////////////////////////////////////
+
+ParNCMesh::ElementSet::ElementSet(const ElementSet &other)
+   : ncmesh(other.ncmesh), include_ref_types(other.include_ref_types)
+{
+   other.data.Copy(data);
+}
 
 void ParNCMesh::ElementSet::WriteInt(int value)
 {
@@ -1472,6 +1510,40 @@ void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Decode()
    Base::data.clear();
 }
 
+void ParNCMesh::RebalanceDofMessage::SetElements(const Array<Element*> &elems,
+                                                 NCMesh *ncmesh)
+{
+   eset.SetNCMesh(ncmesh);
+   eset.Encode(elems);
+
+   elem_ids.resize(elems.Size());
+   for (int i = 0; i < elems.Size(); i++)
+   {
+      elem_ids[i] = elems[i]->index;
+   }
+}
+
+void ParNCMesh::RebalanceDofMessage::Encode()
+{
+   std::ostringstream stream;
+
+   eset.Dump(stream);
+   write<long>(stream, dof_offset);
+   write_dofs(stream, dofs);
+
+   stream.str().swap(data);
+}
+
+void ParNCMesh::RebalanceDofMessage::Decode()
+{
+   std::istringstream stream(data);
+
+   eset.Load(stream);
+   dof_offset = read<long>(stream);
+   read_dofs(stream, dofs);
+
+   data.clear();
+}
 
 //// Utility ///////////////////////////////////////////////////////////////////
 

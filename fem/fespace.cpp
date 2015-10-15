@@ -218,10 +218,8 @@ void FiniteElementSpace::BuildElementToDofTable()
 
 void FiniteElementSpace::BuildDofToArrays()
 {
-   if (dof_elem_array.Size())
-   {
-      return;
-   }
+   if (dof_elem_array.Size()) { return; }
+
    BuildElementToDofTable();
 
    dof_elem_array.SetSize (ndofs);
@@ -232,11 +230,13 @@ void FiniteElementSpace::BuildDofToArrays()
       const int *dofs = elem_dof -> GetRow(i);
       const int n = elem_dof -> RowSize(i);
       for (int j = 0; j < n; j++)
+      {
          if (dof_elem_array[dofs[j]] < 0)
          {
             dof_elem_array[dofs[j]] = i;
             dof_ldof_array[dofs[j]] = j;
          }
+      }
    }
 }
 

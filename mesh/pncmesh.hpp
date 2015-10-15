@@ -77,12 +77,6 @@ public:
    /** */
    virtual void LimitNCLevel(int max_level);
 
-   /** */
-   void Rebalance();
-
-   void SendRebalanceDofs(const Table &old_element_dofs, long old_dof_offset);
-   void RecvRebalanceDofs();
-
    /** Return a list of vertices shared by this processor and at least one other
        processor. (NOTE: only NCList::conforming will be set.) */
    const NCList& GetSharedVertices()
@@ -174,6 +168,16 @@ public:
          default: return index >= NFaces;
       }
    }
+
+   /** Migrate leaf elements of the global refinement hierarchy (including ghost
+       elements) so that each processor owns the same number of leaves (+-1). */
+   void Rebalance();
+
+   void SendRebalanceDofs(const Table &old_element_dofs, long old_dof_offset);
+   void RecvRebalanceDofs(Array<int> &elements, Array<long> &dofs);
+
+   /// Get previous owners (pre-Rebalance) of currently owned elements.
+   const Array<int>& GetRebalanceOldRanks() const { return rebalance_old_ranks; }
 
    /** Extension of NCMesh::GetBoundaryClosure. Filters out ghost vertices and
        ghost edges from 'bdr_vertices' and 'bdr_edges'. */
@@ -274,14 +278,17 @@ protected:
    class ElementSet
    {
    public:
-      ElementSet(NCMesh *ncmesh, bool include_ref_types = false)
+      ElementSet(NCMesh *ncmesh = NULL, bool include_ref_types = false)
          : ncmesh(ncmesh), include_ref_types(include_ref_types) {}
+      ElementSet(const ElementSet &other);
 
       void Encode(const Array<Element*> &elements);
       void Dump(std::ostream &os) const;
 
       void Load(std::istream &is);
       void Decode(Array<Element*> &elements) const;
+
+      void SetNCMesh(NCMesh *ncmesh) { this->ncmesh = ncmesh; }
 
    protected:
       Array<unsigned char> data; ///< encoded refinement (sub-)trees
@@ -361,8 +368,8 @@ protected:
       typedef std::map<int, NeighborRefinementMessage> Map;
    };
 
-   /**
-    *
+   /** Used in Step 2 of ParNCMesh::Rebalance to synchronize new rank
+    *  assignments in the ghost layer.
     */
    class NeighborElementRankMessage : public ElementValueMessage<int, false, 156>
    {
@@ -375,8 +382,9 @@ protected:
       typedef std::map<int, NeighborElementRankMessage> Map;
    };
 
-   /**
-    *
+   /** Used by ParNCMesh::Rebalance to send elements and their ranks. Note that
+    *  RefTypes == true which means the refinement hierarchy will be recreated
+    *  on the receiving side.
     */
    class RebalanceMessage : public ElementValueMessage<int, true, 157>
    {
@@ -389,17 +397,34 @@ protected:
       typedef std::map<int, RebalanceMessage> Map;
    };
 
-   /**
-    *
+   /** Allows migrating element data (DOFs) after ParNCMesh::Rebalance.
+    *  Used by SendRebalanceDofs and RecvRebalanceDofs.
     */
    class RebalanceDofMessage : public VarMessage<158>
    {
    public:
-      Array<int> elements;
-      std::string elem_set;
-      typedef std::map<int, RebalanceMessage> Map;
+      std::vector<int> elem_ids, dofs;
+      long dof_offset;
+
+      void SetElements(const Array<Element*> &elems, NCMesh *ncmesh);
+      void SetNCMesh(NCMesh* ncmesh) { eset.SetNCMesh(ncmesh); }
+
+      typedef std::map<int, RebalanceDofMessage> Map;
+
+   protected:
+      ElementSet eset;
+
+      virtual void Encode();
+      virtual void Decode();
    };
 
+   /** Recorded communicaton pattern from last Rebalance. Used by
+       Send/RecvRebalanceDofs to ship element DOFs. */
+   RebalanceDofMessage::Map send_rebalance_dofs;
+   RebalanceDofMessage::Map recv_rebalance_dofs;
+
+   /// After Rebalance, this array holds the previous Element::ranks.
+   Array<int> rebalance_old_ranks;
 
    static bool compare_ranks(const Element* a, const Element* b);
 

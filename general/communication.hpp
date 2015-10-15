@@ -143,7 +143,6 @@ struct VarMessage
 {
    std::string data;
    MPI_Request send_request;
-   bool received;
 
    /// Non-blocking send to processor 'rank'.
    void Isend(int rank, MPI_Comm comm)
@@ -186,12 +185,12 @@ struct VarMessage
       MPI_Get_count(&status, MPI_BYTE, &size);
    }
 
-   static void ProbeRank(int rank, int &size, MPI_Comm comm)
+   /*static void ProbeRank(int rank, int &size, MPI_Comm comm)
    {
       MPI_Status status;
       MPI_Probe(rank, Tag, comm, &status);
       MPI_Get_count(&status, MPI_BYTE, &size);
-   }
+   }*/
 
    /** Non-blocking probe for incoming message of this type from any rank.
        If there is an incoming message, returns true and sets 'rank' and 'size'.
@@ -215,7 +214,6 @@ struct VarMessage
       MPI_Status status;
       MPI_Recv((void*) data.data(), size, MPI_BYTE, rank, Tag, comm, &status);
       Decode();
-      received = true;
    }
 
    /// Helper to receive all messages in a rank-to-message map container.
@@ -227,12 +225,13 @@ struct VarMessage
       {
          int rank, size;
          Probe(rank, size, comm);
+         MFEM_ASSERT(rank_msg.find(rank) != rank_msg.end(), "Rank not found.");
          rank_msg[rank].Recv(rank, size, comm);
          --recv_left;
       }
    }
 
-   VarMessage() : send_request(MPI_REQUEST_NULL), received(false) {}
+   VarMessage() : send_request(MPI_REQUEST_NULL) {}
    void Clear() { data.clear(); send_request = MPI_REQUEST_NULL; }
 
 protected:
