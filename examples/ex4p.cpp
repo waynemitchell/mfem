@@ -14,6 +14,8 @@
 //               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh
 //               mpirun -np 4 ex4p -m ../data/periodic-square.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
+//               mpirun -np 4 ex4p -m ../data/amr-quad.mesh
+//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation

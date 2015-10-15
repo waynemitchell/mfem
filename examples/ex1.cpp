@@ -13,6 +13,9 @@
 //               ex1 -m ../data/pipe-nurbs.mesh -o -1
 //               ex1 -m ../data/star-surf.mesh
 //               ex1 -m ../data/square-disc-surf.mesh
+//               ex1 -m ../data/inline-segment.mesh
+//               ex1 -m ../data/amr-quad.mesh
+//               ex1 -m ../data/amr-hex.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -35,7 +38,6 @@
 
 using namespace std;
 using namespace mfem;
-
 
 int main(int argc, char *argv[])
 {
