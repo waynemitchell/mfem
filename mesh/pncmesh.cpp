@@ -911,7 +911,7 @@ void ParNCMesh::Rebalance()
 void ParNCMesh::SendRebalanceDofs(const Table &old_element_dofs,
                                   long old_dof_offset)
 {
-   // fill the messages with element DOFs
+   // fill messages (prepared by Rebalance) with element DOFs
    RebalanceDofMessage::Map::iterator it;
    for (it = send_rebalance_dofs.begin(); it != send_rebalance_dofs.end(); ++it)
    {

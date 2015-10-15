@@ -1520,19 +1520,28 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
    ParNCMesh* pncmesh = pmesh->pncmesh;
    pncmesh->SendRebalanceDofs(old_element_dofs, old_dof_offset);
 
+   Array<int> dofs;
+   int ldofs = GetVSize();
+
    const Array<int> &old_ranks = pncmesh->GetRebalanceOldRanks();
    MFEM_ASSERT(old_ranks.Size() == pmesh->GetNE(), "");
 
    // prepare the local (diagonal) part of the matrix
-   Array<int> dofs;
+   int *i_diag = new HYPRE_Int[ldofs+1];
+   for (int i = 0; i <= ldofs; i++) { i_diag[i] = -1; }
+
    for (int i = 0; i < pmesh->GetNE(); i++)
    {
       if (old_ranks[i] == MyRank) // element that didn't move
       {
          GetElementDofs(i, dofs);
-         // one number per row of matrix!
+         const int* old_dofs = old_element_dofs.GetRow(i);
+
+
       }
    }
+
+   int *j_diag = new HYPRE_Int[];
 
    pncmesh->RecvRebalanceDofs();
 

@@ -177,7 +177,7 @@ public:
    void RecvRebalanceDofs(Array<int> &elements, Array<long> &dofs);
 
    /// Get previous owners (pre-Rebalance) of currently owned elements.
-   const Array<int>& GetRebalanceOldRanks() const { return rebalance_old_ranks; }
+   const Array<int>& GetRebalanceOldIndex() const { return rebalance_old_index; }
 
    /** Extension of NCMesh::GetBoundaryClosure. Filters out ghost vertices and
        ghost edges from 'bdr_vertices' and 'bdr_edges'. */
@@ -423,8 +423,9 @@ protected:
    RebalanceDofMessage::Map send_rebalance_dofs;
    RebalanceDofMessage::Map recv_rebalance_dofs;
 
-   /// After Rebalance, this array holds the previous Element::ranks.
-   Array<int> rebalance_old_ranks;
+   /** After Rebalance, this array holds the old element index, or -1 if the
+       element didn't exist in the mesh previously.  */
+   Array<int> rebalance_old_index;
 
    static bool compare_ranks(const Element* a, const Element* b);
 
