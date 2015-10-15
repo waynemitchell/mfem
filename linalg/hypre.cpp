@@ -2469,10 +2469,6 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
 
       delete id_ND;
 
-      delete vert_fespace_d;
-      vert_fespace_d = new ParFiniteElementSpace(pmesh, vert_fec, 3,
-                                                 Ordering::byVDIM);
-
       ParDiscreteLinearOperator *id_RT;
       id_RT = new ParDiscreteLinearOperator(vert_fespace_d, face_fespace);
       id_RT->AddDomainInterpolator(new IdentityInterpolator);
