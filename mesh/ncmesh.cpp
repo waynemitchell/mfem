@@ -2713,11 +2713,15 @@ void NCMesh::LoadCoarseElements(std::istream &input)
       coarse.Append(elem);
    }
 
-   // coarse elements that have no parents are the original 'coarse_elements'
-   coarse_elements.SetSize(0);
+   // elements that have no parents are the original 'root_elements'
+   root_elements.SetSize(0);
    for (int i = 0; i < coarse.Size(); i++)
    {
-      if (coarse[i]) { coarse_elements.Append(coarse[i]); }
+      if (coarse[i]) { root_elements.Append(coarse[i]); }
+   }
+   for (int i = 0; i < leaves.Size(); i++)
+   {
+      if (leaves[i]) { root_elements.Append(leaves[i]); }
    }
 }
 
