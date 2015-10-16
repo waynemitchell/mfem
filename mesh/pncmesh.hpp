@@ -21,7 +21,6 @@
 
 #include "ncmesh.hpp"
 #include "../general/communication.hpp"
-#include "../general/sort_pairs.hpp"
 
 namespace mfem
 {
