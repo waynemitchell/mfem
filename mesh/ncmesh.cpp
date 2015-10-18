@@ -2275,7 +2275,7 @@ NCMesh::FineTransform* NCMesh::GetFineTransforms()
    if (!coarse_elements.Size())
    {
       MFEM_ABORT("You need to call MarkCoarseLevel before calling Refine and "
-                 "GetFineTransformations.");
+                 "GetFineTransforms.");
    }
 
    FineTransform* transforms = new FineTransform[leaf_elements.Size()];
