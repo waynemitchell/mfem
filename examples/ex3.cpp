@@ -9,6 +9,7 @@
 //               ex3 -m ../data/fichera-q2.vtk
 //               ex3 -m ../data/fichera-q3.mesh
 //               ex3 -m ../data/beam-hex-nurbs.mesh
+//               ex3 -m ../data/amr-hex.mesh
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -128,14 +129,12 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
-   a->Finalize();
-   const SparseMatrix &A = a->SpMat();
-
    a->ConformingAssemble(x, *b);
-
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
    a->EliminateEssentialBC(ess_bdr, x, *b);
+   a->Finalize();
+   const SparseMatrix &A = a->SpMat();
 
 #ifndef MFEM_USE_SUITESPARSE
    // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to

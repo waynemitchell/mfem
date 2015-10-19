@@ -6953,7 +6953,7 @@ void Mesh::GeneralRefinement(const Array<Refinement> &refinements,
       }
    }
 
-   if (nonconforming)
+   if (nonconforming || ncmesh != NULL)
    {
       // non-conforming refinement (hanging nodes)
       NonconformingRefinement(refinements, nc_limit);

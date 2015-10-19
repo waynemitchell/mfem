@@ -15,6 +15,8 @@
 //               mpirun -np 4 ex1p -m ../data/star-surf.mesh
 //               mpirun -np 4 ex1p -m ../data/square-disc-surf.mesh
 //               mpirun -np 4 ex1p -m ../data/inline-segment.mesh
+//               mpirun -np 4 ex1p -m ../data/amr-quad.mesh
+//               mpirun -np 4 ex1p -m ../data/amr-hex.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -37,7 +39,6 @@
 
 using namespace std;
 using namespace mfem;
-
 
 int main(int argc, char *argv[])
 {

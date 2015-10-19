@@ -91,13 +91,15 @@ void LinearForm::ConformingAssemble(Vector &b) const
    if (fes->Nonconforming())
    {
       SparseMatrix *P = fes->GetConformingProlongation();
-      b.SetSize(P->Width());
-      P->MultTranspose(*this, b);
+      if (P)
+      {
+         b.SetSize(P->Width());
+         P->MultTranspose(*this, b);
+         return;
+      }
    }
-   else
-   {
-      b = *this;
-   }
+
+   b = *this;
 }
 
 void LinearForm::ConformingAssemble()

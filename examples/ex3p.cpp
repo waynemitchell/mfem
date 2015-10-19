@@ -9,6 +9,7 @@
 //               mpirun -np 4 ex3p -m ../data/fichera-q2.vtk
 //               mpirun -np 4 ex3p -m ../data/fichera-q3.mesh
 //               mpirun -np 4 ex3p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex3p -m ../data/amr-hex.mesh
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell

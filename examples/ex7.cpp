@@ -142,6 +142,9 @@ int main(int argc, char *argv[])
       }
    }
 
+   mesh->RandomRefinement(4, 2);
+   SnapNodes(*mesh);
+
    // 4. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements -- the same as the mesh nodes.
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, &fec);
@@ -173,6 +176,7 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddDomainIntegrator(new MassIntegrator(one));
    a->Assemble();
+   a->ConformingAssemble(x, *b);
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 
@@ -188,6 +192,7 @@ int main(int argc, char *argv[])
    umf_solver.SetOperator(A);
    umf_solver.Mult(*b, x);
 #endif
+   x.ConformingProlongate();
 
    // 9. Compute and print the L^2 norm of the error.
    cout<<"\nL2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;

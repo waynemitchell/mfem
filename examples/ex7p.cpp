@@ -156,6 +156,9 @@ int main(int argc, char *argv[])
       }
    }
 
+   mesh->RandomRefinement(2, 2);
+   SnapNodes(*mesh);
+
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
@@ -175,6 +178,9 @@ int main(int argc, char *argv[])
          SnapNodes(*pmesh);
       }
    }
+
+   pmesh->RandomRefinement(2, 2);
+   SnapNodes(*pmesh);
 
    // 5. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements -- the same as the mesh nodes.
@@ -216,7 +222,7 @@ int main(int argc, char *argv[])
    //    b(.) and the finite element approximation.
    HypreParMatrix * A = a->ParallelAssemble();
    HypreParVector * B = b->ParallelAssemble();
-   HypreParVector * X = x.ParallelAverage();
+   HypreParVector * X = x.ParallelProject();
 
    delete a;
    delete b;

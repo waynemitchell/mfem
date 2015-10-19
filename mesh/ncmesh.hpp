@@ -79,7 +79,7 @@ public:
 
    /** Perform the given batch of refinements. Please note that in the presence
        of anisotropic splits additional refinements may be necessary to keep
-       the mesh consistent. However, the function always performas at least the
+       the mesh consistent. However, the function always performs at least the
        requested refinements. */
    virtual void Refine(const Array<Refinement> &refinements);
 
@@ -193,7 +193,7 @@ public:
    /// I/O: Print the "coarse_elements" section of the mesh file (ver. >= 1.1).
    void PrintCoarseElements(std::ostream &out) const;
 
-   /** I/O: Load the vertex parent hierachy from a mesh file. NOTE: called
+   /** I/O: Load the vertex parent hierarchy from a mesh file. NOTE: called
        indirectly through the constructor. */
    void LoadVertexParents(std::istream &input);
 
