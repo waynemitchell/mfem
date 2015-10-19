@@ -55,9 +55,11 @@ void NCMesh::GeomInfo::Initialize(const mfem::Element* elem)
 NCMesh::NCMesh(const Mesh *mesh, std::istream *vertex_parents)
 {
    Dim = mesh->Dimension();
-   Iso = true;
 
-   // examine elements and reserve the first node IDs for top-level vertices
+   // assume the mesh is anisotropic if we're loading a file
+   Iso = vertex_parents ? false : true;
+
+   // examine elements and reserve the first node IDs for vertices
    // (note: 'mesh' may not have vertices defined yet, e.g., on load)
    int max_id = -1;
    for (int i = 0; i < mesh->GetNE(); i++)
@@ -2676,6 +2678,7 @@ void NCMesh::LoadCoarseElements(std::istream &input)
    coarse.Reserve(ne);
    leaf_elements.Copy(leaves);
    int nleaf = leaves.Size();
+   bool iso = true;
 
    // load the coarse elements
    while (ne--)
@@ -2685,6 +2688,8 @@ void NCMesh::LoadCoarseElements(std::istream &input)
 
       Element* elem = new Element(0, 0);
       elem->ref_type = ref_type;
+
+      if (Dim == 3 && ref_type != 7) { iso = false; }
 
       // load child IDs and convert to Element*
       int nch = ref_type_num_children[ref_type];
@@ -2723,6 +2728,9 @@ void NCMesh::LoadCoarseElements(std::istream &input)
    {
       if (leaves[i]) { root_elements.Append(leaves[i]); }
    }
+
+   // set the Iso flag (must be false if there are 3D aniso refinements)
+   Iso = iso;
 }
 
 int NCMesh::CountElements(Element* elem) const
