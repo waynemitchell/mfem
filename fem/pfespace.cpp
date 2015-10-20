@@ -1514,45 +1514,102 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
 }
 
 
+static HYPRE_Int* make_i_array(int nrows)
+{
+   int *I = new HYPRE_Int[nrows+1];
+   for (int i = 0; i <= nrows; i++) { I[i] = -1; }
+   return I;
+}
+
+static HYPRE_Int* make_j_array(HYPRE_Int* I, int nrows)
+{
+   int nnz = 0;
+   for (int i = 0; i < nrows; i++)
+   {
+      if (I[i] >= 0) { nnz++; }
+   }
+   int *J = new HYPRE_Int[nnz];
+
+   I[nrows] = -1;
+   for (int i = 0, k = 0; i <= nrows; i++)
+   {
+      HYPRE_Int col = I[i];
+      I[i] = k;
+      if (col >= 0) { J[k++] = col; }
+   }
+   return J;
+}
+
 HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
    const Table &old_element_dofs)
 {
+   // send old DOFs of elements we used to own
    ParNCMesh* pncmesh = pmesh->pncmesh;
    pncmesh->SendRebalanceDofs(old_element_dofs, old_dof_offset);
 
    Array<int> dofs;
    int ldofs = GetVSize();
 
-   const Array<int> &old_ranks = pncmesh->GetRebalanceOldRanks();
-   MFEM_ASSERT(old_ranks.Size() == pmesh->GetNE(), "");
-
    // prepare the local (diagonal) part of the matrix
-   int *i_diag = new HYPRE_Int[ldofs+1];
-   for (int i = 0; i <= ldofs; i++) { i_diag[i] = -1; }
+   const Array<int> &old_index = pncmesh->GetRebalanceOldIndex();
+   MFEM_ASSERT(old_index.Size() == pmesh->GetNE(), "");
 
+   HYPRE_Int* i_diag = make_i_array(ldofs);
    for (int i = 0; i < pmesh->GetNE(); i++)
    {
-      if (old_ranks[i] == MyRank) // element that didn't move
+      if (old_index[i] >= 0) // we had this element before
       {
+         const int* old_dofs = old_element_dofs.GetRow(old_index[i]);
          GetElementDofs(i, dofs);
-         const int* old_dofs = old_element_dofs.GetRow(i);
 
-
+         for (int j = 0; j < dofs.Size(); j++)
+         {
+            i_diag[dofs[j]] = old_dofs[j];
+         }
       }
    }
+   HYPRE_Int* j_diag = make_j_array(i_diag, ldofs);
 
-   int *j_diag = new HYPRE_Int[];
+   // receive old DOFs for elements we obtained from others in Rebalance
+   Array<int> new_elements;
+   Array<long> old_remote_dofs;
+   pncmesh->RecvRebalanceDofs(new_elements, old_remote_dofs);
 
-   pncmesh->RecvRebalanceDofs();
+   // create the offdiagonal part of the matrix
+   HYPRE_Int* i_offd = make_i_array(ldofs);
+   for (int i = 0; i < new_elements.Size(); i++)
+   {
+      GetElementDofs(new_elements[i], dofs);
+      const long* old_dofs = &old_remote_dofs[i * dofs.Size()];
 
-/*   int old_num_elems = old_element_dofs.Size();
+      for (int j = 0; j < dofs.Size(); j++)
+      {
+         i_offd[dofs[j]] = old_dofs[j];
+      }
+   }
+   HYPRE_Int* j_offd = make_j_array(i_offd, ldofs);
 
+   // create the offd column map
+   int offd_cols = i_offd[ldofs];
+   Array<Pair<HYPRE_Int, int> > cmap_offd(offd_cols);
+   for (int i = 0; i < offd_cols; i++)
+   {
+      cmap_offd[i].one = j_offd[i];
+      cmap_offd[i].two = i;
+   }
+   SortPairs<HYPRE_Int, int>(cmap_offd, offd_cols);
 
+   HYPRE_Int* cmap = new HYPRE_Int[offd_cols];
+   for (int i = 0; i < offd_cols; i++)
+   {
+      cmap[i] = cmap_offd[i].one;
+      j_offd[cmap_offd[i].two] = i;
+   }
 
-
-   HypreParMatrix *M = new HypreParMatrix();
-
-   return M;*/
+   HypreParMatrix *M;
+   M = new HypreParMatrix(MyComm, MyRank, NRanks, row_starts, col_starts,
+                          i_diag, j_diag, i_offd, j_offd, cmap, offd_cols);
+   return M;
 }
 
 
