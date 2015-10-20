@@ -936,10 +936,39 @@ void ParNCMesh::SendRebalanceDofs(const Table &old_element_dofs,
    RebalanceDofMessage::IsendAll(send_rebalance_dofs, MyComm);
 }
 
+
 void ParNCMesh::RecvRebalanceDofs(Array<int> &elements, Array<long> &dofs)
 {
+   // receive from the same ranks as in last Rebalance()
    RebalanceDofMessage::RecvAll(recv_rebalance_dofs, MyComm);
 
+   // count the size of the result
+   int ne = 0, nd = 0;
+   RebalanceDofMessage::Map::iterator it;
+   for (it = recv_rebalance_dofs.begin(); it != recv_rebalance_dofs.end(); ++it)
+   {
+      RebalanceDofMessage &msg = it->second;
+      ne += msg.elem_ids.size();
+      nd += msg.dofs.size();
+   }
+
+   elements.SetSize(ne);
+   dofs.SetSize(nd);
+
+   // copy element indices and their DOFs
+   ne = nd = 0;
+   for (it = recv_rebalance_dofs.begin(); it != recv_rebalance_dofs.end(); ++it)
+   {
+      RebalanceDofMessage &msg = it->second;
+      for (unsigned i = 0; i < msg.elem_ids.size(); i++)
+      {
+         elements[ne++] = msg.elem_ids[i];
+      }
+      for (unsigned i = 0; i < msg.dofs.size(); i++)
+      {
+         dofs[ne++] = msg.dofs[i];
+      }
+   }
 
    RebalanceDofMessage::WaitAllSent(send_rebalance_dofs);
 }
@@ -1543,6 +1572,15 @@ void ParNCMesh::RebalanceDofMessage::Decode()
    read_dofs(stream, dofs);
 
    data.clear();
+
+   Array<Element*> elems;
+   eset.Decode(elems);
+
+   elem_ids.resize(elems.Size());
+   for (int i = 0; i < elems.Size(); i++)
+   {
+      elem_ids[i] = elems[i]->index;
+   }
 }
 
 //// Utility ///////////////////////////////////////////////////////////////////

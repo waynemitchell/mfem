@@ -175,7 +175,8 @@ public:
    void SendRebalanceDofs(const Table &old_element_dofs, long old_dof_offset);
    void RecvRebalanceDofs(Array<int> &elements, Array<long> &dofs);
 
-   /// Get previous owners (pre-Rebalance) of currently owned elements.
+   /** Get previous indices (pre-Rebalance) of current elements. Index of -1
+       indicates that an element didn't exist in the mesh before. */
    const Array<int>& GetRebalanceOldIndex() const { return rebalance_old_index; }
 
    /** Extension of NCMesh::GetBoundaryClosure. Filters out ghost vertices and
