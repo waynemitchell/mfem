@@ -423,7 +423,7 @@ protected:
    RebalanceDofMessage::Map send_rebalance_dofs;
    RebalanceDofMessage::Map recv_rebalance_dofs;
 
-   /** After Rebalance, this array holds the old element index, or -1 if the
+   /** After Rebalance, this array holds the old element indices, or -1 if an
        element didn't exist in the mesh previously.  */
    Array<int> rebalance_old_index;
 

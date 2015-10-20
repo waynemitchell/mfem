@@ -1550,10 +1550,12 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
    Array<int> dofs;
    int ldofs = GetVSize();
 
-   // prepare the local (diagonal) part of the matrix
    const Array<int> &old_index = pncmesh->GetRebalanceOldIndex();
-   MFEM_ASSERT(old_index.Size() == pmesh->GetNE(), "");
+   MFEM_ASSERT(old_index.Size() == pmesh->GetNE(),
+               "Mesh::Rebalance was not called before "
+               "ParFiniteElementSpace::RebalanceMatrix");
 
+   // prepare the local (diagonal) part of the matrix
    HYPRE_Int* i_diag = make_i_array(ldofs);
    for (int i = 0; i < pmesh->GetNE(); i++)
    {

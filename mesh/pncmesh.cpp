@@ -899,7 +899,20 @@ void ParNCMesh::Rebalance()
 
    // *** STEP 5: prune the new refinement tree, clean up ***
 
-   Update();
+   Array<Element*> old_elements;
+   leaf_elements.GetSubArray(0, NElements, old_elements);
+
+   Update(); // update leaf_elements, NElements, etc.
+
+   // set up the old index array
+   rebalance_old_index.SetSize(NElements);
+   rebalance_old_index = -1;
+   for (int i = 0; i < old_elements.Size(); i++)
+   {
+      Element* e = old_elements[i];
+      if (e->rank == MyRank) { rebalance_old_index[e->index] = i; }
+   }
+
    Prune(); // get rid of stuff we don't need anymore
 
    // make sure we can delete all send buffers
