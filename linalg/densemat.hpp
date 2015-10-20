@@ -373,6 +373,8 @@ public:
    static const int ipiv_base = 0;
 #endif
 
+   /** With this constructor, the (public) data and ipiv members should be set
+       explicitly before calling class methods. */
    LUFactors() { }
 
    LUFactors(double *data_, int *ipiv_) : data(data_), ipiv(ipiv_) { }
