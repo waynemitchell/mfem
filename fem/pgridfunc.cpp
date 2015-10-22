@@ -151,6 +151,18 @@ HypreParVector *ParGridFunction::ParallelAssemble() const
    return tv;
 }
 
+void ParGridFunction::Transform(/*const*/ HypreParMatrix &T)
+{
+   HypreParVector x(T);
+   (Vector) x = *this;
+
+   SetSize(pfes->GetVSize());
+   HypreParVector y(pfes->GetComm(), pfes->GlobalVSize(), this->GetData(),
+                    pfes->GetDofOffsets());
+
+   T.Mult(x, y);
+}
+
 void ParGridFunction::ExchangeFaceNbrData()
 {
    pfes->ExchangeFaceNbrData();

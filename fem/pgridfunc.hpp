@@ -111,6 +111,8 @@ public:
    /// Returns a new vector assembled on the true dofs.
    HypreParVector *ParallelAssemble() const;
 
+   void Transform(HypreParMatrix &T);
+
    void ExchangeFaceNbrData();
    Vector &FaceNbrData() { return face_nbr_data; }
    const Vector &FaceNbrData() const { return face_nbr_data; }

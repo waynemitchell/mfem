@@ -979,7 +979,7 @@ void ParNCMesh::RecvRebalanceDofs(Array<int> &elements, Array<long> &dofs)
       }
       for (unsigned i = 0; i < msg.dofs.size(); i++)
       {
-         dofs[ne++] = msg.dofs[i];
+         dofs[nd++] = msg.dof_offset + msg.dofs[i];
       }
    }
 

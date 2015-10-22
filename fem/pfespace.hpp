@@ -56,6 +56,9 @@ private:
    /// Offsets for the true dofs in neighbor processor in global numbering.
    Array<HYPRE_Int> tdof_nb_offsets;
 
+   /// Value of 'dof_offsets' before Update().
+   Array<HYPRE_Int> old_dof_offsets;
+
    /// The sign of the basis functions at the scalar local dofs.
    Array<int> ldof_sign;
 

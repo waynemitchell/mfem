@@ -1543,15 +1543,22 @@ static HYPRE_Int* make_j_array(HYPRE_Int* I, int nrows)
 HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
    const Table &old_element_dofs)
 {
+   MFEM_VERIFY(old_dof_offsets.Size(),
+               "ParFiniteElementSpace::Update needs to be called before "
+               "ParFiniteElementSpace::RebalanceMatrix");
+
+   HYPRE_Int old_offset = HYPRE_AssumedPartitionCheck()
+                          ? old_dof_offsets[0] : old_dof_offsets[MyRank];
+
    // send old DOFs of elements we used to own
    ParNCMesh* pncmesh = pmesh->pncmesh;
-   pncmesh->SendRebalanceDofs(old_element_dofs, old_dof_offset);
+   pncmesh->SendRebalanceDofs(old_element_dofs, old_offset);
 
    Array<int> dofs;
    int ldofs = GetVSize();
 
    const Array<int> &old_index = pncmesh->GetRebalanceOldIndex();
-   MFEM_ASSERT(old_index.Size() == pmesh->GetNE(),
+   MFEM_VERIFY(old_index.Size() == pmesh->GetNE(),
                "Mesh::Rebalance was not called before "
                "ParFiniteElementSpace::RebalanceMatrix");
 
@@ -1609,8 +1616,10 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
    }
 
    HypreParMatrix *M;
-   M = new HypreParMatrix(MyComm, MyRank, NRanks, row_starts, col_starts,
+   M = new HypreParMatrix(MyComm, MyRank, NRanks, dof_offsets, old_dof_offsets,
                           i_diag, j_diag, i_offd, j_offd, cmap, offd_cols);
+
+   old_dof_offsets.DeleteAll();
    return M;
 }
 
@@ -1619,27 +1628,34 @@ void ParFiniteElementSpace::Update()
 {
    FiniteElementSpace::Update();
 
+   dof_offsets.Copy(old_dof_offsets);
+
    ldof_group.DeleteAll();
    ldof_ltdof.DeleteAll();
    dof_offsets.DeleteAll();
    tdof_offsets.DeleteAll();
    tdof_nb_offsets.DeleteAll();
    ldof_sign.DeleteAll();
-   delete P;
-   P = NULL;
-   delete R;
-   R = NULL;
-   delete gcomm;
-   gcomm = NULL;
+
+   delete P; P = NULL;
+   delete R; R = NULL;
+
+   delete gcomm; gcomm = NULL;
+
    num_face_nbr_dofs = -1;
    face_nbr_element_dof.Clear();
    face_nbr_ldof.Clear();
    face_nbr_glob_dof_map.DeleteAll();
    send_face_nbr_ldof.Clear();
+
    if (Conforming())
    {
       ConstructTrueDofs();
       GenerateGlobalOffsets();
+   }
+   else
+   {
+      GetParallelConformingInterpolation();
    }
 }
 

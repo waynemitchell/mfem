@@ -263,6 +263,7 @@ public:
    void BuildDofToArrays();
 
    const Table &GetElementToDofTable() const { return *elem_dof; }
+   void LoseElementToDofTable() { elem_dof = NULL; }
 
    int GetElementForDof(int i) { return dof_elem_array[i]; }
    int GetLocalDofForDof(int i) { return dof_ldof_array[i]; }

@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
       }
    }*/
    //mesh->RandomRefinement(4, 2, false);
-   //mesh->GeneralRefinement(Array<int>(), 1);
+   mesh->GeneralRefinement(Array<int>(), 1);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -119,11 +119,11 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 1;
+      /*int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
-      }
+      }*/
       /*for (int i = 0; i < 3; i++)
       {
          Array<Refinement> refs;
@@ -136,14 +136,14 @@ int main(int argc, char *argv[])
          }
          pmesh->GeneralRefinement(refs, 1);
       }*/
-      /*{
+      {
          Array<Refinement> refs;
          if (myid == 0)
          {
             refs.Append(Refinement(0));
          }
          pmesh->GeneralRefinement(refs, 1);
-      }*/
+      }
    }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
@@ -225,7 +225,8 @@ int main(int argc, char *argv[])
 
    // 13. Load balance the mesh, migrate grid functions
    //
-   Table* old_dofs = fespace->GetElementToDofTable();
+   fespace->BuildElementToDofTable();
+   const Table &old_dofs = fespace->GetElementToDofTable();
    fespace->LoseElementToDofTable();
 
    pmesh->Rebalance();
@@ -233,7 +234,7 @@ int main(int argc, char *argv[])
    fespace->Update();
 
    HypreParMatrix *M = fespace->RebalanceMatrix(old_dofs);
-   x.Transform(M);
+   x.Transform(*M);
    delete M;
 
 
