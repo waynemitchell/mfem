@@ -151,7 +151,7 @@ HypreParVector *ParGridFunction::ParallelAssemble() const
    return tv;
 }
 
-void ParGridFunction::Transform(/*const*/ HypreParMatrix &T)
+void ParGridFunction::ParallelTransform(/*const*/ HypreParMatrix &T)
 {
    HypreParVector x(T);
    static_cast<Vector&>(x) = *this;

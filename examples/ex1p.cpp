@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
    fespace->Update();
 
    HypreParMatrix *M = fespace->RebalanceMatrix(old_dofs);
-   x.Transform(*M);
+   x.ParallelTransform(*M);
    delete M;
 
 

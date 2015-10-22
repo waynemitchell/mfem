@@ -185,13 +185,6 @@ struct VarMessage
       MPI_Get_count(&status, MPI_BYTE, &size);
    }
 
-   /*static void ProbeRank(int rank, int &size, MPI_Comm comm)
-   {
-      MPI_Status status;
-      MPI_Probe(rank, Tag, comm, &status);
-      MPI_Get_count(&status, MPI_BYTE, &size);
-   }*/
-
    /** Non-blocking probe for incoming message of this type from any rank.
        If there is an incoming message, returns true and sets 'rank' and 'size'.
        Otherwise returns false. */
