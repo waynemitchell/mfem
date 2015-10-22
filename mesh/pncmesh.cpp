@@ -707,6 +707,9 @@ void ParNCMesh::Rebalance()
 
    UpdateLayers();
 
+   Array<Element*> old_elements;
+   leaf_elements.GetSubArray(0, NElements, old_elements);
+
    // *** STEP 1: figure out new assigments for Element::rank ***
 
    long local_elems = NElements, total_elems = 0;
@@ -898,9 +901,6 @@ void ParNCMesh::Rebalance()
    }
 
    // *** STEP 5: prune the new refinement tree, clean up ***
-
-   Array<Element*> old_elements;
-   leaf_elements.GetSubArray(0, NElements, old_elements);
 
    Update(); // update leaf_elements, NElements, etc.
 
@@ -1558,10 +1558,14 @@ void ParNCMesh::RebalanceDofMessage::SetElements(const Array<Element*> &elems,
    eset.SetNCMesh(ncmesh);
    eset.Encode(elems);
 
-   elem_ids.resize(elems.Size());
-   for (int i = 0; i < elems.Size(); i++)
+   Array<Element*> decoded;
+   decoded.Reserve(elems.Size());
+   eset.Decode(decoded);
+
+   elem_ids.resize(decoded.Size());
+   for (int i = 0; i < decoded.Size(); i++)
    {
-      elem_ids[i] = elems[i]->index;
+      elem_ids[i] = decoded[i]->index;
    }
 }
 

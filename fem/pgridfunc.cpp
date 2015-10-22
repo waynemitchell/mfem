@@ -154,7 +154,7 @@ HypreParVector *ParGridFunction::ParallelAssemble() const
 void ParGridFunction::Transform(/*const*/ HypreParMatrix &T)
 {
    HypreParVector x(T);
-   (Vector) x = *this;
+   static_cast<Vector&>(x) = *this;
 
    SetSize(pfes->GetVSize());
    HypreParVector y(pfes->GetComm(), pfes->GlobalVSize(), this->GetData(),

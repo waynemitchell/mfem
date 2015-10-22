@@ -1593,7 +1593,10 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
 
       for (int j = 0; j < dofs.Size(); j++)
       {
-         i_offd[dofs[j]] = old_dofs[j];
+         if (i_diag[dofs[j]] == i_diag[dofs[j]+1]) // diag row empty?
+         {
+            i_offd[dofs[j]] = old_dofs[j];
+         }
       }
    }
    HYPRE_Int* j_offd = make_j_array(i_offd, ldofs);
@@ -1619,7 +1622,6 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
    M = new HypreParMatrix(MyComm, MyRank, NRanks, dof_offsets, old_dof_offsets,
                           i_diag, j_diag, i_offd, j_offd, cmap, offd_cols);
 
-   old_dof_offsets.DeleteAll();
    return M;
 }
 

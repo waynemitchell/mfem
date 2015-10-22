@@ -110,8 +110,8 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   //mesh->RandomRefinement(4, 2, false);
    mesh->GeneralRefinement(Array<int>(), 1);
+   mesh->RandomRefinement(2, 2, false);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -145,6 +145,8 @@ int main(int argc, char *argv[])
          pmesh->GeneralRefinement(refs, 1);
       }
    }
+   pmesh->RandomRefinement(5, 2, false, -1, -1, myid);
+   //pmesh->UniformRefinement();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
