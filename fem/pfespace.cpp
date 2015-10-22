@@ -18,10 +18,6 @@
 
 #include <climits>
 
-/*#include "general/tic_toc.hpp" // DEBUG
-extern mfem::StopWatch P_time_setup, P_time_step1, P_time_deps, P_time_step3,
-                       P_time_step4, P_time_final;*/
-
 namespace mfem
 {
 
@@ -1168,10 +1164,8 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
    NeighborDofMessage::Map send_dofs, recv_dofs;
-   //NeighborRowRequest::Map recv_requests2;
 
    // prepare neighbor DOF messages for shared vertices/edges/faces
-   //::P_time_step1.Start();
    for (int type = 0; type < 3; type++)
    {
       const NCMesh::NCList &list = pncmesh->GetSharedList(type);
@@ -1215,11 +1209,9 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    // send/receive all DOF messages
    NeighborDofMessage::IsendAll(send_dofs, MyComm);
    NeighborDofMessage::RecvAll(recv_dofs, MyComm);
-   //::P_time_step1.Stop();
 
    // *** STEP 2: build dependency lists ***
 
-   //::P_time_deps.Start();
    int num_cdofs = ndofs * vdim;//GetNConformingDofs();
    DepList* deps = new DepList[num_cdofs]; // NOTE: 'deps' is over vdofs
 
@@ -1319,12 +1311,9 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
          }
       }
    }
-   //::P_time_deps.Stop();
 
    // *** STEP 3: request P matrix rows that we need from neighbors ***
 
-#if 1
-   //::P_time_step3.Start();
    NeighborRowRequest::Map send_requests, recv_requests;
 
    // copy communication topology from the DOF messages
@@ -1352,12 +1341,9 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
       }
    }
    NeighborRowRequest::IsendAll(send_requests, MyComm);
-   //::P_time_step3.Stop();
-#endif
 
    // *** STEP 4: iteratively build the P matrix ***
 
-   //::P_time_step4.Start();
    // DOFs that stayed independent or are ours are true DOFs
    ltdof_size = 0;
    for (int i = 0; i < num_cdofs; i++)
@@ -1490,9 +1476,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
          recv_replies[rank].Recv(rank, size, MyComm);
       }
    }
-   //::P_time_step4.Stop();
 
-   //::P_time_final.Start();
    delete [] deps;
    localP.Finalize();
 
@@ -1505,12 +1489,11 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
 
    // make sure we can discard all send buffers
    NeighborDofMessage::WaitAllSent(send_dofs);
-   //NeighborRowRequest::WaitAllSent(send_requests);
+   NeighborRowRequest::WaitAllSent(send_requests);
    for (unsigned i = 0; i < send_replies.size(); i++)
    {
       NeighborRowReply::WaitAllSent(send_replies[i]);
    }
-   //::P_time_final.Stop();
 }
 
 
