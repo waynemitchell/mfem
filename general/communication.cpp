@@ -541,55 +541,95 @@ template void GroupCommunicator::Max<double>(OpData<double>);
 
 
 #ifdef __bgq__
+static void DebugRankCoords(int** coords, int dim, int size)
+{
+   for (int i = 0; i < size; i++)
+   {
+      std::cout << "Rank " << i << " coords: ";
+      for (int j = 0; j < dim; j++)
+      {
+         std::cout << coords[i][j] << " ";
+      }
+      std::cout << endl;
+   }
+}
+
+struct CompareCoords
+{
+   CompareCoords(int coord) : coord(coord) {}
+   int coord;
+
+   bool operator()(const int* &a, const int* &b) const
+   { return a[coord] < b[coord]; }
+};
+
+void KdTreeSort(int** coords, int d, int dim, int size)
+{
+   if (size > 1)
+   {
+      std::sort(coords, coords + size, CompareCoords(d));
+      int next = (d + 1) % dim;
+
+      if (coords[0][d] < coords[size-1][d])
+      {
+         KdTreeSort(coords, next, dim, size/2);
+         KdTreeSort(coords + size/2, next, dim, size - size/2);
+      }
+      else
+      {
+         KdTreeSort(coords, next, dim, size);
+      }
+   }
+}
 
 MPI_Comm ReorderRanksZCurve(MPI_Comm comm)
 {
+   MPI_Status status;
+
    int rank, size;
    MPI_Comm_rank(comm, &rank);
    MPI_Comm_size(comm, &size);
 
-   /*int new_rank;
-   MPI_Status status;*/
+   int dim;
+   MPIX_Torus_ndims(&dim);
+
+   int* mycoords = new int[dim + 1];
+   MPIX_Rank2torus(rank, mycoords);
+
+   MPI_Send(mycoords, dim, MPI_INT, 0, 111, comm);
+   delete [] mycoords;
 
    if (rank == 0)
    {
-      int dim;
-      MPIX_Torus_ndims(&dim);
-
       int** coords = new int*[size];
       for (int i = 0; i < size; i++)
       {
-         coords[i] = new int[1 + dim + 1];
-         coords[i][0] = i;
-         MPIX_Rank2torus(rank, coords[i] + 1);
+         coords[i] = new int[dim + 1];
+         coords[i][dim] = i;
+         MPI_Recv(coords[i], dim, MPI_INT, i, 111, comm, &status);
       }
+
+      DebugRankCoords(coords, dim, size);
+
+      KdTreeSort(coords, 0, dim, size);
+
+      std::cout << "-----------------------------------\n";
+      DebugRankCoords(coords, dim, size);
 
       for (int i = 0; i < size; i++)
       {
-         std::cout << "Rank " << i << " coords: ";
-         for (int j = 1; j <= dim+1; j++)
-         {
-            std::cout << coords[i][j] << " ";
-         }
-         std::cout << endl;
-      }
-
-
-      for (int i = 0; i < size; i++)
-      {
+         MPI_Send(coords[i][dim], 1, MPI_INT, i, 112, comm);
          delete [] coords[i];
       }
       delete [] coords;
    }
-   else
-   {
-      //MPI_Recv(&new_rank, 1, MPI_INT, 0, 123, comm, &status);
-   }
 
-   /*MPI_Comm new_comm;
+   int new_rank;
+   MPI_Recv(&new_rank, 1, MPI_INT, 0, 112, comm, &status);
+
+   MPI_Comm new_comm;
    MPI_Comm_split(comm, 0, new_rank, &new_comm);
-   return new_comm;*/
-   return comm;
+   return new_comm;
 }
 
 #else // __bgq__
