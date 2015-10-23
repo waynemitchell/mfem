@@ -232,7 +232,14 @@ protected:
    virtual void Decode() {}
 };
 
-}
+
+/** Reorder MPI ranks to follow the Z-curve within the physical machine topology
+    (provided that functions to query physical node coordinates are available).
+    Returns a new communicator with reordered ranks. */
+MPI_Comm ReorderRanksZCurve(MPI_Comm comm);
+
+
+} // namespace mfem
 
 #endif
 

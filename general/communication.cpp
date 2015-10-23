@@ -14,6 +14,9 @@
 #ifdef MFEM_USE_MPI
 
 #include <mpi.h>
+#ifdef __bgq__
+   #include <mpix.h>
+#endif
 
 #include "array.hpp"
 #include "table.hpp"
@@ -536,6 +539,69 @@ template void GroupCommunicator::Sum<double>(OpData<double>);
 template void GroupCommunicator::Min<double>(OpData<double>);
 template void GroupCommunicator::Max<double>(OpData<double>);
 
+
+#ifdef __bgq__
+
+MPI_Comm ReorderRanksZCurve(MPI_Comm comm)
+{
+   int rank, size;
+   MPI_Comm_rank(comm, &rank);
+   MPI_Comm_size(comm, &size);
+
+   /*int new_rank;
+   MPI_Status status;*/
+
+   if (rank == 0)
+   {
+      int dim;
+      MPIX_Torus_ndims(&dim);
+
+      int** coords = new int*[size];
+      for (int i = 0; i < size; i++)
+      {
+         coords[i] = new int[1 + dim + 1];
+         coords[i][0] = i;
+         MPIX_Rank2torus(rank, coords[i] + 1);
+      }
+
+      for (int i = 0; i < size; i++)
+      {
+         std::cout << "Rank " << i << " coords: ";
+         for (int j = 1; j <= dim+1; j++)
+         {
+            std::cout << coords[i][j] << " ";
+         }
+         std::cout << endl;
+      }
+
+
+      for (int i = 0; i < size; i++)
+      {
+         delete [] coords[i];
+      }
+      delete [] coords;
+   }
+   else
+   {
+      //MPI_Recv(&new_rank, 1, MPI_INT, 0, 123, comm, &status);
+   }
+
+   /*MPI_Comm new_comm;
+   MPI_Comm_split(comm, 0, new_rank, &new_comm);
+   return new_comm;*/
+   return comm;
 }
+
+#else // __bgq__
+
+MPI_Comm ReorderRanksZCurve(MPI_Comm comm)
+{
+   // pass
+   return comm;
+}
+#endif // __bgq__
+
+
+} // namespace mfem
 
 #endif
