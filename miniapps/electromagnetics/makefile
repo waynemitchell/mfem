@@ -21,9 +21,9 @@ ifneq (clean,$(MAKECMDGOALS))
 endif
 
 ifeq ($(MFEM_USE_MPI),NO)
-   EXAMPLES = 
+   MINIAPPS =
 else
-   EXAMPLES = magnetostatics1p magnetostatics2p
+   MINIAPPS = magnetostatics1p magnetostatics2p
 endif
 
 .PHONY: all clean
@@ -35,15 +35,13 @@ endif
 %: %.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
 	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ $(MFEM_LIBS)
 
-all: $(EXAMPLES)
+all: $(MINIAPPS)
 
 # Generate an error message if the MFEM library is not built and exit
 $(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
 clean:
-	rm -f *.o *~ magnetostatics1p  magnetostatics2p 
-	rm -f refined.mesh displaced.mesh mesh.*
-	rm -f sphere_refined.* sol.* sol_u.* sol_p.*
-	rm -f deformed.* velocity.* elastic_energy.*
-	rm -rf *.dSYM
+	rm -f *.o *~ magnetostatics1p  magnetostatics2p
+	rm -f mesh.* sol.* sol_curl.* psi.*
+	rm -rf *.dSYM *.TVD.*breakpoints

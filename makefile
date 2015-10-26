@@ -285,6 +285,7 @@ deps:
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
 	$(MAKE) -C examples clean
+	$(MAKE) -C miniapps/electromagnetics clean
 
 distclean: clean
 	$(MAKE) -C config clean
@@ -349,7 +350,7 @@ status info:
 	@true
 
 ASTYLE = astyle --options=config/mfem.astylerc
-FORMAT_FILES = $(foreach dir,$(DIRS) examples,"$(dir)/*.?pp")
+FORMAT_FILES = $(foreach dir,$(DIRS) examples miniapps/electromagnetics,"$(dir)/*.?pp")
 
 style:
 	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\
