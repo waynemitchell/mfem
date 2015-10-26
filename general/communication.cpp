@@ -559,7 +559,7 @@ struct CompareCoords
    CompareCoords(int coord) : coord(coord) {}
    int coord;
 
-   bool operator()(const int* &a, const int* &b) const
+   bool operator()(int* const &a, int* const &b) const
    { return a[coord] < b[coord]; }
 };
 
@@ -567,6 +567,17 @@ void KdTreeSort(int** coords, int d, int dim, int size)
 {
    if (size > 1)
    {
+      bool all_same = true;
+      for (int i = 1; i < size && all_same; i++)
+      {
+         for (int j = 0; j < dim; j++)
+         {
+            if (coords[i][j] != coords[0][j]) { all_same = false; break; }
+         }
+      }
+      if (all_same) { return; }
+
+      // sort by coordinate 'd'
       std::sort(coords, coords + size, CompareCoords(d));
       int next = (d + 1) % dim;
 
@@ -577,6 +588,7 @@ void KdTreeSort(int** coords, int d, int dim, int size)
       }
       else
       {
+         // skip constant dimension
          KdTreeSort(coords, next, dim, size);
       }
    }
@@ -609,16 +621,13 @@ MPI_Comm ReorderRanksZCurve(MPI_Comm comm)
          MPI_Recv(coords[i], dim, MPI_INT, i, 111, comm, &status);
       }
 
-      DebugRankCoords(coords, dim, size);
-
       KdTreeSort(coords, 0, dim, size);
 
-      std::cout << "-----------------------------------\n";
-      DebugRankCoords(coords, dim, size);
+      //DebugRankCoords(coords, dim, size);
 
       for (int i = 0; i < size; i++)
       {
-         MPI_Send(coords[i][dim], 1, MPI_INT, i, 112, comm);
+         MPI_Send(&coords[i][dim], 1, MPI_INT, i, 112, comm);
          delete [] coords[i];
       }
       delete [] coords;
