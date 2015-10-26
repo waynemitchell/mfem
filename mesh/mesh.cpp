@@ -636,6 +636,13 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
             if (IsSlaveFace(face_info))
             {
                ApplySlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
+               const int *fv = faces[FaceNo]->GetVertices();
+               if (fv[0] > fv[1])
+               {
+                  DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
+                  mfem::Swap<double>(pm(0,0), pm(0,1));
+                  mfem::Swap<double>(pm(1,0), pm(1,1));
+               }
             }
          }
          break;
@@ -714,7 +721,8 @@ FaceElementTransformations *Mesh::GetBdrFaceTransformations(int BdrElemNo)
    {
       fn = boundary[BdrElemNo]->GetVertices()[0];
    }
-   if (FaceIsTrueInterior(fn))
+   // Check if the face is interior, shared, or non-conforming.
+   if (FaceIsTrueInterior(fn) || faces_info[fn].NCFace >= 0)
    {
       return NULL;
    }
@@ -4602,65 +4610,25 @@ const Table & Mesh::ElementToElementTable()
       return *el_to_el;
    }
 
-   if (Dim < 3)
+   int num_faces = GetNumFaces();
+   MFEM_ASSERT(faces_info.Size() == num_faces, "faces were not generated!");
+
+   Array<Connection> conn;
+   conn.Reserve(2*num_faces);
+
+   for (int i = 0; i < faces_info.Size(); i++)
    {
-      Table *f_el;
-      if (Dim == 1)
+      const FaceInfo &fi = faces_info[i];
+      if (fi.Elem2No >= 0)
       {
-         f_el = GetVertexToElementTable();
+         conn.Append(Connection(fi.Elem1No, fi.Elem2No));
+         conn.Append(Connection(fi.Elem2No, fi.Elem1No));
       }
-      else
-      {
-         f_el = new Table;
-         Transpose(ElementToEdgeTable(), *f_el);
-      }
-
-      el_to_el = new Table;
-      el_to_el->MakeI(NumOfElements);
-      for (int i = 0; i < f_el->Size(); i++)
-      {
-         if (f_el->RowSize(i) > 1)
-         {
-            const int *el = f_el->GetRow(i);
-            el_to_el->AddAColumnInRow(el[0]);
-            el_to_el->AddAColumnInRow(el[1]);
-         }
-      }
-      el_to_el->MakeJ();
-      for (int i = 0; i < f_el->Size(); i++)
-      {
-         if (f_el->RowSize(i) > 1)
-         {
-            const int *el = f_el->GetRow(i);
-            el_to_el->AddConnection(el[0], el[1]);
-            el_to_el->AddConnection(el[1], el[0]);
-         }
-      }
-      el_to_el->ShiftUpI();
-
-      delete f_el;
    }
-   else
-   {
-      MFEM_ASSERT(faces_info.Size() == NumOfFaces, "faces were not generated!");
 
-      Array<Connection> conn;
-      conn.Reserve(2*NumOfFaces);
-
-      for (int i = 0; i < faces_info.Size(); i++)
-      {
-         const FaceInfo &fi = faces_info[i];
-         if (fi.Elem2No >= 0)
-         {
-            conn.Append(Connection(fi.Elem1No, fi.Elem2No));
-            conn.Append(Connection(fi.Elem2No, fi.Elem1No));
-         }
-      }
-
-      conn.Sort();
-      conn.Unique();
-      el_to_el = new Table(NumOfElements, conn);
-   }
+   conn.Sort();
+   conn.Unique();
+   el_to_el = new Table(NumOfElements, conn);
 
    return *el_to_el;
 }
@@ -4765,9 +4733,7 @@ void Mesh::AddQuadFaceElement(int lf, int gf, int el,
 
 void Mesh::GenerateFaces()
 {
-   int i, nfaces;
-
-   nfaces = (Dim == 1) ? NumOfVertices : ((Dim == 2) ? NumOfEdges : NumOfFaces);
+   int i, nfaces = GetNumFaces();
 
    for (i = 0; i < faces.Size(); i++)
    {
@@ -4843,7 +4809,8 @@ void Mesh::GenerateNCFaceInfo()
       faces_info[i].NCFace = -1;
    }
 
-   const NCMesh::NCList &list = ncmesh->GetFaceList();
+   const NCMesh::NCList &list =
+      (Dim == 2) ? ncmesh->GetEdgeList() : ncmesh->GetFaceList();
 
    nc_faces_info.SetSize(0);
    nc_faces_info.Reserve(list.masters.size() + list.slaves.size());
@@ -4871,6 +4838,14 @@ void Mesh::GenerateNCFaceInfo()
       slave_fi.Elem2No = master_fi.Elem1No;
       slave_fi.Elem2Inf = 64 * master_nc.MasterFace; // get lf no. stored above
       // NOTE: orientation part of Elem2Inf is encoded in the point matrix
+      if (Dim == 2)
+      {
+         const int *fv = faces[slave.master]->GetVertices();
+         if (fv[0] > fv[1])
+         {
+            slave_fi.Elem2Inf++;
+         }
+      }
    }
 }
 
