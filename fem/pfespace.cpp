@@ -1523,10 +1523,9 @@ static HYPRE_Int* make_j_array(HYPRE_Int* I, int nrows)
    return J;
 }
 
-HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
-   const Table &old_element_dofs)
+HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
 {
-   MFEM_VERIFY(old_dof_offsets.Size(),
+   MFEM_VERIFY(old_elem_dof != NULL && old_dof_offsets.Size(),
                "ParFiniteElementSpace::Update needs to be called before "
                "ParFiniteElementSpace::RebalanceMatrix");
 
@@ -1535,7 +1534,7 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
 
    // send old DOFs of elements we used to own
    ParNCMesh* pncmesh = pmesh->pncmesh;
-   pncmesh->SendRebalanceDofs(old_element_dofs, old_offset);
+   pncmesh->SendRebalanceDofs(*old_elem_dof, old_offset);
 
    Array<int> dofs;
    int ldofs = GetVSize();
@@ -1551,7 +1550,7 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix(
    {
       if (old_index[i] >= 0) // we had this element before
       {
-         const int* old_dofs = old_element_dofs.GetRow(old_index[i]);
+         const int* old_dofs = old_elem_dof->GetRow(old_index[i]);
          GetElementDofs(i, dofs);
 
          for (int j = 0; j < dofs.Size(); j++)

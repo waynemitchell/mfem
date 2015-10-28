@@ -227,15 +227,11 @@ int main(int argc, char *argv[])
 
    // 13. Load balance the mesh, migrate grid functions
    //
-   fespace->BuildElementToDofTable();
-   const Table &old_dofs = fespace->GetElementToDofTable();
-   fespace->LoseElementToDofTable();
-
    pmesh->Rebalance();
 
    fespace->Update();
 
-   HypreParMatrix *M = fespace->RebalanceMatrix(old_dofs);
+   HypreParMatrix *M = fespace->RebalanceMatrix();
    x.ParallelTransform(*M);
    delete M;
 

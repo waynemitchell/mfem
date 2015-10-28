@@ -880,6 +880,7 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
    bdofs = fes.bdofs;
    // keep 'RefData' in 'fes'
    elem_dof = fes.elem_dof;
+   old_elem_dof = NULL;
    bdrElem_dof = fes.bdrElem_dof;
    Swap(dof_elem_array, fes.dof_elem_array);
    Swap(dof_ldof_array, fes.dof_ldof_array);
@@ -906,6 +907,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
    fec = f;
    this->vdim = vdim;
    this->ordering = ordering;
+   elem_dof = old_elem_dof = NULL;
 
    const NURBSFECollection *nurbs_fec =
       dynamic_cast<const NURBSFECollection *>(fec);
@@ -966,6 +968,7 @@ void FiniteElementSpace::UpdateNURBS()
    ndofs = NURBSext->GetNDof();
 
    elem_dof = NURBSext->GetElementDofTable();
+   old_elem_dof = NULL;
 
    bdrElem_dof = NURBSext->GetBdrElementDofTable();
 }
@@ -1031,6 +1034,8 @@ void FiniteElementSpace::Constructor()
    }
 
    ndofs = nvdofs + nedofs + nfdofs + nbdofs;
+
+   BuildElementToDofTable();
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
@@ -1416,6 +1421,7 @@ FiniteElementSpace::~FiniteElementSpace()
    {
       delete RefData[i];
    }
+   delete old_elem_dof;
 }
 
 void FiniteElementSpace::Destructor()
@@ -1448,6 +1454,10 @@ void FiniteElementSpace::Update()
    }
    else
    {
+      // keep old elem_dof table for RefineMatrix, RebalanceMatrix, ...
+      old_elem_dof = elem_dof;
+      elem_dof = NULL;
+
       Destructor();   // keeps RefData
       Constructor();
    }

@@ -84,6 +84,7 @@ protected:
    Array<RefinementData *> RefData;
 
    Table *elem_dof;
+   Table *old_elem_dof; // elem_dof before Update()
    Table *bdrElem_dof;
    Array<int> dof_elem_array, dof_ldof_array;
 
@@ -263,7 +264,6 @@ public:
    void BuildDofToArrays();
 
    const Table &GetElementToDofTable() const { return *elem_dof; }
-   void LoseElementToDofTable() { elem_dof = NULL; }
 
    int GetElementForDof(int i) { return dof_elem_array[i]; }
    int GetLocalDofForDof(int i) { return dof_ldof_array[i]; }
