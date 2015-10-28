@@ -6825,12 +6825,10 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 
    NumOfEdges = NumOfFaces = 0;
 
-   if (Dim == 2)
-   {
-      el_to_edge = new Table;
-      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-   }
-   else if (Dim == 3)
+   el_to_edge = new Table;
+   NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+
+   if (Dim == 3)
    {
       GetElementToFaceTable();
    }
@@ -6840,8 +6838,6 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
    CheckBdrElementOrientation(false);
 #endif
 
-   el_to_edge = new Table;
-   NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
    c_el_to_edge = NULL;
 }
 
