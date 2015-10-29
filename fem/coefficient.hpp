@@ -103,19 +103,19 @@ public:
 class FunctionCoefficient : public Coefficient
 {
 protected:
-   double (*Function)(Vector &);
-   double (*TDFunction)(Vector &, double);
+   double (*Function)(const Vector &);
+   double (*TDFunction)(const Vector &, double);
 
 public:
    /// Define a time-independent coefficient from a C-function
-   FunctionCoefficient(double (*f)(Vector &))
+   FunctionCoefficient(double (*f)(const Vector &))
    {
       Function = f;
       TDFunction = NULL;
    }
 
    /// Define a time-dependent coefficient from a C-function
-   FunctionCoefficient(double (*tdf)(Vector &, double))
+   FunctionCoefficient(double (*tdf)(const Vector &, double))
    {
       Function = NULL;
       TDFunction = tdf;
