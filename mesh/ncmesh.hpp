@@ -38,6 +38,18 @@ struct Refinement
       : index(index), ref_type(type) {}
 };
 
+/** Represents a coarsening opportunity. Up to 8 current Mesh elements can
+    be derefined to form a single large element. */
+struct Derefinement
+{
+   int ne;       ///< number of elements, ne <= 8
+   int index[8]; ///< indices of 'ne' elements to be removed
+   void* parent; ///< opaque pointer for NCMesh use
+
+   Derefinement(int ne, void* parent = NULL)
+      : ne(ne), parent(parent) { std::memset(index, 0, sizeof(index)); }
+};
+
 
 /** \brief A class for non-conforming AMR on higher-order hexahedral,
  *  quadrilateral or triangular meshes.
@@ -87,6 +99,17 @@ public:
        difference of refinement levels between adjacent elements is not greater
        than 'max_level'. */
    virtual void LimitNCLevel(int max_level);
+
+   /// Return a list of derefinement opportunities. The array is owned by NCMesh.
+   const Array<Derefinement>& GetDerefinementList();
+
+   /** Perform a subset of the possible derefinements (see GetDerefinementList).
+       Note that if anisotropic refinements are present in the mesh, some of the
+       derefinements may have to be skipped to preserve mesh consistency. */
+   virtual void Derefine(const Array<int> &derefs);
+
+
+   // master/slave lists
 
    /// Identifies a vertex/edge/face in both Mesh and NCMesh.
    struct MeshId
@@ -145,10 +168,44 @@ public:
       return edge_list;
    }
 
-   /** Represents the relation of a fine element to its parent (coarse) element
-       from a previous mesh state. (Note that the parent can be an indirect
-       parent.) The point matrix determines where in the reference domain of the
-       coarse element the fine element is located. */
+
+   // coarse/fine transforms
+
+   struct Embedding
+   {
+      int coarse_element; ///< index of coarse mesh element
+      int matrix;         ///< index into FineCoarseList::point_matrices
+   };
+
+   /// Defines the embedding of each fine element inside a coarse element.
+   struct FineTransforms
+   {
+      DenseTensor point_matrices;   ///< set of point matrices
+      Array<Embedding> fine_coarse; ///< fine element positions
+   };
+
+   /** Remember the current layer of leaf elements before the mesh is refined.
+       Needed by GetRefinementTransforms(), must be called before Refine(). */
+   void MarkCoarseLevel();
+
+   /** After refinement, calculate the relation of each fine element to its
+       parent coarse element. The returned structure is owned by NCMesh. */
+   const FineTransforms& GetRefinementTransforms();
+
+   /** Remember the current layer of leaf elements before the mesh is derefined.
+       Needed by GetDerefinementTransforms(), must be called before Derefine().*/
+   void MarkFineLevel();
+
+   /** After derefinement, calculate the relations of previous fine elements
+       (some of which may no longer exist) to the current leaf elements.
+       The returned structure is owned by NCMesh. */
+   const FineTransforms& GetDerefinementTransforms();
+
+   /// Free all data created by the above 4 functions.
+   void ClearTransforms();
+
+
+   // Deprecated.
    struct FineTransform
    {
       int coarse_index; ///< coarse Mesh element index
@@ -158,20 +215,14 @@ public:
       bool IsIdentity() const { return !point_matrix.Data(); }
    };
 
-   /** Store the current layer of leaf elements before the mesh is refined.
-       This is later used by 'GetFineTransforms' to determine the relations of
-       the coarse and refined elements. */
-   void MarkCoarseLevel();
-
-   /// Free the internally stored array of coarse leaf elements.
+   // Deprecated.
    void ClearCoarseLevel() { coarse_elements.DeleteAll(); }
 
-   /** Return an array of structures 'FineTransform', one for each leaf
-       element. This data can be used to transfer functions from a previous
-       coarse level of the mesh (marked with 'MarkCoarseLevel') to a newly
-       refined state of the mesh.
-       NOTE: the caller needs to free the returned array. */
+   // Deprecated.
    FineTransform* GetFineTransforms();
+
+
+   // utility
 
    /** Given an edge (by its vertex indices v1 and v2) return the first
        (geometric) parent edge that exists in the Mesh or -1 if there is no such
@@ -416,6 +467,8 @@ protected: // implementation
 
    Array<ElemRefType> ref_stack; ///< stack of scheduled refinements (temporary)
 
+   Array<Derefinement> deref_list; // see GetDerefinementList, Derefine
+
    void RefineElement(Element* elem, char ref_type);
    void DerefineElement(Element* elem);
 
@@ -526,6 +579,8 @@ protected: // implementation
 
 
    // coarse to fine transformations
+
+   FineTransforms fine_transforms;
 
    struct Point
    {

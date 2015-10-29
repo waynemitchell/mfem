@@ -1296,6 +1296,20 @@ void NCMesh::DerefineElement(Element* elem)
 }
 
 
+const Array<Derefinement>& NCMesh::GetDerefinementList()
+{
+   deref_list.SetSize(0);
+
+   return deref_list;
+}
+
+
+void NCMesh::Derefine(const Array<int> &derefs)
+{
+
+}
+
+
 //// Mesh Interface ////////////////////////////////////////////////////////////
 
 void NCMesh::UpdateVertices()
@@ -2374,18 +2388,6 @@ void NCMesh::GetFineTransforms(Element* elem, int coarse_index,
    }
 }
 
-void NCMesh::MarkCoarseLevel()
-{
-   coarse_elements.SetSize(leaf_elements.Size());
-   coarse_elements.SetSize(0);
-
-   for (int i = 0; i < leaf_elements.Size(); i++)
-   {
-      Element* e = leaf_elements[i];
-      if (!IsGhost(e)) { coarse_elements.Append(e); }
-   }
-}
-
 NCMesh::FineTransform* NCMesh::GetFineTransforms()
 {
    if (!coarse_elements.Size())
@@ -2433,6 +2435,45 @@ NCMesh::FineTransform* NCMesh::GetFineTransforms()
    }
 
    return transforms;
+}
+
+
+//// Coarse/fine transformations ///////////////////////////////////////////////
+
+void NCMesh::MarkCoarseLevel()
+{
+   coarse_elements.SetSize(leaf_elements.Size());
+   coarse_elements.SetSize(0);
+
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      Element* e = leaf_elements[i];
+      if (!IsGhost(e)) { coarse_elements.Append(e); }
+   }
+}
+
+
+const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
+{
+   return fine_transforms;
+}
+
+void NCMesh::MarkFineLevel()
+{
+   fine_transforms.fine_coarse.SetSize(leaf_elements.Size());
+
+}
+
+const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
+{
+   return fine_transforms;
+}
+
+void NCMesh::ClearTransforms()
+{
+   coarse_elements.DeleteAll();
+   fine_transforms.fine_coarse.DeleteAll();
+   fine_transforms.point_matrices.SetSize(0, 0, 0);
 }
 
 

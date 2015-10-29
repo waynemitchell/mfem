@@ -2227,6 +2227,12 @@ void ParMesh::Rebalance()
 
    Swap(*pmesh2, false);
    delete pmesh2;
+
+   /*if (Nodes)
+   {
+      Nodes->FESpace()->Update();
+      HypreParMatrix* M = Nodes->ParFESpace()->RebalanceMatrix
+   }*/
 }
 
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
