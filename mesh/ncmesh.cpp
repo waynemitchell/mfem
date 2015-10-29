@@ -1296,17 +1296,70 @@ void NCMesh::DerefineElement(Element* elem)
 }
 
 
-const Array<Derefinement>& NCMesh::GetDerefinementList()
+void NCMesh::CollectDerefinements(Element* elem, Array<Connection> &list)
 {
-   deref_list.SetSize(0);
+   if (!elem->ref_type) { return; }
 
-   return deref_list;
+   int total = 0, ref = 0, ghost = 0;
+   for (int i = 0; i < 8; i++)
+   {
+      Element* ch = elem->child[i];
+      if (ch)
+      {
+         total++;
+         if (ch->ref_type) { ref++; break; }
+         if (IsGhost(ch)) { ghost++; }
+      }
+   }
+
+   if (!ref && ghost < total)
+   {
+      // can be derefined, add to list
+      int next_row = list.Size() ? (list.Last().from + 1) : 0;
+      for (int i = 0; i < 8; i++)
+      {
+         Element* ch = elem->child[i];
+         if (ch) { list.Append(Connection(next_row, ch->index)); }
+      }
+   }
+   else
+   {
+      for (int i = 0; i < 8; i++)
+      {
+         Element* ch = elem->child[i];
+         if (ch) { CollectDerefinements(ch, list); }
+      }
+   }
 }
 
+const Table& NCMesh::GetDerefinementTable()
+{
+   Array<Connection> list;
+   list.Reserve(leaf_elements.Size());
+
+   for (int i = 0; i < root_elements.Size(); i++)
+   {
+      CollectDerefinements(root_elements[i], list);
+   }
+
+   int size = list.Size() ? (list.Last().from + 1) : 0;
+   derefinements.MakeFromList(size, list);
+   return derefinements;
+}
 
 void NCMesh::Derefine(const Array<int> &derefs)
 {
+   for (int i = 0; i < derefs.Size(); i++)
+   {
+      int row = derefs[i];
+      MFEM_VERIFY(row < 0 || row >= derefinements.Size(),
+                  "invalid derefinement number");
 
+      Element* ch = leaf_elements[derefinements.GetRow(row)[0]];
+      DerefineElement(ch->parent);
+   }
+
+   Update();
 }
 
 
@@ -2455,25 +2508,25 @@ void NCMesh::MarkCoarseLevel()
 
 const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 {
-   return fine_transforms;
+   return transforms;
 }
 
 void NCMesh::MarkFineLevel()
 {
-   fine_transforms.fine_coarse.SetSize(leaf_elements.Size());
+   transforms.fine_coarse.SetSize(leaf_elements.Size());
 
 }
 
 const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
 {
-   return fine_transforms;
+   return transforms;
 }
 
 void NCMesh::ClearTransforms()
 {
    coarse_elements.DeleteAll();
-   fine_transforms.fine_coarse.DeleteAll();
-   fine_transforms.point_matrices.SetSize(0, 0, 0);
+   transforms.fine_coarse.DeleteAll();
+   transforms.point_matrices.SetSize(0, 0, 0);
 }
 
 

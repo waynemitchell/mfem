@@ -38,18 +38,6 @@ struct Refinement
       : index(index), ref_type(type) {}
 };
 
-/** Represents a coarsening opportunity. Up to 8 current Mesh elements can
-    be derefined to form a single large element. */
-struct Derefinement
-{
-   int ne;       ///< number of elements, ne <= 8
-   int index[8]; ///< indices of 'ne' elements to be removed
-   void* parent; ///< opaque pointer for NCMesh use
-
-   Derefinement(int ne, void* parent = NULL)
-      : ne(ne), parent(parent) { std::memset(index, 0, sizeof(index)); }
-};
-
 
 /** \brief A class for non-conforming AMR on higher-order hexahedral,
  *  quadrilateral or triangular meshes.
@@ -87,6 +75,8 @@ public:
    /// Deep copy of 'other'.
    NCMesh(const NCMesh &other);
 
+   virtual ~NCMesh();
+
    int Dimension() const { return Dim; }
 
    /** Perform the given batch of refinements. Please note that in the presence
@@ -100,8 +90,10 @@ public:
        than 'max_level'. */
    virtual void LimitNCLevel(int max_level);
 
-   /// Return a list of derefinement opportunities. The array is owned by NCMesh.
-   const Array<Derefinement>& GetDerefinementList();
+   /** Return a list of derefinement opportunities. Each row of the table
+       contains Mesh indices of existing elements that can be derefined to form
+       a single new coarse element. Row numbers are then passed to Derefine. */
+   const Table &GetDerefinementTable();
 
    /** Perform a subset of the possible derefinements (see GetDerefinementList).
        Note that if anisotropic refinements are present in the mesh, some of the
@@ -173,14 +165,14 @@ public:
 
    struct Embedding
    {
-      int coarse_element; ///< index of coarse mesh element
-      int matrix;         ///< index into FineCoarseList::point_matrices
+      int coarse_element; ///< element index in the coarse mesh
+      int matrix;         ///< index into FineTransforms::point_matrices
    };
 
    /// Defines the embedding of each fine element inside a coarse element.
    struct FineTransforms
    {
-      DenseTensor point_matrices;   ///< set of point matrices
+      DenseTensor point_matrices;  ///< matrices for IsoparametricTransformation
       Array<Embedding> fine_coarse; ///< fine element positions
    };
 
@@ -203,7 +195,6 @@ public:
 
    /// Free all data created by the above 4 functions.
    void ClearTransforms();
-
 
    // Deprecated.
    struct FineTransform
@@ -261,8 +252,6 @@ public:
    /// Print the space-filling curve formed by the leaf elements.
    void DebugLeafOrder() const;
 #endif
-
-   virtual ~NCMesh();
 
 
 protected: // interface for Mesh to be able to construct itself from NCMesh
@@ -467,7 +456,7 @@ protected: // implementation
 
    Array<ElemRefType> ref_stack; ///< stack of scheduled refinements (temporary)
 
-   Array<Derefinement> deref_list; // see GetDerefinementList, Derefine
+   Table derefinements; // possible derefinements, see GetDerefinementTable
 
    void RefineElement(Element* elem, char ref_type);
    void DerefineElement(Element* elem);
@@ -514,6 +503,8 @@ protected: // implementation
    bool NodeSetY2(Node* node, Node** n);
    bool NodeSetZ1(Node* node, Node** n);
    bool NodeSetZ2(Node* node, Node** n);
+
+   void CollectDerefinements(Element* elem, Array<Connection> &list);
 
 
    // face/edge lists
@@ -580,7 +571,7 @@ protected: // implementation
 
    // coarse to fine transformations
 
-   FineTransforms fine_transforms;
+   FineTransforms transforms;
 
    struct Point
    {
