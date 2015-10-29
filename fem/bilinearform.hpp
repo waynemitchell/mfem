@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -12,8 +12,17 @@
 #ifndef MFEM_BILINEARFORM
 #define MFEM_BILINEARFORM
 
+#include "../config/config.hpp"
+#include "../linalg/linalg.hpp"
+#include "fespace.hpp"
+#include "gridfunc.hpp"
+#include "linearform.hpp"
+#include "bilininteg.hpp"
 
-/** Class for bilinear form - "Matrix" with asociated FE space and
+namespace mfem
+{
+
+/** Class for bilinear form - "Matrix" with associated FE space and
     BLFIntegrators. */
 class BilinearForm : public Matrix
 {
@@ -52,14 +61,19 @@ protected:
 
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
-   { fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
-      precompute_sparsity = 0; }
+   {
+      fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
+      precompute_sparsity = 0;
+   }
 
 public:
    /// Creates bilinear form associated with FE space *f.
    BilinearForm(FiniteElementSpace *f);
 
    BilinearForm(FiniteElementSpace *f, BilinearForm *bf, int ps = 0);
+
+   /// Get the size of the BilinearForm as a square matrix.
+   int Size() const { return height; }
 
    /** For scalar FE spaces, precompute the sparsity pattern of the matrix
        (assuming dense element matrices) based on the types of integrators
@@ -69,7 +83,7 @@ public:
    /** Pre-allocate the internal SparseMatrix before assembly. If the flag
        'precompute sparsity' is set, the matrix is allocated in CSR format (i.e.
        finalized) and the entries are initialized with zeros. */
-   void AllocateMatrix() { if (mat == NULL) AllocMat(); }
+   void AllocateMatrix() { if (mat == NULL) { AllocMat(); } }
 
    Array<BilinearFormIntegrator*> *GetDBFI() { return &dbfi; }
 
@@ -81,10 +95,10 @@ public:
 
    const double &operator()(int i, int j) { return (*mat)(i,j); }
 
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns reference to a_{ij}.
    virtual double &Elem(int i, int j);
 
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns constant reference to a_{ij}.
    virtual const double &Elem(int i, int j) const;
 
    /// Matrix vector multiplication.
@@ -126,7 +140,10 @@ public:
    void AddBdrFaceIntegrator(BilinearFormIntegrator *bfi);
 
    void operator=(const double a)
-   { if (mat != NULL) *mat = a; if (mat_e != NULL) *mat_e = a; }
+   {
+      if (mat != NULL) { *mat = a; }
+      if (mat_e != NULL) { *mat_e = a; }
+   }
 
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
@@ -136,6 +153,14 @@ public:
        the conforming prolongation of the FE space. After this call the
        BilinearForm becomes an operator on the conforming FE space. */
    void ConformingAssemble();
+
+   /** A shortcut for converting the whole linear system to conforming DOFs. */
+   void ConformingAssemble(GridFunction& sol, LinearForm& rhs)
+   {
+      ConformingAssemble();
+      rhs.ConformingAssemble();
+      sol.ConformingProject();
+   }
 
    /// Compute and store internally all element matrices.
    void ComputeElementMatrices();
@@ -210,14 +235,11 @@ protected:
 
    Array<BilinearFormIntegrator*> dom;
    Array<BilinearFormIntegrator*> bdr;
-
-   int width;
+   Array<BilinearFormIntegrator*> skt; // trace face integrators
 
 public:
    MixedBilinearForm (FiniteElementSpace *tr_fes,
                       FiniteElementSpace *te_fes);
-
-   int Width() const { return width; };
 
    virtual double& Elem (int i, int j);
 
@@ -232,7 +254,7 @@ public:
                                   const double a = 1.0) const;
 
    virtual void MultTranspose (const Vector & x, Vector & y) const
-   { y = 0.0; AddMultTranspose (x, y); };
+   { y = 0.0; AddMultTranspose (x, y); }
 
    virtual MatrixInverse * Inverse() const;
 
@@ -243,26 +265,43 @@ public:
        test and trial spaces, respectively. */
    void GetBlocks(Array2D<SparseMatrix *> &blocks) const;
 
-   const SparseMatrix &SpMat() const { return *mat; };
-   SparseMatrix &SpMat() { return *mat; };
+   const SparseMatrix &SpMat() const { return *mat; }
+   SparseMatrix &SpMat() { return *mat; }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
 
    void AddDomainIntegrator (BilinearFormIntegrator * bfi);
 
    void AddBoundaryIntegrator (BilinearFormIntegrator * bfi);
 
+   /** Add a trace face integrator. This type of integrator assembles terms
+       over all faces of the mesh using the face FE from the trial space and the
+       two adjacent volume FEs from the test space. */
+   void AddTraceFaceIntegrator (BilinearFormIntegrator * bfi);
+
    Array<BilinearFormIntegrator*> *GetDBFI() { return &dom; }
 
    Array<BilinearFormIntegrator*> *GetBBFI() { return &bdr; }
 
+   Array<BilinearFormIntegrator*> *GetTFBFI() { return &skt; }
+
    void operator= (const double a) { *mat = a; }
 
-   virtual void Assemble (int skip_zeros = 1);
+   void Assemble (int skip_zeros = 1);
 
-   void EliminateTrialDofs (Array<int> &bdr_attr_is_ess,
-                            Vector &sol, Vector &rhs);
+   /** For partially conforming trial and/or test FE spaces, complete the
+       assembly process by performing A := P2^t A P1 where A is the internal
+       sparse matrix; P1 and P2 are the conforming prolongation matrices of the
+       trial and test FE spaces, respectively. After this call the
+       MixedBilinearForm becomes an operator on the conforming FE spaces. */
+   void ConformingAssemble();
 
-   virtual void EliminateTestDofs (Array<int> &bdr_attr_is_ess);
+   void EliminateTrialDofs(Array<int> &bdr_attr_is_ess,
+                           Vector &sol, Vector &rhs);
+
+   void EliminateEssentialBCFromTrialDofs(Array<int> &marked_vdofs,
+                                          Vector &sol, Vector &rhs);
+
+   virtual void EliminateTestDofs(Array<int> &bdr_attr_is_ess);
 
    void Update();
 
@@ -314,5 +353,7 @@ public:
 
    virtual void Assemble(int skip_zeros = 1);
 };
+
+}
 
 #endif

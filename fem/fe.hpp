@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -12,12 +12,23 @@
 #ifndef MFEM_FE
 #define MFEM_FE
 
+#include "../config/config.hpp"
+#include "../general/array.hpp"
+#include "../linalg/linalg.hpp"
+#include "intrules.hpp"
+#include "geom.hpp"
+
+namespace mfem
+{
+
 // Base and derived classes for finite elements
 
 /// Describes the space on each element
-class FunctionSpace {
+class FunctionSpace
+{
 public:
-   enum {
+   enum
+   {
       Pk, // polynomials of order k
       Qk, // tensor products of polynomials of order k
       rQk // refined tensor products of polynomials of order k
@@ -33,11 +44,31 @@ class KnotVector;
 class FiniteElement
 {
 protected:
-   int Dim, GeomType, Dof, Order, FuncSpace, RangeType;
+   int Dim, GeomType, Dof, Order, FuncSpace, RangeType, MapType;
    IntegrationRule Nodes;
 
 public:
+   /// Enumeration for RangeType
    enum { SCALAR, VECTOR };
+
+   /** Enumeration for MapType: defines how reference functions, uh(xh), are
+       mapped to functions on a general element, u(x):
+
+       VALUE       u(x) = uh(xh)
+       INTEGRAL    u(x) = (1/w) * uh(xh)
+       H_DIV       u(x) = (J/w) * uh(xh)
+       H_CURL      u(x) = J^{-t} * uh(xh)           (square J)
+       H_CURL      u(x) = J*(J^t*J)^{-1} * uh(xh)   (general J)
+
+       where
+
+       x = T(xh) is the image of the reference point xh,
+       J = J(xh) is the Jacobian matrix of the transformation T, and
+       w = w(xh) = / det(J),           for square J,
+       .           \ det(J^t*J)^{1/2}, for general J,
+       is the transformation weight factor.
+   */
+   enum { VALUE, INTEGRAL, H_DIV, H_CURL };
 
    /** Construct Finite Element with given
        (D)im      - space dimension,
@@ -63,6 +94,8 @@ public:
    int Space() const { return FuncSpace; }
 
    int GetRangeType() const { return RangeType; }
+
+   int GetMapType() const { return MapType; }
 
    /** pure virtual function which evaluates the values of all
        shape functions at a given point ip and stores
@@ -183,6 +216,12 @@ public:
 #endif
    { }
 
+   void SetMapType(int M)
+   {
+      MFEM_VERIFY(M == VALUE || M == INTEGRAL, "unknown MapType");
+      MapType = M;
+   }
+
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
                                        DenseMatrix &I) const
    { NodalLocalInterpolation (Trans, I, *this); }
@@ -204,6 +243,7 @@ public:
                            ElementTransformation &Trans,
                            DenseMatrix &div) const;
 };
+
 
 class PositiveFiniteElement : public FiniteElement
 {
@@ -279,14 +319,15 @@ protected:
                               DenseMatrix &I) const;
 
 public:
-   VectorFiniteElement (int D, int G, int Do, int O,
+   VectorFiniteElement (int D, int G, int Do, int O, int M,
                         int F = FunctionSpace::Pk) :
 #ifdef MFEM_THREAD_SAFE
       FiniteElement(D, G, Do, O, F)
+   { RangeType = VECTOR; MapType = M; }
 #else
       FiniteElement(D, G, Do, O, F), Jinv(D), vshape(Do, D)
+   { RangeType = VECTOR; MapType = M; }
 #endif
-   { RangeType = VECTOR; }
 };
 
 class PointFiniteElement : public NodalFiniteElement
@@ -364,7 +405,7 @@ public:
                              DenseMatrix &h) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const
    { dofs = 0.0; dofs(vertex) = 1.0; }
-//      { dofs = 1.0; }
+   //      { dofs = 1.0; }
 };
 
 /// Class for linear FE on triangle with nodes at the 3 "Gaussian" points
@@ -519,7 +560,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-//   virtual void ProjectDelta(int vertex, Vector &dofs) const { dofs = 1.; }
+   //   virtual void ProjectDelta(int vertex, Vector &dofs) const { dofs = 1.; }
 };
 
 class BiCubic2DFiniteElement : public NodalFiniteElement
@@ -706,7 +747,7 @@ public:
 
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_RT(Trans, shape); };
+   { CalcVShape_RT(Trans, shape); }
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
@@ -733,7 +774,7 @@ public:
 
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_RT(Trans, shape); };
+   { CalcVShape_RT(Trans, shape); }
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
@@ -760,7 +801,7 @@ public:
 
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_RT(Trans, shape); };
+   { CalcVShape_RT(Trans, shape); }
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
@@ -787,7 +828,7 @@ public:
 
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_RT(Trans, shape); };
+   { CalcVShape_RT(Trans, shape); }
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
@@ -813,7 +854,7 @@ public:
 
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_RT(Trans, shape); };
+   { CalcVShape_RT(Trans, shape); }
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
@@ -834,7 +875,7 @@ public:
 
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_RT(Trans, shape); };
+   { CalcVShape_RT(Trans, shape); }
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
@@ -1039,7 +1080,7 @@ public:
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_ND(Trans, shape); };
+   { CalcVShape_ND(Trans, shape); }
    virtual void CalcCurlShape(const IntegrationPoint &ip,
                               DenseMatrix &curl_shape) const;
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
@@ -1061,7 +1102,7 @@ public:
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_ND(Trans, shape); };
+   { CalcVShape_ND(Trans, shape); }
    virtual void CalcCurlShape(const IntegrationPoint &ip,
                               DenseMatrix &curl_shape) const;
    virtual void GetLocalInterpolation (ElementTransformation &Trans,
@@ -1085,7 +1126,7 @@ public:
 
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_RT(Trans, shape); };
+   { CalcVShape_RT(Trans, shape); }
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
@@ -1113,7 +1154,7 @@ public:
 
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_RT(Trans, shape); };
+   { CalcVShape_RT(Trans, shape); }
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
@@ -1141,7 +1182,7 @@ public:
 
    virtual void CalcVShape(ElementTransformation &Trans,
                            DenseMatrix &shape) const
-   { CalcVShape_RT(Trans, shape); };
+   { CalcVShape_RT(Trans, shape); }
 
    virtual void CalcDivShape(const IntegrationPoint &ip,
                              Vector &divshape) const;
@@ -1173,8 +1214,8 @@ public:
    {
    private:
       int mode; // 0 - use change of basis, O(p^2) Evals
-                // 1 - use barycentric Lagrangian interpolation, O(p) Evals
-      DenseMatrix A;
+      // 1 - use barycentric Lagrangian interpolation, O(p) Evals
+      DenseMatrixInverse Ai;
       mutable Vector x, w;
 
    public:
@@ -1311,7 +1352,7 @@ public:
    const Array<int> &GetDofMap() const { return dof_map; }
 };
 
-class H1Pos_SegmentElement : public FiniteElement
+class H1Pos_SegmentElement : public PositiveFiniteElement
 {
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -1328,14 +1369,11 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   using FiniteElement::Project;
-   virtual void Project(Coefficient &coeff,
-                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
-class H1Pos_QuadrilateralElement : public FiniteElement
+class H1Pos_QuadrilateralElement : public PositiveFiniteElement
 {
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -1349,14 +1387,11 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   using FiniteElement::Project;
-   virtual void Project(Coefficient &coeff,
-                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
 
-class H1Pos_HexahedronElement : public FiniteElement
+class H1Pos_HexahedronElement : public PositiveFiniteElement
 {
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -1370,9 +1405,6 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   using FiniteElement::Project;
-   virtual void Project(Coefficient &coeff,
-                        ElementTransformation &Trans, Vector &dofs) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
 };
 
@@ -1384,7 +1416,7 @@ private:
    mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
    mutable DenseMatrix du;
 #endif
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    H1_TriangleElement(const int p);
@@ -1402,7 +1434,7 @@ private:
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
    mutable DenseMatrix du;
 #endif
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    H1_TetrahedronElement(const int p);
@@ -1410,6 +1442,9 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
 };
+
+
+// TODO: define H1Pos_ FEs on triangle and tetrahedron
 
 
 class L2_SegmentElement : public NodalFiniteElement
@@ -1443,15 +1478,6 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
-};
-
-
-class L2Vol_SegmentElement : public L2_SegmentElement
-{
-public:
-   L2Vol_SegmentElement(const int p) : L2_SegmentElement(p) { }
-   virtual void GetLocalInterpolation(ElementTransformation &Trans,
-                                      DenseMatrix &I) const;
 };
 
 
@@ -1531,7 +1557,7 @@ private:
    mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
    mutable DenseMatrix du;
 #endif
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    L2_TriangleElement(const int p, const int _type = 0);
@@ -1567,7 +1593,7 @@ private:
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
    mutable DenseMatrix du;
 #endif
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    L2_TetrahedronElement(const int p, const int _type = 0);
@@ -1680,7 +1706,7 @@ class RT_TriangleElement : public VectorFiniteElement
    mutable Vector divu;
 #endif
    Array<int> dof2nk;
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    RT_TriangleElement(const int p);
@@ -1719,7 +1745,7 @@ class RT_TetrahedronElement : public VectorFiniteElement
    mutable Vector divu;
 #endif
    Array<int> dof2nk;
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    RT_TetrahedronElement(const int p);
@@ -1833,7 +1859,7 @@ class ND_TetrahedronElement : public VectorFiniteElement
    mutable DenseMatrix u;
 #endif
    Array<int> dof2tk;
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    ND_TetrahedronElement(const int p);
@@ -1871,7 +1897,7 @@ class ND_TriangleElement : public VectorFiniteElement
    mutable DenseMatrix u;
 #endif
    Array<int> dof2tk;
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    ND_TriangleElement(const int p);
@@ -1975,5 +2001,7 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
 };
+
+}
 
 #endif

@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -11,6 +11,12 @@
 
 #ifndef MFEM_LININTEG
 #define MFEM_LININTEG
+
+#include "../config/config.hpp"
+#include "coefficient.hpp"
+
+namespace mfem
+{
 
 /// Abstract base class LinearFormIntegrator
 class LinearFormIntegrator
@@ -33,7 +39,7 @@ public:
 
    void SetIntRule(const IntegrationRule *ir) { IntRule = ir; }
 
-   virtual ~LinearFormIntegrator() { };
+   virtual ~LinearFormIntegrator() { }
 };
 
 
@@ -46,8 +52,8 @@ class DomainLFIntegrator : public LinearFormIntegrator
 public:
    /// Constructs a domain integrator with a given Coefficient
    DomainLFIntegrator(Coefficient &QF, int a = 2, int b = 0)
-      // the old default was a = 1, b = 1
-      // for simple elliptic problems a = 2, b = -2 is ok
+   // the old default was a = 1, b = 1
+   // for simple elliptic problems a = 2, b = -2 is ok
       : Q(QF), oa(a), ob(b) { }
 
    /// Constructs a domain integrator with a given Coefficient
@@ -302,5 +308,7 @@ public:
                                        FaceElementTransformations &Tr,
                                        Vector &elvect);
 };
+
+}
 
 #endif

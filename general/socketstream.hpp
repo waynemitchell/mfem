@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -12,7 +12,11 @@
 #ifndef MFEM_SOCKETSTREAM
 #define MFEM_SOCKETSTREAM
 
+#include "../config/config.hpp"
 #include <iostream>
+
+namespace mfem
+{
 
 class socketbuf : public std::streambuf
 {
@@ -87,7 +91,13 @@ public:
    {
       int err = __buf.open(hostname, port);
       if (err)
+      {
          setstate(std::ios::failbit);
+      }
+      else
+      {
+         clear();
+      }
       return err;
    }
 
@@ -115,5 +125,7 @@ public:
 
    ~socketserver() { close(); }
 };
+
+}
 
 #endif

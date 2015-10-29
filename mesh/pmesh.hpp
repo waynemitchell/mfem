@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -11,6 +11,17 @@
 
 #ifndef MFEM_PMESH
 #define MFEM_PMESH
+
+#include "../config/config.hpp"
+
+#ifdef MFEM_USE_MPI
+
+#include "../general/communication.hpp"
+#include "mesh.hpp"
+#include <iostream>
+
+namespace mfem
+{
 
 /// Class for parallel meshes
 class ParMesh : public Mesh
@@ -51,12 +62,19 @@ private:
    void DeleteFaceNbrData();
 
 public:
+   /** Copy constructor. Performs a deep copy of (almost) all data, so that the
+       source mesh can be modified (e.g. deleted, refined) without affecting the
+       new mesh. The source mesh has to be in a NORMAL, i.e. not TWO_LEVEL_*,
+       state. If 'copy_nodes' is false, use a shallow (pointer) copy for the
+       nodes, if present. */
+   explicit ParMesh(const ParMesh &pmesh, bool copy_nodes = true);
+
    ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_ = NULL,
            int part_method = 1);
 
-   MPI_Comm GetComm() { return MyComm; }
-   int GetNRanks() { return NRanks; }
-   int GetMyRank() { return MyRank; }
+   MPI_Comm GetComm() const { return MyComm; }
+   int GetNRanks() const { return NRanks; }
+   int GetMyRank() const { return MyRank; }
 
    GroupTopology gtopo;
 
@@ -111,26 +129,30 @@ public:
 
    /** Print the part of the mesh in the calling processor adding the interface
        as boundary (for visualization purposes) using the default format. */
-   virtual void Print(ostream &out = cout) const;
+   virtual void Print(std::ostream &out = std::cout) const;
 
    /** Print the part of the mesh in the calling processor adding the interface
        as boundary (for visualization purposes) using Netgen/Truegrid format .*/
-   virtual void PrintXG(ostream &out = cout) const;
+   virtual void PrintXG(std::ostream &out = std::cout) const;
 
    /** Write the mesh to the stream 'out' on Process 0 in a form
        suitable for visualization: the mesh is written as a disjoint
        mesh and the shared boundary is added to the actual boundary;
        both the element and boundary attributes are set to the
        precessor number.  */
-   void PrintAsOne(ostream &out = cout);
+   void PrintAsOne(std::ostream &out = std::cout);
 
    /// Old mesh format (Netgen/Truegrid) version of 'PrintAsOne'
-   void PrintAsOneXG(ostream &out = cout);
+   void PrintAsOneXG(std::ostream &out = std::cout);
 
    /// Print various parallel mesh stats
-   void PrintInfo(ostream &out = cout);
+   void PrintInfo(std::ostream &out = std::cout);
 
    virtual ~ParMesh();
 };
+
+}
+
+#endif // MFEM_USE_MPI
 
 #endif

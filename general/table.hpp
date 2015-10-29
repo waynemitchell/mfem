@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -15,6 +15,10 @@
 // Data types for Table.
 
 #include "mem_alloc.hpp"
+#include "array.hpp"
+
+namespace mfem
+{
 
 /** Data type Table. Table stores the connectivity of elements of TYPE I
     to elements of TYPE II, for example, it may be Element-To-Face
@@ -34,6 +38,9 @@ protected:
 public:
    /// Creates an empty table
    Table() { size = -1; I = J = NULL; }
+
+   /// Copy constructor
+   Table(const Table &);
 
    /// Create a table with a fixed number of connections.
    explicit Table (int dim, int connections_per_row = 3);
@@ -80,10 +87,10 @@ public:
    const int *GetRow(int i) const { return J+I[i]; }
    int *GetRow(int i) { return J+I[i]; }
 
-   int *GetI() { return I; };
-   int *GetJ() { return J; };
-   const int *GetI() const { return I; };
-   const int *GetJ() const { return J; };
+   int *GetI() { return I; }
+   int *GetJ() { return J; }
+   const int *GetI() const { return I; }
+   const int *GetJ() const { return J; }
 
    void SetIJ(int *newI, int *newJ, int newsize = -1);
 
@@ -108,10 +115,10 @@ public:
    void LoseData() { size = -1; I = J = NULL; }
 
    /// Prints the table to stream out.
-   void Print(ostream & out = cout, int width = 4) const;
-   void PrintMatlab(ostream & out) const;
+   void Print(std::ostream & out = std::cout, int width = 4) const;
+   void PrintMatlab(std::ostream & out) const;
 
-   void Save(ostream & out) const;
+   void Save(std::ostream & out) const;
    void Copy(Table & copy) const;
    void Swap(Table & other);
 
@@ -121,14 +128,22 @@ public:
    ~Table();
 };
 
+/// Specialization of the template function Swap<> for class Table
+template <> inline void Swap<Table>(Table &a, Table &b)
+{
+   a.Swap(b);
+}
+
 ///  Transpose a Table
 void Transpose (const Table &A, Table &At, int _ncols_A = -1);
+Table * Transpose (const Table &A);
 
 ///  Transpose an Array<int>
 void Transpose(const Array<int> &A, Table &At, int _ncols_A = -1);
 
 ///  C = A * B  (as boolean matrices)
 void Mult (const Table &A, const Table &B, Table &C);
+Table * Mult (const Table &A, const Table &B);
 
 
 /** Data type STable. STable is similar to Table, but it's for symmetric
@@ -179,12 +194,12 @@ private:
 
 public:
    DSTable(int nrows);
-   int NumberOfRows() const { return(NumRows); }
-   int NumberOfEntries() const { return(NumEntries); }
+   int NumberOfRows() const { return (NumRows); }
+   int NumberOfEntries() const { return (NumEntries); }
    int Push(int a, int b)
-   { return((a <= b) ? Push_(a, b) : Push_(b, a)); }
+   { return ((a <= b) ? Push_(a, b) : Push_(b, a)); }
    int operator()(int a, int b) const
-   { return((a <= b) ? Index(a, b) : Index(b, a)); }
+   { return ((a <= b) ? Index(a, b) : Index(b, a)); }
    ~DSTable();
 
    class RowIterator
@@ -193,11 +208,13 @@ public:
       Node *n;
    public:
       RowIterator (const DSTable &t, int r) { n = t.Rows[r]; }
-      int operator!() { return(n != NULL); }
+      int operator!() { return (n != NULL); }
       void operator++() { n = n->Prev; }
-      int Column() { return(n->Column); }
-      int Index() { return(n->Index); }
+      int Column() { return (n->Column); }
+      int Index() { return (n->Index); }
    };
 };
+
+}
 
 #endif

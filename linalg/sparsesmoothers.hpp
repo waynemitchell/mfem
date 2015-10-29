@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -11,6 +11,12 @@
 
 #ifndef MFEM_SPARSEMATSMOOTHERS
 #define MFEM_SPARSEMATSMOOTHERS
+
+#include "../config/config.hpp"
+#include "sparsemat.hpp"
+
+namespace mfem
+{
 
 class SparseSmoother : public MatrixInverse
 {
@@ -49,7 +55,7 @@ public:
 class DSmoother : public SparseSmoother
 {
 protected:
-   int type; // 0, 1 - scaled Jacobi, scaled l1-Jacobi
+   int type; // 0, 1, 2 - scaled Jacobi, scaled l1-Jacobi, scaled lumped-Jacobi
    double scale;
    int iterations;
 
@@ -66,5 +72,7 @@ public:
    /// Matrix vector multiplication with Jacobi smoother.
    virtual void Mult(const Vector &x, Vector &y) const;
 };
+
+}
 
 #endif

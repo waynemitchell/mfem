@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -11,6 +11,12 @@
 
 #ifndef MFEM_TETRAHEDRON
 #define MFEM_TETRAHEDRON
+
+#include "../config/config.hpp"
+#include "element.hpp"
+
+namespace mfem
+{
 
 /// Data type tetrahedron element
 class Tetrahedron : public Element
@@ -37,7 +43,7 @@ public:
    Tetrahedron() : Element(Geometry::TETRAHEDRON) { refinement_flag = 0; }
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
-   Tetrahedron(int *ind, int attr = 1);
+   Tetrahedron(const int *ind, int attr = 1);
 
    /// Constructs tetrahedron by specifying the indices and the attribute.
    Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr = 1);
@@ -73,9 +79,15 @@ public:
 
    virtual int GetNVertices() const { return 4; }
 
-   virtual int GetNEdges() const { return(6); }
+   virtual int GetNEdges() const { return (6); }
 
-   virtual const int *GetEdgeVertices(int ei) const { return(edges[ei]); }
+   virtual const int *GetEdgeVertices(int ei) const { return (edges[ei]); }
+
+   virtual int GetNFaces(int &nFaceVertices) const
+   { nFaceVertices = 3; return 4; }
+
+   virtual const int *GetFaceVertices(int fi) const
+   { MFEM_ABORT("not implemented"); return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const;
 
@@ -83,5 +95,7 @@ public:
 };
 
 extern Linear3DFiniteElement TetrahedronFE;
+
+}
 
 #endif

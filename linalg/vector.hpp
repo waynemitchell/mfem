@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -14,8 +14,16 @@
 
 // Data type vector
 
-#include <math.h>
 #include "../general/array.hpp"
+#include <cmath>
+#include <iostream>
+#if defined(_MSC_VER) && (_MSC_VER < 1800)
+#include <float.h>
+#define isfinite _finite
+#endif
+
+namespace mfem
+{
 
 /** Count the number of entries in an array of doubles for which isfinite
     is false, i.e. the entry is a NaN or +/-Inf. */
@@ -32,7 +40,7 @@ protected:
 public:
 
    /// Default constructor for Vector. Sets size = 0 and data = NULL
-   Vector () { allocsize = size = 0; data = 0; };
+   Vector () { allocsize = size = 0; data = 0; }
 
    /// Copy constructor
    Vector(const Vector &);
@@ -43,14 +51,14 @@ public:
    Vector (double *_data, int _size)
    { data = _data; size = _size; allocsize = -size; }
 
-   /// Reads a vector from multpile files
-   void Load (istream ** in, int np, int * dim);
+   /// Reads a vector from multiple files
+   void Load (std::istream ** in, int np, int * dim);
 
    /// Load a vector from an input stream.
-   void Load(istream &in, int Size);
+   void Load(std::istream &in, int Size);
 
    /// Load a vector from an input stream.
-   void Load(istream &in) { int s; in >> s; Load (in, s); };
+   void Load(std::istream &in) { int s; in >> s; Load (in, s); }
 
    /// Resizes the vector if the new size is different
    void SetSize(int s);
@@ -61,7 +69,10 @@ public:
    { data = d; size = s; allocsize = -s; }
 
    void NewDataAndSize(double *d, int s)
-   { if (allocsize > 0) delete [] data; SetDataAndSize(d, s); }
+   {
+      if (allocsize > 0) { delete [] data; }
+      SetDataAndSize(d, s);
+   }
 
    void MakeDataOwner() { allocsize = abs(allocsize); }
 
@@ -69,7 +80,7 @@ public:
    void Destroy();
 
    /// Returns the size of the vector.
-   inline int Size() const {return size;};
+   inline int Size() const { return size; }
 
    // double *GetData() { return data; }
 
@@ -79,8 +90,14 @@ public:
 
    inline operator const double *() const { return data; }
 
-   /// Changes the ownership of the the data
-   inline void StealData(double **p) { *p = data; data = 0; size = 0; }
+   inline bool OwnsData() const { return (allocsize > 0); }
+
+   /// Changes the ownership of the data; after the call the Vector is empty
+   inline void StealData(double **p)
+   { *p = data; data = 0; size = allocsize = 0; }
+
+   /// Changes the ownership of the data; after the call the Vector is empty
+   inline double *StealData() { double *p; StealData(&p); return p; }
 
    /// Sets value in vector. Index i = 0 .. size-1
    double & Elem (int i);
@@ -128,8 +145,10 @@ public:
    /// (*this) = -(*this)
    void Neg();
 
-   /// Swap v1 and v2.
-   friend void swap(Vector *v1, Vector *v2);
+   /// Swap the contents of two Vectors
+   inline void Swap(Vector &other);
+   /// Swap v1 and v2 (deprecated).
+   friend void swap(Vector *v1, Vector *v2) { v1->Swap(*v2); }
 
    /// Do v = v1 + v2.
    friend void add(const Vector &v1, const Vector &v2, Vector &v);
@@ -167,44 +186,57 @@ public:
                          const Vector & elemvect);
 
    /// Prints vector to stream out.
-   void Print(ostream & out = cout, int width = 8) const;
+   void Print(std::ostream & out = std::cout, int width = 8) const;
 
    /// Prints vector to stream out in HYPRE_Vector format.
-   void Print_HYPRE(ostream &out) const;
+   void Print_HYPRE(std::ostream &out) const;
 
    /// Set random values in the vector.
    void Randomize(int seed = 0);
    /// Returns the l2 norm of the vector.
-   double Norml2();
+   double Norml2() const;
    /// Returns the l_infinity norm of the vector.
-   double Normlinf();
+   double Normlinf() const;
    /// Returns the l_1 norm of the vector.
-   double Norml1();
+   double Norml1() const;
+   /// Returns the l_p norm of the vector.
+   double Normlp(double p) const;
    /// Returns the maximal element of the vector.
-   double Max();
+   double Max() const;
    /// Returns the minimal element of the vector.
-   double Min();
+   double Min() const;
    /// Return the sum of the vector entries
-   double Sum();
+   double Sum() const;
    /// Compute the Euclidian distance to another vector.
    double DistanceTo (const double *p) const;
 
    /** Count the number of entries in the Vector for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */
-   int CheckFinite() const { return ::CheckFinite(data, size); }
+   int CheckFinite() const { return mfem::CheckFinite(data, size); }
 
    /// Destroys vector.
-   ~Vector ();
+   virtual ~Vector ();
 };
 
 // Inline methods
 
 inline int CheckFinite(const double *v, const int n)
 {
+   // isfinite didn't appear in a standard until C99, and later C++11
+   // It wasn't standard in C89 or C++98.  PGI as of 14.7 still defines
+   // it as a macro, which sort of screws up everybody else.
    int bad = 0;
    for (int i = 0; i < n; i++)
+   {
+#ifdef isfinite
       if (!isfinite(v[i]))
+#else
+      if (!std::isfinite(v[i]))
+#endif
+      {
          bad++;
+      }
+   }
    return bad;
 }
 
@@ -225,14 +257,18 @@ inline Vector::Vector (int s)
 inline void Vector::SetSize(int s)
 {
    if (s == size)
+   {
       return;
+   }
    if (s <= abs(allocsize))
    {
       size = s;
       return;
    }
    if (allocsize > 0)
+   {
       delete [] data;
+   }
    allocsize = size = s;
    data = new double[s];
 }
@@ -240,45 +276,63 @@ inline void Vector::SetSize(int s)
 inline void Vector::Destroy()
 {
    if (allocsize > 0)
+   {
       delete [] data;
+   }
    allocsize = size = 0;
    data = NULL;
 }
 
 inline double & Vector::operator() (int i)
 {
-#ifdef MFEM_DEBUG
-   if (data == 0 || i < 0 || i >= size)
-      mfem_error ("Vector::operator()");
-#endif
+   MFEM_ASSERT(data && i >= 0 && i < size,
+               "index [" << i << "] is out of range [0," << size << ")");
 
    return data[i];
 }
 
 inline const double & Vector::operator() (int i) const
 {
-#ifdef MFEM_DEBUG
-   if (data == 0 || i < 0 || i >= size)
-      mfem_error ("Vector::operator() const");
-#endif
+   MFEM_ASSERT(data && i >= 0 && i < size,
+               "index [" << i << "] is out of range [0," << size << ")");
 
    return data[i];
+}
+
+inline void Vector::Swap(Vector &other)
+{
+   mfem::Swap(size, other.size);
+   mfem::Swap(allocsize, other.allocsize);
+   mfem::Swap(data, other.data);
+}
+
+/// Specialization of the template function Swap<> for class Vector
+template<> inline void Swap<Vector>(Vector &a, Vector &b)
+{
+   a.Swap(b);
 }
 
 inline Vector::~Vector()
 {
    if (allocsize > 0)
+   {
       delete [] data;
+   }
 }
 
 inline double Distance(const double *x, const double *y, const int n)
 {
+   using namespace std;
    double d = 0.0;
 
    for (int i = 0; i < n; i++)
+   {
       d += (x[i]-y[i])*(x[i]-y[i]);
+   }
 
    return sqrt(d);
+}
+
 }
 
 #endif

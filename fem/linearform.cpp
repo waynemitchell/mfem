@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -13,6 +13,8 @@
 
 #include "fem.hpp"
 
+namespace mfem
+{
 
 void LinearForm::AddDomainIntegrator (LinearFormIntegrator * lfi)
 {
@@ -84,11 +86,28 @@ void LinearForm::Assemble()
    }
 }
 
-void LinearForm::ConformingAssemble(Vector &b)
+void LinearForm::ConformingAssemble(Vector &b) const
 {
    SparseMatrix *P = fes->GetConformingProlongation();
-   b.SetSize(P->Width());
-   P->MultTranspose(*this, b);
+   if (P)
+   {
+      b.SetSize(P->Width());
+      P->MultTranspose(*this, b);
+   }
+   else
+   {
+      b = *this;
+   }
+}
+
+void LinearForm::ConformingAssemble()
+{
+   if (fes->GetConformingProlongation())
+   {
+      Vector b;
+      ConformingAssemble(b);
+      static_cast<Vector&>(*this) = b;
+   }
 }
 
 void LinearForm::Update(FiniteElementSpace *f, Vector &v, int v_offset)
@@ -100,7 +119,9 @@ void LinearForm::Update(FiniteElementSpace *f, Vector &v, int v_offset)
 LinearForm::~LinearForm()
 {
    int k;
-   for (k=0; k < dlfi.Size(); k++) delete dlfi[k];
-   for (k=0; k < blfi.Size(); k++) delete blfi[k];
-   for (k=0; k < flfi.Size(); k++) delete flfi[k];
+   for (k=0; k < dlfi.Size(); k++) { delete dlfi[k]; }
+   for (k=0; k < blfi.Size(); k++) { delete blfi[k]; }
+   for (k=0; k < flfi.Size(); k++) { delete flfi[k]; }
+}
+
 }

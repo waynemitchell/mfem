@@ -3,15 +3,21 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config/config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+#include "../general/sort_pairs.hpp"
+
+namespace mfem
+{
 
 void ParBilinearForm::pAllocMat()
 {
@@ -20,9 +26,13 @@ void ParBilinearForm::pAllocMat()
    if (precompute_sparsity == 0 || fes->GetVDim() > 1)
    {
       if (keep_nbr_block)
-         mat = new SparseMatrix(size + nbr_size, size + nbr_size);
+      {
+         mat = new SparseMatrix(height + nbr_size, width + nbr_size);
+      }
       else
-         mat = new SparseMatrix(size, size + nbr_size);
+      {
+         mat = new SparseMatrix(height, width + nbr_size);
+      }
       return;
    }
 
@@ -43,13 +53,21 @@ void ParBilinearForm::pAllocMat()
 
       int *I = elem_dof.GetI(), *J = elem_dof.GetJ();
       for (int i = 0; i <= s1; i++)
+      {
          I[i] = I1[i];
+      }
       for (int j = 0; j < nnz1; j++)
+      {
          J[j] = J1[j];
+      }
       for (int i = 0; i <= s2; i++)
+      {
          I[s1+i] = I2[i] + nnz1;
+      }
       for (int j = 0; j < nnz2; j++)
-         J[nnz1+j] = J2[j] + size;
+      {
+         J[nnz1+j] = J2[j] + height;
+      }
    }
    //   dof_elem x  elem_face x face_elem x elem_dof  (keep_nbr_block = true)
    // ldof_lelem x lelem_face x face_elem x elem_dof  (keep_nbr_block = false)
@@ -59,19 +77,25 @@ void ParBilinearForm::pAllocMat()
       {
          Table *face_elem = pfes->GetParMesh()->GetFaceToAllElementTable();
          if (nbr_size > 0)
-            ::Mult(*face_elem, elem_dof, face_dof);
+         {
+            mfem::Mult(*face_elem, elem_dof, face_dof);
+         }
          else
-            ::Mult(*face_elem, lelem_ldof, face_dof);
+         {
+            mfem::Mult(*face_elem, lelem_ldof, face_dof);
+         }
          delete face_elem;
          if (nbr_size > 0)
+         {
             elem_dof.Clear();
+         }
       }
 
       if (keep_nbr_block)
       {
          Table dof_face;
-         Transpose(face_dof, dof_face, size + nbr_size);
-         ::Mult(dof_face, face_dof, dof_dof);
+         Transpose(face_dof, dof_face, height + nbr_size);
+         mfem::Mult(dof_face, face_dof, dof_dof);
       }
       else
       {
@@ -79,11 +103,11 @@ void ParBilinearForm::pAllocMat()
          {
             Table face_ldof;
             Table *face_lelem = fes->GetMesh()->GetFaceToElementTable();
-            ::Mult(*face_lelem, lelem_ldof, face_ldof);
+            mfem::Mult(*face_lelem, lelem_ldof, face_ldof);
             delete face_lelem;
-            Transpose(face_ldof, ldof_face, size);
+            Transpose(face_ldof, ldof_face, height);
          }
-         ::Mult(ldof_face, face_dof, dof_dof);
+         mfem::Mult(ldof_face, face_dof, dof_dof);
       }
    }
 
@@ -92,7 +116,7 @@ void ParBilinearForm::pAllocMat()
    int nrows = dof_dof.Size();
    double *data = new double[I[nrows]];
 
-   mat = new SparseMatrix(I, J, data, nrows, size + nbr_size);
+   mat = new SparseMatrix(I, J, data, nrows, height + nbr_size);
    *mat = 0.0;
 
    dof_dof.LoseData();
@@ -101,7 +125,9 @@ void ParBilinearForm::pAllocMat()
 HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 {
    if (m == NULL)
+   {
       return NULL;
+   }
 
    HypreParMatrix *A;
    if (fbfi.Size() == 0)
@@ -113,21 +139,26 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    else
    {
       // handle the case when 'm' contains offdiagonal
-      int  lvsize = pfes->GetVSize();
-      int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
-      int ldof_offset = pfes->GetMyDofOffset();
+      int lvsize = pfes->GetVSize();
+      const HYPRE_Int *face_nbr_glob_ldof = pfes->GetFaceNbrGlobalDofMap();
+      HYPRE_Int ldof_offset = pfes->GetMyDofOffset();
 
-      Array<int> glob_J(m->NumNonZeroElems());
+      Array<HYPRE_Int> glob_J(m->NumNonZeroElems());
       int *J = m->GetJ();
       for (int i = 0; i < glob_J.Size(); i++)
          if (J[i] < lvsize)
+         {
             glob_J[i] = J[i] + ldof_offset;
+         }
          else
+         {
             glob_J[i] = face_nbr_glob_ldof[J[i] - lvsize];
+         }
 
       A = new HypreParMatrix(pfes->GetComm(), lvsize, pfes->GlobalVSize(),
-                             pfes->GlobalVSize(), m->GetI(), glob_J, m->GetData(),
-                             pfes->GetDofOffsets(), pfes->GetDofOffsets());
+                             pfes->GlobalVSize(), m->GetI(), glob_J,
+                             m->GetData(), pfes->GetDofOffsets(),
+                             pfes->GetDofOffsets());
    }
 
    HypreParMatrix *rap = RAP(A, pfes->Dof_TrueDof_Matrix());
@@ -152,7 +183,9 @@ void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
       pfes->GetFaceNbrElementVDofs(T->Elem2No, vdofs2);
       vdofs1.Copy(vdofs_all);
       for (int j = 0; j < vdofs2.Size(); j++)
-         vdofs2[j] += size;
+      {
+         vdofs2[j] += height;
+      }
       vdofs_all.Append(vdofs2);
       for (int k = 0; k < fbfi.Size(); k++)
       {
@@ -160,9 +193,13 @@ void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
                                      *pfes->GetFaceNbrFE(T->Elem2No),
                                      *T, elemmat);
          if (keep_nbr_block)
+         {
             mat->AddSubMatrix(vdofs_all, vdofs_all, elemmat, skip_zeros);
+         }
          else
+         {
             mat->AddSubMatrix(vdofs1, vdofs_all, elemmat, skip_zeros);
+         }
       }
    }
 }
@@ -178,58 +215,193 @@ void ParBilinearForm::Assemble(int skip_zeros)
    BilinearForm::Assemble(skip_zeros);
 
    if (fbfi.Size() > 0)
+   {
       AssembleSharedFaces(skip_zeros);
+   }
 }
 
-HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(SparseMatrix *m)
+void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)
+const
 {
-   if (m == NULL)
-      return NULL;
+   MFEM_VERIFY(fbfi.Size() == 0, "the case of interior face integrators is not"
+               " implemented");
+
+   if (X.ParFESpace() != pfes)
+   {
+      X.Update(pfes);
+      Y.Update(pfes);
+   }
+
+   X.Distribute(&x);
+   mat->Mult(X, Y);
+   pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
+}
+
+
+HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(
+   SparseMatrix *m, HYPRE_Int *true_row_starts, HYPRE_Int *true_col_starts,
+   bool scalar) const
+{
+   // For a vector space (vdim > 1) and scalar == true, the ordering is assumed
+   // to be Ordering::byNODES, e.g. when using GetLocalTDofNumber().
+
+   if (m == NULL) { return NULL; }
 
    int *I = m->GetI();
    int *J = m->GetJ();
    double *data = m->GetData();
 
-   // remap to tdof local row and tdof global column indices
-   SparseMatrix local(range_fes->TrueVSize(), domain_fes->GlobalTrueVSize());
-   for (int i = 0; i < m->Size(); i++)
+   int rdim = scalar ? range_fes->GetVDim() : 1;
+   int ddim = scalar ? domain_fes->GetVDim() : 1;
+
+   int  range_ldofs =  range_fes->GetVSize()/rdim; // == m->Height()
+   int domain_ldofs = domain_fes->GetVSize()/ddim; // == m->Width()
+
+   int num_rows = range_fes->TrueVSize()/rdim;
+
+   HYPRE_Int *diag_i, *diag_j, *offd_i, *offd_j;
+   double *diag_data, *offd_data;
+
+   int offd_num_cols = 0;
+   Array<int> col_ldof_marker(domain_ldofs);
+   col_ldof_marker = -1;
+
+   diag_i = new HYPRE_Int[num_rows+1];
+   offd_i = new HYPRE_Int[num_rows+1];
+   // count the number of entries in each row of diag and offd;
+   // at the same time, mark and count the columns used by offd
+   for (int i = 0; i <= num_rows; i++)
+   {
+      diag_i[i] = 0;
+      offd_i[i] = 0;
+   }
+   for (int i = 0; i < range_ldofs; i++)
    {
       int lti = range_fes->GetLocalTDofNumber(i);
       if (lti >= 0)
+      {
          for (int j = I[i]; j < I[i+1]; j++)
-            local.Set(lti, domain_fes->GetGlobalTDofNumber(J[j]), data[j]);
+         {
+            int k = J[j];
+            int ltk = domain_fes->GetLocalTDofNumber(k);
+            if (ltk >= 0)
+            {
+               diag_i[lti]++;
+            }
+            else
+            {
+               offd_i[lti]++;
+               if (col_ldof_marker[k] < 0)
+               {
+                  col_ldof_marker[k] = 1;
+                  offd_num_cols++;
+               }
+            }
+         }
+      }
    }
-   local.Finalize();
+   // define offd_col_map -- the local-to-global column mapping for offd
+   // define col_ldof_marker -- the map from domain ldof to offd column index
+   HYPRE_Int *offd_col_map = new HYPRE_Int[offd_num_cols];
+   {
+      Array<Pair<HYPRE_Int, int> > cmap_j_offd(offd_num_cols);
+      int edof_counter = 0;
+      for (int i = 0; i < domain_ldofs; i++)
+      {
+         if (col_ldof_marker[i] > 0)
+         {
+            cmap_j_offd[edof_counter].one =
+               scalar ?
+               domain_fes->GetGlobalScalarTDofNumber(i) :
+               domain_fes->GetGlobalTDofNumber(i);
+            cmap_j_offd[edof_counter].two = i;
+            edof_counter++;
+         }
+      }
+      SortPairs<HYPRE_Int, int>(cmap_j_offd, offd_num_cols);
+      for (int i = 0; i < offd_num_cols; i++)
+      {
+         offd_col_map[i] = cmap_j_offd[i].one;
+         // col_ldof_marker is the inverse of the map i -> cmap_j_offd[i].two
+         col_ldof_marker[cmap_j_offd[i].two] = i;
+      }
+   }
+   // in diag_i and offd_i, convert row sizes into row offsets
+   HYPRE_Int diag_offset = 0, offd_offset = 0;
+   for (int i = 0; i < num_rows; i++)
+   {
+      HYPRE_Int diag_row_size = diag_i[i];
+      HYPRE_Int offd_row_size = offd_i[i];
+      diag_i[i] = diag_offset;
+      offd_i[i] = offd_offset;
+      diag_offset += diag_row_size;
+      offd_offset += offd_row_size;
+   }
+   diag_i[num_rows] = diag_offset;
+   offd_i[num_rows] = offd_offset;
+   // allocate the j and data arrays of diag and offd
+   diag_j = new HYPRE_Int[diag_offset];
+   diag_data = new double[diag_offset];
+   offd_j = new HYPRE_Int[offd_offset];
+   offd_data = new double[offd_offset];
+   // set the entries of the j and data arrays of diag and offd
+   for (int i = 0; i < range_ldofs; i++)
+   {
+      int lti = range_fes->GetLocalTDofNumber(i);
+      if (lti >= 0)
+      {
+         for (int j = I[i]; j < I[i+1]; j++)
+         {
+            int k = J[j];
+            int ltk = domain_fes->GetLocalTDofNumber(k);
+            if (ltk >= 0)
+            {
+               diag_j[diag_i[lti]] = ltk;
+               diag_data[diag_i[lti]] = data[j];
+               diag_i[lti]++;
+            }
+            else
+            {
+               offd_j[offd_i[lti]] = col_ldof_marker[k];
+               offd_data[offd_i[lti]] = data[j];
+               offd_i[lti]++;
+            }
+         }
+      }
+   }
+   // shift back the i arrays of diag and offd
+   diag_offset = offd_offset = 0;
+   for (int i = 0; i < num_rows; i++)
+   {
+      Swap(diag_i[i], diag_offset);
+      Swap(offd_i[i], offd_offset);
+   }
 
-   // construct and return a global ParCSR matrix by splitting the local matrix
-   // into diag and offd parts
-   return new HypreParMatrix(range_fes->GetComm(),
-                             range_fes->TrueVSize(),
-                             range_fes->GlobalTrueVSize(),
-                             domain_fes->GlobalTrueVSize(),
-                             local.GetI(), local.GetJ(), local.GetData(),
-                             range_fes->GetTrueDofOffsets(),
-                             domain_fes->GetTrueDofOffsets());
+   HypreParMatrix *glob_m =
+      new HypreParMatrix(range_fes->GetComm(),
+                         range_fes->GlobalTrueVSize()/rdim,
+                         domain_fes->GlobalTrueVSize()/ddim,
+                         true_row_starts, true_col_starts,
+                         diag_i, diag_j, diag_data,
+                         offd_i, offd_j, offd_data,
+                         offd_num_cols, offd_col_map);
+
+   return glob_m;
 }
 
-void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks) const
+void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks)
+const
 {
    int rdim = range_fes->GetVDim();
    int ddim = domain_fes->GetVDim();
 
    blocks.SetSize(rdim, ddim);
 
-   int i, j, n;
-
-   // construct the scalar versions of the row/coll offset arrays
-   int *row_starts, *col_starts;
-   if (HYPRE_AssumedPartitionCheck())
-      n = 2;
-   else
-      n = range_fes->GetNRanks()+1;
-   row_starts = new int[n];
-   col_starts = new int[n];
-   for (i = 0; i < n; i++)
+   // construct the scalar versions of the row/col offset arrays
+   int n = HYPRE_AssumedPartitionCheck() ? 2 : range_fes->GetNRanks()+1;
+   HYPRE_Int *row_starts = new HYPRE_Int[n];
+   HYPRE_Int *col_starts = new HYPRE_Int[n];
+   for (int i = 0; i < n; i++)
    {
       row_starts[i] = (range_fes->GetTrueDofOffsets())[i] / rdim;
       col_starts[i] = (domain_fes->GetTrueDofOffsets())[i] / ddim;
@@ -241,38 +413,60 @@ void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks) 
    for (int bi = 0; bi < rdim; bi++)
       for (int bj = 0; bj < ddim; bj++)
       {
-         int *I = lblocks(bi,bj)->GetI();
-         int *J = lblocks(bi,bj)->GetJ();
-         double *data = lblocks(bi,bj)->GetData();
+         blocks(bi,bj) = ParallelAssemble(lblocks(bi,bj),
+                                          row_starts, col_starts, true);
 
-         // remap to tdof local row and tdof global column indices
-         SparseMatrix local(range_fes->TrueVSize()/rdim,
-                            domain_fes->GlobalTrueVSize()/ddim);
-         for (i = 0; i < lblocks(bi,bj)->Size(); i++)
+         if (bi == 0 && bj == 0)
          {
-            int lti = range_fes->GetLocalTDofNumber(i);
-            if (lti >= 0)
-               for (j = I[i]; j < I[i+1]; j++)
-                  local.Set(lti,
-                            domain_fes->GetGlobalScalarTDofNumber(J[j]),
-                            data[j]);
+            // transfer ownership of row_starts and col_starts to blocks(0,0)
+            // (since ownership is given to hypre, the arrays need to be
+            // re-allocated)
+            blocks(0,0)->CopyRowStarts();
+            blocks(0,0)->CopyColStarts();
+            delete [] row_starts;
+            delete [] col_starts;
+            row_starts = blocks(0,0)->GetRowStarts();
+            col_starts = blocks(0,0)->GetColStarts();
          }
-         local.Finalize();
 
-         delete lblocks(bi,bj);
-
-         // construct and return a global ParCSR matrix by splitting the local
-         // matrix into diag and offd parts
-         blocks(bi,bj) = new HypreParMatrix(range_fes->GetComm(),
-                                            range_fes->TrueVSize()/rdim,
-                                            range_fes->GlobalTrueVSize()/rdim,
-                                            domain_fes->GlobalTrueVSize()/ddim,
-                                            local.GetI(), local.GetJ(), local.GetData(),
-                                            row_starts, col_starts);
+         delete lblocks(bi, bj);
       }
+}
 
-   delete [] row_starts;
-   delete [] col_starts;
+HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
+{
+   // construct the block-diagonal matrix A
+   HypreParMatrix *A =
+      new HypreParMatrix(trial_pfes->GetComm(),
+                         test_pfes->GlobalVSize(),
+                         trial_pfes->GlobalVSize(),
+                         test_pfes->GetDofOffsets(),
+                         trial_pfes->GetDofOffsets(),
+                         mat);
+
+   HypreParMatrix *rap = RAP(test_pfes->Dof_TrueDof_Matrix(), A,
+                             trial_pfes->Dof_TrueDof_Matrix());
+
+   delete A;
+
+   return rap;
+}
+
+/// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
+void ParMixedBilinearForm::TrueAddMult(const Vector &x, Vector &y,
+                                       const double a) const
+{
+   if (X.ParFESpace() != trial_pfes)
+   {
+      X.Update(trial_pfes);
+      Y.Update(test_pfes);
+   }
+
+   X.Distribute(&x);
+   mat->Mult(X, Y);
+   test_pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
+}
+
 }
 
 #endif

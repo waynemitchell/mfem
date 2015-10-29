@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -11,6 +11,12 @@
 
 #ifndef MFEM_POINT
 #define MFEM_POINT
+
+#include "../config/config.hpp"
+#include "element.hpp"
+
+namespace mfem
+{
 
 /// Data type point element
 class Point : public Element
@@ -35,9 +41,14 @@ public:
 
    virtual int GetNVertices() const { return 1; }
 
-   virtual int GetNEdges() const { return(0); }
+   virtual int GetNEdges() const { return (0); }
 
-   virtual const int *GetEdgeVertices(int ei) const { return(NULL); }
+   virtual const int *GetEdgeVertices(int ei) const { return NULL; }
+
+   virtual int GetNFaces(int &nFaceVertices) const
+   { nFaceVertices = 0; return 0; }
+
+   virtual const int *GetFaceVertices(int fi) const { return NULL; }
 
    virtual Element *Duplicate(Mesh *m) const
    { return new Point (indices, attribute); }
@@ -46,5 +57,7 @@ public:
 };
 
 extern PointFiniteElement PointFE;
+
+}
 
 #endif

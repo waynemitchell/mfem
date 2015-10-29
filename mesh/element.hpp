@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -11,6 +11,15 @@
 
 #ifndef MFEM_ELEMENT
 #define MFEM_ELEMENT
+
+#include "../config/config.hpp"
+#include "../general/array.hpp"
+#include "../general/table.hpp"
+#include "../linalg/densemat.hpp"
+#include "../fem/geom.hpp"
+
+namespace mfem
+{
 
 class Mesh;
 
@@ -26,7 +35,8 @@ public:
 
    /// Constants for the classes derived from Element.
    enum Type { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON,
-               HEXAHEDRON, BISECTED, QUADRISECTED, OCTASECTED };
+               HEXAHEDRON, BISECTED, QUADRISECTED, OCTASECTED
+             };
 
    /// Default element constructor.
    explicit Element(int bg = Geometry::POINT) { attribute = -1; base_geom = bg; }
@@ -52,6 +62,10 @@ public:
    virtual int GetNEdges() const = 0;
 
    virtual const int *GetEdgeVertices(int) const = 0;
+
+   virtual int GetNFaces(int &nFaceVertices) const = 0;
+
+   virtual const int *GetFaceVertices(int fi) const = 0;
 
    /// Mark the longest edge by assuming/changing the order of the vertices.
    virtual void MarkEdge(DenseMatrix &pmat) {}
@@ -103,12 +117,12 @@ public:
 
    Element *IAm()
    {
-      if (State == RefinedElement::COARSE) return CoarseElem;
+      if (State == RefinedElement::COARSE) { return CoarseElem; }
       return FirstChild;
    }
    const Element *IAm() const
    {
-      if (State == RefinedElement::COARSE) return CoarseElem;
+      if (State == RefinedElement::COARSE) { return CoarseElem; }
       return FirstChild;
    }
 
@@ -120,10 +134,16 @@ public:
 
    virtual int GetNVertices() const { return IAm()->GetNVertices(); }
 
-   virtual int GetNEdges() const { return(IAm()->GetNEdges()); }
+   virtual int GetNEdges() const { return (IAm()->GetNEdges()); }
 
    virtual const int *GetEdgeVertices(int ei) const
-   { return(IAm()->GetEdgeVertices(ei)); }
+   { return (IAm()->GetEdgeVertices(ei)); }
+
+   virtual int GetNFaces(int &nFaceVertices) const
+   { return IAm()->GetNFaces(nFaceVertices); }
+
+   virtual const int *GetFaceVertices(int fi) const
+   { return IAm()->GetFaceVertices(fi); }
 
    virtual void MarkEdge(DenseMatrix &pmat) { IAm()->MarkEdge(pmat); }
 
@@ -178,5 +198,7 @@ public:
 // defined in tetrahedron.cpp
 extern MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
+
+}
 
 #endif

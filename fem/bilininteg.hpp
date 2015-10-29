@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -11,6 +11,12 @@
 
 #ifndef MFEM_BILININTEG
 #define MFEM_BILININTEG
+
+#include "../config/config.hpp"
+#include "nonlininteg.hpp"
+
+namespace mfem
+{
 
 /// Abstract base class BilinearFormIntegrator
 class BilinearFormIntegrator : public NonlinearFormIntegrator
@@ -36,6 +42,13 @@ public:
                                        DenseMatrix &elmat);
    virtual void AssembleFaceMatrix(const FiniteElement &el1,
                                    const FiniteElement &el2,
+                                   FaceElementTransformations &Trans,
+                                   DenseMatrix &elmat);
+   /** Abstract method used for assembling TraceFaceIntegrators in a
+       MixedBilinearForm. */
+   virtual void AssembleFaceMatrix(const FiniteElement &trial_face_fe,
+                                   const FiniteElement &test_fe1,
+                                   const FiniteElement &test_fe2,
                                    FaceElementTransformations &Trans,
                                    DenseMatrix &elmat);
    /// Perform the local action of the BilinearFormIntegrator
@@ -79,11 +92,12 @@ public:
                                        const FiniteElement &test_fe,
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
+   using BilinearFormIntegrator::AssembleFaceMatrix;
    virtual void AssembleFaceMatrix(const FiniteElement &el1,
                                    const FiniteElement &el2,
                                    FaceElementTransformations &Trans,
                                    DenseMatrix &elmat);
-   virtual ~TransposeIntegrator() { if (own_bfi) delete bfi; }
+   virtual ~TransposeIntegrator() { if (own_bfi) { delete bfi; } }
 };
 
 class LumpedIntegrator : public BilinearFormIntegrator
@@ -100,7 +114,46 @@ public:
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
 
-   virtual ~LumpedIntegrator() { if (own_bfi) delete bfi; }
+   virtual ~LumpedIntegrator() { if (own_bfi) { delete bfi; } }
+};
+
+/// Integrator that inverts the matrix assembled by another integrator.
+class InverseIntegrator : public BilinearFormIntegrator
+{
+private:
+   int own_integrator;
+   BilinearFormIntegrator *integrator;
+
+public:
+   InverseIntegrator(BilinearFormIntegrator *integ, int own_integ = 1)
+   { integrator = integ; own_integrator = own_integ; }
+
+   virtual void AssembleElementMatrix(const FiniteElement &el,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat);
+
+   virtual ~InverseIntegrator() { if (own_integrator) { delete integrator; } }
+};
+
+/// Integrator defining a sum of multiple Integrators.
+class SumIntegrator : public BilinearFormIntegrator
+{
+private:
+   int own_integrators;
+   DenseMatrix elem_mat;
+   Array<BilinearFormIntegrator*> integrators;
+
+public:
+   SumIntegrator(int own_integs = 1) { own_integrators = own_integs; }
+
+   void AddIntegrator(BilinearFormIntegrator *integ)
+   { integrators.Append(integ); }
+
+   virtual void AssembleElementMatrix(const FiniteElement &el,
+                                      ElementTransformation &Trans,
+                                      DenseMatrix &elmat);
+
+   virtual ~SumIntegrator();
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q grad u, grad v)
@@ -111,6 +164,7 @@ private:
    Vector vec, pointflux, shape;
 #ifndef MFEM_THREAD_SAFE
    DenseMatrix dshape, dshapedxt, invdfdx, mq;
+   DenseMatrix te_dshape, te_dshapedxt;
 #endif
    Coefficient *Q;
    MatrixCoefficient *MQ;
@@ -130,6 +184,12 @@ public:
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
+   /** Given a trial and test Finite Element computes the element stiffness
+       matrix elmat. */
+   virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
+                                       const FiniteElement &test_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
    /// Perform the local action of the BilinearFormIntegrator
    virtual void AssembleElementVector(const FiniteElement &el,
                                       ElementTransformation &Tr,
@@ -525,6 +585,7 @@ public:
                      double a, double b)
    { rho = &_rho; u = &_u; alpha = a; beta = b; }
 
+   using BilinearFormIntegrator::AssembleFaceMatrix;
    virtual void AssembleFaceMatrix(const FiniteElement &el1,
                                    const FiniteElement &el2,
                                    FaceElementTransformations &Trans,
@@ -561,12 +622,30 @@ public:
       : Q(&q), MQ(NULL), sigma(s), kappa(k) { }
    DGDiffusionIntegrator(MatrixCoefficient &q, const double s, const double k)
       : Q(NULL), MQ(&q), sigma(s), kappa(k) { }
+   using BilinearFormIntegrator::AssembleFaceMatrix;
    virtual void AssembleFaceMatrix(const FiniteElement &el1,
                                    const FiniteElement &el2,
                                    FaceElementTransformations &Trans,
                                    DenseMatrix &elmat);
 };
 
+/** Integrator for the DPG form: < v, [w] > over all faces (the interface) where
+    the trial variable v is defined on the inteface and the test variable w is
+    defined inside the elements, generally in a DG space. */
+class TraceJumpIntegrator : public BilinearFormIntegrator
+{
+private:
+   Vector face_shape, shape1, shape2;
+
+public:
+   TraceJumpIntegrator() { }
+   using BilinearFormIntegrator::AssembleFaceMatrix;
+   virtual void AssembleFaceMatrix(const FiniteElement &trial_face_fe,
+                                   const FiniteElement &test_fe1,
+                                   const FiniteElement &test_fe2,
+                                   FaceElementTransformations &Trans,
+                                   DenseMatrix &elmat);
+};
 
 /** Abstract class to serve as a base for local interpolators to be used in
     the DiscreteLinearOperator class. */
@@ -632,5 +711,7 @@ public:
                                        DenseMatrix &elmat)
    { ran_fe.ProjectDiv(dom_fe, Trans, elmat); }
 };
+
+}
 
 #endif

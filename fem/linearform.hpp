@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -12,7 +12,14 @@
 #ifndef MFEM_LINEARFORM
 #define MFEM_LINEARFORM
 
-/// Class for linear form - Vector with asociated FE space and LFIntegrators.
+#include "../config/config.hpp"
+#include "lininteg.hpp"
+#include "fespace.hpp"
+
+namespace mfem
+{
+
+/// Class for linear form - Vector with associated FE space and LFIntegrators.
 class LinearForm : public Vector
 {
 private:
@@ -31,11 +38,11 @@ private:
 public:
    /// Creates linear form associated with FE space *f.
    LinearForm (FiniteElementSpace * f) : Vector (f -> GetVSize())
-   { fes = f; };
+   { fes = f; }
 
-   LinearForm(){ fes = NULL; }
+   LinearForm() { fes = NULL; }
 
-   FiniteElementSpace * GetFES() { return fes; };
+   FiniteElementSpace * GetFES() { return fes; }
 
    /// Adds new Domain Integrator.
    void AddDomainIntegrator (LinearFormIntegrator * lfi);
@@ -49,7 +56,11 @@ public:
    /// Assembles the linear form i.e. sums over all domain/bdr integrators.
    void Assemble();
 
-   void ConformingAssemble(Vector &b);
+   /// Apply the conforming interpolation matrix and return 'b': b = P'*this.
+   void ConformingAssemble(Vector &b) const;
+
+   /// Apply the conforming interpolation matrix to 'this': this = P'*this
+   void ConformingAssemble();
 
    void Update() { SetSize(fes->GetVSize()); }
 
@@ -60,5 +71,7 @@ public:
    /// Destroys linear form.
    ~LinearForm();
 };
+
+}
 
 #endif

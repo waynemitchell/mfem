@@ -3,15 +3,20 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#include "../config/config.hpp"
+
 #ifdef MFEM_USE_MPI
 
 #include "fem.hpp"
+
+namespace mfem
+{
 
 void ParNonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
                                       Vector *rhs)
@@ -26,7 +31,9 @@ void ParNonlinearForm::SetEssentialBC(const Array<int> &bdr_attr_is_ess,
       {
          int tdof = pfes->GetLocalTDofNumber(ess_vdofs[i]);
          if (tdof >= 0)
+         {
             (*rhs)(tdof) = 0.0;
+         }
       }
 }
 
@@ -59,6 +66,15 @@ void ParNonlinearForm::Mult(const Vector &x, Vector &y) const
    Y.GetTrueDofs(y);
 }
 
+const SparseMatrix &ParNonlinearForm::GetLocalGradient(const Vector &x) const
+{
+   X.Distribute(&x);
+
+   NonlinearForm::GetGradient(X); // (re)assemble Grad
+
+   return *Grad;
+}
+
 Operator &ParNonlinearForm::GetGradient(const Vector &x) const
 {
    ParFiniteElementSpace *pfes = ParFESpace();
@@ -79,6 +95,8 @@ Operator &ParNonlinearForm::GetGradient(const Vector &x) const
    delete A;
 
    return *pGrad;
+}
+
 }
 
 #endif

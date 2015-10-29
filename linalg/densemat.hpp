@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -12,25 +12,27 @@
 #ifndef MFEM_DENSEMAT
 #define MFEM_DENSEMAT
 
-/// Data type dense matrix
+#include "../config/config.hpp"
+#include "matrix.hpp"
+
+namespace mfem
+{
+
+/// Data type dense matrix using column-major storage
 class DenseMatrix : public Matrix
 {
    friend class DenseTensor;
+   friend class DenseMatrixInverse;
 
 private:
-   int height;
    double *data;
-
-   friend class DenseMatrixInverse;
-   friend void Mult(const DenseMatrix &b,
-                    const DenseMatrix &c,
-                    DenseMatrix &a);
+   int capacity; // zero or negative capacity means we do not own the data.
 
    void Eigensystem(Vector &ev, DenseMatrix *evect = NULL);
 
 public:
    /** Default constructor for DenseMatrix.
-       Sets data = NULL size = height = 0 */
+       Sets data = NULL and height = width = 0. */
    DenseMatrix();
 
    /// Copy constructor
@@ -39,37 +41,45 @@ public:
    /// Creates square matrix of size s.
    explicit DenseMatrix(int s);
 
-   /// Creates rectangular matrix of size n and height m.
+   /// Creates rectangular matrix of size m x n.
    DenseMatrix(int m, int n);
 
    /// Creates rectangular matrix equal to the transpose of mat.
    DenseMatrix(const DenseMatrix &mat, char ch);
 
-   DenseMatrix(double *d, int h, int w) : Matrix(w) { data = d; height = h; }
+   /** Construct a DenseMatrix using existing data array. The DenseMatrix does
+       not assume ownership of the data array, i.e. it will not delete the
+       array. */
+   DenseMatrix(double *d, int h, int w) : Matrix(h, w)
+   { data = d; capacity = -h*w; }
+
+   /** Change the data array and the size of the DenseMatrix. The DenseMatrix
+       does not assume ownership of the data array, i.e. it will not delete the
+       array. This method should not be used with DenseMatrix that owns its
+       current data array. */
    void UseExternalData(double *d, int h, int w)
-   { data = d; height = h; size = w; }
+   { data = d; height = h; width = w; capacity = -h*w; }
 
-   void ClearExternalData() { data = NULL; height = size = 0; }
+   /** Clear the data array and the dimensions of the DenseMatrix. This method
+       should not be used with DenseMatrix that owns its current data array. */
+   void ClearExternalData() { data = NULL; height = width = 0; capacity = 0; }
 
-   /// If the matrix is not a square matrix of size s then recreate it
-   void SetSize(int s);
+   /// For backward compatibility define Size to be synonym of Width()
+   int Size() const { return Width(); }
 
-   /// If the matrix is not a matrix of size (h x w) then recreate it
+   /// Change the size of the DenseMatrix to s x s.
+   void SetSize(int s) { SetSize(s, s); }
+
+   /// Change the size of the DenseMatrix to h x w.
    void SetSize(int h, int w);
-
-   /// Returns the height of the matrix.
-   inline int Height() const { return height; }
-
-   /// Returns the width of the matrix.
-   inline int Width() const { return size; }
 
    /// Returns vector of the elements.
    inline double *Data() const { return data; }
 
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns reference to a_{ij}.
    inline double &operator()(int i, int j);
 
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns constant reference to a_{ij}.
    inline const double &operator()(int i, int j) const;
 
    /// Matrix inner product: tr(A^t B)
@@ -78,10 +88,10 @@ public:
    /// Trace of a square matrix
    double Trace() const;
 
-   /// Returns reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns reference to a_{ij}.
    virtual double &Elem(int i, int j);
 
-   /// Returns constant reference to a_{ij}.  Index i, j = 0 .. size-1
+   /// Returns constant reference to a_{ij}.
    virtual const double &Elem(int i, int j) const;
 
    /// Matrix vector multiplication.
@@ -99,8 +109,27 @@ public:
    /// y += A.x
    void AddMult(const Vector &x, Vector &y) const;
 
+   /// y += a * A.x
+   void AddMult_a(double a, const Vector &x, Vector &y) const;
+
+   // y += a * A^t x
+   void AddMultTranspose_a(double a, const Vector &x, Vector &y) const;
+
    /// Compute y^t A x
    double InnerProduct(const double *x, const double *y) const;
+
+   /// LeftScaling this = diag(s) * this
+   void LeftScaling(const Vector & s);
+   /// InvLeftScaling this = diag(1./s) * this
+   void InvLeftScaling(const Vector & s);
+   /// RightScaling: this = this * diag(s);
+   void RightScaling(const Vector & s);
+   /// InvRightScaling: this = this * diag(1./s);
+   void InvRightScaling(const Vector & s);
+   /// SymmetricScaling this = diag(sqrt(s)) * this * diag(sqrt(s))
+   void SymmetricScaling(const Vector & s);
+   /// InvSymmetricScaling this = diag(sqrt(1./s)) * this * diag(sqrt(1./s))
+   void InvSymmetricScaling(const Vector & s);
 
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const
@@ -159,7 +188,7 @@ public:
    void SingularValues(Vector &sv) const;
    int Rank(double tol) const;
 
-   /// Return the i-th singular value (decreasing order) of a 2x2 or 3x3 matrix
+   /// Return the i-th singular value (decreasing order) of NxN matrix, N=1,2,3.
    double CalcSingularvalue(const int i) const;
 
    /** Return the eigenvalues (in increasing order) and eigenvectors of a
@@ -170,6 +199,13 @@ public:
 
    void GetColumnReference(int c, Vector &col)
    { col.SetDataAndSize(data + c * height, height); }
+
+   /// Returns the diagonal of the matrix
+   void GetDiag(Vector &d);
+   /// Returns the l1 norm of the rows of the matrix v_i = sum_j |a_ij|
+   void Getl1Diag(Vector &l);
+   /// Compute the row sums of the DenseMatrix
+   void GetRowSums(Vector &l) const;
 
    /// Creates n x n diagonal matrix with diagonal elements c
    void Diag(double c, int n);
@@ -224,15 +260,20 @@ public:
        then (*this)(i,j) = -(*this)(i,j).  */
    void AdjustDofDirection(Array<int> &dofs);
 
+   /// Set all entries of a row to the specified value.
+   void SetRow(int row, double value);
+   /// Set all entries of a column to the specified value.
+   void SetCol(int col, double value);
+
    /** Count the number of entries in the matrix for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */
-   int CheckFinite() const { return ::CheckFinite(data, size*height); }
+   int CheckFinite() const { return mfem::CheckFinite(data, height*width); }
 
    /// Prints matrix to stream out.
-   virtual void Print(ostream &out = cout, int width = 4) const;
-   virtual void PrintMatlab(ostream &out = cout) const;
+   virtual void Print(std::ostream &out = std::cout, int width_ = 4) const;
+   virtual void PrintMatlab(std::ostream &out = std::cout) const;
    /// Prints the transpose matrix to stream out.
-   virtual void PrintT(ostream &out = cout, int width = 4) const;
+   virtual void PrintT(std::ostream &out = std::cout, int width_ = 4) const;
 
    /// Invert and print the numerical conditioning of the inversion.
    void TestInversion();
@@ -245,10 +286,19 @@ public:
 void Add(const DenseMatrix &A, const DenseMatrix &B,
          double alpha, DenseMatrix &C);
 
+/// C = alpha*A + beta*B
+void Add(double alpha, const DenseMatrix &A,
+         double beta,  const DenseMatrix &B, DenseMatrix &C);
+
 /// Matrix matrix multiplication.  A = B * C.
 void Mult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a);
 
-/// Calculate the adjugate of a matrix (for NxN matrices, N=1,2,3)
+/// Matrix matrix multiplication.  A += B * C.
+void AddMult(const DenseMatrix &b, const DenseMatrix &c, DenseMatrix &a);
+
+/** Calculate the adjugate of a matrix (for NxN matrices, N=1,2,3) or the matrix
+    adj(A^t.A).A^t for rectangular matrices (2x1, 3x1, or 3x2). This operation
+    is well defined even when the matrix is not full rank. */
 void CalcAdjugate(const DenseMatrix &a, DenseMatrix &adja);
 
 /// Calculate the transposed adjugate of a matrix (for NxN matrices, N=1,2,3)
@@ -278,6 +328,10 @@ void AddMultADAt(const DenseMatrix &A, const Vector &D, DenseMatrix &ADAt);
 /// Multiply a matrix A with the transpose of a matrix B:   A*Bt
 void MultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt);
 
+/// ADBt = A D B^t, where D is diagonal
+void MultADBt(const DenseMatrix &A, const Vector &D,
+              const DenseMatrix &B, DenseMatrix &ADAt);
+
 /// ABt += A * B^t
 void AddMultABt(const DenseMatrix &A, const DenseMatrix &B, DenseMatrix &ABt);
 
@@ -299,10 +353,100 @@ void MultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt);
 void AddMultVWt(const Vector &v, const Vector &w, DenseMatrix &VWt);
 
 /// VWt += a * v w^t
-void AddMult_a_VWt(const double a, const Vector &v, const Vector &w, DenseMatrix &VWt);
+void AddMult_a_VWt(const double a, const Vector &v, const Vector &w,
+                   DenseMatrix &VWt);
 
 /// VVt += a * v v^t
 void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt);
+
+
+/** Class that can compute LU factorization of external data and perform various
+    operations with the factored data. */
+class LUFactors
+{
+public:
+   double *data;
+   int *ipiv;
+#ifdef MFEM_USE_LAPACK
+   static const int ipiv_base = 1;
+#else
+   static const int ipiv_base = 0;
+#endif
+
+   /** With this constructor, the (public) data and ipiv members should be set
+       explicitly before calling class methods. */
+   LUFactors() { }
+
+   LUFactors(double *data_, int *ipiv_) : data(data_), ipiv(ipiv_) { }
+
+   /** Factorize the current data of size (m x m) overwriting it with the LU
+       factors. The factorization is such that L.U = P.A, where A is the
+       original matrix and P is a permutation matrix represented by ipiv. */
+   void Factor(int m);
+
+   /** Assuming L.U = P.A factored data of size (m x m), compute X <- A X,
+       for a matrix X of size (m x n). */
+   void Mult(int m, int n, double *X) const;
+
+   /** Assuming L.U = P.A factored data of size (m x m), compute
+       X <- L^{-1} P X, for a matrix X of size (m x n). */
+   void LSolve(int m, int n, double *X) const;
+
+   /** Assuming L.U = P.A factored data of size (m x m), compute
+       X <- U^{-1} X, for a matrix X of size (m x n). */
+   void USolve(int m, int n, double *X) const;
+
+   /** Assuming L.U = P.A factored data of size (m x m), compute X <- A^{-1} X,
+       for a matrix X of size (m x n). */
+   void Solve(int m, int n, double *X) const;
+
+   /// Assuming L.U = P.A factored data of size (m x m), compute X <- A^{-1}.
+   void GetInverseMatrix(int m, double *X) const;
+
+   /** Given an (n x m) matrix A21, compute X2 <- X2 - A21 X1, for matrices X1,
+       and X2 of size (m x r) and (n x r), respectively. */
+   static void SubMult(int m, int n, int r, const double *A21,
+                       const double *X1, double *X2);
+
+   /** Assuming P.A = L.U factored data of size (m x m), compute the 2x2 block
+       decomposition:
+          | P 0 | |  A  A12 | = |  L  0 | | U U12 |
+          | 0 I | | A21 A22 |   | L21 I | | 0 S22 |
+       where A12, A21, and A22 are matrices of size (m x n), (n x m), and
+       (n x n), respectively. The blocks are overwritten as follows:
+          A12 <- U12 = L^{-1} P A12
+          A21 <- L21 = A21 U^{-1}
+          A22 <- S22 = A22 - L21 U12.
+       The block S22 is the Schur complement. */
+   void BlockFactor(int m, int n, double *A12, double *A21, double *A22) const;
+
+   /** Given BlockFactor()'d data, perform the forward block solve for the
+       linear system:
+          |  A  A12 | | X1 | = | B1 |
+          | A21 A22 | | X2 |   | B2 |
+       written in the factored form:
+          |  L  0 | | U U12 | | X1 | = | P 0 | | B1 |
+          | L21 I | | 0 S22 | | X2 |   | 0 I | | B2 |.
+       The resulting blocks Y1, Y2 solve the system:
+          |  L  0 | | Y1 | = | P 0 | | B1 |
+          | L21 I | | Y2 |   | 0 I | | B2 |
+       The blocks are overwritten as follows:
+          B1 <- Y1 = L^{-1} P B1
+          B2 <- Y2 = B2 - L21 Y1 = B2 - A21 A^{-1} B1
+       The blocks B1/Y1 and B2/Y2 are of size (m x r) and (n x r), respectively.
+       The Schur complement system is given by: S22 X2 = Y2. */
+   void BlockForwSolve(int m, int n, int r, const double *L21,
+                       double *B1, double *B2) const;
+
+   /** Given BlockFactor()'d data, perform the backward block solve in
+          | U U12 | | X1 | = | Y1 |
+          | 0 S22 | | X2 |   | Y2 |.
+       The input is the solution block X2 and the block Y1 resulting from
+       BlockForwSolve(). The result block X1 overwrites input block Y1:
+          Y1 <- X1 = U^{-1} (Y1 - U12 X2). */
+   void BlockBackSolve(int m, int n, int r, const double *U12,
+                       const double *X2, double *Y1) const;
+};
 
 
 /** Data type for inverse of square dense matrix.
@@ -311,18 +455,21 @@ class DenseMatrixInverse : public MatrixInverse
 {
 private:
    const DenseMatrix *a;
-   double *data;
-#ifdef MFEM_USE_LAPACK
-   int *ipiv;
-#endif
+   LUFactors lu;
 
 public:
+   /// Default constructor.
+   DenseMatrixInverse() : a(NULL), lu(NULL, NULL) { }
+
    /** Creates square dense matrix. Computes factorization of mat
        and stores LU factors. */
    DenseMatrixInverse(const DenseMatrix &mat);
 
    /// Same as above but does not factorize the matrix.
    DenseMatrixInverse(const DenseMatrix *mat);
+
+   ///  Get the size of the inverse matrix
+   int Size() const { return Width(); }
 
    /// Factor the current DenseMatrix, *a
    void Factor();
@@ -332,8 +479,21 @@ public:
 
    virtual void SetOperator(const Operator &op);
 
-   /// Matrix vector multiplication with inverse of dense matrix.
+   /// Matrix vector multiplication with the inverse of dense matrix.
    virtual void Mult(const Vector &x, Vector &y) const;
+
+   /// Multiply the inverse matrix by another matrix: X = A^{-1} B.
+   void Mult(const DenseMatrix &B, DenseMatrix &X) const;
+
+   /// Compute and return the inverse matrix in Ainv.
+   void GetInverseMatrix(DenseMatrix &Ainv) const
+   {
+      Ainv.SetSize(width);
+      lu.GetInverseMatrix(width, Ainv.Data());
+   }
+
+   /// Print the numerical conditioning of the inversion: ||A^{-1} A - I||.
+   void TestInversion();
 
    /// Destroys dense inverse matrix.
    virtual ~DenseMatrixInverse();
@@ -422,6 +582,8 @@ public:
    }
 
    DenseMatrix &operator()(int k) { Mk.data = GetData(k); return Mk; }
+   const DenseMatrix &operator()(int k) const
+   { return const_cast<DenseTensor&>(*this)(k); }
 
    double &operator()(int i, int j, int k)
    { return tdata[i+SizeI()*(j+SizeJ()*k)]; }
@@ -436,7 +598,7 @@ public:
        'x' and 'y' use the same elem_dof table. */
    void AddMult(const Table &elem_dof, const Vector &x, Vector &y) const;
 
-   ~DenseTensor() { delete [] tdata; Mk.ClearExternalData(); }
+   ~DenseTensor() { delete [] tdata; }
 };
 
 
@@ -445,8 +607,10 @@ public:
 inline double &DenseMatrix::operator()(int i, int j)
 {
 #ifdef MFEM_DEBUG
-   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= size )
+   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
+   {
       mfem_error("DenseMatrix::operator()");
+   }
 #endif
 
    return data[i+j*height];
@@ -455,11 +619,15 @@ inline double &DenseMatrix::operator()(int i, int j)
 inline const double &DenseMatrix::operator()(int i, int j) const
 {
 #ifdef MFEM_DEBUG
-   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= size )
+   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
+   {
       mfem_error("DenseMatrix::operator() const");
+   }
 #endif
 
    return data[i+j*height];
+}
+
 }
 
 #endif
