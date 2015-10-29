@@ -895,21 +895,20 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
    }
 }
 
-/// Integration rules for reference cube
+// Integration rules for reference cube
 IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
 {
-   int k, l, m, np;
    int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
 
    if (!HaveIntRule(SegmentIntRules, i))
    {
       SegmentIntegrationRule(i);
    }
-
    AllocIntRule(CubeIntRules, i);
-   CubeIntRules[i-1] = CubeIntRules[i] = new IntegrationRule(*SegmentIntRules[i],
-                                                             *SegmentIntRules[i],
-                                                             *SegmentIntRules[i]);
+   CubeIntRules[i-1] =
+      CubeIntRules[i] =
+         new IntegrationRule(*SegmentIntRules[i], *SegmentIntRules[i],
+                             *SegmentIntRules[i]);
    return CubeIntRules[i];
 }
 
