@@ -14,21 +14,24 @@
 //               then use the facts that B = mu ( H + M ) and div B = 0
 //               to arrive at the equation
 //                  div mu grad Phi_M = - div mu M
-//               with boundary condition
-//                  n x (A x n) = (0,0,0) on all exterior surfaces
+//               with the natural boundary condition
+//                  n . grad Phi_M = 0 on all exterior surfaces
 //               This is a perfect electrical conductor (PEC) boundary
 //               condition which results in a magnetic field sasifying:
-//                  n . B = 0 on all surfaces
+//                  n . H = 0 on all surfaces
 //               i.e. the magnetic field lines will be tangent to the
 //               boundary.
 //
-//               We discretize the vector potential with Nedelec finite
-//               elements.  The magnetization M and magnetic field B =
-//               curl A are discretized with Raviart-Thomas finite
-//               elements.
+//               We discretize the scalar potential with H1 finite
+//               elements.  The magnetization M and magnetic field H =
+//               -grad Phi_M are discretized with Nedelec finite
+//               elements.  The magnetic flux B is discretized with
+//               Raviart-Thomas finite elements.
 //
-//               The example demonstrates the use of H(curl) finite element
-//               spaces with the curl-curl bilinear form.
+//               The magnetic flux B is computed as the Hodge dual of
+//               mu (H + M).  This demonstrates the steps necessary to
+//               transform a Nedelec discretization into a
+//               Raviart-Thomas discretization.
 //
 
 #include "mfem.hpp"
@@ -163,7 +166,7 @@ int main(int argc, char *argv[])
    }
 
    // Define compatible parallel finite element spaces on the
-   // parallel mesh. Here we use arbitrary order Nedelec and
+   // parallel mesh. Here we use arbitrary order H1, Nedelec, and
    // Raviart-Thomas finite elements.
    H1_ParFESpace *H1FESpace    = new H1_ParFESpace(pmesh,order,dim);
    ND_ParFESpace *HCurlFESpace = new ND_ParFESpace(pmesh,order,dim);
@@ -180,6 +183,15 @@ int main(int argc, char *argv[])
    }
 
    // Choose a single DoF to be the essential boundary condition
+   //
+   // The Laplacian operator is singular with a null space containing
+   // only one vector so only a single DoF needs to be fixed.  The
+   // selected DoF and its value are arbitrary since adding any
+   // constant field to Phi_M cannot change H.
+   //
+   // We choose the first DoF on the first processor and set it to
+   // zero.
+   //
    Array<int> dof_list;
 
    if ( myid == 0 )
@@ -187,13 +199,11 @@ int main(int argc, char *argv[])
      dof_list.Append(0);
    }
 
-   // Set up the parallel bilinear form corresponding to the
-   // magnetostatic operator curl muinv curl, by adding the curl-curl
-   // domain integrator and finally imposing non-homogeneous Dirichlet
-   // boundary conditions. The boundary conditions are implemented by
-   // marking all the boundary attributes from the mesh as essential
-   // (Dirichlet). After serial and parallel assembly we extract the
-   // parallel matrix A.
+   // Set up the parallel bilinear form corresponding to the scalar
+   // magnetostatic operator div mu grad, by adding the diffusion
+   // domain integrator and finally imposing Dirichlet boundary
+   // conditions. After serial and parallel assembly we extract the
+   // parallel matrix Laplacian_mu.
    ConstantCoefficient mu(1.0);
 
    ParBilinearForm *laplacian_mu = new ParBilinearForm(H1FESpace);
@@ -201,13 +211,16 @@ int main(int argc, char *argv[])
    laplacian_mu->Assemble();
    laplacian_mu->Finalize();
 
-   // Define the parallel (hypre) matrix and vectors representing a(.,.),
-   // b(.) and the finite element approximation.
+   // The solution vector to approximate the magnetic scalar potential
    ParGridFunction phi_m(H1FESpace); phi_m = 0.0;
 
+   // The gradient operator needed to compute H from Phi_M and also
+   // used in compting div mu M.
    ParDiscreteGradOperator *Grad =
      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
+   // An HCurl mass matrix with coeficient mu which is also needed to
+   // compute div mu M.
    ParBilinearForm *m1_mu = new ParBilinearForm(HCurlFESpace);
    m1_mu->AddDomainIntegrator(new VectorFEMassIntegrator(mu));
    m1_mu->Assemble();
@@ -216,16 +229,18 @@ int main(int argc, char *argv[])
 
    delete m1_mu;
 
+   // Initialize M using the given function M_exact
    ParGridFunction m(HCurlFESpace);
    VectorFunctionCoefficient m_func(3, M_exact);
    m.ProjectCoefficient(m_func);
 
-   HypreParVector *M    = m.ParallelAverage();
-   HypreParVector *MD   = new HypreParVector(HCurlFESpace);
-   HypreParVector *DivM = new HypreParVector(H1FESpace);
+   HypreParVector *M       = m.ParallelAverage();
+   HypreParVector *MD      = new HypreParVector(HCurlFESpace);
+   HypreParVector *NegDivM = new HypreParVector(H1FESpace);
 
+   // The divergence of mu M is computed in the weak sense
    M1_mu->Mult(*M,*MD);
-   Grad->MultTranspose(*MD,*DivM);
+   Grad->MultTranspose(*MD,*NegDivM);
 
    delete MD;
    delete M1_mu;
@@ -234,11 +249,11 @@ int main(int argc, char *argv[])
    HypreParVector *Phi_M        = phi_m.ParallelAverage();
 
    // Apply the boundary conditions to the assembled matrix and vectors
-   Laplacian_mu->EliminateRowsCols(dof_list, *Phi_M, *DivM);
+   Laplacian_mu->EliminateRowsCols(dof_list, *Phi_M, *NegDivM);
 
    delete laplacian_mu;
 
-   // Define and apply a parallel PCG solver for AX=B with the AMS
+   // Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    // preconditioner from hypre.
 
    HypreSolver *amg = new HypreBoomerAMG(*Laplacian_mu);
@@ -247,13 +262,13 @@ int main(int argc, char *argv[])
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
-   pcg->Mult(*DivM, *Phi_M);
+   pcg->Mult(*NegDivM, *Phi_M);
 
    delete amg;
    delete pcg;
 
    // Extract the parallel grid function corresponding to the finite
-   // element approximation X. This is the local solution on each
+   // element approximation Phi_M. This is the local solution on each
    // processor.
    phi_m = *Phi_M;
 
@@ -266,6 +281,9 @@ int main(int argc, char *argv[])
 
    delete Grad;
 
+   // Compute the magnetic flux B corresponding to the magnetic field
+   // H and magetization M.
+   //
    ParMixedBilinearForm *hodge_mu =
      new ParMixedBilinearForm(HCurlFESpace,HDivFESpace);
    hodge_mu->AddDomainIntegrator(new VectorFEMassIntegrator(mu));
@@ -286,11 +304,13 @@ int main(int argc, char *argv[])
    delete hodge_mu;
    delete mass_rt;
 
+   // Compute BD = mu (H + M) in the dual space of HDiv
    Hodge_mu->Mult(*H,*BD);
    Hodge_mu->Mult(*M,*BD,1.0,1.0);
 
    delete Hodge_mu;
 
+   // Solve for the B in HDiv which is dual to BD
    HypreSolver *ds_rt = new HypreDiagScale(*Mass_rt);
    HyprePCG *pcg_rt = new HyprePCG(*Mass_rt);
    pcg_rt->SetTol(1e-12);
@@ -303,6 +323,7 @@ int main(int argc, char *argv[])
    delete ds_rt;
    delete pcg_rt;
 
+   // Create a grid function from B for visualization
    ParGridFunction b(HDivFESpace,B);
 
    delete BD;
@@ -364,7 +385,7 @@ int main(int argc, char *argv[])
    // Free the used memory.
    delete H;
    delete M;
-   delete DivM;
+   delete NegDivM;
    delete Phi_M;
    delete Laplacian_mu;
    delete HDivFESpace;
