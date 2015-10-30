@@ -28,7 +28,7 @@ else
               electrostatics1p electrostatics2p
 endif
 
-.PHONY: all clean
+.PHONY: all clean style
 
 # Remove built-in rule
 %: %.cpp
@@ -55,3 +55,12 @@ clean:
                      electrostatics1p electrostatics2p
 	rm -f mesh.* sol.* sol_curl.* psi.*
 	rm -rf *.dSYM *.TVD.*breakpoints
+
+
+ASTYLE = astyle --options=../../config/mfem.astylerc
+FORMAT_FILES = $(foreach dir, . ,"$(dir)/*.?pp")
+
+style:
+	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\
+	   echo "No source files were changed.";\
+	fi

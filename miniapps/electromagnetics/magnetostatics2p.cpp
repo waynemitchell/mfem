@@ -7,7 +7,7 @@
 //   mpirun -np 4 magnetostatics2p
 //   mpirun -np 4 magnetostatics2p -m ./square-torus-n1.mesh
 //
-// Description:  This example code solves a simple 3D magnetostatic
+// Description:  This mini app solves a simple 3D magnetostatic
 //               problem corresponding to the second order
 //               semi-definite Maxwell equation
 //                  curl muInv curl A = 0

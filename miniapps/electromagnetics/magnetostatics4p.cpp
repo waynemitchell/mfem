@@ -7,7 +7,7 @@
 // Sample runs:
 //   mpirun -np 4 magnetostatics4p
 //
-// Description:  This example code solves a simple 3D magnetostatic
+// Description:  This mini app solves a simple 3D magnetostatic
 //               problem using a magnetic scalar potential.  When the
 //               volumetric current is zero Ampere's law become curl H
 //               = 0.  This implies that H can be written as the

@@ -6,7 +6,7 @@
 // Sample runs:
 //   mpirun -np 4 magnetostatics3p
 //
-// Description:  This example code solves a simple 3D magnetostatic
+// Description:  This mini app solves a simple 3D magnetostatic
 //               problem corresponding to the second order
 //               semi-definite Maxwell equation
 //                  curl muInv curl A = J
