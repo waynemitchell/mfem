@@ -706,6 +706,56 @@ public:
    virtual ~HypreADS();
 };
 
+class HypreMultiVector {
+private:
+  // Pointer to hypre's multi-vector object
+  mv_MultiVectorPtr mv_ptr;
+
+  // Interface for matrix storage type
+  mv_InterfaceInterpreter * interpreter;
+
+public:
+  HypreMultiVector(int n, HypreParVector & v);
+  ~HypreMultiVector();
+
+  operator mv_MultiVectorPtr() const { return mv_ptr; }
+
+  mv_InterfaceInterpreter & GetInterpreter() const { return *interpreter; }
+};
+
+/// LOBPCG Eigenvalue solver in hypre
+class HypreLOBPCG {
+private:
+  // Pointer to HYPRE's solver struct
+  HYPRE_Solver lobpcg_solver;
+
+  // Interface for setting up and performing matrix-vector products
+  HYPRE_MatvecFunctions matvec_fn;
+
+  // Interface for matrix storage type
+  // mv_InterfaceInterpreter * interpreter;
+
+public:
+  HypreLOBPCG(mv_InterfaceInterpreter & interpreter);
+  ~HypreLOBPCG();
+
+  void SetTol(double tol);
+  void SetMaxIter(int max_iter);
+  void SetPrintLevel(int logging);
+  void SetPrecondUsageModel(int pcg_mode);
+
+  void SetPrecond(HypreSolver & precond);
+
+  void Setup(HypreParMatrix & A, HypreParVector & x, HypreParVector & y);
+  void SetupB(HypreParMatrix & B, HypreParVector & x, HypreParVector & y);
+  void SetupT(HypreParMatrix & T, HypreParVector & x, HypreParVector & y);
+
+  void Solve(Vector & eigenvalues);
+  void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors);
+  void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors,
+	     HypreMultiVector & constraints);
+};
+
 }
 
 #endif // MFEM_USE_MPI

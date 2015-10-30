@@ -2406,6 +2406,85 @@ HypreADS::~HypreADS()
    delete ND_Piz;
 }
 
+HypreMultiVector::HypreMultiVector(int n, HypreParVector & v)
+{
+  interpreter =
+    hypre_CTAlloc(mv_InterfaceInterpreter,1);
+
+  HYPRE_ParCSRSetupInterpreter(interpreter);
+
+  mv_ptr = mv_MultiVectorCreateFromSampleVector(interpreter, n, (HYPRE_ParVector)v);
+}
+
+HypreMultiVector::~HypreMultiVector()
+{
+   if ( interpreter != NULL ) { hypre_TFree(interpreter); }
+}
+
+HypreLOBPCG::HypreLOBPCG(mv_InterfaceInterpreter & interpreter)
+{
+   HYPRE_ParCSRSetupMatvec(&matvec_fn);
+   HYPRE_LOBPCGCreate(&interpreter, &matvec_fn, &lobpcg_solver);
+}
+
+HypreLOBPCG::~HypreLOBPCG()
+{
+   HYPRE_LOBPCGDestroy(lobpcg_solver);
+}
+
+void
+HypreLOBPCG::SetTol(double tol)
+{
+   HYPRE_LOBPCGSetTol(lobpcg_solver, tol);
+}
+
+void
+HypreLOBPCG::SetMaxIter(int max_iter)
+{
+   HYPRE_LOBPCGSetMaxIter(lobpcg_solver, max_iter);
+}
+
+void
+HypreLOBPCG::SetPrintLevel(int logging)
+{
+   HYPRE_LOBPCGSetPrintLevel(lobpcg_solver, logging);
+}
+
+void
+HypreLOBPCG::SetPrecondUsageModel(int pcg_mode)
+{
+   HYPRE_LOBPCGSetPrecondUsageMode(lobpcg_solver, pcg_mode);
+}
+
+void
+HypreLOBPCG::SetPrecond(HypreSolver & precond)
+{}
+
+void
+HypreLOBPCG::Setup(HypreParMatrix & A, HypreParVector & x, HypreParVector & y)
+{}
+
+void
+HypreLOBPCG::SetupB(HypreParMatrix & B, HypreParVector & x, HypreParVector & y)
+{}
+
+void
+HypreLOBPCG::SetupT(HypreParMatrix & T, HypreParVector & x, HypreParVector & y)
+{}
+
+void
+HypreLOBPCG::Solve(Vector & eigenvalues)
+{}
+
+void
+HypreLOBPCG::Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors)
+{}
+
+void
+HypreLOBPCG::Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors,
+		   HypreMultiVector & constraints)
+{}
+
 }
 
 #endif
