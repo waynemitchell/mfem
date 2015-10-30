@@ -21,7 +21,7 @@
 //               potentials on surfaces 1 and 2.
 //
 //               This is a perfect electrical conductor (PEC) boundary
-//               condition which results in a magnetic flux sasifying:
+//               condition which results in a magnetic flux satisfying:
 //                  n . B = 0 on all surfaces
 //               We discretize with Nedelec finite elements.
 //
@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
 
    // Create the Gradient operator and compute K = Grad Psi.
    ParDiscreteGradOperator * Grad =
-     new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
+      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
    HypreParVector *K = new HypreParVector(HCurlFESpace);
    Grad->Mult(*Psi,*K);
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
    // magnetic flux corresponding to the vector potential
    // represented by A.
    ParDiscreteCurlOperator *Curl =
-     new ParDiscreteCurlOperator(HCurlFESpace, HDivFESpace);
+      new ParDiscreteCurlOperator(HCurlFESpace, HDivFESpace);
    HypreParVector *B = new HypreParVector(HDivFESpace);
 
    Curl->Mult(*A,*B);
@@ -372,13 +372,13 @@ int main(int argc, char *argv[])
 
       a_sock << "parallel " << num_procs << " " << myid << "\n";
       a_sock << "solution\n" << *pmesh << a
-	     << "window_title 'Vector Potential (A)'" << flush;
+             << "window_title 'Vector Potential (A)'" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       b_sock << "parallel " << num_procs << " " << myid << "\n";
       b_sock << "solution\n" << *pmesh << b
-	     << "window_title 'Magnetic Flux (B)'\n" << flush;
+             << "window_title 'Magnetic Flux (B)'\n" << flush;
    }
 
    // Free the used memory.

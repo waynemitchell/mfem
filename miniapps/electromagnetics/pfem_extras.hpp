@@ -20,7 +20,8 @@
 #include "../../fem/pfespace.hpp"
 #include "../../fem/pbilinearform.hpp"
 
-namespace mfem {
+namespace mfem
+{
 
 /** The H1_ParFESpace class is a ParFiniteElementSpace which automatically
     allocates and destroys its own FiniteElementCollection, in this
@@ -30,8 +31,8 @@ class H1_ParFESpace : public ParFiniteElementSpace
 {
 public:
    H1_ParFESpace(ParMesh *m,
-		 const int p, const int space_dim = 3, const int type = 0,
-		 int vdim = 1, int order = Ordering::byNODES);
+                 const int p, const int space_dim = 3, const int type = 0,
+                 int vdim = 1, int order = Ordering::byNODES);
    ~H1_ParFESpace();
 private:
    const FiniteElementCollection *FEC_;
@@ -45,7 +46,7 @@ class ND_ParFESpace : public ParFiniteElementSpace
 {
 public:
    ND_ParFESpace(ParMesh *m, const int p, const int space_dim,
-		 int vdim = 1, int order = Ordering::byNODES);
+                 int vdim = 1, int order = Ordering::byNODES);
    ~ND_ParFESpace();
 private:
    const FiniteElementCollection *FEC_;
@@ -59,7 +60,7 @@ class RT_ParFESpace : public ParFiniteElementSpace
 {
 public:
    RT_ParFESpace(ParMesh *m, const int p, const int space_dim,
-		 int vdim = 1, int order = Ordering::byNODES);
+                 int vdim = 1, int order = Ordering::byNODES);
    ~RT_ParFESpace();
 private:
    const FiniteElementCollection *FEC_;
@@ -73,7 +74,7 @@ class L2_ParFESpace : public ParFiniteElementSpace
 {
 public:
    L2_ParFESpace(ParMesh *m, const int p, const int space_dim,
-		 int vdim = 1, int order = Ordering::byNODES);
+                 int vdim = 1, int order = Ordering::byNODES);
    ~L2_ParFESpace();
 private:
    const FiniteElementCollection *FEC_;
@@ -118,21 +119,21 @@ class ParDiscreteGradOperator : public ParDiscreteInterpolationOperator
 {
 public:
    ParDiscreteGradOperator(ParFiniteElementSpace *dfes,
-			   ParFiniteElementSpace *rfes);
+                           ParFiniteElementSpace *rfes);
 };
 
 class ParDiscreteCurlOperator : public ParDiscreteInterpolationOperator
 {
 public:
    ParDiscreteCurlOperator(ParFiniteElementSpace *dfes,
-			   ParFiniteElementSpace *rfes);
+                           ParFiniteElementSpace *rfes);
 };
 
 class ParDiscreteDivOperator : public ParDiscreteInterpolationOperator
 {
 public:
    ParDiscreteDivOperator(ParFiniteElementSpace *dfes,
-			  ParFiniteElementSpace *rfes);
+                          ParFiniteElementSpace *rfes);
 };
 
 } // namespace mfem

@@ -17,7 +17,7 @@
 //               with boundary condition
 //                  n x (A x n) = (0,0,0) on all exterior surfaces
 //               This is a perfect electrical conductor (PEC) boundary
-//               condition which results in a magnetic field sasifying:
+//               condition which results in a magnetic field satisfying:
 //                  n . B = 0 on all surfaces
 //               i.e. the magnetic field lines will be tangent to the
 //               boundary.
@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
    ParGridFunction phi(H1FESpace); phi = 0.0;
 
    ParDiscreteGradOperator *Grad =
-     new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
+      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
    ParBilinearForm *mass = new ParBilinearForm(H1FESpace);
    mass->AddDomainIntegrator(new MassIntegrator);
@@ -293,20 +293,20 @@ int main(int argc, char *argv[])
    {
       phi_sock << "parallel " << num_procs << " " << myid << "\n";
       phi_sock << "solution\n" << *pmesh << phi
-	       << "window_title 'Scalar Potential (Phi)'\n"
-	       << flush;
+               << "window_title 'Scalar Potential (Phi)'\n"
+               << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       rho_sock << "parallel " << num_procs << " " << myid << "\n";
       rho_sock << "solution\n" << *pmesh << rho
-	       << "window_title 'Charge Density (Rho)'\n" << flush;
+               << "window_title 'Charge Density (Rho)'\n" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       e_sock << "parallel " << num_procs << " " << myid << "\n";
       e_sock << "solution\n" << *pmesh << e
-	     << "window_title 'Electric Field (E)'\n" << flush;
+             << "window_title 'Electric Field (E)'\n" << flush;
    }
 
    // 17. Free the used memory.
