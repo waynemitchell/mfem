@@ -1,62 +1,68 @@
-//               MFEM Electromagnetics Mini App 2 - Parallel Version
+//               MFEM Magnetostatics Mini App 2
+//               Vector Potential with a Surface Current
 //
 // Compile with: make magnetostatics2p
 //
 // Sample runs:
-//   mpirun -np 4 magnetostatics2p -m ../../data/inline_hex.mesh
+//   mpirun -np 4 magnetostatics2p
+//   mpirun -np 4 magnetostatics2p -m ./square-torus-n1.mesh
 //
 // Description:  This example code solves a simple 3D magnetostatic
 //               problem corresponding to the second order
 //               semi-definite Maxwell equation
-//                  curl curl A = J
-//               Where the volume current, J, is computed as a
-//               divergence free current.
-//               The boundary condition is
-//                  n x (A x n) = (0,0,0) on all exterior surfaces
+//                  curl muInv curl A = 0
+//               with boundary condition
+//                                / K on surface 3
+//                  n x (A x n) = |
+//                                \ (0,0,0) elsewhere
+//
+//               Where the surface current, K, is computed as a
+//               divergence free current induced by constant
+//               potentials on surfaces 1 and 2.
+//
 //               This is a perfect electrical conductor (PEC) boundary
-//               condition which results in a magnetic field sasifying:
+//               condition which results in a magnetic flux sasifying:
 //                  n . B = 0 on all surfaces
-//               i.e. the magnetic field lines will be tangent to the
-//               boundary.
+//               We discretize with Nedelec finite elements.
 //
-//               We discretize the vector potential and current source
-//               with Nedelec finite elements.  The magnetic field,
-//               which is the curl of the vector potential, is
-//               discretized with Raviart-Thomas finite elements.
+//               The example demonstrates the use of H(curl) finite element
+//               spaces with the curl-curl bilinear form.
 //
-//               The example demonstrates the use of H(curl) finite
-//               element spaces with the curl-curl bilinear form.  It
-//               also shows the divergence cleaning procedure needed
-//               to ensure the right hand side is in the range of the
-//               curl-curl operator.
+//               The number and location of the numbered surfaces in
+//               the mesh will greatly effect the character of the
+//               solution.  For example if there is only one surface
+//               the result should be a constant field.
 //
 
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
+#include "pfem_extras.hpp"
 
 using namespace std;
 using namespace mfem;
 
-// Current for the solenoid
-void J4pi_exact(const Vector &, Vector &);
-
 int main(int argc, char *argv[])
 {
-   // 1. Initialize MPI.
+   // Initialize MPI.
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   // 2. Parse command-line options.
+   // Parse command-line options.
+   const char *mesh_file = "./square-angled-pipe.mesh";
    int order = 1;
-   int pr = 2;
+   int sr = 2, pr = 1;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
+   args.AddOption(&mesh_file, "-m", "--mesh",
+                  "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&sr, "-sr", "--serial-ref-levels",
+                  "Number of serial refinement levels.");
    args.AddOption(&pr, "-pr", "--parallel-ref-levels",
                   "Number of parallel refinement levels.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -77,21 +83,63 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // 3. Create the serial mesh on (0, 0, 0) -> (1, 1, 1) and partition it into
-   //    parallel parts.  Once the parallel mesh is created we can delete the serial mesh.
-   Mesh *mesh = new Mesh(6, 50, 50, Element::HEXAHEDRON, 1, 1.0, 1.0, 1.0);
-   int dim = mesh->Dimension();
-   ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
-   delete mesh;
-
-   // 5. Refine this mesh in parallel to increase the resolution.
-   int par_ref_levels = pr;
-   for (int l = 0; l < par_ref_levels; l++)
+   // Read the (serial) mesh from the given mesh file on all processors.  We
+   // can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
+   // and volume meshes with the same code.
+   Mesh *mesh;
+   ifstream imesh(mesh_file);
+   if (!imesh)
    {
-      pmesh->UniformRefinement();
+      if (myid == 0)
+      {
+         cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+      }
+      MPI_Finalize();
+      return 2;
+   }
+   mesh = new Mesh(imesh, 1, 1);
+   imesh.close();
+   int dim = mesh->Dimension();
+   if (dim != 3)
+   {
+      if (myid == 0)
+      {
+         cerr << "\nThis example requires a 3D mesh\n" << endl;
+      }
+      MPI_Finalize();
+      return 3;
    }
 
-   socketstream psi_sock, j_raw_sock, j_sock, sol_sock, curl_sock;
+   // Refine the serial mesh on all processors to increase the resolution. In
+   // this example we do 'ref_levels' of uniform refinement.
+   {
+      int ref_levels = sr;
+      for (int l = 0; l < ref_levels; l++)
+      {
+         mesh->UniformRefinement();
+      }
+   }
+
+   // Define a parallel mesh by a partitioning of the serial mesh. Refine
+   // this mesh further in parallel to increase the resolution. Once the
+   // parallel mesh is defined, the serial mesh can be deleted. Tetrahedral
+   // meshes need to be reoriented before we can define high-order Nedelec
+   // spaces on them.
+   ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+   delete mesh;
+   {
+      int par_ref_levels = pr;
+      for (int l = 0; l < par_ref_levels; l++)
+      {
+         pmesh->UniformRefinement();
+      }
+   }
+   if (order >= 2)
+   {
+      pmesh->ReorientTetMesh();
+   }
+
+   socketstream psi_sock, a_sock, b_sock;
    char vishost[] = "localhost";
    int  visport   = 19916;
    if (visualization)
@@ -101,38 +149,21 @@ int main(int argc, char *argv[])
 
       MPI_Barrier(MPI_COMM_WORLD);
 
-      j_raw_sock.open(vishost, visport);
-      j_raw_sock.precision(8);
+      a_sock.open(vishost, visport);
+      a_sock.precision(8);
 
       MPI_Barrier(MPI_COMM_WORLD);
 
-      j_sock.open(vishost, visport);
-      j_sock.precision(8);
-
-      MPI_Barrier(MPI_COMM_WORLD);
-
-      sol_sock.open(vishost, visport);
-      sol_sock.precision(8);
-
-      MPI_Barrier(MPI_COMM_WORLD);
-
-      curl_sock.open(vishost, visport);
-      curl_sock.precision(8);
+      b_sock.open(vishost, visport);
+      b_sock.precision(8);
    }
 
-   // 6. Define compatible parallel finite element spaces on the
+   // Define compatible parallel finite element spaces on the
    // parallel mesh. Here we use arbitrary order H1, Nedelec, and
    // Raviart-Thomas finite elements.
-   FiniteElementCollection *H1FEC        = new H1_FECollection(order, dim);
-   FiniteElementCollection *HCurlFEC     = new ND_FECollection(order, dim);
-   FiniteElementCollection *HDivFEC      = new RT_FECollection(order-1, dim);
-
-   ParFiniteElementSpace   *H1FESpace    = new ParFiniteElementSpace(pmesh,
-                                                                     H1FEC);
-   ParFiniteElementSpace   *HCurlFESpace = new ParFiniteElementSpace(pmesh,
-                                                                     HCurlFEC);
-   ParFiniteElementSpace   *HDivFESpace  = new ParFiniteElementSpace(pmesh,
-                                                                     HDivFEC);
+   H1_ParFESpace *H1FESpace    = new H1_ParFESpace(pmesh,order,dim);
+   ND_ParFESpace *HCurlFESpace = new ND_ParFESpace(pmesh,order,dim);
+   RT_ParFESpace *HDivFESpace  = new RT_ParFESpace(pmesh,order,dim);
 
    HYPRE_Int size_h1 = H1FESpace->GlobalTrueVSize();
    HYPRE_Int size_nd = HCurlFESpace->GlobalTrueVSize();
@@ -144,307 +175,222 @@ int main(int argc, char *argv[])
       cout << "Number of H(Div)  unknowns: " << size_rt << endl;
    }
 
-   // 7. Create the Gradient Operator and Mass matrix needed during
-   // the divergence cleaning procedure.
-   ParDiscreteLinearOperator *grad =
-      new ParDiscreteLinearOperator(H1FESpace,
-                                    HCurlFESpace);
-   grad->AddDomainInterpolator(new GradientInterpolator);
-   grad->Assemble();
-   grad->Finalize();
-   HypreParMatrix *Grad = grad->ParallelAssemble();
+   // Setup the equations for the surface current.  The current
+   // will flow along surface 3 of the mesh from surface 1 to
+   // surface 2.  We want the surface current to be divergence free
+   // so we solve:
+   //   Div(Grad Psi) = 0
+   // with boundary conditions:
+   //   Psi = -1/2 on surface 1 and Psi = 1/2 on surface 2
+   // We then define the surface current as:
+   //   K = Grad Psi
 
-   ParBilinearForm *m1 = new ParBilinearForm(HCurlFESpace);
-   m1->AddDomainIntegrator(new VectorFEMassIntegrator());
-   m1->Assemble();
-   m1->Finalize();
-   HypreParMatrix *M1 = m1->ParallelAssemble();
-
-   // 8. Divergence Cleaning:
-   //    The Curl-Curl operator has a large null space which means
-   //    that an arbitrary vector in H(Curl) is unlikely to be in the
-   //    range of this operator.  In fact great care is required to
-   //    ensure that a vector is in this range.  The procedure is as
-   //    follows:
-   //
-   //    Start with J_raw which is the discretization of a volumetric
-   //    current source.  Define a modified current source
-   //       J = J_raw - Grad(Psi)
-   //    Where Psi will be chosen such that the divergence of J is
-   //    zero.  This means that Div(J) = Div(Grad(Psi)).  The discrete
-   //    equations can be written:
-   //       S*Psi = T_{01}^T*M*J_raw
-   //    Where S is the stiffness matrix corresponding to the
-   //    Laplacian operator, T_{01} is the discrete gradient operator,
-   //    and M is the mass matrix for Nedelec finite elements.  When
-   //    solving for Psi we can choose to set Psi equal to zero on any
-   //    portion of the boundary where J_raw is zero.
-   //
-
-   // 9. Project the desired current source onto the grid function j_raw
-   ParGridFunction j_raw(HCurlFESpace);
-   ParGridFunction j(HCurlFESpace);
-   VectorFunctionCoefficient j_func(3, J4pi_exact);
-   j_raw.ProjectCoefficient(j_func);
-   j = j_raw;
-
-   // 10. Define the boundary conditions for Psi (Psi=0 on entire boundary)
+   // Define the boundary conditions for Psi
    ParGridFunction psi(H1FESpace);
+   ConstantCoefficient one_half(0.5);
+   ConstantCoefficient neg_one_half(-0.5);
    psi = 0.0;
+   Array<int> ess_bdr1_p(pmesh->bdr_attributes.Max());
+   Array<int> ess_bdr1_n(pmesh->bdr_attributes.Max());
    Array<int> ess_bdr1(pmesh->bdr_attributes.Max());
-   ess_bdr1 = 1;
 
-   Array<int> ess_bdr1_v, dof_list1;
-   H1FESpace->GetEssentialVDofs(ess_bdr1,ess_bdr1_v);
+   ess_bdr1_p = 0; ess_bdr1_p[1] = 1;
+   ess_bdr1_n = 0; ess_bdr1_n[0] = 1;
+   ess_bdr1 = 0; ess_bdr1[0] = 1; ess_bdr1[1] = 1;
 
-   for (int i = 0; i < ess_bdr1_v.Size(); i++)
-   {
-      if (ess_bdr1_v[i])
-      {
-         int loctdof = H1FESpace->GetLocalTDofNumber(i);
-         if ( loctdof >= 0 )
-         {
-            dof_list1.Append(loctdof);
-         }
-      }
-   }
+   psi.ProjectBdrCoefficient(one_half,ess_bdr1_p);
+   psi.ProjectBdrCoefficient(neg_one_half,ess_bdr1_n);
 
-   // 11. Create the Div(Grad()) operator for computing Psi
-   ParBilinearForm *a1 = new ParBilinearForm(H1FESpace);
+   // Create the right hand side vector which is simply zero.
+   ParLinearForm *rhs1 = new ParLinearForm(H1FESpace);
+   rhs1->Assemble();
+
+
+   // Create the Div(Grad()) operator on the outer surface of the
+   // mesh.  This operator will be zero everywhere in the interior of
+   // the mesh so technically it will remain singular even after the
+   // boundary conditions are applied.  However, the AMG solver we are
+   // about to use ignores rows which are identically zero so it will
+   // be able to successfully solve the surface equations and leave
+   // all internal DoFs zero which is precisely what we need.
+   ParBilinearForm *laplacian = new ParBilinearForm(H1FESpace);
    ConstantCoefficient sigma(1.0);
-   a1->AddDomainIntegrator(new DiffusionIntegrator(sigma));
-   a1->Assemble();
-   a1->Finalize();
+   laplacian->AddBoundaryIntegrator(new DiffusionIntegrator(sigma));
+   laplacian->Assemble();
+   laplacian->EliminateEssentialBC(ess_bdr1, psi, *rhs1);
+   laplacian->Finalize();
 
-   // 12. Setup the linear system for Psi
-   HypreParMatrix *A1  = a1->ParallelAssemble();
-   HypreParVector *X1  = psi.ParallelAverage();
-   HypreParVector *B1  = new HypreParVector(*A1);
-   HypreParVector *JR1 = j_raw.ParallelAverage();
+   HypreParMatrix *Laplacian = laplacian->ParallelAssemble();
+   HypreParVector *RHS1      = rhs1->ParallelAssemble();
+   HypreParVector *Psi       = psi.ParallelAverage();
 
-   // JD1 is the vector dual to JR1
-   HypreParVector *JD1 = new HypreParVector(*Grad,1);
+   delete laplacian;
+   delete rhs1;
 
-   M1->Mult(*JR1,*JD1);
-   Grad->MultTranspose(*JD1,*B1);
-
-   A1->EliminateRowsCols(dof_list1, *X1, *B1);
-
-   delete a1;
-   delete m1;
-   delete JD1;
-   delete JR1;
-
-   // 13. Setup and use the AMG solver to compute Psi.
-   HypreBoomerAMG *amg1 = new HypreBoomerAMG(*A1);
+   // Setup and use the AMG solver to compute Psi on the boundary.
+   HypreBoomerAMG *amg1 = new HypreBoomerAMG(*Laplacian);
    amg1->SetPrintLevel(0);
-   HyprePCG *pcg1 = new HyprePCG(*A1);
-   pcg1->SetTol(1e-14);
+   HyprePCG *pcg1 = new HyprePCG(*Laplacian);
+   pcg1->SetTol(1e-12);
    pcg1->SetMaxIter(200);
    pcg1->SetPrintLevel(2);
    pcg1->SetPreconditioner(*amg1);
-   pcg1->Mult(*B1, *X1);
+   pcg1->Mult(*RHS1, *Psi);
    delete pcg1;
    delete amg1;
 
-   psi = *X1;
+   psi = *Psi;
 
-   // 14. Use the Gradient operator to compute the correction to J_raw.
-   HypreParVector *GradPsi = new HypreParVector(HCurlFESpace);
-   Grad->Mult(*X1,*GradPsi);
-   ParGridFunction gradPsi(HCurlFESpace,GradPsi);
+   // Create the Gradient operator and compute K = Grad Psi.
+   ParDiscreteGradOperator * Grad =
+     new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
-   // j is now in the range of the Curl-Curl operator
-   j -= gradPsi;
+   HypreParVector *K = new HypreParVector(HCurlFESpace);
+   Grad->Mult(*Psi,*K);
+   ParGridFunction k(HCurlFESpace,K);
 
-   delete GradPsi;
+   delete K;
    delete Grad;
-   delete grad;
-   delete X1;
-   delete B1;
-   delete A1;
+   delete Psi;
+   delete RHS1;
+   delete Laplacian;
 
-   // 15. Now we are ready to setup and solve the magnetostatics problem.
+   // Now we are ready to setup and solve the magnetostatics problem.
+   //
+   // Set up the parallel linear form rhs(.) which corresponds to the
+   // right-hand side of the FEM linear system, which in this case is
+   // zero.
+   ParLinearForm *rhs = new ParLinearForm(HCurlFESpace);
+   rhs->Assemble();
 
-   // 16. Determine the boundary DoFs in the HCurl finite element space.
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
+   // Define the solution vector a as a parallel finite element
+   // grid function corresponding to HCurlFESpace. Initialize a by
+   // projecting the boundary conditions onto the appropriate edges.
+   ParGridFunction a(HCurlFESpace);
+   Vector vZero(3); vZero = 0.0;
+   VectorConstantCoefficient Zero(vZero);
+   Array<int> ess_bdr_1(pmesh->bdr_attributes.Max());
+   ess_bdr_1 = 1; ess_bdr_1[2] = 0;
 
-   Array<int> ess_bdr_v, dof_list;
-   HCurlFESpace->GetEssentialVDofs(ess_bdr,ess_bdr_v);
+   // Set a to be the surface current, Grad Psi, computed above.  Then
+   // overwrite this with zero on the outer surface with the exception
+   // of surface 3.
+   a = k;
+   a.ProjectBdrCoefficientTangent(Zero,ess_bdr_1);
 
-   for (int i = 0; i < ess_bdr_v.Size(); i++)
-   {
-      if (ess_bdr_v[i])
-      {
-         int loctdof = HCurlFESpace->GetLocalTDofNumber(i);
-         if ( loctdof >= 0 )
-         {
-            dof_list.Append(loctdof);
-         }
-      }
-   }
-
-   // 17. Set up the parallel bilinear form corresponding to the
+   // Set up the parallel bilinear form corresponding to the
    // magnetostatic operator curl muinv curl, by adding the curl-curl
    // domain integrator and finally imposing non-homogeneous Dirichlet
    // boundary conditions. The boundary conditions are implemented by
    // marking all the boundary attributes from the mesh as essential
    // (Dirichlet). After serial and parallel assembly we extract the
-   // parallel matrix A.
+   // parallel matrix CurlMuInvCurl.
    ConstantCoefficient muinv(1.0);
-   ParBilinearForm *a = new ParBilinearForm(HCurlFESpace);
-   a->AddDomainIntegrator(new CurlCurlIntegrator(muinv));
-   a->Assemble();
-   a->Finalize();
 
-   // 18. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //     b(.) and the finite element approximation.
-   ParGridFunction x(HCurlFESpace);
-   HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *X = x.ParallelAverage();
-   HypreParVector *J = j.ParallelAverage();
-   HypreParVector *B = new HypreParVector(*A);
+   // The entire outer surface of the mesh is held fixed at zero
+   // except for the third surface which is set to K = Grad Psi.
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
 
-   // 19. The right hand side, B, must be the dual of J
-   M1->Mult(*J,*B);
+   ParBilinearForm *curlMuInvCurl = new ParBilinearForm(HCurlFESpace);
+   curlMuInvCurl->AddDomainIntegrator(new CurlCurlIntegrator(muinv));
+   curlMuInvCurl->Assemble();
+   curlMuInvCurl->EliminateEssentialBC(ess_bdr, a, *rhs);
+   curlMuInvCurl->Finalize();
+   HypreParMatrix *CurlMuInvCurl = curlMuInvCurl->ParallelAssemble();
 
-   delete J;
+   // Define the parallel (hypre) vectors representing the vector
+   // potential, A, and the right-hand-side.
+   HypreParVector *A   = a.ParallelAverage();
+   HypreParVector *RHS = rhs->ParallelAssemble();
 
-   // 20. Apply the boundary conditions to the assembled matrix and vectors
-   A->EliminateRowsCols(dof_list, *X, *B);
+   // These objects are no longer needed
+   delete curlMuInvCurl;
+   delete rhs;
 
-   delete a;
+   // Define and apply a parallel PCG solver for the linear system
+   // with the AMS preconditioner from hypre.
 
-   // 21. Define and apply a parallel PCG solver for AX=B with the AMS
-   //     preconditioner from hypre.
-
-   HypreSolver *ams = new HypreAMS(*A, HCurlFESpace, 1);
-   HyprePCG *pcg = new HyprePCG(*A);
+   HypreSolver *ams = new HypreAMS(*CurlMuInvCurl, HCurlFESpace, 1);
+   HyprePCG *pcg = new HyprePCG(*CurlMuInvCurl);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
-   pcg->Mult(*B, *X);
+   pcg->Mult(*RHS, *A);
 
    delete ams;
    delete pcg;
 
-   // 22. Extract the parallel grid function corresponding to the finite
-   //     element approximation X. This is the local solution on each
-   //     processor.
-   x = *X;
+   // Extract the parallel grid function corresponding to the finite
+   // element approximation A. This is the local solution on each
+   // processor.
+   a = *A;
 
-   // 23. Compute the Curl of the solution vector.  This is the
-   //     magnetic field corresponding to the vector potential
-   //     represented by x.
-   ParDiscreteLinearOperator *curl =
-      new ParDiscreteLinearOperator(HCurlFESpace, HDivFESpace);
-   curl->AddDomainInterpolator(new CurlInterpolator);
-   curl->Assemble();
-   curl->Finalize();
-   HypreParMatrix *Curl = curl->ParallelAssemble();
-   HypreParVector *CurlX = new HypreParVector(HDivFESpace);
-   Curl->Mult(*X,*CurlX);
-   ParGridFunction curlx(HDivFESpace,CurlX);
+   // Compute the Curl of the solution vector.  This is the
+   // magnetic flux corresponding to the vector potential
+   // represented by A.
+   ParDiscreteCurlOperator *Curl =
+     new ParDiscreteCurlOperator(HCurlFESpace, HDivFESpace);
+   HypreParVector *B = new HypreParVector(HDivFESpace);
 
-   delete CurlX;
+   Curl->Mult(*A,*B);
+   ParGridFunction b(HDivFESpace,B);
+
+   delete B;
    delete Curl;
-   delete curl;
 
-   // 24. Save the refined mesh and the solution in parallel. This output can
-   //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
+   // Save the refined mesh and the solution in parallel. This output can
+   // be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
-      ostringstream mesh_name, psi_name, sol_name, curl_name;
+      ostringstream mesh_name, a_name, b_name;
       mesh_name << "mesh." << setfill('0') << setw(6) << myid;
-      psi_name  << "psi." << setfill('0') << setw(6) << myid;
-      sol_name  << "sol." << setfill('0') << setw(6) << myid;
-      curl_name << "sol_curl." << setfill('0') << setw(6) << myid;
+      a_name << "a." << setfill('0') << setw(6) << myid;
+      b_name << "b." << setfill('0') << setw(6) << myid;
 
       ofstream mesh_ofs(mesh_name.str().c_str());
       mesh_ofs.precision(8);
       pmesh->Print(mesh_ofs);
 
-      ofstream psi_ofs(psi_name.str().c_str());
-      psi_ofs.precision(8);
-      psi.Save(psi_ofs);
+      ofstream a_ofs(a_name.str().c_str());
+      a_ofs.precision(8);
+      a.Save(a_ofs);
 
-      ofstream sol_ofs(sol_name.str().c_str());
-      sol_ofs.precision(8);
-      x.Save(sol_ofs);
-
-      ofstream curl_ofs(curl_name.str().c_str());
-      curl_ofs.precision(8);
-      curlx.Save(curl_ofs);
+      ofstream b_ofs(b_name.str().c_str());
+      b_ofs.precision(8);
+      b.Save(b_ofs);
    }
 
-   // 25. Send the solution by socket to a GLVis server.
+   // Send the solution by socket to a GLVis server.
    if (visualization)
    {
       psi_sock << "parallel " << num_procs << " " << myid << "\n";
       psi_sock << "solution\n" << *pmesh << psi
-               << "window_title 'Divergence Cleaning Potential'" << flush;
+               << "window_title 'Driving Potential'" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
-      j_raw_sock << "parallel " << num_procs << " " << myid << "\n";
-      j_raw_sock << "solution\n" << *pmesh << j_raw
-                 << "window_title 'J Raw'" << flush;
+      a_sock << "parallel " << num_procs << " " << myid << "\n";
+      a_sock << "solution\n" << *pmesh << a
+	     << "window_title 'Vector Potential (A)'" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
-      j_sock << "parallel " << num_procs << " " << myid << "\n";
-      j_sock << "solution\n" << *pmesh << j
-             << "window_title 'J'" << flush;
-
-      MPI_Barrier(pmesh->GetComm());
-
-      sol_sock << "parallel " << num_procs << " " << myid << "\n";
-      sol_sock << "solution\n" << *pmesh << x
-               << "window_title 'Vector Potential'" << flush;
-
-      MPI_Barrier(pmesh->GetComm());
-
-      curl_sock << "parallel " << num_procs << " " << myid << "\n";
-      curl_sock << "solution\n" << *pmesh << curlx
-                << "window_title 'Magnetic Field'\n" << flush;
+      b_sock << "parallel " << num_procs << " " << myid << "\n";
+      b_sock << "solution\n" << *pmesh << b
+	     << "window_title 'Magnetic Flux (B)'\n" << flush;
    }
 
-   // 26. Free the used memory.
-   delete X;
-   delete B;
+   // Free the used memory.
    delete A;
-   delete M1;
+   delete RHS;
+   delete CurlMuInvCurl;
    delete HDivFESpace;
    delete HCurlFESpace;
    delete H1FESpace;
-   delete HDivFEC;
-   delete HCurlFEC;
-   delete H1FEC;
    delete pmesh;
 
    MPI_Finalize();
 
    return 0;
-}
-
-//Current going around an idealized solenoid that has an inner radius of 0.2
-//an outer radius of 0.22 and a height (in x) of 0.2 centered on (0.5, 0.5, 0.5)
-void J4pi_exact(const Vector &x, Vector &J)
-{
-   const double r0 = 0.1;
-   const double r1 = 0.2;
-   const double h  = 0.1;
-   double r = sqrt((x(1) - 0.5)*(x(1) - 0.5) + (x(2) - 0.5)*(x(2) - 0.5));
-   J(0) = J(1) = J(2) = 0.0;
-
-   if ( r >= r0 && r <= r1 && x(0) >= 0.5-0.5*h && x(0) <= 0.5+0.5*h )
-   {
-      J(1) = -(x(2) - 0.5);
-      J(2) = (x(1) - 0.5);
-
-      double scale = 4.*M_PI/sqrt(J(1)*J(1) + J(2)*J(2));
-      J(1) *= scale;
-      J(2) *= scale;
-   }
 }

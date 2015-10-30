@@ -23,7 +23,9 @@ endif
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS =
 else
-   MINIAPPS = magnetostatics1p magnetostatics2p
+   MINIAPPS = magnetostatics1p magnetostatics2p magnetostatics3p \
+              magnetostatics4p magnetostatics5p \
+              electrostatics1p electrostatics2p
 endif
 
 .PHONY: all clean
@@ -32,16 +34,24 @@ endif
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
-	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ $(MFEM_LIBS)
+%: %.cpp $(CONFIG_MK) $(MFEM_LIB_FILE) pfem_extras.o
+	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ pfem_extras.o $(MFEM_LIBS)
 
 all: $(MINIAPPS)
+
+fem_extras.o: fem_extras.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
+	$(MFEM_CXX) -c $(MFEM_FLAGS) fem_extras.cpp -o $@ $(MFEM_LIBS)
+
+pfem_extras.o: pfem_extras.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
+	$(MFEM_CXX) -c $(MFEM_FLAGS) pfem_extras.cpp -o $@ $(MFEM_LIBS)
 
 # Generate an error message if the MFEM library is not built and exit
 $(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
 clean:
-	rm -f *.o *~ magnetostatics1p  magnetostatics2p
+	rm -f *.o *~ magnetostatics1p magnetostatics2p magnetostatics3p \
+                     magnetostatics4p magnetostatics5p \
+                     electrostatics1p electrostatics2p
 	rm -f mesh.* sol.* sol_curl.* psi.*
 	rm -rf *.dSYM *.TVD.*breakpoints
