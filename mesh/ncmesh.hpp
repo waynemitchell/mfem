@@ -567,9 +567,7 @@ protected: // implementation
    }
 
 
-   // coarse to fine transformations
-
-   FineTransforms transforms;
+   // coarse/fine transformations
 
    struct Point
    {
@@ -644,6 +642,16 @@ protected: // implementation
 
       void GetMatrix(DenseMatrix& point_matrix) const;
    };
+
+   static PointMatrix pm_tri_identity;
+   static PointMatrix pm_quad_identity;
+   static PointMatrix pm_hex_identity;
+
+   static const PointMatrix& GetIdentityMatrix(int geom);
+
+   void GetPointMatrix(int geom, const char* ref_path, DenseMatrix& matrix);
+
+   FineTransforms transforms;
 
    void GetFineTransforms(Element* elem, int coarse_index,
                           FineTransform *transforms, const PointMatrix &pm);

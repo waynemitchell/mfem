@@ -12,6 +12,7 @@
 #include "../fem/fem.hpp"
 #include "ncmesh.hpp"
 
+#include <map>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -1354,7 +1355,13 @@ void NCMesh::Derefine(const Array<int> &derefs)
 {
    MFEM_VERIFY(Iso, "derefinement in anisotropic meshes not implemented yet.");
 
-   transforms.fine_coarse.SetSize(leaf_elements.Size());
+   int nfine = leaf_elements.Size();
+
+   transforms.fine_coarse.SetSize(nfine);
+   for (int i = 0; i < nfine; i++)
+   {
+      transforms.fine_coarse[i].matrix = 0;
+   }
 
    Array<Element*> coarse;
    leaf_elements.Copy(coarse);
@@ -1369,14 +1376,14 @@ void NCMesh::Derefine(const Array<int> &derefs)
       const int* fine = derefinements.GetRow(row);
       Element* parent = leaf_elements[fine[0]]->parent;
 
-      // record the relation of fine elements to their parent
+      // record the relation of the fine elements to their parent
       for (int i = 0; i < 8; i++)
       {
          Element* ch = parent->child[i];
          if (ch)
          {
-            int encoded = (parent->ref_type << 3) + i;
-            transforms.fine_coarse[ch->index].matrix = encoded;
+            int code = (parent->ref_type << 3) + i;
+            transforms.fine_coarse[ch->index].matrix = code;
             coarse[ch->index] = parent;
          }
       }
@@ -1388,7 +1395,7 @@ void NCMesh::Derefine(const Array<int> &derefs)
    Update();
 
    // link old fine elements to the new coarse elements
-   for (int i = 0; i < coarse.Size(); i++)
+   for (int i = 0; i < nfine; i++)
    {
       transforms.fine_coarse[i].coarse_element = coarse[i]->index;
    }
@@ -2525,6 +2532,327 @@ NCMesh::FineTransform* NCMesh::GetFineTransforms()
 
 //// Coarse/fine transformations ///////////////////////////////////////////////
 
+NCMesh::PointMatrix NCMesh::pm_tri_identity(
+   Point(0, 0), Point(1, 0), Point(0, 1)
+);
+
+NCMesh::PointMatrix NCMesh::pm_quad_identity(
+   Point(0, 0), Point(1, 0), Point(1, 1), Point(0, 1)
+);
+
+NCMesh::PointMatrix NCMesh::pm_hex_identity(
+   Point(0, 0, 0), Point(1, 0, 0), Point(1, 1, 0), Point(0, 1, 0),
+   Point(0, 0, 1), Point(1, 0, 1), Point(1, 1, 1), Point(0, 1, 1)
+);
+
+const NCMesh::PointMatrix& NCMesh::GetIdentityMatrix(int geom)
+{
+   switch (geom)
+   {
+      case Geometry::TRIANGLE: return pm_tri_identity;
+      case Geometry::SQUARE:   return pm_quad_identity;
+      case Geometry::CUBE:     return pm_hex_identity;
+      default: MFEM_ABORT("unsupported geometry."); throw;
+   }
+}
+
+void NCMesh::GetPointMatrix(int geom, const char* ref_path, DenseMatrix& matrix)
+{
+   PointMatrix pm = GetIdentityMatrix(geom);
+
+   while (*ref_path)
+   {
+      int ref_type = *ref_path++;
+      int child = *ref_path++;
+
+      if (geom == Geometry::CUBE)
+      {
+         if (ref_type == 1) // split along X axis
+         {
+            Point mid01(pm(0), pm(1)), mid23(pm(2), pm(3));
+            Point mid67(pm(6), pm(7)), mid45(pm(4), pm(5));
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), mid01, mid23, pm(3),
+                                pm(4), mid45, mid67, pm(7));
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid01, pm(1), pm(2), mid23,
+                                mid45, pm(5), pm(6), mid67);
+            }
+         }
+         else if (ref_type == 2) // split along Y axis
+         {
+            Point mid12(pm(1), pm(2)), mid30(pm(3), pm(0));
+            Point mid56(pm(5), pm(6)), mid74(pm(7), pm(4));
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), pm(1), mid12, mid30,
+                                pm(4), pm(5), mid56, mid74);
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid30, mid12, pm(2), pm(3),
+                                mid74, mid56, pm(6), pm(7));
+            }
+         }
+         else if (ref_type == 4) // split along Z axis
+         {
+            Point mid04(pm(0), pm(4)), mid15(pm(1), pm(5));
+            Point mid26(pm(2), pm(6)), mid37(pm(3), pm(7));
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), pm(1), pm(2), pm(3),
+                                mid04, mid15, mid26, mid37);
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid04, mid15, mid26, mid37,
+                                pm(4), pm(5), pm(6), pm(7));
+            }
+         }
+         else if (ref_type == 3) // XY split
+         {
+            Point mid01(pm(0), pm(1)), mid12(pm(1), pm(2));
+            Point mid23(pm(2), pm(3)), mid30(pm(3), pm(0));
+            Point mid45(pm(4), pm(5)), mid56(pm(5), pm(6));
+            Point mid67(pm(6), pm(7)), mid74(pm(7), pm(4));
+
+            Point midf0(mid23, mid12, mid01, mid30);
+            Point midf5(mid45, mid56, mid67, mid74);
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), mid01, midf0, mid30,
+                                pm(4), mid45, midf5, mid74);
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid01, pm(1), mid12, midf0,
+                                mid45, pm(5), mid56, midf5);
+            }
+            else if (child == 2)
+            {
+               pm = PointMatrix(midf0, mid12, pm(2), mid23,
+                                midf5, mid56, pm(6), mid67);
+            }
+            else if (child == 3)
+            {
+               pm = PointMatrix(mid30, midf0, mid23, pm(3),
+                                mid74, midf5, mid67, pm(7));
+            }
+         }
+         else if (ref_type == 5) // XZ split
+         {
+            Point mid01(pm(0), pm(1)), mid23(pm(2), pm(3));
+            Point mid45(pm(4), pm(5)), mid67(pm(6), pm(7));
+            Point mid04(pm(0), pm(4)), mid15(pm(1), pm(5));
+            Point mid26(pm(2), pm(6)), mid37(pm(3), pm(7));
+
+            Point midf1(mid01, mid15, mid45, mid04);
+            Point midf3(mid23, mid37, mid67, mid26);
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), mid01, mid23, pm(3),
+                                mid04, midf1, midf3, mid37);
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid01, pm(1), pm(2), mid23,
+                                midf1, mid15, mid26, midf3);
+            }
+            else if (child == 2)
+            {
+               pm = PointMatrix(midf1, mid15, mid26, midf3,
+                                mid45, pm(5), pm(6), mid67);
+            }
+            else if (child == 3)
+            {
+               pm = PointMatrix(mid04, midf1, midf3, mid37,
+                                pm(4), mid45, mid67, pm(7));
+            }
+         }
+         else if (ref_type == 6) // YZ split
+         {
+            Point mid12(pm(1), pm(2)), mid30(pm(3), pm(0));
+            Point mid56(pm(5), pm(6)), mid74(pm(7), pm(4));
+            Point mid04(pm(0), pm(4)), mid15(pm(1), pm(5));
+            Point mid26(pm(2), pm(6)), mid37(pm(3), pm(7));
+
+            Point midf2(mid12, mid26, mid56, mid15);
+            Point midf4(mid30, mid04, mid74, mid37);
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), pm(1), mid12, mid30,
+                                mid04, mid15, midf2, midf4);
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid30, mid12, pm(2), pm(3),
+                                midf4, midf2, mid26, mid37);
+            }
+            else if (child == 2)
+            {
+               pm = PointMatrix(mid04, mid15, midf2, midf4,
+                                pm(4), pm(5), mid56, mid74);
+            }
+            else if (child == 3)
+            {
+               pm = PointMatrix(midf4, midf2, mid26, mid37,
+                                mid74, mid56, pm(6), pm(7));
+            }
+         }
+         else if (ref_type == 7) // full isotropic refinement
+         {
+            Point mid01(pm(0), pm(1)), mid12(pm(1), pm(2));
+            Point mid23(pm(2), pm(3)), mid30(pm(3), pm(0));
+            Point mid45(pm(4), pm(5)), mid56(pm(5), pm(6));
+            Point mid67(pm(6), pm(7)), mid74(pm(7), pm(4));
+            Point mid04(pm(0), pm(4)), mid15(pm(1), pm(5));
+            Point mid26(pm(2), pm(6)), mid37(pm(3), pm(7));
+
+            Point midf0(mid23, mid12, mid01, mid30);
+            Point midf1(mid01, mid15, mid45, mid04);
+            Point midf2(mid12, mid26, mid56, mid15);
+            Point midf3(mid23, mid37, mid67, mid26);
+            Point midf4(mid30, mid04, mid74, mid37);
+            Point midf5(mid45, mid56, mid67, mid74);
+
+            Point midel(midf1, midf3);
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), mid01, midf0, mid30,
+                                mid04, midf1, midel, midf4);
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid01, pm(1), mid12, midf0,
+                                midf1, mid15, midf2, midel);
+            }
+            else if (child == 2)
+            {
+               pm = PointMatrix(midf0, mid12, pm(2), mid23,
+                                midel, midf2, mid26, midf3);
+            }
+            else if (child == 3)
+            {
+               pm = PointMatrix(mid30, midf0, mid23, pm(3),
+                                midf4, midel, midf3, mid37);
+            }
+            else if (child == 4)
+            {
+               pm = PointMatrix(mid04, midf1, midel, midf4,
+                                pm(4), mid45, midf5, mid74);
+            }
+            else if (child == 5)
+            {
+               pm = PointMatrix(midf1, mid15, midf2, midel,
+                                mid45, pm(5), mid56, midf5);
+            }
+            else if (child == 6)
+            {
+               pm = PointMatrix(midel, midf2, mid26, midf3,
+                                midf5, mid56, pm(6), mid67);
+            }
+            else if (child == 7)
+            {
+               pm = PointMatrix(midf4, midel, midf3, mid37,
+                                mid74, midf5, mid67, pm(7));
+            }
+         }
+      }
+      else if (geom == Geometry::SQUARE)
+      {
+         if (ref_type == 1) // X split
+         {
+            Point mid01(pm(0), pm(1)), mid23(pm(2), pm(3));
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), mid01, mid23, pm(3));
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid01, pm(1), pm(2), mid23);
+            }
+         }
+         else if (ref_type == 2) // Y split
+         {
+            Point mid12(pm(1), pm(2)), mid30(pm(3), pm(0));
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), pm(1), mid12, mid30);
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid30, mid12, pm(2), pm(3));
+            }
+         }
+         else if (ref_type == 3) // iso split
+         {
+            Point mid01(pm(0), pm(1)), mid12(pm(1), pm(2));
+            Point mid23(pm(2), pm(3)), mid30(pm(3), pm(0));
+            Point midel(mid01, mid23);
+
+            if (child == 0)
+            {
+               pm = PointMatrix(pm(0), mid01, midel, mid30);
+            }
+            else if (child == 1)
+            {
+               pm = PointMatrix(mid01, pm(1), mid12, midel);
+            }
+            else if (child == 2)
+            {
+               pm = PointMatrix(midel, mid12, pm(2), mid23);
+            }
+            else if (child == 3)
+            {
+               pm = PointMatrix(mid30, midel, mid23, pm(3));
+            }
+         }
+      }
+      else if (geom == Geometry::TRIANGLE)
+      {
+         Point mid01(pm(0), pm(1)), mid12(pm(1), pm(2)), mid20(pm(2), pm(0));
+
+         if (child == 0)
+         {
+            pm = PointMatrix(pm(0), mid01, mid20);
+         }
+         else if (child == 1)
+         {
+            pm = PointMatrix(mid01, pm(1), mid12);
+         }
+         else if (child == 2)
+         {
+            pm = PointMatrix(mid20, mid12, pm(2));
+         }
+         else if (child == 3)
+         {
+            pm = PointMatrix(mid01, mid12, mid20);
+         }
+      }
+   }
+
+   // write the points to the matrix
+   for (int i = 0; i < pm.np; i++)
+   {
+      for (int j = 0; j < pm(i).dim; j++)
+      {
+         matrix(j, i) = pm(i).coord[j];
+      }
+   }
+}
+
 void NCMesh::MarkCoarseLevel()
 {
    coarse_elements.SetSize(leaf_elements.Size());
@@ -2537,7 +2865,6 @@ void NCMesh::MarkCoarseLevel()
    }
 }
 
-
 const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 {
    return transforms;
@@ -2545,6 +2872,42 @@ const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 
 const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
 {
+   MFEM_VERIFY(transforms.fine_coarse.Size(),
+               "GetDerefinementTransforms() must be preceded by Derefine().");
+
+   std::map<int, int> mat_no;
+   mat_no[0] = 0; // identity
+
+   // assign numbers to the different matrices used
+   for (int i = 0, n = 1; i < transforms.fine_coarse.Size(); i++)
+   {
+      int code = transforms.fine_coarse[i].matrix;
+      if (code)
+      {
+         int &matrix = mat_no[code];
+         if (!matrix) { matrix = n++; }
+         transforms.fine_coarse[i].matrix = matrix;
+      }
+   }
+
+   MFEM_ASSERT(root_elements.Size(), "");
+   int geom = root_elements[0]->geom;
+   const PointMatrix &identity = GetIdentityMatrix(geom);
+
+   transforms.point_matrices.SetSize(Dim, identity.np, mat_no.size());
+
+   std::map<int, int>::iterator it;
+   for (it = mat_no.begin(); it != mat_no.end(); ++it)
+   {
+      char path[3];
+      int code = it->first;
+      path[0] = code >> 3; // ref_type (see Derefine())
+      path[1] = code & 7;  // child
+      path[2] = 0;
+
+      GetPointMatrix(geom, path, transforms.point_matrices(it->second));
+   }
+
    return transforms;
 }
 
