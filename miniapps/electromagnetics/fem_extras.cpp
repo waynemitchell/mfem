@@ -17,9 +17,9 @@ namespace mfem
 {
 
 H1_FESpace::H1_FESpace(Mesh *m,
-		       const int p, const int space_dim, const int type,
-		       int vdim, int order)
-  : FiniteElementSpace(m, new H1_FECollection(p,space_dim,type),vdim,order)
+                       const int p, const int space_dim, const int type,
+                       int vdim, int order)
+   : FiniteElementSpace(m, new H1_FECollection(p,space_dim,type),vdim,order)
 {
    FEC_ = this->FiniteElementSpace::fec;
 }
@@ -30,8 +30,8 @@ H1_FESpace::~H1_FESpace()
 }
 
 ND_FESpace::ND_FESpace(Mesh *m, const int p, const int space_dim,
-		       int vdim, int order)
-  : FiniteElementSpace(m, new ND_FECollection(p,space_dim),vdim,order)
+                       int vdim, int order)
+   : FiniteElementSpace(m, new ND_FECollection(p,space_dim),vdim,order)
 {
    FEC_ = this->FiniteElementSpace::fec;
 }
@@ -42,8 +42,8 @@ ND_FESpace::~ND_FESpace()
 }
 
 RT_FESpace::RT_FESpace(Mesh *m, const int p, const int space_dim,
-		       int vdim, int order)
-  : FiniteElementSpace(m, new RT_FECollection(p-1,space_dim),vdim,order)
+                       int vdim, int order)
+   : FiniteElementSpace(m, new RT_FECollection(p-1,space_dim),vdim,order)
 {
    FEC_ = this->FiniteElementSpace::fec;
 }

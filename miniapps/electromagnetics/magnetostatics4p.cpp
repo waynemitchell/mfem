@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
    }
 
    ParDiscreteGradOperator *Grad =
-     new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
+      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
    // Determine the boundary DoFs in the H1 finite element space.
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
@@ -253,13 +253,13 @@ int main(int argc, char *argv[])
    ParGridFunction h(HCurlFESpace,H);
    cout << "H computed" << endl;
    ParMixedBilinearForm *hodge_mu =
-     new ParMixedBilinearForm(HCurlFESpace,HDivFESpace);
+      new ParMixedBilinearForm(HCurlFESpace,HDivFESpace);
    hodge_mu->AddDomainIntegrator(new VectorFEMassIntegrator(mu));
    hodge_mu->Assemble();
    hodge_mu->Finalize();
    cout << "Hodge_mu computed" << endl;
    ParBilinearForm *mass_rt =
-     new ParBilinearForm(HDivFESpace);
+      new ParBilinearForm(HDivFESpace);
    mass_rt->AddDomainIntegrator(new VectorFEMassIntegrator());
    mass_rt->Assemble();
    mass_rt->Finalize();
@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
    // Save the refined mesh and the solution in parallel. This output can
    // be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
-     ostringstream mesh_name, phi_m_name, h_name, b_name;
+      ostringstream mesh_name, phi_m_name, h_name, b_name;
       mesh_name  << "mesh."  << setfill('0') << setw(6) << myid;
       phi_m_name << "phi_m." << setfill('0') << setw(6) << myid;
       h_name     << "h."     << setfill('0') << setw(6) << myid;
@@ -324,20 +324,20 @@ int main(int argc, char *argv[])
    {
       phi_m_sock << "parallel " << num_procs << " " << myid << "\n";
       phi_m_sock << "solution\n" << *pmesh << phi_m
-		 << "window_title 'Magnetic Scalar Potential (Phi_M)'\n"
-		 << flush;
+                 << "window_title 'Magnetic Scalar Potential (Phi_M)'\n"
+                 << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       h_sock << "parallel " << num_procs << " " << myid << "\n";
       h_sock << "solution\n" << *pmesh << h
-	     << "window_title 'Magnetic Field (H)'\n" << flush;
+             << "window_title 'Magnetic Field (H)'\n" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       b_sock << "parallel " << num_procs << " " << myid << "\n";
       b_sock << "solution\n" << *pmesh << b
-	     << "window_title 'Magnetic Flux (B)'\n" << flush;
+             << "window_title 'Magnetic Flux (B)'\n" << flush;
    }
 
    // Free the used memory.
@@ -378,5 +378,5 @@ double mu_exact(const Vector &x)
 // potential can be set to -z.
 double phi_bc_exact(const Vector &x)
 {
-  return -x(2);
+   return -x(2);
 }

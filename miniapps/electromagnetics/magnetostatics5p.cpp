@@ -17,7 +17,7 @@
 //               with the natural boundary condition
 //                  n . grad Phi_M = 0 on all exterior surfaces
 //               This is a perfect electrical conductor (PEC) boundary
-//               condition which results in a magnetic field sasifying:
+//               condition which results in a magnetic field satisfying:
 //                  n . H = 0 on all surfaces
 //               i.e. the magnetic field lines will be tangent to the
 //               boundary.
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 
    if ( myid == 0 )
    {
-     dof_list.Append(0);
+      dof_list.Append(0);
    }
 
    // Set up the parallel bilinear form corresponding to the scalar
@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
    // The gradient operator needed to compute H from Phi_M and also
    // used in compting div mu M.
    ParDiscreteGradOperator *Grad =
-     new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
+      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
    // An HCurl mass matrix with coeficient mu which is also needed to
    // compute div mu M.
@@ -285,13 +285,13 @@ int main(int argc, char *argv[])
    // H and magetization M.
    //
    ParMixedBilinearForm *hodge_mu =
-     new ParMixedBilinearForm(HCurlFESpace,HDivFESpace);
+      new ParMixedBilinearForm(HCurlFESpace,HDivFESpace);
    hodge_mu->AddDomainIntegrator(new VectorFEMassIntegrator(mu));
    hodge_mu->Assemble();
    hodge_mu->Finalize();
 
    ParBilinearForm *mass_rt =
-     new ParBilinearForm(HDivFESpace);
+      new ParBilinearForm(HDivFESpace);
    mass_rt->AddDomainIntegrator(new VectorFEMassIntegrator());
    mass_rt->Assemble();
    mass_rt->Finalize();
@@ -360,26 +360,26 @@ int main(int argc, char *argv[])
    {
       phi_m_sock << "parallel " << num_procs << " " << myid << "\n";
       phi_m_sock << "solution\n" << *pmesh << phi_m
-		 << "window_title 'Magnetic Scalar Potential (Phi_M)'\n"
-		 << flush;
+                 << "window_title 'Magnetic Scalar Potential (Phi_M)'\n"
+                 << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       m_sock << "parallel " << num_procs << " " << myid << "\n";
       m_sock << "solution\n" << *pmesh << m
-	     << "window_title 'Magnetisation (M)'\n" << flush;
+             << "window_title 'Magnetisation (M)'\n" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       h_sock << "parallel " << num_procs << " " << myid << "\n";
       h_sock << "solution\n" << *pmesh << h
-	     << "window_title 'Magnetic Field (H)'\n" << flush;
+             << "window_title 'Magnetic Field (H)'\n" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       b_sock << "parallel " << num_procs << " " << myid << "\n";
       b_sock << "solution\n" << *pmesh << b
-	     << "window_title 'Magnetic Flux (B)'\n" << flush;
+             << "window_title 'Magnetic Flux (B)'\n" << flush;
    }
 
    // Free the used memory.

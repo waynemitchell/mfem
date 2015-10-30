@@ -15,7 +15,7 @@
 //               The boundary condition is
 //                  n x (A x n) = (0,0,0) on all exterior surfaces
 //               This is a perfect electrical conductor (PEC) boundary
-//               condition which results in a magnetic flux sasifying:
+//               condition which results in a magnetic flux satisfying:
 //                  n . B = 0 on all surfaces
 //               i.e. the magnetic flux lines will be tangent to the
 //               boundary.
@@ -188,10 +188,10 @@ int main(int argc, char *argv[])
    // Create the Gradient Operator, Curl Operator, and a Mass
    // matrix needed during the divergence cleaning procedure.
    ParDiscreteGradOperator *Grad =
-     new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
+      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
    ParDiscreteCurlOperator *Curl =
-     new ParDiscreteCurlOperator(HCurlFESpace, HDivFESpace);
+      new ParDiscreteCurlOperator(HCurlFESpace, HDivFESpace);
 
    ParBilinearForm *mass_nd = new ParBilinearForm(HCurlFESpace);
    mass_nd->AddDomainIntegrator(new VectorFEMassIntegrator);
@@ -430,13 +430,13 @@ int main(int argc, char *argv[])
 
       a_sock << "parallel " << num_procs << " " << myid << "\n";
       a_sock << "solution\n" << *pmesh << a
-	     << "window_title 'Vector Potential (A)'" << flush;
+             << "window_title 'Vector Potential (A)'" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       b_sock << "parallel " << num_procs << " " << myid << "\n";
       b_sock << "solution\n" << *pmesh << b
-	     << "window_title 'Magnetic Flux (B)'\n" << flush;
+             << "window_title 'Magnetic Flux (B)'\n" << flush;
    }
 
    // Free the used memory.

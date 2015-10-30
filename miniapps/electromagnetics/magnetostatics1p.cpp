@@ -13,7 +13,7 @@
 //               with boundary condition
 //                  n x (A x n) = (0,0,0) on all exterior surfaces
 //               This is a perfect electrical conductor (PEC) boundary
-//               condition which results in a magnetic flux sasifying:
+//               condition which results in a magnetic flux satisfying:
 //                  n . B = 0 on all surfaces
 //               i.e. the magnetic flux lines will be tangent to the
 //               boundary.
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
    }
 
    ParDiscreteCurlOperator *Curl =
-     new ParDiscreteCurlOperator(HCurlFESpace, HDivFESpace);
+      new ParDiscreteCurlOperator(HCurlFESpace, HDivFESpace);
 
    ParBilinearForm *mass_rt = new ParBilinearForm(HDivFESpace);
    mass_rt->AddDomainIntegrator(new VectorFEMassIntegrator());
@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
 
    // The magnetization, M, must be in the space H(Div) so that its
    // curl, a weak curl in this case, will be in H(Curl).
-   // 
+   //
    // First project the vector function onto an H(Div) vector
    ParGridFunction m(HDivFESpace);
    VectorFunctionCoefficient m_func(3, M_exact);
@@ -301,19 +301,19 @@ int main(int argc, char *argv[])
    {
       m_sock << "parallel " << num_procs << " " << myid << "\n";
       m_sock << "solution\n" << *pmesh << m
-	     << "window_title 'Magnetization (M)'" << flush;
+             << "window_title 'Magnetization (M)'" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       a_sock << "parallel " << num_procs << " " << myid << "\n";
       a_sock << "solution\n" << *pmesh << a
-	     << "window_title 'Vector Potential (A)'" << flush;
+             << "window_title 'Vector Potential (A)'" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       b_sock << "parallel " << num_procs << " " << myid << "\n";
       b_sock << "solution\n" << *pmesh << b
-	     << "window_title 'Magnetic Flux (B)'\n" << flush;
+             << "window_title 'Magnetic Flux (B)'\n" << flush;
    }
 
    // Free the used memory.

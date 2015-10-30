@@ -12,7 +12,7 @@
 //               problem with non-uniform dielectric permittivity.
 //                  Div eps Grad Phi = 0
 //               The uniform field is imposed through the boundary
-//               conidtions.
+//               conditions.
 //                  Phi = -z on all exterior surfaces
 //               This will produce a uniform electric field in the z
 //               direction.
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 
    // The gradient operator needed to compute E from Phi
    ParDiscreteGradOperator *Grad =
-     new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
+      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
    // Create the dual of the charge density which is simply zero in this case
    HypreParVector *RhoD = new HypreParVector(H1FESpace);
@@ -264,14 +264,14 @@ int main(int argc, char *argv[])
    {
       phi_sock << "parallel " << num_procs << " " << myid << "\n";
       phi_sock << "solution\n" << *pmesh << phi
-	       << "window_title 'Scalar Potential (Phi)'\n"
-	       << flush;
+               << "window_title 'Scalar Potential (Phi)'\n"
+               << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       e_sock << "parallel " << num_procs << " " << myid << "\n";
       e_sock << "solution\n" << *pmesh << e
-	     << "window_title 'Electric Field (E)'\n" << flush;
+             << "window_title 'Electric Field (E)'\n" << flush;
    }
 
    // Free the used memory.
@@ -307,5 +307,5 @@ double Eps_exact(const Vector &x)
 // potential can be set to -z.
 double phi_bc_exact(const Vector &x)
 {
-  return -x(2);
+   return -x(2);
 }

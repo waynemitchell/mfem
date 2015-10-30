@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
 
    // The gradient operator needed to compute E from Phi
    ParDiscreteGradOperator *Grad =
-     new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
+      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
    // We want to be able to visualize the charge density so we'll need
    // to represent it as a grid function.  However, we need the dual
@@ -286,20 +286,20 @@ int main(int argc, char *argv[])
    {
       phi_sock << "parallel " << num_procs << " " << myid << "\n";
       phi_sock << "solution\n" << *pmesh << phi
-	       << "window_title 'Scalar Potential (Phi)'\n"
-	       << flush;
+               << "window_title 'Scalar Potential (Phi)'\n"
+               << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       rho_sock << "parallel " << num_procs << " " << myid << "\n";
       rho_sock << "solution\n" << *pmesh << rho
-	       << "window_title 'Charge Density (Rho)'\n" << flush;
+               << "window_title 'Charge Density (Rho)'\n" << flush;
 
       MPI_Barrier(pmesh->GetComm());
 
       e_sock << "parallel " << num_procs << " " << myid << "\n";
       e_sock << "solution\n" << *pmesh << e
-	     << "window_title 'Electric Field (E)'\n" << flush;
+             << "window_title 'Electric Field (E)'\n" << flush;
    }
 
    // Free the used memory.
@@ -316,15 +316,15 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-// A sphere of constant charge density.  The sphere has a radius of
-// 0.25 and is centered at the origin.
+// A cylinder of constant charge density.  The cylinder has a radius
+// of 0.25, a height of 1.5, is centered at (0.5,0.5,0.0), and is
+// oriented along the z axis.
 double Rho_exact(const Vector &x)
 {
-   const double r0 = 0.25;
-   // double r = sqrt(x(0)*x(0) + x(1)*x(1) + (x(2)-0.5)*(x(2)-0.5));
-   double r = sqrt((x(0)-0.5)*(x(0)-0.5) + (x(1)-0.5)*(x(1)-0.5));
+   const double rho0 = 0.25;
+   double rho = sqrt((x(0)-0.5)*(x(0)-0.5) + (x(1)-0.5)*(x(1)-0.5));
 
-   if ( r <= 1.0001 * r0 && x(2) <= 0.75 && x(2) >= -0.75 )
+   if ( rho <= 1.0001 * rho0 && x(2) <= 0.75 && x(2) >= -0.75 )
    {
       return 1.0;
    }

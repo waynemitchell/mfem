@@ -15,7 +15,8 @@
 #include <cstddef>
 #include "../../fem/fespace.hpp"
 
-namespace mfem {
+namespace mfem
+{
 
 /** The H1_FESpace class is a FiniteElementSpace which automatically
     allocates and destroys its own FiniteElementCollection, in this
@@ -25,8 +26,8 @@ class H1_FESpace : public FiniteElementSpace
 {
 public:
    H1_FESpace(Mesh *m,
-	      const int p, const int space_dim = 3, const int type = 0,
-	      int vdim = 1, int order = Ordering::byNODES);
+              const int p, const int space_dim = 3, const int type = 0,
+              int vdim = 1, int order = Ordering::byNODES);
    ~H1_FESpace();
 private:
    const FiniteElementCollection *FEC_;
@@ -40,7 +41,7 @@ class ND_FESpace : public FiniteElementSpace
 {
 public:
    ND_FESpace(Mesh *m, const int p, const int space_dim,
-	      int vdim = 1, int order = Ordering::byNODES);
+              int vdim = 1, int order = Ordering::byNODES);
    ~ND_FESpace();
 private:
    const FiniteElementCollection *FEC_;
@@ -54,7 +55,7 @@ class RT_FESpace : public FiniteElementSpace
 {
 public:
    RT_FESpace(Mesh *m, const int p, const int space_dim,
-	      int vdim = 1, int order = Ordering::byNODES);
+              int vdim = 1, int order = Ordering::byNODES);
    ~RT_FESpace();
 private:
    const FiniteElementCollection *FEC_;
