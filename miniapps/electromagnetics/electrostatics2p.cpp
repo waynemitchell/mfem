@@ -1,34 +1,20 @@
 //               MFEM Electrostatics Mini App 2
-//               Sphere of charge in a PEC box
+//               Cylinder of charge in a PEC enclosure
 //
 // Compile with: make electrostatics2p
 //
 // Sample runs:
 //   mpirun -np 4 electrostatics2p
 //
-// Description:  This example code solves a simple 3D magnetostatic
-//               problem using a magnetic scalar potential.  When the
-//               volumetric current is zero Ampere's law become curl H
-//               = 0.  This implies that H can be written as the
-//               gradient of a scalar potential, H = -grad Phi_M.  We
-//               then use the facts that B = mu ( H + M ) and div B = 0
-//               to arrive at the equation
-//                  div mu grad Phi_M = - div mu M
-//               with boundary condition
-//                  n x (A x n) = (0,0,0) on all exterior surfaces
-//               This is a perfect electrical conductor (PEC) boundary
-//               condition which results in a magnetic field sasifying:
-//                  n . B = 0 on all surfaces
-//               i.e. the magnetic field lines will be tangent to the
-//               boundary.
+// Description:  This mini app solves a simple 3D electrostatic
+//               problem with a prescribed volumetric charge density.
+//                  Div eps Grad Phi = Rho
+//               With perfect electrical conductor boundary conditions
+//                  Phi = 0 on all exterior surfaces
 //
-//               We discretize the vector potential with Nedelec finite
-//               elements.  The magnetization M and magnetic field B =
-//               curl A are discretized with Raviart-Thomas finite
-//               elements.
-//
-//               The example demonstrates the use of H(curl) finite element
-//               spaces with the curl-curl bilinear form.
+//               We discretize the electric potential with H1 finite
+//               elements.  The electric field E is discretized with
+//               Nedelec finite elements.
 //
 
 #include "mfem.hpp"
@@ -44,16 +30,16 @@ double Rho_exact(const Vector &);
 
 int main(int argc, char *argv[])
 {
-   // 1. Initialize MPI.
+   // Initialize MPI.
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   // 2. Parse command-line options.
-   const char *mesh_file = "./butterfly_3d.mesh";
+   // Parse command-line options.
+   const char *mesh_file = "../../data/fichera.mesh";
    int order = 1;
-   int sr = 0, pr = 0;
+   int sr = 2, pr = 2;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -83,9 +69,9 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
-   //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
-   //    and volume meshes with the same code.
+   // Read the (serial) mesh from the given mesh file on all processors.  We
+   // can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
+   // and volume meshes with the same code.
    Mesh *mesh;
    ifstream imesh(mesh_file);
    if (!imesh)
@@ -111,10 +97,8 @@ int main(int argc, char *argv[])
       return 3;
    }
 
-   // 4. Refine the serial mesh on all processors to increase the resolution. In
-   //    this example we do 'ref_levels' of uniform refinement. We choose
-   //    'ref_levels' to be the largest number that gives a final mesh with no
-   //    more than 100 elements.
+   // Refine the serial mesh on all processors to increase the resolution. In
+   // this example we do 'ref_levels' of uniform refinement.
    {
       int ref_levels = sr;
       for (int l = 0; l < ref_levels; l++)
@@ -123,11 +107,9 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
-   //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted. Tetrahedral
-   //    meshes need to be reoriented before we can define high-order Nedelec
-   //    spaces on them.
+   // Define a parallel mesh by a partitioning of the serial mesh. Refine
+   // this mesh further in parallel to increase the resolution. Once the
+   // parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
 
@@ -157,9 +139,9 @@ int main(int argc, char *argv[])
       e_sock.precision(8);
    }
 
-   // 7. Define compatible parallel finite element spaces on the
-   // parallel mesh. Here we use arbitrary order Nedelec and
-   // Raviart-Thomas finite elements.
+   // Define compatible parallel finite element spaces on the parallel
+   // mesh. Here we use arbitrary order H1 and Nedelec finite
+   // elements.
    H1_ParFESpace *H1FESpace    = new H1_ParFESpace(pmesh,order,dim);
    ND_ParFESpace *HCurlFESpace = new ND_ParFESpace(pmesh,order,dim);
 
@@ -171,7 +153,7 @@ int main(int argc, char *argv[])
       cout << "Number of H(Curl) unknowns: " << size_nd << endl;
    }
 
-   // 8. Choose a single DoF to be the essential boundary condition
+   // Select DoFs on surface 1 as Dirichlet BCs
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
 
@@ -190,11 +172,11 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 9. Set up the parallel bilinear form corresponding to the
-   // magnetostatic operator curl muinv curl, by adding the curl-curl
-   // domain integrator and finally imposing non-homogeneous Dirichlet
-   // boundary conditions. The boundary conditions are implemented by
-   // marking all the boundary attributes from the mesh as essential
+   // Set up the parallel bilinear form corresponding to the
+   // electrostatic operator div eps grad, by adding the diffusion
+   // domain integrator and finally imposing Dirichlet boundary
+   // conditions. The boundary conditions are implemented by marking
+   // all the boundary attributes from the mesh as essential
    // (Dirichlet). After serial and parallel assembly we extract the
    // parallel matrix A.
    ConstantCoefficient eps(1.0);
@@ -204,13 +186,21 @@ int main(int argc, char *argv[])
    laplacian_eps->Assemble();
    laplacian_eps->Finalize();
 
-   // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //     b(.) and the finite element approximation.
+   // The solution vector to approximate the electric potential
    ParGridFunction phi(H1FESpace); phi = 0.0;
 
+   // The gradient operator needed to compute E from Phi
    ParDiscreteGradOperator *Grad =
      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
+   // We want to be able to visualize the charge density so we'll need
+   // to represent it as a grid function.  However, we need the dual
+   // of the charge density for the right hand side of our linear
+   // system.  Normally this would be computed using a LinearForm but,
+   // equivalently, we can compute the dual as the product of an
+   // appropriate mass matrix with the DoF vector produced by the grid
+   // function.
+   //
    ParBilinearForm *mass = new ParBilinearForm(H1FESpace);
    mass->AddDomainIntegrator(new MassIntegrator);
    mass->Assemble();
@@ -219,6 +209,7 @@ int main(int argc, char *argv[])
 
    delete mass;
 
+   // The charge density grid function needed for visualization
    ParGridFunction rho(H1FESpace);
    FunctionCoefficient rho_func(Rho_exact);
    rho.ProjectCoefficient(rho_func);
@@ -226,21 +217,23 @@ int main(int argc, char *argv[])
    HypreParVector *Rho  = rho.ParallelAverage();
    HypreParVector *RhoD = new HypreParVector(H1FESpace);
 
+   // Compute the dual of the charge density needed for the linear system
    Mass->Mult(*Rho,*RhoD);
 
    delete Rho;
    delete Mass;
 
+   // Assemble the linear operator and solution vector
    HypreParMatrix *Laplacian_eps = laplacian_eps->ParallelAssemble();
    HypreParVector *Phi           = phi.ParallelAverage();
 
-   // 11. Apply the boundary conditions to the assembled matrix and vectors
+   // Apply the boundary conditions to the assembled matrix and vectors
    Laplacian_eps->EliminateRowsCols(dof_list, *Phi, *RhoD);
 
    delete laplacian_eps;
 
-   // 12. Define and apply a parallel PCG solver for AX=B with the AMS
-   //     preconditioner from hypre.
+   // Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   // preconditioner from hypre.
 
    HypreSolver *amg = new HypreBoomerAMG(*Laplacian_eps);
    HyprePCG *pcg = new HyprePCG(*Laplacian_eps);
@@ -253,22 +246,22 @@ int main(int argc, char *argv[])
    delete amg;
    delete pcg;
 
-   // 13. Extract the parallel grid function corresponding to the finite
-   //     element approximation X. This is the local solution on each
-   //     processor.
+   // Extract the parallel grid function corresponding to the finite
+   // element approximation Phi. This is the local solution on each
+   // processor.
    phi = *Phi;
 
-   // 14. Compute the negative Gradient of the solution vector.  This is
-   //     the magnetic field corresponding to the scalar potential
-   //     represented by phi.
+   // Compute the negative Gradient of the solution vector.  This is
+   // the magnetic field corresponding to the scalar potential
+   // represented by phi.
    HypreParVector *E = new HypreParVector(HCurlFESpace);
    Grad->Mult(*Phi,*E,-1.0);
    ParGridFunction e(HCurlFESpace,E);
 
    delete Grad;
 
-   // 15. Save the refined mesh and the solution in parallel. This output can
-   //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
+   // Save the refined mesh and the solution in parallel. This output can
+   // be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, phi_name, e_name;
       mesh_name  << "mesh."  << setfill('0') << setw(6) << myid;
@@ -288,7 +281,7 @@ int main(int argc, char *argv[])
       e.Save(e_ofs);
    }
 
-   // 16. Send the solution by socket to a GLVis server.
+   // Send the solution by socket to a GLVis server.
    if (visualization)
    {
       phi_sock << "parallel " << num_procs << " " << myid << "\n";
@@ -309,7 +302,7 @@ int main(int argc, char *argv[])
 	     << "window_title 'Electric Field (E)'\n" << flush;
    }
 
-   // 17. Free the used memory.
+   // Free the used memory.
    delete E;
    delete RhoD;
    delete Phi;
@@ -323,14 +316,15 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-// A sphere of constant magnetization directed along the z axis.  The
-// sphere has a radius of 0.25 and is centered at the origin.
+// A sphere of constant charge density.  The sphere has a radius of
+// 0.25 and is centered at the origin.
 double Rho_exact(const Vector &x)
 {
    const double r0 = 0.25;
-   double r = sqrt(x(0)*x(0) + x(1)*x(1) + x(2)*x(2));
+   // double r = sqrt(x(0)*x(0) + x(1)*x(1) + (x(2)-0.5)*(x(2)-0.5));
+   double r = sqrt((x(0)-0.5)*(x(0)-0.5) + (x(1)-0.5)*(x(1)-0.5));
 
-   if ( r <= 1.0001 * r0 )
+   if ( r <= 1.0001 * r0 && x(2) <= 0.75 && x(2) >= -0.75 )
    {
       return 1.0;
    }

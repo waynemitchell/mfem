@@ -1,5 +1,5 @@
 //               MFEM Electrostatics Mini App 1
-//               Dielectric sphere in a uniform field
+//               Dielectric sphere in a uniform electric field
 //
 // Compile with: make electrostatics1p
 //
@@ -8,7 +8,7 @@
 //
 // Description:
 
-//               This example code solves a simple 3D electrostatic
+//               This mini app solves a simple 3D electrostatic
 //               problem with non-uniform dielectric permittivity.
 //                  Div eps Grad Phi = 0
 //               The uniform field is imposed through the boundary
@@ -20,9 +20,6 @@
 //               We discretize the electric potential with H1 finite
 //               elements.  The electric field E is discretized with
 //               Nedelec finite elements.
-//
-//               The example demonstrates the use of H(curl) finite element
-//               spaces with the curl-curl bilinear form.
 //
 
 #include "mfem.hpp"
@@ -41,13 +38,13 @@ double phi_bc_exact(const Vector &);
 
 int main(int argc, char *argv[])
 {
-   // 1. Initialize MPI.
+   // Initialize MPI.
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-   // 2. Parse command-line options.
+   // Parse command-line options.
    const char *mesh_file = "./butterfly_3d.mesh";
    int order = 1;
    int sr = 0, pr = 0;
@@ -80,9 +77,9 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
-   //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
-   //    and volume meshes with the same code.
+   // Read the (serial) mesh from the given mesh file on all processors.  We
+   // can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
+   // and volume meshes with the same code.
    Mesh *mesh;
    ifstream imesh(mesh_file);
    if (!imesh)
@@ -108,10 +105,8 @@ int main(int argc, char *argv[])
       return 3;
    }
 
-   // 4. Refine the serial mesh on all processors to increase the resolution. In
-   //    this example we do 'ref_levels' of uniform refinement. We choose
-   //    'ref_levels' to be the largest number that gives a final mesh with no
-   //    more than 100 elements.
+   // Refine the serial mesh on all processors to increase the resolution. In
+   // this example we do 'ref_levels' of uniform refinement.
    {
       int ref_levels = sr;
       for (int l = 0; l < ref_levels; l++)
@@ -120,11 +115,9 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
-   //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted. Tetrahedral
-   //    meshes need to be reoriented before we can define high-order Nedelec
-   //    spaces on them.
+   // Define a parallel mesh by a partitioning of the serial mesh. Refine
+   // this mesh further in parallel to increase the resolution. Once the
+   // parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
 
@@ -149,9 +142,9 @@ int main(int argc, char *argv[])
       e_sock.precision(8);
    }
 
-   // 7. Define compatible parallel finite element spaces on the
-   // parallel mesh. Here we use arbitrary order Nedelec and
-   // Raviart-Thomas finite elements.
+   // Define compatible parallel finite element spaces on the parallel
+   // mesh. Here we use arbitrary order H1 and Nedelec finite
+   // elements.
    H1_ParFESpace *H1FESpace    = new H1_ParFESpace(pmesh,order,dim);
    ND_ParFESpace *HCurlFESpace = new ND_ParFESpace(pmesh,order,dim);
 
@@ -163,7 +156,7 @@ int main(int argc, char *argv[])
       cout << "Number of H(Curl) unknowns: " << size_nd << endl;
    }
 
-   // 8. Choose a single DoF to be the essential boundary condition
+   // Select DoFs on surface 1 as Dirichlet BCs
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
 
@@ -182,11 +175,11 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 9. Set up the parallel bilinear form corresponding to the
-   // magnetostatic operator curl muinv curl, by adding the curl-curl
-   // domain integrator and finally imposing non-homogeneous Dirichlet
-   // boundary conditions. The boundary conditions are implemented by
-   // marking all the boundary attributes from the mesh as essential
+   // Set up the parallel bilinear form corresponding to the
+   // electrostatic operator div eps grad, by adding the diffusion
+   // domain integrator and finally imposing Dirichlet boundary
+   // conditions. The boundary conditions are implemented by marking
+   // all the boundary attributes from the mesh as essential
    // (Dirichlet). After serial and parallel assembly we extract the
    // parallel matrix A.
    FunctionCoefficient eps(Eps_exact);
@@ -196,28 +189,29 @@ int main(int argc, char *argv[])
    laplacian_eps->Assemble();
    laplacian_eps->Finalize();
 
-   // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //     b(.) and the finite element approximation.
+   // The solution vector to approximate the electric potential
    ParGridFunction phi(H1FESpace);
    FunctionCoefficient phi_bc(phi_bc_exact);
    phi.ProjectCoefficient(phi_bc);
 
+   // The gradient operator needed to compute E from Phi
    ParDiscreteGradOperator *Grad =
      new ParDiscreteGradOperator(H1FESpace, HCurlFESpace);
 
+   // Create the dual of the charge density which is simply zero in this case
    HypreParVector *RhoD = new HypreParVector(H1FESpace);
    (*RhoD) = 0.0;
 
    HypreParMatrix *Laplacian_eps = laplacian_eps->ParallelAssemble();
    HypreParVector *Phi           = phi.ParallelAverage();
 
-   // 11. Apply the boundary conditions to the assembled matrix and vectors
+   // Apply the boundary conditions to the assembled matrix and vectors
    Laplacian_eps->EliminateRowsCols(dof_list, *Phi, *RhoD);
 
    delete laplacian_eps;
 
-   // 12. Define and apply a parallel PCG solver for AX=B with the AMS
-   //     preconditioner from hypre.
+   // Define and apply a parallel PCG solver for AX=B with the AMS
+   // preconditioner from hypre.
 
    HypreSolver *amg = new HypreBoomerAMG(*Laplacian_eps);
    HyprePCG *pcg = new HyprePCG(*Laplacian_eps);
@@ -230,22 +224,22 @@ int main(int argc, char *argv[])
    delete amg;
    delete pcg;
 
-   // 13. Extract the parallel grid function corresponding to the finite
-   //     element approximation X. This is the local solution on each
-   //     processor.
+   // Extract the parallel grid function corresponding to the finite
+   // element approximation Phi. This is the local solution on each
+   // processor.
    phi = *Phi;
 
-   // 14. Compute the negative Gradient of the solution vector.  This is
-   //     the magnetic field corresponding to the scalar potential
-   //     represented by phi.
+   // Compute the negative Gradient of the solution vector.  This is
+   // the magnetic field corresponding to the scalar potential
+   // represented by phi.
    HypreParVector *E = new HypreParVector(HCurlFESpace);
    Grad->Mult(*Phi,*E,-1.0);
    ParGridFunction e(HCurlFESpace,E);
 
    delete Grad;
 
-   // 15. Save the refined mesh and the solution in parallel. This output can
-   //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
+   // Save the refined mesh and the solution in parallel. This output can
+   // be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, phi_name, e_name;
       mesh_name  << "mesh."  << setfill('0') << setw(6) << myid;
@@ -265,7 +259,7 @@ int main(int argc, char *argv[])
       e.Save(e_ofs);
    }
 
-   // 16. Send the solution by socket to a GLVis server.
+   // Send the solution by socket to a GLVis server.
    if (visualization)
    {
       phi_sock << "parallel " << num_procs << " " << myid << "\n";
@@ -280,7 +274,7 @@ int main(int argc, char *argv[])
 	     << "window_title 'Electric Field (E)'\n" << flush;
    }
 
-   // 17. Free the used memory.
+   // Free the used memory.
 
    delete E;
    delete RhoD;
