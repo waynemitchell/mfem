@@ -647,9 +647,14 @@ protected: // implementation
    static PointMatrix pm_quad_identity;
    static PointMatrix pm_hex_identity;
 
-   static const PointMatrix& GetIdentityMatrix(int geom);
+   static const PointMatrix& GetGeomIdentity(int geom);
 
    void GetPointMatrix(int geom, const char* ref_path, DenseMatrix& matrix);
+
+   typedef std::map<std::string, int> RefPathMap;
+
+   void TraverseRefinements(Element* elem, int coarse_index,
+                            std::string &ref_path, RefPathMap &map);
 
    FineTransforms transforms;
 

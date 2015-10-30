@@ -2535,30 +2535,29 @@ NCMesh::FineTransform* NCMesh::GetFineTransforms()
 NCMesh::PointMatrix NCMesh::pm_tri_identity(
    Point(0, 0), Point(1, 0), Point(0, 1)
 );
-
 NCMesh::PointMatrix NCMesh::pm_quad_identity(
    Point(0, 0), Point(1, 0), Point(1, 1), Point(0, 1)
 );
-
 NCMesh::PointMatrix NCMesh::pm_hex_identity(
    Point(0, 0, 0), Point(1, 0, 0), Point(1, 1, 0), Point(0, 1, 0),
    Point(0, 0, 1), Point(1, 0, 1), Point(1, 1, 1), Point(0, 1, 1)
 );
 
-const NCMesh::PointMatrix& NCMesh::GetIdentityMatrix(int geom)
+const NCMesh::PointMatrix& NCMesh::GetGeomIdentity(int geom)
 {
    switch (geom)
    {
       case Geometry::TRIANGLE: return pm_tri_identity;
       case Geometry::SQUARE:   return pm_quad_identity;
       case Geometry::CUBE:     return pm_hex_identity;
-      default: MFEM_ABORT("unsupported geometry."); throw;
+      default:
+         MFEM_ABORT("unsupported geometry."); throw;
    }
 }
 
 void NCMesh::GetPointMatrix(int geom, const char* ref_path, DenseMatrix& matrix)
 {
-   PointMatrix pm = GetIdentityMatrix(geom);
+   PointMatrix pm = GetGeomIdentity(geom);
 
    while (*ref_path)
    {
@@ -2865,8 +2864,63 @@ void NCMesh::MarkCoarseLevel()
    }
 }
 
+void NCMesh::TraverseRefinements(Element* elem, int coarse_index,
+                                 std::string &ref_path, RefPathMap &map)
+{
+   if (!elem->ref_type)
+   {
+      int &matrix = map[ref_path];
+      if (!matrix) { matrix = map.size(); }
+
+      Embedding &emb = transforms.fine_coarse[elem->index];
+      emb.coarse_element = coarse_index;
+      emb.matrix = matrix - 1;
+   }
+   else
+   {
+      ref_path.push_back(elem->ref_type);
+      ref_path.push_back(0);
+
+      for (int i = 0; i < 8; i++)
+      {
+         if (elem->child[i])
+         {
+            ref_path[ref_path.length()-1] = i;
+            TraverseRefinements(elem->child[i], coarse_index, ref_path, map);
+         }
+      }
+      ref_path.resize(ref_path.length()-2);
+   }
+}
+
 const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 {
+   transforms.fine_coarse.SetSize(leaf_elements.Size());
+
+   std::string ref_path;
+   ref_path.reserve(100);
+
+   RefPathMap map;
+   map[ref_path] = 1; // identity
+
+   for (int i = 0; i < coarse_elements.Size(); i++)
+   {
+      TraverseRefinements(coarse_elements[i], i, ref_path, map);
+   }
+
+   MFEM_ASSERT(root_elements.Size(), "");
+   int geom = root_elements[0]->geom;
+   const PointMatrix &identity = GetGeomIdentity(geom);
+
+   transforms.point_matrices.SetSize(Dim, identity.np, map.size());
+
+   // calculate the point matrices
+   for (RefPathMap::iterator it = map.begin(); it != map.end(); ++it)
+   {
+      GetPointMatrix(geom, it->first.c_str(),
+                     transforms.point_matrices(it->second-1));
+   }
+
    return transforms;
 }
 
@@ -2876,23 +2930,23 @@ const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
                "GetDerefinementTransforms() must be preceded by Derefine().");
 
    std::map<int, int> mat_no;
-   mat_no[0] = 0; // identity
+   mat_no[0] = 1; // identity
 
    // assign numbers to the different matrices used
-   for (int i = 0, n = 1; i < transforms.fine_coarse.Size(); i++)
+   for (int i = 0; i < transforms.fine_coarse.Size(); i++)
    {
       int code = transforms.fine_coarse[i].matrix;
       if (code)
       {
          int &matrix = mat_no[code];
-         if (!matrix) { matrix = n++; }
-         transforms.fine_coarse[i].matrix = matrix;
+         if (!matrix) { matrix = mat_no.size(); }
+         transforms.fine_coarse[i].matrix = matrix - 1;
       }
    }
 
    MFEM_ASSERT(root_elements.Size(), "");
    int geom = root_elements[0]->geom;
-   const PointMatrix &identity = GetIdentityMatrix(geom);
+   const PointMatrix &identity = GetGeomIdentity(geom);
 
    transforms.point_matrices.SetSize(Dim, identity.np, mat_no.size());
 
@@ -2905,7 +2959,7 @@ const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
       path[1] = code & 7;  // child
       path[2] = 0;
 
-      GetPointMatrix(geom, path, transforms.point_matrices(it->second));
+      GetPointMatrix(geom, path, transforms.point_matrices(it->second-1));
    }
 
    return transforms;
