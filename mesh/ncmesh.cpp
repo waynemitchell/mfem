@@ -1186,6 +1186,8 @@ void NCMesh::Refine(const Array<Refinement>& refinements)
 }
 
 
+//// Derefinement //////////////////////////////////////////////////////////////
+
 void NCMesh::DerefineElement(Element* elem)
 {
    if (!elem->ref_type) { return; }
@@ -1347,19 +1349,49 @@ const Table& NCMesh::GetDerefinementTable()
    return derefinements;
 }
 
+
 void NCMesh::Derefine(const Array<int> &derefs)
 {
+   MFEM_VERIFY(Iso, "derefinement in anisotropic meshes not implemented yet.");
+
+   transforms.fine_coarse.SetSize(leaf_elements.Size());
+
+   Array<Element*> coarse;
+   leaf_elements.Copy(coarse);
+
+   // perform the derefinements
    for (int i = 0; i < derefs.Size(); i++)
    {
       int row = derefs[i];
       MFEM_VERIFY(row < 0 || row >= derefinements.Size(),
-                  "invalid derefinement number");
+                  "invalid derefinement number.");
 
-      Element* ch = leaf_elements[derefinements.GetRow(row)[0]];
-      DerefineElement(ch->parent);
+      const int* fine = derefinements.GetRow(row);
+      Element* parent = leaf_elements[fine[0]]->parent;
+
+      // record the relation of fine elements to their parent
+      for (int i = 0; i < 8; i++)
+      {
+         Element* ch = parent->child[i];
+         if (ch)
+         {
+            int encoded = (parent->ref_type << 3) + i;
+            transforms.fine_coarse[ch->index].matrix = encoded;
+            coarse[ch->index] = parent;
+         }
+      }
+
+      DerefineElement(parent);
    }
 
+   // update leaf_elements etc.
    Update();
+
+   // link old fine elements to the new coarse elements
+   for (int i = 0; i < coarse.Size(); i++)
+   {
+      transforms.fine_coarse[i].coarse_element = coarse[i]->index;
+   }
 }
 
 
@@ -2509,12 +2541,6 @@ void NCMesh::MarkCoarseLevel()
 const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 {
    return transforms;
-}
-
-void NCMesh::MarkFineLevel()
-{
-   transforms.fine_coarse.SetSize(leaf_elements.Size());
-
 }
 
 const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()

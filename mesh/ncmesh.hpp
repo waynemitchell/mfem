@@ -95,7 +95,7 @@ public:
        a single new coarse element. Row numbers are then passed to Derefine. */
    const Table &GetDerefinementTable();
 
-   /** Perform a subset of the possible derefinements (see GetDerefinementList).
+   /** Perform a subset of the possible derefinements (see GetDerefinementTable).
        Note that if anisotropic refinements are present in the mesh, some of the
        derefinements may have to be skipped to preserve mesh consistency. */
    virtual void Derefine(const Array<int> &derefs);
@@ -181,19 +181,17 @@ public:
    void MarkCoarseLevel();
 
    /** After refinement, calculate the relation of each fine element to its
-       parent coarse element. The returned structure is owned by NCMesh. */
+       parent coarse element. Note that Refine() or LimitNCLevel() can be called
+       multiple times between MarkCoarseLevel() and this function. */
    const FineTransforms& GetRefinementTransforms();
-
-   /** Remember the current layer of leaf elements before the mesh is derefined.
-       Needed by GetDerefinementTransforms(), must be called before Derefine().*/
-   void MarkFineLevel();
 
    /** After derefinement, calculate the relations of previous fine elements
        (some of which may no longer exist) to the current leaf elements.
-       The returned structure is owned by NCMesh. */
+       Unlike for refinement, Derefine() may only be called once before this
+       function so there is no MarkFineLevel(). */
    const FineTransforms& GetDerefinementTransforms();
 
-   /// Free all data created by the above 4 functions.
+   /// Free all data created by the above functions.
    void ClearTransforms();
 
    // Deprecated.
