@@ -707,19 +707,20 @@ public:
    virtual ~HypreADS();
 };
 
-class HypreMultiVector {
+class HypreMultiVector
+{
 private:
-  // Pointer to hypre's multi-vector object
-  mv_MultiVectorPtr mv_ptr;
+   // Pointer to hypre's multi-vector object
+   mv_MultiVectorPtr mv_ptr;
 
-  // Interface for matrix storage type
-  mv_InterfaceInterpreter * interpreter;
+   // Interface for matrix storage type
+   mv_InterfaceInterpreter * interpreter;
 
-  // Wrappers for each member of the multivector
-  HypreParVector ** hpv;
+   // Wrappers for each member of the multivector
+   HypreParVector ** hpv;
 
-  // Number of vectors in the multivector
-  int nv;
+   // Number of vectors in the multivector
+   int nv;
 
 public:
    HypreMultiVector(int n, HypreParVector & v);
@@ -738,36 +739,37 @@ public:
 };
 
 /// LOBPCG eigenvalue solver in hypre
-class HypreLOBPCG {
+class HypreLOBPCG
+{
 private:
-  // Pointer to HYPRE's solver struct
-  HYPRE_Solver lobpcg_solver;
+   // Pointer to HYPRE's solver struct
+   HYPRE_Solver lobpcg_solver;
 
-  // Interface for setting up and performing matrix-vector products
-  HYPRE_MatvecFunctions matvec_fn;
+   // Interface for setting up and performing matrix-vector products
+   HYPRE_MatvecFunctions matvec_fn;
 
-  // Interface for matrix storage type
-  // mv_InterfaceInterpreter * interpreter;
+   // Interface for matrix storage type
+   // mv_InterfaceInterpreter * interpreter;
 
 public:
-  HypreLOBPCG(mv_InterfaceInterpreter & interpreter);
-  ~HypreLOBPCG();
+   HypreLOBPCG(mv_InterfaceInterpreter & interpreter);
+   ~HypreLOBPCG();
 
-  void SetTol(double tol);
-  void SetMaxIter(int max_iter);
-  void SetPrintLevel(int logging);
-  void SetPrecondUsageMode(int pcg_mode);
+   void SetTol(double tol);
+   void SetMaxIter(int max_iter);
+   void SetPrintLevel(int logging);
+   void SetPrecondUsageMode(int pcg_mode);
 
-  void SetPrecond(HypreSolver & precond);
+   void SetPrecond(HypreSolver & precond);
 
-  void Setup(HypreParMatrix & A, HypreParVector & b, HypreParVector & x);
-  void SetupB(HypreParMatrix & B, HypreParVector & x);
-  void SetupT(HypreParMatrix & T, HypreParVector & x);
+   void Setup(HypreParMatrix & A, HypreParVector & b, HypreParVector & x);
+   void SetupB(HypreParMatrix & B, HypreParVector & x);
+   void SetupT(HypreParMatrix & T, HypreParVector & x);
 
-  void Solve(Vector & eigenvalues);
-  void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors);
-  void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors,
-	     HypreMultiVector & constraints);
+   void Solve(Vector & eigenvalues);
+   void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors);
+   void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors,
+              HypreMultiVector & constraints);
 };
 
 }

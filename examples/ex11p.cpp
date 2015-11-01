@@ -219,15 +219,15 @@ int main(int argc, char *argv[])
 
       for (int i=0; i<nev; i++)
       {
-	x = eigenvectors->GetVector(i);
+         x = eigenvectors->GetVector(i);
 
-	mode_name << "mode_" << setfill('0') << setw(2) << i << "."
-		  << setfill('0') << setw(6) << myid;
+         mode_name << "mode_" << setfill('0') << setw(2) << i << "."
+                   << setfill('0') << setw(6) << myid;
 
-	ofstream mode_ofs(mode_name.str().c_str());
-	mode_ofs.precision(8);
-	x.Save(mode_ofs);
-	mode_name.str("");
+         ofstream mode_ofs(mode_name.str().c_str());
+         mode_ofs.precision(8);
+         x.Save(mode_ofs);
+         mode_name.str("");
       }
    }
 
@@ -242,23 +242,23 @@ int main(int argc, char *argv[])
 
       for (int i=0; i<nev; i++)
       {
-	x = eigenvectors->GetVector(i);
+         x = eigenvectors->GetVector(i);
 
-	mode_sock << "parallel " << num_procs << " " << myid << "\n";
-	mode_sock << "solution\n" << *pmesh << x << flush;
+         mode_sock << "parallel " << num_procs << " " << myid << "\n";
+         mode_sock << "solution\n" << *pmesh << x << flush;
 
-	char c;
-	if (myid == 0)
-        {
-	  cout << "press (q)uit or (c)ontinue --> " << flush;
-	  cin >> c;
-	}
-	MPI_Bcast(&c, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
-	
-	if (c != 'c')
-	{
-	  break;
-	}
+         char c;
+         if (myid == 0)
+         {
+            cout << "press (q)uit or (c)ontinue --> " << flush;
+            cin >> c;
+         }
+         MPI_Bcast(&c, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+         if (c != 'c')
+         {
+            break;
+         }
       }
       mode_sock.close();
    }
