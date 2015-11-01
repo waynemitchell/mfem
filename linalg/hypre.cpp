@@ -2407,18 +2407,55 @@ HypreADS::~HypreADS()
 }
 
 HypreMultiVector::HypreMultiVector(int n, HypreParVector & v)
+  : nv(n)
 {
   interpreter =
     hypre_CTAlloc(mv_InterfaceInterpreter,1);
 
   HYPRE_ParCSRSetupInterpreter(interpreter);
 
-  mv_ptr = mv_MultiVectorCreateFromSampleVector(interpreter, n, (HYPRE_ParVector)v);
+  mv_ptr = mv_MultiVectorCreateFromSampleVector(interpreter, nv,
+						(HYPRE_ParVector)v);
+
+  HYPRE_ParVector* vecs = NULL;
+  {
+     mv_TempMultiVector* tmp =
+        (mv_TempMultiVector*)mv_MultiVectorGetData(mv_ptr);
+     vecs = (HYPRE_ParVector*)(tmp -> vector);
+  }
+
+  hpv = new HypreParVector*[nv];
+  for (int i=0; i<nv; i++)
+  {
+    hpv[i] = new HypreParVector(vecs[i]);
+  }
 }
 
 HypreMultiVector::~HypreMultiVector()
 {
+   for (int i=0; i<nv; i++)
+   {
+     if ( hpv[i] != NULL ) delete hpv[i];
+   }
+   if ( hpv != NULL ) delete [] hpv;
+
+   mv_MultiVectorDestroy(mv_ptr);
+
    if ( interpreter != NULL ) { hypre_TFree(interpreter); }
+}
+
+void
+HypreMultiVector::Randomize(HYPRE_Int seed)
+{
+   mv_MultiVectorSetRandom(mv_ptr, seed);
+}
+
+HypreParVector &
+HypreMultiVector::GetVector(unsigned int i)
+{
+  MFEM_ASSERT((int)i < nv, "index out of range");
+
+   return( *hpv[i] );
 }
 
 HypreLOBPCG::HypreLOBPCG(mv_InterfaceInterpreter & interpreter)
@@ -2451,34 +2488,59 @@ HypreLOBPCG::SetPrintLevel(int logging)
 }
 
 void
-HypreLOBPCG::SetPrecondUsageModel(int pcg_mode)
+HypreLOBPCG::SetPrecondUsageMode(int pcg_mode)
 {
    HYPRE_LOBPCGSetPrecondUsageMode(lobpcg_solver, pcg_mode);
 }
 
 void
 HypreLOBPCG::SetPrecond(HypreSolver & precond)
-{}
+{
+   HYPRE_Solver solver = (HYPRE_Solver)precond;
+
+   HYPRE_LOBPCGSetPrecond(lobpcg_solver,
+			  (HYPRE_PtrToSolverFcn)precond.SolveFcn(),
+			  (HYPRE_PtrToSolverFcn)precond.SetupFcn(),
+			  solver);
+}
 
 void
-HypreLOBPCG::Setup(HypreParMatrix & A, HypreParVector & x, HypreParVector & y)
-{}
+HypreLOBPCG::Setup(HypreParMatrix & A, HypreParVector & b, HypreParVector & x)
+{
+   HYPRE_ParCSRMatrix parcsr_A = A;
+   HYPRE_LOBPCGSetup(lobpcg_solver,(HYPRE_Matrix)parcsr_A,
+		     (HYPRE_Vector)((HYPRE_ParVector)b),
+		     (HYPRE_Vector)((HYPRE_ParVector)x));
+}
 
 void
-HypreLOBPCG::SetupB(HypreParMatrix & B, HypreParVector & x, HypreParVector & y)
-{}
+HypreLOBPCG::SetupB(HypreParMatrix & B, HypreParVector & x)
+{
+   HYPRE_ParCSRMatrix parcsr_B = B;
+   HYPRE_LOBPCGSetupB(lobpcg_solver,(HYPRE_Matrix)parcsr_B,
+		      (HYPRE_Vector)((HYPRE_ParVector)x));
+}
 
 void
-HypreLOBPCG::SetupT(HypreParMatrix & T, HypreParVector & x, HypreParVector & y)
-{}
+HypreLOBPCG::SetupT(HypreParMatrix & T, HypreParVector & x)
+{
+   HYPRE_ParCSRMatrix parcsr_T = T;
+   HYPRE_LOBPCGSetupT(lobpcg_solver,
+		      (HYPRE_Matrix)parcsr_T,
+		      (HYPRE_Vector)((HYPRE_ParVector)x));
+}
 
 void
 HypreLOBPCG::Solve(Vector & eigenvalues)
-{}
+{
+   HYPRE_LOBPCGSolve(lobpcg_solver, NULL, NULL, eigenvalues);
+}
 
 void
 HypreLOBPCG::Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors)
-{}
+{
+   HYPRE_LOBPCGSolve(lobpcg_solver, NULL, eigenvectors, eigenvalues);
+}
 
 void
 HypreLOBPCG::Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors,

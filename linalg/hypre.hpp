@@ -25,6 +25,7 @@
 #include "seq_mv.h"
 #include "_hypre_parcsr_mv.h"
 #include "_hypre_parcsr_ls.h"
+#include "temp_multivector.h"
 
 #include "sparsemat.hpp"
 
@@ -714,16 +715,29 @@ private:
   // Interface for matrix storage type
   mv_InterfaceInterpreter * interpreter;
 
+  // Wrappers for each member of the multivector
+  HypreParVector ** hpv;
+
+  // Number of vectors in the multivector
+  int nv;
+
 public:
-  HypreMultiVector(int n, HypreParVector & v);
-  ~HypreMultiVector();
+   HypreMultiVector(int n, HypreParVector & v);
+   ~HypreMultiVector();
 
-  operator mv_MultiVectorPtr() const { return mv_ptr; }
+   /// Set random values
+   void Randomize(HYPRE_Int seed);
 
-  mv_InterfaceInterpreter & GetInterpreter() const { return *interpreter; }
+   /// Extract a single HypreParVector object
+   HypreParVector & GetVector(unsigned int i);
+
+   operator mv_MultiVectorPtr() const { return mv_ptr; }
+
+   mv_InterfaceInterpreter & GetInterpreter() const { return *interpreter; }
+   // mv_MultiVectorPtr & GetVectors() { return mv_ptr; }
 };
 
-/// LOBPCG Eigenvalue solver in hypre
+/// LOBPCG eigenvalue solver in hypre
 class HypreLOBPCG {
 private:
   // Pointer to HYPRE's solver struct
@@ -742,13 +756,13 @@ public:
   void SetTol(double tol);
   void SetMaxIter(int max_iter);
   void SetPrintLevel(int logging);
-  void SetPrecondUsageModel(int pcg_mode);
+  void SetPrecondUsageMode(int pcg_mode);
 
   void SetPrecond(HypreSolver & precond);
 
-  void Setup(HypreParMatrix & A, HypreParVector & x, HypreParVector & y);
-  void SetupB(HypreParMatrix & B, HypreParVector & x, HypreParVector & y);
-  void SetupT(HypreParMatrix & T, HypreParVector & x, HypreParVector & y);
+  void Setup(HypreParMatrix & A, HypreParVector & b, HypreParVector & x);
+  void SetupB(HypreParMatrix & B, HypreParVector & x);
+  void SetupT(HypreParMatrix & T, HypreParVector & x);
 
   void Solve(Vector & eigenvalues);
   void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors);
