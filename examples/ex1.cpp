@@ -84,14 +84,15 @@ int main(int argc, char *argv[])
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
+   mesh->GeneralRefinement(Array<int>(), 1);
    {
-      int ref_levels = (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = 0;//(int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
    }
-   //mesh->RandomRefinement(5, 2, true);
+   //mesh->RandomRefinement(2, 2, true);
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
@@ -155,6 +156,17 @@ int main(int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
    x.ConformingProlongate();
+
+   // 9. Test refinement / interpolation
+   mesh->ncmesh->MarkCoarseLevel();
+   mesh->RandomRefinement(6, 2, true);
+
+   fespace->Update();
+
+   SparseMatrix* R = fespace->RefinementMatrix();
+   R->Print(cout);
+   x.Transform(R);
+   delete R;
 
    // 9. Save the refined mesh and the solution. This output can be viewed later
    //    using GLVis: "glvis -m refined.mesh -g sol.gf".

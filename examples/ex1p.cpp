@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
       }
    }*/
    mesh->GeneralRefinement(Array<int>(), 1);
-   mesh->RandomRefinement(2, 2, false);
+   //mesh->RandomRefinement(2, 2, false);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -136,16 +136,16 @@ int main(int argc, char *argv[])
          }
          pmesh->GeneralRefinement(refs, 1);
       }*/
-      {
+      /*{
          Array<Refinement> refs;
          if (myid == 0)
          {
             refs.Append(Refinement(0));
          }
          pmesh->GeneralRefinement(refs, 1);
-      }
+      }*/
    }
-   pmesh->RandomRefinement(5, 2, false, -1, -1, myid);
+   //pmesh->RandomRefinement(3, 2, false, -1, -1, myid);
    //pmesh->UniformRefinement();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
@@ -224,6 +224,15 @@ int main(int argc, char *argv[])
    //     approximation X. This is the local solution on each processor.
    x = *X;
 
+   // 13. Test refinement and interpolation
+   pmesh->ncmesh->MarkCoarseLevel();
+   pmesh->RandomRefinement(2, myid+1);
+
+   fespace->Update();
+
+   SparseMatrix* R = fespace->RefinementMatrix();
+   x.Transform(R);
+   delete R;
 
    // 13. Load balance the mesh, migrate grid functions
    //
@@ -232,7 +241,7 @@ int main(int argc, char *argv[])
    fespace->Update();
 
    HypreParMatrix *M = fespace->RebalanceMatrix();
-   x.ParallelTransform(*M);
+   x.ParallelTransform(M);
    delete M;
 
 
