@@ -2862,6 +2862,8 @@ void NCMesh::MarkCoarseLevel()
       Element* e = leaf_elements[i];
       if (!IsGhost(e)) { coarse_elements.Append(e); }
    }
+
+   transforms.fine_coarse.DeleteAll();
 }
 
 void NCMesh::TraverseRefinements(Element* elem, int coarse_index,
@@ -2895,37 +2897,41 @@ void NCMesh::TraverseRefinements(Element* elem, int coarse_index,
 
 const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 {
-   transforms.fine_coarse.SetSize(leaf_elements.Size());
-
-   std::string ref_path;
-   ref_path.reserve(100);
-
-   RefPathMap map;
-   map[ref_path] = 1; // identity
-
-   for (int i = 0; i < coarse_elements.Size(); i++)
+   if (!transforms.fine_coarse.Size())
    {
-      TraverseRefinements(coarse_elements[i], i, ref_path, map);
+      transforms.fine_coarse.SetSize(leaf_elements.Size());
+
+      std::string ref_path;
+      ref_path.reserve(100);
+
+      RefPathMap map;
+      map[ref_path] = 1; // identity
+
+      for (int i = 0; i < coarse_elements.Size(); i++)
+      {
+         TraverseRefinements(coarse_elements[i], i, ref_path, map);
+      }
+
+      MFEM_ASSERT(root_elements.Size(), "");
+      int geom = root_elements[0]->geom;
+      const PointMatrix &identity = GetGeomIdentity(geom);
+
+      transforms.point_matrices.SetSize(Dim, identity.np, map.size());
+
+      // calculate the point matrices
+      for (RefPathMap::iterator it = map.begin(); it != map.end(); ++it)
+      {
+         GetPointMatrix(geom, it->first.c_str(),
+                        transforms.point_matrices(it->second-1));
+      }
    }
-
-   MFEM_ASSERT(root_elements.Size(), "");
-   int geom = root_elements[0]->geom;
-   const PointMatrix &identity = GetGeomIdentity(geom);
-
-   transforms.point_matrices.SetSize(Dim, identity.np, map.size());
-
-   // calculate the point matrices
-   for (RefPathMap::iterator it = map.begin(); it != map.end(); ++it)
-   {
-      GetPointMatrix(geom, it->first.c_str(),
-                     transforms.point_matrices(it->second-1));
-   }
-
    return transforms;
 }
 
 const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
 {
+   // TODO: lazy
+
    MFEM_VERIFY(transforms.fine_coarse.Size(),
                "GetDerefinementTransforms() must be preceded by Derefine().");
 
