@@ -12,7 +12,7 @@
 #include "../fem/fem.hpp"
 #include "ncmesh.hpp"
 
-#include <map>
+#include <string>
 #include <algorithm>
 #include <cmath>
 #include <limits>

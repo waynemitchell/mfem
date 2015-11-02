@@ -13,6 +13,7 @@
 #define MFEM_NCMESH
 
 #include <vector>
+#include <map>
 #include <iostream>
 
 #include "../config/config.hpp"
