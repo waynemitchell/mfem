@@ -865,6 +865,74 @@ SparseMatrix* FiniteElementSpace::GetConformingRestriction()
    return cR;
 }
 
+SparseMatrix* FiniteElementSpace::RefinementMatrix()
+{
+   Array<int> dofs, old_dofs, old_vdofs;
+   LinearFECollection linfec;
+   Vector row;
+
+   if (Nonconforming())
+   {
+      const NCMesh::FineTransforms &rt = mesh->ncmesh->GetRefinementTransforms();
+
+      int geom = mesh->GetElementBaseGeometry(0);
+      const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
+
+      IsoparametricTransformation trans;
+      trans.SetFE(linfec.FiniteElementForGeometry(geom));
+
+      int nmat = rt.point_matrices.SizeK();
+      int ldof = fe->GetDof();
+
+      DenseTensor localP(ldof, ldof, nmat);
+      for (int i = 0; i < nmat; i++)
+      {
+         trans.GetPointMat() = rt.point_matrices(i);
+         fe->GetLocalInterpolation(trans, localP(i));
+      }
+
+      SparseMatrix *P = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
+
+      Array<char> mark(P->Height());
+      mark = 0;
+      for (int k = 0; k < mesh->GetNE(); k++)
+      {
+         const NCMesh::Embedding &emb = rt.fine_coarse[k];
+         DenseMatrix &I = localP(emb.matrix);
+
+         elem_dof->GetRow(k, dofs);
+         old_elem_dof->GetRow(emb.coarse_element, old_dofs);
+
+         for (int vd = 0; vd < vdim; vd++)
+         {
+            old_dofs.Copy(old_vdofs);
+            if (vd > 0) { DofsToVDofs(vd, old_vdofs, old_ndofs); }
+
+            for (int i = 0; i < I.Height(); i++)
+            {
+               int r = DofToVDof(dofs[i], vd);
+               int m = (r >= 0) ? r : (-1 - r);
+
+               if (!mark[m])
+               {
+                  I.GetRow(i, row);
+                  P->SetRow(r, old_vdofs, row);
+                  mark[m] = 1;
+               }
+            }
+         }
+      }
+
+      P->Finalize();
+      return P;
+   }
+   else
+   {
+      MFEM_ABORT("Not implemented yet.");
+      return NULL;
+   }
+}
+
 FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
 {
    mesh = fes.mesh;
@@ -880,6 +948,7 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
    bdofs = fes.bdofs;
    // keep 'RefData' in 'fes'
    elem_dof = fes.elem_dof;
+   old_ndofs = 0;
    old_elem_dof = NULL;
    bdrElem_dof = fes.bdrElem_dof;
    Swap(dof_elem_array, fes.dof_elem_array);
@@ -907,7 +976,9 @@ FiniteElementSpace::FiniteElementSpace(Mesh *m,
    fec = f;
    this->vdim = vdim;
    this->ordering = ordering;
-   elem_dof = old_elem_dof = NULL;
+   elem_dof = NULL;
+   old_elem_dof = NULL;
+   old_ndofs = 0;
 
    const NURBSFECollection *nurbs_fec =
       dynamic_cast<const NURBSFECollection *>(fec);
@@ -968,7 +1039,9 @@ void FiniteElementSpace::UpdateNURBS()
    ndofs = NURBSext->GetNDof();
 
    elem_dof = NURBSext->GetElementDofTable();
+
    old_elem_dof = NULL;
+   old_ndofs = 0;
 
    bdrElem_dof = NURBSext->GetBdrElementDofTable();
 }
@@ -1456,6 +1529,7 @@ void FiniteElementSpace::Update()
    {
       // keep old elem_dof table for RefineMatrix, RebalanceMatrix, ...
       old_elem_dof = elem_dof;
+      old_ndofs = ndofs;
       elem_dof = NULL;
 
       Destructor();   // keeps RefData

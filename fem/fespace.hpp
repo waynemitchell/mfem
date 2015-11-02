@@ -84,9 +84,11 @@ protected:
    Array<RefinementData *> RefData;
 
    Table *elem_dof;
-   Table *old_elem_dof; // elem_dof before Update()
    Table *bdrElem_dof;
    Array<int> dof_elem_array, dof_ldof_array;
+
+   int old_ndofs; ///< ndofs before Update()
+   Table *old_elem_dof; ///< elem_dof table before Update()
 
    NURBSExtension *NURBSext;
    int own_ext;
@@ -330,6 +332,9 @@ public:
        (*this) to the lower degree FE space given by (*lfes) which
        is defined on the same mesh. */
    SparseMatrix *H2L_GlobalRestrictionMatrix(FiniteElementSpace *lfes);
+
+   /** */
+   SparseMatrix* RefinementMatrix();
 
    virtual void Update();
 
