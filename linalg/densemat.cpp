@@ -2222,17 +2222,31 @@ void DenseMatrix::CalcEigenvalues(double *lambda, double *vec) const
    }
 }
 
-void DenseMatrix::GetColumn(int c, Vector &col)
+void DenseMatrix::GetRow(int r, Vector &row)
 {
-   int n;
-   double *cp, *vp;
+   int m = Height();
+   int n = Width();
+   row.SetSize(n);
 
-   n = Height();
-   col.SetSize(n);
-   cp = data + c * n;
-   vp = col.GetData();
+   double* rp = data + r;
+   double* vp = row.GetData();
 
    for (int i = 0; i < n; i++)
+   {
+      vp[i] = *rp;
+      rp += m;
+   }
+}
+
+void DenseMatrix::GetColumn(int c, Vector &col)
+{
+   int m = Height();
+   col.SetSize(m);
+
+   double *cp = data + c * m;
+   double *vp = col.GetData();
+
+   for (int i = 0; i < m; i++)
    {
       vp[i] = cp[i];
    }

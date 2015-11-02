@@ -187,6 +187,7 @@ public:
        2x2 or 3x3 symmetric matrix. */
    void CalcEigenvalues(double *lambda, double *vec) const;
 
+   void GetRow(int r, Vector &row);
    void GetColumn(int c, Vector &col);
 
    void GetColumnReference(int c, Vector &col)
