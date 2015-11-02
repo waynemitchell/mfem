@@ -2042,6 +2042,15 @@ void GridFunction::ConformingProject()
    }
 }
 
+void GridFunction::Transform(const SparseMatrix &M)
+{
+   Vector y;
+   y.SetSize(fes->GetVSize());
+   M.Mult(*this, y);
+   SetSize(y.Size());
+   *this = y;
+}
+
 void GridFunction::Save(std::ostream &out) const
 {
    fes->Save(out);

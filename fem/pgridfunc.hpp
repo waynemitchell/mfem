@@ -113,6 +113,7 @@ public:
 
    /// Multiplies the GridFunction with a general parallel matrix.
    void ParallelTransform(HypreParMatrix &T);
+   void ParallelTransform(HypreParMatrix *T) { ParallelTransform(*T); }
 
    void ExchangeFaceNbrData();
    Vector &FaceNbrData() { return face_nbr_data; }

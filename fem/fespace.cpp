@@ -908,7 +908,7 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix()
             old_dofs.Copy(old_vdofs);
             if (vd > 0) { DofsToVDofs(vd, old_vdofs, old_ndofs); }
 
-            for (int i = 0; i < I.Height(); i++)
+            for (int i = 0; i < ldof; i++)
             {
                int r = DofToVDof(dofs[i], vd);
                int m = (r >= 0) ? r : (-1 - r);
