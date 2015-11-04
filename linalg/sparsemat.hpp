@@ -336,8 +336,12 @@ public:
    /// Count the number of entries with |a_ij| < tol
    int CountSmallElems(double tol) const;
 
-   /// Call this if data has been stolen.
-   void LoseData() { I=0; J=0; A=0; }
+   /// Set the graph ownership flag (I and J arrays).
+   void SetGraphOwner(bool ownij) { ownGraph = ownij; }
+   /// Set the data ownership flag (A array).
+   void SetDataOwner(bool owna) { ownData = owna; }
+   /// Lose the ownership of the graph (I, J) and data (A) arrays.
+   void LoseData() { ownGraph = ownData = false; }
 
    void Swap(SparseMatrix &other);
 
