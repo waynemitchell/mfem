@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
    //    elements.
    mesh->GeneralRefinement(Array<int>(), 1);
    {
-      int ref_levels = 0;//(int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = 1;//(int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -158,15 +158,25 @@ int main(int argc, char *argv[])
    x.ConformingProlongate();
 
    // 9. Test refinement / interpolation
-   mesh->ncmesh->MarkCoarseLevel();
+   /*mesh->ncmesh->MarkCoarseLevel();
    mesh->RandomRefinement(6, 2, true);
 
    fespace->Update();
 
    SparseMatrix* R = fespace->RefinementMatrix();
-   R->Print(cout);
    x.Transform(R);
-   delete R;
+   delete R;*/
+
+   (void) mesh->GetDerefinementTable();
+   Array<int> derefs;
+   derefs.Append(0);
+   mesh->NonconformingDerefinement(derefs);
+
+   fespace->Update();
+
+   SparseMatrix* D = fespace->DerefinementMatrix();
+   x.Transform(D);
+   delete D;
 
    // 9. Save the refined mesh and the solution. This output can be viewed later
    //    using GLVis: "glvis -m refined.mesh -g sol.gf".
