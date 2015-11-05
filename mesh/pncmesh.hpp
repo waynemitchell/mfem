@@ -76,6 +76,9 @@ public:
    /** */
    virtual void LimitNCLevel(int max_level);
 
+   /** */
+   virtual void Derefine(const Array<int> &derefs);
+
    /** Return a list of vertices shared by this processor and at least one other
        processor. (NOTE: only NCList::conforming will be set.) */
    const NCList& GetSharedVertices()

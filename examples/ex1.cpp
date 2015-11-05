@@ -177,6 +177,8 @@ int main(int argc, char *argv[])
 
    fespace->Update();
 
+   mesh->ncmesh->GetDerefinementTransforms();
+
    SparseMatrix* D = fespace->DerefinementMatrix();
    x.Transform(D);
    x.ConformingProject();

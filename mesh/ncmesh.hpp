@@ -442,7 +442,7 @@ protected: // implementation
    virtual int GetNumGhosts() const { return 0; }
 
 
-   // refinement
+   // refinement/derefinement
 
    struct ElemRefType
    {
@@ -455,7 +455,7 @@ protected: // implementation
 
    Array<ElemRefType> ref_stack; ///< stack of scheduled refinements (temporary)
 
-   Table derefinements; // possible derefinements, see GetDerefinementTable
+   Table derefinements; ///< possible derefinements, see GetDerefinementTable
 
    void RefineElement(Element* elem, char ref_type);
    void DerefineElement(Element* elem);
@@ -659,6 +659,7 @@ protected: // implementation
 
    FineTransforms transforms;
 
+   // to be removed
    void GetFineTransforms(Element* elem, int coarse_index,
                           FineTransform *transforms, const PointMatrix &pm);
 

@@ -692,6 +692,15 @@ void ParNCMesh::LimitNCLevel(int max_level)
    NCMesh::LimitNCLevel(max_level);
 }
 
+void ParNCMesh::Derefine(const Array<int> &derefs)
+{
+   if (NRanks > 1)
+   {
+      MFEM_ABORT("not implemented in parallel yet.");
+   }
+   NCMesh::Derefine(derefs);
+}
+
 
 //// Rebalance /////////////////////////////////////////////////////////////////
 

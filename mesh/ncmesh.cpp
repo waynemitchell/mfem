@@ -1400,6 +1400,9 @@ void NCMesh::Derefine(const Array<int> &derefs)
    {
       transforms.fine_coarse[i].coarse_element = coarse[i]->index;
    }
+
+   // this will tell GetDerefinementTransforms that transforms are not finished
+   transforms.point_matrices.SetSize(0, 0, 0);
 }
 
 
@@ -2898,6 +2901,9 @@ void NCMesh::TraverseRefinements(Element* elem, int coarse_index,
 
 const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 {
+   MFEM_VERIFY(coarse_elements.Size(), "GetRefinementTransforms() must be "
+               "preceded by MarkCoarseLevel() and Refine().");
+
    if (!transforms.fine_coarse.Size())
    {
       transforms.fine_coarse.SetSize(leaf_elements.Size());
@@ -2931,44 +2937,44 @@ const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 
 const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
 {
-   // TODO: lazy
-
    MFEM_VERIFY(transforms.fine_coarse.Size(),
                "GetDerefinementTransforms() must be preceded by Derefine().");
 
-   std::map<int, int> mat_no;
-   mat_no[0] = 1; // identity
-
-   // assign numbers to the different matrices used
-   for (int i = 0; i < transforms.fine_coarse.Size(); i++)
+   if (!transforms.point_matrices.SizeK())
    {
-      int code = transforms.fine_coarse[i].matrix;
-      if (code)
+      std::map<int, int> mat_no;
+      mat_no[0] = 1; // identity
+
+      // assign numbers to the different matrices used
+      for (int i = 0; i < transforms.fine_coarse.Size(); i++)
       {
-         int &matrix = mat_no[code];
-         if (!matrix) { matrix = mat_no.size(); }
-         transforms.fine_coarse[i].matrix = matrix - 1;
+         int code = transforms.fine_coarse[i].matrix;
+         if (code)
+         {
+            int &matrix = mat_no[code];
+            if (!matrix) { matrix = mat_no.size(); }
+            transforms.fine_coarse[i].matrix = matrix - 1;
+         }
+      }
+
+      MFEM_ASSERT(root_elements.Size(), "");
+      int geom = root_elements[0]->geom;
+      const PointMatrix &identity = GetGeomIdentity(geom);
+
+      transforms.point_matrices.SetSize(Dim, identity.np, mat_no.size());
+
+      std::map<int, int>::iterator it;
+      for (it = mat_no.begin(); it != mat_no.end(); ++it)
+      {
+         char path[3];
+         int code = it->first;
+         path[0] = code >> 3; // ref_type (see Derefine())
+         path[1] = code & 7;  // child
+         path[2] = 0;
+
+         GetPointMatrix(geom, path, transforms.point_matrices(it->second-1));
       }
    }
-
-   MFEM_ASSERT(root_elements.Size(), "");
-   int geom = root_elements[0]->geom;
-   const PointMatrix &identity = GetGeomIdentity(geom);
-
-   transforms.point_matrices.SetSize(Dim, identity.np, mat_no.size());
-
-   std::map<int, int>::iterator it;
-   for (it = mat_no.begin(); it != mat_no.end(); ++it)
-   {
-      char path[3];
-      int code = it->first;
-      path[0] = code >> 3; // ref_type (see Derefine())
-      path[1] = code & 7;  // child
-      path[2] = 0;
-
-      GetPointMatrix(geom, path, transforms.point_matrices(it->second-1));
-   }
-
    return transforms;
 }
 
