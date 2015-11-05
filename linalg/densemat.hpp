@@ -193,6 +193,14 @@ public:
    void GetColumnReference(int c, Vector &col)
    { col.SetDataAndSize(data + c * height, height); }
 
+   void SetRow(int r, const Vector &row);
+   void SetCol(int c, const Vector &col);
+
+   /// Set all entries of a row to the specified value.
+   void SetRow(int row, double value);
+   /// Set all entries of a column to the specified value.
+   void SetCol(int col, double value);
+
    /// Returns the diagonal of the matrix
    void GetDiag(Vector &d);
    /// Returns the l1 norm of the rows of the matrix v_i = sum_j |a_ij|
@@ -252,11 +260,6 @@ public:
    /** If (dofs[i] < 0 and dofs[j] >= 0) or (dofs[i] >= 0 and dofs[j] < 0)
        then (*this)(i,j) = -(*this)(i,j).  */
    void AdjustDofDirection(Array<int> &dofs);
-
-   /// Set all entries of a row to the specified value.
-   void SetRow(int row, double value);
-   /// Set all entries of a column to the specified value.
-   void SetCol(int col, double value);
 
    /** Count the number of entries in the matrix for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */

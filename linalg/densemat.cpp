@@ -2686,6 +2686,22 @@ void DenseMatrix::SetCol(int col, double value)
    }
 }
 
+void DenseMatrix::SetRow(int r, const Vector &row)
+{
+   for (int j = 0; j < Width(); j++)
+   {
+      (*this)(r, j) = row[j];
+   }
+}
+
+void DenseMatrix::SetCol(int c, const Vector &col)
+{
+   for (int i = 0; i < Height(); i++)
+   {
+      (*this)(i, c) = col[i];
+   }
+}
+
 void DenseMatrix::Print(std::ostream &out, int width_) const
 {
    // output flags = scientific + show sign
