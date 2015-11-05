@@ -748,6 +748,22 @@ public:
    void RefineAtVertex(const Vertex& vert, int levels,
                        double eps = 0.0, int nonconforming = -1);
 
+   /** Return a list of derefinement opportunities. Each row of the table
+       contains indices of existing elements that can be derefined to form
+       a single new coarse element. Row numbers are then passed to
+       GeneralDerefinement. The table is owned and maintained internally. */
+   const Table &GetDerefinementTable()
+   {
+      MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
+      return ncmesh->GetDerefinementTable();
+   }
+
+   /** Perform a subset of the possible derefinements returned by
+       GetDerefinementTable. Note that if anisotropic refinements are present
+       in the mesh, some of the derefinements may have to be skipped to preserve
+       mesh consistency. */
+   void NonconformingDerefinement(const Array<int> &derefinements);
+
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
    void DegreeElevate(int t);

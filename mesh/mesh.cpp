@@ -6809,6 +6809,31 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    }
 }
 
+void Mesh::NonconformingDerefinement(const Array<int> &derefinements)
+{
+   MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
+   MFEM_VERIFY(!NURBSext, "NURBS meshes are not supported. "
+                          "Project the NURBS to Nodes first.");
+
+   if (Nodes) // curved mesh
+   {
+      MFEM_ABORT("Not implemented yet.")
+   }
+
+   ncmesh->Derefine(derefinements);
+
+   Mesh* mesh2 = new Mesh(*ncmesh);
+   ncmesh->OnMeshUpdated(mesh2);
+   Swap(*mesh2, false);
+
+   GenerateNCFaceInfo();
+
+   if (Nodes) // curved mesh
+   {
+      // TODO
+   }
+}
+
 void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 {
    Dim = spaceDim = ncmesh.Dimension();
