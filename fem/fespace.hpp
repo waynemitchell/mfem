@@ -336,6 +336,9 @@ public:
    /** */
    SparseMatrix* RefinementMatrix();
 
+   /** */
+   SparseMatrix* DerefinementMatrix();
+
    virtual void Update();
 
    /** Updates the space after the underlying mesh has been refined and

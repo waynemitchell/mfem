@@ -42,9 +42,7 @@ private:
    DenseMatrix *PerfGeomToGeomJac[NumGeom];
 
 public:
-
    Geometry();
-
    ~Geometry();
 
    const IntegrationRule *GetVertices(int GeomType);
@@ -56,6 +54,8 @@ public:
    void GetPerfPointMat(int GeomType, DenseMatrix &pm);
    void JacToPerfJac(int GeomType, const DenseMatrix &J,
                      DenseMatrix &PJ) const;
+
+   bool PointInside(int GeomType, const Vector &pt);
 
    int NumBdr (int GeomType) { return NumBdrArray[GeomType]; }
 };
