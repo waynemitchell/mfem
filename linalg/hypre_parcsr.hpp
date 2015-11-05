@@ -55,9 +55,9 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
                              hypre_ParCSRMatrix **blocks,
                              int interleaved_rows, int interleaved_cols);
 
-}
-
 } // namespace mfem::internal
+
+} // namespace mfem
 
 #endif // MFEM_USE_MPI
 

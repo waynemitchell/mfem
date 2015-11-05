@@ -824,9 +824,6 @@ void HypreParMatrix::GetDiag(Vector &diag)
 
 void HypreParMatrix::GetDiag(SparseMatrix &diag)
 {
-#ifdef HYPRE_COMPLEX
-   MFEM_ABORT("Complex matrices not supported.");
-#endif
    // create a wrapper SparseMatrix around A->diag
    SparseMatrix tmp(hypre_CSRMatrixI(A->diag),
                     hypre_CSRMatrixJ(A->diag),
@@ -839,9 +836,6 @@ void HypreParMatrix::GetDiag(SparseMatrix &diag)
 
 void HypreParMatrix::GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap)
 {
-#ifdef HYPRE_COMPLEX
-   MFEM_ABORT("Complex matrices not supported.");
-#endif
    // create a wrapper SparseMatrix around A->offd
    SparseMatrix tmp(hypre_CSRMatrixI(A->offd),
                     hypre_CSRMatrixJ(A->offd),
@@ -1313,18 +1307,18 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag((hypre_ParCSRMatrix *)A);
    double *data = hypre_CSRMatrixData(A_diag);
    HYPRE_Int *I = hypre_CSRMatrixI(A_diag);
-   /*#ifdef MFEM_DEBUG
+#ifdef MFEM_DEBUG
    HYPRE_Int    *J   = hypre_CSRMatrixJ(A_diag);
    hypre_CSRMatrix *A_offd = hypre_ParCSRMatrixOffd((hypre_ParCSRMatrix *)A);
    HYPRE_Int *I_offd = hypre_CSRMatrixI(A_offd);
    double *data_offd = hypre_CSRMatrixData(A_offd);
-   #endif*/
+#endif
 
    for (int i = 0; i < ess_dof_list.Size(); i++)
    {
       int r = ess_dof_list[i];
       B(r) = data[I[r]] * X(r);
-      /*#ifdef MFEM_DEBUG
+#ifdef MFEM_DEBUG
       // Check that in the rows specified by the ess_dof_list, the matrix A has
       // only one entry -- the diagonal.
       // if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
@@ -1346,9 +1340,7 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
             MFEM_ABORT("all off-diagonal entries must be zero!");
          }
       }
-      #endif*/
-      // NOTE: if A was eliminated in parallel the above checks no longer work
-      // as there are stored zeros in the eliminated rows/columns in A.
+#endif
    }
 }
 
@@ -2215,8 +2207,7 @@ HypreBoomerAMG::~HypreBoomerAMG()
 }
 
 
-HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
-                   int singular_problem)
+HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    : HypreSolver(&A)
 {
    int cycle_type       = 13;
@@ -2342,10 +2333,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
                                theta, amg_interp_type, amg_Pmax);
    HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                               theta, amg_interp_type, amg_Pmax);
-   if (singular_problem)
-   {
-      HYPRE_AMSSetBetaPoissonMatrix(ams,NULL);
-   }
 }
 
 HypreAMS::~HypreAMS()

@@ -26,6 +26,10 @@
 #include "_hypre_parcsr_mv.h"
 #include "_hypre_parcsr_ls.h"
 
+#ifdef HYPRE_COMPLEX
+#error "MFEM does not work with HYPRE's complex numbers support"
+#endif
+
 #include "sparsemat.hpp"
 
 namespace mfem
@@ -323,7 +327,9 @@ public:
    /** Multiply A on the left by a block-diagonal parallel matrix D. Return
        a new parallel matrix, D*A. If D has a different number of rows than A,
        D's row starts array needs to be given (as returned by the methods
-       GetDofOffsets/GetTrueDofOffsets of ParFiniteElementSpace).
+       GetDofOffsets/GetTrueDofOffsets of ParFiniteElementSpace). The new matrix
+       D*A uses copies of the row-, column-starts arrays, so "this" matrix and
+       "row_starts" can be deleted.
        NOTE: this operation is local and does not require communication. */
    HypreParMatrix* LeftDiagMult(const SparseMatrix &D,
                                 HYPRE_Int* row_starts = NULL) const;
@@ -705,9 +711,10 @@ private:
    HypreParMatrix *Pi, *Pix, *Piy, *Piz;
 
 public:
-   HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
-            int singular_problem = 0);
+   HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace);
 
+   /// Set this option when solving a curl-curl problem with zero mass term
+   void SetSingularProblem() { HYPRE_AMSSetBetaPoissonMatrix(ams, NULL); }
 
    /// The typecast to HYPRE_Solver returns the internal ams object
    virtual operator HYPRE_Solver() const { return ams; }

@@ -901,8 +901,8 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
    }
 }
 
-}
-
 } // namespace mfem::internal
+
+} // namespace mfem
 
 #endif // MFEM_USE_MPI
