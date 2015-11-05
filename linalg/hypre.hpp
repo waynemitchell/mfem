@@ -80,6 +80,15 @@ public:
    /// Create a true dof parallel vector on a given ParFiniteElementSpace
    HypreParVector(ParFiniteElementSpace *pfes);
 
+   /// MPI communicator
+   MPI_Comm GetComm() { return x->comm; }
+
+   /// Returns the row partitioning
+   inline HYPRE_Int *Partitioning() { return x->partitioning; }
+
+   /// Returns the global number of rows
+   inline HYPRE_Int GlobalSize() { return x->global_size; }
+
    /// Typecasting to hypre's hypre_ParVector*
    operator hypre_ParVector*() const;
 #ifndef HYPRE_PAR_VECTOR_STRUCT
@@ -663,7 +672,8 @@ private:
    HypreParMatrix *Pi, *Pix, *Piy, *Piz;
 
 public:
-   HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace);
+   HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
+            int singular_problem = 0);
 
    /// The typecast to HYPRE_Solver returns the internal ams object
    virtual operator HYPRE_Solver() const { return ams; }
@@ -714,7 +724,7 @@ private:
    mv_MultiVectorPtr mv_ptr;
 
    // Interface for matrix storage type
-   mv_InterfaceInterpreter * interpreter;
+   mv_InterfaceInterpreter interpreter;
 
    // Wrappers for each member of the multivector
    HypreParVector ** hpv;
@@ -734,8 +744,8 @@ public:
 
    operator mv_MultiVectorPtr() const { return mv_ptr; }
 
-   mv_InterfaceInterpreter & GetInterpreter() const { return *interpreter; }
-   // mv_MultiVectorPtr & GetVectors() { return mv_ptr; }
+   mv_InterfaceInterpreter & GetInterpreter() { return interpreter; }
+   mv_MultiVectorPtr       & GetMultiVector() { return mv_ptr; }
 };
 
 /// LOBPCG eigenvalue solver in hypre
@@ -748,9 +758,6 @@ private:
    // Interface for setting up and performing matrix-vector products
    HYPRE_MatvecFunctions matvec_fn;
 
-   // Interface for matrix storage type
-   // mv_InterfaceInterpreter * interpreter;
-
 public:
    HypreLOBPCG(mv_InterfaceInterpreter & interpreter);
    ~HypreLOBPCG();
@@ -760,16 +767,44 @@ public:
    void SetPrintLevel(int logging);
    void SetPrecondUsageMode(int pcg_mode);
 
+   /// The following four methods support linear systems made up of
+   /// simple HypreParMatrices
    void SetPrecond(HypreSolver & precond);
-
    void Setup(HypreParMatrix & A, HypreParVector & b, HypreParVector & x);
    void SetupB(HypreParMatrix & B, HypreParVector & x);
    void SetupT(HypreParMatrix & T, HypreParVector & x);
+
+   /// The following four methods support more general linear systems
+   void SetPrecond(Solver & precond);
+   void Setup(Operator & A, HypreParVector & b, HypreParVector & x);
+   void SetupB(Operator & B, HypreParVector & x);
+   void SetupT(Operator & T, HypreParVector & x);
 
    void Solve(Vector & eigenvalues);
    void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors);
    void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors,
               HypreMultiVector & constraints);
+
+   static void    * BlockOperatorMatvecCreate( void *A, void *x );
+   static HYPRE_Int BlockOperatorMatvec( void *matvec_data,
+                                         HYPRE_Complex alpha,
+                                         void *A,
+                                         void *x,
+                                         HYPRE_Complex beta,
+                                         void *y );
+   static HYPRE_Int BlockOperatorMatvecDestroy( void *matvec_data );
+
+   static HYPRE_Int BlockDiagonalPrecondSolve(void *solver,
+                                              void *A,
+                                              void *b,
+                                              void *x);
+   static HYPRE_Int BlockDiagonalPrecondSetup(void *solver,
+                                              void *A,
+                                              void *b,
+                                              void *x);
+
+
+
 };
 
 }

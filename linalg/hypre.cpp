@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <cmath>
 #include <cstdlib>
+#include <typeinfo>
 
 using namespace std;
 
@@ -2038,7 +2039,8 @@ HypreBoomerAMG::~HypreBoomerAMG()
 }
 
 
-HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
+HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
+                   int singular_problem)
    : HypreSolver(&A)
 {
    int cycle_type       = 13;
@@ -2178,6 +2180,10 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
                                theta, amg_interp_type, amg_Pmax);
    HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                               theta, amg_interp_type, amg_Pmax);
+   if (singular_problem)
+   {
+      HYPRE_AMSSetBetaPoissonMatrix(ams,NULL);
+   }
 }
 
 HypreAMS::~HypreAMS()
@@ -2409,12 +2415,9 @@ HypreADS::~HypreADS()
 HypreMultiVector::HypreMultiVector(int n, HypreParVector & v)
    : nv(n)
 {
-   interpreter =
-      hypre_CTAlloc(mv_InterfaceInterpreter,1);
+   HYPRE_ParCSRSetupInterpreter(&interpreter);
 
-   HYPRE_ParCSRSetupInterpreter(interpreter);
-
-   mv_ptr = mv_MultiVectorCreateFromSampleVector(interpreter, nv,
+   mv_ptr = mv_MultiVectorCreateFromSampleVector(&interpreter, nv,
                                                  (HYPRE_ParVector)v);
 
    HYPRE_ParVector* vecs = NULL;
@@ -2440,8 +2443,6 @@ HypreMultiVector::~HypreMultiVector()
    if ( hpv != NULL ) { delete [] hpv; }
 
    mv_MultiVectorDestroy(mv_ptr);
-
-   if ( interpreter != NULL ) { hypre_TFree(interpreter); }
 }
 
 void
@@ -2531,6 +2532,62 @@ HypreLOBPCG::SetupT(HypreParMatrix & T, HypreParVector & x)
 }
 
 void
+HypreLOBPCG::SetPrecond(Solver & precond)
+{
+   if ( typeid(precond) == typeid(BlockDiagonalPreconditioner) )
+   {
+
+      HYPRE_LOBPCGSetPrecond(lobpcg_solver,
+                             (HYPRE_PtrToSolverFcn)this->BlockDiagonalPrecondSolve,
+                             (HYPRE_PtrToSolverFcn)this->BlockDiagonalPrecondSetup,
+                             (HYPRE_Solver)&precond);
+   }
+}
+
+void
+HypreLOBPCG::Setup(Operator & A, HypreParVector & b, HypreParVector & x)
+{
+   if ( typeid(A) == typeid(BlockOperator) )
+   {
+      matvec_fn.MatvecCreate  = this->BlockOperatorMatvecCreate;
+      matvec_fn.Matvec        = this->BlockOperatorMatvec;
+      matvec_fn.MatvecDestroy = this->BlockOperatorMatvecDestroy;
+
+      HYPRE_LOBPCGSetup(lobpcg_solver,(HYPRE_Matrix)&A,
+                        (HYPRE_Vector)((HYPRE_ParVector)b),
+                        (HYPRE_Vector)((HYPRE_ParVector)x));
+   }
+}
+
+void
+HypreLOBPCG::SetupB(Operator & B, HypreParVector & x)
+{
+   if ( typeid(B) == typeid(BlockOperator) )
+   {
+      matvec_fn.MatvecCreate  = this->BlockOperatorMatvecCreate;
+      matvec_fn.Matvec        = this->BlockOperatorMatvec;
+      matvec_fn.MatvecDestroy = this->BlockOperatorMatvecDestroy;
+
+      HYPRE_LOBPCGSetupB(lobpcg_solver,(HYPRE_Matrix)&B,
+                         (HYPRE_Vector)((HYPRE_ParVector)x));
+   }
+}
+
+void
+HypreLOBPCG::SetupT(Operator & T, HypreParVector & x)
+{
+   if ( typeid(T) == typeid(BlockOperator) )
+   {
+      matvec_fn.MatvecCreate  = this->BlockOperatorMatvecCreate;
+      matvec_fn.Matvec        = this->BlockOperatorMatvec;
+      matvec_fn.MatvecDestroy = this->BlockOperatorMatvecDestroy;
+
+      HYPRE_LOBPCGSetupT(lobpcg_solver,(HYPRE_Matrix)&T,
+                         (HYPRE_Vector)((HYPRE_ParVector)x));
+   }
+}
+
+void
 HypreLOBPCG::Solve(Vector & eigenvalues)
 {
    HYPRE_LOBPCGSolve(lobpcg_solver, NULL, NULL, eigenvalues);
@@ -2546,6 +2603,76 @@ void
 HypreLOBPCG::Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors,
                    HypreMultiVector & constraints)
 {}
+
+void *
+HypreLOBPCG::BlockOperatorMatvecCreate( void *A,
+                                        void *x )
+{
+   void *matvec_data;
+
+   matvec_data = NULL;
+
+   return ( matvec_data );
+}
+
+HYPRE_Int
+HypreLOBPCG::BlockOperatorMatvec( void *matvec_data,
+                                  HYPRE_Complex alpha,
+                                  void *A,
+                                  void *x,
+                                  HYPRE_Complex beta,
+                                  void *y )
+{
+   BlockOperator *Aop = (BlockOperator*)A;
+
+   int width = Aop->Width();
+
+   hypre_ParVector * xPar = (hypre_ParVector *)x;
+   hypre_ParVector * yPar = (hypre_ParVector *)y;
+
+   Vector xVec(xPar->local_vector->data, width);
+   Vector yVec(yPar->local_vector->data, width);
+
+   Aop->Mult( xVec, yVec );
+
+   return 0;
+}
+
+HYPRE_Int
+HypreLOBPCG::BlockOperatorMatvecDestroy( void *matvec_data )
+{
+   return 0;
+}
+
+HYPRE_Int
+HypreLOBPCG::BlockDiagonalPrecondSolve(void *solver,
+                                       void *A,
+                                       void *b,
+                                       void *x)
+{
+   BlockOperator *Aop = (BlockOperator*)A;
+
+   int width = Aop->Width();
+
+   hypre_ParVector * bPar = (hypre_ParVector *)b;
+   hypre_ParVector * xPar = (hypre_ParVector *)x;
+
+   Vector bVec(bPar->local_vector->data, width);
+   Vector xVec(xPar->local_vector->data, width);
+
+   Aop->Mult( bVec, xVec );
+
+   return 0;
+}
+
+HYPRE_Int
+HypreLOBPCG::BlockDiagonalPrecondSetup(void *solver,
+                                       void *A,
+                                       void *b,
+                                       void *x)
+{
+   return 0;
+}
 
 }
 
