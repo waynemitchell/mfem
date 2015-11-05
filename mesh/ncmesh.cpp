@@ -1353,7 +1353,8 @@ const Table& NCMesh::GetDerefinementTable()
 
 void NCMesh::Derefine(const Array<int> &derefs)
 {
-   MFEM_VERIFY(Iso, "derefinement in anisotropic meshes not implemented yet.");
+   MFEM_VERIFY(Dim < 3 || Iso,
+               "derefinement of 3D anisotropic meshes not implemented yet.");
 
    int nfine = leaf_elements.Size();
 
@@ -1370,7 +1371,7 @@ void NCMesh::Derefine(const Array<int> &derefs)
    for (int i = 0; i < derefs.Size(); i++)
    {
       int row = derefs[i];
-      MFEM_VERIFY(row < 0 || row >= derefinements.Size(),
+      MFEM_VERIFY(row >= 0 && row < derefinements.Size(),
                   "invalid derefinement number.");
 
       const int* fine = derefinements.GetRow(row);

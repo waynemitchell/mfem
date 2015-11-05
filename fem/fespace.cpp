@@ -938,6 +938,7 @@ void InvertLinearTrans(IsoparametricTransformation &trans,
                        const DenseMatrix &invdfdx,
                        const IntegrationPoint &pt, Vector &x)
 {
+   // invert a linear transform with one Newton step
    IntegrationPoint p0;
    p0.Set3(0, 0, 0);
    trans.Transform(p0, x);
@@ -991,8 +992,8 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
 
          for (int j = 0; j < nodes.Size(); j++)
          {
-            InvertLinearTrans(trans, invdfdx, nodes[i], pt);
-            if (Geometries.PointInside(geom, pt))
+            InvertLinearTrans(trans, invdfdx, nodes[j], pt);
+            if (Geometries.PointInside(geom, pt)) // do we need an epsilon here?
             {
                IntegrationPoint ip;
                ip.Set(pt, dim);

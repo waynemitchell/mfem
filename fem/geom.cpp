@@ -289,7 +289,7 @@ bool Geometry::PointInside(int GeomType, const Vector &pt)
          sum += pt[i];
       }
       if (sum > 1.0) { return false; }
-   ;}
+   }
 
    return true;
 }

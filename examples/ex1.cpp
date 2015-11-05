@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
-   //mesh->RandomRefinement(2, 2, true);
+   mesh->RandomRefinement(5, 2, true);
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
@@ -167,15 +167,20 @@ int main(int argc, char *argv[])
    x.Transform(R);
    delete R;*/
 
-   (void) mesh->GetDerefinementTable();
+   const Table &dtable = mesh->GetDerefinementTable();
    Array<int> derefs;
-   derefs.Append(0);
+   for (int i = 0; i < dtable.Size(); i++)
+   {
+      if (!(rand() % 2)) { derefs.Append(i); }
+   }
    mesh->NonconformingDerefinement(derefs);
 
    fespace->Update();
 
    SparseMatrix* D = fespace->DerefinementMatrix();
    x.Transform(D);
+   x.ConformingProject();
+   x.ConformingProlongate();
    delete D;
 
    // 9. Save the refined mesh and the solution. This output can be viewed later
