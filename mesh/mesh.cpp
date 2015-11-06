@@ -795,81 +795,32 @@ void Mesh::DeleteCoarseTables()
 
 void Mesh::SetAttributes()
 {
-   int i, j, nattr;
    Array<int> attribs;
 
    attribs.SetSize(GetNBE());
-   for (i = 0; i < attribs.Size(); i++)
+   for (int i = 0; i < attribs.Size(); i++)
    {
       attribs[i] = GetBdrAttribute(i);
    }
    attribs.Sort();
-
-   if (attribs.Size() > 0)
+   attribs.Unique();
+   attribs.Copy(bdr_attributes);
+   if (bdr_attributes.Size() > 0 && bdr_attributes[0] <= 0)
    {
-      nattr = 1;
+      MFEM_WARNING("Non-positive attributes on the boundary!");
    }
-   else
-   {
-      nattr = 0;
-   }
-   for (i = 1; i < attribs.Size(); i++)
-   {
-      if (attribs[i] != attribs[i-1]) { nattr++; }
-   }
-
-   // TODO: use Array::Sort + Array::Unique here
-
-   bdr_attributes.SetSize(nattr);
-   if (nattr > 0)
-   {
-      bdr_attributes[0] = attribs[0];
-      for (i = j = 1; i < attribs.Size(); i++)
-         if (attribs[i] != attribs[i-1])
-         {
-            bdr_attributes[j++] = attribs[i];
-         }
-      if (attribs[0] <= 0)
-         cout << "Mesh::SetAttributes(): "
-              "Non-positive attributes on the boundary!"
-              << endl;
-   }
-
 
    attribs.SetSize(GetNE());
-   for (i = 0; i < attribs.Size(); i++)
+   for (int i = 0; i < attribs.Size(); i++)
    {
       attribs[i] = GetAttribute(i);
    }
    attribs.Sort();
-
-   if (attribs.Size() > 0)
+   attribs.Unique();
+   attribs.Copy(attributes);
+   if (attributes.Size() > 0 && attributes[0] <= 0)
    {
-      nattr = 1;
-   }
-   else
-   {
-      nattr = 0;
-   }
-   for (i = 1; i < attribs.Size(); i++)
-      if (attribs[i] != attribs[i-1])
-      {
-         nattr++;
-      }
-
-   attributes.SetSize(nattr);
-   if (nattr > 0)
-   {
-      attributes[0] = attribs[0];
-      for (i = j = 1; i < attribs.Size(); i++)
-         if (attribs[i] != attribs[i-1])
-         {
-            attributes[j++] = attribs[i];
-         }
-      if (attribs[0] <= 0)
-         cout << "Mesh::SetAttributes(): "
-              "Non-positive attributes in the domain!"
-              << endl;
+      MFEM_WARNING("Non-positive attributes in the domain!");
    }
 }
 
@@ -2324,7 +2275,6 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    {
       // Delete the elements.
       for (i = 0; i < NumOfElements; i++)
-         // delete elements[i];
       {
          FreeElement(elements[i]);
       }
@@ -2362,16 +2312,10 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       // TODO: make this a Destroy function
    }
 
-   if (ncmesh)
-   {
-      delete ncmesh;
-      ncmesh = NULL;
-   }
+   delete ncmesh;
+   ncmesh = NULL;
 
-   if (Nodes && own_nodes)
-   {
-      delete Nodes;
-   }
+   if (own_nodes) { delete Nodes; }
    Nodes = NULL;
 
    InitTables();
@@ -3070,12 +3014,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          input >> name;
          input >> std::ws;
          // Make sure there's an equal sign
-         if (input.get() != '=')
-         {
-            std::ostringstream os;
-            os << "Mesh::Load : Inline mesh expected '=' after keyword " << name;
-            mfem_error(os.str().c_str());
-         }
+         MFEM_VERIFY(input.get() == '=',
+                     "Inline mesh expected '=' after keyword " << name);
          input >> std::ws;
 
          if (name == "nx")
@@ -3128,18 +3068,16 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
             }
             else
             {
-               std::ostringstream os;
-               os << "Mesh::Load : unrecognized element type (read '" << eltype
-                  << "') in inline mesh format.  Allowed: segment, tri, tet, quad, hex";
-               mfem_error(os.str().c_str());
+               MFEM_ABORT("unrecognized element type (read '" << eltype
+                          << "') in inline mesh format.  "
+                          "Allowed: segment, tri, tet, quad, hex");
             }
          }
          else
          {
-            std::ostringstream os;
-            os << "Mesh::Load : unrecognized keyword (" << name
-               << ") in inline mesh format.  Allowed: nx, ny, nz, type, sx, sy, sz";
-            mfem_error(os.str().c_str());
+            MFEM_ABORT("unrecognized keyword (" << name
+                       << ") in inline mesh format.  "
+                       "Allowed: nx, ny, nz, type, sx, sy, sz");
          }
 
          input >> std::ws;
@@ -3159,47 +3097,36 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       // Now make the mesh.
       if (type == Element::SEGMENT)
       {
-         if (nx < 0 || sx < 0.0)
-         {
-            std::ostringstream os;
-            os << "Mesh::Load : invalid 1D inline mesh format, all values must be "
-               "positive\n"
-               << "   nx = " << nx << "\n"
-               << "   sx = " << sx << "\n";
-            mfem_error(os.str().c_str());
-         }
+         MFEM_VERIFY(nx > 0 && sx > 0.0,
+                     "invalid 1D inline mesh format, all values must be "
+                     "positive\n"
+                     << "   nx = " << nx << "\n"
+                     << "   sx = " << sx << "\n");
          Make1D(nx, sx);
       }
       else if (type == Element::TRIANGLE || type == Element::QUADRILATERAL)
       {
-         if (nx < 0 || ny < 0 || sx < 0.0 || sy < 0.0)
-         {
-            std::ostringstream os;
-            os << "Mesh::Load : invalid 2D inline mesh format, all values must be "
-               "positive\n"
-               << "   nx = " << nx << "\n"
-               << "   ny = " << ny << "\n"
-               << "   sx = " << sx << "\n"
-               << "   sy = " << sy << "\n";
-            mfem_error(os.str().c_str());
-         }
+         MFEM_VERIFY(nx > 0 && ny > 0 && sx > 0.0 && sy > 0.0,
+                     "invalid 2D inline mesh format, all values must be "
+                     "positive\n"
+                     << "   nx = " << nx << "\n"
+                     << "   ny = " << ny << "\n"
+                     << "   sx = " << sx << "\n"
+                     << "   sy = " << sy << "\n");
          Make2D(nx, ny, type, generate_edges, sx, sy);
       }
       else if (type == Element::TETRAHEDRON || type == Element::HEXAHEDRON)
       {
-         if (nx < 0 || ny < 0 || nz < 0 || sx < 0.0 || sy < 0.0 || sz < 0.0)
-         {
-            std::ostringstream os;
-            os << "Mesh::Load : invalid 3D inline mesh format, all values must be "
-               "positive\n"
-               << "   nx = " << nx << "\n"
-               << "   ny = " << ny << "\n"
-               << "   nz = " << nz << "\n"
-               << "   sx = " << sx << "\n"
-               << "   sy = " << sy << "\n"
-               << "   sz = " << sz << "\n";
-            mfem_error(os.str().c_str());
-         }
+         MFEM_VERIFY(nx > 0 && ny > 0 && nz > 0 &&
+                     sx > 0.0 && sy > 0.0 && sz > 0.0,
+                     "invalid 3D inline mesh format, all values must be "
+                     "positive\n"
+                     << "   nx = " << nx << "\n"
+                     << "   ny = " << ny << "\n"
+                     << "   nz = " << nz << "\n"
+                     << "   sx = " << sx << "\n"
+                     << "   sy = " << sy << "\n"
+                     << "   sz = " << sz << "\n");
          Make3D(nx, ny, nz, type, generate_edges, sx, sy, sz);
       }
       else
@@ -7009,7 +6936,7 @@ void Mesh::RefineAtVertex(const Vertex& vert, int levels, double eps,
          for (int j = 0; j < v.Size(); j++)
          {
             double dist = 0.0;
-            for (int l = 0; l < Dim; l++)
+            for (int l = 0; l < spaceDim; l++)
             {
                double d = vert(l) - vertices[v[j]](l);
                dist += d*d;
