@@ -129,6 +129,7 @@ public:
 
       void Clear() { conforming.clear(); masters.clear(); slaves.clear(); }
       bool Empty() const { return !conforming.size() && !masters.size(); }
+      long MemoryUsage() const;
    };
 
    /// Return the current list of conforming and nonconforming faces.
@@ -205,6 +206,8 @@ public:
 
    /// Return total number of bytes allocated.
    long MemoryUsage() const;
+
+   void PrintMemoryDetail() const;
 
    virtual ~NCMesh();
 
@@ -606,6 +609,8 @@ protected: // implementation
    int CountElements(Element* elem) const;
 
    int PrintElements(std::ostream &out, Element* elem, int &coarse_id) const;
+
+   void CountObjects(int &nelem, int &nvert, int &nedges) const;
 
 
 public: // TODO: maybe make this part of mfem::Geometry?

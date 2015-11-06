@@ -147,6 +147,8 @@ public:
 
    void Clear();
 
+   long MemoryUsage() const;
+
    /// Destroys Table.
    ~Table();
 };
