@@ -356,7 +356,7 @@ protected: // implementation
       Element(const Element& other) { std::memcpy(this, &other, sizeof(*this)); }
    };
 
-   Array<Element*> root_elements; // coarse mesh, initialized by constructor
+   Array<Element*> root_elements; // coarsest mesh, initialized by constructor
 
    HashTable<Node> nodes; // associative container holding all Nodes
    HashTable<Face> faces; // associative container holding all Faces
@@ -373,7 +373,6 @@ protected: // implementation
    virtual void Update();
 
    Array<Element*> leaf_elements; // finest level, updated by UpdateLeafElements
-   Array<Element*> coarse_elements; // coarse level, set by MarkCoarseLevel
 
    Array<int> vertex_nodeId; // vertex-index to node-id map, see UpdateVertices
 
@@ -584,6 +583,9 @@ protected: // implementation
 
       void GetMatrix(DenseMatrix& point_matrix) const;
    };
+
+   /// state of leaf_elements before Refine(), set by MarkCoarseLevel()
+   Array<Element*> coarse_elements;
 
    void GetFineTransforms(Element* elem, int coarse_index,
                           FineTransform *transforms, const PointMatrix &pm);
