@@ -261,8 +261,8 @@ protected: // implementation
        their Nodes. */
    struct Vertex : public RefCount
    {
-      double pos[3]; ///< 3D position
       int index;     ///< vertex number in the Mesh
+      double pos[3]; ///< 3D position
 
       Vertex() {}
       Vertex(double x, double y, double z) : index(-1)
