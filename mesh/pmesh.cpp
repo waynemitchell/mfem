@@ -2866,24 +2866,26 @@ void ParMesh::Print(std::ostream &out) const
    else
    {
       s2l_face = &nc_shared_faces;
-      if (Dim > 2)
+      if (Dim >= 2)
       {
          // get a list of all shared non-ghost faces
-         const NCMesh::NCList& sfaces = pncmesh->GetSharedFaces();
+         const NCMesh::NCList& sfaces =
+            (Dim == 3) ? pncmesh->GetSharedFaces() : pncmesh->GetSharedEdges();
+         const int nfaces = GetNumFaces();
          for (unsigned i = 0; i < sfaces.conforming.size(); i++)
          {
             int index = sfaces.conforming[i].index;
-            if (index < GetNFaces()) { nc_shared_faces.Append(index); }
+            if (index < nfaces) { nc_shared_faces.Append(index); }
          }
          for (unsigned i = 0; i < sfaces.masters.size(); i++)
          {
             int index = sfaces.masters[i].index;
-            if (index < GetNFaces()) { nc_shared_faces.Append(index); }
+            if (index < nfaces) { nc_shared_faces.Append(index); }
          }
          for (unsigned i = 0; i < sfaces.slaves.size(); i++)
          {
             int index = sfaces.slaves[i].index;
-            if (index < GetNFaces()) { nc_shared_faces.Append(index); }
+            if (index < nfaces) { nc_shared_faces.Append(index); }
          }
       }
    }
