@@ -70,8 +70,8 @@ private:
    DenseMatrix PointMat;
 
 public:
-   void SetFE(const FiniteElement *FE) { FElem = FE; };
-   DenseMatrix &GetPointMat () { return PointMat; };
+   void SetFE(const FiniteElement *FE) { FElem = FE; }
+   DenseMatrix &GetPointMat () { return PointMat; }
 
    void SetIdentityTransformation(int GeomType);
 

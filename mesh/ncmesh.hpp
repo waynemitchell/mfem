@@ -145,6 +145,7 @@ public:
 
       void Clear() { conforming.clear(); masters.clear(); slaves.clear(); }
       bool Empty() const { return !conforming.size() && !masters.size(); }
+      long MemoryUsage() const;
    };
 
    /// Return the current list of conforming and nonconforming faces.
@@ -247,10 +248,16 @@ public:
    /// Return total number of bytes allocated.
    long MemoryUsage() const;
 
+<<<<<<< HEAD
 #ifdef MFEM_DEBUG
    /// Print the space-filling curve formed by the leaf elements.
    void DebugLeafOrder() const;
 #endif
+=======
+   void PrintMemoryDetail() const;
+
+   virtual ~NCMesh();
+>>>>>>> pamr-dev
 
 
 protected: // interface for Mesh to be able to construct itself from NCMesh
@@ -302,8 +309,8 @@ protected: // implementation
        their Nodes. */
    struct Vertex : public RefCount
    {
-      double pos[3]; ///< 3D position
       int index;     ///< vertex number in the Mesh
+      double pos[3]; ///< 3D position
 
       Vertex() {}
       Vertex(double x, double y, double z) : index(-1)
@@ -401,7 +408,7 @@ protected: // implementation
       Element(const Element& other) { std::memcpy(this, &other, sizeof(*this)); }
    };
 
-   Array<Element*> root_elements; // coarse mesh, initialized by constructor
+   Array<Element*> root_elements; // coarsest mesh, initialized by constructor
 
    HashTable<Node> nodes; // associative container holding all Nodes
    HashTable<Face> faces; // associative container holding all Faces
@@ -418,7 +425,6 @@ protected: // implementation
    virtual void Update();
 
    Array<Element*> leaf_elements; // finest level, updated by UpdateLeafElements
-   Array<Element*> coarse_elements; // coarse level, set by MarkCoarseLevel
 
    Array<int> vertex_nodeId; // vertex-index to node-id map, see UpdateVertices
 
@@ -657,7 +663,11 @@ protected: // implementation
    void TraverseRefinements(Element* elem, int coarse_index,
                             std::string &ref_path, RefPathMap &map);
 
+   /// storage for data returned by Get[De]RefinementTransforms()
    FineTransforms transforms;
+
+   /// state of leaf_elements before Refine(), set by MarkCoarseLevel()
+   Array<Element*> coarse_elements;
 
    // to be removed
    void GetFineTransforms(Element* elem, int coarse_index,
@@ -679,6 +689,8 @@ protected: // implementation
    int CountElements(Element* elem) const;
 
    int PrintElements(std::ostream &out, Element* elem, int &coarse_id) const;
+
+   void CountObjects(int &nelem, int &nvert, int &nedges) const;
 
 
 public: // TODO: maybe make this part of mfem::Geometry?

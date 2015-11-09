@@ -817,20 +817,13 @@ void HypreParMatrix::GetDiag(Vector &diag)
    for (int j = 0; j < size; j++)
    {
       diag(j) = A->diag->data[A->diag->i[j]];
-#ifdef MFEM_DEBUG
-      if (A->diag->j[A->diag->i[j]] != j)
-      {
-         MFEM_ABORT("HypreParMatrix::GetDiag");
-      }
-#endif
+      MFEM_ASSERT(A->diag->j[A->diag->i[j]] == j,
+                  "the first entry in each row must be the diagonal one");
    }
 }
 
 void HypreParMatrix::GetDiag(SparseMatrix &diag)
 {
-#ifdef HYPRE_COMPLEX
-   MFEM_ABORT("Complex matrices not supported.");
-#endif
    // create a wrapper SparseMatrix around A->diag
    SparseMatrix tmp(hypre_CSRMatrixI(A->diag),
                     hypre_CSRMatrixJ(A->diag),
@@ -843,9 +836,6 @@ void HypreParMatrix::GetDiag(SparseMatrix &diag)
 
 void HypreParMatrix::GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap)
 {
-#ifdef HYPRE_COMPLEX
-   MFEM_ABORT("Complex matrices not supported.");
-#endif
    // create a wrapper SparseMatrix around A->offd
    SparseMatrix tmp(hypre_CSRMatrixI(A->offd),
                     hypre_CSRMatrixJ(A->offd),
@@ -959,12 +949,19 @@ HYPRE_Int HypreParMatrix::MultTranspose(HypreParVector & x, HypreParVector & y,
 HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
                                              HYPRE_Int* row_starts) const
 {
-   int np;
-   MPI_Comm_size(GetComm(), &np);
-   np = HYPRE_AssumedPartitionCheck() ? 2 : np+1;
+   const bool assumed_partition = HYPRE_AssumedPartitionCheck();
+   const bool same_rows = (D.Height() == hypre_CSRMatrixNumRows(A->diag));
+   HYPRE_Int global_num_rows, part_size;
 
-   bool same_rows = (D.Height() == hypre_CSRMatrixNumRows(A->diag));
-   HYPRE_Int global_num_rows;
+   if (assumed_partition)
+   {
+      part_size = 2;
+   }
+   else
+   {
+      MPI_Comm_size(GetComm(), &part_size);
+      part_size++;
+   }
 
    if (same_rows)
    {
@@ -973,8 +970,13 @@ HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
    }
    else
    {
-      MFEM_VERIFY(row_starts != NULL, "");
-      global_num_rows = row_starts[np];
+      MFEM_VERIFY(row_starts != NULL, "the number of rows in D and A is not "
+                  "the same; row_starts must be given (not NULL)");
+      // Here, when assumed_partition is true we use row_starts[2], so
+      // row_starts must come from the GetDofOffsets/GetTrueDofOffsets methods
+      // of ParFiniteElementSpace (HYPRE's partitions have only 2 entries).
+      global_num_rows =
+         assumed_partition ? row_starts[2] : row_starts[part_size-1];
    }
 
    HYPRE_Int *col_starts = hypre_ParCSRMatrixColStarts(A);
@@ -1000,22 +1002,26 @@ HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
    HypreParMatrix* DA =
       new HypreParMatrix(GetComm(),
                          global_num_rows, hypre_ParCSRMatrixGlobalNumCols(A),
-                         DuplicateAs<HYPRE_Int>(row_starts, np+1, false),
-                         DuplicateAs<HYPRE_Int>(col_starts, np+1, false),
+                         DuplicateAs<HYPRE_Int>(row_starts, part_size, false),
+                         DuplicateAs<HYPRE_Int>(col_starts, part_size, false),
                          DA_diag, DA_offd,
                          DuplicateAs<HYPRE_Int>(col_map_offd,
                                                 A_offd.Width()));
 
+   // When HYPRE_BIGINT is defined, we want DA_{diag,offd} to delete their I and
+   // J arrays but not their data arrays; when HYPRE_BIGINT is not defined, we
+   // don't want DA_{diag,offd} to delete anything.
+#ifndef HYPRE_BIGINT
    DA_diag->LoseData();
    DA_offd->LoseData();
+#else
+   DA_diag->SetDataOwner(false);
+   DA_offd->SetDataOwner(false);
+#endif
 
    delete DA_diag;
    delete DA_offd;
 
-   hypre_CSRMatrixSetDataOwner(DA->A->diag, 1);
-   hypre_CSRMatrixSetDataOwner(DA->A->offd, 1);
-
-   hypre_ParCSRMatrixSetDataOwner(DA->A, 1);
    hypre_ParCSRMatrixSetRowStartsOwner(DA->A, 1);
    hypre_ParCSRMatrixSetColStartsOwner(DA->A, 1);
 
@@ -1301,18 +1307,18 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag((hypre_ParCSRMatrix *)A);
    double *data = hypre_CSRMatrixData(A_diag);
    HYPRE_Int *I = hypre_CSRMatrixI(A_diag);
-   /*#ifdef MFEM_DEBUG
+#ifdef MFEM_DEBUG
    HYPRE_Int    *J   = hypre_CSRMatrixJ(A_diag);
    hypre_CSRMatrix *A_offd = hypre_ParCSRMatrixOffd((hypre_ParCSRMatrix *)A);
    HYPRE_Int *I_offd = hypre_CSRMatrixI(A_offd);
    double *data_offd = hypre_CSRMatrixData(A_offd);
-   #endif*/
+#endif
 
    for (int i = 0; i < ess_dof_list.Size(); i++)
    {
       int r = ess_dof_list[i];
       B(r) = data[I[r]] * X(r);
-      /*#ifdef MFEM_DEBUG
+#ifdef MFEM_DEBUG
       // Check that in the rows specified by the ess_dof_list, the matrix A has
       // only one entry -- the diagonal.
       // if (I[r+1] != I[r]+1 || J[I[r]] != r || I_offd[r] != I_offd[r+1])
@@ -1334,9 +1340,7 @@ void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
             MFEM_ABORT("all off-diagonal entries must be zero!");
          }
       }
-      #endif*/
-      // NOTE: if A was eliminated in parallel the above checks no longer work
-      // as there are stored zeros in the eliminated rows/columns in A.
+#endif
    }
 }
 
@@ -2203,8 +2207,7 @@ HypreBoomerAMG::~HypreBoomerAMG()
 }
 
 
-HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
-                   int singular_problem)
+HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    : HypreSolver(&A)
 {
    int cycle_type       = 13;
@@ -2330,10 +2333,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
                                theta, amg_interp_type, amg_Pmax);
    HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                               theta, amg_interp_type, amg_Pmax);
-   if (singular_problem)
-   {
-      HYPRE_AMSSetBetaPoissonMatrix(ams,NULL);
-   }
 }
 
 HypreAMS::~HypreAMS()

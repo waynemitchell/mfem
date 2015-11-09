@@ -2125,6 +2125,22 @@ void NCMesh::FindSetNeighbors(const Array<char> &elem_set,
    }
 }
 
+static bool sorted_lists_intersect(const int* a, const int* b, int na, int nb)
+{
+   if (!na || !nb) { return false; }
+   int a_last = a[na-1], b_last = b[nb-1];
+   if (*b < *a) { goto l2; }  // woo-hoo! I always wanted to use a goto! :)
+l1:
+   if (a_last < *b) { return false; }
+   while (*a < *b) { a++; }
+   if (*a == *b) { return true; }
+l2:
+   if (b_last < *a) { return false; }
+   while (*b < *a) { b++; }
+   if (*a == *b) { return true; }
+   goto l1;
+}
+
 void NCMesh::FindNeighbors(const Element* elem,
                            Array<Element*> &neighbors,
                            const Array<Element*> *search_set)
@@ -2133,20 +2149,10 @@ void NCMesh::FindNeighbors(const Element* elem,
 
    UpdateElementToVertexTable();
 
-   Array<char> vertices(num_vertices);
-   vertices = 0;
+   int *v1 = element_vertex.GetRow(elem->index);
+   int nv1 = element_vertex.RowSize(elem->index);
 
-   int *v = element_vertex.GetRow(elem->index);
-   int nv = element_vertex.RowSize(elem->index);
-   for (int i = 0; i < nv; i++)
-   {
-      vertices[v[i]] = 1;
-   }
-
-   if (!search_set)
-   {
-      search_set = &leaf_elements;
-   }
+   if (!search_set) { search_set = &leaf_elements; }
 
    neighbors.SetSize(0);
    for (int i = 0; i < search_set->Size(); i++)
@@ -2154,15 +2160,12 @@ void NCMesh::FindNeighbors(const Element* elem,
       Element* testme = (*search_set)[i];
       if (testme != elem)
       {
-         int *v = element_vertex.GetRow(testme->index);
-         int nv = element_vertex.RowSize(testme->index);
-         for (int j = 0; j < nv; j++)
+         int *v2 = element_vertex.GetRow(testme->index);
+         int nv2 = element_vertex.RowSize(testme->index);
+
+         if (sorted_lists_intersect(v1, v2, nv1, nv2))
          {
-            if (vertices[v[j]])
-            {
-               neighbors.Append(testme);
-               break;
-            }
+            neighbors.Append(testme);
          }
       }
    }
@@ -3410,30 +3413,81 @@ int NCMesh::CountElements(Element* elem) const
    return n;
 }
 
-long NCMesh::MemoryUsage() const
+long NCMesh::NCList::MemoryUsage() const
 {
-   int num_elem = 0;
+   int pmsize = 0;
+   if (slaves.size())
+   {
+      const DenseMatrix &pm = slaves[0].point_matrix;
+      pmsize = pm.Width() * pm.Height() * sizeof(double);
+   }
+
+   return conforming.capacity() * sizeof(MeshId) +
+          masters.capacity() * sizeof(Master) +
+          slaves.capacity() * sizeof(Slave) +
+          slaves.size() * pmsize;
+}
+
+void NCMesh::CountObjects(int &nelem, int &nvert, int &nedges) const
+{
+   nelem = nvert = nedges = 0;
    for (int i = 0; i < root_elements.Size(); i++)
    {
-      num_elem += CountElements(root_elements[i]);
+      nelem += CountElements(root_elements[i]);
    }
-
-   int num_vert = 0, num_edges = 0;
    for (HashTable<Node>::Iterator it(nodes); it; ++it)
    {
-      if (it->vertex) { num_vert++; }
-      if (it->edge) { num_edges++; }
+      if (it->vertex) { nvert++; }
+      if (it->edge) { nedges++; }
    }
+}
 
-   return num_elem * sizeof(Element) +
-          num_vert * sizeof(Vertex) +
-          num_edges * sizeof(Edge) +
+long NCMesh::MemoryUsage() const
+{
+   int nelem, nvert, nedges;
+   CountObjects(nelem, nvert, nedges);
+
+   return nelem * sizeof(Element) +
+          nvert * sizeof(Vertex) +
+          nedges * sizeof(Edge) +
           nodes.MemoryUsage() +
           faces.MemoryUsage() +
-          root_elements.Capacity() * sizeof(Element*) +
-          leaf_elements.Capacity() * sizeof(Element*) +
-          vertex_nodeId.Capacity() * sizeof(int) +
-          sizeof(*this);  // FIXME: this needs updating
+          root_elements.MemoryUsage() +
+          leaf_elements.MemoryUsage() +
+          vertex_nodeId.MemoryUsage() +
+          face_list.MemoryUsage() +
+          edge_list.MemoryUsage() +
+          boundary_faces.MemoryUsage() +
+          boundary_edges.MemoryUsage() +
+          element_vertex.MemoryUsage() +
+          ref_stack.MemoryUsage() +
+          coarse_elements.MemoryUsage() +
+          sizeof(*this);
+}
+
+void NCMesh::PrintMemoryDetail() const
+{
+   int nelem, nvert, nedges;
+   CountObjects(nelem, nvert, nedges);
+
+   std::cout << nelem * sizeof(Element) << " elements\n" <<
+                nvert * sizeof(Vertex) << " vertices\n" <<
+                nedges * sizeof(Edge) << " edges\n";
+
+   nodes.PrintMemoryDetail(); std::cout << " nodes\n";
+   faces.PrintMemoryDetail(); std::cout << " faces\n";
+
+   std::cout << root_elements.MemoryUsage() << " root_elements\n" <<
+                leaf_elements.MemoryUsage() << " leaf_elements\n" <<
+                vertex_nodeId.MemoryUsage() << " vertex_nodeId\n" <<
+                face_list.MemoryUsage() << " face_list\n" <<
+                edge_list.MemoryUsage() << " edge_list\n" <<
+                boundary_faces.MemoryUsage() << " boundary_faces\n" <<
+                boundary_edges.MemoryUsage() << " bounfary_edges\n" <<
+                element_vertex.MemoryUsage() << " element_vertex\n" <<
+                ref_stack.MemoryUsage() << " ref_stack\n" <<
+                coarse_elements.MemoryUsage() << " coarse_elements\n" <<
+                sizeof(*this) << " NCMesh" << std::endl;
 }
 
 #ifdef MFEM_DEBUG

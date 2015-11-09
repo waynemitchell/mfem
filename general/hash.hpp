@@ -180,6 +180,8 @@ public:
    /// Return total size of allocated memory (tables plus items), in bytes.
    long MemoryUsage() const;
 
+   void PrintMemoryDetail() const;
+
 protected:
 
    ItemT** table;
@@ -494,9 +496,15 @@ void HashTable<ItemT>::Iterator::next()
 template<typename ItemT>
 long HashTable<ItemT>::MemoryUsage() const
 {
-   return sizeof(*this) +
-          ((mask+1) + id_to_item.Capacity()) * sizeof(ItemT*) +
+   return ((mask+1) + id_to_item.Capacity()) * sizeof(ItemT*) +
           num_items * sizeof(ItemT);
+}
+
+template<typename ItemT>
+void HashTable<ItemT>::PrintMemoryDetail() const
+{
+   std::cout << ((mask+1) + id_to_item.Capacity()) * sizeof(ItemT*) << "+"
+             << num_items * sizeof(ItemT);
 }
 
 } // namespace mfem

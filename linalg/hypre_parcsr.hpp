@@ -23,7 +23,7 @@ namespace mfem
 
 // This module contains functions that are logically part of HYPRE, and might
 // become part of HYPRE at some point. In the meantime the module can be
-// thought of a an extension of HYPRE.
+// thought of as an extension of HYPRE.
 
 namespace internal
 {
@@ -55,9 +55,9 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
                              hypre_ParCSRMatrix **blocks,
                              int interleaved_rows, int interleaved_cols);
 
-}
-
 } // namespace mfem::internal
+
+} // namespace mfem
 
 #endif // MFEM_USE_MPI
 

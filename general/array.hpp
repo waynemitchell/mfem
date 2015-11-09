@@ -214,6 +214,8 @@ public:
    /// Copy data from a pointer. Size() elements are copied.
    inline void Assign(const T *);
 
+   long MemoryUsage() const { return Capacity() * sizeof(T); }
+
 private:
    /// Array copy is not supported
    Array<T> &operator=(Array<T> &);
