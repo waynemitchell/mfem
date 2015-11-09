@@ -1944,6 +1944,22 @@ void NCMesh::FindSetNeighbors(const Array<char> &elem_set,
    }
 }
 
+static bool sorted_lists_intersect(const int* a, const int* b, int na, int nb)
+{
+   if (!na || !nb) { return false; }
+   int a_last = a[na-1], b_last = b[nb-1];
+   if (*b < *a) { goto l2; }  // woo-hoo! I always wanted to use a goto! :)
+l1:
+   if (a_last < *b) { return false; }
+   while (*a < *b) { a++; }
+   if (*a == *b) { return true; }
+l2:
+   if (b_last < *a) { return false; }
+   while (*b < *a) { b++; }
+   if (*a == *b) { return true; }
+   goto l1;
+}
+
 void NCMesh::FindNeighbors(const Element* elem,
                            Array<Element*> &neighbors,
                            const Array<Element*> *search_set)
@@ -1952,35 +1968,22 @@ void NCMesh::FindNeighbors(const Element* elem,
 
    UpdateElementToVertexTable();
 
-   Array<char> vertices(num_vertices);
-   vertices = 0;
+   int *v1 = element_vertex.GetRow(elem->index);
+   int nv1 = element_vertex.RowSize(elem->index);
 
-   int *v = element_vertex.GetRow(elem->index);
-   int nv = element_vertex.RowSize(elem->index);
-   for (int i = 0; i < nv; i++)
-   {
-      vertices[v[i]] = 1;
-   }
-
-   if (!search_set)
-   {
-      search_set = &leaf_elements;
-   }
+   if (!search_set) { search_set = &leaf_elements; }
 
    for (int i = 0; i < search_set->Size(); i++)
    {
       Element* testme = (*search_set)[i];
       if (testme != elem)
       {
-         int *v = element_vertex.GetRow(testme->index);
-         int nv = element_vertex.RowSize(testme->index);
-         for (int j = 0; j < nv; j++)
+         int *v2 = element_vertex.GetRow(testme->index);
+         int nv2 = element_vertex.RowSize(testme->index);
+
+         if (sorted_lists_intersect(v1, v2, nv1, nv2))
          {
-            if (vertices[v[j]])
-            {
-               neighbors.Append(testme);
-               break;
-            }
+            neighbors.Append(testme);
          }
       }
    }

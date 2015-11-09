@@ -98,7 +98,11 @@ int main(int argc, char *argv[])
       mesh->UniformRefinement();
       mesh->ProjectNURBS(2);
    }
-   mesh->GeneralRefinement(Array<int>(), 1); // ensure NC mesh
+
+   if (mesh->MeshGenerator() & 2) // quads/hexes
+   {
+      mesh->GeneralRefinement(Array<int>(), 1); // ensure NC mesh
+   }
 
    // 5. Define a parallel mesh by partitioning the serial mesh.
    //    Once the parallel mesh is defined, the serial mesh can be deleted.
