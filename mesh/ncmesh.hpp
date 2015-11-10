@@ -575,14 +575,10 @@ protected: // implementation
       Point() { dim = 0; }
 
       Point(double x, double y)
-      {
-         dim = 2; coord[0] = x; coord[1] = y;
-      }
+      { dim = 2; coord[0] = x; coord[1] = y; }
 
       Point(double x, double y, double z)
-      {
-         dim = 3; coord[0] = x; coord[1] = y; coord[2] = z;
-      }
+      { dim = 3; coord[0] = x; coord[1] = y; coord[2] = z; }
 
       Point(const Point& p0, const Point& p1)
       {
@@ -607,10 +603,7 @@ protected: // implementation
       Point& operator=(const Point& src)
       {
          dim = src.dim;
-         for (int i = 0; i < dim; i++)
-         {
-            coord[i] = src.coord[i];
-         }
+         for (int i = 0; i < dim; i++) { coord[i] = src.coord[i]; }
          return *this;
       }
    };
@@ -659,6 +652,9 @@ protected: // implementation
 
    /// state of leaf_elements before Refine(), set by MarkCoarseLevel()
    Array<Element*> coarse_elements;
+
+   void InitDerefTransforms();
+   void SetDerefMatrixCodes(Element* parent, Array<Element*> &coarse);
 
    // to be removed
    void GetFineTransforms(Element* elem, int coarse_index,

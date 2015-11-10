@@ -500,15 +500,30 @@ void ParNCMesh::UpdateLayers()
    }
 }
 
+bool ParNCMesh::CheckElementType(Element* elem, int type)
+{
+   if (!elem->ref_type)
+   {
+      return (element_type[elem->index] == type);
+   }
+   else
+   {
+      for (int i = 0; i < 8; i++)
+      {
+         if (elem->child[i] &&
+             !CheckElementType(elem->child[i], type)) { return false; }
+      }
+      return true;
+   }
+}
+
 void ParNCMesh::ElementNeighborProcessors(Element *elem,
                                           Array<int> &ranks)
 {
-   MFEM_ASSERT(!elem->ref_type, "not a leaf.");
-
    ranks.SetSize(0); // preserve capacity
 
    // big shortcut: there are no neighbors if element_type == 1
-   if (element_type[elem->index] == 1) { return; }
+   if (CheckElementType(elem, 1)) { return; }
 
    // ok, we do need to look for neighbors;
    // at least we can only search in the ghost layer
@@ -545,7 +560,7 @@ void ParNCMesh::NeighborProcessors(Array<int> &neighbors)
 }
 
 
-//// Prune, Refine /////////////////////////////////////////////////////////////
+//// Prune, Refine, Derefine ///////////////////////////////////////////////////
 
 bool ParNCMesh::PruneTree(Element* elem)
 {
@@ -604,6 +619,7 @@ void ParNCMesh::Prune()
 
    Update();
 }
+
 
 void ParNCMesh::Refine(const Array<Refinement> &refinements)
 {
@@ -679,7 +695,94 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    Update();
 
    // make sure we can delete the send buffers
-   NeighborDofMessage::WaitAllSent(send_ref);
+   NeighborRefinementMessage::WaitAllSent(send_ref);
+}
+
+
+void ParNCMesh::Derefine(const Array<int> &derefs)
+{
+   MFEM_VERIFY(Dim < 3 || Iso,
+               "derefinement of 3D anisotropic meshes not implemented yet.");
+
+   InitDerefTransforms();
+
+   NeighborDerefinementMessage::Map send_deref;
+
+   // create derefinement messages to all neighbors (NOTE: some may be empty)
+   Array<int> neighbors;
+   NeighborProcessors(neighbors);
+   for (int i = 0; i < neighbors.Size(); i++)
+   {
+      send_deref[neighbors[i]].SetNCMesh(this);
+   }
+
+   // derefinements that occur next to the processor boundary need to be sent
+   // to the adjoining neighbors to keep their ghost layers in sync
+   Array<int> ranks;
+   ranks.Reserve(64);
+   for (int i = 0; i < derefs.Size(); i++)
+   {
+      int row = derefs[i];
+      MFEM_VERIFY(row >= 0 && row < derefinements.Size(),
+                  "invalid derefinement number.");
+
+      const int* fine = derefinements.GetRow(row);
+      Element* parent = leaf_elements[fine[0]]->parent;
+
+      ElementNeighborProcessors(parent, ranks);
+      for (int j = 0; j < ranks.Size(); j++)
+      {
+         send_deref[ranks[j]].AddDerefinement(parent);
+      }
+   }
+   NeighborDerefinementMessage::IsendAll(send_deref, MyComm);
+
+   // do local derefinements
+   Array<Element*> coarse;
+   leaf_elements.Copy(coarse);
+   for (int i = 0; i < derefs.Size(); i++)
+   {
+      const int* fine = derefinements.GetRow(derefs[i]);
+      Element* parent = leaf_elements[fine[0]]->parent;
+
+      // record the relation of the fine elements to their parent
+      SetDerefMatrixCodes(parent, coarse);
+
+      NCMesh::DerefineElement(parent);
+   }
+
+   // receive (ghost layer) derefinements from all neighbors
+   for (int j = 0; j < neighbors.Size(); j++)
+   {
+      int rank, size;
+      NeighborDerefinementMessage::Probe(rank, size, MyComm);
+
+      NeighborDerefinementMessage msg;
+      msg.SetNCMesh(this);
+      msg.Recv(rank, size, MyComm);
+
+      // do the ghost derefinements
+      for (int i = 0; i < msg.Size(); i++)
+      {
+         Element* elem = msg.elements[i];
+         if (elem->ref_type)
+         {
+            SetDerefMatrixCodes(elem, coarse);
+            NCMesh::DerefineElement(elem);
+         }
+      }
+   }
+
+   Update();
+
+   // link old fine elements to the new coarse elements
+   for (int i = 0; i < coarse.Size(); i++)
+   {
+      transforms.fine_coarse[i].coarse_element = coarse[i]->index;
+   }
+
+   // make sure we can delete the send buffers
+   NeighborDerefinementMessage::WaitAllSent(send_deref);
 }
 
 
@@ -690,15 +793,6 @@ void ParNCMesh::LimitNCLevel(int max_level)
       MFEM_ABORT("not implemented in parallel yet.");
    }
    NCMesh::LimitNCLevel(max_level);
-}
-
-void ParNCMesh::Derefine(const Array<int> &derefs)
-{
-   if (NRanks > 1)
-   {
-      MFEM_ABORT("not implemented in parallel yet.");
-   }
-   NCMesh::Derefine(derefs);
 }
 
 
@@ -1559,6 +1653,36 @@ void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Decode()
 
    // no longer need the raw data
    Base::data.clear();
+}
+
+void ParNCMesh::NeighborDerefinementMessage::Encode()
+{
+   std::ostringstream ostream;
+
+   Array<Element*> tmp_elements;
+   tmp_elements.MakeRef(elements.data(), elements.size());
+
+   ElementSet eset(pncmesh);
+   eset.Encode(tmp_elements);
+   eset.Dump(ostream);
+
+   ostream.str().swap(data);
+}
+
+void ParNCMesh::NeighborDerefinementMessage::Decode()
+{
+   std::istringstream istream(data);
+
+   ElementSet eset(pncmesh);
+   eset.Load(istream);
+
+   Array<Element*> tmp_elements;
+   eset.Decode(tmp_elements);
+
+   Element** el = tmp_elements.GetData();
+   elements.assign(el, el + tmp_elements.Size());
+
+   data.clear();
 }
 
 void ParNCMesh::RebalanceDofMessage::SetElements(const Array<Element*> &elems,

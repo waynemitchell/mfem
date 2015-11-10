@@ -1350,19 +1350,12 @@ const Table& NCMesh::GetDerefinementTable()
    return derefinements;
 }
 
-
 void NCMesh::Derefine(const Array<int> &derefs)
 {
    MFEM_VERIFY(Dim < 3 || Iso,
                "derefinement of 3D anisotropic meshes not implemented yet.");
 
-   int nfine = leaf_elements.Size();
-
-   transforms.fine_coarse.SetSize(nfine);
-   for (int i = 0; i < nfine; i++)
-   {
-      transforms.fine_coarse[i].matrix = 0;
-   }
+   InitDerefTransforms();
 
    Array<Element*> coarse;
    leaf_elements.Copy(coarse);
@@ -1378,31 +1371,47 @@ void NCMesh::Derefine(const Array<int> &derefs)
       Element* parent = leaf_elements[fine[0]]->parent;
 
       // record the relation of the fine elements to their parent
-      for (int i = 0; i < 8; i++)
-      {
-         Element* ch = parent->child[i];
-         if (ch)
-         {
-            int code = (parent->ref_type << 3) + i;
-            transforms.fine_coarse[ch->index].matrix = code;
-            coarse[ch->index] = parent;
-         }
-      }
+      SetDerefMatrixCodes(parent, coarse);
 
       DerefineElement(parent);
    }
 
-   // update leaf_elements etc.
+   // update leaf_elements, Element::index etc.
    Update();
 
    // link old fine elements to the new coarse elements
-   for (int i = 0; i < nfine; i++)
+   for (int i = 0; i < coarse.Size(); i++)
    {
       transforms.fine_coarse[i].coarse_element = coarse[i]->index;
+   }
+}
+
+void NCMesh::InitDerefTransforms()
+{
+   int nfine = leaf_elements.Size();
+
+   transforms.fine_coarse.SetSize(nfine);
+   for (int i = 0; i < nfine; i++)
+   {
+      transforms.fine_coarse[i].matrix = 0;
    }
 
    // this will tell GetDerefinementTransforms that transforms are not finished
    transforms.point_matrices.SetSize(0, 0, 0);
+}
+
+void NCMesh::SetDerefMatrixCodes(Element* parent, Array<Element*> &coarse)
+{
+   for (int i = 0; i < 8; i++)
+   {
+      Element* ch = parent->child[i];
+      if (ch)
+      {
+         int code = (parent->ref_type << 3) + i;
+         transforms.fine_coarse[ch->index].matrix = code;
+         coarse[ch->index] = parent;
+      }
+   }
 }
 
 
@@ -2145,12 +2154,42 @@ void NCMesh::FindNeighbors(const Element* elem,
                            Array<Element*> &neighbors,
                            const Array<Element*> *search_set)
 {
-   MFEM_ASSERT(!elem->ref_type, "not a leaf.");
-
    UpdateElementToVertexTable();
 
-   int *v1 = element_vertex.GetRow(elem->index);
-   int nv1 = element_vertex.RowSize(elem->index);
+   Array<int> vert, tmp;
+
+   int *v1, nv1;
+   if (!elem->ref_type)
+   {
+      v1 = element_vertex.GetRow(elem->index);
+      nv1 = element_vertex.RowSize(elem->index);
+   }
+   else // support for non-leaf 'elem', collect vertices of all children
+   {
+      Array<const Element*> stack;
+      stack.Reserve(32);
+      stack.Append(elem);
+
+      while (stack.Size())
+      {
+         const Element* e = stack.Last();
+         stack.DeleteLast();
+         if (!e->ref_type)
+         {
+            element_vertex.GetRow(e->index, tmp);
+            vert.Append(tmp);
+         }
+         else
+         {
+            for (int i = 0; i < 8; i++)
+            {
+               if (e->child[i]) { stack.Append(e->child[i]); }
+            }
+         }
+      }
+      vert.Sort();
+      vert.Unique();
+   }
 
    if (!search_set) { search_set = &leaf_elements; }
 

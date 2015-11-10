@@ -312,6 +312,8 @@ protected:
    /// Read from 'is' a processor-independent encoding of vetex/edge/face IDs.
    void DecodeMeshIds(std::istream &is, Array<MeshId> ids[]);
 
+   bool CheckElementType(Element* elem, int type);
+
    Array<Element*> tmp_neighbors; // temporary used by ElementNeighborProcessors
 
    /** Return a list of processors that own elements in the immediate
@@ -369,6 +371,20 @@ protected:
          values.push_back(ref_type);
       }
       typedef std::map<int, NeighborRefinementMessage> Map;
+   };
+
+   /** Used by ParNCMesh::Derefine() to keep the ghost layers synchronized.
+    */
+   class NeighborDerefinementMessage : public ElementValueMessage<char, false, 290>
+   {
+   public:
+      void AddDerefinement(Element* elem) { elements.push_back(elem); }
+
+      typedef std::map<int, NeighborDerefinementMessage> Map;
+
+   protected:
+      virtual void Encode();
+      virtual void Decode();
    };
 
    /** Used in Step 2 of ParNCMesh::Rebalance to synchronize new rank
