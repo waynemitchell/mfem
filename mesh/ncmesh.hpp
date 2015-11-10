@@ -248,16 +248,7 @@ public:
    /// Return total number of bytes allocated.
    long MemoryUsage() const;
 
-<<<<<<< HEAD
-#ifdef MFEM_DEBUG
-   /// Print the space-filling curve formed by the leaf elements.
-   void DebugLeafOrder() const;
-#endif
-=======
    void PrintMemoryDetail() const;
-
-   virtual ~NCMesh();
->>>>>>> pamr-dev
 
 
 protected: // interface for Mesh to be able to construct itself from NCMesh
@@ -713,6 +704,9 @@ public: // TODO: maybe make this part of mfem::Geometry?
 #ifdef MFEM_DEBUG
 public:
    void DebugNeighbors(Array<char> &elem_set);
+
+   /// Print the space-filling curve formed by the leaf elements.
+   void DebugLeafOrder() const;
 #endif
 
    friend class ParNCMesh;

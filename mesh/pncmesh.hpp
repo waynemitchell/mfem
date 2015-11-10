@@ -452,17 +452,20 @@ TODO
 + skip ldof_sign in pfespace.cpp
 - parallel ZZ estimator
 - ProjectBdrCoefficient
-- performance/scaling study
++ performance/scaling study
 
 + hilbert ordering
 + rebalance
-- DOF redistribution after rebalance
++ DOF redistribution after rebalance
++ derefinement
++ new fine/coarse interface, ref/deref matrices
+- parallel derefinement
+- parallel aniso refine
+- serial aniso derefine
++ DG for serial NC
+- DG for parallel NC
 - optimize P communication
 - big-int P matrix
-- DG for serial NC
-- DG for parallel NC
-- parallel 3D aniso refine
-- 3D aniso derefinement
 - cP + P
 */
 
