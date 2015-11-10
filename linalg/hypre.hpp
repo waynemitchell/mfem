@@ -344,7 +344,7 @@ protected:
    mutable HypreParVector *X0, *X1;
 
    /** Smoother type from hypre_ParCSRRelax() in ams.c plus extensions, see the
-       enumeartion Type below. */
+       enumeration Type below. */
    int type;
    /// Number of relaxation sweeps
    int relax_times;
@@ -610,6 +610,9 @@ class HypreBoomerAMG : public HypreSolver
 private:
    HYPRE_Solver amg_precond;
 
+   /// Rigid body modes
+   Array<HYPRE_ParVector> rbms;
+
    // If amg_precond is NULL, allocates it and sets default options.
    // Otherwise saves the options from amg_precond, destroys it, allocates a new
    // one, and sets its options to the saved values.
@@ -622,10 +625,17 @@ public:
 
    virtual void SetOperator(const Operator &op);
 
-   /** More robust options for systems, such as elastisity. Note that BoomerAMG
+   /** More robust options for systems, such as elasticity. Note that BoomerAMG
        assumes Ordering::byVDIM in the finite element space used to generate the
        matrix A. */
    void SetSystemsOptions(int dim);
+
+   /** A special elasticity version of BoomerAMG that takes advantage of
+       geometric rigid body modes and could perform better on some problems, see
+       "Improving algebraic multigrid interpolation operators for linear
+       elasticity problems", Baker, Kolev, Yang, NLAA 2009, DOI:10.1002/nla.688.
+       As with SetSystemsOptions(), this solver assumes Ordering::byVDIM. */
+   void SetElasticityOptions(ParFiniteElementSpace *node_fespace);
 
    void SetPrintLevel(int print_level)
    { HYPRE_BoomerAMGSetPrintLevel(amg_precond, print_level); }
