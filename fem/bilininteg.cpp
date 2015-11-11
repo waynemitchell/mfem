@@ -423,7 +423,7 @@ double DiffusionIntegrator::ComputeFluxEnergy
    int space_dim = Trans.GetSpaceDim();
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix mq;
+   DenseMatrix dshape, mq;
 #endif
 
    shape.SetSize(nd);
@@ -994,7 +994,7 @@ void CurlCurlIntegrator::AssembleElementMatrix
    double w;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix Curlshape(nd,dim), Curlshape_dFt(nd,dim);
+   DenseMatrix curlshape(nd,dim), curlshape_dFt(nd,dim);
 #else
    curlshape.SetSize(nd,dim);
    curlshape_dFt.SetSize(nd,dim);
@@ -1062,6 +1062,9 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
    int nd = fluxelem.GetDof();
    int dim = fluxelem.GetDim();
 
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix vshape;
+#endif
    vshape.SetSize(nd, dim);
    pointflux.SetSize(dim);
    if (d_energy) { vec.SetSize(dim); }
