@@ -194,7 +194,7 @@ public:
    /// Returns the global tdof number of the given local degree of freedom
    HYPRE_Int GetGlobalTDofNumber(int ldof);
    /** Returns the global tdof number of the given local degree of freedom in
-       the scalar vesion of the current finite element space. The input should
+       the scalar version of the current finite element space. The input should
        be a scalar local dof. */
    HYPRE_Int GetGlobalScalarTDofNumber(int sldof);
 

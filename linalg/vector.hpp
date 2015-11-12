@@ -216,7 +216,7 @@ public:
    int CheckFinite() const { return mfem::CheckFinite(data, size); }
 
    /// Destroys vector.
-   ~Vector ();
+   virtual ~Vector ();
 };
 
 // Inline methods
