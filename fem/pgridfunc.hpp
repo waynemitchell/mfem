@@ -78,7 +78,7 @@ public:
    ParGridFunction &operator=(const HypreParVector &tv)
    { Distribute(&tv); return (*this); }
 
-   /// Returns the true dofs in a HypreParVector
+   /// Returns the true dofs in a Vector
    void GetTrueDofs(Vector &tv) const;
 
    /// Returns the true dofs in a new HypreParVector

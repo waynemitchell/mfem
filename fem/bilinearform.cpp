@@ -324,7 +324,7 @@ void BilinearForm::ConformingAssemble()
    // correctly.
    Finalize(0);
 
-   SparseMatrix *P = fes->GetConformingProlongation();
+   const SparseMatrix *P = fes->GetConformingProlongation();
    if (!P) { return; } // conforming mesh
 
    SparseMatrix *R = Transpose(*P);
@@ -687,7 +687,7 @@ void MixedBilinearForm::ConformingAssemble()
 {
    Finalize();
 
-   SparseMatrix *P2 = test_fes->GetConformingProlongation();
+   const SparseMatrix *P2 = test_fes->GetConformingProlongation();
    if (P2)
    {
       SparseMatrix *R = Transpose(*P2);
@@ -697,7 +697,7 @@ void MixedBilinearForm::ConformingAssemble()
       mat = RA;
    }
 
-   SparseMatrix *P1 = trial_fes->GetConformingProlongation();
+   const SparseMatrix *P1 = trial_fes->GetConformingProlongation();
    if (P1)
    {
       SparseMatrix *RAP = mfem::Mult(*mat, *P1);

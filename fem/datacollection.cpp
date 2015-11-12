@@ -96,6 +96,7 @@ DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
 
 void DataCollection::SetMesh(Mesh *new_mesh)
 {
+   if (own_data) { delete mesh; }
    mesh = new_mesh;
    myid = 0;
    num_procs = 1;
@@ -128,7 +129,6 @@ GridFunction *DataCollection::GetField(const char *field_name)
    }
    else
    {
-      MFEM_ABORT("Field " << field_name << " not found.");
       return NULL;
    }
 }
