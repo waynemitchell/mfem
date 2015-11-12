@@ -1607,6 +1607,26 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
    return M;
 }
 
+HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
+{
+   MFEM_VERIFY(Nonconforming(), "Not implemented for conforming meshes.");
+   MFEM_VERIFY(old_ndofs, "Missing previous (finer) space.");
+   MFEM_VERIFY(ndofs <= old_ndofs, "Previous space is not finer.");
+
+   Array<int> dofs, old_dofs, old_vdofs;
+   LinearFECollection linfec;
+   Vector row;
+
+   const NCMesh::FineTransforms &dt =
+      pmesh->pncmesh->GetDerefinementTransforms();
+
+   const Array<int> &old_ranks = pmesh->pncmesh->GetDerefineOldRanks();
+
+
+
+   HypreParMatrix* R = NULL;
+   return R;
+}
 
 void ParFiniteElementSpace::Update()
 {

@@ -57,10 +57,6 @@ namespace mfem
  *  (typically sent at the beginning of the message) that contains the v/e/f.
  *  The second number is the local index of the v/e/f in that element.
  *
- *  The interface of ParNCMesh is designed for its main customer, the
- *  ParFiniteElementSpace class, which needs to know everything about the
- *  vertices, edges and faces on the processor boundary.
- *
  *  TODO: what else to describe?
  */
 class ParNCMesh : public NCMesh
@@ -76,8 +72,16 @@ public:
    /** */
    virtual void LimitNCLevel(int max_level);
 
-   /** */
+   /** A parallel reimplementation of NCMesh::Derefine, keeps ghost layers
+       in sync. The interface is identical. */
    virtual void Derefine(const Array<int> &derefs);
+
+   /** Migrate leaf elements of the global refinement hierarchy (including ghost
+       elements) so that each processor owns the same number of leaves (+-1). */
+   void Rebalance();
+
+
+   // interface for ParFiniteElementSpace
 
    /** Return a list of vertices shared by this processor and at least one other
        processor. (NOTE: only NCList::conforming will be set.) */
@@ -171,16 +175,22 @@ public:
       }
    }
 
-   /** Migrate leaf elements of the global refinement hierarchy (including ghost
-       elements) so that each processor owns the same number of leaves (+-1). */
-   void Rebalance();
 
+   // utility
+
+   /// Use the communication pattern from last Rebalance() to send element DOFs.
    void SendRebalanceDofs(const Table &old_element_dofs, long old_dof_offset);
+
+   /// Receive element DOFs sent by SendRebalanceDofs().
    void RecvRebalanceDofs(Array<int> &elements, Array<long> &dofs);
 
    /** Get previous indices (pre-Rebalance) of current elements. Index of -1
        indicates that an element didn't exist in the mesh before. */
-   const Array<int>& GetRebalanceOldIndex() const { return rebalance_old_index; }
+   const Array<int>& GetRebalanceOldIndex() const { return old_index_or_rank; }
+
+   /** Get previous (pre-Derefine) fine element ranks. This complementents the
+       FineTransforms::fine_coarse array in parallel. */
+   const Array<int>& GetDerefineOldRanks() const { return old_index_or_rank; }
 
    /** Extension of NCMesh::GetBoundaryClosure. Filters out ghost vertices and
        ghost edges from 'bdr_vertices' and 'bdr_edges'. */
@@ -443,8 +453,9 @@ protected:
    RebalanceDofMessage::Map recv_rebalance_dofs;
 
    /** After Rebalance, this array holds the old element indices, or -1 if an
-       element didn't exist in the mesh previously.  */
-   Array<int> rebalance_old_index;
+       element didn't exist in the mesh previously. After Derefine, it holds
+       the ranks of the old (potentially non-existent) fine elements. */
+   Array<int> old_index_or_rank;
 
    static bool compare_ranks(const Element* a, const Element* b);
 

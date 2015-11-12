@@ -146,7 +146,16 @@ int main(int argc, char *argv[])
       }*/
    }
    //pmesh->RandomRefinement(3, 2, false, -1, -1, myid);
-   //pmesh->UniformRefinement();
+   pmesh->UniformRefinement();
+
+   /*const Table &dtable =*/ pmesh->GetDerefinementTable();
+   Array<int> derefs;
+   /*for (int i = 0; i < dtable.Size(); i++)
+   {
+      if (!(rand() % 2)) { derefs.Append(i); }
+   }*/
+   if (!myid) { derefs.Append(0); }
+   pmesh->NonconformingDerefinement(derefs);
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If

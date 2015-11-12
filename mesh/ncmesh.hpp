@@ -196,7 +196,7 @@ public:
    /// Free all data created by the above functions.
    void ClearTransforms();
 
-   // Deprecated.
+   // Obsolete, to be removed.
    struct FineTransform
    {
       int coarse_index; ///< coarse Mesh element index
@@ -206,10 +206,10 @@ public:
       bool IsIdentity() const { return !point_matrix.Data(); }
    };
 
-   // Deprecated.
+   // Obsolete, to be removed.
    void ClearCoarseLevel() { coarse_elements.DeleteAll(); }
 
-   // Deprecated.
+   // Obsolete, to be removed.
    FineTransform* GetFineTransforms();
 
 

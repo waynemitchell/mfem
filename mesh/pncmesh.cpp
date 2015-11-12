@@ -706,6 +706,13 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
 
    InitDerefTransforms();
 
+   // store fine element ranks
+   old_index_or_rank.SetSize(leaf_elements.Size());
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      old_index_or_rank[i] = leaf_elements[i]->rank;
+   }
+
    NeighborDerefinementMessage::Map send_deref;
 
    // create derefinement messages to all neighbors (NOTE: some may be empty)
@@ -1008,12 +1015,12 @@ void ParNCMesh::Rebalance()
    Update(); // update leaf_elements, NElements, etc.
 
    // set up the old index array
-   rebalance_old_index.SetSize(NElements);
-   rebalance_old_index = -1;
+   old_index_or_rank.SetSize(NElements);
+   old_index_or_rank = -1;
    for (int i = 0; i < old_elements.Size(); i++)
    {
       Element* e = old_elements[i];
-      if (e->rank == MyRank) { rebalance_old_index[e->index] = i; }
+      if (e->rank == MyRank) { old_index_or_rank[e->index] = i; }
    }
 
    Prune(); // get rid of stuff we don't need anymore

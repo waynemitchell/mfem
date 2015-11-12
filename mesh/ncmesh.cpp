@@ -1402,6 +1402,7 @@ void NCMesh::InitDerefTransforms()
 
 void NCMesh::SetDerefMatrixCodes(Element* parent, Array<Element*> &coarse)
 {
+   // encode the ref_type and child number for GetDerefinementTransforms()
    for (int i = 0; i < 8; i++)
    {
       Element* ch = parent->child[i];
@@ -3010,7 +3011,7 @@ const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
       {
          char path[3];
          int code = it->first;
-         path[0] = code >> 3; // ref_type (see Derefine())
+         path[0] = code >> 3; // ref_type (see SetDerefMatrixCodes())
          path[1] = code & 7;  // child
          path[2] = 0;
 

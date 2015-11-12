@@ -172,6 +172,9 @@ public:
    ///
    HypreParMatrix *RebalanceMatrix();
 
+   ///
+   HypreParMatrix* ParallelDerefinementMatrix();
+
    /** Create and return a new HypreParVector on the true dofs, which is
        owned by (i.e. it must be destroyed by) the calling function. */
    HypreParVector *NewTrueDofVector()
