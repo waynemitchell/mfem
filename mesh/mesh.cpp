@@ -3205,7 +3205,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    // generate edges if requested
    if (Dim > 1 && generate_edges == 1)
    {
-      el_to_edge = new Table;
+      // el_to_edge may already be allocated (P2 VTK meshes)
+      if (!el_to_edge) { el_to_edge = new Table; }
       NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
       if (Dim == 2)
       {
@@ -3284,6 +3285,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          }
       }
    }
+
+   if (ncmesh) { ncmesh->spaceDim = spaceDim; }
 }
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
@@ -6713,7 +6716,8 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
 
 void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 {
-   Dim = spaceDim = ncmesh.Dimension();
+   Dim = ncmesh.Dimension();
+   spaceDim = ncmesh.SpaceDimension();
 
    DeleteTables();
 
@@ -6726,25 +6730,22 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
    SetMeshGen(); // set the mesh type ('meshgen')
 
    NumOfEdges = NumOfFaces = 0;
-
-   if (Dim == 2)
+   if (Dim > 1)
    {
       el_to_edge = new Table;
       NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+      c_el_to_edge = NULL;
    }
-   else if (Dim == 3)
+   if (Dim > 2)
    {
       GetElementToFaceTable();
    }
-
    GenerateFaces();
 #ifdef MFEM_DEBUG
    CheckBdrElementOrientation(false);
 #endif
-
-   el_to_edge = new Table;
-   NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-   c_el_to_edge = NULL;
+   // NOTE: ncmesh->OnMeshUpdated() and GenerateNCFaceInfo() should be called
+   // outside after this method.
 }
 
 Mesh::Mesh(const NCMesh &ncmesh)
@@ -6758,6 +6759,7 @@ Mesh::Mesh(const NCMesh &ncmesh)
 void Mesh::Swap(Mesh& other, bool non_geometry)
 {
    mfem::Swap(Dim, other.Dim);
+   mfem::Swap(spaceDim, other.spaceDim);
 
    mfem::Swap(NumOfVertices, other.NumOfVertices);
    mfem::Swap(NumOfElements, other.NumOfElements);
@@ -6772,6 +6774,7 @@ void Mesh::Swap(Mesh& other, bool non_geometry)
    mfem::Swap(boundary, other.boundary);
    mfem::Swap(faces, other.faces);
    mfem::Swap(faces_info, other.faces_info);
+   mfem::Swap(nc_faces_info, other.nc_faces_info);
 
    mfem::Swap(el_to_edge, other.el_to_edge);
    mfem::Swap(el_to_face, other.el_to_face);
@@ -9557,6 +9560,8 @@ void Mesh::FreeElement(Element *E)
 Mesh::~Mesh()
 {
    int i;
+
+   SetState(Mesh::NORMAL);
 
    if (own_nodes) { delete Nodes; }
 

@@ -18,18 +18,15 @@
 namespace mfem
 {
 
-/// Data type dense matrix
+/// Data type dense matrix using column-major storage
 class DenseMatrix : public Matrix
 {
    friend class DenseTensor;
+   friend class DenseMatrixInverse;
 
 private:
    double *data;
-
-   friend class DenseMatrixInverse;
-   friend void Mult(const DenseMatrix &b,
-                    const DenseMatrix &c,
-                    DenseMatrix &a);
+   int capacity; // zero or negative capacity means we do not own the data.
 
    void Eigensystem(Vector &ev, DenseMatrix *evect = NULL);
 
@@ -50,19 +47,30 @@ public:
    /// Creates rectangular matrix equal to the transpose of mat.
    DenseMatrix(const DenseMatrix &mat, char ch);
 
-   DenseMatrix(double *d, int h, int w) : Matrix(h, w) { data = d; }
-   void UseExternalData(double *d, int h, int w)
-   { data = d; height = h; width = w; }
+   /** Construct a DenseMatrix using existing data array. The DenseMatrix does
+       not assume ownership of the data array, i.e. it will not delete the
+       array. */
+   DenseMatrix(double *d, int h, int w) : Matrix(h, w)
+   { data = d; capacity = -h*w; }
 
-   void ClearExternalData() { data = NULL; height = width = 0; }
+   /** Change the data array and the size of the DenseMatrix. The DenseMatrix
+       does not assume ownership of the data array, i.e. it will not delete the
+       array. This method should not be used with DenseMatrix that owns its
+       current data array. */
+   void UseExternalData(double *d, int h, int w)
+   { data = d; height = h; width = w; capacity = -h*w; }
+
+   /** Clear the data array and the dimensions of the DenseMatrix. This method
+       should not be used with DenseMatrix that owns its current data array. */
+   void ClearExternalData() { data = NULL; height = width = 0; capacity = 0; }
 
    /// For backward compatibility define Size to be synonym of Width()
    int Size() const { return Width(); }
 
-   /// If the matrix is not a square matrix of size s then recreate it
-   void SetSize(int s);
+   /// Change the size of the DenseMatrix to s x s.
+   void SetSize(int s) { SetSize(s, s); }
 
-   /// If the matrix is not a matrix of size (h x w) then recreate it
+   /// Change the size of the DenseMatrix to h x w.
    void SetSize(int h, int w);
 
    /// Returns vector of the elements.
@@ -352,18 +360,107 @@ void AddMult_a_VWt(const double a, const Vector &v, const Vector &w,
 void AddMult_a_VVt(const double a, const Vector &v, DenseMatrix &VVt);
 
 
+/** Class that can compute LU factorization of external data and perform various
+    operations with the factored data. */
+class LUFactors
+{
+public:
+   double *data;
+   int *ipiv;
+#ifdef MFEM_USE_LAPACK
+   static const int ipiv_base = 1;
+#else
+   static const int ipiv_base = 0;
+#endif
+
+   /** With this constructor, the (public) data and ipiv members should be set
+       explicitly before calling class methods. */
+   LUFactors() { }
+
+   LUFactors(double *data_, int *ipiv_) : data(data_), ipiv(ipiv_) { }
+
+   /** Factorize the current data of size (m x m) overwriting it with the LU
+       factors. The factorization is such that L.U = P.A, where A is the
+       original matrix and P is a permutation matrix represented by ipiv. */
+   void Factor(int m);
+
+   /** Assuming L.U = P.A factored data of size (m x m), compute X <- A X,
+       for a matrix X of size (m x n). */
+   void Mult(int m, int n, double *X) const;
+
+   /** Assuming L.U = P.A factored data of size (m x m), compute
+       X <- L^{-1} P X, for a matrix X of size (m x n). */
+   void LSolve(int m, int n, double *X) const;
+
+   /** Assuming L.U = P.A factored data of size (m x m), compute
+       X <- U^{-1} X, for a matrix X of size (m x n). */
+   void USolve(int m, int n, double *X) const;
+
+   /** Assuming L.U = P.A factored data of size (m x m), compute X <- A^{-1} X,
+       for a matrix X of size (m x n). */
+   void Solve(int m, int n, double *X) const;
+
+   /// Assuming L.U = P.A factored data of size (m x m), compute X <- A^{-1}.
+   void GetInverseMatrix(int m, double *X) const;
+
+   /** Given an (n x m) matrix A21, compute X2 <- X2 - A21 X1, for matrices X1,
+       and X2 of size (m x r) and (n x r), respectively. */
+   static void SubMult(int m, int n, int r, const double *A21,
+                       const double *X1, double *X2);
+
+   /** Assuming P.A = L.U factored data of size (m x m), compute the 2x2 block
+       decomposition:
+          | P 0 | |  A  A12 | = |  L  0 | | U U12 |
+          | 0 I | | A21 A22 |   | L21 I | | 0 S22 |
+       where A12, A21, and A22 are matrices of size (m x n), (n x m), and
+       (n x n), respectively. The blocks are overwritten as follows:
+          A12 <- U12 = L^{-1} P A12
+          A21 <- L21 = A21 U^{-1}
+          A22 <- S22 = A22 - L21 U12.
+       The block S22 is the Schur complement. */
+   void BlockFactor(int m, int n, double *A12, double *A21, double *A22) const;
+
+   /** Given BlockFactor()'d data, perform the forward block solve for the
+       linear system:
+          |  A  A12 | | X1 | = | B1 |
+          | A21 A22 | | X2 |   | B2 |
+       written in the factored form:
+          |  L  0 | | U U12 | | X1 | = | P 0 | | B1 |
+          | L21 I | | 0 S22 | | X2 |   | 0 I | | B2 |.
+       The resulting blocks Y1, Y2 solve the system:
+          |  L  0 | | Y1 | = | P 0 | | B1 |
+          | L21 I | | Y2 |   | 0 I | | B2 |
+       The blocks are overwritten as follows:
+          B1 <- Y1 = L^{-1} P B1
+          B2 <- Y2 = B2 - L21 Y1 = B2 - A21 A^{-1} B1
+       The blocks B1/Y1 and B2/Y2 are of size (m x r) and (n x r), respectively.
+       The Schur complement system is given by: S22 X2 = Y2. */
+   void BlockForwSolve(int m, int n, int r, const double *L21,
+                       double *B1, double *B2) const;
+
+   /** Given BlockFactor()'d data, perform the backward block solve in
+          | U U12 | | X1 | = | Y1 |
+          | 0 S22 | | X2 |   | Y2 |.
+       The input is the solution block X2 and the block Y1 resulting from
+       BlockForwSolve(). The result block X1 overwrites input block Y1:
+          Y1 <- X1 = U^{-1} (Y1 - U12 X2). */
+   void BlockBackSolve(int m, int n, int r, const double *U12,
+                       const double *X2, double *Y1) const;
+};
+
+
 /** Data type for inverse of square dense matrix.
     Stores LU factors */
 class DenseMatrixInverse : public MatrixInverse
 {
 private:
    const DenseMatrix *a;
-   double *data;
-#ifdef MFEM_USE_LAPACK
-   int *ipiv;
-#endif
+   LUFactors lu;
 
 public:
+   /// Default constructor.
+   DenseMatrixInverse() : a(NULL), lu(NULL, NULL) { }
+
    /** Creates square dense matrix. Computes factorization of mat
        and stores LU factors. */
    DenseMatrixInverse(const DenseMatrix &mat);
@@ -382,8 +479,21 @@ public:
 
    virtual void SetOperator(const Operator &op);
 
-   /// Matrix vector multiplication with inverse of dense matrix.
+   /// Matrix vector multiplication with the inverse of dense matrix.
    virtual void Mult(const Vector &x, Vector &y) const;
+
+   /// Multiply the inverse matrix by another matrix: X = A^{-1} B.
+   void Mult(const DenseMatrix &B, DenseMatrix &X) const;
+
+   /// Compute and return the inverse matrix in Ainv.
+   void GetInverseMatrix(DenseMatrix &Ainv) const
+   {
+      Ainv.SetSize(width);
+      lu.GetInverseMatrix(width, Ainv.Data());
+   }
+
+   /// Print the numerical conditioning of the inversion: ||A^{-1} A - I||.
+   void TestInversion();
 
    /// Destroys dense inverse matrix.
    virtual ~DenseMatrixInverse();
@@ -488,7 +598,7 @@ public:
        'x' and 'y' use the same elem_dof table. */
    void AddMult(const Table &elem_dof, const Vector &x, Vector &y) const;
 
-   ~DenseTensor() { delete [] tdata; Mk.ClearExternalData(); }
+   ~DenseTensor() { delete [] tdata; }
 };
 
 
