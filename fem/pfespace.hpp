@@ -117,8 +117,11 @@ private:
                             const Array<int> &dependent_dofs);
 
    void GetDofs(int type, int index, Array<int>& dofs);
-   void ReorderFaceDofs(Array<int> &dofs, int type, int orient);
+   void ReorderFaceDofs(Array<int> &dofs, int orient);
 
+   // Used when the ParMesh is non-conforming, i.e. pmesh->pncmesh != NULL.
+   // Constructs the matrices P and R. Determines ltdof_size. Calls
+   // GenerateGlobalOffsets(). Constructs ldof_ltdof.
    void GetParallelConformingInterpolation();
 
 public:

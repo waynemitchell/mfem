@@ -846,7 +846,7 @@ void ParNCMesh::EncodeMeshIds(std::ostream &os, Array<MeshId> ids[],
          }
       }
 
-      ElementSet eset(elements, root_elements);
+      ElementSet eset(elements, root_elements); // encodes 'elements'
       eset.Dump(os);
 
       Array<Element*> decoded;

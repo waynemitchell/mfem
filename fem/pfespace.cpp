@@ -59,6 +59,8 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    MPI_Comm_size(MyComm, &NRanks);
    MPI_Comm_rank(MyComm, &MyRank);
 
+   num_face_nbr_dofs = -1;
+
    P = NULL;
    R = NULL;
 
@@ -92,8 +94,6 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    }
 
    GenerateGlobalOffsets();
-
-   num_face_nbr_dofs = -1;
 }
 
 void ParFiniteElementSpace::GetGroupComm(
@@ -1117,7 +1117,7 @@ void ParFiniteElementSpace
 }
 
 void ParFiniteElementSpace
-::ReorderFaceDofs(Array<int> &dofs, int type, int orient)
+::ReorderFaceDofs(Array<int> &dofs, int orient)
 {
    Array<int> tmp;
    dofs.Copy(tmp);
@@ -1297,7 +1297,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
             if (type == 2)
             {
                int fo = pncmesh->GetFaceOrientation(id.index);
-               ReorderFaceDofs(owner_dofs, type, fo);
+               ReorderFaceDofs(owner_dofs, fo);
             }
             Add1To1Dependencies(deps, owner, owner_dofs, owner_ndofs, my_dofs);
          }
@@ -1519,6 +1519,10 @@ void ParFiniteElementSpace::Update()
       ConstructTrueDofs();
       GenerateGlobalOffsets();
    }
+   else
+   {
+      GetParallelConformingInterpolation();
+   }
 }
 
 FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
@@ -1529,6 +1533,10 @@ FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
    {
       ConstructTrueDofs();
       GenerateGlobalOffsets();
+   }
+   else
+   {
+      GetParallelConformingInterpolation();
    }
    return cpfes;
 }
