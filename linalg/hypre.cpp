@@ -27,11 +27,9 @@ using namespace std;
 namespace mfem
 {
 
-namespace internal
-{
-
 template<typename TargetT, typename SourceT>
-TargetT *DuplicateAs(const SourceT *array, int size, bool cplusplus = true)
+static TargetT *DuplicateAs(const SourceT *array, int size,
+                            bool cplusplus = true)
 {
    TargetT *target_array = cplusplus ? new TargetT[size]
                            /*     */ : hypre_TAlloc(TargetT, size);
@@ -40,8 +38,6 @@ TargetT *DuplicateAs(const SourceT *array, int size, bool cplusplus = true)
       target_array[i] = array[i];
    }
    return target_array;
-}
-
 }
 
 inline void HypreParVector::_SetDataAndSize_()
@@ -221,9 +217,9 @@ char HypreParMatrix::CopyCSR(SparseMatrix *csr, hypre_CSRMatrix *hypre_csr)
    return 0;
 #else
    hypre_CSRMatrixI(hypre_csr) =
-      internal::DuplicateAs<HYPRE_Int>(csr->GetI(), csr->Height()+1);
+      DuplicateAs<HYPRE_Int>(csr->GetI(), csr->Height()+1);
    hypre_CSRMatrixJ(hypre_csr) =
-      internal::DuplicateAs<HYPRE_Int>(csr->GetJ(), csr->NumNonZeroElems());
+      DuplicateAs<HYPRE_Int>(csr->GetJ(), csr->NumNonZeroElems());
    // Prevent hypre from destroying hypre_csr->{i,j,data}, own {i,j}
    return 1;
 #endif
@@ -245,9 +241,9 @@ char HypreParMatrix::CopyBoolCSR(Table *bool_csr, hypre_CSRMatrix *hypre_csr)
    return 2;
 #else
    hypre_CSRMatrixI(hypre_csr) =
-      internal::DuplicateAs<HYPRE_Int>(bool_csr->GetI(), bool_csr->Size()+1);
+      DuplicateAs<HYPRE_Int>(bool_csr->GetI(), bool_csr->Size()+1);
    hypre_CSRMatrixJ(hypre_csr) =
-      internal::DuplicateAs<HYPRE_Int>(bool_csr->GetJ(), nnz);
+      DuplicateAs<HYPRE_Int>(bool_csr->GetJ(), nnz);
    // Prevent hypre from destroying hypre_csr->{i,j,data}, own {i,j,data}
    return 3;
 #endif
@@ -810,7 +806,7 @@ void HypreParMatrix::CopyColStarts()
    }
 }
 
-void HypreParMatrix::GetDiag(Vector &diag)
+void HypreParMatrix::GetDiag(Vector &diag) const
 {
    int size = Height();
    diag.SetSize(size);
@@ -822,28 +818,33 @@ void HypreParMatrix::GetDiag(Vector &diag)
    }
 }
 
-void HypreParMatrix::GetDiag(SparseMatrix &diag)
+static void MakeWrapper(const hypre_CSRMatrix *mat, SparseMatrix &wrapper)
 {
-   // create a wrapper SparseMatrix around A->diag
-   SparseMatrix tmp(hypre_CSRMatrixI(A->diag),
-                    hypre_CSRMatrixJ(A->diag),
-                    hypre_CSRMatrixData(A->diag),
-                    hypre_CSRMatrixNumRows(A->diag),
-                    hypre_CSRMatrixNumCols(A->diag),
-                    false, false, false);
-   diag.Swap(tmp);
+   HYPRE_Int nr = hypre_CSRMatrixNumRows(mat);
+   HYPRE_Int nc = hypre_CSRMatrixNumCols(mat);
+#ifndef HYPRE_BIGINT
+   SparseMatrix tmp(hypre_CSRMatrixI(mat),
+                    hypre_CSRMatrixJ(mat),
+                    hypre_CSRMatrixData(mat),
+                    nr, nc, false, false, false);
+#else
+   HYPRE_Int nnz = hypre_CSRMatrixNumNonzeros(mat);
+   SparseMatrix tmp(DuplicateAs<int>(hypre_CSRMatrixI(mat), nr+1),
+                    DuplicateAs<int>(hypre_CSRMatrixJ(mat), nnz),
+                    hypre_CSRMatrixData(mat),
+                    nr, nc, true, false, false);
+#endif
+   wrapper.Swap(tmp);
 }
 
-void HypreParMatrix::GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap)
+void HypreParMatrix::GetDiag(SparseMatrix &diag) const
 {
-   // create a wrapper SparseMatrix around A->offd
-   SparseMatrix tmp(hypre_CSRMatrixI(A->offd),
-                    hypre_CSRMatrixJ(A->offd),
-                    hypre_CSRMatrixData(A->offd),
-                    hypre_CSRMatrixNumRows(A->offd),
-                    hypre_CSRMatrixNumCols(A->offd),
-                    false, false, false);
-   offd.Swap(tmp);
+   MakeWrapper(A->diag, diag);
+}
+
+void HypreParMatrix::GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap) const
+{
+   MakeWrapper(A->offd, offd);
    cmap = A->col_map_offd;
 }
 
@@ -951,8 +952,8 @@ HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
 {
    const bool assumed_partition = HYPRE_AssumedPartitionCheck();
    const bool same_rows = (D.Height() == hypre_CSRMatrixNumRows(A->diag));
-   HYPRE_Int global_num_rows, part_size;
 
+   int part_size;
    if (assumed_partition)
    {
       part_size = 2;
@@ -963,6 +964,7 @@ HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
       part_size++;
    }
 
+   HYPRE_Int global_num_rows;
    if (same_rows)
    {
       row_starts = hypre_ParCSRMatrixRowStarts(A);
@@ -980,24 +982,16 @@ HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
    }
 
    HYPRE_Int *col_starts = hypre_ParCSRMatrixColStarts(A);
-   HYPRE_Int *col_map_offd = hypre_ParCSRMatrixColMapOffd(A);
+   HYPRE_Int *col_map_offd;
 
    // get the diag and offd blocks as SparseMatrix wrappers
-   SparseMatrix A_diag(hypre_CSRMatrixI(A->diag), hypre_CSRMatrixJ(A->diag),
-                       hypre_CSRMatrixData(A->diag),
-                       hypre_CSRMatrixNumRows(A->diag),
-                       hypre_CSRMatrixNumCols(A->diag), false, false, false);
-
-   SparseMatrix A_offd(hypre_CSRMatrixI(A->offd), hypre_CSRMatrixJ(A->offd),
-                       hypre_CSRMatrixData(A->offd),
-                       hypre_CSRMatrixNumRows(A->offd),
-                       hypre_CSRMatrixNumCols(A->offd), false, false, false);
+   SparseMatrix A_diag(0), A_offd(0);
+   GetDiag(A_diag);
+   GetOffd(A_offd, col_map_offd);
 
    // multiply the blocks with D and create a new HypreParMatrix
    SparseMatrix* DA_diag = mfem::Mult(D, A_diag);
    SparseMatrix* DA_offd = mfem::Mult(D, A_offd);
-
-   using internal::DuplicateAs;
 
    HypreParMatrix* DA =
       new HypreParMatrix(GetComm(),
@@ -1005,8 +999,7 @@ HypreParMatrix* HypreParMatrix::LeftDiagMult(const SparseMatrix &D,
                          DuplicateAs<HYPRE_Int>(row_starts, part_size, false),
                          DuplicateAs<HYPRE_Int>(col_starts, part_size, false),
                          DA_diag, DA_offd,
-                         DuplicateAs<HYPRE_Int>(col_map_offd,
-                                                A_offd.Width()));
+                         DuplicateAs<HYPRE_Int>(col_map_offd, A_offd.Width()));
 
    // When HYPRE_BIGINT is defined, we want DA_{diag,offd} to delete their I and
    // J arrays but not their data arrays; when HYPRE_BIGINT is not defined, we

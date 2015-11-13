@@ -267,11 +267,11 @@ public:
    inline HYPRE_Int N() { return A->global_num_cols; }
 
    /// Get the local diagonal of the matrix.
-   void GetDiag(Vector &diag);
+   void GetDiag(Vector &diag) const;
    /// Get the local diagonal block. NOTE: 'diag' will not own any data.
-   void GetDiag(SparseMatrix &diag);
+   void GetDiag(SparseMatrix &diag) const;
    /// Get the local offdiagonal block. NOTE: 'offd' will not own any data.
-   void GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap);
+   void GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap) const;
 
    /** Split the matrix into M x N equally sized blocks of parallel matrices.
        The size of 'blocks' must already be set to M x N. */

@@ -1356,7 +1356,8 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    HYPRE_Int glob_cdofs = dof_offsets.Last();
 
    // create the local part (local rows) of the P matrix
-   MFEM_VERIFY(glob_true_dofs < (1ll << 31), "overflow of P matrix columns.")
+   MFEM_VERIFY(glob_true_dofs >= 0 && glob_true_dofs < (1ll << 31),
+               "overflow of P matrix columns.")
    SparseMatrix localP(num_cdofs, glob_true_dofs); // FIXME bigint
 
    // initialize the R matrix (also parallel but block-diagonal)
@@ -1478,9 +1479,14 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    localP.Finalize();
 
    // create the parallel matrix P
+#ifndef HYPRE_BIGINT
    P = new HypreParMatrix(MyComm, num_cdofs, glob_cdofs, glob_true_dofs,
                           localP.GetI(), localP.GetJ(), localP.GetData(),
                           dof_offsets.GetData(), tdof_offsets.GetData());
+#else
+   (void) glob_cdofs;
+   MFEM_ABORT("HYPRE_BIGINT not supported yet.");
+#endif
 
    R->Finalize();
 
