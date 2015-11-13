@@ -3285,6 +3285,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          }
       }
    }
+
+   if (ncmesh) { ncmesh->spaceDim = spaceDim; }
 }
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
