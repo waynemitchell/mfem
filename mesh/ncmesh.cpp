@@ -55,6 +55,7 @@ void NCMesh::GeomInfo::Initialize(const mfem::Element* elem)
 NCMesh::NCMesh(const Mesh *mesh, std::istream *vertex_parents)
 {
    Dim = mesh->Dimension();
+   spaceDim = mesh->SpaceDimension();
 
    // assume the mesh is anisotropic if we're loading a file
    Iso = vertex_parents ? false : true;
@@ -223,7 +224,7 @@ void NCMesh::DeleteHierarchy(Element* elem)
 }
 
 NCMesh::NCMesh(const NCMesh &other)
-   : Dim(other.Dim), Iso(other.Iso)
+   : Dim(other.Dim), spaceDim(other.spaceDim), Iso(other.Iso)
    , nodes(other.nodes), faces(other.faces)
 {
    // NOTE: this copy constructor is used by ParNCMesh

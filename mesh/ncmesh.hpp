@@ -76,6 +76,7 @@ public:
    NCMesh(const NCMesh &other);
 
    int Dimension() const { return Dim; }
+   int SpaceDimension() const { return spaceDim; }
 
    /** Perform the given batch of refinements. Please note that in the presence
        of anisotropic splits additional refinements may be necessary to keep
@@ -228,7 +229,7 @@ protected: // interface for Mesh to be able to construct itself from NCMesh
 
 protected: // implementation
 
-   int Dim;
+   int Dim, spaceDim; ///< dimensions of the elements and the vertex coordinates
    bool Iso; ///< true if the mesh only contains isotropic refinements
 
    Element* CopyHierarchy(Element* elem);
