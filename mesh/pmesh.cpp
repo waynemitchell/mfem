@@ -3857,6 +3857,8 @@ void ParMesh::PrintInfo(std::ostream &out)
 
 ParMesh::~ParMesh()
 {
+   SetState(Mesh::NORMAL);
+
    delete pncmesh;
    ncmesh = pncmesh = NULL;
 

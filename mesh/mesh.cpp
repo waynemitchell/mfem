@@ -7370,6 +7370,7 @@ void Mesh::SetState(int s)
          delete nc_coarse_level;
          nc_coarse_level = NULL;
          ncmesh->ClearCoarseLevel();
+         State = s;
       }
       else if ((State == Mesh::TWO_LEVEL_COARSE && s == Mesh::TWO_LEVEL_FINE) ||
                (State == Mesh::TWO_LEVEL_FINE && s == Mesh::TWO_LEVEL_COARSE))
