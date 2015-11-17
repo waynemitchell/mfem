@@ -1,20 +1,20 @@
-//                       MFEM Example 11 - Parallel Version
+//                       MFEM Example 13 - Parallel Version
 //
-// Compile with: make ex11p
+// Compile with: make ex13p
 //
-// Sample runs:  mpirun -np 4 ex11p -m ../data/square-disc.mesh
-//               mpirun -np 4 ex11p -m ../data/star.mesh
-//               mpirun -np 4 ex11p -m ../data/escher.mesh
-//               mpirun -np 4 ex11p -m ../data/fichera.mesh
-//               mpirun -np 4 ex11p -m ../data/square-disc-p2.vtk -o 2
-//               mpirun -np 4 ex11p -m ../data/square-disc-p3.mesh -o 3
-//               mpirun -np 4 ex11p -m ../data/square-disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex11p -m ../data/disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex11p -m ../data/pipe-nurbs.mesh -o -1
-//               mpirun -np 4 ex11p -m ../data/ball-nurbs.mesh -o 2
-//               mpirun -np 4 ex11p -m ../data/star-surf.mesh
-//               mpirun -np 4 ex11p -m ../data/square-disc-surf.mesh
-//               mpirun -np 4 ex11p -m ../data/inline-segment.mesh
+// Sample runs:  mpirun -np 4 ex13p -m ../data/square-disc.mesh
+//               mpirun -np 4 ex13p -m ../data/star.mesh
+//               mpirun -np 4 ex13p -m ../data/escher.mesh
+//               mpirun -np 4 ex13p -m ../data/fichera.mesh
+//               mpirun -np 4 ex13p -m ../data/square-disc-p2.vtk -o 2
+//               mpirun -np 4 ex13p -m ../data/square-disc-p3.mesh -o 3
+//               mpirun -np 4 ex13p -m ../data/square-disc-nurbs.mesh -o -1
+//               mpirun -np 4 ex13p -m ../data/disc-nurbs.mesh -o -1
+//               mpirun -np 4 ex13p -m ../data/pipe-nurbs.mesh -o -1
+//               mpirun -np 4 ex13p -m ../data/ball-nurbs.mesh -o 2
+//               mpirun -np 4 ex13p -m ../data/star-surf.mesh
+//               mpirun -np 4 ex13p -m ../data/square-disc-surf.mesh
+//               mpirun -np 4 ex13p -m ../data/inline-segment.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to solve a
 //               generalized eigenvalue problem
@@ -127,15 +127,11 @@ int main(int argc, char *argv[])
    FiniteElementCollection *fec;
    if (order > 0)
    {
-      fec = new H1_FECollection(order, dim);
-   }
-   else if (pmesh->GetNodes())
-   {
-      fec = pmesh->GetNodes()->OwnFEC();
+      fec = new ND_FECollection(order, dim);
    }
    else
    {
-      fec = new H1_FECollection(order = 1, dim);
+      fec = new ND_FECollection(order = 1, dim);
    }
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    HYPRE_Int size = fespace->GlobalTrueVSize();
@@ -155,7 +151,7 @@ int main(int argc, char *argv[])
    //    parallel matrix A.
    ParBilinearForm *a = new ParBilinearForm(fespace);
    ConstantCoefficient one(1.0);
-   a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   a->AddDomainIntegrator(new CurlCurlIntegrator(one));
    a->Assemble();
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
@@ -163,7 +159,7 @@ int main(int argc, char *argv[])
    a->Finalize();
 
    ParBilinearForm *m = new ParBilinearForm(fespace);
-   m->AddDomainIntegrator(new MassIntegrator(one));
+   m->AddDomainIntegrator(new VectorFEMassIntegrator(one));
    m->Assemble();
    m->EliminateEssentialBCDiag(ess_bdr,1.0);
    m->Finalize();
@@ -176,25 +172,25 @@ int main(int argc, char *argv[])
 
    // 9. Define and configure the LOBPCG eigensolver and a BoomerAMG
    //    preconditioner to be used within the solver.
-   HypreLOBPCG * lobpcg = new HypreLOBPCG(MPI_COMM_WORLD);
-   HypreSolver *    amg = new HypreBoomerAMG(*A);
+   HypreAME    * ame = new HypreAME(*fespace);
+   HypreSolver * ams = new HypreAMS(*A,fespace,1);
 
-   lobpcg->SetNumModes(nev);
-   lobpcg->SetPrecond(*amg);
-   lobpcg->SetMaxIter(100);
-   lobpcg->SetTol(1e-8);
-   lobpcg->SetPrecondUsageMode(1);
-   lobpcg->SetPrintLevel(1);
+   ame->SetNumModes(nev);
+   ame->SetPrecond(*ams);
+   ame->SetMaxIter(100);
+   ame->SetTol(1e-8);
+   ame->SetPrintLevel(1);
 
    // Set the matrices which define the linear system
-   lobpcg->SetB(*M);
-   lobpcg->SetA(*A);
+   ame->SetB(*M);
+   ame->SetA(*A);
 
    // Obtain the eigenvalues and eigenvectors
    Array<double> eigenvalues;
 
-   lobpcg->Solve();
-   lobpcg->GetEigenvalues(eigenvalues);
+   ame->Solve();
+
+   ame->GetEigenvalues(eigenvalues);
 
    // 10. Define a parallel grid function to approximate each of the
    //     eigenmodes returned by the solver.  Use this as a template to
@@ -215,7 +211,7 @@ int main(int argc, char *argv[])
 
       for (int i=0; i<nev; i++)
       {
-         x = lobpcg->GetEigenvector(i);
+         x = ame->GetEigenvector(i);
 
          mode_name << "mode_" << setfill('0') << setw(2) << i << "."
                    << setfill('0') << setw(6) << myid;
@@ -243,7 +239,7 @@ int main(int argc, char *argv[])
             cout << "Lambda = " << eigenvalues[i] << endl;
          }
 
-         x = lobpcg->GetEigenvector(i);
+         x = ame->GetEigenvector(i);
 
          mode_sock << "parallel " << num_procs << " " << myid << "\n";
          mode_sock << "solution\n" << *pmesh << x << flush;
@@ -265,8 +261,8 @@ int main(int argc, char *argv[])
    }
 
    // 13. Free the used memory.
-   delete amg;
-   delete lobpcg;
+   // delete ams;
+   delete ame;
    delete M;
    delete A;
 

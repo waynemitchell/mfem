@@ -98,6 +98,9 @@ public:
    /// Changes the ownership of the the vector
    hypre_ParVector *StealParVector() { own_ParVector = 0; return x; }
 
+   /// Sets ownership of the internal hypre_ParVector
+   void AcquireParVector() { own_ParVector = 1; }
+
    /// Returns the global vector in each processor
    Vector *GlobalVector();
 
@@ -662,6 +665,7 @@ HypreParMatrix* DiscreteCurl(ParFiniteElementSpace *face_fespace,
 class HypreAMS : public HypreSolver
 {
 private:
+   int print_level;
    HYPRE_Solver ams;
 
    /// Vertex coordinates
@@ -674,6 +678,8 @@ private:
 public:
    HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
             int singular_problem = 0);
+
+   void SetPrintLevel(int print_lvl);
 
    /// The typecast to HYPRE_Solver returns the internal ams object
    virtual operator HYPRE_Solver() const { return ams; }
@@ -690,6 +696,7 @@ public:
 class HypreADS : public HypreSolver
 {
 private:
+   int print_level;
    HYPRE_Solver ads;
 
    /// Vertex coordinates
@@ -706,6 +713,8 @@ private:
 public:
    HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace);
 
+   void SetPrintLevel(int print_lvl);
+
    /// The typecast to HYPRE_Solver returns the internal ads object
    virtual operator HYPRE_Solver() const { return ads; }
 
@@ -717,94 +726,192 @@ public:
    virtual ~HypreADS();
 };
 
-class HypreMultiVector
-{
-private:
-   // Pointer to hypre's multi-vector object
-   mv_MultiVectorPtr mv_ptr;
-
-   // Interface for matrix storage type
-   mv_InterfaceInterpreter interpreter;
-
-   // Wrappers for each member of the multivector
-   HypreParVector ** hpv;
-
-   // Number of vectors in the multivector
-   int nv;
-
-public:
-   HypreMultiVector(int n, HypreParVector & v);
-   ~HypreMultiVector();
-
-   /// Set random values
-   void Randomize(HYPRE_Int seed);
-
-   /// Extract a single HypreParVector object
-   HypreParVector & GetVector(unsigned int i);
-
-   operator mv_MultiVectorPtr() const { return mv_ptr; }
-
-   mv_InterfaceInterpreter & GetInterpreter() { return interpreter; }
-   mv_MultiVectorPtr       & GetMultiVector() { return mv_ptr; }
-};
-
 /// LOBPCG eigenvalue solver in hypre
 class HypreLOBPCG
 {
 private:
+
+   MPI_Comm comm;
+   int myid;
+   int numProcs;
+   int nev;   // Number of desired eigenmodes
+   int nconv; // Number of converged eigenmodes
+
+   HYPRE_Int glbSize;
+   HYPRE_Int * part;
+
    // Pointer to HYPRE's solver struct
    HYPRE_Solver lobpcg_solver;
+
+   // Interface for matrix storage type
+   mv_InterfaceInterpreter interpreter;
 
    // Interface for setting up and performing matrix-vector products
    HYPRE_MatvecFunctions matvec_fn;
 
+
+   // Eigenvalues
+   Array<double> eigenvalues;
+
+   // Forward declaration
+   class HypreMultiVector;
+
+   // MultiVector to store eigenvectors
+   HypreMultiVector * multi_vec;
+
+   // Empty vectors used to setup the matrices and preconditioner
+   HypreParVector * x;
+
+   void createDummyVectors();
+
+   class HypreMultiVector
+   {
+   private:
+      // Pointer to hypre's multi-vector object
+      mv_MultiVectorPtr mv_ptr;
+
+      // Wrappers for each member of the multivector
+      HypreParVector ** hpv;
+
+      // Number of vectors in the multivector
+      int nv;
+
+   public:
+      HypreMultiVector(int n, HypreParVector & v,
+                       mv_InterfaceInterpreter & interpreter);
+      ~HypreMultiVector();
+
+      /// Set random values
+      void Randomize(HYPRE_Int seed);
+
+      /// Extract a single HypreParVector object
+      HypreParVector & GetVector(unsigned int i);
+
+      /// Transfers ownership of data to returned array of vectors
+      HypreParVector ** StealVectors();
+
+      operator mv_MultiVectorPtr() const { return mv_ptr; }
+
+      mv_MultiVectorPtr & GetMultiVector() { return mv_ptr; }
+   };
+
 public:
-   HypreLOBPCG(mv_InterfaceInterpreter & interpreter);
+
+   HypreLOBPCG(MPI_Comm comm);
    ~HypreLOBPCG();
 
    void SetTol(double tol);
    void SetMaxIter(int max_iter);
    void SetPrintLevel(int logging);
+   void SetNumModes(int num_eigs) { nev = num_eigs; }
    void SetPrecondUsageMode(int pcg_mode);
+
+   /// The following four methods support general linear systems
+   void SetPrecond(Solver & precond);
+   void SetA(Operator & A);
+   void SetB(Operator & B);
+   void SetT(Operator & T);
+
+   int Solve();
+
+   /// Collect the converged eigenvalues
+   void GetEigenvalues(Array<double> & eigenvalues);
+
+   /// Extract a single eigenvector
+   HypreParVector & GetEigenvector(unsigned int i);
+
+   /// Transfer ownership of the converged eigenvectors
+   HypreParVector * StealEigenvectors();
+
+   static void    * OperatorMatvecCreate( void *A, void *x );
+   static HYPRE_Int OperatorMatvec( void *matvec_data,
+                                    HYPRE_Complex alpha,
+                                    void *A,
+                                    void *x,
+                                    HYPRE_Complex beta,
+                                    void *y );
+   static HYPRE_Int OperatorMatvecDestroy( void *matvec_data );
+
+   static HYPRE_Int PrecondSolve(void *solver,
+                                 void *A,
+                                 void *b,
+                                 void *x);
+   static HYPRE_Int PrecondSetup(void *solver,
+                                 void *A,
+                                 void *b,
+                                 void *x);
+
+};
+
+/// AME eigenvalue solver in hypre
+class HypreAME
+{
+private:
+
+   MPI_Comm comm;
+   int myid;
+   int numProcs;
+   int nev;   // Number of desired eigenmodes
+   int nconv; // Number of converged eigenmodes
+   bool setT;
+
+   HYPRE_Int glbSize;
+   HYPRE_Int * part;
+
+   // Pointer to HYPRE's AME solver struct
+   HYPRE_Solver ame_solver;
+
+   // Pointer to HYPRE's AMS solver struct
+   HypreSolver * ams_precond;
+
+   ParFiniteElementSpace * HCurlFESpace;
+
+   // Interface for matrix storage type
+   mv_InterfaceInterpreter interpreter;
+
+   // Interface for setting up and performing matrix-vector products
+   HYPRE_MatvecFunctions matvec_fn;
+
+   // Eigenvalues
+   HYPRE_Real * eigenvalues;
+
+   // MultiVector to store eigenvectors
+   HYPRE_ParVector * multi_vec;
+
+   HypreParVector ** eigenvectors;
+
+   // Empty vectors used to setup the matrices and preconditioner
+   HypreParVector * x;
+
+   void createDummyVectors();
+
+public:
+
+   HypreAME(ParFiniteElementSpace & HCurlFESpace);
+   ~HypreAME();
+
+   void SetTol(double tol);
+   void SetMaxIter(int max_iter);
+   void SetPrintLevel(int logging);
+   void SetNumModes(int num_eigs);
 
    /// The following four methods support linear systems made up of
    /// simple HypreParMatrices
    void SetPrecond(HypreSolver & precond);
-   void Setup(HypreParMatrix & A, HypreParVector & b, HypreParVector & x);
-   void SetupB(HypreParMatrix & B, HypreParVector & x);
-   void SetupT(HypreParMatrix & T, HypreParVector & x);
+   void SetA(HypreParMatrix & A);
+   void SetB(HypreParMatrix & B);
+   void SetT(HypreParMatrix & T);
 
-   /// The following four methods support more general linear systems
-   void SetPrecond(Solver & precond);
-   void Setup(Operator & A, HypreParVector & b, HypreParVector & x);
-   void SetupB(Operator & B, HypreParVector & x);
-   void SetupT(Operator & T, HypreParVector & x);
+   int Solve();
 
-   void Solve(Vector & eigenvalues);
-   void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors);
-   void Solve(Vector & eigenvalues, HypreMultiVector & eigenvectors,
-              HypreMultiVector & constraints);
+   /// Collect the converged eigenvalues
+   void GetEigenvalues(Array<double> & eigenvalues);
 
-   static void    * BlockOperatorMatvecCreate( void *A, void *x );
-   static HYPRE_Int BlockOperatorMatvec( void *matvec_data,
-                                         HYPRE_Complex alpha,
-                                         void *A,
-                                         void *x,
-                                         HYPRE_Complex beta,
-                                         void *y );
-   static HYPRE_Int BlockOperatorMatvecDestroy( void *matvec_data );
+   /// Extract a single eigenvector
+   HypreParVector & GetEigenvector(unsigned int i);
 
-   static HYPRE_Int BlockDiagonalPrecondSolve(void *solver,
-                                              void *A,
-                                              void *b,
-                                              void *x);
-   static HYPRE_Int BlockDiagonalPrecondSetup(void *solver,
-                                              void *A,
-                                              void *b,
-                                              void *x);
-
-
-
+   /// Transfer ownership of the converged eigenvectors
+   HypreParVector * StealEigenvectors();
 };
 
 }
