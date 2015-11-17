@@ -1209,8 +1209,8 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
 
    // *** STEP 2: build dependency lists ***
 
-   int num_cdofs = ndofs * vdim;//GetNConformingDofs();
-   DepList* deps = new DepList[num_cdofs]; // NOTE: 'deps' is over vdofs
+   int num_dofs = ndofs * vdim;
+   DepList* deps = new DepList[num_dofs]; // NOTE: 'deps' is over vdofs
 
    Array<int> master_dofs, slave_dofs;
    Array<int> owner_dofs, my_dofs;
@@ -1325,7 +1325,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    }
 
    // request rows we depend on
-   for (int i = 0; i < num_cdofs; i++)
+   for (int i = 0; i < num_dofs; i++)
    {
       const DepList &dl = deps[i];
       for (int j = 0; j < dl.list.Size(); j++)
@@ -1345,7 +1345,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
 
    // DOFs that stayed independent or are ours are true DOFs
    ltdof_size = 0;
-   for (int i = 0; i < num_cdofs; i++)
+   for (int i = 0; i < num_dofs; i++)
    {
       if (deps[i].IsTrueDof(MyRank)) { ltdof_size++; }
    }
@@ -1358,19 +1358,19 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    // create the local part (local rows) of the P matrix
    MFEM_VERIFY(glob_true_dofs >= 0 && glob_true_dofs < (1ll << 31),
                "overflow of P matrix columns.")
-   SparseMatrix localP(num_cdofs, glob_true_dofs); // FIXME bigint
+   SparseMatrix localP(num_dofs, glob_true_dofs); // FIXME bigint
 
    // initialize the R matrix (also parallel but block-diagonal)
-   R = new SparseMatrix(ltdof_size, num_cdofs);
+   R = new SparseMatrix(ltdof_size, num_dofs);
 
-   Array<bool> finalized(num_cdofs);
+   Array<bool> finalized(num_dofs);
    finalized = false;
 
    // put identity in P and R for true DOFs, set ldof_ltdof
    HYPRE_Int my_tdof_offset = GetMyTDofOffset();
-   ldof_ltdof.SetSize(num_cdofs);
+   ldof_ltdof.SetSize(num_dofs);
    ldof_ltdof = -1;
-   for (int i = 0, true_dof = 0; i < num_cdofs; i++)
+   for (int i = 0, true_dof = 0; i < num_dofs; i++)
    {
       if (deps[i].IsTrueDof(MyRank))
       {
@@ -1396,7 +1396,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
       do
       {
          done = true;
-         for (int dof = 0, i; dof < num_cdofs; dof++)
+         for (int dof = 0, i; dof < num_dofs; dof++)
          {
             if (finalized[dof]) { continue; }
 
@@ -1461,7 +1461,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
       NeighborRowReply::IsendAll(send_replies.back(), MyComm);
 
       // are we finished?
-      if (num_finalized >= num_cdofs) { break; }
+      if (num_finalized >= num_dofs) { break; }
 
       // wait for a reply from neighbors
       int rank, size;
@@ -1480,7 +1480,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
 
    // create the parallel matrix P
 #ifndef HYPRE_BIGINT
-   P = new HypreParMatrix(MyComm, num_cdofs, glob_cdofs, glob_true_dofs,
+   P = new HypreParMatrix(MyComm, num_dofs, glob_cdofs, glob_true_dofs,
                           localP.GetI(), localP.GetJ(), localP.GetData(),
                           dof_offsets.GetData(), tdof_offsets.GetData());
 #else
