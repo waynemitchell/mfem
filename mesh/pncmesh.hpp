@@ -175,6 +175,11 @@ public:
       }
    }
 
+   /** Returns owner processor for element 'index'. This is normally MyRank but
+       for index >= NElements (i.e., for ghosts) it may be something else. */
+   int ElementRank(int index) const
+   { return leaf_elements[index]->rank; }
+
 
    // utility
 

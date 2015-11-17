@@ -1607,6 +1607,19 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
    return M;
 }
 
+
+struct DerefDofMessage
+{
+   std::vector<HYPRE_Int> dofs;
+   MPI_Request request;
+};
+
+#ifdef HYPRE_BIGINT
+#define MPI_HYPRE_INT MPI_LONG
+#else
+#define MPI_HYPRE_INT MPI_INT
+#endif
+
 HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 {
    MFEM_VERIFY(Nonconforming(), "Not implemented for conforming meshes.");
@@ -1623,10 +1636,44 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    const Array<int> &old_ranks = pmesh->pncmesh->GetDerefineOldRanks();
 
 
+   std::map<int, DerefDofMessage> messages;
+
+   HYPRE_Int offset = GetMyDofOffset();
+
+   for (int i = 0; i < dt.fine_coarse.Size(); i++)
+   {
+      int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[i].coarse_element);
+      int fine_rank = old_ranks[i];
+      if (coarse_rank >= 0 && fine_rank >= 0)
+      {
+         if (fine_rank == MyRank && coarse_rank != MyRank)
+         {
+            old_elem_dof->GetRow(i, dofs);
+            DofsToVDofs(dofs);
+
+            DerefDofMessage &msg = messages[i];
+            msg.dofs.reserve(dofs.Size());
+            for (int i = 0; i < dofs.Size(); i++)
+            {
+               msg.dofs[i] = dofs[i];
+            }
+
+            MPI_Isend(msg.dofs.data(), msg.dofs.size(), MPI_HYPRE_INT,
+                      coarse_rank, 291, MyComm)
+         }
+         else if (fine_rank != MyRank && coarse_rank == MyRank)
+         {
+            MPI_Irecv(
+            // receive from fine_rank
+         }
+      }
+   }
+
 
    HypreParMatrix* R = NULL;
    return R;
 }
+
 
 void ParFiniteElementSpace::Update()
 {
