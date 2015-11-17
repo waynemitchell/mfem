@@ -194,6 +194,7 @@ public:
                                    DenseMatrix &rhs, int d = 0);
 
    void EliminateRowCol(int rc, int d = 0);
+   void EliminateRowColDiag(int rc, double d);
    // Same as above + save the eliminated entries in Ae so that
    // (*this) + Ae is the original matrix
    void EliminateRowCol(int rc, SparseMatrix &Ae, int d = 0);

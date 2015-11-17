@@ -193,6 +193,7 @@ public:
    { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
 
    void EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d = 0);
+   void EliminateEssentialBCDiag(Array<int> &bdr_attr_is_ess, double d);
 
    /** Similar to EliminateVDofs but here ess_dofs is a marker
        (boolean) array on all vdofs (ess_dofs[i] < 0 is true). */
@@ -202,6 +203,7 @@ public:
    /** Similar to EliminateVDofs but here ess_dofs is a marker
        (boolean) array on all vdofs (ess_dofs[i] < 0 is true). */
    void EliminateEssentialBCFromDofs(Array<int> &ess_dofs, int d = 0);
+   void EliminateEssentialBCFromDofsDiag(Array<int> &ess_dofs, double d);
 
    void Update(FiniteElementSpace *nfes = NULL);
 
