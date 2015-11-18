@@ -17,6 +17,7 @@
 #include "../general/sort_pairs.hpp"
 
 #include <climits>
+#include <list>
 
 namespace mfem
 {
@@ -1386,7 +1387,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    Vector srow;
 
    NeighborRowReply::Map recv_replies;
-   std::vector<NeighborRowReply::Map> send_replies;
+   std::list<NeighborRowReply::Map> send_replies;
 
    int num_finalized = ltdof_size;
    while (1)
@@ -1493,9 +1494,11 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    // make sure we can discard all send buffers
    NeighborDofMessage::WaitAllSent(send_dofs);
    NeighborRowRequest::WaitAllSent(send_requests);
-   for (unsigned i = 0; i < send_replies.size(); i++)
+
+   for (std::list<NeighborRowReply::Map>::iterator
+        it = send_replies.begin(); it != send_replies.end(); ++it)
    {
-      NeighborRowReply::WaitAllSent(send_replies[i]);
+      NeighborRowReply::WaitAllSent(*it);
    }
 }
 

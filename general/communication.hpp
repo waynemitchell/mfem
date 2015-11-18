@@ -226,6 +226,19 @@ struct VarMessage
    VarMessage() : send_request(MPI_REQUEST_NULL) {}
    void Clear() { data.clear(); send_request = MPI_REQUEST_NULL; }
 
+   virtual ~VarMessage()
+   {
+      MFEM_ASSERT(send_request == MPI_REQUEST_NULL,
+                  "WaitAllSent was not called after Isend");
+   }
+
+   VarMessage(const VarMessage &other)
+      : data(other.data), send_request(other.send_request)
+   {
+      MFEM_ASSERT(send_request == MPI_REQUEST_NULL,
+                  "Cannot copy message with a pending send.");
+   }
+
 protected:
    virtual void Encode() {}
    virtual void Decode() {}
