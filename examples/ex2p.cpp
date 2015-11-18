@@ -116,24 +116,13 @@ int main(int argc, char *argv[])
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
-   if (mesh->MeshGenerator() & 2)
    {
-      mesh->GeneralRefinement(Array<int>(), 1);
-   }
-   {
-      //int ref_levels = (int) floor(log(1000. / mesh->GetNE()) / log(2.) / dim);
-      int ref_levels = 1;
+      int ref_levels =
+         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
-   }
-   {
-      int levels = 5;
-      mesh->RefineAtVertex(Vertex(0, 0, 0), levels);
-      mesh->RefineAtVertex(Vertex(0, 1, 0), levels);
-      mesh->RefineAtVertex(Vertex(0, 0, 1), levels);
-      mesh->RefineAtVertex(Vertex(0, 1, 1), levels);
    }
 
    // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -241,7 +230,7 @@ int main(int argc, char *argv[])
    HypreParVector *B = b->ParallelAssemble();
    HypreParVector *X = x.ParallelProject();
 
-   // Eliminate essential BC from the parallel system
+   // 12. Eliminate essential BC from the parallel system
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1;
@@ -250,7 +239,7 @@ int main(int argc, char *argv[])
    delete a;
    delete b;
 
-   // 12. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   // 13. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
    HypreBoomerAMG *amg = new HypreBoomerAMG(*A);
    amg->SetSystemsOptions(dim);
@@ -261,11 +250,11 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*amg);
    pcg->Mult(*B, *X);
 
-   // 13. Extract the parallel grid function corresponding to the finite element
+   // 14. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
    x = *X;
 
-   // 14. For non-NURBS meshes, make the mesh curved based on the finite element
+   // 15. For non-NURBS meshes, make the mesh curved based on the finite element
    //     space. This means that we define the mesh elements through a fespace
    //     based transformation of the reference element.  This allows us to save
    //     the displaced mesh as a curved mesh when using high-order finite
@@ -277,7 +266,7 @@ int main(int argc, char *argv[])
       pmesh->SetNodalFESpace(fespace);
    }
 
-   // 15. Save in parallel the displaced mesh and the inverted solution (which
+   // 16. Save in parallel the displaced mesh and the inverted solution (which
    //     gives the backward displacements to the original grid). This output
    //     can be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
@@ -298,7 +287,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 16. Send the above data by socket to a GLVis server.  Use the "n" and "b"
+   // 17. Send the above data by socket to a GLVis server.  Use the "n" and "b"
    //     keys in GLVis to visualize the displacements.
    if (visualization)
    {
@@ -310,7 +299,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *pmesh << x << flush;
    }
 
-   // 17. Free the used memory.
+   // 18. Free the used memory.
    delete pcg;
    delete amg;
    delete X;

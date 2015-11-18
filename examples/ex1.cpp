@@ -16,6 +16,7 @@
 //               ex1 -m ../data/inline-segment.mesh
 //               ex1 -m ../data/amr-quad.mesh
 //               ex1 -m ../data/amr-hex.mesh
+//               ex1 -m ../data/fichera-amr.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -77,21 +78,17 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
-   // Convert NURBS (if present) to nodal curvature.
-   mesh->ProjectNURBS(4);
-
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
-   /*{
+   {
       int ref_levels = (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
-   }*/
-   mesh->RandomRefinement(5, 2, true);
+   }
 
    // 4. Define a finite element space on the mesh. Here we use continuous
    //    Lagrange finite elements of the specified order. If order < 1, we
@@ -133,7 +130,7 @@ int main(int argc, char *argv[])
    //    boundary attributes from the mesh as essential (Dirichlet). After
    //    assembly and finalizing we extract the corresponding sparse matrix A.
    BilinearForm *a = new BilinearForm(fespace);
-   a->AddDomainIntegrator(new DiffusionIntegrator());
+   a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
    a->ConformingAssemble(x, *b);
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
@@ -154,10 +151,12 @@ int main(int argc, char *argv[])
    umf_solver.SetOperator(A);
    umf_solver.Mult(*b, x);
 #endif
+
+   // 9. Recover the grid function in non-conforming AMR problems
    x.ConformingProlongate();
 
-   // 9. Save the refined mesh and the solution. This output can be viewed later
-   //    using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // 10. Save the refined mesh and the solution. This output can be viewed later
+   //     using GLVis: "glvis -m refined.mesh -g sol.gf".
    ofstream mesh_ofs("refined.mesh");
    mesh_ofs.precision(8);
    mesh->Print(mesh_ofs);
@@ -165,7 +164,7 @@ int main(int argc, char *argv[])
    sol_ofs.precision(8);
    x.Save(sol_ofs);
 
-   // 10. Send the solution by socket to a GLVis server.
+   // 11. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -175,7 +174,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 11. Free the used memory.
+   // 12. Free the used memory.
    delete a;
    delete b;
    delete fespace;

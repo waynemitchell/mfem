@@ -16,6 +16,7 @@
 //               ex4 -m ../data/periodic-cube.mesh -no-bc
 //               ex4 -m ../data/amr-quad.mesh
 //               ex4 -m ../data/amr-hex.mesh
+//               ex4 -m ../data/fichera-amr.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -86,14 +87,14 @@ int main(int argc, char *argv[])
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 25,000
    //    elements.
-   /*{
-      int ref_levels = (int)floor(log(25000./mesh->GetNE())/log(2.)/dim);
+   {
+      int ref_levels =
+         (int)floor(log(25000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
-   }*/
-   mesh->RandomRefinement(5, 2, true);
+   }
 
    // 4. Define a finite element space on the mesh. Here we use the lowest order
    //    Raviart-Thomas finite elements, but we can easily switch to
@@ -156,12 +157,13 @@ int main(int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
 
+   // 9. Recover the grid function in non-conforming AMR problems
    x.ConformingProlongate();
 
-   // 9. Compute and print the L^2 norm of the error.
+   // 10. Compute and print the L^2 norm of the error.
    cout << "\n|| F_h - F ||_{L^2} = " << x.ComputeL2Error(F) << '\n' << endl;
 
-   // 10. Save the refined mesh and the solution. This output can be viewed
+   // 11. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("refined.mesh");
@@ -172,7 +174,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 11. Send the solution by socket to a GLVis server.
+   // 12. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -182,7 +184,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 12. Free the used memory.
+   // 13. Free the used memory.
    delete a;
    delete alpha;
    delete beta;

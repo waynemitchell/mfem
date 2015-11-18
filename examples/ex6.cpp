@@ -13,6 +13,7 @@
 //               ex6 -m ../data/pipe-nurbs.mesh
 //               ex6 -m ../data/star-surf.mesh -o 2
 //               ex6 -m ../data/square-disc-surf.mesh -o 2
+//               ex6 -m ../data/amr-quad.mesh
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace
@@ -72,8 +73,6 @@ int main(int argc, char *argv[])
    Mesh mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh.Dimension();
-
-   mesh.UniformRefinement();
 
    // 3. Since a NURBS mesh can currently only be refined uniformly, we need to
    //    convert it to a piecewise-polynomial curved mesh. First we refine the
