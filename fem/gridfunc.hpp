@@ -137,7 +137,7 @@ public:
    /** Impose the given bounds on the function's DOFs while preserving its local
     *  integral (described in terms of the given weights) on the i'th element
     *  through SLBPQ optimization.
-    *  Intended to be used for discontinuos FE functions. */
+    *  Intended to be used for discontinuous FE functions. */
    void ImposeBounds(int i, const Vector &weights,
                      const Vector &_lo, const Vector &_hi);
    void ImposeBounds(int i, const Vector &weights,

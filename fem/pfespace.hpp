@@ -88,7 +88,7 @@ private:
 
    void ApplyLDofSigns(Array<int> &dofs) const;
 
-   /// Helper struct to store DOF dependencies in a paralell NC mesh.
+   /// Helper struct to store DOF dependencies in a parallel NC mesh.
    struct Dependency
    {
       int rank, dof; ///< master DOF, may be on another processor

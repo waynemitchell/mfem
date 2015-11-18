@@ -1109,7 +1109,7 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
 
    // Data members that need to be updated:
 
-   // - elements   - reorder of the pionters and the vertex ids if reordering
+   // - elements   - reorder of the pointers and the vertex ids if reordering
    //                the vertices
    // - vertices   - if reordering the vertices
    // - boundary   - update the vertex ids, if reordering the vertices
@@ -1192,7 +1192,7 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
          }
       }
 
-      //Replace the vertex ids in the boundary with reorderd vertex numbers
+      //Replace the vertex ids in the boundary with reordered vertex numbers
       for (int belid = 0; belid < GetNBE(); ++belid)
       {
          int *be_vert = boundary[belid]->GetVertices();
@@ -2333,7 +2333,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       // Read MFEM mesh v1.0 format
       string ident;
 
-      // read lines begining with '#' (comments)
+      // read lines beginning with '#' (comments)
       skip_comment_lines(input, '#');
       input >> ident; // 'dimension'
 
@@ -2508,7 +2508,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    }
    else if (mesh_type == "NETGEN" || mesh_type == "NETGEN_Neutral_Format")
    {
-      // Read a netgen format mesh of tetrahedra.
+      // Read a Netgen format mesh of tetrahedra.
       Dim = 3;
 
       // Read the vertices

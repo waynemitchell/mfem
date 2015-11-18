@@ -2807,24 +2807,24 @@ void NCMesh::PrintMemoryDetail() const
    int nelem, nvert, nedges;
    CountObjects(nelem, nvert, nedges);
 
-   std::cout << nelem * sizeof(Element) << " elements\n" <<
-                nvert * sizeof(Vertex) << " vertices\n" <<
-                nedges * sizeof(Edge) << " edges\n";
+   std::cout << nelem * sizeof(Element) << " elements\n"
+             << nvert * sizeof(Vertex) << " vertices\n"
+             << nedges * sizeof(Edge) << " edges\n";
 
    nodes.PrintMemoryDetail(); std::cout << " nodes\n";
    faces.PrintMemoryDetail(); std::cout << " faces\n";
 
-   std::cout << root_elements.MemoryUsage() << " root_elements\n" <<
-                leaf_elements.MemoryUsage() << " leaf_elements\n" <<
-                vertex_nodeId.MemoryUsage() << " vertex_nodeId\n" <<
-                face_list.MemoryUsage() << " face_list\n" <<
-                edge_list.MemoryUsage() << " edge_list\n" <<
-                boundary_faces.MemoryUsage() << " boundary_faces\n" <<
-                boundary_edges.MemoryUsage() << " bounfary_edges\n" <<
-                element_vertex.MemoryUsage() << " element_vertex\n" <<
-                ref_stack.MemoryUsage() << " ref_stack\n" <<
-                coarse_elements.MemoryUsage() << " coarse_elements\n" <<
-                sizeof(*this) << " NCMesh" << std::endl;
+   std::cout << root_elements.MemoryUsage() << " root_elements\n"
+             << leaf_elements.MemoryUsage() << " leaf_elements\n"
+             << vertex_nodeId.MemoryUsage() << " vertex_nodeId\n"
+             << face_list.MemoryUsage() << " face_list\n"
+             << edge_list.MemoryUsage() << " edge_list\n"
+             << boundary_faces.MemoryUsage() << " boundary_faces\n"
+             << boundary_edges.MemoryUsage() << " boundary_edges\n"
+             << element_vertex.MemoryUsage() << " element_vertex\n"
+             << ref_stack.MemoryUsage() << " ref_stack\n"
+             << coarse_elements.MemoryUsage() << " coarse_elements\n"
+             << sizeof(*this) << " NCMesh" << std::endl;
 }
 
 } // namespace mfem

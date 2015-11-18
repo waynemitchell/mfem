@@ -62,7 +62,6 @@ namespace mfem
  *  ParFiniteElementSpace class, which needs to know everything about the
  *  vertices, edges and faces on the processor boundary.
  *
- *  TODO: what else to describe?
  */
 class ParNCMesh : public NCMesh
 {
@@ -74,7 +73,7 @@ public:
        the neighbor processors so they can keep their ghost layers up to date.*/
    virtual void Refine(const Array<Refinement> &refinements);
 
-   /** */
+   /// To be implemented.
    virtual void LimitNCLevel(int max_level);
 
    /** Return a list of vertices shared by this processor and at least one other

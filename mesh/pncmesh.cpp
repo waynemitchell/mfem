@@ -98,7 +98,7 @@ void ParNCMesh::UpdateVertices()
       {
          for (int j = 0; j < GI[(int) elem->geom].nv; j++)
          {
-            elem->node[j]->vertex->index = 0;   // mark vertices that we need
+            elem->node[j]->vertex->index = 0; // mark vertices that we need
          }
       }
    }
@@ -634,17 +634,11 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    NeighborRefinementMessage::IsendAll(send_ref, MyComm);
 
    // do local refinements
-#if 1
    for (int i = 0; i < refinements.Size(); i++)
    {
       const Refinement &ref = refinements[i];
       NCMesh::RefineElement(leaf_elements[ref.index], ref.ref_type);
    }
-#else
-   // TODO: support aniso ref in parallel, this will allow aniso in parallel on
-   // one processor but will break np > 1
-   NCMesh::Refine(refinements); // FIXME double Update()
-#endif
 
    // receive (ghost layer) refinements from all neighbors
    for (int j = 0; j < neighbors.Size(); j++)
