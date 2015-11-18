@@ -1185,6 +1185,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
          {
             // we own a shared v/e/f, send its DOFs to others in group
             GetDofs(type, id.index, dofs);
+            // TODO: send dofs only when dofs.Size() > 0 ???
             const int *group = pncmesh->GetGroup(type, id.index, gsize);
             for (int j = 0; j < gsize; j++)
             {
@@ -1290,6 +1291,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
       {
          const NCMesh::MeshId &id = list.conforming[i];
          GetDofs(type, id.index, my_dofs);
+         // TODO: skip if my_dofs.Size() == 0
 
          int owner_ndofs, owner = pncmesh->GetOwner(type, id.index);
          if (owner != MyRank)

@@ -203,9 +203,15 @@ struct VarMessage
    /// Post-probe receive from processor 'rank' of message size 'size'.
    void Recv(int rank, int size, MPI_Comm comm)
    {
+      MFEM_ASSERT(size >= 0, "");
       data.resize(size);
       MPI_Status status;
       MPI_Recv((void*) data.data(), size, MPI_BYTE, rank, Tag, comm, &status);
+#ifdef MFEM_DEBUG
+      int count;
+      MPI_Get_count(&status, MPI_BYTE, &count);
+      MFEM_VERIFY(count == size, "");
+#endif
       Decode();
    }
 
@@ -218,6 +224,8 @@ struct VarMessage
       {
          int rank, size;
          Probe(rank, size, comm);
+         MFEM_ASSERT(rank_msg.find(rank) != rank_msg.end(), "");
+         // No guard against receiving two messages from the same rank
          rank_msg[rank].Recv(rank, size, comm);
          --recv_left;
       }
