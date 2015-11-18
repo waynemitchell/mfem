@@ -4,6 +4,8 @@
 //
 // Sample runs:  ex7 -e 0 -o 2 -r 4
 //               ex7 -e 1 -o 2 -r 4 -snap
+//               ex7 -e 0 -amr 1
+//               ex7 -e 1 -amr 2 -o 2
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               triangulation of a unit sphere and a simple isoparametric
@@ -14,7 +16,7 @@
 //               refinement, high-order meshes and finite elements, as well as
 //               surface-based linear and bilinear forms corresponding to the
 //               left-hand side and right-hand side of the discrete linear
-//               system.
+//               system. Simple local mesh refinement is also demonstrated.
 //
 //               We recommend viewing Example 1 before viewing this example.
 
@@ -35,6 +37,7 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    int elem_type = 1;
    int ref_levels = 2;
+   int amr = 0;
    int order = 2;
    bool always_snap = false;
    bool visualization = 1;
@@ -46,6 +49,9 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree).");
    args.AddOption(&ref_levels, "-r", "--refine",
                   "Number of times to refine the mesh uniformly.");
+   args.AddOption(&amr, "-amr", "--refine-locally",
+                  "Additional local (non-conforming) refinement:"
+                  " 1 = refine around north pole, 2 = refine randomly.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -142,6 +148,17 @@ int main(int argc, char *argv[])
       }
    }
 
+   if (amr == 1)
+   {
+      mesh->RefineAtVertex(Vertex(0, 0, 1), 5); // 5 levels
+      SnapNodes(*mesh);
+   }
+   else if (amr == 2)
+   {
+      mesh->RandomRefinement(4, 2); // 4 levels, 1/2 of the elements
+      SnapNodes(*mesh);
+   }
+
    // 4. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements -- the same as the mesh nodes.
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, &fec);
@@ -158,21 +175,19 @@ int main(int argc, char *argv[])
    b->Assemble();
 
    // 6. Define the solution vector x as a finite element grid function
-   //    corresponding to fespace. Initialize x with initial guess of zero,
-   //    which satisfies the boundary conditions.
+   //    corresponding to fespace. Initialize x with initial guess of zero.
    GridFunction x(fespace);
    x = 0.0;
 
    // 7. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
-   //    domain integrator and imposing homogeneous Dirichlet boundary
-   //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential (Dirichlet). After
-   //    assembly and finalizing we extract the corresponding sparse matrix A.
+   //    and Mass domain integrators. After assembly and finalizing we extract
+   //    the corresponding sparse matrix A.
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddDomainIntegrator(new MassIntegrator(one));
    a->Assemble();
+   a->ConformingAssemble(x, *b);
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 
@@ -189,10 +204,13 @@ int main(int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
 
-   // 9. Compute and print the L^2 norm of the error.
+   // 9. Recover the grid function in non-conforming AMR problems
+   x.ConformingProlongate();
+
+   // 10. Compute and print the L^2 norm of the error.
    cout<<"\nL2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;
 
-   // 10. Save the refined mesh and the solution. This output can be viewed
+   // 11. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m sphere_refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("sphere_refined.mesh");
@@ -203,7 +221,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 11. Send the solution by socket to a GLVis server.
+   // 12. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -213,7 +231,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 12. Free the used memory.
+   // 13. Free the used memory.
    delete a;
    delete b;
    delete fespace;

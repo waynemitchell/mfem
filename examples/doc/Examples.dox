@@ -222,8 +222,8 @@ linear, curved and surface meshes. Interpolation of functions
 from coarse to fine meshes, as well as persistent <a href="http://glvis.org">GLVis</a>
 visualization are also illustrated.
 <center>
-<em>The example currently has only a serial version (ex6.cpp).
-We recommend viewing Example 1 before viewing this example. </em>
+<em>The example currently has only a serial (ex6.cpp) and a parallel (ex6p.cpp)
+version. We recommend viewing Example 1 before viewing this example. </em>
 </center>
 </div>
 
@@ -241,7 +241,7 @@ The example highlights mesh generation, the use of mesh
 refinement, high-order meshes and finite elements, as well as
 surface-based linear and bilinear forms corresponding to the
 left-hand side and right-hand side of the discrete linear
-system.
+system. Simple local mesh refinement is also demonstrated.
 <center>
 <em>The example has a serial (ex7.cpp) and a parallel (ex7p.cpp) version.
 We recommend viewing Example 1 before viewing this example.</em>
@@ -386,8 +386,8 @@ function update(id)
    showElement("ex3",  maxwell && hcurl && galerkin && (gs || pcg || umfpack || ams));
    showElement("ex4",  graddiv && hdiv && galerkin && (gs || pcg || umfpack || ads || ams));
    showElement("ex5",  darcy && (l2 || hdiv) && mixed && (gs || jacobi || minres || umfpack || amg ));
-   showElement("ex6",  laplace && h1 && (galerkin || nurbs || amr) && (gs || pcg || umfpack));
-   showElement("ex7",  laplace && h1 && galerkin && (gs || pcg || umfpack || amg));
+   showElement("ex6",  laplace && h1 && (galerkin || nurbs || amr) && (gs || pcg || umfpack || amg));
+   showElement("ex7",  laplace && h1 && (galerkin || amr) && (gs || pcg || umfpack || amg));
    showElement("ex8",  laplace && (l2 || h1 || h12) && dpg && (gs || pcg || umfpack || amg));
    showElement("ex9",  advection && l2 && dg && (pcg || rk));
    showElement("ex10", elasticity && (l2 || h1) && galerkin && (jacobi || pcg || minres || umfpack || newton || rk || sdirk));

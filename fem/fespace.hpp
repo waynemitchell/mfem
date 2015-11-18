@@ -97,9 +97,6 @@ protected:
    // Conforming restriction matrix such that cR.cP=I.
    SparseMatrix *cR;
 
-   void MarkDependency(const SparseMatrix *D, const Array<int> &row_marker,
-                       Array<int> &col_marker);
-
    void UpdateNURBS();
 
    void Constructor();
@@ -125,9 +122,19 @@ protected:
    SparseMatrix *NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes,
                                             NCMesh* ncmesh);
 
+   /** This is a helper function to get edge (type == 0) or face (type == 1)
+       DOFs. The function is aware of ghost edges/faces in parallel, for which
+       an empty DOF list is returned. */
+   void GetEdgeFaceDofs(int type, int index, Array<int> &dofs);
+
+   /** Calculate the cP and cR matrices for a nonconforming mesh. */
+   void GetConformingInterpolation();
+
+   void MakeVDimMatrix(SparseMatrix &mat) const;
+
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
-                      int dim = 1, int order = Ordering::byNODES);
+                      int vdim = 1, int ordering = Ordering::byNODES);
 
    /// Returns the mesh
    inline Mesh *GetMesh() const { return mesh; }
@@ -135,10 +142,11 @@ public:
    NURBSExtension *GetNURBSext() { return NURBSext; }
    NURBSExtension *StealNURBSext();
 
-   SparseMatrix *GetConformingProlongation() { return cP; }
-   const SparseMatrix *GetConformingProlongation() const { return cP; }
-   SparseMatrix *GetConformingRestriction() { return cR; }
-   const SparseMatrix *GetConformingRestriction() const { return cR; }
+   bool Conforming() const { return mesh->ncmesh == NULL; }
+   bool Nonconforming() const { return mesh->ncmesh != NULL; }
+
+   const SparseMatrix *GetConformingProlongation();
+   const SparseMatrix *GetConformingRestriction();
 
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }
@@ -226,9 +234,9 @@ public:
 
    void DofsToVDofs(Array<int> &dofs) const;
 
-   void DofsToVDofs(int vd, Array<int> &dofs) const;
+   void DofsToVDofs(int vd, Array<int> &dofs, int ndofs = -1) const;
 
-   int DofToVDof(int dof, int vd) const;
+   int DofToVDof(int dof, int vd, int ndofs = -1) const;
 
    int VDofToDof(int vdof) const
    { return (ordering == Ordering::byNODES) ? (vdof%ndofs) : (vdof/vdim); }
@@ -236,16 +244,18 @@ public:
    static void AdjustVDofs(Array<int> &vdofs);
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
-   void GetElementVDofs(int i, Array<int> &dofs) const;
+   void GetElementVDofs(int i, Array<int> &vdofs) const;
 
    /// Returns indexes of degrees of freedom for i'th boundary element.
-   void GetBdrElementVDofs(int i, Array<int> &dofs) const;
+   void GetBdrElementVDofs(int i, Array<int> &vdofs) const;
 
    /// Returns indexes of degrees of freedom for i'th face element (2D and 3D).
-   void GetFaceVDofs(int iF, Array<int> &dofs) const;
+   void GetFaceVDofs(int i, Array<int> &vdofs) const;
 
    /// Returns indexes of degrees of freedom for i'th edge.
-   void GetEdgeVDofs(int iE, Array<int> &dofs) const;
+   void GetEdgeVDofs(int i, Array<int> &vdofs) const;
+
+   void GetVertexVDofs(int i, Array<int> &vdofs) const;
 
    void GetElementInteriorVDofs(int i, Array<int> &vdofs) const;
 
@@ -284,29 +294,24 @@ public:
    SparseMatrix *GlobalRestrictionMatrix(FiniteElementSpace *cfes,
                                          int one_vdim = -1);
 
-   /// Determine the boundary degrees of freedom
+   /** Mark degrees of freedom associated with boundary elements with
+       the specified boundary attributes (marked in 'bdr_attr_is_ess'). */
    virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
-                                  Array<int> &ess_dofs) const;
+                                  Array<int> &ess_vdofs) const;
 
-   /** For a partially conforming FE space, convert a marker array (negative
+   /** For a partially conforming FE space, convert a marker array (nonzero
        entries are true) on the partially conforming dofs to a marker array on
        the conforming dofs. A conforming dofs is marked iff at least one of its
-       dependent dofs (as defined by the conforming prolongation matrix) is
-       marked. */
-   void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs)
-   {
-      MarkDependency(cP, dofs, cdofs);
-   }
+       dependent dofs is marked. */
+   void ConvertToConformingVDofs(const Array<int> &dofs, Array<int> &cdofs);
 
-   /** For a partially conforming FE space, convert a marker array (negative
+   /** For a partially conforming FE space, convert a marker array (nonzero
        entries are true) on the conforming dofs to a marker array on the
-       (partially conforming) dofs. A dofs is marked iff at least one of the
-       conforming dofs that dependent on it (as defined by the conforming
-       restriction matrix) is marked. */
-   void ConvertFromConformingVDofs(const Array<int> &cdofs, Array<int> &dofs)
-   {
-      MarkDependency(cR, cdofs, dofs);
-   }
+       (partially conforming) dofs. A dof is marked iff it depends on a marked
+       conforming dofs, where dependency is defined by the ConformingRestriction
+       matrix; in other words, a dof is marked iff it corresponds to a marked
+       conforming dof. */
+   void ConvertFromConformingVDofs(const Array<int> &cdofs, Array<int> &dofs);
 
    void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,
                                     Array<int> &bdr_attr_is_ess,

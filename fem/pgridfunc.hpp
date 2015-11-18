@@ -60,6 +60,8 @@ public:
 
    ParFiniteElementSpace *ParFESpace() { return pfes; }
 
+   void Update() { Update(pfes); }
+
    void Update(ParFiniteElementSpace *f);
 
    void Update(ParFiniteElementSpace *f, Vector &v, int v_offset);
@@ -76,7 +78,7 @@ public:
    ParGridFunction &operator=(const HypreParVector &tv)
    { Distribute(&tv); return (*this); }
 
-   /// Returns the true dofs in a HypreParVector
+   /// Returns the true dofs in a Vector
    void GetTrueDofs(Vector &tv) const;
 
    /// Returns the true dofs in a new HypreParVector
@@ -90,6 +92,15 @@ public:
 
    /// Returns a new vector averaged on the true dofs.
    HypreParVector *ParallelAverage() const;
+
+   /// Returns the vector restricted to the true dofs.
+   void ParallelProject(Vector &tv) const;
+
+   /// Returns the vector restricted to the true dofs.
+   void ParallelProject(HypreParVector &tv) const;
+
+   /// Returns a new vector restricted to the true dofs.
+   HypreParVector *ParallelProject() const;
 
    /// Returns the vector assembled on the true dofs.
    void ParallelAssemble(Vector &tv) const;
@@ -194,6 +205,10 @@ public:
       return GlobalLpNorm(p, GridFunction::ComputeLpError(
                              p, exsol, weight, v_weight, irs), pfes->GetComm());
    }
+
+   virtual void ComputeFlux(BilinearFormIntegrator &blfi,
+                            GridFunction &flux,
+                            int wcoef = 1, int subdomain = -1);
 
    /** Save the local portion of the ParGridFunction. It differs from the
        serial GridFunction::Save in that it takes into account the signs of
