@@ -727,6 +727,27 @@ public:
 };
 
 /// LOBPCG eigenvalue solver in hypre
+//
+//  The Locally Optimal Block Preconditioned Conjugate Gradient
+//  (LOBPCG) eigenvalue solver is designed to find the lowest
+//  eigenmodes of the generalized eigenvalue problem:
+//     A x = lambda M x
+//  Where A is symmetric, indefinite and M is symmetric positive
+//  definite.  The eigenvectors are M-orthonormal, meaning that
+//     x^T M x = 1 and x^T M y = 0,
+//  if x and y are distinct eigenvectors. The matrix M is optional
+//  and is assumed to be the identity if left unset.
+//
+//  The efficiency of LOBPCG relies on the availability of a suitable
+//  preconditioner for the matrix A.  The preconditioner is supplied
+//  through the SetPreconditioner() method.  It should be noted that
+//  the operator used with the preconditioner need not be A itself.
+//
+//  For more information regarding LOBPCG see "Block Locally Optimal
+//  Preconditioned Eigenvalue Xolvers (BLOPEX) in Hypre and PETSc" by
+//  A. V. Knyazev, M. E. Argentati, I. Lashuk, and E. E. Ovtchinnikov,
+//  SIAM J. Sci. Comput., 29(5), 2224-2239.
+//
 class HypreLOBPCG
 {
 private:
@@ -748,7 +769,6 @@ private:
 
    // Interface for setting up and performing matrix-vector products
    HYPRE_MatvecFunctions matvec_fn;
-
 
    // Eigenvalues
    Array<double> eigenvalues;
@@ -807,10 +827,9 @@ public:
    void SetPrecondUsageMode(int pcg_mode);
 
    /// The following four methods support general linear systems
-   void SetPrecond(Solver & precond);
-   void SetA(Operator & A);
-   void SetB(Operator & B);
-   void SetT(Operator & T);
+   void SetPreconditioner(Solver & precond);
+   void SetOperator(Operator & A);
+   void SetMassMatrix(Operator & M);
 
    int Solve();
 
@@ -844,6 +863,29 @@ public:
 };
 
 /// AME eigenvalue solver in hypre
+//
+//  The Auxiliary space Maxwell Eigensolver (AME) is designed to find
+//  the lowest eigenmodes of the generalized eigenvalue problem:
+//     Curl Curl x = lambda M x
+//  Where the Curl Curl operator is discretized using Nedelec finite
+//  element basis functions.  Properties of this discretization are
+//  essential to eliminating the large null space of the Curl Curl
+//  operator.
+//
+//  This eigensolver relies upon the LOBPCG eigensolver internally.
+//  It is also expected that the preconditioner supplied to this
+//  method will be the HypreAMS preconditioner defined above.
+//
+//  As with LOBPCG, the operator set in the preconditioner need not be
+//  the same as A.  This flexibility may be useful in solving
+//  eigenproblems which bare a strong resemblence to the Curl Curl
+//  problems for which AME is designed.
+//
+//  Unlike LOBPCG, this eigensolver requires that the the mass matrix
+//  be set.  It is possible to circumvent this by passing an identity
+//  operator as the mass matrix but it seems unlikely that this would
+//  be useful so it is not the default behavior.
+//
 class HypreAME
 {
 private:
@@ -863,8 +905,6 @@ private:
 
    // Pointer to HYPRE's AMS solver struct
    HypreSolver * ams_precond;
-
-   ParFiniteElementSpace * HCurlFESpace;
 
    // Interface for matrix storage type
    mv_InterfaceInterpreter interpreter;
@@ -887,7 +927,7 @@ private:
 
 public:
 
-   HypreAME(ParFiniteElementSpace & HCurlFESpace);
+  HypreAME(MPI_Comm comm);
    ~HypreAME();
 
    void SetTol(double tol);
@@ -897,10 +937,9 @@ public:
 
    /// The following four methods support linear systems made up of
    /// simple HypreParMatrices
-   void SetPrecond(HypreSolver & precond);
-   void SetA(HypreParMatrix & A);
-   void SetB(HypreParMatrix & B);
-   void SetT(HypreParMatrix & T);
+   void SetPreconditioner(HypreSolver & precond);
+   void SetOperator(HypreParMatrix & A);
+   void SetMassMatrix(HypreParMatrix & M);
 
    int Solve();
 

@@ -2548,7 +2548,7 @@ HypreLOBPCG::SetPrecondUsageMode(int pcg_mode)
 }
 
 void
-HypreLOBPCG::SetPrecond(Solver & precond)
+HypreLOBPCG::SetPreconditioner(Solver & precond)
 {
    HYPRE_LOBPCGSetPrecond(lobpcg_solver,
                           (HYPRE_PtrToSolverFcn)this->PrecondSolve,
@@ -2557,7 +2557,7 @@ HypreLOBPCG::SetPrecond(Solver & precond)
 }
 
 void
-HypreLOBPCG::SetA(Operator & A)
+HypreLOBPCG::SetOperator(Operator & A)
 {
    int locSize = A.Width();
 
@@ -2585,23 +2585,13 @@ HypreLOBPCG::SetA(Operator & A)
 }
 
 void
-HypreLOBPCG::SetB(Operator & B)
+HypreLOBPCG::SetMassMatrix(Operator & M)
 {
    matvec_fn.MatvecCreate  = this->OperatorMatvecCreate;
    matvec_fn.Matvec        = this->OperatorMatvec;
    matvec_fn.MatvecDestroy = this->OperatorMatvecDestroy;
 
-   HYPRE_LOBPCGSetupB(lobpcg_solver,(HYPRE_Matrix)&B,NULL);
-}
-
-void
-HypreLOBPCG::SetT(Operator & T)
-{
-   matvec_fn.MatvecCreate  = this->OperatorMatvecCreate;
-   matvec_fn.Matvec        = this->OperatorMatvec;
-   matvec_fn.MatvecDestroy = this->OperatorMatvecDestroy;
-
-   HYPRE_LOBPCGSetupT(lobpcg_solver,(HYPRE_Matrix)&T,NULL);
+   HYPRE_LOBPCGSetupB(lobpcg_solver,(HYPRE_Matrix)&M,NULL);
 }
 
 void
@@ -2723,8 +2713,8 @@ HypreLOBPCG::PrecondSetup(void *solver,
    return 0;
 }
 
-HypreAME::HypreAME(ParFiniteElementSpace & fespace)
-   : comm(fespace.GetComm()),
+HypreAME::HypreAME(MPI_Comm comm)
+   : comm(comm),
      myid(0),
      numProcs(1),
      nev(10),
@@ -2733,7 +2723,6 @@ HypreAME::HypreAME(ParFiniteElementSpace & fespace)
      glbSize(0),
      part(NULL),
      ams_precond(NULL),
-     HCurlFESpace(&fespace),
      eigenvalues(NULL),
      multi_vec(NULL),
      eigenvectors(NULL),
@@ -2783,13 +2772,13 @@ HypreAME::SetPrintLevel(int logging)
 }
 
 void
-HypreAME::SetPrecond(HypreSolver & precond)
+HypreAME::SetPreconditioner(HypreSolver & precond)
 {
    ams_precond = &precond;
 }
 
 void
-HypreAME::SetA(HypreParMatrix & A)
+HypreAME::SetOperator(HypreParMatrix & A)
 {
    if ( !setT )
    {
@@ -2810,25 +2799,10 @@ HypreAME::SetA(HypreParMatrix & A)
 }
 
 void
-HypreAME::SetB(HypreParMatrix & B)
+HypreAME::SetMassMatrix(HypreParMatrix & M)
 {
-   HYPRE_ParCSRMatrix parcsr_B = B;
-   HYPRE_AMESetMassMatrix(ame_solver,(HYPRE_ParCSRMatrix)parcsr_B);
-}
-
-void
-HypreAME::SetT(HypreParMatrix & T)
-{
-   setT = true;
-
-   if ( ams_precond != NULL )
-   {
-      HYPRE_Solver ams_precond_ptr = (HYPRE_Solver)*ams_precond;
-
-      ams_precond->SetupFcn()(*ams_precond,T,NULL,NULL);
-
-      HYPRE_AMESetAMSSolver(ame_solver, ams_precond_ptr);
-   }
+   HYPRE_ParCSRMatrix parcsr_M = M;
+   HYPRE_AMESetMassMatrix(ame_solver,(HYPRE_ParCSRMatrix)parcsr_M);
 }
 
 int

@@ -216,15 +216,15 @@ int main(int argc, char *argv[])
    amg->SetSystemsOptions(dim);
 
    lobpcg->SetNumModes(nev);
-   lobpcg->SetPrecond(*amg);
+   lobpcg->SetPreconditioner(*amg);
    lobpcg->SetMaxIter(500);
    lobpcg->SetTol(1e-8);
    lobpcg->SetPrecondUsageMode(1);
    lobpcg->SetPrintLevel(1);
 
    // Set the matrices which define the linear system
-   lobpcg->SetB(*M);
-   lobpcg->SetA(*A);
+   lobpcg->SetMassMatrix(*M);
+   lobpcg->SetOperator(*A);
 
    // Obtain the eigenvalues and eigenvectors
    Array<double> eigenvalues;
