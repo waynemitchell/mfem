@@ -991,13 +991,14 @@ void CurlCurlIntegrator::AssembleElementMatrix
 {
    int nd = el.GetDof();
    int dim = el.GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
    double w;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix Curlshape(nd,dim), Curlshape_dFt(nd,dim);
+   DenseMatrix Curlshape(nd,dimc), Curlshape_dFt(nd,dimc);
 #else
-   Curlshape.SetSize(nd,dim);
-   Curlshape_dFt.SetSize(nd,dim);
+   Curlshape.SetSize(nd,dimc);
+   Curlshape_dFt.SetSize(nd,dimc);
 #endif
    elmat.SetSize(nd);
 
@@ -1021,13 +1022,23 @@ void CurlCurlIntegrator::AssembleElementMatrix
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
-      el.CalcCurlShape(ip, Curlshape);
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, Curlshape);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, Curlshape_dFt);
+      }
 
       Trans.SetIntPoint (&ip);
 
       w = ip.weight / Trans.Weight();
 
-      MultABt(Curlshape, Trans.Jacobian(), Curlshape_dFt);
+      if ( dim == 3 )
+      {
+         MultABt(Curlshape, Trans.Jacobian(), Curlshape_dFt);
+      }
 
       if (Q)
       {

@@ -10165,7 +10165,49 @@ void ND_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
 void ND_QuadrilateralElement::CalcCurlShape(const IntegrationPoint &ip,
                                             DenseMatrix &curl_shape) const
 {
-   mfem_error("ND_QuadrilateralElement::CalcCurlShape");
+   const int p = Order;
+
+#ifdef MFEM_THREAD_SAFE
+   Vector shape_cx(p + 1), shape_ox(p), shape_cy(p + 1), shape_oy(p);
+   Vector dshape_cx(p + 1), dshape_cy(p + 1);
+#endif
+
+   cbasis1d.Eval(ip.x, shape_cx, dshape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy, dshape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
+
+   int o = 0;
+   // x-components
+   for (int j = 0; j <= p; j++)
+      for (int i = 0; i < p; i++)
+      {
+         int idx, s;
+         if ((idx = dof_map[o++]) < 0)
+         {
+            idx = -1 - idx, s = -1;
+         }
+         else
+         {
+            s = +1;
+         }
+         curl_shape(idx,0) = -s*shape_ox(i)*dshape_cy(j);
+      }
+   // y-components
+   for (int j = 0; j < p; j++)
+      for (int i = 0; i <= p; i++)
+      {
+         int idx, s;
+         if ((idx = dof_map[o++]) < 0)
+         {
+            idx = -1 - idx, s = -1;
+         }
+         else
+         {
+            s = +1;
+         }
+         curl_shape(idx,0) =  s*dshape_cx(i)*shape_oy(j);
+      }
 }
 
 
@@ -10552,7 +10594,45 @@ void ND_TriangleElement::CalcVShape(const IntegrationPoint &ip,
 void ND_TriangleElement::CalcCurlShape(const IntegrationPoint &ip,
                                        DenseMatrix &curl_shape) const
 {
-   mfem_error("ND_TriangleElement::CalcCurlShape");
+   const int pm1 = Order - 1;
+
+#ifdef MFEM_THREAD_SAFE
+   const int p = Order;
+   Vector shape_x(p), shape_y(p), shape_l(p);
+   Vector dshape_x(p), dshape_y(p), dshape_l(p);
+   DenseMatrix u(Dof, Dim);
+#endif
+
+   poly1d.CalcBasis(pm1, ip.x, shape_x, dshape_x);
+   poly1d.CalcBasis(pm1, ip.y, shape_y, dshape_y);
+   poly1d.CalcBasis(pm1, 1. - ip.x - ip.y, shape_l, dshape_l);
+
+   int n = 0;
+   for (int j = 0; j <= pm1; j++)
+      for (int i = 0; i + j <= pm1; i++)
+      {
+         int l = pm1-i-j;
+         const double dx = (dshape_x(i)*shape_l(l) -
+                            shape_x(i)*dshape_l(l))*shape_y(j);
+         const double dy = (dshape_y(j)*shape_l(l) -
+                            shape_y(j)*dshape_l(l))*shape_x(i);
+
+         u(n,0) = -dy;  n++;
+         u(n,0) =  dx;  n++;
+      }
+
+   for (int j = 0; j <= pm1; j++)
+   {
+      int i = pm1 - j;
+      // s = shape_x(i)*shape_y(j);
+      // curl of s*(ip.y - c, -(ip.x - c), 0):
+      u(n,0) =
+         -((dshape_x(i)*(ip.x - c) + shape_x(i))*shape_y(j) +
+           (dshape_y(j)*(ip.y - c) + shape_y(j))*shape_x(i));
+      n++;
+   }
+
+   Ti.Mult(u, curl_shape);
 }
 
 

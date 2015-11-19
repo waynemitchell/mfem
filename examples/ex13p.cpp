@@ -18,15 +18,13 @@
 //
 // Description:  This example code demonstrates the use of MFEM to solve a
 //               generalized eigenvalue problem
-//                 -Delta u = lambda u
+//                 -Curl Curl u = lambda u
 //               with homogeneous Dirichlet boundary conditions.
-//               Specifically, we discretize the Laplacian operator using a
-//               FE space of the specified order, or if order < 1 using an
-//               isoparametric/isogeometric space (i.e. quadratic for
-//               quadratic curvilinear mesh, NURBS for NURBS mesh, etc.)
+//               Specifically, we discretize the Curl Curl operator using a
+//               FE space of the specified order.
 //
-//               The example is a modification of example 1 which highlights
-//               the use of the LOBPCG eigenvalue solver in HYPRE.
+//               The example is a modification of example 3 which highlights
+//               the use of the AME eigenvalue solver in HYPRE.
 //
 #include "mfem.hpp"
 #include <fstream>
@@ -149,12 +147,13 @@ int main(int argc, char *argv[])
    //    needed on the right hand side of the generalized eigenvalue problem.
    //    After serial and parallel assembly we extract the corresponding
    //    parallel matrix A.
-   ParBilinearForm *a = new ParBilinearForm(fespace);
    ConstantCoefficient one(1.0);
-   a->AddDomainIntegrator(new CurlCurlIntegrator(one));
-   a->Assemble();
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
+
+   ParBilinearForm *a = new ParBilinearForm(fespace);
+   a->AddDomainIntegrator(new CurlCurlIntegrator(one));
+   a->Assemble();
    a->EliminateEssentialBCDiag(ess_bdr,100.0);
    a->Finalize();
 
@@ -185,10 +184,11 @@ int main(int argc, char *argv[])
    ame->SetB(*M);
    ame->SetA(*A);
 
+   // Perform the eigensolve
+   ame->Solve();
+
    // Obtain the eigenvalues and eigenvectors
    Array<double> eigenvalues;
-
-   ame->Solve();
 
    ame->GetEigenvalues(eigenvalues);
 
@@ -261,16 +261,12 @@ int main(int argc, char *argv[])
    }
 
    // 13. Free the used memory.
-   // delete ams;
    delete ame;
+   delete ams;
    delete M;
    delete A;
-
    delete fespace;
-   if (order > 0)
-   {
-      delete fec;
-   }
+   delete fec;
    delete pmesh;
 
    MPI_Finalize();

@@ -2487,7 +2487,7 @@ HypreLOBPCG::HypreMultiVector::StealVectors()
 
    for (int i=0; i<nv; i++)
    {
-      hpv_ret[i]->AcquireParVector();
+      hpv_ret[i]->SetOwnership(1);
    }
 
    return hpv_ret;
@@ -2750,7 +2750,6 @@ HypreAME::HypreAME(ParFiniteElementSpace & fespace)
 HypreAME::~HypreAME()
 {
    if ( multi_vec   != NULL ) { delete multi_vec; }
-   if ( ams_precond != NULL ) { delete ams_precond; }
    if ( x           != NULL ) { delete x; }
    if ( part        != NULL ) { delete part; }
 
@@ -2792,14 +2791,14 @@ HypreAME::SetPrecond(HypreSolver & precond)
 void
 HypreAME::SetA(HypreParMatrix & A)
 {
-  if ( !setT )
-  {
-    HYPRE_Solver ams_precond_ptr = (HYPRE_Solver)*ams_precond;
+   if ( !setT )
+   {
+      HYPRE_Solver ams_precond_ptr = (HYPRE_Solver)*ams_precond;
 
-    ams_precond->SetupFcn()(*ams_precond,A,NULL,NULL);
+      ams_precond->SetupFcn()(*ams_precond,A,NULL,NULL);
 
-    HYPRE_AMESetAMSSolver(ame_solver, ams_precond_ptr);
-  }
+      HYPRE_AMESetAMSSolver(ame_solver, ams_precond_ptr);
+   }
 
    HYPRE_AMESetup(ame_solver);
 
@@ -2824,11 +2823,11 @@ HypreAME::SetT(HypreParMatrix & T)
 
    if ( ams_precond != NULL )
    {
-     HYPRE_Solver ams_precond_ptr = (HYPRE_Solver)*ams_precond;
+      HYPRE_Solver ams_precond_ptr = (HYPRE_Solver)*ams_precond;
 
-     ams_precond->SetupFcn()(*ams_precond,T,NULL,NULL);
+      ams_precond->SetupFcn()(*ams_precond,T,NULL,NULL);
 
-     HYPRE_AMESetAMSSolver(ame_solver, ams_precond_ptr);
+      HYPRE_AMESetAMSSolver(ame_solver, ams_precond_ptr);
    }
 }
 
@@ -2846,8 +2845,8 @@ HypreAME::GetEigenvalues(Array<double> & eigs)
 
    if ( eigenvalues == NULL )
    {
-     // Grab eigenvalues from AME
-     HYPRE_AMEGetEigenvalues(ame_solver,&eigenvalues);
+      // Grab eigenvalues from AME
+      HYPRE_AMEGetEigenvalues(ame_solver,&eigenvalues);
    }
 
    // Copy eigenvalues to eigs array
@@ -2860,15 +2859,15 @@ HypreAME::GetEigenvalues(Array<double> & eigs)
 HypreParVector &
 HypreAME::GetEigenvector(unsigned int i)
 {
-  if ( eigenvectors == NULL )
-  {
-    HYPRE_AMEGetEigenvectors(ame_solver,&multi_vec);
-    eigenvectors = new HypreParVector*[nev];
-    for (int i=0; i<nev; i++)
-    {
-      eigenvectors[i] = new HypreParVector(multi_vec[i]);
-    }
-  }
+   if ( eigenvectors == NULL )
+   {
+      HYPRE_AMEGetEigenvectors(ame_solver,&multi_vec);
+      eigenvectors = new HypreParVector*[nev];
+      for (int i=0; i<nev; i++)
+      {
+         eigenvectors[i] = new HypreParVector(multi_vec[i]);
+      }
+   }
 
    return *eigenvectors[i];
 }

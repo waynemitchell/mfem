@@ -99,7 +99,7 @@ public:
    hypre_ParVector *StealParVector() { own_ParVector = 0; return x; }
 
    /// Sets ownership of the internal hypre_ParVector
-   void AcquireParVector() { own_ParVector = 1; }
+   void SetOwnership(int own) { own_ParVector = own; }
 
    /// Returns the global vector in each processor
    Vector *GlobalVector();

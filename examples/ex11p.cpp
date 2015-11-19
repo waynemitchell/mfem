@@ -153,12 +153,13 @@ int main(int argc, char *argv[])
    //    needed on the right hand side of the generalized eigenvalue problem.
    //    After serial and parallel assembly we extract the corresponding
    //    parallel matrix A.
-   ParBilinearForm *a = new ParBilinearForm(fespace);
    ConstantCoefficient one(1.0);
-   a->AddDomainIntegrator(new DiffusionIntegrator(one));
-   a->Assemble();
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
+
+   ParBilinearForm *a = new ParBilinearForm(fespace);
+   a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   a->Assemble();
    a->EliminateEssentialBCDiag(ess_bdr,100.0);
    a->Finalize();
 
@@ -265,8 +266,8 @@ int main(int argc, char *argv[])
    }
 
    // 13. Free the used memory.
-   delete amg;
    delete lobpcg;
+   delete amg;
    delete M;
    delete A;
 
