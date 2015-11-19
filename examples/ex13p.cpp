@@ -171,8 +171,9 @@ int main(int argc, char *argv[])
 
    // 9. Define and configure the LOBPCG eigensolver and a BoomerAMG
    //    preconditioner to be used within the solver.
-   HypreAME    * ame = new HypreAME(MPI_COMM_WORLD);
-   HypreSolver * ams = new HypreAMS(*A,fespace,1);
+   HypreAME *ame = new HypreAME(MPI_COMM_WORLD);
+   HypreAMS *ams = new HypreAMS(*A,fespace);
+   ams->SetSingularProblem();
 
    ame->SetNumModes(nev);
    ame->SetPreconditioner(*ams);
