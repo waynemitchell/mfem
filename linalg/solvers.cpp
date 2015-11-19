@@ -1643,7 +1643,7 @@ void UMFPackSolver::SetOperator(const Operator &op)
    mat = const_cast<SparseMatrix *>(dynamic_cast<const SparseMatrix *>(&op));
    if (mat == NULL)
    {
-      mfem_error("UMFPackSolver::SetOperator : not a SparseMatrix!");
+      MFEM_ABORT("not a SparseMatrix");
    }
 
    // UMFPack requires that the column-indices in mat corresponding to each
@@ -1653,6 +1653,8 @@ void UMFPackSolver::SetOperator(const Operator &op)
 
    height = mat->Height();
    width = mat->Width();
+   MFEM_VERIFY(width == height, "not a square matrix");
+
    Ap = mat->GetI();
    Ai = mat->GetJ();
    Ax = mat->GetData();

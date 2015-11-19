@@ -480,6 +480,44 @@ void VectorFiniteElement::ProjectGrad_RT(
    }
 }
 
+void VectorFiniteElement::ProjectCurl_ND(
+   const double *tk, const Array<int> &d2t, const FiniteElement &fe,
+   ElementTransformation &Trans, DenseMatrix &curl) const
+{
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(fe.GetDof(), Dim);
+   DenseMatrix curlshape_J(fe.GetDof(), Dim);
+   DenseMatrix J(Dim, Dim);
+#else
+   curlshape.SetSize(fe.GetDof(), Dim);
+   curlshape_J.SetSize(fe.GetDof(), Dim);
+   J.SetSize(Dim, Dim);
+#endif
+
+   Vector curl_k(fe.GetDof());
+
+   curl.SetSize(Dof, fe.GetDof());
+   for (int k = 0; k < Dof; k++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(k);
+
+      // calculate J^t * J / |J|
+      Trans.SetIntPoint(&ip);
+      MultAtB(Trans.Jacobian(), Trans.Jacobian(), J);
+      J *= 1.0 / Trans.Weight();
+
+      // transform curl of shapes (rows) by J^t * J / |J|
+      fe.CalcCurlShape(ip, curlshape);
+      Mult(curlshape, J, curlshape_J);
+
+      curlshape_J.Mult(tk + d2t[k]*Dim, curl_k);
+      for (int j = 0; j < curl_k.Size(); j++)
+      {
+         curl(k,j) = (fabs(curl_k(j)) < 1e-12) ? 0.0 : curl_k(j);
+      }
+   }
+}
+
 void VectorFiniteElement::ProjectCurl_RT(
    const double *nk, const Array<int> &d2n, const FiniteElement &fe,
    ElementTransformation &Trans, DenseMatrix &curl) const

@@ -9,6 +9,8 @@
 //               ex3 -m ../data/fichera-q2.vtk
 //               ex3 -m ../data/fichera-q3.mesh
 //               ex3 -m ../data/beam-hex-nurbs.mesh
+//               ex3 -m ../data/amr-hex.mesh
+//               ex3 -m ../data/fichera-amr.mesh
 //
 // Description:  This example code solves a simple 3D electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -128,6 +130,7 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
+   a->ConformingAssemble(x, *b);
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
    a->EliminateEssentialBC(ess_bdr, x, *b);
@@ -148,10 +151,13 @@ int main(int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
 
-   // 9. Compute and print the L^2 norm of the error.
+   // 9. Recover the grid function in non-conforming AMR problems
+   x.ConformingProlongate();
+
+   // 10. Compute and print the L^2 norm of the error.
    cout << "\n|| E_h - E ||_{L^2} = " << x.ComputeL2Error(E) << '\n' << endl;
 
-   // 10. Save the refined mesh and the solution. This output can be viewed
+   // 11. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("refined.mesh");
@@ -162,7 +168,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 11. Send the solution by socket to a GLVis server.
+   // 12. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -172,7 +178,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 12. Free the used memory.
+   // 13. Free the used memory.
    delete a;
    delete sigma;
    delete muinv;

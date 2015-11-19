@@ -13,6 +13,7 @@
 //               ex6 -m ../data/pipe-nurbs.mesh
 //               ex6 -m ../data/star-surf.mesh -o 2
 //               ex6 -m ../data/square-disc-surf.mesh -o 2
+//               ex6 -m ../data/amr-quad.mesh
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace
@@ -75,18 +76,14 @@ int main(int argc, char *argv[])
 
    // 3. Since a NURBS mesh can currently only be refined uniformly, we need to
    //    convert it to a piecewise-polynomial curved mesh. First we refine the
-   //    NURBS mesh a bit and then project the curvature to quadratic Nodes.
+   //    NURBS mesh a bit more and then project the curvature to quadratic Nodes.
    if (mesh.NURBSext)
    {
       for (int i = 0; i < 2; i++)
       {
          mesh.UniformRefinement();
       }
-
-      FiniteElementCollection* nfec = new H1_FECollection(2, dim);
-      FiniteElementSpace* nfes = new FiniteElementSpace(&mesh, nfec, dim);
-      mesh.SetNodalFESpace(nfes);
-      mesh.GetNodes()->MakeOwner(nfec);
+      mesh.ProjectNURBS(2);
    }
 
    // 4. Define a finite element space on the mesh. The polynomial order is
@@ -185,25 +182,27 @@ int main(int argc, char *argv[])
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
       Vector errors(mesh.GetNE());
+      Array<int> aniso_flags;
       {
-         FiniteElementSpace flux_fespace(&mesh, &fec, dim);
          DiffusionIntegrator flux_integrator(one);
+         FiniteElementSpace flux_fespace(&mesh, &fec, dim);
          GridFunction flux(&flux_fespace);
-         ComputeFlux(flux_integrator, x, flux);
-         ZZErrorEstimator(flux_integrator, x, flux, errors, 1);
+         ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
       }
 
       // 17. Make a list of elements whose error is larger than a fraction (0.7)
       //     of the maximum element error. These elements will be refined.
-      Array<int> ref_list;
+      Array<Refinement> ref_list;
       const double frac = 0.7;
       // the 'errors' are squared, so we need to square the fraction
       double threshold = (frac*frac) * errors.Max();
       for (int i = 0; i < errors.Size(); i++)
+      {
          if (errors[i] >= threshold)
          {
-            ref_list.Append(i);
+            ref_list.Append(Refinement(i, aniso_flags[i]));
          }
+      }
 
       // 18. Refine the selected elements. Since we are going to transfer the
       //     grid function x from the coarse mesh to the new fine mesh in the

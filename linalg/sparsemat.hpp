@@ -157,6 +157,11 @@ public:
    void PartAddMult(const Array<int> &rows, const Vector &x, Vector &y,
                     const double a=1.0) const;
 
+   /// y = A * x, but treat all elements as booleans (zero=false, nonzero=true).
+   void BooleanMult(const Array<int> &x, Array<int> &y) const;
+   /// y = At * x, but treat all elements as booleans (zero=false, nonzero=true).
+   void BooleanMultTranspose(const Array<int> &x, Array<int> &y) const;
+
    /// Compute y^t A x
    double InnerProduct(const Vector &x, const Vector &y) const;
 
@@ -332,8 +337,12 @@ public:
    /// Count the number of entries with |a_ij| < tol
    int CountSmallElems(double tol) const;
 
-   /// Call this if data has been stolen.
-   void LoseData() { I=0; J=0; A=0; }
+   /// Set the graph ownership flag (I and J arrays).
+   void SetGraphOwner(bool ownij) { ownGraph = ownij; }
+   /// Set the data ownership flag (A array).
+   void SetDataOwner(bool owna) { ownData = owna; }
+   /// Lose the ownership of the graph (I, J) and data (A) arrays.
+   void LoseData() { ownGraph = ownData = false; }
 
    void Swap(SparseMatrix &other);
 

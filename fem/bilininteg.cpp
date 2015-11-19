@@ -360,7 +360,7 @@ void DiffusionIntegrator::AssembleElementVector(
 
 void DiffusionIntegrator::ComputeElementFlux
 ( const FiniteElement &el, ElementTransformation &Trans,
-  Vector &u, const FiniteElement &fluxelem, Vector &flux, int wcoef )
+  Vector &u, const FiniteElement &fluxelem, Vector &flux, int with_coef )
 {
    int i, j, nd, dim, spaceDim, fnd;
 
@@ -391,16 +391,9 @@ void DiffusionIntegrator::ComputeElementFlux
       CalcInverse(Trans.Jacobian(), invdfdx);
       invdfdx.MultTranspose(vec, pointflux);
 
-      if (!wcoef)
+      if (!MQ)
       {
-         for (j = 0; j < dim; j++)
-         {
-            flux(fnd*j+i) = pointflux(j);
-         }
-      }
-      else if (!MQ)
-      {
-         if (Q)
+         if (Q && with_coef)
          {
             pointflux *= Q->Eval(Trans,ip);
          }
@@ -423,60 +416,67 @@ void DiffusionIntegrator::ComputeElementFlux
 
 double DiffusionIntegrator::ComputeFluxEnergy
 ( const FiniteElement &fluxelem, ElementTransformation &Trans,
-  Vector &flux)
+  Vector &flux, Vector* d_energy)
 {
-   int i, j, k, nd, dim, order;
-   double energy, co;
-
-   nd = fluxelem.GetDof();
-   dim = fluxelem.GetDim();
+   int nd = fluxelem.GetDof();
+   int dim = fluxelem.GetDim();
+   int space_dim = Trans.GetSpaceDim();
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix invdfdx;
+   DenseMatrix dshape, mq;
 #endif
 
    shape.SetSize(nd);
-   pointflux.SetSize(dim);
-   if (MQ)
-   {
-      invdfdx.SetSize(dim);
-      vec.SetSize(dim);
-   }
+   pointflux.SetSize(space_dim);
+   if (d_energy) { vec.SetSize(dim); }
+   if (MQ) { mq.SetSize(dim); }
 
-   order = 2 * fluxelem.GetOrder(); // <--
+   int order = 2 * fluxelem.GetOrder(); // <--
    const IntegrationRule *ir = &IntRules.Get(fluxelem.GetGeomType(), order);
 
-   energy = 0.0;
-   for (i = 0; i < ir->GetNPoints(); i++)
+   double energy = 0.0;
+   if (d_energy) { *d_energy = 0.0; }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
       fluxelem.CalcShape(ip, shape);
+      if (d_energy) { fluxelem.CalcDShape(ip, dshape); }
 
       pointflux = 0.0;
-      for (k = 0; k < dim; k++)
-         for (j = 0; j < nd; j++)
+      for (int k = 0; k < dim; k++)
+      {
+         for (int j = 0; j < nd; j++)
          {
             pointflux(k) += flux(k*nd+j)*shape(j);
          }
+      }
 
-      Trans.SetIntPoint (&ip);
-      co = Trans.Weight() * ip.weight;
+      Trans.SetIntPoint(&ip);
+      double w = Trans.Weight() * ip.weight;
 
       if (!MQ)
       {
-         co *= ( pointflux * pointflux );
-         if (Q)
-         {
-            co *= Q->Eval(Trans, ip);
-         }
+         double e = (pointflux * pointflux);
+         if (Q) { e *= Q->Eval(Trans, ip); }
+         energy += w * e;
       }
       else
       {
-         MQ->Eval(invdfdx, Trans, ip);
-         co *= invdfdx.InnerProduct(pointflux, pointflux);
+         MQ->Eval(mq, Trans, ip);
+         energy += w * mq.InnerProduct(pointflux, pointflux);
       }
 
-      energy += co;
+      if (d_energy)
+      {
+         // transform pointflux to the ref. domain and integrate the components
+         Trans.Jacobian().MultTranspose(pointflux, vec);
+         for (int k = 0; k < dim; k++)
+         {
+            (*d_energy)[k] += w * vec[k] * vec[k];
+         }
+         // TODO: Q, MQ
+      }
    }
 
    return energy;
@@ -995,10 +995,10 @@ void CurlCurlIntegrator::AssembleElementMatrix
    double w;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix Curlshape(nd,dimc), Curlshape_dFt(nd,dimc);
+   DenseMatrix curlshape(nd,dimc), curlshape_dFt(nd,dimc);
 #else
-   Curlshape.SetSize(nd,dimc);
-   Curlshape_dFt.SetSize(nd,dimc);
+   curlshape.SetSize(nd,dimc);
+   curlshape_dFt.SetSize(nd,dimc);
 #endif
    elmat.SetSize(nd);
 
@@ -1024,11 +1024,11 @@ void CurlCurlIntegrator::AssembleElementMatrix
       const IntegrationPoint &ip = ir->IntPoint(i);
       if ( dim == 3 )
       {
-         el.CalcCurlShape(ip, Curlshape);
+         el.CalcCurlShape(ip, curlshape);
       }
       else
       {
-         el.CalcCurlShape(ip, Curlshape_dFt);
+         el.CalcCurlShape(ip, curlshape_dFt);
       }
 
       Trans.SetIntPoint (&ip);
@@ -1037,7 +1037,7 @@ void CurlCurlIntegrator::AssembleElementMatrix
 
       if ( dim == 3 )
       {
-         MultABt(Curlshape, Trans.Jacobian(), Curlshape_dFt);
+         MultABt(curlshape, Trans.Jacobian(), curlshape_dFt);
       }
 
       if (Q)
@@ -1045,10 +1045,129 @@ void CurlCurlIntegrator::AssembleElementMatrix
          w *= Q->Eval(Trans, ip);
       }
 
-      AddMult_a_AAt(w, Curlshape_dFt, elmat);
+      AddMult_a_AAt(w, curlshape_dFt, elmat);
    }
 }
 
+void CurlCurlIntegrator
+::ComputeElementFlux(const FiniteElement &el, ElementTransformation &Trans,
+                     Vector &u, const FiniteElement &fluxelem, Vector &flux,
+                     int with_coef)
+{
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix projcurl;
+#endif
+
+   fluxelem.ProjectCurl(el, Trans, projcurl);
+
+   flux.SetSize(projcurl.Height());
+   projcurl.Mult(u, flux);
+
+   // TODO: Q, wcoef?
+}
+
+double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
+                                             ElementTransformation &Trans,
+                                             Vector &flux, Vector *d_energy)
+{
+   int nd = fluxelem.GetDof();
+   int dim = fluxelem.GetDim();
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix vshape;
+#endif
+   vshape.SetSize(nd, dim);
+   pointflux.SetSize(dim);
+   if (d_energy) { vec.SetSize(dim); }
+
+   int order = 2 * fluxelem.GetOrder(); // <--
+   const IntegrationRule &ir = IntRules.Get(fluxelem.GetGeomType(), order);
+
+   double energy = 0.0;
+   if (d_energy) { *d_energy = 0.0; }
+
+   Vector* pfluxes;
+   if (d_energy)
+   {
+      pfluxes = new Vector[ir.GetNPoints()];
+   }
+
+   for (int i = 0; i < ir.GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+
+      fluxelem.CalcVShape(Trans, vshape);
+      //fluxelem.CalcVShape(ip, vshape);
+      vshape.MultTranspose(flux, pointflux);
+
+      double w = Trans.Weight() * ip.weight;
+
+      double e = w * (pointflux * pointflux);
+
+      if (Q)
+      {
+         // TODO
+      }
+
+      energy += e;
+
+#if ANISO_EXPERIMENTAL
+      if (d_energy)
+      {
+         pfluxes[i].SetSize(dim);
+         Trans.Jacobian().MultTranspose(pointflux, pfluxes[i]);
+
+         /*DenseMatrix Jadj(dim, dim);
+         CalcAdjugate(Trans.Jacobian(), Jadj);
+         pfluxes[i].SetSize(dim);
+         Jadj.Mult(pointflux, pfluxes[i]);*/
+
+         //pfluxes[i] = pointflux;
+      }
+#endif
+   }
+
+   if (d_energy)
+   {
+#if ANISO_EXPERIMENTAL
+      *d_energy = 0.0;
+      Vector tmp;
+
+      int n = (int) round(pow(ir.GetNPoints(), 1.0/3.0));
+      MFEM_ASSERT(n*n*n == ir.GetNPoints(), "");
+
+      // hack: get total variation of 'pointflux' in the x,y,z directions
+      for (int k = 0; k < n; k++)
+         for (int l = 0; l < n; l++)
+            for (int m = 0; m < n; m++)
+            {
+               Vector &vec = pfluxes[(k*n + l)*n + m];
+               if (m > 0)
+               {
+                  tmp = vec; tmp -= pfluxes[(k*n + l)*n + (m-1)];
+                  (*d_energy)[0] += (tmp * tmp);
+               }
+               if (l > 0)
+               {
+                  tmp = vec; tmp -= pfluxes[(k*n + (l-1))*n + m];
+                  (*d_energy)[1] += (tmp * tmp);
+               }
+               if (k > 0)
+               {
+                  tmp = vec; tmp -= pfluxes[((k-1)*n + l)*n + m];
+                  (*d_energy)[2] += (tmp * tmp);
+               }
+            }
+#else
+      *d_energy = 1.0;
+#endif
+
+      delete [] pfluxes;
+   }
+
+   return energy;
+}
 
 void VectorCurlCurlIntegrator::AssembleElementMatrix(
    const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
@@ -1107,6 +1226,7 @@ double VectorCurlCurlIntegrator::GetElementEnergy(
    DenseMatrix dshape_hat(dof, dim), Jadj(dim), grad_hat(dim), grad(dim);
 #else
    dshape_hat.SetSize(dof, dim);
+
    Jadj.SetSize(dim);
    grad_hat.SetSize(dim);
    grad.SetSize(dim);
