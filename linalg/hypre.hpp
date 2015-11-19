@@ -979,7 +979,7 @@ private:
 
 public:
 
-  HypreAME(MPI_Comm comm);
+   HypreAME(MPI_Comm comm);
    ~HypreAME();
 
    void SetTol(double tol);
