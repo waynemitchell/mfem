@@ -48,6 +48,7 @@ public:
    /// Creates vector of size s.
    explicit Vector (int s);
 
+   /// Creates a vector referencing an array of doubles, owned by someone else.
    Vector (double *_data, int _size)
    { data = _data; size = _size; allocsize = -size; }
 

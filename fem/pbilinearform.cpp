@@ -124,10 +124,10 @@ void ParBilinearForm::pAllocMat()
 
 HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
 {
-   if (m == NULL)
-   {
-      return NULL;
-   }
+   if (m == NULL) { return NULL; }
+
+   MFEM_VERIFY(m->Finalized(), "local matrix needs to be finalized for "
+               "ParallelAssemble");
 
    HypreParMatrix *A;
    if (fbfi.Size() == 0)
@@ -220,6 +220,25 @@ void ParBilinearForm::Assemble(int skip_zeros)
    }
 }
 
+void ParBilinearForm
+::ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
+                               HypreParMatrix &A, const HypreParVector &X,
+                               HypreParVector &B) const
+{
+   Array<int> ess_dofs, true_ess_dofs, dof_list;
+
+   pfes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+   pfes->GetRestrictionMatrix()->BooleanMult(ess_dofs, true_ess_dofs);
+
+   for (int i = 0; i < true_ess_dofs.Size(); i++)
+   {
+      if (true_ess_dofs[i]) { dof_list.Append(i); }
+   }
+
+   // do the parallel elimination
+   A.EliminateRowsCols(dof_list, X, B);
+}
+
 void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)
 const
 {
@@ -237,200 +256,30 @@ const
    pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
 }
 
-
-HypreParMatrix *ParDiscreteLinearOperator::ParallelAssemble(
-   SparseMatrix *m, HYPRE_Int *true_row_starts, HYPRE_Int *true_col_starts,
-   bool scalar) const
+HypreParMatrix* ParDiscreteLinearOperator::ParallelAssemble() const
 {
-   // For a vector space (vdim > 1) and scalar == true, the ordering is assumed
-   // to be Ordering::byNODES, e.g. when using GetLocalTDofNumber().
-
-   if (m == NULL) { return NULL; }
-
-   int *I = m->GetI();
-   int *J = m->GetJ();
-   double *data = m->GetData();
-
-   int rdim = scalar ? range_fes->GetVDim() : 1;
-   int ddim = scalar ? domain_fes->GetVDim() : 1;
-
-   int  range_ldofs =  range_fes->GetVSize()/rdim; // == m->Height()
-   int domain_ldofs = domain_fes->GetVSize()/ddim; // == m->Width()
-
-   int num_rows = range_fes->TrueVSize()/rdim;
-
-   HYPRE_Int *diag_i, *diag_j, *offd_i, *offd_j;
-   double *diag_data, *offd_data;
-
-   int offd_num_cols = 0;
-   Array<int> col_ldof_marker(domain_ldofs);
-   col_ldof_marker = -1;
-
-   diag_i = new HYPRE_Int[num_rows+1];
-   offd_i = new HYPRE_Int[num_rows+1];
-   // count the number of entries in each row of diag and offd;
-   // at the same time, mark and count the columns used by offd
-   for (int i = 0; i <= num_rows; i++)
-   {
-      diag_i[i] = 0;
-      offd_i[i] = 0;
-   }
-   for (int i = 0; i < range_ldofs; i++)
-   {
-      int lti = range_fes->GetLocalTDofNumber(i);
-      if (lti >= 0)
-      {
-         for (int j = I[i]; j < I[i+1]; j++)
-         {
-            int k = J[j];
-            int ltk = domain_fes->GetLocalTDofNumber(k);
-            if (ltk >= 0)
-            {
-               diag_i[lti]++;
-            }
-            else
-            {
-               offd_i[lti]++;
-               if (col_ldof_marker[k] < 0)
-               {
-                  col_ldof_marker[k] = 1;
-                  offd_num_cols++;
-               }
-            }
-         }
-      }
-   }
-   // define offd_col_map -- the local-to-global column mapping for offd
-   // define col_ldof_marker -- the map from domain ldof to offd column index
-   HYPRE_Int *offd_col_map = new HYPRE_Int[offd_num_cols];
-   {
-      Array<Pair<HYPRE_Int, int> > cmap_j_offd(offd_num_cols);
-      int edof_counter = 0;
-      for (int i = 0; i < domain_ldofs; i++)
-      {
-         if (col_ldof_marker[i] > 0)
-         {
-            cmap_j_offd[edof_counter].one =
-               scalar ?
-               domain_fes->GetGlobalScalarTDofNumber(i) :
-               domain_fes->GetGlobalTDofNumber(i);
-            cmap_j_offd[edof_counter].two = i;
-            edof_counter++;
-         }
-      }
-      SortPairs<HYPRE_Int, int>(cmap_j_offd, offd_num_cols);
-      for (int i = 0; i < offd_num_cols; i++)
-      {
-         offd_col_map[i] = cmap_j_offd[i].one;
-         // col_ldof_marker is the inverse of the map i -> cmap_j_offd[i].two
-         col_ldof_marker[cmap_j_offd[i].two] = i;
-      }
-   }
-   // in diag_i and offd_i, convert row sizes into row offsets
-   HYPRE_Int diag_offset = 0, offd_offset = 0;
-   for (int i = 0; i < num_rows; i++)
-   {
-      HYPRE_Int diag_row_size = diag_i[i];
-      HYPRE_Int offd_row_size = offd_i[i];
-      diag_i[i] = diag_offset;
-      offd_i[i] = offd_offset;
-      diag_offset += diag_row_size;
-      offd_offset += offd_row_size;
-   }
-   diag_i[num_rows] = diag_offset;
-   offd_i[num_rows] = offd_offset;
-   // allocate the j and data arrays of diag and offd
-   diag_j = new HYPRE_Int[diag_offset];
-   diag_data = new double[diag_offset];
-   offd_j = new HYPRE_Int[offd_offset];
-   offd_data = new double[offd_offset];
-   // set the entries of the j and data arrays of diag and offd
-   for (int i = 0; i < range_ldofs; i++)
-   {
-      int lti = range_fes->GetLocalTDofNumber(i);
-      if (lti >= 0)
-      {
-         for (int j = I[i]; j < I[i+1]; j++)
-         {
-            int k = J[j];
-            int ltk = domain_fes->GetLocalTDofNumber(k);
-            if (ltk >= 0)
-            {
-               diag_j[diag_i[lti]] = ltk;
-               diag_data[diag_i[lti]] = data[j];
-               diag_i[lti]++;
-            }
-            else
-            {
-               offd_j[offd_i[lti]] = col_ldof_marker[k];
-               offd_data[offd_i[lti]] = data[j];
-               offd_i[lti]++;
-            }
-         }
-      }
-   }
-   // shift back the i arrays of diag and offd
-   diag_offset = offd_offset = 0;
-   for (int i = 0; i < num_rows; i++)
-   {
-      Swap(diag_i[i], diag_offset);
-      Swap(offd_i[i], offd_offset);
-   }
-
-   HypreParMatrix *glob_m =
-      new HypreParMatrix(range_fes->GetComm(),
-                         range_fes->GlobalTrueVSize()/rdim,
-                         domain_fes->GlobalTrueVSize()/ddim,
-                         true_row_starts, true_col_starts,
-                         diag_i, diag_j, diag_data,
-                         offd_i, offd_j, offd_data,
-                         offd_num_cols, offd_col_map);
-
-   return glob_m;
+   SparseMatrix* RA = mfem::Mult(*range_fes->GetRestrictionMatrix(), *mat);
+   HypreParMatrix* P = domain_fes->Dof_TrueDof_Matrix();
+   HypreParMatrix* RAP = P->LeftDiagMult(*RA, range_fes->GetTrueDofOffsets());
+   delete RA;
+   return RAP;
 }
 
 void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks)
 const
 {
-   int rdim = range_fes->GetVDim();
-   int ddim = domain_fes->GetVDim();
+   MFEM_VERIFY(mat->Finalized(), "local matrix needs to be finalized for "
+               "GetParBlocks");
 
-   blocks.SetSize(rdim, ddim);
+   HypreParMatrix* RLP = ParallelAssemble();
 
-   // construct the scalar versions of the row/col offset arrays
-   int n = HYPRE_AssumedPartitionCheck() ? 2 : range_fes->GetNRanks()+1;
-   HYPRE_Int *row_starts = new HYPRE_Int[n];
-   HYPRE_Int *col_starts = new HYPRE_Int[n];
-   for (int i = 0; i < n; i++)
-   {
-      row_starts[i] = (range_fes->GetTrueDofOffsets())[i] / rdim;
-      col_starts[i] = (domain_fes->GetTrueDofOffsets())[i] / ddim;
-   }
+   blocks.SetSize(range_fes->GetVDim(), domain_fes->GetVDim());
 
-   Array2D<SparseMatrix *> lblocks;
-   GetBlocks(lblocks);
+   RLP->GetBlocks(blocks,
+                  range_fes->GetOrdering() == Ordering::byVDIM,
+                  domain_fes->GetOrdering() == Ordering::byVDIM);
 
-   for (int bi = 0; bi < rdim; bi++)
-      for (int bj = 0; bj < ddim; bj++)
-      {
-         blocks(bi,bj) = ParallelAssemble(lblocks(bi,bj),
-                                          row_starts, col_starts, true);
-
-         if (bi == 0 && bj == 0)
-         {
-            // transfer ownership of row_starts and col_starts to blocks(0,0)
-            // (since ownership is given to hypre, the arrays need to be
-            // re-allocated)
-            blocks(0,0)->CopyRowStarts();
-            blocks(0,0)->CopyColStarts();
-            delete [] row_starts;
-            delete [] col_starts;
-            row_starts = blocks(0,0)->GetRowStarts();
-            col_starts = blocks(0,0)->GetColStarts();
-         }
-
-         delete lblocks(bi, bj);
-      }
+   delete RLP;
 }
 
 HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()

@@ -4,6 +4,8 @@
 //
 // Sample runs:  mpirun -np 4 ex7p -e 0 -o 2 -r 4
 //               mpirun -np 4 ex7p -e 1 -o 2 -r 4 -snap
+//               mpirun -np 4 ex7p -e 0 -amr 1
+//               mpirun -np 4 ex7p -e 1 -amr 2 -o 2
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               triangulation of a unit sphere and a simple isoparametric
@@ -14,7 +16,7 @@
 //               refinement, high-order meshes and finite elements, as well as
 //               surface-based linear and bilinear forms corresponding to the
 //               left-hand side and right-hand side of the discrete linear
-//               system.
+//               system. Simple local mesh refinement is also demonstrated.
 //
 //               We recommend viewing Example 1 before viewing this example.
 
@@ -41,6 +43,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    int elem_type = 1;
    int ref_levels = 2;
+   int amr = 0;
    int order = 2;
    bool always_snap = false;
    bool visualization = 1;
@@ -52,6 +55,9 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree).");
    args.AddOption(&ref_levels, "-r", "--refine",
                   "Number of times to refine the mesh uniformly.");
+   args.AddOption(&amr, "-amr", "--refine-locally",
+                  "Additional local (non-conforming) refinement:"
+                  " 1 = refine around north pole, 2 = refine randomly.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -156,6 +162,17 @@ int main(int argc, char *argv[])
       }
    }
 
+   if (amr == 1)
+   {
+      mesh->RefineAtVertex(Vertex(0, 0, 1), 3); // 3 levels
+      SnapNodes(*mesh);
+   }
+   else if (amr == 2)
+   {
+      mesh->RandomRefinement(2, 2); // 2 levels, 1/2 of the elements
+      SnapNodes(*mesh);
+   }
+
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
@@ -174,6 +191,17 @@ int main(int argc, char *argv[])
       {
          SnapNodes(*pmesh);
       }
+   }
+
+   if (amr == 1)
+   {
+      pmesh->RefineAtVertex(Vertex(0, 0, 1), 2); // 2 levels
+      SnapNodes(*pmesh);
+   }
+   else if (amr == 2)
+   {
+      pmesh->RandomRefinement(2, 2); // 2 levels, 1/2 of the elements
+      SnapNodes(*pmesh);
    }
 
    // 5. Define a finite element space on the mesh. Here we use isoparametric
@@ -196,16 +224,13 @@ int main(int argc, char *argv[])
    b->Assemble();
 
    // 7. Define the solution vector x as a finite element grid function
-   //    corresponding to fespace. Initialize x with initial guess of zero,
-   //    which satisfies the boundary conditions.
+   //    corresponding to fespace. Initialize x with initial guess of zero.
    ParGridFunction x(fespace);
    x = 0.0;
 
    // 8. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
-   //    domain integrator and imposing homogeneous Dirichlet boundary
-   //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential (Dirichlet).
+   //    and Mass domain integrators.
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddDomainIntegrator(new MassIntegrator(one));
@@ -216,7 +241,7 @@ int main(int argc, char *argv[])
    //    b(.) and the finite element approximation.
    HypreParMatrix * A = a->ParallelAssemble();
    HypreParVector * B = b->ParallelAssemble();
-   HypreParVector * X = x.ParallelAverage();
+   HypreParVector * X = x.ParallelProject();
 
    delete a;
    delete b;

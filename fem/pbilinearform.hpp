@@ -65,6 +65,14 @@ public:
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
 
+   /** Eliminate essential boundary DOFs from a parallel assembled system.
+       The array 'bdr_attr_is_ess' marks boundary attributes that constitute
+       the essential part of the boundary. */
+   void ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
+                                     HypreParMatrix &A,
+                                     const HypreParVector &X,
+                                     HypreParVector &B) const;
+
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 
@@ -107,23 +115,13 @@ protected:
    ParFiniteElementSpace *domain_fes;
    ParFiniteElementSpace *range_fes;
 
-   HypreParMatrix *ParallelAssemble(SparseMatrix *m,
-                                    HYPRE_Int *true_row_starts,
-                                    HYPRE_Int *true_col_starts,
-                                    bool scalar) const;
-   HypreParMatrix *ParallelAssemble(SparseMatrix *m)
-   {
-      return ParallelAssemble(m, range_fes->GetTrueDofOffsets(),
-                              domain_fes->GetTrueDofOffsets(), false);
-   }
-
 public:
    ParDiscreteLinearOperator(ParFiniteElementSpace *dfes,
                              ParFiniteElementSpace *rfes)
       : DiscreteLinearOperator(dfes, rfes) { domain_fes=dfes; range_fes=rfes; }
 
    /// Returns the matrix "assembled" on the true dofs
-   HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
+   HypreParMatrix *ParallelAssemble() const;
 
    /** Extract the parallel blocks corresponding to the vector dimensions of the
        domain and range parallel finite element spaces */

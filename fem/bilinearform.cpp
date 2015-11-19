@@ -324,8 +324,8 @@ void BilinearForm::ConformingAssemble()
    // correctly.
    Finalize(0);
 
-   SparseMatrix *P = fes->GetConformingProlongation();
-   if (!P) { return; } // assume conforming mesh
+   const SparseMatrix *P = fes->GetConformingProlongation();
+   if (!P) { return; } // conforming mesh
 
    SparseMatrix *R = Transpose(*P);
    SparseMatrix *RA = mfem::Mult(*R, *mat);
@@ -392,24 +392,41 @@ void BilinearForm::ComputeElementMatrices()
    }
 }
 
-void BilinearForm::EliminateEssentialBC (
-   Array<int> &bdr_attr_is_ess, Vector &sol, Vector &rhs, int d )
+void BilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
+                                        Vector &sol, Vector &rhs, int d)
 {
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   if (fes->GetConformingProlongation() == NULL)
+
+   if (fes->GetConformingRestriction() == NULL)
    {
       EliminateEssentialBCFromDofs(ess_dofs, sol, rhs, d);
    }
    else
    {
-      fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
+      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
       EliminateEssentialBCFromDofs(conf_ess_dofs, sol, rhs, d);
    }
 }
 
-void BilinearForm::EliminateVDofs (
-   Array<int> &vdofs, Vector &sol, Vector &rhs, int d)
+void BilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d)
+{
+   Array<int> ess_dofs, conf_ess_dofs;
+   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+
+   if (fes->GetConformingRestriction() == NULL)
+   {
+      EliminateEssentialBCFromDofs(ess_dofs, d);
+   }
+   else
+   {
+      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
+      EliminateEssentialBCFromDofs(conf_ess_dofs, d);
+   }
+}
+
+void BilinearForm::EliminateVDofs(Array<int> &vdofs,
+                                  Vector &sol, Vector &rhs, int d)
 {
    for (int i = 0; i < vdofs.Size(); i++)
    {
@@ -446,30 +463,8 @@ void BilinearForm::EliminateVDofs(Array<int> &vdofs, int d)
    }
 }
 
-void BilinearForm::EliminateVDofsInRHS(
-   Array<int> &vdofs, const Vector &x, Vector &b)
-{
-   mat_e->AddMult(x, b, -1.);
-   mat->PartMult(vdofs, x, b);
-}
-
-void BilinearForm::EliminateEssentialBC (Array<int> &bdr_attr_is_ess, int d)
-{
-   Array<int> ess_dofs, conf_ess_dofs;
-   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   if (fes->GetConformingProlongation() == NULL)
-   {
-      EliminateEssentialBCFromDofs(ess_dofs, d);
-   }
-   else
-   {
-      fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
-      EliminateEssentialBCFromDofs(conf_ess_dofs, d);
-   }
-}
-
-void BilinearForm::EliminateEssentialBCFromDofs (
-   Array<int> &ess_dofs, Vector &sol, Vector &rhs, int d )
+void BilinearForm::EliminateEssentialBCFromDofs(
+   Array<int> &ess_dofs, Vector &sol, Vector &rhs, int d)
 {
    MFEM_ASSERT(ess_dofs.Size() == height, "incorrect dof Array size");
    MFEM_ASSERT(sol.Size() == height, "incorrect sol Vector size");
@@ -491,6 +486,13 @@ void BilinearForm::EliminateEssentialBCFromDofs (Array<int> &ess_dofs, int d)
       {
          mat -> EliminateRowCol (i, d);
       }
+}
+
+void BilinearForm::EliminateVDofsInRHS(
+   Array<int> &vdofs, const Vector &x, Vector &b)
+{
+   mat_e->AddMult(x, b, -1.);
+   mat->PartMult(vdofs, x, b);
 }
 
 void BilinearForm::Update (FiniteElementSpace *nfes)
@@ -571,10 +573,10 @@ void MixedBilinearForm::Finalize (int skip_zeros)
 
 void MixedBilinearForm::GetBlocks(Array2D<SparseMatrix *> &blocks) const
 {
-   if (trial_fes->GetOrdering() != Ordering::byNODES ||
-       test_fes->GetOrdering() != Ordering::byNODES)
-      mfem_error("MixedBilinearForm::GetBlocks :\n"
-                 " Both trial and test spaces must use Ordering::byNODES!");
+   MFEM_VERIFY(trial_fes->GetOrdering() == Ordering::byNODES &&
+               test_fes->GetOrdering() == Ordering::byNODES,
+               "MixedBilinearForm::GetBlocks: both trial and test spaces "
+               "must use Ordering::byNODES!");
 
    blocks.SetSize(test_fes->GetVDim(), trial_fes->GetVDim());
 
@@ -685,7 +687,7 @@ void MixedBilinearForm::ConformingAssemble()
 {
    Finalize();
 
-   SparseMatrix *P2 = test_fes->GetConformingProlongation();
+   const SparseMatrix *P2 = test_fes->GetConformingProlongation();
    if (P2)
    {
       SparseMatrix *R = Transpose(*P2);
@@ -695,7 +697,7 @@ void MixedBilinearForm::ConformingAssemble()
       mat = RA;
    }
 
-   SparseMatrix *P1 = trial_fes->GetConformingProlongation();
+   const SparseMatrix *P1 = trial_fes->GetConformingProlongation();
    if (P1)
    {
       SparseMatrix *RAP = mfem::Mult(*mat, *P1);

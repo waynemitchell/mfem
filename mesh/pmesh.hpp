@@ -18,6 +18,7 @@
 
 #include "../general/communication.hpp"
 #include "mesh.hpp"
+#include "pncmesh.hpp"
 #include <iostream>
 
 namespace mfem
@@ -43,6 +44,9 @@ private:
    Array<int> sedge_ledge;
    Array<int> sface_lface;
 
+   /// Create from a nonconforming mesh.
+   ParMesh(const ParNCMesh &pncmesh);
+
    /// Return a number(0-1) identifying how the given edge has been split
    int GetEdgeSplittings(Element *edge, const DSTable &v_to_v, int *middle);
    /// Return a number(0-4) identifying how the given face has been split
@@ -58,6 +62,13 @@ private:
    virtual void HexUniformRefinement();
 
    virtual void NURBSUniformRefinement();
+
+   /// This function is not public anymore. Use GeneralRefinement instead.
+   virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
+
+   /// This function is not public anymore. Use GeneralRefinement instead.
+   virtual void NonconformingRefinement(const Array<Refinement> &refinements,
+                                        int nc_limit = 0);
 
    void DeleteFaceNbrData();
 
@@ -88,6 +99,8 @@ public:
    // Local face-neighbor elements and vertices ordered by face-neighbor
    Table            send_face_nbr_elements;
    Table            send_face_nbr_vertices;
+
+   ParNCMesh* pncmesh;
 
    int GetNGroups() { return gtopo.NGroups(); }
 
@@ -120,9 +133,6 @@ public:
 
    /// See the remarks for the serial version in mesh.hpp
    virtual void ReorientTetMesh();
-
-   /// Refine the marked elements.
-   virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
 
    /// Update the groups after tet refinement
    void RefineGroups(const DSTable &v_to_v, int *middle);

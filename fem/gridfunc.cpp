@@ -158,6 +158,68 @@ void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
    NewDataAndSize((double *)v + v_offset, fes->GetVSize());
 }
 
+void GridFunction::SumFluxAndCount(BilinearFormIntegrator &blfi,
+                                   GridFunction &flux,
+                                   Array<int>& count,
+                                   int wcoef,
+                                   int subdomain)
+{
+   GridFunction &u = *this;
+
+   ElementTransformation *Transf;
+
+   FiniteElementSpace *ufes = u.FESpace();
+   FiniteElementSpace *ffes = flux.FESpace();
+
+   int nfe = ufes->GetNE();
+   Array<int> udofs;
+   Array<int> fdofs;
+   Vector ul, fl;
+
+   flux = 0.0;
+   count = 0;
+
+   for (int i = 0; i < nfe; i++)
+   {
+      if (subdomain >= 0 && ufes->GetAttribute(i) != subdomain)
+      {
+         continue;
+      }
+
+      ufes->GetElementVDofs(i, udofs);
+      ffes->GetElementVDofs(i, fdofs);
+
+      u.GetSubVector(udofs, ul);
+
+      Transf = ufes->GetElementTransformation(i);
+      blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
+                              *ffes->GetFE(i), fl, wcoef);
+
+      flux.AddElementVector(fdofs, fl);
+
+      FiniteElementSpace::AdjustVDofs(fdofs);
+      for (int j = 0; j < fdofs.Size(); j++)
+      {
+         count[fdofs[j]]++;
+      }
+   }
+}
+
+void GridFunction::ComputeFlux(BilinearFormIntegrator &blfi,
+                               GridFunction &flux, int wcoef,
+                               int subdomain)
+{
+   Array<int> count(flux.Size());
+
+   SumFluxAndCount(blfi, flux, count, 0, subdomain);
+
+   // complete averaging
+   for (int i = 0; i < count.Size(); i++)
+   {
+      if (count[i] != 0) { flux(i) /= count[i]; }
+   }
+}
+
 int GridFunction::VectorDim() const
 {
    if (!fes->GetNE())
@@ -293,37 +355,37 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
                                 Vector &vals, DenseMatrix &tr,
                                 int vdim) const
 {
-   int n, di;
+   int n, dir;
    FaceElementTransformations *Transf;
 
    n = ir.GetNPoints();
    IntegrationRule eir(n);  // ---
-   if (side == 2)
+   if (side == 2) // automatic choice of side
    {
       Transf = fes->GetMesh()->GetFaceElementTransformations(i, 0);
       if (Transf->Elem2No < 0 ||
           fes->GetAttribute(Transf->Elem1No) <=
           fes->GetAttribute(Transf->Elem2No))
       {
-         di = 0;
+         dir = 0;
       }
       else
       {
-         di = 1;
+         dir = 1;
       }
    }
    else
    {
       if (side == 1 && !fes->GetMesh()->FaceIsInterior(i))
       {
-         di = 0;
+         dir = 0;
       }
       else
       {
-         di = side;
+         dir = side;
       }
    }
-   if (di == 0)
+   if (dir == 0)
    {
       Transf = fes->GetMesh()->GetFaceElementTransformations(i, 4);
       Transf->Loc1.Transform(ir, eir);
@@ -336,7 +398,7 @@ int GridFunction::GetFaceValues(int i, int side, const IntegrationRule &ir,
       GetValues(Transf->Elem2No, eir, vals, tr, vdim);
    }
 
-   return di;
+   return dir;
 }
 
 void GridFunction::GetVectorValues(ElementTransformation &T,
@@ -1168,13 +1230,14 @@ void GridFunction::ProjectBdrCoefficient(
    vdim = fes->GetVDim();
    for (i = 0; i < fes->GetNBE(); i++)
    {
-      if ( attr[fes->GetBdrAttribute(i)-1] )
+      if (attr[fes->GetBdrAttribute(i) - 1])
       {
          fe = fes->GetBE(i);
          fdof = fe->GetDof();
          transf = fes->GetBdrElementTransformation(i);
          const IntegrationRule &ir = fe->GetNodes();
          fes->GetBdrElementVDofs(i, vdofs);
+
          for (j = 0; j < fdof; j++)
          {
             const IntegrationPoint &ip = ir.IntPoint(j);
@@ -1200,7 +1263,7 @@ void GridFunction::ProjectBdrCoefficient(
    // Cases like this arise in 3D when boundary edges are constraint by (depend
    // on) internal faces/elements.
 
-   if (fes->GetConformingProlongation() && fes->GetMesh()->Dimension() > 1)
+   if (fes->Nonconforming() && fes->GetMesh()->Dimension() > 1)
    {
       Vector vals;
       Array<int> edges, edges_ori;
@@ -1210,10 +1273,8 @@ void GridFunction::ProjectBdrCoefficient(
 
       for (i = 0; i < mesh->GetNBE(); i++)
       {
-         if (attr[mesh->GetBdrAttribute(i)-1] == 0)
-         {
-            continue;
-         }
+         if (attr[mesh->GetBdrAttribute(i)-1] == 0) { continue; }
+
          mesh->GetBdrElementEdges(i, edges, edges_ori);
          for (j = 0; j < edges.Size(); j++)
          {
@@ -1225,15 +1286,11 @@ void GridFunction::ProjectBdrCoefficient(
             {
                const int *ev = edge_vertex->GetRow(edge);
                edge = ncmesh->GetEdgeMaster(ev[0], ev[1]);
-               if (edge < 0)
-               {
-                  break;
-               }
+               if (edge < 0) { break; }
+
                fes->GetEdgeVDofs(edge, vdofs);
-               if (vdofs.Size() == 0)
-               {
-                  continue;
-               }
+               if (vdofs.Size() == 0) { continue; }
+
                transf = mesh->GetEdgeTransformation(edge);
                transf->Attribute = mesh->GetBdrAttribute(i);
                fe = fes->GetEdgeElement(edge);
@@ -1954,7 +2011,7 @@ void GridFunction::ConformingProlongate(const Vector &x)
 
 void GridFunction::ConformingProlongate()
 {
-   if (fes->GetConformingProlongation())
+   if (fes->Nonconforming())
    {
       Vector x = *this;
       ConformingProlongate(x);
@@ -1977,7 +2034,7 @@ void GridFunction::ConformingProject(Vector &x) const
 
 void GridFunction::ConformingProject()
 {
-   if (fes->GetConformingProlongation())
+   if (fes->Nonconforming())
    {
       Vector x;
       ConformingProject(x);
@@ -2196,135 +2253,84 @@ std::ostream &operator<<(std::ostream &out, const GridFunction &sol)
 }
 
 
-void ComputeFlux(BilinearFormIntegrator &blfi,
-                 GridFunction &u,
-                 GridFunction &flux, int wcoef, int sd)
-{
-   int i, j, nfe;
-   FiniteElementSpace *ufes, *ffes;
-   ElementTransformation *Transf;
-
-   ufes = u.FESpace();
-   ffes = flux.FESpace();
-   nfe = ufes->GetNE();
-   Array<int> udofs;
-   Array<int> fdofs;
-   Array<int> overlap(flux.Size());
-   Vector ul, fl;
-
-   flux = 0.0;
-
-   for (i = 0; i < overlap.Size(); i++)
-   {
-      overlap[i] = 0;
-   }
-
-   for (i = 0; i < nfe; i++)
-      if (sd < 0 || ufes->GetAttribute(i) == sd)
-      {
-         ufes->GetElementVDofs(i, udofs);
-         ffes->GetElementVDofs(i, fdofs);
-
-         ul.SetSize(udofs.Size());
-         for (j = 0; j < ul.Size(); j++)
-         {
-            ul(j) = u(udofs[j]);
-         }
-
-         Transf = ufes->GetElementTransformation(i);
-         blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
-                                 *ffes->GetFE(i), fl, wcoef);
-
-         flux.AddElementVector(fdofs, fl);
-
-         for (j = 0; j < fdofs.Size(); j++)
-         {
-            overlap[fdofs[j]]++;
-         }
-      }
-
-   for (i = 0; i < overlap.Size(); i++)
-      if (overlap[i] != 0)
-      {
-         flux(i) /= overlap[i];
-      }
-
-   if (ffes->GetConformingProlongation())
-   {
-      // On a partially conforming flux space, project on the conforming space.
-      // Using this code may lead to worse refinements in ex6, so we do not use
-      // it by default.
-
-      // Vector conf_flux;
-      // flux.ConformingProject(conf_flux);
-      // flux.ConformingProlongate(conf_flux);
-   }
-}
 
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &u,
-                      GridFunction &flux, Vector &ErrorEstimates,
-                      int wsd)
+                      GridFunction &flux, Vector &error_estimates,
+                      Array<int>* aniso_flags,
+                      int with_subdomains)
 {
-   int i, j, s, nfe, nsd;
-   FiniteElementSpace *ufes, *ffes;
+   FiniteElementSpace *ufes = u.FESpace();
+   FiniteElementSpace *ffes = flux.FESpace();
    ElementTransformation *Transf;
 
-   ufes = u.FESpace();
-   ffes = flux.FESpace();
-   nfe = ufes->GetNE();
+   int dim = ufes->GetMesh()->Dimension();
+   int nfe = ufes->GetNE();
+
    Array<int> udofs;
    Array<int> fdofs;
-   Vector ul, fl, fla;
+   Vector ul, fl, fla, d_xyz;
 
-   ErrorEstimates.SetSize(nfe);
-
-   nsd = 1;
-   if (wsd)
-      for (i = 0; i < nfe; i++)
-         if ( (j=ufes->GetAttribute(i)) > nsd)
-         {
-            nsd = j;
-         }
-
-   for (s = 1; s <= nsd; s++)
+   error_estimates.SetSize(nfe);
+   if (aniso_flags)
    {
-      if (wsd)
-      {
-         ComputeFlux(blfi, u, flux, 0, s);
-      }
-      else
-      {
-         ComputeFlux(blfi, u, flux, 0);
-      }
+      aniso_flags->SetSize(nfe);
+      d_xyz.SetSize(dim);
+   }
 
-      for (i = 0; i < nfe; i++)
-         if (!wsd || ufes->GetAttribute(i) == s)
+   int nsd = 1;
+   if (with_subdomains)
+   {
+      for (int i = 0; i < nfe; i++)
+      {
+         int attr = ufes->GetAttribute(i);
+         if (attr > nsd) { nsd = attr; }
+      }
+   }
+
+   for (int s = 1; s <= nsd; s++)
+   {
+      // This calls the parallel version when u is a ParGridFunction
+      u.ComputeFlux(blfi, flux, 0, (with_subdomains ? s : 0));
+
+      for (int i = 0; i < nfe; i++)
+      {
+         if (with_subdomains && ufes->GetAttribute(i) != s) { continue; }
+
+         ufes->GetElementVDofs(i, udofs);
+         ffes->GetElementVDofs(i, fdofs);
+
+         u.GetSubVector(udofs, ul);
+         flux.GetSubVector(fdofs, fla);
+
+         Transf = ufes->GetElementTransformation(i);
+         blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
+                                 *ffes->GetFE(i), fl, 0);
+
+         fl -= fla;
+
+         error_estimates(i) =
+            blfi.ComputeFluxEnergy(*ffes->GetFE(i), *Transf, fl,
+                                   (aniso_flags ? &d_xyz : NULL));
+
+         if (aniso_flags)
          {
-            ufes->GetElementVDofs(i, udofs);
-            ffes->GetElementVDofs(i, fdofs);
-
-            ul.SetSize(udofs.Size());
-            for (j = 0; j < ul.Size(); j++)
+            double sum = 0;
+            for (int k = 0; k < dim; k++)
             {
-               ul(j) = u(udofs[j]);
+               sum += d_xyz[k];
             }
 
-            fla.SetSize(fdofs.Size());
-            for (j = 0; j < fla.Size(); j++)
+            double thresh = 0.15 * 3.0/dim;
+            int flag = 0;
+            for (int k = 0; k < dim; k++)
             {
-               fla(j) = flux(fdofs[j]);
+               if (d_xyz[k] / sum > thresh) { flag |= (1 << k); }
             }
 
-            Transf = ufes->GetElementTransformation(i);
-            blfi.ComputeElementFlux(*ufes->GetFE(i), *Transf, ul,
-                                    *ffes->GetFE(i), fl, 0);
-
-            fl -= fla;
-
-            ErrorEstimates(i) = blfi.ComputeFluxEnergy(*ffes->GetFE(i),
-                                                       *Transf, fl);
+            (*aniso_flags)[i] = flag;
          }
+      }
    }
 }
 
