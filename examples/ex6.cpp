@@ -79,7 +79,10 @@ int main(int argc, char *argv[])
    //    NURBS mesh a bit more and then project the curvature to quadratic Nodes.
    if (mesh.NURBSext)
    {
-      mesh.UniformRefinement();
+      for (int i = 0; i < 2; i++)
+      {
+         mesh.UniformRefinement();
+      }
       mesh.ProjectNURBS(2);
    }
 

@@ -222,8 +222,8 @@ protected: // interface for Mesh to be able to construct itself from NCMesh
                           Array<mfem::Element*>& elements,
                           Array<mfem::Element*>& boundary) const;
 
-   /** Get edge and face numbering from 'mesh' (i.e., set all Edge/Face::index)
-       after a new mesh was created from us. */
+   /** Get edge and face numbering from 'mesh' (i.e., set all Edge::index and
+       Face::index) after a new mesh was created from us. */
    virtual void OnMeshUpdated(Mesh *mesh);
 
 

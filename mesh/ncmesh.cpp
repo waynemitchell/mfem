@@ -76,6 +76,7 @@ NCMesh::NCMesh(const Mesh *mesh, std::istream *vertex_parents)
    {
       // top-level nodes are special: id == p1 == p2 == orig. vertex id
       Node* node = nodes.Get(i, i);
+      MFEM_CONTRACT_VAR(node);
       MFEM_ASSERT(node->id == i, "");
    }
 

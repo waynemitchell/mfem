@@ -222,7 +222,7 @@ linear, curved and surface meshes. Interpolation of functions
 from coarse to fine meshes, as well as persistent <a href="http://glvis.org">GLVis</a>
 visualization are also illustrated.
 <center>
-<em>The example currently has only a serial (ex6.cpp) and a parallel (ex6p.cpp)
+<em>The example currently has a serial (ex6.cpp) and a parallel (ex6p.cpp)
 version. We recommend viewing Example 1 before viewing this example. </em>
 </center>
 </div>

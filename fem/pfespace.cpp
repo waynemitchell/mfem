@@ -1359,8 +1359,13 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    HYPRE_Int glob_cdofs = dof_offsets.Last();
 
    // create the local part (local rows) of the P matrix
+#ifdef HYPRE_BIGINT
    MFEM_VERIFY(glob_true_dofs >= 0 && glob_true_dofs < (1ll << 31),
-               "overflow of P matrix columns.")
+               "64bit matrix size not supported yet in non-conforming P.")
+#else
+   MFEM_VERIFY(glob_true_dofs >= 0,
+               "overflow of non-conforming P matrix columns.")
+#endif
    SparseMatrix localP(num_dofs, glob_true_dofs); // FIXME bigint
 
    // initialize the R matrix (also parallel but block-diagonal)

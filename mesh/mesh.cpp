@@ -6902,6 +6902,15 @@ void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
    GeneralRefinement(refinements, nonconforming, nc_limit);
 }
 
+void Mesh::EnsureNCMesh()
+{
+   if (meshgen & 2)
+   {
+      Array<int> empty;
+      GeneralRefinement(empty, 1);
+   }
+}
+
 void Mesh::RandomRefinement(int levels, int frac, bool aniso,
                             int nonconforming, int nc_limit, int seed)
 {

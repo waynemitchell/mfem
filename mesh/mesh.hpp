@@ -741,10 +741,7 @@ public:
 
    /** Ensure that a quad/hex mesh is considered to be non-conforming (i.e. has
        an associated NCMesh object). */
-   void EnsureNCMesh()
-   {
-      if (MeshGenerator() & 2) { GeneralRefinement(Array<int>(), 1); }
-   }
+   void EnsureNCMesh();
 
    /// Refine each element with 1/frac probability, repeat 'levels' times.
    void RandomRefinement(int levels, int frac = 2, bool aniso = false,
