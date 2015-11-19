@@ -151,7 +151,8 @@ int main(int argc, char *argv[])
    //    (degree elevated) NURBS space associated with the mesh nodes.
    FiniteElementCollection *fec;
    ParFiniteElementSpace *fespace;
-   if (pmesh->NURBSext && !amg_elast)
+   const bool use_nodal_fespace = pmesh->NURBSext && !amg_elast;
+   if (use_nodal_fespace)
    {
       fec = NULL;
       fespace = (ParFiniteElementSpace *)pmesh->GetNodes()->FESpace();
@@ -273,7 +274,7 @@ int main(int argc, char *argv[])
    //     element displacement field. We assume that the initial mesh (read from
    //     the file) is not higher order curved mesh compared to the chosen FE
    //     space.
-   if (!pmesh->NURBSext)
+   if (!use_nodal_fespace)
    {
       pmesh->SetNodalFESpace(fespace);
    }
