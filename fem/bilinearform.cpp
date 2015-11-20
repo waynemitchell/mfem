@@ -471,18 +471,18 @@ void BilinearForm::EliminateVDofsInRHS(
 }
 
 void BilinearForm::EliminateEssentialBCDiag (Array<int> &bdr_attr_is_ess,
-                                             double d)
+                                             double value)
 {
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
    if (fes->GetConformingProlongation() == NULL)
    {
-      EliminateEssentialBCFromDofsDiag(ess_dofs, d);
+      EliminateEssentialBCFromDofsDiag(ess_dofs, value);
    }
    else
    {
       fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
-      EliminateEssentialBCFromDofsDiag(conf_ess_dofs, d);
+      EliminateEssentialBCFromDofsDiag(conf_ess_dofs, value);
    }
 }
 
@@ -512,14 +512,14 @@ void BilinearForm::EliminateEssentialBCFromDofs (Array<int> &ess_dofs, int d)
 }
 
 void BilinearForm::EliminateEssentialBCFromDofsDiag (Array<int> &ess_dofs,
-                                                     double d)
+                                                     double value)
 {
    MFEM_ASSERT(ess_dofs.Size() == height, "incorrect dof Array size");
 
    for (int i = 0; i < ess_dofs.Size(); i++)
       if (ess_dofs[i] < 0)
       {
-         mat -> EliminateRowColDiag (i, d);
+         mat -> EliminateRowColDiag (i, value);
       }
 }
 
