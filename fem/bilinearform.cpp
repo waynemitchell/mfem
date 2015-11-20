@@ -475,13 +475,14 @@ void BilinearForm::EliminateEssentialBCDiag (Array<int> &bdr_attr_is_ess,
 {
    Array<int> ess_dofs, conf_ess_dofs;
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   if (fes->GetConformingProlongation() == NULL)
+
+   if (fes->GetConformingRestriction() == NULL)
    {
       EliminateEssentialBCFromDofsDiag(ess_dofs, value);
    }
    else
    {
-      fes->ConvertToConformingVDofs(ess_dofs, conf_ess_dofs);
+      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
       EliminateEssentialBCFromDofsDiag(conf_ess_dofs, value);
    }
 }
