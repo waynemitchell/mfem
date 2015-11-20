@@ -810,8 +810,8 @@ private:
    int nev;   // Number of desired eigenmodes
    int nconv; // Number of converged eigenmodes
 
-   HYPRE_Int glbSize;
-   HYPRE_Int * part;
+   HYPRE_Int glbSize; // Global number of DoFs in the linear system
+   HYPRE_Int * part;  // Row partitioning of the linear system
 
    // Pointer to HYPRE's solver struct
    HYPRE_Solver lobpcg_solver;
@@ -833,8 +833,6 @@ private:
 
    // Empty vectors used to setup the matrices and preconditioner
    HypreParVector * x;
-
-   void createDummyVectors();
 
    class HypreMultiVector
    {

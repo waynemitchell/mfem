@@ -1022,14 +1022,6 @@ void CurlCurlIntegrator::AssembleElementMatrix
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
-      if ( dim == 3 )
-      {
-         el.CalcCurlShape(ip, curlshape);
-      }
-      else
-      {
-         el.CalcCurlShape(ip, curlshape_dFt);
-      }
 
       Trans.SetIntPoint (&ip);
 
@@ -1037,7 +1029,12 @@ void CurlCurlIntegrator::AssembleElementMatrix
 
       if ( dim == 3 )
       {
+         el.CalcCurlShape(ip, curlshape);
          MultABt(curlshape, Trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
       }
 
       if (Q)
