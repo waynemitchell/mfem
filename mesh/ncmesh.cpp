@@ -56,6 +56,7 @@ void NCMesh::GeomInfo::Initialize(const mfem::Element* elem)
 NCMesh::NCMesh(const Mesh *mesh, std::istream *vertex_parents)
 {
    Dim = mesh->Dimension();
+   spaceDim = mesh->SpaceDimension();
 
    // assume the mesh is anisotropic if we're loading a file
    Iso = vertex_parents ? false : true;
@@ -76,6 +77,7 @@ NCMesh::NCMesh(const Mesh *mesh, std::istream *vertex_parents)
    {
       // top-level nodes are special: id == p1 == p2 == orig. vertex id
       Node* node = nodes.Get(i, i);
+      MFEM_CONTRACT_VAR(node);
       MFEM_ASSERT(node->id == i, "");
    }
 
@@ -224,7 +226,7 @@ void NCMesh::DeleteHierarchy(Element* elem)
 }
 
 NCMesh::NCMesh(const NCMesh &other)
-   : Dim(other.Dim), Iso(other.Iso)
+   : Dim(other.Dim), spaceDim(other.spaceDim), Iso(other.Iso)
    , nodes(other.nodes), faces(other.faces)
 {
    // NOTE: this copy constructor is used by ParNCMesh
@@ -3510,24 +3512,24 @@ void NCMesh::PrintMemoryDetail() const
    int nelem, nvert, nedges;
    CountObjects(nelem, nvert, nedges);
 
-   std::cout << nelem * sizeof(Element) << " elements\n" <<
-                nvert * sizeof(Vertex) << " vertices\n" <<
-                nedges * sizeof(Edge) << " edges\n";
+   std::cout << nelem * sizeof(Element) << " elements\n"
+             << nvert * sizeof(Vertex) << " vertices\n"
+             << nedges * sizeof(Edge) << " edges\n";
 
    nodes.PrintMemoryDetail(); std::cout << " nodes\n";
    faces.PrintMemoryDetail(); std::cout << " faces\n";
 
-   std::cout << root_elements.MemoryUsage() << " root_elements\n" <<
-                leaf_elements.MemoryUsage() << " leaf_elements\n" <<
-                vertex_nodeId.MemoryUsage() << " vertex_nodeId\n" <<
-                face_list.MemoryUsage() << " face_list\n" <<
-                edge_list.MemoryUsage() << " edge_list\n" <<
-                boundary_faces.MemoryUsage() << " boundary_faces\n" <<
-                boundary_edges.MemoryUsage() << " bounfary_edges\n" <<
-                element_vertex.MemoryUsage() << " element_vertex\n" <<
-                ref_stack.MemoryUsage() << " ref_stack\n" <<
-                coarse_elements.MemoryUsage() << " coarse_elements\n" <<
-                sizeof(*this) << " NCMesh" << std::endl;
+   std::cout << root_elements.MemoryUsage() << " root_elements\n"
+             << leaf_elements.MemoryUsage() << " leaf_elements\n"
+             << vertex_nodeId.MemoryUsage() << " vertex_nodeId\n"
+             << face_list.MemoryUsage() << " face_list\n"
+             << edge_list.MemoryUsage() << " edge_list\n"
+             << boundary_faces.MemoryUsage() << " boundary_faces\n"
+             << boundary_edges.MemoryUsage() << " boundary_edges\n"
+             << element_vertex.MemoryUsage() << " element_vertex\n"
+             << ref_stack.MemoryUsage() << " ref_stack\n"
+             << coarse_elements.MemoryUsage() << " coarse_elements\n"
+             << sizeof(*this) << " NCMesh" << std::endl;
 }
 
 #ifdef MFEM_DEBUG

@@ -47,7 +47,8 @@ make install PREFIX=<dir>
 make clean
    Clean the library and object files, but keep configuration.
 make distclean
-   Clean the library, object files and configuration.
+   In addition to "make clean", clean the configuration and remove the local
+   installation directory.
 make style
    Format the MFEM C++ source files using Artistic Style (astyle).
 
@@ -287,6 +288,7 @@ clean:
 	$(MAKE) -C examples clean
 
 distclean: clean
+	rm -rf mfem/
 	$(MAKE) -C config clean
 	$(MAKE) -C doc clean
 

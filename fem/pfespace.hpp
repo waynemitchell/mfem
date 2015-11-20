@@ -91,7 +91,7 @@ private:
 
    void ApplyLDofSigns(Array<int> &dofs) const;
 
-   /// Helper struct to store DOF dependencies in a paralell NC mesh.
+   /// Helper struct to store DOF dependencies in a parallel NC mesh.
    struct Dependency
    {
       int rank, dof; ///< master DOF, may be on another processor
@@ -120,8 +120,11 @@ private:
                             const Array<int> &dependent_dofs);
 
    void GetDofs(int type, int index, Array<int>& dofs);
-   void ReorderFaceDofs(Array<int> &dofs, int type, int orient);
+   void ReorderFaceDofs(Array<int> &dofs, int orient);
 
+   // Used when the ParMesh is non-conforming, i.e. pmesh->pncmesh != NULL.
+   // Constructs the matrices P and R. Determines ltdof_size. Calls
+   // GenerateGlobalOffsets(). Constructs ldof_ltdof.
    void GetParallelConformingInterpolation();
 
 public:
@@ -203,7 +206,7 @@ public:
    /// Returns the global tdof number of the given local degree of freedom
    HYPRE_Int GetGlobalTDofNumber(int ldof);
    /** Returns the global tdof number of the given local degree of freedom in
-       the scalar vesion of the current finite element space. The input should
+       the scalar version of the current finite element space. The input should
        be a scalar local dof. */
    HYPRE_Int GetGlobalScalarTDofNumber(int sldof);
 

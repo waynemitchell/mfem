@@ -203,9 +203,15 @@ struct VarMessage
    /// Post-probe receive from processor 'rank' of message size 'size'.
    void Recv(int rank, int size, MPI_Comm comm)
    {
+      MFEM_ASSERT(size >= 0, "");
       data.resize(size);
       MPI_Status status;
       MPI_Recv((void*) data.data(), size, MPI_BYTE, rank, Tag, comm, &status);
+#ifdef MFEM_DEBUG
+      int count;
+      MPI_Get_count(&status, MPI_BYTE, &count);
+      MFEM_VERIFY(count == size, "");
+#endif
       Decode();
    }
 
@@ -219,6 +225,7 @@ struct VarMessage
          int rank, size;
          Probe(rank, size, comm);
          MFEM_ASSERT(rank_msg.find(rank) != rank_msg.end(), "Rank not found.");
+         // No guard against receiving two messages from the same rank
          rank_msg[rank].Recv(rank, size, comm);
          --recv_left;
       }
@@ -226,6 +233,19 @@ struct VarMessage
 
    VarMessage() : send_request(MPI_REQUEST_NULL) {}
    void Clear() { data.clear(); send_request = MPI_REQUEST_NULL; }
+
+   virtual ~VarMessage()
+   {
+      MFEM_ASSERT(send_request == MPI_REQUEST_NULL,
+                  "WaitAllSent was not called after Isend");
+   }
+
+   VarMessage(const VarMessage &other)
+      : data(other.data), send_request(other.send_request)
+   {
+      MFEM_ASSERT(send_request == MPI_REQUEST_NULL,
+                  "Cannot copy message with a pending send.");
+   }
 
 protected:
    virtual void Encode() {}

@@ -104,7 +104,7 @@ void ParNCMesh::UpdateVertices()
       {
          for (int j = 0; j < GI[(int) elem->geom].nv; j++)
          {
-            elem->node[j]->vertex->index = 0;   // mark vertices that we need
+            elem->node[j]->vertex->index = 0; // mark vertices that we need
          }
       }
    }
@@ -663,17 +663,11 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
    NeighborRefinementMessage::IsendAll(send_ref, MyComm);
 
    // do local refinements
-#if 1
    for (int i = 0; i < refinements.Size(); i++)
    {
       const Refinement &ref = refinements[i];
       NCMesh::RefineElement(leaf_elements[ref.index], ref.ref_type);
    }
-#else
-   // TODO: support aniso ref in parallel, this will allow aniso in parallel on
-   // one processor but will break np > 1
-   NCMesh::Refine(refinements); // FIXME double Update()
-#endif
 
    // receive (ghost layer) refinements from all neighbors
    for (int j = 0; j < neighbors.Size(); j++)
@@ -1534,6 +1528,7 @@ void NeighborRowRequest::Decode()
 void NeighborRowReply::AddRow(int row, const Array<int> &cols,
                               const Vector &srow)
 {
+   MFEM_ASSERT(rows.find(row) == rows.end(), "");
    Row& row_data = rows[row];
    row_data.cols.assign(cols.GetData(), cols.GetData() + cols.Size());
    row_data.srow = srow;
@@ -1541,12 +1536,8 @@ void NeighborRowReply::AddRow(int row, const Array<int> &cols,
 
 void NeighborRowReply::GetRow(int row, Array<int> &cols, Vector &srow)
 {
-#ifdef MFEM_DEBUG
-   if (rows.find(row) == rows.end())
-   {
-      MFEM_ABORT("row " << row << " not found in neighbor message.");
-   }
-#endif
+   MFEM_ASSERT(rows.find(row) != rows.end(),
+               "row " << row << " not found in neighbor message.");
    Row& row_data = rows[row];
    cols.SetSize(row_data.cols.size());
    cols.Assign(row_data.cols.data());
@@ -1575,7 +1566,7 @@ void NeighborRowReply::Encode()
 
 void NeighborRowReply::Decode()
 {
-   std::istringstream stream(data);
+   std::istringstream stream(data); // stream makes a copy of data
 
    // NOTE: there is no rows.clear() since a row reply can be received
    // repeatedly and the received rows accumulate.
@@ -1589,11 +1580,6 @@ void NeighborRowReply::Decode()
       row_data.srow.SetSize(row_data.cols.size());
       stream.read((char*) row_data.srow.GetData(),
                   sizeof(double) * row_data.srow.Size());
-
-      /*std::cout << "Received row: ";
-      for (int j = 0; j < row_data.cols.size(); j++)
-         std::cout << "(" << row_data.cols[j] << "," << row_data.srow(j) << ")";
-      std::cout << std::endl;*/
    }
 
    data.clear();

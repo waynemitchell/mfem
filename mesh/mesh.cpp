@@ -1109,7 +1109,7 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
 
    // Data members that need to be updated:
 
-   // - elements   - reorder of the pionters and the vertex ids if reordering
+   // - elements   - reorder of the pointers and the vertex ids if reordering
    //                the vertices
    // - vertices   - if reordering the vertices
    // - boundary   - update the vertex ids, if reordering the vertices
@@ -1192,7 +1192,7 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
          }
       }
 
-      //Replace the vertex ids in the boundary with reorderd vertex numbers
+      //Replace the vertex ids in the boundary with reordered vertex numbers
       for (int belid = 0; belid < GetNBE(); ++belid)
       {
          int *be_vert = boundary[belid]->GetVertices();
@@ -2333,7 +2333,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       // Read MFEM mesh v1.0 format
       string ident;
 
-      // read lines begining with '#' (comments)
+      // read lines beginning with '#' (comments)
       skip_comment_lines(input, '#');
       input >> ident; // 'dimension'
 
@@ -2508,7 +2508,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    }
    else if (mesh_type == "NETGEN" || mesh_type == "NETGEN_Neutral_Format")
    {
-      // Read a netgen format mesh of tetrahedra.
+      // Read a Netgen format mesh of tetrahedra.
       Dim = 3;
 
       // Read the vertices
@@ -3205,7 +3205,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    // generate edges if requested
    if (Dim > 1 && generate_edges == 1)
    {
-      el_to_edge = new Table;
+      // el_to_edge may already be allocated (P2 VTK meshes)
+      if (!el_to_edge) { el_to_edge = new Table; }
       NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
       if (Dim == 2)
       {
@@ -3284,6 +3285,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          }
       }
    }
+
+   if (ncmesh) { ncmesh->spaceDim = spaceDim; }
 }
 
 Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
@@ -6738,7 +6741,8 @@ void Mesh::NonconformingDerefinement(const Array<int> &derefinements)
 
 void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 {
-   Dim = spaceDim = ncmesh.Dimension();
+   Dim = ncmesh.Dimension();
+   spaceDim = ncmesh.SpaceDimension();
 
    DeleteTables();
 
@@ -6752,20 +6756,23 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 
    NumOfEdges = NumOfFaces = 0;
 
-   el_to_edge = new Table;
-   NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-
-   if (Dim == 3)
+   if (Dim > 1)
+   {
+      el_to_edge = new Table;
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+      c_el_to_edge = NULL;
+   }
+   if (Dim > 2)
    {
       GetElementToFaceTable();
    }
-
    GenerateFaces();
 #ifdef MFEM_DEBUG
    CheckBdrElementOrientation(false);
 #endif
 
-   c_el_to_edge = NULL;
+   // NOTE: ncmesh->OnMeshUpdated() and GenerateNCFaceInfo() should be called
+   // outside after this method.
 }
 
 Mesh::Mesh(const NCMesh &ncmesh)
@@ -6779,6 +6786,7 @@ Mesh::Mesh(const NCMesh &ncmesh)
 void Mesh::Swap(Mesh& other, bool non_geometry)
 {
    mfem::Swap(Dim, other.Dim);
+   mfem::Swap(spaceDim, other.spaceDim);
 
    mfem::Swap(NumOfVertices, other.NumOfVertices);
    mfem::Swap(NumOfElements, other.NumOfElements);
@@ -6793,6 +6801,7 @@ void Mesh::Swap(Mesh& other, bool non_geometry)
    mfem::Swap(boundary, other.boundary);
    mfem::Swap(faces, other.faces);
    mfem::Swap(faces_info, other.faces_info);
+   mfem::Swap(nc_faces_info, other.nc_faces_info);
 
    mfem::Swap(el_to_edge, other.el_to_edge);
    mfem::Swap(el_to_face, other.el_to_face);
@@ -6918,6 +6927,15 @@ void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
       refinements.Append(Refinement(el_to_refine[i], 7));
    }
    GeneralRefinement(refinements, nonconforming, nc_limit);
+}
+
+void Mesh::EnsureNCMesh()
+{
+   if (meshgen & 2)
+   {
+      Array<int> empty;
+      GeneralRefinement(empty, 1);
+   }
 }
 
 void Mesh::RandomRefinement(int levels, int frac, bool aniso,
@@ -7388,6 +7406,7 @@ void Mesh::SetState(int s)
          delete nc_coarse_level;
          nc_coarse_level = NULL;
          ncmesh->ClearCoarseLevel();
+         State = s;
       }
       else if ((State == Mesh::TWO_LEVEL_COARSE && s == Mesh::TWO_LEVEL_FINE) ||
                (State == Mesh::TWO_LEVEL_FINE && s == Mesh::TWO_LEVEL_COARSE))
@@ -9578,6 +9597,8 @@ void Mesh::FreeElement(Element *E)
 Mesh::~Mesh()
 {
    int i;
+
+   SetState(Mesh::NORMAL);
 
    if (own_nodes) { delete Nodes; }
 

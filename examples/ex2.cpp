@@ -97,19 +97,12 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 5,000
    //    elements.
    {
-      //int ref_levels = (int) floor(log(5000. / mesh->GetNE()) / log(2.) / dim);
-      int ref_levels = 1;
+      int ref_levels =
+         (int)floor(log(5000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
-   }
-   {
-      int levels = 5;
-      mesh->RefineAtVertex(Vertex(0, 0, 0), levels);
-      mesh->RefineAtVertex(Vertex(0, 1, 0), levels);
-      mesh->RefineAtVertex(Vertex(0, 0, 1), levels);
-      mesh->RefineAtVertex(Vertex(0, 1, 1), levels);
    }
 
    // 5. Define a finite element space on the mesh. Here we use vector finite
@@ -203,9 +196,10 @@ int main(int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
 
+   // 10. Recover the grid function in non-conforming AMR problems
    x.ConformingProlongate();
 
-   // 10. For non-NURBS meshes, make the mesh curved based on the finite element
+   // 11. For non-NURBS meshes, make the mesh curved based on the finite element
    //     space. This means that we define the mesh elements through a fespace
    //     based transformation of the reference element. This allows us to save
    //     the displaced mesh as a curved mesh when using high-order finite
@@ -217,7 +211,7 @@ int main(int argc, char *argv[])
       mesh->SetNodalFESpace(fespace);
    }
 
-   // 11. Save the displaced mesh and the inverted solution (which gives the
+   // 12. Save the displaced mesh and the inverted solution (which gives the
    //     backward displacements to the original grid). This output can be
    //     viewed later using GLVis: "glvis -m displaced.mesh -g sol.gf".
    {
@@ -232,7 +226,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 12. Send the above data by socket to a GLVis server. Use the "n" and "b"
+   // 13. Send the above data by socket to a GLVis server. Use the "n" and "b"
    //     keys in GLVis to visualize the displacements.
    if (visualization)
    {
@@ -243,7 +237,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 13. Free the used memory.
+   // 14. Free the used memory.
    delete a;
    delete b;
    if (fec)

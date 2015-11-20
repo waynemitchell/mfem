@@ -45,6 +45,7 @@ namespace mfem {
  * - <a class="el" href="ex5_8cpp_source.html">Example 5</a>: mixed pressure-velocity FEM for the Darcy problem
  * - <a class="el" href="ex5p_8cpp_source.html">Example 5p</a>: parallel mixed pressure-velocity FEM for the Darcy problem
  * - <a class="el" href="ex6_8cpp_source.html">Example 6</a>: non-conforming adaptive mesh refinement for the Laplace problem
+ * - <a class="el" href="ex6p_8cpp_source.html">Example 6p</a>: parallel non-conforming adaptive mesh refinement for the Laplace problem
  * - <a class="el" href="ex7_8cpp_source.html">Example 7</a>: Laplace problem on a surface (the unit sphere)
  * - <a class="el" href="ex7p_8cpp_source.html">Example 7p</a>: parallel Laplace problem on a surface (the unit sphere)
  * - <a class="el" href="ex8_8cpp_source.html">Example 8</a>: Discontinuous Petrov-Galerkin (DPG) for the Laplace problem

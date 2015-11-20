@@ -13,6 +13,7 @@
 //               mpirun -np 4 ex6p -m ../data/pipe-nurbs.mesh
 //               mpirun -np 4 ex6p -m ../data/star-surf.mesh -o 2
 //               mpirun -np 4 ex6p -m ../data/square-disc-surf.mesh -o 2
+//               mpirun -np 4 ex6p -m ../data/amr-quad.mesh
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace
@@ -92,17 +93,14 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
 
    // 4. Refine the serial mesh on all processors to increase the resolution.
-   //    Also project a NURBS mesh to a piecewise-quadratic curved mesh.
+   //    Also project a NURBS mesh to a piecewise-quadratic curved mesh. Make
+   //    sure that the mesh is non-conforming.
    if (mesh->NURBSext)
    {
       mesh->UniformRefinement();
       mesh->ProjectNURBS(2);
    }
-
-   if (mesh->MeshGenerator() & 2) // quads/hexes
-   {
-      mesh->GeneralRefinement(Array<int>(), 1); // ensure NC mesh
-   }
+   mesh->EnsureNCMesh();
 
    // 5. Define a parallel mesh by partitioning the serial mesh.
    //    Once the parallel mesh is defined, the serial mesh can be deleted.
@@ -177,7 +175,7 @@ int main(int argc, char *argv[])
       a.Finalize();
       b.Assemble();
 
-      //x.ProjectBdrCoefficient(zero, ess_bdr);
+      // x.ProjectBdrCoefficient(zero, ess_bdr);
       x = 0;
 
       HypreParMatrix *A = a.ParallelAssemble();

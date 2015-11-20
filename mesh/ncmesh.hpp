@@ -79,6 +79,7 @@ public:
    virtual ~NCMesh();
 
    int Dimension() const { return Dim; }
+   int SpaceDimension() const { return spaceDim; }
 
    /** Perform the given batch of refinements. Please note that in the presence
        of anisotropic splits additional refinements may be necessary to keep
@@ -260,14 +261,14 @@ protected: // interface for Mesh to be able to construct itself from NCMesh
                           Array<mfem::Element*>& elements,
                           Array<mfem::Element*>& boundary) const;
 
-   /** Get edge and face numbering from 'mesh' (i.e., set all Edge/Face::index)
-       after a new mesh was created from us. */
+   /** Get edge and face numbering from 'mesh' (i.e., set all Edge::index and
+       Face::index) after a new mesh was created from us. */
    virtual void OnMeshUpdated(Mesh *mesh);
 
 
 protected: // implementation
 
-   int Dim;
+   int Dim, spaceDim; ///< dimensions of the elements and the vertex coordinates
    bool Iso; ///< true if the mesh only contains isotropic refinements
 
    Element* CopyHierarchy(Element* elem);

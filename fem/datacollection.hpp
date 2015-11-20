@@ -79,7 +79,8 @@ public:
 
    /// Add a grid function to the collection
    virtual void RegisterField(const char *field_name, GridFunction *gf);
-   /// Get a pointer to a grid function in the collection
+   /** Get a pointer to a grid function in the collection. Returns NULL if
+       'field_name' is not in the collection. */
    GridFunction *GetField(const char *field_name);
    /// Check if a grid function is part of the collection
    bool HasField(const char *name) { return field_map.count(name) == 1; }

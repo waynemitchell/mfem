@@ -1220,7 +1220,7 @@ public:
    private:
       int mode; // 0 - use change of basis, O(p^2) Evals
       // 1 - use barycentric Lagrangian interpolation, O(p) Evals
-      DenseMatrix A;
+      DenseMatrixInverse Ai;
       mutable Vector x, w;
 
    public:
@@ -1421,7 +1421,7 @@ private:
    mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
    mutable DenseMatrix du;
 #endif
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    H1_TriangleElement(const int p);
@@ -1439,7 +1439,7 @@ private:
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
    mutable DenseMatrix du;
 #endif
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    H1_TetrahedronElement(const int p);
@@ -1562,7 +1562,7 @@ private:
    mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
    mutable DenseMatrix du;
 #endif
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    L2_TriangleElement(const int p, const int _type = 0);
@@ -1598,7 +1598,7 @@ private:
    mutable Vector dshape_x, dshape_y, dshape_z, dshape_l, u;
    mutable DenseMatrix du;
 #endif
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    L2_TetrahedronElement(const int p, const int _type = 0);
@@ -1711,7 +1711,7 @@ class RT_TriangleElement : public VectorFiniteElement
    mutable Vector divu;
 #endif
    Array<int> dof2nk;
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    RT_TriangleElement(const int p);
@@ -1750,7 +1750,7 @@ class RT_TetrahedronElement : public VectorFiniteElement
    mutable Vector divu;
 #endif
    Array<int> dof2nk;
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    RT_TetrahedronElement(const int p);
@@ -1877,7 +1877,7 @@ class ND_TetrahedronElement : public VectorFiniteElement
    mutable DenseMatrix u;
 #endif
    Array<int> dof2tk;
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    ND_TetrahedronElement(const int p);
@@ -1920,7 +1920,7 @@ class ND_TriangleElement : public VectorFiniteElement
    mutable DenseMatrix u;
 #endif
    Array<int> dof2tk;
-   DenseMatrix T;
+   DenseMatrixInverse Ti;
 
 public:
    ND_TriangleElement(const int p);

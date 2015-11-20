@@ -125,6 +125,9 @@ protected:
    SparseMatrix *NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes,
                                             NCMesh* ncmesh);
 
+   /** This is a helper function to get edge (type == 0) or face (type == 1)
+       DOFs. The function is aware of ghost edges/faces in parallel, for which
+       an empty DOF list is returned. */
    void GetEdgeFaceDofs(int type, int index, Array<int> &dofs);
 
    /** Calculate the cP and cR matrices for a nonconforming mesh. */
@@ -145,8 +148,8 @@ public:
    bool Conforming() const { return mesh->ncmesh == NULL; }
    bool Nonconforming() const { return mesh->ncmesh != NULL; }
 
-   SparseMatrix *GetConformingProlongation();
-   SparseMatrix *GetConformingRestriction();
+   const SparseMatrix *GetConformingProlongation();
+   const SparseMatrix *GetConformingRestriction();
 
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }
@@ -161,9 +164,9 @@ public:
 
    /// Returns the number of conforming ("true") degrees of freedom
    /// (if the space is on a nonconforming mesh with hanging nodes).
-   inline int GetNConformingDofs() const { return cP ? cP->Width() : ndofs; }
+   int GetNConformingDofs();
 
-   inline int GetConformingVSize() const { return vdim * GetNConformingDofs(); }
+   int GetConformingVSize() { return vdim * GetNConformingDofs(); }
 
    /// Return the ordering method.
    inline int GetOrdering() const { return ordering; }
@@ -307,8 +310,10 @@ public:
 
    /** For a partially conforming FE space, convert a marker array (nonzero
        entries are true) on the conforming dofs to a marker array on the
-       (partially conforming) dofs. A dof is marked iff at least one of the
-       conforming dofs that it depends on is marked. */
+       (partially conforming) dofs. A dof is marked iff it depends on a marked
+       conforming dofs, where dependency is defined by the ConformingRestriction
+       matrix; in other words, a dof is marked iff it corresponds to a marked
+       conforming dof. */
    void ConvertFromConformingVDofs(const Array<int> &cdofs, Array<int> &dofs);
 
    void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,

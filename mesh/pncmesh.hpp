@@ -69,7 +69,7 @@ public:
        the neighbor processors so they can keep their ghost layers up to date.*/
    virtual void Refine(const Array<Refinement> &refinements);
 
-   /** */
+   /// To be implemented.
    virtual void LimitNCLevel(int max_level);
 
    /** A parallel reimplementation of NCMesh::Derefine, keeps ghost layers

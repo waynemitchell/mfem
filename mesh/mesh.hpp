@@ -739,6 +739,10 @@ public:
    void GeneralRefinement(const Array<int> &el_to_refine,
                           int nonconforming = -1, int nc_limit = 0);
 
+   /** Ensure that a quad/hex mesh is considered to be non-conforming (i.e. has
+       an associated NCMesh object). */
+   void EnsureNCMesh();
+
    /// Refine each element with 1/frac probability, repeat 'levels' times.
    void RandomRefinement(int levels, int frac = 2, bool aniso = false,
                          int nonconforming = -1, int nc_limit = -1,

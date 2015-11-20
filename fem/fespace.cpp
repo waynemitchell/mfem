@@ -463,6 +463,7 @@ void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
 void FiniteElementSpace::ConvertToConformingVDofs(const Array<int> &dofs,
                                                   Array<int> &cdofs)
 {
+   GetConformingProlongation();
    if (cP) { cP->BooleanMultTranspose(dofs, cdofs); }
    else { dofs.Copy(cdofs); }
 }
@@ -470,7 +471,8 @@ void FiniteElementSpace::ConvertToConformingVDofs(const Array<int> &dofs,
 void FiniteElementSpace::ConvertFromConformingVDofs(const Array<int> &cdofs,
                                                     Array<int> &dofs)
 {
-   if (cP) { cP->BooleanMult(cdofs, dofs); }
+   GetConformingRestriction();
+   if (cR) { cR->BooleanMultTranspose(cdofs, dofs); }
    else { cdofs.Copy(dofs); }
 }
 
@@ -851,18 +853,24 @@ void FiniteElementSpace::MakeVDimMatrix(SparseMatrix &mat) const
    delete vmat;
 }
 
-SparseMatrix* FiniteElementSpace::GetConformingProlongation()
+const SparseMatrix* FiniteElementSpace::GetConformingProlongation()
 {
    if (Conforming()) { return NULL; }
    if (!cP) { GetConformingInterpolation(); }
    return cP;
 }
 
-SparseMatrix* FiniteElementSpace::GetConformingRestriction()
+const SparseMatrix* FiniteElementSpace::GetConformingRestriction()
 {
    if (Conforming()) { return NULL; }
    if (!cR) { GetConformingInterpolation(); }
    return cR;
+}
+
+int FiniteElementSpace::GetNConformingDofs()
+{
+   const SparseMatrix* P = GetConformingProlongation();
+   return P ? (P->Width() / vdim) : ndofs;
 }
 
 SparseMatrix* FiniteElementSpace::RefinementMatrix()
