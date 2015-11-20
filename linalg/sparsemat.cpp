@@ -1244,7 +1244,9 @@ void SparseMatrix::EliminateRowCol(int rc, int d)
    }
 }
 
-void SparseMatrix::EliminateRowColDiag(int rc, double d)
+// This is almost identical to EliminateRowCol(int, int), except for
+// the A[j] = value; and aux->Value = value; lines.
+void SparseMatrix::EliminateRowColDiag(int rc, double value)
 {
    int col;
 
@@ -1256,7 +1258,7 @@ void SparseMatrix::EliminateRowColDiag(int rc, double d)
       for (int j = I[rc]; j < I[rc+1]; j++)
          if ((col = J[j]) == rc)
          {
-            A[j] = d;
+            A[j] = value;
          }
          else
          {
@@ -1281,7 +1283,7 @@ void SparseMatrix::EliminateRowColDiag(int rc, double d)
       {
          if ((col = aux->Column) == rc)
          {
-            aux->Value = d;
+            aux->Value = value;
          }
          else
          {
