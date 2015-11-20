@@ -725,8 +725,7 @@ private:
    HypreParMatrix *Pi, *Pix, *Piy, *Piz;
 
 public:
-   HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
-            int singular_problem = 0);
+   HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace);
 
    void SetPrintLevel(int print_lvl);
 
