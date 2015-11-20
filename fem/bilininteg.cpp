@@ -917,7 +917,7 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
       }
       else
       {
-	trial_fe.CalcCurlShape(ip, curlshapeTrial_dFt);
+	trial_fe.CalcCurlShape(ip, curlshapeTrial_dFT);
       }
 
       test_fe.CalcVShape(Trans, vshapeTest);
