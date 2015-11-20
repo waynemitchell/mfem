@@ -2,21 +2,24 @@
 //
 // Compile with: make ex3p
 //
-// Sample runs:  mpirun -np 4 ex3p -m ../data/beam-tet.mesh
+// Sample runs:  mpirun -np 4 ex3p -m ../data/star.mesh
+//               mpirun -np 4 ex3p -m ../data/beam-tet.mesh
 //               mpirun -np 4 ex3p -m ../data/beam-hex.mesh
 //               mpirun -np 4 ex3p -m ../data/escher.mesh
 //               mpirun -np 4 ex3p -m ../data/fichera.mesh
 //               mpirun -np 4 ex3p -m ../data/fichera-q2.vtk
 //               mpirun -np 4 ex3p -m ../data/fichera-q3.mesh
+//               mpirun -np 4 ex3p -m ../data/square-disc-nurbs.mesh
 //               mpirun -np 4 ex3p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex3p -m ../data/amr-quad.mesh -o 2
 //               mpirun -np 4 ex3p -m ../data/amr-hex.mesh
 //
-// Description:  This example code solves a simple 3D electromagnetic diffusion
+// Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
 //               equation curl curl E + E = f with boundary condition
 //               E x n = <given tangential field>. Here, we use a given exact
 //               solution E and compute the corresponding r.h.s. f.
-//               We discretize with Nedelec finite elements.
+//               We discretize with Nedelec finite elements in 3D or 2D.
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
@@ -251,7 +254,7 @@ const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {
-   if ( x.Size() == 3 )
+   if (x.Size() == 3)
    {
       E(0) = sin(kappa * x(1));
       E(1) = sin(kappa * x(2));
@@ -266,7 +269,7 @@ void E_exact(const Vector &x, Vector &E)
 
 void f_exact(const Vector &x, Vector &f)
 {
-   if ( x.Size() == 3 )
+   if (x.Size() == 3)
    {
       f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
       f(1) = (1. + kappa * kappa) * sin(kappa * x(2));

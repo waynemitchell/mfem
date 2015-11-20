@@ -2,22 +2,25 @@
 //
 // Compile with: make ex3
 //
-// Sample runs:  ex3 -m ../data/beam-tet.mesh
+// Sample runs:  ex3 -m ../data/star.mesh
+//               ex3 -m ../data/beam-tet.mesh
 //               ex3 -m ../data/beam-hex.mesh
 //               ex3 -m ../data/escher.mesh
 //               ex3 -m ../data/fichera.mesh
 //               ex3 -m ../data/fichera-q2.vtk
 //               ex3 -m ../data/fichera-q3.mesh
+//               ex3 -m ../data/square-disc-nurbs.mesh
 //               ex3 -m ../data/beam-hex-nurbs.mesh
+//               ex3 -m ../data/amr-quad.mesh -o 2
 //               ex3 -m ../data/amr-hex.mesh
 //               ex3 -m ../data/fichera-amr.mesh
 //
-// Description:  This example code solves a simple 3D electromagnetic diffusion
+// Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
 //               equation curl curl E + E = f with boundary condition
 //               E x n = <given tangential field>. Here, we use a given exact
 //               solution E and compute the corresponding r.h.s. f.
-//               We discretize with Nedelec finite elements.
+//               We discretize with Nedelec finite elements in 3D or 2D.
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
@@ -73,11 +76,6 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
-   if (dim != 3)
-   {
-      cerr << "\nThis example requires a 3D mesh\n" << endl;
-      return 3;
-   }
 
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
@@ -104,7 +102,7 @@ int main(int argc, char *argv[])
    //    of the FEM linear system, which in this case is (f,phi_i) where f is
    //    given by the function f_exact and phi_i are the basis functions in the
    //    finite element fespace.
-   VectorFunctionCoefficient f(3, f_exact);
+   VectorFunctionCoefficient f(dim, f_exact);
    LinearForm *b = new LinearForm(fespace);
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
@@ -115,7 +113,7 @@ int main(int argc, char *argv[])
    //    when eliminating the non-homogeneous boundary condition to modify the
    //    r.h.s. vector b.
    GridFunction x(fespace);
-   VectorFunctionCoefficient E(3, E_exact);
+   VectorFunctionCoefficient E(dim, E_exact);
    x.ProjectCoefficient(E);
 
    // 7. Set up the bilinear form corresponding to the EM diffusion operator
@@ -195,14 +193,30 @@ const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {
-   E(0) = sin(kappa * x(1));
-   E(1) = sin(kappa * x(2));
-   E(2) = sin(kappa * x(0));
+   if (x.Size() == 3)
+   {
+      E(0) = sin(kappa * x(1));
+      E(1) = sin(kappa * x(2));
+      E(2) = sin(kappa * x(0));
+   }
+   else
+   {
+      E(0) = sin(kappa * x(1));
+      E(1) = sin(kappa * x(0));
+   }
 }
 
 void f_exact(const Vector &x, Vector &f)
 {
-   f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
-   f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
-   f(2) = (1. + kappa * kappa) * sin(kappa * x(0));
+   if (x.Size() == 3)
+   {
+      f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
+      f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
+      f(2) = (1. + kappa * kappa) * sin(kappa * x(0));
+   }
+   else
+   {
+      f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
+      f(1) = (1. + kappa * kappa) * sin(kappa * x(0));
+   }
 }
