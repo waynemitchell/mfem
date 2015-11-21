@@ -912,12 +912,12 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
 
       if ( dim == 3 )
       {
-	trial_fe.CalcCurlShape(ip, curlshapeTrial);
-	MultABt(curlshapeTrial, Trans.Jacobian(), curlshapeTrial_dFT);
+         trial_fe.CalcCurlShape(ip, curlshapeTrial);
+         MultABt(curlshapeTrial, Trans.Jacobian(), curlshapeTrial_dFT);
       }
       else
       {
-	trial_fe.CalcCurlShape(ip, curlshapeTrial_dFT);
+         trial_fe.CalcCurlShape(ip, curlshapeTrial_dFT);
       }
 
       test_fe.CalcVShape(Trans, vshapeTest);

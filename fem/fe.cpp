@@ -9465,7 +9465,9 @@ void RT_TriangleElement::CalcVShape(const IntegrationPoint &ip,
    for (int i = 0; i <= p; i++)
    {
       double s = shape_x(i)*shape_y(p-i);
-      u(o,0) = (ip.x - c)*s;  u(o,1) = (ip.y - c)*s;  o++;
+      u(o,0) = (ip.x - c)*s;
+      u(o,1) = (ip.y - c)*s;
+      o++;
    }
 
    Ti.Mult(u, shape);
@@ -10533,6 +10535,7 @@ ND_TriangleElement::ND_TriangleElement(const int p)
    dshape_y.SetSize(p);
    dshape_l.SetSize(p);
    u.SetSize(Dof, Dim);
+   curlu.SetSize(Dof);
 #else
    Vector shape_x(p), shape_y(p), shape_l(p);
 #endif
@@ -10615,8 +10618,8 @@ void ND_TriangleElement::CalcVShape(const IntegrationPoint &ip,
       for (int i = 0; i + j <= pm1; i++)
       {
          double s = shape_x(i)*shape_y(j)*shape_l(pm1-i-j);
-         u(n,0) =  s;  u(n,1) = 0.;  n++;
-         u(n,0) = 0.;  u(n,1) =  s;  n++;
+         u(n,0) = s;  u(n,1) = 0;  n++;
+         u(n,0) = 0;  u(n,1) = s;  n++;
       }
    for (int j = 0; j <= pm1; j++)
    {
@@ -10638,7 +10641,7 @@ void ND_TriangleElement::CalcCurlShape(const IntegrationPoint &ip,
    const int p = Order;
    Vector shape_x(p), shape_y(p), shape_l(p);
    Vector dshape_x(p), dshape_y(p), dshape_l(p);
-   DenseMatrix u(Dof, Dim);
+   Vector curlu(Dof);
 #endif
 
    poly1d.CalcBasis(pm1, ip.x, shape_x, dshape_x);
@@ -10651,26 +10654,24 @@ void ND_TriangleElement::CalcCurlShape(const IntegrationPoint &ip,
       {
          int l = pm1-i-j;
          const double dx = (dshape_x(i)*shape_l(l) -
-                            shape_x(i)*dshape_l(l))*shape_y(j);
+                            shape_x(i)*dshape_l(l)) * shape_y(j);
          const double dy = (dshape_y(j)*shape_l(l) -
-                            shape_y(j)*dshape_l(l))*shape_x(i);
+                            shape_y(j)*dshape_l(l)) * shape_x(i);
 
-         u(n,0) = -dy;  n++;
-         u(n,0) =  dx;  n++;
+         curlu(n++) = -dy;
+         curlu(n++) =  dx;
       }
 
    for (int j = 0; j <= pm1; j++)
    {
       int i = pm1 - j;
-      // s = shape_x(i)*shape_y(j);
-      // curl of s*(ip.y - c, -(ip.x - c), 0):
-      u(n,0) =
-         -((dshape_x(i)*(ip.x - c) + shape_x(i))*shape_y(j) +
-           (dshape_y(j)*(ip.y - c) + shape_y(j))*shape_x(i));
-      n++;
+      // curl of shape_x(i)*shape_y(j) * (ip.y - c, -(ip.x - c), 0):
+      curlu(n++) = -((dshape_x(i)*(ip.x - c) + shape_x(i)) * shape_y(j) +
+                     (dshape_y(j)*(ip.y - c) + shape_y(j)) * shape_x(i));
    }
 
-   Ti.Mult(u, curl_shape);
+   Vector curl2d(curl_shape.Data(),Dof);
+   Ti.Mult(curlu, curl2d);
 }
 
 

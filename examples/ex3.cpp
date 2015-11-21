@@ -3,6 +3,7 @@
 // Compile with: make ex3
 //
 // Sample runs:  ex3 -m ../data/star.mesh
+//               ex3 -m ../data/beam-tri.mesh -o 2
 //               ex3 -m ../data/beam-tet.mesh
 //               ex3 -m ../data/beam-hex.mesh
 //               ex3 -m ../data/escher.mesh
@@ -20,7 +21,7 @@
 //               equation curl curl E + E = f with boundary condition
 //               E x n = <given tangential field>. Here, we use a given exact
 //               solution E and compute the corresponding r.h.s. f.
-//               We discretize with Nedelec finite elements in 3D or 2D.
+//               We discretize with Nedelec finite elements in 2D or 3D.
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass

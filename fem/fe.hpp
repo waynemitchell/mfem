@@ -1918,6 +1918,7 @@ class ND_TriangleElement : public VectorFiniteElement
    mutable Vector shape_x, shape_y, shape_l;
    mutable Vector dshape_x, dshape_y, dshape_l;
    mutable DenseMatrix u;
+   mutable Vector curlu;
 #endif
    Array<int> dof2tk;
    DenseMatrixInverse Ti;

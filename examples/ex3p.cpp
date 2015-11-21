@@ -3,6 +3,7 @@
 // Compile with: make ex3p
 //
 // Sample runs:  mpirun -np 4 ex3p -m ../data/star.mesh
+//               mpirun -np 4 ex3p -m ../data/square-disc.mesh -o 2
 //               mpirun -np 4 ex3p -m ../data/beam-tet.mesh
 //               mpirun -np 4 ex3p -m ../data/beam-hex.mesh
 //               mpirun -np 4 ex3p -m ../data/escher.mesh
@@ -19,7 +20,7 @@
 //               equation curl curl E + E = f with boundary condition
 //               E x n = <given tangential field>. Here, we use a given exact
 //               solution E and compute the corresponding r.h.s. f.
-//               We discretize with Nedelec finite elements in 3D or 2D.
+//               We discretize with Nedelec finite elements in 2D or 3D.
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
