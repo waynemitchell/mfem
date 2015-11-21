@@ -1619,7 +1619,6 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
    HypreParMatrix *M;
    M = new HypreParMatrix(MyComm, MyRank, NRanks, dof_offsets, old_dof_offsets,
                           i_diag, j_diag, i_offd, j_offd, cmap, offd_cols);
-
    return M;
 }
 
@@ -1643,48 +1642,98 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    MFEM_VERIFY(ndofs <= old_ndofs, "Previous space is not finer.");
 
    Array<int> dofs, old_dofs, old_vdofs;
-   LinearFECollection linfec;
    Vector row;
 
-   const NCMesh::FineTransforms &dt =
-      pmesh->pncmesh->GetDerefinementTransforms();
+   ParNCMesh* pncmesh = pmesh->pncmesh;
+   int geom = pmesh->GetElementBaseGeometry(0);
 
-   const Array<int> &old_ranks = pmesh->pncmesh->GetDerefineOldRanks();
-
+   const NCMesh::FineTransforms &dt = pncmesh->GetDerefinementTransforms();
+   const Array<int> &old_ranks = pncmesh->GetDerefineOldRanks();
 
    std::map<int, DerefDofMessage> messages;
 
+   // communicate DOFs for derefinements that straddle processor boundaries,
+   // note that this is infrequent due to the way elements are ordered
    HYPRE_Int offset = GetMyDofOffset();
-
-   for (int i = 0; i < dt.fine_coarse.Size(); i++)
+   for (int k = 0; k < dt.fine_coarse.Size(); k++)
    {
-      int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[i].coarse_element);
-      int fine_rank = old_ranks[i];
+      int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[k].coarse_element);
+      int fine_rank = old_ranks[k];
       if (coarse_rank >= 0 && fine_rank >= 0)
       {
          if (fine_rank == MyRank && coarse_rank != MyRank)
          {
-            old_elem_dof->GetRow(i, dofs);
+            old_elem_dof->GetRow(k, dofs);
             DofsToVDofs(dofs);
 
-            DerefDofMessage &msg = messages[i];
-            msg.dofs.reserve(dofs.Size());
+            DerefDofMessage &msg = messages[k];
+            msg.dofs.resize(dofs.Size());
             for (int i = 0; i < dofs.Size(); i++)
             {
-               msg.dofs[i] = dofs[i];
+               msg.dofs[i] = offset + dofs[i];
             }
 
-            MPI_Isend(msg.dofs.data(), msg.dofs.size(), MPI_HYPRE_INT,
-                      coarse_rank, 291, MyComm)
+            MPI_Isend(&msg.dofs[0], msg.dofs.size(), MPI_HYPRE_INT,
+                      coarse_rank, 291, MyComm, &msg.request);
          }
          else if (fine_rank != MyRank && coarse_rank == MyRank)
          {
-            MPI_Irecv(
-            // receive from fine_rank
+            DerefDofMessage &msg = messages[k];
+            msg.dofs.resize(ldofs);
+
+            MPI_Irecv(&msg.dofs[0], ldofs, MPI_HYPRE_INT,
+                      fine_rank, 291, MyComm, &msg.request);
          }
       }
    }
 
+   DenseTensor localR;
+   GetLocalDerefinementMatrices(geom, dt, localR);
+
+   // create the diagonal part of the derefinement matrix
+   SparseMatrix *diag = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
+
+   Array<char> mark(diag->Height());
+   mark = 0;
+   for (int k = 0; k < dt.fine_coarse.Size(); k++)
+   {
+      int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[k].coarse_element);
+      int fine_rank = old_ranks[k];
+      if (coarse_rank == MyRank && fine_rank == MyRank)
+      {
+         const NCMesh::Embedding &emb = dt.fine_coarse[k];
+         DenseMatrix &lR = localR(emb.matrix);
+
+         elem_dof->GetRow(emb.coarse_element, dofs);
+         old_elem_dof->GetRow(k, old_dofs);
+
+         for (int vd = 0; vd < vdim; vd++)
+         {
+            old_dofs.Copy(old_vdofs);
+            if (vd > 0) { DofsToVDofs(vd, old_vdofs, old_ndofs); }
+
+            for (int i = 0; i < lR.Height(); i++)
+            {
+               if (lR(i, 0) == INFINITY) { continue; }
+
+               int r = DofToVDof(dofs[i], vd);
+               int m = (r >= 0) ? r : (-1 - r);
+
+               if (!mark[m])
+               {
+                  lR.GetRow(i, row);
+                  diag->SetRow(r, old_vdofs, row);
+                  mark[m] = 1;
+               }
+            }
+         }
+      }
+   }
+   diag->Finalize();
+
+   // TODO: wait for sends/recvs
+
+   // TODO: offd part
 
    HypreParMatrix* R = NULL;
    return R;

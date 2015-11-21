@@ -959,22 +959,13 @@ void InvertLinearTrans(IsoparametricTransformation &trans,
    invdfdx.Mult(v, x);
 }
 
-SparseMatrix* FiniteElementSpace::DerefinementMatrix()
+void FiniteElementSpace::GetLocalDerefinementMatrices(
+   int geom, const NCMesh::FineTransforms &dt, DenseTensor &localR)
 {
-   MFEM_VERIFY(Nonconforming(), "Not implemented for conforming meshes.");
-   MFEM_VERIFY(old_ndofs, "Missing previous (finer) space.");
-   MFEM_VERIFY(ndofs <= old_ndofs, "Previous space is not finer.");
-
-   Array<int> dofs, old_dofs, old_vdofs;
-   LinearFECollection linfec;
-   Vector row;
-
-   const NCMesh::FineTransforms &dt = mesh->ncmesh->GetDerefinementTransforms();
-
-   int geom = mesh->GetElementBaseGeometry(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
    const IntegrationRule &nodes = fe->GetNodes();
 
+   LinearFECollection linfec;
    IsoparametricTransformation trans;
    trans.SetFE(linfec.FiniteElementForGeometry(geom));
 
@@ -986,15 +977,15 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
    Vector pt(dim), shape(ldof);
 
    // calculate local restriction matrices for all refinement types
-   DenseTensor localR(ldof, ldof, nmat);
+   localR.SetSize(ldof, ldof, nmat);
    for (int i = 0; i < nmat; i++)
    {
+      DenseMatrix &lR = localR(i);
+      lR = INFINITY; // marks invalid rows
+
       trans.GetPointMat() = dt.point_matrices(i);
       trans.SetIntPoint(&nodes[0]);
       CalcInverse(trans.Jacobian(), invdfdx);
-
-      DenseMatrix &lR = localR(i);
-      lR = INFINITY; // marks invalid rows
 
       for (int j = 0; j < nodes.Size(); j++)
       {
@@ -1008,6 +999,22 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
          }
       }
    }
+}
+
+SparseMatrix* FiniteElementSpace::DerefinementMatrix()
+{
+   MFEM_VERIFY(Nonconforming(), "Not implemented for conforming meshes.");
+   MFEM_VERIFY(old_ndofs, "Missing previous (finer) space.");
+   MFEM_VERIFY(ndofs <= old_ndofs, "Previous space is not finer.");
+
+   Array<int> dofs, old_dofs, old_vdofs;
+   Vector row;
+
+   const NCMesh::FineTransforms &dt = mesh->ncmesh->GetDerefinementTransforms();
+   int geom = mesh->GetElementBaseGeometry(0);
+
+   DenseTensor localR;
+   GetLocalDerefinementMatrices(geom, dt, localR);
 
    SparseMatrix *R = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
 
@@ -1026,7 +1033,7 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
          old_dofs.Copy(old_vdofs);
          if (vd > 0) { DofsToVDofs(vd, old_vdofs, old_ndofs); }
 
-         for (int i = 0; i < ldof; i++)
+         for (int i = 0; i < lR.Height(); i++)
          {
             if (lR(i, 0) == INFINITY) { continue; }
 

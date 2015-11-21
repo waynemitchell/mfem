@@ -135,6 +135,9 @@ protected:
 
    void MakeVDimMatrix(SparseMatrix &mat) const;
 
+   void GetLocalDerefinementMatrices(int geom, const NCMesh::FineTransforms &dt,
+                                     DenseTensor &localR);
+
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
                       int vdim = 1, int ordering = Ordering::byNODES);
