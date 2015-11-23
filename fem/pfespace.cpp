@@ -1641,11 +1641,12 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    MFEM_VERIFY(old_ndofs, "Missing previous (finer) space.");
    MFEM_VERIFY(ndofs <= old_ndofs, "Previous space is not finer.");
 
-   Array<int> dofs, old_dofs, old_vdofs;
+   Array<int> dofs, old_dofs, old_vdofs, mapped_dofs;
    Vector row;
 
    ParNCMesh* pncmesh = pmesh->pncmesh;
    int geom = pmesh->GetElementBaseGeometry(0);
+   int ldofs = fec->FiniteElementForGeometry(geom)->GetDof();
 
    const NCMesh::FineTransforms &dt = pncmesh->GetDerefinementTransforms();
    const Array<int> &old_ranks = pncmesh->GetDerefineOldRanks();
@@ -1661,10 +1662,10 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
       int fine_rank = old_ranks[k];
       if (coarse_rank >= 0 && fine_rank >= 0)
       {
-         if (fine_rank == MyRank && coarse_rank != MyRank)
+         if (coarse_rank != MyRank && fine_rank == MyRank)
          {
             old_elem_dof->GetRow(k, dofs);
-            DofsToVDofs(dofs);
+            DofsToVDofs(dofs, old_ndofs);
 
             DerefDofMessage &msg = messages[k];
             msg.dofs.resize(dofs.Size());
@@ -1676,10 +1677,10 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
             MPI_Isend(&msg.dofs[0], msg.dofs.size(), MPI_HYPRE_INT,
                       coarse_rank, 291, MyComm, &msg.request);
          }
-         else if (fine_rank != MyRank && coarse_rank == MyRank)
+         else if (coarse_rank == MyRank && fine_rank != MyRank)
          {
             DerefDofMessage &msg = messages[k];
-            msg.dofs.resize(ldofs);
+            msg.dofs.resize(ldofs*vdim);
 
             MPI_Irecv(&msg.dofs[0], ldofs, MPI_HYPRE_INT,
                       fine_rank, 291, MyComm, &msg.request);
@@ -1731,11 +1732,85 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    }
    diag->Finalize();
 
-   // TODO: wait for sends/recvs
+   // wait for all sends/receives to complete
+   int nmsg = messages.size();
+   MPI_Request* requests = new MPI_Request[nmsg];
+   std::map<int, DerefDofMessage>::iterator it = messages.begin();
+   for (int i = 0; it != messages.end(); ++it, i++)
+   {
+      requests[i] = it->second.request;
+   }
+   MPI_Waitall(nmsg, requests, MPI_STATUSES_IGNORE);
+   delete [] requests;
 
-   // TODO: offd part
+   // create the offdiagonal part of the derefinement matrix
+   SparseMatrix *offd = new SparseMatrix(ndofs*vdim, 1);
 
-   HypreParMatrix* R = NULL;
+   std::map<HYPRE_Int, int> col_map;
+   mapped_dofs.SetSize(ldofs);
+
+   for (int k = 0; k < dt.fine_coarse.Size(); k++)
+   {
+      int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[k].coarse_element);
+      int fine_rank = old_ranks[k];
+      if (coarse_rank == MyRank && fine_rank != MyRank)
+      {
+         const NCMesh::Embedding &emb = dt.fine_coarse[k];
+         DenseMatrix &lR = localR(emb.matrix);
+
+         elem_dof->GetRow(emb.coarse_element, dofs);
+         old_elem_dof->GetRow(k, old_dofs);
+
+         DerefDofMessage &msg = messages[k];
+         MFEM_ASSERT(msg.dofs.size(), "");
+
+         for (int vd = 0; vd < vdim; vd++)
+         {
+            HYPRE_Int* remote_dofs = &msg.dofs[vd*ldofs];
+
+            for (int i = 0; i < lR.Height(); i++)
+            {
+               if (lR(i, 0) == INFINITY) { continue; }
+
+               int r = DofToVDof(dofs[i], vd);
+               int m = (r >= 0) ? r : (-1 - r);
+
+               if (!mark[m])
+               {
+                  for (int j = 0; j < ldofs; j++)
+                  {
+                     int &lcol = col_map[remote_dofs[j]];
+                     if (!lcol) { lcol = col_map.size(); }
+                     mapped_dofs[j] = lcol-1;
+                  }
+                  lR.GetRow(i, row);
+                  offd->SetRow(r, mapped_dofs, row);
+                  mark[m] = 1;
+               }
+            }
+         }
+      }
+   }
+   messages.clear();
+   offd->Finalize();
+
+   // finish the matrix
+   HYPRE_Int *cmap = new HYPRE_Int[col_map.size()];
+   for (std::map<HYPRE_Int, int>::iterator
+        it = col_map.begin(); it != col_map.end(); ++it)
+   {
+      cmap[it->second] = it->first;
+   }
+   int nrk = HYPRE_AssumedPartitionCheck() ? 2 : NRanks;
+
+   HypreParMatrix* R;
+   R = new HypreParMatrix(MyComm, dof_offsets[nrk], old_dof_offsets[nrk],
+                          dof_offsets, old_dof_offsets, diag, offd, cmap);
+
+   char own[3];
+   R->GetOwnerFlags(own[0], own[1], own[2]);
+   R->SetOwnerFlags(own[0], own[1], 1); // make the matrix own cmap
+
    return R;
 }
 

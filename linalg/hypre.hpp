@@ -246,6 +246,9 @@ public:
    void SetOwnerFlags(char diag, char offd, char colmap)
    { diagOwner = diag, offdOwner = offd, colMapOwner = colmap; }
 
+   void GetOwnerFlags(char &diag, char &offd, char &colmap)
+   { diag = diagOwner, offd = offdOwner, colmap = colMapOwner; }
+
    /** If the HypreParMatrix does not own the row-starts array, make a copy of
        it that the HypreParMatrix will own. If the col-starts array is the same
        as the row-starts array, col-starts is also replaced. */

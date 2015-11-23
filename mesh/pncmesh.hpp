@@ -492,6 +492,7 @@ TODO
 + derefinement
 + new fine/coarse interface, ref/deref matrices
 - parallel derefinement
+- remove zeros after parallel elimination
 - parallel aniso refine
 - serial aniso derefine
 + DG for serial NC

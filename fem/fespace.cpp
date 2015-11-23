@@ -26,55 +26,57 @@ int FiniteElementSpace::GetOrder(int i) const
    return fec->FiniteElementForGeometry(GeomType)->GetOrder();
 }
 
-void FiniteElementSpace::DofsToVDofs (Array<int> &dofs) const
+void FiniteElementSpace::DofsToVDofs (Array<int> &dofs, int ndofs) const
 {
    int i, j, size;
 
    if (vdim == 1) { return; }
+   if (ndofs < 0) { ndofs = this->ndofs; }
 
    size = dofs.Size();
    dofs.SetSize (size * vdim);
 
-   switch (ordering)
+   if (ordering == Ordering::byNODES)
    {
-      case Ordering::byNODES:
-         for (i = 1; i < vdim; i++)
-            for (j = 0; j < size; j++)
-               if (dofs[j] < 0)
-               {
-                  dofs[size * i + j] = -1 - ( ndofs * i + (-1-dofs[j]) );
-               }
-               else
-               {
-                  dofs[size * i + j] = ndofs * i + dofs[j];
-               }
-         break;
-
-      case Ordering::byVDIM:
-         for (i = vdim-1; i >= 0; i--)
-            for (j = 0; j < size; j++)
-               if (dofs[j] < 0)
-               {
-                  dofs[size * i + j] = -1 - ( (-1-dofs[j]) * vdim + i );
-               }
-               else
-               {
-                  dofs[size * i + j] = dofs[j] * vdim + i;
-               }
-         break;
+      for (i = 1; i < vdim; i++)
+      {
+         for (j = 0; j < size; j++)
+         {
+            if (dofs[j] < 0)
+            {
+               dofs[size * i + j] = -1 - ( ndofs * i + (-1-dofs[j]) );
+            }
+            else
+            {
+               dofs[size * i + j] = ndofs * i + dofs[j];
+            }
+         }
+      }
+   }
+   else
+   {
+      for (i = vdim-1; i >= 0; i--)
+      {
+         for (j = 0; j < size; j++)
+         {
+            if (dofs[j] < 0)
+            {
+               dofs[size * i + j] = -1 - ( (-1-dofs[j]) * vdim + i );
+            }
+            else
+            {
+               dofs[size * i + j] = dofs[j] * vdim + i;
+            }
+         }
+      }
    }
 }
 
 void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs, int ndofs) const
 {
-   if (vdim == 1)
-   {
-      return;
-   }
-   if (ndofs < 0)
-   {
-      ndofs = this->ndofs;
-   }
+   if (vdim == 1) { return; }
+   if (ndofs < 0) { ndofs = this->ndofs; }
+
    if (ordering == Ordering::byNODES)
    {
       for (int i = 0; i < dofs.Size(); i++)
@@ -109,14 +111,9 @@ void FiniteElementSpace::DofsToVDofs(int vd, Array<int> &dofs, int ndofs) const
 
 int FiniteElementSpace::DofToVDof(int dof, int vd, int ndofs) const
 {
-   if (vdim == 1)
-   {
-      return dof;
-   }
-   if (ndofs < 0)
-   {
-      ndofs = this->ndofs;
-   }
+   if (vdim == 1) { return dof; }
+   if (ndofs < 0) { ndofs = this->ndofs; }
+
    if (ordering == Ordering::byNODES)
    {
       if (dof < 0)
@@ -128,13 +125,16 @@ int FiniteElementSpace::DofToVDof(int dof, int vd, int ndofs) const
          return dof + vd * ndofs;
       }
    }
-   if (dof < 0)
-   {
-      return -1 - ((-1-dof) * vdim + vd);
-   }
    else
    {
-      return dof * vdim + vd;
+      if (dof < 0)
+      {
+         return -1 - ((-1-dof) * vdim + vd);
+      }
+      else
+      {
+         return dof * vdim + vd;
+      }
    }
 }
 
