@@ -6933,7 +6933,7 @@ void Mesh::EnsureNCMesh()
 {
    if (meshgen & 2)
    {
-      Array<int> empty;
+      Array<Refinement> empty;
       GeneralRefinement(empty, 1);
    }
 }
