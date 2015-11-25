@@ -221,6 +221,18 @@ public:
    virtual ~ParGridFunction() { }
 };
 
+
+/** Performs L2 projection of flux from supplied discontinuous space
+ into supplied continuous space, and computes errors from difference.
+ This is one approach to handling conforming and non-conforming
+ elements in parallel. */
+
+void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
+                        ParGridFunction& x,
+                        ParFiniteElementSpace &flux_fespace,
+                        ParFiniteElementSpace &flux_dgfespace,
+                        Vector& errors);
+
 }
 
 #endif // MFEM_USE_MPI

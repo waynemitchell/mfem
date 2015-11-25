@@ -212,18 +212,24 @@ int main(int argc, char *argv[])
       //     method defined.
       Vector errors(pmesh.GetNE());
       {
-         ParFiniteElementSpace flux_fespace(&pmesh, &fec, dim);
          DiffusionIntegrator flux_integrator(one);
-         ParGridFunction flux(&flux_fespace);
-         ZZErrorEstimator(flux_integrator, x, flux, errors);
+         ParFiniteElementSpace flux_fespace(&pmesh, &fec, dim);
+         DG_FECollection dgfec(order, dim);
+         ParFiniteElementSpace flux_dgfespace(&pmesh, &dgfec, dim);
+         L2ZZErrorEstimator(flux_integrator, x, flux_fespace, flux_dgfespace,
+                            errors);
       }
+      double local_max_err = errors.Max();
+      double global_max_err;
+      MPI_Allreduce(&local_max_err, &global_max_err, 1,
+                    MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
 
       // 17. Make a list of elements whose error is larger than a fraction
       //     of the maximum element error. These elements will be refined.
       Array<int> ref_list;
       const double frac = 0.7;
       // the 'errors' are squared, so we need to square the fraction
-      double threshold = (frac*frac) * errors.Max();
+      double threshold = frac * global_max_err;
       for (int i = 0; i < errors.Size(); i++)
       {
          if (errors[i] >= threshold) { ref_list.Append(i); }
