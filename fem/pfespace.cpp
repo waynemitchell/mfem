@@ -1641,7 +1641,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    MFEM_VERIFY(old_ndofs, "Missing previous (finer) space.");
    MFEM_VERIFY(ndofs <= old_ndofs, "Previous space is not finer.");
 
-   Array<int> dofs, old_dofs, old_vdofs, mapped_dofs;
+   Array<int> dofs, old_dofs, old_vdofs;
    Vector row;
 
    ParNCMesh* pncmesh = pmesh->pncmesh;
@@ -1747,8 +1747,6 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    SparseMatrix *offd = new SparseMatrix(ndofs*vdim, 1);
 
    std::map<HYPRE_Int, int> col_map;
-   mapped_dofs.SetSize(ldofs);
-
    for (int k = 0; k < dt.fine_coarse.Size(); k++)
    {
       int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[k].coarse_element);
@@ -1759,7 +1757,6 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
          DenseMatrix &lR = localR(emb.matrix);
 
          elem_dof->GetRow(emb.coarse_element, dofs);
-         old_elem_dof->GetRow(k, old_dofs);
 
          DerefDofMessage &msg = messages[k];
          MFEM_ASSERT(msg.dofs.size(), "");
@@ -1777,14 +1774,13 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 
                if (!mark[m])
                {
+                  lR.GetRow(i, row);
                   for (int j = 0; j < ldofs; j++)
                   {
                      int &lcol = col_map[remote_dofs[j]];
                      if (!lcol) { lcol = col_map.size(); }
-                     mapped_dofs[j] = lcol-1;
+                     offd->_Set_(m, lcol-1, row[j]);
                   }
-                  lR.GetRow(i, row);
-                  offd->SetRow(r, mapped_dofs, row);
                   mark[m] = 1;
                }
             }
@@ -1812,6 +1808,13 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    R->SetOwnerFlags(own[0], own[1], 1); // make the matrix own cmap
 
    return R;
+}
+
+SparseMatrix* ParFiniteElementSpace::DerefinementMatrix()
+{
+   MFEM_ABORT("DerefinementMatrix does not work in parallel. Please "
+              "use ParallelDerefinementMatrix instead.");
+   return NULL;
 }
 
 

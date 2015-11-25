@@ -127,6 +127,9 @@ private:
    // GenerateGlobalOffsets(). Constructs ldof_ltdof.
    void GetParallelConformingInterpolation();
 
+   // Dummy. Use ParallelDeferinementMatrix instead.
+   virtual SparseMatrix* DerefinementMatrix();
+
 public:
    // Face-neighbor data
    // Number of face-neighbor dofs

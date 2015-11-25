@@ -107,8 +107,14 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   mesh->GeneralRefinement(Array<int>(), 1);
-   //mesh->RandomRefinement(2, 2, false);
+   mesh->EnsureNCMesh();
+   {
+      Array<Refinement> refs;
+      refs.Append(Refinement(0));
+      mesh->GeneralRefinement(refs);
+      mesh->GeneralRefinement(refs);
+   }
+   //mesh->RandomRefinement(3, 2, false);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -143,16 +149,7 @@ int main(int argc, char *argv[])
       }*/
    }
    //pmesh->RandomRefinement(3, 2, false, -1, -1, myid);
-   pmesh->UniformRefinement();
-
-   /*const Table &dtable =*/ pmesh->GetDerefinementTable();
-   Array<int> derefs;
-   /*for (int i = 0; i < dtable.Size(); i++)
-   {
-      if (!(rand() % 2)) { derefs.Append(i); }
-   }*/
-   if (!myid) { derefs.Append(0); }
-   pmesh->NonconformingDerefinement(derefs);
+   //pmesh->UniformRefinement();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
@@ -231,7 +228,7 @@ int main(int argc, char *argv[])
    x = *X;
 
    // 13. Test refinement and interpolation
-   pmesh->ncmesh->MarkCoarseLevel();
+/*   pmesh->ncmesh->MarkCoarseLevel();
    pmesh->RandomRefinement(2, myid+1);
 
    fespace->Update();
@@ -248,8 +245,25 @@ int main(int argc, char *argv[])
 
    HypreParMatrix *M = fespace->RebalanceMatrix();
    x.ParallelTransform(M);
-   delete M;
+   delete M;*/
 
+   // 13. Test derefinement
+#if 1
+   const Table &dtable = pmesh->GetDerefinementTable();
+   Array<int> derefs;
+   for (int i = 0; i < dtable.Size(); i++)
+   {
+      //if (!(rand() % 2)) { derefs.Append(i); }
+      derefs.Append(i);
+   }
+   pmesh->NonconformingDerefinement(derefs);
+
+   fespace->Update();
+
+   HypreParMatrix *D = fespace->ParallelDerefinementMatrix();
+   x.ParallelTransform(D);
+   delete D;
+#endif
 
    // 14. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".

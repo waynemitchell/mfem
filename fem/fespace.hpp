@@ -345,7 +345,7 @@ public:
    SparseMatrix* RefinementMatrix();
 
    /** */
-   SparseMatrix* DerefinementMatrix();
+   virtual SparseMatrix* DerefinementMatrix();
 
    virtual void Update();
 

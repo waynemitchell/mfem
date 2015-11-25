@@ -3138,7 +3138,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    }
    else
    {
-      MFEM_ABORT("Unknown input mesh format");
+      MFEM_ABORT("Unknown input mesh format: " << mesh_type);
       return;
    }
 
@@ -4745,10 +4745,14 @@ void Mesh::GenerateNCFaceInfo()
    nc_faces_info.SetSize(0);
    nc_faces_info.Reserve(list.masters.size() + list.slaves.size());
 
+   int nfaces = GetNumFaces();
+
    // add records for master faces
    for (unsigned i = 0; i < list.masters.size(); i++)
    {
       const NCMesh::Master &master = list.masters[i];
+      if (master.index >= nfaces) { continue; }
+
       faces_info[master.index].NCFace = nc_faces_info.Size();
       nc_faces_info.Append(NCFaceInfo(false, master.local, NULL));
       // NOTE: one of the unused members stores local face no. to be used below
@@ -4758,6 +4762,8 @@ void Mesh::GenerateNCFaceInfo()
    for (unsigned i = 0; i < list.slaves.size(); i++)
    {
       const NCMesh::Slave &slave = list.slaves[i];
+      if (slave.index >= nfaces || slave.master >= nfaces) { continue; }
+
       FaceInfo &slave_fi = faces_info[slave.index];
       FaceInfo &master_fi = faces_info[slave.master];
       NCFaceInfo &master_nc = nc_faces_info[master_fi.NCFace];

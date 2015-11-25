@@ -15,7 +15,7 @@
 #include <string>
 #include <algorithm>
 #include <cmath>
-#include <limits>
+#include <climits>
 
 namespace mfem
 {
@@ -1271,12 +1271,12 @@ void NCMesh::DerefineElement(Element* elem)
    RefElementNodes(elem);
 
    // delete children, determine rank
-   elem->rank = std::numeric_limits<int>::max();
+   elem->rank = INT_MAX;
    for (int i = 0; i < 8; i++)
    {
       if (child[i])
       {
-         elem->rank = std::min(elem->rank, child[i]->rank); // TODO: ???
+         elem->rank = std::min(elem->rank, child[i]->rank);
          DeleteHierarchy(child[i]);
       }
    }
@@ -2192,6 +2192,9 @@ void NCMesh::FindNeighbors(const Element* elem,
       }
       vert.Sort();
       vert.Unique();
+
+      v1 = vert.GetData();
+      nv1 = vert.Size();
    }
 
    if (!search_set) { search_set = &leaf_elements; }
