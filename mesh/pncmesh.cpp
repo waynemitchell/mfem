@@ -733,7 +733,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       ElementNeighborProcessors(parent, ranks);
       for (int j = 0; j < ranks.Size(); j++)
       {
-         send_deref[ranks[j]].AddDerefinement(parent);
+         send_deref[ranks[j]].AddDerefinement(parent, 0 /*FIXME*/);
       }
    }
    NeighborDerefinementMessage::IsendAll(send_deref, MyComm);
@@ -1646,36 +1646,6 @@ void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Decode()
 
    // no longer need the raw data
    Base::data.clear();
-}
-
-void ParNCMesh::NeighborDerefinementMessage::Encode()
-{
-   std::ostringstream ostream;
-
-   Array<Element*> tmp_elements;
-   tmp_elements.MakeRef(elements.data(), elements.size());
-
-   ElementSet eset(pncmesh);
-   eset.Encode(tmp_elements);
-   eset.Dump(ostream);
-
-   ostream.str().swap(data);
-}
-
-void ParNCMesh::NeighborDerefinementMessage::Decode()
-{
-   std::istringstream istream(data);
-
-   ElementSet eset(pncmesh);
-   eset.Load(istream);
-
-   Array<Element*> tmp_elements;
-   eset.Decode(tmp_elements);
-
-   Element** el = tmp_elements.GetData();
-   elements.assign(el, el + tmp_elements.Size());
-
-   data.clear();
 }
 
 void ParNCMesh::RebalanceDofMessage::SetElements(const Array<Element*> &elems,

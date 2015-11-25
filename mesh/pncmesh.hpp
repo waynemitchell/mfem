@@ -390,16 +390,15 @@ protected:
 
    /** Used by ParNCMesh::Derefine() to keep the ghost layers synchronized.
     */
-   class NeighborDerefinementMessage : public ElementValueMessage<char, false, 290>
+   class NeighborDerefinementMessage : public ElementValueMessage<int, false, 290>
    {
    public:
-      void AddDerefinement(Element* elem) { elements.push_back(elem); }
-
+      void AddDerefinement(Element* elem, int rank)
+      {
+         elements.push_back(elem);
+         values.push_back(rank);
+      }
       typedef std::map<int, NeighborDerefinementMessage> Map;
-
-   protected:
-      virtual void Encode();
-      virtual void Decode();
    };
 
    /** Used in Step 2 of ParNCMesh::Rebalance to synchronize new rank
