@@ -18,7 +18,7 @@
 #include "../fem/fe_coll.hpp"
 
 #include <map>
-#include <limits>
+#include <climits>
 
 namespace mfem
 {
@@ -202,7 +202,7 @@ void ParNCMesh::BuildEdgeList()
 
    int nedges = NEdges + NGhostEdges;
    edge_owner.SetSize(nedges);
-   edge_owner = std::numeric_limits<int>::max();
+   edge_owner = INT_MAX;
 
    index_rank.SetSize(12*leaf_elements.Size() * 3/2);
    index_rank.SetSize(0);
@@ -226,7 +226,7 @@ void ParNCMesh::BuildFaceList()
 
    int nfaces = NFaces + NGhostFaces;
    face_owner.SetSize(nfaces);
-   face_owner = std::numeric_limits<int>::max();
+   face_owner = INT_MAX;
 
    index_rank.SetSize(6*leaf_elements.Size() * 3/2);
    index_rank.SetSize(0);
@@ -351,7 +351,7 @@ void ParNCMesh::BuildSharedVertices()
 {
    int nvertices = NVertices + NGhostVertices;
    vertex_owner.SetSize(nvertices);
-   vertex_owner = std::numeric_limits<int>::max();
+   vertex_owner = INT_MAX;
 
    index_rank.SetSize(8*leaf_elements.Size());
    index_rank.SetSize(0);
@@ -730,10 +730,17 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       const int* fine = derefinements.GetRow(row);
       Element* parent = leaf_elements[fine[0]]->parent;
 
+      // get new element rank (neighbors may not be able to determine it)
+      int new_rank = INT_MAX;
+      for (int j = 0; j < derefinements.RowSize(row); j++)
+      {
+         new_rank = std::min(new_rank, leaf_elements[fine[j]]->rank);
+      }
+
       ElementNeighborProcessors(parent, ranks);
       for (int j = 0; j < ranks.Size(); j++)
       {
-         send_deref[ranks[j]].AddDerefinement(parent, 0 /*FIXME*/);
+         send_deref[ranks[j]].AddDerefinement(parent, new_rank);
       }
    }
    NeighborDerefinementMessage::IsendAll(send_deref, MyComm);
@@ -770,6 +777,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
          {
             SetDerefMatrixCodes(elem, coarse);
             NCMesh::DerefineElement(elem);
+            elem->rank = msg.values[i];
          }
       }
    }

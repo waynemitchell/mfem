@@ -1685,6 +1685,9 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
             MPI_Irecv(&msg.dofs[0], ldofs, MPI_HYPRE_INT,
                       fine_rank, 291, MyComm, &msg.request);
          }
+         // TODO: coalesce Isends/Irecvs to the same rank. Typically, on uniform
+         // derefinement, there should be just one send to MyRank-1 and one recv
+         // from MyRank+1
       }
    }
 
