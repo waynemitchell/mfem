@@ -85,14 +85,15 @@ double Mesh::GetElementVolume(int i)
 
 void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
 {
-   int i, dim;
+   int i, dim, sdim;
    DenseMatrix J;
    double h_min, h_max, kappa_min, kappa_max, h, kappa;
 
    cout << "Mesh Characteristics:" << flush;
 
    dim = Dimension();
-   J.SetSize(dim);
+   sdim = SpaceDimension();
+   J.SetSize(sdim, dim);
 
    if (Vh) { Vh->SetSize(NumOfElements); }
    if (Vk) { Vk->SetSize(NumOfElements); }
@@ -102,8 +103,9 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
    for (i = 0; i < NumOfElements; i++)
    {
       GetElementJacobian(i, J);
-      h = pow(fabs(J.Det()), 1.0/double(dim));
-      kappa = J.CalcSingularvalue(0) / J.CalcSingularvalue(dim-1);
+      h = pow(fabs(J.Weight()), 1.0/double(dim));
+      kappa = (dim == sdim) ?
+              J.CalcSingularvalue(0) / J.CalcSingularvalue(dim-1) : -1.0;
       if (Vh) { (*Vh)(i) = h; }
       if (Vk) { (*Vk)(i) = kappa; }
 
