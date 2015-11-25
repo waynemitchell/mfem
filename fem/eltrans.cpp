@@ -187,6 +187,60 @@ void IsoparametricTransformation::Transform (const DenseMatrix &matrix,
    }
 }
 
+int IsoparametricTransformation::TransformBack(const Vector &pt,
+                                               IntegrationPoint &ip)
+{
+   const int    max_iter = 16;
+   const double  ref_tol = 1e-15;
+   const double phys_tol = 1e-15*pt.Normlinf();
+
+   const int dim = FElem->GetDim();
+   const int sdim = PointMat.Height();
+   const int geom = FElem->GetGeomType();
+   IntegrationPoint xip, prev_xip;
+   double xd[3], yd[3], dxd[3], Jid[9];
+   Vector x(xd, dim), y(yd, sdim), dx(dxd, dim);
+   DenseMatrix Jinv(Jid, dim, sdim);
+   bool hit_bdr = false, prev_hit_bdr;
+
+   // Use the center of the element as initial guess
+   xip = Geometries.GetCenter(geom);
+   xip.Get(xd, dim);
+
+   for (int it = 1; it <= max_iter; it++)
+   {
+      // Newton iteration:    x := x + J(x)^{-1} [pt-F(x)]
+      // or when dim != sdim: x := x + [J^t.J]^{-1}.J^t [pt-F(x)]
+      Transform(xip, y);
+      subtract(pt, y, y); // y = pt-y
+      SetIntPoint(&xip);
+      CalcInverse(Jacobian(), Jinv);
+      Jinv.Mult(y, dx);
+      x += dx;
+      prev_xip = xip;
+      prev_hit_bdr = hit_bdr;
+      xip.Set(xd, dim);
+
+      hit_bdr = !Geometry::ProjectPoint(geom, prev_xip, xip);
+      if (hit_bdr)
+      {
+         xip.Get(dxd, dim);     //      xip -> dx
+         prev_xip.Get(xd, dim); // prev_xip -> x
+         dx -= x;
+         if (prev_hit_bdr && dx.Normlinf() < ref_tol) { return 1; }
+      }
+
+      if (dx.Normlinf() < ref_tol || y.Normlinf() < phys_tol)
+      {
+         ip = xip;
+         return 0;
+      }
+   }
+
+   ip = xip;
+   return 2;
+}
+
 void IntegrationPointTransformation::Transform (const IntegrationPoint &ip1,
                                                 IntegrationPoint &ip2)
 {
