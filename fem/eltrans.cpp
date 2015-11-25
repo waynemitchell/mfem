@@ -205,38 +205,37 @@ int IsoparametricTransformation::TransformBack(const Vector &pt,
 
    // Use the center of the element as initial guess
    xip = Geometries.GetCenter(geom);
-   xip.Get(xd, dim);
+   xip.Get(xd, dim); // xip -> x
 
-   for (int it = 1; it <= max_iter; it++)
+   for (int it = 0; it < max_iter; it++)
    {
       // Newton iteration:    x := x + J(x)^{-1} [pt-F(x)]
       // or when dim != sdim: x := x + [J^t.J]^{-1}.J^t [pt-F(x)]
       Transform(xip, y);
       subtract(pt, y, y); // y = pt-y
+      if (y.Normlinf() < phys_tol) { ip = xip; return 0; }
       SetIntPoint(&xip);
       CalcInverse(Jacobian(), Jinv);
       Jinv.Mult(y, dx);
       x += dx;
       prev_xip = xip;
       prev_hit_bdr = hit_bdr;
-      xip.Set(xd, dim);
-
+      xip.Set(xd, dim); // x -> xip
+      // If xip is ouside project it on the boundary on the line segment
+      // between prev_xip and xip
       hit_bdr = !Geometry::ProjectPoint(geom, prev_xip, xip);
+      if (dx.Normlinf() < ref_tol) { ip = xip; return 0; }
       if (hit_bdr)
       {
-         xip.Get(dxd, dim);     //      xip -> dx
-         prev_xip.Get(xd, dim); // prev_xip -> x
-         dx -= x;
-         if (prev_hit_bdr && dx.Normlinf() < ref_tol) { return 1; }
-      }
-
-      if (dx.Normlinf() < ref_tol || y.Normlinf() < phys_tol)
-      {
-         ip = xip;
-         return 0;
+         xip.Get(xd, dim); // xip -> x
+         if (prev_hit_bdr)
+         {
+            prev_xip.Get(dxd, dim); // prev_xip -> dx
+            subtract(x, dx, dx);    // dx = xip - prev_xip
+            if (dx.Normlinf() < ref_tol) { return 1; }
+         }
       }
    }
-
    ip = xip;
    return 2;
 }
