@@ -135,9 +135,11 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
    a->ConformingAssemble(x, *b);
+
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
    a->EliminateEssentialBC(ess_bdr, x, *b);
+
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 

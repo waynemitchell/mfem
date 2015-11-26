@@ -108,13 +108,14 @@ int main(int argc, char *argv[])
       }
    }*/
    mesh->EnsureNCMesh();
-   {
+   /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0));
       mesh->GeneralRefinement(refs);
       mesh->GeneralRefinement(refs);
-   }
-   //mesh->RandomRefinement(3, 2, false);
+      mesh->GeneralRefinement(refs);
+   }*/
+   mesh->RandomRefinement(4, 2, false);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -257,6 +258,16 @@ int main(int argc, char *argv[])
       derefs.Append(i);
    }
    pmesh->NonconformingDerefinement(derefs);
+
+   {
+      Mesh dbg;
+      pmesh->pncmesh->GetDebugMesh(dbg);
+
+      char name[100];
+      sprintf(name, "debug%03d.mesh", myid);
+      ofstream f(name);
+      dbg.Print(f);
+   }
 
    fespace->Update();
 
