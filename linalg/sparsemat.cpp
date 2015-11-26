@@ -27,7 +27,7 @@ namespace mfem
 using namespace std;
 
 SparseMatrix::SparseMatrix(int nrows, int ncols)
-   : AbstractSparseMatrix(nrows, ncols ? ncols : nrows),
+   : AbstractSparseMatrix(nrows, (ncols >= 0) ? ncols : nrows),
      I(NULL),
      J(NULL),
      A(NULL),
@@ -2297,26 +2297,25 @@ int SparseMatrix::ActualWidth()
    int awidth = 0;
    if (A)
    {
-      int * start_j(J);
-      int * end_j(J + I[height]);
-      for (int * jptr(start_j); jptr != end_j; ++jptr)
+      int *start_j = J;
+      int *end_j = J + I[height];
+      for (int *jptr = start_j; jptr != end_j; ++jptr)
       {
-         awidth = (*jptr > awidth) ? *jptr : awidth;
+         awidth = std::max(awidth, *jptr + 1);
       }
    }
    else
    {
       RowNode *aux;
       for (int i = 0; i < height; i++)
+      {
          for (aux = Rows[i]; aux != NULL; aux = aux->Prev)
          {
-            awidth =(aux->Column > awidth) ? aux->Column : awidth;
+            awidth = std::max(awidth, aux->Column + 1);
          }
+      }
    }
-   ++awidth;
-
    return awidth;
-
 }
 
 void SparseMatrixFunction (SparseMatrix & S, double (*f)(double))

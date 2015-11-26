@@ -72,7 +72,7 @@ public:
        linked list format. New entries are added as needed by methods like
        AddSubMatrix, SetSubMatrix, etc. Calling Finalize() will convert the
        SparseMatrix to the more compact compressed sparse row (CSR) format. */
-   explicit SparseMatrix(int nrows, int ncols = 0);
+   explicit SparseMatrix(int nrows, int ncols = -1);
 
    /** Create a sparse matrix in CSR format. Ownership of i, j, and data is
        transferred to the SparseMatrix. */
