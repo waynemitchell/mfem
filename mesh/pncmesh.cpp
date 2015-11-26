@@ -1363,6 +1363,7 @@ void ParNCMesh::DecodeMeshIds(std::istream &is, Array<MeshId> ids[])
    }
 }
 
+
 //// Messages //////////////////////////////////////////////////////////////////
 
 void NeighborDofMessage::AddDofs(int type, const NCMesh::MeshId &id,
@@ -1704,6 +1705,7 @@ void ParNCMesh::RebalanceDofMessage::Decode()
    }
 }
 
+
 //// Utility ///////////////////////////////////////////////////////////////////
 
 void ParNCMesh::GetDebugMesh(Mesh &debug_mesh) const
@@ -1714,7 +1716,7 @@ void ParNCMesh::GetDebugMesh(Mesh &debug_mesh) const
    Array<Element*> &cle = copy->leaf_elements;
    for (int i = 0; i < cle.Size(); i++)
    {
-      cle[i]->attribute = (cle[i]->rank == MyRank) ? 1 : 2;
+      cle[i]->attribute = cle[i]->rank + 1;
    }
 
    debug_mesh.InitFromNCMesh(*copy);

@@ -204,8 +204,7 @@ public:
                                    Array<int> &bdr_edges);
 
    /** Extract a debugging Mesh containing all leaf elements, including ghosts.
-       The debug mesh will have element attributes set to 1 for real elements
-       and to 2 for ghost elements. */
+       The debug mesh will have element attributes set to element rank + 1. */
    void GetDebugMesh(Mesh &debug_mesh) const;
 
 
