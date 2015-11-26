@@ -1653,9 +1653,11 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 
    std::map<int, DerefDofMessage> messages;
 
+   HYPRE_Int old_offset = HYPRE_AssumedPartitionCheck()
+                          ? old_dof_offsets[0] : old_dof_offsets[MyRank];
+
    // communicate DOFs for derefinements that straddle processor boundaries,
    // note that this is infrequent due to the way elements are ordered
-   HYPRE_Int offset = GetMyDofOffset();
    for (int k = 0; k < dt.fine_coarse.Size(); k++)
    {
       int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[k].coarse_element);
@@ -1671,7 +1673,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
             msg.dofs.resize(dofs.Size());
             for (int i = 0; i < dofs.Size(); i++)
             {
-               msg.dofs[i] = offset + dofs[i];
+               msg.dofs[i] = old_offset + dofs[i];
             }
 
             MPI_Isend(&msg.dofs[0], msg.dofs.size(), MPI_HYPRE_INT,
@@ -1736,15 +1738,11 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    diag->Finalize();
 
    // wait for all sends/receives to complete
-   int nmsg = messages.size();
-   MPI_Request* requests = new MPI_Request[nmsg];
-   std::map<int, DerefDofMessage>::iterator it = messages.begin();
-   for (int i = 0; it != messages.end(); ++it, i++)
+   for (std::map<int, DerefDofMessage>::iterator
+        it = messages.begin(); it != messages.end(); ++it)
    {
-      requests[i] = it->second.request;
+      MPI_Wait(&it->second.request, MPI_STATUS_IGNORE);
    }
-   MPI_Waitall(nmsg, requests, MPI_STATUSES_IGNORE);
-   delete [] requests;
 
    // create the offdiagonal part of the derefinement matrix
    SparseMatrix *offd = new SparseMatrix(ndofs*vdim, 1);
@@ -1780,6 +1778,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
                   lR.GetRow(i, row);
                   for (int j = 0; j < ldofs; j++)
                   {
+                     if (std::abs(row[j]) < 1e-12) { continue; }
                      int &lcol = col_map[remote_dofs[j]];
                      if (!lcol) { lcol = col_map.size(); }
                      offd->_Set_(m, lcol-1, row[j]);
@@ -1791,14 +1790,15 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
       }
    }
    messages.clear();
-   offd->Finalize();
+   offd->Finalize(0);
+   offd->SetWidth(col_map.size());
 
    // finish the matrix
    HYPRE_Int *cmap = new HYPRE_Int[col_map.size()];
    for (std::map<HYPRE_Int, int>::iterator
         it = col_map.begin(); it != col_map.end(); ++it)
    {
-      cmap[it->second] = it->first;
+      cmap[it->second-1] = it->first;
    }
    int nrk = HYPRE_AssumedPartitionCheck() ? 2 : NRanks;
 

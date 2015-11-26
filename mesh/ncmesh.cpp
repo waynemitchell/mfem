@@ -1408,7 +1408,7 @@ void NCMesh::SetDerefMatrixCodes(Element* parent, Array<Element*> &coarse)
    for (int i = 0; i < 8; i++)
    {
       Element* ch = parent->child[i];
-      if (ch)
+      if (ch && ch->index >= 0)
       {
          int code = (parent->ref_type << 3) + i;
          transforms.fine_coarse[ch->index].matrix = code;
@@ -1478,6 +1478,10 @@ void NCMesh::CollectLeafElements(Element* elem, int state)
       if (elem->rank >= 0)
       {
          leaf_elements.Append(elem);
+      }
+      else
+      {
+         elem->index = -1;
       }
    }
    else
