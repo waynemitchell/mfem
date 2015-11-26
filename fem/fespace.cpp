@@ -867,6 +867,12 @@ const SparseMatrix* FiniteElementSpace::GetConformingRestriction()
    return cR;
 }
 
+int FiniteElementSpace::GetNConformingDofs()
+{
+   const SparseMatrix* P = GetConformingProlongation();
+   return P ? (P->Width() / vdim) : ndofs;
+}
+
 FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
 {
    mesh = fes.mesh;

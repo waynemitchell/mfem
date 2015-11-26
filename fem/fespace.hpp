@@ -161,9 +161,9 @@ public:
 
    /// Returns the number of conforming ("true") degrees of freedom
    /// (if the space is on a nonconforming mesh with hanging nodes).
-   inline int GetNConformingDofs() const { return cP ? cP->Width() : ndofs; }
+   int GetNConformingDofs();
 
-   inline int GetConformingVSize() const { return vdim * GetNConformingDofs(); }
+   int GetConformingVSize() { return vdim * GetNConformingDofs(); }
 
    /// Return the ordering method.
    inline int GetOrdering() const { return ordering; }

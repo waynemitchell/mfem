@@ -672,6 +672,18 @@ class HypreBoomerAMG : public HypreSolver
 private:
    HYPRE_Solver amg_precond;
 
+   /// Rigid body modes
+   Array<HYPRE_ParVector> rbms;
+
+   /// Finite element space for elasticity problems, see SetElasticityOptions()
+   ParFiniteElementSpace *fespace;
+
+   /// Recompute the rigid-body modes vectors (in the rbms array)
+   void RecomputeRBMs();
+
+   /// Default, generally robust, BoomerAMG options
+   void SetDefaultOptions();
+
    // If amg_precond is NULL, allocates it and sets default options.
    // Otherwise saves the options from amg_precond, destroys it, allocates a new
    // one, and sets its options to the saved values.
@@ -688,6 +700,13 @@ public:
        assumes Ordering::byVDIM in the finite element space used to generate the
        matrix A. */
    void SetSystemsOptions(int dim);
+
+   /** A special elasticity version of BoomerAMG that takes advantage of
+       geometric rigid body modes and could perform better on some problems, see
+       "Improving algebraic multigrid interpolation operators for linear
+       elasticity problems", Baker, Kolev, Yang, NLAA 2009, DOI:10.1002/nla.688.
+       As with SetSystemsOptions(), this solver assumes Ordering::byVDIM. */
+   void SetElasticityOptions(ParFiniteElementSpace *fespace);
 
    void SetPrintLevel(int print_level)
    { HYPRE_BoomerAMGSetPrintLevel(amg_precond, print_level); }

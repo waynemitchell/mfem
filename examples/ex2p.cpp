@@ -6,6 +6,8 @@
 //               mpirun -np 4 ex2p -m ../data/beam-quad.mesh
 //               mpirun -np 4 ex2p -m ../data/beam-tet.mesh
 //               mpirun -np 4 ex2p -m ../data/beam-hex.mesh
+//               mpirun -np 4 ex2p -m ../data/beam-tri.mesh -o 2 -sys
+//               mpirun -np 4 ex2p -m ../data/beam-quad.mesh -o 3 -elast
 //               mpirun -np 4 ex2p -m ../data/beam-quad-nurbs.mesh
 //               mpirun -np 4 ex2p -m ../data/beam-hex-nurbs.mesh
 //
@@ -53,12 +55,17 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/beam-tri.mesh";
    int order = 1;
    bool visualization = 1;
+   bool amg_elast = 0;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&amg_elast, "-elast", "--amg-for-elasticity", "-sys",
+                  "--amg-for-systems",
+                  "Use the special AMG elasticity solver (GM/LN approaches), "
+                  "or standard AMG for systems (unknown approach).");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -146,7 +153,8 @@ int main(int argc, char *argv[])
    //    (degree elevated) NURBS space associated with the mesh nodes.
    FiniteElementCollection *fec;
    ParFiniteElementSpace *fespace;
-   if (pmesh->NURBSext)
+   const bool use_nodal_fespace = pmesh->NURBSext && !amg_elast;
+   if (use_nodal_fespace)
    {
       fec = NULL;
       fespace = (ParFiniteElementSpace *)pmesh->GetNodes()->FESpace();
@@ -242,7 +250,14 @@ int main(int argc, char *argv[])
    // 13. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
    HypreBoomerAMG *amg = new HypreBoomerAMG(*A);
-   amg->SetSystemsOptions(dim);
+   if (amg_elast)
+   {
+      amg->SetElasticityOptions(fespace);
+   }
+   else
+   {
+      amg->SetSystemsOptions(dim);
+   }
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-8);
    pcg->SetMaxIter(500);
@@ -261,7 +276,7 @@ int main(int argc, char *argv[])
    //     element displacement field. We assume that the initial mesh (read from
    //     the file) is not higher order curved mesh compared to the chosen FE
    //     space.
-   if (!pmesh->NURBSext)
+   if (!use_nodal_fespace)
    {
       pmesh->SetNodalFESpace(fespace);
    }

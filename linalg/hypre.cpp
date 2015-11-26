@@ -2113,45 +2113,94 @@ HypreParaSails::~HypreParaSails()
 
 HypreBoomerAMG::HypreBoomerAMG()
 {
-   amg_precond = NULL;
-   ResetAMGPrecond();
+   HYPRE_BoomerAMGCreate(&amg_precond);
+   SetDefaultOptions();
 }
 
 HypreBoomerAMG::HypreBoomerAMG(HypreParMatrix &A) : HypreSolver(&A)
 {
-   amg_precond = NULL;
-   ResetAMGPrecond();
+   HYPRE_BoomerAMGCreate(&amg_precond);
+   SetDefaultOptions();
+}
+
+void HypreBoomerAMG::SetDefaultOptions()
+{
+   // AMG coarsening options:
+   int coarsen_type = 10;   // 10 = HMIS, 8 = PMIS, 6 = Falgout, 0 = CLJP
+   int agg_levels   = 1;    // number of aggressive coarsening levels
+   double theta     = 0.25; // strength threshold: 0.25, 0.5, 0.8
+
+   // AMG interpolation options:
+   int interp_type  = 6;    // 6 = extended+i, 0 = classical
+   int Pmax         = 4;    // max number of elements per row in P
+
+   // AMG relaxation options:
+   int relax_type   = 8;    // 8 = l1-GS, 6 = symm. GS, 3 = GS, 18 = l1-Jacobi
+   int relax_sweeps = 1;    // relaxation sweeps on each level
+
+   // Additional options:
+   int print_level  = 1;    // print AMG iterations? 1 = no, 2 = yes
+   int max_levels   = 25;   // max number of levels in AMG hierarchy
+
+   HYPRE_BoomerAMGSetCoarsenType(amg_precond, coarsen_type);
+   HYPRE_BoomerAMGSetAggNumLevels(amg_precond, agg_levels);
+   HYPRE_BoomerAMGSetRelaxType(amg_precond, relax_type);
+   HYPRE_BoomerAMGSetNumSweeps(amg_precond, relax_sweeps);
+   HYPRE_BoomerAMGSetStrongThreshold(amg_precond, theta);
+   HYPRE_BoomerAMGSetInterpType(amg_precond, interp_type);
+   HYPRE_BoomerAMGSetPMaxElmts(amg_precond, Pmax);
+   HYPRE_BoomerAMGSetPrintLevel(amg_precond, print_level);
+   HYPRE_BoomerAMGSetMaxLevels(amg_precond, max_levels);
+
+   // Use as a preconditioner (one V-cycle, zero tolerance)
+   HYPRE_BoomerAMGSetMaxIter(amg_precond, 1);
+   HYPRE_BoomerAMGSetTol(amg_precond, 0.0);
 }
 
 void HypreBoomerAMG::ResetAMGPrecond()
 {
-   HYPRE_Int coarsen_type = 10;
-   HYPRE_Int agg_levels   = 1;
-   HYPRE_Int relax_type   = 8;
-   HYPRE_Int relax_sweeps = 1;
-   double theta           = 0.25;
-   HYPRE_Int interp_type  = 6;
-   HYPRE_Int Pmax         = 4;
-   HYPRE_Int print_level  = 1;
-   HYPRE_Int dim          = 1;
+   HYPRE_Int coarsen_type;
+   HYPRE_Int agg_levels;
+   HYPRE_Int relax_type;
+   HYPRE_Int relax_sweeps;
+   HYPRE_Real theta;
+   HYPRE_Int interp_type;
+   HYPRE_Int Pmax;
+   HYPRE_Int print_level;
+   HYPRE_Int dim;
+   HYPRE_Int nrbms = rbms.Size();
+   HYPRE_Int nodal;
+   HYPRE_Int nodal_diag;
+   HYPRE_Int relax_coarse;
+   HYPRE_Int interp_vec_variant;
+   HYPRE_Int q_max;
+   HYPRE_Int smooth_interp_vectors;
+   HYPRE_Int interp_refine;
 
    hypre_ParAMGData *amg_data = (hypre_ParAMGData *)amg_precond;
-   if (amg_data)
-   {
-      // read options from amg_precond
-      HYPRE_BoomerAMGGetCoarsenType(amg_precond, &coarsen_type);
-      agg_levels = hypre_ParAMGDataAggNumLevels(amg_data);
-      relax_type = hypre_ParAMGDataUserRelaxType(amg_data);
-      relax_sweeps = hypre_ParAMGDataUserNumSweeps(amg_data);
-      HYPRE_BoomerAMGGetStrongThreshold(amg_precond, &theta);
-      hypre_BoomerAMGGetInterpType(amg_precond, &interp_type);
-      HYPRE_BoomerAMGGetPMaxElmts(amg_precond, &Pmax);
-      HYPRE_BoomerAMGGetPrintLevel(amg_precond, &print_level);
-      HYPRE_BoomerAMGGetNumFunctions(amg_precond, &dim);
 
-      HYPRE_BoomerAMGDestroy(amg_precond);
+   // read options from amg_precond
+   HYPRE_BoomerAMGGetCoarsenType(amg_precond, &coarsen_type);
+   agg_levels = hypre_ParAMGDataAggNumLevels(amg_data);
+   relax_type = hypre_ParAMGDataUserRelaxType(amg_data);
+   relax_sweeps = hypre_ParAMGDataUserNumSweeps(amg_data);
+   HYPRE_BoomerAMGGetStrongThreshold(amg_precond, &theta);
+   hypre_BoomerAMGGetInterpType(amg_precond, &interp_type);
+   HYPRE_BoomerAMGGetPMaxElmts(amg_precond, &Pmax);
+   HYPRE_BoomerAMGGetPrintLevel(amg_precond, &print_level);
+   HYPRE_BoomerAMGGetNumFunctions(amg_precond, &dim);
+   if (nrbms) // elasticity solver options
+   {
+      nodal = hypre_ParAMGDataNodal(amg_data);
+      nodal_diag = hypre_ParAMGDataNodalDiag(amg_data);
+      HYPRE_BoomerAMGGetCycleRelaxType(amg_precond, &relax_coarse, 3);
+      interp_vec_variant = hypre_ParAMGInterpVecVariant(amg_data);
+      q_max = hypre_ParAMGInterpVecQMax(amg_data);
+      smooth_interp_vectors = hypre_ParAMGSmoothInterpVectors(amg_data);
+      interp_refine = hypre_ParAMGInterpRefine(amg_data);
    }
 
+   HYPRE_BoomerAMGDestroy(amg_precond);
    HYPRE_BoomerAMGCreate(&amg_precond);
 
    HYPRE_BoomerAMGSetCoarsenType(amg_precond, coarsen_type);
@@ -2166,6 +2215,18 @@ void HypreBoomerAMG::ResetAMGPrecond()
    HYPRE_BoomerAMGSetPMaxElmts(amg_precond, Pmax);
    HYPRE_BoomerAMGSetPrintLevel(amg_precond, print_level);
    HYPRE_BoomerAMGSetNumFunctions(amg_precond, dim);
+   if (nrbms)
+   {
+      HYPRE_BoomerAMGSetNodal(amg_precond, nodal);
+      HYPRE_BoomerAMGSetNodalDiag(amg_precond, nodal_diag);
+      HYPRE_BoomerAMGSetCycleRelaxType(amg_precond, relax_coarse, 3);
+      HYPRE_BoomerAMGSetInterpVecVariant(amg_precond, interp_vec_variant);
+      HYPRE_BoomerAMGSetInterpVecQMax(amg_precond, q_max);
+      HYPRE_BoomerAMGSetSmoothInterpVectors(amg_precond, smooth_interp_vectors);
+      HYPRE_BoomerAMGSetInterpRefine(amg_precond, interp_refine);
+      RecomputeRBMs();
+      HYPRE_BoomerAMGSetInterpVectors(amg_precond, rbms.Size(), rbms.GetData());
+   }
 }
 
 void HypreBoomerAMG::SetOperator(const Operator &op)
@@ -2194,8 +2255,122 @@ void HypreBoomerAMG::SetSystemsOptions(int dim)
    HYPRE_BoomerAMGSetStrongThreshold(amg_precond, 0.5);
 }
 
+// Rotational rigid-body mode functions, used in SetElasticityOptions()
+static void func_rxy(const Vector &x, Vector &y)
+{
+   y = 0.0; y(0) = x(1); y(1) = -x(0);
+}
+static void func_ryz(const Vector &x, Vector &y)
+{
+   y = 0.0; y(1) = x(2); y(2) = -x(1);
+}
+static void func_rzx(const Vector &x, Vector &y)
+{
+   y = 0.0; y(2) = x(0); y(0) = -x(2);
+}
+
+void HypreBoomerAMG::RecomputeRBMs()
+{
+   int nrbms;
+   Array<HypreParVector*> gf_rbms;
+   int dim = fespace->GetParMesh()->Dimension();
+
+   for (int i = 0; i < rbms.Size(); i++)
+   {
+      HYPRE_ParVectorDestroy(rbms[i]);
+   }
+
+   if (dim == 2)
+   {
+      nrbms = 1;
+
+      VectorFunctionCoefficient coeff_rxy(2, func_rxy);
+
+      ParGridFunction rbms_rxy(fespace);
+      rbms_rxy.ProjectCoefficient(coeff_rxy);
+
+      rbms.SetSize(nrbms);
+      gf_rbms.SetSize(nrbms);
+      gf_rbms[0] = rbms_rxy.ParallelAverage();
+   }
+   else if (dim == 3)
+   {
+      nrbms = 3;
+
+      VectorFunctionCoefficient coeff_rxy(3, func_rxy);
+      VectorFunctionCoefficient coeff_ryz(3, func_ryz);
+      VectorFunctionCoefficient coeff_rzx(3, func_rzx);
+
+      ParGridFunction rbms_rxy(fespace);
+      ParGridFunction rbms_ryz(fespace);
+      ParGridFunction rbms_rzx(fespace);
+      rbms_rxy.ProjectCoefficient(coeff_rxy);
+      rbms_ryz.ProjectCoefficient(coeff_ryz);
+      rbms_rzx.ProjectCoefficient(coeff_rzx);
+
+      rbms.SetSize(nrbms);
+      gf_rbms.SetSize(nrbms);
+      gf_rbms[0] = rbms_rxy.ParallelAverage();
+      gf_rbms[1] = rbms_ryz.ParallelAverage();
+      gf_rbms[2] = rbms_rzx.ParallelAverage();
+   }
+   else
+   {
+      nrbms = 0;
+      rbms.SetSize(nrbms);
+   }
+
+   // Transfer the RBMs from the ParGridFunction to the HYPRE_ParVector objects
+   for (int i = 0; i < nrbms; i++)
+   {
+      rbms[i] = gf_rbms[i]->StealParVector();
+      delete gf_rbms[i];
+   }
+}
+
+void HypreBoomerAMG::SetElasticityOptions(ParFiniteElementSpace *fespace)
+{
+   // Save the finite element space to support multiple calls to SetOperator()
+   this->fespace = fespace;
+
+   // Make sure the systems AMG options are set
+   int dim = fespace->GetParMesh()->Dimension();
+   SetSystemsOptions(dim);
+
+   // Nodal coarsening options (nodal coarsening is required for this solver)
+   // See hypre's new_ij driver and the paper for descriptions.
+   int nodal                 = 4; // strength reduction norm: 1, 3 or 4
+   int nodal_diag            = 1; // diagonal in strength matrix: 0, 1 or 2
+   int relax_coarse          = 8; // smoother on the coarsest grid: 8, 99 or 29
+
+   // Elasticity interpolation options
+   int interp_vec_variant    = 2; // 1 = GM-1, 2 = GM-2, 3 = LN
+   int q_max                 = 4; // max elements per row for each Q
+   int smooth_interp_vectors = 1; // smooth the rigid-body modes?
+
+   // Optionally pre-process the interpolation matrix through iterative weight
+   // refinement (this is generally applicable for any system)
+   int interp_refine         = 1;
+
+   HYPRE_BoomerAMGSetNodal(amg_precond, nodal);
+   HYPRE_BoomerAMGSetNodalDiag(amg_precond, nodal_diag);
+   HYPRE_BoomerAMGSetCycleRelaxType(amg_precond, relax_coarse, 3);
+   HYPRE_BoomerAMGSetInterpVecVariant(amg_precond, interp_vec_variant);
+   HYPRE_BoomerAMGSetInterpVecQMax(amg_precond, q_max);
+   HYPRE_BoomerAMGSetSmoothInterpVectors(amg_precond, smooth_interp_vectors);
+   HYPRE_BoomerAMGSetInterpRefine(amg_precond, interp_refine);
+
+   RecomputeRBMs();
+   HYPRE_BoomerAMGSetInterpVectors(amg_precond, rbms.Size(), rbms.GetData());
+}
+
 HypreBoomerAMG::~HypreBoomerAMG()
 {
+   for (int i = 0; i < rbms.Size(); i++)
+   {
+      HYPRE_ParVectorDestroy(rbms[i]);
+   }
+
    HYPRE_BoomerAMGDestroy(amg_precond);
 }
 

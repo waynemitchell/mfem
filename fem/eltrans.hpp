@@ -56,6 +56,12 @@ public:
        this case the function should return "3"). */
    virtual int GetSpaceDim() = 0;
 
+   /** Attempt to find the IntegrationPoint that is transformed into the given
+       point in physical space. If the invesion fails a non-zero value is
+       returned. This method is not 100 percent reliable for non-linear
+       transformations. */
+   virtual int TransformBack(const Vector &, IntegrationPoint &) = 0;
+
    virtual ~ElementTransformation() { }
 };
 
@@ -92,6 +98,8 @@ public:
       // this function should only be called after PointMat is initialised
       return PointMat.Height();
    }
+
+   virtual int TransformBack(const Vector &, IntegrationPoint &);
 
    virtual ~IsoparametricTransformation() { }
 };
