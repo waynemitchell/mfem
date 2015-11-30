@@ -878,6 +878,7 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
    const FiniteElement &trial_fe, const FiniteElement &test_fe,
    ElementTransformation &Trans, DenseMatrix &elmat)
 {
+   // FIXME: this integrator makes sense only in 3D?
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
    int dim = trial_fe.GetDim();
    int dimc = (dim == 3) ? 3 : 1;

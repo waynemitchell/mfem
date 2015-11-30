@@ -528,7 +528,6 @@ public:
 class HyprePCG : public HypreSolver
 {
 private:
-   int print_level;
    HYPRE_Solver pcg_solver;
 
 public:
@@ -578,7 +577,6 @@ public:
 class HypreGMRES : public HypreSolver
 {
 private:
-   int print_level;
    HYPRE_Solver gmres_solver;
 
 public:
@@ -733,7 +731,6 @@ HypreParMatrix* DiscreteCurl(ParFiniteElementSpace *face_fespace,
 class HypreAMS : public HypreSolver
 {
 private:
-   int print_level;
    HYPRE_Solver ams;
 
    /// Vertex coordinates
@@ -766,7 +763,6 @@ public:
 class HypreADS : public HypreSolver
 {
 private:
-   int print_level;
    HYPRE_Solver ads;
 
    /// Vertex coordinates
@@ -962,11 +958,8 @@ private:
    int myid;
    int numProcs;
    int nev;   // Number of desired eigenmodes
-   int nconv; // Number of converged eigenmodes
+   int nconv; // Number of converged eigenmodes // FIXME: never used
    bool setT;
-
-   HYPRE_Int glbSize;
-   HYPRE_Int * part;
 
    // Pointer to HYPRE's AME solver struct
    HYPRE_Solver ame_solver;
@@ -988,11 +981,6 @@ private:
 
    HypreParVector ** eigenvectors;
 
-   // Empty vectors used to setup the matrices and preconditioner
-   HypreParVector * x;
-
-   void createDummyVectors();
-
 public:
 
    HypreAME(MPI_Comm comm);
@@ -1009,6 +997,7 @@ public:
    void SetOperator(HypreParMatrix & A);
    void SetMassMatrix(HypreParMatrix & M);
 
+   /// FIXME: what is the return value?
    int Solve();
 
    /// Collect the converged eigenvalues
@@ -1018,6 +1007,7 @@ public:
    HypreParVector & GetEigenvector(unsigned int i);
 
    /// Transfer ownership of the converged eigenvectors
+   /// FIXME: not implemented?
    HypreParVector * StealEigenvectors();
 };
 
