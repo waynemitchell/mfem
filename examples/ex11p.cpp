@@ -178,16 +178,18 @@ int main(int argc, char *argv[])
    // 9. Define and configure the LOBPCG eigensolver and a BoomerAMG
    //    preconditioner to be used within the solver.
    HypreLOBPCG * lobpcg = new HypreLOBPCG(MPI_COMM_WORLD);
-   HypreSolver *    amg = new HypreBoomerAMG(*A);
+   HypreBoomerAMG * amg = new HypreBoomerAMG(*A);
 
    lobpcg->SetNumModes(nev);
    lobpcg->SetPreconditioner(*amg);
    lobpcg->SetMaxIter(100);
    lobpcg->SetTol(1e-8);
    lobpcg->SetPrecondUsageMode(1);
-   lobpcg->SetPrintLevel(1);
+   if (myid == 0) { lobpcg->SetPrintLevel(1); }
+   amg->SetPrintLevel(0);
 
-   // Set the matrices which define the linear system
+   // Set the matrices which define the generalized eigen-problem:
+   //    A x = lambda M x
    lobpcg->SetMassMatrix(*M);
    lobpcg->SetOperator(*A);
 
@@ -197,12 +199,9 @@ int main(int argc, char *argv[])
    lobpcg->Solve();
    lobpcg->GetEigenvalues(eigenvalues);
 
-   // 10. Define a parallel grid function to approximate each of the
-   //     eigenmodes returned by the solver.  Use this as a template to
-   //     create a special multi-vector object needed by the eigensolver
-   //     which is then initialized with random values.
+   // 10. Define a parallel grid function to represent each of the eigenmodes
+   //     returned by the solver.
    ParGridFunction x(fespace);
-   x = 0.0;
 
    // 11. Save the refined mesh and the modes in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g mode".
@@ -216,6 +215,7 @@ int main(int argc, char *argv[])
 
       for (int i=0; i<nev; i++)
       {
+         // Convert eigenvector from HypreParVector to ParGridFunction
          x = lobpcg->GetEigenvector(i);
 
          mode_name << "mode_" << setfill('0') << setw(2) << i << "."
@@ -229,7 +229,6 @@ int main(int argc, char *argv[])
    }
 
    // 12. Send the solution by socket to a GLVis server.
-
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -244,10 +243,13 @@ int main(int argc, char *argv[])
             cout << "Lambda = " << eigenvalues[i] << endl;
          }
 
+         // Convert eigenvector from HypreParVector to ParGridFunction
          x = lobpcg->GetEigenvector(i);
 
          mode_sock << "parallel " << num_procs << " " << myid << "\n";
          mode_sock << "solution\n" << *pmesh << x << flush;
+         mode_sock << "window_title 'Eigenmode " << i
+                   << ", Lambda = " << eigenvalues[i] << "'" << endl;
 
          char c;
          if (myid == 0)
