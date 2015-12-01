@@ -883,6 +883,24 @@ private:
       mv_MultiVectorPtr & GetMultiVector() { return mv_ptr; }
    };
 
+   static void    * OperatorMatvecCreate( void *A, void *x );
+   static HYPRE_Int OperatorMatvec( void *matvec_data,
+                                    HYPRE_Complex alpha,
+                                    void *A,
+                                    void *x,
+                                    HYPRE_Complex beta,
+                                    void *y );
+   static HYPRE_Int OperatorMatvecDestroy( void *matvec_data );
+
+   static HYPRE_Int PrecondSolve(void *solver,
+                                 void *A,
+                                 void *b,
+                                 void *x);
+   static HYPRE_Int PrecondSetup(void *solver,
+                                 void *A,
+                                 void *b,
+                                 void *x);
+
 public:
 
    HypreLOBPCG(MPI_Comm comm);
@@ -908,25 +926,7 @@ public:
    HypreParVector & GetEigenvector(unsigned int i);
 
    /// Transfer ownership of the converged eigenvectors
-   HypreParVector * StealEigenvectors();
-
-   static void    * OperatorMatvecCreate( void *A, void *x );
-   static HYPRE_Int OperatorMatvec( void *matvec_data,
-                                    HYPRE_Complex alpha,
-                                    void *A,
-                                    void *x,
-                                    HYPRE_Complex beta,
-                                    void *y );
-   static HYPRE_Int OperatorMatvecDestroy( void *matvec_data );
-
-   static HYPRE_Int PrecondSolve(void *solver,
-                                 void *A,
-                                 void *b,
-                                 void *x);
-   static HYPRE_Int PrecondSetup(void *solver,
-                                 void *A,
-                                 void *b,
-                                 void *x);
+   HypreParVector ** StealEigenvectors() { return multi_vec->StealVectors(); }
 
 };
 
@@ -964,9 +964,6 @@ private:
    int nev;   // Number of desired eigenmodes
    int nconv; // Number of converged eigenmodes
    bool setT;
-
-   HYPRE_Int glbSize;
-   HYPRE_Int * part;
 
    // Pointer to HYPRE's AME solver struct
    HYPRE_Solver ame_solver;
@@ -1018,7 +1015,7 @@ public:
    HypreParVector & GetEigenvector(unsigned int i);
 
    /// Transfer ownership of the converged eigenvectors
-   HypreParVector * StealEigenvectors();
+   HypreParVector ** StealEigenvectors();
 };
 
 }

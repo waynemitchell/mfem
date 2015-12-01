@@ -3019,8 +3019,6 @@ HypreAME::HypreAME(MPI_Comm comm)
      nev(10),
      nconv(0),
      setT(false),
-     glbSize(0),
-     part(NULL),
      ams_precond(NULL),
      eigenvalues(NULL),
      multi_vec(NULL),
@@ -3030,8 +3028,6 @@ HypreAME::HypreAME(MPI_Comm comm)
    MPI_Comm_size(comm,&numProcs);
    MPI_Comm_rank(comm,&myid);
 
-   part = new HYPRE_Int[numProcs+1];
-
    HYPRE_AMECreate(&ame_solver);
 }
 
@@ -3039,7 +3035,6 @@ HypreAME::~HypreAME()
 {
    if ( multi_vec   != NULL ) { delete multi_vec; }
    if ( x           != NULL ) { delete x; }
-   if ( part        != NULL ) { delete part; }
 
    HYPRE_AMEDestroy(ame_solver);
 }
@@ -3129,20 +3124,48 @@ HypreAME::GetEigenvalues(Array<double> & eigs)
    }
 }
 
+void
+HypreAME::createDummyVectors()
+{
+  if ( multi_vec == NULL )
+  {
+    HYPRE_AMEGetEigenvectors(ame_solver,&multi_vec);
+  }
+
+  eigenvectors = new HypreParVector*[nev];
+  for (int i=0; i<nev; i++)
+  {
+    eigenvectors[i] = new HypreParVector(multi_vec[i]);
+    eigenvectors[i]->SetOwnership(1);
+  }
+
+}
+
 HypreParVector &
 HypreAME::GetEigenvector(unsigned int i)
 {
    if ( eigenvectors == NULL )
    {
-      HYPRE_AMEGetEigenvectors(ame_solver,&multi_vec);
-      eigenvectors = new HypreParVector*[nev];
-      for (int i=0; i<nev; i++)
-      {
-         eigenvectors[i] = new HypreParVector(multi_vec[i]);
-      }
+     this->createDummyVectors();
    }
 
    return *eigenvectors[i];
+}
+
+HypreParVector **
+HypreAME::StealEigenvectors()
+{
+   if ( eigenvectors == NULL )
+   {
+     this->createDummyVectors();
+   }
+
+   // Set the local pointers to NULL so that they won't be deleted later
+   HypreParVector ** vecs = eigenvectors;
+   eigenvectors = NULL;
+   multi_vec = NULL;
+
+   return vecs;
 }
 
 }
