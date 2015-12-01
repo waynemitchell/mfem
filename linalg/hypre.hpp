@@ -917,6 +917,7 @@ public:
    void SetOperator(Operator & A);
    void SetMassMatrix(Operator & M);
 
+   /// Solve the eigenproblem and return the number of converged eigenmodes
    int Solve();
 
    /// Collect the converged eigenvalues
@@ -985,9 +986,6 @@ private:
 
    HypreParVector ** eigenvectors;
 
-   // Empty vectors used to setup the matrices and preconditioner
-   HypreParVector * x;
-
    void createDummyVectors();
 
 public:
@@ -1006,6 +1004,7 @@ public:
    void SetOperator(HypreParMatrix & A);
    void SetMassMatrix(HypreParMatrix & M);
 
+   /// Solve the eigenproblem and return the number of converged eigenmodes
    int Solve();
 
    /// Collect the converged eigenvalues

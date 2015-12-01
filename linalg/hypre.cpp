@@ -2798,15 +2798,13 @@ HypreLOBPCG::HypreLOBPCG(MPI_Comm c)
      numProcs(1),
      nev(10),
      nconv(0),
-     glbSize(0),
+     glbSize(-1),
      part(NULL),
      multi_vec(NULL),
      x(NULL)
 {
    MPI_Comm_size(comm,&numProcs);
    MPI_Comm_rank(comm,&myid);
-
-   part = new HYPRE_Int[numProcs+1];
 
    HYPRE_ParCSRSetupInterpreter(&interpreter);
    HYPRE_ParCSRSetupMatvec(&matvec_fn);
@@ -2860,13 +2858,31 @@ HypreLOBPCG::SetOperator(Operator & A)
 {
    int locSize = A.Width();
 
-   MPI_Allgather(&locSize, 1, MPI_INT,
-                 &part[1], 1, HYPRE_MPI_INT, comm);
-
-   part[0] = 0;
-   for (int i=0; i<numProcs; i++)
+   if (HYPRE_AssumedPartitionCheck())
    {
-      part[i+1] += part[i];
+     part = new HYPRE_Int[2];
+
+     MPI_Scan(&locSize, &part[1], 1, HYPRE_MPI_INT, MPI_SUM, comm);
+
+     part[0] = part[1] - locSize;
+     part[1]++;
+
+     MPI_Allreduce(&locSize, &glbSize, 1, HYPRE_MPI_INT, MPI_SUM, comm);
+   }
+   else
+   {
+     part = new HYPRE_Int[numProcs+1];
+
+     MPI_Allgather(&locSize, 1, MPI_INT,
+		   &part[1], 1, HYPRE_MPI_INT, comm);
+
+     part[0] = 0;
+     for (int i=0; i<numProcs; i++)
+     {
+       part[i+1] += part[i];
+     }
+
+     glbSize = part[numProcs];
    }
 
    if ( x != NULL )
@@ -2924,16 +2940,21 @@ HypreLOBPCG::Solve()
    }
 
    eigenvalues.SetSize(nev);
-   eigenvalues = -1.0;
+   eigenvalues = NAN;
 
    // Perform eigenmode calculation
+   //
+   // The eigenvalues are computed in ascending order (internally the
+   // order is determined by the LAPACK routine 'dsydv'.)  If the
+   // algorithm fails to locate the desired number of eigenmodes the
+   // 'eigenvalues' array will only be partially filled.
    HYPRE_LOBPCGSolve(lobpcg_solver, NULL, *multi_vec, eigenvalues);
 
    // Count number of modes located
    nconv = 0;
    for (int i=0; i<eigenvalues.Size(); i++)
    {
-      if ( eigenvalues[i] != -1.0 )
+      if ( eigenvalues[i] != NAN )
       {
          nconv++;
       }
@@ -3022,8 +3043,7 @@ HypreAME::HypreAME(MPI_Comm comm)
      ams_precond(NULL),
      eigenvalues(NULL),
      multi_vec(NULL),
-     eigenvectors(NULL),
-     x(NULL)
+     eigenvectors(NULL)
 {
    MPI_Comm_size(comm,&numProcs);
    MPI_Comm_rank(comm,&myid);
@@ -3034,7 +3054,6 @@ HypreAME::HypreAME(MPI_Comm comm)
 HypreAME::~HypreAME()
 {
    if ( multi_vec   != NULL ) { delete multi_vec; }
-   if ( x           != NULL ) { delete x; }
 
    HYPRE_AMEDestroy(ame_solver);
 }
@@ -3084,12 +3103,6 @@ HypreAME::SetOperator(HypreParMatrix & A)
    }
 
    HYPRE_AMESetup(ame_solver);
-
-   if ( x != NULL )
-   {
-      delete x;
-   }
-   x = new HypreParVector(A.GetComm(),A.N(),NULL,A.ColPart());
 }
 
 void
@@ -3102,7 +3115,9 @@ HypreAME::SetMassMatrix(HypreParMatrix & M)
 int
 HypreAME::Solve()
 {
-   return HYPRE_AMESolve(ame_solver);
+   HYPRE_AMESolve(ame_solver);
+   nconv = nev;
+   return nconv;
 }
 
 void
