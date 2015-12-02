@@ -187,8 +187,10 @@ public:
    /// Eliminate the given vdofs. NOTE: here, vdofs is a list of DOFs.
    void EliminateVDofs(Array<int> &vdofs, Vector &sol, Vector &rhs, int d = 0);
 
-   /** Eliminate the given vdofs storing the eliminated part internally;
-       vdofs is a list of DOFs. */
+   /** Eliminate the given vdofs storing the eliminated part internally; this
+       method works in conjunction with EliminateVDofsInRHS and allows
+       elimination of boundary conditions in multiple right-hand sides. In this
+       method, vdofs is a list of DOFs. */
    void EliminateVDofs(Array<int> &vdofs, int d = 0);
 
    /** Similar to EliminateVDofs but here ess_dofs is a marker
@@ -202,8 +204,8 @@ public:
    /// Perform elimination and set the diagonal entry to the given value
    void EliminateEssentialBCFromDofsDiag(Array<int> &ess_dofs, double value);
 
-   /** Use the stored eliminated part of the matrix to modify r.h.s.;
-       vdofs is a list of DOFs (non-directional, i.e. >= 0). */
+   /** Use the stored eliminated part of the matrix (see EliminateVDofs) to
+       modify r.h.s.; vdofs is a list of DOFs (non-directional, i.e. >= 0). */
    void EliminateVDofsInRHS(Array<int> &vdofs, const Vector &x, Vector &b);
 
    double FullInnerProduct(const Vector &x, const Vector &y) const

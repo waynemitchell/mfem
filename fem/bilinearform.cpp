@@ -425,6 +425,23 @@ void BilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d)
    }
 }
 
+void BilinearForm::EliminateEssentialBCDiag (Array<int> &bdr_attr_is_ess,
+                                             double value)
+{
+   Array<int> ess_dofs, conf_ess_dofs;
+   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+
+   if (fes->GetConformingRestriction() == NULL)
+   {
+      EliminateEssentialBCFromDofsDiag(ess_dofs, value);
+   }
+   else
+   {
+      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
+      EliminateEssentialBCFromDofsDiag(conf_ess_dofs, value);
+   }
+}
+
 void BilinearForm::EliminateVDofs(Array<int> &vdofs,
                                   Vector &sol, Vector &rhs, int d)
 {
@@ -463,31 +480,7 @@ void BilinearForm::EliminateVDofs(Array<int> &vdofs, int d)
    }
 }
 
-void BilinearForm::EliminateVDofsInRHS(
-   Array<int> &vdofs, const Vector &x, Vector &b)
-{
-   mat_e->AddMult(x, b, -1.);
-   mat->PartMult(vdofs, x, b);
-}
-
-void BilinearForm::EliminateEssentialBCDiag (Array<int> &bdr_attr_is_ess,
-                                             double value)
-{
-   Array<int> ess_dofs, conf_ess_dofs;
-   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-
-   if (fes->GetConformingRestriction() == NULL)
-   {
-      EliminateEssentialBCFromDofsDiag(ess_dofs, value);
-   }
-   else
-   {
-      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
-      EliminateEssentialBCFromDofsDiag(conf_ess_dofs, value);
-   }
-}
-
-void BilinearForm::EliminateEssentialBCFromDofs (
+void BilinearForm::EliminateEssentialBCFromDofs(
    Array<int> &ess_dofs, Vector &sol, Vector &rhs, int d)
 {
    MFEM_ASSERT(ess_dofs.Size() == height, "incorrect dof Array size");
@@ -522,6 +515,13 @@ void BilinearForm::EliminateEssentialBCFromDofsDiag (Array<int> &ess_dofs,
       {
          mat -> EliminateRowColDiag (i, value);
       }
+}
+
+void BilinearForm::EliminateVDofsInRHS(
+   Array<int> &vdofs, const Vector &x, Vector &b)
+{
+   mat_e->AddMult(x, b, -1.);
+   mat->PartMult(vdofs, x, b);
 }
 
 void BilinearForm::Update (FiniteElementSpace *nfes)
