@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
       {
          DiffusionIntegrator flux_integrator(one);
          ParFiniteElementSpace flux_fespace(&pmesh, &fec, dim);
-         DG_FECollection dgfec(order, dim);
+         L2_FECollection dgfec(order, dim);
          ParFiniteElementSpace flux_dgfespace(&pmesh, &dgfec, dim);
          L2ZZErrorEstimator(flux_integrator, x, flux_fespace, flux_dgfespace,
                             errors);

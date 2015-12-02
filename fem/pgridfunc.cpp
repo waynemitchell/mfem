@@ -531,8 +531,7 @@ void ParGridFunction::ComputeFlux(
    }
 }
 
-/** Supports L2ZZErrorEstimator function below. */
-
+// Supports L2ZZErrorEstimator function below, cf. GridFunction::ComputeLpError.
 double computeElementLpNorm(double p, int i,
                             const FiniteElementSpace* fes,
                             Vector& el_f)
@@ -561,7 +560,8 @@ double computeElementLpNorm(double p, int i,
    for (int j = 0; j < nip; j++)
    {
       FElem->CalcShape(ir->IntPoint(j), DofVal);
-      for (int k = 0; k < vdim; k++) {
+      for (int k = 0; k < vdim; k++)
+      {
          vals(k,j) = DofVal * ((const double *)el_f +ndof*k);
       }
    }
@@ -607,41 +607,41 @@ double computeElementLpNorm(double p, int i,
 
 
 void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
-                        ParGridFunction& x,
+                        ParGridFunction &x,
                         ParFiniteElementSpace &flux_fespace,
                         ParFiniteElementSpace &flux_dcfespace,
-                        Vector& errors)
+                        Vector &errors)
 {
    // Compute fluxes in discontinuous space
    GridFunction discflux(&flux_dcfespace);
 
    ElementTransformation *Transf;
-   
+
    FiniteElementSpace *xfes = x.FESpace();
    FiniteElementSpace *ffes = discflux.FESpace();
-   
+
    int nfe = xfes->GetNE();
    Array<int> xdofs;
    Array<int> fdofs;
    Vector el_x, el_f;
-   
+
    discflux = 0.0;
-   
+
    for (int i = 0; i < nfe; i++)
    {
       xfes->GetElementVDofs(i, xdofs);
       ffes->GetElementVDofs(i, fdofs);
-      
+
       x.GetSubVector(xdofs, el_x);
-      
+
       Transf = xfes->GetElementTransformation(i);
       bool with_coeff = false;
       flux_integrator.ComputeElementFlux(*xfes->GetFE(i), *Transf, el_x,
                                          *ffes->GetFE(i), el_f, with_coeff);
-      
+
       discflux.AddElementVector(fdofs, el_f);
    }
-   
+
    ParLinearForm *b = new ParLinearForm(&flux_fespace);
    VectorGridFunctionCoefficient f(&discflux);
    b->AddDomainIntegrator(new VectorDomainLFIntegrator(f));
@@ -684,8 +684,9 @@ void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
 
    Vector el_fbar;
    ParFiniteElementSpace& fespace = *x.ParFESpace();
-      
-   for (int i = 0; i < fespace.GetNE(); i++) {
+
+   for (int i = 0; i < fespace.GetNE(); i++)
+   {
 
       fespace.GetElementVDofs(i, xdofs);
       flux_fespace.GetElementVDofs(i, fdofs);
@@ -715,6 +716,5 @@ void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
 }
 
 }
-
 
 #endif
