@@ -497,7 +497,7 @@ void ParGridFunction::ComputeFlux(
    Array<int> count(flux.Size());
    SumFluxAndCount(blfi, flux, count, 0, subdomain);
 
-   if (&(ffes->GroupComm())) // FIXME: nonconforming
+   if (ffes->Conforming()) // FIXME: nonconforming
    {
       // Accumulate flux and counts in parallel
 
