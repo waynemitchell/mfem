@@ -214,9 +214,9 @@ int main(int argc, char *argv[])
       {
          DiffusionIntegrator flux_integrator(one);
          ParFiniteElementSpace flux_fespace(&pmesh, &fec, dim);
-         L2_FECollection dgfec(order, dim);
-         ParFiniteElementSpace flux_dgfespace(&pmesh, &dgfec, dim);
-         L2ZZErrorEstimator(flux_integrator, x, flux_fespace, flux_dgfespace,
+         L2_FECollection l2fec(order, dim);
+         ParFiniteElementSpace flux_l2fespace(&pmesh, &l2fec, dim);
+         L2ZZErrorEstimator(flux_integrator, x, flux_fespace, flux_l2fespace,
                             errors);
       }
       double local_max_err = errors.Max();
@@ -228,7 +228,6 @@ int main(int argc, char *argv[])
       //     of the maximum element error. These elements will be refined.
       Array<int> ref_list;
       const double frac = 0.7;
-      // the 'errors' are squared, so we need to square the fraction
       double threshold = frac * global_max_err;
       for (int i = 0; i < errors.Size(); i++)
       {

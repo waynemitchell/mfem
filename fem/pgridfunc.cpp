@@ -591,7 +591,7 @@ double computeElementLpNorm(double p, int i,
 
    if (p < numeric_limits<double>::infinity())
    {
-      // negative quadrature weights may cause the norm to be negative
+      // Negative quadrature weights may cause the norm to be negative
       if (norm < 0.)
       {
          norm = -pow(-norm, 1./p);
@@ -605,13 +605,16 @@ double computeElementLpNorm(double p, int i,
    return norm;
 }
 
-
 void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
                         ParGridFunction &x,
                         ParFiniteElementSpace &flux_fespace,
                         ParFiniteElementSpace &flux_dcfespace,
                         Vector &errors)
 {
+   double solver_tol = 1e-12;
+   int solver_max_it = 200;
+   int norm_p        = 2;
+
    // Compute fluxes in discontinuous space
    GridFunction discflux(&flux_dcfespace);
 
@@ -663,24 +666,23 @@ void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
    delete a;
    delete b;
 
-   // Define and apply a parallel PCG solver for AX=B with the
-   // BoomerAMG preconditioner from hypre.
+   // Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   // preconditioner from hypre.
    HypreSolver *amg = new HypreBoomerAMG(*A);
    HyprePCG *pcg = new HyprePCG(*A);
-   pcg->SetTol(1e-12);
-   pcg->SetMaxIter(200);
+   pcg->SetTol(solver_tol);
+   pcg->SetMaxIter(solver_max_it);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
    pcg->Mult(*B, *X);
 
-   // Extract the parallel grid function corresponding to the
-   // finite element approximation X. This is the local solution
-   // on each processor.
+   // Extract the parallel grid function corresponding to the finite element
+   // approximation X. This is the local solution on each processor.
    fbar = *X;
 
-   // Proceed through the elements one by one, and find the
-   // difference between the flux as computed per element and
-   // the flux projected onto a continuous H1 space.
+   // Proceed through the elements one by one, and find the difference between
+   // the flux as computed per element and the flux projected onto a continuous
+   // H1 space.
 
    Vector el_fbar;
    ParFiniteElementSpace& fespace = *x.ParFESpace();
@@ -702,13 +704,8 @@ void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
                                          *Transf, el_x,
                                          *flux_elem,
                                          el_f, 0);
-
       el_f -= el_fbar;
-
-      double p = 2.0;
-      double norm = computeElementLpNorm(p, i, &flux_fespace, el_f);
-
-      errors(i) = norm;
+      errors(i) = computeElementLpNorm(norm_p, i, &flux_fespace, el_f);
    }
 
    delete amg;
