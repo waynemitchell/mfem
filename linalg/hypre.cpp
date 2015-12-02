@@ -2797,7 +2797,6 @@ HypreLOBPCG::HypreLOBPCG(MPI_Comm c)
      myid(0),
      numProcs(1),
      nev(10),
-     nconv(0),
      glbSize(-1),
      part(NULL),
      multi_vec(NULL),
@@ -2918,7 +2917,7 @@ HypreLOBPCG::GetEigenvalues(Array<double> & eigs)
    // Initialize eigenvalues array with marker values
    eigs.SetSize(nev);
 
-   for (int i=0; i<nconv; i++)
+   for (int i=0; i<nev; i++)
    {
       eigs[i] = eigenvalues[i];
    }
@@ -2930,7 +2929,7 @@ HypreLOBPCG::GetEigenvector(unsigned int i)
    return multi_vec->GetVector(i);
 }
 
-int
+void
 HypreLOBPCG::Solve()
 {
    // Initialize HypreMultiVector object if necessary
@@ -2948,21 +2947,8 @@ HypreLOBPCG::Solve()
    // Perform eigenmode calculation
    //
    // The eigenvalues are computed in ascending order (internally the
-   // order is determined by the LAPACK routine 'dsydv'.)  If the
-   // algorithm fails to locate the desired number of eigenmodes the
-   // 'eigenvalues' array will only be partially filled.
+   // order is determined by the LAPACK routine 'dsydv'.)
    HYPRE_LOBPCGSolve(lobpcg_solver, NULL, *multi_vec, eigenvalues);
-
-   // Count number of modes located
-   nconv = 0;
-   for (int i=0; i<eigenvalues.Size(); i++)
-   {
-      if ( eigenvalues[i] != NAN )
-      {
-         nconv++;
-      }
-   }
-   return nconv;
 }
 
 void *
@@ -3041,7 +3027,6 @@ HypreAME::HypreAME(MPI_Comm comm)
      myid(0),
      numProcs(1),
      nev(10),
-     nconv(0),
      setT(false),
      ams_precond(NULL),
      eigenvalues(NULL),
@@ -3056,7 +3041,7 @@ HypreAME::HypreAME(MPI_Comm comm)
 
 HypreAME::~HypreAME()
 {
-   if ( multi_vec   != NULL ) { delete multi_vec; }
+   delete multi_vec;
 
    HYPRE_AMEDestroy(ame_solver);
 }
@@ -3115,12 +3100,10 @@ HypreAME::SetMassMatrix(HypreParMatrix & M)
    HYPRE_AMESetMassMatrix(ame_solver,(HYPRE_ParCSRMatrix)parcsr_M);
 }
 
-int
+void
 HypreAME::Solve()
 {
    HYPRE_AMESolve(ame_solver);
-   nconv = nev;
-   return nconv;
 }
 
 void

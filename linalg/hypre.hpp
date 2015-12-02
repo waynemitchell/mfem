@@ -825,7 +825,6 @@ private:
    int myid;
    int numProcs;
    int nev;   // Number of desired eigenmodes
-   int nconv; // Number of converged eigenmodes
 
    HYPRE_Int glbSize; // Global number of DoFs in the linear system
    HYPRE_Int * part;  // Row partitioning of the linear system
@@ -916,8 +915,8 @@ public:
    void SetOperator(Operator & A);
    void SetMassMatrix(Operator & M);
 
-   /// Solve the eigenproblem and return the number of converged eigenmodes
-   int Solve();
+   /// Solve the eigenproblem
+   void Solve();
 
    /// Collect the converged eigenvalues
    void GetEigenvalues(Array<double> & eigenvalues);
@@ -958,7 +957,6 @@ private:
    int myid;
    int numProcs;
    int nev;   // Number of desired eigenmodes
-   int nconv; // Number of converged eigenmodes
    bool setT;
 
    // Pointer to HYPRE's AME solver struct
@@ -997,8 +995,8 @@ public:
    void SetOperator(HypreParMatrix & A);
    void SetMassMatrix(HypreParMatrix & M);
 
-   /// Solve the eigenproblem and return the number of converged eigenmodes
-   int Solve();
+   /// Solve the eigenproblem
+   void Solve();
 
    /// Collect the converged eigenvalues
    void GetEigenvalues(Array<double> & eigenvalues);
