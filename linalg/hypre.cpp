@@ -2835,7 +2835,10 @@ HypreLOBPCG::SetMaxIter(int max_iter)
 void
 HypreLOBPCG::SetPrintLevel(int logging)
 {
-   HYPRE_LOBPCGSetPrintLevel(lobpcg_solver, logging);
+   if (myid == 0)
+   {
+      HYPRE_LOBPCGSetPrintLevel(lobpcg_solver, logging);
+   }
 }
 
 void
@@ -2860,29 +2863,29 @@ HypreLOBPCG::SetOperator(Operator & A)
 
    if (HYPRE_AssumedPartitionCheck())
    {
-     part = new HYPRE_Int[2];
+      part = new HYPRE_Int[2];
 
-     MPI_Scan(&locSize, &part[1], 1, HYPRE_MPI_INT, MPI_SUM, comm);
+      MPI_Scan(&locSize, &part[1], 1, HYPRE_MPI_INT, MPI_SUM, comm);
 
-     part[0] = part[1] - locSize;
-     part[1]++;
+      part[0] = part[1] - locSize;
+      part[1]++;
 
-     MPI_Allreduce(&locSize, &glbSize, 1, HYPRE_MPI_INT, MPI_SUM, comm);
+      MPI_Allreduce(&locSize, &glbSize, 1, HYPRE_MPI_INT, MPI_SUM, comm);
    }
    else
    {
-     part = new HYPRE_Int[numProcs+1];
+      part = new HYPRE_Int[numProcs+1];
 
-     MPI_Allgather(&locSize, 1, MPI_INT,
-		   &part[1], 1, HYPRE_MPI_INT, comm);
+      MPI_Allgather(&locSize, 1, MPI_INT,
+                    &part[1], 1, HYPRE_MPI_INT, comm);
 
-     part[0] = 0;
-     for (int i=0; i<numProcs; i++)
-     {
-       part[i+1] += part[i];
-     }
+      part[0] = 0;
+      for (int i=0; i<numProcs; i++)
+      {
+         part[i+1] += part[i];
+      }
 
-     glbSize = part[numProcs];
+      glbSize = part[numProcs];
    }
 
    if ( x != NULL )
@@ -3142,17 +3145,17 @@ HypreAME::GetEigenvalues(Array<double> & eigs)
 void
 HypreAME::createDummyVectors()
 {
-  if ( multi_vec == NULL )
-  {
-    HYPRE_AMEGetEigenvectors(ame_solver,&multi_vec);
-  }
+   if ( multi_vec == NULL )
+   {
+      HYPRE_AMEGetEigenvectors(ame_solver,&multi_vec);
+   }
 
-  eigenvectors = new HypreParVector*[nev];
-  for (int i=0; i<nev; i++)
-  {
-    eigenvectors[i] = new HypreParVector(multi_vec[i]);
-    eigenvectors[i]->SetOwnership(1);
-  }
+   eigenvectors = new HypreParVector*[nev];
+   for (int i=0; i<nev; i++)
+   {
+      eigenvectors[i] = new HypreParVector(multi_vec[i]);
+      eigenvectors[i]->SetOwnership(1);
+   }
 
 }
 
@@ -3161,7 +3164,7 @@ HypreAME::GetEigenvector(unsigned int i)
 {
    if ( eigenvectors == NULL )
    {
-     this->createDummyVectors();
+      this->createDummyVectors();
    }
 
    return *eigenvectors[i];
@@ -3172,7 +3175,7 @@ HypreAME::StealEigenvectors()
 {
    if ( eigenvectors == NULL )
    {
-     this->createDummyVectors();
+      this->createDummyVectors();
    }
 
    // Set the local pointers to NULL so that they won't be deleted later
