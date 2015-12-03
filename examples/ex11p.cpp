@@ -9,25 +9,32 @@
 //               mpirun -np 4 ex11p -m ../data/square-disc-p2.vtk -o 2
 //               mpirun -np 4 ex11p -m ../data/square-disc-p3.mesh -o 3
 //               mpirun -np 4 ex11p -m ../data/square-disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex11p -m ../data/disc-nurbs.mesh -o -1
+//               mpirun -np 4 ex11p -m ../data/disc-nurbs.mesh -o -1 -n 20
 //               mpirun -np 4 ex11p -m ../data/pipe-nurbs.mesh -o -1
 //               mpirun -np 4 ex11p -m ../data/ball-nurbs.mesh -o 2
 //               mpirun -np 4 ex11p -m ../data/star-surf.mesh
 //               mpirun -np 4 ex11p -m ../data/square-disc-surf.mesh
 //               mpirun -np 4 ex11p -m ../data/inline-segment.mesh
+//               mpirun -np 4 ex11p -m ../data/amr-quad.mesh
+//               mpirun -np 4 ex11p -m ../data/amr-hex.mesh
 //
-// Description:  This example code demonstrates the use of MFEM to solve a
-//               generalized eigenvalue problem
-//                 -Delta u = lambda u
-//               with homogeneous Dirichlet boundary conditions.
-//               Specifically, we discretize the Laplacian operator using a
-//               FE space of the specified order, or if order < 1 using an
-//               isoparametric/isogeometric space (i.e. quadratic for
-//               quadratic curvilinear mesh, NURBS for NURBS mesh, etc.)
+// Description:  This example code demonstrates the use of MFEM to solve the
+//               eigenvalue problem -Delta u = lambda u with homogeneous
+//               Dirichlet boundary conditions.
 //
-//               The example is a modification of example 1 which highlights
-//               the use of the LOBPCG eigenvalue solver in HYPRE.
+//               We compute a number of the lowest eigenmodes by discretizing
+//               the Laplacian and Mass operators using a FE space of the
+//               specified order, or an isoparametric/isogeometric space if
+//               order < 1 (quadratic for quadratic curvilinear mesh, NURBS for
+//               NURBS mesh, etc.)
 //
+//               The example highlights the use of the LOBPCG eigenvalue solver
+//               together with the BoomerAMG preconditioner in HYPRE. Reusing a
+//               single GLVis visualization window for multiple eigenfunctions
+//               is also illustrated.
+//
+//               We recommend viewing Example 1 before viewing this example.
+
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
@@ -45,23 +52,24 @@ int main(int argc, char *argv[])
 
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
+   int ser_ref_levels = 2;
+   int par_ref_levels = 1;
    int order = 1;
    int nev = 5;
-   int sr = 2, pr = 1;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
+   args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
+                  "Number of times to refine the mesh uniformly in serial.");
+   args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
+                  "Number of times to refine the mesh uniformly in parallel.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
    args.AddOption(&nev, "-n", "--num-eigs",
                   "Number of desired eigenmodes.");
-   args.AddOption(&sr, "-sr", "--serial-ref-levels",
-                  "Number of serial refinement levels.");
-   args.AddOption(&pr, "-pr", "--parallel-ref-levels",
-                  "Number of parallel refinement levels.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -80,7 +88,7 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
+   // 3. Read the (serial) mesh from the given mesh file on all processors. We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
    Mesh *mesh;
@@ -99,26 +107,22 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
-   //    this example we do 'ref_levels' of uniform refinement.
+   //    this example we do 'ref_levels' of uniform refinement (2 by default, or
+   //    specified on the command line with -rs).
+   for (int lev = 0; lev < ser_ref_levels; lev++)
    {
-      int ref_levels = sr;
-      for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      mesh->UniformRefinement();
    }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
-   //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted.
+   //    this mesh further in parallel to increase the resolution (1 time by
+   //    default, or specified on the command line with -rp). Once the parallel
+   //    mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
+   for (int lev = 0; lev < par_ref_levels; lev++)
    {
-      int par_ref_levels = pr;
-      for (int l = 0; l < par_ref_levels; l++)
-      {
-         pmesh->UniformRefinement();
-      }
+      pmesh->UniformRefinement();
    }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
@@ -144,15 +148,14 @@ int main(int argc, char *argv[])
       cout << "Number of unknowns: " << size << endl;
    }
 
-   // 8. Set up the parallel bilinear forms a(.,.) and m(.,.) on the
-   //    finite element space.  The first corresponds to the Laplacian
-   //    operator -Delta, by adding the Diffusion domain integrator and
-   //    imposing homogeneous Dirichlet boundary conditions. The boundary
-   //    conditions are implemented by marking all the boundary attributes
-   //    from the mesh as essential.  The second is a simple mass matrix
-   //    needed on the right hand side of the generalized eigenvalue problem.
-   //    After serial and parallel assembly we extract the corresponding
-   //    parallel matrix A.
+   // 7. Set up the parallel bilinear forms a(.,.) and m(.,.) on the finite
+   //    element space. The first corresponds to the Laplacian operator -Delta,
+   //    while the second is a simple mass matrix needed on the right hand side
+   //    of the generalized eigenvalue problem below. The boundary conditions
+   //    are implemented by elimination with special values on the diagonal to
+   //    shift the Dirichlet eigenvalues out of the computational range. After
+   //    serial and parallel assembly we extract the corresponding parallel
+   //    matrices A and M.
    ConstantCoefficient one(1.0);
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
@@ -160,13 +163,14 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
-   a->EliminateEssentialBCDiag(ess_bdr,100.0);
+   a->EliminateEssentialBCDiag(ess_bdr, 1.0);
    a->Finalize();
 
    ParBilinearForm *m = new ParBilinearForm(fespace);
    m->AddDomainIntegrator(new MassIntegrator(one));
    m->Assemble();
-   m->EliminateEssentialBCDiag(ess_bdr,1.0);
+   // shift the eigenvalue corresponding to eliminated dofs to a large value
+   m->EliminateEssentialBCDiag(ess_bdr, numeric_limits<double>::min());
    m->Finalize();
 
    HypreParMatrix *A = a->ParallelAssemble();
@@ -175,36 +179,32 @@ int main(int argc, char *argv[])
    delete a;
    delete m;
 
-   // 9. Define and configure the LOBPCG eigensolver and a BoomerAMG
-   //    preconditioner to be used within the solver.
-   HypreLOBPCG * lobpcg = new HypreLOBPCG(MPI_COMM_WORLD);
+   // 8. Define and configure the LOBPCG eigensolver and the BoomerAMG
+   //    preconditioner for A to be used within the solver. Set the matrices
+   //    which define the generalized eigenproblem A x = lambda M x.
    HypreBoomerAMG * amg = new HypreBoomerAMG(*A);
+   amg->SetPrintLevel(0);
 
+   HypreLOBPCG * lobpcg = new HypreLOBPCG(MPI_COMM_WORLD);
    lobpcg->SetNumModes(nev);
    lobpcg->SetPreconditioner(*amg);
    lobpcg->SetMaxIter(100);
    lobpcg->SetTol(1e-8);
    lobpcg->SetPrecondUsageMode(1);
-   if (myid == 0) { lobpcg->SetPrintLevel(1); }
-   amg->SetPrintLevel(0);
-
-   // Set the matrices which define the generalized eigen-problem:
-   //    A x = lambda M x
+   lobpcg->SetPrintLevel(1);
    lobpcg->SetMassMatrix(*M);
    lobpcg->SetOperator(*A);
 
-   // Obtain the eigenvalues and eigenvectors
+   // 9. Compute the eigenmodes and extract the array of eigenvalues. Define a
+   //    parallel grid function to represent each of the eigenmodes returned by
+   //    the solver.
    Array<double> eigenvalues;
-
    lobpcg->Solve();
    lobpcg->GetEigenvalues(eigenvalues);
-
-   // 10. Define a parallel grid function to represent each of the eigenmodes
-   //     returned by the solver.
    ParGridFunction x(fespace);
 
-   // 11. Save the refined mesh and the modes in parallel. This output can
-   //     be viewed later using GLVis: "glvis -np <np> -m mesh -g mode".
+   // 10. Save the refined mesh and the modes in parallel. This output can be
+   //     viewed later using GLVis: "glvis -np <np> -m mesh -g mode".
    {
       ostringstream mesh_name, mode_name;
       mesh_name << "mesh." << setfill('0') << setw(6) << myid;
@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
 
       for (int i=0; i<nev; i++)
       {
-         // Convert eigenvector from HypreParVector to ParGridFunction
+         // convert eigenvector from HypreParVector to ParGridFunction
          x = lobpcg->GetEigenvector(i);
 
          mode_name << "mode_" << setfill('0') << setw(2) << i << "."
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 12. Send the solution by socket to a GLVis server.
+   // 11. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -240,15 +240,16 @@ int main(int argc, char *argv[])
       {
          if ( myid == 0 )
          {
-            cout << "Lambda = " << eigenvalues[i] << endl;
+            cout << "Eigenmode " << i+1 << '/' << nev
+                 << ", Lambda = " << eigenvalues[i] << endl;
          }
 
-         // Convert eigenvector from HypreParVector to ParGridFunction
+         // convert eigenvector from HypreParVector to ParGridFunction
          x = lobpcg->GetEigenvector(i);
 
-         mode_sock << "parallel " << num_procs << " " << myid << "\n";
-         mode_sock << "solution\n" << *pmesh << x << flush;
-         mode_sock << "window_title 'Eigenmode " << i
+         mode_sock << "parallel " << num_procs << " " << myid << "\n"
+                   << "solution\n" << *pmesh << x << flush
+                   << "window_title 'Eigenmode " << i+1 << '/' << nev
                    << ", Lambda = " << eigenvalues[i] << "'" << endl;
 
          char c;
@@ -267,7 +268,7 @@ int main(int argc, char *argv[])
       mode_sock.close();
    }
 
-   // 13. Free the used memory.
+   // 12. Free the used memory.
    delete lobpcg;
    delete amg;
    delete M;

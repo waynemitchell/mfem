@@ -1,38 +1,40 @@
-//                       MFEM Example 2 - Parallel Version
+//                       MFEM Example 12 - Parallel Version
 //
-// Compile with: make ex2p
+// Compile with: make ex12p
 //
-// Sample runs:  mpirun -np 4 ex2p -m ../data/beam-tri.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-quad.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-tet.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-quad-nurbs.mesh
-//               mpirun -np 4 ex2p -m ../data/beam-hex-nurbs.mesh
+// Sample runs:  mpirun -np 4 ex12p -m ../data/beam-tri.mesh
+//               mpirun -np 4 ex12p -m ../data/beam-quad.mesh
+//               mpirun -np 4 ex12p -m ../data/beam-tet.mesh -n 10 -o 2 -elast
+//               mpirun -np 4 ex12p -m ../data/beam-hex.mesh
+//               mpirun -np 4 ex12p -m ../data/beam-tri.mesh -o 2 -sys
+//               mpirun -np 4 ex12p -m ../data/beam-quad.mesh -n 6 -o 3 -elast
+//               mpirun -np 4 ex12p -m ../data/beam-quad-nurbs.mesh
+//               mpirun -np 4 ex12p -m ../data/beam-hex-nurbs.mesh
 //
-// Description:  This example code solves a simple linear elasticity problem
-//               describing a multi-material cantilever beam.
+// Description:  This example code solves the linear elasticity eigenvalue
+//               problem for a multi-material cantilever beam.
 //
-//               Specifically, we approximate the weak form of -div(sigma(u))=0
-//               where sigma(u)=lambda*div(u)*I+mu*(grad*u+u*grad) is the stress
+//               Specifically, we compute a number of the lowest eigenmodes by
+//               approximating the weak form of -div(sigma(u)) = lambda u where
+//               sigma(u)=lambda*div(u)*I+mu*(grad*u+u*grad) is the stress
 //               tensor corresponding to displacement field u, and lambda and mu
 //               are the material Lame constants. The boundary conditions are
 //               u=0 on the fixed part of the boundary with attribute 1, and
-//               sigma(u).n=f on the remainder with f being a constant pull down
-//               vector on boundary elements with attribute 2, and zero
-//               otherwise. The geometry of the domain is assumed to be as
-//               follows:
+//               sigma(u).n=f on the remainder. The geometry of the domain is
+//               assumed to be as follows:
 //
 //                                 +----------+----------+
-//                    boundary --->| material | material |<--- boundary
-//                    attribute 1  |    1     |    2     |     attribute 2
-//                    (fixed)      +----------+----------+     (pull down)
+//                    boundary --->| material | material |
+//                    attribute 1  |    1     |    2     |
+//                    (fixed)      +----------+----------+
 //
-//               The example demonstrates the use of high-order and NURBS vector
-//               finite element spaces with the linear elasticity bilinear form,
-//               meshes with curved elements, and the definition of piece-wise
-//               constant and vector coefficient objects.
+//               The example highlights the use of the LOBPCG eigenvalue solver
+//               together with the BoomerAMG preconditioner in HYPRE. Reusing a
+//               single GLVis visualization window for multiple eigenfunctions
+//               is also illustrated.
 //
-//               We recommend viewing Example 1 before viewing this example.
+//               We recommend viewing examples 2 and 11 before viewing this
+//               example.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -54,6 +56,7 @@ int main(int argc, char *argv[])
    int order = 1;
    int nev = 5;
    bool visualization = 1;
+   bool amg_elast = 0;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -62,6 +65,10 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree).");
    args.AddOption(&nev, "-n", "--num-eigs",
                   "Number of desired eigenmodes.");
+   args.AddOption(&amg_elast, "-elast", "--amg-for-elasticity", "-sys",
+                  "--amg-for-systems",
+                  "Use the special AMG elasticity solver (GM/LN approaches), "
+                  "or standard AMG for systems (unknown approach).");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -80,7 +87,7 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
+   // 3. Read the (serial) mesh from the given mesh file on all processors. We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
    Mesh *mesh;
@@ -98,11 +105,11 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
-   if (mesh->attributes.Max() < 2 || mesh->bdr_attributes.Max() < 2)
+   if (mesh->attributes.Max() < 2)
    {
       if (myid == 0)
-         cerr << "\nInput mesh should have at least two materials and "
-              << "two boundary attributes! (See schematic in ex2.cpp)\n"
+         cerr << "\nInput mesh should have at least two materials!"
+              << " (See schematic in ex12p.cpp)\n"
               << endl;
       MPI_Finalize();
       return 3;
@@ -149,7 +156,8 @@ int main(int argc, char *argv[])
    //    (degree elevated) NURBS space associated with the mesh nodes.
    FiniteElementCollection *fec;
    ParFiniteElementSpace *fespace;
-   if (pmesh->NURBSext)
+   const bool use_nodal_fespace = pmesh->NURBSext && !amg_elast;
+   if (use_nodal_fespace)
    {
       fec = NULL;
       fespace = (ParFiniteElementSpace *)pmesh->GetNodes()->FESpace();
@@ -161,14 +169,20 @@ int main(int argc, char *argv[])
    }
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
+   {
       cout << "Number of unknowns: " << size << endl
            << "Assembling: " << flush;
+   }
 
-   // 8. Set up the parallel bilinear form a(.,.) on the finite element space
-   //    corresponding to the linear elasticity integrator with piece-wise
-   //    constants coefficient lambda and mu. The boundary conditions are
-   //    implemented by marking only boundary attribute 1 as essential. After
-   //    serial/parallel assembly we extract the corresponding parallel matrix.
+   // 8. Set up the parallel bilinear forms a(.,.) and m(.,.) on the finite
+   //    element space corresponding to the linear elasticity integrator with
+   //    piece-wise constants coefficient lambda and mu, a simple mass matrix
+   //    needed on the right hand side of the generalized eigenvalue problem
+   //    below. The boundary conditions are implemented by marking only boundary
+   //    attribute 1 as essential. We use special values on the diagonal to
+   //    shift the Dirichlet eigenvalues out of the computational range. After
+   //    serial/parallel assembly we extract the corresponding parallel matrices
+   //    A and M.
    Vector lambda(pmesh->attributes.Max());
    lambda = 1.0;
    lambda(0) = lambda(1)*50;
@@ -178,6 +192,10 @@ int main(int argc, char *argv[])
    mu(0) = mu(1)*50;
    PWConstCoefficient mu_func(mu);
 
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 0;
+   ess_bdr[0] = 1;
+
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func, mu_func));
    if (myid == 0)
@@ -185,75 +203,72 @@ int main(int argc, char *argv[])
       cout << "matrix ... " << flush;
    }
    a->Assemble();
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 0;
-   ess_bdr[0] = 1;
-   a->EliminateEssentialBCDiag(ess_bdr,100.0);
+   a->EliminateEssentialBCDiag(ess_bdr, 1.0);
    a->Finalize();
 
    ParBilinearForm *m = new ParBilinearForm(fespace);
    m->AddDomainIntegrator(new VectorMassIntegrator());
    m->Assemble();
-   m->EliminateEssentialBCDiag(ess_bdr,1.0);
+   // shift the eigenvalue corresponding to eliminated dofs to a large value
+   m->EliminateEssentialBCDiag(ess_bdr, numeric_limits<double>::min());
    m->Finalize();
    if (myid == 0)
    {
       cout << "done." << endl;
    }
 
-   // 9. Define and configure the LOBPCG eigensolver and a BoomerAMG
-   //    preconditioner to be used within the solver.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParMatrix *M = m->ParallelAssemble();
 
    delete a;
    delete m;
 
-   // 10. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
-   //     preconditioner from hypre.
-   HypreLOBPCG    * lobpcg = new HypreLOBPCG(MPI_COMM_WORLD);
-   HypreBoomerAMG *    amg = new HypreBoomerAMG(*A);
-   amg->SetSystemsOptions(dim);
+   // 9. Define and configure the LOBPCG eigensolver and the BoomerAMG
+   //    preconditioner for A to be used within the solver. Set the matrices
+   //    which define the generalized eigenproblem A x = lambda M x.
+   HypreBoomerAMG * amg = new HypreBoomerAMG(*A);
+   amg->SetPrintLevel(0);
+   if (amg_elast)
+   {
+      amg->SetElasticityOptions(fespace);
+   }
+   else
+   {
+      amg->SetSystemsOptions(dim);
+   }
 
+   HypreLOBPCG * lobpcg = new HypreLOBPCG(MPI_COMM_WORLD);
    lobpcg->SetNumModes(nev);
    lobpcg->SetPreconditioner(*amg);
-   lobpcg->SetMaxIter(500);
+   lobpcg->SetMaxIter(100);
    lobpcg->SetTol(1e-8);
    lobpcg->SetPrecondUsageMode(1);
    lobpcg->SetPrintLevel(1);
-
-   // Set the matrices which define the linear system
    lobpcg->SetMassMatrix(*M);
    lobpcg->SetOperator(*A);
 
-   // Obtain the eigenvalues and eigenvectors
+   // 10. Compute the eigenmodes and extract the array of eigenvalues. Define a
+   //     parallel grid function to represent each of the eigenmodes returned by
+   //     the solver.
    Array<double> eigenvalues;
-
    lobpcg->Solve();
    lobpcg->GetEigenvalues(eigenvalues);
-
-   // 11. Define a parallel grid function to approximate each of the
-   //     eigenmodes returned by the solver.  Use this as a template to
-   //     create a special multi-vector object needed by the eigensolver
-   //     which is then initialized with random values.
    ParGridFunction x(fespace);
-   x = 0.0;
 
-   // 12. For non-NURBS meshes, make the mesh curved based on the finite element
+   // 11. For non-NURBS meshes, make the mesh curved based on the finite element
    //     space. This means that we define the mesh elements through a fespace
-   //     based transformation of the reference element.  This allows us to save
+   //     based transformation of the reference element. This allows us to save
    //     the displaced mesh as a curved mesh when using high-order finite
    //     element displacement field. We assume that the initial mesh (read from
    //     the file) is not higher order curved mesh compared to the chosen FE
    //     space.
-   if (!pmesh->NURBSext)
+   if (!use_nodal_fespace)
    {
       pmesh->SetNodalFESpace(fespace);
    }
 
-   // 13. Save in parallel the displaced mesh and the inverted solution (which
-   //     gives the backward displacements to the original grid). This output
-   //     can be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
+   // 12. Save the refined mesh and the modes in parallel. This output can be
+   //     viewed later using GLVis: "glvis -np <np> -m mesh -g mode".
    {
       ostringstream mesh_name, mode_name;
       mesh_name << "mesh." << setfill('0') << setw(6) << myid;
@@ -264,6 +279,7 @@ int main(int argc, char *argv[])
 
       for (int i=0; i<nev; i++)
       {
+         // convert eigenvector from HypreParVector to ParGridFunction
          x = lobpcg->GetEigenvector(i);
 
          mode_name << "mode_" << setfill('0') << setw(2) << i << "."
@@ -276,7 +292,7 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 14. Send the above data by socket to a GLVis server.  Use the "n" and "b"
+   // 13. Send the above data by socket to a GLVis server. Use the "n" and "b"
    //     keys in GLVis to visualize the displacements.
    if (visualization)
    {
@@ -288,13 +304,17 @@ int main(int argc, char *argv[])
       {
          if ( myid == 0 )
          {
-            cout << "Lambda = " << eigenvalues[i] << endl;
+            cout << "Eigenmode " << i+1 << '/' << nev
+                 << ", Lambda = " << eigenvalues[i] << endl;
          }
 
+         // convert eigenvector from HypreParVector to ParGridFunction
          x = lobpcg->GetEigenvector(i);
 
-         mode_sock << "parallel " << num_procs << " " << myid << "\n";
-         mode_sock << "solution\n" << *pmesh << x << flush;
+         mode_sock << "parallel " << num_procs << " " << myid << "\n"
+                   << "solution\n" << *pmesh << x << flush
+                   << "window_title 'Eigenmode " << i+1 << '/' << nev
+                   << ", Lambda = " << eigenvalues[i] << "'" << endl;
 
          char c;
          if (myid == 0)
@@ -312,7 +332,7 @@ int main(int argc, char *argv[])
       mode_sock.close();
    }
 
-   // 17. Free the used memory.
+   // 14. Free the used memory.
    delete lobpcg;
    delete amg;
    delete M;

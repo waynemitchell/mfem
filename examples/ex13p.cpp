@@ -2,30 +2,35 @@
 //
 // Compile with: make ex13p
 //
-// Sample runs:  mpirun -np 4 ex13p -m ../data/square-disc.mesh
-//               mpirun -np 4 ex13p -m ../data/star.mesh
+// Sample runs:  mpirun -np 4 ex13p -m ../data/star.mesh
+//               mpirun -np 4 ex13p -m ../data/square-disc.mesh -o 2
+//               mpirun -np 4 ex13p -m ../data/beam-tet.mesh
+//               mpirun -np 4 ex13p -m ../data/beam-hex.mesh
 //               mpirun -np 4 ex13p -m ../data/escher.mesh
 //               mpirun -np 4 ex13p -m ../data/fichera.mesh
-//               mpirun -np 4 ex13p -m ../data/square-disc-p2.vtk -o 2
-//               mpirun -np 4 ex13p -m ../data/square-disc-p3.mesh -o 3
-//               mpirun -np 4 ex13p -m ../data/square-disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex13p -m ../data/disc-nurbs.mesh -o -1
-//               mpirun -np 4 ex13p -m ../data/pipe-nurbs.mesh -o -1
-//               mpirun -np 4 ex13p -m ../data/ball-nurbs.mesh -o 2
-//               mpirun -np 4 ex13p -m ../data/star-surf.mesh
-//               mpirun -np 4 ex13p -m ../data/square-disc-surf.mesh
-//               mpirun -np 4 ex13p -m ../data/inline-segment.mesh
+//               mpirun -np 4 ex13p -m ../data/fichera-q2.vtk
+//               mpirun -np 4 ex13p -m ../data/fichera-q3.mesh
+//               mpirun -np 4 ex13p -m ../data/square-disc-nurbs.mesh
+//               mpirun -np 4 ex13p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex13p -m ../data/amr-quad.mesh -o 2
+//               mpirun -np 4 ex13p -m ../data/amr-hex.mesh
 //
-// Description:  This example code demonstrates the use of MFEM to solve a
-//               generalized eigenvalue problem
-//                 -Curl Curl u = lambda u
-//               with homogeneous Dirichlet boundary conditions.
-//               Specifically, we discretize the Curl Curl operator using a
-//               FE space of the specified order.
+// Description:  This example code solves the Maxwell (electromagnetic)
+//               eigenvalue problem curl curl E = lambda E with homogeneous
+//               Dirichlet boundary conditions E x n = 0.
 //
-//               The example is a modification of example 3 which highlights
-//               the use of the AME eigenvalue solver in HYPRE.
+//               We compute a number of the lowest nonzero eigenmodes by
+//               discretizing the curl curl operator using a Nedelec FE space of
+//               the specified order in 2D or 3D.
 //
+//               The example highlights the use of the AME subspace eigenvalue
+//               solver from HYPRE, which uses LOBPCG and AMS internally.
+//               Reusing a single GLVis visualization window for multiple
+//               eigenfunctions is also illustrated.
+//
+//               We recommend viewing examples 3 and 11 before viewing this
+//               example.
+
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
@@ -42,24 +47,25 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../data/star.mesh";
+   const char *mesh_file = "../data/beam-tet.mesh";
+   int ser_ref_levels = 2;
+   int par_ref_levels = 1;
    int order = 1;
    int nev = 5;
-   int sr = 2, pr = 1;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
+   args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
+                  "Number of times to refine the mesh uniformly in serial.");
+   args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
+                  "Number of times to refine the mesh uniformly in parallel.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
    args.AddOption(&nev, "-n", "--num-eigs",
                   "Number of desired eigenmodes.");
-   args.AddOption(&sr, "-sr", "--serial-ref-levels",
-                  "Number of serial refinement levels.");
-   args.AddOption(&pr, "-pr", "--parallel-ref-levels",
-                  "Number of parallel refinement levels.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -78,7 +84,7 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
+   // 3. Read the (serial) mesh from the given mesh file on all processors. We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
    Mesh *mesh;
@@ -97,40 +103,27 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
-   //    this example we do 'ref_levels' of uniform refinement.
+   //    this example we do 'ref_levels' of uniform refinement (2 by default, or
+   //    specified on the command line with -rs).
+   for (int lev = 0; lev < ser_ref_levels; lev++)
    {
-      int ref_levels = sr;
-      for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      mesh->UniformRefinement();
    }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
-   //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted.
+   //    this mesh further in parallel to increase the resolution (1 time by
+   //    default, or specified on the command line with -rp). Once the parallel
+   //    mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
+   for (int lev = 0; lev < par_ref_levels; lev++)
    {
-      int par_ref_levels = pr;
-      for (int l = 0; l < par_ref_levels; l++)
-      {
-         pmesh->UniformRefinement();
-      }
+      pmesh->UniformRefinement();
    }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
-   //    use continuous Lagrange finite elements of the specified order. If
-   //    order < 1, we instead use an isoparametric/isogeometric space.
-   FiniteElementCollection *fec;
-   if (order > 0)
-   {
-      fec = new ND_FECollection(order, dim);
-   }
-   else
-   {
-      fec = new ND_FECollection(order = 1, dim);
-   }
+   //    use the Nedelec finite elements of the specified order.
+   FiniteElementCollection *fec = new ND_FECollection(order, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
@@ -138,15 +131,15 @@ int main(int argc, char *argv[])
       cout << "Number of unknowns: " << size << endl;
    }
 
-   // 8. Set up the parallel bilinear forms a(.,.) and m(.,.) on the
-   //    finite element space.  The first corresponds to the Laplacian
-   //    operator -Delta, by adding the Diffusion domain integrator and
-   //    imposing homogeneous Dirichlet boundary conditions. The boundary
-   //    conditions are implemented by marking all the boundary attributes
-   //    from the mesh as essential.  The second is a simple mass matrix
-   //    needed on the right hand side of the generalized eigenvalue problem.
-   //    After serial and parallel assembly we extract the corresponding
-   //    parallel matrix A.
+   // 7. Set up the parallel bilinear forms a(.,.) and m(.,.) on the finite
+   //    element space. The first corresponds to the curl curl, while the second
+   //    is a simple mass matrix needed on the right hand side of the
+   //    generalized eigenvalue problem below. The boundary conditions are
+   //    implemented by marking all the boundary attributes from the mesh as
+   //    essential. The corresponding degrees of freedom are eliminated with
+   //    special values on the diagonal to shift the Dirichlet eigenvalues out
+   //    of the computational range. After serial and parallel assembly we
+   //    extract the corresponding parallel matrices A and M.
    ConstantCoefficient one(1.0);
    Array<int> ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 1;
@@ -154,13 +147,14 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(one));
    a->Assemble();
-   a->EliminateEssentialBCDiag(ess_bdr,100.0);
+   a->EliminateEssentialBCDiag(ess_bdr, 1.0);
    a->Finalize();
 
    ParBilinearForm *m = new ParBilinearForm(fespace);
    m->AddDomainIntegrator(new VectorFEMassIntegrator(one));
    m->Assemble();
-   m->EliminateEssentialBCDiag(ess_bdr,1.0);
+   // shift the eigenvalue corresponding to eliminated dofs to a large value
+   m->EliminateEssentialBCDiag(ess_bdr, numeric_limits<double>::min());
    m->Finalize();
 
    HypreParMatrix *A = a->ParallelAssemble();
@@ -169,39 +163,32 @@ int main(int argc, char *argv[])
    delete a;
    delete m;
 
-   // 9. Define and configure the LOBPCG eigensolver and a BoomerAMG
-   //    preconditioner to be used within the solver.
-   HypreAME *ame = new HypreAME(MPI_COMM_WORLD);
+   // 8. Define and configure the AME eigensolver and the AMS preconditioner for
+   //    A to be used within the solver. Set the matrices which define the
+   //    generalized eigenproblem A x = lambda M x.
    HypreAMS *ams = new HypreAMS(*A,fespace);
+   ams->SetPrintLevel(0);
    ams->SetSingularProblem();
 
+   HypreAME *ame = new HypreAME(MPI_COMM_WORLD);
    ame->SetNumModes(nev);
    ame->SetPreconditioner(*ams);
    ame->SetMaxIter(100);
    ame->SetTol(1e-8);
    ame->SetPrintLevel(1);
-
-   // Set the matrices which define the linear system
    ame->SetMassMatrix(*M);
    ame->SetOperator(*A);
 
-   // Perform the eigensolve
-   ame->Solve();
-
-   // Obtain the eigenvalues and eigenvectors
+   // 9. Compute the eigenmodes and extract the array of eigenvalues. Define a
+   //    parallel grid function to represent each of the eigenmodes returned by
+   //    the solver.
    Array<double> eigenvalues;
-
+   ame->Solve();
    ame->GetEigenvalues(eigenvalues);
-
-   // 10. Define a parallel grid function to approximate each of the
-   //     eigenmodes returned by the solver.  Use this as a template to
-   //     create a special multi-vector object needed by the eigensolver
-   //     which is then initialized with random values.
    ParGridFunction x(fespace);
-   x = 0.0;
 
-   // 11. Save the refined mesh and the modes in parallel. This output can
-   //     be viewed later using GLVis: "glvis -np <np> -m mesh -g mode".
+   // 10. Save the refined mesh and the modes in parallel. This output can be
+   //     viewed later using GLVis: "glvis -np <np> -m mesh -g mode".
    {
       ostringstream mesh_name, mode_name;
       mesh_name << "mesh." << setfill('0') << setw(6) << myid;
@@ -212,6 +199,7 @@ int main(int argc, char *argv[])
 
       for (int i=0; i<nev; i++)
       {
+         // convert eigenvector from HypreParVector to ParGridFunction
          x = ame->GetEigenvector(i);
 
          mode_name << "mode_" << setfill('0') << setw(2) << i << "."
@@ -224,8 +212,7 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 12. Send the solution by socket to a GLVis server.
-
+   // 11. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -237,13 +224,17 @@ int main(int argc, char *argv[])
       {
          if ( myid == 0 )
          {
-            cout << "Lambda = " << eigenvalues[i] << endl;
+            cout << "Eigenmode " << i+1 << '/' << nev
+                 << ", Lambda = " << eigenvalues[i] << endl;
          }
 
+         // convert eigenvector from HypreParVector to ParGridFunction
          x = ame->GetEigenvector(i);
 
-         mode_sock << "parallel " << num_procs << " " << myid << "\n";
-         mode_sock << "solution\n" << *pmesh << x << flush;
+         mode_sock << "parallel " << num_procs << " " << myid << "\n"
+                   << "solution\n" << *pmesh << x << flush
+                   << "window_title 'Eigenmode " << i+1 << '/' << nev
+                   << ", Lambda = " << eigenvalues[i] << "'" << endl;
 
          char c;
          if (myid == 0)
@@ -261,11 +252,12 @@ int main(int argc, char *argv[])
       mode_sock.close();
    }
 
-   // 13. Free the used memory.
+   // 12. Free the used memory.
    delete ame;
    delete ams;
    delete M;
    delete A;
+
    delete fespace;
    delete fec;
    delete pmesh;
