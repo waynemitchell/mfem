@@ -1832,7 +1832,6 @@ HyprePCG::HyprePCG(HypreParMatrix &_A) : HypreSolver(&_A)
 {
    MPI_Comm comm;
 
-   print_level = 0;
    iterative_mode = true;
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
@@ -1842,23 +1841,22 @@ HyprePCG::HyprePCG(HypreParMatrix &_A) : HypreSolver(&_A)
 
 void HyprePCG::SetTol(double tol)
 {
-   HYPRE_ParCSRPCGSetTol(pcg_solver, tol);
+   HYPRE_PCGSetTol(pcg_solver, tol);
 }
 
 void HyprePCG::SetMaxIter(int max_iter)
 {
-   HYPRE_ParCSRPCGSetMaxIter(pcg_solver, max_iter);
+   HYPRE_PCGSetMaxIter(pcg_solver, max_iter);
 }
 
 void HyprePCG::SetLogging(int logging)
 {
-   HYPRE_ParCSRPCGSetLogging(pcg_solver, logging);
+   HYPRE_PCGSetLogging(pcg_solver, logging);
 }
 
 void HyprePCG::SetPrintLevel(int print_lvl)
 {
-   print_level = print_lvl;
-   HYPRE_ParCSRPCGSetPrintLevel(pcg_solver, print_level);
+   HYPRE_ParCSRPCGSetPrintLevel(pcg_solver, print_lvl);
 }
 
 void HyprePCG::SetPreconditioner(HypreSolver &precond)
@@ -1889,6 +1887,9 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
    HYPRE_Int num_iterations;
    double final_res_norm;
    MPI_Comm comm;
+   HYPRE_Int print_level;
+
+   HYPRE_PCGGetPrintLevel(pcg_solver, &print_level);
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
 
@@ -1961,7 +1962,6 @@ HypreGMRES::HypreGMRES(HypreParMatrix &_A) : HypreSolver(&_A)
    int max_iter = 100;
    double tol   = 1e-6;
 
-   print_level = 0;
    iterative_mode = true;
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
@@ -1974,28 +1974,27 @@ HypreGMRES::HypreGMRES(HypreParMatrix &_A) : HypreSolver(&_A)
 
 void HypreGMRES::SetTol(double tol)
 {
-   HYPRE_ParCSRGMRESSetTol(gmres_solver, tol);
+   HYPRE_GMRESSetTol(gmres_solver, tol);
 }
 
 void HypreGMRES::SetMaxIter(int max_iter)
 {
-   HYPRE_ParCSRGMRESSetMaxIter(gmres_solver, max_iter);
+   HYPRE_GMRESSetMaxIter(gmres_solver, max_iter);
 }
 
 void HypreGMRES::SetKDim(int k_dim)
 {
-   HYPRE_ParCSRGMRESSetKDim(gmres_solver, k_dim);
+   HYPRE_GMRESSetKDim(gmres_solver, k_dim);
 }
 
 void HypreGMRES::SetLogging(int logging)
 {
-   HYPRE_ParCSRGMRESSetLogging(gmres_solver, logging);
+   HYPRE_GMRESSetLogging(gmres_solver, logging);
 }
 
 void HypreGMRES::SetPrintLevel(int print_lvl)
 {
-   print_level = print_lvl;
-   HYPRE_ParCSRGMRESSetPrintLevel(gmres_solver, print_level);
+   HYPRE_GMRESSetPrintLevel(gmres_solver, print_lvl);
 }
 
 void HypreGMRES::SetPreconditioner(HypreSolver &precond)
@@ -2013,6 +2012,9 @@ void HypreGMRES::Mult(const HypreParVector &b, HypreParVector &x) const
    HYPRE_Int num_iterations;
    double final_res_norm;
    MPI_Comm comm;
+   HYPRE_Int print_level;
+
+   HYPRE_GMRESGetPrintLevel(gmres_solver, &print_level);
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
 
@@ -2520,8 +2522,7 @@ HypreAMS::~HypreAMS()
 
 void HypreAMS::SetPrintLevel(int print_lvl)
 {
-   print_level = print_lvl;
-   HYPRE_AMSSetPrintLevel(ams, print_level);
+   HYPRE_AMSSetPrintLevel(ams, print_lvl);
 }
 
 HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
@@ -2718,8 +2719,7 @@ HypreADS::~HypreADS()
 
 void HypreADS::SetPrintLevel(int print_lvl)
 {
-   print_level = print_lvl;
-   HYPRE_ADSSetPrintLevel(ads, print_level);
+   HYPRE_ADSSetPrintLevel(ads, print_lvl);
 }
 
 HypreLOBPCG::HypreMultiVector::HypreMultiVector(int n, HypreParVector & v,
@@ -2750,7 +2750,7 @@ HypreLOBPCG::HypreMultiVector::~HypreMultiVector()
    {
       for (int i=0; i<nv; i++)
       {
-         if ( hpv[i] != NULL ) { delete hpv[i]; }
+         delete hpv[i];
       }
       delete [] hpv;
    }
@@ -2797,6 +2797,7 @@ HypreLOBPCG::HypreLOBPCG(MPI_Comm c)
      myid(0),
      numProcs(1),
      nev(10),
+     seed(75),
      glbSize(-1),
      part(NULL),
      multi_vec(NULL),
@@ -2812,9 +2813,9 @@ HypreLOBPCG::HypreLOBPCG(MPI_Comm c)
 
 HypreLOBPCG::~HypreLOBPCG()
 {
-   if ( multi_vec != NULL ) { delete multi_vec; }
-   if ( x         != NULL ) { delete x; }
-   if ( part      != NULL ) { delete part; }
+   delete multi_vec;
+   delete x;
+   delete part;
 
    HYPRE_LOBPCGDestroy(lobpcg_solver);
 }
@@ -2938,7 +2939,7 @@ HypreLOBPCG::Solve()
       MFEM_ASSERT(x != NULL, "In HypreLOBPCG::Solve()");
 
       multi_vec = new HypreMultiVector(nev, *x, interpreter);
-      multi_vec->Randomize(123);
+      multi_vec->Randomize(seed);
    }
 
    eigenvalues.SetSize(nev);
@@ -2970,6 +2971,8 @@ HypreLOBPCG::OperatorMatvec( void *matvec_data,
                              HYPRE_Complex beta,
                              void *y )
 {
+   MFEM_VERIFY(alpha == 1.0 && beta == 0.0, "values not supported");
+
    Operator *Aop = (Operator*)A;
 
    int width = Aop->Width();

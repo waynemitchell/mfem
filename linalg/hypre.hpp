@@ -528,7 +528,6 @@ public:
 class HyprePCG : public HypreSolver
 {
 private:
-   int print_level;
    HYPRE_Solver pcg_solver;
 
 public:
@@ -578,7 +577,6 @@ public:
 class HypreGMRES : public HypreSolver
 {
 private:
-   int print_level;
    HYPRE_Solver gmres_solver;
 
 public:
@@ -733,7 +731,6 @@ HypreParMatrix* DiscreteCurl(ParFiniteElementSpace *face_fespace,
 class HypreAMS : public HypreSolver
 {
 private:
-   int print_level;
    HYPRE_Solver ams;
 
    /// Vertex coordinates
@@ -766,7 +763,6 @@ public:
 class HypreADS : public HypreSolver
 {
 private:
-   int print_level;
    HYPRE_Solver ads;
 
    /// Vertex coordinates
@@ -825,6 +821,7 @@ private:
    int myid;
    int numProcs;
    int nev;   // Number of desired eigenmodes
+   int seed;  // Random seed used for initial vectors
 
    HYPRE_Int glbSize; // Global number of DoFs in the linear system
    HYPRE_Int * part;  // Row partitioning of the linear system
@@ -909,6 +906,7 @@ public:
    void SetPrintLevel(int logging);
    void SetNumModes(int num_eigs) { nev = num_eigs; }
    void SetPrecondUsageMode(int pcg_mode);
+   void SetRandomSeed(int s) { seed = s; }
 
    // The following four methods support general operators
    void SetPreconditioner(Solver & precond);

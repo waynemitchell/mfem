@@ -880,16 +880,15 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
 {
    int trial_nd = trial_fe.GetDof(), test_nd = test_fe.GetDof(), i;
    int dim = trial_fe.GetDim();
-   int dimc = (dim == 3) ? 3 : 1;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix curlshapeTrial(trial_nd, dimc);
-   DenseMatrix curlshapeTrial_dFT(trial_nd, dimc);
-   DenseMatrix vshapeTest(test_nd, dimc);
+   DenseMatrix curlshapeTrial(trial_nd, dim);
+   DenseMatrix curlshapeTrial_dFT(trial_nd, dim);
+   DenseMatrix vshapeTest(test_nd, dim);
 #else
-   curlshapeTrial.SetSize(trial_nd, dimc);
-   curlshapeTrial_dFT.SetSize(trial_nd, dimc);
-   vshapeTest.SetSize(test_nd, dimc);
+   curlshapeTrial.SetSize(trial_nd, dim);
+   curlshapeTrial_dFT.SetSize(trial_nd, dim);
+   vshapeTest.SetSize(test_nd, dim);
 #endif
 
    elmat.SetSize(test_nd, trial_nd);
@@ -910,15 +909,8 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
 
       double w = ip.weight;
 
-      if ( dim == 3 )
-      {
-         trial_fe.CalcCurlShape(ip, curlshapeTrial);
-         MultABt(curlshapeTrial, Trans.Jacobian(), curlshapeTrial_dFT);
-      }
-      else
-      {
-         trial_fe.CalcCurlShape(ip, curlshapeTrial_dFT);
-      }
+      trial_fe.CalcCurlShape(ip, curlshapeTrial);
+      MultABt(curlshapeTrial, Trans.Jacobian(), curlshapeTrial_dFT);
 
       test_fe.CalcVShape(Trans, vshapeTest);
 
