@@ -124,8 +124,7 @@ int main(int argc, char *argv[])
    pmesh->ReorientTetMesh();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Nedelec finite elements, but we can easily switch
-   //    to higher-order spaces by changing the value of p.
+   //    use the Nedelec finite elements of the specified order.
    FiniteElementCollection *fec = new ND_FECollection(order, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    HYPRE_Int size = fespace->GlobalTrueVSize();

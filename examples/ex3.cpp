@@ -92,9 +92,8 @@ int main(int argc, char *argv[])
    }
    mesh->ReorientTetMesh();
 
-   // 4. Define a finite element space on the mesh. Here we use the lowest order
-   //    Nedelec finite elements, but we can easily switch to higher-order
-   //    spaces by changing the value of p.
+   // 4. Define a finite element space on the mesh. Here we use the Nedelec
+   //    finite elements of the specified order.
    FiniteElementCollection *fec = new ND_FECollection(order, dim);
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;

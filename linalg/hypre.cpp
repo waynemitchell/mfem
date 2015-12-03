@@ -3040,6 +3040,7 @@ HypreAME::HypreAME(MPI_Comm comm)
    MPI_Comm_rank(comm,&myid);
 
    HYPRE_AMECreate(&ame_solver);
+   HYPRE_AMESetPrintLevel(ame_solver, 0);
 }
 
 HypreAME::~HypreAME()
@@ -3072,7 +3073,10 @@ HypreAME::SetMaxIter(int max_iter)
 void
 HypreAME::SetPrintLevel(int logging)
 {
-   HYPRE_AMESetPrintLevel(ame_solver, logging);
+   if (myid == 0)
+   {
+      HYPRE_AMESetPrintLevel(ame_solver, logging);
+   }
 }
 
 void

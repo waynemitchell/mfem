@@ -906,21 +906,16 @@ void VectorFECurlIntegrator::AssembleElementMatrix2(
       const IntegrationPoint &ip = ir->IntPoint(i);
 
       Trans.SetIntPoint(&ip);
-
-      double w = ip.weight;
-
       trial_fe.CalcCurlShape(ip, curlshapeTrial);
       MultABt(curlshapeTrial, Trans.Jacobian(), curlshapeTrial_dFT);
-
       test_fe.CalcVShape(Trans, vshapeTest);
+      double w = ip.weight;
 
       if (Q)
       {
          w *= Q->Eval(Trans, ip);
       }
-
       vshapeTest *= w;
-
       AddMultABt(vshapeTest, curlshapeTrial_dFT, elmat);
    }
 }
