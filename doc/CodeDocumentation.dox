@@ -54,6 +54,9 @@ namespace mfem {
  * - <a class="el" href="ex9p_8cpp_source.html">Example 9p</a>: parallel Discontinuous Galerkin (DG) time-dependent advection
  * - <a class="el" href="ex10_8cpp_source.html">Example 10</a>: time-dependent implicit nonlinear elasticity
  * - <a class="el" href="ex10p_8cpp_source.html">Example 10p</a>: parallel time-dependent implicit nonlinear elasticity
+ * - <a class="el" href="ex11p_8cpp_source.html">Example 11p</a>: parallel Laplace eigensolver
+ * - <a class="el" href="ex12p_8cpp_source.html">Example 12p</a>: parallel linear elasticity eigensolver
+ * - <a class="el" href="ex13p_8cpp_source.html">Example 13p</a>: parallel Maxwell eigensolver
  * - see also the <a class="el" href="../../../examples/README_files/index.html">README</a> in the <code>examples/</code> directory
  */
 
