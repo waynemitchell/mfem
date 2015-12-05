@@ -117,39 +117,36 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk, std::ostream &out)
 
    if (dim == 1)
    {
-      out
-            << "Number of vertices : " << GetNV() << '\n'
-            << "Number of elements : " << GetNE() << '\n'
-            << "Number of bdr elem : " << GetNBE() << '\n'
-            << "h_min              : " << h_min << '\n'
-            << "h_max              : " << h_max << '\n';
+      out << "Number of vertices : " << GetNV() << '\n'
+          << "Number of elements : " << GetNE() << '\n'
+          << "Number of bdr elem : " << GetNBE() << '\n'
+          << "h_min              : " << h_min << '\n'
+          << "h_max              : " << h_max << '\n';
    }
    else if (dim == 2)
    {
-      out
-            << "Number of vertices : " << GetNV() << '\n'
-            << "Number of edges    : " << GetNEdges() << '\n'
-            << "Number of elements : " << GetNE() << '\n'
-            << "Number of bdr elem : " << GetNBE() << '\n'
-            << "Euler Number       : " << EulerNumber2D() << '\n'
-            << "h_min              : " << h_min << '\n'
-            << "h_max              : " << h_max << '\n'
-            << "kappa_min          : " << kappa_min << '\n'
-            << "kappa_max          : " << kappa_max << '\n';
+      out  << "Number of vertices : " << GetNV() << '\n'
+           << "Number of edges    : " << GetNEdges() << '\n'
+           << "Number of elements : " << GetNE() << '\n'
+           << "Number of bdr elem : " << GetNBE() << '\n'
+           << "Euler Number       : " << EulerNumber2D() << '\n'
+           << "h_min              : " << h_min << '\n'
+           << "h_max              : " << h_max << '\n'
+           << "kappa_min          : " << kappa_min << '\n'
+           << "kappa_max          : " << kappa_max << '\n';
    }
    else
    {
-      out
-            << "Number of vertices : " << GetNV() << '\n'
-            << "Number of edges    : " << GetNEdges() << '\n'
-            << "Number of faces    : " << GetNFaces() << '\n'
-            << "Number of elements : " << GetNE() << '\n'
-            << "Number of bdr elem : " << GetNBE() << '\n'
-            << "Euler Number       : " << EulerNumber() << '\n'
-            << "h_min              : " << h_min << '\n'
-            << "h_max              : " << h_max << '\n'
-            << "kappa_min          : " << kappa_min << '\n'
-            << "kappa_max          : " << kappa_max << '\n';
+      out << "Number of vertices : " << GetNV() << '\n'
+          << "Number of edges    : " << GetNEdges() << '\n'
+          << "Number of faces    : " << GetNFaces() << '\n'
+          << "Number of elements : " << GetNE() << '\n'
+          << "Number of bdr elem : " << GetNBE() << '\n'
+          << "Euler Number       : " << EulerNumber() << '\n'
+          << "h_min              : " << h_min << '\n'
+          << "h_max              : " << h_max << '\n'
+          << "kappa_min          : " << kappa_min << '\n'
+          << "kappa_max          : " << kappa_max << '\n';
    }
    out << '\n' << std::flush;
 }
