@@ -6676,7 +6676,7 @@ void H1_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 H1_QuadrilateralElement::H1_QuadrilateralElement(const int p)
    : NodalFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                         FunctionSpace::Qk),
-     basis1d(poly1d.ClosedBasis(p)), dof_map((p + 1)*(p + 1))
+   basis1d(poly1d.ClosedBasis(p)), dof_map((p + 1)*(p + 1))
 {
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -6820,7 +6820,7 @@ void H1_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 H1_HexahedronElement::H1_HexahedronElement(const int p)
    : NodalFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
                         FunctionSpace::Qk),
-     basis1d(poly1d.ClosedBasis(p)), dof_map((p + 1)*(p + 1)*(p + 1))
+   basis1d(poly1d.ClosedBasis(p)), dof_map((p + 1)*(p + 1)*(p + 1))
 {
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -7143,7 +7143,7 @@ void H1Pos_SegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 H1Pos_QuadrilateralElement::H1Pos_QuadrilateralElement(const int p)
    : PositiveFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                            FunctionSpace::Qk),
-     dof_map((p + 1)*(p + 1))
+   dof_map((p + 1)*(p + 1))
 {
    const int p1 = p + 1;
 
@@ -7246,7 +7246,7 @@ void H1Pos_QuadrilateralElement::ProjectDelta(int vertex, Vector &dofs) const
 H1Pos_HexahedronElement::H1Pos_HexahedronElement(const int p)
    : PositiveFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
                            FunctionSpace::Qk),
-     dof_map((p + 1)*(p + 1)*(p + 1))
+   dof_map((p + 1)*(p + 1)*(p + 1))
 {
    const int p1 = p + 1;
 
@@ -8848,8 +8848,8 @@ const double RT_QuadrilateralElement::nk[8] =
 RT_QuadrilateralElement::RT_QuadrilateralElement(const int p)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
-     cbasis1d(poly1d.ClosedBasis(p + 1)), obasis1d(poly1d.OpenBasis(p)),
-     dof_map(Dof), dof2nk(Dof)
+   cbasis1d(poly1d.ClosedBasis(p + 1)), obasis1d(poly1d.OpenBasis(p)),
+   dof_map(Dof), dof2nk(Dof)
 {
    const double *cp = poly1d.ClosedPoints(p + 1);
    const double *op = poly1d.OpenPoints(p);
@@ -9056,8 +9056,8 @@ const double RT_HexahedronElement::nk[18] =
 RT_HexahedronElement::RT_HexahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::CUBE, 3*(p + 1)*(p + 1)*(p + 2), p + 1,
                          H_DIV, FunctionSpace::Qk),
-     cbasis1d(poly1d.ClosedBasis(p + 1)), obasis1d(poly1d.OpenBasis(p)),
-     dof_map(Dof), dof2nk(Dof)
+   cbasis1d(poly1d.ClosedBasis(p + 1)), obasis1d(poly1d.OpenBasis(p)),
+   dof_map(Dof), dof2nk(Dof)
 {
    const double *cp = poly1d.ClosedPoints(p + 1);
    const double *op = poly1d.OpenPoints(p);
@@ -9701,8 +9701,8 @@ const double ND_HexahedronElement::tk[18] =
 ND_HexahedronElement::ND_HexahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::CUBE, 3*p*(p + 1)*(p + 1), p,
                          H_CURL, FunctionSpace::Qk),
-     cbasis1d(poly1d.ClosedBasis(p)), obasis1d(poly1d.OpenBasis(p - 1)),
-     dof_map(Dof), dof2tk(Dof)
+   cbasis1d(poly1d.ClosedBasis(p)), obasis1d(poly1d.OpenBasis(p - 1)),
+   dof_map(Dof), dof2tk(Dof)
 {
    const double *cp = poly1d.ClosedPoints(p);
    const double *op = poly1d.OpenPoints(p - 1);
@@ -10070,8 +10070,8 @@ const double ND_QuadrilateralElement::tk[8] =
 ND_QuadrilateralElement::ND_QuadrilateralElement(const int p)
    : VectorFiniteElement(2, Geometry::SQUARE, 2*p*(p + 1), p,
                          H_CURL, FunctionSpace::Qk),
-     cbasis1d(poly1d.ClosedBasis(p)), obasis1d(poly1d.OpenBasis(p - 1)),
-     dof_map(Dof), dof2tk(Dof)
+   cbasis1d(poly1d.ClosedBasis(p)), obasis1d(poly1d.OpenBasis(p - 1)),
+   dof_map(Dof), dof2tk(Dof)
 {
    const double *cp = poly1d.ClosedPoints(p);
    const double *op = poly1d.OpenPoints(p - 1);

@@ -836,7 +836,8 @@ public:
 
    double GetElementVolume(int i);
 
-   void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL, std::ostream &out = std::cout);
+   void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL,
+                             std::ostream &out = std::cout);
 
    virtual void PrintInfo(std::ostream &out = std::cout)
    {

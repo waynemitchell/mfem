@@ -2002,7 +2002,7 @@ public:
    NURBS2DFiniteElement(int p)
       : NURBSFiniteElement(2, Geometry::SQUARE, (p + 1)*(p + 1), p,
                            FunctionSpace::Qk), u(Dof),
-        shape_x(p + 1), shape_y(p + 1), dshape_x(p + 1), dshape_y(p + 1) { }
+      shape_x(p + 1), shape_y(p + 1), dshape_x(p + 1), dshape_y(p + 1) { }
 
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
@@ -2018,8 +2018,8 @@ public:
    NURBS3DFiniteElement(int p)
       : NURBSFiniteElement(3, Geometry::CUBE, (p + 1)*(p + 1)*(p + 1), p,
                            FunctionSpace::Qk), u(Dof),
-        shape_x(p + 1), shape_y(p + 1), shape_z(p + 1),
-        dshape_x(p + 1), dshape_y(p + 1), dshape_z(p + 1) { }
+      shape_x(p + 1), shape_y(p + 1), shape_z(p + 1),
+      dshape_x(p + 1), dshape_y(p + 1), dshape_z(p + 1) { }
 
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
