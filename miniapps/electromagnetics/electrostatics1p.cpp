@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
 
    delete laplacian_eps;
 
-   // Define and apply a parallel PCG solver for AX=B with the AMS
+   // Define and apply a parallel PCG solver for AX=B with the AMG
    // preconditioner from hypre.
 
    HypreSolver *amg = new HypreBoomerAMG(*Laplacian_eps);
