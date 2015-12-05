@@ -89,7 +89,7 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk, std::ostream &out)
    DenseMatrix J;
    double h_min, h_max, kappa_min, kappa_max, h, kappa;
 
-   out << "Mesh Characteristics:\n";
+   out << "Mesh Characteristics:";
 
    dim = Dimension();
    sdim = SpaceDimension();
