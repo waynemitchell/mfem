@@ -1832,7 +1832,6 @@ HyprePCG::HyprePCG(HypreParMatrix &_A) : HypreSolver(&_A)
 {
    MPI_Comm comm;
 
-   print_level = 0;
    iterative_mode = true;
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
@@ -1842,23 +1841,22 @@ HyprePCG::HyprePCG(HypreParMatrix &_A) : HypreSolver(&_A)
 
 void HyprePCG::SetTol(double tol)
 {
-   HYPRE_ParCSRPCGSetTol(pcg_solver, tol);
+   HYPRE_PCGSetTol(pcg_solver, tol);
 }
 
 void HyprePCG::SetMaxIter(int max_iter)
 {
-   HYPRE_ParCSRPCGSetMaxIter(pcg_solver, max_iter);
+   HYPRE_PCGSetMaxIter(pcg_solver, max_iter);
 }
 
 void HyprePCG::SetLogging(int logging)
 {
-   HYPRE_ParCSRPCGSetLogging(pcg_solver, logging);
+   HYPRE_PCGSetLogging(pcg_solver, logging);
 }
 
 void HyprePCG::SetPrintLevel(int print_lvl)
 {
-   print_level = print_lvl;
-   HYPRE_ParCSRPCGSetPrintLevel(pcg_solver, print_level);
+   HYPRE_ParCSRPCGSetPrintLevel(pcg_solver, print_lvl);
 }
 
 void HyprePCG::SetPreconditioner(HypreSolver &precond)
@@ -1889,6 +1887,9 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
    HYPRE_Int num_iterations;
    double final_res_norm;
    MPI_Comm comm;
+   HYPRE_Int print_level;
+
+   HYPRE_PCGGetPrintLevel(pcg_solver, &print_level);
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
 
@@ -1961,7 +1962,6 @@ HypreGMRES::HypreGMRES(HypreParMatrix &_A) : HypreSolver(&_A)
    int max_iter = 100;
    double tol   = 1e-6;
 
-   print_level = 0;
    iterative_mode = true;
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
@@ -1974,28 +1974,27 @@ HypreGMRES::HypreGMRES(HypreParMatrix &_A) : HypreSolver(&_A)
 
 void HypreGMRES::SetTol(double tol)
 {
-   HYPRE_ParCSRGMRESSetTol(gmres_solver, tol);
+   HYPRE_GMRESSetTol(gmres_solver, tol);
 }
 
 void HypreGMRES::SetMaxIter(int max_iter)
 {
-   HYPRE_ParCSRGMRESSetMaxIter(gmres_solver, max_iter);
+   HYPRE_GMRESSetMaxIter(gmres_solver, max_iter);
 }
 
 void HypreGMRES::SetKDim(int k_dim)
 {
-   HYPRE_ParCSRGMRESSetKDim(gmres_solver, k_dim);
+   HYPRE_GMRESSetKDim(gmres_solver, k_dim);
 }
 
 void HypreGMRES::SetLogging(int logging)
 {
-   HYPRE_ParCSRGMRESSetLogging(gmres_solver, logging);
+   HYPRE_GMRESSetLogging(gmres_solver, logging);
 }
 
 void HypreGMRES::SetPrintLevel(int print_lvl)
 {
-   print_level = print_lvl;
-   HYPRE_ParCSRGMRESSetPrintLevel(gmres_solver, print_level);
+   HYPRE_GMRESSetPrintLevel(gmres_solver, print_lvl);
 }
 
 void HypreGMRES::SetPreconditioner(HypreSolver &precond)
@@ -2013,6 +2012,9 @@ void HypreGMRES::Mult(const HypreParVector &b, HypreParVector &x) const
    HYPRE_Int num_iterations;
    double final_res_norm;
    MPI_Comm comm;
+   HYPRE_Int print_level;
+
+   HYPRE_GMRESGetPrintLevel(gmres_solver, &print_level);
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
 
@@ -2518,6 +2520,11 @@ HypreAMS::~HypreAMS()
    delete Piz;
 }
 
+void HypreAMS::SetPrintLevel(int print_lvl)
+{
+   HYPRE_AMSSetPrintLevel(ams, print_lvl);
+}
+
 HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    : HypreSolver(&A)
 {
@@ -2708,6 +2715,465 @@ HypreADS::~HypreADS()
    delete ND_Pix;
    delete ND_Piy;
    delete ND_Piz;
+}
+
+void HypreADS::SetPrintLevel(int print_lvl)
+{
+   HYPRE_ADSSetPrintLevel(ads, print_lvl);
+}
+
+HypreLOBPCG::HypreMultiVector::HypreMultiVector(int n, HypreParVector & v,
+                                                mv_InterfaceInterpreter & interpreter)
+   : hpv(NULL),
+     nv(n)
+{
+   mv_ptr = mv_MultiVectorCreateFromSampleVector(&interpreter, nv,
+                                                 (HYPRE_ParVector)v);
+
+   HYPRE_ParVector* vecs = NULL;
+   {
+      mv_TempMultiVector* tmp =
+         (mv_TempMultiVector*)mv_MultiVectorGetData(mv_ptr);
+      vecs = (HYPRE_ParVector*)(tmp -> vector);
+   }
+
+   hpv = new HypreParVector*[nv];
+   for (int i=0; i<nv; i++)
+   {
+      hpv[i] = new HypreParVector(vecs[i]);
+   }
+}
+
+HypreLOBPCG::HypreMultiVector::~HypreMultiVector()
+{
+   if ( hpv != NULL )
+   {
+      for (int i=0; i<nv; i++)
+      {
+         delete hpv[i];
+      }
+      delete [] hpv;
+   }
+
+   mv_MultiVectorDestroy(mv_ptr);
+}
+
+void
+HypreLOBPCG::HypreMultiVector::Randomize(HYPRE_Int seed)
+{
+   mv_MultiVectorSetRandom(mv_ptr, seed);
+}
+
+HypreParVector &
+HypreLOBPCG::HypreMultiVector::GetVector(unsigned int i)
+{
+   MFEM_ASSERT((int)i < nv, "index out of range");
+
+   return ( *hpv[i] );
+}
+
+HypreParVector **
+HypreLOBPCG::HypreMultiVector::StealVectors()
+{
+   HypreParVector ** hpv_ret = hpv;
+
+   hpv = NULL;
+
+   mv_TempMultiVector * mv_tmp =
+      (mv_TempMultiVector*)mv_MultiVectorGetData(mv_ptr);
+
+   mv_tmp->ownsVectors = 0;
+
+   for (int i=0; i<nv; i++)
+   {
+      hpv_ret[i]->SetOwnership(1);
+   }
+
+   return hpv_ret;
+}
+
+HypreLOBPCG::HypreLOBPCG(MPI_Comm c)
+   : comm(c),
+     myid(0),
+     numProcs(1),
+     nev(10),
+     seed(75),
+     glbSize(-1),
+     part(NULL),
+     multi_vec(NULL),
+     x(NULL)
+{
+   MPI_Comm_size(comm,&numProcs);
+   MPI_Comm_rank(comm,&myid);
+
+   HYPRE_ParCSRSetupInterpreter(&interpreter);
+   HYPRE_ParCSRSetupMatvec(&matvec_fn);
+   HYPRE_LOBPCGCreate(&interpreter, &matvec_fn, &lobpcg_solver);
+}
+
+HypreLOBPCG::~HypreLOBPCG()
+{
+   delete multi_vec;
+   delete x;
+   delete part;
+
+   HYPRE_LOBPCGDestroy(lobpcg_solver);
+}
+
+void
+HypreLOBPCG::SetTol(double tol)
+{
+   HYPRE_LOBPCGSetTol(lobpcg_solver, tol);
+}
+
+void
+HypreLOBPCG::SetMaxIter(int max_iter)
+{
+   HYPRE_LOBPCGSetMaxIter(lobpcg_solver, max_iter);
+}
+
+void
+HypreLOBPCG::SetPrintLevel(int logging)
+{
+   if (myid == 0)
+   {
+      HYPRE_LOBPCGSetPrintLevel(lobpcg_solver, logging);
+   }
+}
+
+void
+HypreLOBPCG::SetPrecondUsageMode(int pcg_mode)
+{
+   HYPRE_LOBPCGSetPrecondUsageMode(lobpcg_solver, pcg_mode);
+}
+
+void
+HypreLOBPCG::SetPreconditioner(Solver & precond)
+{
+   HYPRE_LOBPCGSetPrecond(lobpcg_solver,
+                          (HYPRE_PtrToSolverFcn)this->PrecondSolve,
+                          (HYPRE_PtrToSolverFcn)this->PrecondSetup,
+                          (HYPRE_Solver)&precond);
+}
+
+void
+HypreLOBPCG::SetOperator(Operator & A)
+{
+   int locSize = A.Width();
+
+   if (HYPRE_AssumedPartitionCheck())
+   {
+      part = new HYPRE_Int[2];
+
+      MPI_Scan(&locSize, &part[1], 1, HYPRE_MPI_INT, MPI_SUM, comm);
+
+      part[0] = part[1] - locSize;
+      part[1]++;
+
+      MPI_Allreduce(&locSize, &glbSize, 1, HYPRE_MPI_INT, MPI_SUM, comm);
+   }
+   else
+   {
+      part = new HYPRE_Int[numProcs+1];
+
+      MPI_Allgather(&locSize, 1, MPI_INT,
+                    &part[1], 1, HYPRE_MPI_INT, comm);
+
+      part[0] = 0;
+      for (int i=0; i<numProcs; i++)
+      {
+         part[i+1] += part[i];
+      }
+
+      glbSize = part[numProcs];
+   }
+
+   if ( x != NULL )
+   {
+      delete x;
+   }
+
+   x = new HypreParVector(comm,glbSize,NULL,part);
+
+   matvec_fn.MatvecCreate  = this->OperatorMatvecCreate;
+   matvec_fn.Matvec        = this->OperatorMatvec;
+   matvec_fn.MatvecDestroy = this->OperatorMatvecDestroy;
+
+   HYPRE_LOBPCGSetup(lobpcg_solver,(HYPRE_Matrix)&A,NULL,NULL);
+}
+
+void
+HypreLOBPCG::SetMassMatrix(Operator & M)
+{
+   matvec_fn.MatvecCreate  = this->OperatorMatvecCreate;
+   matvec_fn.Matvec        = this->OperatorMatvec;
+   matvec_fn.MatvecDestroy = this->OperatorMatvecDestroy;
+
+   HYPRE_LOBPCGSetupB(lobpcg_solver,(HYPRE_Matrix)&M,NULL);
+}
+
+void
+HypreLOBPCG::GetEigenvalues(Array<double> & eigs)
+{
+   // Initialize eigenvalues array with marker values
+   eigs.SetSize(nev);
+
+   for (int i=0; i<nev; i++)
+   {
+      eigs[i] = eigenvalues[i];
+   }
+}
+
+HypreParVector &
+HypreLOBPCG::GetEigenvector(unsigned int i)
+{
+   return multi_vec->GetVector(i);
+}
+
+void
+HypreLOBPCG::Solve()
+{
+   // Initialize HypreMultiVector object if necessary
+   if ( multi_vec == NULL )
+   {
+      MFEM_ASSERT(x != NULL, "In HypreLOBPCG::Solve()");
+
+      multi_vec = new HypreMultiVector(nev, *x, interpreter);
+      multi_vec->Randomize(seed);
+   }
+
+   eigenvalues.SetSize(nev);
+   eigenvalues = NAN;
+
+   // Perform eigenmode calculation
+   //
+   // The eigenvalues are computed in ascending order (internally the
+   // order is determined by the LAPACK routine 'dsydv'.)
+   HYPRE_LOBPCGSolve(lobpcg_solver, NULL, *multi_vec, eigenvalues);
+}
+
+void *
+HypreLOBPCG::OperatorMatvecCreate( void *A,
+                                   void *x )
+{
+   void *matvec_data;
+
+   matvec_data = NULL;
+
+   return ( matvec_data );
+}
+
+HYPRE_Int
+HypreLOBPCG::OperatorMatvec( void *matvec_data,
+                             HYPRE_Complex alpha,
+                             void *A,
+                             void *x,
+                             HYPRE_Complex beta,
+                             void *y )
+{
+   MFEM_VERIFY(alpha == 1.0 && beta == 0.0, "values not supported");
+
+   Operator *Aop = (Operator*)A;
+
+   int width = Aop->Width();
+
+   hypre_ParVector * xPar = (hypre_ParVector *)x;
+   hypre_ParVector * yPar = (hypre_ParVector *)y;
+
+   Vector xVec(xPar->local_vector->data, width);
+   Vector yVec(yPar->local_vector->data, width);
+
+   Aop->Mult( xVec, yVec );
+
+   return 0;
+}
+
+HYPRE_Int
+HypreLOBPCG::OperatorMatvecDestroy( void *matvec_data )
+{
+   return 0;
+}
+
+HYPRE_Int
+HypreLOBPCG::PrecondSolve(void *solver,
+                          void *A,
+                          void *b,
+                          void *x)
+{
+   Solver   *PC = (Solver*)solver;
+   Operator *OP = (Operator*)A;
+
+   int width = OP->Width();
+
+   hypre_ParVector * bPar = (hypre_ParVector *)b;
+   hypre_ParVector * xPar = (hypre_ParVector *)x;
+
+   Vector bVec(bPar->local_vector->data, width);
+   Vector xVec(xPar->local_vector->data, width);
+
+   PC->Mult( bVec, xVec );
+
+   return 0;
+}
+
+HYPRE_Int
+HypreLOBPCG::PrecondSetup(void *solver,
+                          void *A,
+                          void *b,
+                          void *x)
+{
+   return 0;
+}
+
+HypreAME::HypreAME(MPI_Comm comm)
+   : comm(comm),
+     myid(0),
+     numProcs(1),
+     nev(10),
+     setT(false),
+     ams_precond(NULL),
+     eigenvalues(NULL),
+     multi_vec(NULL),
+     eigenvectors(NULL)
+{
+   MPI_Comm_size(comm,&numProcs);
+   MPI_Comm_rank(comm,&myid);
+
+   HYPRE_AMECreate(&ame_solver);
+   HYPRE_AMESetPrintLevel(ame_solver, 0);
+}
+
+HypreAME::~HypreAME()
+{
+   delete multi_vec;
+
+   HYPRE_AMEDestroy(ame_solver);
+}
+
+void
+HypreAME::SetNumModes(int num_eigs)
+{
+   nev = num_eigs;
+
+   HYPRE_AMESetBlockSize(ame_solver, nev);
+}
+
+void
+HypreAME::SetTol(double tol)
+{
+   HYPRE_AMESetTol(ame_solver, tol);
+}
+
+void
+HypreAME::SetMaxIter(int max_iter)
+{
+   HYPRE_AMESetMaxIter(ame_solver, max_iter);
+}
+
+void
+HypreAME::SetPrintLevel(int logging)
+{
+   if (myid == 0)
+   {
+      HYPRE_AMESetPrintLevel(ame_solver, logging);
+   }
+}
+
+void
+HypreAME::SetPreconditioner(HypreSolver & precond)
+{
+   ams_precond = &precond;
+}
+
+void
+HypreAME::SetOperator(HypreParMatrix & A)
+{
+   if ( !setT )
+   {
+      HYPRE_Solver ams_precond_ptr = (HYPRE_Solver)*ams_precond;
+
+      ams_precond->SetupFcn()(*ams_precond,A,NULL,NULL);
+
+      HYPRE_AMESetAMSSolver(ame_solver, ams_precond_ptr);
+   }
+
+   HYPRE_AMESetup(ame_solver);
+}
+
+void
+HypreAME::SetMassMatrix(HypreParMatrix & M)
+{
+   HYPRE_ParCSRMatrix parcsr_M = M;
+   HYPRE_AMESetMassMatrix(ame_solver,(HYPRE_ParCSRMatrix)parcsr_M);
+}
+
+void
+HypreAME::Solve()
+{
+   HYPRE_AMESolve(ame_solver);
+}
+
+void
+HypreAME::GetEigenvalues(Array<double> & eigs)
+{
+   // Initialize eigenvalues array with marker values
+   eigs.SetSize(nev); eigs = -1.0;
+
+   if ( eigenvalues == NULL )
+   {
+      // Grab eigenvalues from AME
+      HYPRE_AMEGetEigenvalues(ame_solver,&eigenvalues);
+   }
+
+   // Copy eigenvalues to eigs array
+   for (int i=0; i<nev; i++)
+   {
+      eigs[i] = eigenvalues[i];
+   }
+}
+
+void
+HypreAME::createDummyVectors()
+{
+   if ( multi_vec == NULL )
+   {
+      HYPRE_AMEGetEigenvectors(ame_solver,&multi_vec);
+   }
+
+   eigenvectors = new HypreParVector*[nev];
+   for (int i=0; i<nev; i++)
+   {
+      eigenvectors[i] = new HypreParVector(multi_vec[i]);
+      eigenvectors[i]->SetOwnership(1);
+   }
+
+}
+
+HypreParVector &
+HypreAME::GetEigenvector(unsigned int i)
+{
+   if ( eigenvectors == NULL )
+   {
+      this->createDummyVectors();
+   }
+
+   return *eigenvectors[i];
+}
+
+HypreParVector **
+HypreAME::StealEigenvectors()
+{
+   if ( eigenvectors == NULL )
+   {
+      this->createDummyVectors();
+   }
+
+   // Set the local pointers to NULL so that they won't be deleted later
+   HypreParVector ** vecs = eigenvectors;
+   eigenvectors = NULL;
+   multi_vec = NULL;
+
+   return vecs;
 }
 
 }
