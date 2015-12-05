@@ -156,7 +156,7 @@ public:
    void PrintAsOneXG(std::ostream &out = std::cout);
 
    /// Print various parallel mesh stats
-   void PrintInfo(std::ostream &out = std::cout);
+   virtual void PrintInfo(std::ostream &out = std::cout);
 
    virtual ~ParMesh();
 };

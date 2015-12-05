@@ -83,13 +83,13 @@ double Mesh::GetElementVolume(int i)
    return volume;
 }
 
-void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
+void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk, std::ostream &out)
 {
    int i, dim, sdim;
    DenseMatrix J;
    double h_min, h_max, kappa_min, kappa_max, h, kappa;
 
-   cout << "Mesh Characteristics:" << flush;
+   out << "Mesh Characteristics:\n";
 
    dim = Dimension();
    sdim = SpaceDimension();
@@ -117,43 +117,41 @@ void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk)
 
    if (dim == 1)
    {
-      cout << endl
-           << "Number of vertices : " << GetNV() << endl
-           << "Number of elements : " << GetNE() << endl
-           << "Number of bdr elem : " << GetNBE() << endl
-           << "h_min              : " << h_min << endl
-           << "h_max              : " << h_max << endl
-           << endl;
+      out
+           << "Number of vertices : " << GetNV() << '\n'
+           << "Number of elements : " << GetNE() << '\n'
+           << "Number of bdr elem : " << GetNBE() << '\n'
+           << "h_min              : " << h_min << '\n'
+           << "h_max              : " << h_max << '\n';
    }
    else if (dim == 2)
    {
-      cout << endl
-           << "Number of vertices : " << GetNV() << endl
-           << "Number of edges    : " << GetNEdges() << endl
-           << "Number of elements : " << GetNE() << endl
-           << "Number of bdr elem : " << GetNBE() << endl
-           << "Euler Number       : " << EulerNumber2D() << endl
-           << "h_min              : " << h_min << endl
-           << "h_max              : " << h_max << endl
-           << "kappa_min          : " << kappa_min << endl
-           << "kappa_max          : " << kappa_max << endl
-           << endl;
+      out
+           << "Number of vertices : " << GetNV() << '\n'
+           << "Number of edges    : " << GetNEdges() << '\n'
+           << "Number of elements : " << GetNE() << '\n'
+           << "Number of bdr elem : " << GetNBE() << '\n'
+           << "Euler Number       : " << EulerNumber2D() << '\n'
+           << "h_min              : " << h_min << '\n'
+           << "h_max              : " << h_max << '\n'
+           << "kappa_min          : " << kappa_min << '\n'
+           << "kappa_max          : " << kappa_max << '\n';
    }
    else
    {
-      cout << endl
-           << "Number of vertices : " << GetNV() << endl
-           << "Number of edges    : " << GetNEdges() << endl
-           << "Number of faces    : " << GetNFaces() << endl
-           << "Number of elements : " << GetNE() << endl
-           << "Number of bdr elem : " << GetNBE() << endl
-           << "Euler Number       : " << EulerNumber() << endl
-           << "h_min              : " << h_min << endl
-           << "h_max              : " << h_max << endl
-           << "kappa_min          : " << kappa_min << endl
-           << "kappa_max          : " << kappa_max << endl
-           << endl;
+      out
+           << "Number of vertices : " << GetNV() << '\n'
+           << "Number of edges    : " << GetNEdges() << '\n'
+           << "Number of faces    : " << GetNFaces() << '\n'
+           << "Number of elements : " << GetNE() << '\n'
+           << "Number of bdr elem : " << GetNBE() << '\n'
+           << "Euler Number       : " << EulerNumber() << '\n'
+           << "h_min              : " << h_min << '\n'
+           << "h_max              : " << h_max << '\n'
+           << "kappa_min          : " << kappa_min << '\n'
+           << "kappa_max          : " << kappa_max << '\n';
    }
+   out << '\n' << std::flush;
 }
 
 FiniteElement *Mesh::GetTransformationFEforElementType(int ElemType)
