@@ -122,7 +122,7 @@ public:
    /// Finalizes the matrix initialization.
    virtual void Finalize(int skip_zeros = 1);
 
-   /// Returns a reference to the sparse martix
+   /// Returns a reference to the sparse matrix
    const SparseMatrix &SpMat() const { return *mat; }
    SparseMatrix &SpMat() { return *mat; }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
@@ -173,26 +173,25 @@ public:
    void AssembleElementMatrix(int i, const DenseMatrix &elmat,
                               Array<int> &vdofs, int skip_zeros = 1);
 
-   /** If d == 0 the diagonal at the ess. b.c. is set to 1.0,
-       otherwise leave it the same.      */
+   /** Eliminate essential boundary DOFs from the system. The array
+       'bdr_attr_is_ess' marks boundary attributes that constitute the essential
+       part of the boundary. If d == 0, the diagonal at the essential DOFs is
+       set to 1.0, otherwise it is left the same. */
    void EliminateEssentialBC(Array<int> &bdr_attr_is_ess,
                              Vector &sol, Vector &rhs, int d = 0);
 
-   /// Here, vdofs is a list of DOFs.
+   void EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d = 0);
+   /// Perform elimination and set the diagonal entry to the given value
+   void EliminateEssentialBCDiag(Array<int> &bdr_attr_is_ess, double value);
+
+   /// Eliminate the given vdofs. NOTE: here, vdofs is a list of DOFs.
    void EliminateVDofs(Array<int> &vdofs, Vector &sol, Vector &rhs, int d = 0);
 
-   /** Eliminate the given vdofs storing the eliminated part internally;
-       vdofs is a list of DOFs. */
+   /** Eliminate the given vdofs storing the eliminated part internally; this
+       method works in conjunction with EliminateVDofsInRHS and allows
+       elimination of boundary conditions in multiple right-hand sides. In this
+       method, vdofs is a list of DOFs. */
    void EliminateVDofs(Array<int> &vdofs, int d = 0);
-
-   /** Use the stored eliminated part of the matrix to modify r.h.s.;
-       vdofs is a list of DOFs (non-directional, i.e. >= 0). */
-   void EliminateVDofsInRHS(Array<int> &vdofs, const Vector &x, Vector &b);
-
-   double FullInnerProduct(const Vector &x, const Vector &y) const
-   { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
-
-   void EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d = 0);
 
    /** Similar to EliminateVDofs but here ess_dofs is a marker
        (boolean) array on all vdofs (ess_dofs[i] < 0 is true). */
@@ -202,6 +201,15 @@ public:
    /** Similar to EliminateVDofs but here ess_dofs is a marker
        (boolean) array on all vdofs (ess_dofs[i] < 0 is true). */
    void EliminateEssentialBCFromDofs(Array<int> &ess_dofs, int d = 0);
+   /// Perform elimination and set the diagonal entry to the given value
+   void EliminateEssentialBCFromDofsDiag(Array<int> &ess_dofs, double value);
+
+   /** Use the stored eliminated part of the matrix (see EliminateVDofs) to
+       modify r.h.s.; vdofs is a list of DOFs (non-directional, i.e. >= 0). */
+   void EliminateVDofsInRHS(Array<int> &vdofs, const Vector &x, Vector &b);
+
+   double FullInnerProduct(const Vector &x, const Vector &y) const
+   { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
 
    void Update(FiniteElementSpace *nfes = NULL);
 

@@ -14,6 +14,8 @@
 //               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh
 //               mpirun -np 4 ex4p -m ../data/periodic-square.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
+//               mpirun -np 4 ex4p -m ../data/amr-quad.mesh
+//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -168,19 +170,22 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
    a->Assemble();
-   if (set_bc && pmesh->bdr_attributes.Size())
-   {
-      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-      ess_bdr = 1;
-      a->EliminateEssentialBC(ess_bdr, x, *b);
-   }
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelAverage();
+   HypreParVector *X = x.ParallelProject();
+
+   // 11. Eliminate essential BC from the parallel system
+   if (set_bc && pmesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
+   }
+
    *X = 0.0;
 
    delete a;
@@ -188,7 +193,7 @@ int main(int argc, char *argv[])
    delete beta;
    delete b;
 
-   // 11. Define and apply a parallel PCG solver for AX=B with the 2D AMS or the
+   // 12. Define and apply a parallel PCG solver for AX=B with the 2D AMS or the
    //     3D ADS preconditioners from hypre.
    HypreSolver *prec;
    if (dim == 2)
@@ -206,11 +211,11 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*prec);
    pcg->Mult(*B, *X);
 
-   // 12. Extract the parallel grid function corresponding to the finite element
+   // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
    x = *X;
 
-   // 13. Compute and print the L^2 norm of the error.
+   // 14. Compute and print the L^2 norm of the error.
    {
       double err = x.ComputeL2Error(F);
       if (myid == 0)
@@ -219,7 +224,7 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 14. Save the refined mesh and the solution in parallel. This output can
+   // 15. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, sol_name;
@@ -235,7 +240,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 15. Send the solution by socket to a GLVis server.
+   // 16. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -246,7 +251,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *pmesh << x << flush;
    }
 
-   // 16. Free the used memory.
+   // 17. Free the used memory.
    delete pcg;
    delete prec;
    delete X;

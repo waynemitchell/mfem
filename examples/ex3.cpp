@@ -2,20 +2,26 @@
 //
 // Compile with: make ex3
 //
-// Sample runs:  ex3 -m ../data/beam-tet.mesh
+// Sample runs:  ex3 -m ../data/star.mesh
+//               ex3 -m ../data/beam-tri.mesh -o 2
+//               ex3 -m ../data/beam-tet.mesh
 //               ex3 -m ../data/beam-hex.mesh
 //               ex3 -m ../data/escher.mesh
 //               ex3 -m ../data/fichera.mesh
 //               ex3 -m ../data/fichera-q2.vtk
 //               ex3 -m ../data/fichera-q3.mesh
+//               ex3 -m ../data/square-disc-nurbs.mesh
 //               ex3 -m ../data/beam-hex-nurbs.mesh
+//               ex3 -m ../data/amr-quad.mesh -o 2
+//               ex3 -m ../data/amr-hex.mesh
+//               ex3 -m ../data/fichera-amr.mesh
 //
-// Description:  This example code solves a simple 3D electromagnetic diffusion
+// Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
 //               equation curl curl E + E = f with boundary condition
 //               E x n = <given tangential field>. Here, we use a given exact
 //               solution E and compute the corresponding r.h.s. f.
-//               We discretize with Nedelec finite elements.
+//               We discretize with Nedelec finite elements in 2D or 3D.
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
@@ -71,11 +77,6 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
-   if (dim != 3)
-   {
-      cerr << "\nThis example requires a 3D mesh\n" << endl;
-      return 3;
-   }
 
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
@@ -91,9 +92,8 @@ int main(int argc, char *argv[])
    }
    mesh->ReorientTetMesh();
 
-   // 4. Define a finite element space on the mesh. Here we use the lowest order
-   //    Nedelec finite elements, but we can easily switch to higher-order
-   //    spaces by changing the value of p.
+   // 4. Define a finite element space on the mesh. Here we use the Nedelec
+   //    finite elements of the specified order.
    FiniteElementCollection *fec = new ND_FECollection(order, dim);
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of unknowns: " << fespace->GetVSize() << endl;
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
    //    of the FEM linear system, which in this case is (f,phi_i) where f is
    //    given by the function f_exact and phi_i are the basis functions in the
    //    finite element fespace.
-   VectorFunctionCoefficient f(3, f_exact);
+   VectorFunctionCoefficient f(dim, f_exact);
    LinearForm *b = new LinearForm(fespace);
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
    //    when eliminating the non-homogeneous boundary condition to modify the
    //    r.h.s. vector b.
    GridFunction x(fespace);
-   VectorFunctionCoefficient E(3, E_exact);
+   VectorFunctionCoefficient E(dim, E_exact);
    x.ProjectCoefficient(E);
 
    // 7. Set up the bilinear form corresponding to the EM diffusion operator
@@ -128,6 +128,7 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
+   a->ConformingAssemble(x, *b);
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
    a->EliminateEssentialBC(ess_bdr, x, *b);
@@ -148,10 +149,13 @@ int main(int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
 
-   // 9. Compute and print the L^2 norm of the error.
+   // 9. Recover the grid function in non-conforming AMR problems
+   x.ConformingProlongate();
+
+   // 10. Compute and print the L^2 norm of the error.
    cout << "\n|| E_h - E ||_{L^2} = " << x.ComputeL2Error(E) << '\n' << endl;
 
-   // 10. Save the refined mesh and the solution. This output can be viewed
+   // 11. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("refined.mesh");
@@ -162,7 +166,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 11. Send the solution by socket to a GLVis server.
+   // 12. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -172,7 +176,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 12. Free the used memory.
+   // 13. Free the used memory.
    delete a;
    delete sigma;
    delete muinv;
@@ -189,14 +193,30 @@ const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {
-   E(0) = sin(kappa * x(1));
-   E(1) = sin(kappa * x(2));
-   E(2) = sin(kappa * x(0));
+   if (x.Size() == 3)
+   {
+      E(0) = sin(kappa * x(1));
+      E(1) = sin(kappa * x(2));
+      E(2) = sin(kappa * x(0));
+   }
+   else
+   {
+      E(0) = sin(kappa * x(1));
+      E(1) = sin(kappa * x(0));
+   }
 }
 
 void f_exact(const Vector &x, Vector &f)
 {
-   f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
-   f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
-   f(2) = (1. + kappa * kappa) * sin(kappa * x(0));
+   if (x.Size() == 3)
+   {
+      f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
+      f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
+      f(2) = (1. + kappa * kappa) * sin(kappa * x(0));
+   }
+   else
+   {
+      f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
+      f(1) = (1. + kappa * kappa) * sin(kappa * x(0));
+   }
 }

@@ -255,6 +255,27 @@ void Table::Finalize()
    }
 }
 
+void Table::MakeFromList(int nrows, const Array<Connection> &list)
+{
+   Clear();
+
+   size = nrows;
+   int nnz = list.Size();
+
+   I = new int[size+1];
+   J = new int[nnz];
+
+   for (int i = 0, k = 0; i <= size; i++)
+   {
+      I[i] = k;
+      while (k < nnz && list[k].from == i)
+      {
+         J[k] = list[k].to;
+         k++;
+      }
+   }
+}
+
 int Table::Width() const
 {
    int width = -1, nnz = (size >= 0) ? I[size] : 0;
@@ -345,6 +366,12 @@ void Table::Swap(Table & other)
    mfem::Swap(size, other.size);
    mfem::Swap(I, other.I);
    mfem::Swap(J, other.J);
+}
+
+long Table::MemoryUsage() const
+{
+   if (size < 0 || I == NULL) { return 0; }
+   return (size+1 + I[size]) * sizeof(int);
 }
 
 Table::~Table ()

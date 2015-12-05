@@ -88,26 +88,7 @@ void ParGridFunction::AddDistribute(double a, const Vector *tv)
 
 void ParGridFunction::GetTrueDofs(Vector &tv) const
 {
-#if 0
-   for (int i = 0; i < size; i++)
-   {
-      int tdof = pfes->GetLocalTDofNumber(i);
-      if (tdof >= 0)
-      {
-         tv(tdof) = (*this)(i);
-      }
-   }
-#else
-   hypre_ParCSRMatrix *P = *pfes->Dof_TrueDof_Matrix();
-   hypre_CSRMatrix *diag = hypre_ParCSRMatrixDiag(P);
-   HYPRE_Int *I = hypre_CSRMatrixI(diag) + 1;
-   HYPRE_Int *J = hypre_CSRMatrixJ(diag);
-   for (int i = 0, j = 0; i < size; i++)
-      if (j < I[i])
-      {
-         tv(internal::to_int(J[j++])) = (*this)(i);
-      }
-#endif
+   pfes->GetRestrictionMatrix()->Mult(*this, tv);
 }
 
 HypreParVector *ParGridFunction::GetTrueDofs() const
@@ -133,6 +114,23 @@ HypreParVector *ParGridFunction::ParallelAverage() const
 {
    HypreParVector *tv = pfes->NewTrueDofVector();
    ParallelAverage(*tv);
+   return tv;
+}
+
+void ParGridFunction::ParallelProject(Vector &tv) const
+{
+   pfes->GetRestrictionMatrix()->Mult(*this, tv);
+}
+
+void ParGridFunction::ParallelProject(HypreParVector &tv) const
+{
+   pfes->GetRestrictionMatrix()->Mult(*this, tv);
+}
+
+HypreParVector *ParGridFunction::ParallelProject() const
+{
+   HypreParVector *tv = pfes->NewTrueDofVector();
+   ParallelProject(*tv);
    return tv;
 }
 
@@ -308,18 +306,16 @@ void ParGridFunction::ProjectDiscCoefficient(VectorCoefficient &coeff)
 void ParGridFunction::Save(std::ostream &out) const
 {
    for (int i = 0; i < size; i++)
-      if (pfes->GetDofSign(i) < 0)
-      {
-         data[i] = -data[i];
-      }
+   {
+      if (pfes->GetDofSign(i) < 0) { data[i] = -data[i]; }
+   }
 
    GridFunction::Save(out);
 
    for (int i = 0; i < size; i++)
-      if (pfes->GetDofSign(i) < 0)
-      {
-         data[i] = -data[i];
-      }
+   {
+      if (pfes->GetDofSign(i) < 0) { data[i] = -data[i]; }
+   }
 }
 
 void ParGridFunction::SaveAsOne(std::ostream &out)
@@ -486,6 +482,53 @@ double GlobalLpNorm(const double p, double loc_norm, MPI_Comm comm)
    }
 
    return glob_norm;
+}
+
+
+void ParGridFunction::ComputeFlux(
+   BilinearFormIntegrator &blfi,
+   GridFunction &flux_, int wcoef, int subdomain)
+{
+   // In this context we know that flux should be a ParGridFunction
+   ParGridFunction& flux = dynamic_cast<ParGridFunction&>(flux_);
+
+   ParFiniteElementSpace *ffes = flux.ParFESpace();
+
+   Array<int> count(flux.Size());
+   SumFluxAndCount(blfi, flux, count, 0, subdomain);
+
+   if (ffes->Conforming()) // FIXME: nonconforming
+   {
+      // Accumulate flux and counts in parallel
+
+      ffes->GroupComm().Reduce<double>(flux, GroupCommunicator::Sum);
+      ffes->GroupComm().Bcast<double>(flux);
+
+      ffes->GroupComm().Reduce<int>(count, GroupCommunicator::Sum);
+      ffes->GroupComm().Bcast<int>(count);
+   }
+   else
+   {
+      MFEM_WARNING("Averaging on processor boundaries not implemented for "
+                   "NC meshes yet.");
+   }
+
+   // complete averaging
+   for (int i = 0; i < count.Size(); i++)
+   {
+      if (count[i] != 0) { flux(i) /= count[i]; }
+   }
+
+   if (ffes->Nonconforming())
+   {
+      // On a partially conforming flux space, project on the conforming space.
+      // Using this code may lead to worse refinements in ex6, so we do not use
+      // it by default.
+
+      // Vector conf_flux;
+      // flux.ConformingProject(conf_flux);
+      // flux.ConformingProlongate(conf_flux);
+   }
 }
 
 }
