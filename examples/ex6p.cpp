@@ -158,13 +158,17 @@ int main(int argc, char *argv[])
    //     current mesh, visualize the solution, estimate the error on all
    //     elements, refine the worst elements and update all objects to work
    //     with the new mesh.
-   const int max_it = 25;
-   for (int it = 0; it < max_it; it++)
+   for (int it = 0; ; it++)
    {
+      HYPRE_Int global_dofs = fespace.GlobalTrueVSize();
+      if (global_dofs > 100000)
+      {
+         break;
+      }
       if (myid == 0)
       {
          cout << "\nIteration " << it << endl;
-         cout << "Number of unknowns: " << fespace.GetNConformingDofs() << endl;
+         cout << "Number of unknowns: " << global_dofs << endl;
       }
 
       // 11. Assemble the stiffness matrix and the right-hand side. Note that
@@ -218,7 +222,7 @@ int main(int argc, char *argv[])
          ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, dim);
 
          // Space for the smoothed (conforming) flux
-         double norm_p = 2;
+         double norm_p = 1;
          RT_FECollection smooth_flux_fec(order-1, dim);
          ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
 

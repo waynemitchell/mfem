@@ -125,11 +125,15 @@ int main(int argc, char *argv[])
    //    current mesh, visualize the solution, estimate the error on all
    //    elements, refine the worst elements and update all objects to work
    //    with the new mesh.
-   const int max_it = 15;
-   for (int it = 0; it < max_it; it++)
+   for (int it = 0; ; it++)
    {
+      int cdofs = fespace.GetNConformingDofs();
+      if (cdofs > 50000)
+      {
+         break;
+      }
       cout << "\nIteration " << it << endl;
-      cout << "Number of unknowns: " << fespace.GetNConformingDofs() << endl;
+      cout << "Number of unknowns: " << cdofs << endl;
 
       // 10. Assemble the stiffness matrix and the right-hand side. Note that
       //     MFEM doesn't care at this point if the mesh is nonconforming (i.e.,
