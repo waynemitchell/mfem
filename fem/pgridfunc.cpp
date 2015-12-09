@@ -613,7 +613,7 @@ void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
 {
    double solver_tol = 1e-12;
    int solver_max_it = 200;
-   int norm_p        = 2;
+   int norm_p        = 1;
 
    // Compute fluxes in discontinuous space
    GridFunction discflux(&flux_dcfespace);
