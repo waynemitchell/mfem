@@ -2335,6 +2335,63 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
 }
 
 
+double ComputeElementLpDistance(double p, int i,
+                                GridFunction& gf1, GridFunction& gf2)
+{
+   double norm = 0.0;
+
+   FiniteElementSpace *fes1 = gf1.FESpace();
+   FiniteElementSpace *fes2 = gf2.FESpace();
+
+   const FiniteElement* fe1 = fes1->GetFE(i);
+   const FiniteElement* fe2 = fes2->GetFE(i);
+
+   const IntegrationRule *ir;
+   int intorder = 2*std::max(fe1->GetOrder(),fe2->GetOrder()) + 1; // <-------
+   ir = &(IntRules.Get(fe1->GetGeomType(), intorder));
+   int nip = ir->GetNPoints();
+
+
+   ElementTransformation *T = fes1->GetElementTransformation(i);
+   for (int j = 0; j < nip; j++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(j);
+      T->SetIntPoint(&ip);
+
+      Vector val1, val2;
+      gf1.GetVectorValue(i, ip, val1);
+      gf2.GetVectorValue(i, ip, val2);
+
+      val1 -= val2;
+      double err = val1.Norml2();
+      if (p < numeric_limits<double>::infinity())
+      {
+         err = pow(err, p);
+         norm += ip.weight * T->Weight() * err;
+      }
+      else
+      {
+         norm = std::max(norm, err);
+      }
+   }
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // Negative quadrature weights may cause the norm to be negative
+      if (norm < 0.)
+      {
+         norm = -pow(-norm, 1./p);
+      }
+      else
+      {
+         norm = pow(norm, 1./p);
+      }
+   }
+
+   return norm;
+}
+
+
 double ExtrudeCoefficient::Eval(ElementTransformation &T,
                                 const IntegrationPoint &ip)
 {

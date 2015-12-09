@@ -531,137 +531,62 @@ void ParGridFunction::ComputeFlux(
    }
 }
 
-// Supports L2ZZErrorEstimator function below, cf. GridFunction::ComputeLpError.
-double computeElementLpNorm(double p, int i,
-                            const FiniteElementSpace* fes,
-                            Vector& el_f)
-{
-   double norm = 0.0;
-
-   const FiniteElement* fe = fes->GetFE(i);
-   int ndof = fe->GetDof();
-   const IntegrationRule *ir;
-   int intorder = 2*fe->GetOrder() + 1; // <----------
-   ir = &(IntRules.Get(fe->GetGeomType(), intorder));
-
-   int vdim = fes->GetVDim();
-   int nip = ir->GetNPoints();
-
-   DenseMatrix vals;
-   vals.SetSize(vdim,nip);
-
-   Array<int> vdofs;
-   fes->GetElementVDofs(i, vdofs);
-
-   const FiniteElement *FElem = fes->GetFE(i);
-   Vector DofVal(FElem->GetDof());
-
-   // Compute vector values at each integration point
-   for (int j = 0; j < nip; j++)
-   {
-      FElem->CalcShape(ir->IntPoint(j), DofVal);
-      for (int k = 0; k < vdim; k++)
-      {
-         vals(k,j) = DofVal * ((const double *)el_f +ndof*k);
-      }
-   }
-
-   // Compute magnitudes at each integration point
-   Vector loc_norm;
-   loc_norm.SetSize(vals.Width());
-   vals.Norm2(loc_norm);
-
-   // Integrate
-   ElementTransformation *T = fes->GetElementTransformation(i);
-   for (int j = 0; j < ir->GetNPoints(); j++)
-   {
-      const IntegrationPoint &ip = ir->IntPoint(j);
-      T->SetIntPoint(&ip);
-      double err = fabs(loc_norm(j));
-      if (p < numeric_limits<double>::infinity())
-      {
-         err = pow(err, p);
-         norm += ip.weight * T->Weight() * err;
-      }
-      else
-      {
-         norm = std::max(norm, err);
-      }
-   }
-
-   if (p < numeric_limits<double>::infinity())
-   {
-      // Negative quadrature weights may cause the norm to be negative
-      if (norm < 0.)
-      {
-         norm = -pow(-norm, 1./p);
-      }
-      else
-      {
-         norm = pow(norm, 1./p);
-      }
-   }
-
-   return norm;
-}
 
 void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
                         ParGridFunction &x,
-                        ParFiniteElementSpace &flux_fespace,
-                        ParFiniteElementSpace &flux_dcfespace,
-                        Vector &errors)
+                        ParFiniteElementSpace &smooth_flux_fes,
+                        ParFiniteElementSpace &flux_fes,
+                        Vector &errors,
+                        int norm_p, double solver_tol, int solver_max_it)
 {
-   double solver_tol = 1e-12;
-   int solver_max_it = 200;
-   int norm_p        = 2;
-
    // Compute fluxes in discontinuous space
-   GridFunction discflux(&flux_dcfespace);
-
-   ElementTransformation *Transf;
+   GridFunction flux(&flux_fes);
+   flux = 0.0;
 
    FiniteElementSpace *xfes = x.FESpace();
-   FiniteElementSpace *ffes = discflux.FESpace();
-
-   int nfe = xfes->GetNE();
-   Array<int> xdofs;
-   Array<int> fdofs;
+   Array<int> xdofs, fdofs;
    Vector el_x, el_f;
 
-   discflux = 0.0;
-
-   for (int i = 0; i < nfe; i++)
+   for (int i = 0; i < xfes->GetNE(); i++)
    {
       xfes->GetElementVDofs(i, xdofs);
-      ffes->GetElementVDofs(i, fdofs);
-
       x.GetSubVector(xdofs, el_x);
 
-      Transf = xfes->GetElementTransformation(i);
-      bool with_coeff = false;
+      ElementTransformation *Transf = xfes->GetElementTransformation(i);
       flux_integrator.ComputeElementFlux(*xfes->GetFE(i), *Transf, el_x,
-                                         *ffes->GetFE(i), el_f, with_coeff);
+                                         *flux_fes.GetFE(i), el_f, false);
 
-      discflux.AddElementVector(fdofs, el_f);
+      flux_fes.GetElementVDofs(i, fdofs);
+      flux.AddElementVector(fdofs, el_f);
    }
 
-   ParLinearForm *b = new ParLinearForm(&flux_fespace);
-   VectorGridFunctionCoefficient f(&discflux);
-   b->AddDomainIntegrator(new VectorDomainLFIntegrator(f));
-   b->Assemble();
+   // Assemble the linear system for L2 projection into the "smooth" space
+   ParBilinearForm *a = new ParBilinearForm(&smooth_flux_fes);
+   ParLinearForm *b = new ParLinearForm(&smooth_flux_fes);
+   VectorGridFunctionCoefficient f(&flux);
 
-   ParBilinearForm* a = new ParBilinearForm(&flux_fespace);
-   a->AddDomainIntegrator(new VectorMassIntegrator);
+   if (smooth_flux_fes.GetFE(0)->GetRangeType() == FiniteElement::SCALAR)
+   {
+      a->AddDomainIntegrator(new VectorMassIntegrator);
+      b->AddDomainIntegrator(new VectorDomainLFIntegrator(f));
+   }
+   else
+   {
+      a->AddDomainIntegrator(new VectorFEMassIntegrator);
+      b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
+   }
+
+   b->Assemble();
    a->Assemble();
    a->Finalize();
 
    // The destination of the projected discontinuous flux
-   ParGridFunction fbar(&flux_fespace);
-   fbar = 0.0;
+   ParGridFunction smooth_flux(&smooth_flux_fes);
+   smooth_flux = 0.0;
 
    HypreParMatrix* A = a->ParallelAssemble();
    HypreParVector* B = b->ParallelAssemble();
-   HypreParVector* X = fbar.ParallelProject();
+   HypreParVector* X = smooth_flux.ParallelProject();
 
    delete a;
    delete b;
@@ -678,34 +603,14 @@ void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
 
    // Extract the parallel grid function corresponding to the finite element
    // approximation X. This is the local solution on each processor.
-   fbar = *X;
+   smooth_flux = *X;
 
-   // Proceed through the elements one by one, and find the difference between
-   // the flux as computed per element and the flux projected onto a continuous
-   // H1 space.
-
-   Vector el_fbar;
-   ParFiniteElementSpace& fespace = *x.ParFESpace();
-
-   for (int i = 0; i < fespace.GetNE(); i++)
+   // Proceed through the elements one by one, and find the Lp norm differences
+   // between the flux as computed per element and the flux projected onto the
+   // smooth_flux_fes space.
+   for (int i = 0; i < xfes->GetNE(); i++)
    {
-
-      fespace.GetElementVDofs(i, xdofs);
-      flux_fespace.GetElementVDofs(i, fdofs);
-
-      x.GetSubVector(xdofs, el_x);
-      fbar.GetSubVector(fdofs, el_fbar);
-
-      const FiniteElement* xelem = fespace.GetFE(i);
-      const FiniteElement* flux_elem = flux_fespace.GetFE(i);
-
-      Transf = fespace.GetElementTransformation(i);
-      flux_integrator.ComputeElementFlux(*xelem,
-                                         *Transf, el_x,
-                                         *flux_elem,
-                                         el_f, 0);
-      el_f -= el_fbar;
-      errors(i) = computeElementLpNorm(norm_p, i, &flux_fespace, el_f);
+      errors(i) = ComputeElementLpDistance(norm_p, i, smooth_flux, flux);
    }
 
    delete amg;

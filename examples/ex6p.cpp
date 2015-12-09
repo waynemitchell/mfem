@@ -212,12 +212,23 @@ int main(int argc, char *argv[])
       //     method defined.
       Vector errors(pmesh.GetNE());
       {
+         // Space for the discontinuous (original) flux
          DiffusionIntegrator flux_integrator(one);
-         ParFiniteElementSpace flux_fespace(&pmesh, &fec, dim);
-         L2_FECollection l2fec(order, dim);
-         ParFiniteElementSpace flux_l2fespace(&pmesh, &l2fec, dim);
-         L2ZZErrorEstimator(flux_integrator, x, flux_fespace, flux_l2fespace,
-                            errors);
+         L2_FECollection flux_fec(order, dim);
+         ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, dim);
+
+         // Space for the smoothed (conforming) flux
+         double norm_p = 2;
+         RT_FECollection smooth_flux_fec(order-1, dim);
+         ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
+
+         // Another possible set of options for the smoothed flux space:
+         // norm_p = 1;
+         // H1_FECollection smooth_flux_fec(order, dim);
+         // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
+
+         L2ZZErrorEstimator(flux_integrator, x,
+                            smooth_flux_fes, flux_fes, errors, norm_p);
       }
       double local_max_err = errors.Max();
       double global_max_err;
