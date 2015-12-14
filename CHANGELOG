@@ -8,6 +8,42 @@
                                http://mfem.org
 
 
+Version 3.1, released on Jan XX, 2016
+=====================================
+
+- Moved MFEM from Google Code to GitHub. New website: http://mfem.org.
+
+- Formatted the code with Artistic Style, see the "make style" target.
+
+- Added support for parallel non-conforming mesh refinement, including a new
+  example code with adaptive mesh refinement for Laplace (Example 6p). Most of
+  the example codes can now work on non-conforming meshes in serial and in
+  parallel.
+
+- Changed the boundary conditione elimination to be applied at the end of the
+  assembly to accomodate non-conforming meshes.
+
+- Added support for the scalable Locally Optimal Block Preconditioned Conjugate
+  Gradient (LOBPCG) eigenvalue solver from hypre. Added 3 new example codes to
+  demonstrate its application to Laplace (Example 11p), Elastiticy (Example 12p)
+  and Maxwell (Example 13p) eigenproblems.
+
+- Added support for 64-bit integers in global size variables, enabling
+  simulations with >2B unknowns. (This requires that hypre is configured
+  with the --enable-bigint option.)
+
+- Added support for a discretization-enhanced version of hypre's BoomerAMG
+  designed specifically for linear elasticity problems, see Example 2p.
+
+- Updated the implementation of some operations in DenseMatrix for better
+  auto-vectorization. Added a new class LUFactors that computes LU factorization
+  (with pivoting) and perform various operations with the factored data
+
+- Added optional support for the Gecko graph reordering library.
+
+- Various other simplifications, extensions, and bugfixes in the code.
+
+
 Version 3.0, released on Jan 26, 2015
 =====================================
 
