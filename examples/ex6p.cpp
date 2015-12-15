@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
+   int sdim = mesh->SpaceDimension();
 
    // 4. Refine the serial mesh on all processors to increase the resolution.
    //    Also project a NURBS mesh to a piecewise-quadratic curved mesh. Make
@@ -119,7 +120,6 @@ int main(int argc, char *argv[])
    ParLinearForm b(&fespace);
 
    ConstantCoefficient one(1.0);
-   ConstantCoefficient zero(0.0);
 
    a.AddDomainIntegrator(new DiffusionIntegrator(one));
    b.AddDomainIntegrator(new DomainLFIntegrator(one));
@@ -158,13 +158,10 @@ int main(int argc, char *argv[])
    //     current mesh, visualize the solution, estimate the error on all
    //     elements, refine the worst elements and update all objects to work
    //     with the new mesh.
+   const int max_dofs = 100000;
    for (int it = 0; ; it++)
    {
       HYPRE_Int global_dofs = fespace.GlobalTrueVSize();
-      if (global_dofs > 100000)
-      {
-         break;
-      }
       if (myid == 0)
       {
          cout << "\nIteration " << it << endl;
@@ -179,7 +176,6 @@ int main(int argc, char *argv[])
       a.Finalize();
       b.Assemble();
 
-      // x.ProjectBdrCoefficient(zero, ess_bdr);
       x = 0;
 
       HypreParMatrix *A = a.ParallelAssemble();
@@ -193,10 +189,11 @@ int main(int argc, char *argv[])
       // 13. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.
       HypreBoomerAMG amg(*A);
+      amg.SetPrintLevel(0);
       HyprePCG pcg(*A);
       pcg.SetTol(1e-12);
       pcg.SetMaxIter(200);
-      pcg.SetPrintLevel(2);
+      pcg.SetPrintLevel(0);
       pcg.SetPreconditioner(amg);
       pcg.Mult(*B, *X);
 
@@ -204,11 +201,20 @@ int main(int argc, char *argv[])
       //     approximation X. This is the local solution on each processor.
       x = *X;
 
+      delete A;
+      delete B;
+      delete X;
+
       // 15. Send the solution by socket to a GLVis server.
       if (visualization)
       {
          sout << "parallel " << num_procs << " " << myid << "\n";
          sout << "solution\n" << pmesh << x << flush;
+      }
+
+      if (global_dofs > max_dofs)
+      {
+         break;
       }
 
       // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
@@ -219,7 +225,7 @@ int main(int argc, char *argv[])
          // Space for the discontinuous (original) flux
          DiffusionIntegrator flux_integrator(one);
          L2_FECollection flux_fec(order, dim);
-         ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, dim);
+         ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
 
          // Space for the smoothed (conforming) flux
          double norm_p = 1;
@@ -274,10 +280,6 @@ int main(int argc, char *argv[])
       //     changed.
       a.Update();
       b.Update();
-
-      delete A;
-      delete B;
-      delete X;
    }
 
    MPI_Finalize();

@@ -73,6 +73,7 @@ int main(int argc, char *argv[])
    Mesh mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh.Dimension();
+   int sdim = mesh.SpaceDimension();
 
    // 3. Since a NURBS mesh can currently only be refined uniformly, we need to
    //    convert it to a piecewise-polynomial curved mesh. First we refine the
@@ -125,13 +126,10 @@ int main(int argc, char *argv[])
    //    current mesh, visualize the solution, estimate the error on all
    //    elements, refine the worst elements and update all objects to work
    //    with the new mesh.
+   const int max_dofs = 50000;
    for (int it = 0; ; it++)
    {
       int cdofs = fespace.GetNConformingDofs();
-      if (cdofs > 50000)
-      {
-         break;
-      }
       cout << "\nIteration " << it << endl;
       cout << "Number of unknowns: " << cdofs << endl;
 
@@ -182,6 +180,11 @@ int main(int argc, char *argv[])
          sol_sock << "solution\n" << mesh << x << flush;
       }
 
+      if (cdofs > max_dofs)
+      {
+         break;
+      }
+
       // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
@@ -189,7 +192,7 @@ int main(int argc, char *argv[])
       Array<int> aniso_flags;
       {
          DiffusionIntegrator flux_integrator(one);
-         FiniteElementSpace flux_fespace(&mesh, &fec, dim);
+         FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
          GridFunction flux(&flux_fespace);
          ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
       }
