@@ -233,7 +233,7 @@ int GridFunction::VectorDim() const
    {
       return fes->GetVDim();
    }
-   return fe->GetDim();
+   return fes->GetMesh()->SpaceDimension();
 }
 
 void GridFunction::GetNodalValues(int i, Array<double> &nval, int vdim) const
@@ -310,12 +310,12 @@ void GridFunction::GetVectorValue(int i, const IntegrationPoint &ip,
    }
    else
    {
-      int dim = FElem->GetDim();
-      DenseMatrix vshape(dof, dim);
+      int sdim = fes->GetMesh()->SpaceDimension();
+      DenseMatrix vshape(dof, sdim);
       ElementTransformation *Tr = fes->GetElementTransformation(i);
       Tr->SetIntPoint(&ip);
       FElem->CalcVShape(*Tr, vshape);
-      val.SetSize(dim);
+      val.SetSize(sdim);
       vshape.MultTranspose(loc_data, val);
    }
 }
@@ -2350,6 +2350,7 @@ double ComputeElementLpDistance(double p, int i,
    int intorder = 2*std::max(fe1->GetOrder(),fe2->GetOrder()) + 1; // <-------
    ir = &(IntRules.Get(fe1->GetGeomType(), intorder));
    int nip = ir->GetNPoints();
+   Vector val1, val2;
 
 
    ElementTransformation *T = fes1->GetElementTransformation(i);
@@ -2358,7 +2359,6 @@ double ComputeElementLpDistance(double p, int i,
       const IntegrationPoint &ip = ir->IntPoint(j);
       T->SetIntPoint(&ip);
 
-      Vector val1, val2;
       gf1.GetVectorValue(i, ip, val1);
       gf2.GetVectorValue(i, ip, val2);
 
