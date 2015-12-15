@@ -27,6 +27,7 @@ namespace mfem {
  *
  * <H3>Main parallel classes</H3>
  * - ParMesh
+ * - ParNCMesh
  * - ParFiniteElementSpace
  * - ParGridFunction
  * - ParBilinearForm and ParLinearForm
