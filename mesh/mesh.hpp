@@ -836,7 +836,13 @@ public:
 
    double GetElementVolume(int i);
 
-   void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL);
+   void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL,
+                             std::ostream &out = std::cout);
+
+   virtual void PrintInfo(std::ostream &out = std::cout)
+   {
+      PrintCharacteristics(NULL, NULL, out);
+   }
 
    void MesquiteSmooth(const int mesquite_option = 0);
 

@@ -1,6 +1,6 @@
 /** \mainpage Example Codes
 
-This file provides a brief overview of the MFEM example codes. For
+This page provides a brief overview of the MFEM example codes. For
 detailed documentation of the MFEM sources, including the examples, build the
 <a href="../../doc/CodeDocumentation/html/index.html">Doxygen documentation</a> in the
 <code>doc/</code> directory, or browse the
@@ -16,10 +16,11 @@ GLVis visualization tool (based on MFEM). See the
 Users are encouraged to submit any example codes that they have created and
 would like to share.
 <em>Contact a member of the MFEM team to report
-<a href="https://github.com/mfem/mfem/issues/new">bugs</a>
+<a href="https://github.com/mfem/mfem/issues/new?labels=bug">bugs</a>
 or post
-<a href="https://github.com/mfem/mfem/issues/new">questions
-or comments</a></em>.
+<a href="https://github.com/mfem/mfem/issues/new?labels=question">questions</a>
+or
+<a href="https://github.com/mfem/mfem/issues/new?labels=comment">comments</a></em>.
 
 \htmlonly
 <hr>
@@ -70,6 +71,8 @@ or comments</a></em>.
    <label><input type="radio" id="newton" onchange="update(this.id);" />Newton method (nonlinear solver)</label><br/>
    <label><input type="radio" id="rk" onchange="update(this.id);" />Explicit Runge-Kutta (ODE integration)</label><br/>
    <label><input type="radio" id="sdirk" onchange="update(this.id);" />Implicit Runge-Kutta (ODE integration)</label><br/>
+   <label><input type="radio" id="lobpcg" onchange="update(this.id);" />LOBPCG (eigensolver)</label><br/>
+   <label><input type="radio" id="ame" onchange="update(this.id);" />AME (eigensolver)</label><br/>
 </div>
 </div>
 \endhtmlonly
@@ -137,7 +140,7 @@ equation
 \f[ {\rm curl\, curl}\, E + E = f \f]
 with boundary condition \f$ E \times n \f$ = "given tangential field".
 Here, we use a given exact solution \f$E\f$ and compute the corresponding r.h.s.
-\f$f\f$. We discretize with Nedelec finite elements.
+\f$f\f$. We discretize with Nedelec finite elements in 2D or 3D.
 <p>
 The example demonstrates the use of
 \htmlonly<img src="Hcurl.png", style="vertical-align:text-bottom;"> \endhtmlonly
@@ -296,7 +299,7 @@ is also illustrated.
 \htmlonly <hr style="clear:both;"/><img src="ex10.png" style="float:right;"> \endhtmlonly
 <h2>Example 10: Nonlinear Elasticity</h2>
 
-This examples solves a time dependent nonlinear elasticity problem of the form
+This example solves a time dependent nonlinear elasticity problem of the form
 \f[ \frac{dv}{dt} = H(x) + S v\,,\qquad \frac{dx}{dt} = v\,, \f]
 where \f$H\f$ is a hyperelastic model and \f$S\f$ is a viscosity operator of
 Laplacian type. The geometry of the domain is assumed to be as follows:
@@ -310,6 +313,80 @@ solver.
 <center>
 <em>The example has a serial (ex10.cpp) and a parallel (ex10p.cpp) version.
 We recommend viewing examples 2 and 9 before viewing this example.</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
+<div id="ex11">
+\htmlonly <hr style="clear:both;"/><img src="ex11.png" style="float:right;"> \endhtmlonly
+<h2>Example 11: Laplace Eigenproblem</h2>
+
+This example code demonstrates the use of MFEM to solve the eigenvalue problem
+\f[ -\Delta u = \lambda u \f] with homogeneous Dirichlet boundary conditions.
+<p>
+We compute a number of the lowest eigenmodes by discretizing the Laplacian and
+Mass operators using a FE space of the specified order, or an
+isoparametric/isogeometric space if order < 1 (quadratic for quadratic
+curvilinear mesh, NURBS for NURBS mesh, etc.)
+<p>
+The example highlights the use of the LOBPCG eigenvalue solver together with the
+BoomerAMG preconditioner in HYPRE.
+Reusing a single <a href="http://glvis.org">GLVis</a> visualization window for multiple
+eigenfunctions is also illustrated.
+<center>
+<em>The example has only a parallel (ex11p.cpp) version.
+We recommend viewing Example 1 before viewing this example.</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
+<div id="ex12">
+\htmlonly <hr style="clear:both;"/><img src="ex12.png" style="float:right;"> \endhtmlonly
+<h2>Example 12: Linear Elasticity Eigenproblem</h2>
+
+This example code solves the linear elasticity eigenvalue
+problem for a multi-material cantilever beam.
+Specifically, we compute a number of the lowest eigenmodes by approximating the weak form of
+\f[ -{\rm div}({\sigma}({\bf u})) = \lambda {\bf u} \f]
+where
+\f[ {\sigma}({\bf u}) = \lambda\, {\rm div}({\bf u})\,I + \mu\,(\nabla{\bf u} + \nabla{\bf u}^T) \f]
+is the stress tensor corresponding to displacement field \f${\bf u}\f$, and \f$\lambda\f$ and \f$\mu\f$
+are the material Lame constants. The boundary conditions are
+\f${\bf u}=0\f$ on the fixed part of the boundary with attribute 1, and
+\f${\sigma}({\bf u})\cdot n = f\f$ on the remainder.
+The geometry of the domain is assumed to be as follows:
+<img src="ex12-domain.png">
+The example highlights the use of the LOBPCG eigenvalue solver
+together with the BoomerAMG preconditioner in HYPRE. Reusing a
+single <a href="http://glvis.org">GLVis</a> visualization window for multiple eigenfunctions
+is also illustrated.
+<center>
+<em>The example has only a parallel (ex12p.cpp) version.
+We recommend viewing examples 2 and 11 before viewing this example. </em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
+<div id="ex13">
+\htmlonly <hr style="clear:both;"/><img src="ex13.png" style="float:right;"> \endhtmlonly
+<h2>Example 13: Maxwell Eigenproblem</h2>
+
+This example code solves the Maxwell (electromagnetic)
+eigenvalue problem
+\f[ {\rm curl\, curl}\, E = \lambda E \f]
+with  homogeneous Dirichlet boundary conditions \f$ E \times n = 0 \f$.
+<p>
+We compute a number of the lowest nonzero eigenmodes by
+discretizing the curl curl operator using a Nedelec FE space of
+the specified order in 2D or 3D.
+<p>
+The example highlights the use of the AME subspace eigenvalue
+solver from HYPRE, which uses LOBPCG and AMS internally.
+Reusing a single <a href="http://glvis.org">GLVis</a> visualization window for multiple
+eigenfunctions is also illustrated.
+<center>
+<em>The example has only a parallel (ex13p.cpp) version.
+We recommend viewing examples 3 and 11 before viewing this example.</em>
 </center>
 </div>
 
@@ -374,7 +451,7 @@ function update(id)
    var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy", "advection"];
    var group2 = ["all2", "l2", "h1", "hcurl", "hdiv", "h12"];
    var group3 = ["all3", "galerkin", "mixed", "dg", "dpg", "nurbs", "amr" ];
-   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack", "newton", "rk", "sdirk"];
+   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack", "newton", "rk", "sdirk", "lobpcg", "ame"];
 
    updateGroup(group1, id);
    updateGroup(group2, id);
@@ -391,9 +468,12 @@ function update(id)
    showElement("ex8",  laplace && (l2 || h1 || h12) && dpg && (gs || pcg || umfpack || amg));
    showElement("ex9",  advection && l2 && dg && (pcg || rk));
    showElement("ex10", elasticity && (l2 || h1) && galerkin && (jacobi || pcg || minres || umfpack || newton || rk || sdirk));
+   showElement("ex11", laplace && h1 && (galerkin || nurbs) && (lobpcg || amg));
+   showElement("ex12", elasticity && h1 && (galerkin || nurbs) && (lobpcg || amg));
+   showElement("ex13", maxwell && hcurl && galerkin && (ame || ams));
 
    // NOTE: update 'numExamples' below when adding examples!
-   var numExamples = 10;
+   var numExamples = 13;
    var allHidden = true;
    for (i = 1; i <= numExamples; i++) {
       if (exampleVisible(i)) {

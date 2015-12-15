@@ -1244,6 +1244,65 @@ void SparseMatrix::EliminateRowCol(int rc, int d)
    }
 }
 
+// This is almost identical to EliminateRowCol(int, int), except for
+// the A[j] = value; and aux->Value = value; lines.
+void SparseMatrix::EliminateRowColDiag(int rc, double value)
+{
+   int col;
+
+   MFEM_ASSERT(rc < height && rc >= 0,
+               "Row " << rc << " not in matrix of height " << height);
+
+   if (Rows == NULL)
+   {
+      for (int j = I[rc]; j < I[rc+1]; j++)
+         if ((col = J[j]) == rc)
+         {
+            A[j] = value;
+         }
+         else
+         {
+            A[j] = 0.0;
+            for (int k = I[col]; 1; k++)
+               if (k == I[col+1])
+               {
+                  mfem_error("SparseMatrix::EliminateRowCol() #2");
+               }
+               else if (J[k] == rc)
+               {
+                  A[k] = 0.0;
+                  break;
+               }
+         }
+   }
+   else
+   {
+      RowNode *aux, *node;
+
+      for (aux = Rows[rc]; aux != NULL; aux = aux->Prev)
+      {
+         if ((col = aux->Column) == rc)
+         {
+            aux->Value = value;
+         }
+         else
+         {
+            aux->Value = 0.0;
+            for (node = Rows[col]; 1; node = node->Prev)
+               if (node == NULL)
+               {
+                  mfem_error("SparseMatrix::EliminateRowCol() #3");
+               }
+               else if (node->Column == rc)
+               {
+                  node->Value = 0.0;
+                  break;
+               }
+         }
+      }
+   }
+}
+
 void SparseMatrix::EliminateRowCol(int rc, SparseMatrix &Ae, int d)
 {
    int col;
