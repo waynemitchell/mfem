@@ -593,11 +593,12 @@ void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
 
    // Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    // preconditioner from hypre.
-   HypreSolver *amg = new HypreBoomerAMG(*A);
+   HypreBoomerAMG *amg = new HypreBoomerAMG(*A);
+   amg->SetPrintLevel(0);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(solver_tol);
    pcg->SetMaxIter(solver_max_it);
-   pcg->SetPrintLevel(2);
+   pcg->SetPrintLevel(0);
    pcg->SetPreconditioner(*amg);
    pcg->Mult(*B, *X);
 
