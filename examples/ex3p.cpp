@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
+   int sdim = mesh->SpaceDimension();
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
@@ -137,7 +138,7 @@ int main(int argc, char *argv[])
    //    right-hand side of the FEM linear system, which in this case is
    //    (f,phi_i) where f is given by the function f_exact and phi_i are the
    //    basis functions in the finite element fespace.
-   VectorFunctionCoefficient f(dim, f_exact);
+   VectorFunctionCoefficient f(sdim, f_exact);
    ParLinearForm *b = new ParLinearForm(fespace);
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
@@ -148,7 +149,7 @@ int main(int argc, char *argv[])
    //    when eliminating the non-homogeneous boundary condition to modify the
    //    r.h.s. vector b.
    ParGridFunction x(fespace);
-   VectorFunctionCoefficient E(dim, E_exact);
+   VectorFunctionCoefficient E(sdim, E_exact);
    x.ProjectCoefficient(E);
 
    // 9. Set up the parallel bilinear form corresponding to the EM diffusion

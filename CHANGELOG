@@ -19,8 +19,9 @@ Parallel non-conforming adaptive mesh refinement
   and in parallel.
 
 - Added simple ZZ-type error estimators, including an anisotropic one in serial,
-  to the AMR examples 6 and 6p. These seem to perform quite reasonably, even for
-  higher-order discretizations.
+  and one based on Raviart-Thomas flux projection in parallel, to the AMR
+  examples 6 and 6p. These seem to perform quite reasonably, even for
+  higher-order discretizations on 2D, 3D and surface meshes.
 
 - The MFEM mesh format has a new version(1.1) that supports non-conforming
   meshes. The format is an extension of 1.0 that includes a vertex_parents and
@@ -58,6 +59,9 @@ Miscellaneous
 - Moved MFEM from Google Code to GitHub. New website: http://mfem.org.
 
 - Formatted the code with Artistic Style, see the "make style" target.
+
+- Example 3/3p now works in both 2D and 3D. Example 7/7p has a new option, -amr,
+  showcasing simple local conforming and non-conforming mesh refinements.
 
 - Added support for 64-bit integers in global size variables, enabling
   simulations with >2B unknowns. (This requires that hypre is configured with

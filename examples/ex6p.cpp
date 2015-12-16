@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
+   int sdim = mesh->SpaceDimension();
 
    // 4. Refine the serial mesh on all processors to increase the resolution.
    //    Also project a NURBS mesh to a piecewise-quadratic curved mesh. Make
@@ -119,7 +120,6 @@ int main(int argc, char *argv[])
    ParLinearForm b(&fespace);
 
    ConstantCoefficient one(1.0);
-   ConstantCoefficient zero(0.0);
 
    a.AddDomainIntegrator(new DiffusionIntegrator(one));
    b.AddDomainIntegrator(new DomainLFIntegrator(one));
@@ -158,13 +158,14 @@ int main(int argc, char *argv[])
    //     current mesh, visualize the solution, estimate the error on all
    //     elements, refine the worst elements and update all objects to work
    //     with the new mesh.
-   const int max_it = 25;
-   for (int it = 0; it < max_it; it++)
+   const int max_dofs = 100000;
+   for (int it = 0; ; it++)
    {
+      HYPRE_Int global_dofs = fespace.GlobalTrueVSize();
       if (myid == 0)
       {
          cout << "\nIteration " << it << endl;
-         cout << "Number of unknowns: " << fespace.GetNConformingDofs() << endl;
+         cout << "Number of unknowns: " << global_dofs << endl;
       }
 
       // 11. Assemble the stiffness matrix and the right-hand side. Note that
@@ -175,7 +176,6 @@ int main(int argc, char *argv[])
       a.Finalize();
       b.Assemble();
 
-      // x.ProjectBdrCoefficient(zero, ess_bdr);
       x = 0;
 
       HypreParMatrix *A = a.ParallelAssemble();
@@ -189,16 +189,21 @@ int main(int argc, char *argv[])
       // 13. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.
       HypreBoomerAMG amg(*A);
+      amg.SetPrintLevel(0);
       HyprePCG pcg(*A);
       pcg.SetTol(1e-12);
       pcg.SetMaxIter(200);
-      pcg.SetPrintLevel(2);
+      pcg.SetPrintLevel(0);
       pcg.SetPreconditioner(amg);
       pcg.Mult(*B, *X);
 
       // 14. Extract the parallel grid function corresponding to the finite element
       //     approximation X. This is the local solution on each processor.
       x = *X;
+
+      delete A;
+      delete B;
+      delete X;
 
       // 15. Send the solution by socket to a GLVis server.
       if (visualization)
@@ -207,23 +212,44 @@ int main(int argc, char *argv[])
          sout << "solution\n" << pmesh << x << flush;
       }
 
+      if (global_dofs > max_dofs)
+      {
+         break;
+      }
+
       // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
       Vector errors(pmesh.GetNE());
       {
-         ParFiniteElementSpace flux_fespace(&pmesh, &fec, dim);
+         // Space for the discontinuous (original) flux
          DiffusionIntegrator flux_integrator(one);
-         ParGridFunction flux(&flux_fespace);
-         ZZErrorEstimator(flux_integrator, x, flux, errors);
+         L2_FECollection flux_fec(order, dim);
+         ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
+
+         // Space for the smoothed (conforming) flux
+         double norm_p = 1;
+         RT_FECollection smooth_flux_fec(order-1, dim);
+         ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
+
+         // Another possible set of options for the smoothed flux space:
+         // norm_p = 1;
+         // H1_FECollection smooth_flux_fec(order, dim);
+         // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
+
+         L2ZZErrorEstimator(flux_integrator, x,
+                            smooth_flux_fes, flux_fes, errors, norm_p);
       }
+      double local_max_err = errors.Max();
+      double global_max_err;
+      MPI_Allreduce(&local_max_err, &global_max_err, 1,
+                    MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
 
       // 17. Make a list of elements whose error is larger than a fraction
       //     of the maximum element error. These elements will be refined.
       Array<int> ref_list;
       const double frac = 0.7;
-      // the 'errors' are squared, so we need to square the fraction
-      double threshold = (frac*frac) * errors.Max();
+      double threshold = frac * global_max_err;
       for (int i = 0; i < errors.Size(); i++)
       {
          if (errors[i] >= threshold) { ref_list.Append(i); }
@@ -254,10 +280,6 @@ int main(int argc, char *argv[])
       //     changed.
       a.Update();
       b.Update();
-
-      delete A;
-      delete B;
-      delete X;
    }
 
    MPI_Finalize();
