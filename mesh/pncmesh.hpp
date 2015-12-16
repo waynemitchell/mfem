@@ -239,7 +239,7 @@ protected:
          3 - our element, and neighbor to the ghost layer,
          2 - ghost layer element (existing element, but rank != MyRank),
          0 - element beyond the ghost layer, may not be a real element.
-       See also UpdateLayers. */
+       See also UpdateLayers(). */
    Array<char> element_type;
 
    Array<Element*> ghost_layer; ///< list of elements whose 'element_type' == 2.
@@ -348,8 +348,9 @@ protected:
    bool PruneTree(Element* elem);
 
 
-   /** A base for internal messages used by Refine() and Rebalance(). Allows
-    *  sending values associated with a set of elements.
+   /** A base for internal messages used by Refine(), Derefine() and Rebalance().
+    *  Allows sending values associated with a set of elements.
+    *  If RefType == true, the element set is recreated on the receiving end.
     */
    template<class ValueType, bool RefTypes, int Tag>
    class ElementValueMessage : public VarMessage<Tag>
@@ -360,6 +361,9 @@ protected:
 
       int Size() const { return elements.size(); }
       void Reserve(int size) { elements.reserve(size); values.reserve(size); }
+
+      void Add(Element* elem, ValueType val)
+      { elements.push_back(elem); values.push_back(val); }
 
       /// Set pointer to ParNCMesh (needed to encode the message).
       void SetNCMesh(ParNCMesh* pncmesh) { this->pncmesh = pncmesh; }
@@ -379,11 +383,7 @@ protected:
    class NeighborRefinementMessage : public ElementValueMessage<char, false, 289>
    {
    public:
-      void AddRefinement(Element* elem, char ref_type)
-      {
-         elements.push_back(elem);
-         values.push_back(ref_type);
-      }
+      void AddRefinement(Element* elem, char ref_type) { Add(elem, ref_type); }
       typedef std::map<int, NeighborRefinementMessage> Map;
    };
 
@@ -392,44 +392,32 @@ protected:
    class NeighborDerefinementMessage : public ElementValueMessage<int, false, 290>
    {
    public:
-      void AddDerefinement(Element* elem, int rank)
-      {
-         elements.push_back(elem);
-         values.push_back(rank);
-      }
+      void AddDerefinement(Element* elem, int rank) { Add(elem, rank); }
       typedef std::map<int, NeighborDerefinementMessage> Map;
    };
 
-   /** Used in Step 2 of ParNCMesh::Rebalance to synchronize new rank
-    *  assignments in the ghost layer.
+   /** Used in Step 2 of Rebalance() to synchronize new rank assignments in
+    *  the ghost layer.
     */
    class NeighborElementRankMessage : public ElementValueMessage<int, false, 156>
    {
    public:
-      void AddElementRank(Element* elem, int rank)
-      {
-         elements.push_back(elem);
-         values.push_back(rank);
-      }
+      void AddElementRank(Element* elem, int rank) { Add(elem, rank); }
       typedef std::map<int, NeighborElementRankMessage> Map;
    };
 
-   /** Used by ParNCMesh::Rebalance to send elements and their ranks. Note that
+   /** Used by Rebalance() to send elements and their ranks. Note that
     *  RefTypes == true which means the refinement hierarchy will be recreated
     *  on the receiving side.
     */
    class RebalanceMessage : public ElementValueMessage<int, true, 157>
    {
    public:
-      void AddElementRank(Element* elem, int rank)
-      {
-         elements.push_back(elem);
-         values.push_back(rank);
-      }
+      void AddElementRank(Element* elem, int rank) { Add(elem, rank); }
       typedef std::map<int, RebalanceMessage> Map;
    };
 
-   /** Allows migrating element data (DOFs) after ParNCMesh::Rebalance.
+   /** Allows migrating element data (DOFs) after Rebalance().
     *  Used by SendRebalanceDofs and RecvRebalanceDofs.
     */
    class RebalanceDofMessage : public VarMessage<158>

@@ -30,7 +30,7 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
    MPI_Comm_size(MyComm, &NRanks);
    MPI_Comm_rank(MyComm, &MyRank);
 
-   // assign leaf elements to the processors by simply splitting the natural
+   // assign leaf elements to the processors by simply splitting the
    // sequence of leaf elements into 'NRanks' parts
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
@@ -730,7 +730,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       const int* fine = derefinements.GetRow(row);
       Element* parent = leaf_elements[fine[0]]->parent;
 
-      // get new element rank (neighbors may not be able to determine it)
+      // determine the owner of the new coarse element
       int new_rank = INT_MAX;
       for (int j = 0; j < derefinements.RowSize(row); j++)
       {
@@ -759,6 +759,8 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       NCMesh::DerefineElement(parent);
    }
 
+   RebalanceMessage::Map recv_ghosts;
+
    // receive (ghost layer) derefinements from all neighbors
    for (int j = 0; j < neighbors.Size(); j++)
    {
@@ -779,10 +781,45 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
             NCMesh::DerefineElement(elem);
             elem->rank = msg.values[i];
          }
+
+         // also prepare for receiving new ghost elements, see below
+         if (msg.values[i] == MyRank)
+         {
+            recv_ghosts[rank].SetNCMesh(this);
+         }
       }
    }
 
    Update();
+
+   // for derefinements that straddle processor boundaries (i.e., few of them),
+   // the owner of the new coarse element needs to receive some ghost elements
+   // since the owner's region in the mesh just grew larger
+   RebalanceMessage::Map send_ghosts;
+   Array<Element*> neighbor_elems;
+
+   for (NeighborDerefinementMessage::Map::iterator
+        it = send_deref.begin(); it != send_deref.end(); ++it)
+   {
+      NeighborDerefinementMessage &dmsg = it->second;
+      for (int i = 0; i < dmsg.Size(); i++)
+      {
+         if (dmsg.values[i] == it->first) // it->first is the recipient rank
+         {
+            // send a portion of our boundary layer to the new owner
+            UpdateLayers();
+            FindNeighbors(dmsg.elements[i], neighbor_elems, &boundary_layer);
+
+            RebalanceMessage &rmsg = send_ghosts[it->first];
+            for (int j = 0; j < neighbor_elems.Size(); j++)
+            {
+               rmsg.AddElementRank(neighbor_elems[i], MyRank);
+            }
+            rmsg.SetNCMesh(this);
+         }
+      }
+   }
+   RebalanceMessage::IsendAll(send_ghosts, MyComm);
 
    // link old fine elements to the new coarse elements
    for (int i = 0; i < coarse.Size(); i++)
@@ -790,8 +827,25 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       transforms.fine_coarse[i].coarse_element = coarse[i]->index;
    }
 
-   // make sure we can delete the send buffers
+   // receive new ghosts
+   RebalanceMessage::RecvAll(recv_ghosts, MyComm);
+   for (RebalanceMessage::Map::iterator
+        it = recv_ghosts.begin(); it != recv_ghosts.end(); ++it)
+   {
+      RebalanceMessage &msg = it->second;
+      for (int i = 0; i < msg.Size(); i++)
+      {
+         msg.elements[i]->rank = msg.values[i];
+      }
+   }
+   if (recv_ghosts.size())
+   {
+      Update();
+   }
+
+   // make sure we can delete all send buffers
    NeighborDerefinementMessage::WaitAllSent(send_deref);
+   NeighborDerefinementMessage::WaitAllSent(send_ghosts);
 }
 
 
