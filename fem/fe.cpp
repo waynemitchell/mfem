@@ -386,9 +386,10 @@ void VectorFiniteElement::Project_RT(
    VectorCoefficient &vc, ElementTransformation &Trans, Vector &dofs) const
 {
    double vk[3];
-   Vector xk(vk, Dim);
+   Vector xk(vk, vc.GetVDim());
+   Jinv.SetSize(Dim, vc.GetVDim());
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix Jinv(Dim);
+   DenseMatrix Jinv(Dim, vc.GetVDim());
 #endif
 
    for (int k = 0; k < Dof; k++)

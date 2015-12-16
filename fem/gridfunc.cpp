@@ -429,9 +429,9 @@ void GridFunction::GetVectorValues(ElementTransformation &T,
    }
    else
    {
-      int dim = FElem->GetDim();
-      DenseMatrix vshape(dof, dim);
-      vals.SetSize(dim, nip);
+      int spaceDim = fes->GetMesh()->SpaceDimension();
+      DenseMatrix vshape(dof, spaceDim);
+      vals.SetSize(spaceDim, nip);
       Vector val_j;
       for (int j = 0; j < nip; j++)
       {

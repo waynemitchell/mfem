@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
+   int sdim = mesh->SpaceDimension();
 
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
@@ -102,7 +103,7 @@ int main(int argc, char *argv[])
    //    of the FEM linear system, which in this case is (f,phi_i) where f is
    //    given by the function f_exact and phi_i are the basis functions in the
    //    finite element fespace.
-   VectorFunctionCoefficient f(dim, f_exact);
+   VectorFunctionCoefficient f(sdim, f_exact);
    LinearForm *b = new LinearForm(fespace);
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
@@ -113,7 +114,7 @@ int main(int argc, char *argv[])
    //    when eliminating the non-homogeneous boundary condition to modify the
    //    r.h.s. vector b.
    GridFunction x(fespace);
-   VectorFunctionCoefficient E(dim, E_exact);
+   VectorFunctionCoefficient E(sdim, E_exact);
    x.ProjectCoefficient(E);
 
    // 7. Set up the bilinear form corresponding to the EM diffusion operator
