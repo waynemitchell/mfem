@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
       // 13. Define a simple symmetric Gauss-Seidel preconditioner and use it to
       //     solve the linear system with PCG.
       GSSmoother M(A);
-      PCG(A, M, b, x, 1, 200, 1e-12, 0.0);
+      PCG(A, M, b, x, 2, 200, 1e-12, 0.0);
 #else
       // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
       //     the linear system.

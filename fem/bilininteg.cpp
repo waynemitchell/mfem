@@ -422,14 +422,14 @@ double DiffusionIntegrator::ComputeFluxEnergy
 {
    int nd = fluxelem.GetDof();
    int dim = fluxelem.GetDim();
-   int space_dim = Trans.GetSpaceDim();
+   int spaceDim = Trans.GetSpaceDim();
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix mq;
 #endif
 
    shape.SetSize(nd);
-   pointflux.SetSize(space_dim);
+   pointflux.SetSize(spaceDim);
    if (d_energy) { vec.SetSize(dim); }
    if (MQ) { mq.SetSize(dim); }
 
@@ -445,7 +445,7 @@ double DiffusionIntegrator::ComputeFluxEnergy
       fluxelem.CalcShape(ip, shape);
 
       pointflux = 0.0;
-      for (int k = 0; k < space_dim; k++)
+      for (int k = 0; k < spaceDim; k++)
       {
          for (int j = 0; j < nd; j++)
          {
@@ -1286,17 +1286,17 @@ void VectorFEMassIntegrator::AssembleElementMatrix(
    ElementTransformation &Trans,
    DenseMatrix &elmat)
 {
-   int dof  = el.GetDof();
-   int sdim = Trans.GetSpaceDim();
+   int dof = el.GetDof();
+   int spaceDim = Trans.GetSpaceDim();
 
    double w;
 
 #ifdef MFEM_THREAD_SAFE
    Vector D(VQ ? VQ->GetVDim() : 0);
-   DenseMatrix vshape(dof, sdim);
+   DenseMatrix vshape(dof, spaceDim);
    DenseMatrix K(MQ ? MQ->GetVDim() : 0, MQ ? MQ->GetVDim() : 0);
 #else
-   vshape.SetSize(dof,sdim);
+   vshape.SetSize(dof,spaceDim);
    D.SetSize(VQ ? VQ->GetVDim() : 0);
    K.SetSize(MQ ? MQ->GetVDim() : 0, MQ ? MQ->GetVDim() : 0);
 #endif

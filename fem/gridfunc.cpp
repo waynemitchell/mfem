@@ -310,12 +310,12 @@ void GridFunction::GetVectorValue(int i, const IntegrationPoint &ip,
    }
    else
    {
-      int sdim = fes->GetMesh()->SpaceDimension();
-      DenseMatrix vshape(dof, sdim);
+      int spaceDim = fes->GetMesh()->SpaceDimension();
+      DenseMatrix vshape(dof, spaceDim);
       ElementTransformation *Tr = fes->GetElementTransformation(i);
       Tr->SetIntPoint(&ip);
       FElem->CalcVShape(*Tr, vshape);
-      val.SetSize(sdim);
+      val.SetSize(spaceDim);
       vshape.MultTranspose(loc_data, val);
    }
 }
