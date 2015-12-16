@@ -233,7 +233,7 @@ int GridFunction::VectorDim() const
    {
       return fes->GetVDim();
    }
-   return fe->GetDim();
+   return fes->GetMesh()->SpaceDimension();
 }
 
 void GridFunction::GetNodalValues(int i, Array<double> &nval, int vdim) const
@@ -310,12 +310,12 @@ void GridFunction::GetVectorValue(int i, const IntegrationPoint &ip,
    }
    else
    {
-      int dim = FElem->GetDim();
-      DenseMatrix vshape(dof, dim);
+      int spaceDim = fes->GetMesh()->SpaceDimension();
+      DenseMatrix vshape(dof, spaceDim);
       ElementTransformation *Tr = fes->GetElementTransformation(i);
       Tr->SetIntPoint(&ip);
       FElem->CalcVShape(*Tr, vshape);
-      val.SetSize(dim);
+      val.SetSize(spaceDim);
       vshape.MultTranspose(loc_data, val);
    }
 }
@@ -429,9 +429,9 @@ void GridFunction::GetVectorValues(ElementTransformation &T,
    }
    else
    {
-      int dim = FElem->GetDim();
-      DenseMatrix vshape(dof, dim);
-      vals.SetSize(dim, nip);
+      int spaceDim = fes->GetMesh()->SpaceDimension();
+      DenseMatrix vshape(dof, spaceDim);
+      vals.SetSize(spaceDim, nip);
       Vector val_j;
       for (int j = 0; j < nip; j++)
       {
@@ -2332,6 +2332,63 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
          }
       }
    }
+}
+
+
+double ComputeElementLpDistance(double p, int i,
+                                GridFunction& gf1, GridFunction& gf2)
+{
+   double norm = 0.0;
+
+   FiniteElementSpace *fes1 = gf1.FESpace();
+   FiniteElementSpace *fes2 = gf2.FESpace();
+
+   const FiniteElement* fe1 = fes1->GetFE(i);
+   const FiniteElement* fe2 = fes2->GetFE(i);
+
+   const IntegrationRule *ir;
+   int intorder = 2*std::max(fe1->GetOrder(),fe2->GetOrder()) + 1; // <-------
+   ir = &(IntRules.Get(fe1->GetGeomType(), intorder));
+   int nip = ir->GetNPoints();
+   Vector val1, val2;
+
+
+   ElementTransformation *T = fes1->GetElementTransformation(i);
+   for (int j = 0; j < nip; j++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(j);
+      T->SetIntPoint(&ip);
+
+      gf1.GetVectorValue(i, ip, val1);
+      gf2.GetVectorValue(i, ip, val2);
+
+      val1 -= val2;
+      double err = val1.Norml2();
+      if (p < numeric_limits<double>::infinity())
+      {
+         err = pow(err, p);
+         norm += ip.weight * T->Weight() * err;
+      }
+      else
+      {
+         norm = std::max(norm, err);
+      }
+   }
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // Negative quadrature weights may cause the norm to be negative
+      if (norm < 0.)
+      {
+         norm = -pow(-norm, 1./p);
+      }
+      else
+      {
+         norm = pow(norm, 1./p);
+      }
+   }
+
+   return norm;
 }
 
 

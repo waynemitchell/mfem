@@ -299,6 +299,9 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       Array<int> *aniso_flags = NULL,
                       int with_subdomains = 1);
 
+/// Compute the Lp distance between two grid functions on the given element.
+double ComputeElementLpDistance(double p, int i,
+                                GridFunction& gf1, GridFunction& gf2);
 
 /// Class used for extruding scalar GridFunctions
 class ExtrudeCoefficient : public Coefficient
