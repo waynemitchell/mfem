@@ -2045,7 +2045,7 @@ void GridFunction::ConformingProject()
 void GridFunction::Transform(const SparseMatrix &M)
 {
    Vector y;
-   y.SetSize(fes->GetVSize());
+   y.SetSize(M.Height());
    M.Mult(*this, y);
    SetSize(y.Size());
    *this = y;

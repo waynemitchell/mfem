@@ -813,7 +813,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
             RebalanceMessage &rmsg = send_ghosts[it->first];
             for (int j = 0; j < neighbor_elems.Size(); j++)
             {
-               rmsg.AddElementRank(neighbor_elems[i], MyRank);
+               rmsg.AddElementRank(neighbor_elems[j], MyRank);
             }
             rmsg.SetNCMesh(this);
          }
@@ -835,6 +835,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       RebalanceMessage &msg = it->second;
       for (int i = 0; i < msg.Size(); i++)
       {
+         DerefineElement(msg.elements[i]);
          msg.elements[i]->rank = msg.values[i];
       }
    }

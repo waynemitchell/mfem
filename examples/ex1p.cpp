@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
       mesh->GeneralRefinement(refs);
       mesh->GeneralRefinement(refs);
    }*/
-   mesh->RandomRefinement(4, 2, false);
+   mesh->RandomRefinement(5, 2, false);
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -273,6 +273,8 @@ int main(int argc, char *argv[])
 
    HypreParMatrix *D = fespace->ParallelDerefinementMatrix();
    x.ParallelTransform(D);
+   x.Transform(fespace->GetRestrictionMatrix());
+   x.ParallelTransform(fespace->Dof_TrueDof_Matrix());
    delete D;
 #endif
 
