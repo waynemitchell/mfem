@@ -2815,7 +2815,7 @@ HypreLOBPCG::~HypreLOBPCG()
 {
    delete multi_vec;
    delete x;
-   delete part;
+   delete [] part;
 
    HYPRE_LOBPCGDestroy(lobpcg_solver);
 }
@@ -3046,6 +3046,15 @@ HypreAME::HypreAME(MPI_Comm comm)
 HypreAME::~HypreAME()
 {
    delete multi_vec;
+
+   if ( eigenvectors )
+   {
+     for (int i=0; i<nev; i++)
+     {
+       delete eigenvectors[i];
+     }
+   }
+   delete [] eigenvectors;
 
    HYPRE_AMEDestroy(ame_solver);
 }
