@@ -12,9 +12,6 @@
 //               mpirun -np 4 ex14p -m ../data/disc-nurbs.mesh -o 1
 //               mpirun -np 4 ex14p -m ../data/pipe-nurbs.mesh -o 0
 //               mpirun -np 4 ex14p -m ../data/inline-segment.mesh
-//               mpirun -np 4 ex14p -m ../data/amr-quad.mesh
-//               mpirun -np 4 ex14p -m ../data/amr-hex.mesh
-//               mpirun -np 4 ex14p -m ../data/fichera-amr.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               discontinuous Galerkin (DG) finite element discretization of
@@ -191,11 +188,15 @@ int main(int argc, char *argv[])
    }
    else
    {
+      HypreBoomerAMG amg(*A);
       GMRESSolver gmres(MPI_COMM_WORLD);
+      gmres.SetAbsTol(0.0);
       gmres.SetRelTol(1e-12);
       gmres.SetMaxIter(200);
-      gmres.SetKDim(5);
+      gmres.SetKDim(10);
       gmres.SetPrintLevel(2);
+      gmres.SetOperator(*A);
+      gmres.SetPreconditioner(amg);
       gmres.Mult(*B, *X);
    }
 
