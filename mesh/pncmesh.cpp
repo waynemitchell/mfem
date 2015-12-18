@@ -1036,7 +1036,7 @@ void ParNCMesh::Rebalance()
 
             msg.Isend(rank, MyComm);
 
-            // also: record what elements we sent (not counting the ghosts)
+            // also: record what elements we sent (excluding the ghosts)
             // so that SendRebalanceDofs can later send data for them
             send_rebalance_dofs[rank].SetElements(rank_elems, this);
          }
