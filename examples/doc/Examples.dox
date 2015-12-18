@@ -64,6 +64,7 @@ or
    <label><input type="radio" id="gs" onchange="update(this.id);" />Gauss-Seidel</label> <br/>
    <label><input type="radio" id="pcg" onchange="update(this.id);" />PCG</label> <br/>
    <label><input type="radio" id="minres" onchange="update(this.id);" />MINRES</label> <br/>
+   <label><input type="radio" id="gmres" onchange="update(this.id);" />GMRES</label> <br/>
    <label><input type="radio" id="amg" onchange="update(this.id);" />Algebraic Multigrid (BoomerAMG)</label> <br/>
    <label><input type="radio" id="ams" onchange="update(this.id);" />Auxiliary-space Maxwell Solver (AMS)</label> <br/>
    <label><input type="radio" id="ads" onchange="update(this.id);" />Auxiliary-space Divergence Solver (ADS)</label> <br/>
@@ -391,6 +392,23 @@ We recommend viewing examples 3 and 11 before viewing this example.</em>
 </div>
 
 <!----------------------------------------------------------------------------->
+<div id="ex14">
+\htmlonly <hr style="clear:both;"/><img src="ex14.png" style="float:right;"> \endhtmlonly
+<h2>Example 14: DG Diffusion</h2>
+
+This example code demonstrates the use of MFEM to define a
+discontinuous Galerkin (DG) finite element discretization of
+the Laplace problem  \f[ -\Delta u = 1 \f] with homogeneous Dirichlet
+boundary conditions. Finite element spaces of any order,
+including zero, are supported. The example highlights the use
+of discontinuous spaces and DG-specific face integrators.
+<center>
+<em>The example has a serial (ex14.cpp) and a parallel (ex14p.cpp) version.
+We recommend viewing examples 1 and 9 before viewing this example.</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
 <div id="nomatch"><hr>
 <br/><br/><br/>
 <center>
@@ -451,7 +469,7 @@ function update(id)
    var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy", "advection"];
    var group2 = ["all2", "l2", "h1", "hcurl", "hdiv", "h12"];
    var group3 = ["all3", "galerkin", "mixed", "dg", "dpg", "nurbs", "amr" ];
-   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack", "newton", "rk", "sdirk", "lobpcg", "ame"];
+   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "gmres", "amg", "ams", "ads", "umfpack", "newton", "rk", "sdirk", "lobpcg", "ame"];
 
    updateGroup(group1, id);
    updateGroup(group2, id);
@@ -471,9 +489,10 @@ function update(id)
    showElement("ex11", laplace && h1 && (galerkin || nurbs) && (lobpcg || amg));
    showElement("ex12", elasticity && h1 && (galerkin || nurbs) && (lobpcg || amg));
    showElement("ex13", maxwell && hcurl && galerkin && (ame || ams));
+   showElement("ex14", laplace && l2 && dg && (gs || pcg || gmres || umfpack || amg));
 
    // NOTE: update 'numExamples' below when adding examples!
-   var numExamples = 13;
+   var numExamples = 14;
    var allHidden = true;
    for (i = 1; i <= numExamples; i++) {
       if (exampleVisible(i)) {
