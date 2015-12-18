@@ -1660,8 +1660,12 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    // note that this is infrequent due to the way elements are ordered
    for (int k = 0; k < dt.fine_coarse.Size(); k++)
    {
-      int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[k].coarse_element);
+      const NCMesh::Embedding &emb = dt.fine_coarse[k];
+      if (emb.coarse_element < 0) { continue; }
+
+      int coarse_rank = pncmesh->ElementRank(emb.coarse_element);
       int fine_rank = old_ranks[k];
+
       if (coarse_rank >= 0 && fine_rank >= 0)
       {
          if (coarse_rank != MyRank && fine_rank == MyRank)
@@ -1703,11 +1707,14 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    mark = 0;
    for (int k = 0; k < dt.fine_coarse.Size(); k++)
    {
-      int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[k].coarse_element);
+      const NCMesh::Embedding &emb = dt.fine_coarse[k];
+      if (emb.coarse_element < 0) { continue; }
+
+      int coarse_rank = pncmesh->ElementRank(emb.coarse_element);
       int fine_rank = old_ranks[k];
+
       if (coarse_rank == MyRank && fine_rank == MyRank)
       {
-         const NCMesh::Embedding &emb = dt.fine_coarse[k];
          DenseMatrix &lR = localR(emb.matrix);
 
          elem_dof->GetRow(emb.coarse_element, dofs);
@@ -1750,11 +1757,14 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    std::map<HYPRE_Int, int> col_map;
    for (int k = 0; k < dt.fine_coarse.Size(); k++)
    {
-      int coarse_rank = pncmesh->ElementRank(dt.fine_coarse[k].coarse_element);
+      const NCMesh::Embedding &emb = dt.fine_coarse[k];
+      if (emb.coarse_element < 0) { continue; }
+
+      int coarse_rank = pncmesh->ElementRank(emb.coarse_element);
       int fine_rank = old_ranks[k];
+
       if (coarse_rank == MyRank && fine_rank != MyRank)
       {
-         const NCMesh::Embedding &emb = dt.fine_coarse[k];
          DenseMatrix &lR = localR(emb.matrix);
 
          elem_dof->GetRow(emb.coarse_element, dofs);

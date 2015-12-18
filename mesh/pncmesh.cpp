@@ -828,20 +828,30 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    }
 
    // receive new ghosts
-   RebalanceMessage::RecvAll(recv_ghosts, MyComm);
-   for (RebalanceMessage::Map::iterator
-        it = recv_ghosts.begin(); it != recv_ghosts.end(); ++it)
-   {
-      RebalanceMessage &msg = it->second;
-      for (int i = 0; i < msg.Size(); i++)
-      {
-         DerefineElement(msg.elements[i]);
-         msg.elements[i]->rank = msg.values[i];
-      }
-   }
    if (recv_ghosts.size())
    {
+      RebalanceMessage::RecvAll(recv_ghosts, MyComm);
+
+      for (RebalanceMessage::Map::iterator
+           it = recv_ghosts.begin(); it != recv_ghosts.end(); ++it)
+      {
+         RebalanceMessage &msg = it->second;
+         for (int i = 0; i < msg.Size(); i++)
+         {
+            DerefineElement(msg.elements[i]);
+            msg.elements[i]->rank = msg.values[i];
+         }
+      }
+
+      // update and renumber indices in transforms.fine_coarse
+      leaf_elements.Copy(coarse);
       Update();
+
+      for (int i = 0; i < transforms.fine_coarse.Size(); i++)
+      {
+         int &index = transforms.fine_coarse[i].coarse_element;
+         index = coarse[index]->index;
+      }
    }
 
    // make sure we can delete all send buffers
