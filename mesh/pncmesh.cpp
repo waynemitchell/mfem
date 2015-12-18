@@ -78,10 +78,7 @@ void ParNCMesh::AssignLeafIndices()
       }
    }
 
-   for (int i = 0; i < leaf_elements.Size(); i++)
-   {
-      leaf_elements[i]->index = i;
-   }
+   NCMesh::AssignLeafIndices();
 }
 
 void ParNCMesh::UpdateVertices()

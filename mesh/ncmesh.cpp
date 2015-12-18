@@ -1395,6 +1395,7 @@ void NCMesh::InitDerefTransforms()
    transforms.fine_coarse.SetSize(nfine);
    for (int i = 0; i < nfine; i++)
    {
+      transforms.fine_coarse[i].coarse_element = -1;
       transforms.fine_coarse[i].matrix = 0;
    }
 
@@ -1479,10 +1480,6 @@ void NCMesh::CollectLeafElements(Element* elem, int state)
       {
          leaf_elements.Append(elem);
       }
-      else
-      {
-         elem->index = -1;
-      }
    }
    else
    {
@@ -1512,6 +1509,7 @@ void NCMesh::CollectLeafElements(Element* elem, int state)
          }
       }
    }
+   elem->index = -1;
 }
 
 void NCMesh::UpdateLeafElements()
