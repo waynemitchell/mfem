@@ -3,16 +3,16 @@
 // Compile with: make ex14
 //
 // Sample runs:  ex14 -m ../data/square-disc.mesh -o 0
-//               ex14 -m ../data/star.mesh -o 2
+//               ex14 -m ../data/star.mesh -r 4 -o 2
 //               ex14 -m ../data/escher.mesh -s 1
-//               ex14 -m ../data/fichera.mesh -s 1 -k 0
-//               ex14 -m ../data/square-disc-p2.vtk -o 2
-//               ex14 -m ../data/square-disc-p3.mesh -o 3
+//               ex14 -m ../data/fichera.mesh -s 1 -k 1
+//               ex14 -m ../data/square-disc-p2.vtk -r 3 -o 2
+//               ex14 -m ../data/square-disc-p3.mesh -r 2 -o 3
 //               ex14 -m ../data/square-disc-nurbs.mesh -o 0
-//               ex14 -m ../data/disc-nurbs.mesh -o 1
+//               ex14 -m ../data/disc-nurbs.mesh -r 3 -o 2 -s 1 -k 0
 //               ex14 -m ../data/pipe-nurbs.mesh -o 0
-//               ex14 -m ../data/inline-segment.mesh
-//               ex14 -m ../data/amr-quad.mesh
+//               ex14 -m ../data/inline-segment.mesh -r 5
+//               ex14 -m ../data/amr-quad.mesh -r 3
 //               ex14 -m ../data/amr-hex.mesh
 //               ex14 -m ../data/fichera-amr.mesh
 //
@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
+   int ref_levels = -1;
    int order = 1;
    double sigma = -1.0;
    double kappa = -1.0;
@@ -45,6 +46,8 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
+   args.AddOption(&ref_levels, "-r", "--refine",
+                  "Number of times to refine the mesh uniformly, -1 for auto.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
@@ -92,8 +95,10 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
    {
-      int ref_levels =
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      if (ref_levels < 0)
+      {
+         ref_levels = (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      }
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -131,7 +136,6 @@ int main(int argc, char *argv[])
    a->AddInteriorFaceIntegrator(new DGDiffusionIntegrator(one, sigma, kappa));
    a->AddBdrFaceIntegrator(new DGDiffusionIntegrator(one, sigma, kappa));
    a->Assemble();
-   a->ConformingAssemble(x, *b);
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 
@@ -142,11 +146,11 @@ int main(int argc, char *argv[])
    GSSmoother M(A);
    if (sigma == -1.0)
    {
-      PCG(A, M, *b, x, 1, 200, 1e-12, 0.0);
+      PCG(A, M, *b, x, 1, 500, 1e-12, 0.0);
    }
    else
    {
-      GMRES(A, M, *b, x, 1, 500, 10, 1e-24, 0.0);
+      GMRES(A, M, *b, x, 1, 500, 10, 1e-12, 0.0);
    }
 #else
    // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
@@ -156,11 +160,8 @@ int main(int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
 
-   // 9. Recover the grid function in non-conforming AMR problems
-   x.ConformingProlongate();
-
-   // 10. Save the refined mesh and the solution. This output can be viewed later
-   //     using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // 9. Save the refined mesh and the solution. This output can be viewed later
+   //    using GLVis: "glvis -m refined.mesh -g sol.gf".
    ofstream mesh_ofs("refined.mesh");
    mesh_ofs.precision(8);
    mesh->Print(mesh_ofs);
@@ -168,7 +169,7 @@ int main(int argc, char *argv[])
    sol_ofs.precision(8);
    x.Save(sol_ofs);
 
-   // 11. Send the solution by socket to a GLVis server.
+   // 10. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -178,7 +179,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 12. Free the used memory.
+   // 11. Free the used memory.
    delete a;
    delete b;
    delete fespace;
