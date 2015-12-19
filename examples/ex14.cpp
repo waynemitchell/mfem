@@ -49,8 +49,7 @@ int main(int argc, char *argv[])
    args.AddOption(&ref_levels, "-r", "--refine",
                   "Number of times to refine the mesh uniformly, -1 for auto.");
    args.AddOption(&order, "-o", "--order",
-                  "Finite element order (polynomial degree) or -1 for"
-                  " isoparametric space.");
+                  "Finite element order (polynomial degree) >= 0.");
    args.AddOption(&sigma, "-s", "--sigma",
                   "One of the two DG penalty parameters, typically +1/-1."
                   " See the documentation of class DiffusionIntegrator.");

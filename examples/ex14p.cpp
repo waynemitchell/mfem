@@ -5,13 +5,13 @@
 // Sample runs:  mpirun -np 4 ex14p -m ../data/square-disc.mesh -o 0
 //               mpirun -np 4 ex14p -m ../data/star.mesh -o 2
 //               mpirun -np 4 ex14p -m ../data/escher.mesh -s 1
-//               mpirun -np 4 ex14p -m ../data/fichera.mesh -s 1 -k 0
+//               mpirun -np 4 ex14p -m ../data/fichera.mesh -s 1 -k 1
 //               mpirun -np 4 ex14p -m ../data/square-disc-p2.vtk -o 2
 //               mpirun -np 4 ex14p -m ../data/square-disc-p3.mesh -o 3
 //               mpirun -np 4 ex14p -m ../data/square-disc-nurbs.mesh -o 0
-//               mpirun -np 4 ex14p -m ../data/disc-nurbs.mesh -o 1
+//               mpirun -np 4 ex14p -m ../data/disc-nurbs.mesh -rs 4 -o 2 -s 1 -k 0
 //               mpirun -np 4 ex14p -m ../data/pipe-nurbs.mesh -o 0
-//               mpirun -np 4 ex14p -m ../data/inline-segment.mesh
+//               mpirun -np 4 ex14p -m ../data/inline-segment.mesh -rs 5
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               discontinuous Galerkin (DG) finite element discretization of
@@ -40,6 +40,8 @@ int main(int argc, char *argv[])
 
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
+   int ser_ref_levels = -1;
+   int par_ref_levels = 2;
    int order = 1;
    double sigma = -1.0;
    double kappa = -1.0;
@@ -48,9 +50,13 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
+   args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
+                  "Number of times to refine the mesh uniformly in serial,"
+                  " -1 for auto.");
+   args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
+                  "Number of times to refine the mesh uniformly in parallel.");
    args.AddOption(&order, "-o", "--order",
-                  "Finite element order (polynomial degree) or -1 for"
-                  " isoparametric space.");
+                  "Finite element order (polynomial degree) >= 0.");
    args.AddOption(&sigma, "-s", "--sigma",
                   "One of the two DG penalty parameters, typically +1/-1."
                   " See the documentation of class DiffusionIntegrator.");
@@ -107,9 +113,11 @@ int main(int argc, char *argv[])
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 10,000 elements.
    {
-      int ref_levels =
-         (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
-      for (int l = 0; l < ref_levels; l++)
+      if (ser_ref_levels < 0)
+      {
+         ser_ref_levels = (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+      }
+      for (int l = 0; l < ser_ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
@@ -121,7 +129,6 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -237,10 +244,7 @@ int main(int argc, char *argv[])
    delete A;
 
    delete fespace;
-   if (order > 0)
-   {
-      delete fec;
-   }
+   delete fec;
    delete pmesh;
 
    MPI_Finalize();
