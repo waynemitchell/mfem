@@ -72,8 +72,8 @@ int main(int argc, char *argv[])
    args.PrintOptions(cout);
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
-   //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
-   //    the same code. NURBS meshes are projected to second order meshes.
+   //    quadrilateral, tetrahedral and hexahedral meshes with the same code.
+   //    NURBS meshes are projected to second order meshes.
    Mesh *mesh;
    ifstream imesh(mesh_file);
    if (!imesh)
@@ -90,9 +90,9 @@ int main(int argc, char *argv[])
    }
 
    // 3. Refine the mesh to increase the resolution. In this example we do
-   //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
-   //    largest number that gives a final mesh with no more than 50,000
-   //    elements.
+   //    'ref_levels' of uniform refinement. By default, or if ref_levels < 0,
+   //    we choose it to be the largest number that gives a final mesh with no
+   //    more than 50,000 elements.
    {
       if (ref_levels < 0)
       {
@@ -128,8 +128,9 @@ int main(int argc, char *argv[])
    // 7. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
    //    domain integrator and the interior and boundary DG face integrators.
-   //    Note that boundary conditions are imposed weakly. After assembly and
-   //    finalizing we extract the corresponding sparse matrix A.
+   //    Note that boundary conditions are imposed weakly in the form, so there
+   //    is no need for dof elimination. After assembly and finalizing we
+   //    extract the corresponding sparse matrix A.
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddInteriorFaceIntegrator(new DGDiffusionIntegrator(one, sigma, kappa));

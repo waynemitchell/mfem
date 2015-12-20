@@ -85,10 +85,9 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
-   // 3. Read the (serial) mesh from the given mesh file on all processors.  We
-   //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
-   //    and volume meshes with the same code. NURBS meshes are projected to
-   //    second order meshes.
+   // 3. Read the (serial) mesh from the given mesh file on all processors. We
+   //    can handle triangular, quadrilateral, tetrahedral and hexahedral meshes
+   //    with the same code. NURBS meshes are projected to second order meshes.
    Mesh *mesh;
    ifstream imesh(mesh_file);
    if (!imesh)
@@ -109,9 +108,9 @@ int main(int argc, char *argv[])
    }
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
-   //    this example we do 'ref_levels' of uniform refinement. We choose
-   //    'ref_levels' to be the largest number that gives a final mesh with no
-   //    more than 10,000 elements.
+   //    this example we do 'ser_ref_levels' of uniform refinement. By default,
+   //    or if ser_ref_levels < 0, we choose it to be the largest number that
+   //    gives a final mesh with no more than 50,000 elements.
    {
       if (ser_ref_levels < 0)
       {
@@ -163,8 +162,9 @@ int main(int argc, char *argv[])
    // 9. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
    //    domain integrator and the interior and boundary DG face integrators.
-   //    Note that boundary conditions are imposed weakly. After serial and
-   //    parallel assembly we extract the corresponding parallel matrix A.
+   //    Note that boundary conditions are imposed weakly in the form, so there
+   //    is no need for dof elimination. After serial and parallel assembly we
+   //    extract the corresponding parallel matrix A.
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddInteriorFaceIntegrator(new DGDiffusionIntegrator(one, sigma, kappa));
@@ -181,21 +181,20 @@ int main(int argc, char *argv[])
    delete a;
    delete b;
 
-   // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
-   //     preconditioner from hypre.
+   // 11. Depending on the symmetry of A, define and apply a parallel PCG or
+   //     GMRES solver for AX=B using the BoomerAMG preconditioner from hypre.
+   HypreSolver *amg = new HypreBoomerAMG(*A);
    if (sigma == -1.0)
    {
-      HypreBoomerAMG amg(*A);
       HyprePCG pcg(*A);
       pcg.SetTol(1e-12);
       pcg.SetMaxIter(200);
       pcg.SetPrintLevel(2);
-      pcg.SetPreconditioner(amg);
+      pcg.SetPreconditioner(*amg);
       pcg.Mult(*B, *X);
    }
    else
    {
-      HypreBoomerAMG amg(*A);
       GMRESSolver gmres(MPI_COMM_WORLD);
       gmres.SetAbsTol(0.0);
       gmres.SetRelTol(1e-12);
@@ -203,9 +202,10 @@ int main(int argc, char *argv[])
       gmres.SetKDim(10);
       gmres.SetPrintLevel(2);
       gmres.SetOperator(*A);
-      gmres.SetPreconditioner(amg);
+      gmres.SetPreconditioner(*amg);
       gmres.Mult(*B, *X);
    }
+   delete amg;
 
    // 12. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
