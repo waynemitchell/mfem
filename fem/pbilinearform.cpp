@@ -258,6 +258,8 @@ const
 
 HypreParMatrix* ParDiscreteLinearOperator::ParallelAssemble() const
 {
+   MFEM_ASSERT(mat, "matrix is not assembled");
+   MFEM_ASSERT(mat->Finalized(), "matrix is not finalized");
    SparseMatrix* RA = mfem::Mult(*range_fes->GetRestrictionMatrix(), *mat);
    HypreParMatrix* P = domain_fes->Dof_TrueDof_Matrix();
    HypreParMatrix* RAP = P->LeftDiagMult(*RA, range_fes->GetTrueDofOffsets());

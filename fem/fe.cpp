@@ -155,6 +155,25 @@ void NodalFiniteElement::NodalLocalInterpolation (
    }
 }
 
+void NodalFiniteElement::ProjectCurl_2D(
+   const FiniteElement &fe, ElementTransformation &Trans,
+   DenseMatrix &curl) const
+{
+   MFEM_ASSERT(GetMapType() == FiniteElement::INTEGRAL, "");
+
+   DenseMatrix curl_shape(fe.GetDof(), 1);
+
+   curl.SetSize(Dof, fe.GetDof());
+   for (int i = 0; i < Dof; i++)
+   {
+      fe.CalcCurlShape(Nodes.IntPoint(i), curl_shape);
+      for (int j = 0; j < fe.GetDof(); j++)
+      {
+         curl(i,j) = curl_shape(j,0);
+      }
+   }
+}
+
 void NodalFiniteElement::Project (
    Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
 {

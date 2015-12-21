@@ -203,6 +203,10 @@ protected:
                                  DenseMatrix &I,
                                  const NodalFiniteElement &fine_fe) const;
 
+   void ProjectCurl_2D(const FiniteElement &fe,
+                       ElementTransformation &Trans,
+                       DenseMatrix &curl) const;
+
 #ifndef MFEM_THREAD_SAFE
    mutable Vector c_shape;
 #endif
@@ -1501,6 +1505,10 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectCurl_2D(fe, Trans, curl); }
 };
 
 
@@ -1570,6 +1578,10 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectCurl_2D(fe, Trans, curl); }
 };
 
 
