@@ -251,6 +251,7 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
 
    if (Order < 0)
    {
+      MFEM_WARNING("Integration rule of order < 0 requested. Using order = 0.");
       Order = 0;
    }
 
