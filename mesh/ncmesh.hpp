@@ -535,14 +535,14 @@ protected: // implementation
        sets of elements and its complexity is linear in the number of leaf
        elements in the mesh. */
    void FindSetNeighbors(const Array<char> &elem_set,
-                         Array<Element*> *neighbors,
+                         Array<Element*> *neighbors, /* append */
                          Array<char> *neighbor_set = NULL);
 
    /** Return all vertex-, edge- and face-neighbors of a single element.
        You can limit the number of elements being checked using 'search_set'.
        The complexity of the function is linear in the size of the search set.*/
    void FindNeighbors(const Element* elem,
-                      Array<Element*> &neighbors,
+                      Array<Element*> &neighbors, /* append */
                       const Array<Element*> *search_set = NULL);
 
    /** Expand a set of elements by all vertex-, edge- and face-neighbors.

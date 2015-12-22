@@ -2201,7 +2201,6 @@ void NCMesh::FindNeighbors(const Element* elem,
 
    if (!search_set) { search_set = &leaf_elements; }
 
-   neighbors.SetSize(0);
    for (int i = 0; i < search_set->Size(); i++)
    {
       Element* testme = (*search_set)[i];

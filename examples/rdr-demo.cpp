@@ -241,10 +241,32 @@ int main(int argc, char *argv[])
       // derefine/rebalance
       for (int i = 0; i < levels; i++)
       {
+         {
+            Mesh dbg;
+            pmesh->pncmesh->GetDebugMesh(dbg);
+            dbg.ncmesh = NULL;
+
+            char name[100];
+            sprintf(name, "prev%03d.mesh", myid);
+            ofstream f(name);
+            dbg.Print(f);
+         }
+
          const Table &dtable = pmesh->GetDerefinementTable();
          Array<int> derefs;
          for (int i = 0; i < dtable.Size(); i++) { derefs.Append(i); }
          pmesh->NonconformingDerefinement(derefs);
+
+         {
+            Mesh dbg;
+            pmesh->pncmesh->GetDebugMesh(dbg);
+            dbg.ncmesh = NULL;
+
+            char name[100];
+            sprintf(name, "debug%03d.mesh", myid);
+            ofstream f(name);
+            dbg.Print(f);
+         }
 
          fespace->Update();
 
