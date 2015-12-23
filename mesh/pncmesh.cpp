@@ -898,11 +898,6 @@ void ParNCMesh::LimitNCLevel(int max_level)
 
 //// Rebalance /////////////////////////////////////////////////////////////////
 
-bool ParNCMesh::compare_ranks(const Element* a, const Element* b)
-{
-   return a->rank < b->rank;
-}
-
 void ParNCMesh::Rebalance()
 {
    send_rebalance_dofs.clear();
@@ -913,8 +908,7 @@ void ParNCMesh::Rebalance()
    Array<Element*> old_elements;
    leaf_elements.GetSubArray(0, NElements, old_elements);
 
-   // *** STEP 1: figure out new assigments for Element::rank ***
-
+   // figure out new assigments for Element::rank
    long local_elems = NElements, total_elems = 0;
    MPI_Allreduce(&local_elems, &total_elems, 1, MPI_LONG, MPI_SUM, MyComm);
 
@@ -936,7 +930,31 @@ void ParNCMesh::Rebalance()
    int target_elements = PartitionFirstIndex(MyRank+1, total_elems)
                          - PartitionFirstIndex(MyRank, total_elems);
 
-   // *** STEP 2: communicate new rank assignments for the ghost layer ***
+   // assign the new ranks and send elements (plus ghosts) to new owners
+   RedistributeElements(new_ranks, target_elements, true);
+
+   // set up the old index array
+   old_index_or_rank.SetSize(NElements);
+   old_index_or_rank = -1;
+   for (int i = 0; i < old_elements.Size(); i++)
+   {
+      Element* e = old_elements[i];
+      if (e->rank == MyRank) { old_index_or_rank[e->index] = i; }
+   }
+
+   Prune(); // get rid of stuff we don't need anymore
+}
+
+
+bool ParNCMesh::compare_ranks(const Element* a, const Element* b)
+{
+   return a->rank < b->rank;
+}
+
+void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
+                                     bool record_sends)
+{
+   // *** STEP 1: communicate new rank assignments for the ghost layer ***
 
    NeighborElementRankMessage::Map send_ghost_ranks, recv_ghost_ranks;
 
@@ -998,14 +1016,14 @@ void ParNCMesh::Rebalance()
 
    recv_ghost_ranks.clear();
 
-   // *** STEP 3: send elements that no longer belong to us to new assignees ***
+   // *** STEP 2: send elements that no longer belong to us to new assignees ***
 
    /* The result thus far is just the array 'new_ranks' containing new owners
       for elements that we currently own plus new owners for the ghost layer.
       Next we keep elements that still belong to us and send ElementSets with
       the remaining elements to their new owners. Each batch of elements needs
       to be sent together with their neighbors so the receiver also gets a
-      ghost layer that is up to date (this is why we needed Step 2). */
+      ghost layer that is up to date (this is why we needed Step 1). */
 
    int received_elements = 0;
    for (int i = 0; i < leaf_elements.Size(); i++)
@@ -1067,14 +1085,17 @@ void ParNCMesh::Rebalance()
 
             // also: record what elements we sent (excluding the ghosts)
             // so that SendRebalanceDofs can later send data for them
-            send_rebalance_dofs[rank].SetElements(rank_elems, this);
+            if (record_sends)
+            {
+               send_rebalance_dofs[rank].SetElements(rank_elems, this);
+            }
          }
 
          begin = end;
       }
    }
 
-   // *** STEP 4: receive elements from others ***
+   // *** STEP 3: receive elements from others ***
 
    /* We don't know from whom we're going to receive so we need to probe.
       Fortunately, we do know how many elements we're going to own eventually
@@ -1103,20 +1124,7 @@ void ParNCMesh::Rebalance()
       recv_rebalance_dofs[rank].SetNCMesh(this);
    }
 
-   // *** STEP 5: prune the new refinement tree, clean up ***
-
-   Update(); // update leaf_elements, NElements, etc.
-
-   // set up the old index array
-   old_index_or_rank.SetSize(NElements);
-   old_index_or_rank = -1;
-   for (int i = 0; i < old_elements.Size(); i++)
-   {
-      Element* e = old_elements[i];
-      if (e->rank == MyRank) { old_index_or_rank[e->index] = i; }
-   }
-
-   Prune(); // get rid of stuff we don't need anymore
+   Update();
 
    // make sure we can delete all send buffers
    NeighborElementRankMessage::WaitAllSent(send_ghost_ranks);

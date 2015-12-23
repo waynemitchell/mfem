@@ -438,6 +438,12 @@ protected:
       virtual void Decode();
    };
 
+   /** Assign new Element::rank to leaf elements and send them to their new
+       owners, keeping the ghost layer up to date. Used by Rebalance() and
+       Derefine(). */
+   void RedistributeElements(Array<int> &new_ranks, int target_elements,
+                             bool record_sends);
+
    /** Recorded communicaton pattern from last Rebalance. Used by
        Send/RecvRebalanceDofs to ship element DOFs. */
    RebalanceDofMessage::Map send_rebalance_dofs;
