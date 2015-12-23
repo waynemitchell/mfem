@@ -110,6 +110,7 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }
+   pmesh->ReorientTetMesh();
 
    // 6. Define the trial, interfacial (trace) and test DPG spaces:
    //    - The trial space, x0_space, contains the non-interfacial unknowns and
@@ -248,10 +249,25 @@ int main(int argc, char *argv[])
 
    HypreParMatrix *Shat = RAP(matSinv, matBhat);
 
-   HyprePCG *Shatinv = new HyprePCG(*Shat);
-   Shatinv->SetTol(1e-3);
-   Shatinv->SetMaxIter(200);
-   Shatinv->SetZeroInintialIterate();
+   HypreSolver *Shatinv;
+   if (dim == 2)
+   {
+      ND_Trace_FECollection nd_tr_fec(trace_order+1, dim);
+      ParFiniteElementSpace nd_tr_space(pmesh, &nd_tr_fec);
+      Shatinv = new HypreAMS(*Shat, &nd_tr_space);
+   }
+   else
+   {
+#if 0
+      HyprePCG *Shat_pcg = new HyprePCG(*Shat);
+      Shat_pcg->SetTol(1e-3);
+      Shat_pcg->SetMaxIter(200);
+      Shat_pcg->SetZeroInintialIterate();
+      Shatinv = Shat_pcg;
+#else
+      Shatinv = new HypreADS(*Shat, xhat_space);
+#endif
+   }
 
    BlockDiagonalPreconditioner P(true_offsets);
    P.SetDiagonalBlock(0, S0inv);

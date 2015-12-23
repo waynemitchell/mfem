@@ -1637,9 +1637,13 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
 
    if (dim >= 1)
    {
+#if 0
       L2_SegmentElement *l2_seg = new L2_SegmentElement(p-1);
       l2_seg->SetMapType(FiniteElement::INTEGRAL);
       ND_Elements[Geometry::SEGMENT] = l2_seg;
+#else
+      ND_Elements[Geometry::SEGMENT] = new ND_SegmentElement(p);
+#endif
       ND_dof[Geometry::SEGMENT] = p;
 
       SegDofOrd[0] = new int[2*p];

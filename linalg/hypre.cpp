@@ -2392,12 +2392,23 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    int amg_interp_type  = 6;
    int amg_Pmax         = 4;
 
+   int dim = edge_fespace->GetMesh()->Dimension();
+   const FiniteElementCollection *edge_fec = edge_fespace->FEColl();
+   bool trace_space =
+      (dynamic_cast<const ND_Trace_FECollection*>(edge_fec) != NULL);
    int p = 1;
    if (edge_fespace->GetNE() > 0)
    {
-      p = edge_fespace->GetOrder(0);
+      if (trace_space)
+      {
+         p = edge_fespace->GetFaceOrder(0);
+         if (dim == 2) { p++; }
+      }
+      else
+      {
+         p = edge_fespace->GetOrder(0);
+      }
    }
-   int dim = edge_fespace->GetMesh()->Dimension();
 
    HYPRE_AMSCreate(&ams);
 
@@ -2409,7 +2420,15 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
 
    // define the nodal linear finite element space associated with edge_fespace
    ParMesh *pmesh = edge_fespace->GetParMesh();
-   FiniteElementCollection *vert_fec = new H1_FECollection(p, dim);
+   FiniteElementCollection *vert_fec;
+   if (trace_space)
+   {
+      vert_fec = new H1_Trace_FECollection(p, dim);
+   }
+   else
+   {
+      vert_fec = new H1_FECollection(p, dim);
+   }
    ParFiniteElementSpace *vert_fespace = new ParFiniteElementSpace(pmesh,
                                                                    vert_fec);
 
@@ -2450,7 +2469,14 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    // generate and set the discrete gradient
    ParDiscreteLinearOperator *grad;
    grad = new ParDiscreteLinearOperator(vert_fespace, edge_fespace);
-   grad->AddDomainInterpolator(new GradientInterpolator);
+   if (trace_space)
+   {
+      grad->AddTraceFaceInterpolator(new GradientInterpolator);
+   }
+   else
+   {
+      grad->AddDomainInterpolator(new GradientInterpolator);
+   }
    grad->Assemble();
    grad->Finalize();
    G = grad->ParallelAssemble();
@@ -2466,7 +2492,14 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
 
       ParDiscreteLinearOperator *id_ND;
       id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
-      id_ND->AddDomainInterpolator(new IdentityInterpolator);
+      if (trace_space)
+      {
+         id_ND->AddTraceFaceInterpolator(new IdentityInterpolator);
+      }
+      else
+      {
+         id_ND->AddDomainInterpolator(new IdentityInterpolator);
+      }
       id_ND->Assemble();
       id_ND->Finalize();
 
@@ -2541,10 +2574,20 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    int amg_Pmax         = 4;
    int ams_cycle_type   = 14;
 
+   const FiniteElementCollection *face_fec = face_fespace->FEColl();
+   bool trace_space =
+      (dynamic_cast<const RT_Trace_FECollection*>(face_fec) != NULL);
    int p = 1;
    if (face_fespace->GetNE() > 0)
    {
-      p = face_fespace->GetOrder(0);
+      if (trace_space)
+      {
+         p = face_fespace->GetFaceOrder(0) + 1;
+      }
+      else
+      {
+         p = face_fespace->GetOrder(0);
+      }
    }
 
    HYPRE_ADSCreate(&ads);
@@ -2556,10 +2599,20 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
 
    // define the nodal and edge finite element spaces associated with face_fespace
    ParMesh *pmesh = (ParMesh *) face_fespace->GetMesh();
-   FiniteElementCollection *vert_fec   = new H1_FECollection(p, 3);
+   FiniteElementCollection *vert_fec, *edge_fec;
+   if (trace_space)
+   {
+      vert_fec = new H1_Trace_FECollection(p, 3);
+      edge_fec = new ND_Trace_FECollection(p, 3);
+   }
+   else
+   {
+      vert_fec = new H1_FECollection(p, 3);
+      edge_fec = new ND_FECollection(p, 3);
+   }
+
    ParFiniteElementSpace *vert_fespace = new ParFiniteElementSpace(pmesh,
                                                                    vert_fec);
-   FiniteElementCollection *edge_fec   = new ND_FECollection(p, 3);
    ParFiniteElementSpace *edge_fespace = new ParFiniteElementSpace(pmesh,
                                                                    edge_fec);
 
@@ -2592,7 +2645,14 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    // generate and set the discrete curl
    ParDiscreteLinearOperator *curl;
    curl = new ParDiscreteLinearOperator(edge_fespace, face_fespace);
-   curl->AddDomainInterpolator(new CurlInterpolator);
+   if (trace_space)
+   {
+      curl->AddTraceFaceInterpolator(new CurlInterpolator);
+   }
+   else
+   {
+      curl->AddDomainInterpolator(new CurlInterpolator);
+   }
    curl->Assemble();
    curl->Finalize();
    C = curl->ParallelAssemble();
@@ -2603,7 +2663,14 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    // generate and set the discrete gradient
    ParDiscreteLinearOperator *grad;
    grad = new ParDiscreteLinearOperator(vert_fespace, edge_fespace);
-   grad->AddDomainInterpolator(new GradientInterpolator);
+   if (trace_space)
+   {
+      grad->AddTraceFaceInterpolator(new GradientInterpolator);
+   }
+   else
+   {
+      grad->AddDomainInterpolator(new GradientInterpolator);
+   }
    grad->Assemble();
    grad->Finalize();
    G = grad->ParallelAssemble();
@@ -2622,7 +2689,14 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
 
       ParDiscreteLinearOperator *id_ND;
       id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
-      id_ND->AddDomainInterpolator(new IdentityInterpolator);
+      if (trace_space)
+      {
+         id_ND->AddTraceFaceInterpolator(new IdentityInterpolator);
+      }
+      else
+      {
+         id_ND->AddDomainInterpolator(new IdentityInterpolator);
+      }
       id_ND->Assemble();
       id_ND->Finalize();
 
@@ -2645,7 +2719,14 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
 
       ParDiscreteLinearOperator *id_RT;
       id_RT = new ParDiscreteLinearOperator(vert_fespace_d, face_fespace);
-      id_RT->AddDomainInterpolator(new IdentityInterpolator);
+      if (trace_space)
+      {
+         id_RT->AddTraceFaceInterpolator(new IdentityInterpolator);
+      }
+      else
+      {
+         id_RT->AddDomainInterpolator(new IdentityInterpolator);
+      }
       id_RT->Assemble();
       id_RT->Finalize();
 

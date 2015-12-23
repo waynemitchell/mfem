@@ -1962,6 +1962,40 @@ public:
 };
 
 
+class ND_SegmentElement : public VectorFiniteElement
+{
+   static const double tk[1];
+
+   Poly_1D::Basis &obasis1d;
+   Array<int> dof2tk;
+
+public:
+   ND_SegmentElement(const int p);
+   virtual void CalcVShape(const IntegrationPoint &ip,
+                           DenseMatrix &shape) const;
+   virtual void CalcVShape(ElementTransformation &Trans,
+                           DenseMatrix &shape) const
+   { CalcVShape_ND(Trans, shape); }
+   // virtual void CalcCurlShape(const IntegrationPoint &ip,
+   //                            DenseMatrix &curl_shape) const;
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const
+   { LocalInterpolation_ND(tk, dof2tk, Trans, I); }
+   using FiniteElement::Project;
+   virtual void Project(VectorCoefficient &vc,
+                        ElementTransformation &Trans, Vector &dofs) const
+   { Project_ND(tk, dof2tk, vc, Trans, dofs); }
+   virtual void Project(const FiniteElement &fe,
+                        ElementTransformation &Trans,
+                        DenseMatrix &I) const
+   { Project_ND(tk, dof2tk, fe, Trans, I); }
+   virtual void ProjectGrad(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &grad) const
+   { ProjectGrad_ND(tk, dof2tk, fe, Trans, grad); }
+};
+
+
 class NURBSFiniteElement : public FiniteElement
 {
 protected:
