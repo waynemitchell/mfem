@@ -695,10 +695,6 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    MFEM_VERIFY(Dim < 3 || Iso,
                "derefinement of 3D anisotropic meshes not implemented yet.");
 
-   NeighborDerefinementMessage::Map send_deref;
-
-   Array<Element*> ghost_update;
-
    InitDerefTransforms();
 
    // store fine element ranks
@@ -707,6 +703,52 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    {
       old_index_or_rank[i] = leaf_elements[i]->rank;
    }
+
+   // back up the leaf_elements array
+   Array<Element*> old_elements;
+   leaf_elements.Copy(old_elements);
+
+   // new_ranks will be used for redistributing elements between processors
+   Array<int> new_ranks(leaf_elements.Size());
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      new_ranks[i] = leaf_elements[i]->rank;
+   }
+
+   // make the lowest rank get all the fine elements for each derefinement
+   for (int i = 0; i < derefs.Size(); i++)
+   {
+      int row = derefs[i];
+      MFEM_VERIFY(row >= 0 && row < derefinements.Size(),
+                  "invalid derefinement number.");
+
+      const int* fine = derefinements.GetRow(row);
+      int size = derefinements.RowSize(row);
+
+      int coarse_rank = INT_MAX;
+      for (int j = 0; j < size; j++)
+      {
+         int fine_rank = leaf_elements[fine[j]]->rank;
+         coarse_rank = std::min(coarse_rank, fine_rank);
+      }
+      for (int j = 0; j < size; j++)
+      {
+         new_ranks[fine[j]] = coarse_rank;
+      }
+   }
+
+   int target_elements = 0;
+   for (int i = 0; i < new_ranks.Size(); i++)
+   {
+      if (new_ranks[i] == MyRank) { target_elements++; }
+   }
+
+   // redistribute elements slightly to get rid of complex refinements
+   // straddling processor boundaries, and update the ghost layer
+   RedistributeElements(new_ranks, target_elements, false);
+
+   // now we can start with the actual derefinement...
+   NeighborDerefinementMessage::Map send_deref;
 
    // create derefinement messages to all neighbors (NOTE: some may be empty)
    Array<int> neighbors;
@@ -723,46 +765,25 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    for (int i = 0; i < derefs.Size(); i++)
    {
       int row = derefs[i];
-      MFEM_VERIFY(row >= 0 && row < derefinements.Size(),
-                  "invalid derefinement number.");
-
       const int* fine = derefinements.GetRow(row);
-      Element* parent = leaf_elements[fine[0]]->parent;
-
-      // determine the owner of the new coarse element
-      int new_rank = INT_MAX, max_rank = INT_MIN;
-      for (int j = 0; j < derefinements.RowSize(row); j++)
-      {
-         int fine_rank = leaf_elements[fine[j]]->rank;
-         new_rank = std::min(new_rank, fine_rank);
-         max_rank = std::max(max_rank, fine_rank);
-      }
-      bool is_complex = (new_rank != max_rank);
-
-      // complex derefinements involving multiple ranks need extra handling
-      if (is_complex)
-      {
-         ghost_update.Append(parent);
-         new_rank = -1 - new_rank;
-      }
+      Element* parent = old_elements[fine[0]]->parent;
 
       // send derefinement to neighbors
       ElementNeighborProcessors(parent, ranks);
       for (int j = 0; j < ranks.Size(); j++)
       {
-         //int value = (new_rank >= 0) ? new_rank : -1 - new_rank;
-         send_deref[ranks[j]].AddDerefinement(parent, new_rank);
+         send_deref[ranks[j]].AddDerefinement(parent, new_ranks[fine[0]]);
       }
    }
    NeighborDerefinementMessage::IsendAll(send_deref, MyComm);
 
    // do local derefinements
    Array<Element*> coarse;
-   leaf_elements.Copy(coarse);
+   old_elements.Copy(coarse);
    for (int i = 0; i < derefs.Size(); i++)
    {
       const int* fine = derefinements.GetRow(derefs[i]);
-      Element* parent = leaf_elements[fine[0]]->parent;
+      Element* parent = old_elements[fine[0]]->parent;
 
       // record the relation of the fine elements to their parent
       SetDerefMatrixCodes(parent, coarse);
@@ -770,7 +791,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       NCMesh::DerefineElement(parent);
    }
 
-   // receive (ghost layer) derefinements from all neighbors
+   // receive ghost layer derefinements from all neighbors
    for (int j = 0; j < neighbors.Size(); j++)
    {
       int rank, size;
@@ -784,68 +805,16 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       for (int i = 0; i < msg.Size(); i++)
       {
          Element* elem = msg.elements[i];
-         int new_rank = msg.values[i];
-
-         //bool is_complex = false;
-         if (new_rank < 0)
-         {
-            new_rank = -1 - new_rank;
-            //is_complex = true;
-            ghost_update.Append(elem);
-         }
-
          if (elem->ref_type)
          {
             SetDerefMatrixCodes(elem, coarse);
             NCMesh::DerefineElement(elem);
          }
-         elem->rank = new_rank;
+         elem->rank = msg.values[i];
       }
    }
 
    Update();
-
-   // For complex derefinements that straddle processor boundaries (fortunately
-   // there's few of them), the owner of the new coarse element needs to
-   // receive some ghost elements since the owner's region in the mesh just
-   // grew larger.
-   RebalanceMessage::Map send_ghosts;
-   RebalanceMessage::Map recv_ghosts;
-
-   ghost_update.Sort();
-   ghost_update.Unique();
-
-   if (ghost_update.Size()) { UpdateLayers(); }
-
-   Array<Element*> neighbor_elems;
-   for (int i = 0; i < ghost_update.Size(); i++)
-   {
-      Element* elem = ghost_update[i];
-      if (elem->rank != MyRank)
-      {
-         // send neighbors of the coarse 'elem' to its new owner
-         neighbor_elems.SetSize(0);
-         FindNeighbors(elem, neighbor_elems, &boundary_layer);
-         FindNeighbors(elem, neighbor_elems, &ghost_layer);
-
-         RebalanceMessage &msg = send_ghosts[elem->rank];
-         for (int j = 0; j < neighbor_elems.Size(); j++)
-         {
-            Element* neighbor = neighbor_elems[j];
-            msg.AddElementRank(neighbor, neighbor->rank);
-         }
-         msg.SetNCMesh(this);
-      }
-      else
-      {
-         ElementNeighborProcessors(elem, ranks);
-         for (int j = 0; j < ranks.Size(); j++)
-         {
-            recv_ghosts[ranks[j]].SetNCMesh(this);
-         }
-      }
-   }
-   RebalanceMessage::IsendAll(send_ghosts, MyComm);
 
    // link old fine elements to the new coarse elements
    for (int i = 0; i < coarse.Size(); i++)
@@ -853,36 +822,8 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       transforms.fine_coarse[i].coarse_element = coarse[i]->index;
    }
 
-   // receive new ghosts
-   if (recv_ghosts.size())
-   {
-      RebalanceMessage::RecvAll(recv_ghosts, MyComm);
-
-      for (RebalanceMessage::Map::iterator
-           it = recv_ghosts.begin(); it != recv_ghosts.end(); ++it)
-      {
-         RebalanceMessage &msg = it->second;
-         for (int i = 0; i < msg.Size(); i++)
-         {
-            DerefineElement(msg.elements[i]);
-            msg.elements[i]->rank = msg.values[i];
-         }
-      }
-
-      // update and renumber indices in transforms.fine_coarse
-      leaf_elements.Copy(coarse);
-      Update();
-
-      for (int i = 0; i < transforms.fine_coarse.Size(); i++)
-      {
-         int &index = transforms.fine_coarse[i].coarse_element;
-         index = coarse[index]->index;
-      }
-   }
-
    // make sure we can delete all send buffers
    NeighborDerefinementMessage::WaitAllSent(send_deref);
-   NeighborDerefinementMessage::WaitAllSent(send_ghosts);
 }
 
 
@@ -902,8 +843,6 @@ void ParNCMesh::Rebalance()
 {
    send_rebalance_dofs.clear();
    recv_rebalance_dofs.clear();
-
-   UpdateLayers();
 
    Array<Element*> old_elements;
    leaf_elements.GetSubArray(0, NElements, old_elements);
@@ -954,6 +893,8 @@ bool ParNCMesh::compare_ranks(const Element* a, const Element* b)
 void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
                                      bool record_sends)
 {
+   UpdateLayers();
+
    // *** STEP 1: communicate new rank assignments for the ghost layer ***
 
    NeighborElementRankMessage::Map send_ghost_ranks, recv_ghost_ranks;
