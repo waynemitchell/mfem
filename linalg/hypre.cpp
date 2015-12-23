@@ -2721,7 +2721,8 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
       id_RT = new ParDiscreteLinearOperator(vert_fespace_d, face_fespace);
       if (trace_space)
       {
-         id_RT->AddTraceFaceInterpolator(new IdentityInterpolator);
+         // id_RT->AddTraceFaceInterpolator(new IdentityInterpolator);
+         id_RT->AddTraceFaceInterpolator(new NormalInterpolator);
       }
       else
       {

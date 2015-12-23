@@ -736,6 +736,16 @@ public:
    { ran_fe.ProjectDiv(dom_fe, Trans, elmat); }
 };
 
+
+class NormalInterpolator : public DiscreteInterpolator
+{
+public:
+   virtual void AssembleElementMatrix2(const FiniteElement &dom_fe,
+                                       const FiniteElement &ran_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
+};
+
 }
 
 #endif
