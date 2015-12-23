@@ -122,6 +122,10 @@ int main(int argc, char *argv[])
    int trial_order = order;
    int trace_order = order - 1;
    int test_order  = order; // reduced order, full order is (order + dim - 1)
+   if (dim == 2 && (order%2 == 0 || (pmesh->MeshGenerator() & 2 && order > 1)))
+   {
+      test_order++;
+   }
    if (test_order < trial_order)
       if (myid == 0)
          cerr << "Warning, test space not enriched enough to handle primal"
@@ -145,9 +149,12 @@ int main(int argc, char *argv[])
    if (myid == 0)
    {
       cout << "\nNumber of Unknowns:\n"
-           << " Trial space,     X0   : " << glob_true_s0 << '\n'
-           << " Interface space, Xhat : " << glob_true_s1 << '\n'
-           << " Test space,      Y    : " << glob_true_s_test << "\n\n";
+           << " Trial space,     X0   : " << glob_true_s0
+           << " (order " << trial_order << ")\n"
+           << " Interface space, Xhat : " << glob_true_s1
+           << " (order " << trace_order << ")\n"
+           << " Test space,      Y    : " << glob_true_s_test
+           << " (order " << test_order << ")\n\n";
    }
 
    // 7. Set up the linear form F(.) which corresponds to the right-hand side of
