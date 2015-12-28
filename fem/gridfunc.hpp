@@ -155,6 +155,9 @@ public:
 
    void ProjectCoefficient(VectorCoefficient &vcoeff);
 
+   // call fes -> BuildDofToArrays() before using this projection
+   void ProjectCoefficient(VectorCoefficient &vcoeff, Array<int> &dofs);
+
    void ProjectCoefficient(Coefficient *coeff[]);
 
    /** Project a discontinuous vector coefficient as a grid function on a

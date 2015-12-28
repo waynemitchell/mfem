@@ -1151,6 +1151,36 @@ void GridFunction::ProjectCoefficient(VectorCoefficient &vcoeff)
    }
 }
 
+void GridFunction::ProjectCoefficient(
+   VectorCoefficient &vcoeff, Array<int> &dofs)
+{
+   int el = -1;
+   ElementTransformation *T = NULL;
+   const FiniteElement *fe = NULL;
+
+   Vector val;
+
+   for (int i = 0; i < dofs.Size(); i++)
+   {
+      int dof = dofs[i], j = fes->GetElementForDof(dof);
+      if (el != j)
+      {
+         el = j;
+         T = fes->GetElementTransformation(el);
+         fe = fes->GetFE(el);
+      }
+      int ld = fes->GetLocalDofForDof(dof);
+      const IntegrationPoint &ip = fe->GetNodes().IntPoint(ld);
+      T->SetIntPoint(&ip);
+      vcoeff.Eval(val, *T, ip);
+      for (int vd = 0; vd < fes->GetVDim(); vd ++)
+      {
+        int vdof = fes->DofToVDof(dof, vd);
+        (*this)(vdof) = val(vd);
+      }
+   }
+}
+
 void GridFunction::ProjectCoefficient(Coefficient *coeff[])
 {
    int i, j, fdof, d, ind, vdim;
