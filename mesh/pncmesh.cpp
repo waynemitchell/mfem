@@ -492,6 +492,7 @@ void ParNCMesh::UpdateLayers()
       }
       else if (!etype)
       {
+         // rank of elements beyond the ghost layer is uknown
          leaf_elements[i]->rank = -1;
       }
    }
@@ -708,7 +709,8 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    Array<Element*> old_elements;
    leaf_elements.Copy(old_elements);
 
-   // new_ranks will be used for redistributing elements between processors
+   // *** STEP 1: redistribute elements to avoid complex derefinements ***
+
    Array<int> new_ranks(leaf_elements.Size());
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
@@ -743,11 +745,12 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       if (new_ranks[i] == MyRank) { target_elements++; }
    }
 
-   // redistribute elements slightly to get rid of complex refinements
-   // straddling processor boundaries, and update the ghost layer
+   // redistribute elements slightly to get rid of complex derefinements
+   // straddling processor boundaries; *and* update the ghost layer
    RedistributeElements(new_ranks, target_elements, false);
 
-   // now we can start with the actual derefinement...
+   // *** STEP 2: derefine now, communication similar to Refine() ***
+
    NeighborDerefinementMessage::Map send_deref;
 
    // create derefinement messages to all neighbors (NOTE: some may be empty)
@@ -764,8 +767,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    ranks.Reserve(64);
    for (int i = 0; i < derefs.Size(); i++)
    {
-      int row = derefs[i];
-      const int* fine = derefinements.GetRow(row);
+      const int* fine = derefinements.GetRow(derefs[i]);
       Element* parent = old_elements[fine[0]]->parent;
 
       // send derefinement to neighbors
@@ -776,6 +778,16 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       }
    }
    NeighborDerefinementMessage::IsendAll(send_deref, MyComm);
+
+   // restore old (pre-redistribution) element indices, for SetDerefMatrixCodes
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      leaf_elements[i]->index = -1;
+   }
+   for (int i = 0; i < old_elements.Size(); i++)
+   {
+      old_elements[i]->index = i;
+   }
 
    // do local derefinements
    Array<Element*> coarse;
@@ -814,6 +826,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
       }
    }
 
+   // update leaf_elements, Element::index etc.
    Update();
 
    // link old fine elements to the new coarse elements
@@ -821,6 +834,8 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    {
       transforms.fine_coarse[i].coarse_element = coarse[i]->index;
    }
+
+   Prune();
 
    // make sure we can delete all send buffers
    NeighborDerefinementMessage::WaitAllSent(send_deref);
@@ -881,7 +896,8 @@ void ParNCMesh::Rebalance()
       if (e->rank == MyRank) { old_index_or_rank[e->index] = i; }
    }
 
-   Prune(); // get rid of stuff we don't need anymore
+   // get rid of elements beyond the new ghost layer
+   Prune();
 }
 
 
@@ -891,7 +907,7 @@ bool ParNCMesh::compare_ranks(const Element* a, const Element* b)
 }
 
 void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
-                                     bool record_sends)
+                                     bool record_comm)
 {
    UpdateLayers();
 
@@ -1026,7 +1042,7 @@ void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
 
             // also: record what elements we sent (excluding the ghosts)
             // so that SendRebalanceDofs can later send data for them
-            if (record_sends)
+            if (record_comm)
             {
                send_rebalance_dofs[rank].SetElements(rank_elems, this);
             }
@@ -1062,7 +1078,10 @@ void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
       }
 
       // save the ranks we received from for later use in RecvRebalanceDofs
-      recv_rebalance_dofs[rank].SetNCMesh(this);
+      if (record_comm)
+      {
+         recv_rebalance_dofs[rank].SetNCMesh(this);
+      }
    }
 
    Update();

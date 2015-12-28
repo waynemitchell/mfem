@@ -43,6 +43,7 @@ void Visualize(socketstream &sout, ParMesh &mesh, ParGridFunction &x, bool pause
       }
 #endif
    }
+   MPI_Barrier(MPI_COMM_WORLD);
 }
 
 
