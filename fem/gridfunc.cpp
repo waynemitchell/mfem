@@ -1175,8 +1175,8 @@ void GridFunction::ProjectCoefficient(
       vcoeff.Eval(val, *T, ip);
       for (int vd = 0; vd < fes->GetVDim(); vd ++)
       {
-        int vdof = fes->DofToVDof(dof, vd);
-        (*this)(vdof) = val(vd);
+         int vdof = fes->DofToVDof(dof, vd);
+         (*this)(vdof) = val(vd);
       }
    }
 }
