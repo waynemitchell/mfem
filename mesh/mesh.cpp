@@ -4610,12 +4610,21 @@ void Mesh::AddSegmentFaceElement(int lf, int gf, int el, int v0, int v1)
    }
    else  //  this will be elem2
    {
-#ifdef MFEM_DEBUG
       int *v = faces[gf]->GetVertices();
-      MFEM_ASSERT(v[1] == v0 && v[0] == v1, "");
-#endif
       faces_info[gf].Elem2No  = el;
-      faces_info[gf].Elem2Inf = 64 * lf + 1;
+      if ( v[1] == v0 && v[0] == v1 )
+      {
+	faces_info[gf].Elem2Inf = 64 * lf + 1;
+      }
+      else if ( v[0] == v0 && v[1] == v1 )
+      {
+	faces_info[gf].Elem2Inf = 64 * lf;
+      }
+      else
+      {
+	MFEM_ASSERT((v[1] == v0 && v[0] == v1)||
+		    (v[0] == v0 && v[1] == v1), "");
+      }
    }
 }
 
