@@ -716,9 +716,11 @@ public:
        defined or NULL if the mesh does not have nodes. */
    const FiniteElementSpace *GetNodalFESpace();
 
-   /** If 'NURBSext' exists, project the NURBS curvature to Nodes of the given
-       order and get rid of the NURBS extension. */
-   void ProjectNURBS(int order);
+   /** Set the curvature of the mesh nodes using the given polynomial degree,
+       'order', and optionally: discontinuous or continuous FE space, 'discont',
+       new space dimension, 'space_dim' (if != -1), and 'ordering'. */
+   void SetCurvature(int order, bool discont = false, int space_dim = -1,
+                     int ordering = 1);
 
    /** Refine all mesh elements. */
    void UniformRefinement();
@@ -827,6 +829,9 @@ public:
 
    void Transform(void (*f)(const Vector&, Vector&));
    void Transform(VectorCoefficient &deformation);
+
+   /// Remove unused vertices and rebuild mesh connectivity.
+   void RemoveUnusedVertices();
 
    /** Get the size of the i-th element relative to the perfect
        reference element. */

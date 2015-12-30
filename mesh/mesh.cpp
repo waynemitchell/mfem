@@ -3733,15 +3733,23 @@ const FiniteElementSpace *Mesh::GetNodalFESpace()
    return ((Nodes) ? Nodes->FESpace() : NULL);
 }
 
-void Mesh::ProjectNURBS(int order)
+void Mesh::SetCurvature(int order, bool discont, int space_dim, int ordering)
 {
-   if (NURBSext)
+   space_dim = (space_dim == -1) ? spaceDim : space_dim;
+   FiniteElementCollection* nfec;
+   if (discont)
    {
-      FiniteElementCollection* nfec = new H1_FECollection(order, Dim);
-      FiniteElementSpace* nfes = new FiniteElementSpace(this, nfec, Dim);
-      SetNodalFESpace(nfes);
-      Nodes->MakeOwner(nfec);
+      const int type = 1; // Gauss-Lobatto points
+      nfec = new L2_FECollection(order, Dim, type);
    }
+   else
+   {
+      nfec = new H1_FECollection(order, Dim);
+   }
+   FiniteElementSpace* nfes = new FiniteElementSpace(this, nfec, space_dim,
+                                                     ordering);
+   SetNodalFESpace(nfes);
+   Nodes->MakeOwner(nfec);
 }
 
 int Mesh::GetNumFaces() const
@@ -9537,6 +9545,7 @@ void Mesh::Transform(void (*f)(const Vector&, Vector&))
       *Nodes = xnew;
    }
 }
+
 void Mesh::Transform(VectorCoefficient &deformation)
 {
    MFEM_VERIFY(spaceDim == deformation.GetVDim(),
@@ -9558,6 +9567,115 @@ void Mesh::Transform(VectorCoefficient &deformation)
       GridFunction xnew(Nodes->FESpace());
       xnew.ProjectCoefficient(deformation);
       *Nodes = xnew;
+   }
+}
+
+void Mesh::RemoveUnusedVertices()
+{
+   if (NURBSext || ncmesh) { return; }
+
+   SetState(Mesh::NORMAL);
+
+   Array<int> v2v(GetNV());
+   v2v = -1;
+   for (int i = 0; i < GetNE(); i++)
+   {
+      Element *el = GetElement(i);
+      int nv = el->GetNVertices();
+      int *v = el->GetVertices();
+      for (int j = 0; j < nv; j++)
+      {
+         v2v[v[j]] = 0;
+      }
+   }
+   for (int i = 0; i < GetNBE(); i++)
+   {
+      Element *el = GetBdrElement(i);
+      int *v = el->GetVertices();
+      int nv = el->GetNVertices();
+      for (int j = 0; j < nv; j++)
+      {
+         v2v[v[j]] = 0;
+      }
+   }
+   int num_vert = 0;
+   for (int i = 0; i < v2v.Size(); i++)
+   {
+      if (v2v[i] == 0)
+      {
+         vertices[num_vert] = vertices[i];
+         v2v[i] = num_vert++;
+      }
+   }
+
+   if (num_vert == v2v.Size()) { return; }
+
+   Vector nodes_by_element;
+   Array<int> vdofs;
+   if (Nodes)
+   {
+      int s = 0;
+      for (int i = 0; i < GetNE(); i++)
+      {
+         Nodes->FESpace()->GetElementVDofs(i, vdofs);
+         s += vdofs.Size();
+      }
+      nodes_by_element.SetSize(s);
+      s = 0;
+      for (int i = 0; i < GetNE(); i++)
+      {
+         Nodes->FESpace()->GetElementVDofs(i, vdofs);
+         Nodes->GetSubVector(vdofs, &nodes_by_element(s));
+         s += vdofs.Size();
+      }
+   }
+   vertices.SetSize(num_vert);
+   NumOfVertices = num_vert;
+   for (int i = 0; i < GetNE(); i++)
+   {
+      Element *el = GetElement(i);
+      int *v = el->GetVertices();
+      int nv = el->GetNVertices();
+      for (int j = 0; j < nv; j++)
+      {
+         v[j] = v2v[v[j]];
+      }
+   }
+   for (int i = 0; i < GetNBE(); i++)
+   {
+      Element *el = GetBdrElement(i);
+      int *v = el->GetVertices();
+      int nv = el->GetNVertices();
+      for (int j = 0; j < nv; j++)
+      {
+         v[j] = v2v[v[j]];
+      }
+   }
+   DeleteTables();
+   if (Dim > 1)
+   {
+      // generate el_to_edge, be_to_edge (2D), bel_to_edge (3D)
+      el_to_edge = new Table;
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
+   if (Dim > 2)
+   {
+      // generate el_to_face, be_to_face
+      GetElementToFaceTable();
+   }
+   // Update faces and faces_info
+   GenerateFaces();
+   if (Nodes)
+   {
+      Nodes->FESpace()->Update();
+      Nodes->Update();
+      int s = 0;
+      for (int i = 0; i < GetNE(); i++)
+      {
+         Nodes->FESpace()->GetElementVDofs(i, vdofs);
+         Nodes->SetSubVector(vdofs, &nodes_by_element(s));
+         s += vdofs.Size();
+      }
    }
 }
 

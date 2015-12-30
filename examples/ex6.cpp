@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
       {
          mesh.UniformRefinement();
       }
-      mesh.ProjectNURBS(2);
+      mesh.SetCurvature(2);
    }
 
    // 4. Define a finite element space on the mesh. The polynomial order is
