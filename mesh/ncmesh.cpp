@@ -1476,7 +1476,7 @@ void NCMesh::CollectLeafElements(Element* elem, int state)
 {
    if (!elem->ref_type)
    {
-      if (elem->rank >= 0)
+      if (elem->rank >= 0) // skip elements beyond ghost layer in parallel
       {
          leaf_elements.Append(elem);
       }
@@ -1520,7 +1520,8 @@ void NCMesh::UpdateLeafElements()
    {
       CollectLeafElements(root_elements[i], 0);
       // TODO: root state should not always be 0, we need a precomputed array
-      // with root element states to ensure continuity where possible
+      // with root element states to ensure continuity where possible, also
+      // optimized ordering of the root elements themselves (Gecko?)
    }
    AssignLeafIndices();
 }

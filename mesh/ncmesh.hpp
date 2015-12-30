@@ -403,6 +403,10 @@ protected: // implementation
       Element(const Element& other) { std::memcpy(this, &other, sizeof(*this)); }
    };
 
+   // TODO: use MemAlloc or similar to store Element, Face, Node, etc., replace
+   // most pointers with indices (ints) into the allocators to save memory;
+   // ref_count and attributes could be chars
+
    Array<Element*> root_elements; // coarsest mesh, initialized by constructor
 
    HashTable<Node> nodes; // associative container holding all Nodes
@@ -709,7 +713,7 @@ public:
    void DebugLeafOrder() const;
 #endif
 
-   friend class ParNCMesh;
+   friend class ParNCMesh/*::ElementSet*/;
 };
 
 }
