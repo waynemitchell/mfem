@@ -490,11 +490,6 @@ void ParNCMesh::UpdateLayers()
          etype = 3;
          boundary_layer.Append(leaf_elements[i]);
       }
-      else if (!etype)
-      {
-         // rank of elements beyond the ghost layer is uknown
-         leaf_elements[i]->rank = -1;
-      }
    }
 }
 
@@ -592,7 +587,7 @@ bool ParNCMesh::PruneTree(Element* elem)
    else
    {
       // return true if this leaf can be removed
-      return elem->rank < 0; // (see UpdateLayers)
+      return elem->rank < 0;
    }
 }
 
@@ -605,6 +600,17 @@ void ParNCMesh::Prune()
    }
 
    UpdateLayers();
+
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      // rank of elements beyond the ghost layer is uknown / not updated
+      if (element_type[i] == 0)
+      {
+         leaf_elements[i]->rank = -1;
+         // NOTE: rank == -1 will make the element disappear from leaf_elements
+         // on next Update, see NCMesh::CollectLeafElements
+      }
+   }
 
    // derefine subtrees whose leaves are all unneeded
    for (int i = 0; i < root_elements.Size(); i++)
@@ -829,13 +835,33 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    // update leaf_elements, Element::index etc.
    Update();
 
+   UpdateLayers();
+
    // link old fine elements to the new coarse elements
    for (int i = 0; i < coarse.Size(); i++)
    {
-      transforms.fine_coarse[i].coarse_element = coarse[i]->index;
+      int index = coarse[i]->index;
+      if (element_type[index] == 0)
+      {
+         // this coarse element will get pruned, encode who owns it now
+         index = -1 - coarse[i]->rank;
+      }
+      transforms.fine_coarse[i].coarse_element = index;
    }
 
+   leaf_elements.Copy(old_elements);
+
    Prune();
+
+   // renumber coarse element indices after pruning
+   for (int i = 0; i < coarse.Size(); i++)
+   {
+      int &index = transforms.fine_coarse[i].coarse_element;
+      if (index >= 0)
+      {
+         index = old_elements[index]->index;
+      }
+   }
 
    // make sure we can delete all send buffers
    NeighborDerefinementMessage::WaitAllSent(send_deref);

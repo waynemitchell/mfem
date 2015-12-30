@@ -26,6 +26,7 @@ void Visualize(socketstream &sout, ParMesh &mesh, ParGridFunction &x, bool pause
    sout.precision(8);
    sout << "parallel " << num_procs << " " << myid << "\n";
    sout << "solution\n" << mesh << x;
+   sout << flush;
 
    if (pause)
    {
@@ -61,7 +62,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 3;
    bool vis = 1;
-   bool pause = 1;
+   bool pause = 0;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -108,6 +109,12 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
 
    mesh->EnsureNCMesh();
+
+   // empty processors at the beginning tend to confuse GLVis (?)
+   while (mesh->GetNE() < num_procs)
+   {
+      mesh->UniformRefinement();
+   }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -211,7 +218,7 @@ int main(int argc, char *argv[])
 
    srand(myid);
 
-   while (1)
+   for (int it = 0; it < 100; it++)
    {
       const int levels = 6;
       int frac = (rand() % 3) + 2;

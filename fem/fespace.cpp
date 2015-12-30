@@ -883,7 +883,7 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix()
    {
       const NCMesh::FineTransforms &rt = mesh->ncmesh->GetRefinementTransforms();
 
-      int geom = mesh->GetElementBaseGeometry(0);
+      int geom = mesh->ncmesh->GetElementGeometry();
       const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
 
       IsoparametricTransformation trans;
@@ -1011,7 +1011,7 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
    Vector row;
 
    const NCMesh::FineTransforms &dt = mesh->ncmesh->GetDerefinementTransforms();
-   int geom = mesh->GetElementBaseGeometry(0);
+   int geom = mesh->ncmesh->GetElementGeometry();
 
    DenseTensor localR;
    GetLocalDerefinementMatrices(geom, dt, localR);

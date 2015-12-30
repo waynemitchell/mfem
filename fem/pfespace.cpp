@@ -1541,9 +1541,8 @@ static HYPRE_Int* make_j_array(HYPRE_Int* I, int nrows)
 
 HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
 {
-   MFEM_VERIFY(old_elem_dof != NULL && old_dof_offsets.Size(),
-               "ParFiniteElementSpace::Update needs to be called before "
-               "ParFiniteElementSpace::RebalanceMatrix");
+   MFEM_VERIFY(old_dof_offsets.Size(), "ParFiniteElementSpace::Update needs to "
+               "be called before ParFiniteElementSpace::RebalanceMatrix");
 
    HYPRE_Int old_offset = HYPRE_AssumedPartitionCheck()
                           ? old_dof_offsets[0] : old_dof_offsets[MyRank];
@@ -1637,15 +1636,23 @@ struct DerefDofMessage
 
 HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 {
+   int nrk = HYPRE_AssumedPartitionCheck() ? 2 : NRanks;
+
    MFEM_VERIFY(Nonconforming(), "Not implemented for conforming meshes.");
-   MFEM_VERIFY(old_ndofs, "Missing previous (finer) space.");
-   MFEM_VERIFY(ndofs <= old_ndofs, "Previous space is not finer.");
+   MFEM_VERIFY(old_dof_offsets[nrk], "Missing previous (finer) space.");
+   MFEM_VERIFY(dof_offsets[nrk] <= old_dof_offsets[nrk],
+               "Previous space is not finer.");
+
+   // Note to the reader: please make sure you first read
+   // FiniteElementSpace::RefinementMatrix, then
+   // FiniteElementSpace::DerefinementMatrix, and only then this function.
+   // You have been warned! :-)
 
    Array<int> dofs, old_dofs, old_vdofs;
    Vector row;
 
    ParNCMesh* pncmesh = pmesh->pncmesh;
-   int geom = pmesh->GetElementBaseGeometry(0);
+   int geom = pncmesh->GetElementGeometry();
    int ldofs = fec->FiniteElementForGeometry(geom)->GetDof();
 
    const NCMesh::FineTransforms &dt = pncmesh->GetDerefinementTransforms();
@@ -1661,40 +1668,37 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    for (int k = 0; k < dt.fine_coarse.Size(); k++)
    {
       const NCMesh::Embedding &emb = dt.fine_coarse[k];
-      if (emb.coarse_element < 0) { continue; }
 
-      int coarse_rank = pncmesh->ElementRank(emb.coarse_element);
       int fine_rank = old_ranks[k];
+      int coarse_rank = (emb.coarse_element < 0) ? (-1 - emb.coarse_element)
+                        : pncmesh->ElementRank(emb.coarse_element);
 
-      if (coarse_rank >= 0 && fine_rank >= 0)
+      if (coarse_rank != MyRank && fine_rank == MyRank)
       {
-         if (coarse_rank != MyRank && fine_rank == MyRank)
+         old_elem_dof->GetRow(k, dofs);
+         DofsToVDofs(dofs, old_ndofs);
+
+         DerefDofMessage &msg = messages[k];
+         msg.dofs.resize(dofs.Size());
+         for (int i = 0; i < dofs.Size(); i++)
          {
-            old_elem_dof->GetRow(k, dofs);
-            DofsToVDofs(dofs, old_ndofs);
-
-            DerefDofMessage &msg = messages[k];
-            msg.dofs.resize(dofs.Size());
-            for (int i = 0; i < dofs.Size(); i++)
-            {
-               msg.dofs[i] = old_offset + dofs[i];
-            }
-
-            MPI_Isend(&msg.dofs[0], msg.dofs.size(), MPI_HYPRE_INT,
-                      coarse_rank, 291, MyComm, &msg.request);
+            msg.dofs[i] = old_offset + dofs[i];
          }
-         else if (coarse_rank == MyRank && fine_rank != MyRank)
-         {
-            DerefDofMessage &msg = messages[k];
-            msg.dofs.resize(ldofs*vdim);
 
-            MPI_Irecv(&msg.dofs[0], ldofs, MPI_HYPRE_INT,
-                      fine_rank, 291, MyComm, &msg.request);
-         }
-         // TODO: coalesce Isends/Irecvs to the same rank. Typically, on uniform
-         // derefinement, there should be just one send to MyRank-1 and one recv
-         // from MyRank+1
+         MPI_Isend(&msg.dofs[0], msg.dofs.size(), MPI_HYPRE_INT,
+                   coarse_rank, 291, MyComm, &msg.request);
       }
+      else if (coarse_rank == MyRank && fine_rank != MyRank)
+      {
+         DerefDofMessage &msg = messages[k];
+         msg.dofs.resize(ldofs*vdim);
+
+         MPI_Irecv(&msg.dofs[0], ldofs, MPI_HYPRE_INT,
+                   fine_rank, 291, MyComm, &msg.request);
+      }
+      // TODO: coalesce Isends/Irecvs to the same rank. Typically, on uniform
+      // derefinement, there should be just one send to MyRank-1 and one recv
+      // from MyRank+1
    }
 
    DenseTensor localR;
@@ -1810,7 +1814,6 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    {
       cmap[it->second-1] = it->first;
    }
-   int nrk = HYPRE_AssumedPartitionCheck() ? 2 : NRanks;
 
    HypreParMatrix* R;
    R = new HypreParMatrix(MyComm, dof_offsets[nrk], old_dof_offsets[nrk],
@@ -1818,7 +1821,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 
    char own[3];
    R->GetOwnerFlags(own[0], own[1], own[2]);
-   R->SetOwnerFlags(own[0], own[1], 1); // make the matrix own cmap
+   R->SetOwnerFlags(own[0], own[1], 1); // make the matrix own the cmap
 
    return R;
 }

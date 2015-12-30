@@ -2950,8 +2950,9 @@ void NCMesh::TraverseRefinements(Element* elem, int coarse_index,
 
 const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 {
-   MFEM_VERIFY(coarse_elements.Size(), "GetRefinementTransforms() must be "
-               "preceded by MarkCoarseLevel() and Refine().");
+   MFEM_VERIFY(coarse_elements.Size() || !leaf_elements.Size(),
+               "GetRefinementTransforms() must be preceded by MarkCoarseLevel()"
+               " and Refine().");
 
    if (!transforms.fine_coarse.Size())
    {
@@ -2986,7 +2987,7 @@ const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
 
 const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
 {
-   MFEM_VERIFY(transforms.fine_coarse.Size(),
+   MFEM_VERIFY(transforms.fine_coarse.Size() || !leaf_elements.Size(),
                "GetDerefinementTransforms() must be preceded by Derefine().");
 
    if (!transforms.point_matrices.SizeK())

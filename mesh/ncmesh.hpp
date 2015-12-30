@@ -230,6 +230,9 @@ public:
                                    Array<int> &bdr_vertices,
                                    Array<int> &bdr_edges);
 
+   /// Return the type of elements in the mesh.
+   int GetElementGeometry() const { return root_elements[0]->geom; }
+
    /// I/O: Print the "vertex_parents" section of the mesh file (ver. >= 1.1).
    void PrintVertexParents(std::ostream &out) const;
 
