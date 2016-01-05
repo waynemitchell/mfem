@@ -412,16 +412,19 @@ void VectorFiniteElement::Project_RT(
 #else
    Jinv.SetSize(Dim, vc.GetVDim());
 #endif
+   const bool square_J = (Jinv.Height() == Jinv.Width());
 
    for (int k = 0; k < Dof; k++)
    {
       Trans.SetIntPoint(&Nodes.IntPoint(k));
-      // set Jinv = |J| J^{-1} = adj(J)
+      // set Jinv = |J| J^{-1} = adj(J), when J is square
+      // set Jinv = adj(J^t.J).J^t,      otherwise
       CalcAdjugate(Trans.Jacobian(), Jinv);
 
       vc.Eval(xk, Trans, Nodes.IntPoint(k));
       // dof_k = nk^t adj(J) xk
       dofs(k) = Jinv.InnerProduct(vk, nk + d2n[k]*Dim);
+      if (!square_J) { dofs(k) /= Trans.Weight(); }
    }
 }
 
