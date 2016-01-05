@@ -577,25 +577,25 @@ void GridFunction::GetVectorFieldValues(
    Array<int> vdofs;
    ElementTransformation *transf;
 
-   int d, j, k, n, dim, dof, ind;
+   int d, j, k, n, sdim, dof, ind;
 
    n = ir.GetNPoints();
    fes->GetElementVDofs(i, vdofs);
    const FiniteElement *fe = fes->GetFE(i);
    dof = fe->GetDof();
-   dim = fe->GetDim();
+   sdim = fes->GetMesh()->SpaceDimension();
    int *dofs = &vdofs[comp*dof];
    transf = fes->GetElementTransformation(i);
    transf->Transform(ir, tr);
-   vals.SetSize(n, dim);
-   DenseMatrix vshape(dof, dim);
+   vals.SetSize(n, sdim);
+   DenseMatrix vshape(dof, sdim);
    double a;
    for (k = 0; k < n; k++)
    {
       const IntegrationPoint &ip = ir.IntPoint(k);
       transf->SetIntPoint(&ip);
       fe->CalcVShape(*transf, vshape);
-      for (d = 0; d < dim; d++)
+      for (d = 0; d < sdim; d++)
       {
          a = 0.0;
          for (j = 0; j < dof; j++)
@@ -674,11 +674,12 @@ void GridFunction::ProjectVectorFieldOn(GridFunction &vec_field, int comp)
 {
    FiniteElementSpace *new_fes = vec_field.FESpace();
 
-   int d, i, k, ind, dof;
+   int d, i, k, ind, dof, sdim;
    Array<int> overlap(new_fes->GetVSize());
    Array<int> new_vdofs;
    DenseMatrix vals, tr;
 
+   sdim = fes->GetMesh()->SpaceDimension();
    overlap = 0;
    vec_field = 0.0;
 
@@ -689,7 +690,8 @@ void GridFunction::ProjectVectorFieldOn(GridFunction &vec_field, int comp)
       GetVectorFieldValues(i, ir, vals, tr, comp);
       new_fes->GetElementVDofs(i, new_vdofs);
       dof = fe->GetDof();
-      for (d = 0; d < fe->GetDim(); d++)
+      for (d = 0; d < sdim; d++)
+      {
          for (k = 0; k < dof; k++)
          {
             if ( (ind=new_vdofs[dof*d+k]) < 0 )
@@ -699,6 +701,7 @@ void GridFunction::ProjectVectorFieldOn(GridFunction &vec_field, int comp)
             vec_field(ind) += vals(k, d);
             overlap[ind]++;
          }
+      }
    }
 
    for (i = 0; i < overlap.Size(); i++)
@@ -1145,6 +1148,36 @@ void GridFunction::ProjectCoefficient(VectorCoefficient &vcoeff)
       vals.SetSize(vdofs.Size());
       fes->GetFE(i)->Project(vcoeff, *fes->GetElementTransformation(i), vals);
       SetSubVector(vdofs, vals);
+   }
+}
+
+void GridFunction::ProjectCoefficient(
+   VectorCoefficient &vcoeff, Array<int> &dofs)
+{
+   int el = -1;
+   ElementTransformation *T = NULL;
+   const FiniteElement *fe = NULL;
+
+   Vector val;
+
+   for (int i = 0; i < dofs.Size(); i++)
+   {
+      int dof = dofs[i], j = fes->GetElementForDof(dof);
+      if (el != j)
+      {
+         el = j;
+         T = fes->GetElementTransformation(el);
+         fe = fes->GetFE(el);
+      }
+      int ld = fes->GetLocalDofForDof(dof);
+      const IntegrationPoint &ip = fe->GetNodes().IntPoint(ld);
+      T->SetIntPoint(&ip);
+      vcoeff.Eval(val, *T, ip);
+      for (int vd = 0; vd < fes->GetVDim(); vd ++)
+      {
+         int vdof = fes->DofToVDof(dof, vd);
+         (*this)(vdof) = val(vd);
+      }
    }
 }
 
