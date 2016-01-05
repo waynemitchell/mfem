@@ -436,19 +436,20 @@ void VectorFiniteElement::Project_RT(
    {
       double vk[3];
       Vector shape(fe.GetDof());
+      int sdim = Trans.GetSpaceDim();
 #ifdef MFEM_THREAD_SAFE
-      DenseMatrix Jinv(Dim);
+      DenseMatrix Jinv(Dim, sdim);
 #endif
 
-      I.SetSize(Dof, Dim*fe.GetDof());
+      I.SetSize(Dof, sdim*fe.GetDof());
       for (int k = 0; k < Dof; k++)
       {
          const IntegrationPoint &ip = Nodes.IntPoint(k);
 
          fe.CalcShape(ip, shape);
          Trans.SetIntPoint(&ip);
-         CalcAdjugateTranspose(Trans.Jacobian(), Jinv);
-         Jinv.Mult(nk + d2n[k]*Dim, vk);
+         CalcAdjugate(Trans.Jacobian(), Jinv);
+         Jinv.MultTranspose(nk + d2n[k]*Dim, vk);
          if (fe.GetMapType() == INTEGRAL)
          {
             double w = 1.0/Trans.Weight();
@@ -465,7 +466,7 @@ void VectorFiniteElement::Project_RT(
             {
                s = 0.0;
             }
-            for (int d = 0; d < Dim; d++)
+            for (int d = 0; d < sdim; d++)
             {
                I(k,j+d*shape.Size()) = s*vk[d];
             }

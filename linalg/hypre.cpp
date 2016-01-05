@@ -2393,6 +2393,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    int amg_Pmax         = 4;
 
    int dim = edge_fespace->GetMesh()->Dimension();
+   int sdim = edge_fespace->GetMesh()->SpaceDimension();
    const FiniteElementCollection *edge_fec = edge_fespace->FEColl();
    bool trace_space =
       (dynamic_cast<const ND_Trace_FECollection*>(edge_fec) != NULL);
@@ -2412,7 +2413,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
 
    HYPRE_AMSCreate(&ams);
 
-   HYPRE_AMSSetDimension(ams, dim); // 2D H(div) and 3D H(curl) problems
+   HYPRE_AMSSetDimension(ams, sdim); // 2D H(div) and 3D H(curl) problems
    HYPRE_AMSSetTol(ams, 0.0);
    HYPRE_AMSSetMaxIter(ams, 1); // use as a preconditioner
    HYPRE_AMSSetCycleType(ams, cycle_type);
@@ -2444,11 +2445,11 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
          coord = pmesh -> GetVertex(i);
          x_coord(i) = coord[0];
          y_coord(i) = coord[1];
-         if (dim == 3) { z_coord(i) = coord[2]; }
+         if (sdim == 3) { z_coord(i) = coord[2]; }
       }
       x = x_coord.ParallelProject();
       y = y_coord.ParallelProject();
-      if (dim == 2)
+      if (sdim == 2)
       {
          z = NULL;
          HYPRE_AMSSetCoordinateVectors(ams, *x, *y, NULL);
@@ -2488,7 +2489,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    if (p > 1)
    {
       ParFiniteElementSpace *vert_fespace_d
-         = new ParFiniteElementSpace(pmesh, vert_fec, dim, Ordering::byVDIM);
+         = new ParFiniteElementSpace(pmesh, vert_fec, sdim, Ordering::byVDIM);
 
       ParDiscreteLinearOperator *id_ND;
       id_ND = new ParDiscreteLinearOperator(vert_fespace_d, edge_fespace);
@@ -2513,7 +2514,7 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
          id_ND->GetParBlocks(Pi_blocks);
          Pix = Pi_blocks(0,0);
          Piy = Pi_blocks(0,1);
-         if (dim == 3) { Piz = Pi_blocks(0,2); }
+         if (sdim == 3) { Piz = Pi_blocks(0,2); }
       }
 
       delete id_ND;
