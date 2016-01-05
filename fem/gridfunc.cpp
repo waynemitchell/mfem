@@ -134,6 +134,21 @@ GridFunction::~GridFunction()
    }
 }
 
+void GridFunction::Update()
+{
+   const Operator *T = fes->UpdateMatrix();
+   if (T)
+   {
+      const SparseMatrix *sT = dynamic_cast<const SparseMatrix*>(T);
+      MFEM_VERIFY(sT != NULL, "");
+      Transform(sT);
+   }
+   else
+   {
+      SetSize(fes->GetVSize());
+   }
+}
+
 void GridFunction::Update(FiniteElementSpace *f)
 {
    if (fec)

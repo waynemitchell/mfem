@@ -768,6 +768,11 @@ public:
        mesh consistency. */
    void NonconformingDerefinement(const Array<int> &derefinements);
 
+   enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
+
+   /// Return type of last modification of the mesh.
+   Operation GetLastOperation() const { return last_operation; }
+
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
    void DegreeElevate(int t);
@@ -858,6 +863,10 @@ public:
 
    /// Destroys mesh.
    virtual ~Mesh();
+
+protected:
+
+   Operation last_operation;
 };
 
 /** Overload operator<< for std::ostream and Mesh; valid also for the derived

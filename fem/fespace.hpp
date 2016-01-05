@@ -100,10 +100,13 @@ protected:
    // Conforming restriction matrix such that cR.cP=I.
    SparseMatrix *cR;
 
+   /// Transformation to apply to GridFunctions after space Update().
+   Operator *T;
+
    void UpdateNURBS();
 
    void Constructor();
-   void Destructor();   // does not destroy 'RefData'
+   void Destructor();   // does not destroy 'RefData' and 'old_elem_dof'
 
    /* Create a FE space stealing all data (except RefData) from the
       given FE space. This is used in SaveUpdate() */
@@ -130,13 +133,20 @@ protected:
        an empty DOF list is returned. */
    void GetEdgeFaceDofs(int type, int index, Array<int> &dofs);
 
-   /** Calculate the cP and cR matrices for a nonconforming mesh. */
+   /// Calculate the cP and cR matrices for a nonconforming mesh.
    void GetConformingInterpolation();
 
    void MakeVDimMatrix(SparseMatrix &mat) const;
 
+   /// Calculate GridFunction interpolation matrix after mesh refinement.
+   SparseMatrix* RefinementMatrix();
+
    void GetLocalDerefinementMatrices(int geom, const NCMesh::FineTransforms &dt,
                                      DenseTensor &localR);
+
+   /// Calculate GridFunction restriction matrix after mesh derefinement.
+   SparseMatrix* DerefinementMatrix();
+
 
 public:
    FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
@@ -341,13 +351,15 @@ public:
        is defined on the same mesh. */
    SparseMatrix *H2L_GlobalRestrictionMatrix(FiniteElementSpace *lfes);
 
-   /** */
-   SparseMatrix* RefinementMatrix();
+   /** Reflect changes in the mesh: update number of DOFs, etc. Also calculate
+       GridFunction transformation matrix (unless want_transform is false). */
+   virtual void Update(bool want_transform = true);
 
-   /** */
-   virtual SparseMatrix* DerefinementMatrix();
+   /// Get the GridFunction update matrix, after space Update().
+   const Operator *UpdateMatrix() const { return T; }
 
-   virtual void Update();
+   /// Free GridFunction transformation matrix, if any.
+   void UpdatesFinished() { delete T; T = NULL; }
 
    /** Updates the space after the underlying mesh has been refined and
        interpolates one or more GridFunctions so that they represent the same

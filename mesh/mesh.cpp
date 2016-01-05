@@ -753,6 +753,7 @@ void Mesh::Init()
    NURBSext = NULL;
    ncmesh = NULL;
    nc_coarse_level = NULL;
+   last_operation = Mesh::NONE;
 }
 
 void Mesh::InitTables()
@@ -6713,6 +6714,8 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
 
    GenerateNCFaceInfo();
 
+   last_operation = Mesh::REFINE;
+
    if (Nodes) // curved mesh
    {
       UpdateNodes();
@@ -6738,6 +6741,8 @@ void Mesh::NonconformingDerefinement(const Array<int> &derefinements)
    Swap(*mesh2, false);
 
    GenerateNCFaceInfo();
+
+   last_operation = Mesh::DEREFINE;
 
    if (Nodes) // curved mesh
    {

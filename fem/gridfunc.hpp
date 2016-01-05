@@ -268,7 +268,7 @@ public:
 
    FiniteElementSpace *FESpace() { return fes; }
 
-   void Update() { SetSize(fes->GetVSize()); }
+   void Update();
 
    void Update(FiniteElementSpace *f);
 

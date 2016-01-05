@@ -87,15 +87,15 @@ HypreParVector::HypreParVector(const HypreParVector &y) : Vector()
    own_ParVector = 1;
 }
 
-HypreParVector::HypreParVector(HypreParMatrix &A, int tr) : Vector()
+HypreParVector::HypreParVector(const HypreParMatrix &A, int transpose) : Vector()
 {
-   if (!tr)
+   if (!transpose)
    {
-      x = hypre_ParVectorInDomainOf(A);
+      x = hypre_ParVectorInDomainOf(const_cast<HypreParMatrix&>(A));
    }
    else
    {
-      x = hypre_ParVectorInRangeOf(A);
+      x = hypre_ParVectorInRangeOf(const_cast<HypreParMatrix&>(A));
    }
    _SetDataAndSize_();
    own_ParVector = 1;

@@ -228,20 +228,12 @@ int main(int argc, char *argv[])
       {
          pmesh->ncmesh->MarkCoarseLevel();
          pmesh->RandomRefinement(1, frac, false, 1, -1, rand());
-
          fespace->Update();
-
-         SparseMatrix* R = fespace->RefinementMatrix();
-         x.Transform(R);
-         delete R;
+         x.Update();
 
          pmesh->Rebalance();
-
          fespace->Update();
-
-         HypreParMatrix *B = fespace->RebalanceMatrix();
-         x.ParallelTransform(B);
-         delete B;
+         x.Update();
 
          if (vis) { Visualize(sout, *pmesh, x, pause); }
       }
@@ -249,46 +241,17 @@ int main(int argc, char *argv[])
       // derefine/rebalance
       for (int i = 0; i < levels; i++)
       {
-         {
-            Mesh dbg;
-            pmesh->pncmesh->GetDebugMesh(dbg);
-            dbg.ncmesh = NULL;
-
-            char name[100];
-            sprintf(name, "prev%03d.mesh", myid);
-            ofstream f(name);
-            dbg.Print(f);
-         }
-
          const Table &dtable = pmesh->GetDerefinementTable();
          Array<int> derefs;
          for (int i = 0; i < dtable.Size(); i++) { derefs.Append(i); }
          pmesh->NonconformingDerefinement(derefs);
 
-         {
-            Mesh dbg;
-            pmesh->pncmesh->GetDebugMesh(dbg);
-            dbg.ncmesh = NULL;
-
-            char name[100];
-            sprintf(name, "debug%03d.mesh", myid);
-            ofstream f(name);
-            dbg.Print(f);
-         }
-
          fespace->Update();
-
-         HypreParMatrix *D = fespace->ParallelDerefinementMatrix();
-         x.ParallelTransform(D);
-         delete D;
+         x.Update();
 
          pmesh->Rebalance();
-
          fespace->Update();
-
-         HypreParMatrix *B = fespace->RebalanceMatrix();
-         x.ParallelTransform(B);
-         delete B;
+         x.Update();
 
          if (vis) { Visualize(sout, *pmesh, x, pause); }
       }

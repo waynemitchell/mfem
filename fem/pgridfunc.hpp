@@ -60,7 +60,7 @@ public:
 
    ParFiniteElementSpace *ParFESpace() { return pfes; }
 
-   void Update() { Update(pfes); }
+   void Update();
 
    void Update(ParFiniteElementSpace *f);
 
@@ -112,8 +112,8 @@ public:
    HypreParVector *ParallelAssemble() const;
 
    /// Multiplies the GridFunction with a general parallel matrix.
-   void ParallelTransform(HypreParMatrix &T);
-   void ParallelTransform(HypreParMatrix *T) { ParallelTransform(*T); }
+   void ParallelTransform(const HypreParMatrix &T);
+   void ParallelTransform(const HypreParMatrix *T) { ParallelTransform(*T); }
 
    void ExchangeFaceNbrData();
    Vector &FaceNbrData() { return face_nbr_data; }

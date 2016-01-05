@@ -1819,24 +1819,25 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    R = new HypreParMatrix(MyComm, dof_offsets[nrk], old_dof_offsets[nrk],
                           dof_offsets, old_dof_offsets, diag, offd, cmap);
 
-   char own[3];
-   R->GetOwnerFlags(own[0], own[1], own[2]);
-   R->SetOwnerFlags(own[0], own[1], 1); // make the matrix own the cmap
+#ifndef HYPRE_BIGINT
+   diag->LoseData();
+   offd->LoseData();
+#else
+   diag->SetDataOwner(false);
+   offd->SetDataOwner(false);
+#endif
+   delete diag;
+   delete offd;
+
+   R->SetOwnerFlags(3, 3, 1);
 
    return R;
 }
 
-SparseMatrix* ParFiniteElementSpace::DerefinementMatrix()
-{
-   MFEM_ABORT("DerefinementMatrix does not work in parallel. Please "
-              "use ParallelDerefinementMatrix instead.");
-   return NULL;
-}
 
-
-void ParFiniteElementSpace::Update()
+void ParFiniteElementSpace::Update(bool want_transform)
 {
-   FiniteElementSpace::Update();
+   FiniteElementSpace::Update(false);
 
    dof_offsets.Copy(old_dof_offsets);
 
@@ -1865,7 +1866,30 @@ void ParFiniteElementSpace::Update()
    }
    else
    {
+      // calculate new P matrix, dof_offsets, etc.
       GetParallelConformingInterpolation();
+
+      if (want_transform)
+      {
+         // calculate appropriate GridFunction trasformation
+         switch (mesh->GetLastOperation())
+         {
+            case Mesh::REFINE:
+               T = RefinementMatrix();
+               break;
+
+            case Mesh::DEREFINE:
+               T = ParallelDerefinementMatrix();
+               break;
+
+            case Mesh::REBALANCE:
+               T = RebalanceMatrix();
+               break;
+
+            default:
+               break;
+         }
+      }
    }
 }
 

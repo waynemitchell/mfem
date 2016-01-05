@@ -62,6 +62,35 @@ ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf,
    }
 }
 
+void ParGridFunction::Update()
+{
+   const Operator *T = pfes->UpdateMatrix();
+   if (T)
+   {
+      const SparseMatrix *sT = dynamic_cast<const SparseMatrix*>(T);
+      if (sT)
+      {
+         Transform(sT);
+      }
+      else
+      {
+         const HypreParMatrix *pT = dynamic_cast<const HypreParMatrix*>(T);
+         if (pT)
+         {
+            ParallelTransform(pT);
+         }
+         else
+         {
+            MFEM_ABORT("Invalid update operator.");
+         }
+      }
+   }
+   else
+   {
+      Update(pfes);
+   }
+}
+
 void ParGridFunction::Update(ParFiniteElementSpace *f)
 {
    face_nbr_data.Destroy();
@@ -151,7 +180,7 @@ HypreParVector *ParGridFunction::ParallelAssemble() const
    return tv;
 }
 
-void ParGridFunction::ParallelTransform(/*const*/ HypreParMatrix &T)
+void ParGridFunction::ParallelTransform(const HypreParMatrix &T)
 {
    HypreParVector x(T);
    static_cast<Vector&>(x) = *this;

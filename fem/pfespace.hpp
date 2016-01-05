@@ -127,8 +127,11 @@ private:
    // GenerateGlobalOffsets(). Constructs ldof_ltdof.
    void GetParallelConformingInterpolation();
 
-   // Dummy. Use ParallelDeferinementMatrix instead.
-   virtual SparseMatrix* DerefinementMatrix();
+   /// Calculate GridFunction migration matrix after mesh load balancing.
+   HypreParMatrix* RebalanceMatrix();
+
+   /// Calculate GridFunction restriction matrix after mesh derefinement.
+   HypreParMatrix* ParallelDerefinementMatrix();
 
 public:
    // Face-neighbor data
@@ -174,12 +177,6 @@ public:
 
    /// The true dof-to-dof interpolation matrix
    HypreParMatrix *Dof_TrueDof_Matrix();
-
-   ///
-   HypreParMatrix *RebalanceMatrix();
-
-   ///
-   HypreParMatrix* ParallelDerefinementMatrix();
 
    /** Create and return a new HypreParVector on the true dofs, which is
        owned by (i.e. it must be destroyed by) the calling function. */
@@ -234,7 +231,10 @@ public:
    bool Conforming() const { return pmesh->pncmesh == NULL; }
    bool Nonconforming() const { return pmesh->pncmesh != NULL; }
 
-   virtual void Update();
+   /** Reflect changes in the mesh. Calculate one of the refinement/derefinement
+       /rebalance matrices, unless want_transform is false. */
+   virtual void Update(bool want_transform = true);
+
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
 

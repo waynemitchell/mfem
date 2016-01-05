@@ -270,12 +270,7 @@ int main(int argc, char *argv[])
    }
 
    fespace->Update();
-
-   HypreParMatrix *D = fespace->ParallelDerefinementMatrix();
-   x.ParallelTransform(D);
-   x.Transform(fespace->GetRestrictionMatrix());
-   x.ParallelTransform(fespace->Dof_TrueDof_Matrix());
-   delete D;
+   x.Update();
 #endif
 
    // 14. Save the refined mesh and the solution in parallel. This output can

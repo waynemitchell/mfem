@@ -2198,6 +2198,8 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
       delete pmesh2;
    }
 
+   last_operation = Mesh::REFINE;
+
    if (Nodes) // curved mesh
    {
       UpdateNodes();
@@ -2227,6 +2229,8 @@ void ParMesh::Rebalance()
 
    Swap(*pmesh2, false);
    delete pmesh2;
+
+   last_operation = Mesh::REBALANCE;
 
    /*if (Nodes)
    {

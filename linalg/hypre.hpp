@@ -77,7 +77,7 @@ public:
    /// Creates vector compatible with y
    HypreParVector(const HypreParVector &y);
    /// Creates vector compatible with (i.e. in the domain of) A or A^T
-   HypreParVector(HypreParMatrix &A, int tr = 0);
+   HypreParVector(const HypreParMatrix &A, int transpose = 0);
    /// Creates vector wrapping y
    HypreParVector(HYPRE_ParVector y);
    /// Create a true dof parallel vector on a given ParFiniteElementSpace

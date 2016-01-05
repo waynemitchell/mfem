@@ -1192,6 +1192,7 @@ void FiniteElementSpace::Constructor()
    fdofs = NULL;
    cP = NULL;
    cR = NULL;
+   T = NULL;
 
    if (!mesh->GetNE())
    {
@@ -1622,6 +1623,7 @@ void FiniteElementSpace::Destructor()
 {
    delete cR;
    delete cP;
+   delete T;
 
    dof_elem_array.DeleteAll();
    dof_ldof_array.DeleteAll();
@@ -1640,7 +1642,7 @@ void FiniteElementSpace::Destructor()
    }
 }
 
-void FiniteElementSpace::Update()
+void FiniteElementSpace::Update(bool want_transform)
 {
    if (NURBSext)
    {
@@ -1649,12 +1651,32 @@ void FiniteElementSpace::Update()
    else
    {
       // keep old elem_dof table for RefineMatrix, RebalanceMatrix, ...
+      delete old_elem_dof;
       old_elem_dof = elem_dof;
-      old_ndofs = ndofs;
       elem_dof = NULL;
+
+      old_ndofs = ndofs;
 
       Destructor();   // keeps RefData
       Constructor();
+
+      if (Nonconforming() && want_transform) // TODO
+      {
+         // calculate appropriate GridFunction trasformation
+         switch (mesh->GetLastOperation())
+         {
+            case Mesh::REFINE:
+               T = RefinementMatrix();
+               break;
+
+            case Mesh::DEREFINE:
+               T = DerefinementMatrix();
+               break;
+
+            default:
+               break;
+         }
+      }
    }
 }
 
