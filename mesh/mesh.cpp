@@ -4622,16 +4622,16 @@ void Mesh::AddSegmentFaceElement(int lf, int gf, int el, int v0, int v1)
       faces_info[gf].Elem2No  = el;
       if ( v[1] == v0 && v[0] == v1 )
       {
-	faces_info[gf].Elem2Inf = 64 * lf + 1;
+         faces_info[gf].Elem2Inf = 64 * lf + 1;
       }
       else if ( v[0] == v0 && v[1] == v1 )
       {
-	faces_info[gf].Elem2Inf = 64 * lf;
+         faces_info[gf].Elem2Inf = 64 * lf;
       }
       else
       {
-	MFEM_ASSERT((v[1] == v0 && v[0] == v1)||
-		    (v[0] == v0 && v[1] == v1), "");
+         MFEM_ASSERT((v[1] == v0 && v[0] == v1)||
+                     (v[0] == v0 && v[1] == v1), "");
       }
    }
 }

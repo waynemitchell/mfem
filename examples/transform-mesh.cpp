@@ -86,10 +86,10 @@ int main(int argc, char *argv[])
 
 void mobius_trans(const Vector &x, Vector &p)
 {
-  double a = 1.0 + 0.5 * x[1] * cos( 0.5 * x[0] );
+   double a = 1.0 + 0.5 * x[1] * cos( 0.5 * x[0] );
 
-  p.SetSize(3);
-  p[0] = a * cos( x[0] );
-  p[1] = a * sin( x[0] );
-  p[2] = 0.5 * x[1] * sin( 0.5 * x[0] );
+   p.SetSize(3);
+   p[0] = a * cos( x[0] );
+   p[1] = a * sin( x[0] );
+   p[2] = 0.5 * x[1] * sin( 0.5 * x[0] );
 }
