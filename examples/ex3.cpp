@@ -40,6 +40,7 @@ using namespace mfem;
 // Exact solution, E, and r.h.s., f. See below for implementation.
 void E_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
+int dim;
 
 int main(int argc, char *argv[])
 {
@@ -76,7 +77,7 @@ int main(int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   int dim = mesh->Dimension();
+   dim = mesh->Dimension();
    int sdim = mesh->SpaceDimension();
 
    // 3. Refine the mesh to increase the resolution. In this example we do
@@ -194,7 +195,7 @@ const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {
-   if (x.Size() == 3)
+   if (dim == 3)
    {
       E(0) = sin(kappa * x(1));
       E(1) = sin(kappa * x(2));
@@ -204,12 +205,13 @@ void E_exact(const Vector &x, Vector &E)
    {
       E(0) = sin(kappa * x(1));
       E(1) = sin(kappa * x(0));
+      if (x.Size() == 3) { E(2) = 0.0; }
    }
 }
 
 void f_exact(const Vector &x, Vector &f)
 {
-   if (x.Size() == 3)
+   if (dim == 3)
    {
       f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
       f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
@@ -219,5 +221,6 @@ void f_exact(const Vector &x, Vector &f)
    {
       f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
       f(1) = (1. + kappa * kappa) * sin(kappa * x(0));
+      if (x.Size() == 3) { f(2) = 0.0; }
    }
 }
