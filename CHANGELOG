@@ -39,6 +39,20 @@ Parallel non-conforming adaptive mesh refinement
   and the solution should call ConformingProlongate() after the solve (these are
   not necessary in parallel). Changed the example codes accordingly.
 
+General finite element spaces and solvers on surfaces/skeletons
+---------------------------------------------------------------
+- Added support for arbitrary high-order finite element spaces on the mesh
+  skeleton (the faces, edges, and vertices between mesh elements) that are the
+  traces of the H1 and H(curl) spaces defined on the mesh. With the previously
+  existing H(div) trace space, the full de Rham sequence on the skeleton is now
+  supported.
+
+- Updated integrators and discrete interpolators to work correctly for H(curl)
+  and H(div) spaces defined on surface meshes, or the mesh skeleton.
+
+- Updated the HypreAMS and HypreADS solvers to work for H(curl) and H(div)
+  problems defined on surface meshes, or the mesh skeleton.
+
 New eigensolvers and improved solvers
 -------------------------------------
 - Added support for the scalable Locally Optimal Block Preconditioned Conjugate
@@ -49,10 +63,14 @@ New eigensolvers and improved solvers
   the Laplace (Example 11p), Elasticity (Example 12p) and Maxwell (Example 13p)
   eigenproblems.
 
+- Significantly improved the DPG preconditioner in Example 8p, which is now
+  scalable in parallel and uses the HypreADS solver to precondition the
+  interfacial block as an H(div) problem reduced to the mesh skeleton.
+
 - Added support for a discretization-enhanced version of hypre's BoomerAMG
   designed specifically for linear elasticity problems, see Example 2p.
 
-- The HypreADS solver can now be used to solve singular curl-curl problems.
+- The HypreAMS solver can now be used to solve singular curl-curl problems.
 
 Miscellaneous
 -------------
