@@ -152,7 +152,7 @@ void figure8_trans(const Vector &x, Vector &p)
 void bottle_trans(const Vector &x, Vector &p)
 {
    double u = x(0);
-   double v = x(1) + u/2;
+   double v = x(1) + M_PI_2;
    double a = 6.*cos(u)*(1.+sin(u));
    double b = 16.*sin(u);
    double r = 4.*(1.-cos(u)/2.);
