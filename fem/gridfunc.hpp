@@ -122,6 +122,8 @@ public:
 
    double GetDivergence(ElementTransformation &tr);
 
+   void GetCurl(ElementTransformation &tr, Vector &curl);
+
    void GetGradient(ElementTransformation &tr, Vector &grad);
 
    void GetGradients(const int elem, const IntegrationRule &ir,
