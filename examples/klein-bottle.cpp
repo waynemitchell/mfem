@@ -3,7 +3,9 @@
 // Compile with: make klein-bottle
 //
 // Sample runs:  klein-bottle
-//               klein-bottle -o 6 -nx 6 -ny 4
+//               klein-bottle -o 6 -nx 8 -ny 4
+//               klein-bottle -t 0
+//               klein-bottle -t 0 -o 6 -nx 6 -ny 4
 
 #include "mfem.hpp"
 #include <fstream>
@@ -13,6 +15,7 @@ using namespace std;
 using namespace mfem;
 
 void figure8_trans(const Vector &x, Vector &p);
+void bottle_trans(const Vector &x, Vector &p);
 
 int main(int argc, char *argv[])
 {
@@ -20,6 +23,7 @@ int main(int argc, char *argv[])
    int nx = 16;
    int ny = 8;
    int order = 3;
+   int trans_type = 1;
    bool dg_mesh = false;
    bool visualization = true;
 
@@ -32,6 +36,9 @@ int main(int argc, char *argv[])
                   "Number of elements in y-direction.");
    args.AddOption(&order, "-o", "--mesh-order",
                   "Order (polynomial degree) of the mesh elements.");
+   args.AddOption(&trans_type, "-t", "--transformation-type",
+                  "Set the transformation type: 0 - \"figure-8\","
+                  " 1 - \"bottle\".");
    args.AddOption(&dg_mesh, "-dm", "--discont-mesh", "-cm", "--cont-mesh",
                   "Use dicontinuous or continuous space for the mesh nodes.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -93,7 +100,12 @@ int main(int argc, char *argv[])
       mesh->RemoveUnusedVertices();
    }
 
-   mesh->Transform(figure8_trans);
+   switch (trans_type)
+   {
+      case 0: mesh->Transform(figure8_trans); break;
+      case 1:
+      default: mesh->Transform(bottle_trans); break;
+   }
 
    if (!dg_mesh)
    {
@@ -135,4 +147,25 @@ void figure8_trans(const Vector &x, Vector &p)
    p(0) = a * cos(x(0));
    p(1) = a * sin(x(0));
    p(2) = sin(x(0)/2) * sin(x(1)) + cos(x(0)/2) * sin(2*x(1));
+}
+
+void bottle_trans(const Vector &x, Vector &p)
+{
+   double u = x(0);
+   double v = x(1) + u/2;
+   double a = 6.*cos(u)*(1.+sin(u));
+   double b = 16.*sin(u);
+   double r = 4.*(1.-cos(u)/2.);
+
+   if (u <= M_PI)
+   {
+      p(0) = a+r*cos(u)*cos(v);
+      p(1) = b+r*sin(u)*cos(v);
+   }
+   else
+   {
+      p(0) = a+r*cos(v+M_PI);
+      p(1) = b;
+   }
+   p(2) = r*sin(v);
 }
