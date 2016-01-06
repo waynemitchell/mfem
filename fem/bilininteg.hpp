@@ -737,6 +737,9 @@ public:
 };
 
 
+/** A trace face interpolator class for interpolating the normal component of
+    the domain space, e.g. vector H1, into the range space, e.g. the trace of
+    RT which uses FiniteElement::INTEGRAL map type. */
 class NormalInterpolator : public DiscreteInterpolator
 {
 public:
