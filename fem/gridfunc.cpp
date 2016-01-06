@@ -821,6 +821,57 @@ double GridFunction::GetDivergence(ElementTransformation &tr)
    return div_v;
 }
 
+void GridFunction::GetCurl(ElementTransformation &tr, Vector &curl)
+{
+   int elNo = tr.ElementNo;
+   const FiniteElement *FElem = fes->GetFE(elNo);
+   if (FElem->GetRangeType() == FiniteElement::SCALAR)
+   {
+      DenseMatrix grad_hat;
+      GetVectorGradientHat(tr, grad_hat);
+      const DenseMatrix &J = tr.Jacobian();
+      DenseMatrix Jinv(J.Width(), J.Height());
+      CalcInverse(J, Jinv);
+      DenseMatrix grad(grad_hat.Height(), Jinv.Width()); // vdim x FElem->Dim
+      Mult(grad_hat, Jinv, grad);
+      MFEM_ASSERT(grad.Height() == grad.Width(), "");
+      if (grad.Height() == 3)
+      {
+         curl.SetSize(3);
+         curl(0) = grad(2,1) - grad(1,2);
+         curl(1) = grad(0,2) - grad(2,0);
+         curl(2) = grad(1,0) - grad(0,1);
+      }
+      else if (grad.Height() == 2)
+      {
+         curl.SetSize(1);
+         curl(0) = grad(1,0) - grad(0,1);
+      }
+   }
+   else
+   {
+      // Assuming ND-type space
+      Array<int> dofs;
+      fes->GetElementDofs(elNo, dofs);
+      Vector loc_data;
+      GetSubVector(dofs, loc_data);
+      DenseMatrix curl_shape(FElem->GetDof(), FElem->GetDim() == 3 ? 3 : 1);
+      FElem->CalcCurlShape(tr.GetIntPoint(), curl_shape);
+      curl.SetSize(curl_shape.Width());
+      if (curl_shape.Width() == 3)
+      {
+         double curl_hat[3];
+         curl_shape.MultTranspose(loc_data, curl_hat);
+         tr.Jacobian().Mult(curl_hat, curl);
+      }
+      else
+      {
+         curl_shape.MultTranspose(loc_data, curl);
+      }
+      curl /= tr.Weight();
+   }
+}
+
 void GridFunction::GetGradient(ElementTransformation &tr, Vector &grad)
 {
    int elNo = tr.ElementNo;
