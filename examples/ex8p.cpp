@@ -20,7 +20,9 @@
 //
 //               The example highlights the use of interfacial (trace) finite
 //               elements and spaces, trace face integrators and the definition
-//               of block operators and preconditioners.
+//               of block operators and preconditioners. The use of the ADS
+//               preconditioner from hypre for interfacially-reduced H(div)
+//               problems is also illustrated.
 //
 //               We recommend viewing examples 1-5 before viewing this example.
 
@@ -118,7 +120,8 @@ int main(int argc, char *argv[])
    //    - The interfacial space, xhat_space, contains the interfacial unknowns
    //      and does not have essential BC.
    //    - The test space, test_space, is an enriched space where the enrichment
-   //      degree may depend on the spatial dimension of the domain.
+   //      degree may depend on the spatial dimension of the domain, the type of
+   //      the mesh and the trial space order.
    int trial_order = order;
    int trace_order = order - 1;
    int test_order  = order; // reduced order, full order is (order + dim - 1)
@@ -198,7 +201,6 @@ int main(int argc, char *argv[])
 
    ParBilinearForm *S0 = new ParBilinearForm(x0_space);
    S0->AddDomainIntegrator(new DiffusionIntegrator(one));
-   S0->AddDomainIntegrator(new MassIntegrator(one));
    S0->Assemble();
    S0->EliminateEssentialBC(ess_bdr);
    S0->Finalize();
@@ -252,10 +254,14 @@ int main(int argc, char *argv[])
    //        [   0     Shat^{-1} ]      Shat = (Bhat^T Sinv Bhat)
    //
    //     corresponding to the primal (x0) and interfacial (xhat) unknowns.
+   //     Since the Shat operator is equivalent to an H(div) matrix reduced to
+   //     the interfacial skeleton, we approximate its inverse with one V-cycle
+   //     of the ADS preconditioner from the hypre library (in 2D we use AMS for
+   //     the rotated H(curl) problem).
    HypreBoomerAMG *S0inv = new HypreBoomerAMG(*matS0);
+   S0inv->SetPrintLevel(0);
 
    HypreParMatrix *Shat = RAP(matSinv, matBhat);
-
    HypreSolver *Shatinv;
    if (dim == 2)
    {
@@ -265,15 +271,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-#if 0
-      HyprePCG *Shat_pcg = new HyprePCG(*Shat);
-      Shat_pcg->SetTol(1e-3);
-      Shat_pcg->SetMaxIter(200);
-      Shat_pcg->SetZeroInintialIterate();
-      Shatinv = Shat_pcg;
-#else
       Shatinv = new HypreADS(*Shat, xhat_space);
-#endif
    }
 
    BlockDiagonalPreconditioner P(true_offsets);
