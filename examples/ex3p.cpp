@@ -175,9 +175,12 @@ int main(int argc, char *argv[])
    HypreParVector *X = x.ParallelProject();
 
    // 11. Eliminate essential BC from the parallel system
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
+   if (pmesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
+   }
 
    *X = 0.0;
 
