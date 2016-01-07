@@ -14,6 +14,7 @@
 //               mpirun -np 4 ex3p -m ../data/beam-hex-nurbs.mesh
 //               mpirun -np 4 ex3p -m ../data/amr-quad.mesh -o 2
 //               mpirun -np 4 ex3p -m ../data/amr-hex.mesh
+//               mpirun -np 4 ex3p -m ../data/star-surf.mesh -o 2
 //
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -254,7 +255,7 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-// A parameter for the exact solution.
+// A parameter for the exact solution (for non-surface meshes).
 const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)

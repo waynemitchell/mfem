@@ -153,6 +153,8 @@ public:
 
    /// Returns the order of the i'th finite element
    int GetOrder(int i) const;
+   /// Returns the order of the i'th face finite element
+   int GetFaceOrder(int i) const;
 
    /// Returns number of degrees of freedom.
    inline int GetNDofs() const { return ndofs; }
