@@ -18,6 +18,10 @@
 //               (trace) space, and a high-order discontinuous test space
 //               defining a local dual (H^{-1}) norm.
 //
+//               We use the primal form of DPG, see "A primal DPG method without
+//               a first-order reformulation", Demkowicz and Gopalakrishnan, CAM
+//               2013, DOI:10.1016/j.camwa.2013.06.029.
+//
 //               The example highlights the use of interfacial (trace) finite
 //               elements and spaces, trace face integrators and the definition
 //               of block operators and preconditioners.

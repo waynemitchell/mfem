@@ -264,6 +264,10 @@ simple finite element discretization of the Laplace problem
 use high-order continuous trial space, a high-order interfacial
 (trace) space, and a high-order discontinuous test space
 defining a local dual (\f$H^{-1}\f$) norm.
+We use the primal form of DPG, see
+<a href="http://dx.doi.org/10.1016/j.camwa.2013.06.029">"A primal
+DPG method without a first-order reformulation"</a>, Demkowicz and Gopalakrishnan,
+CAM 2013.
 <p>
 The example highlights the use of interfacial (trace) finite
 elements and spaces, trace face integrators and the definition
