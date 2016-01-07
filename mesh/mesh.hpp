@@ -541,8 +541,9 @@ public:
    /// Return the index and the orientation of the face of bdr element i. (3D)
    void GetBdrElementFace(int i, int *, int *) const;
 
-   /** Return the edge index of boundary element i. (2D)
-       return the face index of boundary element i. (3D) */
+   /** Return the vertex index of boundary element i. (1D)
+       Return the edge index of boundary element i. (2D)
+       Return the face index of boundary element i. (3D) */
    int GetBdrElementEdgeIndex(int i) const;
 
    /// Returns the type of element i.
@@ -832,6 +833,10 @@ public:
 
    /// Remove unused vertices and rebuild mesh connectivity.
    void RemoveUnusedVertices();
+
+   /** Remove boundary elements that lie in the interior of the mesh, i.e. that
+       have two adjacent faces in 3D, or edges in 2D. */
+   void RemoveInternalBoundaries();
 
    /** Get the size of the i-th element relative to the perfect
        reference element. */

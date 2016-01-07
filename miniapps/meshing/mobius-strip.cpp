@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
          }
       }
       mesh->RemoveUnusedVertices();
+      mesh->RemoveInternalBoundaries();
    }
 
    mesh->Transform(mobius_trans);

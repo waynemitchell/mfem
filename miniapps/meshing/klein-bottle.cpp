@@ -98,6 +98,7 @@ int main(int argc, char *argv[])
          }
       }
       mesh->RemoveUnusedVertices();
+      mesh->RemoveInternalBoundaries();
    }
 
    switch (trans_type)
