@@ -2,23 +2,24 @@
 //
 // Compile with: make ex14p
 //
-// Sample runs:  mpirun -np 4 ex14p -m ../data/square-disc.mesh -o 0
+// Sample runs:  mpirun -np 4 ex14p -m ../data/inline-quad.mesh -o 0
 //               mpirun -np 4 ex14p -m ../data/star.mesh -o 2
 //               mpirun -np 4 ex14p -m ../data/escher.mesh -s 1
 //               mpirun -np 4 ex14p -m ../data/fichera.mesh -s 1 -k 1
 //               mpirun -np 4 ex14p -m ../data/square-disc-p2.vtk -o 2
 //               mpirun -np 4 ex14p -m ../data/square-disc-p3.mesh -o 3
-//               mpirun -np 4 ex14p -m ../data/square-disc-nurbs.mesh -o 0
+//               mpirun -np 4 ex14p -m ../data/square-disc-nurbs.mesh -o 1
 //               mpirun -np 4 ex14p -m ../data/disc-nurbs.mesh -rs 4 -o 2 -s 1 -k 0
-//               mpirun -np 4 ex14p -m ../data/pipe-nurbs.mesh -o 0
+//               mpirun -np 4 ex14p -m ../data/pipe-nurbs.mesh -o 1
 //               mpirun -np 4 ex14p -m ../data/inline-segment.mesh -rs 5
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               discontinuous Galerkin (DG) finite element discretization of
 //               the Laplace problem -Delta u = 1 with homogeneous Dirichlet
 //               boundary conditions. Finite element spaces of any order,
-//               including zero, are supported. The example highlights the use
-//               of discontinuous spaces and DG-specific face integrators.
+//               including zero on regular grids, are supported. The example
+//               highlights the use of discontinuous spaces and DG-specific face
+//               integrators.
 //
 //               We recommend viewing examples 1 and 9 before viewing this
 //               example.
