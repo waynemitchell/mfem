@@ -11,8 +11,8 @@
 Version 3.1, released on Jan XX, 2016
 =====================================
 
-Parallel non-conforming adaptive mesh refinement
-------------------------------------------------
+Substantially improved non-conforming adaptive mesh refinement
+---------------------------------------------------------------
 - Added support for parallel non-conforming mesh refinement, including a new
   example code with adaptive mesh refinement for the Laplace problem (Example
   6p). Most of the example codes can now work on non-conforming meshes in serial
@@ -27,6 +27,9 @@ Parallel non-conforming adaptive mesh refinement
   meshes. The format is an extension of 1.0 that includes a vertex_parents and
   an optional coarse_elements section. See the example meshes amr-quad.mesh,
   amr-hex.mesh and fichera-amr.mesh in the data/ directory.
+
+- Added support for DG discretizations on non-conforming meshes in serial. See
+  the sample runs in Example 14.
 
 - A new function, ParGridFunction::ParallelProject() directly returns a hypre
   vector restricted to the true degrees of freedom (and supports non-conforming
@@ -45,23 +48,30 @@ New eigensolvers and improved solvers
   Gradient (LOBPCG) eigenvalue solver and the Auxiliary-space Maxwell
   Eigensolver (AME) from hypre.
 
-- Added 3 new example codes to demonstrate the LOBPCG and AME applications to
-  the Laplace (Example 11p), Elasticity (Example 12p) and Maxwell (Example 13p)
-  eigenproblems.
-
 - Added support for a discretization-enhanced version of hypre's BoomerAMG
   designed specifically for linear elasticity problems, see Example 2p.
 
 - The HypreADS solver can now be used to solve singular curl-curl problems.
+
+New and updated examples
+------------------------
+- Six new serial and parallel example codes that demonstrate:
+  * parallel conforming and non-conforming adaptive mesh refinement (Example 6p)
+  * hypre's LOBPCG eigensolver for the Laplace eigenproblem (Example 11p)
+  * hypre's LOBPCG eigensolver for the elasticity eigenproblem (Example 12p)
+  * hypre's AME eigensolver for the Maxwell eigenproblem (Example 13p)
+  * DG diffusion discretizations for the Laplace equation (Example 14/14p)
+
+- Example 3/3p now works in both 2D and 3D.
+
+- Example 7/7p has a new option, -amr, showcasing simple local conforming and
+  non-conforming mesh refinements.
 
 Miscellaneous
 -------------
 - Moved MFEM from Google Code to GitHub. New website: http://mfem.org.
 
 - Formatted the code with Artistic Style, see the "make style" target.
-
-- Example 3/3p now works in both 2D and 3D. Example 7/7p has a new option, -amr,
-  showcasing simple local conforming and non-conforming mesh refinements.
 
 - Added support for 64-bit integers in global size variables, enabling
   simulations with >2B unknowns. (This requires that hypre is configured with
@@ -71,7 +81,7 @@ Miscellaneous
 
 - Updated the implementation of some operations in DenseMatrix for better
   auto-vectorization. Added a new class LUFactors that computes LU factorization
-  (with pivoting) and perform various operations with the factored data
+  (with pivoting) and perform various operations with the factored data.
 
 - Various other simplifications, extensions, and bugfixes in the code.
 
