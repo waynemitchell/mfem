@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
    if (mesh->NURBSext)
    {
-      mesh->ProjectNURBS(2);
+      mesh->SetCurvature(2);
    }
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
