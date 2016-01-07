@@ -46,5 +46,3 @@ clean:
 	rm -f *.o *~ mobius-strip klein-bottle
 	rm -f *.mesh
 	rm -rf *.dSYM *.TVD.*breakpoints
-
-# rm -f mesh.* sol.* sol_curl.* psi.*
