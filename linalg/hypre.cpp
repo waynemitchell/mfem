@@ -3108,8 +3108,7 @@ HypreLOBPCG::PrecondSetup(void *solver,
 }
 
 HypreAME::HypreAME(MPI_Comm comm)
-   : comm(comm),
-     myid(0),
+   : myid(0),
      numProcs(1),
      nev(10),
      setT(false),
