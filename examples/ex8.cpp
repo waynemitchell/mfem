@@ -18,6 +18,10 @@
 //               (trace) space, and a high-order discontinuous test space
 //               defining a local dual (H^{-1}) norm.
 //
+//               We use the primal form of DPG, see "A primal DPG method without
+//               a first-order reformulation", Demkowicz and Gopalakrishnan, CAM
+//               2013, DOI:10.1016/j.camwa.2013.06.029.
+//
 //               The example highlights the use of interfacial (trace) finite
 //               elements and spaces, trace face integrators and the definition
 //               of block operators and preconditioners.
@@ -87,10 +91,15 @@ int main(int argc, char *argv[])
    //    - The interfacial space, xhat_space, contains the interfacial unknowns
    //      and does not have essential BC.
    //    - The test space, test_space, is an enriched space where the enrichment
-   //      degree may depend on the spatial dimension of the domain.
+   //      degree may depend on the spatial dimension of the domain, the type of
+   //      the mesh and the trial space order.
    int trial_order = order;
    int trace_order = order - 1;
    int test_order  = order; // reduced order, full order is (order + dim - 1)
+   if (dim == 2 && (order%2 == 0 || (mesh->MeshGenerator() & 2 && order > 1)))
+   {
+      test_order++;
+   }
    if (test_order < trial_order)
       cerr << "Warning, test space not enriched enough to handle primal"
            << " trial space\n";
@@ -124,9 +133,12 @@ int main(int argc, char *argv[])
    offsets_test[1] = s_test;
 
    std::cout << "\nNumber of Unknowns:\n"
-             << " Trial space,     X0   : " << s0 << '\n'
-             << " Interface space, Xhat : " << s1 << '\n'
-             << " Test space,      Y    : " << s_test << "\n\n";
+             << " Trial space,     X0   : " << s0
+             << " (order " << trial_order << ")\n"
+             << " Interface space, Xhat : " << s1
+             << " (order " << trace_order << ")\n"
+             << " Test space,      Y    : " << s_test
+             << " (order " << test_order << ")\n\n";
 
    BlockVector x(offsets), b(offsets);
    x = 0.;
@@ -167,7 +179,6 @@ int main(int argc, char *argv[])
 
    BilinearForm *S0 = new BilinearForm(x0_space);
    S0->AddDomainIntegrator(new DiffusionIntegrator(one));
-   S0->AddDomainIntegrator(new MassIntegrator(one));
    S0->Assemble();
    S0->EliminateEssentialBC(ess_bdr);
    S0->Finalize();

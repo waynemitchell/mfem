@@ -16,6 +16,7 @@
 //               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/amr-quad.mesh
 //               mpirun -np 4 ex4p -m ../data/amr-hex.mesh
+//               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 2
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -268,7 +269,7 @@ int main(int argc, char *argv[])
 }
 
 
-// The exact solution
+// The exact solution (for non-surface meshes)
 void F_exact(const Vector &p, Vector &F)
 {
    int dim = p.Size();

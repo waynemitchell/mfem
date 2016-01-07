@@ -736,6 +736,19 @@ public:
    { ran_fe.ProjectDiv(dom_fe, Trans, elmat); }
 };
 
+
+/** A trace face interpolator class for interpolating the normal component of
+    the domain space, e.g. vector H1, into the range space, e.g. the trace of
+    RT which uses FiniteElement::INTEGRAL map type. */
+class NormalInterpolator : public DiscreteInterpolator
+{
+public:
+   virtual void AssembleElementMatrix2(const FiniteElement &dom_fe,
+                                       const FiniteElement &ran_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
+};
+
 }
 
 #endif

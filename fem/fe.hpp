@@ -203,6 +203,10 @@ protected:
                                  DenseMatrix &I,
                                  const NodalFiniteElement &fine_fe) const;
 
+   void ProjectCurl_2D(const FiniteElement &fe,
+                       ElementTransformation &Trans,
+                       DenseMatrix &curl) const;
+
 #ifndef MFEM_THREAD_SAFE
    mutable Vector c_shape;
 #endif
@@ -1501,6 +1505,10 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectCurl_2D(fe, Trans, curl); }
 };
 
 
@@ -1570,6 +1578,10 @@ public:
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const;
+   virtual void ProjectCurl(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &curl) const
+   { ProjectCurl_2D(fe, Trans, curl); }
 };
 
 
@@ -1932,6 +1944,40 @@ public:
    { CalcVShape_ND(Trans, shape); }
    virtual void CalcCurlShape(const IntegrationPoint &ip,
                               DenseMatrix &curl_shape) const;
+   virtual void GetLocalInterpolation(ElementTransformation &Trans,
+                                      DenseMatrix &I) const
+   { LocalInterpolation_ND(tk, dof2tk, Trans, I); }
+   using FiniteElement::Project;
+   virtual void Project(VectorCoefficient &vc,
+                        ElementTransformation &Trans, Vector &dofs) const
+   { Project_ND(tk, dof2tk, vc, Trans, dofs); }
+   virtual void Project(const FiniteElement &fe,
+                        ElementTransformation &Trans,
+                        DenseMatrix &I) const
+   { Project_ND(tk, dof2tk, fe, Trans, I); }
+   virtual void ProjectGrad(const FiniteElement &fe,
+                            ElementTransformation &Trans,
+                            DenseMatrix &grad) const
+   { ProjectGrad_ND(tk, dof2tk, fe, Trans, grad); }
+};
+
+
+class ND_SegmentElement : public VectorFiniteElement
+{
+   static const double tk[1];
+
+   Poly_1D::Basis &obasis1d;
+   Array<int> dof2tk;
+
+public:
+   ND_SegmentElement(const int p);
+   virtual void CalcVShape(const IntegrationPoint &ip,
+                           DenseMatrix &shape) const;
+   virtual void CalcVShape(ElementTransformation &Trans,
+                           DenseMatrix &shape) const
+   { CalcVShape_ND(Trans, shape); }
+   // virtual void CalcCurlShape(const IntegrationPoint &ip,
+   //                            DenseMatrix &curl_shape) const;
    virtual void GetLocalInterpolation(ElementTransformation &Trans,
                                       DenseMatrix &I) const
    { LocalInterpolation_ND(tk, dof2tk, Trans, I); }
