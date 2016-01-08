@@ -16,6 +16,8 @@
 //               ex3 -m ../data/amr-hex.mesh
 //               ex3 -m ../data/fichera-amr.mesh
 //               ex3 -m ../data/star-surf.mesh -o 1
+//               ex3 -m ../data/mobius-strip.mesh -f 0.1
+//               ex3 -m ../data/klein-bottle.mesh -f 0.1
 //
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -41,6 +43,7 @@ using namespace mfem;
 // Exact solution, E, and r.h.s., f. See below for implementation.
 void E_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
+double freq = 1.0, kappa;
 int dim;
 
 int main(int argc, char *argv[])
@@ -55,6 +58,8 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
+                  " solution.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -65,6 +70,7 @@ int main(int argc, char *argv[])
       return 1;
    }
    args.PrintOptions(cout);
+   kappa = freq * M_PI;
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
@@ -194,8 +200,6 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-// A parameter for the exact solution (for non-surface meshes).
-const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {

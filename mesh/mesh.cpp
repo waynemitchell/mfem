@@ -4051,9 +4051,11 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
    // #if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
 #ifdef MFEM_DEBUG
    if (wo > 0)
+   {
       cout << "Boundary elements with wrong orientation: " << wo << " / "
            << NumOfBdrElements << " (" << fixed_or_not[fix_it ? 0 : 1]
            << ")" << endl;
+   }
 #endif
 }
 
@@ -4064,8 +4066,10 @@ void Mesh::GetElementEdges(int i, Array<int> &edges, Array<int> &cor) const
       el_to_edge->GetRow(i, edges);
    }
    else
+   {
       mfem_error("Mesh::GetElementEdges(...) element to edge table "
                  "is not generated.");
+   }
 
    const int *v = elements[i]->GetVertices();
    const int ne = elements[i]->GetNEdges();
