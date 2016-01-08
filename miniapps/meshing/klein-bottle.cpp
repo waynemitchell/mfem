@@ -6,6 +6,7 @@
 //               klein-bottle -o 6 -nx 8 -ny 4
 //               klein-bottle -t 0
 //               klein-bottle -t 0 -o 6 -nx 6 -ny 4
+//               klein-bottle -t 2
 
 #include "mfem.hpp"
 #include <fstream>
@@ -16,6 +17,7 @@ using namespace mfem;
 
 void figure8_trans(const Vector &x, Vector &p);
 void bottle_trans(const Vector &x, Vector &p);
+void bottle2_trans(const Vector &x, Vector &p);
 
 int main(int argc, char *argv[])
 {
@@ -38,7 +40,7 @@ int main(int argc, char *argv[])
                   "Order (polynomial degree) of the mesh elements.");
    args.AddOption(&trans_type, "-t", "--transformation-type",
                   "Set the transformation type: 0 - \"figure-8\","
-                  " 1 - \"bottle\".");
+                  " 1 - \"bottle\", 2 - \"bottle2\".");
    args.AddOption(&dg_mesh, "-dm", "--discont-mesh", "-cm", "--cont-mesh",
                   "Use dicontinuous or continuous space for the mesh nodes.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -104,7 +106,8 @@ int main(int argc, char *argv[])
    switch (trans_type)
    {
       case 0: mesh->Transform(figure8_trans); break;
-      case 1:
+      case 1: mesh->Transform(bottle_trans); break;
+      case 2: mesh->Transform(bottle2_trans); break;
       default: mesh->Transform(bottle_trans); break;
    }
 
@@ -169,4 +172,20 @@ void bottle_trans(const Vector &x, Vector &p)
       p(1) = b;
    }
    p(2) = r*sin(v);
+}
+
+void bottle2_trans(const Vector &x, Vector &p)
+{
+   double u = x(1)-M_PI_2, v = 2*x(0);
+   const double pi = M_PI;
+
+   p(0) = (v<pi     ? (2.5-1.5*cos(v))*cos(u) :
+           (v<2*pi  ? (2.5-1.5*cos(v))*cos(u) :
+            (v<3*pi ? -2+(2+cos(u))*cos(v) : -2+2*cos(v)-cos(u))));
+   p(1) = (v<pi     ? (2.5-1.5*cos(v))*sin(u) :
+           (v<2*pi  ? (2.5-1.5*cos(v))*sin(u) :
+            (v<3*pi ? sin(u) : sin(u))));
+   p(2) = (v<pi     ? -2.5*sin(v) :
+           (v<2*pi  ? 3*v-3*pi :
+            (v<3*pi ? (2+cos(u))*sin(v)+3*pi : -3*v+12*pi)));
 }
