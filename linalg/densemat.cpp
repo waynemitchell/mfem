@@ -2950,12 +2950,7 @@ void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat)
 
 void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 {
-#ifdef MFEM_DEBUG
-   if (a.Width() > a.Height() || a.Width() < 1 || a.Height() > 3)
-   {
-      mfem_error("CalcInverse(...)");
-   }
-#endif
+   MFEM_ASSERT(a.Width() <= a.Height() && a.Width() >= 1 && a.Height() <= 3, "");
 
    double t;
 
@@ -3000,10 +2995,9 @@ void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 
 #ifdef MFEM_DEBUG
    t = a.Det();
-   if (fabs(t) < 1.0e-14 * pow(a.FNorm()/a.Width(), a.Width()))
-      cerr << "CalcInverse(...) : singular matrix!"
-           << endl;
-   t = 1. / t;
+   MFEM_ASSERT(std::abs(t) > 1.0e-14 * pow(a.FNorm()/a.Width(), a.Width()),
+               "singular matrix!");
+   t = 1.0 / t;
 #else
    t = 1.0 / a.Det();
 #endif
