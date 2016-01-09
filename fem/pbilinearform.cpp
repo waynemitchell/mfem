@@ -239,6 +239,23 @@ void ParBilinearForm
    A.EliminateRowsCols(dof_list, X, B);
 }
 
+HypreParMatrix *ParBilinearForm::
+ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
+                             HypreParMatrix &A) const
+{
+   Array<int> ess_dofs, true_ess_dofs, dof_list;
+
+   pfes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+   pfes->GetRestrictionMatrix()->BooleanMult(ess_dofs, true_ess_dofs);
+
+   for (int i = 0; i < true_ess_dofs.Size(); i++)
+   {
+      if (true_ess_dofs[i]) { dof_list.Append(i); }
+   }
+
+   return A.EliminateRowsCols(dof_list);
+}
+
 void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)
 const
 {
