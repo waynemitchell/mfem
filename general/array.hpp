@@ -214,6 +214,10 @@ public:
    /// Copy data from a pointer. Size() elements are copied.
    inline void Assign(const T *);
 
+   // STL-like begin/end
+   inline T* begin() const { return (T*) data; }
+   inline T* end() const { return (T*) data + size; }
+
    long MemoryUsage() const { return Capacity() * sizeof(T); }
 
 private:

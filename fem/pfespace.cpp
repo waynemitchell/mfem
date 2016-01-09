@@ -1549,7 +1549,7 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
 
    // send old DOFs of elements we used to own
    ParNCMesh* pncmesh = pmesh->pncmesh;
-   pncmesh->SendRebalanceDofs(*old_elem_dof, old_offset);
+   pncmesh->SendRebalanceDofs(*old_elem_dof, old_offset, this);
 
    Array<int> dofs;
    int ldofs = GetVSize();
@@ -1568,9 +1568,18 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
          const int* old_dofs = old_elem_dof->GetRow(old_index[i]);
          GetElementDofs(i, dofs);
 
-         for (int j = 0; j < dofs.Size(); j++)
+         for (int vd = 0; vd < vdim; vd++)
          {
-            i_diag[dofs[j]] = old_dofs[j];
+            for (int j = 0; j < dofs.Size(); j++)
+            {
+               int row = DofToVDof(dofs[j], vd);
+               if (row < 0) { row = -1 - row; }
+
+               int col = DofToVDof(old_dofs[j], vd, old_ndofs);
+               if (col < 0) { col = -1 - col; }
+
+               i_diag[row] = col;
+            }
          }
       }
    }
@@ -1586,13 +1595,19 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
    for (int i = 0; i < new_elements.Size(); i++)
    {
       GetElementDofs(new_elements[i], dofs);
-      const long* old_dofs = &old_remote_dofs[i * dofs.Size()];
+      const long* old_dofs = &old_remote_dofs[i * dofs.Size() * vdim];
 
-      for (int j = 0; j < dofs.Size(); j++)
+      for (int vd = 0; vd < vdim; vd++)
       {
-         if (i_diag[dofs[j]] == i_diag[dofs[j]+1]) // diag row empty?
+         for (int j = 0; j < dofs.Size(); j++)
          {
-            i_offd[dofs[j]] = old_dofs[j];
+            int row = DofToVDof(dofs[j], vd);
+            if (row < 0) { row = -1 - row; }
+
+            if (i_diag[row] == i_diag[row+1]) // diag row empty?
+            {
+               i_offd[row] = old_dofs[j + vd * dofs.Size()];
+            }
          }
       }
    }

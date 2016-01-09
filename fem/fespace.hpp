@@ -361,6 +361,9 @@ public:
    /// Free GridFunction transformation matrix, if any.
    void UpdatesFinished() { delete T; T = NULL; }
 
+   /// Returns number of degrees of freedom before last Update().
+   int GetOldNDofs() const { return old_ndofs; }
+
    /** Updates the space after the underlying mesh has been refined and
        interpolates one or more GridFunctions so that they represent the same
        functions on the new mesh. The grid functions are passed as pointers

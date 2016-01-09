@@ -127,10 +127,15 @@ private:
    // GenerateGlobalOffsets(). Constructs ldof_ltdof.
    void GetParallelConformingInterpolation();
 
-   /// Calculate GridFunction migration matrix after mesh load balancing.
+   /** Calculate a GridFunction migration matrix after mesh load balancing.
+       The result is a parallel permutation matrix that can be used to update
+       all grid functions defined on this space. */
    HypreParMatrix* RebalanceMatrix();
 
-   /// Calculate GridFunction restriction matrix after mesh derefinement.
+   /** Calculate a GridFunction restriction matrix after mesh derefinement.
+       The matrix is constructed so that the new grid function interpolates
+       the original function, i.e., the original function is evaluated at the
+       nodes of the coarse function. */
    HypreParMatrix* ParallelDerefinementMatrix();
 
 public:

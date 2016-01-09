@@ -16,6 +16,7 @@
 #include "mesh_headers.hpp"
 #include "pncmesh.hpp"
 #include "../fem/fe_coll.hpp"
+#include "../fem/fespace.hpp"
 
 #include <map>
 #include <climits>
@@ -1119,8 +1120,12 @@ void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
 
 
 void ParNCMesh::SendRebalanceDofs(const Table &old_element_dofs,
-                                  long old_dof_offset)
+                                  long old_global_offset,
+                                  FiniteElementSpace *space)
 {
+   Array<int> dofs;
+   int vdim = space->GetVDim();
+
    // fill messages (prepared by Rebalance) with element DOFs
    RebalanceDofMessage::Map::iterator it;
    for (it = send_rebalance_dofs.begin(); it != send_rebalance_dofs.end(); ++it)
@@ -1130,16 +1135,15 @@ void ParNCMesh::SendRebalanceDofs(const Table &old_element_dofs,
       int ne = msg.elem_ids.size();
       if (ne)
       {
-         msg.dofs.reserve(old_element_dofs.RowSize(msg.elem_ids[0]) * ne);
+         msg.dofs.reserve(old_element_dofs.RowSize(msg.elem_ids[0]) * ne * vdim);
       }
       for (int i = 0; i < ne; i++)
       {
-         int index = msg.elem_ids[i];
-         const int* beg_row = old_element_dofs.GetRow(index);
-         const int* end_row = old_element_dofs.GetRow(index + 1);
-         msg.dofs.insert(msg.dofs.end(), beg_row, end_row);
+         old_element_dofs.GetRow(msg.elem_ids[i], dofs);
+         space->DofsToVDofs(dofs, space->GetOldNDofs());
+         msg.dofs.insert(msg.dofs.end(), dofs.begin(), dofs.end());
       }
-      msg.dof_offset = old_dof_offset;
+      msg.dof_offset = old_global_offset;
    }
 
    // send the DOFs to element recipients from last Rebalance()

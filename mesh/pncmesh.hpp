@@ -25,6 +25,10 @@
 namespace mfem
 {
 
+class FiniteElementCollection; // for edge orientation handling
+class FiniteElementSpace; // for Dof -> VDof conversion
+
+
 /** \brief A parallel extension of the NCMesh class.
  *
  *  The basic idea (and assumption) is that all processors share the coarsest
@@ -184,7 +188,8 @@ public:
    // utility
 
    /// Use the communication pattern from last Rebalance() to send element DOFs.
-   void SendRebalanceDofs(const Table &old_element_dofs, long old_dof_offset);
+   void SendRebalanceDofs(const Table &old_element_dofs, long old_global_offset,
+                          FiniteElementSpace* space);
 
    /// Receive element DOFs sent by SendRebalanceDofs().
    void RecvRebalanceDofs(Array<int> &elements, Array<long> &dofs);
@@ -474,7 +479,7 @@ TODO
 + derefine 2D
 + limit NC 3D edges + 2D
 + skip ldof_sign in pfespace.cpp
-- parallel ZZ estimator
++ parallel ZZ estimator
 - ProjectBdrCoefficient
 + performance/scaling study
 
@@ -483,7 +488,7 @@ TODO
 + DOF redistribution after rebalance
 + derefinement
 + new fine/coarse interface, ref/deref matrices
-- parallel derefinement
++ parallel derefinement
 - remove zeros after parallel elimination
 - parallel aniso refine
 - serial aniso derefine
@@ -493,8 +498,6 @@ TODO
 - big-int P matrix
 - cP + P
 */
-
-class FiniteElementCollection; // needed for edge orientation handling
 
 /** Represents a message about DOF assignment of vertex, edge and face DOFs on
  *  the boundary with another processor. This and other messages in this file
