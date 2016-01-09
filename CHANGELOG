@@ -89,6 +89,12 @@ New and updated examples
   scalable in parallel and uses the HypreADS solver to precondition the
   interfacial block as an H(div) problem reduced to the mesh skeleton.
 
+New miniapps
+------------
+- meshing miniapps
+  * mobius-strip - generate various Mobius strip-like meshes.
+  * klein-bottle - generate three types of Klein bottle surfaces.
+
 Miscellaneous
 -------------
 - Moved MFEM from Google Code to GitHub. New website: http://mfem.org.
