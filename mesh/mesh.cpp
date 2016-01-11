@@ -9698,7 +9698,7 @@ void Mesh::RemoveInternalBoundaries()
    {
       if (FaceIsInterior(GetBdrElementEdgeIndex(i)))
       {
-         delete boundary[i];
+         FreeElement(boundary[i]);
       }
       else
       {

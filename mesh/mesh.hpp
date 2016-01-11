@@ -135,6 +135,14 @@ protected:
    MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
 
+public:
+   Array<int> attributes;
+   Array<int> bdr_attributes;
+
+   NURBSExtension *NURBSext;
+   NCMesh *ncmesh;
+
+protected:
    void Init();
 
    void InitTables();
@@ -333,12 +341,6 @@ protected:
 public:
 
    enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
-
-   Array<int> attributes;
-   Array<int> bdr_attributes;
-
-   NURBSExtension *NURBSext;
-   NCMesh *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
