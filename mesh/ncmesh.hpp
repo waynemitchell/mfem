@@ -233,6 +233,9 @@ public:
    /// Return the type of elements in the mesh.
    int GetElementGeometry() const { return root_elements[0]->geom; }
 
+   /// Return the distance of leaf 'i' from the root.
+   int GetElementDepth(int i) const;
+
    /// I/O: Print the "vertex_parents" section of the mesh file (ver. >= 1.1).
    void PrintVertexParents(std::ostream &out) const;
 
@@ -680,6 +683,7 @@ protected: // implementation
                        int& h_level, int& v_level) const;
 
    void CountSplits(Element* elem, int splits[3]) const;
+   void GetLimitRefinements(Array<Refinement> &refinements, int max_level);
 
    int CountElements(Element* elem) const;
 

@@ -3074,6 +3074,18 @@ int NCMesh::GetEdgeMaster(int v1, int v2) const
    return master ? master->edge->index : -1;
 }
 
+int NCMesh::GetElementDepth(int i) const
+{
+   Element* elem = leaf_elements[i];
+   int depth = 0;
+   while (elem->parent)
+   {
+      elem = elem->parent;
+      depth++;
+   }
+   return depth;
+}
+
 void NCMesh::find_face_nodes(const Face *face, Node* node[4])
 {
    // Obtain face nodes from one of its elements (note that face->p1, p2, p3
@@ -3237,6 +3249,36 @@ void NCMesh::CountSplits(Element* elem, int splits[3]) const
    }
 }
 
+void NCMesh::GetLimitRefinements(Array<Refinement> &refinements, int max_level)
+{
+   for (int i = 0; i < leaf_elements.Size(); i++)
+   {
+      if (IsGhost(leaf_elements[i])) { break; }
+
+      int splits[3];
+      CountSplits(leaf_elements[i], splits);
+
+      char ref_type = 0;
+      for (int k = 0; k < Dim; k++)
+      {
+         if (splits[k] > max_level)
+         {
+            ref_type |= (1 << k);
+         }
+      }
+
+      if (ref_type)
+      {
+         if (Iso)
+         {
+            // iso meshes should only be modified by iso refinements
+            ref_type = 7;
+         }
+         refinements.Append(Refinement(i, ref_type));
+      }
+   }
+}
+
 void NCMesh::LimitNCLevel(int max_level)
 {
    MFEM_VERIFY(max_level >= 1, "'max_level' must be 1 or greater.");
@@ -3244,30 +3286,7 @@ void NCMesh::LimitNCLevel(int max_level)
    while (1)
    {
       Array<Refinement> refinements;
-      for (int i = 0; i < leaf_elements.Size(); i++)
-      {
-         int splits[3];
-         CountSplits(leaf_elements[i], splits);
-
-         char ref_type = 0;
-         for (int k = 0; k < Dim; k++)
-         {
-            if (splits[k] > max_level)
-            {
-               ref_type |= (1 << k);
-            }
-         }
-
-         if (ref_type)
-         {
-            if (Iso)
-            {
-               // iso meshes should only be modified by iso refinements
-               ref_type = 7;
-            }
-            refinements.Append(Refinement(i, ref_type));
-         }
-      }
+      GetLimitRefinements(refinements, max_level);
 
       if (!refinements.Size()) { break; }
 
