@@ -1,4 +1,15 @@
-// Example: generate Mobius strip meshes
+// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
+// reserved. See file COPYRIGHT for details.
+//
+// This file is part of the MFEM library. For more information and source code
+// availability see http://mfem.org.
+//
+// MFEM is free software; you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License (as published by the Free
+// Software Foundation) version 2.1 dated February 1999.
+
+// Meshing miniapp: generate Mobius strip meshes
 //
 // Compile with: make mobius-strip
 //
@@ -55,6 +66,7 @@ int main(int argc, char *argv[])
    args.PrintOptions(cout);
 
    Mesh *mesh;
+   // The mesh could use quads (default) or triangles
    Element::Type el_type = Element::QUADRILATERAL;
    // Element::Type el_type = Element::TRIANGLE;
    mesh = new Mesh(nx, ny, el_type, 1, 2*M_PI, 2.0);
@@ -68,12 +80,14 @@ int main(int argc, char *argv[])
       {
          v2v[i] = i;
       }
+      // identify vertices on vertical lines (with a flip)
       for (int j = 0; j <= ny; j++)
       {
          int v_old = nx + j * (nx + 1);
          int v_new = ((close_strip == 1) ? j : (ny - j)) * (nx + 1);
          v2v[v_old] = v_new;
       }
+      // renumber elements
       for (int i = 0; i < mesh->GetNE(); i++)
       {
          Element *el = mesh->GetElement(i);
@@ -84,6 +98,7 @@ int main(int argc, char *argv[])
             v[j] = v2v[v[j]];
          }
       }
+      // renumber boundary elements
       for (int i = 0; i < mesh->GetNBE(); i++)
       {
          Element *el = mesh->GetBdrElement(i);
