@@ -20,7 +20,7 @@ ifneq (clean,$(MAKECMDGOALS))
    -include $(CONFIG_MK)
 endif
 
-SEQ_MINIAPPS = mobius-strip klein-bottle
+SEQ_MINIAPPS = mobius-strip klein-bottle view-mesh
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
@@ -43,6 +43,6 @@ $(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
 clean:
-	rm -f *.o *~ mobius-strip klein-bottle
-	rm -f *.mesh
+	rm -f *.o *~ mobius-strip klein-bottle view-mesh
+	rm -f *.mesh partitioning.txt
 	rm -rf *.dSYM *.TVD.*breakpoints
