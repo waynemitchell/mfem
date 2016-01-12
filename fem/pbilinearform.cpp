@@ -225,15 +225,9 @@ void ParBilinearForm
                                HypreParMatrix &A, const HypreParVector &X,
                                HypreParVector &B) const
 {
-   Array<int> ess_dofs, true_ess_dofs, dof_list;
+   Array<int> dof_list;
 
-   pfes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   pfes->GetRestrictionMatrix()->BooleanMult(ess_dofs, true_ess_dofs);
-
-   for (int i = 0; i < true_ess_dofs.Size(); i++)
-   {
-      if (true_ess_dofs[i]) { dof_list.Append(i); }
-   }
+   pfes->GetEssentialTrueDofs(bdr_attr_is_ess, dof_list);
 
    // do the parallel elimination
    A.EliminateRowsCols(dof_list, X, B);
@@ -243,15 +237,9 @@ HypreParMatrix *ParBilinearForm::
 ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
                              HypreParMatrix &A) const
 {
-   Array<int> ess_dofs, true_ess_dofs, dof_list;
+   Array<int> dof_list;
 
-   pfes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   pfes->GetRestrictionMatrix()->BooleanMult(ess_dofs, true_ess_dofs);
-
-   for (int i = 0; i < true_ess_dofs.Size(); i++)
-   {
-      if (true_ess_dofs[i]) { dof_list.Append(i); }
-   }
+   pfes->GetEssentialTrueDofs(bdr_attr_is_ess, dof_list);
 
    return A.EliminateRowsCols(dof_list);
 }
