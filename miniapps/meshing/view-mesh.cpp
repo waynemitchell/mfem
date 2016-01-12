@@ -105,7 +105,7 @@ int main (int argc, char *argv[])
       }
       cout << "Visualize and manipulate a serial mesh:\n"
            << "   view_mesh -m <mesh_file>\n"
-           << "Visualize and manipulate a paralle mesh:\n"
+           << "Visualize and manipulate a parallel mesh:\n"
            << "   view_mesh -np <#proc> -m <mesh_prefix>\n" << endl
            << "All Options:\n";
       args.PrintHelp(cout);
@@ -405,8 +405,8 @@ int main (int argc, char *argv[])
             cout << "Number of colors: " << attr.Max() + 1 << endl;
             for (int i = 0; i < mesh->GetNE(); i++)
             {
-               // part[i] = i;
-               attr(i) = part[i] = i;
+               // part[i] = i; // checkerboard element coloring
+               attr(i) = part[i] = i; // coloring by element number
             }
          }
 

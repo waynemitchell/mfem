@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
    args.AddOption(&close_strip, "-c", "--close-strip",
                   "How to close the strip: 0 - open, 1 - closed, 2 - twisted.");
    args.AddOption(&dg_mesh, "-dm", "--discont-mesh", "-cm", "--cont-mesh",
-                  "Use dicontinuous or continuous space for the mesh nodes.");
+                  "Use discontinuous or continuous space for the mesh nodes.");
    args.AddOption(&num_twists, "-t", "--num-twists",
                   "Number of twists of the strip.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",

@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
                   "Set the transformation type: 0 - \"figure-8\","
                   " 1 - \"bottle\", 2 - \"bottle2\".");
    args.AddOption(&dg_mesh, "-dm", "--discont-mesh", "-cm", "--cont-mesh",
-                  "Use dicontinuous or continuous space for the mesh nodes.");
+                  "Use discontinuous or continuous space for the mesh nodes.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
