@@ -40,10 +40,10 @@ int problem;
 void velocity_function(const Vector &x, Vector &v);
 
 // Initial condition
-double u0_function(Vector &x);
+double u0_function(const Vector &x);
 
 // Inflow boundary condition
-double inflow_function(Vector &x);
+double inflow_function(const Vector &x);
 
 
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
@@ -371,7 +371,7 @@ void velocity_function(const Vector &x, Vector &v)
 }
 
 // Initial condition
-double u0_function(Vector &x)
+double u0_function(const Vector &x)
 {
    int dim = x.Size();
 
@@ -417,7 +417,7 @@ double u0_function(Vector &x)
 }
 
 // Inflow boundary condition (zero for the problems considered in this example)
-double inflow_function(Vector &x)
+double inflow_function(const Vector &x)
 {
    switch (problem)
    {
