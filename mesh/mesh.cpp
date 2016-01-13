@@ -6751,10 +6751,10 @@ void Mesh::DerefineElements(const Array<int> &derefinements)
 }
 
 bool Mesh::GeneralDerefinement(Array<double> &elem_error,
-                               double threshold, int op)
+                               double threshold, int nc_limit, int op)
 {
    MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
-   const Table &dt = GetDerefinementTable();
+   const Table &dt = GetDerefinementTable(nc_limit);
 
    Array<int> derefs;
    for (int i = 0; i < dt.Size(); i++)

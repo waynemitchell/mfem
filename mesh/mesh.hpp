@@ -756,10 +756,10 @@ public:
        contains indices of existing elements that can be derefined to form
        a single new coarse element. Row numbers are then passed to
        DerefineElements. The table is owned and maintained internally. */
-   const Table &GetDerefinementTable()
+   const Table &GetDerefinementTable(int nc_limit = -1)
    {
       MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
-      return ncmesh->GetDerefinementTable();
+      return ncmesh->GetDerefinementTable(nc_limit);
    }
 
    /** Perform a subset of the possible derefinements returned by
@@ -769,8 +769,8 @@ public:
    void DerefineElements(const Array<int> &derefinements);
 
    /** . */
-   virtual bool GeneralDerefinement(Array<double> &elem_error,
-                                    double threshold, int op = 1);
+   virtual bool GeneralDerefinement(Array<double> &elem_error, double threshold,
+                                    int nc_limit = -1, int op = 1);
 
    enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
 

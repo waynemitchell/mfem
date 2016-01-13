@@ -74,7 +74,7 @@ public:
    virtual void Refine(const Array<Refinement> &refinements);
 
    /// Parallel version of NCMesh::LimitNCLevel.
-   virtual void LimitNCLevel(int max_level);
+   virtual void LimitNCLevel(int max_nc_level);
 
    /** Parallel reimplementation of NCMesh::Derefine, keeps ghost layers
        in sync. The interface is identical. */

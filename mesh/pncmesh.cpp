@@ -869,14 +869,14 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
 }
 
 
-void ParNCMesh::LimitNCLevel(int max_level)
+void ParNCMesh::LimitNCLevel(int max_nc_level)
 {
-   MFEM_VERIFY(max_level >= 1, "'max_level' must be 1 or greater.");
+   MFEM_VERIFY(max_nc_level >= 1, "'max_nc_level' must be 1 or greater.");
 
    while (1)
    {
       Array<Refinement> refinements;
-      GetLimitRefinements(refinements, max_level);
+      GetLimitRefinements(refinements, max_nc_level);
 
       int size = refinements.Size(), glob_size;
       MPI_Allreduce(&size, &glob_size, 1, MPI_INT, MPI_SUM, MyComm);

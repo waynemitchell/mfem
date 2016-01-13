@@ -1301,7 +1301,8 @@ void NCMesh::DerefineElement(Element* elem)
 }
 
 
-void NCMesh::CollectDerefinements(Element* elem, Array<Connection> &list)
+void NCMesh::CollectDerefinements(Element* elem, Array<Connection> &list,
+                                  int max_nc_level)
 {
    if (!elem->ref_type) { return; }
 
@@ -1319,12 +1320,39 @@ void NCMesh::CollectDerefinements(Element* elem, Array<Connection> &list)
 
    if (!ref && ghost < total)
    {
-      // can be derefined, add to list
-      int next_row = list.Size() ? (list.Last().from + 1) : 0;
-      for (int i = 0; i < 8; i++)
+      // check NC limit
+      bool limit_ok = true;
+      if (max_nc_level > 0)
       {
-         Element* ch = elem->child[i];
-         if (ch) { list.Append(Connection(next_row, ch->index)); }
+         for (int i = 0; i < 8; i++)
+         {
+            Element* ch = elem->child[i];
+            if (ch)
+            {
+               int splits[3];
+               CountSplits(ch, splits);
+
+               for (int j = 0; j < Dim; j++)
+               {
+                  if ((elem->ref_type & (1 << j)) &&
+                      splits[j] >= max_nc_level)
+                  {
+                     limit_ok = false; break;
+                  }
+               }
+            }
+         }
+      }
+
+      if (limit_ok)
+      {
+         // can be derefined, add to list
+         int next_row = list.Size() ? (list.Last().from + 1) : 0;
+         for (int i = 0; i < 8; i++)
+         {
+            Element* ch = elem->child[i];
+            if (ch) { list.Append(Connection(next_row, ch->index)); }
+         }
       }
    }
    else
@@ -1332,19 +1360,19 @@ void NCMesh::CollectDerefinements(Element* elem, Array<Connection> &list)
       for (int i = 0; i < 8; i++)
       {
          Element* ch = elem->child[i];
-         if (ch) { CollectDerefinements(ch, list); }
+         if (ch) { CollectDerefinements(ch, list, max_nc_level); }
       }
    }
 }
 
-const Table& NCMesh::GetDerefinementTable()
+const Table& NCMesh::GetDerefinementTable(int max_nc_level)
 {
    Array<Connection> list;
    list.Reserve(leaf_elements.Size());
 
    for (int i = 0; i < root_elements.Size(); i++)
    {
-      CollectDerefinements(root_elements[i], list);
+      CollectDerefinements(root_elements[i], list, max_nc_level);
    }
 
    int size = list.Size() ? (list.Last().from + 1) : 0;
@@ -3279,14 +3307,14 @@ void NCMesh::GetLimitRefinements(Array<Refinement> &refinements, int max_level)
    }
 }
 
-void NCMesh::LimitNCLevel(int max_level)
+void NCMesh::LimitNCLevel(int max_nc_level)
 {
-   MFEM_VERIFY(max_level >= 1, "'max_level' must be 1 or greater.");
+   MFEM_VERIFY(max_nc_level >= 1, "'max_nc_level' must be 1 or greater.");
 
    while (1)
    {
       Array<Refinement> refinements;
-      GetLimitRefinements(refinements, max_level);
+      GetLimitRefinements(refinements, max_nc_level);
 
       if (!refinements.Size()) { break; }
 
