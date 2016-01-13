@@ -755,7 +755,7 @@ public:
    /** Return a list of derefinement opportunities. Each row of the table
        contains indices of existing elements that can be derefined to form
        a single new coarse element. Row numbers are then passed to
-       GeneralDerefinement. The table is owned and maintained internally. */
+       DerefineElements. The table is owned and maintained internally. */
    const Table &GetDerefinementTable()
    {
       MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
@@ -766,7 +766,11 @@ public:
        GetDerefinementTable. Note that if anisotropic refinements are present
        in the mesh, some of the derefinements may have to be skipped to preserve
        mesh consistency. */
-   void NonconformingDerefinement(const Array<int> &derefinements);
+   void DerefineElements(const Array<int> &derefinements);
+
+   /** . */
+   virtual bool GeneralDerefinement(Array<double> &elem_error,
+                                    double threshold, int op = 1);
 
    enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
 

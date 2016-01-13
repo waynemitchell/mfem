@@ -6723,7 +6723,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    }
 }
 
-void Mesh::NonconformingDerefinement(const Array<int> &derefinements)
+void Mesh::DerefineElements(const Array<int> &derefinements)
 {
    MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
    MFEM_VERIFY(!NURBSext, "NURBS meshes are not supported. "
@@ -6748,6 +6748,42 @@ void Mesh::NonconformingDerefinement(const Array<int> &derefinements)
    {
       // TODO
    }
+}
+
+bool Mesh::GeneralDerefinement(Array<double> &elem_error,
+                               double threshold, int op)
+{
+   MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
+   const Table &dt = GetDerefinementTable();
+
+   Array<int> derefs;
+   for (int i = 0; i < dt.Size(); i++)
+   {
+      const int* fine = dt.GetRow(i);
+      int size = dt.RowSize(i);
+
+      double error = 0.0;
+      for (int j = 0; j < size; j++)
+      {
+         double err_fine = elem_error[fine[j]];
+         switch (op)
+         {
+            case 0: error = std::min(error, err_fine); break;
+            case 1: error += err_fine; break;
+            case 2: error = std::max(error, err_fine); break;
+         }
+      }
+
+      if (error < threshold) { derefs.Append(i); }
+   }
+
+   if (derefs.Size())
+   {
+      DerefineElements(derefs);
+      return true;
+   }
+
+   return false;
 }
 
 void Mesh::InitFromNCMesh(const NCMesh &ncmesh)

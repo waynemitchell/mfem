@@ -73,10 +73,10 @@ public:
        the neighbor processors so they can keep their ghost layers up to date.*/
    virtual void Refine(const Array<Refinement> &refinements);
 
-   /// To be implemented.
+   /// Parallel version of NCMesh::LimitNCLevel.
    virtual void LimitNCLevel(int max_level);
 
-   /** A parallel reimplementation of NCMesh::Derefine, keeps ghost layers
+   /** Parallel reimplementation of NCMesh::Derefine, keeps ghost layers
        in sync. The interface is identical. */
    virtual void Derefine(const Array<int> &derefs);
 
@@ -489,6 +489,7 @@ TODO
 + derefinement
 + new fine/coarse interface, ref/deref matrices
 + parallel derefinement
++ parallel LimitNCLevel
 - remove zeros after parallel elimination
 - parallel aniso refine
 - serial aniso derefine
@@ -500,7 +501,7 @@ TODO
 */
 
 /** Represents a message about DOF assignment of vertex, edge and face DOFs on
- *  the boundary with another processor. This and other messages in this file
+ *  the boundary with another processor. This and other messages below
  *  are only exchanged between immediate neighbors. Used by
  *  ParFiniteElementSpace::GetConformingInterpolation().
  */
