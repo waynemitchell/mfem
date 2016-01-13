@@ -262,10 +262,6 @@ public:
        Normal state is restored with ConformingProlongate. */
    void ConformingProject();
 
-   /// Multiply the GridFunction with the given matrix.
-   void Transform(const SparseMatrix &M);
-   void Transform(const SparseMatrix *M) { Transform(*M); }
-
    FiniteElementSpace *FESpace() { return fes; }
 
    void Update();

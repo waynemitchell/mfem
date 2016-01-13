@@ -1886,7 +1886,7 @@ void ParFiniteElementSpace::Update(bool want_transform)
 
       if (want_transform)
       {
-         // calculate appropriate GridFunction trasformation
+         // calculate appropriate GridFunction transformation
          switch (mesh->GetLastOperation())
          {
             case Mesh::REFINE:
@@ -1894,7 +1894,8 @@ void ParFiniteElementSpace::Update(bool want_transform)
                break;
 
             case Mesh::DEREFINE:
-               T = ParallelDerefinementMatrix();
+               T = new TripleProductOperator(P, R, ParallelDerefinementMatrix(),
+                                             false, false, true);
                break;
 
             case Mesh::REBALANCE:

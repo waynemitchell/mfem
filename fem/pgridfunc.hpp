@@ -111,10 +111,6 @@ public:
    /// Returns a new vector assembled on the true dofs.
    HypreParVector *ParallelAssemble() const;
 
-   /// Multiplies the GridFunction with a general parallel matrix.
-   void ParallelTransform(const HypreParMatrix &T);
-   void ParallelTransform(const HypreParMatrix *T) { ParallelTransform(*T); }
-
    void ExchangeFaceNbrData();
    Vector &FaceNbrData() { return face_nbr_data; }
    const Vector &FaceNbrData() const { return face_nbr_data; }
