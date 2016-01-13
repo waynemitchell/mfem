@@ -17,6 +17,8 @@
 //               mpirun -np 4 ex11p -m ../data/inline-segment.mesh
 //               mpirun -np 4 ex11p -m ../data/amr-quad.mesh
 //               mpirun -np 4 ex11p -m ../data/amr-hex.mesh
+//               mpirun -np 4 ex11p -m ../data/mobius-strip.mesh -n 8
+//               mpirun -np 4 ex11p -m ../data/klein-bottle.mesh -n 10
 //
 // Description:  This example code demonstrates the use of MFEM to solve the
 //               eigenvalue problem -Delta u = lambda u with homogeneous
@@ -157,11 +159,21 @@ int main(int argc, char *argv[])
    //    serial and parallel assembly we extract the corresponding parallel
    //    matrices A and M.
    ConstantCoefficient one(1.0);
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
+   Array<int> ess_bdr;
+   if (pmesh->bdr_attributes.Size())
+   {
+      ess_bdr.SetSize(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+   }
 
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
+   if (pmesh->bdr_attributes.Size() == 0)
+   {
+      // Add a mass term if the mesh has no boundary, e.g. periodic mesh or
+      // closed suface.
+      a->AddDomainIntegrator(new MassIntegrator(one));
+   }
    a->Assemble();
    a->EliminateEssentialBCDiag(ess_bdr, 1.0);
    a->Finalize();

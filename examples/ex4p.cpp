@@ -16,6 +16,7 @@
 //               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/amr-quad.mesh
 //               mpirun -np 4 ex4p -m ../data/amr-hex.mesh
+//               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 2
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -41,6 +42,7 @@ using namespace mfem;
 // Exact solution, F, and r.h.s., f. See below for implementation.
 void F_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
+double freq = 1.0, kappa;
 
 int main(int argc, char *argv[])
 {
@@ -63,6 +65,8 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree).");
    args.AddOption(&set_bc, "-bc", "--impose-bc", "-no-bc", "--dont-impose-bc",
                   "Impose or not essential boundary conditions.");
+   args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
+                  " solution.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -80,6 +84,7 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   kappa = freq * M_PI;
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -268,7 +273,7 @@ int main(int argc, char *argv[])
 }
 
 
-// The exact solution
+// The exact solution (for non-surface meshes)
 void F_exact(const Vector &p, Vector &F)
 {
    int dim = p.Size();
@@ -277,8 +282,8 @@ void F_exact(const Vector &p, Vector &F)
    double y = p(1);
    // double z = (dim == 3) ? p(2) : 0.0;
 
-   F(0) = cos(M_PI*x)*sin(M_PI*y);
-   F(1) = cos(M_PI*y)*sin(M_PI*x);
+   F(0) = cos(kappa*x)*sin(kappa*y);
+   F(1) = cos(kappa*y)*sin(kappa*x);
    if (dim == 3)
    {
       F(2) = 0.0;
@@ -294,10 +299,10 @@ void f_exact(const Vector &p, Vector &f)
    double y = p(1);
    // double z = (dim == 3) ? p(2) : 0.0;
 
-   double temp = 1 + 2*M_PI*M_PI;
+   double temp = 1 + 2*kappa*kappa;
 
-   f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
-   f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
+   f(0) = temp*cos(kappa*x)*sin(kappa*y);
+   f(1) = temp*cos(kappa*y)*sin(kappa*x);
    if (dim == 3)
    {
       f(2) = 0;

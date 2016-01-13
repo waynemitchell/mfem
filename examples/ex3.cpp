@@ -15,6 +15,9 @@
 //               ex3 -m ../data/amr-quad.mesh -o 2
 //               ex3 -m ../data/amr-hex.mesh
 //               ex3 -m ../data/fichera-amr.mesh
+//               ex3 -m ../data/star-surf.mesh -o 1
+//               ex3 -m ../data/mobius-strip.mesh -f 0.1
+//               ex3 -m ../data/klein-bottle.mesh -f 0.1
 //
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -40,6 +43,8 @@ using namespace mfem;
 // Exact solution, E, and r.h.s., f. See below for implementation.
 void E_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
+double freq = 1.0, kappa;
+int dim;
 
 int main(int argc, char *argv[])
 {
@@ -53,6 +58,8 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
+                  " solution.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -63,6 +70,7 @@ int main(int argc, char *argv[])
       return 1;
    }
    args.PrintOptions(cout);
+   kappa = freq * M_PI;
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral, hexahedral, surface and volume meshes with
@@ -76,7 +84,7 @@ int main(int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   int dim = mesh->Dimension();
+   dim = mesh->Dimension();
    int sdim = mesh->SpaceDimension();
 
    // 3. Refine the mesh to increase the resolution. In this example we do
@@ -130,9 +138,12 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
    a->ConformingAssemble(x, *b);
-   Array<int> ess_bdr(mesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
+   if (mesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(mesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      a->EliminateEssentialBC(ess_bdr, x, *b);
+   }
    a->Finalize();
    const SparseMatrix &A = a->SpMat();
 
@@ -189,12 +200,10 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-// A parameter for the exact solution.
-const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {
-   if (x.Size() == 3)
+   if (dim == 3)
    {
       E(0) = sin(kappa * x(1));
       E(1) = sin(kappa * x(2));
@@ -204,12 +213,13 @@ void E_exact(const Vector &x, Vector &E)
    {
       E(0) = sin(kappa * x(1));
       E(1) = sin(kappa * x(0));
+      if (x.Size() == 3) { E(2) = 0.0; }
    }
 }
 
 void f_exact(const Vector &x, Vector &f)
 {
-   if (x.Size() == 3)
+   if (dim == 3)
    {
       f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
       f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
@@ -219,5 +229,6 @@ void f_exact(const Vector &x, Vector &f)
    {
       f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
       f(1) = (1. + kappa * kappa) * sin(kappa * x(0));
+      if (x.Size() == 3) { f(2) = 0.0; }
    }
 }

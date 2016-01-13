@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
    if (mesh->NURBSext)
    {
       mesh->UniformRefinement();
-      mesh->ProjectNURBS(2);
+      mesh->SetCurvature(2);
    }
    mesh->EnsureNCMesh();
 

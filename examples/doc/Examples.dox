@@ -64,6 +64,7 @@ or
    <label><input type="radio" id="gs" onchange="update(this.id);" />Gauss-Seidel</label> <br/>
    <label><input type="radio" id="pcg" onchange="update(this.id);" />PCG</label> <br/>
    <label><input type="radio" id="minres" onchange="update(this.id);" />MINRES</label> <br/>
+   <label><input type="radio" id="gmres" onchange="update(this.id);" />GMRES</label> <br/>
    <label><input type="radio" id="amg" onchange="update(this.id);" />Algebraic Multigrid (BoomerAMG)</label> <br/>
    <label><input type="radio" id="ams" onchange="update(this.id);" />Auxiliary-space Maxwell Solver (AMS)</label> <br/>
    <label><input type="radio" id="ads" onchange="update(this.id);" />Auxiliary-space Divergence Solver (ADS)</label> <br/>
@@ -263,6 +264,10 @@ simple finite element discretization of the Laplace problem
 use high-order continuous trial space, a high-order interfacial
 (trace) space, and a high-order discontinuous test space
 defining a local dual (\f$H^{-1}\f$) norm.
+We use the primal form of DPG, see
+<a href="http://dx.doi.org/10.1016/j.camwa.2013.06.029">"A primal
+DPG method without a first-order reformulation"</a>, Demkowicz and Gopalakrishnan,
+CAM 2013.
 <p>
 The example highlights the use of interfacial (trace) finite
 elements and spaces, trace face integrators and the definition
@@ -391,6 +396,23 @@ We recommend viewing examples 3 and 11 before viewing this example.</em>
 </div>
 
 <!----------------------------------------------------------------------------->
+<div id="ex14">
+\htmlonly <hr style="clear:both;"/><img src="ex14.png" style="float:right;"> \endhtmlonly
+<h2>Example 14: DG Diffusion</h2>
+
+This example code demonstrates the use of MFEM to define a
+discontinuous Galerkin (DG) finite element discretization of
+the Laplace problem  \f[ -\Delta u = 1 \f] with homogeneous Dirichlet
+boundary conditions. Finite element spaces of any order,
+including zero on regular grids, are supported. The example highlights the use
+of discontinuous spaces and DG-specific face integrators.
+<center>
+<em>The example has a serial (ex14.cpp) and a parallel (ex14p.cpp) version.
+We recommend viewing examples 1 and 9 before viewing this example.</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
 <div id="nomatch"><hr>
 <br/><br/><br/>
 <center>
@@ -451,7 +473,7 @@ function update(id)
    var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy", "advection"];
    var group2 = ["all2", "l2", "h1", "hcurl", "hdiv", "h12"];
    var group3 = ["all3", "galerkin", "mixed", "dg", "dpg", "nurbs", "amr" ];
-   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "amg", "ams", "ads", "umfpack", "newton", "rk", "sdirk", "lobpcg", "ame"];
+   var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "gmres", "amg", "ams", "ads", "umfpack", "newton", "rk", "sdirk", "lobpcg", "ame"];
 
    updateGroup(group1, id);
    updateGroup(group2, id);
@@ -465,15 +487,16 @@ function update(id)
    showElement("ex5",  darcy && (l2 || hdiv) && mixed && (gs || jacobi || minres || umfpack || amg ));
    showElement("ex6",  laplace && h1 && (galerkin || nurbs || amr) && (gs || pcg || umfpack || amg));
    showElement("ex7",  laplace && h1 && (galerkin || amr) && (gs || pcg || umfpack || amg));
-   showElement("ex8",  laplace && (l2 || h1 || h12) && dpg && (gs || pcg || umfpack || amg));
+   showElement("ex8",  laplace && (l2 || h1 || h12) && dpg && (gs || pcg || umfpack || amg || ads || ams));
    showElement("ex9",  advection && l2 && dg && (pcg || rk));
    showElement("ex10", elasticity && (l2 || h1) && galerkin && (jacobi || pcg || minres || umfpack || newton || rk || sdirk));
    showElement("ex11", laplace && h1 && (galerkin || nurbs) && (lobpcg || amg));
    showElement("ex12", elasticity && h1 && (galerkin || nurbs) && (lobpcg || amg));
    showElement("ex13", maxwell && hcurl && galerkin && (ame || ams));
+   showElement("ex14", laplace && l2 && dg && (gs || pcg || gmres || umfpack || amg));
 
    // NOTE: update 'numExamples' below when adding examples!
-   var numExamples = 13;
+   var numExamples = 14;
    var allHidden = true;
    for (i = 1; i <= numExamples; i++) {
       if (exampleVisible(i)) {

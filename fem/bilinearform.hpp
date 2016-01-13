@@ -357,6 +357,9 @@ public:
    void AddDomainInterpolator(DiscreteInterpolator *di)
    { AddDomainIntegrator(di); }
 
+   void AddTraceFaceInterpolator(DiscreteInterpolator *di)
+   { AddTraceFaceIntegrator(di); }
+
    Array<BilinearFormIntegrator*> *GetDI() { return &dom; }
 
    virtual void Assemble(int skip_zeros = 1);
