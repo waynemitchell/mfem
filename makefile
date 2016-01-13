@@ -34,6 +34,8 @@ make -j 4
    Build the code (in parallel) using the current configuration options.
 make status
    Display information about the current configuration.
+make sidre
+   A shortcut to configure and build the sidre integrated version of the library.
 make serial
    A shortcut to configure and build the serial optimized version of the library.
 make parallel
@@ -71,7 +73,7 @@ mfem-info = $(if $(filter YES,$(VERBOSE)),$(info *** [info]$(1)),)
 $(call mfem-info, MAKECMDGOALS = $(MAKECMDGOALS))
 
 # Include $(CONFIG_MK) unless some of the $(SKIP_INCLUDE_TARGETS) are given
-SKIP_INCLUDE_TARGETS = help config clean distclean serial parallel debug pdebug\
+SKIP_INCLUDE_TARGETS = help config clean distclean serial parallel sidre debug pdebug\
  style
 HAVE_SKIP_INCLUDE_TARGET = $(filter $(SKIP_INCLUDE_TARGETS),$(MAKECMDGOALS))
 ifeq (,$(HAVE_SKIP_INCLUDE_TARGET))
@@ -112,6 +114,21 @@ HYPRE_DIR ?= @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT ?= -I$(HYPRE_DIR)/include
 HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
+# SIDRE library and required libraries configurations (needed to build the sidre integrated version)
+SIDRE_DIR ?= @MFEM_DIR@/../sidre
+SIDRE_OPT ?= -I$(SIDRE_DIR)/include
+SIDRE_LIB ?= -L$(SIDRE_DIR)/lib -lsidre -lslic -lcommon
+
+CONDUIT_DIR ?= @MFEM_DIR@/../conduit
+CONDUIT_OPT ?= -I$(CONDUIT_DIR)/include
+CONDUIT_LIB ?= -L$(CONDUIT_DIR)/lib -lconduit -Wl,-rpath $(CONDUIT_DIR)/lib
+
+MFEM_USE_SIDRE ?= NO
+ifeq ($(MFEM_USE_SIDRE),YES)
+   INCFLAGS += $(SIDRE_OPT) $(CONDUIT_OPT)
+   ALL_LIBS += $(SIDRE_LIB) $(CONDUIT_LIB)
+endif
+
 # METIS library configuration
 METIS_DIR ?= @MFEM_DIR@/../metis-4.0
 METIS_OPT ?=
@@ -138,6 +155,7 @@ ifeq ($(MFEM_USE_LAPACK),YES)
    INCFLAGS += $(LAPACK_OPT)
    ALL_LIBS += $(LAPACK_LIB)
 endif
+
 
 MFEM_USE_OPENMP ?= NO
 # OpenMP configuration
@@ -199,7 +217,7 @@ endif
 
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
- MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
+ MFEM_USE_LAPACK MFEM_USE_SIDRE MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
  MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC MFEM_USE_GECKO
 
 # List of makefile variables that will be written to config.mk:
@@ -247,7 +265,7 @@ DIRS = general linalg mesh fem
 SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
-.PHONY: all clean distclean install config status info deps serial parallel\
+.PHONY: all clean distclean install config status info deps serial parallel sidre\
  debug pdebug style
 
 .SUFFIXES: .cpp .o
@@ -267,6 +285,9 @@ libmfem.a: $(OBJECT_FILES)
 
 serial:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
+
+sidre:
+	$(MAKE) config MFEM_USE_SIDRE=YES MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
 
 parallel:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=NO && $(MAKE)
@@ -330,6 +351,7 @@ status info:
 	$(info MFEM_USE_METIS_5     = $(MFEM_USE_METIS_5))
 	$(info MFEM_DEBUG           = $(MFEM_DEBUG))
 	$(info MFEM_USE_LAPACK      = $(MFEM_USE_LAPACK))
+	$(info MFEM_USE_SIDRE       = $(MFEM_USE_SIDRE))
 	$(info MFEM_THREAD_SAFE     = $(MFEM_THREAD_SAFE))
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
