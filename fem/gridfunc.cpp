@@ -139,9 +139,9 @@ void GridFunction::Update()
    const Operator *T = fes->UpdateMatrix();
    if (T)
    {
-      const SparseMatrix *sT = dynamic_cast<const SparseMatrix*>(T);
-      MFEM_VERIFY(sT != NULL, "");
-      Transform(sT);
+      Vector tmp(T->Height());
+      T->Mult(*this, tmp);
+      *this = tmp;
    }
    else
    {
