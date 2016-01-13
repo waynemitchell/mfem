@@ -20,10 +20,12 @@ ifneq (clean,$(MAKECMDGOALS))
    -include $(CONFIG_MK)
 endif
 
+SEQ_MINIAPPS =
 ifeq ($(MFEM_USE_MPI),NO)
-   MINIAPPS =
+   MINIAPPS = $(SEQ_MINIAPPS)
 else
-   MINIAPPS = magnetostatics1p magnetostatics2p magnetostatics3p \
+   MINIAPPS = $(SEQ_MINIAPPS) \
+              magnetostatics1p magnetostatics2p magnetostatics3p \
               magnetostatics4p magnetostatics5p \
               electrostatics1p electrostatics2p
 endif
@@ -55,12 +57,3 @@ clean:
                      electrostatics1p electrostatics2p
 	rm -f mesh.* sol.* sol_curl.* psi.*
 	rm -rf *.dSYM *.TVD.*breakpoints
-
-
-ASTYLE = astyle --options=../../config/mfem.astylerc
-FORMAT_FILES = $(foreach dir, . ,"$(dir)/*.?pp")
-
-style:
-	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\
-	   echo "No source files were changed.";\
-	fi
