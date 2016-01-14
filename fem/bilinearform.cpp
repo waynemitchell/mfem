@@ -819,6 +819,7 @@ void DiscreteLinearOperator::Assemble(int skip_zeros)
    }
 
    if (dom.Size() > 0)
+   {
       for (int i = 0; i < test_fes->GetNE(); i++)
       {
          trial_fes->GetElementVDofs(i, dom_vdofs);
@@ -835,6 +836,28 @@ void DiscreteLinearOperator::Assemble(int skip_zeros)
          }
          mat->SetSubMatrix(ran_vdofs, dom_vdofs, totelmat, skip_zeros);
       }
+   }
+
+   if (skt.Size())
+   {
+      const int nfaces = test_fes->GetMesh()->GetNumFaces();
+      for (int i = 0; i < nfaces; i++)
+      {
+         trial_fes->GetFaceVDofs(i, dom_vdofs);
+         test_fes->GetFaceVDofs(i, ran_vdofs);
+         T = test_fes->GetMesh()->GetFaceTransformation(i);
+         dom_fe = trial_fes->GetFaceElement(i);
+         ran_fe = test_fes->GetFaceElement(i);
+
+         skt[0]->AssembleElementMatrix2(*dom_fe, *ran_fe, *T, totelmat);
+         for (int j = 1; j < skt.Size(); j++)
+         {
+            skt[j]->AssembleElementMatrix2(*dom_fe, *ran_fe, *T, elmat);
+            totelmat += elmat;
+         }
+         mat->SetSubMatrix(ran_vdofs, dom_vdofs, totelmat, skip_zeros);
+      }
+   }
 }
 
 }

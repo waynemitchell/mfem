@@ -73,6 +73,28 @@ public:
                                      const HypreParVector &X,
                                      HypreParVector &B) const;
 
+   /** Eliminate essential boundary DOFs from a parallel assembled matrix A.
+       The array 'bdr_attr_is_ess' marks boundary attributes that constitute
+       the essential part of the boundary. The eliminated part is stored in a
+       matrix A_elim such that A_new = A_original + A_elim. Returns a pointer to
+       the newly allocatated matrix A_elim which should be deleted by the
+       caller. The matrices A and A_elim can be used to eliminate boundary
+       conditions in multiple right-hand sides, by calling the function
+       EliminateBC (from hypre.hpp).*/
+   HypreParMatrix *ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
+                                                HypreParMatrix &A) const;
+
+   /** Given a list of essential true dofs and the parallel assembled matrix A,
+       eliminate the true dofs from the matrix storing the eliminated part in
+       a matrix A_elim such that A_new = A_original + A_elim. Returns a pointer
+       to the newly allocatated matrix A_elim which should be deleted by the
+       caller. The matrices A and A_elim can be used to eliminate boundary
+       conditions in multiple right-hand sides, by calling the function
+       EliminateBC (from hypre.hpp). */
+   HypreParMatrix *ParallelEliminateTDofs(const Array<int> &tdofs_list,
+                                          HypreParMatrix &A) const
+   { return A.EliminateRowsCols(tdofs_list); }
+
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 

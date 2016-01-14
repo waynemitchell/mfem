@@ -35,10 +35,10 @@ using namespace mfem;
 
 // Define the analytical solution and forcing terms / boundary conditions
 void uFun_ex(const Vector & x, Vector & u);
-double pFun_ex(Vector & x);
+double pFun_ex(const Vector & x);
 void fFun(const Vector & x, Vector & f);
-double gFun(Vector & x);
-double f_natural(Vector & x);
+double gFun(const Vector & x);
+double f_natural(const Vector & x);
 
 int main(int argc, char *argv[])
 {
@@ -325,7 +325,7 @@ void uFun_ex(const Vector & x, Vector & u)
 }
 
 // Change if needed
-double pFun_ex(Vector & x)
+double pFun_ex(const Vector & x)
 {
    double xi(x(0));
    double yi(x(1));
@@ -344,7 +344,7 @@ void fFun(const Vector & x, Vector & f)
    f = 0.0;
 }
 
-double gFun(Vector & x)
+double gFun(const Vector & x)
 {
    if (x.Size() == 3)
    {
@@ -356,7 +356,7 @@ double gFun(Vector & x)
    }
 }
 
-double f_natural(Vector & x)
+double f_natural(const Vector & x)
 {
    return (-pFun_ex(x));
 }

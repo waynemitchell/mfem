@@ -951,7 +951,6 @@ public:
 class HypreAME
 {
 private:
-   MPI_Comm comm;
    int myid;
    int numProcs;
    int nev;   // Number of desired eigenmodes
@@ -962,12 +961,6 @@ private:
 
    // Pointer to HYPRE's AMS solver struct
    HypreSolver * ams_precond;
-
-   // Interface for matrix storage type
-   mv_InterfaceInterpreter interpreter;
-
-   // Interface for setting up and performing matrix-vector products
-   HYPRE_MatvecFunctions matvec_fn;
 
    // Eigenvalues
    HYPRE_Real * eigenvalues;

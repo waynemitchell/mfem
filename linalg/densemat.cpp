@@ -2926,6 +2926,8 @@ void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
       mfem_error("CalcInverse(...)");
    }
 #endif
+   MFEM_ASSERT(inva.Height() == a.Width(), "incorrect dimensions");
+   MFEM_ASSERT(inva.Width() == a.Height(), "incorrect dimensions");
 
    double t;
 

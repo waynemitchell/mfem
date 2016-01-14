@@ -14,6 +14,8 @@
 //               mpirun -np 4 ex13p -m ../data/beam-hex-nurbs.mesh
 //               mpirun -np 4 ex13p -m ../data/amr-quad.mesh -o 2
 //               mpirun -np 4 ex13p -m ../data/amr-hex.mesh
+//               mpirun -np 4 ex13p -m ../data/mobius-strip.mesh -n 8 -o 2
+//               mpirun -np 4 ex13p -m ../data/klein-bottle.mesh -n 10 -o 2
 //
 // Description:  This example code solves the Maxwell (electromagnetic)
 //               eigenvalue problem curl curl E = lambda E with homogeneous
@@ -141,11 +143,21 @@ int main(int argc, char *argv[])
    //    of the computational range. After serial and parallel assembly we
    //    extract the corresponding parallel matrices A and M.
    ConstantCoefficient one(1.0);
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
+   Array<int> ess_bdr;
+   if (pmesh->bdr_attributes.Size())
+   {
+      ess_bdr.SetSize(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+   }
 
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(one));
+   if (pmesh->bdr_attributes.Size() == 0)
+   {
+      // Add a mass term if the mesh has no boundary, e.g. periodic mesh or
+      // closed suface.
+      a->AddDomainIntegrator(new VectorFEMassIntegrator(one));
+   }
    a->Assemble();
    a->EliminateEssentialBCDiag(ess_bdr, 1.0);
    a->Finalize();

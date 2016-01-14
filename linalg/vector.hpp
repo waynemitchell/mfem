@@ -148,8 +148,6 @@ public:
 
    /// Swap the contents of two Vectors
    inline void Swap(Vector &other);
-   /// Swap v1 and v2 (deprecated).
-   friend void swap(Vector *v1, Vector *v2) { v1->Swap(*v2); }
 
    /// Do v = v1 + v2.
    friend void add(const Vector &v1, const Vector &v2, Vector &v);

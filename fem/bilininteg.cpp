@@ -2226,4 +2226,30 @@ void TraceJumpIntegrator::AssembleFaceMatrix(
    }
 }
 
+
+void NormalInterpolator::AssembleElementMatrix2(
+   const FiniteElement &dom_fe, const FiniteElement &ran_fe,
+   ElementTransformation &Trans, DenseMatrix &elmat)
+{
+   int spaceDim = Trans.GetSpaceDim();
+   elmat.SetSize(ran_fe.GetDof(), spaceDim*dom_fe.GetDof());
+   Vector n(spaceDim), shape(dom_fe.GetDof());
+
+   const IntegrationRule &ran_nodes = ran_fe.GetNodes();
+   for (int i = 0; i < ran_nodes.Size(); i++)
+   {
+      const IntegrationPoint &ip = ran_nodes.IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      CalcOrtho(Trans.Jacobian(), n);
+      dom_fe.CalcShape(ip, shape);
+      for (int j = 0; j < shape.Size(); j++)
+      {
+         for (int d = 0; d < spaceDim; d++)
+         {
+            elmat(i, j+d*shape.Size()) = shape(j)*n(d);
+         }
+      }
+   }
+}
+
 }

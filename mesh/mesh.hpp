@@ -135,6 +135,14 @@ protected:
    MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
 
+public:
+   Array<int> attributes;
+   Array<int> bdr_attributes;
+
+   NURBSExtension *NURBSext;
+   NCMesh *ncmesh;
+
+protected:
    void Init();
 
    void InitTables();
@@ -333,12 +341,6 @@ protected:
 public:
 
    enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
-
-   Array<int> attributes;
-   Array<int> bdr_attributes;
-
-   NURBSExtension *NURBSext;
-   NCMesh *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
@@ -541,8 +543,9 @@ public:
    /// Return the index and the orientation of the face of bdr element i. (3D)
    void GetBdrElementFace(int i, int *, int *) const;
 
-   /** Return the edge index of boundary element i. (2D)
-       return the face index of boundary element i. (3D) */
+   /** Return the vertex index of boundary element i. (1D)
+       Return the edge index of boundary element i. (2D)
+       Return the face index of boundary element i. (3D) */
    int GetBdrElementEdgeIndex(int i) const;
 
    /// Returns the type of element i.
@@ -716,9 +719,11 @@ public:
        defined or NULL if the mesh does not have nodes. */
    const FiniteElementSpace *GetNodalFESpace();
 
-   /** If 'NURBSext' exists, project the NURBS curvature to Nodes of the given
-       order and get rid of the NURBS extension. */
-   void ProjectNURBS(int order);
+   /** Set the curvature of the mesh nodes using the given polynomial degree,
+       'order', and optionally: discontinuous or continuous FE space, 'discont',
+       new space dimension, 'space_dim' (if != -1), and 'ordering'. */
+   void SetCurvature(int order, bool discont = false, int space_dim = -1,
+                     int ordering = 1);
 
    /** Refine all mesh elements. */
    void UniformRefinement();
@@ -827,6 +832,13 @@ public:
 
    void Transform(void (*f)(const Vector&, Vector&));
    void Transform(VectorCoefficient &deformation);
+
+   /// Remove unused vertices and rebuild mesh connectivity.
+   void RemoveUnusedVertices();
+
+   /** Remove boundary elements that lie in the interior of the mesh, i.e. that
+       have two adjacent faces in 3D, or edges in 2D. */
+   void RemoveInternalBoundaries();
 
    /** Get the size of the i-th element relative to the perfect
        reference element. */
