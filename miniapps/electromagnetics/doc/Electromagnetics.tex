@@ -1,0 +1,203 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{pgf}
+
+%=============================================================================
+%                              Useful Commands
+%=============================================================================
+ 
+\newcommand{\refEq}[1]{(\ref{eq:#1})}
+\newcommand{\refChap}[1]{Chapter~\ref{chap:#1}}
+\newcommand{\refFig}[1]{Figure~\ref{fig:#1}}
+\newcommand{\refSec}[1]{Section~\ref{sec:#1}}
+\newcommand{\refTab}[1]{Table~\ref{tab:#1}}
+\newcommand{\refApp}[1]{Appendix~\ref{app:#1}}
+\newcommand{\newEq}[2]{\begin{equation} \label{eq:#1} #2 \end{equation}}
+\newcommand{\cross}{\!\times\!}
+\newcommand{\inner}{\!\cdot\!}
+\newcommand{\Div}{\nabla\!\cdot\!}
+\newcommand{\Divx}{\nabla_{\vec{x}}\!\cdot\!}
+\newcommand{\Curl}{\nabla\!\times\!}
+\newcommand{\Curlx}{\nabla_{\vec{x}}\!\times\!}
+\newcommand{\Grad}{\nabla\!}
+\newcommand{\Gradu}{\nabla_{\vec{u}}\!}
+\newcommand{\Gradx}{\nabla_{\vec{x}}\!}
+\newcommand{\st}{\Bigl\lvert\;}
+\newcommand{\St}{\biggl\lvert\;}
+%\newcommand{\Div}{\nabla\cdot}
+%\newcommand{\Divx}{\nabla_{\vec{x}}\cdot}
+%\newcommand{\Curl}{\nabla\times}
+%\newcommand{\Curlx}{\nabla_{\vec{x}}\times}
+%\newcommand{\Grad}{\nabla}
+%\newcommand{\Gradu}{\nabla_{\vec{u}}}
+%\newcommand{\Gradx}{\nabla_{\vec{x}}}
+
+\providecommand{\abs}[1]{{\left\lvert#1\right\rvert}}
+\providecommand{\norm}[1]{{\left\lVert#1\right\rVert}}
+
+\def\Hdiv{$H(Div)$ }
+\def\Hcurl{$H(Curl)$ }
+
+%\pgfdeclareimage[width=5in]{pen_fun}{images/pen_fun_and_deriv}
+
+%=============================================================================
+
+\title{MFEM Electromagnetics Mini Applications}
+\author{The MFEM Team}
+
+\begin{document}
+
+\maketitle
+
+\section{Electromagnetics}
+
+The equations describing electromagnetic phenomena are know
+collectively as the ``Maxwell Equations''.  They are usually given as:
+\begin{eqnarray}
+\Curl\vec{H} - \frac{\partial\vec{D}}{\partial t} &=& \vec{J} \label{eq:ampere} \\
+\Curl\vec{E} + \frac{\partial\vec{B}}{\partial t} &=& 0 \label{eq:faraday} \\
+\Div\vec{D} &=& \rho \label{eq:gauss} \\
+\Div\vec{B} &=& 0 \label{eq:divb}
+\end{eqnarray}
+Where equation~\refEq{ampere} can be referred to as {\em Amp\`ere's Law},
+equation~\refEq{faraday} is called {\em Faraday's Law},
+equation~\refEq{gauss} is {\em Gauss's Law}, and equation~\refEq{divb}
+doesn't generally have a name but is related to the nonexistence of
+magnetic monopoles.  The various fields in these equations are:
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+Symbol & Name & SI Units \\
+\hline
+$\vec{H}$ & Magnetic Field & Ampere/meter \\
+$\vec{B}$ & Magnetic Flux Density & Tesla \\
+$\vec{E}$ & Electric Field & Volts/meter \\
+$\vec{D}$ & Electric Displacement & Coulomb/meter$^2$ \\
+$\vec{J}$ & Current Density & Ampere/meter$^2$ \\
+$\rho$ & Charge Density & Coulomb/meter$^3$ \\
+\hline
+\end{tabular}
+\end{center}
+In the literature these names do vary, particularly those for
+$\vec{H}$ and $\vec{B}$, but in this document we will try to adhere to
+the convention laid out above.
+
+Generally we also need constitutive relations between $\vec{E}$ and
+$\vec{D}$ and/or between $\vec{H}$ and $\vec{B}$.  These relations
+start with the definitions:
+\begin{eqnarray}
+\vec{D} &=& \epsilon_0\vec{E} + \vec{P}\\
+\vec{B} &=& \mu_0\vec{H} + \vec{M}
+\end{eqnarray}
+Where $\vec{P}$ is the {\em polarization density}, and $\vec{M}$ is
+the {\em magnetization}.  Also, $\epsilon_0$ is the {\em permittivity
+  of free space} and $\mu_0$ is the {\em permeability of free space}
+which are both constants of nature.  In many common materials the
+polarization density can be approximated as a scalar multiple of the
+electric field i.e. $\vec{P}=\epsilon_0\chi\vec{E}$, where $\chi$ is
+called the {\em electric suscepctibility}.  In such cases we usually
+use the relation $\vec{D}=\epsilon\vec{E}$ with
+$\epsilon=\epsilon_0(1+\chi)$ and call $\epsilon$ the {\em
+  permittivity} of the material.
+
+The nature of magnetization is more
+complicated but we will take a very simplified view which is valid in
+many situations.  Specifically, we will assume that either $\vec{M}$
+is proportional to $\vec{H}$ yielding the relation
+$\vec{B}=\mu\vec{H}$ where $\mu=\mu_0(1+\chi_M)$ and $\chi_M$ is the
+{\em magnetic susceptibility} or that $\vec{M}$ is a constant.  The
+former case pertains to both diamagnetic and paramagnetic materials
+and the later to ferromagnetic materials.
+
+Finally we should note that equations~\refEq{ampere} and \refEq{gauss}
+can be combined to yield the equation of charge continuity
+\[\frac{\partial\rho}{\partial t}+\Div\vec{J} = 0\]
+which can be important in plasma physics and magnetohydrodynamics (MHD).
+
+\subsection{Static Fields}
+\subsubsection{Electrostatics}
+
+Electrostatic problems come in a variety of subtypes but they all
+derive from Gauss's Law and Faraday's Law (equations~\refEq{gauss} and
+\refEq{faraday}).  When we assume no time variation, Faraday's Law
+becomes simply $\Curl\vec{E}=0$. This suggests that the electric field
+can be expressed as the gradient of a scalar field which is
+traditionally taken to be $-\varphi$, i.e.
+\begin{equation}
+\vec{E} = -\Grad\varphi \label{eq:gradphi}
+\end{equation}
+where $\varphi$ is called the {\em electric potential} and has units
+of Volts in the SI system.  Inserting this definition into
+equation~\refEq{gauss} gives:
+\begin{equation}
+-\Div\epsilon\Grad\varphi = \rho \label{eq:poisson}
+\end{equation}
+which is {\em Poisson's equation} for the electric potential.  Where,
+clearly, we have assumed a linear constitutive relation between
+$\vec{D}$ and $\vec{E}$.  If this relation happens to be nonlinear
+then Poisson's equation would need to be replaced with a more
+complicated nonlinear expression.
+
+The solutions to equation~\refEq{poisson} are non unique because they
+can be shifted by any additive constant.  This means that we must
+apply a Dirichlet boundary condition at at least one point in the
+problem domain in order to obtain a solution.  Typically this point
+will be on the boundry but it need not be so.  Such a Dirichlet value
+is equivalent to fixing the voltage (aka potential) at one or more
+locations.  Additionally, this equation admits a normal derivative
+boundary condition.  This means setting $\hat{n}\cdot\vec{D}$ to a
+prescribed value on some portion of the boundary.  This is equivalent
+to defining a surface charge density on that portion of the boundary.
+
+\subsubsection{Magnetostatics}
+
+Magnetostatic problems arise when we assume no time variation in
+Amp\`ere's Law (equation~\refEq{ampere}) which leads to:
+\[\Curl\vec{H}=\vec{J}\]
+In this case we'll assume a somewhat more general constitutive
+relation between $\vec{H}$ and $\vec{B}$:
+\[\vec{B}=\mu\vec{H}+\vec{M}\]
+Notice that we use $\mu$ rather than $\mu_0$.  This allows for
+paramagnetic and/or diamagnetic materials defined through $\mu$ as
+well as ferromagnetic materials represented by $\vec{M}$.  This choice
+yields:
+\[\Curl\mu^{-1}\vec{B}=\vec{J}+\Curl\mu^{-1}\vec{M}\]
+Of course a nonlinear constitutive relation is possible and would lead
+to a rather complicated nonlinear equation for $\vec{B}$.
+
+To reach an equation we can solve in the linear case we need to make
+use of equation~\refEq{divb} which implies that $\vec{B}=\Curl\vec{A}$
+for some potential $\vec{A}$ which is called the {\em magnetic vector
+  potential}.  This gives the final form of the equation:
+\begin{equation}
+\Curl\mu^{-1}\Curl\vec{A}=\vec{J}+\Curl\mu^{-1}\vec{M}
+\end{equation}
+Once again the potential is non unique so we must apply Dirichlet
+boundary conditions in order to arrive at a solution for $\vec{A}$.   
+
+more on appropriate boundary conditions\ldots
+
+more on magnetic scalar potential\ldots
+
+\subsubsection{Statics Miniapp}
+
+Possible sources:
+\begin{itemize}
+\item Charge Density $\rho$
+\item Current Density $\vec{J}$
+\item Magnetization $\vec{M}$
+\item Surface Charge Density $\sigma$
+\item Surface Current Density $\vec{K}$
+\end{itemize}
+
+Additional Boundary Conditions:
+\begin{itemize}
+\item Voltage at at least one point
+\item Magnetic Vector Potential on some region (restrictions???)
+\item Magnetic Scalar Potential at at least one point (we may be able
+  to choose this for the user)
+\end{itemize}
+
+\end{document}
