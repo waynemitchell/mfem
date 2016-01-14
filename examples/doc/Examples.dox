@@ -1,20 +1,26 @@
-/** \mainpage Example Codes
+/** \mainpage Example Codes and Miniapps
 
-This page provides a brief overview of the MFEM example codes. For
-detailed documentation of the MFEM sources, including the examples, build the
+This page provides a brief overview of the MFEM example codes and miniapps. For
+detailed documentation of the MFEM sources, including the examples and miniapps, build the
 <a href="../../doc/CodeDocumentation/html/index.html">Doxygen documentation</a> in the
-<code>doc/</code> directory, or browse the
+<code>doc</code> directory, or browse the
 <a href="http://mfem.github.io/doxygen/html/index.html">online version</a>.
 
-Clicking on any of the categories below displays examples that contain the
+The goal of the example codes is to provide a step-by-step introduction to MFEM
+in simple model settings. The miniapps are more complex, and are intended to be
+more representative of the advanced usage of the library in physics/application
+codes. We recommend that new users start with the example codes before moving to
+the miniapps.
+
+Clicking on any of the categories below displays examples and miniapps that contain the
 described feature. <em> All examples support (arbitrarily) high-order meshes and
 finite element spaces</em>.
 The numerical results from the example codes can be visualized using the
 GLVis visualization tool (based on MFEM). See the
 <a href="http://glvis.org">GLVis website</a>, for more details.
 
-Users are encouraged to submit any example codes that they have created and
-would like to share.
+Users are encouraged to submit any example codes and miniapps that they have
+created and would like to share.
 <em>Contact a member of the MFEM team to report
 <a href="https://github.com/mfem/mfem/issues/new?labels=bug">bugs</a>
 or post
@@ -26,14 +32,15 @@ or
 <hr>
 <div id="filters" style="overflow:auto">
 <div id="column1" style="float:left; width:16%;">
-   <h4>Equation (PDE)</h4>
+   <h4>Application (PDE)</h4>
    <label><input type="radio" id="all1" onchange="update(this.id);" checked="checked" />All</label><br/>
    <label><input type="radio" id="laplace" onchange="update(this.id);" />Laplace</label><br/>
    <label><input type="radio" id="elasticity" onchange="update(this.id);" />Elasticity</label><br/>
-   <label><input type="radio" id="maxwell" onchange="update(this.id);" />Definite Maxwell</label><br/>
+   <label><input type="radio" id="maxwell" onchange="update(this.id);" />Electromagnetics</label><br/>
    <label><input type="radio" id="graddiv" onchange="update(this.id);" />grad-div</label><br/>
    <label><input type="radio" id="darcy" onchange="update(this.id);" />Darcy</label><br/>
    <label><input type="radio" id="advection" onchange="update(this.id);" />Advection</label><br/>
+   <label><input type="radio" id="meshing" onchange="update(this.id);" />Meshing</label><br/>
 </div>
 
 <div id="column2" style="float:left; width:26%;">
@@ -413,6 +420,123 @@ We recommend viewing examples 1 and 9 before viewing this example.</em>
 </div>
 
 <!----------------------------------------------------------------------------->
+<div id="mobius-strip">
+\htmlonly <hr style="clear:both;"/><img src="mobius-strip.png" style="float:right;"> \endhtmlonly
+<h2>Miniapp: Mobius Strip</h2>
+
+This miniapp generates various Mobius strip-like surface meshes. It is a good
+way to generate complex surface meshes.
+<p>
+Manipulating the mesh topology and performing mesh transformation are demonstrated.
+<p>
+The mobius-strip mesh in the <code>data</code> directory was generated with this miniapp.
+<p><b>
+For more details, please see the documentation in the <code>miniapps/meshing</code>
+directory. We recommend that new users start with the example codes before
+moving to the miniapps.
+</b>
+<center>
+<em>The example has only a serial version (mobius-strip.cpp).</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
+<div id="klein-bottle">
+\htmlonly <hr style="clear:both;"/><img src="klein-bottle.png" style="float:right;"> \endhtmlonly
+<h2>Miniapp: Klein Bottle</h2>
+
+This miniapp generates three types of Klein bottle surfaces. It is similar to
+the mobius-strip miniapp.
+<p>
+Manipulating the mesh topology and performing mesh transformation are demonstrated.
+<p>
+The klein-bottle and klein-donut meshes in the <code>data</code> directory were generated with this miniapp.
+<p><b>
+For more details, please see the documentation in the <code>miniapps/meshing</code>
+directory. We recommend that new users start with the example codes before
+moving to the miniapps.
+</b>
+<center>
+<em>The example has only a serial version (klein-bottle.cpp).</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
+<div id="view-mesh">
+\htmlonly <hr style="clear:both;"/><img src="view-mesh.png" style="float:right;"> \endhtmlonly
+<h2>Miniapp: View Mesh</h2>
+
+This miniapp is a handy tool to examine, visualize and manipulate a given
+mesh. Some of its features are:
+- visualizing of mesh materials and individual mesh elements
+- mesh scaling, randomization, and general transformation
+- manipulation of the mesh curvature
+- the ability to simulate parallel partitioning
+- quantitative and visual reports of mesh quality
+<p><b>
+For more details, please see the documentation in the <code>miniapps/meshing</code>
+directory. We recommend that new users start with the example codes before
+moving to the miniapps.
+</b>
+<center>
+<em>The example has only a serial version (view-mesh.cpp).</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
+<div id="electrostatics">
+\htmlonly <hr style="clear:both;"/><img src="electrostatics.png" style="float:right;"> \endhtmlonly
+<h2>Miniapp: Electrostatics</h2>
+
+This miniapp solves a simple 3D electrostatic
+problem with non-uniform dielectric permittivity.
+\f[ \nabla \cdot \epsilon \nabla \phi = 0 \f]
+The uniform field is imposed through the boundary
+conditions.
+\f[ \phi = -z \f] on all exterior surfaces.
+This will produce a uniform electric field in the \f$z\f$ direction.
+
+We discretize the electric potential with \f$H_1\f$ finite elements.
+The electric field \f$E\f$ is discretized with Nedelec finite elements.
+<p><b>
+For more details, please see the documentation in the <code>miniapps/electromagnetics</code>
+directory. We recommend that new users start with the example codes before
+moving to the miniapps.
+</b>
+<center>
+<em>The example has only a parallel version (electrostatics.cpp).</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
+<div id="magnetostatics">
+\htmlonly <hr style="clear:both;"/><img src="magnetostatics.png" style="float:right;"> \endhtmlonly
+<h2>Miniapp: Magnetostatics</h2>
+
+This mini app solves a simple 3D magnetostatic problem corresponding to the
+second order semi-definite Maxwell equation
+\f[ \nabla \times \mu^{-1} \nabla \times A = \nabla \times M \f]
+with boundary condition
+\f[ n \times (A \times n) = (0,0,0) \f] on all exterior surfaces.
+This is a perfect electrical conductor (PEC) boundary
+condition which results in a magnetic flux satisfying:
+\f[ n \cdot B = 0 \f] on all surfaces,
+i.e. the magnetic flux lines will be tangent to the boundary.
+
+We discretize the vector potential with Nedelec finite elements.
+The magnetization \f$M\f$ and magnetic flux \f$B =\nabla \times A\f$
+are discretized with Raviart-Thomas finite elements.
+<p><b>
+For more details, please see the documentation in the <code>miniapps/electromagnetics</code>
+directory. We recommend that new users start with the example codes before
+moving to the miniapps.
+</b>
+<center>
+<em>The example has only a parallel version (magnetostatics.cpp).</em>
+</center>
+</div>
+
+<!----------------------------------------------------------------------------->
 <div id="nomatch"><hr>
 <br/><br/><br/>
 <center>
@@ -470,7 +594,7 @@ function exampleVisible(num)
 
 function update(id)
 {
-   var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy", "advection"];
+   var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy", "advection", "meshing"];
    var group2 = ["all2", "l2", "h1", "hcurl", "hdiv", "h12"];
    var group3 = ["all3", "galerkin", "mixed", "dg", "dpg", "nurbs", "amr" ];
    var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "gmres", "amg", "ams", "ads", "umfpack", "newton", "rk", "sdirk", "lobpcg", "ame"];
@@ -480,13 +604,15 @@ function update(id)
    updateGroup(group3, id);
    updateGroup(group4, id);
 
+   // Example codes
+   var numExamples = 14; // update when adding examples!
    showElement("ex1",  laplace && h1 && (galerkin || nurbs) && (gs || pcg || umfpack || amg));
    showElement("ex2",  elasticity && h1 && (galerkin || nurbs) && (gs || pcg || umfpack || amg));
    showElement("ex3",  maxwell && hcurl && galerkin && (gs || pcg || umfpack || ams));
    showElement("ex4",  graddiv && hdiv && galerkin && (gs || pcg || umfpack || ads || ams));
    showElement("ex5",  darcy && (l2 || hdiv) && mixed && (gs || jacobi || minres || umfpack || amg ));
    showElement("ex6",  laplace && h1 && (galerkin || nurbs || amr) && (gs || pcg || umfpack || amg));
-   showElement("ex7",  laplace && h1 && (galerkin || amr) && (gs || pcg || umfpack || amg));
+   showElement("ex7",  (laplace || meshing) && h1 && (galerkin || amr) && (gs || pcg || umfpack || amg));
    showElement("ex8",  laplace && (l2 || h1 || h12) && dpg && (gs || pcg || umfpack || amg || ads || ams));
    showElement("ex9",  advection && l2 && dg && (pcg || rk));
    showElement("ex10", elasticity && (l2 || h1) && galerkin && (jacobi || pcg || minres || umfpack || newton || rk || sdirk));
@@ -495,8 +621,17 @@ function update(id)
    showElement("ex13", maxwell && hcurl && galerkin && (ame || ams));
    showElement("ex14", laplace && l2 && dg && (gs || pcg || gmres || umfpack || amg));
 
-   // NOTE: update 'numExamples' below when adding examples!
-   var numExamples = 14;
+   // Meshing miniapps
+   numExamples += 3; // update when adding miniapps!
+   showElement("mobius-strip", meshing && all2 && all3 && all4);
+   showElement("klein-bottle", meshing && all2 && all3 && all4);
+   showElement("view-mesh", meshing && all2 && all3 && all4);
+
+   // Electromagnetic miniapps
+   numExamples += 2; // update when adding miniapps!
+   showElement("electrostatics", maxwell && all2 && all3 && all4);
+   showElement("magnetostatics", maxwell && all2 && all3 && all4);
+
    var allHidden = true;
    for (i = 1; i <= numExamples; i++) {
       if (exampleVisible(i)) {
