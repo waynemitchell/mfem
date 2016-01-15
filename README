@@ -53,3 +53,8 @@ support for OpenMP acceleration is also included.
 
 For examples of using MFEM, see the examples/ and miniapps/ directories, as well
 as the OpenGL visualization tool GLVis which is available at http://glvis.org.
+
+This project is released under the LGPL v2.1 license. See LICENSE file for full
+details.
+
+LLNL Release Number: LLNL-CODE-443211

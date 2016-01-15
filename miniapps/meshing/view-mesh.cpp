@@ -127,7 +127,7 @@ int main (int argc, char *argv[])
    }
    else
    {
-      mesh = read_par_mesh(np, argv[3]);
+      mesh = read_par_mesh(np, mesh_file);
       if (mesh == NULL)
       {
          return 3;
