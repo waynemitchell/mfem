@@ -6756,6 +6756,8 @@ bool Mesh::GeneralDerefinement(Array<double> &elem_error,
    MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
    const Table &dt = GetDerefinementTable(nc_limit);
 
+   SynchronizeDerefinementData(elem_error, dt);
+
    Array<int> derefs;
    for (int i = 0; i < dt.Size(); i++)
    {
@@ -6765,6 +6767,8 @@ bool Mesh::GeneralDerefinement(Array<double> &elem_error,
       double error = 0.0;
       for (int j = 0; j < size; j++)
       {
+         MFEM_VERIFY(fine[j] < elem_error.Size(), "");
+
          double err_fine = elem_error[fine[j]];
          switch (op)
          {

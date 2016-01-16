@@ -140,6 +140,11 @@ public:
    /// Load balance the mesh. NC meshes only.
    void Rebalance();
 
+   /** Exchange element data (errors) for derefinements that straddle processor
+       boundaries. 'elem_error' is enlarged and filled with ghost values. */
+   virtual void SynchronizeDerefinementData(Array<double> &elem_error,
+                                            const Table &deref_table);
+
    /** Print the part of the mesh in the calling processor adding the interface
        as boundary (for visualization purposes) using the default format. */
    virtual void Print(std::ostream &out = std::cout) const;

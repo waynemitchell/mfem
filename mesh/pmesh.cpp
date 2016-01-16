@@ -18,6 +18,7 @@
 #include "../general/sets.hpp"
 #include "../general/sort_pairs.hpp"
 #include <iostream>
+#include <climits>
 using namespace std;
 
 namespace mfem
@@ -2237,6 +2238,72 @@ void ParMesh::Rebalance()
       Nodes->FESpace()->Update();
       HypreParMatrix* M = Nodes->ParFESpace()->RebalanceMatrix
    }*/
+}
+
+void ParMesh::SynchronizeDerefinementData(Array<double> &elem_error,
+                                          const Table &deref_table)
+{
+   Array<MPI_Request*> requests;
+   Array<int> neigh;
+
+   requests.Reserve(64);
+   neigh.Reserve(8);
+
+   // make room for ghost values (indices beyond NumElements)
+   elem_error.SetSize(deref_table.Width(), 0);
+
+   for (int i = 0; i < deref_table.Size(); i++)
+   {
+      const int* fine = deref_table.GetRow(i);
+      int size = deref_table.RowSize(i);
+      MFEM_ASSERT(size <= 8, "");
+
+      int ranks[8], min_rank = INT_MAX, max_rank = INT_MIN;
+      for (int j = 0; j < size; j++)
+      {
+         ranks[j] = pncmesh->ElementRank(fine[j]);
+         min_rank = std::min(min_rank, ranks[j]);
+         max_rank = std::max(max_rank, ranks[j]);
+      }
+
+      // exchange values for derefinements that straddle processor boundaries
+      if (min_rank != max_rank)
+      {
+         neigh.SetSize(0);
+         for (int j = 0; j < size; j++)
+         {
+            if (ranks[j] != MyRank) { neigh.Append(ranks[j]); }
+         }
+         neigh.Sort();
+         neigh.Unique();
+
+         for (int j = 0; j < size; j++)
+         {
+            double *data = &elem_error[fine[j]];
+            if (ranks[j] == MyRank)
+            {
+               for (int k = 0; k < neigh.Size(); k++)
+               {
+                  MPI_Request* req = new MPI_Request;
+                  MPI_Isend(data, 1, MPI_DOUBLE, neigh[k], 291, MyComm, req);
+                  requests.Append(req);
+               }
+            }
+            else
+            {
+               MPI_Request* req = new MPI_Request;
+               MPI_Irecv(data, 1, MPI_DOUBLE, ranks[j], 291, MyComm, req);
+               requests.Append(req);
+            }
+         }
+      }
+   }
+
+   for (int i = 0; i < requests.Size(); i++)
+   {
+      MPI_Wait(requests[i], MPI_STATUS_IGNORE);
+      delete requests[i];
+   }
 }
 
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)

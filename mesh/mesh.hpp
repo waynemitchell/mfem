@@ -326,6 +326,10 @@ protected:
    /// Create from a nonconforming mesh.
    Mesh(const NCMesh &ncmesh);
 
+   // Stub. See override in ParMesh.
+   virtual void SynchronizeDerefinementData(Array<double> &elem_error,
+                                            const Table &deref_table) {}
+
    /// Swaps internal data with another mesh. By default, non-geometry members
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
    void Swap(Mesh& other, bool non_geometry = false);
@@ -768,7 +772,11 @@ public:
        mesh consistency. */
    void DerefineElements(const Array<int> &derefinements);
 
-   /** . */
+   /** Derefine the mesh based on some error quantity associated with each
+       element. A potential derefinement is performed if the sum of errors
+       of the fine elements is smaller than 'threshold'. If 'nc_limit' > 0,
+       derefinements that would increase the maximum level of hanging nodes of
+       the mesh are skipped (see GeneralRefinement). */
    virtual bool GeneralDerefinement(Array<double> &elem_error, double threshold,
                                     int nc_limit = -1, int op = 1);
 
