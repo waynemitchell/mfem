@@ -71,14 +71,15 @@ L2_ParFESpace::~L2_ParFESpace()
 
 ParDiscreteInterpolationOperator::~ParDiscreteInterpolationOperator()
 {
-   if ( pdlo_ != NULL ) { delete pdlo_; }
-   if ( mat_  != NULL ) { delete mat_; }
+   delete pdlo_;
+   delete mat_;
 }
 
 HYPRE_Int
 ParDiscreteInterpolationOperator::Mult(HypreParVector &x, HypreParVector &y,
                                        double alpha, double beta)
 {
+   if ( !mat_ ) { this->createMatrix(); }
    return mat_->Mult( x, y, alpha, beta);
 }
 
@@ -86,6 +87,7 @@ HYPRE_Int
 ParDiscreteInterpolationOperator::Mult(HYPRE_ParVector x, HYPRE_ParVector y,
                                        double alpha, double beta)
 {
+   if ( !mat_ ) { this->createMatrix(); }
    return mat_->Mult( x, y, alpha, beta);
 }
 
@@ -94,6 +96,7 @@ ParDiscreteInterpolationOperator::MultTranspose(HypreParVector &x,
                                                 HypreParVector &y,
                                                 double alpha, double beta)
 {
+   if ( !mat_ ) { this->createMatrix(); }
    return mat_->MultTranspose( x, y, alpha, beta);
 }
 
@@ -101,6 +104,7 @@ void
 ParDiscreteInterpolationOperator::Mult(double a, const Vector &x,
                                        double b, Vector &y) const
 {
+   if ( !mat_ ) { this->createMatrix(); }
    mat_->Mult( a, x, b, y);
 }
 
@@ -108,12 +112,14 @@ void
 ParDiscreteInterpolationOperator::MultTranspose(double a, const Vector &x,
                                                 double b, Vector &y) const
 {
+   if ( !mat_ ) { this->createMatrix(); }
    mat_->MultTranspose( a, x, b, y);
 }
 
 void
 ParDiscreteInterpolationOperator::Mult(const Vector &x, Vector &y) const
 {
+   if ( !mat_ ) { this->createMatrix(); }
    mat_->Mult( x, y);
 }
 
@@ -121,7 +127,33 @@ void
 ParDiscreteInterpolationOperator::MultTranspose(const Vector &x,
                                                 Vector &y) const
 {
+   if ( !mat_ ) { this->createMatrix(); }
    mat_->MultTranspose( x, y);
+}
+
+void
+ParDiscreteInterpolationOperator::createMatrix() const
+{
+   pdlo_->Assemble();
+   pdlo_->Finalize();
+   delete mat_;
+   mat_ = pdlo_->ParallelAssemble();
+}
+
+void
+ParDiscreteInterpolationOperator::Update()
+{
+   pdlo_->Update();
+   this->createMatrix();
+}
+
+HypreParMatrix *
+ParDiscreteInterpolationOperator::ParallelAssemble()
+{
+   if ( !mat_ ) { this->createMatrix(); }
+   HypreParMatrix * mat = mat_;
+   mat_ = NULL;
+   return mat;
 }
 
 ParDiscreteGradOperator::ParDiscreteGradOperator(ParFiniteElementSpace *dfes,
@@ -129,9 +161,7 @@ ParDiscreteGradOperator::ParDiscreteGradOperator(ParFiniteElementSpace *dfes,
 {
    pdlo_ = new ParDiscreteLinearOperator(dfes, rfes);
    pdlo_->AddDomainInterpolator(new GradientInterpolator);
-   pdlo_->Assemble();
-   pdlo_->Finalize();
-   mat_ = pdlo_->ParallelAssemble();
+   this->createMatrix();
 }
 
 ParDiscreteCurlOperator::ParDiscreteCurlOperator(ParFiniteElementSpace *dfes,
@@ -139,9 +169,7 @@ ParDiscreteCurlOperator::ParDiscreteCurlOperator(ParFiniteElementSpace *dfes,
 {
    pdlo_ = new ParDiscreteLinearOperator(dfes, rfes);
    pdlo_->AddDomainInterpolator(new CurlInterpolator);
-   pdlo_->Assemble();
-   pdlo_->Finalize();
-   mat_ = pdlo_->ParallelAssemble();
+   this->createMatrix();
 }
 
 ParDiscreteDivOperator::ParDiscreteDivOperator(ParFiniteElementSpace *dfes,
@@ -149,9 +177,7 @@ ParDiscreteDivOperator::ParDiscreteDivOperator(ParFiniteElementSpace *dfes,
 {
    pdlo_ = new ParDiscreteLinearOperator(dfes, rfes);
    pdlo_->AddDomainInterpolator(new DivergenceInterpolator);
-   pdlo_->Assemble();
-   pdlo_->Finalize();
-   mat_ = pdlo_->ParallelAssemble();
+   this->createMatrix();
 }
 
 }

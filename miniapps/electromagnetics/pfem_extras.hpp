@@ -106,13 +106,19 @@ public:
    /// Computes y = A^t * x
    void MultTranspose(const Vector &x, Vector &y) const;
 
-   HypreParMatrix * ParallelAssemble() { return mat_; }
+   void Update();
+
+   const HypreParMatrix & GetMatrix() const { return *mat_; }
+
+   HypreParMatrix * ParallelAssemble();
 
 protected:
    ParDiscreteInterpolationOperator() : pdlo_(NULL), mat_(NULL) {}
 
+   void createMatrix() const;
+
    ParDiscreteLinearOperator *pdlo_;
-   HypreParMatrix            *mat_;
+   mutable HypreParMatrix    *mat_;
 };
 
 class ParDiscreteGradOperator : public ParDiscreteInterpolationOperator
