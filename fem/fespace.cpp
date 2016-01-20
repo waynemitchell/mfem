@@ -1374,8 +1374,10 @@ const FiniteElement *FiniteElementSpace::GetBE (int i) const
    {
       case 1:
          BE = fec->FiniteElementForGeometry(Geometry::POINT);
+         break;
       case 2:
          BE = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+         break;
       case 3:
       default:
          BE = fec->FiniteElementForGeometry(

@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool set_bc = true;
+   bool hybridization = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -62,6 +63,8 @@ int main(int argc, char *argv[])
                   "Impose or not essential boundary conditions.");
    args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
                   " solution.");
+   args.AddOption(&hybridization, "-hb", "--hybridization", "-no-hb",
+                  "--no-hybridization", "Enable hybridization.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -138,33 +141,41 @@ int main(int argc, char *argv[])
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
-   a->Assemble();
-   a->ConformingAssemble(x, *b);
-   if (set_bc && mesh->bdr_attributes.Size())
+   Array<int> ess_bdr;
+   if (mesh->bdr_attributes.Size())
    {
-      Array<int> ess_bdr(mesh->bdr_attributes.Max());
-      ess_bdr = 1;
-      a->EliminateEssentialBC(ess_bdr, x, *b);
+      ess_bdr.SetSize(mesh->bdr_attributes.Max());
+      ess_bdr = set_bc ? 1 : 0;
    }
-   a->Finalize();
-   const SparseMatrix &A = a->SpMat();
+   FiniteElementCollection *hfec = NULL;
+   FiniteElementSpace *hfes = NULL;
+   if (hybridization)
+   {
+      hfec = new RT_Trace_FECollection(order-1, dim, FiniteElement::VALUE);
+      hfes = new FiniteElementSpace(mesh, hfec);
+      a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(), ess_bdr);
+   }
+   a->Assemble();
+   Vector B, X;
+   SparseMatrix &A = a->AssembleSystem(ess_bdr, x, *b, X, B);
+   cout << "Size of linear system: " << A.Height() << endl;
 
 #ifndef MFEM_USE_SUITESPARSE
    // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.
    GSSmoother M(A);
-   x = 0.0;
-   PCG(A, M, *b, x, 1, 10000, 1e-20, 0.0);
+   X = 0.0;
+   PCG(A, M, B, X, 1, 10000, 1e-20, 0.0);
 #else
    // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
    umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    umf_solver.SetOperator(A);
-   umf_solver.Mult(*b, x);
+   umf_solver.Mult(B, X);
 #endif
 
    // 9. Recover the grid function in non-conforming AMR problems
-   x.ConformingProlongate();
+   a->ComputeSolution(X, *b, x);
 
    // 10. Compute and print the L^2 norm of the error.
    cout << "\n|| F_h - F ||_{L^2} = " << x.ComputeL2Error(F) << '\n' << endl;
@@ -191,6 +202,8 @@ int main(int argc, char *argv[])
    }
 
    // 13. Free the used memory.
+   delete hfes;
+   delete hfec;
    delete a;
    delete alpha;
    delete beta;

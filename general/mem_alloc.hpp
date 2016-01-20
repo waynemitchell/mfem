@@ -13,6 +13,7 @@
 #define MFEM_MEM_ALLOC
 
 #include "../config/config.hpp"
+#include <cstddef>
 
 namespace mfem
 {

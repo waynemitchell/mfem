@@ -66,6 +66,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f)
    mat = mat_e = NULL;
    extern_bfs = 0;
    element_matrices = NULL;
+   hybridization = NULL;
    precompute_sparsity = 0;
 }
 
@@ -79,6 +80,7 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    mat_e = NULL;
    extern_bfs = 1;
    element_matrices = NULL;
+   hybridization = NULL;
    precompute_sparsity = ps;
 
    bfi = bf->GetDBFI();
@@ -112,6 +114,28 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    AllocMat();
 }
 
+void BilinearForm::EnableHybridization(FiniteElementSpace *mu_space,
+                                       BilinearFormIntegrator *constr_integ,
+                                       const Array<int> &bdr_attr_is_ess)
+{
+   Array<int> ess_vdofs_marker, ess_cdofs_marker;
+   hybridization = new Hybridization(fes, mu_space);
+   hybridization->SetConstraintIntegrator(constr_integ);
+   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_vdofs_marker);
+   const SparseMatrix *P = fes->GetConformingProlongation();
+   if (!P)
+   {
+      hybridization->Init(ess_vdofs_marker);
+   }
+   else
+   {
+      // fes->GetConformingRestriction()->BooleanMult(ess_vdofs_marker,
+      //                                              ess_cdofs_marker);
+      fes->ConvertToConformingVDofs(ess_vdofs_marker, ess_cdofs_marker);
+      hybridization->Init(ess_cdofs_marker);
+   }
+}
+
 double& BilinearForm::Elem (int i, int j)
 {
    return mat -> Elem(i,j);
@@ -138,6 +162,10 @@ void BilinearForm::Finalize (int skip_zeros)
    if (mat_e)
    {
       mat_e -> Finalize (skip_zeros);
+   }
+   if (hybridization)
+   {
+      hybridization->Finalize();
    }
 }
 
@@ -198,12 +226,17 @@ void BilinearForm::AssembleElementMatrix(
    }
    fes->GetElementVDofs(i, vdofs);
    mat->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
+   if (hybridization)
+   {
+      hybridization->AssembleMatrix(i, vdofs, elmat);
+   }
 }
 
 void BilinearForm::Assemble (int skip_zeros)
 {
    ElementTransformation *eltrans;
    Mesh *mesh = fes -> GetMesh();
+   DenseMatrix elmat, *elmat_p;
 
    int i;
 
@@ -228,17 +261,24 @@ void BilinearForm::Assemble (int skip_zeros)
          fes->GetElementVDofs(i, vdofs);
          if (element_matrices)
          {
-            mat->AddSubMatrix(vdofs, vdofs, (*element_matrices)(i), skip_zeros);
+            elmat_p = &(*element_matrices)(i);
          }
          else
          {
             const FiniteElement &fe = *fes->GetFE(i);
             eltrans = fes->GetElementTransformation(i);
-            for (int k = 0; k < dbfi.Size(); k++)
+            dbfi[0]->AssembleElementMatrix(fe, *eltrans, elmat);
+            for (int k = 1; k < dbfi.Size(); k++)
             {
                dbfi[k]->AssembleElementMatrix(fe, *eltrans, elemmat);
-               mat->AddSubMatrix(vdofs, vdofs, elemmat, skip_zeros);
+               elmat += elemmat;
             }
+            elmat_p = &elmat;
+         }
+         mat->AddSubMatrix(vdofs, vdofs, *elmat_p, skip_zeros);
+         if (hybridization)
+         {
+            hybridization->AssembleMatrix(i, vdofs, *elmat_p);
          }
       }
    }
@@ -348,6 +388,96 @@ void BilinearForm::ConformingAssemble()
 
    height = mat->Height();
    width = mat->Width();
+}
+
+SparseMatrix &BilinearForm::AssembleSystem(Array<int> &bdr_attr_is_ess,
+                                           Vector &x, Vector &b,
+                                           Vector &X, Vector &B)
+{
+   const SparseMatrix *P = fes->GetConformingProlongation();
+   if (!P)
+   {
+      if (!hybridization)
+      {
+         X.NewDataAndSize(x.GetData(), x.Size());
+         B.NewDataAndSize(b.GetData(), b.Size());
+         EliminateEssentialBC(bdr_attr_is_ess, X, B);
+         Finalize();
+         return *mat;
+      }
+      else
+      {
+         EliminateEssentialBC(bdr_attr_is_ess, x, b);
+         hybridization->ReduceRHS(b, B);
+         X.SetSize(B.Size());
+         X = 0.0;
+         Finalize();
+         return hybridization->GetMatrix();
+      }
+   }
+   else
+   {
+      ConformingAssemble();
+      if (!hybridization)
+      {
+         B.SetSize(P->Width());
+         P->MultTranspose(b, B);
+         const SparseMatrix *R = fes->GetConformingRestriction();
+         X.SetSize(R->Height());
+         R->Mult(x, X);
+         EliminateEssentialBC(bdr_attr_is_ess, X, B);
+         Finalize();
+         return *mat;
+      }
+      else
+      {
+         Vector conf_b(P->Width()), conf_x(P->Width());
+         P->MultTranspose(b, conf_b);
+         const SparseMatrix *R = fes->GetConformingRestriction();
+         R->Mult(x, conf_x);
+         EliminateEssentialBC(bdr_attr_is_ess, conf_x, conf_b);
+         fes->GetConformingRestriction()->MultTranspose(conf_b, b); // !!!
+         hybridization->ReduceRHS(conf_b, B);
+         X.SetSize(B.Size());
+         X = 0.0;
+         Finalize();
+         return hybridization->GetMatrix();
+      }
+   }
+}
+
+void BilinearForm::ComputeSolution(const Vector &X, const Vector &b, Vector &x)
+{
+   const SparseMatrix *P = fes->GetConformingProlongation();
+   if (!P)
+   {
+      if (!hybridization)
+      {
+         // X and x point to the same data
+      }
+      else
+      {
+         hybridization->ComputeSolution(b, X, x);
+      }
+   }
+   else
+   {
+      if (!hybridization)
+      {
+         x.SetSize(P->Height());
+         P->Mult(X, x);
+      }
+      else
+      {
+         Vector conf_b(P->Width()), conf_x(P->Width());
+         P->MultTranspose(b, conf_b);
+         const SparseMatrix *R = fes->GetConformingRestriction();
+         R->Mult(x, conf_x); // get essential b.c. from x
+         hybridization->ComputeSolution(conf_b, X, conf_x);
+         x.SetSize(P->Height());
+         P->Mult(conf_x, x);
+      }
+   }
 }
 
 void BilinearForm::ComputeElementMatrices()
@@ -531,6 +661,11 @@ void BilinearForm::Update (FiniteElementSpace *nfes)
    delete mat_e;
    delete mat;
    FreeElementMatrices();
+   if (hybridization)
+   {
+      delete hybridization;
+      hybridization = NULL;
+   }
 
    height = width = fes->GetVSize();
 
@@ -542,6 +677,7 @@ BilinearForm::~BilinearForm()
    delete mat_e;
    delete mat;
    delete element_matrices;
+   delete hybridization;
 
    if (!extern_bfs)
    {

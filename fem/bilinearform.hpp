@@ -18,6 +18,7 @@
 #include "gridfunc.hpp"
 #include "linearform.hpp"
 #include "bilininteg.hpp"
+#include "hybridization.hpp"
 
 namespace mfem
 {
@@ -55,6 +56,8 @@ protected:
 
    DenseTensor *element_matrices;
 
+   Hybridization *hybridization;
+
    int precompute_sparsity;
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
@@ -63,6 +66,7 @@ protected:
    BilinearForm() : Matrix (0)
    {
       fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
+      hybridization = NULL;
       precompute_sparsity = 0;
    }
 
@@ -74,6 +78,11 @@ public:
 
    /// Get the size of the BilinearForm as a square matrix.
    int Size() const { return height; }
+
+   /// Enable hybridization
+   void EnableHybridization(FiniteElementSpace *mu_space,
+                            BilinearFormIntegrator *constr_integ,
+                            const Array<int> &bdr_attr_is_ess);
 
    /** For scalar FE spaces, precompute the sparsity pattern of the matrix
        (assuming dense element matrices) based on the types of integrators
@@ -161,6 +170,12 @@ public:
       rhs.ConformingAssemble();
       sol.ConformingProject();
    }
+
+   SparseMatrix &AssembleSystem(Array<int> &bdr_attr_is_ess,
+                                Vector &x, Vector &b,
+                                Vector &X, Vector &B);
+
+   void ComputeSolution(const Vector &X, const Vector &b, Vector &x);
 
    /// Compute and store internally all element matrices.
    void ComputeElementMatrices();

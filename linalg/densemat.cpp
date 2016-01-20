@@ -3762,7 +3762,7 @@ void LUFactors::BlockForwSolve(int m, int n, int r, const double *L21,
                                double *B1, double *B2) const
 {
    // B1 <- L^{-1} P B1
-   LSolve(m, n, B1);
+   LSolve(m, r, B1);
    // B2 <- B2 - L21 B1
    SubMult(m, n, r, L21, B1, B2);
 }
