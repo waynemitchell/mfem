@@ -109,6 +109,8 @@ public:
 
    void ComputeSolution(const Vector &X, const Vector &b, Vector &x);
 
+   virtual void Update(FiniteElementSpace *nfes = NULL);
+
    virtual ~ParBilinearForm() { delete p_mat_e; delete p_mat; }
 };
 

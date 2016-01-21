@@ -226,7 +226,7 @@ public:
    double FullInnerProduct(const Vector &x, const Vector &y) const
    { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
 
-   void Update(FiniteElementSpace *nfes = NULL);
+   virtual void Update(FiniteElementSpace *nfes = NULL);
 
    FiniteElementSpace *GetFES() { return fes; }
 
