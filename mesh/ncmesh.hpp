@@ -95,9 +95,14 @@ public:
    /** Return a list of derefinement opportunities. Each row of the table
        contains Mesh indices of existing elements that can be derefined to form
        a single new coarse element. Row numbers are then passed to Derefine.
-       If max_nc_level > 0, the table will not include derefinements that would
-       violate the maximum NC level imposed by LimitNCLevel. */
-   const Table &GetDerefinementTable(int max_nc_level = -1);
+       This function works both in serial and parallel. */
+   const Table &GetDerefinementTable();
+
+   /** Check derefinements returned by GetDerefinementTable and mark those that
+       can be done safely so that the maximum NC level condition is not violated.
+       On return, level_ok.Size() == deref_table.Size() and contains 0/1s. */
+   virtual void CheckDerefinementNCLevel(const Table &deref_table,
+                                         Array<int> &level_ok, int max_nc_level);
 
    /** Perform a subset of the possible derefinements (see GetDerefinementTable).
        Note that if anisotropic refinements are present in the mesh, some of the
@@ -513,8 +518,7 @@ protected: // implementation
    bool NodeSetZ1(Node* node, Node** n);
    bool NodeSetZ2(Node* node, Node** n);
 
-   void CollectDerefinements(Element* elem, Array<Connection> &list,
-                             int max_nc_level);
+   void CollectDerefinements(Element* elem, Array<Connection> &list);
 
    // face/edge lists
 

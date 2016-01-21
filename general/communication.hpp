@@ -254,6 +254,11 @@ protected:
 };
 
 
+/// Helper struct to convert C++ type to MPI type
+template <typename Type>
+struct MPITypeMap { static const MPI_Datatype mpi_type; };
+
+
 /** Reorder MPI ranks to follow the Z-curve within the physical machine topology
     (provided that functions to query physical node coordinates are available).
     Returns a new communicator with reordered ranks. */

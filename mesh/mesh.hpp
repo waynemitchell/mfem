@@ -216,6 +216,14 @@ protected:
    virtual void NonconformingRefinement(const Array<Refinement> &refinements,
                                         int nc_limit = 0);
 
+   /// NC version of GeneralDerefinement.
+   virtual bool NonconformingDerefinement(Array<double> &elem_error,
+                                          double threshold, int nc_limit = 0,
+                                          int op = 1);
+
+   /// Derefine elements once a list of derefinements is known.
+   void DerefineMesh(const Array<int> &derefinements);
+
    /// Read NURBS patch/macro-element mesh
    void LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot);
 
@@ -325,10 +333,6 @@ protected:
 
    /// Create from a nonconforming mesh.
    Mesh(const NCMesh &ncmesh);
-
-   // Stub. See override in ParMesh.
-   virtual void SynchronizeDerefinementData(Array<double> &elem_error,
-                                            const Table &deref_table) {}
 
    /// Swaps internal data with another mesh. By default, non-geometry members
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
@@ -743,42 +747,26 @@ public:
    void GeneralRefinement(const Array<int> &el_to_refine,
                           int nonconforming = -1, int nc_limit = 0);
 
-   /** Ensure that a quad/hex mesh is considered to be non-conforming (i.e. has
-       an associated NCMesh object). */
-   void EnsureNCMesh();
-
    /// Refine each element with 1/frac probability, repeat 'levels' times.
    void RandomRefinement(int levels, int frac = 2, bool aniso = false,
-                         int nonconforming = -1, int nc_limit = -1,
+                         int nonconforming = -1, int nc_limit = 0,
                          int seed = 0 /* should be the same on all CPUs */);
 
    /// Refine elements sharing the specified vertex, 'levels' times.
    void RefineAtVertex(const Vertex& vert, int levels,
                        double eps = 0.0, int nonconforming = -1);
 
-   /** Return a list of derefinement opportunities. Each row of the table
-       contains indices of existing elements that can be derefined to form
-       a single new coarse element. Row numbers are then passed to
-       DerefineElements. The table is owned and maintained internally. */
-   const Table &GetDerefinementTable(int nc_limit = -1)
-   {
-      MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
-      return ncmesh->GetDerefinementTable(nc_limit);
-   }
-
-   /** Perform a subset of the possible derefinements returned by
-       GetDerefinementTable. Note that if anisotropic refinements are present
-       in the mesh, some of the derefinements may have to be skipped to preserve
-       mesh consistency. */
-   void DerefineElements(const Array<int> &derefinements);
-
    /** Derefine the mesh based on some error quantity associated with each
-       element. A potential derefinement is performed if the sum of errors
-       of the fine elements is smaller than 'threshold'. If 'nc_limit' > 0,
-       derefinements that would increase the maximum level of hanging nodes of
-       the mesh are skipped (see GeneralRefinement). */
-   virtual bool GeneralDerefinement(Array<double> &elem_error, double threshold,
-                                    int nc_limit = -1, int op = 1);
+       element. A derefinement is performed if the sum of errors of its fine
+       elements is smaller than 'threshold'. If 'nc_limit' > 0, derefinements
+       that would increase the maximum level of hanging nodes of the mesh are
+       skipped. Returns true if the mesh changed, false otherwise. */
+   bool GeneralDerefinement(Array<double> &elem_error, double threshold,
+                            int nc_limit = 0, int op = 1);
+
+   /** Ensure that a quad/hex mesh is considered to be non-conforming (i.e. has
+       an associated NCMesh object). */
+   void EnsureNCMesh();
 
    enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
 

@@ -698,6 +698,24 @@ void ParNCMesh::Refine(const Array<Refinement> &refinements)
 }
 
 
+void ParNCMesh::LimitNCLevel(int max_nc_level)
+{
+   MFEM_VERIFY(max_nc_level >= 1, "'max_nc_level' must be 1 or greater.");
+
+   while (1)
+   {
+      Array<Refinement> refinements;
+      GetLimitRefinements(refinements, max_nc_level);
+
+      int size = refinements.Size(), glob_size;
+      MPI_Allreduce(&size, &glob_size, 1, MPI_INT, MPI_SUM, MyComm);
+
+      if (!glob_size) { break; }
+
+      Refine(refinements);
+   }
+}
+
 void ParNCMesh::Derefine(const Array<int> &derefs)
 {
    MFEM_VERIFY(Dim < 3 || Iso,
@@ -753,7 +771,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    }
 
    // redistribute elements slightly to get rid of complex derefinements
-   // straddling processor boundaries; *and* update the ghost layer
+   // straddling processor boundaries *and* update the ghost layer
    RedistributeElements(new_ranks, target_elements, false);
 
    // *** STEP 2: derefine now, communication similar to Refine() ***
@@ -869,21 +887,137 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
 }
 
 
-void ParNCMesh::LimitNCLevel(int max_nc_level)
+template<typename Type>
+void ParNCMesh::SynchronizeDerefinementData(Array<Type> &elem_data,
+                                            const Table &deref_table)
 {
-   MFEM_VERIFY(max_nc_level >= 1, "'max_nc_level' must be 1 or greater.");
+   const MPI_Datatype datatype = MPITypeMap<Type>::mpi_type;
 
-   while (1)
+   Array<MPI_Request*> requests;
+   Array<int> neigh;
+
+   requests.Reserve(64);
+   neigh.Reserve(8);
+
+   // make room for ghost values (indices beyond NumElements)
+   elem_data.SetSize(leaf_elements.Size(), 0);
+
+   for (int i = 0; i < deref_table.Size(); i++)
    {
-      Array<Refinement> refinements;
-      GetLimitRefinements(refinements, max_nc_level);
+      const int* fine = deref_table.GetRow(i);
+      int size = deref_table.RowSize(i);
+      MFEM_ASSERT(size <= 8, "");
 
-      int size = refinements.Size(), glob_size;
-      MPI_Allreduce(&size, &glob_size, 1, MPI_INT, MPI_SUM, MyComm);
+      int ranks[8], min_rank = INT_MAX, max_rank = INT_MIN;
+      for (int j = 0; j < size; j++)
+      {
+         ranks[j] = leaf_elements[fine[j]]->rank;
+         min_rank = std::min(min_rank, ranks[j]);
+         max_rank = std::max(max_rank, ranks[j]);
+      }
 
-      if (!glob_size) { break; }
+      // exchange values for derefinements that straddle processor boundaries
+      if (min_rank != max_rank)
+      {
+         neigh.SetSize(0);
+         for (int j = 0; j < size; j++)
+         {
+            if (ranks[j] != MyRank) { neigh.Append(ranks[j]); }
+         }
+         neigh.Sort();
+         neigh.Unique();
 
-      Refine(refinements);
+         for (int j = 0; j < size; j++/*pass*/)
+         {
+            Type *data = &elem_data[fine[j]];
+
+            int rnk = ranks[j], len = 1; /*j;
+            do { j++; } while (j < size && ranks[j] == rnk);
+            len = j - len;*/
+
+            if (rnk == MyRank)
+            {
+               for (int k = 0; k < neigh.Size(); k++)
+               {
+                  MPI_Request* req = new MPI_Request;
+                  MPI_Isend(data, len, datatype, neigh[k], 291, MyComm, req);
+                  requests.Append(req);
+               }
+            }
+            else
+            {
+               MPI_Request* req = new MPI_Request;
+               MPI_Irecv(data, len, datatype, rnk, 291, MyComm, req);
+               requests.Append(req);
+            }
+         }
+      }
+   }
+
+   for (int i = 0; i < requests.Size(); i++)
+   {
+      MPI_Wait(requests[i], MPI_STATUS_IGNORE);
+      delete requests[i];
+   }
+}
+
+// instantiate SynchronizeDerefinementData for int and double
+template void
+ParNCMesh::SynchronizeDerefinementData<int>(Array<int> &, const Table &);
+template void
+ParNCMesh::SynchronizeDerefinementData<double>(Array<double> &, const Table &);
+
+
+void ParNCMesh::CheckDerefinementNCLevel(const Table &deref_table,
+                                         Array<int> &level_ok, int max_nc_level)
+{
+   Array<int> leaf_ok(leaf_elements.Size());
+   leaf_ok = 1;
+
+   // check elements that we own
+   for (int i = 0; i < deref_table.Size(); i++)
+   {
+      const int* fine = deref_table.GetRow(i),
+                 size = deref_table.RowSize(i);
+
+      Element* parent = leaf_elements[fine[0]]->parent;
+      for (int j = 0; j < size; j++)
+      {
+         Element* child = leaf_elements[fine[j]];
+         if (child->rank == MyRank)
+         {
+            int splits[3];
+            CountSplits(child, splits);
+
+            for (int k = 0; k < Dim; k++)
+            {
+               if ((parent->ref_type & (1 << k)) &&
+                   splits[k] >= max_nc_level)
+               {
+                  leaf_ok[fine[j]] = 0; break;
+               }
+            }
+         }
+      }
+   }
+
+   SynchronizeDerefinementData(leaf_ok, deref_table);
+
+   level_ok.SetSize(deref_table.Size());
+   level_ok = 1;
+
+   for (int i = 0; i < deref_table.Size(); i++)
+   {
+      const int* fine = deref_table.GetRow(i),
+                 size = deref_table.RowSize(i);
+
+      for (int j = 0; j < size; j++)
+      {
+         if (!leaf_ok[fine[j]])
+         {
+            level_ok[i] = 0; break;
+         }
+      }
    }
 }
 

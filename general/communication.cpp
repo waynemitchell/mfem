@@ -540,6 +540,11 @@ template void GroupCommunicator::Min<double>(OpData<double>);
 template void GroupCommunicator::Max<double>(OpData<double>);
 
 
+// specializations of the MPITypeMap static member
+template<> const MPI_Datatype MPITypeMap<int>::mpi_type = MPI_INT;
+template<> const MPI_Datatype MPITypeMap<double>::mpi_type = MPI_DOUBLE;
+
+
 #ifdef __bgq__
 static void DebugRankCoords(int** coords, int dim, int size)
 {

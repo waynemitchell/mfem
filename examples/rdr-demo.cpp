@@ -241,10 +241,9 @@ int main(int argc, char *argv[])
       // derefine/rebalance
       for (int i = 0; i < levels; i++)
       {
-         const Table &dtable = pmesh->GetDerefinementTable();
-         Array<int> derefs;
-         for (int i = 0; i < dtable.Size(); i++) { derefs.Append(i); }
-         pmesh->NonconformingDerefinement(derefs);
+         Array<double> errors(pmesh->GetNE());
+         errors = 1;
+         pmesh->GeneralDerefinement(errors, 10);
 
          fespace->Update();
          x.Update();

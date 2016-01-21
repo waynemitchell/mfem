@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
    delete M;*/
 
    // 13. Test derefinement
-#if 1
+#if 0
    const Table &dtable = pmesh->GetDerefinementTable();
    Array<int> derefs;
    for (int i = 0; i < dtable.Size(); i++)

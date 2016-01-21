@@ -6723,7 +6723,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    }
 }
 
-void Mesh::DerefineElements(const Array<int> &derefinements)
+void Mesh::DerefineMesh(const Array<int> &derefinements)
 {
    MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
    MFEM_VERIFY(!NURBSext, "NURBS meshes are not supported. "
@@ -6750,17 +6750,22 @@ void Mesh::DerefineElements(const Array<int> &derefinements)
    }
 }
 
-bool Mesh::GeneralDerefinement(Array<double> &elem_error,
-                               double threshold, int nc_limit, int op)
+bool Mesh::NonconformingDerefinement(Array<double> &elem_error,
+                                     double threshold, int nc_limit, int op)
 {
-   MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
-   const Table &dt = GetDerefinementTable(nc_limit);
+   const Table &dt = ncmesh->GetDerefinementTable();
 
-   SynchronizeDerefinementData(elem_error, dt);
+   Array<int> level_ok;
+   if (nc_limit > 0)
+   {
+      ncmesh->CheckDerefinementNCLevel(dt, level_ok, nc_limit);
+   }
 
    Array<int> derefs;
    for (int i = 0; i < dt.Size(); i++)
    {
+      if (nc_limit > 0 && !level_ok[i]) { continue; }
+
       const int* fine = dt.GetRow(i);
       int size = dt.RowSize(i);
 
@@ -6781,13 +6786,25 @@ bool Mesh::GeneralDerefinement(Array<double> &elem_error,
       if (error < threshold) { derefs.Append(i); }
    }
 
-   if (derefs.Size())
-   {
-      DerefineElements(derefs);
-      return true;
-   }
+   DerefineMesh(derefs);
 
-   return false;
+   return derefs.Size() > 0;
+}
+
+bool Mesh::GeneralDerefinement(Array<double> &elem_error,
+                               double threshold, int nc_limit, int op)
+{
+   if (ncmesh)
+   {
+      last_operation = Mesh::DEREFINE;
+      return NonconformingDerefinement(elem_error, threshold, nc_limit, op);
+   }
+   else
+   {
+      MFEM_ABORT("Derefinement is currently supported for non-conforming "
+                 "meshes only.");
+      return false;
+   }
 }
 
 void Mesh::InitFromNCMesh(const NCMesh &ncmesh)

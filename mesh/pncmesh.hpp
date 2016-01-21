@@ -33,7 +33,7 @@ class FiniteElementSpace; // for Dof -> VDof conversion
  *
  *  The basic idea (and assumption) is that all processors share the coarsest
  *  layer ('root_elements'). This has the advantage that refinements can easily
- *  be exchanged between processors when rebalancing. Also individual elements
+ *  be exchanged between processors when rebalancing since individual elements
  *  can be uniquely identified by the index of the root element and a path in
  *  the refinement tree.
  *
@@ -75,6 +75,10 @@ public:
 
    /// Parallel version of NCMesh::LimitNCLevel.
    virtual void LimitNCLevel(int max_nc_level);
+
+   /** Parallel version of NCMesh::CheckDerefinementNCLevel. */
+   virtual void CheckDerefinementNCLevel(const Table &deref_table,
+                                         Array<int> &level_ok, int max_nc_level);
 
    /** Parallel reimplementation of NCMesh::Derefine, keeps ghost layers
        in sync. The interface is identical. */
@@ -201,6 +205,12 @@ public:
    /** Get previous (pre-Derefine) fine element ranks. This complementents the
        FineTransforms::fine_coarse array in parallel. */
    const Array<int>& GetDerefineOldRanks() const { return old_index_or_rank; }
+
+   /** Exchange element data for derefinements that straddle processor
+       boundaries. 'elem_data' is enlarged and filled with ghost values. */
+   template<typename Type>
+   void SynchronizeDerefinementData(Array<Type> &elem_data,
+                                    const Table &deref_table);
 
    /** Extension of NCMesh::GetBoundaryClosure. Filters out ghost vertices and
        ghost edges from 'bdr_vertices' and 'bdr_edges'. */

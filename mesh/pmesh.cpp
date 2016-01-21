@@ -2208,6 +2208,52 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
    }
 }
 
+bool ParMesh::NonconformingDerefinement(Array<double> &elem_error,
+                                        double threshold, int nc_limit, int op)
+{
+   const Table &dt = pncmesh->GetDerefinementTable();
+
+   pncmesh->SynchronizeDerefinementData(elem_error, dt);
+
+   Array<int> level_ok;
+   if (nc_limit > 0)
+   {
+      pncmesh->CheckDerefinementNCLevel(dt, level_ok, nc_limit);
+   }
+
+   Array<int> derefs;
+   for (int i = 0; i < dt.Size(); i++)
+   {
+      if (nc_limit > 0 && !level_ok[i]) { continue; }
+
+      const int* fine = dt.GetRow(i);
+      int size = dt.RowSize(i);
+
+      double error = 0.0;
+      for (int j = 0; j < size; j++)
+      {
+         MFEM_VERIFY(fine[j] < elem_error.Size(), "");
+
+         double err_fine = elem_error[fine[j]];
+         switch (op)
+         {
+            case 0: error = std::min(error, err_fine); break;
+            case 1: error += err_fine; break;
+            case 2: error = std::max(error, err_fine); break;
+         }
+      }
+
+      if (error < threshold) { derefs.Append(i); }
+   }
+
+   DerefineMesh(derefs);
+
+   int size = derefs.Size(), glob_size;
+   MPI_Allreduce(&size, &glob_size, 1, MPI_INT, MPI_SUM, MyComm);
+
+   return glob_size > 0;
+}
+
 void ParMesh::Rebalance()
 {
    if (!pncmesh)
@@ -2238,72 +2284,6 @@ void ParMesh::Rebalance()
       Nodes->FESpace()->Update();
       HypreParMatrix* M = Nodes->ParFESpace()->RebalanceMatrix
    }*/
-}
-
-void ParMesh::SynchronizeDerefinementData(Array<double> &elem_error,
-                                          const Table &deref_table)
-{
-   Array<MPI_Request*> requests;
-   Array<int> neigh;
-
-   requests.Reserve(64);
-   neigh.Reserve(8);
-
-   // make room for ghost values (indices beyond NumElements)
-   elem_error.SetSize(deref_table.Width(), 0);
-
-   for (int i = 0; i < deref_table.Size(); i++)
-   {
-      const int* fine = deref_table.GetRow(i);
-      int size = deref_table.RowSize(i);
-      MFEM_ASSERT(size <= 8, "");
-
-      int ranks[8], min_rank = INT_MAX, max_rank = INT_MIN;
-      for (int j = 0; j < size; j++)
-      {
-         ranks[j] = pncmesh->ElementRank(fine[j]);
-         min_rank = std::min(min_rank, ranks[j]);
-         max_rank = std::max(max_rank, ranks[j]);
-      }
-
-      // exchange values for derefinements that straddle processor boundaries
-      if (min_rank != max_rank)
-      {
-         neigh.SetSize(0);
-         for (int j = 0; j < size; j++)
-         {
-            if (ranks[j] != MyRank) { neigh.Append(ranks[j]); }
-         }
-         neigh.Sort();
-         neigh.Unique();
-
-         for (int j = 0; j < size; j++)
-         {
-            double *data = &elem_error[fine[j]];
-            if (ranks[j] == MyRank)
-            {
-               for (int k = 0; k < neigh.Size(); k++)
-               {
-                  MPI_Request* req = new MPI_Request;
-                  MPI_Isend(data, 1, MPI_DOUBLE, neigh[k], 291, MyComm, req);
-                  requests.Append(req);
-               }
-            }
-            else
-            {
-               MPI_Request* req = new MPI_Request;
-               MPI_Irecv(data, 1, MPI_DOUBLE, ranks[j], 291, MyComm, req);
-               requests.Append(req);
-            }
-         }
-      }
-   }
-
-   for (int i = 0; i < requests.Size(); i++)
-   {
-      MPI_Wait(requests[i], MPI_STATUS_IGNORE);
-      delete requests[i];
-   }
 }
 
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
