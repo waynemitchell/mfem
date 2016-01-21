@@ -160,6 +160,23 @@ int main(int argc, char *argv[])
    SparseMatrix &A = a->AssembleSystem(ess_bdr, x, *b, X, B);
    cout << "Size of linear system: " << A.Height() << endl;
 
+#if 1
+   // check for empty rows in A
+   int num_empty_rows = 0;
+   for (int i = 0; i < A.Height(); i++)
+   {
+      if (A.RowSize(i) == 0)
+      {
+         num_empty_rows++;
+      }
+   }
+   if (num_empty_rows)
+   {
+      cout << "\nThe matrix A has " << num_empty_rows << " empty rows!\n"
+           << endl;
+   }
+#endif
+
 #ifndef MFEM_USE_SUITESPARSE
    // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //    solve the system Ax=b with PCG.

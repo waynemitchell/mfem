@@ -147,6 +147,8 @@ public:
 
    const SparseMatrix *GetConformingProlongation();
    const SparseMatrix *GetConformingRestriction();
+   virtual const SparseMatrix *GetRestrictionMatrix()
+   { return GetConformingRestriction(); }
 
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }

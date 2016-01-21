@@ -122,16 +122,14 @@ void BilinearForm::EnableHybridization(FiniteElementSpace *mu_space,
    hybridization = new Hybridization(fes, mu_space);
    hybridization->SetConstraintIntegrator(constr_integ);
    fes->GetEssentialVDofs(bdr_attr_is_ess, ess_vdofs_marker);
-   const SparseMatrix *P = fes->GetConformingProlongation();
-   if (!P)
+   const SparseMatrix *R = fes->GetRestrictionMatrix();
+   if (!R)
    {
       hybridization->Init(ess_vdofs_marker);
    }
    else
    {
-      // fes->GetConformingRestriction()->BooleanMult(ess_vdofs_marker,
-      //                                              ess_cdofs_marker);
-      fes->ConvertToConformingVDofs(ess_vdofs_marker, ess_cdofs_marker);
+      R->BooleanMult(ess_vdofs_marker, ess_cdofs_marker);
       hybridization->Init(ess_cdofs_marker);
    }
 }

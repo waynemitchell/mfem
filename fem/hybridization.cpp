@@ -12,6 +12,10 @@
 #include "hybridization.hpp"
 #include "gridfunc.hpp"
 
+#ifdef MFEM_USE_MPI
+#include "pfespace.hpp"
+#endif
+
 #include <map>
 // #include <fstream> // uncomment for debuging: write C and P to file
 
@@ -23,10 +27,16 @@ Hybridization::Hybridization(FiniteElementSpace *fespace,
    : fes(fespace), mu_fes(mu_fespace), c_bfi(NULL), Ct(NULL),
      Af_data(NULL), Af_ipiv(NULL)
 {
+#ifdef MFEM_USE_MPI
+   pH = NULL;
+#endif
 }
 
 Hybridization::~Hybridization()
 {
+#ifdef MFEM_USE_MPI
+   delete pH;
+#endif
    delete [] Af_ipiv;
    delete [] Af_data;
    delete H;
@@ -52,6 +62,12 @@ void Hybridization::Init(const Array<int> &ess_cdofs_marker)
       num_hat_dofs += vdofs.Size();
       hat_offsets[i+1] = num_hat_dofs;
    }
+
+#ifdef MFEM_USE_MPI
+   ParFiniteElementSpace *mu_pfes =
+      dynamic_cast<ParFiniteElementSpace*>(mu_fes);
+   ParMesh *pmesh = mu_pfes ? mu_pfes->GetParMesh() : NULL;
+#endif
 
    Ct = new SparseMatrix(num_hat_dofs, mu_fes->GetVSize());
 
@@ -86,21 +102,37 @@ void Hybridization::Init(const Array<int> &ess_cdofs_marker)
                                    *fes->GetFE(FTr->Elem2No),
                                    *FTr, elmat);
          // zero-out small elements in elmat
-         {
-            double eps = 1e-12 * elmat.MaxMaxNorm();
-            for (int col = 0; col < elmat.Width(); col++)
-            {
-               for (int row = 0; row < elmat.Height(); row++)
-               {
-                  if (std::abs(elmat(row,col)) <= eps)
-                  {
-                     elmat(row,col) = 0.0;
-                  }
-               }
-            }
-         }
+         elmat.ZeroSmallEntries(1e-12 * elmat.MaxMaxNorm());
          Ct->AddSubMatrix(vdofs, mu_vdofs, elmat, skip_zeros);
       }
+#ifdef MFEM_USE_MPI
+      if (pmesh)
+      {
+         // Assemble local contribution to Ct from shared faces
+         const int num_shared_faces = pmesh->GetNSharedFaces();
+         for (int i = 0; i < num_shared_faces; i++)
+         {
+            int face_no = pmesh->GetSharedFace(i);
+            FTr = pmesh->GetFaceElementTransformations(face_no);
+            MFEM_ASSERT(FTr->Elem2No < 0, "");
+
+            int o1 = hat_offsets[FTr->Elem1No];
+            int s1 = hat_offsets[FTr->Elem1No+1] - o1;
+            vdofs.SetSize(s1);
+            for (int j = 0; j < s1; j++)
+            {
+               vdofs[j] = o1 + j;
+            }
+            mu_fes->GetFaceVDofs(face_no, mu_vdofs);
+            const FiniteElement *fe = fes->GetFE(FTr->Elem1No);
+            c_bfi->AssembleFaceMatrix(*mu_fes->GetFaceElement(face_no),
+                                      *fe, *fe, *FTr, elmat);
+            // zero-out small elements in elmat
+            elmat.ZeroSmallEntries(1e-12 * elmat.MaxMaxNorm());
+            Ct->AddSubMatrix(vdofs, mu_vdofs, elmat, skip_zeros);
+         }
+      }
+#endif
       Ct->Finalize(skip_zeros);
 #if 0
       const SparseMatrix *mu_cP = mu_fes->GetConformingProlongation();
@@ -137,36 +169,57 @@ void Hybridization::Init(const Array<int> &ess_cdofs_marker)
    // Define the "free" (0) and "essential" (1) hat_dofs.
    // The "essential" hat_dofs are those that depend only on essential cdofs;
    // all other hat_dofs are "free".
-   const SparseMatrix *cP = fes->GetConformingProlongation();
    hat_dofs_marker.SetSize(num_hat_dofs);
+   Array<int> free_cdofs_marker(ess_cdofs_marker.Size());
+   for (int i = 0; i < free_cdofs_marker.Size(); i++)
+   {
+      free_cdofs_marker[i] = ! ess_cdofs_marker[i];
+   }
+   Array<int> free_vdofs_marker;
+#ifdef MFEM_USE_MPI
+   ParFiniteElementSpace *pfes = dynamic_cast<ParFiniteElementSpace*>(fes);
+   if (!pfes)
+   {
+      const SparseMatrix *cP = fes->GetConformingProlongation();
+      if (!cP)
+      {
+         free_vdofs_marker.MakeRef(free_cdofs_marker);
+      }
+      else
+      {
+         free_vdofs_marker.SetSize(fes->GetVSize());
+         cP->BooleanMult(free_cdofs_marker, free_vdofs_marker);
+      }
+   }
+   else
+   {
+      HypreParMatrix *P = pfes->Dof_TrueDof_Matrix();
+      free_vdofs_marker.SetSize(fes->GetVSize());
+      P->BooleanMult(1, free_cdofs_marker, 0, free_vdofs_marker);
+   }
+#else
+   const SparseMatrix *cP = fes->GetConformingProlongation();
+   if (!cP)
+   {
+      free_vdofs_marker.MakeRef(free_cdofs_marker);
+   }
+   else
+   {
+      free_vdofs_marker.SetSize(fes->GetVSize());
+      cP->BooleanMult(free_cdofs_marker, free_vdofs_marker);
+   }
+#endif
    for (int i = 0; i < NE; i++)
    {
       fes->GetElementVDofs(i, vdofs);
       FiniteElementSpace::AdjustVDofs(vdofs);
       for (int j = 0; j < vdofs.Size(); j++)
       {
-         bool all_cols_marked;
-         if (!cP)
-         {
-            all_cols_marked = ess_cdofs_marker[vdofs[j]];
-         }
-         else
-         {
-            const int *cols = cP->GetRowColumns(vdofs[j]);
-            const int ncols = cP->RowSize(vdofs[j]);
-            all_cols_marked = true;
-            for (int k = 0; k < ncols; k++)
-            {
-               if (!ess_cdofs_marker[cols[k]])
-               {
-                  all_cols_marked = false;
-                  break;
-               }
-            }
-         }
-         hat_dofs_marker[hat_offsets[i]+j] = all_cols_marked;
+         hat_dofs_marker[hat_offsets[i]+j] = ! free_vdofs_marker[vdofs[j]];
       }
    }
+   free_cdofs_marker.DeleteAll();
+   free_vdofs_marker.DeleteAll();
    // Split the "free" (0) hat_dofs into "internal" (0) or "boundary" (-1).
    // The "internal" hat_dofs are those "free" hat_dofs for which the
    // corresponding column in C is zero; otherwise the free hat_dof is
@@ -187,24 +240,45 @@ void Hybridization::Init(const Array<int> &ess_cdofs_marker)
    Af_offsets[0] = 0;
    Af_f_offsets.SetSize(NE+1);
    Af_f_offsets[0] = 0;
+   // #define MFEM_DEBUG_HERE
+#ifdef MFEM_DEBUG_HERE
+   int b_size = 0;
+#endif
    for (int i = 0; i < NE; i++)
    {
       int f_size = 0; // count the "free" hat_dofs in element i
       for (int j = hat_offsets[i]; j < hat_offsets[i+1]; j++)
       {
          if (hat_dofs_marker[j] != 1) { f_size++; }
+#ifdef MFEM_DEBUG_HERE
+         if (hat_dofs_marker[j] == -1) { b_size++; }
+#endif
       }
       Af_offsets[i+1] = Af_offsets[i] + f_size*f_size;
       Af_f_offsets[i+1] = Af_f_offsets[i] + f_size;
    }
+
+#ifdef MFEM_DEBUG_HERE
+#ifndef MFEM_USE_MPI
+   int myid = 0;
+#else
+   int myid = pmesh ? pmesh->GetMyRank() : 0;
+#endif
+   int i_size = Af_f_offsets[NE] - b_size;
+   int e_size = num_hat_dofs - (i_size + b_size);
+   std::cout << "\nHybridization::Init:"
+             << " [" << myid << "] hat dofs - \"internal\": " << i_size
+             << ", \"boundary\": " << b_size
+             << ", \"essential\": " << e_size << '\n' << std::endl;
+#endif
 
    Af_data = new double[Af_offsets[NE]];
    Af_ipiv = new int[Af_f_offsets[NE]];
 
 #ifdef MFEM_DEBUG
    // check that Ref = 0
-   const SparseMatrix *cR = fes->GetConformingRestriction();
-   if (!cR) { return; }
+   const SparseMatrix *R = fes->GetRestrictionMatrix();
+   if (!R) { return; }
    Array<int> vdof_marker(fes->GetVSize()); // 0 - f, 1 - e
    vdof_marker = 0;
    for (int i = 0; i < NE; i++)
@@ -219,13 +293,13 @@ void Hybridization::Init(const Array<int> &ess_cdofs_marker)
          }
       }
    }
-   for (int cdof = 0; cdof < cR->Height(); cdof++)
+   for (int cdof = 0; cdof < R->Height(); cdof++)
    {
       if (!ess_cdofs_marker[cdof]) { continue; }
 
-      const int ncols = cR->RowSize(cdof);
-      const int *cols = cR->GetRowColumns(cdof);
-      const double *vals = cR->GetRowEntries(cdof);
+      const int ncols = R->RowSize(cdof);
+      const int *cols = R->GetRowColumns(cdof);
+      const double *vals = R->GetRowEntries(cdof);
       for (int j = 0; j < ncols; j++)
       {
          if (std::abs(vals[j]) != 0.0 && vdof_marker[cols[j]] == 0)
@@ -347,20 +421,38 @@ void Hybridization::AssembleMatrix(int el, const Array<int> &vdofs,
    H->AddSubMatrix(mu_dofs, mu_dofs, Hb, skip_zeros);
 }
 
+void Hybridization::Finalize()
+{
+   H->Finalize();
+#ifdef MFEM_USE_MPI
+   ParFiniteElementSpace *mu_pfes =
+      dynamic_cast<ParFiniteElementSpace*>(mu_fes);
+   if (!mu_pfes) { return; }
+   HypreParMatrix *dH =
+      new HypreParMatrix(mu_pfes->GetComm(), mu_pfes->GlobalVSize(),
+                         mu_pfes->GetDofOffsets(), H);
+   // TODO: ParNCMesh
+   pH = RAP(dH, mu_pfes->Dof_TrueDof_Matrix());
+   delete dH;
+   delete H;
+   H = NULL;
+#endif
+}
+
 void Hybridization::MultAfInv(const Vector &b, const Vector &lambda, Vector &bf,
                               int mode) const
 {
    // b1 = Rf^t b (assuming that Ref = 0)
    Vector b1;
-   const SparseMatrix *cR = fes->GetConformingRestriction();
-   if (!cR)
+   const SparseMatrix *R = fes->GetRestrictionMatrix();
+   if (!R)
    {
       b1.SetDataAndSize(b.GetData(), b.Size());
    }
    else
    {
       b1.SetSize(fes->GetVSize());
-      cR->MultTranspose(b, b1);
+      R->MultTranspose(b, b1);
    }
 
    const int NE = fes->GetMesh()->GetNE();
@@ -369,7 +461,23 @@ void Hybridization::MultAfInv(const Vector &b, const Vector &lambda, Vector &bf,
    bf.SetSize(hat_offsets[NE]);
    if (mode == 1)
    {
+#ifdef MFEM_USE_MPI
+      ParFiniteElementSpace *mu_pfes =
+         dynamic_cast<ParFiniteElementSpace*>(mu_fes);
+      if (!mu_pfes)
+      {
+         Ct->Mult(lambda, bf);
+      }
+      else
+      {
+         // TODO: ParNCMesh
+         Vector L(mu_pfes->GetVSize());
+         mu_pfes->Dof_TrueDof_Matrix()->Mult(lambda, L);
+         Ct->Mult(L, bf);
+      }
+#else
       Ct->Mult(lambda, bf);
+#endif
    }
    // Apply Af^{-1}
    Array<bool> vdof_marker(b1.Size());
@@ -420,8 +528,26 @@ void Hybridization::ReduceRHS(const Vector &b, Vector &b_r) const
    MultAfInv(b, b, bf, 0);
 
    // b_r = Cf bf
+#ifdef MFEM_USE_MPI
+   ParFiniteElementSpace *mu_pfes =
+      dynamic_cast<ParFiniteElementSpace*>(mu_fes);
+   if (!mu_pfes)
+   {
+      b_r.SetSize(Ct->Width());
+      Ct->MultTranspose(bf, b_r);
+   }
+   else
+   {
+      // TODO: ParNCMesh
+      Vector bl(Ct->Width());
+      Ct->MultTranspose(bf, bl);
+      b_r.SetSize(pH->Height());
+      mu_pfes->Dof_TrueDof_Matrix()->MultTranspose(bl, b_r);
+   }
+#else
    b_r.SetSize(Ct->Width());
    Ct->MultTranspose(bf, b_r);
+#endif
 }
 
 void Hybridization::ComputeSolution(const Vector &b, const Vector &sol_r,
@@ -433,8 +559,8 @@ void Hybridization::ComputeSolution(const Vector &b, const Vector &sol_r,
 
    // sol = Rf bf
    GridFunction s;
-   const SparseMatrix *cR = fes->GetConformingRestriction();
-   if (!cR)
+   const SparseMatrix *R = fes->GetRestrictionMatrix();
+   if (!R)
    {
       MFEM_ASSERT(sol.Size() == fes->GetVSize(), "");
       s.Update(fes, sol, 0);
@@ -442,12 +568,7 @@ void Hybridization::ComputeSolution(const Vector &b, const Vector &sol_r,
    else
    {
       s.Update(fes);
-#if 0
-      const SparseMatrix *cP = fes->GetConformingProlongation();
-      cP->Mult(sol, s); // interpolate b.c. from sol
-#else
-      cR->MultTranspose(sol, s);
-#endif
+      R->MultTranspose(sol, s);
    }
    const int NE = fes->GetMesh()->GetNE();
    Array<int> vdofs;
@@ -462,9 +583,9 @@ void Hybridization::ComputeSolution(const Vector &b, const Vector &sol_r,
          else { s(-1-vdof) = -bf(j); }
       }
    }
-   if (cR)
+   if (R)
    {
-      cR->Mult(s, sol); // assuming that Ref = 0
+      R->Mult(s, sol); // assuming that Ref = 0
    }
 }
 

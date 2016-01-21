@@ -686,6 +686,10 @@ void FiniteElementSpace::GetEdgeFaceDofs(int type, int index, Array<int> &dofs)
 
 void FiniteElementSpace::GetConformingInterpolation()
 {
+#ifdef MFEM_USE_MPI
+   MFEM_VERIFY(dynamic_cast<ParFiniteElementSpace*>(this) == NULL,
+               "This method should not be used with a ParFiniteElementSpace!");
+#endif
    // For each slave DOF, the dependency matrix will contain a row that
    // expresses the slave DOF as a linear combination of its immediate master
    // DOFs. Rows of independent DOFs will remain empty.

@@ -1361,20 +1361,7 @@ Table *ParMesh::GetFaceToAllElementTable() const
 
 FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 {
-   int FaceNo;
-
-   if (Dim == 1)
-   {
-      FaceNo = svert_lvert[sf];
-   }
-   else if (Dim == 2)
-   {
-      FaceNo = sedge_ledge[sf];
-   }
-   else
-   {
-      FaceNo = sface_lface[sf];
-   }
+   int FaceNo = GetSharedFace(sf);
 
    // fill-in the face and the first (local) element data into FaceElemTr
    GetFaceElementTransformations(FaceNo);
@@ -1431,6 +1418,16 @@ int ParMesh::GetNSharedFaces() const
       return sedge_ledge.Size();
    }
    return sface_lface.Size();
+}
+
+int ParMesh::GetSharedFace(int sface) const
+{
+   switch (Dim)
+   {
+      case 1: return svert_lvert[sface];
+      case 2: return sedge_ledge[sface];
+   }
+   return sface_lface[sface];
 }
 
 void ParMesh::ReorientTetMesh()

@@ -1292,10 +1292,10 @@ HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P)
 
 void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
                  const Array<int> &ess_dof_list,
-                 const HypreParVector &X, HypreParVector &B)
+                 const Vector &X, Vector &B)
 {
    // B -= Ae*X
-   Ae.Mult(X, B, -1.0, 1.0);
+   Ae.Mult(-1.0, X, 1.0, B);
 
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag((hypre_ParCSRMatrix *)A);
    double *data = hypre_CSRMatrixData(A_diag);

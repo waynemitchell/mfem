@@ -16,6 +16,10 @@
 #include "fespace.hpp"
 #include "bilininteg.hpp"
 
+#ifdef MFEM_USE_MPI
+#include "../linalg/hypre.hpp"
+#endif
+
 namespace mfem
 {
 
@@ -31,6 +35,10 @@ protected:
    Array<int> Af_offsets, Af_f_offsets;
    double *Af_data;
    int *Af_ipiv;
+
+#ifdef MFEM_USE_MPI
+   HypreParMatrix *pH;
+#endif
 
    void GetIBDofs(int el, Array<int> &i_dofs, Array<int> &b_dofs) const;
 
@@ -61,10 +69,14 @@ public:
    void AssembleMatrix(int el, const Array<int> &vdofs, const DenseMatrix &A);
 
    ///
-   void Finalize() { H->Finalize(); }
+   void Finalize();
 
    ///
    SparseMatrix &GetMatrix() { return *H; }
+
+#ifdef MFEM_USE_MPI
+   HypreParMatrix &GetParallelMatrix() { return *pH; }
+#endif
 
    ///
    void ReduceRHS(const Vector &b, Vector &b_r) const;

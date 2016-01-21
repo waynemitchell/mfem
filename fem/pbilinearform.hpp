@@ -32,6 +32,8 @@ protected:
    ParFiniteElementSpace *pfes;
    mutable ParGridFunction X, Y; // used in TrueAddMult
 
+   HypreParMatrix *p_mat, *p_mat_e;
+
    bool keep_nbr_block;
 
    // called when (mat == NULL && fbfi.Size() > 0)
@@ -41,11 +43,12 @@ protected:
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-      : BilinearForm(pf), pfes(pf)
+      : BilinearForm(pf), pfes(pf), p_mat(NULL), p_mat_e(NULL)
    { keep_nbr_block = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
-      : BilinearForm(pf, bf) { pfes = pf; keep_nbr_block = false; }
+      : BilinearForm(pf, bf), pfes(pf), p_mat(NULL), p_mat_e(NULL)
+   { keep_nbr_block = false; }
 
    /** When set to true and the ParBilinearForm has interior face integrators,
        the local SparseMatrix will include the rows (in addition to the columns)
@@ -100,7 +103,13 @@ public:
 
    ParFiniteElementSpace *ParFESpace() const { return pfes; }
 
-   virtual ~ParBilinearForm() { }
+   HypreParMatrix &AssembleSystem(Array<int> &bdr_attr_is_ess,
+                                  Vector &x, Vector &b,
+                                  Vector &X, Vector &B);
+
+   void ComputeSolution(const Vector &X, const Vector &b, Vector &x);
+
+   virtual ~ParBilinearForm() { delete p_mat_e; delete p_mat; }
 };
 
 /// Class for parallel bilinear form

@@ -901,6 +901,261 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
    }
 }
 
+/* Based on hypre_CSRMatrixMatvec in csr_matvec.c */
+void hypre_CSRMatrixBooleanMatvec(hypre_CSRMatrix *A,
+                                  HYPRE_Bool alpha,
+                                  HYPRE_Bool *x,
+                                  HYPRE_Bool beta,
+                                  HYPRE_Bool *y)
+{
+   /* HYPRE_Complex    *A_data   = hypre_CSRMatrixData(A); */
+   HYPRE_Int        *A_i      = hypre_CSRMatrixI(A);
+   HYPRE_Int        *A_j      = hypre_CSRMatrixJ(A);
+   HYPRE_Int         num_rows = hypre_CSRMatrixNumRows(A);
+
+   HYPRE_Int        *A_rownnz = hypre_CSRMatrixRownnz(A);
+   HYPRE_Int         num_rownnz = hypre_CSRMatrixNumRownnz(A);
+
+   HYPRE_Bool       *x_data = x;
+   HYPRE_Bool       *y_data = y;
+
+   HYPRE_Bool        temp, tempx;
+
+   HYPRE_Int         i, jj;
+
+   HYPRE_Int         m;
+
+   HYPRE_Real        xpar=0.7;
+
+   /*-----------------------------------------------------------------------
+    * Do (alpha == 0.0) computation - RDF: USE MACHINE EPS
+    *-----------------------------------------------------------------------*/
+
+   if (alpha == 0)
+   {
+#ifdef HYPRE_USING_OPENMP
+      #pragma omp parallel for private(i) HYPRE_SMP_SCHEDULE
+#endif
+      for (i = 0; i < num_rows; i++)
+      {
+         y_data[i] = y_data[i] && beta;
+      }
+      return;
+   }
+
+   /*-----------------------------------------------------------------------
+    * y = (beta/alpha)*y
+    *-----------------------------------------------------------------------*/
+
+   if (beta == 0)
+   {
+#ifdef HYPRE_USING_OPENMP
+      #pragma omp parallel for private(i) HYPRE_SMP_SCHEDULE
+#endif
+      for (i = 0; i < num_rows; i++)
+      {
+         y_data[i] = 0;
+      }
+   }
+   else
+   {
+      /* beta is true -> no change to y_data */
+   }
+
+   /*-----------------------------------------------------------------
+    * y += A*x
+    *-----------------------------------------------------------------*/
+
+   /* use rownnz pointer to do the A*x multiplication  when num_rownnz is smaller than num_rows */
+
+   if (num_rownnz < xpar*(num_rows))
+   {
+#ifdef HYPRE_USING_OPENMP
+      #pragma omp parallel for private(i,jj,m,tempx) HYPRE_SMP_SCHEDULE
+#endif
+      for (i = 0; i < num_rownnz; i++)
+      {
+         m = A_rownnz[i];
+
+         tempx = 0;
+         for (jj = A_i[m]; jj < A_i[m+1]; jj++)
+         {
+            /* tempx = tempx || ((A_data[jj] != 0.0) && x_data[A_j[jj]]); */
+            tempx = tempx || x_data[A_j[jj]];
+         }
+         y_data[m] = y_data[m] || tempx;
+      }
+   }
+   else
+   {
+#ifdef HYPRE_USING_OPENMP
+      #pragma omp parallel for private(i,jj,temp) HYPRE_SMP_SCHEDULE
+#endif
+      for (i = 0; i < num_rows; i++)
+      {
+         temp = 0;
+         for (jj = A_i[i]; jj < A_i[i+1]; jj++)
+         {
+            /* temp = temp || ((A_data[jj] != 0.0) && x_data[A_j[jj]]); */
+            temp = temp || x_data[A_j[jj]];
+         }
+         y_data[i] = y_data[i] || temp;
+      }
+   }
+
+   /*-----------------------------------------------------------------
+    * y = alpha*y
+    *-----------------------------------------------------------------*/
+   /* alpha is true */
+}
+
+/* Based on hypre_ParCSRCommHandleCreate in par_csr_communication.c. The input
+   variable job controls the communication type: 1 - Matvec, 2 - MatvecT. */
+hypre_ParCSRCommHandle *
+hypre_ParCSRCommHandleCreate_bool(HYPRE_Int            job,
+                                  hypre_ParCSRCommPkg *comm_pkg,
+                                  HYPRE_Bool          *send_data,
+                                  HYPRE_Bool          *recv_data)
+{
+   HYPRE_Int                  num_sends = hypre_ParCSRCommPkgNumSends(comm_pkg);
+   HYPRE_Int                  num_recvs = hypre_ParCSRCommPkgNumRecvs(comm_pkg);
+   MPI_Comm                   comm      = hypre_ParCSRCommPkgComm(comm_pkg);
+
+   hypre_ParCSRCommHandle    *comm_handle;
+   HYPRE_Int                  num_requests;
+   hypre_MPI_Request         *requests;
+
+   HYPRE_Int                  i, j;
+   HYPRE_Int                  my_id, num_procs;
+   HYPRE_Int                  ip, vec_start, vec_len;
+
+   num_requests = num_sends + num_recvs;
+   requests = hypre_CTAlloc(hypre_MPI_Request, num_requests);
+
+   hypre_MPI_Comm_size(comm, &num_procs);
+   hypre_MPI_Comm_rank(comm, &my_id);
+
+   j = 0;
+   switch (job)
+   {
+      case  1:
+      {
+         HYPRE_Bool *d_send_data = (HYPRE_Bool *) send_data;
+         HYPRE_Bool *d_recv_data = (HYPRE_Bool *) recv_data;
+         for (i = 0; i < num_recvs; i++)
+         {
+            ip = hypre_ParCSRCommPkgRecvProc(comm_pkg, i);
+            vec_start = hypre_ParCSRCommPkgRecvVecStart(comm_pkg, i);
+            vec_len = hypre_ParCSRCommPkgRecvVecStart(comm_pkg, i+1)-vec_start;
+            hypre_MPI_Irecv(&d_recv_data[vec_start], vec_len, HYPRE_MPI_BOOL,
+                            ip, 0, comm, &requests[j++]);
+         }
+         for (i = 0; i < num_sends; i++)
+         {
+            vec_start = hypre_ParCSRCommPkgSendMapStart(comm_pkg, i);
+            vec_len = hypre_ParCSRCommPkgSendMapStart(comm_pkg, i+1)-vec_start;
+            ip = hypre_ParCSRCommPkgSendProc(comm_pkg, i);
+            hypre_MPI_Isend(&d_send_data[vec_start], vec_len, HYPRE_MPI_BOOL,
+                            ip, 0, comm, &requests[j++]);
+         }
+         break;
+      }
+      case  2:
+      {
+         HYPRE_Bool *d_send_data = (HYPRE_Bool *) send_data;
+         HYPRE_Bool *d_recv_data = (HYPRE_Bool *) recv_data;
+         for (i = 0; i < num_sends; i++)
+         {
+            vec_start = hypre_ParCSRCommPkgSendMapStart(comm_pkg, i);
+            vec_len = hypre_ParCSRCommPkgSendMapStart(comm_pkg, i+1)-vec_start;
+            ip = hypre_ParCSRCommPkgSendProc(comm_pkg, i);
+            hypre_MPI_Irecv(&d_recv_data[vec_start], vec_len, HYPRE_MPI_BOOL,
+                            ip, 0, comm, &requests[j++]);
+         }
+         for (i = 0; i < num_recvs; i++)
+         {
+            ip = hypre_ParCSRCommPkgRecvProc(comm_pkg, i);
+            vec_start = hypre_ParCSRCommPkgRecvVecStart(comm_pkg, i);
+            vec_len = hypre_ParCSRCommPkgRecvVecStart(comm_pkg, i+1)-vec_start;
+            hypre_MPI_Isend(&d_send_data[vec_start], vec_len, HYPRE_MPI_BOOL,
+                            ip, 0, comm, &requests[j++]);
+         }
+         break;
+      }
+   }
+   /*--------------------------------------------------------------------
+    * set up comm_handle and return
+    *--------------------------------------------------------------------*/
+
+   comm_handle = hypre_CTAlloc(hypre_ParCSRCommHandle, 1);
+
+   hypre_ParCSRCommHandleCommPkg(comm_handle)     = comm_pkg;
+   hypre_ParCSRCommHandleSendData(comm_handle)    = send_data;
+   hypre_ParCSRCommHandleRecvData(comm_handle)    = recv_data;
+   hypre_ParCSRCommHandleNumRequests(comm_handle) = num_requests;
+   hypre_ParCSRCommHandleRequests(comm_handle)    = requests;
+
+   return comm_handle;
+}
+
+/* Based on hypre_ParCSRMatrixBooleanMatvec in par_csr_matvec.c */
+void hypre_ParCSRMatrixBooleanMatvec(hypre_ParCSRMatrix *A,
+                                     HYPRE_Bool alpha,
+                                     HYPRE_Bool *x,
+                                     HYPRE_Bool beta,
+                                     HYPRE_Bool *y)
+{
+   hypre_ParCSRCommHandle *comm_handle;
+   hypre_ParCSRCommPkg *comm_pkg = hypre_ParCSRMatrixCommPkg(A);
+   hypre_CSRMatrix   *diag   = hypre_ParCSRMatrixDiag(A);
+   hypre_CSRMatrix   *offd   = hypre_ParCSRMatrixOffd(A);
+
+   HYPRE_Int          num_cols_offd = hypre_CSRMatrixNumCols(offd);
+   HYPRE_Int          num_sends, i, j, index;
+
+   HYPRE_Bool        *x_tmp, *x_buf;
+
+   x_tmp = hypre_CTAlloc(HYPRE_Bool, num_cols_offd);
+
+   /*---------------------------------------------------------------------
+    * If there exists no CommPkg for A, a CommPkg is generated using
+    * equally load balanced partitionings
+    *--------------------------------------------------------------------*/
+   if (!comm_pkg)
+   {
+      hypre_MatvecCommPkgCreate(A);
+      comm_pkg = hypre_ParCSRMatrixCommPkg(A);
+   }
+
+   num_sends = hypre_ParCSRCommPkgNumSends(comm_pkg);
+   x_buf = hypre_CTAlloc(HYPRE_Bool,
+                         hypre_ParCSRCommPkgSendMapStart(comm_pkg, num_sends));
+
+   index = 0;
+   for (i = 0; i < num_sends; i++)
+   {
+      j = hypre_ParCSRCommPkgSendMapStart(comm_pkg, i);
+      for ( ; j < hypre_ParCSRCommPkgSendMapStart(comm_pkg, i+1); j++)
+      {
+         x_buf[index++] = x[hypre_ParCSRCommPkgSendMapElmt(comm_pkg, j)];
+      }
+   }
+
+   comm_handle = hypre_ParCSRCommHandleCreate_bool(1, comm_pkg, x_buf, x_tmp);
+
+   hypre_CSRMatrixBooleanMatvec(diag, alpha, x, beta, y);
+
+   hypre_ParCSRCommHandleDestroy(comm_handle);
+
+   if (num_cols_offd)
+   {
+      hypre_CSRMatrixBooleanMatvec(offd, alpha, x_tmp, 1, y);
+   }
+
+   hypre_TFree(x_buf);
+   hypre_TFree(x_tmp);
+}
+
 } // namespace mfem::internal
 
 } // namespace mfem

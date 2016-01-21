@@ -2632,6 +2632,20 @@ void DenseMatrix::SetCol(int col, double value)
    }
 }
 
+void DenseMatrix::ZeroSmallEntries(double eps)
+{
+   for (int col = 0; col < Width(); col++)
+   {
+      for (int row = 0; row < Height(); row++)
+      {
+         if (std::abs(operator()(row,col)) <= eps)
+         {
+            operator()(row,col) = 0.0;
+         }
+      }
+   }
+}
+
 void DenseMatrix::Print(std::ostream &out, int width_) const
 {
    // output flags = scientific + show sign

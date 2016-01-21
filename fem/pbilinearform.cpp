@@ -261,6 +261,70 @@ const
    pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
 }
 
+HypreParMatrix &ParBilinearForm::AssembleSystem(
+   Array<int> &bdr_attr_is_ess, Vector &x, Vector &b, Vector &X, Vector &B)
+{
+   HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
+   const SparseMatrix &R = *pfes->GetRestrictionMatrix();
+
+   Array<int> ess_tdof_list;
+   pfes->GetEssentialTrueDofs(bdr_attr_is_ess, ess_tdof_list);
+
+   if (mat)
+   {
+      Finalize();
+      p_mat = ParallelAssemble();
+      delete mat;
+      mat = NULL;
+      p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
+   }
+
+   if (!hybridization)
+   {
+      X.SetSize(pfes->TrueVSize());
+      B.SetSize(X.Size());
+      P.MultTranspose(b, B);
+      R.Mult(x, X);
+      EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, X, B);
+      return *p_mat;
+   }
+   else
+   {
+      HypreParVector TX(pfes), TB(pfes);
+      P.MultTranspose(b, TB);
+      R.Mult(x, TX);
+      EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, TX, TB);
+      R.MultTranspose(TB, b);
+      hybridization->ReduceRHS(TB, B);
+      X.SetSize(B.Size());
+      X = 0.0;
+      return hybridization->GetParallelMatrix();
+   }
+}
+
+void ParBilinearForm::ComputeSolution(
+   const Vector &X, const Vector &b, Vector &x)
+{
+   HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
+
+   if (!hybridization)
+   {
+      x.SetSize(P.Height());
+      P.Mult(X, x);
+   }
+   else
+   {
+      HypreParVector TX(pfes), TB(pfes);
+      P.MultTranspose(b, TB);
+      const SparseMatrix &R = *pfes->GetRestrictionMatrix();
+      R.Mult(x, TX); // get essential b.c. from x
+      hybridization->ComputeSolution(TB, X, TX);
+      x.SetSize(P.Height());
+      P.Mult(TX, x);
+   }
+}
+
+
 HypreParMatrix* ParDiscreteLinearOperator::ParallelAssemble() const
 {
    MFEM_ASSERT(mat, "matrix is not assembled");

@@ -210,7 +210,7 @@ public:
    HYPRE_Int GetMyTDofOffset() const;
 
    /// Get the R matrix which restricts a local dof vector to true dof vector.
-   const SparseMatrix *GetRestrictionMatrix()
+   virtual const SparseMatrix *GetRestrictionMatrix()
    { if (!R) { Dof_TrueDof_Matrix(); } return R; }
 
    // Face-neighbor functions

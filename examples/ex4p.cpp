@@ -56,6 +56,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool set_bc = true;
+   bool hybridization = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -67,6 +68,8 @@ int main(int argc, char *argv[])
                   "Impose or not essential boundary conditions.");
    args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
                   " solution.");
+   args.AddOption(&hybridization, "-hb", "--hybridization", "-no-hb",
+                  "--no-hybridization", "Enable hybridization.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -111,7 +114,7 @@ int main(int argc, char *argv[])
    //    more than 1,000 elements.
    {
       int ref_levels =
-         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
+         (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -175,51 +178,67 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
+   Array<int> ess_bdr;
+   if (pmesh->bdr_attributes.Size())
+   {
+      ess_bdr.SetSize(pmesh->bdr_attributes.Max());
+      ess_bdr = set_bc ? 1 : 0;
+   }
+   FiniteElementCollection *hfec = NULL;
+   ParFiniteElementSpace *hfes = NULL;
+   if (hybridization)
+   {
+      hfec = new RT_Trace_FECollection(order-1, dim, FiniteElement::VALUE);
+      hfes = new ParFiniteElementSpace(pmesh, hfec);
+      a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(), ess_bdr);
+   }
    a->Assemble();
-   a->Finalize();
+   Vector B, X;
+   HypreParMatrix &A = a->AssembleSystem(ess_bdr, x, *b, X, B);
+   HYPRE_Int glob_size = A.GetGlobalNumRows();
+   if (myid == 0)
+   {
+      cout << "Size of linear system: " << glob_size << endl;
+   }
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
-   HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelProject();
 
    // 11. Eliminate essential BC from the parallel system
-   if (set_bc && pmesh->bdr_attributes.Size())
-   {
-      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-      ess_bdr = 1;
-      a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
-   }
 
-   *X = 0.0;
-
-   delete a;
-   delete alpha;
-   delete beta;
-   delete b;
+   X = 0.0;
 
    // 12. Define and apply a parallel PCG solver for AX=B with the 2D AMS or the
    //     3D ADS preconditioners from hypre.
-   HypreSolver *prec;
-   if (dim == 2)
+   HypreSolver *prec = NULL;
+   CGSolver *pcg = new CGSolver(A.GetComm());
+   pcg->SetOperator(A);
+   pcg->SetRelTol(1e-14);
+   pcg->SetMaxIter(500);
+   pcg->SetPrintLevel(1);
+   if (!hybridization)
    {
-      prec = new HypreAMS(*A, fespace);
+      if (dim == 2)
+      {
+         prec = new HypreAMS(A, fespace);
+      }
+      else
+      {
+         prec = new HypreADS(A, fespace);
+      }
+      pcg->SetPreconditioner(*prec);
+      pcg->Mult(B, X);
    }
    else
    {
-      prec = new HypreADS(*A, fespace);
+      HypreBoomerAMG amg(A);
+      pcg->SetPreconditioner(amg);
+      pcg->Mult(B, X);
    }
-   HyprePCG *pcg = new HyprePCG(*A);
-   pcg->SetTol(1e-10);
-   pcg->SetMaxIter(500);
-   pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*prec);
-   pcg->Mult(*B, *X);
 
    // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   x = *X;
+   a->ComputeSolution(X, *b, x);
 
    // 14. Compute and print the L^2 norm of the error.
    {
@@ -260,9 +279,12 @@ int main(int argc, char *argv[])
    // 17. Free the used memory.
    delete pcg;
    delete prec;
-   delete X;
-   delete B;
-   delete A;
+   delete hfes;
+   delete hfec;
+   delete a;
+   delete alpha;
+   delete beta;
+   delete b;
    delete fespace;
    delete fec;
    delete pmesh;

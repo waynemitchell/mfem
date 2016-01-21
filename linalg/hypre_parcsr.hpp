@@ -55,6 +55,27 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
                              hypre_ParCSRMatrix **blocks,
                              int interleaved_rows, int interleaved_cols);
 
+typedef int HYPRE_Bool;
+#define HYPRE_MPI_BOOL MPI_INT
+
+void hypre_CSRMatrixBooleanMatvec(hypre_CSRMatrix *A,
+                                  HYPRE_Bool alpha,
+                                  HYPRE_Bool *x,
+                                  HYPRE_Bool beta,
+                                  HYPRE_Bool *y);
+
+hypre_ParCSRCommHandle *
+hypre_ParCSRCommHandleCreate_bool(HYPRE_Int            job,
+                                  hypre_ParCSRCommPkg *comm_pkg,
+                                  HYPRE_Bool          *send_data,
+                                  HYPRE_Bool          *recv_data);
+
+void hypre_ParCSRMatrixBooleanMatvec(hypre_ParCSRMatrix *A,
+                                     HYPRE_Bool alpha,
+                                     HYPRE_Bool *x,
+                                     HYPRE_Bool beta,
+                                     HYPRE_Bool *y);
+
 } // namespace mfem::internal
 
 } // namespace mfem
