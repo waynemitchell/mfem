@@ -186,6 +186,184 @@ const IntegrationRule * Geometry::GetVertices(int GeomType)
    return GeomVert[0];
 }
 
+// static method
+void Geometry::GetRandomPoint(int GeomType, IntegrationPoint &ip)
+{
+   switch (GeomType)
+   {
+      case Geometry::POINT:
+         ip.x = 0.0;
+         break;
+      case Geometry::SEGMENT:
+         ip.x = double(rand()) / RAND_MAX;
+         break;
+      case Geometry::TRIANGLE:
+         ip.x = double(rand()) / RAND_MAX;
+         ip.y = double(rand()) / RAND_MAX;
+         if (ip.x + ip.y > 1.0)
+         {
+            ip.x = 1.0 - ip.x;
+            ip.y = 1.0 - ip.y;
+         }
+         break;
+      case Geometry::SQUARE:
+         ip.x = double(rand()) / RAND_MAX;
+         ip.y = double(rand()) / RAND_MAX;
+         break;
+      case Geometry::TETRAHEDRON:
+         ip.x = double(rand()) / RAND_MAX;
+         ip.y = double(rand()) / RAND_MAX;
+         ip.z = double(rand()) / RAND_MAX;
+         // map to the triangular prism obtained by extruding the reference
+         // triangle in z direction
+         if (ip.x + ip.y > 1.0)
+         {
+            ip.x = 1.0 - ip.x;
+            ip.y = 1.0 - ip.y;
+         }
+         // split the prism into 3 parts: 1 is the reference tet, and the
+         // other two tets (as given below) are mapped to the reference tet
+         if (ip.x + ip.z > 1.0)
+         {
+            // tet with vertices: (0,0,1),(1,0,1),(0,1,1),(1,0,0)
+            ip.x = ip.x + ip.z - 1.0;
+            // ip.y = ip.y;
+            ip.z = 1.0 - ip.z;
+            // mapped to: (0,0,0),(1,0,0),(0,1,0),(0,0,1)
+         }
+         else if (ip.x + ip.y + ip.z > 1.0)
+         {
+            // tet with vertices: (0,1,1),(0,1,0),(0,0,1),(1,0,0)
+            double x = ip.x;
+            ip.x = 1.0 - x - ip.z;
+            ip.y = 1.0 - x - ip.y;
+            ip.z = x;
+            // mapped to: (0,0,0),(1,0,0),(0,1,0),(0,0,1)
+         }
+         break;
+      case Geometry::CUBE:
+         ip.x = double(rand()) / RAND_MAX;
+         ip.y = double(rand()) / RAND_MAX;
+         ip.z = double(rand()) / RAND_MAX;
+         break;
+      default:
+         MFEM_ABORT("Unknown type of reference element!");
+   }
+}
+
+// static method
+bool Geometry::CheckPoint(int GeomType, const IntegrationPoint &ip)
+{
+   switch (GeomType)
+   {
+      case Geometry::POINT:
+         if (ip.x != 0.0) { return false; }
+         break;
+      case Geometry::SEGMENT:
+         if (ip.x < 0.0 || ip.x > 1.0) { return false; }
+         break;
+      case Geometry::TRIANGLE:
+         if (ip.x < 0.0 || ip.y < 0.0 || ip.x+ip.y > 1.0) { return false; }
+         break;
+      case Geometry::SQUARE:
+         if (ip.x < 0.0 || ip.x > 1.0 || ip.y < 0.0 || ip.y > 1.0)
+         { return false; }
+         break;
+      case Geometry::TETRAHEDRON:
+         if (ip.x < 0.0 || ip.y < 0.0 || ip.z < 0.0 ||
+             ip.x+ip.y+ip.z > 1.0) { return false; }
+         break;
+      case Geometry::CUBE:
+         if (ip.x < 0.0 || ip.x > 1.0 || ip.y < 0.0 || ip.y > 1.0 ||
+             ip.z < 0.0 || ip.z > 1.0) { return false; }
+         break;
+      default:
+         MFEM_ABORT("Unknown type of reference element!");
+   }
+   return true;
+}
+
+namespace internal
+{
+
+template <int N, int dim>
+inline bool IntersectSegment(double lbeg[N], double lend[N],
+                             IntegrationPoint &end)
+{
+   double t = 1.0;
+   bool out = false;
+   for (int i = 0; i < N; i++)
+   {
+      lbeg[i] = std::max(lbeg[i], 0.0); // remove round-off
+      if (lend[i] < 0.0)
+      {
+         out = true;
+         t = std::min(t, lbeg[i]/(lbeg[i]-lend[i]));
+      }
+   }
+   if (out)
+   {
+      if (dim >= 1) { end.x = t*lend[0] + (1.0-t)*lbeg[0]; }
+      if (dim >= 2) { end.y = t*lend[1] + (1.0-t)*lbeg[1]; }
+      if (dim >= 3) { end.z = t*lend[2] + (1.0-t)*lbeg[2]; }
+      return false;
+   }
+   return true;
+}
+
+}
+
+// static method
+bool Geometry::ProjectPoint(int GeomType, const IntegrationPoint &beg,
+                            IntegrationPoint &end)
+{
+   switch (GeomType)
+   {
+      case Geometry::POINT:
+      {
+         if (end.x != 0.0) { end.x = 0.0; return false; }
+         break;
+      }
+      case Geometry::SEGMENT:
+      {
+         if (end.x < 0.0) { end.x = 0.0; return false; }
+         if (end.x > 1.0) { end.x = 1.0; return false; }
+         break;
+      }
+      case Geometry::TRIANGLE:
+      {
+         double lend[3] = { end.x, end.y, 1-end.x-end.y };
+         double lbeg[3] = { beg.x, beg.y, 1-beg.x-beg.y };
+         return internal::IntersectSegment<3,2>(lbeg, lend, end);
+      }
+      case Geometry::SQUARE:
+      {
+         double lend[4] = { end.x, end.y, 1-end.x, 1.0-end.y };
+         double lbeg[4] = { beg.x, beg.y, 1-beg.x, 1.0-beg.y };
+         return internal::IntersectSegment<4,2>(lbeg, lend, end);
+      }
+      case Geometry::TETRAHEDRON:
+      {
+         double lend[4] = { end.x, end.y, end.z, 1.0-end.x-end.y-end.z };
+         double lbeg[4] = { beg.x, beg.y, beg.z, 1.0-beg.x-beg.y-beg.z };
+         return internal::IntersectSegment<4,3>(lbeg, lend, end);
+      }
+      case Geometry::CUBE:
+      {
+         double lend[6] = { end.x, end.y, end.z,
+                            1.0-end.x, 1.0-end.y, 1.0-end.z
+                          };
+         double lbeg[6] = { beg.x, beg.y, beg.z,
+                            1.0-beg.x, 1.0-beg.y, 1.0-beg.z
+                          };
+         return internal::IntersectSegment<6,3>(lbeg, lend, end);
+      }
+      default:
+         MFEM_ABORT("Unknown type of reference element!");
+   }
+   return true;
+}
+
 void Geometry::GetPerfPointMat(int GeomType, DenseMatrix &pm)
 {
    switch (GeomType)

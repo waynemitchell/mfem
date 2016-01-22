@@ -17,6 +17,7 @@
 //               ex1 -m ../data/amr-quad.mesh
 //               ex1 -m ../data/amr-hex.mesh
 //               ex1 -m ../data/fichera-amr.mesh
+//               ex1 -m ../data/mobius-strip.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem

@@ -2951,6 +2951,8 @@ void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat)
 void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 {
    MFEM_ASSERT(a.Width() <= a.Height() && a.Width() >= 1 && a.Height() <= 3, "");
+   MFEM_ASSERT(inva.Height() == a.Width(), "incorrect dimensions");
+   MFEM_ASSERT(inva.Width() == a.Height(), "incorrect dimensions");
 
    double t;
 

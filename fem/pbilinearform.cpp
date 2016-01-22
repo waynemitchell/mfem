@@ -225,18 +225,23 @@ void ParBilinearForm
                                HypreParMatrix &A, const HypreParVector &X,
                                HypreParVector &B) const
 {
-   Array<int> ess_dofs, true_ess_dofs, dof_list;
+   Array<int> dof_list;
 
-   pfes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
-   pfes->GetRestrictionMatrix()->BooleanMult(ess_dofs, true_ess_dofs);
-
-   for (int i = 0; i < true_ess_dofs.Size(); i++)
-   {
-      if (true_ess_dofs[i]) { dof_list.Append(i); }
-   }
+   pfes->GetEssentialTrueDofs(bdr_attr_is_ess, dof_list);
 
    // do the parallel elimination
    A.EliminateRowsCols(dof_list, X, B);
+}
+
+HypreParMatrix *ParBilinearForm::
+ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
+                             HypreParMatrix &A) const
+{
+   Array<int> dof_list;
+
+   pfes->GetEssentialTrueDofs(bdr_attr_is_ess, dof_list);
+
+   return A.EliminateRowsCols(dof_list);
 }
 
 void ParBilinearForm::TrueAddMult(const Vector &x, Vector &y, const double a)
@@ -258,6 +263,8 @@ const
 
 HypreParMatrix* ParDiscreteLinearOperator::ParallelAssemble() const
 {
+   MFEM_ASSERT(mat, "matrix is not assembled");
+   MFEM_ASSERT(mat->Finalized(), "matrix is not finalized");
    SparseMatrix* RA = mfem::Mult(*range_fes->GetRestrictionMatrix(), *mat);
    HypreParMatrix* P = domain_fes->Dof_TrueDof_Matrix();
    HypreParMatrix* RAP = P->LeftDiagMult(*RA, range_fes->GetTrueDofOffsets());

@@ -236,10 +236,10 @@ void VectorFEDomainLFIntegrator::AssembleRHSElementVect(
    const FiniteElement &el, ElementTransformation &Tr, Vector &elvect)
 {
    int dof = el.GetDof();
-   int dim = el.GetDim();
+   int spaceDim = Tr.GetSpaceDim();
 
-   vshape.SetSize(dof,dim);
-   vec.SetSize(dim);
+   vshape.SetSize(dof,spaceDim);
+   vec.SetSize(spaceDim);
 
    elvect.SetSize(dof);
    elvect = 0.0;

@@ -425,6 +425,23 @@ void BilinearForm::EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d)
    }
 }
 
+void BilinearForm::EliminateEssentialBCDiag (Array<int> &bdr_attr_is_ess,
+                                             double value)
+{
+   Array<int> ess_dofs, conf_ess_dofs;
+   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
+
+   if (fes->GetConformingRestriction() == NULL)
+   {
+      EliminateEssentialBCFromDofsDiag(ess_dofs, value);
+   }
+   else
+   {
+      fes->GetConformingRestriction()->BooleanMult(ess_dofs, conf_ess_dofs);
+      EliminateEssentialBCFromDofsDiag(conf_ess_dofs, value);
+   }
+}
+
 void BilinearForm::EliminateVDofs(Array<int> &vdofs,
                                   Vector &sol, Vector &rhs, int d)
 {
@@ -485,6 +502,18 @@ void BilinearForm::EliminateEssentialBCFromDofs (Array<int> &ess_dofs, int d)
       if (ess_dofs[i] < 0)
       {
          mat -> EliminateRowCol (i, d);
+      }
+}
+
+void BilinearForm::EliminateEssentialBCFromDofsDiag (Array<int> &ess_dofs,
+                                                     double value)
+{
+   MFEM_ASSERT(ess_dofs.Size() == height, "incorrect dof Array size");
+
+   for (int i = 0; i < ess_dofs.Size(); i++)
+      if (ess_dofs[i] < 0)
+      {
+         mat -> EliminateRowColDiag (i, value);
       }
 }
 
@@ -790,6 +819,7 @@ void DiscreteLinearOperator::Assemble(int skip_zeros)
    }
 
    if (dom.Size() > 0)
+   {
       for (int i = 0; i < test_fes->GetNE(); i++)
       {
          trial_fes->GetElementVDofs(i, dom_vdofs);
@@ -806,6 +836,28 @@ void DiscreteLinearOperator::Assemble(int skip_zeros)
          }
          mat->SetSubMatrix(ran_vdofs, dom_vdofs, totelmat, skip_zeros);
       }
+   }
+
+   if (skt.Size())
+   {
+      const int nfaces = test_fes->GetMesh()->GetNumFaces();
+      for (int i = 0; i < nfaces; i++)
+      {
+         trial_fes->GetFaceVDofs(i, dom_vdofs);
+         test_fes->GetFaceVDofs(i, ran_vdofs);
+         T = test_fes->GetMesh()->GetFaceTransformation(i);
+         dom_fe = trial_fes->GetFaceElement(i);
+         ran_fe = test_fes->GetFaceElement(i);
+
+         skt[0]->AssembleElementMatrix2(*dom_fe, *ran_fe, *T, totelmat);
+         for (int j = 1; j < skt.Size(); j++)
+         {
+            skt[j]->AssembleElementMatrix2(*dom_fe, *ran_fe, *T, elmat);
+            totelmat += elmat;
+         }
+         mat->SetSubMatrix(ran_vdofs, dom_vdofs, totelmat, skip_zeros);
+      }
+   }
 }
 
 }

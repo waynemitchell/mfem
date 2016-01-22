@@ -26,6 +26,12 @@ int FiniteElementSpace::GetOrder(int i) const
    return fec->FiniteElementForGeometry(GeomType)->GetOrder();
 }
 
+int FiniteElementSpace::GetFaceOrder(int i) const
+{
+   int GeomType = mesh->GetFaceBaseGeometry(i);
+   return fec->FiniteElementForGeometry(GeomType)->GetOrder();
+}
+
 void FiniteElementSpace::DofsToVDofs (Array<int> &dofs, int ndofs) const
 {
    int i, j, size;
@@ -1584,8 +1590,10 @@ const FiniteElement *FiniteElementSpace::GetFaceElement(int i) const
    {
       case 1:
          fe = fec->FiniteElementForGeometry(Geometry::POINT);
+         break;
       case 2:
          fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+         break;
       case 3:
       default:
          fe = fec->FiniteElementForGeometry(mesh->GetFaceBaseGeometry(i));

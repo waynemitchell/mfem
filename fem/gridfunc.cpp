@@ -248,7 +248,7 @@ int GridFunction::VectorDim() const
    {
       return fes->GetVDim();
    }
-   return fe->GetDim();
+   return fes->GetMesh()->SpaceDimension();
 }
 
 void GridFunction::GetNodalValues(int i, Array<double> &nval, int vdim) const
@@ -325,12 +325,12 @@ void GridFunction::GetVectorValue(int i, const IntegrationPoint &ip,
    }
    else
    {
-      int dim = FElem->GetDim();
-      DenseMatrix vshape(dof, dim);
+      int spaceDim = fes->GetMesh()->SpaceDimension();
+      DenseMatrix vshape(dof, spaceDim);
       ElementTransformation *Tr = fes->GetElementTransformation(i);
       Tr->SetIntPoint(&ip);
       FElem->CalcVShape(*Tr, vshape);
-      val.SetSize(dim);
+      val.SetSize(spaceDim);
       vshape.MultTranspose(loc_data, val);
    }
 }
@@ -444,9 +444,9 @@ void GridFunction::GetVectorValues(ElementTransformation &T,
    }
    else
    {
-      int dim = FElem->GetDim();
-      DenseMatrix vshape(dof, dim);
-      vals.SetSize(dim, nip);
+      int spaceDim = fes->GetMesh()->SpaceDimension();
+      DenseMatrix vshape(dof, spaceDim);
+      vals.SetSize(spaceDim, nip);
       Vector val_j;
       for (int j = 0; j < nip; j++)
       {
@@ -592,25 +592,25 @@ void GridFunction::GetVectorFieldValues(
    Array<int> vdofs;
    ElementTransformation *transf;
 
-   int d, j, k, n, dim, dof, ind;
+   int d, j, k, n, sdim, dof, ind;
 
    n = ir.GetNPoints();
    fes->GetElementVDofs(i, vdofs);
    const FiniteElement *fe = fes->GetFE(i);
    dof = fe->GetDof();
-   dim = fe->GetDim();
+   sdim = fes->GetMesh()->SpaceDimension();
    int *dofs = &vdofs[comp*dof];
    transf = fes->GetElementTransformation(i);
    transf->Transform(ir, tr);
-   vals.SetSize(n, dim);
-   DenseMatrix vshape(dof, dim);
+   vals.SetSize(n, sdim);
+   DenseMatrix vshape(dof, sdim);
    double a;
    for (k = 0; k < n; k++)
    {
       const IntegrationPoint &ip = ir.IntPoint(k);
       transf->SetIntPoint(&ip);
       fe->CalcVShape(*transf, vshape);
-      for (d = 0; d < dim; d++)
+      for (d = 0; d < sdim; d++)
       {
          a = 0.0;
          for (j = 0; j < dof; j++)
@@ -689,11 +689,12 @@ void GridFunction::ProjectVectorFieldOn(GridFunction &vec_field, int comp)
 {
    FiniteElementSpace *new_fes = vec_field.FESpace();
 
-   int d, i, k, ind, dof;
+   int d, i, k, ind, dof, sdim;
    Array<int> overlap(new_fes->GetVSize());
    Array<int> new_vdofs;
    DenseMatrix vals, tr;
 
+   sdim = fes->GetMesh()->SpaceDimension();
    overlap = 0;
    vec_field = 0.0;
 
@@ -704,7 +705,8 @@ void GridFunction::ProjectVectorFieldOn(GridFunction &vec_field, int comp)
       GetVectorFieldValues(i, ir, vals, tr, comp);
       new_fes->GetElementVDofs(i, new_vdofs);
       dof = fe->GetDof();
-      for (d = 0; d < fe->GetDim(); d++)
+      for (d = 0; d < sdim; d++)
+      {
          for (k = 0; k < dof; k++)
          {
             if ( (ind=new_vdofs[dof*d+k]) < 0 )
@@ -714,6 +716,7 @@ void GridFunction::ProjectVectorFieldOn(GridFunction &vec_field, int comp)
             vec_field(ind) += vals(k, d);
             overlap[ind]++;
          }
+      }
    }
 
    for (i = 0; i < overlap.Size(); i++)
@@ -831,6 +834,57 @@ double GridFunction::GetDivergence(ElementTransformation &tr)
       div_v = (loc_data * divshape) / tr.Weight();
    }
    return div_v;
+}
+
+void GridFunction::GetCurl(ElementTransformation &tr, Vector &curl)
+{
+   int elNo = tr.ElementNo;
+   const FiniteElement *FElem = fes->GetFE(elNo);
+   if (FElem->GetRangeType() == FiniteElement::SCALAR)
+   {
+      DenseMatrix grad_hat;
+      GetVectorGradientHat(tr, grad_hat);
+      const DenseMatrix &J = tr.Jacobian();
+      DenseMatrix Jinv(J.Width(), J.Height());
+      CalcInverse(J, Jinv);
+      DenseMatrix grad(grad_hat.Height(), Jinv.Width()); // vdim x FElem->Dim
+      Mult(grad_hat, Jinv, grad);
+      MFEM_ASSERT(grad.Height() == grad.Width(), "");
+      if (grad.Height() == 3)
+      {
+         curl.SetSize(3);
+         curl(0) = grad(2,1) - grad(1,2);
+         curl(1) = grad(0,2) - grad(2,0);
+         curl(2) = grad(1,0) - grad(0,1);
+      }
+      else if (grad.Height() == 2)
+      {
+         curl.SetSize(1);
+         curl(0) = grad(1,0) - grad(0,1);
+      }
+   }
+   else
+   {
+      // Assuming ND-type space
+      Array<int> dofs;
+      fes->GetElementDofs(elNo, dofs);
+      Vector loc_data;
+      GetSubVector(dofs, loc_data);
+      DenseMatrix curl_shape(FElem->GetDof(), FElem->GetDim() == 3 ? 3 : 1);
+      FElem->CalcCurlShape(tr.GetIntPoint(), curl_shape);
+      curl.SetSize(curl_shape.Width());
+      if (curl_shape.Width() == 3)
+      {
+         double curl_hat[3];
+         curl_shape.MultTranspose(loc_data, curl_hat);
+         tr.Jacobian().Mult(curl_hat, curl);
+      }
+      else
+      {
+         curl_shape.MultTranspose(loc_data, curl);
+      }
+      curl /= tr.Weight();
+   }
 }
 
 void GridFunction::GetGradient(ElementTransformation &tr, Vector &grad)
@@ -1160,6 +1214,36 @@ void GridFunction::ProjectCoefficient(VectorCoefficient &vcoeff)
       vals.SetSize(vdofs.Size());
       fes->GetFE(i)->Project(vcoeff, *fes->GetElementTransformation(i), vals);
       SetSubVector(vdofs, vals);
+   }
+}
+
+void GridFunction::ProjectCoefficient(
+   VectorCoefficient &vcoeff, Array<int> &dofs)
+{
+   int el = -1;
+   ElementTransformation *T = NULL;
+   const FiniteElement *fe = NULL;
+
+   Vector val;
+
+   for (int i = 0; i < dofs.Size(); i++)
+   {
+      int dof = dofs[i], j = fes->GetElementForDof(dof);
+      if (el != j)
+      {
+         el = j;
+         T = fes->GetElementTransformation(el);
+         fe = fes->GetFE(el);
+      }
+      int ld = fes->GetLocalDofForDof(dof);
+      const IntegrationPoint &ip = fe->GetNodes().IntPoint(ld);
+      T->SetIntPoint(&ip);
+      vcoeff.Eval(val, *T, ip);
+      for (int vd = 0; vd < fes->GetVDim(); vd ++)
+      {
+         int vdof = fes->DofToVDof(dof, vd);
+         (*this)(vdof) = val(vd);
+      }
    }
 }
 
@@ -2348,6 +2432,63 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
          }
       }
    }
+}
+
+
+double ComputeElementLpDistance(double p, int i,
+                                GridFunction& gf1, GridFunction& gf2)
+{
+   double norm = 0.0;
+
+   FiniteElementSpace *fes1 = gf1.FESpace();
+   FiniteElementSpace *fes2 = gf2.FESpace();
+
+   const FiniteElement* fe1 = fes1->GetFE(i);
+   const FiniteElement* fe2 = fes2->GetFE(i);
+
+   const IntegrationRule *ir;
+   int intorder = 2*std::max(fe1->GetOrder(),fe2->GetOrder()) + 1; // <-------
+   ir = &(IntRules.Get(fe1->GetGeomType(), intorder));
+   int nip = ir->GetNPoints();
+   Vector val1, val2;
+
+
+   ElementTransformation *T = fes1->GetElementTransformation(i);
+   for (int j = 0; j < nip; j++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(j);
+      T->SetIntPoint(&ip);
+
+      gf1.GetVectorValue(i, ip, val1);
+      gf2.GetVectorValue(i, ip, val2);
+
+      val1 -= val2;
+      double err = val1.Norml2();
+      if (p < numeric_limits<double>::infinity())
+      {
+         err = pow(err, p);
+         norm += ip.weight * T->Weight() * err;
+      }
+      else
+      {
+         norm = std::max(norm, err);
+      }
+   }
+
+   if (p < numeric_limits<double>::infinity())
+   {
+      // Negative quadrature weights may cause the norm to be negative
+      if (norm < 0.)
+      {
+         norm = -pow(-norm, 1./p);
+      }
+      else
+      {
+         norm = pow(norm, 1./p);
+      }
+   }
+
+   return norm;
 }
 
 

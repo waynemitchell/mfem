@@ -199,6 +199,8 @@ public:
                                    DenseMatrix &rhs, int d = 0);
 
    void EliminateRowCol(int rc, int d = 0);
+   /// Perform elimination and set the diagonal entry to the given value
+   void EliminateRowColDiag(int rc, double value);
    // Same as above + save the eliminated entries in Ae so that
    // (*this) + Ae is the original matrix
    void EliminateRowCol(int rc, SparseMatrix &Ae, int d = 0);

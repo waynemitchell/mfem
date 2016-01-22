@@ -3861,7 +3861,7 @@ void ParMesh::PrintInfo(std::ostream &out)
 
    if (MyRank == 0)
    {
-      out << "Parallel Mesh Stats:" << endl;
+      out << "Parallel Mesh Stats:" << '\n';
    }
 
    for (i = 0; i < NumOfElements; i++)
@@ -3889,8 +3889,8 @@ void ParMesh::PrintInfo(std::ostream &out)
    MPI_Reduce(&kappa_min, &gk_min, 1, MPI_DOUBLE, MPI_MIN, 0, MyComm);
    MPI_Reduce(&kappa_max, &gk_max, 1, MPI_DOUBLE, MPI_MAX, 0, MyComm);
 
-   int ldata[5]; // vert, edge, face, elem, neighbors;
-   int mindata[5], maxdata[5], sumdata[5];
+   long ldata[5]; // vert, edge, face, elem, neighbors;
+   long mindata[5], maxdata[5], sumdata[5];
 
    // count locally owned vertices, edges, and faces
    ldata[0] = GetNV();
@@ -3906,9 +3906,9 @@ void ParMesh::PrintInfo(std::ostream &out)
          ldata[2] -= group_sface.RowSize(gr-1);
       }
 
-   MPI_Reduce(ldata, mindata, 5, MPI_INT, MPI_MIN, 0, MyComm);
-   MPI_Reduce(ldata, sumdata, 5, MPI_INT, MPI_SUM, 0, MyComm); // overflow?
-   MPI_Reduce(ldata, maxdata, 5, MPI_INT, MPI_MAX, 0, MyComm);
+   MPI_Reduce(ldata, mindata, 5, MPI_LONG, MPI_MIN, 0, MyComm);
+   MPI_Reduce(ldata, sumdata, 5, MPI_LONG, MPI_SUM, 0, MyComm);
+   MPI_Reduce(ldata, maxdata, 5, MPI_LONG, MPI_MAX, 0, MyComm);
 
    if (MyRank == 0)
    {
@@ -3953,6 +3953,7 @@ void ParMesh::PrintInfo(std::ostream &out)
       out << " kappa "
           << setw(12) << gk_min
           << setw(12) << gk_max << '\n';
+      out << std::flush;
    }
 }
 

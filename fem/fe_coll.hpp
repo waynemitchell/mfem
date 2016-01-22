@@ -51,7 +51,7 @@ public:
 /// Arbitrary order H1-conforming (continuous) finite elements.
 class H1_FECollection : public FiniteElementCollection
 {
-private:
+protected:
    char h1_name[32];
    FiniteElement *H1_Elements[Geometry::NumGeom];
    int H1_dof[Geometry::NumGeom];
@@ -77,6 +77,15 @@ class H1Pos_FECollection : public H1_FECollection
 public:
    explicit H1Pos_FECollection(const int p, const int dim = 3)
       : H1_FECollection(p, dim, 1) { }
+};
+
+/** Arbitrary order "H^{1/2}-conforming" trace finite elements defined on the
+    interface between mesh elements (faces,edges,vertices); these are the trace
+    FEs of the H1-conforming FEs. */
+class H1_Trace_FECollection : public H1_FECollection
+{
+public:
+   H1_Trace_FECollection(const int p, const int dim, const int type = 0);
 };
 
 /// Arbitrary order "L2-conforming" discontinuous finite elements.
@@ -159,7 +168,7 @@ public:
 /// Arbitrary order H(curl)-conforming Nedelec finite elements.
 class ND_FECollection : public FiniteElementCollection
 {
-private:
+protected:
    char nd_name[32];
    FiniteElement *ND_Elements[Geometry::NumGeom];
    int ND_dof[Geometry::NumGeom];
@@ -176,6 +185,15 @@ public:
    virtual const char *Name() const { return nd_name; }
 
    virtual ~ND_FECollection();
+};
+
+/** Arbitrary order H(curl)-trace finite elements defined on the interface
+    between mesh elements (faces,edges); these are the tangentail trace FEs of
+    the H(curl)-conforming FEs. */
+class ND_Trace_FECollection : public ND_FECollection
+{
+public:
+   ND_Trace_FECollection(const int p, const int dim);
 };
 
 /// Arbitrary order non-uniform rational B-splines (NURBS) finite elements.

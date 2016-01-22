@@ -73,6 +73,7 @@ int main(int argc, char *argv[])
    Mesh mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh.Dimension();
+   int sdim = mesh.SpaceDimension();
 
    // 3. Since a NURBS mesh can currently only be refined uniformly, we need to
    //    convert it to a piecewise-polynomial curved mesh. First we refine the
@@ -83,7 +84,7 @@ int main(int argc, char *argv[])
       {
          mesh.UniformRefinement();
       }
-      mesh.ProjectNURBS(2);
+      mesh.SetCurvature(2);
    }
 
    // 4. Define a finite element space on the mesh. The polynomial order is
@@ -125,11 +126,12 @@ int main(int argc, char *argv[])
    //    current mesh, visualize the solution, estimate the error on all
    //    elements, refine the worst elements and update all objects to work
    //    with the new mesh.
-   const int max_it = 15;
-   for (int it = 0; it < max_it; it++)
+   const int max_dofs = 50000;
+   for (int it = 0; ; it++)
    {
+      int cdofs = fespace.GetNConformingDofs();
       cout << "\nIteration " << it << endl;
-      cout << "Number of unknowns: " << fespace.GetNConformingDofs() << endl;
+      cout << "Number of unknowns: " << cdofs << endl;
 
       // 10. Assemble the stiffness matrix and the right-hand side. Note that
       //     MFEM doesn't care at this point if the mesh is nonconforming (i.e.,
@@ -155,7 +157,7 @@ int main(int argc, char *argv[])
       // 13. Define a simple symmetric Gauss-Seidel preconditioner and use it to
       //     solve the linear system with PCG.
       GSSmoother M(A);
-      PCG(A, M, b, x, 1, 200, 1e-12, 0.0);
+      PCG(A, M, b, x, 2, 200, 1e-12, 0.0);
 #else
       // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
       //     the linear system.
@@ -178,6 +180,11 @@ int main(int argc, char *argv[])
          sol_sock << "solution\n" << mesh << x << flush;
       }
 
+      if (cdofs > max_dofs)
+      {
+         break;
+      }
+
       // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
@@ -185,7 +192,7 @@ int main(int argc, char *argv[])
       Array<int> aniso_flags;
       {
          DiffusionIntegrator flux_integrator(one);
-         FiniteElementSpace flux_fespace(&mesh, &fec, dim);
+         FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
          GridFunction flux(&flux_fespace);
          ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
       }

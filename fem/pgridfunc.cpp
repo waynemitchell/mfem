@@ -514,7 +514,7 @@ void ParGridFunction::ComputeFlux(
    Array<int> count(flux.Size());
    SumFluxAndCount(blfi, flux, count, 0, subdomain);
 
-   if (&(ffes->GroupComm())) // FIXME: nonconforming
+   if (ffes->Conforming()) // FIXME: nonconforming
    {
       // Accumulate flux and counts in parallel
 
@@ -546,6 +546,93 @@ void ParGridFunction::ComputeFlux(
       // flux.ConformingProject(conf_flux);
       // flux.ConformingProlongate(conf_flux);
    }
+}
+
+
+void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
+                        ParGridFunction &x,
+                        ParFiniteElementSpace &smooth_flux_fes,
+                        ParFiniteElementSpace &flux_fes,
+                        Vector &errors,
+                        int norm_p, double solver_tol, int solver_max_it)
+{
+   // Compute fluxes in discontinuous space
+   GridFunction flux(&flux_fes);
+   flux = 0.0;
+
+   FiniteElementSpace *xfes = x.FESpace();
+   Array<int> xdofs, fdofs;
+   Vector el_x, el_f;
+
+   for (int i = 0; i < xfes->GetNE(); i++)
+   {
+      xfes->GetElementVDofs(i, xdofs);
+      x.GetSubVector(xdofs, el_x);
+
+      ElementTransformation *Transf = xfes->GetElementTransformation(i);
+      flux_integrator.ComputeElementFlux(*xfes->GetFE(i), *Transf, el_x,
+                                         *flux_fes.GetFE(i), el_f, false);
+
+      flux_fes.GetElementVDofs(i, fdofs);
+      flux.AddElementVector(fdofs, el_f);
+   }
+
+   // Assemble the linear system for L2 projection into the "smooth" space
+   ParBilinearForm *a = new ParBilinearForm(&smooth_flux_fes);
+   ParLinearForm *b = new ParLinearForm(&smooth_flux_fes);
+   VectorGridFunctionCoefficient f(&flux);
+
+   if (smooth_flux_fes.GetFE(0)->GetRangeType() == FiniteElement::SCALAR)
+   {
+      a->AddDomainIntegrator(new VectorMassIntegrator);
+      b->AddDomainIntegrator(new VectorDomainLFIntegrator(f));
+   }
+   else
+   {
+      a->AddDomainIntegrator(new VectorFEMassIntegrator);
+      b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
+   }
+
+   b->Assemble();
+   a->Assemble();
+   a->Finalize();
+
+   // The destination of the projected discontinuous flux
+   ParGridFunction smooth_flux(&smooth_flux_fes);
+   smooth_flux = 0.0;
+
+   HypreParMatrix* A = a->ParallelAssemble();
+   HypreParVector* B = b->ParallelAssemble();
+   HypreParVector* X = smooth_flux.ParallelProject();
+
+   delete a;
+   delete b;
+
+   // Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   // preconditioner from hypre.
+   HypreBoomerAMG *amg = new HypreBoomerAMG(*A);
+   amg->SetPrintLevel(0);
+   HyprePCG *pcg = new HyprePCG(*A);
+   pcg->SetTol(solver_tol);
+   pcg->SetMaxIter(solver_max_it);
+   pcg->SetPrintLevel(0);
+   pcg->SetPreconditioner(*amg);
+   pcg->Mult(*B, *X);
+
+   // Extract the parallel grid function corresponding to the finite element
+   // approximation X. This is the local solution on each processor.
+   smooth_flux = *X;
+
+   // Proceed through the elements one by one, and find the Lp norm differences
+   // between the flux as computed per element and the flux projected onto the
+   // smooth_flux_fes space.
+   for (int i = 0; i < xfes->GetNE(); i++)
+   {
+      errors(i) = ComputeElementLpDistance(norm_p, i, smooth_flux, flux);
+   }
+
+   delete amg;
+   delete pcg;
 }
 
 }
