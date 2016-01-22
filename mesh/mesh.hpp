@@ -53,6 +53,8 @@ protected:
    int NumOfVertices, NumOfElements, NumOfBdrElements;
    int NumOfEdges, NumOfFaces;
 
+   int BaseGeom, BaseBdrGeom; // element base geometries, -1 if not all the same
+
    int State, WantTwoLevelState;
 
    // 0 = Empty, 1 = Standard (NetGen), 2 = TrueGrid
@@ -311,6 +313,8 @@ protected:
    /// Begin construction of a mesh
    void InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem);
 
+   void InitBaseGeom();
+
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
        nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
        if type=TETRAHEDRON. If generate_edges = 0 (default) edges are not
@@ -497,11 +501,11 @@ public:
 
    int GetFaceBaseGeometry(int i) const;
 
-   int GetElementBaseGeometry(int i) const
-   { return elements[i]->GetGeometryType(); }
+   int GetElementBaseGeometry(int i = -1) const
+   { return i < GetNE() ? elements[i]->GetGeometryType() : BaseGeom; }
 
-   int GetBdrElementBaseGeometry(int i) const
-   { return boundary[i]->GetGeometryType(); }
+   int GetBdrElementBaseGeometry(int i = -1) const
+   { return i < GetNBE() ? boundary[i]->GetGeometryType() : BaseBdrGeom; }
 
    /// Returns the indices of the dofs of element i.
    void GetElementVertices(int i, Array<int> &dofs) const

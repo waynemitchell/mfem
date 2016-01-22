@@ -830,6 +830,8 @@ void Mesh::InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem)
    Dim = _Dim;
    spaceDim = _spaceDim;
 
+   BaseGeom = BaseBdrGeom = -1;
+
    Init();
    InitTables();
 
@@ -841,6 +843,29 @@ void Mesh::InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem)
 
    NumOfBdrElements = 0;
    boundary.SetSize(NBdrElem);  // just allocate space for Element *
+}
+
+void Mesh::InitBaseGeom()
+{
+   BaseGeom = BaseBdrGeom = -1;
+   for (int i = 0; i < NumOfElements; i++)
+   {
+      int geom = elements[i]->GetGeometryType();
+      if (geom != BaseGeom && BaseGeom >= 0)
+      {
+         BaseGeom = -1; break;
+      }
+      BaseGeom = geom;
+   }
+   for (int i = 0; i < NumOfBdrElements; i++)
+   {
+      int geom = boundary[i]->GetGeometryType();
+      if (geom != BaseBdrGeom && BaseBdrGeom >= 0)
+      {
+         BaseBdrGeom = -1; break;
+      }
+      BaseBdrGeom = geom;
+   }
 }
 
 void Mesh::AddVertex(const double *x)
@@ -1852,9 +1877,13 @@ void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
       NumOfVertices = (nx+1) * (ny+1);
       NumOfElements = nx * ny;
       NumOfBdrElements = 2 * nx + 2 * ny;
+      BaseGeom = Geometry::SQUARE;
+      BaseBdrGeom = Geometry::SEGMENT;
+
       vertices.SetSize(NumOfVertices);
       elements.SetSize(NumOfElements);
       boundary.SetSize(NumOfBdrElements);
+
       double cx, cy;
       int ind[4];
 
@@ -1901,17 +1930,20 @@ void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
          boundary[2*nx+ny+j] = new Segment(j*m+nx, (j+1)*m+nx, 2);
       }
    }
-
    // Creates triangular mesh
-   if (type == Element::TRIANGLE)
+   else if (type == Element::TRIANGLE)
    {
       meshgen = 1;
       NumOfVertices = (nx+1) * (ny+1);
       NumOfElements = 2 * nx * ny;
       NumOfBdrElements = 2 * nx + 2 * ny;
+      BaseGeom = Geometry::TRIANGLE;
+      BaseBdrGeom = Geometry::SEGMENT;
+
       vertices.SetSize(NumOfVertices);
       elements.SetSize(NumOfElements);
       boundary.SetSize(NumOfBdrElements);
+
       double cx, cy;
       int ind[3];
 
@@ -1963,6 +1995,10 @@ void Mesh::Make2D(int nx, int ny, Element::Type type, int generate_edges,
 
       MarkTriMeshForRefinement();
    }
+   else
+   {
+      MFEM_ABORT("Unsupported element type.");
+   }
 
    CheckElementOrientation();
 
@@ -1991,6 +2027,9 @@ void Mesh::Make1D(int n, double sx)
 
    Dim = 1;
    spaceDim = 1;
+
+   BaseGeom = Geometry::SEGMENT;
+   BaseBdrGeom = Geometry::POINT;
 
    Init();
    InitTables();
@@ -2035,11 +2074,15 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 {
    Dim = mesh.Dim;
    spaceDim = mesh.spaceDim;
+
    NumOfVertices = mesh.NumOfVertices;
    NumOfElements = mesh.NumOfElements;
    NumOfBdrElements = mesh.NumOfBdrElements;
    NumOfEdges = mesh.NumOfEdges;
    NumOfFaces = mesh.NumOfFaces;
+
+   BaseGeom = mesh.BaseGeom;
+   BaseBdrGeom = mesh.BaseBdrGeom;
 
    meshgen = mesh.meshgen;
 
@@ -3160,6 +3203,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       spaceDim = Dim;
    }
 
+   InitBaseGeom();
+
    // set the mesh type ('meshgen')
    SetMeshGen();
 
@@ -3301,6 +3346,9 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
 
    Dim = mesh_array[0]->Dimension();
    spaceDim = mesh_array[0]->SpaceDimension();
+
+   BaseGeom = mesh_array[0]->BaseGeom;
+   BaseBdrGeom = mesh_array[0]->BaseBdrGeom;
 
    if (mesh_array[0]->NURBSext)
    {
@@ -3637,6 +3685,8 @@ void Mesh::LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot)
    input >> ident; // 'vertices'
    input >> NumOfVertices;
    vertices.SetSize(0);
+
+   InitBaseGeom();
 
    meshgen = 2;
 
@@ -6811,6 +6861,21 @@ void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 {
    Dim = ncmesh.Dimension();
    spaceDim = ncmesh.SpaceDimension();
+
+   BaseGeom = ncmesh.GetElementGeometry();
+
+   switch (BaseGeom)
+   {
+      case Geometry::TRIANGLE:
+      case Geometry::SQUARE:
+         BaseBdrGeom = Geometry::SEGMENT;
+         break;
+      case Geometry::CUBE:
+         BaseBdrGeom = Geometry::SQUARE;
+         break;
+      default:
+         BaseBdrGeom = -1;
+   }
 
    DeleteTables();
 

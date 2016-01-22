@@ -3095,7 +3095,10 @@ void ParMesh::PrintAsOne(std::ostream &out)
       {
          MPI_Recv(nv_ne, 2, MPI_INT, p, 444, MyComm, &status);
          ints.SetSize(ne);
-         MPI_Recv(&ints[0], ne, MPI_INT, p, 445, MyComm, &status);
+         if (ne)
+         {
+            MPI_Recv(&ints[0], ne, MPI_INT, p, 445, MyComm, &status);
+         }
          for (i = 0; i < ne; )
          {
             // processor number + 1 as attribute and geometry type
@@ -3132,7 +3135,10 @@ void ParMesh::PrintAsOne(std::ostream &out)
             ints[j++] = v[k];
          }
       }
-      MPI_Send(&ints[0], ne, MPI_INT, 0, 445, MyComm);
+      if (ne)
+      {
+         MPI_Send(&ints[0], ne, MPI_INT, 0, 445, MyComm);
+      }
    }
 
    // boundary + shared boundary
@@ -3176,7 +3182,10 @@ void ParMesh::PrintAsOne(std::ostream &out)
       {
          MPI_Recv(nv_ne, 2, MPI_INT, p, 446, MyComm, &status);
          ints.SetSize(ne);
-         MPI_Recv(ints.GetData(), ne, MPI_INT, p, 447, MyComm, &status);
+         if (ne)
+         {
+            MPI_Recv(ints.GetData(), ne, MPI_INT, p, 447, MyComm, &status);
+         }
          for (i = 0; i < ne; )
          {
             // processor number + 1 as bdr. attr. and bdr. geometry type
@@ -3230,7 +3239,10 @@ void ParMesh::PrintAsOne(std::ostream &out)
             ints[j++] = v[k];
          }
       }
-      MPI_Send(ints.GetData(), ne, MPI_INT, 0, 447, MyComm);
+      if (ne)
+      {
+         MPI_Send(ints.GetData(), ne, MPI_INT, 0, 447, MyComm);
+      }
    }
 
    // vertices / nodes
@@ -3257,7 +3269,10 @@ void ParMesh::PrintAsOne(std::ostream &out)
          {
             MPI_Recv(&nv, 1, MPI_INT, p, 448, MyComm, &status);
             vert.SetSize(nv*spaceDim);
-            MPI_Recv(&vert[0], nv*spaceDim, MPI_DOUBLE, p, 449, MyComm, &status);
+            if (nv)
+            {
+               MPI_Recv(&vert[0], nv*spaceDim, MPI_DOUBLE, p, 449, MyComm, &status);
+            }
             for (i = 0; i < nv; i++)
             {
                out << vert[i*spaceDim];
@@ -3274,11 +3289,16 @@ void ParMesh::PrintAsOne(std::ostream &out)
          MPI_Send(&NumOfVertices, 1, MPI_INT, 0, 448, MyComm);
          vert.SetSize(NumOfVertices*spaceDim);
          for (i = 0; i < NumOfVertices; i++)
+         {
             for (j = 0; j < spaceDim; j++)
             {
                vert[i*spaceDim+j] = vertices[i](j);
             }
-         MPI_Send(&vert[0], NumOfVertices*spaceDim, MPI_DOUBLE, 0, 449, MyComm);
+         }
+         if (NumOfVertices)
+         {
+            MPI_Send(&vert[0], NumOfVertices*spaceDim, MPI_DOUBLE, 0, 449, MyComm);
+         }
       }
    }
    else
