@@ -57,8 +57,7 @@ protected:
 
    int State, WantTwoLevelState;
 
-   // 0 = Empty, 1 = Standard (NetGen), 2 = TrueGrid
-   int meshgen;
+   int meshgen; // see MeshGenerator()
 
    int c_NumOfVertices, c_NumOfElements, c_NumOfBdrElements;
    int f_NumOfVertices, f_NumOfElements, f_NumOfBdrElements;
@@ -455,7 +454,9 @@ public:
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
-   /// Truegrid or NetGen?
+   /** Return a bitmask:
+       bit 0 - simplices are present in the mesh (triangles, tets),
+       bit 1 - tensor product elements are present in the mesh (quads, hexes).*/
    inline int MeshGenerator() { return meshgen; }
 
    /** Returns number of vertices.  Vertices are only at the corners of

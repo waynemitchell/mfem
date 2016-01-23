@@ -4436,6 +4436,7 @@ int Mesh::GetElementType(int i) const
    int t = El->GetType();
 
    while (1)
+   {
       if (t == Element::BISECTED     ||
           t == Element::QUADRISECTED ||
           t == Element::OCTASECTED)
@@ -4446,6 +4447,7 @@ int Mesh::GetElementType(int i) const
       {
          break;
       }
+   }
    return t;
 }
 

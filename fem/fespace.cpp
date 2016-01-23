@@ -1200,12 +1200,7 @@ void FiniteElementSpace::Constructor()
    cR = NULL;
    T = NULL;
 
-   if (!mesh->GetNE())
-   {
-      return;
-   }
-
-   if (mesh->Dimension() == 3)
+   if (mesh->Dimension() == 3 && mesh->GetNE())
    {
       // Here we assume that all faces in the mesh have the same base
       // geometry -- the base geometry of the 0-th face element.
