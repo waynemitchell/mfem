@@ -114,24 +114,14 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    AllocMat();
 }
 
-void BilinearForm::EnableHybridization(FiniteElementSpace *mu_space,
+void BilinearForm::EnableHybridization(FiniteElementSpace *constr_space,
                                        BilinearFormIntegrator *constr_integ,
-                                       const Array<int> &bdr_attr_is_ess)
+                                       const Array<int> &ess_tdof_list)
 {
-   Array<int> ess_vdofs_marker, ess_cdofs_marker;
-   hybridization = new Hybridization(fes, mu_space);
+   delete hybridization;
+   hybridization = new Hybridization(fes, constr_space);
    hybridization->SetConstraintIntegrator(constr_integ);
-   fes->GetEssentialVDofs(bdr_attr_is_ess, ess_vdofs_marker);
-   const SparseMatrix *R = fes->GetRestrictionMatrix();
-   if (!R)
-   {
-      hybridization->Init(ess_vdofs_marker);
-   }
-   else
-   {
-      R->BooleanMult(ess_vdofs_marker, ess_cdofs_marker);
-      hybridization->Init(ess_cdofs_marker);
-   }
+   hybridization->Init(ess_tdof_list);
 }
 
 double& BilinearForm::Elem (int i, int j)
@@ -388,57 +378,60 @@ void BilinearForm::ConformingAssemble()
    width = mat->Width();
 }
 
-SparseMatrix &BilinearForm::AssembleSystem(Array<int> &bdr_attr_is_ess,
+SparseMatrix &BilinearForm::AssembleSystem(Array<int> &ess_tdof_list,
                                            Vector &x, Vector &b,
                                            Vector &X, Vector &B)
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
+
+   if (!mat_e)
+   {
+      if (P) { ConformingAssemble(); }
+
+      const int keep_diag = 1;
+      EliminateVDofs(ess_tdof_list, keep_diag);
+      Finalize();
+   }
+
    if (!P)
    {
+      EliminateVDofsInRHS(ess_tdof_list, x, b);
       if (!hybridization)
       {
          X.NewDataAndSize(x.GetData(), x.Size());
          B.NewDataAndSize(b.GetData(), b.Size());
-         EliminateEssentialBC(bdr_attr_is_ess, X, B);
-         Finalize();
          return *mat;
       }
       else
       {
-         EliminateEssentialBC(bdr_attr_is_ess, x, b);
          hybridization->ReduceRHS(b, B);
          X.SetSize(B.Size());
          X = 0.0;
-         Finalize();
          return hybridization->GetMatrix();
       }
    }
    else
    {
-      ConformingAssemble();
+      const SparseMatrix *R = fes->GetConformingRestriction();
       if (!hybridization)
       {
          B.SetSize(P->Width());
          P->MultTranspose(b, B);
-         const SparseMatrix *R = fes->GetConformingRestriction();
          X.SetSize(R->Height());
          R->Mult(x, X);
-         EliminateEssentialBC(bdr_attr_is_ess, X, B);
-         Finalize();
+         EliminateVDofsInRHS(ess_tdof_list, X, B);
          return *mat;
       }
       else
       {
          Vector conf_b(P->Width()), conf_x(P->Width());
          P->MultTranspose(b, conf_b);
-         const SparseMatrix *R = fes->GetConformingRestriction();
          R->Mult(x, conf_x);
-         EliminateEssentialBC(bdr_attr_is_ess, conf_x, conf_b);
-         fes->GetConformingRestriction()->MultTranspose(conf_b, b); // !!!
+         EliminateVDofsInRHS(ess_tdof_list, conf_x, conf_b);
+         R->MultTranspose(conf_b, b); // !!!
          hybridization->ReduceRHS(conf_b, B);
          X.SetSize(B.Size());
          X = 0.0;
-         Finalize();
          return hybridization->GetMatrix();
       }
    }

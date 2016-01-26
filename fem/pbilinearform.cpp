@@ -262,13 +262,10 @@ const
 }
 
 HypreParMatrix &ParBilinearForm::AssembleSystem(
-   Array<int> &bdr_attr_is_ess, Vector &x, Vector &b, Vector &X, Vector &B)
+   Array<int> &ess_tdof_list, Vector &x, Vector &b, Vector &X, Vector &B)
 {
    HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
    const SparseMatrix &R = *pfes->GetRestrictionMatrix();
-
-   Array<int> ess_tdof_list;
-   pfes->GetEssentialTrueDofs(bdr_attr_is_ess, ess_tdof_list);
 
    if (mat)
    {

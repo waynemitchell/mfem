@@ -303,6 +303,19 @@ public:
    virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
                                   Array<int> &ess_vdofs) const;
 
+   /** Get a list of essential true dofs, ess_tdof_list, corresponding to the
+       boundary attributes marked in the array bdr_attr_is_ess. */
+   virtual void GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
+                                     Array<int> &ess_tdof_list);
+
+   /// Convert a boolean marker array to a list containing all marked indices.
+   static void MarkerToList(const Array<int> &marker, Array<int> &list);
+   /** Convert an array of indices (list) to a boolean marker array where all
+       indices in the list are marked with the given value and the rest are set
+       to zero. */
+   static void ListToMarker(const Array<int> &list, int marker_size,
+                            Array<int> &marker, int mark_val = -1);
+
    /** For a partially conforming FE space, convert a marker array (nonzero
        entries are true) on the partially conforming dofs to a marker array on
        the conforming dofs. A conforming dofs is marked iff at least one of its

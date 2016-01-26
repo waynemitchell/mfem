@@ -466,6 +466,52 @@ void FiniteElementSpace::GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
    }
 }
 
+void FiniteElementSpace::GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
+                                              Array<int> &ess_tdof_list)
+{
+   Array<int> ess_vdofs, ess_tdofs;
+   GetEssentialVDofs(bdr_attr_is_ess, ess_vdofs);
+   const SparseMatrix *R = GetConformingRestriction();
+   if (!R)
+   {
+      ess_tdofs.MakeRef(ess_vdofs);
+   }
+   else
+   {
+      R->BooleanMult(ess_vdofs, ess_tdofs);
+   }
+   MarkerToList(ess_tdofs, ess_tdof_list);
+}
+
+// static method
+void FiniteElementSpace::MarkerToList(const Array<int> &marker,
+                                      Array<int> &list)
+{
+   int num_marked = 0;
+   for (int i = 0; i < marker.Size(); i++)
+   {
+      if (marker[i]) { num_marked++; }
+   }
+   list.SetSize(0);
+   list.Reserve(num_marked);
+   for (int i = 0; i < marker.Size(); i++)
+   {
+      if (marker[i]) { list.Append(i); }
+   }
+}
+
+// static method
+void FiniteElementSpace::ListToMarker(const Array<int> &list, int marker_size,
+                                      Array<int> &marker, int mark_val)
+{
+   marker.SetSize(marker_size);
+   marker = 0;
+   for (int i = 0; i < list.Size(); i++)
+   {
+      marker[list[i]] = mark_val;
+   }
+}
+
 void FiniteElementSpace::ConvertToConformingVDofs(const Array<int> &dofs,
                                                   Array<int> &cdofs)
 {

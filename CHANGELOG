@@ -53,6 +53,17 @@ General finite element spaces and solvers on surfaces/skeletons
 - Updated integrators and discrete interpolators to work correctly for H(curl)
   and H(div) spaces defined on surface meshes, or the mesh skeleton.
 
+Bilinear form hybridization and new linear system assembly interface
+--------------------------------------------------------------------
+- The BilinearForm/ParBilinearForm classes now support hybridization based on
+  a given constraint space and a trace integrator.
+
+- Added a new interface for transitioning between finite element and linear
+  algebra objects, describing the problem, which abstracts transformations such
+  as: parallel assembly, eliminating boundary conditions, applying conforming
+  constraints for non-conforming AMR, hybridization, back substitution, etc.
+  See Example 4/4p, for illustration.
+
 New eigensolvers and improved solvers
 -------------------------------------
 - Added support for the scalable Locally Optimal Block Preconditioned Conjugate
@@ -81,6 +92,9 @@ New and updated examples
   * DG diffusion discretizations for the Laplace equation (Example 14/14p)
 
 - Example 3/3p now works in both 2D and 3D.
+
+- Example 4/4p supports hybridization, leading to much improved solve times.
+  It also illustrates the new interface for linear system assembly.
 
 - Example 7/7p has a new option, -amr, showcasing simple local conforming and
   non-conforming mesh refinements.

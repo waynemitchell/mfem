@@ -549,11 +549,7 @@ void ParFiniteElementSpace::GetEssentialTrueDofs(
 
    GetEssentialVDofs(bdr_attr_is_ess, ess_dofs);
    GetRestrictionMatrix()->BooleanMult(ess_dofs, true_ess_dofs);
-   ess_tdof_list.SetSize(0);
-   for (int i = 0; i < true_ess_dofs.Size(); i++)
-   {
-      if (true_ess_dofs[i]) { ess_tdof_list.Append(i); }
-   }
+   MarkerToList(true_ess_dofs, ess_tdof_list);
 }
 
 int ParFiniteElementSpace::GetLocalTDofNumber(int ldof)

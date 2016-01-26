@@ -79,10 +79,11 @@ public:
    /// Get the size of the BilinearForm as a square matrix.
    int Size() const { return height; }
 
-   /// Enable hybridization
-   void EnableHybridization(FiniteElementSpace *mu_space,
+   /** Enable hybridization; for details see the description for class
+       Hybridization in fem/hybridization.hpp. */
+   void EnableHybridization(FiniteElementSpace *constr_space,
                             BilinearFormIntegrator *constr_integ,
-                            const Array<int> &bdr_attr_is_ess);
+                            const Array<int> &ess_tdof_list);
 
    /** For scalar FE spaces, precompute the sparsity pattern of the matrix
        (assuming dense element matrices) based on the types of integrators
@@ -171,10 +172,24 @@ public:
       sol.ConformingProject();
    }
 
-   SparseMatrix &AssembleSystem(Array<int> &bdr_attr_is_ess,
+   /** Complete assembly of the linear system, applying any necessary
+       transformations such as: eliminating boundary conditions; applying
+       conforming constraints for non-confoming AMR; hybridization. Returns the
+       SparseMatrix of the linear system that needs to be solved. The
+       GridFunction-size vector x must contain the essential b.c. The
+       BilinearForm and the LinearForm-size vector b must be assembled.
+       This method can be called multiple times (with the same ess_tdof_list
+       array) to initialize different right-hand sides and boundary condition
+       values. After solving the linear system, call ComputeSolution (with the
+       same vectors X, b, and x) to recover the solution as a GridFunction-size
+       vector in x. */
+   SparseMatrix &AssembleSystem(Array<int> &ess_tdof_list,
                                 Vector &x, Vector &b,
                                 Vector &X, Vector &B);
 
+   /** Call this method after solving a linear system constructed using the
+       AssembleSystem method to recover the solution as a GridFunction-size
+       vector in x. */
    void ComputeSolution(const Vector &X, const Vector &b, Vector &x);
 
    /// Compute and store internally all element matrices.
