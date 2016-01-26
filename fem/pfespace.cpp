@@ -1722,7 +1722,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
          DerefDofMessage &msg = messages[k];
          msg.dofs.resize(ldofs*vdim);
 
-         MPI_Irecv(&msg.dofs[0], ldofs, MPI_HYPRE_INT,
+         MPI_Irecv(&msg.dofs[0], ldofs*vdim, MPI_HYPRE_INT,
                    fine_rank, 291, MyComm, &msg.request);
       }
       // TODO: coalesce Isends/Irecvs to the same rank. Typically, on uniform
