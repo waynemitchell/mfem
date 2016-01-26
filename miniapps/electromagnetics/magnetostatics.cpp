@@ -692,7 +692,6 @@ void a_bc_uniform(const Vector & x, Vector & a)
   a(0) = -x(1);
   a(1) = 0.0;
   a(2) = 0.0;
-  a *= 0.0;
 }
 
 // To produce a uniform magnetic field the scalar potential can be set
