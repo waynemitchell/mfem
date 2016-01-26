@@ -75,6 +75,8 @@ private:
                                           int op = 1);
    void DeleteFaceNbrData();
 
+   bool WantSkipSharedMaster(const NCMesh::Master &master) const;
+
 public:
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the

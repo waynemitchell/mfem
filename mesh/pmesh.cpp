@@ -2932,6 +2932,19 @@ void ParMesh::PrintXG(std::ostream &out) const
    }
 }
 
+bool ParMesh::WantSkipSharedMaster(const NCMesh::Master &master) const
+{
+   // In 2D, this is a workaround for a CPU boundary rendering artifact. We need
+   // to skip a shared master edge if one of its slaves has the same rank.
+
+   const NCMesh::NCList &list = pncmesh->GetEdgeList();
+   for (int i = master.slaves_begin; i < master.slaves_end; i++)
+   {
+      if (!pncmesh->IsGhost(1, list.slaves[i].index)) { return true; }
+   }
+   return false;
+}
+
 void ParMesh::Print(std::ostream &out) const
 {
    bool print_shared = true;
@@ -2960,6 +2973,7 @@ void ParMesh::Print(std::ostream &out) const
          }
          for (unsigned i = 0; i < sfaces.masters.size(); i++)
          {
+            if (Dim == 2 && WantSkipSharedMaster(sfaces.masters[i])) { continue; }
             int index = sfaces.masters[i].index;
             if (index < nfaces) { nc_shared_faces.Append(index); }
          }
