@@ -1098,7 +1098,7 @@ hypre_ParCSRCommHandleCreate_bool(HYPRE_Int            job,
    return comm_handle;
 }
 
-/* Based on hypre_ParCSRMatrixBooleanMatvec in par_csr_matvec.c */
+/* Based on hypre_ParCSRMatrixMatvec in par_csr_matvec.c */
 void hypre_ParCSRMatrixBooleanMatvec(hypre_ParCSRMatrix *A,
                                      HYPRE_Bool alpha,
                                      HYPRE_Bool *x,
