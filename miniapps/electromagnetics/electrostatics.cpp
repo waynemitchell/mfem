@@ -4,7 +4,26 @@
 // Compile with: make electrostatics
 //
 // Sample runs:
-//   mpirun -np 4 electrostatics
+//
+//   By default the sources and fields are all zero
+//     mpirun -np 4 electrostatics
+//
+//   A cylinder at constant voltage in a square, grounded metal pipe.
+//     mpirun -np 4 electrostatics -m ../../data/square-disc.mesh
+//                                 -dbcs '1 2 3 4 5 6 7 8'
+//                                 -dbcv '0 0 0 0 1 1 1 1'
+//
+//   A cylinder with a constant surface charge density in a square,
+//   grounded metal pipe.
+//     mpirun -np 4 electrostatics -m ../../data/square-disc.mesh
+//                                 -dbcs '1 2 3 4' -nbcs '5 6 7 8'
+//                                 -nbcv '5e-11 5e-11 5e-11 5e-11'
+//
+//   A charged sphere, off-center, within a grounded metal sphere.
+//     mpirun -np 4 electrostatics -dbcs 1 -cs '0.0 0.5 0.0 0.2 2.0e-11'
+//
+//   A dielectric sphere suspended in a uniform electric field.
+//     mpirun -np 4 electrostatics -dbcs 1 -dbcg -ds '0.0 0.0 0.0 0.2 8.0'
 //
 // Description:
 //               This mini app solves a simple 2D or 3D electrostatic
@@ -41,6 +60,10 @@ double charged_sphere(const Vector &);
 
 // Phi Boundary Condition
 double phi_bc_uniform(const Vector &);
+
+// Physical Constants
+// Permittivity of Free Space (units F/m)
+static double epsilon0_ = 8.8541878176e-12;
 
 int main(int argc, char *argv[])
 {
@@ -147,6 +170,14 @@ int main(int argc, char *argv[])
       cs_params_(sdim+1) = 0.0;
    }
 
+   // If values for Dirichlet BCs were not set assume they are zero
+   if (dbcv.Size() < dbcs.Size() && !dbcg )
+   {
+      dbcv.SetSize(dbcs.Size());
+      dbcv = 0.0;
+   }
+
+   // If values for Neumann BCs were not set assume they are zero
    if (nbcv.Size() < nbcs.Size() )
    {
       nbcv.SetSize(nbcs.Size());
@@ -383,13 +414,6 @@ int main(int argc, char *argv[])
       Grad.Mult(*Phi,*E,-1.0);
       e = *E;
 
-      if ( visit )
-      {
-         visit_dc.SetCycle(it+1);
-         //visit_dc.SetTime(eigenvalues[i]);
-         visit_dc.Save();
-      }
-
       // Send the solution by socket to a GLVis server.
       if (visualization)
       {
@@ -403,11 +427,6 @@ int main(int argc, char *argv[])
          e_sock << "parallel " << num_procs << " " << myid << "\n";
          e_sock << "solution\n" << pmesh << e
                 << "window_title 'Electric Field (E)'\n" << flush;
-      }
-
-      if (size_h1 > max_dofs)
-      {
-         break;
       }
 
       // Estimate element errors using the Zienkiewicz-Zhu error estimator.
@@ -437,6 +456,18 @@ int main(int argc, char *argv[])
       double global_max_err;
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
                     MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
+
+      if ( visit )
+      {
+         visit_dc.SetCycle(it);
+         visit_dc.SetTime(global_max_err);
+         visit_dc.Save();
+      }
+
+      if (size_h1 > max_dofs)
+      {
+         break;
+      }
 
       // Make a list of elements whose error is larger than a fraction
       // of the maximum element error. These elements will be refined.
@@ -519,9 +550,9 @@ double dielectric_sphere(const Vector &x)
 
    if ( sqrt(r2) <= ds_params_(x.Size()) )
    {
-      return ds_params_(x.Size()+1);
+      return ds_params_(x.Size()+1) * epsilon0_;
    }
-   return 1.0;
+   return epsilon0_;
 }
 
 // A sphere with constant charge density.  The sphere has a radius,
