@@ -44,6 +44,69 @@ double phi_m_bc_uniform(const Vector &x);
 // Permeability of Free Space (units H/m)
 static double mu0_ = 4.0e-7*M_PI;
 
+/// This class computes the irrotational portion of a vector field.
+/// This vector field must be discretized using Nedelec basis
+/// functions.
+class IrrotationalProjector : public Operator
+{
+public:
+   IrrotationalProjector(ParFiniteElementSpace & HCurlFESpace,
+                         ParFiniteElementSpace & H1FESpace,
+                         Array<int> & ess_bdr);
+   virtual ~IrrotationalProjector();
+
+   // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
+   // compute the Nedelec DoFs of the irrotational portion, 'y', of
+   // this vector field.  The resulting vector will satisfy Curl y = 0
+   // to machine precision.
+   virtual void Mult(const Vector &x, Vector &y) const;
+
+   void Update();
+
+private:
+   ParFiniteElementSpace * H1FESpace_;
+   ParFiniteElementSpace * HCurlFESpace_;
+
+   ParBilinearForm * s0_;
+   ParBilinearForm * m1_;
+
+   HypreBoomerAMG * amg_;
+   HyprePCG       * pcg_;
+   HypreParMatrix * S0_;
+   HypreParMatrix * M1_;
+   ParDiscreteInterpolationOperator * Grad_;
+   HypreParVector * gradYPot_;
+   HypreParVector * yPot_;
+   HypreParVector * xDiv_;
+
+   // Array<int> dof_list_;
+   Array<int> * ess_bdr_;
+};
+
+/// This class computes the divergence free portion of a vector field.
+/// This vector field must be discretized using Nedelec basis
+/// functions.
+class DivergenceFreeProjector : public IrrotationalProjector
+{
+public:
+   DivergenceFreeProjector(ParFiniteElementSpace & HCurlFESpace,
+                           ParFiniteElementSpace & H1FESpace,
+                           Array<int> & ess_bdr);
+   virtual ~DivergenceFreeProjector();
+
+   // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
+   // compute the Nedelec DoFs of the divergence free portion, 'y', of
+   // this vector field.  The resulting vector will satisfy Div y = 0
+   // in a weak sense.
+   virtual void Mult(const Vector &x, Vector &y) const;
+
+   void Update();
+
+private:
+   ParFiniteElementSpace * HCurlFESpace_;
+   HypreParVector        * xIrr_;
+};
+
 int main(int argc, char *argv[])
 {
    // Initialize MPI.
@@ -219,7 +282,9 @@ int main(int argc, char *argv[])
    RT_ParFESpace HDivFESpace(&pmesh,order,dim);
 
    // Select DoFs on the requested surfaces as Dirichlet BCs
+   Array<int> ess_bdr0(pmesh.bdr_attributes.Max());
    Array<int> ess_bdr(pmesh.bdr_attributes.Max());
+   ess_bdr0 = 1;
    ess_bdr = 0;
    for (int i=0; i<dbcs.Size(); i++)
    {
@@ -254,6 +319,9 @@ int main(int argc, char *argv[])
 
    // The curl operator needed to compute B from A
    ParDiscreteCurlOperator Curl(&HCurlFESpace, &HDivFESpace);
+
+   // The projector needed to coerce J into the range of the CurlCurl operator
+   DivergenceFreeProjector DivFreeProj(HCurlFESpace, H1FESpace, ess_bdr0);
 
    // Create various grid functions
    // ParGridFunction phi_m(&H1FESpace);  // Magnetic Scalar Potential
@@ -405,13 +473,19 @@ int main(int argc, char *argv[])
       HypreParMatrix *CurlMuInvCurl = curlMuInvCurl.ParallelAssemble();
       HypreParVector *A             = a.ParallelProject();
 
+      HypreParVector *RHS  = new HypreParVector(&HCurlFESpace);
+      DivFreeProj.Mult(*JD, *RHS);
+      delete JD;
+
+      cout << "Norm of Div Free J+Curl M:  " << RHS->Norml2() << endl;
+
       // Apply the boundary conditions to the assembled matrix and vectors
       if ( dbcs.Size() > 0 )
       {
          // According to the selected surfaces
          curlMuInvCurl.ParallelEliminateEssentialBC(ess_bdr,
                                                     *CurlMuInvCurl,
-                                                    *A, *JD);
+                                                    *A, *RHS);
       }
 
       // Define and apply a parallel PCG solver for AX=B with the AMS
@@ -424,12 +498,12 @@ int main(int argc, char *argv[])
       pcg->SetMaxIter(500);
       pcg->SetPrintLevel(2);
       pcg->SetPreconditioner(*ams);
-      pcg->Mult(*JD, *A);
+      pcg->Mult(*RHS, *A);
 
       delete ams;
       delete pcg;
       delete CurlMuInvCurl;
-      delete JD;
+      delete RHS;
 
       // Extract the parallel grid function corresponding to the finite
       // element approximation Phi. This is the local solution on each
@@ -544,6 +618,7 @@ int main(int argc, char *argv[])
       H1FESpace.Update();
       HCurlFESpace.Update();
       HDivFESpace.Update();
+      DivFreeProj.Update();
       a.Update();
       j.Update();
       // sigma.Update();
@@ -579,6 +654,153 @@ int main(int argc, char *argv[])
    return 0;
 }
 
+IrrotationalProjector
+::IrrotationalProjector(ParFiniteElementSpace & HCurlFESpace,
+                        ParFiniteElementSpace & H1FESpace,
+                        Array<int> & ess_bdr)
+   : H1FESpace_(&H1FESpace),
+     HCurlFESpace_(&HCurlFESpace),
+     ess_bdr_(&ess_bdr)
+{
+   s0_ = new ParBilinearForm(&H1FESpace);
+   s0_->AddDomainIntegrator(new DiffusionIntegrator());
+   s0_->Assemble();
+   s0_->Finalize();
+   S0_ = s0_->ParallelAssemble();
+
+   m1_ = new ParBilinearForm(&HCurlFESpace);
+   m1_->AddDomainIntegrator(new VectorFEMassIntegrator());
+   m1_->Assemble();
+   m1_->Finalize();
+   M1_ = m1_->ParallelAssemble();
+
+   Grad_ = new ParDiscreteGradOperator(&H1FESpace,&HCurlFESpace);
+
+   amg_ = new HypreBoomerAMG(*S0_);
+   amg_->SetPrintLevel(0);
+   pcg_ = new HyprePCG(*S0_);
+   pcg_->SetTol(1e-14);
+   pcg_->SetMaxIter(200);
+   pcg_->SetPrintLevel(0);
+   pcg_->SetPreconditioner(*amg_);
+
+   xDiv_     = new HypreParVector(&H1FESpace);
+   yPot_     = new HypreParVector(&H1FESpace);
+   gradYPot_ = new HypreParVector(HCurlFESpace_);
+   /*
+   int myid;
+   MPI_Comm_rank(H1FESpace.GetComm(), &myid);
+
+   if ( myid == 0 )
+   {
+     dof_list_.SetSize(1);
+     dof_list_[0] = 0;
+   }
+   else
+   {
+     dof_list_.SetSize(0);
+   }
+   */
+}
+
+IrrotationalProjector::~IrrotationalProjector()
+{
+   delete s0_;
+   delete m1_;
+   delete amg_;
+   delete pcg_;
+   delete S0_;
+   delete M1_;
+   delete Grad_;
+   delete xDiv_;
+   delete yPot_;
+   delete gradYPot_;
+}
+
+void
+IrrotationalProjector::Mult(const Vector &x, Vector &y) const
+{
+   *yPot_ = 0.0;
+   Grad_->MultTranspose(x,*xDiv_);
+   // S0_->EliminateRowsCols(dof_list_, *yPot_, *xDiv_);
+   s0_->ParallelEliminateEssentialBC(*ess_bdr_,*S0_,*yPot_,*xDiv_);
+   pcg_->Mult(*xDiv_,*yPot_);
+   Grad_->Mult(*yPot_,*gradYPot_);
+   M1_->Mult(*gradYPot_,y);
+}
+
+void
+IrrotationalProjector::Update()
+{
+   delete S0_;
+   delete M1_;
+   delete gradYPot_;
+   delete yPot_;
+   delete xDiv_;
+   delete pcg_;
+   delete amg_;
+
+   s0_->Update();
+   m1_->Update();
+   Grad_->Update();
+
+   s0_->Assemble();
+   s0_->Finalize();
+
+   m1_->Assemble();
+   m1_->Finalize();
+
+   S0_ = s0_->ParallelAssemble();
+   M1_ = m1_->ParallelAssemble();
+
+   amg_ = new HypreBoomerAMG(*S0_);
+   amg_->SetPrintLevel(0);
+   pcg_ = new HyprePCG(*S0_);
+   pcg_->SetTol(1e-14);
+   pcg_->SetMaxIter(200);
+   pcg_->SetPrintLevel(0);
+   pcg_->SetPreconditioner(*amg_);
+
+   xDiv_     = new HypreParVector(H1FESpace_);
+   yPot_     = new HypreParVector(H1FESpace_);
+   gradYPot_ = new HypreParVector(HCurlFESpace_);
+}
+
+DivergenceFreeProjector
+::DivergenceFreeProjector(ParFiniteElementSpace & HCurlFESpace,
+                          ParFiniteElementSpace & H1FESpace,
+                          Array<int> & ess_bdr)
+   : IrrotationalProjector(HCurlFESpace,H1FESpace,ess_bdr),
+     HCurlFESpace_(&HCurlFESpace),
+     xIrr_(NULL)
+{
+   xIrr_ = new HypreParVector(&HCurlFESpace);
+}
+
+DivergenceFreeProjector::~DivergenceFreeProjector()
+{
+   delete xIrr_;
+}
+
+void
+DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
+{
+   this->IrrotationalProjector::Mult(x,*xIrr_);
+   y  = x;
+   y -= *xIrr_;
+}
+
+void
+DivergenceFreeProjector::Update()
+{
+   delete xIrr_;
+
+   this->IrrotationalProjector::Update();
+
+   xIrr_ = new HypreParVector(HCurlFESpace_);
+}
+
+
 // A spherical shell with constant permeability.  The sphere has inner
 // and outer radii, center, and relative permeability specified on the
 // command line and stored in ms_params_.
@@ -603,8 +825,56 @@ double magnetic_shell(const Vector &x)
 // points, inner and outer radii, and a constant current in Amperes.
 void current_ring(const Vector &x, Vector &j)
 {
+   MFEM_ASSERT(x.Size() == 3, "current_ring source requires 3D space.");
+
    j.SetSize(x.Size());
    j = 0.0;
+
+   Vector  a(x.Size());  // Normalized Axis vector
+   Vector xu(x.Size());  // x vector relative to the axis end-point
+   Vector ju(x.Size());  // Unit vector in direction of current
+
+   xu = x;
+
+   for (int i=0; i<x.Size(); i++)
+   {
+      xu[i] -= cr_params_[i];
+      a[i]   = cr_params_[x.Size()+i] - cr_params_[i];
+   }
+
+   double h = a.Norml2();
+
+   if ( h == 0.0 )
+   {
+      return;
+   }
+
+   double ra = cr_params_[2*x.Size()+0];
+   double rb = cr_params_[2*x.Size()+1];
+   if ( ra > rb )
+   {
+      double rc = ra;
+      ra = rb;
+      rb = rc;
+   }
+   double xa = xu*a;
+
+   if ( h > 0.0 )
+   {
+      xu.Add(-xa/h,a);
+   }
+
+   double xp = xu.Norml2();
+
+   if ( xa >= 0.0 && xa <= h && xp >= ra && xp <= rb )
+   {
+      ju(0) = a(1) * xu(2) - a(2) * xu(1);
+      ju(1) = a(2) * xu(0) - a(0) * xu(2);
+      ju(2) = a(0) * xu(1) - a(1) * xu(0);
+      ju /= h;
+
+      j.Add(cr_params_[2*x.Size()+2]/(h*(rb-ra)),ju);
+   }
 }
 
 // A Cylindrical Rod of constant magnetization.  The cylinder has two
