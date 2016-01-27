@@ -272,7 +272,7 @@ void OptionsParser::WriteValue(const Option &opt, std::ostream &out)
          {
             out << list[0];
          }
-         for (int i = 0; i < list.Size(); i++)
+         for (int i = 1; i < list.Size(); i++)
          {
             out << ' ' << list[i];
          }
