@@ -493,8 +493,8 @@ int main(int argc, char *argv[])
 	//errors.Randomize();
          // Space for the discontinuous (original) flux
          CurlCurlIntegrator flux_integrator(muInv_coef);
-	 L2_FECollection flux_fec(order, sdim);
-	 ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
+	 RT_FECollection flux_fec(order-1, sdim);
+	 ParFiniteElementSpace flux_fes(&pmesh, &flux_fec);
 
          // Space for the smoothed (conforming) flux
          double norm_p = 1;
