@@ -347,7 +347,7 @@ int main(int argc, char *argv[])
       m.ProjectCoefficient(m_coef);
 
       HypreParMatrix *Mass      = mass.ParallelAssemble();
-      HypreParMatrix *MassMuInv = mass.ParallelAssemble();
+      HypreParMatrix *MassMuInv = massMuInv.ParallelAssemble();
 
       HypreParVector *J    = j.ParallelProject();
       HypreParVector *M    = m.ParallelProject();
@@ -371,7 +371,7 @@ int main(int argc, char *argv[])
 	pcgm->SetTol(1e-12);
 	pcgm->SetMaxIter(500);
 	pcgm->SetPrintLevel(0);
-	pcgm->Mult(*JD, *J);
+        pcgm->Mult(*JD, *J);
 	j = *J;
 	delete pcgm;
       }
