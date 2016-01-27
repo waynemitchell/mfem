@@ -27,7 +27,9 @@ else
    MINIAPPS = $(SEQ_MINIAPPS) \
               magnetostatics1p magnetostatics2p magnetostatics3p \
               magnetostatics4p magnetostatics5p \
-              electrostatics1p electrostatics2p
+              electrostatics1p electrostatics2p \
+              magnetostatics electrostatics
+
 endif
 
 .PHONY: all clean style
@@ -54,6 +56,7 @@ $(CONFIG_MK) $(MFEM_LIB_FILE):
 clean:
 	rm -f *.o *~ magnetostatics1p magnetostatics2p magnetostatics3p \
                      magnetostatics4p magnetostatics5p \
-                     electrostatics1p electrostatics2p
+                     electrostatics1p electrostatics2p \
+                     magnetostatics electrostatics
 	rm -f mesh.* sol.* sol_curl.* psi.*
 	rm -rf *.dSYM *.TVD.*breakpoints
