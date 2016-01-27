@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
    args.AddOption(&dbcv, "-dbcv", "--dirichlet-bc-vals",
                   "Dirichlet Boundary Condition Values");
    args.AddOption(&dbcg, "-dbcg", "--dirichlet-bc-gradient",
-		  "-no-dbcg", "--no-dirichlet-bc-gradient",
+                  "-no-dbcg", "--no-dirichlet-bc-gradient",
                   "Dirichlet Boundary Condition Gradient (phi = -z)");
    args.AddOption(&nbcs, "-nbcs", "--neumann-bc-surf",
                   "Neumann Boundary Condition Surfaces");
@@ -159,8 +159,8 @@ int main(int argc, char *argv[])
 
    if (nbcv.Size() < nbcs.Size() )
    {
-     nbcv.SetSize(nbcs.Size());
-     nbcv = 0.0;
+      nbcv.SetSize(nbcs.Size());
+      nbcv = 0.0;
    }
 
    // Refine the serial mesh on all processors to increase the resolution. In
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
    ess_bdr = 0;
    for (int i=0; i<dbcs.Size(); i++)
    {
-     ess_bdr[dbcs[i]-1] = 1;
+      ess_bdr[dbcs[i]-1] = 1;
    }
 
    // Set up the parallel bilinear form corresponding to the
@@ -311,8 +311,8 @@ int main(int argc, char *argv[])
 
       if ( nbcs.Size() > 0 )
       {
-	mass_s.Assemble();
-	mass_s.Finalize();
+         mass_s.Assemble();
+         mass_s.Finalize();
       }
 
       // Initialize the magnetic vector potential with its boundary conditions
@@ -320,25 +320,25 @@ int main(int argc, char *argv[])
 
       if ( dbcs.Size() > 0 )
       {
-	if ( dbcg )
-	{
-	  // Apply gradient boundary condition
-	  a.ProjectBdrCoefficientTangent(a_bc, ess_bdr);
-	}
-	/*
-	else
-	{
-	  // Apply piecewise constant boundary condition
-	  Array<int> dbc_bdr_attr(pmesh.bdr_attributes.Max());
-	  for (int i=0; i<dbcs.Size(); i++)
-	  {
-	    ConstantCoefficient voltage(dbcv[i]);
-	    dbc_bdr_attr = 0;
-	    dbc_bdr_attr[dbcs[i]-1] = 1;
-	    phi.ProjectBdrCoefficient(voltage, dbc_bdr_attr);
-	  }
-	}
-	*/
+         if ( dbcg )
+         {
+            // Apply gradient boundary condition
+            a.ProjectBdrCoefficientTangent(a_bc, ess_bdr);
+         }
+         /*
+         else
+         {
+           // Apply piecewise constant boundary condition
+           Array<int> dbc_bdr_attr(pmesh.bdr_attributes.Max());
+           for (int i=0; i<dbcs.Size(); i++)
+           {
+             ConstantCoefficient voltage(dbcv[i]);
+             dbc_bdr_attr = 0;
+             dbc_bdr_attr[dbcs[i]-1] = 1;
+             phi.ProjectBdrCoefficient(voltage, dbc_bdr_attr);
+           }
+         }
+         */
       }
 
       // Initialize the volumetric current density
@@ -367,13 +367,13 @@ int main(int argc, char *argv[])
       cout << "Norm of J+Curl M:  " << JD->Norml2() << endl;
 
       {
-	HyprePCG *pcgm = new HyprePCG(*Mass);
-	pcgm->SetTol(1e-12);
-	pcgm->SetMaxIter(500);
-	pcgm->SetPrintLevel(0);
-        pcgm->Mult(*JD, *J);
-	j = *J;
-	delete pcgm;
+         HyprePCG *pcgm = new HyprePCG(*Mass);
+         pcgm->SetTol(1e-12);
+         pcgm->SetMaxIter(500);
+         pcgm->SetPrintLevel(0);
+         pcgm->Mult(*JD, *J);
+         j = *J;
+         delete pcgm;
       }
       delete J;
       delete Mass;
@@ -383,24 +383,24 @@ int main(int argc, char *argv[])
       // Initialize the suface current density
       if ( nbcs.Size() > 0 )
       {
-	Array<int> nbc_bdr_attr(pmesh.bdr_attributes.Max());
-	for (int i=0; i<nbcs.Size(); i++)
-	{
-	  ConstantCoefficient sigma_coef(nbcv[i]);
-	  nbc_bdr_attr = 0;
-	  nbc_bdr_attr[nbcs[i]-1] = 1;
-	  sigma.ProjectBdrCoefficient(sigma_coef, nbc_bdr_attr);
-	}
-
-	HypreParMatrix *Mass_s = mass_s.ParallelAssemble();
-	HypreParVector *Sigma = sigma.ParallelProject();
-
-	Mass_s->Mult(*Sigma,*RhoD,1.0,1.0);
-
-	delete Mass_s;
-	delete Sigma;
+      Array<int> nbc_bdr_attr(pmesh.bdr_attributes.Max());
+      for (int i=0; i<nbcs.Size(); i++)
+      {
+        ConstantCoefficient sigma_coef(nbcv[i]);
+        nbc_bdr_attr = 0;
+        nbc_bdr_attr[nbcs[i]-1] = 1;
+        sigma.ProjectBdrCoefficient(sigma_coef, nbc_bdr_attr);
       }
-      */
+
+      HypreParMatrix *Mass_s = mass_s.ParallelAssemble();
+      HypreParVector *Sigma = sigma.ParallelProject();
+
+      Mass_s->Mult(*Sigma,*RhoD,1.0,1.0);
+
+      delete Mass_s;
+      delete Sigma;
+           }
+           */
       // Apply Dirichlet BCs to matrix and right hand side
       HypreParMatrix *CurlMuInvCurl = curlMuInvCurl.ParallelAssemble();
       HypreParVector *A             = a.ParallelProject();
@@ -408,10 +408,10 @@ int main(int argc, char *argv[])
       // Apply the boundary conditions to the assembled matrix and vectors
       if ( dbcs.Size() > 0 )
       {
-	// According to the selected surfaces
-	curlMuInvCurl.ParallelEliminateEssentialBC(ess_bdr,
-						   *CurlMuInvCurl,
-						   *A, *JD);
+         // According to the selected surfaces
+         curlMuInvCurl.ParallelEliminateEssentialBC(ess_bdr,
+                                                    *CurlMuInvCurl,
+                                                    *A, *JD);
       }
 
       // Define and apply a parallel PCG solver for AX=B with the AMS
@@ -458,8 +458,8 @@ int main(int argc, char *argv[])
       {
          a_sock << "parallel " << num_procs << " " << myid << "\n";
          a_sock << "solution\n" << pmesh << a
-		<< "window_title 'Vector Potential (A)'\n"
-		<< flush;
+                << "window_title 'Vector Potential (A)'\n"
+                << flush;
 
          MPI_Barrier(pmesh.GetComm());
 
@@ -490,16 +490,16 @@ int main(int argc, char *argv[])
       // method defined.
       Vector errors(pmesh.GetNE());
       {
-	//errors.Randomize();
+         //errors.Randomize();
          // Space for the discontinuous (original) flux
          CurlCurlIntegrator flux_integrator(muInv_coef);
-	 RT_FECollection flux_fec(order-1, sdim);
-	 ParFiniteElementSpace flux_fes(&pmesh, &flux_fec);
+         RT_FECollection flux_fec(order-1, sdim);
+         ParFiniteElementSpace flux_fes(&pmesh, &flux_fec);
 
          // Space for the smoothed (conforming) flux
          double norm_p = 1;
-	 ND_FECollection smooth_flux_fec(order, dim);
-	 ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
+         ND_FECollection smooth_flux_fec(order, dim);
+         ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
 
          // Another possible set of options for the smoothed flux space:
          // norm_p = 1;
@@ -507,7 +507,7 @@ int main(int argc, char *argv[])
          // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
 
          L2ZZErrorEstimator(flux_integrator, a,
-			    smooth_flux_fes, flux_fes, errors, norm_p);
+                            smooth_flux_fes, flux_fes, errors, norm_p);
       }
       double local_max_err = errors.Max();
       double global_max_err;
@@ -592,7 +592,7 @@ double magnetic_shell(const Vector &x)
    }
 
    if ( sqrt(r2) >= ms_params_(x.Size()) &&
-	sqrt(r2) <= ms_params_(x.Size()+1) )
+        sqrt(r2) <= ms_params_(x.Size()+1) )
    {
       return mu0_*ms_params_(x.Size()+2);
    }
@@ -603,8 +603,8 @@ double magnetic_shell(const Vector &x)
 // points, inner and outer radii, and a constant current in Amperes.
 void current_ring(const Vector &x, Vector &j)
 {
-  j.SetSize(x.Size());
-  j = 0.0;
+   j.SetSize(x.Size());
+   j = 0.0;
 }
 
 // A Cylindrical Rod of constant magnetization.  The cylinder has two
@@ -612,41 +612,41 @@ void current_ring(const Vector &x, Vector &j)
 // along the axis.
 void bar_magnet(const Vector &x, Vector &m)
 {
-  m.SetSize(x.Size());
-  m = 0.0;
+   m.SetSize(x.Size());
+   m = 0.0;
 
-  Vector  a(x.Size());  // Normalized Axis vector
-  Vector xu(x.Size());  // x vector relative to the axis end-point
+   Vector  a(x.Size());  // Normalized Axis vector
+   Vector xu(x.Size());  // x vector relative to the axis end-point
 
-  xu = x;
+   xu = x;
 
-  for (int i=0; i<x.Size(); i++)
-  {
-    xu[i] -= bm_params_[i];
-    a[i]   = bm_params_[x.Size()+i] - bm_params_[i];
-  }
+   for (int i=0; i<x.Size(); i++)
+   {
+      xu[i] -= bm_params_[i];
+      a[i]   = bm_params_[x.Size()+i] - bm_params_[i];
+   }
 
-  double h = a.Norml2();
+   double h = a.Norml2();
 
-  if ( h == 0.0 )
-  {
-    return;
-  }
+   if ( h == 0.0 )
+   {
+      return;
+   }
 
-  double  r = bm_params_[2*x.Size()];
-  double xa = xu*a;
+   double  r = bm_params_[2*x.Size()];
+   double xa = xu*a;
 
-  if ( h > 0.0 )
-  {
-    xu.Add(-xa/h,a);
-  }
+   if ( h > 0.0 )
+   {
+      xu.Add(-xa/h,a);
+   }
 
-  double xp = xu.Norml2();
+   double xp = xu.Norml2();
 
-  if ( xa >= 0.0 && xa <= h && xp <= r )
-  {
-    m.Add(bm_params_[2*x.Size()+1]/h,a);
-  }
+   if ( xa >= 0.0 && xa <= h && xp <= r )
+   {
+      m.Add(bm_params_[2*x.Size()+1]/h,a);
+   }
 }
 
 // A sphere with constant charge density.  The sphere has a radius,
@@ -688,10 +688,10 @@ double charged_sphere(const Vector &x)
 // to (-y,0,0).
 void a_bc_uniform(const Vector & x, Vector & a)
 {
-  a.SetSize(3);
-  a(0) = -x(1);
-  a(1) = 0.0;
-  a(2) = 0.0;
+   a.SetSize(3);
+   a(0) = -x(1);
+   a(1) = 0.0;
+   a(2) = 0.0;
 }
 
 // To produce a uniform magnetic field the scalar potential can be set

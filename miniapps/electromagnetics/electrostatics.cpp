@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
    args.AddOption(&dbcv, "-dbcv", "--dirichlet-bc-vals",
                   "Dirichlet Boundary Condition Values");
    args.AddOption(&dbcg, "-dbcg", "--dirichlet-bc-gradient",
-		  "-no-dbcg", "--no-dirichlet-bc-gradient",
+                  "-no-dbcg", "--no-dirichlet-bc-gradient",
                   "Dirichlet Boundary Condition Gradient (phi = -z)");
    args.AddOption(&nbcs, "-nbcs", "--neumann-bc-surf",
                   "Neumann Boundary Condition Surfaces");
@@ -149,8 +149,8 @@ int main(int argc, char *argv[])
 
    if (nbcv.Size() < nbcs.Size() )
    {
-     nbcv.SetSize(nbcs.Size());
-     nbcv = 0.0;
+      nbcv.SetSize(nbcs.Size());
+      nbcv = 0.0;
    }
 
    // Refine the serial mesh on all processors to increase the resolution. In
@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
    ess_bdr = 0;
    for (int i=0; i<dbcs.Size(); i++)
    {
-     ess_bdr[dbcs[i]-1] = 1;
+      ess_bdr[dbcs[i]-1] = 1;
    }
 
    // Set up the parallel bilinear form corresponding to the
@@ -276,8 +276,8 @@ int main(int argc, char *argv[])
 
       if ( nbcs.Size() > 0 )
       {
-	mass_s.Assemble();
-	mass_s.Finalize();
+         mass_s.Assemble();
+         mass_s.Finalize();
       }
 
       // Initialize the electric potential with its boundary conditions
@@ -285,23 +285,23 @@ int main(int argc, char *argv[])
 
       if ( dbcs.Size() > 0 )
       {
-	if ( dbcg )
-	{
-	  // Apply gradient boundary condition
-	  phi.ProjectBdrCoefficient(phi_bc, ess_bdr);
-	}
-	else
-	{
-	  // Apply piecewise constant boundary condition
-	  Array<int> dbc_bdr_attr(pmesh.bdr_attributes.Max());
-	  for (int i=0; i<dbcs.Size(); i++)
-	  {
-	    ConstantCoefficient voltage(dbcv[i]);
-	    dbc_bdr_attr = 0;
-	    dbc_bdr_attr[dbcs[i]-1] = 1;
-	    phi.ProjectBdrCoefficient(voltage, dbc_bdr_attr);
-	  }
-	}
+         if ( dbcg )
+         {
+            // Apply gradient boundary condition
+            phi.ProjectBdrCoefficient(phi_bc, ess_bdr);
+         }
+         else
+         {
+            // Apply piecewise constant boundary condition
+            Array<int> dbc_bdr_attr(pmesh.bdr_attributes.Max());
+            for (int i=0; i<dbcs.Size(); i++)
+            {
+               ConstantCoefficient voltage(dbcv[i]);
+               dbc_bdr_attr = 0;
+               dbc_bdr_attr[dbcs[i]-1] = 1;
+               phi.ProjectBdrCoefficient(voltage, dbc_bdr_attr);
+            }
+         }
       }
 
       // Initialize the volumetric charge density
@@ -316,22 +316,22 @@ int main(int argc, char *argv[])
       // Initialize the suface charge density
       if ( nbcs.Size() > 0 )
       {
-	Array<int> nbc_bdr_attr(pmesh.bdr_attributes.Max());
-	for (int i=0; i<nbcs.Size(); i++)
-	{
-	  ConstantCoefficient sigma_coef(nbcv[i]);
-	  nbc_bdr_attr = 0;
-	  nbc_bdr_attr[nbcs[i]-1] = 1;
-	  sigma.ProjectBdrCoefficient(sigma_coef, nbc_bdr_attr);
-	}
+         Array<int> nbc_bdr_attr(pmesh.bdr_attributes.Max());
+         for (int i=0; i<nbcs.Size(); i++)
+         {
+            ConstantCoefficient sigma_coef(nbcv[i]);
+            nbc_bdr_attr = 0;
+            nbc_bdr_attr[nbcs[i]-1] = 1;
+            sigma.ProjectBdrCoefficient(sigma_coef, nbc_bdr_attr);
+         }
 
-	HypreParMatrix *Mass_s = mass_s.ParallelAssemble();
-	HypreParVector *Sigma = sigma.ParallelProject();
+         HypreParMatrix *Mass_s = mass_s.ParallelAssemble();
+         HypreParVector *Sigma = sigma.ParallelProject();
 
-	Mass_s->Mult(*Sigma,*RhoD,1.0,1.0);
+         Mass_s->Mult(*Sigma,*RhoD,1.0,1.0);
 
-	delete Mass_s;
-	delete Sigma;
+         delete Mass_s;
+         delete Sigma;
       }
 
       // Apply Dirichlet BCs to matrix and right hand side
@@ -341,21 +341,21 @@ int main(int argc, char *argv[])
       // Apply the boundary conditions to the assembled matrix and vectors
       if ( dbcs.Size() > 0 )
       {
-	// According to the selected surfaces
-	laplacian_eps.ParallelEliminateEssentialBC(ess_bdr,
-						   *Laplacian_eps,
-						   *Phi, *RhoD);
+         // According to the selected surfaces
+         laplacian_eps.ParallelEliminateEssentialBC(ess_bdr,
+                                                    *Laplacian_eps,
+                                                    *Phi, *RhoD);
       }
       else
       {
-	// No surfaces were labeled as Dirichlet so eliminate one DoF
-	Array<int> dof_list(0);
-	if ( myid == 0 )
-	{
-	  dof_list.SetSize(1);
-	  dof_list[0] = 0;
-	}
-	Laplacian_eps->EliminateRowsCols(dof_list, *Phi, *RhoD);
+         // No surfaces were labeled as Dirichlet so eliminate one DoF
+         Array<int> dof_list(0);
+         if ( myid == 0 )
+         {
+            dof_list.SetSize(1);
+            dof_list[0] = 0;
+         }
+         Laplacian_eps->EliminateRowsCols(dof_list, *Phi, *RhoD);
       }
 
       // Define and apply a parallel PCG solver for AX=B with the AMG
@@ -534,16 +534,17 @@ double charged_sphere(const Vector &x)
 
    if ( cs_params_(x.Size()) > 0.0 )
    {
-     switch ( x.Size() ) {
-     case 2:
-       rho = cs_params_(x.Size()+1)/(M_PI*pow(cs_params_(x.Size()),2));
-       break;
-     case 3:
-       rho = 0.75*cs_params_(x.Size()+1)/(M_PI*pow(cs_params_(x.Size()),3));
-       break;
-     default:
-       rho = 0.0;
-     }
+      switch ( x.Size() )
+      {
+         case 2:
+            rho = cs_params_(x.Size()+1)/(M_PI*pow(cs_params_(x.Size()),2));
+            break;
+         case 3:
+            rho = 0.75*cs_params_(x.Size()+1)/(M_PI*pow(cs_params_(x.Size()),3));
+            break;
+         default:
+            rho = 0.0;
+      }
    }
 
    for (int i=0; i<x.Size(); i++)
@@ -553,7 +554,7 @@ double charged_sphere(const Vector &x)
 
    if ( sqrt(r2) <= cs_params_(x.Size()) )
    {
-     return rho;
+      return rho;
    }
    return 0.0;
 }
