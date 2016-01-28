@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
    // 1. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
+   bool static_cond = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -54,6 +55,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
+                  "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -109,7 +112,16 @@ int main(int argc, char *argv[])
       fec = new H1_FECollection(order = 1, dim);
    }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
-   cout << "Number of unknowns: " << fespace->GetVSize() << endl;
+   cout << "Number of finite element unknowns: "
+        << fespace->GetConformingVSize() << endl;
+
+   Array<int> ess_tdof_list;
+   if (mesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(mesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   }
 
    // 5. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
@@ -133,29 +145,37 @@ int main(int argc, char *argv[])
    //    assembly and finalizing we extract the corresponding sparse matrix A.
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
-   a->Assemble();
-   a->ConformingAssemble(x, *b);
-   Array<int> ess_bdr(mesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
-   a->Finalize();
-   const SparseMatrix &A = a->SpMat();
 
+   FiniteElementCollection *sfec = NULL;
+   FiniteElementSpace *sfes = NULL;
+   if (static_cond)
+   {
+      sfec = new H1_Trace_FECollection(order, dim);
+      sfes = new FiniteElementSpace(mesh, sfec);
+      a->EnableStaticCondensation(sfes);
+   }
+
+   a->Assemble();
+   Vector B, X;
+   SparseMatrix &A = a->AssembleSystem(ess_tdof_list, x, *b, X, B);
+   cout << "Size of linear system: " << A.Height() << endl;
+
+   X = 0.0;
 #ifndef MFEM_USE_SUITESPARSE
    // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
-   //    solve the system Ax=b with PCG.
+   //    solve the system A X = B with PCG.
    GSSmoother M(A);
-   PCG(A, M, *b, x, 1, 200, 1e-12, 0.0);
+   PCG(A, M, B, X, 1, 200, 1e-12, 0.0);
 #else
    // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
    umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    umf_solver.SetOperator(A);
-   umf_solver.Mult(*b, x);
+   umf_solver.Mult(B, X);
 #endif
 
    // 9. Recover the grid function in non-conforming AMR problems
-   x.ConformingProlongate();
+   a->ComputeSolution(X, *b, x);
 
    // 10. Save the refined mesh and the solution. This output can be viewed later
    //     using GLVis: "glvis -m refined.mesh -g sol.gf".
@@ -178,6 +198,8 @@ int main(int argc, char *argv[])
 
    // 12. Free the used memory.
    delete a;
+   delete sfes;
+   delete sfec;
    delete b;
    delete fespace;
    if (order > 0)

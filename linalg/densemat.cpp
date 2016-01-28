@@ -141,6 +141,14 @@ const double &DenseMatrix::Elem(int i, int j) const
 
 void DenseMatrix::Mult(const double *x, double *y) const
 {
+   if (width == 0)
+   {
+      for (int row = 0; row < height; row++)
+      {
+         y[row] = 0.0;
+      }
+      return;
+   }
    double *d_col = data;
    double x_col = x[0];
    for (int row = 0; row < height; row++)
@@ -205,7 +213,7 @@ void DenseMatrix::MultTranspose(const Vector &x, Vector &y) const
    MultTranspose((const double *)x, (double *)y);
 }
 
-void DenseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
+void DenseMatrix::AddMult(const Vector &x, Vector &y) const
 {
    MFEM_ASSERT(height == y.Size() && width == x.Size(),
                "incompatible dimensions");
@@ -214,24 +222,10 @@ void DenseMatrix::AddMult(const Vector &x, Vector &y, const double a) const
    double *d_col = data, *yp = y;
    for (int col = 0; col < width; col++)
    {
-      double x_col = a*xp[col];
+      double x_col = xp[col];
       for (int row = 0; row < height; row++)
       {
          yp[row] += x_col*d_col[row];
-      }
-      d_col += height;
-   }
-}
-
-void DenseMatrix::AddMultTranspose(const double *x, double *y,
-                                   const double a) const
-{
-   double *d_col = data;
-   for (int col = 0; col < width; col++)
-   {
-      for (int row = 0; row < height; row++)
-      {
-         y[col] += a*x[row]*d_col[row];
       }
       d_col += height;
    }
@@ -253,19 +247,6 @@ void DenseMatrix::AddMult_a(double a, const Vector &x, Vector &y) const
       }
       d_col += height;
    }
-}
-
-void DenseMatrix::AddMultTranspose(const Vector &x, Vector &y,
-                                   const double a) const
-{
-#ifdef MFEM_DEBUG
-   if ( height != x.Size() || width != y.Size() )
-   {
-      mfem_error("DenseMatrix::AddMultTranspose");
-   }
-#endif
-
-   AddMultTranspose((const double *)x, (double *)y, a);
 }
 
 void DenseMatrix::AddMultTranspose_a(double a, const Vector &x,
@@ -2549,24 +2530,6 @@ void DenseMatrix::CopyMNDiag(double *diag, int n, int row_offset,
    {
       (*this)(row_offset+i,col_offset+i) = diag[i];
    }
-}
-
-void DenseMatrix::AddMN(DenseMatrix &A, int m, int n, int Aro, int Aco)
-{
-   int i, j;
-
-#ifdef MFEM_DEBUG
-   if (n > Width() || m > Height())
-   {
-      mfem_error("DenseMatrix::AddMN(...) 1");
-   }
-#endif
-
-   for (j = 0; j < n; j++)
-      for (i = 0; i < m; i++)
-      {
-         (*this)(i,j) += A(Aro+i,Aco+j);
-      }
 }
 
 void DenseMatrix::AddMatrix(DenseMatrix &A, int ro, int co)

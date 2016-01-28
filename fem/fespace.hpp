@@ -234,6 +234,9 @@ public:
 
    void GetElementInteriorDofs(int i, Array<int> &dofs) const;
 
+   int GetNumElementInteriorDofs(int i) const
+   { return fec->DofForGeometry(mesh->GetElementBaseGeometry(i)); }
+
    void GetEdgeInteriorDofs(int i, Array<int> &dofs) const;
 
    void DofsToVDofs(Array<int> &dofs) const;
@@ -270,6 +273,7 @@ public:
    void BuildDofToArrays();
 
    const Table &GetElementToDofTable() const { return *elem_dof; }
+   const Table &GetBdrElementToDofTable() const { return *bdrElem_dof; }
 
    int GetElementForDof(int i) { return dof_elem_array[i]; }
    int GetLocalDofForDof(int i) { return dof_ldof_array[i]; }

@@ -18,6 +18,7 @@
 #include "gridfunc.hpp"
 #include "linearform.hpp"
 #include "bilininteg.hpp"
+#include "staticcond.hpp"
 #include "hybridization.hpp"
 
 namespace mfem
@@ -56,6 +57,7 @@ protected:
 
    DenseTensor *element_matrices;
 
+   StaticCondensation *static_cond;
    Hybridization *hybridization;
 
    int precompute_sparsity;
@@ -66,7 +68,7 @@ protected:
    BilinearForm() : Matrix (0)
    {
       fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
-      hybridization = NULL;
+      static_cond = NULL; hybridization = NULL;
       precompute_sparsity = 0;
    }
 
@@ -79,8 +81,14 @@ public:
    /// Get the size of the BilinearForm as a square matrix.
    int Size() const { return height; }
 
+   /** Enable the use of static condensation. For details see the description
+       for class StaticCondensation in fem/staticcond.hpp This method should be
+       called before assembly. */
+   void EnableStaticCondensation(FiniteElementSpace *trace_space);
+
    /** Enable hybridization; for details see the description for class
-       Hybridization in fem/hybridization.hpp. */
+       Hybridization in fem/hybridization.hpp. This method should be called
+       before assembly. */
    void EnableHybridization(FiniteElementSpace *constr_space,
                             BilinearFormIntegrator *constr_integ,
                             const Array<int> &ess_tdof_list);

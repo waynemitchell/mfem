@@ -106,16 +106,8 @@ public:
    /// Multiply a vector with the transpose matrix.
    virtual void MultTranspose(const Vector &x, Vector &y) const;
 
-   /// y += a*A.x
-   void AddMult(const Vector &x, Vector &y, const double a = 1.0) const;
-
-   /// Multiply a vector with the transpose matrix.
-   void AddMultTranspose(const double *x, double *y,
-                         const double a = 1.0) const;
-
-   /// y += a*At.x
-   void AddMultTranspose(const Vector &x, Vector &y,
-                         const double a = 1.0) const;
+   /// y += A.x
+   void AddMult(const Vector &x, Vector &y) const;
 
    /// y += a * A.x
    void AddMult_a(double a, const Vector &x, Vector &y) const;
@@ -244,23 +236,20 @@ public:
    void CopyRows(DenseMatrix &A, int row1, int row2);
    /// Copy columns col1 through col2 from A to *this
    void CopyCols(DenseMatrix &A, int col1, int col2);
-   /// Copy the m x n submatrix of A at (Aro)ffset, (Aco)loffset to *this
+   /// Copy the m x n submatrix of A at row/col offsets Aro/Aco to *this
    void CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco);
    /// Copy matrix A to the location in *this at row_offset, col_offset
    void CopyMN(DenseMatrix &A, int row_offset, int col_offset);
    /// Copy matrix A^t to the location in *this at row_offset, col_offset
    void CopyMNt(DenseMatrix &A, int row_offset, int col_offset);
-   /// Copy the m x n submatrix of A at (Aro)ffset, (Aco)loffset to *this
-   /// at row_offset, col_offset
+   /** Copy the m x n submatrix of A at row/col offsets Aro/Aco to *this at
+       row_offset, col_offset */
    void CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco,
                int row_offset, int col_offset);
    /// Copy c on the diagonal of size n to *this at row_offset, col_offset
    void CopyMNDiag(double c, int n, int row_offset, int col_offset);
    /// Copy diag on the diagonal of size n to *this at row_offset, col_offset
    void CopyMNDiag(double *diag, int n, int row_offset, int col_offset);
-
-   /// Add the m x n submatrix of A at (Aro)ffset, (Aco)loffset to *this
-   void AddMN(DenseMatrix &A, int m, int n, int Aro, int Aco);
 
    /// Perform (ro+i,co+j)+=A(i,j) for 0<=i<A.Height, 0<=j<A.Width
    void AddMatrix(DenseMatrix &A, int ro, int co);
