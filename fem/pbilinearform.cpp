@@ -267,25 +267,44 @@ HypreParMatrix &ParBilinearForm::AssembleSystem(
    HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
    const SparseMatrix &R = *pfes->GetRestrictionMatrix();
 
+   Array<int> ess_rtdof_list;
+   if (static_cond)
+   {
+      static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
+   }
+
    if (mat)
    {
       Finalize();
-      p_mat = ParallelAssemble();
-      delete mat;
-      mat = NULL;
-      p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
+      if (!static_cond)
+      {
+         p_mat = ParallelAssemble();
+         delete mat;
+         mat = NULL;
+         delete mat_e;
+         mat_e = NULL;
+         p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
+      }
+      else
+      {
+         delete mat;
+         mat = NULL;
+         delete mat_e;
+         mat_e = NULL;
+         static_cond->EliminateReducedTrueDofs(ess_rtdof_list, 0);
+      }
    }
 
-   if (!hybridization)
+   if (static_cond)
    {
-      X.SetSize(pfes->TrueVSize());
-      B.SetSize(X.Size());
-      P.MultTranspose(b, B);
-      R.Mult(x, X);
-      EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, X, B);
-      return *p_mat;
+      static_cond->ReduceRHS(b, B);
+      static_cond->ReduceSolution(x, X);
+      EliminateBC(static_cond->GetParallelMatrix(),
+                  static_cond->GetParallelMatrixElim(),
+                  ess_rtdof_list, X, B);
+      return static_cond->GetParallelMatrix();
    }
-   else
+   else if (hybridization)
    {
       HypreParVector TX(pfes), TB(pfes);
       P.MultTranspose(b, TB);
@@ -297,6 +316,15 @@ HypreParMatrix &ParBilinearForm::AssembleSystem(
       X = 0.0;
       return hybridization->GetParallelMatrix();
    }
+   else
+   {
+      X.SetSize(pfes->TrueVSize());
+      B.SetSize(X.Size());
+      P.MultTranspose(b, B);
+      R.Mult(x, X);
+      EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, X, B);
+      return *p_mat;
+   }
 }
 
 void ParBilinearForm::ComputeSolution(
@@ -304,12 +332,11 @@ void ParBilinearForm::ComputeSolution(
 {
    HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
 
-   if (!hybridization)
+   if (static_cond)
    {
-      x.SetSize(P.Height());
-      P.Mult(X, x);
+      static_cond->ComputeSolution(b, X, x);
    }
-   else
+   else if (hybridization)
    {
       HypreParVector TX(pfes), TB(pfes);
       P.MultTranspose(b, TB);
@@ -318,6 +345,11 @@ void ParBilinearForm::ComputeSolution(
       hybridization->ComputeSolution(TB, X, TX);
       x.SetSize(P.Height());
       P.Mult(TX, x);
+   }
+   else
+   {
+      x.SetSize(P.Height());
+      P.Mult(X, x);
    }
 }
 

@@ -119,11 +119,24 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
 void BilinearForm::EnableStaticCondensation(FiniteElementSpace *trace_space)
 {
    delete static_cond;
-   if (fes->GetConformingVSize() == trace_space->GetConformingVSize())
+#ifndef MFEM_USE_MPI
+   if (fes->GetTrueVSize() == trace_space->GetTrueVSize())
    {
       static_cond = NULL;
       return;
    }
+#else
+   ParFiniteElementSpace *pfes = dynamic_cast<ParFiniteElementSpace *>(fes);
+   ParFiniteElementSpace *tr_pfes =
+      dynamic_cast<ParFiniteElementSpace *>(trace_space);
+   MFEM_ASSERT((pfes && tr_pfes) || (!pfes && !tr_pfes), "");
+   if ((pfes && pfes->GlobalTrueVSize() == tr_pfes->GlobalTrueVSize()) ||
+       (!pfes && fes->GetTrueVSize() == trace_space->GetTrueVSize()))
+   {
+      static_cond = NULL;
+      return;
+   }
+#endif
    static_cond = new StaticCondensation(fes, trace_space);
    bool symmetric = false;      // TODO
    bool block_diagonal = false; // TODO

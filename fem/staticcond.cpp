@@ -19,6 +19,10 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace,
    : fes(fespace), tr_fes(trace_fespace)
 {
    S = S_e = NULL;
+#ifdef MFEM_USE_MPI
+   tr_pfes = dynamic_cast<ParFiniteElementSpace *>(tr_fes);
+   pS = pS_e = NULL;
+#endif
    symm = false;
    A_data = NULL;
    A_ipiv = NULL;
@@ -78,6 +82,10 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace,
 
 StaticCondensation::~StaticCondensation()
 {
+#ifdef MFEM_USE_MPI
+   delete pS_e;
+   delete pS;
+#endif
    delete S_e;
    delete S;
    delete [] A_data;
@@ -102,32 +110,40 @@ void StaticCondensation::Init(bool symmetric, bool block_diagonal)
    }
    A_data = new double[A_offsets[NE]];
    A_ipiv = new int[A_ipiv_offsets[NE]];
-   // The sparsity pattern of S is given by the map rdof->elem->rdof
-   // TODO: for a block diagonal vector bilinear form, this is overkill.
    const int nedofs = tr_fes->GetVSize();
-   Table rdof_rdof;
+   if (fes->GetVDim() == 1)
    {
-      Table elem_rdof, rdof_elem;
-      elem_rdof.MakeI(NE);
-      for (int i = 0; i < NE; i++)
+      // The sparsity pattern of S is given by the map rdof->elem->rdof
+      Table rdof_rdof;
       {
-         tr_fes->GetElementVDofs(i, rvdofs);
-         elem_rdof.AddColumnsInRow(i, rvdofs.Size());
+         Table elem_rdof, rdof_elem;
+         elem_rdof.MakeI(NE);
+         for (int i = 0; i < NE; i++)
+         {
+            tr_fes->GetElementVDofs(i, rvdofs);
+            elem_rdof.AddColumnsInRow(i, rvdofs.Size());
+         }
+         elem_rdof.MakeJ();
+         for (int i = 0; i < NE; i++)
+         {
+            tr_fes->GetElementVDofs(i, rvdofs);
+            FiniteElementSpace::AdjustVDofs(rvdofs);
+            elem_rdof.AddConnections(i, rvdofs.GetData(), rvdofs.Size());
+         }
+         elem_rdof.ShiftUpI();
+         Transpose(elem_rdof, rdof_elem, nedofs);
+         mfem::Mult(rdof_elem, elem_rdof, rdof_rdof);
       }
-      elem_rdof.MakeJ();
-      for (int i = 0; i < NE; i++)
-      {
-         tr_fes->GetElementVDofs(i, rvdofs);
-         FiniteElementSpace::AdjustVDofs(rvdofs);
-         elem_rdof.AddConnections(i, rvdofs.GetData(), rvdofs.Size());
-      }
-      elem_rdof.ShiftUpI();
-      Transpose(elem_rdof, rdof_elem, nedofs);
-      mfem::Mult(rdof_elem, elem_rdof, rdof_rdof);
+      S = new SparseMatrix(rdof_rdof.GetI(), rdof_rdof.GetJ(), NULL,
+                           nedofs, nedofs, true, true, false);
+      rdof_rdof.LoseData();
    }
-   S = new SparseMatrix(rdof_rdof.GetI(), rdof_rdof.GetJ(), NULL,
-                        nedofs, nedofs, true, true, false);
-   rdof_rdof.LoseData();
+   else
+   {
+      // For a block diagonal vector bilinear form, the sparsity of
+      // rdof->elem->rdof is overkill.
+      S = new SparseMatrix(nedofs);
+   }
 }
 
 void StaticCondensation::AssembleMatrix(int el, Array<int> &vdofs,
@@ -186,27 +202,74 @@ void StaticCondensation::AssembleBdrMatrix(int el, Array<int> &vdofs,
 
 void StaticCondensation::Finalize()
 {
-   S->Finalize();
-   const SparseMatrix *cP = tr_fes->GetConformingProlongation();
-   if (cP)
+   if (!Parallel())
    {
-      if (S->Height() == cP->Width()) { return; } // already finalized
-      SparseMatrix *cS = mfem::RAP(*cP, *S, *cP);
+      S->Finalize();
+      if (S_e) { S_e->Finalize(); }
+      const SparseMatrix *cP = tr_fes->GetConformingProlongation();
+      if (cP)
+      {
+         if (S->Height() != cP->Width())
+         {
+            SparseMatrix *cS = mfem::RAP(*cP, *S, *cP);
+            delete S;
+            S = cS;
+         }
+         if (S_e && S_e->Height() != cP->Width())
+         {
+            SparseMatrix *cS_e = mfem::RAP(*cP, *S_e, *cP);
+            delete S_e;
+            S = cS_e;
+         }
+      }
+   }
+   else // parallel
+   {
+#ifdef MFEM_USE_MPI
+      if (!S) { return; }  // already finalized
+      S->Finalize();
+      if (S_e) { S_e->Finalize(); }
+      HypreParMatrix *dS =
+         new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
+                            tr_pfes->GetDofOffsets(), S);
+      pS = RAP(dS, tr_pfes->Dof_TrueDof_Matrix());
+      delete dS;
       delete S;
-      S = cS;
+      S = NULL;
+      if (S_e)
+      {
+         HypreParMatrix *dS_e =
+            new HypreParMatrix(tr_pfes->GetComm(), tr_pfes->GlobalVSize(),
+                               tr_pfes->GetDofOffsets(), S_e);
+         pS_e = RAP(dS_e, tr_pfes->Dof_TrueDof_Matrix());
+         delete dS_e;
+         delete S_e;
+         S_e = NULL;
+      }
+#endif
    }
 }
 
 void StaticCondensation::EliminateReducedTrueDofs(
    const Array<int> &ess_rtdof_list, int keep_diagonal)
 {
-   if (S_e == NULL)
+   if (!Parallel() || S) // not parallel or not finalized
    {
-      S_e = new SparseMatrix(S->Height());
+      if (S_e == NULL)
+      {
+         S_e = new SparseMatrix(S->Height());
+      }
+      for (int i = 0; i < ess_rtdof_list.Size(); i++)
+      {
+         S->EliminateRowCol(ess_rtdof_list[i], *S_e, keep_diagonal);
+      }
    }
-   for (int i = 0; i < ess_rtdof_list.Size(); i++)
+   else // parallel and finalized
    {
-      S->EliminateRowCol(ess_rtdof_list[i], *S_e, keep_diagonal);
+#ifdef MFEM_USE_MPI
+      MFEM_ASSERT(pS_e == NULL, "essential b.c. already eliminated");
+      pS_e = pS->EliminateRowsCols(ess_rtdof_list);
+#endif
    }
 }
 
@@ -218,9 +281,9 @@ void StaticCondensation::ReduceRHS(const Vector &b, Vector &sc_b) const
 
    const int NE = fes->GetNE();
    const int nedofs = tr_fes->GetVSize();
-   const SparseMatrix *tr_P = tr_fes->GetConformingProlongation();
+   const SparseMatrix *tr_cP;
    Vector b_r;
-   if (!tr_P)
+   if (!Parallel() && !(tr_cP = tr_fes->GetConformingProlongation()))
    {
       sc_b.SetSize(nedofs);
       b_r.SetDataAndSize(sc_b.GetData(), sc_b.Size());
@@ -271,15 +334,28 @@ void StaticCondensation::ReduceRHS(const Vector &b, Vector &sc_b) const
          b_r(rd[j]) -= b_ep(j);
       }
    }
-   if (tr_P)
+   if (!Parallel())
    {
+      if (tr_cP)
+      {
+         sc_b.SetSize(tr_cP->Width());
+         tr_cP->MultTranspose(b_r, sc_b);
+      }
+   }
+   else
+   {
+#ifdef MFEM_USE_MPI
+      HypreParMatrix *tr_P = tr_pfes->Dof_TrueDof_Matrix();
       sc_b.SetSize(tr_P->Width());
       tr_P->MultTranspose(b_r, sc_b);
+#endif
    }
 }
 
 void StaticCondensation::ReduceSolution(const Vector &sol, Vector &sc_sol) const
 {
+   MFEM_ASSERT(sol.Size() == fes->GetVSize(), "'sol' has incorrect size");
+
    const int nedofs = tr_fes->GetVSize();
    const SparseMatrix *tr_R = tr_fes->GetRestrictionMatrix();
    Vector sol_r;
@@ -349,16 +425,26 @@ void StaticCondensation::ComputeSolution(
    MFEM_ASSERT(b.Size() == fes->GetVSize(), "'b' has incorrect size");
 
    const int nedofs = tr_fes->GetVSize();
-   const SparseMatrix *tr_P = tr_fes->GetConformingProlongation();
    Vector sol_r;
-   if (!tr_P)
+   if (!Parallel())
    {
-      sol_r.SetDataAndSize(sc_sol.GetData(), sc_sol.Size());
+      const SparseMatrix *tr_cP = tr_fes->GetConformingProlongation();
+      if (!tr_cP)
+      {
+         sol_r.SetDataAndSize(sc_sol.GetData(), sc_sol.Size());
+      }
+      else
+      {
+         sol_r.SetSize(nedofs);
+         tr_cP->Mult(sc_sol, sol_r);
+      }
    }
    else
    {
+#ifdef MFEM_USE_MPI
       sol_r.SetSize(nedofs);
-      tr_P->Mult(sc_sol, sol_r);
+      tr_pfes->Dof_TrueDof_Matrix()->Mult(sc_sol, sol_r);
+#endif
    }
    sol.SetSize(nedofs+npdofs);
    for (int i = 0; i < nedofs; i++)

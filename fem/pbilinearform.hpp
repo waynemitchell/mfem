@@ -105,14 +105,14 @@ public:
 
    /** Complete assembly of the linear system, applying any necessary
        transformations such as: eliminating boundary conditions; applying
-       conforming constraints for non-confoming AMR; parallel assembly;
-       hybridization. Returns the HypreParMatrix of the linear system that needs
-       to be solved. The ParGridFunction-size vector x must contain the
-       essential b.c. The ParBilinearForm and the ParLinearForm-size vector b
-       must be assembled. This method can be called multiple times (with the
-       same ess_tdof_list array) to initialize different right-hand sides and
-       boundary condition values. After solving the linear system, call
-       ComputeSolution (with the same vectors X, b, and x) to recover the
+       conforming constraints for non-confoming AMR; parallel assembly; static
+       condensation; hybridization. Returns the HypreParMatrix of the linear
+       system that needs to be solved. The ParGridFunction-size vector x must
+       contain the essential b.c. The ParBilinearForm and the ParLinearForm-size
+       vector b must be assembled. This method can be called multiple times
+       (with the same ess_tdof_list array) to initialize different right-hand
+       sides and boundary condition values. After solving the linear system,
+       call ComputeSolution (with the same vectors X, b, and x) to recover the
        solution as a ParGridFunction-size vector in x. */
    HypreParMatrix &AssembleSystem(Array<int> &ess_tdof_list,
                                   Vector &x, Vector &b,

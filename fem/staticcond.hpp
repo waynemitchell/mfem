@@ -15,9 +15,14 @@
 #include "../config/config.hpp"
 #include "fespace.hpp"
 
+#ifdef MFEM_USE_MPI
+#include "pfespace.hpp"
+#endif
+
 namespace mfem
 {
 
+/** TODO: add description. */
 class StaticCondensation
 {
    FiniteElementSpace *fes, *tr_fes;
@@ -27,6 +32,13 @@ class StaticCondensation
 
    // Schur complement: S = A_ee - A_ep (A_pp)^{-1} A_pe.
    SparseMatrix *S, *S_e;
+#ifdef MFEM_USE_MPI
+   ParFiniteElementSpace *tr_pfes;
+   HypreParMatrix *pS, *pS_e;
+   bool Parallel() const { return (tr_pfes != NULL); }
+#else
+   bool Parallel() const { return false; }
+#endif
 
    bool symm; // TODO: handle the symmetric case correctly.
    Array<int> A_offsets, A_ipiv_offsets;
@@ -71,6 +83,17 @@ public:
    /// Return the serial Schur complement matrix.
    SparseMatrix &GetMatrix() { return *S; }
 
+   /// Return the eliminated part of the serial Schur complement matrix.
+   SparseMatrix &GetMatrixElim() { return *S_e; }
+
+#ifdef MFEM_USE_MPI
+   /// Return the parallel Schur complement matrix.
+   HypreParMatrix &GetParallelMatrix() { return *pS; }
+
+   /// Return the eliminated part of the parallel Schur complement matrix.
+   HypreParMatrix &GetParallelMatrixElim() { return *pS_e; }
+#endif
+
    /** Given a RHS vector for the full linear system, compute the RHS for the
        reduced linear system: sc_b = b_e - A_ep A_pp_inv b_p. */
    void ReduceRHS(const Vector &b, Vector &sc_b) const;
@@ -90,8 +113,7 @@ public:
                                      Array<int> &ess_rtdof_list) const
    {
       Array<int> ess_tdof_marker, ess_rtdof_marker;
-      FiniteElementSpace::ListToMarker(ess_tdof_list,
-                                       fes->GetConformingVSize(),
+      FiniteElementSpace::ListToMarker(ess_tdof_list, fes->GetTrueVSize(),
                                        ess_tdof_marker);
       ConvertMarkerToReducedTrueDofs(ess_tdof_marker, ess_rtdof_marker);
       FiniteElementSpace::MarkerToList(ess_rtdof_marker, ess_rtdof_list);

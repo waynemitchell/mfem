@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
+   bool static_cond = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -60,6 +61,8 @@ int main(int argc, char *argv[])
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree) or -1 for"
                   " isoparametric space.");
+   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
+                  "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -142,7 +145,16 @@ int main(int argc, char *argv[])
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
    {
-      cout << "Number of unknowns: " << size << endl;
+      cout << "Number of finite element unknowns: " << size << endl;
+   }
+
+   //
+   Array<int> ess_tdof_list;
+   if (pmesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    }
 
    // 7. Set up the parallel linear form b(.) which corresponds to the
@@ -167,36 +179,39 @@ int main(int argc, char *argv[])
    //    parallel assembly we extract the corresponding parallel matrix A.
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
+
+   //
+   FiniteElementCollection *sfec = NULL;
+   ParFiniteElementSpace *sfes = NULL;
+   if (static_cond)
+   {
+      sfec = new H1_Trace_FECollection(order, dim);
+      sfes = new ParFiniteElementSpace(pmesh, sfec);
+      a->EnableStaticCondensation(sfes);
+   }
+
    a->Assemble();
-   a->Finalize();
-
-   // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //     b(.) and the finite element approximation.
-   HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelProject();
-
-   // 11. Eliminate essential BC from the parallel system
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
-
-   delete a;
-   delete b;
+   Vector B, X;
+   HypreParMatrix &A = a->AssembleSystem(ess_tdof_list, x, *b, X, B);
+   HYPRE_Int glob_size = A.GetGlobalNumRows();
+   if (myid == 0)
+   {
+      cout << "Size of linear system: " << glob_size << endl;
+   }
 
    // 12. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
-   HypreSolver *amg = new HypreBoomerAMG(*A);
-   HyprePCG *pcg = new HyprePCG(*A);
+   HypreSolver *amg = new HypreBoomerAMG(A);
+   HyprePCG *pcg = new HyprePCG(A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(200);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
-   pcg->Mult(*B, *X);
+   pcg->Mult(B, X);
 
    // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   x = *X;
+   a->ComputeSolution(X, *b, x);
 
    // 14. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
@@ -228,15 +243,12 @@ int main(int argc, char *argv[])
    // 16. Free the used memory.
    delete pcg;
    delete amg;
-   delete X;
-   delete B;
-   delete A;
-
+   delete a;
+   delete b;
+   delete sfes;
+   delete sfec;
    delete fespace;
-   if (order > 0)
-   {
-      delete fec;
-   }
+   if (order > 0) { delete fec; }
    delete pmesh;
 
    MPI_Finalize();

@@ -163,6 +163,9 @@ public:
 
    inline int GetVSize() const { return vdim * ndofs; }
 
+   /// Return the number of vector true (conforming) dofs.
+   virtual int GetTrueVSize() { return GetConformingVSize(); }
+
    /// Returns the number of conforming ("true") degrees of freedom
    /// (if the space is on a nonconforming mesh with hanging nodes).
    int GetNConformingDofs();

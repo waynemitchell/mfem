@@ -156,6 +156,9 @@ public:
    HYPRE_Int GlobalTrueVSize()
    { return Dof_TrueDof_Matrix()->GetGlobalNumCols(); }
 
+   /// Return the number of local vector true dofs.
+   virtual int GetTrueVSize() { return ltdof_size; }
+
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
 
