@@ -2,20 +2,28 @@
 //
 // Compile with: make ex3p
 //
-// Sample runs:  mpirun -np 4 ex3p -m ../data/beam-tet.mesh
+// Sample runs:  mpirun -np 4 ex3p -m ../data/star.mesh
+//               mpirun -np 4 ex3p -m ../data/square-disc.mesh -o 2
+//               mpirun -np 4 ex3p -m ../data/beam-tet.mesh
 //               mpirun -np 4 ex3p -m ../data/beam-hex.mesh
 //               mpirun -np 4 ex3p -m ../data/escher.mesh
 //               mpirun -np 4 ex3p -m ../data/fichera.mesh
 //               mpirun -np 4 ex3p -m ../data/fichera-q2.vtk
 //               mpirun -np 4 ex3p -m ../data/fichera-q3.mesh
+//               mpirun -np 4 ex3p -m ../data/square-disc-nurbs.mesh
 //               mpirun -np 4 ex3p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex3p -m ../data/amr-quad.mesh -o 2
+//               mpirun -np 4 ex3p -m ../data/amr-hex.mesh
+//               mpirun -np 4 ex3p -m ../data/star-surf.mesh -o 2
+//               mpirun -np 4 ex3p -m ../data/mobius-strip.mesh -o 2 -f 0.1
+//               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
 //
-// Description:  This example code solves a simple 3D electromagnetic diffusion
+// Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
 //               equation curl curl E + E = f with boundary condition
 //               E x n = <given tangential field>. Here, we use a given exact
 //               solution E and compute the corresponding r.h.s. f.
-//               We discretize with Nedelec finite elements.
+//               We discretize with Nedelec finite elements in 2D or 3D.
 //
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
@@ -32,9 +40,10 @@ using namespace std;
 using namespace mfem;
 
 // Exact solution, E, and r.h.s., f. See below for implementation.
-static int tf = 0;
 void E_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
+double freq = 1.0, kappa;
+int dim;
 
 int main(int argc, char *argv[])
 {
@@ -47,7 +56,6 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/beam-tet.mesh";
    int order = 1;
-   int sr = 0, pr = 2;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -55,12 +63,8 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
-   args.AddOption(&tf, "-f", "--function",
-                  "Choice of test function");
-   args.AddOption(&sr, "-sr", "--serial-refinement",
-                  "Number of serial refinement levels.");
-   args.AddOption(&pr, "-pr", "--parallel-refinement",
-                  "Number of parallel refinement levels.");
+   args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
+                  " solution.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -78,6 +82,7 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   kappa = freq * M_PI;
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -95,24 +100,16 @@ int main(int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-   int dim = mesh->Dimension();
-   if (dim != 3)
-   {
-      if (myid == 0)
-      {
-         cerr << "\nThis example requires a 3D mesh\n" << endl;
-      }
-      MPI_Finalize();
-      return 3;
-   }
+   dim = mesh->Dimension();
+   int sdim = mesh->SpaceDimension();
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 1,000 elements.
    {
-      int ref_levels = sr;
-      //  (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels =
+         (int)floor(log(1000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
@@ -127,7 +124,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = pr;
+      int par_ref_levels = 2;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -136,8 +133,7 @@ int main(int argc, char *argv[])
    pmesh->ReorientTetMesh();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Nedelec finite elements, but we can easily switch
-   //    to higher-order spaces by changing the value of p.
+   //    use the Nedelec finite elements of the specified order.
    FiniteElementCollection *fec = new ND_FECollection(order, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    HYPRE_Int size = fespace->GlobalTrueVSize();
@@ -150,7 +146,7 @@ int main(int argc, char *argv[])
    //    right-hand side of the FEM linear system, which in this case is
    //    (f,phi_i) where f is given by the function f_exact and phi_i are the
    //    basis functions in the finite element fespace.
-   VectorFunctionCoefficient f(3, f_exact);
+   VectorFunctionCoefficient f(sdim, f_exact);
    ParLinearForm *b = new ParLinearForm(fespace);
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
@@ -161,7 +157,7 @@ int main(int argc, char *argv[])
    //    when eliminating the non-homogeneous boundary condition to modify the
    //    r.h.s. vector b.
    ParGridFunction x(fespace);
-   VectorFunctionCoefficient E(3, E_exact);
+   VectorFunctionCoefficient E(sdim, E_exact);
    x.ProjectCoefficient(E);
 
    // 9. Set up the parallel bilinear form corresponding to the EM diffusion
@@ -171,52 +167,50 @@ int main(int argc, char *argv[])
    //    marking all the boundary attributes from the mesh as essential
    //    (Dirichlet). After serial and parallel assembly we extract the
    //    parallel matrix A.
-   MPI_Barrier(MPI_COMM_WORLD);
-   tic();
    Coefficient *muinv = new ConstantCoefficient(1.0);
    Coefficient *sigma = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(fespace);
-   // a->UsePrecomputedSparsity();
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
    a->Assemble();
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelAverage();
-   *X = 0.0;
+   HypreParVector *X = x.ParallelProject();
 
-   MPI_Barrier(MPI_COMM_WORLD);
-   double utime = toc();
-   if ( myid == 0 )
-     cout << endl << "Assemble time:  " << utime << endl << endl;
+   // 11. Eliminate essential BC from the parallel system
+   if (pmesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
+   }
+
+   *X = 0.0;
 
    delete a;
    delete sigma;
    delete muinv;
    delete b;
 
-   // 11. Define and apply a parallel PCG solver for AX=B with the AMS
+   // 12. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
    HypreSolver *ams = new HypreAMS(*A, fespace);
    HyprePCG *pcg = new HyprePCG(*A);
    pcg->SetTol(1e-12);
-   pcg->SetMaxIter(10000);
+   pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
    pcg->Mult(*B, *X);
 
-   // 12. Extract the parallel grid function corresponding to the finite element
+   // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
    x = *X;
 
-   // 13. Compute and print the L^2 norm of the error.
+   // 14. Compute and print the L^2 norm of the error.
    {
       double err = x.ComputeL2Error(E);
       if (myid == 0)
@@ -225,7 +219,7 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 14. Save the refined mesh and the solution in parallel. This output can
+   // 15. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, sol_name;
@@ -241,7 +235,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 15. Send the solution by socket to a GLVis server.
+   // 16. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -252,7 +246,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *pmesh << x << flush;
    }
 
-   // 16. Free the used memory.
+   // 17. Free the used memory.
    delete pcg;
    delete ams;
    delete X;
@@ -267,55 +261,35 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-// A parameter for the exact solution.
-const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {
-   switch (tf) {
-   case 0:
+   if (dim == 3)
+   {
       E(0) = sin(kappa * x(1));
       E(1) = sin(kappa * x(2));
       E(2) = sin(kappa * x(0));
-      break;
-   case 1:
-   {
-      double a = sqrt(29.0)-5.0;
-      double r2 = x(0)*x(0)+x(1)*x(1)+x(2)*x(2);
-      double tmp = 0.25*a*a*exp(-r2/a);
-      E(0) = 0.0;
-      E(1) = -tmp*x(2);
-      E(2) =  tmp*x(1);
-      break;
    }
-   default:
-      E(0) = 0.0;
-      E(1) = 0.0;
-      E(2) = 0.0;
+   else
+   {
+      E(0) = sin(kappa * x(1));
+      E(1) = sin(kappa * x(0));
+      if (x.Size() == 3) { E(2) = 0.0; }
    }
 }
 
 void f_exact(const Vector &x, Vector &f)
 {
-   switch (tf) {
-   case 0:
+   if (dim == 3)
+   {
       f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
       f(1) = (1. + kappa * kappa) * sin(kappa * x(2));
       f(2) = (1. + kappa * kappa) * sin(kappa * x(0));
-      break;
-   case 1:
-   {
-      double a = sqrt(29.0)-5.0;
-      double r2 = x(0)*x(0)+x(1)*x(1)+x(2)*x(2);
-      double tmp = (1.0-r2)*exp(-r2/a);
-      f(0) = 0.0;
-      f(1) = -tmp*x(2);
-      f(2) =  tmp*x(1);
-      break;
    }
-   default:
-      f(0) = 0.0;
-      f(1) = 0.0;
-      f(2) = 0.0;
+   else
+   {
+      f(0) = (1. + kappa * kappa) * sin(kappa * x(1));
+      f(1) = (1. + kappa * kappa) * sin(kappa * x(0));
+      if (x.Size() == 3) { f(2) = 0.0; }
    }
 }

@@ -174,6 +174,7 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func,mu_func));
    cout << "matrix ... " << flush;
    a->Assemble();
+   a->ConformingAssemble(x, *b);
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1;
@@ -195,7 +196,10 @@ int main(int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
 
-   // 10. For non-NURBS meshes, make the mesh curved based on the finite element
+   // 10. Recover the grid function in non-conforming AMR problems
+   x.ConformingProlongate();
+
+   // 11. For non-NURBS meshes, make the mesh curved based on the finite element
    //     space. This means that we define the mesh elements through a fespace
    //     based transformation of the reference element. This allows us to save
    //     the displaced mesh as a curved mesh when using high-order finite
@@ -207,7 +211,7 @@ int main(int argc, char *argv[])
       mesh->SetNodalFESpace(fespace);
    }
 
-   // 11. Save the displaced mesh and the inverted solution (which gives the
+   // 12. Save the displaced mesh and the inverted solution (which gives the
    //     backward displacements to the original grid). This output can be
    //     viewed later using GLVis: "glvis -m displaced.mesh -g sol.gf".
    {
@@ -222,7 +226,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 12. Send the above data by socket to a GLVis server. Use the "n" and "b"
+   // 13. Send the above data by socket to a GLVis server. Use the "n" and "b"
    //     keys in GLVis to visualize the displacements.
    if (visualization)
    {
@@ -233,7 +237,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 13. Free the used memory.
+   // 14. Free the used memory.
    delete a;
    delete b;
    if (fec)

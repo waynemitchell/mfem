@@ -18,6 +18,7 @@
 #include "gridfunc.hpp"
 #include "linearform.hpp"
 #include "bilininteg.hpp"
+#include "hybridization.hpp"
 
 namespace mfem
 {
@@ -32,19 +33,6 @@ protected:
 
    // Matrix used to eliminate b.c.
    SparseMatrix *mat_e;
-
-   // Matrices associated with static condensation
-   SparseMatrix  *mat_ee; // The exposed-exposed block of the assembled matrix
-   SparseMatrix  *mat_ep; // The exposed-private block of the assembled matrix
-   SparseMatrix  *mat_pe; // The private-exposed block of the assembled matrix
-   SparseMatrix  *mat_rr; // The Schur Complement of the assembled matrix
-   DenseMatrix  **mat_pp; // The private-private dense blocks
-   DenseMatrixInverse **mat_pp_inv; // The inverses of the mat_pp blocks
-
-   // Vectors associated with static condensation
-   Vector *tmp_p; // A temporary vector compatible with the private DoFs
-   Vector *v1_e, *v1_p; // Temporary vectors which may be only shells
-   Vector *v2_e, *v2_p; // Temporary vectors which may be only shells
 
    /// FE space on which the form lives.
    FiniteElementSpace *fes;
@@ -68,21 +56,17 @@ protected:
 
    DenseTensor *element_matrices;
 
-   int precompute_sparsity;
+   Hybridization *hybridization;
 
+   int precompute_sparsity;
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
-
-   void permuteElementMatrix(DenseMatrix & mat, int vdim, int npr);
 
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
    {
       fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
-      mat_ee = mat_ep = mat_pe = mat_rr = NULL;
-      mat_pp = NULL; mat_pp_inv = NULL;
-      tmp_p = NULL;
-      v1_e = v1_p = v2_e = v2_p = NULL;
+      hybridization = NULL;
       precompute_sparsity = 0;
    }
 
@@ -95,6 +79,12 @@ public:
    /// Get the size of the BilinearForm as a square matrix.
    int Size() const { return height; }
 
+   /** Enable hybridization; for details see the description for class
+       Hybridization in fem/hybridization.hpp. */
+   void EnableHybridization(FiniteElementSpace *constr_space,
+                            BilinearFormIntegrator *constr_integ,
+                            const Array<int> &ess_tdof_list);
+
    /** For scalar FE spaces, precompute the sparsity pattern of the matrix
        (assuming dense element matrices) based on the types of integrators
        present in the bilinear form. */
@@ -103,7 +93,7 @@ public:
    /** Pre-allocate the internal SparseMatrix before assembly. If the flag
        'precompute sparsity' is set, the matrix is allocated in CSR format (i.e.
        finalized) and the entries are initialized with zeros. */
-   void AllocateMatrix() { if (mat == NULL && mat_ee == NULL) { AllocMat(); } }
+   void AllocateMatrix() { if (mat == NULL) { AllocMat(); } }
 
    Array<BilinearFormIntegrator*> *GetDBFI() { return &dbfi; }
 
@@ -142,31 +132,10 @@ public:
    /// Finalizes the matrix initialization.
    virtual void Finalize(int skip_zeros = 1);
 
-   /// Returns a reference to the sparse martix
+   /// Returns a reference to the sparse matrix
    const SparseMatrix &SpMat() const { return *mat; }
    SparseMatrix &SpMat() { return *mat; }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
-
-   /// Access the static condensation Matrices and Vectors
-   const SparseMatrix &SPMatEE() const { return *mat_ee; }
-   const SparseMatrix &SPMatEP() const { return *mat_ep; }
-   const SparseMatrix &SPMatPE() const { return *mat_pe; }
-   const SparseMatrix &SPMatRR() const { return *mat_rr; }
-
-   SparseMatrix &SpMatEE() { return *mat_ee; }
-   SparseMatrix &SpMatEP() { return *mat_ep; }
-   SparseMatrix &SpMatPE() { return *mat_pe; }
-   SparseMatrix &SpMatRR() { return *mat_rr; }
-
-   Vector *RHS_R(const Vector & rhs) const;
-   Vector *RHS_R(const Vector & rhs_e, const Vector & rhs_p) const;
-
-   // Given a rhs vector and a solution vector with its exposed DoFs
-   // already computed, update the private DoFs of sol
-   void UpdatePrivateDoFs(const Vector &rhs, Vector &sol) const;
-
-   void SplitExposedPrivate(const Vector &x, Vector *x_e, Vector *x_p) const;
-   void MergeExposedPrivate(Vector *x_e, Vector *x_p, Vector &x) const;
 
    /// Adds new Domain Integrator.
    void AddDomainIntegrator(BilinearFormIntegrator *bfi);
@@ -203,6 +172,26 @@ public:
       sol.ConformingProject();
    }
 
+   /** Complete assembly of the linear system, applying any necessary
+       transformations such as: eliminating boundary conditions; applying
+       conforming constraints for non-confoming AMR; hybridization. Returns the
+       SparseMatrix of the linear system that needs to be solved. The
+       GridFunction-size vector x must contain the essential b.c. The
+       BilinearForm and the LinearForm-size vector b must be assembled.
+       This method can be called multiple times (with the same ess_tdof_list
+       array) to initialize different right-hand sides and boundary condition
+       values. After solving the linear system, call ComputeSolution (with the
+       same vectors X, b, and x) to recover the solution as a GridFunction-size
+       vector in x. */
+   SparseMatrix &AssembleSystem(Array<int> &ess_tdof_list,
+                                Vector &x, Vector &b,
+                                Vector &X, Vector &B);
+
+   /** Call this method after solving a linear system constructed using the
+       AssembleSystem method to recover the solution as a GridFunction-size
+       vector in x. */
+   void ComputeSolution(const Vector &X, const Vector &b, Vector &x);
+
    /// Compute and store internally all element matrices.
    void ComputeElementMatrices();
 
@@ -222,12 +211,16 @@ public:
                              Vector &sol, Vector &rhs, int d = 0);
 
    void EliminateEssentialBC(Array<int> &bdr_attr_is_ess, int d = 0);
+   /// Perform elimination and set the diagonal entry to the given value
+   void EliminateEssentialBCDiag(Array<int> &bdr_attr_is_ess, double value);
 
    /// Eliminate the given vdofs. NOTE: here, vdofs is a list of DOFs.
    void EliminateVDofs(Array<int> &vdofs, Vector &sol, Vector &rhs, int d = 0);
 
-   /** Eliminate the given vdofs storing the eliminated part internally;
-       vdofs is a list of DOFs. */
+   /** Eliminate the given vdofs storing the eliminated part internally; this
+       method works in conjunction with EliminateVDofsInRHS and allows
+       elimination of boundary conditions in multiple right-hand sides. In this
+       method, vdofs is a list of DOFs. */
    void EliminateVDofs(Array<int> &vdofs, int d = 0);
 
    /** Similar to EliminateVDofs but here ess_dofs is a marker
@@ -238,15 +231,17 @@ public:
    /** Similar to EliminateVDofs but here ess_dofs is a marker
        (boolean) array on all vdofs (ess_dofs[i] < 0 is true). */
    void EliminateEssentialBCFromDofs(Array<int> &ess_dofs, int d = 0);
+   /// Perform elimination and set the diagonal entry to the given value
+   void EliminateEssentialBCFromDofsDiag(Array<int> &ess_dofs, double value);
 
-   /** Use the stored eliminated part of the matrix to modify r.h.s.;
-       vdofs is a list of DOFs (non-directional, i.e. >= 0). */
+   /** Use the stored eliminated part of the matrix (see EliminateVDofs) to
+       modify r.h.s.; vdofs is a list of DOFs (non-directional, i.e. >= 0). */
    void EliminateVDofsInRHS(Array<int> &vdofs, const Vector &x, Vector &b);
 
    double FullInnerProduct(const Vector &x, const Vector &y) const
    { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
 
-   void Update(FiniteElementSpace *nfes = NULL);
+   virtual void Update(FiniteElementSpace *nfes = NULL);
 
    FiniteElementSpace *GetFES() { return fes; }
 
@@ -274,29 +269,11 @@ class MixedBilinearForm : public Matrix
 protected:
    SparseMatrix *mat;
 
-   // Matrices associated with static condensation
-   SparseMatrix  *mat_ee; // The exposed-exposed block of the assembled matrix
-   SparseMatrix  *mat_ep; // The exposed-private block of the assembled matrix
-   SparseMatrix  *mat_pe; // The private-exposed block of the assembled matrix
-   DenseMatrix  **mat_pp; // The private-private dense blocks
-
-   // Vectors associated with static condensation
-   Vector *v1_e, *v1_p; // Temporary vectors which may be only shells
-   Vector *v2_e, *v2_p; // Temporary vectors which may be only shells
-
-   // FE space for the column and row indices respectively
    FiniteElementSpace *trial_fes, *test_fes;
 
    Array<BilinearFormIntegrator*> dom;
    Array<BilinearFormIntegrator*> bdr;
    Array<BilinearFormIntegrator*> skt; // trace face integrators
-
-   // Allocate appropriate SparseMatrix and assign it to mat
-   void AllocMat();
-
-   void permuteElementMatrix(DenseMatrix & mat,
-                             int vdim_r, int npr_r,
-                             int vdim_c, int npr_c);
 
 public:
    MixedBilinearForm (FiniteElementSpace *tr_fes,
@@ -326,30 +303,9 @@ public:
        test and trial spaces, respectively. */
    void GetBlocks(Array2D<SparseMatrix *> &blocks) const;
 
-   /** Extract the associated matrix as SparseMatrix blocks. The number of
-       block rows and columns is given by the vector dimensions (vdim) of the
-       test and trial spaces, respectively. This version returns only the
-       blocks corresponding to exposed DoFs */
-   void GetBlocksReduced(Array2D<SparseMatrix *> &blocks) const;
-
    const SparseMatrix &SpMat() const { return *mat; }
    SparseMatrix &SpMat() { return *mat; }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
-
-   /// Access the static condensation Matrices and Vectors
-   const SparseMatrix &SPMatEE() const { return *mat_ee; }
-   const SparseMatrix &SPMatEP() const { return *mat_ep; }
-   const SparseMatrix &SPMatPE() const { return *mat_pe; }
-
-   SparseMatrix &SpMatEE() { return *mat_ee; }
-   SparseMatrix &SpMatEP() { return *mat_ep; }
-   SparseMatrix &SpMatPE() { return *mat_pe; }
-
-   void SplitExposedPrivate(const FiniteElementSpace &fes, const Vector &x,
-                            Vector *x_e, Vector *x_p) const;
-   void MergeExposedPrivate(const FiniteElementSpace &fes,
-                            Vector *x_e, Vector *x_p,
-                            Vector &x) const;
 
    void AddDomainIntegrator (BilinearFormIntegrator * bfi);
 
@@ -430,6 +386,9 @@ public:
 
    void AddDomainInterpolator(DiscreteInterpolator *di)
    { AddDomainIntegrator(di); }
+
+   void AddTraceFaceInterpolator(DiscreteInterpolator *di)
+   { AddTraceFaceIntegrator(di); }
 
    Array<BilinearFormIntegrator*> *GetDI() { return &dom; }
 

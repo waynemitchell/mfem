@@ -15,6 +15,9 @@
 //               mpirun -np 4 ex1p -m ../data/star-surf.mesh
 //               mpirun -np 4 ex1p -m ../data/square-disc-surf.mesh
 //               mpirun -np 4 ex1p -m ../data/inline-segment.mesh
+//               mpirun -np 4 ex1p -m ../data/amr-quad.mesh
+//               mpirun -np 4 ex1p -m ../data/amr-hex.mesh
+//               mpirun -np 4 ex1p -m ../data/mobius-strip.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -174,16 +177,18 @@ int main(int argc, char *argv[])
    // a->UsePrecomputedSparsity();
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->EliminateEssentialBC(ess_bdr, x, *b);
    a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
    HypreParMatrix *A = a->ParallelAssemble();
    HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelAverage();
+   HypreParVector *X = x.ParallelProject();
+
+   // 11. Eliminate essential BC from the parallel system
+   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
 
    MPI_Barrier(MPI_COMM_WORLD);
    double utime = toc();
@@ -193,7 +198,7 @@ int main(int argc, char *argv[])
    delete a;
    delete b;
 
-   // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   // 12. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
    HypreSolver *amg = new HypreBoomerAMG(*A);
    HyprePCG *pcg = new HyprePCG(*A);
@@ -203,11 +208,11 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*amg);
    pcg->Mult(*B, *X);
 
-   // 12. Extract the parallel grid function corresponding to the finite element
+   // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
    x = *X;
 
-   // 13. Save the refined mesh and the solution in parallel. This output can
+   // 14. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, sol_name;
@@ -223,7 +228,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 14. Send the solution by socket to a GLVis server.
+   // 15. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -234,7 +239,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *pmesh << x << flush;
    }
 
-   // 15. Free the used memory.
+   // 16. Free the used memory.
    delete pcg;
    delete amg;
    delete X;

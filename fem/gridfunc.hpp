@@ -42,6 +42,13 @@ protected:
    void ProjectDeltaCoefficient(DeltaCoefficient &delta_coeff,
                                 double &integral);
 
+   // Sum fluxes to vertices and count element contributions
+   void SumFluxAndCount(BilinearFormIntegrator &blfi,
+                        GridFunction &flux,
+                        Array<int>& counts,
+                        int wcoef,
+                        int subdomain);
+
    /** Project a discontinuous vector coefficient in a continuous space and
        return in dof_attr the maximal attribute of the elements containing each
        degree of freedom. */
@@ -115,6 +122,8 @@ public:
 
    double GetDivergence(ElementTransformation &tr);
 
+   void GetCurl(ElementTransformation &tr, Vector &curl);
+
    void GetGradient(ElementTransformation &tr, Vector &grad);
 
    void GetGradients(const int elem, const IntegrationRule &ir,
@@ -130,7 +139,7 @@ public:
    /** Impose the given bounds on the function's DOFs while preserving its local
     *  integral (described in terms of the given weights) on the i'th element
     *  through SLBPQ optimization.
-    *  Intended to be used for discontinuos FE functions. */
+    *  Intended to be used for discontinuous FE functions. */
    void ImposeBounds(int i, const Vector &weights,
                      const Vector &_lo, const Vector &_hi);
    void ImposeBounds(int i, const Vector &weights,
@@ -147,6 +156,9 @@ public:
    void ProjectCoefficient(Coefficient &coeff, Array<int> &dofs, int vd = 0);
 
    void ProjectCoefficient(VectorCoefficient &vcoeff);
+
+   // call fes -> BuildDofToArrays() before using this projection
+   void ProjectCoefficient(VectorCoefficient &vcoeff, Array<int> &dofs);
 
    void ProjectCoefficient(Coefficient *coeff[]);
 
@@ -263,6 +275,10 @@ public:
 
    void Update(FiniteElementSpace *f, Vector &v, int v_offset);
 
+   virtual void ComputeFlux(BilinearFormIntegrator &blfi,
+                            GridFunction &flux,
+                            int wcoef = 1, int subdomain = -1);
+
    /// Save the GridFunction to an output stream.
    virtual void Save(std::ostream &out) const;
 
@@ -281,16 +297,16 @@ public:
     derived class ParGridFunction */
 std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
 
-
-void ComputeFlux(BilinearFormIntegrator &blfi,
-                 GridFunction &u,
-                 GridFunction &flux, int wcoef = 1, int sd = -1);
-
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &u,
-                      GridFunction &flux, Vector &ErrorEstimates,
-                      int wsd = 1);
+                      GridFunction &flux,
+                      Vector &error_estimates,
+                      Array<int> *aniso_flags = NULL,
+                      int with_subdomains = 1);
 
+/// Compute the Lp distance between two grid functions on the given element.
+double ComputeElementLpDistance(double p, int i,
+                                GridFunction& gf1, GridFunction& gf2);
 
 /// Class used for extruding scalar GridFunctions
 class ExtrudeCoefficient : public Coefficient

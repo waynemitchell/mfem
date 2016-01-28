@@ -35,12 +35,14 @@ struct Refinement;
 
 #ifdef MFEM_USE_MPI
 class ParMesh;
+class ParNCMesh;
 #endif
 
 class Mesh
 {
 #ifdef MFEM_USE_MPI
    friend class ParMesh;
+   friend class ParNCMesh;
 #endif
    friend class NURBSExtension;
 
@@ -68,12 +70,29 @@ protected:
    Array<Element *> boundary;
    Array<Element *> faces;
 
-   class FaceInfo
+   struct FaceInfo
    {
-   public:
       int Elem1No, Elem2No, Elem1Inf, Elem2Inf;
+      int NCFace; /* -1 if this is a regular conforming/boundary face;
+                     index into 'nc_faces_info' if >= 0. */
    };
+   // NOTE: in NC meshes, master faces have Elem2No == -1. Slave faces on the
+   // other hand have Elem2No and Elem2Inf set to the master face's element and
+   // its local face number.
+
+   struct NCFaceInfo
+   {
+      bool Slave; // true if this is a slave face, false if master face
+      int MasterFace; // if Slave, this is the index of the master face
+      const DenseMatrix* PointMatrix; // if Slave, position within master face
+      // (NOTE: PointMatrix points to a matrix owned by NCMesh.)
+
+      NCFaceInfo(bool slave, int master, const DenseMatrix* pm)
+         : Slave(slave), MasterFace(master), PointMatrix(pm) {}
+   };
+
    Array<FaceInfo> faces_info;
+   Array<NCFaceInfo> nc_faces_info;
 
    Table *el_to_edge;
    Table *el_to_face;
@@ -116,6 +135,14 @@ protected:
    MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
 
+public:
+   Array<int> attributes;
+   Array<int> bdr_attributes;
+
+   NURBSExtension *NURBSext;
+   NCMesh *ncmesh;
+
+protected:
    void Init();
 
    void InitTables();
@@ -123,7 +150,7 @@ protected:
    void DeleteTables();
 
    /** Delete the 'el_to_el', 'face_edge' and 'edge_vertex' tables, and the
-       coarse non-conforming Mesh 'nc_coarse_level'. Usefull in refinement
+       coarse non-conforming Mesh 'nc_coarse_level'. Useful in refinement
        methods to destroy these data members. */
    void DeleteCoarseTables();
 
@@ -201,8 +228,8 @@ protected:
    virtual void LocalRefinement(const Array<int> &marked_el, int type = 3);
 
    /// This function is not public anymore. Use GeneralRefinement instead.
-   void NonconformingRefinement(const Array<Refinement> &refinements,
-                                int nc_limit = 0);
+   virtual void NonconformingRefinement(const Array<Refinement> &refinements,
+                                        int nc_limit = 0);
 
    /// Read NURBS patch/macro-element mesh
    void LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot);
@@ -233,6 +260,11 @@ protected:
    /// Used in GetFaceElementTransformations (...)
    void GetLocalQuadToHexTransformation (IsoparametricTransformation &loc,
                                          int i);
+   /** Used in GetFaceElementTransformations to account for the fact that a
+       slave face occupies only a portion of its master face. */
+   void ApplySlaveTransformation(IsoparametricTransformation &transf,
+                                 const FaceInfo &fi);
+   bool IsSlaveFace(const FaceInfo &fi);
 
    /// Returns the orientation of "test" relative to "base"
    static int GetTriOrientation (const int * base, const int * test);
@@ -248,7 +280,7 @@ protected:
        in the table, then (j, i) is not stored. */
    void GetVertexToVertexTable(DSTable &) const;
 
-   /** Return element to edge table and the indeces for the boundary edges.
+   /** Return element to edge table and the indices for the boundary edges.
        The entries in the table are ordered according to the order of the
        nodes in the elements. For example, if T is the element to edge table
        T(i, 0) gives the index of edge in element i that connects vertex 0
@@ -281,6 +313,7 @@ protected:
    void FreeElement (Element *E);
 
    void GenerateFaces();
+   void GenerateNCFaceInfo();
 
    /// Begin construction of a mesh
    void InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem);
@@ -302,8 +335,11 @@ protected:
    /// Creates a 1D mesh for the interval [0,sx] divided into n equal intervals.
    void Make1D(int n, double sx = 1.0);
 
+   /// Initialize vertices/elements/boundary/tables from a nonconforming mesh.
+   void InitFromNCMesh(const NCMesh &ncmesh);
+
    /// Create from a nonconforming mesh.
-   Mesh(NCMesh& ncmesh);
+   Mesh(const NCMesh &ncmesh);
 
    /// Swaps internal data with another mesh. By default, non-geometry members
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
@@ -312,12 +348,6 @@ protected:
 public:
 
    enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
-
-   Array<int> attributes;
-   Array<int> bdr_attributes;
-
-   NURBSExtension *NURBSext;
-   NCMesh *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
@@ -483,10 +513,10 @@ public:
    { boundary[i]->GetVertices(dofs); }
 
    /// Return the indices and the orientations of all edges of element i.
-   void GetElementEdges(int i, Array<int> &, Array<int> &) const;
+   void GetElementEdges(int i, Array<int> &edges, Array<int> &cor) const;
 
    /// Return the indices and the orientations of all edges of bdr element i.
-   void GetBdrElementEdges(int i, Array<int> &, Array<int> &) const;
+   void GetBdrElementEdges(int i, Array<int> &edges, Array<int> &cor) const;
 
    /** Return the indices and the orientations of all edges of face i.
        Works for both 2D (face=edge) and 3D faces. */
@@ -520,8 +550,9 @@ public:
    /// Return the index and the orientation of the face of bdr element i. (3D)
    void GetBdrElementFace(int i, int *, int *) const;
 
-   /** Return the edge index of boundary element i. (2D)
-       return the face index of boundary element i. (3D) */
+   /** Return the vertex index of boundary element i. (1D)
+       Return the edge index of boundary element i. (2D)
+       Return the face index of boundary element i. (3D) */
    int GetBdrElementEdgeIndex(int i) const;
 
    /// Returns the type of element i.
@@ -695,6 +726,12 @@ public:
        defined or NULL if the mesh does not have nodes. */
    const FiniteElementSpace *GetNodalFESpace();
 
+   /** Set the curvature of the mesh nodes using the given polynomial degree,
+       'order', and optionally: discontinuous or continuous FE space, 'discont',
+       new space dimension, 'space_dim' (if != -1), and 'ordering'. */
+   void SetCurvature(int order, bool discont = false, int space_dim = -1,
+                     int ordering = 1);
+
    /** Refine all mesh elements. */
    void UniformRefinement();
 
@@ -712,13 +749,26 @@ public:
        refinement for triangles). Use noncoforming = 0/1 to force the method.
        For nonconforming refinements, nc_limit optionally specifies the maximum
        level of hanging nodes (unlimited by default). */
-   void GeneralRefinement(Array<Refinement> &refinements,
+   void GeneralRefinement(const Array<Refinement> &refinements,
                           int nonconforming = -1, int nc_limit = 0);
 
    /** Simplified version of GeneralRefinement taking a simple list of elements
        to refine, without refinement types. */
-   void GeneralRefinement(Array<int> &el_to_refine,
+   void GeneralRefinement(const Array<int> &el_to_refine,
                           int nonconforming = -1, int nc_limit = 0);
+
+   /** Ensure that a quad/hex mesh is considered to be non-conforming (i.e. has
+       an associated NCMesh object). */
+   void EnsureNCMesh();
+
+   /// Refine each element with 1/frac probability, repeat 'levels' times.
+   void RandomRefinement(int levels, int frac = 2, bool aniso = false,
+                         int nonconforming = -1, int nc_limit = -1,
+                         int seed = 0 /* should be the same on all CPUs */);
+
+   /// Refine elements sharing the specified vertex, 'levels' times.
+   void RefineAtVertex(const Vertex& vert, int levels,
+                       double eps = 0.0, int nonconforming = -1);
 
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
@@ -796,6 +846,13 @@ public:
    void Transform(void (*f)(const Vector&, Vector&));
    void Transform(VectorCoefficient &deformation);
 
+   /// Remove unused vertices and rebuild mesh connectivity.
+   void RemoveUnusedVertices();
+
+   /** Remove boundary elements that lie in the interior of the mesh, i.e. that
+       have two adjacent faces in 3D, or edges in 2D. */
+   void RemoveInternalBoundaries();
+
    /** Get the size of the i-th element relative to the perfect
        reference element. */
    double GetElementSize(int i, int type = 0);
@@ -804,7 +861,13 @@ public:
 
    double GetElementVolume(int i);
 
-   void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL);
+   void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL,
+                             std::ostream &out = std::cout);
+
+   virtual void PrintInfo(std::ostream &out = std::cout)
+   {
+      PrintCharacteristics(NULL, NULL, out);
+   }
 
    void MesquiteSmooth(const int mesquite_option = 0);
 

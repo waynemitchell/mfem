@@ -13,6 +13,11 @@
 //               ex1 -m ../data/pipe-nurbs.mesh -o -1
 //               ex1 -m ../data/star-surf.mesh
 //               ex1 -m ../data/square-disc-surf.mesh
+//               ex1 -m ../data/inline-segment.mesh
+//               ex1 -m ../data/amr-quad.mesh
+//               ex1 -m ../data/amr-hex.mesh
+//               ex1 -m ../data/fichera-amr.mesh
+//               ex1 -m ../data/mobius-strip.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -129,6 +134,7 @@ int main(int argc, char *argv[])
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->Assemble();
+   a->ConformingAssemble(x, *b);
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 1;
    a->EliminateEssentialBC(ess_bdr, x, *b);
@@ -148,8 +154,11 @@ int main(int argc, char *argv[])
    umf_solver.Mult(*b, x);
 #endif
 
-   // 9. Save the refined mesh and the solution. This output can be viewed later
-   //    using GLVis: "glvis -m refined.mesh -g sol.gf".
+   // 9. Recover the grid function in non-conforming AMR problems
+   x.ConformingProlongate();
+
+   // 10. Save the refined mesh and the solution. This output can be viewed later
+   //     using GLVis: "glvis -m refined.mesh -g sol.gf".
    ofstream mesh_ofs("refined.mesh");
    mesh_ofs.precision(8);
    mesh->Print(mesh_ofs);
@@ -157,7 +166,7 @@ int main(int argc, char *argv[])
    sol_ofs.precision(8);
    x.Save(sol_ofs);
 
-   // 10. Send the solution by socket to a GLVis server.
+   // 11. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -167,7 +176,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 11. Free the used memory.
+   // 12. Free the used memory.
    delete a;
    delete b;
    delete fespace;

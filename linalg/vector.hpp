@@ -48,6 +48,7 @@ public:
    /// Creates vector of size s.
    explicit Vector (int s);
 
+   /// Creates a vector referencing an array of doubles, owned by someone else.
    Vector (double *_data, int _size)
    { data = _data; size = _size; allocsize = -size; }
 
@@ -147,8 +148,6 @@ public:
 
    /// Swap the contents of two Vectors
    inline void Swap(Vector &other);
-   /// Swap v1 and v2 (deprecated).
-   friend void swap(Vector *v1, Vector *v2) { v1->Swap(*v2); }
 
    /// Do v = v1 + v2.
    friend void add(const Vector &v1, const Vector &v2, Vector &v);
@@ -215,7 +214,7 @@ public:
    int CheckFinite() const { return mfem::CheckFinite(data, size); }
 
    /// Destroys vector.
-   ~Vector ();
+   virtual ~Vector ();
 };
 
 // Inline methods

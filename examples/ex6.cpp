@@ -13,6 +13,7 @@
 //               ex6 -m ../data/pipe-nurbs.mesh
 //               ex6 -m ../data/star-surf.mesh -o 2
 //               ex6 -m ../data/square-disc-surf.mesh -o 2
+//               ex6 -m ../data/amr-quad.mesh
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement loop. The problem being solved is again the Laplace
@@ -72,21 +73,18 @@ int main(int argc, char *argv[])
    Mesh mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh.Dimension();
+   int sdim = mesh.SpaceDimension();
 
    // 3. Since a NURBS mesh can currently only be refined uniformly, we need to
    //    convert it to a piecewise-polynomial curved mesh. First we refine the
-   //    NURBS mesh a bit and then project the curvature to quadratic Nodes.
+   //    NURBS mesh a bit more and then project the curvature to quadratic Nodes.
    if (mesh.NURBSext)
    {
       for (int i = 0; i < 2; i++)
       {
          mesh.UniformRefinement();
       }
-
-      FiniteElementCollection* nfec = new H1_FECollection(2, dim);
-      FiniteElementSpace* nfes = new FiniteElementSpace(&mesh, nfec, dim);
-      mesh.SetNodalFESpace(nfes);
-      mesh.GetNodes()->MakeOwner(nfec);
+      mesh.SetCurvature(2);
    }
 
    // 4. Define a finite element space on the mesh. The polynomial order is
@@ -128,11 +126,12 @@ int main(int argc, char *argv[])
    //    current mesh, visualize the solution, estimate the error on all
    //    elements, refine the worst elements and update all objects to work
    //    with the new mesh.
-   const int max_it = 15;
-   for (int it = 0; it < max_it; it++)
+   const int max_dofs = 50000;
+   for (int it = 0; ; it++)
    {
+      int cdofs = fespace.GetNConformingDofs();
       cout << "\nIteration " << it << endl;
-      cout << "Number of unknowns: " << fespace.GetNConformingDofs() << endl;
+      cout << "Number of unknowns: " << cdofs << endl;
 
       // 10. Assemble the stiffness matrix and the right-hand side. Note that
       //     MFEM doesn't care at this point if the mesh is nonconforming (i.e.,
@@ -158,7 +157,7 @@ int main(int argc, char *argv[])
       // 13. Define a simple symmetric Gauss-Seidel preconditioner and use it to
       //     solve the linear system with PCG.
       GSSmoother M(A);
-      PCG(A, M, b, x, 1, 200, 1e-12, 0.0);
+      PCG(A, M, b, x, 2, 200, 1e-12, 0.0);
 #else
       // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
       //     the linear system.
@@ -181,29 +180,36 @@ int main(int argc, char *argv[])
          sol_sock << "solution\n" << mesh << x << flush;
       }
 
+      if (cdofs > max_dofs)
+      {
+         break;
+      }
+
       // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
       Vector errors(mesh.GetNE());
+      Array<int> aniso_flags;
       {
-         FiniteElementSpace flux_fespace(&mesh, &fec, dim);
          DiffusionIntegrator flux_integrator(one);
+         FiniteElementSpace flux_fespace(&mesh, &fec, sdim);
          GridFunction flux(&flux_fespace);
-         ComputeFlux(flux_integrator, x, flux);
-         ZZErrorEstimator(flux_integrator, x, flux, errors, 1);
+         ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
       }
 
       // 17. Make a list of elements whose error is larger than a fraction (0.7)
       //     of the maximum element error. These elements will be refined.
-      Array<int> ref_list;
+      Array<Refinement> ref_list;
       const double frac = 0.7;
       // the 'errors' are squared, so we need to square the fraction
       double threshold = (frac*frac) * errors.Max();
       for (int i = 0; i < errors.Size(); i++)
+      {
          if (errors[i] >= threshold)
          {
-            ref_list.Append(i);
+            ref_list.Append(Refinement(i, aniso_flags[i]));
          }
+      }
 
       // 18. Refine the selected elements. Since we are going to transfer the
       //     grid function x from the coarse mesh to the new fine mesh in the

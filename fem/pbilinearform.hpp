@@ -32,7 +32,7 @@ protected:
    ParFiniteElementSpace *pfes;
    mutable ParGridFunction X, Y; // used in TrueAddMult
 
-   Vector * tmp_e;  // temporary vector of exposed DoFs
+   HypreParMatrix *p_mat, *p_mat_e;
 
    bool keep_nbr_block;
 
@@ -43,12 +43,12 @@ protected:
 
 public:
    ParBilinearForm(ParFiniteElementSpace *pf)
-      : BilinearForm(pf), pfes(pf), tmp_e(NULL)
+      : BilinearForm(pf), pfes(pf), p_mat(NULL), p_mat_e(NULL)
    { keep_nbr_block = false; }
 
    ParBilinearForm(ParFiniteElementSpace *pf, ParBilinearForm *bf)
-      : BilinearForm(pf, bf), tmp_e(NULL)
-   { pfes = pf; keep_nbr_block = false; }
+      : BilinearForm(pf, bf), pfes(pf), p_mat(NULL), p_mat_e(NULL)
+   { keep_nbr_block = false; }
 
    /** When set to true and the ParBilinearForm has interior face integrators,
        the local SparseMatrix will include the rows (in addition to the columns)
@@ -62,19 +62,11 @@ public:
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
    HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
 
-   /// Returns the matrix assembled on the true dofs, i.e. P^t A_rr P.
-   HypreParMatrix *ParallelAssembleReduced();
-
    /// Returns the eliminated matrix assembled on the true dofs, i.e. P^t A_e P.
    HypreParMatrix *ParallelAssembleElim() { return ParallelAssemble(mat_e); }
 
    /// Return the matrix m assembled on the true dofs, i.e. P^t A P
    HypreParMatrix *ParallelAssemble(SparseMatrix *m);
-
-   /// Return the matrix m assembled on the true exposed dofs, i.e. P^t A P
-   HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m);
-
-   HypreParVector *RHS_R(const Vector & rhs) const;
 
    /** Eliminate essential boundary DOFs from a parallel assembled system.
        The array 'bdr_attr_is_ess' marks boundary attributes that constitute
@@ -84,12 +76,56 @@ public:
                                      const HypreParVector &X,
                                      HypreParVector &B) const;
 
+   /** Eliminate essential boundary DOFs from a parallel assembled matrix A.
+       The array 'bdr_attr_is_ess' marks boundary attributes that constitute
+       the essential part of the boundary. The eliminated part is stored in a
+       matrix A_elim such that A_new = A_original + A_elim. Returns a pointer to
+       the newly allocatated matrix A_elim which should be deleted by the
+       caller. The matrices A and A_elim can be used to eliminate boundary
+       conditions in multiple right-hand sides, by calling the function
+       EliminateBC (from hypre.hpp).*/
+   HypreParMatrix *ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
+                                                HypreParMatrix &A) const;
+
+   /** Given a list of essential true dofs and the parallel assembled matrix A,
+       eliminate the true dofs from the matrix storing the eliminated part in
+       a matrix A_elim such that A_new = A_original + A_elim. Returns a pointer
+       to the newly allocatated matrix A_elim which should be deleted by the
+       caller. The matrices A and A_elim can be used to eliminate boundary
+       conditions in multiple right-hand sides, by calling the function
+       EliminateBC (from hypre.hpp). */
+   HypreParMatrix *ParallelEliminateTDofs(const Array<int> &tdofs_list,
+                                          HypreParMatrix &A) const
+   { return A.EliminateRowsCols(tdofs_list); }
+
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 
    ParFiniteElementSpace *ParFESpace() const { return pfes; }
 
-   virtual ~ParBilinearForm() { }
+   /** Complete assembly of the linear system, applying any necessary
+       transformations such as: eliminating boundary conditions; applying
+       conforming constraints for non-confoming AMR; parallel assembly;
+       hybridization. Returns the HypreParMatrix of the linear system that needs
+       to be solved. The ParGridFunction-size vector x must contain the
+       essential b.c. The ParBilinearForm and the ParLinearForm-size vector b
+       must be assembled. This method can be called multiple times (with the
+       same ess_tdof_list array) to initialize different right-hand sides and
+       boundary condition values. After solving the linear system, call
+       ComputeSolution (with the same vectors X, b, and x) to recover the
+       solution as a ParGridFunction-size vector in x. */
+   HypreParMatrix &AssembleSystem(Array<int> &ess_tdof_list,
+                                  Vector &x, Vector &b,
+                                  Vector &X, Vector &B);
+
+   /** Call this method after solving a linear system constructed using the
+       AssembleSystem method to recover the solution as a ParGridFunction-size
+       vector in x. */
+   void ComputeSolution(const Vector &X, const Vector &b, Vector &x);
+
+   virtual void Update(FiniteElementSpace *nfes = NULL);
+
+   virtual ~ParBilinearForm() { delete p_mat_e; delete p_mat; }
 };
 
 /// Class for parallel bilinear form
@@ -110,16 +146,7 @@ public:
    }
 
    /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
-   HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
-
-   /// Returns the matrix assembled on the true dofs, i.e. P^t A P.
-   HypreParMatrix *ParallelAssembleReduced();
-
-   /// Return the matrix m assembled on the true dofs, i.e. P^t A P
-   HypreParMatrix *ParallelAssemble(SparseMatrix *m);
-
-   /// Return the matrix m assembled on the true exposed dofs, i.e. P^t A P
-   HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m);
+   HypreParMatrix *ParallelAssemble();
 
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
@@ -135,46 +162,17 @@ protected:
    ParFiniteElementSpace *domain_fes;
    ParFiniteElementSpace *range_fes;
 
-   HypreParMatrix *ParallelAssemble(SparseMatrix *m,
-                                    HYPRE_Int *true_row_starts,
-                                    HYPRE_Int *true_col_starts,
-                                    bool scalar) const;
-   HypreParMatrix *ParallelAssemble(SparseMatrix *m)
-   {
-      return ParallelAssemble(m, range_fes->GetTrueDofOffsets(),
-                              domain_fes->GetTrueDofOffsets(), false);
-   }
-
-   HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m,
-                                           HYPRE_Int *true_ex_row_starts,
-                                           HYPRE_Int *true_ex_col_starts,
-                                           bool scalar) const;
-   HypreParMatrix *ParallelAssembleReduced(SparseMatrix *m)
-   {
-      return ParallelAssembleReduced(m, range_fes->GetTrueExDofOffsets(),
-                                     domain_fes->GetTrueExDofOffsets(), false);
-   }
-
 public:
    ParDiscreteLinearOperator(ParFiniteElementSpace *dfes,
                              ParFiniteElementSpace *rfes)
       : DiscreteLinearOperator(dfes, rfes) { domain_fes=dfes; range_fes=rfes; }
 
    /// Returns the matrix "assembled" on the true dofs
-   HypreParMatrix *ParallelAssemble() { return ParallelAssemble(mat); }
+   HypreParMatrix *ParallelAssemble() const;
 
-   /// Returns the matrix "assembled" on the true exposed dofs
-   HypreParMatrix *ParallelAssembleReduced();
-
-   /** Extract the parallel blocks corresponding to the vector
-       dimensions of the domain and range parallel finite element
-       spaces */
+   /** Extract the parallel blocks corresponding to the vector dimensions of the
+       domain and range parallel finite element spaces */
    void GetParBlocks(Array2D<HypreParMatrix *> &blocks) const;
-
-   /** Extract the parallel blocks corresponding to the vector
-       dimensions of the exposed portions of the domain and range
-       parallel finite element spaces */
-   void GetParBlocksReduced(Array2D<HypreParMatrix *> &blocks) const;
 
    virtual ~ParDiscreteLinearOperator() { }
 };

@@ -7,13 +7,17 @@
 //               ex4 -m ../data/beam-tet.mesh
 //               ex4 -m ../data/beam-hex.mesh
 //               ex4 -m ../data/escher.mesh
-//               ex4 -m ../data/fichera.mesh
+//               ex4 -m ../data/fichera.mesh -o 2 -hb
 //               ex4 -m ../data/fichera-q2.vtk
 //               ex4 -m ../data/fichera-q3.mesh
 //               ex4 -m ../data/square-disc-nurbs.mesh
 //               ex4 -m ../data/beam-hex-nurbs.mesh
 //               ex4 -m ../data/periodic-square.mesh -no-bc
 //               ex4 -m ../data/periodic-cube.mesh -no-bc
+//               ex4 -m ../data/amr-quad.mesh
+//               ex4 -m ../data/amr-hex.mesh
+//               ex4 -m ../data/fichera-amr.mesh
+//               ex4 -m ../data/star-surf.mesh -o 1
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -25,7 +29,8 @@
 //               The example demonstrates the use of H(div) finite element
 //               spaces with the grad-div and H(div) vector finite element mass
 //               bilinear form, as well as the computation of discretization
-//               error when the exact solution is known.
+//               error when the exact solution is known. Bilinear form
+//               hybridization is also illustrated.
 //
 //               We recommend viewing examples 1-3 before viewing this example.
 
@@ -39,6 +44,7 @@ using namespace mfem;
 // Exact solution, F, and r.h.s., f. See below for implementation.
 void F_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
+double freq = 1.0, kappa;
 
 int main(int argc, char *argv[])
 {
@@ -46,6 +52,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool set_bc = true;
+   bool hybridization = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -55,6 +62,10 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree).");
    args.AddOption(&set_bc, "-bc", "--impose-bc", "-no-bc", "--dont-impose-bc",
                   "Impose or not essential boundary conditions.");
+   args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
+                  " solution.");
+   args.AddOption(&hybridization, "-hb", "--hybridization", "-no-hb",
+                  "--no-hybridization", "Enable hybridization.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -65,6 +76,7 @@ int main(int argc, char *argv[])
       return 1;
    }
    args.PrintOptions(cout);
+   kappa = freq * M_PI;
 
    // 2. Read the mesh from the given mesh file. We can handle triangular,
    //    quadrilateral, tetrahedral, hexahedral, surface and volume, as well as
@@ -79,6 +91,7 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
+   int sdim = mesh->SpaceDimension();
 
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
@@ -98,65 +111,90 @@ int main(int argc, char *argv[])
    //    higher-order spaces by changing the value of p.
    FiniteElementCollection *fec = new RT_FECollection(order-1, dim);
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
-   cout << "Number of unknowns: " << fespace->GetVSize() << endl;
+   cout << "Number of finite element unknowns: " << fespace->GetVSize() << endl;
 
-   // 5. Set up the linear form b(.) which corresponds to the right-hand side
+   // 5. Determine the list of true (i.e. conforming) essential boundary dofs.
+   //    In this example, the boundary conditions are defined by marking all
+   //    the boundary attributes from the mesh as essential (Dirichlet) and
+   //    converting them to a list of true dofs.
+   Array<int> ess_tdof_list;
+   if (mesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(mesh->bdr_attributes.Max());
+      ess_bdr = set_bc ? 1 : 0;
+      fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   }
+
+   // 6. Set up the linear form b(.) which corresponds to the right-hand side
    //    of the FEM linear system, which in this case is (f,phi_i) where f is
    //    given by the function f_exact and phi_i are the basis functions in the
    //    finite element fespace.
-   VectorFunctionCoefficient f(dim, f_exact);
+   VectorFunctionCoefficient f(sdim, f_exact);
    LinearForm *b = new LinearForm(fespace);
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
 
-   // 6. Define the solution vector x as a finite element grid function
+   // 7. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary faces will be used
    //    when eliminating the non-homogeneous boundary condition to modify the
    //    r.h.s. vector b.
    GridFunction x(fespace);
-   VectorFunctionCoefficient F(dim, F_exact);
+   VectorFunctionCoefficient F(sdim, F_exact);
    x.ProjectCoefficient(F);
 
-   // 7. Set up the bilinear form corresponding to the H(div) diffusion operator
+   // 8. Set up the bilinear form corresponding to the H(div) diffusion operator
    //    grad alpha div + beta I, by adding the div-div and the mass domain
-   //    integrators and finally imposing the non-homogeneous Dirichlet boundary
-   //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential (Dirichlet). After
-   //    assembly and finalizing we extract the corresponding sparse matrix A.
+   //    integrators.
    Coefficient *alpha = new ConstantCoefficient(1.0);
    Coefficient *beta  = new ConstantCoefficient(1.0);
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
-   a->Assemble();
-   if (set_bc && mesh->bdr_attributes.Size())
+
+   // 9. Optionally enable hybridization of the BilinearForm by defining an
+   //    interfacial multiplier space and constaint trace integrator.
+   FiniteElementCollection *hfec = NULL;
+   FiniteElementSpace *hfes = NULL;
+   if (hybridization)
    {
-      Array<int> ess_bdr(mesh->bdr_attributes.Max());
-      ess_bdr = 1;
-      a->EliminateEssentialBC(ess_bdr, x, *b);
+      hfec = new RT_Trace_FECollection(order-1, dim, FiniteElement::VALUE);
+      hfes = new FiniteElementSpace(mesh, hfec);
+      a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(),
+                             ess_tdof_list);
    }
-   a->Finalize();
-   const SparseMatrix &A = a->SpMat();
+
+   // 10. Assemble the bilinear form and the corresponding linear system,
+   //     applying any necessary transformations such as: eliminating boundary
+   //     conditions, applying conforming constraints for non-conforming AMR,
+   //     hybridization, etc.
+   a->Assemble();
+   Vector B, X;
+   SparseMatrix &A = a->AssembleSystem(ess_tdof_list, x, *b, X, B);
+   cout << "Size of linear system: " << A.Height() << endl;
 
 #ifndef MFEM_USE_SUITESPARSE
-   // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
-   //    solve the system Ax=b with PCG.
+   // 11. Define a simple symmetric Gauss-Seidel preconditioner and use it to
+   //     solve the system A X = B with PCG.
    GSSmoother M(A);
-   x = 0.0;
-   PCG(A, M, *b, x, 1, 10000, 1e-20, 0.0);
+   X = 0.0;
+   PCG(A, M, B, X, 1, 10000, 1e-20, 0.0);
 #else
-   // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   // 11. If compiled with SuiteSparse support, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
    umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    umf_solver.SetOperator(A);
-   umf_solver.Mult(*b, x);
+   umf_solver.Mult(B, X);
 #endif
 
-   // 9. Compute and print the L^2 norm of the error.
+   // 12. After solving the linear system, reconstruct the solution as a finite
+   //     element grid function.
+   a->ComputeSolution(X, *b, x);
+
+   // 13. Compute and print the L^2 norm of the error.
    cout << "\n|| F_h - F ||_{L^2} = " << x.ComputeL2Error(F) << '\n' << endl;
 
-   // 10. Save the refined mesh and the solution. This output can be viewed
+   // 14. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("refined.mesh");
@@ -167,7 +205,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 11. Send the solution by socket to a GLVis server.
+   // 15. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -177,7 +215,9 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 12. Free the used memory.
+   // 16. Free the used memory.
+   delete hfes;
+   delete hfec;
    delete a;
    delete alpha;
    delete beta;
@@ -190,7 +230,7 @@ int main(int argc, char *argv[])
 }
 
 
-// The exact solution
+// The exact solution (for non-surface meshes)
 void F_exact(const Vector &p, Vector &F)
 {
    int dim = p.Size();
@@ -199,8 +239,8 @@ void F_exact(const Vector &p, Vector &F)
    double y = p(1);
    // double z = (dim == 3) ? p(2) : 0.0;
 
-   F(0) = cos(M_PI*x)*sin(M_PI*y);
-   F(1) = cos(M_PI*y)*sin(M_PI*x);
+   F(0) = cos(kappa*x)*sin(kappa*y);
+   F(1) = cos(kappa*y)*sin(kappa*x);
    if (dim == 3)
    {
       F(2) = 0.0;
@@ -216,10 +256,10 @@ void f_exact(const Vector &p, Vector &f)
    double y = p(1);
    // double z = (dim == 3) ? p(2) : 0.0;
 
-   double temp = 1 + 2*M_PI*M_PI;
+   double temp = 1 + 2*kappa*kappa;
 
-   f(0) = temp*cos(M_PI*x)*sin(M_PI*y);
-   f(1) = temp*cos(M_PI*y)*sin(M_PI*x);
+   f(0) = temp*cos(kappa*x)*sin(kappa*y);
+   f(1) = temp*cos(kappa*y)*sin(kappa*x);
    if (dim == 3)
    {
       f(2) = 0;

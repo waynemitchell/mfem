@@ -38,6 +38,7 @@ public:
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
+
    /** Compute the local matrix representation of a bilinear form
        a(u,v) defined on different trial (given by u) and test
        (given by v) spaces. The rows in the local matrix correspond
@@ -46,10 +47,12 @@ public:
                                        const FiniteElement &test_fe,
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
+
    virtual void AssembleFaceMatrix(const FiniteElement &el1,
                                    const FiniteElement &el2,
                                    FaceElementTransformations &Trans,
                                    DenseMatrix &elmat);
+
    /** Abstract method used for assembling TraceFaceIntegrators in a
        MixedBilinearForm. */
    virtual void AssembleFaceMatrix(const FiniteElement &trial_face_fe,
@@ -57,22 +60,27 @@ public:
                                    const FiniteElement &test_fe2,
                                    FaceElementTransformations &Trans,
                                    DenseMatrix &elmat);
+
    /// Perform the local action of the BilinearFormIntegrator
    virtual void AssembleElementVector(const FiniteElement &el,
                                       ElementTransformation &Tr,
                                       const Vector &elfun, Vector &elvect);
+
    virtual void AssembleElementGrad(const FiniteElement &el,
                                     ElementTransformation &Tr,
                                     const Vector &elfun, DenseMatrix &elmat)
    { AssembleElementMatrix(el, Tr, elmat); }
+
    virtual void ComputeElementFlux(const FiniteElement &el,
                                    ElementTransformation &Trans,
                                    Vector &u,
                                    const FiniteElement &fluxelem,
-                                   Vector &flux, int wcoef = 1) { }
+                                   Vector &flux, int with_coef = 1) { }
+
    virtual double ComputeFluxEnergy(const FiniteElement &fluxelem,
                                     ElementTransformation &Trans,
-                                    Vector &flux) { return 0.0; }
+                                    Vector &flux, Vector *d_energy = NULL)
+   { return 0.0; }
 
    void SetIntRule(const IntegrationRule *ir) { IntRule = ir; }
 
@@ -94,15 +102,18 @@ public:
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
+
    virtual void AssembleElementMatrix2(const FiniteElement &trial_fe,
                                        const FiniteElement &test_fe,
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
+
    using BilinearFormIntegrator::AssembleFaceMatrix;
    virtual void AssembleFaceMatrix(const FiniteElement &el1,
                                    const FiniteElement &el2,
                                    FaceElementTransformations &Trans,
                                    DenseMatrix &elmat);
+
    virtual ~TransposeIntegrator() { if (own_bfi) { delete bfi; } }
 };
 
@@ -197,18 +208,20 @@ public:
                                        const FiniteElement &test_fe,
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat);
+
    /// Perform the local action of the BilinearFormIntegrator
    virtual void AssembleElementVector(const FiniteElement &el,
                                       ElementTransformation &Tr,
                                       const Vector &elfun, Vector &elvect);
+
    virtual void ComputeElementFlux(const FiniteElement &el,
                                    ElementTransformation &Trans,
-                                   Vector &u,
-                                   const FiniteElement &fluxelem,
-                                   Vector &flux, int wcoef);
+                                   Vector &u, const FiniteElement &fluxelem,
+                                   Vector &flux, int with_coef = 1);
+
    virtual double ComputeFluxEnergy(const FiniteElement &fluxelem,
                                     ElementTransformation &Trans,
-                                    Vector &flux);
+                                    Vector &flux, Vector *d_energy = NULL);
 };
 
 /** Class for local mass matrix assemblying a(u,v) := (Q u, v) */
@@ -395,8 +408,10 @@ public:
 class CurlCurlIntegrator: public BilinearFormIntegrator
 {
 private:
+   Vector vec, pointflux;
 #ifndef MFEM_THREAD_SAFE
-   DenseMatrix Curlshape, Curlshape_dFt;
+   DenseMatrix curlshape, curlshape_dFt;
+   DenseMatrix vshape, projcurl;
 #endif
    Coefficient *Q;
 
@@ -410,6 +425,15 @@ public:
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
+
+   virtual void ComputeElementFlux(const FiniteElement &el,
+                                   ElementTransformation &Trans,
+                                   Vector &u, const FiniteElement &fluxelem,
+                                   Vector &flux, int with_coef);
+
+   virtual double ComputeFluxEnergy(const FiniteElement &fluxelem,
+                                    ElementTransformation &Trans,
+                                    Vector &flux, Vector *d_energy = NULL);
 };
 
 /** Integrator for (curl u, curl v) for FE spaces defined by 'dim' copies of a
@@ -654,6 +678,25 @@ public:
                                    DenseMatrix &elmat);
 };
 
+/** Integrator for the form: < v, [w.n] > over all faces (the interface) where
+    the trial variable v is defined on the inteface and the test variable w is
+    in an H(div)-conforming space. */
+class NormalTraceJumpIntegrator : public BilinearFormIntegrator
+{
+private:
+   Vector face_shape, normal, shape1_n, shape2_n;
+   DenseMatrix shape1, shape2;
+
+public:
+   NormalTraceJumpIntegrator() { }
+   using BilinearFormIntegrator::AssembleFaceMatrix;
+   virtual void AssembleFaceMatrix(const FiniteElement &trial_face_fe,
+                                   const FiniteElement &test_fe1,
+                                   const FiniteElement &test_fe2,
+                                   FaceElementTransformations &Trans,
+                                   DenseMatrix &elmat);
+};
+
 /** Abstract class to serve as a base for local interpolators to be used in
     the DiscreteLinearOperator class. */
 class DiscreteInterpolator : public BilinearFormIntegrator { };
@@ -717,6 +760,19 @@ public:
                                        ElementTransformation &Trans,
                                        DenseMatrix &elmat)
    { ran_fe.ProjectDiv(dom_fe, Trans, elmat); }
+};
+
+
+/** A trace face interpolator class for interpolating the normal component of
+    the domain space, e.g. vector H1, into the range space, e.g. the trace of
+    RT which uses FiniteElement::INTEGRAL map type. */
+class NormalInterpolator : public DiscreteInterpolator
+{
+public:
+   virtual void AssembleElementMatrix2(const FiniteElement &dom_fe,
+                                       const FiniteElement &ran_fe,
+                                       ElementTransformation &Trans,
+                                       DenseMatrix &elmat);
 };
 
 }
