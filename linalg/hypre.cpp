@@ -1156,32 +1156,33 @@ void HypreParMatrix::Threshold(double threshold)
    MPI_Comm_size(comm, &num_procs);
 
    ierr += hypre_ParCSRMatrixGetLocalRange(A,
-					   &row_start,&row_end,
-					   &col_start,&col_end );
+                                           &row_start,&row_end,
+                                           &col_start,&col_end );
 
-   // ierr += HYPRE_ParCSRMatrixGetRowPartitioning(*A_ptr,&row_starts);
-   // ierr += HYPRE_ParCSRMatrixGetColPartitioning(*A_ptr,&col_starts);
    row_starts = hypre_ParCSRMatrixRowStarts(A);
    col_starts = hypre_ParCSRMatrixColStarts(A);
 
    parcsr_A_ptr = hypre_ParCSRMatrixCreate(comm,row_starts[num_procs],
-					   col_starts[num_procs],row_starts,
-					   col_starts,0,0,0);
+                                           col_starts[num_procs],row_starts,
+                                           col_starts,0,0,0);
 
    csr_A = hypre_MergeDiagAndOffd(A);
 
    csr_A_wo_z =  hypre_CSRMatrixDeleteZeros(csr_A,threshold);
 
-   /* hypre_CSRMatrixDeleteZeros will return a NULL pointer
-      rather than a usable CSR matrix if it finds no non-zeros */
-   if (csr_A_wo_z == NULL) {
+   /* hypre_CSRMatrixDeleteZeros will return a NULL pointer rather than a usable
+      CSR matrix if it finds no non-zeros */
+   if (csr_A_wo_z == NULL)
+   {
       csr_A_wo_z = csr_A;
-   } else {
+   }
+   else
+   {
       ierr += hypre_CSRMatrixDestroy(csr_A);
    }
 
    ierr += GenerateDiagAndOffd(csr_A_wo_z,parcsr_A_ptr,
-			       col_start,col_end);
+                               col_start,col_end);
 
    ierr += hypre_CSRMatrixDestroy(csr_A_wo_z);
 
@@ -2429,8 +2430,7 @@ HypreBoomerAMG::~HypreBoomerAMG()
 }
 
 
-HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
-		   int singular_problem)
+HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    : HypreSolver(&A)
 {
    int cycle_type       = 13;
@@ -2463,8 +2463,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
          p = edge_fespace->GetOrder(0);
       }
    }
-
-   bool pr_dofs = edge_fespace->GetPrDofs();
 
    HYPRE_AMSCreate(&ams);
 
@@ -2566,18 +2564,12 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
       else
       {
          Array2D<HypreParMatrix *> Pi_blocks;
-         if ( !pr_dofs )
-         {
-            id_ND->GetParBlocks(Pi_blocks);
-         }
-         else
-         {
-            id_ND->GetParBlocksReduced(Pi_blocks);
-         }
+         id_ND->GetParBlocks(Pi_blocks);
          Pix = Pi_blocks(0,0);
          Piy = Pi_blocks(0,1);
          if (sdim == 3) { Piz = Pi_blocks(0,2); }
       }
+
       delete id_ND;
 
       HYPRE_ParCSRMatrix HY_Pi  = (Pi)  ? (HYPRE_ParCSRMatrix) *Pi  : NULL;
@@ -2588,22 +2580,16 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace,
 
       delete vert_fespace_d;
    }
+
    delete vert_fespace;
    delete vert_fec;
 
    // set additional AMS options
-   HYPRE_AMSSetSmoothingOptions(ams, rlx_type, rlx_sweeps, rlx_weight,
-                                rlx_omega);
-   HYPRE_AMSSetAlphaAMGOptions(ams, amg_coarsen_type, amg_agg_levels,
-                               amg_rlx_type,
+   HYPRE_AMSSetSmoothingOptions(ams, rlx_type, rlx_sweeps, rlx_weight, rlx_omega);
+   HYPRE_AMSSetAlphaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                                theta, amg_interp_type, amg_Pmax);
-   HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels,
-                              amg_rlx_type,
+   HYPRE_AMSSetBetaAMGOptions(ams, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                               theta, amg_interp_type, amg_Pmax);
-   if (singular_problem)
-   {
-      HYPRE_AMSSetBetaPoissonMatrix(ams,NULL);
-   }
 }
 
 HypreAMS::~HypreAMS()
@@ -2658,8 +2644,6 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
       }
    }
 
-   bool pr_dofs = face_fespace->GetPrDofs();
-
    HYPRE_ADSCreate(&ads);
 
    HYPRE_ADSSetTol(ads, 0.0);
@@ -2684,6 +2668,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    ParFiniteElementSpace *vert_fespace = new ParFiniteElementSpace(pmesh,
                                                                    vert_fec);
    ParFiniteElementSpace *edge_fespace = new ParFiniteElementSpace(pmesh,
+                                                                   edge_fec);
 
    // generate and set the vertex coordinates
    if (p == 1)
@@ -2724,16 +2709,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    }
    curl->Assemble();
    curl->Finalize();
-
-   if ( !pr_dofs )
-   {
-      C = curl->ParallelAssemble();
-   }
-   else
-   {
-      C = curl->ParallelAssembleReduced();
-   }
-
+   C = curl->ParallelAssemble();
    C->CopyColStarts(); // since we'll delete edge_fespace
    HYPRE_ADSSetDiscreteCurl(ads, *C);
    delete curl;
@@ -2751,16 +2727,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    }
    grad->Assemble();
    grad->Finalize();
-
-   if ( !pr_dofs )
-   {
-      G = grad->ParallelAssemble();
-   }
-   else
-   {
-      G = grad->ParallelAssembleReduced();
-   }
-
+   G = grad->ParallelAssemble();
    G->CopyColStarts(); // since we'll delete vert_fespace
    G->CopyRowStarts(); // since we'll delete edge_fespace
    HYPRE_ADSSetDiscreteGradient(ads, *G);
@@ -2796,14 +2763,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
       else
       {
          Array2D<HypreParMatrix *> ND_Pi_blocks;
-         if ( !pr_dofs )
-         {
-            id_ND->GetParBlocks(ND_Pi_blocks);
-         }
-         else
-         {
-            id_ND->GetParBlocksReduced(ND_Pi_blocks);
-         }
+         id_ND->GetParBlocks(ND_Pi_blocks);
          ND_Pix = ND_Pi_blocks(0,0);
          ND_Piy = ND_Pi_blocks(0,1);
          ND_Piz = ND_Pi_blocks(0,2);
@@ -2832,14 +2792,7 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
       else
       {
          Array2D<HypreParMatrix *> RT_Pi_blocks;
-         if ( !pr_dofs )
-         {
-            id_RT->GetParBlocks(RT_Pi_blocks);
-         }
-         else
-         {
-            id_RT->GetParBlocksReduced(RT_Pi_blocks);
-         }
+         id_RT->GetParBlocks(RT_Pi_blocks);
          RT_Pix = RT_Pi_blocks(0,0);
          RT_Piy = RT_Pi_blocks(0,1);
          RT_Piz = RT_Pi_blocks(0,2);
@@ -2870,13 +2823,11 @@ HypreADS::HypreADS(HypreParMatrix &A, ParFiniteElementSpace *face_fespace)
    delete edge_fespace;
 
    // set additional ADS options
-   HYPRE_ADSSetSmoothingOptions(ads, rlx_type, rlx_sweeps, rlx_weight,
-                                rlx_omega);
+   HYPRE_ADSSetSmoothingOptions(ads, rlx_type, rlx_sweeps, rlx_weight, rlx_omega);
    HYPRE_ADSSetAMGOptions(ads, amg_coarsen_type, amg_agg_levels, amg_rlx_type,
                           theta, amg_interp_type, amg_Pmax);
-   HYPRE_ADSSetAMSOptions(ads, ams_cycle_type, amg_coarsen_type,
-                          amg_agg_levels, amg_rlx_type, theta,
-                          amg_interp_type, amg_Pmax);
+   HYPRE_ADSSetAMSOptions(ads, ams_cycle_type, amg_coarsen_type, amg_agg_levels,
+                          amg_rlx_type, theta, amg_interp_type, amg_Pmax);
 }
 
 HypreADS::~HypreADS()

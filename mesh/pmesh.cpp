@@ -66,7 +66,7 @@ ParMesh::ParMesh(const ParMesh &pmesh, bool copy_nodes)
          FiniteElementCollection::New(fec->Name());
       ParFiniteElementSpace *pfes_copy =
          new ParFiniteElementSpace(this, fec_copy, fes->GetVDim(),
-                                   fes->GetOrdering(),fes->GetPrDofs());
+                                   fes->GetOrdering());
       Nodes = new ParGridFunction(pfes_copy);
       Nodes->MakeOwner(fec_copy);
       *Nodes = *pmesh.Nodes;

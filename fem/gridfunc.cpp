@@ -24,7 +24,7 @@ namespace mfem
 
 using namespace std;
 
-GridFunction::GridFunction(Mesh *m, std::istream &input, bool pr_dofs)
+GridFunction::GridFunction(Mesh *m, std::istream &input)
    : Vector()
 {
    const int bufflen = 256;
@@ -46,7 +46,7 @@ GridFunction::GridFunction(Mesh *m, std::istream &input, bool pr_dofs)
    int ordering;
    input >> ordering;
    input.getline(buff, bufflen); // read the empty line
-   fes = new FiniteElementSpace(m, fec, vdim, ordering, pr_dofs);
+   fes = new FiniteElementSpace(m, fec, vdim, ordering);
    Vector::Load(input, fes->GetVSize());
 }
 
@@ -59,8 +59,7 @@ GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
    fec = FiniteElementCollection::New(fes->FEColl()->Name());
    vdim = fes->GetVDim();
    ordering = fes->GetOrdering();
-   bool pr_dofs = fes->GetPrDofs();
-   fes = new FiniteElementSpace(m, fec, vdim, ordering,pr_dofs);
+   fes = new FiniteElementSpace(m, fec, vdim, ordering);
    SetSize(fes->GetVSize());
 
    if (m->NURBSext)

@@ -24,16 +24,10 @@ class BilinearFormIntegrator : public NonlinearFormIntegrator
 protected:
    const IntegrationRule *IntRule;
 
-   bool isSymmetric;
-
    BilinearFormIntegrator(const IntegrationRule *ir = NULL)
-   { IntRule = ir; isSymmetric = false; }
+   { IntRule = ir; }
 
 public:
-
-   /// Returns true if the local matrices are guaranteed to be symmetric
-   virtual bool IsSymmetric() const { return isSymmetric; }
-
    /// Given a particular Finite Element computes the element matrix elmat.
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
@@ -188,11 +182,10 @@ private:
 
 public:
    /// Construct a diffusion integrator with coefficient Q = 1
-   DiffusionIntegrator() { Q = NULL; MQ = NULL; isSymmetric = true; }
+   DiffusionIntegrator() { Q = NULL; MQ = NULL; }
 
    /// Construct a diffusion integrator with a scalar coefficient q
-   DiffusionIntegrator (Coefficient &q) : Q(&q)
-   { MQ = NULL; isSymmetric = true; }
+   DiffusionIntegrator (Coefficient &q) : Q(&q) { MQ = NULL; }
 
    /// Construct a diffusion integrator with a matrix coefficient q
    DiffusionIntegrator (MatrixCoefficient &q) : MQ(&q) { Q = NULL; }
@@ -233,10 +226,10 @@ private:
 
 public:
    MassIntegrator(const IntegrationRule *ir = NULL)
-      : BilinearFormIntegrator(ir) { Q = NULL; isSymmetric = true; }
+      : BilinearFormIntegrator(ir) { Q = NULL; }
    /// Construct a mass integrator with coefficient q
    MassIntegrator(Coefficient &q, const IntegrationRule *ir = NULL)
-      : BilinearFormIntegrator(ir), Q(&q) { isSymmetric = true; }
+      : BilinearFormIntegrator(ir), Q(&q) { }
 
    /** Given a particular Finite Element
        computes the element mass matrix elmat. */

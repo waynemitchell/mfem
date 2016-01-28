@@ -14,8 +14,8 @@
 
 #include "../config/config.hpp"
 #include "fespace.hpp"
-#include "bilininteg.hpp"
 #include "coefficient.hpp"
+#include "bilininteg.hpp"
 #include <limits>
 #include <ostream>
 #include <string>
@@ -62,7 +62,7 @@ public:
    GridFunction(FiniteElementSpace *f) : Vector(f->GetVSize())
    { fes = f; fec = NULL; }
 
-   GridFunction(Mesh *m, std::istream &input, bool pr_dofs = false);
+   GridFunction(Mesh *m, std::istream &input);
 
    GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces);
 

@@ -205,18 +205,11 @@ protected:
        vertices[result]. */
    void AverageVertices (int * indexes, int n, int result);
 
-   /** Averages the vertices, according to the given weights, with
-       given indexes and saves the result in vertices[result]. */
-   void AverageVertices (int * indexes, double * w, int n, int result);
-
    /// Update the nodes of a curved mesh after refinement
    void UpdateNodes();
 
    /// Refine quadrilateral mesh.
    virtual void QuadUniformRefinement();
-
-   /// Refine a quadrilateral mesh by a factor of n in each direction.
-   // virtual void QuadUniformRefinement(int n);
 
    /// Refine hexahedral mesh.
    virtual void HexUniformRefinement();
@@ -618,7 +611,7 @@ public:
        (both in their reference elements). Used to transform
        IntegrationPoints from face to element. More formally, let:
        TL1, TL2 be the transformations represented by Loc1, Loc2,
-       TE1, TE2 - the transformations represented by Eleme1, Elem2,
+       TE1, TE2 - the transformations represented by Elem1, Elem2,
        TF - the transformation represented by Face, then
        TF(x) = TE1(TL1(x)) = TE2(TL2(x)) for all x in the reference face.
        6) FaceGeom - the base geometry for the face.
@@ -692,8 +685,8 @@ public:
    void SetVertices(const Vector &vert_coord);
 
    // Nodes are only active for higher order meshes, and share locations with
-   // the vertecies, plus all the higher- order control points within the
-   // element and along the edges and on the faces.
+   // the vertices, plus all the higher- order control points within the element
+   // and along the edges and on the faces.
    void GetNode(int i, double *coord);
    void SetNode(int i, const double *coord);
 
@@ -708,7 +701,7 @@ public:
    GridFunction *GetNodes() { return Nodes; }
    /// Replace the internal node GridFunction with the given GridFunction.
    void NewNodes(GridFunction &nodes, bool make_owner = false);
-   /** Swap the internal node GridFunction pointer and onwership flag members
+   /** Swap the internal node GridFunction pointer and ownership flag members
        with the given ones. */
    void SwapNodes(GridFunction *&nodes, int &own_nodes_);
 
@@ -734,12 +727,6 @@ public:
 
    /** Refine all mesh elements. */
    void UniformRefinement();
-
-   /// Refine a quadrilateral mesh by a factor of n in each direction.
-   virtual void QuadUniformRefinement(int n);
-
-   /// Refine a hexahedral mesh by a factor of n in each direction.
-   virtual void HexUniformRefinement(int n);
 
    /** Refine selected mesh elements. Refinement type can be specified for each
        element. The function can do conforming refinement of triangles and

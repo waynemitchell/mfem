@@ -168,64 +168,6 @@ HypreParMatrix *ParBilinearForm::ParallelAssemble(SparseMatrix *m)
    return rap;
 }
 
-HypreParMatrix *ParBilinearForm::ParallelAssembleReduced()
-{
-   if ( fes->GetNPrDofs() == 0 )
-   {
-      return ParallelAssemble();
-   }
-   else
-   {
-      return ParallelAssembleReduced(mat_rr);
-   }
-}
-
-HypreParMatrix *ParBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
-{
-   if (m == NULL)
-   {
-      return NULL;
-   }
-
-   HypreParMatrix *A;
-
-   // construct a parallel block-diagonal wrapper matrix A based on m
-   A = new HypreParMatrix(pfes->GetComm(),
-                          pfes->GlobalExVSize(), pfes->GetExDofOffsets(), m);
-
-   HypreParMatrix *rap = RAP(A, pfes->ExDof_TrueExDof_Matrix());
-
-   delete A;
-
-   return rap;
-}
-
-HypreParVector *
-ParBilinearForm::RHS_R(const Vector & rhs) const
-{
-   HypreParVector * prhs_r = new HypreParVector(pfes->GetComm(),
-                                                pfes->GlobalTrueExVSize(),
-                                                pfes->GetTrueExDofOffsets());
-
-   // Create temporary vectors for the exposed and private portions of rhs
-   if ( v1_e == NULL || v1_p == NULL )
-   {
-      pfes->ExDof_TrueExDof_Matrix()->MultTranspose(rhs,
-                                                    *prhs_r);
-   }
-   else
-   {
-      this->SplitExposedPrivate(rhs,v1_e,v1_p);
-      Vector *rhs_r = this->BilinearForm::RHS_R(*v1_e,*v1_p);
-      pfes->ExDof_TrueExDof_Matrix()->MultTranspose(*rhs_r,
-                                                    *prhs_r);
-
-      delete rhs_r;
-   }
-
-   return prhs_r;
-}
-
 void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
 {
    ParMesh *pmesh = pfes->GetParMesh();
@@ -402,171 +344,6 @@ HypreParMatrix* ParDiscreteLinearOperator::ParallelAssemble() const
    return RAP;
 }
 
-HypreParMatrix *ParDiscreteLinearOperator::ParallelAssembleReduced()
-{
-   if ( test_fes->GetNPrDofs() == 0 || trial_fes->GetNPrDofs() == 0 )
-   {
-      return ParallelAssemble(mat);
-   }
-   else
-   {
-      return ParallelAssembleReduced(mat_ee);
-   }
-}
-
-HypreParMatrix *ParDiscreteLinearOperator::ParallelAssembleReduced(
-   SparseMatrix *m,
-   HYPRE_Int *true_ex_row_starts,
-   HYPRE_Int *true_ex_col_starts,
-   bool scalar) const
-{
-   // For a vector space (vdim > 1) and scalar == true, the ordering is assumed
-   // to be Ordering::byNODES, e.g. when using GetLocalTExDofNumber().
-
-   if (m == NULL) { return NULL; }
-
-   int *I = m->GetI();
-   int *J = m->GetJ();
-   double *data = m->GetData();
-
-   int rdim = scalar ? range_fes->GetVDim() : 1;
-   int ddim = scalar ? domain_fes->GetVDim() : 1;
-
-   int  range_ldofs =  range_fes->GetExVSize()/rdim; // == m->Height()
-   int domain_ldofs = domain_fes->GetExVSize()/ddim; // == m->Width()
-
-   int num_rows = range_fes->TrueExVSize()/rdim;
-
-   HYPRE_Int *diag_i, *diag_j, *offd_i, *offd_j;
-   double *diag_data, *offd_data;
-
-   int offd_num_cols = 0;
-   Array<int> col_ldof_marker(domain_ldofs);
-   col_ldof_marker = -1;
-
-   diag_i = new HYPRE_Int[num_rows+1];
-   offd_i = new HYPRE_Int[num_rows+1];
-   // count the number of entries in each row of diag and offd;
-   // at the same time, mark and count the columns used by offd
-   for (int i = 0; i <= num_rows; i++)
-   {
-      diag_i[i] = 0;
-      offd_i[i] = 0;
-   }
-   for (int i = 0; i < range_ldofs; i++)
-   {
-      int lti = range_fes->GetLocalTExDofNumber(i);
-      if (lti >= 0)
-      {
-         for (int j = I[i]; j < I[i+1]; j++)
-         {
-            int k = J[j];
-            int ltk = domain_fes->GetLocalTExDofNumber(k);
-            if (ltk >= 0)
-            {
-               diag_i[lti]++;
-            }
-            else
-            {
-               offd_i[lti]++;
-               if (col_ldof_marker[k] < 0)
-               {
-                  col_ldof_marker[k] = 1;
-                  offd_num_cols++;
-               }
-            }
-         }
-      }
-   }
-   // define offd_col_map -- the local-to-global column mapping for offd
-   // define col_ldof_marker -- the map from domain ldof to offd column index
-   HYPRE_Int *offd_col_map = new HYPRE_Int[offd_num_cols];
-   {
-      Array<Pair<HYPRE_Int, int> > cmap_j_offd(offd_num_cols);
-      int edof_counter = 0;
-      for (int i = 0; i < domain_ldofs; i++)
-      {
-         if (col_ldof_marker[i] > 0)
-         {
-            cmap_j_offd[edof_counter].one =
-               scalar ?
-               domain_fes->GetGlobalScalarTExDofNumber(i) :
-               domain_fes->GetGlobalTExDofNumber(i);
-            cmap_j_offd[edof_counter].two = i;
-            edof_counter++;
-         }
-      }
-      SortPairs<HYPRE_Int, int>(cmap_j_offd, offd_num_cols);
-      for (int i = 0; i < offd_num_cols; i++)
-      {
-         offd_col_map[i] = cmap_j_offd[i].one;
-         // col_ldof_marker is the inverse of the map i -> cmap_j_offd[i].two
-         col_ldof_marker[cmap_j_offd[i].two] = i;
-      }
-   }
-   // in diag_i and offd_i, convert row sizes into row offsets
-   HYPRE_Int diag_offset = 0, offd_offset = 0;
-   for (int i = 0; i < num_rows; i++)
-   {
-      HYPRE_Int diag_row_size = diag_i[i];
-      HYPRE_Int offd_row_size = offd_i[i];
-      diag_i[i] = diag_offset;
-      offd_i[i] = offd_offset;
-      diag_offset += diag_row_size;
-      offd_offset += offd_row_size;
-   }
-   diag_i[num_rows] = diag_offset;
-   offd_i[num_rows] = offd_offset;
-   // allocate the j and data arrays of diag and offd
-   diag_j = new HYPRE_Int[diag_offset];
-   diag_data = new double[diag_offset];
-   offd_j = new HYPRE_Int[offd_offset];
-   offd_data = new double[offd_offset];
-   // set the entries of the j and data arrays of diag and offd
-   for (int i = 0; i < range_ldofs; i++)
-   {
-      int lti = range_fes->GetLocalTExDofNumber(i);
-      if (lti >= 0)
-      {
-         for (int j = I[i]; j < I[i+1]; j++)
-         {
-            int k = J[j];
-            int ltk = domain_fes->GetLocalTExDofNumber(k);
-            if (ltk >= 0)
-            {
-               diag_j[diag_i[lti]] = ltk;
-               diag_data[diag_i[lti]] = data[j];
-               diag_i[lti]++;
-            }
-            else
-            {
-               offd_j[offd_i[lti]] = col_ldof_marker[k];
-               offd_data[offd_i[lti]] = data[j];
-               offd_i[lti]++;
-            }
-         }
-      }
-   }
-   // shift back the i arrays of diag and offd
-   diag_offset = offd_offset = 0;
-   for (int i = 0; i < num_rows; i++)
-   {
-      Swap(diag_i[i], diag_offset);
-      Swap(offd_i[i], offd_offset);
-   }
-
-   HypreParMatrix *glob_m =
-      new HypreParMatrix(range_fes->GetComm(),
-                         range_fes->GlobalTrueExVSize()/rdim,
-                         domain_fes->GlobalTrueExVSize()/ddim,
-                         true_ex_row_starts, true_ex_col_starts,
-                         diag_i, diag_j, diag_data,
-                         offd_i, offd_j, offd_data,
-                         offd_num_cols, offd_col_map);
-
-   return glob_m;
-}
-
 void ParDiscreteLinearOperator::GetParBlocks(Array2D<HypreParMatrix *> &blocks)
 const
 {
@@ -584,55 +361,8 @@ const
    delete RLP;
 }
 
-void ParDiscreteLinearOperator::GetParBlocksReduced(
-   Array2D<HypreParMatrix *> &blocks) const
+HypreParMatrix *ParMixedBilinearForm::ParallelAssemble()
 {
-   int rdim = range_fes->GetVDim();
-   int ddim = domain_fes->GetVDim();
-
-   blocks.SetSize(rdim, ddim);
-
-   // construct the scalar versions of the row/col offset arrays
-   int n = HYPRE_AssumedPartitionCheck() ? 2 : range_fes->GetNRanks()+1;
-   HYPRE_Int *row_starts = new HYPRE_Int[n];
-   HYPRE_Int *col_starts = new HYPRE_Int[n];
-   for (int i = 0; i < n; i++)
-   {
-      row_starts[i] = (range_fes->GetTrueExDofOffsets())[i] / rdim;
-      col_starts[i] = (domain_fes->GetTrueExDofOffsets())[i] / ddim;
-   }
-
-   Array2D<SparseMatrix *> lblocks;
-   GetBlocksReduced(lblocks);
-
-   for (int bi = 0; bi < rdim; bi++)
-      for (int bj = 0; bj < ddim; bj++)
-      {
-         blocks(bi,bj) = ParallelAssembleReduced(lblocks(bi,bj),
-                                                 row_starts, col_starts, true);
-
-         if (bi == 0 && bj == 0)
-         {
-            // transfer ownership of row_starts and col_starts to blocks(0,0)
-            // (since ownership is given to hypre, the arrays need to be
-            // re-allocated)
-            blocks(0,0)->CopyRowStarts();
-            blocks(0,0)->CopyColStarts();
-            delete [] row_starts;
-            delete [] col_starts;
-            row_starts = blocks(0,0)->GetRowStarts();
-            col_starts = blocks(0,0)->GetColStarts();
-         }
-      }
-}
-
-HypreParMatrix *ParMixedBilinearForm::ParallelAssemble(SparseMatrix *m)
-{
-   if (m == NULL)
-   {
-      return NULL;
-   }
-
    // construct the block-diagonal matrix A
    HypreParMatrix *A =
       new HypreParMatrix(trial_pfes->GetComm(),
@@ -640,46 +370,10 @@ HypreParMatrix *ParMixedBilinearForm::ParallelAssemble(SparseMatrix *m)
                          trial_pfes->GlobalVSize(),
                          test_pfes->GetDofOffsets(),
                          trial_pfes->GetDofOffsets(),
-                         m);
+                         mat);
 
    HypreParMatrix *rap = RAP(test_pfes->Dof_TrueDof_Matrix(), A,
                              trial_pfes->Dof_TrueDof_Matrix());
-
-   delete A;
-
-   return rap;
-}
-
-HypreParMatrix *ParMixedBilinearForm::ParallelAssembleReduced()
-{
-   if ( test_fes->GetNPrDofs() == 0 && trial_fes->GetNPrDofs() == 0 )
-   {
-      return ParallelAssemble();
-   }
-   else
-   {
-      return ParallelAssembleReduced(mat_ee);
-   }
-}
-
-HypreParMatrix *ParMixedBilinearForm::ParallelAssembleReduced(SparseMatrix *m)
-{
-   if (m == NULL)
-   {
-      return NULL;
-   }
-
-   HypreParMatrix *A;
-
-   // construct a parallel block-diagonal wrapper matrix A based on m
-   A = new HypreParMatrix(trial_pfes->GetComm(),
-                          test_pfes->GlobalExVSize(),
-                          trial_pfes->GlobalExVSize(),
-                          test_pfes->GetExDofOffsets(),
-                          trial_pfes->GetExDofOffsets(), m);
-
-   HypreParMatrix *rap = RAP(test_pfes->ExDof_TrueExDof_Matrix(), A,
-                             trial_pfes->ExDof_TrueExDof_Matrix());
 
    delete A;
 
@@ -701,6 +395,6 @@ void ParMixedBilinearForm::TrueAddMult(const Vector &x, Vector &y,
    test_pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
 }
 
-} // namespace mfem
+}
 
-#endif // MFEM_USE_MPI
+#endif
