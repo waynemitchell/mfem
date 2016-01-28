@@ -339,6 +339,8 @@ public:
    virtual void MultTranspose(const Vector &x, Vector &y) const
    { MultTranspose(1.0, x, 0.0, y); }
 
+   /** The "Boolean" analog of y = alpha * A * x + beta * y, where elements in
+       the sparsity pattern of the matrix are treated as "true". */
    void BooleanMult(int alpha, int *x, int beta, int *y)
    {
       internal::hypre_ParCSRMatrixBooleanMatvec(A, alpha, x, beta, y);

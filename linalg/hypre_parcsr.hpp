@@ -58,6 +58,8 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
 typedef int HYPRE_Bool;
 #define HYPRE_MPI_BOOL MPI_INT
 
+/** The "Boolean" analog of y = alpha * A * x + beta * y, where elements in the
+    sparsity pattern of the CSR matrix A are treated as "true". */
 void hypre_CSRMatrixBooleanMatvec(hypre_CSRMatrix *A,
                                   HYPRE_Bool alpha,
                                   HYPRE_Bool *x,
@@ -70,6 +72,8 @@ hypre_ParCSRCommHandleCreate_bool(HYPRE_Int            job,
                                   HYPRE_Bool          *send_data,
                                   HYPRE_Bool          *recv_data);
 
+/** The "Boolean" analog of y = alpha * A * x + beta * y, where elements in the
+    sparsity pattern of the ParCSR matrix A are treated as "true". */
 void hypre_ParCSRMatrixBooleanMatvec(hypre_ParCSRMatrix *A,
                                      HYPRE_Bool alpha,
                                      HYPRE_Bool *x,

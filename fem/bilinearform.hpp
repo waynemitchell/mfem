@@ -79,7 +79,7 @@ public:
    /// Get the size of the BilinearForm as a square matrix.
    int Size() const { return height; }
 
-   /** Enable hybridization; for details see the description for class
+   /** Enable hybridization; for details see the description of class
        Hybridization in fem/hybridization.hpp. */
    void EnableHybridization(FiniteElementSpace *constr_space,
                             BilinearFormIntegrator *constr_integ,
@@ -174,7 +174,7 @@ public:
 
    /** Complete assembly of the linear system, applying any necessary
        transformations such as: eliminating boundary conditions; applying
-       conforming constraints for non-confoming AMR; hybridization. Returns the
+       conforming constraints for non-conforming AMR; hybridization. Returns the
        SparseMatrix of the linear system that needs to be solved. The
        GridFunction-size vector x must contain the essential b.c. The
        BilinearForm and the LinearForm-size vector b must be assembled.

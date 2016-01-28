@@ -308,9 +308,9 @@ public:
    virtual void GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
                                      Array<int> &ess_tdof_list);
 
-   /// Convert a boolean marker array to a list containing all marked indices.
+   /// Convert a Boolean marker array to a list containing all marked indices.
    static void MarkerToList(const Array<int> &marker, Array<int> &list);
-   /** Convert an array of indices (list) to a boolean marker array where all
+   /** Convert an array of indices (list) to a Boolean marker array where all
        indices in the list are marked with the given value and the rest are set
        to zero. */
    static void ListToMarker(const Array<int> &list, int marker_size,

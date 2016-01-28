@@ -77,20 +77,20 @@ public:
                                      HypreParVector &B) const;
 
    /** Eliminate essential boundary DOFs from a parallel assembled matrix A.
-       The array 'bdr_attr_is_ess' marks boundary attributes that constitute
-       the essential part of the boundary. The eliminated part is stored in a
-       matrix A_elim such that A_new = A_original + A_elim. Returns a pointer to
-       the newly allocatated matrix A_elim which should be deleted by the
-       caller. The matrices A and A_elim can be used to eliminate boundary
-       conditions in multiple right-hand sides, by calling the function
-       EliminateBC (from hypre.hpp).*/
+       The array 'bdr_attr_is_ess' marks boundary attributes that constitute the
+       essential part of the boundary. The eliminated part is stored in a matrix
+       A_elim such that A_new = A_original + A_elim. Returns a pointer to the
+       newly allocated matrix A_elim which should be deleted by the caller. The
+       matrices A and A_elim can be used to eliminate boundary conditions in
+       multiple right-hand sides, by calling the function EliminateBC (from
+       hypre.hpp).*/
    HypreParMatrix *ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
                                                 HypreParMatrix &A) const;
 
    /** Given a list of essential true dofs and the parallel assembled matrix A,
-       eliminate the true dofs from the matrix storing the eliminated part in
-       a matrix A_elim such that A_new = A_original + A_elim. Returns a pointer
-       to the newly allocatated matrix A_elim which should be deleted by the
+       eliminate the true dofs from the matrix storing the eliminated part in a
+       matrix A_elim such that A_new = A_original + A_elim. Returns a pointer to
+       the newly allocated matrix A_elim which should be deleted by the
        caller. The matrices A and A_elim can be used to eliminate boundary
        conditions in multiple right-hand sides, by calling the function
        EliminateBC (from hypre.hpp). */
@@ -105,7 +105,7 @@ public:
 
    /** Complete assembly of the linear system, applying any necessary
        transformations such as: eliminating boundary conditions; applying
-       conforming constraints for non-confoming AMR; parallel assembly;
+       conforming constraints for non-conforming AMR; parallel assembly;
        hybridization. Returns the HypreParMatrix of the linear system that needs
        to be solved. The ParGridFunction-size vector x must contain the
        essential b.c. The ParBilinearForm and the ParLinearForm-size vector b
