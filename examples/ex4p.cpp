@@ -205,8 +205,11 @@ int main(int argc, char *argv[])
    //     assembly, eliminating boundary conditions, applying conforming
    //     constraints for non-conforming AMR, hybridization, etc.
    a->Assemble();
+
+   HypreParMatrix A;
    Vector B, X;
-   HypreParMatrix &A = a->AssembleSystem(ess_tdof_list, x, *b, X, B);
+   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+
    HYPRE_Int glob_size = A.GetGlobalNumRows();
    if (myid == 0)
    {
@@ -234,7 +237,7 @@ int main(int argc, char *argv[])
 
    // 14. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   a->ComputeSolution(X, *b, x);
+   a->RecoverFEMSolution(X, *b, x);
 
    // 15. Compute and print the L^2 norm of the error.
    {

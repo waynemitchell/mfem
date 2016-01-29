@@ -180,25 +180,28 @@ public:
       sol.ConformingProject();
    }
 
-   /** Complete assembly of the linear system, applying any necessary
-       transformations such as: eliminating boundary conditions; applying
-       conforming constraints for non-confoming AMR; static condensation;
-       hybridization. Returns the SparseMatrix of the linear system that needs
-       to be solved. The GridFunction-size vector x must contain the essential
-       b.c. The BilinearForm and the LinearForm-size vector b must be assembled.
+   /** Form the linear system A X = B, corresponding to the current bilinear
+       form and b(.), by applying any necessary transformations such as:
+       eliminating boundary conditions; applying conforming constraints for
+       non-conforming AMR; static condensation; hybridization.
+
+       The GridFunction-size vector x must contain the essential b.c. The
+       BilinearForm and the LinearForm-size vector b must be assembled.
+
        This method can be called multiple times (with the same ess_tdof_list
        array) to initialize different right-hand sides and boundary condition
-       values. After solving the linear system, call ComputeSolution (with the
-       same vectors X, b, and x) to recover the solution as a GridFunction-size
-       vector in x. */
-   SparseMatrix &AssembleSystem(Array<int> &ess_tdof_list,
-                                Vector &x, Vector &b,
-                                Vector &X, Vector &B);
+       values.
+
+       After solving the linear system, the finite element solution x can be
+       recovered by calling RecoverFEMSolution (with the same vectors X, b, and
+       x). */
+   void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
+                         SparseMatrix &A, Vector &X, Vector &B);
 
    /** Call this method after solving a linear system constructed using the
-       AssembleSystem method to recover the solution as a GridFunction-size
+       FormLinearSystem method to recover the solution as a GridFunction-size
        vector in x. */
-   void ComputeSolution(const Vector &X, const Vector &b, Vector &x);
+   void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
    /// Compute and store internally all element matrices.
    void ComputeElementMatrices();

@@ -34,8 +34,8 @@ namespace mfem
     imposed, and \hat{A} is the block-diagonal matrix of all element matrices.
 
     We assume that:
-    * \hat{A} is invertible
-    * P has a left inverse R, such that R P = I
+    * \hat{A} is invertible,
+    * P has a left inverse R, such that R P = I,
     * a constraint matrix C can be constructed, such that Ker(C) = Im(P).
 
     Under these conditions, the linear system A x = b can be solved using the
@@ -43,9 +43,9 @@ namespace mfem
     * solve for lambda in the linear system:
        (C \hat{A}^{-1} C^T) \lambda = C \hat{A}^{-1} R^T b
     * compute x = R \hat{A}^{-1} (R^T b - C^T \lambda)
-    The advantage of hybridization is that the matrix H = (C \hat{A}^{-1} C^T)
-    of the hybridized system may either be smaller than the original system, or
-    be simpler to invert with a known method.
+    Hybridization is advantageous when the matrix H = (C \hat{A}^{-1} C^T) of
+    the hybridized system is either smaller than the original system, or is
+    simpler to invert with a known method.
 
     In some cases, e.g. high-order elements, the matrix C can be written as
        C = [ 0  C_b ]

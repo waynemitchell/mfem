@@ -901,7 +901,7 @@ void hypre_ParCSRMatrixSplit(hypre_ParCSRMatrix *A,
    }
 }
 
-/* Based on hypre_CSRMatrixMatvec in csr_matvec.c */
+/* Based on hypre_CSRMatrixMatvec in hypre's csr_matvec.c */
 void hypre_CSRMatrixBooleanMatvec(hypre_CSRMatrix *A,
                                   HYPRE_Bool alpha,
                                   HYPRE_Bool *x,
@@ -1009,8 +1009,8 @@ void hypre_CSRMatrixBooleanMatvec(hypre_CSRMatrix *A,
    /* alpha is true */
 }
 
-/* Based on hypre_ParCSRCommHandleCreate in par_csr_communication.c. The input
-   variable job controls the communication type: 1 - Matvec, 2 - MatvecT. */
+/* Based on hypre_ParCSRCommHandleCreate in hypre's par_csr_communication.c. The
+   input variable job controls the communication type: 1=Matvec, 2=MatvecT. */
 hypre_ParCSRCommHandle *
 hypre_ParCSRCommHandleCreate_bool(HYPRE_Int            job,
                                   hypre_ParCSRCommPkg *comm_pkg,

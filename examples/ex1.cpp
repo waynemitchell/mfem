@@ -156,8 +156,11 @@ int main(int argc, char *argv[])
    }
 
    a->Assemble();
+
+   SparseMatrix A;
    Vector B, X;
-   SparseMatrix &A = a->AssembleSystem(ess_tdof_list, x, *b, X, B);
+   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+
    cout << "Size of linear system: " << A.Height() << endl;
 
    X = 0.0;
@@ -175,7 +178,7 @@ int main(int argc, char *argv[])
 #endif
 
    // 9. Recover the grid function in non-conforming AMR problems
-   a->ComputeSolution(X, *b, x);
+   a->RecoverFEMSolution(X, *b, x);
 
    // 10. Save the refined mesh and the solution. This output can be viewed later
    //     using GLVis: "glvis -m refined.mesh -g sol.gf".

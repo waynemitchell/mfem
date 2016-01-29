@@ -191,8 +191,11 @@ int main(int argc, char *argv[])
    }
 
    a->Assemble();
+
+   HypreParMatrix A;
    Vector B, X;
-   HypreParMatrix &A = a->AssembleSystem(ess_tdof_list, x, *b, X, B);
+   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+
    HYPRE_Int glob_size = A.GetGlobalNumRows();
    if (myid == 0)
    {
@@ -211,7 +214,7 @@ int main(int argc, char *argv[])
 
    // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   a->ComputeSolution(X, *b, x);
+   a->RecoverFEMSolution(X, *b, x);
 
    // 14. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".

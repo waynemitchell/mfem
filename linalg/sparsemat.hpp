@@ -72,7 +72,7 @@ public:
        linked list format. New entries are added as needed by methods like
        AddSubMatrix, SetSubMatrix, etc. Calling Finalize() will convert the
        SparseMatrix to the more compact compressed sparse row (CSR) format. */
-   explicit SparseMatrix(int nrows, int ncols = 0);
+   explicit SparseMatrix(int nrows = 0, int ncols = 0);
 
    /** Create a sparse matrix in CSR format. Ownership of i, j, and data is
        transferred to the SparseMatrix. */
@@ -87,6 +87,9 @@ public:
        false, the I and J arrays will use a shallow copy (copy the pointers
        only) without transferring ownership. */
    SparseMatrix(const SparseMatrix &mat, bool copy_graph = true);
+
+   /// Make this SparseMatrix a reference to 'master'
+   void MakeRef(const SparseMatrix &master);
 
    /// For backward compatibility define Size to be synonym of Height()
    int Size() const { return Height(); }

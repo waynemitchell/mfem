@@ -77,20 +77,20 @@ public:
                                      HypreParVector &B) const;
 
    /** Eliminate essential boundary DOFs from a parallel assembled matrix A.
-       The array 'bdr_attr_is_ess' marks boundary attributes that constitute
-       the essential part of the boundary. The eliminated part is stored in a
-       matrix A_elim such that A_new = A_original + A_elim. Returns a pointer to
-       the newly allocatated matrix A_elim which should be deleted by the
-       caller. The matrices A and A_elim can be used to eliminate boundary
-       conditions in multiple right-hand sides, by calling the function
-       EliminateBC (from hypre.hpp).*/
+       The array 'bdr_attr_is_ess' marks boundary attributes that constitute the
+       essential part of the boundary. The eliminated part is stored in a matrix
+       A_elim such that A_new = A_original + A_elim. Returns a pointer to the
+       newly allocated matrix A_elim which should be deleted by the caller. The
+       matrices A and A_elim can be used to eliminate boundary conditions in
+       multiple right-hand sides, by calling the function EliminateBC (from
+       hypre.hpp).*/
    HypreParMatrix *ParallelEliminateEssentialBC(const Array<int> &bdr_attr_is_ess,
                                                 HypreParMatrix &A) const;
 
    /** Given a list of essential true dofs and the parallel assembled matrix A,
-       eliminate the true dofs from the matrix storing the eliminated part in
-       a matrix A_elim such that A_new = A_original + A_elim. Returns a pointer
-       to the newly allocatated matrix A_elim which should be deleted by the
+       eliminate the true dofs from the matrix storing the eliminated part in a
+       matrix A_elim such that A_new = A_original + A_elim. Returns a pointer to
+       the newly allocated matrix A_elim which should be deleted by the
        caller. The matrices A and A_elim can be used to eliminate boundary
        conditions in multiple right-hand sides, by calling the function
        EliminateBC (from hypre.hpp). */
@@ -103,25 +103,30 @@ public:
 
    ParFiniteElementSpace *ParFESpace() const { return pfes; }
 
-   /** Complete assembly of the linear system, applying any necessary
-       transformations such as: eliminating boundary conditions; applying
-       conforming constraints for non-confoming AMR; parallel assembly; static
-       condensation; hybridization. Returns the HypreParMatrix of the linear
-       system that needs to be solved. The ParGridFunction-size vector x must
-       contain the essential b.c. The ParBilinearForm and the ParLinearForm-size
-       vector b must be assembled. This method can be called multiple times
-       (with the same ess_tdof_list array) to initialize different right-hand
-       sides and boundary condition values. After solving the linear system,
-       call ComputeSolution (with the same vectors X, b, and x) to recover the
-       solution as a ParGridFunction-size vector in x. */
-   HypreParMatrix &AssembleSystem(Array<int> &ess_tdof_list,
-                                  Vector &x, Vector &b,
-                                  Vector &X, Vector &B);
+   /** Form the linear system A X = B, corresponding to the current bilinear
+       form and b(.), by applying any necessary transformations such as:
+       eliminating boundary conditions; applying conforming constraints for
+       non-conforming AMR; parallel assembly; static condensation;
+       hybridization.
+
+       The ParGridFunction-size vector x must contain the essential b.c. The
+       ParBilinearForm and the ParLinearForm-size vector b must be assembled.
+
+
+       This method can be called multiple times (with the same ess_tdof_list
+       array) to initialize different right-hand sides and boundary condition
+       values.
+
+       After solving the linear system, the finite element solution x can be
+       recovered by calling RecoverFEMSolution (with the same vectors X, b, and
+       x). */
+   void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
+                         HypreParMatrix &A, Vector &X, Vector &B);
 
    /** Call this method after solving a linear system constructed using the
-       AssembleSystem method to recover the solution as a ParGridFunction-size
+       FormLinearSystem method to recover the solution as a ParGridFunction-size
        vector in x. */
-   void ComputeSolution(const Vector &X, const Vector &b, Vector &x);
+   void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
    virtual void Update(FiniteElementSpace *nfes = NULL);
 

@@ -162,6 +162,9 @@ private:
    // All owned arrays are destroyed with 'delete []'.
    char diagOwner, offdOwner, colMapOwner;
 
+   // Does the object own the pointer A?
+   char ParCSROwner;
+
    // Initialize with defaults. Does not initialize inherited members.
    void Init();
 
@@ -182,6 +185,9 @@ private:
    static void CopyCSR_J(hypre_CSRMatrix *hypre_csr, int *J);
 
 public:
+   /// An empty matrix to be used as a reference to an existing matrix
+   HypreParMatrix();
+
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a)
    {
@@ -244,6 +250,9 @@ public:
    HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
                   HYPRE_Int glob_ncols, int *I, HYPRE_Int *J,
                   double *data, HYPRE_Int *rows, HYPRE_Int *cols);
+
+   /// Make this HypreParMatrix a reference to 'master'
+   void MakeRef(const HypreParMatrix &master);
 
    /// MPI communicator
    MPI_Comm GetComm() const { return A->comm; }
@@ -339,6 +348,8 @@ public:
    virtual void MultTranspose(const Vector &x, Vector &y) const
    { MultTranspose(1.0, x, 0.0, y); }
 
+   /** The "Boolean" analog of y = alpha * A * x + beta * y, where elements in
+       the sparsity pattern of the matrix are treated as "true". */
    void BooleanMult(int alpha, int *x, int beta, int *y)
    {
       internal::hypre_ParCSRMatrixBooleanMatvec(A, alpha, x, beta, y);
