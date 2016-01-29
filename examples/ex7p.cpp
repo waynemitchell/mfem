@@ -235,29 +235,29 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddDomainIntegrator(new MassIntegrator(one));
    a->Assemble();
-   a->Finalize();
 
-   // 9. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //    b(.) and the finite element approximation.
-   HypreParMatrix * A = a->ParallelAssemble();
-   HypreParVector * B = b->ParallelAssemble();
-   HypreParVector * X = x.ParallelProject();
-
-   delete a;
-   delete b;
+   // 9. Assemble the parallel linear system, applying any transformations
+   //    such as: parallel assembly, applying conforming constraints, etc.
+   HypreParMatrix A;
+   Vector B, X;
+   Array<int> empty_tdof_list;
+   a->FormLinearSystem(empty_tdof_list, x, *b, A, X, B);
 
    // 10. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre. Extract the parallel grid function x
    //     corresponding to the finite element approximation X. This is the local
    //     solution on each processor.
-   HypreSolver *amg = new HypreBoomerAMG(*A);
-   HyprePCG *pcg = new HyprePCG(*A);
+   HypreSolver *amg = new HypreBoomerAMG(A);
+   HyprePCG *pcg = new HyprePCG(A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(200);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
-   pcg->Mult(*B, *X);
-   x = *X;
+   pcg->Mult(B, X);
+   a->RecoverFEMSolution(X, *b, x);
+
+   delete a;
+   delete b;
 
    // 11. Compute and print the L^2 norm of the error.
    double err = x.ComputeL2Error(sol_coef);
@@ -296,9 +296,6 @@ int main(int argc, char *argv[])
    // 14. Free the used memory.
    delete pcg;
    delete amg;
-   delete X;
-   delete B;
-   delete A;
    delete fespace;
    delete pmesh;
 
