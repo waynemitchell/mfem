@@ -140,24 +140,27 @@ int main(int argc, char *argv[])
       a.Assemble();
       b.Assemble();
 
-      x.ProjectBdrCoefficient(zero, ess_bdr);
+      // 11. Set Dirichlet boundary values in the GridFunction x.
+      //     Determine the list of Dirichlet true DOFs in the linear system.
+      Array<int> ess_tdof_list;
+      if (mesh.bdr_attributes.Size())
+      {
+         x.ProjectBdrCoefficient(zero, ess_bdr);
+         fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      }
 
-      // 11. Take care of nonconforming meshes by applying the interpolation
-      //     matrix P to a, b and x, so that slave degrees of freedom get
-      //     eliminated from the linear system. The system becomes P'AP x = P'b.
-      //     (If the mesh is conforming, P is identity.)
-      a.ConformingAssemble(x, b);
+      // 12. Create the linear system: eliminate boundary conditions, constrain
+      //     hanging nodes and possibly apply other transformations. The system
+      //     will be solved for true (unconstrained) DOFs only.
+      SparseMatrix A;
+      Vector B, X;
+      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B);
 
-      // 12. As usual, we also need to eliminate the essential BC from the
-      //     system. This needs to be done after ConformingAssemble.
-      a.EliminateEssentialBC(ess_bdr, x, b);
-
-      const SparseMatrix &A = a.SpMat();
 #ifndef MFEM_USE_SUITESPARSE
       // 13. Define a simple symmetric Gauss-Seidel preconditioner and use it to
       //     solve the linear system with PCG.
       GSSmoother M(A);
-      PCG(A, M, b, x, 2, 200, 1e-12, 0.0);
+      PCG(A, M, B, X, 2, 200, 1e-12, 0.0);
 #else
       // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
       //     the linear system.
@@ -167,13 +170,12 @@ int main(int argc, char *argv[])
       umf_solver.Mult(b, x);
 #endif
 
-      // 14. For nonconforming meshes, bring the solution vector back from
-      //     the conforming space to the nonconforming (cut) space, i.e.,
-      //     x = Px. Slave DOFs receive the correct values to make the solution
-      //     continuous.
-      x.ConformingProlongate();
+      // 14. After solving the linear system, reconstruct the solution as a finite
+      //     element grid function. Constrained nodes are interpolated from true
+      //     DOFs (it may therefore happen that dim(x) >= dim(X)).
+      a.RecoverFEMSolution(X, b, x);
 
-      // 15. Send solution by socket to the GLVis server.
+      // 16. Send solution by socket to the GLVis server.
       if (visualization && sol_sock.good())
       {
          sol_sock.precision(8);
@@ -185,7 +187,7 @@ int main(int argc, char *argv[])
          break;
       }
 
-      // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
+      // 17. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
       Vector errors(mesh.GetNE());
@@ -197,7 +199,7 @@ int main(int argc, char *argv[])
          ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
       }
 
-      // 17. Make a list of elements whose error is larger than a fraction (0.7)
+      // 18. Make a list of elements whose error is larger than a fraction (0.7)
       //     of the maximum element error. These elements will be refined.
       Array<Refinement> ref_list;
       const double frac = 0.7;
@@ -211,13 +213,13 @@ int main(int argc, char *argv[])
          }
       }
 
-      // 18. Refine the selected elements. Since we are going to transfer the
+      // 19. Refine the selected elements. Since we are going to transfer the
       //     grid function x from the coarse mesh to the new fine mesh in the
       //     next step, we need to request the "two-level state" of the mesh.
       mesh.UseTwoLevelState(1);
       mesh.GeneralRefinement(ref_list);
 
-      // 19. Update the space to reflect the new state of the mesh. Also,
+      // 20. Update the space to reflect the new state of the mesh. Also,
       //     interpolate the solution x so that it lies in the new space but
       //     represents the same function. This saves solver iterations since
       //     we'll have a good initial guess of x in the next step.
@@ -232,7 +234,7 @@ int main(int argc, char *argv[])
       // fespace.Update();
       // x.Update();
 
-      // 20. Inform also the bilinear and linear forms that the space has
+      // 21. Inform also the bilinear and linear forms that the space has
       //     changed.
       a.Update();
       b.Update();
