@@ -11,14 +11,14 @@
 
 // Meshing miniapp: visualize and manipulate meshes
 //
-// Compile with: make view-mesh
+// Compile with: make mesh-explorer
 //
-// Sample runs:  view-mesh
-//               view-mesh -m ../../data/beam-tri.mesh
-//               view-mesh -m ../../data/star-q2.mesh
-//               view-mesh -m ../../data/disc-nurbs.mesh
-//               view-mesh -m ../../data/escher-p3.mesh
-//               view-mesh -m ../../data/mobius-strip.mesh
+// Sample runs:  mesh-explorer
+//               mesh-explorer -m ../../data/beam-tri.mesh
+//               mesh-explorer -m ../../data/star-q2.mesh
+//               mesh-explorer -m ../../data/disc-nurbs.mesh
+//               mesh-explorer -m ../../data/escher-p3.mesh
+//               mesh-explorer -m ../../data/mobius-strip.mesh
 
 #include "mfem.hpp"
 #include <fstream>
@@ -104,9 +104,9 @@ int main (int argc, char *argv[])
          cout << endl;
       }
       cout << "Visualize and manipulate a serial mesh:\n"
-           << "   view_mesh -m <mesh_file>\n"
+           << "   mesh-explorer -m <mesh_file>\n"
            << "Visualize and manipulate a parallel mesh:\n"
-           << "   view_mesh -np <#proc> -m <mesh_prefix>\n" << endl
+           << "   mesh-explorer -np <#proc> -m <mesh_prefix>\n" << endl
            << "All Options:\n";
       args.PrintHelp(cout);
       return 1;
@@ -631,7 +631,7 @@ int main (int argc, char *argv[])
 
       if (mk == 'S')
       {
-         const char mesh_file[] = "view-mesh.mesh";
+         const char mesh_file[] = "mesh-explorer.mesh";
          ofstream omesh(mesh_file);
          omesh.precision(14);
          mesh->Print(omesh);

@@ -92,9 +92,9 @@ New and updated examples
 New miniapps
 ------------
 - Meshing miniapps:
-  * mobius-strip - generate various Mobius strip-like meshes.
-  * klein-bottle - generate three types of Klein bottle surfaces.
-  * view-mesh - visualize and manipulate meshes.
+  * mobius-strip  - generate various Mobius strip-like meshes.
+  * klein-bottle  - generate three types of Klein bottle surfaces.
+  * mesh-explorer - visualize and manipulate meshes.
   See also miniapps/meshing/README.
 
 Miscellaneous
