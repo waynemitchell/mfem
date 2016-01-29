@@ -110,6 +110,8 @@ int main(int argc, char *argv[])
    x = 0;
 
    // 7. All boundary attributes will be used for essential (Dirichlet) BC.
+   MFEM_VERIFY(mesh.bdr_attributes.Size() > 0,
+               "Boundary attributes required in the mesh.");
    Array<int> ess_bdr(mesh.bdr_attributes.Max());
    ess_bdr = 1;
 
@@ -143,11 +145,8 @@ int main(int argc, char *argv[])
       // 11. Set Dirichlet boundary values in the GridFunction x.
       //     Determine the list of Dirichlet true DOFs in the linear system.
       Array<int> ess_tdof_list;
-      if (mesh.bdr_attributes.Size())
-      {
-         x.ProjectBdrCoefficient(zero, ess_bdr);
-         fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-      }
+      x.ProjectBdrCoefficient(zero, ess_bdr);
+      fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
       // 12. Create the linear system: eliminate boundary conditions, constrain
       //     hanging nodes and possibly apply other transformations. The system

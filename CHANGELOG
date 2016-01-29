@@ -63,7 +63,7 @@ Bilinear form hybridization and new FEM <-> linear system interface
   their corresponding linear algebra objects, which supports abstracts
   transformations such as: parallel assembly, eliminating boundary conditions,
   applying conforming constraints for non-conforming AMR, hybridization, back
-  substitution, etc. See Example 4/4p, for an illustration.
+  substitution, etc. Changed most of the example codes accordingly.
 
 New eigensolvers and improved solvers
 -------------------------------------
