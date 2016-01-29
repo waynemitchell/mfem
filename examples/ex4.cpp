@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
 
    // 9. Optionally enable hybridization of the BilinearForm by defining an
-   //    interfacial multiplier space and constaint trace integrator.
+   //    interfacial multiplier space and constraint trace integrator.
    FiniteElementCollection *hfec = NULL;
    FiniteElementSpace *hfes = NULL;
    if (static_cond)

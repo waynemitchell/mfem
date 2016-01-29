@@ -353,8 +353,12 @@ void ParBilinearForm::Update(FiniteElementSpace *nfes)
 {
    BilinearForm::Update(nfes);
 
-   pfes = dynamic_cast<ParFiniteElementSpace *>(nfes);
-   MFEM_VERIFY(pfes != NULL, "nfes must be a ParFiniteElementSpace!");
+   if (nfes)
+   {
+      pfes = dynamic_cast<ParFiniteElementSpace *>(nfes);
+      MFEM_VERIFY(pfes != NULL, "nfes must be a ParFiniteElementSpace!");
+   }
+
    delete p_mat;
    delete p_mat_e;
    p_mat = p_mat_e = NULL;
