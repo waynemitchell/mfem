@@ -378,9 +378,9 @@ void BilinearForm::ConformingAssemble()
    width = mat->Width();
 }
 
-SparseMatrix &BilinearForm::AssembleSystem(Array<int> &ess_tdof_list,
-                                           Vector &x, Vector &b,
-                                           Vector &X, Vector &B)
+void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
+                                    Vector &x, Vector &b,
+                                    SparseMatrix &A, Vector &X, Vector &B)
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
 
@@ -400,14 +400,14 @@ SparseMatrix &BilinearForm::AssembleSystem(Array<int> &ess_tdof_list,
       {
          X.NewDataAndSize(x.GetData(), x.Size());
          B.NewDataAndSize(b.GetData(), b.Size());
-         return *mat;
+         A.MakeRef(*mat);
       }
       else
       {
          hybridization->ReduceRHS(b, B);
          X.SetSize(B.Size());
          X = 0.0;
-         return hybridization->GetMatrix();
+         A.MakeRef(hybridization->GetMatrix());
       }
    }
    else
@@ -420,7 +420,7 @@ SparseMatrix &BilinearForm::AssembleSystem(Array<int> &ess_tdof_list,
          X.SetSize(R->Height());
          R->Mult(x, X);
          EliminateVDofsInRHS(ess_tdof_list, X, B);
-         return *mat;
+         A.MakeRef(*mat);
       }
       else
       {
@@ -432,12 +432,13 @@ SparseMatrix &BilinearForm::AssembleSystem(Array<int> &ess_tdof_list,
          hybridization->ReduceRHS(conf_b, B);
          X.SetSize(B.Size());
          X = 0.0;
-         return hybridization->GetMatrix();
+         A.MakeRef(hybridization->GetMatrix());
       }
    }
 }
 
-void BilinearForm::ComputeSolution(const Vector &X, const Vector &b, Vector &x)
+void BilinearForm::RecoverFEMSolution(const Vector &X,
+                                      const Vector &b, Vector &x)
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
    if (!P)

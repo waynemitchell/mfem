@@ -261,8 +261,9 @@ const
    pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
 }
 
-HypreParMatrix &ParBilinearForm::AssembleSystem(
-   Array<int> &ess_tdof_list, Vector &x, Vector &b, Vector &X, Vector &B)
+void ParBilinearForm::FormLinearSystem(
+   Array<int> &ess_tdof_list, Vector &x, Vector &b,
+   HypreParMatrix &A, Vector &X, Vector &B)
 {
    HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
    const SparseMatrix &R = *pfes->GetRestrictionMatrix();
@@ -283,7 +284,7 @@ HypreParMatrix &ParBilinearForm::AssembleSystem(
       P.MultTranspose(b, B);
       R.Mult(x, X);
       EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, X, B);
-      return *p_mat;
+      A.MakeRef(*p_mat);
    }
    else
    {
@@ -295,11 +296,11 @@ HypreParMatrix &ParBilinearForm::AssembleSystem(
       hybridization->ReduceRHS(TB, B);
       X.SetSize(B.Size());
       X = 0.0;
-      return hybridization->GetParallelMatrix();
+      A.MakeRef(hybridization->GetParallelMatrix());
    }
 }
 
-void ParBilinearForm::ComputeSolution(
+void ParBilinearForm::RecoverFEMSolution(
    const Vector &X, const Vector &b, Vector &x)
 {
    HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();

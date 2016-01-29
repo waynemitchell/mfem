@@ -205,6 +205,13 @@ void HypreParMatrix::Init()
    A = NULL;
    X = Y = NULL;
    diagOwner = offdOwner = colMapOwner = -1;
+   ParCSROwner = 1;
+}
+
+HypreParMatrix::HypreParMatrix()
+{
+   Init();
+   height = width = 0;
 }
 
 char HypreParMatrix::CopyCSR(SparseMatrix *csr, hypre_CSRMatrix *hypre_csr)
@@ -714,6 +721,15 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
 
    height = GetNumRows();
    width = GetNumCols();
+}
+
+void HypreParMatrix::MakeRef(const HypreParMatrix &master)
+{
+   Init();
+   A = master.A;
+   ParCSROwner = 0;
+   height = master.GetNumRows();
+   width = master.GetNumCols();
 }
 
 hypre_ParCSRMatrix* HypreParMatrix::StealData()
@@ -1227,7 +1243,10 @@ void HypreParMatrix::Destroy()
       hypre_ParCSRMatrixColMapOffd(A) = NULL;
    }
 
-   hypre_ParCSRMatrixDestroy(A);
+   if (ParCSROwner)
+   {
+      hypre_ParCSRMatrixDestroy(A);
+   }
 }
 
 HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B)

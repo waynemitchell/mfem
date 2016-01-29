@@ -169,8 +169,11 @@ int main(int argc, char *argv[])
    //     conditions, applying conforming constraints for non-conforming AMR,
    //     hybridization, etc.
    a->Assemble();
+
+   SparseMatrix A;
    Vector B, X;
-   SparseMatrix &A = a->AssembleSystem(ess_tdof_list, x, *b, X, B);
+   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
+
    cout << "Size of linear system: " << A.Height() << endl;
 
 #ifndef MFEM_USE_SUITESPARSE
@@ -189,7 +192,7 @@ int main(int argc, char *argv[])
 
    // 12. After solving the linear system, reconstruct the solution as a finite
    //     element grid function.
-   a->ComputeSolution(X, *b, x);
+   a->RecoverFEMSolution(X, *b, x);
 
    // 13. Compute and print the L^2 norm of the error.
    cout << "\n|| F_h - F ||_{L^2} = " << x.ComputeL2Error(F) << '\n' << endl;

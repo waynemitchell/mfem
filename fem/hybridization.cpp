@@ -145,6 +145,7 @@ void Hybridization::Init(const Array<int> &ess_tdof_list)
    }
    else
    {
+      // Check if c_fes is really needed here.
       MFEM_ABORT("TODO: algebraic definition of C");
    }
 
