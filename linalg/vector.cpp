@@ -572,6 +572,14 @@ void Vector::AddElementVector(const Array<int> &dofs, const double a,
       }
 }
 
+void Vector::SetSubVectorComplement(const Array<int> &dofs, const double val)
+{
+   Vector dofs_vals;
+   GetSubVector(dofs, dofs_vals);
+   operator=(val);
+   SetSubVector(dofs, dofs_vals);
+}
+
 void Vector::Print(std::ostream &out, int width) const
 {
    if (!size) { return; }

@@ -42,13 +42,17 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace,
    for (int i = 0; i < NE; i++)
    {
       fes->GetElementVDofs(i, vdofs);
-      // Remove dof signs: the signs will be applied to the matrix entries.
-      FiniteElementSpace::AdjustVDofs(vdofs);
       const int nsd = vdofs.Size()/vdim;
       const int nspd = fes->GetNumElementInteriorDofs(i);
       const int *dofs = vdofs.GetData();
       for (int vd = 0; vd < vdim; vd++)
       {
+#ifdef MFEM_DEBUG
+         for (int j = 0; j < nspd; j++)
+         {
+            MFEM_ASSERT(dofs[nsd-nspd+j] >= 0, "");
+         }
+#endif
          elem_pdof.AddConnections(i, dofs+nsd-nspd, nspd);
          dofs += nsd;
       }
@@ -65,16 +69,22 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace,
    for (int i = 0; i < NE; i++)
    {
       fes->GetElementVDofs(i, vdofs);
-      FiniteElementSpace::AdjustVDofs(vdofs);
       tr_fes->GetElementVDofs(i, rvdofs);
-      FiniteElementSpace::AdjustVDofs(rvdofs);
-      const int nd = vdofs.Size()/vdim;
-      const int nrd = rvdofs.Size()/vdim;
+      const int nsd = vdofs.Size()/vdim;
+      const int nsrd = rvdofs.Size()/vdim;
       for (int vd = 0; vd < vdim; vd++)
       {
-         for (int j = 0; j < nrd; j++)
+         for (int j = 0; j < nsrd; j++)
          {
-            rdof_edof[rvdofs[j+nrd*vd]] = vdofs[j+nd*vd];
+            int rvdof = rvdofs[j+nsrd*vd];
+            int vdof = vdofs[j+nsd*vd];
+            if (rvdof < 0)
+            {
+               rvdof = -1-rvdof;
+               vdof = -1-vdof;
+            }
+            MFEM_ASSERT(vdof >= 0, "incompatible volume and trace FE spaces");
+            rdof_edof[rvdof] = vdof;
          }
       }
    }
@@ -141,17 +151,16 @@ void StaticCondensation::Init(bool symmetric, bool block_diagonal)
    else
    {
       // For a block diagonal vector bilinear form, the sparsity of
-      // rdof->elem->rdof is overkill.
+      // rdof->elem->rdof is overkill, so we use dynamically allocated
+      // sparsity pattern.
       S = new SparseMatrix(nedofs);
    }
 }
 
-void StaticCondensation::AssembleMatrix(int el, Array<int> &vdofs,
-                                        DenseMatrix &elmat)
+void StaticCondensation::AssembleMatrix(int el, const DenseMatrix &elmat)
 {
    Array<int> rvdofs;
    tr_fes->GetElementVDofs(el, rvdofs);
-   FiniteElementSpace::AdjustVDofs(rvdofs);
    const int vdim = fes->GetVDim();
    const int nvpd = elem_pdof.RowSize(el);
    const int nved = rvdofs.Size();
@@ -161,8 +170,6 @@ void StaticCondensation::AssembleMatrix(int el, Array<int> &vdofs,
    if (symm) { A_ep.SetSize(nved, nvpd); }
    else      { A_ep.UseExternalData(A_pe.Data() + nvpd*nved, nved, nvpd); }
    DenseMatrix A_ee(nved, nved);
-
-   elmat.AdjustDofDirection(vdofs);
 
    const int npd = nvpd/vdim;
    const int ned = nved/vdim;
@@ -188,14 +195,10 @@ void StaticCondensation::AssembleMatrix(int el, Array<int> &vdofs,
    S->AddSubMatrix(rvdofs, rvdofs, A_ee, skip_zeros);
 }
 
-void StaticCondensation::AssembleBdrMatrix(int el, Array<int> &vdofs,
-                                           DenseMatrix &elmat)
+void StaticCondensation::AssembleBdrMatrix(int el, const DenseMatrix &elmat)
 {
-   elmat.AdjustDofDirection(vdofs);
-
    Array<int> rvdofs;
    tr_fes->GetBdrElementVDofs(el, rvdofs);
-   FiniteElementSpace::AdjustVDofs(rvdofs);
    const int skip_zeros = 0;
    S->AddSubMatrix(rvdofs, rvdofs, elmat, skip_zeros);
 }
@@ -303,7 +306,6 @@ void StaticCondensation::ReduceRHS(const Vector &b, Vector &sc_b) const
    for (int i = 0; i < NE; i++)
    {
       tr_fes->GetElementVDofs(i, rvdofs);
-      FiniteElementSpace::AdjustVDofs(rvdofs);
       const int ned = rvdofs.Size();
       const int *rd = rvdofs.GetData();
       const int npd = elem_pdof.RowSize(i);
@@ -331,7 +333,8 @@ void StaticCondensation::ReduceRHS(const Vector &b, Vector &sc_b) const
       }
       for (int j = 0; j < ned; j++)
       {
-         b_r(rd[j]) -= b_ep(j);
+         if (rd[j] >= 0) { b_r(rd[j]) -= b_ep(j); }
+         else            { b_r(-1-rd[j]) += b_ep(j); }
       }
    }
    if (!Parallel())
@@ -457,24 +460,19 @@ void StaticCondensation::ComputeSolution(
    for (int i = 0; i < NE; i++)
    {
       tr_fes->GetElementVDofs(i, rvdofs);
-      FiniteElementSpace::AdjustVDofs(rvdofs);
       const int ned = rvdofs.Size();
-      const int *rd = rvdofs.GetData();
       const int npd = elem_pdof.RowSize(i);
       const int *pd = elem_pdof.GetRow(i);
       b_p.SetSize(npd);
-      s_e.SetSize(ned);
 
       for (int j = 0; j < npd; j++)
       {
          b_p(j) = b(pd[j]);
       }
-      for (int j = 0; j < ned; j++)
-      {
-         s_e(j) = sol_r(rd[j]);
-      }
+      sol_r.GetSubVector(rvdofs, s_e);
 
       LUFactors lu(A_data + A_offsets[i], A_ipiv + A_ipiv_offsets[i]);
+      lu.LSolve(npd, 1, b_p);
       lu.BlockBackSolve(npd, ned, 1, lu.data + npd*npd, s_e, b_p);
 
       for (int j = 0; j < npd; j++)

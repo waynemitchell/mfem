@@ -67,11 +67,11 @@ public:
    /** Assemble the contribution to the Schur complement from the given
        element matrix 'elmat'; save the other blocks internally: A_pp_inv, A_pe,
        and A_ep. */
-   void AssembleMatrix(int el, Array<int> &vdofs, DenseMatrix &elmat);
+   void AssembleMatrix(int el, const DenseMatrix &elmat);
 
    /** Assemble the contribution to the Schur complement from the given boundary
        element matrix 'elmat'. */
-   void AssembleBdrMatrix(int el, Array<int> &vdofs, DenseMatrix &elmat);
+   void AssembleBdrMatrix(int el, const DenseMatrix &elmat);
 
    /// Finalize the construction of the Schur complement matrix.
    void Finalize();
@@ -79,6 +79,15 @@ public:
    /// Eliminate the given reduced true dofs from the Schur complement matrix S.
    void EliminateReducedTrueDofs(const Array<int> &ess_rtdof_list,
                                  int keep_diagonal);
+
+   bool HasEliminatedBC() const
+   {
+#ifndef MFEM_USE_MPI
+      return S_e;
+#else
+      return S_e || pS_e;
+#endif
+   }
 
    /// Return the serial Schur complement matrix.
    SparseMatrix &GetMatrix() { return *S; }

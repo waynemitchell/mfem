@@ -19,6 +19,8 @@ namespace mfem
 
 void BilinearForm::AllocMat()
 {
+   if (static_cond) { return; }
+
    if (precompute_sparsity == 0 || fes->GetVDim() > 1)
    {
       mat = new SparseMatrix(height);
@@ -175,7 +177,7 @@ MatrixInverse * BilinearForm::Inverse() const
 
 void BilinearForm::Finalize (int skip_zeros)
 {
-   mat->Finalize(skip_zeros);
+   if (!static_cond) { mat->Finalize(skip_zeros); }
    if (mat_e) { mat_e->Finalize(skip_zeros); }
    if (static_cond) { static_cond->Finalize(); }
    if (hybridization) { hybridization->Finalize(); }
@@ -232,19 +234,22 @@ void BilinearForm::ComputeElementMatrix(int i, DenseMatrix &elmat)
 void BilinearForm::AssembleElementMatrix(
    int i, const DenseMatrix &elmat, Array<int> &vdofs, int skip_zeros)
 {
-   if (mat == NULL)
-   {
-      AllocMat();
-   }
    fes->GetElementVDofs(i, vdofs);
-   mat->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
    if (static_cond)
    {
-      // static_cond->AssembleMatrix(i, vdofs, elmat); // elmat is const!
+      static_cond->AssembleMatrix(i, elmat);
    }
-   if (hybridization)
+   else
    {
-      hybridization->AssembleMatrix(i, vdofs, elmat);
+      if (mat == NULL)
+      {
+         AllocMat();
+      }
+      mat->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
+      if (hybridization)
+      {
+         hybridization->AssembleMatrix(i, elmat);
+      }
    }
 }
 
@@ -291,14 +296,17 @@ void BilinearForm::Assemble (int skip_zeros)
             }
             elmat_p = &elmat;
          }
-         mat->AddSubMatrix(vdofs, vdofs, *elmat_p, skip_zeros);
          if (static_cond)
          {
-            static_cond->AssembleMatrix(i, vdofs, *elmat_p);
+            static_cond->AssembleMatrix(i, *elmat_p);
          }
-         if (hybridization)
+         else
          {
-            hybridization->AssembleMatrix(i, vdofs, *elmat_p);
+            mat->AddSubMatrix(vdofs, vdofs, *elmat_p, skip_zeros);
+            if (hybridization)
+            {
+               hybridization->AssembleMatrix(i, *elmat_p);
+            }
          }
       }
    }
@@ -316,10 +324,13 @@ void BilinearForm::Assemble (int skip_zeros)
             bbfi[k]->AssembleElementMatrix(be, *eltrans, elemmat);
             elmat += elemmat;
          }
-         mat->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
-         if (static_cond)
+         if (!static_cond)
          {
-            static_cond->AssembleBdrMatrix(i, vdofs, elmat);
+            mat->AddSubMatrix(vdofs, vdofs, elmat, skip_zeros);
+         }
+         else
+         {
+            static_cond->AssembleBdrMatrix(i, elmat);
          }
       }
    }
@@ -389,6 +400,7 @@ void BilinearForm::ConformingAssemble()
    // matrix. This ensures that subsequent calls to EliminateRowCol will work
    // correctly.
    Finalize(0);
+   MFEM_ASSERT(mat, "the BilinearForm is not assembled")
 
    const SparseMatrix *P = fes->GetConformingProlongation();
    if (!P) { return; } // conforming mesh
@@ -421,34 +433,39 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
                                     SparseMatrix &A, Vector &X, Vector &B)
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
-
-   if (!mat_e)
+   Array<int> ess_rtdof_list;
+   const int keep_diag = 1;
+   if (static_cond)
+   {
+      static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
+      if (!static_cond->HasEliminatedBC())
+      {
+         static_cond->Finalize();
+         static_cond->EliminateReducedTrueDofs(ess_rtdof_list, keep_diag);
+         static_cond->Finalize(); // finalize eliminated part
+      }
+   }
+   else if (!mat_e)
    {
       if (P) { ConformingAssemble(); }
-
-      const int keep_diag = 1;
       EliminateVDofs(ess_tdof_list, keep_diag);
-      if (static_cond)
-      {
-         Array<int> ess_rtdof_list;
-         static_cond->ConvertListToReducedTrueDofs(ess_tdof_list,
-                                                   ess_rtdof_list);
-         static_cond->EliminateReducedTrueDofs(ess_rtdof_list, keep_diag);
-      }
       Finalize();
    }
 
-   if (!P)
+   if (static_cond)
    {
-      EliminateVDofsInRHS(ess_tdof_list, x, b);
-      if (static_cond)
+      static_cond->ReduceRHS(b, B);
+      static_cond->ReduceSolution(x, X);
+      static_cond->GetMatrixElim().AddMult(X, B, -1.);
+      static_cond->GetMatrix().PartMult(ess_rtdof_list, X, B);
+      X.SetSubVectorComplement(ess_rtdof_list, 0.0);
+      A.MakeRef(static_cond->GetMatrix());
+   }
+   else if (!P)
+   {
+      if (hybridization)
       {
-         static_cond->ReduceRHS(b, B);
-         static_cond->ReduceSolution(x, X);
-         A.MakeRef(static_cond->GetMatrix());
-      }
-      else if (hybridization)
-      {
+         EliminateVDofsInRHS(ess_tdof_list, x, b);
          hybridization->ReduceRHS(b, B);
          X.SetSize(B.Size());
          X = 0.0;
@@ -456,27 +473,18 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
       }
       else
       {
+         EliminateVDofsInRHS(ess_tdof_list, x, b);
          X.NewDataAndSize(x.GetData(), x.Size());
          B.NewDataAndSize(b.GetData(), b.Size());
+         X.SetSubVectorComplement(ess_tdof_list, 0.0);
          A.MakeRef(*mat);
       }
    }
    else
    {
-      const SparseMatrix *R = fes->GetConformingRestriction();
-      if (static_cond)
+      if (hybridization)
       {
-         Vector conf_b(P->Width()), conf_x(P->Width());
-         P->MultTranspose(b, conf_b);
-         R->Mult(x, conf_x);
-         EliminateVDofsInRHS(ess_tdof_list, conf_x, conf_b);
-         R->MultTranspose(conf_b, b); // !!!
-         static_cond->ReduceRHS(b, B);
-         static_cond->ReduceSolution(x, X);
-         A.MakeRef(static_cond->GetMatrix());
-      }
-      else if (hybridization)
-      {
+         const SparseMatrix *R = fes->GetConformingRestriction();
          Vector conf_b(P->Width()), conf_x(P->Width());
          P->MultTranspose(b, conf_b);
          R->Mult(x, conf_x);
@@ -489,11 +497,13 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
       }
       else
       {
+         const SparseMatrix *R = fes->GetConformingRestriction();
          B.SetSize(P->Width());
          P->MultTranspose(b, B);
          X.SetSize(R->Height());
          R->Mult(x, X);
          EliminateVDofsInRHS(ess_tdof_list, X, B);
+         X.SetSubVectorComplement(ess_tdof_list, 0.0);
          A.MakeRef(*mat);
       }
    }
@@ -522,10 +532,6 @@ void BilinearForm::RecoverFEMSolution(const Vector &X,
    {
       if (static_cond)
       {
-         const SparseMatrix *R = fes->GetConformingRestriction();
-         Vector conf_x(P->Width());
-         R->Mult(x, conf_x);
-         P->Mult(conf_x, x);
          static_cond->ComputeSolution(b, X, x);
       }
       else if (hybridization)

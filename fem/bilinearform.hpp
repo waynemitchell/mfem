@@ -83,8 +83,13 @@ public:
 
    /** Enable the use of static condensation. For details see the description
        for class StaticCondensation in fem/staticcond.hpp This method should be
-       called before assembly. */
+       called before assembly. If the number of unknowns in the trace space and
+       BilinearForm space is the same, static condensation is not enabled. */
    void EnableStaticCondensation(FiniteElementSpace *trace_space);
+
+   /** Check if static condensation was actually enabled by a previous call to
+       EnableStaticCondensation. */
+   bool StaticCondensationIsEnabled() const { return static_cond; }
 
    /** Enable hybridization; for details see the description for class
        Hybridization in fem/hybridization.hpp. This method should be called
@@ -187,6 +192,11 @@ public:
 
        The GridFunction-size vector x must contain the essential b.c. The
        BilinearForm and the LinearForm-size vector b must be assembled.
+
+       The vector X is initialized with a suitable initial guess: when using
+       hybridization, the vector X is set to zero; otherwise, the essential
+       entries of X are set to the corresponding b.c. and all other entries are
+       set to zero.
 
        This method can be called multiple times (with the same ess_tdof_list
        array) to initialize different right-hand sides and boundary condition

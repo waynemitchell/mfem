@@ -1611,8 +1611,9 @@ RT_FECollection::~RT_FECollection()
 }
 
 RT_Trace_FECollection::RT_Trace_FECollection(const int p, const int dim,
-                                             const int map_type)
-   : RT_FECollection(p, dim, map_type)
+                                             const int map_type,
+                                             const bool signs)
+   : RT_FECollection(p, dim, map_type, signs)
 {
    if (map_type == FiniteElement::INTEGRAL)
    {

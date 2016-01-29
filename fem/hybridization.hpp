@@ -102,7 +102,7 @@ public:
    void Init(const Array<int> &ess_tdof_list);
 
    /// Assemble the element matrix A into the hybridized system matrix.
-   void AssembleMatrix(int el, const Array<int> &vdofs, const DenseMatrix &A);
+   void AssembleMatrix(int el, const DenseMatrix &A);
 
    /// Finalize the construction of the hybridized matrix.
    void Finalize();

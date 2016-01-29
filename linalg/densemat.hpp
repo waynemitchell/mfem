@@ -233,18 +233,18 @@ public:
    void GradToDiv(Vector &div);
 
    /// Copy rows row1 through row2 from A to *this
-   void CopyRows(DenseMatrix &A, int row1, int row2);
+   void CopyRows(const DenseMatrix &A, int row1, int row2);
    /// Copy columns col1 through col2 from A to *this
-   void CopyCols(DenseMatrix &A, int col1, int col2);
+   void CopyCols(const DenseMatrix &A, int col1, int col2);
    /// Copy the m x n submatrix of A at row/col offsets Aro/Aco to *this
-   void CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco);
+   void CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco);
    /// Copy matrix A to the location in *this at row_offset, col_offset
-   void CopyMN(DenseMatrix &A, int row_offset, int col_offset);
+   void CopyMN(const DenseMatrix &A, int row_offset, int col_offset);
    /// Copy matrix A^t to the location in *this at row_offset, col_offset
-   void CopyMNt(DenseMatrix &A, int row_offset, int col_offset);
+   void CopyMNt(const DenseMatrix &A, int row_offset, int col_offset);
    /** Copy the m x n submatrix of A at row/col offsets Aro/Aco to *this at
        row_offset, col_offset */
-   void CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco,
+   void CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco,
                int row_offset, int col_offset);
    /// Copy c on the diagonal of size n to *this at row_offset, col_offset
    void CopyMNDiag(double c, int n, int row_offset, int col_offset);

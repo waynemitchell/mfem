@@ -272,28 +272,21 @@ void ParBilinearForm::FormLinearSystem(
    if (static_cond)
    {
       static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
-   }
-
-   if (mat)
-   {
-      Finalize();
-      if (!static_cond)
+      if (!static_cond->HasEliminatedBC())
       {
-         p_mat = ParallelAssemble();
-         delete mat;
-         mat = NULL;
-         delete mat_e;
-         mat_e = NULL;
-         p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
-      }
-      else
-      {
-         delete mat;
-         mat = NULL;
-         delete mat_e;
-         mat_e = NULL;
+         static_cond->Finalize();
          static_cond->EliminateReducedTrueDofs(ess_rtdof_list, 0);
       }
+   }
+   else if (mat)
+   {
+      Finalize();
+      p_mat = ParallelAssemble();
+      delete mat;
+      mat = NULL;
+      delete mat_e;
+      mat_e = NULL;
+      p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
    }
 
    if (static_cond)
@@ -303,6 +296,7 @@ void ParBilinearForm::FormLinearSystem(
       EliminateBC(static_cond->GetParallelMatrix(),
                   static_cond->GetParallelMatrixElim(),
                   ess_rtdof_list, X, B);
+      X.SetSubVectorComplement(ess_rtdof_list, 0.0);
       A.MakeRef(static_cond->GetParallelMatrix());
    }
    else if (hybridization)
@@ -324,6 +318,7 @@ void ParBilinearForm::FormLinearSystem(
       P.MultTranspose(b, B);
       R.Mult(x, X);
       EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, X, B);
+      X.SetSubVectorComplement(ess_tdof_list, 0.0);
       A.MakeRef(*p_mat);
    }
 }

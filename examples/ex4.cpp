@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool set_bc = true;
+   bool static_cond = false;
    bool hybridization = false;
    bool visualization = 1;
 
@@ -64,6 +65,8 @@ int main(int argc, char *argv[])
                   "Impose or not essential boundary conditions.");
    args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
                   " solution.");
+   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
+                  "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&hybridization, "-hb", "--hybridization", "-no-hb",
                   "--no-hybridization", "Enable hybridization.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -111,7 +114,8 @@ int main(int argc, char *argv[])
    //    higher-order spaces by changing the value of p.
    FiniteElementCollection *fec = new RT_FECollection(order-1, dim);
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
-   cout << "Number of finite element unknowns: " << fespace->GetVSize() << endl;
+   cout << "Number of finite element unknowns: "
+        << fespace->GetTrueVSize() << endl;
 
    // 5. Determine the list of true (i.e. conforming) essential boundary dofs.
    //    In this example, the boundary conditions are defined by marking all
@@ -156,9 +160,16 @@ int main(int argc, char *argv[])
    //    interfacial multiplier space and constaint trace integrator.
    FiniteElementCollection *hfec = NULL;
    FiniteElementSpace *hfes = NULL;
-   if (hybridization)
+   if (static_cond)
    {
-      hfec = new RT_Trace_FECollection(order-1, dim, FiniteElement::VALUE);
+      hfec = new RT_Trace_FECollection(order-1, dim);
+      hfes = new FiniteElementSpace(mesh, hfec);
+      a->EnableStaticCondensation(hfes);
+   }
+   else if (hybridization)
+   {
+      hfec = new RT_Trace_FECollection(order-1, dim,
+                                       FiniteElement::VALUE, false);
       hfes = new FiniteElementSpace(mesh, hfec);
       a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(),
                              ess_tdof_list);
@@ -180,7 +191,6 @@ int main(int argc, char *argv[])
    // 11. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //     solve the system A X = B with PCG.
    GSSmoother M(A);
-   X = 0.0;
    PCG(A, M, B, X, 1, 10000, 1e-20, 0.0);
 #else
    // 11. If compiled with SuiteSparse support, use UMFPACK to solve the system.

@@ -140,8 +140,9 @@ protected:
                   const bool signs);
 
    // Constructor used by the constructor of RT_Trace_FECollection
-   RT_FECollection(const int p, const int dim, const int map_type)
-   { InitFaces(p, dim, map_type, false); }
+   RT_FECollection(const int p, const int dim, const int map_type,
+                   const bool signs)
+   { InitFaces(p, dim, map_type, signs); }
 
 public:
    RT_FECollection(const int p, const int dim);
@@ -163,7 +164,8 @@ class RT_Trace_FECollection : public RT_FECollection
 {
 public:
    RT_Trace_FECollection(const int p, const int dim,
-                         const int map_type = FiniteElement::INTEGRAL);
+                         const int map_type = FiniteElement::INTEGRAL,
+                         const bool signs = true);
 };
 
 /// Arbitrary order H(curl)-conforming Nedelec finite elements.

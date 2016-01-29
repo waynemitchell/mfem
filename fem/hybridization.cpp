@@ -341,8 +341,7 @@ void Hybridization::GetIBDofs(
    }
 }
 
-void Hybridization::AssembleMatrix(int el, const Array<int> &vdofs,
-                                   const DenseMatrix &A)
+void Hybridization::AssembleMatrix(int el, const DenseMatrix &A)
 {
    Array<int> i_dofs, b_dofs;
 

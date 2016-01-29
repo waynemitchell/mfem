@@ -57,6 +57,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool set_bc = true;
+   bool static_cond = false;
    bool hybridization = false;
    bool visualization = 1;
 
@@ -69,6 +70,8 @@ int main(int argc, char *argv[])
                   "Impose or not essential boundary conditions.");
    args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
                   " solution.");
+   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
+                  "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&hybridization, "-hb", "--hybridization", "-no-hb",
                   "--no-hybridization", "Enable hybridization.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -192,9 +195,16 @@ int main(int argc, char *argv[])
    //     interfacial multiplier space and constaint trace integrator.
    FiniteElementCollection *hfec = NULL;
    ParFiniteElementSpace *hfes = NULL;
-   if (hybridization)
+   if (static_cond)
    {
-      hfec = new RT_Trace_FECollection(order-1, dim, FiniteElement::VALUE);
+      hfec = new RT_Trace_FECollection(order-1, dim);
+      hfes = new ParFiniteElementSpace(pmesh, hfec);
+      a->EnableStaticCondensation(hfes);
+   }
+   else if (hybridization)
+   {
+      hfec = new RT_Trace_FECollection(order-1, dim,
+                                       FiniteElement::VALUE, false);
       hfes = new ParFiniteElementSpace(pmesh, hfec);
       a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(),
                              ess_tdof_list);
@@ -225,13 +235,22 @@ int main(int argc, char *argv[])
    pcg->SetRelTol(1e-14);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(1);
-   X = 0.0;
-   if (!hybridization)
+   if (a->StaticCondensationIsEnabled())
+   {
+      if (dim == 2)
+      {
+         ND_Trace_FECollection nd_tr_fec(order, dim);
+         ParFiniteElementSpace nd_tr_space(pmesh, &nd_tr_fec);
+         prec = new HypreAMS(A, &nd_tr_space);
+      }
+      else { prec = new HypreADS(A, hfes); }
+   }
+   else if (hybridization) { prec = new HypreBoomerAMG(A); }
+   else
    {
       if (dim == 2) { prec = new HypreAMS(A, fespace); }
       else          { prec = new HypreADS(A, fespace); }
    }
-   else             { prec = new HypreBoomerAMG(A); }
    pcg->SetPreconditioner(*prec);
    pcg->Mult(B, X);
 

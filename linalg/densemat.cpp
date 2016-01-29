@@ -2425,7 +2425,7 @@ void DenseMatrix::GradToDiv(Vector &div)
    }
 }
 
-void DenseMatrix::CopyRows(DenseMatrix &A, int row1, int row2)
+void DenseMatrix::CopyRows(const DenseMatrix &A, int row1, int row2)
 {
    SetSize(row2 - row1 + 1, A.Width());
 
@@ -2436,7 +2436,7 @@ void DenseMatrix::CopyRows(DenseMatrix &A, int row1, int row2)
       }
 }
 
-void DenseMatrix::CopyCols(DenseMatrix &A, int col1, int col2)
+void DenseMatrix::CopyCols(const DenseMatrix &A, int col1, int col2)
 {
    SetSize(A.Height(), col2 - col1 + 1);
 
@@ -2447,7 +2447,7 @@ void DenseMatrix::CopyCols(DenseMatrix &A, int col1, int col2)
       }
 }
 
-void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco)
+void DenseMatrix::CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco)
 {
    int i, j;
 
@@ -2460,7 +2460,7 @@ void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco)
       }
 }
 
-void DenseMatrix::CopyMN(DenseMatrix &A, int row_offset, int col_offset)
+void DenseMatrix::CopyMN(const DenseMatrix &A, int row_offset, int col_offset)
 {
    int i, j;
    double *v = A.data;
@@ -2472,7 +2472,7 @@ void DenseMatrix::CopyMN(DenseMatrix &A, int row_offset, int col_offset)
       }
 }
 
-void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
+void DenseMatrix::CopyMNt(const DenseMatrix &A, int row_offset, int col_offset)
 {
    int i, j;
    double *v = A.data;
@@ -2484,7 +2484,7 @@ void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
       }
 }
 
-void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco,
+void DenseMatrix::CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco,
                          int row_offset, int col_offset)
 {
    int i, j;
