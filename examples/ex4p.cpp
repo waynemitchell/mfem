@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
 
    // 11. Optionally enable hybridization of the ParBilinearForm by defining an
-   //     interfacial multiplier space and constaint trace integrator.
+   //     interfacial multiplier space and constraint trace integrator.
    FiniteElementCollection *hfec = NULL;
    ParFiniteElementSpace *hfes = NULL;
    if (hybridization)
