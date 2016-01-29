@@ -40,7 +40,8 @@ Substantially improved non-conforming adaptive mesh refinement
   has to be applied at the end of the (parallel) assembly. Furthermore, in
   serial, the bilinear form needs to call ConformingAssemble() after assembly
   and the solution should call ConformingProlongate() after the solve (these are
-  not necessary in parallel). Changed the example codes accordingly.
+  not necessary in parallel). Note that these could also be handled
+  automatically by the new FEM <-> linear system interface, see below.
 
 General finite element spaces and solvers on surfaces/skeletons
 ---------------------------------------------------------------
@@ -53,16 +54,16 @@ General finite element spaces and solvers on surfaces/skeletons
 - Updated integrators and discrete interpolators to work correctly for H(curl)
   and H(div) spaces defined on surface meshes, or the mesh skeleton.
 
-Bilinear form hybridization and new linear system assembly interface
---------------------------------------------------------------------
+Bilinear form hybridization and new FEM <-> linear system interface
+-------------------------------------------------------------------
 - The BilinearForm/ParBilinearForm classes now support hybridization based on
   a given constraint space and a trace integrator.
 
-- Added a new interface for transitioning between finite element and linear
-  algebra objects, describing the problem, which abstracts transformations such
-  as: parallel assembly, eliminating boundary conditions, applying conforming
-  constraints for non-conforming AMR, hybridization, back substitution, etc.
-  See Example 4/4p, for illustration.
+- Added a new interface for transitioning between the finite element objects and
+  their corresponding linear algebra objects, which supports abstracts
+  transformations such as: parallel assembly, eliminating boundary conditions,
+  applying conforming constraints for non-conforming AMR, hybridization, back
+  substitution, etc. See Example 4/4p, for an illustration.
 
 New eigensolvers and improved solvers
 -------------------------------------
