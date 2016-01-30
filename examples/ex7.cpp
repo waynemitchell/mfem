@@ -187,30 +187,33 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddDomainIntegrator(new MassIntegrator(one));
    a->Assemble();
-   a->ConformingAssemble(x, *b);
-   a->Finalize();
-   const SparseMatrix &A = a->SpMat();
+
+   // 8. Assemble the linear system, apply conforming constraints, etc.
+   SparseMatrix A;
+   Vector B, X;
+   Array<int> empty_tdof_list;
+   a->FormLinearSystem(empty_tdof_list, x, *b, A, X, B);
 
 #ifndef MFEM_USE_SUITESPARSE
-   // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
-   //    solve the system Ax=b with PCG.
+   // 9. Define a simple symmetric Gauss-Seidel preconditioner and use it to
+   //    solve the system AX=B with PCG.
    GSSmoother M(A);
-   PCG(A, M, *b, x, 1, 200, 1e-12, 0.0);
+   PCG(A, M, B, X, 1, 200, 1e-12, 0.0);
 #else
-   // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   // 9. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
    umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    umf_solver.SetOperator(A);
-   umf_solver.Mult(*b, x);
+   umf_solver.Mult(B, X);
 #endif
 
-   // 9. Recover the grid function in non-conforming AMR problems
-   x.ConformingProlongate();
+   // 10. Recover the grid function x.
+   a->RecoverFEMSolution(X, *b, x);
 
-   // 10. Compute and print the L^2 norm of the error.
+   // 11. Compute and print the L^2 norm of the error.
    cout<<"\nL2 norm of error: " << x.ComputeL2Error(sol_coef) << endl;
 
-   // 11. Save the refined mesh and the solution. This output can be viewed
+   // 12. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m sphere_refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("sphere_refined.mesh");
@@ -221,7 +224,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 12. Send the solution by socket to a GLVis server.
+   // 13. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -231,7 +234,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 13. Free the used memory.
+   // 14. Free the used memory.
    delete a;
    delete b;
    delete fespace;

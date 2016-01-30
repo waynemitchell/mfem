@@ -136,11 +136,12 @@ protected:
    int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
 
    // Initialize only the face elements
-   void InitFaces(const int p, const int dim, const int map_type);
+   void InitFaces(const int p, const int dim, const int map_type,
+                  const bool signs);
 
    // Constructor used by the constructor of RT_Trace_FECollection
    RT_FECollection(const int p, const int dim, const int map_type)
-   { InitFaces(p, dim, map_type); }
+   { InitFaces(p, dim, map_type, false); }
 
 public:
    RT_FECollection(const int p, const int dim);

@@ -72,7 +72,7 @@ public:
        linked list format. New entries are added as needed by methods like
        AddSubMatrix, SetSubMatrix, etc. Calling Finalize() will convert the
        SparseMatrix to the more compact compressed sparse row (CSR) format. */
-   explicit SparseMatrix(int nrows, int ncols = 0);
+   explicit SparseMatrix(int nrows = 0, int ncols = 0);
 
    /** Create a sparse matrix in CSR format. Ownership of i, j, and data is
        transferred to the SparseMatrix. */
@@ -87,6 +87,9 @@ public:
        false, the I and J arrays will use a shallow copy (copy the pointers
        only) without transferring ownership. */
    SparseMatrix(const SparseMatrix &mat, bool copy_graph = true);
+
+   /// Make this SparseMatrix a reference to 'master'
+   void MakeRef(const SparseMatrix &master);
 
    /// For backward compatibility define Size to be synonym of Height()
    int Size() const { return Height(); }
@@ -276,13 +279,14 @@ public:
 
    bool RowIsEmpty(const int row) const;
 
-   /** Extract all column indices and values from a given row.
-       If the matrix is finalized (i.e. in CSR format), 'cols' and 'srow'
-       will simply be references to the specific portion of the J and A
-       arrays.
+   /** Extract all column indices and values from a given row.  If the matrix is
+       finalized (i.e. in CSR format), 'cols' and 'srow' will simply be
+       references to the specific portion of the J and A arrays.
        As required by the AbstractSparseMatrix interface this method returns:
-       0 if cols and srow are copies of the values in the matrix (i.e. when the matrix is open).
-       1 if cols and srow are views of the values in the matrix (i.e. when the matrix is finalized). */
+         0, if cols and srow are copies of the values in the matrix, i.e. when
+            the matrix is open.
+         1, if cols and srow are views of the values in the matrix, i.e. when
+            the matrix is finalized. */
    virtual int GetRow(const int row, Array<int> &cols, Vector &srow) const;
 
    void SetRow(const int row, const Array<int> &cols, const Vector &srow);
@@ -291,7 +295,7 @@ public:
    void ScaleRow(const int row, const double scale);
    // this = diag(sl) * this;
    void ScaleRows(const Vector & sl);
-   //this = this * diag(sr);
+   // this = this * diag(sr);
    void ScaleColumns(const Vector & sr);
 
    /** Add the sparse matrix 'B' to '*this'. This operation will cause an error
@@ -342,6 +346,10 @@ public:
    void SetGraphOwner(bool ownij) { ownGraph = ownij; }
    /// Set the data ownership flag (A array).
    void SetDataOwner(bool owna) { ownData = owna; }
+   /// Get the graph ownership flag (I and J arrays).
+   bool OwnsGraph() const { return ownGraph; }
+   /// Get the data ownership flag (A array).
+   bool OwnsData() const { return ownData; }
    /// Lose the ownership of the graph (I, J) and data (A) arrays.
    void LoseData() { ownGraph = ownData = false; }
 
@@ -366,7 +374,7 @@ SparseMatrix *TransposeAbstractSparseMatrix (const AbstractSparseMatrix &A,
     of A.B and store the result in OAB.
     If OAB is NULL, we create a new SparseMatrix to store
     the result and return a pointer to it.
-    All matrices must be finalized.  */
+    All matrices must be finalized. */
 SparseMatrix *Mult(const SparseMatrix &A, const SparseMatrix &B,
                    SparseMatrix *OAB = NULL);
 
@@ -376,7 +384,7 @@ SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A,
 
 
 /** RAP matrix product (with P=R^T). ORAP is like OAB above.
-    All matrices must be finalized.  */
+    All matrices must be finalized. */
 SparseMatrix *RAP(const SparseMatrix &A, const SparseMatrix &R,
                   SparseMatrix *ORAP = NULL);
 
@@ -384,8 +392,7 @@ SparseMatrix *RAP(const SparseMatrix &A, const SparseMatrix &R,
 SparseMatrix *RAP(const SparseMatrix &Rt, const SparseMatrix &A,
                   const SparseMatrix &P);
 
-/** Matrix multiplication A^t D A.
-    All matrices must be finalized.  */
+/// Matrix multiplication A^t D A. All matrices must be finalized.
 SparseMatrix *Mult_AtDA(const SparseMatrix &A, const Vector &D,
                         SparseMatrix *OAtDA = NULL);
 

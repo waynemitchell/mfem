@@ -1442,7 +1442,7 @@ L2_FECollection::~L2_FECollection()
 
 RT_FECollection::RT_FECollection(const int p, const int dim)
 {
-   InitFaces(p, dim, FiniteElement::INTEGRAL);
+   InitFaces(p, dim, FiniteElement::INTEGRAL, true);
 
    snprintf(rt_name, 32, "RT_%dD_P%d", dim, p);
 
@@ -1470,7 +1470,8 @@ RT_FECollection::RT_FECollection(const int p, const int dim)
    }
 }
 
-void RT_FECollection::InitFaces(const int p, const int dim, const int map_type)
+void RT_FECollection::InitFaces(const int p, const int dim, const int map_type,
+                                const bool signs)
 {
    const int pp1 = p + 1, pp2 = p + 2;
 
@@ -1504,7 +1505,7 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type)
       for (int i = 0; i <= p; i++)
       {
          SegDofOrd[0][i] = i;
-         SegDofOrd[1][i] = -1 - (p - i);
+         SegDofOrd[1][i] = signs ? (-1 - (p - i)) : (p - i);
       }
    }
    else if (dim == 3)
@@ -1538,6 +1539,13 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type)
             TriDofOrd[3][o] = -1-(TriDof-((pp2-k)*(pp1-k))/2+i);  // (2,1,0)
             TriDofOrd[4][o] =     TriDof-((pp2-k)*(pp1-k))/2+j;   // (1,2,0)
             TriDofOrd[5][o] = -1-(TriDof-((pp2-i)*(pp1-i))/2+j);  // (0,2,1)
+            if (!signs)
+            {
+               for (int k = 1; k < 6; k += 2)
+               {
+                  TriDofOrd[k][o] = -1 - TriDofOrd[k][o];
+               }
+            }
          }
 
       int QuadDof = RT_dof[Geometry::SQUARE];
@@ -1559,6 +1567,13 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type)
             QuadDofOrd[5][o] = -1 - ((p - j) + (p - i)*pp1); // (2,1,0,3)
             QuadDofOrd[6][o] = (p - j) + i*pp1;              // (3,0,1,2)
             QuadDofOrd[7][o] = -1 - (i + (p - j)*pp1);       // (3,2,1,0)
+            if (!signs)
+            {
+               for (int k = 1; k < 8; k += 2)
+               {
+                  QuadDofOrd[k][o] = -1 - QuadDofOrd[k][o];
+               }
+            }
          }
    }
 }

@@ -672,6 +672,25 @@ public:
                                    DenseMatrix &elmat);
 };
 
+/** Integrator for the form: < v, [w.n] > over all faces (the interface) where
+    the trial variable v is defined on the inteface and the test variable w is
+    in an H(div)-conforming space. */
+class NormalTraceJumpIntegrator : public BilinearFormIntegrator
+{
+private:
+   Vector face_shape, normal, shape1_n, shape2_n;
+   DenseMatrix shape1, shape2;
+
+public:
+   NormalTraceJumpIntegrator() { }
+   using BilinearFormIntegrator::AssembleFaceMatrix;
+   virtual void AssembleFaceMatrix(const FiniteElement &trial_face_fe,
+                                   const FiniteElement &test_fe1,
+                                   const FiniteElement &test_fe2,
+                                   FaceElementTransformations &Trans,
+                                   DenseMatrix &elmat);
+};
+
 /** Abstract class to serve as a base for local interpolators to be used in
     the DiscreteLinearOperator class. */
 class DiscreteInterpolator : public BilinearFormIntegrator { };

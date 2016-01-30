@@ -32,6 +32,7 @@
 #endif
 
 #include "sparsemat.hpp"
+#include "hypre_parcsr.hpp"
 
 namespace mfem
 {
@@ -105,6 +106,9 @@ public:
    /// Sets ownership of the internal hypre_ParVector
    void SetOwnership(int own) { own_ParVector = own; }
 
+   /// Gets ownership of the internal hypre_ParVector
+   int GetOwnership() const { return own_ParVector; }
+
    /// Returns the global vector in each processor
    Vector* GlobalVector() const;
 
@@ -116,7 +120,8 @@ public:
    /** Sets the data of the Vector and the hypre_ParVector to _data.
        Must be used only for HypreParVectors that do not own the data,
        e.g. created with the constructor:
-       HypreParVector(int glob_size, double *_data, int *col). */
+       HypreParVector(MPI_Comm comm, HYPRE_Int glob_size, double *_data,
+                      HYPRE_Int *col). */
    void SetData(double *_data);
 
    /// Set random values
@@ -160,6 +165,9 @@ private:
    // All owned arrays are destroyed with 'delete []'.
    char diagOwner, offdOwner, colMapOwner;
 
+   // Does the object own the pointer A?
+   char ParCSROwner;
+
    // Initialize with defaults. Does not initialize inherited members.
    void Init();
 
@@ -180,6 +188,9 @@ private:
    static void CopyCSR_J(hypre_CSRMatrix *hypre_csr, int *J);
 
 public:
+   /// An empty matrix to be used as a reference to an existing matrix
+   HypreParMatrix();
+
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a)
    {
@@ -243,6 +254,9 @@ public:
                   HYPRE_Int glob_ncols, int *I, HYPRE_Int *J,
                   double *data, HYPRE_Int *rows, HYPRE_Int *cols);
 
+   /// Make this HypreParMatrix a reference to 'master'
+   void MakeRef(const HypreParMatrix &master);
+
    /// MPI communicator
    MPI_Comm GetComm() const { return A->comm; }
 
@@ -258,6 +272,13 @@ public:
    /// Explicitly set the three ownership flags, see docs for diagOwner etc.
    void SetOwnerFlags(char diag, char offd, char colmap)
    { diagOwner = diag, offdOwner = offd, colMapOwner = colmap; }
+
+   /// Get diag ownership flag
+   char OwnsDiag() const { return diagOwner; }
+   /// Get offd ownership flag
+   char OwnsOffd() const { return offdOwner; }
+   /// Get colmap ownership flag
+   char OwnsColMap() const { return colMapOwner; }
 
    /** If the HypreParMatrix does not own the row-starts array, make a copy of
        it that the HypreParMatrix will own. If the col-starts array is the same
@@ -283,7 +304,7 @@ public:
    void GetDiag(Vector &diag) const;
    /// Get the local diagonal block. NOTE: 'diag' will not own any data.
    void GetDiag(SparseMatrix &diag) const;
-   /// Get the local offdiagonal block. NOTE: 'offd' will not own any data.
+   /// Get the local off-diagonal block. NOTE: 'offd' will not own any data.
    void GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap) const;
 
    /** Split the matrix into M x N equally sized blocks of parallel matrices.
@@ -337,6 +358,13 @@ public:
    virtual void MultTranspose(const Vector &x, Vector &y) const
    { MultTranspose(1.0, x, 0.0, y); }
 
+   /** The "Boolean" analog of y = alpha * A * x + beta * y, where elements in
+       the sparsity pattern of the matrix are treated as "true". */
+   void BooleanMult(int alpha, int *x, int beta, int *y)
+   {
+      internal::hypre_ParCSRMatrixBooleanMatvec(A, alpha, x, beta, y);
+   }
+
    /** Multiply A on the left by a block-diagonal parallel matrix D. Return
        a new parallel matrix, D*A. If D has a different number of rows than A,
        D's row starts array needs to be given (as returned by the methods
@@ -388,8 +416,7 @@ HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P);
     the r.h.s. B. Here A is a matrix with eliminated BC, while Ae is such that
     (A+Ae) is the original (Neumann) matrix before elimination. */
 void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
-                 const Array<int> &ess_dof_list,
-                 const HypreParVector &X, HypreParVector &B);
+                 const Array<int> &ess_dof_list, const Vector &X, Vector &B);
 
 
 /// Parallel smoothers in hypre
@@ -943,7 +970,7 @@ public:
     as A. This flexibility may be useful in solving eigenproblems which bare a
     strong resemblance to the Curl Curl problems for which AME is designed.
 
-    Unlike LOBPCG, this eigensolver requires that the the mass matrix be set.
+    Unlike LOBPCG, this eigensolver requires that the mass matrix be set.
     It is possible to circumvent this by passing an identity operator as the
     mass matrix but it seems unlikely that this would be useful so it is not the
     default behavior.

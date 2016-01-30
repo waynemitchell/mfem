@@ -131,6 +131,9 @@ public:
    /// Return the number of shared faces (3D), edges (2D), vertices (1D)
    int GetNSharedFaces() const;
 
+   /// Return the local face index for the given shared face.
+   int GetSharedFace(int sface) const;
+
    /// See the remarks for the serial version in mesh.hpp
    virtual void ReorientTetMesh();
 
