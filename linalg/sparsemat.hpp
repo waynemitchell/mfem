@@ -342,6 +342,10 @@ public:
    void SetGraphOwner(bool ownij) { ownGraph = ownij; }
    /// Set the data ownership flag (A array).
    void SetDataOwner(bool owna) { ownData = owna; }
+   /// Get the graph ownership flag (I and J arrays).
+   bool OwnsGraph() const { return ownGraph; }
+   /// Get the data ownership flag (A array).
+   bool OwnsData() const { return ownData; }
    /// Lose the ownership of the graph (I, J) and data (A) arrays.
    void LoseData() { ownGraph = ownData = false; }
 
