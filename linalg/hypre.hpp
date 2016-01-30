@@ -105,7 +105,7 @@ public:
    /// Sets ownership of the internal hypre_ParVector
    void SetOwnership(int own) { own_ParVector = own; }
 
-   /// Gets ownership of the interal hypre_ParVector
+   /// Gets ownership of the internal hypre_ParVector
    int GetOwnership() const { return own_ParVector; }
 
    /// Returns the global vector in each processor
@@ -264,9 +264,9 @@ public:
 
    /// Get diag ownership flag
    char OwnsDiag() const { return diagOwner; }
-   /// get offd ownership flag
+   /// Get offd ownership flag
    char OwnsOffd() const { return offdOwner; }
-   /// get colmap ownership flag
+   /// Get colmap ownership flag
    char OwnsColMap() const { return colMapOwner; }
 
    /** If the HypreParMatrix does not own the row-starts array, make a copy of
@@ -293,7 +293,7 @@ public:
    void GetDiag(Vector &diag) const;
    /// Get the local diagonal block. NOTE: 'diag' will not own any data.
    void GetDiag(SparseMatrix &diag) const;
-   /// Get the local offdiagonal block. NOTE: 'offd' will not own any data.
+   /// Get the local off-diagonal block. NOTE: 'offd' will not own any data.
    void GetOffd(SparseMatrix &offd, HYPRE_Int* &cmap) const;
 
    /** Split the matrix into M x N equally sized blocks of parallel matrices.
@@ -953,7 +953,7 @@ public:
     as A. This flexibility may be useful in solving eigenproblems which bare a
     strong resemblance to the Curl Curl problems for which AME is designed.
 
-    Unlike LOBPCG, this eigensolver requires that the the mass matrix be set.
+    Unlike LOBPCG, this eigensolver requires that the mass matrix be set.
     It is possible to circumvent this by passing an identity operator as the
     mass matrix but it seems unlikely that this would be useful so it is not the
     default behavior.
