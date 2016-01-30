@@ -142,6 +142,67 @@ public:
                           ParFiniteElementSpace *rfes);
 };
 
+/// This class computes the irrotational portion of a vector field.
+/// This vector field must be discretized using Nedelec basis
+/// functions.
+class IrrotationalProjector : public Operator
+{
+public:
+   IrrotationalProjector(ParFiniteElementSpace & HCurlFESpace,
+                         ParFiniteElementSpace & H1FESpace);
+   virtual ~IrrotationalProjector();
+
+   // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
+   // compute the Nedelec DoFs of the irrotational portion, 'y', of
+   // this vector field.  The resulting vector will satisfy Curl y = 0
+   // to machine precision.
+   virtual void Mult(const Vector &x, Vector &y) const;
+
+   void Update();
+
+private:
+   ParFiniteElementSpace * H1FESpace_;
+   ParFiniteElementSpace * HCurlFESpace_;
+
+   ParBilinearForm * s0_;
+   ParBilinearForm * m1_;
+
+   HypreBoomerAMG * amg_;
+   HyprePCG       * pcg_;
+   HypreParMatrix * S0_;
+   HypreParMatrix * M1_;
+   ParDiscreteInterpolationOperator * Grad_;
+   HypreParVector * gradYPot_;
+   HypreParVector * yPot_;
+   HypreParVector * xDiv_;
+
+   // Array<int> dof_list_;
+   Array<int> ess_bdr_;
+};
+
+/// This class computes the divergence free portion of a vector field.
+/// This vector field must be discretized using Nedelec basis
+/// functions.
+class DivergenceFreeProjector : public IrrotationalProjector
+{
+public:
+   DivergenceFreeProjector(ParFiniteElementSpace & HCurlFESpace,
+                           ParFiniteElementSpace & H1FESpace);
+   virtual ~DivergenceFreeProjector();
+
+   // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
+   // compute the Nedelec DoFs of the divergence free portion, 'y', of
+   // this vector field.  The resulting vector will satisfy Div y = 0
+   // in a weak sense.
+   virtual void Mult(const Vector &x, Vector &y) const;
+
+   void Update();
+
+private:
+   ParFiniteElementSpace * HCurlFESpace_;
+   HypreParVector        * xIrr_;
+};
+
 } // namespace mfem
 
 #endif // MFEM_USE_MPI

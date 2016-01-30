@@ -180,6 +180,137 @@ ParDiscreteDivOperator::ParDiscreteDivOperator(ParFiniteElementSpace *dfes,
    this->createMatrix();
 }
 
+IrrotationalProjector
+::IrrotationalProjector(ParFiniteElementSpace & HCurlFESpace,
+                        ParFiniteElementSpace & H1FESpace)
+   : H1FESpace_(&H1FESpace),
+     HCurlFESpace_(&HCurlFESpace)
+{
+   ess_bdr_.SetSize(H1FESpace.GetParMesh()->bdr_attributes.Max());
+   ess_bdr_ = 1;
+
+   s0_ = new ParBilinearForm(&H1FESpace);
+   s0_->AddDomainIntegrator(new DiffusionIntegrator());
+   s0_->Assemble();
+   s0_->Finalize();
+   S0_ = s0_->ParallelAssemble();
+
+   m1_ = new ParBilinearForm(&HCurlFESpace);
+   m1_->AddDomainIntegrator(new VectorFEMassIntegrator());
+   m1_->Assemble();
+   m1_->Finalize();
+   M1_ = m1_->ParallelAssemble();
+
+   Grad_ = new ParDiscreteGradOperator(&H1FESpace,&HCurlFESpace);
+
+   amg_ = new HypreBoomerAMG(*S0_);
+   amg_->SetPrintLevel(0);
+   pcg_ = new HyprePCG(*S0_);
+   pcg_->SetTol(1e-14);
+   pcg_->SetMaxIter(200);
+   pcg_->SetPrintLevel(0);
+   pcg_->SetPreconditioner(*amg_);
+
+   xDiv_     = new HypreParVector(&H1FESpace);
+   yPot_     = new HypreParVector(&H1FESpace);
+   gradYPot_ = new HypreParVector(HCurlFESpace_);
+}
+
+IrrotationalProjector::~IrrotationalProjector()
+{
+   delete s0_;
+   delete m1_;
+   delete amg_;
+   delete pcg_;
+   delete S0_;
+   delete M1_;
+   delete Grad_;
+   delete xDiv_;
+   delete yPot_;
+   delete gradYPot_;
+}
+
+void
+IrrotationalProjector::Mult(const Vector &x, Vector &y) const
+{
+   *yPot_ = 0.0;
+   Grad_->MultTranspose(x,*xDiv_);
+   s0_->ParallelEliminateEssentialBC(ess_bdr_,*S0_,*yPot_,*xDiv_);
+   pcg_->Mult(*xDiv_,*yPot_);
+   Grad_->Mult(*yPot_,*gradYPot_);
+   M1_->Mult(*gradYPot_,y);
+}
+
+void
+IrrotationalProjector::Update()
+{
+   delete S0_;
+   delete M1_;
+   delete gradYPot_;
+   delete yPot_;
+   delete xDiv_;
+   delete pcg_;
+   delete amg_;
+
+   s0_->Update();
+   m1_->Update();
+   Grad_->Update();
+
+   s0_->Assemble();
+   s0_->Finalize();
+
+   m1_->Assemble();
+   m1_->Finalize();
+
+   S0_ = s0_->ParallelAssemble();
+   M1_ = m1_->ParallelAssemble();
+
+   amg_ = new HypreBoomerAMG(*S0_);
+   amg_->SetPrintLevel(0);
+   pcg_ = new HyprePCG(*S0_);
+   pcg_->SetTol(1e-14);
+   pcg_->SetMaxIter(200);
+   pcg_->SetPrintLevel(0);
+   pcg_->SetPreconditioner(*amg_);
+
+   xDiv_     = new HypreParVector(H1FESpace_);
+   yPot_     = new HypreParVector(H1FESpace_);
+   gradYPot_ = new HypreParVector(HCurlFESpace_);
+}
+
+DivergenceFreeProjector
+::DivergenceFreeProjector(ParFiniteElementSpace & HCurlFESpace,
+                          ParFiniteElementSpace & H1FESpace)
+   : IrrotationalProjector(HCurlFESpace,H1FESpace),
+     HCurlFESpace_(&HCurlFESpace),
+     xIrr_(NULL)
+{
+   xIrr_ = new HypreParVector(&HCurlFESpace);
+}
+
+DivergenceFreeProjector::~DivergenceFreeProjector()
+{
+   delete xIrr_;
+}
+
+void
+DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
+{
+   this->IrrotationalProjector::Mult(x,*xIrr_);
+   y  = x;
+   y -= *xIrr_;
+}
+
+void
+DivergenceFreeProjector::Update()
+{
+   delete xIrr_;
+
+   this->IrrotationalProjector::Update();
+
+   xIrr_ = new HypreParVector(HCurlFESpace_);
+}
+
 }
 
 #endif

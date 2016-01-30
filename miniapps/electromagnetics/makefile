@@ -24,7 +24,7 @@ SEQ_MINIAPPS =
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
-   MINIAPPS = $(SEQ_MINIAPPS) \
+   MINIAPPS = $(SEQ_MINIAPPS) volta tesla \
               magnetostatics1p magnetostatics2p magnetostatics3p \
               magnetostatics4p magnetostatics5p \
               electrostatics1p electrostatics2p \
