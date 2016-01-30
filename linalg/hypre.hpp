@@ -105,6 +105,9 @@ public:
    /// Sets ownership of the internal hypre_ParVector
    void SetOwnership(int own) { own_ParVector = own; }
 
+   /// Gets ownership of the interal hypre_ParVector
+   int GetOwnership() const { return own_ParVector; }
+
    /// Returns the global vector in each processor
    Vector* GlobalVector() const;
 
@@ -258,6 +261,13 @@ public:
    /// Explicitly set the three ownership flags, see docs for diagOwner etc.
    void SetOwnerFlags(char diag, char offd, char colmap)
    { diagOwner = diag, offdOwner = offd, colMapOwner = colmap; }
+
+   /// Get diag ownership flag
+   char OwnsDiag() const { return diagOwner; }
+   /// get offd ownership flag
+   char OwnsOffd() const { return offdOwner; }
+   /// get colmap ownership flag
+   char OwnsColMap() const { return colMapOwner; }
 
    /** If the HypreParMatrix does not own the row-starts array, make a copy of
        it that the HypreParMatrix will own. If the col-starts array is the same
