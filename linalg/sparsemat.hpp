@@ -67,12 +67,18 @@ private:
    /// Are the columns sorted already.
    bool isSorted;
 
+   void Destroy();   // Delete all owned data
+   void SetEmpty();  // Init all entries with empty values
+
 public:
+   /// Create an empty SparseMatrix.
+   SparseMatrix() { SetEmpty(); }
+
    /** Create a sparse matrix with flexible sparsity structure using a row-wise
        linked list format. New entries are added as needed by methods like
        AddSubMatrix, SetSubMatrix, etc. Calling Finalize() will convert the
        SparseMatrix to the more compact compressed sparse row (CSR) format. */
-   explicit SparseMatrix(int nrows = 0, int ncols = 0);
+   explicit SparseMatrix(int nrows, int ncols = 0);
 
    /** Create a sparse matrix in CSR format. Ownership of i, j, and data is
        transferred to the SparseMatrix. */
@@ -88,11 +94,19 @@ public:
        only) without transferring ownership. */
    SparseMatrix(const SparseMatrix &mat, bool copy_graph = true);
 
-   /// Make this SparseMatrix a reference to 'master'
+   /** Clear the contents of the SparseMatrix and make it a reference to
+       'master', i.e. it will point to the same data as 'master' but it will not
+       own its data. The 'master' must be finalized. */
    void MakeRef(const SparseMatrix &master);
 
    /// For backward compatibility define Size to be synonym of Height()
    int Size() const { return Height(); }
+
+   /// Clear the contents of the SparseMatrix.
+   void Clear() { Destroy(); SetEmpty(); }
+
+   /// Check if the SparseMatrix is empty.
+   bool Empty() { return (A == NULL) && (Rows == NULL); }
 
    /// Return the array I
    inline int *GetI() const { return I; }
@@ -351,7 +365,7 @@ public:
    void Swap(SparseMatrix &other);
 
    /// Destroys sparse matrix.
-   virtual ~SparseMatrix();
+   virtual ~SparseMatrix() { Destroy(); }
 };
 
 /// Applies f() to each element of the matrix (after it is finalized).

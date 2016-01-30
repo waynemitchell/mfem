@@ -725,6 +725,7 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
 
 void HypreParMatrix::MakeRef(const HypreParMatrix &master)
 {
+   Destroy();
    Init();
    A = master.A;
    ParCSROwner = 0;
@@ -737,6 +738,8 @@ hypre_ParCSRMatrix* HypreParMatrix::StealData()
    // Only safe when (diagOwner == -1 && offdOwner == -1 && colMapOwner == -1)
    // Otherwise, there may be memory leaks or hypre may destroy arrays allocated
    // with operator new.
+   MFEM_ASSERT(diagOwner == -1 && offdOwner == -1 && colMapOwner == -1, "");
+   MFEM_ASSERT(ParCSROwner, "");
    hypre_ParCSRMatrix *R = A;
    A = NULL;
    Destroy();
