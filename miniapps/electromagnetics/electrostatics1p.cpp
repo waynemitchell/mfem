@@ -7,8 +7,7 @@
 //   mpirun -np 4 electrostatics1p
 //
 // Description:
-
-//               This mini app solves a simple 3D electrostatic
+//               This mini app solves a simple 2D or 3D electrostatic
 //               problem with non-uniform dielectric permittivity.
 //                  Div eps Grad Phi = 0
 //               The uniform field is imposed through the boundary
@@ -95,15 +94,6 @@ int main(int argc, char *argv[])
    imesh.close();
 
    int dim = mesh->Dimension();
-   if (dim != 3)
-   {
-      if (myid == 0)
-      {
-         cerr << "\nThis example requires a 3D mesh\n" << endl;
-      }
-      MPI_Finalize();
-      return 3;
-   }
 
    // Refine the serial mesh on all processors to increase the resolution. In
    // this example we do 'ref_levels' of uniform refinement.
@@ -294,9 +284,14 @@ int main(int argc, char *argv[])
 double Eps_exact(const Vector &x)
 {
    const double r0 = 0.25;
-   double r = sqrt(x(0)*x(0) + x(1)*x(1) + x(2)*x(2));
+   double r2 = 0.0;
 
-   if ( r <= r0 )
+   for (int i=0; i<x.Size(); i++)
+   {
+      r2 += x(i)*x(i);
+   }
+
+   if ( sqrt(r2) <= r0 )
    {
       return 10.0;
    }
@@ -307,5 +302,5 @@ double Eps_exact(const Vector &x)
 // potential can be set to -z.
 double phi_bc_exact(const Vector &x)
 {
-   return -x(2);
+   return -x(x.Size()-1);
 }

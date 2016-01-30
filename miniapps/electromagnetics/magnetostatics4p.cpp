@@ -9,15 +9,18 @@
 //
 // Description:  This mini app solves a simple 3D magnetostatic
 //               problem using a magnetic scalar potential.  When the
-//               volumetric current is zero Ampere's law become curl H
-//               = 0.  This implies that H can be written as the
-//               gradient of a scalar potential, H = -grad Phi_M.  We
-//               then use the facts that B = mu H and div B = 0 to
-//               arrive at the equation
-//                  div mu grad Phi_M = 0
+//               volumetric current is zero Ampere's law becomes
+//                  curl H = 0.
+//               This implies that H can be written as the
+//               gradient of a scalar potential,
+//                  H = - grad Phi_M.
+//               We then use the facts that B = mu H
+//               and div B = 0 to arrive at the equation
+//                  div mu grad Phi_M = 0.
 //               We can approximate a constant, z-directed, magnetic
 //               field by imposing the boundary condition
-//                  Phi_M = -z on all exterior surfaces
+//                  Phi_M = -z
+//               on all exterior surfaces.
 //
 //               We discretize the magnetic scalar potential with H1
 //               finite elements, the magnetic field H with Nedelec
@@ -27,7 +30,6 @@
 //               This example demonstrates a simple magnetic shield
 //               using a highly permeable shell to exclude an applied
 //               magnetic field from the interior of the shell.
-//
 
 #include "mfem.hpp"
 #include <fstream>

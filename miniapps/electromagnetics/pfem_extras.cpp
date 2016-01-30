@@ -182,10 +182,12 @@ ParDiscreteDivOperator::ParDiscreteDivOperator(ParFiniteElementSpace *dfes,
 }
 
 IrrotationalProjector
-::IrrotationalProjector(ParFiniteElementSpace & HCurlFESpace,
-                        ParFiniteElementSpace & H1FESpace)
+::IrrotationalProjector(ParFiniteElementSpace & H1FESpace,
+                        ParFiniteElementSpace & HCurlFESpace,
+                        ParDiscreteInterpolationOperator & Grad)
    : H1FESpace_(&H1FESpace),
-     HCurlFESpace_(&HCurlFESpace)
+     HCurlFESpace_(&HCurlFESpace),
+     Grad_(&Grad)
 {
    ess_bdr_.SetSize(H1FESpace.GetParMesh()->bdr_attributes.Max());
    ess_bdr_ = 1;
@@ -201,8 +203,6 @@ IrrotationalProjector
    m1_->Assemble();
    m1_->Finalize();
    M1_ = m1_->ParallelAssemble();
-
-   Grad_ = new ParDiscreteGradOperator(&H1FESpace,&HCurlFESpace);
 
    amg_ = new HypreBoomerAMG(*S0_);
    amg_->SetPrintLevel(0);
@@ -225,7 +225,6 @@ IrrotationalProjector::~IrrotationalProjector()
    delete pcg_;
    delete S0_;
    delete M1_;
-   delete Grad_;
    delete xDiv_;
    delete yPot_;
    delete gradYPot_;
@@ -255,7 +254,6 @@ IrrotationalProjector::Update()
 
    s0_->Update();
    m1_->Update();
-   Grad_->Update();
 
    s0_->Assemble();
    s0_->Finalize();
@@ -280,9 +278,10 @@ IrrotationalProjector::Update()
 }
 
 DivergenceFreeProjector
-::DivergenceFreeProjector(ParFiniteElementSpace & HCurlFESpace,
-                          ParFiniteElementSpace & H1FESpace)
-   : IrrotationalProjector(HCurlFESpace,H1FESpace),
+::DivergenceFreeProjector(ParFiniteElementSpace & H1FESpace,
+                          ParFiniteElementSpace & HCurlFESpace,
+                          ParDiscreteInterpolationOperator & Grad)
+   : IrrotationalProjector(H1FESpace,HCurlFESpace, Grad),
      HCurlFESpace_(&HCurlFESpace),
      xIrr_(NULL)
 {

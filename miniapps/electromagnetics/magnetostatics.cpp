@@ -4,7 +4,22 @@
 // Compile with: make magnetostatics
 //
 // Sample runs:
-//   mpirun -np 4 magnetostatics
+//
+//   By default the sources and fields are all zero
+//     mpirun -np 4 magnetostatics
+//
+//   A cylindrical bar magnet in a metal sphere
+//     mpirun -np 4 magnetostatics -bm '0 -0.5 0 0 0.5 0 0.2 1'
+//
+//   A spherical shell of paramagnetic material in a uniform B field
+//     mpirun -np 4 magnetostatics -ubbc '0 0 1' -ms '0 0 0 0.2 0.4 10'
+//
+//   A ring of current in a metal sphere
+//     mpirun -np 4 magnetostatics -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1'
+//
+//   An example demonstrating the use of surface currents
+//     mpirun -np 4 magnetostatics -m ./square-angled-pipe.mesh
+//                                 -kbcs '3' -vbcs '1 2' -vbcv '-0.5 0.5'
 //
 // Description:
 //
@@ -34,7 +49,8 @@ static Vector bm_params_(0);  // Axis Start, Axis End, Bar Radius,
 //                               and Magnetic Field Magnitude
 void bar_magnet(const Vector &, Vector &);
 
-// A Field Boundary Condition for B = (0,0,1)
+// A Field Boundary Condition for B = (Bx,By,Bz)
+static Vector b_uniform_(0);
 void a_bc_uniform(const Vector &, Vector&);
 
 // Phi_M Boundary Condition for H = (0,0,1)
@@ -44,67 +60,42 @@ double phi_m_bc_uniform(const Vector &x);
 // Permeability of Free Space (units H/m)
 static double mu0_ = 4.0e-7*M_PI;
 
-/// This class computes the irrotational portion of a vector field.
-/// This vector field must be discretized using Nedelec basis
-/// functions.
-class IrrotationalProjector : public Operator
+class SurfaceCurrent
 {
 public:
-   IrrotationalProjector(ParFiniteElementSpace & HCurlFESpace,
-                         ParFiniteElementSpace & H1FESpace,
-                         Array<int> & ess_bdr);
-   virtual ~IrrotationalProjector();
+   SurfaceCurrent(ParFiniteElementSpace & H1FESpace,
+                  ParFiniteElementSpace & HCurlFESpace,
+                  ParDiscreteGradOperator & Grad,
+                  Array<int> & kbcs, Array<int> & vbcs, Vector & vbcv);
+   ~SurfaceCurrent();
 
-   // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
-   // compute the Nedelec DoFs of the irrotational portion, 'y', of
-   // this vector field.  The resulting vector will satisfy Curl y = 0
-   // to machine precision.
-   virtual void Mult(const Vector &x, Vector &y) const;
+   void ComputeSurfaceCurrent(ParGridFunction & k);
 
    void Update();
 
+   // const ParGridFunction & GetPsi() { return *psi_; }
+   ParGridFunction * GetPsi() { return psi_; }
+
 private:
-   ParFiniteElementSpace * H1FESpace_;
-   ParFiniteElementSpace * HCurlFESpace_;
+   ParFiniteElementSpace   * H1FESpace_;
+   ParFiniteElementSpace   * HCurlFESpace_;
+   ParDiscreteGradOperator * Grad_;
+   Array<int>              * kbcs_;
+   Array<int>              * vbcs_;
+   Vector                  * vbcv_;
 
    ParBilinearForm * s0_;
-   ParBilinearForm * m1_;
+   ParGridFunction * psi_;
 
-   HypreBoomerAMG * amg_;
-   HyprePCG       * pcg_;
-   HypreParMatrix * S0_;
-   HypreParMatrix * M1_;
-   ParDiscreteInterpolationOperator * Grad_;
-   HypreParVector * gradYPot_;
-   HypreParVector * yPot_;
-   HypreParVector * xDiv_;
+   HypreBoomerAMG  * amg_;
+   HyprePCG        * pcg_;
+   HypreParMatrix  * S0_;
+   HypreParVector  * PSI_;
+   HypreParVector  * RHS_;
+   HypreParVector  * K_;
 
-   // Array<int> dof_list_;
-   Array<int> * ess_bdr_;
-};
-
-/// This class computes the divergence free portion of a vector field.
-/// This vector field must be discretized using Nedelec basis
-/// functions.
-class DivergenceFreeProjector : public IrrotationalProjector
-{
-public:
-   DivergenceFreeProjector(ParFiniteElementSpace & HCurlFESpace,
-                           ParFiniteElementSpace & H1FESpace,
-                           Array<int> & ess_bdr);
-   virtual ~DivergenceFreeProjector();
-
-   // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
-   // compute the Nedelec DoFs of the divergence free portion, 'y', of
-   // this vector field.  The resulting vector will satisfy Div y = 0
-   // in a weak sense.
-   virtual void Mult(const Vector &x, Vector &y) const;
-
-   void Update();
-
-private:
-   ParFiniteElementSpace * HCurlFESpace_;
-   HypreParVector        * xIrr_;
+   Array<int> ess_bdr_;
+   Array<int> non_k_bdr_;
 };
 
 int main(int argc, char *argv[])
@@ -122,13 +113,10 @@ int main(int argc, char *argv[])
    bool visualization = true;
    bool visit = true;
 
-   Array<int> dbcs;
-   Array<int> nbcs;
+   Array<int> kbcs;
+   Array<int> vbcs;
 
-   Vector dbcv;
-   Vector nbcv;
-
-   bool dbcg = false;
+   Vector vbcv;
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -139,23 +127,20 @@ int main(int argc, char *argv[])
                   "Number of serial refinement levels.");
    args.AddOption(&pr, "-rp", "--parallel-ref-levels",
                   "Number of parallel refinement levels.");
+   args.AddOption(&b_uniform_, "-ubbc", "--uniform-b-bc",
+                  "Specify if the three components of the constant magnetic flux density");
    args.AddOption(&ms_params_, "-ms", "--magnetic-shell-params",
                   "Center, Inner Radius, Outer Radius, and Permeability of Magnetic Shell");
    args.AddOption(&cr_params_, "-cr", "--current-ring-params",
                   "Axis End Points, Inner Radius, Outer Radius and Total Current of Annulus");
    args.AddOption(&bm_params_, "-bm", "--bar-magnet-params",
                   "Axis End Points, Radius, and Magnetic Field of Cylindrical Magnet");
-   args.AddOption(&dbcs, "-dbcs", "--dirichlet-bc-surf",
-                  "Dirichlet Boundary Condition Surfaces");
-   args.AddOption(&dbcv, "-dbcv", "--dirichlet-bc-vals",
-                  "Dirichlet Boundary Condition Values");
-   args.AddOption(&dbcg, "-dbcg", "--dirichlet-bc-gradient",
-                  "-no-dbcg", "--no-dirichlet-bc-gradient",
-                  "Dirichlet Boundary Condition Gradient (phi = -z)");
-   args.AddOption(&nbcs, "-nbcs", "--neumann-bc-surf",
-                  "Neumann Boundary Condition Surfaces");
-   args.AddOption(&nbcv, "-nbcv", "--neumann-bc-vals",
-                  "Neumann Boundary Condition Values");
+   args.AddOption(&kbcs, "-kbcs", "--surface-current-bc",
+                  "Surfaces for the Surface Current (K) Boundary Condition");
+   args.AddOption(&vbcs, "-vbcs", "--voltage-bc-surf",
+                  "Voltage Boundary Condition Surfaces (to drive K)");
+   args.AddOption(&vbcv, "-vbcv", "--voltage-bc-vals",
+                  "Voltage Boundary Condition Values (to drive K)");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -197,6 +182,13 @@ int main(int argc, char *argv[])
    int sdim = mesh->SpaceDimension();
    int dim = mesh->Dimension();
 
+   if ( b_uniform_.Size() != 3 )
+   {
+      // Set the default boundary condition to B = (0,0,0)
+      b_uniform_.SetSize(3);
+      b_uniform_ = 0.0;
+   }
+
    if ( ms_params_.Size() != sdim + 3 )
    {
       // The magnetic shell parameters have not been set.
@@ -220,10 +212,21 @@ int main(int argc, char *argv[])
       bm_params_ = 0.0;
    }
 
-   if (nbcv.Size() < nbcs.Size() )
+   // If values for Voltage BCs were not set issue a warning and exit
+   if ( ( vbcs.Size() > 0 && kbcs.Size() == 0 ) ||
+        ( kbcs.Size() > 0 && vbcs.Size() == 0 ) ||
+        ( vbcv.Size() < vbcs.Size() ) )
    {
-      nbcv.SetSize(nbcs.Size());
-      nbcv = 0.0;
+      if ( myid == 0 )
+      {
+         cout << "The surface current (K) boundary condition requires "
+              << "surface current boundary condition surfaces (with -kbcs), "
+              << "voltage boundary condition surface (with -vbcs), "
+              << "and voltage boundary condition values (with -vbcv)."
+              << endl;
+      }
+      MPI_Finalize();
+      return 3;
    }
 
    // Refine the serial mesh on all processors to increase the resolution. In
@@ -249,12 +252,25 @@ int main(int argc, char *argv[])
    {
       pmesh.UniformRefinement();
    }
-
-   socketstream a_sock, b_sock, j_sock, m_sock;
+   /*
+   cout << "pmesh.GetNBE() returns " << pmesh.GetNBE() << endl;
+   Array<int> vert;
+   for (int i=0; i<pmesh.GetNBE(); i++)
+   {
+     const Element * elem = pmesh.GetBdrElement(i);
+     cout << i << ": type " << elem->GetType()
+     << ", attr " << elem->GetAttribute() << "\t";
+     elem->GetVertices(vert);
+     vert.Print(cout,8);
+   }
+   */
+   socketstream a_sock, b_sock, h_sock, j_sock, k_sock, m_sock, p_sock;
    char vishost[] = "localhost";
    int  visport   = 19916;
    if (visualization)
    {
+      cout << "Opening visualization sockets" << endl;
+
       a_sock.open(vishost, visport);
       a_sock.precision(8);
 
@@ -265,13 +281,30 @@ int main(int argc, char *argv[])
 
       MPI_Barrier(MPI_COMM_WORLD);
 
+      h_sock.open(vishost, visport);
+      h_sock.precision(8);
+
+      MPI_Barrier(MPI_COMM_WORLD);
+
       j_sock.open(vishost, visport);
       j_sock.precision(8);
 
       MPI_Barrier(MPI_COMM_WORLD);
 
+      k_sock.open(vishost, visport);
+      k_sock.precision(8);
+
+      MPI_Barrier(MPI_COMM_WORLD);
+
       m_sock.open(vishost, visport);
       m_sock.precision(8);
+
+      MPI_Barrier(MPI_COMM_WORLD);
+
+      p_sock.open(vishost, visport);
+      p_sock.precision(8);
+
+      cout << "sockets open" << endl;
    }
 
    // Define compatible parallel finite element spaces on the parallel
@@ -282,13 +315,14 @@ int main(int argc, char *argv[])
    RT_ParFESpace HDivFESpace(&pmesh,order,dim);
 
    // Select DoFs on the requested surfaces as Dirichlet BCs
-   Array<int> ess_bdr0(pmesh.bdr_attributes.Max());
    Array<int> ess_bdr(pmesh.bdr_attributes.Max());
-   ess_bdr0 = 1;
-   ess_bdr = 0;
-   for (int i=0; i<dbcs.Size(); i++)
+   Array<int> non_k_bdr(pmesh.bdr_attributes.Max());
+   ess_bdr = 1;
+   non_k_bdr = 1;
+
+   for (int i=0; i<kbcs.Size(); i++)
    {
-      ess_bdr[dbcs[i]-1] = 1;
+      non_k_bdr[kbcs[i]-1] = 0;
    }
 
    // Set up the parallel bilinear form corresponding to the
@@ -311,9 +345,6 @@ int main(int argc, char *argv[])
    ParBilinearForm massMuInv(&HDivFESpace);
    massMuInv.AddDomainIntegrator(new VectorFEMassIntegrator);
 
-   ParBilinearForm mass_s(&HCurlFESpace);
-   mass_s.AddBoundaryIntegrator(new VectorFEMassIntegrator);
-
    // The gradient operator needed to compute H from PhiM
    ParDiscreteGradOperator Grad(&H1FESpace, &HCurlFESpace);
 
@@ -321,7 +352,11 @@ int main(int argc, char *argv[])
    ParDiscreteCurlOperator Curl(&HCurlFESpace, &HDivFESpace);
 
    // The projector needed to coerce J into the range of the CurlCurl operator
-   DivergenceFreeProjector DivFreeProj(HCurlFESpace, H1FESpace, ess_bdr0);
+   DivergenceFreeProjector DivFreeProj(H1FESpace, HCurlFESpace, Grad);
+
+   // Object to solve the subproblem of computing surface currents
+   SurfaceCurrent SurfCur(H1FESpace, HCurlFESpace, Grad,
+                          kbcs, vbcs, vbcv);
 
    // Create various grid functions
    // ParGridFunction phi_m(&H1FESpace);  // Magnetic Scalar Potential
@@ -341,6 +376,7 @@ int main(int argc, char *argv[])
    if ( visit )
    {
       // visit_dc.RegisterField("Phi_M", &phi_m);
+      visit_dc.RegisterField("Psi", SurfCur.GetPsi());
       visit_dc.RegisterField("A", &a);
       visit_dc.RegisterField("J", &j);
       visit_dc.RegisterField("K", &k);
@@ -377,37 +413,18 @@ int main(int argc, char *argv[])
       massMuInv.Assemble();
       massMuInv.Finalize();
 
-      if ( nbcs.Size() > 0 )
-      {
-         mass_s.Assemble();
-         mass_s.Finalize();
-      }
-
       // Initialize the magnetic vector potential with its boundary conditions
       a = 0.0;
 
-      if ( dbcs.Size() > 0 )
+      if ( kbcs.Size() > 0 )
       {
-         if ( dbcg )
-         {
-            // Apply gradient boundary condition
-            a.ProjectBdrCoefficientTangent(a_bc, ess_bdr);
-         }
-         /*
-         else
-         {
-           // Apply piecewise constant boundary condition
-           Array<int> dbc_bdr_attr(pmesh.bdr_attributes.Max());
-           for (int i=0; i<dbcs.Size(); i++)
-           {
-             ConstantCoefficient voltage(dbcv[i]);
-             dbc_bdr_attr = 0;
-             dbc_bdr_attr[dbcs[i]-1] = 1;
-             phi.ProjectBdrCoefficient(voltage, dbc_bdr_attr);
-           }
-         }
-         */
+         SurfCur.ComputeSurfaceCurrent(k);
+         a = k;
       }
+
+      // Apply uniform B boundary condition on remaining surfaces
+      a.ProjectBdrCoefficientTangent(a_bc, non_k_bdr);
+
 
       // Initialize the volumetric current density
       j.ProjectCoefficient(j_coef);
@@ -478,15 +495,12 @@ int main(int argc, char *argv[])
       delete JD;
 
       cout << "Norm of Div Free J+Curl M:  " << RHS->Norml2() << endl;
+      cout << "Norm of A:  " << A->Norml2() << endl;
 
       // Apply the boundary conditions to the assembled matrix and vectors
-      if ( dbcs.Size() > 0 )
-      {
-         // According to the selected surfaces
-         curlMuInvCurl.ParallelEliminateEssentialBC(ess_bdr,
-                                                    *CurlMuInvCurl,
-                                                    *A, *RHS);
-      }
+      curlMuInvCurl.ParallelEliminateEssentialBC(ess_bdr,
+                                                 *CurlMuInvCurl,
+                                                 *A, *RHS);
 
       // Define and apply a parallel PCG solver for AX=B with the AMS
       // preconditioner from hypre.
@@ -530,6 +544,13 @@ int main(int argc, char *argv[])
       // Send the solution by socket to a GLVis server.
       if (visualization)
       {
+
+         p_sock << "parallel " << num_procs << " " << myid << "\n";
+         p_sock << "solution\n" << pmesh << *SurfCur.GetPsi()
+                << "window_title 'Surface Current Potential (Psi)'\n" << flush;
+
+         MPI_Barrier(pmesh.GetComm());
+
          a_sock << "parallel " << num_procs << " " << myid << "\n";
          a_sock << "solution\n" << pmesh << a
                 << "window_title 'Vector Potential (A)'\n"
@@ -543,9 +564,21 @@ int main(int argc, char *argv[])
 
          MPI_Barrier(pmesh.GetComm());
 
+         h_sock << "parallel " << num_procs << " " << myid << "\n";
+         h_sock << "solution\n" << pmesh << h
+                << "window_title 'Magnetic Field (H)'\n" << flush;
+
+         MPI_Barrier(pmesh.GetComm());
+
          j_sock << "parallel " << num_procs << " " << myid << "\n";
          j_sock << "solution\n" << pmesh << j
                 << "window_title 'Current Density (J)'\n" << flush;
+
+         MPI_Barrier(pmesh.GetComm());
+
+         k_sock << "parallel " << num_procs << " " << myid << "\n";
+         k_sock << "solution\n" << pmesh << k
+                << "window_title 'Surface Current Density (K)'\n" << flush;
 
          MPI_Barrier(pmesh.GetComm());
 
@@ -618,21 +651,20 @@ int main(int argc, char *argv[])
       H1FESpace.Update();
       HCurlFESpace.Update();
       HDivFESpace.Update();
+      Grad.Update();
+      Curl.Update();
       DivFreeProj.Update();
+      SurfCur.Update();
       a.Update();
       j.Update();
-      // sigma.Update();
       k.Update();
       h.Update();
       b.Update();
       m.Update();
 
       // Inform the bilinear forms that the space has changed.
-      Grad.Update();
-      Curl.Update();
       mass.Update();
       massMuInv.Update();
-      mass_s.Update();
       curlMuInvCurl.Update();
 
       char c;
@@ -654,152 +686,142 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-IrrotationalProjector
-::IrrotationalProjector(ParFiniteElementSpace & HCurlFESpace,
-                        ParFiniteElementSpace & H1FESpace,
-                        Array<int> & ess_bdr)
+SurfaceCurrent::SurfaceCurrent(ParFiniteElementSpace & H1FESpace,
+                               ParFiniteElementSpace & HCurlFESpace,
+                               ParDiscreteGradOperator & Grad,
+                               Array<int> & kbcs,
+                               Array<int> & vbcs, Vector & vbcv)
    : H1FESpace_(&H1FESpace),
      HCurlFESpace_(&HCurlFESpace),
-     ess_bdr_(&ess_bdr)
+     Grad_(&Grad),
+     kbcs_(&kbcs),
+     vbcs_(&vbcs),
+     vbcv_(&vbcv)
 {
-   s0_ = new ParBilinearForm(&H1FESpace);
-   s0_->AddDomainIntegrator(new DiffusionIntegrator());
+   s0_ = new ParBilinearForm(H1FESpace_);
+   s0_->AddBoundaryIntegrator(new DiffusionIntegrator);
    s0_->Assemble();
    s0_->Finalize();
    S0_ = s0_->ParallelAssemble();
 
-   m1_ = new ParBilinearForm(&HCurlFESpace);
-   m1_->AddDomainIntegrator(new VectorFEMassIntegrator());
-   m1_->Assemble();
-   m1_->Finalize();
-   M1_ = m1_->ParallelAssemble();
-
-   Grad_ = new ParDiscreteGradOperator(&H1FESpace,&HCurlFESpace);
-
    amg_ = new HypreBoomerAMG(*S0_);
    amg_->SetPrintLevel(0);
+
    pcg_ = new HyprePCG(*S0_);
-   pcg_->SetTol(1e-14);
+   pcg_->SetTol(1e-12);
    pcg_->SetMaxIter(200);
    pcg_->SetPrintLevel(0);
    pcg_->SetPreconditioner(*amg_);
 
-   xDiv_     = new HypreParVector(&H1FESpace);
-   yPot_     = new HypreParVector(&H1FESpace);
-   gradYPot_ = new HypreParVector(HCurlFESpace_);
-   /*
-   int myid;
-   MPI_Comm_rank(H1FESpace.GetComm(), &myid);
+   ess_bdr_.SetSize(H1FESpace_->GetParMesh()->bdr_attributes.Max());
+   ess_bdr_ = 0;
+   for (int i=0; i<vbcs_->Size(); i++)
+   {
+      ess_bdr_[(*vbcs_)[i]-1] = 1;
+   }
 
-   if ( myid == 0 )
+   non_k_bdr_.SetSize(H1FESpace_->GetParMesh()->bdr_attributes.Max());
+   non_k_bdr_ = 1;
+   for (int i=0; i<kbcs_->Size(); i++)
    {
-     dof_list_.SetSize(1);
-     dof_list_[0] = 0;
+      non_k_bdr_[(*kbcs_)[i]-1] = 0;
    }
-   else
+
+   psi_ = new ParGridFunction(H1FESpace_);
+   *psi_ = 0.0;
+
+   // Apply piecewise constant voltage boundary condition
+   Array<int> vbc_bdr_attr(H1FESpace_->GetParMesh()->bdr_attributes.Max());
+   for (int i=0; i<vbcs_->Size(); i++)
    {
-     dof_list_.SetSize(0);
+      ConstantCoefficient voltage((*vbcv_)[i]);
+      vbc_bdr_attr = 0;
+      vbc_bdr_attr[(*vbcs_)[i]-1] = 1;
+      psi_->ProjectBdrCoefficient(voltage, vbc_bdr_attr);
    }
-   */
+
+   PSI_ = psi_->ParallelProject();
+   RHS_ = new HypreParVector(H1FESpace_);
+   K_   = new HypreParVector(HCurlFESpace_);
+
+   s0_->ParallelEliminateEssentialBC(ess_bdr_,
+                                     *S0_,
+                                     *PSI_, *RHS_);
 }
 
-IrrotationalProjector::~IrrotationalProjector()
+SurfaceCurrent::~SurfaceCurrent()
 {
+   delete pcg_;
+   delete amg_;
+   delete S0_;
+   delete PSI_;
+   delete RHS_;
+   delete K_;
    delete s0_;
-   delete m1_;
-   delete amg_;
-   delete pcg_;
-   delete S0_;
-   delete M1_;
-   delete Grad_;
-   delete xDiv_;
-   delete yPot_;
-   delete gradYPot_;
+   delete psi_;
 }
 
 void
-IrrotationalProjector::Mult(const Vector &x, Vector &y) const
+SurfaceCurrent::ComputeSurfaceCurrent(ParGridFunction & k)
 {
-   *yPot_ = 0.0;
-   Grad_->MultTranspose(x,*xDiv_);
-   // S0_->EliminateRowsCols(dof_list_, *yPot_, *xDiv_);
-   s0_->ParallelEliminateEssentialBC(*ess_bdr_,*S0_,*yPot_,*xDiv_);
-   pcg_->Mult(*xDiv_,*yPot_);
-   Grad_->Mult(*yPot_,*gradYPot_);
-   M1_->Mult(*gradYPot_,y);
+   k = 0.0;
+   pcg_->Mult(*RHS_, *PSI_);
+   PSI_->Print("PSI.vec");
+   S0_->Print("S0.mat");
+   *psi_ = *PSI_;
+   Grad_->Mult(*PSI_,*K_);
+   k = *K_;
+
+   Vector vZero(3); vZero = 0.0;
+   VectorConstantCoefficient Zero(vZero);
+   k.ProjectBdrCoefficientTangent(Zero,non_k_bdr_);
 }
 
 void
-IrrotationalProjector::Update()
+SurfaceCurrent::Update()
 {
-   delete S0_;
-   delete M1_;
-   delete gradYPot_;
-   delete yPot_;
-   delete xDiv_;
    delete pcg_;
    delete amg_;
+   delete S0_;
+   delete PSI_;
+   delete RHS_;
+   delete K_;
+
+   psi_->Update();
+   *psi_ = 0.0;
 
    s0_->Update();
-   m1_->Update();
-   Grad_->Update();
-
    s0_->Assemble();
    s0_->Finalize();
-
-   m1_->Assemble();
-   m1_->Finalize();
-
    S0_ = s0_->ParallelAssemble();
-   M1_ = m1_->ParallelAssemble();
 
    amg_ = new HypreBoomerAMG(*S0_);
    amg_->SetPrintLevel(0);
+
    pcg_ = new HyprePCG(*S0_);
-   pcg_->SetTol(1e-14);
+   pcg_->SetTol(1e-12);
    pcg_->SetMaxIter(200);
    pcg_->SetPrintLevel(0);
    pcg_->SetPreconditioner(*amg_);
 
-   xDiv_     = new HypreParVector(H1FESpace_);
-   yPot_     = new HypreParVector(H1FESpace_);
-   gradYPot_ = new HypreParVector(HCurlFESpace_);
+   // Apply piecewise constant voltage boundary condition
+   Array<int> vbc_bdr_attr(H1FESpace_->GetParMesh()->bdr_attributes.Max());
+   for (int i=0; i<vbcs_->Size(); i++)
+   {
+      ConstantCoefficient voltage((*vbcv_)[i]);
+      vbc_bdr_attr = 0;
+      vbc_bdr_attr[(*vbcs_)[i]-1] = 1;
+      psi_->ProjectBdrCoefficient(voltage, vbc_bdr_attr);
+   }
+
+   PSI_ = psi_->ParallelProject();
+   RHS_ = new HypreParVector(H1FESpace_);
+   K_   = new HypreParVector(HCurlFESpace_);
+
+   s0_->ParallelEliminateEssentialBC(ess_bdr_,
+                                     *S0_,
+                                     *PSI_, *RHS_);
 }
-
-DivergenceFreeProjector
-::DivergenceFreeProjector(ParFiniteElementSpace & HCurlFESpace,
-                          ParFiniteElementSpace & H1FESpace,
-                          Array<int> & ess_bdr)
-   : IrrotationalProjector(HCurlFESpace,H1FESpace,ess_bdr),
-     HCurlFESpace_(&HCurlFESpace),
-     xIrr_(NULL)
-{
-   xIrr_ = new HypreParVector(&HCurlFESpace);
-}
-
-DivergenceFreeProjector::~DivergenceFreeProjector()
-{
-   delete xIrr_;
-}
-
-void
-DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
-{
-   this->IrrotationalProjector::Mult(x,*xIrr_);
-   y  = x;
-   y -= *xIrr_;
-}
-
-void
-DivergenceFreeProjector::Update()
-{
-   delete xIrr_;
-
-   this->IrrotationalProjector::Update();
-
-   xIrr_ = new HypreParVector(HCurlFESpace_);
-}
-
 
 // A spherical shell with constant permeability.  The sphere has inner
 // and outer radii, center, and relative permeability specified on the
@@ -861,12 +883,12 @@ void current_ring(const Vector &x, Vector &j)
 
    if ( h > 0.0 )
    {
-      xu.Add(-xa/h,a);
+      xu.Add(-xa/(h*h),a);
    }
 
    double xp = xu.Norml2();
 
-   if ( xa >= 0.0 && xa <= h && xp >= ra && xp <= rb )
+   if ( xa >= 0.0 && xa <= h*h && xp >= ra && xp <= rb )
    {
       ju(0) = a(1) * xu(2) - a(2) * xu(1);
       ju(1) = a(2) * xu(0) - a(0) * xu(2);
@@ -919,49 +941,14 @@ void bar_magnet(const Vector &x, Vector &m)
    }
 }
 
-// A sphere with constant charge density.  The sphere has a radius,
-// center, and total charge specified on the command line and stored
-// in cs_params_.
-/*
-double charged_sphere(const Vector &x)
-{
-   double r2 = 0.0;
-   double rho = 0.0;
-
-   if ( cs_params_(x.Size()) > 0.0 )
-   {
-     switch ( x.Size() ) {
-     case 2:
-       rho = cs_params_(x.Size()+1)/(M_PI*pow(cs_params_(x.Size()),2));
-       break;
-     case 3:
-       rho = 0.75*cs_params_(x.Size()+1)/(M_PI*pow(cs_params_(x.Size()),3));
-       break;
-     default:
-       rho = 0.0;
-     }
-   }
-
-   for (int i=0; i<x.Size(); i++)
-   {
-      r2 += (x(i)-cs_params_(i))*(x(i)-cs_params_(i));
-   }
-
-   if ( sqrt(r2) <= cs_params_(x.Size()) )
-   {
-     return rho;
-   }
-   return 0.0;
-}
-*/
 // To produce a uniform magnetic flux the vector potential can be set
 // to (-y,0,0).
 void a_bc_uniform(const Vector & x, Vector & a)
 {
    a.SetSize(3);
-   a(0) = -x(1);
-   a(1) = 0.0;
-   a(2) = 0.0;
+   a(0) = b_uniform_(1) * x(2);
+   a(1) = b_uniform_(2) * x(0);
+   a(2) = b_uniform_(0) * x(1);
 }
 
 // To produce a uniform magnetic field the scalar potential can be set

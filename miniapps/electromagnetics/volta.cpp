@@ -9,14 +9,14 @@
 //     mpirun -np 4 volta
 //
 //   A cylinder at constant voltage in a square, grounded metal pipe.
-//     mpirun -np 4 volta -m ../../data/square-disc.mesh 
+//     mpirun -np 4 volta -m ../../data/square-disc.mesh
 //                        -dbcs '1 2 3 4 5 6 7 8' -dbcv '0 0 0 0 1 1 1 1'
 //
 //   A cylinder with a constant surface charge density in a square,
 //   grounded metal pipe.
 //     mpirun -np 4 volta -m ../../data/square-disc.mesh
 //                        -nbcs '5 6 7 8' -nbcv '5e-11 5e-11 5e-11 5e-11'
-//                        -dbcs '1 2 3 4' 
+//                        -dbcs '1 2 3 4'
 //
 //   A charged sphere, off-center, within a grounded metal sphere.
 //     mpirun -np 4 volta -dbcs 1 -cs '0.0 0.5 0.0 0.2 2.0e-11'

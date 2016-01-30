@@ -87,15 +87,6 @@ int main(int argc, char *argv[])
    imesh.close();
 
    int dim = mesh->Dimension();
-   if (dim != 3)
-   {
-      if (myid == 0)
-      {
-         cerr << "\nThis example requires a 3D mesh\n" << endl;
-      }
-      MPI_Finalize();
-      return 3;
-   }
 
    // Refine the serial mesh on all processors to increase the resolution. In
    // this example we do 'ref_levels' of uniform refinement.

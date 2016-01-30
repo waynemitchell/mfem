@@ -89,7 +89,7 @@ $\vec{D}$ and/or between $\vec{H}$ and $\vec{B}$.  These relations
 start with the definitions:
 \begin{eqnarray}
 \vec{D} &=& \epsilon_0\vec{E} + \vec{P}\\
-\vec{B} &=& \mu_0\vec{H} + \vec{M}
+\vec{B} &=& \mu_0\left(\vec{H} + \vec{M}\right)
 \end{eqnarray}
 Where $\vec{P}$ is the {\em polarization density}, and $\vec{M}$ is
 the {\em magnetization}.  Also, $\epsilon_0$ is the {\em permittivity
@@ -102,14 +102,14 @@ use the relation $\vec{D}=\epsilon\vec{E}$ with
 $\epsilon=\epsilon_0(1+\chi)$ and call $\epsilon$ the {\em
   permittivity} of the material.
 
-The nature of magnetization is more
-complicated but we will take a very simplified view which is valid in
-many situations.  Specifically, we will assume that either $\vec{M}$
-is proportional to $\vec{H}$ yielding the relation
-$\vec{B}=\mu\vec{H}$ where $\mu=\mu_0(1+\chi_M)$ and $\chi_M$ is the
-{\em magnetic susceptibility} or that $\vec{M}$ is a constant.  The
-former case pertains to both diamagnetic and paramagnetic materials
-and the later to ferromagnetic materials.
+The nature of magnetization is more complicated but we will take a
+very simplified view which is valid in many situations.  Specifically,
+we will assume that either $\vec{M}$ is proportional to $\vec{H}$
+yielding the relation $\vec{B}=\mu\vec{H}$ where $\mu=\mu_0(1+\chi_M)$
+and $\chi_M$ is the {\em magnetic susceptibility} or that $\vec{M}$ is
+independent of the applied field.  The former case pertains to both
+diamagnetic and paramagnetic materials and the later to ferromagnetic
+materials.
 
 Finally we should note that equations~\refEq{ampere} and \refEq{gauss}
 can be combined to yield the equation of charge continuity
@@ -151,6 +151,61 @@ boundary condition.  This means setting $\hat{n}\cdot\vec{D}$ to a
 prescribed value on some portion of the boundary.  This is equivalent
 to defining a surface charge density on that portion of the boundary.
 
+\subsubsection{{\tt electrostatics} Mini Application}
+
+The {\tt electrostatics} mini application is intended to demonstrate
+how to solve standard electrostatics problems in MFEM.  Its source
+terms and boundary conditions are simple but they should indicate how
+more specialized sources or boundary conditions could be implemented.
+Note that this application assumes the mesh coordinates are given in
+meters.
+
+\begin{description}
+\item[Mini Application Features:]
+\item[Permittivity:] The permittivity is assumed to be that of free
+  space except for an optional sphere of dielectric material which can
+  be defined by the user.  The command line option {\tt -ds} can be
+  used to set the parameters for this dielectric sphere.  For example,
+  to produce a sphere at the origin with a radius of 0.5 and a
+  relative permittivity of 3 the user would specify:
+  \begin{center}{\tt -ds '0 0 0 0.5 3'}\end{center}
+
+\item[Charge Density:] The charge density is assumed to be zero except
+  for an optional sphere of uniform charge density which can be
+  defined by the user.  The command line option for this is {\tt -cs}
+  which follows the same pattern as the dielectric sphere.  Note that
+  the last entry is the total charge of the sphere and not its charge
+  density.
+
+\item[Dirichlet BC:] Dirichlet Boundary Conditions can either specify
+  piecewise constant voltages on a collection of surfaces or they can
+  specify a gradient field which approximates a uniform applied
+  electric field.  In either case the user specifies the surfaces
+  where the Dirichlet boundary condition should be applied using the
+  {\tt -dbcs} option followed by a list of boundary attributes.
+  For example to select surfaces 2, 3, and 4 the user would use the
+  following:
+  \begin{center}{\tt -dbcs '2 3 4'}\end{center}
+  To apply a gradient field ($\varphi = -z$) on these surfaces the
+  user would also use the {\tt -dbcg} option.  To specify piecewise
+  constant values the user would list the desired values after
+  {\tt -dbcv} as follows:
+  \begin{center}{\tt -dbcv '0.0 1.0 -1.0'}\end{center}
+
+\item[Neumann BC:] Neumann Boundary Conditions set the normal
+  component of the electric displacement on portions of the boundary.
+  This normal component is equivalent to the surface charge density on
+  the surface.  This is rarely used because surface charge densities
+  are rarely known unless they are know to be zero.  However, if the
+  surface charge density is zero then the Neumann BCs are not needed
+  because this is the natural boundary condition.  Only piecewise
+  constant Neumann boundary conditions are supported.  They can be set
+  analygously to piecewise Dirichlet boundary conditions but using
+  options {\tt -nbcs} and {\tt -nbcv}.
+
+\end{description}
+
+
 \subsubsection{Magnetostatics}
 
 Magnetostatic problems arise when we assume no time variation in
@@ -158,26 +213,45 @@ Amp\`ere's Law (equation~\refEq{ampere}) which leads to:
 \[\Curl\vec{H}=\vec{J}\]
 In this case we'll assume a somewhat more general constitutive
 relation between $\vec{H}$ and $\vec{B}$:
-\[\vec{B}=\mu\vec{H}+\vec{M}\]
-Notice that we use $\mu$ rather than $\mu_0$.  This allows for
-paramagnetic and/or diamagnetic materials defined through $\mu$ as
-well as ferromagnetic materials represented by $\vec{M}$.  This choice
-yields:
-\[\Curl\mu^{-1}\vec{B}=\vec{J}+\Curl\mu^{-1}\vec{M}\]
-Of course a nonlinear constitutive relation is possible and would lead
-to a rather complicated nonlinear equation for $\vec{B}$.
-
-To reach an equation we can solve in the linear case we need to make
-use of equation~\refEq{divb} which implies that $\vec{B}=\Curl\vec{A}$
-for some potential $\vec{A}$ which is called the {\em magnetic vector
-  potential}.  This gives the final form of the equation:
+\[\vec{B}=\mu\vec{H}+\mu_0\vec{M} = \mu_0\left(1+\chi_M\right)\vec{H}+\mu_0\vec{M}\]
+Where the magnetization is split into two portions; one which is
+proportional to $\vec{H}$ and given by $\chi_M\vec{H}$, and another
+which is independent of $\vec{H}$ and is given by $\vec{M}$.  This
+allows for paramagnetic and/or diamagnetic materials defined through
+$\mu$ as well as ferromagnetic materials represented by $\vec{M}$.
+This choice yields:
+\[\Curl\mu^{-1}\vec{B}=\vec{J}+\Curl\mu^{-1}\mu_0\vec{M}\]
+Which, when combined with equation~\refEq{divb} becomes:
 \begin{equation}
-\Curl\mu^{-1}\Curl\vec{A}=\vec{J}+\Curl\mu^{-1}\vec{M}
+\Curl\mu^{-1}\Curl\vec{A}=\vec{J}+\Curl\mu^{-1}\mu_0\vec{M}
 \end{equation}
-Once again the potential is non unique so we must apply Dirichlet
-boundary conditions in order to arrive at a solution for $\vec{A}$.   
+If $\vec{J}$ happens to be zero we have another option because we can
+assume that $\vec{H} = -\Grad\varphi_M$ for some scalar potential
+$\varphi_M$.  When combined with equation~\refEq{divb} becomes:
+\begin{equation}
+\Div\mu\Grad\varphi_M = \Div\mu_0\vec{M}
+\end{equation}
 
-more on appropriate boundary conditions\ldots
+Once again the potential is non unique so we must apply additional
+constraints in order to arrive at a solution for $\vec{A}$.  It is
+common to constrain the solution by restricting the divergence of
+$\vec{A}$.  In most cases this is sufficient but if the problem domain
+contains handles in 3D or holes in 2D then we must also apply
+a Dirichlet boundary condition at at least one degree of freedom for
+each handle or hole.  This requirement is related to the fact that
+each handle may be encircled by an irrotational (aka curl free) vector
+field which cannot be expressed as the gradient of a scalar function.
+
+Dirichlet boundary conditions for the vector potential on a surface
+provide a means to specify the component of $\vec{B}$ normal to that
+surface.  For example, setting the tangential components of $\vec{A}$
+to be zero on a particular surface results in a magnetic flux density
+which must be tangent to that surface.  The natural boundary condition
+for the magnetic vector potential, if no Dirichlet constraints are
+applied, is for the tangential components of $\Curl\vec{A}$ to be
+zero.  In other words the magnetic flux density must be normal to the
+surface.
+
 
 more on magnetic scalar potential\ldots
 
@@ -192,9 +266,9 @@ Possible sources:
 \item Surface Current Density $\vec{K}$
 \end{itemize}
 
-Additional Boundary Conditions:
+\noindent Additional Boundary Conditions:
 \begin{itemize}
-\item Voltage at at least one point
+\item Voltage at at least one point (we can set this if the user doesn't)
 \item Magnetic Vector Potential on some region (restrictions???)
 \item Magnetic Scalar Potential at at least one point (we may be able
   to choose this for the user)

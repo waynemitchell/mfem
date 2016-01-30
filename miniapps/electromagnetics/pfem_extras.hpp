@@ -148,8 +148,9 @@ public:
 class IrrotationalProjector : public Operator
 {
 public:
-   IrrotationalProjector(ParFiniteElementSpace & HCurlFESpace,
-                         ParFiniteElementSpace & H1FESpace);
+   IrrotationalProjector(ParFiniteElementSpace & H1FESpace,
+                         ParFiniteElementSpace & HCurlFESpace,
+                         ParDiscreteInterpolationOperator & Grad);
    virtual ~IrrotationalProjector();
 
    // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
@@ -186,8 +187,9 @@ private:
 class DivergenceFreeProjector : public IrrotationalProjector
 {
 public:
-   DivergenceFreeProjector(ParFiniteElementSpace & HCurlFESpace,
-                           ParFiniteElementSpace & H1FESpace);
+   DivergenceFreeProjector(ParFiniteElementSpace & H1FESpace,
+                           ParFiniteElementSpace & HCurlFESpace,
+                           ParDiscreteInterpolationOperator & Grad);
    virtual ~DivergenceFreeProjector();
 
    // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
