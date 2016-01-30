@@ -13,6 +13,7 @@
 
 #ifdef MFEM_USE_MPI
 
+#include "mfem.hpp"
 #include "pfem_extras.hpp"
 
 using namespace std;
@@ -309,6 +310,35 @@ DivergenceFreeProjector::Update()
    this->IrrotationalProjector::Update();
 
    xIrr_ = new HypreParVector(HCurlFESpace_);
+}
+
+
+void VisualizeField(socketstream &sock, const char *vishost, int visport,
+                    ParGridFunction &gf, const char *title,
+                    int x, int y, int w, int h)
+{
+   ParMesh &pmesh = *gf.ParFESpace()->GetParMesh();
+   MPI_Comm comm = pmesh.GetComm();
+
+   int num_procs, myid;
+   MPI_Comm_size(comm, &num_procs);
+   MPI_Comm_rank(comm, &myid);
+
+   do
+   {
+      if (!sock.is_open() || !sock)
+      {
+         sock.open(vishost, visport);
+         sock.precision(8);
+      }
+      sock << "parallel " << num_procs << " " << myid << "\n";
+   }
+   while (!sock);
+   sock << "solution\n" << pmesh << gf
+        << "window_title '" << title << "'\n"
+        << "window_geometry " << x << " " << y << " " << w << " " << h << endl;
+
+   MPI_Barrier(comm);
 }
 
 }

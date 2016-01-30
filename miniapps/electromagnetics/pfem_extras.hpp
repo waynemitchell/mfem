@@ -203,6 +203,14 @@ private:
    HypreParVector        * xIrr_;
 };
 
+
+/// Visualize the given parallel grid function, using a GLVis server on the
+/// specified host and port. Set the visualization window title, and optionally,
+/// its geometry.
+void VisualizeField(socketstream &sock, const char *vishost, int visport,
+                    ParGridFunction &gf, const char *title,
+                    int x = 0, int y = 0, int w = 400, int h = 400);
+
 } // namespace mfem
 
 #endif // MFEM_USE_MPI

@@ -9,7 +9,7 @@
 //     mpirun -np 4 volta
 //
 //   A cylinder at constant voltage in a square, grounded metal pipe.
-//     mpirun -np 4 volta -m ../../data/square-disc.mesh
+//     mpirun -np 4 volta -m ../../data/square-disc.mesh 
 //                        -dbcs '1 2 3 4 5 6 7 8' -dbcv '0 0 0 0 1 1 1 1'
 //
 //   A cylinder with a constant surface charge density in a square,
@@ -210,6 +210,7 @@ int main(int argc, char *argv[])
    socketstream phi_sock, e_sock, err_sock;
    char vishost[] = "localhost";
    int  visport   = 19916;
+#if 0
    if (visualization)
    {
       phi_sock.open(vishost, visport);
@@ -225,6 +226,7 @@ int main(int argc, char *argv[])
       err_sock.open(vishost, visport);
       err_sock.precision(8);
    }
+#endif
 
    // Define compatible parallel finite element spaces on the parallel
    // mesh. Here we use arbitrary order H1 and Nedelec finite
@@ -416,16 +418,16 @@ int main(int argc, char *argv[])
       // Send the solution by socket to a GLVis server.
       if (visualization)
       {
-         phi_sock << "parallel " << num_procs << " " << myid << "\n";
-         phi_sock << "solution\n" << pmesh << phi
-                  << "window_title 'Scalar Potential (Phi)'\n"
-                  << flush;
+         int Wx = 0, Wy = 0; // window position
+         int Ww = 400, Wh = 400; // window size
+         int offx = 410, offy = 450; // window offsets
 
-         MPI_Barrier(pmesh.GetComm());
+         VisualizeField(phi_sock, vishost, visport,
+                        phi, "Scalar Potential (Phi)", Wx, Wy, Ww, Wh);
+         Wx += offx;
 
-         e_sock << "parallel " << num_procs << " " << myid << "\n";
-         e_sock << "solution\n" << pmesh << e
-                << "window_title 'Electric Field (E)'\n" << flush;
+         VisualizeField(e_sock, vishost, visport,
+                        e, "Electric Field (E)", Wx, Wy, Ww, Wh);
       }
 
       // Estimate element errors using the Zienkiewicz-Zhu error estimator.

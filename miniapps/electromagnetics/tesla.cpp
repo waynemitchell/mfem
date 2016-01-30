@@ -98,6 +98,7 @@ private:
   Array<int> non_k_bdr_;
 };
 
+
 int main(int argc, char *argv[])
 {
    // Initialize MPI.
@@ -255,6 +256,7 @@ int main(int argc, char *argv[])
    socketstream a_sock, b_sock, h_sock, j_sock, k_sock, m_sock, p_sock;
    char vishost[] = "localhost";
    int  visport   = 19916;
+#if 0
    if (visualization)
    {
      if ( myid == 0 )
@@ -295,6 +297,7 @@ int main(int argc, char *argv[])
       p_sock.open(vishost, visport);
       p_sock.precision(8);
    }
+#endif
 
    // Define compatible parallel finite element spaces on the parallel
    // mesh. Here we use arbitrary order H1 and Nedelec finite
@@ -511,47 +514,37 @@ int main(int argc, char *argv[])
       // Send the solution by socket to a GLVis server.
       if (visualization)
       {
+         int Wx = 0, Wy = 0; // window position
+         int Ww = 400, Wh = 400; // window size
+         int offx = 410, offy = 450; // window offsets
 
-         p_sock << "parallel " << num_procs << " " << myid << "\n";
-         p_sock << "solution\n" << pmesh << *SurfCur.GetPsi()
-                << "window_title 'Surface Current Potential (Psi)'\n" << flush;
+         VisualizeField(p_sock, vishost, visport,
+                        *SurfCur.GetPsi(), "Surface Current Potential (Psi)",
+                        Wx, Wy, Ww, Wh);
+         Wx += offx;
 
-         MPI_Barrier(pmesh.GetComm());
+         VisualizeField(a_sock, vishost, visport,
+                        a, "Vector Potential (A)", Wx, Wy, Ww, Wh);
+         Wx += offx;
 
-         a_sock << "parallel " << num_procs << " " << myid << "\n";
-         a_sock << "solution\n" << pmesh << a
-                << "window_title 'Vector Potential (A)'\n"
-                << flush;
+         VisualizeField(b_sock, vishost, visport,
+                        b, "Magnetic Flux Density (B)", Wx, Wy, Ww, Wh);
+         Wx += offx;
 
-         MPI_Barrier(pmesh.GetComm());
+         VisualizeField(h_sock, vishost, visport,
+                        h, "Magnetic Field (H)", Wx, Wy, Ww, Wh);
+         Wx = 0; Wy += offy;
 
-         b_sock << "parallel " << num_procs << " " << myid << "\n";
-         b_sock << "solution\n" << pmesh << b
-                << "window_title 'Magnetic Flux Density (B)'\n" << flush;
+         VisualizeField(j_sock, vishost, visport,
+                        j, "Current Density (J)", Wx, Wy, Ww, Wh);
+         Wx += offx;
 
-         MPI_Barrier(pmesh.GetComm());
+         VisualizeField(k_sock, vishost, visport,
+                        k, "Surface Current Density (K)", Wx, Wy, Ww, Wh);
+         Wx += offx;
 
-         h_sock << "parallel " << num_procs << " " << myid << "\n";
-         h_sock << "solution\n" << pmesh << h
-                << "window_title 'Magnetic Field (H)'\n" << flush;
-
-         MPI_Barrier(pmesh.GetComm());
-
-         j_sock << "parallel " << num_procs << " " << myid << "\n";
-         j_sock << "solution\n" << pmesh << j
-                << "window_title 'Current Density (J)'\n" << flush;
-
-         MPI_Barrier(pmesh.GetComm());
-
-         k_sock << "parallel " << num_procs << " " << myid << "\n";
-         k_sock << "solution\n" << pmesh << k
-                << "window_title 'Surface Current Density (K)'\n" << flush;
-
-         MPI_Barrier(pmesh.GetComm());
-
-         m_sock << "parallel " << num_procs << " " << myid << "\n";
-         m_sock << "solution\n" << pmesh << m
-                << "window_title 'Magnetization (M)'\n" << flush;
+         VisualizeField(m_sock, vishost, visport,
+                        m, "Magnetization (M)", Wx, Wy, Ww, Wh);
       }
 
       if (size_nd > max_dofs)

@@ -58,5 +58,7 @@ clean:
                      magnetostatics4p magnetostatics5p \
                      electrostatics1p electrostatics2p \
                      magnetostatics electrostatics
+	rm -f *.o *~ volta tesla
+	rm -rf Volta-AMR* Tesla-AMR*
 	rm -f mesh.* sol.* sol_curl.* psi.*
 	rm -rf *.dSYM *.TVD.*breakpoints
