@@ -49,6 +49,13 @@ fem_extras.o: fem_extras.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
 pfem_extras.o: pfem_extras.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
 	$(MFEM_CXX) -c $(MFEM_FLAGS) pfem_extras.cpp -o $@ $(MFEM_LIBS)
 
+tesla_solver.o: tesla_solver.cpp tesla_solver.hpp pfem_extras.hpp \
+	$(CONFIG_MK) $(MFEM_LIB_FILE)
+	$(MFEM_CXX) -c $(MFEM_FLAGS) tesla_solver.cpp -o $@ $(MFEM_LIBS)
+
+tesla: tesla.cpp $(CONFIG_MK) $(MFEM_LIB_FILE) tesla_solver.o pfem_extras.o
+	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ tesla_solver.o pfem_extras.o $(MFEM_LIBS)
+
 # Generate an error message if the MFEM library is not built and exit
 $(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)

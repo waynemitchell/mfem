@@ -216,5 +216,4 @@ void VisualizeField(socketstream &sock, const char *vishost, int visport,
 } // namespace mfem
 
 #endif // MFEM_USE_MPI
-
 #endif
