@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
    }
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of finite element unknowns: "
-        << fespace->GetConformingVSize() << endl;
+        << fespace->GetTrueVSize() << endl;
 
    Array<int> ess_tdof_list;
    if (mesh->bdr_attributes.Size())
@@ -204,10 +204,7 @@ int main(int argc, char *argv[])
    delete sfec;
    delete b;
    delete fespace;
-   if (order > 0)
-   {
-      delete fec;
-   }
+   if (order > 0) { delete fec; }
    delete mesh;
 
    return 0;
