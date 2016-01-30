@@ -148,6 +148,7 @@ void GridFunction::Update(FiniteElementSpace *f)
 
 void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
 {
+   MFEM_ASSERT(v.Size() >= v_offset + f->GetVSize(), "");
    if (fec)
    {
       delete fes;

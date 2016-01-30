@@ -2110,6 +2110,93 @@ void TraceJumpIntegrator::AssembleFaceMatrix(
    }
 }
 
+void NormalTraceJumpIntegrator::AssembleFaceMatrix(
+   const FiniteElement &trial_face_fe, const FiniteElement &test_fe1,
+   const FiniteElement &test_fe2, FaceElementTransformations &Trans,
+   DenseMatrix &elmat)
+{
+   int i, j, face_ndof, ndof1, ndof2, sdim;
+   int order;
+
+   MFEM_VERIFY(trial_face_fe.GetMapType() == FiniteElement::VALUE, "");
+
+   face_ndof = trial_face_fe.GetDof();
+   ndof1 = test_fe1.GetDof();
+   sdim = Trans.Face->GetSpaceDim();
+
+   face_shape.SetSize(face_ndof);
+   normal.SetSize(sdim);
+   shape1.SetSize(ndof1,sdim);
+   shape1_n.SetSize(ndof1);
+
+   if (Trans.Elem2No >= 0)
+   {
+      ndof2 = test_fe2.GetDof();
+      shape2.SetSize(ndof2,sdim);
+      shape2_n.SetSize(ndof2);
+   }
+   else
+   {
+      ndof2 = 0;
+   }
+
+   elmat.SetSize(ndof1 + ndof2, face_ndof);
+   elmat = 0.0;
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      if (Trans.Elem2No >= 0)
+      {
+         order = max(test_fe1.GetOrder(), test_fe2.GetOrder()) - 1;
+      }
+      else
+      {
+         order = test_fe1.GetOrder() - 1;
+      }
+      order += trial_face_fe.GetOrder();
+      ir = &IntRules.Get(Trans.FaceGeom, order);
+   }
+
+   for (int p = 0; p < ir->GetNPoints(); p++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(p);
+      IntegrationPoint eip1, eip2;
+      // Trace finite element shape function
+      Trans.Face->SetIntPoint(&ip);
+      trial_face_fe.CalcShape(ip, face_shape);
+      CalcOrtho(Trans.Face->Jacobian(), normal);
+      // Side 1 finite element shape function
+      Trans.Loc1.Transform(ip, eip1);
+      Trans.Elem1->SetIntPoint(&eip1);
+      test_fe1.CalcVShape(*Trans.Elem1, shape1);
+      shape1.Mult(normal, shape1_n);
+      if (ndof2)
+      {
+         // Side 2 finite element shape function
+         Trans.Loc2.Transform(ip, eip2);
+         Trans.Elem2->SetIntPoint(&eip2);
+         test_fe2.CalcVShape(*Trans.Elem2, shape2);
+         shape2.Mult(normal, shape2_n);
+      }
+      face_shape *= ip.weight;
+      for (i = 0; i < ndof1; i++)
+         for (j = 0; j < face_ndof; j++)
+         {
+            elmat(i, j) += shape1_n(i) * face_shape(j);
+         }
+      if (ndof2)
+      {
+         // Subtract contribution from side 2
+         for (i = 0; i < ndof2; i++)
+            for (j = 0; j < face_ndof; j++)
+            {
+               elmat(ndof1+i, j) -= shape2_n(i) * face_shape(j);
+            }
+      }
+   }
+}
+
 
 void NormalInterpolator::AssembleElementMatrix2(
    const FiniteElement &dom_fe, const FiniteElement &ran_fe,

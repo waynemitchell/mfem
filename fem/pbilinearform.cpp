@@ -261,6 +261,83 @@ const
    pfes->Dof_TrueDof_Matrix()->MultTranspose(a, Y, 1.0, y);
 }
 
+void ParBilinearForm::FormLinearSystem(
+   Array<int> &ess_tdof_list, Vector &x, Vector &b,
+   HypreParMatrix &A, Vector &X, Vector &B)
+{
+   HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
+   const SparseMatrix &R = *pfes->GetRestrictionMatrix();
+
+   if (mat)
+   {
+      Finalize();
+      p_mat = ParallelAssemble();
+      delete mat;
+      mat = NULL;
+      p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
+   }
+
+   if (!hybridization)
+   {
+      X.SetSize(pfes->TrueVSize());
+      B.SetSize(X.Size());
+      P.MultTranspose(b, B);
+      R.Mult(x, X);
+      EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, X, B);
+      A.MakeRef(*p_mat);
+   }
+   else
+   {
+      HypreParVector TX(pfes), TB(pfes);
+      P.MultTranspose(b, TB);
+      R.Mult(x, TX);
+      EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, TX, TB);
+      R.MultTranspose(TB, b);
+      hybridization->ReduceRHS(TB, B);
+      X.SetSize(B.Size());
+      X = 0.0;
+      A.MakeRef(hybridization->GetParallelMatrix());
+   }
+}
+
+void ParBilinearForm::RecoverFEMSolution(
+   const Vector &X, const Vector &b, Vector &x)
+{
+   HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
+
+   if (!hybridization)
+   {
+      x.SetSize(P.Height());
+      P.Mult(X, x);
+   }
+   else
+   {
+      HypreParVector TX(pfes), TB(pfes);
+      P.MultTranspose(b, TB);
+      const SparseMatrix &R = *pfes->GetRestrictionMatrix();
+      R.Mult(x, TX); // get essential b.c. from x
+      hybridization->ComputeSolution(TB, X, TX);
+      x.SetSize(P.Height());
+      P.Mult(TX, x);
+   }
+}
+
+void ParBilinearForm::Update(FiniteElementSpace *nfes)
+{
+   BilinearForm::Update(nfes);
+
+   if (nfes)
+   {
+      pfes = dynamic_cast<ParFiniteElementSpace *>(nfes);
+      MFEM_VERIFY(pfes != NULL, "nfes must be a ParFiniteElementSpace!");
+   }
+
+   delete p_mat;
+   delete p_mat_e;
+   p_mat = p_mat_e = NULL;
+}
+
+
 HypreParMatrix* ParDiscreteLinearOperator::ParallelAssemble() const
 {
    MFEM_ASSERT(mat, "matrix is not assembled");

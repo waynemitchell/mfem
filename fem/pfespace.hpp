@@ -193,8 +193,8 @@ public:
 
    /** Get a list of essential true dofs, ess_tdof_list, corresponding to the
        boundary attributes marked in the array bdr_attr_is_ess. */
-   void GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
-                             Array<int> &ess_tdof_list);
+   virtual void GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
+                                     Array<int> &ess_tdof_list);
 
    /** If the given ldof is owned by the current processor, return its local
        tdof number, otherwise return -1 */
@@ -210,7 +210,7 @@ public:
    HYPRE_Int GetMyTDofOffset() const;
 
    /// Get the R matrix which restricts a local dof vector to true dof vector.
-   const SparseMatrix *GetRestrictionMatrix()
+   virtual const SparseMatrix *GetRestrictionMatrix()
    { if (!R) { Dof_TrueDof_Matrix(); } return R; }
 
    // Face-neighbor functions

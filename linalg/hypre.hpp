@@ -32,6 +32,7 @@
 #endif
 
 #include "sparsemat.hpp"
+#include "hypre_parcsr.hpp"
 
 namespace mfem
 {
@@ -119,7 +120,8 @@ public:
    /** Sets the data of the Vector and the hypre_ParVector to _data.
        Must be used only for HypreParVectors that do not own the data,
        e.g. created with the constructor:
-       HypreParVector(int glob_size, double *_data, int *col). */
+       HypreParVector(MPI_Comm comm, HYPRE_Int glob_size, double *_data,
+                      HYPRE_Int *col). */
    void SetData(double *_data);
 
    /// Set random values
@@ -163,6 +165,9 @@ private:
    // All owned arrays are destroyed with 'delete []'.
    char diagOwner, offdOwner, colMapOwner;
 
+   // Does the object own the pointer A?
+   char ParCSROwner;
+
    // Initialize with defaults. Does not initialize inherited members.
    void Init();
 
@@ -183,6 +188,9 @@ private:
    static void CopyCSR_J(hypre_CSRMatrix *hypre_csr, int *J);
 
 public:
+   /// An empty matrix to be used as a reference to an existing matrix
+   HypreParMatrix();
+
    /// Converts hypre's format to HypreParMatrix
    HypreParMatrix(hypre_ParCSRMatrix *a)
    {
@@ -245,6 +253,9 @@ public:
    HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
                   HYPRE_Int glob_ncols, int *I, HYPRE_Int *J,
                   double *data, HYPRE_Int *rows, HYPRE_Int *cols);
+
+   /// Make this HypreParMatrix a reference to 'master'
+   void MakeRef(const HypreParMatrix &master);
 
    /// MPI communicator
    MPI_Comm GetComm() const { return A->comm; }
@@ -347,6 +358,13 @@ public:
    virtual void MultTranspose(const Vector &x, Vector &y) const
    { MultTranspose(1.0, x, 0.0, y); }
 
+   /** The "Boolean" analog of y = alpha * A * x + beta * y, where elements in
+       the sparsity pattern of the matrix are treated as "true". */
+   void BooleanMult(int alpha, int *x, int beta, int *y)
+   {
+      internal::hypre_ParCSRMatrixBooleanMatvec(A, alpha, x, beta, y);
+   }
+
    /** Multiply A on the left by a block-diagonal parallel matrix D. Return
        a new parallel matrix, D*A. If D has a different number of rows than A,
        D's row starts array needs to be given (as returned by the methods
@@ -398,8 +416,7 @@ HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P);
     the r.h.s. B. Here A is a matrix with eliminated BC, while Ae is such that
     (A+Ae) is the original (Neumann) matrix before elimination. */
 void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
-                 const Array<int> &ess_dof_list,
-                 const HypreParVector &X, HypreParVector &B);
+                 const Array<int> &ess_dof_list, const Vector &X, Vector &B);
 
 
 /// Parallel smoothers in hypre

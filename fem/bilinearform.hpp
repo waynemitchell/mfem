@@ -18,6 +18,7 @@
 #include "gridfunc.hpp"
 #include "linearform.hpp"
 #include "bilininteg.hpp"
+#include "hybridization.hpp"
 
 namespace mfem
 {
@@ -55,6 +56,8 @@ protected:
 
    DenseTensor *element_matrices;
 
+   Hybridization *hybridization;
+
    int precompute_sparsity;
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
@@ -63,6 +66,7 @@ protected:
    BilinearForm() : Matrix (0)
    {
       fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
+      hybridization = NULL;
       precompute_sparsity = 0;
    }
 
@@ -74,6 +78,12 @@ public:
 
    /// Get the size of the BilinearForm as a square matrix.
    int Size() const { return height; }
+
+   /** Enable hybridization; for details see the description of class
+       Hybridization in fem/hybridization.hpp. */
+   void EnableHybridization(FiniteElementSpace *constr_space,
+                            BilinearFormIntegrator *constr_integ,
+                            const Array<int> &ess_tdof_list);
 
    /** For scalar FE spaces, precompute the sparsity pattern of the matrix
        (assuming dense element matrices) based on the types of integrators
@@ -162,6 +172,29 @@ public:
       sol.ConformingProject();
    }
 
+   /** Form the linear system A X = B, corresponding to the current bilinear
+       form and b(.), by applying any necessary transformations such as:
+       eliminating boundary conditions; applying conforming constraints for
+       non-conforming AMR; hybridization.
+
+       The GridFunction-size vector x must contain the essential b.c. The
+       BilinearForm and the LinearForm-size vector b must be assembled.
+
+       This method can be called multiple times (with the same ess_tdof_list
+       array) to initialize different right-hand sides and boundary condition
+       values.
+
+       After solving the linear system, the finite element solution x can be
+       recovered by calling RecoverFEMSolution (with the same vectors X, b, and
+       x). */
+   void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
+                         SparseMatrix &A, Vector &X, Vector &B);
+
+   /** Call this method after solving a linear system constructed using the
+       FormLinearSystem method to recover the solution as a GridFunction-size
+       vector in x. */
+   void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
+
    /// Compute and store internally all element matrices.
    void ComputeElementMatrices();
 
@@ -211,7 +244,7 @@ public:
    double FullInnerProduct(const Vector &x, const Vector &y) const
    { return mat->InnerProduct(x, y) + mat_e->InnerProduct(x, y); }
 
-   void Update(FiniteElementSpace *nfes = NULL);
+   virtual void Update(FiniteElementSpace *nfes = NULL);
 
    FiniteElementSpace *GetFES() { return fes; }
 
