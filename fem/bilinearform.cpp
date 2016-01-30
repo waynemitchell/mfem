@@ -434,6 +434,9 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
    Array<int> ess_rtdof_list;
+
+   // Finish the matrix assembly and perform BC elimination, storing the
+   // eliminated part of the matrix.
    const int keep_diag = 1;
    if (static_cond)
    {
@@ -452,8 +455,13 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
       Finalize();
    }
 
+   // Transform the system and perform the elimination in B, based on the
+   // essential BC values from x. Restrict the BC part of x in X, and set the
+   // non-BC part to zero. Since there is no good initial guess for the Lagrange
+   // multipliers, set X = 0.0 for hybridization.
    if (static_cond)
    {
+      // Schur complement reduction to the exposed dofs
       static_cond->ReduceRHS(b, B);
       static_cond->ReduceSolution(x, X);
       static_cond->GetMatrixElim().AddMult(X, B, -1.);
@@ -461,10 +469,11 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
       X.SetSubVectorComplement(ess_rtdof_list, 0.0);
       A.MakeRef(static_cond->GetMatrix());
    }
-   else if (!P)
+   else if (!P) // conforming space
    {
       if (hybridization)
       {
+         // Reduction to the Lagrange multipliers system
          EliminateVDofsInRHS(ess_tdof_list, x, b);
          hybridization->ReduceRHS(b, B);
          X.SetSize(B.Size());
@@ -473,6 +482,7 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
       }
       else
       {
+         // A, X and B point to the same data as mat, x and b
          EliminateVDofsInRHS(ess_tdof_list, x, b);
          X.NewDataAndSize(x.GetData(), x.Size());
          B.NewDataAndSize(b.GetData(), b.Size());
@@ -480,16 +490,17 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
          A.MakeRef(*mat);
       }
    }
-   else
+   else // non-conforming space
    {
       if (hybridization)
       {
+         // Reduction to the Lagrange multipliers system
          const SparseMatrix *R = fes->GetConformingRestriction();
          Vector conf_b(P->Width()), conf_x(P->Width());
          P->MultTranspose(b, conf_b);
          R->Mult(x, conf_x);
          EliminateVDofsInRHS(ess_tdof_list, conf_x, conf_b);
-         R->MultTranspose(conf_b, b); // !!!
+         R->MultTranspose(conf_b, b); // store eliminated rhs in b
          hybridization->ReduceRHS(conf_b, B);
          X.SetSize(B.Size());
          X = 0.0;
@@ -497,6 +508,7 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
       }
       else
       {
+         // Variational restriction with P
          const SparseMatrix *R = fes->GetConformingRestriction();
          B.SetSize(P->Width());
          P->MultTranspose(b, B);
@@ -513,14 +525,16 @@ void BilinearForm::RecoverFEMSolution(const Vector &X,
                                       const Vector &b, Vector &x)
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
-   if (!P)
+   if (!P) // conforming space
    {
       if (static_cond)
       {
+         // Private dofs back solve
          static_cond->ComputeSolution(b, X, x);
       }
       else if (hybridization)
       {
+         // Primal unknowns recovery
          hybridization->ComputeSolution(b, X, x);
       }
       else
@@ -528,14 +542,16 @@ void BilinearForm::RecoverFEMSolution(const Vector &X,
          // X and x point to the same data
       }
    }
-   else
+   else // non-conforming space
    {
       if (static_cond)
       {
+         // Private dofs back solve
          static_cond->ComputeSolution(b, X, x);
       }
       else if (hybridization)
       {
+         // Primal unknowns recovery
          Vector conf_b(P->Width()), conf_x(P->Width());
          P->MultTranspose(b, conf_b);
          const SparseMatrix *R = fes->GetConformingRestriction();
@@ -546,6 +562,7 @@ void BilinearForm::RecoverFEMSolution(const Vector &X,
       }
       else
       {
+         // Apply conforming prolongation
          x.SetSize(P->Height());
          P->Mult(X, x);
       }

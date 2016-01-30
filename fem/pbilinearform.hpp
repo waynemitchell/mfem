@@ -117,7 +117,6 @@ public:
        entries of X are set to the corresponding b.c. and all other entries are
        set to zero.
 
-
        This method can be called multiple times (with the same ess_tdof_list
        array) to initialize different right-hand sides and boundary condition
        values.

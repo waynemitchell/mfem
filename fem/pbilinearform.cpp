@@ -267,8 +267,10 @@ void ParBilinearForm::FormLinearSystem(
 {
    HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
    const SparseMatrix &R = *pfes->GetRestrictionMatrix();
-
    Array<int> ess_rtdof_list;
+
+   // Finish the matrix assembly and perform BC elimination, storing the
+   // eliminated part of the matrix.
    if (static_cond)
    {
       static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
@@ -289,8 +291,13 @@ void ParBilinearForm::FormLinearSystem(
       p_mat_e = p_mat->EliminateRowsCols(ess_tdof_list);
    }
 
+   // Transform the system and perform the elimination in B, based on the
+   // essential BC values from x. Restrict the BC part of x in X, and set the
+   // non-BC part to zero. Since there is no good initial guess for the Lagrange
+   // multipliers, set X = 0.0 for hybridization.
    if (static_cond)
    {
+      // Schur complement reduction to the exposed dofs
       static_cond->ReduceRHS(b, B);
       static_cond->ReduceSolution(x, X);
       EliminateBC(static_cond->GetParallelMatrix(),
@@ -301,18 +308,20 @@ void ParBilinearForm::FormLinearSystem(
    }
    else if (hybridization)
    {
-      HypreParVector TX(pfes), TB(pfes);
-      P.MultTranspose(b, TB);
-      R.Mult(x, TX);
-      EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, TX, TB);
-      R.MultTranspose(TB, b);
-      hybridization->ReduceRHS(TB, B);
+      // Reduction to the Lagrange multipliers system
+      HypreParVector true_X(pfes), true_B(pfes);
+      P.MultTranspose(b, true_B);
+      R.Mult(x, true_X);
+      EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, true_X, true_B);
+      R.MultTranspose(true_B, b);
+      hybridization->ReduceRHS(true_B, B);
       X.SetSize(B.Size());
       X = 0.0;
       A.MakeRef(hybridization->GetParallelMatrix());
    }
    else
    {
+      // Variational restriction with P
       X.SetSize(pfes->TrueVSize());
       B.SetSize(X.Size());
       P.MultTranspose(b, B);
@@ -330,20 +339,23 @@ void ParBilinearForm::RecoverFEMSolution(
 
    if (static_cond)
    {
+      // Private dofs back solve
       static_cond->ComputeSolution(b, X, x);
    }
    else if (hybridization)
    {
-      HypreParVector TX(pfes), TB(pfes);
-      P.MultTranspose(b, TB);
+      // Primal unknowns recovery
+      HypreParVector true_X(pfes), true_B(pfes);
+      P.MultTranspose(b, true_B);
       const SparseMatrix &R = *pfes->GetRestrictionMatrix();
-      R.Mult(x, TX); // get essential b.c. from x
-      hybridization->ComputeSolution(TB, X, TX);
+      R.Mult(x, true_X); // get essential b.c. from x
+      hybridization->ComputeSolution(true_B, X, true_X);
       x.SetSize(P.Height());
-      P.Mult(TX, x);
+      P.Mult(true_X, x);
    }
    else
    {
+      // Apply conforming prolongation
       x.SetSize(P.Height());
       P.Mult(X, x);
    }
