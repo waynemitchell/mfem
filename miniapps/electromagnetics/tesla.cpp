@@ -21,6 +21,13 @@
 //     mpirun -np 4 tesla -m ./square-angled-pipe.mesh
 //                        -kbcs '3' -vbcs '1 2' -vbcv '-0.5 0.5'
 //
+//   An example combining the paramagnetic shell, permanent magnet,
+//   and current ring.
+//     mpirun -np 4 tesla -m ../../data/inline-hex.mesh
+//                        -ms '0.5 0.5 0.5 0.4 0.45 20'
+//                        -bm '0.5 0.5 0.3 0.5 0.5 0.7 0.1 1'
+//                        -cr '0.5 0.5 0.45 0.5 0.5 0.55 0.2 0.3 1'
+//
 // Description:
 //
 
@@ -57,10 +64,6 @@ void a_bc_uniform(const Vector &, Vector&);
 
 // Phi_M Boundary Condition for H = (0,0,1)
 double phi_m_bc_uniform(const Vector &x);
-
-// Physical Constants
-// Permeability of Free Space (units H/m)
-//static double mu0_ = 4.0e-7*M_PI;
 
 int main(int argc, char *argv[])
 {
@@ -143,62 +146,6 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
 
-   // int sdim = mesh->SpaceDimension();
-   // int dim = mesh->Dimension();
-   /*
-   // The Dirichlet BC for A is always needed so initialize defaults if unset
-   if ( b_uniform_.Size() != 3 )
-   {
-      // Set the default boundary condition to B = (0,0,0)
-      b_uniform_.SetSize(3);
-      b_uniform_ = 0.0;
-   }
-   */
-   /*
-   if ( ms_params_.Size() != sdim + 3 )
-   {
-      // The magnetic shell parameters have not been set.
-      // We will set them to default values.
-      ms_params_.SetSize(sdim+3);
-      ms_params_ = 0.0;
-      ms_params_(sdim+2) = 1.0;
-   }
-   */
-   /*
-   if ( cr_params_.Size() != 2*sdim + 3 )
-   {
-      // The current ring parameters have not been set.
-      // We will set them to default values.
-      cr_params_.SetSize(2*sdim+3);
-      cr_params_ = 0.0;
-   }
-   */
-   /*
-   if ( bm_params_.Size() != 2*sdim + 2 )
-   {
-      // The bar magnet parameters have not been set.
-      // We will set them to default values.
-      bm_params_.SetSize(2*sdim+2);
-      bm_params_ = 0.0;
-   }
-   */
-   // If values for Voltage BCs were not set issue a warning and exit
-   if ( ( vbcs.Size() > 0 && kbcs.Size() == 0 ) ||
-        ( kbcs.Size() > 0 && vbcs.Size() == 0 ) ||
-        ( vbcv.Size() < vbcs.Size() ) )
-   {
-      if ( myid == 0 )
-      {
-         cout << "The surface current (K) boundary condition requires "
-              << "surface current boundary condition surfaces (with -kbcs), "
-              << "voltage boundary condition surface (with -vbcs), "
-              << "and voltage boundary condition values (with -vbcv)."
-              << endl;
-      }
-      MPI_Finalize();
-      return 3;
-   }
-
    // Refine the serial mesh on all processors to increase the resolution. In
    // this example we do 'ref_levels' of uniform refinement.
    {
@@ -223,165 +170,42 @@ int main(int argc, char *argv[])
       pmesh.UniformRefinement();
    }
 
+   // If values for Voltage BCs were not set issue a warning and exit
+   if ( ( vbcs.Size() > 0 && kbcs.Size() == 0 ) ||
+        ( kbcs.Size() > 0 && vbcs.Size() == 0 ) ||
+        ( vbcv.Size() < vbcs.Size() ) )
+   {
+      if ( myid == 0 )
+      {
+         cout << "The surface current (K) boundary condition requires "
+              << "surface current boundary condition surfaces (with -kbcs), "
+              << "voltage boundary condition surface (with -vbcs), "
+              << "and voltage boundary condition values (with -vbcv)."
+              << endl;
+      }
+      MPI_Finalize();
+      return 3;
+   }
+
+   // Create the Magnetostatic solver
    TeslaSolver Tesla(pmesh, order, kbcs, vbcs, vbcv,
-		     (ms_params_.Size() > 0 ) ? muInv        : NULL,
-		     (b_uniform_.Size() > 0 ) ? a_bc_uniform : NULL,
-		     (cr_params_.Size() > 0 ) ? current_ring : NULL,
-		     (bm_params_.Size() > 0 ) ? bar_magnet   : NULL);
-   /*
-   socketstream a_sock, b_sock, h_sock, j_sock, k_sock, m_sock, p_sock;
-   char vishost[] = "localhost";
-   int  visport   = 19916;
-   */
+                     (ms_params_.Size() > 0 ) ? muInv        : NULL,
+                     (b_uniform_.Size() > 0 ) ? a_bc_uniform : NULL,
+                     (cr_params_.Size() > 0 ) ? current_ring : NULL,
+                     (bm_params_.Size() > 0 ) ? bar_magnet   : NULL);
+
+   // Initialize GLVis visualization
    if (visualization)
    {
       Tesla.InitializeGLVis();
-      /*
-       if ( myid == 0 )
-       {
-          cout << "Initializing GLVis sockets" << endl;
-       }
-
-       a_sock.open(vishost, visport);
-       a_sock.precision(8);
-
-       MPI_Barrier(MPI_COMM_WORLD);
-
-       b_sock.open(vishost, visport);
-       b_sock.precision(8);
-
-       MPI_Barrier(MPI_COMM_WORLD);
-
-       h_sock.open(vishost, visport);
-       h_sock.precision(8);
-
-       MPI_Barrier(MPI_COMM_WORLD);
-
-       if ( cr_params_.Size() > 0 )
-       {
-      j_sock.open(vishost, visport);
-      j_sock.precision(8);
-
-      MPI_Barrier(MPI_COMM_WORLD);
-           }
-
-           k_sock.open(vishost, visport);
-           k_sock.precision(8);
-
-           MPI_Barrier(MPI_COMM_WORLD);
-
-           m_sock.open(vishost, visport);
-           m_sock.precision(8);
-
-           MPI_Barrier(MPI_COMM_WORLD);
-
-           p_sock.open(vishost, visport);
-           p_sock.precision(8);
-          */
    }
 
-   /*
-   // Define compatible parallel finite element spaces on the parallel
-   // mesh. Here we use arbitrary order H1 and Nedelec finite
-   // elements.
-   H1_ParFESpace H1FESpace(&pmesh,order,dim);
-   ND_ParFESpace HCurlFESpace(&pmesh,order,dim);
-   RT_ParFESpace HDivFESpace(&pmesh,order,dim);
-   */
-   /*
-   // Select DoFs on the requested surfaces as Dirichlet BCs
-   Array<int> ess_bdr(pmesh.bdr_attributes.Max());
-   Array<int> non_k_bdr(pmesh.bdr_attributes.Max());
-   ess_bdr = 1;
-   non_k_bdr = 1;
-
-   for (int i=0; i<kbcs.Size(); i++)
-   {
-      non_k_bdr[kbcs[i]-1] = 0;
-   }
-   */
-   // Set up the parallel bilinear form corresponding to the
-   // electrostatic operator div eps grad, by adding the diffusion
-   // domain integrator and finally imposing Dirichlet boundary
-   // conditions. The boundary conditions are implemented by marking
-   // all the boundary attributes from the mesh as essential
-   // (Dirichlet). After serial and parallel assembly we extract the
-   // parallel matrix A.
-   /*
-   Coefficient * muInv_coef = NULL;
-   if ( ms_params_.Size() == 0 )
-   {
-     muInv_coef = new ConstantCoefficient(1.0/mu0_);
-   }
-   else
-   {
-     muInv_coef = new FunctionCoefficient(muInv);
-   }
-   */
-   /*
-   VectorFunctionCoefficient j_coef(sdim,current_ring);
-   VectorFunctionCoefficient m_coef(sdim,bar_magnet);
-   */
-   /*
-   ParBilinearForm curlMuInvCurl(&HCurlFESpace);
-   curlMuInvCurl.AddDomainIntegrator(new CurlCurlIntegrator(*muInv_coef));
-
-   ParBilinearForm mass(&HCurlFESpace);
-   mass.AddDomainIntegrator(new VectorFEMassIntegrator);
-
-   ParBilinearForm massMuInv(&HDivFESpace);
-   massMuInv.AddDomainIntegrator(new VectorFEMassIntegrator);
-   */
-   /*
-   // The gradient operator needed to compute H from PhiM
-   ParDiscreteGradOperator Grad(&H1FESpace, &HCurlFESpace);
-
-   // The curl operator needed to compute B from A
-   ParDiscreteCurlOperator Curl(&HCurlFESpace, &HDivFESpace);
-   */
-   /*
-   // The projector needed to coerce J into the range of the CurlCurl operator
-   DivergenceFreeProjector DivFreeProj(HCurlFESpace, H1FESpace, Grad);
-
-   // Object to solve the subproblem of computing surface currents
-   SurfaceCurrent SurfCur(H1FESpace, HCurlFESpace, Grad,
-                          kbcs, vbcs, vbcv);
-   */
-   /*
-   // Create various grid functions
-   // ParGridFunction phi_m(&H1FESpace);  // Magnetic Scalar Potential
-   ParGridFunction a(&HCurlFESpace);   // Magnetic Potential
-   ParGridFunction j(&HCurlFESpace);   // Volumetric Current Density
-   ParGridFunction k(&HCurlFESpace);   // Surface Current Density
-   ParGridFunction h(&HCurlFESpace);   // Magnetic Field
-   ParGridFunction b(&HDivFESpace);    // Magnetic Flux Density
-   ParGridFunction m(&HDivFESpace);    // Magnetization
-   */
-   /*
-   // Create coefficient for optional applied field
-   VectorFunctionCoefficient a_bc(sdim,a_bc_uniform);
-   */
-   // Setup VisIt visualization class
+   // Initialize VisIt visualization
    VisItDataCollection visit_dc("Tesla-AMR-Parallel", &pmesh);
 
    if ( visit )
    {
       Tesla.RegisterVisItFields(visit_dc);
-      /*
-       // visit_dc.RegisterField("Phi_M", &phi_m);
-       visit_dc.RegisterField("Psi", SurfCur.GetPsi());
-       visit_dc.RegisterField("A", &a);
-       visit_dc.RegisterField("B", &b);
-
-       if ( cr_params_.Size() > 0 )
-       {
-      visit_dc.RegisterField("J", &j);
-           }
-
-           visit_dc.RegisterField("K", &k);
-           visit_dc.RegisterField("H", &h);
-           visit_dc.RegisterField("M", &m);
-          */
    }
 
    // The main AMR loop. In each iteration we solve the problem on the
@@ -391,131 +215,16 @@ int main(int argc, char *argv[])
    const int max_dofs = 200000;
    for (int it = 1; it <= 100; it++)
    {
+      // Display the current number of DoFs in each finite element space
       Tesla.PrintSizes(it);
-      /*
-       HYPRE_Int size_h1 = H1FESpace.GlobalTrueVSize();
-       HYPRE_Int size_nd = HCurlFESpace.GlobalTrueVSize();
-       HYPRE_Int size_rt = HDivFESpace.GlobalTrueVSize();
-       if (myid == 0)
-       {
-          cout << "\nIteration " << it << endl;
-          cout << "Number of H1      unknowns: " << size_h1 << endl;
-          cout << "Number of H(Curl) unknowns: " << size_nd << endl;
-          cout << "Number of H(Div)  unknowns: " << size_rt << endl;
-       }
-      */
+
+      // Solve the system and compute any auxiliary fields
       Tesla.Solve();
-      /*
-      // Assemble Matrices
-      curlMuInvCurl.Assemble();
-      curlMuInvCurl.Finalize();
 
-      mass.Assemble();
-      mass.Finalize();
-
-      massMuInv.Assemble();
-      massMuInv.Finalize();
-
-      // Initialize the magnetic vector potential with its boundary conditions
-      a = 0.0;
-
-      if ( kbcs.Size() > 0 )
-      {
-         SurfCur.ComputeSurfaceCurrent(k);
-         a = k;
-      }
-
-      // Apply uniform B boundary condition on remaining surfaces
-      a.ProjectBdrCoefficientTangent(a_bc, non_k_bdr);
-
-      // Initialize the volumetric current density
-      j.ProjectCoefficient(j_coef);
-
-      m.ProjectCoefficient(m_coef);
-
-      HypreParMatrix *Mass      = mass.ParallelAssemble();
-      HypreParMatrix *MassMuInv = massMuInv.ParallelAssemble();
-
-      HypreParVector *J    = j.ParallelProject();
-      HypreParVector *M    = m.ParallelProject();
-      HypreParVector *JD   = new HypreParVector(&HCurlFESpace);
-      HypreParVector *Tmp  = new HypreParVector(&HDivFESpace);
-
-      Mass->Mult(*J,*JD);
-
-      cout << "Norm of J:  " << JD->Norml2() << endl;
-
-      MassMuInv->Mult(*M,*Tmp);
-      *Tmp *= mu0_;
-      Curl.MultTranspose(*Tmp,*JD,1.0,1.0);
-
-      delete M;
-
-      cout << "Norm of J+Curl M:  " << JD->Norml2() << endl;
-
-      {
-         HyprePCG *pcgm = new HyprePCG(*Mass);
-         pcgm->SetTol(1e-12);
-         pcgm->SetMaxIter(500);
-         pcgm->SetPrintLevel(0);
-         pcgm->Mult(*JD, *J);
-         j = *J;
-         delete pcgm;
-      }
-      delete J;
-      delete Mass;
-      delete MassMuInv;
-      delete Tmp;
-
-      // Apply Dirichlet BCs to matrix and right hand side
-      HypreParMatrix *CurlMuInvCurl = curlMuInvCurl.ParallelAssemble();
-      HypreParVector *A             = a.ParallelProject();
-
-      HypreParVector *RHS  = new HypreParVector(&HCurlFESpace);
-      DivFreeProj.Mult(*JD, *RHS);
-      delete JD;
-
-      cout << "Norm of Div Free J+Curl M:  " << RHS->Norml2() << endl;
-      cout << "Norm of A:  " << A->Norml2() << endl;
-
-      // Apply the boundary conditions to the assembled matrix and vectors
-      curlMuInvCurl.ParallelEliminateEssentialBC(ess_bdr,
-                                                 *CurlMuInvCurl,
-                                                 *A, *RHS);
-
-      // Define and apply a parallel PCG solver for AX=B with the AMS
-      // preconditioner from hypre.
-      HypreAMS *ams = new HypreAMS(*CurlMuInvCurl, &HCurlFESpace);
-      ams->SetSingularProblem();
-
-      HyprePCG *pcg = new HyprePCG(*CurlMuInvCurl);
-      pcg->SetTol(1e-12);
-      pcg->SetMaxIter(500);
-      pcg->SetPrintLevel(2);
-      pcg->SetPreconditioner(*ams);
-      pcg->Mult(*RHS, *A);
-
-      delete ams;
-      delete pcg;
-      delete CurlMuInvCurl;
-      delete RHS;
-
-      // Extract the parallel grid function corresponding to the finite
-      // element approximation Phi. This is the local solution on each
-      // processor.
-      a = *A;
-
-      // Compute the negative Gradient of the solution vector.  This is
-      // the magnetic field corresponding to the scalar potential
-      // represented by phi.
-      HypreParVector *B = new HypreParVector(&HDivFESpace);
-      Curl.Mult(*A,*B);
-      b = *B;
-
-      delete A;
-      delete B;
-      */
+      // Determine the current size of the linear system
       int prob_size = Tesla.GetProblemSize();
+
+      // Write fields to disk for VisIt
       if ( visit )
       {
          visit_dc.SetCycle(it);
@@ -526,118 +235,19 @@ int main(int argc, char *argv[])
       // Send the solution by socket to a GLVis server.
       if (visualization)
       {
-         /*
-               int Wx = 0, Wy = 0; // window position
-               int Ww = 400, Wh = 400; // window size
-               int offx = 410, offy = 450; // window offsets
-
-               VisualizeField(p_sock, vishost, visport,
-                              *SurfCur.GetPsi(), "Surface Current Potential (Psi)",
-                              Wx, Wy, Ww, Wh);
-               Wx += offx;
-
-               VisualizeField(a_sock, vishost, visport,
-                              a, "Vector Potential (A)", Wx, Wy, Ww, Wh);
-               Wx += offx;
-
-               VisualizeField(b_sock, vishost, visport,
-                              b, "Magnetic Flux Density (B)", Wx, Wy, Ww, Wh);
-               Wx += offx;
-
-               VisualizeField(h_sock, vishost, visport,
-                              h, "Magnetic Field (H)", Wx, Wy, Ww, Wh);
-               Wx = 0; Wy += offy;
-
-               VisualizeField(j_sock, vishost, visport,
-                              j, "Current Density (J)", Wx, Wy, Ww, Wh);
-               Wx += offx;
-
-               VisualizeField(k_sock, vishost, visport,
-                              k, "Surface Current Density (K)", Wx, Wy, Ww, Wh);
-               Wx += offx;
-
-               VisualizeField(m_sock, vishost, visport,
-                              m, "Magnetization (M)", Wx, Wy, Ww, Wh);
-         */
          Tesla.DisplayToGLVis();
-         /*
-               p_sock << "parallel " << num_procs << " " << myid << "\n";
-               p_sock << "solution\n" << pmesh << *SurfCur.GetPsi()
-                      << "window_title 'Surface Current Potential (Psi)'\n" << flush;
-
-               MPI_Barrier(pmesh.GetComm());
-
-               a_sock << "parallel " << num_procs << " " << myid << "\n";
-               a_sock << "solution\n" << pmesh << a
-                      << "window_title 'Vector Potential (A)'\n"
-                      << flush;
-
-               MPI_Barrier(pmesh.GetComm());
-
-               b_sock << "parallel " << num_procs << " " << myid << "\n";
-               b_sock << "solution\n" << pmesh << b
-                      << "window_title 'Magnetic Flux Density (B)'\n" << flush;
-
-               MPI_Barrier(pmesh.GetComm());
-
-               h_sock << "parallel " << num_procs << " " << myid << "\n";
-               h_sock << "solution\n" << pmesh << h
-                      << "window_title 'Magnetic Field (H)'\n" << flush;
-
-               MPI_Barrier(pmesh.GetComm());
-
-          if ( cr_params_.Size() > 0 )
-          {
-            j_sock << "parallel " << num_procs << " " << myid << "\n";
-            j_sock << "solution\n" << pmesh << j
-              << "window_title 'Current Density (J)'\n" << flush;
-
-            MPI_Barrier(pmesh.GetComm());
-          }
-
-               k_sock << "parallel " << num_procs << " " << myid << "\n";
-               k_sock << "solution\n" << pmesh << k
-                      << "window_title 'Surface Current Density (K)'\n" << flush;
-
-               MPI_Barrier(pmesh.GetComm());
-
-               m_sock << "parallel " << num_procs << " " << myid << "\n";
-               m_sock << "solution\n" << pmesh << m
-                      << "window_title 'Magnetization (M)'\n" << flush;
-         */
       }
 
+      // Check stopping criteria
       if (prob_size > max_dofs)
       {
          break;
       }
 
       // Estimate element errors using the Zienkiewicz-Zhu error estimator.
-      // The bilinear form integrator must have the 'ComputeElementFlux'
-      // method defined.
       Vector errors(pmesh.GetNE());
       {
          Tesla.GetErrorEstimates(errors);
-         /*
-               //errors.Randomize();
-               // Space for the discontinuous (original) flux
-               CurlCurlIntegrator flux_integrator(*muInv_coef);
-               RT_FECollection flux_fec(order-1, sdim);
-               ParFiniteElementSpace flux_fes(&pmesh, &flux_fec);
-
-               // Space for the smoothed (conforming) flux
-               double norm_p = 1;
-               ND_FECollection smooth_flux_fec(order, dim);
-               ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
-
-               // Another possible set of options for the smoothed flux space:
-               // norm_p = 1;
-               // H1_FECollection smooth_flux_fec(order, dim);
-               // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
-
-               L2ZZErrorEstimator(flux_integrator, a,
-                                  smooth_flux_fes, flux_fes, errors, norm_p);
-         */
       }
       double local_max_err = errors.Max();
       double global_max_err;
@@ -659,39 +269,10 @@ int main(int argc, char *argv[])
       // next step, we need to request the "two-level state" of the mesh.
       pmesh.GeneralRefinement(ref_list);
 
-      // Update the space to reflect the new state of the mesh. Also,
-      // interpolate the solution x so that it lies in the new space but
-      // represents the same function. This saves solver iterations since
-      // we'll have a good initial guess of x in the next step.
-      // The interpolation algorithm needs the mesh to hold some information
-      // about the previous state, which is why the call UseTwoLevelState
-      // above is required.
-      //fespace.UpdateAndInterpolate(&x);
-
-      // Note: If interpolation was not needed, we could just use the following
-      //     six calls to update the space and the grid function. (No need to
-      //     call UseTwoLevelState in this case.)
+      // Update the magnetostatic solver to reflect the new state of the mesh.
       Tesla.Update();
-      /*
-      H1FESpace.Update();
-      HCurlFESpace.Update();
-      HDivFESpace.Update();
-      Grad.Update();
-      Curl.Update();
-      DivFreeProj.Update();
-      SurfCur.Update();
-      a.Update();
-      j.Update();
-      k.Update();
-      h.Update();
-      b.Update();
-      m.Update();
 
-      // Inform the bilinear forms that the space has changed.
-      mass.Update();
-      massMuInv.Update();
-      curlMuInvCurl.Update();
-      */
+      // Wait for user input
       char c;
       if (myid == 0)
       {
@@ -705,8 +286,6 @@ int main(int argc, char *argv[])
          break;
       }
    }
-
-   // delete muInv_coef;
 
    MPI_Finalize();
 

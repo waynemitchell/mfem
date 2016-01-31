@@ -21,10 +21,10 @@ namespace mfem
 TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
                          Array<int> & kbcs,
                          Array<int> & vbcs, Vector & vbcv,
-			 double (*muInv)(const Vector&),
-			 void   (*a_bc )(const Vector&, Vector&),
-			 void   (*j_src)(const Vector&, Vector&),
-			 void   (*m_src)(const Vector&, Vector&))
+                         double (*muInv)(const Vector&),
+                         void   (*a_bc )(const Vector&, Vector&),
+                         void   (*j_src)(const Vector&, Vector&),
+                         void   (*m_src)(const Vector&, Vector&))
    : myid_(0),
      num_procs_(1),
      order_(order),
@@ -82,14 +82,14 @@ TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
    // Vector Potential on the outer surface
    if ( a_bc_ == NULL )
    {
-     Vector Zero(3);
-     Zero = 0.0;
-     aBCCoef_ = new VectorConstantCoefficient(Zero);
+      Vector Zero(3);
+      Zero = 0.0;
+      aBCCoef_ = new VectorConstantCoefficient(Zero);
    }
    else
    {
-     aBCCoef_ = new VectorFunctionCoefficient(pmesh_->SpaceDimension(),
-					      *a_bc_);
+      aBCCoef_ = new VectorFunctionCoefficient(pmesh_->SpaceDimension(),
+                                               *a_bc_);
    }
 
    // Inverse of the magnetic permeability
@@ -169,7 +169,8 @@ TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
       m_ = new ParGridFunction(HDivFESpace_);
 
       hDivMassMuInv_ = new ParBilinearForm(HDivFESpace_);
-      hDivMassMuInv_->AddDomainIntegrator(new VectorFEMassIntegrator);
+      hDivMassMuInv_->AddDomainIntegrator(
+         new VectorFEMassIntegrator(*muInvCoef_));
       hDivMassMuInv_->Assemble();
       hDivMassMuInv_->Finalize();
    }
@@ -203,6 +204,12 @@ TeslaSolver::~TeslaSolver()
    delete H1FESpace_;
    delete HCurlFESpace_;
    delete HDivFESpace_;
+
+   map<string,socketstream*>::iterator mit;
+   for (mit=socks_.begin(); mit!=socks_.end(); mit++)
+   {
+      delete mit->second;
+   }
 }
 
 HYPRE_Int
@@ -329,30 +336,9 @@ TeslaSolver::Solve()
       delete MD;
    }
 
-   // cout << "Norm of J:  " << JD->Norml2() << endl;
-
-   /*
-   cout << "Norm of J+Curl M:  " << JD->Norml2() << endl;
-
-   {
-      HyprePCG *pcgm = new HyprePCG(*Mass);
-      pcgm->SetTol(1e-12);
-      pcgm->SetMaxIter(500);
-      pcgm->SetPrintLevel(0);
-      pcgm->Mult(*JD, *J);
-      *j_ = *J;
-      delete pcgm;
-   }
-   */
-
-   // delete Mass;
-
    // Apply Dirichlet BCs to matrix and right hand side
    HypreParMatrix *CurlMuInvCurl = curlMuInvCurl_->ParallelAssemble();
    HypreParVector *A             = a_->ParallelProject();
-
-   // cout << "Norm of Div Free J+Curl M:  " << RHS->Norml2() << endl;
-   // cout << "Norm of A:  " << A->Norml2() << endl;
 
    // Apply the boundary conditions to the assembled matrix and vectors
    curlMuInvCurl_->ParallelEliminateEssentialBC(ess_bdr_,
@@ -388,6 +374,7 @@ TeslaSolver::Solve()
    Curl_->Mult(*A,*B);
    *b_ = *B;
 
+   // Compute magnetic field (H) from B and M
    HypreParMatrix *HDivHCurlMuInv = hDivHCurlMuInv_->ParallelAssemble();
    HypreParVector *BD = new HypreParVector(HCurlFESpace_);
    HypreParVector *H  = new HypreParVector(HCurlFESpace_);
@@ -396,7 +383,7 @@ TeslaSolver::Solve()
 
    if ( M  )
    {
-     HDivHCurlMuInv->Mult(*M,*BD,-1.0*mu0_,1.0);
+      HDivHCurlMuInv->Mult(*M,*BD,-1.0*mu0_,1.0);
    }
 
    HyprePCG * pcgM = new HyprePCG(*MassHCurl);
@@ -541,50 +528,6 @@ TeslaSolver::DisplayToGLVis()
       Wx += offx; Wy += offy;
 
    }
-   /*
-    *socks_["A"] << "parallel " << num_procs_ << " " << myid_ << "\n"
-                 << "solution\n" << *pmesh_ << *a_
-                 << "window_title 'Vector Potential (A)'\n"
-                 << flush;
-    MPI_Barrier(pmesh_->GetComm());
-
-    *socks_["B"] << "parallel " << num_procs_ << " " << myid_ << "\n"
-                 << "solution\n" << *pmesh_ << *b_
-                 << "window_title 'Magnetic Flux Density (B)'\n"
-                 << flush;
-    MPI_Barrier(pmesh_->GetComm());
-
-    *socks_["H"] << "parallel " << num_procs_ << " " << myid_ << "\n"
-                 << "solution\n" << *pmesh_ << *h_
-                 << "window_title 'Magnetic Field (H)'\n"
-                 << flush;
-    MPI_Barrier(pmesh_->GetComm());
-
-    if ( j_ )
-    {
-       *socks_["J"] << "parallel " << num_procs_ << " " << myid_ << "\n"
-                    << "solution\n" << *pmesh_ << *j_
-                    << "window_title 'Current Density (J)'\n"
-                    << flush;
-       MPI_Barrier(pmesh_->GetComm());
-    }
-    if ( k_ )
-    {
-       *socks_["K"] << "parallel " << num_procs_ << " " << myid_ << "\n"
-                    << "solution\n" << *pmesh_ << *k_
-                    << "window_title 'Surface Current Density (K)'\n"
-                    << flush;
-       MPI_Barrier(pmesh_->GetComm());
-    }
-    if ( m_ )
-    {
-       *socks_["M"] << "parallel " << num_procs_ << " " << myid_ << "\n"
-                    << "solution\n" << *pmesh_ << *m_
-                    << "window_title 'Magnetization (M)'\n"
-                    << flush;
-       MPI_Barrier(pmesh_->GetComm());
-    }
-   */
 }
 
 SurfaceCurrent::SurfaceCurrent(ParFiniteElementSpace & H1FESpace,
@@ -667,9 +610,8 @@ SurfaceCurrent::ComputeSurfaceCurrent(ParGridFunction & k)
 {
    k = 0.0;
    pcg_->Mult(*RHS_, *PSI_);
-   PSI_->Print("PSI.vec");
-   S0_->Print("S0.mat");
    *psi_ = *PSI_;
+
    Grad_->Mult(*PSI_,*K_);
    k = *K_;
 

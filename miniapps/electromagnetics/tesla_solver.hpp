@@ -33,12 +33,12 @@ class SurfaceCurrent;
 class TeslaSolver
 {
 public:
-  TeslaSolver(ParMesh & pmesh, int order, Array<int> & kbcs,
-	      Array<int> & vbcs, Vector & vbcv,
-	      double (*muInv)(const Vector&),
-	      void   (*a_bc )(const Vector&, Vector&),
-	      void   (*j_src)(const Vector&, Vector&),
-	      void   (*m_src)(const Vector&, Vector&));
+   TeslaSolver(ParMesh & pmesh, int order, Array<int> & kbcs,
+               Array<int> & vbcs, Vector & vbcv,
+               double (*muInv)(const Vector&),
+               void   (*a_bc )(const Vector&, Vector&),
+               void   (*j_src)(const Vector&, Vector&),
+               void   (*m_src)(const Vector&, Vector&));
    ~TeslaSolver();
 
    HYPRE_Int GetProblemSize();
@@ -118,7 +118,6 @@ public:
 
    void Update();
 
-   // const ParGridFunction & GetPsi() { return *psi_; }
    ParGridFunction * GetPsi() { return psi_; }
 
 private:
