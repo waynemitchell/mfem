@@ -29,6 +29,22 @@
 //                        -cr '0.5 0.5 0.45 0.5 0.5 0.55 0.2 0.3 1'
 //
 // Description:
+//               This mini app solves a simple 3D magnetostatic
+//               problem.
+//                  Curl 1/mu Curl A = J + Curl mu0/mu M
+//               The permeability function is that of the vacuum with
+//               an optional diamagnetic or paramagnetic spherical shell.
+//               The optional current density takes the form of a user
+//               defined ring of current.  The optional magnetization
+//               consists of a cylindrical bar of constant magnetization.
+//
+//               The boundary conditions either apply a user selected
+//               uniform magnetic flux density or a surface current
+//               flowing between user defined surfaces.
+//
+//               We discretize the vector potential with H(Curl) finite
+//               elements.  The magnetic flux B is discretized with
+//               H(Div) finite elements.
 //
 
 #include "mfem.hpp"
@@ -411,7 +427,7 @@ void bar_magnet(const Vector &x, Vector &m)
 }
 
 // To produce a uniform magnetic flux the vector potential can be set
-// to (-y,0,0).
+// to ( By z, Bz x, Bx y).
 void a_bc_uniform(const Vector & x, Vector & a)
 {
    a.SetSize(3);

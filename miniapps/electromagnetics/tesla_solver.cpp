@@ -472,6 +472,11 @@ TeslaSolver::InitializeGLVis()
       socks_["K"]->precision(8);
 
       MPI_Barrier(pmesh_->GetComm());
+
+      socks_["Psi"] = new socketstream(vishost, visport);
+      socks_["Psi"]->precision(8);
+
+      MPI_Barrier(pmesh_->GetComm());
    }
    if ( m_ )
    {
@@ -519,6 +524,11 @@ TeslaSolver::DisplayToGLVis()
    {
       VisualizeField(*socks_["K"], vishost, visport,
                      *k_, "Surface Current Density (K)", Wx, Wy, Ww, Wh);
+      Wx += offx; Wy += offy;
+
+      VisualizeField(*socks_["Psi"], vishost, visport,
+                     *SurfCur_->GetPsi(),
+                     "Surface Current Potential (Psi)", Wx, Wy, Ww, Wh);
       Wx += offx; Wy += offy;
    }
    if ( m_ )

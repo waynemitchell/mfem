@@ -18,6 +18,9 @@
 //                        -nbcs '5 6 7 8' -nbcv '5e-11 5e-11 5e-11 5e-11'
 //                        -dbcs '1 2 3 4'
 //
+//   A cylindrical voltaic pile withint a grounded metal sphere.
+//     mpirun -np 4 volta -dbcs 1 -vp '0 -0.5 0 0 0.5 0 0.2 1'
+//
 //   A charged sphere, off-center, within a grounded metal sphere.
 //     mpirun -np 4 volta -dbcs 1 -cs '0.0 0.5 0.0 0.2 2.0e-11'
 //
@@ -26,13 +29,16 @@
 //
 // Description:
 //               This mini app solves a simple 2D or 3D electrostatic
-//               problem with non-uniform dielectric permittivity.
+//               problem.
 //                  Div eps Grad Phi = rho
-//               The uniform field is imposed through the boundary
-//               conditions.
-//                  Phi = -z on all exterior surfaces
-//               This will produce a uniform electric field in the z
-//               direction.
+//               The permittivity function is that of the vacuum with
+//               an optional dielectric sphere.  The charge density is
+//               either zero of a user defined sphere of charge.
+//
+//               Boundary conditions for the electric potential consist
+//               of a user defined piecewise constant potential or a
+//               potential leading to a user selected uniform electric
+//               field.
 //
 //               We discretize the electric potential with H1 finite
 //               elements.  The electric field E is discretized with
@@ -43,6 +49,7 @@
 #include <fstream>
 #include <iostream>
 #include "pfem_extras.hpp"
+#include "volta_solver.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -57,12 +64,14 @@ static Vector cs_params_(0);  // Center, Radius, and Total Charge
 //                               of charged sphere
 double charged_sphere(const Vector &);
 
-// Phi Boundary Condition
-double phi_bc_uniform(const Vector &);
+// Polarization
+static Vector vp_params_(0);  // Axis Start, Axis End, Cylinder Radius,
+//                               and Polarization Magnitude
+void voltaic_pile(const Vector &, Vector &);
 
-// Physical Constants
-// Permittivity of Free Space (units F/m)
-static double epsilon0_ = 8.8541878176e-12;
+// Phi Boundary Condition
+static Vector e_uniform_(0);
+double phi_bc_uniform(const Vector &);
 
 int main(int argc, char *argv[])
 {
@@ -96,10 +105,14 @@ int main(int argc, char *argv[])
                   "Number of serial refinement levels.");
    args.AddOption(&pr, "-rp", "--parallel-ref-levels",
                   "Number of parallel refinement levels.");
+   args.AddOption(&e_uniform_, "-uebc", "--uniform-e-bc",
+                  "Specify if the three components of the constant electric field");
    args.AddOption(&ds_params_, "-ds", "--dielectric-sphere-params",
                   "Center, Radius, and Permittivity of Dielectric Sphere");
    args.AddOption(&cs_params_, "-cs", "--charged-sphere-params",
                   "Center, Radius, and Total Charge of Charged Sphere");
+   args.AddOption(&vp_params_, "-vp", "--voltaic-pile-params",
+                  "Axis End Points, Radius, and Polarization of Cylindrical Voltaic Pile");
    args.AddOption(&dbcs, "-dbcs", "--dirichlet-bc-surf",
                   "Dirichlet Boundary Condition Surfaces");
    args.AddOption(&dbcv, "-dbcv", "--dirichlet-bc-vals",
@@ -150,38 +163,7 @@ int main(int argc, char *argv[])
    imesh.close();
 
    int sdim = mesh->SpaceDimension();
-   int dim = mesh->Dimension();
-
-   if ( ds_params_.Size() != sdim + 2 )
-   {
-      // The dielectric sphere parameters have not been set.
-      // We will set them to default values.
-      ds_params_.SetSize(sdim+2);
-      ds_params_ = 0.0;
-      ds_params_(sdim+1) = 1.0;
-   }
-   if ( cs_params_.Size() != sdim + 2 )
-   {
-      // The charged sphere parameters have not been set.
-      // We will set them to default values.
-      cs_params_.SetSize(sdim+2);
-      cs_params_ = 0.0;
-      cs_params_(sdim+1) = 0.0;
-   }
-
-   // If values for Dirichlet BCs were not set assume they are zero
-   if (dbcv.Size() < dbcs.Size() && !dbcg )
-   {
-      dbcv.SetSize(dbcs.Size());
-      dbcv = 0.0;
-   }
-
-   // If values for Neumann BCs were not set assume they are zero
-   if (nbcv.Size() < nbcs.Size() )
-   {
-      nbcv.SetSize(nbcs.Size());
-      nbcv = 0.0;
-   }
+   // int dim = mesh->Dimension();
 
    // Refine the serial mesh on all processors to increase the resolution. In
    // this example we do 'ref_levels' of uniform refinement.
@@ -207,80 +189,48 @@ int main(int argc, char *argv[])
       pmesh.UniformRefinement();
    }
 
-   socketstream phi_sock, e_sock, err_sock;
-   char vishost[] = "localhost";
-   int  visport   = 19916;
-#if 0
+   // If the gradient bc was selected but the E field was not specified
+   // set a default vector value.
+   if ( dbcg && e_uniform_.Size() != sdim )
+   {
+      e_uniform_.SetSize(sdim);
+      e_uniform_ = 0.0;
+      e_uniform_(sdim-1) = 1.0;
+   }
+
+   // If values for Dirichlet BCs were not set assume they are zero
+   if (dbcv.Size() < dbcs.Size() && !dbcg )
+   {
+      dbcv.SetSize(dbcs.Size());
+      dbcv = 0.0;
+   }
+
+   // If values for Neumann BCs were not set assume they are zero
+   if (nbcv.Size() < nbcs.Size() )
+   {
+      nbcv.SetSize(nbcs.Size());
+      nbcv = 0.0;
+   }
+
+   // Create the Electrostatic solver
+   VoltaSolver Volta(pmesh, order, dbcs, dbcv, nbcs, nbcv,
+                     ( ds_params_.Size() > 0 ) ? dielectric_sphere : NULL,
+                     ( e_uniform_.Size() > 0 ) ? phi_bc_uniform    : NULL,
+                     ( cs_params_.Size() > 0 ) ? charged_sphere    : NULL,
+                     ( vp_params_.Size() > 0 ) ? voltaic_pile      : NULL);
+
+   // Initialize GLVis visualization
    if (visualization)
    {
-      phi_sock.open(vishost, visport);
-      phi_sock.precision(8);
-
-      MPI_Barrier(MPI_COMM_WORLD);
-
-      e_sock.open(vishost, visport);
-      e_sock.precision(8);
-
-      MPI_Barrier(MPI_COMM_WORLD);
-
-      err_sock.open(vishost, visport);
-      err_sock.precision(8);
-   }
-#endif
-
-   // Define compatible parallel finite element spaces on the parallel
-   // mesh. Here we use arbitrary order H1 and Nedelec finite
-   // elements.
-   H1_ParFESpace H1FESpace(&pmesh,order,dim);
-   ND_ParFESpace HCurlFESpace(&pmesh,order,dim);
-
-   // Select DoFs on the requested surfaces as Dirichlet BCs
-   Array<int> ess_bdr(pmesh.bdr_attributes.Max());
-   ess_bdr = 0;
-   for (int i=0; i<dbcs.Size(); i++)
-   {
-      ess_bdr[dbcs[i]-1] = 1;
+      Volta.InitializeGLVis();
    }
 
-   // Set up the parallel bilinear form corresponding to the
-   // electrostatic operator div eps grad, by adding the diffusion
-   // domain integrator and finally imposing Dirichlet boundary
-   // conditions. The boundary conditions are implemented by marking
-   // all the boundary attributes from the mesh as essential
-   // (Dirichlet). After serial and parallel assembly we extract the
-   // parallel matrix A.
-   FunctionCoefficient eps(dielectric_sphere);
-   FunctionCoefficient rho_func(charged_sphere);
-
-   ParBilinearForm laplacian_eps(&H1FESpace);
-   laplacian_eps.AddDomainIntegrator(new DiffusionIntegrator(eps));
-
-   ParBilinearForm mass(&H1FESpace);
-   mass.AddDomainIntegrator(new MassIntegrator);
-
-   ParBilinearForm mass_s(&H1FESpace);
-   mass_s.AddBoundaryIntegrator(new MassIntegrator);
-
-   // The gradient operator needed to compute E from Phi
-   ParDiscreteGradOperator Grad(&H1FESpace, &HCurlFESpace);
-
-   // Create various grid functions
-   ParGridFunction phi(&H1FESpace);    // Electric Potential
-   ParGridFunction rho(&H1FESpace);    // Volumetric Charge Density
-   ParGridFunction sigma(&H1FESpace);  // Surface Charge Density
-   ParGridFunction e(&HCurlFESpace);   // Electric Field
-
-   // Create coefficient for optional applied field
-   FunctionCoefficient phi_bc(phi_bc_uniform);
-
-   // Setup VisIt visualization class
+   // Initialize VisIt visualization
    VisItDataCollection visit_dc("Volta-AMR-Parallel", &pmesh);
 
    if ( visit )
    {
-      visit_dc.RegisterField("Phi", &phi);
-      visit_dc.RegisterField("Rho", &rho);
-      visit_dc.RegisterField("E", &e);
+      Volta.RegisterVisItFields(visit_dc);
    }
 
    // The main AMR loop. In each iteration we solve the problem on the
@@ -290,185 +240,42 @@ int main(int argc, char *argv[])
    const int max_dofs = 100000;
    for (int it = 1; it <= 100; it++)
    {
-      HYPRE_Int size_h1 = H1FESpace.GlobalTrueVSize();
-      HYPRE_Int size_nd = HCurlFESpace.GlobalTrueVSize();
-      if (myid == 0)
+      // Display the current number of DoFs in each finite element space
+      Volta.PrintSizes(it);
+
+      // Solve the system and compute any auxiliary fields
+      Volta.Solve();
+
+      // Determine the current size of the linear system
+      int prob_size = Volta.GetProblemSize();
+
+      // Write fields to disk for VisIt
+      if ( visit )
       {
-         cout << "\nIteration " << it << endl;
-         cout << "Number of H1      unknowns: " << size_h1 << endl;
-         cout << "Number of H(Curl) unknowns: " << size_nd << endl;
+         Volta.WriteVisItFields(it);
       }
-
-      // Assemble Matrices
-      laplacian_eps.Assemble();
-      laplacian_eps.Finalize();
-
-      mass.Assemble();
-      mass.Finalize();
-
-      if ( nbcs.Size() > 0 )
-      {
-         mass_s.Assemble();
-         mass_s.Finalize();
-      }
-
-      // Initialize the electric potential with its boundary conditions
-      phi = 0.0;
-
-      if ( dbcs.Size() > 0 )
-      {
-         if ( dbcg )
-         {
-            // Apply gradient boundary condition
-            phi.ProjectBdrCoefficient(phi_bc, ess_bdr);
-         }
-         else
-         {
-            // Apply piecewise constant boundary condition
-            Array<int> dbc_bdr_attr(pmesh.bdr_attributes.Max());
-            for (int i=0; i<dbcs.Size(); i++)
-            {
-               ConstantCoefficient voltage(dbcv[i]);
-               dbc_bdr_attr = 0;
-               dbc_bdr_attr[dbcs[i]-1] = 1;
-               phi.ProjectBdrCoefficient(voltage, dbc_bdr_attr);
-            }
-         }
-      }
-
-      // Initialize the volumetric charge density
-      rho.ProjectCoefficient(rho_func);
-
-      HypreParMatrix *Mass = mass.ParallelAssemble();
-      HypreParVector *Rho   = rho.ParallelProject();
-      HypreParVector *RhoD  = new HypreParVector(&H1FESpace);
-
-      Mass->Mult(*Rho,*RhoD);
-
-      // Initialize the suface charge density
-      if ( nbcs.Size() > 0 )
-      {
-         Array<int> nbc_bdr_attr(pmesh.bdr_attributes.Max());
-         for (int i=0; i<nbcs.Size(); i++)
-         {
-            ConstantCoefficient sigma_coef(nbcv[i]);
-            nbc_bdr_attr = 0;
-            nbc_bdr_attr[nbcs[i]-1] = 1;
-            sigma.ProjectBdrCoefficient(sigma_coef, nbc_bdr_attr);
-         }
-
-         HypreParMatrix *Mass_s = mass_s.ParallelAssemble();
-         HypreParVector *Sigma = sigma.ParallelProject();
-
-         Mass_s->Mult(*Sigma,*RhoD,1.0,1.0);
-
-         delete Mass_s;
-         delete Sigma;
-      }
-
-      // Apply Dirichlet BCs to matrix and right hand side
-      HypreParMatrix *Laplacian_eps = laplacian_eps.ParallelAssemble();
-      HypreParVector *Phi           = phi.ParallelProject();
-
-      // Apply the boundary conditions to the assembled matrix and vectors
-      if ( dbcs.Size() > 0 )
-      {
-         // According to the selected surfaces
-         laplacian_eps.ParallelEliminateEssentialBC(ess_bdr,
-                                                    *Laplacian_eps,
-                                                    *Phi, *RhoD);
-      }
-      else
-      {
-         // No surfaces were labeled as Dirichlet so eliminate one DoF
-         Array<int> dof_list(0);
-         if ( myid == 0 )
-         {
-            dof_list.SetSize(1);
-            dof_list[0] = 0;
-         }
-         Laplacian_eps->EliminateRowsCols(dof_list, *Phi, *RhoD);
-      }
-
-      // Define and apply a parallel PCG solver for AX=B with the AMG
-      // preconditioner from hypre.
-      HypreSolver *amg = new HypreBoomerAMG(*Laplacian_eps);
-      HyprePCG *pcg = new HyprePCG(*Laplacian_eps);
-      pcg->SetTol(1e-12);
-      pcg->SetMaxIter(500);
-      pcg->SetPrintLevel(2);
-      pcg->SetPreconditioner(*amg);
-      pcg->Mult(*RhoD, *Phi);
-
-      delete amg;
-      delete pcg;
-
-      // Extract the parallel grid function corresponding to the finite
-      // element approximation Phi. This is the local solution on each
-      // processor.
-      phi = *Phi;
-
-      // Compute the negative Gradient of the solution vector.  This is
-      // the magnetic field corresponding to the scalar potential
-      // represented by phi.
-      HypreParVector *E = new HypreParVector(&HCurlFESpace);
-      Grad.Mult(*Phi,*E,-1.0);
-      e = *E;
 
       // Send the solution by socket to a GLVis server.
       if (visualization)
       {
-         int Wx = 0, Wy = 0; // window position
-         int Ww = 400, Wh = 400; // window size
-         int offx = 410, offy = 450; // window offsets
+         Volta.DisplayToGLVis();
+      }
 
-         VisualizeField(phi_sock, vishost, visport,
-                        phi, "Scalar Potential (Phi)", Wx, Wy, Ww, Wh);
-         Wx += offx;
-
-         VisualizeField(e_sock, vishost, visport,
-                        e, "Electric Field (E)", Wx, Wy, Ww, Wh);
+      // Check stopping criteria
+      if (prob_size > max_dofs)
+      {
+         break;
       }
 
       // Estimate element errors using the Zienkiewicz-Zhu error estimator.
-      // The bilinear form integrator must have the 'ComputeElementFlux'
-      // method defined.
       Vector errors(pmesh.GetNE());
       {
-         // Space for the discontinuous (original) flux
-         DiffusionIntegrator flux_integrator(eps);
-         L2_FECollection flux_fec(order, dim);
-         ParFiniteElementSpace flux_fes(&pmesh, &flux_fec, sdim);
-
-         // Space for the smoothed (conforming) flux
-         double norm_p = 1;
-         RT_FECollection smooth_flux_fec(order-1, dim);
-         ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec);
-
-         // Another possible set of options for the smoothed flux space:
-         // norm_p = 1;
-         // H1_FECollection smooth_flux_fec(order, dim);
-         // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
-
-         L2ZZErrorEstimator(flux_integrator, phi,
-                            smooth_flux_fes, flux_fes, errors, norm_p);
+         Volta.GetErrorEstimates(errors);
       }
       double local_max_err = errors.Max();
       double global_max_err;
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
                     MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
-
-      if ( visit )
-      {
-         visit_dc.SetCycle(it);
-         visit_dc.SetTime(global_max_err);
-         visit_dc.Save();
-      }
-
-      if (size_h1 > max_dofs)
-      {
-         break;
-      }
 
       // Make a list of elements whose error is larger than a fraction
       // of the maximum element error. These elements will be refined.
@@ -485,39 +292,10 @@ int main(int argc, char *argv[])
       // next step, we need to request the "two-level state" of the mesh.
       pmesh.GeneralRefinement(ref_list);
 
-      // Update the space to reflect the new state of the mesh. Also,
-      // interpolate the solution x so that it lies in the new space but
-      // represents the same function. This saves solver iterations since
-      // we'll have a good initial guess of x in the next step.
-      // The interpolation algorithm needs the mesh to hold some information
-      // about the previous state, which is why the call UseTwoLevelState
-      // above is required.
-      //fespace.UpdateAndInterpolate(&x);
+      // Update the electrostatic solver to reflect the new state of the mesh.
+      Volta.Update();
 
-      // Note: If interpolation was not needed, we could just use the following
-      //     six calls to update the space and the grid function. (No need to
-      //     call UseTwoLevelState in this case.)
-      H1FESpace.Update();
-      HCurlFESpace.Update();
-      phi.Update();
-      rho.Update();
-      sigma.Update();
-      e.Update();
-
-      // Inform the bilinear forms that the space has changed.
-      Grad.Update();
-      mass.Update();
-      mass_s.Update();
-      laplacian_eps.Update();
-
-      // Free the used memory.
-      delete E;
-      delete Rho;
-      delete RhoD;
-      delete Mass;
-      delete Phi;
-      delete Laplacian_eps;
-
+      // Wait for user input
       char c;
       if (myid == 0)
       {
@@ -591,9 +369,58 @@ double charged_sphere(const Vector &x)
    return 0.0;
 }
 
+// A Cylindrical Rod of constant polarization.  The cylinder has two
+// axis end points, a radius, and a constant electric polarization oriented
+// along the axis.
+void voltaic_pile(const Vector &x, Vector &p)
+{
+   p.SetSize(x.Size());
+   p = 0.0;
+
+   Vector  a(x.Size());  // Normalized Axis vector
+   Vector xu(x.Size());  // x vector relative to the axis end-point
+
+   xu = x;
+
+   for (int i=0; i<x.Size(); i++)
+   {
+      xu[i] -= vp_params_[i];
+      a[i]   = vp_params_[x.Size()+i] - vp_params_[i];
+   }
+
+   double h = a.Norml2();
+
+   if ( h == 0.0 )
+   {
+      return;
+   }
+
+   double  r = vp_params_[2*x.Size()];
+   double xa = xu*a;
+
+   if ( h > 0.0 )
+   {
+      xu.Add(-xa/(h*h),a);
+   }
+
+   double xp = xu.Norml2();
+
+   if ( xa >= 0.0 && xa <= h*h && xp <= r )
+   {
+      p.Add(vp_params_[2*x.Size()+1]/h,a);
+   }
+}
+
 // To produce a uniform electric field the potential can be set
-// to -z (or -y in 2D).
+// to (- Ex x - Ey y - Ez z).
 double phi_bc_uniform(const Vector &x)
 {
-   return -x(x.Size()-1);
+   double phi = 0.0;
+
+   for (int i=0; i<x.Size(); i++)
+   {
+      phi -= x(i) * e_uniform_(i);
+   }
+
+   return phi;
 }
