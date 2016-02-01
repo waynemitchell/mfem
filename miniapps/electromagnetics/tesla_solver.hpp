@@ -53,6 +53,8 @@ public:
 
    void RegisterVisItFields(VisItDataCollection & visit_dc);
 
+   void WriteVisItFields(int it = 0);
+
    void InitializeGLVis();
 
    void DisplayToGLVis();
@@ -66,6 +68,8 @@ private:
    int order_;
 
    ParMesh * pmesh_;
+
+   VisItDataCollection * visit_dc_;
 
    H1_ParFESpace * H1FESpace_;
    ND_ParFESpace * HCurlFESpace_;

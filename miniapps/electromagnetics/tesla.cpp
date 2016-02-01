@@ -243,9 +243,7 @@ int main(int argc, char *argv[])
       // Write fields to disk for VisIt
       if ( visit )
       {
-         visit_dc.SetCycle(it);
-         visit_dc.SetTime(prob_size);
-         visit_dc.Save();
+         Tesla.WriteVisItFields(it);
       }
 
       // Send the solution by socket to a GLVis server.

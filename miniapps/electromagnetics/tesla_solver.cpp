@@ -29,6 +29,7 @@ TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
      num_procs_(1),
      order_(order),
      pmesh_(&pmesh),
+     visit_dc_(NULL),
      H1FESpace_(NULL),
      HCurlFESpace_(NULL),
      HDivFESpace_(NULL),
@@ -424,6 +425,8 @@ TeslaSolver::GetErrorEstimates(Vector & errors)
 void
 TeslaSolver::RegisterVisItFields(VisItDataCollection & visit_dc)
 {
+   visit_dc_ = &visit_dc;
+
    visit_dc.RegisterField("A", a_);
    visit_dc.RegisterField("B", b_);
    visit_dc.RegisterField("H", h_);
@@ -431,6 +434,18 @@ TeslaSolver::RegisterVisItFields(VisItDataCollection & visit_dc)
    if ( k_ ) { visit_dc.RegisterField("K", k_); }
    if ( m_ ) { visit_dc.RegisterField("M", m_); }
    if ( SurfCur_ ) { visit_dc.RegisterField("Psi", SurfCur_->GetPsi()); }
+}
+
+void
+TeslaSolver::WriteVisItFields(int it)
+{
+   if ( visit_dc_ )
+   {
+      HYPRE_Int prob_size = this->GetProblemSize();
+      visit_dc_->SetCycle(it);
+      visit_dc_->SetTime(prob_size);
+      visit_dc_->Save();
+   }
 }
 
 void
