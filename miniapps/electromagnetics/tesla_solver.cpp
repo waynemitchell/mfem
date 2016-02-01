@@ -456,46 +456,43 @@ TeslaSolver::InitializeGLVis()
       cout << "Opening GLVis sockets." << endl << flush;
    }
 
-   char vishost[] = "localhost";
-   int  visport   = 19916;
-
-   socks_["A"] = new socketstream(vishost, visport);
+   socks_["A"] = new socketstream;
    socks_["A"]->precision(8);
 
    MPI_Barrier(pmesh_->GetComm());
 
-   socks_["B"] = new socketstream(vishost, visport);
+   socks_["B"] = new socketstream;
    socks_["B"]->precision(8);
 
    MPI_Barrier(pmesh_->GetComm());
 
-   socks_["H"] = new socketstream(vishost, visport);
+   socks_["H"] = new socketstream;
    socks_["H"]->precision(8);
 
    MPI_Barrier(pmesh_->GetComm());
 
    if ( j_ )
    {
-      socks_["J"] = new socketstream(vishost, visport);
+      socks_["J"] = new socketstream;
       socks_["J"]->precision(8);
 
       MPI_Barrier(pmesh_->GetComm());
    }
    if ( k_ )
    {
-      socks_["K"] = new socketstream(vishost, visport);
+      socks_["K"] = new socketstream;
       socks_["K"]->precision(8);
 
       MPI_Barrier(pmesh_->GetComm());
 
-      socks_["Psi"] = new socketstream(vishost, visport);
+      socks_["Psi"] = new socketstream;
       socks_["Psi"]->precision(8);
 
       MPI_Barrier(pmesh_->GetComm());
    }
    if ( m_ )
    {
-      socks_["M"] = new socketstream(vishost, visport);
+      socks_["M"] = new socketstream;
       socks_["M"]->precision(8);
 
       MPI_Barrier(pmesh_->GetComm());
@@ -514,44 +511,44 @@ TeslaSolver::DisplayToGLVis()
 
    int Wx = 0, Wy = 0; // window position
    int Ww = 400, Wh = 400; // window size
-   // int offx = 410, offy = 450; // window offsets
-   int offx = 10, offy = 50; // window offsets
+   int offx = 410, offy = 450; // window offsets
 
    VisualizeField(*socks_["A"], vishost, visport,
                   *a_, "Vector Potential (A)", Wx, Wy, Ww, Wh);
-   Wx += offx; Wy += offy;
+   Wx += offx;
 
    VisualizeField(*socks_["B"], vishost, visport,
                   *b_, "Magnetic Flux Density (B)", Wx, Wy, Ww, Wh);
-   Wx += offx; Wy += offy;
+   Wx += offx;
 
    VisualizeField(*socks_["H"], vishost, visport,
                   *h_, "Magnetic Field (H)", Wx, Wy, Ww, Wh);
-   Wx += offx; Wy += offy;
+   Wx += offx;
 
    if ( j_ )
    {
       VisualizeField(*socks_["J"], vishost, visport,
                      *j_, "Current Density (J)", Wx, Wy, Ww, Wh);
-      Wx += offx; Wy += offy;
    }
+
+   Wx = 0; Wy += offy; // next line
+
    if ( k_ )
    {
       VisualizeField(*socks_["K"], vishost, visport,
                      *k_, "Surface Current Density (K)", Wx, Wy, Ww, Wh);
-      Wx += offx; Wy += offy;
+      Wx += offx;
 
       VisualizeField(*socks_["Psi"], vishost, visport,
                      *SurfCur_->GetPsi(),
                      "Surface Current Potential (Psi)", Wx, Wy, Ww, Wh);
-      Wx += offx; Wy += offy;
+      Wx += offx;
    }
    if ( m_ )
    {
       VisualizeField(*socks_["M"], vishost, visport,
                      *m_, "Magnetization (M)", Wx, Wy, Ww, Wh);
-      Wx += offx; Wy += offy;
-
+      Wx += offx;
    }
 }
 

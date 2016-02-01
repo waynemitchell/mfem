@@ -513,41 +513,38 @@ VoltaSolver::InitializeGLVis()
       cout << "Opening GLVis sockets." << endl << flush;
    }
 
-   char vishost[] = "localhost";
-   int  visport   = 19916;
-
-   socks_["Phi"] = new socketstream(vishost, visport);
+   socks_["Phi"] = new socketstream;
    socks_["Phi"]->precision(8);
 
    MPI_Barrier(pmesh_->GetComm());
 
-   socks_["D"] = new socketstream(vishost, visport);
+   socks_["D"] = new socketstream;
    socks_["D"]->precision(8);
 
    MPI_Barrier(pmesh_->GetComm());
 
-   socks_["E"] = new socketstream(vishost, visport);
+   socks_["E"] = new socketstream;
    socks_["E"]->precision(8);
 
    MPI_Barrier(pmesh_->GetComm());
 
    if ( rho_)
    {
-      socks_["Rho"] = new socketstream(vishost, visport);
+      socks_["Rho"] = new socketstream;
       socks_["Rho"]->precision(8);
 
       MPI_Barrier(pmesh_->GetComm());
    }
    if ( p_)
    {
-      socks_["P"] = new socketstream(vishost, visport);
+      socks_["P"] = new socketstream;
       socks_["P"]->precision(8);
 
       MPI_Barrier(pmesh_->GetComm());
    }
    if ( sigma_)
    {
-      socks_["Sigma"] = new socketstream(vishost, visport);
+      socks_["Sigma"] = new socketstream;
       socks_["Sigma"]->precision(8);
 
       MPI_Barrier(pmesh_->GetComm());
@@ -562,38 +559,38 @@ VoltaSolver::DisplayToGLVis()
 
    int Wx = 0, Wy = 0; // window position
    int Ww = 400, Wh = 400; // window size
-   // int offx = 410, offy = 450; // window offsets
-   int offx = 10, offy = 50; // window offsets
+   int offx = 410, offy = 450; // window offsets
 
    VisualizeField(*socks_["Phi"], vishost, visport,
                   *phi_, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
-   Wx += offx; Wy += offy;
+   Wx += offx;
 
    VisualizeField(*socks_["D"], vishost, visport,
                   *d_, "Electric Displacement (D)", Wx, Wy, Ww, Wh);
-   Wx += offx; Wy += offy;
+   Wx += offx;
 
    VisualizeField(*socks_["E"], vishost, visport,
                   *e_, "Electric Field (E)", Wx, Wy, Ww, Wh);
-   Wx += offx; Wy += offy;
+
+   Wx = 0; Wy += offy; // next line
 
    if ( rho_ )
    {
       VisualizeField(*socks_["Rho"], vishost, visport,
                      *rho_, "Charge Density (Rho)", Wx, Wy, Ww, Wh);
-      Wx += offx; Wy += offy;
+      Wx += offx;
    }
    if ( p_ )
    {
       VisualizeField(*socks_["P"], vishost, visport,
                      *p_, "Electric Polarization (P)", Wx, Wy, Ww, Wh);
-      Wx += offx; Wy += offy;
+      Wx += offx;
    }
    if ( sigma_ )
    {
       VisualizeField(*socks_["Sigma"], vishost, visport,
                      *sigma_, "Surface Charge Density (Sigma)", Wx, Wy, Ww, Wh);
-      Wx += offx; Wy += offy;
+      Wx += offx;
    }
 }
 
