@@ -136,10 +136,10 @@ socketbuf::int_type socketbuf::underflow()
    if (br <= 0)
    {
 #ifdef MFEM_DEBUG
-         if (br < 0)
-         {
-            std::cout << "Error in recv(): " << strerror(errno) << std::endl;
-         }
+      if (br < 0)
+      {
+         std::cout << "Error in recv(): " << strerror(errno) << std::endl;
+      }
 #endif
       setg(NULL, NULL, NULL);
       return traits_type::eof();

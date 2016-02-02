@@ -66,5 +66,4 @@ $(CONFIG_MK) $(MFEM_LIB_FILE):
 clean:
 	rm -f *.o *~ volta tesla
 	rm -rf Volta-AMR* Tesla-AMR*
-	rm -f mesh.* sol.* sol_curl.* psi.*
 	rm -rf *.dSYM *.TVD.*breakpoints
