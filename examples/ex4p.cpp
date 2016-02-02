@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace *hfes = NULL;
    if (hybridization)
    {
-      hfec = new RT_Trace_FECollection(order-1, dim, FiniteElement::VALUE);
+      hfec = new DG_Interface_FECollection(order-1, dim);
       hfes = new ParFiniteElementSpace(pmesh, hfec);
       a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(),
                              ess_tdof_list);
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
    HypreSolver *prec = NULL;
    CGSolver *pcg = new CGSolver(A.GetComm());
    pcg->SetOperator(A);
-   pcg->SetRelTol(1e-14);
+   pcg->SetRelTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(1);
    X = 0.0;

@@ -163,6 +163,15 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
       fec = new RT_Trace_FECollection(atoi(name + 16), atoi(name + 12),
                                       FiniteElement::VALUE);
    }
+   else if (!strncmp(name, "DG_Iface_", 9))
+   {
+      fec = new DG_Interface_FECollection(atoi(name + 13), atoi(name + 9));
+   }
+   else if (!strncmp(name, "DG_IntIface_", 12))
+   {
+      fec = new DG_Interface_FECollection(atoi(name + 16), atoi(name + 12),
+                                          FiniteElement::INTEGRAL);
+   }
    else if (!strncmp(name, "RT_", 3))
    {
       fec = new RT_FECollection(atoi(name + 7), atoi(name + 3));
@@ -1612,7 +1621,7 @@ RT_FECollection::~RT_FECollection()
 
 RT_Trace_FECollection::RT_Trace_FECollection(const int p, const int dim,
                                              const int map_type)
-   : RT_FECollection(p, dim, map_type)
+   : RT_FECollection(p, dim, map_type, true)
 {
    if (map_type == FiniteElement::INTEGRAL)
    {
@@ -1621,6 +1630,22 @@ RT_Trace_FECollection::RT_Trace_FECollection(const int p, const int dim,
    else
    {
       snprintf(rt_name, 32, "RT_ValTrace_%dD_P%d", dim, p);
+   }
+
+   MFEM_VERIFY(dim == 2 || dim == 3, "Wrong dimension, dim = " << dim);
+}
+
+DG_Interface_FECollection::DG_Interface_FECollection(const int p, const int dim,
+                                                     const int map_type)
+   : RT_FECollection(p, dim, map_type, false)
+{
+   if (map_type == FiniteElement::VALUE)
+   {
+      snprintf(rt_name, 32, "DG_Iface_%dD_P%d", dim, p);
+   }
+   else
+   {
+      snprintf(rt_name, 32, "DG_IntIface_%dD_P%d", dim, p);
    }
 
    MFEM_VERIFY(dim == 2 || dim == 3, "Wrong dimension, dim = " << dim);
