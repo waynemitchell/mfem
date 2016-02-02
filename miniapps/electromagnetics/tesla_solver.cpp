@@ -459,43 +459,29 @@ TeslaSolver::InitializeGLVis()
    socks_["A"] = new socketstream;
    socks_["A"]->precision(8);
 
-   MPI_Barrier(pmesh_->GetComm());
-
    socks_["B"] = new socketstream;
    socks_["B"]->precision(8);
 
-   MPI_Barrier(pmesh_->GetComm());
-
    socks_["H"] = new socketstream;
    socks_["H"]->precision(8);
-
-   MPI_Barrier(pmesh_->GetComm());
 
    if ( j_ )
    {
       socks_["J"] = new socketstream;
       socks_["J"]->precision(8);
-
-      MPI_Barrier(pmesh_->GetComm());
    }
    if ( k_ )
    {
       socks_["K"] = new socketstream;
       socks_["K"]->precision(8);
 
-      MPI_Barrier(pmesh_->GetComm());
-
       socks_["Psi"] = new socketstream;
       socks_["Psi"]->precision(8);
-
-      MPI_Barrier(pmesh_->GetComm());
    }
    if ( m_ )
    {
       socks_["M"] = new socketstream;
       socks_["M"]->precision(8);
-
-      MPI_Barrier(pmesh_->GetComm());
    }
    if ( myid_ == 0 )
    {
