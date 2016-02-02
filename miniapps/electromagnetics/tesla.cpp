@@ -89,6 +89,9 @@ void a_bc_uniform(const Vector &, Vector&);
 // Phi_M Boundary Condition for H = (0,0,1)
 double phi_m_bc_uniform(const Vector &x);
 
+// Prints the program's logo to the given output stream
+void display_banner(ostream & os);
+
 int main(int argc, char *argv[])
 {
    // Initialize MPI.
@@ -96,6 +99,8 @@ int main(int argc, char *argv[])
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+   if ( myid == 0 ) display_banner(cout);
 
    // Parse command-line options.
    // const char *mesh_file = "../../data/ball-nurbs.mesh";
@@ -344,6 +349,17 @@ int main(int argc, char *argv[])
    MPI_Finalize();
 
    return 0;
+}
+
+// Print the Volta ascii logo to the given ostream
+void display_banner(ostream & os)
+{
+  os << "  ___________            __            " << endl
+     << "  \\__    ___/___   _____|  | _____     " << endl
+     << "    |    |_/ __ \\ /  ___/  | \\__  \\    " << endl
+     << "    |    |\\  ___/ \\___ \\|  |__/ __ \\_  " << endl
+     << "    |____| \\___  >____  >____(____  /  " << endl
+     << "               \\/     \\/          \\/   " << endl << flush;
 }
 
 // A spherical shell with constant permeability.  The sphere has inner

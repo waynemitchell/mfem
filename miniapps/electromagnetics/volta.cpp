@@ -81,6 +81,9 @@ void voltaic_pile(const Vector &, Vector &);
 static Vector e_uniform_(0);
 double phi_bc_uniform(const Vector &);
 
+// Prints the program's logo to the given output stream
+void display_banner(ostream & os);
+
 int main(int argc, char *argv[])
 {
    // Initialize MPI.
@@ -88,6 +91,8 @@ int main(int argc, char *argv[])
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+   if ( myid == 0 ) display_banner(cout);
 
    // Parse command-line options.
    const char *mesh_file = "../../data/ball-nurbs.mesh";
@@ -352,6 +357,17 @@ int main(int argc, char *argv[])
    MPI_Finalize();
 
    return 0;
+}
+
+// Print the Volta ascii logo to the given ostream
+void display_banner(ostream & os)
+{
+  os << "  ____   ____     __   __            " << endl
+     << "  \\   \\ /   /___ |  |_/  |______     " << endl
+     << "   \\   Y   /  _ \\|  |\\   __\\__  \\    " << endl
+     << "    \\     (  <_> )  |_|  |  / __ \\_  " << endl
+     << "     \\___/ \\____/|____/__| (____  /  " << endl
+     << "                                \\/   " << endl << flush;
 }
 
 // A sphere with constant permittivity.  The sphere has a radius,
