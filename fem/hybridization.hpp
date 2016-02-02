@@ -28,22 +28,22 @@ namespace mfem
     Hybridization can be viewed as a technique for solving linear systems
     obtained through finite element assembly. The assembled matrix A can be
     written as:
-       A = P^T \hat{A} P
+       A = P^T hat{A} P
     where P is the matrix mapping the conforming finite element space to the
     purely local finite element space without any inter-element constraints
-    imposed, and \hat{A} is the block-diagonal matrix of all element matrices.
+    imposed, and hat{A} is the block-diagonal matrix of all element matrices.
 
     We assume that:
-    * \hat{A} is invertible,
+    * hat{A} is invertible,
     * P has a left inverse R, such that R P = I,
     * a constraint matrix C can be constructed, such that Ker(C) = Im(P).
 
     Under these conditions, the linear system A x = b can be solved using the
     following procedure:
     * solve for lambda in the linear system:
-       (C \hat{A}^{-1} C^T) \lambda = C \hat{A}^{-1} R^T b
-    * compute x = R \hat{A}^{-1} (R^T b - C^T \lambda)
-    Hybridization is advantageous when the matrix H = (C \hat{A}^{-1} C^T) of
+       (C hat{A}^{-1} C^T) lambda = C hat{A}^{-1} R^T b
+    * compute x = R hat{A}^{-1} (R^T b - C^T lambda)
+    Hybridization is advantageous when the matrix H = (C hat{A}^{-1} C^T) of
     the hybridized system is either smaller than the original system, or is
     simpler to invert with a known method.
 
@@ -51,9 +51,9 @@ namespace mfem
        C = [ 0  C_b ]
     and then the hybridized matrix H can be assembled using the identity
        H = C_b S_b^{-1} C_b^T
-    where S_b is the Schur complement of \hat{A} with respect to the same
+    where S_b is the Schur complement of hat{A} with respect to the same
     decomposition as the columns of C:
-       S_b = \hat{A}_b - \hat{A}_{bf} \hat{A}_{f}^{-1} \hat{A}_{fb}.
+       S_b = hat{A}_b - hat{A}_{bf} hat{A}_{f}^{-1} hat{A}_{fb}.
 
     Hybridization can also be viewed as a discretization method for imposing
     (weak) continuity constraints between neighboring elements. */
