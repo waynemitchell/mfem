@@ -352,7 +352,7 @@ void VisualizeField(socketstream &sock, const char *vishost, int visport,
 
       if (myid == 0)
       {
-         connection_failed = !sock;
+         connection_failed = !sock && !newly_opened;
       }
       MPI_Bcast(&connection_failed, 1, MPI_INT, 0, comm);
    }
