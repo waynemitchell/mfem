@@ -26,7 +26,7 @@ using namespace mfem;
 // Permeability of Free Space (units H/m)
 static double mu0_ = 4.0e-7*M_PI;
 
-namespace mfem
+namespace mfem_electromagnetics
 {
 
 class SurfaceCurrent;
@@ -146,7 +146,7 @@ private:
    Array<int> non_k_bdr_;
 };
 
-} // namespace mfem
+} // namespace mfem_electromagnetics
 
 #endif // MFEM_USE_MPI
 

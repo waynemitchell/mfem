@@ -60,7 +60,7 @@
 #include "volta_solver.hpp"
 
 using namespace std;
-using namespace mfem;
+using namespace mfem_electromagnetics;
 
 // Permittivity Function
 static Vector ds_params_(0);  // Center, Radius, and Permittivity

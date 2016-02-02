@@ -63,7 +63,7 @@
 #include "tesla_solver.hpp"
 
 using namespace std;
-using namespace mfem;
+using namespace mfem_electromagnetics;
 
 // Permeability Function
 static Vector ms_params_(0);  // Center, Inner and Outer Radii, and

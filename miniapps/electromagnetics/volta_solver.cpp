@@ -15,7 +15,7 @@
 
 #include "volta_solver.hpp"
 
-namespace mfem
+namespace mfem_electromagnetics
 {
 
 VoltaSolver::VoltaSolver(ParMesh & pmesh, int order,
@@ -516,38 +516,26 @@ VoltaSolver::InitializeGLVis()
    socks_["Phi"] = new socketstream;
    socks_["Phi"]->precision(8);
 
-   MPI_Barrier(pmesh_->GetComm());
-
    socks_["D"] = new socketstream;
    socks_["D"]->precision(8);
 
-   MPI_Barrier(pmesh_->GetComm());
-
    socks_["E"] = new socketstream;
    socks_["E"]->precision(8);
-
-   MPI_Barrier(pmesh_->GetComm());
 
    if ( rho_)
    {
       socks_["Rho"] = new socketstream;
       socks_["Rho"]->precision(8);
-
-      MPI_Barrier(pmesh_->GetComm());
    }
    if ( p_)
    {
       socks_["P"] = new socketstream;
       socks_["P"]->precision(8);
-
-      MPI_Barrier(pmesh_->GetComm());
    }
    if ( sigma_)
    {
       socks_["Sigma"] = new socketstream;
       socks_["Sigma"]->precision(8);
-
-      MPI_Barrier(pmesh_->GetComm());
    }
 }
 
@@ -594,6 +582,6 @@ VoltaSolver::DisplayToGLVis()
    }
 }
 
-} // namespace mfem
+} // namespace mfem_electromagnetics
 
 #endif // MFEM_USE_MPI

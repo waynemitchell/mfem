@@ -26,7 +26,7 @@ using namespace mfem;
 // Permittivity of Free Space (units F/m)
 static double epsilon0_ = 8.8541878176e-12;
 
-namespace mfem
+namespace mfem_electromagnetics
 {
 
 class VoltaSolver
@@ -112,7 +112,7 @@ private:
    Array<int> ess_bdr_;
 };
 
-} // namespace mfem
+} // namespace mfem_electromagnetics
 
 #endif // MFEM_USE_MPI
 

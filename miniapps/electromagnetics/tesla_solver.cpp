@@ -15,7 +15,7 @@
 
 #include "tesla_solver.hpp"
 
-namespace mfem
+namespace mfem_electromagnetics
 {
 
 TeslaSolver::TeslaSolver(ParMesh & pmesh, int order,
@@ -674,6 +674,6 @@ SurfaceCurrent::Update()
                                      *PSI_, *RHS_);
 }
 
-} // namespace mfem
+} // namespace mfem_electromagnetics
 
 #endif // MFEM_USE_MPI
