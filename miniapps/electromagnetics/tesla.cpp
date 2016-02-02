@@ -1,51 +1,59 @@
-//               MFEM Tesla Mini App
-//               Simple Magnetostatics Simulation Code
+// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
+// reserved. See file COPYRIGHT for details.
+//
+// This file is part of the MFEM library. For more information and source code
+// availability see http://mfem.org.
+//
+// MFEM is free software; you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License (as published by the Free
+// Software Foundation) version 2.1 dated February 1999.
+//
+//            -----------------------------------------------------
+//            Tesla Miniapp:  Simple Magnetostatics simulation code
+//            -----------------------------------------------------
+//
+// This miniapp solves a simple 3D magnetostatic problem.
+//
+//                     Curl 1/mu Curl A = J + Curl mu0/mu M
+//
+// The permeability function is that of the vacuum with an optional diamagnetic
+// or paramagnetic spherical shell. The optional current density takes the form
+// of a user defined ring of current. The optional magnetization consists of a
+// cylindrical bar of constant magnetization.
+//
+// The boundary conditions either apply a user selected uniform magnetic flux
+// density or a surface current flowing between user defined surfaces.
+//
+// We discretize the vector potential with H(Curl) finite elements. The magnetic
+// flux B is discretized with H(Div) finite elements.
 //
 // Compile with: make tesla
 //
 // Sample runs:
 //
-//   By default the sources and fields are all zero
-//     mpirun -np 4 tesla
+//   A cylindrical bar magnet in a metal sphere:
+//      mpirun -np 4 tesla -bm '0 -0.5 0 0 0.5 0 0.2 1'
 //
-//   A cylindrical bar magnet in a metal sphere
-//     mpirun -np 4 tesla -bm '0 -0.5 0 0 0.5 0 0.2 1'
+//   A spherical shell of paramagnetic material in a uniform B field:
+//      mpirun -np 4 tesla -ubbc '0 0 1' -ms '0 0 0 0.2 0.4 10'
 //
-//   A spherical shell of paramagnetic material in a uniform B field
-//     mpirun -np 4 tesla -ubbc '0 0 1' -ms '0 0 0 0.2 0.4 10'
+//   A ring of current in a metal sphere:
+//      mpirun -np 4 tesla -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1'
 //
-//   A ring of current in a metal sphere
-//     mpirun -np 4 tesla -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1'
-//
-//   An example demonstrating the use of surface currents
-//     mpirun -np 4 tesla -m ./square-angled-pipe.mesh
-//                        -kbcs '3' -vbcs '1 2' -vbcv '-0.5 0.5'
+//   An example demonstrating the use of surface currents:
+//      mpirun -np 4 tesla -m ./square-angled-pipe.mesh
+//                         -kbcs '3' -vbcs '1 2' -vbcv '-0.5 0.5'
 //
 //   An example combining the paramagnetic shell, permanent magnet,
-//   and current ring.
-//     mpirun -np 4 tesla -m ../../data/inline-hex.mesh
-//                        -ms '0.5 0.5 0.5 0.4 0.45 20'
-//                        -bm '0.5 0.5 0.3 0.5 0.5 0.7 0.1 1'
-//                        -cr '0.5 0.5 0.45 0.5 0.5 0.55 0.2 0.3 1'
+//   and current ring:
+//      mpirun -np 4 tesla -m ../../data/inline-hex.mesh
+//                         -ms '0.5 0.5 0.5 0.4 0.45 20'
+//                         -bm '0.5 0.5 0.3 0.5 0.5 0.7 0.1 1'
+//                         -cr '0.5 0.5 0.45 0.5 0.5 0.55 0.2 0.3 1'
 //
-// Description:
-//               This mini app solves a simple 3D magnetostatic
-//               problem.
-//                  Curl 1/mu Curl A = J + Curl mu0/mu M
-//               The permeability function is that of the vacuum with
-//               an optional diamagnetic or paramagnetic spherical shell.
-//               The optional current density takes the form of a user
-//               defined ring of current.  The optional magnetization
-//               consists of a cylindrical bar of constant magnetization.
-//
-//               The boundary conditions either apply a user selected
-//               uniform magnetic flux density or a surface current
-//               flowing between user defined surfaces.
-//
-//               We discretize the vector potential with H(Curl) finite
-//               elements.  The magnetic flux B is discretized with
-//               H(Div) finite elements.
-//
+//   By default the sources and fields are all zero:
+//      mpirun -np 4 tesla
 
 #include "mfem.hpp"
 #include <fstream>
@@ -90,7 +98,8 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // Parse command-line options.
-   const char *mesh_file = "./butterfly_3d.mesh";
+   // const char *mesh_file = "../../data/ball-nurbs.mesh";
+   const char *mesh_file = "butterfly_3d.mesh";
    int order = 1;
    int sr = 0, pr = 0;
    bool visualization = true;
@@ -127,8 +136,7 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&visit, "-visit", "--visit", "-no-visit",
-                  "--no-visualization",
+   args.AddOption(&visit, "-visit", "--visit", "-no-visit", "--no-visit",
                   "Enable or disable VisIt visualization.");
    args.Parse();
    if (!args.Good())
@@ -163,13 +171,25 @@ int main(int argc, char *argv[])
    imesh.close();
 
    // Refine the serial mesh on all processors to increase the resolution. In
-   // this example we do 'ref_levels' of uniform refinement.
+   // this example we do 'ref_levels' of uniform refinement. NURBS meshes are
+   // refined twice more, as they are typically coarse.
    {
       int ref_levels = sr;
+      if (mesh->NURBSext)
+      {
+         ref_levels += 2;
+      }
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
+   }
+
+   // Project a NURBS mesh to a piecewise-quadratic curved mesh. Make sure that
+   // the mesh is non-conforming.
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(2);
    }
    mesh->EnsureNCMesh();
 
@@ -224,11 +244,12 @@ int main(int argc, char *argv[])
       Tesla.RegisterVisItFields(visit_dc);
    }
 
-   // The main AMR loop. In each iteration we solve the problem on the
-   // current mesh, visualize the solution, estimate the error on all
-   // elements, refine the worst elements and update all objects to work
-   // with the new mesh.
-   const int max_dofs = 200000;
+   // The main AMR loop. In each iteration we solve the problem on the current
+   // mesh, visualize the solution, estimate the error on all elements, refine
+   // the worst elements and update all objects to work with the new mesh. We
+   // refine until the maximum number of dofs in the Nedelec finite element
+   // space reaches 10 million.
+   const int max_dofs = 10000000;
    for (int it = 1; it <= 100; it++)
    {
       // Display the current number of DoFs in each finite element space
@@ -255,6 +276,10 @@ int main(int argc, char *argv[])
       // Check stopping criteria
       if (prob_size > max_dofs)
       {
+         if (myid == 0)
+         {
+            cout << "Reached maximum number of dofs, exiting..." << endl;
+         }
          break;
       }
 
@@ -286,9 +311,9 @@ int main(int argc, char *argv[])
       // Update the magnetostatic solver to reflect the new state of the mesh.
       Tesla.Update();
 
-      // Wait for user input
-      char c;
-      if (myid == 0)
+      // Wait for user input. Ask every 10th iteration.
+      char c = 'c';
+      if (myid == 0 && (it % 10 == 0))
       {
          cout << "press (q)uit or (c)ontinue --> " << flush;
          cin >> c;

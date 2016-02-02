@@ -1,49 +1,57 @@
-//               MFEM Volta Mini App
-//               Simple Electrostatics Simulation Code
+// Copyright (c) 2010, Lawrence Livermore National Security, LLC. Produced at
+// the Lawrence Livermore National Laboratory. LLNL-CODE-443211. All Rights
+// reserved. See file COPYRIGHT for details.
+//
+// This file is part of the MFEM library. For more information and source code
+// availability see http://mfem.org.
+//
+// MFEM is free software; you can redistribute it and/or modify it under the
+// terms of the GNU Lesser General Public License (as published by the Free
+// Software Foundation) version 2.1 dated February 1999.
+//
+//            -----------------------------------------------------
+//            Volta Miniapp:  Simple Electrostatics simulation code
+//            -----------------------------------------------------
+//
+// This miniapp solves a simple 2D or 3D electrostatic problem.
+//
+//                            Div eps Grad Phi = rho
+//
+// The permittivity function is that of the vacuum with an optional dielectric
+// sphere. The charge density is either zero of a user defined sphere of charge.
+//
+// Boundary conditions for the electric potential consist of a user defined
+// piecewise constant potential or a potential leading to a user selected
+// uniform electric field.
+//
+// We discretize the electric potential with H1 finite elements. The electric
+// field E is discretized with Nedelec finite elements.
 //
 // Compile with: make volta
 //
 // Sample runs:
 //
-//   By default the sources and fields are all zero
-//     mpirun -np 4 volta
-//
-//   A cylinder at constant voltage in a square, grounded metal pipe.
-//     mpirun -np 4 volta -m ../../data/square-disc.mesh
-//                        -dbcs '1 2 3 4 5 6 7 8' -dbcv '0 0 0 0 1 1 1 1'
+//   A cylinder at constant voltage in a square, grounded metal pipe:
+//      mpirun -np 4 volta -m ../../data/square-disc.mesh
+//                         -dbcs '1 2 3 4 5 6 7 8' -dbcv '0 0 0 0 1 1 1 1'
 //
 //   A cylinder with a constant surface charge density in a square,
-//   grounded metal pipe.
-//     mpirun -np 4 volta -m ../../data/square-disc.mesh
-//                        -nbcs '5 6 7 8' -nbcv '5e-11 5e-11 5e-11 5e-11'
-//                        -dbcs '1 2 3 4'
+//   grounded metal pipe:
+//      mpirun -np 4 volta -m ../../data/square-disc.mesh
+//                         -nbcs '5 6 7 8' -nbcv '5e-11 5e-11 5e-11 5e-11'
+//                         -dbcs '1 2 3 4'
 //
-//   A cylindrical voltaic pile withint a grounded metal sphere.
-//     mpirun -np 4 volta -dbcs 1 -vp '0 -0.5 0 0 0.5 0 0.2 1'
+//   A cylindrical voltaic pile within a grounded metal sphere:
+//      mpirun -np 4 volta -dbcs 1 -vp '0 -0.5 0 0 0.5 0 0.2 1'
 //
-//   A charged sphere, off-center, within a grounded metal sphere.
-//     mpirun -np 4 volta -dbcs 1 -cs '0.0 0.5 0.0 0.2 2.0e-11'
+//   A charged sphere, off-center, within a grounded metal sphere:
+//      mpirun -np 4 volta -dbcs 1 -cs '0.0 0.5 0.0 0.2 2.0e-11'
 //
-//   A dielectric sphere suspended in a uniform electric field.
-//     mpirun -np 4 volta -dbcs 1 -dbcg -ds '0.0 0.0 0.0 0.2 8.0'
+//   A dielectric sphere suspended in a uniform electric field:
+//      mpirun -np 4 volta -dbcs 1 -dbcg -ds '0.0 0.0 0.0 0.2 8.0'
 //
-// Description:
-//               This mini app solves a simple 2D or 3D electrostatic
-//               problem.
-//                  Div eps Grad Phi = rho
-//               The permittivity function is that of the vacuum with
-//               an optional dielectric sphere.  The charge density is
-//               either zero of a user defined sphere of charge.
-//
-//               Boundary conditions for the electric potential consist
-//               of a user defined piecewise constant potential or a
-//               potential leading to a user selected uniform electric
-//               field.
-//
-//               We discretize the electric potential with H1 finite
-//               elements.  The electric field E is discretized with
-//               Nedelec finite elements.
-//
+//   By default the sources and fields are all zero:
+//      mpirun -np 4 volta
 
 #include "mfem.hpp"
 #include <fstream>
@@ -82,7 +90,7 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // Parse command-line options.
-   const char *mesh_file = "./butterfly_3d.mesh";
+   const char *mesh_file = "../../data/ball-nurbs.mesh";
    int order = 1;
    int sr = 0, pr = 0;
    bool visualization = true;
@@ -127,8 +135,7 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&visit, "-visit", "--visit", "-no-visit",
-                  "--no-visualization",
+   args.AddOption(&visit, "-visit", "--visit", "-no-visit", "--no-visit",
                   "Enable or disable VisIt visualization.");
    args.Parse();
    if (!args.Good())
@@ -166,13 +173,25 @@ int main(int argc, char *argv[])
    // int dim = mesh->Dimension();
 
    // Refine the serial mesh on all processors to increase the resolution. In
-   // this example we do 'ref_levels' of uniform refinement.
+   // this example we do 'ref_levels' of uniform refinement. NURBS meshes are
+   // refined twice more, as they are typically coarse.
    {
       int ref_levels = sr;
+      if (mesh->NURBSext)
+      {
+         ref_levels += 2;
+      }
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
+   }
+
+   // Project a NURBS mesh to a piecewise-quadratic curved mesh. Make sure that
+   // the mesh is non-conforming.
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(2);
    }
    mesh->EnsureNCMesh();
 
@@ -233,10 +252,11 @@ int main(int argc, char *argv[])
       Volta.RegisterVisItFields(visit_dc);
    }
 
-   // The main AMR loop. In each iteration we solve the problem on the
-   // current mesh, visualize the solution, estimate the error on all
-   // elements, refine the worst elements and update all objects to work
-   // with the new mesh.
+   // The main AMR loop. In each iteration we solve the problem on the current
+   // mesh, visualize the solution, estimate the error on all elements, refine
+   // the worst elements and update all objects to work with the new mesh.  We
+   // refine until the maximum number of dofs in the nodal finite element space
+   // reaches 10 million.
    const int max_dofs = 100000;
    for (int it = 1; it <= 100; it++)
    {
@@ -264,6 +284,10 @@ int main(int argc, char *argv[])
       // Check stopping criteria
       if (prob_size > max_dofs)
       {
+         if (myid == 0)
+         {
+            cout << "Reached maximum number of dofs, exiting..." << endl;
+         }
          break;
       }
 
@@ -295,9 +319,9 @@ int main(int argc, char *argv[])
       // Update the electrostatic solver to reflect the new state of the mesh.
       Volta.Update();
 
-      // Wait for user input
-      char c;
-      if (myid == 0)
+      // Wait for user input. Ask every 10th iteration.
+      char c = 'c';
+      if (myid == 0 && (it % 10 == 0))
       {
          cout << "press (q)uit or (c)ontinue --> " << flush;
          cin >> c;

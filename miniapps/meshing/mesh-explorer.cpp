@@ -8,8 +8,19 @@
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
-
-// Meshing miniapp: visualize and manipulate meshes
+//
+//            -----------------------------------------------------
+//            Mesh Explorer Miniapp:  Explore and manipulate meshes
+//            -----------------------------------------------------
+//
+// This miniapp is a handy tool to examine, visualize and manipulate a given
+// mesh. Some of its features are:
+//
+//    - visualizing of mesh materials and individual mesh elements
+//    - mesh scaling, randomization, and general transformation
+//    - manipulation of the mesh curvature
+//    - the ability to simulate parallel partitioning
+//    - quantitative and visual reports of mesh quality
 //
 // Compile with: make mesh-explorer
 //
