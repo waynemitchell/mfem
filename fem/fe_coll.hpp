@@ -140,8 +140,9 @@ protected:
                   const bool signs);
 
    // Constructor used by the constructor of RT_Trace_FECollection
-   RT_FECollection(const int p, const int dim, const int map_type)
-   { InitFaces(p, dim, map_type, false); }
+   RT_FECollection(const int p, const int dim, const int map_type,
+                   const bool signs)
+   { InitFaces(p, dim, map_type, signs); }
 
 public:
    RT_FECollection(const int p, const int dim);
@@ -164,6 +165,16 @@ class RT_Trace_FECollection : public RT_FECollection
 public:
    RT_Trace_FECollection(const int p, const int dim,
                          const int map_type = FiniteElement::INTEGRAL);
+};
+
+/** Arbitrary order discontinuous finite elements defined on the interface
+    between mesh elements (faces). The functions in this space are single-valued
+    on each face and are discontinuous across its boundary. */
+class DG_Interface_FECollection : public RT_FECollection
+{
+public:
+   DG_Interface_FECollection(const int p, const int dim,
+                             const int map_type = FiniteElement::VALUE);
 };
 
 /// Arbitrary order H(curl)-conforming Nedelec finite elements.
