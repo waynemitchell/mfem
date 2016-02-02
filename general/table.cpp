@@ -162,22 +162,23 @@ int Table::operator() (int i, int j) const
    }
 
    int k, end = I[i+1];
-
-   for (k=I[i]; k<end; k++)
-      if (J[k]==j)
+   for (k = I[i]; k < end; k++)
+   {
+      if (J[k] == j)
       {
          return k;
       }
-      else if (J[k]==-1)
+      else if (J[k] == -1)
       {
          return -1;
       }
-
+   }
    return -1;
 }
 
 void Table::GetRow(int i, Array<int> &row) const
 {
+   MFEM_ASSERT(i < size, "Access of row " << i << ", table size " << size);
    const int *jp = GetRow(i), n = RowSize(i);
 
    row.SetSize(n);
