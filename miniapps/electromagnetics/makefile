@@ -24,11 +24,7 @@ SEQ_MINIAPPS =
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
-   MINIAPPS = $(SEQ_MINIAPPS) volta tesla \
-              magnetostatics1p magnetostatics2p magnetostatics3p \
-              magnetostatics4p magnetostatics5p \
-              electrostatics1p electrostatics2p \
-              magnetostatics electrostatics
+   MINIAPPS = $(SEQ_MINIAPPS) volta tesla
 
 endif
 
@@ -68,10 +64,6 @@ $(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
 clean:
-	rm -f *.o *~ magnetostatics1p magnetostatics2p magnetostatics3p \
-                     magnetostatics4p magnetostatics5p \
-                     electrostatics1p electrostatics2p \
-                     magnetostatics electrostatics
 	rm -f *.o *~ volta tesla
 	rm -rf Volta-AMR* Tesla-AMR*
 	rm -f mesh.* sol.* sol_curl.* psi.*
