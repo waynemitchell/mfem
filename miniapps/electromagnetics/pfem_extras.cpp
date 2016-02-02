@@ -323,21 +323,40 @@ void VisualizeField(socketstream &sock, const char *vishost, int visport,
    MPI_Comm_size(comm, &num_procs);
    MPI_Comm_rank(comm, &myid);
 
+   bool newly_opened = false;
+   int connection_failed;
+
    do
    {
-      if (!sock.is_open() || !sock)
+      if (myid == 0)
       {
-         sock.open(vishost, visport);
-         sock.precision(8);
+         if (!sock.is_open() || !sock)
+         {
+            sock.open(vishost, visport);
+            sock.precision(8);
+            newly_opened = true;
+         }
+         sock << "solution\n";
       }
-      sock << "parallel " << num_procs << " " << myid << "\n";
-   }
-   while (!sock);
-   sock << "solution\n" << pmesh << gf
-        << "window_title '" << title << "'\n"
-        << "window_geometry " << x << " " << y << " " << w << " " << h << endl;
 
-   MPI_Barrier(comm);
+      pmesh.PrintAsOne(sock);
+      gf.SaveAsOne(sock);
+
+      if (myid == 0 && newly_opened)
+      {
+         sock << "window_title '" << title << "'\n"
+              << "window_geometry "
+              << x << " " << y << " " << w << " " << h << "\n"
+              << "keys maaAc" << endl;
+      }
+
+      if (myid == 0)
+      {
+         connection_failed = !sock;
+      }
+      MPI_Bcast(&connection_failed, 1, MPI_INT, 0, comm);
+   }
+   while (connection_failed);
 }
 
 }
