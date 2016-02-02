@@ -1371,7 +1371,7 @@ void GridFunction::ProjectBdrCoefficient(
             {
                const int *ev = edge_vertex->GetRow(edge);
                edge = ncmesh->GetEdgeMaster(ev[0], ev[1]);
-               if (edge < 0) { break; }
+               if (edge < 0 || edge >= mesh->GetNEdges()) { break; }
 
                fes->GetEdgeVDofs(edge, vdofs);
                if (vdofs.Size() == 0) { continue; }
