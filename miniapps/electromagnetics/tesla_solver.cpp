@@ -510,8 +510,8 @@ TeslaSolver::DisplayToGLVis()
    int  visport   = 19916;
 
    int Wx = 0, Wy = 0; // window position
-   int Ww = 400, Wh = 400; // window size
-   int offx = 410, offy = 450; // window offsets
+   int Ww = 350, Wh = 350; // window size
+   int offx = Ww+10, offy = Wh+45; // window offsets
 
    VisualizeField(*socks_["A"], vishost, visport,
                   *a_, "Vector Potential (A)", Wx, Wy, Ww, Wh);

@@ -353,7 +353,7 @@ VoltaSolver::Solve()
 
    }
 
-   // Initialize the suface charge density
+   // Initialize the surface charge density
    if ( sigma_ )
    {
       *sigma_ = 0.0;
@@ -558,8 +558,8 @@ VoltaSolver::DisplayToGLVis()
    int  visport   = 19916;
 
    int Wx = 0, Wy = 0; // window position
-   int Ww = 400, Wh = 400; // window size
-   int offx = 410, offy = 450; // window offsets
+   int Ww = 350, Wh = 350; // window size
+   int offx = Ww+10, offy = Wh+45; // window offsets
 
    VisualizeField(*socks_["Phi"], vishost, visport,
                   *phi_, "Electric Potential (Phi)", Wx, Wy, Ww, Wh);
