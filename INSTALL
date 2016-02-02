@@ -104,7 +104,7 @@ For a short help message, use
 
 The build process creates the MFEM library (libmfem.a) and the include file
 (mfem.hpp) needed in MFEM-based applications, see e.g. the example codes in the
-examples/ directory or the miniapps in the miniapps/ subdirectories. A selected
+examples/ directory or the miniapps in the miniapps/ directory. A selected
 subset of configuration options and derived makefile variables are also written
 to the file config/config.mk. This file can be included by other makefiles to
 obtain information about the MFEM configuration, see e.g. the makefile in the

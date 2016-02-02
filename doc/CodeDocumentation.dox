@@ -60,13 +60,15 @@ namespace mfem {
  * - <a class="el" href="ex13p_8cpp_source.html">Example 13p</a>: parallel Maxwell eigensolver
  * - <a class="el" href="ex14_8cpp_source.html">Example 14</a>: Discontinuous Galerkin (DG) for the Laplace problem
  * - <a class="el" href="ex14p_8cpp_source.html">Example 14p</a>: parallel Discontinuous Galerkin (DG) for the Laplace problem
- * - see also the <a class="el" href="../../../examples/README_files/index.html">README</a> in the <code>examples/</code> directory
  *
  * <H3>Miniapps</H3>
- * - <a class="el" href="mobius-strip_8cpp_source.html">Mobius strip</a>: generate various Mobius strip-like meshes
- * - <a class="el" href="klein-bottle_8cpp_source.html">Klein bottle</a>: generate three types of Klein bottle surfaces
- * - <a class="el" href="mesh-explorer_8cpp_source.html">Mesh explorer</a>: visualize and manipulate meshes
- * - see also the <a class="el" href="../../../examples/README_files/index.html">README</a> in the <code>examples/</code> directory
+ * - <a class="el" href="volta_8cpp_source.html">Volta</a>: simple electrostatics simulation code
+ * - <a class="el" href="tesla_8cpp_source.html">Tesla</a>: simple magnetostatics simulation code
+ * - <a class="el" href="mobius-strip_8cpp_source.html">Mobius Strip</a>: generate various Mobius strip-like meshes
+ * - <a class="el" href="klein-bottle_8cpp_source.html">Klein Bottle</a>: generate three types of Klein bottle surfaces
+ * - <a class="el" href="mesh-explorer_8cpp_source.html">Mesh Explorer</a>: visualize and manipulate meshes
+ *
+ * See also the <a class="el" href="../../../examples/README.html">README</a> in the <code>examples/</code> directory
  */
 
 }

@@ -106,11 +106,16 @@ New and updated examples
 
 New miniapps
 ------------
+- Electromagnetic miniapps:
+  * Volta - simple electrostatics simulation code.
+  * Tesla - simple magnetostatics simulation code.
+  See also the README file in miniapps/electromagnetics.
+
 - Meshing miniapps:
-  * mobius-strip  - generate various Mobius strip-like meshes.
-  * klein-bottle  - generate three types of Klein bottle surfaces.
-  * mesh-explorer - visualize and manipulate meshes.
-  See also miniapps/meshing/README.
+  * Mobius Strip  - generate various Mobius strip-like meshes.
+  * Klein Bottle  - generate three types of Klein bottle surfaces.
+  * Mesh Explorer - visualize and manipulate meshes.
+  See also the README file in miniapps/meshing.
 
 Miscellaneous
 -------------
