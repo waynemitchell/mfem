@@ -20,7 +20,9 @@
 #include "../../fem/pfespace.hpp"
 #include "../../fem/pbilinearform.hpp"
 
-namespace mfem
+using namespace mfem;
+
+namespace mfem_electromagnetics
 {
 
 /** The H1_ParFESpace class is a ParFiniteElementSpace which automatically
@@ -213,7 +215,7 @@ void VisualizeField(socketstream &sock, const char *vishost, int visport,
                     ParGridFunction &gf, const char *title,
                     int x = 0, int y = 0, int w = 400, int h = 400);
 
-} // namespace mfem
+} // namespace mfem_electromagnetics
 
 #endif // MFEM_USE_MPI
 #endif

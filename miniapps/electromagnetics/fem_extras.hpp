@@ -15,7 +15,9 @@
 #include <cstddef>
 #include "../../fem/fespace.hpp"
 
-namespace mfem
+using namespace mfem;
+
+namespace mfem_electromagnetics
 {
 
 /** The H1_FESpace class is a FiniteElementSpace which automatically
@@ -61,6 +63,6 @@ private:
    const FiniteElementCollection *FEC_;
 };
 
-} // namespace mfem
+} // namespace mfem_electromagnetics
 
 #endif
