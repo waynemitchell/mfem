@@ -175,6 +175,7 @@ int main(int argc, char *argv[])
    // Refine the serial mesh on all processors to increase the resolution. In
    // this example we do 'ref_levels' of uniform refinement. NURBS meshes are
    // refined twice more, as they are typically coarse.
+   if (myid == 0) { cout << "Starting initialization." << endl; }
    {
       int ref_levels = sr;
       if (mesh->NURBSext)
@@ -251,6 +252,7 @@ int main(int argc, char *argv[])
    {
       Volta.RegisterVisItFields(visit_dc);
    }
+   if (myid == 0) { cout << "Initialization done." << endl; }
 
    // The main AMR loop. In each iteration we solve the problem on the current
    // mesh, visualize the solution, estimate the error on all elements, refine
@@ -264,7 +266,9 @@ int main(int argc, char *argv[])
       Volta.PrintSizes(it);
 
       // Solve the system and compute any auxiliary fields
+      if (myid == 0) { cout << "Running solver ..." << endl; }
       Volta.Solve();
+      if (myid == 0) { cout << "Solver done." << endl; }
 
       // Determine the current size of the linear system
       int prob_size = Volta.GetProblemSize();
@@ -272,14 +276,21 @@ int main(int argc, char *argv[])
       // Write fields to disk for VisIt
       if ( visit )
       {
+         if (myid == 0) { cout << "Writing VisIt files ..." << flush; }
          Volta.WriteVisItFields(it);
+         if (myid == 0) { cout << " "; }
       }
 
       // Send the solution by socket to a GLVis server.
       if (visualization)
       {
+         if (myid == 0) { cout << "Sending data to GLVis ..." << flush; }
          Volta.DisplayToGLVis();
+         if (myid == 0) { cout << " "; }
       }
+      if (myid == 0 && (visit || visualization)) { cout << "done." << endl; }
+
+      if (myid == 0) { cout << "AMR iteration " << it << " complete." << endl; }
 
       // Check stopping criteria
       if (prob_size > max_dofs)
@@ -291,7 +302,22 @@ int main(int argc, char *argv[])
          break;
       }
 
+      // Wait for user input. Ask every 10th iteration.
+      char c = 'c';
+      if (myid == 0 && (it % 10 == 0))
+      {
+         cout << "press (q)uit or (c)ontinue --> " << flush;
+         cin >> c;
+      }
+      MPI_Bcast(&c, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+      if (c != 'c')
+      {
+         break;
+      }
+
       // Estimate element errors using the Zienkiewicz-Zhu error estimator.
+      if (myid == 0) { cout << "Error estimation ..." << flush; }
       Vector errors(pmesh.GetNE());
       {
          Volta.GetErrorEstimates(errors);
@@ -314,24 +340,13 @@ int main(int argc, char *argv[])
       // Refine the selected elements. Since we are going to transfer the
       // grid function x from the coarse mesh to the new fine mesh in the
       // next step, we need to request the "two-level state" of the mesh.
+      if (myid == 0) { cout << " Refinement ..." << flush; }
       pmesh.GeneralRefinement(ref_list);
 
       // Update the electrostatic solver to reflect the new state of the mesh.
+      if (myid == 0) { cout << " Assembly ..." << flush; }
       Volta.Update();
-
-      // Wait for user input. Ask every 10th iteration.
-      char c = 'c';
-      if (myid == 0 && (it % 10 == 0))
-      {
-         cout << "press (q)uit or (c)ontinue --> " << flush;
-         cin >> c;
-      }
-      MPI_Bcast(&c, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
-
-      if (c != 'c')
-      {
-         break;
-      }
+      if (myid == 0) { cout << " done." << endl; }
    }
 
    MPI_Finalize();
