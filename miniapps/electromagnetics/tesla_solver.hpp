@@ -43,7 +43,7 @@ public:
 
    HYPRE_Int GetProblemSize();
 
-   void PrintSizes(int it = 0);
+   void PrintSizes();
 
    void Update();
 
@@ -125,6 +125,8 @@ public:
    ParGridFunction * GetPsi() { return psi_; }
 
 private:
+   int myid_;
+
    ParFiniteElementSpace   * H1FESpace_;
    ParFiniteElementSpace   * HCurlFESpace_;
    ParDiscreteGradOperator * Grad_;

@@ -43,7 +43,7 @@ public:
 
    HYPRE_Int GetProblemSize();
 
-   void PrintSizes(int it = 0);
+   void PrintSizes();
 
    void Update();
 

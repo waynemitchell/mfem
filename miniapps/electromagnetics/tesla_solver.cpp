@@ -220,23 +220,24 @@ TeslaSolver::GetProblemSize()
 }
 
 void
-TeslaSolver::PrintSizes(int it)
+TeslaSolver::PrintSizes()
 {
    HYPRE_Int size_h1 = H1FESpace_->GlobalTrueVSize();
    HYPRE_Int size_nd = HCurlFESpace_->GlobalTrueVSize();
    HYPRE_Int size_rt = HDivFESpace_->GlobalTrueVSize();
    if (myid_ == 0)
    {
-      if ( it > 0 ) { cout << "\nIteration " << it << endl; }
       cout << "Number of H1      unknowns: " << size_h1 << endl;
       cout << "Number of H(Curl) unknowns: " << size_nd << endl;
-      cout << "Number of H(Div)  unknowns: " << size_rt << endl;
+      cout << "Number of H(Div)  unknowns: " << size_rt << endl << flush;
    }
 }
 
 void
 TeslaSolver::Update()
 {
+   if (myid_ == 0) { cout << " Assembly ... " << flush; }
+
    // Inform the spaces that the mesh has changed
    H1FESpace_->Update();
    HCurlFESpace_->Update();
@@ -281,11 +282,15 @@ TeslaSolver::Update()
    if ( Grad_        ) { Grad_->Update(); }
    if ( DivFreeProj_ ) { DivFreeProj_->Update(); }
    if ( SurfCur_     ) { SurfCur_->Update(); }
+
+   if (myid_ == 0) { cout << "done." << flush; }
 }
 
 void
 TeslaSolver::Solve()
 {
+   if (myid_ == 0) { cout << "Running solver ... " << endl << flush; }
+
    // Initialize the magnetic vector potential with its boundary conditions
    *a_ = 0.0;
 
@@ -376,6 +381,8 @@ TeslaSolver::Solve()
    *b_ = *B;
 
    // Compute magnetic field (H) from B and M
+   if (myid_ == 0) { cout << "Computing H ... " << flush; }
+
    HypreParMatrix *HDivHCurlMuInv = hDivHCurlMuInv_->ParallelAssemble();
    HypreParVector *BD = new HypreParVector(HCurlFESpace_);
    HypreParVector *H  = new HypreParVector(HCurlFESpace_);
@@ -397,6 +404,8 @@ TeslaSolver::Solve()
 
    *h_ = *H;
 
+   if (myid_ == 0) { cout << "done." << flush; }
+
    delete diagM;
    delete pcgM;
    delete HDivHCurlMuInv;
@@ -406,11 +415,15 @@ TeslaSolver::Solve()
    delete BD;
    delete H;
    delete M;
+
+   if (myid_ == 0) { cout << " Solver done. " << flush; }
 }
 
 void
 TeslaSolver::GetErrorEstimates(Vector & errors)
 {
+   if (myid_ == 0) { cout << "Error estimation ... " << flush; }
+
    // Space for the discontinuous (original) flux
    CurlCurlIntegrator flux_integrator(*muInvCoef_);
    RT_FECollection flux_fec(order_-1, pmesh_->SpaceDimension());
@@ -423,6 +436,8 @@ TeslaSolver::GetErrorEstimates(Vector & errors)
 
    L2ZZErrorEstimator(flux_integrator, *a_,
                       smooth_flux_fes, flux_fes, errors, norm_p);
+
+   if (myid_ == 0) { cout << "done." << flush; }
 }
 
 void
@@ -444,20 +459,21 @@ TeslaSolver::WriteVisItFields(int it)
 {
    if ( visit_dc_ )
    {
+      if (myid_ == 0) { cout << "Writing VisIt files ..." << flush; }
+
       HYPRE_Int prob_size = this->GetProblemSize();
       visit_dc_->SetCycle(it);
       visit_dc_->SetTime(prob_size);
       visit_dc_->Save();
+
+      if (myid_ == 0) { cout << " " << flush; }
    }
 }
 
 void
 TeslaSolver::InitializeGLVis()
 {
-   if ( myid_ == 0 )
-   {
-      cout << "Opening GLVis sockets." << endl << flush;
-   }
+   if ( myid_ == 0 ) { cout << "Opening GLVis sockets." << endl << flush; }
 
    socks_["A"] = new socketstream;
    socks_["A"]->precision(8);
@@ -486,15 +502,14 @@ TeslaSolver::InitializeGLVis()
       socks_["M"] = new socketstream;
       socks_["M"]->precision(8);
    }
-   if ( myid_ == 0 )
-   {
-      cout << "GLVis sockets open." << endl << flush;
-   }
+   if ( myid_ == 0 ) { cout << "GLVis sockets open." << endl << flush; }
 }
 
 void
 TeslaSolver::DisplayToGLVis()
 {
+   if (myid_ == 0) { cout << "Sending data to GLVis ..." << flush; }
+
    char vishost[] = "localhost";
    int  visport   = 19916;
 
@@ -539,6 +554,7 @@ TeslaSolver::DisplayToGLVis()
                      *m_, "Magnetization (M)", Wx, Wy, Ww, Wh);
       Wx += offx;
    }
+   if (myid_ == 0) { cout << " " << flush; }
 }
 
 SurfaceCurrent::SurfaceCurrent(ParFiniteElementSpace & H1FESpace,
@@ -553,6 +569,9 @@ SurfaceCurrent::SurfaceCurrent(ParFiniteElementSpace & H1FESpace,
      vbcs_(&vbcs),
      vbcv_(&vbcv)
 {
+   // Initialize MPI variables
+   MPI_Comm_rank(H1FESpace_->GetParMesh()->GetComm(), &myid_);
+
    s0_ = new ParBilinearForm(H1FESpace_);
    s0_->AddBoundaryIntegrator(new DiffusionIntegrator);
    s0_->Assemble();
@@ -619,6 +638,8 @@ SurfaceCurrent::~SurfaceCurrent()
 void
 SurfaceCurrent::ComputeSurfaceCurrent(ParGridFunction & k)
 {
+   if (myid_ == 0) { cout << "Computing K ... " << flush; }
+
    k = 0.0;
    pcg_->Mult(*RHS_, *PSI_);
    *psi_ = *PSI_;
@@ -629,6 +650,8 @@ SurfaceCurrent::ComputeSurfaceCurrent(ParGridFunction & k)
    Vector vZero(3); vZero = 0.0;
    VectorConstantCoefficient Zero(vZero);
    k.ProjectBdrCoefficientTangent(Zero,non_k_bdr_);
+
+   if (myid_ == 0) { cout << "done." << endl << flush; }
 }
 
 void

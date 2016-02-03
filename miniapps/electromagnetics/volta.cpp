@@ -95,7 +95,8 @@ int main(int argc, char *argv[])
    if ( myid == 0 ) { display_banner(cout); }
 
    // Parse command-line options.
-   const char *mesh_file = "../../data/ball-nurbs.mesh";
+   // const char *mesh_file = "../../data/ball-nurbs.mesh";
+   const char *mesh_file = "butterfly_3d.mesh";
    int order = 1;
    int sr = 0, pr = 0;
    bool visualization = true;
@@ -267,13 +268,16 @@ int main(int argc, char *argv[])
    const int max_dofs = 100000;
    for (int it = 1; it <= 100; it++)
    {
+      if (myid == 0)
+      {
+         cout << "\nAMR Iteration " << it << endl;
+      }
+
       // Display the current number of DoFs in each finite element space
-      Volta.PrintSizes(it);
+      Volta.PrintSizes();
 
       // Solve the system and compute any auxiliary fields
-      if (myid == 0) { cout << "Running solver ..." << endl; }
       Volta.Solve();
-      if (myid == 0) { cout << "Solver done." << endl; }
 
       // Determine the current size of the linear system
       int prob_size = Volta.GetProblemSize();
@@ -281,21 +285,20 @@ int main(int argc, char *argv[])
       // Write fields to disk for VisIt
       if ( visit )
       {
-         if (myid == 0) { cout << "Writing VisIt files ..." << flush; }
          Volta.WriteVisItFields(it);
-         if (myid == 0) { cout << " "; }
       }
 
       // Send the solution by socket to a GLVis server.
       if (visualization)
       {
-         if (myid == 0) { cout << "Sending data to GLVis ..." << flush; }
          Volta.DisplayToGLVis();
-         if (myid == 0) { cout << " "; }
       }
       if (myid == 0 && (visit || visualization)) { cout << "done." << endl; }
 
-      if (myid == 0) { cout << "AMR iteration " << it << " complete." << endl; }
+      if (myid == 0)
+      {
+	 cout << "AMR iteration " << it << " complete." << endl;
+      }
 
       // Check stopping criteria
       if (prob_size > max_dofs)
@@ -349,9 +352,7 @@ int main(int argc, char *argv[])
       pmesh.GeneralRefinement(ref_list);
 
       // Update the electrostatic solver to reflect the new state of the mesh.
-      if (myid == 0) { cout << " Assembly ..." << flush; }
       Volta.Update();
-      if (myid == 0) { cout << " done." << endl; }
    }
 
    MPI_Finalize();

@@ -215,14 +215,13 @@ VoltaSolver::GetProblemSize()
 }
 
 void
-VoltaSolver::PrintSizes(int it)
+VoltaSolver::PrintSizes()
 {
    HYPRE_Int size_h1 = H1FESpace_->GlobalTrueVSize();
    HYPRE_Int size_nd = HCurlFESpace_->GlobalTrueVSize();
    HYPRE_Int size_rt = HDivFESpace_->GlobalTrueVSize();
    if (myid_ == 0)
    {
-      if ( it > 0 ) { cout << "\nIteration " << it << endl; }
       cout << "Number of H1      unknowns: " << size_h1 << endl;
       cout << "Number of H(Curl) unknowns: " << size_nd << endl;
       cout << "Number of H(Div)  unknowns: " << size_rt << endl;
@@ -232,6 +231,8 @@ VoltaSolver::PrintSizes(int it)
 void
 VoltaSolver::Update()
 {
+   if (myid_ == 0) { cout << " Assembly ... " << flush; }
+
    // Inform the spaces that the mesh has changed
    H1FESpace_->Update();
    HCurlFESpace_->Update();
@@ -288,11 +289,15 @@ VoltaSolver::Update()
 
    // Inform the other objects that the space has changed.
    Grad_->Update();
+
+   if (myid_ == 0) { cout << "done." << flush; }
 }
 
 void
 VoltaSolver::Solve()
 {
+   if (myid_ == 0) { cout << "Running solver ... " << endl << flush; }
+
    // Initialize the electric potential with its boundary conditions
    *phi_ = 0.0;
 
@@ -429,7 +434,9 @@ VoltaSolver::Solve()
 
    delete Phi;
 
-   // Compute electric displacement (H) from E and P
+   // Compute electric displacement (D) from E and P
+   if (myid_ == 0) { cout << "Computing D ... " << flush; }
+
    HypreParMatrix *HCurlHDivEps = hCurlHDivEps_->ParallelAssemble();
    HypreParVector *ED = new HypreParVector(HDivFESpace_);
    HypreParVector *D  = new HypreParVector(HDivFESpace_);
@@ -455,6 +462,8 @@ VoltaSolver::Solve()
 
    *d_ = *D;
 
+   if (myid_ == 0) { cout << "done." << flush; }
+
    delete diagM;
    delete pcgM;
    delete HCurlHDivEps;
@@ -463,11 +472,15 @@ VoltaSolver::Solve()
    delete ED;
    delete D;
    delete P;
+
+   if (myid_ == 0) { cout << " Solver done. " << flush; }
 }
 
 void
 VoltaSolver::GetErrorEstimates(Vector & errors)
 {
+   if (myid_ == 0) { cout << "Error estimation ... " << flush; }
+
    // Space for the discontinuous (original) flux
    DiffusionIntegrator flux_integrator(*epsCoef_);
    L2_FECollection flux_fec(order_, pmesh_->Dimension());
@@ -481,6 +494,7 @@ VoltaSolver::GetErrorEstimates(Vector & errors)
    L2ZZErrorEstimator(flux_integrator, *phi_,
                       smooth_flux_fes, flux_fes, errors, norm_p);
 
+   if (myid_ == 0) { cout << "done." << flush; }
 }
 
 void
@@ -501,20 +515,21 @@ VoltaSolver::WriteVisItFields(int it)
 {
    if ( visit_dc_ )
    {
+      if (myid_ == 0) { cout << "Writing VisIt files ..." << flush; }
+
       HYPRE_Int prob_size = this->GetProblemSize();
       visit_dc_->SetCycle(it);
       visit_dc_->SetTime(prob_size);
       visit_dc_->Save();
+
+      if (myid_ == 0) { cout << " " << flush; }
    }
 }
 
 void
 VoltaSolver::InitializeGLVis()
 {
-   if ( myid_ == 0 )
-   {
-      cout << "Opening GLVis sockets." << endl << flush;
-   }
+   if ( myid_ == 0 ) { cout << "Opening GLVis sockets." << endl << flush; }
 
    socks_["Phi"] = new socketstream;
    socks_["Phi"]->precision(8);
@@ -540,11 +555,14 @@ VoltaSolver::InitializeGLVis()
       socks_["Sigma"] = new socketstream;
       socks_["Sigma"]->precision(8);
    }
+   if ( myid_ == 0 ) { cout << "GLVis sockets open." << endl << flush; }
 }
 
 void
 VoltaSolver::DisplayToGLVis()
 {
+   if (myid_ == 0) { cout << "Sending data to GLVis ..." << flush; }
+
    char vishost[] = "localhost";
    int  visport   = 19916;
 
@@ -583,6 +601,7 @@ VoltaSolver::DisplayToGLVis()
                      *sigma_, "Surface Charge Density (Sigma)", Wx, Wy, Ww, Wh);
       Wx += offx;
    }
+   if (myid_ == 0) { cout << " " << flush; }
 }
 
 } // namespace mfem_electromagnetics

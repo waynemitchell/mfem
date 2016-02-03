@@ -259,13 +259,16 @@ int main(int argc, char *argv[])
    const int max_dofs = 10000000;
    for (int it = 1; it <= 100; it++)
    {
+      if (myid == 0)
+      {
+         cout << "\nAMR Iteration " << it << endl;
+      }
+
       // Display the current number of DoFs in each finite element space
-      Tesla.PrintSizes(it);
+      Tesla.PrintSizes();
 
       // Solve the system and compute any auxiliary fields
-      if (myid == 0) { cout << "Running solver ..." << endl; }
       Tesla.Solve();
-      if (myid == 0) { cout << "Solver done." << endl; }
 
       // Determine the current size of the linear system
       int prob_size = Tesla.GetProblemSize();
@@ -273,21 +276,20 @@ int main(int argc, char *argv[])
       // Write fields to disk for VisIt
       if ( visit )
       {
-         if (myid == 0) { cout << "Writing VisIt files ..." << flush; }
          Tesla.WriteVisItFields(it);
-         if (myid == 0) { cout << " "; }
       }
 
       // Send the solution by socket to a GLVis server.
       if (visualization)
       {
-         if (myid == 0) { cout << "Sending data to GLVis ..." << flush; }
          Tesla.DisplayToGLVis();
-         if (myid == 0) { cout << " "; }
       }
       if (myid == 0 && (visit || visualization)) { cout << "done." << endl; }
 
-      if (myid == 0) { cout << "AMR iteration " << it << " complete." << endl; }
+      if (myid == 0)
+      {
+	 cout << "AMR iteration " << it << " complete." << endl;
+      }
 
       // Check stopping criteria
       if (prob_size > max_dofs)
@@ -314,7 +316,6 @@ int main(int argc, char *argv[])
       }
 
       // Estimate element errors using the Zienkiewicz-Zhu error estimator.
-      if (myid == 0) { cout << "Error estimation ..." << flush; }
       Vector errors(pmesh.GetNE());
       {
          Tesla.GetErrorEstimates(errors);
@@ -341,9 +342,7 @@ int main(int argc, char *argv[])
       pmesh.GeneralRefinement(ref_list);
 
       // Update the magnetostatic solver to reflect the new state of the mesh.
-      if (myid == 0) { cout << " Assembly ..." << flush; }
       Tesla.Update();
-      if (myid == 0) { cout << " done." << endl; }
    }
 
    MPI_Finalize();
