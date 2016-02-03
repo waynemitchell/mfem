@@ -288,7 +288,7 @@ int main(int argc, char *argv[])
 
       if (myid == 0)
       {
-	 cout << "AMR iteration " << it << " complete." << endl;
+         cout << "AMR iteration " << it << " complete." << endl;
       }
 
       // Check stopping criteria
