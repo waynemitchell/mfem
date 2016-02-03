@@ -168,8 +168,7 @@ int main(int argc, char *argv[])
    }
    else if (hybridization)
    {
-      hfec = new RT_Trace_FECollection(order-1, dim,
-                                       FiniteElement::VALUE, false);
+      hfec = new DG_Interface_FECollection(order-1, dim);
       hfes = new FiniteElementSpace(mesh, hfec);
       a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(),
                              ess_tdof_list);
