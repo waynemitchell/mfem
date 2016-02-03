@@ -391,10 +391,13 @@ TeslaSolver::Solve()
    pcgM->SetTol(1e-12);
    pcgM->SetMaxIter(500);
    pcgM->SetPrintLevel(0);
+   HypreDiagScale *diagM = new HypreDiagScale;
+   pcgM->SetPreconditioner(*diagM);
    pcgM->Mult(*BD,*H);
 
    *h_ = *H;
 
+   delete diagM;
    delete pcgM;
    delete HDivHCurlMuInv;
    delete MassHCurl;

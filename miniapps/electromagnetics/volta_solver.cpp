@@ -449,10 +449,13 @@ VoltaSolver::Solve()
    pcgM->SetTol(1e-12);
    pcgM->SetMaxIter(500);
    pcgM->SetPrintLevel(0);
+   HypreDiagScale *diagM = new HypreDiagScale;
+   pcgM->SetPreconditioner(*diagM);
    pcgM->Mult(*ED,*D);
 
    *d_ = *D;
 
+   delete diagM;
    delete pcgM;
    delete HCurlHDivEps;
    delete MassHDiv;
