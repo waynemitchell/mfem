@@ -6,17 +6,17 @@
 //               mpirun -np 4 ex4p -m ../data/star.mesh
 //               mpirun -np 4 ex4p -m ../data/beam-tet.mesh
 //               mpirun -np 4 ex4p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex4p -m ../data/escher.mesh
+//               mpirun -np 4 ex4p -m ../data/escher.mesh -o 2 -sc
 //               mpirun -np 4 ex4p -m ../data/fichera.mesh -o 2 -hb
 //               mpirun -np 4 ex4p -m ../data/fichera-q2.vtk
-//               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh
-//               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh
-//               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh -o 2 -sc
+//               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh -o 3
+//               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh -o 3
 //               mpirun -np 4 ex4p -m ../data/periodic-square.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/amr-quad.mesh
-//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh
-//               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 2
+//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -sc
+//               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 3 -hb
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
          ParFiniteElementSpace nd_tr_space(pmesh, &nd_tr_fec);
          prec = new HypreAMS(A, &nd_tr_space);
       }
-      else { prec = new HypreADS(A, hfes); }
+      else { prec = new HypreADS(A, a->StaticCondensationParFESpace()); }
    }
    else if (hybridization) { prec = new HypreBoomerAMG(A); }
    else

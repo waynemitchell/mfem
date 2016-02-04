@@ -18,6 +18,7 @@
 //               ex1 -m ../data/amr-hex.mesh
 //               ex1 -m ../data/fichera-amr.mesh
 //               ex1 -m ../data/mobius-strip.mesh
+//               ex1 -m ../data/mobius-strip.mesh -o -1 -sc
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               simple finite element discretization of the Laplace problem
@@ -106,6 +107,7 @@ int main(int argc, char *argv[])
    else if (mesh->GetNodes())
    {
       fec = mesh->GetNodes()->OwnFEC();
+      cout << "Using isoparametric FEs: " << fec->Name() << endl;
    }
    else
    {

@@ -9,14 +9,14 @@
 //               ex4 -m ../data/escher.mesh
 //               ex4 -m ../data/fichera.mesh -o 2 -hb
 //               ex4 -m ../data/fichera-q2.vtk
-//               ex4 -m ../data/fichera-q3.mesh
+//               ex4 -m ../data/fichera-q3.mesh -o 2 -sc
 //               ex4 -m ../data/square-disc-nurbs.mesh
 //               ex4 -m ../data/beam-hex-nurbs.mesh
 //               ex4 -m ../data/periodic-square.mesh -no-bc
 //               ex4 -m ../data/periodic-cube.mesh -no-bc
 //               ex4 -m ../data/amr-quad.mesh
 //               ex4 -m ../data/amr-hex.mesh
-//               ex4 -m ../data/fichera-amr.mesh
+//               ex4 -m ../data/fichera-amr.mesh -o 2 -sc
 //               ex4 -m ../data/star-surf.mesh -o 1
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
