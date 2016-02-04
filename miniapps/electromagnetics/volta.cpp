@@ -178,13 +178,13 @@ int main(int argc, char *argv[])
 
    // Refine the serial mesh on all processors to increase the resolution. In
    // this example we do 'ref_levels' of uniform refinement. NURBS meshes are
-   // refined twice more, as they are typically coarse.
+   // refined at least twice, as they are typically coarse.
    if (myid == 0) { cout << "Starting initialization." << endl; }
    {
       int ref_levels = sr;
-      if (mesh->NURBSext)
+      if (mesh->NURBSext && ref_levels < 2)
       {
-         ref_levels += 2;
+         ref_levels = 2;
       }
       for (int l = 0; l < ref_levels; l++)
       {
@@ -324,9 +324,8 @@ int main(int argc, char *argv[])
 
       // Estimate element errors using the Zienkiewicz-Zhu error estimator.
       Vector errors(pmesh.GetNE());
-      {
-         Volta.GetErrorEstimates(errors);
-      }
+      Volta.GetErrorEstimates(errors);
+
       double local_max_err = errors.Max();
       double global_max_err;
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
