@@ -389,7 +389,7 @@ TeslaSolver::Solve()
 
    HDivHCurlMuInv->Mult(*B,*BD);
 
-   if ( M  )
+   if ( M )
    {
       HDivHCurlMuInv->Mult(*M,*BD,-1.0*mu0_,1.0);
    }

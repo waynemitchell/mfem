@@ -484,6 +484,7 @@ VoltaSolver::GetErrorEstimates(Vector & errors)
    // Space for the discontinuous (original) flux
    DiffusionIntegrator flux_integrator(*epsCoef_);
    L2_FECollection flux_fec(order_, pmesh_->Dimension());
+   // ND_FECollection flux_fec(order_, pmesh_->Dimension());
    ParFiniteElementSpace flux_fes(pmesh_, &flux_fec, pmesh_->SpaceDimension());
 
    // Space for the smoothed (conforming) flux

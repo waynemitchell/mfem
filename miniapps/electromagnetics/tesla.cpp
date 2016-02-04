@@ -10,7 +10,7 @@
 // Software Foundation) version 2.1 dated February 1999.
 //
 //            -----------------------------------------------------
-//            Tesla Miniapp:  Simple Magnetostatics simulation code
+//            Tesla Miniapp:  Simple Magnetostatics Simulation Code
 //            -----------------------------------------------------
 //
 // This miniapp solves a simple 3D magnetostatic problem.
@@ -103,7 +103,6 @@ int main(int argc, char *argv[])
    if ( myid == 0 ) { display_banner(cout); }
 
    // Parse command-line options.
-   // const char *mesh_file = "../../data/ball-nurbs.mesh";
    const char *mesh_file = "butterfly_3d.mesh";
    int order = 1;
    int sr = 0, pr = 0;
@@ -381,7 +380,7 @@ double magnetic_shell(const Vector &x)
    return mu0_;
 }
 
-// A annular ring of current density.  The ring has two axis end
+// An annular ring of current density.  The ring has two axis end
 // points, inner and outer radii, and a constant current in Amperes.
 void current_ring(const Vector &x, Vector &j)
 {

@@ -10,7 +10,7 @@
 // Software Foundation) version 2.1 dated February 1999.
 //
 //            -----------------------------------------------------
-//            Volta Miniapp:  Simple Electrostatics simulation code
+//            Volta Miniapp:  Simple Electrostatics Simulation Code
 //            -----------------------------------------------------
 //
 // This miniapp solves a simple 2D or 3D electrostatic problem.
@@ -18,7 +18,7 @@
 //                            Div eps Grad Phi = rho
 //
 // The permittivity function is that of the vacuum with an optional dielectric
-// sphere. The charge density is either zero of a user defined sphere of charge.
+// sphere. The charge density is either zero or a user defined sphere of charge.
 //
 // Boundary conditions for the electric potential consist of a user defined
 // piecewise constant potential or a potential leading to a user selected
@@ -95,7 +95,6 @@ int main(int argc, char *argv[])
    if ( myid == 0 ) { display_banner(cout); }
 
    // Parse command-line options.
-   // const char *mesh_file = "../../data/ball-nurbs.mesh";
    const char *mesh_file = "butterfly_3d.mesh";
    int order = 1;
    int sr = 0, pr = 0;
@@ -224,14 +223,14 @@ int main(int argc, char *argv[])
    }
 
    // If values for Dirichlet BCs were not set assume they are zero
-   if (dbcv.Size() < dbcs.Size() && !dbcg )
+   if ( dbcv.Size() < dbcs.Size() && !dbcg )
    {
       dbcv.SetSize(dbcs.Size());
       dbcv = 0.0;
    }
 
    // If values for Neumann BCs were not set assume they are zero
-   if (nbcv.Size() < nbcs.Size() )
+   if ( nbcv.Size() < nbcs.Size() )
    {
       nbcv.SetSize(nbcs.Size());
       nbcv = 0.0;
@@ -264,7 +263,7 @@ int main(int argc, char *argv[])
    // the worst elements and update all objects to work with the new mesh.  We
    // refine until the maximum number of dofs in the nodal finite element space
    // reaches 10 million.
-   const int max_dofs = 100000;
+   const int max_dofs = 10000000;
    for (int it = 1; it <= 100; it++)
    {
       if (myid == 0)
