@@ -32,7 +32,8 @@
 //               The example demonstrates the use of high-order and NURBS vector
 //               finite element spaces with the linear elasticity bilinear form,
 //               meshes with curved elements, and the definition of piece-wise
-//               constant and vector coefficient objects.
+//               constant and vector coefficient objects. Static condensation is
+//               also illustrated.
 //
 //               We recommend viewing Example 1 before viewing this example.
 
@@ -174,13 +175,16 @@ int main(int argc, char *argv[])
            << "Assembling: " << flush;
    }
 
-   // TODO: comments
+   // 8. Determine the list of true (i.e. parallel conforming) essential
+   //    boundary dofs. In this example, the boundary conditions are defined by
+   //    marking only boundary attribute 1 from the mesh as essential and
+   //    converting it to a list of true dofs.
    Array<int> ess_tdof_list, ess_bdr(pmesh->bdr_attributes.Max());
    ess_bdr = 0;
    ess_bdr[0] = 1;
    fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
-   // 8. Set up the parallel linear form b(.) which corresponds to the
+   // 9. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system. In this case, b_i equals the
    //    boundary integral of f*phi_i where f represents a "pull down" force on
    //    the Neumann part of the boundary and phi_i are the basis functions in
@@ -208,17 +212,15 @@ int main(int argc, char *argv[])
    }
    b->Assemble();
 
-   // 9. Define the solution vector x as a parallel finite element grid function
-   //    corresponding to fespace. Initialize x with initial guess of zero,
-   //    which satisfies the boundary conditions.
+   // 10. Define the solution vector x as a parallel finite element grid
+   //     function corresponding to fespace. Initialize x with initial guess of
+   //     zero, which satisfies the boundary conditions.
    ParGridFunction x(fespace);
    x = 0.0;
 
-   // 10. Set up the parallel bilinear form a(.,.) on the finite element space
+   // 11. Set up the parallel bilinear form a(.,.) on the finite element space
    //     corresponding to the linear elasticity integrator with piece-wise
-   //     constants coefficient lambda and mu. The boundary conditions are
-   //     implemented by marking only boundary attribute 1 as essential. After
-   //     serial/parallel assembly we extract the corresponding parallel matrix.
+   //     constants coefficient lambda and mu.
    Vector lambda(pmesh->attributes.Max());
    lambda = 1.0;
    lambda(0) = lambda(1)*50;
@@ -231,7 +233,10 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func, mu_func));
 
-   // TODO: comments
+   // 12. Assemble the parallel bilinear form and the corresponding linear
+   //     system, applying any necessary transformations such as: parallel
+   //     assembly, eliminating boundary conditions, applying conforming
+   //     constraints for non-conforming AMR, static condensation, etc.
    if (myid == 0) { cout << "matrix ... " << flush; }
    if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
@@ -242,7 +247,6 @@ int main(int argc, char *argv[])
    if (myid == 0)
    {
       cout << "done." << endl;
-
       cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
    }
 
@@ -264,8 +268,8 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*amg);
    pcg->Mult(B, X);
 
-   // 14. Extract the parallel grid function corresponding to the finite element
-   //     approximation X. This is the local solution on each processor.
+   // 14. Recover the parallel grid function corresponding to X. This is the
+   //     local finite element solution on each processor.
    a->RecoverFEMSolution(X, *b, x);
 
    // 15. For non-NURBS meshes, make the mesh curved based on the finite element

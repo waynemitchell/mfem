@@ -28,7 +28,8 @@
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
 //               bilinear form, as well as the computation of discretization
-//               error when the exact solution is known.
+//               error when the exact solution is known. Static condensation is
+//               also illustrated.
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
@@ -145,7 +146,10 @@ int main(int argc, char *argv[])
       cout << "Number of finite element unknowns: " << size << endl;
    }
 
-   // TODO: comments
+   // 7. Determine the list of true (i.e. parallel conforming) essential
+   //    boundary dofs. In this example, the boundary conditions are defined
+   //    by marking all the boundary attributes from the mesh as essential
+   //    (Dirichlet) and converting them to a list of true dofs.
    Array<int> ess_tdof_list;
    if (pmesh->bdr_attributes.Size())
    {
@@ -154,7 +158,7 @@ int main(int argc, char *argv[])
       fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    }
 
-   // 7. Set up the parallel linear form b(.) which corresponds to the
+   // 8. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
    //    (f,phi_i) where f is given by the function f_exact and phi_i are the
    //    basis functions in the finite element fespace.
@@ -163,7 +167,7 @@ int main(int argc, char *argv[])
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
 
-   // 8. Define the solution vector x as a parallel finite element grid function
+   // 9. Define the solution vector x as a parallel finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary edges will be used
    //    when eliminating the non-homogeneous boundary condition to modify the
@@ -172,25 +176,22 @@ int main(int argc, char *argv[])
    VectorFunctionCoefficient E(sdim, E_exact);
    x.ProjectCoefficient(E);
 
-   // 9. Set up the parallel bilinear form corresponding to the EM diffusion
-   //    operator curl muinv curl + sigma I, by adding the curl-curl and the
-   //    mass domain integrators and finally imposing non-homogeneous Dirichlet
-   //    boundary conditions. The boundary conditions are implemented by
-   //    marking all the boundary attributes from the mesh as essential
-   //    (Dirichlet). After serial and parallel assembly we extract the
-   //    parallel matrix A.
+   // 10. Set up the parallel bilinear form corresponding to the EM diffusion
+   //     operator curl muinv curl + sigma I, by adding the curl-curl and the
+   //     mass domain integrators.
    Coefficient *muinv = new ConstantCoefficient(1.0);
    Coefficient *sigma = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
 
-   // TODO: comments
+   // 11. Assemble the parallel bilinear form and the corresponding linear
+   //     system, applying any necessary transformations such as: parallel
+   //     assembly, eliminating boundary conditions, applying conforming
+   //     constraints for non-conforming AMR, static condensation, etc.
    if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
-   // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //     b(.) and the finite element approximation.
    HypreParMatrix A;
    Vector B, X;
    a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
@@ -212,8 +213,8 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*ams);
    pcg->Mult(B, X);
 
-   // 13. Extract the parallel grid function corresponding to the finite element
-   //     approximation X. This is the local solution on each processor.
+   // 13. Recover the parallel grid function corresponding to X. This is the
+   //     local finite element solution on each processor.
    a->RecoverFEMSolution(X, *b, x);
 
    // 14. Compute and print the L^2 norm of the error.

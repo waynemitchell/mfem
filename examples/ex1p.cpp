@@ -32,8 +32,8 @@
 //               element grid functions, as well as linear and bilinear forms
 //               corresponding to the left-hand side and right-hand side of the
 //               discrete linear system. We also cover the explicit elimination
-//               of boundary conditions on all boundary edges, and the optional
-//               connection to the GLVis tool for visualization.
+//               of essential boundary conditions, static condensation, and the
+//               optional connection to the GLVis tool for visualization.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -153,7 +153,10 @@ int main(int argc, char *argv[])
       cout << "Number of finite element unknowns: " << size << endl;
    }
 
-   // TODO: comments
+   // 7. Determine the list of true (i.e. parallel conforming) essential
+   //    boundary dofs. In this example, the boundary conditions are defined
+   //    by marking all the boundary attributes from the mesh as essential
+   //    (Dirichlet) and converting them to a list of true dofs.
    Array<int> ess_tdof_list;
    if (pmesh->bdr_attributes.Size())
    {
@@ -178,14 +181,14 @@ int main(int argc, char *argv[])
 
    // 9. Set up the parallel bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
-   //    domain integrator and imposing homogeneous Dirichlet boundary
-   //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential. After serial and
-   //    parallel assembly we extract the corresponding parallel matrix A.
+   //    domain integrator.
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
 
-   // TODO: comments
+   // 10. Assemble the parallel bilinear form and the corresponding linear
+   //     system, applying any necessary transformations such as: parallel
+   //     assembly, eliminating boundary conditions, applying conforming
+   //     constraints for non-conforming AMR, static condensation, etc.
    if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
@@ -198,7 +201,7 @@ int main(int argc, char *argv[])
       cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
    }
 
-   // 12. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   // 11. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
    //     preconditioner from hypre.
    HypreSolver *amg = new HypreBoomerAMG(A);
    HyprePCG *pcg = new HyprePCG(A);
@@ -208,11 +211,11 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*amg);
    pcg->Mult(B, X);
 
-   // 13. Extract the parallel grid function corresponding to the finite element
-   //     approximation X. This is the local solution on each processor.
+   // 12. Recover the parallel grid function corresponding to X. This is the
+   //     local finite element solution on each processor.
    a->RecoverFEMSolution(X, *b, x);
 
-   // 14. Save the refined mesh and the solution in parallel. This output can
+   // 13. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, sol_name;
@@ -228,7 +231,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 15. Send the solution by socket to a GLVis server.
+   // 14. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -239,7 +242,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *pmesh << x << flush;
    }
 
-   // 16. Free the used memory.
+   // 15. Free the used memory.
    delete pcg;
    delete amg;
    delete a;

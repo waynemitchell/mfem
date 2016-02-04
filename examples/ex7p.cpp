@@ -234,10 +234,10 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddDomainIntegrator(new MassIntegrator(one));
-   a->Assemble();
 
    // 9. Assemble the parallel linear system, applying any transformations
    //    such as: parallel assembly, applying conforming constraints, etc.
+   a->Assemble();
    HypreParMatrix A;
    Vector B, X;
    Array<int> empty_tdof_list;

@@ -29,7 +29,7 @@
 //               spaces with the grad-div and H(div) vector finite element mass
 //               bilinear form, as well as the computation of discretization
 //               error when the exact solution is known. Bilinear form
-//               hybridization is also illustrated.
+//               hybridization and static condensation are also illustrated.
 //
 //               We recommend viewing examples 1-3 before viewing this example.
 
@@ -142,8 +142,7 @@ int main(int argc, char *argv[])
    pmesh->ReorientTetMesh();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Raviart-Thomas finite elements, but we can easily
-   //    switch to higher-order spaces by changing the value of p.
+   //    use the Raviart-Thomas finite elements of the specified order.
    FiniteElementCollection *fec = new RT_FECollection(order-1, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    HYPRE_Int size = fespace->GlobalTrueVSize();
@@ -191,8 +190,11 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
 
-   // 11. Optionally enable hybridization of the ParBilinearForm by defining an
-   //     interfacial multiplier space and constraint trace integrator.
+   // 11. Assemble the parallel bilinear form and the corresponding linear
+   //     system, applying any necessary transformations such as: parallel
+   //     assembly, eliminating boundary conditions, applying conforming
+   //     constraints for non-conforming AMR, static condensation,
+   //     hybridization, etc.
    FiniteElementCollection *hfec = NULL;
    ParFiniteElementSpace *hfes = NULL;
    if (static_cond)
@@ -206,11 +208,6 @@ int main(int argc, char *argv[])
       a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(),
                              ess_tdof_list);
    }
-
-   // 12. Assemble the parallel bilinear form and the corresponding linear
-   //     system, applying any necessary transformations such as: parallel
-   //     assembly, eliminating boundary conditions, applying conforming
-   //     constraints for non-conforming AMR, hybridization, etc.
    a->Assemble();
 
    HypreParMatrix A;
@@ -223,7 +220,7 @@ int main(int argc, char *argv[])
       cout << "Size of linear system: " << glob_size << endl;
    }
 
-   // 13. Define and apply a parallel PCG solver for A X = B with the 2D AMS or
+   // 12. Define and apply a parallel PCG solver for A X = B with the 2D AMS or
    //     the 3D ADS preconditioners from hypre. If using hybridization, the
    //     system is preconditioned with hypre's BoomerAMG.
    HypreSolver *prec = NULL;
@@ -251,11 +248,11 @@ int main(int argc, char *argv[])
    pcg->SetPreconditioner(*prec);
    pcg->Mult(B, X);
 
-   // 14. Extract the parallel grid function corresponding to the finite element
-   //     approximation X. This is the local solution on each processor.
+   // 13. Recover the parallel grid function corresponding to X. This is the
+   //     local finite element solution on each processor.
    a->RecoverFEMSolution(X, *b, x);
 
-   // 15. Compute and print the L^2 norm of the error.
+   // 14. Compute and print the L^2 norm of the error.
    {
       double err = x.ComputeL2Error(F);
       if (myid == 0)
@@ -264,7 +261,7 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 16. Save the refined mesh and the solution in parallel. This output can
+   // 15. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, sol_name;
@@ -280,7 +277,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 17. Send the solution by socket to a GLVis server.
+   // 16. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -291,7 +288,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *pmesh << x << flush;
    }
 
-   // 18. Free the used memory.
+   // 17. Free the used memory.
    delete pcg;
    delete prec;
    delete hfes;

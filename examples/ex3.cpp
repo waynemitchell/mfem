@@ -29,7 +29,8 @@
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
 //               bilinear form, as well as the computation of discretization
-//               error when the exact solution is known.
+//               error when the exact solution is known. Static condensation is
+//               also illustrated.
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
@@ -111,7 +112,10 @@ int main(int argc, char *argv[])
    cout << "Number of finite element unknowns: "
         << fespace->GetTrueVSize() << endl;
 
-   // TODO: comments
+   // 5. Determine the list of true (i.e. conforming) essential boundary dofs.
+   //    In this example, the boundary conditions are defined by marking all
+   //    the boundary attributes from the mesh as essential (Dirichlet) and
+   //    converting them to a list of true dofs.
    Array<int> ess_tdof_list;
    if (mesh->bdr_attributes.Size())
    {
@@ -120,7 +124,7 @@ int main(int argc, char *argv[])
       fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    }
 
-   // 5. Set up the linear form b(.) which corresponds to the right-hand side
+   // 6. Set up the linear form b(.) which corresponds to the right-hand side
    //    of the FEM linear system, which in this case is (f,phi_i) where f is
    //    given by the function f_exact and phi_i are the basis functions in the
    //    finite element fespace.
@@ -129,7 +133,7 @@ int main(int argc, char *argv[])
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
 
-   // 6. Define the solution vector x as a finite element grid function
+   // 7. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary edges will be used
    //    when eliminating the non-homogeneous boundary condition to modify the
@@ -138,17 +142,19 @@ int main(int argc, char *argv[])
    VectorFunctionCoefficient E(sdim, E_exact);
    x.ProjectCoefficient(E);
 
-   // 7. Set up the bilinear form corresponding to the EM diffusion operator
+   // 8. Set up the bilinear form corresponding to the EM diffusion operator
    //    curl muinv curl + sigma I, by adding the curl-curl and the mass domain
-   //    integrators and finally imposing the non-homogeneous Dirichlet boundary
-   //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential (Dirichlet). After
-   //    assembly and finalizing we extract the corresponding sparse matrix A.
+   //    integrators.
    Coefficient *muinv = new ConstantCoefficient(1.0);
    Coefficient *sigma = new ConstantCoefficient(1.0);
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
+
+   // 9. Assemble the bilinear form and the corresponding linear system,
+   //    applying any necessary transformations such as: eliminating boundary
+   //    conditions, applying conforming constraints for non-conforming AMR,
+   //    static condensation, etc.
    if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
@@ -159,25 +165,25 @@ int main(int argc, char *argv[])
    cout << "Size of linear system: " << A.Height() << endl;
 
 #ifndef MFEM_USE_SUITESPARSE
-   // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
-   //    solve the system Ax=b with PCG.
+   // 10. Define a simple symmetric Gauss-Seidel preconditioner and use it to
+   //     solve the system Ax=b with PCG.
    GSSmoother M(A);
    PCG(A, M, B, X, 1, 500, 1e-12, 0.0);
 #else
-   // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   // 10. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
    umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    umf_solver.SetOperator(A);
    umf_solver.Mult(B, X);
 #endif
 
-   // 9. Recover the grid function in non-conforming AMR problems
+   // 11. Recover the solution as a finite element grid function.
    a->RecoverFEMSolution(X, *b, x);
 
-   // 10. Compute and print the L^2 norm of the error.
+   // 12. Compute and print the L^2 norm of the error.
    cout << "\n|| E_h - E ||_{L^2} = " << x.ComputeL2Error(E) << '\n' << endl;
 
-   // 11. Save the refined mesh and the solution. This output can be viewed
+   // 13. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("refined.mesh");
@@ -188,7 +194,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 12. Send the solution by socket to a GLVis server.
+   // 14. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -198,7 +204,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 13. Free the used memory.
+   // 15. Free the used memory.
    delete a;
    delete sigma;
    delete muinv;

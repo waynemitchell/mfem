@@ -32,8 +32,8 @@
 //               element grid functions, as well as linear and bilinear forms
 //               corresponding to the left-hand side and right-hand side of the
 //               discrete linear system. We also cover the explicit elimination
-//               of boundary conditions on all boundary edges, and the optional
-//               connection to the GLVis tool for visualization.
+//               of essential boundary conditions, static condensation, and the
+//               optional connection to the GLVis tool for visualization.
 
 #include "mfem.hpp"
 #include <fstream>
@@ -117,6 +117,10 @@ int main(int argc, char *argv[])
    cout << "Number of finite element unknowns: "
         << fespace->GetTrueVSize() << endl;
 
+   // 5. Determine the list of true (i.e. conforming) essential boundary dofs.
+   //    In this example, the boundary conditions are defined by marking all
+   //    the boundary attributes from the mesh as essential (Dirichlet) and
+   //    converting them to a list of true dofs.
    Array<int> ess_tdof_list;
    if (mesh->bdr_attributes.Size())
    {
@@ -125,7 +129,7 @@ int main(int argc, char *argv[])
       fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    }
 
-   // 5. Set up the linear form b(.) which corresponds to the right-hand side of
+   // 6. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are
    //    the basis functions in the finite element fespace.
    LinearForm *b = new LinearForm(fespace);
@@ -133,21 +137,22 @@ int main(int argc, char *argv[])
    b->AddDomainIntegrator(new DomainLFIntegrator(one));
    b->Assemble();
 
-   // 6. Define the solution vector x as a finite element grid function
+   // 7. Define the solution vector x as a finite element grid function
    //    corresponding to fespace. Initialize x with initial guess of zero,
    //    which satisfies the boundary conditions.
    GridFunction x(fespace);
    x = 0.0;
 
-   // 7. Set up the bilinear form a(.,.) on the finite element space
+   // 8. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
-   //    domain integrator and imposing homogeneous Dirichlet boundary
-   //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential (Dirichlet). After
-   //    assembly and finalizing we extract the corresponding sparse matrix A.
+   //    domain integrator.
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
 
+   // 9. Assemble the bilinear form and the corresponding linear system,
+   //    applying any necessary transformations such as: eliminating boundary
+   //    conditions, applying conforming constraints for non-conforming AMR,
+   //    static condensation, etc.
    if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
@@ -158,22 +163,22 @@ int main(int argc, char *argv[])
    cout << "Size of linear system: " << A.Height() << endl;
 
 #ifndef MFEM_USE_SUITESPARSE
-   // 8. Define a simple symmetric Gauss-Seidel preconditioner and use it to
-   //    solve the system A X = B with PCG.
+   // 10. Define a simple symmetric Gauss-Seidel preconditioner and use it to
+   //     solve the system A X = B with PCG.
    GSSmoother M(A);
    PCG(A, M, B, X, 1, 200, 1e-12, 0.0);
 #else
-   // 8. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
+   // 10. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
    umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    umf_solver.SetOperator(A);
    umf_solver.Mult(B, X);
 #endif
 
-   // 9. Recover the grid function in non-conforming AMR problems
+   // 11. Recover the solution as a finite element grid function.
    a->RecoverFEMSolution(X, *b, x);
 
-   // 10. Save the refined mesh and the solution. This output can be viewed later
+   // 12. Save the refined mesh and the solution. This output can be viewed later
    //     using GLVis: "glvis -m refined.mesh -g sol.gf".
    ofstream mesh_ofs("refined.mesh");
    mesh_ofs.precision(8);
@@ -182,7 +187,7 @@ int main(int argc, char *argv[])
    sol_ofs.precision(8);
    x.Save(sol_ofs);
 
-   // 11. Send the solution by socket to a GLVis server.
+   // 13. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -192,7 +197,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 12. Free the used memory.
+   // 14. Free the used memory.
    delete a;
    delete b;
    delete fespace;

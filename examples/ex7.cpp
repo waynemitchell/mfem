@@ -181,14 +181,13 @@ int main(int argc, char *argv[])
 
    // 7. Set up the bilinear form a(.,.) on the finite element space
    //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
-   //    and Mass domain integrators. After assembly and finalizing we extract
-   //    the corresponding sparse matrix A.
+   //    and Mass domain integrators.
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
    a->AddDomainIntegrator(new MassIntegrator(one));
-   a->Assemble();
 
    // 8. Assemble the linear system, apply conforming constraints, etc.
+   a->Assemble();
    SparseMatrix A;
    Vector B, X;
    Array<int> empty_tdof_list;
@@ -207,7 +206,7 @@ int main(int argc, char *argv[])
    umf_solver.Mult(B, X);
 #endif
 
-   // 10. Recover the grid function x.
+   // 10. Recover the solution as a finite element grid function.
    a->RecoverFEMSolution(X, *b, x);
 
    // 11. Compute and print the L^2 norm of the error.

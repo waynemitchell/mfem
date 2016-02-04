@@ -23,14 +23,14 @@
 //               problem corresponding to the second order definite equation
 //               -grad(alpha div F) + beta F = f with boundary condition F dot n
 //               = <given normal field>. Here, we use a given exact solution F
-//               and compute the corresponding r.h.s. f.  We discretize with the
+//               and compute the corresponding r.h.s. f.  We discretize with
 //               Raviart-Thomas finite elements.
 //
 //               The example demonstrates the use of H(div) finite element
 //               spaces with the grad-div and H(div) vector finite element mass
 //               bilinear form, as well as the computation of discretization
 //               error when the exact solution is known. Bilinear form
-//               hybridization is also illustrated.
+//               hybridization and static condensation are also illustrated.
 //
 //               We recommend viewing examples 1-3 before viewing this example.
 
@@ -109,9 +109,8 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 4. Define a finite element space on the mesh. Here we use the lowest order
-   //    Raviart-Thomas finite elements, but we can easily switch to
-   //    higher-order spaces by changing the value of p.
+   // 4. Define a finite element space on the mesh. Here we use the
+   //    Raviart-Thomas finite elements of the specified order.
    FiniteElementCollection *fec = new RT_FECollection(order-1, dim);
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, fec);
    cout << "Number of finite element unknowns: "
@@ -156,8 +155,10 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
 
-   // 9. Optionally enable hybridization of the BilinearForm by defining an
-   //    interfacial multiplier space and constraint trace integrator.
+   // 9. Assemble the bilinear form and the corresponding linear system,
+   //    applying any necessary transformations such as: eliminating boundary
+   //    conditions, applying conforming constraints for non-conforming AMR,
+   //    static condensation, hybridization, etc.
    FiniteElementCollection *hfec = NULL;
    FiniteElementSpace *hfes = NULL;
    if (static_cond)
@@ -171,11 +172,6 @@ int main(int argc, char *argv[])
       a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(),
                              ess_tdof_list);
    }
-
-   // 10. Assemble the bilinear form and the corresponding linear system,
-   //     applying any necessary transformations such as: eliminating boundary
-   //     conditions, applying conforming constraints for non-conforming AMR,
-   //     hybridization, etc.
    a->Assemble();
 
    SparseMatrix A;
@@ -185,26 +181,25 @@ int main(int argc, char *argv[])
    cout << "Size of linear system: " << A.Height() << endl;
 
 #ifndef MFEM_USE_SUITESPARSE
-   // 11. Define a simple symmetric Gauss-Seidel preconditioner and use it to
+   // 10. Define a simple symmetric Gauss-Seidel preconditioner and use it to
    //     solve the system A X = B with PCG.
    GSSmoother M(A);
    PCG(A, M, B, X, 1, 10000, 1e-20, 0.0);
 #else
-   // 11. If compiled with SuiteSparse support, use UMFPACK to solve the system.
+   // 10. If compiled with SuiteSparse support, use UMFPACK to solve the system.
    UMFPackSolver umf_solver;
    umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    umf_solver.SetOperator(A);
    umf_solver.Mult(B, X);
 #endif
 
-   // 12. After solving the linear system, reconstruct the solution as a finite
-   //     element grid function.
+   // 11. Recover the solution as a finite element grid function.
    a->RecoverFEMSolution(X, *b, x);
 
-   // 13. Compute and print the L^2 norm of the error.
+   // 12. Compute and print the L^2 norm of the error.
    cout << "\n|| F_h - F ||_{L^2} = " << x.ComputeL2Error(F) << '\n' << endl;
 
-   // 14. Save the refined mesh and the solution. This output can be viewed
+   // 13. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".
    {
       ofstream mesh_ofs("refined.mesh");
@@ -215,7 +210,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 15. Send the solution by socket to a GLVis server.
+   // 14. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -225,7 +220,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *mesh << x << flush;
    }
 
-   // 16. Free the used memory.
+   // 15. Free the used memory.
    delete hfes;
    delete hfec;
    delete a;
