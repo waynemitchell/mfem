@@ -83,13 +83,17 @@ public:
 
    /** Enable the use of static condensation. For details see the description
        for class StaticCondensation in fem/staticcond.hpp This method should be
-       called before assembly. If the number of unknowns in the trace space and
-       BilinearForm space is the same, static condensation is not enabled. */
-   void EnableStaticCondensation(FiniteElementSpace *trace_space);
+       called before assembly. If the number of unknowns after static
+       condensation is not reduced, it is not enabled. */
+   void EnableStaticCondensation();
 
    /** Check if static condensation was actually enabled by a previous call to
        EnableStaticCondensation. */
    bool StaticCondensationIsEnabled() const { return static_cond; }
+
+   /// Return the trace FE space associated with static condensation.
+   FiniteElementSpace *StaticCondensationFESpace() const
+   { return static_cond->GetTraceFESpace(); }
 
    /** Enable hybridization; for details see the description for class
        Hybridization in fem/hybridization.hpp. This method should be called
@@ -264,6 +268,7 @@ public:
 
    virtual void Update(FiniteElementSpace *nfes = NULL);
 
+   /// Return the FE space associated with the BilinearForm.
    FiniteElementSpace *GetFES() { return fes; }
 
    /// Destroys bilinear form.

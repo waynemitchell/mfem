@@ -101,7 +101,12 @@ public:
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 
+   /// Return the parallel FE space associated with the ParBilinearForm.
    ParFiniteElementSpace *ParFESpace() const { return pfes; }
+
+   /// Return the parallel trace FE space associated with static condensation.
+   ParFiniteElementSpace *StaticCondensationParFESpace() const
+   { return static_cond->GetParTraceFESpace(); }
 
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:

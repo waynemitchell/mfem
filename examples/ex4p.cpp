@@ -197,9 +197,7 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace *hfes = NULL;
    if (static_cond)
    {
-      hfec = new RT_Trace_FECollection(order-1, dim);
-      hfes = new ParFiniteElementSpace(pmesh, hfec);
-      a->EnableStaticCondensation(hfes);
+      a->EnableStaticCondensation();
    }
    else if (hybridization)
    {

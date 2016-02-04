@@ -56,6 +56,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/beam-tet.mesh";
    int order = 1;
+   bool static_cond = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -65,6 +66,8 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree).");
    args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
                   " solution.");
+   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
+                  "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -139,7 +142,16 @@ int main(int argc, char *argv[])
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
    {
-      cout << "Number of unknowns: " << size << endl;
+      cout << "Number of finite element unknowns: " << size << endl;
+   }
+
+   // TODO: comments
+   Array<int> ess_tdof_list;
+   if (pmesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    }
 
    // 7. Set up the parallel linear form b(.) which corresponds to the
@@ -172,43 +184,37 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
+
+   // TODO: comments
+   if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
-   a->Finalize();
 
    // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
    //     b(.) and the finite element approximation.
-   HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelProject();
+   HypreParMatrix A;
+   Vector B, X;
+   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
-   // 11. Eliminate essential BC from the parallel system
-   if (pmesh->bdr_attributes.Size())
+   if (myid == 0)
    {
-      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-      ess_bdr = 1;
-      a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
+      cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
    }
-
-   *X = 0.0;
-
-   delete a;
-   delete sigma;
-   delete muinv;
-   delete b;
 
    // 12. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
-   HypreSolver *ams = new HypreAMS(*A, fespace);
-   HyprePCG *pcg = new HyprePCG(*A);
+   HypreSolver *ams =
+      new HypreAMS(A, (a->StaticCondensationIsEnabled() ?
+                       a->StaticCondensationParFESpace() : fespace));
+   HyprePCG *pcg = new HyprePCG(A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
-   pcg->Mult(*B, *X);
+   pcg->Mult(B, X);
 
    // 13. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   x = *X;
+   a->RecoverFEMSolution(X, *b, x);
 
    // 14. Compute and print the L^2 norm of the error.
    {
@@ -249,9 +255,10 @@ int main(int argc, char *argv[])
    // 17. Free the used memory.
    delete pcg;
    delete ams;
-   delete X;
-   delete B;
-   delete A;
+   delete a;
+   delete sigma;
+   delete muinv;
+   delete b;
    delete fespace;
    delete fec;
    delete pmesh;

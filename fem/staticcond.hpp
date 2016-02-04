@@ -26,6 +26,7 @@ namespace mfem
 class StaticCondensation
 {
    FiniteElementSpace *fes, *tr_fes;
+   FiniteElementCollection *tr_fec;
    Table elem_pdof;           // Element to private dof
    int npdofs;                // Number of private dofs
    Array<int> rdof_edof;      // Map from reduced dofs to exposed dofs
@@ -33,7 +34,7 @@ class StaticCondensation
    // Schur complement: S = A_ee - A_ep (A_pp)^{-1} A_pe.
    SparseMatrix *S, *S_e;
 #ifdef MFEM_USE_MPI
-   ParFiniteElementSpace *tr_pfes;
+   ParFiniteElementSpace *pfes, *tr_pfes;
    HypreParMatrix *pS, *pS_e;
    bool Parallel() const { return (tr_pfes != NULL); }
 #else
@@ -47,8 +48,7 @@ class StaticCondensation
 
 public:
    /// Construct a StaticCondensation object.
-   StaticCondensation(FiniteElementSpace *fespace,
-                      FiniteElementSpace *trace_fespace);
+   StaticCondensation(FiniteElementSpace *fespace);
    /// Destroy a StaticCondensation object.
    ~StaticCondensation();
 
@@ -56,6 +56,9 @@ public:
    int GetNPrDofs() const { return npdofs; }
    /// Return the number of vector exposed/reduced dofs.
    int GetNExDofs() const { return tr_fes->GetVSize(); }
+   /** Return true if applying the static condensation actually reduces the
+       (global) number of true vector dofs. */
+   bool ReducesTrueVSize() const;
 
    /** Prepare the StaticCondensation object to assembly: allocate the Schur
        complement matrix and the other element-wise blocks. */
@@ -64,6 +67,10 @@ public:
    /// Return a pointer to the reduced/trace FE space.
    FiniteElementSpace *GetTraceFESpace() { return tr_fes; }
 
+#ifdef MFEM_USE_MPI
+   /// Return a pointer to the parallel reduced/trace FE space.
+   ParFiniteElementSpace *GetParTraceFESpace() { return tr_pfes; }
+#endif
    /** Assemble the contribution to the Schur complement from the given
        element matrix 'elmat'; save the other blocks internally: A_pp_inv, A_pe,
        and A_ep. */
@@ -80,6 +87,8 @@ public:
    void EliminateReducedTrueDofs(const Array<int> &ess_rtdof_list,
                                  int keep_diagonal);
 
+   /** Return true if essential boundary conditions have been eliminated from
+       the Schur complement matrix. */
    bool HasEliminatedBC() const
    {
 #ifndef MFEM_USE_MPI

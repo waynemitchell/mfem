@@ -162,9 +162,7 @@ int main(int argc, char *argv[])
    FiniteElementSpace *hfes = NULL;
    if (static_cond)
    {
-      hfec = new RT_Trace_FECollection(order-1, dim);
-      hfes = new FiniteElementSpace(mesh, hfec);
-      a->EnableStaticCondensation(hfes);
+      a->EnableStaticCondensation();
    }
    else if (hybridization)
    {

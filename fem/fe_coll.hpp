@@ -43,6 +43,8 @@ public:
       return FiniteElementForGeometry(GeomType);
    }
 
+   virtual FiniteElementCollection *GetTraceCollection() const;
+
    virtual ~FiniteElementCollection() { }
 
    static FiniteElementCollection *New(const char *name);
@@ -66,6 +68,7 @@ public:
    { return H1_dof[GeomType]; }
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;
    virtual const char *Name() const { return h1_name; }
+   FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~H1_FECollection();
 };
@@ -153,6 +156,7 @@ public:
    { return RT_dof[GeomType]; }
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;
    virtual const char *Name() const { return rt_name; }
+   FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~RT_FECollection();
 };
@@ -195,6 +199,7 @@ public:
    { return ND_dof[GeomType]; }
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;
    virtual const char *Name() const { return nd_name; }
+   FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~ND_FECollection();
 };
@@ -244,6 +249,8 @@ public:
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;
 
    virtual const char *Name() const { return name; }
+
+   FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~NURBSFECollection() { Deallocate(); }
 };

@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/beam-tri.mesh";
    int order = 1;
+   bool static_cond = false;
    bool visualization = 1;
    bool amg_elast = 0;
 
@@ -66,6 +67,8 @@ int main(int argc, char *argv[])
                   "--amg-for-systems",
                   "Use the special AMG elasticity solver (GM/LN approaches), "
                   "or standard AMG for systems (unknown approach).");
+   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
+                  "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -167,9 +170,15 @@ int main(int argc, char *argv[])
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
    {
-      cout << "Number of unknowns: " << size << endl
+      cout << "Number of finite element unknowns: " << size << endl
            << "Assembling: " << flush;
    }
+
+   // TODO: comments
+   Array<int> ess_tdof_list, ess_bdr(pmesh->bdr_attributes.Max());
+   ess_bdr = 0;
+   ess_bdr[0] = 1;
+   fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
    // 8. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system. In this case, b_i equals the
@@ -221,36 +230,26 @@ int main(int argc, char *argv[])
 
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new ElasticityIntegrator(lambda_func, mu_func));
-   if (myid == 0)
-   {
-      cout << "matrix ... " << flush;
-   }
+
+   // TODO: comments
+   if (myid == 0) { cout << "matrix ... " << flush; }
+   if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
-   a->Finalize();
+
+   HypreParMatrix A;
+   Vector B, X;
+   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
    if (myid == 0)
    {
       cout << "done." << endl;
+
+      cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
    }
 
-   // 11. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //     b(.) and the finite element approximation.
-   HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelProject();
-
-   // 12. Eliminate essential BC from the parallel system
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 0;
-   ess_bdr[0] = 1;
-   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
-
-   delete a;
-   delete b;
-
-   // 13. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+   // 13. Define and apply a parallel PCG solver for A X = B with the BoomerAMG
    //     preconditioner from hypre.
-   HypreBoomerAMG *amg = new HypreBoomerAMG(*A);
-   if (amg_elast)
+   HypreBoomerAMG *amg = new HypreBoomerAMG(A);
+   if (amg_elast && !a->StaticCondensationIsEnabled())
    {
       amg->SetElasticityOptions(fespace);
    }
@@ -258,16 +257,16 @@ int main(int argc, char *argv[])
    {
       amg->SetSystemsOptions(dim);
    }
-   HyprePCG *pcg = new HyprePCG(*A);
+   HyprePCG *pcg = new HyprePCG(A);
    pcg->SetTol(1e-8);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*amg);
-   pcg->Mult(*B, *X);
+   pcg->Mult(B, X);
 
    // 14. Extract the parallel grid function corresponding to the finite element
    //     approximation X. This is the local solution on each processor.
-   x = *X;
+   a->RecoverFEMSolution(X, *b, x);
 
    // 15. For non-NURBS meshes, make the mesh curved based on the finite element
    //     space. This means that we define the mesh elements through a fespace
@@ -317,10 +316,8 @@ int main(int argc, char *argv[])
    // 18. Free the used memory.
    delete pcg;
    delete amg;
-   delete X;
-   delete B;
-   delete A;
-
+   delete a;
+   delete b;
    if (fec)
    {
       delete fespace;

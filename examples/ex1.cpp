@@ -146,15 +146,7 @@ int main(int argc, char *argv[])
    BilinearForm *a = new BilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
 
-   FiniteElementCollection *sfec = NULL;
-   FiniteElementSpace *sfes = NULL;
-   if (static_cond)
-   {
-      sfec = new H1_Trace_FECollection(order, dim);
-      sfes = new FiniteElementSpace(mesh, sfec);
-      a->EnableStaticCondensation(sfes);
-   }
-
+   if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
    SparseMatrix A;
@@ -200,8 +192,6 @@ int main(int argc, char *argv[])
 
    // 12. Free the used memory.
    delete a;
-   delete sfes;
-   delete sfec;
    delete b;
    delete fespace;
    if (order > 0) { delete fec; }

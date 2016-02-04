@@ -14,22 +14,34 @@
 namespace mfem
 {
 
-StaticCondensation::StaticCondensation(FiniteElementSpace *fespace,
-                                       FiniteElementSpace *trace_fespace)
-   : fes(fespace), tr_fes(trace_fespace)
+StaticCondensation::StaticCondensation(FiniteElementSpace *fespace)
+   : fes(fespace)
 {
-   S = S_e = NULL;
-#ifdef MFEM_USE_MPI
-   tr_pfes = dynamic_cast<ParFiniteElementSpace *>(tr_fes);
+   tr_fec = fespace->FEColl()->GetTraceCollection();
+   int vdim = fes->GetVDim();
+   int ordering = fes->GetOrdering();
+#ifndef MFEM_USE_MPI
+   tr_fes = new FiniteElementSpace(fes->GetMesh(), tr_fec, vdim, ordering);
+#else
+   pfes = dynamic_cast<ParFiniteElementSpace*>(fes);
+   if (!pfes)
+   {
+      tr_fes = new FiniteElementSpace(fes->GetMesh(), tr_fec, vdim, ordering);
+      tr_pfes = NULL;
+   }
+   else
+   {
+      tr_pfes = new ParFiniteElementSpace(pfes->GetParMesh(), tr_fec, vdim,
+                                          ordering);
+      tr_fes = tr_pfes;
+   }
    pS = pS_e = NULL;
 #endif
+   S = S_e = NULL;
    symm = false;
    A_data = NULL;
    A_ipiv = NULL;
 
-   const int vdim = fes->GetVDim();
-   MFEM_ASSERT(vdim == tr_fes->GetVDim(),
-               "volume and trace FE spaces have different vector dimensions");
    Array<int> vdofs;
    const int NE = fes->GetNE();
    elem_pdof.MakeI(NE);
@@ -100,6 +112,24 @@ StaticCondensation::~StaticCondensation()
    delete S;
    delete [] A_data;
    delete [] A_ipiv;
+   delete tr_fes;
+   delete tr_fec;
+}
+
+bool StaticCondensation::ReducesTrueVSize() const
+{
+   if (!Parallel())
+   {
+      return (tr_fes->GetTrueVSize() < fes->GetTrueVSize());
+   }
+   else
+   {
+#ifdef MFEM_USE_MPI
+      return (tr_pfes->GlobalTrueVSize() < pfes->GlobalTrueVSize());
+#else
+      return false; // avoid compiler warnining
+#endif
+   }
 }
 
 void StaticCondensation::Init(bool symmetric, bool block_diagonal)
@@ -207,8 +237,9 @@ void StaticCondensation::Finalize()
 {
    if (!Parallel())
    {
-      S->Finalize();
-      if (S_e) { S_e->Finalize(); }
+      const int skip_zeros = 0;
+      S->Finalize(skip_zeros);
+      if (S_e) { S_e->Finalize(skip_zeros); }
       const SparseMatrix *cP = tr_fes->GetConformingProlongation();
       if (cP)
       {

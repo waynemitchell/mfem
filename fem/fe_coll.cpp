@@ -35,6 +35,12 @@ int FiniteElementCollection::HasFaceDofs(int GeomType) const
    return 0;
 }
 
+FiniteElementCollection *FiniteElementCollection::GetTraceCollection() const
+{
+   MFEM_ABORT("this method is not implemented in this derived class!");
+   return NULL;
+}
+
 FiniteElementCollection *FiniteElementCollection::New(const char *name)
 {
    FiniteElementCollection *fec = NULL;
@@ -1288,6 +1294,20 @@ int *H1_FECollection::DofOrderForOrientation(int GeomType, int Or) const
    return NULL;
 }
 
+FiniteElementCollection *H1_FECollection::GetTraceCollection() const
+{
+   int p = H1_dof[Geometry::SEGMENT] + 1;
+   if (!strncmp(h1_name, "H1_", 3))
+   {
+      return new H1_Trace_FECollection(p, atoi(h1_name + 3));
+   }
+   else if (!strncmp(h1_name, "H1Pos_", 6))
+   {
+      return new H1_Trace_FECollection(p, atoi(h1_name + 6), 1);
+   }
+   return NULL;
+}
+
 H1_FECollection::~H1_FECollection()
 {
    delete [] SegDofOrd[0];
@@ -1608,6 +1628,11 @@ int *RT_FECollection::DofOrderForOrientation(int GeomType, int Or) const
    return NULL;
 }
 
+FiniteElementCollection *RT_FECollection::GetTraceCollection() const
+{
+   return new RT_Trace_FECollection(atoi(rt_name + 7), atoi(rt_name + 3));
+}
+
 RT_FECollection::~RT_FECollection()
 {
    delete [] SegDofOrd[0];
@@ -1806,6 +1831,12 @@ int *ND_FECollection::DofOrderForOrientation(int GeomType, int Or) const
    return NULL;
 }
 
+FiniteElementCollection *ND_FECollection::GetTraceCollection() const
+{
+   return new ND_Trace_FECollection(ND_dof[Geometry::SEGMENT],
+                                    atoi(nd_name + 3));
+}
+
 ND_FECollection::~ND_FECollection()
 {
    delete [] SegDofOrd[0];
@@ -1901,6 +1932,12 @@ int NURBSFECollection::DofForGeometry(int GeomType) const
 int *NURBSFECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
    mfem_error("NURBSFECollection::DofOrderForOrientation");
+   return NULL;
+}
+
+FiniteElementCollection *NURBSFECollection::GetTraceCollection() const
+{
+   MFEM_ABORT("NURBS finite elements can not be statically condensed!");
    return NULL;
 }
 

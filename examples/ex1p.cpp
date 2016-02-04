@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
       cout << "Number of finite element unknowns: " << size << endl;
    }
 
-   //
+   // TODO: comments
    Array<int> ess_tdof_list;
    if (pmesh->bdr_attributes.Size())
    {
@@ -180,26 +180,17 @@ int main(int argc, char *argv[])
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
 
-   //
-   FiniteElementCollection *sfec = NULL;
-   ParFiniteElementSpace *sfes = NULL;
-   if (static_cond)
-   {
-      sfec = new H1_Trace_FECollection(order, dim);
-      sfes = new ParFiniteElementSpace(pmesh, sfec);
-      a->EnableStaticCondensation(sfes);
-   }
-
+   // TODO: comments
+   if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
 
    HypreParMatrix A;
    Vector B, X;
    a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
-   HYPRE_Int glob_size = A.GetGlobalNumRows();
    if (myid == 0)
    {
-      cout << "Size of linear system: " << glob_size << endl;
+      cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
    }
 
    // 12. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
@@ -248,8 +239,6 @@ int main(int argc, char *argv[])
    delete amg;
    delete a;
    delete b;
-   delete sfes;
-   delete sfec;
    delete fespace;
    if (order > 0) { delete fec; }
    delete pmesh;

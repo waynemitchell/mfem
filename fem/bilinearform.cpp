@@ -118,31 +118,21 @@ BilinearForm::BilinearForm (FiniteElementSpace * f, BilinearForm * bf, int ps)
    AllocMat();
 }
 
-void BilinearForm::EnableStaticCondensation(FiniteElementSpace *trace_space)
+void BilinearForm::EnableStaticCondensation()
 {
    delete static_cond;
-#ifndef MFEM_USE_MPI
-   if (fes->GetTrueVSize() == trace_space->GetTrueVSize())
+   static_cond = new StaticCondensation(fes);
+   if (static_cond->ReducesTrueVSize())
    {
-      static_cond = NULL;
-      return;
+      bool symmetric = false;      // TODO
+      bool block_diagonal = false; // TODO
+      static_cond->Init(symmetric, block_diagonal);
    }
-#else
-   ParFiniteElementSpace *pfes = dynamic_cast<ParFiniteElementSpace *>(fes);
-   ParFiniteElementSpace *tr_pfes =
-      dynamic_cast<ParFiniteElementSpace *>(trace_space);
-   MFEM_ASSERT((pfes && tr_pfes) || (!pfes && !tr_pfes), "");
-   if ((pfes && pfes->GlobalTrueVSize() == tr_pfes->GlobalTrueVSize()) ||
-       (!pfes && fes->GetTrueVSize() == trace_space->GetTrueVSize()))
+   else
    {
+      delete static_cond;
       static_cond = NULL;
-      return;
    }
-#endif
-   static_cond = new StaticCondensation(fes, trace_space);
-   bool symmetric = false;      // TODO
-   bool block_diagonal = false; // TODO
-   static_cond->Init(symmetric, block_diagonal);
 }
 
 void BilinearForm::EnableHybridization(FiniteElementSpace *constr_space,
@@ -443,7 +433,7 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
       static_cond->ConvertListToReducedTrueDofs(ess_tdof_list, ess_rtdof_list);
       if (!static_cond->HasEliminatedBC())
       {
-         static_cond->Finalize();
+         static_cond->Finalize(); // finalize Schur complement (to true dofs)
          static_cond->EliminateReducedTrueDofs(ess_rtdof_list, keep_diag);
          static_cond->Finalize(); // finalize eliminated part
       }
