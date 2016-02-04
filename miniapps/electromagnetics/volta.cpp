@@ -176,7 +176,6 @@ int main(int argc, char *argv[])
    imesh.close();
 
    int sdim = mesh->SpaceDimension();
-   // int dim = mesh->Dimension();
 
    // Refine the serial mesh on all processors to increase the resolution. In
    // this example we do 'ref_levels' of uniform refinement. NURBS meshes are

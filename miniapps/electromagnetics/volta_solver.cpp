@@ -479,7 +479,7 @@ VoltaSolver::Solve()
 void
 VoltaSolver::GetErrorEstimates(Vector & errors)
 {
-   if (myid_ == 0) { cout << "Error estimation ... " << flush; }
+   if (myid_ == 0) { cout << "Estimating Error ... " << flush; }
 
    // Space for the discontinuous (original) flux
    DiffusionIntegrator flux_integrator(*epsCoef_);

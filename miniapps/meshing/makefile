@@ -44,5 +44,6 @@ $(CONFIG_MK) $(MFEM_LIB_FILE):
 
 clean:
 	rm -f *.o *~ mobius-strip klein-bottle mesh-explorer
-	rm -f *.mesh partitioning.txt
+	rm -f mobius-strip.mesh klein-bottle.mesh mesh-explorer.mesh
+	rm -f partitioning.txt
 	rm -rf *.dSYM *.TVD.*breakpoints
