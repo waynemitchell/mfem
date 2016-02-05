@@ -121,6 +121,20 @@ public:
       TDFunction = tdf;
    }
 
+   /// (DEPRECATED) Define a time-independent coefficient from a C-function
+   FunctionCoefficient(double (*f)(Vector &))
+   {
+      Function = reinterpret_cast<double(*)(const Vector&)>(f);
+      TDFunction = NULL;
+   }
+
+   /// (DEPRECATED) Define a time-dependent coefficient from a C-function
+   FunctionCoefficient(double (*tdf)(Vector &, double))
+   {
+      Function = NULL;
+      TDFunction = reinterpret_cast<double(*)(const Vector&,double)>(tdf);
+   }
+
    /// Evaluate coefficient
    virtual double Eval(ElementTransformation &T,
                        const IntegrationPoint &ip);
