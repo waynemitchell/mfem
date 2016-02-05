@@ -13,7 +13,10 @@
 
 using namespace std;
 
-namespace mfem_electromagnetics
+namespace mfem
+{
+
+namespace electromagnetics
 {
 
 H1_FESpace::H1_FESpace(Mesh *m,
@@ -53,4 +56,6 @@ RT_FESpace::~RT_FESpace()
    delete FEC_;
 }
 
-} // namespace mfem_electromagnetics
+} // namespace electromagnetics
+
+} // namespace mfem

@@ -17,7 +17,10 @@
 
 using namespace std;
 
-namespace mfem_electromagnetics
+namespace mfem
+{
+
+namespace electromagnetics
 {
 
 H1_ParFESpace::H1_ParFESpace(ParMesh *m,
@@ -358,6 +361,8 @@ void VisualizeField(socketstream &sock, const char *vishost, int visport,
    while (connection_failed);
 }
 
-} // namespace mfem_electromagnetics
+} // namespace electromagnetics
+
+} // namespace mfem
 
 #endif

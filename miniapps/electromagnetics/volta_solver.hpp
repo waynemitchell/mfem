@@ -16,18 +16,19 @@
 
 #ifdef MFEM_USE_MPI
 
-#include "mfem.hpp"
 #include "pfem_extras.hpp"
+#include <string>
+#include <map>
 
-using namespace std;
-using namespace mfem;
+namespace mfem
+{
+
+namespace electromagnetics
+{
 
 // Physical Constants
 // Permittivity of Free Space (units F/m)
 static double epsilon0_ = 8.8541878176e-12;
-
-namespace mfem_electromagnetics
-{
 
 class VoltaSolver
 {
@@ -107,12 +108,14 @@ private:
    double (*rho_src_)(const Vector&);
    void   (*p_src_  )(const Vector&, Vector&);
 
-   map<string,socketstream*> socks_;
+   std::map<std::string,socketstream*> socks_;
 
    Array<int> ess_bdr_;
 };
 
-} // namespace mfem_electromagnetics
+} // namespace electromagnetics
+
+} // namespace mfem
 
 #endif // MFEM_USE_MPI
 

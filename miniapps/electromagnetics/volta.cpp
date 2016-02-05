@@ -53,14 +53,13 @@
 //   By default the sources and fields are all zero:
 //      mpirun -np 4 volta
 
-#include "mfem.hpp"
+#include "volta_solver.hpp"
 #include <fstream>
 #include <iostream>
-#include "pfem_extras.hpp"
-#include "volta_solver.hpp"
 
 using namespace std;
-using namespace mfem_electromagnetics;
+using namespace mfem;
+using namespace mfem::electromagnetics;
 
 // Permittivity Function
 static Vector ds_params_(0);  // Center, Radius, and Permittivity

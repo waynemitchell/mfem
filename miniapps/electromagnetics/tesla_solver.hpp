@@ -16,18 +16,19 @@
 
 #ifdef MFEM_USE_MPI
 
-#include "mfem.hpp"
 #include "pfem_extras.hpp"
+#include <string>
+#include <map>
 
-using namespace std;
-using namespace mfem;
+namespace mfem
+{
+
+namespace electromagnetics
+{
 
 // Physical Constants
 // Permeability of Free Space (units H/m)
 static double mu0_ = 4.0e-7*M_PI;
-
-namespace mfem_electromagnetics
-{
 
 class SurfaceCurrent;
 class TeslaSolver
@@ -106,7 +107,7 @@ private:
    Array<int> ess_bdr_;
    Array<int> non_k_bdr_;
 
-   map<string,socketstream*> socks_;
+   std::map<std::string,socketstream*> socks_;
 };
 
 class SurfaceCurrent
@@ -148,7 +149,9 @@ private:
    Array<int> non_k_bdr_;
 };
 
-} // namespace mfem_electromagnetics
+} // namespace electromagnetics
+
+} // namespace mfem
 
 #endif // MFEM_USE_MPI
 

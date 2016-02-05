@@ -12,13 +12,14 @@
 #ifndef MFEM_FEM_EXTRAS
 #define MFEM_FEM_EXTRAS
 
-#include <cstddef>
 #include "mfem.hpp"
+#include <cstddef>
 
-namespace mfem_electromagnetics
+namespace mfem
 {
 
-using namespace mfem;
+namespace electromagnetics
+{
 
 /** The H1_FESpace class is a FiniteElementSpace which automatically
     allocates and destroys its own FiniteElementCollection, in this
@@ -63,6 +64,8 @@ private:
    const FiniteElementCollection *FEC_;
 };
 
-} // namespace mfem_electromagnetics
+} // namespace electromagnetics
+
+} // namespace mfem
 
 #endif

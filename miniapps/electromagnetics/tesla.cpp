@@ -55,15 +55,13 @@
 //   By default the sources and fields are all zero:
 //      mpirun -np 4 tesla
 
-#include "mfem.hpp"
+#include "tesla_solver.hpp"
 #include <fstream>
 #include <iostream>
-#include <map>
-#include "pfem_extras.hpp"
-#include "tesla_solver.hpp"
 
 using namespace std;
-using namespace mfem_electromagnetics;
+using namespace mfem;
+using namespace mfem::electromagnetics;
 
 // Permeability Function
 static Vector ms_params_(0);  // Center, Inner and Outer Radii, and

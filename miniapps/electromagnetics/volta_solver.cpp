@@ -15,7 +15,12 @@
 
 #include "volta_solver.hpp"
 
-namespace mfem_electromagnetics
+using namespace std;
+
+namespace mfem
+{
+
+namespace electromagnetics
 {
 
 VoltaSolver::VoltaSolver(ParMesh & pmesh, int order,
@@ -605,6 +610,8 @@ VoltaSolver::DisplayToGLVis()
    if (myid_ == 0) { cout << " " << flush; }
 }
 
-} // namespace mfem_electromagnetics
+} // namespace electromagnetics
+
+} // namespace mfem
 
 #endif // MFEM_USE_MPI

@@ -16,13 +16,14 @@
 
 #ifdef MFEM_USE_MPI
 
-#include <cstddef>
 #include "mfem.hpp"
+#include <cstddef>
 
-namespace mfem_electromagnetics
+namespace mfem
 {
 
-using namespace mfem;
+namespace electromagnetics
+{
 
 /** The H1_ParFESpace class is a ParFiniteElementSpace which automatically
     allocates and destroys its own FiniteElementCollection, in this
@@ -214,7 +215,9 @@ void VisualizeField(socketstream &sock, const char *vishost, int visport,
                     ParGridFunction &gf, const char *title,
                     int x = 0, int y = 0, int w = 400, int h = 400);
 
-} // namespace mfem_electromagnetics
+} // namespace electromagnetics
+
+} // namespace mfem
 
 #endif // MFEM_USE_MPI
 #endif
