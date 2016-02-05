@@ -13,7 +13,6 @@
 
 #ifdef MFEM_USE_MPI
 
-#include "mfem.hpp"
 #include "pfem_extras.hpp"
 
 using namespace std;

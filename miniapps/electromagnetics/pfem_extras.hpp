@@ -17,13 +17,12 @@
 #ifdef MFEM_USE_MPI
 
 #include <cstddef>
-#include "../../fem/pfespace.hpp"
-#include "../../fem/pbilinearform.hpp"
-
-using namespace mfem;
+#include "mfem.hpp"
 
 namespace mfem_electromagnetics
 {
+
+using namespace mfem;
 
 /** The H1_ParFESpace class is a ParFiniteElementSpace which automatically
     allocates and destroys its own FiniteElementCollection, in this
