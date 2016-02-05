@@ -92,7 +92,7 @@ public:
    bool StaticCondensationIsEnabled() const { return static_cond; }
 
    /// Return the trace FE space associated with static condensation.
-   FiniteElementSpace *StaticCondensationFESpace() const
+   FiniteElementSpace *SCFESpace() const
    { return static_cond->GetTraceFESpace(); }
 
    /** Enable hybridization; for details see the description for class

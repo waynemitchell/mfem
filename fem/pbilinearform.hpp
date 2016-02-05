@@ -105,7 +105,7 @@ public:
    ParFiniteElementSpace *ParFESpace() const { return pfes; }
 
    /// Return the parallel trace FE space associated with static condensation.
-   ParFiniteElementSpace *StaticCondensationParFESpace() const
+   ParFiniteElementSpace *SCParFESpace() const
    { return static_cond->GetParTraceFESpace(); }
 
    /** Form the linear system A X = B, corresponding to the current bilinear

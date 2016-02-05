@@ -203,9 +203,9 @@ int main(int argc, char *argv[])
 
    // 12. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
-   HypreSolver *ams =
-      new HypreAMS(A, (a->StaticCondensationIsEnabled() ?
-                       a->StaticCondensationParFESpace() : fespace));
+   ParFiniteElementSpace *prec_fespace =
+      (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+   HypreSolver *ams = new HypreAMS(A, prec_fespace);
    HyprePCG *pcg = new HyprePCG(A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);

@@ -2470,8 +2470,13 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    int dim = edge_fespace->GetMesh()->Dimension();
    int sdim = edge_fespace->GetMesh()->SpaceDimension();
    const FiniteElementCollection *edge_fec = edge_fespace->FEColl();
-   bool trace_space =
-      (dynamic_cast<const ND_Trace_FECollection*>(edge_fec) != NULL);
+
+   bool trace_space, rt_trace_space;
+   ND_Trace_FECollection *nd_tr_fec;
+   trace_space = dynamic_cast<const ND_Trace_FECollection*>(edge_fec);
+   rt_trace_space = dynamic_cast<const RT_Trace_FECollection*>(edge_fec);
+   trace_space = trace_space || rt_trace_space;
+
    int p = 1;
    if (edge_fespace->GetNE() > 0)
    {
@@ -2486,6 +2491,13 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
       }
    }
 
+   ParMesh *pmesh = edge_fespace->GetParMesh();
+   if (rt_trace_space)
+   {
+      nd_tr_fec = new ND_Trace_FECollection(p, dim);
+      edge_fespace = new ParFiniteElementSpace(pmesh, nd_tr_fec);
+   }
+
    HYPRE_AMSCreate(&ams);
 
    HYPRE_AMSSetDimension(ams, sdim); // 2D H(div) and 3D H(curl) problems
@@ -2495,7 +2507,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    HYPRE_AMSSetPrintLevel(ams, 1);
 
    // define the nodal linear finite element space associated with edge_fespace
-   ParMesh *pmesh = edge_fespace->GetParMesh();
    FiniteElementCollection *vert_fec;
    if (trace_space)
    {
@@ -2605,6 +2616,12 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
 
    delete vert_fespace;
    delete vert_fec;
+
+   if (rt_trace_space)
+   {
+      delete edge_fespace;
+      delete nd_tr_fec;
+   }
 
    // set additional AMS options
    HYPRE_AMSSetSmoothingOptions(ams, rlx_type, rlx_sweeps, rlx_weight, rlx_omega);

@@ -229,21 +229,13 @@ int main(int argc, char *argv[])
    pcg->SetRelTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(1);
-   if (a->StaticCondensationIsEnabled())
-   {
-      if (dim == 2)
-      {
-         ND_Trace_FECollection nd_tr_fec(order, dim);
-         ParFiniteElementSpace nd_tr_space(pmesh, &nd_tr_fec);
-         prec = new HypreAMS(A, &nd_tr_space);
-      }
-      else { prec = new HypreADS(A, a->StaticCondensationParFESpace()); }
-   }
-   else if (hybridization) { prec = new HypreBoomerAMG(A); }
+   if (hybridization) { prec = new HypreBoomerAMG(A); }
    else
    {
-      if (dim == 2) { prec = new HypreAMS(A, fespace); }
-      else          { prec = new HypreADS(A, fespace); }
+      ParFiniteElementSpace *prec_fespace =
+         (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+      if (dim == 2)   { prec = new HypreAMS(A, prec_fespace); }
+      else            { prec = new HypreADS(A, prec_fespace); }
    }
    pcg->SetPreconditioner(*prec);
    pcg->Mult(B, X);
