@@ -9,6 +9,11 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#ifdef _WIN32
+// Turn off CRT deprecation warnings for strerror (VS 2013)
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include "socketstream.hpp"
 
 #include <cstring>      // memset, memcpy, strerror
