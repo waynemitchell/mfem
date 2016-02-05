@@ -9714,7 +9714,7 @@ void Mesh::RemoveInternalBoundaries()
 
    Array<Element *> new_boundary(num_bdr_elem);
    Array<int> new_be_to_edge, new_be_to_face;
-   Table *new_bel_to_edge;
+   Table *new_bel_to_edge = NULL;
    new_boundary.SetSize(0);
    if (Dim == 2)
    {

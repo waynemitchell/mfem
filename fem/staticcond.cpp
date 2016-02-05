@@ -315,7 +315,7 @@ void StaticCondensation::ReduceRHS(const Vector &b, Vector &sc_b) const
 
    const int NE = fes->GetNE();
    const int nedofs = tr_fes->GetVSize();
-   const SparseMatrix *tr_cP;
+   const SparseMatrix *tr_cP = NULL;
    Vector b_r;
    if (!Parallel() && !(tr_cP = tr_fes->GetConformingProlongation()))
    {

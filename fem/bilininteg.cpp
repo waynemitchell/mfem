@@ -1085,7 +1085,7 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
    double energy = 0.0;
    if (d_energy) { *d_energy = 0.0; }
 
-   Vector* pfluxes;
+   Vector* pfluxes = NULL;
    if (d_energy)
    {
       pfluxes = new Vector[ir.GetNPoints()];
