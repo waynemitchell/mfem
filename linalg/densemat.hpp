@@ -270,7 +270,7 @@ public:
    void SetCol(int col, double value);
 
    /// Replace small entries, abs(a_ij) <= eps, with zero.
-   void ZeroSmallEntries(double eps);
+   void Threshold(double eps);
 
    /** Count the number of entries in the matrix for which isfinite
        is false, i.e. the entry is a NaN or +/-Inf. */

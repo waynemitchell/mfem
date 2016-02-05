@@ -22,7 +22,36 @@
 namespace mfem
 {
 
-/** TODO: add description. */
+/** Auxiliary class StaticCondensation, used to implement static condensation
+    in class BilinearForm.
+
+    Static condensation is a technique for solving linear systems by eliminating
+    groups/blocks of unknowns and reducing the original system to the remaining
+    interfacial unknowns. The assumption is that unknowns in one group are
+    connected (in the graph of the matrix) only to unknowns in the same group
+    or to interfacial unknowns but not to other groups.
+
+    For finite element systems, the groups correspond to degrees of freedom
+    (DOFs) associated with the interior of the elements. The rest of the DOFs
+    (associated with the element boundaries) are interfacial.
+
+    In block form the matrix of the system can be written as
+       A = | A11 A12 | - groups:    element interior / private DOFs
+           | A21 A22 | - interface: element boundary / exposed DOFs
+    where the block A1 is itself block diagonal with small local blocks and it
+    is, therefore, easily invertible.
+
+    Starting with the block system
+       | A11 A12 | | X1 | = | B1 |
+       | A21 A22 | | X2 |   | B2 |
+    the reduced, statically condensed system is given by
+       S22 X2 = B2 - A21 A11^{-1} B1
+    where the Schur complement matrix S22 is given by
+       S22 = A22 - A21 A11^{-1} A12.
+
+    After solving the Schur complement system, the X1 part of the solution can
+    be recovered using the formula
+       X1 = A11^{-1} ( B1 - A12 X2 ). */
 class StaticCondensation
 {
    FiniteElementSpace *fes, *tr_fes;

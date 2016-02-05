@@ -2657,7 +2657,7 @@ void DenseMatrix::SetCol(int col, double value)
    }
 }
 
-void DenseMatrix::ZeroSmallEntries(double eps)
+void DenseMatrix::Threshold(double eps)
 {
    for (int col = 0; col < Width(); col++)
    {
