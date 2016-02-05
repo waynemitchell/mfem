@@ -201,7 +201,7 @@ protected:
    /** Uniform Refinement. Element with index i is refined uniformly. */
    void UniformRefinement(int i, const DSTable &, int *, int *, int *);
 
-   /** Averages the vertices with given indexes and save the result in
+   /** Averages the vertices with given indexes and saves the result in
        vertices[result]. */
    void AverageVertices (int * indexes, int n, int result);
 
@@ -611,7 +611,7 @@ public:
        (both in their reference elements). Used to transform
        IntegrationPoints from face to element. More formally, let:
        TL1, TL2 be the transformations represented by Loc1, Loc2,
-       TE1, TE2 - the transformations represented by Eleme1, Elem2,
+       TE1, TE2 - the transformations represented by Elem1, Elem2,
        TF - the transformation represented by Face, then
        TF(x) = TE1(TL1(x)) = TE2(TL2(x)) for all x in the reference face.
        6) FaceGeom - the base geometry for the face.
@@ -685,8 +685,8 @@ public:
    void SetVertices(const Vector &vert_coord);
 
    // Nodes are only active for higher order meshes, and share locations with
-   // the vertecies, plus all the higher- order control points within the
-   // element and along the edges and on the faces.
+   // the vertices, plus all the higher- order control points within the element
+   // and along the edges and on the faces.
    void GetNode(int i, double *coord);
    void SetNode(int i, const double *coord);
 
@@ -701,7 +701,7 @@ public:
    GridFunction *GetNodes() { return Nodes; }
    /// Replace the internal node GridFunction with the given GridFunction.
    void NewNodes(GridFunction &nodes, bool make_owner = false);
-   /** Swap the internal node GridFunction pointer and onwership flag members
+   /** Swap the internal node GridFunction pointer and ownership flag members
        with the given ones. */
    void SwapNodes(GridFunction *&nodes, int &own_nodes_);
 

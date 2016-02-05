@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
       //     DOFs (it may therefore happen that dim(x) >= dim(X)).
       a.RecoverFEMSolution(X, b, x);
 
-      // 16. Send solution by socket to the GLVis server.
+      // 15. Send solution by socket to the GLVis server.
       if (visualization && sol_sock.good())
       {
          sol_sock.precision(8);
@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
          break;
       }
 
-      // 17. Estimate element errors using the Zienkiewicz-Zhu error estimator.
+      // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
       Vector errors(mesh.GetNE());
@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
          ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
       }
 
-      // 18. Make a list of elements whose error is larger than a fraction (0.7)
+      // 17. Make a list of elements whose error is larger than a fraction (0.7)
       //     of the maximum element error. These elements will be refined.
       Array<Refinement> ref_list;
       const double frac = 0.7;
@@ -212,13 +212,13 @@ int main(int argc, char *argv[])
          }
       }
 
-      // 19. Refine the selected elements. Since we are going to transfer the
+      // 18. Refine the selected elements. Since we are going to transfer the
       //     grid function x from the coarse mesh to the new fine mesh in the
       //     next step, we need to request the "two-level state" of the mesh.
       mesh.UseTwoLevelState(1);
       mesh.GeneralRefinement(ref_list);
 
-      // 20. Update the space to reflect the new state of the mesh. Also,
+      // 19. Update the space to reflect the new state of the mesh. Also,
       //     interpolate the solution x so that it lies in the new space but
       //     represents the same function. This saves solver iterations since
       //     we'll have a good initial guess of x in the next step.
@@ -233,7 +233,7 @@ int main(int argc, char *argv[])
       // fespace.Update();
       // x.Update();
 
-      // 21. Inform also the bilinear and linear forms that the space has
+      // 20. Inform also the bilinear and linear forms that the space has
       //     changed.
       a.Update();
       b.Update();

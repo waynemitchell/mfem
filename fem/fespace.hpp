@@ -163,6 +163,9 @@ public:
 
    inline int GetVSize() const { return vdim * ndofs; }
 
+   /// Return the number of vector true (conforming) dofs.
+   virtual int GetTrueVSize() { return GetConformingVSize(); }
+
    /// Returns the number of conforming ("true") degrees of freedom
    /// (if the space is on a nonconforming mesh with hanging nodes).
    int GetNConformingDofs();
@@ -234,6 +237,9 @@ public:
 
    void GetElementInteriorDofs(int i, Array<int> &dofs) const;
 
+   int GetNumElementInteriorDofs(int i) const
+   { return fec->DofForGeometry(mesh->GetElementBaseGeometry(i)); }
+
    void GetEdgeInteriorDofs(int i, Array<int> &dofs) const;
 
    void DofsToVDofs(Array<int> &dofs) const;
@@ -270,6 +276,7 @@ public:
    void BuildDofToArrays();
 
    const Table &GetElementToDofTable() const { return *elem_dof; }
+   const Table &GetBdrElementToDofTable() const { return *bdrElem_dof; }
 
    int GetElementForDof(int i) { return dof_elem_array[i]; }
    int GetLocalDofForDof(int i) { return dof_ldof_array[i]; }

@@ -110,7 +110,7 @@ void Hybridization::Init(const Array<int> &ess_tdof_list)
                                    *fes->GetFE(FTr->Elem2No),
                                    *FTr, elmat);
          // zero-out small elements in elmat
-         elmat.ZeroSmallEntries(1e-12 * elmat.MaxMaxNorm());
+         elmat.Threshold(1e-12 * elmat.MaxMaxNorm());
          Ct->AddSubMatrix(vdofs, c_vdofs, elmat, skip_zeros);
       }
 #ifdef MFEM_USE_MPI
@@ -136,7 +136,7 @@ void Hybridization::Init(const Array<int> &ess_tdof_list)
             c_bfi->AssembleFaceMatrix(*c_fes->GetFaceElement(face_no),
                                       *fe, *fe, *FTr, elmat);
             // zero-out small elements in elmat
-            elmat.ZeroSmallEntries(1e-12 * elmat.MaxMaxNorm());
+            elmat.Threshold(1e-12 * elmat.MaxMaxNorm());
             Ct->AddSubMatrix(vdofs, c_vdofs, elmat, skip_zeros);
          }
       }
@@ -341,8 +341,7 @@ void Hybridization::GetIBDofs(
    }
 }
 
-void Hybridization::AssembleMatrix(int el, const Array<int> &vdofs,
-                                   const DenseMatrix &A)
+void Hybridization::AssembleMatrix(int el, const DenseMatrix &A)
 {
    Array<int> i_dofs, b_dofs;
 

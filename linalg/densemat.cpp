@@ -141,6 +141,14 @@ const double &DenseMatrix::Elem(int i, int j) const
 
 void DenseMatrix::Mult(const double *x, double *y) const
 {
+   if (width == 0)
+   {
+      for (int row = 0; row < height; row++)
+      {
+         y[row] = 0.0;
+      }
+      return;
+   }
    double *d_col = data;
    double x_col = x[0];
    for (int row = 0; row < height; row++)
@@ -2417,7 +2425,7 @@ void DenseMatrix::GradToDiv(Vector &div)
    }
 }
 
-void DenseMatrix::CopyRows(DenseMatrix &A, int row1, int row2)
+void DenseMatrix::CopyRows(const DenseMatrix &A, int row1, int row2)
 {
    SetSize(row2 - row1 + 1, A.Width());
 
@@ -2428,7 +2436,7 @@ void DenseMatrix::CopyRows(DenseMatrix &A, int row1, int row2)
       }
 }
 
-void DenseMatrix::CopyCols(DenseMatrix &A, int col1, int col2)
+void DenseMatrix::CopyCols(const DenseMatrix &A, int col1, int col2)
 {
    SetSize(A.Height(), col2 - col1 + 1);
 
@@ -2439,7 +2447,7 @@ void DenseMatrix::CopyCols(DenseMatrix &A, int col1, int col2)
       }
 }
 
-void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco)
+void DenseMatrix::CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco)
 {
    int i, j;
 
@@ -2452,7 +2460,7 @@ void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco)
       }
 }
 
-void DenseMatrix::CopyMN(DenseMatrix &A, int row_offset, int col_offset)
+void DenseMatrix::CopyMN(const DenseMatrix &A, int row_offset, int col_offset)
 {
    int i, j;
    double *v = A.data;
@@ -2464,7 +2472,7 @@ void DenseMatrix::CopyMN(DenseMatrix &A, int row_offset, int col_offset)
       }
 }
 
-void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
+void DenseMatrix::CopyMNt(const DenseMatrix &A, int row_offset, int col_offset)
 {
    int i, j;
    double *v = A.data;
@@ -2473,6 +2481,23 @@ void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
       for (j = 0; j < A.Height(); j++)
       {
          (*this)(row_offset+i,col_offset+j) = *(v++);
+      }
+}
+
+void DenseMatrix::CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco,
+                         int row_offset, int col_offset)
+{
+   int i, j;
+
+   MFEM_VERIFY(row_offset+m <= this->Height() && col_offset+n <= this->Width(),
+               "this DenseMatrix is too small to accomodate the submatrix.");
+   MFEM_VERIFY(Aro+m <= A.Height() && Aco+n <= A.Width(),
+               "The A DenseMatrix is too small to accomodate the submatrix.");
+
+   for (j = 0; j < n; j++)
+      for (i = 0; i < m; i++)
+      {
+         (*this)(row_offset+i,col_offset+j) = A(Aro+i,Aco+j);
       }
 }
 
@@ -2632,7 +2657,7 @@ void DenseMatrix::SetCol(int col, double value)
    }
 }
 
-void DenseMatrix::ZeroSmallEntries(double eps)
+void DenseMatrix::Threshold(double eps)
 {
    for (int col = 0; col < Width(); col++)
    {
@@ -2648,6 +2673,8 @@ void DenseMatrix::ZeroSmallEntries(double eps)
 
 void DenseMatrix::Print(std::ostream &out, int width_) const
 {
+   // save current output flags
+   ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int i = 0; i < height; i++)
@@ -2666,10 +2693,14 @@ void DenseMatrix::Print(std::ostream &out, int width_) const
          }
       }
    }
+   // reset output flags to original values
+   out.flags(old_flags);
 }
 
 void DenseMatrix::PrintMatlab(std::ostream &out) const
 {
+   // save current output flags
+   ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int i = 0; i < height; i++)
@@ -2681,10 +2712,14 @@ void DenseMatrix::PrintMatlab(std::ostream &out) const
       }
       out << "\n";
    }
+   // reset output flags to original values
+   out.flags(old_flags);
 }
 
 void DenseMatrix::PrintT(std::ostream &out, int width_) const
 {
+   // save current output flags
+   ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int j = 0; j < width; j++)
@@ -2703,6 +2738,8 @@ void DenseMatrix::PrintT(std::ostream &out, int width_) const
          }
       }
    }
+   // reset output flags to original values
+   out.flags(old_flags);
 }
 
 void DenseMatrix::TestInversion()

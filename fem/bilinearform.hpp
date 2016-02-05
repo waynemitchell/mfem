@@ -18,6 +18,7 @@
 #include "gridfunc.hpp"
 #include "linearform.hpp"
 #include "bilininteg.hpp"
+#include "staticcond.hpp"
 #include "hybridization.hpp"
 
 namespace mfem
@@ -56,6 +57,7 @@ protected:
 
    DenseTensor *element_matrices;
 
+   StaticCondensation *static_cond;
    Hybridization *hybridization;
 
    int precompute_sparsity;
@@ -66,7 +68,7 @@ protected:
    BilinearForm() : Matrix (0)
    {
       fes = NULL; mat = mat_e = NULL; extern_bfs = 0; element_matrices = NULL;
-      hybridization = NULL;
+      static_cond = NULL; hybridization = NULL;
       precompute_sparsity = 0;
    }
 
@@ -79,8 +81,23 @@ public:
    /// Get the size of the BilinearForm as a square matrix.
    int Size() const { return height; }
 
-   /** Enable hybridization; for details see the description of class
-       Hybridization in fem/hybridization.hpp. */
+   /** Enable the use of static condensation. For details see the description
+       for class StaticCondensation in fem/staticcond.hpp This method should be
+       called before assembly. If the number of unknowns after static
+       condensation is not reduced, it is not enabled. */
+   void EnableStaticCondensation();
+
+   /** Check if static condensation was actually enabled by a previous call to
+       EnableStaticCondensation. */
+   bool StaticCondensationIsEnabled() const { return static_cond; }
+
+   /// Return the trace FE space associated with static condensation.
+   FiniteElementSpace *SCFESpace() const
+   { return static_cond->GetTraceFESpace(); }
+
+   /** Enable hybridization; for details see the description for class
+       Hybridization in fem/hybridization.hpp. This method should be called
+       before assembly. */
    void EnableHybridization(FiniteElementSpace *constr_space,
                             BilinearFormIntegrator *constr_integ,
                             const Array<int> &ess_tdof_list);
@@ -175,10 +192,15 @@ public:
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
        eliminating boundary conditions; applying conforming constraints for
-       non-conforming AMR; hybridization.
+       non-conforming AMR; static condensation; hybridization.
 
        The GridFunction-size vector x must contain the essential b.c. The
        BilinearForm and the LinearForm-size vector b must be assembled.
+
+       The vector X is initialized with a suitable initial guess: when using
+       hybridization, the vector X is set to zero; otherwise, the essential
+       entries of X are set to the corresponding b.c. and all other entries are
+       set to zero.
 
        This method can be called multiple times (with the same ess_tdof_list
        array) to initialize different right-hand sides and boundary condition
@@ -246,6 +268,7 @@ public:
 
    virtual void Update(FiniteElementSpace *nfes = NULL);
 
+   /// Return the FE space associated with the BilinearForm.
    FiniteElementSpace *GetFES() { return fes; }
 
    /// Destroys bilinear form.

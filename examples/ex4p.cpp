@@ -6,17 +6,17 @@
 //               mpirun -np 4 ex4p -m ../data/star.mesh
 //               mpirun -np 4 ex4p -m ../data/beam-tet.mesh
 //               mpirun -np 4 ex4p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex4p -m ../data/escher.mesh
+//               mpirun -np 4 ex4p -m ../data/escher.mesh -o 2 -sc
 //               mpirun -np 4 ex4p -m ../data/fichera.mesh -o 2 -hb
 //               mpirun -np 4 ex4p -m ../data/fichera-q2.vtk
-//               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh
-//               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh
-//               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh -o 2 -sc
+//               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh -o 3
+//               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh -o 3
 //               mpirun -np 4 ex4p -m ../data/periodic-square.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/amr-quad.mesh
-//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh
-//               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 2
+//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -sc
+//               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 3 -hb
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -29,7 +29,7 @@
 //               spaces with the grad-div and H(div) vector finite element mass
 //               bilinear form, as well as the computation of discretization
 //               error when the exact solution is known. Bilinear form
-//               hybridization is also illustrated.
+//               hybridization and static condensation are also illustrated.
 //
 //               We recommend viewing examples 1-3 before viewing this example.
 
@@ -57,6 +57,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool set_bc = true;
+   bool static_cond = false;
    bool hybridization = false;
    bool visualization = 1;
 
@@ -69,6 +70,8 @@ int main(int argc, char *argv[])
                   "Impose or not essential boundary conditions.");
    args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
                   " solution.");
+   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
+                  "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&hybridization, "-hb", "--hybridization", "-no-hb",
                   "--no-hybridization", "Enable hybridization.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
@@ -139,8 +142,7 @@ int main(int argc, char *argv[])
    pmesh->ReorientTetMesh();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Raviart-Thomas finite elements, but we can easily
-   //    switch to higher-order spaces by changing the value of p.
+   //    use the Raviart-Thomas finite elements of the specified order.
    FiniteElementCollection *fec = new RT_FECollection(order-1, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    HYPRE_Int size = fespace->GlobalTrueVSize();
@@ -188,22 +190,24 @@ int main(int argc, char *argv[])
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
 
-   // 11. Optionally enable hybridization of the ParBilinearForm by defining an
-   //     interfacial multiplier space and constraint trace integrator.
+   // 11. Assemble the parallel bilinear form and the corresponding linear
+   //     system, applying any necessary transformations such as: parallel
+   //     assembly, eliminating boundary conditions, applying conforming
+   //     constraints for non-conforming AMR, static condensation,
+   //     hybridization, etc.
    FiniteElementCollection *hfec = NULL;
    ParFiniteElementSpace *hfes = NULL;
-   if (hybridization)
+   if (static_cond)
+   {
+      a->EnableStaticCondensation();
+   }
+   else if (hybridization)
    {
       hfec = new DG_Interface_FECollection(order-1, dim);
       hfes = new ParFiniteElementSpace(pmesh, hfec);
       a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(),
                              ess_tdof_list);
    }
-
-   // 12. Assemble the parallel bilinear form and the corresponding linear
-   //     system, applying any necessary transformations such as: parallel
-   //     assembly, eliminating boundary conditions, applying conforming
-   //     constraints for non-conforming AMR, hybridization, etc.
    a->Assemble();
 
    HypreParMatrix A;
@@ -216,7 +220,7 @@ int main(int argc, char *argv[])
       cout << "Size of linear system: " << glob_size << endl;
    }
 
-   // 13. Define and apply a parallel PCG solver for A X = B with the 2D AMS or
+   // 12. Define and apply a parallel PCG solver for A X = B with the 2D AMS or
    //     the 3D ADS preconditioners from hypre. If using hybridization, the
    //     system is preconditioned with hypre's BoomerAMG.
    HypreSolver *prec = NULL;
@@ -225,21 +229,22 @@ int main(int argc, char *argv[])
    pcg->SetRelTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(1);
-   X = 0.0;
-   if (!hybridization)
+   if (hybridization) { prec = new HypreBoomerAMG(A); }
+   else
    {
-      if (dim == 2) { prec = new HypreAMS(A, fespace); }
-      else          { prec = new HypreADS(A, fespace); }
+      ParFiniteElementSpace *prec_fespace =
+         (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+      if (dim == 2)   { prec = new HypreAMS(A, prec_fespace); }
+      else            { prec = new HypreADS(A, prec_fespace); }
    }
-   else             { prec = new HypreBoomerAMG(A); }
    pcg->SetPreconditioner(*prec);
    pcg->Mult(B, X);
 
-   // 14. Extract the parallel grid function corresponding to the finite element
-   //     approximation X. This is the local solution on each processor.
+   // 13. Recover the parallel grid function corresponding to X. This is the
+   //     local finite element solution on each processor.
    a->RecoverFEMSolution(X, *b, x);
 
-   // 15. Compute and print the L^2 norm of the error.
+   // 14. Compute and print the L^2 norm of the error.
    {
       double err = x.ComputeL2Error(F);
       if (myid == 0)
@@ -248,7 +253,7 @@ int main(int argc, char *argv[])
       }
    }
 
-   // 16. Save the refined mesh and the solution in parallel. This output can
+   // 15. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
    {
       ostringstream mesh_name, sol_name;
@@ -264,7 +269,7 @@ int main(int argc, char *argv[])
       x.Save(sol_ofs);
    }
 
-   // 17. Send the solution by socket to a GLVis server.
+   // 16. Send the solution by socket to a GLVis server.
    if (visualization)
    {
       char vishost[] = "localhost";
@@ -275,7 +280,7 @@ int main(int argc, char *argv[])
       sol_sock << "solution\n" << *pmesh << x << flush;
    }
 
-   // 18. Free the used memory.
+   // 17. Free the used memory.
    delete pcg;
    delete prec;
    delete hfes;

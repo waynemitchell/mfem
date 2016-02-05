@@ -146,7 +146,6 @@ public:
 
    inline ParMesh *GetParMesh() { return pmesh; }
 
-   int TrueVSize() { return ltdof_size; }
    int GetDofSign(int i)
    { return NURBSext || Nonconforming() ? 1 : ldof_sign[VDofToDof(i)]; }
    HYPRE_Int *GetDofOffsets()     { return dof_offsets; }
@@ -155,6 +154,9 @@ public:
    { return Dof_TrueDof_Matrix()->GetGlobalNumRows(); }
    HYPRE_Int GlobalTrueVSize()
    { return Dof_TrueDof_Matrix()->GetGlobalNumCols(); }
+
+   /// Return the number of local vector true dofs.
+   virtual int GetTrueVSize() { return ltdof_size; }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
@@ -232,6 +234,9 @@ public:
    virtual FiniteElementSpace *SaveUpdate();
 
    virtual ~ParFiniteElementSpace() { delete gcomm; delete P; delete R; }
+
+   // obolete, for backward compatibility
+   int TrueVSize() { return ltdof_size; }
 };
 
 }

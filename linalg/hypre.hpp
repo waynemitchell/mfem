@@ -128,7 +128,7 @@ public:
    HYPRE_Int Randomize(HYPRE_Int seed);
 
    /// Prints the locally owned rows in parallel
-   void Print(const char *fname);
+   void Print(const char *fname) const;
 
    /// Calls hypre's destroy function
    ~HypreParVector();
@@ -381,6 +381,9 @@ public:
    void InvScaleRows(const Vector & s);
    /// Scale all entries by s: A_scaled = s*A.
    void operator*=(double s);
+
+   /// Remove values smaller in absolute value than some threshold
+   void Threshold(double threshold = 0.0);
 
    /// If a row contains only zeros, set its diagonal to 1.
    void EliminateZeroRows() { hypre_ParCSRMatrixFixZeroRows(A); }

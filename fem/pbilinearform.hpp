@@ -101,16 +101,26 @@ public:
    /// Compute y += a (P^t A P) x, where x and y are vectors on the true dofs
    void TrueAddMult(const Vector &x, Vector &y, const double a = 1.0) const;
 
+   /// Return the parallel FE space associated with the ParBilinearForm.
    ParFiniteElementSpace *ParFESpace() const { return pfes; }
+
+   /// Return the parallel trace FE space associated with static condensation.
+   ParFiniteElementSpace *SCParFESpace() const
+   { return static_cond->GetParTraceFESpace(); }
 
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
        eliminating boundary conditions; applying conforming constraints for
-       non-conforming AMR; parallel assembly; hybridization.
+       non-conforming AMR; parallel assembly; static condensation;
+       hybridization.
 
        The ParGridFunction-size vector x must contain the essential b.c. The
        ParBilinearForm and the ParLinearForm-size vector b must be assembled.
 
+       The vector X is initialized with a suitable initial guess: when using
+       hybridization, the vector X is set to zero; otherwise, the essential
+       entries of X are set to the corresponding b.c. and all other entries are
+       set to zero.
 
        This method can be called multiple times (with the same ess_tdof_list
        array) to initialize different right-hand sides and boundary condition
