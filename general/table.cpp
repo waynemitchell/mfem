@@ -178,13 +178,14 @@ int Table::operator() (int i, int j) const
 
 void Table::GetRow(int i, Array<int> &row) const
 {
-   MFEM_ASSERT(i < size, "Access of row " << i << ", table size " << size);
+   MFEM_ASSERT(i >= 0 && i < size, "Row index " << i << " is out of range [0,"
+               << size << ')');
    const int *jp = GetRow(i), n = RowSize(i);
 
    row.SetSize(n);
-   for (int i = 0; i < n; i++)
+   for (int j = 0; j < n; j++)
    {
-      row[i] = jp[i];
+      row[j] = jp[j];
    }
 }
 
