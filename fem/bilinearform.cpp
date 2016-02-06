@@ -420,7 +420,8 @@ void BilinearForm::ConformingAssemble()
 
 void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
                                     Vector &x, Vector &b,
-                                    SparseMatrix &A, Vector &X, Vector &B)
+                                    SparseMatrix &A, Vector &X, Vector &B,
+                                    int copy_interior)
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
    Array<int> ess_rtdof_list;
@@ -456,7 +457,7 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
       static_cond->ReduceSolution(x, X);
       static_cond->GetMatrixElim().AddMult(X, B, -1.);
       static_cond->GetMatrix().PartMult(ess_rtdof_list, X, B);
-      X.SetSubVectorComplement(ess_rtdof_list, 0.0);
+      if (!copy_interior) { X.SetSubVectorComplement(ess_rtdof_list, 0.0); }
       A.MakeRef(static_cond->GetMatrix());
    }
    else if (!P) // conforming space
@@ -476,7 +477,7 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
          EliminateVDofsInRHS(ess_tdof_list, x, b);
          X.NewDataAndSize(x.GetData(), x.Size());
          B.NewDataAndSize(b.GetData(), b.Size());
-         X.SetSubVectorComplement(ess_tdof_list, 0.0);
+         if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
          A.MakeRef(*mat);
       }
    }
@@ -505,7 +506,7 @@ void BilinearForm::FormLinearSystem(Array<int> &ess_tdof_list,
          X.SetSize(R->Height());
          R->Mult(x, X);
          EliminateVDofsInRHS(ess_tdof_list, X, B);
-         X.SetSubVectorComplement(ess_tdof_list, 0.0);
+         if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
          A.MakeRef(*mat);
       }
    }

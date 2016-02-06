@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
    // 4. Define a finite element space on the mesh. Here we use isoparametric
    //    finite elements -- the same as the mesh nodes.
    FiniteElementSpace *fespace = new FiniteElementSpace(mesh, &fec);
-   cout << "Number of unknowns: " << fespace->GetVSize() << endl;
+   cout << "Number of unknowns: " << fespace->GetTrueVSize() << endl;
 
    // 5. Set up the linear form b(.) which corresponds to the right-hand side of
    //    the FEM linear system, which in this case is (1,phi_i) where phi_i are

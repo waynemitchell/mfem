@@ -120,7 +120,7 @@ public:
        The vector X is initialized with a suitable initial guess: when using
        hybridization, the vector X is set to zero; otherwise, the essential
        entries of X are set to the corresponding b.c. and all other entries are
-       set to zero.
+       set to zero (copy_interior == 0) or copied from x (copy_interior != 0).
 
        This method can be called multiple times (with the same ess_tdof_list
        array) to initialize different right-hand sides and boundary condition
@@ -130,7 +130,8 @@ public:
        recovered by calling RecoverFEMSolution (with the same vectors X, b, and
        x). */
    void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
-                         HypreParMatrix &A, Vector &X, Vector &B);
+                         HypreParMatrix &A, Vector &X, Vector &B,
+                         int copy_interior = 0);
 
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a ParGridFunction-size

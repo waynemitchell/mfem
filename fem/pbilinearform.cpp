@@ -263,7 +263,7 @@ const
 
 void ParBilinearForm::FormLinearSystem(
    Array<int> &ess_tdof_list, Vector &x, Vector &b,
-   HypreParMatrix &A, Vector &X, Vector &B)
+   HypreParMatrix &A, Vector &X, Vector &B, int copy_interior)
 {
    HypreParMatrix &P = *pfes->Dof_TrueDof_Matrix();
    const SparseMatrix &R = *pfes->GetRestrictionMatrix();
@@ -303,7 +303,7 @@ void ParBilinearForm::FormLinearSystem(
       EliminateBC(static_cond->GetParallelMatrix(),
                   static_cond->GetParallelMatrixElim(),
                   ess_rtdof_list, X, B);
-      X.SetSubVectorComplement(ess_rtdof_list, 0.0);
+      if (!copy_interior) { X.SetSubVectorComplement(ess_rtdof_list, 0.0); }
       A.MakeRef(static_cond->GetParallelMatrix());
    }
    else if (hybridization)
@@ -327,7 +327,7 @@ void ParBilinearForm::FormLinearSystem(
       P.MultTranspose(b, B);
       R.Mult(x, X);
       EliminateBC(*p_mat, *p_mat_e, ess_tdof_list, X, B);
-      X.SetSubVectorComplement(ess_tdof_list, 0.0);
+      if (!copy_interior) { X.SetSubVectorComplement(ess_tdof_list, 0.0); }
       A.MakeRef(*p_mat);
    }
 }

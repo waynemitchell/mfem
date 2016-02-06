@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
    const int max_dofs = 50000;
    for (int it = 0; ; it++)
    {
-      int cdofs = fespace.GetNConformingDofs();
+      int cdofs = fespace.GetTrueVSize();
       cout << "\nIteration " << it << endl;
       cout << "Number of unknowns: " << cdofs << endl;
 
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
       //     will be solved for true (unconstrained) DOFs only.
       SparseMatrix A;
       Vector B, X;
-      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B);
+      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, 1);
 
 #ifndef MFEM_USE_SUITESPARSE
       // 13. Define a simple symmetric Gauss-Seidel preconditioner and use it to
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
       UMFPackSolver umf_solver;
       umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
       umf_solver.SetOperator(A);
-      umf_solver.Mult(b, x);
+      umf_solver.Mult(B, X);
 #endif
 
       // 14. After solving the linear system, reconstruct the solution as a finite
