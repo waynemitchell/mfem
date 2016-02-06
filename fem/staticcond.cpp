@@ -70,10 +70,9 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace)
       }
    }
    elem_pdof.ShiftUpI();
-   // Set the number of private and exposed dofs.
-   const int ndofs = fes->GetVSize();
+   // Set the number of private dofs.
    npdofs = elem_pdof.Size_of_connections();
-   MFEM_ASSERT(ndofs - npdofs == tr_fes->GetVSize(),
+   MFEM_ASSERT(fes->GetVSize() == tr_fes->GetVSize() + npdofs,
                "incompatible volume and trace FE spaces");
    // Initialize the map rdof_edof.
    rdof_edof.SetSize(tr_fes->GetVSize());
