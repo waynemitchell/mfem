@@ -28,8 +28,8 @@ using namespace std;
 using namespace mfem;
 
 // Exact solution and r.h.s., see below for implementation.
-double analytic_solution(Vector &x);
-double analytic_rhs(Vector &x);
+double analytic_solution(const Vector &x);
+double analytic_rhs(const Vector &x);
 void SnapNodes(Mesh &mesh);
 
 int main(int argc, char *argv[])
@@ -304,13 +304,13 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-double analytic_solution(Vector &x)
+double analytic_solution(const Vector &x)
 {
    double l2 = x(0)*x(0) + x(1)*x(1) + x(2)*x(2);
    return x(0)*x(1)/l2;
 }
 
-double analytic_rhs(Vector &x)
+double analytic_rhs(const Vector &x)
 {
    double l2 = x(0)*x(0) + x(1)*x(1) + x(2)*x(2);
    return 7*x(0)*x(1)/l2;

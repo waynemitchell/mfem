@@ -263,6 +263,7 @@ lib: libmfem.a
 all: lib
 	$(MAKE) -C examples
 	$(MAKE) -C miniapps/meshing
+	$(MAKE) -C miniapps/electromagnetics
 
 -include deps.mk
 
@@ -294,6 +295,7 @@ clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
 	$(MAKE) -C examples clean
 	$(MAKE) -C miniapps/meshing clean
+	$(MAKE) -C miniapps/electromagnetics clean
 
 distclean: clean
 	rm -rf mfem/

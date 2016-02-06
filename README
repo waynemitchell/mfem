@@ -51,8 +51,8 @@ high-performing parallel version of the code, where they can take advantage of
 the integrated scalable linear solvers from the hypre library. An experimental
 support for OpenMP acceleration is also included.
 
-For examples of using MFEM, see the examples/ directory, as well as the OpenGL
-visualization tool GLVis which is available at http://glvis.org.
+For examples of using MFEM, see the examples/ and miniapps/ directories, as well
+as the OpenGL visualization tool GLVis which is available at http://glvis.org.
 
 This project is released under the LGPL v2.1 license. See LICENSE file for full
 details.

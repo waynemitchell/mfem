@@ -148,11 +148,10 @@ public:
        as boundary (for visualization purposes) using Netgen/Truegrid format .*/
    virtual void PrintXG(std::ostream &out = std::cout) const;
 
-   /** Write the mesh to the stream 'out' on Process 0 in a form
-       suitable for visualization: the mesh is written as a disjoint
-       mesh and the shared boundary is added to the actual boundary;
-       both the element and boundary attributes are set to the
-       precessor number.  */
+   /** Write the mesh to the stream 'out' on Process 0 in a form suitable for
+       visualization: the mesh is written as a disjoint mesh and the shared
+       boundary is added to the actual boundary; both the element and boundary
+       attributes are set to the precessor number.  */
    void PrintAsOne(std::ostream &out = std::cout);
 
    /// Old mesh format (Netgen/Truegrid) version of 'PrintAsOne'

@@ -8,8 +8,15 @@
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
-
-// Meshing miniapp: generate Mobius strip meshes
+//
+//             ---------------------------------------------------
+//             Mobius Strip Miniapp:  Generate Mobius strip meshes
+//             ---------------------------------------------------
+//
+// This miniapp generates various Mobius strip-like surface meshes. It is a good
+// way to generate complex surface meshes. Manipulating the mesh topology and
+// performing mesh transformation are demonstrated. The mobius-strip mesh in the
+// data/ directory was generated with this miniapp.
 //
 // Compile with: make mobius-strip
 //

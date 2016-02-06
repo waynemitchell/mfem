@@ -468,7 +468,8 @@ private:
    Vector shape;
    Vector D;
    DenseMatrix K;
-   DenseMatrix vshape;
+   DenseMatrix test_vshape;
+   DenseMatrix trial_vshape;
 #endif
 
 public:
