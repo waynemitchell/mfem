@@ -18,7 +18,7 @@
 namespace mfem
 {
 
-namespace electromagnetics
+namespace miniapps
 {
 
 /** The H1_FESpace class is a FiniteElementSpace which automatically
@@ -64,7 +64,7 @@ private:
    const FiniteElementCollection *FEC_;
 };
 
-} // namespace electromagnetics
+} // namespace miniapps
 
 } // namespace mfem
 

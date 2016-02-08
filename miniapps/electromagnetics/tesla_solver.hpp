@@ -16,12 +16,19 @@
 
 #ifdef MFEM_USE_MPI
 
-#include "pfem_extras.hpp"
+#include "../common/pfem_extras.hpp"
 #include <string>
 #include <map>
 
 namespace mfem
 {
+
+using miniapps::H1_ParFESpace;
+using miniapps::ND_ParFESpace;
+using miniapps::RT_ParFESpace;
+using miniapps::ParDiscreteGradOperator;
+using miniapps::ParDiscreteCurlOperator;
+using miniapps::DivergenceFreeProjector;
 
 namespace electromagnetics
 {

@@ -16,9 +16,9 @@
 #include "volta_solver.hpp"
 
 using namespace std;
-
 namespace mfem
 {
+using namespace miniapps;
 
 namespace electromagnetics
 {

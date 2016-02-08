@@ -16,7 +16,7 @@ using namespace std;
 namespace mfem
 {
 
-namespace electromagnetics
+namespace miniapps
 {
 
 H1_FESpace::H1_FESpace(Mesh *m,
@@ -56,6 +56,6 @@ RT_FESpace::~RT_FESpace()
    delete FEC_;
 }
 
-} // namespace electromagnetics
+} // namespace miniapps
 
 } // namespace mfem
