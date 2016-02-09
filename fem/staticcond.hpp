@@ -36,22 +36,32 @@ namespace mfem
     (associated with the element boundaries) are interfacial.
 
     In block form the matrix of the system can be written as
-       A = | A11 A12 | - groups:    element interior / private DOFs
-           | A21 A22 | - interface: element boundary / exposed DOFs
-    where the block A1 is itself block diagonal with small local blocks and it
-    is, therefore, easily invertible.
+       \f[ A =
+       \begin{pmatrix}
+          A_{11} & A_{12} \\
+          A_{21} & A_{22}
+       \end{pmatrix}
+       \begin{array}{l}
+          \text{-- groups: element interior/private DOFs} \\
+          \text{-- interface: element boundary/exposed DOFs}
+       \end{array} \f]
+    where the block \f$ A_1 \f$ is itself block diagonal with small local blocks
+    and it is, therefore, easily invertible.
 
     Starting with the block system
-       | A11 A12 | | X1 | = | B1 |
-       | A21 A22 | | X2 |   | B2 |
+       \f[ \begin{pmatrix}
+          A_{11} & A_{12} \\
+          A_{21} & A_{22}
+       \end{pmatrix}
+       \begin{pmatrix} X_1 \\ X_2 \end{pmatrix} =
+       \begin{pmatrix} B_1 \\ B_2 \end{pmatrix} \f]
     the reduced, statically condensed system is given by
-       S22 X2 = B2 - A21 A11^{-1} B1
-    where the Schur complement matrix S22 is given by
-       S22 = A22 - A21 A11^{-1} A12.
-
-    After solving the Schur complement system, the X1 part of the solution can
-    be recovered using the formula
-       X1 = A11^{-1} ( B1 - A12 X2 ). */
+        \f[ S_{22} X_2 = B_2 - A_{21} A_{11}^{-1} B_1 \f]
+    where the Schur complement matrix \f$ S_{22} \f$ is given by
+        \f[ S_{22} = A_{22} - A_{21} A_{11}^{-1} A_{12}. \f]
+    After solving the Schur complement system, the \f$ X_1 \f$ part of the
+    solution can be recovered using the formula
+        \f[ X_1 = A_{11}^{-1} ( B_1 - A_{12} X_2 ). \f] */
 class StaticCondensation
 {
    FiniteElementSpace *fes, *tr_fes;
