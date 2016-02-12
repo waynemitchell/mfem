@@ -178,8 +178,6 @@ ifeq ($(MFEM_USE_SUITESPARSE),YES)
    ALL_LIBS += $(SUITESPARSE_LIB)
 endif
 
-MFEM_USE_MEMALLOC ?= YES
-
 MFEM_USE_GECKO ?= NO
 GECKO_DIR ?= @MFEM_DIR@/../gecko
 GECKO_OPT ?= -I$(GECKO_DIR)/inc
@@ -188,6 +186,17 @@ ifeq ($(MFEM_USE_GECKO),YES)
    INCFLAGS += $(GECKO_OPT)
    ALL_LIBS += $(GECKO_LIB)
 endif
+
+MFEM_USE_GNUTLS ?= NO
+# GnuTLS library configuration
+GNUTLS_OPT ?=
+GNUTLS_LIB ?= -lgnutls
+ifeq ($(MFEM_USE_GNUTLS),YES)
+   INCFLAGS += $(GNUTLS_OPT)
+   ALL_LIBS += $(GNUTLS_LIB)
+endif
+
+MFEM_USE_MEMALLOC ?= YES
 
 # Use POSIX clocks for timing unless kernel-name is 'Darwin' (mac)
 ifeq ($(shell uname -s),Darwin)
@@ -203,7 +212,7 @@ endif
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
- MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC MFEM_USE_GECKO
+ MFEM_USE_SUITESPARSE MFEM_USE_GECKO MFEM_USE_GNUTLS MFEM_USE_MEMALLOC
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -346,8 +355,9 @@ status info:
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
-	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
+	$(info MFEM_USE_GNUTLS      = $(MFEM_USE_GNUTLS))
+	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))

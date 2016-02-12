@@ -163,6 +163,11 @@ MFEM_USE_SUITESPARSE = YES/NO
    option adds the class UMFPackSolver (a sparse direct solver). When enabled,
    this option uses the SUITESPARSE_* library options, see below.
 
+MFEM_USE_GNUTLS = YES/NO
+   Enable the secure socket classes gnutls_socketbuf and gnutls_socketstream
+   based on the GnuTLS library. When enabled, this option uses the GNUTLS_*
+   library options, see below.
+
 MFEM_USE_MEMALLOC = YES/NO
    Internal MFEM option: enable batch allocation for some small objects.
    Recommended value is YES.
@@ -221,6 +226,10 @@ The specific libraries and their options are:
 - SuiteSparse (optional), used when MFEM_USE_SUITESPARSE = YES.
   URL: http://faculty.cse.tamu.edu/davis/suitesparse.html
   Options: SUITESPARSE_OPT, SUITESPARSE_LIB.
+
+- GnuTLS (optional), used when MFEM_USE_GNUTLS = YES.
+  URL: http://gnutls.org
+  Options: GNUTLS_OPT, GNUTLS_LIB.
 
 - High-resolution POSIX clocks: when using MFEM_TIMER_TYPE = 2, it may be
   necessary to link with a system library (e.g. librt.so).

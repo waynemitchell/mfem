@@ -15,12 +15,17 @@
 #include "../config/config.hpp"
 #include <iostream>
 
+#ifdef MFEM_USE_GNUTLS
+#include <gnutls/gnutls.h>
+#include <gnutls/openpgp.h>
+#endif
+
 namespace mfem
 {
 
 class socketbuf : public std::streambuf
 {
-private:
+protected:
    int socket_descriptor;
    static const int buflen = 1024;
    char ibuf[buflen], obuf[buflen];
@@ -45,19 +50,19 @@ public:
 
    /** Attach a new socket descriptor to the socketbuf.
        Returns the old socket descriptor which is NOT closed. */
-   int attach(int sd);
+   virtual int attach(int sd);
 
    int detach() { return attach(-1); }
 
-   int open(const char hostname[], int port);
+   virtual int open(const char hostname[], int port);
 
-   int close();
+   virtual int close();
 
    int getsocketdescriptor() { return socket_descriptor; }
 
    bool is_open() { return (socket_descriptor >= 0); }
 
-   ~socketbuf() { close(); }
+   virtual ~socketbuf() { close(); }
 
 protected:
    virtual int sync();
@@ -74,22 +79,26 @@ protected:
 
 class socketstream : public std::iostream
 {
-private:
-   socketbuf __buf;
+protected:
+   socketbuf *buf__;
 
 public:
-   socketstream() : std::iostream(&__buf) { }
+   socketstream() : buf__(new socketbuf) { std::iostream::rdbuf(buf__); }
 
-   explicit socketstream(int s) : std::iostream(&__buf), __buf(s) { }
+   socketstream(socketbuf *buf) : std::iostream(buf), buf__(buf) { }
+
+   explicit socketstream(int s)
+      : buf__(new socketbuf(s)) { std::iostream::rdbuf(buf__); }
 
    socketstream(const char hostname[], int port)
-      : std::iostream(&__buf) { open(hostname, port); }
+      : buf__(new socketbuf)
+   { std::iostream::rdbuf(buf__); open(hostname, port); }
 
-   socketbuf *rdbuf() { return &__buf; }
+   socketbuf *rdbuf() { return buf__; }
 
    int open(const char hostname[], int port)
    {
-      int err = __buf.open(hostname, port);
+      int err = buf__->open(hostname, port);
       if (err)
       {
          setstate(std::ios::failbit);
@@ -101,11 +110,11 @@ public:
       return err;
    }
 
-   int close() { return __buf.close(); }
+   int close() { return buf__->close(); }
 
-   bool is_open() { return __buf.is_open(); }
+   bool is_open() { return buf__->is_open(); }
 
-   virtual ~socketstream() { }
+   virtual ~socketstream() { delete buf__; }
 };
 
 
@@ -125,6 +134,89 @@ public:
 
    ~socketserver() { close(); }
 };
+
+#ifdef MFEM_USE_GNUTLS
+
+class gnutls_socketbuf : public socketbuf
+{
+protected:
+   bool gnutls_ok;
+   int gnutls_res;
+   unsigned int gnutls_flags;
+   gnutls_session_t session;
+
+   gnutls_certificate_credentials_t my_cred;
+   gnutls_dh_params_t dh_params;
+   bool glob_init_ok, my_cred_ok, dh_params_ok;
+
+   void check_result(int result)
+   {
+      gnutls_res = result;
+      gnutls_ok = (result == GNUTLS_E_SUCCESS);
+   }
+
+   void print_gnutls_err(const char *msg)
+   {
+      if (gnutls_ok) { return; }
+      std::cout << "Error in " << msg << ": " << gnutls_strerror(gnutls_res)
+                << std::endl;
+   }
+
+   int handshake();
+   void start_session();
+   void end_session();
+
+public:
+   gnutls_socketbuf(unsigned int flags, const char *pubkey_file,
+                    const char *privkey_file, const char *trustedkeys_file);
+
+   virtual ~gnutls_socketbuf();
+
+   bool gnutls_good() const { return gnutls_ok; }
+
+   /** Attach a new socket descriptor to the socketbuf.
+       Returns the old socket descriptor which is NOT closed. */
+   virtual int attach(int sd);
+
+   virtual int open(const char hostname[], int port);
+
+   virtual int close();
+
+protected:
+   virtual int sync();
+
+   virtual int_type underflow();
+
+   // Same as in the base class:
+   // virtual int_type overflow(int_type c = traits_type::eof());
+
+   virtual std::streamsize xsgetn(char_type *__s, std::streamsize __n);
+
+   virtual std::streamsize xsputn(const char_type *__s, std::streamsize __n);
+};
+
+/// Secure socket stream, based on GNUTLS using OpenPGP/GnuPG keys.
+class gnutls_socketstream : public socketstream
+{
+public:
+   gnutls_socketstream(const char *pubkey_file, const char *privkey_file,
+                       const char *trustedkeys_file,
+                       unsigned int flags = GNUTLS_CLIENT)
+      : socketstream(new gnutls_socketbuf(flags, pubkey_file,
+                                          privkey_file, trustedkeys_file))
+   {
+      if (((gnutls_socketbuf*)buf__)->gnutls_good())
+      {
+         clear();
+      }
+      else
+      {
+         setstate(std::ios::failbit);
+      }
+   }
+};
+
+#endif // MFEM_USE_GNUTLS
 
 }
 

@@ -49,10 +49,6 @@ LAPACK_LIB = -llapack
 OPENMP_OPT = -fopenmp
 OPENMP_LIB =
 
-GECKO_DIR = @MFEM_DIR@/../gecko
-GECKO_OPT = -I$(GECKO_DIR)/inc
-GECKO_LIB = -L$(GECKO_DIR)/lib -lgecko
-
 MESQUITE_DIR = @MFEM_DIR@/../mesquite-2.99
 MESQUITE_OPT = -I$(MESQUITE_DIR)/include
 MESQUITE_LIB = -L$(MESQUITE_DIR)/lib -lmesquite
@@ -61,6 +57,13 @@ SUITESPARSE_DIR = @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT = -I$(SUITESPARSE_DIR)/include
 SUITESPARSE_LIB = -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd -lamd\
  -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
+
+GECKO_DIR = @MFEM_DIR@/../gecko
+GECKO_OPT = -I$(GECKO_DIR)/inc
+GECKO_LIB = -L$(GECKO_DIR)/lib -lgecko
+
+GNUTLS_OPT =
+GNUTLS_LIB = -lgnutls
 
 POSIX_CLOCKS_LIB = -lrt
 
@@ -75,8 +78,9 @@ MFEM_THREAD_SAFE     = NO
 MFEM_USE_OPENMP      = NO
 MFEM_USE_MESQUITE    = NO
 MFEM_USE_SUITESPARSE = NO
-MFEM_USE_MEMALLOC    = YES
 MFEM_USE_GECKO       = NO
+MFEM_USE_GNUTLS      = NO
+MFEM_USE_MEMALLOC    = YES
 ifeq ($(shell uname -s),Darwin)
    MFEM_TIMER_TYPE ?= 0
 else
