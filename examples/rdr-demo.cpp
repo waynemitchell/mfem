@@ -68,7 +68,9 @@ void CheckNorm(const ParGridFunction &x, double norm0)
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
    if (myid == 0)
    {
-      cout << "Solution norm " << norm << ", should be " << norm0 << endl;
+      cout.precision(15);
+      cout << "Solution norm " << norm << ", should be " << norm0
+           << " (difference " << std::abs(norm - norm0) << ")" << endl;
    }
 }
 
