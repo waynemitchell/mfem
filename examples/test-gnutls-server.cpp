@@ -7,12 +7,6 @@
 
 using namespace std;
 
-bool file_exists(const char *file)
-{
-   ifstream fstr(file);
-   return fstr.is_open();
-}
-
 int main(int argc, char *argv[])
 {
    string home_dir(getenv("HOME"));

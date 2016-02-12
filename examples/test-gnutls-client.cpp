@@ -7,12 +7,6 @@
 
 using namespace std;
 
-bool file_exists(const char *file)
-{
-   ifstream fstr(file);
-   return fstr.is_open();
-}
-
 int main(int argc, char *argv[])
 {
    string home_dir(getenv("HOME"));
@@ -24,21 +18,6 @@ int main(int argc, char *argv[])
    cout << "pubkey      = " << pubkey << '\n'
         << "privkey     = " << privkey << '\n'
         << "trustedkeys = " << trustedkeys << endl;
-   if (!file_exists(pubkey.c_str()))
-   {
-      cout << "pubkey file does not exist!" << endl;
-      return 1;
-   }
-   if (!file_exists(privkey.c_str()))
-   {
-      cout << "privkey file does not exist!" << endl;
-      return 1;
-   }
-   if (!file_exists(trustedkeys.c_str()))
-   {
-      cout << "trustedkeys file does not exist!" << endl;
-      return 1;
-   }
 
    const char *hostname = "localhost";
    int port = 19917;
