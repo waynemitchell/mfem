@@ -163,6 +163,8 @@ public:
 
    const SparseMatrix *GetConformingProlongation();
    const SparseMatrix *GetConformingRestriction();
+   virtual const SparseMatrix *GetRestrictionMatrix()
+   { return GetConformingRestriction(); }
 
    /// Returns vector dimension.
    inline int GetVDim() const { return vdim; }
@@ -176,6 +178,9 @@ public:
    inline int GetNDofs() const { return ndofs; }
 
    inline int GetVSize() const { return vdim * ndofs; }
+
+   /// Return the number of vector true (conforming) dofs.
+   virtual int GetTrueVSize() { return GetConformingVSize(); }
 
    /// Returns the number of conforming ("true") degrees of freedom
    /// (if the space is on a nonconforming mesh with hanging nodes).
@@ -248,6 +253,9 @@ public:
 
    void GetElementInteriorDofs(int i, Array<int> &dofs) const;
 
+   int GetNumElementInteriorDofs(int i) const
+   { return fec->DofForGeometry(mesh->GetElementBaseGeometry(i)); }
+
    void GetEdgeInteriorDofs(int i, Array<int> &dofs) const;
 
    void DofsToVDofs(Array<int> &dofs, int ndofs = -1) const;
@@ -284,6 +292,7 @@ public:
    void BuildDofToArrays();
 
    const Table &GetElementToDofTable() const { return *elem_dof; }
+   const Table &GetBdrElementToDofTable() const { return *bdrElem_dof; }
 
    int GetElementForDof(int i) { return dof_elem_array[i]; }
    int GetLocalDofForDof(int i) { return dof_ldof_array[i]; }
@@ -316,6 +325,19 @@ public:
        the specified boundary attributes (marked in 'bdr_attr_is_ess'). */
    virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
                                   Array<int> &ess_vdofs) const;
+
+   /** Get a list of essential true dofs, ess_tdof_list, corresponding to the
+       boundary attributes marked in the array bdr_attr_is_ess. */
+   virtual void GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
+                                     Array<int> &ess_tdof_list);
+
+   /// Convert a Boolean marker array to a list containing all marked indices.
+   static void MarkerToList(const Array<int> &marker, Array<int> &list);
+   /** Convert an array of indices (list) to a Boolean marker array where all
+       indices in the list are marked with the given value and the rest are set
+       to zero. */
+   static void ListToMarker(const Array<int> &list, int marker_size,
+                            Array<int> &marker, int mark_val = -1);
 
    /** For a partially conforming FE space, convert a marker array (nonzero
        entries are true) on the partially conforming dofs to a marker array on

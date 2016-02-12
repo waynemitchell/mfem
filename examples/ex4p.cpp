@@ -6,17 +6,17 @@
 //               mpirun -np 4 ex4p -m ../data/star.mesh
 //               mpirun -np 4 ex4p -m ../data/beam-tet.mesh
 //               mpirun -np 4 ex4p -m ../data/beam-hex.mesh
-//               mpirun -np 4 ex4p -m ../data/escher.mesh
-//               mpirun -np 4 ex4p -m ../data/fichera.mesh
+//               mpirun -np 4 ex4p -m ../data/escher.mesh -o 2 -sc
+//               mpirun -np 4 ex4p -m ../data/fichera.mesh -o 2 -hb
 //               mpirun -np 4 ex4p -m ../data/fichera-q2.vtk
-//               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh
-//               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh
-//               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh
+//               mpirun -np 4 ex4p -m ../data/fichera-q3.mesh -o 2 -sc
+//               mpirun -np 4 ex4p -m ../data/square-disc-nurbs.mesh -o 3
+//               mpirun -np 4 ex4p -m ../data/beam-hex-nurbs.mesh -o 3
 //               mpirun -np 4 ex4p -m ../data/periodic-square.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/periodic-cube.mesh -no-bc
 //               mpirun -np 4 ex4p -m ../data/amr-quad.mesh
-//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh
-//               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 2
+//               mpirun -np 4 ex4p -m ../data/amr-hex.mesh -o 2 -sc
+//               mpirun -np 4 ex4p -m ../data/star-surf.mesh -o 3 -hb
 //
 // Description:  This example code solves a simple 2D/3D H(div) diffusion
 //               problem corresponding to the second order definite equation
@@ -28,7 +28,8 @@
 //               The example demonstrates the use of H(div) finite element
 //               spaces with the grad-div and H(div) vector finite element mass
 //               bilinear form, as well as the computation of discretization
-//               error when the exact solution is known.
+//               error when the exact solution is known. Bilinear form
+//               hybridization and static condensation are also illustrated.
 //
 //               We recommend viewing examples 1-3 before viewing this example.
 
@@ -56,6 +57,8 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/star.mesh";
    int order = 1;
    bool set_bc = true;
+   bool static_cond = false;
+   bool hybridization = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -67,6 +70,10 @@ int main(int argc, char *argv[])
                   "Impose or not essential boundary conditions.");
    args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
                   " solution.");
+   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
+                  "--no-static-condensation", "Enable static condensation.");
+   args.AddOption(&hybridization, "-hb", "--hybridization", "-no-hb",
+                  "--no-hybridization", "Enable hybridization.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -135,17 +142,28 @@ int main(int argc, char *argv[])
    pmesh->ReorientTetMesh();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
-   //    use the lowest order Raviart-Thomas finite elements, but we can easily
-   //    switch to higher-order spaces by changing the value of p.
+   //    use the Raviart-Thomas finite elements of the specified order.
    FiniteElementCollection *fec = new RT_FECollection(order-1, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
    {
-      cout << "Number of unknowns: " << size << endl;
+      cout << "Number of finite element unknowns: " << size << endl;
    }
 
-   // 7. Set up the parallel linear form b(.) which corresponds to the
+   // 7. Determine the list of true (i.e. parallel conforming) essential
+   //    boundary dofs. In this example, the boundary conditions are defined
+   //    by marking all the boundary attributes from the mesh as essential
+   //    (Dirichlet) and converting them to a list of true dofs.
+   Array<int> ess_tdof_list;
+   if (pmesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = set_bc ? 1 : 0;
+      fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   }
+
+   // 8. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
    //    (f,phi_i) where f is given by the function f_exact and phi_i are the
    //    basis functions in the finite element fespace.
@@ -154,7 +172,7 @@ int main(int argc, char *argv[])
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
 
-   // 8. Define the solution vector x as a parallel finite element grid function
+   // 9. Define the solution vector x as a parallel finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary faces will be used
    //    when eliminating the non-homogeneous boundary condition to modify the
@@ -163,63 +181,68 @@ int main(int argc, char *argv[])
    VectorFunctionCoefficient F(sdim, F_exact);
    x.ProjectCoefficient(F);
 
-   // 9. Set up the parallel bilinear form corresponding to the H(div) diffusion
-   //    operator grad alpha div + beta I, by adding the div-div and the
-   //    mass domain integrators and finally imposing non-homogeneous Dirichlet
-   //    boundary conditions. The boundary conditions are implemented by
-   //    marking all the boundary attributes from the mesh as essential
-   //    (Dirichlet). After serial and parallel assembly we extract the
-   //    parallel matrix A.
+   // 10. Set up the parallel bilinear form corresponding to the H(div)
+   //     diffusion operator grad alpha div + beta I, by adding the div-div and
+   //     the mass domain integrators.
    Coefficient *alpha = new ConstantCoefficient(1.0);
    Coefficient *beta  = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DivDivIntegrator(*alpha));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*beta));
+
+   // 11. Assemble the parallel bilinear form and the corresponding linear
+   //     system, applying any necessary transformations such as: parallel
+   //     assembly, eliminating boundary conditions, applying conforming
+   //     constraints for non-conforming AMR, static condensation,
+   //     hybridization, etc.
+   FiniteElementCollection *hfec = NULL;
+   ParFiniteElementSpace *hfes = NULL;
+   if (static_cond)
+   {
+      a->EnableStaticCondensation();
+   }
+   else if (hybridization)
+   {
+      hfec = new DG_Interface_FECollection(order-1, dim);
+      hfes = new ParFiniteElementSpace(pmesh, hfec);
+      a->EnableHybridization(hfes, new NormalTraceJumpIntegrator(),
+                             ess_tdof_list);
+   }
    a->Assemble();
-   a->Finalize();
 
-   // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //     b(.) and the finite element approximation.
-   HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelProject();
+   HypreParMatrix A;
+   Vector B, X;
+   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
-   // 11. Eliminate essential BC from the parallel system
-   if (set_bc && pmesh->bdr_attributes.Size())
+   HYPRE_Int glob_size = A.GetGlobalNumRows();
+   if (myid == 0)
    {
-      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-      ess_bdr = 1;
-      a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
+      cout << "Size of linear system: " << glob_size << endl;
    }
 
-   *X = 0.0;
-
-   delete a;
-   delete alpha;
-   delete beta;
-   delete b;
-
-   // 12. Define and apply a parallel PCG solver for AX=B with the 2D AMS or the
-   //     3D ADS preconditioners from hypre.
-   HypreSolver *prec;
-   if (dim == 2)
-   {
-      prec = new HypreAMS(*A, fespace);
-   }
+   // 12. Define and apply a parallel PCG solver for A X = B with the 2D AMS or
+   //     the 3D ADS preconditioners from hypre. If using hybridization, the
+   //     system is preconditioned with hypre's BoomerAMG.
+   HypreSolver *prec = NULL;
+   CGSolver *pcg = new CGSolver(A.GetComm());
+   pcg->SetOperator(A);
+   pcg->SetRelTol(1e-12);
+   pcg->SetMaxIter(500);
+   pcg->SetPrintLevel(1);
+   if (hybridization) { prec = new HypreBoomerAMG(A); }
    else
    {
-      prec = new HypreADS(*A, fespace);
+      ParFiniteElementSpace *prec_fespace =
+         (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+      if (dim == 2)   { prec = new HypreAMS(A, prec_fespace); }
+      else            { prec = new HypreADS(A, prec_fespace); }
    }
-   HyprePCG *pcg = new HyprePCG(*A);
-   pcg->SetTol(1e-10);
-   pcg->SetMaxIter(500);
-   pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*prec);
-   pcg->Mult(*B, *X);
+   pcg->Mult(B, X);
 
-   // 13. Extract the parallel grid function corresponding to the finite element
-   //     approximation X. This is the local solution on each processor.
-   x = *X;
+   // 13. Recover the parallel grid function corresponding to X. This is the
+   //     local finite element solution on each processor.
+   a->RecoverFEMSolution(X, *b, x);
 
    // 14. Compute and print the L^2 norm of the error.
    {
@@ -260,9 +283,12 @@ int main(int argc, char *argv[])
    // 17. Free the used memory.
    delete pcg;
    delete prec;
-   delete X;
-   delete B;
-   delete A;
+   delete hfes;
+   delete hfec;
+   delete a;
+   delete alpha;
+   delete beta;
+   delete b;
    delete fespace;
    delete fec;
    delete pmesh;

@@ -193,8 +193,8 @@ class TripleProductOperator : public Operator
    Operator *A;
    Operator *B;
    Operator *C;
-   mutable Vector t1, t2;
    bool ownA, ownB, ownC;
+   mutable Vector t1, t2;
 
 public:
    TripleProductOperator(Operator *A, Operator *B, Operator *C,

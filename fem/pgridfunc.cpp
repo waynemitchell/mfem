@@ -631,6 +631,9 @@ void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
       errors(i) = ComputeElementLpDistance(norm_p, i, smooth_flux, flux);
    }
 
+   delete A;
+   delete B;
+   delete X;
    delete amg;
    delete pcg;
 }

@@ -8,8 +8,14 @@
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
-
-// Meshing miniapp: generate Klein bottle meshes
+//
+//             ---------------------------------------------------
+//             Klein Bottle Miniapp:  Generate Klein bottle meshes
+//             ---------------------------------------------------
+//
+// This miniapp generates three types of Klein bottle surfaces. It is similar to
+// the mobius-strip miniapp. The klein-bottle and klein-donut meshes in the
+// data/ directory were generated with this miniapp.
 //
 // Compile with: make klein-bottle
 //

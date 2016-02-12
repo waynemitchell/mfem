@@ -1971,6 +1971,8 @@ class ND_SegmentElement : public VectorFiniteElement
 
 public:
    ND_SegmentElement(const int p);
+   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const
+   { obasis1d.Eval(ip.x, shape); }
    virtual void CalcVShape(const IntegrationPoint &ip,
                            DenseMatrix &shape) const;
    virtual void CalcVShape(ElementTransformation &Trans,

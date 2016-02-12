@@ -40,7 +40,8 @@ Substantially improved non-conforming adaptive mesh refinement
   has to be applied at the end of the (parallel) assembly. Furthermore, in
   serial, the bilinear form needs to call ConformingAssemble() after assembly
   and the solution should call ConformingProlongate() after the solve (these are
-  not necessary in parallel). Changed the example codes accordingly.
+  not necessary in parallel). Note that these could also be handled
+  automatically by the new FEM <-> linear system interface, see below.
 
 General finite element spaces and solvers on surfaces/skeletons
 ---------------------------------------------------------------
@@ -52,6 +53,19 @@ General finite element spaces and solvers on surfaces/skeletons
 
 - Updated integrators and discrete interpolators to work correctly for H(curl)
   and H(div) spaces defined on surface meshes, or the mesh skeleton.
+
+Hybridization, static condensation and a new FEM <-> linear system interface
+----------------------------------------------------------------------------
+- The BilinearForm/ParBilinearForm classes now support static condensation, as
+  well as hybridization (based on given constraint space and trace integrator).
+  These are illustrated in Examples 1-4.
+
+- Added a new interface for transitioning between the finite element objects and
+  their corresponding linear algebra objects, which supports abstracts
+  transformations such as: parallel assembly, eliminating boundary conditions,
+  applying conforming constraints for non-conforming AMR, hybridization, static
+  condensation, back substitution, etc. Changed several of the example codes
+  accordingly.
 
 New eigensolvers and improved solvers
 -------------------------------------
@@ -80,22 +94,33 @@ New and updated examples
   * hypre's AME eigensolver for the Maxwell eigenproblem (Example 13p)
   * DG diffusion discretizations for the Laplace equation (Example 14/14p)
 
-- Example 3/3p now works in both 2D and 3D.
-
-- Example 7/7p has a new option, -amr, showcasing simple local conforming and
-  non-conforming mesh refinements.
+- Examples 1-4 now support static condensation, and Example 4/4p supports H(div)
+  hybridization, leading to much improved solve times. These examples also
+  illustrate the new interface for linear system assembly (see also Examples 6
+  and 7).
 
 - Significantly improved the DPG preconditioner in Example 8p, which is now
   scalable in parallel and uses the HypreADS solver to precondition the
   interfacial block as an H(div) problem reduced to the mesh skeleton.
 
+- Example 7/7p has a new option, -amr, showcasing simple local conforming and
+  non-conforming mesh refinements.
+
+- Example 3/3p now works in both 2D and 3D.
+
+
 New miniapps
 ------------
+- Electromagnetic miniapps:
+  * Volta - simple electrostatics simulation code.
+  * Tesla - simple magnetostatics simulation code.
+  See also the README file in miniapps/electromagnetics.
+
 - Meshing miniapps:
-  * mobius-strip - generate various Mobius strip-like meshes.
-  * klein-bottle - generate three types of Klein bottle surfaces.
-  * view-mesh - visualize and manipulate meshes.
-  See also miniapps/meshing/README.
+  * Mobius Strip  - generate various Mobius strip-like meshes.
+  * Klein Bottle  - generate three types of Klein bottle surfaces.
+  * Mesh Explorer - visualize and manipulate meshes.
+  See also the README file in miniapps/meshing.
 
 Miscellaneous
 -------------

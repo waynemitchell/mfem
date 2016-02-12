@@ -95,6 +95,7 @@ void ParNCMesh::UpdateVertices()
       if (it->vertex) { it->vertex->index = -1; }
    }
 
+   NVertices = 0;
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
       Element* elem = leaf_elements[i];
@@ -102,17 +103,9 @@ void ParNCMesh::UpdateVertices()
       {
          for (int j = 0; j < GI[(int) elem->geom].nv; j++)
          {
-            elem->node[j]->vertex->index = 0; // mark vertices that we need
+            int &vindex = elem->node[j]->vertex->index;
+            if (vindex < 0) { vindex = NVertices++; }
          }
-      }
-   }
-
-   NVertices = 0;
-   for (HashTable<Node>::Iterator it(nodes); it; ++it)
-   {
-      if (it->vertex && it->vertex->index >= 0)
-      {
-         it->vertex->index = NVertices++;
       }
    }
 
