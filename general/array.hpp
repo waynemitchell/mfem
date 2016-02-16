@@ -163,7 +163,7 @@ public:
       memcpy(copy.GetData(), data, Size()*sizeof(T));
    }
 
-   /// Make this Array a reference to a poiter
+   /// Make this Array a reference to a pointer
    inline void MakeRef(T *, int);
 
    /// Make this Array a reference to 'master'

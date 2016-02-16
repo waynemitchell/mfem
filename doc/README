@@ -8,7 +8,7 @@
                                http://mfem.org
 
 This directory contains Doxygen configuration files for building HTML
-documentation of the MFEM sources (including the example codes).
+documentation of the MFEM sources (including the example codes and miniapps).
 
 If not already available, Doxygen can be downloaded from
 
@@ -42,4 +42,4 @@ Some building considerations:
 - Formulas in the documentation are rendered using LaTeX. A popular choice for
   TeX typesetting is the TeX Live distribution
 
-     http://www.tug.org/texlive/
+     http://www.tug.org/texlive

@@ -235,7 +235,7 @@ public:
 
    virtual ~ParFiniteElementSpace() { delete gcomm; delete P; delete R; }
 
-   // obolete, for backward compatibility
+   // Obsolete, kept for backward compatibility
    int TrueVSize() { return ltdof_size; }
 };
 

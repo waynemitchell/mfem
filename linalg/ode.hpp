@@ -177,7 +177,7 @@ public:
     0 - 3rd order method, not A-stable
     1 - 3rd order method, A-stable, not L-stable (default)
     2 - 2nd order method, L-stable
-    3 - 2nd order method, L-stable (has solves ouside [t,t+dt]). */
+    3 - 2nd order method, L-stable (has solves outside [t,t+dt]). */
 class SDIRK23Solver : public ODESolver
 {
 protected:
