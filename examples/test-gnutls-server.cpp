@@ -19,10 +19,13 @@ int main(int argc, char *argv[])
         << "privkey     = " << privkey << '\n'
         << "trustedkeys = " << trustedkeys << endl;
 
-   int port = 19917;
+   int port = 19916;
 
-   mfem::gnutls_socketstream isock(pubkey.c_str(), privkey.c_str(),
-                                   trustedkeys.c_str(), GNUTLS_SERVER);
+   mfem::GnuTLS_global_state state;
+   // state.set_log_level(1000);
+   mfem::GnuTLS_session_params params(state, pubkey.c_str(), privkey.c_str(),
+                                      trustedkeys.c_str(), GNUTLS_SERVER);
+   mfem::GnuTLS_socketstream isock(params);
    if (!isock.good())
    {
       cout << "GnuTLS initialization failed!" << endl;
@@ -31,18 +34,34 @@ int main(int argc, char *argv[])
    mfem::socketserver server(port);
    if (server.good())
    {
-      cout << "Waiting for connection ..." << flush;
+      cout << "Waiting for connection on port " << port << " ..." << endl;
       while (server.accept(isock) < 0)
       {
-         cout << " unsuccessful connection." << endl;
-         cout << "Waiting for another connection ..." << flush;
+         cout << "Unsuccessful connection." << endl;
+         cout << "Waiting for another connection ..." << endl;
       }
-      cout << " connection successful." << endl;
+      cout << "Connection successful." << endl;
       string line;
       while (isock.good())
       {
          getline(isock, line);
-         cout << "LINE: " << line << endl;
+         if (isock.eof())
+         {
+            cout << "reached EOF." << endl;
+         }
+         cout << "received " << line.size() << " bytes." << endl;
+         if (line.size() == 0)
+         {
+            cout << "LINE: (empty)" << endl;
+         }
+         else if (line.size() <= 4*1024)
+         {
+            cout << "LINE: " << line << endl;
+         }
+         else
+         {
+            cout << "LINE: (more than 4 KiB)" << endl;
+         }
       }
       cout << "End of connection." << endl;
    }

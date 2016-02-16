@@ -18,6 +18,7 @@
 
 #include <cstring>      // memset, memcpy, strerror
 #include <cerrno>       // errno
+#include <cstdlib>      // getenv
 #ifndef _WIN32
 #include <netdb.h>      // gethostbyname
 #include <arpa/inet.h>  // htons
@@ -290,6 +291,11 @@ int socketserver::close()
    return err;
 }
 
+int socketserver::accept()
+{
+   return good() ? ::accept(listen_socket, NULL, NULL) : -1;
+}
+
 int socketserver::accept(socketstream &sockstr)
 {
    if (!good())
@@ -301,97 +307,88 @@ int socketserver::accept(socketstream &sockstr)
    {
       sockstr.rdbuf()->close();
       sockstr.rdbuf()->attach(socketd);
+      return sockstr.rdbuf()->getsocketdescriptor();
    }
-   return sockstr.rdbuf()->getsocketdescriptor();
+   return socketd;
 }
 
 #ifdef MFEM_USE_GNUTLS
 
-static int mfem_gnutls_verify_callback(gnutls_session_t session)
+static void mfem_gnutls_log_func(int level, const char *str)
 {
-   unsigned int status;
-   int ret;
-   gnutls_certificate_type_t type;
-   gnutls_datum_t out;
-   const char *hostname;
+   std::cout << "GnuTLS <" << level << "> " << str << std::flush;
+}
 
-   hostname = (const char *) gnutls_session_get_ptr(session);
-   ret = gnutls_certificate_verify_peers3(session, hostname, &status);
-   if (ret < 0)
+GnuTLS_global_state::GnuTLS_global_state()
+{
+   status.set_result(gnutls_global_init());
+   status.print_on_error("gnutls_global_init");
+   glob_init_ok = status.good();
+
+   if (status.good())
    {
-      std::cout << "Error in gnutls_certificate_verify_peers3:"
-                << gnutls_strerror(ret) << std::endl;
-      return GNUTLS_E_CERTIFICATE_ERROR;
+      gnutls_global_set_log_function(mfem_gnutls_log_func);
    }
 
-   type = gnutls_certificate_type_get(session);
-   ret = gnutls_certificate_verification_status_print(status, type, &out, 0);
-   if (ret < 0)
+   dh_params = NULL;
+}
+
+GnuTLS_global_state::~GnuTLS_global_state()
+{
+   gnutls_dh_params_deinit(dh_params);
+   if (glob_init_ok) { gnutls_global_deinit(); }
+}
+
+void GnuTLS_global_state::generate_dh_params()
+{
+   if (status.good())
    {
-      std::cout << "Error in gnutls_certificate_verification_status_print:"
-                << gnutls_strerror(ret) << std::endl;
-      return GNUTLS_E_CERTIFICATE_ERROR;
-   }
-   std::cout << out.data << std::endl;
-   gnutls_free(out.data);
-
-   return status ? GNUTLS_E_CERTIFICATE_ERROR : 0;
-}
-
-static void mfem_gnutls_log_server(int level, const char *str)
-{
-   std::cout << "server |<" << level << ">| " << str << std::flush;
-}
-
-static void mfem_gnutls_log_client(int level, const char *str)
-{
-   std::cout << "client |<" << level << ">| " << str << std::flush;
-}
-
-gnutls_socketbuf::gnutls_socketbuf(unsigned int flags, const char *pubkey_file,
-                                   const char *privkey_file,
-                                   const char *trustedkeys_file)
-{
-   check_result(gnutls_global_init());
-   print_gnutls_err("gnutls_global_init");
-   glob_init_ok = gnutls_ok;
-
-   gnutls_flags = gnutls_ok ? flags : 0;
-
-#if 1
-   // Enable logging
-   if (gnutls_ok)
-   {
-      if (flags & GNUTLS_SERVER)
-      {
-         gnutls_global_set_log_function(mfem_gnutls_log_server);
-      }
+      status.set_result(gnutls_dh_params_init(&dh_params));
+      status.print_on_error("gnutls_dh_params_init");
+      if (!status.good()) { dh_params = NULL; }
       else
       {
-         gnutls_global_set_log_function(mfem_gnutls_log_client);
+         unsigned bits =
+            gnutls_sec_param_to_pk_bits(
+               GNUTLS_PK_DH, GNUTLS_SEC_PARAM_LEGACY);
+         std::cout << "Generating DH params ..." << std::flush;
+         status.set_result(gnutls_dh_params_generate2(dh_params, bits));
+         std::cout << " done." << std::endl;
+         status.print_on_error("gnutls_dh_params_generate2");
+         if (!status.good())
+         {
+            gnutls_dh_params_deinit(dh_params);
+            dh_params = NULL;
+         }
       }
-      gnutls_global_set_log_level(1000);
    }
-#endif
+}
+
+GnuTLS_session_params::GnuTLS_session_params(
+   GnuTLS_global_state &state, const char *pubkey_file,
+   const char *privkey_file, const char *trustedkeys_file, unsigned int flags)
+   : state(state)
+{
+   status.set_result(state.status.get_result());
+   my_flags = status.good() ? flags : 0;
 
    // allocate my_cred
-   if (gnutls_ok)
+   if (status.good())
    {
-      check_result(
+      status.set_result(
          gnutls_certificate_allocate_credentials(&my_cred));
-      print_gnutls_err("gnutls_certificate_allocate_credentials");
+      status.print_on_error("gnutls_certificate_allocate_credentials");
    }
-   my_cred_ok = gnutls_ok;
-
-   if (gnutls_ok)
+   if (!status.good()) { my_cred = NULL; }
+   else
    {
-      check_result(
+      status.set_result(
          gnutls_certificate_set_openpgp_key_file(
             my_cred, pubkey_file, privkey_file, GNUTLS_OPENPGP_FMT_RAW));
-      print_gnutls_err("gnutls_certificate_set_openpgp_key_file");
+      status.print_on_error("gnutls_certificate_set_openpgp_key_file");
    }
 
-   if (gnutls_ok)
+   if (status.good())
    {
       /*
       gnutls_certificate_set_pin_function(
@@ -401,55 +398,67 @@ gnutls_socketbuf::gnutls_socketbuf(unsigned int flags, const char *pubkey_file,
       */
    }
 
-   if (gnutls_ok)
+   if (status.good())
    {
-      check_result(
+      status.set_result(
          gnutls_certificate_set_openpgp_keyring_file(
             my_cred, trustedkeys_file, GNUTLS_OPENPGP_FMT_RAW));
-      print_gnutls_err("gnutls_certificate_set_openpgp_keyring_file");
+      status.print_on_error("gnutls_certificate_set_openpgp_keyring_file");
    }
 
-   dh_params_ok = false;
-   if (gnutls_ok && (flags & GNUTLS_SERVER))
+   if (status.good() && (flags & GNUTLS_SERVER))
    {
-      check_result(gnutls_dh_params_init(&dh_params));
-      print_gnutls_err("gnutls_dh_params_init");
-      dh_params_ok = gnutls_ok;
-      if (gnutls_ok)
+      gnutls_dh_params_t dh_params = state.get_dh_params();
+      status.set_result(state.status.get_result());
+      if (status.good())
       {
-         unsigned bits = gnutls_sec_param_to_pk_bits(GNUTLS_PK_DH,
-                                                     GNUTLS_SEC_PARAM_LEGACY);
-         // TODO: This function is slow! Run it only once.
-         std::cout << "calling gnutls_dh_params_generate2 ..." << std::flush;
-         check_result(gnutls_dh_params_generate2(dh_params, bits));
-         std::cout << " done." << std::endl;
-         print_gnutls_err("gnutls_dh_params_generate2");
-         if (gnutls_ok)
-         {
-            gnutls_certificate_set_dh_params(my_cred, dh_params);
-         }
+         gnutls_certificate_set_dh_params(my_cred, dh_params);
       }
    }
 }
 
-gnutls_socketbuf::~gnutls_socketbuf()
+static int mfem_gnutls_verify_callback(gnutls_session_t session)
 {
-   close();
-   if (dh_params_ok) { gnutls_dh_params_deinit(dh_params); }
-   if (my_cred_ok) { gnutls_certificate_free_credentials(my_cred); }
-   if (glob_init_ok) { gnutls_global_deinit(); }
+   unsigned int status;
+   const char *hostname = (const char *) gnutls_session_get_ptr(session);
+   int ret = gnutls_certificate_verify_peers3(session, hostname, &status);
+   if (ret < 0)
+   {
+      std::cout << "Error in gnutls_certificate_verify_peers3:"
+                << gnutls_strerror(ret) << std::endl;
+      return GNUTLS_E_CERTIFICATE_ERROR;
+   }
+
+#ifdef MFEM_DEBUG
+   gnutls_datum_t out;
+   gnutls_certificate_type_t type = gnutls_certificate_type_get(session);
+   ret = gnutls_certificate_verification_status_print(status, type, &out, 0);
+   if (ret < 0)
+   {
+      std::cout << "Error in gnutls_certificate_verification_status_print:"
+                << gnutls_strerror(ret) << std::endl;
+      return GNUTLS_E_CERTIFICATE_ERROR;
+   }
+   std::cout << out.data << std::endl;
+   gnutls_free(out.data);
+#endif
+
+   return status ? GNUTLS_E_CERTIFICATE_ERROR : 0;
 }
 
-int gnutls_socketbuf::handshake()
+int GnuTLS_socketbuf::handshake()
 {
+   // std::cout << "[GnuTLS_socketbuf::handshake]" << std::endl;
+
+   // Called at the end of start_session.
    int err;
    do
    {
       err = gnutls_handshake(session);
-      check_result(err);
-      if (gnutls_ok)
+      status.set_result(err);
+      if (status.good())
       {
-#if 1
+#if 0
          std::cout << "handshake successful, TLS version is "
                    << gnutls_protocol_get_name(
                       gnutls_protocol_get_version(session)) << std::endl;
@@ -459,49 +468,52 @@ int gnutls_socketbuf::handshake()
    }
    while (err == GNUTLS_E_INTERRUPTED || err == GNUTLS_E_AGAIN);
 #ifdef MFEM_DEBUG
-   print_gnutls_err("gnutls_handshake");
+   status.print_on_error("gnutls_handshake");
 #endif
    return err;
 }
 
-void gnutls_socketbuf::start_session()
+void GnuTLS_socketbuf::start_session()
 {
-   // check for valid 'socket_descriptor'
-   if (!is_open()) { return; }
+   // std::cout << "[GnuTLS_socketbuf::start_session]" << std::endl;
 
-   if (gnutls_ok)
+   // check for valid 'socket_descriptor' and inactive session
+   if (!is_open() || session_started) { return; }
+
+   status.set_result(params.status.get_result());
+   if (status.good())
    {
-      check_result(gnutls_init(&session, gnutls_flags));
-      print_gnutls_err("gnutls_init");
+      status.set_result(gnutls_init(&session, params.get_flags()));
+      status.print_on_error("gnutls_init");
    }
 
-   bool session_ok = gnutls_ok;
-   if (gnutls_ok)
+   session_started = status.good();
+   if (status.good())
    {
-      check_result(
+      status.set_result(
          gnutls_priority_set_direct(
             session,
             "NONE:+VERS-TLS1.2:+CIPHER-ALL:+MAC-ALL:+SIGN-ALL:+COMP-ALL:"
             "+KX-ALL:+CTYPE-OPENPGP:+CURVE-ALL", NULL));
-      print_gnutls_err("gnutls_priority_set_direct");
+      status.print_on_error("gnutls_priority_set_direct");
    }
 
-   if (gnutls_ok)
+   if (status.good())
    {
       // set session credentials
-      check_result(
+      status.set_result(
          gnutls_credentials_set(
             session, GNUTLS_CRD_CERTIFICATE, my_cred));
-      print_gnutls_err("gnutls_credentials_set");
+      status.print_on_error("gnutls_credentials_set");
    }
 
-   if (gnutls_ok)
+   if (status.good())
    {
       const char *hostname = NULL; // no hostname verificaion
       gnutls_session_set_ptr(session, (void*)hostname);
       gnutls_certificate_set_verify_function(
          my_cred, mfem_gnutls_verify_callback);
-      if (gnutls_flags & GNUTLS_SERVER)
+      if (params.get_flags() & GNUTLS_SERVER)
       {
          // require clients to send certificate:
          gnutls_certificate_server_set_request(session, GNUTLS_CERT_REQUIRE);
@@ -510,40 +522,49 @@ void gnutls_socketbuf::start_session()
          session, GNUTLS_DEFAULT_HANDSHAKE_TIMEOUT);
    }
 
-   if (gnutls_ok)
+   if (status.good())
    {
       gnutls_transport_set_int(session, socket_descriptor);
 
       handshake();
    }
 
-   if (!gnutls_ok)
+   if (!status.good())
    {
-      if (session_ok) { gnutls_deinit(session); }
-      socketbuf::close();
+      if (session_started) { gnutls_deinit(session); }
+      session_started = false;
    }
 }
 
-void gnutls_socketbuf::end_session()
+void GnuTLS_socketbuf::end_session()
 {
-   // check for valid 'socket_descriptor'
-   if (!is_open()) { return; }
+   // std::cout << "[GnuTLS_socketbuf::end_session]" << std::endl;
 
-   int err;
-   do
+   // check for valid 'socket_descriptor'
+   if (!session_started) { return; }
+
+   if (is_open())
    {
-      err = gnutls_bye(session, GNUTLS_SHUT_RDWR);
-      check_result(err);
-      if (gnutls_ok) { return; }
+      // std::cout << "[GnuTLS_socketbuf::end_session: gnutls_bye]"
+      //           << std::endl;
+      int err;
+      do
+      {
+         err = gnutls_bye(session, GNUTLS_SHUT_RDWR);
+         status.set_result(err);
+      }
+      while (err == GNUTLS_E_AGAIN || err == GNUTLS_E_INTERRUPTED);
+      status.print_on_error("gnutls_bye");
    }
-   while (err == GNUTLS_E_AGAIN || err == GNUTLS_E_INTERRUPTED);
-   print_gnutls_err("gnutls_bye");
 
    gnutls_deinit(session);
+   session_started = false;
 }
 
-int gnutls_socketbuf::attach(int sd)
+int GnuTLS_socketbuf::attach(int sd)
 {
+   // std::cout << "[GnuTLS_socketbuf::attach]" << std::endl;
+
    end_session();
 
    int old_sd = socketbuf::attach(sd);
@@ -553,130 +574,42 @@ int gnutls_socketbuf::attach(int sd)
    return old_sd;
 }
 
-int gnutls_socketbuf::open(const char hostname[], int port)
+int GnuTLS_socketbuf::open(const char hostname[], int port)
 {
+   // std::cout << "[GnuTLS_socketbuf::open]" << std::endl;
+
    int err = socketbuf::open(hostname, port); // calls close()
    if (err) { return err; }
 
    start_session();
 
-   return gnutls_ok ? 0 : -100;
+   return status.good() ? 0 : -100;
 }
 
-/*
-   // This function has the similar semantics with send(). The only
-   // difference is that it accepts a GnuTLS session, and uses different
-   // error codes. Note that if the send buffer is full, send() will block
-   // this function.
-   // If GNUTLS_E_INTERRUPTED or GNUTLS_E_AGAIN is returned, you must call
-   // this function again, with the exact same parameters; alternatively you
-   // could provide a NULL pointer for data, and 0 for size.
-   // Returns: The number of bytes sent, or a negative error code. The number
-   // of bytes sent might be less than data_size. The maximum number of bytes
-   // this function can send in a single call depends on the negotiated
-   // maximum record size.
-
-   ssize_t gnutls_record_send(gnutls_session_t session, const void *data,
-                              size_t data_size);
-
-   // This function has the similar semantics with recv(). The only
-   // difference is that it accepts a GnuTLS session, and uses different
-   // error codes. In the special case that the peer requests a
-   // renegotiation, the caller will receive an error code of
-   // GNUTLS_E_REHANDSHAKE. In case of a client, this message may be simply
-   // ignored, replied with an alert GNUTLS_A_NO_RENEGOTIATION, or replied
-   // with a new handshake, depending on the client’s will. A server
-   // receiving this error code can only initiate a new handshake or
-   // terminate the session.
-   // If EINTR is returned by the internal push function (the default is
-   // recv()) then GNUTLS_E_INTERRUPTED will be returned. If
-   // GNUTLS_E_INTERRUPTED or GNUTLS_E_AGAIN is returned, you must call this
-   // function again to get the data. See also gnutls_record_get_direction().
-   // Returns: The number of bytes received and zero on EOF (for stream
-   // connections). A negative error code is returned in case of an error.
-   // The number of bytes received might be less than the requested
-   // data_size.
-
-   ssize_t gnutls_record_recv(gnutls_session_t session, void *data,
-                              size_t data_size);
-
-   // This function checks if there are unread data in the gnutls buffers. If
-   // the return value is non-zero the next call to gnutls_record_recv() is
-   // guaranteed not to block. Returns the size of the data or zero.
-
-   size_t gnutls_record_check_pending(gnutls_session_t session);
-
-   // Terminates the current TLS/SSL connection. The connection should have
-   // been initiated using gnutls_handshake(). how should be one of
-   // GNUTLS_SHUT_RDWR, GNUTLS_SHUT_WR.
-   // In case of GNUTLS_SHUT_RDWR the TLS session gets terminated and further
-   // receives and sends will be disallowed. If the return value is zero you
-   // may continue using the underlying transport layer. GNUTLS_SHUT_RDWR
-   // sends an alert containing a close request and waits for the peer to
-   // reply with the same message.
-   // In case of GNUTLS_SHUT_WR the TLS session gets terminated and further
-   // sends will be disallowed. In order to reuse the connection you should
-   // wait for an EOF from the peer. GNUTLS_SHUT_WR sends an alert containing
-   // a close request.
-   // Note that not all implementations will properly terminate a TLS
-   // connection. Some of them, usually for performance reasons, will
-   // terminate only the underlying transport layer, and thus not
-   // distinguishing between a malicious party prematurely terminating the
-   // connection and normal termination.
-   // This function may also return GNUTLS_E_AGAIN or GNUTLS_E_INTERRUPTED;
-   // cf. gnutls_record_get_direction().
-   // Returns: GNUTLS_E_SUCCESS on success, or an error code, see function
-   // documentation for entire semantics.
-
-   int gnutls_bye(gnutls_session_t session, gnutls_close_request_t how);
-
-   // This function clears all buffers associated with the session. This
-   // function will also remove session data from the session database if the
-   // session was terminated abnormally.
-
-   void gnutls_deinit(gnutls_session_t session);
-
-   // If called, gnutls_record_send() will no longer send any records. Any
-   // sent records will be cached until gnutls_record_uncork() is called.
-
-   void gnutls_record_cork(gnutls_session_t session);
-
-   // This resets the effect of gnutls_record_cork(), and flushes any pending
-   // data. If the GNUTLS_RECORD_WAIT flag is specified then this function
-   // will block until the data is sent or a fatal error occurs (i.e., the
-   // function will retry on GNUTLS_E_AGAIN and GNUTLS_E_INTERRUPTED).
-   // If the flag GNUTLS_RECORD_WAIT is not specified and the function is
-   // interrupted then the GNUTLS_E_AGAIN or GNUTLS_E_INTERRUPTED errors will
-   // be returned. To obtain the data left in the corked buffer use
-   // gnutls_record_check_corked().
-   // Returns: On success the number of transmitted data is returned, or
-   // otherwise a negative error code.
-   // flags: Could be zero or GNUTLS_RECORD_WAIT
-
-   int gnutls_record_uncork(gnutls_session_t session, unsigned int flags);
-*/
-
-int gnutls_socketbuf::close()
+int GnuTLS_socketbuf::close()
 {
+   // std::cout << "[GnuTLS_socketbuf::close]" << std::endl;
+
    end_session();
 
    int err = socketbuf::close();
 
-   return gnutls_ok ? err : -100;
+   return status.good() ? err : -100;
 }
 
-int gnutls_socketbuf::sync()
+int GnuTLS_socketbuf::sync()
 {
    ssize_t bw, n = pptr() - pbase();
+   // std::cout << "[GnuTLS_socketbuf::sync n=" << n << ']' << std::endl;
    while (n > 0)
    {
       bw = gnutls_record_send(session, pptr() - n, n);
       if (bw == GNUTLS_E_INTERRUPTED || bw == GNUTLS_E_AGAIN) { continue; }
       if (bw < 0)
       {
-         check_result((int)bw);
+         status.set_result((int)bw);
 #ifdef MFEM_DEBUG
-         print_gnutls_err("gnutls_record_send");
+         status.print_on_error("gnutls_record_send");
 #endif
          setp(pptr() - n, obuf + buflen);
          pbump(n);
@@ -688,8 +621,10 @@ int gnutls_socketbuf::sync()
    return 0;
 }
 
-gnutls_socketbuf::int_type gnutls_socketbuf::underflow()
+GnuTLS_socketbuf::int_type GnuTLS_socketbuf::underflow()
 {
+   // std::cout << "[GnuTLS_socketbuf::underflow ...]" << std::endl;
+
    ssize_t br;
    do
    {
@@ -700,13 +635,16 @@ gnutls_socketbuf::int_type gnutls_socketbuf::underflow()
       }
    }
    while (br == GNUTLS_E_INTERRUPTED || br == GNUTLS_E_AGAIN);
+
+   // std::cout << "[GnuTLS_socketbuf::underflow br=" << br << ']' << std::endl;
+
    if (br <= 0)
    {
       if (br < 0)
       {
-         check_result((int)br);
+         status.set_result((int)br);
 #ifdef MFEM_DEBUG
-         print_gnutls_err("gnutls_record_recv");
+         status.print_on_error("gnutls_record_recv");
 #endif
       }
       setg(NULL, NULL, NULL);
@@ -716,8 +654,10 @@ gnutls_socketbuf::int_type gnutls_socketbuf::underflow()
    return traits_type::to_int_type(*ibuf);
 }
 
-std::streamsize gnutls_socketbuf::xsgetn(char_type *__s, std::streamsize __n)
+std::streamsize GnuTLS_socketbuf::xsgetn(char_type *__s, std::streamsize __n)
 {
+   // std::cout << "[GnuTLS_socketbuf::xsgetn __n=" << __n << ']' << std::endl;
+
    const std::streamsize bn = egptr() - gptr();
    if (__n <= bn)
    {
@@ -745,9 +685,9 @@ std::streamsize gnutls_socketbuf::xsgetn(char_type *__s, std::streamsize __n)
       {
          if (br < 0)
          {
-            check_result((int)br);
+            status.set_result((int)br);
 #ifdef MFEM_DEBUG
-            print_gnutls_err("gnutls_record_recv");
+            status.print_on_error("gnutls_record_recv");
 #endif
          }
          return (__n - remain);
@@ -757,9 +697,11 @@ std::streamsize gnutls_socketbuf::xsgetn(char_type *__s, std::streamsize __n)
    return __n;
 }
 
-std::streamsize gnutls_socketbuf::xsputn(const char_type *__s,
+std::streamsize GnuTLS_socketbuf::xsputn(const char_type *__s,
                                          std::streamsize __n)
 {
+   // std::cout << "[GnuTLS_socketbuf::xsputn __n=" << __n << ']' << std::endl;
+
    if (pptr() + __n <= epptr())
    {
       traits_type::copy(pptr(), __s, __n);
@@ -777,11 +719,12 @@ std::streamsize gnutls_socketbuf::xsputn(const char_type *__s,
    {
       bw = gnutls_record_send(session, end - remain, remain);
       if (bw == GNUTLS_E_INTERRUPTED || bw == GNUTLS_E_AGAIN) { continue; }
+      // std::cout << "[GnuTLS_socketbuf::xsputn bw=" << bw << ']' << std::endl;
       if (bw < 0)
       {
-         check_result((int)bw);
+         status.set_result((int)bw);
 #ifdef MFEM_DEBUG
-         print_gnutls_err("gnutls_record_send");
+         status.print_on_error("gnutls_record_send");
 #endif
          return (__n - remain);
       }
@@ -795,6 +738,59 @@ std::streamsize gnutls_socketbuf::xsputn(const char_type *__s,
    return __n;
 }
 
+
+int GLVis_socketstream::num_glvis_sockets = 0;
+GnuTLS_global_state *GLVis_socketstream::state = NULL;
+GnuTLS_session_params *GLVis_socketstream::params = NULL;
+
+// static method
+GnuTLS_session_params &GLVis_socketstream::add_socket()
+{
+   if (num_glvis_sockets == 0)
+   {
+      state = new GnuTLS_global_state;
+      std::string home_dir(getenv("HOME"));
+      std::string client_dir = home_dir + "/.config/glvis/client/";
+      std::string pubkey  = client_dir + "pubring.gpg";
+      std::string privkey = client_dir + "secring.gpg";
+      std::string trustedkeys = client_dir + "trusted-servers.gpg";
+      params = new GnuTLS_session_params(
+         *state, pubkey.c_str(), privkey.c_str(), trustedkeys.c_str(),
+         GNUTLS_CLIENT);
+   }
+   num_glvis_sockets++;
+   return *params;
+}
+
 #endif // MFEM_USE_GNUTLS
+
+
+GLVis_socketstream::GLVis_socketstream()
+#ifdef MFEM_USE_GNUTLS
+   : GnuTLS_socketstream(add_socket())
+#endif
+{ }
+
+GLVis_socketstream::GLVis_socketstream(const char hostname[], int port) :
+#ifndef MFEM_USE_GNUTLS
+   socketstream(hostname, port) { }
+#else
+   GnuTLS_socketstream(add_socket()) { open(hostname, port); }
+#endif
+
+GLVis_socketstream::~GLVis_socketstream()
+{
+#ifdef MFEM_USE_GNUTLS
+   if (num_glvis_sockets > 0)
+   {
+      num_glvis_sockets--;
+      if (num_glvis_sockets == 0)
+      {
+         delete params; params = NULL;
+         delete state; state = NULL;
+      }
+   }
+#endif
+}
 
 }

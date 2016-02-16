@@ -130,6 +130,8 @@ public:
 
    int close();
 
+   int accept();
+
    int accept(socketstream &sockstr);
 
    ~socketserver() { close(); }
@@ -137,42 +139,98 @@ public:
 
 #ifdef MFEM_USE_GNUTLS
 
-class gnutls_socketbuf : public socketbuf
+class GnuTLS_status
 {
 protected:
-   bool gnutls_ok;
-   int gnutls_res;
-   unsigned int gnutls_flags;
-   gnutls_session_t session;
+   int res;
 
-   gnutls_certificate_credentials_t my_cred;
-   gnutls_dh_params_t dh_params;
-   bool glob_init_ok, my_cred_ok, dh_params_ok;
+public:
+   GnuTLS_status() : res(GNUTLS_E_SUCCESS) { }
 
-   void check_result(int result)
+   bool good() const { return (res == GNUTLS_E_SUCCESS); }
+
+   void set_result(int result) { res = result; }
+
+   int get_result() const { return res; }
+
+   void print_on_error(const char *msg) const
    {
-      gnutls_res = result;
-      gnutls_ok = (result == GNUTLS_E_SUCCESS);
-   }
-
-   void print_gnutls_err(const char *msg)
-   {
-      if (gnutls_ok) { return; }
-      std::cout << "Error in " << msg << ": " << gnutls_strerror(gnutls_res)
+      if (good()) { return; }
+      std::cout << "Error in " << msg << ": " << gnutls_strerror(res)
                 << std::endl;
    }
+};
+
+class GnuTLS_global_state
+{
+protected:
+   gnutls_dh_params_t dh_params;
+   bool glob_init_ok;
+
+   void generate_dh_params();
+
+public:
+   GnuTLS_global_state();
+   ~GnuTLS_global_state();
+
+   GnuTLS_status status;
+
+   void set_log_level(int level)
+   { if (status.good()) { gnutls_global_set_log_level(level); } }
+
+   gnutls_dh_params_t get_dh_params()
+   {
+      if (!dh_params) { generate_dh_params(); }
+      return dh_params;
+   }
+};
+
+class GnuTLS_session_params
+{
+protected:
+   gnutls_certificate_credentials_t my_cred;
+   unsigned int my_flags;
+
+public:
+   GnuTLS_global_state &state;
+   GnuTLS_status status;
+
+   GnuTLS_session_params(GnuTLS_global_state &state,
+                         const char *pubkey_file,
+                         const char *privkey_file,
+                         const char *trustedkeys_file,
+                         unsigned int flags);
+   ~GnuTLS_session_params()
+   {
+      if (my_cred) { gnutls_certificate_free_credentials(my_cred); }
+   }
+
+   gnutls_certificate_credentials_t get_cred() const { return my_cred; }
+   unsigned int get_flags() const { return my_flags; }
+};
+
+class GnuTLS_socketbuf : public socketbuf
+{
+protected:
+   GnuTLS_status status;
+   gnutls_session_t session;
+   bool session_started;
+
+   const GnuTLS_session_params &params;
+   gnutls_certificate_credentials_t my_cred; // same as params.my_cred
 
    int handshake();
    void start_session();
    void end_session();
 
 public:
-   gnutls_socketbuf(unsigned int flags, const char *pubkey_file,
-                    const char *privkey_file, const char *trustedkeys_file);
+   GnuTLS_socketbuf(const GnuTLS_session_params &p)
+      : session_started(false), params(p), my_cred(params.get_cred())
+   { status.set_result(params.status.get_result()); }
 
-   virtual ~gnutls_socketbuf();
+   virtual ~GnuTLS_socketbuf() { close(); }
 
-   bool gnutls_good() const { return gnutls_ok; }
+   bool gnutls_good() const { return status.good(); }
 
    /** Attach a new socket descriptor to the socketbuf.
        Returns the old socket descriptor which is NOT closed. */
@@ -195,17 +253,14 @@ protected:
    virtual std::streamsize xsputn(const char_type *__s, std::streamsize __n);
 };
 
-/// Secure socket stream, based on GNUTLS using OpenPGP/GnuPG keys.
-class gnutls_socketstream : public socketstream
+/// Secure socket stream, based on GnuTLS using OpenPGP/GnuPG keys.
+class GnuTLS_socketstream : public socketstream
 {
 public:
-   gnutls_socketstream(const char *pubkey_file, const char *privkey_file,
-                       const char *trustedkeys_file,
-                       unsigned int flags = GNUTLS_CLIENT)
-      : socketstream(new gnutls_socketbuf(flags, pubkey_file,
-                                          privkey_file, trustedkeys_file))
+   GnuTLS_socketstream(const GnuTLS_session_params &p)
+      : socketstream(new GnuTLS_socketbuf(p))
    {
-      if (((gnutls_socketbuf*)buf__)->gnutls_good())
+      if (((GnuTLS_socketbuf*)buf__)->gnutls_good())
       {
          clear();
       }
@@ -217,6 +272,31 @@ public:
 };
 
 #endif // MFEM_USE_GNUTLS
+
+
+/// Socket stream connection to GLVis using connection type based on the MFEM
+/// build-time option MFEM_USE_GNUTLS. This class is a shortcut for connecting
+/// to GLVis regardless of the value of MFEM_USE_GNUTLS.
+class GLVis_socketstream : public
+#ifndef MFEM_USE_GNUTLS
+   socketstream
+#else
+   GnuTLS_socketstream
+#endif
+{
+#ifdef MFEM_USE_GNUTLS
+protected:
+   static int num_glvis_sockets;
+   static GnuTLS_global_state *state;
+   static GnuTLS_session_params *params;
+   static GnuTLS_session_params &add_socket();
+#endif
+
+public:
+   GLVis_socketstream();
+   GLVis_socketstream(const char hostname[], int port);
+   ~GLVis_socketstream();
+};
 
 }
 
