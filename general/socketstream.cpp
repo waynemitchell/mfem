@@ -369,7 +369,6 @@ void GnuTLS_global_state::generate_dh_params()
    }
 }
 
-#if GNUTLS_VERSION_NUMBER >= 0x021000
 static int mfem_gnutls_verify_callback(gnutls_session_t session)
 {
    unsigned int status;
@@ -404,11 +403,15 @@ static int mfem_gnutls_verify_callback(gnutls_session_t session)
                 << gnutls_strerror(ret) << std::endl;
       return GNUTLS_E_CERTIFICATE_ERROR;
    }
+#ifdef MFEM_DEBUG
+   std::cout << (status ?
+                 "The certificate is NOT trusted." :
+                 "The certificate is trusted.") << std::endl;
+#endif
 #endif
 
    return status ? GNUTLS_E_CERTIFICATE_ERROR : 0;
 }
-#endif
 
 GnuTLS_session_params::GnuTLS_session_params(
    GnuTLS_global_state &state, const char *pubkey_file,
@@ -497,6 +500,17 @@ void GnuTLS_socketbuf::handshake()
 #endif
 }
 
+#if ((GNUTLS_VERSION_NUMBER < 0x021200) && defined(MSG_NOSIGNAL) && \
+   !defined(_WIN32) && !defined(__APPLE__))
+#define MFEM_USE_GNUTLS_PUSH_FUNCTION
+
+static ssize_t mfem_gnutls_push_function(
+   gnutls_transport_ptr_t fd_ptr, const void *data, size_t datasize)
+{
+   return send((int)(long)fd_ptr, data, datasize, MSG_NOSIGNAL);
+}
+#endif
+
 void GnuTLS_socketbuf::start_session()
 {
    // std::cout << "[GnuTLS_socketbuf::start_session]" << std::endl;
@@ -575,23 +589,8 @@ void GnuTLS_socketbuf::start_session()
 #if GNUTLS_VERSION_NUMBER < 0x021000
    if (status.good())
    {
-      unsigned int verify_status;
-      status.set_result(
-         gnutls_certificate_verify_peers2(session, &verify_status));
-      status.print_on_error("gnutls_certificate_verify_peers2");
-      if (status.good())
-      {
-         status.set_result(
-            verify_status ? GNUTLS_E_CERTIFICATE_ERROR : GNUTLS_E_SUCCESS);
-         status.print_on_error("gnutls_certificate_verify_peers2[status]");
-      }
-      if (status.good())
-      {
-#ifdef MFEM_DEBUG
-         std::cout << "The certificate is trusted." << std::endl;
-#endif
-      }
-      else
+      status.set_result(mfem_gnutls_verify_callback(session));
+      if (!status.good())
       {
          int err;
          do
@@ -602,6 +601,13 @@ void GnuTLS_socketbuf::start_session()
          }
          while (err == GNUTLS_E_AGAIN || err == GNUTLS_E_INTERRUPTED);
       }
+   }
+#endif
+
+#ifdef MFEM_USE_GNUTLS_PUSH_FUNCTION
+   if (status.good())
+   {
+      gnutls_transport_set_push_function(session, mfem_gnutls_push_function);
    }
 #endif
 
