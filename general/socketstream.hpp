@@ -219,7 +219,7 @@ protected:
    const GnuTLS_session_params &params;
    gnutls_certificate_credentials_t my_cred; // same as params.my_cred
 
-   int handshake();
+   void handshake();
    void start_session();
    void end_session();
 

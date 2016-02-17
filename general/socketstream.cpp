@@ -348,10 +348,15 @@ void GnuTLS_global_state::generate_dh_params()
       if (!status.good()) { dh_params = NULL; }
       else
       {
+#if GNUTLS_VERSION_NUMBER >= 0x021200
          unsigned bits =
             gnutls_sec_param_to_pk_bits(
                GNUTLS_PK_DH, GNUTLS_SEC_PARAM_LEGACY);
-         std::cout << "Generating DH params ..." << std::flush;
+#else
+         unsigned bits = 1024;
+#endif
+         std::cout << "Generating DH params (" << bits << " bits) ..."
+                   << std::flush;
          status.set_result(gnutls_dh_params_generate2(dh_params, bits));
          std::cout << " done." << std::endl;
          status.print_on_error("gnutls_dh_params_generate2");
@@ -363,6 +368,47 @@ void GnuTLS_global_state::generate_dh_params()
       }
    }
 }
+
+#if GNUTLS_VERSION_NUMBER >= 0x021000
+static int mfem_gnutls_verify_callback(gnutls_session_t session)
+{
+   unsigned int status;
+#if GNUTLS_VERSION_NUMBER >= 0x030104
+   const char *hostname = (const char *) gnutls_session_get_ptr(session);
+   int ret = gnutls_certificate_verify_peers3(session, hostname, &status);
+   if (ret < 0)
+   {
+      std::cout << "Error in gnutls_certificate_verify_peers3:"
+                << gnutls_strerror(ret) << std::endl;
+      return GNUTLS_E_CERTIFICATE_ERROR;
+   }
+
+#ifdef MFEM_DEBUG
+   gnutls_datum_t out;
+   gnutls_certificate_type_t type = gnutls_certificate_type_get(session);
+   ret = gnutls_certificate_verification_status_print(status, type, &out, 0);
+   if (ret < 0)
+   {
+      std::cout << "Error in gnutls_certificate_verification_status_print:"
+                << gnutls_strerror(ret) << std::endl;
+      return GNUTLS_E_CERTIFICATE_ERROR;
+   }
+   std::cout << out.data << std::endl;
+   gnutls_free(out.data);
+#endif
+#else // --> GNUTLS_VERSION_NUMBER < 0x030104
+   int ret = gnutls_certificate_verify_peers2(session, &status);
+   if (ret < 0)
+   {
+      std::cout << "Error in gnutls_certificate_verify_peers2:"
+                << gnutls_strerror(ret) << std::endl;
+      return GNUTLS_E_CERTIFICATE_ERROR;
+   }
+#endif
+
+   return status ? GNUTLS_E_CERTIFICATE_ERROR : 0;
+}
+#endif
 
 GnuTLS_session_params::GnuTLS_session_params(
    GnuTLS_global_state &state, const char *pubkey_file,
@@ -406,6 +452,14 @@ GnuTLS_session_params::GnuTLS_session_params(
       status.print_on_error("gnutls_certificate_set_openpgp_keyring_file");
    }
 
+#if GNUTLS_VERSION_NUMBER >= 0x021000
+   if (status.good())
+   {
+      gnutls_certificate_set_verify_function(
+         my_cred, mfem_gnutls_verify_callback);
+   }
+#endif
+
    if (status.good() && (flags & GNUTLS_SERVER))
    {
       gnutls_dh_params_t dh_params = state.get_dh_params();
@@ -417,36 +471,7 @@ GnuTLS_session_params::GnuTLS_session_params(
    }
 }
 
-static int mfem_gnutls_verify_callback(gnutls_session_t session)
-{
-   unsigned int status;
-   const char *hostname = (const char *) gnutls_session_get_ptr(session);
-   int ret = gnutls_certificate_verify_peers3(session, hostname, &status);
-   if (ret < 0)
-   {
-      std::cout << "Error in gnutls_certificate_verify_peers3:"
-                << gnutls_strerror(ret) << std::endl;
-      return GNUTLS_E_CERTIFICATE_ERROR;
-   }
-
-#ifdef MFEM_DEBUG
-   gnutls_datum_t out;
-   gnutls_certificate_type_t type = gnutls_certificate_type_get(session);
-   ret = gnutls_certificate_verification_status_print(status, type, &out, 0);
-   if (ret < 0)
-   {
-      std::cout << "Error in gnutls_certificate_verification_status_print:"
-                << gnutls_strerror(ret) << std::endl;
-      return GNUTLS_E_CERTIFICATE_ERROR;
-   }
-   std::cout << out.data << std::endl;
-   gnutls_free(out.data);
-#endif
-
-   return status ? GNUTLS_E_CERTIFICATE_ERROR : 0;
-}
-
-int GnuTLS_socketbuf::handshake()
+void GnuTLS_socketbuf::handshake()
 {
    // std::cout << "[GnuTLS_socketbuf::handshake]" << std::endl;
 
@@ -463,14 +488,13 @@ int GnuTLS_socketbuf::handshake()
                    << gnutls_protocol_get_name(
                       gnutls_protocol_get_version(session)) << std::endl;
 #endif
-         return 0;
+         return;
       }
    }
    while (err == GNUTLS_E_INTERRUPTED || err == GNUTLS_E_AGAIN);
 #ifdef MFEM_DEBUG
    status.print_on_error("gnutls_handshake");
 #endif
-   return err;
 }
 
 void GnuTLS_socketbuf::start_session()
@@ -483,19 +507,33 @@ void GnuTLS_socketbuf::start_session()
    status.set_result(params.status.get_result());
    if (status.good())
    {
+#if GNUTLS_VERSION_NUMBER >= 0x030102
       status.set_result(gnutls_init(&session, params.get_flags()));
+#else
+      status.set_result(
+         gnutls_init(&session, (gnutls_connection_end_t) params.get_flags()));
+#endif
       status.print_on_error("gnutls_init");
    }
 
    session_started = status.good();
    if (status.good())
    {
+#if GNUTLS_VERSION_NUMBER >= 0x030000 // what is the right version here?
+      const char *priorities =
+         "NONE:+VERS-TLS1.2:+CIPHER-ALL:+MAC-ALL:+SIGN-ALL:+COMP-ALL:"
+         "+KX-ALL:+CTYPE-OPENPGP:+CURVE-ALL";
+#else
+      const char *priorities = "NORMAL:-CTYPE-X.509";
+#endif
+      const char *err_ptr;
       status.set_result(
-         gnutls_priority_set_direct(
-            session,
-            "NONE:+VERS-TLS1.2:+CIPHER-ALL:+MAC-ALL:+SIGN-ALL:+COMP-ALL:"
-            "+KX-ALL:+CTYPE-OPENPGP:+CURVE-ALL", NULL));
+         gnutls_priority_set_direct(session, priorities, &err_ptr));
       status.print_on_error("gnutls_priority_set_direct");
+      if (!status.good())
+      {
+         std::cout << "Error ptr = \"" << err_ptr << '"' << std::endl;
+      }
    }
 
    if (status.good())
@@ -511,28 +549,67 @@ void GnuTLS_socketbuf::start_session()
    {
       const char *hostname = NULL; // no hostname verificaion
       gnutls_session_set_ptr(session, (void*)hostname);
-      gnutls_certificate_set_verify_function(
-         my_cred, mfem_gnutls_verify_callback);
       if (params.get_flags() & GNUTLS_SERVER)
       {
          // require clients to send certificate:
          gnutls_certificate_server_set_request(session, GNUTLS_CERT_REQUIRE);
       }
+#if GNUTLS_VERSION_NUMBER >= 0x030100
       gnutls_handshake_set_timeout(
          session, GNUTLS_DEFAULT_HANDSHAKE_TIMEOUT);
+#endif
    }
 
    if (status.good())
    {
+#if GNUTLS_VERSION_NUMBER >= 0x030109
       gnutls_transport_set_int(session, socket_descriptor);
+#else
+      gnutls_transport_set_ptr(session,
+                               (gnutls_transport_ptr_t) socket_descriptor);
+#endif
 
       handshake();
    }
+
+#if GNUTLS_VERSION_NUMBER < 0x021000
+   if (status.good())
+   {
+      unsigned int verify_status;
+      status.set_result(
+         gnutls_certificate_verify_peers2(session, &verify_status));
+      status.print_on_error("gnutls_certificate_verify_peers2");
+      if (status.good())
+      {
+         status.set_result(
+            verify_status ? GNUTLS_E_CERTIFICATE_ERROR : GNUTLS_E_SUCCESS);
+         status.print_on_error("gnutls_certificate_verify_peers2[status]");
+      }
+      if (status.good())
+      {
+#ifdef MFEM_DEBUG
+         std::cout << "The certificate is trusted." << std::endl;
+#endif
+      }
+      else
+      {
+         int err;
+         do
+         {
+            // Close the connection without waiting for close reply, i.e. we
+            // use GNUTLS_SHUT_WR.
+            err = gnutls_bye(session, GNUTLS_SHUT_WR);
+         }
+         while (err == GNUTLS_E_AGAIN || err == GNUTLS_E_INTERRUPTED);
+      }
+   }
+#endif
 
    if (!status.good())
    {
       if (session_started) { gnutls_deinit(session); }
       session_started = false;
+      socketbuf::close();
    }
 }
 
@@ -749,6 +826,7 @@ GnuTLS_session_params &GLVis_socketstream::add_socket()
    if (num_glvis_sockets == 0)
    {
       state = new GnuTLS_global_state;
+      // state->set_log_level(1000);
       std::string home_dir(getenv("HOME"));
       std::string client_dir = home_dir + "/.config/glvis/client/";
       std::string pubkey  = client_dir + "pubring.gpg";
@@ -757,6 +835,13 @@ GnuTLS_session_params &GLVis_socketstream::add_socket()
       params = new GnuTLS_session_params(
          *state, pubkey.c_str(), privkey.c_str(), trustedkeys.c_str(),
          GNUTLS_CLIENT);
+      if (!params->status.good())
+      {
+         std::cout << "  public key   = " << pubkey << '\n'
+                   << "  private key  = " << privkey << '\n'
+                   << "  trusted keys = " << trustedkeys << std::endl;
+         std::cout << "Error setting GLVis client parameters." << std::endl;
+      }
    }
    num_glvis_sockets++;
    return *params;
