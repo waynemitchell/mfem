@@ -12,7 +12,7 @@ Version 3.1, released on Feb 16, 2016
 =====================================
 
 Substantially improved non-conforming adaptive mesh refinement
----------------------------------------------------------------
+--------------------------------------------------------------
 - Added support for parallel non-conforming mesh refinement, including a new
   example code with adaptive mesh refinement for the Laplace problem (Example
   6p). Most of the example codes can now work on non-conforming meshes in serial
@@ -107,7 +107,6 @@ New and updated examples
   non-conforming mesh refinements.
 
 - Example 3/3p now works in both 2D and 3D.
-
 
 New miniapps
 ------------
