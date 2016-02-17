@@ -404,7 +404,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       if (den <= 0.0)
       {
          if (print_level >= 0 && Dot(d, d) > 0.0)
-            cout <<"PCG: The operator is not postive definite. (Ad, d) = "
+            cout <<"PCG: The operator is not positive definite. (Ad, d) = "
                  << den << '\n';
       }
       nom = betanom;
@@ -1600,7 +1600,7 @@ slbqp_done:
    if (print_level == 1 || (!converged && print_level >= 0))
    {
       cout << "SLBQP iterations = " << nclip << '\n';
-      cout << "SLBQP lamba      = " << l << '\n';
+      cout << "SLBQP lambda     = " << l << '\n';
       cout << "SLBQP residual   = " << r << '\n';
    }
 }

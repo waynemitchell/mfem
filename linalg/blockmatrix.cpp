@@ -218,7 +218,7 @@ void BlockMatrix::EliminateRowCol(Array<int> & ess_bc_dofs, Vector & sol,
          mfem_error();
       }
 
-   //We also have to do the same for each Aij
+   // We also have to do the same for each Aij
    Array<int> block_dofs;
    Vector block_sol, block_rhs;
 

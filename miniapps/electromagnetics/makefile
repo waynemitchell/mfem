@@ -25,7 +25,6 @@ ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
    MINIAPPS = $(SEQ_MINIAPPS) volta tesla
-
 endif
 
 .PHONY: all clean style

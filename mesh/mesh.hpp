@@ -867,7 +867,7 @@ public:
 std::ostream &operator<<(std::ostream &out, const Mesh &mesh);
 
 
-/// Class used to exrude the nodes of a mesh
+/// Class used to extrude the nodes of a mesh
 class NodeExtrudeCoefficient : public VectorCoefficient
 {
 private:

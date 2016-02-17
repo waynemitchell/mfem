@@ -119,7 +119,7 @@ public:
    int Push( int i, int j );
 
    /** Finalize the table initialization. The function may be called
-       only once, after the table has been initialized, in order to densen
+       only once, after the table has been initialized, in order to compress
        array J (by getting rid of -1's in array J). Calling this function
        will "freeze" the table and function Push will work no more.
        Note: The table is functional even without calling Finalize(). */

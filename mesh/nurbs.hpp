@@ -92,7 +92,7 @@ protected:
 
    void swap(NURBSPatch *np);
 
-   // Special B-NET acces functions
+   // Special B-NET access functions
    int SetLoopDirection(int dir);
    inline       double &operator()(int i, int j);
    inline const double &operator()(int i, int j) const;
@@ -121,7 +121,7 @@ public:
 
    KnotVector *GetKV(int i) { return kv[i]; }
 
-   // Standard B-NET acces functions
+   // Standard B-NET access functions
    inline       double &operator()(int i, int j, int l);
    inline const double &operator()(int i, int j, int l) const;
 
@@ -296,7 +296,7 @@ public:
    int GetNTotalDof() { return NumOfDofs; }
    int GetNDof()      { return NumOfActiveDofs; }
 
-   // Knotvector acces function
+   // Knotvector access function
    const KnotVector *GetKnotVector(int i) const { return knotVectors[i]; }
 
    // Mesh generation functions

@@ -126,7 +126,7 @@ bool StaticCondensation::ReducesTrueVSize() const
 #ifdef MFEM_USE_MPI
       return (tr_pfes->GlobalTrueVSize() < pfes->GlobalTrueVSize());
 #else
-      return false; // avoid compiler warnining
+      return false; // avoid compiler warning
 #endif
    }
 }

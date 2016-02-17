@@ -18,7 +18,7 @@
 
 #include <map>
 
-// uncomment next line for debuging: write C and P to file
+// uncomment next line for debugging: write C and P to file
 // #define MFEM_DEBUG_HYBRIDIZATION_CP
 #ifdef MFEM_DEBUG_HYBRIDIZATION_CP
 #include <fstream>
