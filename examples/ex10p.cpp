@@ -320,7 +320,7 @@ int main(int argc, char *argv[])
    //    the initial energies.
    HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K);
 
-   socketstream vis_v, vis_w;
+   GLVis_socketstream vis_v, vis_w;
    if (visualization)
    {
       char vishost[] = "localhost";

@@ -537,28 +537,28 @@ VoltaSolver::InitializeGLVis()
 {
    if ( myid_ == 0 ) { cout << "Opening GLVis sockets." << endl << flush; }
 
-   socks_["Phi"] = new socketstream;
+   socks_["Phi"] = new GLVis_socketstream;
    socks_["Phi"]->precision(8);
 
-   socks_["D"] = new socketstream;
+   socks_["D"] = new GLVis_socketstream;
    socks_["D"]->precision(8);
 
-   socks_["E"] = new socketstream;
+   socks_["E"] = new GLVis_socketstream;
    socks_["E"]->precision(8);
 
    if ( rho_)
    {
-      socks_["Rho"] = new socketstream;
+      socks_["Rho"] = new GLVis_socketstream;
       socks_["Rho"]->precision(8);
    }
    if ( p_)
    {
-      socks_["P"] = new socketstream;
+      socks_["P"] = new GLVis_socketstream;
       socks_["P"]->precision(8);
    }
    if ( sigma_)
    {
-      socks_["Sigma"] = new socketstream;
+      socks_["Sigma"] = new GLVis_socketstream;
       socks_["Sigma"]->precision(8);
    }
    if ( myid_ == 0 ) { cout << "GLVis sockets open." << endl << flush; }

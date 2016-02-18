@@ -482,31 +482,31 @@ TeslaSolver::InitializeGLVis()
 {
    if ( myid_ == 0 ) { cout << "Opening GLVis sockets." << endl << flush; }
 
-   socks_["A"] = new socketstream;
+   socks_["A"] = new GLVis_socketstream;
    socks_["A"]->precision(8);
 
-   socks_["B"] = new socketstream;
+   socks_["B"] = new GLVis_socketstream;
    socks_["B"]->precision(8);
 
-   socks_["H"] = new socketstream;
+   socks_["H"] = new GLVis_socketstream;
    socks_["H"]->precision(8);
 
    if ( j_ )
    {
-      socks_["J"] = new socketstream;
+      socks_["J"] = new GLVis_socketstream;
       socks_["J"]->precision(8);
    }
    if ( k_ )
    {
-      socks_["K"] = new socketstream;
+      socks_["K"] = new GLVis_socketstream;
       socks_["K"]->precision(8);
 
-      socks_["Psi"] = new socketstream;
+      socks_["Psi"] = new GLVis_socketstream;
       socks_["Psi"]->precision(8);
    }
    if ( m_ )
    {
-      socks_["M"] = new socketstream;
+      socks_["M"] = new GLVis_socketstream;
       socks_["M"]->precision(8);
    }
    if ( myid_ == 0 ) { cout << "GLVis sockets open." << endl << flush; }
