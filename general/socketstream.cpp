@@ -34,6 +34,9 @@ typedef int ssize_t;
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
+// Enable debug messages from GnuTLS_* classes
+// #define MFEM_USE_GNUTLS_DEBUG
+
 namespace mfem
 {
 
@@ -476,7 +479,9 @@ GnuTLS_session_params::GnuTLS_session_params(
 
 void GnuTLS_socketbuf::handshake()
 {
-   // std::cout << "[GnuTLS_socketbuf::handshake]" << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::handshake]" << std::endl;
+#endif
 
    // Called at the end of start_session.
    int err;
@@ -500,8 +505,7 @@ void GnuTLS_socketbuf::handshake()
 #endif
 }
 
-#if ((GNUTLS_VERSION_NUMBER < 0x021200) && defined(MSG_NOSIGNAL) && \
-   !defined(_WIN32) && !defined(__APPLE__))
+#if (defined(MSG_NOSIGNAL) && !defined(_WIN32) && !defined(__APPLE__))
 #define MFEM_USE_GNUTLS_PUSH_FUNCTION
 
 static ssize_t mfem_gnutls_push_function(
@@ -513,7 +517,9 @@ static ssize_t mfem_gnutls_push_function(
 
 void GnuTLS_socketbuf::start_session()
 {
-   // std::cout << "[GnuTLS_socketbuf::start_session]" << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::start_session]" << std::endl;
+#endif
 
    // check for valid 'socket_descriptor' and inactive session
    if (!is_open() || session_started) { return; }
@@ -621,19 +627,23 @@ void GnuTLS_socketbuf::start_session()
 
 void GnuTLS_socketbuf::end_session()
 {
-   // std::cout << "[GnuTLS_socketbuf::end_session]" << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::end_session]" << std::endl;
+#endif
 
    // check for valid 'socket_descriptor'
    if (!session_started) { return; }
 
-   if (is_open())
+   if (is_open() && status.good())
    {
-      // std::cout << "[GnuTLS_socketbuf::end_session: gnutls_bye]"
-      //           << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+      std::cout << "[GnuTLS_socketbuf::end_session: gnutls_bye]" << std::endl;
+#endif
       int err;
       do
       {
-         err = gnutls_bye(session, GNUTLS_SHUT_RDWR);
+         // err = gnutls_bye(session, GNUTLS_SHUT_RDWR);
+         err = gnutls_bye(session, GNUTLS_SHUT_WR); // does not wait for reply
          status.set_result(err);
       }
       while (err == GNUTLS_E_AGAIN || err == GNUTLS_E_INTERRUPTED);
@@ -646,7 +656,9 @@ void GnuTLS_socketbuf::end_session()
 
 int GnuTLS_socketbuf::attach(int sd)
 {
-   // std::cout << "[GnuTLS_socketbuf::attach]" << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::attach]" << std::endl;
+#endif
 
    end_session();
 
@@ -659,7 +671,9 @@ int GnuTLS_socketbuf::attach(int sd)
 
 int GnuTLS_socketbuf::open(const char hostname[], int port)
 {
-   // std::cout << "[GnuTLS_socketbuf::open]" << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::open]" << std::endl;
+#endif
 
    int err = socketbuf::open(hostname, port); // calls close()
    if (err) { return err; }
@@ -671,7 +685,9 @@ int GnuTLS_socketbuf::open(const char hostname[], int port)
 
 int GnuTLS_socketbuf::close()
 {
-   // std::cout << "[GnuTLS_socketbuf::close]" << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::close]" << std::endl;
+#endif
 
    end_session();
 
@@ -683,7 +699,10 @@ int GnuTLS_socketbuf::close()
 int GnuTLS_socketbuf::sync()
 {
    ssize_t bw, n = pptr() - pbase();
-   // std::cout << "[GnuTLS_socketbuf::sync n=" << n << ']' << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::sync n=" << n << ']' << std::endl;
+#endif
+   if (!session_started || !status.good()) { return -1; }
    while (n > 0)
    {
       bw = gnutls_record_send(session, pptr() - n, n);
@@ -706,7 +725,10 @@ int GnuTLS_socketbuf::sync()
 
 GnuTLS_socketbuf::int_type GnuTLS_socketbuf::underflow()
 {
-   // std::cout << "[GnuTLS_socketbuf::underflow ...]" << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::underflow ...]" << std::endl;
+#endif
+   if (!session_started || !status.good()) { return traits_type::eof(); }
 
    ssize_t br;
    do
@@ -718,8 +740,9 @@ GnuTLS_socketbuf::int_type GnuTLS_socketbuf::underflow()
       }
    }
    while (br == GNUTLS_E_INTERRUPTED || br == GNUTLS_E_AGAIN);
-
-   // std::cout << "[GnuTLS_socketbuf::underflow br=" << br << ']' << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::underflow br=" << br << ']' << std::endl;
+#endif
 
    if (br <= 0)
    {
@@ -739,7 +762,10 @@ GnuTLS_socketbuf::int_type GnuTLS_socketbuf::underflow()
 
 std::streamsize GnuTLS_socketbuf::xsgetn(char_type *__s, std::streamsize __n)
 {
-   // std::cout << "[GnuTLS_socketbuf::xsgetn __n=" << __n << ']' << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::xsgetn __n=" << __n << ']' << std::endl;
+#endif
+   if (!session_started || !status.good()) { return 0; }
 
    const std::streamsize bn = egptr() - gptr();
    if (__n <= bn)
@@ -783,7 +809,10 @@ std::streamsize GnuTLS_socketbuf::xsgetn(char_type *__s, std::streamsize __n)
 std::streamsize GnuTLS_socketbuf::xsputn(const char_type *__s,
                                          std::streamsize __n)
 {
-   // std::cout << "[GnuTLS_socketbuf::xsputn __n=" << __n << ']' << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+   std::cout << "[GnuTLS_socketbuf::xsputn __n=" << __n << ']' << std::endl;
+#endif
+   if (!session_started || !status.good()) { return 0; }
 
    if (pptr() + __n <= epptr())
    {
@@ -802,7 +831,9 @@ std::streamsize GnuTLS_socketbuf::xsputn(const char_type *__s,
    {
       bw = gnutls_record_send(session, end - remain, remain);
       if (bw == GNUTLS_E_INTERRUPTED || bw == GNUTLS_E_AGAIN) { continue; }
-      // std::cout << "[GnuTLS_socketbuf::xsputn bw=" << bw << ']' << std::endl;
+#ifdef MFEM_USE_GNUTLS_DEBUG
+      std::cout << "[GnuTLS_socketbuf::xsputn bw=" << bw << ']' << std::endl;
+#endif
       if (bw < 0)
       {
          status.set_result((int)bw);
