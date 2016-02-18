@@ -1752,7 +1752,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
          for (int vd = 0; vd < vdim; vd++)
          {
             old_dofs.Copy(old_vdofs);
-            if (vd > 0) { DofsToVDofs(vd, old_vdofs, old_ndofs); }
+            DofsToVDofs(vd, old_vdofs, old_ndofs);
 
             for (int i = 0; i < lR.Height(); i++)
             {
