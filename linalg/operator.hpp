@@ -58,7 +58,7 @@ public:
    }
 
    /// Prints operator with input size n and output size m in matlab format.
-   void PrintMatlab (std::ostream & out, int n = 0, int m = 0);
+   void PrintMatlab (std::ostream & out, int n = 0, int m = 0) const;
 
    virtual ~Operator() { }
 };
