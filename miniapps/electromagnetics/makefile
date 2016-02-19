@@ -27,30 +27,27 @@ else
    MINIAPPS = $(SEQ_MINIAPPS) volta tesla
 endif
 
-.PHONY: all clean style
+.PHONY: all clean
+
+.PRECIOUS: %.o
+
+COMMON_H = ../common/pfem_extras.hpp
+COMMON_OBJ = $(COMMON_H:.hpp=.o)
+
+%.o: %.cpp
+
+%.o: %.cpp %.hpp $(CONFIG_MK) $(MFEM_LIB_FILE) $(COMMON_H)
+	$(MFEM_CXX) $(MFEM_FLAGS) -c $< -o $@
 
 # Remove built-in rule
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp $(CONFIG_MK) $(MFEM_LIB_FILE) ../common/pfem_extras.o
-	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ ../common/pfem_extras.o $(MFEM_LIBS)
+%: %.cpp %_solver.o $(CONFIG_MK) $(MFEM_LIB_FILE) $(COMMON_OBJ)
+	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $(COMMON_OBJ) \
+	$(@)_solver.o $(MFEM_LIBS)
 
 all: $(MINIAPPS)
-
-volta_solver.o: volta_solver.cpp volta_solver.hpp ../common/pfem_extras.hpp \
-	$(CONFIG_MK) $(MFEM_LIB_FILE)
-	$(MFEM_CXX) -c $(MFEM_FLAGS) volta_solver.cpp -o $@ $(MFEM_LIBS)
-
-tesla_solver.o: tesla_solver.cpp tesla_solver.hpp ../common/pfem_extras.hpp \
-	$(CONFIG_MK) $(MFEM_LIB_FILE)
-	$(MFEM_CXX) -c $(MFEM_FLAGS) tesla_solver.cpp -o $@ $(MFEM_LIBS)
-
-volta: volta.cpp $(CONFIG_MK) $(MFEM_LIB_FILE) volta_solver.o ../common/pfem_extras.o
-	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ volta_solver.o ../common/pfem_extras.o $(MFEM_LIBS)
-
-tesla: tesla.cpp $(CONFIG_MK) $(MFEM_LIB_FILE) tesla_solver.o ../common/pfem_extras.o
-	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ tesla_solver.o ../common/pfem_extras.o $(MFEM_LIBS)
 
 # Generate an error message if the MFEM library is not built and exit
 $(CONFIG_MK) $(MFEM_LIB_FILE):

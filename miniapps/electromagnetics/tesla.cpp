@@ -90,11 +90,9 @@ double phi_m_bc_uniform(const Vector &x);
 // Prints the program's logo to the given output stream
 void display_banner(ostream & os);
 
-int main(int argc, char *argv[])
+int main_driver(int argc, char *argv[])
 {
-   // Initialize MPI.
    int num_procs, myid;
-   MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
@@ -147,7 +145,6 @@ int main(int argc, char *argv[])
       {
          args.PrintUsage(cout);
       }
-      MPI_Finalize();
       return 1;
    }
    if (myid == 0)
@@ -166,7 +163,6 @@ int main(int argc, char *argv[])
       {
          cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
       }
-      MPI_Finalize();
       return 2;
    }
    mesh = new Mesh(imesh, 1, 1);
@@ -222,7 +218,6 @@ int main(int argc, char *argv[])
               << "and voltage boundary condition values (with -vbcv)."
               << endl;
       }
-      MPI_Finalize();
       return 3;
    }
 
@@ -341,9 +336,18 @@ int main(int argc, char *argv[])
       Tesla.Update();
    }
 
+   return 0;
+}
+
+int main(int argc, char *argv[])
+{
+   MPI_Init(&argc, &argv);
+
+   int err = main_driver(argc, argv);
+
    MPI_Finalize();
 
-   return 0;
+   return err;
 }
 
 // Print the Volta ascii logo to the given ostream
