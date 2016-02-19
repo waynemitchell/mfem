@@ -119,10 +119,6 @@ protected:
    GridFunction *Nodes;
    int own_nodes;
 
-   // Backup of the coarse mesh. Only used if WantTwoLevelState == 1 and
-   // nonconforming refinements are used.
-   Mesh* nc_coarse_level;
-
    static const int tet_faces[4][3];
    static const int hex_faces[6][4]; // same as Hexahedron::faces
 

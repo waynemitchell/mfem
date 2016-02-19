@@ -752,7 +752,6 @@ void Mesh::Init()
    own_nodes = 1;
    NURBSext = NULL;
    ncmesh = NULL;
-   nc_coarse_level = NULL;
    last_operation = Mesh::NONE;
 }
 
@@ -777,9 +776,6 @@ void Mesh::DeleteTables()
    delete edge_vertex;
 
    InitTables();
-
-   delete nc_coarse_level;
-   nc_coarse_level = NULL;
 }
 
 void Mesh::DeleteCoarseTables()
@@ -789,9 +785,6 @@ void Mesh::DeleteCoarseTables()
    delete edge_vertex;
 
    el_to_el = face_edge = edge_vertex = NULL;
-
-   delete nc_coarse_level;
-   nc_coarse_level = NULL;
 }
 
 void Mesh::SetAttributes()
@@ -2144,9 +2137,6 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
 
    // Do not copy any of the coarse (c_*), fine (f_*) or fine/coarse (fc_*)
    // data members.
-
-   // Do NOT copy the coarse non-conforming Mesh, 'nc_coarse_level'
-   nc_coarse_level = NULL;
 
    // Copy the attributes and bdr_attributes
    mesh.attributes.Copy(attributes);
@@ -6739,28 +6729,20 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
                  " Project the NURBS to Nodes first.");
    }
 
-   int wtls = WantTwoLevelState;
-
-   if (Nodes) // curved mesh
-   {
-      UseTwoLevelState(1);
-   }
-
-   SetState(Mesh::NORMAL);
-   DeleteCoarseTables();
-
    if (!ncmesh)
    {
       // start tracking refinement hierarchy
       ncmesh = new NCMesh(this);
    }
 
-   if (WantTwoLevelState)
+   if (!refinements.Size())
    {
-      ncmesh->MarkCoarseLevel();
+      last_operation = Mesh::NONE;
+      return;
    }
 
    // do the refinements
+   ncmesh->MarkCoarseLevel();
    ncmesh->Refine(refinements);
 
    if (nc_limit > 0)
@@ -6777,25 +6759,16 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    // and this mesh will be the new fine mesh
    Swap(*mesh2, false);
 
-   // retain the coarse mesh if two-level state was requested, delete otherwise
-   if (WantTwoLevelState)
-   {
-      nc_coarse_level = mesh2;
-      State = TWO_LEVEL_FINE;
-   }
-   else
-   {
-      delete mesh2;
-   }
+   delete mesh2;
 
    GenerateNCFaceInfo();
 
    last_operation = Mesh::REFINE;
 
-   if (Nodes) // curved mesh
+   if (Nodes) // update/interpolate curved mesh
    {
-      UpdateNodes();
-      UseTwoLevelState(wtls);
+      Nodes->FESpace()->Update();
+      Nodes->Update();
    }
 }
 
@@ -6804,11 +6777,6 @@ void Mesh::DerefineMesh(const Array<int> &derefinements)
    MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
    MFEM_VERIFY(!NURBSext, "NURBS meshes are not supported. "
                           "Project the NURBS to Nodes first.");
-
-   if (Nodes) // curved mesh
-   {
-      MFEM_ABORT("Not implemented yet.")
-   }
 
    ncmesh->Derefine(derefinements);
 
@@ -6820,9 +6788,10 @@ void Mesh::DerefineMesh(const Array<int> &derefinements)
 
    last_operation = Mesh::DEREFINE;
 
-   if (Nodes) // curved mesh
+   if (Nodes) // update/interpolate curved mesh
    {
-      // TODO
+      Nodes->FESpace()->Update();
+      Nodes->Update();
    }
 }
 
@@ -7560,171 +7529,154 @@ void Mesh::SetState(int s)
 {
    if (ncmesh)
    {
-      if (State != Mesh::NORMAL && s == Mesh::NORMAL)
-      {
-         delete nc_coarse_level;
-         nc_coarse_level = NULL;
-         ncmesh->ClearCoarseLevel();
-         State = s;
-      }
-      else if ((State == Mesh::TWO_LEVEL_COARSE && s == Mesh::TWO_LEVEL_FINE) ||
-               (State == Mesh::TWO_LEVEL_FINE && s == Mesh::TWO_LEVEL_COARSE))
-      {
-         this->Swap(*nc_coarse_level, false);
-         State = s;
-      }
-      else if (State != s)
-      {
-         mfem_error("Oops! Mesh::SetState");
-      }
+      // no coarse mesh in NC mode
+      return;
    }
-   else
+
+   if (State != Mesh::NORMAL && s == Mesh::NORMAL)
    {
-      if (State != Mesh::NORMAL && s == Mesh::NORMAL)
+      // two level state  --->>  normal state
+      int i, t;
+
+      for (i = 0; i < f_NumOfElements; )
       {
-         // two level state  --->>  normal state
-         int i, t;
-
-         for (i = 0; i < f_NumOfElements; )
+         t = elements[i]->GetType();
+         if (t == Element::BISECTED     ||
+             t == Element::QUADRISECTED ||
+             t == Element::OCTASECTED)
          {
-            t = elements[i]->GetType();
-            if (t == Element::BISECTED     ||
-                t == Element::QUADRISECTED ||
-                t == Element::OCTASECTED)
-            {
-               RefinedElement *aux = (RefinedElement *) elements[i];
-               elements[i] = aux->FirstChild;
-               FreeElement(aux->CoarseElem);
-               FreeElement(aux);
-            }
-            else
-            {
-               i++;
-            }
+            RefinedElement *aux = (RefinedElement *) elements[i];
+            elements[i] = aux->FirstChild;
+            FreeElement(aux->CoarseElem);
+            FreeElement(aux);
          }
-
-         for (i = 0; i < f_NumOfBdrElements; )
+         else
          {
-            t = boundary[i]->GetType();
-            if (t == Element::BISECTED     ||
-                t == Element::QUADRISECTED ||
-                t == Element::OCTASECTED)
-            {
-               RefinedElement *aux = (RefinedElement *) boundary[i];
-               boundary[i] = aux->FirstChild;
-               FreeElement(aux->CoarseElem);
-               FreeElement(aux);
-            }
-            else
-            {
-               i++;
-            }
+            i++;
          }
+      }
 
-         if (el_to_edge != NULL)
+      for (i = 0; i < f_NumOfBdrElements; )
+      {
+         t = boundary[i]->GetType();
+         if (t == Element::BISECTED     ||
+             t == Element::QUADRISECTED ||
+             t == Element::OCTASECTED)
          {
-            delete c_el_to_edge;
-            el_to_edge = f_el_to_edge;
-            if (Dim == 2)
-            {
-               if (State == Mesh::TWO_LEVEL_COARSE)
-               {
-                  mfem::Swap(be_to_edge, fc_be_to_edge);
-               }
-               fc_be_to_edge.DeleteAll();
-            }
-            if (Dim == 3)
-            {
-               delete c_bel_to_edge;
-               bel_to_edge = f_bel_to_edge;
-            }
+            RefinedElement *aux = (RefinedElement *) boundary[i];
+            boundary[i] = aux->FirstChild;
+            FreeElement(aux->CoarseElem);
+            FreeElement(aux);
          }
-         if (el_to_face != NULL)
+         else
          {
-            delete c_el_to_face;
-            el_to_face = f_el_to_face;
+            i++;
+         }
+      }
+
+      if (el_to_edge != NULL)
+      {
+         delete c_el_to_edge;
+         el_to_edge = f_el_to_edge;
+         if (Dim == 2)
+         {
             if (State == Mesh::TWO_LEVEL_COARSE)
             {
-               mfem::Swap(faces_info, fc_faces_info);
+               mfem::Swap(be_to_edge, fc_be_to_edge);
             }
-            fc_faces_info.DeleteAll();
+            fc_be_to_edge.DeleteAll();
          }
+         if (Dim == 3)
+         {
+            delete c_bel_to_edge;
+            bel_to_edge = f_bel_to_edge;
+         }
+      }
+      if (el_to_face != NULL)
+      {
+         delete c_el_to_face;
+         el_to_face = f_el_to_face;
+         if (State == Mesh::TWO_LEVEL_COARSE)
+         {
+            mfem::Swap(faces_info, fc_faces_info);
+         }
+         fc_faces_info.DeleteAll();
+      }
 
-         NumOfVertices    = f_NumOfVertices;
-         NumOfEdges       = f_NumOfEdges;
+      NumOfVertices    = f_NumOfVertices;
+      NumOfEdges       = f_NumOfEdges;
+      if (Dim == 3)
+      {
+         NumOfFaces    = f_NumOfFaces;
+      }
+      NumOfElements    = f_NumOfElements;
+      NumOfBdrElements = f_NumOfBdrElements;
+      RefinedElement::State = RefinedElement::FINE;
+      State = s;
+   }
+   else if (State == Mesh::TWO_LEVEL_COARSE && s == Mesh::TWO_LEVEL_FINE)
+   {
+      if (el_to_edge != NULL)
+      {
+         el_to_edge = f_el_to_edge;
+         if (Dim == 2)
+         {
+            mfem::Swap(be_to_edge, fc_be_to_edge);
+         }
          if (Dim == 3)
          {
-            NumOfFaces    = f_NumOfFaces;
+            bel_to_edge = f_bel_to_edge;
          }
-         NumOfElements    = f_NumOfElements;
-         NumOfBdrElements = f_NumOfBdrElements;
-         RefinedElement::State = RefinedElement::FINE;
-         State = s;
       }
-      else if (State == Mesh::TWO_LEVEL_COARSE && s == Mesh::TWO_LEVEL_FINE)
+      if (el_to_face != NULL)
       {
-         if (el_to_edge != NULL)
+         el_to_face = f_el_to_face;
+         mfem::Swap(faces_info, fc_faces_info);
+      }
+      NumOfVertices    = f_NumOfVertices;
+      NumOfEdges       = f_NumOfEdges;
+      if (Dim == 3)
+      {
+         NumOfFaces    = f_NumOfFaces;
+      }
+      NumOfElements    = f_NumOfElements;
+      NumOfBdrElements = f_NumOfBdrElements;
+      RefinedElement::State = RefinedElement::FINE;
+      State = s;
+   }
+   else if (State == Mesh::TWO_LEVEL_FINE && s == Mesh::TWO_LEVEL_COARSE)
+   {
+      if (el_to_edge != NULL)
+      {
+         el_to_edge = c_el_to_edge;
+         if (Dim == 2)
          {
-            el_to_edge = f_el_to_edge;
-            if (Dim == 2)
-            {
-               mfem::Swap(be_to_edge, fc_be_to_edge);
-            }
-            if (Dim == 3)
-            {
-               bel_to_edge = f_bel_to_edge;
-            }
+            mfem::Swap(be_to_edge, fc_be_to_edge);
          }
-         if (el_to_face != NULL)
-         {
-            el_to_face = f_el_to_face;
-            mfem::Swap(faces_info, fc_faces_info);
-         }
-         NumOfVertices    = f_NumOfVertices;
-         NumOfEdges       = f_NumOfEdges;
          if (Dim == 3)
          {
-            NumOfFaces    = f_NumOfFaces;
+            bel_to_edge = c_bel_to_edge;
          }
-         NumOfElements    = f_NumOfElements;
-         NumOfBdrElements = f_NumOfBdrElements;
-         RefinedElement::State = RefinedElement::FINE;
-         State = s;
       }
-      else if (State == Mesh::TWO_LEVEL_FINE && s == Mesh::TWO_LEVEL_COARSE)
+      if (el_to_face != NULL)
       {
-         if (el_to_edge != NULL)
-         {
-            el_to_edge = c_el_to_edge;
-            if (Dim == 2)
-            {
-               mfem::Swap(be_to_edge, fc_be_to_edge);
-            }
-            if (Dim == 3)
-            {
-               bel_to_edge = c_bel_to_edge;
-            }
-         }
-         if (el_to_face != NULL)
-         {
-            el_to_face = c_el_to_face;
-            mfem::Swap(faces_info, fc_faces_info);
-         }
-         NumOfVertices    = c_NumOfVertices;
-         NumOfEdges       = c_NumOfEdges;
-         if (Dim == 3)
-         {
-            NumOfFaces    = c_NumOfFaces;
-         }
-         NumOfElements    = c_NumOfElements;
-         NumOfBdrElements = c_NumOfBdrElements;
-         RefinedElement::State = RefinedElement::COARSE;
-         State = s;
+         el_to_face = c_el_to_face;
+         mfem::Swap(faces_info, fc_faces_info);
       }
-      else if (State != s)
+      NumOfVertices    = c_NumOfVertices;
+      NumOfEdges       = c_NumOfEdges;
+      if (Dim == 3)
       {
-         mfem_error("Oops! Mesh::SetState");
+         NumOfFaces    = c_NumOfFaces;
       }
+      NumOfElements    = c_NumOfElements;
+      NumOfBdrElements = c_NumOfBdrElements;
+      RefinedElement::State = RefinedElement::COARSE;
+      State = s;
+   }
+   else if (State != s)
+   {
+      mfem_error("Oops! Mesh::SetState");
    }
 }
 

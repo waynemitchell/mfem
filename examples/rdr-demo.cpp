@@ -128,6 +128,10 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(4);
+   }
    mesh->EnsureNCMesh();
 
    // empty processors at the beginning tend to confuse GLVis (?)
@@ -253,7 +257,6 @@ int main(int argc, char *argv[])
       for (int i = 0; i < levels; i++)
       {
          // refine randomly
-         pmesh->ncmesh->MarkCoarseLevel();
          pmesh->RandomRefinement(1, frac, false, 1, -1, rand());
          fespace->Update();
          x.Update();

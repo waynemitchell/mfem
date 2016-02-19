@@ -89,7 +89,7 @@ public:
 
    /** Check the mesh and potentially refine some elements so that the maximum
        difference of refinement levels between adjacent elements is not greater
-       than 'max_level'. */
+       than 'max_nc_level'. */
    virtual void LimitNCLevel(int max_nc_level);
 
    /** Return a list of derefinement opportunities. Each row of the table

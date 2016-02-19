@@ -120,14 +120,6 @@ protected:
                                    RefinementType type,
                                    Array<int> &rows);
 
-   /** Construct the restriction matrix from the coarse FE space 'cfes' to
-       (*this) space, where both spaces use the same FE collection and
-       their meshes are obtained from different levels of a single NCMesh.
-       (Also, the coarse level must have been marked in 'ncmesh' before
-       refinement). */
-   SparseMatrix *NC_GlobalRestrictionMatrix(FiniteElementSpace* cfes,
-                                            NCMesh* ncmesh);
-
    /** This is a helper function to get edge (type == 0) or face (type == 1)
        DOFs. The function is aware of ghost edges/faces in parallel, for which
        an empty DOF list is returned. */

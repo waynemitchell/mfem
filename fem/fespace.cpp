@@ -311,12 +311,7 @@ SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
       one_vdim = (ordering == Ordering::byNODES) ? 1 : 0;
    }
 
-   if (mesh->ncmesh)
-   {
-      MFEM_VERIFY(vdim == 1 || one_vdim == 0,
-                  "parameter 'one_vdim' must be 0 for nonconforming mesh.");
-      return NC_GlobalRestrictionMatrix(cfes, mesh->ncmesh);
-   }
+   MFEM_VERIFY(Conforming(), "Not supported for nonconforming meshes.");
 
    mesh->SetState(Mesh::TWO_LEVEL_COARSE);
    int vdim_or_1 = (one_vdim ? 1 : vdim);
@@ -339,83 +334,6 @@ SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
       mesh->SetState(Mesh::TWO_LEVEL_COARSE);
    }
 
-   return R;
-}
-
-SparseMatrix* FiniteElementSpace::NC_GlobalRestrictionMatrix
-(FiniteElementSpace* cfes, NCMesh* ncmesh)
-{
-   Array<int> rows, cols, rs, cs;
-   LinearFECollection linfec;
-
-   NCMesh::FineTransform* transforms = ncmesh->GetFineTransforms();
-
-   SparseMatrix* R = new SparseMatrix(cfes->GetVSize(), this->GetVSize());
-
-   // we mark each fine DOF the first time its column is set so that slave node
-   // values don't get represented twice in R
-   Array<int> mark(this->GetNDofs());
-   mark = 0;
-
-   // loop over the fine elements, get interpolations of the coarse elements
-   for (int k = 0; k < mesh->GetNE(); k++)
-   {
-      mesh->SetState(Mesh::TWO_LEVEL_COARSE);
-      cfes->GetElementDofs(transforms[k].coarse_index, rows);
-
-      mesh->SetState(Mesh::TWO_LEVEL_FINE);
-      this->GetElementDofs(k, cols);
-
-      if (!transforms[k].IsIdentity())
-      {
-         int geom = mesh->GetElementBaseGeometry(k);
-         const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
-
-         IsoparametricTransformation trans;
-         trans.SetFE(linfec.FiniteElementForGeometry(geom));
-         trans.GetPointMat() = transforms[k].point_matrix;
-
-         DenseMatrix I(fe->GetDof());
-         fe->GetLocalInterpolation(trans, I);
-         // TODO: use std::unordered_map to cache I matrices (point_matrix as key)
-
-         // make sure we don't set any column of R more than once
-         for (int i = 0; i < I.Height(); i++)
-         {
-            int col = cols[i];
-            if (col < 0) { col = -1 - col; }
-
-            if (mark[col]++)
-            {
-               I.SetRow(i, 0);   // zero the i-th row of I
-            }
-         }
-
-         cfes->DofsToVDofs(rows);
-         this->DofsToVDofs(cols);
-         SetVDofSubMatrixTranspose(*R, rows, cols, I, vdim);
-      }
-      else // optimization: insert identity for elements that were not refined
-      {
-         MFEM_ASSERT(rows.Size() == cols.Size(), "");
-         for (int i = 0; i < rows.Size(); i++)
-         {
-            int col = cols[i];
-            if (col < 0) { col = -1 - col; }
-
-            if (!mark[col]++)
-            {
-               for (int vd = 0; vd < vdim; vd++)
-               {
-                  R->Set(cfes->DofToVDof(rows[i], vd),
-                         this->DofToVDof(cols[i], vd), 1.0);
-               }
-            }
-         }
-      }
-   }
-
-   delete [] transforms;
    return R;
 }
 

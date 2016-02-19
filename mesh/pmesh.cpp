@@ -2143,16 +2143,6 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
                  "supported. Project the NURBS to Nodes first.");
    }
 
-   int wtls = WantTwoLevelState;
-
-   if (Nodes) // curved mesh
-   {
-      UseTwoLevelState(1);
-   }
-
-   SetState(Mesh::NORMAL);
-   DeleteCoarseTables();
-
    if (!pncmesh)
    {
       MFEM_ABORT("Can't convert conforming ParMesh to nonconforming ParMesh "
@@ -2160,12 +2150,10 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
                  "serial Mesh)");
    }
 
-   if (WantTwoLevelState)
-   {
-      pncmesh->MarkCoarseLevel();
-   }
+   // NOTE: no check of !refinements.Size(), in parallel we would have to reduce
 
    // do the refinements
+   pncmesh->MarkCoarseLevel();
    pncmesh->Refine(refinements);
 
    if (nc_limit > 0)
@@ -2184,23 +2172,16 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
    // and this mesh will be the new fine mesh
    Swap(*pmesh2, false);
 
-   // retain the coarse mesh if two-level state was requested, delete otherwise
-   if (WantTwoLevelState)
-   {
-      nc_coarse_level = pmesh2;
-      State = TWO_LEVEL_FINE;
-   }
-   else
-   {
-      delete pmesh2;
-   }
+   delete pmesh2;
+
+   GenerateNCFaceInfo();
 
    last_operation = Mesh::REFINE;
 
-   if (Nodes) // curved mesh
+   if (Nodes) // update/interpolate curved mesh
    {
-      UpdateNodes();
-      UseTwoLevelState(wtls);
+      Nodes->FESpace()->Update();
+      Nodes->Update();
    }
 }
 
@@ -2257,10 +2238,6 @@ void ParMesh::Rebalance()
       MFEM_ABORT("Load balancing is currently not supported for conforming"
                  " meshes.");
    }
-   if (Nodes)
-   {
-      MFEM_ABORT("Load balancing not supported for curved meshes yet.");
-   }
 
    pncmesh->Rebalance();
 
@@ -2275,11 +2252,11 @@ void ParMesh::Rebalance()
 
    last_operation = Mesh::REBALANCE;
 
-   /*if (Nodes)
+   if (Nodes) // redistribute curved mesh
    {
       Nodes->FESpace()->Update();
-      HypreParMatrix* M = Nodes->ParFESpace()->RebalanceMatrix
-   }*/
+      Nodes->Update();
+   }
 }
 
 void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
