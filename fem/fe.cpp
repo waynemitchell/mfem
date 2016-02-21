@@ -155,6 +155,25 @@ void NodalFiniteElement::NodalLocalInterpolation (
    }
 }
 
+void NodalFiniteElement::ProjectCurl_2D(
+   const FiniteElement &fe, ElementTransformation &Trans,
+   DenseMatrix &curl) const
+{
+   MFEM_ASSERT(GetMapType() == FiniteElement::INTEGRAL, "");
+
+   DenseMatrix curl_shape(fe.GetDof(), 1);
+
+   curl.SetSize(Dof, fe.GetDof());
+   for (int i = 0; i < Dof; i++)
+   {
+      fe.CalcCurlShape(Nodes.IntPoint(i), curl_shape);
+      for (int j = 0; j < fe.GetDof(); j++)
+      {
+         curl(i,j) = curl_shape(j,0);
+      }
+   }
+}
+
 void NodalFiniteElement::Project (
    Coefficient &coeff, ElementTransformation &Trans, Vector &dofs) const
 {
@@ -242,6 +261,7 @@ void NodalFiniteElement::ProjectGrad(
    DenseMatrix &grad) const
 {
    MFEM_ASSERT(fe.GetMapType() == VALUE, "");
+   MFEM_ASSERT(Trans.GetSpaceDim() == Dim, "")
 
    DenseMatrix dshape(fe.GetDof(), Dim), grad_k(fe.GetDof(), Dim), Jinv(Dim);
 
@@ -328,9 +348,9 @@ void PositiveFiniteElement::Project(
       mass_integ.AssembleElementMatrix(*this, Trans, pos_mass);
       mass_integ.AssembleElementMatrix2(fe, *this, Trans, mixed_mass);
 
-      pos_mass.Invert();
+      DenseMatrixInverse pos_mass_inv(pos_mass);
       I.SetSize(Dof, fe.GetDof());
-      Mult(pos_mass, mixed_mass, I);
+      pos_mass_inv.Mult(mixed_mass, I);
    }
 }
 
@@ -386,20 +406,25 @@ void VectorFiniteElement::Project_RT(
    VectorCoefficient &vc, ElementTransformation &Trans, Vector &dofs) const
 {
    double vk[3];
-   Vector xk(vk, Dim);
+   Vector xk(vk, vc.GetVDim());
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix Jinv(Dim);
+   DenseMatrix Jinv(Dim, vc.GetVDim());
+#else
+   Jinv.SetSize(Dim, vc.GetVDim());
 #endif
+   const bool square_J = (Jinv.Height() == Jinv.Width());
 
    for (int k = 0; k < Dof; k++)
    {
       Trans.SetIntPoint(&Nodes.IntPoint(k));
-      // set Jinv = |J| J^{-1} = adj(J)
+      // set Jinv = |J| J^{-1} = adj(J), when J is square
+      // set Jinv = adj(J^t.J).J^t,      otherwise
       CalcAdjugate(Trans.Jacobian(), Jinv);
 
       vc.Eval(xk, Trans, Nodes.IntPoint(k));
       // dof_k = nk^t adj(J) xk
       dofs(k) = Jinv.InnerProduct(vk, nk + d2n[k]*Dim);
+      if (!square_J) { dofs(k) /= Trans.Weight(); }
    }
 }
 
@@ -411,19 +436,20 @@ void VectorFiniteElement::Project_RT(
    {
       double vk[3];
       Vector shape(fe.GetDof());
+      int sdim = Trans.GetSpaceDim();
 #ifdef MFEM_THREAD_SAFE
-      DenseMatrix Jinv(Dim);
+      DenseMatrix Jinv(Dim, sdim);
 #endif
 
-      I.SetSize(Dof, Dim*fe.GetDof());
+      I.SetSize(Dof, sdim*fe.GetDof());
       for (int k = 0; k < Dof; k++)
       {
          const IntegrationPoint &ip = Nodes.IntPoint(k);
 
          fe.CalcShape(ip, shape);
          Trans.SetIntPoint(&ip);
-         CalcAdjugateTranspose(Trans.Jacobian(), Jinv);
-         Jinv.Mult(nk + d2n[k]*Dim, vk);
+         CalcAdjugate(Trans.Jacobian(), Jinv);
+         Jinv.MultTranspose(nk + d2n[k]*Dim, vk);
          if (fe.GetMapType() == INTEGRAL)
          {
             double w = 1.0/Trans.Weight();
@@ -440,7 +466,7 @@ void VectorFiniteElement::Project_RT(
             {
                s = 0.0;
             }
-            for (int d = 0; d < Dim; d++)
+            for (int d = 0; d < sdim; d++)
             {
                I(k,j+d*shape.Size()) = s*vk[d];
             }
@@ -476,6 +502,44 @@ void VectorFiniteElement::ProjectGrad_RT(
       for (int j = 0; j < grad_k.Size(); j++)
       {
          grad(k,j) = (fabs(grad_k(j)) < 1e-12) ? 0.0 : grad_k(j);
+      }
+   }
+}
+
+void VectorFiniteElement::ProjectCurl_ND(
+   const double *tk, const Array<int> &d2t, const FiniteElement &fe,
+   ElementTransformation &Trans, DenseMatrix &curl) const
+{
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(fe.GetDof(), Dim);
+   DenseMatrix curlshape_J(fe.GetDof(), Dim);
+   DenseMatrix J(Dim, Dim);
+#else
+   curlshape.SetSize(fe.GetDof(), Dim);
+   curlshape_J.SetSize(fe.GetDof(), Dim);
+   J.SetSize(Dim, Dim);
+#endif
+
+   Vector curl_k(fe.GetDof());
+
+   curl.SetSize(Dof, fe.GetDof());
+   for (int k = 0; k < Dof; k++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(k);
+
+      // calculate J^t * J / |J|
+      Trans.SetIntPoint(&ip);
+      MultAtB(Trans.Jacobian(), Trans.Jacobian(), J);
+      J *= 1.0 / Trans.Weight();
+
+      // transform curl of shapes (rows) by J^t * J / |J|
+      fe.CalcCurlShape(ip, curlshape);
+      Mult(curlshape, J, curlshape_J);
+
+      curlshape_J.Mult(tk + d2t[k]*Dim, curl_k);
+      for (int j = 0; j < curl_k.Size(); j++)
+      {
+         curl(k,j) = (fabs(curl_k(j)) < 1e-12) ? 0.0 : curl_k(j);
       }
    }
 }
@@ -522,10 +586,11 @@ void VectorFiniteElement::Project_ND(
 {
    if (fe.GetRangeType() == SCALAR)
    {
+      int sdim = Trans.GetSpaceDim();
       double vk[3];
       Vector shape(fe.GetDof());
 
-      I.SetSize(Dof, Dim*fe.GetDof());
+      I.SetSize(Dof, sdim*fe.GetDof());
       for (int k = 0; k < Dof; k++)
       {
          const IntegrationPoint &ip = Nodes.IntPoint(k);
@@ -536,7 +601,7 @@ void VectorFiniteElement::Project_ND(
          if (fe.GetMapType() == INTEGRAL)
          {
             double w = 1.0/Trans.Weight();
-            for (int d = 0; d < Dim; d++)
+            for (int d = 0; d < sdim; d++)
             {
                vk[d] *= w;
             }
@@ -549,7 +614,7 @@ void VectorFiniteElement::Project_ND(
             {
                s = 0.0;
             }
-            for (int d = 0; d < Dim; d++)
+            for (int d = 0; d < sdim; d++)
             {
                I(k, j + d*shape.Size()) = s*vk[d];
             }
@@ -5915,7 +5980,7 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
    mode = _mode;
    if (mode == 0)
    {
-      A.SetSize(p + 1);
+      DenseMatrix A(p + 1);
       for (int i = 0; i <= p; i++)
       {
          CalcBasis(p, nodes[i], x);
@@ -5925,8 +5990,8 @@ Poly_1D::Basis::Basis(const int p, const double *nodes, int _mode)
          }
       }
 
-      A.Invert();
-      // cout << "Poly_1D::Basis(" << p << ",...) : "; A.TestInversion();
+      Ai.Factor(A);
+      // cout << "Poly_1D::Basis(" << p << ",...) : "; Ai.TestInversion();
    }
    else
    {
@@ -5959,8 +6024,8 @@ void Poly_1D::Basis::Eval(const double y, Vector &u) const
 {
    if (mode == 0)
    {
-      CalcBasis(A.Width() - 1, y, x);
-      A.Mult(x, u);
+      CalcBasis(Ai.Width() - 1, y, x);
+      Ai.Mult(x, u);
    }
    else
    {
@@ -6005,9 +6070,9 @@ void Poly_1D::Basis::Eval(const double y, Vector &u, Vector &d) const
 {
    if (mode == 0)
    {
-      CalcBasis(A.Width() - 1, y, x, w);
-      A.Mult(x, u);
-      A.Mult(w, d);
+      CalcBasis(Ai.Width() - 1, y, x, w);
+      Ai.Mult(x, u);
+      Ai.Mult(w, d);
    }
    else
    {
@@ -7393,7 +7458,7 @@ void H1Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
 H1_TriangleElement::H1_TriangleElement(const int p)
    : NodalFiniteElement(2, Geometry::TRIANGLE, ((p + 1)*(p + 2))/2, p,
-                        FunctionSpace::Pk), T(Dof)
+                        FunctionSpace::Pk)
 {
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -7438,6 +7503,7 @@ H1_TriangleElement::H1_TriangleElement(const int p)
          Nodes.IntPoint(o++).Set2(cp[i]/w, cp[j]/w);
       }
 
+   DenseMatrix T(Dof);
    for (int k = 0; k < Dof; k++)
    {
       IntegrationPoint &ip = Nodes.IntPoint(k);
@@ -7453,8 +7519,8 @@ H1_TriangleElement::H1_TriangleElement(const int p)
          }
    }
 
-   T.Invert();
-   // cout << "H1_TriangleElement(" << p << ") : "; T.TestInversion();
+   Ti.Factor(T);
+   // cout << "H1_TriangleElement(" << p << ") : "; Ti.TestInversion();
 }
 
 void H1_TriangleElement::CalcShape(const IntegrationPoint &ip,
@@ -7476,7 +7542,7 @@ void H1_TriangleElement::CalcShape(const IntegrationPoint &ip,
          u(o++) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
       }
 
-   T.Mult(u, shape);
+   Ti.Mult(u, shape);
 }
 
 void H1_TriangleElement::CalcDShape(const IntegrationPoint &ip,
@@ -7505,13 +7571,13 @@ void H1_TriangleElement::CalcDShape(const IntegrationPoint &ip,
          o++;
       }
 
-   Mult(T, du, dshape);
+   Ti.Mult(du, dshape);
 }
 
 
 H1_TetrahedronElement::H1_TetrahedronElement(const int p)
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, ((p + 1)*(p + 2)*(p + 3))/6,
-                        p, FunctionSpace::Pk), T(Dof)
+                        p, FunctionSpace::Pk)
 {
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -7598,6 +7664,7 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p)
             Nodes.IntPoint(o++).Set3(cp[i]/w, cp[j]/w, cp[k]/w);
          }
 
+   DenseMatrix T(Dof);
    for (int m = 0; m < Dof; m++)
    {
       IntegrationPoint &ip = Nodes.IntPoint(m);
@@ -7615,8 +7682,8 @@ H1_TetrahedronElement::H1_TetrahedronElement(const int p)
             }
    }
 
-   T.Invert();
-   // cout << "H1_TetrahedronElement(" << p << ") : "; T.TestInversion();
+   Ti.Factor(T);
+   // cout << "H1_TetrahedronElement(" << p << ") : "; Ti.TestInversion();
 }
 
 void H1_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -7641,7 +7708,7 @@ void H1_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
             u(o++) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
          }
 
-   T.Mult(u, shape);
+   Ti.Mult(u, shape);
 }
 
 void H1_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -7674,7 +7741,7 @@ void H1_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
             o++;
          }
 
-   Mult(T, du, dshape);
+   Ti.Mult(du, dshape);
 }
 
 
@@ -8275,7 +8342,7 @@ void L2Pos_HexahedronElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
    : NodalFiniteElement(2, Geometry::TRIANGLE, ((p + 1)*(p + 2))/2, p,
-                        FunctionSpace::Pk), T(Dof)
+                        FunctionSpace::Pk)
 {
    const double *op;
 
@@ -8307,6 +8374,7 @@ L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
          Nodes.IntPoint(o++).Set2(op[i]/w, op[j]/w);
       }
 
+   DenseMatrix T(Dof);
    for (int k = 0; k < Dof; k++)
    {
       IntegrationPoint &ip = Nodes.IntPoint(k);
@@ -8321,8 +8389,8 @@ L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
          }
    }
 
-   T.Invert();
-   // cout << "L2_TriangleElement(" << p << ") : "; T.TestInversion();
+   Ti.Factor(T);
+   // cout << "L2_TriangleElement(" << p << ") : "; Ti.TestInversion();
 }
 
 void L2_TriangleElement::CalcShape(const IntegrationPoint &ip,
@@ -8344,7 +8412,7 @@ void L2_TriangleElement::CalcShape(const IntegrationPoint &ip,
          u(o++) = shape_x(i)*shape_y(j)*shape_l(p-i-j);
       }
 
-   T.Mult(u, shape);
+   Ti.Mult(u, shape);
 }
 
 void L2_TriangleElement::CalcDShape(const IntegrationPoint &ip,
@@ -8373,7 +8441,7 @@ void L2_TriangleElement::CalcDShape(const IntegrationPoint &ip,
          o++;
       }
 
-   Mult(T, du, dshape);
+   Ti.Mult(du, dshape);
 }
 
 void L2_TriangleElement::ProjectDelta(int vertex, Vector &dofs) const
@@ -8503,7 +8571,7 @@ void L2Pos_TriangleElement::ProjectDelta(int vertex, Vector &dofs) const
 
 L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
    : NodalFiniteElement(3, Geometry::TETRAHEDRON, ((p + 1)*(p + 2)*(p + 3))/6,
-                        p, FunctionSpace::Pk), T(Dof)
+                        p, FunctionSpace::Pk)
 {
    const double *op;
 
@@ -8538,6 +8606,7 @@ L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
             Nodes.IntPoint(o++).Set3(op[i]/w, op[j]/w, op[k]/w);
          }
 
+   DenseMatrix T(Dof);
    for (int m = 0; m < Dof; m++)
    {
       IntegrationPoint &ip = Nodes.IntPoint(m);
@@ -8554,8 +8623,8 @@ L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
             }
    }
 
-   T.Invert();
-   // cout << "L2_TetrahedronElement(" << p << ") : "; T.TestInversion();
+   Ti.Factor(T);
+   // cout << "L2_TetrahedronElement(" << p << ") : "; Ti.TestInversion();
 }
 
 void L2_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
@@ -8580,7 +8649,7 @@ void L2_TetrahedronElement::CalcShape(const IntegrationPoint &ip,
             u(o++) = shape_x(i)*shape_y(j)*shape_z(k)*shape_l(p-i-j-k);
          }
 
-   T.Mult(u, shape);
+   Ti.Mult(u, shape);
 }
 
 void L2_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
@@ -8613,7 +8682,7 @@ void L2_TetrahedronElement::CalcDShape(const IntegrationPoint &ip,
             o++;
          }
 
-   Mult(T, du, dshape);
+   Ti.Mult(du, dshape);
 }
 
 void L2_TetrahedronElement::ProjectDelta(int vertex, Vector &dofs) const
@@ -9331,7 +9400,7 @@ const double RT_TriangleElement::c = 1./3.;
 
 RT_TriangleElement::RT_TriangleElement(const int p)
    : VectorFiniteElement(2, Geometry::TRIANGLE, (p + 1)*(p + 3), p + 1,
-                         H_DIV, FunctionSpace::Pk), dof2nk(Dof), T(Dof)
+                         H_DIV, FunctionSpace::Pk), dof2nk(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
    const double *bop = poly1d.OpenPoints(p);
@@ -9378,6 +9447,7 @@ RT_TriangleElement::RT_TriangleElement(const int p)
          dof2nk[o++] = 2;
       }
 
+   DenseMatrix T(Dof);
    for (int k = 0; k < Dof; k++)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(k);
@@ -9401,8 +9471,8 @@ RT_TriangleElement::RT_TriangleElement(const int p)
       }
    }
 
-   T.Invert();
-   // cout << "RT_TriangleElement(" << p << ") : "; T.TestInversion();
+   Ti.Factor(T);
+   // cout << "RT_TriangleElement(" << p << ") : "; Ti.TestInversion();
 }
 
 void RT_TriangleElement::CalcVShape(const IntegrationPoint &ip,
@@ -9430,10 +9500,12 @@ void RT_TriangleElement::CalcVShape(const IntegrationPoint &ip,
    for (int i = 0; i <= p; i++)
    {
       double s = shape_x(i)*shape_y(p-i);
-      u(o,0) = (ip.x - c)*s;  u(o,1) = (ip.y - c)*s;  o++;
+      u(o,0) = (ip.x - c)*s;
+      u(o,1) = (ip.y - c)*s;
+      o++;
    }
 
-   Mult(T, u, shape);
+   Ti.Mult(u, shape);
 }
 
 void RT_TriangleElement::CalcDivShape(const IntegrationPoint &ip,
@@ -9468,7 +9540,7 @@ void RT_TriangleElement::CalcDivShape(const IntegrationPoint &ip,
                    (shape_y(j) + (ip.y - c)*dshape_y(j))*shape_x(i));
    }
 
-   T.Mult(divu, divshape);
+   Ti.Mult(divu, divshape);
 }
 
 
@@ -9480,7 +9552,7 @@ const double RT_TetrahedronElement::c = 1./4.;
 
 RT_TetrahedronElement::RT_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, (p + 1)*(p + 2)*(p + 4)/2,
-                         p + 1, H_DIV, FunctionSpace::Pk), dof2nk(Dof), T(Dof)
+                         p + 1, H_DIV, FunctionSpace::Pk), dof2nk(Dof)
 {
    const double *iop = (p > 0) ? poly1d.OpenPoints(p - 1) : NULL;
    const double *bop = poly1d.OpenPoints(p);
@@ -9546,6 +9618,7 @@ RT_TetrahedronElement::RT_TetrahedronElement(const int p)
             dof2nk[o++] = 3;
          }
 
+   DenseMatrix T(Dof);
    for (int m = 0; m < Dof; m++)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(m);
@@ -9574,8 +9647,8 @@ RT_TetrahedronElement::RT_TetrahedronElement(const int p)
          }
    }
 
-   T.Invert();
-   // cout << "RT_TetrahedronElement(" << p << ") : "; T.TestInversion();
+   Ti.Factor(T);
+   // cout << "RT_TetrahedronElement(" << p << ") : "; Ti.TestInversion();
 }
 
 void RT_TetrahedronElement::CalcVShape(const IntegrationPoint &ip,
@@ -9611,7 +9684,7 @@ void RT_TetrahedronElement::CalcVShape(const IntegrationPoint &ip,
          o++;
       }
 
-   Mult(T, u, shape);
+   Ti.Mult(u, shape);
 }
 
 void RT_TetrahedronElement::CalcDivShape(const IntegrationPoint &ip,
@@ -9653,7 +9726,7 @@ void RT_TetrahedronElement::CalcDivShape(const IntegrationPoint &ip,
             (shape_z(k) + (ip.z - c)*dshape_z(k))*shape_x(i)*shape_y(j);
       }
 
-   T.Mult(divu, divshape);
+   Ti.Mult(divu, divshape);
 }
 
 
@@ -10167,7 +10240,49 @@ void ND_QuadrilateralElement::CalcVShape(const IntegrationPoint &ip,
 void ND_QuadrilateralElement::CalcCurlShape(const IntegrationPoint &ip,
                                             DenseMatrix &curl_shape) const
 {
-   mfem_error("ND_QuadrilateralElement::CalcCurlShape");
+   const int p = Order;
+
+#ifdef MFEM_THREAD_SAFE
+   Vector shape_cx(p + 1), shape_ox(p), shape_cy(p + 1), shape_oy(p);
+   Vector dshape_cx(p + 1), dshape_cy(p + 1);
+#endif
+
+   cbasis1d.Eval(ip.x, shape_cx, dshape_cx);
+   obasis1d.Eval(ip.x, shape_ox);
+   cbasis1d.Eval(ip.y, shape_cy, dshape_cy);
+   obasis1d.Eval(ip.y, shape_oy);
+
+   int o = 0;
+   // x-components
+   for (int j = 0; j <= p; j++)
+      for (int i = 0; i < p; i++)
+      {
+         int idx, s;
+         if ((idx = dof_map[o++]) < 0)
+         {
+            idx = -1 - idx, s = -1;
+         }
+         else
+         {
+            s = +1;
+         }
+         curl_shape(idx,0) = -s*shape_ox(i)*dshape_cy(j);
+      }
+   // y-components
+   for (int j = 0; j < p; j++)
+      for (int i = 0; i <= p; i++)
+      {
+         int idx, s;
+         if ((idx = dof_map[o++]) < 0)
+         {
+            idx = -1 - idx, s = -1;
+         }
+         else
+         {
+            s = +1;
+         }
+         curl_shape(idx,0) =  s*dshape_cx(i)*shape_oy(j);
+      }
 }
 
 
@@ -10178,7 +10293,7 @@ const double ND_TetrahedronElement::c = 1./4.;
 
 ND_TetrahedronElement::ND_TetrahedronElement(const int p)
    : VectorFiniteElement(3, Geometry::TETRAHEDRON, p*(p + 2)*(p + 3)/2, p,
-                         H_CURL, FunctionSpace::Pk), dof2tk(Dof), T(Dof)
+                         H_CURL, FunctionSpace::Pk), dof2tk(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *fop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;
@@ -10285,6 +10400,7 @@ ND_TetrahedronElement::ND_TetrahedronElement(const int p)
             dof2tk[o++] = 2;
          }
 
+   DenseMatrix T(Dof);
    for (int m = 0; m < Dof; m++)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(m);
@@ -10319,8 +10435,8 @@ ND_TetrahedronElement::ND_TetrahedronElement(const int p)
       }
    }
 
-   T.Invert();
-   // cout << "ND_TetrahedronElement(" << p << ") : "; T.TestInversion();
+   Ti.Factor(T);
+   // cout << "ND_TetrahedronElement(" << p << ") : "; Ti.TestInversion();
 }
 
 void ND_TetrahedronElement::CalcVShape(const IntegrationPoint &ip,
@@ -10362,7 +10478,7 @@ void ND_TetrahedronElement::CalcVShape(const IntegrationPoint &ip,
       u(n,0) = 0.;  u(n,1) = s*(ip.z - c);  u(n,2) = -s*(ip.y - c);  n++;
    }
 
-   Mult(T, u, shape);
+   Ti.Mult(u, shape);
 }
 
 void ND_TetrahedronElement::CalcCurlShape(const IntegrationPoint &ip,
@@ -10428,7 +10544,7 @@ void ND_TetrahedronElement::CalcCurlShape(const IntegrationPoint &ip,
       u(n,2) = 0.;  n++;
    }
 
-   Mult(T, u, curl_shape);
+   Ti.Mult(u, curl_shape);
 }
 
 
@@ -10439,7 +10555,7 @@ const double ND_TriangleElement::c = 1./3.;
 
 ND_TriangleElement::ND_TriangleElement(const int p)
    : VectorFiniteElement(2, Geometry::TRIANGLE, p*(p + 2), p,
-                         H_CURL, FunctionSpace::Pk), dof2tk(Dof), T(Dof)
+                         H_CURL, FunctionSpace::Pk), dof2tk(Dof)
 {
    const double *eop = poly1d.OpenPoints(p - 1);
    const double *iop = (p > 1) ? poly1d.OpenPoints(p - 2) : NULL;
@@ -10454,6 +10570,7 @@ ND_TriangleElement::ND_TriangleElement(const int p)
    dshape_y.SetSize(p);
    dshape_l.SetSize(p);
    u.SetSize(Dof, Dim);
+   curlu.SetSize(Dof);
 #else
    Vector shape_x(p), shape_y(p), shape_l(p);
 #endif
@@ -10487,6 +10604,7 @@ ND_TriangleElement::ND_TriangleElement(const int p)
          dof2tk[n++] = 3;
       }
 
+   DenseMatrix T(Dof);
    for (int m = 0; m < Dof; m++)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(m);
@@ -10511,8 +10629,8 @@ ND_TriangleElement::ND_TriangleElement(const int p)
       }
    }
 
-   T.Invert();
-   // cout << "ND_TriangleElement(" << p << ") : "; T.TestInversion();
+   Ti.Factor(T);
+   // cout << "ND_TriangleElement(" << p << ") : "; Ti.TestInversion();
 }
 
 void ND_TriangleElement::CalcVShape(const IntegrationPoint &ip,
@@ -10535,8 +10653,8 @@ void ND_TriangleElement::CalcVShape(const IntegrationPoint &ip,
       for (int i = 0; i + j <= pm1; i++)
       {
          double s = shape_x(i)*shape_y(j)*shape_l(pm1-i-j);
-         u(n,0) =  s;  u(n,1) = 0.;  n++;
-         u(n,0) = 0.;  u(n,1) =  s;  n++;
+         u(n,0) = s;  u(n,1) = 0;  n++;
+         u(n,0) = 0;  u(n,1) = s;  n++;
       }
    for (int j = 0; j <= pm1; j++)
    {
@@ -10546,13 +10664,75 @@ void ND_TriangleElement::CalcVShape(const IntegrationPoint &ip,
       n++;
    }
 
-   Mult(T, u, shape);
+   Ti.Mult(u, shape);
 }
 
 void ND_TriangleElement::CalcCurlShape(const IntegrationPoint &ip,
                                        DenseMatrix &curl_shape) const
 {
-   mfem_error("ND_TriangleElement::CalcCurlShape");
+   const int pm1 = Order - 1;
+
+#ifdef MFEM_THREAD_SAFE
+   const int p = Order;
+   Vector shape_x(p), shape_y(p), shape_l(p);
+   Vector dshape_x(p), dshape_y(p), dshape_l(p);
+   Vector curlu(Dof);
+#endif
+
+   poly1d.CalcBasis(pm1, ip.x, shape_x, dshape_x);
+   poly1d.CalcBasis(pm1, ip.y, shape_y, dshape_y);
+   poly1d.CalcBasis(pm1, 1. - ip.x - ip.y, shape_l, dshape_l);
+
+   int n = 0;
+   for (int j = 0; j <= pm1; j++)
+      for (int i = 0; i + j <= pm1; i++)
+      {
+         int l = pm1-i-j;
+         const double dx = (dshape_x(i)*shape_l(l) -
+                            shape_x(i)*dshape_l(l)) * shape_y(j);
+         const double dy = (dshape_y(j)*shape_l(l) -
+                            shape_y(j)*dshape_l(l)) * shape_x(i);
+
+         curlu(n++) = -dy;
+         curlu(n++) =  dx;
+      }
+
+   for (int j = 0; j <= pm1; j++)
+   {
+      int i = pm1 - j;
+      // curl of shape_x(i)*shape_y(j) * (ip.y - c, -(ip.x - c), 0):
+      curlu(n++) = -((dshape_x(i)*(ip.x - c) + shape_x(i)) * shape_y(j) +
+                     (dshape_y(j)*(ip.y - c) + shape_y(j)) * shape_x(i));
+   }
+
+   Vector curl2d(curl_shape.Data(),Dof);
+   Ti.Mult(curlu, curl2d);
+}
+
+
+const double ND_SegmentElement::tk[1] = { 1. };
+
+ND_SegmentElement::ND_SegmentElement(const int p)
+   : VectorFiniteElement(1, Geometry::SEGMENT, p, p - 1,
+                         H_CURL, FunctionSpace::Pk),
+     obasis1d(poly1d.OpenBasis(p - 1)), dof2tk(Dof)
+{
+   const double *op = poly1d.OpenPoints(p - 1);
+
+   // set dof2tk and Nodes
+   for (int i = 0; i < p; i++)
+   {
+      dof2tk[i] = 0;
+      Nodes.IntPoint(i).x = op[i];
+   }
+}
+
+void ND_SegmentElement::CalcVShape(const IntegrationPoint &ip,
+                                   DenseMatrix &shape) const
+{
+   Vector vshape(shape.Data(), Dof);
+
+   obasis1d.Eval(ip.x, vshape);
 }
 
 

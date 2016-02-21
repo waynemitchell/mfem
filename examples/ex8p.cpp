@@ -18,9 +18,15 @@
 //               (trace) space, and a high-order discontinuous test space
 //               defining a local dual (H^{-1}) norm.
 //
+//               We use the primal form of DPG, see "A primal DPG method without
+//               a first-order reformulation", Demkowicz and Gopalakrishnan, CAM
+//               2013, DOI:10.1016/j.camwa.2013.06.029.
+//
 //               The example highlights the use of interfacial (trace) finite
 //               elements and spaces, trace face integrators and the definition
-//               of block operators and preconditioners.
+//               of block operators and preconditioners. The use of the ADS
+//               preconditioner from hypre for interfacially-reduced H(div)
+//               problems is also illustrated.
 //
 //               We recommend viewing examples 1-5 before viewing this example.
 
@@ -110,6 +116,7 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }
    }
+   pmesh->ReorientTetMesh();
 
    // 6. Define the trial, interfacial (trace) and test DPG spaces:
    //    - The trial space, x0_space, contains the non-interfacial unknowns and
@@ -117,10 +124,15 @@ int main(int argc, char *argv[])
    //    - The interfacial space, xhat_space, contains the interfacial unknowns
    //      and does not have essential BC.
    //    - The test space, test_space, is an enriched space where the enrichment
-   //      degree may depend on the spatial dimension of the domain.
+   //      degree may depend on the spatial dimension of the domain, the type of
+   //      the mesh and the trial space order.
    int trial_order = order;
    int trace_order = order - 1;
    int test_order  = order; // reduced order, full order is (order + dim - 1)
+   if (dim == 2 && (order%2 == 0 || (pmesh->MeshGenerator() & 2 && order > 1)))
+   {
+      test_order++;
+   }
    if (test_order < trial_order)
       if (myid == 0)
          cerr << "Warning, test space not enriched enough to handle primal"
@@ -144,9 +156,12 @@ int main(int argc, char *argv[])
    if (myid == 0)
    {
       cout << "\nNumber of Unknowns:\n"
-           << " Trial space,     X0   : " << glob_true_s0 << '\n'
-           << " Interface space, Xhat : " << glob_true_s1 << '\n'
-           << " Test space,      Y    : " << glob_true_s_test << "\n\n";
+           << " Trial space,     X0   : " << glob_true_s0
+           << " (order " << trial_order << ")\n"
+           << " Interface space, Xhat : " << glob_true_s1
+           << " (order " << trace_order << ")\n"
+           << " Test space,      Y    : " << glob_true_s_test
+           << " (order " << test_order << ")\n\n";
    }
 
    // 7. Set up the linear form F(.) which corresponds to the right-hand side of
@@ -190,7 +205,6 @@ int main(int argc, char *argv[])
 
    ParBilinearForm *S0 = new ParBilinearForm(x0_space);
    S0->AddDomainIntegrator(new DiffusionIntegrator(one));
-   S0->AddDomainIntegrator(new MassIntegrator(one));
    S0->Assemble();
    S0->EliminateEssentialBC(ess_bdr);
    S0->Finalize();
@@ -244,14 +258,17 @@ int main(int argc, char *argv[])
    //        [   0     Shat^{-1} ]      Shat = (Bhat^T Sinv Bhat)
    //
    //     corresponding to the primal (x0) and interfacial (xhat) unknowns.
+   //     Since the Shat operator is equivalent to an H(div) matrix reduced to
+   //     the interfacial skeleton, we approximate its inverse with one V-cycle
+   //     of the ADS preconditioner from the hypre library (in 2D we use AMS for
+   //     the rotated H(curl) problem).
    HypreBoomerAMG *S0inv = new HypreBoomerAMG(*matS0);
+   S0inv->SetPrintLevel(0);
 
    HypreParMatrix *Shat = RAP(matSinv, matBhat);
-
-   HyprePCG *Shatinv = new HyprePCG(*Shat);
-   Shatinv->SetTol(1e-3);
-   Shatinv->SetMaxIter(200);
-   Shatinv->SetZeroInintialIterate();
+   HypreSolver *Shatinv;
+   if (dim == 2) { Shatinv = new HypreAMS(*Shat, xhat_space); }
+   else          { Shatinv = new HypreADS(*Shat, xhat_space); }
 
    BlockDiagonalPreconditioner P(true_offsets);
    P.SetDiagonalBlock(0, S0inv);

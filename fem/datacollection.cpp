@@ -96,6 +96,7 @@ DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
 
 void DataCollection::SetMesh(Mesh *new_mesh)
 {
+   if (own_data) { delete mesh; }
    mesh = new_mesh;
    myid = 0;
    num_procs = 1;
@@ -113,6 +114,10 @@ void DataCollection::SetMesh(Mesh *new_mesh)
 
 void DataCollection::RegisterField(const char* name, GridFunction *gf)
 {
+   if (own_data && HasField(name))
+   {
+      delete field_map[name];
+   }
    field_map[name] = gf;
 }
 

@@ -15,6 +15,7 @@ MFEM makefile targets:
 
    make config
    make
+   make all
    make status/info
    make serial
    make parallel
@@ -31,7 +32,9 @@ make config MFEM_USE_MPI=YES MFEM_DEBUG=YES MPICXX=mpiCC
    Configure the make system for subsequent runs (analogous to a configure script).
    The available options are documented in the INSTALL file.
 make -j 4
-   Build the code (in parallel) using the current configuration options.
+   Build the library (in parallel) using the current configuration options.
+make all
+   Build the library, the examples and the miniapps using the current configuration.
 make status
    Display information about the current configuration.
 make serial
@@ -47,7 +50,8 @@ make install PREFIX=<dir>
 make clean
    Clean the library and object files, but keep configuration.
 make distclean
-   Clean the library, object files and configuration.
+   In addition to "make clean", clean the configuration and remove the local
+   installation directory.
 make style
    Format the MFEM C++ source files using Artistic Style (astyle).
 
@@ -246,7 +250,7 @@ DIRS = general linalg mesh fem
 SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
-.PHONY: all clean distclean install config status info deps serial parallel\
+.PHONY: lib all clean distclean install config status info deps serial parallel\
  debug pdebug style
 
 .SUFFIXES: .cpp .o
@@ -254,7 +258,13 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 	cd $(<D); $(MFEM_CXX) $(MFEM_FLAGS) -c $(<F)
 
 
-all: libmfem.a
+lib: libmfem.a
+
+all: lib
+	$(MAKE) -C examples
+	$(MAKE) -C miniapps/common
+	$(MAKE) -C miniapps/meshing
+	$(MAKE) -C miniapps/electromagnetics
 
 -include deps.mk
 
@@ -285,8 +295,12 @@ deps:
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
 	$(MAKE) -C examples clean
+	$(MAKE) -C miniapps/common clean
+	$(MAKE) -C miniapps/meshing clean
+	$(MAKE) -C miniapps/electromagnetics clean
 
 distclean: clean
+	rm -rf mfem/
 	$(MAKE) -C config clean
 	$(MAKE) -C doc clean
 
@@ -333,7 +347,7 @@ status info:
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
-	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))	
+	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))
@@ -349,7 +363,7 @@ status info:
 	@true
 
 ASTYLE = astyle --options=config/mfem.astylerc
-FORMAT_FILES = $(foreach dir,$(DIRS) examples,"$(dir)/*.?pp")
+FORMAT_FILES = $(foreach dir,$(DIRS) examples $(wildcard miniapps/*),"$(dir)/*.?pp")
 
 style:
 	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\

@@ -162,28 +162,30 @@ int Table::operator() (int i, int j) const
    }
 
    int k, end = I[i+1];
-
-   for (k=I[i]; k<end; k++)
-      if (J[k]==j)
+   for (k = I[i]; k < end; k++)
+   {
+      if (J[k] == j)
       {
          return k;
       }
-      else if (J[k]==-1)
+      else if (J[k] == -1)
       {
          return -1;
       }
-
+   }
    return -1;
 }
 
 void Table::GetRow(int i, Array<int> &row) const
 {
+   MFEM_ASSERT(i >= 0 && i < size, "Row index " << i << " is out of range [0,"
+               << size << ')');
    const int *jp = GetRow(i), n = RowSize(i);
 
    row.SetSize(n);
-   for (int i = 0; i < n; i++)
+   for (int j = 0; j < n; j++)
    {
-      row[i] = jp[i];
+      row[j] = jp[j];
    }
 }
 
@@ -252,6 +254,27 @@ void Table::Finalize()
       J = NewJ;
 
       MFEM_ASSERT(sum == n, "sum = " << sum << ", n = " << n);
+   }
+}
+
+void Table::MakeFromList(int nrows, const Array<Connection> &list)
+{
+   Clear();
+
+   size = nrows;
+   int nnz = list.Size();
+
+   I = new int[size+1];
+   J = new int[nnz];
+
+   for (int i = 0, k = 0; i <= size; i++)
+   {
+      I[i] = k;
+      while (k < nnz && list[k].from == i)
+      {
+         J[k] = list[k].to;
+         k++;
+      }
    }
 }
 
@@ -345,6 +368,12 @@ void Table::Swap(Table & other)
    mfem::Swap(size, other.size);
    mfem::Swap(I, other.I);
    mfem::Swap(J, other.J);
+}
+
+long Table::MemoryUsage() const
+{
+   if (size < 0 || I == NULL) { return 0; }
+   return (size+1 + I[size]) * sizeof(int);
 }
 
 Table::~Table ()

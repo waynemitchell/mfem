@@ -18,6 +18,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 
 namespace mfem
 {
@@ -107,15 +108,19 @@ public:
    /// Logical size of the array
    inline int Size() const { return size; }
 
-   /** Maximum number of entries the array can store without allocating more
-       memory. */
-   inline int Capacity() const { return abs(allocsize); }
-
    /// Change logical size of the array, keep existing entries
    inline void SetSize(int nsize);
 
    /// Same as SetSize(int) plus initialize new entries with 'initval'
    inline void SetSize(int nsize, const T &initval);
+
+   /** Maximum number of entries the array can store without allocating more
+       memory. */
+   inline int Capacity() const { return abs(allocsize); }
+
+   /// Ensures that the allocated size is at least the given size.
+   inline void Reserve(int capacity)
+   { if (capacity > abs(allocsize)) { GrowSize(capacity, sizeof(T)); } }
 
    /// Access element
    inline T & operator[](int i);
@@ -158,7 +163,7 @@ public:
       memcpy(copy.GetData(), data, Size()*sizeof(T));
    }
 
-   /// Make this Array a reference to a poiter
+   /// Make this Array a reference to a pointer
    inline void MakeRef(T *, int);
 
    /// Make this Array a reference to 'master'
@@ -167,7 +172,7 @@ public:
    inline void GetSubArray(int offset, int sa_size, Array<T> &sa);
 
    /// Prints array to stream with width elements per row
-   void Print(std::ostream &out, int width);
+   void Print(std::ostream &out = std::cout, int width = 4);
 
    /// Prints array to stream out
    void Save(std::ostream &out);
@@ -180,8 +185,16 @@ public:
        (uses the comparison operator '<' for class T)  */
    T Min() const;
 
-   /// Sorts the array.
-   void Sort();
+   /// Sorts the array. This requires operator< to be defined for T.
+   void Sort() { std::sort((T*) data, (T*) data + size); }
+
+   /** Removes duplicities from a sorted array. This requires operator== to be
+       defined for T. */
+   void Unique()
+   {
+      T* end = std::unique((T*) data, (T*) data + size);
+      SetSize(end - (T*) data);
+   }
 
    /// return true if the array is sorted.
    int IsSorted();
@@ -197,12 +210,29 @@ public:
    /// Copy data from a pointer. Size() elements are copied.
    inline void Assign(const T *);
 
+   long MemoryUsage() const { return Capacity() * sizeof(T); }
+
 private:
    /// Array copy is not supported
    Array<T> &operator=(Array<T> &);
    /// Array copy is not supported
    Array(const Array<T> &);
 };
+
+template <class T>
+inline bool operator==(const Array<T> &LHS, const Array<T> &RHS)
+{
+   if ( LHS.Size() != RHS.Size() ) { return false; }
+   for (int i=0; i<LHS.Size(); i++)
+      if ( LHS[i] != RHS[i] ) { return false; }
+   return true;
+}
+
+template <class T>
+inline bool operator!=(const Array<T> &LHS, const Array<T> &RHS)
+{
+   return !( LHS == RHS );
+}
 
 template <class T>
 class Array2D;

@@ -62,6 +62,9 @@ private:
    /// The matrix P (interpolation from true dof to dof).
    HypreParMatrix *P;
 
+   /// The (block-diagonal) matrix R (restriction of dof to true dof)
+   SparseMatrix *R;
+
    ParNURBSExtension *pNURBSext()
    { return dynamic_cast<ParNURBSExtension *>(NURBSext); }
 
@@ -85,6 +88,42 @@ private:
 
    void ApplyLDofSigns(Array<int> &dofs) const;
 
+   /// Helper struct to store DOF dependencies in a parallel NC mesh.
+   struct Dependency
+   {
+      int rank, dof; ///< master DOF, may be on another processor
+      double coef;
+      Dependency(int r, int d, double c) : rank(r), dof(d), coef(c) {}
+   };
+
+   /// Dependency list for a local vdof.
+   struct DepList
+   {
+      Array<Dependency> list;
+      int type; ///< 0 = independent, 1 = one-to-one (conforming), 2 = slave
+
+      DepList() : type(0) {}
+
+      bool IsTrueDof(int my_rank) const
+      { return type == 0 || (type == 1 && list[0].rank == my_rank); }
+   };
+
+   void AddSlaveDependencies(DepList deps[], int master_rank,
+                             const Array<int> &master_dofs, int master_ndofs,
+                             const Array<int> &slave_dofs, DenseMatrix& I);
+
+   void Add1To1Dependencies(DepList deps[], int owner_rank,
+                            const Array<int> &owner_dofs, int owner_ndofs,
+                            const Array<int> &dependent_dofs);
+
+   void GetDofs(int type, int index, Array<int>& dofs);
+   void ReorderFaceDofs(Array<int> &dofs, int orient);
+
+   // Used when the ParMesh is non-conforming, i.e. pmesh->pncmesh != NULL.
+   // Constructs the matrices P and R. Determines ltdof_size. Calls
+   // GenerateGlobalOffsets(). Constructs ldof_ltdof.
+   void GetParallelConformingInterpolation();
+
 public:
    // Face-neighbor data
    // Number of face-neighbor dofs
@@ -99,7 +138,7 @@ public:
    Table send_face_nbr_ldof;
 
    ParFiniteElementSpace(ParMesh *pm, const FiniteElementCollection *f,
-                         int dim = 1, int order = Ordering::byNODES);
+                         int dim = 1, int ordering = Ordering::byNODES);
 
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }
@@ -107,18 +146,17 @@ public:
 
    inline ParMesh *GetParMesh() { return pmesh; }
 
-   int TrueVSize() { return ltdof_size; }
-   int GetDofSign(int i) { return NURBSext ? 1 : ldof_sign[VDofToDof(i)]; }
+   int GetDofSign(int i)
+   { return NURBSext || Nonconforming() ? 1 : ldof_sign[VDofToDof(i)]; }
    HYPRE_Int *GetDofOffsets()     { return dof_offsets; }
    HYPRE_Int *GetTrueDofOffsets() { return tdof_offsets; }
    HYPRE_Int GlobalVSize()
-   {
-      return Dof_TrueDof_Matrix()->GetGlobalNumRows();
-   }
+   { return Dof_TrueDof_Matrix()->GetGlobalNumRows(); }
    HYPRE_Int GlobalTrueVSize()
-   {
-      return Dof_TrueDof_Matrix()->GetGlobalNumCols();
-   }
+   { return Dof_TrueDof_Matrix()->GetGlobalNumCols(); }
+
+   /// Return the number of local vector true dofs.
+   virtual int GetTrueVSize() { return ltdof_size; }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
@@ -155,16 +193,27 @@ public:
    virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
                                   Array<int> &ess_dofs) const;
 
+   /** Get a list of essential true dofs, ess_tdof_list, corresponding to the
+       boundary attributes marked in the array bdr_attr_is_ess. */
+   virtual void GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
+                                     Array<int> &ess_tdof_list);
+
    /** If the given ldof is owned by the current processor, return its local
        tdof number, otherwise return -1 */
    int GetLocalTDofNumber(int ldof);
    /// Returns the global tdof number of the given local degree of freedom
    HYPRE_Int GetGlobalTDofNumber(int ldof);
    /** Returns the global tdof number of the given local degree of freedom in
-       the scalar vesion of the current finite element space. The input should
+       the scalar version of the current finite element space. The input should
        be a scalar local dof. */
    HYPRE_Int GetGlobalScalarTDofNumber(int sldof);
-   HYPRE_Int GetMyDofOffset();
+
+   HYPRE_Int GetMyDofOffset() const;
+   HYPRE_Int GetMyTDofOffset() const;
+
+   /// Get the R matrix which restricts a local dof vector to true dof vector.
+   virtual const SparseMatrix *GetRestrictionMatrix()
+   { if (!R) { Dof_TrueDof_Matrix(); } return R; }
 
    // Face-neighbor functions
    void ExchangeFaceNbrData();
@@ -177,11 +226,17 @@ public:
    void LoseDofOffsets() { dof_offsets.LoseData(); }
    void LoseTrueDofOffsets() { tdof_offsets.LoseData(); }
 
+   bool Conforming() const { return pmesh->pncmesh == NULL; }
+   bool Nonconforming() const { return pmesh->pncmesh != NULL; }
+
    virtual void Update();
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
 
-   virtual ~ParFiniteElementSpace() { delete gcomm; delete P; }
+   virtual ~ParFiniteElementSpace() { delete gcomm; delete P; delete R; }
+
+   // Obsolete, kept for backward compatibility
+   int TrueVSize() { return ltdof_size; }
 };
 
 }

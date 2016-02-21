@@ -9,9 +9,15 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
+#ifdef _WIN32
+// Turn off CRT deprecation warnings for strerror (VS 2013)
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include "socketstream.hpp"
 
-#include <cstring>      // memset, memcpy
+#include <cstring>      // memset, memcpy, strerror
+#include <cerrno>       // errno
 #ifndef _WIN32
 #include <netdb.h>      // gethostbyname
 #include <arpa/inet.h>  // htons
@@ -113,6 +119,9 @@ int socketbuf::sync()
 #endif
       if (bw < 0)
       {
+#ifdef MFEM_DEBUG
+         std::cout << "Error in send(): " << strerror(errno) << std::endl;
+#endif
          setp(pptr() - n, obuf + buflen);
          pbump(n);
          return -1;
@@ -131,6 +140,12 @@ socketbuf::int_type socketbuf::underflow()
    //           << std::endl;
    if (br <= 0)
    {
+#ifdef MFEM_DEBUG
+      if (br < 0)
+      {
+         std::cout << "Error in recv(): " << strerror(errno) << std::endl;
+      }
+#endif
       setg(NULL, NULL, NULL);
       return traits_type::eof();
    }
@@ -174,6 +189,12 @@ std::streamsize socketbuf::xsgetn(char_type *__s, std::streamsize __n)
       br = recv(socket_descriptor, end - remain, remain, 0);
       if (br <= 0)
       {
+#ifdef MFEM_DEBUG
+         if (br < 0)
+         {
+            std::cout << "Error in recv(): " << strerror(errno) << std::endl;
+         }
+#endif
          return (__n - remain);
       }
       remain -= br;
@@ -207,6 +228,9 @@ std::streamsize socketbuf::xsputn(const char_type *__s, std::streamsize __n)
 #endif
       if (bw < 0)
       {
+#ifdef MFEM_DEBUG
+         std::cout << "Error in send(): " << strerror(errno) << std::endl;
+#endif
          return (__n - remain);
       }
       remain -= bw;
