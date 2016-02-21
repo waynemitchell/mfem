@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -404,7 +404,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       if (den <= 0.0)
       {
          if (print_level >= 0 && Dot(d, d) > 0.0)
-            cout <<"PCG: The operator is not postive definite. (Ad, d) = "
+            cout <<"PCG: The operator is not positive definite. (Ad, d) = "
                  << den << '\n';
       }
       nom = betanom;
@@ -1600,7 +1600,7 @@ slbqp_done:
    if (print_level == 1 || (!converged && print_level >= 0))
    {
       cout << "SLBQP iterations = " << nclip << '\n';
-      cout << "SLBQP lamba      = " << l << '\n';
+      cout << "SLBQP lambda     = " << l << '\n';
       cout << "SLBQP residual   = " << r << '\n';
    }
 }
@@ -1643,7 +1643,7 @@ void UMFPackSolver::SetOperator(const Operator &op)
    mat = const_cast<SparseMatrix *>(dynamic_cast<const SparseMatrix *>(&op));
    if (mat == NULL)
    {
-      mfem_error("UMFPackSolver::SetOperator : not a SparseMatrix!");
+      MFEM_ABORT("not a SparseMatrix");
    }
 
    // UMFPack requires that the column-indices in mat corresponding to each
@@ -1653,6 +1653,8 @@ void UMFPackSolver::SetOperator(const Operator &op)
 
    height = mat->Height();
    width = mat->Width();
+   MFEM_VERIFY(width == height, "not a square matrix");
+
    Ap = mat->GetI();
    Ai = mat->GetJ();
    Ax = mat->GetData();
@@ -1692,7 +1694,7 @@ void UMFPackSolver::SetOperator(const Operator &op)
       {
          AI[i] = (SuiteSparse_long)(Ap[i]);
       }
-      for (int i = 0; i <= Ap[width]; i++)
+      for (int i = 0; i < Ap[width]; i++)
       {
          AJ[i] = (SuiteSparse_long)(Ai[i]);
       }

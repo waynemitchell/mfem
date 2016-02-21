@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -33,6 +33,12 @@ int FiniteElementCollection::HasFaceDofs(int GeomType) const
                      " unknown geometry type.");
    }
    return 0;
+}
+
+FiniteElementCollection *FiniteElementCollection::GetTraceCollection() const
+{
+   MFEM_ABORT("this method is not implemented in this derived class!");
+   return NULL;
 }
 
 FiniteElementCollection *FiniteElementCollection::New(const char *name)
@@ -131,9 +137,17 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
    {
       fec = new RT1_3DFECollection;
    }
+   else if (!strncmp(name, "H1_Trace_", 9))
+   {
+      fec = new H1_Trace_FECollection(atoi(name + 13), atoi(name + 9));
+   }
    else if (!strncmp(name, "H1_", 3))
    {
       fec = new H1_FECollection(atoi(name + 7), atoi(name + 3));
+   }
+   else if (!strncmp(name, "H1Pos_Trace_", 12))
+   {
+      fec = new H1_Trace_FECollection(atoi(name + 16), atoi(name + 12), 1);
    }
    else if (!strncmp(name, "H1Pos_", 6))
    {
@@ -146,17 +160,32 @@ FiniteElementCollection *FiniteElementCollection::New(const char *name)
    {
       fec = new L2_FECollection(atoi(name + 7), atoi(name + 3));
    }
-   else if (!strncmp(name, "RT_", 3))
-   {
-      fec = new RT_FECollection(atoi(name + 7), atoi(name + 3));
-   }
    else if (!strncmp(name, "RT_Trace_", 9))
    {
       fec = new RT_Trace_FECollection(atoi(name + 13), atoi(name + 9));
    }
    else if (!strncmp(name, "RT_ValTrace_", 12))
+   {
       fec = new RT_Trace_FECollection(atoi(name + 16), atoi(name + 12),
                                       FiniteElement::VALUE);
+   }
+   else if (!strncmp(name, "DG_Iface_", 9))
+   {
+      fec = new DG_Interface_FECollection(atoi(name + 13), atoi(name + 9));
+   }
+   else if (!strncmp(name, "DG_IntIface_", 12))
+   {
+      fec = new DG_Interface_FECollection(atoi(name + 16), atoi(name + 12),
+                                          FiniteElement::INTEGRAL);
+   }
+   else if (!strncmp(name, "RT_", 3))
+   {
+      fec = new RT_FECollection(atoi(name + 7), atoi(name + 3));
+   }
+   else if (!strncmp(name, "ND_Trace_", 9))
+   {
+      fec = new ND_Trace_FECollection(atoi(name + 13), atoi(name + 9));
+   }
    else if (!strncmp(name, "ND_", 3))
    {
       fec = new ND_FECollection(atoi(name + 7), atoi(name + 3));
@@ -1148,22 +1177,26 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
 
    H1_dof[Geometry::POINT] = 1;
    H1_Elements[Geometry::POINT] = new PointFiniteElement;
-   H1_dof[Geometry::SEGMENT] = pm1;
-   if (type == 0)
-   {
-      H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p);
-   }
-   else
-   {
-      H1_Elements[Geometry::SEGMENT] = new H1Pos_SegmentElement(p);
-   }
 
-   SegDofOrd[0] = new int[2*pm1];
-   SegDofOrd[1] = SegDofOrd[0] + pm1;
-   for (int i = 0; i < pm1; i++)
+   if (dim >= 1)
    {
-      SegDofOrd[0][i] = i;
-      SegDofOrd[1][i] = pm2 - i;
+      H1_dof[Geometry::SEGMENT] = pm1;
+      if (type == 0)
+      {
+         H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p);
+      }
+      else
+      {
+         H1_Elements[Geometry::SEGMENT] = new H1Pos_SegmentElement(p);
+      }
+
+      SegDofOrd[0] = new int[2*pm1];
+      SegDofOrd[1] = SegDofOrd[0] + pm1;
+      for (int i = 0; i < pm1; i++)
+      {
+         SegDofOrd[0][i] = i;
+         SegDofOrd[1][i] = pm2 - i;
+      }
    }
 
    if (dim >= 2)
@@ -1261,6 +1294,20 @@ int *H1_FECollection::DofOrderForOrientation(int GeomType, int Or) const
    return NULL;
 }
 
+FiniteElementCollection *H1_FECollection::GetTraceCollection() const
+{
+   int p = H1_dof[Geometry::SEGMENT] + 1;
+   if (!strncmp(h1_name, "H1_", 3))
+   {
+      return new H1_Trace_FECollection(p, atoi(h1_name + 3));
+   }
+   else if (!strncmp(h1_name, "H1Pos_", 6))
+   {
+      return new H1_Trace_FECollection(p, atoi(h1_name + 6), 1);
+   }
+   return NULL;
+}
+
 H1_FECollection::~H1_FECollection()
 {
    delete [] SegDofOrd[0];
@@ -1269,6 +1316,21 @@ H1_FECollection::~H1_FECollection()
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       delete H1_Elements[g];
+   }
+}
+
+
+H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
+                                             const int type)
+   : H1_FECollection(p, dim-1, type)
+{
+   if (type == 0)
+   {
+      snprintf(h1_name, 32, "H1_Trace_%dD_P%d", dim, p);
+   }
+   else
+   {
+      snprintf(h1_name, 32, "H1Pos_Trace_%dD_P%d", dim, p);
    }
 }
 
@@ -1409,7 +1471,7 @@ L2_FECollection::~L2_FECollection()
 
 RT_FECollection::RT_FECollection(const int p, const int dim)
 {
-   InitFaces(p, dim, FiniteElement::INTEGRAL);
+   InitFaces(p, dim, FiniteElement::INTEGRAL, true);
 
    snprintf(rt_name, 32, "RT_%dD_P%d", dim, p);
 
@@ -1437,7 +1499,8 @@ RT_FECollection::RT_FECollection(const int p, const int dim)
    }
 }
 
-void RT_FECollection::InitFaces(const int p, const int dim, const int map_type)
+void RT_FECollection::InitFaces(const int p, const int dim, const int map_type,
+                                const bool signs)
 {
    const int pp1 = p + 1, pp2 = p + 2;
 
@@ -1471,7 +1534,7 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type)
       for (int i = 0; i <= p; i++)
       {
          SegDofOrd[0][i] = i;
-         SegDofOrd[1][i] = -1 - (p - i);
+         SegDofOrd[1][i] = signs ? (-1 - (p - i)) : (p - i);
       }
    }
    else if (dim == 3)
@@ -1505,6 +1568,13 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type)
             TriDofOrd[3][o] = -1-(TriDof-((pp2-k)*(pp1-k))/2+i);  // (2,1,0)
             TriDofOrd[4][o] =     TriDof-((pp2-k)*(pp1-k))/2+j;   // (1,2,0)
             TriDofOrd[5][o] = -1-(TriDof-((pp2-i)*(pp1-i))/2+j);  // (0,2,1)
+            if (!signs)
+            {
+               for (int k = 1; k < 6; k += 2)
+               {
+                  TriDofOrd[k][o] = -1 - TriDofOrd[k][o];
+               }
+            }
          }
 
       int QuadDof = RT_dof[Geometry::SQUARE];
@@ -1526,6 +1596,13 @@ void RT_FECollection::InitFaces(const int p, const int dim, const int map_type)
             QuadDofOrd[5][o] = -1 - ((p - j) + (p - i)*pp1); // (2,1,0,3)
             QuadDofOrd[6][o] = (p - j) + i*pp1;              // (3,0,1,2)
             QuadDofOrd[7][o] = -1 - (i + (p - j)*pp1);       // (3,2,1,0)
+            if (!signs)
+            {
+               for (int k = 1; k < 8; k += 2)
+               {
+                  QuadDofOrd[k][o] = -1 - QuadDofOrd[k][o];
+               }
+            }
          }
    }
 }
@@ -1551,6 +1628,11 @@ int *RT_FECollection::DofOrderForOrientation(int GeomType, int Or) const
    return NULL;
 }
 
+FiniteElementCollection *RT_FECollection::GetTraceCollection() const
+{
+   return new RT_Trace_FECollection(atoi(rt_name + 7), atoi(rt_name + 3));
+}
+
 RT_FECollection::~RT_FECollection()
 {
    delete [] SegDofOrd[0];
@@ -1564,7 +1646,7 @@ RT_FECollection::~RT_FECollection()
 
 RT_Trace_FECollection::RT_Trace_FECollection(const int p, const int dim,
                                              const int map_type)
-   : RT_FECollection(p, dim, map_type)
+   : RT_FECollection(p, dim, map_type, true)
 {
    if (map_type == FiniteElement::INTEGRAL)
    {
@@ -1573,6 +1655,22 @@ RT_Trace_FECollection::RT_Trace_FECollection(const int p, const int dim,
    else
    {
       snprintf(rt_name, 32, "RT_ValTrace_%dD_P%d", dim, p);
+   }
+
+   MFEM_VERIFY(dim == 2 || dim == 3, "Wrong dimension, dim = " << dim);
+}
+
+DG_Interface_FECollection::DG_Interface_FECollection(const int p, const int dim,
+                                                     const int map_type)
+   : RT_FECollection(p, dim, map_type, false)
+{
+   if (map_type == FiniteElement::VALUE)
+   {
+      snprintf(rt_name, 32, "DG_Iface_%dD_P%d", dim, p);
+   }
+   else
+   {
+      snprintf(rt_name, 32, "DG_IntIface_%dD_P%d", dim, p);
    }
 
    MFEM_VERIFY(dim == 2 || dim == 3, "Wrong dimension, dim = " << dim);
@@ -1602,17 +1700,9 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
       QuadDofOrd[i] = NULL;
    }
 
-   if (dim == 2 || dim == 3)
+   if (dim >= 1)
    {
-      ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p);
-      ND_dof[Geometry::SQUARE] = 2*p*pm1;
-
-      ND_Elements[Geometry::TRIANGLE] = new ND_TriangleElement(p);
-      ND_dof[Geometry::TRIANGLE] = p*pm1;
-
-      L2_SegmentElement *l2_seg = new L2_SegmentElement(p-1);
-      l2_seg->SetMapType(FiniteElement::INTEGRAL);
-      ND_Elements[Geometry::SEGMENT] = l2_seg;
+      ND_Elements[Geometry::SEGMENT] = new ND_SegmentElement(p);
       ND_dof[Geometry::SEGMENT] = p;
 
       SegDofOrd[0] = new int[2*p];
@@ -1623,18 +1713,14 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
          SegDofOrd[1][i] = -1 - (pm1 - i);
       }
    }
-   else
-   {
-      mfem_error("ND_FECollection::ND_FECollection : dim != 2 or 3");
-   }
 
-   if (dim == 3)
+   if (dim >= 2)
    {
-      ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p);
-      ND_dof[Geometry::CUBE] = 3*p*pm1*pm1;
+      ND_Elements[Geometry::SQUARE] = new ND_QuadrilateralElement(p);
+      ND_dof[Geometry::SQUARE] = 2*p*pm1;
 
-      ND_Elements[Geometry::TETRAHEDRON] = new ND_TetrahedronElement(p);
-      ND_dof[Geometry::TETRAHEDRON] = p*pm1*pm2/2;
+      ND_Elements[Geometry::TRIANGLE] = new ND_TriangleElement(p);
+      ND_dof[Geometry::TRIANGLE] = p*pm1;
 
       int QuadDof = ND_dof[Geometry::SQUARE];
       QuadDofOrd[0] = new int[8*QuadDof];
@@ -1644,6 +1730,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
       }
       // see Mesh::GetQuadOrientation in mesh/mesh.cpp
       for (int j = 0; j < pm1; j++)
+      {
          for (int i = 0; i < p; i++)
          {
             int d1 = i + j*p;            // x-component
@@ -1677,6 +1764,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
             QuadDofOrd[7][d1] = i + (pm2 - j)*p;
             QuadDofOrd[7][d2] = -1 - (p*pm1 + j + (pm1 - i)*pm1);
          }
+      }
 
       int TriDof = ND_dof[Geometry::TRIANGLE];
       TriDofOrd[0] = new int[6*TriDof];
@@ -1687,6 +1775,7 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
       // see Mesh::GetTriOrientation in mesh/mesh.cpp,
       // the constructor of H1_FECollection
       for (int j = 0; j <= pm2; j++)
+      {
          for (int i = 0; i + j <= pm2; i++)
          {
             int k1 = p*pm1 - (p - j)*(pm1 - j) + 2*i;
@@ -1702,6 +1791,16 @@ ND_FECollection::ND_FECollection(const int p, const int dim)
             // interface. The method Mesh::ReorientTetMesh will ensure that
             // only orientations 0 and 5 are generated.
          }
+      }
+   }
+
+   if (dim >= 3)
+   {
+      ND_Elements[Geometry::CUBE] = new ND_HexahedronElement(p);
+      ND_dof[Geometry::CUBE] = 3*p*pm1*pm1;
+
+      ND_Elements[Geometry::TETRAHEDRON] = new ND_TetrahedronElement(p);
+      ND_dof[Geometry::TETRAHEDRON] = p*pm1*pm2/2;
    }
 }
 
@@ -1719,11 +1818,9 @@ int *ND_FECollection::DofOrderForOrientation(int GeomType, int Or) const
    {
       if (Or != 0 && Or != 5)
       {
-         cerr <<
-              "ND_FECollection::DofOrderForOrientation :\n"
-              "  triangle face orientation " << Or << " is not supported!\n"
-              "  Use Mesh::ReorientTetMesh to fix it." << endl;
-         mfem_error();
+         MFEM_ABORT("ND_FECollection::DofOrderForOrientation: "
+                    "triangle face orientation " << Or << " is not supported! "
+                    "Use Mesh::ReorientTetMesh to fix it.");
       }
       return TriDofOrd[Or%6];
    }
@@ -1732,6 +1829,12 @@ int *ND_FECollection::DofOrderForOrientation(int GeomType, int Or) const
       return QuadDofOrd[Or%8];
    }
    return NULL;
+}
+
+FiniteElementCollection *ND_FECollection::GetTraceCollection() const
+{
+   return new ND_Trace_FECollection(ND_dof[Geometry::SEGMENT],
+                                    atoi(nd_name + 3));
 }
 
 ND_FECollection::~ND_FECollection()
@@ -1743,6 +1846,13 @@ ND_FECollection::~ND_FECollection()
    {
       delete ND_Elements[g];
    }
+}
+
+
+ND_Trace_FECollection::ND_Trace_FECollection(const int p, const int dim)
+   : ND_FECollection(p, dim-1)
+{
+   snprintf(nd_name, 32, "ND_Trace_%dD_P%d", dim, p);
 }
 
 
@@ -1822,6 +1932,12 @@ int NURBSFECollection::DofForGeometry(int GeomType) const
 int *NURBSFECollection::DofOrderForOrientation(int GeomType, int Or) const
 {
    mfem_error("NURBSFECollection::DofOrderForOrientation");
+   return NULL;
+}
+
+FiniteElementCollection *NURBSFECollection::GetTraceCollection() const
+{
+   MFEM_ABORT("NURBS finite elements can not be statically condensed!");
    return NULL;
 }
 

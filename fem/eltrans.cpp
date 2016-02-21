@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -160,6 +160,84 @@ void IsoparametricTransformation::Transform (const IntegrationRule &ir,
          }
       }
    }
+}
+
+void IsoparametricTransformation::Transform (const DenseMatrix &matrix,
+                                             DenseMatrix &result)
+{
+   result.SetSize(PointMat.Height(), matrix.Width());
+
+   IntegrationPoint ip;
+   Vector col;
+
+   for (int j = 0; j < matrix.Width(); j++)
+   {
+      ip.x = matrix(0, j);
+      if (matrix.Height() > 1)
+      {
+         ip.y = matrix(1, j);
+         if (matrix.Height() > 2)
+         {
+            ip.z = matrix(2, j);
+         }
+      }
+
+      result.GetColumnReference(j, col);
+      Transform(ip, col);
+   }
+}
+
+int IsoparametricTransformation::TransformBack(const Vector &pt,
+                                               IntegrationPoint &ip)
+{
+   const int    max_iter = 16;
+   const double  ref_tol = 1e-15;
+   const double phys_tol = 1e-15*pt.Normlinf();
+
+   const int dim = FElem->GetDim();
+   const int sdim = PointMat.Height();
+   const int geom = FElem->GetGeomType();
+   IntegrationPoint xip, prev_xip;
+   double xd[3], yd[3], dxd[3], Jid[9];
+   Vector x(xd, dim), y(yd, sdim), dx(dxd, dim);
+   DenseMatrix Jinv(Jid, dim, sdim);
+   bool hit_bdr = false, prev_hit_bdr;
+
+   // Use the center of the element as initial guess
+   xip = Geometries.GetCenter(geom);
+   xip.Get(xd, dim); // xip -> x
+
+   for (int it = 0; it < max_iter; it++)
+   {
+      // Newton iteration:    x := x + J(x)^{-1} [pt-F(x)]
+      // or when dim != sdim: x := x + [J^t.J]^{-1}.J^t [pt-F(x)]
+      Transform(xip, y);
+      subtract(pt, y, y); // y = pt-y
+      if (y.Normlinf() < phys_tol) { ip = xip; return 0; }
+      SetIntPoint(&xip);
+      CalcInverse(Jacobian(), Jinv);
+      Jinv.Mult(y, dx);
+      x += dx;
+      prev_xip = xip;
+      prev_hit_bdr = hit_bdr;
+      xip.Set(xd, dim); // x -> xip
+      // If xip is ouside project it on the boundary on the line segment
+      // between prev_xip and xip
+      hit_bdr = !Geometry::ProjectPoint(geom, prev_xip, xip);
+      if (dx.Normlinf() < ref_tol) { ip = xip; return 0; }
+      if (hit_bdr)
+      {
+         xip.Get(xd, dim); // xip -> x
+         if (prev_hit_bdr)
+         {
+            prev_xip.Get(dxd, dim); // prev_xip -> dx
+            subtract(x, dx, dx);    // dx = xip - prev_xip
+            if (dx.Normlinf() < ref_tol) { return 1; }
+         }
+      }
+   }
+   ip = xip;
+   return 2;
 }
 
 void IntegrationPointTransformation::Transform (const IntegrationPoint &ip1,

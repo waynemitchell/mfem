@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -114,21 +114,6 @@ T Array<T>::Min() const
       }
 
    return min;
-}
-
-template <class T>
-int Compare(const void *p, const void *q)
-{
-   if (*((T*)p) < *((T*)q)) { return -1; }
-   if (*((T*)q) < *((T*)p)) { return +1; }
-   return 0;
-}
-
-template <class T>
-void Array<T>::Sort()
-{
-   // qsort((T*)data,0,size-1);
-   qsort(data, size, sizeof(T), Compare<T>);  // use qsort from stdlib.h
 }
 
 // Partial Sum

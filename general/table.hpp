@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -19,6 +19,19 @@
 
 namespace mfem
 {
+
+/// Helper struct for defining a connectivity table, see Table::MakeFromList.
+struct Connection
+{
+   int from, to;
+   Connection(int from, int to) : from(from), to(to) {}
+
+   bool operator== (const Connection &rhs) const
+   { return (from == rhs.from) && (to == rhs.to); }
+   bool operator< (const Connection &rhs) const
+   { return (from == rhs.from) ? (to < rhs.to) : (from < rhs.from); }
+};
+
 
 /** Data type Table. Table stores the connectivity of elements of TYPE I
     to elements of TYPE II, for example, it may be Element-To-Face
@@ -42,8 +55,12 @@ public:
    /// Copy constructor
    Table(const Table &);
 
-   /// Create a table with a fixed number of connections.
+   /// Create a table with an upper limit for the number of connections.
    explicit Table (int dim, int connections_per_row = 3);
+
+   /** Create a table from a list of connections, see MakeFromList. */
+   Table(int nrows, Array<Connection> &list) : size(-1), I(NULL), J(NULL)
+   { MakeFromList(nrows, list); }
 
    /** Create a table with one entry per row with column indices given
        by 'partitioning'. */
@@ -102,11 +119,17 @@ public:
    int Push( int i, int j );
 
    /** Finalize the table initialization. The function may be called
-       only once, after the table has been initialized, in order to densen
+       only once, after the table has been initialized, in order to compress
        array J (by getting rid of -1's in array J). Calling this function
        will "freeze" the table and function Push will work no more.
        Note: The table is functional even without calling Finalize(). */
    void Finalize();
+
+   /** Create the table from a list of connections {(from, to)}, where 'from'
+       is a TYPE I index and 'to' is a TYPE II index. The list is assumed to be
+       sorted and free of duplicities, i.e., you need to call Array::Sort and
+       Array::Unique before calling this method. */
+   void MakeFromList(int nrows, const Array<Connection> &list);
 
    /// Returns the number of TYPE II elements (after Finalize() is called).
    int Width() const;
@@ -123,6 +146,8 @@ public:
    void Swap(Table & other);
 
    void Clear();
+
+   long MemoryUsage() const;
 
    /// Destroys Table.
    ~Table();

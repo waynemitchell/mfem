@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -42,6 +42,34 @@ IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry)
          ip.x = ipx.x;
          ip.y = ipy.x;
          ip.weight = ipx.weight * ipy.weight;
+      }
+   }
+}
+
+IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry,
+                                 IntegrationRule &irz)
+{
+   const int nx = irx.GetNPoints();
+   const int ny = iry.GetNPoints();
+   const int nz = irz.GetNPoints();
+   SetSize(nx*ny*nz);
+
+   for (int iz = 0; iz < nz; ++iz)
+   {
+      IntegrationPoint &ipz = irz.IntPoint(iz);
+      for (int iy = 0; iy < ny; ++iy)
+      {
+         IntegrationPoint &ipy = iry.IntPoint(iy);
+         for (int ix = 0; ix < nx; ++ix)
+         {
+            IntegrationPoint &ipx = irx.IntPoint(ix);
+            IntegrationPoint &ip  = IntPoint(iz*nx*ny + iy*nx + ix);
+
+            ip.x = ipx.x;
+            ip.y = ipy.x;
+            ip.z = ipz.x;
+            ip.weight = ipx.weight*ipy.weight*ipz.weight;
+         }
       }
    }
 }
@@ -219,6 +247,11 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
       default:
          mfem_error("IntegrationRules::Get(...) : Unknown geometry type!");
          ir_array = NULL;
+   }
+
+   if (Order < 0)
+   {
+      Order = 0;
    }
 
    if (!HaveIntRule(*ir_array, Order))
@@ -867,10 +900,9 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
    }
 }
 
-/// Integration rules for reference cube
+// Integration rules for reference cube
 IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
 {
-   int k, l, m, np;
    int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
 
    if (!HaveIntRule(SegmentIntRules, i))
@@ -878,26 +910,10 @@ IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
       SegmentIntegrationRule(i);
    }
    AllocIntRule(CubeIntRules, i);
-   np = SegmentIntRules[i] -> GetNPoints();
-   CubeIntRules[i-1] = CubeIntRules[i] = new IntegrationRule(np*np*np);
-   for (k = 0; k < np; k++)
-      for (l = 0; l < np; l++)
-         for (m = 0; m < np; m++)
-         {
-            CubeIntRules[i] -> IntPoint((k*np+l)*np+m).x =
-               SegmentIntRules[i] -> IntPoint(m).x;
-
-            CubeIntRules[i] -> IntPoint((k*np+l)*np+m).y =
-               SegmentIntRules[i] -> IntPoint(l).x;
-
-            CubeIntRules[i] -> IntPoint((k*np+l)*np+m).z =
-               SegmentIntRules[i] -> IntPoint(k).x;
-
-            CubeIntRules[i] -> IntPoint((k*np+l)*np+m).weight =
-               SegmentIntRules[i] -> IntPoint(k).weight *
-               SegmentIntRules[i] -> IntPoint(l).weight *
-               SegmentIntRules[i] -> IntPoint(m).weight;
-         }
+   CubeIntRules[i-1] =
+      CubeIntRules[i] =
+         new IntegrationRule(*SegmentIntRules[i], *SegmentIntRules[i],
+                             *SegmentIntRules[i]);
    return CubeIntRules[i];
 }
 

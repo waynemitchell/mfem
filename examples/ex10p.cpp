@@ -82,7 +82,7 @@ public:
    /// Solver for the Jacobian solve in the Newton method
    Solver *J_solver;
    HyperelasticOperator(ParFiniteElementSpace &f, Array<int> &ess_bdr,
-                        double visc);
+                        double visc, double mu, double K);
 
    virtual void Mult(const Vector &vx, Vector &dvx_dt) const;
    /** Solve the Backward-Euler equation: k = f(x + dt*k, t), for the unknown k.
@@ -161,8 +161,10 @@ int main(int argc, char *argv[])
    int order = 2;
    int ode_solver_type = 3;
    double t_final = 300.0;
-   double dt = 3;
+   double dt = 3.0;
    double visc = 1e-2;
+   double mu = 0.25;
+   double K = 5.0;
    bool visualization = true;
    int vis_steps = 1;
 
@@ -184,6 +186,10 @@ int main(int argc, char *argv[])
                   "Time step.");
    args.AddOption(&visc, "-v", "--viscosity",
                   "Viscosity coefficient.");
+   args.AddOption(&mu, "-mu", "--shear-modulus",
+                  "Shear modulus in the Neo-Hookean hyperelastic model.");
+   args.AddOption(&K, "-K", "--bulk-modulus",
+                  "Bulk modulus in the Neo-Hookean hyperelastic model.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -320,7 +326,7 @@ int main(int argc, char *argv[])
 
    // 9. Initialize the hyperelastic operator, the GLVis visualization and print
    //    the initial energies.
-   HyperelasticOperator oper(fespace, ess_bdr, visc);
+   HyperelasticOperator oper(fespace, ess_bdr, visc, mu, K);
 
    socketstream vis_v, vis_w;
    if (visualization)
@@ -559,7 +565,8 @@ BackwardEulerOperator::~BackwardEulerOperator()
 
 
 HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
-                                           Array<int> &ess_bdr, double visc)
+                                           Array<int> &ess_bdr, double visc,
+                                           double mu, double K)
    : TimeDependentOperator(2*f.TrueVSize(), 0.0), fespace(f),
      M(&fespace), S(&fespace), H(&fespace), M_solver(f.GetComm()),
      newton_solver(f.GetComm()), z(height/2)
@@ -584,8 +591,6 @@ HyperelasticOperator::HyperelasticOperator(ParFiniteElementSpace &f,
    M_solver.SetPreconditioner(M_prec);
    M_solver.SetOperator(*Mmat);
 
-   double mu = 0.25; // shear modulus
-   double K  = 5.0;  // bulk modulus
    model = new NeoHookeanModel(mu, K);
    H.AddDomainIntegrator(new HyperelasticNLFIntegrator(model));
    H.SetEssentialBC(ess_bdr);

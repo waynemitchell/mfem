@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -461,6 +461,7 @@ void Vector::GetSubVector(const Array<int> &dofs, Vector &elemvect) const
    elemvect.SetSize (n);
 
    for (i = 0; i < n; i++)
+   {
       if ((j=dofs[i]) >= 0)
       {
          elemvect(i) = data[j];
@@ -469,6 +470,7 @@ void Vector::GetSubVector(const Array<int> &dofs, Vector &elemvect) const
       {
          elemvect(i) = -data[-1-j];
       }
+   }
 }
 
 void Vector::GetSubVector(const Array<int> &dofs, double *elem_data) const
@@ -476,6 +478,7 @@ void Vector::GetSubVector(const Array<int> &dofs, double *elem_data) const
    int i, j, n = dofs.Size();
 
    for (i = 0; i < n; i++)
+   {
       if ((j=dofs[i]) >= 0)
       {
          elem_data[i] = data[j];
@@ -484,6 +487,7 @@ void Vector::GetSubVector(const Array<int> &dofs, double *elem_data) const
       {
          elem_data[i] = -data[-1-j];
       }
+   }
 }
 
 void Vector::SetSubVector(const Array<int> &dofs, const Vector &elemvect)
@@ -491,6 +495,7 @@ void Vector::SetSubVector(const Array<int> &dofs, const Vector &elemvect)
    int i, j, n = dofs.Size();
 
    for (i = 0; i < n; i++)
+   {
       if ((j=dofs[i]) >= 0)
       {
          data[j] = elemvect(i);
@@ -499,6 +504,7 @@ void Vector::SetSubVector(const Array<int> &dofs, const Vector &elemvect)
       {
          data[-1-j] = -elemvect(i);
       }
+   }
 }
 
 void Vector::SetSubVector(const Array<int> &dofs, double *elem_data)
@@ -506,6 +512,7 @@ void Vector::SetSubVector(const Array<int> &dofs, double *elem_data)
    int i, j, n = dofs.Size();
 
    for (i = 0; i < n; i++)
+   {
       if ((j=dofs[i]) >= 0)
       {
          data[j] = elem_data[i];
@@ -514,6 +521,7 @@ void Vector::SetSubVector(const Array<int> &dofs, double *elem_data)
       {
          data[-1-j] = -elem_data[i];
       }
+   }
 }
 
 void Vector::AddElementVector(const Array<int> &dofs, const Vector &elemvect)
@@ -536,7 +544,8 @@ void Vector::AddElementVector(const Array<int> &dofs, double *elem_data)
    int i, j, n = dofs.Size();
 
    for (i = 0; i < n; i++)
-      if ((j=dofs[i]) >= 0)
+   {
+      if ((j = dofs[i]) >= 0)
       {
          data[j] += elem_data[i];
       }
@@ -544,6 +553,7 @@ void Vector::AddElementVector(const Array<int> &dofs, double *elem_data)
       {
          data[-1-j] -= elem_data[i];
       }
+   }
 }
 
 void Vector::AddElementVector(const Array<int> &dofs, const double a,
@@ -560,6 +570,14 @@ void Vector::AddElementVector(const Array<int> &dofs, const double a,
       {
          data[-1-j] -= a * elemvect(i);
       }
+}
+
+void Vector::SetSubVectorComplement(const Array<int> &dofs, const double val)
+{
+   Vector dofs_vals;
+   GetSubVector(dofs, dofs_vals);
+   operator=(val);
+   SetSubVector(dofs, dofs_vals);
 }
 
 void Vector::Print(std::ostream &out, int width) const

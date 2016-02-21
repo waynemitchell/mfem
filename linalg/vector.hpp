@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -48,6 +48,7 @@ public:
    /// Creates vector of size s.
    explicit Vector (int s);
 
+   /// Creates a vector referencing an array of doubles, owned by someone else.
    Vector (double *_data, int _size)
    { data = _data; size = _size; allocsize = -size; }
 
@@ -147,8 +148,6 @@ public:
 
    /// Swap the contents of two Vectors
    inline void Swap(Vector &other);
-   /// Swap v1 and v2 (deprecated).
-   friend void swap(Vector *v1, Vector *v2) { v1->Swap(*v2); }
 
    /// Do v = v1 + v2.
    friend void add(const Vector &v1, const Vector &v2, Vector &v);
@@ -185,6 +184,9 @@ public:
    void AddElementVector(const Array<int> & dofs, const double a,
                          const Vector & elemvect);
 
+   /// Set all vector entries NOT in the 'dofs' array to the given 'val'.
+   void SetSubVectorComplement(const Array<int> &dofs, const double val);
+
    /// Prints vector to stream out.
    void Print(std::ostream & out = std::cout, int width = 8) const;
 
@@ -207,7 +209,7 @@ public:
    double Min() const;
    /// Return the sum of the vector entries
    double Sum() const;
-   /// Compute the Euclidian distance to another vector.
+   /// Compute the Euclidean distance to another vector.
    double DistanceTo (const double *p) const;
 
    /** Count the number of entries in the Vector for which isfinite
@@ -215,7 +217,7 @@ public:
    int CheckFinite() const { return mfem::CheckFinite(data, size); }
 
    /// Destroys vector.
-   ~Vector ();
+   virtual ~Vector ();
 };
 
 // Inline methods

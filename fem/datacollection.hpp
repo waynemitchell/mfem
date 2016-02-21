@@ -3,7 +3,7 @@
 // reserved. See file COPYRIGHT for details.
 //
 // This file is part of the MFEM library. For more information and source code
-// availability see http://mfem.googlecode.com.
+// availability see http://mfem.org.
 //
 // MFEM is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License (as published by the Free
@@ -79,7 +79,8 @@ public:
 
    /// Add a grid function to the collection
    virtual void RegisterField(const char *field_name, GridFunction *gf);
-   /// Get a pointer to a grid function in the collection
+   /** Get a pointer to a grid function in the collection. Returns NULL if
+       'field_name' is not in the collection. */
    GridFunction *GetField(const char *field_name);
    /// Check if a grid function is part of the collection
    bool HasField(const char *name) { return field_map.count(name) == 1; }
