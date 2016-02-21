@@ -95,7 +95,7 @@ public:
 
    virtual int GetSpaceDim()
    {
-      // this function should only be called after PointMat is initialised
+      // this function should only be called after PointMat is initialized
       return PointMat.Height();
    }
 

@@ -148,6 +148,7 @@ void GridFunction::Update(FiniteElementSpace *f)
 
 void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
 {
+   MFEM_ASSERT(v.Size() >= v_offset + f->GetVSize(), "");
    if (fec)
    {
       delete fes;
@@ -1346,47 +1347,33 @@ void GridFunction::ProjectBdrCoefficient(
    // dependency since A is a projection matrix: A^n = A due to cR.cP = I.
    // Cases like this arise in 3D when boundary edges are constraint by (depend
    // on) internal faces/elements.
+   // We use the virtual method GetBoundaryClosure from NCMesh to resolve the
+   // dependencies.
 
-   if (fes->Nonconforming() && fes->GetMesh()->Dimension() > 1)
+   if (fes->Nonconforming() && fes->GetMesh()->Dimension() == 3)
    {
       Vector vals;
-      Array<int> edges, edges_ori;
       Mesh *mesh = fes->GetMesh();
       NCMesh *ncmesh = mesh->ncmesh;
-      Table *edge_vertex = mesh->GetEdgeVertexTable();
+      Array<int> bdr_edges, bdr_vertices;
+      ncmesh->GetBoundaryClosure(attr, bdr_vertices, bdr_edges);
 
-      for (i = 0; i < mesh->GetNBE(); i++)
+      for (i = 0; i < bdr_edges.Size(); i++)
       {
-         if (attr[mesh->GetBdrAttribute(i)-1] == 0) { continue; }
+         int edge = bdr_edges[i];
+         fes->GetEdgeVDofs(edge, vdofs);
+         if (vdofs.Size() == 0) { continue; }
 
-         mesh->GetBdrElementEdges(i, edges, edges_ori);
-         for (j = 0; j < edges.Size(); j++)
+         transf = mesh->GetEdgeTransformation(edge);
+         transf->Attribute = -1; // FIXME: set the boundary attribute
+         fe = fes->GetEdgeElement(edge);
+         vals.SetSize(fe->GetDof());
+         for (d = 0; d < vdim; d++)
          {
-            // Note: here we only set values at master edges that contain
-            // (geometrically) the current edge. Generally, the edge may depend
-            // on other edges and vertices.
-            int edge = edges[j];
-            while (true)
+            fe->Project(*coeff[d], *transf, vals);
+            for (int k = 0; k < vals.Size(); k++)
             {
-               const int *ev = edge_vertex->GetRow(edge);
-               edge = ncmesh->GetEdgeMaster(ev[0], ev[1]);
-               if (edge < 0) { break; }
-
-               fes->GetEdgeVDofs(edge, vdofs);
-               if (vdofs.Size() == 0) { continue; }
-
-               transf = mesh->GetEdgeTransformation(edge);
-               transf->Attribute = mesh->GetBdrAttribute(i);
-               fe = fes->GetEdgeElement(edge);
-               vals.SetSize(fe->GetDof());
-               for (d = 0; d < vdim; d++)
-               {
-                  fe->Project(*coeff[d], *transf, vals);
-                  for (int k = 0; k < vals.Size(); k++)
-                  {
-                     (*this)(vdofs[d*vals.Size()+k]) = vals(k);
-                  }
-               }
+               (*this)(vdofs[d*vals.Size()+k]) = vals(k);
             }
          }
       }
@@ -1484,6 +1471,28 @@ void GridFunction::ProjectBdrCoefficientTangent(
       lvec.SetSize(fe->GetDof());
       fe->Project(vcoeff, *T, lvec);
       SetSubVector(dofs, lvec);
+   }
+
+   if (fes->Nonconforming() && fes->GetMesh()->Dimension() == 3)
+   {
+      Mesh *mesh = fes->GetMesh();
+      NCMesh *ncmesh = mesh->ncmesh;
+      Array<int> bdr_edges, bdr_vertices;
+      ncmesh->GetBoundaryClosure(bdr_attr, bdr_vertices, bdr_edges);
+
+      for (int i = 0; i < bdr_edges.Size(); i++)
+      {
+         int edge = bdr_edges[i];
+         fes->GetEdgeDofs(edge, dofs);
+         if (dofs.Size() == 0) { continue; }
+
+         T = mesh->GetEdgeTransformation(edge);
+         T->Attribute = -1; // FIXME: set the boundary attribute
+         fe = fes->GetEdgeElement(edge);
+         lvec.SetSize(fe->GetDof());
+         fe->Project(vcoeff, *T, lvec);
+         SetSubVector(dofs, lvec);
+      }
    }
 }
 

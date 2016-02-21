@@ -674,9 +674,9 @@ void NCMesh::CheckAnisoFace(Node* v1, Node* v2, Node* v3, Node* v4,
    //                        *------*------*
    //                     v1      mid12      v2
    //
-   // This function is recusive, because the above applies to any node along the
-   // middle vertical edge. The function calls itself again for the bottom and
-   // upper half of the above picture.
+   // This function is recursive, because the above applies to any node along
+   // the middle vertical edge. The function calls itself again for the bottom
+   // and upper half of the above picture.
 
    Node* mid23 = nodes.Peek(v2, v3);
    Node* mid41 = nodes.Peek(v4, v1);

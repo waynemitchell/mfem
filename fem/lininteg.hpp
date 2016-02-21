@@ -246,7 +246,7 @@ public:
 
 /** Class for boundary integration of the linear form:
     (alpha/2) < (u.n) f, w > - beta < |u.n| f, w >,
-    where f and u are given sclar and vector coefficients, respectively,
+    where f and u are given scalar and vector coefficients, respectively,
     and w is the scalar test function. */
 class BoundaryFlowIntegrator : public LinearFormIntegrator
 {

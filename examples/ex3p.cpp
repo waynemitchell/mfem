@@ -15,6 +15,8 @@
 //               mpirun -np 4 ex3p -m ../data/amr-quad.mesh -o 2
 //               mpirun -np 4 ex3p -m ../data/amr-hex.mesh
 //               mpirun -np 4 ex3p -m ../data/star-surf.mesh -o 2
+//               mpirun -np 4 ex3p -m ../data/mobius-strip.mesh -o 2 -f 0.1
+//               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
 //
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -26,7 +28,8 @@
 //               The example demonstrates the use of H(curl) finite element
 //               spaces with the curl-curl and the (vector finite element) mass
 //               bilinear form, as well as the computation of discretization
-//               error when the exact solution is known.
+//               error when the exact solution is known. Static condensation is
+//               also illustrated.
 //
 //               We recommend viewing examples 1-2 before viewing this example.
 
@@ -40,6 +43,7 @@ using namespace mfem;
 // Exact solution, E, and r.h.s., f. See below for implementation.
 void E_exact(const Vector &, Vector &);
 void f_exact(const Vector &, Vector &);
+double freq = 1.0, kappa;
 int dim;
 
 int main(int argc, char *argv[])
@@ -53,6 +57,7 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/beam-tet.mesh";
    int order = 1;
+   bool static_cond = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -60,6 +65,10 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
+   args.AddOption(&freq, "-f", "--frequency", "Set the frequency for the exact"
+                  " solution.");
+   args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
+                  "--no-static-condensation", "Enable static condensation.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -77,6 +86,7 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+   kappa = freq * M_PI;
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -133,10 +143,22 @@ int main(int argc, char *argv[])
    HYPRE_Int size = fespace->GlobalTrueVSize();
    if (myid == 0)
    {
-      cout << "Number of unknowns: " << size << endl;
+      cout << "Number of finite element unknowns: " << size << endl;
    }
 
-   // 7. Set up the parallel linear form b(.) which corresponds to the
+   // 7. Determine the list of true (i.e. parallel conforming) essential
+   //    boundary dofs. In this example, the boundary conditions are defined
+   //    by marking all the boundary attributes from the mesh as essential
+   //    (Dirichlet) and converting them to a list of true dofs.
+   Array<int> ess_tdof_list;
+   if (pmesh->bdr_attributes.Size())
+   {
+      Array<int> ess_bdr(pmesh->bdr_attributes.Max());
+      ess_bdr = 1;
+      fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   }
+
+   // 8. Set up the parallel linear form b(.) which corresponds to the
    //    right-hand side of the FEM linear system, which in this case is
    //    (f,phi_i) where f is given by the function f_exact and phi_i are the
    //    basis functions in the finite element fespace.
@@ -145,7 +167,7 @@ int main(int argc, char *argv[])
    b->AddDomainIntegrator(new VectorFEDomainLFIntegrator(f));
    b->Assemble();
 
-   // 8. Define the solution vector x as a parallel finite element grid function
+   // 9. Define the solution vector x as a parallel finite element grid function
    //    corresponding to fespace. Initialize x by projecting the exact
    //    solution. Note that only values from the boundary edges will be used
    //    when eliminating the non-homogeneous boundary condition to modify the
@@ -154,52 +176,46 @@ int main(int argc, char *argv[])
    VectorFunctionCoefficient E(sdim, E_exact);
    x.ProjectCoefficient(E);
 
-   // 9. Set up the parallel bilinear form corresponding to the EM diffusion
-   //    operator curl muinv curl + sigma I, by adding the curl-curl and the
-   //    mass domain integrators and finally imposing non-homogeneous Dirichlet
-   //    boundary conditions. The boundary conditions are implemented by
-   //    marking all the boundary attributes from the mesh as essential
-   //    (Dirichlet). After serial and parallel assembly we extract the
-   //    parallel matrix A.
+   // 10. Set up the parallel bilinear form corresponding to the EM diffusion
+   //     operator curl muinv curl + sigma I, by adding the curl-curl and the
+   //     mass domain integrators.
    Coefficient *muinv = new ConstantCoefficient(1.0);
    Coefficient *sigma = new ConstantCoefficient(1.0);
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new CurlCurlIntegrator(*muinv));
    a->AddDomainIntegrator(new VectorFEMassIntegrator(*sigma));
+
+   // 11. Assemble the parallel bilinear form and the corresponding linear
+   //     system, applying any necessary transformations such as: parallel
+   //     assembly, eliminating boundary conditions, applying conforming
+   //     constraints for non-conforming AMR, static condensation, etc.
+   if (static_cond) { a->EnableStaticCondensation(); }
    a->Assemble();
-   a->Finalize();
 
-   // 10. Define the parallel (hypre) matrix and vectors representing a(.,.),
-   //     b(.) and the finite element approximation.
-   HypreParMatrix *A = a->ParallelAssemble();
-   HypreParVector *B = b->ParallelAssemble();
-   HypreParVector *X = x.ParallelProject();
+   HypreParMatrix A;
+   Vector B, X;
+   a->FormLinearSystem(ess_tdof_list, x, *b, A, X, B);
 
-   // 11. Eliminate essential BC from the parallel system
-   Array<int> ess_bdr(pmesh->bdr_attributes.Max());
-   ess_bdr = 1;
-   a->ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
-
-   *X = 0.0;
-
-   delete a;
-   delete sigma;
-   delete muinv;
-   delete b;
+   if (myid == 0)
+   {
+      cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
+   }
 
    // 12. Define and apply a parallel PCG solver for AX=B with the AMS
    //     preconditioner from hypre.
-   HypreSolver *ams = new HypreAMS(*A, fespace);
-   HyprePCG *pcg = new HyprePCG(*A);
+   ParFiniteElementSpace *prec_fespace =
+      (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+   HypreSolver *ams = new HypreAMS(A, prec_fespace);
+   HyprePCG *pcg = new HyprePCG(A);
    pcg->SetTol(1e-12);
    pcg->SetMaxIter(500);
    pcg->SetPrintLevel(2);
    pcg->SetPreconditioner(*ams);
-   pcg->Mult(*B, *X);
+   pcg->Mult(B, X);
 
-   // 13. Extract the parallel grid function corresponding to the finite element
-   //     approximation X. This is the local solution on each processor.
-   x = *X;
+   // 13. Recover the parallel grid function corresponding to X. This is the
+   //     local finite element solution on each processor.
+   a->RecoverFEMSolution(X, *b, x);
 
    // 14. Compute and print the L^2 norm of the error.
    {
@@ -240,9 +256,10 @@ int main(int argc, char *argv[])
    // 17. Free the used memory.
    delete pcg;
    delete ams;
-   delete X;
-   delete B;
-   delete A;
+   delete a;
+   delete sigma;
+   delete muinv;
+   delete b;
    delete fespace;
    delete fec;
    delete pmesh;
@@ -252,8 +269,6 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-// A parameter for the exact solution (for non-surface meshes).
-const double kappa = M_PI;
 
 void E_exact(const Vector &x, Vector &E)
 {

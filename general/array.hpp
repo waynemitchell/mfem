@@ -163,7 +163,7 @@ public:
       memcpy(copy.GetData(), data, Size()*sizeof(T));
    }
 
-   /// Make this Array a reference to a poiter
+   /// Make this Array a reference to a pointer
    inline void MakeRef(T *, int);
 
    /// Make this Array a reference to 'master'
@@ -172,7 +172,7 @@ public:
    inline void GetSubArray(int offset, int sa_size, Array<T> &sa);
 
    /// Prints array to stream with width elements per row
-   void Print(std::ostream &out, int width);
+   void Print(std::ostream &out = std::cout, int width = 4);
 
    /// Prints array to stream out
    void Save(std::ostream &out);
@@ -218,6 +218,21 @@ private:
    /// Array copy is not supported
    Array(const Array<T> &);
 };
+
+template <class T>
+inline bool operator==(const Array<T> &LHS, const Array<T> &RHS)
+{
+   if ( LHS.Size() != RHS.Size() ) { return false; }
+   for (int i=0; i<LHS.Size(); i++)
+      if ( LHS[i] != RHS[i] ) { return false; }
+   return true;
+}
+
+template <class T>
+inline bool operator!=(const Array<T> &LHS, const Array<T> &RHS)
+{
+   return !( LHS == RHS );
+}
 
 template <class T>
 class Array2D;

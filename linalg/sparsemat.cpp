@@ -161,6 +161,32 @@ SparseMatrix::SparseMatrix(const SparseMatrix &mat, bool copy_graph)
    isSorted = mat.isSorted;
 }
 
+void SparseMatrix::MakeRef(const SparseMatrix &master)
+{
+   MFEM_ASSERT(master.Finalized(), "'master' must be finalized");
+   Clear();
+   height = master.Height();
+   width = master.Width();
+   I = master.I;
+   J = master.J;
+   A = master.A;
+}
+
+void SparseMatrix::SetEmpty()
+{
+   height = width = 0;
+   I = J = NULL;
+   A = NULL;
+   Rows = NULL;
+   current_row = -1;
+   ColPtrJ = NULL;
+   ColPtrNode = NULL;
+#ifdef MFEM_USE_MEMALLOC
+   NodesMem = NULL;
+#endif
+   ownGraph = ownData = isSorted = false;
+}
+
 int SparseMatrix::RowSize(const int i) const
 {
    int gi = i;
@@ -2303,17 +2329,17 @@ void SparseMatrix::PrintCSR2(std::ostream & out) const
    }
 }
 
-SparseMatrix::~SparseMatrix ()
+void SparseMatrix::Destroy()
 {
-   if ( I != NULL && ownGraph )
+   if (I != NULL && ownGraph)
    {
       delete [] I;
    }
-   if ( J != NULL && ownGraph )
+   if (J != NULL && ownGraph)
    {
       delete [] J;
    }
-   if (A != NULL && ownData )
+   if (A != NULL && ownData)
    {
       delete [] A;
    }

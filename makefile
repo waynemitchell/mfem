@@ -15,6 +15,7 @@ MFEM makefile targets:
 
    make config
    make
+   make all
    make status/info
    make serial
    make parallel
@@ -31,7 +32,9 @@ make config MFEM_USE_MPI=YES MFEM_DEBUG=YES MPICXX=mpiCC
    Configure the make system for subsequent runs (analogous to a configure script).
    The available options are documented in the INSTALL file.
 make -j 4
-   Build the code (in parallel) using the current configuration options.
+   Build the library (in parallel) using the current configuration options.
+make all
+   Build the library, the examples and the miniapps using the current configuration.
 make status
    Display information about the current configuration.
 make sidre
@@ -265,7 +268,8 @@ DIRS = general linalg mesh fem
 SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
-.PHONY: all clean distclean install config status info deps serial parallel sidre\
+
+.PHONY: lib all clean distclean install config status info deps serial parallel sidre\
  debug pdebug style
 
 .SUFFIXES: .cpp .o
@@ -273,7 +277,13 @@ OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 	cd $(<D); $(MFEM_CXX) $(MFEM_FLAGS) -c $(<F)
 
 
-all: libmfem.a
+lib: libmfem.a
+
+all: lib
+	$(MAKE) -C examples
+	$(MAKE) -C miniapps/common
+	$(MAKE) -C miniapps/meshing
+	$(MAKE) -C miniapps/electromagnetics
 
 -include deps.mk
 
@@ -307,6 +317,9 @@ deps:
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
 	$(MAKE) -C examples clean
+	$(MAKE) -C miniapps/common clean
+	$(MAKE) -C miniapps/meshing clean
+	$(MAKE) -C miniapps/electromagnetics clean
 
 distclean: clean
 	rm -rf mfem/
@@ -373,7 +386,7 @@ status info:
 	@true
 
 ASTYLE = astyle --options=config/mfem.astylerc
-FORMAT_FILES = $(foreach dir,$(DIRS) examples,"$(dir)/*.?pp")
+FORMAT_FILES = $(foreach dir,$(DIRS) examples $(wildcard miniapps/*),"$(dir)/*.?pp")
 
 style:
 	@if ! $(ASTYLE) $(FORMAT_FILES) | grep Formatted; then\

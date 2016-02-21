@@ -141,6 +141,14 @@ const double &DenseMatrix::Elem(int i, int j) const
 
 void DenseMatrix::Mult(const double *x, double *y) const
 {
+   if (width == 0)
+   {
+      for (int row = 0; row < height; row++)
+      {
+         y[row] = 0.0;
+      }
+      return;
+   }
    double *d_col = data;
    double x_col = x[0];
    for (int row = 0; row < height; row++)
@@ -1516,7 +1524,7 @@ inline int Reduce3S(
    //                 | b1   0   0 |
    // B = Q P A P Q = | 0   b2 b23 |
    //                 | 0  b23  b3 |
-   // where P is the permitation matrix switching entries 1 and k, and
+   // where P is the permutation matrix switching entries 1 and k, and
    // Q is the reflection matrix Q = I - g v v^t, defined by: set y = P z and
    // v = c(y - e_1); if y = e_1, then v = 0 and Q = I.
    // Note: Q y = e_1, Q e_1 = y ==> Q P A P Q e_1 = ... = lambda e_1.
@@ -1541,7 +1549,7 @@ inline int Reduce3S(
    }
    else
    {
-      // choose k such that zk is the largest by abosolute value
+      // choose k such that zk is the largest by absolute value
       if (fabs(z1) >= fabs(z3))
       {
          k = (fabs(z1) >= fabs(z2)) ? 1 : 2;
@@ -2417,7 +2425,7 @@ void DenseMatrix::GradToDiv(Vector &div)
    }
 }
 
-void DenseMatrix::CopyRows(DenseMatrix &A, int row1, int row2)
+void DenseMatrix::CopyRows(const DenseMatrix &A, int row1, int row2)
 {
    SetSize(row2 - row1 + 1, A.Width());
 
@@ -2428,7 +2436,7 @@ void DenseMatrix::CopyRows(DenseMatrix &A, int row1, int row2)
       }
 }
 
-void DenseMatrix::CopyCols(DenseMatrix &A, int col1, int col2)
+void DenseMatrix::CopyCols(const DenseMatrix &A, int col1, int col2)
 {
    SetSize(A.Height(), col2 - col1 + 1);
 
@@ -2439,7 +2447,7 @@ void DenseMatrix::CopyCols(DenseMatrix &A, int col1, int col2)
       }
 }
 
-void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco)
+void DenseMatrix::CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco)
 {
    int i, j;
 
@@ -2452,7 +2460,7 @@ void DenseMatrix::CopyMN(DenseMatrix &A, int m, int n, int Aro, int Aco)
       }
 }
 
-void DenseMatrix::CopyMN(DenseMatrix &A, int row_offset, int col_offset)
+void DenseMatrix::CopyMN(const DenseMatrix &A, int row_offset, int col_offset)
 {
    int i, j;
    double *v = A.data;
@@ -2464,7 +2472,7 @@ void DenseMatrix::CopyMN(DenseMatrix &A, int row_offset, int col_offset)
       }
 }
 
-void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
+void DenseMatrix::CopyMNt(const DenseMatrix &A, int row_offset, int col_offset)
 {
    int i, j;
    double *v = A.data;
@@ -2473,6 +2481,23 @@ void DenseMatrix::CopyMNt(DenseMatrix &A, int row_offset, int col_offset)
       for (j = 0; j < A.Height(); j++)
       {
          (*this)(row_offset+i,col_offset+j) = *(v++);
+      }
+}
+
+void DenseMatrix::CopyMN(const DenseMatrix &A, int m, int n, int Aro, int Aco,
+                         int row_offset, int col_offset)
+{
+   int i, j;
+
+   MFEM_VERIFY(row_offset+m <= this->Height() && col_offset+n <= this->Width(),
+               "this DenseMatrix is too small to accomodate the submatrix.");
+   MFEM_VERIFY(Aro+m <= A.Height() && Aco+n <= A.Width(),
+               "The A DenseMatrix is too small to accomodate the submatrix.");
+
+   for (j = 0; j < n; j++)
+      for (i = 0; i < m; i++)
+      {
+         (*this)(row_offset+i,col_offset+j) = A(Aro+i,Aco+j);
       }
 }
 
@@ -2632,8 +2657,24 @@ void DenseMatrix::SetCol(int col, double value)
    }
 }
 
+void DenseMatrix::Threshold(double eps)
+{
+   for (int col = 0; col < Width(); col++)
+   {
+      for (int row = 0; row < Height(); row++)
+      {
+         if (std::abs(operator()(row,col)) <= eps)
+         {
+            operator()(row,col) = 0.0;
+         }
+      }
+   }
+}
+
 void DenseMatrix::Print(std::ostream &out, int width_) const
 {
+   // save current output flags
+   ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int i = 0; i < height; i++)
@@ -2652,10 +2693,14 @@ void DenseMatrix::Print(std::ostream &out, int width_) const
          }
       }
    }
+   // reset output flags to original values
+   out.flags(old_flags);
 }
 
 void DenseMatrix::PrintMatlab(std::ostream &out) const
 {
+   // save current output flags
+   ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int i = 0; i < height; i++)
@@ -2667,10 +2712,14 @@ void DenseMatrix::PrintMatlab(std::ostream &out) const
       }
       out << "\n";
    }
+   // reset output flags to original values
+   out.flags(old_flags);
 }
 
 void DenseMatrix::PrintT(std::ostream &out, int width_) const
 {
+   // save current output flags
+   ios::fmtflags old_flags = out.flags();
    // output flags = scientific + show sign
    out << setiosflags(ios::scientific | ios::showpos);
    for (int j = 0; j < width; j++)
@@ -2689,6 +2738,8 @@ void DenseMatrix::PrintT(std::ostream &out, int width_) const
          }
       }
    }
+   // reset output flags to original values
+   out.flags(old_flags);
 }
 
 void DenseMatrix::TestInversion()
@@ -3762,7 +3813,7 @@ void LUFactors::BlockForwSolve(int m, int n, int r, const double *L21,
                                double *B1, double *B2) const
 {
    // B1 <- L^{-1} P B1
-   LSolve(m, n, B1);
+   LSolve(m, r, B1);
    // B2 <- B2 - L21 B1
    SubMult(m, n, r, L21, B1, B2);
 }

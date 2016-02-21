@@ -43,6 +43,8 @@ public:
       return FiniteElementForGeometry(GeomType);
    }
 
+   virtual FiniteElementCollection *GetTraceCollection() const;
+
    virtual ~FiniteElementCollection() { }
 
    static FiniteElementCollection *New(const char *name);
@@ -66,6 +68,7 @@ public:
    { return H1_dof[GeomType]; }
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;
    virtual const char *Name() const { return h1_name; }
+   FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~H1_FECollection();
 };
@@ -136,11 +139,13 @@ protected:
    int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
 
    // Initialize only the face elements
-   void InitFaces(const int p, const int dim, const int map_type);
+   void InitFaces(const int p, const int dim, const int map_type,
+                  const bool signs);
 
    // Constructor used by the constructor of RT_Trace_FECollection
-   RT_FECollection(const int p, const int dim, const int map_type)
-   { InitFaces(p, dim, map_type); }
+   RT_FECollection(const int p, const int dim, const int map_type,
+                   const bool signs)
+   { InitFaces(p, dim, map_type, signs); }
 
 public:
    RT_FECollection(const int p, const int dim);
@@ -151,6 +156,7 @@ public:
    { return RT_dof[GeomType]; }
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;
    virtual const char *Name() const { return rt_name; }
+   FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~RT_FECollection();
 };
@@ -163,6 +169,16 @@ class RT_Trace_FECollection : public RT_FECollection
 public:
    RT_Trace_FECollection(const int p, const int dim,
                          const int map_type = FiniteElement::INTEGRAL);
+};
+
+/** Arbitrary order discontinuous finite elements defined on the interface
+    between mesh elements (faces). The functions in this space are single-valued
+    on each face and are discontinuous across its boundary. */
+class DG_Interface_FECollection : public RT_FECollection
+{
+public:
+   DG_Interface_FECollection(const int p, const int dim,
+                             const int map_type = FiniteElement::VALUE);
 };
 
 /// Arbitrary order H(curl)-conforming Nedelec finite elements.
@@ -183,12 +199,13 @@ public:
    { return ND_dof[GeomType]; }
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;
    virtual const char *Name() const { return nd_name; }
+   FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~ND_FECollection();
 };
 
 /** Arbitrary order H(curl)-trace finite elements defined on the interface
-    between mesh elements (faces,edges); these are the tangentail trace FEs of
+    between mesh elements (faces,edges); these are the tangential trace FEs of
     the H(curl)-conforming FEs. */
 class ND_Trace_FECollection : public ND_FECollection
 {
@@ -232,6 +249,8 @@ public:
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;
 
    virtual const char *Name() const { return name; }
+
+   FiniteElementCollection *GetTraceCollection() const;
 
    virtual ~NURBSFECollection() { Deallocate(); }
 };

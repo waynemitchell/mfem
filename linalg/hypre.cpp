@@ -175,7 +175,7 @@ HYPRE_Int HypreParVector::Randomize(HYPRE_Int seed)
    return hypre_ParVectorSetRandomValues(x,seed);
 }
 
-void HypreParVector::Print(const char *fname)
+void HypreParVector::Print(const char *fname) const
 {
    hypre_ParVectorPrint(x,fname);
 }
@@ -205,6 +205,13 @@ void HypreParMatrix::Init()
    A = NULL;
    X = Y = NULL;
    diagOwner = offdOwner = colMapOwner = -1;
+   ParCSROwner = 1;
+}
+
+HypreParMatrix::HypreParMatrix()
+{
+   Init();
+   height = width = 0;
 }
 
 char HypreParMatrix::CopyCSR(SparseMatrix *csr, hypre_CSRMatrix *hypre_csr)
@@ -716,11 +723,23 @@ HypreParMatrix::HypreParMatrix(MPI_Comm comm, int nrows, HYPRE_Int glob_nrows,
    width = GetNumCols();
 }
 
+void HypreParMatrix::MakeRef(const HypreParMatrix &master)
+{
+   Destroy();
+   Init();
+   A = master.A;
+   ParCSROwner = 0;
+   height = master.GetNumRows();
+   width = master.GetNumCols();
+}
+
 hypre_ParCSRMatrix* HypreParMatrix::StealData()
 {
    // Only safe when (diagOwner == -1 && offdOwner == -1 && colMapOwner == -1)
    // Otherwise, there may be memory leaks or hypre may destroy arrays allocated
    // with operator new.
+   MFEM_ASSERT(diagOwner == -1 && offdOwner == -1 && colMapOwner == -1, "");
+   MFEM_ASSERT(ParCSROwner, "");
    hypre_ParCSRMatrix *R = A;
    A = NULL;
    Destroy();
@@ -1138,6 +1157,59 @@ static void get_sorted_rows_cols(const Array<int> &rows_cols,
    if (!sorted) { hypre_sorted.Sort(); }
 }
 
+void HypreParMatrix::Threshold(double threshold)
+{
+   int  ierr = 0;
+
+   MPI_Comm comm;
+   int num_procs;
+   hypre_CSRMatrix * csr_A;
+   hypre_CSRMatrix * csr_A_wo_z;
+   hypre_ParCSRMatrix * parcsr_A_ptr;
+   int * row_starts = NULL; int * col_starts = NULL;
+   int row_start = -1;   int row_end = -1;
+   int col_start = -1;   int col_end = -1;
+
+   comm = hypre_ParCSRMatrixComm(A);
+
+   MPI_Comm_size(comm, &num_procs);
+
+   ierr += hypre_ParCSRMatrixGetLocalRange(A,
+                                           &row_start,&row_end,
+                                           &col_start,&col_end );
+
+   row_starts = hypre_ParCSRMatrixRowStarts(A);
+   col_starts = hypre_ParCSRMatrixColStarts(A);
+
+   parcsr_A_ptr = hypre_ParCSRMatrixCreate(comm,row_starts[num_procs],
+                                           col_starts[num_procs],row_starts,
+                                           col_starts,0,0,0);
+
+   csr_A = hypre_MergeDiagAndOffd(A);
+
+   csr_A_wo_z =  hypre_CSRMatrixDeleteZeros(csr_A,threshold);
+
+   /* hypre_CSRMatrixDeleteZeros will return a NULL pointer rather than a usable
+      CSR matrix if it finds no non-zeros */
+   if (csr_A_wo_z == NULL)
+   {
+      csr_A_wo_z = csr_A;
+   }
+   else
+   {
+      ierr += hypre_CSRMatrixDestroy(csr_A);
+   }
+
+   ierr += GenerateDiagAndOffd(csr_A_wo_z,parcsr_A_ptr,
+                               col_start,col_end);
+
+   ierr += hypre_CSRMatrixDestroy(csr_A_wo_z);
+
+   ierr += hypre_ParCSRMatrixDestroy(A);
+
+   A = parcsr_A_ptr;
+}
+
 void HypreParMatrix::EliminateRowsCols(const Array<int> &rows_cols,
                                        const HypreParVector &X,
                                        HypreParVector &B)
@@ -1227,7 +1299,10 @@ void HypreParMatrix::Destroy()
       hypre_ParCSRMatrixColMapOffd(A) = NULL;
    }
 
-   hypre_ParCSRMatrixDestroy(A);
+   if (ParCSROwner)
+   {
+      hypre_ParCSRMatrixDestroy(A);
+   }
 }
 
 HypreParMatrix * ParMult(HypreParMatrix *A, HypreParMatrix *B)
@@ -1292,10 +1367,10 @@ HypreParMatrix * RAP(HypreParMatrix * Rt, HypreParMatrix *A, HypreParMatrix *P)
 
 void EliminateBC(HypreParMatrix &A, HypreParMatrix &Ae,
                  const Array<int> &ess_dof_list,
-                 const HypreParVector &X, HypreParVector &B)
+                 const Vector &X, Vector &B)
 {
    // B -= Ae*X
-   Ae.Mult(X, B, -1.0, 1.0);
+   Ae.Mult(-1.0, X, 1.0, B);
 
    hypre_CSRMatrix *A_diag = hypre_ParCSRMatrixDiag((hypre_ParCSRMatrix *)A);
    double *data = hypre_CSRMatrixData(A_diag);
@@ -2395,8 +2470,13 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    int dim = edge_fespace->GetMesh()->Dimension();
    int sdim = edge_fespace->GetMesh()->SpaceDimension();
    const FiniteElementCollection *edge_fec = edge_fespace->FEColl();
-   bool trace_space =
-      (dynamic_cast<const ND_Trace_FECollection*>(edge_fec) != NULL);
+
+   bool trace_space, rt_trace_space;
+   ND_Trace_FECollection *nd_tr_fec;
+   trace_space = dynamic_cast<const ND_Trace_FECollection*>(edge_fec);
+   rt_trace_space = dynamic_cast<const RT_Trace_FECollection*>(edge_fec);
+   trace_space = trace_space || rt_trace_space;
+
    int p = 1;
    if (edge_fespace->GetNE() > 0)
    {
@@ -2411,6 +2491,13 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
       }
    }
 
+   ParMesh *pmesh = edge_fespace->GetParMesh();
+   if (rt_trace_space)
+   {
+      nd_tr_fec = new ND_Trace_FECollection(p, dim);
+      edge_fespace = new ParFiniteElementSpace(pmesh, nd_tr_fec);
+   }
+
    HYPRE_AMSCreate(&ams);
 
    HYPRE_AMSSetDimension(ams, sdim); // 2D H(div) and 3D H(curl) problems
@@ -2420,7 +2507,6 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
    HYPRE_AMSSetPrintLevel(ams, 1);
 
    // define the nodal linear finite element space associated with edge_fespace
-   ParMesh *pmesh = edge_fespace->GetParMesh();
    FiniteElementCollection *vert_fec;
    if (trace_space)
    {
@@ -2530,6 +2616,12 @@ HypreAMS::HypreAMS(HypreParMatrix &A, ParFiniteElementSpace *edge_fespace)
 
    delete vert_fespace;
    delete vert_fec;
+
+   if (rt_trace_space)
+   {
+      delete edge_fespace;
+      delete nd_tr_fec;
+   }
 
    // set additional AMS options
    HYPRE_AMSSetSmoothingOptions(ams, rlx_type, rlx_sweeps, rlx_weight, rlx_omega);

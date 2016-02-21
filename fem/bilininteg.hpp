@@ -217,7 +217,7 @@ public:
                                     Vector &flux, Vector *d_energy = NULL);
 };
 
-/** Class for local mass matrix assemblying a(u,v) := (Q u, v) */
+/** Class for local mass matrix assembling a(u,v) := (Q u, v) */
 class MassIntegrator: public BilinearFormIntegrator
 {
 private:
@@ -468,7 +468,8 @@ private:
    Vector shape;
    Vector D;
    DenseMatrix K;
-   DenseMatrix vshape;
+   DenseMatrix test_vshape;
+   DenseMatrix trial_vshape;
 #endif
 
 public:
@@ -654,7 +655,7 @@ public:
 };
 
 /** Integrator for the DPG form: < v, [w] > over all faces (the interface) where
-    the trial variable v is defined on the inteface and the test variable w is
+    the trial variable v is defined on the interface and the test variable w is
     defined inside the elements, generally in a DG space. */
 class TraceJumpIntegrator : public BilinearFormIntegrator
 {
@@ -663,6 +664,25 @@ private:
 
 public:
    TraceJumpIntegrator() { }
+   using BilinearFormIntegrator::AssembleFaceMatrix;
+   virtual void AssembleFaceMatrix(const FiniteElement &trial_face_fe,
+                                   const FiniteElement &test_fe1,
+                                   const FiniteElement &test_fe2,
+                                   FaceElementTransformations &Trans,
+                                   DenseMatrix &elmat);
+};
+
+/** Integrator for the form: < v, [w.n] > over all faces (the interface) where
+    the trial variable v is defined on the interface and the test variable w is
+    in an H(div)-conforming space. */
+class NormalTraceJumpIntegrator : public BilinearFormIntegrator
+{
+private:
+   Vector face_shape, normal, shape1_n, shape2_n;
+   DenseMatrix shape1, shape2;
+
+public:
+   NormalTraceJumpIntegrator() { }
    using BilinearFormIntegrator::AssembleFaceMatrix;
    virtual void AssembleFaceMatrix(const FiniteElement &trial_face_fe,
                                    const FiniteElement &test_fe1,

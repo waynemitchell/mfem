@@ -146,7 +146,6 @@ public:
 
    inline ParMesh *GetParMesh() { return pmesh; }
 
-   int TrueVSize() { return ltdof_size; }
    int GetDofSign(int i)
    { return NURBSext || Nonconforming() ? 1 : ldof_sign[VDofToDof(i)]; }
    HYPRE_Int *GetDofOffsets()     { return dof_offsets; }
@@ -155,6 +154,9 @@ public:
    { return Dof_TrueDof_Matrix()->GetGlobalNumRows(); }
    HYPRE_Int GlobalTrueVSize()
    { return Dof_TrueDof_Matrix()->GetGlobalNumCols(); }
+
+   /// Return the number of local vector true dofs.
+   virtual int GetTrueVSize() { return ltdof_size; }
 
    /// Returns indexes of degrees of freedom in array dofs for i'th element.
    virtual void GetElementDofs(int i, Array<int> &dofs) const;
@@ -193,8 +195,8 @@ public:
 
    /** Get a list of essential true dofs, ess_tdof_list, corresponding to the
        boundary attributes marked in the array bdr_attr_is_ess. */
-   void GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
-                             Array<int> &ess_tdof_list);
+   virtual void GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
+                                     Array<int> &ess_tdof_list);
 
    /** If the given ldof is owned by the current processor, return its local
        tdof number, otherwise return -1 */
@@ -210,7 +212,7 @@ public:
    HYPRE_Int GetMyTDofOffset() const;
 
    /// Get the R matrix which restricts a local dof vector to true dof vector.
-   const SparseMatrix *GetRestrictionMatrix()
+   virtual const SparseMatrix *GetRestrictionMatrix()
    { if (!R) { Dof_TrueDof_Matrix(); } return R; }
 
    // Face-neighbor functions
@@ -232,6 +234,9 @@ public:
    virtual FiniteElementSpace *SaveUpdate();
 
    virtual ~ParFiniteElementSpace() { delete gcomm; delete P; delete R; }
+
+   // Obsolete, kept for backward compatibility
+   int TrueVSize() { return ltdof_size; }
 };
 
 }

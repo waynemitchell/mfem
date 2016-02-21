@@ -267,16 +267,8 @@ int main(int argc, char *argv[])
 
    HypreParMatrix *Shat = RAP(matSinv, matBhat);
    HypreSolver *Shatinv;
-   if (dim == 2)
-   {
-      ND_Trace_FECollection nd_tr_fec(trace_order+1, dim);
-      ParFiniteElementSpace nd_tr_space(pmesh, &nd_tr_fec);
-      Shatinv = new HypreAMS(*Shat, &nd_tr_space);
-   }
-   else
-   {
-      Shatinv = new HypreADS(*Shat, xhat_space);
-   }
+   if (dim == 2) { Shatinv = new HypreAMS(*Shat, xhat_space); }
+   else          { Shatinv = new HypreADS(*Shat, xhat_space); }
 
    BlockDiagonalPreconditioner P(true_offsets);
    P.SetDiagonalBlock(0, S0inv);

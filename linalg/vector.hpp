@@ -184,6 +184,9 @@ public:
    void AddElementVector(const Array<int> & dofs, const double a,
                          const Vector & elemvect);
 
+   /// Set all vector entries NOT in the 'dofs' array to the given 'val'.
+   void SetSubVectorComplement(const Array<int> &dofs, const double val);
+
    /// Prints vector to stream out.
    void Print(std::ostream & out = std::cout, int width = 8) const;
 
@@ -206,7 +209,7 @@ public:
    double Min() const;
    /// Return the sum of the vector entries
    double Sum() const;
-   /// Compute the Euclidian distance to another vector.
+   /// Compute the Euclidean distance to another vector.
    double DistanceTo (const double *p) const;
 
    /** Count the number of entries in the Vector for which isfinite

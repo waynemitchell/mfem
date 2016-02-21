@@ -135,6 +135,14 @@ protected:
    MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
 
+public:
+   Array<int> attributes;
+   Array<int> bdr_attributes;
+
+   NURBSExtension *NURBSext;
+   NCMesh *ncmesh;
+
+protected:
    void Init();
 
    void InitTables();
@@ -193,7 +201,7 @@ protected:
    /** Uniform Refinement. Element with index i is refined uniformly. */
    void UniformRefinement(int i, const DSTable &, int *, int *, int *);
 
-   /** Averages the vertices with given indexes and save the result in
+   /** Averages the vertices with given indexes and saves the result in
        vertices[result]. */
    void AverageVertices (int * indexes, int n, int result);
 
@@ -333,12 +341,6 @@ protected:
 public:
 
    enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
-
-   Array<int> attributes;
-   Array<int> bdr_attributes;
-
-   NURBSExtension *NURBSext;
-   NCMesh *ncmesh;
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
@@ -541,8 +543,9 @@ public:
    /// Return the index and the orientation of the face of bdr element i. (3D)
    void GetBdrElementFace(int i, int *, int *) const;
 
-   /** Return the edge index of boundary element i. (2D)
-       return the face index of boundary element i. (3D) */
+   /** Return the vertex index of boundary element i. (1D)
+       Return the edge index of boundary element i. (2D)
+       Return the face index of boundary element i. (3D) */
    int GetBdrElementEdgeIndex(int i) const;
 
    /// Returns the type of element i.
@@ -608,7 +611,7 @@ public:
        (both in their reference elements). Used to transform
        IntegrationPoints from face to element. More formally, let:
        TL1, TL2 be the transformations represented by Loc1, Loc2,
-       TE1, TE2 - the transformations represented by Eleme1, Elem2,
+       TE1, TE2 - the transformations represented by Elem1, Elem2,
        TF - the transformation represented by Face, then
        TF(x) = TE1(TL1(x)) = TE2(TL2(x)) for all x in the reference face.
        6) FaceGeom - the base geometry for the face.
@@ -682,8 +685,8 @@ public:
    void SetVertices(const Vector &vert_coord);
 
    // Nodes are only active for higher order meshes, and share locations with
-   // the vertecies, plus all the higher- order control points within the
-   // element and along the edges and on the faces.
+   // the vertices, plus all the higher- order control points within the element
+   // and along the edges and on the faces.
    void GetNode(int i, double *coord);
    void SetNode(int i, const double *coord);
 
@@ -698,7 +701,7 @@ public:
    GridFunction *GetNodes() { return Nodes; }
    /// Replace the internal node GridFunction with the given GridFunction.
    void NewNodes(GridFunction &nodes, bool make_owner = false);
-   /** Swap the internal node GridFunction pointer and onwership flag members
+   /** Swap the internal node GridFunction pointer and ownership flag members
        with the given ones. */
    void SwapNodes(GridFunction *&nodes, int &own_nodes_);
 
@@ -716,9 +719,11 @@ public:
        defined or NULL if the mesh does not have nodes. */
    const FiniteElementSpace *GetNodalFESpace();
 
-   /** If 'NURBSext' exists, project the NURBS curvature to Nodes of the given
-       order and get rid of the NURBS extension. */
-   void ProjectNURBS(int order);
+   /** Set the curvature of the mesh nodes using the given polynomial degree,
+       'order', and optionally: discontinuous or continuous FE space, 'discont',
+       new space dimension, 'space_dim' (if != -1), and 'ordering'. */
+   void SetCurvature(int order, bool discont = false, int space_dim = -1,
+                     int ordering = 1);
 
    /** Refine all mesh elements. */
    void UniformRefinement();
@@ -828,6 +833,13 @@ public:
    void Transform(void (*f)(const Vector&, Vector&));
    void Transform(VectorCoefficient &deformation);
 
+   /// Remove unused vertices and rebuild mesh connectivity.
+   void RemoveUnusedVertices();
+
+   /** Remove boundary elements that lie in the interior of the mesh, i.e. that
+       have two adjacent faces in 3D, or edges in 2D. */
+   void RemoveInternalBoundaries();
+
    /** Get the size of the i-th element relative to the perfect
        reference element. */
    double GetElementSize(int i, int type = 0);
@@ -855,7 +867,7 @@ public:
 std::ostream &operator<<(std::ostream &out, const Mesh &mesh);
 
 
-/// Class used to exrude the nodes of a mesh
+/// Class used to extrude the nodes of a mesh
 class NodeExtrudeCoefficient : public VectorCoefficient
 {
 private:

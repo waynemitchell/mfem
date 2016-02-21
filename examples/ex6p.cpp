@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
    if (mesh->NURBSext)
    {
       mesh->UniformRefinement();
-      mesh->ProjectNURBS(2);
+      mesh->SetCurvature(2);
    }
    mesh->EnsureNCMesh();
 
@@ -107,6 +107,11 @@ int main(int argc, char *argv[])
    //    Once the parallel mesh is defined, the serial mesh can be deleted.
    ParMesh pmesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
+
+   MFEM_VERIFY(pmesh.bdr_attributes.Size() > 0,
+               "Boundary attributes required in the mesh.");
+   Array<int> ess_bdr(pmesh.bdr_attributes.Max());
+   ess_bdr = 1;
 
    // 6. Define a finite element space on the mesh. The polynomial order is
    //    one (linear) by default, but this can be changed on the command line.
@@ -128,9 +133,6 @@ int main(int argc, char *argv[])
    //    will be maintained over the AMR iterations. We initialize it to zero.
    ParGridFunction x(&fespace);
    x = 0;
-
-   Array<int> ess_bdr(pmesh.bdr_attributes.Max());
-   ess_bdr = 1;
 
    // 9. Connect to GLVis.
    char vishost[] = "localhost";
@@ -169,43 +171,42 @@ int main(int argc, char *argv[])
       }
 
       // 11. Assemble the stiffness matrix and the right-hand side. Note that
-      //     MFEM doesn't care at this point if the mesh is nonconforming (i.e.,
-      //     contains hanging nodes). The FE space is considered 'cut' along
-      //     hanging edges/faces.
+      //     MFEM doesn't care at this point that the mesh is nonconforming
+      //     and parallel. The FE space is considered 'cut' along hanging
+      //     edges/faces, and also across processor boundaries.
       a.Assemble();
-      a.Finalize();
       b.Assemble();
 
-      x = 0;
+      // 12. Set the initial estimate of the solution and the Dirichlet DOFs,
+      //     here we just use zero everywhere.
+      x = 0.0;
 
-      HypreParMatrix *A = a.ParallelAssemble();
-      HypreParVector *B = b.ParallelAssemble();
-      HypreParVector *X = x.ParallelProject();
+      // 13. Create the parallel linear system: eliminate boundary conditions,
+      //     constrain hanging nodes and nodes across processor boundaries.
+      //     The system will be solved for true (unconstrained/unique) DOFs only.
+      Array<int> ess_tdof_list;
+      fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
-      // 12. As usual, we also need to eliminate the essential BC from the
-      //     system. This needs to be done after ConformingAssemble.
-      a.ParallelEliminateEssentialBC(ess_bdr, *A, *X, *B);
+      HypreParMatrix A;
+      Vector B, X;
+      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B);
 
-      // 13. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+      // 14. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.
-      HypreBoomerAMG amg(*A);
+      HypreBoomerAMG amg(A);
       amg.SetPrintLevel(0);
-      HyprePCG pcg(*A);
+      HyprePCG pcg(A);
       pcg.SetTol(1e-12);
       pcg.SetMaxIter(200);
       pcg.SetPrintLevel(0);
       pcg.SetPreconditioner(amg);
-      pcg.Mult(*B, *X);
+      pcg.Mult(B, X);
 
-      // 14. Extract the parallel grid function corresponding to the finite element
+      // 15. Extract the parallel grid function corresponding to the finite element
       //     approximation X. This is the local solution on each processor.
-      x = *X;
+      a.RecoverFEMSolution(X, b, x);
 
-      delete A;
-      delete B;
-      delete X;
-
-      // 15. Send the solution by socket to a GLVis server.
+      // 16. Send the solution by socket to a GLVis server.
       if (visualization)
       {
          sout << "parallel " << num_procs << " " << myid << "\n";
@@ -217,7 +218,7 @@ int main(int argc, char *argv[])
          break;
       }
 
-      // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
+      // 17. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
       Vector errors(pmesh.GetNE());
@@ -245,7 +246,7 @@ int main(int argc, char *argv[])
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
                     MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
 
-      // 17. Make a list of elements whose error is larger than a fraction
+      // 18. Make a list of elements whose error is larger than a fraction
       //     of the maximum element error. These elements will be refined.
       Array<int> ref_list;
       const double frac = 0.7;
@@ -255,29 +256,15 @@ int main(int argc, char *argv[])
          if (errors[i] >= threshold) { ref_list.Append(i); }
       }
 
-      // 18. Refine the selected elements. Since we are going to transfer the
+      // 19. Refine the selected elements. Since we are going to transfer the
       //     grid function x from the coarse mesh to the new fine mesh in the
       //     next step, we need to request the "two-level state" of the mesh.
-      //pmesh.UseTwoLevelState(1);
       pmesh.GeneralRefinement(ref_list);
 
-      // 19. Update the space to reflect the new state of the mesh. Also,
-      //     interpolate the solution x so that it lies in the new space but
-      //     represents the same function. This saves solver iterations since
-      //     we'll have a good initial guess of x in the next step.
-      //     The interpolation algorithm needs the mesh to hold some information
-      //     about the previous state, which is why the call UseTwoLevelState
-      //     above is required.
-      //fespace.UpdateAndInterpolate(&x);
-
-      // Note: If interpolation was not needed, we could just use the following
-      //     two calls to update the space and the grid function. (No need to
-      //     call UseTwoLevelState in this case.)
+      // 20. Inform the space, grid function and also the bilinear and linear
+      //     forms that the space has changed.
       fespace.Update();
       x.Update();
-
-      // 20. Inform also the bilinear and linear forms that the space has
-      //     changed.
       a.Update();
       b.Update();
    }

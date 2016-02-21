@@ -9,6 +9,7 @@
 //               ex8 -m ../data/square-disc-p2.vtk
 //               ex8 -m ../data/square-disc-p3.mesh
 //               ex8 -m ../data/star-surf.mesh -o 2
+//               ex8 -m ../data/mobius-strip.mesh
 //
 // Description:  This example code demonstrates the use of the Discontinuous
 //               Petrov-Galerkin (DPG) method in its primal 2x2 block form as a

@@ -2058,7 +2058,7 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
    MFEM_ASSERT(mesh.vertices.Size() == NumOfVertices, "internal MFEM error!");
    mesh.vertices.Copy(vertices);
 
-   // Duplicte the boundary
+   // Duplicate the boundary
    boundary.SetSize(NumOfBdrElements);
    for (int i = 0; i < NumOfBdrElements; i++)
    {
@@ -3733,15 +3733,23 @@ const FiniteElementSpace *Mesh::GetNodalFESpace()
    return ((Nodes) ? Nodes->FESpace() : NULL);
 }
 
-void Mesh::ProjectNURBS(int order)
+void Mesh::SetCurvature(int order, bool discont, int space_dim, int ordering)
 {
-   if (NURBSext)
+   space_dim = (space_dim == -1) ? spaceDim : space_dim;
+   FiniteElementCollection* nfec;
+   if (discont)
    {
-      FiniteElementCollection* nfec = new H1_FECollection(order, Dim);
-      FiniteElementSpace* nfes = new FiniteElementSpace(this, nfec, Dim);
-      SetNodalFESpace(nfes);
-      Nodes->MakeOwner(nfec);
+      const int type = 1; // Gauss-Lobatto points
+      nfec = new L2_FECollection(order, Dim, type);
    }
+   else
+   {
+      nfec = new H1_FECollection(order, Dim);
+   }
+   FiniteElementSpace* nfes = new FiniteElementSpace(this, nfec, space_dim,
+                                                     ordering);
+   SetNodalFESpace(nfes);
+   Nodes->MakeOwner(nfec);
 }
 
 int Mesh::GetNumFaces() const
@@ -4043,9 +4051,11 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
    // #if (!defined(MFEM_USE_MPI) || defined(MFEM_DEBUG))
 #ifdef MFEM_DEBUG
    if (wo > 0)
+   {
       cout << "Boundary elements with wrong orientation: " << wo << " / "
            << NumOfBdrElements << " (" << fixed_or_not[fix_it ? 0 : 1]
            << ")" << endl;
+   }
 #endif
 }
 
@@ -4056,8 +4066,10 @@ void Mesh::GetElementEdges(int i, Array<int> &edges, Array<int> &cor) const
       el_to_edge->GetRow(i, edges);
    }
    else
+   {
       mfem_error("Mesh::GetElementEdges(...) element to edge table "
                  "is not generated.");
+   }
 
    const int *v = elements[i]->GetVertices();
    const int ne = elements[i]->GetNEdges();
@@ -4357,11 +4369,14 @@ int Mesh::GetFaceBaseGeometry(int i) const
 
 int Mesh::GetBdrElementEdgeIndex(int i) const
 {
-   if (Dim == 2)
+   switch (Dim)
    {
-      return be_to_edge[i];
+      case 1: return boundary[i]->GetVertices()[0];
+      case 2: return be_to_edge[i];
+      case 3: return be_to_face[i];
+      default: mfem_error("Mesh::GetBdrElementEdgeIndex: invalid dimension!");
    }
-   return be_to_face[i];
+   return -1;
 }
 
 int Mesh::GetElementType(int i) const
@@ -4610,12 +4625,21 @@ void Mesh::AddSegmentFaceElement(int lf, int gf, int el, int v0, int v1)
    }
    else  //  this will be elem2
    {
-#ifdef MFEM_DEBUG
       int *v = faces[gf]->GetVertices();
-      MFEM_ASSERT(v[1] == v0 && v[0] == v1, "");
-#endif
       faces_info[gf].Elem2No  = el;
-      faces_info[gf].Elem2Inf = 64 * lf + 1;
+      if ( v[1] == v0 && v[0] == v1 )
+      {
+         faces_info[gf].Elem2Inf = 64 * lf + 1;
+      }
+      else if ( v[0] == v0 && v[1] == v1 )
+      {
+         faces_info[gf].Elem2Inf = 64 * lf;
+      }
+      else
+      {
+         MFEM_ASSERT((v[1] == v0 && v[0] == v1)||
+                     (v[0] == v0 && v[1] == v1), "");
+      }
    }
 }
 
@@ -8075,7 +8099,7 @@ ElementTransformation * Mesh::GetFineElemTrans(int i, int j)
       }
       else
       {
-         //  identity transformation
+         // identity transformation
          Transformation.SetFE(&TriangleFE);
          pm.SetSize(2, 3);
          pm(0,0) = 0.0;  pm(0,1) = 1.0;  pm(0,2) = 0.0;
@@ -9528,6 +9552,7 @@ void Mesh::Transform(void (*f)(const Vector&, Vector&))
       *Nodes = xnew;
    }
 }
+
 void Mesh::Transform(VectorCoefficient &deformation)
 {
    MFEM_VERIFY(spaceDim == deformation.GetVDim(),
@@ -9550,6 +9575,205 @@ void Mesh::Transform(VectorCoefficient &deformation)
       xnew.ProjectCoefficient(deformation);
       *Nodes = xnew;
    }
+}
+
+void Mesh::RemoveUnusedVertices()
+{
+   if (NURBSext || ncmesh) { return; }
+
+   SetState(Mesh::NORMAL);
+
+   Array<int> v2v(GetNV());
+   v2v = -1;
+   for (int i = 0; i < GetNE(); i++)
+   {
+      Element *el = GetElement(i);
+      int nv = el->GetNVertices();
+      int *v = el->GetVertices();
+      for (int j = 0; j < nv; j++)
+      {
+         v2v[v[j]] = 0;
+      }
+   }
+   for (int i = 0; i < GetNBE(); i++)
+   {
+      Element *el = GetBdrElement(i);
+      int *v = el->GetVertices();
+      int nv = el->GetNVertices();
+      for (int j = 0; j < nv; j++)
+      {
+         v2v[v[j]] = 0;
+      }
+   }
+   int num_vert = 0;
+   for (int i = 0; i < v2v.Size(); i++)
+   {
+      if (v2v[i] == 0)
+      {
+         vertices[num_vert] = vertices[i];
+         v2v[i] = num_vert++;
+      }
+   }
+
+   if (num_vert == v2v.Size()) { return; }
+
+   Vector nodes_by_element;
+   Array<int> vdofs;
+   if (Nodes)
+   {
+      int s = 0;
+      for (int i = 0; i < GetNE(); i++)
+      {
+         Nodes->FESpace()->GetElementVDofs(i, vdofs);
+         s += vdofs.Size();
+      }
+      nodes_by_element.SetSize(s);
+      s = 0;
+      for (int i = 0; i < GetNE(); i++)
+      {
+         Nodes->FESpace()->GetElementVDofs(i, vdofs);
+         Nodes->GetSubVector(vdofs, &nodes_by_element(s));
+         s += vdofs.Size();
+      }
+   }
+   vertices.SetSize(num_vert);
+   NumOfVertices = num_vert;
+   for (int i = 0; i < GetNE(); i++)
+   {
+      Element *el = GetElement(i);
+      int *v = el->GetVertices();
+      int nv = el->GetNVertices();
+      for (int j = 0; j < nv; j++)
+      {
+         v[j] = v2v[v[j]];
+      }
+   }
+   for (int i = 0; i < GetNBE(); i++)
+   {
+      Element *el = GetBdrElement(i);
+      int *v = el->GetVertices();
+      int nv = el->GetNVertices();
+      for (int j = 0; j < nv; j++)
+      {
+         v[j] = v2v[v[j]];
+      }
+   }
+   DeleteTables();
+   if (Dim > 1)
+   {
+      // generate el_to_edge, be_to_edge (2D), bel_to_edge (3D)
+      el_to_edge = new Table;
+      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
+   }
+   if (Dim > 2)
+   {
+      // generate el_to_face, be_to_face
+      GetElementToFaceTable();
+   }
+   // Update faces and faces_info
+   GenerateFaces();
+   if (Nodes)
+   {
+      Nodes->FESpace()->Update();
+      Nodes->Update();
+      int s = 0;
+      for (int i = 0; i < GetNE(); i++)
+      {
+         Nodes->FESpace()->GetElementVDofs(i, vdofs);
+         Nodes->SetSubVector(vdofs, &nodes_by_element(s));
+         s += vdofs.Size();
+      }
+   }
+}
+
+void Mesh::RemoveInternalBoundaries()
+{
+   if (NURBSext || ncmesh) { return; }
+
+   SetState(Mesh::NORMAL);
+
+   int num_bdr_elem = 0;
+   int new_bel_to_edge_nnz = 0;
+   for (int i = 0; i < GetNBE(); i++)
+   {
+      if (FaceIsInterior(GetBdrElementEdgeIndex(i)))
+      {
+         FreeElement(boundary[i]);
+      }
+      else
+      {
+         num_bdr_elem++;
+         if (Dim == 3)
+         {
+            new_bel_to_edge_nnz += bel_to_edge->RowSize(i);
+         }
+      }
+   }
+
+   if (num_bdr_elem == GetNBE()) { return; }
+
+   Array<Element *> new_boundary(num_bdr_elem);
+   Array<int> new_be_to_edge, new_be_to_face;
+   Table *new_bel_to_edge = NULL;
+   new_boundary.SetSize(0);
+   if (Dim == 2)
+   {
+      new_be_to_edge.Reserve(num_bdr_elem);
+   }
+   else if (Dim == 3)
+   {
+      new_be_to_face.Reserve(num_bdr_elem);
+      new_bel_to_edge = new Table;
+      new_bel_to_edge->SetDims(num_bdr_elem, new_bel_to_edge_nnz);
+   }
+   for (int i = 0; i < GetNBE(); i++)
+   {
+      if (!FaceIsInterior(GetBdrElementEdgeIndex(i)))
+      {
+         new_boundary.Append(boundary[i]);
+         if (Dim == 2)
+         {
+            new_be_to_edge.Append(be_to_edge[i]);
+         }
+         else if (Dim == 3)
+         {
+            int row = new_be_to_face.Size();
+            new_be_to_face.Append(be_to_face[i]);
+            int *e = bel_to_edge->GetRow(i);
+            int ne = bel_to_edge->RowSize(i);
+            int *new_e = new_bel_to_edge->GetRow(row);
+            for (int j = 0; j < ne; j++)
+            {
+               new_e[j] = e[j];
+            }
+            new_bel_to_edge->GetI()[row+1] = new_bel_to_edge->GetI()[row] + ne;
+         }
+      }
+   }
+
+   NumOfBdrElements = new_boundary.Size();
+   mfem::Swap(boundary, new_boundary);
+
+   if (Dim == 2)
+   {
+      mfem::Swap(be_to_edge, new_be_to_edge);
+   }
+   else if (Dim == 3)
+   {
+      mfem::Swap(be_to_face, new_be_to_face);
+      delete bel_to_edge;
+      bel_to_edge = new_bel_to_edge;
+   }
+
+   Array<int> attribs(num_bdr_elem);
+   for (int i = 0; i < attribs.Size(); i++)
+   {
+      attribs[i] = GetBdrAttribute(i);
+   }
+   attribs.Sort();
+   attribs.Unique();
+   bdr_attributes.DeleteAll();
+   attribs.Copy(bdr_attributes);
 }
 
 void Mesh::FreeElement(Element *E)

@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
    int dim = mesh->Dimension();
    if (mesh->NURBSext)
    {
-      mesh->ProjectNURBS(2);
+      mesh->SetCurvature(2);
    }
 
    // 3. Refine the mesh to increase the resolution. In this example we do

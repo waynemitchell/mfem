@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
       {
          mesh.UniformRefinement();
       }
-      mesh.ProjectNURBS(2);
+      mesh.SetCurvature(2);
    }
 
    // 4. Define a finite element space on the mesh. The polynomial order is
@@ -110,6 +110,8 @@ int main(int argc, char *argv[])
    x = 0;
 
    // 7. All boundary attributes will be used for essential (Dirichlet) BC.
+   MFEM_VERIFY(mesh.bdr_attributes.Size() > 0,
+               "Boundary attributes required in the mesh.");
    Array<int> ess_bdr(mesh.bdr_attributes.Max());
    ess_bdr = 1;
 
@@ -129,7 +131,7 @@ int main(int argc, char *argv[])
    const int max_dofs = 50000;
    for (int it = 0; ; it++)
    {
-      int cdofs = fespace.GetNConformingDofs();
+      int cdofs = fespace.GetTrueVSize();
       cout << "\nIteration " << it << endl;
       cout << "Number of unknowns: " << cdofs << endl;
 
@@ -140,38 +142,37 @@ int main(int argc, char *argv[])
       a.Assemble();
       b.Assemble();
 
+      // 11. Set Dirichlet boundary values in the GridFunction x.
+      //     Determine the list of Dirichlet true DOFs in the linear system.
+      Array<int> ess_tdof_list;
       x.ProjectBdrCoefficient(zero, ess_bdr);
+      fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
-      // 11. Take care of nonconforming meshes by applying the interpolation
-      //     matrix P to a, b and x, so that slave degrees of freedom get
-      //     eliminated from the linear system. The system becomes P'AP x = P'b.
-      //     (If the mesh is conforming, P is identity.)
-      a.ConformingAssemble(x, b);
+      // 12. Create the linear system: eliminate boundary conditions, constrain
+      //     hanging nodes and possibly apply other transformations. The system
+      //     will be solved for true (unconstrained) DOFs only.
+      SparseMatrix A;
+      Vector B, X;
+      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, 1);
 
-      // 12. As usual, we also need to eliminate the essential BC from the
-      //     system. This needs to be done after ConformingAssemble.
-      a.EliminateEssentialBC(ess_bdr, x, b);
-
-      const SparseMatrix &A = a.SpMat();
 #ifndef MFEM_USE_SUITESPARSE
       // 13. Define a simple symmetric Gauss-Seidel preconditioner and use it to
       //     solve the linear system with PCG.
       GSSmoother M(A);
-      PCG(A, M, b, x, 2, 200, 1e-12, 0.0);
+      PCG(A, M, B, X, 2, 200, 1e-12, 0.0);
 #else
       // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
       //     the linear system.
       UMFPackSolver umf_solver;
       umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
       umf_solver.SetOperator(A);
-      umf_solver.Mult(b, x);
+      umf_solver.Mult(B, X);
 #endif
 
-      // 14. For nonconforming meshes, bring the solution vector back from
-      //     the conforming space to the nonconforming (cut) space, i.e.,
-      //     x = Px. Slave DOFs receive the correct values to make the solution
-      //     continuous.
-      x.ConformingProlongate();
+      // 14. After solving the linear system, reconstruct the solution as a finite
+      //     element grid function. Constrained nodes are interpolated from true
+      //     DOFs (it may therefore happen that dim(x) >= dim(X)).
+      a.RecoverFEMSolution(X, b, x);
 
       // 15. Send solution by socket to the GLVis server.
       if (visualization && sol_sock.good())
