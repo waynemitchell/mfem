@@ -164,7 +164,7 @@ MFEM_USE_SUITESPARSE = YES/NO
    this option uses the SUITESPARSE_* library options, see below.
 
 MFEM_USE_GNUTLS = YES/NO
-   Enable the secure socket classes gnutls_socketbuf and gnutls_socketstream
+   Enable the secure socket classes GnuTLS_socketstream, GnuTLS_socketbuf, etc,
    based on the GnuTLS library. When enabled, this option uses the GNUTLS_*
    library options, see below.
 
