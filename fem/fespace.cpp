@@ -736,7 +736,7 @@ void FiniteElementSpace::GetConformingInterpolation()
    Array<bool> finalized(ndofs);
    finalized = false;
 
-   // put identity in the restiction and prolongation matrices for true DOFs
+   // put identity in the restriction and prolongation matrices for true DOFs
    for (int i = 0, true_dof = 0; i < ndofs; i++)
    {
       if (!deps.RowSize(i))

@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
    if (pmesh->bdr_attributes.Size() == 0)
    {
       // Add a mass term if the mesh has no boundary, e.g. periodic mesh or
-      // closed suface.
+      // closed surface.
       a->AddDomainIntegrator(new MassIntegrator(one));
    }
    a->Assemble();

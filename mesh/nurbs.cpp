@@ -1534,7 +1534,7 @@ void NURBSExtension::GenerateActiveBdrElems()
    NumOfActiveBdrElems = 0;
    // the mesh will generate the actual boundary including boundary
    // elements that are not on boundary patches. we use this for
-   // visialization of processor boundaries
+   // visualization of processor boundaries
 
    // TODO: generate actual boundary?
 }

@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
    // 7. Allocate memory (x, rhs) for the analytical solution and the right hand
    //    side.  Define the GridFunction u,p for the finite element solution and
    //    linear forms fform and gform for the right hand side.  The data
-   //    allocated by x and rhs are passed as a reference to the grid fuctions
+   //    allocated by x and rhs are passed as a reference to the grid functions
    //    (u,p) and the linear forms (fform, gform).
    BlockVector x(block_offsets), rhs(block_offsets);
 

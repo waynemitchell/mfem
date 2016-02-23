@@ -1097,7 +1097,7 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
       Trans.SetIntPoint(&ip);
 
       fluxelem.CalcVShape(Trans, vshape);
-      //fluxelem.CalcVShape(ip, vshape);
+      // fluxelem.CalcVShape(ip, vshape);
       vshape.MultTranspose(flux, pointflux);
 
       double w = Trans.Weight() * ip.weight;
@@ -1117,12 +1117,14 @@ double CurlCurlIntegrator::ComputeFluxEnergy(const FiniteElement &fluxelem,
          pfluxes[i].SetSize(dim);
          Trans.Jacobian().MultTranspose(pointflux, pfluxes[i]);
 
-         /*DenseMatrix Jadj(dim, dim);
-         CalcAdjugate(Trans.Jacobian(), Jadj);
-         pfluxes[i].SetSize(dim);
-         Jadj.Mult(pointflux, pfluxes[i]);*/
+         /*
+           DenseMatrix Jadj(dim, dim);
+           CalcAdjugate(Trans.Jacobian(), Jadj);
+           pfluxes[i].SetSize(dim);
+           Jadj.Mult(pointflux, pfluxes[i]);
+         */
 
-         //pfluxes[i] = pointflux;
+         // pfluxes[i] = pointflux;
       }
 #endif
    }
@@ -1642,7 +1644,7 @@ void VectorDiffusionIntegrator::AssembleElementMatrix(
    const IntegrationRule *ir = IntRule;
    if (ir == NULL)
    {
-      // integrant is rational function if det(J) is not constant
+      // integrand is rational function if det(J) is not constant
       int order = 2 * Trans.OrderGrad(&el); // order of the numerator
       if (el.Space() == FunctionSpace::rQk)
       {
@@ -1964,8 +1966,8 @@ void DGDiffusionIntegrator::AssembleFaceMatrix(
       ir = &IntRules.Get(Trans.FaceGeom, order);
    }
 
-   // assmble: < {(Q \nabla u).n},[v] >      --> elmat
-   //          kappa < {h^{-1} Q} [u],[v] >  --> jmat
+   // assemble: < {(Q \nabla u).n},[v] >      --> elmat
+   //           kappa < {h^{-1} Q} [u],[v] >  --> jmat
    for (int p = 0; p < ir->GetNPoints(); p++)
    {
       const IntegrationPoint &ip = ir->IntPoint(p);

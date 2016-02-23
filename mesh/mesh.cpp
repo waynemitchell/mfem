@@ -2096,7 +2096,7 @@ Mesh::Mesh(const Mesh &mesh, bool copy_nodes)
    MFEM_ASSERT(mesh.vertices.Size() == NumOfVertices, "internal MFEM error!");
    mesh.vertices.Copy(vertices);
 
-   // Duplicte the boundary
+   // Duplicate the boundary
    boundary.SetSize(NumOfBdrElements);
    for (int i = 0; i < NumOfBdrElements; i++)
    {
@@ -8216,7 +8216,7 @@ ElementTransformation * Mesh::GetFineElemTrans(int i, int j)
       }
       else
       {
-         //  identity transformation
+         // identity transformation
          Transformation.SetFE(&TriangleFE);
          pm.SetSize(2, 3);
          pm(0,0) = 0.0;  pm(0,1) = 1.0;  pm(0,2) = 0.0;

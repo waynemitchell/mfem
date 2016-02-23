@@ -205,7 +205,7 @@ public:
 };
 
 /** Arbitrary order H(curl)-trace finite elements defined on the interface
-    between mesh elements (faces,edges); these are the tangentail trace FEs of
+    between mesh elements (faces,edges); these are the tangential trace FEs of
     the H(curl)-conforming FEs. */
 class ND_Trace_FECollection : public ND_FECollection
 {

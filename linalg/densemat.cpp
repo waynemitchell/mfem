@@ -1524,7 +1524,7 @@ inline int Reduce3S(
    //                 | b1   0   0 |
    // B = Q P A P Q = | 0   b2 b23 |
    //                 | 0  b23  b3 |
-   // where P is the permitation matrix switching entries 1 and k, and
+   // where P is the permutation matrix switching entries 1 and k, and
    // Q is the reflection matrix Q = I - g v v^t, defined by: set y = P z and
    // v = c(y - e_1); if y = e_1, then v = 0 and Q = I.
    // Note: Q y = e_1, Q e_1 = y ==> Q P A P Q e_1 = ... = lambda e_1.
@@ -1549,7 +1549,7 @@ inline int Reduce3S(
    }
    else
    {
-      // choose k such that zk is the largest by abosolute value
+      // choose k such that zk is the largest by absolute value
       if (fabs(z1) >= fabs(z3))
       {
          k = (fabs(z1) >= fabs(z2)) ? 1 : 2;

@@ -209,7 +209,7 @@ public:
    double Min() const;
    /// Return the sum of the vector entries
    double Sum() const;
-   /// Compute the Euclidian distance to another vector.
+   /// Compute the Euclidean distance to another vector.
    double DistanceTo (const double *p) const;
 
    /** Count the number of entries in the Vector for which isfinite

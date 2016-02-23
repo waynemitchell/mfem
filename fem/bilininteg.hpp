@@ -217,7 +217,7 @@ public:
                                     Vector &flux, Vector *d_energy = NULL);
 };
 
-/** Class for local mass matrix assemblying a(u,v) := (Q u, v) */
+/** Class for local mass matrix assembling a(u,v) := (Q u, v) */
 class MassIntegrator: public BilinearFormIntegrator
 {
 private:
@@ -655,7 +655,7 @@ public:
 };
 
 /** Integrator for the DPG form: < v, [w] > over all faces (the interface) where
-    the trial variable v is defined on the inteface and the test variable w is
+    the trial variable v is defined on the interface and the test variable w is
     defined inside the elements, generally in a DG space. */
 class TraceJumpIntegrator : public BilinearFormIntegrator
 {
@@ -673,7 +673,7 @@ public:
 };
 
 /** Integrator for the form: < v, [w.n] > over all faces (the interface) where
-    the trial variable v is defined on the inteface and the test variable w is
+    the trial variable v is defined on the interface and the test variable w is
     in an H(div)-conforming space. */
 class NormalTraceJumpIntegrator : public BilinearFormIntegrator
 {
