@@ -753,6 +753,7 @@ void Mesh::Init()
    NURBSext = NULL;
    ncmesh = NULL;
    last_operation = Mesh::NONE;
+   sequence = 0;
 }
 
 void Mesh::InitTables()
@@ -5961,8 +5962,8 @@ void Mesh::AverageVertices(int * indexes, int n, int result)
 
 void Mesh::UpdateNodes()
 {
-   Nodes->FESpace()->UpdateAndInterpolate(Nodes);
-   // update the vertices?
+   MFEM_ABORT("TODO");
+   //Nodes->FESpace()->UpdateAndInterpolate(Nodes);
 }
 
 void Mesh::QuadUniformRefinement()
@@ -6346,7 +6347,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
 
    if (ncmesh)
    {
-      mfem_error("Local and nonconforming refinements cannot be mixed.");
+      MFEM_ABORT("Local and nonconforming refinements cannot be mixed.");
    }
 
    if (Nodes)  // curved mesh
@@ -6764,6 +6765,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
    GenerateNCFaceInfo();
 
    last_operation = Mesh::REFINE;
+   sequence++;
 
    if (Nodes) // update/interpolate curved mesh
    {
@@ -6787,6 +6789,7 @@ void Mesh::DerefineMesh(const Array<int> &derefinements)
    GenerateNCFaceInfo();
 
    last_operation = Mesh::DEREFINE;
+   sequence++;
 
    if (Nodes) // update/interpolate curved mesh
    {

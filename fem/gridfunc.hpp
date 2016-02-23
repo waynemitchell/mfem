@@ -33,6 +33,8 @@ protected:
    /// Used when the grid function is read from a file
    FiniteElementCollection *fec;
 
+   long sequence; // see FiniteElementSpace::sequence, Mesh::sequence
+
    void SaveSTLTri(std::ostream &out, double p1[], double p2[], double p3[]);
 
    void GetVectorGradientHat(ElementTransformation &T, DenseMatrix &gh);
@@ -54,21 +56,22 @@ protected:
        degree of freedom. */
    void ProjectDiscCoefficient(VectorCoefficient &coeff, Array<int> &dof_attr);
 
+   void Destroy();
+
 public:
 
-   GridFunction() { fes = NULL; fec = NULL; }
+   GridFunction() { fes = NULL; fec = NULL; sequence = 0; }
 
    /// Creates grid function associated with *f.
    GridFunction(FiniteElementSpace *f) : Vector(f->GetVSize())
-   { fes = f; fec = NULL; }
+   { fes = f; fec = NULL; sequence = f->GetSequence(); }
 
    GridFunction(Mesh *m, std::istream &input);
 
    GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces);
 
    /// Make the GridFunction the owner of 'fec' and 'fes'
-   void MakeOwner(FiniteElementCollection *_fec)
-   { fec = _fec; }
+   void MakeOwner(FiniteElementCollection *_fec) { fec = _fec; }
 
    FiniteElementCollection *OwnFEC() { return fec; }
 
@@ -243,6 +246,10 @@ public:
                          VectorCoefficient *v_weight = NULL,
                          const IntegrationRule *irs[] = NULL) const;
 
+   virtual void ComputeFlux(BilinearFormIntegrator &blfi,
+                            GridFunction &flux,
+                            int wcoef = 1, int subdomain = -1);
+
    /// Redefine '=' for GridFunction = constant.
    GridFunction &operator=(double value);
 
@@ -250,6 +257,7 @@ public:
 
    GridFunction &operator=(const GridFunction &v);
 
+#if 0
    /** For partially conforming FE spaces, prolongate the conforming vector x
        to this partially conforming GridFunction. */
    void ConformingProlongate(const Vector &x);
@@ -266,18 +274,16 @@ public:
        as the underlying vector shrinks to the number of conforming DOFs.
        Normal state is restored with ConformingProlongate. */
    void ConformingProject();
+#endif
+
+   /// Transform by the Space UpdateMatrix (e.g., on Mesh change).
+   void Update();
 
    FiniteElementSpace *FESpace() { return fes; }
 
-   void Update();
+   void SetSpace(FiniteElementSpace *f);
 
-   void Update(FiniteElementSpace *f);
-
-   void Update(FiniteElementSpace *f, Vector &v, int v_offset);
-
-   virtual void ComputeFlux(BilinearFormIntegrator &blfi,
-                            GridFunction &flux,
-                            int wcoef = 1, int subdomain = -1);
+   void MakeRef(FiniteElementSpace *f, Vector &v, int v_offset);
 
    /// Save the GridFunction to an output stream.
    virtual void Save(std::ostream &out) const;
@@ -290,12 +296,14 @@ public:
    void SaveSTL(std::ostream &out, int TimesToRefine = 1);
 
    /// Destroys grid function.
-   virtual ~GridFunction();
+   virtual ~GridFunction() { Destroy(); }
 };
+
 
 /** Overload operator<< for std::ostream and GridFunction; valid also for the
     derived class ParGridFunction */
 std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
+
 
 void ZZErrorEstimator(BilinearFormIntegrator &blfi,
                       GridFunction &u,
@@ -307,6 +315,7 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
 /// Compute the Lp distance between two grid functions on the given element.
 double ComputeElementLpDistance(double p, int i,
                                 GridFunction& gf1, GridFunction& gf2);
+
 
 /// Class used for extruding scalar GridFunctions
 class ExtrudeCoefficient : public Coefficient

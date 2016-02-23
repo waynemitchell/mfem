@@ -252,8 +252,8 @@ const
 
    if (X.ParFESpace() != pfes)
    {
-      X.Update(pfes);
-      Y.Update(pfes);
+      X.SetSpace(pfes);
+      Y.SetSpace(pfes);
    }
 
    X.Distribute(&x);
@@ -430,8 +430,8 @@ void ParMixedBilinearForm::TrueAddMult(const Vector &x, Vector &y,
 {
    if (X.ParFESpace() != trial_pfes)
    {
-      X.Update(trial_pfes);
-      Y.Update(test_pfes);
+      X.SetSpace(trial_pfes);
+      Y.SetSpace(test_pfes);
    }
 
    X.Distribute(&x);

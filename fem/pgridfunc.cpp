@@ -75,21 +75,21 @@ void ParGridFunction::Update()
    }
    else
    {
-      Update(pfes);
+      SetSpace(pfes);
    }
 }
 
-void ParGridFunction::Update(ParFiniteElementSpace *f)
+void ParGridFunction::SetSpace(ParFiniteElementSpace *f)
 {
    face_nbr_data.Destroy();
-   GridFunction::Update(f);
+   GridFunction::SetSpace(f);
    pfes = f;
 }
 
-void ParGridFunction::Update(ParFiniteElementSpace *f, Vector &v, int v_offset)
+void ParGridFunction::MakeRef(ParFiniteElementSpace *f, Vector &v, int v_offset)
 {
    face_nbr_data.Destroy();
-   GridFunction::Update(f, v, v_offset);
+   GridFunction::MakeRef(f, v, v_offset);
    pfes = f;
 }
 

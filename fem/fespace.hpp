@@ -103,6 +103,8 @@ protected:
    /// Transformation to apply to GridFunctions after space Update().
    Operator *T;
 
+   long sequence; // should match Mesh::GetSequence
+
    void UpdateNURBS();
 
    void Constructor();
@@ -141,7 +143,7 @@ protected:
 
 
 public:
-   FiniteElementSpace(Mesh *m, const FiniteElementCollection *f,
+   FiniteElementSpace(Mesh *mesh, const FiniteElementCollection *fec,
                       int vdim = 1, int ordering = Ordering::byNODES);
 
    /// Returns the mesh
@@ -155,6 +157,7 @@ public:
 
    const SparseMatrix *GetConformingProlongation();
    const SparseMatrix *GetConformingRestriction();
+
    virtual const SparseMatrix *GetRestrictionMatrix()
    { return GetConformingRestriction(); }
 
@@ -325,6 +328,7 @@ public:
 
    /// Convert a Boolean marker array to a list containing all marked indices.
    static void MarkerToList(const Array<int> &marker, Array<int> &list);
+
    /** Convert an array of indices (list) to a Boolean marker array where all
        indices in the list are marked with the given value and the rest are set
        to zero. */
@@ -367,32 +371,27 @@ public:
        is defined on the same mesh. */
    SparseMatrix *H2L_GlobalRestrictionMatrix(FiniteElementSpace *lfes);
 
-   /** Reflect changes in the mesh: update number of DOFs, etc. Also calculate
-       GridFunction transformation matrix (unless want_transform is false). */
+   /** Reflect changes in the mesh: update number of DOFs, etc. Also, calculate
+       GridFunction transformation matrix (unless want_transform is false).
+       Safe to call multiple times, does nothing if space already up to date. */
    virtual void Update(bool want_transform = true);
 
-   /// Get the GridFunction update matrix, after space Update().
-   const Operator *UpdateMatrix() const { return T; }
+   /// Get the GridFunction update matrix.
+   const Operator* UpdateMatrix() { Update(); return T; }
 
-   /// Free GridFunction transformation matrix, if any.
+   /// Free GridFunction transformation matrix (if any), to save memory.
    void UpdatesFinished() { delete T; T = NULL; }
 
    /// Returns number of degrees of freedom before last Update().
    int GetOldNDofs() const { return old_ndofs; }
 
-   /** Updates the space after the underlying mesh has been refined and
-       interpolates one or more GridFunctions so that they represent the same
-       functions on the new mesh. The grid functions are passed as pointers
-       after 'num_grid_fns'. */
-   virtual void UpdateAndInterpolate(int num_grid_fns, ...);
-
-   /// A shortcut for passing only one GridFunction to UndateAndInterpolate.
-   void UpdateAndInterpolate(GridFunction* gf) { UpdateAndInterpolate(1, gf); }
+   /// Return update counter (see Mesh::sequence)
+   long GetSequence() const { return sequence; }
 
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
 
-   void Save (std::ostream &out) const;
+   void Save(std::ostream &out) const;
 
    virtual ~FiniteElementSpace();
 };

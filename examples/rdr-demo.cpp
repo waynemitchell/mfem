@@ -258,13 +258,11 @@ int main(int argc, char *argv[])
       {
          // refine randomly
          pmesh->RandomRefinement(1, frac, false, 1, -1, rand());
-         fespace->Update();
          x.Update();
          CheckNorm(x, norm);
 
          // rebalance
          pmesh->Rebalance();
-         fespace->Update();
          x.Update();
          CheckNorm(x, norm);
 
@@ -280,13 +278,11 @@ int main(int argc, char *argv[])
          Array<double> errors(pmesh->GetNE());
          errors = 1;
          pmesh->GeneralDerefinement(errors, 10);
-         fespace->Update();
          x.Update();
          CheckNorm(x, norm);
 
          // rebalance
          pmesh->Rebalance();
-         fespace->Update();
          x.Update();
          CheckNorm(x, norm);
 

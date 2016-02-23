@@ -577,11 +577,11 @@ void Hybridization::ComputeSolution(const Vector &b, const Vector &sol_r,
    if (!R)
    {
       MFEM_ASSERT(sol.Size() == fes->GetVSize(), "");
-      s.Update(fes, sol, 0);
+      s.MakeRef(fes, sol, 0);
    }
    else
    {
-      s.Update(fes);
+      s.SetSpace(fes);
       R->MultTranspose(sol, s);
    }
    const int NE = fes->GetMesh()->GetNE();

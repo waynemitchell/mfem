@@ -2177,6 +2177,7 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
    GenerateNCFaceInfo();
 
    last_operation = Mesh::REFINE;
+   sequence++;
 
    if (Nodes) // update/interpolate curved mesh
    {
@@ -2251,6 +2252,7 @@ void ParMesh::Rebalance()
    delete pmesh2;
 
    last_operation = Mesh::REBALANCE;
+   sequence++;
 
    if (Nodes) // redistribute curved mesh
    {

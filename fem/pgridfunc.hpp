@@ -62,9 +62,9 @@ public:
 
    void Update();
 
-   void Update(ParFiniteElementSpace *f);
+   void SetSpace(ParFiniteElementSpace *f);
 
-   void Update(ParFiniteElementSpace *f, Vector &v, int v_offset);
+   void MakeRef(ParFiniteElementSpace *f, Vector &v, int v_offset);
 
    /** Set the grid function on (all) dofs from a given vector on the
        true dofs, i.e. P tv. */

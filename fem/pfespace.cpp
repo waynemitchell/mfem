@@ -1862,6 +1862,11 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 
 void ParFiniteElementSpace::Update(bool want_transform)
 {
+   if (mesh->GetSequence() == sequence)
+   {
+      return; // no need to update, no-op
+   }
+
    FiniteElementSpace::Update(false);
 
    dof_offsets.Copy(old_dof_offsets);
@@ -1893,28 +1898,41 @@ void ParFiniteElementSpace::Update(bool want_transform)
    {
       // calculate new P matrix, dof_offsets, etc.
       GetParallelConformingInterpolation();
+   }
 
-      if (want_transform)
+   if (want_transform)
+   {
+      // calculate appropriate GridFunction transformation
+      switch (mesh->GetLastOperation())
       {
-         // calculate appropriate GridFunction transformation
-         switch (mesh->GetLastOperation())
+         case Mesh::REFINE:
          {
-            case Mesh::REFINE:
-               T = RefinementMatrix();
-               break;
+            T = RefinementMatrix();
+            break;
+         }
 
-            case Mesh::DEREFINE:
+         case Mesh::DEREFINE:
+         {
+            if (Conforming())
+            {
+               T = ParallelDerefinementMatrix();
+            }
+            else
+            {
                T = new TripleProductOperator(P, R, ParallelDerefinementMatrix(),
                                              false, false, true);
-               break;
-
-            case Mesh::REBALANCE:
-               T = RebalanceMatrix();
-               break;
-
-            default:
-               break;
+            }
+            break;
          }
+
+         case Mesh::REBALANCE:
+         {
+            T = RebalanceMatrix();
+            break;
+         }
+
+         default:
+            break;
       }
    }
 }

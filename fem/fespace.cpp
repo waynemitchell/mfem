@@ -1061,19 +1061,24 @@ FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
    fes.fdofs = NULL;
    fes.elem_dof = NULL;
    fes.bdrElem_dof = NULL;
+
+   sequence = fes.sequence;
 }
 
-FiniteElementSpace::FiniteElementSpace(Mesh *m,
-                                       const FiniteElementCollection *f,
+FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
+                                       const FiniteElementCollection *fec,
                                        int vdim, int ordering)
 {
-   mesh = m;
-   fec = f;
+   this->mesh = mesh;
+   this->fec = fec;
    this->vdim = vdim;
    this->ordering = ordering;
+
    elem_dof = NULL;
    old_elem_dof = NULL;
    old_ndofs = 0;
+
+   sequence = mesh->GetSequence();
 
    const NURBSFECollection *nurbs_fec =
       dynamic_cast<const NURBSFECollection *>(fec);
@@ -1617,38 +1622,61 @@ void FiniteElementSpace::Destructor()
 
 void FiniteElementSpace::Update(bool want_transform)
 {
+   if (mesh->GetSequence() == sequence)
+   {
+      return; // mesh and space are in sync, no-op
+   }
+   if (mesh->GetSequence() != sequence + 1)
+   {
+      MFEM_ABORT("Error in update sequence. Space needs to be updated after "
+                 "each mesh modification.");
+   }
+   sequence = mesh->GetSequence();
+
    if (NURBSext)
    {
       UpdateNURBS();
+      return;
    }
-   else
+
+   // keep old elem_dof table for RefineMatrix, RebalanceMatrix, ...
+   delete old_elem_dof;
+   old_elem_dof = elem_dof;
+   elem_dof = NULL;
+
+   old_ndofs = ndofs;
+
+   Destructor();   // keeps RefData
+   Constructor();
+
+   if (want_transform)
    {
-      // keep old elem_dof table for RefineMatrix, RebalanceMatrix, ...
-      delete old_elem_dof;
-      old_elem_dof = elem_dof;
-      elem_dof = NULL;
-
-      old_ndofs = ndofs;
-
-      Destructor();   // keeps RefData
-      Constructor();
-
-      if (Nonconforming() && want_transform) // TODO
+      // calculate appropriate GridFunction trasformation
+      switch (mesh->GetLastOperation())
       {
-         // calculate appropriate GridFunction trasformation
-         switch (mesh->GetLastOperation())
+         case Mesh::REFINE:
          {
-            case Mesh::REFINE:
-               T = RefinementMatrix();
-               break;
-
-            case Mesh::DEREFINE:
-               T = DerefinementMatrix();
-               break;
-
-            default:
-               break; // T stays NULL
+            T = RefinementMatrix();
+            break;
          }
+
+         case Mesh::DEREFINE:
+         {
+            GetConformingInterpolation();
+            if (!cP || !cR)
+            {
+               T = DerefinementMatrix();
+            }
+            else
+            {
+               T = new TripleProductOperator(cP, cR, DerefinementMatrix(),
+                                             false, false, true);
+            }
+            break;
+         }
+
+         default:
+            break; // T stays NULL
       }
    }
 }
@@ -1658,43 +1686,6 @@ FiniteElementSpace *FiniteElementSpace::SaveUpdate()
    FiniteElementSpace *cfes = new FiniteElementSpace(*this);
    Constructor();
    return cfes;
-}
-
-void FiniteElementSpace::UpdateAndInterpolate(int num_grid_fns, ...)
-{
-   if (mesh->GetState() == Mesh::NORMAL)
-   {
-      MFEM_ABORT("Mesh must be in two-level state, please call "
-                 "Mesh::UseTwoLevelState before refining.");
-   }
-
-   FiniteElementSpace *cfes = SaveUpdate();
-
-   // obtain the (transpose of) interpolation matrix between mesh levels
-   SparseMatrix *R = GlobalRestrictionMatrix(cfes, 0);
-
-   delete cfes;
-
-   // interpolate the grid functions
-   std::va_list vl;
-   va_start(vl, num_grid_fns);
-   for (int i = 0; i < num_grid_fns; i++)
-   {
-      GridFunction* gf = va_arg(vl, GridFunction*);
-      if (gf->FESpace() != this)
-      {
-         MFEM_ABORT("Cannot interpolate: grid function is not based "
-                    "on this space.");
-      }
-
-      Vector coarse_gf = *gf;
-      gf->Update();
-      R->MultTranspose(coarse_gf, *gf);
-   }
-   va_end(vl);
-
-   delete R;
-   mesh->SetState(Mesh::TWO_LEVEL_FINE);
 }
 
 void FiniteElementSpace::ConstructRefinementData (int k, int num_c_dofs,

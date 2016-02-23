@@ -125,18 +125,31 @@ GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
    }
 }
 
-GridFunction::~GridFunction()
+void GridFunction::Destroy()
 {
    if (fec)
    {
       delete fes;
       delete fec;
+      fec = NULL;
    }
 }
 
 void GridFunction::Update()
 {
    const Operator *T = fes->UpdateMatrix();
+
+   if (fes->GetSequence() == sequence)
+   {
+      return; // space and grid function are in sync, no-op
+   }
+   if (fes->GetSequence() != sequence + 1)
+   {
+      MFEM_ABORT("Error in update sequence. GridFunction needs to be updated "
+                 "right after the space is updated.");
+   }
+   sequence = fes->GetSequence();
+
    if (T)
    {
       Vector tmp(T->Height());
@@ -145,34 +158,25 @@ void GridFunction::Update()
    }
    else
    {
-      SetSize(fes->GetVSize());
+      SetSpace(fes);
    }
 }
 
-void GridFunction::Update(FiniteElementSpace *f)
+void GridFunction::SetSpace(FiniteElementSpace *f)
 {
-   if (fec)
-   {
-      delete fes;
-      delete fec;
-      fec = NULL;
-   }
+   Destroy();
    fes = f;
    SetSize(fes->GetVSize());
 }
 
-void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
+void GridFunction::MakeRef(FiniteElementSpace *f, Vector &v, int v_offset)
 {
    MFEM_ASSERT(v.Size() >= v_offset + f->GetVSize(), "");
-   if (fec)
-   {
-      delete fes;
-      delete fec;
-      fec = NULL;
-   }
+   Destroy();
    fes = f;
    NewDataAndSize((double *)v + v_offset, fes->GetVSize());
 }
+
 
 void GridFunction::SumFluxAndCount(BilinearFormIntegrator &blfi,
                                    GridFunction &flux,
@@ -2104,7 +2108,7 @@ GridFunction & GridFunction::operator=(const GridFunction &v)
    return this->operator=((const Vector &)v);
 }
 
-void GridFunction::ConformingProlongate(const Vector &x)
+/*void GridFunction::ConformingProlongate(const Vector &x)
 {
    const SparseMatrix *P = fes->GetConformingProlongation();
    if (P)
@@ -2149,7 +2153,7 @@ void GridFunction::ConformingProject()
       ConformingProject(x);
       static_cast<Vector&>(*this) = x;
    }
-}
+}*/
 
 void GridFunction::Save(std::ostream &out) const
 {

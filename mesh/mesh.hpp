@@ -59,6 +59,8 @@ protected:
 
    int meshgen; // see MeshGenerator()
 
+   long sequence; // counter for checking order of Space and GridFunction updates
+
    int c_NumOfVertices, c_NumOfElements, c_NumOfBdrElements;
    int f_NumOfVertices, f_NumOfElements, f_NumOfBdrElements;
    int c_NumOfEdges, c_NumOfFaces;
@@ -814,6 +816,10 @@ public:
        return the transformation that transforms the fine element into the
        coordinate system of the coarse element. Clear, isn't it? :-) */
    ElementTransformation * GetFineElemTrans (int i, int j);
+
+   /** Return update counter (for checking proper sequence of Space::
+       and GridFunction:: Update(). */
+   long GetSequence() const { return sequence; }
 
    /// Print the mesh to the given stream using Netgen/Truegrid format.
    virtual void PrintXG(std::ostream &out = std::cout) const;
