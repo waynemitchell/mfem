@@ -1210,7 +1210,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
       }
       else
       {
-         H1_Elements[Geometry::TRIANGLE] = NULL; // TODO
+         H1_Elements[Geometry::TRIANGLE] = new H1Pos_TriangleElement(p);
          H1_Elements[Geometry::SQUARE] = new H1Pos_QuadrilateralElement(p);
       }
 
@@ -1266,7 +1266,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
          }
          else
          {
-            H1_Elements[Geometry::TETRAHEDRON] = NULL; // TODO
+            H1_Elements[Geometry::TETRAHEDRON] = new H1Pos_TetrahedronElement(p);
             H1_Elements[Geometry::CUBE] = new H1Pos_HexahedronElement(p);
          }
       }
