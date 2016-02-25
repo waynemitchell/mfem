@@ -78,6 +78,9 @@ private:
        given FE space. This is used in SaveUpdate(). */
    ParFiniteElementSpace(ParFiniteElementSpace &pf);
 
+   void Construct();
+   void Destroy();
+
    // ldof_type = 0 : DOFs communicator, otherwise VDOFs communicator
    void GetGroupComm(GroupCommunicator &gcomm, int ldof_type,
                      Array<int> *ldof_sign = NULL);
@@ -250,7 +253,7 @@ public:
    /// Return a copy of the current FE space and update
    virtual FiniteElementSpace *SaveUpdate();
 
-   virtual ~ParFiniteElementSpace() { delete gcomm; delete P; delete R; }
+   virtual ~ParFiniteElementSpace() { Destroy(); }
 
    // Obsolete, kept for backward compatibility
    int TrueVSize() { return ltdof_size; }

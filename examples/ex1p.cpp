@@ -112,15 +112,7 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }*/
-   mesh->EnsureNCMesh();
-   /*{
-      Array<Refinement> refs;
-      refs.Append(Refinement(0));
-      mesh->GeneralRefinement(refs);
-      mesh->GeneralRefinement(refs);
-      mesh->GeneralRefinement(refs);
-   }*/
-   mesh->RandomRefinement(5, 2, false);
+   //mesh->EnsureNCMesh();
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -133,29 +125,9 @@ int main(int argc, char *argv[])
       {
          pmesh->UniformRefinement();
       }*/
-      /*for (int i = 0; i < 3; i++)
-      {
-         Array<Refinement> refs;
-         if (myid == 0)
-         {
-            for (int j = 0; j < pmesh->GetNE(); j++)
-            {
-               if (!(rand() % 2)) { refs.Append(Refinement(j, 7)); }
-            }
-         }
-         pmesh->GeneralRefinement(refs, 1);
-      }*/
-      /*{
-         Array<Refinement> refs;
-         if (myid == 0)
-         {
-            refs.Append(Refinement(0));
-         }
-         pmesh->GeneralRefinement(refs, 1);
-      }*/
    }
    //pmesh->RandomRefinement(3, 2, false, -1, -1, myid);
-   //pmesh->UniformRefinement();
+   pmesh->UniformRefinement();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
@@ -246,50 +218,10 @@ int main(int argc, char *argv[])
    //     local finite element solution on each processor.
    a->RecoverFEMSolution(X, *b, x);
 
-   // 13. Test refinement and interpolation
-/*   pmesh->ncmesh->MarkCoarseLevel();
-   pmesh->RandomRefinement(2, myid+1);
-
-   fespace->Update();
-
-   SparseMatrix* R = fespace->RefinementMatrix();
-   x.Transform(R);
-   delete R;
-
-   // 13. Load balance the mesh, migrate grid functions
-   //
-   pmesh->Rebalance();
-
-   fespace->Update();
-
-   HypreParMatrix *M = fespace->RebalanceMatrix();
-   x.ParallelTransform(M);
-   delete M;*/
-
-   // 13. Test derefinement
-#if 0
-   const Table &dtable = pmesh->GetDerefinementTable();
-   Array<int> derefs;
-   for (int i = 0; i < dtable.Size(); i++)
-   {
-      //if (!(rand() % 2)) { derefs.Append(i); }
-      derefs.Append(i);
-   }
-   pmesh->NonconformingDerefinement(derefs);
-
-   {
-      Mesh dbg;
-      pmesh->pncmesh->GetDebugMesh(dbg);
-
-      char name[100];
-      sprintf(name, "debug%03d.mesh", myid);
-      ofstream f(name);
-      dbg.Print(f);
-   }
-
+   // 13. Test Space/GridFunction update
+   pmesh->UniformRefinement();
    fespace->Update();
    x.Update();
-#endif
 
    // 13. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".

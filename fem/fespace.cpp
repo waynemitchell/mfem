@@ -1110,8 +1110,10 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
    {
       NURBSext = NULL;
       own_ext = 0;
-      Constructor();
+      Construct();
    }
+
+   BuildElementToDofTable();
 }
 
 NURBSExtension *FiniteElementSpace::StealNURBSext()
@@ -1146,7 +1148,7 @@ void FiniteElementSpace::UpdateNURBS()
    bdrElem_dof = NURBSext->GetBdrElementDofTable();
 }
 
-void FiniteElementSpace::Constructor()
+void FiniteElementSpace::Construct()
 {
    int i;
 
@@ -1203,8 +1205,6 @@ void FiniteElementSpace::Constructor()
    }
 
    ndofs = nvdofs + nedofs + nfdofs + nbdofs;
-
-   BuildElementToDofTable();
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
@@ -1588,7 +1588,7 @@ const FiniteElement *FiniteElementSpace::GetTraceElement(
 
 FiniteElementSpace::~FiniteElementSpace()
 {
-   Destructor();
+   Destroy();
    // delete RefData
    for (int i = 0; i < RefData.Size(); i++)
    {
@@ -1597,7 +1597,7 @@ FiniteElementSpace::~FiniteElementSpace()
    delete old_elem_dof;
 }
 
-void FiniteElementSpace::Destructor()
+void FiniteElementSpace::Destroy()
 {
    delete cR;
    delete cP;
@@ -1635,7 +1635,7 @@ void FiniteElementSpace::Update(bool want_transform)
 
    if (NURBSext)
    {
-      UpdateNURBS();
+      UpdateNURBS(); // TODO test
       return;
    }
 
@@ -1646,8 +1646,9 @@ void FiniteElementSpace::Update(bool want_transform)
 
    old_ndofs = ndofs;
 
-   Destructor();   // keeps RefData
-   Constructor();
+   Destroy();   // keeps RefData
+   Construct();
+   BuildElementToDofTable();
 
    if (want_transform)
    {
@@ -1684,7 +1685,8 @@ void FiniteElementSpace::Update(bool want_transform)
 FiniteElementSpace *FiniteElementSpace::SaveUpdate()
 {
    FiniteElementSpace *cfes = new FiniteElementSpace(*this);
-   Constructor();
+   Construct();
+   BuildElementToDofTable();
    return cfes;
 }
 

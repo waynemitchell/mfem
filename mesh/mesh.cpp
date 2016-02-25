@@ -6109,6 +6109,9 @@ void Mesh::QuadUniformRefinement()
       UseTwoLevelState(wtls);
    }
 
+   last_operation = Mesh::REFINE;
+   sequence++;
+
 #ifdef MFEM_DEBUG
    CheckElementOrientation(false);
    CheckBdrElementOrientation(false);
@@ -6334,6 +6337,9 @@ void Mesh::HexUniformRefinement()
       UpdateNodes();
       UseTwoLevelState(wtls);
    }
+
+   last_operation = Mesh::REFINE;
+   sequence++;
 
    //  When 'WantTwoLevelState' is true the coarse level
    //  'be_to_face' and 'faces'

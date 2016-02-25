@@ -107,8 +107,8 @@ protected:
 
    void UpdateNURBS();
 
-   void Constructor();
-   void Destructor();   // does not destroy 'RefData' and 'old_elem_dof'
+   void Construct();
+   void Destroy();   // does not destroy 'RefData' and 'old_elem_dof'
 
    /* Create a FE space stealing all data (except RefData) from the
       given FE space. This is used in SaveUpdate() */

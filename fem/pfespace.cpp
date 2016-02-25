@@ -64,15 +64,13 @@ ParFiniteElementSpace::ParFiniteElementSpace(
 
    P = NULL;
    R = NULL;
+   gcomm = NULL;
 
-   if (Nonconforming())
-   {
-      gcomm = NULL;
-      // needed here to initialize DOF offsets etc.
-      GetParallelConformingInterpolation();
-      return;
-   }
+   Construct();
+}
 
+void ParFiniteElementSpace::Construct()
+{
    if (NURBSext)
    {
       if (own_ext)
@@ -86,15 +84,19 @@ ParFiniteElementSpace::ParFiniteElementSpace(
          NURBSext = pNe;
          UpdateNURBS();
       }
-
       ConstructTrueNURBSDofs();
+      GenerateGlobalOffsets();
    }
-   else
+   else if (Conforming())
    {
       ConstructTrueDofs();
+      GenerateGlobalOffsets();
    }
-
-   GenerateGlobalOffsets();
+   else // Nonconforming()
+   {
+      // get P matrix and also initialize DOF offsets etc.
+      GetParallelConformingInterpolation();
+   }
 }
 
 void ParFiniteElementSpace::GetGroupComm(
@@ -1551,6 +1553,7 @@ static HYPRE_Int* make_j_array(HYPRE_Int* I, int nrows)
 
 HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
 {
+   MFEM_VERIFY(Nonconforming(), "Only supported for nonconforming meshes.");
    MFEM_VERIFY(old_dof_offsets.Size(), "ParFiniteElementSpace::Update needs to "
                "be called before ParFiniteElementSpace::RebalanceMatrix");
 
@@ -1859,18 +1862,8 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    return R;
 }
 
-
-void ParFiniteElementSpace::Update(bool want_transform)
+void ParFiniteElementSpace::Destroy()
 {
-   if (mesh->GetSequence() == sequence)
-   {
-      return; // no need to update, no-op
-   }
-
-   FiniteElementSpace::Update(false);
-
-   dof_offsets.Copy(old_dof_offsets);
-
    ldof_group.DeleteAll();
    ldof_ltdof.DeleteAll();
    dof_offsets.DeleteAll();
@@ -1888,17 +1881,44 @@ void ParFiniteElementSpace::Update(bool want_transform)
    face_nbr_ldof.Clear();
    face_nbr_glob_dof_map.DeleteAll();
    send_face_nbr_ldof.Clear();
+}
 
-   if (Conforming())
+void ParFiniteElementSpace::Update(bool want_transform)
+{
+   if (mesh->GetSequence() == sequence)
    {
-      ConstructTrueDofs();
-      GenerateGlobalOffsets();
+      return; // no need to update, no-op
    }
-   else
+   if (mesh->GetSequence() != sequence + 1)
    {
-      // calculate new P matrix, dof_offsets, etc.
-      GetParallelConformingInterpolation();
+      MFEM_ABORT("Error in update sequence. Space needs to be updated after "
+                 "each mesh modification.");
    }
+   sequence = mesh->GetSequence();
+
+   if (NURBSext)
+   {
+      UpdateNURBS(); // TODO test
+      return;
+   }
+
+   // keep old elem_dof table for RefineMatrix, RebalanceMatrix, ...
+   delete old_elem_dof;
+   old_elem_dof = elem_dof;
+   elem_dof = NULL;
+
+   old_ndofs = ndofs;
+
+   // save old offsets
+   dof_offsets.Copy(old_dof_offsets);
+
+   Destroy();
+   FiniteElementSpace::Destroy();
+
+   FiniteElementSpace::Construct();
+   Construct();
+
+   BuildElementToDofTable();
 
    if (want_transform)
    {
@@ -1940,19 +1960,14 @@ void ParFiniteElementSpace::Update(bool want_transform)
 FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
 {
    ParFiniteElementSpace *cpfes = new ParFiniteElementSpace(*this);
-   Constructor();
-   if (Conforming())
-   {
-      ConstructTrueDofs();
-      GenerateGlobalOffsets();
-   }
-   else
-   {
-      GetParallelConformingInterpolation();
-   }
+
+   FiniteElementSpace::Construct();
+   Construct();
+
+   BuildElementToDofTable();
    return cpfes;
 }
 
-}
+} // namespace mfem
 
 #endif
