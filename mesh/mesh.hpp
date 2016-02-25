@@ -115,6 +115,9 @@ protected:
    IsoparametricTransformation FaceTransformation, EdgeTransformation;
    FaceElementTransformations FaceElemTr;
 
+   // refinement embeddings for forward-compatibility with NCMesh
+   NCMesh::FineTransforms fine_transforms;
+
    // Nodes are only active for higher order meshes, and share locations with
    // the vertices, plus all the higher- order control points within the
    // element and along the edges and on the faces.
@@ -502,10 +505,10 @@ public:
 
    int GetFaceBaseGeometry(int i) const;
 
-   int GetElementBaseGeometry(int i = -1) const
+   int GetElementBaseGeometry(int i = 0) const
    { return i < GetNE() ? elements[i]->GetGeometryType() : BaseGeom; }
 
-   int GetBdrElementBaseGeometry(int i = -1) const
+   int GetBdrElementBaseGeometry(int i = 0) const
    { return i < GetNBE() ? boundary[i]->GetGeometryType() : BaseBdrGeom; }
 
    /// Returns the indices of the dofs of element i.
@@ -816,6 +819,9 @@ public:
        return the transformation that transforms the fine element into the
        coordinate system of the coarse element. Clear, isn't it? :-) */
    ElementTransformation * GetFineElemTrans (int i, int j);
+
+   const NCMesh::FineTransforms &GetFineTransforms() const
+   { return fine_transforms; }
 
    /** Return update counter (for checking proper sequence of Space::
        and GridFunction:: Update(). */

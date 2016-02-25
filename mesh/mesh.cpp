@@ -6062,6 +6062,24 @@ void Mesh::QuadUniformRefinement()
       v[1] = oedge+be_to_edge[i];
    }
 
+   static double point_mats[2*4*4] =
+   {
+      0.0,0.0, 0.5,0.0, 0.5,0.5, 0.0,0.5, // lower-left
+      0.5,0.0, 1.0,0.0, 1.0,0.5, 0.5,0.5, // lower-right
+      0.5,0.5, 1.0,0.5, 1.0,1.0, 0.5,1.0, // upper-right
+      0.0,0.5, 0.5,0.5, 0.5,1.0, 0.0,1.0  // upper-left
+   };
+
+   fine_transforms.point_matrices.UseExternalData(point_mats, 2, 4, 4);
+   fine_transforms.fine_coarse.SetSize(elements.Size());
+
+   for (i = 0; i < elements.Size(); i++)
+   {
+      NCMesh::Embedding &emb = fine_transforms.fine_coarse[i];
+      emb.coarse_element = (i < NumOfElements) ? i : (i - NumOfElements) / 3;
+      emb.matrix         = (i < NumOfElements) ? 0 : (i - NumOfElements) % 3 + 1;
+   }
+
    if (WantTwoLevelState)
    {
       c_NumOfVertices    = NumOfVertices;

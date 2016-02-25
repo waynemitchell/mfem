@@ -220,7 +220,8 @@ int main(int argc, char *argv[])
 
    // 13. Test Space/GridFunction update
    pmesh->UniformRefinement();
-   fespace->Update();
+   x.Update();
+   pmesh->UniformRefinement();
    x.Update();
 
    // 13. Save the refined mesh and the solution in parallel. This output can

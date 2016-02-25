@@ -849,71 +849,68 @@ int FiniteElementSpace::GetNConformingDofs()
 
 SparseMatrix* FiniteElementSpace::RefinementMatrix()
 {
+   MFEM_VERIFY(mesh->GetLastOperation() == Mesh::REFINE, "");
+   MFEM_VERIFY(ndofs >= old_ndofs, "Previous space is not coarser.");
+
    Array<int> dofs, old_dofs, old_vdofs;
    LinearFECollection linfec;
    Vector row;
 
-   if (Nonconforming())
+   const NCMesh::FineTransforms &rt =
+      Nonconforming() ? mesh->ncmesh->GetRefinementTransforms()
+      /*           */ : mesh->GetFineTransforms();
+
+   int geom = mesh->GetElementBaseGeometry();
+   const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
+
+   IsoparametricTransformation trans;
+   trans.SetFE(linfec.FiniteElementForGeometry(geom));
+
+   int nmat = rt.point_matrices.SizeK();
+   int ldof = fe->GetDof();
+
+   // calculate local interpolation matrices for all refinement types
+   DenseTensor localP(ldof, ldof, nmat);
+   for (int i = 0; i < nmat; i++)
    {
-      const NCMesh::FineTransforms &rt = mesh->ncmesh->GetRefinementTransforms();
+      trans.GetPointMat() = rt.point_matrices(i);
+      fe->GetLocalInterpolation(trans, localP(i));
+   }
 
-      int geom = mesh->ncmesh->GetElementGeometry();
-      const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
+   SparseMatrix *P = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
 
-      IsoparametricTransformation trans;
-      trans.SetFE(linfec.FiniteElementForGeometry(geom));
+   Array<char> mark(P->Height());
+   mark = 0;
+   for (int k = 0; k < mesh->GetNE(); k++)
+   {
+      const NCMesh::Embedding &emb = rt.fine_coarse[k];
+      DenseMatrix &lP = localP(emb.matrix);
 
-      int nmat = rt.point_matrices.SizeK();
-      int ldof = fe->GetDof();
+      elem_dof->GetRow(k, dofs);
+      old_elem_dof->GetRow(emb.coarse_element, old_dofs);
 
-      // calculate local interpolation matrices for all refinement types
-      DenseTensor localP(ldof, ldof, nmat);
-      for (int i = 0; i < nmat; i++)
+      for (int vd = 0; vd < vdim; vd++)
       {
-         trans.GetPointMat() = rt.point_matrices(i);
-         fe->GetLocalInterpolation(trans, localP(i));
-      }
+         old_dofs.Copy(old_vdofs);
+         DofsToVDofs(vd, old_vdofs, old_ndofs);
 
-      SparseMatrix *P = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
-
-      Array<char> mark(P->Height());
-      mark = 0;
-      for (int k = 0; k < mesh->GetNE(); k++)
-      {
-         const NCMesh::Embedding &emb = rt.fine_coarse[k];
-         DenseMatrix &lP = localP(emb.matrix);
-
-         elem_dof->GetRow(k, dofs);
-         old_elem_dof->GetRow(emb.coarse_element, old_dofs);
-
-         for (int vd = 0; vd < vdim; vd++)
+         for (int i = 0; i < ldof; i++)
          {
-            old_dofs.Copy(old_vdofs);
-            DofsToVDofs(vd, old_vdofs, old_ndofs);
+            int r = DofToVDof(dofs[i], vd);
+            int m = (r >= 0) ? r : (-1 - r);
 
-            for (int i = 0; i < ldof; i++)
+            if (!mark[m])
             {
-               int r = DofToVDof(dofs[i], vd);
-               int m = (r >= 0) ? r : (-1 - r);
-
-               if (!mark[m])
-               {
-                  lP.GetRow(i, row);
-                  P->SetRow(r, old_vdofs, row);
-                  mark[m] = 1;
-               }
+               lP.GetRow(i, row);
+               P->SetRow(r, old_vdofs, row);
+               mark[m] = 1;
             }
          }
       }
+   }
 
-      P->Finalize();
-      return P;
-   }
-   else
-   {
-      MFEM_ABORT("Not implemented yet."); // TODO
-      return NULL;
-   }
+   P->Finalize();
+   return P;
 }
 
 void InvertLinearTrans(IsoparametricTransformation &trans,

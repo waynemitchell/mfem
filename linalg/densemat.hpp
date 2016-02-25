@@ -572,13 +572,23 @@ private:
    DenseMatrix Mk;
    double *tdata;
    int nk;
+   bool own_data;
 
 public:
-   DenseTensor() { nk = 0; tdata = NULL; }
+   DenseTensor()
+   {
+      nk = 0;
+      tdata = NULL;
+      own_data = true;
+   }
 
    DenseTensor(int i, int j, int k)
       : Mk(NULL, i, j)
-   { nk = k; tdata = new double[i*j*k]; }
+   {
+      nk = k;
+      tdata = new double[i*j*k];
+      own_data = true;
+   }
 
    int SizeI() const { return Mk.Height(); }
    int SizeJ() const { return Mk.Width(); }
@@ -586,10 +596,19 @@ public:
 
    void SetSize(int i, int j, int k)
    {
-      delete [] tdata;
+      if (own_data) { delete [] tdata; }
       Mk.UseExternalData(NULL, i, j);
       nk = k;
       tdata = new double[i*j*k];
+   }
+
+   void UseExternalData(double *ext_data, int i, int j, int k)
+   {
+      if (own_data) { delete [] tdata; }
+      Mk.UseExternalData(NULL, i, j);
+      nk = k;
+      tdata = ext_data;
+      own_data = false;
    }
 
    DenseMatrix &operator()(int k) { Mk.data = GetData(k); return Mk; }
@@ -609,7 +628,10 @@ public:
        'x' and 'y' use the same elem_dof table. */
    void AddMult(const Table &elem_dof, const Vector &x, Vector &y) const;
 
-   ~DenseTensor() { delete [] tdata; }
+   ~DenseTensor()
+   {
+      if (own_data) { delete [] tdata; }
+   }
 };
 
 
@@ -617,28 +639,16 @@ public:
 
 inline double &DenseMatrix::operator()(int i, int j)
 {
-#ifdef MFEM_DEBUG
-   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
-   {
-      mfem_error("DenseMatrix::operator()");
-   }
-#endif
-
+   MFEM_ASSERT(data && i >= 0 && i < height && j >= 0 && j < width, "");
    return data[i+j*height];
 }
 
 inline const double &DenseMatrix::operator()(int i, int j) const
 {
-#ifdef MFEM_DEBUG
-   if ( data == 0 || i < 0 || i >= height || j < 0 || j >= width )
-   {
-      mfem_error("DenseMatrix::operator() const");
-   }
-#endif
-
+   MFEM_ASSERT(data && i >= 0 && i < height && j >= 0 && j < width, "");
    return data[i+j*height];
 }
 
-}
+} // namespace mfem
 
 #endif
