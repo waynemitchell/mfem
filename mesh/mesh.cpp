@@ -6062,7 +6062,7 @@ void Mesh::QuadUniformRefinement()
       v[1] = oedge+be_to_edge[i];
    }
 
-   static double point_mats[2*4*4] =
+   static double quad_children[2*4*4] =
    {
       0.0,0.0, 0.5,0.0, 0.5,0.5, 0.0,0.5, // lower-left
       0.5,0.0, 1.0,0.0, 1.0,0.5, 0.5,0.5, // lower-right
@@ -6070,7 +6070,7 @@ void Mesh::QuadUniformRefinement()
       0.0,0.5, 0.5,0.5, 0.5,1.0, 0.0,1.0  // upper-left
    };
 
-   fine_transforms.point_matrices.UseExternalData(point_mats, 2, 4, 4);
+   fine_transforms.point_matrices.UseExternalData(quad_children, 2, 4, 4);
    fine_transforms.fine_coarse.SetSize(elements.Size());
 
    for (i = 0; i < elements.Size(); i++)
@@ -6285,6 +6285,34 @@ void Mesh::HexUniformRefinement()
       v[1] = oedge+e[0];
       v[2] = oface+f[0];
       v[3] = oedge+e[3];
+   }
+
+   #define A 0.0
+   #define B 0.5
+   #define C 1.0
+   static double hex_children[3*8*8] =
+   {
+      A,A,A, B,A,A, B,B,A, A,B,A, A,A,B, B,A,B, B,B,B, A,B,B,
+      B,A,A, C,A,A, C,B,A, B,B,A, B,A,B, C,A,B, C,B,B, B,B,B,
+      B,B,A, C,B,A, C,C,A, B,C,A, B,B,B, C,B,B, C,C,B, B,C,B,
+      A,B,A, B,B,A, B,C,A, A,C,A, A,B,B, B,B,B, B,C,B, A,C,B,
+      A,A,B, B,A,B, B,B,B, A,B,B, A,A,C, B,A,C, B,B,C, A,B,C,
+      B,A,B, C,A,B, C,B,B, B,B,B, B,A,C, C,A,C, C,B,C, B,B,C,
+      B,B,B, C,B,B, C,C,B, B,C,B, B,B,C, C,B,C, C,C,C, B,C,C,
+      A,B,B, B,B,B, B,C,B, A,C,B, A,B,C, B,B,C, B,C,C, A,C,C
+   };
+   #undef A
+   #undef B
+   #undef C
+
+   fine_transforms.point_matrices.UseExternalData(hex_children, 3, 8, 8);
+   fine_transforms.fine_coarse.SetSize(elements.Size());
+
+   for (i = 0; i < elements.Size(); i++)
+   {
+      NCMesh::Embedding &emb = fine_transforms.fine_coarse[i];
+      emb.coarse_element = (i < NumOfElements) ? i : (i - NumOfElements) / 7;
+      emb.matrix         = (i < NumOfElements) ? 0 : (i - NumOfElements) % 7 + 1;
    }
 
    if (WantTwoLevelState)
