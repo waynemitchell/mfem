@@ -24,9 +24,7 @@ void Tetrahedron::ParseRefinementFlag(int refinement_edges[2], int &type,
 {
    int i, f = refinement_flag;
 
-   if (f == 0)
-      mfem_error("Tetrahedron::ParseRefinementFlag :"
-                 " tetrahedron is not marked");
+   MFEM_VERIFY(f != 0, "tetrahedron is not marked");
 
    for (i = 0; i < 2; i++)
    {
@@ -92,15 +90,15 @@ void Tetrahedron::CreateRefinementFlag(int refinement_edges[2], int type,
 #endif
 
    refinement_flag = flag;
-   refinement_flag = refinement_flag << 3;
+   refinement_flag <<= 3;
 
-   refinement_flag = refinement_flag | type;
-   refinement_flag = refinement_flag << 3;
+   refinement_flag |= type;
+   refinement_flag <<= 3;
 
-   refinement_flag = refinement_flag | refinement_edges[1];
-   refinement_flag = refinement_flag << 3;
+   refinement_flag |= refinement_edges[1];
+   refinement_flag <<= 3;
 
-   refinement_flag = refinement_flag | refinement_edges[0];
+   refinement_flag |= refinement_edges[0];
 }
 
 Tetrahedron::Tetrahedron(const int *ind, int attr)

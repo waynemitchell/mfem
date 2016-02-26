@@ -7211,12 +7211,8 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
 
       // 1. Get the index for the new vertex in v_new.
       bisect = v_to_v(vert[0], vert[1]);
-#ifdef MFEM_DEBUG
-      if (bisect < 0)
-      {
-         mfem_error("Mesh::Bisection(...) of triangle! #1");
-      }
-#endif
+      MFEM_ASSERT(bisect >= 0, "");
+
       if (middle[bisect] == -1)
       {
          v_new = NumOfVertices++;
@@ -7270,12 +7266,8 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       if (v[1][0] < v_to_v.NumberOfRows() && v[1][1] < v_to_v.NumberOfRows())
       {
          bisect = v_to_v(v[1][0], v[1][1]);
-#ifdef MFEM_DEBUG
-         if (bisect < 0)
-         {
-            mfem_error("Mesh::Bisection(...) of triangle! #2");
-         }
-#endif
+         MFEM_ASSERT(bisect >= 0, "");
+
          if (edge1[bisect] == i)
          {
             edge1[bisect] = NumOfElements;
@@ -7292,9 +7284,8 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       int j, type, new_type, old_redges[2], new_redges[2][2], flag;
       Tetrahedron *tet = (Tetrahedron *) pce[0];
 
-      if (tet->GetRefinementFlag() == 0)
-         mfem_error("Mesh::Bisection : TETRAHEDRON element is not marked for "
-                    "refinement.");
+      MFEM_VERIFY(tet->GetRefinementFlag() != 0,
+                  "TETRAHEDRON element is not marked for refinement.");
 
       vert = tet->GetVertices();
 
@@ -7415,7 +7406,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
    }
    else
    {
-      mfem_error("Bisection for now works only for triangles & tetrahedra.");
+      MFEM_ABORT("Bisection for now works only for triangles & tetrahedra.");
    }
 }
 
@@ -7454,19 +7445,9 @@ void Mesh::Bisection(int i, const DSTable &v_to_v, int *middle)
 
       // 1. Get the index for the new vertex in v_new.
       bisect = v_to_v(vert[0], vert[1]);
-#ifdef MFEM_DEBUG
-      if (bisect < 0)
-      {
-         mfem_error("Mesh::Bisection(...) of boundary triangle! #1");
-      }
-#endif
+      MFEM_ASSERT(bisect >= 0, "");
       v_new = middle[bisect];
-#ifdef MFEM_DEBUG
-      if (v_new == -1)
-      {
-         mfem_error("Mesh::Bisection(...) of boundary triangle! #2");
-      }
-#endif
+      MFEM_ASSERT(v_new != -1, "");
 
       // 2. Set the node indices for the new elements in v[0] and v[1] so that
       //    the  edge marked for refinement is between the first two nodes.
@@ -7495,7 +7476,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v, int *middle)
    }
    else
    {
-      mfem_error("Bisection of boundary elements works only for triangles!");
+      MFEM_ABORT("Bisection of boundary elements works only for triangles!");
    }
 }
 
@@ -7514,14 +7495,10 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
       bisect[0] = v_to_v(v[0],v[1]);
       bisect[1] = v_to_v(v[1],v[2]);
       bisect[2] = v_to_v(v[0],v[2]);
-#ifdef MFEM_DEBUG
-      if (bisect[0] < 0 || bisect[1] < 0 || bisect[2] < 0)
-      {
-         mfem_error("Mesh::UniformRefinement(...): ERROR");
-      }
-#endif
+      MFEM_ASSERT(bisect[0] >= 0 && bisect[1] >= 0 && bisect[2] >= 0, "");
 
       for (j = 0; j < 3; j++)                // for the 3 edges fix v_new
+      {
          if (middle[bisect[j]] == -1)
          {
             v_new[j] = NumOfVertices++;
@@ -7547,6 +7524,7 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
             // This edge will require no more refinement.
             edge1[bisect[j]] = -1;
          }
+      }
 
       // 2. Set the node indeces for the new elements in v1, v2, v3 & v4 so that
       //    the edges marked for refinement be between the first two nodes.
@@ -7576,7 +7554,7 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
    }
    else
    {
-      mfem_error("Uniform refinement for now works only for triangles.");
+      MFEM_ABORT("Uniform refinement for now works only for triangles.");
    }
 }
 

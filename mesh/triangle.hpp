@@ -43,7 +43,7 @@ public:
    virtual void SetVertices(const int *ind);
 
    /** Reorder the vertices so that the longest edge is from vertex 0
-       to vertex 0. If called it should be once from the mesh constructor,
+       to vertex 1. If called it should be once from the mesh constructor,
        because the order may be used later for setting the edges. **/
    virtual void MarkEdge(DenseMatrix & pmat);
 
