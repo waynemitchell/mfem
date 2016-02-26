@@ -204,22 +204,6 @@ public:
    /// Free all data created by the above functions.
    void ClearTransforms();
 
-   // Obsolete, to be removed.
-   struct FineTransform
-   {
-      int coarse_index; ///< coarse Mesh element index
-      DenseMatrix point_matrix; ///< for use in IsoparametricTransformation
-
-      /// As an optimization, identity transform is "stored" as empty matrix.
-      bool IsIdentity() const { return !point_matrix.Data(); }
-   };
-
-   // Obsolete, to be removed.
-   void ClearCoarseLevel() { coarse_elements.DeleteAll(); }
-
-   // Obsolete, to be removed.
-   FineTransform* GetFineTransforms();
-
 
    // utility
 
@@ -672,10 +656,6 @@ protected: // implementation
 
    void InitDerefTransforms();
    void SetDerefMatrixCodes(Element* parent, Array<Element*> &coarse);
-
-   // to be removed
-   void GetFineTransforms(Element* elem, int coarse_index,
-                          FineTransform *transforms, const PointMatrix &pm);
 
 
    // utility
