@@ -177,6 +177,8 @@ public:
    {
       int coarse_element; ///< element index in the coarse mesh
       int matrix;         ///< index into FineTransforms::point_matrices
+
+      Embedding(int elem) : coarse_element(elem), matrix(0) {}
    };
 
    /// Defines the embedding of each fine element inside a coarse element.

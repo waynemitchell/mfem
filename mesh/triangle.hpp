@@ -26,6 +26,8 @@ protected:
    int indices[3];
    static const int edges[3][2];
 
+   unsigned transform;
+
 public:
 
    Triangle() : Element(Geometry::TRIANGLE) { }
@@ -49,6 +51,13 @@ public:
 
    /// Mark the longest edge by assuming/changing the order of the vertices.
    virtual void MarkEdge(const DSTable &v_to_v, const int *length);
+
+   ///
+   void ResetTransform() { transform = 0; }
+   void PushTransform(int tr) { transform = (transform << 3) | (tr + 1); }
+   int GetTransform() const { return transform; }
+
+   static void GetPointMatrix(int tr, DenseMatrix &pm);
 
    /// Return element's type.
    virtual int GetType() const { return Element::TRIANGLE; }

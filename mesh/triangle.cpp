@@ -9,7 +9,6 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-
 #include "mesh_headers.hpp"
 
 namespace mfem
@@ -24,6 +23,7 @@ Triangle::Triangle(const int *ind, int attr) : Element(Geometry::TRIANGLE)
    {
       indices[i] = ind[i];
    }
+   ResetTransform();
 }
 
 Triangle::Triangle(int ind1, int ind2, int ind3, int attr)
@@ -33,6 +33,7 @@ Triangle::Triangle(int ind1, int ind2, int ind3, int attr)
    indices[0] = ind1;
    indices[1] = ind2;
    indices[2] = ind3;
+   ResetTransform();
 }
 
 int Triangle::NeedRefinement(DSTable &v_to_v, int *middle) const
@@ -122,6 +123,68 @@ void Triangle::MarkEdge(const DSTable &v_to_v, const int *length)
    }
 }
 
+void Triangle::GetPointMatrix(int tr, DenseMatrix &pm)
+{
+   double &a0 = pm(0,0), &b0 = pm(0,1), &c0 = pm(0,2);
+   double &a1 = pm(1,0), &b1 = pm(1,1), &c1 = pm(1,2);
+
+   // initialize to identity
+   a0 = 0.0; a1 = 0.0;
+   b0 = 1.0; b1 = 0.0;
+   c0 = 0.0; c1 = 1.0;
+
+   int chain[12], n = 0;
+   while (tr)
+   {
+      chain[n++] = (tr & 7) - 1;
+      tr >>= 3;
+   }
+
+   double d0, d1, e0, e1, f0, f1;
+   #define AVG(a, b) ((a) + (b))*0.5
+
+   while (n)
+   {
+      switch (chain[--n])
+      {
+         case 0:
+            b0 = AVG(a0, b0); b1 = AVG(a1, b1);
+            c0 = AVG(a0, c0); c1 = AVG(a1, c1);
+            break;
+
+         case 1:
+            a0 = AVG(a0, b0); a1 = AVG(a1, b1);
+            c0 = AVG(b0, c0); c1 = AVG(b1, c1);
+            break;
+
+         case 2:
+            a0 = AVG(a0, c0); a1 = AVG(a1, c1);
+            b0 = AVG(b0, c0); b1 = AVG(b1, c1);
+            break;
+
+         case 3:
+            d0 = AVG(a0, b0); d1 = AVG(a1, b1);
+            e0 = AVG(b0, c0); e1 = AVG(b1, c1);
+            f0 = AVG(c0, a0); f1 = AVG(c1, a1);
+            a0 = e0; a1 = e1;
+            b0 = f0; b1 = f1;
+            c0 = d0; c1 = d1;
+            break;
+
+         case 4:
+            b0 = AVG(a0, b0); b1 = AVG(a1, b1);
+            break;
+
+         case 5:
+            a0 = AVG(a0, b0); a1 = AVG(a1, b1);
+            break;
+
+         default:
+            MFEM_ABORT("Invalid transform.");
+      }
+   }
+}
+
 void Triangle::GetVertices(Array<int> &v) const
 {
    v.SetSize(3);
@@ -133,4 +196,4 @@ void Triangle::GetVertices(Array<int> &v) const
 
 Linear2DFiniteElement TriangleFE;
 
-}
+} // namespace mfem

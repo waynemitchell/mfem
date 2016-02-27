@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
       //     The interpolation algorithm needs the mesh to hold some information
       //     about the previous state, which is why the call UseTwoLevelState
       //     above is required.
-      fespace.UpdateAndInterpolate(&x);
+      x.Update();
 
       // Note: If interpolation was not needed, we could just use the following
       //     two calls to update the space and the grid function. (No need to

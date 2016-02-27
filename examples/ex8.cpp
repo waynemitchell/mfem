@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
    }
 
    GridFunction x0;
-   x0.Update(x0_space, x.GetBlock(x0_var), 0);
+   x0.MakeRef(x0_space, x.GetBlock(x0_var), 0);
 
    // 11. Save the refined mesh and the solution. This output can be viewed
    //     later using GLVis: "glvis -m refined.mesh -g sol.gf".

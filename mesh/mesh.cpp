@@ -5962,8 +5962,11 @@ void Mesh::AverageVertices(int * indexes, int n, int result)
 
 void Mesh::UpdateNodes()
 {
-   MFEM_ABORT("TODO");
-   //Nodes->FESpace()->UpdateAndInterpolate(Nodes);
+   if (Nodes)
+   {
+      Nodes->FESpace()->Update();
+      Nodes->Update();
+   }
 }
 
 void Mesh::QuadUniformRefinement()
@@ -6486,6 +6489,14 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
          edge1[i] = edge2[i] = middle[i] = -1;
       }
 
+      fine_transforms.fine_coarse.SetSize(NumOfElements);
+      for (i = 0; i < NumOfElements; i++)
+      {
+         MFEM_ASSERT(elements[i]->GetType() == Element::TRIANGLE, "");
+         ((Triangle*) elements[i])->ResetTransform();
+         fine_transforms.fine_coarse[i].coarse_element = i;
+      }
+
       for (i = 0; i < NumOfElements; i++)
       {
          elements[i]->GetVertices(v);
@@ -6761,6 +6772,9 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
 
    } //  end 'if (Dim == 3)'
+
+   last_operation = Mesh::REFINE;
+   sequence++;
 
    if (Nodes)  // curved mesh
    {
@@ -7260,7 +7274,12 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       {
          tri->SetVertices(v[0]);   // changes vert[0..2] !!!
       }
-      elements.Append(new Triangle(v[1], tri->GetAttribute()));
+      Triangle* tri_new = new Triangle(v[1], tri->GetAttribute());
+      elements.Append(tri_new);
+
+      // record the sequence of refinements
+      tri->PushTransform(4);
+      tri_new->PushTransform(5);
 
       // 3. edge1 and edge2 may have to be changed for the second triangle.
       if (v[1][0] < v_to_v.NumberOfRows() && v[1][1] < v_to_v.NumberOfRows())
@@ -7489,7 +7508,8 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
 
    if (elements[i]->GetType() == Element::TRIANGLE)
    {
-      elements[i]->GetVertices(v);
+      Triangle *tri0 = (Triangle*) elements[i];
+      tri0->GetVertices(v);
 
       // 1. Get the indeces for the new vertices in array v_new
       bisect[0] = v_to_v(v[0],v[1]);
@@ -7533,13 +7553,17 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
       v3[0] = v_new[2]; v3[1] = v_new[1]; v3[2] =     v[2];
       v4[0] = v_new[1]; v4[1] = v_new[2]; v4[2] = v_new[0];
 
-      elements.Append(new Triangle(v1, elements[i]->GetAttribute()));
-      elements.Append(new Triangle(v2, elements[i]->GetAttribute()));
-      elements.Append(new Triangle(v3, elements[i]->GetAttribute()));
+      Triangle* tri1 = new Triangle(v1, tri0->GetAttribute());
+      Triangle* tri2 = new Triangle(v2, tri0->GetAttribute());
+      Triangle* tri3 = new Triangle(v3, tri0->GetAttribute());
+
+      elements.Append(tri1);
+      elements.Append(tri2);
+      elements.Append(tri3);
       if (WantTwoLevelState)
       {
-         QuadrisectedElement *aux = new QuadrisectedElement(elements[i]);
-         aux->FirstChild = new Triangle(v4, elements[i]->GetAttribute());
+         QuadrisectedElement *aux = new QuadrisectedElement(tri0);
+         aux->FirstChild = new Triangle(v4, tri0->GetAttribute());
          aux->Child2 = NumOfElements;
          aux->Child3 = NumOfElements+1;
          aux->Child4 = NumOfElements+2;
@@ -7547,8 +7571,19 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
       }
       else
       {
-         elements[i]->SetVertices(v4);
+         tri0->SetVertices(v4);
       }
+
+      // record the sequence of refinements
+      tri0->PushTransform(3);
+      tri1->PushTransform(0);
+      tri2->PushTransform(1);
+      tri3->PushTransform(2);
+
+      fine_transforms.fine_coarse[i].coarse_element = i;
+      fine_transforms.fine_coarse.Append(NCMesh::Embedding(i));
+      fine_transforms.fine_coarse.Append(NCMesh::Embedding(i));
+      fine_transforms.fine_coarse.Append(NCMesh::Embedding(i));
 
       NumOfElements += 3;
    }
@@ -8310,6 +8345,38 @@ ElementTransformation * Mesh::GetFineElemTrans(int i, int j)
    }
 
    return &Transformation;  // no refinement
+}
+
+const NCMesh::FineTransforms& Mesh::GetFineTransforms()
+{
+   if (BaseGeom == Geometry::TRIANGLE)
+   {
+      std::map<int, int> mat_no;
+      mat_no[0] = 1; // identity
+
+      for (int i = 0; i < elements.Size(); i++)
+      {
+         int code = ((Triangle*) elements[i])->GetTransform();
+         int &matrix = mat_no[code];
+         if (!matrix) { matrix = mat_no.size(); }
+         fine_transforms.fine_coarse[i].matrix = matrix - 1;
+      }
+
+      DenseTensor &matrices = fine_transforms.point_matrices;
+      matrices.SetSize(2, 3, mat_no.size());
+
+      std::map<int, int>::iterator it;
+      for (it = mat_no.begin(); it != mat_no.end(); ++it)
+      {
+         Triangle::GetPointMatrix(it->first, matrices(it->second-1));
+      }
+   }
+   else if (BaseGeom == Geometry::TETRAHEDRON)
+   {
+      MFEM_ABORT("TODO");
+   }
+   // NOTE: quads and hexes already have trivial point matrices ready
+   return fine_transforms;
 }
 
 void Mesh::PrintXG(std::ostream &out) const
