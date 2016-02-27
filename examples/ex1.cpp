@@ -187,8 +187,8 @@ int main(int argc, char *argv[])
    sol_ofs.precision(8);
    x.Save(sol_ofs);
 
-   mesh->UniformRefinement();
-   x.Update();
+   /*mesh->UniformRefinement();
+   x.Update();*/
 
    mesh->RandomRefinement(1);
    x.Update();

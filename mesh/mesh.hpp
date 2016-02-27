@@ -207,6 +207,8 @@ protected:
        vertices[result]. */
    void AverageVertices (int * indexes, int n, int result);
 
+   int FindCoarseElement(int i);
+
    /// Update the nodes of a curved mesh after refinement
    void UpdateNodes();
 

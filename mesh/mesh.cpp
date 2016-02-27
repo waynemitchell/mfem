@@ -6521,11 +6521,13 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       {
          need_refinement = 0;
          for (i = 0; i < nedges; i++)
+         {
             if (middle[i] != -1 && edge1[i] != -1)
             {
                need_refinement = 1;
                GreenRefinement(edge1[i], v_to_v, edge1, edge2, middle);
             }
+         }
       }
       while (need_refinement == 1);
 
@@ -7281,6 +7283,10 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       tri->PushTransform(4);
       tri_new->PushTransform(5);
 
+      int coarse = FindCoarseElement(i);
+      fine_transforms.fine_coarse[i].coarse_element = coarse;
+      fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
+
       // 3. edge1 and edge2 may have to be changed for the second triangle.
       if (v[1][0] < v_to_v.NumberOfRows() && v[1][1] < v_to_v.NumberOfRows())
       {
@@ -7580,10 +7586,11 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
       tri2->PushTransform(1);
       tri3->PushTransform(2);
 
-      fine_transforms.fine_coarse[i].coarse_element = i;
-      fine_transforms.fine_coarse.Append(NCMesh::Embedding(i));
-      fine_transforms.fine_coarse.Append(NCMesh::Embedding(i));
-      fine_transforms.fine_coarse.Append(NCMesh::Embedding(i));
+      int coarse = FindCoarseElement(i);
+      fine_transforms.fine_coarse[i].coarse_element = coarse;
+      fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
+      fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
+      fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
 
       NumOfElements += 3;
    }
@@ -8345,6 +8352,16 @@ ElementTransformation * Mesh::GetFineElemTrans(int i, int j)
    }
 
    return &Transformation;  // no refinement
+}
+
+int Mesh::FindCoarseElement(int i)
+{
+   int coarse;
+   while ((coarse = fine_transforms.fine_coarse[i].coarse_element) != i)
+   {
+      i = coarse;
+   }
+   return coarse;
 }
 
 const NCMesh::FineTransforms& Mesh::GetFineTransforms()
