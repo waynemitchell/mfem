@@ -172,11 +172,17 @@ void Triangle::GetPointMatrix(int tr, DenseMatrix &pm)
             break;
 
          case 4:
-            b0 = AVG(a0, b0); b1 = AVG(a1, b1);
+            d0 = AVG(a0, b0); d1 = AVG(a1, b1);
+            b0 = a0; b1 = a1;
+            a0 = c0; a1 = c1;
+            c0 = d0; c1 = d1;
             break;
 
          case 5:
-            a0 = AVG(a0, b0); a1 = AVG(a1, b1);
+            d0 = AVG(a0, b0); d1 = AVG(a1, b1);
+            a0 = b0; a1 = b1;
+            b0 = c0; b1 = c1;
+            c0 = d0; c1 = d1;
             break;
 
          default:

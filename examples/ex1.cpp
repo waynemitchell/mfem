@@ -187,11 +187,14 @@ int main(int argc, char *argv[])
    sol_ofs.precision(8);
    x.Save(sol_ofs);
 
-   /*mesh->UniformRefinement();
+/*   mesh->UniformRefinement();
    x.Update();*/
 
    mesh->RandomRefinement(1);
    x.Update();
+
+   /*mesh->RandomRefinement(1);
+   x.Update();*/
 
    // 13. Send the solution by socket to a GLVis server.
    if (visualization)
