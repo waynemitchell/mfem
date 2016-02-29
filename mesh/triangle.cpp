@@ -128,13 +128,12 @@ void Triangle::MarkEdge(const DSTable &v_to_v, const int *length)
 // static method
 void Triangle::GetPointMatrix(unsigned transform, DenseMatrix &pm)
 {
-   double &a0 = pm(0,0), &b0 = pm(0,1), &c0 = pm(0,2);
-   double &a1 = pm(1,0), &b1 = pm(1,1), &c1 = pm(1,2);
+   double *a = &pm(0,0), *b = &pm(0,1), *c = &pm(0,2);
 
    // initialize to identity
-   a0 = 0.0; a1 = 0.0;
-   b0 = 1.0; b1 = 0.0;
-   c0 = 0.0; c1 = 1.0;
+   a[0] = 0.0; a[1] = 0.0;
+   b[0] = 1.0; b[1] = 0.0;
+   c[0] = 0.0; c[1] = 1.0;
 
    int chain[12], n = 0;
    while (transform)
@@ -150,59 +149,35 @@ void Triangle::GetPointMatrix(unsigned transform, DenseMatrix &pm)
            *                      *
            | \                    |\\
            |   \                  | \ \
-           |  2  \                |  \  \
-           *-------*              |   \   \
+           |  2  \  e             |  \  \
+         f *-------*              |   \   \
            | \   3 | \            |    \    \
            |   \   |   \          |  4  \  5  \
            |  0  \ |  1  \        |      \      \
            *-------*-------*      *-------*-------*
-          a                 b    a                 b
+          a        d        b    a        d        b
    */
 
-   double d0, d1, e0, e1, f0, f1;
-   #define AVG(a, b) ((a) + (b))*0.5
+   double d[2], e[2], f[2];
+   #define ASGN(a, b) (a[0] = b[0], a[1] = b[1])
+   #define AVG(a, b, c) (a[0] = (b[0] + c[0])*0.5, a[1] = (b[1] + c[1])*0.5)
 
    while (n)
    {
       switch (chain[--n])
       {
-         case 0:
-            b0 = AVG(a0, b0); b1 = AVG(a1, b1);
-            c0 = AVG(a0, c0); c1 = AVG(a1, c1);
-            break;
+         case 0: AVG(b, a, b); AVG(c, a, c); break;
+         case 1: AVG(a, a, b); AVG(c, b, c); break;
+         case 2: AVG(a, a, c); AVG(b, b, c); break;
 
-         case 1:
-            a0 = AVG(a0, b0); a1 = AVG(a1, b1);
-            c0 = AVG(b0, c0); c1 = AVG(b1, c1);
-            break;
+         case 3: AVG(d, a, b); AVG(e, b, c); AVG(f, c, a);
+                 ASGN(a, e); ASGN(b, f); ASGN(c, d); break;
 
-         case 2:
-            a0 = AVG(a0, c0); a1 = AVG(a1, c1);
-            b0 = AVG(b0, c0); b1 = AVG(b1, c1);
-            break;
+         case 4: AVG(d, a, b); // N.B.: orientation
+                 ASGN(b, a); ASGN(a, c); ASGN(c, d); break;
 
-         case 3:
-            d0 = AVG(a0, b0); d1 = AVG(a1, b1);
-            e0 = AVG(b0, c0); e1 = AVG(b1, c1);
-            f0 = AVG(c0, a0); f1 = AVG(c1, a1);
-            a0 = e0; a1 = e1;
-            b0 = f0; b1 = f1;
-            c0 = d0; c1 = d1;
-            break;
-
-         case 4:
-            d0 = AVG(a0, b0); d1 = AVG(a1, b1);
-            b0 = a0; b1 = a1;                      // N.B.: orientation!
-            a0 = c0; a1 = c1;
-            c0 = d0; c1 = d1;
-            break;
-
-         case 5:
-            d0 = AVG(a0, b0); d1 = AVG(a1, b1);
-            a0 = b0; a1 = b1;                      // N.B.: orientation!
-            b0 = c0; b1 = c1;
-            c0 = d0; c1 = d1;
-            break;
+         case 5: AVG(d, a, b); // N.B.: orientation
+                 ASGN(a, b); ASGN(b, c); ASGN(c, d); break;
 
          default:
             MFEM_ABORT("Invalid transform.");
