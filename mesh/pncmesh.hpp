@@ -203,7 +203,7 @@ public:
    const Array<int>& GetRebalanceOldIndex() const { return old_index_or_rank; }
 
    /** Get previous (pre-Derefine) fine element ranks. This complementents the
-       FineTransforms::fine_coarse array in parallel. */
+       CoarseFineTransformations::embeddings array in parallel. */
    const Array<int>& GetDerefineOldRanks() const { return old_index_or_rank; }
 
    /** Exchange element data for derefinements that straddle processor

@@ -6492,8 +6492,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       CoarseFineTr.embeddings.SetSize(NumOfElements);
       for (i = 0; i < NumOfElements; i++)
       {
-         MFEM_ASSERT(elements[i]->GetType() == Element::TRIANGLE, "");
-         ((Triangle*) elements[i])->ResetTransform(0);
+         elements[i]->ResetTransform(0);
          CoarseFineTr.embeddings[i] = Embedding(i);
       }
 
@@ -7594,7 +7593,7 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
       tri2->PushTransform(1);
       tri3->PushTransform(2);
 
-      //
+      // set parent indices
       int coarse = FindCoarseElement(i);
       CoarseFineTr.embeddings[i] = Embedding(coarse);
       CoarseFineTr.embeddings.Append(Embedding(coarse));
@@ -8380,16 +8379,17 @@ const CoarseFineTransformations& Mesh::GetRefinementTransforms()
       return ncmesh->GetRefinementTransforms();
    }
 
-   if (BaseGeom == Geometry::TRIANGLE)
+   if (BaseGeom == Geometry::TRIANGLE ||
+       BaseGeom == Geometry::TETRAHEDRON)
    {
       std::map<unsigned, int> mat_no;
       mat_no[0] = 1; // identity
 
-      // assign matrix indices to element transforms
+      // assign matrix indices to element transformations
       for (int i = 0; i < elements.Size(); i++)
       {
          int index = 0;
-         unsigned code = ((Triangle*) elements[i])->GetTransform();
+         unsigned code = elements[i]->GetTransform();
          if (code)
          {
             int &matrix = mat_no[code];
@@ -8399,18 +8399,22 @@ const CoarseFineTransformations& Mesh::GetRefinementTransforms()
          CoarseFineTr.embeddings[i].matrix = index;
       }
 
-      DenseTensor &matrices = CoarseFineTr.point_matrices;
-      matrices.SetSize(2, 3, mat_no.size());
+      DenseTensor &pmats = CoarseFineTr.point_matrices;
+      pmats.SetSize(2, 3, mat_no.size());
 
+      // calculate the point matrices used
       std::map<unsigned, int>::iterator it;
       for (it = mat_no.begin(); it != mat_no.end(); ++it)
       {
-         Triangle::GetPointMatrix(it->first, matrices(it->second-1));
+         if (BaseGeom == Geometry::TRIANGLE)
+         {
+            Triangle::GetPointMatrix(it->first, pmats(it->second-1));
+         }
+         else
+         {
+            Tetrahedron::GetPointMatrix(it->first, pmats(it->second-1));
+         }
       }
-   }
-   else if (BaseGeom == Geometry::TETRAHEDRON)
-   {
-      MFEM_ABORT("TODO");
    }
 
    // NOTE: quads and hexes already have trivial transformations ready

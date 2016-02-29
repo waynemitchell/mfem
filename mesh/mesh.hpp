@@ -822,7 +822,8 @@ public:
        coordinate system of the coarse element. Clear, isn't it? :-) */
    ElementTransformation * GetFineElemTrans (int i, int j);
 
-   /// Return fine element transformations following a mesh refinenemt.
+   /** Return fine element transformations following a mesh refinenemt.
+       Space uses this to construct a global interpolation matrix. */
    const CoarseFineTransformations &GetRefinementTransforms();
 
    /** Return update counter (for checking proper sequence of Space::

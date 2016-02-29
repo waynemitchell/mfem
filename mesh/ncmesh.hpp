@@ -42,7 +42,7 @@ struct Refinement
 struct Embedding
 {
    int parent; ///< element index in the coarse mesh
-   int matrix; ///< index into FineTransforms::point_matrices
+   int matrix; ///< index into CoarseFineTransformations::point_matrices
 
    Embedding(int elem) : parent(elem), matrix(0) {}
 };

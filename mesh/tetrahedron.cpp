@@ -17,7 +17,33 @@ namespace mfem
 {
 
 const int Tetrahedron::edges[6][2] =
-{{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}};
+{
+   {0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}
+};
+
+Tetrahedron::Tetrahedron(const int *ind, int attr)
+   : Element(Geometry::TETRAHEDRON)
+{
+   attribute = attr;
+   for (int i = 0; i < 4; i++)
+   {
+      indices[i] = ind[i];
+   }
+   refinement_flag = 0;
+   transform = 0;
+}
+
+Tetrahedron::Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr)
+   : Element(Geometry::TETRAHEDRON)
+{
+   attribute  = attr;
+   indices[0] = ind1;
+   indices[1] = ind2;
+   indices[2] = ind3;
+   indices[3] = ind4;
+   refinement_flag = 0;
+   transform = 0;
+}
 
 void Tetrahedron::ParseRefinementFlag(int refinement_edges[2], int &type,
                                       int &flag)
@@ -99,28 +125,6 @@ void Tetrahedron::CreateRefinementFlag(int refinement_edges[2], int type,
    refinement_flag <<= 3;
 
    refinement_flag |= refinement_edges[0];
-}
-
-Tetrahedron::Tetrahedron(const int *ind, int attr)
-   : Element(Geometry::TETRAHEDRON)
-{
-   attribute = attr;
-   for (int i = 0; i < 4; i++)
-   {
-      indices[i] = ind[i];
-   }
-   refinement_flag = 0;
-}
-
-Tetrahedron::Tetrahedron(int ind1, int ind2, int ind3, int ind4, int attr)
-   : Element(Geometry::TETRAHEDRON)
-{
-   attribute  = attr;
-   indices[0] = ind1;
-   indices[1] = ind2;
-   indices[2] = ind3;
-   indices[3] = ind4;
-   refinement_flag = 0;
 }
 
 int Tetrahedron::NeedRefinement(DSTable &v_to_v, int *middle) const
@@ -244,6 +248,12 @@ void Tetrahedron::MarkEdge(const DSTable &v_to_v, const int *length)
    }
 
    CreateRefinementFlag(ind, type);
+}
+
+// static method
+void Tetrahedron::GetPointMatrix(unsigned transform, DenseMatrix &pm)
+{
+   // TODO
 }
 
 void Tetrahedron::GetVertices(Array<int> &v) const

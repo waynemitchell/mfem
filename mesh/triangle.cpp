@@ -23,7 +23,7 @@ Triangle::Triangle(const int *ind, int attr) : Element(Geometry::TRIANGLE)
    {
       indices[i] = ind[i];
    }
-   ResetTransform();
+   transform = 0;
 }
 
 Triangle::Triangle(int ind1, int ind2, int ind3, int attr)
@@ -33,7 +33,7 @@ Triangle::Triangle(int ind1, int ind2, int ind3, int attr)
    indices[0] = ind1;
    indices[1] = ind2;
    indices[2] = ind3;
-   ResetTransform();
+   transform = 0;
 }
 
 int Triangle::NeedRefinement(DSTable &v_to_v, int *middle) const
@@ -75,8 +75,10 @@ void Triangle::MarkEdge(DenseMatrix &pmat)
    }
 
    if (d[0] >= d[1])
+   {
       if (d[0] >= d[2]) { shift = 0; }
       else { shift = 2; }
+   }
    else if (d[1] >= d[2]) { shift = 1; }
    else { shift = 2; }
 
@@ -123,7 +125,8 @@ void Triangle::MarkEdge(const DSTable &v_to_v, const int *length)
    }
 }
 
-void Triangle::GetPointMatrix(int tr, DenseMatrix &pm)
+// static method
+void Triangle::GetPointMatrix(unsigned transform, DenseMatrix &pm)
 {
    double &a0 = pm(0,0), &b0 = pm(0,1), &c0 = pm(0,2);
    double &a1 = pm(1,0), &b1 = pm(1,1), &c1 = pm(1,2);
@@ -134,11 +137,27 @@ void Triangle::GetPointMatrix(int tr, DenseMatrix &pm)
    c0 = 0.0; c1 = 1.0;
 
    int chain[12], n = 0;
-   while (tr)
+   while (transform)
    {
-      chain[n++] = (tr & 7) - 1;
-      tr >>= 3;
+      chain[n++] = (transform & 7) - 1;
+      transform >>= 3;
    }
+
+   /* The transformations and orientations here match
+      Mesh::UniformRefinement and Mesh::Bisection for triangles:
+
+          c                      c
+           *                      *
+           | \                    |\\
+           |   \                  | \ \
+           |  2  \                |  \  \
+           *-------*              |   \   \
+           | \   3 | \            |    \    \
+           |   \   |   \          |  4  \  5  \
+           |  0  \ |  1  \        |      \      \
+           *-------*-------*      *-------*-------*
+          a                 b    a                 b
+   */
 
    double d0, d1, e0, e1, f0, f1;
    #define AVG(a, b) ((a) + (b))*0.5
@@ -173,14 +192,14 @@ void Triangle::GetPointMatrix(int tr, DenseMatrix &pm)
 
          case 4:
             d0 = AVG(a0, b0); d1 = AVG(a1, b1);
-            b0 = a0; b1 = a1;
+            b0 = a0; b1 = a1;                      // N.B.: orientation!
             a0 = c0; a1 = c1;
             c0 = d0; c1 = d1;
             break;
 
          case 5:
             d0 = AVG(a0, b0); d1 = AVG(a1, b1);
-            a0 = b0; a1 = b1;
+            a0 = b0; a1 = b1;                      // N.B.: orientation!
             b0 = c0; b1 = c1;
             c0 = d0; c1 = d1;
             break;

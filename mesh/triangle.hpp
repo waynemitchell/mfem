@@ -30,7 +30,7 @@ protected:
 
 public:
 
-   Triangle() : Element(Geometry::TRIANGLE) { }
+   Triangle() : Element(Geometry::TRIANGLE) { transform = 0; }
 
    /// Constructs triangle by specifying the indices and the attribute.
    Triangle(const int *ind, int attr = 1);
@@ -38,8 +38,11 @@ public:
    /// Constructs triangle by specifying the indices and the attribute.
    Triangle(int ind1, int ind2, int ind3, int attr = 1);
 
+   /// Return element's type.
+   virtual int GetType() const { return Element::TRIANGLE; }
+
    /// Return 1 if the element needs refinement in order to get conforming mesh.
-   int NeedRefinement(DSTable &v_to_v, int *middle) const;
+   virtual int NeedRefinement(DSTable &v_to_v, int *middle) const;
 
    /// Set the vertices according to the given input.
    virtual void SetVertices(const int *ind);
@@ -52,15 +55,15 @@ public:
    /// Mark the longest edge by assuming/changing the order of the vertices.
    virtual void MarkEdge(const DSTable &v_to_v, const int *length);
 
-   ///
-   void ResetTransform(int tr = 0) { transform = tr; }
-   void PushTransform(int tr) { transform = (transform << 3) | (tr + 1); }
-   unsigned GetTransform() const { return transform; }
+   virtual void ResetTransform(int tr) { transform = tr; }
+   virtual unsigned GetTransform() const { return transform; }
 
-   static void GetPointMatrix(int tr, DenseMatrix &pm);
+   /// Add 'tr' to the current chain of coarse-fine transformations.
+   virtual void PushTransform(int tr)
+   { transform = (transform << 3) | (tr + 1); }
 
-   /// Return element's type.
-   virtual int GetType() const { return Element::TRIANGLE; }
+   /// Calculate point matrix corresponding to a chain of transformations.
+   static void GetPointMatrix(unsigned transform, DenseMatrix &pm);
 
    /// Returns the indices of the element's  vertices.
    virtual void GetVertices(Array<int> &v) const;

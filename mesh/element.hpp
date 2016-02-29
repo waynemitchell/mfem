@@ -41,13 +41,19 @@ public:
    /// Default element constructor.
    explicit Element(int bg = Geometry::POINT) { attribute = -1; base_geom = bg; }
 
-   /// Set the indices the element according to the input.
-   virtual void SetVertices(const int *ind);
-
    /// Returns element's type
    virtual int GetType() const = 0;
 
    int GetGeometryType() const { return base_geom; }
+
+   /// Return element's attribute.
+   inline int GetAttribute() const { return attribute; }
+
+   /// Set element's attribute.
+   inline void SetAttribute(const int attr) { attribute = attr; }
+
+   /// Set the indices the element according to the input.
+   virtual void SetVertices(const int *ind);
 
    /// Returns element's vertices.
    virtual void GetVertices(Array<int> &v) const = 0;
@@ -76,11 +82,14 @@ public:
    /// Return 1 if the element needs refinement in order to get conforming mesh.
    virtual int NeedRefinement(DSTable &v_to_v, int *middle) const { return 0; }
 
-   /// Return element's attribute.
-   inline int GetAttribute() const { return attribute; }
+   /// Set current coarse-fine transformation number.
+   virtual void ResetTransform(int tr) {}
 
-   /// Set element's attribute.
-   inline void SetAttribute(const int attr) { attribute = attr; }
+   /// Add 'tr' to the current chain of coarse-fine transformations.
+   virtual void PushTransform(int tr) {}
+
+   /// Return current coarse-fine transformation.
+   virtual unsigned GetTransform() const { return 0; }
 
    virtual int GetRefinementFlag() { return 0; }
 
