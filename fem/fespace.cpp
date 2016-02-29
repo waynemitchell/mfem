@@ -856,25 +856,23 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix()
    LinearFECollection linfec;
    Vector row;
 
-   const NCMesh::FineTransforms &rt =
-      Nonconforming() ? mesh->ncmesh->GetRefinementTransforms()
-      /*           */ : mesh->GetFineTransforms();
+   const NCMesh::FineTransforms &rtrans = mesh->GetRefinementTransforms();
 
    int geom = mesh->GetElementBaseGeometry();
    const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
 
-   IsoparametricTransformation trans;
-   trans.SetFE(linfec.FiniteElementForGeometry(geom));
+   IsoparametricTransformation isotr;
+   isotr.SetFE(linfec.FiniteElementForGeometry(geom));
 
-   int nmat = rt.point_matrices.SizeK();
+   int nmat = rtrans.point_matrices.SizeK();
    int ldof = fe->GetDof();
 
    // calculate local interpolation matrices for all refinement types
    DenseTensor localP(ldof, ldof, nmat);
    for (int i = 0; i < nmat; i++)
    {
-      trans.GetPointMat() = rt.point_matrices(i);
-      fe->GetLocalInterpolation(trans, localP(i));
+      isotr.GetPointMat() = rtrans.point_matrices(i);
+      fe->GetLocalInterpolation(isotr, localP(i));
    }
 
    SparseMatrix *P = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
@@ -883,7 +881,7 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix()
    mark = 0;
    for (int k = 0; k < mesh->GetNE(); k++)
    {
-      const NCMesh::Embedding &emb = rt.fine_coarse[k];
+      const NCMesh::Embedding &emb = rtrans.fine_coarse[k];
       DenseMatrix &lP = localP(emb.matrix);
 
       elem_dof->GetRow(k, dofs);

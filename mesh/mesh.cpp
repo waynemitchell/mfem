@@ -6493,8 +6493,8 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       for (i = 0; i < NumOfElements; i++)
       {
          MFEM_ASSERT(elements[i]->GetType() == Element::TRIANGLE, "");
-         ((Triangle*) elements[i])->ResetTransform();
-         fine_transforms.fine_coarse[i].coarse_element = i;
+         ((Triangle*) elements[i])->ResetTransform(0);
+         fine_transforms.fine_coarse[i] = NCMesh::Embedding(i);
       }
 
       for (i = 0; i < NumOfElements; i++)
@@ -7279,6 +7279,9 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       Triangle* tri_new = new Triangle(v[1], tri->GetAttribute());
       elements.Append(tri_new);
 
+      int tr = tri->GetTransform();
+      tri_new->ResetTransform(tr);
+
       // record the sequence of refinements
       tri->PushTransform(4);
       tri_new->PushTransform(5);
@@ -7581,13 +7584,19 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
       }
 
       // record the sequence of refinements
+      unsigned code = tri0->GetTransform();
+      tri1->ResetTransform(code);
+      tri2->ResetTransform(code);
+      tri3->ResetTransform(code);
+
       tri0->PushTransform(3);
       tri1->PushTransform(0);
       tri2->PushTransform(1);
       tri3->PushTransform(2);
 
+      //
       int coarse = FindCoarseElement(i);
-      fine_transforms.fine_coarse[i].coarse_element = coarse;
+      fine_transforms.fine_coarse[i] = NCMesh::Embedding(coarse);
       fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
       fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
       fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
@@ -8364,25 +8373,36 @@ int Mesh::FindCoarseElement(int i)
    return coarse;
 }
 
-const NCMesh::FineTransforms& Mesh::GetFineTransforms()
+const NCMesh::FineTransforms& Mesh::GetRefinementTransforms()
 {
+   if (ncmesh)
+   {
+      return ncmesh->GetRefinementTransforms();
+   }
+
    if (BaseGeom == Geometry::TRIANGLE)
    {
-      std::map<int, int> mat_no;
+      std::map<unsigned, int> mat_no;
       mat_no[0] = 1; // identity
 
+      // assign matrix indices to element transforms
       for (int i = 0; i < elements.Size(); i++)
       {
-         int code = ((Triangle*) elements[i])->GetTransform();
-         int &matrix = mat_no[code];
-         if (!matrix) { matrix = mat_no.size(); }
-         fine_transforms.fine_coarse[i].matrix = matrix - 1;
+         int index = 0;
+         unsigned code = ((Triangle*) elements[i])->GetTransform();
+         if (code)
+         {
+            int &matrix = mat_no[code];
+            if (!matrix) { matrix = mat_no.size(); }
+            index = matrix-1;
+         }
+         fine_transforms.fine_coarse[i].matrix = index;
       }
 
       DenseTensor &matrices = fine_transforms.point_matrices;
       matrices.SetSize(2, 3, mat_no.size());
 
-      std::map<int, int>::iterator it;
+      std::map<unsigned, int>::iterator it;
       for (it = mat_no.begin(); it != mat_no.end(); ++it)
       {
          Triangle::GetPointMatrix(it->first, matrices(it->second-1));
@@ -8392,7 +8412,8 @@ const NCMesh::FineTransforms& Mesh::GetFineTransforms()
    {
       MFEM_ABORT("TODO");
    }
-   // NOTE: quads and hexes already have trivial point matrices ready
+
+   // NOTE: quads and hexes already have trivial transforms ready
    return fine_transforms;
 }
 

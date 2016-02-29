@@ -53,9 +53,9 @@ public:
    virtual void MarkEdge(const DSTable &v_to_v, const int *length);
 
    ///
-   void ResetTransform() { transform = 0; }
+   void ResetTransform(int tr = 0) { transform = tr; }
    void PushTransform(int tr) { transform = (transform << 3) | (tr + 1); }
-   int GetTransform() const { return transform; }
+   unsigned GetTransform() const { return transform; }
 
    static void GetPointMatrix(int tr, DenseMatrix &pm);
 

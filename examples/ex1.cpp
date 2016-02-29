@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
    {
-      int ref_levels = 0;
+      int ref_levels = 1;
          //(int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
@@ -187,14 +187,14 @@ int main(int argc, char *argv[])
    sol_ofs.precision(8);
    x.Save(sol_ofs);
 
-/*   mesh->UniformRefinement();
-   x.Update();*/
-
-   mesh->RandomRefinement(1);
+   mesh->UniformRefinement();
    x.Update();
 
-   /*mesh->RandomRefinement(1);
-   x.Update();*/
+   for (int i = 0; i < 5; i++)
+   {
+      mesh->RandomRefinement(1);
+      x.Update();
+   }
 
    // 13. Send the solution by socket to a GLVis server.
    if (visualization)

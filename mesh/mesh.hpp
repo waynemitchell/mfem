@@ -822,7 +822,7 @@ public:
        coordinate system of the coarse element. Clear, isn't it? :-) */
    ElementTransformation * GetFineElemTrans (int i, int j);
 
-   const NCMesh::FineTransforms &GetFineTransforms();
+   const NCMesh::FineTransforms &GetRefinementTransforms();
 
    /** Return update counter (for checking proper sequence of Space::
        and GridFunction:: Update(). */
