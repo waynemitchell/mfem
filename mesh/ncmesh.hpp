@@ -47,8 +47,8 @@ struct Embedding
    Embedding(int elem) : parent(elem), matrix(0) {}
 };
 
-/// Defines the embedding of all fine elements.
-struct FineTransforms
+/// Defines the coarse-fine transformations of all fine elements.
+struct CoarseFineTransformations
 {
    DenseTensor point_matrices;  ///< matrices for IsoparametricTransformation
    Array<Embedding> embeddings; ///< fine element positions in their parents
@@ -195,13 +195,13 @@ public:
    /** After refinement, calculate the relation of each fine element to its
        parent coarse element. Note that Refine() or LimitNCLevel() can be called
        multiple times between MarkCoarseLevel() and this function. */
-   const FineTransforms& GetRefinementTransforms();
+   const CoarseFineTransformations& GetRefinementTransforms();
 
    /** After derefinement, calculate the relations of previous fine elements
        (some of which may no longer exist) to the current leaf elements.
        Unlike for refinement, Derefine() may only be called once before this
        function so there is no MarkFineLevel(). */
-   const FineTransforms& GetDerefinementTransforms();
+   const CoarseFineTransformations& GetDerefinementTransforms();
 
    /// Free all data created by the above functions.
    void ClearTransforms();
@@ -651,7 +651,7 @@ protected: // implementation
                             std::string &ref_path, RefPathMap &map);
 
    /// storage for data returned by Get[De]RefinementTransforms()
-   FineTransforms transforms;
+   CoarseFineTransformations transforms;
 
    /// state of leaf_elements before Refine(), set by MarkCoarseLevel()
    Array<Element*> coarse_elements;

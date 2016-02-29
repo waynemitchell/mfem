@@ -135,7 +135,7 @@ protected:
    /// Calculate GridFunction interpolation matrix after mesh refinement.
    SparseMatrix* RefinementMatrix();
 
-   void GetLocalDerefinementMatrices(int geom, const FineTransforms &dt,
+   void GetLocalDerefinementMatrices(int geom, const CoarseFineTransformations &dt,
                                      DenseTensor &localR);
 
    /// Calculate GridFunction restriction matrix after mesh derefinement.

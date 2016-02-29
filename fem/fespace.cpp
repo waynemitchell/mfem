@@ -856,7 +856,7 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix()
    LinearFECollection linfec;
    Vector row;
 
-   const FineTransforms &rtrans = mesh->GetRefinementTransforms();
+   const CoarseFineTransformations &rtrans = mesh->GetRefinementTransforms();
 
    int geom = mesh->GetElementBaseGeometry();
    const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
@@ -929,7 +929,7 @@ void InvertLinearTrans(IsoparametricTransformation &trans,
 }
 
 void FiniteElementSpace::GetLocalDerefinementMatrices(
-   int geom, const FineTransforms &dt, DenseTensor &localR)
+   int geom, const CoarseFineTransformations &dt, DenseTensor &localR)
 {
    const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
    const IntegrationRule &nodes = fe->GetNodes();
@@ -979,7 +979,7 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
    Array<int> dofs, old_dofs, old_vdofs;
    Vector row;
 
-   const FineTransforms &dt = mesh->ncmesh->GetDerefinementTransforms();
+   const CoarseFineTransformations &dt = mesh->ncmesh->GetDerefinementTransforms();
    int geom = mesh->ncmesh->GetElementGeometry();
 
    DenseTensor localR;

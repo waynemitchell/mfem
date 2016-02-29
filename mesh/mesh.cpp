@@ -6073,12 +6073,12 @@ void Mesh::QuadUniformRefinement()
       0.0,0.5, 0.5,0.5, 0.5,1.0, 0.0,1.0  // upper-left
    };
 
-   fine_transforms.point_matrices.UseExternalData(quad_children, 2, 4, 4);
-   fine_transforms.embeddings.SetSize(elements.Size());
+   CoarseFineTr.point_matrices.UseExternalData(quad_children, 2, 4, 4);
+   CoarseFineTr.embeddings.SetSize(elements.Size());
 
    for (i = 0; i < elements.Size(); i++)
    {
-      Embedding &emb = fine_transforms.embeddings[i];
+      Embedding &emb = CoarseFineTr.embeddings[i];
       emb.parent = (i < NumOfElements) ? i : (i - NumOfElements) / 3;
       emb.matrix = (i < NumOfElements) ? 0 : (i - NumOfElements) % 3 + 1;
    }
@@ -6308,14 +6308,14 @@ void Mesh::HexUniformRefinement()
    #undef B
    #undef C
 
-   fine_transforms.point_matrices.UseExternalData(hex_children, 3, 8, 8);
-   fine_transforms.embeddings.SetSize(elements.Size());
+   CoarseFineTr.point_matrices.UseExternalData(hex_children, 3, 8, 8);
+   CoarseFineTr.embeddings.SetSize(elements.Size());
 
    for (i = 0; i < elements.Size(); i++)
    {
-      Embedding &emb = fine_transforms.embeddings[i];
+      Embedding &emb = CoarseFineTr.embeddings[i];
       emb.parent = (i < NumOfElements) ? i : (i - NumOfElements) / 7;
-      emb.matrix         = (i < NumOfElements) ? 0 : (i - NumOfElements) % 7 + 1;
+      emb.matrix = (i < NumOfElements) ? 0 : (i - NumOfElements) % 7 + 1;
    }
 
    if (WantTwoLevelState)
@@ -6489,12 +6489,12 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
          edge1[i] = edge2[i] = middle[i] = -1;
       }
 
-      fine_transforms.embeddings.SetSize(NumOfElements);
+      CoarseFineTr.embeddings.SetSize(NumOfElements);
       for (i = 0; i < NumOfElements; i++)
       {
          MFEM_ASSERT(elements[i]->GetType() == Element::TRIANGLE, "");
          ((Triangle*) elements[i])->ResetTransform(0);
-         fine_transforms.embeddings[i] = Embedding(i);
+         CoarseFineTr.embeddings[i] = Embedding(i);
       }
 
       for (i = 0; i < NumOfElements; i++)
@@ -7287,8 +7287,8 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       tri_new->PushTransform(5);
 
       int coarse = FindCoarseElement(i);
-      fine_transforms.embeddings[i].parent = coarse;
-      fine_transforms.embeddings.Append(Embedding(coarse));
+      CoarseFineTr.embeddings[i].parent = coarse;
+      CoarseFineTr.embeddings.Append(Embedding(coarse));
 
       // 3. edge1 and edge2 may have to be changed for the second triangle.
       if (v[1][0] < v_to_v.NumberOfRows() && v[1][1] < v_to_v.NumberOfRows())
@@ -7596,10 +7596,10 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
 
       //
       int coarse = FindCoarseElement(i);
-      fine_transforms.embeddings[i] = Embedding(coarse);
-      fine_transforms.embeddings.Append(Embedding(coarse));
-      fine_transforms.embeddings.Append(Embedding(coarse));
-      fine_transforms.embeddings.Append(Embedding(coarse));
+      CoarseFineTr.embeddings[i] = Embedding(coarse);
+      CoarseFineTr.embeddings.Append(Embedding(coarse));
+      CoarseFineTr.embeddings.Append(Embedding(coarse));
+      CoarseFineTr.embeddings.Append(Embedding(coarse));
 
       NumOfElements += 3;
    }
@@ -8366,14 +8366,14 @@ ElementTransformation * Mesh::GetFineElemTrans(int i, int j)
 int Mesh::FindCoarseElement(int i)
 {
    int coarse;
-   while ((coarse = fine_transforms.embeddings[i].parent) != i)
+   while ((coarse = CoarseFineTr.embeddings[i].parent) != i)
    {
       i = coarse;
    }
    return coarse;
 }
 
-const FineTransforms& Mesh::GetRefinementTransforms()
+const CoarseFineTransformations& Mesh::GetRefinementTransforms()
 {
    if (ncmesh)
    {
@@ -8396,10 +8396,10 @@ const FineTransforms& Mesh::GetRefinementTransforms()
             if (!matrix) { matrix = mat_no.size(); }
             index = matrix-1;
          }
-         fine_transforms.embeddings[i].matrix = index;
+         CoarseFineTr.embeddings[i].matrix = index;
       }
 
-      DenseTensor &matrices = fine_transforms.point_matrices;
+      DenseTensor &matrices = CoarseFineTr.point_matrices;
       matrices.SetSize(2, 3, mat_no.size());
 
       std::map<unsigned, int>::iterator it;
@@ -8413,8 +8413,8 @@ const FineTransforms& Mesh::GetRefinementTransforms()
       MFEM_ABORT("TODO");
    }
 
-   // NOTE: quads and hexes already have trivial transforms ready
-   return fine_transforms;
+   // NOTE: quads and hexes already have trivial transformations ready
+   return CoarseFineTr;
 }
 
 void Mesh::PrintXG(std::ostream &out) const

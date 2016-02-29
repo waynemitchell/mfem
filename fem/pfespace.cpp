@@ -1683,7 +1683,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    int geom = pncmesh->GetElementGeometry();
    int ldofs = fec->FiniteElementForGeometry(geom)->GetDof();
 
-   const FineTransforms &dt = pncmesh->GetDerefinementTransforms();
+   const CoarseFineTransformations &dt = pncmesh->GetDerefinementTransforms();
    const Array<int> &old_ranks = pncmesh->GetDerefineOldRanks();
 
    std::map<int, DerefDofMessage> messages;
