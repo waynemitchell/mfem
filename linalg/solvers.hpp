@@ -373,10 +373,10 @@ protected:
 public:
    KLUSolver()
       : mat(0),Symbolic(0),Numeric(0)
-       { Init(); }
+   { Init(); }
    KLUSolver(SparseMatrix &A)
       : mat(0),Symbolic(0),Numeric(0)
-      { Init(); SetOperator(A); }
+   { Init(); SetOperator(A); }
 
    // Works on sparse matrices only; calls SparseMatrix::SortColumnIndices().
    virtual void SetOperator(const Operator &op);

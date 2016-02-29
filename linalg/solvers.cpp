@@ -1842,7 +1842,8 @@ void KLUSolver::SetOperator(const Operator &op)
 
 void KLUSolver::Mult(const Vector &b, Vector &x) const
 {
-   MFEM_VERIFY( mat != NULL, "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
+   MFEM_VERIFY( mat != NULL,
+                "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
 
    int n = mat->Height();
    int numRhs = 1;
@@ -1854,7 +1855,8 @@ void KLUSolver::Mult(const Vector &b, Vector &x) const
 
 void KLUSolver::MultTranspose(const Vector &b, Vector &x) const
 {
-   MFEM_VERIFY( mat != NULL, "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
+   MFEM_VERIFY( mat != NULL,
+                "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
 
    int n = mat->Height();
    int numRhs = 1;
