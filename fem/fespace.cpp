@@ -856,7 +856,7 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix()
    LinearFECollection linfec;
    Vector row;
 
-   const NCMesh::FineTransforms &rtrans = mesh->GetRefinementTransforms();
+   const FineTransforms &rtrans = mesh->GetRefinementTransforms();
 
    int geom = mesh->GetElementBaseGeometry();
    const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
@@ -881,11 +881,11 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix()
    mark = 0;
    for (int k = 0; k < mesh->GetNE(); k++)
    {
-      const NCMesh::Embedding &emb = rtrans.fine_coarse[k];
+      const Embedding &emb = rtrans.embeddings[k];
       DenseMatrix &lP = localP(emb.matrix);
 
       elem_dof->GetRow(k, dofs);
-      old_elem_dof->GetRow(emb.coarse_element, old_dofs);
+      old_elem_dof->GetRow(emb.parent, old_dofs);
 
       for (int vd = 0; vd < vdim; vd++)
       {
@@ -929,7 +929,7 @@ void InvertLinearTrans(IsoparametricTransformation &trans,
 }
 
 void FiniteElementSpace::GetLocalDerefinementMatrices(
-   int geom, const NCMesh::FineTransforms &dt, DenseTensor &localR)
+   int geom, const FineTransforms &dt, DenseTensor &localR)
 {
    const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
    const IntegrationRule &nodes = fe->GetNodes();
@@ -979,7 +979,7 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
    Array<int> dofs, old_dofs, old_vdofs;
    Vector row;
 
-   const NCMesh::FineTransforms &dt = mesh->ncmesh->GetDerefinementTransforms();
+   const FineTransforms &dt = mesh->ncmesh->GetDerefinementTransforms();
    int geom = mesh->ncmesh->GetElementGeometry();
 
    DenseTensor localR;
@@ -989,12 +989,12 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
 
    Array<char> mark(R->Height());
    mark = 0;
-   for (int k = 0; k < dt.fine_coarse.Size(); k++)
+   for (int k = 0; k < dt.embeddings.Size(); k++)
    {
-      const NCMesh::Embedding &emb = dt.fine_coarse[k];
+      const Embedding &emb = dt.embeddings[k];
       DenseMatrix &lR = localR(emb.matrix);
 
-      elem_dof->GetRow(emb.coarse_element, dofs);
+      elem_dof->GetRow(emb.parent, dofs);
       old_elem_dof->GetRow(k, old_dofs);
 
       for (int vd = 0; vd < vdim; vd++)

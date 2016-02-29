@@ -858,7 +858,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
          // this coarse element will get pruned, encode who owns it now
          index = -1 - coarse[i]->rank;
       }
-      transforms.fine_coarse[i].coarse_element = index;
+      transforms.embeddings[i].parent = index;
    }
 
    leaf_elements.Copy(old_elements);
@@ -868,7 +868,7 @@ void ParNCMesh::Derefine(const Array<int> &derefs)
    // renumber coarse element indices after pruning
    for (int i = 0; i < coarse.Size(); i++)
    {
-      int &index = transforms.fine_coarse[i].coarse_element;
+      int &index = transforms.embeddings[i].parent;
       if (index >= 0)
       {
          index = old_elements[index]->index;

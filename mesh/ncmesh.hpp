@@ -35,8 +35,23 @@ struct Refinement
    int index; ///< Mesh element number
    char ref_type; ///< refinement XYZ bit mask (7 = full isotropic)
 
-   Refinement(int index, int type = 7)
-      : index(index), ref_type(type) {}
+   Refinement(int index, int type = 7) : index(index), ref_type(type) {}
+};
+
+/// Defines the position of a fine element within a coarse element.
+struct Embedding
+{
+   int parent; ///< element index in the coarse mesh
+   int matrix; ///< index into FineTransforms::point_matrices
+
+   Embedding(int elem) : parent(elem), matrix(0) {}
+};
+
+/// Defines the embedding of all fine elements.
+struct FineTransforms
+{
+   DenseTensor point_matrices;  ///< matrices for IsoparametricTransformation
+   Array<Embedding> embeddings; ///< fine element positions in their parents
 };
 
 
@@ -172,21 +187,6 @@ public:
 
 
    // coarse/fine transforms
-
-   struct Embedding
-   {
-      int coarse_element; ///< element index in the coarse mesh
-      int matrix;         ///< index into FineTransforms::point_matrices
-
-      Embedding(int elem) : coarse_element(elem), matrix(0) {}
-   };
-
-   /// Defines the embedding of each fine element inside a coarse element.
-   struct FineTransforms
-   {
-      DenseTensor point_matrices;  ///< matrices for IsoparametricTransformation
-      Array<Embedding> fine_coarse; ///< fine element positions
-   };
 
    /** Remember the current layer of leaf elements before the mesh is refined.
        Needed by GetRefinementTransforms(), must be called before Refine(). */

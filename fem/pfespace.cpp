@@ -1683,7 +1683,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    int geom = pncmesh->GetElementGeometry();
    int ldofs = fec->FiniteElementForGeometry(geom)->GetDof();
 
-   const NCMesh::FineTransforms &dt = pncmesh->GetDerefinementTransforms();
+   const FineTransforms &dt = pncmesh->GetDerefinementTransforms();
    const Array<int> &old_ranks = pncmesh->GetDerefineOldRanks();
 
    std::map<int, DerefDofMessage> messages;
@@ -1693,13 +1693,13 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 
    // communicate DOFs for derefinements that straddle processor boundaries,
    // note that this is infrequent due to the way elements are ordered
-   for (int k = 0; k < dt.fine_coarse.Size(); k++)
+   for (int k = 0; k < dt.embeddings.Size(); k++)
    {
-      const NCMesh::Embedding &emb = dt.fine_coarse[k];
+      const Embedding &emb = dt.embeddings[k];
 
       int fine_rank = old_ranks[k];
-      int coarse_rank = (emb.coarse_element < 0) ? (-1 - emb.coarse_element)
-                        : pncmesh->ElementRank(emb.coarse_element);
+      int coarse_rank = (emb.parent < 0) ? (-1 - emb.parent)
+                        : pncmesh->ElementRank(emb.parent);
 
       if (coarse_rank != MyRank && fine_rank == MyRank)
       {
@@ -1737,19 +1737,19 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 
    Array<char> mark(diag->Height());
    mark = 0;
-   for (int k = 0; k < dt.fine_coarse.Size(); k++)
+   for (int k = 0; k < dt.embeddings.Size(); k++)
    {
-      const NCMesh::Embedding &emb = dt.fine_coarse[k];
-      if (emb.coarse_element < 0) { continue; }
+      const Embedding &emb = dt.embeddings[k];
+      if (emb.parent < 0) { continue; }
 
-      int coarse_rank = pncmesh->ElementRank(emb.coarse_element);
+      int coarse_rank = pncmesh->ElementRank(emb.parent);
       int fine_rank = old_ranks[k];
 
       if (coarse_rank == MyRank && fine_rank == MyRank)
       {
          DenseMatrix &lR = localR(emb.matrix);
 
-         elem_dof->GetRow(emb.coarse_element, dofs);
+         elem_dof->GetRow(emb.parent, dofs);
          old_elem_dof->GetRow(k, old_dofs);
 
          for (int vd = 0; vd < vdim; vd++)
@@ -1787,19 +1787,19 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    SparseMatrix *offd = new SparseMatrix(ndofs*vdim, 1);
 
    std::map<HYPRE_Int, int> col_map;
-   for (int k = 0; k < dt.fine_coarse.Size(); k++)
+   for (int k = 0; k < dt.embeddings.Size(); k++)
    {
-      const NCMesh::Embedding &emb = dt.fine_coarse[k];
-      if (emb.coarse_element < 0) { continue; }
+      const Embedding &emb = dt.embeddings[k];
+      if (emb.parent < 0) { continue; }
 
-      int coarse_rank = pncmesh->ElementRank(emb.coarse_element);
+      int coarse_rank = pncmesh->ElementRank(emb.parent);
       int fine_rank = old_ranks[k];
 
       if (coarse_rank == MyRank && fine_rank != MyRank)
       {
          DenseMatrix &lR = localR(emb.matrix);
 
-         elem_dof->GetRow(emb.coarse_element, dofs);
+         elem_dof->GetRow(emb.parent, dofs);
 
          DerefDofMessage &msg = messages[k];
          MFEM_ASSERT(msg.dofs.size(), "");

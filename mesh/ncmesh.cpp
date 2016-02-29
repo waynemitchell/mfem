@@ -1413,7 +1413,7 @@ void NCMesh::Derefine(const Array<int> &derefs)
    // link old fine elements to the new coarse elements
    for (int i = 0; i < coarse.Size(); i++)
    {
-      transforms.fine_coarse[i].coarse_element = coarse[i]->index;
+      transforms.embeddings[i].parent = coarse[i]->index;
    }
 }
 
@@ -1421,11 +1421,11 @@ void NCMesh::InitDerefTransforms()
 {
    int nfine = leaf_elements.Size();
 
-   transforms.fine_coarse.SetSize(nfine);
+   transforms.embeddings.SetSize(nfine);
    for (int i = 0; i < nfine; i++)
    {
-      transforms.fine_coarse[i].coarse_element = -1;
-      transforms.fine_coarse[i].matrix = 0;
+      transforms.embeddings[i].parent = -1;
+      transforms.embeddings[i].matrix = 0;
    }
 
    // this will tell GetDerefinementTransforms that transforms are not finished
@@ -1441,7 +1441,7 @@ void NCMesh::SetDerefMatrixCodes(Element* parent, Array<Element*> &coarse)
       if (ch && ch->index >= 0)
       {
          int code = (parent->ref_type << 3) + i;
-         transforms.fine_coarse[ch->index].matrix = code;
+         transforms.embeddings[ch->index].matrix = code;
          coarse[ch->index] = parent;
       }
    }
@@ -2648,7 +2648,7 @@ void NCMesh::MarkCoarseLevel()
       if (!IsGhost(e)) { coarse_elements.Append(e); }
    }
 
-   transforms.fine_coarse.DeleteAll();
+   transforms.embeddings.DeleteAll();
 }
 
 void NCMesh::TraverseRefinements(Element* elem, int coarse_index,
@@ -2659,8 +2659,8 @@ void NCMesh::TraverseRefinements(Element* elem, int coarse_index,
       int &matrix = map[ref_path];
       if (!matrix) { matrix = map.size(); }
 
-      Embedding &emb = transforms.fine_coarse[elem->index];
-      emb.coarse_element = coarse_index;
+      Embedding &emb = transforms.embeddings[elem->index];
+      emb.parent = coarse_index;
       emb.matrix = matrix - 1;
    }
    else
@@ -2680,15 +2680,15 @@ void NCMesh::TraverseRefinements(Element* elem, int coarse_index,
    }
 }
 
-const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
+const FineTransforms& NCMesh::GetRefinementTransforms()
 {
    MFEM_VERIFY(coarse_elements.Size() || !leaf_elements.Size(),
                "GetRefinementTransforms() must be preceded by MarkCoarseLevel()"
                " and Refine().");
 
-   if (!transforms.fine_coarse.Size())
+   if (!transforms.embeddings.Size())
    {
-      transforms.fine_coarse.SetSize(leaf_elements.Size());
+      transforms.embeddings.SetSize(leaf_elements.Size());
 
       std::string ref_path;
       ref_path.reserve(100);
@@ -2717,9 +2717,9 @@ const NCMesh::FineTransforms& NCMesh::GetRefinementTransforms()
    return transforms;
 }
 
-const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
+const FineTransforms& NCMesh::GetDerefinementTransforms()
 {
-   MFEM_VERIFY(transforms.fine_coarse.Size() || !leaf_elements.Size(),
+   MFEM_VERIFY(transforms.embeddings.Size() || !leaf_elements.Size(),
                "GetDerefinementTransforms() must be preceded by Derefine().");
 
    if (!transforms.point_matrices.SizeK())
@@ -2728,14 +2728,14 @@ const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
       mat_no[0] = 1; // identity
 
       // assign numbers to the different matrices used
-      for (int i = 0; i < transforms.fine_coarse.Size(); i++)
+      for (int i = 0; i < transforms.embeddings.Size(); i++)
       {
-         int code = transforms.fine_coarse[i].matrix;
+         int code = transforms.embeddings[i].matrix;
          if (code)
          {
             int &matrix = mat_no[code];
             if (!matrix) { matrix = mat_no.size(); }
-            transforms.fine_coarse[i].matrix = matrix - 1;
+            transforms.embeddings[i].matrix = matrix - 1;
          }
       }
 
@@ -2763,7 +2763,7 @@ const NCMesh::FineTransforms& NCMesh::GetDerefinementTransforms()
 void NCMesh::ClearTransforms()
 {
    coarse_elements.DeleteAll();
-   transforms.fine_coarse.DeleteAll();
+   transforms.embeddings.DeleteAll();
    transforms.point_matrices.SetSize(0, 0, 0);
 }
 

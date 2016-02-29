@@ -6074,13 +6074,13 @@ void Mesh::QuadUniformRefinement()
    };
 
    fine_transforms.point_matrices.UseExternalData(quad_children, 2, 4, 4);
-   fine_transforms.fine_coarse.SetSize(elements.Size());
+   fine_transforms.embeddings.SetSize(elements.Size());
 
    for (i = 0; i < elements.Size(); i++)
    {
-      NCMesh::Embedding &emb = fine_transforms.fine_coarse[i];
-      emb.coarse_element = (i < NumOfElements) ? i : (i - NumOfElements) / 3;
-      emb.matrix         = (i < NumOfElements) ? 0 : (i - NumOfElements) % 3 + 1;
+      Embedding &emb = fine_transforms.embeddings[i];
+      emb.parent = (i < NumOfElements) ? i : (i - NumOfElements) / 3;
+      emb.matrix = (i < NumOfElements) ? 0 : (i - NumOfElements) % 3 + 1;
    }
 
    if (WantTwoLevelState)
@@ -6309,12 +6309,12 @@ void Mesh::HexUniformRefinement()
    #undef C
 
    fine_transforms.point_matrices.UseExternalData(hex_children, 3, 8, 8);
-   fine_transforms.fine_coarse.SetSize(elements.Size());
+   fine_transforms.embeddings.SetSize(elements.Size());
 
    for (i = 0; i < elements.Size(); i++)
    {
-      NCMesh::Embedding &emb = fine_transforms.fine_coarse[i];
-      emb.coarse_element = (i < NumOfElements) ? i : (i - NumOfElements) / 7;
+      Embedding &emb = fine_transforms.embeddings[i];
+      emb.parent = (i < NumOfElements) ? i : (i - NumOfElements) / 7;
       emb.matrix         = (i < NumOfElements) ? 0 : (i - NumOfElements) % 7 + 1;
    }
 
@@ -6489,12 +6489,12 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
          edge1[i] = edge2[i] = middle[i] = -1;
       }
 
-      fine_transforms.fine_coarse.SetSize(NumOfElements);
+      fine_transforms.embeddings.SetSize(NumOfElements);
       for (i = 0; i < NumOfElements; i++)
       {
          MFEM_ASSERT(elements[i]->GetType() == Element::TRIANGLE, "");
          ((Triangle*) elements[i])->ResetTransform(0);
-         fine_transforms.fine_coarse[i] = NCMesh::Embedding(i);
+         fine_transforms.embeddings[i] = Embedding(i);
       }
 
       for (i = 0; i < NumOfElements; i++)
@@ -7287,8 +7287,8 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       tri_new->PushTransform(5);
 
       int coarse = FindCoarseElement(i);
-      fine_transforms.fine_coarse[i].coarse_element = coarse;
-      fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
+      fine_transforms.embeddings[i].parent = coarse;
+      fine_transforms.embeddings.Append(Embedding(coarse));
 
       // 3. edge1 and edge2 may have to be changed for the second triangle.
       if (v[1][0] < v_to_v.NumberOfRows() && v[1][1] < v_to_v.NumberOfRows())
@@ -7596,10 +7596,10 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
 
       //
       int coarse = FindCoarseElement(i);
-      fine_transforms.fine_coarse[i] = NCMesh::Embedding(coarse);
-      fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
-      fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
-      fine_transforms.fine_coarse.Append(NCMesh::Embedding(coarse));
+      fine_transforms.embeddings[i] = Embedding(coarse);
+      fine_transforms.embeddings.Append(Embedding(coarse));
+      fine_transforms.embeddings.Append(Embedding(coarse));
+      fine_transforms.embeddings.Append(Embedding(coarse));
 
       NumOfElements += 3;
    }
@@ -8366,14 +8366,14 @@ ElementTransformation * Mesh::GetFineElemTrans(int i, int j)
 int Mesh::FindCoarseElement(int i)
 {
    int coarse;
-   while ((coarse = fine_transforms.fine_coarse[i].coarse_element) != i)
+   while ((coarse = fine_transforms.embeddings[i].parent) != i)
    {
       i = coarse;
    }
    return coarse;
 }
 
-const NCMesh::FineTransforms& Mesh::GetRefinementTransforms()
+const FineTransforms& Mesh::GetRefinementTransforms()
 {
    if (ncmesh)
    {
@@ -8396,7 +8396,7 @@ const NCMesh::FineTransforms& Mesh::GetRefinementTransforms()
             if (!matrix) { matrix = mat_no.size(); }
             index = matrix-1;
          }
-         fine_transforms.fine_coarse[i].matrix = index;
+         fine_transforms.embeddings[i].matrix = index;
       }
 
       DenseTensor &matrices = fine_transforms.point_matrices;

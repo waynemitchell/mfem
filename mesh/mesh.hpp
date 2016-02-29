@@ -115,8 +115,8 @@ protected:
    IsoparametricTransformation FaceTransformation, EdgeTransformation;
    FaceElementTransformations FaceElemTr;
 
-   // refinement embeddings for forward-compatibility with NCMesh
-   NCMesh::FineTransforms fine_transforms;
+   // refinement embeddings for forward compatibility with NCMesh
+   FineTransforms fine_transforms;
 
    // Nodes are only active for higher order meshes, and share locations with
    // the vertices, plus all the higher- order control points within the
@@ -822,7 +822,7 @@ public:
        coordinate system of the coarse element. Clear, isn't it? :-) */
    ElementTransformation * GetFineElemTrans (int i, int j);
 
-   const NCMesh::FineTransforms &GetRefinementTransforms();
+   const FineTransforms &GetRefinementTransforms();
 
    /** Return update counter (for checking proper sequence of Space::
        and GridFunction:: Update(). */
