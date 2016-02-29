@@ -165,7 +165,7 @@ FiniteElement *Mesh::GetTransformationFEforElementType(int ElemType)
       case Element::TETRAHEDRON :    return &TetrahedronFE;
       case Element::HEXAHEDRON :     return &HexahedronFE;
    }
-   mfem_error("Mesh::GetTransformationFEforElement - unknown ElementType");
+   MFEM_ABORT("Unknown element type");
    return &TriangleFE;
 }
 
@@ -3169,6 +3169,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          mfem_error("Mesh::Load : For inline mesh, must specify an "
                     "element type = [segment, tri, quad, tet, hex]");
       }
+      InitBaseGeom();
       return; // done with inline mesh construction
    }
    else
@@ -6413,6 +6414,13 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
    SetState(Mesh::NORMAL);
    DeleteCoarseTables();
 
+   CoarseFineTr.embeddings.SetSize(NumOfElements);
+   for (i = 0; i < NumOfElements; i++)
+   {
+      elements[i]->ResetTransform(0);
+      CoarseFineTr.embeddings[i] = Embedding(i);
+   }
+
    if (Dim == 1) // --------------------------------------------------------
    {
       if (WantTwoLevelState)
@@ -6487,13 +6495,6 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       for (i = 0; i < nedges; i++)
       {
          edge1[i] = edge2[i] = middle[i] = -1;
-      }
-
-      CoarseFineTr.embeddings.SetSize(NumOfElements);
-      for (i = 0; i < NumOfElements; i++)
-      {
-         elements[i]->ResetTransform(0);
-         CoarseFineTr.embeddings[i] = Embedding(i);
       }
 
       for (i = 0; i < NumOfElements; i++)
@@ -7355,29 +7356,36 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       new_redges[0][1] = 1;
       new_redges[1][0] = 2;
       new_redges[1][1] = 1;
+      int tr1 = -1, tr2 = -1;
       switch (old_redges[0])
       {
          case 2:
             v[0][0] = vert[0]; v[0][1] = vert[2]; v[0][2] = vert[3];
             if (type == Tetrahedron::TYPE_PF) { new_redges[0][1] = 4; }
+            tr1 = 0;
             break;
          case 3:
             v[0][0] = vert[3]; v[0][1] = vert[0]; v[0][2] = vert[2];
+            tr1 = 2;
             break;
          case 5:
             v[0][0] = vert[2]; v[0][1] = vert[3]; v[0][2] = vert[0];
+            tr1 = 4;
       }
       switch (old_redges[1])
       {
          case 1:
             v[1][0] = vert[2]; v[1][1] = vert[1]; v[1][2] = vert[3];
             if (type == Tetrahedron::TYPE_PF) { new_redges[1][0] = 3; }
+            tr2 = 1;
             break;
          case 4:
             v[1][0] = vert[1]; v[1][1] = vert[3]; v[1][2] = vert[2];
+            tr2 = 3;
             break;
          case 5:
             v[1][0] = vert[3]; v[1][1] = vert[2]; v[1][2] = vert[1];
+            tr2 = 5;
       }
 
       int attr = tet->GetAttribute();
@@ -7403,16 +7411,23 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
          tet->SetVertices(v[0]);
       }
 
-      {
 #ifdef MFEM_USE_MEMALLOC
-         Tetrahedron *tet2 = TetMemory.Alloc();
-         tet2->SetVertices(v[1]);
-         tet2->SetAttribute(attr);
-         elements.Append(tet2);
+      Tetrahedron *tet2 = TetMemory.Alloc();
+      tet2->SetVertices(v[1]);
+      tet2->SetAttribute(attr);
 #else
-         elements.Append(new Tetrahedron(v[1], attr));
+      Tetrahedron *tet2 = new Tetrahedron(v[1], attr)
 #endif
-      }
+      tet2->ResetTransform(tet->GetTransform());
+      elements.Append(tet2);
+
+      // record the sequence of refinements
+      tet->PushTransform(tr1);
+      tet2->PushTransform(tr2);
+
+      int coarse = FindCoarseElement(i);
+      CoarseFineTr.embeddings[i].parent = coarse;
+      CoarseFineTr.embeddings.Append(Embedding(coarse));
 
       // 3. Set the bisection flag
       switch (type)
@@ -7426,8 +7441,7 @@ void Mesh::Bisection(int i, const DSTable &v_to_v,
       }
 
       tet->CreateRefinementFlag(new_redges[0], new_type, flag+1);
-      ((Tetrahedron *)elements[NumOfElements])->
-      CreateRefinementFlag(new_redges[1], new_type, flag+1);
+      tet2->CreateRefinementFlag(new_redges[1], new_type, flag+1);
 
       NumOfElements++;
    }
@@ -8400,7 +8414,7 @@ const CoarseFineTransformations& Mesh::GetRefinementTransforms()
       }
 
       DenseTensor &pmats = CoarseFineTr.point_matrices;
-      pmats.SetSize(2, 3, mat_no.size());
+      pmats.SetSize(Dim, Dim+1, mat_no.size());
 
       // calculate the point matrices used
       std::map<unsigned, int>::iterator it;

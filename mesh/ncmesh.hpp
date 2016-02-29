@@ -317,6 +317,7 @@ protected: // implementation
 
       Edge() : attribute(-1), index(-1) {}
       Edge(const Edge &other) { std::memcpy(this, &other, sizeof(*this)); }
+
       bool Boundary() const { return attribute >= 0; }
    };
 

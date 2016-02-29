@@ -253,7 +253,44 @@ void Tetrahedron::MarkEdge(const DSTable &v_to_v, const int *length)
 // static method
 void Tetrahedron::GetPointMatrix(unsigned transform, DenseMatrix &pm)
 {
-   // TODO
+   double *a = &pm(0,0), *b = &pm(0,1), *c = &pm(0,2), *d = &pm(0,3);
+
+   // initialize to identity
+   a[0] = 0.0, a[1] = 0.0, a[2] = 0.0;
+   b[0] = 1.0, b[1] = 0.0, b[2] = 0.0;
+   c[0] = 0.0, c[1] = 1.0, c[2] = 0.0;
+   d[0] = 0.0, d[1] = 0.0, d[2] = 1.0;
+
+   int chain[12], n = 0;
+   while (transform)
+   {
+      chain[n++] = (transform & 7) - 1;
+      transform >>= 3;
+   }
+
+   /* The transformations and orientations here match the six cases in
+      Mesh::Bisection for tetrahedra. */
+   while (n)
+   {
+      #define ASGN(a, b) (a[0] = b[0], a[1] = b[1], a[2] = b[2])
+      #define SWAP(a, b) for (int i = 0; i < 3; i++) { std::swap(a[i], b[i]); }
+      #define AVG(a, b, c) for (int i = 0; i < 3; i++) { a[i] = (b[i]+c[i])*0.5; }
+
+      double e[3];
+      AVG(e, a, b);
+      switch (chain[--n])
+      {
+         case 0: ASGN(b, c); ASGN(c, d); break;
+         case 1: ASGN(a, c); ASGN(c, d); break;
+         case 2: ASGN(b, a); ASGN(a, d); break;
+         case 3: ASGN(a, b); ASGN(b, d); break;
+         case 4: SWAP(a, c); ASGN(b, d); break;
+         case 5: SWAP(b, c); ASGN(a, d); break;
+         default:
+            MFEM_ABORT("Invalid transform.");
+      }
+      ASGN(d, e);
+   }
 }
 
 void Tetrahedron::GetVertices(Array<int> &v) const
