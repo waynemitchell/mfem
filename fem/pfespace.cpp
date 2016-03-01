@@ -1683,7 +1683,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    int geom = pncmesh->GetElementGeometry();
    int ldofs = fec->FiniteElementForGeometry(geom)->GetDof();
 
-   const CoarseFineTransformations &dt = pncmesh->GetDerefinementTransforms();
+   const CoarseFineTransformations &dtrans = pncmesh->GetDerefinementTransforms();
    const Array<int> &old_ranks = pncmesh->GetDerefineOldRanks();
 
    std::map<int, DerefDofMessage> messages;
@@ -1693,9 +1693,9 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 
    // communicate DOFs for derefinements that straddle processor boundaries,
    // note that this is infrequent due to the way elements are ordered
-   for (int k = 0; k < dt.embeddings.Size(); k++)
+   for (int k = 0; k < dtrans.embeddings.Size(); k++)
    {
-      const Embedding &emb = dt.embeddings[k];
+      const Embedding &emb = dtrans.embeddings[k];
 
       int fine_rank = old_ranks[k];
       int coarse_rank = (emb.parent < 0) ? (-1 - emb.parent)
@@ -1730,16 +1730,16 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    }
 
    DenseTensor localR;
-   GetLocalDerefinementMatrices(geom, dt, localR);
+   GetLocalDerefinementMatrices(geom, dtrans, localR);
 
    // create the diagonal part of the derefinement matrix
    SparseMatrix *diag = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
 
    Array<char> mark(diag->Height());
    mark = 0;
-   for (int k = 0; k < dt.embeddings.Size(); k++)
+   for (int k = 0; k < dtrans.embeddings.Size(); k++)
    {
-      const Embedding &emb = dt.embeddings[k];
+      const Embedding &emb = dtrans.embeddings[k];
       if (emb.parent < 0) { continue; }
 
       int coarse_rank = pncmesh->ElementRank(emb.parent);
@@ -1787,9 +1787,9 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
    SparseMatrix *offd = new SparseMatrix(ndofs*vdim, 1);
 
    std::map<HYPRE_Int, int> col_map;
-   for (int k = 0; k < dt.embeddings.Size(); k++)
+   for (int k = 0; k < dtrans.embeddings.Size(); k++)
    {
-      const Embedding &emb = dt.embeddings[k];
+      const Embedding &emb = dtrans.embeddings[k];
       if (emb.parent < 0) { continue; }
 
       int coarse_rank = pncmesh->ElementRank(emb.parent);

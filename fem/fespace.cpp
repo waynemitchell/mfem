@@ -935,8 +935,8 @@ void FiniteElementSpace::GetLocalDerefinementMatrices(
    const IntegrationRule &nodes = fe->GetNodes();
 
    LinearFECollection linfec;
-   IsoparametricTransformation trans;
-   trans.SetFE(linfec.FiniteElementForGeometry(geom));
+   IsoparametricTransformation isotr;
+   isotr.SetFE(linfec.FiniteElementForGeometry(geom));
 
    int nmat = dt.point_matrices.SizeK();
    int ldof = fe->GetDof();
@@ -952,13 +952,13 @@ void FiniteElementSpace::GetLocalDerefinementMatrices(
       DenseMatrix &lR = localR(i);
       lR = INFINITY; // marks invalid rows
 
-      trans.GetPointMat() = dt.point_matrices(i);
-      trans.SetIntPoint(&nodes[0]);
-      CalcInverse(trans.Jacobian(), invdfdx);
+      isotr.GetPointMat() = dt.point_matrices(i);
+      isotr.SetIntPoint(&nodes[0]);
+      CalcInverse(isotr.Jacobian(), invdfdx);
 
       for (int j = 0; j < nodes.Size(); j++)
       {
-         InvertLinearTrans(trans, invdfdx, nodes[j], pt);
+         InvertLinearTrans(isotr, invdfdx, nodes[j], pt);
          if (Geometries.PointInside(geom, pt)) // do we need an epsilon here?
          {
             IntegrationPoint ip;
@@ -979,19 +979,21 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
    Array<int> dofs, old_dofs, old_vdofs;
    Vector row;
 
-   const CoarseFineTransformations &dt = mesh->ncmesh->GetDerefinementTransforms();
+   const CoarseFineTransformations &dtrans =
+      mesh->ncmesh->GetDerefinementTransforms();
+
    int geom = mesh->ncmesh->GetElementGeometry();
 
    DenseTensor localR;
-   GetLocalDerefinementMatrices(geom, dt, localR);
+   GetLocalDerefinementMatrices(geom, dtrans, localR);
 
    SparseMatrix *R = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
 
    Array<char> mark(R->Height());
    mark = 0;
-   for (int k = 0; k < dt.embeddings.Size(); k++)
+   for (int k = 0; k < dtrans.embeddings.Size(); k++)
    {
-      const Embedding &emb = dt.embeddings[k];
+      const Embedding &emb = dtrans.embeddings[k];
       DenseMatrix &lR = localR(emb.matrix);
 
       elem_dof->GetRow(emb.parent, dofs);
