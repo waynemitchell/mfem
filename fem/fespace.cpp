@@ -222,6 +222,13 @@ void FiniteElementSpace::BuildElementToDofTable()
    elem_dof = el_dof;
 }
 
+void FiniteElementSpace::RebuildElementToDofTable()
+{
+   delete elem_dof;
+   elem_dof = NULL;
+   BuildElementToDofTable();
+}
+
 void FiniteElementSpace::BuildDofToArrays()
 {
    if (dof_elem_array.Size()) { return; }

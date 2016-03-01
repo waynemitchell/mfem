@@ -110,6 +110,8 @@ protected:
    void Construct();
    void Destroy();   // does not destroy 'RefData' and 'old_elem_dof'
 
+   void BuildElementToDofTable();
+
    /* Create a FE space stealing all data (except RefData) from the
       given FE space. This is used in SaveUpdate() */
    FiniteElementSpace(FiniteElementSpace &);
@@ -282,7 +284,7 @@ public:
 
    void GetEdgeInteriorVDofs(int i, Array<int> &vdofs) const;
 
-   void BuildElementToDofTable();
+   void RebuildElementToDofTable();
 
    void BuildDofToArrays();
 
