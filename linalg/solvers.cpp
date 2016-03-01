@@ -1814,7 +1814,8 @@ void KLUSolver::SetOperator(const Operator &op)
 {
    if (Numeric)
    {
-      MFEM_ASSERT( Symbolic != 0, "Had Numeric pointer in KLU, but not Symbolic");
+      MFEM_ASSERT(Symbolic != 0,
+                  "Had Numeric pointer in KLU, but not Symbolic");
       klu_free_symbolic(&Symbolic, &Common);
       Symbolic = 0;
       klu_free_numeric(&Numeric, &Common);
@@ -1842,27 +1843,29 @@ void KLUSolver::SetOperator(const Operator &op)
 
 void KLUSolver::Mult(const Vector &b, Vector &x) const
 {
-   MFEM_VERIFY( mat != NULL,
-                "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
+   MFEM_VERIFY(mat != NULL,
+               "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
 
    int n = mat->Height();
    int numRhs = 1;
    // Copy B into X, so we can pass it in and overwrite it.
    x = b;
-   // Solve the transpose, since KLU thinks the matrix is compressed column format.
+   // Solve the transpose, since KLU thinks the matrix is compressed column
+   // format.
    klu_tsolve( Symbolic, Numeric, n, numRhs, x.GetData(), &Common);
 }
 
 void KLUSolver::MultTranspose(const Vector &b, Vector &x) const
 {
-   MFEM_VERIFY( mat != NULL,
-                "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
+   MFEM_VERIFY(mat != NULL,
+               "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
 
    int n = mat->Height();
    int numRhs = 1;
    // Copy B into X, so we can pass it in and overwrite it.
    x = b;
-   // Solve the regular matrix, not the transpose, since KLU thinks the matrix is compressed column format.
+   // Solve the regular matrix, not the transpose, since KLU thinks the matrix
+   // is compressed column format.
    klu_solve( Symbolic, Numeric, n, numRhs, x.GetData(), &Common);
 }
 

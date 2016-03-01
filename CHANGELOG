@@ -8,14 +8,14 @@
                                http://mfem.org
 
 Version 3.2, not yet released
-=====================================
+=============================
 
 Improved solvers
--------------------------------------
+----------------
 - Added a wrapper for the KLU solver in SuiteSparse see
   http://faculty.cse.tamu.edu/davis/suitesparse.html for details of KLU.
-  This if you configure with MFEM_USE_SUITESPARSE, you must now also link
-  against the klu and btf libraries in SuiteSparse.
+  If MFEM was configured with MFEM_USE_SUITESPARSE, one must now also link
+  against the klu and btf libraries in SuiteSparse, see config/user.mk.in.
 
 
 Version 3.1, released on Feb 16, 2016
