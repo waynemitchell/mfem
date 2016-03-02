@@ -37,7 +37,6 @@ void ParBilinearForm::pAllocMat()
    }
 
    // the sparsity pattern is defined from the map: face->element->dof
-   fes->BuildElementToDofTable();
    const Table &lelem_ldof = fes->GetElementToDofTable(); // <-- dofs
    const Table &nelem_ndof = pfes->face_nbr_element_dof; // <-- vdofs
    Table elem_dof; // element + nbr-element <---> dof

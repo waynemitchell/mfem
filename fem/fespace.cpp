@@ -253,97 +253,6 @@ void FiniteElementSpace::BuildDofToArrays()
    }
 }
 
-DenseMatrix * FiniteElementSpace::LocalInterpolation
-(int k, int num_c_dofs, RefinementType type, Array<int> &rows)
-{
-   int i,j,l=-1;
-
-   // generate refinement data if necessary
-   for (i = 0; i < RefData.Size(); i++)
-      if (RefData[i] -> type == type)
-      { l = i; break; }
-
-   if (l == -1)
-   { ConstructRefinementData (k,num_c_dofs,type);  l = i; }
-
-   // determine the global indices of the fine dofs on the coarse element
-   Array<int> l_dofs, g_dofs;
-   int num_fine_elems = RefData[l] -> num_fine_elems;
-   rows.SetSize(RefData[l] -> num_fine_dofs);
-
-   for (i = 0; i < num_fine_elems; i++)
-   {
-      GetElementDofs(mesh->GetFineElem(k,i),g_dofs); // TWO_LEVEL_FINE
-      RefData[l] -> fl_to_fc -> GetRow (i, l_dofs);
-      for (j = 0; j < l_dofs.Size(); j++)
-      {
-         rows[l_dofs[j]] = g_dofs[j];
-      }
-   }
-
-   return RefData[l] -> I;
-}
-
-// helper to set submatrix of A repeated vdim times
-static void SetVDofSubMatrixTranspose(SparseMatrix& A,
-                                      Array<int>& rows, Array<int>& cols,
-                                      const DenseMatrix& subm, int vdim)
-{
-   if (vdim == 1)
-   {
-      A.SetSubMatrixTranspose(rows, cols, subm, 1);
-   }
-   else
-   {
-      int nr = subm.Width(), nc = subm.Height();
-      for (int d = 0; d < vdim; d++)
-      {
-         Array<int> rows_sub(rows.GetData() + d*nr, nr); // (not owner)
-         Array<int> cols_sub(cols.GetData() + d*nc, nc); // (not owner)
-         A.SetSubMatrixTranspose(rows_sub, cols_sub, subm, 1);
-      }
-   }
-}
-
-SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
-(FiniteElementSpace * cfes, int one_vdim)
-{
-   int k;
-   SparseMatrix * R;
-   DenseMatrix * r;
-   Array<int> rows, cols;
-
-   if (one_vdim == -1)
-   {
-      one_vdim = (ordering == Ordering::byNODES) ? 1 : 0;
-   }
-
-   MFEM_VERIFY(Conforming(), "Not supported for nonconforming meshes.");
-
-   mesh->SetState(Mesh::TWO_LEVEL_COARSE);
-   int vdim_or_1 = (one_vdim ? 1 : vdim);
-   R = new SparseMatrix(vdim_or_1 * cfes->GetNDofs(), vdim_or_1 * ndofs);
-
-   for (k = 0; k < mesh -> GetNE(); k++)
-   {
-      cfes->GetElementDofs(k, rows);
-
-      mesh->SetState(Mesh::TWO_LEVEL_FINE);
-      r = LocalInterpolation(k, rows.Size(), mesh->GetRefinementType(k), cols);
-
-      if (vdim_or_1 != 1)
-      {
-         cfes->DofsToVDofs(rows);
-         DofsToVDofs(cols);
-      }
-      SetVDofSubMatrixTranspose(*R, rows, cols, *r, vdim_or_1);
-
-      mesh->SetState(Mesh::TWO_LEVEL_COARSE);
-   }
-
-   return R;
-}
-
 static void mark_dofs(const Array<int> &dofs, Array<int> &mark_array)
 {
    for (int i = 0; i < dofs.Size(); i++)
@@ -451,57 +360,6 @@ void FiniteElementSpace::ConvertFromConformingVDofs(const Array<int> &cdofs,
    GetConformingRestriction();
    if (cR) { cR->BooleanMultTranspose(cdofs, dofs); }
    else { cdofs.Copy(dofs); }
-}
-
-void FiniteElementSpace::EliminateEssentialBCFromGRM
-(FiniteElementSpace *cfes, Array<int> &bdr_attr_is_ess, SparseMatrix *R)
-{
-   int i, j, k, one_vdim;
-   Array<int> dofs;
-
-   one_vdim = (cfes -> GetNDofs() == R -> Height()) ? 1 : 0;
-
-   mesh -> SetState (Mesh::TWO_LEVEL_COARSE);
-   if (bdr_attr_is_ess.Size() != 0)
-   {
-      for (i = 0; i < cfes -> GetNBE(); i++)
-      {
-         if (bdr_attr_is_ess[cfes -> GetBdrAttribute (i)-1])
-         {
-            if (one_vdim == 1)
-            {
-               cfes -> GetBdrElementDofs (i, dofs);
-            }
-            else
-            {
-               cfes -> GetBdrElementVDofs (i, dofs);
-            }
-            for (j = 0; j < dofs.Size(); j++)
-            {
-               if ( (k = dofs[j]) >= 0 )
-               {
-                  R -> EliminateRow(k);
-               }
-               else
-               {
-                  R -> EliminateRow(-1-k);
-               }
-            }
-         }
-      }
-   }
-   R -> Finalize();
-}
-
-SparseMatrix * FiniteElementSpace::GlobalRestrictionMatrix
-(FiniteElementSpace * cfes, Array<int> &bdr_attr_is_ess, int one_vdim)
-{
-   SparseMatrix * R;
-
-   R = GlobalRestrictionMatrix (cfes, one_vdim);
-   EliminateEssentialBCFromGRM (cfes, bdr_attr_is_ess, R);
-
-   return R;
 }
 
 SparseMatrix *
@@ -1032,43 +890,6 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
    return R;
 }
 
-FiniteElementSpace::FiniteElementSpace(FiniteElementSpace &fes)
-{
-   mesh = fes.mesh;
-   vdim = fes.vdim;
-   ndofs = fes.ndofs;
-   ordering = fes.ordering;
-   fec = fes.fec;
-   nvdofs = fes.nvdofs;
-   nedofs = fes.nedofs;
-   nfdofs = fes.nfdofs;
-   nbdofs = fes.nbdofs;
-   fdofs = fes.fdofs;
-   bdofs = fes.bdofs;
-   // keep 'RefData' in 'fes'
-   elem_dof = fes.elem_dof;
-   old_ndofs = 0;
-   old_elem_dof = NULL;
-   bdrElem_dof = fes.bdrElem_dof;
-   Swap(dof_elem_array, fes.dof_elem_array);
-   Swap(dof_ldof_array, fes.dof_ldof_array);
-
-   NURBSext = fes.NURBSext;
-   own_ext = 0;
-
-   cP = fes.cP;
-   cR = fes.cR;
-   fes.cP = NULL;
-   fes.cR = NULL;
-
-   fes.bdofs = NULL;
-   fes.fdofs = NULL;
-   fes.elem_dof = NULL;
-   fes.bdrElem_dof = NULL;
-
-   sequence = fes.sequence;
-}
-
 FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
                                        const FiniteElementCollection *fec,
                                        int vdim, int ordering)
@@ -1593,11 +1414,6 @@ const FiniteElement *FiniteElementSpace::GetTraceElement(
 FiniteElementSpace::~FiniteElementSpace()
 {
    Destroy();
-   // delete RefData
-   for (int i = 0; i < RefData.Size(); i++)
-   {
-      delete RefData[i];
-   }
    delete old_elem_dof;
 }
 
@@ -1650,7 +1466,7 @@ void FiniteElementSpace::Update(bool want_transform)
 
    old_ndofs = ndofs;
 
-   Destroy();   // keeps RefData
+   Destroy();
    Construct();
    BuildElementToDofTable();
 
@@ -1684,81 +1500,6 @@ void FiniteElementSpace::Update(bool want_transform)
             break; // T stays NULL
       }
    }
-}
-
-FiniteElementSpace *FiniteElementSpace::SaveUpdate()
-{
-   FiniteElementSpace *cfes = new FiniteElementSpace(*this);
-   Construct();
-   BuildElementToDofTable();
-   return cfes;
-}
-
-void FiniteElementSpace::ConstructRefinementData (int k, int num_c_dofs,
-                                                  RefinementType type)
-{
-   int i,j,l;
-   Array<int> dofs, g_dofs;
-
-   RefinementData * data = new RefinementData;
-
-   data -> type = type;
-   data -> num_fine_elems = mesh -> GetNumFineElems(k);
-
-   // we assume that each fine element has <= dofs than the
-   // initial coarse element
-   data -> fl_to_fc = new Table(data -> num_fine_elems, num_c_dofs);
-   for (i = 0; i < data -> num_fine_elems; i++)
-   {
-      GetElementDofs(mesh -> GetFineElem(k,i), g_dofs); // TWO_LEVEL_FINE
-      for (j = 0; j < g_dofs.Size(); j++)
-      {
-         data -> fl_to_fc -> Push (i,dofs.Union(g_dofs[j]));
-      }
-   }
-   data -> fl_to_fc -> Finalize();
-   data -> num_fine_dofs = dofs.Size();
-
-   // construction of I
-
-   // k is a coarse element index but mesh is in TWO_LEVEL_FINE state
-   int geomtype = mesh->GetElementBaseGeometry(k);
-   const FiniteElement *fe = fec -> FiniteElementForGeometry(geomtype);
-   // const IntegrationRule &ir = fe -> GetNodes();
-   int nedofs = fe -> GetDof();  // number of dofs for each element
-
-   ElementTransformation *trans;
-   // IntegrationPoint ip;
-   // DenseMatrix tr;
-   Array<int> row;
-
-   // Vector shape(nedofs);
-   DenseMatrix I (nedofs);
-   data -> I = new DenseMatrix(data -> num_fine_dofs, nedofs);
-
-   for (i=0; i < data -> num_fine_elems; i++)
-   {
-
-      trans = mesh -> GetFineElemTrans(k,i);
-      // trans -> Transform(ir,tr);
-      fe -> GetLocalInterpolation (*trans, I);
-      data -> fl_to_fc -> GetRow(i,row);
-
-      for (j=0; j < nedofs; j++)
-      {
-         /*
-           ip.x = tr(0,j); ip.y = tr(1,j);       if (tr.Height()==3) ip.z = tr(2,j);
-           fe -> SetCalcElemTrans(trans); shape(0) = j;
-           fe -> CalcShape(ip, shape);
-         */
-         for (l=0; l < nedofs; l++)
-         {
-            (*(data->I))(row[j],l) = I(j,l);
-         }
-      }
-   }
-
-   RefData.Append(data);
 }
 
 void FiniteElementSpace::Save(std::ostream &out) const

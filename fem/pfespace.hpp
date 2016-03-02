@@ -250,9 +250,6 @@ public:
        /rebalance matrices, unless want_transform is false. */
    virtual void Update(bool want_transform = true);
 
-   /// Return a copy of the current FE space and update
-   virtual FiniteElementSpace *SaveUpdate();
-
    virtual ~ParFiniteElementSpace() { Destroy(); }
 
    // Obsolete, kept for backward compatibility

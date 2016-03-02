@@ -21,9 +21,6 @@
 namespace mfem
 {
 
-/* Class FiniteElementSpace - responsible for providing FEM view of the mesh
-   (mainly managing the set of degrees of freedom). */
-
 /** The ordering method used when the number of unknowns per mesh
     node (vector dimension) is bigger than 1. */
 class Ordering
@@ -35,30 +32,11 @@ public:
    enum Type { byNODES, byVDIM };
 };
 
-/// Type of refinement (int, a tree, etc.)
-typedef int RefinementType;
-
-/// Data kept for every type of refinement
-class RefinementData
-{
-public:
-   /// Refinement type
-   RefinementType type;
-   /// Number of the fine elements
-   int num_fine_elems;
-   /// Number of the fine dofs on the coarse element (fc)
-   int num_fine_dofs;
-   /// (local dofs of) fine element <-> fine dofs on the coarse element
-   Table * fl_to_fc;
-   /// Local interpolation matrix
-   DenseMatrix * I;
-   /// Releases the allocated memory
-   ~RefinementData() { delete fl_to_fc; delete I;}
-};
 
 class NURBSExtension;
 
-/// Abstract finite element space.
+/** Class FiniteElementSpace - responsible for providing FEM view of the mesh
+    (mainly managing the set of degrees of freedom). */
 class FiniteElementSpace
 {
 protected:
@@ -79,9 +57,6 @@ protected:
    const FiniteElementCollection *fec;
    int nvdofs, nedofs, nfdofs, nbdofs;
    int *fdofs, *bdofs;
-
-   /// Collection of currently known refinement data
-   Array<RefinementData *> RefData;
 
    Table *elem_dof;
    Table *bdrElem_dof;
@@ -111,18 +86,6 @@ protected:
    void Destroy();   // does not destroy 'RefData' and 'old_elem_dof'
 
    void BuildElementToDofTable();
-
-   /* Create a FE space stealing all data (except RefData) from the
-      given FE space. This is used in SaveUpdate() */
-   FiniteElementSpace(FiniteElementSpace &);
-
-   /// Constructs new refinement data using coarse element k as a template
-   void ConstructRefinementData(int k, int cdofs, RefinementType type);
-
-   /// Generates the local interpolation matrix for coarse element k
-   DenseMatrix *LocalInterpolation(int k, int cdofs,
-                                   RefinementType type,
-                                   Array<int> &rows);
 
    /** This is a helper function to get edge (type == 0) or face (type == 1)
        DOFs. The function is aware of ghost edges/faces in parallel, for which
@@ -307,17 +270,6 @@ public:
    /// Return the trace element from element 'i' to the given 'geom_type'
    const FiniteElement *GetTraceElement(int i, int geom_type) const;
 
-   /** Return the restriction matrix from this FE space to the coarse FE space
-       'cfes'. Both FE spaces must use the same FE collection and be defined on
-       the same Mesh which must be in TWO_LEVEL_* state.  When vdim > 1,
-       'one_vdim' specifies whether the restriction matrix built should be the
-       scalar restriction (one_vdim=1) or the full vector restriction
-       (one_vdim=0); if one_vdim=-1 then the behavior depends on the ordering of
-       this FE space: if ordering=byNodes then the scalar restriction matrix is
-       built and if ordering=byVDim -- the full vector restriction matrix.  */
-   SparseMatrix *GlobalRestrictionMatrix(FiniteElementSpace *cfes,
-                                         int one_vdim = -1);
-
    /** Mark degrees of freedom associated with boundary elements with
        the specified boundary attributes (marked in 'bdr_attr_is_ess'). */
    virtual void GetEssentialVDofs(const Array<int> &bdr_attr_is_ess,
@@ -351,15 +303,6 @@ public:
        conforming dof. */
    void ConvertFromConformingVDofs(const Array<int> &cdofs, Array<int> &dofs);
 
-   void EliminateEssentialBCFromGRM(FiniteElementSpace *cfes,
-                                    Array<int> &bdr_attr_is_ess,
-                                    SparseMatrix *R);
-
-   /// Generate the global restriction matrix with eliminated essential bc
-   SparseMatrix *GlobalRestrictionMatrix(FiniteElementSpace *cfes,
-                                         Array<int> &bdr_attr_is_ess,
-                                         int one_vdim = -1);
-
    /** Generate the global restriction matrix from a discontinuous
        FE space to the continuous FE space of the same polynomial degree. */
    SparseMatrix *D2C_GlobalRestrictionMatrix(FiniteElementSpace *cfes);
@@ -389,9 +332,6 @@ public:
 
    /// Return update counter (see Mesh::sequence)
    long GetSequence() const { return sequence; }
-
-   /// Return a copy of the current FE space and update
-   virtual FiniteElementSpace *SaveUpdate();
 
    void Save(std::ostream &out) const;
 

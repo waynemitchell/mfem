@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
-   //mesh->SetCurvature(2);
+   mesh->SetCurvature(2);
 
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
@@ -198,11 +198,11 @@ int main(int argc, char *argv[])
    /*mesh->UniformRefinement();
    x.Update();*/
 
-   /*for (int i = 0; i < 1; i++)
+   for (int i = 0; i < 3; i++)
    {
       mesh->RandomRefinement(1);
       x.Update();
-   }*/
+   }
 
    //mesh->Print();
 

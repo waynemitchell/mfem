@@ -22,34 +22,6 @@
 namespace mfem
 {
 
-ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
-   : FiniteElementSpace(pf)
-{
-   MyComm = pf.MyComm;
-   NRanks = pf.NRanks;
-   MyRank = pf.MyRank;
-   pmesh = pf.pmesh;
-   gcomm = pf.gcomm;
-   pf.gcomm = NULL;
-   ltdof_size = pf.ltdof_size;
-   Swap(ldof_group, pf.ldof_group);
-   Swap(ldof_ltdof, pf.ldof_ltdof);
-   Swap(dof_offsets, pf.dof_offsets);
-   Swap(tdof_offsets, pf.tdof_offsets);
-   Swap(tdof_nb_offsets, pf.tdof_nb_offsets);
-   Swap(ldof_sign, pf.ldof_sign);
-   P = pf.P;
-   pf.P = NULL;
-   R = pf.R;
-   pf.R = NULL;
-   num_face_nbr_dofs = pf.num_face_nbr_dofs;
-   pf.num_face_nbr_dofs = -1;
-   Swap<Table>(face_nbr_element_dof, pf.face_nbr_element_dof);
-   Swap<Table>(face_nbr_ldof, pf.face_nbr_ldof);
-   Swap(face_nbr_glob_dof_map, pf.face_nbr_glob_dof_map);
-   Swap<Table>(send_face_nbr_ldof, pf.send_face_nbr_ldof);
-}
-
 ParFiniteElementSpace::ParFiniteElementSpace(
    ParMesh *pm, const FiniteElementCollection *f, int dim, int ordering)
    : FiniteElementSpace(pm, f, dim, ordering)
@@ -1955,17 +1927,6 @@ void ParFiniteElementSpace::Update(bool want_transform)
             break;
       }
    }
-}
-
-FiniteElementSpace *ParFiniteElementSpace::SaveUpdate()
-{
-   ParFiniteElementSpace *cpfes = new ParFiniteElementSpace(*this);
-
-   FiniteElementSpace::Construct();
-   Construct();
-
-   BuildElementToDofTable();
-   return cpfes;
 }
 
 } // namespace mfem

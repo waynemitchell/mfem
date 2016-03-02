@@ -256,16 +256,18 @@ int main(int argc, char *argv[])
          if (errors[i] >= threshold) { ref_list.Append(i); }
       }
 
-      // 19. Refine the selected elements. Since we are going to transfer the
-      //     grid function x from the coarse mesh to the new fine mesh in the
-      //     next step, we need to request the "two-level state" of the mesh.
+      // 19. Refine the selected elements.
       pmesh.GeneralRefinement(ref_list);
-      pmesh.Rebalance();
-
-      // 20. Inform the space, grid function and also the bilinear and linear
-      //     forms that the space has changed.
       fespace.Update();
       x.Update();
+
+      // 20. Load balance the mesh.
+      pmesh.Rebalance();
+      fespace.Update();
+      x.Update();
+
+      // 21. Inform also the bilinear and linear forms that the space has
+      //     changed.
       a.Update();
       b.Update();
    }

@@ -55,16 +55,9 @@ protected:
 
    int BaseGeom, BaseBdrGeom; // element base geometries, -1 if not all the same
 
-   int State, WantTwoLevelState;
-
    int meshgen; // see MeshGenerator()
 
    long sequence; // counter for checking order of Space and GridFunction updates
-
-   int c_NumOfVertices, c_NumOfElements, c_NumOfBdrElements;
-   int f_NumOfVertices, f_NumOfElements, f_NumOfBdrElements;
-   int c_NumOfEdges, c_NumOfFaces;
-   int f_NumOfEdges, f_NumOfFaces;
 
    Array<Element *> elements;
    // Vertices are only at the corners of elements, where you would expect them
@@ -106,11 +99,6 @@ protected:
    mutable Table *face_edge;
    mutable Table *edge_vertex;
 
-   Table *c_el_to_edge, *f_el_to_edge, *c_bel_to_edge, *f_bel_to_edge;
-   Array<int> fc_be_to_edge; // swapped with be_to_edge when switching state
-   Table *c_el_to_face, *f_el_to_face; // for 3D two-level state
-   Array<FaceInfo> fc_faces_info;      // for 3D two-level state
-
    IsoparametricTransformation Transformation, Transformation2;
    IsoparametricTransformation FaceTransformation, EdgeTransformation;
    FaceElementTransformations FaceElemTr;
@@ -132,9 +120,7 @@ protected:
 
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
-
    MemAlloc <Tetrahedron, 1024> TetMemory;
-   MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
 
 public:
@@ -150,11 +136,6 @@ protected:
    void InitTables();
 
    void DeleteTables();
-
-   /** Delete the 'el_to_el', 'face_edge' and 'edge_vertex' tables, and the
-       coarse non-conforming Mesh 'nc_coarse_level'. Useful in refinement
-       methods to destroy these data members. */
-   void DeleteCoarseTables();
 
    Element *ReadElementWithoutAttr(std::istream &);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
@@ -242,16 +223,6 @@ protected:
    void UpdateNURBS();
 
    void PrintTopo(std::ostream &out, const Array<int> &e_to_k) const;
-
-   void BisectTriTrans (DenseMatrix &pointmat, Triangle *tri,
-                        int child);
-
-   void BisectTetTrans (DenseMatrix &pointmat, Tetrahedron *tet,
-                        int child);
-
-   int GetFineElemPath (int i, int j);
-
-   int GetBisectionHierarchy (Element *E);
 
    /// Used in GetFaceElementTransformations (...)
    void GetLocalPtToSegTransformation(IsoparametricTransformation &, int);
@@ -353,8 +324,6 @@ protected:
    void Swap(Mesh& other, bool non_geometry = false);
 
 public:
-
-   enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
@@ -789,38 +758,6 @@ public:
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
    void DegreeElevate(int t);
-
-   /** Sets or clears the flag that indicates that mesh refinement methods
-       should put the mesh in two-level state. */
-   void UseTwoLevelState (int use)
-   {
-      if (!use && State != Mesh::NORMAL)
-      {
-         SetState (Mesh::NORMAL);
-      }
-      WantTwoLevelState = use;
-   }
-
-   /// Change the mesh state to NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE
-   void SetState (int s);
-
-   int GetState() const { return State; }
-
-   /** For a given coarse element i returns the number of
-       subelements it is divided into. */
-   int GetNumFineElems (int i);
-
-   /// For a given coarse element i returns its refinement type
-   int GetRefinementType (int i);
-
-   /** For a given coarse element i and index j of one of its subelements
-       return the global index of the fine element in the fine mesh. */
-   int GetFineElem (int i, int j);
-
-   /** For a given coarse element i and index j of one of its subelements
-       return the transformation that transforms the fine element into the
-       coordinate system of the coarse element. Clear, isn't it? :-) */
-   ElementTransformation * GetFineElemTrans (int i, int j);
 
    /** Return fine element transformations following a mesh refinenemt.
        Space uses this to construct a global interpolation matrix. */

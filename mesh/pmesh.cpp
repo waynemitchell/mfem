@@ -343,8 +343,6 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    }
    GenerateFaces();
 
-   c_el_to_edge = NULL;
-
    ListOfIntegerSets  groups;
    IntegerSet         group;
 
@@ -1479,28 +1477,12 @@ void ParMesh::ReorientTetMesh()
 
 void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 {
-   int i, j, wtls = WantTwoLevelState;
+   int i, j;
 
-   if (Nodes)  // curved mesh
-   {
-      UseTwoLevelState(1);
-   }
-
-   SetState(Mesh::NORMAL);
-   DeleteCoarseTables();
    DeleteFaceNbrData();
 
    if (Dim == 3)
    {
-      if (WantTwoLevelState)
-      {
-         c_NumOfVertices    = NumOfVertices;
-         c_NumOfEdges       = NumOfEdges;
-         c_NumOfFaces       = NumOfFaces;
-         c_NumOfElements    = NumOfElements;
-         c_NumOfBdrElements = NumOfBdrElements;
-      }
-
       int uniform_refinement = 0;
       if (type < 0)
       {
@@ -1549,12 +1531,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                Bisection(marked_el[i], v_to_v, NULL, NULL, middle);
             }
             break;
-      }
-
-      if (WantTwoLevelState)
-      {
-         RefinedElement::State = RefinedElement::FINE;
-         State = Mesh::TWO_LEVEL_FINE;
       }
 
       // 4. Do the green refinement (to get conforming mesh).
@@ -1732,36 +1708,23 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       // 5a. Update the groups after refinement.
       if (el_to_face != NULL)
       {
-         if (WantTwoLevelState)
-         {
-            c_el_to_face = el_to_face;
-            el_to_face = NULL;
-            mfem::Swap(faces_info, fc_faces_info);
-         }
          RefineGroups(v_to_v, middle);
          // GetElementToFaceTable(); // Called by RefineGroups
          GenerateFaces();
-         if (WantTwoLevelState)
-         {
-            f_el_to_face = el_to_face;
-         }
       }
 
       // 6. Un-mark the Pf elements.
       int refinement_edges[2], type, flag;
       for (i = 0; i < NumOfElements; i++)
       {
-         Element *El = elements[i];
-         while (El->GetType() == Element::BISECTED)
-         {
-            El = ((BisectedElement *) El)->FirstChild;
-         }
-         ((Tetrahedron *) El)->ParseRefinementFlag(refinement_edges,
-                                                   type, flag);
+         Tetrahedron* el = (Tetrahedron*) elements[i];
+         el->ParseRefinementFlag(refinement_edges, type, flag);
+
          if (type == Tetrahedron::TYPE_PF)
-            ((Tetrahedron *) El)->CreateRefinementFlag(refinement_edges,
-                                                       Tetrahedron::TYPE_PU,
-                                                       flag);
+         {
+            el->CreateRefinementFlag(refinement_edges, Tetrahedron::TYPE_PU,
+                                     flag);
+         }
       }
 
       // 7. Free the allocated memory.
@@ -1769,43 +1732,13 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 
       if (el_to_edge != NULL)
       {
-         if (WantTwoLevelState)
-         {
-            c_el_to_edge = el_to_edge;
-            f_el_to_edge = new Table;
-            c_bel_to_edge = bel_to_edge;
-            bel_to_edge = NULL;
-            NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
-            el_to_edge = f_el_to_edge;
-            f_bel_to_edge = bel_to_edge;
-         }
-         else
-         {
-            NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-         }
-      }
-
-      if (WantTwoLevelState)
-      {
-         f_NumOfVertices    = NumOfVertices;
-         f_NumOfEdges       = NumOfEdges;
-         f_NumOfFaces       = NumOfFaces;
-         f_NumOfElements    = NumOfElements;
-         f_NumOfBdrElements = NumOfBdrElements;
+         NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
       }
    } //  'if (Dim == 3)'
 
 
    if (Dim == 2)
    {
-      if (WantTwoLevelState)
-      {
-         c_NumOfVertices    = NumOfVertices;
-         c_NumOfEdges       = NumOfEdges;
-         c_NumOfElements    = NumOfElements;
-         c_NumOfBdrElements = NumOfBdrElements;
-      }
-
       int uniform_refinement = 0;
       if (type < 0)
       {
@@ -1842,12 +1775,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       for (i = 0; i < marked_el.Size(); i++)
       {
          RedRefinement(marked_el[i], v_to_v, edge1, edge2, middle);
-      }
-
-      if (WantTwoLevelState)
-      {
-         RefinedElement::State = RefinedElement::FINE;
-         State = Mesh::TWO_LEVEL_FINE;
       }
 
       // 4. Do the green refinement (to get conforming mesh).
@@ -2009,26 +1936,8 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                v1[0] =           v[0]; v1[1] = middle[bisect];
                v2[0] = middle[bisect]; v2[1] =           v[1];
 
-               if (WantTwoLevelState)
-               {
-                  boundary.Append(new Segment(v2, boundary[i]->GetAttribute()));
-#ifdef MFEM_USE_MEMALLOC
-                  BisectedElement *aux = BEMemory.Alloc();
-                  aux->SetCoarseElem(boundary[i]);
-#else
-                  BisectedElement *aux = new BisectedElement(boundary[i]);
-#endif
-                  aux->FirstChild =
-                     new Segment(v1, boundary[i]->GetAttribute());
-                  aux->SecondChild = NumOfBdrElements;
-                  boundary[i] = aux;
-                  NumOfBdrElements++;
-               }
-               else
-               {
-                  boundary[i]->SetVertices(v1);
-                  boundary.Append(new Segment(v2, boundary[i]->GetAttribute()));
-               }
+               boundary[i]->SetVertices(v1);
+               boundary.Append(new Segment(v2, boundary[i]->GetAttribute()));
             }
             else
                mfem_error("Only bisection of segment is implemented for bdr"
@@ -2045,43 +1954,15 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       delete [] edge2;
       delete [] middle;
 
-      if (WantTwoLevelState)
-      {
-         f_NumOfVertices    = NumOfVertices;
-         f_NumOfElements    = NumOfElements;
-         f_NumOfBdrElements = NumOfBdrElements;
-         RefinedElement::State = RefinedElement::FINE;
-         State = Mesh::TWO_LEVEL_FINE;
-      }
-
       if (el_to_edge != NULL)
       {
-         if (WantTwoLevelState)
-         {
-            c_el_to_edge = el_to_edge;
-            mfem::Swap(be_to_edge, fc_be_to_edge); // save coarse be_to_edge
-            f_el_to_edge = new Table;
-            NumOfEdges = GetElementToEdgeTable(*f_el_to_edge, be_to_edge);
-            el_to_edge = f_el_to_edge;
-            f_NumOfEdges = NumOfEdges;
-         }
-         else
-         {
-            NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-         }
+         NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
          GenerateFaces();
       }
    } //  'if (Dim == 2)'
 
    if (Dim == 1) // --------------------------------------------------------
    {
-      if (WantTwoLevelState)
-      {
-         c_NumOfVertices    = NumOfVertices;
-         c_NumOfElements    = NumOfElements;
-         c_NumOfBdrElements = NumOfBdrElements;
-         c_NumOfEdges = 0;
-      }
       int cne = NumOfElements, cnv = NumOfVertices;
       NumOfVertices += marked_el.Size();
       NumOfElements += marked_el.Size();
@@ -2095,41 +1976,12 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          int new_v = cnv + j, new_e = cne + j;
          AverageVertices(vert, 2, new_v);
          elements[new_e] = new Segment(new_v, vert[1], attr);
-         if (WantTwoLevelState)
-         {
-#ifdef MFEM_USE_MEMALLOC
-            BisectedElement *aux = BEMemory.Alloc();
-            aux->SetCoarseElem(c_seg);
-#else
-            BisectedElement *aux = new BisectedElement(c_seg);
-#endif
-            aux->FirstChild = new Segment(vert[0], new_v, attr);
-            aux->SecondChild = new_e;
-            elements[i] = aux;
-         }
-         else
-         {
-            vert[1] = new_v;
-         }
-      }
-      if (WantTwoLevelState)
-      {
-         f_NumOfVertices    = NumOfVertices;
-         f_NumOfElements    = NumOfElements;
-         f_NumOfBdrElements = NumOfBdrElements;
-         f_NumOfEdges = 0;
-
-         RefinedElement::State = RefinedElement::FINE;
-         State = Mesh::TWO_LEVEL_FINE;
+         vert[1] = new_v;
       }
       GenerateFaces();
    } // end of 'if (Dim == 1)'
 
-   if (Nodes)  // curved mesh
-   {
-      UpdateNodes();
-      UseTwoLevelState(wtls);
-   }
+   UpdateNodes();
 
 #ifdef MFEM_DEBUG
    CheckElementOrientation(false);
@@ -2453,15 +2305,9 @@ void ParMesh::RefineGroups(const DSTable &v_to_v, int *middle)
 
 void ParMesh::QuadUniformRefinement()
 {
-   SetState(Mesh::NORMAL);
    DeleteFaceNbrData();
 
-   int oedge = NumOfVertices, wtls = WantTwoLevelState;
-
-   if (Nodes)  // curved mesh
-   {
-      UseTwoLevelState(1);
-   }
+   int oedge = NumOfVertices;
 
    // call Mesh::QuadUniformRefinement so that it won't update the nodes
    {
@@ -2541,30 +2387,19 @@ void ParMesh::QuadUniformRefinement()
       group_sedge.SetIJ(I_group_sedge, J_group_sedge);
    }
 
-   if (Nodes)  // curved mesh
-   {
-      UpdateNodes();
-      UseTwoLevelState(wtls);
-   }
+   UpdateNodes();
 }
 
 void ParMesh::HexUniformRefinement()
 {
-   SetState(Mesh::NORMAL);
    DeleteFaceNbrData();
 
-   int wtls = WantTwoLevelState;
    int oedge = NumOfVertices;
    int oface = oedge + NumOfEdges;
 
    DSTable v_to_v(NumOfVertices);
    GetVertexToVertexTable(v_to_v);
    STable3D *faces_tbl = GetFacesTable();
-
-   if (Nodes)  // curved mesh
-   {
-      UseTwoLevelState(1);
-   }
 
    // call Mesh::HexUniformRefinement so that it won't update the nodes
    {
@@ -2701,11 +2536,7 @@ void ParMesh::HexUniformRefinement()
       group_sface.SetIJ(I_group_sface, J_group_sface);
    }
 
-   if (Nodes)  // curved mesh
-   {
-      UpdateNodes();
-      UseTwoLevelState(wtls);
-   }
+   UpdateNodes();
 }
 
 void ParMesh::NURBSUniformRefinement()
@@ -3953,8 +3784,6 @@ void ParMesh::PrintInfo(std::ostream &out)
 
 ParMesh::~ParMesh()
 {
-   SetState(Mesh::NORMAL);
-
    delete pncmesh;
    ncmesh = pncmesh = NULL;
 
