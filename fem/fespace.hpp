@@ -43,23 +43,25 @@ protected:
    /// The mesh that FE space lives on.
    Mesh *mesh;
 
+   const FiniteElementCollection *fec;
+
    /// Vector dimension (number of unknowns per degree of freedom).
    int vdim;
-
-   /// Number of degrees of freedom. Number of unknowns are ndofs*vdim.
-   int ndofs;
 
    /** Type of ordering of dofs.
        Ordering::byNODES - first nodes, then vector dimension,
        Ordering::byVDIM  - first vector dimension, then nodes  */
    int ordering;
 
-   const FiniteElementCollection *fec;
+   /// Number of degrees of freedom. Number of unknowns are ndofs*vdim.
+   int ndofs;
+
    int nvdofs, nedofs, nfdofs, nbdofs;
    int *fdofs, *bdofs;
 
    Table *elem_dof;
    Table *bdrElem_dof;
+
    Array<int> dof_elem_array, dof_ldof_array;
 
    int old_ndofs; ///< ndofs before Update()
@@ -68,11 +70,11 @@ protected:
    NURBSExtension *NURBSext;
    int own_ext;
 
-   // Matrix representing the prolongation from the global conforming dofs to
-   // a set of intermediate partially conforming dofs, e.g. the dofs associated
-   // with a "cut" space on a non-conforming mesh.
+   /** Matrix representing the prolongation from the global conforming dofs to
+       a set of intermediate partially conforming dofs, e.g. the dofs associated
+       with a "cut" space on a non-conforming mesh. */
    SparseMatrix *cP;
-   // Conforming restriction matrix such that cR.cP=I.
+   /// Conforming restriction matrix such that cR.cP=I.
    SparseMatrix *cR;
 
    /// Transformation to apply to GridFunctions after space Update().
