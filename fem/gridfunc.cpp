@@ -48,6 +48,7 @@ GridFunction::GridFunction(Mesh *m, std::istream &input)
    input.getline(buff, bufflen); // read the empty line
    fes = new FiniteElementSpace(m, fec, vdim, ordering);
    Vector::Load(input, fes->GetVSize());
+   sequence = 0;
 }
 
 GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
@@ -123,6 +124,7 @@ GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
       fi += l_nfdofs;
       di += l_nddofs;
    }
+   sequence = 0;
 }
 
 void GridFunction::Destroy()

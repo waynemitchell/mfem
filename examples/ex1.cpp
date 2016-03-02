@@ -83,6 +83,8 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
+   //mesh->SetCurvature(2);
+
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. We choose 'ref_levels' to be the
    //    largest number that gives a final mesh with no more than 50,000
@@ -187,20 +189,22 @@ int main(int argc, char *argv[])
    sol_ofs.precision(8);
    x.Save(sol_ofs);
 
-   /*Array<Refinement> ref;
+   Array<Refinement> ref;
    ref.Append(Refinement(0, 1));
 
    mesh->GeneralRefinement(ref);
-   x.Update();*/
-
-   /*mesh->UniformRefinement();
    x.Update();
 
-   for (int i = 0; i < 3; i++)
+   /*mesh->UniformRefinement();
+   x.Update();*/
+
+   for (int i = 0; i < 1; i++)
    {
       mesh->RandomRefinement(1);
       x.Update();
-   }*/
+   }
+
+   //mesh->Print();
 
    // 13. Send the solution by socket to a GLVis server.
    if (visualization)

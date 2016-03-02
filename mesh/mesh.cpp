@@ -6130,14 +6130,14 @@ void Mesh::QuadUniformRefinement()
       GenerateFaces();
    }
 
+   last_operation = Mesh::REFINE;
+   sequence++;
+
    if (Nodes)  // curved mesh
    {
       UpdateNodes();
       UseTwoLevelState(wtls);
    }
-
-   last_operation = Mesh::REFINE;
-   sequence++;
 
 #ifdef MFEM_DEBUG
    CheckElementOrientation(false);
@@ -6387,14 +6387,14 @@ void Mesh::HexUniformRefinement()
       }
    }
 
+   last_operation = Mesh::REFINE;
+   sequence++;
+
    if (Nodes)  // curved mesh
    {
       UpdateNodes();
       UseTwoLevelState(wtls);
    }
-
-   last_operation = Mesh::REFINE;
-   sequence++;
 
    //  When 'WantTwoLevelState' is true the coarse level
    //  'be_to_face' and 'faces'
@@ -6409,11 +6409,6 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
    if (ncmesh)
    {
       MFEM_ABORT("Local and nonconforming refinements cannot be mixed.");
-   }
-
-   if (Nodes)  // curved mesh
-   {
-      UseTwoLevelState(1);
    }
 
    SetState(Mesh::NORMAL);
