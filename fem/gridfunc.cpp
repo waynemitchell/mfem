@@ -160,7 +160,7 @@ void GridFunction::Update()
    }
    else
    {
-      SetSpace(fes);
+      SetSize(fes->GetVSize());
    }
 }
 

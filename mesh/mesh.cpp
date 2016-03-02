@@ -3537,6 +3537,9 @@ void Mesh::NURBSUniformRefinement()
 
    NURBSext->UniformRefinement();
 
+   last_operation = Mesh::REFINE;
+   sequence++;
+
    UpdateNURBS();
 }
 
