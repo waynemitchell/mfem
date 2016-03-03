@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
    for (int it = 0; it < 100; it++)
    {
       const int levels = 6;
-      int frac = (rand() % 3) + 2;
+      double prob = 1.0 / ((rand() % 3) + 2);
 
       if (myid == 0) { cout << "Refining..." << endl; }
 
@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
       for (int i = 0; i < levels; i++)
       {
          // refine randomly
-         pmesh->RandomRefinement(1, frac, false, 1, -1, rand());
+         pmesh->RandomRefinement(prob, false, 1, -1);
          x.Update();
          CheckNorm(x, norm);
 

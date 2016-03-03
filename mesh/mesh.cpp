@@ -6791,57 +6791,49 @@ void Mesh::EnsureNCMesh()
    }
 }
 
-void Mesh::RandomRefinement(int levels, int frac, bool aniso,
-                            int nonconforming, int nc_limit, int seed)
+void Mesh::RandomRefinement(double prob, bool aniso, int nonconforming,
+                            int nc_limit)
 {
-   srand(seed);
-   for (int i = 0; i < levels; i++)
+   Array<Refinement> refs;
+   for (int i = 0; i < GetNE(); i++)
    {
-      Array<Refinement> refs;
-      for (int j = 0; j < GetNE(); j++)
+      if ((double) rand() / RAND_MAX < prob)
       {
-         if (!(rand() % frac))
+         int type = 7;
+         if (aniso)
          {
-            int type = 7;
-            if (aniso)
-            {
-               type = (Dim == 3) ? (rand() % 7 + 1) : (rand() % 3 + 1);
-            }
-            refs.Append(Refinement(j, type));
+            type = (Dim == 3) ? (rand() % 7 + 1) : (rand() % 3 + 1);
          }
+         refs.Append(Refinement(i, type));
       }
-      GeneralRefinement(refs, nonconforming, nc_limit);
    }
+   GeneralRefinement(refs, nonconforming, nc_limit);
 }
 
-void Mesh::RefineAtVertex(const Vertex& vert, int levels, double eps,
-                          int nonconforming)
+void Mesh::RefineAtVertex(const Vertex& vert, double eps, int nonconforming)
 {
    Array<int> v;
-   for (int k = 0; k < levels; k++)
+   Array<Refinement> refs;
+   for (int i = 0; i < GetNE(); i++)
    {
-      Array<Refinement> refs;
-      for (int i = 0; i < GetNE(); i++)
+      GetElementVertices(i, v);
+      bool refine = false;
+      for (int j = 0; j < v.Size(); j++)
       {
-         GetElementVertices(i, v);
-         bool refine = false;
-         for (int j = 0; j < v.Size(); j++)
+         double dist = 0.0;
+         for (int l = 0; l < spaceDim; l++)
          {
-            double dist = 0.0;
-            for (int l = 0; l < spaceDim; l++)
-            {
-               double d = vert(l) - vertices[v[j]](l);
-               dist += d*d;
-            }
-            if (dist <= eps*eps) { refine = true; break; }
+            double d = vert(l) - vertices[v[j]](l);
+            dist += d*d;
          }
-         if (refine)
-         {
-            refs.Append(Refinement(i));
-         }
+         if (dist <= eps*eps) { refine = true; break; }
       }
-      GeneralRefinement(refs, nonconforming);
+      if (refine)
+      {
+         refs.Append(Refinement(i));
+      }
    }
+   GeneralRefinement(refs, nonconforming);
 }
 
 void Mesh::Bisection(int i, const DSTable &v_to_v,

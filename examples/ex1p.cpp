@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
          pmesh->UniformRefinement();
       }*/
    }
-   //pmesh->RandomRefinement(3, 2, false, -1, -1, myid);
+   //pmesh->RandomRefinement(0.5, false, -1, -1, myid);
    pmesh->UniformRefinement();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we

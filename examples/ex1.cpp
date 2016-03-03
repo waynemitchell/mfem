@@ -198,9 +198,9 @@ int main(int argc, char *argv[])
    /*mesh->UniformRefinement();
    x.Update();*/
 
-   for (int i = 0; i < 3; i++)
+   for (int i = 0; i < 4; i++)
    {
-      mesh->RandomRefinement(1);
+      mesh->RandomRefinement(0.25);
       x.Update();
    }
 

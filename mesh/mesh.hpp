@@ -729,13 +729,12 @@ public:
    void GeneralRefinement(const Array<int> &el_to_refine,
                           int nonconforming = -1, int nc_limit = 0);
 
-   /// Refine each element with 1/frac probability, repeat 'levels' times.
-   void RandomRefinement(int levels, int frac = 2, bool aniso = false,
-                         int nonconforming = -1, int nc_limit = 0,
-                         int seed = 0 /* should be the same on all CPUs */);
+   /// Refine each element with given probability. Uses GeneralRefinement.
+   void RandomRefinement(double prob, bool aniso = false,
+                         int nonconforming = -1, int nc_limit = 0);
 
-   /// Refine elements sharing the specified vertex, 'levels' times.
-   void RefineAtVertex(const Vertex& vert, int levels,
+   /// Refine elements sharing the specified vertex. Uses GeneralRefinement.
+   void RefineAtVertex(const Vertex& vert,
                        double eps = 0.0, int nonconforming = -1);
 
    /** Derefine the mesh based on some error quantity associated with each
