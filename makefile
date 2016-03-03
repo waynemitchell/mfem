@@ -118,11 +118,11 @@ HYPRE_OPT ?= -I$(HYPRE_DIR)/include
 HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
 # SIDRE library and required libraries configurations (needed to build the sidre integrated version)
-SIDRE_DIR ?= @MFEM_DIR@/../sidre
+SIDRE_DIR ?= @MFEM_DIR@/../toolkit_install
 SIDRE_OPT ?= -I$(SIDRE_DIR)/include
 SIDRE_LIB ?= -L$(SIDRE_DIR)/lib -lsidre -lslic -lcommon
 
-CONDUIT_DIR ?= @MFEM_DIR@/../conduit
+CONDUIT_DIR ?= @MFEM_DIR@/../conduit_install
 CONDUIT_OPT ?= -I$(CONDUIT_DIR)/include
 CONDUIT_LIB ?= -L$(CONDUIT_DIR)/lib -lconduit -Wl,-rpath $(CONDUIT_DIR)/lib
 

@@ -45,6 +45,7 @@ class Mesh
    friend class ParNCMesh;
 #endif
    friend class NURBSExtension;
+   friend class SidreDataCollection;
 
 protected:
    int Dim;

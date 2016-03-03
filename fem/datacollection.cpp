@@ -21,6 +21,9 @@
 #define mkdir(dir, mode) _mkdir(dir)
 #endif
 
+//TODO - Add guard here, only need if SIDRE
+#include "sidre/sidre.hpp"
+
 namespace mfem
 {
 
@@ -534,4 +537,129 @@ void VisItDataCollection::ParseVisItRootString(string json)
    }
 }
 
+// class SidreDataCollection implementation
+// This version is a prototype of adding needed MFEM data to Sidre as mostly 'external' data.
+// There are some exceptions - individual scalars are copied into Sidre, as long as we know the
+// data does not change during a run.  There are some drawbacks to trying to do most data as 'external'
+// to Sidre. (For future discussion)
+SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataStore* ds)
+  : DataCollection(collection_name, mesh)
+{
+  namespace sidre = asctoolkit::sidre;
+
+  sidre_dc_group = ds->getRoot()->createGroup( std::string(collection_name) );
+
+  //MFEM_VERIFY( mesh.NURBSext == NULL, "SidreDataCollection doesn't support NURB meshes.");
+  //TODO: Will presence of a NURB extension affect what goes in sidre?
+  MFEM_VERIFY( mesh->Nodes != NULL, " TODO: Implement function for dumping vertices to sidre.")
+
+  // Create group for mesh attributes
+  sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("mesh");
+  addMesh(mesh_grp);
+
+  // Create group for mesh elements, add material, shape, and vertex indices.
+  sidre::DataGroup * mesh_elements_grp = mesh_grp->createGroup("mesh_elements");
+  // Get the pointer to the internal elements array in Mesh.
+  addElements(mesh_elements_grp, mesh->elements);
+
+  // Create group for boundary elements, add material, shape, and vertex indices.
+  sidre::DataGroup * boundary_elements_grp = mesh_grp->createGroup("boundary_elements");
+  // Get the pointer to the internal boundary elements array in Mesh.
+  addElements(boundary_elements_grp, mesh->boundary);
+
+  if (mesh->GetNodes() == NULL)
+  {
+    // Mesh is straight, nodes are just the vertices.
+    mesh_grp->createView("type")->setString("vertices");
+    sidre::DataGroup * grp = mesh_grp->createGroup("vertices");
+    addVertices(grp);
+  }
+  else
+  {
+    // Mesh is higher order, nodes are defined by finite element collection
+    mesh_grp->createView("type")->setString("nodes");
+    sidre::DataGroup * grp = mesh_grp->createGroup("nodes");
+    addField(grp, mesh->GetNodes() );
+  }
 }
+
+void SidreDataCollection::RegisterField(const char* name, GridFunction *gf)
+{
+  DataCollection::RegisterField(name, gf);
+  addField(sidre_dc_group->createGroup(name), gf);
+}
+
+
+SidreDataCollection::~SidreDataCollection()
+{
+  // datastore should automatically clean up any owned memory, but double check.
+}
+
+// Private helper functions
+void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Array<Element *>& elements )
+{
+  namespace sidre = asctoolkit::sidre;
+
+  group->createView("number")->setScalar( elements.Size() );
+  for (int i = 0; i < elements.Size(); i++)
+  {
+    sidre::DataGroup * element_grp = group->createGroup( "element" + mfem::to_string(i) );
+    element_grp->createView("material_attribute")->setScalar( elements[i]->GetAttribute() );
+
+    // TODO - Need a helper function to map element shape id to a string name.
+    // For now put in the the int value.
+    element_grp->createView("shape")->setScalar( elements[i]->GetType() );
+
+    // TODO - ask if MFEM team cares about typedefs.  Could hard code SIDRE_INT_ID here instead.
+    element_grp->createView("vertex_indicies")->setExternalDataPtr(
+        elements[i]->GetVertices() ) -> apply( sidre::detail::SidreTT<el_length_t>::id, elements[i]->GetNVertices() );
+  }
+}
+
+void SidreDataCollection::addField(asctoolkit::sidre::DataGroup * grp, GridFunction* gf)
+{
+  // should consider adding version member for grid functions in mfem
+
+  namespace sidre = asctoolkit::sidre;
+
+  grp->createView("type")->setString("FiniteElementSpace");
+  grp->createView("name")->setString( gf->FESpace()->FEColl()->Name() );
+// the grid function save goes a bit different route on the vector dim.  It grabs it from the finite element space.  Ask Rob or Tzanio about this.
+// calling the frunction on the grid function looks correct.
+  grp->createView("dimension")->setScalar( gf->VectorDim() );
+
+  sidre::DataView * ordering_view = grp->createView("ordering");
+
+  // Add ordering
+  // Ordering::byNODES - first nodes, then vector dimension,
+  // Ordering::byVDIM  - first vector dimension, then nodes  */
+
+  if ( gf->FESpace()->GetOrdering() == Ordering::byNODES )
+  {
+    ordering_view->setString("byNode");
+  }
+  else
+  {
+    ordering_view->setString("byVDim");
+  }
+  // TODO - ask if MFEM team cares about typedefs.  Could hard code SIDRE_DOUBLE_ID here instead.
+  grp->createView("data")->setExternalDataPtr( const_cast<gf_data_t*>(gf->GetData()) )->apply( sidre::detail::SidreTT<gf_data_t>::id , gf->Size());
+}
+
+void SidreDataCollection::addMesh(asctoolkit::sidre::DataGroup * grp)
+{
+// should consider adding version members for mesh  in mfem
+//  grp->createView("version")->setScalar( ncmesh ? 1.1 : 1.0 );
+  grp->createView("type")->setString("unstructured");
+  grp->createView("dimension")->setScalar(mesh->Dim);
+}
+
+void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)
+{
+
+  // DO THIS LATER IF NEEDED
+  // Similar to throwing the elements in sidre - make entry per vertex, add pointer to the int[3] array inside class.
+}
+
+}  // end namespace MFEM
+

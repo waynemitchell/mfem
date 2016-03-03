@@ -125,7 +125,10 @@ int main(int argc, char *argv[])
    args.PrintOptions(cout);
 
    // 2. Create a sidre datastore instance.
-   asctoolkit::sidre::DataStore* ds = new asctoolkit::sidre::DataStore();
+   asctoolkit::sidre::DataStore ds();
+
+   SidreDataCollection sidre_dc("Example9", ds);
+   sidre_fc.setMesh(mesh, );
 
    // 3. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
