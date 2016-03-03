@@ -294,10 +294,10 @@ libmfem.a: $(OBJECT_FILES)
 
 serial:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
-	
+
 serial_sundials:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_USE_SUNDIALS=YES MFEM_DEBUG=NO && $(MAKE)
-	
+
 parallel:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=NO && $(MAKE)
 

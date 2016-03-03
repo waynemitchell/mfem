@@ -39,6 +39,102 @@
 
 using namespace std;
 
+static int WrapLinearCVSolveInit(CVodeMem cv_mem);
+
+static int WrapLinearCVSolveSetup(CVodeMem cv_mem, int convfail,
+                                  N_Vector ypred, N_Vector fpred,
+                                  booleantype *jcurPtr, N_Vector vtemp1,
+                                  N_Vector vtemp2, N_Vector vtemp3);
+
+static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
+                             N_Vector weight, N_Vector ynow,
+                             N_Vector fnow);
+
+static void WrapLinearCVSolveFree(CVodeMem cv_mem);
+
+/*
+ The purpose of ark_linit is to complete initializations for a
+ specific linear solver, such as counters and statistics.
+ An LInitFn should return 0 if it has successfully initialized
+ the ARKODE linear solver and a negative value otherwise.
+ If an error does occur, an appropriate message should be sent
+ to the error handler function.
+ */
+static int WrapLinearARKSolveInit(ARKodeMem ark_mem);
+
+/*
+The job of ark_lsetup is to prepare the linear solver for
+ subsequent calls to ark_lsolve. It may recompute Jacobian-
+ related data as it deems necessary. Its parameters are as
+ follows:
+
+ ark_mem - problem memory pointer of type ARKodeMem. See the
+          typedef earlier in this file.
+
+ convfail - a flag to indicate any problem that occurred during
+            the solution of the nonlinear equation on the
+            current time step for which the linear solver is
+            being used. This flag can be used to help decide
+            whether the Jacobian data kept by a ARKODE linear
+            solver needs to be updated or not.
+            Its possible values have been documented above.
+
+ ypred - the predicted y vector for the current ARKODE internal
+         step.
+
+ fpred - f(tn, ypred).
+
+ jcurPtr - a pointer to a boolean to be filled in by ark_lsetup.
+           The function should set *jcurPtr=TRUE if its Jacobian
+           data is current after the call and should set
+           *jcurPtr=FALSE if its Jacobian data is not current.
+           Note: If ark_lsetup calls for re-evaluation of
+           Jacobian data (based on convfail and ARKODE state
+           data), it should return *jcurPtr=TRUE always;
+           otherwise an infinite loop can result.
+
+ vtemp1 - temporary N_Vector provided for use by ark_lsetup.
+
+ vtemp3 - temporary N_Vector provided for use by ark_lsetup.
+
+ vtemp3 - temporary N_Vector provided for use by ark_lsetup.
+
+ The ark_lsetup routine should return 0 if successful, a positive
+ value for a recoverable error, and a negative value for an
+ unrecoverable error.
+ */
+static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
+                                   N_Vector ypred, N_Vector fpred,
+                                   booleantype *jcurPtr, N_Vector vtemp1,
+                                   N_Vector vtemp2, N_Vector vtemp3);
+/*
+ ark_lsolve must solve the linear equation P x = b, where
+ P is some approximation to (M - gamma J), M is the system mass
+ matrix, J = (df/dy)(tn,ycur), and the RHS vector b is input. The
+ N-vector ycur contains the solver's current approximation to
+ y(tn) and the vector fcur contains the N_Vector f(tn,ycur). The
+ solution is to be returned in the vector b. ark_lsolve returns
+ a positive value for a recoverable error and a negative value
+ for an unrecoverable error. Success is indicated by a 0 return
+ value.
+*/
+static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
+                              N_Vector weight, N_Vector ycur,
+                              N_Vector fcur);
+/*
+ ark_lfree should free up any memory allocated by the linear
+ solver. This routine is called once a problem has been
+ completed and the linear solver is no longer needed.
+ */
+static void WrapLinearARKSolveFree(ARKodeMem ark_mem);
+
+static int WrapLinearSolveSetup(void* lmem, double tn,
+                                mfem::Vector* ypred, mfem::Vector* fpred);
+
+static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
+                           mfem::Vector* ycur, mfem::Vector* yn,
+                           mfem::Vector* fcur);
+
 namespace mfem
 {
 
