@@ -6202,14 +6202,7 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       MFEM_ABORT("Local and nonconforming refinements cannot be mixed.");
    }
 
-   // initialize CoarseFineTr
-   CoarseFineTr.point_matrices.SetSize(0, 0, 0);
-   CoarseFineTr.embeddings.SetSize(NumOfElements);
-   for (i = 0; i < NumOfElements; i++)
-   {
-      elements[i]->ResetTransform(0);
-      CoarseFineTr.embeddings[i] = Embedding(i);
-   }
+   InitRefinementTransforms();
 
    if (Dim == 1) // --------------------------------------------------------
    {
@@ -7168,6 +7161,18 @@ void Mesh::UniformRefinement(int i, const DSTable &v_to_v,
    else
    {
       MFEM_ABORT("Uniform refinement for now works only for triangles.");
+   }
+}
+
+void Mesh::InitRefinementTransforms()
+{
+   // initialize CoarseFineTr
+   CoarseFineTr.point_matrices.SetSize(0, 0, 0);
+   CoarseFineTr.embeddings.SetSize(NumOfElements);
+   for (int i = 0; i < NumOfElements; i++)
+   {
+      elements[i]->ResetTransform(0);
+      CoarseFineTr.embeddings[i] = Embedding(i);
    }
 }
 

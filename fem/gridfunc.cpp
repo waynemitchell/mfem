@@ -169,6 +169,7 @@ void GridFunction::SetSpace(FiniteElementSpace *f)
    Destroy();
    fes = f;
    SetSize(fes->GetVSize());
+   sequence = fes->GetSequence();
 }
 
 void GridFunction::MakeRef(FiniteElementSpace *f, Vector &v, int v_offset)
@@ -177,6 +178,7 @@ void GridFunction::MakeRef(FiniteElementSpace *f, Vector &v, int v_offset)
    Destroy();
    fes = f;
    NewDataAndSize((double *)v + v_offset, fes->GetVSize());
+   sequence = fes->GetSequence();
 }
 
 

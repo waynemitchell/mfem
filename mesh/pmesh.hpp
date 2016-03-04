@@ -108,6 +108,9 @@ public:
 
    int GetNGroups() { return gtopo.NGroups(); }
 
+   /// Return the global number of elements.
+   long GlobalNE() const;
+
    // next 6 methods do not work for the 'local' group 0
    int GroupNVertices(int group) { return group_svert.RowSize(group-1); }
    int GroupNEdges(int group)    { return group_sedge.RowSize(group-1); }
@@ -120,9 +123,11 @@ public:
 
    void ExchangeFaceNbrData();
    void ExchangeFaceNbrNodes();
+
    int GetNFaceNeighbors() const { return face_nbr_group.Size(); }
    int GetFaceNbrGroup(int fn) const { return face_nbr_group[fn]; }
    int GetFaceNbrRank(int fn) const;
+
    /** Similar to Mesh::GetFaceToElementTable with added face-neighbor elements
        with indices offset by the local number of elements. */
    Table *GetFaceToAllElementTable() const;

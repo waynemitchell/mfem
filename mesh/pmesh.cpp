@@ -57,6 +57,10 @@ ParMesh::ParMesh(const ParMesh &pmesh, bool copy_nodes)
    // Do not copy face-neighbor data (can be generated if needed)
    have_face_nbr_data = false;
 
+   MFEM_VERIFY(pmesh.pncmesh == NULL,
+               "copying non-conforming meshes is not implemented");
+   pncmesh = NULL;
+
    // Copy the Nodes as a ParGridFunction, including the FiniteElementCollection
    // and the FiniteElementSpace (as a ParFiniteElementSpace)
    if (pmesh.Nodes && copy_nodes)
@@ -1431,6 +1435,13 @@ int ParMesh::GetSharedFace(int sface) const
    return sface_lface[sface];
 }
 
+long ParMesh::GlobalNE() const
+{
+   long local_ne = GetNE(), global_ne;
+   MPI_Allreduce(&local_ne, &global_ne, 1, MPI_LONG, MPI_SUM, MyComm);
+   return global_ne;
+}
+
 void ParMesh::ReorientTetMesh()
 {
    if (Dim != 3 || !(meshgen & 1))
@@ -1479,7 +1490,14 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
 {
    int i, j;
 
+   if (pncmesh)
+   {
+      MFEM_ABORT("Local and nonconforming refinements cannot be mixed.");
+   }
+
    DeleteFaceNbrData();
+
+   InitRefinementTransforms();
 
    if (Dim == 3)
    {
@@ -1563,7 +1581,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       MPI_Request request;
       MPI_Status  status;
 
-#ifdef MFEM_DEBUG
+#ifdef LOCALREF_DEBUG
       int ref_loops_all = 0, ref_loops_par = 0;
 #endif
       do
@@ -1577,7 +1595,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                Bisection(i, v_to_v, NULL, NULL, middle);
             }
          }
-#ifdef MFEM_DEBUG
+#ifdef LOCALREF_DEBUG
          ref_loops_all++;
 #endif
 
@@ -1590,7 +1608,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          // conforming
          if (need_refinement == 0)
          {
-#ifdef MFEM_DEBUG
+#ifdef LOCALREF_DEBUG
             ref_loops_par++;
 #endif
             // MPI_Barrier(MyComm);
@@ -1669,7 +1687,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
       while (need_refinement == 1);
 
-#ifdef MFEM_DEBUG
+#ifdef LOCALREF_DEBUG
       i = ref_loops_all;
       MPI_Reduce(&i, &ref_loops_all, 1, MPI_INT, MPI_MAX, 0, MyComm);
       if (MyRank == 0)
@@ -1800,7 +1818,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       Vertex V;
       V(2) = 0.0;
 
-#ifdef MFEM_DEBUG
+#ifdef LOCALREF_DEBUG
       int ref_loops_all = 0, ref_loops_par = 0;
 #endif
       do
@@ -1812,7 +1830,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                need_refinement = 1;
                GreenRefinement(edge1[i], v_to_v, edge1, edge2, middle);
             }
-#ifdef MFEM_DEBUG
+#ifdef LOCALREF_DEBUG
          ref_loops_all++;
 #endif
 
@@ -1825,7 +1843,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          // conforming
          if (need_refinement == 0)
          {
-#ifdef MFEM_DEBUG
+#ifdef LOCALREF_DEBUG
             ref_loops_par++;
 #endif
             // MPI_Barrier(MyComm);
@@ -1880,7 +1898,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                      {
                         int *v = shared_edges[group_edges[j]]->GetVertices();
                         int ii = v_to_v(v[0], v[1]);
-#ifdef MFEM_DEBUG
+#ifdef LOCALREF_DEBUG
                         if (middle[ii] != -1)
                            mfem_error("ParMesh::LocalRefinement (triangles) : "
                                       "Oops!");
@@ -1902,7 +1920,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
       while (need_refinement == 1);
 
-#ifdef MFEM_DEBUG
+#ifdef LOCALREF_DEBUG
       i = ref_loops_all;
       MPI_Reduce(&i, &ref_loops_all, 1, MPI_INT, MPI_MAX, 0, MyComm);
       if (MyRank == 0)
@@ -1980,6 +1998,9 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
       GenerateFaces();
    } // end of 'if (Dim == 1)'
+
+   last_operation = Mesh::REFINE;
+   sequence++;
 
    UpdateNodes();
 

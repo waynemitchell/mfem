@@ -64,19 +64,8 @@ ParGridFunction::ParGridFunction(ParMesh *pmesh, GridFunction *gf,
 
 void ParGridFunction::Update()
 {
-   const Operator *T = pfes->UpdateMatrix();
-   if (T)
-   {
-      face_nbr_data.Destroy();
-
-      Vector tmp(T->Height());
-      T->Mult(*this, tmp);
-      *this = tmp;
-   }
-   else
-   {
-      SetSpace(pfes);
-   }
+   face_nbr_data.Destroy();
+   GridFunction::Update();
 }
 
 void ParGridFunction::SetSpace(ParFiniteElementSpace *f)
