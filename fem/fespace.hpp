@@ -119,8 +119,8 @@ public:
    NURBSExtension *GetNURBSext() { return NURBSext; }
    NURBSExtension *StealNURBSext();
 
-   bool Conforming() const { return mesh->ncmesh == NULL; }
-   bool Nonconforming() const { return mesh->ncmesh != NULL; }
+   bool Conforming() const { return mesh->Conforming(); }
+   bool Nonconforming() const { return mesh->Nonconforming(); }
 
    const SparseMatrix *GetConformingProlongation();
    const SparseMatrix *GetConformingRestriction();

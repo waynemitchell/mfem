@@ -6202,6 +6202,8 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       MFEM_ABORT("Local and nonconforming refinements cannot be mixed.");
    }
 
+   // initialize CoarseFineTr
+   CoarseFineTr.point_matrices.SetSize(0, 0, 0);
    CoarseFineTr.embeddings.SetSize(NumOfElements);
    for (i = 0; i < NumOfElements; i++)
    {
@@ -7181,46 +7183,55 @@ int Mesh::FindCoarseElement(int i)
 
 const CoarseFineTransformations& Mesh::GetRefinementTransforms()
 {
+   MFEM_VERIFY(GetLastOperation() == Mesh::REFINE, "");
+
    if (ncmesh)
    {
       return ncmesh->GetRefinementTransforms();
    }
 
-   if (BaseGeom == Geometry::TRIANGLE ||
-       BaseGeom == Geometry::TETRAHEDRON)
+   if (!CoarseFineTr.point_matrices.SizeK())
    {
-      std::map<unsigned, int> mat_no;
-      mat_no[0] = 1; // identity
-
-      // assign matrix indices to element transformations
-      for (int i = 0; i < elements.Size(); i++)
+      if (BaseGeom == Geometry::TRIANGLE ||
+          BaseGeom == Geometry::TETRAHEDRON)
       {
-         int index = 0;
-         unsigned code = elements[i]->GetTransform();
-         if (code)
+         std::map<unsigned, int> mat_no;
+         mat_no[0] = 1; // identity
+
+         // assign matrix indices to element transformations
+         for (int i = 0; i < elements.Size(); i++)
          {
-            int &matrix = mat_no[code];
-            if (!matrix) { matrix = mat_no.size(); }
-            index = matrix-1;
+            int index = 0;
+            unsigned code = elements[i]->GetTransform();
+            if (code)
+            {
+               int &matrix = mat_no[code];
+               if (!matrix) { matrix = mat_no.size(); }
+               index = matrix-1;
+            }
+            CoarseFineTr.embeddings[i].matrix = index;
          }
-         CoarseFineTr.embeddings[i].matrix = index;
+
+         DenseTensor &pmats = CoarseFineTr.point_matrices;
+         pmats.SetSize(Dim, Dim+1, mat_no.size());
+
+         // calculate the point matrices used
+         std::map<unsigned, int>::iterator it;
+         for (it = mat_no.begin(); it != mat_no.end(); ++it)
+         {
+            if (BaseGeom == Geometry::TRIANGLE)
+            {
+               Triangle::GetPointMatrix(it->first, pmats(it->second-1));
+            }
+            else
+            {
+               Tetrahedron::GetPointMatrix(it->first, pmats(it->second-1));
+            }
+         }
       }
-
-      DenseTensor &pmats = CoarseFineTr.point_matrices;
-      pmats.SetSize(Dim, Dim+1, mat_no.size());
-
-      // calculate the point matrices used
-      std::map<unsigned, int>::iterator it;
-      for (it = mat_no.begin(); it != mat_no.end(); ++it)
+      else
       {
-         if (BaseGeom == Geometry::TRIANGLE)
-         {
-            Triangle::GetPointMatrix(it->first, pmats(it->second-1));
-         }
-         else
-         {
-            Tetrahedron::GetPointMatrix(it->first, pmats(it->second-1));
-         }
+         MFEM_ABORT("Don't know how to construct CoarseFineTr.");
       }
    }
 
