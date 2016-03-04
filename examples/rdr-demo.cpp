@@ -3,6 +3,16 @@
 // Compile with: make rdr-demo
 //
 // Sample runs:  mpirun -np 4 ./rdr-demo
+//               mpirun -np 4 ./rdr-demo -m ../data/star-q2.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/square-disc.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/square-disc-p2.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/square-disc-nurbs.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/square-disc-surf.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/inline-tri.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/inline-hex.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/ball-nurbs.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/inline-tet.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/escher.mesh
 //
 //               NOTE: press 'e' twice in GLVis to see the partitioning (in 2D).
 //
@@ -27,6 +37,8 @@
 
 using namespace std;
 using namespace mfem;
+
+const int MaxElements = 5000;
 
 
 void Visualize(socketstream &sout, ParMesh &mesh, ParGridFunction &x, bool pause)
@@ -69,8 +81,8 @@ void CheckNorm(const ParGridFunction &x, double norm0)
    if (myid == 0)
    {
       cout.precision(15);
-      cout << "Solution norm " << norm << ", should be " << norm0
-           << " (difference " << std::abs(norm - norm0) << ")" << endl;
+      cout << "Solution norm " << norm << " (error "
+           << std::abs(norm - norm0) << ")" << endl;
    }
 }
 
@@ -134,11 +146,13 @@ int main(int argc, char *argv[])
    }
    mesh->EnsureNCMesh();
 
+   int base_elements = mesh->GetNE();
+
    // empty processors at the beginning tend to confuse GLVis (?)
-   while (mesh->GetNE() < num_procs)
+   /*while (mesh->GetNE() < num_procs)
    {
       mesh->UniformRefinement();
-   }
+   }*/
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -149,16 +163,8 @@ int main(int argc, char *argv[])
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
    //    order < 1, we instead use an isoparametric/isogeometric space.
-   FiniteElementCollection *fec;
-   if (order < 0) { order = 1; }
-   fec = new H1_FECollection(order, dim);
-
+   FiniteElementCollection *fec = new H1_FECollection(order, dim);
    ParFiniteElementSpace *fespace = new ParFiniteElementSpace(pmesh, fec);
-   HYPRE_Int size = fespace->GlobalTrueVSize();
-   if (myid == 0)
-   {
-      cout << "Number of unknowns: " << size << endl;
-   }
 
    Array<int> ess_tdof_list;
    if (pmesh->bdr_attributes.Size())
@@ -183,18 +189,9 @@ int main(int argc, char *argv[])
    x = 0.0;
 
    // 9. Set up the parallel bilinear form a(.,.) on the finite element space
-   //    corresponding to the Laplacian operator -Delta, by adding the Diffusion
-   //    domain integrator and imposing homogeneous Dirichlet boundary
-   //    conditions. The boundary conditions are implemented by marking all the
-   //    boundary attributes from the mesh as essential. After serial and
-   //    parallel assembly we extract the corresponding parallel matrix A.
+   //    corresponding to the Laplacian operator -Delta, etc.
    ParBilinearForm *a = new ParBilinearForm(fespace);
    a->AddDomainIntegrator(new DiffusionIntegrator(one));
-
-   // 10. Assemble the parallel bilinear form and the corresponding linear
-   //     system, applying any necessary transformations such as: parallel
-   //     assembly, eliminating boundary conditions, applying conforming
-   //     constraints for non-conforming AMR, static condensation, etc.
    a->Assemble();
 
    HypreParMatrix A;
@@ -246,47 +243,82 @@ int main(int argc, char *argv[])
 
    srand(myid);
 
-   for (int it = 0; it < 100; it++)
+   if (pmesh->Nonconforming())
    {
-      const int levels = 6;
-      double prob = 1.0 / ((rand() % 3) + 2);
-
-      if (myid == 0) { cout << "Refining..." << endl; }
-
-      // refine/rebalance
-      for (int i = 0; i < levels; i++)
+      for (int it = 0; it < 100; it++)
       {
-         // refine randomly
-         pmesh->RandomRefinement(prob, false, 1, -1);
-         x.Update();
-         CheckNorm(x, norm);
+         if (myid == 0) { cout << "Refining..." << endl; }
 
-         // rebalance
-         pmesh->Rebalance();
-         x.Update();
-         CheckNorm(x, norm);
+         // refine/rebalance
+         while (pmesh->GlobalNE() < MaxElements)
+         {
+            // refine randomly
+            pmesh->RandomRefinement(0.5, false, 1, -1);
+            x.Update();
+            CheckNorm(x, norm);
 
-         if (vis) { Visualize(sout, *pmesh, x, pause); }
+            // rebalance
+            pmesh->Rebalance();
+            x.Update();
+            CheckNorm(x, norm);
+
+            if (vis) { Visualize(sout, *pmesh, x, pause); }
+         }
+
+         if (myid == 0) { cout << "Derefining..." << endl; }
+
+         // derefine/rebalance
+         while (pmesh->GlobalNE() > base_elements)
+         {
+            // derefine evenly
+            Array<double> errors(pmesh->GetNE());
+            errors = 1;
+            pmesh->GeneralDerefinement(errors, 10);
+            x.Update();
+            CheckNorm(x, norm);
+
+            // rebalance
+            pmesh->Rebalance();
+            x.Update();
+            CheckNorm(x, norm);
+
+            if (vis) { Visualize(sout, *pmesh, x, pause); }
+         }
       }
+   }
+   else
+   {
+      // can't rebalance and/or derefine a conforming mesh at the moment,
+      // but refinement and solution update should work
 
-      if (myid == 0) { cout << "Derefining..." << endl; }
+      ParMesh* backup_pmesh = new ParMesh(*pmesh);
+      Vector backup_x = x;
 
-      // derefine/rebalance
-      for (int i = 0; i < levels; i++)
+      for (int it = 0; it < 100; it++)
       {
-         // derefine evenly
-         Array<double> errors(pmesh->GetNE());
-         errors = 1;
-         pmesh->GeneralDerefinement(errors, 10);
-         x.Update();
-         CheckNorm(x, norm);
+         if (myid == 0) { cout << "Refining..." << endl; }
 
-         // rebalance
-         pmesh->Rebalance();
-         x.Update();
-         CheckNorm(x, norm);
+         int mult = (pmesh->GetElementBaseGeometry() == Geometry::TETRAHEDRON)
+                    ? 3 : 1;
 
-         if (vis) { Visualize(sout, *pmesh, x, pause); }
+         while (pmesh->GlobalNE() < MaxElements * mult)
+         {
+            // refine randomly
+            pmesh->RandomRefinement(0.3);
+            x.Update();
+            CheckNorm(x, norm);
+
+            if (vis) { Visualize(sout, *pmesh, x, pause); }
+         }
+
+         // restore mesh, space and solution
+         delete fespace;
+         delete pmesh;
+
+         pmesh = new ParMesh(*backup_pmesh);
+         fespace = new ParFiniteElementSpace(pmesh, fec);
+         x.SetSpace(fespace);
+         x = backup_x;
       }
    }
 
