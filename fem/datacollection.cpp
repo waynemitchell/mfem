@@ -72,10 +72,14 @@ DataCollection::DataCollection(const char *collection_name, const char *prefix)
    {
       prefix_path = prefix;
       if (prefix_path[prefix_path.size()-1] != '/')
+      {
          prefix_path += "/";
+      }
    }
    else
-     prefix_path = "";
+   {
+      prefix_path = "";
+   }
 }
 
 DataCollection::DataCollection(const char *collection_name, Mesh *_mesh,
@@ -105,10 +109,14 @@ DataCollection::DataCollection(const char *collection_name, Mesh *_mesh,
    {
       prefix_path = prefix;
       if (prefix_path[prefix_path.size()-1] != '/')
+      {
          prefix_path += "/";
+      }
    }
    else
-     prefix_path = "";
+   {
+      prefix_path = "";
+   }
 }
 
 void DataCollection::SetMesh(Mesh *new_mesh)
@@ -194,13 +202,13 @@ void DataCollection::SaveMesh()
    int err;
    if (!prefix_path.empty())
    {
-     err = create_directory(prefix_path, mesh, myid);
-     if (err)
-     {
-        error = WRITE_ERROR;
-        MFEM_WARNING("Error creating directory: " << prefix_path);
-        return; // do not even try to write the mesh
-     }
+      err = create_directory(prefix_path, mesh, myid);
+      if (err)
+      {
+         error = WRITE_ERROR;
+         MFEM_WARNING("Error creating directory: " << prefix_path);
+         return; // do not even try to write the mesh
+      }
    }
 
    string dir_name = prefix_path;
