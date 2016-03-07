@@ -212,14 +212,16 @@ public:
 
        After solving the linear system, the finite element solution x can be
        recovered by calling RecoverFEMSolution (with the same vectors X, b, and
-       x). */
+       x).
+
+       NOTE: If there are no transformations, X simply reuses the data of x. */
    void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
                          SparseMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a GridFunction-size
-       vector in x. */
+       vector in x. Use the same arguments as in the FormLinearSystem call. */
    void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
    /// Compute and store internally all element matrices.
