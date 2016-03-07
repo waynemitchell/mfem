@@ -6211,6 +6211,8 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
       NumOfElements += marked_el.Size();
       vertices.SetSize(NumOfVertices);
       elements.SetSize(NumOfElements);
+      CoarseFineTr.embeddings.SetSize(NumOfElements);
+
       for (j = 0; j < marked_el.Size(); j++)
       {
          i = marked_el[j];
@@ -6220,8 +6222,16 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
          AverageVertices(vert, 2, new_v);
          elements[new_e] = new Segment(new_v, vert[1], attr);
          vert[1] = new_v;
+
+         CoarseFineTr.embeddings[i] = Embedding(i, 1);
+         CoarseFineTr.embeddings[new_e] = Embedding(i, 2);
       }
+
+      static double seg_children[3*2] = { 0.0,1.0, 0.0,0.5, 0.5,1.0 };
+      CoarseFineTr.point_matrices.UseExternalData(seg_children, 1, 2, 3);
+
       GenerateFaces();
+
    } // end of 'if (Dim == 1)'
    else if (Dim == 2) // ---------------------------------------------------
    {

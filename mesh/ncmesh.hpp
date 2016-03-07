@@ -44,7 +44,7 @@ struct Embedding
    int parent; ///< element index in the coarse mesh
    int matrix; ///< index into CoarseFineTransformations::point_matrices
 
-   Embedding(int elem) : parent(elem), matrix(0) {}
+   Embedding(int elem, int matrix = 0) : parent(elem), matrix(matrix) {}
 };
 
 /// Defines the coarse-fine transformations of all fine elements.

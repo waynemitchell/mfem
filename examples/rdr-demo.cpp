@@ -4,17 +4,19 @@
 //
 // Sample runs:  mpirun -np 4 ./rdr-demo
 //               mpirun -np 4 ./rdr-demo -m ../data/star-q2.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/inline-hex.mesh
 //             * mpirun -np 4 ./rdr-demo -m ../data/square-disc.mesh
 //             * mpirun -np 4 ./rdr-demo -m ../data/square-disc-p2.mesh
 //               mpirun -np 4 ./rdr-demo -m ../data/square-disc-nurbs.mesh
 //             * mpirun -np 4 ./rdr-demo -m ../data/square-disc-surf.mesh
+//               mpirun -np 4 ./rdr-demo -m ../data/periodic-square.mesh
 //             * mpirun -np 4 ./rdr-demo -m ../data/inline-tri.mesh
-//               mpirun -np 4 ./rdr-demo -m ../data/inline-hex.mesh
 //               mpirun -np 4 ./rdr-demo -m ../data/ball-nurbs.mesh
 //             * mpirun -np 4 ./rdr-demo -m ../data/inline-tet.mesh
 //             * mpirun -np 4 ./rdr-demo -m ../data/escher.mesh
+//             * mpirun -np 4 ./rdr-demo -m ../data/inline-segment.mesh
 //
-//               Starred runs are conforming meshes -- refinement only.
+//               Starred (*) runs are conforming meshes -- refinement only.
 //
 //               NOTE: press 'e' twice in GLVis to see the partitioning (in 2D).
 //
