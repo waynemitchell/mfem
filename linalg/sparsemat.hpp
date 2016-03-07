@@ -89,6 +89,11 @@ public:
    SparseMatrix(int *i, int *j, double *data, int m, int n, bool ownij,
                 bool owna, bool issorted);
 
+   /** Create a sparse matrix in CSR format where each row has space allocated
+       for exactly 'rowsize' entries. SetRow can then be called or the I, J, A
+       arrays can be used directly. */
+   SparseMatrix(int nrows, int ncols, int rowsize);
+
    /** Copy constructor (deep copy). If mat is finalized and copy_graph is
        false, the I and J arrays will use a shallow copy (copy the pointers
        only) without transferring ownership. */

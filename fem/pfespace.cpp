@@ -1537,7 +1537,7 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
    pncmesh->SendRebalanceDofs(*old_elem_dof, old_offset, this);
 
    Array<int> dofs;
-   int ldofs = GetVSize();
+   int vsize = GetVSize();
 
    const Array<int> &old_index = pncmesh->GetRebalanceOldIndex();
    MFEM_VERIFY(old_index.Size() == pmesh->GetNE(),
@@ -1545,7 +1545,7 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
                "ParFiniteElementSpace::RebalanceMatrix");
 
    // prepare the local (diagonal) part of the matrix
-   HYPRE_Int* i_diag = make_i_array(ldofs);
+   HYPRE_Int* i_diag = make_i_array(vsize);
    for (int i = 0; i < pmesh->GetNE(); i++)
    {
       if (old_index[i] >= 0) // we had this element before
@@ -1568,7 +1568,7 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
          }
       }
    }
-   HYPRE_Int* j_diag = make_j_array(i_diag, ldofs);
+   HYPRE_Int* j_diag = make_j_array(i_diag, vsize);
 
    // receive old DOFs for elements we obtained from others in Rebalance
    Array<int> new_elements;
@@ -1576,7 +1576,7 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
    pncmesh->RecvRebalanceDofs(new_elements, old_remote_dofs);
 
    // create the offdiagonal part of the matrix
-   HYPRE_Int* i_offd = make_i_array(ldofs);
+   HYPRE_Int* i_offd = make_i_array(vsize);
    for (int i = 0; i < new_elements.Size(); i++)
    {
       GetElementDofs(new_elements[i], dofs);
@@ -1596,10 +1596,10 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
          }
       }
    }
-   HYPRE_Int* j_offd = make_j_array(i_offd, ldofs);
+   HYPRE_Int* j_offd = make_j_array(i_offd, vsize);
 
    // create the offd column map
-   int offd_cols = i_offd[ldofs];
+   int offd_cols = i_offd[vsize];
    Array<Pair<HYPRE_Int, int> > cmap_offd(offd_cols);
    for (int i = 0; i < offd_cols; i++)
    {
@@ -1653,7 +1653,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 
    ParNCMesh* pncmesh = pmesh->pncmesh;
    int geom = pncmesh->GetElementGeometry();
-   int ldofs = fec->FiniteElementForGeometry(geom)->GetDof();
+   int ldof = fec->FiniteElementForGeometry(geom)->GetDof();
 
    const CoarseFineTransformations &dtrans = pncmesh->GetDerefinementTransforms();
    const Array<int> &old_ranks = pncmesh->GetDerefineOldRanks();
@@ -1691,9 +1691,9 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
       else if (coarse_rank == MyRank && fine_rank != MyRank)
       {
          DerefDofMessage &msg = messages[k];
-         msg.dofs.resize(ldofs*vdim);
+         msg.dofs.resize(ldof*vdim);
 
-         MPI_Irecv(&msg.dofs[0], ldofs*vdim, MPI_HYPRE_INT,
+         MPI_Irecv(&msg.dofs[0], ldof*vdim, MPI_HYPRE_INT,
                    fine_rank, 291, MyComm, &msg.request);
       }
       // TODO: coalesce Isends/Irecvs to the same rank. Typically, on uniform
@@ -1778,7 +1778,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
 
          for (int vd = 0; vd < vdim; vd++)
          {
-            HYPRE_Int* remote_dofs = &msg.dofs[vd*ldofs];
+            HYPRE_Int* remote_dofs = &msg.dofs[vd*ldof];
 
             for (int i = 0; i < lR.Height(); i++)
             {
@@ -1790,7 +1790,7 @@ HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
                if (!mark[m])
                {
                   lR.GetRow(i, row);
-                  for (int j = 0; j < ldofs; j++)
+                  for (int j = 0; j < ldof; j++)
                   {
                      if (std::abs(row[j]) < 1e-12) { continue; }
                      int &lcol = col_map[remote_dofs[j]];

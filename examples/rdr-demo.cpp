@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
    ConstantCoefficient zero(0.0);
    double norm = x.ComputeL2Error(zero);
 
-   srand(myid);
+   srand(myid + 1);
 
    if (pmesh->Nonconforming())
    {

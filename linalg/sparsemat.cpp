@@ -95,6 +95,28 @@ SparseMatrix::SparseMatrix(int *i, int *j, double *data, int m, int n,
    }
 }
 
+SparseMatrix::SparseMatrix(int nrows, int ncols, int rowsize)
+   : AbstractSparseMatrix(nrows, ncols)
+   , Rows(NULL)
+   , ColPtrJ(NULL)
+   , ColPtrNode(NULL)
+   , ownGraph(true)
+   , ownData(true)
+   , isSorted(false)
+{
+#ifdef MFEM_USE_MEMALLOC
+   NodesMem = NULL;
+#endif
+   I = new int[nrows + 1];
+   J = new int[nrows * rowsize];
+   A = new double[nrows * rowsize];
+
+   for (int i = 0; i <= nrows; i++)
+   {
+      I[i] = i * rowsize;
+   }
+}
+
 SparseMatrix::SparseMatrix(const SparseMatrix &mat, bool copy_graph)
    : AbstractSparseMatrix(mat.Height(), mat.Width())
 {
@@ -1965,29 +1987,49 @@ int SparseMatrix::GetRow(const int row, Array<int> &cols, Vector &srow) const
 void SparseMatrix::SetRow(const int row, const Array<int> &cols,
                           const Vector &srow)
 {
-   int j, gi, gj, s, t;
+   int gi, gj, s, t;
    double a;
-
-   MFEM_VERIFY(!Finalized(), "Matrix must NOT be finalized.");
 
    if ((gi=row) < 0) { gi = -1-gi, s = -1; }
    else { s = 1; }
    MFEM_ASSERT(gi < height,
                "Trying to insert a row " << gi << " outside the matrix height "
                << height);
-   SetColPtr(gi);
-   for (j = 0; j < cols.Size(); j++)
+
+   if (!Finalized())
    {
-      if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
-      else { t = s; }
-      MFEM_ASSERT(gj < width,
-                  "Trying to insert a column " << gj << " outside the matrix width "
-                  << width);
-      a = srow(j);
-      if (t < 0) { a = -a; }
-      _Set_(gj, a);
+      SetColPtr(gi);
+      for (int j = 0; j < cols.Size(); j++)
+      {
+         if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
+         else { t = s; }
+         MFEM_ASSERT(gj < width,
+                     "Trying to insert a column " << gj << " outside the matrix"
+                     " width " << width);
+         a = srow(j);
+         if (t < 0) { a = -a; }
+         _Set_(gj, a);
+      }
+      ClearColPtr();
    }
-   ClearColPtr();
+   else
+   {
+      MFEM_ASSERT(cols.Size() == RowSize(gi), "");
+      MFEM_ASSERT(cols.Size() == srow.Size(), "");
+
+      for (int i = I[gi], j = 0; j < cols.Size(); j++, i++)
+      {
+         if ((gj=cols[j]) < 0) { gj = -1-gj, t = -s; }
+         else { t = s; }
+         MFEM_ASSERT(gj < width,
+                     "Trying to insert a column " << gj << " outside the matrix"
+                     " width " << width);
+
+         J[i] = gj;
+         A[i] = srow[j] * t;
+      }
+
+   }
 }
 
 void SparseMatrix::AddRow(const int row, const Array<int> &cols,

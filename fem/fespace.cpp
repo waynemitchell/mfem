@@ -740,9 +740,9 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix()
       fe->GetLocalInterpolation(isotr, localP(i));
    }
 
-   SparseMatrix *P = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
+   SparseMatrix *P = new SparseMatrix(ndofs*vdim, old_ndofs*vdim, ldof);
 
-   Array<char> mark(P->Height());
+   Array<int> mark(P->Height());
    mark = 0;
    for (int k = 0; k < mesh->GetNE(); k++)
    {
@@ -772,7 +772,7 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix()
       }
    }
 
-   P->Finalize();
+   MFEM_ASSERT(mark.Sum() == P->Height(), "Not all rows of P set.");
    return P;
 }
 
@@ -848,13 +848,14 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
       mesh->ncmesh->GetDerefinementTransforms();
 
    int geom = mesh->ncmesh->GetElementGeometry();
+   int ldof = fec->FiniteElementForGeometry(geom)->GetDof();
 
    DenseTensor localR;
    GetLocalDerefinementMatrices(geom, dtrans, localR);
 
-   SparseMatrix *R = new SparseMatrix(ndofs*vdim, old_ndofs*vdim);
+   SparseMatrix *R = new SparseMatrix(ndofs*vdim, old_ndofs*vdim, ldof);
 
-   Array<char> mark(R->Height());
+   Array<int> mark(R->Height());
    mark = 0;
    for (int k = 0; k < dtrans.embeddings.Size(); k++)
    {
@@ -886,7 +887,7 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix()
       }
    }
 
-   R->Finalize();
+   MFEM_ASSERT(mark.Sum() == R->Height(), "Not all rows of R set.");
    return R;
 }
 
