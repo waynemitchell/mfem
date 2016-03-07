@@ -6722,8 +6722,8 @@ void Mesh::GeneralRefinement(const Array<Refinement> &refinements,
    else if (nonconforming < 0)
    {
       // determine if nonconforming refinement is suitable
-      int type = elements[0]->GetType();
-      if (type == Element::HEXAHEDRON || type == Element::QUADRILATERAL)
+      int geom = GetElementBaseGeometry();
+      if (geom == Geometry::CUBE || geom == Geometry::SQUARE)
       {
          nonconforming = 1;
       }
