@@ -808,7 +808,8 @@ void FiniteElementSpace::GetLocalDerefinementMatrices(
    int dim = mesh->Dimension();
 
    DenseMatrix invdfdx(dim);
-   Vector pt(dim), shape(ldof);
+   IntegrationPoint ipt;
+   Vector pt(&ipt.x, dim), shape(ldof);
 
    // calculate local restriction matrices for all refinement types
    localR.SetSize(ldof, ldof, nmat);
@@ -824,7 +825,7 @@ void FiniteElementSpace::GetLocalDerefinementMatrices(
       for (int j = 0; j < nodes.Size(); j++)
       {
          InvertLinearTrans(isotr, invdfdx, nodes[j], pt);
-         if (Geometries.PointInside(geom, pt)) // do we need an epsilon here?
+         if (Geometries.CheckPoint(geom, ipt)) // do we need an epsilon here?
          {
             IntegrationPoint ip;
             ip.Set(pt, dim);

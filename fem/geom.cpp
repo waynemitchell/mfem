@@ -438,40 +438,6 @@ void Geometry::JacToPerfJac(int GeomType, const DenseMatrix &J,
    }
 }
 
-bool Geometry::PointInside(int GeomType, const Vector &pt)
-{
-   int dim = pt.Size();
-#ifdef MFEM_DEBUG
-   switch (GeomType)
-   {
-      case POINT:       MFEM_ABORT("invalid operation for GeomType == POINT.");
-      case SEGMENT:     MFEM_ASSERT(dim == 1, ""); break;
-      case TRIANGLE:    MFEM_ASSERT(dim == 2, ""); break;
-      case SQUARE:      MFEM_ASSERT(dim == 2, ""); break;
-      case TETRAHEDRON: MFEM_ASSERT(dim == 3, ""); break;
-      case CUBE:        MFEM_ASSERT(dim == 3, ""); break;
-   }
-#endif
-
-   for (int i = 0; i < dim; i++)
-   {
-      double coord = pt[i];
-      if (coord < 0.0 || coord > 1.0) { return false; }
-   }
-
-   if (GeomType == TRIANGLE || GeomType == TETRAHEDRON)
-   {
-      double sum = 0.0;
-      for (int i = 0; i < dim; i++)
-      {
-         sum += pt[i];
-      }
-      if (sum > 1.0) { return false; }
-   }
-
-   return true;
-}
-
 const int Geometry::NumBdrArray[] = { 0, 2, 3, 4, 4, 6 };
 
 Geometry Geometries;

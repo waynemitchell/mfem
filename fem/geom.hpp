@@ -66,8 +66,6 @@ public:
    void JacToPerfJac(int GeomType, const DenseMatrix &J,
                      DenseMatrix &PJ) const;
 
-   bool PointInside(int GeomType, const Vector &pt);
-
    int NumBdr (int GeomType) { return NumBdrArray[GeomType]; }
 };
 
