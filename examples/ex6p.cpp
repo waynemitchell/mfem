@@ -256,15 +256,20 @@ int main(int argc, char *argv[])
          if (errors[i] >= threshold) { ref_list.Append(i); }
       }
 
-      // 19. Refine the selected elements.
+      // 19. Refine the selected elements, update the space and interpolate
+      //     the solution.
       pmesh.GeneralRefinement(ref_list);
       fespace.Update();
       x.Update();
 
-      // 20. Load balance the mesh.
-      pmesh.Rebalance();
-      fespace.Update();
-      x.Update();
+      // 20. Load balance the mesh. Only available for nonconforming meshes
+      //     at the moment.
+      if (pmesh.Nonconforming())
+      {
+         pmesh.Rebalance();
+         fespace.Update();
+         x.Update();
+      }
 
       // 21. Inform also the bilinear and linear forms that the space has
       //     changed.

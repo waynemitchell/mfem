@@ -218,7 +218,9 @@ int main(int argc, char *argv[])
       // 19. Update the space to reflect the new state of the mesh. Also,
       //     interpolate the solution x so that it lies in the new space but
       //     represents the same function. This saves solver iterations since
-      //     we'll have a good initial guess of x in the next step.
+      //     we'll have a good initial guess of x in the next step. Internally,
+      //     FiniteElementSpace::Update() calculates an interpolation matrix
+      //     which is then used by one or more calls to GridFunction::Update().
       fespace.Update();
       x.Update();
 

@@ -104,15 +104,14 @@ int main(int argc, char *argv[])
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 10,000 elements.
-   /*{
+   {
       int ref_levels =
          (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
       }
-   }*/
-   //mesh->EnsureNCMesh();
+   }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -120,14 +119,12 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      /*int par_ref_levels = 1;
+      int par_ref_levels = 1;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
-      }*/
+      }
    }
-   //pmesh->RandomRefinement(0.5, false, -1, -1, myid);
-   pmesh->UniformRefinement();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If
@@ -217,12 +214,6 @@ int main(int argc, char *argv[])
    // 12. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
    a->RecoverFEMSolution(X, *b, x);
-
-   // 13. Test Space/GridFunction update
-   pmesh->UniformRefinement();
-   x.Update();
-   pmesh->UniformRefinement();
-   x.Update();
 
    // 13. Save the refined mesh and the solution in parallel. This output can
    //     be viewed later using GLVis: "glvis -np <np> -m mesh -g sol".
