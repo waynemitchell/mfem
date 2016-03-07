@@ -219,17 +219,19 @@ public:
   // TODO - ask MFEM team if they have any interest in adding a few typedefs in their classes, or
   // if just hard-coding the type is better.  For now, I'll just put the typedef's here.
 
-  typedef int el_length_t;
-  typedef double gf_data_t;
+  typedef int mfem_int_t;
+  typedef double mfem_double_t;
 
 
   // TODO
 //   SidreDataCollection( DataCollection& collection ) {}
 
-
    SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataStore * ds);
 
    void RegisterField(const char* name, GridFunction *gf);
+
+   /// Verify we will delete the mesh and fields if we own them
+   virtual ~SidreDataCollection() {}
 
 private:
    // Private helper functions
@@ -242,10 +244,6 @@ private:
 
    void addVertices(asctoolkit::sidre::DataGroup * grp);
 
-   /// We will delete the mesh and fields if we own them
-   virtual ~SidreDataCollection();
-
-private:
 
    asctoolkit::sidre::DataGroup * sidre_dc_group;
 };

@@ -543,18 +543,21 @@ void VisItDataCollection::ParseVisItRootString(string json)
 // data does not change during a run.  There are some drawbacks to trying to do most data as 'external'
 // to Sidre. (For future discussion)
 SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataStore* ds)
-  : DataCollection(collection_name, mesh)
+  : DataCollection(collection_name, new_mesh)
 {
   namespace sidre = asctoolkit::sidre;
 
+  //MFEM_VERIFY( new_mesh.NURBSext == NULL, "SidreDataCollection doesn't support NURB meshes.");
+  //TODO: Will presence of a NURB extension affect what goes in sidre?
+  if ( mesh->Nodes == NULL)
+  {
+    std::cerr << " TODO: Implement function for dumping vertices to sidre." << std::endl;
+  }
+
   sidre_dc_group = ds->getRoot()->createGroup( std::string(collection_name) );
 
-  //MFEM_VERIFY( mesh.NURBSext == NULL, "SidreDataCollection doesn't support NURB meshes.");
-  //TODO: Will presence of a NURB extension affect what goes in sidre?
-  MFEM_VERIFY( mesh->Nodes != NULL, " TODO: Implement function for dumping vertices to sidre.")
-
-  // Create group for mesh attributes
-  sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("mesh");
+  // Create group for mesh
+  sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("topology");
   addMesh(mesh_grp);
 
   // Create group for mesh elements, add material, shape, and vertex indices.
@@ -567,20 +570,28 @@ SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new
   // Get the pointer to the internal boundary elements array in Mesh.
   addElements(boundary_elements_grp, mesh->boundary);
 
-  if (mesh->GetNodes() == NULL)
-  {
-    // Mesh is straight, nodes are just the vertices.
-    mesh_grp->createView("type")->setString("vertices");
-    sidre::DataGroup * grp = mesh_grp->createGroup("vertices");
-    addVertices(grp);
-  }
-  else
+  // Add mesh vertices
+
+  // If a FEC is present defining higher order nodes, add that too.
+  // TODO:
+  // We have two choices for where to get the vertices.  Either get them from the
+  // mesh array of vertex classes, or get them from grid function containing nodes (if present).
+  // Those nodes include the vertices, at beginning of the data array, in a convenient single
+  // array.
+  // For now, I'm getting them from the vertex classes.  If I get them from the gf data
+  // array, I'm concerned with us poking under the hood and taking shortcuts to the data.
+  // I don't want to lock in the MFEM team on always having the vertex values at the
+  // start of the gf data array.  TODO: Discuss this with MFEM team.
+  sidre::DataGroup * grp = mesh_grp->createGroup("coords");
+  addVertices(grp);
+
+  if (mesh->GetNodes() != NULL)
   {
     // Mesh is higher order, nodes are defined by finite element collection
-    mesh_grp->createView("type")->setString("nodes");
     sidre::DataGroup * grp = mesh_grp->createGroup("nodes");
     addField(grp, mesh->GetNodes() );
   }
+
 }
 
 void SidreDataCollection::RegisterField(const char* name, GridFunction *gf)
@@ -589,15 +600,19 @@ void SidreDataCollection::RegisterField(const char* name, GridFunction *gf)
   addField(sidre_dc_group->createGroup(name), gf);
 }
 
-
-SidreDataCollection::~SidreDataCollection()
-{
-  // datastore should automatically clean up any owned memory, but double check.
-}
-
 // Private helper functions
 void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Array<Element *>& elements )
 {
+  // NOTE:
+  // This is just a first pass at adding element data.
+  // It is not optimal, as we are making one entry per element.
+  // If MFEM can guarantee that all the elements are contiguous in memory, we could rework this
+  // to be one view with a stride.
+  // TODO: Look at code that creates these vertices classes and talk to MFEM team.
+  // TODO: The striding strategy would only work if all elements are of the same type ( same # of indices ).
+  // Veselin mentioned that tets do have an optimization where they are all allocated from a large
+  // block.
+
   namespace sidre = asctoolkit::sidre;
 
   group->createView("number")->setScalar( elements.Size() );
@@ -612,13 +627,13 @@ void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Arr
 
     // TODO - ask if MFEM team cares about typedefs.  Could hard code SIDRE_INT_ID here instead.
     element_grp->createView("vertex_indicies")->setExternalDataPtr(
-        elements[i]->GetVertices() ) -> apply( sidre::detail::SidreTT<el_length_t>::id, elements[i]->GetNVertices() );
+        elements[i]->GetVertices() ) -> apply( sidre::detail::SidreTT<mfem_int_t>::id, elements[i]->GetNVertices() );
   }
 }
 
 void SidreDataCollection::addField(asctoolkit::sidre::DataGroup * grp, GridFunction* gf)
 {
-  // should consider adding version member for grid functions in mfem
+  // should consider adding version member for grid functions and mesh in mfem if we're going to be exposing these memory layouts in datastore
 
   namespace sidre = asctoolkit::sidre;
 
@@ -643,7 +658,7 @@ void SidreDataCollection::addField(asctoolkit::sidre::DataGroup * grp, GridFunct
     ordering_view->setString("byVDim");
   }
   // TODO - ask if MFEM team cares about typedefs.  Could hard code SIDRE_DOUBLE_ID here instead.
-  grp->createView("data")->setExternalDataPtr( const_cast<gf_data_t*>(gf->GetData()) )->apply( sidre::detail::SidreTT<gf_data_t>::id , gf->Size());
+  grp->createView("data")->setExternalDataPtr( const_cast<mfem_double_t*>(gf->GetData()) )->apply( sidre::detail::SidreTT<mfem_double_t>::id , gf->Size());
 }
 
 void SidreDataCollection::addMesh(asctoolkit::sidre::DataGroup * grp)
@@ -656,9 +671,31 @@ void SidreDataCollection::addMesh(asctoolkit::sidre::DataGroup * grp)
 
 void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)
 {
+  // NOTE:
+  // This is just a first pass at adding the data.
+  // It is not optimal, as we are making one entry per vertex.
+  // TODO: Rework this to be one view with a stride, if we can verify the vertices are contiguous in memory.
+  namespace sidre = asctoolkit::sidre;
 
-  // DO THIS LATER IF NEEDED
-  // Similar to throwing the elements in sidre - make entry per vertex, add pointer to the int[3] array inside class.
+  MFEM_VERIFY( mesh->Dim == 2 || mesh->Dim == 3, "Expected two or three dimensions." );
+
+  grp->createView("type")->setString( "explicit" );
+
+  for (int i = 0; i < mesh->vertices.Size() ; i++)
+  {
+    sidre::DataGroup * vertex_grp = grp->createGroup( "vertex" + mfem::to_string(i) );
+
+    sidre::DataView * values;
+    if ( mesh->Dim == 2)
+    {
+      values = vertex_grp->createView("xy");
+    }
+    else
+    {
+      values = vertex_grp->createView("xyz");
+    }
+    values->setExternalDataPtr( mesh->vertices[i]() )->apply( sidre::detail::SidreTT<mfem_double_t>::id, mesh->Dim );
+  }
 }
 
 }  // end namespace MFEM

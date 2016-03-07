@@ -46,7 +46,6 @@ double u0_function(Vector &x);
 // Inflow boundary condition
 double inflow_function(Vector &x);
 
-
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
     form of du/dt = v.grad(u) is M du/dt = K u + b, where M and K are the mass
     and advection matrices, and b describes the flow on the boundary. This can
@@ -73,6 +72,9 @@ public:
 
 int main(int argc, char *argv[])
 {
+   // Stop on any sidre warnings.
+   asctoolkit::slic::debug::checksAreErrors = true;
+
    // 1. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
@@ -125,10 +127,8 @@ int main(int argc, char *argv[])
    args.PrintOptions(cout);
 
    // 2. Create a sidre datastore instance.
-   asctoolkit::sidre::DataStore ds();
+   asctoolkit::sidre::DataStore ds;
 
-   SidreDataCollection sidre_dc("Example9", ds);
-   sidre_fc.setMesh(mesh, );
 
    // 3. Read the mesh from the given mesh file. We can handle geometrically
    //    periodic meshes in this code.
@@ -225,6 +225,11 @@ int main(int argc, char *argv[])
       osol.precision(precision);
       u.Save(osol);
    }
+
+   // Create Sidre data collection, add mesh
+   SidreDataCollection sidre_dc("Example9", mesh, &ds);
+   // Add grid function
+   sidre_dc.RegisterField("solution", &u);
 
    VisItDataCollection visit_dc("Example9", mesh);
    visit_dc.RegisterField("solution", &u);

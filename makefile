@@ -299,6 +299,9 @@ serial:
 sidre:
 	$(MAKE) config MFEM_USE_SIDRE=YES MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
 
+sidre_debug:
+	$(MAKE) config MFEM_USE_SIDRE=YES MFEM_USE_MPI=NO MFEM_DEBUG=YES && $(MAKE)
+
 parallel:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=NO && $(MAKE)
 
