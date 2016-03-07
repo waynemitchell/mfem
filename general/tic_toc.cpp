@@ -26,9 +26,6 @@
 #define NOMINMAX
 #include <windows.h>
 #undef NOMINMAX
-#elif (MFEM_TIMER_TYPE == 4)
-#include <stdlib.h>
-#include <sys/time.h>
 #else
 #error "Unknown MFEM_TIMER_TYPE"
 #endif
@@ -56,8 +53,6 @@ private:
    inline void GetUserTime(struct timespec &tp);
 #elif (MFEM_TIMER_TYPE == 3)
    LARGE_INTEGER frequency, real_time, start_rtime;
-#elif (MFEM_TIMER_TYPE == 4)
-   double real_time, start_rtime;
 #endif
    short Running;
 
@@ -72,15 +67,6 @@ public:
    inline double SystTime();
 };
 
-#if (MFEM_TIMER_TYPE == 4)
-static double gettimeofday_double()
-{
-   timeval tv;
-   gettimeofday(&tv, NULL);
-   return tv.tv_sec + tv.tv_usec * 1e-6;
-}
-#endif
-
 StopWatch::StopWatch()
 {
 #if (MFEM_TIMER_TYPE == 0)
@@ -94,8 +80,6 @@ StopWatch::StopWatch()
 #elif (MFEM_TIMER_TYPE == 3)
    QueryPerformanceFrequency(&frequency);
    real_time.QuadPart = 0;
-#elif (MFEM_TIMER_TYPE == 4)
-   real_time = start_rtime = 0;
 #endif
    Running = 0;
 }
@@ -149,12 +133,6 @@ inline void StopWatch::Clear()
    {
       QueryPerformanceCounter(&start_rtime);
    }
-#elif (MFEM_TIMER_TYPE == 4)
-   real_time = 0;
-   if (Running)
-   {
-      start_rtime = gettimeofday_double();
-   }
 #endif
 }
 
@@ -170,8 +148,6 @@ inline void StopWatch::Start()
    GetUserTime(start_utime);
 #elif (MFEM_TIMER_TYPE == 3)
    QueryPerformanceCounter(&start_rtime);
-#elif (MFEM_TIMER_TYPE == 4)
-   start_rtime = gettimeofday_double();
 #endif
    Running = 1;
 }
@@ -199,8 +175,6 @@ inline void StopWatch::Stop()
    LARGE_INTEGER curr_rtime;
    QueryPerformanceCounter(&curr_rtime);
    real_time.QuadPart += (curr_rtime.QuadPart - start_rtime.QuadPart);
-#elif (MFEM_TIMER_TYPE == 4)
-   real_time += (gettimeofday_double() - start_rtime);
 #endif
    Running = 0;
 }
@@ -220,8 +194,6 @@ inline double StopWatch::Resolution()
    return res.tv_sec + 1e-9*res.tv_nsec;
 #elif (MFEM_TIMER_TYPE == 3)
    return 1.0 / frequency.QuadPart;
-#elif (MFEM_TIMER_TYPE == 4)
-   return 1e-6; // we really don't know
 #endif
 }
 
@@ -259,8 +231,6 @@ inline double StopWatch::RealTime()
       rtime.QuadPart += (curr_rtime.QuadPart - start_rtime.QuadPart);
    }
    return (double)(rtime.QuadPart) / frequency.QuadPart;
-#elif (MFEM_TIMER_TYPE == 4)
-   return Running ? (gettimeofday_double() - start_rtime) : real_time;
 #endif
 }
 
@@ -296,8 +266,6 @@ inline double StopWatch::UserTime()
       return user_time.tv_sec + 1e-9*user_time.tv_nsec;
    }
 #elif (MFEM_TIMER_TYPE == 3)
-   return RealTime();
-#elif (MFEM_TIMER_TYPE == 4)
    return RealTime();
 #endif
 }
