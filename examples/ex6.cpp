@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
       //     represents the same function. This saves solver iterations since
       //     we'll have a good initial guess of x in the next step. Internally,
       //     FiniteElementSpace::Update() calculates an interpolation matrix
-      //     which is then used by one or more calls to GridFunction::Update().
+      //     which is then used by GridFunction::Update().
       fespace.Update();
       x.Update();
 

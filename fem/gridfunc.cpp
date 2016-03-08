@@ -2112,53 +2112,6 @@ GridFunction & GridFunction::operator=(const GridFunction &v)
    return this->operator=((const Vector &)v);
 }
 
-/*void GridFunction::ConformingProlongate(const Vector &x)
-{
-   const SparseMatrix *P = fes->GetConformingProlongation();
-   if (P)
-   {
-      this->SetSize(P->Height());
-      P->Mult(x, *this);
-   }
-   else // assume conforming mesh
-   {
-      *this = x;
-   }
-}
-
-void GridFunction::ConformingProlongate()
-{
-   if (fes->Nonconforming())
-   {
-      Vector x = *this;
-      ConformingProlongate(x);
-   }
-}
-
-void GridFunction::ConformingProject(Vector &x) const
-{
-   const SparseMatrix *R = fes->GetConformingRestriction();
-   if (R)
-   {
-      x.SetSize(R->Height());
-      R->Mult(*this, x);
-   }
-   else // assume conforming mesh
-   {
-      x = *this;
-   }
-}
-
-void GridFunction::ConformingProject()
-{
-   if (fes->Nonconforming())
-   {
-      Vector x;
-      ConformingProject(x);
-      static_cast<Vector&>(*this) = x;
-   }
-}*/
-
 void GridFunction::Save(std::ostream &out) const
 {
    fes->Save(out);

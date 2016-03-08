@@ -177,22 +177,6 @@ public:
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
 
-#if 0
-   /** For partially conforming FE spaces, complete the assembly process by
-       performing A := P^t A P where A is the internal sparse matrix and P is
-       the conforming prolongation of the FE space. After this call the
-       BilinearForm becomes an operator on the conforming FE space. */
-   void ConformingAssemble();
-
-   /** A shortcut for converting the whole linear system to conforming DOFs. */
-   void ConformingAssemble(GridFunction& sol, LinearForm& rhs)
-   {
-      ConformingAssemble();
-      rhs.ConformingAssemble();
-      sol.ConformingProject();
-   }
-#endif
-
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
        eliminating boundary conditions; applying conforming constraints for
@@ -359,12 +343,14 @@ public:
 
    void Assemble (int skip_zeros = 1);
 
+#if 0 // TODO: remove?
    /** For partially conforming trial and/or test FE spaces, complete the
        assembly process by performing A := P2^t A P1 where A is the internal
        sparse matrix; P1 and P2 are the conforming prolongation matrices of the
        trial and test FE spaces, respectively. After this call the
        MixedBilinearForm becomes an operator on the conforming FE spaces. */
    void ConformingAssemble();
+#endif
 
    void EliminateTrialDofs(Array<int> &bdr_attr_is_ess,
                            Vector &sol, Vector &rhs);

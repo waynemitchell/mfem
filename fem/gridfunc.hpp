@@ -257,25 +257,6 @@ public:
 
    GridFunction &operator=(const GridFunction &v);
 
-#if 0
-   /** For partially conforming FE spaces, prolongate the conforming vector x
-       to this partially conforming GridFunction. */
-   void ConformingProlongate(const Vector &x);
-
-   /** As above, but the destination is 'this'. */
-   void ConformingProlongate();
-
-   /** For partially conforming FE spaces, project this partially conforming
-       GridFunction onto the conforming vector x. */
-   void ConformingProject(Vector &x) const;
-
-   /** Same as above, but the destination conforming vector is 'this'.
-       NOTE: the GridFunction's functionality is limited after this call,
-       as the underlying vector shrinks to the number of conforming DOFs.
-       Normal state is restored with ConformingProlongate. */
-   void ConformingProject();
-#endif
-
    /// Transform by the Space UpdateMatrix (e.g., on Mesh change).
    void Update();
 
