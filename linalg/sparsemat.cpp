@@ -2784,8 +2784,7 @@ DenseMatrix *Mult (const SparseMatrix &A, DenseMatrix &B)
 
 DenseMatrix *RAP (const SparseMatrix &A, DenseMatrix &P)
 {
-   DenseMatrix R (P);
-   R.Transpose(); // R = P^T
+   DenseMatrix R (P, 't'); // R = P^T
    DenseMatrix *AP   = Mult (A, P);
    DenseMatrix *_RAP = new DenseMatrix(R.Height(), AP->Width());
    Mult (R, *AP, *_RAP);
