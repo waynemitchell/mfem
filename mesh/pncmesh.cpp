@@ -1255,7 +1255,8 @@ void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
 }
 
 
-void ParNCMesh::SendRebalanceDofs(const Table &old_element_dofs,
+void ParNCMesh::SendRebalanceDofs(int old_ndofs,
+                                  const Table &old_element_dofs,
                                   long old_global_offset,
                                   FiniteElementSpace *space)
 {
@@ -1276,7 +1277,7 @@ void ParNCMesh::SendRebalanceDofs(const Table &old_element_dofs,
       for (int i = 0; i < ne; i++)
       {
          old_element_dofs.GetRow(msg.elem_ids[i], dofs);
-         space->DofsToVDofs(dofs, space->GetOldNDofs());
+         space->DofsToVDofs(dofs, old_ndofs);
          msg.dofs.insert(msg.dofs.end(), dofs.begin(), dofs.end());
       }
       msg.dof_offset = old_global_offset;

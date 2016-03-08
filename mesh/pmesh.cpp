@@ -2119,7 +2119,7 @@ bool ParMesh::NonconformingDerefinement(Array<double> &elem_error,
 
 void ParMesh::Rebalance()
 {
-   if (!pncmesh)
+   if (Conforming())
    {
       MFEM_ABORT("Load balancing is currently not supported for conforming"
                  " meshes.");

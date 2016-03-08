@@ -56,7 +56,7 @@ private:
    /// Offsets for the true dofs in neighbor processor in global numbering.
    Array<HYPRE_Int> tdof_nb_offsets;
 
-   /// Value of 'dof_offsets' before Update().
+   /// Previous 'dof_offsets' (before Update()), column partition of T.
    Array<HYPRE_Int> old_dof_offsets;
 
    /// The sign of the basis functions at the scalar local dofs.
@@ -133,13 +133,15 @@ private:
    /** Calculate a GridFunction migration matrix after mesh load balancing.
        The result is a parallel permutation matrix that can be used to update
        all grid functions defined on this space. */
-   HypreParMatrix* RebalanceMatrix();
+   HypreParMatrix* RebalanceMatrix(int old_ndofs,
+                                   const Table* old_elem_dof);
 
    /** Calculate a GridFunction restriction matrix after mesh derefinement.
        The matrix is constructed so that the new grid function interpolates
        the original function, i.e., the original function is evaluated at the
        nodes of the coarse function. */
-   HypreParMatrix* ParallelDerefinementMatrix();
+   HypreParMatrix* ParallelDerefinementMatrix(int old_ndofs,
+                                              const Table *old_elem_dof);
 
 public:
    // Face-neighbor data

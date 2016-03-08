@@ -192,8 +192,8 @@ public:
    // utility
 
    /// Use the communication pattern from last Rebalance() to send element DOFs.
-   void SendRebalanceDofs(const Table &old_element_dofs, long old_global_offset,
-                          FiniteElementSpace* space);
+   void SendRebalanceDofs(int old_ndofs, const Table &old_element_dofs,
+                          long old_global_offset, FiniteElementSpace* space);
 
    /// Receive element DOFs sent by SendRebalanceDofs().
    void RecvRebalanceDofs(Array<int> &elements, Array<long> &dofs);

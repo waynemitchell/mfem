@@ -1523,7 +1523,9 @@ static HYPRE_Int* make_j_array(HYPRE_Int* I, int nrows)
    return J;
 }
 
-HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
+HypreParMatrix*
+ParFiniteElementSpace::RebalanceMatrix(int old_ndofs,
+                                       const Table* old_elem_dof)
 {
    MFEM_VERIFY(Nonconforming(), "Only supported for nonconforming meshes.");
    MFEM_VERIFY(old_dof_offsets.Size(), "ParFiniteElementSpace::Update needs to "
@@ -1534,7 +1536,7 @@ HypreParMatrix *ParFiniteElementSpace::RebalanceMatrix()
 
    // send old DOFs of elements we used to own
    ParNCMesh* pncmesh = pmesh->pncmesh;
-   pncmesh->SendRebalanceDofs(*old_elem_dof, old_offset, this);
+   pncmesh->SendRebalanceDofs(old_ndofs, *old_elem_dof, old_offset, this);
 
    Array<int> dofs;
    int vsize = GetVSize();
@@ -1634,7 +1636,9 @@ struct DerefDofMessage
 #define MPI_HYPRE_INT MPI_INT
 #endif
 
-HypreParMatrix* ParFiniteElementSpace::ParallelDerefinementMatrix()
+HypreParMatrix*
+ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
+                                                  const Table* old_elem_dof)
 {
    int nrk = HYPRE_AssumedPartitionCheck() ? 2 : NRanks;
 
@@ -1874,14 +1878,17 @@ void ParFiniteElementSpace::Update(bool want_transform)
       return;
    }
 
-   // keep old elem_dof table for RefineMatrix, RebalanceMatrix, ...
-   delete old_elem_dof;
-   old_elem_dof = elem_dof;
-   elem_dof = NULL;
+   Table* old_elem_dof;
+   int old_ndofs;
 
-   old_ndofs = ndofs;
+   // save old DOF table
+   if (want_transform)
+   {
+      old_elem_dof = elem_dof;
+      elem_dof = NULL;
+      old_ndofs = ndofs;
+   }
 
-   // save old offsets
    dof_offsets.Copy(old_dof_offsets);
 
    Destroy();
@@ -1899,34 +1906,32 @@ void ParFiniteElementSpace::Update(bool want_transform)
       {
          case Mesh::REFINE:
          {
-            T = RefinementMatrix();
+            T = RefinementMatrix(old_ndofs, old_elem_dof);
             break;
          }
 
          case Mesh::DEREFINE:
          {
-            if (Conforming())
+            T = ParallelDerefinementMatrix(old_ndofs, old_elem_dof);
+            if (Nonconforming())
             {
-               T = ParallelDerefinementMatrix();
-            }
-            else
-            {
-               T = new TripleProductOperator(P, R, ParallelDerefinementMatrix(),
-                                             false, false, true);
+               T = new TripleProductOperator(P, R, T, false, false, true);
             }
             break;
          }
 
          case Mesh::REBALANCE:
          {
-            T = RebalanceMatrix();
+            T = RebalanceMatrix(old_ndofs, old_elem_dof);
             break;
          }
 
          default:
-            break;
+            break; // T stays NULL
       }
    }
+
+   delete old_elem_dof;
 }
 
 } // namespace mfem

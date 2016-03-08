@@ -64,9 +64,6 @@ protected:
 
    Array<int> dof_elem_array, dof_ldof_array;
 
-   int old_ndofs; ///< ndofs before Update()
-   Table *old_elem_dof; ///< elem_dof table before Update()
-
    NURBSExtension *NURBSext;
    int own_ext;
 
@@ -100,13 +97,13 @@ protected:
    void MakeVDimMatrix(SparseMatrix &mat) const;
 
    /// Calculate GridFunction interpolation matrix after mesh refinement.
-   SparseMatrix* RefinementMatrix();
+   SparseMatrix* RefinementMatrix(int old_ndofs, const Table* old_elem_dof);
 
    void GetLocalDerefinementMatrices(int geom, const CoarseFineTransformations &dt,
                                      DenseTensor &localR);
 
    /// Calculate GridFunction restriction matrix after mesh derefinement.
-   SparseMatrix* DerefinementMatrix();
+   SparseMatrix* DerefinementMatrix(int old_ndofs, const Table* old_elem_dof);
 
 
 public:
@@ -328,9 +325,6 @@ public:
 
    /// Free GridFunction transformation matrix (if any), to save memory.
    void UpdatesFinished() { delete T; T = NULL; }
-
-   /// Returns number of degrees of freedom before last Update().
-   int GetOldNDofs() const { return old_ndofs; }
 
    /// Return update counter (see Mesh::sequence)
    long GetSequence() const { return sequence; }

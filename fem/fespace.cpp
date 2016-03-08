@@ -712,7 +712,8 @@ int FiniteElementSpace::GetNConformingDofs()
    return P ? (P->Width() / vdim) : ndofs;
 }
 
-SparseMatrix* FiniteElementSpace::RefinementMatrix()
+SparseMatrix* FiniteElementSpace::RefinementMatrix(int old_ndofs,
+                                                   const Table* old_elem_dof)
 {
    MFEM_VERIFY(mesh->GetLastOperation() == Mesh::REFINE, "");
    MFEM_VERIFY(ndofs >= old_ndofs, "Previous space is not coarser.");
@@ -836,7 +837,8 @@ void FiniteElementSpace::GetLocalDerefinementMatrices(
    }
 }
 
-SparseMatrix* FiniteElementSpace::DerefinementMatrix()
+SparseMatrix* FiniteElementSpace::DerefinementMatrix(int old_ndofs,
+                                                     const Table* old_elem_dof)
 {
    MFEM_VERIFY(Nonconforming(), "Not implemented for conforming meshes.");
    MFEM_VERIFY(old_ndofs, "Missing previous (finer) space.");
@@ -902,9 +904,6 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
    this->ordering = ordering;
 
    elem_dof = NULL;
-   old_elem_dof = NULL;
-   old_ndofs = 0;
-
    sequence = mesh->GetSequence();
 
    const NURBSFECollection *nurbs_fec =
@@ -966,12 +965,7 @@ void FiniteElementSpace::UpdateNURBS()
    dynamic_cast<const NURBSFECollection *>(fec)->Reset();
 
    ndofs = NURBSext->GetNDof();
-
    elem_dof = NURBSext->GetElementDofTable();
-
-   old_elem_dof = NULL;
-   old_ndofs = 0;
-
    bdrElem_dof = NURBSext->GetBdrElementDofTable();
 }
 
@@ -1416,7 +1410,6 @@ const FiniteElement *FiniteElementSpace::GetTraceElement(
 FiniteElementSpace::~FiniteElementSpace()
 {
    Destroy();
-   delete old_elem_dof;
 }
 
 void FiniteElementSpace::Destroy()
@@ -1461,12 +1454,16 @@ void FiniteElementSpace::Update(bool want_transform)
       return;
    }
 
-   // keep old elem_dof table for RefineMatrix, RebalanceMatrix, ...
-   delete old_elem_dof;
-   old_elem_dof = elem_dof;
-   elem_dof = NULL;
+   Table* old_elem_dof;
+   int old_ndofs;
 
-   old_ndofs = ndofs;
+   // save old DOF table
+   if (want_transform)
+   {
+      old_elem_dof = elem_dof;
+      elem_dof = NULL;
+      old_ndofs = ndofs;
+   }
 
    Destroy();
    Construct();
@@ -1479,21 +1476,17 @@ void FiniteElementSpace::Update(bool want_transform)
       {
          case Mesh::REFINE:
          {
-            T = RefinementMatrix();
+            T = RefinementMatrix(old_ndofs, old_elem_dof);
             break;
          }
 
          case Mesh::DEREFINE:
          {
             GetConformingInterpolation();
-            if (!cP || !cR)
+            T = DerefinementMatrix(old_ndofs, old_elem_dof);
+            if (cP && cR)
             {
-               T = DerefinementMatrix();
-            }
-            else
-            {
-               T = new TripleProductOperator(cP, cR, DerefinementMatrix(),
-                                             false, false, true);
+               T = new TripleProductOperator(cP, cR, T, false, false, true);
             }
             break;
          }
@@ -1502,6 +1495,8 @@ void FiniteElementSpace::Update(bool want_transform)
             break; // T stays NULL
       }
    }
+
+   delete old_elem_dof;
 }
 
 void FiniteElementSpace::Save(std::ostream &out) const
