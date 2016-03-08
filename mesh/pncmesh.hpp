@@ -475,40 +475,6 @@ protected:
    friend class NeighborDofMessage;
 };
 
-/*
-TODO
-+ vdim fix
-+ conforming case R matrix
-+ master merge
-+ curved/two-level parmesh
-+ hcurl/hdiv (par-blocks)
-+ saving/reading nc meshes
-+ visualization, VisIt?
-+ neighbor search algorithm
-+ parallel refinement bug
-+ derefine 2D
-+ limit NC 3D edges + 2D
-+ skip ldof_sign in pfespace.cpp
-+ parallel ZZ estimator
-- ProjectBdrCoefficient
-+ performance/scaling study
-
-+ hilbert ordering
-+ rebalance
-+ DOF redistribution after rebalance
-+ derefinement
-+ new fine/coarse interface, ref/deref matrices
-+ parallel derefinement
-+ parallel LimitNCLevel
-- remove zeros after parallel elimination
-- parallel aniso refine
-- serial aniso derefine
-+ DG for serial NC
-- DG for parallel NC
-- optimize P communication
-- big-int P matrix
-- cP + P
-*/
 
 /** Represents a message about DOF assignment of vertex, edge and face DOFs on
  *  the boundary with another processor. This and other messages below
