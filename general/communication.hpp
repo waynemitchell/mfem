@@ -225,7 +225,7 @@ struct VarMessage
          int rank, size;
          Probe(rank, size, comm);
          MFEM_ASSERT(rank_msg.find(rank) != rank_msg.end(), "Unexpected message"
-                    " (tag " << Tag << ") from rank " << rank);
+                     " (tag " << Tag << ") from rank " << rank);
          // NOTE: no guard against receiving two messages from the same rank
          rank_msg[rank].Recv(rank, size, comm);
          --recv_left;

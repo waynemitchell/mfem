@@ -15,7 +15,7 @@
 
 #include <mpi.h>
 #ifdef __bgq__
-   #include <mpix.h>
+#include <mpix.h>
 #endif
 
 #include "array.hpp"

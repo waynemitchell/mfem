@@ -87,7 +87,8 @@ HypreParVector::HypreParVector(const HypreParVector &y) : Vector()
    own_ParVector = 1;
 }
 
-HypreParVector::HypreParVector(const HypreParMatrix &A, int transpose) : Vector()
+HypreParVector::HypreParVector(const HypreParMatrix &A,
+                               int transpose) : Vector()
 {
    if (!transpose)
    {

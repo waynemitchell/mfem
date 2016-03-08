@@ -272,9 +272,9 @@ void Tetrahedron::GetPointMatrix(unsigned transform, DenseMatrix &pm)
       Mesh::Bisection for tetrahedra. */
    while (n)
    {
-      #define ASGN(a, b) (a[0] = b[0], a[1] = b[1], a[2] = b[2])
-      #define SWAP(a, b) for (int i = 0; i < 3; i++) { std::swap(a[i], b[i]); }
-      #define AVG(a, b, c) for (int i = 0; i < 3; i++) { a[i] = (b[i]+c[i])*0.5; }
+#define ASGN(a, b) (a[0] = b[0], a[1] = b[1], a[2] = b[2])
+#define SWAP(a, b) for (int i = 0; i < 3; i++) { std::swap(a[i], b[i]); }
+#define AVG(a, b, c) for (int i = 0; i < 3; i++) { a[i] = (b[i]+c[i])*0.5; }
 
       double e[3];
       AVG(e, a, b);

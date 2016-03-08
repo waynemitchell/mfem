@@ -159,8 +159,8 @@ void Triangle::GetPointMatrix(unsigned transform, DenseMatrix &pm)
    */
 
    double d[2], e[2], f[2];
-   #define ASGN(a, b) (a[0] = b[0], a[1] = b[1])
-   #define AVG(a, b, c) (a[0] = (b[0] + c[0])*0.5, a[1] = (b[1] + c[1])*0.5)
+#define ASGN(a, b) (a[0] = b[0], a[1] = b[1])
+#define AVG(a, b, c) (a[0] = (b[0] + c[0])*0.5, a[1] = (b[1] + c[1])*0.5)
 
    while (n)
    {
@@ -170,14 +170,17 @@ void Triangle::GetPointMatrix(unsigned transform, DenseMatrix &pm)
          case 1: AVG(a, a, b); AVG(c, b, c); break;
          case 2: AVG(a, a, c); AVG(b, b, c); break;
 
-         case 3: AVG(d, a, b); AVG(e, b, c); AVG(f, c, a);
-                 ASGN(a, e); ASGN(b, f); ASGN(c, d); break;
+         case 3:
+            AVG(d, a, b); AVG(e, b, c); AVG(f, c, a);
+            ASGN(a, e); ASGN(b, f); ASGN(c, d); break;
 
-         case 4: AVG(d, a, b); // N.B.: orientation
-                 ASGN(b, a); ASGN(a, c); ASGN(c, d); break;
+         case 4:
+            AVG(d, a, b); // N.B.: orientation
+            ASGN(b, a); ASGN(a, c); ASGN(c, d); break;
 
-         case 5: AVG(d, a, b); // N.B.: orientation
-                 ASGN(a, b); ASGN(b, c); ASGN(c, d); break;
+         case 5:
+            AVG(d, a, b); // N.B.: orientation
+            ASGN(a, b); ASGN(b, c); ASGN(c, d); break;
 
          default:
             MFEM_ABORT("Invalid transform.");

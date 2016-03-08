@@ -35,7 +35,8 @@ public:
 
    /// Constants for the classes derived from Element.
    enum Type { POINT, SEGMENT, TRIANGLE, QUADRILATERAL, TETRAHEDRON,
-               HEXAHEDRON };
+               HEXAHEDRON
+             };
 
    /// Default element constructor.
    explicit Element(int bg = Geometry::POINT) { attribute = -1; base_geom = bg; }

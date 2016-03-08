@@ -45,7 +45,8 @@ using namespace mfem;
 const int MaxElements = 5000;
 
 
-void Visualize(socketstream &sout, ParMesh &mesh, ParGridFunction &x, bool pause)
+void Visualize(socketstream &sout, ParMesh &mesh, ParGridFunction &x,
+               bool pause)
 {
    int num_procs, myid;
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
