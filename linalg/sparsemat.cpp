@@ -2771,26 +2771,26 @@ SparseMatrix *MultAbstractSparseMatrix (const AbstractSparseMatrix &A,
 
 DenseMatrix *Mult (const SparseMatrix &A, DenseMatrix &B)
 {
-  DenseMatrix *C = new DenseMatrix(A.Height(), B.Width());
-  Vector columnB, columnC;
-  for (int j = 0; j < B.Width(); ++j)
-  {
-    B.GetColumnReference(j, columnB);
-    C->GetColumnReference(j, columnC);
-    A.Mult(columnB, columnC);
-  }
-  return C;
+   DenseMatrix *C = new DenseMatrix(A.Height(), B.Width());
+   Vector columnB, columnC;
+   for (int j = 0; j < B.Width(); ++j)
+   {
+      B.GetColumnReference(j, columnB);
+      C->GetColumnReference(j, columnC);
+      A.Mult(columnB, columnC);
+   }
+   return C;
 }
 
 DenseMatrix *RAP (const SparseMatrix &A, DenseMatrix &P)
 {
-  DenseMatrix R (P);
-  R.Transpose(); // R = P^T
-  DenseMatrix *AP   = Mult (A, P);
-  DenseMatrix *_RAP = new DenseMatrix(R.Height(), AP->Width());
-  Mult (R, *AP, *_RAP);
-  delete AP;
-  return _RAP;
+   DenseMatrix R (P);
+   R.Transpose(); // R = P^T
+   DenseMatrix *AP   = Mult (A, P);
+   DenseMatrix *_RAP = new DenseMatrix(R.Height(), AP->Width());
+   Mult (R, *AP, *_RAP);
+   delete AP;
+   return _RAP;
 }
 
 SparseMatrix *RAP (const SparseMatrix &A, const SparseMatrix &R,
