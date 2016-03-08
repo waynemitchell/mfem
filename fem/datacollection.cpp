@@ -55,9 +55,10 @@ int to_int(string str)
 
 // class DataCollection implementation
 
-DataCollection::DataCollection(const char *collection_name, const char *prefix)
+DataCollection::DataCollection(const char *collection_name)
 {
    name = collection_name;
+   // leave prefix_path empty
    mesh = NULL;
    myid = 0;
    num_procs = 1;
@@ -68,24 +69,12 @@ DataCollection::DataCollection(const char *collection_name, const char *prefix)
    precision = precision_default;
    pad_digits = pad_digits_default;
    error = NO_ERROR;
-   if (prefix)
-   {
-      prefix_path = prefix;
-      if (prefix_path[prefix_path.size()-1] != '/')
-      {
-         prefix_path += "/";
-      }
-   }
-   else
-   {
-      prefix_path = "";
-   }
 }
 
-DataCollection::DataCollection(const char *collection_name, Mesh *_mesh,
-                               const char *prefix)
+DataCollection::DataCollection(const char *collection_name, Mesh *_mesh)
 {
    name = collection_name;
+   // leave prefix_path empty
    mesh = _mesh;
    myid = 0;
    num_procs = 1;
@@ -105,18 +94,6 @@ DataCollection::DataCollection(const char *collection_name, Mesh *_mesh,
    precision = precision_default;
    pad_digits = pad_digits_default;
    error = NO_ERROR;
-   if (prefix)
-   {
-      prefix_path = prefix;
-      if (prefix_path[prefix_path.size()-1] != '/')
-      {
-         prefix_path += "/";
-      }
-   }
-   else
-   {
-      prefix_path = "";
-   }
 }
 
 void DataCollection::SetMesh(Mesh *new_mesh)
@@ -158,6 +135,22 @@ GridFunction *DataCollection::GetField(const char *field_name)
    }
 }
 
+void DataCollection::SetPrefixPath(const char *prefix)
+{
+   if (prefix)
+   {
+      prefix_path = prefix;
+      if (!prefix_path.empty() && prefix_path[prefix_path.size()-1] != '/')
+      {
+         prefix_path += '/';
+      }
+   }
+   else
+   {
+      prefix_path.clear();
+   }
+}
+
 void DataCollection::Save()
 {
    SaveMesh();
@@ -171,7 +164,7 @@ void DataCollection::Save()
    }
 }
 
-int create_directory(const string &dir_name, const Mesh *mesh, int myid)
+static int create_directory(const string &dir_name, const Mesh *mesh, int myid)
 {
    int err;
 #ifndef MFEM_USE_MPI
@@ -266,8 +259,10 @@ void DataCollection::SaveOneField(
       file_name = dir_name + "/" + it->first;
    }
    else
+   {
       file_name = dir_name + "/" + it->first + "." +
                   to_padded_string(myid, pad_digits);
+   }
    ofstream field_file(file_name.c_str());
    field_file.precision(precision);
    (it->second)->Save(field_file);
@@ -328,9 +323,8 @@ DataCollection::~DataCollection()
 
 // class VisItDataCollection implementation
 
-VisItDataCollection::VisItDataCollection(const char *collection_name,
-                                         const char *prefix)
-   : DataCollection(collection_name, prefix)
+VisItDataCollection::VisItDataCollection(const char *collection_name)
+   : DataCollection(collection_name)
 {
    serial = false; // always include rank in file names
    cycle  = 0;     // always include cycle in directory names
@@ -341,9 +335,8 @@ VisItDataCollection::VisItDataCollection(const char *collection_name,
 }
 
 VisItDataCollection::VisItDataCollection(const char *collection_name,
-                                         Mesh *mesh,
-                                         const char *prefix)
-   : DataCollection(collection_name, mesh, prefix)
+                                         Mesh *mesh)
+   : DataCollection(collection_name, mesh)
 {
    serial = false; // always include rank in file names
    cycle  = 0;     // always include cycle in directory names
@@ -444,7 +437,8 @@ void VisItDataCollection::LoadVisItRootFile(string root_name)
 
 void VisItDataCollection::LoadMesh()
 {
-   string mesh_fname = name + "_" + to_padded_string(cycle, pad_digits) +
+   string mesh_fname = prefix_path + name + "_" +
+                       to_padded_string(cycle, pad_digits) +
                        "/mesh." + to_padded_string(myid, pad_digits);
    ifstream file(mesh_fname.c_str());
    if (!file)
@@ -462,7 +456,8 @@ void VisItDataCollection::LoadMesh()
 
 void VisItDataCollection::LoadFields()
 {
-   string path_left = name + "_" + to_padded_string(cycle, pad_digits) + "/";
+   string path_left = prefix_path + name + "_" +
+                      to_padded_string(cycle, pad_digits) + "/";
    string path_right = "." + to_padded_string(myid, pad_digits);
 
    field_map.clear();
@@ -485,7 +480,7 @@ void VisItDataCollection::LoadFields()
 
 string VisItDataCollection::GetVisItRootString()
 {
-   // Get the path string
+   // Get the path string (relative to where the root file is, i.e. no prefix).
    string path_str = name + "_" + to_padded_string(cycle, pad_digits) + "/";
 
    // We have to build the json tree inside out to get all the values in there

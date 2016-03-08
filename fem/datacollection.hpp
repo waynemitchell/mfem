@@ -29,6 +29,9 @@ protected:
    /// Name of the collection, used as a directory name when saving
    std::string name;
 
+   /// A path where the directory with results is saved
+   std::string prefix_path;
+
    /// The fields and their names (used when saving)
    std::map<std::string, GridFunction*> field_map;
    /// The (common) mesh for the collected fields
@@ -63,12 +66,8 @@ protected:
    /// Error state
    int error;
 
-   /// A path where the directory with results is saved
-   std::string prefix_path;
-
    /// Create an empty collection with the given name.
-   DataCollection(const char *collection_name,
-                  const char *prefix = NULL);
+   DataCollection(const char *collection_name);
    /// Delete data owned by the DataCollection keeping field information
    void DeleteData();
    /// Delete data owned by the DataCollection including field information
@@ -79,8 +78,7 @@ protected:
 
 public:
    /// Initialize the collection with its name and Mesh.
-   DataCollection(const char *collection_name, Mesh *_mesh,
-                  const char *prefix = NULL);
+   DataCollection(const char *collection_name, Mesh *_mesh);
 
    /// Add a grid function to the collection
    virtual void RegisterField(const char *field_name, GridFunction *gf);
@@ -113,6 +111,8 @@ public:
    void SetPrecision(int prec) { precision = prec; }
    /// Set the number of digits used for the cycle and MPI rank in filenames
    void SetPadDigits(int digits) { pad_digits = digits; }
+   /// Set the path where the DataCollection will be saved.
+   void SetPrefixPath(const char *prefix);
 
    /** Save the collection to disk. By default, everything is saved in a
        directory with name "collection_name" or "collection_name_cycle" for
@@ -170,11 +170,9 @@ protected:
 public:
    /** Create an empty collection with the given name, that will be filled in
        later with the Load() function. Currently this only works in serial! */
-   VisItDataCollection(const char *collection_name,
-                       const char *prefix = NULL);
+   VisItDataCollection(const char *collection_name);
    /// Initialize the collection with its mesh, fill-in the extra VisIt data
-   VisItDataCollection(const char *collection_name, Mesh *_mesh,
-                       const char *prefix = NULL);
+   VisItDataCollection(const char *collection_name, Mesh *_mesh);
 
    /// Set/change the mesh associated with the collection
    virtual void SetMesh(Mesh *new_mesh);
