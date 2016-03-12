@@ -95,7 +95,7 @@ public:
    /// Return true if the data will be deleted by the array
    inline bool OwnsData() const { return (allocsize > 0); }
 
-   /// Changes the ownership of the the data
+   /// Changes the ownership of the data
    inline void StealData(T **p)
    { *p = (T*)data; data = 0; size = allocsize = 0; }
 

@@ -338,7 +338,7 @@ protected:
    /// Write to 'os' a processor-independent encoding of vertex/edge/face IDs.
    void EncodeMeshIds(std::ostream &os, Array<MeshId> ids[]);
 
-   /// Read from 'is' a processor-independent encoding of vetex/edge/face IDs.
+   /// Read from 'is' a processor-independent encoding of vertex/edge/face IDs.
    void DecodeMeshIds(std::istream &is, Array<MeshId> ids[]);
 
    bool CheckElementType(Element* elem, int type);
@@ -459,7 +459,7 @@ protected:
    void RedistributeElements(Array<int> &new_ranks, int target_elements,
                              bool record_comm);
 
-   /** Recorded communicaton pattern from last Rebalance. Used by
+   /** Recorded communication pattern from last Rebalance. Used by
        Send/RecvRebalanceDofs to ship element DOFs. */
    RebalanceDofMessage::Map send_rebalance_dofs;
    RebalanceDofMessage::Map recv_rebalance_dofs;

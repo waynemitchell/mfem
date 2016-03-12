@@ -254,7 +254,7 @@ protected:
 };
 
 
-/// Helper struct to convert C++ type to MPI type
+/// Helper struct to convert a C++ type to an MPI type
 template <typename Type>
 struct MPITypeMap { static const MPI_Datatype mpi_type; };
 
