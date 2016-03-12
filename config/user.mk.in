@@ -59,7 +59,7 @@ MESQUITE_LIB = -L$(MESQUITE_DIR)/lib -lmesquite
 
 SUITESPARSE_DIR = @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT = -I$(SUITESPARSE_DIR)/include
-SUITESPARSE_LIB = -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd -lamd\
+SUITESPARSE_LIB = -L$(SUITESPARSE_DIR)/lib -lklu -lbft -lumfpack -lcholmod -lcolamd -lamd\
  -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
 
 POSIX_CLOCKS_LIB = -lrt
