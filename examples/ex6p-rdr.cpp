@@ -1,35 +1,35 @@
-//                       MFEM Example 6 - Parallel Version
+//                    MFEM Example 6 (RDR) - Parallel Version
 //
-// Compile with: make ex6p
+// Compile with: make ex6p-rdr
 //
-// Sample runs:  mpirun -np 4 ex6p -m ../data/square-disc.mesh -o 1
-//               mpirun -np 4 ex6p -m ../data/square-disc.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/square-disc-nurbs.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/star.mesh -o 3
-//               mpirun -np 4 ex6p -m ../data/escher.mesh -o 1
-//               mpirun -np 4 ex6p -m ../data/fichera.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/disc-nurbs.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/ball-nurbs.mesh
-//               mpirun -np 4 ex6p -m ../data/pipe-nurbs.mesh
-//               mpirun -np 4 ex6p -m ../data/star-surf.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/square-disc-surf.mesh -o 2
-//               mpirun -np 4 ex6p -m ../data/amr-quad.mesh
+// Sample runs:  mpirun -np 4 ex6p-rdr -m ../data/square-disc.mesh -o 1
+//               mpirun -np 4 ex6p-rdr -m ../data/square-disc.mesh -o 2
+//               mpirun -np 4 ex6p-rdr -m ../data/square-disc-nurbs.mesh -o 2
+//               mpirun -np 4 ex6p-rdr -m ../data/star.mesh -o 3
+//               mpirun -np 4 ex6p-rdr -m ../data/escher.mesh -o 1
+//               mpirun -np 4 ex6p-rdr -m ../data/fichera.mesh -o 2
+//               mpirun -np 4 ex6p-rdr -m ../data/disc-nurbs.mesh -o 2
+//               mpirun -np 4 ex6p-rdr -m ../data/ball-nurbs.mesh
+//               mpirun -np 4 ex6p-rdr -m ../data/pipe-nurbs.mesh
+//               mpirun -np 4 ex6p-rdr -m ../data/star-surf.mesh -o 2
+//               mpirun -np 4 ex6p-rdr -m ../data/square-disc-surf.mesh -o 2
+//               mpirun -np 4 ex6p-rdr -m ../data/amr-quad.mesh
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
-//               refinement/derefminement/rebalance loop. The problem being
+//               refinement/derefinement/rebalance loop. The problem being
 //               solved is again the Laplace equation -Delta u = f with
 //               homogeneous Dirichlet boundary conditions. At each outer
-//               iteration the right hand side function is changed to mimic
-//               a time dependent problem.  Within each outer itertation the
+//               iteration the right hand side function is changed to mimic a
+//               time dependent problem.  Within each outer iteration the
 //               problem is solved on a sequence of meshes which are locally
-//               refined in a conforming (triangles, tetrahedrons)
-//               or non-conforming (quadrilateral, hexahedrons) manner
-//               according to a simple ZZ error estimator.  At the end of the
-//               outer iteration the ZZ error estimator is used to identify
-//               any elements which may be over-refined and a single
-//               derefinement step is performed.  After each refinement or
-//               derefinement a rebalance operation is performed to keep the
-//               mesh evenly distributed amongst the available processors.
+//               refined in a conforming (triangles, tetrahedrons) or
+//               non-conforming (quadrilateral, hexahedrons) manner according to
+//               a simple ZZ error estimator.  At the end of the outer iteration
+//               the ZZ error estimator is used to identify any elements which
+//               may be over-refined and a single derefinement step is
+//               performed.  After each refinement or derefinement a rebalance
+//               operation is performed to keep the mesh evenly distributed
+//               amongst the available processors.
 //
 //               The example demonstrates MFEM's capability to work with both
 //               conforming and nonconforming refinements, in 2D and 3D, on
@@ -141,8 +141,8 @@ int main(int argc, char *argv[])
    }
    mesh->EnsureNCMesh();
 
-   // 5. Define a parallel mesh by partitioning the serial mesh.
-   //    Once the parallel mesh is defined, the serial mesh can be deleted.
+   // 5. Define a parallel mesh by partitioning the serial mesh.  Once the
+   //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh pmesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
 
@@ -151,8 +151,8 @@ int main(int argc, char *argv[])
    Array<int> ess_bdr(pmesh.bdr_attributes.Max());
    ess_bdr = 1;
 
-   // 6. Define a finite element space on the mesh. The polynomial order is
-   //    one (linear) by default, but this can be changed on the command line.
+   // 6. Define a finite element space on the mesh. The polynomial order is one
+   //    (linear) by default, but this can be changed on the command line.
    H1_FECollection fec(order, dim);
    ParFiniteElementSpace fespace(&pmesh, &fec);
 
@@ -195,13 +195,14 @@ int main(int argc, char *argv[])
       sout.precision(8);
    }
 
-   // 10. The main time loop. In each iteration we update the right
-   //     hand side, solve the problem on the current mesh, visualize
-   //     the solution, estimate the error on all elements, refine the
-   //     worst elements and update all objects to work with the new mesh.
-   //     The recompute the errors and derefine any elements which have
-   //     very small errors.
+   VisItDataCollection visit_dc("Ex6-RDR", &pmesh);
+   visit_dc.RegisterField("solution", &x);
 
+   // 10. The main time loop. In each iteration we update the right hand side,
+   //     solve the problem on the current mesh, visualize the solution,
+   //     estimate the error on all elements, refine the worst elements and
+   //     update all objects to work with the new mesh.  The recompute the
+   //     errors and derefine any elements which have very small errors.
    const int max_dofs = 100000;
    int max_it = 100;
    for (int it = 0; it < max_it; it++)
@@ -232,6 +233,9 @@ int main(int argc, char *argv[])
 
          // 11a. Recompute the field on the current mesh
          ComputeField( a, b, fespace, ess_bdr, x);
+
+         visit_dc.SetCycle(it);
+         visit_dc.Save();
 
          // 11b. Send the solution by socket to a GLVis server.
          if (visualization)
