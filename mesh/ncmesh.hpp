@@ -72,7 +72,7 @@ struct CoarseFineTransformations
  *  4. FiniteElementSpace asks NCMesh for a list of conforming, master and
  *     slave edges/faces and creates the conforming interpolation matrix P.
  *
- *  5. A continous/conforming solution is obtained by solving P'*A*P x = P'*b.
+ *  5. A continuous/conforming solution is obtained by solving P'*A*P x = P'*b.
  *
  *  6. Repeat from step 2.
  */
@@ -482,7 +482,8 @@ protected: // implementation
    Node* GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4);
 
    int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
-                     Node* mid[4] = NULL /* optional output of mid-edge nodes*/) const;
+                     Node* mid[4] = NULL /* optional output of mid-edge nodes*/)
+   const;
 
    void ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4);
 

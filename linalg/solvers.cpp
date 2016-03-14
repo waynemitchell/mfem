@@ -1805,6 +1805,78 @@ UMFPackSolver::~UMFPackSolver()
    }
 }
 
+void KLUSolver::Init()
+{
+   klu_defaults(&Common);
+}
+
+void KLUSolver::SetOperator(const Operator &op)
+{
+   if (Numeric)
+   {
+      MFEM_ASSERT(Symbolic != 0,
+                  "Had Numeric pointer in KLU, but not Symbolic");
+      klu_free_symbolic(&Symbolic, &Common);
+      Symbolic = 0;
+      klu_free_numeric(&Numeric, &Common);
+      Numeric = 0;
+   }
+
+   mat = const_cast<SparseMatrix *>(dynamic_cast<const SparseMatrix *>(&op));
+   MFEM_VERIFY(mat != NULL, "not a SparseMatrix");
+
+   // KLU requires that the column-indices in mat corresponding to each row be
+   // sorted.  Generally, this will modify the ordering of the entries of mat.
+   mat->SortColumnIndices();
+
+   height = mat->Height();
+   width = mat->Width();
+   MFEM_VERIFY(width == height, "not a square matrix");
+
+   int * Ap = mat->GetI();
+   int * Ai = mat->GetJ();
+   double * Ax = mat->GetData();
+
+   Symbolic = klu_analyze( height, Ap, Ai, &Common);
+   Numeric = klu_factor(Ap, Ai, Ax, Symbolic, &Common);
+}
+
+void KLUSolver::Mult(const Vector &b, Vector &x) const
+{
+   MFEM_VERIFY(mat != NULL,
+               "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
+
+   int n = mat->Height();
+   int numRhs = 1;
+   // Copy B into X, so we can pass it in and overwrite it.
+   x = b;
+   // Solve the transpose, since KLU thinks the matrix is compressed column
+   // format.
+   klu_tsolve( Symbolic, Numeric, n, numRhs, x.GetData(), &Common);
+}
+
+void KLUSolver::MultTranspose(const Vector &b, Vector &x) const
+{
+   MFEM_VERIFY(mat != NULL,
+               "KLUSolver::Mult : matrix is not set!  Call SetOperator first!");
+
+   int n = mat->Height();
+   int numRhs = 1;
+   // Copy B into X, so we can pass it in and overwrite it.
+   x = b;
+   // Solve the regular matrix, not the transpose, since KLU thinks the matrix
+   // is compressed column format.
+   klu_solve( Symbolic, Numeric, n, numRhs, x.GetData(), &Common);
+}
+
+KLUSolver::~KLUSolver()
+{
+   klu_free_symbolic (&Symbolic, &Common) ;
+   klu_free_numeric (&Numeric, &Common) ;
+   Symbolic = 0;
+   Numeric = 0;
+}
+
 #endif // MFEM_USE_SUITESPARSE
 
 }

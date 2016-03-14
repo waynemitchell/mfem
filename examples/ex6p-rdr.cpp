@@ -44,14 +44,14 @@ static double f_ = 0.05;
 
 double ball_func(const Vector & x, double t)
 {
-  double xc = R_ * cos( 2.0 * M_PI * f_ * t );
-  double yc = R_ * sin( 2.0 * M_PI * f_ * t );
+   double xc = R_ * cos( 2.0 * M_PI * f_ * t );
+   double yc = R_ * sin( 2.0 * M_PI * f_ * t );
 
-  if ( pow(x(0) - xc, 2) + pow(x(1) - yc, 2) <= r_ )
-  {
-    return 1.0;
-  }
-  return 0.0;
+   if ( pow(x(0) - xc, 2) + pow(x(1) - yc, 2) <= r_ )
+   {
+      return 1.0;
+   }
+   return 0.0;
 }
 
 int main(int argc, char *argv[])
@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
 
       if ( myid == 0 )
       {
-	cout << "error range: " << global_min_err << " -> " << global_max_err << endl;
+         cout << "error range: " << global_min_err << " -> " << global_max_err << endl;
       }
 
       // 18. Make a list of elements whose error is larger than a fraction
@@ -296,25 +296,25 @@ int main(int argc, char *argv[])
       }
       if ( true )
       {
-	cout << "number of elements:       " << errors.Size() << endl;
-	cout << "number of refinements:    " << ref_list.Size() << endl;
-	//cout << "number of derefinements:  " << deref_list.Size() << endl;
+         cout << "number of elements:       " << errors.Size() << endl;
+         cout << "number of refinements:    " << ref_list.Size() << endl;
+         //cout << "number of derefinements:  " << deref_list.Size() << endl;
       }
 
       // 19. Refine the selected elements, update the space and interpolate
       //     the solution.
       if ( ref_list.Size() > 0 )
       {
-	pmesh.GeneralRefinement(ref_list);
-	fespace.Update();
-	x.Update();
+         pmesh.GeneralRefinement(ref_list);
+         fespace.Update();
+         x.Update();
       }
 
       if ( global_min_err < min_err_target )
       {
-	pmesh.GeneralDerefinement(err_array,min_err_target);
-	fespace.Update();
-	x.Update();
+         pmesh.GeneralDerefinement(err_array,min_err_target);
+         fespace.Update();
+         x.Update();
       }
 
       // 20. Load balance the mesh. Only available for nonconforming meshes

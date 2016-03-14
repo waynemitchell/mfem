@@ -597,7 +597,7 @@ void ParNCMesh::Prune()
 
    for (int i = 0; i < leaf_elements.Size(); i++)
    {
-      // rank of elements beyond the ghost layer is uknown / not updated
+      // rank of elements beyond the ghost layer is unknown / not updated
       if (element_type[i] == 0)
       {
          leaf_elements[i]->rank = -1;
@@ -1025,7 +1025,7 @@ void ParNCMesh::Rebalance()
    Array<Element*> old_elements;
    leaf_elements.GetSubArray(0, NElements, old_elements);
 
-   // figure out new assigments for Element::rank
+   // figure out new assignments for Element::rank
    long local_elems = NElements, total_elems = 0;
    MPI_Allreduce(&local_elems, &total_elems, 1, MPI_LONG, MPI_SUM, MyComm);
 
