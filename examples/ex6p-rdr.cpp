@@ -195,9 +195,6 @@ int main(int argc, char *argv[])
       sout.precision(8);
    }
 
-   VisItDataCollection visit_dc("Ex6-RDR", &pmesh);
-   visit_dc.RegisterField("solution", &x);
-
    // 10. The main time loop. In each iteration we update the right hand side,
    //     solve the problem on the current mesh, visualize the solution,
    //     estimate the error on all elements, refine the worst elements and
@@ -233,9 +230,6 @@ int main(int argc, char *argv[])
 
          // 11a. Recompute the field on the current mesh
          ComputeField( a, b, fespace, ess_bdr, x);
-
-         visit_dc.SetCycle(it);
-         visit_dc.Save();
 
          // 11b. Send the solution by socket to a GLVis server.
          if (visualization)
