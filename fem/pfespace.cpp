@@ -1351,7 +1351,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    MFEM_VERIFY(glob_true_dofs >= 0,
                "overflow of non-conforming P matrix columns.")
 #endif
-   SparseMatrix localP(num_dofs, glob_true_dofs); // FIXME bigint
+   SparseMatrix localP(num_dofs, glob_true_dofs); // TODO bigint
 
    // initialize the R matrix (also parallel but block-diagonal)
    R = new SparseMatrix(ltdof_size, num_dofs);
