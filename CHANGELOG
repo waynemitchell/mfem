@@ -10,6 +10,36 @@
 Version 3.2, not yet released
 =============================
 
+Parallel load balancing for non-conforming adaptive mesh refinement
+-------------------------------------------------------------------
+- Non-conforming meshes can now be load balanced at any time by calling
+  ParMesh::Rebalance(). Elements of the mesh are redistributed in such a way
+  that each processor gets approximately the same number of elements (plus minus
+  one element). Partitioning is done by splitting a sequence of space-filling
+  (Hilbert) curves defined on the refinement octrees.
+
+Derefinement of non-conforming meshes
+-------------------------------------
+- Isotropically refined non-conforming meshes can now be derefined again, both
+  in serial and in parallel, based on a per-element error measure and
+  a derefinement threshold. See ParMesh::GeneralDerefinement().
+
+Space/GridFunction update after mesh refinement, derefinement or load balance
+-----------------------------------------------------------------------------
+- Following an arbitrary mesh change (uniform/general conforming/non-conforming
+  refinement, derefinement, load balancing), the FiniteElementSpace can
+  construct a transformation matrix that will update its GridFunctions to
+  reflect the new state of the mesh, by interpolating or redistributing the
+  previous function values.
+
+- The user interface is simple (see also Example 6):
+
+     pmesh.Rebalance();  // or GeneralRefinement, or GeneralDerefinement
+     fespace.Update();   // calculate a transformation matrix (by default)
+     x.Update();         // apply the transformation to the GridFunction
+     z.Update();         // apply it again
+
+
 Improved solvers
 ----------------
 - Added a wrapper for the KLU solver in SuiteSparse see
