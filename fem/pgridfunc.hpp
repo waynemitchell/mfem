@@ -58,7 +58,7 @@ public:
    ParGridFunction &operator=(const Vector &v)
    { GridFunction::operator=(v); return *this; }
 
-   ParFiniteElementSpace *ParFESpace() { return pfes; }
+   ParFiniteElementSpace *ParFESpace() const { return pfes; }
 
    void Update();
 
@@ -228,7 +228,7 @@ public:
     between them on each element. This is one approach to handling conforming
     and non-conforming elements in parallel. */
 void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
-                        ParGridFunction &x,
+                        const ParGridFunction &x,
                         ParFiniteElementSpace &smooth_flux_fes,
                         ParFiniteElementSpace &flux_fes,
                         Vector &errors, int norm_p = 2, double solver_tol = 1e-12,

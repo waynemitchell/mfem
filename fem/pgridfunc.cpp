@@ -539,7 +539,7 @@ void ParGridFunction::ComputeFlux(
 
 
 void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
-                        ParGridFunction &x,
+                        const ParGridFunction &x,
                         ParFiniteElementSpace &smooth_flux_fes,
                         ParFiniteElementSpace &flux_fes,
                         Vector &errors,

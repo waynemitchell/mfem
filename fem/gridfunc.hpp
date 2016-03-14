@@ -260,7 +260,7 @@ public:
    /// Transform by the Space UpdateMatrix (e.g., on Mesh change).
    void Update();
 
-   FiniteElementSpace *FESpace() { return fes; }
+   FiniteElementSpace *FESpace() const { return fes; }
 
    void SetSpace(FiniteElementSpace *f);
 
