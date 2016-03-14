@@ -262,8 +262,8 @@ int main(int argc, char *argv[])
       fespace.Update();
       x.Update();
 
-      // 20. Load balance the mesh. Only available for nonconforming meshes
-      //     at the moment.
+      // 20. Load balance the mesh, and update the space and solution. Currently
+      //     available only for nonconforming meshes.
       if (pmesh.Nonconforming())
       {
          pmesh.Rebalance();
