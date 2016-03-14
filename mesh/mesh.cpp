@@ -6681,8 +6681,6 @@ void Mesh::Swap(Mesh& other, bool non_geometry)
       mfem::Swap(Nodes, other.Nodes);
       mfem::Swap(own_nodes, other.own_nodes);
    }
-
-   // NOTE: two-level-state related members are ignored here
 }
 
 void Mesh::UniformRefinement()

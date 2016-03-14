@@ -331,9 +331,7 @@ int main(int argc, char *argv[])
          if (errors[i] >= threshold) { ref_list.Append(i); }
       }
 
-      // Refine the selected elements. Since we are going to transfer the
-      // grid function x from the coarse mesh to the new fine mesh in the
-      // next step, we need to request the "two-level state" of the mesh.
+      // Refine the selected elements.
       if (myid == 0) { cout << " Refinement ..." << flush; }
       pmesh.GeneralRefinement(ref_list);
 
