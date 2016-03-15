@@ -77,6 +77,8 @@ private:
 
    bool WantSkipSharedMaster(const NCMesh::Master &master) const;
 
+   virtual int ReduceInt(int value);
+
 public:
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the

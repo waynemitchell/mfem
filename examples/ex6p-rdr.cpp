@@ -66,8 +66,12 @@ void ComputeField(ParBilinearForm & a, ParLinearForm & b,
                   ParFiniteElementSpace & fespace, Array<int> & ess_bdr,
                   ParGridFunction & x);
 
-void ComputeErrors(int order, int dim, int sdim, ParMesh & pmesh,
-                   const ParGridFunction & x, Vector & errors);
+double EstimateErrors(int order, int dim, int sdim, ParMesh & pmesh,
+                      const ParGridFunction & x, Vector & errors);
+
+void UpdateAndRebalance(ParMesh &pmesh, ParFiniteElementSpace &fespace,
+                        ParGridFunction &x, ParBilinearForm &a, ParLinearForm &b);
+
 
 int main(int argc, char *argv[])
 {
@@ -80,8 +84,9 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
    int order = 2;
-   double max_err_target =  1.0e-4;
-   double min_err_target =  0.0;
+   double max_elem_error = 1.0e-4;
+   double hysteresis = 0.25; // derefinement safety coefficient
+   int nc_limit = 3;
    bool visualization = true;
 
    OptionsParser args(argc, argv);
@@ -89,8 +94,12 @@ int main(int argc, char *argv[])
                   "Mesh file to use.");
    args.AddOption(&order, "-o", "--order",
                   "Finite element order (polynomial degree).");
-   args.AddOption(&max_err_target, "-max-err", "--max-err",
-                  "Maximum Error Target");
+   args.AddOption(&max_elem_error, "-e", "--max-err",
+                  "Maximum element error");
+   args.AddOption(&hysteresis, "-y", "--hysteresis",
+                  "Derefinement safety coefficent.");
+   args.AddOption(&nc_limit, "-l", "--nc-limit",
+                  "Maximum level of hanging nodes.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -108,9 +117,6 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
-
-   // Set the minimum error target
-   min_err_target =  0.25 * max_err_target;
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -163,10 +169,10 @@ int main(int argc, char *argv[])
    ParLinearForm b(&fespace);
 
    ConstantCoefficient one(1.0);
-   FunctionCoefficient ball(exp_func);
+   FunctionCoefficient rhs(exp_func);
 
    a.AddDomainIntegrator(new DiffusionIntegrator(one));
-   b.AddDomainIntegrator(new DomainLFIntegrator(ball));
+   b.AddDomainIntegrator(new DomainLFIntegrator(rhs));
 
    // 8. The solution vector x and the associated finite element grid function
    //    will be maintained over the AMR iterations. We initialize it to zero.
@@ -191,44 +197,37 @@ int main(int argc, char *argv[])
          }
          visualization = false;
       }
-
       sout.precision(8);
    }
 
    // 10. The main time loop. In each iteration we update the right hand side,
    //     solve the problem on the current mesh, visualize the solution,
-   //     estimate the error on all elements, refine the worst elements and
+   //     estimate the error on all elements, refine bad elements and
    //     update all objects to work with the new mesh.  The recompute the
    //     errors and derefine any elements which have very small errors.
-   const int max_dofs = 100000;
    for (double time = 0.0; time < 0.9; time += 0.01)
    {
       if (myid == 0)
       {
-         cout << "\nTime " << time << endl;
+         cout << "\nTime " << time << "\n\nRefinement:" << endl;
       }
 
       // Set the current time in the source term
-      ball.SetTime(time);
+      rhs.SetTime(time);
 
-      // Initialize the global error extrema
-      double global_max_err = 10.0 * max_err_target;
-      double global_min_err =  0.0;
+      Vector errors;
 
       // 11. The main refinement loop
-      int ref_it = -1;
-      while ( global_max_err > max_err_target && ref_it < 20 )
+      for (int ref_it = 1; ; ref_it++)
       {
-         ref_it++;
-
-         HYPRE_Int global_dofs = fespace.GlobalTrueVSize();
-         if (global_dofs > max_dofs)
+         if (myid == 0)
          {
-            break;
+            cout << "Iteration: " << ref_it << ", number of unknowns: "
+                 << fespace.GlobalTrueVSize() << flush;
          }
 
          // 11a. Recompute the field on the current mesh
-         ComputeField( a, b, fespace, ess_bdr, x);
+         ComputeField(a, b, fespace, ess_bdr, x);
 
          // 11b. Send the solution by socket to a GLVis server.
          if (visualization)
@@ -236,107 +235,43 @@ int main(int argc, char *argv[])
             sout << "parallel " << num_procs << " " << myid << "\n";
             sout << "solution\n" << pmesh << x << flush;
          }
-
-         if (myid == 0)
-         {
-            cout << "\nRefinement Iteration " << ref_it << endl;
-            cout << "Number of unknowns: " << global_dofs << endl;
-         }
-
          // 11c. Estimate element errors using the Zienkiewicz-Zhu error
          //      estimator. The bilinear form integrator must have the
          //      'ComputeElementFlux' method defined.
-         Vector errors(pmesh.GetNE());
-         ComputeErrors(order, dim, sdim, pmesh, x, errors);
+         double tot_error = EstimateErrors(order, dim, sdim, pmesh, x, errors);
 
-         double local_max_err = errors.Max();
-         double local_min_err = errors.Min();
-         MPI_Allreduce(&local_max_err, &global_max_err, 1,
-                       MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
-         MPI_Allreduce(&local_min_err, &global_min_err, 1,
-                       MPI_DOUBLE, MPI_MIN, pmesh.GetComm());
-
-         if ( myid == 0 )
+         if (myid == 0)
          {
-            cout << "error range: " << global_min_err
-                 << " -> " << global_max_err << endl;
+            cout << ", total error: " << tot_error << endl;
          }
 
-         // 11d. Refine elements, update the space and interpolate the solution.
-         if (global_max_err > max_err_target)
+         // 11d. Refine elements
+         if (!pmesh.RefineByError(errors, max_elem_error, -1, nc_limit))
          {
-            pmesh.RefineByError(errors, max_err_target);
-            fespace.Update();
-            x.Update();
+            break;
          }
 
-         // 11e. Load balance the mesh. Only available for nonconforming meshes
-         //      at the moment.
-         if (pmesh.Nonconforming())
-         {
-            pmesh.Rebalance();
-            fespace.Update();
-            x.Update();
-         }
-
-         a.Update();
-         b.Update();
+         // 11e. Update the space and interpolate the solution,
+         //      load balance the mesh.
+         UpdateAndRebalance(pmesh, fespace, x, a, b);
       }
 
       // 12. Derefine any elements if desirable
+      if (pmesh.Nonconforming())
       {
-         // 12a. Recompute the field on the current mesh
-         ComputeField( a, b, fespace, ess_bdr, x);
-
-         // 12b. Send the solution by socket to a GLVis server.
-         if (visualization)
+         // 12a. Derefine any elements with small enough errors if possible
+         double threshold = hysteresis * max_elem_error;
+         if (pmesh.DerefineByError(errors, threshold, nc_limit))
          {
-            sout << "parallel " << num_procs << " " << myid << "\n";
-            sout << "solution\n" << pmesh << x << flush;
+            if (myid == 0)
+            {
+               cout << "\nDerefined elements." << endl;
+            }
+
+            // 12b. Update the space and interpolate the solution,
+            //      load balance the mesh.
+            UpdateAndRebalance(pmesh, fespace, x, a, b);
          }
-
-         // 12c. Estimate element errors using the Zienkiewicz-Zhu error
-         //      estimator. The bilinear form integrator must have the
-         //      'ComputeElementFlux' method defined.
-         Vector errors(pmesh.GetNE());
-         ComputeErrors(order, dim, sdim, pmesh, x, errors);
-
-         double local_max_err = errors.Max();
-         double local_min_err = errors.Min();
-         double global_max_err;
-         double global_min_err;
-         MPI_Allreduce(&local_max_err, &global_max_err, 1,
-                       MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
-         MPI_Allreduce(&local_min_err, &global_min_err, 1,
-                       MPI_DOUBLE, MPI_MIN, pmesh.GetComm());
-
-         if ( myid == 0 )
-         {
-            cout << "error range: " << global_min_err
-                 << " -> " << global_max_err << endl;
-         }
-
-         // 12d. Derefine any elements with small enough errors if possible
-         if ( global_min_err < min_err_target )
-         {
-            pmesh.DerefineByError(errors,min_err_target);
-            fespace.Update();
-            x.Update();
-         }
-
-         // 12e. Load balance the mesh. Only available for nonconforming meshes
-         //      at the moment.
-         if (pmesh.Nonconforming())
-         {
-            pmesh.Rebalance();
-            fespace.Update();
-            x.Update();
-         }
-
-         // 12f. Inform also the bilinear and linear forms that the space has
-         //     changed.
-         a.Update();
-         b.Update();
       }
    }
 
@@ -345,10 +280,9 @@ int main(int argc, char *argv[])
    return 0;
 }
 
-void
-ComputeField(ParBilinearForm & a, ParLinearForm & b,
-             ParFiniteElementSpace & fespace, Array<int> & ess_bdr,
-             ParGridFunction & x)
+void ComputeField(ParBilinearForm & a, ParLinearForm & b,
+                  ParFiniteElementSpace & fespace, Array<int> & ess_bdr,
+                  ParGridFunction & x)
 {
    // Assemble the stiffness matrix and the right-hand side. Note that
    // MFEM doesn't care at this point that the mesh is nonconforming
@@ -385,12 +319,10 @@ ComputeField(ParBilinearForm & a, ParLinearForm & b,
    // Extract the parallel grid function corresponding to the finite element
    // approximation X. This is the local solution on each processor.
    a.RecoverFEMSolution(X, b, x);
-
 }
 
-void
-ComputeErrors(int order, int dim, int sdim, ParMesh & pmesh,
-              const ParGridFunction & x, Vector & errors)
+double EstimateErrors(int order, int dim, int sdim, ParMesh & pmesh,
+                      const ParGridFunction & x, Vector & errors)
 {
    // Space for the discontinuous (original) flux
    DiffusionIntegrator flux_integrator;
@@ -407,6 +339,27 @@ ComputeErrors(int order, int dim, int sdim, ParMesh & pmesh,
    // H1_FECollection smooth_flux_fec(order, dim);
    // ParFiniteElementSpace smooth_flux_fes(&pmesh, &smooth_flux_fec, dim);
 
-   L2ZZErrorEstimator(flux_integrator, x,
-                      smooth_flux_fes, flux_fes, errors, norm_p);
+   return L2ZZErrorEstimator(flux_integrator, x,
+                             smooth_flux_fes, flux_fes, errors, norm_p);
+}
+
+void UpdateAndRebalance(ParMesh &pmesh, ParFiniteElementSpace &fespace,
+                        ParGridFunction &x, ParBilinearForm &a, ParLinearForm &b)
+{
+   // Update the space and interpolate the solution.
+   fespace.Update();
+   x.Update();
+
+   // Load balance the mesh.
+   if (pmesh.Nonconforming())
+   {
+      pmesh.Rebalance();
+
+      // Updat the space and solution again.
+      fespace.Update();
+      x.Update();
+   }
+
+   a.Update();
+   b.Update();
 }

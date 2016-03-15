@@ -538,18 +538,18 @@ void ParGridFunction::ComputeFlux(
 }
 
 
-void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
-                        const ParGridFunction &x,
-                        ParFiniteElementSpace &smooth_flux_fes,
-                        ParFiniteElementSpace &flux_fes,
-                        Vector &errors,
-                        int norm_p, double solver_tol, int solver_max_it)
+double L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
+                          const ParGridFunction &x,
+                          ParFiniteElementSpace &smooth_flux_fes,
+                          ParFiniteElementSpace &flux_fes,
+                          Vector &errors,
+                          int norm_p, double solver_tol, int solver_max_it)
 {
    // Compute fluxes in discontinuous space
    GridFunction flux(&flux_fes);
    flux = 0.0;
 
-   FiniteElementSpace *xfes = x.FESpace();
+   ParFiniteElementSpace *xfes = x.ParFESpace();
    Array<int> xdofs, fdofs;
    Vector el_x, el_f;
 
@@ -612,21 +612,30 @@ void L2ZZErrorEstimator(BilinearFormIntegrator &flux_integrator,
    // approximation X. This is the local solution on each processor.
    smooth_flux = *X;
 
-   // Proceed through the elements one by one, and find the Lp norm differences
-   // between the flux as computed per element and the flux projected onto the
-   // smooth_flux_fes space.
-   for (int i = 0; i < xfes->GetNE(); i++)
-   {
-      errors(i) = ComputeElementLpDistance(norm_p, i, smooth_flux, flux);
-   }
-
    delete A;
    delete B;
    delete X;
    delete amg;
    delete pcg;
+
+   // Proceed through the elements one by one, and find the Lp norm differences
+   // between the flux as computed per element and the flux projected onto the
+   // smooth_flux_fes space.
+   double total_error = 0.0;
+   errors.SetSize(xfes->GetNE());
+   for (int i = 0; i < xfes->GetNE(); i++)
+   {
+      errors(i) = ComputeElementLpDistance(norm_p, i, smooth_flux, flux);
+      total_error += pow(errors(i), norm_p);
+   }
+
+   double glob_error;
+   MPI_Allreduce(&total_error, &glob_error, 1, MPI_DOUBLE, MPI_MAX,
+                 xfes->GetComm());
+
+   return pow(glob_error, 1.0/norm_p);
 }
 
 }
 
-#endif
+#endif // MFEM_USE_MPI

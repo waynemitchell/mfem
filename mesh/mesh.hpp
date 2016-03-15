@@ -324,6 +324,8 @@ protected:
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
    void Swap(Mesh& other, bool non_geometry = false);
 
+   virtual int ReduceInt(int value) { return value; }
+
 public:
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
@@ -737,12 +739,14 @@ public:
    void RefineAtVertex(const Vertex& vert,
                        double eps = 0.0, int nonconforming = -1);
 
-   /// Refine element i if elem_error[i] > threshold, for all i. */
-   void RefineByError(const Array<double> &elem_error, double threshold,
+   /** Refine element i if elem_error[i] > threshold, for all i.
+       Returns true if at least one element was refined, false otherwise. */
+   bool RefineByError(const Array<double> &elem_error, double threshold,
                       int nonconforming = -1, int nc_limit = 0);
 
-   /// Refine element i if elem_error(i) > threshold, for all i. */
-   void RefineByError(const Vector &elem_error, double threshold,
+   /** Refine element i if elem_error(i) > threshold, for all i.
+       Returns true if at least one element was refined, false otherwise. */
+   bool RefineByError(const Vector &elem_error, double threshold,
                       int nonconforming = -1, int nc_limit = 0);
 
    /** Derefine the mesh based on an error measure associated with each

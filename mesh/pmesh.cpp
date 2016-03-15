@@ -2109,12 +2109,16 @@ bool ParMesh::NonconformingDerefinement(Array<double> &elem_error,
       if (error < threshold) { derefs.Append(i); }
    }
 
-   DerefineMesh(derefs);
-
    int size = derefs.Size(), glob_size;
    MPI_Allreduce(&size, &glob_size, 1, MPI_INT, MPI_SUM, MyComm);
 
-   return glob_size > 0;
+   if (glob_size)
+   {
+      DerefineMesh(derefs);
+      return true;
+   }
+
+   return false;
 }
 
 void ParMesh::Rebalance()
@@ -3810,6 +3814,13 @@ void ParMesh::PrintInfo(std::ostream &out)
           << setw(12) << gk_max << '\n';
       out << std::flush;
    }
+}
+
+int ParMesh::ReduceInt(int value)
+{
+   int global;
+   MPI_Allreduce(&value, &global, 1, MPI_INT, MPI_SUM, MyComm);
+   return global;
 }
 
 ParMesh::~ParMesh()

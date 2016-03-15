@@ -6562,9 +6562,13 @@ bool Mesh::NonconformingDerefinement(Array<double> &elem_error,
       if (error < threshold) { derefs.Append(i); }
    }
 
-   DerefineMesh(derefs);
+   if (derefs.Size())
+   {
+      DerefineMesh(derefs);
+      return true;
+   }
 
-   return derefs.Size() > 0;
+   return false;
 }
 
 bool Mesh::DerefineByError(Array<double> &elem_error, double threshold,
@@ -6574,7 +6578,6 @@ bool Mesh::DerefineByError(Array<double> &elem_error, double threshold,
    //       by ghost element errors
    if (Nonconforming())
    {
-      last_operation = Mesh::DEREFINE;
       return NonconformingDerefinement(elem_error, threshold, nc_limit, op);
    }
    else
@@ -6853,7 +6856,7 @@ void Mesh::RefineAtVertex(const Vertex& vert, double eps, int nonconforming)
    GeneralRefinement(refs, nonconforming);
 }
 
-void Mesh::RefineByError(const Array<double> &elem_error, double threshold,
+bool Mesh::RefineByError(const Array<double> &elem_error, double threshold,
                          int nonconforming, int nc_limit)
 {
    MFEM_VERIFY(elem_error.Size() == GetNE(), "");
@@ -6865,15 +6868,20 @@ void Mesh::RefineByError(const Array<double> &elem_error, double threshold,
          refs.Append(Refinement(i));
       }
    }
-   GeneralRefinement(refs, nonconforming, nc_limit);
+   if (ReduceInt(refs.Size()))
+   {
+      GeneralRefinement(refs, nonconforming, nc_limit);
+      return true;
+   }
+   return false;
 }
 
-void Mesh::RefineByError(const Vector &elem_error, double threshold,
+bool Mesh::RefineByError(const Vector &elem_error, double threshold,
                          int nonconforming, int nc_limit)
 {
    Array<double> tmp(const_cast<double*>(elem_error.GetData()),
                      elem_error.Size());
-   RefineByError(tmp, threshold, nonconforming, nc_limit);
+   return RefineByError(tmp, threshold, nonconforming, nc_limit);
 }
 
 
