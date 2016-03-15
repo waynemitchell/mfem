@@ -6519,7 +6519,7 @@ void Mesh::DerefineMesh(const Array<int> &derefinements)
    last_operation = Mesh::DEREFINE;
    sequence++;
 
-   if (Nodes) // update/interpolate curved mesh
+   if (Nodes) // update/interpolate mesh curvature
    {
       Nodes->FESpace()->Update();
       Nodes->Update();
@@ -6567,10 +6567,12 @@ bool Mesh::NonconformingDerefinement(Array<double> &elem_error,
    return derefs.Size() > 0;
 }
 
-bool Mesh::GeneralDerefinement(Array<double> &elem_error,
-                               double threshold, int nc_limit, int op)
+bool Mesh::DerefineByError(Array<double> &elem_error, double threshold,
+                           int nc_limit, int op)
 {
-   if (ncmesh)
+   // NOTE: the error array is not const because it will be expanded in parallel
+   //       by ghost element errors
+   if (Nonconforming())
    {
       last_operation = Mesh::DEREFINE;
       return NonconformingDerefinement(elem_error, threshold, nc_limit, op);
@@ -6582,6 +6584,18 @@ bool Mesh::GeneralDerefinement(Array<double> &elem_error,
       return false;
    }
 }
+
+bool Mesh::DerefineByError(const Vector &elem_error, double threshold,
+                           int nc_limit, int op)
+{
+   Array<double> tmp(elem_error.Size());
+   for (int i = 0; i < tmp.Size(); i++)
+   {
+      tmp[i] = elem_error(i);
+   }
+   return DerefineByError(tmp, threshold, nc_limit, op);
+}
+
 
 void Mesh::InitFromNCMesh(const NCMesh &ncmesh)
 {
@@ -6697,7 +6711,7 @@ void Mesh::UniformRefinement()
          elem_to_refine[i] = i;
       }
 
-      if (!ncmesh)
+      if (Conforming())
       {
          LocalRefinement(elem_to_refine);
       }
@@ -6748,28 +6762,28 @@ void Mesh::GeneralRefinement(const Array<Refinement> &refinements,
    }
    else
    {
-      Array<int> el_to_refine;
+      Array<int> el_to_refine(refinements.Size());
       for (int i = 0; i < refinements.Size(); i++)
       {
-         el_to_refine.Append(refinements[i].index);
+         el_to_refine[i] = refinements[i].index;
       }
 
       // infer 'type' of local refinement from first element's 'ref_type'
       int type, rt = (refinements.Size() ? refinements[0].ref_type : 7);
       if (rt == 1 || rt == 2 || rt == 4)
       {
-         type = 1;
+         type = 1; // bisection
       }
       else if (rt == 3 || rt == 5 || rt == 6)
       {
-         type = 2;
+         type = 2; // quadrisection
       }
       else
       {
-         type = 3;
+         type = 3; // octasection
       }
 
-      // red-green refinement, no hanging nodes
+      // red-green refinement and bisection, no hanging nodes
       LocalRefinement(el_to_refine, type);
    }
 }
@@ -6777,10 +6791,10 @@ void Mesh::GeneralRefinement(const Array<Refinement> &refinements,
 void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
                              int nc_limit)
 {
-   Array<Refinement> refinements;
+   Array<Refinement> refinements(el_to_refine.Size());
    for (int i = 0; i < el_to_refine.Size(); i++)
    {
-      refinements.Append(Refinement(el_to_refine[i], 7));
+      refinements[i] = Refinement(el_to_refine[i]);
    }
    GeneralRefinement(refinements, nonconforming, nc_limit);
 }
@@ -6838,6 +6852,30 @@ void Mesh::RefineAtVertex(const Vertex& vert, double eps, int nonconforming)
    }
    GeneralRefinement(refs, nonconforming);
 }
+
+void Mesh::RefineByError(const Array<double> &elem_error, double threshold,
+                         int nonconforming, int nc_limit)
+{
+   MFEM_VERIFY(elem_error.Size() == GetNE(), "");
+   Array<Refinement> refs;
+   for (int i = 0; i < GetNE(); i++)
+   {
+      if (elem_error[i] > threshold)
+      {
+         refs.Append(Refinement(i));
+      }
+   }
+   GeneralRefinement(refs, nonconforming, nc_limit);
+}
+
+void Mesh::RefineByError(const Vector &elem_error, double threshold,
+                         int nonconforming, int nc_limit)
+{
+   Array<double> tmp(const_cast<double*>(elem_error.GetData()),
+                     elem_error.Size());
+   RefineByError(tmp, threshold, nonconforming, nc_limit);
+}
+
 
 void Mesh::Bisection(int i, const DSTable &v_to_v,
                      int *edge1, int *edge2, int *middle)

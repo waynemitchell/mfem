@@ -263,24 +263,15 @@ int main(int argc, char *argv[])
                  << " -> " << global_max_err << endl;
          }
 
-         // 11d. Make a list of elements whose error is larger than the
-         //      maximum error target.  These elements will be refined.
-         Array<int>   ref_list;
-         for (int i = 0; i < errors.Size(); i++)
+         // 11d. Refine elements, update the space and interpolate the solution.
+         if (global_max_err > max_err_target)
          {
-            if (errors[i] >= max_err_target) {   ref_list.Append(i); }
-         }
-
-         // 11e. Refine the selected elements, update the space and interpolate
-         //      the solution.
-         if ( global_max_err > max_err_target )
-         {
-            pmesh.GeneralRefinement(ref_list);
+            pmesh.RefineByError(errors, max_err_target);
             fespace.Update();
             x.Update();
          }
 
-         // 11f. Load balance the mesh. Only available for nonconforming meshes
+         // 11e. Load balance the mesh. Only available for nonconforming meshes
          //      at the moment.
          if (pmesh.Nonconforming())
          {
@@ -329,8 +320,7 @@ int main(int argc, char *argv[])
          // 12d. Derefine any elements with small enough errors if possible
          if ( global_min_err < min_err_target )
          {
-            Array<double> err_array(errors,errors.Size());
-            pmesh.GeneralDerefinement(err_array,min_err_target);
+            pmesh.DerefineByError(errors,min_err_target);
             fespace.Update();
             x.Update();
          }

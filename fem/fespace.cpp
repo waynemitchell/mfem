@@ -1450,7 +1450,7 @@ void FiniteElementSpace::Update(bool want_transform)
 
    if (NURBSext)
    {
-      UpdateNURBS(); // TODO test
+      UpdateNURBS();
       return;
    }
 

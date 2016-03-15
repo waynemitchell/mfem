@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
             // derefine evenly
             Array<double> errors(pmesh->GetNE());
             errors = 1;
-            pmesh->GeneralDerefinement(errors, 10);
+            pmesh->DerefineByError(errors, 10);
             x.Update();
             CheckNorm(x, norm);
 

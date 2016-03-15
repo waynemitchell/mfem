@@ -737,33 +737,45 @@ public:
    void RefineAtVertex(const Vertex& vert,
                        double eps = 0.0, int nonconforming = -1);
 
-   /** Derefine the mesh based on some error quantity associated with each
+   /// Refine element i if elem_error[i] > threshold, for all i. */
+   void RefineByError(const Array<double> &elem_error, double threshold,
+                      int nonconforming = -1, int nc_limit = 0);
+
+   /// Refine element i if elem_error(i) > threshold, for all i. */
+   void RefineByError(const Vector &elem_error, double threshold,
+                      int nonconforming = -1, int nc_limit = 0);
+
+   /** Derefine the mesh based on an error measure associated with each
        element. A derefinement is performed if the sum of errors of its fine
        elements is smaller than 'threshold'. If 'nc_limit' > 0, derefinements
        that would increase the maximum level of hanging nodes of the mesh are
        skipped. Returns true if the mesh changed, false otherwise. */
-   bool GeneralDerefinement(Array<double> &elem_error, double threshold,
-                            int nc_limit = 0, int op = 1);
+   bool DerefineByError(Array<double> &elem_error, double threshold,
+                        int nc_limit = 0, int op = 1);
 
-   /** Ensure that a quad/hex mesh is considered to be non-conforming (i.e. has
-       an associated NCMesh object). */
-   void EnsureNCMesh();
-
-   bool Conforming() const { return ncmesh == NULL; }
-   bool Nonconforming() const { return ncmesh != NULL; }
-
-   enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
-
-   /// Return type of last modification of the mesh.
-   Operation GetLastOperation() const { return last_operation; }
+   /// Same as DerefineByError for an error vector.
+   bool DerefineByError(const Vector &elem_error, double threshold,
+                        int nc_limit = 0, int op = 1);
 
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
    void DegreeElevate(int t);
 
+   /** Make sure that a quad/hex mesh is considered to be non-conforming (i.e.,
+       has an associated NCMesh object). */
+   void EnsureNCMesh();
+
+   bool Conforming() const { return ncmesh == NULL; }
+   bool Nonconforming() const { return ncmesh != NULL; }
+
    /** Return fine element transformations following a mesh refinenemt.
        Space uses this to construct a global interpolation matrix. */
    const CoarseFineTransformations &GetRefinementTransforms();
+
+   enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
+
+   /// Return type of last modification of the mesh.
+   Operation GetLastOperation() const { return last_operation; }
 
    /** Return update counter (for checking proper sequence of Space::
        and GridFunction:: Update(). */

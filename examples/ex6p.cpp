@@ -246,19 +246,17 @@ int main(int argc, char *argv[])
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
                     MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
 
-      // 18. Make a list of elements whose error is larger than a fraction
-      //     of the maximum element error. These elements will be refined.
-      Array<int> ref_list;
+      // 18. Refine elements whose error is larger than a fraction of the
+      //     maximum element error.
       const double frac = 0.7;
-      double threshold = frac * global_max_err;
-      for (int i = 0; i < errors.Size(); i++)
-      {
-         if (errors[i] >= threshold) { ref_list.Append(i); }
-      }
+      double threshold = (frac*frac) * global_max_err;
+      pmesh.RefineByError(errors, threshold);
 
-      // 19. Refine the selected elements, update the space and interpolate
-      //     the solution.
-      pmesh.GeneralRefinement(ref_list);
+      // 19. Update the finite element space (recalculate the number of DOFs,
+      //     etc.) and create a grid function update matrix. Apply the matrix
+      //     to any GridFunctions over the space. In this case, the update
+      //     matrix is an interpolation matrix so the updated GridFunction will
+      //     still represent the same function as before refinement.
       fespace.Update();
       x.Update();
 
@@ -267,6 +265,9 @@ int main(int argc, char *argv[])
       if (pmesh.Nonconforming())
       {
          pmesh.Rebalance();
+
+         // Update the space and the GridFunction. This time the update matrix
+         // redistributes the GridFunction among the processors.
          fespace.Update();
          x.Update();
       }
