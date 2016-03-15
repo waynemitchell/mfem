@@ -235,7 +235,6 @@ int main(int argc, char *argv[])
          {
             sout << "parallel " << num_procs << " " << myid << "\n";
             sout << "solution\n" << pmesh << x << flush;
-            sout << "pause\n" << flush;
          }
 
          if (myid == 0)
