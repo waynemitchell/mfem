@@ -46,20 +46,20 @@
 using namespace std;
 using namespace mfem;
 
-static double R_ = 0.7;
-static double r_ = 0.1;
-static double f_ = 0.05;
-
-double ball_func(const Vector & x, double t)
+double exp_func(const Vector & pt, double t)
 {
-   double xc = R_ * cos( 2.0 * M_PI * f_ * t );
-   double yc = R_ * sin( 2.0 * M_PI * f_ * t );
-
-   if ( pow(x(0) - xc, 2) + pow(x(1) - yc, 2) <= r_ )
-   {
-      return 1.0;
-   }
-   return 0.0;
+   const double w = 0.02;
+   double x = pt(0), y = pt(1);
+   double t1 = x*x;
+   double t2 = y*y;
+   double t4 = sqrt(t1+t2);
+   double t6 = pow(t4-t,2.0);
+   double t7 = w*w;
+   double t11 = exp(-1/t7*t6/2.0);
+   double t18 = t*t;
+   double t25 = t7*t7;
+   double t29 = 1/t4/t25*(t1*t4-2.0*t1*t-2.0*t4*t7+t*t7+t18*t4-2.0*t2*t+t2*t4)*t11;
+   return -t29;
 }
 
 void ComputeField(ParBilinearForm & a, ParLinearForm & b,
@@ -79,8 +79,8 @@ int main(int argc, char *argv[])
 
    // 2. Parse command-line options.
    const char *mesh_file = "../data/star.mesh";
-   int order = 1;
-   double max_err_target =  1.0e-5;
+   int order = 2;
+   double max_err_target =  1.0e-4;
    double min_err_target =  0.0;
    bool visualization = true;
 
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
    }
 
    // Set the minimum error target
-   min_err_target =  0.5 * max_err_target;
+   min_err_target =  0.25 * max_err_target;
 
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
    ParLinearForm b(&fespace);
 
    ConstantCoefficient one(1.0);
-   FunctionCoefficient ball(ball_func);
+   FunctionCoefficient ball(exp_func);
 
    a.AddDomainIntegrator(new DiffusionIntegrator(one));
    b.AddDomainIntegrator(new DomainLFIntegrator(ball));
@@ -201,16 +201,15 @@ int main(int argc, char *argv[])
    //     update all objects to work with the new mesh.  The recompute the
    //     errors and derefine any elements which have very small errors.
    const int max_dofs = 100000;
-   int max_it = 100;
-   for (int it = 0; it < max_it; it++)
+   for (double time = 0.0; time < 0.9; time += 0.01)
    {
       if (myid == 0)
       {
-         cout << "\nTime Step " << it << endl;
+         cout << "\nTime " << time << endl;
       }
 
       // Set the current time in the source term
-      ball.SetTime((double)it);
+      ball.SetTime(time);
 
       // Initialize the global error extrema
       double global_max_err = 10.0 * max_err_target;
@@ -236,6 +235,7 @@ int main(int argc, char *argv[])
          {
             sout << "parallel " << num_procs << " " << myid << "\n";
             sout << "solution\n" << pmesh << x << flush;
+            sout << "pause\n" << flush;
          }
 
          if (myid == 0)
