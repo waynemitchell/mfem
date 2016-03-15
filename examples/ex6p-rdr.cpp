@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../data/star.mesh";
+   const char *mesh_file = "../data/star-hilbert.mesh";
    int order = 2;
    double max_elem_error = 1.0e-4;
    double hysteresis = 0.25; // derefinement safety coefficient
