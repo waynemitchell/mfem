@@ -46,7 +46,7 @@ GridFunction::GridFunction(Mesh *m, std::istream &input)
    int ordering;
    input >> ordering;
    input.getline(buff, bufflen); // read the empty line
-   fes = new FiniteElementSpace(m, fec, vdim, (Ordering::Type)ordering);
+   fes = new FiniteElementSpace(m, fec, vdim, ordering);
    Vector::Load(input, fes->GetVSize());
 }
 

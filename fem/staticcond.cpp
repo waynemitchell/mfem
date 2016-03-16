@@ -19,7 +19,7 @@ StaticCondensation::StaticCondensation(FiniteElementSpace *fespace)
 {
    tr_fec = fespace->FEColl()->GetTraceCollection();
    int vdim = fes->GetVDim();
-   Ordering::Type ordering = fes->GetOrdering();
+   int ordering = fes->GetOrdering();
 #ifndef MFEM_USE_MPI
    tr_fes = new FiniteElementSpace(fes->GetMesh(), tr_fec, vdim, ordering);
 #else
