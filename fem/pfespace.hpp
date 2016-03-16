@@ -138,7 +138,7 @@ public:
    Table send_face_nbr_ldof;
 
    ParFiniteElementSpace(ParMesh *pm, const FiniteElementCollection *f,
-                         int dim = 1, int order = Ordering::byNODES);
+                         int dim = 1, int ordering = Ordering::byNODES);
 
    MPI_Comm GetComm() { return MyComm; }
    int GetNRanks() { return NRanks; }

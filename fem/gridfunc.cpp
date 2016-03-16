@@ -53,8 +53,7 @@ GridFunction::GridFunction(Mesh *m, std::istream &input)
 GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
 {
    // all GridFunctions must have the same FE collection, vdim, ordering
-   int vdim;
-   Ordering::Type ordering;
+   int vdim, ordering;
 
    fes = gf_array[0]->FESpace();
    fec = FiniteElementCollection::New(fes->FEColl()->Name());

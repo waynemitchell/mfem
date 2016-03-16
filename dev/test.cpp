@@ -640,7 +640,7 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
    std::ostringstream fname;
    fname << "test_output_" << std::setw(5) << std::setfill('0') << myid;
-   std::ofstream out(fname.str());
+   std::ofstream out(fname.str().c_str());
 #else
    std::ostream &out = std::cout;
 #endif
