@@ -30,10 +30,12 @@ endif
 # MFEM_CXXFLAGS += -qsuppress=1540-1088:1540-1090:1540-1101
 
 ifeq ($(MFEM_CXX),g++)
+# ifeq ($(MFEM_CXX),mpicxx)
    MFEM_CXXFLAGS += -march=native
    # MFEM_CXXFLAGS += -march=sandybridge -mtune=native
    # MFEM_CXXFLAGS += -fno-exceptions
-   # MFEM_CXXFLAGS += -std=c++11
+   # MFEM_CXXFLAGS += -std=c++03
+   MFEM_CXXFLAGS += -std=c++11
    MFEM_CXXFLAGS += -pedantic -Wall
 
    # MFEM_CXXFLAGS += -Winline
@@ -102,7 +104,16 @@ ifeq ($(MFEM_CXX),clang++)
    # MFEM_CXXFLAGS += -Rpass=loop-unroll
 endif
 
-TESTS_CPP = $(wildcard *test*.cpp)
+ifeq ($(COUNT_FLOPS),YES)
+   MFEM_CXXFLAGS += -DMFEM_COUNT_FLOPS
+endif
+
+ifdef MFEM_CXX
+   $(info Compiler info: $(value MFEM_CXX) -v)
+   $(info $(shell $(MFEM_CXX) -v))
+endif
+
+TESTS_CPP = $(wildcard *test*.cpp) ex1t.cpp
 TESTS = $(TESTS_CPP:.cpp=)
 
 

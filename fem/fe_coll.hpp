@@ -53,14 +53,23 @@ public:
 /// Arbitrary order H1-conforming (continuous) finite elements.
 class H1_FECollection : public FiniteElementCollection
 {
+public:
+   enum BasisType
+   {
+      GaussLobatto = 0, // Nodal basis, with nodes at the Gauss-Lobatto points
+      Positive     = 1  // Positive basis, Bernstein polynomials
+   };
+
 protected:
+   BasisType m_type;
    char h1_name[32];
    FiniteElement *H1_Elements[Geometry::NumGeom];
    int H1_dof[Geometry::NumGeom];
    int *SegDofOrd[2], *TriDofOrd[6], *QuadDofOrd[8];
 
 public:
-   explicit H1_FECollection(const int p, const int dim = 3, const int type = 0);
+   explicit H1_FECollection(const int p, const int dim = 3,
+                            const int type = GaussLobatto);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return H1_Elements[GeomType]; }
@@ -69,6 +78,8 @@ public:
    virtual int *DofOrderForOrientation(int GeomType, int Or) const;
    virtual const char *Name() const { return h1_name; }
    FiniteElementCollection *GetTraceCollection() const;
+
+   BasisType GetBasisType() const { return m_type; }
 
    virtual ~H1_FECollection();
 };
@@ -79,7 +90,7 @@ class H1Pos_FECollection : public H1_FECollection
 {
 public:
    explicit H1Pos_FECollection(const int p, const int dim = 3)
-      : H1_FECollection(p, dim, 1) { }
+      : H1_FECollection(p, dim, Positive) { }
 };
 
 /** Arbitrary order "H^{1/2}-conforming" trace finite elements defined on the
@@ -88,7 +99,8 @@ public:
 class H1_Trace_FECollection : public H1_FECollection
 {
 public:
-   H1_Trace_FECollection(const int p, const int dim, const int type = 0);
+   H1_Trace_FECollection(const int p, const int dim,
+                         const int type = GaussLobatto);
 };
 
 /// Arbitrary order "L2-conforming" discontinuous finite elements.

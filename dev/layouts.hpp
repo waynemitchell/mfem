@@ -145,6 +145,14 @@ struct StridedLayout2D
                          "invalid dimensions");
       return StridedLayout4D<N1_1,S1,N1_2,S1*N1_1,N2_1,S2,N2_2,S2*N2_1>();
    }
+   static StridedLayout1D<N1*N2,(S1<S2)?S1:S2> merge_12()
+   {
+      // use: (S1*i1+S2*i2) == (S1*(i1+S2/S1*i2))
+      //  or  (S1*i1+S2*i2) == (S2*(S1/S2*i1+i2))
+      // assuming: S2 == S1*N1 || S1 == S2*N2
+      MFEM_STATIC_ASSERT(S2 == S1*N1 || S1 == S2*N2, "invalid reshape");
+      return StridedLayout1D<N1*N2,(S1<S2)?S1:S2>();
+   }
    static StridedLayout2D<N2,S2,N1,S1> transpose_12()
    {
       return StridedLayout2D<N2,S2,N1,S1>();
@@ -213,6 +221,14 @@ struct OffsetStridedLayout2D
       return OffsetStridedLayout4D<
              N1_1,S1,N1_2,S1*N1_1,N2_1,S2,N2_2,S2*N2_1>(offset);
    }
+   OffsetStridedLayout1D<N1*N2,(S1<S2)?S1:S2> merge_12() const
+   {
+      // use: (S1*i1+S2*i2) == (S1*(i1+S2/S1*i2))
+      //  or  (S1*i1+S2*i2) == (S2*(S1/S2*i1+i2))
+      // assuming: S2 == S1*N1 || S1 == S2*N2
+      MFEM_STATIC_ASSERT(S2 == S1*N1 || S1 == S2*N2, "invalid reshape");
+      return OffsetStridedLayout1D<N1*N2,(S1<S2)?S1:S2>(offset);
+   }
    OffsetStridedLayout2D<N2,S2,N1,S1> transpose_12() const
    {
       return OffsetStridedLayout2D<N2,S2,N1,S1>(offset);
@@ -279,6 +295,13 @@ struct StridedLayout3D
       // S1*i1+S2*i2+S3*i3 == S1*i1+S2*(i2_1+N2_1*i2_2)+S3*i3
       MFEM_STATIC_ASSERT(N2_1*N2_2 == N2, "invalid dimensions");
       return StridedLayout4D<N1,S1,N2_1,S2,N2_2,S2*N2_1,N3,S3>();
+   }
+   template <int N3_1, int N3_2>
+   static StridedLayout4D<N1,S1,N2,S2,N3_1,S3,N3_2,S3*N3_1> split_3()
+   {
+      // S1*i1+S2*i2+S3*i3 == S1*i1+S2*i2+S3*(i3_1+N3_1*i3_2)
+      MFEM_STATIC_ASSERT(N3_1*N3_2 == N3, "invalid dimensions");
+      return StridedLayout4D<N1,S1,N2,S2,N3_1,S3,N3_2,S3*N3_1>();
    }
 
    static StridedLayout3D<N2,S2,N1,S1,N3,S3> transpose_12()
@@ -371,6 +394,33 @@ struct StridedLayout4D
    static inline int ind(int i1, int i2, int i3, int i4)
    {
       return S1*i1+S2*i2+S3*i3+S4*i4;
+   }
+   static OffsetStridedLayout2D<N1,S1,N4,S4> ind23(int i2, int i3)
+   {
+      return OffsetStridedLayout2D<N1,S1,N4,S4>(S2*i2+S3*i3);
+   }
+   static OffsetStridedLayout2D<N2,S2,N3,S3> ind14(int i1, int i4)
+   {
+      return OffsetStridedLayout2D<N2,S2,N3,S3>(S1*i1+S4*i4);
+   }
+   static OffsetStridedLayout3D<N1,S1,N2,S2,N3,S3> ind4(int i4)
+   {
+      return OffsetStridedLayout3D<N1,S1,N2,S2,N3,S3>(S4*i4);
+   }
+
+   static StridedLayout3D<N1*N2,S1,N3,S3,N4,S4> merge_12()
+   {
+      // use: (S1*i1+S2*i2+S3*i3+S4*i4) == (S1*(i1+S2/S1*i2)+S3*i3+S4*i4)
+      // assuming S2 == S1*N1
+      MFEM_STATIC_ASSERT(S2 == S1*N1, "invalid reshape");
+      return StridedLayout3D<N1*N2,S1,N3,S3,N4,S4>();
+   }
+   static StridedLayout3D<N1,S1,N2,S2,N3*N4,S3> merge_34()
+   {
+      // use: (S1*i1+S2*i2+S3*i3+S4*i4) == (S1*i1+S2*i2+S3*(i3+S4/S3*i4))
+      // assuming S4 == S3*N3
+      MFEM_STATIC_ASSERT(S4 == S3*N3, "invalid reshape");
+      return StridedLayout3D<N1,S1,N2,S2,N3*N4,S3>();
    }
 };
 

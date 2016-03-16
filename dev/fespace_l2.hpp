@@ -36,6 +36,8 @@ public:
       offset = 0;
    }
 
+   L2_FiniteElementSpace(const FE &fe) : offset(0) { }
+
    L2_FiniteElementSpace(const L2_FiniteElementSpace &orig)
       : offset(orig.offset) { }
 

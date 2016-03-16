@@ -40,6 +40,7 @@ void sMult_AB(const A_layout_t &A_layout, const A_data_t &A_data,
    MFEM_STATIC_ASSERT(A2 == B1 && A1 == C1 && B2 == C2,
                       "invalid dimensions");
 
+   MFEM_FLOPS_ADD(Add ? 2*A1*A2*B2 : 2*A1*A2*B2-A1*B2);
    for (int b2 = 0; b2 < B2; b2++)
    {
       for (int s = 0; s < A2; s++)

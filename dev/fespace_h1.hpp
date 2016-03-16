@@ -15,6 +15,7 @@
 #include "config.hpp"
 #include "assign_ops.hpp"
 #include "tensor_types.hpp"
+#include "finite_elements_h1.hpp"
 #include "fem/fespace.hpp"
 
 namespace mfem
@@ -145,8 +146,10 @@ public:
       Assemble<AssignOp::Add>(dof_layout, dof_data, glob_dof_data);
    }
 
-   void Assemble(const TMatrix<FE::dofs,FE::dofs> &m, SparseMatrix &M) const
+   void Assemble(const TMatrix<FE::dofs,FE::dofs,double> &m,
+                 SparseMatrix &M) const
    {
+      MFEM_FLOPS_ADD(FE::dofs*FE::dofs);
       for (int i = 0; i < FE::dofs; i++)
       {
          M.SetColPtr(loc_dof_list[i]);
@@ -236,6 +239,23 @@ public:
                        glob_vdof_data_t &glob_vdof_data) const
    {
       VectorAssemble<AssignOp::Add>(vdof_layout, vdof_data, vl, glob_vdof_data);
+   }
+
+   static bool Matches(const FiniteElementSpace &fes)
+   {
+      const FiniteElementCollection *fec = fes.FEColl();
+      const H1_FECollection *h1_fec =
+         dynamic_cast<const H1_FECollection *>(fec);
+      if (!h1_fec) { return false; }
+      const FiniteElement *fe = h1_fec->FiniteElementForGeometry(FE_type::geom);
+      if (fe->GetOrder() != FE_type::degree) { return false; }
+      return true;
+   }
+
+   template <typename vec_layout_t>
+   static bool VectorMatches(const FiniteElementSpace &fes)
+   {
+      return Matches(fes) && vec_layout_t::Matches(fes);
    }
 };
 

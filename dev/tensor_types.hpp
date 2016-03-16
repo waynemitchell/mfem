@@ -17,18 +17,23 @@
 #include "tensor_ops.hpp"
 #include "small_matrix_ops.hpp"
 
+#define MFEM_ROUNDUP(val,base) ((((val)+(base)-1)/(base))*(base))
+#define MFEM_ALIGN_SIZE(size,type) \
+   MFEM_ROUNDUP(size,(MFEM_SIMD_SIZE)/sizeof(type))
+
 namespace mfem
 {
 
 // classes TVector, TMatrix, TTensor3, TTensor4
 
-template <int S, typename data_t = double>
+template <int S, typename data_t = double, bool align = false>
 struct TVector
 {
 public:
    static const int size = S;
+   static const int aligned_size = align ? MFEM_ALIGN_SIZE(S,data_t) : size;
    typedef data_t data_type;
-   data_t data[size>0?size:1];
+   data_t data[aligned_size>0?aligned_size:1];
 
    typedef StridedLayout1D<S,1> layout_type;
    static const layout_type layout;
@@ -77,15 +82,15 @@ public:
    }
 };
 
-template <int S, typename data_t>
-const typename TVector<S,data_t>::layout_type
-TVector<S,data_t>::layout = layout_type();
+template <int S, typename data_t, bool align>
+const typename TVector<S,data_t,align>::layout_type
+TVector<S,data_t,align>::layout = layout_type();
 
 
-template <int N1, int N2, typename data_t = double>
-struct TMatrix : public TVector<N1*N2,data_t>
+template <int N1, int N2, typename data_t = double, bool align = false>
+struct TMatrix : public TVector<N1*N2,data_t,align>
 {
-   typedef TVector<N1*N2,data_t> base_class;
+   typedef TVector<N1*N2,data_t,align> base_class;
    using base_class::size;
    using base_class::data;
 
@@ -113,15 +118,15 @@ struct TMatrix : public TVector<N1*N2,data_t>
    }
 };
 
-template <int N1, int N2, typename data_t>
-const typename TMatrix<N1,N2,data_t>::layout_type
-TMatrix<N1,N2,data_t>::layout = layout_type();
+template <int N1, int N2, typename data_t, bool align>
+const typename TMatrix<N1,N2,data_t,align>::layout_type
+TMatrix<N1,N2,data_t,align>::layout = layout_type();
 
 
-template <int N1, int N2, int N3, typename data_t = double>
-struct TTensor3 : TVector<N1*N2*N3,data_t>
+template <int N1, int N2, int N3, typename data_t = double, bool align = false>
+struct TTensor3 : TVector<N1*N2*N3,data_t,align>
 {
-   typedef TVector<N1*N2*N3,data_t> base_class;
+   typedef TVector<N1*N2*N3,data_t,align> base_class;
    using base_class::size;
    using base_class::data;
 
@@ -135,14 +140,15 @@ struct TTensor3 : TVector<N1*N2*N3,data_t>
    { return data[ind(i,j,k)]; }
 };
 
-template <int N1, int N2, int N3, typename data_t>
-const typename TTensor3<N1,N2,N3,data_t>::layout_type
-TTensor3<N1,N2,N3,data_t>::layout = layout_type();
+template <int N1, int N2, int N3, typename data_t, bool align>
+const typename TTensor3<N1,N2,N3,data_t,align>::layout_type
+TTensor3<N1,N2,N3,data_t,align>::layout = layout_type();
 
-template <int N1, int N2, int N3, int N4, typename data_t = double>
-struct TTensor4 : TVector<N1*N2*N3*N4,data_t>
+template <int N1, int N2, int N3, int N4, typename data_t = double,
+          bool align = false>
+struct TTensor4 : TVector<N1*N2*N3*N4,data_t,align>
 {
-   typedef TVector<N1*N2*N3*N4,data_t> base_class;
+   typedef TVector<N1*N2*N3*N4,data_t,align> base_class;
    using base_class::size;
    using base_class::data;
 
@@ -157,9 +163,9 @@ struct TTensor4 : TVector<N1*N2*N3*N4,data_t>
    { return data[ind(i,j,k,l)]; }
 };
 
-template <int N1, int N2, int N3, int N4, typename data_t>
-const typename TTensor4<N1,N2,N3,N4,data_t>::layout_type
-TTensor4<N1,N2,N3,N4,data_t>::layout = layout_type();
+template <int N1, int N2, int N3, int N4, typename data_t, bool align>
+const typename TTensor4<N1,N2,N3,N4,data_t,align>::layout_type
+TTensor4<N1,N2,N3,N4,data_t,align>::layout = layout_type();
 
 } // namespace mfem
 

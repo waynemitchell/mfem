@@ -22,6 +22,9 @@ namespace mfem
 
 class DynamicVectorLayout
 {
+public:
+   static const int vec_dim = 0; // 0 - dynamic
+
 protected:
    int scal_stride, comp_stride;
    int num_components;
@@ -50,12 +53,18 @@ public:
    {
       Init(fes.GetOrdering(), fes.GetNDofs(), fes.GetVDim());
    }
+   // default copy constructor
 
    int NumComponents() const { return num_components; }
 
    int ind(int scalar_idx, int comp_idx) const
    {
       return scal_stride * scalar_idx + comp_stride * comp_idx;
+   }
+
+   static bool Matches(const FiniteElementSpace &fes)
+   {
+      return true;
    }
 };
 
@@ -64,6 +73,9 @@ public:
 template <Ordering::Type Ord, int NumComp = 0>
 class VectorLayout
 {
+public:
+   static const int vec_dim = NumComp;
+
 protected:
    int num_components, scalar_size;
 
@@ -84,6 +96,7 @@ public:
       MFEM_ASSERT(NumComp == 0 || num_components == NumComp,
                   "invalid number of components");
    }
+   // default copy constructor
 
    int NumComponents() const { return (NumComp ? NumComp : num_components); }
 
@@ -97,6 +110,34 @@ public:
       {
          return comp_idx + (NumComp ? NumComp : num_components) * scalar_idx;
       }
+   }
+
+   static bool Matches(const FiniteElementSpace &fes)
+   {
+      return (Ord == fes.GetOrdering() &&
+              (NumComp == 0 || NumComp == fes.GetVDim()));
+   }
+};
+
+class ScalarLayout
+{
+public:
+   static const int vec_dim = 1;
+
+   ScalarLayout() { }
+
+   ScalarLayout(const FiniteElementSpace &fes)
+   {
+      MFEM_ASSERT(fes.GetVDim() == 1, "invalid number of components");
+   }
+
+   int NumComponents() const { return 1; }
+
+   int ind(int scalar_idx, int comp_idx) const { return scalar_idx; }
+
+   static bool Matches(const FiniteElementSpace &fes)
+   {
+      return (fes.GetVDim() == 1);
    }
 };
 

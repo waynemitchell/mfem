@@ -30,5 +30,30 @@
 #endif
 
 #define MFEM_TEMPLATE_BLOCK_SIZE 4
+#define MFEM_SIMD_SIZE 32
+#define MFEM_TEMPLATE_ENABLE_SERIALIZE
+
+// #define MFEM_TEMPLATE_ELTRANS_HAS_NODE_DOFS
+// #define MFEM_TEMPLATE_ELTRANS_RESULT_HAS_NODES
+// #define MFEM_TEMPLATE_FIELD_EVAL_DATA_HAS_DOFS
+#define MFEM_TEMPLATE_INTRULE_COEFF_PRECOMP
+
+namespace mfem
+{
+namespace internal
+{
+long long flop_count;
+}
+}
+
+#ifdef MFEM_COUNT_FLOPS
+#define MFEM_FLOPS_RESET() (mfem::internal::flop_count = 0)
+#define MFEM_FLOPS_ADD(cnt) (mfem::internal::flop_count += (cnt))
+#define MFEM_FLOPS_GET() (mfem::internal::flop_count)
+#else
+#define MFEM_FLOPS_RESET()
+#define MFEM_FLOPS_ADD(cnt)
+#define MFEM_FLOPS_GET() (0)
+#endif
 
 #endif // MFEM_TEMPLATE_CONFIG

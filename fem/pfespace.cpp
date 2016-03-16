@@ -51,8 +51,8 @@ ParFiniteElementSpace::ParFiniteElementSpace(ParFiniteElementSpace &pf)
 }
 
 ParFiniteElementSpace::ParFiniteElementSpace(
-   ParMesh *pm, const FiniteElementCollection *f, int dim, int ordering)
-   : FiniteElementSpace(pm, f, dim, ordering)
+   ParMesh *pm, const FiniteElementCollection *f, int dim, Ordering::Type order)
+   : FiniteElementSpace(pm, f, dim, order)
 {
    mesh = pmesh = pm;
 

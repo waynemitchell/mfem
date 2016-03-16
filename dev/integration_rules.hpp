@@ -21,7 +21,7 @@ namespace mfem
 
 // Integration rules
 
-template <Geometry::Type G, int Q, int Order>
+template <Geometry::Type G, int Q, int Order, typename real_t>
 class GenericIntegrationRule
 {
 public:
@@ -32,8 +32,10 @@ public:
 
    static const bool tensor_prod = false;
 
+   typedef real_t real_type;
+
 protected:
-   TVector<qpts> weights;
+   TVector<qpts,real_t> weights;
 
 public:
    GenericIntegrationRule()
@@ -46,10 +48,7 @@ public:
       }
    }
 
-   GenericIntegrationRule(const GenericIntegrationRule &ir)
-   {
-      weights.Set(ir.weights);
-   }
+   // Default copy constructor
 
    static const IntegrationRule &GetIntRule()
    {
@@ -76,14 +75,14 @@ public:
    }
 };
 
-template <int Dim, int Q>
+template <int Dim, int Q, typename real_t>
 class TProductIntegrationRule_base;
 
-template <int Q>
-class TProductIntegrationRule_base<1, Q>
+template <int Q, typename real_t>
+class TProductIntegrationRule_base<1,Q,real_t>
 {
 protected:
-   TVector<Q> weights_1d;
+   TVector<Q,real_t> weights_1d;
 
 public:
    // Multi-component weight assignment. qpt_layout_t must be (qpts x n1 x ...).
@@ -106,11 +105,11 @@ public:
    }
 };
 
-template <int Q>
-class TProductIntegrationRule_base<2, Q>
+template <int Q, typename real_t>
+class TProductIntegrationRule_base<2,Q,real_t>
 {
 protected:
-   TVector<Q> weights_1d;
+   TVector<Q,real_t> weights_1d;
 
 public:
    // Multi-component weight assignment. qpt_layout_t must be (qpts x n1 x ...).
@@ -120,6 +119,7 @@ public:
    {
       MFEM_STATIC_ASSERT(qpt_layout_t::rank > 1, "invalid rank");
       MFEM_STATIC_ASSERT(qpt_layout_t::dim_1 == Q*Q, "invalid size");
+      MFEM_FLOPS_ADD(Q*Q);
       for (int j2 = 0; j2 < Q; j2++)
       {
          for (int j1 = 0; j1 < Q; j1++)
@@ -138,11 +138,11 @@ public:
    }
 };
 
-template <int Q>
-class TProductIntegrationRule_base<3, Q>
+template <int Q, typename real_t>
+class TProductIntegrationRule_base<3,Q,real_t>
 {
 protected:
-   TVector<Q> weights_1d;
+   TVector<Q,real_t> weights_1d;
 
 public:
    // Multi-component weight assignment. qpt_layout_t must be (qpts x n1 x ...).
@@ -152,6 +152,7 @@ public:
    {
       MFEM_STATIC_ASSERT(qpt_layout_t::rank > 1, "invalid rank");
       MFEM_STATIC_ASSERT(qpt_layout_t::dim_1 == Q*Q*Q, "invalid size");
+      MFEM_FLOPS_ADD(2*Q*Q*Q);
       for (int j3 = 0; j3 < Q; j3++)
       {
          for (int j2 = 0; j2 < Q; j2++)
@@ -174,8 +175,9 @@ public:
    }
 };
 
-template <int Dim, int Q, int Order>
-class TProductIntegrationRule : public TProductIntegrationRule_base<Dim, Q>
+template <int Dim, int Q, int Order, typename real_t>
+class TProductIntegrationRule
+   : public TProductIntegrationRule_base<Dim,Q,real_t>
 {
 public:
    static const Geometry::Type geom =
@@ -188,24 +190,21 @@ public:
 
    static const bool tensor_prod = true;
 
+   typedef real_t real_type;
+
 protected:
-   using TProductIntegrationRule_base<Dim, Q>::weights_1d;
+   using TProductIntegrationRule_base<Dim,Q,real_t>::weights_1d;
 
 public:
-   TProductIntegrationRule() { }
-
-   TProductIntegrationRule(const TProductIntegrationRule &ir)
-   {
-      weights_1d.Set(ir.weights_1d);
-   }
+   // default constructor, default copy constructor
 };
 
-template <int Dim, int Q>
+template <int Dim, int Q, typename real_t>
 class GaussIntegrationRule
-   : public TProductIntegrationRule<Dim, Q, 2*Q-1>
+   : public TProductIntegrationRule<Dim, Q, 2*Q-1, real_t>
 {
 public:
-   typedef TProductIntegrationRule<Dim, Q, 2*Q-1> base_class;
+   typedef TProductIntegrationRule<Dim,Q,2*Q-1,real_t> base_class;
 
    using base_class::geom;
    using base_class::order;
@@ -235,62 +234,78 @@ public:
    }
 };
 
-template <Geometry::Type G, int Order>
+template <Geometry::Type G, int Order, typename real_t>
 class TIntegrationRule;
 
-template <int Order>
-class TIntegrationRule<Geometry::SEGMENT, Order>
-   : public GaussIntegrationRule<1, Order/2+1> { };
+template <int Order, typename real_t>
+class TIntegrationRule<Geometry::SEGMENT, Order, real_t>
+   : public GaussIntegrationRule<1, Order/2+1, real_t> { };
 
-template <int Order>
-class TIntegrationRule<Geometry::SQUARE, Order>
-   : public GaussIntegrationRule<2, Order/2+1> { };
+template <int Order, typename real_t>
+class TIntegrationRule<Geometry::SQUARE, Order, real_t>
+   : public GaussIntegrationRule<2, Order/2+1, real_t> { };
 
-template <int Order>
-class TIntegrationRule<Geometry::CUBE, Order>
-   : public GaussIntegrationRule<3, Order/2+1> { };
+template <int Order, typename real_t>
+class TIntegrationRule<Geometry::CUBE, Order, real_t>
+   : public GaussIntegrationRule<3, Order/2+1, real_t> { };
 
 // Triangle integration rules (based on intrules.cpp)
 // These specializations define the number of quadrature points for each rule
 // as a compile-time constant.
 // TODO: add higher order rules
-template <> class TIntegrationRule<Geometry::TRIANGLE, 0>
-   : public GenericIntegrationRule<Geometry::TRIANGLE, 1, 0> { };
-template <> class TIntegrationRule<Geometry::TRIANGLE, 1>
-   : public GenericIntegrationRule<Geometry::TRIANGLE, 1, 1> { };
-template <> class TIntegrationRule<Geometry::TRIANGLE, 2>
-   : public GenericIntegrationRule<Geometry::TRIANGLE, 3, 2> { };
-template <> class TIntegrationRule<Geometry::TRIANGLE, 3>
-   : public GenericIntegrationRule<Geometry::TRIANGLE, 4, 3> { };
-template <> class TIntegrationRule<Geometry::TRIANGLE, 4>
-   : public GenericIntegrationRule<Geometry::TRIANGLE, 6, 4> { };
-template <> class TIntegrationRule<Geometry::TRIANGLE, 5>
-   : public GenericIntegrationRule<Geometry::TRIANGLE, 7, 5> { };
-template <> class TIntegrationRule<Geometry::TRIANGLE, 6>
-   : public GenericIntegrationRule<Geometry::TRIANGLE, 12, 6> { };
-template <> class TIntegrationRule<Geometry::TRIANGLE, 7>
-   : public GenericIntegrationRule<Geometry::TRIANGLE, 12, 7> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TRIANGLE, 0, real_t>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 1, 0, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TRIANGLE, 1, real_t>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 1, 1, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TRIANGLE, 2, real_t>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 3, 2, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TRIANGLE, 3, real_t>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 4, 3, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TRIANGLE, 4, real_t>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 6, 4, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TRIANGLE, 5, real_t>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 7, 5, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TRIANGLE, 6, real_t>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 12, 6, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TRIANGLE, 7, real_t>
+   : public GenericIntegrationRule<Geometry::TRIANGLE, 12, 7, real_t> { };
 
 // Tetrahedron integration rules (based on intrules.cpp)
 // These specializations define the number of quadrature points for each rule
 // as a compile-time constant.
 // TODO: add higher order rules
-template <> class TIntegrationRule<Geometry::TETRAHEDRON, 0>
-   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 1, 0> { };
-template <> class TIntegrationRule<Geometry::TETRAHEDRON, 1>
-   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 1, 1> { };
-template <> class TIntegrationRule<Geometry::TETRAHEDRON, 2>
-   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 4, 2> { };
-template <> class TIntegrationRule<Geometry::TETRAHEDRON, 3>
-   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 5, 3> { };
-template <> class TIntegrationRule<Geometry::TETRAHEDRON, 4>
-   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 11, 4> { };
-template <> class TIntegrationRule<Geometry::TETRAHEDRON, 5>
-   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 14, 5> { };
-template <> class TIntegrationRule<Geometry::TETRAHEDRON, 6>
-   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 24, 6> { };
-template <> class TIntegrationRule<Geometry::TETRAHEDRON, 7>
-   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 31, 7> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TETRAHEDRON, 0, real_t>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 1, 0, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TETRAHEDRON, 1, real_t>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 1, 1, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TETRAHEDRON, 2, real_t>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 4, 2, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TETRAHEDRON, 3, real_t>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 5, 3, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TETRAHEDRON, 4, real_t>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 11, 4, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TETRAHEDRON, 5, real_t>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 14, 5, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TETRAHEDRON, 6, real_t>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 24, 6, real_t> { };
+template <typename real_t>
+class TIntegrationRule<Geometry::TETRAHEDRON, 7, real_t>
+   : public GenericIntegrationRule<Geometry::TETRAHEDRON, 31, 7, real_t> { };
 
 } // namespace mfem
 

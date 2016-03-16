@@ -268,6 +268,7 @@ public:
    void ConformingProject();
 
    FiniteElementSpace *FESpace() { return fes; }
+   const FiniteElementSpace *FESpace() const { return fes; }
 
    void Update() { SetSize(fes->GetVSize()); }
 

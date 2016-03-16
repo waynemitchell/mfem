@@ -78,6 +78,7 @@ struct MatrixOps<2,2>
    template <typename scalar_t, typename layout_t, typename data_t>
    static inline scalar_t Det(const layout_t &a, const data_t &A)
    {
+      MFEM_FLOPS_ADD(3);
       return (A[a.ind(0,0)]*A[a.ind(1,1)] -
               A[a.ind(1,0)]*A[a.ind(0,1)]);
    }
@@ -88,6 +89,7 @@ struct MatrixOps<2,2>
    static inline void Det(const A_layout_t &a, const A_data_t &A, D_data_t &D)
    {
       const int M = A_layout_t::dim_1;
+      MFEM_FLOPS_ADD(3*M);
       for (int i = 0; i < M; i++)
       {
          Assign<Op>(D[i], (A[a.ind(i,0,0)]*A[a.ind(i,1,1)] -
@@ -118,6 +120,37 @@ struct MatrixOps<2,2>
       Adjugate<scalar_t>(a, A, b, B);
       return Det<scalar_t>(a, A);
    }
+
+   template <bool symm> struct Symm;
+};
+
+template <>
+struct MatrixOps<2,2>::Symm<true>
+{
+   template <typename A_layout_t, typename A_data_t, typename scalar_t>
+   static inline MFEM_ALWAYS_INLINE
+   void Set(const A_layout_t &a, A_data_t &A,
+            const scalar_t a11, const scalar_t a21, const scalar_t a22)
+   {
+      A[a.ind(0)] = a11;
+      A[a.ind(1)] = a21;
+      A[a.ind(2)] = a22;
+   }
+};
+
+template <>
+struct MatrixOps<2,2>::Symm<false>
+{
+   template <typename A_layout_t, typename A_data_t, typename scalar_t>
+   static inline MFEM_ALWAYS_INLINE
+   void Set(const A_layout_t &a, A_data_t &A,
+            const scalar_t a11, const scalar_t a21, const scalar_t a22)
+   {
+      A[a.ind(0,0)] = a11;
+      A[a.ind(1,0)] = a21;
+      A[a.ind(0,1)] = a21;
+      A[a.ind(1,1)] = a22;
+   }
 };
 
 template <>
@@ -127,6 +160,7 @@ struct MatrixOps<3,3>
    template <typename scalar_t, typename layout_t, typename data_t>
    static inline scalar_t Det(const layout_t &a, const data_t &A)
    {
+      MFEM_FLOPS_ADD(14);
       return (A[a.ind(0,0)]*(A[a.ind(1,1)]*A[a.ind(2,2)] -
                              A[a.ind(2,1)]*A[a.ind(1,2)]) -
               A[a.ind(1,0)]*(A[a.ind(0,1)]*A[a.ind(2,2)] -
@@ -141,6 +175,7 @@ struct MatrixOps<3,3>
    static inline void Det(const A_layout_t &a, const A_data_t &A, D_data_t &D)
    {
       const int M = A_layout_t::dim_1;
+      MFEM_FLOPS_ADD(14*M);
       for (int i = 0; i < M; i++)
       {
          Assign<Op>(
@@ -161,6 +196,7 @@ struct MatrixOps<3,3>
    static inline void Adjugate(const A_layout_t &a, const A_data_t &A,
                                const B_layout_t &b, B_data_t &B)
    {
+      MFEM_FLOPS_ADD(27);
       B[b.ind(0,0)] = A[a.ind(1,1)]*A[a.ind(2,2)] - A[a.ind(1,2)]*A[a.ind(2,1)];
       B[b.ind(0,1)] = A[a.ind(0,2)]*A[a.ind(2,1)] - A[a.ind(0,1)]*A[a.ind(2,2)];
       B[b.ind(0,2)] = A[a.ind(0,1)]*A[a.ind(1,2)] - A[a.ind(0,2)]*A[a.ind(1,1)];
@@ -179,10 +215,52 @@ struct MatrixOps<3,3>
    static inline scalar_t AdjDet(const A_layout_t &a, const A_data_t &A,
                                  const B_layout_t &b, B_data_t &B)
    {
+      MFEM_FLOPS_ADD(5);
       Adjugate<scalar_t>(a, A, b, B);
       return (A[a.ind(0,0)]*B[b.ind(0,0)] +
               A[a.ind(1,0)]*B[b.ind(0,1)] +
               A[a.ind(2,0)]*B[b.ind(0,2)]);
+   }
+
+   template <bool symm> struct Symm;
+};
+
+template <>
+struct MatrixOps<3,3>::Symm<true>
+{
+   template <typename A_layout_t, typename A_data_t, typename scalar_t>
+   static inline MFEM_ALWAYS_INLINE
+   void Set(const A_layout_t &a, A_data_t &A,
+            const scalar_t a11, const scalar_t a21, const scalar_t a31,
+            const scalar_t a22, const scalar_t a32, const scalar_t a33)
+   {
+      A[a.ind(0)] = a11;
+      A[a.ind(1)] = a21;
+      A[a.ind(2)] = a31;
+      A[a.ind(3)] = a22;
+      A[a.ind(4)] = a32;
+      A[a.ind(5)] = a33;
+   }
+};
+
+template <>
+struct MatrixOps<3,3>::Symm<false>
+{
+   template <typename A_layout_t, typename A_data_t, typename scalar_t>
+   static inline MFEM_ALWAYS_INLINE
+   void Set(const A_layout_t &a, A_data_t &A,
+            const scalar_t a11, const scalar_t a21, const scalar_t a31,
+            const scalar_t a22, const scalar_t a32, const scalar_t a33)
+   {
+      A[a.ind(0,0)] = a11;
+      A[a.ind(1,0)] = a21;
+      A[a.ind(2,0)] = a31;
+      A[a.ind(0,1)] = a21;
+      A[a.ind(1,1)] = a22;
+      A[a.ind(2,1)] = a32;
+      A[a.ind(0,2)] = a31;
+      A[a.ind(1,2)] = a32;
+      A[a.ind(2,2)] = a33;
    }
 };
 

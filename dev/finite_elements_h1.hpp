@@ -13,15 +13,16 @@
 #define MFEM_TEMPLATE_FINITE_ELEMENTS_H1
 
 #include "config.hpp"
-#include "fem/fe.hpp"
+#include "fem/fe_coll.hpp"
 
 namespace mfem
 {
 
 // H1 finite elements
 
+template <typename real_t>
 void CalcShapeMatrix(const FiniteElement &fe, const IntegrationRule &ir,
-                     double *B, const Array<int> *dof_map = NULL)
+                     real_t *B, const Array<int> *dof_map = NULL)
 {
    // - B must be (nip x dof) with column major storage
    // - The inverse of dof_map is applied to reorder the local dofs.
@@ -40,8 +41,9 @@ void CalcShapeMatrix(const FiniteElement &fe, const IntegrationRule &ir,
    }
 }
 
+template <typename real_t>
 void CalcGradTensor(const FiniteElement &fe, const IntegrationRule &ir,
-                    double *G, const Array<int> *dof_map = NULL)
+                    real_t *G, const Array<int> *dof_map = NULL)
 {
    // - G must be (nip x dim x dof) with column major storage
    // - The inverse of dof_map is applied to reorder the local dofs.
@@ -64,8 +66,9 @@ void CalcGradTensor(const FiniteElement &fe, const IntegrationRule &ir,
    }
 }
 
+template <typename real_t>
 void CalcShapes(const FiniteElement &fe, const IntegrationRule &ir,
-                double *B, double *G, const Array<int> *dof_map)
+                real_t *B, real_t *G, const Array<int> *dof_map)
 {
    if (B) { mfem::CalcShapeMatrix(fe, ir, B, dof_map); }
    if (G) { mfem::CalcGradTensor(fe, ir, G, dof_map); }
@@ -73,15 +76,6 @@ void CalcShapes(const FiniteElement &fe, const IntegrationRule &ir,
 
 template <Geometry::Type G, int P>
 class H1_FiniteElement;
-
-struct H1_FiniteElement_Basis
-{
-   enum Type
-   {
-      GaussLobatto = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive     = 2  // Positive basis, Bernstein polynomials
-   };
-};
 
 template <int P>
 class H1_FiniteElement<Geometry::SEGMENT, P>
@@ -96,25 +90,22 @@ public:
    static const int  dofs_1d     = P+1;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FiniteElement_Basis::Type parameter_type;
+   typedef H1_FECollection::BasisType parameter_type;
 
 protected:
    const FiniteElement *my_fe;
    const Array<int> *my_dof_map;
    parameter_type type; // run-time specified basis type
-
-public:
-   H1_FiniteElement(
-      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
-      : type(type_)
+   void Init(const parameter_type type_)
    {
-      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      type = type_;
+      if (type == H1_FECollection::GaussLobatto)
       {
          H1_SegmentElement *fe = new H1_SegmentElement(P);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
       }
-      else if (type == H1_FiniteElement_Basis::Positive)
+      else if (type == H1_FECollection::Positive)
       {
          H1Pos_SegmentElement *fe = new H1Pos_SegmentElement(P);
          my_fe = fe;
@@ -125,13 +116,28 @@ public:
          MFEM_ABORT("invalid basis type!");
       }
    }
+
+public:
+   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   {
+      Init(type_);
+   }
+   H1_FiniteElement(const FiniteElementCollection &fec)
+   {
+      const H1_FECollection *h1_fec =
+         dynamic_cast<const H1_FECollection *>(&fec);
+      MFEM_ASSERT(h1_fec, "invalid FiniteElementCollection");
+      Init(h1_fec->GetBasisType());
+   }
    ~H1_FiniteElement() { delete my_fe; }
 
-   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
+   template <typename real_t>
+   void CalcShapes(const IntegrationRule &ir, real_t *B, real_t *G) const
    {
       mfem::CalcShapes(*my_fe, ir, B, G, my_dof_map);
    }
-   void Calc1DShapes(const IntegrationRule &ir, double *B, double *G) const
+   template <typename real_t>
+   void Calc1DShapes(const IntegrationRule &ir, real_t *B, real_t *G) const
    {
       CalcShapes(ir, B, G);
    }
@@ -150,35 +156,44 @@ public:
    static const bool tensor_prod = false;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FiniteElement_Basis::Type parameter_type;
+   typedef H1_FECollection::BasisType parameter_type;
 
 protected:
    const FiniteElement *my_fe;
    parameter_type type; // run-time specified basis type
-
-public:
-   H1_FiniteElement(
-      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
-      : type(type_)
+   void Init(const parameter_type type_)
    {
-      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      type = type_;
+      if (type == H1_FECollection::GaussLobatto)
       {
          my_fe = new H1_TriangleElement(P);
       }
-      else if (type == H1_FiniteElement_Basis::Positive)
+      else if (type == H1_FECollection::Positive)
       {
-         MFEM_ABORT("TODO: implement H1Pos_TriangleElement");
-         // my_fe = new H1Pos_TriangleElement(P);
-         my_fe = NULL;
+         my_fe = new H1Pos_TriangleElement(P);
       }
       else
       {
          MFEM_ABORT("invalid basis type!");
       }
    }
+
+public:
+   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   {
+      Init(type_);
+   }
+   H1_FiniteElement(const FiniteElementCollection &fec)
+   {
+      const H1_FECollection *h1_fec =
+         dynamic_cast<const H1_FECollection *>(&fec);
+      MFEM_ASSERT(h1_fec, "invalid FiniteElementCollection");
+      Init(h1_fec->GetBasisType());
+   }
    ~H1_FiniteElement() { delete my_fe; }
 
-   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
+   template <typename real_t>
+   void CalcShapes(const IntegrationRule &ir, real_t *B, real_t *G) const
    {
       mfem::CalcShapes(*my_fe, ir, B, G, NULL);
    }
@@ -198,26 +213,23 @@ public:
    static const int dofs_1d = P+1;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FiniteElement_Basis::Type parameter_type;
+   typedef H1_FECollection::BasisType parameter_type;
 
 protected:
    const FiniteElement *my_fe, *my_fe_1d;
    const Array<int> *my_dof_map;
    parameter_type type; // run-time specified basis type
-
-public:
-   H1_FiniteElement(
-      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
-      : type(type_)
+   void Init(const parameter_type type_)
    {
-      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      type = type_;
+      if (type == H1_FECollection::GaussLobatto)
       {
          H1_QuadrilateralElement *fe = new H1_QuadrilateralElement(P);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
-         my_fe_1d = new L2_SegmentElement(P, type);
+         my_fe_1d = new L2_SegmentElement(P, 1);
       }
-      else if (type == H1_FiniteElement_Basis::Positive)
+      else if (type == H1_FECollection::Positive)
       {
          H1Pos_QuadrilateralElement *fe = new H1Pos_QuadrilateralElement(P);
          my_fe = fe;
@@ -229,13 +241,28 @@ public:
          MFEM_ABORT("invalid basis type!");
       }
    }
+
+public:
+   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   {
+      Init(type_);
+   }
+   H1_FiniteElement(const FiniteElementCollection &fec)
+   {
+      const H1_FECollection *h1_fec =
+         dynamic_cast<const H1_FECollection *>(&fec);
+      MFEM_ASSERT(h1_fec, "invalid FiniteElementCollection");
+      Init(h1_fec->GetBasisType());
+   }
    ~H1_FiniteElement() { delete my_fe; delete my_fe_1d; }
 
-   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
+   template <typename real_t>
+   void CalcShapes(const IntegrationRule &ir, real_t *B, real_t *G) const
    {
       mfem::CalcShapes(*my_fe, ir, B, G, my_dof_map);
    }
-   void Calc1DShapes(const IntegrationRule &ir, double *B, double *G) const
+   template <typename real_t>
+   void Calc1DShapes(const IntegrationRule &ir, real_t *B, real_t *G) const
    {
       mfem::CalcShapes(*my_fe_1d, ir, B, G, NULL);
    }
@@ -254,35 +281,44 @@ public:
    static const bool tensor_prod = false;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FiniteElement_Basis::Type parameter_type;
+   typedef H1_FECollection::BasisType parameter_type;
 
 protected:
    const FiniteElement *my_fe;
    parameter_type type; // run-time specified basis type
-
-public:
-   H1_FiniteElement(
-      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
-      : type(type_)
+   void Init(const parameter_type type_)
    {
-      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      type = type_;
+      if (type == H1_FECollection::GaussLobatto)
       {
          my_fe = new H1_TetrahedronElement(P);
       }
-      else if (type == H1_FiniteElement_Basis::Positive)
+      else if (type == H1_FECollection::Positive)
       {
-         MFEM_ABORT("TODO: implement H1Pos_TetrahedronElement");
-         // my_fe = new H1Pos_TetrahedronElement(P);
-         my_fe = NULL;
+         my_fe = new H1Pos_TetrahedronElement(P);
       }
       else
       {
          MFEM_ABORT("invalid basis type!");
       }
    }
+
+public:
+   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   {
+      Init(type_);
+   }
+   H1_FiniteElement(const FiniteElementCollection &fec)
+   {
+      const H1_FECollection *h1_fec =
+         dynamic_cast<const H1_FECollection *>(&fec);
+      MFEM_ASSERT(h1_fec, "invalid FiniteElementCollection");
+      Init(h1_fec->GetBasisType());
+   }
    ~H1_FiniteElement() { delete my_fe; }
 
-   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
+   template <typename real_t>
+   void CalcShapes(const IntegrationRule &ir, real_t *B, real_t *G) const
    {
       mfem::CalcShapes(*my_fe, ir, B, G, NULL);
    }
@@ -302,26 +338,24 @@ public:
    static const int dofs_1d = P+1;
 
    // Type for run-time parameter for the constructor
-   typedef H1_FiniteElement_Basis::Type parameter_type;
+   typedef H1_FECollection::BasisType parameter_type;
 
 protected:
    const FiniteElement *my_fe, *my_fe_1d;
    const Array<int> *my_dof_map;
    parameter_type type; // run-time specified basis type
 
-public:
-   H1_FiniteElement(
-      const parameter_type type_ = H1_FiniteElement_Basis::GaussLobatto)
-      : type(type_)
+   void Init(const parameter_type type_)
    {
-      if (type == H1_FiniteElement_Basis::GaussLobatto)
+      type = type_;
+      if (type == H1_FECollection::GaussLobatto)
       {
          H1_HexahedronElement *fe = new H1_HexahedronElement(P);
          my_fe = fe;
          my_dof_map = &fe->GetDofMap();
-         my_fe_1d = new L2_SegmentElement(P, type);
+         my_fe_1d = new L2_SegmentElement(P, 1);
       }
-      else if (type == H1_FiniteElement_Basis::Positive)
+      else if (type == H1_FECollection::Positive)
       {
          H1Pos_HexahedronElement *fe = new H1Pos_HexahedronElement(P);
          my_fe = fe;
@@ -333,13 +367,28 @@ public:
          MFEM_ABORT("invalid basis type!");
       }
    }
+
+public:
+   H1_FiniteElement(const parameter_type type_ = H1_FECollection::GaussLobatto)
+   {
+      Init(type_);
+   }
+   H1_FiniteElement(const FiniteElementCollection &fec)
+   {
+      const H1_FECollection *h1_fec =
+         dynamic_cast<const H1_FECollection *>(&fec);
+      MFEM_ASSERT(h1_fec, "invalid FiniteElementCollection");
+      Init(h1_fec->GetBasisType());
+   }
    ~H1_FiniteElement() { delete my_fe; delete my_fe_1d; }
 
-   void CalcShapes(const IntegrationRule &ir, double *B, double *G) const
+   template <typename real_t>
+   void CalcShapes(const IntegrationRule &ir, real_t *B, real_t *G) const
    {
       mfem::CalcShapes(*my_fe, ir, B, G, my_dof_map);
    }
-   void Calc1DShapes(const IntegrationRule &ir, double *B, double *G) const
+   template <typename real_t>
+   void Calc1DShapes(const IntegrationRule &ir, real_t *B, real_t *G) const
    {
       mfem::CalcShapes(*my_fe_1d, ir, B, G, NULL);
    }
