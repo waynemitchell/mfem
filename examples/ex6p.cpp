@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
       // 18. Refine elements whose error is larger than a fraction of the
       //     maximum element error.
       const double frac = 0.7;
-      double threshold = (frac*frac) * global_max_err;
+      double threshold = frac * global_max_err;
       pmesh.RefineByError(errors, threshold);
 
       // 19. Update the finite element space (recalculate the number of DOFs,
