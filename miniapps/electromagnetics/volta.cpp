@@ -330,19 +330,12 @@ int main(int argc, char *argv[])
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
                     MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
 
-      // Make a list of elements whose error is larger than a fraction
-      // of the maximum element error. These elements will be refined.
-      Array<int> ref_list;
+      // Refine the elements whose error is larger than a fraction of the
+      // maximum element error.
       const double frac = 0.7;
       double threshold = frac * global_max_err;
-      for (int i = 0; i < errors.Size(); i++)
-      {
-         if (errors[i] >= threshold) { ref_list.Append(i); }
-      }
-
-      // Refine the selected elements.
       if (myid == 0) { cout << " Refinement ..." << flush; }
-      pmesh.GeneralRefinement(ref_list);
+      pmesh.RefineByError(errors, threshold);
 
       // Update the electrostatic solver to reflect the new state of the mesh.
       Volta.Update();
