@@ -1,24 +1,25 @@
-//                    MFEM Example 6 (RDR) - Parallel Version
+//                       MFEM Example 15 - Parallel Version
 //
-// Compile with: make ex6p-rdr
+// Compile with: make ex15p
 //
-// Sample runs:  mpirun -np 4 ex6p-rdr -m ../data/square-disc.mesh -o 1 -- DOESN't WORK
-//               mpirun -np 4 ex6p-rdr -m ../data/square-disc.mesh -o 2 -- DOESN't WORK
-//               mpirun -np 4 ex6p-rdr -m ../data/square-disc-nurbs.mesh -o 2
-//               mpirun -np 4 ex6p-rdr -m ../data/star.mesh -o 3
-//               mpirun -np 4 ex6p-rdr -m ../data/escher.mesh -o 1 -- DOESN't WORK
-//               mpirun -np 4 ex6p-rdr -m ../data/fichera.mesh -o 2 -- DOESN't WORK
-//               mpirun -np 4 ex6p-rdr -m ../data/disc-nurbs.mesh -o 2
-//               mpirun -np 4 ex6p-rdr -m ../data/ball-nurbs.mesh -- DOESN't WORK
-//               mpirun -np 4 ex6p-rdr -m ../data/pipe-nurbs.mesh -- DOESN't WORK
-//               mpirun -np 4 ex6p-rdr -m ../data/star-surf.mesh -o 2
-//               mpirun -np 4 ex6p-rdr -m ../data/square-disc-surf.mesh -o 2 -- DOESN't WORK
-//               mpirun -np 4 ex6p-rdr -m ../data/amr-quad.mesh
+// Sample runs:  mpirun -np 4 ex15p -m ../data/square-disc.mesh -o 1 -- DOESN't WORK
+//               mpirun -np 4 ex15p -m ../data/square-disc.mesh -o 2 -- DOESN't WORK
+//               mpirun -np 4 ex15p -m ../data/square-disc-nurbs.mesh -o 2
+//               mpirun -np 4 ex15p -m ../data/star.mesh -o 3
+//               mpirun -np 4 ex15p -m ../data/escher.mesh -o 1 -- DOESN't WORK
+//               mpirun -np 4 ex15p -m ../data/fichera.mesh -o 2 -- DOESN't WORK
+//               mpirun -np 4 ex15p -m ../data/disc-nurbs.mesh -o 2
+//               mpirun -np 4 ex15p -m ../data/ball-nurbs.mesh -- DOESN't WORK
+//               mpirun -np 4 ex15p -m ../data/pipe-nurbs.mesh -- DOESN't WORK
+//               mpirun -np 4 ex15p -m ../data/star-surf.mesh -o 2
+//               mpirun -np 4 ex15p -m ../data/square-disc-surf.mesh -o 2 -- DOESN't WORK
+//               mpirun -np 4 ex15p -m ../data/amr-quad.mesh
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement/derefinement/rebalance loop. The problem being
-//               solved is again the Laplace equation -Delta u = f with
-//               homogeneous Dirichlet boundary conditions.
+//               solved is again the Laplace equation -Delta u = f with a
+//               prescribed time-dependent right hand side f, and homogeneous
+//               Dirichlet boundary conditions.
 //
 //               At each outer iteration the right hand side function is changed
 //               to mimic a time dependent problem.  Within each outer iteration
@@ -205,7 +206,7 @@ int main(int argc, char *argv[])
       sout.precision(8);
    }
 
-   VisItDataCollection visit_dc("Example6-Parallel-RDR", &pmesh);
+   VisItDataCollection visit_dc("Example15-Parallel", &pmesh);
    visit_dc.RegisterField("solution", &x);
    int vis_cycle = 0;
 
