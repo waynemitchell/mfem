@@ -2,18 +2,20 @@
 //
 // Compile with: make ex15p
 //
-// Sample runs:  mpirun -np 4 ex15p -m ../data/square-disc.mesh -o 1 -- DOESN't WORK
-//               mpirun -np 4 ex15p -m ../data/square-disc.mesh -o 2 -- DOESN't WORK
-//               mpirun -np 4 ex15p -m ../data/square-disc-nurbs.mesh -o 2
+// Sample runs:  mpirun -np 4 ex15p
 //               mpirun -np 4 ex15p -m ../data/star.mesh -o 3
-//               mpirun -np 4 ex15p -m ../data/escher.mesh -o 1 -- DOESN't WORK
-//               mpirun -np 4 ex15p -m ../data/fichera.mesh -o 2 -- DOESN't WORK
+//               mpirun -np 4 ex15p -m ../data/square-disc-nurbs.mesh -o 2
 //               mpirun -np 4 ex15p -m ../data/disc-nurbs.mesh -o 2
-//               mpirun -np 4 ex15p -m ../data/ball-nurbs.mesh -- DOESN't WORK
-//               mpirun -np 4 ex15p -m ../data/pipe-nurbs.mesh -- DOESN't WORK
+//               mpirun -np 4 ex15p -m ../data/fichera.mesh -o 2
+//               mpirun -np 4 ex15p -m ../data/ball-nurbs.mesh
 //               mpirun -np 4 ex15p -m ../data/star-surf.mesh -o 2
-//               mpirun -np 4 ex15p -m ../data/square-disc-surf.mesh -o 2 -- DOESN't WORK
 //               mpirun -np 4 ex15p -m ../data/amr-quad.mesh
+//
+//               Conforming meshes (no load balancing and derefinement):
+//
+//               mpirun -np 4 ex15p -m ../data/square-disc.mesh -o 2
+//               mpirun -np 4 ex15p -m ../data/escher.mesh -o 1
+//               mpirun -np 4 ex15p -m ../data/square-disc-surf.mesh -o 2
 //
 // Description:  This is a version of Example 1 with a simple adaptive mesh
 //               refinement/derefinement/rebalance loop. The problem being
@@ -230,10 +232,11 @@ int main(int argc, char *argv[])
       // 11. The main refinement loop
       for (int ref_it = 1; ; ref_it++)
       {
+         HYPRE_Int global_dofs = fespace.GlobalTrueVSize();
          if (myid == 0)
          {
             cout << "Iteration: " << ref_it << ", number of unknowns: "
-                 << fespace.GlobalTrueVSize() << flush;
+                 << global_dofs << flush;
          }
 
          // 11a. Recompute the field on the current mesh
