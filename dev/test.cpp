@@ -9,24 +9,7 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#include "layouts.hpp"
-#include "assign_ops.hpp"
-#include "small_matrix_ops.hpp"
-#include "tensor_ops.hpp"
-#include "tensor_types.hpp"
-#include "matrix_products.hpp"
-#include "tensor_products.hpp"
-#include "finite_elements_h1.hpp"
-#include "integration_rules.hpp"
-#include "shape_evaluators.hpp"
-#include "vector_layouts.hpp"
-#include "fespace_h1.hpp"
-#include "fespace_l2.hpp"
-#include "mesh.hpp"
-#include "mass_kernel.hpp"
-#include "diffusion_kernel.hpp"
-
-#include "mfem.hpp"
+#include "mfem-performance.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -224,8 +207,8 @@ void Test(int mesh_size, std::ostream &out = std::cout)
    template Integrator<coeff_t>::type integ_type;
    integ_type t_integ(coeff);
 
-   typedef TBilinearForm<mesh_t,sol_fes_t,ScalarLayout,int_rule_t,
-           integ_type,complex_t,real_t>
+   typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,
+           integ_type,ScalarLayout,complex_t,real_t>
            operator_type;
    operator_type templ_oper(t_integ, fes);
    int size = templ_oper.Height();

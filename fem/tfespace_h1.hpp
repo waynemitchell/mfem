@@ -12,11 +12,11 @@
 #ifndef MFEM_TEMPLATE_FESPACE_H1
 #define MFEM_TEMPLATE_FESPACE_H1
 
-#include "config.hpp"
-#include "assign_ops.hpp"
-#include "tensor_types.hpp"
-#include "finite_elements_h1.hpp"
-#include "fem/fespace.hpp"
+#include "config/tconfig.hpp"
+#include "linalg/tassign_ops.hpp"
+#include "linalg/ttensor_types.hpp"
+#include "tfinite_elements_h1.hpp"
+#include "fespace.hpp"
 
 namespace mfem
 {

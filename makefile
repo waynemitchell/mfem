@@ -265,6 +265,7 @@ all: lib
 	$(MAKE) -C miniapps/common
 	$(MAKE) -C miniapps/meshing
 	$(MAKE) -C miniapps/electromagnetics
+	$(MAKE) -C miniapps/performance
 
 -include deps.mk
 
@@ -298,6 +299,7 @@ clean:
 	$(MAKE) -C miniapps/common clean
 	$(MAKE) -C miniapps/meshing clean
 	$(MAKE) -C miniapps/electromagnetics clean
+	$(MAKE) -C miniapps/performance clean
 
 distclean: clean
 	rm -rf mfem/

@@ -12,10 +12,10 @@
 #ifndef MFEM_TEMPLATE_TENSOR_PRODUCTS
 #define MFEM_TEMPLATE_TENSOR_PRODUCTS
 
-#include "config.hpp"
-#include "tensor_ops.hpp"
-#include "matrix_products.hpp"
-#include "tensor_types.hpp"
+#include "config/tconfig.hpp"
+#include "ttensor_ops.hpp"
+#include "tmatrix_products.hpp"
+#include "ttensor_types.hpp"
 
 namespace mfem
 {

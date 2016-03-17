@@ -12,10 +12,10 @@
 #ifndef MFEM_TEMPLATE_MASS_KERNEL
 #define MFEM_TEMPLATE_MASS_KERNEL
 
-#include "config.hpp"
-#include "integrator.hpp"
-#include "coefficient.hpp"
-#include "bilinearform.hpp"
+#include "config/tconfig.hpp"
+#include "tintegrator.hpp"
+#include "tcoefficient.hpp"
+#include "tbilinearform.hpp"
 
 namespace mfem
 {

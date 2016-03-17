@@ -12,7 +12,7 @@
 #ifndef MFEM_TEMPLATE_MATRIX_PRODUCTS
 #define MFEM_TEMPLATE_MATRIX_PRODUCTS
 
-#include "config.hpp"
+#include "config/tconfig.hpp"
 
 namespace mfem
 {

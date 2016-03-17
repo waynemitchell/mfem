@@ -12,23 +12,24 @@
 #ifndef MFEM_TEMPLATE_BILINEAR_FORM
 #define MFEM_TEMPLATE_BILINEAR_FORM
 
-#include "config.hpp"
-#include "tensor_types.hpp"
-#include "shape_evaluators.hpp"
-#include "eltrans.hpp"
-#include "coefficient.hpp"
-#include "field_evaluator.hpp"
-#include "vector_layouts.hpp"
-#include "fem/fespace.hpp"
+#include "config/tconfig.hpp"
+#include "linalg/ttensor_types.hpp"
+#include "tshape_evaluators.hpp"
+#include "teltrans.hpp"
+#include "tcoefficient.hpp"
+#include "tfield_evaluator.hpp"
+#include "linalg/tvector_layouts.hpp"
+#include "fespace.hpp"
 
 namespace mfem
 {
 
 // complex_t - sol dof data type
 // real_t - mesh nodes, sol basis, mesh basis data type
-template <typename meshType, typename solFESpace, typename solVecLayout_t,
+template <typename meshType, typename solFESpace,
           typename IR, typename IntegratorType,
-          typename complex_t, typename real_t>
+          typename solVecLayout_t = ScalarLayout,
+          typename complex_t = double, typename real_t = double>
 class TBilinearForm : public Operator
 {
 protected:
@@ -405,6 +406,60 @@ public:
 
          complex_t *M_data = M.GetData(el);
          M_loc.template AssignTo<AssignOp::Set>(M_data);
+      }
+   }
+
+   // Assemble element matrices and add them to the bilinear form
+   // complex_t = double
+   void AssembleBilinearForm(BilinearForm &a) const
+   {
+      const int BE = 1; // batch-size of elements
+      typedef typename kernel_t::template
+      CoefficientEval<IR,coeff_t,BE>::Type coeff_eval_t;
+
+      Trans_t T(mesh, meshEval);
+      solShapeEval solEval(this->solEval);
+      coeff_eval_t wQ(int_rule, coeff);
+
+      Array<int> vdofs;
+      const Array<int> *dof_map = sol_fe.GetDofMap();
+      const int *dof_map_ = dof_map->GetData();
+      DenseMatrix M_loc_perm(dofs,dofs);
+
+      const int NE = mesh.GetNE();
+      for (int el = 0; el < NE; el++)
+      {
+         f_assembled_t asm_qpt_data;
+         {
+            typename T_result<BE>::Type F;
+            T.Eval(el, F);
+
+            typename coeff_eval_t::result_t res;
+            wQ.Eval(F, res);
+
+            kernel_t::Assemble(0, F, wQ, res, asm_qpt_data);
+         }
+
+         TMatrix<dofs,dofs> M_loc;
+         S_spec<BE>::ElementMatrix::Compute(
+            asm_qpt_data.layout, asm_qpt_data, M_loc.layout, M_loc, solEval);
+
+         if (dof_map) // switch from tensor-product ordering
+         {
+            for (int i = 0; i < dofs; i++)
+            {
+               for (int j = 0; j < dofs; j++)
+               {
+                  M_loc_perm(dof_map_[i],dof_map_[j]) = M_loc(i,j);
+               }
+            }
+            a.AssembleElementMatrix(el, M_loc_perm, vdofs);
+         }
+         else
+         {
+            a.AssembleElementMatrix(
+               el, DenseMatrix(M_loc.data,dofs,dofs), vdofs);
+         }
       }
    }
 

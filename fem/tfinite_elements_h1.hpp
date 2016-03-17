@@ -12,8 +12,8 @@
 #ifndef MFEM_TEMPLATE_FINITE_ELEMENTS_H1
 #define MFEM_TEMPLATE_FINITE_ELEMENTS_H1
 
-#include "config.hpp"
-#include "fem/fe_coll.hpp"
+#include "config/tconfig.hpp"
+#include "fe_coll.hpp"
 
 namespace mfem
 {

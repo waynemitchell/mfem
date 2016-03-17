@@ -12,15 +12,17 @@
 #ifndef MFEM_TEMPLATE_MESH
 #define MFEM_TEMPLATE_MESH
 
-#include "config.hpp"
-#include "vector_layouts.hpp"
+#include "config/tconfig.hpp"
+#include "linalg/tvector_layouts.hpp"
 
 #include "mesh/mesh.hpp"
 
 namespace mfem
 {
 
-template <typename FESpace, typename nodeLayout>
+template <typename FESpace,
+          typename nodeLayout =
+          VectorLayout<Ordering::byNODES,FESpace::FE_type::dim> >
 class TMesh
 {
 public:

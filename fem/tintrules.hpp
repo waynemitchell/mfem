@@ -12,9 +12,9 @@
 #ifndef MFEM_TEMPLATE_INTEGRATION_RULES
 #define MFEM_TEMPLATE_INTEGRATION_RULES
 
-#include "config.hpp"
-#include "tensor_types.hpp"
-#include "fem/geom.hpp"
+#include "config/tconfig.hpp"
+#include "linalg/ttensor_types.hpp"
+#include "geom.hpp"
 
 namespace mfem
 {
@@ -234,7 +234,7 @@ public:
    }
 };
 
-template <Geometry::Type G, int Order, typename real_t>
+template <Geometry::Type G, int Order, typename real_t = double>
 class TIntegrationRule;
 
 template <int Order, typename real_t>

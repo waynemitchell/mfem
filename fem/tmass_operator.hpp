@@ -12,10 +12,10 @@
 #ifndef MFEM_TEMPLATE_MASS_OPERATOR
 #define MFEM_TEMPLATE_MASS_OPERATOR
 
-#include "config.hpp"
-#include "tensor_types.hpp"
-#include "shape_evaluators.hpp"
-#include "fem/fespace.hpp"
+#include "config/tconfig.hpp"
+#include "linalg/ttensor_types.hpp"
+#include "tshape_evaluators.hpp"
+#include "fespace.hpp"
 
 namespace mfem
 {

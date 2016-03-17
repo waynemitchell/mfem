@@ -12,10 +12,10 @@
 #ifndef MFEM_TEMPLATE_TENSOR_TYPES
 #define MFEM_TEMPLATE_TENSOR_TYPES
 
-#include "config.hpp"
-#include "layouts.hpp"
-#include "tensor_ops.hpp"
-#include "small_matrix_ops.hpp"
+#include "config/tconfig.hpp"
+#include "tlayouts.hpp"
+#include "ttensor_ops.hpp"
+#include "tsmall_matrix_ops.hpp"
 
 #define MFEM_ROUNDUP(val,base) ((((val)+(base)-1)/(base))*(base))
 #define MFEM_ALIGN_SIZE(size,type) \

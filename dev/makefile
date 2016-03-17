@@ -113,7 +113,7 @@ ifdef MFEM_CXX
    $(info $(shell $(MFEM_CXX) -v))
 endif
 
-TESTS_CPP = $(wildcard *test*.cpp) ex1t.cpp
+TESTS_CPP = $(wildcard *test*.cpp)
 TESTS = $(TESTS_CPP:.cpp=)
 
 

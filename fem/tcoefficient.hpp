@@ -12,12 +12,12 @@
 #ifndef MFEM_TEMPLATE_COEFFICIENT
 #define MFEM_TEMPLATE_COEFFICIENT
 
-#include "config.hpp"
-#include "tensor_ops.hpp"
-#include "tensor_types.hpp"
-#include "vector_layouts.hpp"
+#include "config/tconfig.hpp"
+#include "linalg/ttensor_ops.hpp"
+#include "linalg/ttensor_types.hpp"
+#include "linalg/tvector_layouts.hpp"
 #include "linalg/vector.hpp"
-#include "fem/gridfunc.hpp"
+#include "gridfunc.hpp"
 
 namespace mfem
 {
