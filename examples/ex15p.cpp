@@ -25,7 +25,7 @@
 //
 // Description:  Building on Example 6, this example demostrates dynamic AMR.
 //               The mesh is adapted to a time-dependent solution by refinement
-//               as well as derefinement. For simplicity, the solution is
+//               as well as by derefinement. For simplicity, the solution is
 //               prescribed and no time integration is done. However, the error
 //               estimation and refinement/derefinement decisions are realistic.
 //
@@ -33,8 +33,8 @@
 //               to mimic a time dependent problem.  Within each inner iteration
 //               the problem is solved on a sequence of meshes which are locally
 //               refined according to a simple ZZ error estimator.  At the end
-//               of the inner iteration the error estimates are used to identify
-//               any elements which may be over-refined and a single
+//               of the inner iteration the error estimates are also used to
+//               identify any elements which may be over-refined and a single
 //               derefinement step is performed.  After each refinement or
 //               derefinement step a rebalance operation is performed to keep
 //               the mesh evenly distributed among the available processors.
@@ -42,8 +42,8 @@
 //               The example demonstrates MFEM's capability to refine, derefine
 //               and load balance nonconforming meshes, in 2D and 3D, and on
 //               linear, curved and surface meshes. Interpolation of functions
-//               from coarse to fine meshes, persistent GLVis visualization, and
-//               saving of time-dependent fields for external visualization
+//               between coarse and fine meshes, persistent GLVis visualization,
+//               and saving of time-dependent fields for external visualization
 //               with VisIt (visit.llnl.gov) are also illustrated.
 //
 //               We recommend viewing Examples 1, 6 and 9 before viewing this
