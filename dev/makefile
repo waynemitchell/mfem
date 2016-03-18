@@ -90,6 +90,7 @@ endif
 ifeq ($(MFEM_CXX),clang++)
    MFEM_CXXFLAGS += -march=native
    # MFEM_CXXFLAGS += -march=sandybridge -mtune=native
+   # MFEM_CXXFLAGS += -std=c++03
    MFEM_CXXFLAGS += -std=c++11
    MFEM_CXXFLAGS += -pedantic -Wall
 

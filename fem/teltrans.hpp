@@ -120,7 +120,7 @@ public:
    }
 #endif
 
-   template <int NE> struct Result<EvalNone,NE>
+   template <int NE> struct Result<0,NE> // 0 = EvalNone
    {
       static const int ne = NE;
       // x_type x;
@@ -138,7 +138,7 @@ public:
       void EvalSerialized(int el, T_type &T, const real_t *nodeData) { }
 #endif
    };
-   template <int NE> struct Result<EvalCoordinates,NE>
+   template <int NE> struct Result<1,NE> // 1 = EvalCoordinates
    {
       static const int ne = NE;
 #ifdef MFEM_TEMPLATE_ELTRANS_RESULT_HAS_NODES
@@ -179,7 +179,7 @@ public:
       }
 #endif
    };
-   template <int NE> struct Result<EvalJacobians,NE>
+   template <int NE> struct Result<2,NE> // 2 = EvalJacobians
    {
       static const int ne = NE;
 #ifdef MFEM_TEMPLATE_ELTRANS_RESULT_HAS_NODES
@@ -220,7 +220,7 @@ public:
       }
 #endif
    };
-   template <int NE> struct Result<EvalCoordinates|EvalJacobians,NE>
+   template <int NE> struct Result<3,NE> // 3 = EvalCoordinates|EvalJacobians
    {
       static const int ne = NE;
       typedef TTensor3<qpts,sdim,NE,real_t,true> x_type;
@@ -268,7 +268,7 @@ public:
       }
 #endif
    };
-   template <int NE> struct Result<EvalJacobians|LoadAttributes,NE>
+   template <int NE> struct Result<6,NE> // 6 = EvalJacobians|LoadAttributes
    {
       static const int ne = NE;
 #ifdef MFEM_TEMPLATE_ELTRANS_RESULT_HAS_NODES
@@ -312,7 +312,7 @@ public:
       }
 #endif
    };
-   template <int NE> struct Result<EvalJacobians|LoadElementIdxs,NE>
+   template <int NE> struct Result<10,NE> // 10 = EvalJacobians|LoadElementIdxs
    {
       static const int ne = NE;
 #ifdef MFEM_TEMPLATE_ELTRANS_RESULT_HAS_NODES

@@ -215,16 +215,13 @@ public:
    // processed in the Eval() and Assemble() methods.
    template<int IOData, int NE> struct AData;
 
-   template <int NE> struct AData<None,NE>
+   template <int NE> struct AData<0,NE> // 0 = None
    {
       // Do we need this?
-      static const int ne = NE;
    };
 
-   template <int NE> struct AData<Values,NE>
+   template <int NE> struct AData<1,NE> // 1 = Values
    {
-      static const int ne = NE;
-
 #ifdef MFEM_TEMPLATE_FIELD_EVAL_DATA_HAS_DOFS
       typedef TTensor3<dofs,vdim,NE,complex_t,true> val_dofs_t;
       val_dofs_t val_dofs;
@@ -234,10 +231,8 @@ public:
       TTensor3<qpts,vdim,NE,complex_t>      val_qpts;
    };
 
-   template <int NE> struct AData<Gradients,NE>
+   template <int NE> struct AData<2,NE> // 2 = Gradients
    {
-      static const int ne = NE;
-
 #ifdef MFEM_TEMPLATE_FIELD_EVAL_DATA_HAS_DOFS
       typedef TTensor3<dofs,vdim,NE,complex_t,true> val_dofs_t;
       val_dofs_t val_dofs;
@@ -247,10 +242,8 @@ public:
       TTensor4<qpts,dim,vdim,NE,complex_t>      grad_qpts;
    };
 
-   template <int NE> struct AData<Values+Gradients,NE>
+   template <int NE> struct AData<3,NE> // 3 = Values+Gradients
    {
-      static const int ne = NE;
-
 #ifdef MFEM_TEMPLATE_FIELD_EVAL_DATA_HAS_DOFS
       typedef TTensor3<dofs,vdim,NE,complex_t,true> val_dofs_t;
       val_dofs_t val_dofs;
@@ -267,6 +260,7 @@ public:
    struct BData : public AData<IData|OData,NE>
    {
       typedef T_type eval_type;
+      static const int ne = NE;
       static const int InData = IData;
       static const int OutData = OData;
    };
@@ -276,12 +270,12 @@ public:
    // Ops is "bitwise or" of constants from the enum InOutData.
    template <int Ops, bool dummy> struct Action;
 
-   template <bool dummy> struct Action<None,dummy>
+   template <bool dummy> struct Action<0,dummy> // 0 = None
    {
       // Do we need this?
    };
 
-   template <bool dummy> struct Action<Values,dummy>
+   template <bool dummy> struct Action<1,dummy> // 1 = Values
    {
       template <typename vec_layout_t, typename AData_t>
       static inline MFEM_ALWAYS_INLINE
@@ -334,7 +328,7 @@ public:
 #endif
    };
 
-   template <bool dummy> struct Action<Gradients,dummy>
+   template <bool dummy> struct Action<2,dummy> // 2 = Gradients
    {
       template <typename vec_layout_t, typename AData_t>
       static inline MFEM_ALWAYS_INLINE
@@ -387,7 +381,7 @@ public:
 #endif
    };
 
-   template <bool dummy> struct Action<Values+Gradients,dummy>
+   template <bool dummy> struct Action<3,dummy> // 3 = Values+Gradients
    {
       template <typename vec_layout_t, typename AData_t>
       static inline MFEM_ALWAYS_INLINE
@@ -454,7 +448,7 @@ public:
    // of input (InOps) and output (OutOps) operations.
    template <int InOps, int OutOps, int NE> struct TElementMatrix;
 
-   template <int NE> struct TElementMatrix<Values,Values,NE>
+   template <int NE> struct TElementMatrix<1,1,NE> // 1,1 = Values,Values
    {
       // qpt_layout_t is (nip), M_layout_t is (dof x dof)
       // NE = 1 is assumed
@@ -469,7 +463,7 @@ public:
       }
    };
 
-   template <int NE> struct TElementMatrix<Gradients,Gradients,NE>
+   template <int NE> struct TElementMatrix<2,2,NE> // 2,2 = Gradients,Gradients
    {
       // qpt_layout_t is (nip x dim x dim), M_layout_t is (dof x dof)
       // NE = 1 is assumed

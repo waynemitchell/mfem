@@ -640,7 +640,7 @@ int main(int argc, char *argv[])
    // const int ir_order = 2*p;
    int mesh_size = 1; // 0 - small, 1 - medium, 2 - large
 
-   const int oper = 0; // 0 - mass, 1 - diffusion
+   const int oper = 1; // 0 - mass, 1 - diffusion
 
    std::srand(std::time(0));
 
