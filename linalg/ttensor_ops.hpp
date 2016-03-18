@@ -12,7 +12,7 @@
 #ifndef MFEM_TEMPLATE_TENSOR_OPS
 #define MFEM_TEMPLATE_TENSOR_OPS
 
-#include "config/tconfig.hpp"
+#include "../config/tconfig.hpp"
 #include "tassign_ops.hpp"
 
 namespace mfem

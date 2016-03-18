@@ -12,9 +12,9 @@
 #ifndef MFEM_TEMPLATE_FESPACE_L2
 #define MFEM_TEMPLATE_FESPACE_L2
 
-#include "config/tconfig.hpp"
-#include "linalg/tassign_ops.hpp"
-#include "linalg/ttensor_types.hpp"
+#include "../config/tconfig.hpp"
+#include "../linalg/tassign_ops.hpp"
+#include "../linalg/ttensor_types.hpp"
 #include "fespace.hpp"
 
 namespace mfem

@@ -12,7 +12,7 @@
 #ifndef MFEM_TEMPLATE_TENSOR_PRODUCTS
 #define MFEM_TEMPLATE_TENSOR_PRODUCTS
 
-#include "config/tconfig.hpp"
+#include "../config/tconfig.hpp"
 #include "ttensor_ops.hpp"
 #include "tmatrix_products.hpp"
 #include "ttensor_types.hpp"

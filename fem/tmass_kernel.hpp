@@ -12,7 +12,7 @@
 #ifndef MFEM_TEMPLATE_MASS_KERNEL
 #define MFEM_TEMPLATE_MASS_KERNEL
 
-#include "config/tconfig.hpp"
+#include "../config/tconfig.hpp"
 #include "tintegrator.hpp"
 #include "tcoefficient.hpp"
 #include "tbilinearform.hpp"
@@ -65,8 +65,9 @@ struct TMassKernel
                const Q_t &Q, const q_t &q, S_data_t &R)
    {
       typedef typename T_result_t::Jt_type::data_type real_t;
-      const int M = R.val_qpts.layout.dim_1;
-      MFEM_STATIC_ASSERT(F.Jt.layout.dim_1 == M, "incompatible dimensions");
+      const int M = S_data_t::eval_type::qpts;
+      MFEM_STATIC_ASSERT(T_result_t::Jt_type::layout_type::dim_1 == M,
+                         "incompatible dimensions");
       MFEM_FLOPS_ADD(2*M);
       for (int i = 0; i < M; i++)
       {
@@ -88,7 +89,8 @@ struct TMassKernel
                  const Q_t &Q, const q_t &q, TVector<qpts,complex_t> &A)
    {
       typedef typename T_result_t::Jt_type::data_type real_t;
-      const int M = F.Jt.layout.dim_1;
+
+      const int M = T_result_t::Jt_type::layout_type::dim_1;
       MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
       MFEM_FLOPS_ADD(M);
       for (int i = 0; i < M; i++)
@@ -106,8 +108,8 @@ struct TMassKernel
    static inline MFEM_ALWAYS_INLINE
    void MultAssembled(const int k, const TVector<qpts,complex_t> &A, S_data_t &R)
    {
-      const int M = R.val_qpts.layout.dim_1;
-      MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
+      const int M = S_data_t::eval_type::qpts;
+      MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");      
       MFEM_FLOPS_ADD(M);
       for (int i = 0; i < M; i++)
       {

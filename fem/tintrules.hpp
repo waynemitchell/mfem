@@ -12,8 +12,8 @@
 #ifndef MFEM_TEMPLATE_INTEGRATION_RULES
 #define MFEM_TEMPLATE_INTEGRATION_RULES
 
-#include "config/tconfig.hpp"
-#include "linalg/ttensor_types.hpp"
+#include "../config/tconfig.hpp"
+#include "../linalg/ttensor_types.hpp"
 #include "geom.hpp"
 
 namespace mfem

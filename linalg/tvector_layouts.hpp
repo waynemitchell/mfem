@@ -12,8 +12,8 @@
 #ifndef MFEM_TEMPLATE_VECTOR_LAYOUTS
 #define MFEM_TEMPLATE_VECTOR_LAYOUTS
 
-#include "config/tconfig.hpp"
-#include "fem/fespace.hpp"
+#include "../config/tconfig.hpp"
+#include "../fem/fespace.hpp"
 
 namespace mfem
 {

@@ -12,10 +12,10 @@
 #ifndef MFEM_TEMPLATE_MESH
 #define MFEM_TEMPLATE_MESH
 
-#include "config/tconfig.hpp"
-#include "linalg/tvector_layouts.hpp"
+#include "../config/tconfig.hpp"
+#include "../linalg/tvector_layouts.hpp"
 
-#include "mesh/mesh.hpp"
+#include "mesh.hpp"
 
 namespace mfem
 {

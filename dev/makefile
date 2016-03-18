@@ -29,8 +29,7 @@ endif
 # MFEM_CXXFLAGS = -O5 -qnounwind -qstrict
 # MFEM_CXXFLAGS += -qsuppress=1540-1088:1540-1090:1540-1101
 
-ifeq ($(MFEM_CXX),g++)
-# ifeq ($(MFEM_CXX),mpicxx)
+ifneq (,$(findstring $(MFEM_CXX),g++ mpicxx))
    MFEM_CXXFLAGS += -march=native
    # MFEM_CXXFLAGS += -march=sandybridge -mtune=native
    # MFEM_CXXFLAGS += -fno-exceptions
@@ -83,6 +82,9 @@ ifeq ($(MFEM_CXX),g++)
    MFEM_CXXFLAGS += -fdump-tree-optimized-blocks
    # MFEM_CXXFLAGS += -fdump-tree-vect-details
    # MFEM_CXXFLAGS += -fdump-passes
+   $(info ----------)
+   $(info using gnu g++ options: $(MFEM_CXXFLAGS))
+   $(info ----------)
 endif
 
 ifeq ($(MFEM_CXX),clang++)
@@ -102,6 +104,9 @@ ifeq ($(MFEM_CXX),clang++)
    # MFEM_CXXFLAGS += -Rpass=.*
    # MFEM_CXXFLAGS += -Rpass=inline
    # MFEM_CXXFLAGS += -Rpass=loop-unroll
+   $(info ----------)
+   $(info using clang++ options: $(MFEM_CXXFLAGS))
+   $(info ----------)
 endif
 
 ifeq ($(COUNT_FLOPS),YES)

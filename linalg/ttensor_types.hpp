@@ -12,7 +12,7 @@
 #ifndef MFEM_TEMPLATE_TENSOR_TYPES
 #define MFEM_TEMPLATE_TENSOR_TYPES
 
-#include "config/tconfig.hpp"
+#include "../config/tconfig.hpp"
 #include "tlayouts.hpp"
 #include "ttensor_ops.hpp"
 #include "tsmall_matrix_ops.hpp"

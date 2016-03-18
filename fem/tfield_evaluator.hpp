@@ -266,6 +266,7 @@ public:
    template <int IData, int OData, int NE>
    struct BData : public AData<IData|OData,NE>
    {
+      typedef T_type eval_type;
       static const int InData = IData;
       static const int OutData = OData;
    };

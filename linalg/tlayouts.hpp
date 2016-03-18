@@ -12,7 +12,7 @@
 #ifndef MFEM_TEMPLATE_LAYOUTS
 #define MFEM_TEMPLATE_LAYOUTS
 
-#include "config/tconfig.hpp"
+#include "../config/tconfig.hpp"
 
 namespace mfem
 {

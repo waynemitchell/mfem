@@ -12,7 +12,7 @@
 #ifndef MFEM_TEMPLATE_ASSIGN_OPS
 #define MFEM_TEMPLATE_ASSIGN_OPS
 
-#include "config/tconfig.hpp"
+#include "../config/tconfig.hpp"
 
 namespace mfem
 {

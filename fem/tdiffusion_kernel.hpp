@@ -12,7 +12,7 @@
 #ifndef MFEM_TEMPLATE_DIFFUSION_KERNEL
 #define MFEM_TEMPLATE_DIFFUSION_KERNEL
 
-#include "config/tconfig.hpp"
+#include "../config/tconfig.hpp"
 #include "tintegrator.hpp"
 #include "tcoefficient.hpp"
 #include "tbilinearform.hpp"
@@ -68,8 +68,9 @@ struct TDiffusionKernel<1,1,complex_t>
    void Action(const int k, const T_result_t &F,
                const Q_t &Q, const q_t &q, S_data_t &R)
    {
-      const int M = R.grad_qpts.layout.dim_1;
-      MFEM_STATIC_ASSERT(F.Jt.layout.dim_1 == M, "incompatible dimensions");
+      const int M = S_data_t::eval_type::qpts;
+      MFEM_STATIC_ASSERT(T_result_t::Jt_type::layout_type::dim_1 == M,
+                         "incompatible dimensions");
       MFEM_FLOPS_ADD(2*M);
       for (int i = 0; i < M; i++)
       {
@@ -93,8 +94,9 @@ struct TDiffusionKernel<1,1,complex_t>
    void Assemble(const int k, const T_result_t &F,
                  const Q_t &Q, const q_t &q, asm_type &A)
    {
-      const int M = F.Jt.layout.dim_1;
-      MFEM_STATIC_ASSERT(A.layout.dim_1 == M, "incompatible dimensions");
+      const int M = T_result_t::Jt_type::layout_type::dim_1;
+      MFEM_STATIC_ASSERT(asm_type::layout_type::dim_1 == M,
+                         "incompatible dimensions");
       MFEM_FLOPS_ADD(M);
       for (int i = 0; i < M; i++)
       {
@@ -114,7 +116,7 @@ struct TDiffusionKernel<1,1,complex_t>
    void MultAssembled(const int k, const TMatrix<qpts,1,complex_t> &A,
                       S_data_t &R)
    {
-      const int M = R.grad_qpts.layout.dim_1;
+      const int M = S_data_t::eval_type::qpts;
       MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
       MFEM_FLOPS_ADD(M);
       for (int i = 0; i < M; i++)
@@ -169,8 +171,9 @@ struct TDiffusionKernel<2,2,complex_t>
    void Action(const int k, const T_result_t &F,
                const Q_t &Q, const q_t &q, S_data_t &R)
    {
-      const int M = R.grad_qpts.layout.dim_1;
-      MFEM_STATIC_ASSERT(F.Jt.layout.dim_1 == M, "incompatible dimensions");
+      const int M = S_data_t::eval_type::qpts;
+      MFEM_STATIC_ASSERT(T_result_t::Jt_type::layout_type::dim_1 == M,
+                         "incompatible dimensions");
       MFEM_FLOPS_ADD(18*M);
       for (int i = 0; i < M; i++)
       {
@@ -207,8 +210,9 @@ struct TDiffusionKernel<2,2,complex_t>
                  const Q_t &Q, const q_t &q, asm_type &A)
    {
       typedef typename T_result_t::Jt_type::data_type real_t;
-      const int M = F.Jt.layout.dim_1;
-      MFEM_STATIC_ASSERT(A.layout.dim_1 == M, "incompatible dimensions");
+      const int M = T_result_t::Jt_type::layout_type::dim_1;
+      MFEM_STATIC_ASSERT(asm_type::layout_type::dim_1 == M,
+                         "incompatible dimensions");
       MFEM_FLOPS_ADD(16*M);
       const bool Symm = (asm_type::layout_type::rank == 2);
       for (int i = 0; i < M; i++)
@@ -238,7 +242,7 @@ struct TDiffusionKernel<2,2,complex_t>
    void MultAssembled(const int k, const TMatrix<qpts,3,complex_t> &A,
                       S_data_t &R)
    {
-      const int M = R.grad_qpts.layout.dim_1;
+      const int M = S_data_t::eval_type::qpts;
       MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
       MFEM_FLOPS_ADD(6*M);
       for (int i = 0; i < M; i++)
@@ -297,8 +301,9 @@ struct TDiffusionKernel<3,3,complex_t>
    void Action(const int k, const T_result_t &F,
                const Q_t &Q, const q_t &q, S_data_t &R)
    {
-      const int M = R.grad_qpts.layout.dim_1;
-      MFEM_STATIC_ASSERT(F.Jt.layout.dim_1 == M, "incompatible dimensions");
+      const int M = S_data_t::eval_type::qpts;
+      MFEM_STATIC_ASSERT(T_result_t::Jt_type::layout_type::dim_1 == M,
+                         "incompatible dimensions");
       MFEM_FLOPS_ADD(M);
       for (int i = 0; i < M; i++)
       {
@@ -336,8 +341,9 @@ struct TDiffusionKernel<3,3,complex_t>
                  const Q_t &Q, const q_t &q, asm_type &A)
    {
       typedef typename T_result_t::Jt_type::data_type real_t;
-      const int M = F.Jt.layout.dim_1;
-      MFEM_STATIC_ASSERT(A.layout.dim_1 == M, "incompatible dimensions");
+      const int M = T_result_t::Jt_type::layout_type::dim_1;
+      MFEM_STATIC_ASSERT(asm_type::layout_type::dim_1 == M,
+                         "incompatible dimensions");
       MFEM_FLOPS_ADD(37*M);
       const bool Symm = (asm_type::layout_type::rank == 2);
       for (int i = 0; i < M; i++)
@@ -370,7 +376,7 @@ struct TDiffusionKernel<3,3,complex_t>
    void MultAssembled(const int k, const TMatrix<qpts,6,complex_t> &A,
                       S_data_t &R)
    {
-      const int M = R.grad_qpts.layout.dim_1;
+      const int M = S_data_t::eval_type::qpts;
       MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
       MFEM_FLOPS_ADD(15*M);
       for (int i = 0; i < M; i++)

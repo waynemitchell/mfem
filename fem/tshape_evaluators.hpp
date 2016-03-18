@@ -12,9 +12,9 @@
 #ifndef MFEM_TEMPLATE_SHAPE_EVALUATORS
 #define MFEM_TEMPLATE_SHAPE_EVALUATORS
 
-#include "config/tconfig.hpp"
-#include "linalg/ttensor_types.hpp"
-#include "linalg/ttensor_products.hpp"
+#include "../config/tconfig.hpp"
+#include "../linalg/ttensor_types.hpp"
+#include "../linalg/ttensor_products.hpp"
 
 namespace mfem
 {
