@@ -766,8 +766,9 @@ public:
    void DegreeElevate(int t);
 
    /** Make sure that a quad/hex mesh is considered to be non-conforming (i.e.,
-       has an associated NCMesh object). */
-   void EnsureNCMesh();
+       has an associated NCMesh object). Triangles meshes can be both conforming
+       (default) or non-conforming. */
+   void EnsureNCMesh(bool triangles_nonconforming = false);
 
    bool Conforming() const { return ncmesh == NULL; }
    bool Nonconforming() const { return ncmesh != NULL; }

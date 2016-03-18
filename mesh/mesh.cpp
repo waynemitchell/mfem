@@ -6802,9 +6802,10 @@ void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
    GeneralRefinement(refinements, nonconforming, nc_limit);
 }
 
-void Mesh::EnsureNCMesh()
+void Mesh::EnsureNCMesh(bool triangles_nonconforming)
 {
-   if (meshgen & 2)
+   if ((meshgen & 2) ||
+       (triangles_nonconforming && BaseGeom == Geometry::TRIANGLE))
    {
       Array<Refinement> empty;
       GeneralRefinement(empty, 1);
