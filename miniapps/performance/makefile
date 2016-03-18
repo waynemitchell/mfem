@@ -20,6 +20,39 @@ ifneq (clean,$(MAKECMDGOALS))
    -include $(CONFIG_MK)
 endif
 
+# Compiler specific optimizations.
+# For best performance, GCC 5 (or newer) is recommended.
+ifneq (,$(findstring $(MFEM_CXX),g++ mpicxx))
+   MFEM_CXXFLAGS += -march=native
+   # MFEM_CXXFLAGS += -std=c++03
+   MFEM_CXXFLAGS += -std=c++11
+   MFEM_CXXFLAGS += -pedantic -Wall
+
+   MFEM_CXXFLAGS += --param max-completely-peel-times=3
+   # MFEM_CXXFLAGS += -fdump-tree-optimized-blocks
+
+   $(info ----------)
+   $(info using gnu g++ options: $(MFEM_CXXFLAGS))
+   $(info ----------)
+endif
+
+ifeq ($(MFEM_CXX),clang++)
+   MFEM_CXXFLAGS += -march=native
+   # MFEM_CXXFLAGS += -std=c++03
+   MFEM_CXXFLAGS += -std=c++11
+   MFEM_CXXFLAGS += -pedantic -Wall
+
+   MFEM_CXXFLAGS += -fcolor-diagnostics
+   MFEM_CXXFLAGS += -fvectorize
+   MFEM_CXXFLAGS += -fslp-vectorize
+   MFEM_CXXFLAGS += -fslp-vectorize-aggressive
+   MFEM_CXXFLAGS += -ffp-contract=fast
+
+   $(info ----------)
+   $(info using clang++ options: $(MFEM_CXXFLAGS))
+   $(info ----------)
+endif
+
 SEQ_MINIAPPS = ex1
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
