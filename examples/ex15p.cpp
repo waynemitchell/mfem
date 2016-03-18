@@ -26,27 +26,24 @@
 // Description:  Building on Example 6, this example demostrates dynamic AMR.
 //               The mesh is adapted to a time-dependent solution by refinement
 //               as well as derefinement. For simplicity, the solution is
-//               prescribed and no time intergration is done. However, the error
-//               estimation and refinement/derefinement decisions can be
-//               used in real time-dependent problems.
+//               prescribed and no time integration is done. However, the error
+//               estimation and refinement/derefinement decisions are realistic.
 //
 //               At each outer iteration the right hand side function is changed
 //               to mimic a time dependent problem.  Within each inner iteration
 //               the problem is solved on a sequence of meshes which are locally
-//               refined in a conforming (triangles, tetrahedrons) or
-//               non-conforming (quadrilateral, hexahedrons) manner according to
-//               a simple ZZ error estimator.  At the end of the inner iteration
-//               the error estimates are used to identify any elements which
-//               may be over-refined and a single derefinement step is
-//               performed.  After each refinement or derefinement step a
-//               rebalance operation is performed to keep the mesh evenly
-//               distributed among the available processors.
+//               refined according to a simple ZZ error estimator.  At the end
+//               of the inner iteration the error estimates are used to identify
+//               any elements which may be over-refined and a single
+//               derefinement step is performed.  After each refinement or
+//               derefinement step a rebalance operation is performed to keep
+//               the mesh evenly distributed among the available processors.
 //
-//               The example demonstrates MFEM's capability to work with both
-//               conforming and nonconforming refinements, in 2D and 3D, on
+//               The example demonstrates MFEM's capability to refine, derefine
+//               and load balance nonconforming meshes, in 2D and 3D, and on
 //               linear, curved and surface meshes. Interpolation of functions
 //               from coarse to fine meshes, persistent GLVis visualization, and
-//               the saving of time-dependent fields for external visualization
+//               saving of time-dependent fields for external visualization
 //               with VisIt (visit.llnl.gov) are also illustrated.
 //
 //               We recommend viewing Examples 1, 6 and 9 before viewing this
@@ -153,7 +150,7 @@ int main(int argc, char *argv[])
    int sdim = mesh->SpaceDimension();
 
    // 4. Project a NURBS mesh to a piecewise-quadratic curved mesh. Make sure
-   //    that the mesh is non-conforming.
+   //    that the mesh is non-conforming if it has quads or hexes.
    if (mesh->NURBSext)
    {
       mesh->UniformRefinement();
@@ -178,7 +175,7 @@ int main(int argc, char *argv[])
 
    // 7. As in Example 1p, we set up bilinear and linear forms corresponding to
    //    the Laplace problem -\Delta u = 1. We don't assemble the discrete
-   //    problem yet, this will be done in the main loop.
+   //    problem yet, this will be done in the inner loop.
    ParBilinearForm a(&fespace);
    ParLinearForm b(&fespace);
 
