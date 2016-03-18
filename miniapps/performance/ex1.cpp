@@ -117,31 +117,22 @@ int main(int argc, char *argv[])
    {
       cout << "High-performance version using integration rule with "
            << int_rule_t::qpts << " points ..." << endl;
-      if (mesh_t::MatchesGeometry(*mesh))
-      {
-         if (!mesh_t::MatchesNodes(*mesh))
-         {
-            cout << "Switching the mesh curvature to match the optimized values: ";
-            const char *mesh_fec_name = "(none)";
-            if (mesh->GetNodes())
-            {
-               mesh_fec_name = mesh->GetNodes()->FESpace()->FEColl()->Name();
-            }
-            cout << '\'' << mesh_fec_name << "' --> " << flush;
-            H1_FECollection *new_mesh_fec = new H1_FECollection(mesh_p, dim);
-            FiniteElementSpace *new_mesh_fes =
-               new FiniteElementSpace(mesh, new_mesh_fec, dim);
-            mesh->SetNodalFESpace(new_mesh_fes);
-            mesh->GetNodes()->MakeOwner(new_mesh_fec);
-            cout << '\'' << new_mesh_fec->Name() << '\'' << endl;
-         }
-      }
-      else
+      if (!mesh_t::MatchesGeometry(*mesh))
       {
          cout << "The given mesh does not match the optimized 'geom' parameter.\n"
               << "Recompile with suitable 'geom' value." << endl;
          delete mesh;
          return 3;
+      }
+      else if (!mesh_t::MatchesNodes(*mesh))
+      {
+         cout << "Switching the mesh curvature to match the "
+              << "optimized value (order " << mesh_p << ") ..." << endl;
+         H1_FECollection *new_mesh_fec = new H1_FECollection(mesh_p, dim);
+         FiniteElementSpace *new_mesh_fes =
+            new FiniteElementSpace(mesh, new_mesh_fec, dim);
+         mesh->SetNodalFESpace(new_mesh_fes);
+         mesh->GetNodes()->MakeOwner(new_mesh_fec);
       }
    }
 

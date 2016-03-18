@@ -24,7 +24,7 @@ SEQ_MINIAPPS = ex1
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
-   MINIAPPS = $(SEQ_MINIAPPS)
+   MINIAPPS = $(SEQ_MINIAPPS) ex1p
 endif
 
 .PHONY: all clean style
