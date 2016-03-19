@@ -1338,6 +1338,7 @@ H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
 
 L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
 {
+   m_type = (BasisType)type;
    if (type == 0)
    {
       snprintf(d_name, 32, "L2_%dD_P%d", dim, p);

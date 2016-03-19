@@ -20,6 +20,7 @@
 #include "linalg/tvector_layouts.hpp"
 #include "mesh/tmesh.hpp"
 #include "fem/tfinite_elements_h1.hpp"
+#include "fem/tfinite_elements_l2.hpp"
 #include "fem/tintrules.hpp"
 #include "fem/tshape_evaluators.hpp"
 #include "fem/tfespace_h1.hpp"

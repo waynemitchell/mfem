@@ -173,6 +173,21 @@ public:
    {
       VectorAssemble<AssignOp::Add>(vdof_layout, vdof_data, vl, glob_vdof_data);
    }
+
+   void Assemble(const TMatrix<FE::dofs,FE::dofs,double> &m,
+                 SparseMatrix &M) const
+   {
+      MFEM_FLOPS_ADD(FE::dofs*FE::dofs);
+      for (int i = 0; i < FE::dofs; i++)
+      {
+         M.SetColPtr(offset + i);
+         for (int j = 0; j < FE::dofs; j++)
+         {
+            M._Add_(offset + j, m(i,j));
+         }
+         M.ClearColPtr();
+      }
+   }
 };
 
 } // namespace mfem

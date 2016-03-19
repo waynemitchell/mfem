@@ -106,7 +106,16 @@ public:
 /// Arbitrary order "L2-conforming" discontinuous finite elements.
 class L2_FECollection : public FiniteElementCollection
 {
+public:
+   enum BasisType
+   {
+      GaussLegendre = 0, // Nodal basis, with nodes at the Gauss-Legendre points
+      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
+      Positive      = 2  // Positive basis, Bernstein polynomials
+   };
+
 private:
+   BasisType m_type;
    char d_name[32];
    FiniteElement *L2_Elements[Geometry::NumGeom];
    FiniteElement *Tr_Elements[Geometry::NumGeom];
@@ -114,7 +123,7 @@ private:
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:
-   L2_FECollection(const int p, const int dim, const int type = 0);
+   L2_FECollection(const int p, const int dim, const int type = GaussLegendre);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return L2_Elements[GeomType]; }
@@ -134,6 +143,8 @@ public:
    {
       return Tr_Elements[GeomType];
    }
+
+   BasisType GetBasisType() const { return m_type; }
 
    virtual ~L2_FECollection();
 };

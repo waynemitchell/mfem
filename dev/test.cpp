@@ -19,6 +19,7 @@ using namespace mfem;
 
 typedef double real_t;
 typedef double complex_t;
+// #define H1_SOL_SPACE
 
 template<int oper_type>
 struct TOperator;
@@ -40,13 +41,30 @@ void Test(int mesh_size, std::ostream &out = std::cout)
 {
    out << "-----------------------------------------------\n"
        << "GEOMETRY   = " << Geometry::Name[GEOM] << "\n"
+#ifdef H1_SOL_SPACE
+       << "SOL_SPACE  = H1\n"
+#else
+       << "SOL_SPACE  = L2\n"
+#endif
        << "ORDER      = " << P << "\n"
        << "IR_ORDER   = " << IR_ORDER << "\n"
        << "MESH_ORDER = " << MESH_ORDER << "\n"
        << "OPERATOR   = " << TOperator<OPER>::Name << "\n"
        << "-----------------------------------------------"
        << std::endl;
+
+#ifdef H1_SOL_SPACE
    typedef H1_FiniteElement<GEOM, P> sol_fe_t;
+   H1_FECollection::BasisType sol_basis_type;
+   sol_basis_type = H1_FECollection::GaussLobatto;
+   // sol_basis_type = H1_FECollection::Positive;
+#else
+   typedef L2_FiniteElement<GEOM, P> sol_fe_t;
+   L2_FECollection::BasisType sol_basis_type;
+   sol_basis_type = L2_FECollection::GaussLegendre;
+   // sol_basis_type = L2_FECollection::GaussLobatto;
+   // sol_basis_type = L2_FECollection::Positive;
+#endif
 
    typedef TIntegrationRule<GEOM, IR_ORDER, real_t> int_rule_1;
    // typedef GenericIntegrationRule<GEOM, int_rule_1::qpts, IR_ORDER,
@@ -55,10 +73,7 @@ void Test(int mesh_size, std::ostream &out = std::cout)
    typedef int_rule_1 int_rule_t;
    // typedef int_rule_2 int_rule_t;
 
-   H1_FECollection::BasisType basis_type;
-   basis_type = H1_FECollection::GaussLobatto;
-   // basis_type = H1_FECollection::Positive;
-   sol_fe_t fe(basis_type);
+   sol_fe_t fe(sol_basis_type);
 
    int nx = 1, ny = 1, nz = 1;
    switch (sol_fe_t::dim)
@@ -112,10 +127,13 @@ void Test(int mesh_size, std::ostream &out = std::cout)
    }
 
    const int mesh_order = MESH_ORDER;
-   H1_FECollection mesh_fec(mesh_order, sol_fe_t::dim, basis_type);
-   FiniteElementSpace mesh_fes(mesh, &mesh_fec, sol_fe_t::dim);
-   mesh->SetNodalFESpace(&mesh_fes);
    typedef H1_FiniteElement<GEOM, mesh_order> mesh_fe_t;
+   H1_FECollection::BasisType mesh_basis_type;
+   mesh_basis_type = H1_FECollection::GaussLobatto;
+   // mesh_basis_type = H1_FECollection::Positive;
+   H1_FECollection mesh_fec(mesh_order, mesh_fe_t::dim, mesh_basis_type);
+   FiniteElementSpace mesh_fes(mesh, &mesh_fec, mesh_fe_t::dim);
+   mesh->SetNodalFESpace(&mesh_fes);
 
 #if 1
    // Perturb the mesh nodes to transform the structured elements into more
@@ -161,7 +179,11 @@ void Test(int mesh_size, std::ostream &out = std::cout)
        << std::endl;
    out << "Size of mesh el_dof J    = " << mesh_fe_t::dofs*mesh->GetNE()
        << "(" << sizeof(int)/MiB*mesh_fe_t::dofs*mesh->GetNE() << " MiB)\n";
-   H1_FECollection fec(P, sol_fe_t::dim, basis_type);
+#ifdef H1_SOL_SPACE
+   H1_FECollection fec(P, sol_fe_t::dim, sol_basis_type);
+#else
+   L2_FECollection fec(P, sol_fe_t::dim, sol_basis_type);
+#endif
    FiniteElementSpace fes(mesh, &fec);
    out << "Number of solution dofs  = " << fes.GetNDofs()
        << " total (" << sizeof(double)/MiB*fes.GetNDofs() << " MiB)"
@@ -174,7 +196,11 @@ void Test(int mesh_size, std::ostream &out = std::cout)
        << std::endl;
    GridFunction x(&fes);
 
+#ifdef H1_SOL_SPACE
    typedef H1_FiniteElementSpace<sol_fe_t> sol_fes_t;
+#else
+   typedef L2_FiniteElementSpace<sol_fe_t> sol_fes_t;
+#endif
 
    typedef H1_FiniteElementSpace<mesh_fe_t> mesh_fes_t;
    typedef VectorLayout<Ordering::byNODES, mesh_fe_t::dim> node_layout_t;
@@ -640,7 +666,7 @@ int main(int argc, char *argv[])
    // const int ir_order = 2*p;
    int mesh_size = 1; // 0 - small, 1 - medium, 2 - large
 
-   const int oper = 1; // 0 - mass, 1 - diffusion
+   const int oper = 0; // 0 - mass, 1 - diffusion
 
    std::srand(std::time(0));
 
