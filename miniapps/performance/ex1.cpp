@@ -49,7 +49,8 @@ using namespace mfem;
 const Geometry::Type geom     = Geometry::CUBE;
 const int            mesh_p   = 3;
 const int            sol_p    = 3;
-const int            ir_order = 8;
+const int            rdim     = Geometry::Constants<geom>::Dimension;
+const int            ir_order = 2*sol_p+rdim-1;
 
 // Static mesh
 typedef H1_FiniteElement<geom,mesh_p>         mesh_fe_t;
@@ -128,11 +129,7 @@ int main(int argc, char *argv[])
       {
          cout << "Switching the mesh curvature to match the "
               << "optimized value (order " << mesh_p << ") ..." << endl;
-         H1_FECollection *new_mesh_fec = new H1_FECollection(mesh_p, dim);
-         FiniteElementSpace *new_mesh_fes =
-            new FiniteElementSpace(mesh, new_mesh_fec, dim);
-         mesh->SetNodalFESpace(new_mesh_fes);
-         mesh->GetNodes()->MakeOwner(new_mesh_fec);
+         mesh->SetCurvature(mesh_p);
       }
    }
 

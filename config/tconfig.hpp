@@ -13,7 +13,7 @@
 #define MFEM_TEMPLATE_CONFIG
 
 // the main MFEM config header
-#include "config/config.hpp"
+#include "config.hpp"
 
 // --- MFEM_STATIC_ASSERT
 #if (__cplusplus >= 201103L)
