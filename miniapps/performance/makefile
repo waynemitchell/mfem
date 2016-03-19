@@ -76,6 +76,6 @@ $(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
 clean:
-	rm -f *.o *~ ex1
+	rm -f *.o *~ ex1 ex1p
 	rm -f refined.mesh sol.*
 	rm -rf *.dSYM *.TVD.*breakpoints
