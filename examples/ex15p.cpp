@@ -23,7 +23,7 @@
 //               mpirun -np 4 ex15p -m ../data/escher.mesh -o 1
 //               mpirun -np 4 ex15p -m ../data/square-disc-surf.mesh
 //
-// Description:  Building on Example 6, this example demostrates dynamic AMR.
+// Description:  Building on Example 6, this example demonstrates dynamic AMR.
 //               The mesh is adapted to a time-dependent solution by refinement
 //               as well as by derefinement. For simplicity, the solution is
 //               prescribed and no time integration is done. However, the error
@@ -244,8 +244,8 @@ int main(int argc, char *argv[])
                  << global_dofs << flush;
          }
 
-         // 11a. Recompute the field on the current mesh: assemble the
-         //      stiffness matrix and the right-hand side.
+         // 11a. Recompute the field on the current mesh: assemble the stiffness
+         //      matrix and the right-hand side.
          a.Assemble();
          b.Assemble();
 
