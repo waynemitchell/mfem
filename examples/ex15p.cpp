@@ -14,7 +14,7 @@
 //               mpirun -np 4 ex15p -m ../data/disc-nurbs.mesh
 //               mpirun -np 4 ex15p -m ../data/fichera.mesh
 //               mpirun -np 4 ex15p -m ../data/ball-nurbs.mesh
-//               mpirun -np 4 ex15p -m ../data/star-surf.mesh
+//               mpirun -np 4 ex15p -m ../data/mobius-strip.mesh
 //               mpirun -np 4 ex15p -m ../data/amr-quad.mesh
 //
 //               Conforming meshes (no load balancing and derefinement):
@@ -357,12 +357,13 @@ void UpdateAndRebalance(ParMesh &pmesh, ParFiniteElementSpace &fespace,
                         ParGridFunction &x, ParBilinearForm &a,
                         ParLinearForm &b)
 {
-   // Update the space: recalculate the number of DOFs and construct a
-   // matrix that will adjust any GridFunctions to the new mesh state.
+   // Update the space: recalculate the number of DOFs and construct a matrix
+   // that will adjust any GridFunctions to the new mesh state.
    fespace.Update();
 
    // Interpolate the solution on the new mesh by applying the transformation
-   // matrix prepared by the space. Multiple GridFunctions could be updated here.
+   // matrix computed in the finite element space. Multiple GridFunctions could
+   // be updated here.
    x.Update();
 
    if (pmesh.Nonconforming())
@@ -376,7 +377,7 @@ void UpdateAndRebalance(ParMesh &pmesh, ParFiniteElementSpace &fespace,
       x.Update();
    }
 
-   // Let also the forms know that the space has changed.
+   // Inform the linear and bilinear forms that the space has changed.
    a.Update();
    b.Update();
 
@@ -462,12 +463,12 @@ double composite_func(const Vector &pt, double t, F0 f0, F1 f1)
 // Exact solution, used for the Dirichlet BC.
 double bdr_func(const Vector &pt, double t)
 {
-   composite_func(pt, t, front, ball);
+   return composite_func(pt, t, front, ball);
 }
 
 // Laplace of the exact solution, used for the right hand side.
 double rhs_func(const Vector &pt, double t)
 {
-   composite_func(pt, t, front_laplace, ball_laplace);
+   return composite_func(pt, t, front_laplace, ball_laplace);
 }
 
