@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
             cout << "Switching the mesh curvature to match the "
                  << "optimized value (order " << mesh_p << ") ..." << endl;
          }
-         mesh->SetCurvature(mesh_p);
+         mesh->SetCurvature(mesh_p, false, -1, Ordering::byNODES);
       }
    }
 
