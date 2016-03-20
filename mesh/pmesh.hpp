@@ -28,8 +28,9 @@ namespace mfem
 class ParMesh : public Mesh
 {
 protected:
-   ParMesh() : MyComm(0), NRanks(0), MyRank(-1), have_face_nbr_data(false), pncmesh(NULL) {}
-   
+   ParMesh() : MyComm(0), NRanks(0), MyRank(-1),
+      have_face_nbr_data(false), pncmesh(NULL) {}
+
    MPI_Comm MyComm;
    int NRanks, MyRank;
 

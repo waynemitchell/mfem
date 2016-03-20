@@ -43,12 +43,12 @@ private:
    void ProcToLProc();
 
 public:
-   GroupTopology() : MyComm(0) {;}
+   GroupTopology() : MyComm(0) {}
    GroupTopology(MPI_Comm comm) { MyComm = comm; }
 
    /// Copy constructor
    GroupTopology(const GroupTopology &gt);
-   void SetComm(MPI_Comm comm) { MyComm = comm;}
+   void SetComm(MPI_Comm comm) { MyComm = comm; }
 
    MPI_Comm GetComm() { return MyComm; }
    int MyRank() { int r; MPI_Comm_rank(MyComm, &r); return r; }
