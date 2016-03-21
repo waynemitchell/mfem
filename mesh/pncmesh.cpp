@@ -1876,7 +1876,9 @@ void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Decode()
    int count = read<int>(istream);
    for (int i = 0; i < count; i++)
    {
-      values[read<int>(istream)] = read<ValueType>(istream);
+      int index = read<int>(istream);
+      MFEM_ASSERT(index >= 0 && index < values.size(), "");
+      values[index] = read<ValueType>(istream);
    }
 
    // no longer need the raw data
