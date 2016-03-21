@@ -1454,7 +1454,7 @@ void FiniteElementSpace::Update(bool want_transform)
       return;
    }
 
-   Table* old_elem_dof;
+   Table* old_elem_dof= NULL;
    int old_ndofs;
 
    // save old DOF table
