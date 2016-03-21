@@ -46,7 +46,7 @@ Improved solvers
 New and updated examples
 ------------------------
 - Two new serial and parallel example codes that demonstrate:
-  * parallel adaptive refinement, derefinement and load balancing on
+  * adaptive refinement, derefinement and load balancing (in parallel) on
     non-conforming meshes (Example 15/15p)
 
 

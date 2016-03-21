@@ -399,18 +399,26 @@ void Mesh::GetEdgeTransformation(int EdgeNo, IsoparametricTransformation *EdTr)
    }
    else
    {
-      Array<int> vdofs;
-      Nodes->FESpace()->GetEdgeVDofs(EdgeNo, vdofs);
-      int n = vdofs.Size()/spaceDim;
-      pm.SetSize(spaceDim, n);
-      for (int i = 0; i < spaceDim; i++)
+      const FiniteElement *edge_el = Nodes->FESpace()->GetEdgeElement(EdgeNo);
+      if (edge_el)
       {
-         for (int j = 0; j < n; j++)
+         Array<int> vdofs;
+         Nodes->FESpace()->GetEdgeVDofs(EdgeNo, vdofs);
+         int n = vdofs.Size()/spaceDim;
+         pm.SetSize(spaceDim, n);
+         for (int i = 0; i < spaceDim; i++)
          {
-            pm(i, j) = (*Nodes)(vdofs[n*i+j]);
+            for (int j = 0; j < n; j++)
+            {
+               pm(i, j) = (*Nodes)(vdofs[n*i+j]);
+            }
          }
+         EdTr->SetFE(edge_el);
       }
-      EdTr->SetFE(GetTransformationFEforElementType(Element::SEGMENT));
+      else
+      {
+         MFEM_ABORT("Not implemented.");
+      }
    }
 }
 
