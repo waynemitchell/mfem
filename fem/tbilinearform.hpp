@@ -12,13 +12,14 @@
 #ifndef MFEM_TEMPLATE_BILINEAR_FORM
 #define MFEM_TEMPLATE_BILINEAR_FORM
 
-#include "config/tconfig.hpp"
-#include "linalg/ttensor_types.hpp"
+#include "../config/tconfig.hpp"
+#include "../linalg/ttensor_types.hpp"
+#include "../linalg/tvector_layouts.hpp"
+#include "bilinearform.hpp"
 #include "tshape_evaluators.hpp"
 #include "teltrans.hpp"
 #include "tcoefficient.hpp"
 #include "tfield_evaluator.hpp"
-#include "linalg/tvector_layouts.hpp"
 #include "fespace.hpp"
 
 namespace mfem
@@ -235,17 +236,18 @@ public:
    {
       y = 0.0;
 
+      solVecLayout_type solVecLayout(this->solVecLayout);
       solFESpace solFES(this->solFES);
 
-      TMatrix<dofs,1,complex_t> xy_dof;
+      TTensor3<dofs,vdim,1,complex_t> xy_dof;
 
       const int NE = mesh.GetNE();
       for (int el = 0; el < NE; el++)
       {
          solFES.SetElement(el);
 
-         solFES.Extract(x, xy_dof.layout, xy_dof);
-         solFES.Assemble(xy_dof.layout, xy_dof, y);
+         solFES.VectorExtract(solVecLayout, x, xy_dof.layout, xy_dof);
+         solFES.VectorAssemble(xy_dof.layout, xy_dof, solVecLayout, y);
       }
    }
 
@@ -349,6 +351,7 @@ public:
       Trans_t T(mesh, meshEval);
       solFESpace solFES(this->solFES);
       solShapeEval solEval(this->solEval);
+      solVecLayout_t solVecLayout(this->solVecLayout);
       coeff_eval_t wQ(int_rule, coeff);
 
       const int NE = mesh.GetNE();
@@ -365,12 +368,17 @@ public:
             kernel_t::Assemble(0, F, wQ, res, asm_qpt_data);
          }
 
+         // For now, when vdim > 1, assume block-diagonal matrix with the same
+         // diagonal block for all components.
          TMatrix<dofs,dofs> M_loc;
          S_spec<BE>::ElementMatrix::Compute(
             asm_qpt_data.layout, asm_qpt_data, M_loc.layout, M_loc, solEval);
 
          solFES.SetElement(el);
-         solFES.Assemble(M_loc, M);
+         for (int bi = 0; bi < vdim; bi++)
+         {
+            solFES.AssembleBlock(bi, bi, solVecLayout, M_loc, M);
+         }
       }
    }
 
@@ -400,6 +408,9 @@ public:
             kernel_t::Assemble(0, F, wQ, res, asm_qpt_data);
          }
 
+         // For now, when vdim > 1, assume block-diagonal matrix with the same
+         // diagonal block for all components.
+         // M is assumed to be (dof x dof x NE).
          TMatrix<dofs,dofs> M_loc;
          S_spec<BE>::ElementMatrix::Compute(
             asm_qpt_data.layout, asm_qpt_data, M_loc.layout, M_loc, solEval);
@@ -424,7 +435,7 @@ public:
       Array<int> vdofs;
       const Array<int> *dof_map = sol_fe.GetDofMap();
       const int *dof_map_ = dof_map->GetData();
-      DenseMatrix M_loc_perm(dofs,dofs);
+      DenseMatrix M_loc_perm(dofs*vdim,dofs*vdim); // initialized with zeros
 
       const int NE = mesh.GetNE();
       for (int el = 0; el < NE; el++)
@@ -440,6 +451,8 @@ public:
             kernel_t::Assemble(0, F, wQ, res, asm_qpt_data);
          }
 
+         // For now, when vdim > 1, assume block-diagonal matrix with the same
+         // diagonal block for all components.
          TMatrix<dofs,dofs> M_loc;
          S_spec<BE>::ElementMatrix::Compute(
             asm_qpt_data.layout, asm_qpt_data, M_loc.layout, M_loc, solEval);
@@ -453,12 +466,28 @@ public:
                   M_loc_perm(dof_map_[i],dof_map_[j]) = M_loc(i,j);
                }
             }
+            for (int bi = 1; bi < vdim; bi++)
+            {
+               M_loc_perm.CopyMN(M_loc_perm, dofs, dofs, 0, 0,
+                                 bi*dofs, bi*dofs);
+            }
             a.AssembleElementMatrix(el, M_loc_perm, vdofs);
          }
          else
          {
-            a.AssembleElementMatrix(
-               el, DenseMatrix(M_loc.data,dofs,dofs), vdofs);
+            DenseMatrix DM(M_loc.data, dofs, dofs);
+            if (vdim == 1)
+            {
+               a.AssembleElementMatrix(el, DM, vdofs);
+            }
+            else
+            {
+               for (int bi = 0; bi < vdim; bi++)
+               {
+                  M_loc_perm.CopyMN(DM, dofs, dofs, 0, 0, bi*dofs, bi*dofs);
+               }
+               a.AssembleElementMatrix(el, M_loc_perm, vdofs);
+            }
          }
       }
    }
@@ -467,18 +496,22 @@ public:
    // complex_t = double
    void AddMult(DenseTensor &M, const Vector &x, Vector &y) const
    {
+      // For now, when vdim > 1, assume block-diagonal matrix with the same
+      // diagonal block for all components.
+      // M is assumed to be (dof x dof x NE).
+      solVecLayout_t solVecLayout(this->solVecLayout);
       const int NE = mesh.GetNE();
       for (int el = 0; el < NE; el++)
       {
-         TMatrix<dofs,1,complex_t> x_dof, y_dof;
+         TTensor3<dofs,vdim,1,complex_t> x_dof, y_dof;
 
          solFES.SetElement(el);
-         solFES.Extract(x, x_dof.layout, x_dof);
+         solFES.VectorExtract(solVecLayout, x, x_dof.layout, x_dof);
          Mult_AB<false>(TMatrix<dofs,dofs>::layout,
                         M(el).Data(),
-                        x_dof.layout, x_dof,
-                        y_dof.layout, y_dof);
-         solFES.Assemble(y_dof.layout, y_dof, y);
+                        x_dof.layout.merge_23(), x_dof,
+                        y_dof.layout.merge_23(), y_dof);
+         solFES.VectorAssemble(y_dof.layout, y_dof, solVecLayout, y);
       }
    }
 };

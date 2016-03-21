@@ -12,9 +12,9 @@
 #ifndef MFEM_TEMPLATE_ELEMENT_TRANSFORMATION
 #define MFEM_TEMPLATE_ELEMENT_TRANSFORMATION
 
-#include "config/tconfig.hpp"
+#include "../config/tconfig.hpp"
 #include "tshape_evaluators.hpp"
-#include "mesh/element.hpp"
+#include "../mesh/element.hpp"
 
 namespace mfem
 {

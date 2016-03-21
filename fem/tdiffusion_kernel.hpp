@@ -69,12 +69,17 @@ struct TDiffusionKernel<1,1,complex_t>
                const Q_t &Q, const q_t &q, S_data_t &R)
    {
       const int M = S_data_t::eval_type::qpts;
+      const int NC = S_data_t::eval_type::vdim;
       MFEM_STATIC_ASSERT(T_result_t::Jt_type::layout_type::dim_1 == M,
                          "incompatible dimensions");
-      MFEM_FLOPS_ADD(2*M);
+      MFEM_FLOPS_ADD(M*(1+NC));
       for (int i = 0; i < M; i++)
       {
-         R.grad_qpts(i,0,0,k) *= (Q.get(q,i,k) / F.Jt(i,0,0,k));
+         const complex_t wi = Q.get(q,i,k) / F.Jt(i,0,0,k);
+         for (int j = 0; j < NC; j++)
+         {
+            R.grad_qpts(i,0,j,k) *= wi;
+         }
       }
    }
 
@@ -117,11 +122,15 @@ struct TDiffusionKernel<1,1,complex_t>
                       S_data_t &R)
    {
       const int M = S_data_t::eval_type::qpts;
+      const int NC = S_data_t::eval_type::vdim;
       MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
-      MFEM_FLOPS_ADD(M);
+      MFEM_FLOPS_ADD(M*NC);
       for (int i = 0; i < M; i++)
       {
-         R.grad_qpts(i,0,0,k) *= A(i,0);
+         for (int j = 0; j < NC; j++)
+         {
+            R.grad_qpts(i,0,j,k) *= A(i,0);
+         }
       }
    }
 };
@@ -172,9 +181,10 @@ struct TDiffusionKernel<2,2,complex_t>
                const Q_t &Q, const q_t &q, S_data_t &R)
    {
       const int M = S_data_t::eval_type::qpts;
+      const int NC = S_data_t::eval_type::vdim;
       MFEM_STATIC_ASSERT(T_result_t::Jt_type::layout_type::dim_1 == M,
                          "incompatible dimensions");
-      MFEM_FLOPS_ADD(18*M);
+      MFEM_FLOPS_ADD(M*(4+NC*14));
       for (int i = 0; i < M; i++)
       {
          typedef typename T_result_t::Jt_type::data_type real_t;
@@ -182,14 +192,17 @@ struct TDiffusionKernel<2,2,complex_t>
          const real_t J12 = F.Jt(i,1,0,k);
          const real_t J21 = F.Jt(i,0,1,k);
          const real_t J22 = F.Jt(i,1,1,k);
-         const complex_t x1 = R.grad_qpts(i,0,0,k);
-         const complex_t x2 = R.grad_qpts(i,1,0,k);
-         // z = adj(J)^t x
-         const complex_t z1 = J22 * x1 - J21 * x2;
-         const complex_t z2 = J11 * x2 - J12 * x1;
          const complex_t w_det_J = Q.get(q,i,k) / (J11 * J22 - J21 * J12);
-         R.grad_qpts(i,0,0,k) = w_det_J * (J22 * z1 - J12 * z2);
-         R.grad_qpts(i,1,0,k) = w_det_J * (J11 * z2 - J21 * z1);
+         for (int j = 0; j < NC; j++)
+         {
+            const complex_t x1 = R.grad_qpts(i,0,j,k);
+            const complex_t x2 = R.grad_qpts(i,1,j,k);
+            // z = adj(J)^t x
+            const complex_t z1 = J22 * x1 - J21 * x2;
+            const complex_t z2 = J11 * x2 - J12 * x1;
+            R.grad_qpts(i,0,j,k) = w_det_J * (J22 * z1 - J12 * z2);
+            R.grad_qpts(i,1,j,k) = w_det_J * (J11 * z2 - J21 * z1);
+         }
       }
    }
 
@@ -243,15 +256,21 @@ struct TDiffusionKernel<2,2,complex_t>
                       S_data_t &R)
    {
       const int M = S_data_t::eval_type::qpts;
+      const int NC = S_data_t::eval_type::vdim;
       MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
-      MFEM_FLOPS_ADD(6*M);
+      MFEM_FLOPS_ADD(6*M*NC);
       for (int i = 0; i < M; i++)
       {
+         const complex_t A11 = A(i,0);
          const complex_t A21 = A(i,1);
-         const complex_t x1 = R.grad_qpts(i,0,0,k);
-         const complex_t x2 = R.grad_qpts(i,1,0,k);
-         R.grad_qpts(i,0,0,k) = A(i,0) * x1 +    A21 * x2;
-         R.grad_qpts(i,1,0,k) =    A21 * x1 + A(i,2) * x2;
+         const complex_t A22 = A(i,2);
+         for (int j = 0; j < NC; j++)
+         {
+            const complex_t x1 = R.grad_qpts(i,0,j,k);
+            const complex_t x2 = R.grad_qpts(i,1,j,k);
+            R.grad_qpts(i,0,j,k) = A11 * x1 + A21 * x2;
+            R.grad_qpts(i,1,j,k) = A21 * x1 + A22 * x2;
+         }
       }
    }
 };
@@ -302,9 +321,10 @@ struct TDiffusionKernel<3,3,complex_t>
                const Q_t &Q, const q_t &q, S_data_t &R)
    {
       const int M = S_data_t::eval_type::qpts;
+      const int NC = S_data_t::eval_type::vdim;
       MFEM_STATIC_ASSERT(T_result_t::Jt_type::layout_type::dim_1 == M,
                          "incompatible dimensions");
-      MFEM_FLOPS_ADD(M);
+      MFEM_FLOPS_ADD(M); // just need to count Q/detJ
       for (int i = 0; i < M; i++)
       {
          typedef typename T_result_t::Jt_type::data_type real_t;
@@ -313,7 +333,7 @@ struct TDiffusionKernel<3,3,complex_t>
             (Q.get(q,i,k) /
              TAdjDet<real_t>(F.Jt.layout.ind14(i,k).transpose_12(), F.Jt,
                              adj_J.layout, adj_J));
-         TMatrix<3,1,complex_t> z; // z = adj(J)^t x
+         TMatrix<3,NC,complex_t> z; // z = adj(J)^t x
          sMult_AB<false>(adj_J.layout.transpose_12(), adj_J,
                          R.grad_qpts.layout.ind14(i,k), R.grad_qpts,
                          z.layout, z);
@@ -377,8 +397,9 @@ struct TDiffusionKernel<3,3,complex_t>
                       S_data_t &R)
    {
       const int M = S_data_t::eval_type::qpts;
+      const int NC = S_data_t::eval_type::vdim;
       MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
-      MFEM_FLOPS_ADD(15*M);
+      MFEM_FLOPS_ADD(15*M*NC);
       for (int i = 0; i < M; i++)
       {
          const complex_t A11 = A(i,0);
@@ -387,12 +408,15 @@ struct TDiffusionKernel<3,3,complex_t>
          const complex_t A22 = A(i,3);
          const complex_t A32 = A(i,4);
          const complex_t A33 = A(i,5);
-         const complex_t x1 = R.grad_qpts(i,0,0,k);
-         const complex_t x2 = R.grad_qpts(i,1,0,k);
-         const complex_t x3 = R.grad_qpts(i,2,0,k);
-         R.grad_qpts(i,0,0,k) = A11*x1 + A21*x2 + A31*x3;
-         R.grad_qpts(i,1,0,k) = A21*x1 + A22*x2 + A32*x3;
-         R.grad_qpts(i,2,0,k) = A31*x1 + A32*x2 + A33*x3;
+         for (int j = 0; j < NC; j++)
+         {
+            const complex_t x1 = R.grad_qpts(i,0,j,k);
+            const complex_t x2 = R.grad_qpts(i,1,j,k);
+            const complex_t x3 = R.grad_qpts(i,2,j,k);
+            R.grad_qpts(i,0,j,k) = A11*x1 + A21*x2 + A31*x3;
+            R.grad_qpts(i,1,j,k) = A21*x1 + A22*x2 + A32*x3;
+            R.grad_qpts(i,2,j,k) = A31*x1 + A32*x2 + A33*x3;
+         }
       }
    }
 };

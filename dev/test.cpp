@@ -19,7 +19,7 @@ using namespace mfem;
 
 typedef double real_t;
 typedef double complex_t;
-// #define H1_SOL_SPACE
+#define H1_SOL_SPACE
 
 template<int oper_type>
 struct TOperator;

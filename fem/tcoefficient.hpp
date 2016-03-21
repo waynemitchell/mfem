@@ -12,11 +12,11 @@
 #ifndef MFEM_TEMPLATE_COEFFICIENT
 #define MFEM_TEMPLATE_COEFFICIENT
 
-#include "config/tconfig.hpp"
-#include "linalg/ttensor_ops.hpp"
-#include "linalg/ttensor_types.hpp"
-#include "linalg/tvector_layouts.hpp"
-#include "linalg/vector.hpp"
+#include "../config/tconfig.hpp"
+#include "../linalg/ttensor_ops.hpp"
+#include "../linalg/ttensor_types.hpp"
+#include "../linalg/tvector_layouts.hpp"
+#include "../linalg/vector.hpp"
 #include "gridfunc.hpp"
 
 namespace mfem
@@ -60,6 +60,7 @@ public:
 // complex_t Eval1D(real_t);
 // complex_t Eval2D(real_t,real_t);
 // complex_t Eval3D(real_t,real_t,real_t);
+// Use MFEM_FLOPS_ADD() to count flops inside Eval*D.
 template <typename Func, typename complex_t = double>
 class TFunctionCoefficient : public TCoefficient
 {

@@ -66,13 +66,18 @@ struct TMassKernel
    {
       typedef typename T_result_t::Jt_type::data_type real_t;
       const int M = S_data_t::eval_type::qpts;
+      const int NC = S_data_t::eval_type::vdim;
       MFEM_STATIC_ASSERT(T_result_t::Jt_type::layout_type::dim_1 == M,
                          "incompatible dimensions");
-      MFEM_FLOPS_ADD(2*M);
+      MFEM_FLOPS_ADD(M*(1+NC)); // TDet counts its flops
       for (int i = 0; i < M; i++)
       {
-         R.val_qpts(i,0,k) *=
+         const complex_t wi =
             Q.get(q,i,k) * TDet<real_t>(F.Jt.layout.ind14(i,k), F.Jt);
+         for (int j = 0; j < NC; j++)
+         {
+            R.val_qpts(i,j,k) *= wi;
+         }
       }
    }
 
@@ -92,7 +97,7 @@ struct TMassKernel
 
       const int M = T_result_t::Jt_type::layout_type::dim_1;
       MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
-      MFEM_FLOPS_ADD(M);
+      MFEM_FLOPS_ADD(M); // TDet counts its flops
       for (int i = 0; i < M; i++)
       {
          A[i] = Q.get(q,i,k) * TDet<real_t>(F.Jt.layout.ind14(i,k), F.Jt);
@@ -109,11 +114,15 @@ struct TMassKernel
    void MultAssembled(const int k, const TVector<qpts,complex_t> &A, S_data_t &R)
    {
       const int M = S_data_t::eval_type::qpts;
-      MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");      
-      MFEM_FLOPS_ADD(M);
+      const int NC = S_data_t::eval_type::vdim;
+      MFEM_STATIC_ASSERT(qpts == M, "incompatible dimensions");
+      MFEM_FLOPS_ADD(M*NC);
       for (int i = 0; i < M; i++)
       {
-         R.val_qpts(i,0,k) *= A[i];
+         for (int j = 0; j < NC; j++)
+         {
+            R.val_qpts(i,j,k) *= A[i];
+         }
       }
    }
 };

@@ -12,7 +12,7 @@
 #ifndef MFEM_TEMPLATE_INTEG
 #define MFEM_TEMPLATE_INTEG
 
-#include "config/tconfig.hpp"
+#include "../config/tconfig.hpp"
 #include "tbilinearform.hpp"
 
 namespace mfem

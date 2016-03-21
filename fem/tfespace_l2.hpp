@@ -15,13 +15,14 @@
 #include "../config/tconfig.hpp"
 #include "../linalg/tassign_ops.hpp"
 #include "../linalg/ttensor_types.hpp"
+#include "tfespace_h1.hpp" // for TFiniteElementSpace_simple
 #include "fespace.hpp"
 
 namespace mfem
 {
 
 template <typename FE>
-class L2_FiniteElementSpace
+class DGIndexer
 {
 protected:
    int offset;
@@ -29,164 +30,58 @@ protected:
 public:
    typedef FE FE_type;
 
-   L2_FiniteElementSpace(const FE &fe, const FiniteElementSpace &fes)
+   DGIndexer(const FE &fe, const FiniteElementSpace &fes)
    {
       MFEM_ASSERT(fes.GetNDofs() == fes.GetNE() * FE::dofs,
                   "the FE space is not compatible with this FE!");
       offset = 0;
    }
 
-   L2_FiniteElementSpace(const FE &fe) : offset(0) { }
+   // default copy constructor
 
-   L2_FiniteElementSpace(const L2_FiniteElementSpace &orig)
-      : offset(orig.offset) { }
-
+   inline MFEM_ALWAYS_INLINE
    void SetElement(int elem_idx)
    {
       offset = FE::dofs * elem_idx;
    }
 
-   // Extract dofs for multiple elements starting with the current element.
-   // The number of elements to extract is given by the second dimension of
-   // dof_layout_t: dof_layout is (DOFS x NumElems).
-   template <AssignOp::Type Op, typename glob_dof_data_t,
-             typename dof_layout_t, typename dof_data_t>
-   void Extract(const glob_dof_data_t &glob_dof_data,
-                const dof_layout_t &dof_layout,
-                dof_data_t &dof_data) const
+   inline MFEM_ALWAYS_INLINE
+   int map(int loc_dof_idx, int elem_offset) const
    {
-      const int NE = dof_layout_t::dim_2;
-      MFEM_STATIC_ASSERT(FE::dofs == dof_layout_t::dim_1,
-                         "invalid number of dofs");
-      TAssign<Op>(dof_layout, dof_data,
-                  ColumnMajorLayout2D<FE::dofs,NE>(), &glob_dof_data[offset]);
+      return offset + loc_dof_idx + elem_offset * FE::dofs;
+   }
+};
+
+
+template <typename FE>
+class L2_FiniteElementSpace
+   : public TFiniteElementSpace_simple<FE,DGIndexer<FE> >
+{
+public:
+   typedef FE FE_type;
+   typedef TFiniteElementSpace_simple<FE,DGIndexer<FE> > base_class;
+
+   L2_FiniteElementSpace(const FE &fe, const FiniteElementSpace &fes)
+      : base_class(fe, fes)
+   { }
+
+   // default copy constructor
+
+   static bool Matches(const FiniteElementSpace &fes)
+   {
+      const FiniteElementCollection *fec = fes.FEColl();
+      const L2_FECollection *l2_fec =
+         dynamic_cast<const L2_FECollection *>(fec);
+      if (!l2_fec) { return false; }
+      const FiniteElement *fe = l2_fec->FiniteElementForGeometry(FE_type::geom);
+      if (fe->GetOrder() != FE_type::degree) { return false; }
+      return true;
    }
 
-   template <typename glob_dof_data_t,
-             typename dof_layout_t, typename dof_data_t>
-   void Extract(const glob_dof_data_t &glob_dof_data,
-                const dof_layout_t &dof_layout,
-                dof_data_t &dof_data) const
+   template <typename vec_layout_t>
+   static bool VectorMatches(const FiniteElementSpace &fes)
    {
-      Extract<AssignOp::Set>(glob_dof_data, dof_layout, dof_data);
-   }
-
-   // Multi-element assemble.
-   template <AssignOp::Type Op, typename dof_layout_t, typename dof_data_t,
-             typename glob_dof_data_t>
-   void Assemble(const dof_layout_t &dof_layout,
-                 const dof_data_t &dof_data,
-                 glob_dof_data_t &glob_dof_data) const
-   {
-      const int NE = dof_layout_t::dim_2;
-      MFEM_STATIC_ASSERT(FE::dofs == dof_layout_t::dim_1,
-                         "invalid number of dofs");
-      for (int j = 0; j < NE; j++)
-      {
-         for (int i = 0; i < FE::dofs; i++)
-         {
-            Assign<Op>(glob_dof_data[offset+i+FE::dofs*j],
-                       dof_data[dof_layout.ind(i,j)]);
-         }
-      }
-   }
-
-   template <typename dof_layout_t, typename dof_data_t,
-             typename glob_dof_data_t>
-   void Assemble(const dof_layout_t &dof_layout,
-                 const dof_data_t &dof_data,
-                 glob_dof_data_t &glob_dof_data) const
-   {
-      Assemble<AssignOp::Add>(dof_layout, dof_data, glob_dof_data);
-   }
-
-   // Multi-element VectorExtract: vdof_layout is (DOFS x NumComp x NumElems).
-   template <AssignOp::Type Op,
-             typename vec_layout_t, typename glob_vdof_data_t,
-             typename vdof_layout_t, typename vdof_data_t>
-   void VectorExtract(const vec_layout_t &vl,
-                      const glob_vdof_data_t &glob_vdof_data,
-                      const vdof_layout_t &vdof_layout,
-                      vdof_data_t &vdof_data) const
-   {
-      const int NC = vdof_layout_t::dim_2;
-      const int NE = vdof_layout_t::dim_3;
-      MFEM_STATIC_ASSERT(FE::dofs == vdof_layout_t::dim_1,
-                         "invalid number of dofs");
-      MFEM_ASSERT(NC == vl.NumComponents(), "invalid number of components");
-      for (int k = 0; k < NC; k++)
-      {
-         for (int j = 0; j < NE; j++)
-         {
-            for (int i = 0; i < FE::dofs; i++)
-            {
-               Assign<Op>(vdof_data[vdof_layout.ind(i,k,j)],
-                          glob_vdof_data[vl.ind(offset+i+FE::dofs*j, k)]);
-            }
-         }
-      }
-   }
-
-   template <typename vec_layout_t, typename glob_vdof_data_t,
-             typename vdof_layout_t, typename vdof_data_t>
-   void VectorExtract(const vec_layout_t &vl,
-                      const glob_vdof_data_t &glob_vdof_data,
-                      const vdof_layout_t &vdof_layout,
-                      vdof_data_t &vdof_data) const
-   {
-      VectorExtract<AssignOp::Set>(vl, glob_vdof_data, vdof_layout, vdof_data);
-   }
-
-   // Multi-element VectorAssemble: vdof_layout is (DOFS x NumComp x NumElems).
-   template <AssignOp::Type Op,
-             typename vdof_layout_t, typename vdof_data_t,
-             typename vec_layout_t, typename glob_vdof_data_t>
-   void VectorAssemble(const vdof_layout_t &vdof_layout,
-                       const vdof_data_t &vdof_data,
-                       const vec_layout_t &vl,
-                       glob_vdof_data_t &glob_vdof_data) const
-   {
-      const int NC = vdof_layout_t::dim_2;
-      const int NE = vdof_layout_t::dim_3;
-      MFEM_STATIC_ASSERT(FE::dofs == vdof_layout_t::dim_1,
-                         "invalid number of dofs");
-      MFEM_ASSERT(NC == vl.NumComponents(), "invalid number of components");
-      for (int k = 0; k < NC; k++)
-      {
-         for (int j = 0; j < NE; j++)
-         {
-            for (int i = 0; i < FE::dofs; i++)
-            {
-               Assign<Op>(glob_vdof_data[vl.ind(offset+i+FE::dofs*j, k)],
-                          vdof_data[vdof_layout.ind(i,k,j)]);
-            }
-         }
-      }
-   }
-
-   template <typename vdof_layout_t, typename vdof_data_t,
-             typename vec_layout_t, typename glob_vdof_data_t>
-   void VectorAssemble(const vdof_layout_t &vdof_layout,
-                       const vdof_data_t &vdof_data,
-                       const vec_layout_t &vl,
-                       glob_vdof_data_t &glob_vdof_data) const
-   {
-      VectorAssemble<AssignOp::Add>(vdof_layout, vdof_data, vl, glob_vdof_data);
-   }
-
-   void Assemble(const TMatrix<FE::dofs,FE::dofs,double> &m,
-                 SparseMatrix &M) const
-   {
-      MFEM_FLOPS_ADD(FE::dofs*FE::dofs);
-      for (int i = 0; i < FE::dofs; i++)
-      {
-         M.SetColPtr(offset + i);
-         for (int j = 0; j < FE::dofs; j++)
-         {
-            M._Add_(offset + j, m(i,j));
-         }
-         M.ClearColPtr();
-      }
+      return Matches(fes) && vec_layout_t::Matches(fes);
    }
 };
 

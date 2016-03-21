@@ -12,10 +12,10 @@
 #ifndef MFEM_TEMPLATE_FIELD_EVALUATOR
 #define MFEM_TEMPLATE_FIELD_EVALUATOR
 
-#include "config/tconfig.hpp"
-#include "linalg/ttensor_types.hpp"
+#include "../config/tconfig.hpp"
+#include "../linalg/ttensor_types.hpp"
 #include "tshape_evaluators.hpp"
-#include "general/error.hpp"
+#include "../general/error.hpp"
 #include "fespace.hpp"
 
 namespace mfem

@@ -77,5 +77,5 @@ $(CONFIG_MK) $(MFEM_LIB_FILE):
 
 clean:
 	rm -f *.o *~ ex1 ex1p
-	rm -f refined.mesh sol.* mesh.* sol.*
+	rm -f refined.mesh mesh.* sol.*
 	rm -rf *.dSYM *.TVD.*breakpoints
