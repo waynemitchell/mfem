@@ -286,12 +286,12 @@ public:
 std::ostream &operator<<(std::ostream &out, const GridFunction &sol);
 
 
-void ZZErrorEstimator(BilinearFormIntegrator &blfi,
-                      GridFunction &u,
-                      GridFunction &flux,
-                      Vector &error_estimates,
-                      Array<int> *aniso_flags = NULL,
-                      int with_subdomains = 1);
+double ZZErrorEstimator(BilinearFormIntegrator &blfi,
+                        GridFunction &u,
+                        GridFunction &flux,
+                        Vector &error_estimates,
+                        Array<int> *aniso_flags = NULL,
+                        int with_subdomains = 1);
 
 /// Compute the Lp distance between two grid functions on the given element.
 double ComputeElementLpDistance(double p, int i,

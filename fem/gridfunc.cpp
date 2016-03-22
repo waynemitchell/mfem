@@ -2324,11 +2324,11 @@ std::ostream &operator<<(std::ostream &out, const GridFunction &sol)
 
 
 
-void ZZErrorEstimator(BilinearFormIntegrator &blfi,
-                      GridFunction &u,
-                      GridFunction &flux, Vector &error_estimates,
-                      Array<int>* aniso_flags,
-                      int with_subdomains)
+double ZZErrorEstimator(BilinearFormIntegrator &blfi,
+                        GridFunction &u,
+                        GridFunction &flux, Vector &error_estimates,
+                        Array<int>* aniso_flags,
+                        int with_subdomains)
 {
    FiniteElementSpace *ufes = u.FESpace();
    FiniteElementSpace *ffes = flux.FESpace();
@@ -2358,6 +2358,7 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
       }
    }
 
+   double total_error = 0.0;
    for (int s = 1; s <= nsd; s++)
    {
       // This calls the parallel version when u is a ParGridFunction
@@ -2379,9 +2380,11 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
 
          fl -= fla;
 
-         error_estimates(i) =
-            blfi.ComputeFluxEnergy(*ffes->GetFE(i), *Transf, fl,
-                                   (aniso_flags ? &d_xyz : NULL));
+         double err = blfi.ComputeFluxEnergy(*ffes->GetFE(i), *Transf, fl,
+                                             (aniso_flags ? &d_xyz : NULL));
+
+         error_estimates(i) = std::sqrt(err);
+         total_error += err;
 
          if (aniso_flags)
          {
@@ -2402,6 +2405,8 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
          }
       }
    }
+
+   return std::sqrt(total_error);
 }
 
 
