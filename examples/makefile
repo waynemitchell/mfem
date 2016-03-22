@@ -23,7 +23,7 @@ endif
 ifeq ($(MFEM_USE_MPI),NO)
    EXAMPLES = ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10 ex14 ex15
 else
-   EXAMPLES = ex1p ex2p ex3p ex4p ex5p ex6p ex7p ex8p ex9p ex10p ex11p ex12p ex13p ex14p ex15p rdr-demo
+   EXAMPLES = ex1p ex2p ex3p ex4p ex5p ex6p ex7p ex8p ex9p ex10p ex11p ex12p ex13p ex14p ex15p
 endif
 
 .PHONY: all clean
