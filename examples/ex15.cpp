@@ -1,27 +1,27 @@
 //                                MFEM Example 15
 //
-// Compile with: make ex15p
+// Compile with: make ex15
 //
-// Sample runs:  ex15p
-//               ex15p -o 1 -y 0.2
-//               ex15p -o 4 -y 0.1
-//               ex15p -n 5
-//               ex15p -p 1 -n 3
+// Sample runs:  ex15
+//               ex15 -o 1 -y 0.2
+//               ex15 -o 4 -y 0.1
+//               ex15 -n 5
+//               ex15 -p 1 -n 3
 //
 //               Other meshes:
 //
-//               ex15p -m ../data/square-disc-nurbs.mesh
-//               ex15p -m ../data/disc-nurbs.mesh
-//               ex15p -m ../data/fichera.mesh
-//               ex15p -m ../data/ball-nurbs.mesh
-//               ex15p -m ../data/mobius-strip.mesh
-//               ex15p -m ../data/amr-quad.mesh
+//               ex15 -m ../data/square-disc-nurbs.mesh
+//               ex15 -m ../data/disc-nurbs.mesh
+//               ex15 -m ../data/fichera.mesh
+//               ex15 -m ../data/ball-nurbs.mesh
+//               ex15 -m ../data/mobius-strip.mesh
+//               ex15 -m ../data/amr-quad.mesh
 //
 //               Conforming meshes (no derefinement):
 //
-//               ex15p -m ../data/square-disc.mesh
-//               ex15p -m ../data/escher.mesh -o 1
-//               ex15p -m ../data/square-disc-surf.mesh
+//               ex15 -m ../data/square-disc.mesh
+//               ex15 -m ../data/escher.mesh -o 1
+//               ex15 -m ../data/square-disc-surf.mesh
 //
 // Description:  Building on Example 6, this example demonstrates dynamic AMR.
 //               The mesh is adapted to a time-dependent solution by refinement
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
       sout.precision(8);
    }
 
-   VisItDataCollection visit_dc("Example15-Parallel", &mesh);
+   VisItDataCollection visit_dc("Example15", &mesh);
    visit_dc.RegisterField("solution", &x);
    int vis_cycle = 0;
 
@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
 
 #ifndef MFEM_USE_SUITESPARSE
          GSSmoother M(A);
-         PCG(A, M, B, X, 0, 200, 1e-12, 0.0);
+         PCG(A, M, B, X, 0, 500, 1e-12, 0.0);
 #else
          UMFPackSolver umf_solver;
          umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
