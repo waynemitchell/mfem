@@ -1,27 +1,27 @@
 //                                MFEM Example 15
 //
-// Compile with: make ex15p
+// Compile with: make ex15
 //
-// Sample runs:  ex15p
-//               ex15p -o 1 -y 0.2
-//               ex15p -o 4 -y 0.1
-//               ex15p -n 5
-//               ex15p -p 1 -n 3
+// Sample runs:  ex15
+//               ex15 -o 1 -y 0.2
+//               ex15 -o 4 -y 0.1
+//               ex15 -n 5
+//               ex15 -p 1 -n 3
 //
 //               Other meshes:
 //
-//               ex15p -m ../data/square-disc-nurbs.mesh
-//               ex15p -m ../data/disc-nurbs.mesh
-//               ex15p -m ../data/fichera.mesh
-//               ex15p -m ../data/ball-nurbs.mesh
-//               ex15p -m ../data/mobius-strip.mesh
-//               ex15p -m ../data/amr-quad.mesh
+//               ex15 -m ../data/square-disc-nurbs.mesh
+//               ex15 -m ../data/disc-nurbs.mesh
+//               ex15 -m ../data/fichera.mesh
+//               ex15 -m ../data/ball-nurbs.mesh
+//               ex15 -m ../data/mobius-strip.mesh
+//               ex15 -m ../data/amr-quad.mesh
 //
 //               Conforming meshes (no derefinement):
 //
-//               ex15p -m ../data/square-disc.mesh
-//               ex15p -m ../data/escher.mesh -o 1
-//               ex15p -m ../data/square-disc-surf.mesh
+//               ex15 -m ../data/square-disc.mesh
+//               ex15 -m ../data/escher.mesh -o 1
+//               ex15 -m ../data/square-disc-surf.mesh
 //
 // Description:  Building on Example 6, this example demonstrates dynamic AMR.
 //               The mesh is adapted to a time-dependent solution by refinement
@@ -37,12 +37,12 @@
 //               identify any elements which may be over-refined and a single
 //               derefinement step is performed.
 //
-//               The example demonstrates MFEM's capability to refine, derefine
-//               nonconforming meshes, in 2D and 3D, and on linear, curved and
-//               surface meshes. Interpolation of functions between coarse and
-//               fine meshes, persistent GLVis visualization, and saving of
-//               time-dependent fields for external visualization with VisIt
-//               (visit.llnl.gov) are also illustrated.
+//               The example demonstrates MFEM's capability to refine and
+//               derefine nonconforming meshes, in 2D and 3D, and on linear,
+//               curved and surface meshes. Interpolation of functions between
+//               coarse and fine meshes, persistent GLVis visualization, and
+//               saving of time-dependent fields for external visualization with
+//               VisIt (visit.llnl.gov) are also illustrated.
 //
 //               We recommend viewing Examples 1, 6 and 9 before viewing this
 //               example.
@@ -114,9 +114,9 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
-   // 2. Read the mesh from the given mesh file on all processors. We can
-   //    handle triangular, quadrilateral, tetrahedral, hexahedral, surface and
-   //    volume meshes with the same code.
+   // 2. Read the mesh from the given mesh file on all processors. We can handle
+   //    triangular, quadrilateral, tetrahedral, hexahedral, surface and volume
+   //    meshes with the same code.
    ifstream imesh(mesh_file);
    if (!imesh)
    {
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
       sout.precision(8);
    }
 
-   VisItDataCollection visit_dc("Example15-Parallel", &mesh);
+   VisItDataCollection visit_dc("Example15", &mesh);
    visit_dc.RegisterField("solution", &x);
    int vis_cycle = 0;
 
