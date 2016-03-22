@@ -37,12 +37,12 @@
 //               identify any elements which may be over-refined and a single
 //               derefinement step is performed.
 //
-//               The example demonstrates MFEM's capability to refine, derefine
-//               nonconforming meshes, in 2D and 3D, and on linear, curved and
-//               surface meshes. Interpolation of functions between coarse and
-//               fine meshes, persistent GLVis visualization, and saving of
-//               time-dependent fields for external visualization with VisIt
-//               (visit.llnl.gov) are also illustrated.
+//               The example demonstrates MFEM's capability to refine and
+//               derefine nonconforming meshes, in 2D and 3D, and on linear,
+//               curved and surface meshes. Interpolation of functions between
+//               coarse and fine meshes, persistent GLVis visualization, and
+//               saving of time-dependent fields for external visualization with
+//               VisIt (visit.llnl.gov) are also illustrated.
 //
 //               We recommend viewing Examples 1, 6 and 9 before viewing this
 //               example.
@@ -114,9 +114,9 @@ int main(int argc, char *argv[])
    }
    args.PrintOptions(cout);
 
-   // 2. Read the mesh from the given mesh file on all processors. We can
-   //    handle triangular, quadrilateral, tetrahedral, hexahedral, surface and
-   //    volume meshes with the same code.
+   // 2. Read the mesh from the given mesh file on all processors. We can handle
+   //    triangular, quadrilateral, tetrahedral, hexahedral, surface and volume
+   //    meshes with the same code.
    ifstream imesh(mesh_file);
    if (!imesh)
    {
