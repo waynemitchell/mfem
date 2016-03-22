@@ -321,7 +321,7 @@ public:
    virtual void Update(bool want_transform = true);
 
    /// Get the GridFunction update matrix.
-   const Operator* UpdateMatrix() { Update(); return T; }
+   const Operator* GetUpdateOperator() { Update(); return T; }
 
    /// Free GridFunction transformation matrix (if any), to save memory.
    void UpdatesFinished() { delete T; T = NULL; }

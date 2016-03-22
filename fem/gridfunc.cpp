@@ -139,7 +139,7 @@ void GridFunction::Destroy()
 
 void GridFunction::Update()
 {
-   const Operator *T = fes->UpdateMatrix();
+   const Operator *T = fes->GetUpdateOperator();
 
    if (fes->GetSequence() == sequence)
    {
