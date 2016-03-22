@@ -82,7 +82,7 @@ protected:
    void UpdateNURBS();
 
    void Construct();
-   void Destroy();   // does not destroy 'RefData' and 'old_elem_dof'
+   void Destroy();
 
    void BuildElementToDofTable();
 

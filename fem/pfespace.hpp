@@ -74,10 +74,6 @@ private:
    GroupTopology &GetGroupTopo()
    { return (NURBSext) ? pNURBSext()->gtopo : pmesh->gtopo; }
 
-   /** Create a parallel FE space stealing all data (except RefData) from the
-       given FE space. This is used in SaveUpdate(). */
-   ParFiniteElementSpace(ParFiniteElementSpace &pf);
-
    void Construct();
    void Destroy();
 
