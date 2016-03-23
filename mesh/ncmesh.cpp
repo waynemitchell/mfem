@@ -3170,6 +3170,7 @@ void NCMesh::LoadCoarseElements(std::istream &input)
 
          MFEM_VERIFY(child, "element " << id << " cannot have two parents.");
          elem->child[i] = child;
+         child->parent = elem;
          child = NULL; // make sure the child can't be used again
 
          if (!i) // copy geom and attribute from first child
