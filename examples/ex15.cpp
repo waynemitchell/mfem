@@ -3,7 +3,7 @@
 // Compile with: make ex15
 //
 // Sample runs:  ex15
-//               ex15 -o 1 -y 0.2
+//               ex15 -o 1 -y 0.4
 //               ex15 -o 4 -y 0.1
 //               ex15 -n 5
 //               ex15 -p 1 -n 3
@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
          UpdateProblem(mesh, fespace, x, a, b);
       }
 
-      // 12. Use error estimates from the last iterations to check for possible
+      // 12. Use error estimates from the last iteration to check for possible
       //     derefinements.
       if (mesh.Nonconforming())
       {
