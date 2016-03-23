@@ -198,12 +198,11 @@ int main(int argc, char *argv[])
          ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
       }
 
-      // 17. Make a list of elements whose error is larger than a fraction (0.7)
-      //     of the maximum element error. These elements will be refined.
+      // 17. Make a list of elements whose error is larger than a fraction of
+      //     the maximum element error. These elements will be refined.
       Array<Refinement> ref_list;
       const double frac = 0.7;
-      // the 'errors' are squared, so we need to square the fraction
-      double threshold = (frac*frac) * errors.Max();
+      double threshold = frac * errors.Max();
       for (int i = 0; i < errors.Size(); i++)
       {
          if (errors[i] >= threshold)
