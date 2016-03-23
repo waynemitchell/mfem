@@ -443,7 +443,7 @@ HypreParMatrix *ParFiniteElementSpace::Dof_TrueDof_Matrix() // matrix P
    P = new HypreParMatrix(MyComm, MyRank, NRanks, row_starts, col_starts,
                           i_diag, j_diag, i_offd, j_offd, cmap, offd_counter);
 
-   SparseMatrix Pdiag(0, 0);
+   SparseMatrix Pdiag;
    P->GetDiag(Pdiag);
    R = Transpose(Pdiag);
 
@@ -1630,12 +1630,6 @@ struct DerefDofMessage
    MPI_Request request;
 };
 
-#ifdef HYPRE_BIGINT
-#define MPI_HYPRE_INT MPI_LONG
-#else
-#define MPI_HYPRE_INT MPI_INT
-#endif
-
 HypreParMatrix*
 ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
                                                   const Table* old_elem_dof)
@@ -1689,7 +1683,7 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
             msg.dofs[i] = old_offset + dofs[i];
          }
 
-         MPI_Isend(&msg.dofs[0], msg.dofs.size(), MPI_HYPRE_INT,
+         MPI_Isend(&msg.dofs[0], msg.dofs.size(), HYPRE_MPI_INT,
                    coarse_rank, 291, MyComm, &msg.request);
       }
       else if (coarse_rank == MyRank && fine_rank != MyRank)
@@ -1697,7 +1691,7 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
          DerefDofMessage &msg = messages[k];
          msg.dofs.resize(ldof*vdim);
 
-         MPI_Irecv(&msg.dofs[0], ldof*vdim, MPI_HYPRE_INT,
+         MPI_Irecv(&msg.dofs[0], ldof*vdim, HYPRE_MPI_INT,
                    fine_rank, 291, MyComm, &msg.request);
       }
       // TODO: coalesce Isends/Irecvs to the same rank. Typically, on uniform

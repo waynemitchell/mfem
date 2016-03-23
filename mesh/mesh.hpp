@@ -124,6 +124,8 @@ protected:
 #endif
 
 public:
+   enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
+
    Array<int> attributes;
    Array<int> bdr_attributes;
 
@@ -131,6 +133,8 @@ public:
    NCMesh *ncmesh;
 
 protected:
+   Operation last_operation;
+
    void Init();
 
    void InitTables();
@@ -324,7 +328,7 @@ protected:
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
    void Swap(Mesh& other, bool non_geometry = false);
 
-   virtual int ReduceInt(int value) { return value; }
+   virtual long ReduceInt(int value) { return value; }
 
 public:
 
@@ -777,13 +781,13 @@ public:
        Space uses this to construct a global interpolation matrix. */
    const CoarseFineTransformations &GetRefinementTransforms();
 
-   enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
-
    /// Return type of last modification of the mesh.
    Operation GetLastOperation() const { return last_operation; }
 
-   /** Return update counter (for checking proper sequence of Space::
-       and GridFunction:: Update(). */
+   /** Return update counter. The counter starts at zero and is incremented
+       each time refinement, derefinement, or rebalancing method is called.
+       It is used for checking proper sequence of Space:: and GridFunction::
+       Update() calls. */
    long GetSequence() const { return sequence; }
 
    /// Print the mesh to the given stream using Netgen/Truegrid format.
@@ -853,10 +857,6 @@ public:
 
    /// Destroys mesh.
    virtual ~Mesh();
-
-protected:
-
-   Operation last_operation;
 };
 
 /** Overload operator<< for std::ostream and Mesh; valid also for the derived

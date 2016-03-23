@@ -77,7 +77,7 @@ private:
 
    bool WantSkipSharedMaster(const NCMesh::Master &master) const;
 
-   virtual int ReduceInt(int value);
+   virtual long ReduceInt(int value);
 
 public:
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the

@@ -1581,7 +1581,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       MPI_Request request;
       MPI_Status  status;
 
-#ifdef DEBUG_LOCALREF_MFEM
+#ifdef MFEM_DEBUG_PARMESH_LOCALREF
       int ref_loops_all = 0, ref_loops_par = 0;
 #endif
       do
@@ -1595,7 +1595,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                Bisection(i, v_to_v, NULL, NULL, middle);
             }
          }
-#ifdef DEBUG_LOCALREF_MFEM
+#ifdef MFEM_DEBUG_PARMESH_LOCALREF
          ref_loops_all++;
 #endif
 
@@ -1608,7 +1608,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          // conforming
          if (need_refinement == 0)
          {
-#ifdef DEBUG_LOCALREF_MFEM
+#ifdef MFEM_DEBUG_PARMESH_LOCALREF
             ref_loops_par++;
 #endif
             // MPI_Barrier(MyComm);
@@ -1687,7 +1687,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
       while (need_refinement == 1);
 
-#ifdef DEBUG_LOCALREF_MFEM
+#ifdef MFEM_DEBUG_PARMESH_LOCALREF
       i = ref_loops_all;
       MPI_Reduce(&i, &ref_loops_all, 1, MPI_INT, MPI_MAX, 0, MyComm);
       if (MyRank == 0)
@@ -1818,7 +1818,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       Vertex V;
       V(2) = 0.0;
 
-#ifdef DEBUG_LOCALREF_MFEM
+#ifdef MFEM_DEBUG_PARMESH_LOCALREF
       int ref_loops_all = 0, ref_loops_par = 0;
 #endif
       do
@@ -1830,7 +1830,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                need_refinement = 1;
                GreenRefinement(edge1[i], v_to_v, edge1, edge2, middle);
             }
-#ifdef DEBUG_LOCALREF_MFEM
+#ifdef MFEM_DEBUG_PARMESH_LOCALREF
          ref_loops_all++;
 #endif
 
@@ -1843,7 +1843,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
          // conforming
          if (need_refinement == 0)
          {
-#ifdef DEBUG_LOCALREF_MFEM
+#ifdef MFEM_DEBUG_PARMESH_LOCALREF
             ref_loops_par++;
 #endif
             // MPI_Barrier(MyComm);
@@ -1898,7 +1898,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                      {
                         int *v = shared_edges[group_edges[j]]->GetVertices();
                         int ii = v_to_v(v[0], v[1]);
-#ifdef DEBUG_LOCALREF_MFEM
+#ifdef MFEM_DEBUG_PARMESH_LOCALREF
                         if (middle[ii] != -1)
                            mfem_error("ParMesh::LocalRefinement (triangles) : "
                                       "Oops!");
@@ -1920,7 +1920,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       }
       while (need_refinement == 1);
 
-#ifdef DEBUG_LOCALREF_MFEM
+#ifdef MFEM_DEBUG_PARMESH_LOCALREF
       i = ref_loops_all;
       MPI_Reduce(&i, &ref_loops_all, 1, MPI_INT, MPI_MAX, 0, MyComm);
       if (MyRank == 0)
@@ -2109,9 +2109,7 @@ bool ParMesh::NonconformingDerefinement(Array<double> &elem_error,
       if (error < threshold) { derefs.Append(i); }
    }
 
-   int size = derefs.Size(), glob_size;
-   MPI_Allreduce(&size, &glob_size, 1, MPI_INT, MPI_SUM, MyComm);
-
+   long glob_size = ReduceInt(derefs.Size());
    if (glob_size)
    {
       DerefineMesh(derefs);
@@ -3816,10 +3814,10 @@ void ParMesh::PrintInfo(std::ostream &out)
    }
 }
 
-int ParMesh::ReduceInt(int value)
+long ParMesh::ReduceInt(int value)
 {
-   int global;
-   MPI_Allreduce(&value, &global, 1, MPI_INT, MPI_SUM, MyComm);
+   long local = value, global;
+   MPI_Allreduce(&local, &global, 1, MPI_LONG, MPI_SUM, MyComm);
    return global;
 }
 
