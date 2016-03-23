@@ -6812,12 +6812,15 @@ void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
 
 void Mesh::EnsureNCMesh(bool triangles_nonconforming)
 {
-   if ((meshgen & 2) /* quads/hexes */ ||
-       (triangles_nonconforming && BaseGeom == Geometry::TRIANGLE))
+   if (!ncmesh)
    {
-      ncmesh = new NCMesh(this);
-      ncmesh->OnMeshUpdated(this);
-      GenerateNCFaceInfo();
+      if ((meshgen & 2) /* quads/hexes */ ||
+          (triangles_nonconforming && BaseGeom == Geometry::TRIANGLE))
+      {
+         ncmesh = new NCMesh(this);
+         ncmesh->OnMeshUpdated(this);
+         GenerateNCFaceInfo();
+      }
    }
 }
 
