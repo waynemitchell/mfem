@@ -927,7 +927,6 @@ void MixedBilinearForm::Assemble (int skip_zeros)
    }
 }
 
-#if 0
 void MixedBilinearForm::ConformingAssemble()
 {
    Finalize();
@@ -953,7 +952,6 @@ void MixedBilinearForm::ConformingAssemble()
    height = mat->Height();
    width = mat->Width();
 }
-#endif
 
 void MixedBilinearForm::EliminateTrialDofs (
    Array<int> &bdr_attr_is_ess, Vector &sol, Vector &rhs )

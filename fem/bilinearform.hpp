@@ -343,14 +343,12 @@ public:
 
    void Assemble (int skip_zeros = 1);
 
-#if 0 // TODO: remove?
    /** For partially conforming trial and/or test FE spaces, complete the
        assembly process by performing A := P2^t A P1 where A is the internal
        sparse matrix; P1 and P2 are the conforming prolongation matrices of the
        trial and test FE spaces, respectively. After this call the
        MixedBilinearForm becomes an operator on the conforming FE spaces. */
    void ConformingAssemble();
-#endif
 
    void EliminateTrialDofs(Array<int> &bdr_attr_is_ess,
                            Vector &sol, Vector &rhs);

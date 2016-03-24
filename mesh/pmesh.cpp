@@ -114,6 +114,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       Mesh::InitFromNCMesh(*pncmesh);
       spaceDim = mesh.spaceDim;
       pncmesh->OnMeshUpdated(this);
+      // TODO: call GenerateNCFaceInfo
 
       meshgen = mesh.MeshGenerator();
       ncmesh = pncmesh;
@@ -2136,6 +2137,8 @@ void ParMesh::Rebalance()
 
    Swap(*pmesh2, false);
    delete pmesh2;
+
+   // TODO: call GenerateNCFaceInfo
 
    last_operation = Mesh::REBALANCE;
    sequence++;
