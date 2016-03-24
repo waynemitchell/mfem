@@ -246,25 +246,34 @@ int main(int argc, char *argv[])
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
                     MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
 
-      // 18. Make a list of elements whose error is larger than a fraction
-      //     of the maximum element error. These elements will be refined.
-      Array<int> ref_list;
+      // 18. Refine elements whose error is larger than a fraction of the
+      //     maximum element error.
       const double frac = 0.7;
       double threshold = frac * global_max_err;
-      for (int i = 0; i < errors.Size(); i++)
-      {
-         if (errors[i] >= threshold) { ref_list.Append(i); }
-      }
+      pmesh.RefineByError(errors, threshold);
 
-      // 19. Refine the selected elements. Since we are going to transfer the
-      //     grid function x from the coarse mesh to the new fine mesh in the
-      //     next step, we need to request the "two-level state" of the mesh.
-      pmesh.GeneralRefinement(ref_list);
-
-      // 20. Inform the space, grid function and also the bilinear and linear
-      //     forms that the space has changed.
+      // 19. Update the finite element space (recalculate the number of DOFs,
+      //     etc.) and create a grid function update matrix. Apply the matrix
+      //     to any GridFunctions over the space. In this case, the update
+      //     matrix is an interpolation matrix so the updated GridFunction will
+      //     still represent the same function as before refinement.
       fespace.Update();
       x.Update();
+
+      // 20. Load balance the mesh, and update the space and solution. Currently
+      //     available only for nonconforming meshes.
+      if (pmesh.Nonconforming())
+      {
+         pmesh.Rebalance();
+
+         // Update the space and the GridFunction. This time the update matrix
+         // redistributes the GridFunction among the processors.
+         fespace.Update();
+         x.Update();
+      }
+
+      // 21. Inform also the bilinear and linear forms that the space has
+      //     changed.
       a.Update();
       b.Update();
    }

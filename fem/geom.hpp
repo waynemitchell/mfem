@@ -42,9 +42,7 @@ private:
    DenseMatrix *PerfGeomToGeomJac[NumGeom];
 
 public:
-
    Geometry();
-
    ~Geometry();
 
    const IntegrationRule *GetVertices(int GeomType);

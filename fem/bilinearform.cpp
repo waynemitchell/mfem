@@ -27,7 +27,6 @@ void BilinearForm::AllocMat()
       return;
    }
 
-   fes->BuildElementToDofTable();
    const Table &elem_dof = fes->GetElementToDofTable();
    Table dof_dof;
 

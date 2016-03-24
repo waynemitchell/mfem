@@ -282,7 +282,9 @@ int Table::Width() const
 {
    int width = -1, nnz = (size >= 0) ? I[size] : 0;
    for (int k = 0; k < nnz; k++)
+   {
       if (J[k] > width) { width = J[k]; }
+   }
    return width + 1;
 }
 

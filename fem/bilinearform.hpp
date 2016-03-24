@@ -64,6 +64,8 @@ protected:
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
 
+   void ConformingAssemble();
+
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
    {
@@ -174,20 +176,6 @@ public:
 
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
-
-   /** For partially conforming FE spaces, complete the assembly process by
-       performing A := P^t A P where A is the internal sparse matrix and P is
-       the conforming prolongation of the FE space. After this call the
-       BilinearForm becomes an operator on the conforming FE space. */
-   void ConformingAssemble();
-
-   /** A shortcut for converting the whole linear system to conforming DOFs. */
-   void ConformingAssemble(GridFunction& sol, LinearForm& rhs)
-   {
-      ConformingAssemble();
-      rhs.ConformingAssemble();
-      sol.ConformingProject();
-   }
 
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
