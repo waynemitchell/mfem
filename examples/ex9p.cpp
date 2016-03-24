@@ -311,7 +311,9 @@ int main(int argc, char *argv[])
    int table_num = 3;
    switch (ode_solver_type)
    {
-      case 11: ode_solver = new CVODEParSolver(MPI_COMM_WORLD, adv, *U, t); break;
+      case 11:
+         ode_solver = new CVODEParSolver(MPI_COMM_WORLD, adv, *U, t);
+         break;
       case 12: ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t); break;
       case 13: ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t);
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);

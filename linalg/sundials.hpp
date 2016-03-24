@@ -176,36 +176,18 @@ class CVODEParSolver: public CVODESolver
 {
 protected:
    MPI_Comm comm;
-   bool use_hypre_parvec;
 
 public:
    CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x,
-                  double &_t,int lmm=CV_ADAMS, int iter=CV_FUNCTIONAL,
-                  bool _use_hypre_parvec=true);
+                  double &_t, int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
 
-   void CreateNVector();
-
-   void CreateNVector(long int&, realtype*);
-
-   void CreateNVector(long int&, Vector*);
-
-   /** \brief Transfers the data owned by the Vector* by copying the double* pointer and the hypre_ParVector* pointer */
-   void TransferNVectorShallow(Vector*,N_Vector&);
-
-   /** \brief Transfers the data owned by the N_Vector by copying the double* pointer and the hypre_ParVector* pointer */
-   void TransferNVectorShallow(N_Vector&,Vector*);
-
-   void SetUseHypreParVec(bool _use_hypre_parvec)
-   {
-      use_hypre_parvec=_use_hypre_parvec;
-   }
+   void CreateNVector(long int &yin_length, Vector *);
+   void TransferNVectorShallow(Vector *_x, N_Vector &_y);
 
    void DestroyNVector(N_Vector&);
 
 private:
-
-   int WrapCVodeInit(void*,double&,N_Vector&);
-
+   int WrapCVodeInit(void *, double &, N_Vector &);
 };
 #endif
 
@@ -427,8 +409,13 @@ public:
    Solver* J_solve;
    SundialsLinearSolveOperator* op_for_gradient;
 
-   MFEMLinearSolverMemory() { setup_y=NULL; setup_f=NULL; solve_y=NULL; solve_yn=NULL; solve_f=NULL; vec_tmp=NULL; J_solve=NULL; op_for_gradient=NULL;};
-
+   MFEMLinearSolverMemory()
+   {
+      setup_y=NULL; setup_f=NULL;
+      solve_y=NULL; solve_yn=NULL;
+      solve_f=NULL; vec_tmp=NULL;
+      J_solve=NULL; op_for_gradient=NULL;
+   }
 };
 
 //temporary operator for testing ex10
@@ -444,12 +431,14 @@ private:
    */
 public:
    SundialsLinearSolveOperator();
-   SundialsLinearSolveOperator(int s) : Operator(s) { };
+   SundialsLinearSolveOperator(int s) : Operator(s)
+   { }
    SundialsLinearSolveOperator(Operator *M_, Operator *S_, Operator *H_);
    virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
                               Solver* J_solve, double gamma) = 0;
    void SetParameters(double, Vector&, Vector&);
-   virtual ~SundialsLinearSolveOperator() {};
+   virtual ~SundialsLinearSolveOperator()
+   { }
 };
 
 }

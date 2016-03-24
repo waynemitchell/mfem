@@ -168,7 +168,6 @@ CVODESolver::CVODESolver(TimeDependentOperator &_f, Vector &_x, double&_t,
 
 void CVODESolver::CreateNVector(long int& yin_length, realtype* ydata)
 {
-
    // Create a serial vector
    y = N_VMake_Serial(yin_length,ydata);   /* Allocate y vector */
    if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
@@ -335,17 +334,16 @@ void CVODESolver::SetStopTime(double tf)
 
 void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
-   int flag=0;
-   realtype tout=t+dt;
-   TransferNVectorShallow(&x,y);
+   int flag = 0;
+   realtype tout = t + dt;
+   TransferNVectorShallow(&x, y);
 
-   //Step
+   // Perform the step.
    flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
    if (check_flag(&flag, "CVode", 1)) { MFEM_ABORT("CVode"); }
 
-   //Record last incremental step size
+   // Record last incremental step size.
    flag = CVodeGetLastStep(ode_mem, &dt);
-
 }
 
 CVODESolver::~CVODESolver()
@@ -403,7 +401,7 @@ int CVODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 
 #ifdef MFEM_USE_MPI
 CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
-                               Vector &_x, double &_t, int lmm, int iter, bool _use_hypre_parvec)
+                               Vector &_x, double &_t, int lmm, int iter)
 {
    y = NULL;
    f = &_f;
@@ -412,7 +410,6 @@ CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
    ode_mem=CVodeCreate(lmm,iter);
    initialized_sundials=false;
    tolerances_set_sundials=false;
-   use_hypre_parvec=_use_hypre_parvec;
    linear_multistep_method_type=lmm;
    solver_iteration_type=iter;
    //set MPI_Comm communicator
@@ -420,68 +417,30 @@ CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
    ReInit(_f,_x,_t);
 }
 
-
-void CVODEParSolver::CreateNVector(long int& yin_length, realtype* ydata)
-{
-   int nprocs, myid;
-   long int global_length;
-   MPI_Comm_size(comm,&nprocs);
-   MPI_Comm_rank(comm,&myid);
-   realtype in=yin_length;
-   realtype out;
-   MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
-   global_length= out;
-   y = N_VMake_ParHyp(comm, yin_length, global_length,
-                      ydata);   /* Allocate y vector */
-}
-
 void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 {
-   int nprocs, myid;
-   long int global_length;
-   MPI_Comm_size(comm,&nprocs);
-   MPI_Comm_rank(comm,&myid);
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
+   MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
+                          "Could not cast to HypreParVector.");
 
-   //Process appropriate sizes for creating y as a new ParHyp NVector
-   realtype in=yin_length;
-   in=_x->Size();
-   realtype out;
-   MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
-   global_length= out;
-   y = N_VNew_ParHyp(comm, yin_length, global_length);   /* Allocate y vector */
-   TransferNVectorShallow(_x,y);
+   y = N_VMake_ParHyp(x->StealParVector());
 }
 
-void CVODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
+void CVODEParSolver::TransferNVectorShallow(Vector *_x, N_Vector &_y)
 {
-   int nprocs, myid;
-   if (use_hypre_parvec)
-   {
-      NV_HYPRE_PARVEC_PH(_y)=((HypreParVector*) _x)->StealParVector();
-      NV_OWN_PARVEC_PH(_y)=true;
-   }
-   else
-   {
-      NV_DATA_PH(_y)=_x->GetData();
-   }
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
+   MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
+                          "Could not cast to HypreParVector.");
 
-}
-
-//don't forget to finish implementing transfer functions
-void CVODEParSolver::TransferNVectorShallow(N_Vector &_y, Vector* _x)
-{
-   hypre_ParVector* tmp_x=((hypre_ParVector*) _x);
-   tmp_x=NV_HYPRE_PARVEC_PH(_y);
-   _x->SetData(NV_DATA_PH(_y));
-   NV_OWN_PARVEC_PH(_y)=true;
+   y = N_VMake_ParHyp(x->StealParVector());
 }
 
 void CVODEParSolver::DestroyNVector(N_Vector& _y)
 {
-
-   if (NV_OWN_PARVEC_PH(y)==true)
+   if (NV_OWN_PARVEC_PH(y) == true)
    {
-      N_VDestroy_ParHyp(y);   // Free y vector
+      // Free y vector.
+      N_VDestroy_ParHyp(y);
    }
 }
 
@@ -770,6 +729,8 @@ ARKODEParSolver::ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
 
 void ARKODEParSolver::CreateNVector(long int& yin_length, realtype* ydata)
 {
+      MFEM_ABORT("called");
+
    int nprocs, myid;
    long int global_length;
    MPI_Comm_size(comm,&nprocs);
@@ -778,8 +739,8 @@ void ARKODEParSolver::CreateNVector(long int& yin_length, realtype* ydata)
    realtype out;
    MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
    global_length= out;
-   y = N_VMake_ParHyp(comm, yin_length, global_length,
-                      ydata);   /* Allocate y vector */
+   //y = N_VMake_ParHyp(comm, yin_length, global_length,
+   //                   ydata);   /* Allocate y vector */
 }
 
 void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
@@ -795,8 +756,9 @@ void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
    realtype out;
    MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
    global_length= out;
-   y = N_VNew_ParHyp(comm, yin_length, global_length);   /* Allocate y vector */
-   TransferNVectorShallow(_x,y);
+   y = N_VMake_ParHyp(((HypreParVector*) _x)->StealParVector());
+   //y = N_VNew_ParHyp(comm, yin_length, global_length);   /* Allocate y vector */
+   //TransferNVectorShallow(_x,y);
 }
 
 void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
@@ -808,7 +770,7 @@ void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
    }
    else
    {
-      NV_DATA_PH(_y)=_x->GetData();
+      //NV_DATA_PH(_y)=_x->GetData();
    }
 }
 
@@ -872,34 +834,25 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
 }
 
 #ifdef MFEM_USE_MPI
-int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot,void *user_data)
+int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
-   //printf("entered sun_f_fun_par function");
-   realtype *ydata, *ydotdata;
-   int myid;
-   long int ylen, ydotlen;
-   HYPRE_Int *col, *col2;
-   hypre_ParVector *yparvec, *ydotparvec;
-   MPI_Comm comm=NV_COMM_PH(y);
-   MPI_Comm_rank(comm,&myid);
+   mfem::TimeDependentOperator* f =
+      static_cast<mfem::TimeDependentOperator*>(user_data);
 
-   //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
-   mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
-   //printf("1.3.12.5.3i fun create vectors\n");
-   // Creates mfem HypreParVectors mfem_vector_y and mfem_vector_ydot by using the casting
-   // operators in HypreParVector to cast the hypre_ParVector in y and in ydot respectively
+   // Creates mfem HypreParVectors mfem_vector_y and mfem_vector_ydot by
+   // using the casting operators in HypreParVector to cast the hypre_ParVector
+   // in y and in ydot respectively.
    // Have not explicitly set as owndata, so allocated size is -size
-   mfem::HypreParVector mfem_vector_y=
-      (mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(y));
-   //printf("1.3.12.5.3i fun created y vector\n");
-   mfem::HypreParVector mfem_vector_ydot=
-      (mfem::HypreParVector) (NV_HYPRE_PARVEC_PH(ydot));
-   //printf("1.3.12.5.3i fun created ydot vector\n");
-   //Apply ydot=f(t,y)
+   mfem::HypreParVector mfem_vector_y =
+      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(y));
+   mfem::HypreParVector mfem_vector_ydot =
+      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(ydot));
+
+   // Apply y' = f(t,y).
    f->SetTime(t);
-   f->Mult(mfem_vector_y,mfem_vector_ydot);
-   //printf("1.3.12.5.3i fun after mult\n");
-   return (0);
+   f->Mult(mfem_vector_y, mfem_vector_ydot);
+
+   return 0;
 }
 #endif
 
@@ -1165,7 +1118,7 @@ static void WrapLinearARKSolveFree(ARKodeMem ark_mem)
 static int WrapLinearSolveSetup(void* lmem, double tn,
                                 mfem::Vector* ypred, mfem::Vector* fpred)
 {
-
+   return 0;
 }
 
 static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
@@ -1186,6 +1139,6 @@ static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
    *b=*yn;*/
 
    (tmp_lmem->op_for_gradient)->SolveJacobian(b,ycur, yn, prec, tmp_lmem->weight);
-
+   return 0;
 }
 #endif

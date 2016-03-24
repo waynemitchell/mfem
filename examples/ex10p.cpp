@@ -357,36 +357,53 @@ int main(int argc, char *argv[])
       cout << "initial   total energy (TE) = " << (ee0 + ke0) << endl;
    }
 
-   // 10. Perform time-integration (looping over the time iterations, ti, with a
-   //     time-step dt).
+   // Sundials time integrators.
    double t = 0.0;
+   int part_size = (HYPRE_AssumedPartitionCheck()) ? 2 : num_procs + 1;
+   HYPRE_Int *par1 = v_gf.GetTrueDofs()->Partitioning();
+   HYPRE_Int *par2 = x_gf.GetTrueDofs()->Partitioning();
+   HYPRE_Int *par3 = new HYPRE_Int[part_size+1];
+   for (int i = 0; i < part_size; i++)
+   {
+      par3[i] = par1[i] + par2[i];
+   }
+
+   int gsize = x_gf.GetTrueDofs()->GlobalSize() +
+               v_gf.GetTrueDofs()->GlobalSize();
+   HypreParVector *vx_hyp = new HypreParVector(pmesh->GetComm(),
+                                               gsize, vx.GetData(), par3);
+
    switch (ode_solver_type)
    {
-      case 4: ode_solver= new CVODEParSolver(MPI_COMM_WORLD,oper,vx,t,CV_BDF,
-                                                CV_NEWTON,
-                                                false); break;
-      case 5: ode_solver = new CVODEParSolver(MPI_COMM_WORLD,oper,vx,t,CV_BDF,
-                                                 CV_NEWTON,
-                                                 false);
-         ((CVODEParSolver*) ode_solver)->SetLinearSolve(oper.J_solver,
-                                                        oper.backward_euler_oper);;
-         ((CVODEParSolver*) ode_solver)->SetUseHypreParVec(false); break;
-      case 6: ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, vx, t,false,
+      case 4:
+         ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp, t,
+                                         CV_BDF, CV_NEWTON);
+         break;
+      case 5:
+         ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp, t,
+                                         CV_BDF, CV_NEWTON);
+         static_cast<CVODEParSolver *>(ode_solver)->
+            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
+      break;
+      case 6:ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, vx, t,false,
                                                   false);
          ((ARKODEParSolver*) ode_solver)->SetLinearSolve(oper.J_solver,
                                                          oper.backward_euler_oper);
          ((ARKODEParSolver*) ode_solver)->SetUseHypreParVec(false);
          break;
-      case 15: ode_solver = new CVODEParSolver(MPI_COMM_WORLD,oper,vx,t,CV_ADAMS,
-                                                  CV_FUNCTIONAL,
-                                                  false); break;
+      case 15:
+         ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp, t,
+                                         CV_ADAMS, CV_FUNCTIONAL);
+         break;
       case 16: ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, vx, t,true,
                                                    false); break;
       default:
          ode_solver->Init(oper);
    }
 
-   double dt_by_ref=dt;
+   // 10. Perform time-integration
+   //     (looping over the time iterations, ti, with a time-step dt).
+   double dt_by_ref = dt;
    bool last_step = false;
    for (int ti = 1; !last_step; ti++)
    {
@@ -396,7 +413,7 @@ int main(int argc, char *argv[])
       }
 
       dt_by_ref=dt;
-      ode_solver->Step(vx, t, dt_by_ref);
+      ode_solver->Step(*vx_hyp, t, dt_by_ref);
 
       if (last_step || (ti % vis_steps) == 0)
       {
