@@ -11,13 +11,14 @@
 
 // Implementation of GridFunction
 
+#include "fem.hpp"
+
 #include <limits>
 #include <cstring>
 #include <string>
 #include <cmath>
 #include <iostream>
 #include <algorithm>
-#include "fem.hpp"
 
 namespace mfem
 {

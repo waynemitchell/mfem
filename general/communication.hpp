@@ -85,10 +85,6 @@ private:
    MPI_Request *requests;
    MPI_Status  *statuses;
 
-   /** Function template that returns the MPI_Datatype for a given C++ type.
-       We explicitly define this function for int and double. */
-   template <class T> static inline MPI_Datatype Get_MPI_Datatype();
-
 public:
    GroupCommunicator(GroupTopology &gt);
    /** Initialize the communicator from a local-dof to group map.

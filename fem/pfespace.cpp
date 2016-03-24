@@ -16,7 +16,8 @@
 #include "fem.hpp"
 #include "../general/sort_pairs.hpp"
 
-#include <climits>
+#include <climits> // INT_MAX
+#include <limits>
 #include <list>
 
 namespace mfem
@@ -1729,7 +1730,8 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
 
             for (int i = 0; i < lR.Height(); i++)
             {
-               if (lR(i, 0) == INFINITY) { continue; }
+               if (lR(i, 0) == std::numeric_limits<double>::infinity())
+               { continue; }
 
                int r = DofToVDof(dofs[i], vd);
                int m = (r >= 0) ? r : (-1 - r);
@@ -1780,7 +1782,8 @@ ParFiniteElementSpace::ParallelDerefinementMatrix(int old_ndofs,
 
             for (int i = 0; i < lR.Height(); i++)
             {
-               if (lR(i, 0) == INFINITY) { continue; }
+               if (lR(i, 0) == std::numeric_limits<double>::infinity())
+               { continue; }
 
                int r = DofToVDof(dofs[i], vd);
                int m = (r >= 0) ? r : (-1 - r);

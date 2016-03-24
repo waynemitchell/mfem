@@ -11,9 +11,11 @@
 
 // Implementation of FiniteElementSpace
 
+#include "fem.hpp"
+
 #include <cmath>
 #include <cstdarg>
-#include "fem.hpp"
+#include <limits>
 
 using namespace std;
 
@@ -817,7 +819,7 @@ void FiniteElementSpace::GetLocalDerefinementMatrices(
    for (int i = 0; i < nmat; i++)
    {
       DenseMatrix &lR = localR(i);
-      lR = INFINITY; // marks invalid rows
+      lR = numeric_limits<double>::infinity(); // marks invalid rows
 
       isotr.GetPointMat() = dt.point_matrices(i);
       isotr.SetIntPoint(&nodes[0]);
@@ -875,7 +877,7 @@ SparseMatrix* FiniteElementSpace::DerefinementMatrix(int old_ndofs,
 
          for (int i = 0; i < lR.Height(); i++)
          {
-            if (lR(i, 0) == INFINITY) { continue; }
+            if (lR(i, 0) == numeric_limits<double>::infinity()) { continue; }
 
             int r = DofToVDof(dofs[i], vd);
             int m = (r >= 0) ? r : (-1 - r);

@@ -19,7 +19,7 @@
 #include "../fem/fespace.hpp"
 
 #include <map>
-#include <climits>
+#include <climits> // INT_MIN, INT_MAX
 
 namespace mfem
 {
@@ -700,8 +700,8 @@ void ParNCMesh::LimitNCLevel(int max_nc_level)
       Array<Refinement> refinements;
       GetLimitRefinements(refinements, max_nc_level);
 
-      int size = refinements.Size(), glob_size;
-      MPI_Allreduce(&size, &glob_size, 1, MPI_INT, MPI_SUM, MyComm);
+      long size = refinements.Size(), glob_size;
+      MPI_Allreduce(&size, &glob_size, 1, MPI_LONG, MPI_SUM, MyComm);
 
       if (!glob_size) { break; }
 
@@ -1823,8 +1823,6 @@ void NeighborRowReply::Decode()
 template<class ValueType, bool RefTypes, int Tag>
 void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Encode()
 {
-   typedef VarMessage<Tag> Base;
-
    std::ostringstream ostream;
 
    Array<Element*> tmp_elements;
@@ -1853,15 +1851,13 @@ void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Encode()
       write<ValueType>(ostream, values[i]);
    }
 
-   ostream.str().swap(Base::data);
+   ostream.str().swap(data);
 }
 
 template<class ValueType, bool RefTypes, int Tag>
 void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Decode()
 {
-   typedef VarMessage<Tag> Base;
-
-   std::istringstream istream(Base::data);
+   std::istringstream istream(data);
 
    ElementSet eset(pncmesh, RefTypes);
    eset.Load(istream);
@@ -1882,7 +1878,7 @@ void ParNCMesh::ElementValueMessage<ValueType, RefTypes, Tag>::Decode()
    }
 
    // no longer need the raw data
-   Base::data.clear();
+   data.clear();
 }
 
 void ParNCMesh::RebalanceDofMessage::SetElements(const Array<Element*> &elems,

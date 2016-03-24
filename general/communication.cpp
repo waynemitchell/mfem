@@ -281,7 +281,7 @@ void GroupCommunicator::Bcast(T *ldata)
       {
          MPI_Irecv(buf,
                    nldofs,
-                   Get_MPI_Datatype<T>(),
+                   MPITypeMap<T>::mpi_type,
                    gtopo.GetGroupMasterRank(gr),
                    40822 + gtopo.GetGroupMasterGroup(gr),
                    gtopo.GetComm(),
@@ -305,7 +305,7 @@ void GroupCommunicator::Bcast(T *ldata)
             {
                MPI_Isend(buf,
                          nldofs,
-                         Get_MPI_Datatype<T>(),
+                         MPITypeMap<T>::mpi_type,
                          gtopo.GetNeighborRank(nbs[i]),
                          40822 + gtopo.GetGroupMasterGroup(gr),
                          gtopo.GetComm(),
@@ -378,7 +378,7 @@ void GroupCommunicator::Reduce(T *ldata, void (*Op)(OpData<T>))
 
          MPI_Isend(opd.buf,
                    opd.nldofs,
-                   Get_MPI_Datatype<T>(),
+                   MPITypeMap<T>::mpi_type,
                    gtopo.GetGroupMasterRank(gr),
                    43822 + gtopo.GetGroupMasterGroup(gr),
                    gtopo.GetComm(),
@@ -396,7 +396,7 @@ void GroupCommunicator::Reduce(T *ldata, void (*Op)(OpData<T>))
             {
                MPI_Irecv(opd.buf,
                          opd.nldofs,
-                         Get_MPI_Datatype<T>(),
+                         MPITypeMap<T>::mpi_type,
                          gtopo.GetNeighborRank(nbs[i]),
                          43822 + gtopo.GetGroupMasterGroup(gr),
                          gtopo.GetComm(),
@@ -504,17 +504,6 @@ GroupCommunicator::~GroupCommunicator()
 {
    delete [] statuses;
    delete [] requests;
-}
-
-// explicitly define GroupCommunicator::Get_MPI_Datatype for int and double
-template <> inline MPI_Datatype GroupCommunicator::Get_MPI_Datatype<int>()
-{
-   return MPI_INT;
-}
-
-template <> inline MPI_Datatype GroupCommunicator::Get_MPI_Datatype<double>()
-{
-   return MPI_DOUBLE;
 }
 
 // @cond DOXYGEN_SKIP

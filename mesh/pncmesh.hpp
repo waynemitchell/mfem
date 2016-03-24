@@ -371,6 +371,7 @@ protected:
    class ElementValueMessage : public VarMessage<Tag>
    {
    public:
+      using VarMessage<Tag>::data;
       std::vector<Element*> elements;
       std::vector<ValueType> values;
 

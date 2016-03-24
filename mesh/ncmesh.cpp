@@ -15,7 +15,7 @@
 #include <string>
 #include <algorithm>
 #include <cmath>
-#include <climits>
+#include <climits> // INT_MAX
 
 namespace mfem
 {

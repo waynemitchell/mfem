@@ -18,7 +18,6 @@
 #include "../general/sets.hpp"
 #include "../general/sort_pairs.hpp"
 #include <iostream>
-#include <climits>
 using namespace std;
 
 namespace mfem

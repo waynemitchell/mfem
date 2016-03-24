@@ -11,14 +11,14 @@
 
 // Implementation of data type vector
 
+#include "vector.hpp"
+
 #include <iostream>
 #include <iomanip>
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
 #include <limits>
-
-#include "vector.hpp"
 
 namespace mfem
 {
