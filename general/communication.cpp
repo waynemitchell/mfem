@@ -195,6 +195,11 @@ void GroupTopology::Create(ListOfIntegerSets &groups, int mpitag)
 }
 
 
+// specializations of the MPITypeMap static member
+template<> const MPI_Datatype MPITypeMap<int>::mpi_type = MPI_INT;
+template<> const MPI_Datatype MPITypeMap<double>::mpi_type = MPI_DOUBLE;
+
+
 GroupCommunicator::GroupCommunicator(GroupTopology &gt)
    : gtopo(gt)
 {
@@ -527,11 +532,6 @@ template void GroupCommunicator::BitOR<int>(OpData<int>);
 template void GroupCommunicator::Sum<double>(OpData<double>);
 template void GroupCommunicator::Min<double>(OpData<double>);
 template void GroupCommunicator::Max<double>(OpData<double>);
-
-
-// specializations of the MPITypeMap static member
-template<> const MPI_Datatype MPITypeMap<int>::mpi_type = MPI_INT;
-template<> const MPI_Datatype MPITypeMap<double>::mpi_type = MPI_DOUBLE;
 
 
 #ifdef __bgq__
