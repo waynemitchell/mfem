@@ -376,27 +376,28 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       case 4:
-         ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp, t,
-                                         CV_BDF, CV_NEWTON);
+         ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp,
+                                         t, CV_BDF, CV_NEWTON);
          break;
       case 5:
-         ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp, t,
-                                         CV_BDF, CV_NEWTON);
+         ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp,
+                                         t, CV_BDF, CV_NEWTON);
          static_cast<CVODEParSolver *>(ode_solver)->
             SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
-      break;
-      case 6:ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, vx, t,false,
-                                                  false);
-         ((ARKODEParSolver*) ode_solver)->SetLinearSolve(oper.J_solver,
-                                                         oper.backward_euler_oper);
-         ((ARKODEParSolver*) ode_solver)->SetUseHypreParVec(false);
+         break;
+      case 6:
+         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, vx, t, false);
+         static_cast<ARKODEParSolver *>(ode_solver)->
+            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 15:
          ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp, t,
                                          CV_ADAMS, CV_FUNCTIONAL);
          break;
-      case 16: ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, vx, t,true,
-                                                   false); break;
+      case 16:
+         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp,
+                                          t, true);
+         break;
       default:
          ode_solver->Init(oper);
    }

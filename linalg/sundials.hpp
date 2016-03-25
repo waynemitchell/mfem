@@ -44,7 +44,9 @@ protected:
    int solver_iteration_type;
 
 public:
-   /** \brief This constructor wraps the CVodeCreate function, and initializes pointers to null and flags to false.
+   /** \brief
+    * This constructor wraps the CVodeCreate function, and initializes
+    * pointers to null and flags to false.
     *
     * CVodeCreate
     *
@@ -57,10 +59,11 @@ public:
     */
    CVODESolver();
 
-   /** \brief This constructor wraps the CVodeCreate function,
-    * calls the ReInit function to handle the inital condition, and initializes pointers
-    * to null and flags to false. By default, this uses Adams methods with functional
-    * iterations (No Newton solves)
+   /** \brief
+    * This constructor wraps the CVodeCreate function, calls the ReInit
+    * function to handle the inital condition, and initializes pointers
+    * to null and flags to false. By default, this uses Adams methods with
+    * functional iterations (No Newton solves).
     *
     * CVodeCreate creates an internal memory block for a problem to
     * be solved by CVODE.
@@ -69,14 +72,17 @@ public:
                int iter=CV_FUNCTIONAL);
 
    void Init(TimeDependentOperator &);
-   /** \brief The ReInit function is used in the initial construction and initialization of the CVODESolver object. It wraps either CVodeInit or CVodeReInit to pass the initial condtion to the ode_mem struct.
+   /** \brief
+    * The ReInit function is used in the initial construction and
+    * initialization of the CVODESolver object. It wraps either CVodeInit or
+    * CVodeReInit to pass the initial condtion to the ode_mem struct.
     *
     * CVodeInit
     *
     * CVodeInit allocates and initializes memory for a problem. All
     * problem inputs are checked for errors. If any error occurs during
     * initialization, it is reported to the file whose file pointer is
-    * errfp and an error flag is returned. Otherwise, it returns CV_SUCCESS
+    * errfp and an error flag is returned. Otherwise, it returns CV_SUCCESS.
     *
     * CVodeReInit
     *
@@ -150,13 +156,17 @@ public:
 
    virtual void CreateNVector(long int&, realtype*);
 
-   /** \brief Creates an NVector of the appropriate type where the data is owned by the Vector* */
+   /** \brief
+    * Creates an NVector of the appropriate type where the data
+    * is owned by the Vector* */
    virtual void CreateNVector(long int&, Vector*);
 
-   /** \brief Transfers the data owned by the Vector* by copying the double* pointer */
+   /** \brief
+    * Transfers the data owned by the Vector* by copying the double* pointer */
    virtual void TransferNVectorShallow(Vector*,N_Vector&);
 
-   /** \brief Transfers the data owned by the N_Vector by copying the double* pointer */
+   /** \brief
+    * Transfers the data owned by the N_Vector by copying the double* pointer */
    virtual void TransferNVectorShallow(N_Vector&,Vector*);
 
    /** \brief Destroys an NVector of the appropriate type */
@@ -191,7 +201,7 @@ private:
 };
 #endif
 
-/// Wraps the ARKode library of explicit, implicit and additive Runge Kutta methods
+/// Wraps the ARKode library of explicit, implicit and additive RK methods.
 class ARKODESolver: public ODESolver
 {
 protected:
@@ -203,7 +213,9 @@ protected:
    bool use_explicit;
 
 public:
-   /** \brief This constructor wraps the ARKodeCreate function, and initializes pointers to null and flags to false.
+   /** \brief
+    * This constructor wraps the ARKodeCreate function, and initializes
+    * pointers to null and flags to false.
     *
     * ARKodeCreate
     *
@@ -216,8 +228,8 @@ public:
    ARKODESolver();
 
    /** \brief This constructor wraps the ARKodeCreate function,
-    * calls the ReInit function to handle the inital condition, and initializes pointers
-    * to null and flags to false.
+    * calls the ReInit function to handle the inital condition,
+    * and initializes pointers to null and flags to false.
     *
     * ARKodeCreate creates an internal memory block for a problem to
     * be solved by ARKODE.
@@ -226,7 +238,10 @@ public:
                 int _use_explicit=true);
 
    void Init(TimeDependentOperator &);
-   /** \brief The ReInit function is used in the initial construction and initialization of the ARKODESolver object. It wraps either ARKodeInit or ARKodeReInit to pass the initial condtion to the ode_mem struct.
+   /** \brief
+    * The ReInit function is used in the initial construction and
+    * initialization of the ARKODESolver object. It wraps either ARKodeInit or
+    * ARKodeReInit to pass the initial condtion to the ode_mem struct.
     *
     * ARKodeInit
     *
@@ -253,8 +268,8 @@ public:
     */
    void ReInit(TimeDependentOperator &, Vector &, double &);
 
-   /** \brief SetSStolerances wraps the ARKode function ARKodeSStolerances which
-    * specifies scalar relative and absolute tolerances.
+   /** \brief SetSStolerances wraps the ARKode function ARKodeSStolerances
+    * which specifies scalar relative and absolute tolerances.
     *
     *  These functions specify the integration tolerances. One of them
     * SHOULD be called before the first call to ARKode; otherwise
@@ -365,24 +380,14 @@ class ARKODEParSolver: public ARKODESolver
 {
 protected:
    MPI_Comm comm;
-   bool use_hypre_parvec;
 
 public:
    ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x,
-                   double &_t, int use_explicit=true, bool _use_hypre_parvec=false);
-
-   void CreateNVector();
-
-   void CreateNVector(long int&, realtype*);
+                   double &_t, int use_explicit = true);
 
    void CreateNVector(long int&, Vector*);
 
    void TransferNVectorShallow(Vector*,N_Vector&);
-
-   void SetUseHypreParVec(bool _use_hypre_parvec)
-   {
-      use_hypre_parvec=_use_hypre_parvec;
-   }
 
    void DestroyNVector(N_Vector&);
 

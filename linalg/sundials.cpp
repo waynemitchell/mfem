@@ -711,67 +711,36 @@ int ARKODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 
 #ifdef MFEM_USE_MPI
 ARKODEParSolver::ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
-                                 Vector &_x, double &_t, int _use_explicit, bool _use_hypre_parvec)
+                                 Vector &_x, double &_t, int _use_explicit)
 {
    y = NULL;
    f = &_f;
 
    /* Call ARKodeCreate to create the solver memory */
-   ode_mem=ARKodeCreate();
-   initialized_sundials=false;
-   tolerances_set_sundials=false;
-   use_hypre_parvec=_use_hypre_parvec;
-   use_explicit=_use_explicit;
-   //Set MPI_Comm
-   comm=_comm;
+   ode_mem = ARKodeCreate();
+   initialized_sundials = false;
+   tolerances_set_sundials = false;
+   use_explicit = _use_explicit;
+   comm = _comm;
    ReInit(_f,_x,_t);
-}
-
-void ARKODEParSolver::CreateNVector(long int& yin_length, realtype* ydata)
-{
-      MFEM_ABORT("called");
-
-   int nprocs, myid;
-   long int global_length;
-   MPI_Comm_size(comm,&nprocs);
-   MPI_Comm_rank(comm,&myid);
-   realtype in=yin_length;
-   realtype out;
-   MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
-   global_length= out;
-   //y = N_VMake_ParHyp(comm, yin_length, global_length,
-   //                   ydata);   /* Allocate y vector */
 }
 
 void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 {
-   int nprocs, myid;
-   long int global_length;
-   MPI_Comm_size(comm,&nprocs);
-   MPI_Comm_rank(comm,&myid);
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
+   MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
+                          "Could not cast to HypreParVector.");
 
-   //Process appropriate sizes for creating y as a new ParHyp NVector
-   realtype in=yin_length;
-   in=_x->Size();
-   realtype out;
-   MPI_Allreduce(&in, &out, 1, PVEC_REAL_MPI_TYPE, MPI_SUM, comm);
-   global_length= out;
-   y = N_VMake_ParHyp(((HypreParVector*) _x)->StealParVector());
-   //y = N_VNew_ParHyp(comm, yin_length, global_length);   /* Allocate y vector */
-   //TransferNVectorShallow(_x,y);
+   y = N_VMake_ParHyp(x->StealParVector());
 }
 
 void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
-   if (use_hypre_parvec)
-   {
-      NV_HYPRE_PARVEC_PH(_y)=((HypreParVector*) _x)->StealParVector();
-      NV_OWN_PARVEC_PH(_y)=true;
-   }
-   else
-   {
-      //NV_DATA_PH(_y)=_x->GetData();
-   }
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
+   MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
+                          "Could not cast to HypreParVector.");
+
+   y = N_VMake_ParHyp(x->StealParVector());
 }
 
 void ARKODEParSolver::DestroyNVector(N_Vector& _y)
@@ -784,18 +753,22 @@ void ARKODEParSolver::DestroyNVector(N_Vector& _y)
 
 int ARKODEParSolver::WrapARKodeInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
-   //Assumes integrating TimeDependentOperator f explicitly
-   //Consider adding a flag to switch between explicit and implicit
-   return use_explicit ? ARKodeInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t,
-                                    _y) : ARKodeInit(_ode_mem, NULL, sun_f_fun_par, (realtype) _t, _y);
+   // Assumes integrating TimeDependentOperator f explicitly.
+   // Consider adding a flag to switch between explicit and implicit.
+   return (use_explicit) ? ARKodeInit(_ode_mem, sun_f_fun_par, NULL,
+                                      (realtype) _t, _y)
+                         : ARKodeInit(_ode_mem, NULL, sun_f_fun_par,
+                                      (realtype) _t, _y);
 }
 
 int ARKODEParSolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
 {
    //Assumes integrating TimeDependentOperator f explicitly
    //Consider adding a flag to switch between explicit and implicit
-   return use_explicit ? ARKodeReInit(_ode_mem, sun_f_fun_par, NULL, (realtype) _t,
-                                      _y) : ARKodeInit(_ode_mem, NULL, sun_f_fun_par, (realtype) _t, _y);
+   return (use_explicit) ? ARKodeReInit(_ode_mem, sun_f_fun_par, NULL,
+                                        (realtype) _t,_y)
+                         : ARKodeInit(_ode_mem, NULL, sun_f_fun_par,
+                                      (realtype) _t, _y);
 }
 
 #endif
@@ -803,34 +776,34 @@ int ARKODEParSolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
 }
 
 
-int sun_f_fun(realtype t, N_Vector y, N_Vector ydot,void *user_data)
+int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
 
    realtype *ydata, *ydotdata;
    long int ylen, ydotlen;
 
-   //ydata is now a pointer to the realtype data array in y
+   // ydata is now a pointer to the realtype data array in y
    ydata = NV_DATA_S(y);
    ylen = NV_LENGTH_S(y);
 
    // probably unnecessary, since overwriting ydot as output
-   //ydotdata is now a pointer to the realtype data array in ydot
+   // ydotdata is now a pointer to the realtype data array in ydot
    ydotdata = NV_DATA_S(ydot);
    ydotlen = NV_LENGTH_S(ydot);
 
-   //f is now a pointer of abstract base class type TimeDependentOperator. It points to the TimeDependentOperator in the user_data struct
-   mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*) user_data;
+   mfem::TimeDependentOperator* f =
+      static_cast<mfem::TimeDependentOperator*>(user_data);
 
-   // Creates mfem vectors with pointers to the data array in y and in ydot respectively
-   // Have not explicitly set as owndata, so allocated size is -size
+   // Creates mfem Vectors linked to the data in y and in ydot.
+   // Have not explicitly set as owndata, so allocated size is -size.
    mfem::Vector mfem_vector_y((double*) ydata, ylen);
    mfem::Vector mfem_vector_ydot((double*) ydotdata, ydotlen);
 
-   //Apply ydot=f(t,y)
+   // Apply y' = f(t, y).
    f->SetTime(t);
-   f->Mult(mfem_vector_y,mfem_vector_ydot);
+   f->Mult(mfem_vector_y, mfem_vector_ydot);
 
-   return (0);
+   return 0;
 }
 
 #ifdef MFEM_USE_MPI
@@ -848,7 +821,7 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data)
    mfem::HypreParVector mfem_vector_ydot =
       static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(ydot));
 
-   // Apply y' = f(t,y).
+   // Apply y' = f(t, y).
    f->SetTime(t);
    f->Mult(mfem_vector_y, mfem_vector_ydot);
 
