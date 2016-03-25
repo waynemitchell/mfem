@@ -932,6 +932,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
          }
          UpdateNURBS();
          cP = cR = NULL;
+         T = NULL;
       }
    }
    else
