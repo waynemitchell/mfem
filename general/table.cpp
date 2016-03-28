@@ -180,13 +180,9 @@ void Table::GetRow(int i, Array<int> &row) const
 {
    MFEM_ASSERT(i >= 0 && i < size, "Row index " << i << " is out of range [0,"
                << size << ')');
-   const int *jp = GetRow(i), n = RowSize(i);
 
-   row.SetSize(n);
-   for (int j = 0; j < n; j++)
-   {
-      row[j] = jp[j];
-   }
+   row.SetSize(RowSize(i));
+   row.Assign(GetRow(i));
 }
 
 void Table::SetIJ(int *newI, int *newJ, int newsize)

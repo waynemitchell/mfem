@@ -600,6 +600,7 @@ public:
       Mk.UseExternalData(NULL, i, j);
       nk = k;
       tdata = new double[i*j*k];
+      own_data = true;
    }
 
    void UseExternalData(double *ext_data, int i, int j, int k)

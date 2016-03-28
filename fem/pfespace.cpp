@@ -40,6 +40,17 @@ ParFiniteElementSpace::ParFiniteElementSpace(
    gcomm = NULL;
 
    Construct();
+
+   // Apply the ldof_signs to the elem_dof Table
+   if (Conforming() && !NURBSext)
+   {
+      Array<int> dofs;
+      for (int i = 0; i < elem_dof->Size(); i++)
+      {
+         dofs.MakeRef(elem_dof->GetRow(i), elem_dof->RowSize(i));
+         ApplyLDofSigns(dofs);
+      }
+   }
 }
 
 void ParFiniteElementSpace::Construct()

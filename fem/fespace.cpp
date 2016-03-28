@@ -721,19 +721,18 @@ SparseMatrix* FiniteElementSpace::RefinementMatrix(int old_ndofs,
    MFEM_VERIFY(ndofs >= old_ndofs, "Previous space is not coarser.");
 
    Array<int> dofs, old_dofs, old_vdofs;
-   LinearFECollection linfec;
    Vector row;
 
    const CoarseFineTransformations &rtrans = mesh->GetRefinementTransforms();
 
-   int geom = mesh->GetElementBaseGeometry();
+   int geom = mesh->GetElementBaseGeometry(); // assuming the same geom
    const FiniteElement *fe = fec->FiniteElementForGeometry(geom);
 
    IsoparametricTransformation isotr;
-   isotr.SetFE(linfec.FiniteElementForGeometry(geom));
+   isotr.SetIdentityTransformation(geom);
 
    int nmat = rtrans.point_matrices.SizeK();
-   int ldof = fe->GetDof();
+   int ldof = fe->GetDof(); // assuming the same FE everywhere
 
    // calculate local interpolation matrices for all refinement types
    DenseTensor localP(ldof, ldof, nmat);
@@ -833,6 +832,8 @@ void FiniteElementSpace::GetLocalDerefinementMatrices(
             IntegrationPoint ip;
             ip.Set(pt, dim);
             fe->CalcShape(ip, shape); // TODO: H(curl), etc.?
+            MFEM_ASSERT(dynamic_cast<const NodalFiniteElement*>(fe),
+                        "only nodal FEs are implemented");
             lR.SetRow(j, shape);
          }
       }
@@ -1029,6 +1030,9 @@ void FiniteElementSpace::Construct()
    }
 
    ndofs = nvdofs + nedofs + nfdofs + nbdofs;
+
+   // Do not build elem_dof Table here: in parallel it has to be constructed
+   // later.
 }
 
 void FiniteElementSpace::GetElementDofs (int i, Array<int> &dofs) const
