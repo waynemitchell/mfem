@@ -317,10 +317,13 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       d = r;
    }
    nom0 = nom = Dot(d, r);
+   MFEM_ASSERT(IsFinite(nom), "nom = " << nom);
 
-   if (print_level == 1)
+   if (print_level == 1 || print_level == 3)
+   {
       cout << "   Iteration : " << setw(3) << 0 << "  (B r, r) = "
-           << nom << '\n';
+           << nom << (print_level == 3 ? " ...\n" : "\n");
+   }
 
    r0 = std::max(nom*rel_tol*rel_tol, abs_tol*abs_tol);
    if (nom <= r0)
@@ -333,6 +336,7 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
 
    oper->Mult(d, z);  // z = A d
    den = Dot(z, d);
+   MFEM_ASSERT(IsFinite(den), "den = " << den);
 
    if (print_level >= 0 && den < 0.0)
    {
@@ -365,10 +369,13 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       {
          betanom = Dot(r, r);
       }
+      MFEM_ASSERT(IsFinite(betanom), "betanom = " << betanom);
 
       if (print_level == 1)
+      {
          cout << "   Iteration : " << setw(3) << i << "  (B r, r) = "
               << betanom << '\n';
+      }
 
       if (betanom < r0)
       {
@@ -377,9 +384,10 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
             cout << "Number of PCG iterations: " << i << '\n';
          }
          else if (print_level == 3)
-            cout << "(B r_0, r_0) = " << nom0 << '\n'
-                 << "(B r_N, r_N) = " << betanom << '\n'
-                 << "Number of PCG iterations: " << i << '\n';
+         {
+            cout << "   Iteration : " << setw(3) << i << "  (B r, r) = "
+                 << betanom << '\n';
+         }
          converged = 1;
          final_iter = i;
          break;
@@ -401,20 +409,28 @@ void CGSolver::Mult(const Vector &b, Vector &x) const
       }
       oper->Mult(d, z);       //  z = A d
       den = Dot(d, z);
+      MFEM_ASSERT(IsFinite(den), "den = " << den);
       if (den <= 0.0)
       {
          if (print_level >= 0 && Dot(d, d) > 0.0)
-            cout <<"PCG: The operator is not positive definite. (Ad, d) = "
+            cout << "PCG: The operator is not positive definite. (Ad, d) = "
                  << den << '\n';
       }
       nom = betanom;
    }
    if (print_level >= 0 && !converged)
    {
-      cerr << "PCG: No convergence!" << '\n';
-      cout << "(B r_0, r_0) = " << nom0 << '\n'
-           << "(B r_N, r_N) = " << betanom << '\n'
-           << "Number of PCG iterations: " << final_iter << '\n';
+      if (print_level != 1)
+      {
+         if (print_level != 3)
+         {
+            cout << "   Iteration : " << setw(3) << 0 << "  (B r, r) = "
+                 << nom0 << " ...\n";
+         }
+         cout << "   Iteration : " << setw(3) << final_iter << "  (B r, r) = "
+              << betanom << '\n';
+      }
+      cout << "PCG: No convergence!" << '\n';
    }
    if (print_level >= 1 || (print_level >= 0 && !converged))
    {
