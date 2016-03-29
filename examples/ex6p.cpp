@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
       HYPRE_Int global_dofs = fespace.GlobalTrueVSize();
       if (myid == 0)
       {
-         cout << "\nIteration " << it << endl;
+         cout << "\nAMR iteration " << it << endl;
          cout << "Number of unknowns: " << global_dofs << endl;
       }
 
@@ -177,11 +177,7 @@ int main(int argc, char *argv[])
       a.Assemble();
       b.Assemble();
 
-      // 12. Set the initial estimate of the solution and the Dirichlet DOFs,
-      //     here we just use zero everywhere.
-      x = 0.0;
-
-      // 13. Create the parallel linear system: eliminate boundary conditions,
+      // 12. Create the parallel linear system: eliminate boundary conditions,
       //     constrain hanging nodes and nodes across processor boundaries.
       //     The system will be solved for true (unconstrained/unique) DOFs only.
       Array<int> ess_tdof_list;
@@ -189,24 +185,26 @@ int main(int argc, char *argv[])
 
       HypreParMatrix A;
       Vector B, X;
-      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B);
+      const int copy_interior = 1;
+      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, copy_interior);
 
-      // 14. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
+      // 13. Define and apply a parallel PCG solver for AX=B with the BoomerAMG
       //     preconditioner from hypre.
-      HypreBoomerAMG amg(A);
+      HypreBoomerAMG amg;
       amg.SetPrintLevel(0);
-      HyprePCG pcg(A);
-      pcg.SetTol(1e-12);
-      pcg.SetMaxIter(200);
-      pcg.SetPrintLevel(0);
+      CGSolver pcg(A.GetComm());
       pcg.SetPreconditioner(amg);
+      pcg.SetOperator(A);
+      pcg.SetRelTol(1e-6);
+      pcg.SetMaxIter(200);
+      pcg.SetPrintLevel(3); // print the first and the last iterations only
       pcg.Mult(B, X);
 
-      // 15. Extract the parallel grid function corresponding to the finite element
+      // 14. Extract the parallel grid function corresponding to the finite element
       //     approximation X. This is the local solution on each processor.
       a.RecoverFEMSolution(X, b, x);
 
-      // 16. Send the solution by socket to a GLVis server.
+      // 15. Send the solution by socket to a GLVis server.
       if (visualization)
       {
          sout << "parallel " << num_procs << " " << myid << "\n";
@@ -218,7 +216,7 @@ int main(int argc, char *argv[])
          break;
       }
 
-      // 17. Estimate element errors using the Zienkiewicz-Zhu error estimator.
+      // 16. Estimate element errors using the Zienkiewicz-Zhu error estimator.
       //     The bilinear form integrator must have the 'ComputeElementFlux'
       //     method defined.
       Vector errors(pmesh.GetNE());
@@ -246,13 +244,13 @@ int main(int argc, char *argv[])
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
                     MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
 
-      // 18. Refine elements whose error is larger than a fraction of the
+      // 17. Refine elements whose error is larger than a fraction of the
       //     maximum element error.
       const double frac = 0.7;
       double threshold = frac * global_max_err;
       pmesh.RefineByError(errors, threshold);
 
-      // 19. Update the finite element space (recalculate the number of DOFs,
+      // 18. Update the finite element space (recalculate the number of DOFs,
       //     etc.) and create a grid function update matrix. Apply the matrix
       //     to any GridFunctions over the space. In this case, the update
       //     matrix is an interpolation matrix so the updated GridFunction will
@@ -260,7 +258,7 @@ int main(int argc, char *argv[])
       fespace.Update();
       x.Update();
 
-      // 20. Load balance the mesh, and update the space and solution. Currently
+      // 19. Load balance the mesh, and update the space and solution. Currently
       //     available only for nonconforming meshes.
       if (pmesh.Nonconforming())
       {
@@ -272,7 +270,7 @@ int main(int argc, char *argv[])
          x.Update();
       }
 
-      // 21. Inform also the bilinear and linear forms that the space has
+      // 20. Inform also the bilinear and linear forms that the space has
       //     changed.
       a.Update();
       b.Update();

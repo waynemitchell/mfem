@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
    for (int it = 0; ; it++)
    {
       int cdofs = fespace.GetTrueVSize();
-      cout << "\nIteration " << it << endl;
+      cout << "\nAMR iteration " << it << endl;
       cout << "Number of unknowns: " << cdofs << endl;
 
       // 10. Assemble the stiffness matrix and the right-hand side. Note that
@@ -153,13 +153,14 @@ int main(int argc, char *argv[])
       //     will be solved for true (unconstrained) DOFs only.
       SparseMatrix A;
       Vector B, X;
-      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, 1);
+      const int copy_interior = 1;
+      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, copy_interior);
 
 #ifndef MFEM_USE_SUITESPARSE
       // 13. Define a simple symmetric Gauss-Seidel preconditioner and use it to
       //     solve the linear system with PCG.
       GSSmoother M(A);
-      PCG(A, M, B, X, 2, 200, 1e-12, 0.0);
+      PCG(A, M, B, X, 3, 200, 1e-12, 0.0);
 #else
       // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
       //     the linear system.
