@@ -341,7 +341,7 @@ void SparseMatrix::SortColumnIndices()
          row[k].one = J[j+k];
          row[k].two = A[j+k];
       }
-      SortPairs<int,double>(row, row.Size());
+      row.Sort();
       for (int k = 0; k < row.Size(); k++, j++)
       {
          J[j] = row[k].one;

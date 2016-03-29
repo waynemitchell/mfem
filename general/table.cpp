@@ -185,6 +185,14 @@ void Table::GetRow(int i, Array<int> &row) const
    row.Assign(GetRow(i));
 }
 
+void Table::SortRows()
+{
+   for (int r = 0; r < size; r++)
+   {
+      std::sort(J + I[r], J + I[r+1]);
+   }
+}
+
 void Table::SetIJ(int *newI, int *newJ, int newsize)
 {
    delete [] I;
