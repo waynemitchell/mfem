@@ -1966,12 +1966,13 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
    HYPRE_Int print_level;
 
    HYPRE_PCGGetPrintLevel(pcg_solver, &print_level);
+   HYPRE_ParCSRPCGSetPrintLevel(pcg_solver, print_level%3);
 
    HYPRE_ParCSRMatrixGetComm(*A, &comm);
 
    if (!setup_called)
    {
-      if (print_level > 0)
+      if (print_level > 0 && print_level < 3)
       {
          time_index = hypre_InitializeTiming("PCG Setup");
          hypre_BeginTiming(time_index);
@@ -1980,7 +1981,7 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
       HYPRE_ParCSRPCGSetup(pcg_solver, *A, b, x);
       setup_called = 1;
 
-      if (print_level > 0)
+      if (print_level > 0 && print_level < 3)
       {
          hypre_EndTiming(time_index);
          hypre_PrintTiming("Setup phase times", comm);
@@ -1989,7 +1990,7 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
       }
    }
 
-   if (print_level > 0)
+   if (print_level > 0 && print_level < 3)
    {
       time_index = hypre_InitializeTiming("PCG Solve");
       hypre_BeginTiming(time_index);
@@ -2004,10 +2005,13 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
 
    if (print_level > 0)
    {
-      hypre_EndTiming(time_index);
-      hypre_PrintTiming("Solve phase times", comm);
-      hypre_FinalizeTiming(time_index);
-      hypre_ClearTiming();
+      if (print_level < 3)
+      {
+         hypre_EndTiming(time_index);
+         hypre_PrintTiming("Solve phase times", comm);
+         hypre_FinalizeTiming(time_index);
+         hypre_ClearTiming();
+      }
 
       HYPRE_ParCSRPCGGetNumIterations(pcg_solver, &num_iterations);
       HYPRE_ParCSRPCGGetFinalRelativeResidualNorm(pcg_solver,
@@ -2022,6 +2026,7 @@ void HyprePCG::Mult(const HypreParVector &b, HypreParVector &x) const
               << endl;
       }
    }
+   HYPRE_ParCSRPCGSetPrintLevel(pcg_solver, print_level);
 }
 
 HyprePCG::~HyprePCG()
