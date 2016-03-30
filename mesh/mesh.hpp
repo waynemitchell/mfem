@@ -328,8 +328,6 @@ protected:
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
    void Swap(Mesh& other, bool non_geometry = false);
 
-   virtual long ReduceInt(int value) { return value; }
-
 public:
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
@@ -455,6 +453,12 @@ public:
 
    /// Return the number of faces (3D), edges (2D) or vertices (1D).
    int GetNumFaces() const;
+
+   /// Utility function: sum integers from all processors (Allreduce).
+   virtual long ReduceInt(int value) const { return value; }
+
+   /// Return the total (global) number of elements.
+   long GetGlobalNE() const { return ReduceInt(NumOfElements); }
 
    /// Equals 1 + num_holes - num_loops
    inline int EulerNumber() const

@@ -933,14 +933,14 @@ void ParNCMesh::SynchronizeDerefinementData(Array<Type> &elem_data,
                for (int k = 0; k < neigh.Size(); k++)
                {
                   MPI_Request* req = new MPI_Request;
-                  MPI_Isend(data, len, datatype, neigh[k], 291, MyComm, req);
+                  MPI_Isend(data, len, datatype, neigh[k], 292, MyComm, req);
                   requests.Append(req);
                }
             }
             else
             {
                MPI_Request* req = new MPI_Request;
-               MPI_Irecv(data, len, datatype, rnk, 291, MyComm, req);
+               MPI_Irecv(data, len, datatype, rnk, 292, MyComm, req);
                requests.Append(req);
             }
          }

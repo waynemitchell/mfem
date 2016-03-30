@@ -248,6 +248,13 @@ public:
        /rebalance matrices, unless want_transform is false. */
    virtual void Update(bool want_transform = true);
 
+   /// Free ParGridFunction transformation matrix (if any), to save memory.
+   virtual void UpdatesFinished()
+   {
+      FiniteElementSpace::UpdatesFinished();
+      old_dof_offsets.DeleteAll();
+   }
+
    virtual ~ParFiniteElementSpace() { Destroy(); }
 
    // Obsolete, kept for backward compatibility

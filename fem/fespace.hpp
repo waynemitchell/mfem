@@ -324,7 +324,7 @@ public:
    const Operator* GetUpdateOperator() { Update(); return T; }
 
    /// Free GridFunction transformation matrix (if any), to save memory.
-   void UpdatesFinished() { delete T; T = NULL; }
+   virtual void UpdatesFinished() { delete T; T = NULL; }
 
    /// Return update counter (see Mesh::sequence)
    long GetSequence() const { return sequence; }

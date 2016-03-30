@@ -697,6 +697,40 @@ double Vector::Normlp(double p) const
    }
 }
 
+#ifdef MFEM_USE_MPI
+double Vector::ParNormlp(double p, MPI_Comm comm) const
+{
+   double norm = 0.0;
+   if (p == 1.0)
+   {
+      double loc_norm = Norml1();
+      MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   }
+   if (p == 2.0)
+   {
+      double loc_norm = (*this)*(*this);
+      MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+      norm = sqrt(norm);
+   }
+   if (p < std::numeric_limits<double>::infinity())
+   {
+      double sum = 0.0;
+      for (int i = 0; i < size; i++)
+      {
+         sum += pow(fabs(data[i]), p);
+      }
+      MPI_Allreduce(&sum, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+      norm = pow(norm, 1.0/p);
+   }
+   else
+   {
+      double loc_norm = Normlinf();
+      MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_MAX, comm);
+   }
+   return norm;
+}
+#endif
+
 double Vector::Max() const
 {
    double max = data[0];

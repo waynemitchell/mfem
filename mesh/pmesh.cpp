@@ -1435,13 +1435,6 @@ int ParMesh::GetSharedFace(int sface) const
    return sface_lface[sface];
 }
 
-long ParMesh::GlobalNE() const
-{
-   long local_ne = GetNE(), global_ne;
-   MPI_Allreduce(&local_ne, &global_ne, 1, MPI_LONG, MPI_SUM, MyComm);
-   return global_ne;
-}
-
 void ParMesh::ReorientTetMesh()
 {
    if (Dim != 3 || !(meshgen & 1))
@@ -1512,7 +1505,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       DSTable v_to_v(NumOfVertices);
       GetVertexToVertexTable(v_to_v);
 
-      // 2. Get edge to element connections in arrays edge1 and edge2
+      // 2. Create a marker array for all edges (vertex to vertex connections).
       Array<int> middle(v_to_v.NumberOfEntries());
       middle = -1;
 
@@ -1576,7 +1569,6 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       int neighbor, *iBuf = new int[max_faces_in_group];
 
       Array<int> group_faces;
-      Vertex V;
 
       MPI_Request request;
       MPI_Status  status;
@@ -1612,6 +1604,7 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
             ref_loops_par++;
 #endif
             // MPI_Barrier(MyComm);
+            const int tag = 293;
 
             // (a) send the type of interface splitting
             for (i = 0; i < GetNGroups()-1; i++)
@@ -1619,24 +1612,18 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
                group_sface.GetRow(i, group_faces);
                faces_in_group = group_faces.Size();
                // it is enough to communicate through the faces
-               if (faces_in_group != 0)
+               if (faces_in_group == 0) { continue; }
+
+               for (j = 0; j < faces_in_group; j++)
                {
-                  for (j = 0; j < faces_in_group; j++)
-                     face_splittings[i][j] =
-                        GetFaceSplittings(shared_faces[group_faces[j]], v_to_v,
-                                          middle);
-                  const int *nbs = gtopo.GetGroup(i+1);
-                  if (nbs[0] == 0)
-                  {
-                     neighbor = gtopo.GetNeighborRank(nbs[1]);
-                  }
-                  else
-                  {
-                     neighbor = gtopo.GetNeighborRank(nbs[0]);
-                  }
-                  MPI_Isend(face_splittings[i], faces_in_group, MPI_INT,
-                            neighbor, 0, MyComm, &request);
+                  face_splittings[i][j] =
+                     GetFaceSplittings(shared_faces[group_faces[j]], v_to_v,
+                                       middle);
                }
+               const int *nbs = gtopo.GetGroup(i+1);
+               neighbor = gtopo.GetNeighborRank(nbs[0] ? nbs[0] : nbs[1]);
+               MPI_Isend(face_splittings[i], faces_in_group, MPI_INT,
+                         neighbor, tag, MyComm, &request);
             }
 
             // (b) receive the type of interface splitting
@@ -1644,40 +1631,34 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
             {
                group_sface.GetRow(i, group_faces);
                faces_in_group = group_faces.Size();
-               if (faces_in_group != 0)
-               {
-                  const int *nbs = gtopo.GetGroup(i+1);
-                  if (nbs[0] == 0)
-                  {
-                     neighbor = gtopo.GetNeighborRank(nbs[1]);
-                  }
-                  else
-                  {
-                     neighbor = gtopo.GetNeighborRank(nbs[0]);
-                  }
-                  MPI_Recv(iBuf, faces_in_group, MPI_INT, neighbor,
-                           MPI_ANY_TAG, MyComm, &status);
+               if (faces_in_group == 0) { continue; }
 
-                  for (j = 0; j < faces_in_group; j++)
-                     if (iBuf[j] != face_splittings[i][j])
+               const int *nbs = gtopo.GetGroup(i+1);
+               neighbor = gtopo.GetNeighborRank(nbs[0] ? nbs[0] : nbs[1]);
+               MPI_Recv(iBuf, faces_in_group, MPI_INT, neighbor,
+                        tag, MyComm, &status);
+
+               for (j = 0; j < faces_in_group; j++)
+               {
+                  if (iBuf[j] == face_splittings[i][j]) { continue; }
+
+                  int *v = shared_faces[group_faces[j]]->GetVertices();
+                  for (int k = 0; k < 3; k++)
+                  {
+                     if (refined_edge[iBuf[j]][k] != 1 ||
+                         refined_edge[face_splittings[i][j]][k] != 0)
+                     { continue; }
+
+                     int ind[2] = { v[k], v[(k+1)%3] };
+                     int ii = v_to_v(ind[0], ind[1]);
+                     if (middle[ii] == -1)
                      {
-                        int *v = shared_faces[group_faces[j]]->GetVertices();
-                        for (int k = 0; k < 3; k++)
-                           if (refined_edge[iBuf[j]][k] == 1 &&
-                               refined_edge[face_splittings[i][j]][k] == 0)
-                           {
-                              int ii = v_to_v(v[k], v[(k+1)%3]);
-                              if (middle[ii] == -1)
-                              {
-                                 need_refinement = 1;
-                                 middle[ii] = NumOfVertices++;
-                                 for (int c = 0; c < 3; c++)
-                                    V(c) = 0.5 * (vertices[v[k]](c) +
-                                                  vertices[v[(k+1)%3]](c));
-                                 vertices.Append(V);
-                              }
-                           }
+                        need_refinement = 1;
+                        middle[ii] = NumOfVertices++;
+                        vertices.Append(Vertex());
+                        AverageVertices(ind, 2, vertices.Size()-1);
                      }
+                  }
                }
             }
 
@@ -1711,11 +1692,13 @@ void ParMesh::LocalRefinement(const Array<int> &marked_el, int type)
       {
          need_refinement = 0;
          for (i = 0; i < NumOfBdrElements; i++)
+         {
             if (boundary[i]->NeedRefinement(v_to_v, middle))
             {
                need_refinement = 1;
                Bisection(i, v_to_v, middle);
             }
+         }
       }
       while (need_refinement == 1);
 
@@ -3816,7 +3799,7 @@ void ParMesh::PrintInfo(std::ostream &out)
    }
 }
 
-long ParMesh::ReduceInt(int value)
+long ParMesh::ReduceInt(int value) const
 {
    long local = value, global;
    MPI_Allreduce(&local, &global, 1, MPI_LONG, MPI_SUM, MyComm);

@@ -1873,7 +1873,7 @@ void ParFiniteElementSpace::Update(bool want_transform)
    {
       return; // no need to update, no-op
    }
-   if (mesh->GetSequence() != sequence + 1)
+   if (want_transform && mesh->GetSequence() != sequence + 1)
    {
       MFEM_ABORT("Error in update sequence. Space needs to be updated after "
                  "each mesh modification.");
@@ -1895,9 +1895,11 @@ void ParFiniteElementSpace::Update(bool want_transform)
       old_elem_dof = elem_dof;
       elem_dof = NULL;
       old_ndofs = ndofs;
+      Swap(dof_offsets, old_dof_offsets);
    }
 
-   dof_offsets.Copy(old_dof_offsets);
+   // Should this be inside the above "if"?
+   // dof_offsets.Copy(old_dof_offsets);
 
    Destroy();
    FiniteElementSpace::Destroy();
@@ -1937,9 +1939,8 @@ void ParFiniteElementSpace::Update(bool want_transform)
          default:
             break; // T stays NULL
       }
+      delete old_elem_dof;
    }
-
-   delete old_elem_dof;
 }
 
 } // namespace mfem

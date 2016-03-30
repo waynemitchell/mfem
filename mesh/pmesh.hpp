@@ -80,8 +80,6 @@ protected:
 
    bool WantSkipSharedMaster(const NCMesh::Master &master) const;
 
-   virtual long ReduceInt(int value);
-
 public:
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
@@ -112,9 +110,6 @@ public:
    ParNCMesh* pncmesh;
 
    int GetNGroups() { return gtopo.NGroups(); }
-
-   /// Return the global number of elements.
-   long GlobalNE() const;
 
    // next 6 methods do not work for the 'local' group 0
    int GroupNVertices(int group) { return group_svert.RowSize(group-1); }
@@ -150,6 +145,9 @@ public:
 
    /// See the remarks for the serial version in mesh.hpp
    virtual void ReorientTetMesh();
+
+   /// Utility function: sum integers from all processors (Allreduce).
+   virtual long ReduceInt(int value) const;
 
    /// Update the groups after tet refinement
    void RefineGroups(const DSTable &v_to_v, int *middle);
