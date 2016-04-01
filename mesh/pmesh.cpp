@@ -853,6 +853,15 @@ void ParMesh::ExchangeFaceNbrData()
       return;
    }
 
+   if (Nonconforming())
+   {
+      // with ParNCMesh we can set up the neigbors without communication
+      pncmesh->GetFaceNeighbors(*this);
+      have_face_nbr_data = true;
+      ExchangeFaceNbrNodes();
+      return;
+   }
+
    Table *gr_sface;
    int   *s2l_face;
    if (Dim == 1)
@@ -1247,6 +1256,11 @@ void ParMesh::ExchangeFaceNbrNodes()
    }
    else if (Nodes == NULL)
    {
+      if (Nonconforming())
+      {
+         return; // TODO explain
+      }
+
       int num_face_nbrs = GetNFaceNeighbors();
 
       MPI_Request *requests = new MPI_Request[2*num_face_nbrs];
@@ -1286,13 +1300,8 @@ void ParMesh::ExchangeFaceNbrNodes()
    else
    {
       ParGridFunction *pNodes = dynamic_cast<ParGridFunction *>(Nodes);
-      if (pNodes)
-      {
-         pNodes->ExchangeFaceNbrData();
-      }
-      else
-         mfem_error("ParMesh::ExchangeFaceNbrNodes() : "
-                    "Nodes are not ParGridFunction!");
+      MFEM_VERIFY(pNodes != NULL, "Nodes are not ParGridFunction!");
+      pNodes->ExchangeFaceNbrData();
    }
 }
 

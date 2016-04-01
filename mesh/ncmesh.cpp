@@ -404,6 +404,19 @@ NCMesh::Element* NCMesh::Face::GetSingleElement() const
    }
 }
 
+NCMesh::Element* NCMesh::Face::GetNeighbor(Element *e) const
+{
+   if (elem[0] == e)
+   {
+      return elem[1];
+   }
+   else if (elem[1] == e)
+   {
+      return elem[0];
+   }
+   MFEM_ABORT("'e' does not share this face.");
+}
+
 NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
 {
    Node* mid = nodes.Peek(v1, v2);
@@ -1564,6 +1577,18 @@ void NCMesh::AssignLeafIndices()
    }
 }
 
+mfem::Element* NCMesh::NewMeshElement(int geom) const
+{
+   switch (geom)
+   {
+      case Geometry::CUBE: return new mfem::Hexahedron;
+      case Geometry::SQUARE: return new mfem::Quadrilateral;
+      case Geometry::TRIANGLE: return new mfem::Triangle;
+   }
+   MFEM_ABORT("invalid geometry");
+   return NULL;
+}
+
 void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
                                Array<mfem::Element*>& elements,
                                Array<mfem::Element*>& boundary) const
@@ -1590,15 +1615,9 @@ void NCMesh::GetMeshComponents(Array<mfem::Vertex>& vertices,
       Node** node = nc_elem->node;
       GeomInfo& gi = GI[(int) nc_elem->geom];
 
-      mfem::Element* elem = NULL;
-      switch (nc_elem->geom)
-      {
-         case Geometry::CUBE: elem = new Hexahedron; break;
-         case Geometry::SQUARE: elem = new Quadrilateral; break;
-         case Geometry::TRIANGLE: elem = new Triangle; break;
-      }
-
+      mfem::Element* elem = NewMeshElement(nc_elem->geom);
       elements.Append(elem);
+
       elem->SetAttribute(nc_elem->attribute);
       for (int j = 0; j < gi.nv; j++)
       {

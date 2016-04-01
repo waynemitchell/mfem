@@ -25,6 +25,7 @@
 namespace mfem
 {
 
+class ParMesh;
 class FiniteElementCollection; // for edge orientation handling
 class FiniteElementSpace; // for Dof -> VDof conversion
 
@@ -187,6 +188,13 @@ public:
        for index >= NElements (i.e., for ghosts) it may be something else. */
    int ElementRank(int index) const
    { return leaf_elements[index]->rank; }
+
+
+   // interface for ParMesh
+
+   /** Populate face neigbhor members of ParMesh from the ghost layer,
+       without communication. */
+   void GetFaceNeighbors(ParMesh &pmesh);
 
 
    // utility

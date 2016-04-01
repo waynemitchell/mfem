@@ -69,6 +69,27 @@ public:
 };
 
 
+void DumpInfo(ParMesh *pmesh)
+{
+   cout << "have_face_nbr_data: " << pmesh->have_face_nbr_data << endl;
+   if (pmesh->have_face_nbr_data)
+   {
+      cout << "face_nbr_group: ";
+      pmesh->face_nbr_group.Print(cout, 10);
+      cout << "face_nbr_elements_offset: ";
+      pmesh->face_nbr_elements_offset.Print(cout, 10);
+      cout << "face_nbr_vertices_offset: ";
+      pmesh->face_nbr_vertices_offset.Print(cout, 10);
+      cout << "face_nbr_elements size: " << pmesh->face_nbr_elements.Size();
+      cout << "\nface_nbr_vertices size: " << pmesh->face_nbr_vertices.Size();
+      cout << "\nsend_face_nbr_elements: ";
+      pmesh->send_face_nbr_elements.Print(cout, 10);
+      cout << "send_face_nbr_vertices: ";
+      pmesh->send_face_nbr_vertices.Print(cout, 10);
+   }
+}
+
+
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
@@ -80,9 +101,9 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
-   int ser_ref_levels = 2;
+   int ser_ref_levels = 0;
    int par_ref_levels = 0;
-   int order = 3;
+   int order = 2;
    int ode_solver_type = 4;
    double t_final = 10.0;
    double dt = 0.01;
@@ -150,6 +171,8 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
+
+   mesh->EnsureNCMesh();
 
    // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
@@ -235,6 +258,12 @@ int main(int argc, char *argv[])
    k->Assemble(skip_zeros);
    k->Finalize(skip_zeros);
    b->Assemble();
+
+   if (myid == 0)
+   {
+      DumpInfo(pmesh);
+   }
+   exit(1);
 
    HypreParMatrix *M = m->ParallelAssemble();
    HypreParMatrix *K = k->ParallelAssemble();

@@ -544,6 +544,74 @@ void ParNCMesh::NeighborProcessors(Array<int> &neighbors)
    {
       neighbors.Append(*it);
    }
+
+   // TODO: maybe store (cache) the result
+}
+
+void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
+{
+   // in the NC case, face_nbr_group contains directly the neighbor ranks
+   NeighborProcessors(pmesh.face_nbr_group);
+
+   pmesh.face_nbr_elements.SetSize(0);
+   pmesh.face_nbr_vertices.SetSize(0);
+
+   pmesh.face_nbr_elements_offset.SetSize(0);
+   pmesh.face_nbr_vertices_offset.SetSize(0);
+
+   pmesh.face_nbr_elements_offset.Append(0);
+   pmesh.face_nbr_vertices_offset.Append(0);
+
+   // create face neighbor elements for all neighbor ranks
+   for (int r = 0; r < pmesh.face_nbr_group.Size(); r++)
+   {
+      int rank = pmesh.face_nbr_group[r];
+      std::map<int, int> vert_map;
+
+      for (int i = 0; i < ghost_layer.Size(); i++)
+      {
+         Element* elem = ghost_layer[i];
+         if (elem->rank == rank)
+         {
+            // check if this ghost element is a face neighbor to MyRank
+            GeomInfo& gi = GI[(int) elem->geom];
+            for (int j = 0; j < gi.nf; j++)
+            {
+               const int* fv = gi.faces[j];
+               Face* face = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
+                                       elem->node[fv[2]], elem->node[fv[3]]);
+
+               Element* nbr = face->GetNeighbor(elem);
+               if (nbr && nbr->rank == MyRank)
+               {
+                  // create an mfem::Element for this ghost Element
+                  mfem::Element* fne = NewMeshElement(elem->geom);
+                  fne->SetAttribute(elem->attribute);
+                  for (int k = 0; k < gi.nv; k++)
+                  {
+                     int &v = vert_map[elem->node[k]->vertex->index];
+                     if (!v) { v = vert_map.size(); }
+                     fne->GetVertices()[k] = v-1;
+                  }
+                  pmesh.face_nbr_elements.Append(fne);
+                  break;
+               }
+            }
+         }
+      }
+
+      // copy vertices for the neighbor rank
+      std::map<int, int>::iterator it;
+      for (it = vert_map.begin(); it != vert_map.end(); ++it)
+      {
+         Node* node = nodes.Peek(it->first);
+         pmesh.face_nbr_vertices.Append(mfem::Vertex());
+         pmesh.face_nbr_vertices.Last().SetCoords(node->vertex->pos);
+      }
+
+      pmesh.face_nbr_elements_offset.Append(pmesh.face_nbr_elements.Size());
+      pmesh.face_nbr_vertices_offset.Append(pmesh.face_nbr_vertices.Size());
+   }
 }
 
 

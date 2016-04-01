@@ -371,8 +371,10 @@ protected: // implementation
       void RegisterElement(Element* e);
       void ForgetElement(Element* e);
 
-      // return one of elem[0] or elem[1] and make sure the other is NULL
+      /// Return one of elem[0] or elem[1] and make sure the other is NULL.
       Element* GetSingleElement() const;
+      /// Return one of elem[0] or elem[1] not equal to 'e'.
+      Element* GetNeighbor(Element* e) const;
 
       // overloaded Unref without auto-destruction
       int Unref() { return --ref_count; }
@@ -476,6 +478,8 @@ protected: // implementation
                         int attr, int eattr0, int eattr1, int eattr2);
 
    Vertex* NewVertex(Node* v1, Node* v2);
+
+   mfem::Element* NewMeshElement(int geom) const;
 
    Node* GetMidEdgeVertex(Node* v1, Node* v2);
    Node* GetMidEdgeVertexSimple(Node* v1, Node* v2);
