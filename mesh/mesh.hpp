@@ -53,15 +53,11 @@ protected:
    int NumOfVertices, NumOfElements, NumOfBdrElements;
    int NumOfEdges, NumOfFaces;
 
-   int State, WantTwoLevelState;
+   int BaseGeom, BaseBdrGeom; // element base geometries, -1 if not all the same
 
-   // 0 = Empty, 1 = Standard (NetGen), 2 = TrueGrid
-   int meshgen;
+   int meshgen; // see MeshGenerator()
 
-   int c_NumOfVertices, c_NumOfElements, c_NumOfBdrElements;
-   int f_NumOfVertices, f_NumOfElements, f_NumOfBdrElements;
-   int c_NumOfEdges, c_NumOfFaces;
-   int f_NumOfEdges, f_NumOfFaces;
+   long sequence; // counter for checking order of Space and GridFunction updates
 
    Array<Element *> elements;
    // Vertices are only at the corners of elements, where you would expect them
@@ -103,24 +99,18 @@ protected:
    mutable Table *face_edge;
    mutable Table *edge_vertex;
 
-   Table *c_el_to_edge, *f_el_to_edge, *c_bel_to_edge, *f_bel_to_edge;
-   Array<int> fc_be_to_edge; // swapped with be_to_edge when switching state
-   Table *c_el_to_face, *f_el_to_face; // for 3D two-level state
-   Array<FaceInfo> fc_faces_info;      // for 3D two-level state
-
    IsoparametricTransformation Transformation, Transformation2;
    IsoparametricTransformation FaceTransformation, EdgeTransformation;
    FaceElementTransformations FaceElemTr;
+
+   // refinement embeddings for forward compatibility with NCMesh
+   CoarseFineTransformations CoarseFineTr;
 
    // Nodes are only active for higher order meshes, and share locations with
    // the vertices, plus all the higher- order control points within the
    // element and along the edges and on the faces.
    GridFunction *Nodes;
    int own_nodes;
-
-   // Backup of the coarse mesh. Only used if WantTwoLevelState == 1 and
-   // nonconforming refinements are used.
-   Mesh* nc_coarse_level;
 
    static const int tet_faces[4][3];
    static const int hex_faces[6][4]; // same as Hexahedron::faces
@@ -130,12 +120,12 @@ protected:
 
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
-
    MemAlloc <Tetrahedron, 1024> TetMemory;
-   MemAlloc <BisectedElement, 1024> BEMemory;
 #endif
 
 public:
+   enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
+
    Array<int> attributes;
    Array<int> bdr_attributes;
 
@@ -143,16 +133,13 @@ public:
    NCMesh *ncmesh;
 
 protected:
+   Operation last_operation;
+
    void Init();
 
    void InitTables();
 
    void DeleteTables();
-
-   /** Delete the 'el_to_el', 'face_edge' and 'edge_vertex' tables, and the
-       coarse non-conforming Mesh 'nc_coarse_level'. Useful in refinement
-       methods to destroy these data members. */
-   void DeleteCoarseTables();
 
    Element *ReadElementWithoutAttr(std::istream &);
    static void PrintElementWithoutAttr(const Element *, std::ostream &);
@@ -205,6 +192,9 @@ protected:
        vertices[result]. */
    void AverageVertices (int * indexes, int n, int result);
 
+   void InitRefinementTransforms();
+   int FindCoarseElement(int i);
+
    /// Update the nodes of a curved mesh after refinement
    void UpdateNodes();
 
@@ -224,22 +214,20 @@ protected:
    virtual void NonconformingRefinement(const Array<Refinement> &refinements,
                                         int nc_limit = 0);
 
+   /// NC version of GeneralDerefinement.
+   virtual bool NonconformingDerefinement(Array<double> &elem_error,
+                                          double threshold, int nc_limit = 0,
+                                          int op = 1);
+
+   /// Derefine elements once a list of derefinements is known.
+   void DerefineMesh(const Array<int> &derefinements);
+
    /// Read NURBS patch/macro-element mesh
    void LoadPatchTopo(std::istream &input, Array<int> &edge_to_knot);
 
    void UpdateNURBS();
 
    void PrintTopo(std::ostream &out, const Array<int> &e_to_k) const;
-
-   void BisectTriTrans (DenseMatrix &pointmat, Triangle *tri,
-                        int child);
-
-   void BisectTetTrans (DenseMatrix &pointmat, Tetrahedron *tet,
-                        int child);
-
-   int GetFineElemPath (int i, int j);
-
-   int GetBisectionHierarchy (Element *E);
 
    /// Used in GetFaceElementTransformations (...)
    void GetLocalPtToSegTransformation(IsoparametricTransformation &, int);
@@ -311,6 +299,8 @@ protected:
    /// Begin construction of a mesh
    void InitMesh(int _Dim, int _spaceDim, int NVert, int NElem, int NBdrElem);
 
+   void InitBaseGeom();
+
    /** Creates mesh for the parallelepiped [0,sx]x[0,sy]x[0,sz], divided into
        nx*ny*nz hexahedrals if type=HEXAHEDRON or into 6*nx*ny*nz tetrahedrons
        if type=TETRAHEDRON. If generate_edges = 0 (default) edges are not
@@ -338,16 +328,15 @@ protected:
    /// like 'ncmesh' and 'NURBSExt' are only swapped when 'non_geometry' is set.
    void Swap(Mesh& other, bool non_geometry = false);
 
-public:
+   virtual long ReduceInt(int value) { return value; }
 
-   enum { NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE };
+public:
 
    Mesh() { Init(); InitTables(); meshgen = 0; Dim = 0; }
 
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
-       new mesh. The source mesh has to be in a NORMAL, i.e. not TWO_LEVEL_*,
-       state. If 'copy_nodes' is false, use a shallow (pointer) copy for the
+       new mesh. If 'copy_nodes' is false, use a shallow (pointer) copy for the
        nodes, if present. */
    explicit Mesh(const Mesh &mesh, bool copy_nodes = true);
 
@@ -443,7 +432,9 @@ public:
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
-   /// Truegrid or NetGen?
+   /** Return a bitmask:
+       bit 0 - simplices are present in the mesh (triangles, tets),
+       bit 1 - tensor product elements are present in the mesh (quads, hexes).*/
    inline int MeshGenerator() { return meshgen; }
 
    /** Returns number of vertices.  Vertices are only at the corners of
@@ -491,11 +482,11 @@ public:
 
    int GetFaceBaseGeometry(int i) const;
 
-   int GetElementBaseGeometry(int i) const
-   { return elements[i]->GetGeometryType(); }
+   int GetElementBaseGeometry(int i = 0) const
+   { return i < GetNE() ? elements[i]->GetGeometryType() : BaseGeom; }
 
-   int GetBdrElementBaseGeometry(int i) const
-   { return boundary[i]->GetGeometryType(); }
+   int GetBdrElementBaseGeometry(int i = 0) const
+   { return i < GetNBE() ? boundary[i]->GetGeometryType() : BaseBdrGeom; }
 
    /// Returns the indices of the dofs of element i.
    void GetElementVertices(int i, Array<int> &dofs) const
@@ -744,54 +735,60 @@ public:
    void GeneralRefinement(const Array<int> &el_to_refine,
                           int nonconforming = -1, int nc_limit = 0);
 
-   /** Ensure that a quad/hex mesh is considered to be non-conforming (i.e. has
-       an associated NCMesh object). */
-   void EnsureNCMesh();
+   /// Refine each element with given probability. Uses GeneralRefinement.
+   void RandomRefinement(double prob, bool aniso = false,
+                         int nonconforming = -1, int nc_limit = 0);
 
-   /// Refine each element with 1/frac probability, repeat 'levels' times.
-   void RandomRefinement(int levels, int frac = 2, bool aniso = false,
-                         int nonconforming = -1, int nc_limit = -1,
-                         int seed = 0 /* should be the same on all CPUs */);
-
-   /// Refine elements sharing the specified vertex, 'levels' times.
-   void RefineAtVertex(const Vertex& vert, int levels,
+   /// Refine elements sharing the specified vertex. Uses GeneralRefinement.
+   void RefineAtVertex(const Vertex& vert,
                        double eps = 0.0, int nonconforming = -1);
+
+   /** Refine element i if elem_error[i] > threshold, for all i.
+       Returns true if at least one element was refined, false otherwise. */
+   bool RefineByError(const Array<double> &elem_error, double threshold,
+                      int nonconforming = -1, int nc_limit = 0);
+
+   /** Refine element i if elem_error(i) > threshold, for all i.
+       Returns true if at least one element was refined, false otherwise. */
+   bool RefineByError(const Vector &elem_error, double threshold,
+                      int nonconforming = -1, int nc_limit = 0);
+
+   /** Derefine the mesh based on an error measure associated with each
+       element. A derefinement is performed if the sum of errors of its fine
+       elements is smaller than 'threshold'. If 'nc_limit' > 0, derefinements
+       that would increase the maximum level of hanging nodes of the mesh are
+       skipped. Returns true if the mesh changed, false otherwise. */
+   bool DerefineByError(Array<double> &elem_error, double threshold,
+                        int nc_limit = 0, int op = 1);
+
+   /// Same as DerefineByError for an error vector.
+   bool DerefineByError(const Vector &elem_error, double threshold,
+                        int nc_limit = 0, int op = 1);
 
    // NURBS mesh refinement methods
    void KnotInsert(Array<KnotVector *> &kv);
    void DegreeElevate(int t);
 
-   /** Sets or clears the flag that indicates that mesh refinement methods
-       should put the mesh in two-level state. */
-   void UseTwoLevelState (int use)
-   {
-      if (!use && State != Mesh::NORMAL)
-      {
-         SetState (Mesh::NORMAL);
-      }
-      WantTwoLevelState = use;
-   }
+   /** Make sure that a quad/hex mesh is considered to be non-conforming (i.e.,
+       has an associated NCMesh object). Triangles meshes can be both conforming
+       (default) or non-conforming. */
+   void EnsureNCMesh(bool triangles_nonconforming = false);
 
-   /// Change the mesh state to NORMAL, TWO_LEVEL_COARSE, TWO_LEVEL_FINE
-   void SetState (int s);
+   bool Conforming() const { return ncmesh == NULL; }
+   bool Nonconforming() const { return ncmesh != NULL; }
 
-   int GetState() const { return State; }
+   /** Return fine element transformations following a mesh refinenemt.
+       Space uses this to construct a global interpolation matrix. */
+   const CoarseFineTransformations &GetRefinementTransforms();
 
-   /** For a given coarse element i returns the number of
-       subelements it is divided into. */
-   int GetNumFineElems (int i);
+   /// Return type of last modification of the mesh.
+   Operation GetLastOperation() const { return last_operation; }
 
-   /// For a given coarse element i returns its refinement type
-   int GetRefinementType (int i);
-
-   /** For a given coarse element i and index j of one of its subelements
-       return the global index of the fine element in the fine mesh. */
-   int GetFineElem (int i, int j);
-
-   /** For a given coarse element i and index j of one of its subelements
-       return the transformation that transforms the fine element into the
-       coordinate system of the coarse element. Clear, isn't it? :-) */
-   ElementTransformation * GetFineElemTrans (int i, int j);
+   /** Return update counter. The counter starts at zero and is incremented
+       each time refinement, derefinement, or rebalancing method is called.
+       It is used for checking proper sequence of Space:: and GridFunction::
+       Update() calls. */
+   long GetSequence() const { return sequence; }
 
    /// Print the mesh to the given stream using Netgen/Truegrid format.
    virtual void PrintXG(std::ostream &out = std::cout) const;

@@ -27,7 +27,6 @@ void BilinearForm::AllocMat()
       return;
    }
 
-   fes->BuildElementToDofTable();
    const Table &elem_dof = fes->GetElementToDofTable();
    Table dof_dof;
 
@@ -51,11 +50,13 @@ void BilinearForm::AllocMat()
       mfem::Mult(dof_elem, elem_dof, dof_dof);
    }
 
+   dof_dof.SortRows();
+
    int *I = dof_dof.GetI();
    int *J = dof_dof.GetJ();
    double *data = new double[I[height]];
 
-   mat = new SparseMatrix(I, J, data, height, height);
+   mat = new SparseMatrix(I, J, data, height, height, true, true, true);
    *mat = 0.0;
 
    dof_dof.LoseData();

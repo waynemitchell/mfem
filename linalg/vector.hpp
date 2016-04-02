@@ -222,22 +222,24 @@ public:
 
 // Inline methods
 
-inline int CheckFinite(const double *v, const int n)
+inline bool IsFinite(const double &val)
 {
    // isfinite didn't appear in a standard until C99, and later C++11
    // It wasn't standard in C89 or C++98.  PGI as of 14.7 still defines
    // it as a macro, which sort of screws up everybody else.
+#ifdef isfinite
+   return isfinite(val);
+#else
+   return std::isfinite(val);
+#endif
+}
+
+inline int CheckFinite(const double *v, const int n)
+{
    int bad = 0;
    for (int i = 0; i < n; i++)
    {
-#ifdef isfinite
-      if (!isfinite(v[i]))
-#else
-      if (!std::isfinite(v[i]))
-#endif
-      {
-         bad++;
-      }
+      if (!IsFinite(v[i])) { bad++; }
    }
    return bad;
 }

@@ -13,7 +13,7 @@
 //    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
 //
 // Description:  This example code solves the time-dependent advection equation
-//               du/dt = v.grad(u), where v is a given fluid velocity, and
+//               du/dt + v.grad(u) = 0, where v is a given fluid velocity, and
 //               u0(x)=u(0,x) is a given initial condition.
 //
 //               The example demonstrates the use of Discontinuous Galerkin (DG)
@@ -47,7 +47,7 @@ double inflow_function(const Vector &x);
 
 
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
-    form of du/dt = v.grad(u) is M du/dt = K u + b, where M and K are the mass
+    form of du/dt = -v.grad(u) is M du/dt = K u + b, where M and K are the mass
     and advection matrices, and b describes the flow on the boundary. This can
     be written as a general ODE, du/dt = M^{-1} (K u + b), and this class is
     used to evaluate the right-hand side. */

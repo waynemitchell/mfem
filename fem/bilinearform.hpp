@@ -64,6 +64,8 @@ protected:
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
 
+   void ConformingAssemble();
+
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
    {
@@ -175,20 +177,6 @@ public:
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
 
-   /** For partially conforming FE spaces, complete the assembly process by
-       performing A := P^t A P where A is the internal sparse matrix and P is
-       the conforming prolongation of the FE space. After this call the
-       BilinearForm becomes an operator on the conforming FE space. */
-   void ConformingAssemble();
-
-   /** A shortcut for converting the whole linear system to conforming DOFs. */
-   void ConformingAssemble(GridFunction& sol, LinearForm& rhs)
-   {
-      ConformingAssemble();
-      rhs.ConformingAssemble();
-      sol.ConformingProject();
-   }
-
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:
        eliminating boundary conditions; applying conforming constraints for
@@ -208,14 +196,16 @@ public:
 
        After solving the linear system, the finite element solution x can be
        recovered by calling RecoverFEMSolution (with the same vectors X, b, and
-       x). */
+       x).
+
+       NOTE: If there are no transformations, X simply reuses the data of x. */
    void FormLinearSystem(Array<int> &ess_tdof_list, Vector &x, Vector &b,
                          SparseMatrix &A, Vector &X, Vector &B,
                          int copy_interior = 0);
 
    /** Call this method after solving a linear system constructed using the
        FormLinearSystem method to recover the solution as a GridFunction-size
-       vector in x. */
+       vector in x. Use the same arguments as in the FormLinearSystem call. */
    void RecoverFEMSolution(const Vector &X, const Vector &b, Vector &x);
 
    /// Compute and store internally all element matrices.

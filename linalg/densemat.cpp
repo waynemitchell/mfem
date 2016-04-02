@@ -2190,17 +2190,31 @@ void DenseMatrix::CalcEigenvalues(double *lambda, double *vec) const
    }
 }
 
-void DenseMatrix::GetColumn(int c, Vector &col)
+void DenseMatrix::GetRow(int r, Vector &row)
 {
-   int n;
-   double *cp, *vp;
+   int m = Height();
+   int n = Width();
+   row.SetSize(n);
 
-   n = Height();
-   col.SetSize(n);
-   cp = data + c * n;
-   vp = col.GetData();
+   double* rp = data + r;
+   double* vp = row.GetData();
 
    for (int i = 0; i < n; i++)
+   {
+      vp[i] = *rp;
+      rp += m;
+   }
+}
+
+void DenseMatrix::GetColumn(int c, Vector &col)
+{
+   int m = Height();
+   col.SetSize(m);
+
+   double *cp = data + c * m;
+   double *vp = col.GetData();
+
+   for (int i = 0; i < m; i++)
    {
       vp[i] = cp[i];
    }
@@ -2657,6 +2671,22 @@ void DenseMatrix::SetCol(int col, double value)
    }
 }
 
+void DenseMatrix::SetRow(int r, const Vector &row)
+{
+   for (int j = 0; j < Width(); j++)
+   {
+      (*this)(r, j) = row[j];
+   }
+}
+
+void DenseMatrix::SetCol(int c, const Vector &col)
+{
+   for (int i = 0; i < Height(); i++)
+   {
+      (*this)(i, c) = col[i];
+   }
+}
+
 void DenseMatrix::Threshold(double eps)
 {
    for (int col = 0; col < Width(); col++)
@@ -2971,12 +3001,7 @@ void CalcAdjugateTranspose(const DenseMatrix &a, DenseMatrix &adjat)
 
 void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 {
-#ifdef MFEM_DEBUG
-   if (a.Width() > a.Height() || a.Width() < 1 || a.Height() > 3)
-   {
-      mfem_error("CalcInverse(...)");
-   }
-#endif
+   MFEM_ASSERT(a.Width() <= a.Height() && a.Width() >= 1 && a.Height() <= 3, "");
    MFEM_ASSERT(inva.Height() == a.Width(), "incorrect dimensions");
    MFEM_ASSERT(inva.Width() == a.Height(), "incorrect dimensions");
 
@@ -3023,10 +3048,9 @@ void CalcInverse(const DenseMatrix &a, DenseMatrix &inva)
 
 #ifdef MFEM_DEBUG
    t = a.Det();
-   if (fabs(t) < 1.0e-14 * pow(a.FNorm()/a.Width(), a.Width()))
-      cerr << "CalcInverse(...) : singular matrix!"
-           << endl;
-   t = 1. / t;
+   MFEM_ASSERT(std::abs(t) > 1.0e-14 * pow(a.FNorm()/a.Width(), a.Width()),
+               "singular matrix!");
+   t = 1.0 / t;
 #else
    t = 1.0 / a.Det();
 #endif
