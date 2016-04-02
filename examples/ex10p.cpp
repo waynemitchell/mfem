@@ -383,12 +383,12 @@ int main(int argc, char *argv[])
          ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp,
                                          t, CV_BDF, CV_NEWTON);
          static_cast<CVODEParSolver *>(ode_solver)->
-            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
+         SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 6:
          ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, vx, t, false);
          static_cast<ARKODEParSolver *>(ode_solver)->
-            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
+         SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 15:
          ode_solver = new CVODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp, t,

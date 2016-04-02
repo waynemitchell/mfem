@@ -421,7 +421,7 @@ void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 {
    HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
    MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
-                          "Could not cast to HypreParVector.");
+               "Could not cast to HypreParVector.");
 
    y = N_VMake_ParHyp(x->StealParVector());
 }
@@ -430,7 +430,7 @@ void CVODEParSolver::TransferNVectorShallow(Vector *_x, N_Vector &_y)
 {
    HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
    MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
-                          "Could not cast to HypreParVector.");
+               "Could not cast to HypreParVector.");
 
    y = N_VMake_ParHyp(x->StealParVector());
 }
@@ -729,7 +729,7 @@ void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 {
    HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
    MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
-                          "Could not cast to HypreParVector.");
+               "Could not cast to HypreParVector.");
 
    y = N_VMake_ParHyp(x->StealParVector());
 }
@@ -738,7 +738,7 @@ void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
    HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
    MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
-                          "Could not cast to HypreParVector.");
+               "Could not cast to HypreParVector.");
 
    y = N_VMake_ParHyp(x->StealParVector());
 }
@@ -757,8 +757,8 @@ int ARKODEParSolver::WrapARKodeInit(void* _ode_mem, double &_t, N_Vector &_y)
    // Consider adding a flag to switch between explicit and implicit.
    return (use_explicit) ? ARKodeInit(_ode_mem, sun_f_fun_par, NULL,
                                       (realtype) _t, _y)
-                         : ARKodeInit(_ode_mem, NULL, sun_f_fun_par,
-                                      (realtype) _t, _y);
+          : ARKodeInit(_ode_mem, NULL, sun_f_fun_par,
+                       (realtype) _t, _y);
 }
 
 int ARKODEParSolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
@@ -767,8 +767,8 @@ int ARKODEParSolver::WrapARKodeReInit(void* _ode_mem, double &_t, N_Vector &_y)
    //Consider adding a flag to switch between explicit and implicit
    return (use_explicit) ? ARKodeReInit(_ode_mem, sun_f_fun_par, NULL,
                                         (realtype) _t,_y)
-                         : ARKodeInit(_ode_mem, NULL, sun_f_fun_par,
-                                      (realtype) _t, _y);
+          : ARKodeInit(_ode_mem, NULL, sun_f_fun_par,
+                       (realtype) _t, _y);
 }
 
 #endif
