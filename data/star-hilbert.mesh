@@ -1,15 +1,7 @@
 MFEM mesh v1.0
 
-#
-# MFEM Geometry Types (see mesh/geom.hpp):
-#
-# POINT       = 0
-# SEGMENT     = 1
-# TRIANGLE    = 2
-# SQUARE      = 3
-# TETRAHEDRON = 4
-# CUBE        = 5
-#
+# This is the star.mesh optimized (reordered) for the Hilbert
+# space filling curve based partitioning in ParNCMesh.
 
 dimension
 2
@@ -82,7 +74,7 @@ vertices
 -0.654508 1.06331
 -0.404508 0.293893
 -1.21352 0.293893
--1.21352 -0.293893
+-1.21352 -0.293892
 -0.404508 -0.293893
 -0.654508 -1.06331
 -0.0954915 -1.24495
