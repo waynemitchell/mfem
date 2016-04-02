@@ -89,10 +89,6 @@ private:
    MPI_Request *requests;
    MPI_Status  *statuses;
 
-   /** Function template that returns the MPI_Datatype for a given C++ type.
-       We explicitly define this function for int and double. */
-   template <class T> static inline MPI_Datatype Get_MPI_Datatype();
-
 public:
    GroupCommunicator(GroupTopology &gt);
    /** Initialize the communicator from a local-dof to group map.
@@ -228,8 +224,9 @@ struct VarMessage
       {
          int rank, size;
          Probe(rank, size, comm);
-         MFEM_ASSERT(rank_msg.find(rank) != rank_msg.end(), "");
-         // No guard against receiving two messages from the same rank
+         MFEM_ASSERT(rank_msg.find(rank) != rank_msg.end(), "Unexpected message"
+                     " (tag " << Tag << ") from rank " << rank);
+         // NOTE: no guard against receiving two messages from the same rank
          rank_msg[rank].Recv(rank, size, comm);
          --recv_left;
       }
@@ -256,7 +253,19 @@ protected:
    virtual void Decode() {}
 };
 
-}
+
+/// Helper struct to convert a C++ type to an MPI type
+template <typename Type>
+struct MPITypeMap { static const MPI_Datatype mpi_type; };
+
+
+/** Reorder MPI ranks to follow the Z-curve within the physical machine topology
+    (provided that functions to query physical node coordinates are available).
+    Returns a new communicator with reordered ranks. */
+MPI_Comm ReorderRanksZCurve(MPI_Comm comm);
+
+
+} // namespace mfem
 
 #endif
 

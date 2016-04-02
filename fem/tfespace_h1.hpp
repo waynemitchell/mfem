@@ -34,7 +34,7 @@ public:
    ElementDofIndexer(const FE &fe, const FiniteElementSpace &fes)
    {
       const Array<int> *loc_dof_map = fe.GetDofMap();
-      fes.BuildElementToDofTable();
+      // fes.BuildElementToDofTable();
       const Table &el_dof = fes.GetElementToDofTable();
       MFEM_ASSERT(el_dof.Size_of_connections() == el_dof.Size() * FE::dofs,
                   "the element-to-dof Table is not compatible with this FE!");

@@ -11,13 +11,14 @@
 
 // Implementation of GridFunction
 
+#include "fem.hpp"
+
 #include <limits>
 #include <cstring>
 #include <string>
 #include <cmath>
 #include <iostream>
 #include <algorithm>
-#include "fem.hpp"
 
 namespace mfem
 {
@@ -48,6 +49,7 @@ GridFunction::GridFunction(Mesh *m, std::istream &input)
    input.getline(buff, bufflen); // read the empty line
    fes = new FiniteElementSpace(m, fec, vdim, ordering);
    Vector::Load(input, fes->GetVSize());
+   sequence = 0;
 }
 
 GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
@@ -123,18 +125,10 @@ GridFunction::GridFunction(Mesh *m, GridFunction *gf_array[], int num_pieces)
       fi += l_nfdofs;
       di += l_nddofs;
    }
+   sequence = 0;
 }
 
-GridFunction::~GridFunction()
-{
-   if (fec)
-   {
-      delete fes;
-      delete fec;
-   }
-}
-
-void GridFunction::Update(FiniteElementSpace *f)
+void GridFunction::Destroy()
 {
    if (fec)
    {
@@ -142,22 +136,52 @@ void GridFunction::Update(FiniteElementSpace *f)
       delete fec;
       fec = NULL;
    }
+}
+
+void GridFunction::Update()
+{
+   const Operator *T = fes->GetUpdateOperator();
+
+   if (fes->GetSequence() == sequence)
+   {
+      return; // space and grid function are in sync, no-op
+   }
+   if (fes->GetSequence() != sequence + 1)
+   {
+      MFEM_ABORT("Error in update sequence. GridFunction needs to be updated "
+                 "right after the space is updated.");
+   }
+   sequence = fes->GetSequence();
+
+   if (T)
+   {
+      Vector tmp(T->Height());
+      T->Mult(*this, tmp);
+      *this = tmp;
+   }
+   else
+   {
+      SetSize(fes->GetVSize());
+   }
+}
+
+void GridFunction::SetSpace(FiniteElementSpace *f)
+{
+   Destroy();
    fes = f;
    SetSize(fes->GetVSize());
+   sequence = fes->GetSequence();
 }
 
-void GridFunction::Update(FiniteElementSpace *f, Vector &v, int v_offset)
+void GridFunction::MakeRef(FiniteElementSpace *f, Vector &v, int v_offset)
 {
    MFEM_ASSERT(v.Size() >= v_offset + f->GetVSize(), "");
-   if (fec)
-   {
-      delete fes;
-      delete fec;
-      fec = NULL;
-   }
+   Destroy();
    fes = f;
    NewDataAndSize((double *)v + v_offset, fes->GetVSize());
+   sequence = fes->GetSequence();
 }
+
 
 void GridFunction::SumFluxAndCount(BilinearFormIntegrator &blfi,
                                    GridFunction &flux,
@@ -1345,7 +1369,7 @@ void GridFunction::ProjectBdrCoefficient(
    // Dependency is defined from the matrix A = cP.cR: dof i depends on dof j
    // iff A_ij != 0. It is sufficient to resolve just the first level of
    // dependency since A is a projection matrix: A^n = A due to cR.cP = I.
-   // Cases like this arise in 3D when boundary edges are constraint by (depend
+   // Cases like this arise in 3D when boundary edges are constrained by (depend
    // on) internal faces/elements.
    // We use the virtual method GetBoundaryClosure from NCMesh to resolve the
    // dependencies.
@@ -2076,6 +2100,7 @@ GridFunction & GridFunction::operator=(double value)
 
 GridFunction & GridFunction::operator=(const Vector &v)
 {
+   SetSize(v.Size());
    for (int i = 0; i < size; i++)
    {
       data[i] = v(i);
@@ -2086,53 +2111,6 @@ GridFunction & GridFunction::operator=(const Vector &v)
 GridFunction & GridFunction::operator=(const GridFunction &v)
 {
    return this->operator=((const Vector &)v);
-}
-
-void GridFunction::ConformingProlongate(const Vector &x)
-{
-   const SparseMatrix *P = fes->GetConformingProlongation();
-   if (P)
-   {
-      this->SetSize(P->Height());
-      P->Mult(x, *this);
-   }
-   else // assume conforming mesh
-   {
-      *this = x;
-   }
-}
-
-void GridFunction::ConformingProlongate()
-{
-   if (fes->Nonconforming())
-   {
-      Vector x = *this;
-      ConformingProlongate(x);
-   }
-}
-
-void GridFunction::ConformingProject(Vector &x) const
-{
-   const SparseMatrix *R = fes->GetConformingRestriction();
-   if (R)
-   {
-      x.SetSize(R->Height());
-      R->Mult(*this, x);
-   }
-   else // assume conforming mesh
-   {
-      x = *this;
-   }
-}
-
-void GridFunction::ConformingProject()
-{
-   if (fes->Nonconforming())
-   {
-      Vector x;
-      ConformingProject(x);
-      static_cast<Vector&>(*this) = x;
-   }
 }
 
 void GridFunction::Save(std::ostream &out) const
@@ -2347,11 +2325,11 @@ std::ostream &operator<<(std::ostream &out, const GridFunction &sol)
 
 
 
-void ZZErrorEstimator(BilinearFormIntegrator &blfi,
-                      GridFunction &u,
-                      GridFunction &flux, Vector &error_estimates,
-                      Array<int>* aniso_flags,
-                      int with_subdomains)
+double ZZErrorEstimator(BilinearFormIntegrator &blfi,
+                        GridFunction &u,
+                        GridFunction &flux, Vector &error_estimates,
+                        Array<int>* aniso_flags,
+                        int with_subdomains)
 {
    FiniteElementSpace *ufes = u.FESpace();
    FiniteElementSpace *ffes = flux.FESpace();
@@ -2381,6 +2359,7 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
       }
    }
 
+   double total_error = 0.0;
    for (int s = 1; s <= nsd; s++)
    {
       // This calls the parallel version when u is a ParGridFunction
@@ -2402,9 +2381,11 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
 
          fl -= fla;
 
-         error_estimates(i) =
-            blfi.ComputeFluxEnergy(*ffes->GetFE(i), *Transf, fl,
-                                   (aniso_flags ? &d_xyz : NULL));
+         double err = blfi.ComputeFluxEnergy(*ffes->GetFE(i), *Transf, fl,
+                                             (aniso_flags ? &d_xyz : NULL));
+
+         error_estimates(i) = std::sqrt(err);
+         total_error += err;
 
          if (aniso_flags)
          {
@@ -2425,6 +2406,8 @@ void ZZErrorEstimator(BilinearFormIntegrator &blfi,
          }
       }
    }
+
+   return std::sqrt(total_error);
 }
 
 

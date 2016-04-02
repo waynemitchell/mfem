@@ -73,13 +73,19 @@ protected:
    virtual void NonconformingRefinement(const Array<Refinement> &refinements,
                                         int nc_limit = 0);
 
+   virtual bool NonconformingDerefinement(Array<double> &elem_error,
+                                          double threshold, int nc_limit = 0,
+                                          int op = 1);
    void DeleteFaceNbrData();
+
+   bool WantSkipSharedMaster(const NCMesh::Master &master) const;
+
+   virtual long ReduceInt(int value);
 
 public:
    /** Copy constructor. Performs a deep copy of (almost) all data, so that the
        source mesh can be modified (e.g. deleted, refined) without affecting the
-       new mesh. The source mesh has to be in a NORMAL, i.e. not TWO_LEVEL_*,
-       state. If 'copy_nodes' is false, use a shallow (pointer) copy for the
+       new mesh. If 'copy_nodes' is false, use a shallow (pointer) copy for the
        nodes, if present. */
    explicit ParMesh(const ParMesh &pmesh, bool copy_nodes = true);
 
@@ -107,6 +113,9 @@ public:
 
    int GetNGroups() { return gtopo.NGroups(); }
 
+   /// Return the global number of elements.
+   long GlobalNE() const;
+
    // next 6 methods do not work for the 'local' group 0
    int GroupNVertices(int group) { return group_svert.RowSize(group-1); }
    int GroupNEdges(int group)    { return group_sedge.RowSize(group-1); }
@@ -119,9 +128,11 @@ public:
 
    void ExchangeFaceNbrData();
    void ExchangeFaceNbrNodes();
+
    int GetNFaceNeighbors() const { return face_nbr_group.Size(); }
    int GetFaceNbrGroup(int fn) const { return face_nbr_group[fn]; }
    int GetFaceNbrRank(int fn) const;
+
    /** Similar to Mesh::GetFaceToElementTable with added face-neighbor elements
        with indices offset by the local number of elements. */
    Table *GetFaceToAllElementTable() const;
@@ -142,6 +153,9 @@ public:
 
    /// Update the groups after tet refinement
    void RefineGroups(const DSTable &v_to_v, int *middle);
+
+   /// Load balance the mesh. NC meshes only.
+   void Rebalance();
 
    /** Print the part of the mesh in the calling processor adding the interface
        as boundary (for visualization purposes) using the default format. */

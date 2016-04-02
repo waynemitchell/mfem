@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
    for (int it = 0; ; it++)
    {
       int cdofs = fespace.GetTrueVSize();
-      cout << "\nIteration " << it << endl;
+      cout << "\nAMR iteration " << it << endl;
       cout << "Number of unknowns: " << cdofs << endl;
 
       // 10. Assemble the stiffness matrix and the right-hand side. Note that
@@ -153,13 +153,14 @@ int main(int argc, char *argv[])
       //     will be solved for true (unconstrained) DOFs only.
       SparseMatrix A;
       Vector B, X;
-      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, 1);
+      const int copy_interior = 1;
+      a.FormLinearSystem(ess_tdof_list, x, b, A, X, B, copy_interior);
 
 #ifndef MFEM_USE_SUITESPARSE
       // 13. Define a simple symmetric Gauss-Seidel preconditioner and use it to
       //     solve the linear system with PCG.
       GSSmoother M(A);
-      PCG(A, M, B, X, 2, 200, 1e-12, 0.0);
+      PCG(A, M, B, X, 3, 200, 1e-12, 0.0);
 #else
       // 13. If MFEM was compiled with SuiteSparse, use UMFPACK to solve the
       //     the linear system.
@@ -198,12 +199,11 @@ int main(int argc, char *argv[])
          ZZErrorEstimator(flux_integrator, x, flux, errors, &aniso_flags);
       }
 
-      // 17. Make a list of elements whose error is larger than a fraction (0.7)
-      //     of the maximum element error. These elements will be refined.
+      // 17. Make a list of elements whose error is larger than a fraction of
+      //     the maximum element error. These elements will be refined.
       Array<Refinement> ref_list;
       const double frac = 0.7;
-      // the 'errors' are squared, so we need to square the fraction
-      double threshold = (frac*frac) * errors.Max();
+      double threshold = frac * errors.Max();
       for (int i = 0; i < errors.Size(); i++)
       {
          if (errors[i] >= threshold)
@@ -212,26 +212,17 @@ int main(int argc, char *argv[])
          }
       }
 
-      // 18. Refine the selected elements. Since we are going to transfer the
-      //     grid function x from the coarse mesh to the new fine mesh in the
-      //     next step, we need to request the "two-level state" of the mesh.
-      mesh.UseTwoLevelState(1);
+      // 18. Refine the selected elements.
       mesh.GeneralRefinement(ref_list);
 
       // 19. Update the space to reflect the new state of the mesh. Also,
       //     interpolate the solution x so that it lies in the new space but
       //     represents the same function. This saves solver iterations since
-      //     we'll have a good initial guess of x in the next step.
-      //     The interpolation algorithm needs the mesh to hold some information
-      //     about the previous state, which is why the call UseTwoLevelState
-      //     above is required.
-      fespace.UpdateAndInterpolate(&x);
-
-      // Note: If interpolation was not needed, we could just use the following
-      //     two calls to update the space and the grid function. (No need to
-      //     call UseTwoLevelState in this case.)
-      // fespace.Update();
-      // x.Update();
+      //     we'll have a good initial guess of x in the next step. Internally,
+      //     FiniteElementSpace::Update() calculates an interpolation matrix
+      //     which is then used by GridFunction::Update().
+      fespace.Update();
+      x.Update();
 
       // 20. Inform also the bilinear and linear forms that the space has
       //     changed.

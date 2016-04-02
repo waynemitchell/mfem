@@ -13,6 +13,7 @@
 #define MFEM_NCMESH
 
 #include <vector>
+#include <map>
 #include <iostream>
 
 #include "../config/config.hpp"
@@ -34,8 +35,23 @@ struct Refinement
    int index; ///< Mesh element number
    char ref_type; ///< refinement XYZ bit mask (7 = full isotropic)
 
-   Refinement(int index, int type = 7)
-      : index(index), ref_type(type) {}
+   Refinement(int index, int type = 7) : index(index), ref_type(type) {}
+};
+
+/// Defines the position of a fine element within a coarse element.
+struct Embedding
+{
+   int parent; ///< element index in the coarse mesh
+   int matrix; ///< index into CoarseFineTransformations::point_matrices
+
+   Embedding(int elem, int matrix = 0) : parent(elem), matrix(matrix) {}
+};
+
+/// Defines the coarse-fine transformations of all fine elements.
+struct CoarseFineTransformations
+{
+   DenseTensor point_matrices;  ///< matrices for IsoparametricTransformation
+   Array<Embedding> embeddings; ///< fine element positions in their parents
 };
 
 
@@ -56,7 +72,7 @@ struct Refinement
  *  4. FiniteElementSpace asks NCMesh for a list of conforming, master and
  *     slave edges/faces and creates the conforming interpolation matrix P.
  *
- *  5. A continous/conforming solution is obtained by solving P'*A*P x = P'*b.
+ *  5. A continuous/conforming solution is obtained by solving P'*A*P x = P'*b.
  *
  *  6. Repeat from step 2.
  */
@@ -75,6 +91,8 @@ public:
    /// Deep copy of 'other'.
    NCMesh(const NCMesh &other);
 
+   virtual ~NCMesh();
+
    int Dimension() const { return Dim; }
    int SpaceDimension() const { return spaceDim; }
 
@@ -86,8 +104,28 @@ public:
 
    /** Check the mesh and potentially refine some elements so that the maximum
        difference of refinement levels between adjacent elements is not greater
-       than 'max_level'. */
-   virtual void LimitNCLevel(int max_level);
+       than 'max_nc_level'. */
+   virtual void LimitNCLevel(int max_nc_level);
+
+   /** Return a list of derefinement opportunities. Each row of the table
+       contains Mesh indices of existing elements that can be derefined to form
+       a single new coarse element. Row numbers are then passed to Derefine.
+       This function works both in serial and parallel. */
+   const Table &GetDerefinementTable();
+
+   /** Check derefinements returned by GetDerefinementTable and mark those that
+       can be done safely so that the maximum NC level condition is not violated.
+       On return, level_ok.Size() == deref_table.Size() and contains 0/1s. */
+   virtual void CheckDerefinementNCLevel(const Table &deref_table,
+                                         Array<int> &level_ok, int max_nc_level);
+
+   /** Perform a subset of the possible derefinements (see GetDerefinementTable).
+       Note that if anisotropic refinements are present in the mesh, some of the
+       derefinements may have to be skipped to preserve mesh consistency. */
+   virtual void Derefine(const Array<int> &derefs);
+
+
+   // master/slave lists
 
    /// Identifies a vertex/edge/face in both Mesh and NCMesh.
    struct MeshId
@@ -147,33 +185,29 @@ public:
       return edge_list;
    }
 
-   /** Represents the relation of a fine element to its parent (coarse) element
-       from a previous mesh state. (Note that the parent can be an indirect
-       parent.) The point matrix determines where in the reference domain of the
-       coarse element the fine element is located. */
-   struct FineTransform
-   {
-      int coarse_index; ///< coarse Mesh element index
-      DenseMatrix point_matrix; ///< for use in IsoparametricTransformation
 
-      /// As an optimization, identity transform is "stored" as empty matrix.
-      bool IsIdentity() const { return !point_matrix.Data(); }
-   };
+   // coarse/fine transforms
 
-   /** Store the current layer of leaf elements before the mesh is refined.
-       This is later used by 'GetFineTransforms' to determine the relations of
-       the coarse and refined elements. */
+   /** Remember the current layer of leaf elements before the mesh is refined.
+       Needed by GetRefinementTransforms(), must be called before Refine(). */
    void MarkCoarseLevel();
 
-   /// Free the internally stored array of coarse leaf elements.
-   void ClearCoarseLevel() { coarse_elements.DeleteAll(); }
+   /** After refinement, calculate the relation of each fine element to its
+       parent coarse element. Note that Refine() or LimitNCLevel() can be called
+       multiple times between MarkCoarseLevel() and this function. */
+   const CoarseFineTransformations& GetRefinementTransforms();
 
-   /** Return an array of structures 'FineTransform', one for each leaf
-       element. This data can be used to transfer functions from a previous
-       coarse level of the mesh (marked with 'MarkCoarseLevel') to a newly
-       refined state of the mesh.
-       NOTE: the caller needs to free the returned array. */
-   FineTransform* GetFineTransforms();
+   /** After derefinement, calculate the relations of previous fine elements
+       (some of which may no longer exist) to the current leaf elements.
+       Unlike for refinement, Derefine() may only be called once before this
+       function so there is no MarkFineLevel(). */
+   const CoarseFineTransformations& GetDerefinementTransforms();
+
+   /// Free all data created by the above functions.
+   void ClearTransforms();
+
+
+   // utility
 
    /** Given an edge (by its vertex indices v1 and v2) return the first
        (geometric) parent edge that exists in the Mesh or -1 if there is no such
@@ -188,6 +222,12 @@ public:
    virtual void GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
                                    Array<int> &bdr_vertices,
                                    Array<int> &bdr_edges);
+
+   /// Return the type of elements in the mesh.
+   int GetElementGeometry() const { return root_elements[0]->geom; }
+
+   /// Return the distance of leaf 'i' from the root.
+   int GetElementDepth(int i) const;
 
    /// I/O: Print the "vertex_parents" section of the mesh file (ver. >= 1.1).
    void PrintVertexParents(std::ostream &out) const;
@@ -209,8 +249,6 @@ public:
    long MemoryUsage() const;
 
    void PrintMemoryDetail() const;
-
-   virtual ~NCMesh();
 
 
 protected: // interface for Mesh to be able to construct itself from NCMesh
@@ -279,6 +317,7 @@ protected: // implementation
 
       Edge() : attribute(-1), index(-1) {}
       Edge(const Edge &other) { std::memcpy(this, &other, sizeof(*this)); }
+
       bool Boundary() const { return attribute >= 0; }
    };
 
@@ -346,6 +385,7 @@ protected: // implementation
    {
       char geom;     ///< Geometry::Type of the element
       char ref_type; ///< bit mask of X,Y,Z refinements (bits 0,1,2 respectively)
+      char flag;     ///< generic flag/marker, can be used by algorithms
       int index;     ///< element number in the Mesh, -1 if refined
       int rank;      ///< processor number (ParNCMesh)
       int attribute;
@@ -359,6 +399,10 @@ protected: // implementation
       Element(int geom, int attr);
       Element(const Element& other) { std::memcpy(this, &other, sizeof(*this)); }
    };
+
+   // TODO: use MemAlloc or similar to store Element, Face, Node, etc., replace
+   // most pointers with indices (ints) into the allocators to save memory;
+   // ref_count and attributes could be chars
 
    Array<Element*> root_elements; // coarsest mesh, initialized by constructor
 
@@ -391,7 +435,7 @@ protected: // implementation
 
    virtual void UpdateVertices(); ///< update Vertex::index and vertex_nodeId
 
-   void CollectLeafElements(Element* elem);
+   void CollectLeafElements(Element* elem, int state);
    void UpdateLeafElements();
 
    virtual void AssignLeafIndices();
@@ -400,7 +444,7 @@ protected: // implementation
    virtual int GetNumGhosts() const { return 0; }
 
 
-   // refinement
+   // refinement/derefinement
 
    struct ElemRefType
    {
@@ -412,6 +456,8 @@ protected: // implementation
    };
 
    Array<ElemRefType> ref_stack; ///< stack of scheduled refinements (temporary)
+
+   Table derefinements; ///< possible derefinements, see GetDerefinementTable
 
    void RefineElement(Element* elem, char ref_type);
    void DerefineElement(Element* elem);
@@ -436,7 +482,8 @@ protected: // implementation
    Node* GetMidFaceVertex(Node* e1, Node* e2, Node* e3, Node* e4);
 
    int FaceSplitType(Node* v1, Node* v2, Node* v3, Node* v4,
-                     Node* mid[4] = NULL /* optional output of mid-edge nodes*/) const;
+                     Node* mid[4] = NULL /* optional output of mid-edge nodes*/)
+   const;
 
    void ForceRefinement(Node* v1, Node* v2, Node* v3, Node* v4);
 
@@ -459,6 +506,7 @@ protected: // implementation
    bool NodeSetZ1(Node* node, Node** n);
    bool NodeSetZ2(Node* node, Node** n);
 
+   void CollectDerefinements(Element* elem, Array<Connection> &list);
 
    // face/edge lists
 
@@ -487,19 +535,29 @@ protected: // implementation
    /** Return all vertex-, edge- and face-neighbors of a set of elements.
        The neighbors are returned as a list (neighbors != NULL), as a set
        (neighbor_set != NULL), or both. The sizes of the set arrays must match
-       that of leaf_elements.
-       NOTE: the function is intended to be used for large sets of elements and
-       its complexity is linear in the number of leaf elements in the mesh. */
+       that of leaf_elements. The function is intended to be used for large
+       sets of elements and its complexity is linear in the number of leaf
+       elements in the mesh. */
    void FindSetNeighbors(const Array<char> &elem_set,
-                         Array<Element*> *neighbors,
+                         Array<Element*> *neighbors, /* append */
                          Array<char> *neighbor_set = NULL);
 
    /** Return all vertex-, edge- and face-neighbors of a single element.
        You can limit the number of elements being checked using 'search_set'.
        The complexity of the function is linear in the size of the search set.*/
    void FindNeighbors(const Element* elem,
-                      Array<Element*> &neighbors,
+                      Array<Element*> &neighbors, /* append */
                       const Array<Element*> *search_set = NULL);
+
+   /** Expand a set of elements by all vertex-, edge- and face-neighbors.
+       The output array 'expanded' will contain all items from 'elements'
+       (provided they are in 'search_set') plus their neighbors. The neighbor
+       search can be limited to the optional search set. The complexity is
+       linear in the sum of the sizes of 'elements' and 'search_set'. */
+   void NeighborExpand(const Array<Element*> &elements,
+                       Array<Element*> &expanded,
+                       const Array<Element*> *search_set = NULL);
+
 
    void CollectEdgeVertices(Node *v0, Node *v1, Array<int> &indices);
    void CollectFaceVertices(Node* v0, Node* v1, Node* v2, Node* v3,
@@ -512,7 +570,7 @@ protected: // implementation
    }
 
 
-   // coarse to fine transformations
+   // coarse/fine transformations
 
    struct Point
    {
@@ -522,14 +580,10 @@ protected: // implementation
       Point() { dim = 0; }
 
       Point(double x, double y)
-      {
-         dim = 2; coord[0] = x; coord[1] = y;
-      }
+      { dim = 2; coord[0] = x; coord[1] = y; }
 
       Point(double x, double y, double z)
-      {
-         dim = 3; coord[0] = x; coord[1] = y; coord[2] = z;
-      }
+      { dim = 3; coord[0] = x; coord[1] = y; coord[2] = z; }
 
       Point(const Point& p0, const Point& p1)
       {
@@ -554,10 +608,7 @@ protected: // implementation
       Point& operator=(const Point& src)
       {
          dim = src.dim;
-         for (int i = 0; i < dim; i++)
-         {
-            coord[i] = src.coord[i];
-         }
+         for (int i = 0; i < dim; i++) { coord[i] = src.coord[i]; }
          return *this;
       }
    };
@@ -588,11 +639,27 @@ protected: // implementation
       void GetMatrix(DenseMatrix& point_matrix) const;
    };
 
+   static PointMatrix pm_tri_identity;
+   static PointMatrix pm_quad_identity;
+   static PointMatrix pm_hex_identity;
+
+   static const PointMatrix& GetGeomIdentity(int geom);
+
+   void GetPointMatrix(int geom, const char* ref_path, DenseMatrix& matrix);
+
+   typedef std::map<std::string, int> RefPathMap;
+
+   void TraverseRefinements(Element* elem, int coarse_index,
+                            std::string &ref_path, RefPathMap &map);
+
+   /// storage for data returned by Get[De]RefinementTransforms()
+   CoarseFineTransformations transforms;
+
    /// state of leaf_elements before Refine(), set by MarkCoarseLevel()
    Array<Element*> coarse_elements;
 
-   void GetFineTransforms(Element* elem, int coarse_index,
-                          FineTransform *transforms, const PointMatrix &pm);
+   void InitDerefTransforms();
+   void SetDerefMatrixCodes(Element* parent, Array<Element*> &coarse);
 
 
    // utility
@@ -606,6 +673,7 @@ protected: // implementation
                        int& h_level, int& v_level) const;
 
    void CountSplits(Element* elem, int splits[3]) const;
+   void GetLimitRefinements(Array<Refinement> &refinements, int max_level);
 
    int CountElements(Element* elem) const;
 
@@ -634,9 +702,12 @@ public: // TODO: maybe make this part of mfem::Geometry?
 #ifdef MFEM_DEBUG
 public:
    void DebugNeighbors(Array<char> &elem_set);
+
+   /// Print the space-filling curve formed by the leaf elements.
+   void DebugLeafOrder() const;
 #endif
 
-   friend class ParNCMesh;
+   friend class ParNCMesh/*::ElementSet*/;
 };
 
 }

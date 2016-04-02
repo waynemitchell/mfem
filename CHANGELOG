@@ -10,12 +10,44 @@
 Version 3.2, not yet released
 =============================
 
+Dynamic AMR with parallel load balancing and derefinement of non-conforming meshes
+-------------------------------------------------------------------
+- Parallel non-conforming meshes can now be load balanced at any time by calling
+  ParMesh::Rebalance(). Elements of the mesh are redistributed in such a way
+  that each processor gets approximately the same number of elements (plus minus
+  one element). Partitioning is done by splitting a sequence of space-filling
+  (Hilbert) curves defined on the refinement octrees.
+
+- Isotropically refined non-conforming meshes can now be derefined, both in
+  serial and in parallel, based on a per-element error measure and a
+  derefinement threshold. See ParMesh::GeneralDerefinement().
+
+- Following an arbitrary mesh change (uniform/general conforming/non-conforming
+  refinement, derefinement, load balancing), the FiniteElementSpace and
+  associated GridFunctions can be updated by interpolating or redistributing the
+  previous function values based on the new state of the mesh. (Internally this
+  is implemented through a transformation matrix that is constructed in the
+  FiniteElementSpace.) The user interface is quite simple:
+
+     pmesh.Rebalance();  // or GeneralRefinement, or GeneralDerefinement
+     fespace.Update();   // calculate a transformation matrix (by default)
+     x.Update();         // apply the transformation to the GridFunction
+     z.Update();         // apply it again
+
+- The above features are illustrated in the new Example 15 (see also Example 6).
+
 Improved solvers
 ----------------
 - Added a wrapper for the KLU solver in SuiteSparse see
   http://faculty.cse.tamu.edu/davis/suitesparse.html for details of KLU.
   If MFEM was configured with MFEM_USE_SUITESPARSE, one must now also link
   against the klu and btf libraries in SuiteSparse, see config/user.mk.in.
+
+New and updated examples
+------------------------
+- Two new serial and parallel example codes that demonstrate:
+  * adaptive refinement, derefinement and load balancing (in parallel) on
+    non-conforming meshes (Example 15/15p)
 
 
 Version 3.1, released on Feb 16, 2016
