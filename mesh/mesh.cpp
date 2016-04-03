@@ -3335,6 +3335,10 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
                         }
                         vert_indices[vi] = it->second;
                      }
+
+                     // non-positive attributes are not allowed, convert them to attribute 1
+                     if (phys_domain <= 0) { phys_domain = 1; }
+
                      // initialize the mesh element
                      switch (type_of_element)
                      {
@@ -3408,6 +3412,10 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
                      }
                      vert_indices[vi] = it->second;
                   }
+
+                  // non-positive attributes are not allowed, convert them to attribute 1
+                  if (phys_domain <= 0) { phys_domain = 1; }
+
                   // initialize the mesh element
                   switch (type_of_element)
                   {
