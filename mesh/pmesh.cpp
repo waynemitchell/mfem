@@ -1307,12 +1307,19 @@ void ParMesh::ExchangeFaceNbrNodes()
 
 int ParMesh::GetFaceNbrRank(int fn) const
 {
-   int nbr_group = face_nbr_group[fn];
-   const int *nbs = gtopo.GetGroup(nbr_group);
-   int nbr_lproc = (nbs[0]) ? nbs[0] : nbs[1];
-   int nbr_rank = gtopo.GetNeighborRank(nbr_lproc);
-
-   return nbr_rank;
+   if (Conforming())
+   {
+      int nbr_group = face_nbr_group[fn];
+      const int *nbs = gtopo.GetGroup(nbr_group);
+      int nbr_lproc = (nbs[0]) ? nbs[0] : nbs[1];
+      int nbr_rank = gtopo.GetNeighborRank(nbr_lproc);
+      return nbr_rank;
+   }
+   else
+   {
+      // NC: simplified handling of face neighbor ranks
+      return face_nbr_group[fn];
+   }
 }
 
 Table *ParMesh::GetFaceToAllElementTable() const
@@ -1423,6 +1430,12 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 
 int ParMesh::GetNSharedFaces() const
 {
+   if (Nonconforming())
+   {
+      // TODO: better
+      return pncmesh->GetSharedList(Dim-1).conforming.size();
+   }
+
    if (Dim == 1)
    {
       return svert_lvert.Size();
@@ -1436,6 +1449,12 @@ int ParMesh::GetNSharedFaces() const
 
 int ParMesh::GetSharedFace(int sface) const
 {
+   if (Nonconforming())
+   {
+      // TODO: better
+      return pncmesh->GetSharedList(Dim-1).conforming[sface].index;
+   }
+
    switch (Dim)
    {
       case 1: return svert_lvert[sface];

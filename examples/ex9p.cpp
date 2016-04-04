@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
    {
       DumpInfo(pmesh);
    }
-   exit(1);
+   //exit(1);
 
    HypreParMatrix *M = m->ParallelAssemble();
    HypreParMatrix *K = k->ParallelAssemble();

@@ -388,6 +388,28 @@ void ParNCMesh::BuildSharedVertices()
    }
 }
 
+int ParNCMesh::get_face_orientation(Face* face, Element* e1, Element* e2,
+                                    int local[2])
+{
+   int ids[2][4];
+   Element* e[2] = { e1, e2 };
+   for (int i = 0; i < 2; i++)
+   {
+      int lf = find_hex_face(find_node(e[i], face->p1),
+                             find_node(e[i], face->p2),
+                             find_node(e[i], face->p3));
+      if (local) { local[i] = lf; }
+
+      // get node IDs for the face as seen from e[i]
+      const int* fv = GI[Geometry::CUBE].faces[lf];
+      for (int j = 0; j < 4; j++)
+      {
+         ids[i][j] = e[i]->node[fv[j]]->id;
+      }
+   }
+   return Mesh::GetQuadOrientation(ids[0], ids[1]);
+}
+
 void ParNCMesh::CalcFaceOrientations()
 {
    // Calculate orientation of shared conforming faces.
@@ -405,22 +427,7 @@ void ParNCMesh::CalcFaceOrientations()
          if (e[0]->rank == e[1]->rank) { continue; }
          if (e[0]->rank > e[1]->rank) { std::swap(e[0], e[1]); }
 
-         int ids[2][4];
-         for (int i = 0; i < 2; i++)
-         {
-            int f = find_hex_face(find_node(e[i], it->p1),
-                                  find_node(e[i], it->p2),
-                                  find_node(e[i], it->p3));
-
-            // get node IDs for the face as seen from e[i]
-            const int* fv = GI[Geometry::CUBE].faces[f];
-            for (int j = 0; j < 4; j++)
-            {
-               ids[i][j] = e[i]->node[fv[j]]->id;
-            }
-         }
-
-         face_orient[it->index] = Mesh::GetQuadOrientation(ids[0], ids[1]);
+         face_orient[it->index] = get_face_orientation(it, e[0], e[1]);
       }
    }
 }
@@ -548,22 +555,31 @@ void ParNCMesh::NeighborProcessors(Array<int> &neighbors)
    // TODO: maybe store (cache) the result
 }
 
+static void init_nbr_offset(Array<int> &offsets, int size)
+{
+   offsets.SetSize(size);
+   offsets.SetSize(0);
+   offsets.Append(0);
+}
+
 void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
 {
    // in the NC case, face_nbr_group contains directly the neighbor ranks
    NeighborProcessors(pmesh.face_nbr_group);
+   int num_face_nbrs = pmesh.face_nbr_group.Size();
 
    pmesh.face_nbr_elements.SetSize(0);
    pmesh.face_nbr_vertices.SetSize(0);
 
-   pmesh.face_nbr_elements_offset.SetSize(0);
-   pmesh.face_nbr_vertices_offset.SetSize(0);
+   init_nbr_offset(pmesh.face_nbr_elements_offset, num_face_nbrs);
+   init_nbr_offset(pmesh.face_nbr_vertices_offset, num_face_nbrs);
 
-   pmesh.face_nbr_elements_offset.Append(0);
-   pmesh.face_nbr_vertices_offset.Append(0);
+   Array<Connection> send_elems, send_verts;
+   send_elems.Reserve(ghost_layer.Size()*3/2);
+   send_verts.Reserve(send_elems.Size()*(1 << Dim));
 
    // create face neighbor elements for all neighbor ranks
-   for (int r = 0; r < pmesh.face_nbr_group.Size(); r++)
+   for (int r = 0; r < num_face_nbrs; r++)
    {
       int rank = pmesh.face_nbr_group[r];
       std::map<int, int> vert_map;
@@ -594,7 +610,24 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
                      fne->GetVertices()[k] = v-1;
                   }
                   pmesh.face_nbr_elements.Append(fne);
-                  break;
+
+                  // include the neighbor in send_elements/vertices
+                  send_elems.Append(Connection(r, nbr->index));
+                  for (int k = 0; k < 8 && nbr->node[k]; k++)
+                  {
+                     send_verts.Append(Connection(r, nbr->node[k]->vertex->index));
+                  }
+
+                  // modify FaceInfo for the face
+                  Mesh::FaceInfo &fi = pmesh.faces_info[face->index];
+                  MFEM_ASSERT(fi.Elem2No == -1, "");
+                  fi.Elem2No = -pmesh.face_nbr_elements.Size();
+
+                  int local[2];
+                  int o = get_face_orientation(face, nbr, elem, local);
+                  fi.Elem2Inf = 64*local[1] + o;
+
+                  break; // done with this ghost element
                }
             }
          }
@@ -612,6 +645,12 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
       pmesh.face_nbr_elements_offset.Append(pmesh.face_nbr_elements.Size());
       pmesh.face_nbr_vertices_offset.Append(pmesh.face_nbr_vertices.Size());
    }
+
+   send_elems.Sort(); send_elems.Unique();
+   send_verts.Sort(); send_verts.Unique();
+
+   pmesh.send_face_nbr_elements.MakeFromList(num_face_nbrs, send_elems);
+   pmesh.send_face_nbr_vertices.MakeFromList(num_face_nbrs, send_verts);
 }
 
 

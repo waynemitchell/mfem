@@ -300,6 +300,8 @@ protected:
 
    void BuildSharedVertices();
 
+   static int get_face_orientation(Face *face, Element* e1, Element* e2,
+                                   int local[2] = NULL);
    void CalcFaceOrientations();
 
    void UpdateLayers();
