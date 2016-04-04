@@ -582,7 +582,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
    for (int r = 0; r < num_face_nbrs; r++)
    {
       int rank = pmesh.face_nbr_group[r];
-      std::map<int, int> vert_map;
+      std::map<Vertex*, int> vert_map;
 
       for (int i = 0; i < ghost_layer.Size(); i++)
       {
@@ -605,7 +605,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
                   fne->SetAttribute(elem->attribute);
                   for (int k = 0; k < gi.nv; k++)
                   {
-                     int &v = vert_map[elem->node[k]->vertex->index];
+                     int &v = vert_map[elem->node[k]->vertex];
                      if (!v) { v = vert_map.size(); }
                      fne->GetVertices()[k] = v-1;
                   }
@@ -634,12 +634,11 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
       }
 
       // copy vertices for the neighbor rank
-      std::map<int, int>::iterator it;
+      std::map<Vertex*, int>::iterator it;
       for (it = vert_map.begin(); it != vert_map.end(); ++it)
       {
-         Node* node = nodes.Peek(it->first);
          pmesh.face_nbr_vertices.Append(mfem::Vertex());
-         pmesh.face_nbr_vertices.Last().SetCoords(node->vertex->pos);
+         pmesh.face_nbr_vertices.Last().SetCoords(it->first->pos);
       }
 
       pmesh.face_nbr_elements_offset.Append(pmesh.face_nbr_elements.Size());
