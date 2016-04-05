@@ -3194,12 +3194,12 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
          }
       }
 
-      // A map between a serial number of the vertex and its number in the
-      // file (there may be gaps in numeration, and also Gmsh numerates vertices
+      // A map between a serial number of the vertex and its number in the file
+      // (there may be gaps in the numbering, and also Gmsh enumerates vertices
       // starting from 1, not 0)
       map<int, int> vertices_map;
-      // Read lines of mesh file. If we face specific keyword, we'll treat the
-      // section.
+      // Read the lines of the mesh file. If we face specific keyword, we'll
+      // treat the section.
       while (input >> buff)
       {
          if (buff == "$Nodes") // reading mesh vertices
@@ -3246,6 +3246,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
             int phys_domain; // element's attribute
             int elem_domain; // another element's attribute (rarely used)
             int n_partitions; // number of partitions where an element takes place
+
             // number of nodes for each type of Gmsh elements, type is the index
             // of the array + 1
             int nodes_of_gmsh_element[] =
@@ -3291,8 +3292,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
             {
                int n_elem_part = 0; // partial sum of elements that are read
                const int header_size = 3; // header consists of 3 numbers: type of the
-               // element, number of elements of this type,
-               // and number of tags
+               // element, number of elements of this type, and number of tags
                int header[header_size];
                int n_elem_one_type; // number of elements of a specific type
 
@@ -3336,7 +3336,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
                         vert_indices[vi] = it->second;
                      }
 
-                     // non-positive attributes are not allowed, convert them to attribute 1
+                     // non-positive attributes are not allowed in MFEM, so we
+                     // convert them to attribute 1
                      if (phys_domain <= 0) { phys_domain = 1; }
 
                      // initialize the mesh element
@@ -3413,7 +3414,8 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
                      vert_indices[vi] = it->second;
                   }
 
-                  // non-positive attributes are not allowed, convert them to attribute 1
+                  // non-positive attributes are not allowed in MFEM, so we
+                  // convert them to attribute 1
                   if (phys_domain <= 0) { phys_domain = 1; }
 
                   // initialize the mesh element
