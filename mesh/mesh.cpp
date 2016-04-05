@@ -3502,7 +3502,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
                // discard other elements
                for (size_t el = 0; el < elements_0D.size(); ++el)
                {
-                  delete elements_1D[el];
+                  delete elements_0D[el];
                }
             }
             else if (!elements_1D.empty())
@@ -3526,6 +3526,10 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
                mfem_error("Mesh::Load : Gmsh file : no elements found");
                return;
             }
+
+            MFEM_CONTRACT_VAR(n_partitions);
+            MFEM_CONTRACT_VAR(elem_domain);
+
          } // section '$Elements'
       } // we reach the end of the file
    }
