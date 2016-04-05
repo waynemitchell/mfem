@@ -386,7 +386,8 @@ int main(int argc, char *argv[])
          SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 6:
-         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, vx, t, false);
+         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp,
+                                          t, false);
          static_cast<ARKODEParSolver *>(ode_solver)->
          SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;

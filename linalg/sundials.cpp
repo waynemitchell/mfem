@@ -138,30 +138,17 @@ static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
 namespace mfem
 {
 
-CVODESolver::CVODESolver()
+CVODESolver::CVODESolver(TimeDependentOperator &_f, Vector &_x,
+                         double&_t, int lmm, int iter)
 {
    y = NULL;
    f = NULL;
 
    /* Call CVodeCreate to create the solver memory */
    /* Assumes Adams methods and funcitonal iterations, rather than BDF or Newton solves */
-   ode_mem=CVodeCreate(CV_ADAMS,CV_FUNCTIONAL);
+   ode_mem=CVodeCreate(lmm, iter);
    initialized_sundials=false;
    tolerances_set_sundials=false;
-}
-
-CVODESolver::CVODESolver(TimeDependentOperator &_f, Vector &_x, double&_t,
-                         int lmm, int iter)
-{
-   y = NULL;
-   f = NULL;
-
-   /* Call CVodeCreate to create the solver memory */
-   /* Assumes Adams methods and funcitonal iterations, rather than BDF or Newton solves */
-   ode_mem=CVodeCreate(lmm,iter);
-   initialized_sundials=false;
-   tolerances_set_sundials=false;
-   linear_multistep_method_type=lmm;
    solver_iteration_type=iter;
    ReInit(_f,_x,_t);
 }
@@ -402,6 +389,7 @@ int CVODESolver::check_flag(void *flagvalue, char *funcname, int opt)
 #ifdef MFEM_USE_MPI
 CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
                                Vector &_x, double &_t, int lmm, int iter)
+   : CVODESolver(_f, _x, _t, lmm, iter)
 {
    y = NULL;
    f = &_f;
@@ -410,7 +398,6 @@ CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
    ode_mem=CVodeCreate(lmm,iter);
    initialized_sundials=false;
    tolerances_set_sundials=false;
-   linear_multistep_method_type=lmm;
    solver_iteration_type=iter;
    //set MPI_Comm communicator
    comm=_comm;
@@ -480,8 +467,7 @@ void ARKODESolver::CreateNVector(long int& yin_length, realtype* ydata)
 
    // Create a serial vector
    y = N_VMake_Serial(yin_length,ydata);   /* Allocate y vector */
-   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
-
+   MFEM_ASSERT((void *)y != NULL, "ARKode couldn't create serial NVector!");
 }
 
 void ARKODESolver::CreateNVector(long int& yin_length, Vector* _x)
@@ -490,8 +476,7 @@ void ARKODESolver::CreateNVector(long int& yin_length, Vector* _x)
    // Create a serial vector
    y = N_VMake_Serial(yin_length,
                       (realtype*) _x->GetData());   /* Allocate y vector */
-   if (check_flag((void*)y, "N_VNew_Serial", 0)) { MFEM_ABORT("N_VNew_Serial"); }
-
+   MFEM_ASSERT((void *)y != NULL, "ARKode couldn't create serial NVector!");
 }
 
 void ARKODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
@@ -541,7 +526,7 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
       /* Call ARKodeReInit to initialize the integrator memory and specify the inital time t,
        * and the initial dependent variable vector y. */
       flag = WrapARKodeReInit(ode_mem, t, y);
-      if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
+      MFEM_ASSERT(flag >= 0, "ARKode couldn't initialize!");
    }
    else
    {
@@ -549,14 +534,14 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
        * user's right hand side function in x'=f(t,x), the inital time t, and
        * the initial dependent variable vector y. */
       flag = WrapARKodeInit(ode_mem, t, y);
-      if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
-      initialized_sundials=true;
-      SetSStolerances(RELTOL,ABSTOL);
+      MFEM_ASSERT(flag >= 0, "ARKode couldn't initialize!");
+      initialized_sundials = true;
+      SetSStolerances(RELTOL, ABSTOL);
    }
 
    /* Set the pointer to user-defined data */
    flag = ARKodeSetUserData(ode_mem, this->f);
-   if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
+   MFEM_ASSERT(flag >= 0, "ARKode couldn't set user data!");
 }
 
 void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
@@ -573,32 +558,33 @@ void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
       /* Call ARKodeReInit to initialize the integrator memory and specify the inital
        * time t, and the initial dependent variable vector y. */
       flag = WrapARKodeReInit(ode_mem, _t, y);
-      if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
+      MFEM_ASSERT(flag >= 0, "ARKode couldn't initialize!");
    }
    else
    {
-      /* Call ARKodeInit to initialize the integrator memory and specify the
-       * user's right hand side function in x'=f(t,x), the inital time t, and
-       * the initial dependent variable vector y. */
+      // Initialize the integrator memory and specify the
+      // user's right hand side function in x'=f(t,x), the inital time t, and
+      // the initial dependent variable vector y.
       flag = WrapARKodeInit(ode_mem, _t, y);
-      if (check_flag(&flag, "ARKodeInit", 1)) { MFEM_ABORT("ARKodeInit"); }
-      initialized_sundials=true;
+      MFEM_ASSERT(flag >= 0, "ARKode couldn't initialize!");
+      initialized_sundials = true;
       SetSStolerances(RELTOL,ABSTOL);
    }
 
    /* Set the pointer to user-defined data */
    flag = ARKodeSetUserData(ode_mem, this->f);
-   if (check_flag(&flag, "ARKodeSetUserData", 1)) { MFEM_ABORT("ARKodeSetUserData"); }
+   MFEM_ASSERT(flag >= 0, "ARKode couldn't set user data!");
 }
 
 void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
 {
-   int flag=0;
-   /* Call ARKodeSStolerances to specify the scalar relative tolerance
-    * and scalar absolute tolerance */
+   int flag = 0;
+
+   // Specify the scalar relative tolerance and scalar absolute tolerance.
    flag = ARKodeSStolerances(ode_mem, reltol, abstol);
-   if (check_flag(&flag, "ARKodeSStolerances", 1)) { return; }
-   tolerances_set_sundials=true;
+   MFEM_ASSERT(flag >= 0, "ARKode could not set tolerances!");
+
+   tolerances_set_sundials = true;
 }
 
 void ARKODESolver::WrapSetERKTableNum(int& table_num)
@@ -647,12 +633,12 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
    int flag=0;
    realtype tout=t+dt;
    TransferNVectorShallow(&x,y);
-   /*   cout<<"stepping, tout="<<tout<<endl;*/
-   //Step
+
+   // Step.
    flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
-   /*   cout<<"stepped"<<endl;*/
-   if (check_flag(&flag, "ARKode", 1)) { MFEM_ABORT("ARKode"); }
-   //Record last incremental step size
+   MFEM_ASSERT(flag >= 0, "ARKode could not make a step.");
+
+   // Record last incremental step size.
    flag = ARKodeGetLastStep(ode_mem, &dt);
 }
 
@@ -665,48 +651,6 @@ ARKODESolver::~ARKODESolver()
    {
       ARKodeFree(&ode_mem);   // Free integrator memory
    }
-}
-
-int ARKODESolver::check_flag(void *flagvalue, char *funcname, int opt)
-{
-   int *errflag;
-   char str_buffer[80];
-
-   /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
-
-   if (opt == 0 && flagvalue == NULL)
-   {
-      sprintf(str_buffer,"\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
-              funcname);
-      mfem_error(str_buffer);
-      return (1);
-   }
-
-   /* Check if flag < 0 */
-
-   else if (opt == 1)
-   {
-      errflag = (int *) flagvalue;
-      if (*errflag < 0)
-      {
-         sprintf(str_buffer, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
-                 funcname, *errflag);
-         mfem_error(str_buffer);
-         return (1);
-      }
-   }
-
-   /* Check if function returned NULL pointer - no memory allocated */
-
-   else if (opt == 2 && flagvalue == NULL)
-   {
-      sprintf(str_buffer, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
-              funcname);
-      mfem_error(str_buffer);
-      return (1);
-   }
-
-   return (0);
 }
 
 #ifdef MFEM_USE_MPI
@@ -728,8 +672,7 @@ ARKODEParSolver::ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
 void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 {
    HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
-               "Could not cast to HypreParVector.");
+   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector.");
 
    y = N_VMake_ParHyp(x->StealParVector());
 }
@@ -737,8 +680,7 @@ void ARKODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
 void ARKODEParSolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
    HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "CVODEParSolver::CreateNVector: \n"
-               "Could not cast to HypreParVector.");
+   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector.");
 
    y = N_VMake_ParHyp(x->StealParVector());
 }
@@ -969,7 +911,6 @@ int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver* solve,
                        mfem::SundialsLinearSolveOperator* op)
 {
    ARKodeMem ark_mem;
-   int mxl;
 
    // Return immediately if arkode_mem is NULL
    if (arkode_mem == NULL) {MFEM_ABORT("arkode_mem is NULL") }
@@ -1056,8 +997,7 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
    {
       mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*)
                                           ark_mem->ark_lmem;
-      mfem::TimeDependentOperator* f = (mfem::TimeDependentOperator*)
-                                       ark_mem->ark_user_data;
+
 #ifndef MFEM_USE_MPI
       lmem->solve_y->SetDataAndSize(NV_DATA_S(ycur),NV_LENGTH_S(ycur));
       lmem->solve_yn->SetDataAndSize(NV_DATA_S(ark_mem->ark_y),NV_LENGTH_S(ycur));

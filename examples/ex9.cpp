@@ -258,20 +258,19 @@ int main(int argc, char *argv[])
    FE_Evolution adv(m.SpMat(), k.SpMat(), b);
 
    double t = 0.0;
-   int table_num=3;
+   int table_num = 3;
    switch (ode_solver_type)
    {
       case 11: ode_solver = new CVODESolver(adv, u, t); break;
       case 12: ode_solver = new ARKODESolver(adv, u, t); break;
-      case 13: ode_solver = new ARKODESolver(adv, u, t);
+      case 13:
+         ode_solver = new ARKODESolver(adv, u, t);
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
          ((ARKODESolver*) ode_solver)->WrapSetFixedStep((realtype) dt);
          break;
-      case 14: ode_solver = new CVODESolver(adv, u, t, CV_BDF, CV_NEWTON);
+      case 14:
+         ode_solver = new CVODESolver(adv, u, t, CV_BDF, CV_NEWTON);
          break;
-      //      case 15: ode_solver = new ARKODESolver(adv, u, t,false);
-      //         ((ARKODESolver*) ode_solver)->SetLinearSolve();
-      //         break;
       default:
          ode_solver->Init(adv);
    }

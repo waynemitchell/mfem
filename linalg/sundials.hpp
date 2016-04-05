@@ -40,24 +40,9 @@ protected:
    int step_type;
    bool initialized_sundials;
    bool tolerances_set_sundials;
-   int linear_multistep_method_type;
    int solver_iteration_type;
 
 public:
-   /** \brief
-    * This constructor wraps the CVodeCreate function, and initializes
-    * pointers to null and flags to false.
-    *
-    * CVodeCreate
-    *
-    * CVodeCreate creates an internal memory block for a problem to
-    * be solved by CVODE.
-    * If successful, CVodeCreate returns a pointer to the problem memory.
-    * This pointer should be passed to CVodeInit.
-    * If an initialization error occurs, CVodeCreate prints an error
-    * message to standard err and returns NULL.
-    */
-   CVODESolver();
 
    /** \brief
     * This constructor wraps the CVodeCreate function, calls the ReInit
@@ -68,8 +53,8 @@ public:
     * CVodeCreate creates an internal memory block for a problem to
     * be solved by CVODE.
     */
-   CVODESolver(TimeDependentOperator &, Vector &, double &,int lmm=CV_ADAMS,
-               int iter=CV_FUNCTIONAL);
+   CVODESolver(TimeDependentOperator &_f, Vector &_x, double &_t,
+               int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
 
    void Init(TimeDependentOperator &);
    /** \brief
@@ -268,10 +253,11 @@ public:
     */
    void ReInit(TimeDependentOperator &, Vector &, double &);
 
-   /** \brief SetSStolerances wraps the ARKode function ARKodeSStolerances
+   /** \brief
+    * SetSStolerances wraps the ARKode function ARKodeSStolerances
     * which specifies scalar relative and absolute tolerances.
     *
-    *  These functions specify the integration tolerances. One of them
+    * These functions specify the integration tolerances. One of them
     * SHOULD be called before the first call to ARKode; otherwise
     * default values of reltol=1e-4 and abstol=1e-9 will be used,
     * which may be entirely incorrect for a specific problem.
@@ -282,7 +268,8 @@ public:
     */
    void SetSStolerances(realtype reltol, realtype abstol);
 
-   /* \brief Wraps SetERKTable to choose a specific Butcher table for a specific RK method
+   /** \brief
+    * Wraps SetERKTable to choose a specific Butcher table for a specific RK method
     * ARKodeSetERKTable
     *
     * Specifies to use a customized Butcher table for the explicit
@@ -290,7 +277,8 @@ public:
     */
    void WrapSetERKTableNum(int&);
 
-   /* \brief Wraps SetFixedStep to force ARKode to take one internal step of size dt
+   /** \brief
+    * Wraps SetFixedStep to force ARKode to take one internal step of size dt.
     *
     * ARKodeSetFixedStep
     *
@@ -306,8 +294,9 @@ public:
     */
    void WrapSetFixedStep(realtype dt);
 
-   /** \brief Step transfers vector pointers using TransferNVector and calls
-    * ARKode, which integrates over a user-defined time interval
+   /** \brief
+    * Step transfers vector pointers using TransferNVector and calls
+    * ARKode, which integrates over a user-defined time interval.
     *
     * ARKode
     *
@@ -320,10 +309,10 @@ public:
     * initialized problem, it computes a tentative initial step size.
     *
     * ARKode supports two modes as specified by itask: ARK_NORMAL and
-    * ARK_ONE_STEP.  In the ARK_NORMAL mode, the solver steps until
+    * ARK_ONE_STEP. In the ARK_NORMAL mode, the solver steps until
     * it reaches or passes tout and then interpolates to obtain
-    * y(tout).  In the ARK_ONE_STEP mode, it takes one internal step
-    * and returns.  The behavior of both modes can be over-rided
+    * y(tout). In the ARK_ONE_STEP mode, it takes one internal step
+    * and returns. The behavior of both modes can be over-rided
     * through user-specification of ark_tstop (through the
     * ARKodeSetStopTime function), in which case if a solver step
     * would pass tstop, the step is shortened so that it stops at
@@ -341,7 +330,7 @@ public:
    {
       step_type = _step_type;
    }
-   void SetLinearSolve( Solver*,    SundialsLinearSolveOperator*);
+   void SetLinearSolve(Solver*, SundialsLinearSolveOperator*);
 
    void SetStopTime(double);
 
@@ -371,8 +360,6 @@ private:
    virtual int WrapARKodeInit(void*,double&,N_Vector&);
 
    virtual int WrapARKodeReInit(void*,double&,N_Vector&);
-   /* Private function to check function return values */
-   int check_flag(void *flagvalue, char *funcname, int opt);
 };
 
 #ifdef MFEM_USE_MPI
