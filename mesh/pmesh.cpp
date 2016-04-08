@@ -855,9 +855,10 @@ void ParMesh::ExchangeFaceNbrData()
 
    if (Nonconforming())
    {
-      // with ParNCMesh we can set up the neigbors without communication
+      // with ParNCMesh we can set up face neigbors without communication
       pncmesh->GetFaceNeighbors(*this);
       have_face_nbr_data = true;
+
       ExchangeFaceNbrNodes();
       return;
    }
@@ -1258,7 +1259,8 @@ void ParMesh::ExchangeFaceNbrNodes()
    {
       if (Nonconforming())
       {
-         return; // TODO explain
+         // with ParNCMesh we already have the vertices
+         return;
       }
 
       int num_face_nbrs = GetNFaceNeighbors();

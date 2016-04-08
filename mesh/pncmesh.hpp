@@ -192,7 +192,7 @@ public:
 
    // interface for ParMesh
 
-   /** Populate face neigbhor members of ParMesh from the ghost layer,
+   /** Populate face neighbor members of ParMesh from the ghost layer,
        without communication. */
    void GetFaceNeighbors(ParMesh &pmesh);
 

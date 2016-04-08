@@ -499,6 +499,7 @@ protected: // implementation
 
    void RefElementNodes(Element *elem);
    void UnrefElementNodes(Element *elem);
+   Face* GetFace(Element* elem, int face_no);
    void RegisterFaces(Element* elem, int *fattr = NULL);
 
    Node* PeekAltParents(Node* v1, Node* v2);

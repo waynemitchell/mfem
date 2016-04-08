@@ -100,14 +100,17 @@ public:
 
    // Face-neighbor elements and vertices
    bool             have_face_nbr_data;
-   Array<int>       face_nbr_group;
-   Array<int>       face_nbr_elements_offset;
+   Array<int>       face_nbr_group;            ///
+   Array<int>       face_nbr_elements_offset;  ///
    Array<int>       face_nbr_vertices_offset;
-   Array<Element *> face_nbr_elements;
-   Array<Vertex>    face_nbr_vertices;
+   Array<Element *> face_nbr_elements;         ///
+   Array<Vertex>    face_nbr_vertices;         ///
    // Local face-neighbor elements and vertices ordered by face-neighbor
-   Table            send_face_nbr_elements;
+   Table            send_face_nbr_elements;    ///
    Table            send_face_nbr_vertices;
+
+   // note: face_nbr_elements vertices indexed globally within face_nbr_vertices
+   // see GetFaceNbrElementTransformation
 
    ParNCMesh* pncmesh;
 

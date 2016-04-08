@@ -376,15 +376,20 @@ void NCMesh::Face::ForgetElement(Element* e)
    else { MFEM_ABORT("element not found in Face::elem[]."); }
 }
 
+NCMesh::Face* NCMesh::GetFace(Element* elem, int face_no)
+{
+   GeomInfo& gi = GI[(int) elem->geom];
+   const int* fv = gi.faces[face_no];
+   Node** node = elem->node;
+   return faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
+}
+
 void NCMesh::RegisterFaces(Element* elem, int* fattr)
 {
-   Node** node = elem->node;
    GeomInfo& gi = GI[(int) elem->geom];
-
    for (int i = 0; i < gi.nf; i++)
    {
-      const int* fv = gi.faces[i];
-      Face* face = faces.Peek(node[fv[0]], node[fv[1]], node[fv[2]], node[fv[3]]);
+      Face* face = GetFace(elem, i);
       face->RegisterElement(elem);
       if (fattr) { face->attribute = fattr[i]; }
    }
@@ -415,12 +420,13 @@ NCMesh::Element* NCMesh::Face::GetNeighbor(Element *e) const
       return elem[0];
    }
    MFEM_ABORT("'e' does not share this face.");
+   return NULL;
 }
 
 NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
 {
    Node* mid = nodes.Peek(v1, v2);
-   if (!mid)
+   if (!mid) // TODO: && !Iso ?
    {
       // In rare cases, a mid-face node exists under alternate parents w1, w2
       // (see picture) instead of the requested parents v1, v2. This is an
