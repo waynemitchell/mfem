@@ -72,7 +72,7 @@ typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> oper_t;
 int main(int argc, char *argv[])
 {
    // 1. Parse command-line options.
-   const char *mesh_file = "../../data/star.mesh";
+   const char *mesh_file = "../../data/fichera.mesh";
    int order = sol_p;
    bool static_cond = false;
    bool visualization = 1;
