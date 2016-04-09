@@ -138,19 +138,18 @@ static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
 namespace mfem
 {
 
-CVODESolver::CVODESolver(TimeDependentOperator &_f, Vector &_x,
-                         double&_t, int lmm, int iter)
+CVODESolver::CVODESolver(Vector &_y, int lmm, int iter)
+   : ODESolver(),
+     initialized_sundials(false),
+     tolerances_set_sundials(false),
+     solver_iteration_type(iter)
 {
-   y = NULL;
-   f = NULL;
+   // Create the NVector y.
+   long int yin_length = _y.Size();
+   CreateNVector(yin_length, &_y);
 
-   /* Call CVodeCreate to create the solver memory */
-   /* Assumes Adams methods and funcitonal iterations, rather than BDF or Newton solves */
-   ode_mem=CVodeCreate(lmm, iter);
-   initialized_sundials=false;
-   tolerances_set_sundials=false;
-   solver_iteration_type=iter;
-   ReInit(_f,_x,_t);
+   // Create the solver memory.
+   ode_mem = CVodeCreate(lmm, iter);
 }
 
 void CVODESolver::CreateNVector(long int& yin_length, realtype* ydata)
@@ -183,78 +182,60 @@ void CVODESolver::DestroyNVector(N_Vector& _y)
    N_VDestroy(y);
 }
 
-int CVODESolver::WrapCVodeInit(void* _ode_mem, double &_t, N_Vector &_y)
+int CVODESolver::WrapCVodeInit(void* _ode_mem, double _t, N_Vector &_y)
 {
    return CVodeInit(_ode_mem, sun_f_fun, (realtype) _t, _y);
 }
 
 void CVODESolver::Init(TimeDependentOperator &_f)
 {
-   //not checking that initial pointers set to NULL:
    f = &_f;
-   long int yin_length=_f.Width(); //assume don't have initial condition in Init
-   //intial time
-   realtype t = 0.0;
-   realtype *yin;
-   yin= new realtype[yin_length];
-   int flag;
 
-   // Create an NVector
-   CreateNVector(yin_length, yin);
+   // Initialize integrator memory, specify the user's
+   // RHS function in x' = f(t,x), initial time, initial condition.
+   int flag = WrapCVodeInit(ode_mem, 0.0, y);
+   MFEM_ASSERT(flag >= 0, "WrapCVodeInit() failed!");
 
-   if (initialized_sundials)
-   {
-      /* Call CVodeReInit to initialize the integrator memory and specify the inital time t,
-       * and the initial dependent variable vector y. */
-      flag = CVodeReInit(ode_mem, (realtype) t, y);
-      MFEM_ASSERT(flag >= 0, "CVodeReInit() failed!");
-   }
-   else
-   {
-      /* Call CVodeInit to initialize the integrator memory and specify the
-       * user's right hand side function in x'=f(t,x), the inital time t, and
-       * the initial dependent variable vector y. */
-      flag = WrapCVodeInit(ode_mem, t, y);
-      MFEM_ASSERT(flag >= 0, "WrapCVodeInit() failed!");
-      initialized_sundials=true;
-      SetSStolerances(RELTOL,ABSTOL);
-   }
+   initialized_sundials = true;
+   SetSStolerances(RELTOL, ABSTOL);
 
-   /* Set the pointer to user-defined data */
-   flag = CVodeSetUserData(ode_mem, this->f);
+   // Set the pointer to user-defined data.
+   flag = CVodeSetUserData(ode_mem, f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
+
+   // TODO: what's going on with the tolerances. Should this be in Init()?
+#ifndef MFEM_USE_MPI
+   if (solver_iteration_type==CV_NEWTON)
+   {
+      SetSStolerances(1e-3,1e-6);
+      CVBand(ode_mem, yin_length, yin_length*.5, yin_length*.5);
+   }
+#else
+   if (solver_iteration_type==CV_NEWTON)
+   {
+      printf("Entering spgmr\n");
+      SetSStolerances(1e-3,1e-6);
+      CVSpgmr(ode_mem, PREC_NONE, 0);
+   }
+#endif
 }
 
-void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
+void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_y, double& _t)
 {
-   //not checking that initial pointers set to NULL:
    f = &_f;
-   long int yin_length=_f.Width(); //assume don't have initial condition in Init
-   int flag;
+   long int yin_length=_f.Width();
    // Create an NVector
-   CreateNVector(yin_length, &_x);
+   CreateNVector(yin_length, &_y);
 
-   if (initialized_sundials)
-   {
-      /* Call CVodeReInit to initialize the integrator memory and specify
-       * the inital time t, and the initial dependent variable vector y. */
-      flag = CVodeReInit(ode_mem, (realtype) _t, y);
-      MFEM_ASSERT(flag >= 0, "CVodeReInit() failed!");
-   }
-   else
-   {
-      /* Call CVodeInit to initialize the integrator memory and specify the
-       * user's right hand side function in x'=f(t,x), the inital time t, and
-       * the initial dependent variable vector y. */
-      flag = WrapCVodeInit(ode_mem, _t, y);
-      MFEM_ASSERT(flag >= 0, "WrapCVodeInit() failed!");
-      initialized_sundials=true;
-      SetSStolerances(RELTOL,ABSTOL);
-   }
-   /* Set the pointer to user-defined data */
+   // Re-init memory, time and solution. The RHS action is known from Init().
+   int flag = CVodeReInit(ode_mem, static_cast<realtype>(_t), y);
+   MFEM_ASSERT(flag >= 0, "CVodeReInit() failed!");
+
+   // Set the pointer to user-defined data.
    flag = CVodeSetUserData(ode_mem, this->f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 
+   // TODO: what's going on with the tolerances. Should this be in Init()?
 #ifndef MFEM_USE_MPI
    if (solver_iteration_type==CV_NEWTON)
    {
@@ -273,10 +254,8 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_x, double& _t)
 
 void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
 {
-   int flag=0;
-   /* Call CVodeSStolerances to specify the scalar relative tolerance
-    * and scalar absolute tolerance */
-   flag = CVodeSStolerances(ode_mem, reltol, abstol);
+   // Specify the scalar relative tolerance and scalar absolute tolerance.
+   int flag = CVodeSStolerances(ode_mem, reltol, abstol);
    MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
 
    tolerances_set_sundials = true;
@@ -285,7 +264,6 @@ void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
 void CVODESolver::SetLinearSolve(Solver* J_solve,
                                  SundialsLinearSolveOperator* op)
 {
-
    //  N_Vector y0 = N_VClone_Serial( ((CVodeMem) ode_mem)->cv_zn[0]);
    //if linear solve should be newton, recreate ode_mem object
    //consider checking for CV_ADAMS vs CV_BDF as well
@@ -343,7 +321,7 @@ CVODESolver::~CVODESolver()
 #ifdef MFEM_USE_MPI
 CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
                                Vector &_x, double &_t, int lmm, int iter)
-   : CVODESolver(_f, _x, _t, lmm, iter)
+   : CVODESolver(_x, lmm, iter)
 {
    y = NULL;
    f = &_f;

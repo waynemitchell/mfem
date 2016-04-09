@@ -38,7 +38,6 @@ class CVODESolver: public ODESolver
 protected:
    N_Vector y;
    void* ode_mem;
-   int step_type;
    bool initialized_sundials;
    bool tolerances_set_sundials;
    int solver_iteration_type;
@@ -54,11 +53,10 @@ public:
     * CVodeCreate creates an internal memory block for a problem to
     * be solved by CVODE.
     */
-   CVODESolver(TimeDependentOperator &_f, Vector &_x, double &_t,
-               int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
+   CVODESolver(Vector &_y, int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
 
    // Initialization is done by the constructor.
-   void Init(TimeDependentOperator &);
+   void Init(TimeDependentOperator &_f);
 
    /** \brief
     * The ReInit function is used in the initial construction and
@@ -82,7 +80,7 @@ public:
     * The return value is CV_SUCCESS = 0 if no errors occurred, or
     * a negative value otherwise.
     */
-   void ReInit(TimeDependentOperator &, Vector &, double &);
+   void ReInit(TimeDependentOperator &_f, Vector &_y, double &_t);
 
    /** \brief SetSStolerances wraps the CVode function CVodeSStolerances which
     * specifies scalar relative and absolute tolerances. These tolerances must
@@ -117,12 +115,7 @@ public:
     */
    void Step(Vector &, double&, double&);
 
-   void SetStepType(int _step_type)
-   {
-      step_type = _step_type;
-   }
-
-   void SetLinearSolve( Solver*,    SundialsLinearSolveOperator*);
+   void SetLinearSolve(Solver*, SundialsLinearSolveOperator*);
 
    void SetStopTime(double);
 
@@ -156,7 +149,7 @@ public:
    virtual void DestroyNVector(N_Vector&);
 
    /** \brief Wraps the CVodeInit function */
-   virtual int WrapCVodeInit(void*,double&,N_Vector&);
+   virtual int WrapCVodeInit(void*, double, N_Vector&);
 };
 
 #ifdef MFEM_USE_MPI
