@@ -13,7 +13,7 @@
 #define MFEM_TEMPLATE_ELEMENT_TRANSFORMATION
 
 #include "../config/tconfig.hpp"
-#include "tshape_evaluators.hpp"
+#include "tevaluator.hpp"
 #include "../mesh/element.hpp"
 
 namespace mfem

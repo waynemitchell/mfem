@@ -13,9 +13,8 @@
 #define MFEM_TEMPLATE_COEFFICIENT
 
 #include "../config/tconfig.hpp"
-#include "../linalg/ttensor_ops.hpp"
-#include "../linalg/ttensor_types.hpp"
-#include "../linalg/tvector_layouts.hpp"
+#include "../linalg/ttensor.hpp"
+#include "../linalg/tlayout.hpp"
 #include "../linalg/vector.hpp"
 #include "gridfunc.hpp"
 

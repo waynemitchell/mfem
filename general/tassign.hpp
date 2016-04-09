@@ -9,8 +9,8 @@
 // terms of the GNU Lesser General Public License (as published by the Free
 // Software Foundation) version 2.1 dated February 1999.
 
-#ifndef MFEM_TEMPLATE_ASSIGN_OPS
-#define MFEM_TEMPLATE_ASSIGN_OPS
+#ifndef MFEM_TEMPLATE_ASSIGN
+#define MFEM_TEMPLATE_ASSIGN
 
 #include "../config/tconfig.hpp"
 
@@ -101,4 +101,4 @@ inline lvalue_t &Assign(lvalue_t &a, const rvalue_t &b)
 
 } // namespace mfem
 
-#endif // MFEM_TEMPLATE_ASSIGN_OPS
+#endif // MFEM_TEMPLATE_ASSIGN

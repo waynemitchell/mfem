@@ -13,7 +13,7 @@
 #define MFEM_TEMPLATE_MESH
 
 #include "../config/tconfig.hpp"
-#include "../linalg/tvector_layouts.hpp"
+#include "../linalg/tlayout.hpp"
 
 #include "mesh.hpp"
 

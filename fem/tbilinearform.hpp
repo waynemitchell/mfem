@@ -13,13 +13,11 @@
 #define MFEM_TEMPLATE_BILINEAR_FORM
 
 #include "../config/tconfig.hpp"
-#include "../linalg/ttensor_types.hpp"
-#include "../linalg/tvector_layouts.hpp"
+#include "../linalg/ttensor.hpp"
 #include "bilinearform.hpp"
-#include "tshape_evaluators.hpp"
+#include "tevaluator.hpp"
 #include "teltrans.hpp"
 #include "tcoefficient.hpp"
-#include "tfield_evaluator.hpp"
 #include "fespace.hpp"
 
 namespace mfem

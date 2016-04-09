@@ -18,60 +18,70 @@ config/tconfig.hpp
    Config macros including the specification of the template blocking size
    (currently used in the matrix-matrix multiply).
 
-linalg/tlayouts.hpp
-   Classes describing fixed size tensor layouts.  Implemented are standard
-   strided layouts for 1D/2D/3D/4D tensors.  Layouts support reshape and
-   sub-tensor operations independent of the actual data storage.
-
-linalg/tassign_ops.hpp
+general/tassign.hpp
    Helper templated function to allow single implementation of multiple
    assignment operations on tensor entries.
 
-linalg/tsmall_matrix_ops.hpp
+linalg/tlayout.hpp
+   Classes describing fixed size tensor layouts.  Implemented are standard
+   strided layouts for 1D/2D/3D/4D tensors.  Layouts support reshape and
+   sub-tensor operations independent of the actual data storage.
+   Classes for converting scalar data indices into multi-component (vector) data
+   indices. This is used to describe the layout of vector GridFunctions on
+   global degrees of freedom (similar to the Ordering class).
+
+linalg/tmatrix.hpp
    Small matrix operations, defined by specializations: determinant, adjugate,
    etc.
+   Matrix-matrix multiply, C = A.B, simple and blocked version.
 
-linalg/ttensor_ops.hpp
+linalg/ttensor.hpp
+   Fixed-size container classes TVector, TMatrix, TTensor3, TTensor4 for
+   1D/2D/3D/4D tensors stored in column-major layout.
    Element-wise tensor operations: A {=,+=,*=} scalar; A {=,+=,*=} B.  The
    latter allows different input and output layouts. With suitable layouts this
    can be used to permute (transpose) tensors, extract sub-tensors, etc.
-
-linalg/ttensor_types.hpp
-   Fixed-size container classes TVector, TMatrix, TTensor3, TTensor4 for
-   1D/2D/3D/4D tensors stored in column-major layout.
-
-linalg/tmatrix_products.hpp
-   Matrix-matrix multiply, C = A.B, simple and blocked version.
-
-linalg/ttensor_products.hpp
    The tensor contraction/product operations:
    - Mult_1_2: C_{i,j,k}  {=|+=}  \sum_s A_{s,j} B_{i,s,k}
    - Mult_2_1: C_{i,j,k}  {=|+=}  \sum_s A_{i,s} B_{s,j,k}
    - TensorAssemble: C_{i,k,j,l}  {=|+=}  A_{s,i} A_{s,j} B_{k,s,l}
 
-linalg/tvector_layouts.hpp
-   Classes for converting scalar data indices into multi-component (vector) data
-   indices. This is used to describe the layout of vector GridFunctions on
-   global degrees of freedom (similar to the Ordering class).
-
-fem/tfinite_elements_h1.hpp
-fem/tfinite_elements_l2.hpp
+fem/tfe.hpp
    H1 and L2 finite elements templated by geometry (triangles, quads, etc.) and
    polynomial order.
 
 fem/tintrules.hpp
    Quadrature rules templated by geometry (see above) and integration order.
 
-fem/tshape_evaluators.hpp
+fem/tevaluator.hpp
    Classes for evaluating basis functions and their derivatives at quadrature
    points, templated by a finite element class and an integration rule class.
    Quads and hexes use the tensor-product structure for fast evaluation.
+   // FieldEvaluator
 
-fem/tfespace_h1.hpp
-fem/tfespace_l2.hpp
+fem/tfespace.hpp
    FiniteElementSpace classes providing the mappings between global and local
    (element) degrees of freedom for H1 continuous and L2 discontinuous spaces.
 
+fem/tcoefficient.hpp
+   TODO...
+
+fem/teltrans.hpp
+   TODO...
+
+fem/tbilininteg.hpp
+   TODO...
+   mass kernel
+   diffusion kernel
+
+fem/tbilinearform.hpp
+   TODO...
+
+ex1.p/ex1p.cpp
+   TODO...
+
+
+[ DEPRECATED ]
 fem/tmass_operator.hpp
    Implementation of a finite element mass matrix operator, TMassOperator, using
    various assembly/evaluation schemes:
@@ -84,27 +94,3 @@ fem/tmass_operator.hpp
    - AssembleMatrix(SparseMatrix &): assemble the operator in a global (CSR)
      SparseMatrix.
 
-fem/tcoefficient.hpp
-   TODO...
-
-fem/teltrans.hpp
-   TODO...
-
-fem/tfield_evaluator.hpp
-   TODO...
-
-fem/tdiffusion_kernel.hpp
-   TODO...
-
-fem/tmass_kernel.hpp
-   TODO...
-
-fem/tintegrator.hpp
-   TODO...
-
-fem/tbilinearform.hpp
-   TODO...
-
-test.cpp
-   Test driver timing the various methods of TMassOperator for any type of
-   geometry, solution space order, integration rule order, and mesh order.
