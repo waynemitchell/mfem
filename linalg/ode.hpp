@@ -29,8 +29,6 @@ public:
 
    virtual void Init(TimeDependentOperator &_f) { f = &_f; }
 
-   virtual void ReInit(TimeDependentOperator &_f) { f = &_f; }
-
    virtual void Step(Vector &x, double &t, double &dt) = 0;
 
    virtual ~ODESolver() { }

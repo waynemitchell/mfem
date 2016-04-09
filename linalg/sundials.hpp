@@ -27,6 +27,7 @@
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
 #endif
+
 namespace mfem
 {
 class SundialsLinearSolveOperator;
@@ -48,7 +49,7 @@ public:
     * This constructor wraps the CVodeCreate function, calls the ReInit
     * function to handle the inital condition, and initializes pointers
     * to null and flags to false. By default, this uses Adams methods with
-    * functional iterations (No Newton solves).
+    * functional iterations (no Newton solves).
     *
     * CVodeCreate creates an internal memory block for a problem to
     * be solved by CVODE.
@@ -56,7 +57,9 @@ public:
    CVODESolver(TimeDependentOperator &_f, Vector &_x, double &_t,
                int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
 
+   // Initialization is done by the constructor.
    void Init(TimeDependentOperator &);
+
    /** \brief
     * The ReInit function is used in the initial construction and
     * initialization of the CVODESolver object. It wraps either CVodeInit or
@@ -114,11 +117,6 @@ public:
     */
    void Step(Vector &, double&, double&);
 
-   TimeDependentOperator* GetFOperator()
-   {
-      return f;
-   }
-
    void SetStepType(int _step_type)
    {
       step_type = _step_type;
@@ -159,11 +157,6 @@ public:
 
    /** \brief Wraps the CVodeInit function */
    virtual int WrapCVodeInit(void*,double&,N_Vector&);
-
-private:
-
-   /* Private function to check function return values */
-   int check_flag(void *flagvalue, char *funcname, int opt);
 };
 
 #ifdef MFEM_USE_MPI
