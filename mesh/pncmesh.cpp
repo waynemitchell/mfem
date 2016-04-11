@@ -568,6 +568,13 @@ void ParNCMesh::NeighborProcessors(Array<int> &neighbors)
    set_to_array(ranks, neighbors);
 }
 
+#if 1
+bool ParNCMesh::compare_ranks_indices(const Element* a, const Element* b)
+{
+   return (a->rank != b->rank) ? a->rank < b->rank
+          /*                */ : a->index < b->index;
+}
+
 void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
 {
    const NCList &shared = GetSharedFaces();
@@ -616,10 +623,10 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
 
    MFEM_ASSERT(fnbr.Size() <= bound, "oops, bad upper bound");
 
-   // remove duplicate face neighbor elements and sort them by rank
+   // remove duplicate face neighbor elements and sort them by rank & index
    fnbr.Sort();
    fnbr.Unique();
-   fnbr.Sort(compare_ranks);
+   fnbr.Sort(compare_ranks_indices);
 
    // put the ranks into 'face_nbr_group'
    for (int i = 0; i < fnbr.Size(); i++)
@@ -661,17 +668,18 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
       {
          pmesh.face_nbr_elements_offset.Append(i);
       }
+
+      MFEM_ASSERT(elem->index >= NElements, "not a ghost element");
       fnbr_index[elem->index - NElements] = i;
    }
    pmesh.face_nbr_elements_offset.Append(fnbr.Size());
 
    // create vertices in 'face_nbr_vertices'
    pmesh.face_nbr_vertices.SetSize(vert_map.size());
-   int vi = 0;
    std::map<Vertex*, int>::iterator it;
    for (it = vert_map.begin(); it != vert_map.end(); ++it)
    {
-      pmesh.face_nbr_vertices[vi++].SetCoords(it->first->pos);
+      pmesh.face_nbr_vertices[it->second-1].SetCoords(it->first->pos);
    }
 
    // make the 'send_face_nbr_elements' table
@@ -729,7 +737,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
    // skipped: send_face_nbr_vertices, face_nbr_vertices_offset
 }
 
-#if 0
+#else
 static void init_nbr_offset(Array<int> &offsets, int size)
 {
    offsets.SetSize(size);
@@ -1360,7 +1368,7 @@ void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
 
    NeighborElementRankMessage::Map send_ghost_ranks, recv_ghost_ranks;
 
-   ghost_layer.Sort(compare_ranks);
+   ghost_layer.Sort(compare_ranks); // FIXME face neighbors
    {
       Array<Element*> rank_neighbors;
 

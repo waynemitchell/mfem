@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
-   //mesh->EnsureNCMesh();
+   mesh->EnsureNCMesh();
 
    // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.

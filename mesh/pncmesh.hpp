@@ -481,6 +481,7 @@ protected:
    Array<int> old_index_or_rank;
 
    static bool compare_ranks(const Element* a, const Element* b);
+   static bool compare_ranks_indices(const Element* a, const Element* b);
 
    friend class ParMesh;
    friend class NeighborDofMessage;
