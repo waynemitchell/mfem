@@ -17,8 +17,8 @@
 #include <string>
 #include <map>
 
-// TODO - ADD GUARD
-// Forward declare two datastore classes so we don't need to drag the sidre headers in here.
+#ifdef MFEM_USE_SIDRE
+// Forward declare needed datastore classes so we don't need to #include sidre headers in this header.
 namespace asctoolkit
 {
   namespace sidre
@@ -27,6 +27,8 @@ namespace asctoolkit
     class DataStore;
   }
 }
+
+#endif // MFEM_USE_SIDRE
 
 namespace mfem
 {
@@ -206,6 +208,8 @@ public:
    virtual ~VisItDataCollection() {}
 };
 
+#ifdef MFEM_USE_SIDRE
+
 /// Data collection with Sidre routines
 class SidreDataCollection : public DataCollection
 {
@@ -247,6 +251,8 @@ private:
 
    asctoolkit::sidre::DataGroup * sidre_dc_group;
 };
+
+#endif // MFEM_USE_SIDRE
 
 }
 

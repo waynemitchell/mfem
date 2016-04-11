@@ -21,8 +21,9 @@
 #define mkdir(dir, mode) _mkdir(dir)
 #endif
 
-//TODO - Add guard here, only need if SIDRE
-#include "sidre/sidre.hpp"
+#ifdef MFEM_USE_SIDRE
+  #include "sidre/sidre.hpp"
+#endif // MFEM_USE_SIDRE
 
 namespace mfem
 {
@@ -537,6 +538,8 @@ void VisItDataCollection::ParseVisItRootString(string json)
    }
 }
 
+#ifdef MFEM_USE_SIDRE
+
 // class SidreDataCollection implementation
 // This version is a prototype of adding needed MFEM data to Sidre as mostly 'external' data.
 // There are some exceptions - individual scalars are copied into Sidre, as long as we know the
@@ -697,6 +700,8 @@ void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)
     values->setExternalDataPtr( mesh->vertices[i]() )->apply( sidre::detail::SidreTT<mfem_double_t>::id, mesh->Dim );
   }
 }
+
+#endif // MFEM_USE_SIDRE
 
 }  // end namespace MFEM
 
