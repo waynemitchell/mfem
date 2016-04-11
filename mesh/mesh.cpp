@@ -3374,7 +3374,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
                            break;
                         }
                         default: // any other element
-                           // just skip it silently, or another action?
+                           MFEM_WARNING("Unsupported Gmsh element type.");
                            break;
 
                      } // switch (type_of_element)
@@ -3452,7 +3452,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
                         break;
                      }
                      default: // any other element
-                        // the same as for the binary file (see above)
+                        MFEM_WARNING("Unsupported Gmsh element type.");
                         break;
 
                   } // switch (type_of_element)
