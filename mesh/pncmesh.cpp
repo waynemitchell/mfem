@@ -150,7 +150,10 @@ void ParNCMesh::OnMeshUpdated(Mesh *mesh)
    {
       if (it->edge) { it->edge->index = -1; }
    }
-   for (HashTable<Face>::Iterator it(faces); it; ++it) { it->index = -1; }
+   for (HashTable<Face>::Iterator it(faces); it; ++it)
+   {
+      it->index = -1;
+   }
 
    // go assign existing edge/face indices
    NCMesh::OnMeshUpdated(mesh);
@@ -611,7 +614,8 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
          const Slave &sf = face_list.slaves[j];
 
          Element* e[2] = { mf.element, sf.element };
-         MFEM_ASSERT(e[0] != NULL && e[1] != NULL, "");
+         //MFEM_ASSERT(e[0] != NULL && e[1] != NULL, "");
+         if (!e[0] || !e[1]) { continue; }
 
          if (e[0]->rank == MyRank) { std::swap(e[0], e[1]); }
          if (e[0]->rank == MyRank) { continue; }
@@ -624,6 +628,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
    MFEM_ASSERT(fnbr.Size() <= bound, "oops, bad upper bound");
 
    // remove duplicate face neighbor elements and sort them by rank & index
+   // (note that the send table is sorted the same way, this is important)
    fnbr.Sort();
    fnbr.Unique();
    fnbr.Sort(compare_ranks_indices);
@@ -727,14 +732,19 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
          const Slave &sf = face_list.slaves[j];
 
          Element* e[2] = { mf.element, sf.element };
+         if (!e[0] || !e[1]) { continue; }
+
          if (e[0]->rank == MyRank) { std::swap(e[0], e[1]); }
          if (e[0]->rank == MyRank) { continue; }
 
          Mesh::FaceInfo &fi = pmesh.faces_info[cf.index];
+         fi.Elem2No
+
       }
    }*/
 
-   // skipped: send_face_nbr_vertices, face_nbr_vertices_offset
+   // NOTE: this function skips ParMesh::send_face_nbr_vertices and
+   // ParMesh::face_nbr_vertices_offset, these are not used outside of ParMesh
 }
 
 #else

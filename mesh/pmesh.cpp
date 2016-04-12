@@ -795,10 +795,12 @@ void ParMesh::GetFaceNbrElementTransformation(
 
       pointmat.SetSize(spaceDim, nv);
       for (int k = 0; k < spaceDim; k++)
+      {
          for (int j = 0; j < nv; j++)
          {
             pointmat(k, j) = face_nbr_vertices[v[j]](k);
          }
+      }
 
       ElTr->SetFE(GetTransformationFEforElementType(elem->GetType()));
    }
@@ -812,16 +814,19 @@ void ParMesh::GetFaceNbrElementTransformation(
          int n = vdofs.Size()/spaceDim;
          pointmat.SetSize(spaceDim, n);
          for (int k = 0; k < spaceDim; k++)
+         {
             for (int j = 0; j < n; j++)
             {
                pointmat(k,j) = (pNodes->FaceNbrData())(vdofs[n*k+j]);
             }
+         }
 
          ElTr->SetFE(pNodes->ParFESpace()->GetFaceNbrFE(i));
       }
       else
-         mfem_error("ParMesh::GetFaceNbrElementTransformation : "
-                    "Nodes are not ParGridFunction!");
+      {
+         MFEM_ABORT("Nodes are not ParGridFunction!");
+      }
    }
 }
 
@@ -1432,37 +1437,43 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 
 int ParMesh::GetNSharedFaces() const
 {
-   if (Nonconforming())
+   if (Conforming())
    {
-      // TODO: better
-      return pncmesh->GetSharedList(Dim-1).conforming.size();
+      switch (Dim)
+      {
+         case 1:  return svert_lvert.Size();
+         case 2:  return sedge_ledge.Size();
+         default: return sface_lface.Size();
+      }
    }
-
-   if (Dim == 1)
+   else
    {
-      return svert_lvert.Size();
+      MFEM_ASSERT(Dim > 1, "");
+      const NCMesh::NCList &shared = pncmesh->GetSharedList(Dim-1);
+      return shared.conforming.size() + shared.slaves.size();
    }
-   if (Dim == 2)
-   {
-      return sedge_ledge.Size();
-   }
-   return sface_lface.Size();
 }
 
 int ParMesh::GetSharedFace(int sface) const
 {
-   if (Nonconforming())
+   if (Conforming())
    {
-      // TODO: better
-      return pncmesh->GetSharedList(Dim-1).conforming[sface].index;
+      switch (Dim)
+      {
+         case 1:  return svert_lvert[sface];
+         case 2:  return sedge_ledge[sface];
+         default: return sface_lface[sface];
+      }
    }
-
-   switch (Dim)
+   else
    {
-      case 1: return svert_lvert[sface];
-      case 2: return sedge_ledge[sface];
+      MFEM_ASSERT(Dim > 1, "");
+      const NCMesh::NCList &shared = pncmesh->GetSharedList(Dim-1);
+      int csize = (int) shared.conforming.size();
+      return sface < csize
+             ? shared.conforming[sface].index
+             : shared.slaves[sface - csize].index;
    }
-   return sface_lface[sface];
 }
 
 long ParMesh::GlobalNE() const
