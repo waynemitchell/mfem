@@ -641,17 +641,6 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
                GetLocalSegToQuadTransformation(FaceElemTr.Loc2.Transf,
                                                face_info.Elem2Inf);
             }
-            if (IsSlaveFace(face_info))
-            {
-               ApplySlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
-               const int *fv = faces[FaceNo]->GetVertices();
-               if (fv[0] > fv[1])
-               {
-                  DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
-                  mfem::Swap<double>(pm(0,0), pm(0,1));
-                  mfem::Swap<double>(pm(1,0), pm(1,1));
-               }
-            }
          }
          break;
 
@@ -666,10 +655,6 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
          {
             GetLocalTriToTetTransformation(FaceElemTr.Loc2.Transf,
                                            face_info.Elem2Inf);
-            if (IsSlaveFace(face_info))
-            {
-               ApplySlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
-            }
          }
          break;
 
@@ -684,12 +669,26 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
          {
             GetLocalQuadToHexTransformation(FaceElemTr.Loc2.Transf,
                                             face_info.Elem2Inf);
-            if (IsSlaveFace(face_info))
-            {
-               ApplySlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
-            }
          }
          break;
+   }
+
+   // NC meshes: prepend slave edge/face transformation for Loc2
+   if (Nonconforming() && IsSlaveFace(face_info))
+   {
+      ApplySlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
+
+      // fix orientation in 2D
+      if (face_type == Element::SEGMENT)
+      {
+         const int *fv = faces[FaceNo]->GetVertices();
+         if (fv[0] > fv[1])
+         {
+            DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
+            mfem::Swap<double>(pm(0,0), pm(0,1));
+            mfem::Swap<double>(pm(1,0), pm(1,1));
+         }
+      }
    }
 
    return &FaceElemTr;
