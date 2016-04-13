@@ -157,7 +157,8 @@ int main(int argc, char *argv[])
       mesh->UniformRefinement();
    }
 
-   mesh->RandomRefinement(0.5);
+   mesh->RandomRefinement(0.3);
+   mesh->RandomRefinement(0.3);
 
    if (mesh->NURBSext)
    {

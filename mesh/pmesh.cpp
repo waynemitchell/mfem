@@ -1403,34 +1403,8 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 
    // setup Loc2
    int face_type = (Dim == 1) ? Element::POINT : faces[FaceNo]->GetType();
-   switch (face_type)
-   {
-      case Element::POINT:
-         GetLocalPtToSegTransformation(FaceElemTr.Loc2.Transf,
-                                       face_info.Elem2Inf);
-         break;
-
-      case Element::SEGMENT:
-         if (face_nbr_elements[FaceElemTr.Elem2No]->GetType() == Element::TRIANGLE)
-            GetLocalSegToTriTransformation(FaceElemTr.Loc2.Transf,
-                                           face_info.Elem2Inf);
-         else // assume the element is a quad
-            GetLocalSegToQuadTransformation(FaceElemTr.Loc2.Transf,
-                                            face_info.Elem2Inf);
-         break;
-
-      case Element::TRIANGLE:
-         // ---------  assumes the face is a triangle -- face of a tetrahedron
-         GetLocalTriToTetTransformation(FaceElemTr.Loc2.Transf,
-                                        face_info.Elem2Inf);
-         break;
-
-      case Element::QUADRILATERAL:
-         // ---------  assumes the face is a quad -- face of a hexahedron
-         GetLocalQuadToHexTransformation(FaceElemTr.Loc2.Transf,
-                                         face_info.Elem2Inf);
-         break;
-   }
+   GetLocalFaceTransformation(face_type, face_info.Elem2No,
+                              FaceElemTr.Loc2.Transf, face_info.Elem2Inf);
 
    return &FaceElemTr;
 }

@@ -562,6 +562,37 @@ void Mesh::GetLocalQuadToHexTransformation(
    }
 }
 
+void Mesh::GetLocalFaceTransformation(
+   int face_type, int elem_no, IsoparametricTransformation &Transf, int inf)
+{
+   switch (face_type)
+   {
+      case Element::POINT:
+         GetLocalPtToSegTransformation(Transf, inf);
+         break;
+
+      case Element::SEGMENT:
+         if (GetElementType(elem_no) == Element::TRIANGLE)
+         {
+            GetLocalSegToTriTransformation(Transf, inf);
+         }
+         else // assume the element is a quad
+         {
+            GetLocalSegToQuadTransformation(Transf, inf);
+         }
+         break;
+
+      case Element::TRIANGLE:
+         GetLocalTriToTetTransformation(Transf, inf);
+         break;
+
+      case Element::QUADRILATERAL:
+         // assume the face is a quad -- face of a hexahedron
+         GetLocalQuadToHexTransformation(Transf, inf);
+         break;
+   }
+}
+
 FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
                                                                 int mask)
 {
@@ -597,6 +628,20 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
    // setup the face transformation
    FaceElemTr.Face = (mask & 16) ? GetFaceTransformation(FaceNo) : NULL;
 
+   // setup Loc1 & Loc2
+   int face_type = (Dim == 1) ? Element::POINT : faces[FaceNo]->GetType();
+   if (mask & 4)
+   {
+      GetLocalFaceTransformation(face_type, face_info.Elem1No,
+                                 FaceElemTr.Loc1.Transf, face_info.Elem1Inf);
+   }
+   if ((mask & 8) && FaceElemTr.Elem2No >= 0)
+   {
+      GetLocalFaceTransformation(face_type, face_info.Elem2No,
+                                 FaceElemTr.Loc2.Transf, face_info.Elem2Inf);
+   }
+
+#if 0
    // setup Loc1 & Loc2
    int face_type = (Dim == 1) ? Element::POINT : faces[FaceNo]->GetType();
    switch (face_type)
@@ -672,6 +717,7 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
          }
          break;
    }
+#endif
 
    // NC meshes: prepend slave edge/face transformation for Loc2
    if (Nonconforming() && IsSlaveFace(face_info))
