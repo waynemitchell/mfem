@@ -1478,7 +1478,7 @@ void FiniteElementSpace::Update(bool want_transform)
 
    if (want_transform)
    {
-      // calculate appropriate GridFunction trasformation
+      // calculate appropriate GridFunction transformation
       switch (mesh->GetLastOperation())
       {
          case Mesh::REFINE:

@@ -36,7 +36,7 @@ public:
    static const char *Name[NumGeom];
    static const double Volume[NumGeom];
 
-   // Strcture that holds constants describing the Geometries.
+   // Structure that holds constants describing the Geometries.
    // Currently it contains just the space dimension.
    template <Type Geom> struct Constants;
 

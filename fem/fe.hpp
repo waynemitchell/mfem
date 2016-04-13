@@ -413,8 +413,7 @@ public:
    virtual void CalcHessian (const IntegrationPoint &ip,
                              DenseMatrix &h) const;
    virtual void ProjectDelta(int vertex, Vector &dofs) const
-   { dofs = 0.0; dofs(vertex) = 1.0; }
-   //      { dofs = 1.0; }
+   { dofs = 0.0; dofs(vertex) = 1.0; } // { dofs = 1.0; }
 };
 
 /// Class for linear FE on triangle with nodes at the 3 "Gaussian" points
@@ -569,7 +568,7 @@ public:
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-   //   virtual void ProjectDelta(int vertex, Vector &dofs) const { dofs = 1.; }
+   // virtual void ProjectDelta(int vertex, Vector &dofs) const { dofs = 1.; }
 };
 
 class BiCubic2DFiniteElement : public NodalFiniteElement

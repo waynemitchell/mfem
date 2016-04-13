@@ -98,7 +98,7 @@ public:
 // - copy constructor
 // - void SetElement(int elem_idx)
 // - int map(int loc_dof_idx, int elem_offset) const --> glob_dof_idx, for
-//   single compoment; elem_offset is relative to the currently set element.
+//   single component; elem_offset is relative to the currently set element.
 template <typename FE, typename IndexType>
 class TFiniteElementSpace_simple
 {
