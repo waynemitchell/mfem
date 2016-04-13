@@ -1,11 +1,13 @@
 #ifndef MFEM_SUNDIALS
 #define MFEM_SUNDIALS
+
 #include "../config/config.hpp"
+
 #ifdef MFEM_USE_SUNDIALS
 
+#include "ode.hpp"
 #include "../linalg/operator.hpp"
 #include "../linalg/solvers.hpp"
-#include "../linalg/ode.hpp"
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,9 +17,6 @@
 #include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
 #include <arkode/arkode.h>           /* prototypes for ARKODE fcts., consts. */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
-#ifdef MFEM_USE_MPI
-#include <nvector/nvector_parhyp.h>  /* parallel hypre N_Vector types, fcts., macros */
-#endif
 #include <sundials/sundials_types.h> /* definition of type realtype */
 #include <arkode/arkode_spils.h>
 #include <arkode/arkode_impl.h>
@@ -35,6 +34,11 @@ class SundialsLinearSolveOperator;
 /// Wraps the CVode library of linear multistep methods
 class CVODESolver: public ODESolver
 {
+#ifdef MFEM_USE_MPI
+private:
+   MPI_Comm comm;
+#endif
+
 protected:
    N_Vector y;
    void* ode_mem;
@@ -54,6 +58,11 @@ public:
     * be solved by CVODE.
     */
    CVODESolver(Vector &_y, int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
+
+#ifdef MFEM_USE_MPI
+   CVODESolver(MPI_Comm _comm, Vector &_y,
+               int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
+#endif
 
    // Initialization is done by the constructor.
    void Init(TimeDependentOperator &_f);
@@ -130,8 +139,6 @@ public:
     */
    ~CVODESolver();
 
-   virtual void CreateNVector(long int&, realtype*);
-
    /** \brief
     * Creates an NVector of the appropriate type where the data
     * is owned by the Vector* */
@@ -147,30 +154,7 @@ public:
 
    /** \brief Destroys an NVector of the appropriate type */
    virtual void DestroyNVector(N_Vector&);
-
-   /** \brief Wraps the CVodeInit function */
-   virtual int WrapCVodeInit(void*, double, N_Vector&);
 };
-
-#ifdef MFEM_USE_MPI
-class CVODEParSolver: public CVODESolver
-{
-protected:
-   MPI_Comm comm;
-
-public:
-   CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x,
-                  double &_t, int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
-
-   void CreateNVector(long int &yin_length, Vector *);
-   void TransferNVectorShallow(Vector *_x, N_Vector &_y);
-
-   void DestroyNVector(N_Vector&);
-
-private:
-   int WrapCVodeInit(void *, double &, N_Vector &);
-};
-#endif
 
 /// Wraps the ARKode library of explicit, implicit and additive RK methods.
 class ARKODESolver: public ODESolver

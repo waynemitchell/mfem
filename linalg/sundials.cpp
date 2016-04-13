@@ -4,7 +4,6 @@
 #include "../linalg/operator.hpp"
 #include "../linalg/solvers.hpp"
 #include "../linalg/linalg.hpp"
-#include "../linalg/ode.hpp"
 #include "sundials.hpp"
 #include "mfem.hpp"
 #include <fstream>
@@ -152,27 +151,52 @@ CVODESolver::CVODESolver(Vector &_y, int lmm, int iter)
    ode_mem = CVodeCreate(lmm, iter);
 }
 
-void CVODESolver::CreateNVector(long int& yin_length, realtype* ydata)
+#ifdef MFEM_USE_MPI
+CVODESolver::CVODESolver(MPI_Comm _comm, Vector &_y, int lmm, int iter)
+   : ODESolver(),
+     comm(_comm),
+     initialized_sundials(false),
+     tolerances_set_sundials(false),
+     solver_iteration_type(iter)
 {
-   // Create a serial NVector.
-   y = N_VMake_Serial(yin_length,ydata);   /* Allocate y vector */
-   MFEM_ASSERT(static_cast<void *>(y) != NULL, "N_VMake_Serial failed!");
+   // Create the NVector y.
+   long int yin_length = _y.Size();
+   CreateNVector(yin_length, &_y);
+
+   // Create the solver memory.
+   ode_mem = CVodeCreate(lmm, iter);
 }
+#endif
 
 void CVODESolver::CreateNVector(long int& yin_length, Vector* _x)
 {
+#ifndef MFEM_USE_MPI
    // Create a serial NVector.
    y = N_VMake_Serial(yin_length,
                       (realtype*) _x->GetData());   /* Allocate y vector */
    MFEM_ASSERT(static_cast<void *>(y) != NULL, "N_VMake_Serial() failed!");
+#else
+   // Create a parallel NVector.
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
+   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
+
+   y = N_VMake_ParHyp(x->StealParVector());
+#endif
 }
 
 void CVODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 {
-   NV_DATA_S(_y)=_x->GetData();
+#ifndef MFEM_USE_MPI
+   NV_DATA_S(_y) = _x->GetData();
+#else
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
+   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
+
+   y = N_VMake_ParHyp(x->StealParVector());
+#endif
 }
 
-void CVODESolver::TransferNVectorShallow(N_Vector &_y,Vector* _x)
+void CVODESolver::TransferNVectorShallow(N_Vector &_y, Vector* _x)
 {
    _x->SetData(NV_DATA_S(_y));
 }
@@ -182,19 +206,18 @@ void CVODESolver::DestroyNVector(N_Vector& _y)
    N_VDestroy(y);
 }
 
-int CVODESolver::WrapCVodeInit(void* _ode_mem, double _t, N_Vector &_y)
-{
-   return CVodeInit(_ode_mem, sun_f_fun, (realtype) _t, _y);
-}
-
 void CVODESolver::Init(TimeDependentOperator &_f)
 {
    f = &_f;
 
    // Initialize integrator memory, specify the user's
    // RHS function in x' = f(t,x), initial time, initial condition.
-   int flag = WrapCVodeInit(ode_mem, 0.0, y);
-   MFEM_ASSERT(flag >= 0, "WrapCVodeInit() failed!");
+#ifndef MFEM_USE_MPI
+   int flag = CVodeInit(ode_mem, sun_f_fun, 0.0, y);
+#else
+   int flag = CVodeInit(ode_mem, sun_f_fun_par, 0.0, y);
+#endif
+   MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
 
    initialized_sundials = true;
    SetSStolerances(RELTOL, ABSTOL);
@@ -274,7 +297,14 @@ void CVODESolver::SetLinearSolve(Solver* J_solve,
       ode_mem=CVodeCreate(CV_BDF,CV_NEWTON);
       initialized_sundials=false;
       tolerances_set_sundials=false;
-      WrapCVodeInit(ode_mem,t0,y);
+
+#ifndef MFEM_USE_MPI
+   int flag = CVodeInit(ode_mem, sun_f_fun, t0, y);
+#else
+   int flag = CVodeInit(ode_mem, sun_f_fun_par, t0, y);
+#endif
+      MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
+
       CVodeSetUserData(ode_mem, this->f);
       if (!tolerances_set_sundials)
       {
@@ -318,51 +348,6 @@ CVODESolver::~CVODESolver()
    }
 }
 
-#ifdef MFEM_USE_MPI
-CVODEParSolver::CVODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f,
-                               Vector &_x, double &_t, int lmm, int iter)
-   : CVODESolver(_x, lmm, iter)
-{
-   y = NULL;
-   f = &_f;
-
-   /* Call CVodeCreate to create the solver memory */
-   ode_mem=CVodeCreate(lmm,iter);
-   initialized_sundials=false;
-   tolerances_set_sundials=false;
-   solver_iteration_type=iter;
-   //set MPI_Comm communicator
-   comm=_comm;
-   ReInit(_f,_x,_t);
-}
-
-void CVODEParSolver::CreateNVector(long int& yin_length, Vector* _x)
-{
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector.");
-
-   y = N_VMake_ParHyp(x->StealParVector());
-}
-
-void CVODEParSolver::TransferNVectorShallow(Vector *_x, N_Vector &_y)
-{
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector.");
-
-   y = N_VMake_ParHyp(x->StealParVector());
-}
-
-void CVODEParSolver::DestroyNVector(N_Vector& _y)
-{
-   N_VDestroy(y);
-}
-
-int CVODEParSolver::WrapCVodeInit(void* _ode_mem, double &_t, N_Vector &_y)
-{
-   return CVodeInit(_ode_mem, sun_f_fun_par, (realtype) _t, _y);
-}
-
-#endif
 ARKODESolver::ARKODESolver()
 {
    y = NULL;

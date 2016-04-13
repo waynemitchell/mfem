@@ -312,16 +312,23 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       case 11:
-         ode_solver = new CVODEParSolver(MPI_COMM_WORLD, adv, *U, t);
+         ode_solver = new CVODESolver(MPI_COMM_WORLD, *U);
          break;
-      case 12: ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t); break;
-      case 13: ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t);
+      case 12:
+         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t);
+         break;
+      case 13:
+         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t);
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
          ((ARKODESolver*) ode_solver)->WrapSetFixedStep((realtype) dt);
          break;
-      default:
-         ode_solver->Init(adv);
    }
+
+   if(ode_solver_type != 12 && ode_solver_type != 13)
+   {
+      ode_solver->Init(adv);
+   }
+
    // Track past incremental time steps
    double dt_by_ref = dt;
 
