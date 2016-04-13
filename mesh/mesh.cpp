@@ -563,7 +563,7 @@ void Mesh::GetLocalQuadToHexTransformation(
 }
 
 void Mesh::GetLocalFaceTransformation(
-   int face_type, int elem_no, IsoparametricTransformation &Transf, int inf)
+   int face_type, int elem_type, IsoparametricTransformation &Transf, int inf)
 {
    switch (face_type)
    {
@@ -572,7 +572,7 @@ void Mesh::GetLocalFaceTransformation(
          break;
 
       case Element::SEGMENT:
-         if (GetElementType(elem_no) == Element::TRIANGLE)
+         if (elem_type == Element::TRIANGLE)
          {
             GetLocalSegToTriTransformation(Transf, inf);
          }
@@ -601,7 +601,7 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
    FaceElemTr.Elem1 = NULL;
    FaceElemTr.Elem2 = NULL;
 
-   //  setup the transformation for the first element
+   // setup the transformation for the first element
    FaceElemTr.Elem1No = face_info.Elem1No;
    if (mask & 1)
    {
@@ -622,102 +622,25 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
       FaceElemTr.Elem2 = &Transformation2;
    }
 
+   // setup the face transformation
    FaceElemTr.FaceGeom = (Dim == 1) ? Geometry::POINT
                          : faces[FaceNo]->GetGeometryType();
-
-   // setup the face transformation
    FaceElemTr.Face = (mask & 16) ? GetFaceTransformation(FaceNo) : NULL;
 
    // setup Loc1 & Loc2
    int face_type = (Dim == 1) ? Element::POINT : faces[FaceNo]->GetType();
    if (mask & 4)
    {
-      GetLocalFaceTransformation(face_type, face_info.Elem1No,
+      int elem_type = GetElementType(face_info.Elem1No);
+      GetLocalFaceTransformation(face_type, elem_type,
                                  FaceElemTr.Loc1.Transf, face_info.Elem1Inf);
    }
    if ((mask & 8) && FaceElemTr.Elem2No >= 0)
    {
-      GetLocalFaceTransformation(face_type, face_info.Elem2No,
+      int elem_type = GetElementType(face_info.Elem2No);
+      GetLocalFaceTransformation(face_type, elem_type,
                                  FaceElemTr.Loc2.Transf, face_info.Elem2Inf);
    }
-
-#if 0
-   // setup Loc1 & Loc2
-   int face_type = (Dim == 1) ? Element::POINT : faces[FaceNo]->GetType();
-   switch (face_type)
-   {
-      case Element::POINT:
-         if (mask & 4)
-         {
-            GetLocalPtToSegTransformation(FaceElemTr.Loc1.Transf,
-                                          face_info.Elem1Inf);
-         }
-         if (FaceElemTr.Elem2No >= 0 && (mask & 8))
-         {
-            GetLocalPtToSegTransformation(FaceElemTr.Loc2.Transf,
-                                          face_info.Elem2Inf);
-         }
-         break;
-
-      case Element::SEGMENT:
-         if (mask & 4)
-         {
-            if (GetElementType(face_info.Elem1No) == Element::TRIANGLE)
-            {
-               GetLocalSegToTriTransformation(FaceElemTr.Loc1.Transf,
-                                              face_info.Elem1Inf);
-            }
-            else // assume the element is a quad
-            {
-               GetLocalSegToQuadTransformation(FaceElemTr.Loc1.Transf,
-                                               face_info.Elem1Inf);
-            }
-         }
-
-         if (FaceElemTr.Elem2No >= 0 && (mask & 8))
-         {
-            if (GetElementType(face_info.Elem2No) == Element::TRIANGLE)
-            {
-               GetLocalSegToTriTransformation(FaceElemTr.Loc2.Transf,
-                                              face_info.Elem2Inf);
-            }
-            else // assume the element is a quad
-            {
-               GetLocalSegToQuadTransformation(FaceElemTr.Loc2.Transf,
-                                               face_info.Elem2Inf);
-            }
-         }
-         break;
-
-      case Element::TRIANGLE:
-         // ---------  assumes the face is a triangle -- face of a tetrahedron
-         if (mask & 4)
-         {
-            GetLocalTriToTetTransformation(FaceElemTr.Loc1.Transf,
-                                           face_info.Elem1Inf);
-         }
-         if (FaceElemTr.Elem2No >= 0 && (mask & 8))
-         {
-            GetLocalTriToTetTransformation(FaceElemTr.Loc2.Transf,
-                                           face_info.Elem2Inf);
-         }
-         break;
-
-      case Element::QUADRILATERAL:
-         // ---------  assumes the face is a quad -- face of a hexahedron
-         if (mask & 4)
-         {
-            GetLocalQuadToHexTransformation(FaceElemTr.Loc1.Transf,
-                                            face_info.Elem1Inf);
-         }
-         if (FaceElemTr.Elem2No >= 0 && (mask & 8))
-         {
-            GetLocalQuadToHexTransformation(FaceElemTr.Loc2.Transf,
-                                            face_info.Elem2Inf);
-         }
-         break;
-   }
-#endif
 
    // NC meshes: prepend slave edge/face transformation for Loc2
    if (Nonconforming() && IsSlaveFace(face_info))

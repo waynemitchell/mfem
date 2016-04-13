@@ -1391,19 +1391,35 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 {
    int FaceNo = GetSharedFace(sf);
 
-   // fill-in the face and the first (local) element data into FaceElemTr
-   GetFaceElementTransformations(FaceNo);
-
    FaceInfo &face_info = faces_info[FaceNo];
+
+   FaceElemTr.Elem1 = NULL;
+   FaceElemTr.Elem2 = NULL;
+
+   // setup the transformation for the first element
+   FaceElemTr.Elem1No = face_info.Elem1No;
+   GetElementTransformation(FaceElemTr.Elem1No, &Transformation);
+   FaceElemTr.Elem1 = &Transformation;
 
    // setup the transformation for the second (neighbor) element
    FaceElemTr.Elem2No = -1 - face_info.Elem2No;
    GetFaceNbrElementTransformation(FaceElemTr.Elem2No, &Transformation2);
    FaceElemTr.Elem2 = &Transformation2;
 
-   // setup Loc2
+   // setup the face transformation
+   FaceElemTr.FaceGeom = (Dim == 1) ? Geometry::POINT
+                         : faces[FaceNo]->GetGeometryType();
+   FaceElemTr.Face = GetFaceTransformation(FaceNo);
+
+   // setup Loc1 & Loc2
    int face_type = (Dim == 1) ? Element::POINT : faces[FaceNo]->GetType();
-   GetLocalFaceTransformation(face_type, face_info.Elem2No,
+
+   int elem_type = GetElementType(face_info.Elem1No);
+   GetLocalFaceTransformation(face_type, elem_type,
+                              FaceElemTr.Loc1.Transf, face_info.Elem1Inf);
+
+   elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
+   GetLocalFaceTransformation(face_type, elem_type,
                               FaceElemTr.Loc2.Transf, face_info.Elem2Inf);
 
    return &FaceElemTr;
