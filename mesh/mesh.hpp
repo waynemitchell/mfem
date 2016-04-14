@@ -147,6 +147,17 @@ protected:
    Element *ReadElement(std::istream &);
    static void PrintElement(const Element *, std::ostream &);
 
+   // Readers for different mesh formats, used in the Load() method
+   void ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved);
+   void ReadLineMesh(std::istream &input);
+   void ReadNetgen2DMesh(std::istream &input, int &curved);
+   void ReadNetgen3DMesh(std::istream &input);
+   void ReadTrueGridMesh(std::istream &input);
+   void ReadVTKMesh(std::istream &input, int &curved, int &read_gf);
+   void ReadNURBSMesh(std::istream &input, int &curved, int &read_gf);
+   void ReadInlineMesh(std::istream &input, int generate_edges = 0);
+   void ReadGmshMesh(std::istream &input);
+
    void SetMeshGen(); // set 'meshgen'
 
    /// Return the length of the segment from node i to node j.
