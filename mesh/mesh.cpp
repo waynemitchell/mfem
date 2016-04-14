@@ -2619,13 +2619,13 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
    getline(input, buff);
    if (buff != "ASCII")
    {
-      mfem_error("Mesh::Load : VTK mesh is not in ASCII format!");
+      MFEM_ABORT("VTK mesh is not in ASCII format!");
       return;
    }
    getline(input, buff);
    if (buff != "DATASET UNSTRUCTURED_GRID")
    {
-      mfem_error("Mesh::Load : VTK mesh is not UNSTRUCTURED_GRID!");
+      MFEM_ABORT("VTK mesh is not UNSTRUCTURED_GRID!");
       return;
    }
 
@@ -2636,7 +2636,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
       input >> buff;
       if (!input.good())
       {
-         mfem_error("Mesh::Load : VTK mesh does not have POINTS data!");
+         MFEM_ABORT("VTK mesh does not have POINTS data!");
       }
    }
    while (buff != "POINTS");
@@ -2728,9 +2728,7 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
                elements[i] = new Hexahedron(&cells_data[j+1]);
                break;
             default:
-               cerr << "Mesh::Load : VTK mesh : cell type " << ct
-                    << " is not supported!" << endl;
-               mfem_error();
+               MFEM_ABORT("VTK mesh : cell type " << ct << " is not supported!");
                return;
          }
          j += cells_data[j] + 1;
@@ -2885,8 +2883,9 @@ void Mesh::ReadVTKMesh(std::istream &input, int &curved, int &read_gf)
             else
             {
                if (pts_dof[cells_data[n]] != dofs[vtk_mfem[j]])
-                  mfem_error("Mesh::Load : VTK mesh : "
-                             "inconsistent quadratic mesh!");
+               {
+                  MFEM_ABORT("VTK mesh : inconsistent quadratic mesh!");
+               }
             }
          }
       }
@@ -3095,8 +3094,8 @@ void Mesh::ReadInlineMesh(std::istream &input, int generate_edges)
    }
    else
    {
-      mfem_error("Mesh::Load : For inline mesh, must specify an "
-                 "element type = [segment, tri, quad, tet, hex]");
+      MFEM_ABORT("For inline mesh, must specify an element type ="
+                 " [segment, tri, quad, tet, hex]");
    }
    InitBaseGeom();
    return; // done with inline mesh construction
@@ -3110,11 +3109,11 @@ void Mesh::ReadGmshMesh(std::istream &input)
    input >> version >> binary >> dsize;
    if (version < 2.2)
    {
-      MFEM_ABORT("Mesh::Load : Gmsh file version < 2.2");
+      MFEM_ABORT("Gmsh file version < 2.2");
    }
    if (dsize != sizeof(double))
    {
-      MFEM_ABORT("Mesh::Load : Gmsh file : dsize != sizeof(double)");
+      MFEM_ABORT("Gmsh file : dsize != sizeof(double)");
    }
    getline(input, buff);
    // There is a number 1 in binary format
@@ -3124,7 +3123,7 @@ void Mesh::ReadGmshMesh(std::istream &input)
       input.read(reinterpret_cast<char*>(&one), sizeof(one));
       if (one != 1)
       {
-         MFEM_ABORT("Mesh::Load : Gmsh file : wrong binary format");
+         MFEM_ABORT("Gmsh file : wrong binary format");
       }
    }
 
@@ -3164,13 +3163,14 @@ void Mesh::ReadGmshMesh(std::istream &input)
          }
          if (static_cast<int>(vertices_map.size()) != NumOfVertices)
          {
-            MFEM_ABORT("Mesh::Load : Gmsh file : vertices indices are not unique");
+            MFEM_ABORT("Gmsh file : vertices indices are not unique");
          }
       } // section '$Nodes'
       else if (buff == "$Elements") // reading mesh elements
       {
          int num_of_all_elements;
-         input >> num_of_all_elements; // = NumOfElements + NumOfBdrElements + (maybe, PhysicalPoints)
+         input >> num_of_all_elements;
+         // = NumOfElements + NumOfBdrElements + (maybe, PhysicalPoints)
          getline(input, buff);
 
          int serial_number; // serial number of an element
@@ -3191,28 +3191,52 @@ void Mesh::ReadGmshMesh(std::istream &input)
             8, // 8-node hexahedron.
             6, // 6-node prism.
             5, // 5-node pyramid.
-            3, // 3-node second order line (2 nodes associated with the vertices and 1 with the edge).
-            6, // 6-node second order triangle (3 nodes associated with the vertices and 3 with the edges).
-            9, // 9-node second order quadrangle (4 nodes associated with the vertices, 4 with the edges and 1 with the face).
-            10,// 10-node second order tetrahedron (4 nodes associated with the vertices and 6 with the edges).
-            27,// 27-node second order hexahedron (8 nodes associated with the vertices, 12 with the edges, 6 with the faces and 1 with the volume).
-            18,// 18-node second order prism (6 nodes associated with the vertices, 9 with the edges and 3 with the quadrangular faces).
-            14,// 14-node second order pyramid (5 nodes associated with the vertices, 8 with the edges and 1 with the quadrangular face).
+            3, /* 3-node second order line (2 nodes associated with the vertices
+                    and 1 with the edge). */
+            6, /* 6-node second order triangle (3 nodes associated with the
+                    vertices and 3 with the edges). */
+            9, /* 9-node second order quadrangle (4 nodes associated with the
+                    vertices, 4 with the edges and 1 with the face). */
+            10,/* 10-node second order tetrahedron (4 nodes associated with the
+                     vertices and 6 with the edges). */
+            27,/* 27-node second order hexahedron (8 nodes associated with the
+                     vertices, 12 with the edges, 6 with the faces and 1 with
+                     the volume). */
+            18,/* 18-node second order prism (6 nodes associated with the
+                     vertices, 9 with the edges and 3 with the quadrangular
+                     faces). */
+            14,/* 14-node second order pyramid (5 nodes associated with the
+                     vertices, 8 with the edges and 1 with the quadrangular
+                     face). */
             1, // 1-node point.
-            8, // 8-node second order quadrangle (4 nodes associated with the vertices and 4 with the edges).
-            20,// 20-node second order hexahedron (8 nodes associated with the vertices and 12 with the edges).
-            15,// 15-node second order prism (6 nodes associated with the vertices and 9 with the edges).
-            13,// 13-node second order pyramid (5 nodes associated with the vertices and 8 with the edges).
-            9, // 9-node third order incomplete triangle (3 nodes associated with the vertices, 6 with the edges)
-            10,// 10-node third order triangle (3 nodes associated with the vertices, 6 with the edges, 1 with the face)
-            12,// 12-node fourth order incomplete triangle (3 nodes associated with the vertices, 9 with the edges)
-            15,// 15-node fourth order triangle (3 nodes associated with the vertices, 9 with the edges, 3 with the face)
-            15,// 15-node fifth order incomplete triangle (3 nodes associated with the vertices, 12 with the edges)
-            21,// 21-node fifth order complete triangle (3 nodes associated with the vertices, 12 with the edges, 6 with the face)
-            4, // 4-node third order edge (2 nodes associated with the vertices, 2 internal to the edge)
-            5, // 5-node fourth order edge (2 nodes associated with the vertices, 3 internal to the edge)
-            6, // 6-node fifth order edge (2 nodes associated with the vertices, 4 internal to the edge)
-            20 // 20-node third order tetrahedron (4 nodes associated with the vertices, 12 with the edges, 4 with the faces)
+            8, /* 8-node second order quadrangle (4 nodes associated with the
+                    vertices and 4 with the edges). */
+            20,/* 20-node second order hexahedron (8 nodes associated with the
+                     vertices and 12 with the edges). */
+            15,/* 15-node second order prism (6 nodes associated with the
+                     vertices and 9 with the edges). */
+            13,/* 13-node second order pyramid (5 nodes associated with the
+                     vertices and 8 with the edges). */
+            9, /* 9-node third order incomplete triangle (3 nodes associated
+                    with the vertices, 6 with the edges) */
+            10,/* 10-node third order triangle (3 nodes associated with the
+                     vertices, 6 with the edges, 1 with the face) */
+            12,/* 12-node fourth order incomplete triangle (3 nodes associated
+                     with the vertices, 9 with the edges) */
+            15,/* 15-node fourth order triangle (3 nodes associated with the
+                     vertices, 9 with the edges, 3 with the face) */
+            15,/* 15-node fifth order incomplete triangle (3 nodes associated
+                     with the vertices, 12 with the edges) */
+            21,/* 21-node fifth order complete triangle (3 nodes associated with
+                     the vertices, 12 with the edges, 6 with the face) */
+            4, /* 4-node third order edge (2 nodes associated with the vertices,
+                    2 internal to the edge) */
+            5, /* 5-node fourth order edge (2 nodes associated with the
+                    vertices, 3 internal to the edge) */
+            6, /* 6-node fifth order edge (2 nodes associated with the vertices,
+                    4 internal to the edge) */
+            20 /* 20-node third order tetrahedron (4 nodes associated with the
+                     vertices, 12 with the edges, 4 with the faces) */
          };
 
          vector<Element*> elements_0D, elements_1D, elements_2D, elements_3D;
@@ -3224,14 +3248,16 @@ void Mesh::ReadGmshMesh(std::istream &input)
          if (binary)
          {
             int n_elem_part = 0; // partial sum of elements that are read
-            const int header_size = 3; // header consists of 3 numbers: type of the
-            // element, number of elements of this type, and number of tags
+            const int header_size = 3;
+            // header consists of 3 numbers: type of the element, number of
+            // elements of this type, and number of tags
             int header[header_size];
             int n_elem_one_type; // number of elements of a specific type
 
             while (n_elem_part < num_of_all_elements)
             {
-               input.read(reinterpret_cast<char*>(header), header_size*sizeof(int));
+               input.read(reinterpret_cast<char*>(header),
+                          header_size*sizeof(int));
                type_of_element = header[0];
                n_elem_one_type = header[1];
                n_tags          = header[2];
@@ -3260,10 +3286,11 @@ void Mesh::ReadGmshMesh(std::istream &input)
                   vector<int> vert_indices(n_elem_nodes);
                   for (int vi = 0; vi < n_elem_nodes; ++vi)
                   {
-                     map<int, int>::const_iterator it = vertices_map.find(data[1+n_tags+vi]);
+                     map<int, int>::const_iterator it =
+                        vertices_map.find(data[1+n_tags+vi]);
                      if (it == vertices_map.end())
                      {
-                        MFEM_ABORT("Mesh::Load : Gmsh file : vertex index doesn't exist");
+                        MFEM_ABORT("Gmsh file : vertex index doesn't exist");
                      }
                      vert_indices[vi] = it->second;
                   }
@@ -3271,7 +3298,7 @@ void Mesh::ReadGmshMesh(std::istream &input)
                   // non-positive attributes are not allowed in MFEM
                   if (phys_domain <= 0)
                   {
-                     mfem_error("Non-positive element attribute in Gmsh mesh!");
+                     MFEM_ABORT("Non-positive element attribute in Gmsh mesh!");
                   }
 
                   // initialize the mesh element
@@ -3279,32 +3306,38 @@ void Mesh::ReadGmshMesh(std::istream &input)
                   {
                      case 1: // 2-node line
                      {
-                        elements_1D.push_back(new Segment(&vert_indices[0], phys_domain));
+                        elements_1D.push_back(
+                           new Segment(&vert_indices[0], phys_domain));
                         break;
                      }
                      case 2: // 3-node triangle
                      {
-                        elements_2D.push_back(new Triangle(&vert_indices[0], phys_domain));
+                        elements_2D.push_back(
+                           new Triangle(&vert_indices[0], phys_domain));
                         break;
                      }
                      case 3: // 4-node quadrangle
                      {
-                        elements_2D.push_back(new Quadrilateral(&vert_indices[0], phys_domain));
+                        elements_2D.push_back(
+                           new Quadrilateral(&vert_indices[0], phys_domain));
                         break;
                      }
                      case 4: // 4-node tetrahedron
                      {
-                        elements_3D.push_back(new Tetrahedron(&vert_indices[0], phys_domain));
+                        elements_3D.push_back(
+                           new Tetrahedron(&vert_indices[0], phys_domain));
                         break;
                      }
                      case 5: // 8-node hexahedron
                      {
-                        elements_3D.push_back(new Hexahedron(&vert_indices[0], phys_domain));
+                        elements_3D.push_back(
+                           new Hexahedron(&vert_indices[0], phys_domain));
                         break;
                      }
                      case 15: // 1-node point
                      {
-                        elements_0D.push_back(new Point(&vert_indices[0], phys_domain));
+                        elements_0D.push_back(
+                           new Point(&vert_indices[0], phys_domain));
                         break;
                      }
                      default: // any other element
@@ -3342,7 +3375,7 @@ void Mesh::ReadGmshMesh(std::istream &input)
                   map<int, int>::const_iterator it = vertices_map.find(index);
                   if (it == vertices_map.end())
                   {
-                     MFEM_ABORT("Mesh::Load : Gmsh file : vertex index doesn't exist");
+                     MFEM_ABORT("Gmsh file : vertex index doesn't exist");
                   }
                   vert_indices[vi] = it->second;
                }
@@ -3350,7 +3383,7 @@ void Mesh::ReadGmshMesh(std::istream &input)
                // non-positive attributes are not allowed in MFEM
                if (phys_domain <= 0)
                {
-                  mfem_error("Non-positive element attribute in Gmsh mesh!");
+                  MFEM_ABORT("Non-positive element attribute in Gmsh mesh!");
                }
 
                // initialize the mesh element
@@ -3358,32 +3391,38 @@ void Mesh::ReadGmshMesh(std::istream &input)
                {
                   case 1: // 2-node line
                   {
-                     elements_1D.push_back(new Segment(&vert_indices[0], phys_domain));
+                     elements_1D.push_back(
+                        new Segment(&vert_indices[0], phys_domain));
                      break;
                   }
                   case 2: // 3-node triangle
                   {
-                     elements_2D.push_back(new Triangle(&vert_indices[0], phys_domain));
+                     elements_2D.push_back(
+                        new Triangle(&vert_indices[0], phys_domain));
                      break;
                   }
                   case 3: // 4-node quadrangle
                   {
-                     elements_2D.push_back(new Quadrilateral(&vert_indices[0], phys_domain));
+                     elements_2D.push_back(
+                        new Quadrilateral(&vert_indices[0], phys_domain));
                      break;
                   }
                   case 4: // 4-node tetrahedron
                   {
-                     elements_3D.push_back(new Tetrahedron(&vert_indices[0], phys_domain));
+                     elements_3D.push_back(
+                        new Tetrahedron(&vert_indices[0], phys_domain));
                      break;
                   }
                   case 5: // 8-node hexahedron
                   {
-                     elements_3D.push_back(new Hexahedron(&vert_indices[0], phys_domain));
+                     elements_3D.push_back(
+                        new Hexahedron(&vert_indices[0], phys_domain));
                      break;
                   }
                   case 15: // 1-node point
                   {
-                     elements_0D.push_back(new Point(&vert_indices[0], phys_domain));
+                     elements_0D.push_back(
+                        new Point(&vert_indices[0], phys_domain));
                      break;
                   }
                   default: // any other element
@@ -3458,7 +3497,7 @@ void Mesh::ReadGmshMesh(std::istream &input)
          }
          else
          {
-            MFEM_ABORT("Mesh::Load : Gmsh file : no elements found");
+            MFEM_ABORT("Gmsh file : no elements found");
             return;
          }
 
