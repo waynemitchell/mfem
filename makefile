@@ -117,21 +117,6 @@ HYPRE_DIR ?= @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT ?= -I$(HYPRE_DIR)/include
 HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
-# SIDRE library and required libraries configurations (needed to build the sidre integrated version)
-SIDRE_DIR ?= @MFEM_DIR@/../toolkit_install
-SIDRE_OPT ?= -I$(SIDRE_DIR)/include
-SIDRE_LIB ?= -L$(SIDRE_DIR)/lib -lsidre -lslic -lcommon
-
-CONDUIT_DIR ?= @MFEM_DIR@/../conduit_install
-CONDUIT_OPT ?= -I$(CONDUIT_DIR)/include
-CONDUIT_LIB ?= -L$(CONDUIT_DIR)/lib -lconduit -Wl,-rpath $(CONDUIT_DIR)/lib
-
-MFEM_USE_SIDRE ?= NO
-ifeq ($(MFEM_USE_SIDRE),YES)
-   INCFLAGS += $(SIDRE_OPT) $(CONDUIT_OPT)
-   ALL_LIBS += $(SIDRE_LIB) $(CONDUIT_LIB)
-endif
-
 # METIS library configuration
 METIS_DIR ?= @MFEM_DIR@/../metis-4.0
 METIS_OPT ?=
@@ -149,6 +134,24 @@ else
 endif
 
 DEP_CXX ?= $(MFEM_CXX)
+
+# SIDRE library and required libraries configurations.
+MFEM_USE_SIDRE ?= NO
+ifeq ($(MFEM_USE_SIDRE),YES)
+   ifndef SIDRE_DIR
+      $(error Sidre requires SIDRE_DIR to be set.)
+   endif
+   ifndef CONDUIT_DIR
+      $(error Sidre requires CONDUIT_DIR to be set.)
+   endif
+   ifndef HDF5_DIR
+      $(error Sidre requires HDF5_DIR to be set.)
+   endif
+
+   INCFLAGS += -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include -I$(HDF5_DIR)/include
+   ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -llibb64 -lhdf5 -ldl
+endif
+
 
 MFEM_USE_LAPACK ?= NO
 # LAPACK library configuration
@@ -297,10 +300,10 @@ serial:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
 
 sidre:
-	$(MAKE) config MFEM_USE_SIDRE=YES MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)
-
-sidre_debug:
 	$(MAKE) config MFEM_USE_SIDRE=YES MFEM_USE_MPI=NO MFEM_DEBUG=YES && $(MAKE)
+
+psidre:
+	$(MAKE) config MFEM_USE_SIDRE=YES MFEM_USE_MPI=YES MFEM_DEBUG=YES && $(MAKE)
 
 parallel:
 	$(MAKE) config MFEM_USE_MPI=YES MFEM_DEBUG=NO && $(MAKE)

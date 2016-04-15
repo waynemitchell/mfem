@@ -259,13 +259,14 @@ int main(int argc, char *argv[])
 
       protocol = "conduit_hdf5";
       ds.save(filename, protocol);
-      asctoolkit::sidre::DataStore new_ds2;
-      new_ds2.load(filename, protocol);
 
       protocol = "text";
       ds.save(filename, protocol);
-/*
-      if (ds.getRoot()->isEquivalentTo(ds_test_load_in.getRoot()) )
+
+      asctoolkit::sidre::DataStore new_ds2;
+      new_ds2.load(filename, protocol);
+
+      if (ds.getRoot()->isEquivalentTo(new_ds1.getRoot()) )
       {
         std::cout << "Datastore save/load passed, they are equivalent." << std::endl;
       }
@@ -274,7 +275,7 @@ int main(int argc, char *argv[])
        std::cout << "Datastore instances don't match, crap, need to troubleshoot." << std::endl;
        exit(-1);
       }
-*/
+
       // TODO - Make a second data collection, compare to first data collection?
       // Ask MFEM team if I can create multiple meshes, etc, ( no singletons, right? ).
 
