@@ -661,7 +661,9 @@ void SidreDataCollection::addField(asctoolkit::sidre::DataGroup * grp, GridFunct
     ordering_view->setString("byVDim");
   }
   // TODO - ask if MFEM team cares about typedefs.  Could hard code SIDRE_DOUBLE_ID here instead.
-  grp->createView("data")->setExternalDataPtr( const_cast<mfem_double_t*>(gf->GetData()) )->apply( sidre::detail::SidreTT<mfem_double_t>::id , gf->Size());
+  grp->createView("data")->setExternalDataPtr( const_cast<mfem_double_t*>(
+      gf->GetData()) )->apply( sidre::detail::SidreTT<mfem_double_t>::id ,
+      gf->Size());
 }
 
 void SidreDataCollection::addMesh(asctoolkit::sidre::DataGroup * grp)
@@ -684,20 +686,23 @@ void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)
 
   grp->createView("type")->setString( "explicit" );
 
-  for (int i = 0; i < mesh->vertices.Size() ; i++)
-  {
-    sidre::DataGroup * vertex_grp = grp->createGroup( "vertex" + mfem::to_string(i) );
+  // Create single view for all vertices.  An array of length # of vertices
+  //   * size of vertex class ( 3 doubles ) is sufficient.
+  // This will break if the number of vertices EVER changes in mfem - so check with Tzanio...
+  // will need to rethink this for AMR
+  size_t total_length = mesh->vertices.Size() * 3;
 
-    sidre::DataView * values;
-    if ( mesh->Dim == 2)
-    {
-      values = vertex_grp->createView("xy");
-    }
-    else
-    {
-      values = vertex_grp->createView("xyz");
-    }
-    values->setExternalDataPtr( mesh->vertices[i]() )->apply( sidre::detail::SidreTT<mfem_double_t>::id, mesh->Dim );
+  // Note - the 'z' value might be empty if this is 2D.
+  grp->createView("xyz", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length );
+
+  // apply args are 'type, num_elements, offset, stride'
+
+  grp->createView("x", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length, 0, 3);
+  grp->createView("y", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length, 1, 3);
+
+  if ( mesh->Dim == 3 )
+  {
+    grp->createView("z", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length, 2, 3);
   }
 }
 
