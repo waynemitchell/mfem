@@ -1758,8 +1758,8 @@ int NCMesh::find_hex_face(int a, int b, int c)
    return -1;
 }
 
-void NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
-                                 Element* elem, DenseMatrix& mat) const
+int NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
+                                Element* elem, DenseMatrix& mat) const
 {
    int master[4] =
    {
@@ -1767,8 +1767,8 @@ void NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
       find_node(elem, v2), find_node(elem, v3)
    };
 
-   int fi = find_hex_face(master[0], master[1], master[2]);
-   const int* fv = gi_hex.faces[fi];
+   int local = find_hex_face(master[0], master[1], master[2]);
+   const int* fv = gi_hex.faces[local];
 
    DenseMatrix tmp(mat);
    for (int i = 0, j; i < 4; i++)
@@ -1787,6 +1787,7 @@ void NCMesh::ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
       }
       MFEM_ASSERT(j != 4, "node not found.");
    }
+   return local;
 }
 
 void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
@@ -1799,12 +1800,14 @@ void NCMesh::TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
       if (face)
       {
          // we have a slave face, add it to the list
-         face_list.slaves.push_back(Slave(face->index));
-         DenseMatrix &mat(face_list.slaves.back().point_matrix);
+         Element* elem = face->GetSingleElement();
+         face_list.slaves.push_back(Slave(face->index, elem));
+         DenseMatrix &mat = face_list.slaves.back().point_matrix;
          pm.GetMatrix(mat);
 
          // reorder the point matrix according to slave face orientation
-         ReorderFacePointMat(v0, v1, v2, v3, face->GetSingleElement(), mat);
+         int local = ReorderFacePointMat(v0, v1, v2, v3, elem, mat);
+         face_list.slaves.back().local = local;
 
          return;
       }

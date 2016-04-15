@@ -155,7 +155,8 @@ public:
       int master; ///< master number (in Mesh numbering)
       DenseMatrix point_matrix; ///< position within the master
 
-      Slave(int index) : MeshId(index), master(-1) {}
+      Slave(int index, Element* element = NULL, int local = -1)
+         : MeshId(index, element, local), master(-1) {}
    };
 
    /// Lists all edges/faces in the nonconforming mesh.
@@ -519,8 +520,8 @@ protected: // implementation
    static int find_node(Element* elem, int node_id);
    static int find_hex_face(int a, int b, int c);
 
-   void ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
-                            Element* elem, DenseMatrix& mat) const;
+   int ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
+                           Element* elem, DenseMatrix& mat) const;
    struct PointMatrix;
 
    void TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,

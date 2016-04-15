@@ -613,8 +613,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
          const Slave &sf = face_list.slaves[j];
 
          Element* e[2] = { mf.element, sf.element };
-         //MFEM_ASSERT(e[0] != NULL && e[1] != NULL, "");
-         if (!e[0] || !e[1]) { continue; }
+         MFEM_ASSERT(e[0] != NULL && e[1] != NULL, "");
 
          if (e[0]->rank == MyRank) { std::swap(e[0], e[1]); }
          if (e[0]->rank == MyRank) { continue; }
