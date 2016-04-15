@@ -571,7 +571,6 @@ void ParNCMesh::NeighborProcessors(Array<int> &neighbors)
    set_to_array(ranks, neighbors);
 }
 
-#if 1
 bool ParNCMesh::compare_ranks_indices(const Element* a, const Element* b)
 {
    return (a->rank != b->rank) ? a->rank < b->rank
@@ -628,7 +627,8 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
    MFEM_ASSERT(fnbr.Size() <= bound, "oops, bad upper bound");
 
    // remove duplicate face neighbor elements and sort them by rank & index
-   // (note that the send table is sorted the same way, this is important)
+   // (note that the send table is sorted the same way and the order is also the
+   //  same on different processors, this is important for ExchangeFaceNbrData)
    fnbr.Sort();
    fnbr.Unique();
    fnbr.Sort(compare_ranks_indices);
@@ -724,128 +724,54 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
       fi.Elem2Inf = 64*local[1] + o;
    }
 
-   /*for (unsigned i = 0; i < shared.masters.size(); i++)
+   if (shared.slaves.size())
    {
-      const Master &mf = shared.masters[i];
-      for (int j = mf.slaves_begin; j < mf.slaves_end; j++)
+      // enlarge Mesh::faces_info for ghost slaves
+      pmesh.faces_info.SetSize(NFaces + NGhostFaces);
+      for (int i = NFaces; i < pmesh.faces_info.Size(); i++)
       {
-         const Slave &sf = face_list.slaves[j];
-
-         Element* e[2] = { mf.element, sf.element };
-         if (!e[0] || !e[1]) { continue; }
-
-         if (e[0]->rank == MyRank) { std::swap(e[0], e[1]); }
-         if (e[0]->rank == MyRank) { continue; }
-
-         Mesh::FaceInfo &fi = pmesh.faces_info[cf.index];
-         fi.Elem2No
-
+         Mesh::FaceInfo &fi = pmesh.faces_info[i];
+         fi.Elem1No  = fi.Elem2No  = -1;
+         fi.Elem1Inf = fi.Elem2Inf = 0;
+         fi.NCFace = -1;
       }
-   }*/
+
+      // fill in FaceInfo for slave faces
+      for (unsigned i = 0; i < shared.masters.size(); i++)
+      {
+         const Master &mf = shared.masters[i];
+         for (int j = mf.slaves_begin; j < mf.slaves_end; j++)
+         {
+            const Slave &sf = face_list.slaves[j];
+
+            MFEM_ASSERT(sf.element && mf.element, "");
+            MFEM_ASSERT(sf.element->rank != mf.element->rank, "");
+
+            Mesh::FaceInfo &fi = pmesh.faces_info[sf.index];
+            fi.Elem1No = sf.element->index;
+            fi.Elem2No = mf.element->index;
+            fi.Elem1Inf = 64 * sf.local;
+            fi.Elem2Inf = 64 * mf.local;
+
+            if (sf.element->rank != MyRank)
+            {
+               std::swap(fi.Elem1No, fi.Elem2No);
+               std::swap(fi.Elem1Inf, fi.Elem2Inf);
+            }
+            fi.Elem2No = -1 - fnbr_index[fi.Elem2No - NElements];
+
+            MFEM_ASSERT(fi.NCFace < 0, "");
+            fi.NCFace = pmesh.nc_faces_info.Size();
+            pmesh.nc_faces_info.Append(
+               Mesh::NCFaceInfo(true, sf.master, &sf.point_matrix));
+         }
+      }
+   }
 
    // NOTE: this function skips ParMesh::send_face_nbr_vertices and
    // ParMesh::face_nbr_vertices_offset, these are not used outside of ParMesh
 }
 
-#else
-static void init_nbr_offset(Array<int> &offsets, int size)
-{
-   offsets.SetSize(size);
-   offsets.SetSize(0);
-   offsets.Append(0);
-}
-
-void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
-{
-   // in the NC case, face_nbr_group contains directly the neighbor ranks
-   NeighborProcessors(pmesh.face_nbr_group);
-   int num_face_nbrs = pmesh.face_nbr_group.Size();
-
-   pmesh.face_nbr_elements.SetSize(0);
-   pmesh.face_nbr_vertices.SetSize(0);
-
-   init_nbr_offset(pmesh.face_nbr_elements_offset, num_face_nbrs);
-   init_nbr_offset(pmesh.face_nbr_vertices_offset, num_face_nbrs);
-
-   Array<Connection> send_elems, send_verts;
-   send_elems.Reserve(ghost_layer.Size()*3/2);
-   send_verts.Reserve(send_elems.Size()*(1 << Dim));
-
-   // create face neighbor elements for all neighbor ranks
-   for (int r = 0; r < num_face_nbrs; r++)
-   {
-      int rank = pmesh.face_nbr_group[r];
-      std::map<Vertex*, int> vert_map;
-
-      for (int i = 0; i < ghost_layer.Size(); i++)
-      {
-         Element* elem = ghost_layer[i];
-         if (elem->rank == rank)
-         {
-            // check if this ghost element is a face neighbor to MyRank
-            GeomInfo& gi = GI[(int) elem->geom];
-            for (int j = 0; j < gi.nf; j++)
-            {
-               const int* fv = gi.faces[j];
-               Face* face = faces.Peek(elem->node[fv[0]], elem->node[fv[1]],
-                                       elem->node[fv[2]], elem->node[fv[3]]);
-
-               Element* nbr = face->GetNeighbor(elem);
-               if (nbr && nbr->rank == MyRank)
-               {
-                  // create an mfem::Element for this ghost Element
-                  mfem::Element* fne = NewMeshElement(elem->geom);
-                  fne->SetAttribute(elem->attribute);
-                  for (int k = 0; k < gi.nv; k++)
-                  {
-                     int &v = vert_map[elem->node[k]->vertex];
-                     if (!v) { v = vert_map.size(); }
-                     fne->GetVertices()[k] = v-1;
-                  }
-                  pmesh.face_nbr_elements.Append(fne);
-
-                  // include the neighbor in send_elements/vertices
-                  send_elems.Append(Connection(r, nbr->index));
-                  for (int k = 0; k < 8 && nbr->node[k]; k++)
-                  {
-                     send_verts.Append(Connection(r, nbr->node[k]->vertex->index));
-                  }
-
-                  // modify FaceInfo for the face
-                  Mesh::FaceInfo &fi = pmesh.faces_info[face->index];
-                  MFEM_ASSERT(fi.Elem2No == -1, "");
-                  fi.Elem2No = -pmesh.face_nbr_elements.Size();
-
-                  int local[2];
-                  int o = get_face_orientation(face, nbr, elem, local);
-                  fi.Elem2Inf = 64*local[1] + o;
-
-                  break; // done with this ghost element
-               }
-            }
-         }
-      }
-
-      // copy vertices for the neighbor rank
-      std::map<Vertex*, int>::iterator it;
-      for (it = vert_map.begin(); it != vert_map.end(); ++it)
-      {
-         pmesh.face_nbr_vertices.Append(mfem::Vertex());
-         pmesh.face_nbr_vertices.Last().SetCoords(it->first->pos);
-      }
-
-      pmesh.face_nbr_elements_offset.Append(pmesh.face_nbr_elements.Size());
-      pmesh.face_nbr_vertices_offset.Append(pmesh.face_nbr_vertices.Size());
-   }
-
-   // create the send_face_nbr_ tables
-   send_elems.Sort(); send_elems.Unique();
-   send_verts.Sort(); send_verts.Unique();
-
-   pmesh.send_face_nbr_elements.MakeFromList(num_face_nbrs, send_elems);
-   pmesh.send_face_nbr_vertices.MakeFromList(num_face_nbrs, send_verts);
-}
-#endif
 
 //// Prune, Refine, Derefine ///////////////////////////////////////////////////
 

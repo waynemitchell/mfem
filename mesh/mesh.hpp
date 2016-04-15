@@ -247,8 +247,8 @@ protected:
                                    int inf);
    /** Used in GetFaceElementTransformations to account for the fact that a
        slave face occupies only a portion of its master face. */
-   void ApplySlaveTransformation(IsoparametricTransformation &transf,
-                                 const FaceInfo &fi);
+   void ApplyLocalSlaveTransformation(IsoparametricTransformation &transf,
+                                      const FaceInfo &fi);
    bool IsSlaveFace(const FaceInfo &fi);
 
    /// Returns the orientation of "test" relative to "base"
@@ -631,6 +631,9 @@ public:
    }
    void GetFaceElements (int Face, int *Elem1, int *Elem2);
    void GetFaceInfos (int Face, int *Inf1, int *Inf2);
+
+   int GetFaceGeometryType(int Face) const;
+   int GetFaceElementType(int Face) const;
 
    /// Check the orientation of the elements
    void CheckElementOrientation(bool fix_it = true);
