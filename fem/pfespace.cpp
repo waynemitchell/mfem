@@ -1144,8 +1144,9 @@ void ParFiniteElementSpace
    }
 }
 
-void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
+void ParFiniteElementSpace::GetAnyDofs(int type, int index, Array<int>& dofs)
 {
+   // helper to get vertex, edge or face DOFs
    switch (type)
    {
       case 0: GetVertexDofs(index, dofs); break;
@@ -1158,6 +1159,8 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
+   int type_dofs[3] = { nvdofs, nedofs, nfdofs };
+
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
    NeighborDofMessage::Map send_dofs, recv_dofs;
@@ -1165,6 +1168,8 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    // prepare neighbor DOF messages for shared vertices/edges/faces
    for (int type = 0; type < 3; type++)
    {
+      if (!type_dofs[type]) { continue; }
+
       const NCMesh::NCList &list = pncmesh->GetSharedList(type);
       Array<int> dofs;
 
@@ -1180,8 +1185,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
          if (owner == MyRank)
          {
             // we own a shared v/e/f, send its DOFs to others in group
-            GetDofs(type, id.index, dofs);
-            // TODO: send dofs only when dofs.Size() > 0 ???
+            GetAnyDofs(type, id.index, dofs);
             const int *group = pncmesh->GetGroup(type, id.index, gsize);
             for (int j = 0; j < gsize; j++)
             {
@@ -1190,9 +1194,6 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
                   NeighborDofMessage &send_msg = send_dofs[group[j]];
                   send_msg.Init(pncmesh, fec, ndofs);
                   send_msg.AddDofs(type, id, dofs);
-
-                  // DEBUG: calculate results of Step 3 here
-                  //recv_requests2[group[j]].AddDofs(dofs);
                }
             }
          }
@@ -1219,6 +1220,8 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    // loop through *all* master edges/faces, constrain their slaves
    for (int type = 1; type < 3; type++)
    {
+      if (!type_dofs[type]) { continue; }
+
       const NCMesh::NCList &list = (type > 1) ? pncmesh->GetFaceList()
                                    /*      */ : pncmesh->GetEdgeList();
       if (!list.masters.size()) { continue; }
@@ -1243,7 +1246,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
          int master_ndofs, master_rank = pncmesh->GetOwner(type, mf.index);
          if (master_rank == MyRank)
          {
-            GetDofs(type, mf.index, master_dofs);
+            GetAnyDofs(type, mf.index, master_dofs);
             master_ndofs = ndofs;
          }
          else
@@ -1251,7 +1254,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
             recv_dofs[master_rank].GetDofs(type, mf, master_dofs, master_ndofs);
          }
 
-         if (!master_dofs.Size()) { continue; }
+         if (!master_dofs.Size()) { continue; } // TODO: needed?
 
          // constrain slaves that exist in our mesh
          for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
@@ -1259,8 +1262,8 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
             const NCMesh::Slave &sf = list.slaves[si];
             if (pncmesh->IsGhost(type, sf.index)) { continue; }
 
-            GetDofs(type, sf.index, slave_dofs);
-            if (!slave_dofs.Size()) { continue; }
+            GetAnyDofs(type, sf.index, slave_dofs);
+            if (!slave_dofs.Size()) { continue; } // TODO: needed?
 
             T.GetPointMat() = sf.point_matrix;
             fe->GetLocalInterpolation(T, I);
@@ -1275,7 +1278,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
          // our mesh: this is a conforming-like situation, create 1-to-1 deps
          if (master_rank != MyRank && !pncmesh->IsGhost(type, mf.index))
          {
-            GetDofs(type, mf.index, my_dofs);
+            GetAnyDofs(type, mf.index, my_dofs);
             Add1To1Dependencies(deps, master_rank, master_dofs, master_ndofs,
                                 my_dofs);
          }
@@ -1285,12 +1288,13 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    // add one-to-one dependencies between shared conforming vertices/edges/faces
    for (int type = 0; type < 3; type++)
    {
+      if (!type_dofs[type]) { continue; }
+
       const NCMesh::NCList &list = pncmesh->GetSharedList(type);
       for (unsigned i = 0; i < list.conforming.size(); i++)
       {
          const NCMesh::MeshId &id = list.conforming[i];
-         GetDofs(type, id.index, my_dofs);
-         // TODO: skip if my_dofs.Size() == 0
+         GetAnyDofs(type, id.index, my_dofs);
 
          int owner_ndofs, owner = pncmesh->GetOwner(type, id.index);
          if (owner != MyRank)
