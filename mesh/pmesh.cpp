@@ -90,13 +90,7 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
    MPI_Comm_size(MyComm, &NRanks);
    MPI_Comm_rank(MyComm, &MyRank);
 
-   Dim = mesh.Dim;
-   spaceDim = mesh.spaceDim;
-
-   BaseGeom = mesh.BaseGeom;
-   BaseBdrGeom = mesh.BaseBdrGeom;
-
-   if (mesh.ncmesh)
+   if (mesh.Nonconforming())
    {
       pncmesh = new ParNCMesh(comm, *mesh.ncmesh);
 
@@ -112,15 +106,15 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
       Mesh::Init();
       Mesh::InitTables();
       Mesh::InitFromNCMesh(*pncmesh);
-      spaceDim = mesh.spaceDim;
       pncmesh->OnMeshUpdated(this);
-      // TODO: call GenerateNCFaceInfo
 
-      meshgen = mesh.MeshGenerator();
       ncmesh = pncmesh;
+      meshgen = mesh.MeshGenerator();
 
       mesh.attributes.Copy(attributes);
       mesh.bdr_attributes.Copy(bdr_attributes);
+
+      GenerateNCFaceInfo();
 
       if (mesh.GetNodes())
       {
@@ -128,13 +122,18 @@ ParMesh::ParMesh(MPI_Comm comm, Mesh &mesh, int *partitioning_,
          own_nodes = 1;
       }
       delete [] partition;
+
       have_face_nbr_data = false;
       return;
    }
-   else
-   {
-      ncmesh = pncmesh = NULL;
-   }
+
+   Dim = mesh.Dim;
+   spaceDim = mesh.spaceDim;
+
+   BaseGeom = mesh.BaseGeom;
+   BaseBdrGeom = mesh.BaseBdrGeom;
+
+   ncmesh = pncmesh = NULL;
 
    if (partitioning_)
    {
