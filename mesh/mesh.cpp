@@ -641,7 +641,7 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
    return &FaceElemTr;
 }
 
-bool Mesh::IsSlaveFace(const FaceInfo &fi)
+bool Mesh::IsSlaveFace(const FaceInfo &fi) const
 {
    return fi.NCFace >= 0 && nc_faces_info[fi.NCFace].Slave;
 }

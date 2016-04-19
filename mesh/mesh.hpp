@@ -249,7 +249,7 @@ protected:
        slave face occupies only a portion of its master face. */
    void ApplyLocalSlaveTransformation(IsoparametricTransformation &transf,
                                       const FaceInfo &fi);
-   bool IsSlaveFace(const FaceInfo &fi);
+   bool IsSlaveFace(const FaceInfo &fi) const;
 
    /// Returns the orientation of "test" relative to "base"
    static int GetTriOrientation (const int * base, const int * test);
@@ -861,6 +861,11 @@ public:
    }
 
    void MesquiteSmooth(const int mesquite_option = 0);
+
+   bool IsSlaveFace(int i) const
+   {
+      return IsSlaveFace(faces_info[i]);
+   }
 
    /// Destroys mesh.
    virtual ~Mesh();

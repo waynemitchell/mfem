@@ -16,6 +16,8 @@
 #include "fem.hpp"
 #include "../general/sort_pairs.hpp"
 
+#include <fstream>
+
 namespace mfem
 {
 
@@ -202,6 +204,11 @@ void ParBilinearForm::AssembleSharedFaces(int skip_zeros)
             mat->AddSubMatrix(vdofs1, vdofs_all, elemmat, skip_zeros);
          }
       }
+
+      /*char fname[100];
+      sprintf(fname, "shared-%d-%d.mat", pfes->GetMyRank(), i);
+      std::ofstream f(fname);
+      elemmat.Print(f, 100);*/
    }
 }
 

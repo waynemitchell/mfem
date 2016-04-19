@@ -90,6 +90,8 @@ int main(int argc, char *argv[])
       mesh->SetCurvature(2);
    }
 
+   mesh->EnsureNCMesh();
+
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. By default, or if ref_levels < 0,
    //    we choose it to be the largest number that gives a final mesh with no
@@ -99,10 +101,18 @@ int main(int argc, char *argv[])
       {
          ref_levels = (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       }
+      srand(0);
       for (int l = 0; l < ref_levels; l++)
       {
          mesh->UniformRefinement();
+         //mesh->RandomRefinement(0.5, false, 1, 1);
       }
+   }
+
+   {
+      Array<Refinement> refs;
+      refs.Append(Refinement(0, 6));
+      mesh->GeneralRefinement(refs);
    }
 
    // 4. Define a finite element space on the mesh. Here we use discontinuous

@@ -108,6 +108,8 @@ int main(int argc, char *argv[])
       mesh->SetCurvature(2);
    }
 
+   mesh->EnsureNCMesh();
+
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ser_ref_levels' of uniform refinement. By default,
    //    or if ser_ref_levels < 0, we choose it to be the largest number that
@@ -117,9 +119,11 @@ int main(int argc, char *argv[])
       {
          ser_ref_levels = (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       }
+      srand(0);
       for (int l = 0; l < ser_ref_levels; l++)
       {
          mesh->UniformRefinement();
+         //mesh->RandomRefinement(0.5, false, 1, 1);
       }
    }
 
@@ -133,6 +137,12 @@ int main(int argc, char *argv[])
       {
          pmesh->UniformRefinement();
       }
+   }
+
+   {
+      Array<Refinement> refs;
+      if (myid == 0) { refs.Append(Refinement(0, 6)); }
+      pmesh->GeneralRefinement(refs);
    }
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
