@@ -374,7 +374,7 @@ protected:
 
 
    /** A base for internal messages used by Refine(), Derefine() and Rebalance().
-    *  Allows sending values associated with a set of elements.
+    *  Allows sending values associated with elements in a set.
     *  If RefType == true, the element set is recreated on the receiving end.
     */
    template<class ValueType, bool RefTypes, int Tag>
@@ -491,7 +491,7 @@ protected:
 /** Represents a message about DOF assignment of vertex, edge and face DOFs on
  *  the boundary with another processor. This and other messages below
  *  are only exchanged between immediate neighbors. Used by
- *  ParFiniteElementSpace::GetConformingInterpolation().
+ *  ParFiniteElementSpace::GetParallelConformingInterpolation().
  */
 class NeighborDofMessage : public VarMessage<135>
 {

@@ -469,6 +469,7 @@ void ParNCMesh::GetBoundaryClosure(const Array<int> &bdr_attr_is_ess,
    bdr_edges.SetSize(j);
 }
 
+
 //// Neighbors /////////////////////////////////////////////////////////////////
 
 void ParNCMesh::UpdateLayers()
@@ -585,6 +586,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
    Array<Connection> send_elems;
 
    int bound = shared.conforming.size() + shared.slaves.size();
+
    fnbr.Reserve(bound);
    send_elems.Reserve(bound);
 
@@ -615,8 +617,10 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
          Element* e[2] = { mf.element, sf.element };
          MFEM_ASSERT(e[0] != NULL && e[1] != NULL, "");
 
-         if (e[0]->rank == MyRank) { std::swap(e[0], e[1]); }
-         if (e[0]->rank == MyRank) { continue; }
+         bool loc0 = (e[0]->rank == MyRank);
+         bool loc1 = (e[1]->rank == MyRank);
+         if (loc0 == loc1) { continue; }
+         if (loc0) { std::swap(e[0], e[1]); }
 
          fnbr.Append(e[0]);
          send_elems.Append(Connection(e[0]->rank, e[1]->index));
@@ -744,7 +748,9 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
             const Slave &sf = face_list.slaves[j];
 
             MFEM_ASSERT(sf.element && mf.element, "");
-            MFEM_ASSERT(sf.element->rank != mf.element->rank, "");
+            bool sloc = (sf.element->rank == MyRank);
+            bool mloc = (mf.element->rank == MyRank);
+            if (sloc == mloc) { continue; }
 
             Mesh::FaceInfo &fi = pmesh.faces_info[sf.index];
             fi.Elem1No = sf.element->index;
@@ -752,11 +758,12 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
             fi.Elem1Inf = 64 * sf.local;
             fi.Elem2Inf = 64 * mf.local;
 
-            if (sf.element->rank != MyRank)
+            if (!sloc)
             {
                std::swap(fi.Elem1No, fi.Elem2No);
                std::swap(fi.Elem1Inf, fi.Elem2Inf);
             }
+            MFEM_ASSERT(fi.Elem2No >= 0, "");
             fi.Elem2No = -1 - fnbr_index[fi.Elem2No - NElements];
 
             MFEM_ASSERT(fi.NCFace < 0, "");
