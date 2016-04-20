@@ -21,6 +21,8 @@
 namespace mfem
 {
 
+// Templated finite element space classes, cf. fespace.?pp and fe_coll.?pp
+
 // H1 Finite Element Space
 
 template <typename FE>

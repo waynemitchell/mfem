@@ -21,6 +21,8 @@
 namespace mfem
 {
 
+// Templated coefficient classes, cf. coefficient.?pp
+
 class TCoefficient
 {
 public:
@@ -239,8 +241,8 @@ public:
 };
 
 
-/// Auxiliary class that is used to simplify the evaluation of a coefficient
-/// and scaling it by the weights of a quadrature rule.
+/// Auxiliary class that is used to simplify the evaluation of a coefficient and
+/// scaling it by the weights of a quadrature rule.
 template <typename IR, typename coeff_t, int NE>
 struct IntRuleCoefficient
 {

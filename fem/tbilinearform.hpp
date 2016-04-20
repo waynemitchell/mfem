@@ -23,6 +23,8 @@
 namespace mfem
 {
 
+// Templated bilinear form class, cf. bilinearform.?pp
+
 // complex_t - sol dof data type
 // real_t - mesh nodes, sol basis, mesh basis data type
 template <typename meshType, typename solFESpace,
@@ -380,7 +382,7 @@ public:
       }
    }
 
-   // Assemble element matrices and store them as DenseTensor.
+   // Assemble element matrices and store them as a DenseTensor object.
    // complex_t = double
    void AssembleMatrix(DenseTensor &M) const
    {

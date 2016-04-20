@@ -17,9 +17,7 @@
 #include "tlayout.hpp"
 #include "tmatrix.hpp"
 
-#define MFEM_ROUNDUP(val,base) ((((val)+(base)-1)/(base))*(base))
-#define MFEM_ALIGN_SIZE(size,type) \
-   MFEM_ROUNDUP(size,(MFEM_SIMD_SIZE)/sizeof(type))
+// Templated tensor implementation (up to order 4)
 
 namespace mfem
 {

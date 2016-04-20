@@ -20,7 +20,10 @@
 namespace mfem
 {
 
-// Shape evaluators
+// Templated classes for transitioning between degrees of freedom and quadrature
+// points values.
+
+// Shape evaluators -- values of basis functions on the reference element
 
 template <class FE, class IR, bool TP, typename real_t>
 class ShapeEvaluator_base;
@@ -937,7 +940,7 @@ public:
 };
 
 
-// Field evaluators
+// Field evaluators -- values of a given global FE grid function
 
 template <typename FESpace_t, typename VecLayout_t, typename IR,
           typename complex_t, typename real_t>

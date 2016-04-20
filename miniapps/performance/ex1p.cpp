@@ -46,27 +46,27 @@ using namespace std;
 using namespace mfem;
 
 // Define template parameters for optimized build.
-const Geometry::Type geom     = Geometry::CUBE;
-const int            mesh_p   = 3;
-const int            sol_p    = 3;
+const Geometry::Type geom     = Geometry::CUBE; // mesh elements  (default: hex)
+const int            mesh_p   = 3;              // mesh curvature (default: 3)
+const int            sol_p    = 3;              // solution order (default: 3)
 const int            rdim     = Geometry::Constants<geom>::Dimension;
 const int            ir_order = 2*sol_p+rdim-1;
 
-// Static mesh
+// Static mesh type
 typedef H1_FiniteElement<geom,mesh_p>         mesh_fe_t;
 typedef H1_FiniteElementSpace<mesh_fe_t>      mesh_fes_t;
 typedef TMesh<mesh_fes_t>                     mesh_t;
 
-// Static solution finite element space
+// Static solution finite element space type
 typedef H1_FiniteElement<geom,sol_p>          sol_fe_t;
 typedef H1_FiniteElementSpace<sol_fe_t>       sol_fes_t;
 
-// Static quadrature, coefficient and integrator
+// Static quadrature, coefficient and integrator types
 typedef TIntegrationRule<geom,ir_order>       int_rule_t;
 typedef TConstantCoefficient<>                coeff_t;
 typedef TIntegrator<coeff_t,TDiffusionKernel> integ_t;
 
-// Static bilinear form, combining the above objects
+// Static bilinear form type, combining the above types
 typedef TBilinearForm<mesh_t,sol_fes_t,int_rule_t,integ_t> oper_t;
 
 int main(int argc, char *argv[])
@@ -255,10 +255,8 @@ int main(int argc, char *argv[])
    x = 0.0;
 
    // 12. Set up the parallel bilinear form a(.,.) on the finite element space
-   //     corresponding to the Laplacian operator -Delta, by adding the
-   //     Diffusion domain integrator.
+   //     that will hold the matrix corresponding to the Laplacian operator.
    ParBilinearForm *a = new ParBilinearForm(fespace);
-   a->AddDomainIntegrator(new DiffusionIntegrator(one));
 
    // 13. Assemble the parallel bilinear form and the corresponding linear
    //     system, applying any necessary transformations such as: parallel
@@ -272,14 +270,17 @@ int main(int argc, char *argv[])
    }
    tic_toc.Clear();
    tic_toc.Start();
+   // Pre-allocate sparsity assuming dense element matrices
    a->UsePrecomputedSparsity();
-   a->AllocateMatrix();
    if (!perf)
    {
+      // Standard assembly using a diffusion domain integrator
+      a->AddDomainIntegrator(new DiffusionIntegrator(one));
       a->Assemble();
    }
    else
    {
+      // High-performance assembly using the templated operator type
       oper_t a_oper(integ_t(coeff_t(1.0)), *fespace);
       a_oper.AssembleBilinearForm(*a);
    }

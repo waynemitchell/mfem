@@ -18,6 +18,8 @@
 namespace mfem
 {
 
+// Templated finite element classes, cf. fe.?pp
+
 // H1 finite elements
 
 template <typename real_t>

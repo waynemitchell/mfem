@@ -38,6 +38,11 @@
 // #define MFEM_TEMPLATE_FIELD_EVAL_DATA_HAS_DOFS
 #define MFEM_TEMPLATE_INTRULE_COEFF_PRECOMP
 
+// derived macros
+#define MFEM_ROUNDUP(val,base) ((((val)+(base)-1)/(base))*(base))
+#define MFEM_ALIGN_SIZE(size,type) \
+   MFEM_ROUNDUP(size,(MFEM_SIMD_SIZE)/sizeof(type))
+
 namespace mfem
 {
 namespace internal

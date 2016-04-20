@@ -19,7 +19,9 @@
 namespace mfem
 {
 
-// Integrator
+// Templated local bilinear form integrator kernels, cf. bilininteg.?pp
+
+// The Integrator class combines a kernel and a coefficient
 
 template <typename coeff_t, template<int,int,typename> class kernel_t>
 class TIntegrator

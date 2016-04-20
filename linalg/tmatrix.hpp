@@ -65,7 +65,7 @@ void sMult_AB(const A_layout_t &A_layout, const A_data_t &A_data,
    }
 }
 
-// C  {=|+=}  A.B  -- block version
+// C  {=|+=}  A.B -- block version
 template <int bA1, int bA2, int bB2, // block sizes
           bool Add,
           typename A_layout_t, typename A_data_t,
@@ -222,8 +222,7 @@ void Mult_AB(const A_layout_t &A_layout, const A_data_t &A_data,
 }
 
 
-// Small matrix operations, defined by specializations: determinant, adjugate,
-// etc.
+// Small matrix operations (determinant, adjugate,...) defined by specialization
 
 namespace internal
 {
