@@ -361,7 +361,7 @@ public:
 
 template <typename FE>
 class H1_FiniteElementSpace
-      : public TFiniteElementSpace_simple<FE,ElementDofIndexer<FE> >
+   : public TFiniteElementSpace_simple<FE,ElementDofIndexer<FE> >
 {
 public:
    typedef FE FE_type;
