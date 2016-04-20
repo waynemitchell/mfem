@@ -26,7 +26,7 @@ Tensor-based high-performance FE operator assembly and evaluation
   high-performance versions of Example 1/1p. See performance/miniapps/.
 
 - The new interface reduces local operator assembly/evaluation to batched small
-  dense tensor contraction operations. For high-performance, the sizes of these
+  dense tensor contraction operations. For high performance, the sizes of these
   contractions should be known at compile time, so the BilinearForm object needs
   to have detailed knowledge about the mesh, the finite element space, the
   quadrature rule and the integrator to be assembled. This required a new
