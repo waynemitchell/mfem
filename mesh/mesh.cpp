@@ -625,7 +625,7 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
    {
       ApplyLocalSlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
 
-      // fix orientation in 2D
+      // fix 2D orientation because the face may not be oriented like the edge
       if (face_type == Element::SEGMENT)
       {
          const int *fv = faces[FaceNo]->GetVertices();

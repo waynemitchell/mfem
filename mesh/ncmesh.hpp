@@ -155,7 +155,7 @@ public:
       int master; ///< master number (in Mesh numbering)
       DenseMatrix point_matrix; ///< position within the master
 
-      Slave(int index, Element* element = NULL, int local = -1)
+      Slave(int index, Element* element, int local)
          : MeshId(index, element, local), master(-1) {}
    };
 
@@ -166,6 +166,7 @@ public:
       std::vector<Master> masters;
       std::vector<Slave> slaves;
       // TODO: switch to Arrays when fixed for non-POD types
+      // TODO: make a list of unique slave matrices to save memory (+ time later)
 
       void Clear() { conforming.clear(); masters.clear(); slaves.clear(); }
       bool Empty() const { return !conforming.size() && !masters.size(); }
@@ -204,7 +205,7 @@ public:
        function so there is no MarkFineLevel(). */
    const CoarseFineTransformations& GetDerefinementTransforms();
 
-   /// Free all data created by the above functions.
+   /// Free all internal data created by the above three functions.
    void ClearTransforms();
 
 
@@ -518,6 +519,7 @@ protected: // implementation
 
    static int find_node(Element* elem, Node* node);
    static int find_node(Element* elem, int node_id);
+   static int find_element_edge(Element* elem, int v0, int v1);
    static int find_hex_face(int a, int b, int c);
 
    int ReorderFacePointMat(Node* v0, Node* v1, Node* v2, Node* v3,
@@ -709,7 +711,7 @@ public: // TODO: maybe make this part of mfem::Geometry?
 public:
    void DebugNeighbors(Array<char> &elem_set);
 
-   /// Print the space-filling curve formed by the leaf elements.
+   /// Print the space-filling curve formed by the sequence of leaf elements.
    void DebugLeafOrder() const;
 #endif
 

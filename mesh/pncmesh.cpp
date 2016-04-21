@@ -580,7 +580,8 @@ bool ParNCMesh::compare_ranks_indices(const Element* a, const Element* b)
 
 void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
 {
-   const NCList &shared = GetSharedFaces();
+   const NCList &shared = (Dim == 3) ? GetSharedFaces() : GetSharedEdges();
+   const NCList &full_list = (Dim == 3) ? GetFaceList() : GetEdgeList();
 
    Array<Element*> fnbr;
    Array<Connection> send_elems;
@@ -612,7 +613,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
       const Master &mf = shared.masters[i];
       for (int j = mf.slaves_begin; j < mf.slaves_end; j++)
       {
-         const Slave &sf = face_list.slaves[j];
+         const Slave &sf = full_list.slaves[j];
 
          Element* e[2] = { mf.element, sf.element };
          MFEM_ASSERT(e[0] != NULL && e[1] != NULL, "");
@@ -711,7 +712,6 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
    pmesh.send_face_nbr_elements.MakeFromList(nranks, send_elems);
 
    // go over the shared faces again and modify their Mesh::FaceInfo
-   int local[2];
    for (unsigned i = 0; i < shared.conforming.size(); i++)
    {
       const MeshId &cf = shared.conforming[i];
@@ -723,15 +723,26 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
       Mesh::FaceInfo &fi = pmesh.faces_info[cf.index];
       fi.Elem2No = -1 - fnbr_index[e[0]->index - NElements];
 
-      int o = get_face_orientation(face, e[1], e[0], local);
-      fi.Elem2Inf = 64*local[1] + o;
+      if (Dim > 2)
+      {
+         int local[2];
+         int o = get_face_orientation(face, e[1], e[0], local);
+         fi.Elem2Inf = 64*local[1] + o;
+      }
+      else
+      {
+         fi.Elem2Inf = 64*find_element_edge(e[0], face->p1, face->p3) + 1/*FIXME*/;
+      }
    }
 
    if (shared.slaves.size())
    {
+      int nfaces = NFaces, nghosts = NGhostFaces;
+      if (Dim < 3) { nfaces = NEdges, nghosts = NGhostEdges; }
+
       // enlarge Mesh::faces_info for ghost slaves
-      pmesh.faces_info.SetSize(NFaces + NGhostFaces);
-      for (int i = NFaces; i < pmesh.faces_info.Size(); i++)
+      pmesh.faces_info.SetSize(nfaces + nghosts);
+      for (int i = nfaces; i < pmesh.faces_info.Size(); i++)
       {
          Mesh::FaceInfo &fi = pmesh.faces_info[i];
          fi.Elem1No  = fi.Elem2No  = -1;
@@ -745,7 +756,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
          const Master &mf = shared.masters[i];
          for (int j = mf.slaves_begin; j < mf.slaves_end; j++)
          {
-            const Slave &sf = face_list.slaves[j];
+            const Slave &sf = full_list.slaves[j];
 
             MFEM_ASSERT(sf.element && mf.element, "");
             bool sloc = (sf.element->rank == MyRank);
@@ -763,7 +774,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
                std::swap(fi.Elem1No, fi.Elem2No);
                std::swap(fi.Elem1Inf, fi.Elem2Inf);
             }
-            MFEM_ASSERT(fi.Elem2No >= 0, "");
+            MFEM_ASSERT(fi.Elem2No >= NElements, "");
             fi.Elem2No = -1 - fnbr_index[fi.Elem2No - NElements];
 
             MFEM_ASSERT(fi.NCFace < 0, "");
