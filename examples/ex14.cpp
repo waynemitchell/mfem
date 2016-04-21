@@ -104,16 +104,16 @@ int main(int argc, char *argv[])
       srand(0);
       for (int l = 0; l < ref_levels; l++)
       {
-         mesh->UniformRefinement();
-         //mesh->RandomRefinement(0.5, false, 1, 1);
+         //mesh->UniformRefinement();
+         mesh->RandomRefinement(0.5);
       }
    }
 
-   {
+   /*{
       Array<Refinement> refs;
       refs.Append(Refinement(0, 6));
       mesh->GeneralRefinement(refs);
-   }
+   }*/
 
    // 4. Define a finite element space on the mesh. Here we use discontinuous
    //    finite elements of the specified order >= 0.

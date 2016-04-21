@@ -620,7 +620,7 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
                                  FaceElemTr.Loc2.Transf, face_info.Elem2Inf);
    }
 
-   // NC meshes: prepend slave edge/face transformation for Loc2
+   // NC meshes: prepend slave edge/face transformation to Loc2
    if (Nonconforming() && IsSlaveFace(face_info))
    {
       ApplyLocalSlaveTransformation(FaceElemTr.Loc2.Transf, face_info);

@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
       for (int l = 0; l < ser_ref_levels; l++)
       {
          mesh->UniformRefinement();
-         //mesh->RandomRefinement(0.5, false, 1, 1);
+         //mesh->RandomRefinement(0.5);
       }
    }
 
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 
    {
       Array<Refinement> refs;
-      if (myid == 0) { refs.Append(Refinement(0, 6)); }
+      if (myid == 0) { refs.Append(Refinement(0, 2)); }
       pmesh->GeneralRefinement(refs);
    }
 
