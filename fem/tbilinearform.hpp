@@ -232,7 +232,7 @@ public:
 
 #ifdef MFEM_TEMPLATE_ENABLE_SERIALIZE
    // complex_t = double
-   void ElementwiseExtractAssembleTest(const Vector &x, Vector &y) const
+   void TestElementwiseExtractAssemble(const Vector &x, Vector &y) const
    {
       y = 0.0;
 
@@ -252,7 +252,7 @@ public:
    }
 
    // real_t = double
-   void SerializeNodesTest(Vector &sNodes) const
+   void SerializeNodes(Vector &sNodes) const
    {
       typedef typename meshType::FESpace_type meshFESpace;
       meshFESpace meshFES(mesh.t_fes);
@@ -272,7 +272,7 @@ public:
 
    // partial assembly from "serialized" nodes
    // real_t = double
-   void AssembleFromSerializedNodesTest(const Vector &sNodes)
+   void AssembleFromSerializedNodes(const Vector &sNodes)
    {
       const int  BE = 1; // batch-size of elements
       typedef typename kernel_t::template

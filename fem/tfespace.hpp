@@ -23,8 +23,19 @@ namespace mfem
 
 // Templated finite element space classes, cf. fespace.?pp and fe_coll.?pp
 
-// H1 Finite Element Space
+// Index types
 
+// IndexType must define:
+// - constructor IndexType(const FE &fe, const FiniteElementSpace &fes)
+// - copy constructor
+// - void SetElement(int elem_idx)
+// - int map(int loc_dof_idx, int elem_offset) const --> glob_dof_idx, for
+//   single component; elem_offset is relative to the currently set element.
+
+// Index type based on an array listing the dofs for each element where all
+// elements are assumed to have the same number of dofs. Such an array is
+// constructed from the J array of an element-to-dof Table with optional local
+// renumbering to ensure tensor-product local dof ordering when needed.
 template <typename FE>
 class ElementDofIndexer
 {
@@ -95,12 +106,8 @@ public:
 };
 
 
-// IndexType must define:
-// - constructor IndexType(const FE &fe, const FiniteElementSpace &fes)
-// - copy constructor
-// - void SetElement(int elem_idx)
-// - int map(int loc_dof_idx, int elem_offset) const --> glob_dof_idx, for
-//   single component; elem_offset is relative to the currently set element.
+// Simple template Finite Element Space, built using an IndexType. For a
+// description of the requirements on IndexType, see above.
 template <typename FE, typename IndexType>
 class TFiniteElementSpace_simple
 {
@@ -360,6 +367,7 @@ public:
    }
 };
 
+// H1 Finite Element Space
 
 template <typename FE>
 class H1_FiniteElementSpace
@@ -394,8 +402,8 @@ public:
 };
 
 
-// L2 Finite Element Space
-
+// Simple index type for DG spaces, where the map method is given by:
+// glob_dof_idx = loc_dof_idx + elem_idx * num_dofs.
 template <typename FE>
 class DGIndexer
 {
@@ -427,6 +435,8 @@ public:
    }
 };
 
+
+// L2 Finite Element Space
 
 template <typename FE>
 class L2_FiniteElementSpace

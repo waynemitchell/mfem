@@ -20,8 +20,6 @@ namespace mfem
 
 // Templated finite element classes, cf. fe.?pp
 
-// H1 finite elements
-
 template <typename real_t>
 void CalcShapeMatrix(const FiniteElement &fe, const IntegrationRule &ir,
                      real_t *B, const Array<int> *dof_map = NULL)
@@ -75,6 +73,8 @@ void CalcShapes(const FiniteElement &fe, const IntegrationRule &ir,
    if (B) { mfem::CalcShapeMatrix(fe, ir, B, dof_map); }
    if (G) { mfem::CalcGradTensor(fe, ir, G, dof_map); }
 }
+
+// H1 finite elements
 
 template <Geometry::Type G, int P>
 class H1_FiniteElement;

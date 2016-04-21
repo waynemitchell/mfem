@@ -154,6 +154,7 @@ struct TMassKernel
 template <int SDim, int Dim, typename complex_t>
 struct TDiffusionKernel;
 
+// Diffusion kernel in 1D
 template <typename complex_t>
 struct TDiffusionKernel<1,1,complex_t>
 {
@@ -265,6 +266,7 @@ struct TDiffusionKernel<1,1,complex_t>
    }
 };
 
+// Diffusion kernel in 2D
 template <typename complex_t>
 struct TDiffusionKernel<2,2,complex_t>
 {
@@ -405,6 +407,7 @@ struct TDiffusionKernel<2,2,complex_t>
    }
 };
 
+// Diffusion kernel in 3D
 template <typename complex_t>
 struct TDiffusionKernel<3,3,complex_t>
 {

@@ -28,6 +28,7 @@ namespace mfem
 template <class FE, class IR, bool TP, typename real_t>
 class ShapeEvaluator_base;
 
+// ShapeEvaluator without tensor-product structure
 template <class FE, class IR, typename real_t>
 class ShapeEvaluator_base<FE, IR, false, real_t>
 {
@@ -206,6 +207,7 @@ public:
 template <int Dim, int DOF, int NIP, typename real_t>
 class TProductShapeEvaluator;
 
+// ShapeEvaluator with 1D tensor-product structure
 template <int DOF, int NIP, typename real_t>
 class TProductShapeEvaluator<1, DOF, NIP, real_t>
 {
@@ -329,6 +331,7 @@ public:
    }
 };
 
+// ShapeEvaluator with 2D tensor-product structure
 template <int DOF, int NIP, typename real_t>
 class TProductShapeEvaluator<2, DOF, NIP, real_t>
 {
@@ -604,6 +607,7 @@ public:
    }
 };
 
+// ShapeEvaluator with 3D tensor-product structure
 template <int DOF, int NIP, typename real_t>
 class TProductShapeEvaluator<3, DOF, NIP, real_t>
 {
@@ -891,6 +895,7 @@ public:
    }
 };
 
+// ShapeEvaluator with tensor-product structure in any dimension
 template <class FE, class IR, typename real_t>
 class ShapeEvaluator_base<FE, IR, true, real_t>
    : public TProductShapeEvaluator<FE::dim, FE::dofs_1d, IR::qpts_1d, real_t>
@@ -916,6 +921,7 @@ public:
    // default copy constructor
 };
 
+// General ShapeEvaluator for any scalar FE type (L2 or H1)
 template <class FE, class IR, typename real_t>
 class ShapeEvaluator
    : public ShapeEvaluator_base<FE,IR,FE::tensor_prod && IR::tensor_prod,real_t>
