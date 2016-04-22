@@ -4223,7 +4223,7 @@ void Mesh::SetNodalGridFunction(GridFunction *nodes, bool make_owner)
    NewNodes(*nodes, make_owner);
 }
 
-const FiniteElementSpace *Mesh::GetNodalFESpace()
+const FiniteElementSpace *Mesh::GetNodalFESpace() const
 {
    return ((Nodes) ? Nodes->FESpace() : NULL);
 }

@@ -481,6 +481,9 @@ public:
    const double *GetVertex(int i) const { return vertices[i](); }
    double *GetVertex(int i) { return vertices[i](); }
 
+   const Element* const *GetElementsArray() const
+   { return elements.GetData(); }
+
    const Element *GetElement(int i) const { return elements[i]; }
 
    Element *GetElement(int i) { return elements[i]; }
@@ -701,6 +704,7 @@ public:
 
    /// Return a pointer to the internal node GridFunction (may be NULL).
    GridFunction *GetNodes() { return Nodes; }
+   const GridFunction *GetNodes() const { return Nodes; }
    /// Replace the internal node GridFunction with the given GridFunction.
    void NewNodes(GridFunction &nodes, bool make_owner = false);
    /** Swap the internal node GridFunction pointer and ownership flag members
@@ -719,7 +723,7 @@ public:
    void SetNodalGridFunction(GridFunction *nodes, bool make_owner = false);
    /** Return the FiniteElementSpace on which the current mesh nodes are
        defined or NULL if the mesh does not have nodes. */
-   const FiniteElementSpace *GetNodalFESpace();
+   const FiniteElementSpace *GetNodalFESpace() const;
 
    /** Set the curvature of the mesh nodes using the given polynomial degree,
        'order', and optionally: discontinuous or continuous FE space, 'discont',
