@@ -557,7 +557,7 @@ void FiniteElementSpace::GetConformingInterpolation()
             GetEdgeFaceDofs(type, slave.index, slave_dofs);
             if (!slave_dofs.Size()) { continue; }
 
-            T.GetPointMat() = slave.point_matrix;
+            slave.OrientedPointMatrix(T.GetPointMat());
             fe->GetLocalInterpolation(T, I);
 
             // make each slave DOF dependent on all master DOFs

@@ -1159,7 +1159,12 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
-   int type_dofs[3] = { nvdofs, nedofs, nfdofs };
+   int type_dofs[3] =
+   {
+      fec->DofForGeometry(Geometry::POINT),
+      fec->DofForGeometry(Geometry::SEGMENT),
+      fec->DofForGeometry(Geometry::SQUARE),
+   };
 
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
@@ -1220,7 +1225,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    // loop through *all* master edges/faces, constrain their slaves
    for (int type = 1; type < 3; type++)
    {
-      if (!type_dofs[type]) { continue; }
+      //if (!type_dofs[type]) { continue; }
 
       const NCMesh::NCList &list = (type > 1) ? pncmesh->GetFaceList()
                                    /*      */ : pncmesh->GetEdgeList();
@@ -1254,7 +1259,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
             recv_dofs[master_rank].GetDofs(type, mf, master_dofs, master_ndofs);
          }
 
-         if (!master_dofs.Size()) { continue; } // TODO: needed?
+         if (!master_dofs.Size()) { continue; }
 
          // constrain slaves that exist in our mesh
          for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
@@ -1263,13 +1268,13 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
             if (pncmesh->IsGhost(type, sf.index)) { continue; }
 
             GetAnyDofs(type, sf.index, slave_dofs);
-            if (!slave_dofs.Size()) { continue; } // TODO: needed?
+            if (!slave_dofs.Size()) { continue; }
 
-            T.GetPointMat() = sf.point_matrix;
+            sf.OrientedPointMatrix(T.GetPointMat());
             fe->GetLocalInterpolation(T, I);
 
             // make each slave DOF dependent on all master DOFs
-            MaskSlaveDofs(slave_dofs, sf.point_matrix, fec);
+            MaskSlaveDofs(slave_dofs, T.GetPointMat(), fec);
             AddSlaveDependencies(deps, master_rank, master_dofs, master_ndofs,
                                  slave_dofs, I);
          }

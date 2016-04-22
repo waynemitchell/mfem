@@ -218,14 +218,15 @@ int main(int argc, char *argv[])
    delete mesh;
    for (int lev = 0; lev < par_ref_levels; lev++)
    {
-      pmesh->UniformRefinement();
+      //pmesh->UniformRefinement();
+      pmesh->RandomRefinement(0.5);
    }
 
-   {
+   /*{
       Array<int> refs;
       if (myid == 0) { refs.Append(0); }
       pmesh->GeneralRefinement(refs);
-   }
+   }*/
 
    // 7. Define the parallel discontinuous DG finite element space on the
    //    parallel refined mesh of the given polynomial order.

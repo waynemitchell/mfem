@@ -122,8 +122,8 @@ int main(int argc, char *argv[])
       srand(0);
       for (int l = 0; l < ser_ref_levels; l++)
       {
-         mesh->UniformRefinement();
-         //mesh->RandomRefinement(0.5);
+         //mesh->UniformRefinement();
+         mesh->RandomRefinement(0.7);
       }
    }
 
@@ -136,14 +136,21 @@ int main(int argc, char *argv[])
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
+         //pmesh->RandomRefinement(0.7);
       }
    }
 
-   {
-      Array<Refinement> refs;
-      if (myid == 0) { refs.Append(Refinement(0, 2)); }
-      pmesh->GeneralRefinement(refs);
-   }
+//   {
+//      Array<Refinement> refs;
+//      if (myid == num_procs-1) { refs.Append(Refinement(pmesh->GetNE()-1, 7)); }
+//      pmesh->GeneralRefinement(refs);
+//   }
+//   {
+//      Array<Refinement> refs;
+//      if (myid == 0) { refs.Append(Refinement(0, 7)); }
+//      pmesh->GeneralRefinement(refs);
+//   }
+
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use discontinuous finite elements of the specified order >= 0.

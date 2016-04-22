@@ -1431,6 +1431,13 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
          is_ghost ? FaceElemTr.Loc1.Transf : FaceElemTr.Loc2.Transf;
 
       ApplyLocalSlaveTransformation(transf, face_info);
+
+      if (Dim == 2) // flip the point matrix to match opposite face
+      {
+         DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
+         std::swap(pm(0,0), pm(0,1));
+         std::swap(pm(1,0), pm(1,1));
+      }
    }
 
    // setup the face transformation
@@ -1510,7 +1517,7 @@ int ParMesh::GetSharedFace(int sface) const
       int csize = (int) shared.conforming.size();
       return sface < csize
              ? shared.conforming[sface].index
-             : shared.slaves[sface - csize].index;
+             : shared.slaves[sface - csize].index; // FIXME: edge index or face index?
    }
 }
 
@@ -2217,7 +2224,7 @@ void ParMesh::Rebalance()
    Swap(*pmesh2, false);
    delete pmesh2;
 
-   // TODO: call GenerateNCFaceInfo
+   GenerateNCFaceInfo();
 
    last_operation = Mesh::REBALANCE;
    sequence++;

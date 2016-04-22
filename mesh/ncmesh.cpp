@@ -1951,7 +1951,8 @@ void NCMesh::BuildFaceList()
    }
 }
 
-void NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
+void NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int flags,
+                          int level)
 {
    Node* mid = nodes.Peek(v0, v1);
    if (!mid) { return; }
@@ -1960,23 +1961,22 @@ void NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
    {
       // we have a slave edge, add it to the list
       edge_list.slaves.push_back(Slave(mid->edge->index, NULL, -1));
+      Slave &sl = edge_list.slaves.back();
 
-      DenseMatrix& mat = edge_list.slaves.back().point_matrix;
-      mat.SetSize(1, 2);
-      mat(0,0) = t0, mat(0,1) = t1;
+      sl.point_matrix.SetSize(1, 2);
+      sl.point_matrix(0,0) = t0;
+      sl.point_matrix(0,1) = t1;
 
       // handle slave edge orientation
-      if (v0->vertex->index > v1->vertex->index)
-      {
-         std::swap(mat(0,0), mat(0,1));
-      }
+      if (v0->vertex->index > v1->vertex->index) { flags |= 2; }
+      sl.edge_flags = flags;
 
       // in 2D, get the element/local info from the degenerate face
       if (Dim == 2)
       {
          Face* face = faces.Peek(v0, v0, v1, v1);
          MFEM_ASSERT(face != NULL, "");
-         Slave &sl = edge_list.slaves.back();
+         //MFEM_ASSERT(face->index == mid->edge->index, "");
          sl.element = face->GetSingleElement();
          sl.local = find_element_edge(sl.element, v0->id, v1->id);
       }
@@ -1984,8 +1984,8 @@ void NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level)
 
    // recurse deeper
    double tmid = (t0 + t1) / 2;
-   TraverseEdge(v0, mid, t0, tmid, level+1);
-   TraverseEdge(mid, v1, tmid, t1, level+1);
+   TraverseEdge(v0, mid, t0, tmid, flags, level+1);
+   TraverseEdge(mid, v1, tmid, t1, flags, level+1);
 }
 
 void NCMesh::BuildEdgeList()
@@ -2033,14 +2033,11 @@ void NCMesh::BuildEdgeList()
 
          // prepare edge interval for slave traversal, handle orientation
          double t0 = 0.0, t1 = 1.0;
-         if (node[0]->vertex->index > node[1]->vertex->index)
-         {
-            std::swap(t0, t1);
-         }
+         int flags = (node[0]->vertex->index > node[1]->vertex->index) ? 1 : 0;
 
          // try traversing the edge to find slave edges
          int sb = edge_list.slaves.size();
-         TraverseEdge(node[0], node[1], t0, t1, 0);
+         TraverseEdge(node[0], node[1], t0, t1, flags, 0);
 
          int se = edge_list.slaves.size();
          if (sb < se)
@@ -2059,6 +2056,27 @@ void NCMesh::BuildEdgeList()
             // no slaves, this is a conforming edge
             edge_list.conforming.push_back(MeshId(index, elem, j));
          }
+      }
+   }
+}
+
+void NCMesh::Slave::OrientedPointMatrix(DenseMatrix &oriented_matrix) const
+{
+   oriented_matrix = point_matrix;
+
+   if (edge_flags)
+   {
+      MFEM_ASSERT(oriented_matrix.Height() == 1 &&
+                  oriented_matrix.Width() == 2, "not an edge point matrix");
+
+      if (edge_flags & 1) // master inverted
+      {
+         oriented_matrix(0,0) = 1.0 - oriented_matrix(0,0);
+         oriented_matrix(0,1) = 1.0 - oriented_matrix(0,1);
+      }
+      if (edge_flags & 2) // slave inverted
+      {
+         std::swap(oriented_matrix(0,0), oriented_matrix(0,1));
       }
    }
 }

@@ -628,8 +628,8 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
       // fix 2D orientation because the face may not be oriented like the edge
       if (face_type == Element::SEGMENT)
       {
-         const int *fv = faces[FaceNo]->GetVertices();
-         if (fv[0] > fv[1])
+         //const int *fv = faces[FaceNo]->GetVertices();
+         //if (fv[0] > fv[1])
          {
             DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
             mfem::Swap<double>(pm(0,0), pm(0,1));
@@ -4759,14 +4759,14 @@ void Mesh::GenerateNCFaceInfo()
       slave_fi.Elem2No = master_fi.Elem1No;
       slave_fi.Elem2Inf = 64 * master_nc.MasterFace; // get lf no. stored above
       // NOTE: orientation part of Elem2Inf is encoded in the point matrix
-      if (Dim == 2)
+/*      if (Dim == 2)
       {
          const int *fv = faces[slave.master]->GetVertices();
          if (fv[0] > fv[1])
          {
             slave_fi.Elem2Inf++;
          }
-      }
+      }*/
    }
 }
 

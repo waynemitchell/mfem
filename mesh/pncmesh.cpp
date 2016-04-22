@@ -731,7 +731,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
       }
       else
       {
-         fi.Elem2Inf = 64*find_element_edge(e[0], face->p1, face->p3) + 1/*FIXME*/;
+         fi.Elem2Inf = 64*find_element_edge(e[0], face->p1, face->p3) + 1;
       }
    }
 
@@ -781,6 +781,8 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
             fi.NCFace = pmesh.nc_faces_info.Size();
             pmesh.nc_faces_info.Append(
                Mesh::NCFaceInfo(true, sf.master, &sf.point_matrix));
+
+            //if (Dim == 2) { fi.Elem2Inf++; }
          }
       }
    }

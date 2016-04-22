@@ -153,10 +153,14 @@ public:
    struct Slave : public MeshId
    {
       int master; ///< master number (in Mesh numbering)
-      DenseMatrix point_matrix; ///< position within the master
+      int edge_flags; ///< edge orientation flags
+      DenseMatrix point_matrix; ///< position within the master edge/face
 
       Slave(int index, Element* element, int local)
-         : MeshId(index, element, local), master(-1) {}
+         : MeshId(index, element, local), master(-1), edge_flags(0) {}
+
+      /// Return the point matrix oriented according to the master and slave edges
+      void OrientedPointMatrix(DenseMatrix &oriented_matrix) const;
    };
 
    /// Lists all edges/faces in the nonconforming mesh.
@@ -529,7 +533,8 @@ protected: // implementation
    void TraverseFace(Node* v0, Node* v1, Node* v2, Node* v3,
                      const PointMatrix& pm, int level);
 
-   void TraverseEdge(Node* v0, Node* v1, double t0, double t1, int level);
+   void TraverseEdge(Node* v0, Node* v1, double t0, double t1, int flags,
+                     int level);
 
    virtual void BuildFaceList();
    virtual void BuildEdgeList();
