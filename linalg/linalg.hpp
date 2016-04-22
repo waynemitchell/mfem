@@ -30,6 +30,10 @@
 #include "hypre.hpp"
 #endif
 
+#ifdef MFEM_USE_SUPERLU
+#include "superlu.hpp"
+#endif
+
 #include "solvers.hpp"
 
 #endif

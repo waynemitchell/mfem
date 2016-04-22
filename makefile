@@ -116,7 +116,8 @@ HYPRE_OPT ?= -I$(HYPRE_DIR)/include
 HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
 # METIS library configuration
-METIS_DIR ?= @MFEM_DIR@/../metis-4.0
+#METIS_DIR ?= @MFEM_DIR@/../metis-4.0
+METIS_DIR ?= @MFEM_DIR@/../parmetis-4.0.3/metis
 METIS_OPT ?=
 METIS_LIB ?= -L$(METIS_DIR) -lmetis
 
@@ -176,6 +177,16 @@ SUITESPARSE_LIB ?= -L$(SUITESPARSE_DIR)/lib -lklu -lbft -lumfpack -lcholmod -lco
 ifeq ($(MFEM_USE_SUITESPARSE),YES)
    INCFLAGS += $(SUITESPARSE_OPT)
    ALL_LIBS += $(SUITESPARSE_LIB)
+endif
+
+MFEM_USE_SUPERLU ?= NO
+# SuperLU library configuration
+SUPERLU_DIR ?= @MFEM_DIR@/../SuperLU_DIST_5.0.0
+SUPERLU_OPT ?= -I$(SUPERLU_DIR)/SRC
+SUPERLU_LIB ?= -L$(SUPERLU_DIR)/build/SRC -lsuperlu_dist $(METIS_LIB)
+ifeq ($(MFEM_USE_SUPERLU),YES)
+   INCFLAGS += $(SUPERLU_OPT)
+   ALL_LIBS += $(SUPERLU_LIB)
 endif
 
 MFEM_USE_MEMALLOC ?= YES
