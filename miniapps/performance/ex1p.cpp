@@ -287,7 +287,7 @@ int main(int argc, char *argv[])
    tic_toc.Stop();
    if (myid == 0)
    {
-      cout << " done, " << tic_toc.RealTime() << " sec." << endl;
+      cout << " done, " << tic_toc.RealTime() << "s." << endl;
    }
 
    HypreParMatrix A;

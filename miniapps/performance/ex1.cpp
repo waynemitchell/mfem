@@ -232,7 +232,7 @@ int main(int argc, char *argv[])
       a_oper.AssembleBilinearForm(*a);
    }
    tic_toc.Stop();
-   cout << " done, " << tic_toc.RealTime() << " sec." << endl;
+   cout << " done, " << tic_toc.RealTime() << "s." << endl;
 
    SparseMatrix A;
    Vector B, X;
