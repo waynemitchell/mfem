@@ -781,8 +781,6 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
             fi.NCFace = pmesh.nc_faces_info.Size();
             pmesh.nc_faces_info.Append(
                Mesh::NCFaceInfo(true, sf.master, &sf.point_matrix));
-
-            //if (Dim == 2) { fi.Elem2Inf++; }
          }
       }
    }

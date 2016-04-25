@@ -1968,8 +1968,8 @@ void NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int flags,
       sl.point_matrix(0,1) = t1;
 
       // handle slave edge orientation
-      if (v0->vertex->index > v1->vertex->index) { flags |= 2; }
       sl.edge_flags = flags;
+      if (v0->vertex->index > v1->vertex->index) { sl.edge_flags |= 2; }
 
       // in 2D, get the element/local info from the degenerate face
       if (Dim == 2)

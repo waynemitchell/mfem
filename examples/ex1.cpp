@@ -88,11 +88,13 @@ int main(int argc, char *argv[])
    //    largest number that gives a final mesh with no more than 50,000
    //    elements.
    {
-      int ref_levels =
-         (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      srand(0);
+      int ref_levels = 3;
+         //(int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
-         mesh->UniformRefinement();
+         //mesh->UniformRefinement();
+         mesh->RandomRefinement(0.4);
       }
    }
 

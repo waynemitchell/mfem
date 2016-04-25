@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
    //    more than 10,000 elements.
    {
       srand(0);
-      int ref_levels = (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = 4;//(int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          //mesh->UniformRefinement();
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 2;
+      int par_ref_levels = 0;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
