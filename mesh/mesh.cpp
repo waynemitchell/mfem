@@ -625,16 +625,12 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
    {
       ApplyLocalSlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
 
-      // fix 2D orientation because the face may not be oriented like the edge
       if (face_type == Element::SEGMENT)
       {
-         //const int *fv = faces[FaceNo]->GetVertices();
-         //if (fv[0] > fv[1])
-         {
-            DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
-            mfem::Swap<double>(pm(0,0), pm(0,1));
-            mfem::Swap<double>(pm(1,0), pm(1,1));
-         }
+         // flip Loc2 to match Loc1 and Face
+         DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
+         std::swap(pm(0,0), pm(0,1));
+         std::swap(pm(1,0), pm(1,1));
       }
    }
 

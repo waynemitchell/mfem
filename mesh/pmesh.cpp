@@ -1386,6 +1386,20 @@ Table *ParMesh::GetFaceToAllElementTable() const
    return face_elem;
 }
 
+static void reverse_columns(DenseMatrix &mat)
+{
+   // reorder matrix columns
+   int w1 = mat.Width() - 1;
+   int w2 = mat.Width() / 2;
+   for (int i = 0; i < mat.Height(); i++)
+   {
+      for (int j = 0; j < w2; j++)
+      {
+         std::swap(mat(i, j), mat(i, w1 - j));
+      }
+   }
+}
+
 FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 {
    int FaceNo = GetSharedFace(sf);
@@ -1432,8 +1446,9 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 
       ApplyLocalSlaveTransformation(transf, face_info);
 
-      if (Dim == 2) // flip the point matrix to match opposite face
+      if (face_type == Element::SEGMENT)
       {
+         // flip Loc2 to match Loc1 and Face
          DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
          std::swap(pm(0,0), pm(0,1));
          std::swap(pm(1,0), pm(1,1));
@@ -1456,8 +1471,18 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
       FaceElemTr.FaceGeom = GetFaceGeometryType(nc_info->MasterFace);
       FaceElemTr.Face = GetFaceTransformation(nc_info->MasterFace);
 
-      ApplyFaceSlaveTransformation(face_type, *nc_info->PointMatrix,
-         (IsoparametricTransformation*) FaceElemTr.Face);
+      IsoparametricTransformation* face_isotr =
+         (IsoparametricTransformation*) FaceElemTr.Face;
+
+      ApplyFaceSlaveTransformation(face_type, *nc_info->PointMatrix, face_isotr);
+
+      if (face_type == Element::QUADRILATERAL)
+      {
+         // reverse all to be opposite to "ghost == false" (other processor)
+         reverse_columns(face_isotr->GetPointMat());
+         reverse_columns(FaceElemTr.Loc1.Transf.GetPointMat());
+         reverse_columns(FaceElemTr.Loc2.Transf.GetPointMat());
+      }
    }
 
    return &FaceElemTr;
