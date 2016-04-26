@@ -51,7 +51,7 @@ protected:
    /** Type of ordering of dofs.
        Ordering::byNODES - first nodes, then vector dimension,
        Ordering::byVDIM  - first vector dimension, then nodes  */
-   int ordering;
+   Ordering::Type ordering;
 
    /// Number of degrees of freedom. Number of unknowns are ndofs*vdim.
    int ndofs;
@@ -59,7 +59,7 @@ protected:
    int nvdofs, nedofs, nfdofs, nbdofs;
    int *fdofs, *bdofs;
 
-   Table *elem_dof;
+   mutable Table *elem_dof;
    Table *bdrElem_dof;
 
    Array<int> dof_elem_array, dof_ldof_array;
@@ -84,7 +84,7 @@ protected:
    void Construct();
    void Destroy();
 
-   void BuildElementToDofTable();
+   void BuildElementToDofTable() const;
 
    /** This is a helper function to get edge (type == 0) or face (type == 1)
        DOFs. The function is aware of ghost edges/faces in parallel, for which
@@ -148,7 +148,7 @@ public:
    int GetConformingVSize() { return vdim * GetNConformingDofs(); }
 
    /// Return the ordering method.
-   inline int GetOrdering() const { return ordering; }
+   inline Ordering::Type GetOrdering() const { return ordering; }
 
    const FiniteElementCollection *FEColl() const { return fec; }
 

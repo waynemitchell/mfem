@@ -202,7 +202,7 @@ void FiniteElementSpace::GetEdgeInteriorVDofs(int i, Array<int> &vdofs) const
    DofsToVDofs(vdofs);
 }
 
-void FiniteElementSpace::BuildElementToDofTable()
+void FiniteElementSpace::BuildElementToDofTable() const
 {
    if (elem_dof) { return; }
 
@@ -904,7 +904,7 @@ FiniteElementSpace::FiniteElementSpace(Mesh *mesh,
    this->mesh = mesh;
    this->fec = fec;
    this->vdim = vdim;
-   this->ordering = ordering;
+   this->ordering = (Ordering::Type) ordering;
 
    elem_dof = NULL;
    sequence = mesh->GetSequence();
@@ -1478,7 +1478,7 @@ void FiniteElementSpace::Update(bool want_transform)
 
    if (want_transform)
    {
-      // calculate appropriate GridFunction trasformation
+      // calculate appropriate GridFunction transformation
       switch (mesh->GetLastOperation())
       {
          case Mesh::REFINE:

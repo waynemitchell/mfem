@@ -222,6 +222,12 @@
                     
                         
                             <li>
+                                 <a href="http://mfem.org/performance/">Performance</a>
+                            </li>
+                        
+                    
+                        
+                            <li>
                                  <a href="http://mfem.org/publications/">Publications</a>
                             </li>
                         
@@ -316,6 +322,7 @@ or post <a href="https://github.com/mfem/mfem/issues/new?labels=question">questi
    <label><input type="radio" id="darcy" onchange="update(this.id);"> Darcy</label><br>
    <label><input type="radio" id="advection" onchange="update(this.id);"> Advection</label><br>
    <label><input type="radio" id="meshing" onchange="update(this.id);"> Meshing</label><br>
+   <label><input type="radio" id="hpc" onchange="update(this.id);"> High-performance</label><br>
 </div>
 <div class="col-sm-6 col-md-3 small" markdown="1">
    <h5><strong>Finite Elements</strong></h5>
@@ -377,8 +384,10 @@ corresponding to the left-hand side and right-hand side of the
 discrete linear system. We also cover the explicit elimination
 of essential boundary conditions, static condensation, and the optional
 connection to the <a href="http://glvis.org">GLVis</a> tool for visualization.</p>
-<p><em>The example has a serial (<a href="https://github.com/mfem/mfem/blob/master/examples/ex1.cpp">ex1.cpp</a>)
-and a parallel (<a href="https://github.com/mfem/mfem/blob/master/examples/ex1p.cpp">ex1p.cpp</a>) version.</em>
+<p><em>The example has a serial (<a href="https://github.com/mfem/mfem/blob/master/examples/ex1.cpp">ex1.cpp</a>),
+a parallel (<a href="https://github.com/mfem/mfem/blob/master/examples/ex1p.cpp">ex1p.cpp</a>),
+and HPC versions: <a href="https://github.com/mfem/mfem/blob/master/miniapps/performance/ex1.cpp">performance/ex1.cpp</a>,
+<a href="https://github.com/mfem/mfem/blob/master/miniapps/performance/ex1p.cpp">performance/ex1p.cpp</a>.</em>
 </p><div style="clear:both;"></div>
 <br><p></p>
 </div>
@@ -846,7 +855,7 @@ function exampleVisible(num)
 
 function update(id)
 {
-   var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy", "advection", "meshing"];
+   var group1 = ["all1", "laplace", "elasticity", "maxwell", "graddiv", "darcy", "advection", "meshing", "hpc"];
    var group2 = ["all2", "l2", "h1", "hcurl", "hdiv", "h12"];
    var group3 = ["all3", "galerkin", "mixed", "dg", "dpg", "hybr", "staticcond", "nurbs", "amr" ];
    var group4 = ["all4", "jacobi", "gs", "pcg", "minres", "gmres", "amg", "ams", "ads", "umfpack", "newton", "rk", "sdirk", "lobpcg", "ame"];
@@ -858,7 +867,7 @@ function update(id)
 
    // Example codes
    var numExamples = 15; // update when adding examples!
-   showElement("ex1",  laplace && h1 && (galerkin || nurbs || staticcond) && (gs || pcg || umfpack || amg));
+   showElement("ex1",  (laplace  || hpc) && h1 && (galerkin || nurbs || staticcond) && (gs || pcg || umfpack || amg));
    showElement("ex2",  elasticity && h1 && (galerkin || nurbs || staticcond) && (gs || pcg || umfpack || amg));
    showElement("ex3",  maxwell && hcurl && (galerkin || staticcond) && (gs || pcg || umfpack || ams));
    showElement("ex4",  graddiv && (hdiv || h12) && (galerkin || hybr || staticcond) && (gs || pcg || umfpack || amg || ads || ams));

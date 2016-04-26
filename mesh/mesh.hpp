@@ -147,6 +147,17 @@ protected:
    Element *ReadElement(std::istream &);
    static void PrintElement(const Element *, std::ostream &);
 
+   // Readers for different mesh formats, used in the Load() method
+   void ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved);
+   void ReadLineMesh(std::istream &input);
+   void ReadNetgen2DMesh(std::istream &input, int &curved);
+   void ReadNetgen3DMesh(std::istream &input);
+   void ReadTrueGridMesh(std::istream &input);
+   void ReadVTKMesh(std::istream &input, int &curved, int &read_gf);
+   void ReadNURBSMesh(std::istream &input, int &curved, int &read_gf);
+   void ReadInlineMesh(std::istream &input, int generate_edges = 0);
+   void ReadGmshMesh(std::istream &input);
+
    void SetMeshGen(); // set 'meshgen'
 
    /// Return the length of the segment from node i to node j.
@@ -474,6 +485,9 @@ public:
    const double *GetVertex(int i) const { return vertices[i](); }
    double *GetVertex(int i) { return vertices[i](); }
 
+   const Element* const *GetElementsArray() const
+   { return elements.GetData(); }
+
    const Element *GetElement(int i) const { return elements[i]; }
 
    Element *GetElement(int i) { return elements[i]; }
@@ -694,6 +708,7 @@ public:
 
    /// Return a pointer to the internal node GridFunction (may be NULL).
    GridFunction *GetNodes() { return Nodes; }
+   const GridFunction *GetNodes() const { return Nodes; }
    /// Replace the internal node GridFunction with the given GridFunction.
    void NewNodes(GridFunction &nodes, bool make_owner = false);
    /** Swap the internal node GridFunction pointer and ownership flag members
@@ -712,7 +727,7 @@ public:
    void SetNodalGridFunction(GridFunction *nodes, bool make_owner = false);
    /** Return the FiniteElementSpace on which the current mesh nodes are
        defined or NULL if the mesh does not have nodes. */
-   const FiniteElementSpace *GetNodalFESpace();
+   const FiniteElementSpace *GetNodalFESpace() const;
 
    /** Set the curvature of the mesh nodes using the given polynomial degree,
        'order', and optionally: discontinuous or continuous FE space, 'discont',
