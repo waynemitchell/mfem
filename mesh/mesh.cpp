@@ -314,7 +314,7 @@ void Mesh::GetFaceTransformation(int FaceNo, IsoparametricTransformation *FTr)
          }
          FTr->SetFE(face_el);
       }
-      else // L2 Nodes space (e.g., periodic mesh), use the volume of Elem1
+      else // L2 Nodes (e.g., periodic mesh), go through the volume of Elem1
       {
          FaceInfo &face_info = faces_info[FaceNo];
 
@@ -324,6 +324,7 @@ void Mesh::GetFaceTransformation(int FaceNo, IsoparametricTransformation *FTr)
          GetLocalFaceTransformation(face_type,
                                     GetElementType(face_info.Elem1No),
                                     FaceElemTr.Loc1.Transf, face_info.Elem1Inf);
+         // NOTE: FaceElemTr.Loc1 is destroyed here since we use it as temporary
 
          face_el = Nodes->FESpace()->GetTraceElement(face_info.Elem1No,
                                                      face_geom);
@@ -6407,11 +6408,8 @@ void Mesh::LocalRefinement(const Array<int> &marked_el, int type)
 void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
                                    int nc_limit)
 {
-   if (NURBSext)
-   {
-      MFEM_ABORT("Mesh::NonconformingRefinement: NURBS meshes are not supported."
-                 " Project the NURBS to Nodes first.");
-   }
+   MFEM_VERIFY(!NURBSext, "Nonconforming refinement of NURBS meshes is "
+              "not supported. Project the NURBS to Nodes first.");
 
    if (!ncmesh)
    {
@@ -6458,7 +6456,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
 void Mesh::DerefineMesh(const Array<int> &derefinements)
 {
    MFEM_VERIFY(ncmesh, "only supported for non-conforming meshes.");
-   MFEM_VERIFY(!NURBSext, "NURBS meshes are not supported. "
+   MFEM_VERIFY(!NURBSext, "Derefinement of NURBS meshes is not supported. "
                "Project the NURBS to Nodes first.");
 
    ncmesh->Derefine(derefinements);
@@ -6759,6 +6757,9 @@ void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
 
 void Mesh::EnsureNCMesh(bool triangles_nonconforming)
 {
+   MFEM_VERIFY(!NURBSext, "Cannot convert a NURBS mesh to an NC mesh. "
+              "Project the NURBS to Nodes first.");
+
    if (!ncmesh)
    {
       if ((meshgen & 2) /* quads/hexes */ ||

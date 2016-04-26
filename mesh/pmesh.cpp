@@ -1436,25 +1436,6 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    GetLocalFaceTransformation(face_type, elem_type,
                               FaceElemTr.Loc2.Transf, face_info.Elem2Inf);
 
-   // adjust Loc1 or Loc2 of the master face if this is a slave face
-   if (is_slave)
-   {
-      // is a ghost slave? -> master not a ghost -> choose Elem1 local transf
-      // not a ghost slave? -> master is a ghost -> choose Elem2 local transf
-      IsoparametricTransformation &transf =
-         is_ghost ? FaceElemTr.Loc1.Transf : FaceElemTr.Loc2.Transf;
-
-      ApplyLocalSlaveTransformation(transf, face_info);
-
-      if (face_type == Element::SEGMENT)
-      {
-         // flip Loc2 to match Loc1 and Face
-         DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
-         std::swap(pm(0,0), pm(0,1));
-         std::swap(pm(1,0), pm(1,1));
-      }
-   }
-
    // setup the face transformation
    if (!is_ghost)
    {
@@ -1471,18 +1452,38 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
       FaceElemTr.FaceGeom = GetFaceGeometryType(nc_info->MasterFace);
       FaceElemTr.Face = GetFaceTransformation(nc_info->MasterFace);
 
-      IsoparametricTransformation* face_isotr =
-         (IsoparametricTransformation*) FaceElemTr.Face;
+      ApplyFaceSlaveTransformation(face_type, *nc_info->PointMatrix,
+         (IsoparametricTransformation*) FaceElemTr.Face);
+   }
 
-      ApplyFaceSlaveTransformation(face_type, *nc_info->PointMatrix, face_isotr);
+   // adjust Loc1 or Loc2 of the master face if this is a slave face
+   if (is_slave)
+   {
+      // is a ghost slave? -> master not a ghost -> choose Elem1 local transf
+      // not a ghost slave? -> master is a ghost -> choose Elem2 local transf
+      IsoparametricTransformation &loctr =
+         is_ghost ? FaceElemTr.Loc1.Transf : FaceElemTr.Loc2.Transf;
 
-      if (face_type == Element::QUADRILATERAL)
+      ApplyLocalSlaveTransformation(loctr, face_info);
+
+      // fix slave orientation in 2D
+      if (face_type == Element::SEGMENT)
       {
-         // reverse all to be opposite to "ghost == false" (other processor)
-         reverse_columns(face_isotr->GetPointMat());
-         reverse_columns(FaceElemTr.Loc1.Transf.GetPointMat());
-         reverse_columns(FaceElemTr.Loc2.Transf.GetPointMat());
+         // flip Loc2 to match Loc1 and Face
+         DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
+         std::swap(pm(0,0), pm(0,1));
+         std::swap(pm(1,0), pm(1,1));
       }
+   }
+
+   // fix ghost slave orientation in 3D
+   if (is_slave && is_ghost && Dim == 3)
+   {
+      // reverse all, to be opposite to "ghost == false" (other processor)
+      reverse_columns(((IsoparametricTransformation*)
+                      FaceElemTr.Face)->GetPointMat());
+      reverse_columns(FaceElemTr.Loc1.Transf.GetPointMat());
+      reverse_columns(FaceElemTr.Loc2.Transf.GetPointMat());
    }
 
    return &FaceElemTr;
