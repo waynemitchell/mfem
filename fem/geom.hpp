@@ -36,15 +36,17 @@ public:
    static const char *Name[NumGeom];
    static const double Volume[NumGeom];
 
+   // Structure that holds constants describing the Geometries.
+   // Currently it contains just the space dimension.
+   template <Type Geom> struct Constants;
+
 private:
    IntegrationRule *GeomVert[NumGeom];
    IntegrationPoint GeomCenter[NumGeom];
    DenseMatrix *PerfGeomToGeomJac[NumGeom];
 
 public:
-
    Geometry();
-
    ~Geometry();
 
    const IntegrationRule *GetVertices(int GeomType);
@@ -70,6 +72,19 @@ public:
 
    int NumBdr (int GeomType) { return NumBdrArray[GeomType]; }
 };
+
+template <> struct Geometry::Constants<Geometry::POINT>
+{ static const int Dimension = 0; };
+template <> struct Geometry::Constants<Geometry::SEGMENT>
+{ static const int Dimension = 1; };
+template <> struct Geometry::Constants<Geometry::TRIANGLE>
+{ static const int Dimension = 2; };
+template <> struct Geometry::Constants<Geometry::SQUARE>
+{ static const int Dimension = 2; };
+template <> struct Geometry::Constants<Geometry::TETRAHEDRON>
+{ static const int Dimension = 3; };
+template <> struct Geometry::Constants<Geometry::CUBE>
+{ static const int Dimension = 3; };
 
 extern Geometry Geometries;
 

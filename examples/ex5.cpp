@@ -231,8 +231,8 @@ int main(int argc, char *argv[])
 
    // 11. Create the grid functions u and p. Compute the L2 error norms.
    GridFunction u, p;
-   u.Update(R_space, x.GetBlock(0), 0);
-   p.Update(W_space, x.GetBlock(1), 0);
+   u.MakeRef(R_space, x.GetBlock(0), 0);
+   p.MakeRef(W_space, x.GetBlock(1), 0);
 
    int order_quad = max(2, 2*order+1);
    const IntegrationRule *irs[Geometry::NumGeom];

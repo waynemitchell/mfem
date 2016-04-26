@@ -316,21 +316,12 @@ int main_driver(int argc, char *argv[])
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
                     MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
 
-      // Make a list of elements whose error is larger than a fraction
-      // of the maximum element error. These elements will be refined.
-      Array<int> ref_list;
+      // Refine the elements whose error is larger than a fraction of the
+      // maximum element error.
       const double frac = 0.5;
       double threshold = frac * global_max_err;
-      for (int i = 0; i < errors.Size(); i++)
-      {
-         if (errors[i] >= threshold) { ref_list.Append(i); }
-      }
-
-      // Refine the selected elements. Since we are going to transfer the
-      // grid function x from the coarse mesh to the new fine mesh in the
-      // next step, we need to request the "two-level state" of the mesh.
       if (myid == 0) { cout << " Refinement ..." << flush; }
-      pmesh.GeneralRefinement(ref_list);
+      pmesh.RefineByError(errors, threshold);
 
       // Update the magnetostatic solver to reflect the new state of the mesh.
       Tesla.Update();

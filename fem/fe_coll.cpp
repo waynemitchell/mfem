@@ -1148,7 +1148,8 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
 {
    const int pm1 = p - 1, pm2 = pm1 - 1, pm3 = pm2 - 1;
 
-   if (type == 0)
+   m_type = (BasisType)type;
+   if (type == GaussLobatto)
    {
       snprintf(h1_name, 32, "H1_%dD_P%d", dim, p);
    }
@@ -1181,7 +1182,7 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
    if (dim >= 1)
    {
       H1_dof[Geometry::SEGMENT] = pm1;
-      if (type == 0)
+      if (type == GaussLobatto)
       {
          H1_Elements[Geometry::SEGMENT] = new H1_SegmentElement(p);
       }
@@ -1203,14 +1204,14 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
    {
       H1_dof[Geometry::TRIANGLE] = (pm1*pm2)/2;
       H1_dof[Geometry::SQUARE] = pm1*pm1;
-      if (type == 0)
+      if (type == GaussLobatto)
       {
          H1_Elements[Geometry::TRIANGLE] = new H1_TriangleElement(p);
          H1_Elements[Geometry::SQUARE] = new H1_QuadrilateralElement(p);
       }
       else
       {
-         H1_Elements[Geometry::TRIANGLE] = NULL; // TODO
+         H1_Elements[Geometry::TRIANGLE] = new H1Pos_TriangleElement(p);
          H1_Elements[Geometry::SQUARE] = new H1Pos_QuadrilateralElement(p);
       }
 
@@ -1259,14 +1260,14 @@ H1_FECollection::H1_FECollection(const int p, const int dim, const int type)
       {
          H1_dof[Geometry::TETRAHEDRON] = (TriDof*pm3)/3;
          H1_dof[Geometry::CUBE] = QuadDof*pm1;
-         if (type == 0)
+         if (type == GaussLobatto)
          {
             H1_Elements[Geometry::TETRAHEDRON] = new H1_TetrahedronElement(p);
             H1_Elements[Geometry::CUBE] = new H1_HexahedronElement(p);
          }
          else
          {
-            H1_Elements[Geometry::TETRAHEDRON] = NULL; // TODO
+            H1_Elements[Geometry::TETRAHEDRON] = new H1Pos_TetrahedronElement(p);
             H1_Elements[Geometry::CUBE] = new H1Pos_HexahedronElement(p);
          }
       }
@@ -1337,6 +1338,7 @@ H1_Trace_FECollection::H1_Trace_FECollection(const int p, const int dim,
 
 L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
 {
+   m_type = (BasisType)type;
    if (type == 0)
    {
       snprintf(d_name, 32, "L2_%dD_P%d", dim, p);

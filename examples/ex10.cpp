@@ -253,8 +253,8 @@ int main(int argc, char *argv[])
 
    BlockVector vx(fe_offset);
    GridFunction v, x;
-   v.Update(&fespace, vx.GetBlock(0), 0);
-   x.Update(&fespace, vx.GetBlock(1), 0);
+   v.MakeRef(&fespace, vx.GetBlock(0), 0);
+   x.MakeRef(&fespace, vx.GetBlock(1), 0);
 
    GridFunction x_ref(&fespace);
    mesh->GetNodes(x_ref);

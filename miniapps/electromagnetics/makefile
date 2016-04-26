@@ -29,23 +29,24 @@ endif
 
 .PHONY: all clean
 
+COMMON_HPP=../common/pfem_extras.hpp
+COMMON_O=$(COMMON_HPP:.hpp=.o)
+
 .PRECIOUS: %.o
-
-COMMON_H = ../common/pfem_extras.hpp
-COMMON_OBJ = $(COMMON_H:.hpp=.o)
-
-%.o: %.cpp
-
-%.o: %.cpp %.hpp $(CONFIG_MK) $(MFEM_LIB_FILE) $(COMMON_H)
-	$(MFEM_CXX) $(MFEM_FLAGS) -c $< -o $@
 
 # Remove built-in rule
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp %_solver.o $(CONFIG_MK) $(MFEM_LIB_FILE) $(COMMON_OBJ)
-	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $(COMMON_OBJ) \
-	$(@)_solver.o $(MFEM_LIBS)
+%: %.cpp %_solver.o $(COMMON_O) $(CONFIG_MK) $(MFEM_LIB_FILE)
+	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS)
+
+# Remove built-in rule
+%.o: %.cpp
+
+# Replace the default implicit rule for *.cpp files
+%.o: %.cpp %.hpp $(COMMON_HPP) $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) -c $(<) -o $(@)
 
 all: $(MINIAPPS)
 
