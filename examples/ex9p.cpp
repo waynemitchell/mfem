@@ -69,27 +69,6 @@ public:
 };
 
 
-void DumpInfo(ParMesh *pmesh)
-{
-   cout << "have_face_nbr_data: " << pmesh->have_face_nbr_data << endl;
-   if (pmesh->have_face_nbr_data)
-   {
-      cout << "face_nbr_group: ";
-      pmesh->face_nbr_group.Print(cout, 10);
-      cout << "face_nbr_elements_offset: ";
-      pmesh->face_nbr_elements_offset.Print(cout, 10);
-      cout << "face_nbr_vertices_offset: ";
-      pmesh->face_nbr_vertices_offset.Print(cout, 10);
-      cout << "face_nbr_elements size: " << pmesh->face_nbr_elements.Size();
-      cout << "\nface_nbr_vertices size: " << pmesh->face_nbr_vertices.Size();
-      cout << "\nsend_face_nbr_elements: ";
-      pmesh->send_face_nbr_elements.Print(cout, 10);
-      cout << "send_face_nbr_vertices: ";
-      pmesh->send_face_nbr_vertices.Print(cout, 10);
-   }
-}
-
-
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
@@ -172,6 +151,10 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(4);
+   }
    mesh->EnsureNCMesh();
 
    // 4. Define the ODE solver used for time integration. Several explicit
@@ -202,6 +185,12 @@ int main(int argc, char *argv[])
       mesh->UniformRefinement();
    }
 
+   for (int lev = 0; lev < par_ref_levels; lev++)
+   {
+      mesh->RandomRefinement(0.5);
+   }
+
+
    if (mesh->NURBSext)
    {
       int mesh_order = std::max(order, 1);
@@ -216,17 +205,16 @@ int main(int argc, char *argv[])
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-   for (int lev = 0; lev < par_ref_levels; lev++)
-   {
-      //pmesh->UniformRefinement();
-      pmesh->RandomRefinement(0.5);
-   }
+//   for (int lev = 0; lev < par_ref_levels; lev++)
+//   {
+//      pmesh->UniformRefinement();
+//   }
 
-   /*{
-      Array<int> refs;
-      if (myid == 0) { refs.Append(0); }
-      pmesh->GeneralRefinement(refs);
-   }*/
+//   {
+//      Array<int> refs;
+//      if (myid == 0) { refs.Append(0); }
+//      pmesh->GeneralRefinement(refs);
+//   }
 
    // 7. Define the parallel discontinuous DG finite element space on the
    //    parallel refined mesh of the given polynomial order.
@@ -265,12 +253,6 @@ int main(int argc, char *argv[])
    k->Assemble(skip_zeros);
    k->Finalize(skip_zeros);
    b->Assemble();
-
-   if (myid == 0)
-   {
-      DumpInfo(pmesh);
-   }
-   //exit(1);
 
    HypreParMatrix *M = m->ParallelAssemble();
    HypreParMatrix *K = k->ParallelAssemble();

@@ -100,17 +100,22 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
+   if (mesh->NURBSext)
+   {
+      mesh->UniformRefinement();
+      mesh->SetCurvature(2);
+   }
+   mesh->EnsureNCMesh();
+
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ref_levels' of uniform refinement. We choose
    //    'ref_levels' to be the largest number that gives a final mesh with no
    //    more than 10,000 elements.
    {
-      srand(0);
-      int ref_levels = 4;//(int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = (int)floor(log(10000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
-         //mesh->UniformRefinement();
-         mesh->RandomRefinement(0.5);
+         mesh->UniformRefinement();
       }
    }
 
@@ -120,12 +125,15 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 0;
+      int par_ref_levels = 2;
+      srand(myid);
       for (int l = 0; l < par_ref_levels; l++)
       {
-         pmesh->UniformRefinement();
+         //pmesh->UniformRefinement();
+         pmesh->RandomRefinement(0.5);
       }
    }
+   pmesh->Rebalance();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use continuous Lagrange finite elements of the specified order. If

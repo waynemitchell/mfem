@@ -151,14 +151,19 @@ int main(int argc, char *argv[])
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
    //    command-line parameter. If the mesh is of NURBS type, we convert it to
    //    a (piecewise-polynomial) high-order mesh.
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(4);
+   }
    mesh->EnsureNCMesh();
+
    for (int lev = 0; lev < ref_levels; lev++)
    {
       mesh->UniformRefinement();
    }
 
-   mesh->RandomRefinement(0.3);
-   mesh->RandomRefinement(0.3);
+   mesh->RandomRefinement(0.5);
+   //mesh->RandomRefinement(0.3);
 
    if (mesh->NURBSext)
    {

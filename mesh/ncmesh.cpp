@@ -49,11 +49,12 @@ void NCMesh::GeomInfo::Initialize(const mfem::Element* elem)
       }
    }
 
-   // in 2D we pretend to have faces too to be able to use Face::elem[2]
+   // in 2D we pretend to have faces too, to be able to use Face::elem[2]
    if (!nf)
    {
       for (int i = 0; i < ne; i++)
       {
+         // make a degenerate face
          faces[i][0] = faces[i][1] = edges[i][0];
          faces[i][2] = faces[i][3] = edges[i][1];
       }

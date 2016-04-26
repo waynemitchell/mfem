@@ -89,12 +89,11 @@ int main(int argc, char *argv[])
    //    elements.
    {
       srand(0);
-      int ref_levels = 3;
-         //(int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
+      int ref_levels = (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       for (int l = 0; l < ref_levels; l++)
       {
          //mesh->UniformRefinement();
-         mesh->RandomRefinement(0.4);
+         mesh->RandomRefinement(0.5);
       }
    }
 

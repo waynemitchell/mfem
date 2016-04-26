@@ -862,11 +862,6 @@ public:
 
    void MesquiteSmooth(const int mesquite_option = 0);
 
-   bool IsSlaveFace(int i) const
-   {
-      return IsSlaveFace(faces_info[i]);
-   }
-
    /// Destroys mesh.
    virtual ~Mesh();
 };
