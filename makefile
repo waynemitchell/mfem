@@ -265,6 +265,7 @@ all: lib
 	$(MAKE) -C miniapps/common
 	$(MAKE) -C miniapps/meshing
 	$(MAKE) -C miniapps/electromagnetics
+	$(MAKE) -C miniapps/performance
 
 -include deps.mk
 
@@ -298,6 +299,7 @@ clean:
 	$(MAKE) -C miniapps/common clean
 	$(MAKE) -C miniapps/meshing clean
 	$(MAKE) -C miniapps/electromagnetics clean
+	$(MAKE) -C miniapps/performance clean
 
 distclean: clean
 	rm -rf mfem/
@@ -310,10 +312,10 @@ install: libmfem.a
 	$(INSTALL) -m 640 libmfem.a $(PREFIX_LIB)
 # install top level includes
 	mkdir -p $(PREFIX_INC)
-	$(INSTALL) -m 640 mfem.hpp $(PREFIX_INC)
+	$(INSTALL) -m 640 mfem.hpp mfem-performance.hpp $(PREFIX_INC)
 # install config include
 	mkdir -p $(PREFIX_INC)/config
-	$(INSTALL) -m 640 config/config.hpp $(PREFIX_INC)/config
+	$(INSTALL) -m 640 config/config.hpp config/tconfig.hpp $(PREFIX_INC)/config
 # install remaining includes in each subdirectory
 	for dir in $(DIRS); do \
 	   mkdir -p $(PREFIX_INC)/$$dir && \

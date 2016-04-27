@@ -3127,7 +3127,7 @@ void CalcOrtho(const DenseMatrix &J, Vector &n)
    if (((J.Height() != 2 || J.Width() != 1) &&
         (J.Height() != 3 || J.Width() != 2)) || (J.Height() != n.Size()))
    {
-      mfem_error("CalcNormal(...)");
+      mfem_error("CalcOrtho(...)");
    }
 #endif
 
