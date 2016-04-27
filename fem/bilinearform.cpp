@@ -14,8 +14,6 @@
 #include "fem.hpp"
 #include <cmath>
 
-#include <fstream>
-
 namespace mfem
 {
 
@@ -349,15 +347,6 @@ void BilinearForm::Assemble (int skip_zeros)
                                               *tr, elemmat);
                mat -> AddSubMatrix (vdofs, vdofs, elemmat, skip_zeros);
             }
-
-            /*if (mesh->IsSlaveFace(i))
-            {
-               static int slave_num = 0;
-               char fname[100];
-               sprintf(fname, "slave-%d.mat", slave_num++);
-               std::ofstream f(fname);
-               elemmat.Print(f, 100);
-            }*/
          }
       }
    }

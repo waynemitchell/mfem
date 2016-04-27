@@ -324,7 +324,7 @@ void Mesh::GetFaceTransformation(int FaceNo, IsoparametricTransformation *FTr)
          GetLocalFaceTransformation(face_type,
                                     GetElementType(face_info.Elem1No),
                                     FaceElemTr.Loc1.Transf, face_info.Elem1Inf);
-         // NOTE: FaceElemTr.Loc1 is destroyed here since we use it as temporary
+         // NOTE: FaceElemTr.Loc1 is destroyed here -- we use it as a temporary
 
          face_el = Nodes->FESpace()->GetTraceElement(face_info.Elem1No,
                                                      face_geom);
@@ -4756,14 +4756,6 @@ void Mesh::GenerateNCFaceInfo()
       slave_fi.Elem2No = master_fi.Elem1No;
       slave_fi.Elem2Inf = 64 * master_nc.MasterFace; // get lf no. stored above
       // NOTE: orientation part of Elem2Inf is encoded in the point matrix
-/*      if (Dim == 2)
-      {
-         const int *fv = faces[slave.master]->GetVertices();
-         if (fv[0] > fv[1])
-         {
-            slave_fi.Elem2Inf++;
-         }
-      }*/
    }
 }
 

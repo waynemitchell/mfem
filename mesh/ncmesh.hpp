@@ -379,8 +379,6 @@ protected: // implementation
 
       /// Return one of elem[0] or elem[1] and make sure the other is NULL.
       Element* GetSingleElement() const;
-      /// Return one of elem[0] or elem[1] not equal to 'e'.
-      Element* GetNeighbor(Element* e) const;
 
       // overloaded Unref without auto-destruction
       int Unref() { return --ref_count; }

@@ -80,9 +80,9 @@ int main(int argc, char *argv[])
    // 2. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
-   int ser_ref_levels = 0;
+   int ser_ref_levels = 2;
    int par_ref_levels = 0;
-   int order = 2;
+   int order = 3;
    int ode_solver_type = 4;
    double t_final = 10.0;
    double dt = 0.01;
@@ -185,12 +185,6 @@ int main(int argc, char *argv[])
       mesh->UniformRefinement();
    }
 
-   for (int lev = 0; lev < par_ref_levels; lev++)
-   {
-      mesh->RandomRefinement(0.5);
-   }
-
-
    if (mesh->NURBSext)
    {
       int mesh_order = std::max(order, 1);
@@ -205,16 +199,13 @@ int main(int argc, char *argv[])
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-//   for (int lev = 0; lev < par_ref_levels; lev++)
-//   {
-//      pmesh->UniformRefinement();
-//   }
-
-//   {
-//      Array<int> refs;
-//      if (myid == 0) { refs.Append(0); }
-//      pmesh->GeneralRefinement(refs);
-//   }
+   srand(myid);
+   for (int lev = 0; lev < par_ref_levels; lev++)
+   {
+      //pmesh->UniformRefinement();
+      pmesh->RandomRefinement(0.5);
+   }
+   pmesh->Rebalance();
 
    // 7. Define the parallel discontinuous DG finite element space on the
    //    parallel refined mesh of the given polynomial order.

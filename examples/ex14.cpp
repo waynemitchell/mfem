@@ -109,12 +109,6 @@ int main(int argc, char *argv[])
       }
    }
 
-   /*{
-      Array<Refinement> refs;
-      refs.Append(Refinement(0, 6));
-      mesh->GeneralRefinement(refs);
-   }*/
-
    // 4. Define a finite element space on the mesh. Here we use discontinuous
    //    finite elements of the specified order >= 0.
    FiniteElementCollection *fec = new DG_FECollection(order, dim);

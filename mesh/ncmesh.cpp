@@ -421,20 +421,6 @@ NCMesh::Element* NCMesh::Face::GetSingleElement() const
    }
 }
 
-NCMesh::Element* NCMesh::Face::GetNeighbor(Element *e) const
-{
-   if (elem[0] == e)
-   {
-      return elem[1];
-   }
-   else if (elem[1] == e)
-   {
-      return elem[0];
-   }
-   MFEM_ABORT("'e' does not share this face.");
-   return NULL;
-}
-
 NCMesh::Node* NCMesh::PeekAltParents(Node* v1, Node* v2)
 {
    Node* mid = nodes.Peek(v1, v2);
@@ -1314,7 +1300,8 @@ void NCMesh::DerefineElement(Element* elem)
 
    RegisterFaces(elem, fa);
 
-   // set edge attributes (2D) TODO remove
+   // set edge attributes (2D)
+   // TODO: Edge::atribute should be removed
    if (Dim < 3)
    {
       Node** node = elem->node;
@@ -1698,17 +1685,17 @@ void NCMesh::OnMeshUpdated(Mesh *mesh)
    {
       const int* fv = mesh->GetFace(i)->GetVertices();
       Face* face;
-      if (Dim < 3)
-      {
-         MFEM_ASSERT(mesh->GetFace(i)->GetNVertices() == 2, "");
-         int n0 = vertex_nodeId[fv[0]], n1 = vertex_nodeId[fv[1]];
-         face = faces.Peek(n0, n0, n1, n1); // degenerate face
-      }
-      else
+      if (Dim == 3)
       {
          MFEM_ASSERT(mesh->GetFace(i)->GetNVertices() == 4, "");
          face = faces.Peek(vertex_nodeId[fv[0]], vertex_nodeId[fv[1]],
                            vertex_nodeId[fv[2]], vertex_nodeId[fv[3]]);
+      }
+      else
+      {
+         MFEM_ASSERT(mesh->GetFace(i)->GetNVertices() == 2, "");
+         int n0 = vertex_nodeId[fv[0]], n1 = vertex_nodeId[fv[1]];
+         face = faces.Peek(n0, n0, n1, n1); // degenerate face
       }
       MFEM_ASSERT(face, "face not found.");
       face->index = i;
