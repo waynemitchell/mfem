@@ -1466,20 +1466,17 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 
       ApplyLocalSlaveTransformation(loctr, face_info);
 
-      // fix slave orientation in 2D
       if (face_type == Element::SEGMENT)
       {
-         // flip Loc2 to match Loc1 and Face
-         DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
-         std::swap(pm(0,0), pm(0,1));
-         std::swap(pm(1,0), pm(1,1));
+         // fix slave orientation in 2D: flip Loc2 to match Loc1 and Face
+         reverse_columns(FaceElemTr.Loc2.Transf.GetPointMat());
       }
    }
 
    // fix ghost slave orientation in 3D
    if (is_slave && is_ghost && Dim == 3)
    {
-      // reverse all, to be opposite to "ghost == false" (other processor)
+      // reverse all, to be opposite to "is_ghost == false" (other processor)
       reverse_columns(((IsoparametricTransformation*)
                       FaceElemTr.Face)->GetPointMat());
       reverse_columns(FaceElemTr.Loc1.Transf.GetPointMat());
