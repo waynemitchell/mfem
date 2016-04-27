@@ -2169,7 +2169,7 @@ void ParMesh::NonconformingRefinement(const Array<Refinement> &refinements,
    // and this mesh will be the new fine mesh
    Swap(*pmesh2, false);
 
-   delete pmesh2;
+   delete pmesh2; // NOTE: old face neighbors destroyed here
 
    GenerateNCFaceInfo();
 
@@ -2238,6 +2238,8 @@ void ParMesh::Rebalance()
       MFEM_ABORT("Load balancing is currently not supported for conforming"
                  " meshes.");
    }
+
+   DeleteFaceNbrData();
 
    pncmesh->Rebalance();
 

@@ -1321,7 +1321,7 @@ void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
 
    NeighborElementRankMessage::Map send_ghost_ranks, recv_ghost_ranks;
 
-   ghost_layer.Sort(compare_ranks); // FIXME face neighbors
+   ghost_layer.Sort(compare_ranks);
    {
       Array<Element*> rank_neighbors;
 
@@ -1483,7 +1483,7 @@ void ParNCMesh::RedistributeElements(Array<int> &new_ranks, int target_elements,
          if (elem_rank == MyRank) { received_elements++; }
       }
 
-      // save the ranks we received from for later use in RecvRebalanceDofs
+      // save the ranks we received from, for later use in RecvRebalanceDofs
       if (record_comm)
       {
          recv_rebalance_dofs[rank].SetNCMesh(this);

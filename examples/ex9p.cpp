@@ -205,7 +205,6 @@ int main(int argc, char *argv[])
       //pmesh->UniformRefinement();
       pmesh->RandomRefinement(0.5);
    }
-   pmesh->Rebalance();
 
    // 7. Define the parallel discontinuous DG finite element space on the
    //    parallel refined mesh of the given polynomial order.
@@ -217,6 +216,11 @@ int main(int argc, char *argv[])
    {
       cout << "Number of unknowns: " << global_vSize << endl;
    }
+
+   // X. Test regeneration of face neigbhors after load balancing
+   fes->ExchangeFaceNbrData();
+   pmesh->Rebalance();
+   fes->Update();
 
    // 8. Set up and assemble the parallel bilinear and linear forms (and the
    //    parallel hypre matrices) corresponding to the DG discretization. The
