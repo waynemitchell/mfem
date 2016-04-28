@@ -591,7 +591,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
    fnbr.Reserve(bound);
    send_elems.Reserve(bound);
 
-   // go over all shared faces and collect face neigbhor elements
+   // go over all shared faces and collect face neighbor elements
    for (unsigned i = 0; i < shared.conforming.size(); i++)
    {
       const MeshId &cf = shared.conforming[i];
@@ -647,7 +647,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
    }
    int nranks = pmesh.face_nbr_group.Size();
 
-   // create a new mfem::Element for each face neigbhor element
+   // create a new mfem::Element for each face neighbor element
    pmesh.face_nbr_elements.SetSize(0);
    pmesh.face_nbr_elements.Reserve(fnbr.Size());
 

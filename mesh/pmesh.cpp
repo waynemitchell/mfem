@@ -1452,7 +1452,8 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
       FaceElemTr.FaceGeom = GetFaceGeometryType(nc_info->MasterFace);
       FaceElemTr.Face = GetFaceTransformation(nc_info->MasterFace);
 
-      ApplyFaceSlaveTransformation(face_type, *nc_info->PointMatrix,
+      ApplyFaceSlaveTransformation(
+         face_type, *nc_info->PointMatrix,
          (IsoparametricTransformation*) FaceElemTr.Face);
    }
 
@@ -1478,7 +1479,7 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    {
       // reverse all, to be opposite to "is_ghost == false" (other processor)
       reverse_columns(((IsoparametricTransformation*)
-                      FaceElemTr.Face)->GetPointMat());
+                       FaceElemTr.Face)->GetPointMat());
       reverse_columns(FaceElemTr.Loc1.Transf.GetPointMat());
       reverse_columns(FaceElemTr.Loc2.Transf.GetPointMat());
    }
@@ -1487,7 +1488,8 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 }
 
 void ParMesh::ApplyFaceSlaveTransformation(int face_type,
-   const DenseMatrix &point_mat, IsoparametricTransformation *FaceTr)
+                                           const DenseMatrix &point_mat,
+                                           IsoparametricTransformation *FaceTr)
 {
    IsoparametricTransformation local_tr;
    local_tr.SetFE(GetTransformationFEforElementType(face_type));

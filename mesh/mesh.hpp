@@ -605,28 +605,34 @@ public:
    /// Returns the transformation defining the given face element
    ElementTransformation *GetEdgeTransformation(int EdgeNo);
 
-   /** Returns (a pointer to a structure containing) the following data:
-       1) Elem1No - the index of the first element that contains this face
-       this is the element that has the same outward unit normal
-       vector as the face;
-       2) Elem2No - the index of the second element that contains this face
-       this element has outward unit normal vector as the face multiplied
-       with -1;
-       3) Elem1, Elem2 - pointers to the ElementTransformation's of the
-       first and the second element respectively;
-       4) Face - pointer to the ElementTransformation of the face;
-       5) Loc1, Loc2 - IntegrationPointTransformation's mapping the
-       face coordinate system to the element coordinate system
-       (both in their reference elements). Used to transform
-       IntegrationPoints from face to element. More formally, let:
-       TL1, TL2 be the transformations represented by Loc1, Loc2,
-       TE1, TE2 - the transformations represented by Elem1, Elem2,
-       TF - the transformation represented by Face, then
-       TF(x) = TE1(TL1(x)) = TE2(TL2(x)) for all x in the reference face.
-       6) FaceGeom - the base geometry for the face.
-       The mask specifies which fields in the structure to return:
-       mask & 1 - Elem1, mask & 2 - Elem2, mask & 4 - Loc1, mask & 8 - Loc2,
-       mask & 16 - Face. */
+   /// Returns (a pointer to a structure containing) the following data:
+   ///
+   /// 1) Elem1No - the index of the first element that contains this face this
+   ///    is the element that has the same outward unit normal vector as the
+   ///    face;
+   ///
+   /// 2) Elem2No - the index of the second element that contains this face this
+   ///    element has outward unit normal vector as the face multiplied with -1;
+   ///
+   /// 3) Elem1, Elem2 - pointers to the ElementTransformation's of the first
+   ///    and the second element respectively;
+   ///
+   /// 4) Face - pointer to the ElementTransformation of the face;
+   ///
+   /// 5) Loc1, Loc2 - IntegrationPointTransformation's mapping the face
+   ///    coordinate system to the element coordinate system (both in their
+   ///    reference elements). Used to transform IntegrationPoints from face to
+   ///    element. More formally, let:
+   ///       TL1, TL2 be the transformations represented by Loc1, Loc2,
+   ///       TE1, TE2 - the transformations represented by Elem1, Elem2,
+   ///       TF - the transformation represented by Face, then
+   ///       TF(x) = TE1(TL1(x)) = TE2(TL2(x)) for all x in the reference face.
+   ///
+   /// 6) FaceGeom - the base geometry for the face.
+   ///
+   /// The mask specifies which fields in the structure to return:
+   ///    mask & 1 - Elem1, mask & 2 - Elem2
+   ///    mask & 4 - Loc1, mask & 8 - Loc2, mask & 16 - Face.
    FaceElementTransformations *GetFaceElementTransformations(int FaceNo,
                                                              int mask = 31);
 
@@ -746,7 +752,7 @@ public:
        tetrahedra and non-conforming refinement (i.e., with hanging-nodes) of
        triangles, quadrilaterals and hexahedrons. If 'nonconforming' = -1,
        suitable refinement method is selected automatically (namely, conforming
-       refinement for triangles). Use noncoforming = 0/1 to force the method.
+       refinement for triangles). Use nonconforming = 0/1 to force the method.
        For nonconforming refinements, nc_limit optionally specifies the maximum
        level of hanging nodes (unlimited by default). */
    void GeneralRefinement(const Array<Refinement> &refinements,
@@ -799,7 +805,7 @@ public:
    bool Conforming() const { return ncmesh == NULL; }
    bool Nonconforming() const { return ncmesh != NULL; }
 
-   /** Return fine element transformations following a mesh refinenemt.
+   /** Return fine element transformations following a mesh refinement.
        Space uses this to construct a global interpolation matrix. */
    const CoarseFineTransformations &GetRefinementTransforms();
 
