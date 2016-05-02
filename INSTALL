@@ -39,6 +39,9 @@ Example codes (serial/parallel, depending on the build):
 Build everything (library, examples and miniapps) with current configuration:
    make all -j 4
 
+Test the build by running some examples and miniapps (optional):
+   make test
+
 
 Building with GNU make
 ======================
@@ -76,6 +79,12 @@ are also defined:
 
 Note that any of the above shortcuts accept configuration options, either at the
 command line or through a user configuration file.
+
+The build can be verified by checking the results from some of the serial and
+parallel MFEM examples and miniapps. Note that running all the tests may take a
+while:
+
+   make test
 
 An optional installation of the library and the headers can be performed with
 
