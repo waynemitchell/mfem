@@ -21,10 +21,11 @@ ifneq (clean,$(MAKECMDGOALS))
 endif
 
 SEQ_MINIAPPS =
+PAR_MINIAPPS = volta tesla
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
-   MINIAPPS = $(SEQ_MINIAPPS) volta tesla
+   MINIAPPS = $(PAR_MINIAPPS) $(SEQ_MINIAPPS)
 endif
 
 .PHONY: all clean
@@ -48,11 +49,37 @@ COMMON_O=$(COMMON_HPP:.hpp=.o)
 
 all: $(MINIAPPS)
 
+# Test default runs of the miniapps
+mfem-test = \
+   $(if $(shell if ($(2) $(1) -no-vis $(4) > /dev/null); then echo "ok"; fi), \
+   echo "   $(3)$(2)$(1): OK", echo "   $(3)$(2)$(1): FAILED")
+
+# Testing: Parallel vs. serial runs
+%-test-par: %
+	@$(call mfem-test, $<, mpirun -np 4, Electromagnetic miniapp)
+%-test-seq: %
+	@$(call mfem-test, $<, , Electromagnetic miniapp)
+
+# Testing: Specific execution options
+volta-test-par: volta
+	@$(call mfem-test, $<, mpirun -np 4, Electromagnetic miniapp, -maxit 2 -dbcs 1 -dbcg -ds '0.0 0.0 0.0 0.2 8.0')
+tesla-test-par: tesla
+	@$(call mfem-test, $<, mpirun -np 4, Electromagnetic miniapp, -maxit 2 -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1')
+
+# Testing: What sets of tests to run in serial and parallel
+test-par-YES: $(PAR_MINIAPPS:=-test-par) $(SEQ_MINIAPPS:=-test-seq)
+test-par-NO:  $(SEQ_MINIAPPS:=-test-seq)
+test:         test-par-$(MFEM_USE_MPI) clean-exec
+
 # Generate an error message if the MFEM library is not built and exit
 $(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
-clean:
+clean: clean-build clean-exec
+
+clean-build:
 	rm -f *.o *~ volta tesla
-	rm -rf Volta-AMR* Tesla-AMR*
 	rm -rf *.dSYM *.TVD.*breakpoints
+
+clean-exec:
+	@rm -rf Volta-AMR* Tesla-AMR*

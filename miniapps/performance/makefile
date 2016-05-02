@@ -54,10 +54,11 @@ ifeq ($(MFEM_CXX),clang++)
 endif
 
 SEQ_MINIAPPS = ex1
+PAR_MINIAPPS = ex1p
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
-   MINIAPPS = $(SEQ_MINIAPPS) ex1p
+   MINIAPPS = $(PAR_MINIAPPS) $(SEQ_MINIAPPS)
 endif
 
 .PHONY: all clean style
@@ -71,11 +72,31 @@ endif
 
 all: $(MINIAPPS)
 
+# Test default runs of the miniapps
+mfem-test = \
+   $(if $(shell if ($(2) $(1) -no-vis > /dev/null); then echo "ok"; fi), \
+   echo "   $(3)$(2)$(1): OK", echo "   $(3)$(2)$(1): FAILED")
+
+# Testing: Parallel vs. serial runs
+%-test-par: %
+	@$(call mfem-test, $<, mpirun -np 4, Performance miniapp)
+%-test-seq: %
+	@$(call mfem-test, $<, , Performance miniapp)
+
+# Testing: What sets of tests to run in serial and parallel
+test-par-YES: $(PAR_MINIAPPS:=-test-par) $(SEQ_MINIAPPS:=-test-seq)
+test-par-NO:  $(SEQ_MINIAPPS:=-test-seq)
+test:         test-par-$(MFEM_USE_MPI) clean-exec
+
 # Generate an error message if the MFEM library is not built and exit
 $(CONFIG_MK) $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
-clean:
+clean: clean-build clean-exec
+
+clean-build:
 	rm -f *.o *~ ex1 ex1p
-	rm -f refined.mesh mesh.* sol.*
 	rm -rf *.dSYM *.TVD.*breakpoints
+
+clean-exec:
+	@rm -f refined.mesh mesh.* sol.*
