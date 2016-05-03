@@ -33,7 +33,7 @@ endif
 
 # Replace the default implicit rule for *.cpp files
 %: %.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
-	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ $(MFEM_LIBS)
+	$(MFEM_CXX) $(MFEM_FLAGS) -g $(@).cpp -o $@ $(MFEM_LIBS)
 
 all: $(EXAMPLES)
 

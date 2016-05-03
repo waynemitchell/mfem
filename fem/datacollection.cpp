@@ -550,47 +550,38 @@ SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new
 {
   namespace sidre = asctoolkit::sidre;
 
-  //MFEM_VERIFY( new_mesh.NURBSext == NULL, "SidreDataCollection doesn't support NURB meshes.");
-  //TODO: Will presence of a NURB extension affect what goes in sidre?
-  if ( mesh->Nodes == NULL)
-  {
-    std::cerr << " TODO: Implement function for dumping vertices to sidre." << std::endl;
-  }
-
   sidre_dc_group = ds->getRoot()->createGroup( std::string(collection_name) );
 
   // Create group for mesh
   sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("topology");
   addMesh(mesh_grp);
 
-  // Create group for mesh elements, add material, shape, and vertex indices.
-  sidre::DataGroup * mesh_elements_grp = mesh_grp->createGroup("mesh_elements");
-  // Get the pointer to the internal elements array in Mesh.
-  addElements(mesh_elements_grp, mesh->elements);
+  if ( mesh->elements.Size() > 0)
+  {
+     // Create group for mesh elements, add material, shape, and vertex indices.
+     sidre::DataGroup * mesh_elements_grp = mesh_grp->createGroup("mesh_elements");
+     // Get the pointer to the internal elements array in Mesh.
+     addElements(mesh_elements_grp, mesh->elements);
+  }
 
-  // Create group for boundary elements, add material, shape, and vertex indices.
-  sidre::DataGroup * boundary_elements_grp = mesh_grp->createGroup("boundary_elements");
-  // Get the pointer to the internal boundary elements array in Mesh.
-  addElements(boundary_elements_grp, mesh->boundary);
+  if ( mesh->boundary.Size() > 0)
+  {
+     // Create group for boundary elements, add material, shape, and vertex indices.
+     sidre::DataGroup * boundary_elements_grp = mesh_grp->createGroup("boundary_elements");
+     // Get the pointer to the internal boundary elements array in Mesh.
+     addElements(boundary_elements_grp, mesh->boundary);
+  }
 
   // Add mesh vertices
-
-  // If a FEC is present defining higher order nodes, add that too.
-  // TODO:
-  // We have two choices for where to get the vertices.  Either get them from the
-  // mesh array of vertex classes, or get them from grid function containing nodes (if present).
-  // Those nodes include the vertices, at beginning of the data array, in a convenient single
-  // array.
-  // For now, I'm getting them from the vertex classes.  If I get them from the gf data
-  // array, I'm concerned with us poking under the hood and taking shortcuts to the data.
-  // I don't want to lock in the MFEM team on always having the vertex values at the
-  // start of the gf data array.  TODO: Discuss this with MFEM team.
   sidre::DataGroup * grp = mesh_grp->createGroup("coords");
-  addVertices(grp);
+  if (mesh->vertices.Size() > 0)
+  {
+     addVertices(grp);
+  }
 
+  // If a grid function is present defining higher order nodes, add that too.
   if (mesh->GetNodes() != NULL)
   {
-    // Mesh is higher order, nodes are defined by finite element collection
     sidre::DataGroup * grp = mesh_grp->createGroup("nodes");
     addField(grp, mesh->GetNodes() );
   }
@@ -617,26 +608,39 @@ void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Arr
   // block.
 
   namespace sidre = asctoolkit::sidre;
+  using sidre::detail::SidreTT;
 
   group->createView("number")->setScalar( elements.Size() );
+  // TODO - Need a helper function to map element shape id to a string name.
+  // For now put in the the int value.
+  // Assume all elements are same type ( for this prototype only ).
+  // Add the hex's only.
+
+  group->createView("shape")->setString("hexs");
+  sidre::DataView * conn_view = group->createView("connectivity");
+
+  conn_view->setExternalDataPtr( &Quadrilateral::all_indices[0] );
+  conn_view-> apply( SidreTT<mfem_int_t>::id, Quadrilateral::all_indices.size() );
+
+  // Have to build array of material_attributes, unless we want # elems entries in datastore.
+  // Unless, the data structure is changed in mfem.
+  std::cerr << " # elemens " << elements.Size() << std::endl;
+  sidre::DataView * attributes_view = group->createView("material_attributes", SidreTT<mfem_int_t>::id,
+    elements.Size() ) -> allocate();
+  mfem_int_t * attributes_ptr = attributes_view->getArray();
+
   for (int i = 0; i < elements.Size(); i++)
   {
-    sidre::DataGroup * element_grp = group->createGroup( "element" + mfem::to_string(i) );
-    element_grp->createView("material_attribute")->setScalar( elements[i]->GetAttribute() );
-
-    // TODO - Need a helper function to map element shape id to a string name.
-    // For now put in the the int value.
-    element_grp->createView("shape")->setScalar( elements[i]->GetType() );
-
-    // TODO - ask if MFEM team cares about typedefs.  Could hard code SIDRE_INT_ID here instead.
-    element_grp->createView("vertex_indicies")->setExternalDataPtr(
-        elements[i]->GetVertices() ) -> apply( sidre::detail::SidreTT<mfem_int_t>::id, elements[i]->GetNVertices() );
+    attributes_ptr[i] = elements[i]->GetAttribute();
   }
 }
 
 void SidreDataCollection::addField(asctoolkit::sidre::DataGroup * grp, GridFunction* gf)
 {
-  // should consider adding version member for grid functions and mesh in mfem if we're going to be exposing these memory layouts in datastore
+  if (gf->Size() == 0)
+  {
+    return;
+  }
 
   namespace sidre = asctoolkit::sidre;
 
@@ -692,18 +696,21 @@ void SidreDataCollection::addVertices(asctoolkit::sidre::DataGroup * grp)
   // will need to rethink this for AMR
   size_t total_length = mesh->vertices.Size() * 3;
 
+  // apply args are 'type, num_elements, offset, stride'
   // Note - the 'z' value might be empty if this is 2D.
   grp->createView("xyz", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length );
 
-  // apply args are 'type, num_elements, offset, stride'
+  // For restarts we really don't need these separate x, y, z arrays... but the mesh blueprint
+  // would like them...
+  // I think this is the first example of the blueprint wanting one thing, and restart wants
+  // another.
+  //grp->createView("x", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length, 0, 3);
+  //grp->createView("y", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length, 1, 3);
 
-  grp->createView("x", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length, 0, 3);
-  grp->createView("y", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length, 1, 3);
-
-  if ( mesh->Dim == 3 )
-  {
-    grp->createView("z", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length, 2, 3);
-  }
+  //if ( mesh->Dim == 3 )
+  //{
+  //  grp->createView("z", mesh->vertices[0]())->apply(sidre::DOUBLE_ID, total_length, 2, 3);
+  //}
 }
 
 #endif // MFEM_USE_SIDRE

@@ -15,12 +15,22 @@
 namespace mfem
 {
 
+//#ifdef MFEM_USE_ELEM_BUFFER
+std::vector<int> Quadrilateral::all_indices;
+//#endif
+
 const int Quadrilateral::edges[4][2] =
 {{0, 1}, {1, 2}, {2, 3}, {3, 0}};
 
 Quadrilateral::Quadrilateral( const int *ind, int attr )
    : Element(Geometry::SQUARE)
 {
+//#ifdef MFEM_USE_ELEM_BUFFER
+   int size = all_indices.size();
+   all_indices.resize( size + 4 );
+   indices = &(all_indices[size]);
+//#endif
+
    attribute = attr;
    for (int i=0; i<4; i++)
    {
@@ -31,6 +41,12 @@ Quadrilateral::Quadrilateral( const int *ind, int attr )
 Quadrilateral::Quadrilateral( int ind1, int ind2, int ind3, int ind4,
                               int attr ) : Element(Geometry::SQUARE)
 {
+//#ifdef MFEM_USE_ELEM_BUFFER
+   int size = all_indices.size();
+   all_indices.resize( size + 4 );
+   indices = &(all_indices[size]);
+//#endif
+
    attribute  = attr;
    indices[0] = ind1;
    indices[1] = ind2;

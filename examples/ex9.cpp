@@ -28,6 +28,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include "quadrilateral.hpp"
 
 #ifdef MFEM_USE_SIDRE
   #include "sidre/sidre.hpp"
@@ -48,7 +49,6 @@ double u0_function(const Vector &x);
 
 // Inflow boundary condition
 double inflow_function(const Vector &x);
-
 
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
     form of du/dt = -v.grad(u) is M du/dt = K u + b, where M and K are the mass
@@ -76,7 +76,11 @@ public:
 
 int main(int argc, char *argv[])
 {
-   // 1. Parse command-line options.
+// TODO - Prototype only!  If number of elements exceeds the amount reserved, the vector will resize and invalidate all the pointers!
+  mfem::Quadrilateral::all_indices.reserve(1024);
+
+
+  // 1. Parse command-line options.
    problem = 0;
    const char *mesh_file = "../data/periodic-hexagon.mesh";
    int ref_levels = 2;
@@ -249,7 +253,7 @@ int main(int argc, char *argv[])
       // For now, just call datastore group save() directly.
       // asctoolkit::spio::IOManager writer(MPI_COMM_WORLD, &ds->getRoot(), num_root_groups, num_files);
       // writer.write("ex9-initial", 0, "conduit_hdf5");
-      
+
       std::string protocol = "conduit";
       ds.save(filename, protocol);
 
@@ -260,21 +264,32 @@ int main(int argc, char *argv[])
       protocol = "conduit_hdf5";
       ds.save(filename, protocol);
 
-      protocol = "text";
-      ds.save(filename, protocol);
-
       asctoolkit::sidre::DataStore new_ds2;
       new_ds2.load(filename, protocol);
 
+      protocol = "text";
+      ds.save(filename, protocol);
+
       if (ds.getRoot()->isEquivalentTo(new_ds1.getRoot()) )
       {
-        std::cout << "Datastore save/load passed, they are equivalent." << std::endl;
+        std::cout << "Datastore save/load with conduit binary passed, they are equivalent." << std::endl;
       }
       else
       {
-       std::cout << "Datastore instances don't match, crap, need to troubleshoot." << std::endl;
+       std::cout << "Datastore conduit binary instances don't match, crap, need to troubleshoot." << std::endl;
        exit(-1);
       }
+
+      if (ds.getRoot()->isEquivalentTo(new_ds2.getRoot()) )
+      {
+        std::cout << "Datastore save/load with conduit hdf5 passed, they are equivalent." << std::endl;
+      }
+      else
+      {
+       std::cout << "Datastore conduit hdf5 instances don't match, crap, need to troubleshoot." << std::endl;
+       exit(-1);
+      }
+
 
       // TODO - Make a second data collection, compare to first data collection?
       // Ask MFEM team if I can create multiple meshes, etc, ( no singletons, right? ).

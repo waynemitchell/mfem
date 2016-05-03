@@ -44,6 +44,9 @@
 // Enable functionality based on the Gecko library
 // #define MFEM_USE_GECKO
 
+// Enable using sidre datastore.
+// #define MFEM_USE_SIDRE
+
 // Which library functions to use in class StopWatch for measuring time.
 // The available options are:
 //   0 - use std::clock from <ctime>
