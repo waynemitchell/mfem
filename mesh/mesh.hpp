@@ -443,6 +443,10 @@ public:
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
+  /* Temporary solution for reading cubit NetCDF files */
+  void LoadCubit(const char *filename, int generate_edges = 0, int refine = 1,
+		 bool fix_orientation = true);
+
    /** Return a bitmask:
        bit 0 - simplices are present in the mesh (triangles, tets),
        bit 1 - tensor product elements are present in the mesh (quads, hexes).*/
