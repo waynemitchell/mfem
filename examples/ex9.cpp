@@ -261,22 +261,20 @@ int main(int argc, char *argv[])
    int table_num = 3;
    switch (ode_solver_type)
    {
-      case 11: ode_solver = new CVODESolver(u); break;
-      case 12: ode_solver = new ARKODESolver(adv, u, t); break;
+      case 11:
+         ode_solver = new CVODESolver(u); break;
+      case 12:
+         ode_solver = new ARKODESolver(u); break;
       case 13:
-         ode_solver = new ARKODESolver(adv, u, t);
+         ode_solver = new ARKODESolver(u);
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
          ((ARKODESolver*) ode_solver)->WrapSetFixedStep((realtype) dt);
          break;
       case 14:
-         ode_solver = new CVODESolver(u, CV_BDF, CV_NEWTON);
-         break;
+         ode_solver = new CVODESolver(u, CV_BDF, CV_NEWTON); break;
    }
 
-   if(ode_solver_type != 12 && ode_solver_type != 13)
-   {
-      ode_solver->Init(adv);
-   }
+   ode_solver->Init(adv);
 
    // Track past incremental time steps
    double dt_by_ref = dt;

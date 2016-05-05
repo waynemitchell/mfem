@@ -27,7 +27,6 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#define MFEM_USE_SUNIALS_PARHYP
 
 using namespace std;
 using namespace mfem;
@@ -308,26 +307,23 @@ int main(int argc, char *argv[])
    FE_Evolution adv(*M, *K, *B);
 
    double t = 0.0;
-   int table_num = 3;
    switch (ode_solver_type)
    {
       case 11:
          ode_solver = new CVODESolver(MPI_COMM_WORLD, *U);
          break;
       case 12:
-         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t);
+         ode_solver = new ARKODESolver(MPI_COMM_WORLD, *U);
          break;
       case 13:
-         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, adv, *U, t);
+         ode_solver = new ARKODESolver(MPI_COMM_WORLD, *U);
+         const int table_num = 3;
          ((ARKODESolver*) ode_solver)->WrapSetERKTableNum(table_num);
-         ((ARKODESolver*) ode_solver)->WrapSetFixedStep((realtype) dt);
+         ((ARKODESolver*) ode_solver)->WrapSetFixedStep(dt);
          break;
    }
 
-   if(ode_solver_type != 12 && ode_solver_type != 13)
-   {
-      ode_solver->Init(adv);
-   }
+   ode_solver->Init(adv);
 
    // Track past incremental time steps
    double dt_by_ref = dt;

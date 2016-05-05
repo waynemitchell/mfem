@@ -384,25 +384,24 @@ int main(int argc, char *argv[])
                                       CV_BDF, CV_NEWTON);
          ode_solver->Init(oper);
          static_cast<CVODESolver *>(ode_solver)->
-         SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
+            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 6:
-         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp,
-                                          t, false);
-         static_cast<ARKODEParSolver *>(ode_solver)->
-         SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
+         ode_solver = new ARKODESolver(MPI_COMM_WORLD, *vx_hyp, false);
+         ode_solver->Init(oper);
+         static_cast<ARKODESolver *>(ode_solver)->
+            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 15:
          ode_solver = new CVODESolver(MPI_COMM_WORLD, *vx_hyp,
                                       CV_ADAMS, CV_FUNCTIONAL);
          break;
       case 16:
-         ode_solver = new ARKODEParSolver(MPI_COMM_WORLD, oper, *vx_hyp,
-                                          t, true);
+         ode_solver = new ARKODESolver(MPI_COMM_WORLD, *vx_hyp, true);
          break;
    }
 
-   if(ode_solver_type != 6 && ode_solver_type != 16 && ode_solver_type != 5)
+   if(ode_solver_type != 5 && ode_solver_type != 6)
    {
       ode_solver->Init(oper);
    }

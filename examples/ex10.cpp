@@ -317,27 +317,33 @@ int main(int argc, char *argv[])
    switch (ode_solver_type)
    {
       case 4:
-         ode_solver = new CVODESolver(oper,vx,t,CV_BDF,CV_NEWTON); break;
+         ode_solver = new CVODESolver(vx, CV_BDF, CV_NEWTON); break;
       case 5:
-         ode_solver = new CVODESolver(oper,vx,t,CV_BDF,CV_NEWTON);
-         ((CVODESolver*) ode_solver)->SetLinearSolve(oper.J_solver,
-                                                     oper.backward_euler_oper);
+         ode_solver = new CVODESolver(vx, CV_BDF, CV_NEWTON);
+         // Must be called before SetLinearSolve.
+         ode_solver->Init(oper);
+         static_cast<CVODESolver *>(ode_solver)->
+            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 6:
-         ode_solver = new ARKODESolver( oper, vx, t,false);
-         ((ARKODESolver*) ode_solver)->SetLinearSolve(oper.J_solver,
-                                                      oper.backward_euler_oper);
+         ode_solver = new ARKODESolver(vx, false);
+         ode_solver->Init(oper);
+         static_cast<ARKODESolver *>(ode_solver)->
+            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 15:
-         ode_solver = new CVODESolver(oper,vx,t,CV_ADAMS,CV_FUNCTIONAL); break;
+         ode_solver = new CVODESolver(vx, CV_ADAMS, CV_FUNCTIONAL); break;
       case 16:
-         ode_solver = new ARKODESolver(oper, vx, t,true); break;
-      default:
-         ode_solver->Init(oper);
+         ode_solver = new ARKODESolver(vx, true); break;
+   }
+
+   if (ode_solver_type != 5 && ode_solver_type != 6)
+   {
+      ode_solver->Init(oper);
    }
 
    bool last_step = false;
-   double dt_by_ref=dt;
+   double dt_by_ref = dt;
    for (int ti = 1; !last_step; ti++)
    {
       if (t + dt >= t_final - dt/2)

@@ -42,7 +42,6 @@ private:
 protected:
    N_Vector y;
    void* ode_mem;
-   bool initialized_sundials;
    bool tolerances_set_sundials;
    int solver_iteration_type;
 
@@ -159,18 +158,22 @@ public:
 /// Wraps the ARKode library of explicit, implicit and additive RK methods.
 class ARKODESolver: public ODESolver
 {
+#ifdef MFEM_USE_MPI
+private:
+   MPI_Comm comm;
+#endif
+
 protected:
    N_Vector y;
    void* ode_mem;
-   int step_type;
-   bool initialized_sundials;
    bool tolerances_set_sundials;
    bool use_explicit;
 
 public:
-   /** \brief
-    * This constructor wraps the ARKodeCreate function, and initializes
-    * pointers to null and flags to false.
+
+   /** \brief This constructor wraps the ARKodeCreate function,
+    * calls the ReInit function to handle the inital condition,
+    * and initializes pointers to null and flags to false.
     *
     * ARKodeCreate
     *
@@ -180,17 +183,11 @@ public:
     * ARKodeInit. If an initialization error occurs, ARKodeCreate
     * prints an error message to standard err and returns NULL.
     */
-   ARKODESolver();
+   ARKODESolver(Vector &_y, int _use_explicit = true);
 
-   /** \brief This constructor wraps the ARKodeCreate function,
-    * calls the ReInit function to handle the inital condition,
-    * and initializes pointers to null and flags to false.
-    *
-    * ARKodeCreate creates an internal memory block for a problem to
-    * be solved by ARKODE.
-    */
-   ARKODESolver(TimeDependentOperator &, Vector &, double &,
-                int _use_explicit=true);
+#ifdef MFEM_USE_MPI
+   ARKODESolver(MPI_Comm _comm, Vector &_y, int use_explicit = true);
+#endif
 
    void Init(TimeDependentOperator &);
    /** \brief
@@ -221,7 +218,7 @@ public:
     * The return value is ARK_SUCCESS = 0 if no errors occurred, or
     * a negative value otherwise.
     */
-   void ReInit(TimeDependentOperator &, Vector &, double &);
+   void ReInit(TimeDependentOperator &_f, Vector &_y, double &);
 
    /** \brief
     * SetSStolerances wraps the ARKode function ARKodeSStolerances
@@ -245,7 +242,7 @@ public:
     * Specifies to use a customized Butcher table for the explicit
     * portion of the system
     */
-   void WrapSetERKTableNum(int&);
+   void WrapSetERKTableNum(int table_num);
 
    /** \brief
     * Wraps SetFixedStep to force ARKode to take one internal step of size dt.
@@ -262,7 +259,7 @@ public:
     * Any nonzero argument will result in the use of that fixed step
     * size; an argument of 0 will re-enable temporal adaptivity.
     */
-   void WrapSetFixedStep(realtype dt);
+   void WrapSetFixedStep(double dt);
 
    /** \brief
     * Step transfers vector pointers using TransferNVector and calls
@@ -296,10 +293,6 @@ public:
       return f;
    }
 
-   void SetStepType(int _step_type)
-   {
-      step_type = _step_type;
-   }
    void SetLinearSolve(Solver*, SundialsLinearSolveOperator*);
 
    void SetStopTime(double);
@@ -315,8 +308,6 @@ public:
     */
    ~ARKODESolver();
 
-   virtual void CreateNVector(long int&, realtype*);
-
    /** \brief Creates an NVector of the appropriate type where the data is owned by the Vector* */
    virtual void CreateNVector(long int&, Vector*);
 
@@ -325,37 +316,7 @@ public:
 
    /** \brief Destroys an NVector of the appropriate type */
    virtual void DestroyNVector(N_Vector&);
-
-private:
-   virtual int WrapARKodeInit(void*,double&,N_Vector&);
-
-   virtual int WrapARKodeReInit(void*,double&,N_Vector&);
 };
-
-#ifdef MFEM_USE_MPI
-class ARKODEParSolver: public ARKODESolver
-{
-protected:
-   MPI_Comm comm;
-
-public:
-   ARKODEParSolver(MPI_Comm _comm, TimeDependentOperator &_f, Vector &_x,
-                   double &_t, int use_explicit = true);
-
-   void CreateNVector(long int&, Vector*);
-
-   void TransferNVectorShallow(Vector*,N_Vector&);
-
-   void DestroyNVector(N_Vector&);
-
-private:
-
-   int WrapARKodeReInit(void*,double&,N_Vector&);
-
-   int WrapARKodeInit(void*,double&,N_Vector&);
-
-};
-#endif
 
 class MFEMLinearSolverMemory
 {
