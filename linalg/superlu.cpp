@@ -12,6 +12,7 @@
 #include "../config/config.hpp"
 
 #ifdef MFEM_USE_SUPERLU
+#ifdef MFEM_USE_MPI
 
 #include "superlu.hpp"
 
@@ -19,16 +20,12 @@
 #include <superlu_defs.h>
 #include <superlu_ddefs.h>
 
-#ifdef MFEM_USE_MPI
 #include "hypre.hpp"
-#endif
 
 using namespace std;
 
 namespace mfem
 {
-using superlu_internal::sqrti;
-
 unsigned int superlu_internal::sqrti(const unsigned int & a)
 {
    unsigned int a_ = a;
@@ -56,85 +53,187 @@ unsigned int superlu_internal::sqrti(const unsigned int & a)
    return (root >> 1);
 }
 
-
-SuperLUSolver::SuperLUSolver( MPI_Comm comm )
-   : commPtr(&comm),
-     oper(NULL),
-     optionsPtr(NULL),
-     statPtr(NULL),
-     APtr(NULL),
-     ScalePermstructPtr(NULL),
-     LUstructPtr(NULL),
-     SOLVEstructPtr(NULL),
-     gridPtr(NULL)
+SuperLURowLocMatrix::SuperLURowLocMatrix(MPI_Comm comm,
+					 int num_loc_rows, int first_loc_row,
+					 int glob_nrows, int glob_ncols,
+					 int *I, int *J, double *data)
+  : comm_(comm),
+    rowLocPtr_(NULL)
 {
-   firstSolveWithThisA = true;
-   gridInitialized     = false;
-   LUStructInitialized = false;
+   // Set mfem::Operator member data
+   height = glob_nrows;
+   width = glob_ncols;
 
-   optionsPtr         = new superlu_dist_options_t;
-   statPtr            = new SuperLUStat_t;
-   APtr               = new SuperMatrix;
-   ScalePermstructPtr = new ScalePermstruct_t;
-   LUstructPtr        = new LUstruct_t;
-   SOLVEstructPtr     = new SOLVEstruct_t;
-   gridPtr            = new gridinfo_t;
-
-   superlu_dist_options_t * options = (superlu_dist_options_t*)optionsPtr;
-   SuperLUStat_t          *    stat = (SuperLUStat_t*)statPtr;
-   SuperMatrix            *       A = (SuperMatrix*)APtr;
+   // Allocate SuperLU's SuperMatrix struct
+   rowLocPtr_      = new SuperMatrix;
+   SuperMatrix * A = (SuperMatrix*)rowLocPtr_;
 
    A->Store = NULL;
 
-   nrhs = 1;
+   int m       = glob_nrows;
+   int n       = glob_ncols;
+   int nnz_loc = I[num_loc_rows];
+   int m_loc   = num_loc_rows;
+   int fst_row = first_loc_row;
 
-   if ( !(berr = doubleMalloc_dist(nrhs)) )
+   double * nzval  = NULL;
+   int    * colind = NULL;
+   int    * rowptr = NULL;
+
+   if ( !(nzval  = doubleMalloc_dist(nnz_loc)) )
    {
-      ABORT("Malloc fails for berr[].");
+      ABORT("Malloc fails for nzval[].");
+   }
+   for (int i=0; i<nnz_loc; i++)
+   {
+     nzval[i] = data[i];
    }
 
-   /* Set default options */
-   set_default_options_dist(options);
-
-   options->ParSymbFact = YES;
-   options->ColPerm     = PARMETIS;
-
-   /* Choose nprow and npcol so that the process grid is as square as possible.
-     If the processes cannot be divided evenly, keep the row dimension
-     smaller than the column dimension. */
-   int_t numProcs;
-   MPI_Comm_size(*commPtr, &numProcs);
-
-   nprow = (int)sqrti((unsigned int)numProcs);
-   while (numProcs % nprow != 0 && nprow > 0)
+   if ( !(colind = intMalloc_dist(nnz_loc)) )
    {
-      nprow--;
+      ABORT("Malloc fails for colind[].");
+   }
+   for (int i=0; i<nnz_loc; i++)
+   {
+     colind[i] = J[i];
    }
 
-   npcol = (int)(numProcs / nprow);
-   assert(nprow * npcol == numProcs);
+   if ( !(rowptr = intMalloc_dist(m_loc+1)) )
+   {
+     ABORT("Malloc fails for rowptr[].");
+   }
+   for (int i=0; i<=m_loc; i++)
+   {
+     rowptr[i] = I[i];
+   }
 
-   PStatInit(stat); /* Initialize the statistics variables. */
+   // Assign he matrix data to SuperLU's SuperMatrix structure
+   dCreate_CompRowLoc_Matrix_dist(A, m, n, nnz_loc, m_loc, fst_row,
+				  nzval, colind, rowptr,
+				  SLU_NR_loc, SLU_D, SLU_GE);
+}
+
+SuperLURowLocMatrix::SuperLURowLocMatrix(const HypreParMatrix & hypParMat)
+  : comm_(hypParMat.GetComm()),
+    rowLocPtr_(NULL)
+{
+   rowLocPtr_      = new SuperMatrix;
+   SuperMatrix * A = (SuperMatrix*)rowLocPtr_;
+
+   A->Store = NULL;
+
+   // First cast the parameter to a hypre_ParCSRMatrix
+   hypre_ParCSRMatrix * parcsr_op =
+     (hypre_ParCSRMatrix *)const_cast<HypreParMatrix&>(hypParMat);
+
+   MFEM_ASSERT(parcsr_op != NULL,"SuperLU: const_cast failed in SetOperator");
+
+   // Create the SuperMatrix A by borrowing the internal data from a
+   // hypre_CSRMatrix.
+   hypre_CSRMatrix * csr_op = hypre_MergeDiagAndOffd(parcsr_op);
+   hypre_CSRMatrixSetDataOwner(csr_op,0);
+
+   int m         = parcsr_op->global_num_rows;
+   int n         = parcsr_op->global_num_cols;
+   int fst_row   = parcsr_op->first_row_index;
+   int nnz_loc   = csr_op->num_nonzeros;
+   int m_loc     = csr_op->num_rows;
+
+   double * nzval  = csr_op->data;
+   int    * colind = csr_op->j;
+   int    * rowptr = NULL;
+
+   // The "i" array cannot be stolen from the hypre_CSRMatrix so we'll copy it
+   if ( !(rowptr = intMalloc_dist(m_loc+1)) )
+   {
+      ABORT("Malloc fails for rowptr[].");
+   }
+   for (int i=0; i<=m_loc; i++)
+   {
+      rowptr[i] = (csr_op->i)[i];
+   }
+
+   // Everything has been copied or abducted so delete the structure
+   hypre_CSRMatrixDestroy(csr_op);
+
+   // Assign he matrix data to SuperLU's SuperMatrix structure
+   dCreate_CompRowLoc_Matrix_dist(A, m, n, nnz_loc, m_loc, fst_row,
+				  nzval, colind, rowptr,
+				  SLU_NR_loc, SLU_D, SLU_GE);
+}
+
+SuperLURowLocMatrix::~SuperLURowLocMatrix()
+{
+  SuperMatrix * A = (SuperMatrix*)rowLocPtr_;
+
+  // Delete the internal data
+  Destroy_CompRowLoc_Matrix_dist(A);
+
+  // Delete the struct
+  if ( A != NULL ) { delete A; }
+}
+
+SuperLUSolver::SuperLUSolver( MPI_Comm comm )
+   : comm_(comm),
+     APtr_(NULL),
+     optionsPtr_(NULL),
+     statPtr_(NULL),
+     ScalePermstructPtr_(NULL),
+     LUstructPtr_(NULL),
+     SOLVEstructPtr_(NULL),
+     gridPtr_(NULL),
+     berr_(NULL),
+     nrhs_(1),
+     nprow_(0),
+     npcol_(0),
+     ownsA_(false),
+     firstSolveWithThisA_(false),
+     gridInitialized_(false),
+     LUStructInitialized_(false)
+{
+  this->Init();
+}
+
+SuperLUSolver::SuperLUSolver( SuperLURowLocMatrix & A)
+   : comm_(A.GetComm()),
+     APtr_(&A),
+     optionsPtr_(NULL),
+     statPtr_(NULL),
+     ScalePermstructPtr_(NULL),
+     LUstructPtr_(NULL),
+     SOLVEstructPtr_(NULL),
+     gridPtr_(NULL),
+     berr_(NULL),
+     nrhs_(1),
+     nprow_(0),
+     npcol_(0),
+     ownsA_(false),
+     firstSolveWithThisA_(true),
+     gridInitialized_(false),
+     LUStructInitialized_(false)
+{
+  height = A.Height();
+  width  = A.Width();
+
+  this->Init();
 }
 
 SuperLUSolver::~SuperLUSolver()
 {
-   superlu_dist_options_t * options = (superlu_dist_options_t*)optionsPtr;
-   SuperLUStat_t     * stat         = (SuperLUStat_t*)statPtr;
-   SuperMatrix       * A            = (SuperMatrix*)APtr;
-   ScalePermstruct_t * SPstruct     = (ScalePermstruct_t*)ScalePermstructPtr;
-   LUstruct_t        * LUstruct     = (LUstruct_t*)LUstructPtr;
-   SOLVEstruct_t     * SOLVEstruct  = (SOLVEstruct_t*)SOLVEstructPtr;
-   gridinfo_t        * grid         = (gridinfo_t*)gridPtr;
+   superlu_dist_options_t * options = (superlu_dist_options_t*)optionsPtr_;
+   SuperLUStat_t     * stat         = (SuperLUStat_t*)statPtr_;
+   ScalePermstruct_t * SPstruct     = (ScalePermstruct_t*)ScalePermstructPtr_;
+   LUstruct_t        * LUstruct     = (LUstruct_t*)LUstructPtr_;
+   SOLVEstruct_t     * SOLVEstruct  = (SOLVEstruct_t*)SOLVEstructPtr_;
+   gridinfo_t        * grid         = (gridinfo_t*)gridPtr_;
 
-   SUPERLU_FREE(berr);
+   SUPERLU_FREE(berr_);
    PStatFree(stat);
-   Destroy_CompRowLoc_Matrix_dist(A);
 
-   if ( LUStructInitialized )
+   if ( LUStructInitialized_ )
    {
       ScalePermstructFree(SPstruct);
-      Destroy_LU(A->nrow, grid, LUstruct);
+      Destroy_LU(width, grid, LUstruct);
       LUstructFree(LUstruct);
    }
    if ( options->SolveInitialized )
@@ -142,83 +241,125 @@ SuperLUSolver::~SuperLUSolver()
       dSolveFinalize(options, SOLVEstruct);
    }
 
-   if ( gridInitialized )
+   if ( gridInitialized_ )
    {
       superlu_gridexit(grid);
    }
 
    if (     options != NULL ) { delete options; }
    if (        stat != NULL ) { delete stat; }
-   if (           A != NULL ) { delete A; }
    if (    SPstruct != NULL ) { delete SPstruct; }
    if (    LUstruct != NULL ) { delete LUstruct; }
    if ( SOLVEstruct != NULL ) { delete SOLVEstruct; }
    if (        grid != NULL ) { delete grid; }
+   if (       APtr_ != NULL && ownsA_ ) { delete APtr_; }
+}
+
+void
+SuperLUSolver::Init()
+{
+   MPI_Comm_size(comm_, &numProcs_);
+   MPI_Comm_rank(comm_, &myid_);
+
+   optionsPtr_         = new superlu_dist_options_t;
+   statPtr_            = new SuperLUStat_t;
+   ScalePermstructPtr_ = new ScalePermstruct_t;
+   LUstructPtr_        = new LUstruct_t;
+   SOLVEstructPtr_     = new SOLVEstruct_t;
+   gridPtr_            = new gridinfo_t;
+
+   superlu_dist_options_t * options = (superlu_dist_options_t*)optionsPtr_;
+   SuperLUStat_t          *    stat = (SuperLUStat_t*)statPtr_;
+
+   if ( !(berr_ = doubleMalloc_dist(nrhs_)) )
+   {
+      ABORT("Malloc fails for berr[].");
+   }
+
+   // Set default options
+   set_default_options_dist(options);
+
+   options->ParSymbFact = YES;
+   options->ColPerm     = PARMETIS;
+
+   // Choose nprow and npcol so that the process grid is as square as possible.
+   // If the processes cannot be divided evenly, keep the row dimension
+   // smaller than the column dimension.
+
+   nprow_ = (int)superlu_internal::sqrti((unsigned int)numProcs_);
+   while (numProcs_ % nprow_ != 0 && nprow_ > 0)
+   {
+      nprow_--;
+   }
+
+   npcol_ = (int)(numProcs_ / nprow_);
+   assert(nprow_ * npcol_ == numProcs_);
+
+   PStatInit(stat); // Initialize the statistics variables.
 }
 
 void
 SuperLUSolver::Setup()
 {
-   gridinfo_t * grid = (gridinfo_t*)gridPtr;
-
-   int numProcs;
-   MPI_Comm_size(*commPtr, &numProcs);
+   gridinfo_t * grid = (gridinfo_t*)gridPtr_;
 
    // Make sure the values of nprow and npcol are reasonable
-   if ( ((nprow * npcol) > numProcs) || ((nprow * npcol) < 1) )
+   if ( ((nprow_ * npcol_) > numProcs_) || ((nprow_ * npcol_) < 1) )
    {
-      cerr << "Warning: User specified nprow and npcol are such that "
-           << "(nprow * npcol) > numProcs or (nprow * npcol) < 1.  "
-           << "Using default values for nprow and npcol instead." << endl;
-
-      // nprow = floor(sqrt((float)numProcs));
-      nprow = (int)sqrti((unsigned int)numProcs);
-      while (numProcs % nprow != 0 && nprow > 0)
+      if ( myid_ == 0 )
       {
-         nprow--;
+	 cerr << "Warning: User specified nprow and npcol are such that "
+	      << "(nprow * npcol) > numProcs or (nprow * npcol) < 1.  "
+	      << "Using default values for nprow and npcol instead." << endl;
       }
 
-      npcol = (int)(numProcs / nprow);
-      assert(nprow * npcol == numProcs);
+      nprow_ = (int)superlu_internal::sqrti((unsigned int)numProcs_);
+      while (numProcs_ % nprow_ != 0 && nprow_ > 0)
+      {
+         nprow_--;
+      }
+
+      npcol_ = (int)(numProcs_ / nprow_);
+      assert(nprow_ * npcol_ == numProcs_);
    }
 
-   superlu_gridinit(*commPtr, nprow, npcol, grid);
+   superlu_gridinit(comm_, nprow_, npcol_, grid);
 
-   gridInitialized = true;
+   gridInitialized_ = true;
 }
 
 void
 SuperLUSolver::Mult( const Vector & x, Vector & y ) const
 {
-   superlu_dist_options_t * options = (superlu_dist_options_t*)optionsPtr;
-   SuperLUStat_t     * stat         = (SuperLUStat_t*)statPtr;
-   SuperMatrix       * A            = (SuperMatrix*)APtr;
-
-   ScalePermstruct_t * SPstruct     = (ScalePermstruct_t*)ScalePermstructPtr;
-   LUstruct_t        * LUstruct     = (LUstruct_t*)LUstructPtr;
-   SOLVEstruct_t     * SOLVEstruct  = (SOLVEstruct_t*)SOLVEstructPtr;
-   gridinfo_t        * grid         = (gridinfo_t*)gridPtr;
-
-   MFEM_ASSERT(A->Store != NULL,
+   MFEM_ASSERT(APtr_ != NULL,
                "SuperLU Error: The operator must be set before the system can be solved.");
 
-   if (!firstSolveWithThisA)
+   superlu_dist_options_t * options = (superlu_dist_options_t*)optionsPtr_;
+   SuperLUStat_t     * stat         = (SuperLUStat_t*)statPtr_;
+   SuperMatrix       * A            = (SuperMatrix*)APtr_->InternalData();
+
+   ScalePermstruct_t * SPstruct     = (ScalePermstruct_t*)ScalePermstructPtr_;
+   LUstruct_t        * LUstruct     = (LUstruct_t*)LUstructPtr_;
+   SOLVEstruct_t     * SOLVEstruct  = (SOLVEstruct_t*)SOLVEstructPtr_;
+   gridinfo_t        * grid         = (gridinfo_t*)gridPtr_;
+
+   if (!firstSolveWithThisA_)
    {
-      options->Fact = FACTORED; /* Indicate the factored form of A is supplied.*/
+      options->Fact = FACTORED; // Indicate the factored form of A is supplied.
    }
    else // This is the first sovle with this A
    {
-      firstSolveWithThisA = false;
+      firstSolveWithThisA_ = false;
 
       // Make sure that the parameters have been initialized
       // The only parameter we might have to worry about is ScalePermstruct,
       // if the user is supplying a row or column permutation.
 
-      /* Initialize ScalePermstruct and LUstruct. */
+      // Initialize ScalePermstruct and LUstruct.
       ScalePermstructInit(A->nrow, A->ncol, SPstruct);
       LUstructInit(A->ncol, LUstruct);
 
-      LUStructInitialized = true;
+      LUStructInitialized_ = true;
    }
 
    // SuperLU overwrites x with y, so copy x to y and pass that
@@ -230,8 +371,8 @@ SuperLUSolver::Mult( const Vector & x, Vector & y ) const
    int      info = -1, locSize = y.Size();
 
    // Solve the system
-   pdgssvx(options, A, SPstruct, yPtr, locSize, nrhs, grid,
-           LUstruct, SOLVEstruct, berr, stat, &info);
+   pdgssvx(options, A, SPstruct, yPtr, locSize, nrhs_, grid,
+           LUstruct, SOLVEstruct, berr_, stat, &info);
 
    if ( info != 0 )
    {
@@ -249,70 +390,40 @@ SuperLUSolver::Mult( const Vector & x, Vector & y ) const
       {
          MFEM_ABORT("Unknown SuperLU Error");
       }
-
    }
 }
 
 void
 SuperLUSolver::SetOperator( const Operator & op )
 {
-   firstSolveWithThisA = true;
+   // Verify that we have a compatible operator
+   APtr_ = dynamic_cast<const SuperLURowLocMatrix*>(&op);
+   if ( APtr_ == NULL )
+   {
+      const HypreParMatrix * hypParMat =
+        dynamic_cast<const HypreParMatrix *>(&op);
 
-   oper   = &op;
+      MFEM_ASSERT(hypParMat != NULL,"SuperLU: unrecognized Operator type");
+
+      APtr_  = new SuperLURowLocMatrix(*hypParMat);
+      ownsA_ = true;
+   }
+
+   // Everything is ok so finish setting the operator
+   firstSolveWithThisA_ = true;
+
+   // Set mfem::Operator member data
    height = op.Height();
    width  = op.Width();
 
-   SuperMatrix * A = (SuperMatrix*)APtr;
-
-   int_t    m, n, nnz_loc, m_loc, fst_row;
-   double * nzval_loc;
-   int_t  * colind;
-   int_t  * rowptr;
-
-   if (!gridInitialized)
+   // Initialize the processor grid if necessary
+   if (!gridInitialized_)
    {
       this->Setup();
    }
-
-   // First cast the parameter to a hypre_ParCSRMatrix
-   const HypreParMatrix * hypParMat =
-      dynamic_cast<const HypreParMatrix *>(&op);
-   MFEM_ASSERT(hypParMat != NULL,"SuperLU requires a HypreParMatrix operator");
-
-   hypre_ParCSRMatrix * parcsr_op =
-      (hypre_ParCSRMatrix *)const_cast<HypreParMatrix&>(*hypParMat);
-
-   MFEM_ASSERT(parcsr_op != NULL,"SuperLU: const_cast failed in SetOperator");
-
-   // Create the SuperLUMatrix A by borrowing the internal data from a
-   // hypre_CSRMatrix.
-   hypre_CSRMatrix * csr_op = hypre_MergeDiagAndOffd(parcsr_op);
-   hypre_CSRMatrixSetDataOwner(csr_op,0);
-
-   m         = parcsr_op->global_num_rows;
-   n         = parcsr_op->global_num_cols;
-   fst_row   = parcsr_op->first_row_index;
-   nnz_loc   = csr_op->num_nonzeros;
-   m_loc     = csr_op->num_rows;
-   nzval_loc = csr_op->data;
-   colind    = csr_op->j;
-
-   // The "i" array cannot be stolen from the hypre_CSRMatrix so we'll copy it
-   if ( !(rowptr = intMalloc_dist(m_loc+1)) )
-   {
-      ABORT("Malloc fails for rowptr[].");
-   }
-   for (int i=0; i<=m_loc; i++)
-   {
-      rowptr[i] = (csr_op->i)[i];
-   }
-   hypre_CSRMatrixDestroy(csr_op);
-
-   dCreate_CompRowLoc_Matrix_dist(A, m, n, nnz_loc, m_loc, fst_row,
-                                  nzval_loc, colind, rowptr,
-                                  SLU_NR_loc, SLU_D, SLU_GE);
 }
 
-}
+} // mfem namespace
 
-#endif
+#endif // MFEM_USE_MPI
+#endif // MFEM_USE_SUPERLU

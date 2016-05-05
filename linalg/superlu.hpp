@@ -17,6 +17,7 @@
 
 #ifdef MFEM_USE_SUPERLU
 #ifdef MFEM_USE_MPI
+#include "hypre.hpp"
 
 #include <mpi.h>
 
@@ -27,6 +28,40 @@ namespace superlu_internal
 {
 unsigned int sqrti(const unsigned int & a);
 }
+
+class SuperLURowLocMatrix : public Operator
+{
+public:
+   /** Creates a general parallel matrix from a local CSR matrix on each
+       processor described by the I, J and data arrays. The local matrix should
+       be of size (local) nrows by (global) glob_ncols. The new parallel matrix
+       contains copies of all input arrays (so they can be deleted). */
+   SuperLURowLocMatrix(MPI_Comm comm,
+		       int num_loc_rows, int first_loc_row,
+		       int glob_nrows, int glob_ncols,
+		       int *I, int *J, double *data);
+
+   /** Creates a copy of the parallel matrix hypParMat in SuperLU's RowLoc
+       format.  All data is copied so the original matrix may be deleted. */
+   SuperLURowLocMatrix(const HypreParMatrix & hypParMat);
+
+  ~SuperLURowLocMatrix();
+
+  void Mult(const Vector &x, Vector &y) const
+  {
+    mfem_error("SuperLURowLocMatrix::Mult(...)\n"
+	       "  matrix vector products are not supported.");
+  }
+
+  MPI_Comm GetComm() const { return comm_; }
+
+  void * InternalData() const { return rowLocPtr_; }
+
+private:
+   MPI_Comm   comm_;
+   void     * rowLocPtr_;
+
+}; // mfem::SuperLURowLocMatrix
 
 /** The MFEM SuperLU Direct Solver class.
 
@@ -40,61 +75,56 @@ class SuperLUSolver :
    public virtual mfem::Solver
 {
 public:
-   /** Constructor with MPI_Comm paramter. */
+   // Constructor with MPI_Comm parameter.
    SuperLUSolver( MPI_Comm comm );
 
-   /** Default destructor. */
+   // Constructor with SuperLU Matrix Object.
+   SuperLUSolver( SuperLURowLocMatrix & A);
+
+   // Default destructor.
    ~SuperLUSolver( void );
 
+   // Factor and solve the linear system y = Op^{-1} x
    void Mult( const Vector & x, Vector & y ) const;
 
-   /** Set the operator. */
+   // Set the operator.
    void SetOperator( const Operator & op );
 
 private:
+   void Init();
    void Setup();
 
 protected:
 
-   MPI_Comm*                        commPtr;
-   const Operator    * oper;
-   // esi::MatrixData<int>       * A_md;
+   MPI_Comm              comm_;
+   int                   numProcs_;
+   int                   myid_;
 
-   /*
-   superlu_options_t   options;
-   SuperLUStat_t       stat;
-   SuperMatrix         A;
-   ScalePermstruct_t   ScalePermstruct;
-   LUstruct_t          LUstruct;
-   SOLVEstruct_t       SOLVEstruct;
-   gridinfo_t          grid;
-   */
+   const SuperLURowLocMatrix * APtr_;
 
-   void*               optionsPtr;
-   void*               statPtr;
-   void*               APtr;
-   void*               ScalePermstructPtr;
-   void*               LUstructPtr;
-   void*               SOLVEstructPtr;
-   void*               gridPtr;
-   double*             berr;
-   int                 nrhs;
-   int                 nprow;
-   int                 npcol;
-   mutable bool                firstSolveWithThisA;
-   bool                gridInitialized;
-   mutable bool                LUStructInitialized;
-   /*
-   // Debug flag
-   int db;
-   int dbg_level;
-   int dbg_proc;
-   */
+   // The actual types of the following pointers are hidden
+   // to avoid exposing the SuperLU header files to the entire library.
+   // Their types are given in the trailing comments.
+   void*               optionsPtr_;         // superlu_options_t *
+   void*               statPtr_;            //     SuperLUStat_t *
+   void*               ScalePermstructPtr_; //  ScalePermsruct_t *
+   void*               LUstructPtr_;        //        LUstruct_t *
+   void*               SOLVEstructPtr_;     //     SOLVEstruct_t *
+   void*               gridPtr_;            //        gridinfo_t *
+
+   double*             berr_;
+   int                 nrhs_;
+   int                 nprow_;
+   int                 npcol_;
+   bool                ownsA_;
+   mutable bool        firstSolveWithThisA_;
+   bool                gridInitialized_;
+   mutable bool        LUStructInitialized_;
+
 };     // mfem::SuperLUSolver class
 
-}
+} // mfem namespace
 
 #endif // MFEM_USE_MPI
 #endif // MFEM_USE_SUPERLU
-
-#endif
+#endif // MFEM_SUPERLU
