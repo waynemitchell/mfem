@@ -281,6 +281,9 @@ void ParBilinearForm::FormLinearSystem(
    }
    else if (mat)
    {
+      MFEM_VERIFY(p_mat == NULL && p_mat_e == NULL,
+                  "The ParBilinearForm must be updated with Update() before "
+                  "re-assembling the ParBilinearForm.");
       Finalize();
       p_mat = ParallelAssemble();
       delete mat;
