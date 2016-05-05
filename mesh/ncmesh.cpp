@@ -1906,7 +1906,7 @@ void NCMesh::BuildFaceList()
          }
          processed_faces[index] = 1;
 
-         if (face->ref_count == 2 || face->Boundary())
+         if (face->ref_count == 2)
          {
             // this is a conforming face, add it to the list
             face_list.conforming.push_back(MeshId(index, elem, j));
@@ -1931,6 +1931,11 @@ void NCMesh::BuildFaceList()
                {
                   face_list.slaves[i].master = index;
                }
+            }
+            else
+            {
+               // no slaves found, probably a boundary face
+               face_list.conforming.push_back(MeshId(index, elem, j));
             }
          }
 
