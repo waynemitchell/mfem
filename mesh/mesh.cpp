@@ -2348,31 +2348,39 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
   //
   
   const int sideMapHex8[6][4] = {{1,2,6,5},
-				{2,3,7,6},
-				{3,4,8,7},
-				{1,5,8,4},
-				{1,4,3,2},
-				{5,6,7,8}};
+				 {2,3,7,6},
+				 {4,3,7,8},
+				 {1,4,8,5},
+				 {1,4,3,2},
+				 {5,8,7,6}};
+
   const int sideMapTet4[4][3] = {{1,2,4},
-				{2,3,4},
-				{1,4,3},
-				{1,3,2}};
+				 {2,3,4},
+				 {1,4,3},
+				 {1,3,2}};
+
+
   const int mfemToGenesisTet10[10] = {1,2,3,4,5,7,8,6,9,10};
+
+
   const int mfemToGenesisHex27[27] = {1,2,3,4,5,6,7,8,9,14,17,
-				      13,11,15,19,16,9,10,18,20,
-				      22,26,27,25,24,23,21};
+				      13,11,15,19,16,12,10,18,
+				      20,22,26,27,25,24,23,21};
+
   const int mfemToGenesisTri6[6]   = {1,2,3,4,5,6};
   const int mfemToGenesisQuad9[9]  = {1,2,3,4,5,6,7,8,9};
-  const int sideMapHex27[6][9] = {{1,2,6,5,9,18,13,17,22},
-				  {2,3,7,6,10,19,14,18,24},
-				  {4,3,7,8,11,19,15,20,23},
-				  {1,4,8,5,12,20,16,17,25},
-				  {1,2,3,4,9,10,11,12,21},
-				  {5,6,7,8,13,14,15,16,26}};
-  const int sideMapTet10[4][6] = {{1,2,4,5,9,7},
-				  {2,3,4,8,10,9},
-				  {1,3,4,6,10,7},
-				  {1,2,3,5,8,6}};
+
+  const int sideMapHex27[6][9] = {{1,2,6,5,9,10,11,12,26},
+				  {2,3,7,6,14,18,15,10,25},
+				  {4,3,7,8,17,18,19,20,27},
+				  {1,4,8,5,13,20,16,12,24},
+				  {1,4,3,2,13,17,14,9,22},
+				  {5,8,7,6,16,19,15,11,23}};
+
+  const int sideMapTet10[4][6] = {{1,2,4,5,9,8},
+				  {2,3,4,6,10,9},
+				  {1,4,3,8,10,7},
+				  {1,3,2,7,6,5}};
   
 
   
@@ -2742,7 +2750,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       int loc_ind;
       while (iblk < (int) num_el_blk && glob_ind >= start_of_block[iblk+1]) iblk++;
       if (iblk >=(int)  num_el_blk) {
-	mfem_error("Sideset element does not exist\n");
+	mfem_error("Sideset element does not exiss_node_idst\n");
       }
       loc_ind = glob_ind - start_of_block[iblk]; 
       int this_side = side_ss[i][j];
@@ -2821,13 +2829,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
   //
   // load up the vertices
   //
-//   NumOfVertices = num_nodes;
-//   vertices.SetSize(num_nodes);
-//   for (int i = 0;i < (int) num_nodes;i++) { 
-//     vertices[i](0) = coordx[i];
-//     vertices[i](1) = coordy[i];
-//     vertices[i](2) = coordz[i];    
-//   }
+
 
   NumOfVertices = uniqueVertexID.size();
   vertices.SetSize(NumOfVertices);
@@ -2837,13 +2839,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
     vertices[i](2) = coordz[uniqueVertexID[i] - 1];    
   } 
   
-  // load up the elements
-  // MEFM is 0-based so subtract 1 from every node ID
-//   for (int iblk = 0;iblk < (int) num_el_blk;iblk++) {
-//     for (int i = 0;i < (int) num_el_in_blk[iblk] * (int) num_nod_per_el[iblk];i++) {
-//       elem_blk[iblk][i] -= 1;
-//     }
-//   }
+
   
   NumOfElements = num_elem;
   elements.SetSize(num_elem);
@@ -2887,12 +2883,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
   //
   // load up the boundary elements
   //
-  // MEFM is 0-based so subtract 1 from every node ID
-//   for (int iss = 0;iss < (int) num_side_sets;iss++) {
-//     for (int i = 0;i < (int) num_side_in_ss[iss]*num_nod_per_side;i++) {
-//       ss_node_id[iss][i] -= 1;
-//     }
-//   }
+
   
   NumOfBdrElements = 0;
   for (int iss = 0;iss < (int) num_side_sets;iss++) {
@@ -2936,7 +2927,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
   
   // FOR DEBUGGING ONLY
   // set order to 1 even if higher order everything should still work
-  order = 1;
+  // order = 1;
   // END FOR DEBUGGING ONLY
 
   if (order == 2) {
@@ -2995,11 +2986,8 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       while (iblk < (int) num_el_blk && i >= start_of_block[iblk+1]) iblk++;
       loc_ind = i - start_of_block[iblk]; 
       
-      // NOTE TO SELF
-      // this makes sense for Ordering::byNodes
-      // but that is how the FES was constructured
       for (int j = 0, k = 0; j < dofs.Size(); j++,k += 3) {
-	int point_id = elem_blk[iblk][loc_ind*num_nod_per_el[iblk] + mymap[j] - 1];
+	int point_id = elem_blk[iblk][loc_ind*num_nod_per_el[iblk] + mymap[j] - 1] - 1;
 	(*Nodes)(vdofs[k])   = coordx[point_id];
 	(*Nodes)(vdofs[k+1]) = coordy[point_id];
 	(*Nodes)(vdofs[k+2]) = coordz[point_id];
