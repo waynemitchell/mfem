@@ -2858,23 +2858,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       for (int i = 0;i < (int) num_el_in_blk[iblk];i++) {
 	for (int j = 0;j < 8;j++) renumberedVertID[j] =  cubitToMFEMVertMap[elem_blk[iblk][i*NumNodePerEl+j]]-1;
 	elements[elcount] = new Hexahedron(renumberedVertID,ebprop[iblk]);
-
-	// FOR DEBUGGING ONLY
-	cout << "block " << iblk << " element " << i << endl;
-	cout << "OLD NODES" << endl;
-	cout << "    ";
-	for (int j = 0;j < 8;j++) {
-	  cout << elem_blk[iblk][i*NumNodePerEl+j]-1 << "  " ;
-	}
-	cout << endl;
-	cout << "NEW NODES" << endl;
-	cout << "    ";
-	for (int j = 0;j < 8;j++) {
-	  cout << renumberedVertID[j] << "  " ;
-	}
-	cout << endl;
-	// END FOR DEBUGGING ONLY
-
 	elcount++;
       }
     }
@@ -2903,23 +2886,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       for (int i = 0;i < (int) num_side_in_ss[iss];i++) {
 	for (int j = 0;j < 4;j++) renumberedVertID[j] =  cubitToMFEMVertMap[ss_node_id[iss][i*num_nod_per_side+j]]-1;
 	boundary[sidecount] = new Quadrilateral(renumberedVertID,ssprop[iss]);
-
-	// FOR DEBUGGING ONLY
-	cout << "ss " << iss << " side " << i << endl;
-	cout << "OLD NODES" << endl;
-	cout << "    ";
-	for (int j = 0;j < 4;j++) {
-	  cout << ss_node_id[iss][i*num_nod_per_side+j]-1 << "  " ;
-	}
-	cout << endl;
-	cout << "NEW NODES" << endl;
-	cout << "    ";
-	for (int j = 0;j < 4;j++) {
-	  cout << renumberedVertID[j] << "  " ;
-	}
-	cout << endl;
-	// END FOR DEBUGGING ONLY
-
 	sidecount++;
       }
     }
