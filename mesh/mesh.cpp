@@ -2359,7 +2359,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
 				 {1,4,3},
 				 {1,3,2}};
 
-
+  //                                  1,2,3,4,5,6,7,8,9,10
   const int mfemToGenesisTet10[10] = {1,2,3,4,5,7,8,6,9,10};
 
 
@@ -2965,14 +2965,14 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       fes->DofsToVDofs(vdofs);
 
       // FOR DEBUGGING ONLY
-      cout << "Element " << i << endl;
-      cout << "dofs " << endl;
-      for (int l = 0;l < dofs.Size();l++) cout << dofs[l] << "  ";
-      cout << endl;
+//       cout << "Element " << i << endl;
+//       cout << "dofs " << endl;
+//       for (int l = 0;l < dofs.Size();l++) cout << dofs[l] << "  ";
+//       cout << endl;
 
-      cout << "vdofs " << endl;
-      for (int l = 0;l < vdofs.Size();l++) cout << vdofs[l] << "  ";
-      cout << endl;
+//       cout << "vdofs " << endl;
+//       for (int l = 0;l < vdofs.Size();l++) cout << vdofs[l] << "  ";
+//       cout << endl;
       // END FOR DEBUGGING ONLY
       
       int iblk = 0;
@@ -2985,8 +2985,11 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
 	(*Nodes)(vdofs[j])   = coordx[point_id];
 	(*Nodes)(vdofs[j]+1) = coordy[point_id];
 	(*Nodes)(vdofs[j]+2) = coordz[point_id];
-	cout << "j = " << j << " point_id = " << point_id << endl;
-	cout << "xyz: " << coordx[point_id] << "  " << coordy[point_id] << "  " << coordz[point_id] << endl;
+
+	// FOR DEBUGGING ONLY
+// 	cout << "j = " << j << " point_id = " << point_id << endl;
+// 	cout << "xyz: " << coordx[point_id] << "  " << coordy[point_id] << "  " << coordz[point_id] << endl;
+	// END FOR DEBUGGING ONLY
       }
     }
   }
