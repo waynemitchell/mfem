@@ -1233,8 +1233,8 @@ public:
    };
 
 private:
-   Array<double *> open_pts, closed_pts;
-   Array<Basis *> open_basis, closed_basis;
+   Array<double *> open_pts, closed_pts, nc_closed_pts, nc_open_pts;
+   Array<Basis *> open_basis, closed_basis, nc_closed_basis, nc_open_basis;
 
    static Array2D<int> binom;
 
@@ -1254,9 +1254,13 @@ public:
 
    const double *OpenPoints(const int p);
    const double *ClosedPoints(const int p);
+   const double *NCOpenPoints(const int p);
+   const double *NCClosedPoints(const int p);
 
    Basis &OpenBasis(const int p);
    Basis &ClosedBasis(const int p);
+   Basis &NCOpenBasis(const int p);
+   Basis &NCClosedBasis(const int p);
 
    // Evaluate the values of a hierarchical 1D basis at point x
    // hierarchical = k-th basis function is degree k polynomial
@@ -1279,6 +1283,8 @@ public:
    static double CalcDelta(const int p, const double x)
    { return pow(x, (double) p); }
 
+   static void ClosedUniformPoints(const int p, double *x);
+   static void OpenUniformPoints(const int p, double *x);
    static void UniformPoints(const int p, double *x);
    static void GaussPoints(const int p, double *x);
    static void GaussLobattoPoints(const int p, double *x);
@@ -1520,7 +1526,7 @@ private:
 #endif
 
 public:
-   L2_SegmentElement(const int p, const int _type = 0);
+   L2_SegmentElement(const int p, const int _type = 0); // Default to GaussLegendre
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;

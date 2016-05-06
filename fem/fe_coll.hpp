@@ -111,7 +111,9 @@ public:
    {
       GaussLegendre = 0, // Nodal basis, with nodes at the Gauss-Legendre points
       GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive      = 2  // Positive basis, Bernstein polynomials
+      Positive      = 2, // Positive basis, Bernstein polynomials
+      ClosedEqual   = 3, // Nodal basis, equally spaced points, point at 0 and 1
+      OpenEqual     = 4  // Nodal basis, equally spaced points, no points at 0 and 1
    };
 
 private:

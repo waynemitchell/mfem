@@ -1364,9 +1364,12 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
 
    if (dim == 1)
    {
-      if (type == 0 || type == 1)
+      if (m_type == GaussLegendre ||
+          m_type == GaussLobatto ||
+          m_type == ClosedEqual ||
+          m_type == OpenEqual)
       {
-         L2_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, type);
+         L2_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, m_type);
       }
       else
       {

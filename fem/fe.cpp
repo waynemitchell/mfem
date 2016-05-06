@@ -6147,6 +6147,25 @@ const int *Poly_1D::Binom(const int p)
    return binom[p];
 }
 
+void Poly_1D::ClosedUniformPoints(const int p, double *x)
+{
+   // Need at least 2 points, p==1, for Closed Equally Spaced Points
+   if(p < 1)
+      mfem_error ("Trying to get 1 closed, equally spaced  point!");
+
+   for(int i = 0 ; i <= p ; i++)
+      x[i] = double(i)/double(p);
+}
+
+void Poly_1D::OpenUniformPoints(const int p, double *x)
+{
+   double dx = 1./double(p+1);
+   double dx_div_2 = dx/2.;
+   for(int i = 0 ; i <=p ; i++)
+    x[i] = dx_div_2 + dx*double(i);
+}
+
+
 void Poly_1D::UniformPoints(const int p, double *x)
 {
    if (p == 0)
@@ -6545,6 +6564,54 @@ alloc_closed:
    return cp;
 }
 
+const double *Poly_1D::NCOpenPoints(const int p)
+{
+   double *op;
+
+   if (nc_open_pts.Size() <= p)
+   {
+      int i = nc_open_pts.Size();
+      nc_open_pts.SetSize(p + 1);
+      for ( ; i < p; i++)
+      {
+         nc_open_pts[i] = NULL;
+      }
+      goto alloc_nc_open;
+   }
+   if ((op = nc_open_pts[p]) != NULL)
+   {
+      return op;
+   }
+alloc_nc_open:
+   nc_open_pts[p] = op = new double[p + 1];
+   OpenUniformPoints(p, op);
+   return op;
+}
+
+const double *Poly_1D::NCClosedPoints(const int p)
+{
+   double *cp;
+
+   if (nc_closed_pts.Size() <= p)
+   {
+      int i = nc_closed_pts.Size();
+      nc_closed_pts.SetSize(p + 1);
+      for ( ; i < p; i++)
+      {
+         nc_closed_pts[i] = NULL;
+      }
+      goto alloc_nc_closed;
+   }
+   if ((cp = nc_closed_pts[p]) != NULL)
+   {
+      return cp;
+   }
+alloc_nc_closed:
+   nc_closed_pts[p] = cp = new double[p + 1];
+   ClosedUniformPoints(p, cp);
+   return cp;
+}
+
 Poly_1D::Basis &Poly_1D::OpenBasis(const int p)
 {
    Basis *ob;
@@ -6591,6 +6658,52 @@ alloc_cbasis:
    return *cb;
 }
 
+Poly_1D::Basis &Poly_1D::NCOpenBasis(const int p)
+{
+   Basis *ob;
+
+   if (nc_open_basis.Size() <= p)
+   {
+      int i = nc_open_basis.Size();
+      nc_open_basis.SetSize(p + 1);
+      for ( ; i < p; i++)
+      {
+         nc_open_basis[i] = NULL;
+      }
+      goto alloc_nc_obasis;
+   }
+   if ((ob = nc_open_basis[p]) != NULL)
+   {
+      return *ob;
+   }
+alloc_nc_obasis:
+   nc_open_basis[p] = ob = new Basis(p, NCOpenPoints(p));
+   return *ob;
+}
+
+Poly_1D::Basis &Poly_1D::NCClosedBasis(const int p)
+{
+   Basis *cb;
+
+   if (nc_closed_basis.Size() <= p)
+   {
+      int i = nc_closed_basis.Size();
+      nc_closed_basis.SetSize(p + 1);
+      for ( ; i < p; i++)
+      {
+         nc_closed_basis[i] = NULL;
+      }
+      goto alloc_nc_cbasis;
+   }
+   if ((cb = nc_closed_basis[p]) != NULL)
+   {
+      return *cb;
+   }
+alloc_nc_cbasis:
+   nc_closed_basis[p] = cb = new Basis(p, NCClosedPoints(p));
+   return *cb;
+}
+
 Poly_1D::~Poly_1D()
 {
    for (int i = 0; i < open_pts.Size(); i++)
@@ -6601,6 +6714,15 @@ Poly_1D::~Poly_1D()
    {
       delete [] closed_pts[i];
    }
+   for (int i = 0; i < nc_closed_pts.Size(); i++)
+   {
+      delete [] nc_closed_pts[i];
+   }
+   for (int i = 0; i < nc_open_pts.Size(); i++)
+   {
+      delete [] nc_open_pts[i];
+   }
+
    for (int i = 0; i < open_basis.Size(); i++)
    {
       delete open_basis[i];
@@ -6608,6 +6730,14 @@ Poly_1D::~Poly_1D()
    for (int i = 0; i < closed_basis.Size(); i++)
    {
       delete closed_basis[i];
+   }
+   for (int i = 0; i < nc_closed_basis.Size(); i++)
+   {
+      delete nc_closed_basis[i];
+   }
+   for (int i = 0; i < nc_open_basis.Size(); i++)
+   {
+      delete nc_open_basis[i];
    }
 }
 
@@ -8147,18 +8277,31 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
 {
    const double *op;
 
+   if(_type ==2)
+      mfem_error ("Requesting Bernstein basis in L2_SegmentElement!");
+
    type = _type;
+
    switch (type)
    {
-      case 0:
-         basis1d = &poly1d.OpenBasis(p);
-         op = poly1d.OpenPoints(p);
-         break;
-      case 1:
-      default:
+      case 1: //GaussLobatto
          basis1d = &poly1d.ClosedBasis(p);
          op = poly1d.ClosedPoints(p);
-   }
+         break;
+      case 3: //ClosedEqual
+         basis1d = &poly1d.ClosedBasis(p);
+         op = poly1d.ClosedPoints(p);
+         break;
+      case 4: //OpenEqual
+         basis1d = &poly1d.ClosedBasis(p);
+         op = poly1d.ClosedPoints(p);
+         break;
+      default:
+      case 0: //GaussLegendre
+          basis1d = &poly1d.OpenBasis(p);
+          op = poly1d.OpenPoints(p);
+          break;
+    }
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p + 1);
