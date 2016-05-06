@@ -2363,19 +2363,28 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
   const int mfemToGenesisTet10[10] = {1,2,3,4,5,7,8,6,9,10};
 
 
-  const int mfemToGenesisHex27[27] = {1,2,3,4,5,6,7,8,9,14,17,
-				      13,11,15,19,16,12,10,18,
-				      20,22,26,27,25,24,23,21};
+  //                                  1,2,3,4,5,6,7,8,9,10,11,
+  const int mfemToGenesisHex27[27] = {1,2,3,4,5,6,7,8,9,10,11,
+
+  //				      12,13,14,15,16,17,18,19,
+				      12,17,18,19,20,13,14,15,
+
+  //				      20,21,22,23,24,25,26,27
+				      16,22,26,25,27,24,23,21};
+
+
+
+
 
   const int mfemToGenesisTri6[6]   = {1,2,3,4,5,6};
   const int mfemToGenesisQuad9[9]  = {1,2,3,4,5,6,7,8,9};
 
-  const int sideMapHex27[6][9] = {{1,2,6,5,9,10,11,12,26},
-				  {2,3,7,6,14,18,15,10,25},
-				  {4,3,7,8,17,18,19,20,27},
-				  {1,4,8,5,13,20,16,12,24},
-				  {1,4,3,2,13,17,14,9,22},
-				  {5,8,7,6,16,19,15,11,23}};
+  const int sideMapHex27[6][9] = {{1,2,6,5,9,14,17,13,26},
+				  {2,3,7,6,10,15,18,14,25},
+				  {4,3,7,8,11,15,19,16,27},
+				  {1,4,8,5,12,16,20,13,24},
+				  {1,4,3,2,12,11,10,9,22},
+				  {5,8,7,6,20,19,18,17,23}};
 
   const int sideMapTet10[4][6] = {{1,2,4,5,9,8},
 				  {2,3,4,6,10,9},
@@ -2814,12 +2823,12 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
   }
   MFEM_ASSERT( cubitToMFEMVertMap.size() == uniqueVertexID.size(),"This should never happen\n");
 
-  // FOR DEBUGGING ONLY
-  cout << "cubitToMFEMVertMap" << endl;
-  for (std::map<int,int>::iterator it =  cubitToMFEMVertMap.begin(); it != cubitToMFEMVertMap.end();it++) {
-    cout << it->first << "  " << it->second << endl;
-  }
-  // END FOR DEBUGGING ONLY
+//   // FOR DEBUGGING ONLY
+//   cout << "cubitToMFEMVertMap" << endl;
+//   for (std::map<int,int>::iterator it =  cubitToMFEMVertMap.begin(); it != cubitToMFEMVertMap.end();it++) {
+//     cout << it->first << "  " << it->second << endl;
+//   }
+//   // END FOR DEBUGGING ONLY
 
   
   //
@@ -2849,14 +2858,16 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
     int NumNodePerEl = num_nod_per_el[iblk];
     if (NumNodePerEl == 4 || NumNodePerEl == 10) {
       for (int i = 0;i < (int) num_el_in_blk[iblk];i++) {
-	for (int j = 0;j < 4;j++) renumberedVertID[j] =  cubitToMFEMVertMap[elem_blk[iblk][i*NumNodePerEl+j]]-1;
+	for (int j = 0;j < 4;j++) 
+	  renumberedVertID[j] =  cubitToMFEMVertMap[elem_blk[iblk][i*NumNodePerEl+j]]-1;
 	elements[elcount] = new Tetrahedron(renumberedVertID,ebprop[iblk]);
 	elcount++;
       }
     }
     else if (NumNodePerEl == 8 || NumNodePerEl == 27) {
       for (int i = 0;i < (int) num_el_in_blk[iblk];i++) {
-	for (int j = 0;j < 8;j++) renumberedVertID[j] =  cubitToMFEMVertMap[elem_blk[iblk][i*NumNodePerEl+j]]-1;
+	for (int j = 0;j < 8;j++) 
+	  renumberedVertID[j] =  cubitToMFEMVertMap[elem_blk[iblk][i*NumNodePerEl+j]]-1;
 	elements[elcount] = new Hexahedron(renumberedVertID,ebprop[iblk]);
 	elcount++;
       }
@@ -2877,14 +2888,16 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
   for (int iss = 0;iss < (int) num_side_sets;iss++) {
     if (num_nod_per_side == 3 || num_nod_per_side == 6) {
       for (int i = 0;i < (int) num_side_in_ss[iss];i++) {
-	for (int j = 0;j < 3;j++) renumberedVertID[j] =  cubitToMFEMVertMap[ss_node_id[iss][i*num_nod_per_side+j]]-1;
+	for (int j = 0;j < 3;j++) 
+	  renumberedVertID[j] =  cubitToMFEMVertMap[ss_node_id[iss][i*num_nod_per_side+j]]-1;
 	boundary[sidecount] = new Triangle(renumberedVertID,ssprop[iss]);
 	sidecount++;
       }
     }
     else if (num_nod_per_side == 4 || num_nod_per_side == 9) {
       for (int i = 0;i < (int) num_side_in_ss[iss];i++) {
-	for (int j = 0;j < 4;j++) renumberedVertID[j] =  cubitToMFEMVertMap[ss_node_id[iss][i*num_nod_per_side+j]]-1;
+	for (int j = 0;j < 4;j++) 
+	  renumberedVertID[j] =  cubitToMFEMVertMap[ss_node_id[iss][i*num_nod_per_side+j]]-1;
 	boundary[sidecount] = new Quadrilateral(renumberedVertID,ssprop[iss]);
 	sidecount++;
       }
@@ -2934,32 +2947,57 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
     
     // Define quadratic FE space
     FiniteElementCollection *fec = new QuadraticFECollection;
-    FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim);
+    FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim, Ordering::byVDIM);
     Nodes = new GridFunction(fes);
     Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
     own_nodes = 1;
     
+    int nTotDofs = fes->GetNDofs();
+    int nTotVDofs = fes->GetVSize();
+    cout << endl << "nTotDofs = " << nTotDofs << "  nTotVDofs " << nTotVDofs << endl << endl;
     for (int i = 0; i < NumOfElements; i++) {
       Array<int> dofs;
+
       fes->GetElementDofs(i, dofs);
       Array<int> vdofs;
       vdofs.SetSize(dofs.Size());
       for (int l = 0;l < dofs.Size();l++) vdofs[l] = dofs[l];
       fes->DofsToVDofs(vdofs);
+
+      // FOR DEBUGGING ONLY
+      cout << "Element " << i << endl;
+      cout << "dofs " << endl;
+      for (int l = 0;l < dofs.Size();l++) cout << dofs[l] << "  ";
+      cout << endl;
+
+      cout << "vdofs " << endl;
+      for (int l = 0;l < vdofs.Size();l++) cout << vdofs[l] << "  ";
+      cout << endl;
+      // END FOR DEBUGGING ONLY
       
       int iblk = 0;
       int loc_ind;
       while (iblk < (int) num_el_blk && i >= start_of_block[iblk+1]) iblk++;
       loc_ind = i - start_of_block[iblk]; 
       
-      for (int j = 0, k = 0; j < dofs.Size(); j++,k += 3) {
+      for (int j = 0; j < dofs.Size(); j++) {
 	int point_id = elem_blk[iblk][loc_ind*num_nod_per_el[iblk] + mymap[j] - 1] - 1;
-	(*Nodes)(vdofs[k])   = coordx[point_id];
-	(*Nodes)(vdofs[k+1]) = coordy[point_id];
-	(*Nodes)(vdofs[k+2]) = coordz[point_id];
+	(*Nodes)(vdofs[j])   = coordx[point_id];
+	(*Nodes)(vdofs[j]+1) = coordy[point_id];
+	(*Nodes)(vdofs[j]+2) = coordz[point_id];
+	cout << "j = " << j << " point_id = " << point_id << endl;
+	cout << "xyz: " << coordx[point_id] << "  " << coordy[point_id] << "  " << coordz[point_id] << endl;
       }
     }
   }
+
+  // FOR DEBUGGING ONLY
+  ofstream ofs("NODES.gf");
+  ofs.precision(8);
+  Nodes->Save(ofs);
+  ofs.close();
+
+  // END FOR DEBUGGING ONLY
   
   // clean up all netcdf stuff
   delete num_el_in_blk;
