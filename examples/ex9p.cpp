@@ -151,9 +151,9 @@ int main(int argc, char *argv[])
    imesh.close();
    int dim = mesh->Dimension();
 
-   if (mesh->NURBSext)
+   //if (mesh->NURBSext)
    {
-      mesh->SetCurvature(4);
+      mesh->SetCurvature(2);
    }
    mesh->EnsureNCMesh();
 
@@ -199,12 +199,37 @@ int main(int argc, char *argv[])
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
+
+   {
+      Array<int> refs;
+      if (myid == 0) { refs.Append(15); }
+      pmesh->GeneralRefinement(refs);
+   }
+
    srand(myid);
    for (int lev = 0; lev < par_ref_levels; lev++)
    {
       //pmesh->UniformRefinement();
       pmesh->RandomRefinement(0.5);
    }
+
+/*   {
+      Mesh debug;
+      pmesh->pncmesh->GetDebugMesh(debug);
+      char fname[100];
+      sprintf(fname, "mesh.%06d", myid);
+      ofstream f(fname);
+      pmesh->Print(f);
+      //debug.Print(f);
+   }*/
+
+/*   if (myid == 0)
+   {
+      const IntegrationRule* ir = Geometries.GetVertices(Geometry::SQUARE);
+      DenseMatrix vals, tr;
+      pmesh->GetNodes()->GetFaceVectorValues(0, 2, *ir, vals, tr);
+      vals.Print();
+   }*/
 
    // 7. Define the parallel discontinuous DG finite element space on the
    //    parallel refined mesh of the given polynomial order.

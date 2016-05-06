@@ -159,10 +159,11 @@ int main(int argc, char *argv[])
 
    for (int lev = 0; lev < ref_levels; lev++)
    {
-      mesh->UniformRefinement();
+      //mesh->UniformRefinement();
+      mesh->RandomRefinement(0.5);
    }
 
-   mesh->RandomRefinement(0.5);
+   //mesh->RandomRefinement(0.1);
 
    if (mesh->NURBSext)
    {

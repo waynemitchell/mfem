@@ -1932,11 +1932,6 @@ void NCMesh::BuildFaceList()
                   face_list.slaves[i].master = index;
                }
             }
-            else
-            {
-               // no slaves found, probably a boundary face
-               face_list.conforming.push_back(MeshId(index, elem, j));
-            }
          }
 
          if (face->Boundary()) { boundary_faces.Append(face); }
