@@ -13,16 +13,9 @@
 #include <stdlib.h>
 #include <math.h>
 
-// cvode header files
 #include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
 #include <arkode/arkode.h>           /* prototypes for ARKODE fcts., consts. */
-#include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
 #include <sundials/sundials_types.h> /* definition of type realtype */
-#include <arkode/arkode_spils.h>
-#include <arkode/arkode_impl.h>
-#include <cvode/cvode_spils.h>
-#include <cvode/cvode_impl.h>
-#include <sundials/sundials_math.h>  /* definition of ABS and EXP */
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
 #endif
@@ -48,9 +41,8 @@ protected:
 public:
 
    /** \brief
-    * This constructor wraps the CVodeCreate function, calls the ReInit
-    * function to handle the inital condition, and initializes pointers
-    * to null and flags to false. By default, this uses Adams methods with
+    * This constructor wraps the CVodeCreate function and sets the
+    * initial condition. By default, this uses Adams methods with
     * functional iterations (no Newton solves).
     *
     * CVodeCreate creates an internal memory block for a problem to
@@ -63,13 +55,10 @@ public:
                int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
 #endif
 
-   // Initialization is done by the constructor.
-   void Init(TimeDependentOperator &_f);
-
    /** \brief
-    * The ReInit function is used in the initial construction and
-    * initialization of the CVODESolver object. It wraps either CVodeInit or
-    * CVodeReInit to pass the initial condtion to the ode_mem struct.
+    * The Init function is used in the initial construction and initialization
+    * of the CVODESolver object. It wraps CVodeInit to pass the initial
+    * condition to the ode_mem struct.
     *
     * CVodeInit
     *
@@ -77,6 +66,14 @@ public:
     * problem inputs are checked for errors. If any error occurs during
     * initialization, it is reported to the file whose file pointer is
     * errfp and an error flag is returned. Otherwise, it returns CV_SUCCESS.
+    *
+    */
+   void Init(TimeDependentOperator &_f);
+
+   /** \brief
+    * The ReInit function is used to re-initialize initial condition and the
+    * CVODESolver object. It wraps CVodeReInit to pass the initial condtion
+    * to the ode_mem struct.
     *
     * CVodeReInit
     *
@@ -104,7 +101,7 @@ public:
    void SetSStolerances(realtype reltol, realtype abstol);
 
    /** \brief Step transfers vector pointers using TransferNVector and calls
-    * CVode, which integrates over a user-defined time interval
+    * CVode, which integrates over a user-defined time interval.
     *
     * CVode
     *
@@ -121,13 +118,17 @@ public:
     * and then interpolates to obtain y(tout).
     * In the CV_ONE_STEP mode, it takes one internal step and returns.
     */
-   void Step(Vector &, double&, double&);
+   void Step(Vector &x, double &t, double &dt);
+
+   /// Creates an NVector, the data is owned by _y.
+   void CreateNVector(Vector *_y);
+
+   /// Connects _y to the _x data.
+   void TransferNVectorShallow(Vector *_x, N_Vector &_y);
 
    void SetLinearSolve(Solver*, SundialsLinearSolveOperator*);
 
-   void SetStopTime(double);
-
-   /** \brief Destroys associated memory. Calls CVodeFree and DestroyNVector
+   /** \brief Destroys associated memory. Calls CVodeFree and N_VDestroy.
     *
     * CVodeFree
     *
@@ -137,22 +138,6 @@ public:
     * to lfree).
     */
    ~CVODESolver();
-
-   /** \brief
-    * Creates an NVector of the appropriate type where the data
-    * is owned by the Vector* */
-   virtual void CreateNVector(long int&, Vector*);
-
-   /** \brief
-    * Transfers the data owned by the Vector* by copying the double* pointer */
-   virtual void TransferNVectorShallow(Vector*,N_Vector&);
-
-   /** \brief
-    * Transfers the data owned by the N_Vector by copying the double* pointer */
-   virtual void TransferNVectorShallow(N_Vector&,Vector*);
-
-   /** \brief Destroys an NVector of the appropriate type */
-   virtual void DestroyNVector(N_Vector&);
 };
 
 /// Wraps the ARKode library of explicit, implicit and additive RK methods.
@@ -189,7 +174,7 @@ public:
    ARKODESolver(MPI_Comm _comm, Vector &_y, int use_explicit = true);
 #endif
 
-   void Init(TimeDependentOperator &);
+   void Init(TimeDependentOperator &_f);
    /** \brief
     * The ReInit function is used in the initial construction and
     * initialization of the ARKODESolver object. It wraps either ARKodeInit or
@@ -218,7 +203,7 @@ public:
     * The return value is ARK_SUCCESS = 0 if no errors occurred, or
     * a negative value otherwise.
     */
-   void ReInit(TimeDependentOperator &_f, Vector &_y, double &);
+   void ReInit(TimeDependentOperator &_f, Vector &_y, double &_t);
 
    /** \brief
     * SetSStolerances wraps the ARKode function ARKodeSStolerances
@@ -234,32 +219,6 @@ public:
     * ARKodeSStolerances specifies scalar relative and absolute tolerances.
     */
    void SetSStolerances(realtype reltol, realtype abstol);
-
-   /** \brief
-    * Wraps SetERKTable to choose a specific Butcher table for a specific RK method
-    * ARKodeSetERKTable
-    *
-    * Specifies to use a customized Butcher table for the explicit
-    * portion of the system
-    */
-   void WrapSetERKTableNum(int table_num);
-
-   /** \brief
-    * Wraps SetFixedStep to force ARKode to take one internal step of size dt.
-    *
-    * ARKodeSetFixedStep
-    *
-    * Specifies to use a fixed time step size instead of performing
-    * any form of temporal adaptivity.  ARKode will use this step size
-    * for all steps (unless tstop is set, in which case it may need to
-    * modify that last step approaching tstop.  If any (non)linear
-    * solver failure occurs, ARKode will immediately return with an
-    * error message since the time step size cannot be modified.
-    *
-    * Any nonzero argument will result in the use of that fixed step
-    * size; an argument of 0 will re-enable temporal adaptivity.
-    */
-   void WrapSetFixedStep(double dt);
 
    /** \brief
     * Step transfers vector pointers using TransferNVector and calls
@@ -286,18 +245,44 @@ public:
     * exactly the specified stop time, and hence interpolation of
     * y(tout) is not required.
     */
-   void Step(Vector &, double&, double&);
+   void Step(Vector &x, double &t, double &dt);
 
-   TimeDependentOperator* GetFOperator()
-   {
-      return f;
-   }
+   /// Creates an NVector, the data is owned by _y.
+   void CreateNVector(Vector *_y);
+
+   /// Connects _y to the _x data.
+   void TransferNVectorShallow(Vector *_x, N_Vector &_y);
 
    void SetLinearSolve(Solver*, SundialsLinearSolveOperator*);
 
-   void SetStopTime(double);
+   /** \brief
+    * Wraps SetERKTable to choose a specific Butcher table for a RK method.
+    *
+    * ARKodeSetERKTable
+    *
+    * Specifies to use a customized Butcher table for the explicit
+    * portion of the system.
+    */
+   void WrapSetERKTableNum(int table_num);
 
-   /** \brief Destroys associated memory. Calls CVodeFree and DestroyNVector
+   /** \brief
+    * Wraps SetFixedStep to force ARKode to take one internal step of size dt.
+    *
+    * ARKodeSetFixedStep
+    *
+    * Specifies to use a fixed time step size instead of performing
+    * any form of temporal adaptivity.  ARKode will use this step size
+    * for all steps (unless tstop is set, in which case it may need to
+    * modify that last step approaching tstop.  If any (non)linear
+    * solver failure occurs, ARKode will immediately return with an
+    * error message since the time step size cannot be modified.
+    *
+    * Any nonzero argument will result in the use of that fixed step
+    * size; an argument of 0 will re-enable temporal adaptivity.
+    */
+   void WrapSetFixedStep(double dt);
+
+   /** \brief Destroys associated memory. Calls CVodeFree and N_VDestroy.
     *
     * ARKodeFree
     *
@@ -307,15 +292,6 @@ public:
     * the linear solver (deallocated by a call to lfree).
     */
    ~ARKODESolver();
-
-   /** \brief Creates an NVector of the appropriate type where the data is owned by the Vector* */
-   virtual void CreateNVector(long int&, Vector*);
-
-   /** \brief Transfers the data owned by the Vector* by copying the double* pointer */
-   virtual void TransferNVectorShallow(Vector*,N_Vector&);
-
-   /** \brief Destroys an NVector of the appropriate type */
-   virtual void DestroyNVector(N_Vector&);
 };
 
 class MFEMLinearSolverMemory
@@ -341,7 +317,7 @@ public:
    }
 };
 
-//temporary operator for testing ex10
+// Temporary operator for testing ex10.
 class SundialsLinearSolveOperator : public Operator
 {
 private:
@@ -364,19 +340,20 @@ public:
    { }
 };
 
-}
+}  // namespace mfem
 
 int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 
 int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 
-/// Linear solve associated with CVodeMem structs
+/// Linear solve associated with CVodeMem structs.
 int MFEMLinearCVSolve(void *cvode_mem, mfem::Solver* solve,
                       mfem::SundialsLinearSolveOperator* op);
 
-/// Linear solve associated with ARKodeMem structs
+/// Linear solve associated with ARKodeMem structs.
 int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver*,
                        mfem::SundialsLinearSolveOperator*);
 
-#endif
-#endif
+#endif // MFEM_USE_SUNDIALS
+
+#endif // MFEM_SUNDIALS

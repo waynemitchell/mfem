@@ -18,18 +18,17 @@
 #include <iomanip>
 #include <cmath>
 #include <cstdlib>
-#include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
 #include <cvode/cvode_band.h>             /* prototypes for CVODE fcts., consts. */
 #include <cvode/cvode_spgmr.h>
-#include <arkode/arkode.h>             /* prototypes for ARKODE fcts., consts. */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
 #ifdef MFEM_USE_MPI
 #include <nvector/nvector_parhyp.h>  /* parallel hypre N_Vector types, fcts., macros */
 #endif
 #include <sundials/sundials_band.h>  /* definitions of type DlsMat and macros */
-#include <sundials/sundials_types.h> /* definition of type realtype */
 #include <arkode/arkode_spils.h>
 #include <arkode/arkode_impl.h>
+#include <cvode/cvode_spils.h>
+#include <cvode/cvode_impl.h>
 #include <sundials/sundials_math.h>  /* definition of ABS and EXP */
 
 /* Choose default tolerances to match ARKode defaults*/
@@ -121,8 +120,7 @@ CVODESolver::CVODESolver(Vector &_y, int lmm, int iter)
      solver_iteration_type(iter)
 {
    // Create the NVector y.
-   long int yin_length = _y.Size();
-   CreateNVector(yin_length, &_y);
+   CreateNVector(&_y);
 
    // Create the solver memory.
    ode_mem = CVodeCreate(lmm, iter);
@@ -136,51 +134,12 @@ CVODESolver::CVODESolver(MPI_Comm _comm, Vector &_y, int lmm, int iter)
      solver_iteration_type(iter)
 {
    // Create the NVector y.
-   long int yin_length = _y.Size();
-   CreateNVector(yin_length, &_y);
+   CreateNVector(&_y);
 
    // Create the solver memory.
    ode_mem = CVodeCreate(lmm, iter);
 }
 #endif
-
-void CVODESolver::CreateNVector(long int& yin_length, Vector* _x)
-{
-#ifndef MFEM_USE_MPI
-   // Create a serial NVector.
-   y = N_VMake_Serial(yin_length,
-                      (realtype*) _x->GetData());   /* Allocate y vector */
-   MFEM_ASSERT(static_cast<void *>(y) != NULL, "N_VMake_Serial() failed!");
-#else
-   // Create a parallel NVector.
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
-
-   y = N_VMake_ParHyp(x->StealParVector());
-#endif
-}
-
-void CVODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
-{
-#ifndef MFEM_USE_MPI
-   NV_DATA_S(_y) = _x->GetData();
-#else
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
-
-   y = N_VMake_ParHyp(x->StealParVector());
-#endif
-}
-
-void CVODESolver::TransferNVectorShallow(N_Vector &_y, Vector* _x)
-{
-   _x->SetData(NV_DATA_S(_y));
-}
-
-void CVODESolver::DestroyNVector(N_Vector& _y)
-{
-   N_VDestroy(y);
-}
 
 void CVODESolver::Init(TimeDependentOperator &_f)
 {
@@ -202,29 +161,23 @@ void CVODESolver::Init(TimeDependentOperator &_f)
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 
    // TODO: what's going on with the tolerances. Should this be in Init()?
-#ifndef MFEM_USE_MPI
    if (solver_iteration_type == CV_NEWTON)
    {
+#ifndef MFEM_USE_MPI
       double size = f->Width();
       SetSStolerances(1e-3, 1e-6);
       CVBand(ode_mem, size, size * 0.5, size * 0.5);
-   }
 #else
-   if (solver_iteration_type == CV_NEWTON)
-   {
-      printf("Entering spgmr\n");
-      SetSStolerances(1e-3,1e-6);
+      SetSStolerances(1e-3, 1e-6);
       CVSpgmr(ode_mem, PREC_NONE, 0);
-   }
 #endif
+   }
 }
 
-void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_y, double& _t)
+void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_y, double & _t)
 {
    f = &_f;
-   long int yin_length=_f.Width();
-   // Create an NVector.
-   CreateNVector(yin_length, &_y);
+   CreateNVector(&_y);
 
    // Re-init memory, time and solution. The RHS action is known from Init().
    int flag = CVodeReInit(ode_mem, static_cast<realtype>(_t), y);
@@ -235,20 +188,17 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_y, double& _t)
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 
    // TODO: what's going on with the tolerances. Should this be in Init()?
+   if (solver_iteration_type == CV_NEWTON)
+   {
 #ifndef MFEM_USE_MPI
-   if (solver_iteration_type==CV_NEWTON)
-   {
-      SetSStolerances(1e-3,1e-6);
-      CVBand(ode_mem, yin_length, yin_length*.5, yin_length*.5);
-   }
+      double size = f->Width();
+      SetSStolerances(1e-3, 1e-6);
+      CVBand(ode_mem, size, size * 0.5, size * 0.5);
 #else
-   if (solver_iteration_type==CV_NEWTON)
-   {
-      printf("Entering spgmr\n");
-      SetSStolerances(1e-3,1e-6);
+      SetSStolerances(1e-3, 1e-6);
       CVSpgmr(ode_mem, PREC_NONE, 0);
-   }
 #endif
+   }
 }
 
 void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
@@ -260,15 +210,55 @@ void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
    tolerances_set_sundials = true;
 }
 
+void CVODESolver::Step(Vector &x, double &t, double &dt)
+{
+   TransferNVectorShallow(&x, y);
+
+   // Perform the step.
+   realtype tout = t + dt;
+   int flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
+   MFEM_ASSERT(flag >= 0, "CVode() failed!");
+
+   // Record last incremental step size.
+   flag = CVodeGetLastStep(ode_mem, &dt);
+}
+
+void CVODESolver::CreateNVector(Vector* _y)
+{
+#ifndef MFEM_USE_MPI
+   // Create a serial NVector.
+   y = N_VMake_Serial(_y->Size(),
+                      (realtype*) _y->GetData());   /* Allocate y vector */
+   MFEM_ASSERT(static_cast<void *>(y) != NULL, "N_VMake_Serial() failed!");
+#else
+   // Create a parallel NVector.
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_y);
+   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
+
+   y = N_VMake_ParHyp(x->StealParVector());
+#endif
+}
+
+void CVODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
+{
+#ifndef MFEM_USE_MPI
+   NV_DATA_S(_y) = _x->GetData();
+#else
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
+   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
+
+   y = N_VMake_ParHyp(x->StealParVector());
+#endif
+}
+
 void CVODESolver::SetLinearSolve(Solver* J_solve,
                                  SundialsLinearSolveOperator* op)
 {
-   //  N_Vector y0 = N_VClone_Serial( ((CVodeMem) ode_mem)->cv_zn[0]);
-   //if linear solve should be newton, recreate ode_mem object
-   //consider checking for CV_ADAMS vs CV_BDF as well
-   if (solver_iteration_type==CV_FUNCTIONAL)
+   // If linear solve should be Newton, recreate ode_mem object.
+   // Consider checking for CV_ADAMS vs CV_BDF as well.
+   if (solver_iteration_type == CV_FUNCTIONAL)
    {
-      realtype t0= ((CVodeMem) ode_mem)->cv_tn;
+      realtype t0 = ((CVodeMem) ode_mem)->cv_tn;
       CVodeFree(&ode_mem);
       ode_mem=CVodeCreate(CV_BDF,CV_NEWTON);
       tolerances_set_sundials=false;
@@ -286,40 +276,20 @@ void CVODESolver::SetLinearSolve(Solver* J_solve,
          SetSStolerances(RELTOL,ABSTOL);
       }
    }
-   /* Call CVodeSetMaxNumSteps to increase default */
+
+   // Call CVodeSetMaxNumSteps to increase default.
    CVodeSetMaxNumSteps(ode_mem, 10000);
    SetSStolerances(1e-2,1e-4);
 
    MFEMLinearCVSolve(ode_mem, J_solve, op);
 }
 
-void CVODESolver::SetStopTime(double tf)
-{
-   CVodeSetStopTime(ode_mem, tf);
-}
-
-void CVODESolver::Step(Vector &x, double &t, double &dt)
-{
-   int flag = 0;
-   realtype tout = t + dt;
-   TransferNVectorShallow(&x, y);
-
-   // Perform the step.
-   flag = CVode(ode_mem, tout, y, &t, CV_NORMAL);
-   MFEM_ASSERT(flag >= 0, "CVode() failed!");
-
-   // Record last incremental step size.
-   flag = CVodeGetLastStep(ode_mem, &dt);
-}
-
 CVODESolver::~CVODESolver()
 {
-   // Free the used memory.
-   // Clean up and return with successful completion
-   DestroyNVector(y);
-   if (ode_mem!=NULL)
+   N_VDestroy(y);
+   if (ode_mem != NULL)
    {
-      CVodeFree(&ode_mem);   // Free integrator memory
+      CVodeFree(&ode_mem);
    }
 }
 
@@ -344,53 +314,12 @@ ARKODESolver::ARKODESolver(MPI_Comm _comm, Vector &_y, int _use_explicit)
      use_explicit(_use_explicit)
 {
    // Create the NVector y.
-   long int yin_length = _y.Size();
-   CreateNVector(yin_length, &_y);
+   CreateNVector(&_y);
 
    // Create the solver memory.
    ode_mem = ARKodeCreate();
 }
 #endif
-
-void ARKODESolver::CreateNVector(long int& yin_length, Vector* _x)
-{
-#ifdef MFEM_USE_MPI
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
-   y = N_VMake_ParHyp(x->StealParVector());
-#else
-   // Create a serial vector
-   y = N_VMake_Serial(yin_length,
-                      (realtype*) _x->GetData());   /* Allocate y vector */
-   MFEM_ASSERT(static_cast<void *>(y) != NULL, "N_VMake_Serial() failed!");
-#endif
-}
-
-void ARKODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
-{
-#ifdef MFEM_USE_MPI
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
-   y = N_VMake_ParHyp(x->StealParVector());
-#else
-   NV_DATA_S(_y) = _x->GetData();
-#endif
-}
-
-void ARKODESolver::DestroyNVector(N_Vector& _y)
-{
-#ifdef MFEM_USE_MPI
-   if (NV_OWN_DATA_PH(y) == true)
-   {
-      N_VDestroy_ParHyp(y);   // Free y vector
-   }
-#else
-   if (NV_OWN_DATA_S(y) == true)
-   {
-      N_VDestroy_Serial(y);   // Free y vector
-   }
-#endif
-}
 
 void ARKODESolver::Init(TimeDependentOperator &_f)
 {
@@ -419,9 +348,7 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
 void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_y, double &_t)
 {
    f = &_f;
-   long int yin_length = _f.Width();
-   // Create an NVector.
-   CreateNVector(yin_length, &_y);
+   CreateNVector(&_y);
 
    // Re-init memory, time and solution. The RHS action is known from Init().
 #ifndef MFEM_USE_MPI
@@ -449,6 +376,44 @@ void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
    tolerances_set_sundials = true;
 }
 
+void ARKODESolver::Step(Vector &x, double &t, double &dt)
+{
+   TransferNVectorShallow(&x, y);
+
+   // Step.
+   realtype tout = t + dt;
+   int flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
+   MFEM_ASSERT(flag >= 0, "ARKode() failed!");
+
+   // Record last incremental step size.
+   flag = ARKodeGetLastStep(ode_mem, &dt);
+}
+
+void ARKODESolver::CreateNVector(Vector* _y)
+{
+#ifdef MFEM_USE_MPI
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_y);
+   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
+   y = N_VMake_ParHyp(x->StealParVector());
+#else
+   // Create a serial vector
+   y = N_VMake_Serial(_y->Size(),
+                      (realtype*) _y->GetData());   /* Allocate y vector */
+   MFEM_ASSERT(static_cast<void *>(y) != NULL, "N_VMake_Serial() failed!");
+#endif
+}
+
+void ARKODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
+{
+#ifdef MFEM_USE_MPI
+   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
+   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
+   y = N_VMake_ParHyp(x->StealParVector());
+#else
+   NV_DATA_S(_y) = _x->GetData();
+#endif
+}
+
 void ARKODESolver::WrapSetERKTableNum(int table_num)
 {
    ARKodeSetERKTableNum(ode_mem, table_num);
@@ -457,11 +422,6 @@ void ARKODESolver::WrapSetERKTableNum(int table_num)
 void ARKODESolver::WrapSetFixedStep(double dt)
 {
    ARKodeSetFixedStep(ode_mem, static_cast<realtype>(dt));
-}
-
-void ARKODESolver::SetStopTime(double tf)
-{
-   ARKodeSetStopTime(ode_mem, tf);
 }
 
 void ARKODESolver::SetLinearSolve(Solver* solve,
@@ -494,39 +454,23 @@ void ARKODESolver::SetLinearSolve(Solver* solve,
       }
    }
 
-   //   ARKodeSetIRKTableNum(ode_mem, 21);
-   /* Call ARKodeSetMaxNumSteps to increase default */
+   // Call ARKodeSetMaxNumSteps to increase default.
    ARKodeSetMaxNumSteps(ode_mem, 10000);
    SetSStolerances(1e-2,1e-4);
    MFEMLinearARKSolve(ode_mem, solve, op);
 }
 
-void ARKODESolver::Step(Vector &x, double &t, double &dt)
-{
-   int flag=0;
-   realtype tout=t+dt;
-   TransferNVectorShallow(&x,y);
-
-   // Step.
-   flag = ARKode(ode_mem, tout, y, &t, ARK_NORMAL);
-   MFEM_ASSERT(flag >= 0, "ARKode() failed!");
-
-   // Record last incremental step size.
-   flag = ARKodeGetLastStep(ode_mem, &dt);
-}
-
 ARKODESolver::~ARKODESolver()
 {
-   // Free the used memory.
-   // Clean up and return with successful completion.
-   DestroyNVector(y);
+   N_VDestroy(y);
    if (ode_mem != NULL)
    {
       ARKodeFree(&ode_mem);
    }
 }
 
-}
+
+} // namespace mfem
 
 int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
