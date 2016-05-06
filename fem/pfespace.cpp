@@ -482,7 +482,7 @@ GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 {
    if (Nonconforming())
    {
-      //MFEM_WARNING("Not implemented for NC mesh.");
+      // MFEM_WARNING("Not implemented for NC mesh.");
       return NULL;
    }
 

@@ -1301,7 +1301,7 @@ void NCMesh::DerefineElement(Element* elem)
    RegisterFaces(elem, fa);
 
    // set edge attributes (2D)
-   // TODO: Edge::atribute should be removed
+   // TODO: Edge::attribute should be removed
    if (Dim < 3)
    {
       Node** node = elem->node;
@@ -1969,7 +1969,7 @@ void NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int flags,
       {
          Face* face = faces.Peek(v0, v0, v1, v1);
          MFEM_ASSERT(face != NULL, "");
-         //MFEM_ASSERT(face->index == mid->edge->index, "");
+         // MFEM_ASSERT(face->index == mid->edge->index, "");
          sl.element = face->GetSingleElement();
          sl.local = find_element_edge(sl.element, v0->id, v1->id);
       }

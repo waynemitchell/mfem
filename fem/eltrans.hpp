@@ -59,7 +59,7 @@ public:
    virtual int GetSpaceDim() = 0;
 
    /** Attempt to find the IntegrationPoint that is transformed into the given
-       point in physical space. If the invesion fails a non-zero value is
+       point in physical space. If the inversion fails a non-zero value is
        returned. This method is not 100 percent reliable for non-linear
        transformations. */
    virtual int TransformBack(const Vector &, IntegrationPoint &) = 0;

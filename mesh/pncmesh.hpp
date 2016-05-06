@@ -192,8 +192,8 @@ public:
 
    // interface for ParMesh
 
-   /** Populate face neighbor members of ParMesh from the ghost layer,
-       without communication. */
+   /** Populate face neighbor members of ParMesh from the ghost layer, without
+       communication. */
    void GetFaceNeighbors(ParMesh &pmesh);
 
 
@@ -210,7 +210,7 @@ public:
        indicates that an element didn't exist in the mesh before. */
    const Array<int>& GetRebalanceOldIndex() const { return old_index_or_rank; }
 
-   /** Get previous (pre-Derefine) fine element ranks. This complementents the
+   /** Get previous (pre-Derefine) fine element ranks. This complements the
        CoarseFineTransformations::embeddings array in parallel. */
    const Array<int>& GetDerefineOldRanks() const { return old_index_or_rank; }
 

@@ -12,6 +12,8 @@
 //               mpirun -np 4 ex14p -m ../data/disc-nurbs.mesh -rs 4 -o 2 -s 1 -k 0
 //               mpirun -np 4 ex14p -m ../data/pipe-nurbs.mesh -o 1
 //               mpirun -np 4 ex14p -m ../data/inline-segment.mesh -rs 5
+//               mpirun -np 4 ex14p -m ../data/amr-quad.mesh -rs 3
+//               mpirun -np 4 ex14p -m ../data/amr-hex.mesh
 //
 // Description:  This example code demonstrates the use of MFEM to define a
 //               discontinuous Galerkin (DG) finite element discretization of

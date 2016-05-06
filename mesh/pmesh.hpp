@@ -59,7 +59,8 @@ protected:
       int i, IsoparametricTransformation *ElTr);
 
    void ApplyFaceSlaveTransformation(int face_type,
-      const DenseMatrix &point_mat, IsoparametricTransformation *FaceTr);
+                                     const DenseMatrix &point_mat,
+                                     IsoparametricTransformation *FaceTr);
 
    /// Refine quadrilateral mesh.
    virtual void QuadUniformRefinement();

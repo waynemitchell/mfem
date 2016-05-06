@@ -1020,7 +1020,7 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
 {
    Gecko::Graph graph;
 
-   //We will put some accesors in for these later
+   // We will put some accesors in for these later
    Gecko::Functional *functional =
       new Gecko::FunctionalGeometric(); // ordering functional
    unsigned int iterations = 1;         // number of V cycles
@@ -1028,14 +1028,14 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
    unsigned int period = 1;             // iterations between window increment
    unsigned int seed = 0;               // random number seed
 
-   //Run through all the elements and insert the nodes in the graph for them
+   // Run through all the elements and insert the nodes in the graph for them
    for (int elemid = 0; elemid < GetNE(); ++elemid)
    {
       graph.insert();
    }
 
-   //Run through all the elems and insert arcs to the graph for each element face
-   //Indices in Gecko are 1 based hence the +1 on the insertion
+   // Run through all the elems and insert arcs to the graph for each element
+   // face Indices in Gecko are 1 based hence the +1 on the insertion
    const Table &my_el_to_el = ElementToElementTable();
    for (int elemid = 0; elemid < GetNE(); ++elemid)
    {
@@ -1046,7 +1046,7 @@ void Mesh::GetGeckoElementReordering(Array<int> &ordering)
       }
    }
 
-   //Get the reordering from Gecko and copy it into the ordering Array<int>
+   // Get the reordering from Gecko and copy it into the ordering Array<int>
    graph.order(functional, iterations, window, period, seed);
    ordering.DeleteAll();
    ordering.SetSize(GetNE());
@@ -1098,7 +1098,7 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
 
    // - Nodes
 
-   //Save the locations of the Nodes so we can rebuild them later
+   // Save the locations of the Nodes so we can rebuild them later
    Array<Vector*> old_elem_node_vals;
    FiniteElementSpace *nodes_fes = NULL;
    if (Nodes)
@@ -1115,7 +1115,7 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
       }
    }
 
-   //Get the newly ordered elements
+   // Get the newly ordered elements
    Array<Element *> new_elements(GetNE());
    for (int old_elid = 0; old_elid < ordering.Size(); ++old_elid)
    {
@@ -1127,7 +1127,8 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
 
    if (reorder_vertices)
    {
-      //Get the new vertex ordering permutation vectors and fill the new vertices
+      // Get the new vertex ordering permutation vectors and fill the new
+      // vertices
       Array<int> vertex_ordering(GetNV());
       vertex_ordering = -1;
       Array<Vertex> new_vertices(GetNV());
@@ -1150,7 +1151,8 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
       mfem::Swap(vertices, new_vertices);
       new_vertices.DeleteAll();
 
-      //Replace the vertex ids in the elements with the reordered vertex numbers
+      // Replace the vertex ids in the elements with the reordered vertex
+      // numbers
       for (int new_elid = 0; new_elid < GetNE(); ++new_elid)
       {
          int *elem_vert = elements[new_elid]->GetVertices();
@@ -1161,7 +1163,7 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
          }
       }
 
-      //Replace the vertex ids in the boundary with reordered vertex numbers
+      // Replace the vertex ids in the boundary with reordered vertex numbers
       for (int belid = 0; belid < GetNBE(); ++belid)
       {
          int *be_vert = boundary[belid]->GetVertices();
@@ -1190,7 +1192,7 @@ void Mesh::ReorderElements(const Array<int> &ordering, bool reorder_vertices)
    // Update faces and faces_info
    GenerateFaces();
 
-   //Build the nodes from the saved locations if they were around before
+   // Build the nodes from the saved locations if they were around before
    if (Nodes)
    {
       nodes_fes->Update();
@@ -2904,9 +2906,9 @@ void Mesh::ReadNURBSMesh(std::istream &input, int &curved, int &read_gf)
 
 void Mesh::ReadInlineMesh(std::istream &input, int generate_edges)
 {
-   // Initialize to negative numbers so that we know if they've
-   // been set.  We're using Element::POINT as our flag, since
-   // we're not going to make a 0D mesh, ever.
+   // Initialize to negative numbers so that we know if they've been set.  We're
+   // using Element::POINT as our flag, since we're not going to make a 0D mesh,
+   // ever.
    int nx = -1;
    int ny = -1;
    int nz = -1;
@@ -2918,8 +2920,8 @@ void Mesh::ReadInlineMesh(std::istream &input, int generate_edges)
    while (true)
    {
       skip_comment_lines(input, '#');
-      // Break out if we reached the end of the file after
-      // gobbling up the whitespace and comments after the last keyword.
+      // Break out if we reached the end of the file after gobbling up the
+      // whitespace and comments after the last keyword.
       if (!input.good())
       {
          break;
@@ -3084,8 +3086,8 @@ void Mesh::ReadGmshMesh(std::istream &input)
    // (there may be gaps in the numbering, and also Gmsh enumerates vertices
    // starting from 1, not 0)
    map<int, int> vertices_map;
-   // Read the lines of the mesh file. If we face specific keyword, we'll
-   // treat the section.
+   // Read the lines of the mesh file. If we face specific keyword, we'll treat
+   // the section.
    while (input >> buff)
    {
       if (buff == "$Nodes") // reading mesh vertices
@@ -3133,8 +3135,8 @@ void Mesh::ReadGmshMesh(std::istream &input)
          int elem_domain; // another element's attribute (rarely used)
          int n_partitions; // number of partitions where an element takes place
 
-         // number of nodes for each type of Gmsh elements, type is the index
-         // of the array + 1
+         // number of nodes for each type of Gmsh elements, type is the index of
+         // the array + 1
          int nodes_of_gmsh_element[] =
          {
             2, // 2-node line.
@@ -3760,11 +3762,11 @@ Mesh::Mesh(Mesh *mesh_array[], int num_pieces)
       Array<int> lvert_vert, lelem_elem;
 
       // Here, for visualization purposes, we copy the boundary elements from
-      // the individual pieces which include the interior boundaries.
-      // This creates 'boundary' array that is different from the one generated
-      // by the NURBSExtension which, in particular, makes the boundary-dof
-      // table invalid. This, in turn, causes GetBdrElementTransformation to
-      // not function properly.
+      // the individual pieces which include the interior boundaries.  This
+      // creates 'boundary' array that is different from the one generated by
+      // the NURBSExtension which, in particular, makes the boundary-dof table
+      // invalid. This, in turn, causes GetBdrElementTransformation to not
+      // function properly.
       NumOfBdrElements = 0;
       for (i = 0; i < num_pieces; i++)
       {
@@ -6855,7 +6857,7 @@ void Mesh::NonconformingRefinement(const Array<Refinement> &refinements,
                                    int nc_limit)
 {
    MFEM_VERIFY(!NURBSext, "Nonconforming refinement of NURBS meshes is "
-              "not supported. Project the NURBS to Nodes first.");
+               "not supported. Project the NURBS to Nodes first.");
 
    if (!ncmesh)
    {
@@ -7204,7 +7206,7 @@ void Mesh::GeneralRefinement(const Array<int> &el_to_refine, int nonconforming,
 void Mesh::EnsureNCMesh(bool triangles_nonconforming)
 {
    MFEM_VERIFY(!NURBSext, "Cannot convert a NURBS mesh to an NC mesh. "
-              "Project the NURBS to Nodes first.");
+               "Project the NURBS to Nodes first.");
 
    if (!ncmesh)
    {

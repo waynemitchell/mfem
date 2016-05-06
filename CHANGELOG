@@ -61,6 +61,12 @@ Dynamic AMR with parallel load balancing, derefinement of non-conforming meshes
 
 - The above features are illustrated in the new Example 15 (see also Example 6).
 
+Parallel DG on non-conforming meshes
+------------------------------------
+
+- Added support for discontinuous Galerkin methods on parallel non-conforming
+  meshes, see Examples 9p and 14p.
+
 Improved solvers
 ----------------
 - Added a wrapper for the KLU solver in SuiteSparse see
@@ -71,10 +77,12 @@ Improved solvers
 New and updated examples
 ------------------------
 - Four new serial and parallel example codes that demonstrate:
-  * adaptive refinement, derefinement and load balancing (in parallel) on
-    non-conforming meshes (Example 15/15p)
   * high-performance finite element operator assembly/evaluation (Example 1/1p
     in miniapps/performance)
+  * adaptive refinement, derefinement and load balancing (in parallel) on
+    non-conforming meshes (Example 15/15p)
+
+- Examples 9p and 14p now work on non-conforming meshes.
 
 Miscellaneous
 -------------
