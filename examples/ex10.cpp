@@ -112,10 +112,23 @@ private:
 
 public:
    BackwardEulerOperator(BilinearForm *M_, BilinearForm *S_, NonlinearForm *H_);
+
+   // Set current dt, v, x values - needed to compute action and Jacobian.
    void SetParameters(double dt_, const Vector *v_, const Vector *x_);
+
+   // Linear solve applicable to the Sundials format.
+   // (Sundials doesn't work with increments).
+   // Solves (Mass - dt J) y = b, where in our case:
+   // Mass = | M  0 |  J = | -S  -grad_H |  y = | v_hat |  b = | b_v |
+   //        | 0  I |      |  I     0    |      | x_hat |      | b_x |
+   // The result replaces the rhs b.
+   // Solved through the substitution x_hat = b_x + dt v_hat.
    virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
                               Solver* J_solve, double gamma);
+
+   // Compute y = H(x + dt (v + dt k)) + M k + S (v + dt k).
    virtual void Mult(const Vector &k, Vector &y) const;
+   // Compute J = M + dt S + dt^2 grad_H(x + dt (v + dt k)).
    virtual Operator &GetGradient(const Vector &k) const;
    virtual ~BackwardEulerOperator();
 };
@@ -467,7 +480,7 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
 
    /*Transfered GetGradient into SolveJacobian code in order to reuse grad_H*/
    J_solve->SetOperator(*Jacobian);
-   //update b_v to the proper rhs
+   // TODO: why is this multiplied by M.
    M->Mult(b_v, rhs_2);
    ///////get h gamma in there somehow
    grad_H->Mult(b_x, rhs_1);
@@ -477,10 +490,8 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
    *b=*tmp_empty;
 }
 
-
 void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
 {
-   // compute: y = H(x + dt*(v + dt*k)) + M*k + S*(v + dt*k)
    add(*v, gamma, k, w);
    add(*x, gamma, w, z);
    H->Mult(z, y);

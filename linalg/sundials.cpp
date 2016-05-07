@@ -18,7 +18,7 @@
 #include <iomanip>
 #include <cmath>
 #include <cstdlib>
-#include <cvode/cvode_band.h>             /* prototypes for CVODE fcts., consts. */
+#include <cvode/cvode_band.h>        /* prototypes for CVODE fcts., consts. */
 #include <cvode/cvode_spgmr.h>
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
 #ifdef MFEM_USE_MPI
@@ -36,80 +36,6 @@
 #define ABSTOL RCONST(1.0e-9)
 
 using namespace std;
-
-
-/*
-The job of ark_lsetup is to prepare the linear solver for
- subsequent calls to ark_lsolve. It may recompute Jacobian-
- related data as it deems necessary. Its parameters are as
- follows:
-
- ark_mem - problem memory pointer of type ARKodeMem. See the
-          typedef earlier in this file.
-
- convfail - a flag to indicate any problem that occurred during
-            the solution of the nonlinear equation on the
-            current time step for which the linear solver is
-            being used. This flag can be used to help decide
-            whether the Jacobian data kept by a ARKODE linear
-            solver needs to be updated or not.
-            Its possible values have been documented above.
-
- ypred - the predicted y vector for the current ARKODE internal
-         step.
-
- fpred - f(tn, ypred).
-
- jcurPtr - a pointer to a boolean to be filled in by ark_lsetup.
-           The function should set *jcurPtr=TRUE if its Jacobian
-           data is current after the call and should set
-           *jcurPtr=FALSE if its Jacobian data is not current.
-           Note: If ark_lsetup calls for re-evaluation of
-           Jacobian data (based on convfail and ARKODE state
-           data), it should return *jcurPtr=TRUE always;
-           otherwise an infinite loop can result.
-
- vtemp1 - temporary N_Vector provided for use by ark_lsetup.
-
- vtemp3 - temporary N_Vector provided for use by ark_lsetup.
-
- vtemp3 - temporary N_Vector provided for use by ark_lsetup.
-
- The ark_lsetup routine should return 0 if successful, a positive
- value for a recoverable error, and a negative value for an
- unrecoverable error.
- */
-static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
-                                   N_Vector ypred, N_Vector fpred,
-                                   booleantype *jcurPtr, N_Vector vtemp1,
-                                   N_Vector vtemp2, N_Vector vtemp3);
-/*
- ark_lsolve must solve the linear equation P x = b, where
- P is some approximation to (M - gamma J), M is the system mass
- matrix, J = (df/dy)(tn,ycur), and the RHS vector b is input. The
- N-vector ycur contains the solver's current approximation to
- y(tn) and the vector fcur contains the N_Vector f(tn,ycur). The
- solution is to be returned in the vector b. ark_lsolve returns
- a positive value for a recoverable error and a negative value
- for an unrecoverable error. Success is indicated by a 0 return
- value.
-*/
-static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
-                              N_Vector weight, N_Vector ycur,
-                              N_Vector fcur);
-/*
- ark_lfree should free up any memory allocated by the linear
- solver. This routine is called once a problem has been
- completed and the linear solver is no longer needed.
- */
-static void WrapLinearARKSolveFree(ARKodeMem ark_mem);
-
-static int WrapLinearSolveSetup(void* lmem, double tn,
-                                mfem::Vector* ypred, mfem::Vector* fpred);
-
-static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
-                           mfem::Vector* ycur, mfem::Vector* yn,
-                           mfem::Vector* fcur);
 
 namespace mfem
 {
@@ -254,13 +180,14 @@ void CVODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 void CVODESolver::SetLinearSolve(Solver* J_solve,
                                  SundialsLinearSolveOperator* op)
 {
-   // If linear solve should be Newton, recreate ode_mem object.
-   // Consider checking for CV_ADAMS vs CV_BDF as well.
+   // Jane comment: If linear solve should be Newton, recreate ode_mem object.
+   //    Consider checking for CV_ADAMS vs CV_BDF as well.
+   // TODO: Is there an error here ??
    if (solver_iteration_type == CV_FUNCTIONAL)
    {
       realtype t0 = ((CVodeMem) ode_mem)->cv_tn;
       CVodeFree(&ode_mem);
-      ode_mem=CVodeCreate(CV_BDF,CV_NEWTON);
+      ode_mem=CVodeCreate(CV_BDF, CV_NEWTON);
       tolerances_set_sundials=false;
 
 #ifndef MFEM_USE_MPI
@@ -524,76 +451,33 @@ int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 }
 #endif
 
-/*---------------------------------------------------------------
- MFEMLinearCVSolve:
-
- This routine initializes the memory record and sets various
- function fields specific to the linear solver module.
- MFEMLinearCVSolve first calls the existing lfree routine if this is not
- NULL. It then sets the cv_linit, cv_lsetup, cv_lsolve,
- cv_lfree fields in (*cvode_mem) to be WrapLinearCVSolveInit,
- WrapLinearCVSolveSetup, WrapLinearCVSolve, and WrapLinearCVSolveFree, respectively.
----------------------------------------------------------------*/
-static int WrapLinearCVSolveInit(CVodeMem cv_mem);
-static int WrapLinearCVSolveSetup(CVodeMem cv_mem, int convfail,
-                                  N_Vector ypred, N_Vector fpred,
-                                  booleantype *jcurPtr, N_Vector vtemp1,
-                                  N_Vector vtemp2, N_Vector vtemp3);
-static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
-                             N_Vector weight, N_Vector ynow,
-                             N_Vector fnow);
-static void WrapLinearCVSolveFree(CVodeMem cv_mem);
-
-int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve,
-                      mfem::SundialsLinearSolveOperator* op)
+static int WrapLinearSolveSetup(void* lmem, double tn,
+                                mfem::Vector* ypred, mfem::Vector* fpred)
 {
-   CVodeMem cv_mem;
+   return 0;
+}
 
-   MFEM_VERIFY(ode_mem != NULL, "ARKODE memory error!");
-   cv_mem = (CVodeMem) ode_mem;
+static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
+                           mfem::Vector* ycur, mfem::Vector* yn,
+                           mfem::Vector* fcur)
+{
+   mfem::MFEMLinearSolverMemory *tmp_lmem =
+         static_cast<mfem::MFEMLinearSolverMemory *>(lmem);
 
-   if (cv_mem->cv_lfree != NULL) { cv_mem->cv_lfree(cv_mem); }
+   /*
+   //Original plan:
+   // Take J_solve and Operator which has the relevant GetGradient operation
+   // and solve the system. In the simple case where GetGradient gives you
+   // something similar to I-gamma*J
+   mfem::Solver* prec = tmp_lmem->J_solve;
+   prec->SetOperator((tmp_lmem->op_for_gradient)->GetGradient(*ycur));
+   prec->Mult(*b, *yn);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
+   *b=*yn;
+   */
 
-   // Set four main function fields in ark_mem
-   cv_mem->cv_linit  = WrapLinearCVSolveInit;
-   cv_mem->cv_lsetup = WrapLinearCVSolveSetup;
-   cv_mem->cv_lsolve = WrapLinearCVSolve;
-   cv_mem->cv_lfree  = WrapLinearCVSolveFree;
-   cv_mem->cv_setupNonNull = 1;
-   // forces cvode to call lsetup prior to every time it calls lsolve
-   cv_mem->cv_maxcor = 1;
-
-   //void* for containing linear solver memory
-   mfem::MFEMLinearSolverMemory* lmem = new mfem::MFEMLinearSolverMemory();
-
-#ifndef MFEM_USE_MPI
-   lmem->setup_y = new mfem::Vector();
-   lmem->setup_f = new mfem::Vector();
-   lmem->solve_y = new mfem::Vector();
-   lmem->solve_yn = new mfem::Vector();
-   lmem->solve_f = new mfem::Vector();
-   lmem->solve_b = new mfem::Vector();
-   lmem->vec_tmp = new mfem::Vector(NV_LENGTH_S(cv_mem->cv_zn[0]));
-#else
-   lmem->setup_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
-                                                cv_mem->cv_zn[0])));
-   lmem->setup_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
-                                                cv_mem->cv_zn[0])));
-   lmem->solve_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
-                                                cv_mem->cv_zn[0])));
-   lmem->solve_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
-                                                cv_mem->cv_zn[0])));
-   lmem->solve_b = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
-                                                cv_mem->cv_zn[0])));
-   lmem->vec_tmp = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
-                                                cv_mem->cv_zn[0])));
-#endif
-
-   lmem->J_solve=solve;
-   lmem->op_for_gradient= op;
-
-   cv_mem->cv_lmem = lmem;
-   return (CVSPILS_SUCCESS);
+   tmp_lmem->op_for_gradient->SolveJacobian(b, ycur, yn, tmp_lmem->J_solve,
+                                            tmp_lmem->weight);
+   return 0;
 }
 
 static int WrapLinearCVSolveInit(CVodeMem cv_mem)
@@ -652,21 +536,72 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
    return 0;
 }
 
-
 static void WrapLinearCVSolveFree(CVodeMem cv_mem)
 {
    return;
 }
+
 /*---------------------------------------------------------------
- MFEMLinearARKSolve:
+ MFEMLinearCVSolve:
 
  This routine initializes the memory record and sets various
  function fields specific to the linear solver module.
- MFEMLinearARKSolve first calls the existing lfree routine if this is not
- NULL. It then sets the ark_linit, ark_lsetup, ark_lsolve,
- ark_lfree fields in (*arkode_mem) to be WrapLinearARKSolveInit,
- WrapLinearARKSolveSetup, WrapARKLinearSolve, and WrapLinearARKSolveFree, respectively.
+ MFEMLinearCVSolve first calls the existing lfree routine if this is not
+ NULL. It then sets the cv_linit, cv_lsetup, cv_lsolve,
+ cv_lfree fields in (*cvode_mem) to be WrapLinearCVSolveInit,
+ WrapLinearCVSolveSetup, WrapLinearCVSolve, and WrapLinearCVSolveFree, respectively.
 ---------------------------------------------------------------*/
+int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve,
+                      mfem::SundialsLinearSolveOperator* op)
+{
+   CVodeMem cv_mem;
+
+   MFEM_VERIFY(ode_mem != NULL, "CVODE memory error!");
+   cv_mem = (CVodeMem) ode_mem;
+
+   if (cv_mem->cv_lfree != NULL) { cv_mem->cv_lfree(cv_mem); }
+
+   // Set four main function fields in ark_mem
+   cv_mem->cv_linit  = WrapLinearCVSolveInit;
+   cv_mem->cv_lsetup = WrapLinearCVSolveSetup;
+   cv_mem->cv_lsolve = WrapLinearCVSolve;
+   cv_mem->cv_lfree  = WrapLinearCVSolveFree;
+   cv_mem->cv_setupNonNull = 1;
+   // forces cvode to call lsetup prior to every time it calls lsolve
+   cv_mem->cv_maxcor = 1;
+
+   //void* for containing linear solver memory
+   mfem::MFEMLinearSolverMemory* lmem = new mfem::MFEMLinearSolverMemory();
+
+#ifndef MFEM_USE_MPI
+   lmem->setup_y = new mfem::Vector();
+   lmem->setup_f = new mfem::Vector();
+   lmem->solve_y = new mfem::Vector();
+   lmem->solve_yn = new mfem::Vector();
+   lmem->solve_f = new mfem::Vector();
+   lmem->solve_b = new mfem::Vector();
+   lmem->vec_tmp = new mfem::Vector(NV_LENGTH_S(cv_mem->cv_zn[0]));
+#else
+   lmem->setup_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   lmem->setup_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   lmem->solve_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   lmem->solve_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   lmem->solve_b = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+   lmem->vec_tmp = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0])));
+#endif
+
+   lmem->J_solve = solve;
+   lmem->op_for_gradient = op;
+
+   cv_mem->cv_lmem = lmem;
+   return (CVSPILS_SUCCESS);
+}
 
 /*
  The purpose of ark_linit is to complete initializations for a
@@ -676,15 +611,146 @@ static void WrapLinearCVSolveFree(CVodeMem cv_mem)
  If an error does occur, an appropriate message should be sent
  to the error handler function.
  */
-static int WrapLinearARKSolveInit(ARKodeMem ark_mem);
+static int WrapLinearARKSolveInit(ARKodeMem ark_mem)
+{
+   return 0;
+}
 
+/*
+The job of ark_lsetup is to prepare the linear solver for
+ subsequent calls to ark_lsolve. It may recompute Jacobian-
+ related data as it deems necessary. Its parameters are as
+ follows:
+
+ ark_mem - problem memory pointer of type ARKodeMem. See the
+          typedef earlier in this file.
+
+ convfail - a flag to indicate any problem that occurred during
+            the solution of the nonlinear equation on the
+            current time step for which the linear solver is
+            being used. This flag can be used to help decide
+            whether the Jacobian data kept by a ARKODE linear
+            solver needs to be updated or not.
+            Its possible values have been documented above.
+
+ ypred - the predicted y vector for the current ARKODE internal
+         step.
+
+ fpred - f(tn, ypred).
+
+ jcurPtr - a pointer to a boolean to be filled in by ark_lsetup.
+           The function should set *jcurPtr=TRUE if its Jacobian
+           data is current after the call and should set
+           *jcurPtr=FALSE if its Jacobian data is not current.
+           Note: If ark_lsetup calls for re-evaluation of
+           Jacobian data (based on convfail and ARKODE state
+           data), it should return *jcurPtr=TRUE always;
+           otherwise an infinite loop can result.
+
+ vtemp1 - temporary N_Vector provided for use by ark_lsetup.
+
+ vtemp3 - temporary N_Vector provided for use by ark_lsetup.
+
+ vtemp3 - temporary N_Vector provided for use by ark_lsetup.
+
+ The ark_lsetup routine should return 0 if successful, a positive
+ value for a recoverable error, and a negative value for an
+ unrecoverable error.
+ */
+//ypred is the predicted y at the current time, fpred is f(t,ypred)
+static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
+                                   N_Vector ypred, N_Vector fpred,
+                                   booleantype *jcurPtr, N_Vector vtemp1,
+                                   N_Vector vtemp2, N_Vector vtemp3)
+{
+   mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*)
+                                       ark_mem->ark_lmem;
+
+#ifndef MFEM_USE_MPI
+   lmem->setup_y->SetDataAndSize(NV_DATA_S(ypred),NV_LENGTH_S(ypred));
+   lmem->setup_f->SetDataAndSize(NV_DATA_S(fpred),NV_LENGTH_S(fpred));
+#else
+   lmem->setup_y->SetData(NV_DATA_PH(ypred));
+   lmem->setup_f->SetData(NV_DATA_PH(fpred));
+#endif
+   *jcurPtr=TRUE;
+   ark_mem->ark_lmem = lmem;
+   WrapLinearSolveSetup(ark_mem->ark_lmem, ark_mem->ark_tn, lmem->setup_y,
+                        lmem->setup_f);
+   return 0;
+}
+
+/*
+ ark_lsolve must solve the linear equation P x = b, where
+ P is some approximation to (M - gamma J), M is the system mass
+ matrix, J = (df/dy)(tn,ycur), and the RHS vector b is input. The
+ N-vector ycur contains the solver's current approximation to
+ y(tn) and the vector fcur contains the N_Vector f(tn,ycur). The
+ solution is to be returned in the vector b. ark_lsolve returns
+ a positive value for a recoverable error and a negative value
+ for an unrecoverable error. Success is indicated by a 0 return
+ value.
+*/
+static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
+                              N_Vector weight, N_Vector ycur,
+                              N_Vector fcur)
+{
+   if (ark_mem->ark_tn>0)
+   {
+      mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*)
+                                          ark_mem->ark_lmem;
+
+#ifndef MFEM_USE_MPI
+      lmem->solve_y->SetDataAndSize(NV_DATA_S(ycur),NV_LENGTH_S(ycur));
+      lmem->solve_yn->SetDataAndSize(NV_DATA_S(ark_mem->ark_y),NV_LENGTH_S(ycur));
+      lmem->solve_f->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
+      lmem->solve_b->SetDataAndSize(NV_DATA_S(b),NV_LENGTH_S(b));
+#else
+      ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),
+                                                              NV_LOCLENGTH_PH(ycur));
+      ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),
+                                                              NV_LOCLENGTH_PH(fcur));
+      ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),
+                                                              NV_LOCLENGTH_PH(b));
+#endif
+
+      lmem->weight = ark_mem->ark_gamma;
+
+      ark_mem->ark_lmem = lmem;
+      WrapLinearSolve(ark_mem->ark_lmem, ark_mem->ark_tn, lmem->solve_b,
+                      lmem->solve_y,
+                      lmem->setup_y, lmem->solve_f);
+   }
+   return 0;
+}
+
+/*
+ ark_lfree should free up any memory allocated by the linear
+ solver. This routine is called once a problem has been
+ completed and the linear solver is no longer needed.
+ */
+static void WrapLinearARKSolveFree(ARKodeMem ark_mem)
+{
+   return;
+}
+
+/*---------------------------------------------------------------
+ MFEMLinearARKSolve:
+
+ This routine initializes the memory record and sets various
+ function fields specific to the linear solver module.
+ MFEMLinearARKSolve first calls the existing lfree routine if this is not
+ NULL. It then sets the ark_linit, ark_lsetup, ark_lsolve,
+ ark_lfree fields in (*arkode_mem) to be WrapLinearARKSolveInit,
+ WrapLinearARKSolveSetup, WrapARKLinearSolve, and WrapLinearARKSolveFree,
+ respectively.
+---------------------------------------------------------------*/
 int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver* solve,
                        mfem::SundialsLinearSolveOperator* op)
 {
    ARKodeMem ark_mem;
 
-   // Return immediately if arkode_mem is NULL
-   if (arkode_mem == NULL) {MFEM_ABORT("arkode_mem is NULL") }
+   MFEM_VERIFY(arkode_mem != NULL, "ARKODE memory error!");
    ark_mem = (ARKodeMem) arkode_mem;
 
    if (ark_mem->ark_lfree != NULL) { ark_mem->ark_lfree(ark_mem); }
@@ -729,101 +795,6 @@ int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver* solve,
 
    ark_mem->ark_lmem = lmem;
    return (ARKSPILS_SUCCESS);
-}
-
-static int WrapLinearARKSolveInit(ARKodeMem ark_mem)
-{
-   return 0;
-}
-
-
-//ypred is the predicted y at the current time, fpred is f(t,ypred)
-static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
-                                   N_Vector ypred, N_Vector fpred,
-                                   booleantype *jcurPtr, N_Vector vtemp1,
-                                   N_Vector vtemp2, N_Vector vtemp3)
-{
-   mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*)
-                                       ark_mem->ark_lmem;
-
-#ifndef MFEM_USE_MPI
-   lmem->setup_y->SetDataAndSize(NV_DATA_S(ypred),NV_LENGTH_S(ypred));
-   lmem->setup_f->SetDataAndSize(NV_DATA_S(fpred),NV_LENGTH_S(fpred));
-#else
-   lmem->setup_y->SetData(NV_DATA_PH(ypred));
-   lmem->setup_f->SetData(NV_DATA_PH(fpred));
-#endif
-   *jcurPtr=TRUE;
-   ark_mem->ark_lmem = lmem;
-   WrapLinearSolveSetup(ark_mem->ark_lmem, ark_mem->ark_tn, lmem->setup_y,
-                        lmem->setup_f);
-   return 0;
-}
-
-static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
-                              N_Vector weight, N_Vector ycur,
-                              N_Vector fcur)
-{
-   if (ark_mem->ark_tn>0)
-   {
-      mfem::MFEMLinearSolverMemory* lmem= (mfem::MFEMLinearSolverMemory*)
-                                          ark_mem->ark_lmem;
-
-#ifndef MFEM_USE_MPI
-      lmem->solve_y->SetDataAndSize(NV_DATA_S(ycur),NV_LENGTH_S(ycur));
-      lmem->solve_yn->SetDataAndSize(NV_DATA_S(ark_mem->ark_y),NV_LENGTH_S(ycur));
-      lmem->solve_f->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
-      lmem->solve_b->SetDataAndSize(NV_DATA_S(b),NV_LENGTH_S(b));
-#else
-      ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),
-                                                              NV_LOCLENGTH_PH(ycur));
-      ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),
-                                                              NV_LOCLENGTH_PH(fcur));
-      ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),
-                                                              NV_LOCLENGTH_PH(b));
-#endif
-
-      lmem->weight = ark_mem->ark_gamma;
-
-      ark_mem->ark_lmem = lmem;
-      WrapLinearSolve(ark_mem->ark_lmem, ark_mem->ark_tn, lmem->solve_b,
-                      lmem->solve_y,
-                      lmem->setup_y, lmem->solve_f);
-   }
-   return 0;
-}
-
-
-static void WrapLinearARKSolveFree(ARKodeMem ark_mem)
-{
-   return;
-}
-
-static int WrapLinearSolveSetup(void* lmem, double tn,
-                                mfem::Vector* ypred, mfem::Vector* fpred)
-{
-   return 0;
-}
-
-static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
-                           mfem::Vector* ycur, mfem::Vector* yn,
-                           mfem::Vector* fcur)
-{
-
-   mfem::MFEMLinearSolverMemory* tmp_lmem= (mfem::MFEMLinearSolverMemory*) lmem;
-   mfem::Solver* prec=tmp_lmem->J_solve;
-   /*
-   //Original plan:
-   // Take J_solve and Operator which has the relevant GetGradient operation
-   // and solve the system. In the simple case where GetGradient gives you
-   // something similart to I-gamma*J
-   prec->SetOperator((tmp_lmem->op_for_gradient)->GetGradient(*ycur));
-   prec->Mult(*b, *yn);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
-
-   *b=*yn;*/
-
-   (tmp_lmem->op_for_gradient)->SolveJacobian(b,ycur, yn, prec, tmp_lmem->weight);
-   return 0;
 }
 
 #endif

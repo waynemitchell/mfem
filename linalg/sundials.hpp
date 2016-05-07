@@ -317,27 +317,13 @@ public:
    }
 };
 
-// Temporary operator for testing ex10.
 class SundialsLinearSolveOperator : public Operator
 {
-private:
-   /*
-      BilinearForm *M, *S;
-      NonlinearForm *H;
-      mutable SparseMatrix *Jacobian;
-      const Vector *v, *x;
-      mutable Vector w, z;
-   */
 public:
-   SundialsLinearSolveOperator();
    SundialsLinearSolveOperator(int s) : Operator(s)
    { }
-   SundialsLinearSolveOperator(Operator *M_, Operator *S_, Operator *H_);
    virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
                               Solver* J_solve, double gamma) = 0;
-   void SetParameters(double, Vector&, Vector&);
-   virtual ~SundialsLinearSolveOperator()
-   { }
 };
 
 }  // namespace mfem
