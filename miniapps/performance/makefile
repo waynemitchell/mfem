@@ -12,13 +12,13 @@
 # Use the MFEM build directory
 MFEM_DIR = ../..
 CONFIG_MK = $(MFEM_DIR)/config/config.mk
+TEST_MK = $(MFEM_DIR)/config/test.mk
 # Use the MFEM install directory
 # MFEM_DIR = ../../mfem
 # CONFIG_MK = $(MFEM_DIR)/config.mk
 
-ifneq (clean,$(MAKECMDGOALS))
-   -include $(CONFIG_MK)
-endif
+MFEM_LIB_FILE = mfem_is_not_built
+-include $(CONFIG_MK)
 
 # Compiler specific optimizations.
 # For best performance, GCC 5 (or newer) is recommended.
@@ -30,10 +30,6 @@ ifneq (,$(findstring $(MFEM_CXX),g++ mpicxx))
 
    MFEM_CXXFLAGS += --param max-completely-peel-times=3
    # MFEM_CXXFLAGS += -fdump-tree-optimized-blocks
-
-   $(info ----------)
-   $(info using gnu g++ options: $(MFEM_CXXFLAGS))
-   $(info ----------)
 endif
 
 ifeq ($(MFEM_CXX),clang++)
@@ -47,10 +43,6 @@ ifeq ($(MFEM_CXX),clang++)
    MFEM_CXXFLAGS += -fslp-vectorize
    MFEM_CXXFLAGS += -fslp-vectorize-aggressive
    MFEM_CXXFLAGS += -ffp-contract=fast
-
-   $(info ----------)
-   $(info using clang++ options: $(MFEM_CXXFLAGS))
-   $(info ----------)
 endif
 
 SEQ_MINIAPPS = ex1
@@ -61,35 +53,28 @@ else
    MINIAPPS = $(PAR_MINIAPPS) $(SEQ_MINIAPPS)
 endif
 
-.PHONY: all clean style
+.PHONY: all clean clean-build clean-exec
 
 # Remove built-in rule
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp $(CONFIG_MK) $(MFEM_LIB_FILE)
-	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ $(MFEM_LIBS)
+%: %.cpp $(MFEM_LIB_FILE) $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $(MFEM_LIBS)
 
 all: $(MINIAPPS)
 
-# Test default runs of the miniapps
-mfem-test = \
-   $(if $(shell if ($(2) $(1) -no-vis > /dev/null); then echo "ok"; fi), \
-   echo "   $(3)$(2)$(1): OK", echo "   $(3)$(2)$(1): FAILED")
+MFEM_TESTS = MINIAPPS
+include $(TEST_MK)
 
 # Testing: Parallel vs. serial runs
 %-test-par: %
-	@$(call mfem-test, $<, mpirun -np 4, Performance miniapp)
+	@$(call mfem-test,$<, mpirun -np 4, Performance miniapp)
 %-test-seq: %
-	@$(call mfem-test, $<, , Performance miniapp)
-
-# Testing: What sets of tests to run in serial and parallel
-test-par-YES: $(PAR_MINIAPPS:=-test-par) $(SEQ_MINIAPPS:=-test-seq)
-test-par-NO:  $(SEQ_MINIAPPS:=-test-seq)
-test:         test-par-$(MFEM_USE_MPI) clean-exec
+	@$(call mfem-test,$<,, Performance miniapp)
 
 # Generate an error message if the MFEM library is not built and exit
-$(CONFIG_MK) $(MFEM_LIB_FILE):
+$(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
 clean: clean-build clean-exec
