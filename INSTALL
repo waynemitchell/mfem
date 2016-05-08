@@ -39,7 +39,7 @@ Example codes (serial/parallel, depending on the build):
 Build everything (library, examples and miniapps) with current configuration:
    make all -j 4
 
-Quick-check the build by running example 1/1p (optional):
+Quick-check the build by running Example 1/1p (optional):
    make check
 
 
@@ -84,12 +84,14 @@ The build can be quick-tested by running
 
    make check
 
-which will simply compile and run example 1/1p. For more extensive tests that
+which will simply compile and run Example 1/1p. For more extensive tests that
 check the results from all the serial/parallel MFEM examples and miniapps use:
 
    make test
 
-Note that running all the tests may take a while.
+Note that running all the tests may take a while. Implementation details about
+the check and test targets can be found in the top-level makefile and the
+config/test.mk file.
 
 An optional installation of the library and the headers can be performed with
 

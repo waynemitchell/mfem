@@ -61,6 +61,8 @@ tesla-test-par: tesla
 	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
 	-maxit 2 -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1')
 
+# Testing: "test" target and mfem-test* variables are defined in config/test.mk
+
 # Generate an error message if the MFEM library is not built and exit
 $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)

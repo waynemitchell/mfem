@@ -59,6 +59,8 @@ ex15-test-seq: ex15
 ex15p-test-par: ex15p
 	@$(call mfem-test,$<, mpirun -np 4, Parallel example,-e 1)
 
+# Testing: "test" target and mfem-test* variables are defined in config/test.mk
+
 # Generate an error message if the MFEM library is not built and exit
 $(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)

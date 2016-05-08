@@ -47,9 +47,9 @@ make debug
 make pdebug
    A shortcut to configure and build the parallel debug version of the library.
 make check
-   Quick-check the build by compiling and running example 1/1p.
+   Quick-check the build by compiling and running Example 1/1p.
 make test
-   Verify the build by checking the results from running some examples and miniapps.
+   Verify the build by checking the results from running all examples and miniapps.
 make install PREFIX=<dir>
    Install the library and headers in <dir>/lib and <dir>/include.
 make clean
@@ -256,7 +256,7 @@ SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .PHONY: lib all clean distclean install config status info deps serial parallel\
- debug pdebug style test check
+ debug pdebug style check test
 
 .SUFFIXES: .cpp .o
 .cpp.o:
@@ -298,6 +298,12 @@ deps:
 	for i in $(SOURCE_FILES:.cpp=); do \
 	   $(DEP_CXX) $(MFEM_FLAGS) -MM -MT $${i}.o $${i}.cpp >> deps.mk; done
 
+check: lib
+	@printf "Quick-checking the MFEM library."
+	@printf " Use 'make test' for more extensive tests.\n"
+	@$(MAKE) -C examples \
+	$(if $(findstring YES,$(MFEM_USE_MPI)),ex1p-test-par,ex1-test-seq)
+
 test: lib
 	@echo "Testing the MFEM library. This may take a while..."
 	@echo "Building all examples and miniapps..."
@@ -311,12 +317,6 @@ test: lib
 	@echo "Running high-performance miniapps..."
 	@$(MAKE) -C miniapps/performance test
 	@echo "Done."
-
-check: lib
-	@printf "Quick check of the MFEM library."
-	@printf " Use 'make test' for more extensive tests.\n"
-	@$(MAKE) -C examples \
-	$(if $(findstring YES,$(MFEM_USE_MPI)),ex1p-test-par,ex1-test-seq)
 
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk

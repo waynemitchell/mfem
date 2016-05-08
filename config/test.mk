@@ -18,7 +18,7 @@ COLOR_PRINT = if [ -t 1 ]; then \
 PRINT_OK = $(call COLOR_PRINT,'\033[0;32m',OK,"\n")
 PRINT_FAILED = $(call COLOR_PRINT,'\033[0;31m',FAILED,"\n")
 
-# Test runs of the examples/miniapps with parameters and check exit code
+# Test runs of the examples/miniapps with parameters - check exit code
 mfem-test = \
    printf "   $(3) [$(2) $(1) ... ]: "; \
    if ($(2) ./$(1) -no-vis $(4) > /dev/null); \
@@ -32,7 +32,7 @@ mfem-test-file = \
 
 .PHONY: test test-par-YES test-par-NO
 
-# Testing: What sets of tests to run in serial and parallel
+# What sets of tests to run in serial and parallel
 test-par-YES: $(PAR_$(MFEM_TESTS):=-test-par) $(SEQ_$(MFEM_TESTS):=-test-seq)
 test-par-NO:  $(SEQ_$(MFEM_TESTS):=-test-seq)
 test:         all test-par-$(MFEM_USE_MPI) clean-exec
