@@ -256,7 +256,7 @@ SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .PHONY: lib all clean distclean install config status info deps serial parallel\
- debug pdebug style test
+ debug pdebug style test check
 
 .SUFFIXES: .cpp .o
 .cpp.o:
