@@ -21,7 +21,7 @@ MFEM makefile targets:
    make parallel
    make debug
    make pdebug
-   make test
+   make check/test
    make install
    make clean
    make distclean
@@ -46,6 +46,8 @@ make debug
    A shortcut to configure and build the serial debug version of the library.
 make pdebug
    A shortcut to configure and build the parallel debug version of the library.
+make check
+   Quick-check the build by compiling and running example 1/1p.
 make test
    Verify the build by checking the results from running some examples and miniapps.
 make install PREFIX=<dir>
@@ -309,6 +311,12 @@ test: lib
 	@echo "Running high-performance miniapps..."
 	@$(MAKE) -C miniapps/performance test
 	@echo "Done."
+
+check: lib
+	@printf "Quick check of the MFEM library."
+	@printf " Use 'make test' for more extensive tests.\n"
+	@$(MAKE) -C examples \
+	$(if $(findstring YES,$(MFEM_USE_MPI)),ex1p-test-par,ex1-test-seq)
 
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
