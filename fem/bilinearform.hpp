@@ -154,26 +154,26 @@ public:
    /// Returns a reference to the sparse matrix
    const SparseMatrix &SpMat() const
    {
-     MFEM_VERIFY(mat, "mat is NULL and can't be dereferenced");
-     return *mat;
+      MFEM_VERIFY(mat, "mat is NULL and can't be dereferenced");
+      return *mat;
    }
    SparseMatrix &SpMat()
    {
-     MFEM_VERIFY(mat, "mat is NULL and can't be dereferenced");
-     return *mat;
+      MFEM_VERIFY(mat, "mat is NULL and can't be dereferenced");
+      return *mat;
    }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
 
    /// Returns a reference to the sparse matrix of eliminated b.c.
    const SparseMatrix &SpMatElim() const
    {
-     MFEM_VERIFY(mat_e, "mat_e is NULL and can't be dereferenced");
-     return *mat_e;
+      MFEM_VERIFY(mat_e, "mat_e is NULL and can't be dereferenced");
+      return *mat_e;
    }
    SparseMatrix &SpMatElim()
    {
-     MFEM_VERIFY(mat_e, "mat_e is NULL and can't be dereferenced");
-     return *mat_e;
+      MFEM_VERIFY(mat_e, "mat_e is NULL and can't be dereferenced");
+      return *mat_e;
    }
 
    /// Adds new Domain Integrator.
