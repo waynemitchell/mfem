@@ -34,7 +34,7 @@ make config MFEM_USE_MPI=YES MFEM_DEBUG=YES MPICXX=mpiCC
 make -j 4
    Build the library (in parallel) using the current configuration options.
 make all
-   Build the library, the examples and the miniapps using the current configuration.
+   Build the library, the exa/g/g10/dwhite/mfemApps/meshes/coil_thex.mples and the miniapps using the current configuration.
 make status
    Display information about the current configuration.
 make serial
@@ -178,6 +178,18 @@ ifeq ($(MFEM_USE_SUITESPARSE),YES)
    ALL_LIBS += $(SUITESPARSE_LIB)
 endif
 
+MFEM_USE_NETCDF ?= NO
+# NetCDF library configuration
+NETCDF_DIR ?= @MFEM_DIR@/../NetCDF
+HDF5_DIR ?= @MFEM_DIR@/../hdf5
+ZLIB_DIR ?= @MFEM_DIR@/../zlib
+NETCDF_OPT ?= -I$(NETCDF_DIR)/include
+NETCDF_LIB ?= -L$(NETCDF_DIR)/lib  -lnetcdf -L $(HDF5_DIR)/lib -lhdf5_hl -lhdf5 -L $(ZLIB_DIR)/lib -lz 
+ifeq ($(MFEM_USE_NETCDF),YES)
+   INCFLAGS += $(NETCDF_OPT)
+   ALL_LIBS += $(NETCDF_LIB)
+endif
+
 MFEM_USE_MEMALLOC ?= YES
 
 MFEM_USE_GECKO ?= NO
@@ -203,7 +215,7 @@ endif
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
- MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC MFEM_USE_GECKO
+ MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC MFEM_USE_GECKO MFEM_USE_NETCDF
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
