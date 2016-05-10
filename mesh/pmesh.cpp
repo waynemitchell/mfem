@@ -1386,16 +1386,16 @@ Table *ParMesh::GetFaceToAllElementTable() const
    return face_elem;
 }
 
-static void reverse_columns(DenseMatrix &mat)
+static void swizzle_columns(DenseMatrix &mat)
 {
-   // reorder matrix columns
-   int w1 = mat.Width() - 1;
-   int w2 = mat.Width() / 2;
+   int order[] = { 3, 2, 1, 0, 6, 5, 4, 7, 8 };
+   //int order[] = { 1, 0, 3, 2, 4, 7, 6, 5, 8 };
+   DenseMatrix tmp = mat;
    for (int i = 0; i < mat.Height(); i++)
    {
-      for (int j = 0; j < w2; j++)
+      for (int j = 0; j < mat.Width(); j++)
       {
-         std::swap(mat(i, j), mat(i, w1 - j));
+         mat(i, j) = tmp(i, order[j]);
       }
    }
 }
@@ -1412,8 +1412,14 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    NCFaceInfo* nc_info = NULL;
    if (is_slave) { nc_info = &nc_faces_info[face_info.NCFace]; }
 
-   FaceElemTr.Elem1 = NULL;
-   FaceElemTr.Elem2 = NULL;
+   int inf1 = face_info.Elem1Inf;
+   int inf2 = face_info.Elem2Inf;
+
+   /*if (is_slave && is_ghost && Dim == 3)
+   {
+      inf1 ^= 1;
+      inf2 ^= 1;
+   }*/
 
    // setup the transformation for the first element
    FaceElemTr.Elem1No = face_info.Elem1No;
@@ -1430,11 +1436,11 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
 
    int elem_type = GetElementType(face_info.Elem1No);
    GetLocalFaceTransformation(face_type, elem_type,
-                              FaceElemTr.Loc1.Transf, face_info.Elem1Inf);
+                              FaceElemTr.Loc1.Transf, inf1);
 
    elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
    GetLocalFaceTransformation(face_type, elem_type,
-                              FaceElemTr.Loc2.Transf, face_info.Elem2Inf);
+                              FaceElemTr.Loc2.Transf, inf2);
 
    // setup the face transformation
    if (!is_ghost)
@@ -1470,18 +1476,20 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
       if (face_type == Element::SEGMENT)
       {
          // fix slave orientation in 2D: flip Loc2 to match Loc1 and Face
-         reverse_columns(FaceElemTr.Loc2.Transf.GetPointMat());
+         DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
+         std::swap(pm(0,0), pm(0,1));
+         std::swap(pm(1,0), pm(1,1));
       }
    }
 
    // fix ghost slave orientation in 3D
    if (is_slave && is_ghost && Dim == 3)
    {
-      // reverse all, to be opposite to "is_ghost == false" (other processor)
-      reverse_columns(((IsoparametricTransformation*)
+      // flip face normal, to be opposite to "is_ghost == false" (other CPU)
+      swizzle_columns(((IsoparametricTransformation*)
                        FaceElemTr.Face)->GetPointMat());
-      reverse_columns(FaceElemTr.Loc1.Transf.GetPointMat());
-      reverse_columns(FaceElemTr.Loc2.Transf.GetPointMat());
+      swizzle_columns(FaceElemTr.Loc1.Transf.GetPointMat());
+      swizzle_columns(FaceElemTr.Loc2.Transf.GetPointMat());
    }
 
    return &FaceElemTr;
