@@ -128,30 +128,36 @@ int main(int argc, char *argv[])
    }
 
    // FOR DEBUGGING ONLY
+   // set the order (curvature) to quadratic
+//    cout << endl << "Setting mesh curvature to 2!" << endl << endl;
+//    mesh->SetCurvature(2);
+   //END FOR DEBUGGING ONLY
+
+   // FOR DEBUGGING ONLY
    // examine mesh before the code crashes
    // visit visualization
-   {
-     if (myid == 0) {
-       VisItDataCollection homer("initialmesh", mesh);
-       homer.SetCycle(0);
-       homer.SetTime(0.0);
-       homer.Save();
-     }
+//    {
+//      if (myid == 0) {
+//        VisItDataCollection homer("initialmesh", mesh);
+//        homer.SetCycle(0);
+//        homer.SetTime(0.0);
+//        homer.Save();
+//      }
      
-     // let's loop over the mesh and perform some sanity checks on the mesh
-     double somepoint[3] = {0.5,0.0,0.0};
-     IntegrationPoint ip;
-     ip.Set(somepoint,3);
-     cout << endl << " mesh Analysis" << endl;
-     for (int ielem = 0;ielem < mesh->GetNE();ielem++){
-       ElementTransformation *it = mesh->GetElementTransformation(ielem);;
-       it->SetIntPoint(&ip);
-       DenseMatrix J = it->Jacobian();
-       double detJ = J.Det();
-       cout << "elem " << ielem << " detJ = " << detJ << endl;
-     }
-     cout << endl << endl;
-   }
+//      // let's loop over the mesh and perform some sanity checks on the mesh
+//      double somepoint[3] = {0.5,0.0,0.0};
+//      IntegrationPoint ip;
+//      ip.Set(somepoint,3);
+//      cout << endl << " mesh Analysis" << endl;
+//      for (int ielem = 0;ielem < mesh->GetNE();ielem++){
+//        ElementTransformation *it = mesh->GetElementTransformation(ielem);;
+//        it->SetIntPoint(&ip);
+//        DenseMatrix J = it->Jacobian();
+//        double detJ = J.Det();
+//        cout << "elem " << ielem << " detJ = " << detJ << endl;
+//      }
+//      cout << endl << endl;
+//    }
    // END FOR DEBUGGING ONLY
    
    dim = mesh->Dimension();
@@ -187,32 +193,31 @@ int main(int argc, char *argv[])
 
    pmesh->ReorientTetMesh();
 
-
    // FOR DEBUGGING ONLY
    // examine mesh before the code crashes
    // visit visualization
-   {
-     if (myid == 0) {
-       VisItDataCollection homer("finalmesh", pmesh);
-       homer.SetCycle(0);
-       homer.SetTime(0.0);
-       homer.Save();
-     }
+//    {
+//      if (myid == 0) {
+//        VisItDataCollection homer("finalmesh", pmesh);
+//        homer.SetCycle(0);
+//        homer.SetTime(0.0);
+//        homer.Save();
+//      }
      
-     // let's loop over the mesh and perform some sanity checks on the mesh
-     double somepoint[3] = {0.5,0.0,0.0};
-     IntegrationPoint ip;
-     ip.Set(somepoint,3);
-     cout << endl << " mesh Analysis" << endl;
-     for (int ielem = 0;ielem < pmesh->GetNE();ielem++){
-       ElementTransformation *it = pmesh->GetElementTransformation(ielem);;
-       it->SetIntPoint(&ip);
-       DenseMatrix J = it->Jacobian();
-       double detJ = J.Det();
-       cout << "elem " << ielem << " detJ = " << detJ << endl;
-     }
-     cout << endl << endl;
-   }
+//      // let's loop over the mesh and perform some sanity checks on the mesh
+//      double somepoint[3] = {0.5,0.0,0.0};
+//      IntegrationPoint ip;
+//      ip.Set(somepoint,3);
+//      cout << endl << " mesh Analysis" << endl;
+//      for (int ielem = 0;ielem < pmesh->GetNE();ielem++){
+//        ElementTransformation *it = pmesh->GetElementTransformation(ielem);;
+//        it->SetIntPoint(&ip);
+//        DenseMatrix J = it->Jacobian();
+//        double detJ = J.Det();
+//        cout << "elem " << ielem << " detJ = " << detJ << endl;
+//      }
+//      cout << endl << endl;
+//    }
    // END FOR DEBUGGING ONLY
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
