@@ -1,35 +1,19 @@
 #include "sundials.hpp"
 
 #ifdef MFEM_USE_SUNDIALS
-#include "../general/tic_toc.hpp"
-#include "../linalg/operator.hpp"
-#include "../linalg/solvers.hpp"
-#include "../linalg/linalg.hpp"
-#include "mfem.hpp"
-#include <fstream>
-#include <iostream>
-#include <algorithm>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <typeinfo>
-#include <exception>
 
-#include <iomanip>
-#include <cmath>
-#include <cstdlib>
-#include <cvode/cvode_band.h>        /* prototypes for CVODE fcts., consts. */
+#include "solvers.hpp"
+
+#include <cvode/cvode_band.h>
 #include <cvode/cvode_spgmr.h>
-#include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
+#include <nvector/nvector_serial.h>
 #ifdef MFEM_USE_MPI
-#include <nvector/nvector_parhyp.h>  /* parallel hypre N_Vector types, fcts., macros */
+#include "hypre.hpp"
+#include <nvector/nvector_parhyp.h>
 #endif
-#include <sundials/sundials_band.h>  /* definitions of type DlsMat and macros */
-#include <arkode/arkode_spils.h>
 #include <arkode/arkode_impl.h>
-#include <cvode/cvode_spils.h>
 #include <cvode/cvode_impl.h>
-#include <sundials/sundials_math.h>  /* definition of ABS and EXP */
+
 
 /* Choose default tolerances to match ARKode defaults*/
 #define RELTOL RCONST(1.0e-4)
@@ -582,8 +566,8 @@ int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve,
    lmem->solve_b = new mfem::Vector();
    lmem->vec_tmp = new mfem::Vector(NV_LENGTH_S(cv_mem->cv_zn[0]));
 #else
-   lmem->setup_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
-                                                cv_mem->cv_zn[0])));
+   lmem->setup_y = new mfem::HypreParVector(NV_HYPRE_PARVEC_PH(
+                                                cv_mem->cv_zn[0]));
    lmem->setup_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
                                                 cv_mem->cv_zn[0])));
    lmem->solve_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(

@@ -6,16 +6,10 @@
 #ifdef MFEM_USE_SUNDIALS
 
 #include "ode.hpp"
-#include "../linalg/operator.hpp"
-#include "../linalg/solvers.hpp"
-#include <algorithm>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include "operator.hpp"
 
-#include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
-#include <arkode/arkode.h>           /* prototypes for ARKODE fcts., consts. */
-#include <sundials/sundials_types.h> /* definition of type realtype */
+#include <cvode/cvode.h>
+#include <arkode/arkode.h>
 #ifdef MFEM_USE_MPI
 #include <mpi.h>
 #endif
