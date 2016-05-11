@@ -118,13 +118,14 @@ public:
 
    // Linear solve applicable to the Sundials format.
    // (Sundials doesn't work with increments).
-   // Solves (Mass - dt J) y = b, where in our case:
+   // Solves (Mass - dt J) y = Mass b, where in our case:
    // Mass = | M  0 |  J = | -S  -grad_H |  y = | v_hat |  b = | b_v |
    //        | 0  I |      |  I     0    |      | x_hat |      | b_x |
    // The result replaces the rhs b.
-   // Solved through the substitution x_hat = b_x + dt v_hat.
-   virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
-                              Solver* J_solve, double gamma);
+   // We substitute x_hat = b_x + dt v_hat and solve
+   // (M + dt S + dt^2 grad_H) v_hat = M b_v - dt grad_H b_x.
+   virtual void SolveJacobian(Vector *b, Vector *ycur, Vector *tmp,
+                              Solver *J_solve, double dt);
 
    // Compute y = H(x + dt (v + dt k)) + M k + S (v + dt k).
    virtual void Mult(const Vector &k, Vector &y) const;
@@ -458,36 +459,31 @@ void BackwardEulerOperator::SetParameters(double gamma_, const Vector *v_,
    gamma=gamma_;  v = v_;  x = x_;
 }
 
-void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
-                                          Solver* J_solve, double gamma_)
+void BackwardEulerOperator::SolveJacobian(Vector *b, Vector *ycur, Vector *tmp,
+                                          Solver *J_solve, double dt)
 {
-   int sc = b->Size()/2;
-   Vector v(ycur->GetData() +  0, sc);
+   int sc = b->Size() / 2;
    Vector x(ycur->GetData() + sc, sc);
    Vector b_v(b->GetData() +  0, sc);
    Vector b_x(b->GetData() + sc, sc);
-   Vector* tmp_empty=new Vector(2*sc);
-   Vector v_hat(tmp_empty->GetData() +  0, sc);
-   Vector x_hat(tmp_empty->GetData() + sc, sc);
-   Vector rhs_1(sc);
-   Vector rhs_2(sc);
+   Vector sltn(2 * sc);
+   Vector v_hat(sltn.GetData() +  0, sc);
+   Vector x_hat(sltn.GetData() + sc, sc);
    Vector rhs(sc);
 
    delete Jacobian;
-   Jacobian = Add(1.0, M->SpMat(), gamma, S->SpMat());
+   Jacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
    SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(x));
-   Jacobian->Add(gamma*gamma, *grad_H);
-
-   /*Transfered GetGradient into SolveJacobian code in order to reuse grad_H*/
+   Jacobian->Add(dt * dt, *grad_H);
    J_solve->SetOperator(*Jacobian);
-   // TODO: why is this multiplied by M.
-   M->Mult(b_v, rhs_2);
-   ///////get h gamma in there somehow
-   grad_H->Mult(b_x, rhs_1);
-   add(rhs_2,-gamma,rhs_1,rhs);
-   J_solve->Mult(rhs, v_hat);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
-   add(b_x, gamma, v_hat, x_hat);
-   *b=*tmp_empty;
+
+   grad_H->Mult(b_x, rhs);
+   rhs *= -dt;
+   M->AddMult(b_v, rhs);
+
+   J_solve->Mult(rhs, v_hat);
+   add(b_x, dt, v_hat, x_hat);
+   *b = sltn;
 }
 
 void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const

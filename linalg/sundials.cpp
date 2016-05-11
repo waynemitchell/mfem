@@ -21,6 +21,17 @@
 
 using namespace std;
 
+static int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data);
+static int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data);
+
+/// Linear solve associated with CVodeMem structs.
+static int MFEMLinearCVSolve(void *cvode_mem, mfem::Solver* solve,
+                             mfem::SundialsLinearSolveOperator* op);
+
+/// Linear solve associated with ARKodeMem structs.
+static int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver*,
+                              mfem::SundialsLinearSolveOperator*);
+
 namespace mfem
 {
 
@@ -383,7 +394,7 @@ ARKODESolver::~ARKODESolver()
 
 } // namespace mfem
 
-int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data)
+static int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
    realtype *ydata, *ydotdata;
    long int ylen, ydotlen;
@@ -413,7 +424,7 @@ int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 }
 
 #ifdef MFEM_USE_MPI
-int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data)
+static int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
    mfem::TimeDependentOperator *f =
       static_cast<mfem::TimeDependentOperator *>(user_data);
@@ -447,17 +458,6 @@ static int WrapLinearSolve(void* lmem, double tn, mfem::Vector* b,
 {
    mfem::MFEMLinearSolverMemory *tmp_lmem =
          static_cast<mfem::MFEMLinearSolverMemory *>(lmem);
-
-   /*
-   //Original plan:
-   // Take J_solve and Operator which has the relevant GetGradient operation
-   // and solve the system. In the simple case where GetGradient gives you
-   // something similar to I-gamma*J
-   mfem::Solver* prec = tmp_lmem->J_solve;
-   prec->SetOperator((tmp_lmem->op_for_gradient)->GetGradient(*ycur));
-   prec->Mult(*b, *yn);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
-   *b=*yn;
-   */
 
    tmp_lmem->op_for_gradient->SolveJacobian(b, ycur, yn, tmp_lmem->J_solve,
                                             tmp_lmem->weight);
@@ -535,8 +535,8 @@ static void WrapLinearCVSolveFree(CVodeMem cv_mem)
  cv_lfree fields in (*cvode_mem) to be WrapLinearCVSolveInit,
  WrapLinearCVSolveSetup, WrapLinearCVSolve, and WrapLinearCVSolveFree, respectively.
 ---------------------------------------------------------------*/
-int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve,
-                      mfem::SundialsLinearSolveOperator* op)
+static int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve,
+                             mfem::SundialsLinearSolveOperator* op)
 {
    CVodeMem cv_mem;
 
@@ -729,8 +729,8 @@ static void WrapLinearARKSolveFree(ARKodeMem ark_mem)
  WrapLinearARKSolveSetup, WrapARKLinearSolve, and WrapLinearARKSolveFree,
  respectively.
 ---------------------------------------------------------------*/
-int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver* solve,
-                       mfem::SundialsLinearSolveOperator* op)
+static int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver* solve,
+                              mfem::SundialsLinearSolveOperator* op)
 {
    ARKodeMem ark_mem;
 

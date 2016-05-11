@@ -311,6 +311,7 @@ public:
    }
 };
 
+///
 class SundialsLinearSolveOperator : public Operator
 {
 public:
@@ -321,18 +322,6 @@ public:
 };
 
 }  // namespace mfem
-
-int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data);
-
-int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data);
-
-/// Linear solve associated with CVodeMem structs.
-int MFEMLinearCVSolve(void *cvode_mem, mfem::Solver* solve,
-                      mfem::SundialsLinearSolveOperator* op);
-
-/// Linear solve associated with ARKodeMem structs.
-int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver*,
-                       mfem::SundialsLinearSolveOperator*);
 
 #endif // MFEM_USE_SUNDIALS
 
