@@ -58,9 +58,8 @@ protected:
    void GetFaceNbrElementTransformation(
       int i, IsoparametricTransformation *ElTr);
 
-   void ApplyFaceSlaveTransformation(int face_type,
-                                     const DenseMatrix &point_mat,
-                                     IsoparametricTransformation *FaceTr);
+   ElementTransformation* GetGhostFaceTransformation(
+      FaceElementTransformations* FETr, int face_type, int face_geom);
 
    /// Refine quadrilateral mesh.
    virtual void QuadUniformRefinement();

@@ -69,6 +69,8 @@ class ParNCMesh : public NCMesh
 public:
    ParNCMesh(MPI_Comm comm, const NCMesh& ncmesh);
 
+   virtual ~ParNCMesh();
+
    /** An override of NCMesh::Refine, which is called eventually, after making
        sure that refinements that occur on the processor boundary are sent to
        the neighbor processors so they can keep their ghost layers up to date.*/
@@ -479,6 +481,10 @@ protected:
        element didn't exist in the mesh previously. After Derefine, it holds
        the ranks of the old (potentially non-existent) fine elements. */
    Array<int> old_index_or_rank;
+
+   /// Stores modified point matrices created by GetFaceNeighbors
+   Array<DenseMatrix*> aux_pm_store;
+   void ClearAuxPM();
 
    static bool compare_ranks(const Element* a, const Element* b);
    static bool compare_ranks_indices(const Element* a, const Element* b);

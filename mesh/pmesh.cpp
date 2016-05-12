@@ -1386,18 +1386,33 @@ Table *ParMesh::GetFaceToAllElementTable() const
    return face_elem;
 }
 
-static void swizzle_columns(DenseMatrix &mat)
+ElementTransformation* ParMesh::GetGhostFaceTransformation(
+   FaceElementTransformations* FETr, int face_type, int face_geom)
 {
-   int order[] = { 3, 2, 1, 0, 6, 5, 4, 7, 8 };
-   //int order[] = { 1, 0, 3, 2, 4, 7, 6, 5, 8 };
-   DenseMatrix tmp = mat;
-   for (int i = 0; i < mat.Height(); i++)
+   // calculate composition of FETr->Loc1 and FETr->Elem1
+   DenseMatrix &face_pm = FaceTransformation.GetPointMat();
+   if (Nodes == NULL)
    {
-      for (int j = 0; j < mat.Width(); j++)
-      {
-         mat(i, j) = tmp(i, order[j]);
-      }
+      FETr->Elem1->Transform(FETr->Loc1.Transf.GetPointMat(), face_pm);
+      FaceTransformation.SetFE(GetTransformationFEforElementType(face_type));
    }
+   else
+   {
+      const FiniteElement* face_el =
+         Nodes->FESpace()->GetTraceElement(FETr->Elem1No, face_geom);
+
+#if 0 // TODO: handle the case of non-nodal Nodes
+      DenseMatrix I;
+      face_el->Project(Transformation.GetFE(), FETr->Loc1.Transf, I);
+      MultABt(Transformation.GetPointMat(), I, pm_face);
+#else
+      IntegrationRule eir(face_el->GetDof());
+      FETr->Loc1.Transform(face_el->GetNodes(), eir);
+      Nodes->GetVectorValues(*FETr->Elem1, eir, face_pm);
+#endif
+      FaceTransformation.SetFE(face_el);
+   }
+   return &FaceTransformation;
 }
 
 FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
@@ -1412,14 +1427,9 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    NCFaceInfo* nc_info = NULL;
    if (is_slave) { nc_info = &nc_faces_info[face_info.NCFace]; }
 
-   int inf1 = face_info.Elem1Inf;
-   int inf2 = face_info.Elem2Inf;
-
-   /*if (is_slave && is_ghost && Dim == 3)
-   {
-      inf1 ^= 1;
-      inf2 ^= 1;
-   }*/
+   int local_face = is_ghost ? nc_info->MasterFace : FaceNo;
+   int face_type = GetFaceElementType(local_face);
+   int face_geom = GetFaceGeometryType(local_face);
 
    // setup the transformation for the first element
    FaceElemTr.Elem1No = face_info.Elem1No;
@@ -1431,37 +1441,22 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
    GetFaceNbrElementTransformation(FaceElemTr.Elem2No, &Transformation2);
    FaceElemTr.Elem2 = &Transformation2;
 
-   // setup Loc1 & Loc2
-   int face_type = GetFaceElementType(is_ghost ? nc_info->MasterFace : FaceNo);
-
-   int elem_type = GetElementType(face_info.Elem1No);
-   GetLocalFaceTransformation(face_type, elem_type,
-                              FaceElemTr.Loc1.Transf, inf1);
-
-   elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
-   GetLocalFaceTransformation(face_type, elem_type,
-                              FaceElemTr.Loc2.Transf, inf2);
-
-   // setup the face transformation
+   // setup the face transformation if the face is not a ghost
+   FaceElemTr.FaceGeom = face_geom;
    if (!is_ghost)
    {
-      // this is the ordinary path, just call GetFaceTransformation
-      FaceElemTr.FaceGeom = GetFaceGeometryType(FaceNo);
       FaceElemTr.Face = GetFaceTransformation(FaceNo);
+      // NOTE: GetFaceElementTransformation destroys FaceElemTr.Loc1
    }
-   else
-   {
-      // we cannot call GetFaceTransformation for a ghost face; we instead
-      // get the transformation for the master face and modify it
 
-      MFEM_ASSERT(is_slave, "assuming a ghost slave here");
-      FaceElemTr.FaceGeom = GetFaceGeometryType(nc_info->MasterFace);
-      FaceElemTr.Face = GetFaceTransformation(nc_info->MasterFace);
+   // setup Loc1 & Loc2
+   int elem_type = GetElementType(face_info.Elem1No);
+   GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc1.Transf,
+                              face_info.Elem1Inf);
 
-      ApplyFaceSlaveTransformation(
-         face_type, *nc_info->PointMatrix,
-         (IsoparametricTransformation*) FaceElemTr.Face);
-   }
+   elem_type = face_nbr_elements[FaceElemTr.Elem2No]->GetType();
+   GetLocalFaceTransformation(face_type, elem_type, FaceElemTr.Loc2.Transf,
+                              face_info.Elem2Inf);
 
    // adjust Loc1 or Loc2 of the master face if this is a slave face
    if (is_slave)
@@ -1482,35 +1477,14 @@ FaceElementTransformations *ParMesh::GetSharedFaceTransformations(int sf)
       }
    }
 
-   // fix ghost slave orientation in 3D
-   if (is_slave && is_ghost && Dim == 3)
+   // for ghost faces we need a special version of GetFaceTransformation
+   if (is_ghost)
    {
-      // flip face normal, to be opposite to "is_ghost == false" (other CPU)
-      swizzle_columns(((IsoparametricTransformation*)
-                       FaceElemTr.Face)->GetPointMat());
-      swizzle_columns(FaceElemTr.Loc1.Transf.GetPointMat());
-      swizzle_columns(FaceElemTr.Loc2.Transf.GetPointMat());
+      FaceElemTr.Face =
+         GetGhostFaceTransformation(&FaceElemTr, face_type, face_geom);
    }
 
    return &FaceElemTr;
-}
-
-void ParMesh::ApplyFaceSlaveTransformation(int face_type,
-                                           const DenseMatrix &point_mat,
-                                           IsoparametricTransformation *FaceTr)
-{
-   IsoparametricTransformation local_tr;
-   local_tr.SetFE(GetTransformationFEforElementType(face_type));
-   local_tr.GetPointMat() = point_mat;
-
-   const FiniteElement* face_fe = FaceTr->GetFE();
-   DenseMatrix I(face_fe->GetDof());
-   face_fe->GetLocalInterpolation(local_tr, I);
-
-   DenseMatrix &ft_pm = FaceTr->GetPointMat();
-   DenseMatrix new_pm(ft_pm.Height(), ft_pm.Width());
-   mfem::MultABt(ft_pm, I, new_pm);
-   ft_pm = new_pm;
 }
 
 int ParMesh::GetNSharedFaces() const

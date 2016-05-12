@@ -46,6 +46,11 @@ ParNCMesh::ParNCMesh(MPI_Comm comm, const NCMesh &ncmesh)
    // branches that only contain someone else's leaves (see Prune())
 }
 
+ParNCMesh::~ParNCMesh()
+{
+   ClearAuxPM();
+}
+
 void ParNCMesh::Update()
 {
    NCMesh::Update();
@@ -580,6 +585,8 @@ bool ParNCMesh::compare_ranks_indices(const Element* a, const Element* b)
 
 void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
 {
+   ClearAuxPM();
+
    const NCList &shared = (Dim == 3) ? GetSharedFaces() : GetSharedEdges();
    const NCList &full_list = (Dim == 3) ? GetFaceList() : GetEdgeList();
 
@@ -723,7 +730,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
       Mesh::FaceInfo &fi = pmesh.faces_info[cf.index];
       fi.Elem2No = -1 - fnbr_index[e[0]->index - NElements];
 
-      if (Dim > 2)
+      if (Dim == 3)
       {
          int local[2];
          int o = get_face_orientation(face, e[1], e[0], local);
@@ -738,7 +745,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
    if (shared.slaves.size())
    {
       int nfaces = NFaces, nghosts = NGhostFaces;
-      if (Dim < 3) { nfaces = NEdges, nghosts = NGhostEdges; }
+      if (Dim <= 2) { nfaces = NEdges, nghosts = NGhostEdges; }
 
       // enlarge Mesh::faces_info for ghost slaves
       pmesh.faces_info.SetSize(nfaces + nghosts);
@@ -777,16 +784,37 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
             MFEM_ASSERT(fi.Elem2No >= NElements, "");
             fi.Elem2No = -1 - fnbr_index[fi.Elem2No - NElements];
 
+            const DenseMatrix* pm = &sf.point_matrix;
+            if (!sloc && Dim == 3)
+            {
+               // ghost slave in 3D needs flipping orientation
+               DenseMatrix* pm2 = new DenseMatrix(*pm);
+               std::swap((*pm2)(0,1), (*pm2)(0,3));
+               std::swap((*pm2)(1,1), (*pm2)(1,3));
+               aux_pm_store.Append(pm2);
+
+               fi.Elem2Inf ^= 1;
+               pm = pm2;
+            }
+
             MFEM_ASSERT(fi.NCFace < 0, "");
             fi.NCFace = pmesh.nc_faces_info.Size();
-            pmesh.nc_faces_info.Append(
-               Mesh::NCFaceInfo(true, sf.master, &sf.point_matrix));
+            pmesh.nc_faces_info.Append(Mesh::NCFaceInfo(true, sf.master, pm));
          }
       }
    }
 
    // NOTE: this function skips ParMesh::send_face_nbr_vertices and
    // ParMesh::face_nbr_vertices_offset, these are not used outside of ParMesh
+}
+
+void ParNCMesh::ClearAuxPM()
+{
+   for (int i = 0; i < aux_pm_store.Size(); i++)
+   {
+      delete aux_pm_store[i];
+   }
+   aux_pm_store.DeleteAll();
 }
 
 
