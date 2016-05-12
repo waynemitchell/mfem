@@ -795,6 +795,16 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
 
                fi.Elem2Inf ^= 1;
                pm = pm2;
+
+               // The problem is that sf.point_matrix is designed for P matrix
+               // construction and always has orientation relative to the slave
+               // face. In ParMesh::GetSharedFaceTransformations the result will
+               // therefore be the same on both processors, which is not how
+               // that function works for conforming faces. The orientation of
+               // Loc1, Loc2 and Face needs to always be relative to Element 1,
+               // which is the element containing the slave face on one
+               // processor, but on the other it is the element containing the
+               // master face. In the latter case we need to flip the pm.
             }
 
             MFEM_ASSERT(fi.NCFace < 0, "");
