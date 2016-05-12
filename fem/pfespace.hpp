@@ -118,7 +118,7 @@ private:
                             const Array<int> &owner_dofs, int owner_ndofs,
                             const Array<int> &dependent_dofs);
 
-   void GetAnyDofs(int type, int index, Array<int>& dofs);
+   void GetDofs(int type, int index, Array<int>& dofs);
    void ReorderFaceDofs(Array<int> &dofs, int orient);
 
    // Used when the ParMesh is non-conforming, i.e. pmesh->pncmesh != NULL.

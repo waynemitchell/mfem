@@ -1144,7 +1144,7 @@ void ParFiniteElementSpace
    }
 }
 
-void ParFiniteElementSpace::GetAnyDofs(int type, int index, Array<int>& dofs)
+void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
 {
    // helper to get vertex, edge or face DOFs
    switch (type)
@@ -1185,7 +1185,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
             if (owner == MyRank)
             {
                // we own a shared v/e/f, send its DOFs to others in group
-               GetAnyDofs(type, id.index, dofs);
+               GetDofs(type, id.index, dofs);
                const int *group = pncmesh->GetGroup(type, id.index, gsize);
                for (int j = 0; j < gsize; j++)
                {
@@ -1247,7 +1247,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
             int master_ndofs, master_rank = pncmesh->GetOwner(type, mf.index);
             if (master_rank == MyRank)
             {
-               GetAnyDofs(type, mf.index, master_dofs);
+               GetDofs(type, mf.index, master_dofs);
                master_ndofs = ndofs;
             }
             else
@@ -1264,7 +1264,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
                const NCMesh::Slave &sf = list.slaves[si];
                if (pncmesh->IsGhost(type, sf.index)) { continue; }
 
-               GetAnyDofs(type, sf.index, slave_dofs);
+               GetDofs(type, sf.index, slave_dofs);
                if (!slave_dofs.Size()) { continue; }
 
                sf.OrientedPointMatrix(T.GetPointMat());
@@ -1280,7 +1280,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
             // our mesh: this is a conforming-like situation, create 1-to-1 deps
             if (master_rank != MyRank && !pncmesh->IsGhost(type, mf.index))
             {
-               GetAnyDofs(type, mf.index, my_dofs);
+               GetDofs(type, mf.index, my_dofs);
                Add1To1Dependencies(deps, master_rank, master_dofs, master_ndofs,
                                    my_dofs);
             }
@@ -1294,7 +1294,7 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
          for (unsigned i = 0; i < list.conforming.size(); i++)
          {
             const NCMesh::MeshId &id = list.conforming[i];
-            GetAnyDofs(type, id.index, my_dofs);
+            GetDofs(type, id.index, my_dofs);
 
             int owner_ndofs, owner = pncmesh->GetOwner(type, id.index);
             if (owner != MyRank)
