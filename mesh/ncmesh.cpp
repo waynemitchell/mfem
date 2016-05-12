@@ -1672,6 +1672,7 @@ void NCMesh::OnMeshUpdated(Mesh *mesh)
 {
    Table *edge_vertex = mesh->GetEdgeVertexTable();
 
+   // get edge enumeration from the Mesh
    for (int i = 0; i < edge_vertex->Size(); i++)
    {
       const int *ev = edge_vertex->GetRow(i);
@@ -1681,6 +1682,7 @@ void NCMesh::OnMeshUpdated(Mesh *mesh)
       node->edge->index = i;
    }
 
+   // get face enumeration from the Mesh
    for (int i = 0; i < mesh->GetNumFaces(); i++)
    {
       const int* fv = mesh->GetFace(i)->GetVertices();
@@ -1695,7 +1697,14 @@ void NCMesh::OnMeshUpdated(Mesh *mesh)
       {
          MFEM_ASSERT(mesh->GetFace(i)->GetNVertices() == 2, "");
          int n0 = vertex_nodeId[fv[0]], n1 = vertex_nodeId[fv[1]];
-         face = faces.Peek(n0, n0, n1, n1); // degenerate face
+         face = faces.Peek(n0, n0, n1, n1); // look up degenerate face
+
+#ifdef MFEM_DEBUG
+         // (non-ghost) edge and face numbers must match in 2D
+         const int *ev = edge_vertex->GetRow(i);
+         MFEM_ASSERT((ev[0] == fv[0] && ev[1] == fv[1]) ||
+                     (ev[1] == fv[0] && ev[0] == fv[1]), "");
+#endif
       }
       MFEM_ASSERT(face, "face not found.");
       face->index = i;
@@ -1964,7 +1973,6 @@ void NCMesh::TraverseEdge(Node* v0, Node* v1, double t0, double t1, int flags,
       {
          Face* face = faces.Peek(v0, v0, v1, v1);
          MFEM_ASSERT(face != NULL, "");
-         // MFEM_ASSERT(face->index == mid->edge->index, "");
          sl.element = face->GetSingleElement();
          sl.local = find_element_edge(sl.element, v0->id, v1->id);
       }

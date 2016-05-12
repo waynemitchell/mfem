@@ -1524,7 +1524,7 @@ int ParMesh::GetSharedFace(int sface) const
       int csize = (int) shared.conforming.size();
       return sface < csize
              ? shared.conforming[sface].index
-             : shared.slaves[sface - csize].index; // FIXME: edge index or face index?
+             : shared.slaves[sface - csize].index;
    }
 }
 
