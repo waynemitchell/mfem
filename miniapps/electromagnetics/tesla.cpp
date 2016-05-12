@@ -103,6 +103,7 @@ int main(int argc, char *argv[])
    // Parse command-line options.
    const char *mesh_file = "butterfly_3d.mesh";
    int order = 1;
+   int maxit = 100;
    int sr = 0, pr = 0;
    bool visualization = true;
    bool visit = true;
@@ -135,6 +136,8 @@ int main(int argc, char *argv[])
                   "Voltage Boundary Condition Surfaces (to drive K)");
    args.AddOption(&vbcv, "-vbcv", "--voltage-bc-vals",
                   "Voltage Boundary Condition Values (to drive K)");
+   args.AddOption(&maxit, "-maxit", "--max-amr-iterations",
+                  "Max number of iterations in the main AMR loop.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -254,7 +257,7 @@ int main(int argc, char *argv[])
    // refine until the maximum number of dofs in the Nedelec finite element
    // space reaches 10 million.
    const int max_dofs = 10000000;
-   for (int it = 1; it <= 100; it++)
+   for (int it = 1; it <= maxit; it++)
    {
       if (myid == 0)
       {
