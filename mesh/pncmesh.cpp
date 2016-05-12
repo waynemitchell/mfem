@@ -438,6 +438,8 @@ int ParNCMesh::get_face_orientation(Face* face, Element* e1, Element* e2,
 
 void ParNCMesh::CalcFaceOrientations()
 {
+   if (Dim < 3) { return; }
+
    // Calculate orientation of shared conforming faces.
    // NOTE: face orientation is calculated relative to its lower rank element.
    // Thanks to the ghost layer this can be done locally, without communication.
