@@ -49,7 +49,7 @@ void NCMesh::GeomInfo::Initialize(const mfem::Element* elem)
       }
    }
 
-   // in 2D we pretend to have faces too, to be able to use Face::elem[2]
+   // in 2D we pretend to have faces too, so we can use Face::elem[2]
    if (!nf)
    {
       for (int i = 0; i < ne; i++)

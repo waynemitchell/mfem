@@ -1276,8 +1276,9 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
                                     slave_dofs, I);
             }
 
-            // special case for master edges that we dont own but still exist in
-            // our mesh: this is a conforming-like situation, create 1-to-1 deps
+            // special case for master edges that we don't own but still exist
+            // in our mesh: this is a conforming-like situation, create 1-to-1
+            // deps
             if (master_rank != MyRank && !pncmesh->IsGhost(type, mf.index))
             {
                GetDofs(type, mf.index, my_dofs);

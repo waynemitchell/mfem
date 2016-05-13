@@ -639,7 +639,7 @@ void ParNCMesh::GetFaceNeighbors(ParMesh &pmesh)
 
    // remove duplicate face neighbor elements and sort them by rank & index
    // (note that the send table is sorted the same way and the order is also the
-   //  same on different processors, this is important for ExchangeFaceNbrData)
+   // same on different processors, this is important for ExchangeFaceNbrData)
    fnbr.Sort();
    fnbr.Unique();
    fnbr.Sort(compare_ranks_indices);
