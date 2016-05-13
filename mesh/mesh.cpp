@@ -83,6 +83,79 @@ double Mesh::GetElementVolume(int i)
    return volume;
 }
 
+// Similar to VisualizationSceneSolution3d::FindNewBox in GLVis
+void Mesh::GetBoundingBox(Vector &center, Vector &length, int ref)
+{
+   double xmin[3], xmax[3];
+
+   for (int d = 0; d < 3; d++)
+   {
+      xmin[d] = numeric_limits<double>::infinity();
+      xmax[d] = -numeric_limits<double>::infinity();
+   }
+
+   if (Nodes == NULL)
+   {
+      double *coord;
+      for (int i = 0; i < NumOfVertices; i++)
+      {
+         coord = GetVertex(i);
+         if (coord[0] < xmin[0]) { xmin[0] = coord[0]; }
+         if (coord[1] < xmin[1]) { xmin[1] = coord[1]; }
+         if (coord[2] < xmin[2]) { xmin[2] = coord[2]; }
+         if (coord[0] > xmax[0]) { xmax[0] = coord[0]; }
+         if (coord[1] > xmax[1]) { xmax[1] = coord[1]; }
+         if (coord[2] > xmax[2]) { xmax[2] = coord[2]; }
+      }
+   }
+   else
+   {
+      int ne = (Dim == 3) ? GetNBE() : GetNE();
+      int fn, fo;
+      DenseMatrix pointmat;
+      RefinedGeometry *RefG;
+      IntegrationRule eir;
+      FaceElementTransformations *Tr;
+      ElementTransformation *T;
+
+      for (int i = 0; i < ne; i++)
+      {
+         if (Dim == 3)
+         {
+            GetBdrElementFace(i, &fn, &fo);
+            RefG = GlobGeometryRefiner.Refine(GetFaceBaseGeometry(fn), ref);
+            Tr = GetFaceElementTransformations(fn, 5);
+            eir.SetSize(RefG->RefPts.GetNPoints());
+            Tr->Loc1.Transform(RefG->RefPts, eir);
+            Tr->Elem1->Transform(eir, pointmat);
+         }
+         else
+         {
+            T = GetElementTransformation(i);
+            RefG = GlobGeometryRefiner.Refine(GetElementBaseGeometry(i), ref);
+            T->Transform(RefG->RefPts, pointmat);
+         }
+         for (int j = 0; j < pointmat.Width(); j++)
+         {
+            if (pointmat(0,j) < xmin[0]) { xmin[0] = pointmat(0,j); }
+            if (pointmat(1,j) < xmin[1]) { xmin[1] = pointmat(1,j); }
+            if (pointmat(2,j) < xmin[2]) { xmin[2] = pointmat(2,j); }
+            if (pointmat(0,j) > xmax[0]) { xmax[0] = pointmat(0,j); }
+            if (pointmat(1,j) > xmax[1]) { xmax[1] = pointmat(1,j); }
+            if (pointmat(2,j) > xmax[2]) { xmax[2] = pointmat(2,j); }
+         }
+      }
+   }
+
+   center.SetSize(3);
+   length.SetSize(3);
+   for (int d = 0; d < 3; d++)
+   {
+      center[d] = (xmin[d] + xmax[d]) * 0.5;
+      length[d] = (xmax[d] - xmin[d]);
+   }
+}
+
 void Mesh::PrintCharacteristics(Vector *Vh, Vector *Vk, std::ostream &out)
 {
    int i, dim, sdim;

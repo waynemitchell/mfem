@@ -873,6 +873,10 @@ public:
 
    double GetElementVolume(int i);
 
+   /// Returns the center and the lengths of the mesh bounding box. For
+   /// high-order meshes, the geometry is refined first "ref" times.
+   void GetBoundingBox(Vector &center, Vector &length, int ref = 2);
+
    void PrintCharacteristics(Vector *Vh = NULL, Vector *Vk = NULL,
                              std::ostream &out = std::cout);
 
