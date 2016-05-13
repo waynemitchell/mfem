@@ -21,8 +21,28 @@
 
 using namespace std;
 
-static int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data);
-static int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data);
+static int SundialsMult(realtype t, N_Vector y, N_Vector ydot, void *user_data)
+{
+   mfem::TimeDependentOperator *f =
+      static_cast<mfem::TimeDependentOperator *>(user_data);
+
+   // Creates mfem Vectors linked to the data in y and in ydot.
+#ifndef MFEM_USE_MPI
+   mfem::Vector mfem_y(NV_DATA_S(y), NV_LENGTH_S(y));
+   mfem::Vector mfem_ydot(NV_DATA_S(ydot), NV_LENGTH_S(ydot));
+#else
+   mfem::HypreParVector mfem_y =
+      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(y));
+   mfem::HypreParVector mfem_ydot =
+      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(ydot));
+#endif
+
+   // Apply y' = f(t, y).
+   f->SetTime(t);
+   f->Mult(mfem_y, mfem_ydot);
+
+   return 0;
+}
 
 /// Linear solve associated with CVodeMem structs.
 static int MFEMLinearCVSolve(void *cvode_mem, mfem::Solver* solve,
@@ -68,11 +88,8 @@ void CVODESolver::Init(TimeDependentOperator &_f)
 
    // Initialize integrator memory, specify the user's
    // RHS function in x' = f(t, x), initial time, initial condition.
-#ifndef MFEM_USE_MPI
-   int flag = CVodeInit(ode_mem, sun_f_fun, 0.0, y);
-#else
-   int flag = CVodeInit(ode_mem, sun_f_fun_par, 0.0, y);
-#endif
+   int flag = CVodeInit(ode_mem, SundialsMult, 0.0, y);
+
    MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
 
    SetSStolerances(RELTOL, ABSTOL);
@@ -185,11 +202,7 @@ void CVODESolver::SetLinearSolve(Solver* J_solve,
       ode_mem=CVodeCreate(CV_BDF, CV_NEWTON);
       tolerances_set_sundials=false;
 
-#ifndef MFEM_USE_MPI
-   int flag = CVodeInit(ode_mem, sun_f_fun, t0, y);
-#else
-   int flag = CVodeInit(ode_mem, sun_f_fun_par, t0, y);
-#endif
+      int flag = CVodeInit(ode_mem, SundialsMult, t0, y);
       MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
 
       CVodeSetUserData(ode_mem, this->f);
@@ -249,15 +262,9 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
 
    // Initialize the integrator memory, specify the user's
    // RHS function in x' = f(t, x), the inital time, initial condition.
-#ifndef MFEM_USE_MPI
    int flag = use_explicit ?
-              ARKodeInit(ode_mem, sun_f_fun, NULL, 0.0, y) :
-              ARKodeInit(ode_mem, NULL, sun_f_fun, 0.0, y);
-#else
-   int flag = use_explicit ?
-              ARKodeInit(ode_mem, sun_f_fun_par, NULL, 0.0, y) :
-              ARKodeInit(ode_mem, NULL, sun_f_fun_par, 0.0, y);
-#endif
+              ARKodeInit(ode_mem, SundialsMult, NULL, 0.0, y) :
+              ARKodeInit(ode_mem, NULL, SundialsMult, 0.0, y);
    MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
 
    SetSStolerances(RELTOL, ABSTOL);
@@ -273,15 +280,9 @@ void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_y, double &_t)
    CreateNVector(&_y);
 
    // Re-init memory, time and solution. The RHS action is known from Init().
-#ifndef MFEM_USE_MPI
    int flag = use_explicit ?
-              ARKodeReInit(ode_mem, sun_f_fun, NULL, (realtype) _t, y) :
-              ARKodeReInit(ode_mem, NULL, sun_f_fun, (realtype) _t, y);
-#else
-   int flag = use_explicit ?
-              ARKodeReInit(ode_mem, sun_f_fun_par, NULL, (realtype) _t, y) :
-              ARKodeReInit(ode_mem, NULL, sun_f_fun_par, (realtype) _t, y);
-#endif
+              ARKodeReInit(ode_mem, SundialsMult, NULL, (realtype) _t, y) :
+              ARKodeReInit(ode_mem, NULL, SundialsMult, (realtype) _t, y);
    MFEM_ASSERT(flag >= 0, "ARKodeReInit() failed!");
 
    // Set the pointer to user-defined data.
@@ -358,15 +359,9 @@ void ARKODESolver::SetLinearSolve(Solver* solve,
       // TODO: why is this?
       use_explicit=false;
       //change init structure in order to switch to implicit method
-#ifndef MFEM_USE_MPI
       int flag = use_explicit ?
-                    ARKodeInit(ode_mem, sun_f_fun, NULL, t0, y) :
-                    ARKodeInit(ode_mem, NULL, sun_f_fun, t0, y);
-#else
-      int flag = use_explicit ?
-                    ARKodeInit(ode_mem, sun_f_fun_par, NULL, t0, y) :
-                    ARKodeInit(ode_mem, NULL, sun_f_fun_par, t0, y);
-#endif
+                    ARKodeInit(ode_mem, SundialsMult, NULL, t0, y) :
+                    ARKodeInit(ode_mem, NULL, SundialsMult, t0, y);
       MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
 
       ARKodeSetUserData(ode_mem, this->f);
@@ -393,58 +388,6 @@ ARKODESolver::~ARKODESolver()
 
 
 } // namespace mfem
-
-static int sun_f_fun(realtype t, N_Vector y, N_Vector ydot, void *user_data)
-{
-   realtype *ydata, *ydotdata;
-   long int ylen, ydotlen;
-
-   // ydata is now a pointer to the realtype data array in y
-   ydata = NV_DATA_S(y);
-   ylen = NV_LENGTH_S(y);
-
-   // probably unnecessary, since overwriting ydot as output
-   // ydotdata is now a pointer to the realtype data array in ydot
-   ydotdata = NV_DATA_S(ydot);
-   ydotlen = NV_LENGTH_S(ydot);
-
-   mfem::TimeDependentOperator *f =
-      static_cast<mfem::TimeDependentOperator *>(user_data);
-
-   // Creates mfem Vectors linked to the data in y and in ydot.
-   // Have not explicitly set as owndata, so allocated size is -size.
-   mfem::Vector mfem_vector_y((double*) ydata, ylen);
-   mfem::Vector mfem_vector_ydot((double*) ydotdata, ydotlen);
-
-   // Apply y' = f(t, y).
-   f->SetTime(t);
-   f->Mult(mfem_vector_y, mfem_vector_ydot);
-
-   return 0;
-}
-
-#ifdef MFEM_USE_MPI
-static int sun_f_fun_par(realtype t, N_Vector y, N_Vector ydot, void *user_data)
-{
-   mfem::TimeDependentOperator *f =
-      static_cast<mfem::TimeDependentOperator *>(user_data);
-
-   // Creates mfem HypreParVectors mfem_vector_y and mfem_vector_ydot by
-   // using the casting operators in HypreParVector to cast the hypre_ParVector
-   // in y and in ydot respectively.
-   // Have not explicitly set as owndata, so allocated size is -size
-   mfem::HypreParVector mfem_vector_y =
-      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(y));
-   mfem::HypreParVector mfem_vector_ydot =
-      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(ydot));
-
-   // Apply y' = f(t, y).
-   f->SetTime(t);
-   f->Mult(mfem_vector_y, mfem_vector_ydot);
-
-   return 0;
-}
-#endif
 
 static int WrapLinearSolveSetup(void* lmem, double tn,
                                 mfem::Vector* ypred, mfem::Vector* fpred)
