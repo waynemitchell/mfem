@@ -88,7 +88,7 @@ void Mesh::GetBoundingBox(Vector &center, Vector &length, int ref)
 {
    double xmin[3], xmax[3];
 
-   for (int d = 0; d < 3; d++)
+   for (int d = 0; d < Dim; d++)
    {
       xmin[d] = numeric_limits<double>::infinity();
       xmax[d] = -numeric_limits<double>::infinity();
@@ -137,19 +137,18 @@ void Mesh::GetBoundingBox(Vector &center, Vector &length, int ref)
          }
          for (int j = 0; j < pointmat.Width(); j++)
          {
-            if (pointmat(0,j) < xmin[0]) { xmin[0] = pointmat(0,j); }
-            if (pointmat(1,j) < xmin[1]) { xmin[1] = pointmat(1,j); }
-            if (pointmat(2,j) < xmin[2]) { xmin[2] = pointmat(2,j); }
-            if (pointmat(0,j) > xmax[0]) { xmax[0] = pointmat(0,j); }
-            if (pointmat(1,j) > xmax[1]) { xmax[1] = pointmat(1,j); }
-            if (pointmat(2,j) > xmax[2]) { xmax[2] = pointmat(2,j); }
+            for (int d = 0; d < Dim; d++)
+            {
+               if (pointmat(d,j) < xmin[d]) { xmin[d] = pointmat(d,j); }
+               if (pointmat(d,j) > xmax[d]) { xmax[d] = pointmat(d,j); }
+            }
          }
       }
    }
 
-   center.SetSize(3);
-   length.SetSize(3);
-   for (int d = 0; d < 3; d++)
+   center.SetSize(Dim);
+   length.SetSize(Dim);
+   for (int d = 0; d < Dim; d++)
    {
       center[d] = (xmin[d] + xmax[d]) * 0.5;
       length[d] = (xmax[d] - xmin[d]);
@@ -692,19 +691,19 @@ FaceElementTransformations *Mesh::GetFaceElementTransformations(int FaceNo,
       int elem_type = GetElementType(face_info.Elem2No);
       GetLocalFaceTransformation(face_type, elem_type,
                                  FaceElemTr.Loc2.Transf, face_info.Elem2Inf);
-   }
 
-   // NC meshes: prepend slave edge/face transformation to Loc2
-   if (Nonconforming() && IsSlaveFace(face_info))
-   {
-      ApplyLocalSlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
-
-      if (face_type == Element::SEGMENT)
+      // NC meshes: prepend slave edge/face transformation to Loc2
+      if (Nonconforming() && IsSlaveFace(face_info))
       {
-         // flip Loc2 to match Loc1 and Face
-         DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
-         std::swap(pm(0,0), pm(0,1));
-         std::swap(pm(1,0), pm(1,1));
+         ApplyLocalSlaveTransformation(FaceElemTr.Loc2.Transf, face_info);
+
+         if (face_type == Element::SEGMENT)
+         {
+            // flip Loc2 to match Loc1 and Face
+            DenseMatrix &pm = FaceElemTr.Loc2.Transf.GetPointMat();
+            std::swap(pm(0,0), pm(0,1));
+            std::swap(pm(1,0), pm(1,1));
+         }
       }
    }
 
