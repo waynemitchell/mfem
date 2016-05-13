@@ -61,8 +61,6 @@ class FiniteElementSpace; // for Dof -> VDof conversion
  *  pair of numbers. The first number specifies an element in an ElementSet
  *  (typically sent at the beginning of the message) that contains the v/e/f.
  *  The second number is the local index of the v/e/f in that element.
- *
- *  TODO: what else to describe?
  */
 class ParNCMesh : public NCMesh
 {
