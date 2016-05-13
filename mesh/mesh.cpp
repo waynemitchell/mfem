@@ -84,14 +84,15 @@ double Mesh::GetElementVolume(int i)
 }
 
 // Similar to VisualizationSceneSolution3d::FindNewBox in GLVis
-void Mesh::GetBoundingBox(Vector &center, Vector &length, int ref)
+void Mesh::GetBoundingBox(Vector &min, Vector &max, int ref)
 {
-   double xmin[3], xmax[3];
+   min.SetSize(Dim);
+   max.SetSize(Dim);
 
    for (int d = 0; d < Dim; d++)
    {
-      xmin[d] = numeric_limits<double>::infinity();
-      xmax[d] = -numeric_limits<double>::infinity();
+      min[d] = numeric_limits<double>::infinity();
+      max[d] = -numeric_limits<double>::infinity();
    }
 
    if (Nodes == NULL)
@@ -100,12 +101,11 @@ void Mesh::GetBoundingBox(Vector &center, Vector &length, int ref)
       for (int i = 0; i < NumOfVertices; i++)
       {
          coord = GetVertex(i);
-         if (coord[0] < xmin[0]) { xmin[0] = coord[0]; }
-         if (coord[1] < xmin[1]) { xmin[1] = coord[1]; }
-         if (coord[2] < xmin[2]) { xmin[2] = coord[2]; }
-         if (coord[0] > xmax[0]) { xmax[0] = coord[0]; }
-         if (coord[1] > xmax[1]) { xmax[1] = coord[1]; }
-         if (coord[2] > xmax[2]) { xmax[2] = coord[2]; }
+         for (int d = 0; d < Dim; d++)
+         {
+            if (coord[d] < min[d]) { min[d] = coord[d]; }
+            if (coord[d] > max[d]) { max[d] = coord[d]; }
+         }
       }
    }
    else
@@ -139,19 +139,11 @@ void Mesh::GetBoundingBox(Vector &center, Vector &length, int ref)
          {
             for (int d = 0; d < Dim; d++)
             {
-               if (pointmat(d,j) < xmin[d]) { xmin[d] = pointmat(d,j); }
-               if (pointmat(d,j) > xmax[d]) { xmax[d] = pointmat(d,j); }
+               if (pointmat(d,j) < min[d]) { min[d] = pointmat(d,j); }
+               if (pointmat(d,j) > max[d]) { max[d] = pointmat(d,j); }
             }
          }
       }
-   }
-
-   center.SetSize(Dim);
-   length.SetSize(Dim);
-   for (int d = 0; d < Dim; d++)
-   {
-      center[d] = (xmin[d] + xmax[d]) * 0.5;
-      length[d] = (xmax[d] - xmin[d]);
    }
 }
 

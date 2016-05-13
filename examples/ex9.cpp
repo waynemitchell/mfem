@@ -48,8 +48,8 @@ double u0_function(const Vector &x);
 // Inflow boundary condition
 double inflow_function(const Vector &x);
 
-// Center and lengths of the mesh bounding box
-Vector bb_center, bb_length;
+// Mesh bounding box
+Vector bb_min, bb_max;
 
 
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
@@ -136,8 +136,9 @@ int main(int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
+
    int dim = mesh->Dimension();
-   mesh->GetBoundingBox(bb_center, bb_length);
+   mesh->GetBoundingBox(bb_min, bb_max);
 
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
@@ -346,7 +347,8 @@ void velocity_function(const Vector &x, Vector &v)
    Vector X(dim);
    for (int i = 0; i < dim; i++)
    {
-      X(i) = 2 * (x(i) - bb_center[i]) / bb_length[i];
+      double center = (bb_min[i] + bb_max[i]) * 0.5;
+      X(i) = 2 * (x(i) - center) / (bb_max[i] - bb_min[i]);
    }
    switch (problem)
    {
@@ -400,7 +402,8 @@ double u0_function(const Vector &x)
    Vector X(dim);
    for (int i = 0; i < dim; i++)
    {
-      X(i) = 2 * (x(i) - bb_center[i]) / bb_length[i];
+      double center = (bb_min[i] + bb_max[i]) * 0.5;
+      X(i) = 2 * (x(i) - center) / (bb_max[i] - bb_min[i]);
    }
    switch (problem)
    {
