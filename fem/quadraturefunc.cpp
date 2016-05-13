@@ -207,75 +207,133 @@ namespace mfem
         *
         * To calculate the integral of p_i, we first expand p_i
         *
+        *  We list two different approaches here.  The first comes from the
+        *  QUADRULE software by John Burkhardt (FSU)
+        *
+        *  The second was developed by Pete Maginot (LLNL)
+        *
+        *  Both suffer from round-off error that increases with larger n
+        *
+        *  Round off errors between the two are comparable
+        *  For N = 20, point-wise absolute error magnitudes are on the order of 1E-4
+        *  --Should be near machine precision, e.g. 1E-16
+        *
+        *  They appear to be exacerbated by compiler options
+        *
+        *  This was tested by comparing the difference of the MFEM library result
+        *  to the same code, but compiled in -O0 mode in a separate program
         */
-        const int np = ir->Size();
-        std::cout << "Np: " << np << std::endl;
+        const int n = ir->Size();
 
+        ///Coding by Burkhardt
+  /*      double *d = new double[n];
+        for ( int i = 0; i < n; ++i )
+        {
+          // The following is taken from the QUADRULE software
+          // it has minimal roundoff error as compared to other implementations
+
+          /// clean out the coefficient vector
+          for ( int j = 0; j < n; ++j)
+          {
+            d[j] = 0.;
+          }
+
+          d[i] = 1.;
+
+          // Loop A
+          for( int j = 2; j <= n; j++ )
+          {
+            for( int k = j; k <= n; k++ )
+            {
+              d[n+j-k-1] = ( d[n+j-k-2] - d[n+j-k-1] ) / ( ir->IntPoint(n-k).x - ir->IntPoint(n+j-k-1).x );
+            }
+          }
+
+          // Loop B
+          for( int j = 1; j <= n - 1; j++ )
+          {
+            for( int k = 1; k <= n - j; k++ )
+            {
+              d[n-k-1] -=  ir->IntPoint(n-k-j).x * d[n-k];
+            }
+          }
+
+          double w = 0.;
+
+          w = d[n-1]/double(n);
+          for(int p = n-2 ; p > -1 ; --p)
+              w = w + d[p]/double(p+1);
+            
+          ir->IntPoint(i).weight = w;
+        }
+        delete[] d; */
+
+        /// Coding by Maginot
         /// array to actually store the coefficients as we expand the numerator
         double *coeff_store1;
         double *coeff_store2;
-        
+
         double *start_ptr;
         double *dest_ptr;
         double *temp_ptr;
-        
-        coeff_store1 = new double[np];
-        coeff_store2 = new double[np];
+
+        coeff_store1 = new double[n];
+        coeff_store2 = new double[n];
 
         /// loop over all quadrature absicca
-        for(int i = 0 ; i < np ; ++i)
+        for(int i = 0 ; i < n ; ++i)
         {
           /// clear out the working arrays
-          for(int e = 0 ; e < np ; ++e)
+          for(int e = 0 ; e < n ; ++e)
           {
             coeff_store1[e] = 0.;
             coeff_store2[e] = 0.;
           }
-          
+
           start_ptr = coeff_store1;
           dest_ptr = coeff_store2;
           start_ptr[0] = 1.;
-          
+
           /// polynomial order we will expand to after adding the next (x - x_j) term
           int l = 1;
-          
+
           double denom = 1.;
-          double x_i = ir->IntPoint(i).x; 
-          for(int j=0; j < np ; ++j)
+          double x_i = ir->IntPoint(i).x;
+          for(int j=0; j < n ; ++j)
           {
             if(j==i)
               continue;
-            
+
             /// x * previously expanded terms
             for(int p = 0; p < l ; ++p)
               dest_ptr[p+1] = start_ptr[p];
-            
+
             /// -x_j * previously expanded terms
             double x_j = ir->IntPoint(j).x;
             for(int p = 0; p < l ; ++p)
               dest_ptr[p] -= start_ptr[p]*x_j;
-           
+
             /// track the denominator as well
             denom *= x_i - x_j;
-              
+
             /// swap where we are writing to and reading from
             temp_ptr = start_ptr;
             start_ptr = dest_ptr;
             dest_ptr = temp_ptr;
-            
+
             /// record that we now have a higher polynomial degree expansion
-            ++l;  
-            
+            ++l;
+
             /// clean out the destiation array
-            for(int p = 0 ; p < np ; ++p)
+            for(int p = 0 ; p < n ; ++p)
               dest_ptr[p] = 0.;
           }
-          
+
           /// start_ptr now has the fully expanded numerator, integrate over[0,1] to get weight
           double w = 0.;
-          for(int p = 0 ; p < np ; ++p)
+          for(int p = 0 ; p < n ; ++p)
             w += start_ptr[p]/( double(p+1) );
-            
+
           ir->IntPoint(i).weight = w/denom;
         }
         delete[] coeff_store1;
