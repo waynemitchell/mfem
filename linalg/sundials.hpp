@@ -5,14 +5,15 @@
 
 #ifdef MFEM_USE_SUNDIALS
 
+#ifdef MFEM_USE_MPI
+#include <mpi.h>
+#endif
+
 #include "ode.hpp"
 #include "operator.hpp"
 
 #include <cvode/cvode.h>
 #include <arkode/arkode.h>
-#ifdef MFEM_USE_MPI
-#include <mpi.h>
-#endif
 
 namespace mfem
 {
@@ -311,14 +312,38 @@ public:
    }
 };
 
-///
+/// Interface for custom Jacobian inversion in Sundials.
+/// The Jacobian problem has the form
+///  I - dt inv(M) J(y) = b.
 class SundialsLinearSolveOperator : public Operator
 {
 public:
    SundialsLinearSolveOperator(int s) : Operator(s)
    { }
-   virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
-                              Solver* J_solve, double gamma) = 0;
+   virtual void SolveJacobian(Vector* b, Vector* y, Vector* tmp,
+                              Solver* J_solve, double dt) = 0;
+};
+
+class KinSolWrapper
+{
+private:
+   Operator *op;
+   const int N;
+   void *kin_mem;
+   N_Vector u;
+   N_Vector u_scale;
+   N_Vector f_scale;
+
+public:
+   KinSolWrapper(Operator *op);
+   ~KinSolWrapper();
+
+   void setPrintLevel(int level);
+   void setFuncNormTol(double tol);
+
+   void setScaledStepTol(double tol);
+   void solve(Vector *mfem_u,
+              Vector *mfem_u_scale, Vector *mfem_f_scale);
 };
 
 }  // namespace mfem

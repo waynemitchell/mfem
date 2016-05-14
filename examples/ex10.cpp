@@ -609,7 +609,13 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    // object (using J_solver and J_prec internally).
    backward_euler_oper->SetParameters(dt, &v, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   newton_solver.Mult(zero, dv_dt);
+   //newton_solver.Mult(zero, dv_dt);
+
+   KinSolWrapper kinsol(backward_euler_oper);
+   Vector one1(sc), one2(sc);
+   one1 = 1.0; one2 = 1.0;
+   kinsol.solve(&dv_dt, &one1, &one2);
+
    add(v, dt, dv_dt, dx_dt);
 
    MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");

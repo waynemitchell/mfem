@@ -3,16 +3,23 @@
 #ifdef MFEM_USE_SUNDIALS
 
 #include "solvers.hpp"
+#ifdef MFEM_USE_MPI
+#include "hypre.hpp"
+#endif
+
+#include <nvector/nvector_serial.h>
+#ifdef MFEM_USE_MPI
+#include <nvector/nvector_parhyp.h>
+#endif
 
 #include <cvode/cvode_band.h>
 #include <cvode/cvode_spgmr.h>
-#include <nvector/nvector_serial.h>
-#ifdef MFEM_USE_MPI
-#include "hypre.hpp"
-#include <nvector/nvector_parhyp.h>
-#endif
-#include <arkode/arkode_impl.h>
 #include <cvode/cvode_impl.h>
+
+#include <arkode/arkode_impl.h>
+
+#include <kinsol/kinsol.h>
+#include <kinsol/kinsol_spgmr.h>
 
 
 /* Choose default tolerances to match ARKode defaults*/
@@ -23,9 +30,6 @@ using namespace std;
 
 static int SundialsMult(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
-   mfem::TimeDependentOperator *f =
-      static_cast<mfem::TimeDependentOperator *>(user_data);
-
    // Creates mfem Vectors linked to the data in y and in ydot.
 #ifndef MFEM_USE_MPI
    mfem::Vector mfem_y(NV_DATA_S(y), NV_LENGTH_S(y));
@@ -37,11 +41,44 @@ static int SundialsMult(realtype t, N_Vector y, N_Vector ydot, void *user_data)
       static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(ydot));
 #endif
 
-   // Apply y' = f(t, y).
+   // Compute y' = f(t, y).
+   mfem::TimeDependentOperator *f =
+      static_cast<mfem::TimeDependentOperator *>(user_data);
    f->SetTime(t);
    f->Mult(mfem_y, mfem_ydot);
-
    return 0;
+}
+
+static int KinSolMult(N_Vector u, N_Vector fu, void *user_data)
+{
+   // Creates mfem Vectors linked to the data in y and in ydot.
+#ifndef MFEM_USE_MPI
+   mfem::Vector mfem_u(NV_DATA_S(u), NV_LENGTH_S(u));
+   mfem::Vector mfem_fu(NV_DATA_S(fu), NV_LENGTH_S(fu));
+#else
+   mfem::HypreParVector mfem_u =
+      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(u));
+   mfem::HypreParVector mfem_fu =
+      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(fu));
+#endif
+
+   // Compute the non-linear action F(u).
+   static_cast<mfem::Operator *>(user_data)->Mult(mfem_u, mfem_fu);
+   return 0;
+}
+
+// Connect v to mfem_v.
+static void ConnectNVector(mfem::Vector *mfem_v, N_Vector &v)
+{
+#ifndef MFEM_USE_MPI
+   NV_DATA_S(v)     = mfem_v->GetData();
+   NV_LENGTH_S(v)   = mfem_v->Size();
+   NV_OWN_DATA_S(v) = false;
+#else
+   mfem::HypreParVector *hv = dynamic_cast<mfem::HypreParVector *>(mfem_v);
+   MFEM_VERIFY(hv != NULL, "Could not cast to HypreParVector!");
+   v = N_VMake_ParHyp(hv->StealParVector());
+#endif
 }
 
 /// Linear solve associated with CVodeMem structs.
@@ -384,6 +421,67 @@ ARKODESolver::~ARKODESolver()
    {
       ARKodeFree(&ode_mem);
    }
+}
+
+KinSolWrapper::KinSolWrapper(Operator *op_)
+   : op(op_), N(op->Width()), kin_mem(NULL)
+{
+   kin_mem = KINCreate();
+
+   // Set void pointer to user data
+   KINSetUserData(kin_mem, static_cast<void *>(op));
+
+   u = N_VNew_Serial(N);
+   N_VConst_Serial(0.0, u);
+   u_scale = N_VNew_Serial(N);
+   N_VConst_Serial(0.0, u_scale);
+   f_scale = N_VNew_Serial(N);
+   N_VConst_Serial(0.0, f_scale);
+   KINInit(kin_mem, KinSolMult, u);
+
+   // Set dense linear solver.
+//   KINDense(kin_mem, N);
+   // Set scaled preconditioned GMRES linear solver.
+   KINSpgmr(kin_mem, 0);
+
+   // set a Jacobian function
+//   KINDlsSetDenseJacFn(kin_mem, KinSolWrapperJacobian);
+}
+
+void KinSolWrapper::setPrintLevel(int level)
+{
+   KINSetPrintLevel(kin_mem, level);
+}
+
+void KinSolWrapper::setFuncNormTol(double tol)
+{
+   KINSetFuncNormTol(kin_mem, tol);
+}
+
+void KinSolWrapper::setScaledStepTol(double tol)
+{
+   KINSetScaledStepTol(kin_mem, tol);
+}
+
+// Maybe return flag from KINSol
+void KinSolWrapper::solve(Vector *mfem_u,
+                          Vector *mfem_u_scale, Vector *mfem_f_scale)
+{
+   ConnectNVector(mfem_u, u);
+   ConnectNVector(mfem_u_scale, u_scale);
+   ConnectNVector(mfem_f_scale, f_scale);
+
+   // LINESEARCH might be fancier, but more fragile near convergence.
+//   int strategy = KIN_LINESEARCH;
+   int strategy = KIN_NONE;
+   int flag = KINSol(kin_mem, u, strategy, u_scale, f_scale);
+   MFEM_VERIFY(flag == KIN_SUCCESS || flag == KIN_INITIAL_GUESS_OK,
+               "KINSol returned " << flag << " that indicated a problem!");
+}
+
+KinSolWrapper::~KinSolWrapper()
+{
+   KINFree(&kin_mem);
 }
 
 
