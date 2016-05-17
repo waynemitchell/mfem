@@ -27,7 +27,9 @@
 #include "graph.h"
 #endif
 
+#ifdef MFEM_USE_NETCDF
 #include "netcdf.h"
+#endif
 
 namespace mfem
 {
@@ -2287,6 +2289,7 @@ void skip_comment_lines(std::istream &is, const char comment_char)
    }
 }
 
+#ifdef MFEM_USE_NETCDF
 void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
 		     bool fix_orientation)
 {
@@ -2445,8 +2448,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       cerr << "NetCDF error " << nc_strerror(retval) << endl; 
       MFEM_ASSERT(false," fatal NetCDF error\n");
     }
-  printf("id_num_dim = %d\n",(int) id_num_dim);
-  printf("num_dim = %d\n",(int)num_dim);
   
   if ((retval = nc_inq_dimid(ncid, str_num_nodes,&id_num_nodes)))
     { 
@@ -2458,8 +2459,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       cerr << "NetCDF error " << nc_strerror(retval) << endl; 
       MFEM_ASSERT(false," fatal NetCDF error\n");
     }
-  printf("id_num_nodes = %d\n",(int) id_num_nodes);
-  printf("num_nodes = %d\n",(int) num_nodes);
   
   if ((retval = nc_inq_dimid(ncid, str_num_elem,&id_num_elem)))
     { 
@@ -2471,8 +2470,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       cerr << "NetCDF error " << nc_strerror(retval) << endl; 
       MFEM_ASSERT(false," fatal NetCDF error\n");
     }
-  printf("id_num_elem = %d\n",(int) id_num_elem);
-  printf("num_elem = %d\n",(int) num_elem);
   
   if ((retval = nc_inq_dimid(ncid, str_num_el_blk,&id_num_el_blk)))
     { 
@@ -2484,8 +2481,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       cerr << "NetCDF error " << nc_strerror(retval) << endl; 
       MFEM_ASSERT(false," fatal NetCDF error\n");
     }
-  printf("id_num_el_blk = %d\n",(int) id_num_el_blk);
-  printf("num_el_blk = %d\n",(int) num_el_blk);
   
   if ((retval = nc_inq_dimid(ncid, str_num_side_sets,&id_num_side_sets)))
     { 
@@ -2497,8 +2492,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       cerr << "NetCDF error " << nc_strerror(retval) << endl; 
       MFEM_ASSERT(false," fatal NetCDF error\n");
     }
-  printf("id_num_side_sets = %d\n",(int) id_num_side_sets);
-  printf("num_side_sets = %d\n",(int) num_side_sets);
   
   Dim = num_dim;
 
@@ -2515,7 +2508,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
     char temp_str[256];
     int temp_id;
     
-    sprintf(temp_str,"num_el_in_blk%d",i+1);
+     sprintf(temp_str,"num_el_in_blk%d",i+1);
     
     if ((retval = nc_inq_dimid(ncid, temp_str ,&temp_id)))
       { 
@@ -2527,9 +2520,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
 	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
 	MFEM_ASSERT(false," fatal NetCDF error\n");
       }
-    
-    printf("temp id %d = %d\n",i+1,temp_id);
-    printf("num_el_in_blk%d = %d\n",i+1,(int) num_el_in_blk[i]);
+
     sprintf(temp_str,"num_nod_per_el%d",i+1);
     
     if ((retval = nc_inq_dimid(ncid, temp_str ,&temp_id)))
@@ -2552,8 +2543,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       }
     }
     previous_num_nod_per_el = num_nod_per_el[i];
-    printf("temp id %d = %d\n",i+1,temp_id);
-    printf("num_nod_per_el%d = %d\n",i+1,(int) num_nod_per_el[i]);
   }
   
   int order;
@@ -2583,9 +2572,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
 	cerr << "NetCDF error " << nc_strerror(retval) << endl; 
 	MFEM_ASSERT(false," fatal NetCDF error\n");
       }
-    
-    printf("temp id %d = %d\n",i+1,temp_id);
-    printf("num_side_in_ss%d = %d\n",i+1,(int) num_side_in_ss[i]);
   }
   
   //
@@ -2822,14 +2808,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
     cubitToMFEMVertMap[uniqueVertexID[i]] = i+1;
   }
   MFEM_ASSERT( cubitToMFEMVertMap.size() == uniqueVertexID.size(),"This should never happen\n");
-
-//   // FOR DEBUGGING ONLY
-//   cout << "cubitToMFEMVertMap" << endl;
-//   for (std::map<int,int>::iterator it =  cubitToMFEMVertMap.begin(); it != cubitToMFEMVertMap.end();it++) {
-//     cout << it->first << "  " << it->second << endl;
-//   }
-//   // END FOR DEBUGGING ONLY
-
   
   //
   // OK now load up the MFEM mesh structures
@@ -2903,11 +2881,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       }
     }
   }
-  
-  // FOR DEBUGGING ONLY
-  // set order to 1 even if higher order everything should still work
-  // order = 1;
-  // END FOR DEBUGGING ONLY
 
   if (order == 2) {
     
@@ -2946,15 +2919,17 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       }
     
     // Define quadratic FE space
-    FiniteElementCollection *fec = new QuadraticFECollection;
+    //FiniteElementCollection *fec = new QuadraticFECollection;
+    FiniteElementCollection *fec = new H1_FECollection(2,3);
     FiniteElementSpace *fes = new FiniteElementSpace(this, fec, Dim, Ordering::byVDIM);
     Nodes = new GridFunction(fes);
     Nodes->MakeOwner(fec); // Nodes will destroy 'fec' and 'fes'
     own_nodes = 1;
     
-    int nTotDofs = fes->GetNDofs();
-    int nTotVDofs = fes->GetVSize();
-    cout << endl << "nTotDofs = " << nTotDofs << "  nTotVDofs " << nTotVDofs << endl << endl;
+    // int nTotDofs = fes->GetNDofs();
+    // int nTotVDofs = fes->GetVSize();
+    //    cout << endl << "nTotDofs = " << nTotDofs << "  nTotVDofs " << nTotVDofs << endl << endl;
+
     for (int i = 0; i < NumOfElements; i++) {
       Array<int> dofs;
 
@@ -2962,19 +2937,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       Array<int> vdofs;
       vdofs.SetSize(dofs.Size());
       for (int l = 0;l < dofs.Size();l++) vdofs[l] = dofs[l];
-      fes->DofsToVDofs(vdofs);
-
-      // FOR DEBUGGING ONLY
-//       cout << "Element " << i << endl;
-//       cout << "dofs " << endl;
-//       for (int l = 0;l < dofs.Size();l++) cout << dofs[l] << "  ";
-//       cout << endl;
-
-//       cout << "vdofs " << endl;
-//       for (int l = 0;l < vdofs.Size();l++) cout << vdofs[l] << "  ";
-//       cout << endl;
-      // END FOR DEBUGGING ONLY
-      
+      fes->DofsToVDofs(vdofs);     
       int iblk = 0;
       int loc_ind;
       while (iblk < (int) num_el_blk && i >= start_of_block[iblk+1]) iblk++;
@@ -2985,22 +2948,10 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
 	(*Nodes)(vdofs[j])   = coordx[point_id];
 	(*Nodes)(vdofs[j]+1) = coordy[point_id];
 	(*Nodes)(vdofs[j]+2) = coordz[point_id];
-
-	// FOR DEBUGGING ONLY
-// 	cout << "j = " << j << " point_id = " << point_id << endl;
-// 	cout << "xyz: " << coordx[point_id] << "  " << coordy[point_id] << "  " << coordz[point_id] << endl;
-	// END FOR DEBUGGING ONLY
       }
     }
   }
 
-  // FOR DEBUGGING ONLY
-  ofstream ofs("NODES.gf");
-  ofs.precision(8);
-  Nodes->Save(ofs);
-  ofs.close();
-
-  // END FOR DEBUGGING ONLY
   
   // clean up all netcdf stuff
   delete num_el_in_blk;
@@ -3021,6 +2972,8 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
   delete ebprop;
   delete ssprop;
 
+  // everything below this line is identical to the regular Load function
+  //
   // at this point the following should be defined:
   //  1) Dim
   //  2) NumOfElements, elements
@@ -3157,6 +3110,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
   if (ncmesh) { ncmesh->spaceDim = spaceDim; }
 
 }
+#endif
 
 
 void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)

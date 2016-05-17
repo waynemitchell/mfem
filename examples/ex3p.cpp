@@ -19,16 +19,16 @@
 //               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
 //
 // for reading a cubit quadratic tetrahedral mesh
-//               mpirun -np 4 ex3p -cubit -m../data/TwelveTet10.gen
+//               mpirun -np 4 ex3p -cubit -m ../data/rod-tet10.gen
 //
 // for reading a cubit linear tetrahedral mesh
-//               mpirun -np 4 ex3p -cubit -m../data/TwelveTet4.gen
+//               mpirun -np 4 ex3p -cubit -m ../data/rod-tet4.gen
 //
 // for reading a cubit quadratic hexhedral mesh 
-//               mpirun -np 4 ex3p -cubit -m../data/TwoHex27.gen
+//               mpirun -np 4 ex3p -cubit -m ../data/rod-hex27.gen
 //
 // for reading a cubit linear hexhedral mesh 
-//               mpirun -np 4 ex3p -cubit -m../data/TwoHex8.gen
+//               mpirun -np 4 ex3p -cubit -m ../data/rod-hex8.gen
 //
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -123,43 +123,15 @@ int main(int argc, char *argv[])
      imesh.close();
    }
    else {
+#ifdef MFEM_USE_NETCDF
      mesh = new Mesh();
      mesh->LoadCubit(mesh_file, 1, 1, true);
+#else
+     MFEM_ASSERT(false,"cubit option not allowed MFEM not built with NetCFD\n");
+     return 2;
+#endif
    }
 
-   // FOR DEBUGGING ONLY
-   // set the order (curvature) to quadratic
-//    cout << endl << "Setting mesh curvature to 2!" << endl << endl;
-//    mesh->SetCurvature(2);
-   //END FOR DEBUGGING ONLY
-
-   // FOR DEBUGGING ONLY
-   // examine mesh before the code crashes
-   // visit visualization
-//    {
-//      if (myid == 0) {
-//        VisItDataCollection homer("initialmesh", mesh);
-//        homer.SetCycle(0);
-//        homer.SetTime(0.0);
-//        homer.Save();
-//      }
-     
-//      // let's loop over the mesh and perform some sanity checks on the mesh
-//      double somepoint[3] = {0.5,0.0,0.0};
-//      IntegrationPoint ip;
-//      ip.Set(somepoint,3);
-//      cout << endl << " mesh Analysis" << endl;
-//      for (int ielem = 0;ielem < mesh->GetNE();ielem++){
-//        ElementTransformation *it = mesh->GetElementTransformation(ielem);;
-//        it->SetIntPoint(&ip);
-//        DenseMatrix J = it->Jacobian();
-//        double detJ = J.Det();
-//        cout << "elem " << ielem << " detJ = " << detJ << endl;
-//      }
-//      cout << endl << endl;
-//    }
-   // END FOR DEBUGGING ONLY
-   
    dim = mesh->Dimension();
    int sdim = mesh->SpaceDimension();
 
@@ -193,32 +165,6 @@ int main(int argc, char *argv[])
 
    pmesh->ReorientTetMesh();
 
-   // FOR DEBUGGING ONLY
-   // examine mesh before the code crashes
-   // visit visualization
-//    {
-//      if (myid == 0) {
-//        VisItDataCollection homer("finalmesh", pmesh);
-//        homer.SetCycle(0);
-//        homer.SetTime(0.0);
-//        homer.Save();
-//      }
-     
-//      // let's loop over the mesh and perform some sanity checks on the mesh
-//      double somepoint[3] = {0.5,0.0,0.0};
-//      IntegrationPoint ip;
-//      ip.Set(somepoint,3);
-//      cout << endl << " mesh Analysis" << endl;
-//      for (int ielem = 0;ielem < pmesh->GetNE();ielem++){
-//        ElementTransformation *it = pmesh->GetElementTransformation(ielem);;
-//        it->SetIntPoint(&ip);
-//        DenseMatrix J = it->Jacobian();
-//        double detJ = J.Det();
-//        cout << "elem " << ielem << " detJ = " << detJ << endl;
-//      }
-//      cout << endl << endl;
-//    }
-   // END FOR DEBUGGING ONLY
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use the Nedelec finite elements of the specified order.

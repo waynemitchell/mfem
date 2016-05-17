@@ -17,8 +17,10 @@ TEST_MK = $(MFEM_DIR)/config/test.mk
 # MFEM_DIR = ../mfem
 # CONFIG_MK = $(MFEM_DIR)/config.mk
 
-MFEM_LIB_FILE = mfem_is_not_built
--include $(CONFIG_MK)
+
+ifneq (clean,$(MAKECMDGOALS))
+   -include $(CONFIG_MK)
+endif
 
 SEQ_EXAMPLES = ex1 ex2 ex3 ex4 ex5 ex6 ex7 ex8 ex9 ex10 ex14 ex15
 PAR_EXAMPLES = ex1p ex2p ex3p ex4p ex5p ex6p ex7p ex8p ex9p ex10p ex11p ex12p\
@@ -35,8 +37,9 @@ endif
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp $(MFEM_LIB_FILE) $(CONFIG_MK)
-	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $(MFEM_LIBS)
+%: %.cpp $(MFEM_LIB_FILE)  $(CONFIG_MK)
+	$(MFEM_CXX) $(MFEM_FLAGS) $(@).cpp -o $@ $(MFEM_LIBS)
+
 
 all: $(EXAMPLES)
 
