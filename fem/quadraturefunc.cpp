@@ -182,7 +182,10 @@ namespace mfem
         for(int i = 0; i < np ; ++i)
             ir->IntPoint(i).x = double(i+1)*dx;
 
-        CalculateLagrangeWeights(ir);
+        if(np < 14)
+            NewtonPolynomialNewtonCotesWeights(ir,true,np);
+        else
+            CalculateLagrangeWeights(ir);
     }
 
     void QuadratureFunctions1D::ClosedEquallySpaced(const int np, IntegrationRule* ir)
@@ -194,7 +197,10 @@ namespace mfem
         for(int i = 0; i < np ; ++i)
             ir->IntPoint(i).x = double(i) * dx;
 
-        CalculateLagrangeWeights(ir);
+       if(np < 14)
+           NewtonPolynomialNewtonCotesWeights(ir,false);
+       else
+           CalculateLagrangeWeights(ir);
     }
 
     void QuadratureFunctions1D::CalculateLagrangeWeights(IntegrationRule *ir)
@@ -206,67 +212,15 @@ namespace mfem
         * The weight associated with each abcissa is the integral of p_i over [0,1]
         *
         * To calculate the integral of p_i, we first expand p_i
+        *        *
+        *  This algorithm suffers from round-off error that increases with larger n
         *
-        *  We list two different approaches here.  The first comes from the
-        *  QUADRULE software by John Burkhardt (FSU)
-        *
-        *  The second was developed by Pete Maginot (LLNL)
-        *
-        *  Both suffer from round-off error that increases with larger n
-        *
-        *  Round off errors between the two are comparable
-        *  For N = 20, point-wise absolute error magnitudes are on the order of 1E-4
-        *  --Should be near machine precision, e.g. 1E-16
-        *
-        *  They appear to be exacerbated by compiler options
+        *  Compiler options for optimization exacerbate the roundoff error
         *
         *  This was tested by comparing the difference of the MFEM library result
         *  to the same code, but compiled in -O0 mode in a separate program
         */
         const int n = ir->Size();
-
-        ///Coding by Burkhardt
-  /*      double *d = new double[n];
-        for ( int i = 0; i < n; ++i )
-        {
-          // The following is taken from the QUADRULE software
-          // it has minimal roundoff error as compared to other implementations
-
-          /// clean out the coefficient vector
-          for ( int j = 0; j < n; ++j)
-          {
-            d[j] = 0.;
-          }
-
-          d[i] = 1.;
-
-          // Loop A
-          for( int j = 2; j <= n; j++ )
-          {
-            for( int k = j; k <= n; k++ )
-            {
-              d[n+j-k-1] = ( d[n+j-k-2] - d[n+j-k-1] ) / ( ir->IntPoint(n-k).x - ir->IntPoint(n+j-k-1).x );
-            }
-          }
-
-          // Loop B
-          for( int j = 1; j <= n - 1; j++ )
-          {
-            for( int k = 1; k <= n - j; k++ )
-            {
-              d[n-k-1] -=  ir->IntPoint(n-k-j).x * d[n-k];
-            }
-          }
-
-          double w = 0.;
-
-          w = d[n-1]/double(n);
-          for(int p = n-2 ; p > -1 ; --p)
-              w = w + d[p]/double(p+1);
-            
-          ir->IntPoint(i).weight = w;
-        }
-        delete[] d; */
 
         /// Coding by Maginot
         /// array to actually store the coefficients as we expand the numerator
@@ -340,4 +294,263 @@ namespace mfem
         delete[] coeff_store2;
     }
     
+    void QuadratureFunctions1D::NewtonPolynomialNewtonCotesWeights(IntegrationRule *ir ,
+                    const bool is_open)
+    {
+       /* Calculate the Newton-Cotes rational number weights
+        *
+        *  Use Newton-polynomials, and special relations applicable only to
+        *  equally spaced quadrature points.  Work with integer math as long
+        *  as possible.
+        *
+        *  For info on divided differences and Newton polynomials, see:
+        *
+        *  https://en.wikipedia.org/wiki/Newton_polynomial
+        *  https://en.wikipedia.org/wiki/Divided_differences
+        *
+        *  This algorithm suffers from overflow errors
+        *      for intermediate (>13) points
+        */
+
+        /*
+         *  Let the Lagrange polynomial of degree n, which interpolates at point i
+         *  be P_i^n(x).  Newton polynomials, represent P_i^n(x) as:
+         *
+         *  P_i^n(x) = \sum_{j=0}^n{ d_j * L_j }
+         *
+         *  d_j is the corresponding element of the divided difference table
+         *  L_j is the polynomial expansion of interpolation points:
+         *
+         *  L_j = \prod_{k=0}^{j-1} { (x - x_k) }
+         *
+         *  where x_k are the Lagrange interpolation (Newton-Cotes quadrature) points
+         *
+         *  With equally spaced interpolation points in the interval [0,1], x_k can be represented as:
+         *
+         *  x_k = 0 + m h
+         *
+         *  Where for Open Newton-Cotes, quadrature
+         *
+         *  h = 1/(np + 1) and m=k+1
+         *
+         *  and closed Newton-Cotes quadrature:
+         *
+         *  h = 1/(np - 1) and m=k
+         *
+         */
+
+        /// Expand the L polynomial (does not change with interpolation point)
+        /*
+         * We can visualize the expansion of the L polynomials as follows [for a 3 point example]
+         *
+         *      For Open Netwon Cotes,
+         *         L(x) = (x-x_1) * (x - x_2) * (x - x_3) ...
+         *         L(x) = (x - h) * (x - 2h ) * (x - 3h ) ...
+         *         L(x) = (x + c_1 h) * (x + c_2 h) * (x + c_3 h) ...
+         *
+         * The first term is:
+         *
+         *        x^0   | x^1    | x^2
+         * h^0 | ----   |   1    |
+         * h^1 |   -1   |
+         * h^2 |
+         *
+         * The second term is:
+         *
+         *        x^0   | x^1        | x^2
+         * h^0 | ----   |  ---       |  1
+         * h^1 | ---    |-1 + 1*(-2)
+         * h^2 | -1*(-2)
+         *
+         * Simplifying, the second term is:
+         *
+         *        x^0   | x^1    | x^2
+         * h^0 | ----   |  ---   |  1
+         * h^1 | ---    | -3
+         * h^2 |   2
+         *
+         * The third term is:
+         *
+         *         x^0   | x^1        | x^2          |    x^3
+         * h^0 |  ---   |  ---        |   ---        | 1
+         * h^1 |  ---   |  ---        | 1*(-3) -3
+         * h^2 |   ---  |(-3)*(-3)+ 2
+         * h^3 |  2*(-3)
+         *
+         */
+        const int np = ir->Size();
+
+        /// lPoly will store the succession of L polynomials
+        int** lPoly = new int*[np];
+        for(int i = 0 ; i<np ; ++i)
+            lPoly[i] = new int[np];
+
+        /// zero out data
+        for(int i = 0 ; i < np ; ++i)
+            for(int j =0 ; j < np ; ++j)
+                lPoly[i][j] = 0;
+
+
+        /// Each column of lPoly will hold one L polynomial
+        /// highest power of h will be at lPoly[0][col]
+        if(is_open)
+        {
+            /// linear polynomial is (x - h)
+            lPoly[0][0] = -1;
+            lPoly[1][0] = 1;
+        }
+        else
+        {
+            /// linear Polynomial is (x - 0)
+            lPoly[0][0] = 0;
+            lPoly[1][0] = 1;
+        }
+
+        /** Build the L Polynomials greater than linear that we need
+         *  lPoly is ordered [row][column]
+         *
+         *  Each column is the next L polynomial
+         *
+         *  Column = 0 is the linear polynomial
+         *
+         *  row = 0 holds the highest degree power of h for a given L polynomial
+         *
+         */
+        for(int col = 1; col < (np-1) ; ++col)
+        {
+            /// multiply the last lPoly by x
+            for(int row = 0; row <= col; ++row)
+                lPoly[row+1][col] = lPoly[row][col-1];
+
+            /// multiply the last lPoly by coeff*h
+            int coeff = (is_open ? -(col+1)  : -col );
+            for(int row = 0 ; row <= col; ++row)
+                lPoly[row][col] += coeff*lPoly[row][col-1];
+        }
+
+        /// Allocate space that will track the numerator of the divided difference tables
+        int **DivTable = new int*[np];
+        for(int i = 0 ; i < np ; ++i)
+            DivTable[i] = new int[np];
+
+        /// array to hold the rational numerator coefficients of x^p
+        /// element [0] holds the x^0 power coefficients
+        long long int *num_coeff = new long long int[np];
+
+        /// Loop over all quadrature points  (divided difference table changes with interpolation point)
+        for(int i = 0 ; i < np; ++i)
+        {
+            /// Clear out the divided difference table
+            for(int m = 0; m < np; ++m)
+                for(int n = 0 ; n<np ; ++n)
+                    DivTable[m][n] = 0;
+
+            /// This Lagrange polynomial is non-zero only at the interpolation point
+            DivTable[i][0] = 1;
+
+            /// Calculate the numerator of the divide difference, column by column
+            for(int m = 1; m < np ; ++m)
+            {
+                for(int n = 0; n < (np - m); ++n)
+                {
+                    DivTable[n][m] = DivTable[n+1][m-1] - DivTable[n][m-1];
+                }
+            }
+
+            /**
+             * Lagrange polynomial =
+             *
+             *    P_i^{np} = DivTable[0][0] + \sum_{j=1}^{np-1} LPoly_j * DivTable[0][j] / (j! h^j)
+             *
+             *    LPoly_j = \sum_{i = 0}^j{ x^i h^(j-i) lPoly[j-i][j-1] }
+             *
+             *    We now wish to find the integer coefficients in front of each polynomial of x in P_i
+             *
+             *    The highest order LPoly_j comes when j = np - 1
+             *
+             *    This also has the largest denominator
+             *
+             */
+
+            // highest factorial used is also the denominator
+            unsigned long long int denom = 1;
+            for(int p = 1 ; p <np; ++p)
+                denom *= p;
+
+            /// initialize the numerator
+            for(int p = 0 ; p<np ; ++p)
+                num_coeff[p] = 0;
+
+            int h_inv = (is_open ? np+1 : np-1 );
+
+            /// sum all terms of the Newton Polynomial
+            /// use denom as a common denomintator
+            num_coeff[0] = DivTable[0][0]*denom;
+
+            /// access all polynomials stored in lPoly, in order
+            unsigned long long int curr_fac = 1;
+            for(int p = 1 ; p < np ; ++p)
+            {
+                int dt = DivTable[0][p];
+                /// P_i = \sum{ dt * lPoly_p / (p! h^p) }
+                unsigned long long int lmc = denom/curr_fac;
+
+                unsigned long long int h_track = 1;
+                for(int j = 0 ; j <= p ; ++j)
+                {
+                    num_coeff[j] += lmc*dt*lPoly[j][p-1]*h_track;
+
+                    h_track *= h_inv;
+                }
+
+                curr_fac *= (p+1);
+            }
+
+            /**
+             *  we now have the rational number coefficients of the powers of P_i^{np-1}
+             *  integrate to get the quadrature weight
+             *
+             *  Integrate the polynomial.  If possible, reduce the numerator coefficients
+             *  Otherwise, increase the denominator and multiply all terms of the numerator
+             *  by (j+1), except for the offending polynomial integrand)
+             */
+            for(int j = 1 ; j <np ;  ++j)
+            {
+                int div = j+1;
+                if( (num_coeff[j] % div) == 0 )
+                {
+                    num_coeff[j] /= div;
+                }
+                else
+                {
+                    denom *= div;
+                    for(int k = 0 ; k < np ; ++k)
+                    {
+                        if( k==j)
+                            continue;
+                        else
+                            num_coeff[k] *= div;
+                    }
+                }
+            }
+            long long int sum = 0;
+            for(int p = 0 ; p < np ; ++p)
+                sum += num_coeff[p];
+
+            ir->IntPoint(i).weight = double(sum) / double(denom);
+
+        }
+        /// Delete working arrays
+        for(int i = 0 ; i < np ; ++i)
+        {
+            delete[] DivTable[i];
+            delete[] lPoly[i];
+        }
+
+        delete[] DivTable;
+        delete[] lPoly;
+        delete[] num_coeff;
+
+        return;
+    }
 }

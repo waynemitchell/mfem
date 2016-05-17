@@ -37,6 +37,8 @@ namespace mfem
         void ClosedEquallySpaced(const int np, IntegrationRule *ir);
     private:
         void CalculateLagrangeWeights(IntegrationRule *ir);
+        void NewtonPolynomialNewtonCotesWeights(IntegrationRule *ir ,
+                const bool is_open);
     };
 }
 
