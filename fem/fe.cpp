@@ -6150,19 +6150,25 @@ const int *Poly_1D::Binom(const int p)
 void Poly_1D::ClosedUniformPoints(const int p, double *x)
 {
    // Need at least 2 points, p==1, for Closed Equally Spaced Points
-   if(p < 1)
+   if (p < 1)
+   {
       mfem_error ("Trying to get 1 closed, equally spaced  point!");
+   }
 
-   for(int i = 0 ; i <= p ; i++)
+   for (int i = 0 ; i <= p ; i++)
+   {
       x[i] = double(i)/double(p);
+   }
 }
 
 void Poly_1D::OpenUniformPoints(const int p, double *x)
 {
    double dx = 1./double(p+1);
    double dx_div_2 = dx/2.;
-   for(int i = 0 ; i <=p ; i++)
-    x[i] = dx_div_2 + dx*double(i);
+   for (int i = 0 ; i <=p ; i++)
+   {
+      x[i] = dx_div_2 + dx*double(i);
+   }
 }
 
 
@@ -8277,8 +8283,10 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
 {
    const double *op;
 
-   if(_type ==2)
+   if (_type ==2)
+   {
       mfem_error ("Requesting Bernstein basis in L2_SegmentElement!");
+   }
 
    type = _type;
 
@@ -8298,10 +8306,10 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
          break;
       default:
       case 0: //GaussLegendre
-          basis1d = &poly1d.OpenBasis(p);
-          op = poly1d.OpenPoints(p);
-          break;
-    }
+         basis1d = &poly1d.OpenBasis(p);
+         op = poly1d.OpenPoints(p);
+         break;
+   }
 
 #ifndef MFEM_THREAD_SAFE
    shape_x.SetSize(p + 1);

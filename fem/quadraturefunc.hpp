@@ -18,28 +18,29 @@
 
 namespace mfem
 {
-    enum class NumericalQuad1D : int {
-            GaussLegendre = 0,
-            GaussLobatto = 1,
-            OpenEquallySpaced = 2,
-            ClosedEquallySpaced = 3
-    };
+enum class NumericalQuad1D : int
+{
+   GaussLegendre = 0,
+   GaussLobatto = 1,
+   OpenEquallySpaced = 2,
+   ClosedEquallySpaced = 3
+};
 
-    class QuadratureFunctions1D
-    {
-    public:
-        QuadratureFunctions1D();
-        ~QuadratureFunctions1D();
+class QuadratureFunctions1D
+{
+public:
+   QuadratureFunctions1D();
+   ~QuadratureFunctions1D();
 
-        void GaussLegendre(const int np, IntegrationRule* ir);
-        void GaussLobatto(const int np, IntegrationRule *ir);
-        void OpenEquallySpaced(const int np, IntegrationRule *ir);
-        void ClosedEquallySpaced(const int np, IntegrationRule *ir);
-    private:
-        void CalculateLagrangeWeights(IntegrationRule *ir);
-        void NewtonPolynomialNewtonCotesWeights(IntegrationRule *ir ,
-                const bool is_open);
-    };
+   void GaussLegendre(const int np, IntegrationRule* ir);
+   void GaussLobatto(const int np, IntegrationRule *ir);
+   void OpenEquallySpaced(const int np, IntegrationRule *ir);
+   void ClosedEquallySpaced(const int np, IntegrationRule *ir);
+private:
+   void CalculateLagrangeWeights(IntegrationRule *ir);
+   void NewtonPolynomialNewtonCotesWeights(IntegrationRule *ir ,
+                                           const bool is_open);
+};
 }
 
 #endif
