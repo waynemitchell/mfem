@@ -178,12 +178,17 @@ namespace mfem
          * polynomial exactly that goes through the equally spaced quadrature points
          *
          */
-        double dx = 1./(double (np+1));
         for(int i = 0; i < np ; ++i)
-            ir->IntPoint(i).x = double(i+1)*dx;
+            ir->IntPoint(i).x = double(i+1) / double(np + 1);
 
-        if(np < 14)
-            NewtonPolynomialNewtonCotesWeights(ir,true,np);
+        if(np == 1)
+        {
+            ir->IntPoint(0).weight = 1.;
+            return;
+        }
+
+        if(np < 11)
+            NewtonPolynomialNewtonCotesWeights(ir,true);
         else
             CalculateLagrangeWeights(ir);
     }
@@ -382,13 +387,13 @@ namespace mfem
 
         /// lPoly will store the succession of L polynomials
         int** lPoly = new int*[np];
-        for(int i = 0 ; i<np ; ++i)
-            lPoly[i] = new int[np];
+        for(int j = 0 ; j<np ; ++j)
+            lPoly[j] = new int[np];
 
         /// zero out data
-        for(int i = 0 ; i < np ; ++i)
-            for(int j =0 ; j < np ; ++j)
-                lPoly[i][j] = 0;
+        for(int j = 0 ; j < np ; ++j)
+            for(int k =0 ; k < np ; ++k)
+                lPoly[j][k] = 0;
 
 
         /// Each column of lPoly will hold one L polynomial
@@ -442,8 +447,10 @@ namespace mfem
         {
             /// Clear out the divided difference table
             for(int m = 0; m < np; ++m)
+            {
                 for(int n = 0 ; n<np ; ++n)
                     DivTable[m][n] = 0;
+            }
 
             /// This Lagrange polynomial is non-zero only at the interpolation point
             DivTable[i][0] = 1;
@@ -541,10 +548,10 @@ namespace mfem
 
         }
         /// Delete working arrays
-        for(int i = 0 ; i < np ; ++i)
+        for(int j = 0 ; j < np ; ++j)
         {
-            delete[] DivTable[i];
-            delete[] lPoly[i];
+            delete[] DivTable[j];
+            delete[] lPoly[j];
         }
 
         delete[] DivTable;
