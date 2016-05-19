@@ -115,9 +115,6 @@ public:
     */
    void Step(Vector &x, double &t, double &dt);
 
-   /// Creates an NVector, the data is owned by _y.
-   void CreateNVector(Vector *_y);
-
    /// Connects _y to the _x data.
    void TransferNVectorShallow(Vector *_x, N_Vector &_y);
 
@@ -242,9 +239,6 @@ public:
     */
    void Step(Vector &x, double &t, double &dt);
 
-   /// Creates an NVector, the data is owned by _y.
-   void CreateNVector(Vector *_y);
-
    /// Connects _y to the _x data.
    void TransferNVectorShallow(Vector *_x, N_Vector &_y);
 
@@ -327,23 +321,21 @@ public:
 class KinSolWrapper
 {
 private:
-   Operator *op;
-   const int N;
    void *kin_mem;
    N_Vector u;
    N_Vector u_scale;
    N_Vector f_scale;
 
 public:
-   KinSolWrapper(Operator *op);
+   KinSolWrapper(Operator &op, Vector &mfem_u);
    ~KinSolWrapper();
 
    void setPrintLevel(int level);
    void setFuncNormTol(double tol);
 
    void setScaledStepTol(double tol);
-   void solve(Vector *mfem_u,
-              Vector *mfem_u_scale, Vector *mfem_f_scale);
+   void solve(Vector &mfem_u,
+              Vector &mfem_u_scale, Vector &mfem_f_scale);
 };
 
 }  // namespace mfem

@@ -123,7 +123,7 @@ METIS_LIB ?= -L$(METIS_DIR) -lmetis
 MFEM_USE_METIS_5 ?= NO
 
 # SUNDIALS library configuration
-SUNDIALS_DIR ?= @MFEM_DIR@/../../sundials1/install
+SUNDIALS_DIR ?= @MFEM_DIR@/../../sundials_latest/install
 SUNDIALS_OPT ?= -I$(SUNDIALS_DIR)/include
 SUNDIALS_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_cvode\
  -Wl,-lsundials_nvecserial -Wl,-lsundials_kinsol -Wl,-rpath,$(SUNDIALS_DIR)/lib

@@ -34,7 +34,7 @@
 //               example.
 
 
-#include "mfem.hpp"
+#include "../mfem.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
@@ -368,6 +368,8 @@ int main(int argc, char *argv[])
       par3[i] = par1[i] + par2[i];
    }
 
+   // TODO: in the other cases give the old thing (vx).
+
    int gsize = x_gf.GetTrueDofs()->GlobalSize() +
                v_gf.GetTrueDofs()->GlobalSize();
    HypreParVector *vx_hyp = new HypreParVector(pmesh->GetComm(),
@@ -689,11 +691,24 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    // backward_euler_oper. This equation is solved with the newton_solver
    // object (using J_solver and J_prec internally).
    backward_euler_oper->SetParameters(dt, &v, &x);
-   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   newton_solver.Mult(zero, dv_dt);
-   add(v, dt, dv_dt, dx_dt);
+//   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+//   newton_solver.Mult(zero, dv_dt);
+//   MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
 
-   MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
+   HypreParVector *dv_dt_h =
+         new HypreParVector(M.ParFESpace()->GetComm(),
+                            M.ParFESpace()->GlobalTrueVSize(),
+                            dv_dt.GetData(),
+                            M.ParFESpace()->GetTrueDofOffsets());
+   KinSolWrapper kinsol(*backward_euler_oper, *dv_dt_h);
+
+   HypreParVector one(M.ParFESpace());
+   one = 1.0;
+   *dv_dt_h = 0.0;
+   kinsol.solve(*dv_dt_h, one, one);
+
+   add(v, dt, dv_dt, dx_dt);
+   delete dv_dt_h;
 }
 
 double HyperelasticOperator::ElasticEnergy(ParGridFunction &x) const

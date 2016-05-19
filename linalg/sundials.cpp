@@ -14,8 +14,12 @@
 
 #include <cvode/cvode_band.h>
 #include <cvode/cvode_spgmr.h>
-#include <cvode/cvode_impl.h>
 
+#include <cvode/cvode_impl.h>
+// This just hides a warning (to be removed after it's fixed in Sundials).
+#ifdef MSG_TIME_INT
+  #undef MSG_TIME_INT
+#endif
 #include <arkode/arkode_impl.h>
 
 #include <kinsol/kinsol.h>
@@ -36,9 +40,9 @@ static int SundialsMult(realtype t, N_Vector y, N_Vector ydot, void *user_data)
    mfem::Vector mfem_ydot(NV_DATA_S(ydot), NV_LENGTH_S(ydot));
 #else
    mfem::HypreParVector mfem_y =
-      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(y));
+      static_cast<mfem::HypreParVector>(N_VGetVector_ParHyp(y));
    mfem::HypreParVector mfem_ydot =
-      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(ydot));
+      static_cast<mfem::HypreParVector>(N_VGetVector_ParHyp(ydot));
 #endif
 
    // Compute y' = f(t, y).
@@ -57,25 +61,25 @@ static int KinSolMult(N_Vector u, N_Vector fu, void *user_data)
    mfem::Vector mfem_fu(NV_DATA_S(fu), NV_LENGTH_S(fu));
 #else
    mfem::HypreParVector mfem_u =
-      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(u));
+      static_cast<mfem::HypreParVector>(N_VGetVector_ParHyp(u));
    mfem::HypreParVector mfem_fu =
-      static_cast<mfem::HypreParVector>(NV_HYPRE_PARVEC_PH(fu));
+      static_cast<mfem::HypreParVector>(N_VGetVector_ParHyp(fu));
 #endif
 
-   // Compute the non-linear action F(u).
+   // Computes the non-linear action F(u).
    static_cast<mfem::Operator *>(user_data)->Mult(mfem_u, mfem_fu);
    return 0;
 }
 
-// Connect v to mfem_v.
-static void ConnectNVector(mfem::Vector *mfem_v, N_Vector &v)
+// Connects v to mfem_v.
+static void ConnectNVector(mfem::Vector &mfem_v, N_Vector &v)
 {
 #ifndef MFEM_USE_MPI
-   NV_DATA_S(v)     = mfem_v->GetData();
-   NV_LENGTH_S(v)   = mfem_v->Size();
-   NV_OWN_DATA_S(v) = false;
+   v = N_VMake_Serial(mfem_v.Size(),
+                      static_cast<realtype *>(mfem_v.GetData()));
+   MFEM_ASSERT(static_cast<void *>(v) != NULL, "N_VMake_Serial() failed!");
 #else
-   mfem::HypreParVector *hv = dynamic_cast<mfem::HypreParVector *>(mfem_v);
+   mfem::HypreParVector *hv = dynamic_cast<mfem::HypreParVector *>(&mfem_v);
    MFEM_VERIFY(hv != NULL, "Could not cast to HypreParVector!");
    v = N_VMake_ParHyp(hv->StealParVector());
 #endif
@@ -98,7 +102,7 @@ CVODESolver::CVODESolver(Vector &_y, int lmm, int iter)
      solver_iteration_type(iter)
 {
    // Create the NVector y.
-   CreateNVector(&_y);
+   ConnectNVector(_y, y);
 
    // Create the solver memory.
    ode_mem = CVodeCreate(lmm, iter);
@@ -112,7 +116,7 @@ CVODESolver::CVODESolver(MPI_Comm _comm, Vector &_y, int lmm, int iter)
      solver_iteration_type(iter)
 {
    // Create the NVector y.
-   CreateNVector(&_y);
+   ConnectNVector(_y, y);
 
    // Create the solver memory.
    ode_mem = CVodeCreate(lmm, iter);
@@ -152,7 +156,7 @@ void CVODESolver::Init(TimeDependentOperator &_f)
 void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_y, double & _t)
 {
    f = &_f;
-   CreateNVector(&_y);
+   ConnectNVector(_y, y);
 
    // Re-init memory, time and solution. The RHS action is known from Init().
    int flag = CVodeReInit(ode_mem, static_cast<realtype>(_t), y);
@@ -196,22 +200,6 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
 
    // Record last incremental step size.
    flag = CVodeGetLastStep(ode_mem, &dt);
-}
-
-void CVODESolver::CreateNVector(Vector* _y)
-{
-#ifndef MFEM_USE_MPI
-   // Create a serial NVector.
-   y = N_VMake_Serial(_y->Size(),
-                      (realtype*) _y->GetData());   /* Allocate y vector */
-   MFEM_ASSERT(static_cast<void *>(y) != NULL, "N_VMake_Serial() failed!");
-#else
-   // Create a parallel NVector.
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_y);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
-
-   y = N_VMake_ParHyp(x->StealParVector());
-#endif
 }
 
 void CVODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
@@ -286,7 +274,7 @@ ARKODESolver::ARKODESolver(MPI_Comm _comm, Vector &_y, int _use_explicit)
      use_explicit(_use_explicit)
 {
    // Create the NVector y.
-   CreateNVector(&_y);
+   ConnectNVector(_y, y);
 
    // Create the solver memory.
    ode_mem = ARKodeCreate();
@@ -314,7 +302,7 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
 void ARKODESolver::ReInit(TimeDependentOperator &_f, Vector &_y, double &_t)
 {
    f = &_f;
-   CreateNVector(&_y);
+   ConnectNVector(_y, y);
 
    // Re-init memory, time and solution. The RHS action is known from Init().
    int flag = use_explicit ?
@@ -347,20 +335,6 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
 
    // Record last incremental step size.
    flag = ARKodeGetLastStep(ode_mem, &dt);
-}
-
-void ARKODESolver::CreateNVector(Vector* _y)
-{
-#ifdef MFEM_USE_MPI
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_y);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
-   y = N_VMake_ParHyp(x->StealParVector());
-#else
-   // Create a serial vector
-   y = N_VMake_Serial(_y->Size(),
-                      (realtype*) _y->GetData());   /* Allocate y vector */
-   MFEM_ASSERT(static_cast<void *>(y) != NULL, "N_VMake_Serial() failed!");
-#endif
 }
 
 void ARKODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
@@ -423,21 +397,18 @@ ARKODESolver::~ARKODESolver()
    }
 }
 
-KinSolWrapper::KinSolWrapper(Operator *op_)
-   : op(op_), N(op->Width()), kin_mem(NULL)
+KinSolWrapper::KinSolWrapper(Operator &oper, Vector &mfem_u)
+   : kin_mem(NULL)
 {
    kin_mem = KINCreate();
 
-   // Set void pointer to user data
-   KINSetUserData(kin_mem, static_cast<void *>(op));
-
-   u = N_VNew_Serial(N);
-   N_VConst_Serial(0.0, u);
-   u_scale = N_VNew_Serial(N);
-   N_VConst_Serial(0.0, u_scale);
-   f_scale = N_VNew_Serial(N);
-   N_VConst_Serial(0.0, f_scale);
+   ConnectNVector(mfem_u, u);
+   ConnectNVector(mfem_u, u_scale);
+   ConnectNVector(mfem_u, f_scale);
    KINInit(kin_mem, KinSolMult, u);
+
+   // Set void pointer to user data.
+   KINSetUserData(kin_mem, static_cast<void *>(&oper));
 
    // Set dense linear solver.
 //   KINDense(kin_mem, N);
@@ -463,17 +434,20 @@ void KinSolWrapper::setScaledStepTol(double tol)
    KINSetScaledStepTol(kin_mem, tol);
 }
 
-// Maybe return flag from KINSol
-void KinSolWrapper::solve(Vector *mfem_u,
-                          Vector *mfem_u_scale, Vector *mfem_f_scale)
+void KinSolWrapper::solve(Vector &mfem_u,
+                          Vector &mfem_u_scale, Vector &mfem_f_scale)
 {
    ConnectNVector(mfem_u, u);
    ConnectNVector(mfem_u_scale, u_scale);
    ConnectNVector(mfem_f_scale, f_scale);
 
+   setFuncNormTol(1e-6);
+   setScaledStepTol(1e-8);
+
    // LINESEARCH might be fancier, but more fragile near convergence.
-//   int strategy = KIN_LINESEARCH;
-   int strategy = KIN_NONE;
+   int strategy = KIN_LINESEARCH;
+//   int strategy = KIN_NONE;
+   //KINSetPrintLevel(kin_mem, 1);
    int flag = KINSol(kin_mem, u, strategy, u_scale, f_scale);
    MFEM_VERIFY(flag == KIN_SUCCESS || flag == KIN_INITIAL_GUESS_OK,
                "KINSol returned " << flag << " that indicated a problem!");
@@ -512,6 +486,7 @@ static int WrapLinearCVSolveInit(CVodeMem cv_mem)
 
 //Setup may not be needed, since Jacobian is recomputed each iteration
 //ypred is the predicted y at the current time, fpred is f(t,ypred)
+// TODO: what's the point of this function? WrapLinearSolveSetup does nothing!
 static int WrapLinearCVSolveSetup(CVodeMem cv_mem, int convfail,
                                   N_Vector ypred, N_Vector fpred,
                                   booleantype *jcurPtr, N_Vector vtemp1,
@@ -523,8 +498,8 @@ static int WrapLinearCVSolveSetup(CVodeMem cv_mem, int convfail,
    lmem->setup_y->SetDataAndSize(NV_DATA_S(ypred),NV_LENGTH_S(ypred));
    lmem->setup_f->SetDataAndSize(NV_DATA_S(fpred),NV_LENGTH_S(fpred));
 #else
-   lmem->setup_y->SetData(NV_DATA_PH(ypred));
-   lmem->setup_f->SetData(NV_DATA_PH(fpred));
+   lmem->solve_y = new mfem::HypreParVector(N_VGetVector_ParHyp(ypred));
+   lmem->solve_f = new mfem::HypreParVector(N_VGetVector_ParHyp(fpred));
 #endif
    *jcurPtr=TRUE;
    cv_mem->cv_lmem = lmem;
@@ -545,17 +520,24 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
    lmem->solve_f->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
    lmem->solve_b->SetDataAndSize(NV_DATA_S(b),NV_LENGTH_S(b));
 #else
-   ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),
-                                                           NV_LOCLENGTH_PH(ycur));
-   ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),
-                                                           NV_LOCLENGTH_PH(fcur));
-   ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),
-                                                           NV_LOCLENGTH_PH(b));
+   lmem->solve_y = new mfem::HypreParVector(N_VGetVector_ParHyp(ycur));
+   lmem->solve_f = new mfem::HypreParVector(N_VGetVector_ParHyp(fcur));
+   lmem->solve_b = new mfem::HypreParVector(N_VGetVector_ParHyp(b));
+
+//   ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),
+//                                                           NV_LOCLENGTH_PH(ycur));
+//   ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),
+//                                                           NV_LOCLENGTH_PH(fcur));
+//   ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),
+//                                                           NV_LOCLENGTH_PH(b));
 #endif
 
    lmem->weight = cv_mem->cv_gamma;
 
    cv_mem->cv_lmem = lmem;
+   // TODO: remove this function.
+   // TODO: we dont need so many arguments.
+   // TODO: can't we only have the operator in the lmem?
    WrapLinearSolve(cv_mem->cv_lmem, cv_mem->cv_tn, lmem->solve_b, lmem->solve_y,
                    lmem->setup_y, lmem->solve_f);
    return 0;
@@ -607,17 +589,17 @@ static int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve,
    lmem->solve_b = new mfem::Vector();
    lmem->vec_tmp = new mfem::Vector(NV_LENGTH_S(cv_mem->cv_zn[0]));
 #else
-   lmem->setup_y = new mfem::HypreParVector(NV_HYPRE_PARVEC_PH(
+   lmem->setup_y = new mfem::HypreParVector(N_VGetVector_ParHyp(
                                                 cv_mem->cv_zn[0]));
-   lmem->setup_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->setup_f = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 cv_mem->cv_zn[0])));
-   lmem->solve_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->solve_y = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 cv_mem->cv_zn[0])));
-   lmem->solve_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->solve_f = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 cv_mem->cv_zn[0])));
-   lmem->solve_b = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->solve_b = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 cv_mem->cv_zn[0])));
-   lmem->vec_tmp = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->vec_tmp = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 cv_mem->cv_zn[0])));
 #endif
 
@@ -695,8 +677,9 @@ static int WrapLinearARKSolveSetup(ARKodeMem ark_mem, int convfail,
    lmem->setup_y->SetDataAndSize(NV_DATA_S(ypred),NV_LENGTH_S(ypred));
    lmem->setup_f->SetDataAndSize(NV_DATA_S(fpred),NV_LENGTH_S(fpred));
 #else
-   lmem->setup_y->SetData(NV_DATA_PH(ypred));
-   lmem->setup_f->SetData(NV_DATA_PH(fpred));
+   // TODO: delete the pointers.
+   lmem->solve_y = new mfem::HypreParVector(N_VGetVector_ParHyp(ypred));
+   lmem->solve_f = new mfem::HypreParVector(N_VGetVector_ParHyp(fpred));
 #endif
    *jcurPtr=TRUE;
    ark_mem->ark_lmem = lmem;
@@ -731,12 +714,9 @@ static int WrapLinearARKSolve(ARKodeMem ark_mem, N_Vector b,
       lmem->solve_f->SetDataAndSize(NV_DATA_S(fcur),NV_LENGTH_S(fcur));
       lmem->solve_b->SetDataAndSize(NV_DATA_S(b),NV_LENGTH_S(b));
 #else
-      ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),
-                                                              NV_LOCLENGTH_PH(ycur));
-      ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),
-                                                              NV_LOCLENGTH_PH(fcur));
-      ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),
-                                                              NV_LOCLENGTH_PH(b));
+      lmem->solve_y = new mfem::HypreParVector(N_VGetVector_ParHyp(ycur));
+      lmem->solve_f = new mfem::HypreParVector(N_VGetVector_ParHyp(fcur));
+      lmem->solve_b = new mfem::HypreParVector(N_VGetVector_ParHyp(b));
 #endif
 
       lmem->weight = ark_mem->ark_gamma;
@@ -802,17 +782,17 @@ static int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver* solve,
    lmem->solve_b = new mfem::Vector();
    lmem->vec_tmp = new mfem::Vector();
 #else
-   lmem->setup_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->setup_y = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 ark_mem->ark_ycur)));
-   lmem->setup_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->setup_f = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 ark_mem->ark_ycur)));
-   lmem->solve_y = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->solve_y = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 ark_mem->ark_ycur)));
-   lmem->solve_f = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->solve_f = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 ark_mem->ark_ycur)));
-   lmem->solve_b = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->solve_b = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 ark_mem->ark_ycur)));
-   lmem->vec_tmp = new mfem::HypreParVector((NV_HYPRE_PARVEC_PH(
+   lmem->vec_tmp = new mfem::HypreParVector((N_VGetVector_ParHyp(
                                                 ark_mem->ark_ycur)));
 #endif
    lmem->J_solve=solve;

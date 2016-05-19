@@ -34,7 +34,7 @@
 //               example.
 
 
-#include "mfem.hpp"
+#include "../mfem.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
@@ -611,10 +611,10 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
    //newton_solver.Mult(zero, dv_dt);
 
-   KinSolWrapper kinsol(backward_euler_oper);
-   Vector one1(sc), one2(sc);
-   one1 = 1.0; one2 = 1.0;
-   kinsol.solve(&dv_dt, &one1, &one2);
+   KinSolWrapper kinsol(*backward_euler_oper, v);
+   Vector one(sc);
+   one = 1.0;
+   kinsol.solve(dv_dt, one, one);
 
    add(v, dt, dv_dt, dx_dt);
 
