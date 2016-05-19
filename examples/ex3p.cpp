@@ -58,6 +58,7 @@ int main(int argc, char *argv[])
    const char *mesh_file = "../data/beam-tet.mesh";
    int order = 1;
    bool static_cond = false;
+   bool slu_solver  = false;
    bool visualization = 1;
 
    OptionsParser args(argc, argv);
@@ -69,6 +70,8 @@ int main(int argc, char *argv[])
                   " solution.");
    args.AddOption(&static_cond, "-sc", "--static-condensation", "-no-sc",
                   "--no-static-condensation", "Enable static condensation.");
+   args.AddOption(&slu_solver, "-slu", "--superlu", "-no-slu",
+                  "--no-superlu", "Use the SuperLU Solver.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -128,7 +131,7 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      int par_ref_levels = 2;
+      int par_ref_levels = 0;
       for (int l = 0; l < par_ref_levels; l++)
       {
          pmesh->UniformRefinement();
@@ -201,17 +204,32 @@ int main(int argc, char *argv[])
       cout << "Size of linear system: " << A.GetGlobalNumRows() << endl;
    }
 
-   // 12. Define and apply a parallel PCG solver for AX=B with the AMS
-   //     preconditioner from hypre.
-   ParFiniteElementSpace *prec_fespace =
-      (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
-   HypreSolver *ams = new HypreAMS(A, prec_fespace);
-   HyprePCG *pcg = new HyprePCG(A);
-   pcg->SetTol(1e-12);
-   pcg->SetMaxIter(500);
-   pcg->SetPrintLevel(2);
-   pcg->SetPreconditioner(*ams);
-   pcg->Mult(B, X);
+   // 12. Select the appropriate solver and solve the linear system
+   if ( !slu_solver )
+   {
+      // Define and apply a parallel PCG solver for AX=B with the AMS
+      // preconditioner from hypre.
+      ParFiniteElementSpace *prec_fespace =
+         (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
+      HypreAMS ams(A, prec_fespace);
+      HyprePCG pcg(A);
+      pcg.SetTol(1e-12);
+      pcg.SetMaxIter(500);
+      pcg.SetPrintLevel(2);
+      pcg.SetPreconditioner(ams);
+      pcg.Mult(B, X);
+   }
+   else
+   {
+      // Define and apply a parallel SuperLU solver for AX=B
+      SuperLURowLocMatrix Arow(A);
+      SuperLUSolver superlu(MPI_COMM_WORLD);
+      superlu.SetPrintStatistics(true);
+      superlu.SetSymmetricPattern(true);
+      superlu.SetOperator(Arow);
+      superlu.Mult(B, X);
+      superlu.DismantleGrid();
+   }
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -254,8 +272,6 @@ int main(int argc, char *argv[])
    }
 
    // 17. Free the used memory.
-   delete pcg;
-   delete ams;
    delete a;
    delete sigma;
    delete muinv;
