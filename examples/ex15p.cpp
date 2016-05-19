@@ -299,6 +299,7 @@ int main(int argc, char *argv[])
          // 11g. Refine elements
          if (!pmesh.RefineByError(errors, max_elem_error, -1, nc_limit))
          {
+            a.Update(); // Free the assembled data
             break;
          }
 

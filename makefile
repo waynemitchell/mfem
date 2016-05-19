@@ -21,6 +21,7 @@ MFEM makefile targets:
    make parallel
    make debug
    make pdebug
+   make check/test
    make install
    make clean
    make distclean
@@ -45,6 +46,10 @@ make debug
    A shortcut to configure and build the serial debug version of the library.
 make pdebug
    A shortcut to configure and build the parallel debug version of the library.
+make check
+   Quick-check the build by compiling and running Example 1/1p.
+make test
+   Verify the build by checking the results from running all examples and miniapps.
 make install PREFIX=<dir>
    Install the library and headers in <dir>/lib and <dir>/include.
 make clean
@@ -262,7 +267,7 @@ SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
 .PHONY: lib all clean distclean install config status info deps serial parallel\
- debug pdebug style
+ debug pdebug style check test
 
 .SUFFIXES: .cpp .o
 .cpp.o:
@@ -303,6 +308,26 @@ deps:
 	rm -f deps.mk
 	for i in $(SOURCE_FILES:.cpp=); do \
 	   $(DEP_CXX) $(MFEM_FLAGS) -MM -MT $${i}.o $${i}.cpp >> deps.mk; done
+
+check: lib
+	@printf "Quick-checking the MFEM library."
+	@printf " Use 'make test' for more extensive tests.\n"
+	@$(MAKE) -C examples \
+	$(if $(findstring YES,$(MFEM_USE_MPI)),ex1p-test-par,ex1-test-seq)
+
+test: lib
+	@echo "Testing the MFEM library. This may take a while..."
+	@echo "Building all examples and miniapps..."
+	@make all
+	@echo "Running examples..."
+	@$(MAKE) -C examples test
+	@echo "Running meshing miniapps..."
+	@$(MAKE) -C miniapps/meshing test
+	@echo "Running electromagnetic miniapps..."
+	@$(MAKE) -C miniapps/electromagnetics test
+	@echo "Running high-performance miniapps..."
+	@$(MAKE) -C miniapps/performance test
+	@echo "Done."
 
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk

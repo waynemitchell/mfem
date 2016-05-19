@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
                   "Finite element order (polynomial degree) >= 0.");
    args.AddOption(&sigma, "-s", "--sigma",
                   "One of the two DG penalty parameters, typically +1/-1."
-                  " See the documentation of class DiffusionIntegrator.");
+                  " See the documentation of class DGDiffusionIntegrator.");
    args.AddOption(&kappa, "-k", "--kappa",
                   "One of the two DG penalty parameters, should be positive."
                   " Negative values are replaced with (order+1)^2.");
