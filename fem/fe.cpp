@@ -6520,10 +6520,8 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
    }
 }
 
-const double *Poly_1D::OpenPoints(const int p)
+const double *Poly_1D::OpenPoints(const int p, const int type)
 {
-   double *op;
-
    if (open_pts.Size() <= p)
    {
       int i = open_pts.Size();
@@ -6532,23 +6530,21 @@ const double *Poly_1D::OpenPoints(const int p)
       {
          open_pts[i] = NULL;
       }
-      goto alloc_open;
    }
-   if ((op = open_pts[p]) != NULL)
+   if( open_pts[p] != NULL)
    {
-      return op;
+      return open_pts[p];
    }
-alloc_open:
-   open_pts[p] = op = new double[p + 1];
-   GaussPoints(p, op);
-   // ChebyshevPoints(p, op);
-   return op;
+   else
+   {
+       open_pts[p] = new double[p + 1];
+       quad_func.GivePolyPoints(p+1, open_pts[p], type);
+       return open_pts[p];
+   }
 }
 
-const double *Poly_1D::ClosedPoints(const int p)
+const double *Poly_1D::ClosedPoints(const int p, const int type)
 {
-   double *cp;
-
    if (closed_pts.Size() <= p)
    {
       int i = closed_pts.Size();
@@ -6557,71 +6553,21 @@ const double *Poly_1D::ClosedPoints(const int p)
       {
          closed_pts[i] = NULL;
       }
-      goto alloc_closed;
    }
-   if ((cp = closed_pts[p]) != NULL)
+   if (closed_pts[p] != NULL)
    {
-      return cp;
+      return closed_pts[p];
    }
-alloc_closed:
-   closed_pts[p] = cp = new double[p + 1];
-   GaussLobattoPoints(p, cp);
-   // UniformPoints(p, cp);
-   return cp;
+   else
+   {
+       closed_pts[p] = new double[p + 1];
+       quad_func.GivePolyPoints(p+1, closed_pts[p], type);
+       return closed_pts[p];
+   }
 }
 
-const double *Poly_1D::NCOpenPoints(const int p)
+Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
 {
-   double *op;
-
-   if (nc_open_pts.Size() <= p)
-   {
-      int i = nc_open_pts.Size();
-      nc_open_pts.SetSize(p + 1);
-      for ( ; i < p; i++)
-      {
-         nc_open_pts[i] = NULL;
-      }
-      goto alloc_nc_open;
-   }
-   if ((op = nc_open_pts[p]) != NULL)
-   {
-      return op;
-   }
-alloc_nc_open:
-   nc_open_pts[p] = op = new double[p + 1];
-   OpenUniformPoints(p, op);
-   return op;
-}
-
-const double *Poly_1D::NCClosedPoints(const int p)
-{
-   double *cp;
-
-   if (nc_closed_pts.Size() <= p)
-   {
-      int i = nc_closed_pts.Size();
-      nc_closed_pts.SetSize(p + 1);
-      for ( ; i < p; i++)
-      {
-         nc_closed_pts[i] = NULL;
-      }
-      goto alloc_nc_closed;
-   }
-   if ((cp = nc_closed_pts[p]) != NULL)
-   {
-      return cp;
-   }
-alloc_nc_closed:
-   nc_closed_pts[p] = cp = new double[p + 1];
-   ClosedUniformPoints(p, cp);
-   return cp;
-}
-
-Poly_1D::Basis &Poly_1D::OpenBasis(const int p)
-{
-   Basis *ob;
-
    if (open_basis.Size() <= p)
    {
       int i = open_basis.Size();
@@ -6630,21 +6576,21 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p)
       {
          open_basis[i] = NULL;
       }
-      goto alloc_obasis;
    }
-   if ((ob = open_basis[p]) != NULL)
+   if(open_basis[p] != NULL)
    {
-      return *ob;
+      return *open_basis[p];
    }
-alloc_obasis:
-   open_basis[p] = ob = new Basis(p, OpenPoints(p));
-   return *ob;
+   else
+   {
+       const double *op = OpenPoints(p , type);
+       open_basis[p] = new Basis(p,op);
+       return *open_basis[p];
+   }
 }
 
-Poly_1D::Basis &Poly_1D::ClosedBasis(const int p)
+Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
 {
-   Basis *cb;
-
    if (closed_basis.Size() <= p)
    {
       int i = closed_basis.Size();
@@ -6653,61 +6599,17 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p)
       {
          closed_basis[i] = NULL;
       }
-      goto alloc_cbasis;
    }
-   if ((cb = closed_basis[p]) != NULL)
+   if ( closed_basis[p] != NULL)
    {
-      return *cb;
+      return *closed_basis[p];
    }
-alloc_cbasis:
-   closed_basis[p] = cb = new Basis(p, ClosedPoints(p));
-   return *cb;
-}
-
-Poly_1D::Basis &Poly_1D::NCOpenBasis(const int p)
-{
-   Basis *ob;
-
-   if (nc_open_basis.Size() <= p)
+   else
    {
-      int i = nc_open_basis.Size();
-      nc_open_basis.SetSize(p + 1);
-      for ( ; i < p; i++)
-      {
-         nc_open_basis[i] = NULL;
-      }
-      goto alloc_nc_obasis;
+       const double *cp = ClosedPoints(p, type);
+       closed_basis[p] =  new Basis(p, cp);
+       return *closed_basis[p];
    }
-   if ((ob = nc_open_basis[p]) != NULL)
-   {
-      return *ob;
-   }
-alloc_nc_obasis:
-   nc_open_basis[p] = ob = new Basis(p, NCOpenPoints(p));
-   return *ob;
-}
-
-Poly_1D::Basis &Poly_1D::NCClosedBasis(const int p)
-{
-   Basis *cb;
-
-   if (nc_closed_basis.Size() <= p)
-   {
-      int i = nc_closed_basis.Size();
-      nc_closed_basis.SetSize(p + 1);
-      for ( ; i < p; i++)
-      {
-         nc_closed_basis[i] = NULL;
-      }
-      goto alloc_nc_cbasis;
-   }
-   if ((cb = nc_closed_basis[p]) != NULL)
-   {
-      return *cb;
-   }
-alloc_nc_cbasis:
-   nc_closed_basis[p] = cb = new Basis(p, NCClosedPoints(p));
-   return *cb;
 }
 
 Poly_1D::~Poly_1D()
@@ -6720,14 +6622,6 @@ Poly_1D::~Poly_1D()
    {
       delete [] closed_pts[i];
    }
-   for (int i = 0; i < nc_closed_pts.Size(); i++)
-   {
-      delete [] nc_closed_pts[i];
-   }
-   for (int i = 0; i < nc_open_pts.Size(); i++)
-   {
-      delete [] nc_open_pts[i];
-   }
 
    for (int i = 0; i < open_basis.Size(); i++)
    {
@@ -6736,14 +6630,6 @@ Poly_1D::~Poly_1D()
    for (int i = 0; i < closed_basis.Size(); i++)
    {
       delete closed_basis[i];
-   }
-   for (int i = 0; i < nc_closed_basis.Size(); i++)
-   {
-      delete nc_closed_basis[i];
-   }
-   for (int i = 0; i < nc_open_basis.Size(); i++)
-   {
-      delete nc_open_basis[i];
    }
 }
 
@@ -8292,20 +8178,18 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
 
    switch (type)
    {
-      case 1: //GaussLobatto
+      // Open Points
+      case 0: case 4:
          basis1d = &poly1d.ClosedBasis(p);
          op = poly1d.ClosedPoints(p);
          break;
-      case 3: //ClosedEqual
-         basis1d = &poly1d.ClosedBasis(p);
-         op = poly1d.ClosedPoints(p);
-         break;
-      case 4: //OpenEqual
+       // Closed Points
+      case 1: case 3: 
          basis1d = &poly1d.ClosedBasis(p);
          op = poly1d.ClosedPoints(p);
          break;
       default:
-      case 0: //GaussLegendre
+         //GaussLegendre
          basis1d = &poly1d.OpenBasis(p);
          op = poly1d.OpenPoints(p);
          break;

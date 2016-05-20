@@ -32,7 +32,6 @@
 #include "bilinearform.hpp"
 #include "hybridization.hpp"
 #include "datacollection.hpp"
-#include "quadraturefunc.hpp"
 
 #ifdef MFEM_USE_MPI
 #include <mpi.h>

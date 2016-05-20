@@ -16,6 +16,7 @@
 #include "../general/array.hpp"
 #include "../linalg/linalg.hpp"
 #include "intrules.hpp"
+#include "quadraturefunc.hpp"
 #include "geom.hpp"
 
 namespace mfem
@@ -1232,9 +1233,10 @@ public:
       void Eval(const double x, Vector &u, Vector &d) const;
    };
 
+   QuadratureFunctions1D quad_func;
 private:
-   Array<double *> open_pts, closed_pts, nc_closed_pts, nc_open_pts;
-   Array<Basis *> open_basis, closed_basis, nc_closed_basis, nc_open_basis;
+   Array<double *> open_pts, closed_pts;
+   Array<Basis *> open_basis, closed_basis;
 
    static Array2D<int> binom;
 
@@ -1252,15 +1254,16 @@ public:
 
    static const int *Binom(const int p);
 
-   const double *OpenPoints(const int p);
-   const double *ClosedPoints(const int p);
-   const double *NCOpenPoints(const int p);
-   const double *NCClosedPoints(const int p);
+   const double *OpenPoints(const int p, const int type =
+           (int) NumericalQuad1D::GaussLegendre);
+   const double *ClosedPoints(const int p, const int type =
+           (int) NumericalQuad1D::GaussLobatto);
 
-   Basis &OpenBasis(const int p);
-   Basis &ClosedBasis(const int p);
-   Basis &NCOpenBasis(const int p);
-   Basis &NCClosedBasis(const int p);
+   Basis &OpenBasis(const int p, const int type =
+                                       (int) NumericalQuad1D::GaussLegendre);
+
+   Basis &ClosedBasis(const int p, const int type =
+           (int) NumericalQuad1D::GaussLobatto);
 
    // Evaluate the values of a hierarchical 1D basis at point x
    // hierarchical = k-th basis function is degree k polynomial

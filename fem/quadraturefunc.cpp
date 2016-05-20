@@ -225,6 +225,40 @@ void QuadratureFunctions1D::ClosedEquallySpaced(const int np,
    }
 }
 
+
+void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts , const int type)
+{
+    IntegrationRule ir(np);
+    NumericalQuad1D quadType = NumericalQuad1D(type);
+
+    switch(quadType)
+    {
+        case NumericalQuad1D::GaussLegendre:
+        {
+            GaussLegendre(np,&ir);
+            break;
+        }
+        case NumericalQuad1D::GaussLobatto:
+        {
+            GaussLobatto(np, &ir);
+            break;
+        }
+        case NumericalQuad1D::OpenEquallySpaced:
+        {
+            OpenEquallySpaced(np,&ir);
+            break;
+        }
+        case NumericalQuad1D::ClosedEquallySpaced:
+        {
+            ClosedEquallySpaced(np,&ir);
+            break;
+        }
+    }
+
+    for(int i = 0 ; i < np ; ++i)
+        pts[i] = ir.IntPoint(i).x;
+}
+
 void QuadratureFunctions1D::CalculateLagrangeWeights(IntegrationRule *ir)
 {
    /**
