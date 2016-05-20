@@ -12,22 +12,24 @@
 # Use the MFEM build directory
 MFEM_DIR = ../..
 CONFIG_MK = $(MFEM_DIR)/config/config.mk
+TEST_MK = $(MFEM_DIR)/config/test.mk
 # Use the MFEM install directory
 # MFEM_DIR = ../../mfem
 # CONFIG_MK = $(MFEM_DIR)/config.mk
 
-ifneq (clean,$(MAKECMDGOALS))
-   -include $(CONFIG_MK)
-endif
+MFEM_LIB_FILE = mfem_is_not_built
+-include $(CONFIG_MK)
 
 SEQ_MINIAPPS =
+PAR_MINIAPPS = volta tesla
 ifeq ($(MFEM_USE_MPI),NO)
    MINIAPPS = $(SEQ_MINIAPPS)
 else
-   MINIAPPS = $(SEQ_MINIAPPS) volta tesla
+   MINIAPPS = $(PAR_MINIAPPS) $(SEQ_MINIAPPS)
 endif
 
-.PHONY: all clean
+.PHONY: all clean clean-build clean-exec
+.PRECIOUS: %.o
 
 COMMON_HPP=../common/pfem_extras.hpp
 COMMON_O=$(COMMON_HPP:.hpp=.o)
@@ -38,7 +40,7 @@ COMMON_O=$(COMMON_HPP:.hpp=.o)
 %: %.cpp
 
 # Replace the default implicit rule for *.cpp files
-%: %.cpp %_solver.o $(COMMON_O) $(CONFIG_MK) $(MFEM_LIB_FILE)
+%: %.cpp %_solver.o $(COMMON_O) $(MFEM_LIB_FILE) $(CONFIG_MK)
 	$(MFEM_CXX) $(MFEM_FLAGS) $< -o $@ $@_solver.o $(COMMON_O) $(MFEM_LIBS)
 
 # Remove built-in rule
@@ -50,11 +52,28 @@ COMMON_O=$(COMMON_HPP:.hpp=.o)
 
 all: $(MINIAPPS)
 
+MFEM_TESTS = MINIAPPS
+include $(TEST_MK)
+
+# Testing: Specific execution options
+volta-test-par: volta
+	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
+	-maxit 2 -dbcs 1 -dbcg -ds '0.0 0.0 0.0 0.2 8.0')
+tesla-test-par: tesla
+	@$(call mfem-test,$<, mpirun -np 4, Electromagnetic miniapp,\
+	-maxit 2 -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1')
+
+# Testing: "test" target and mfem-test* variables are defined in config/test.mk
+
 # Generate an error message if the MFEM library is not built and exit
-$(CONFIG_MK) $(MFEM_LIB_FILE):
+$(MFEM_LIB_FILE):
 	$(error The MFEM library is not built)
 
-clean:
+clean: clean-build clean-exec
+
+clean-build:
 	rm -f *.o *~ volta tesla
-	rm -rf Volta-AMR* Tesla-AMR*
 	rm -rf *.dSYM *.TVD.*breakpoints
+
+clean-exec:
+	@rm -rf Volta-AMR* Tesla-AMR*
