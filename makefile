@@ -69,6 +69,9 @@ MFEM_DIR = ..
 
 CONFIG_MK = config/config.mk
 
+DEFAULTS_MK = config/user.mk.in
+include $(DEFAULTS_MK)
+
 # Optional user config file, see config/user.mk.in
 USER_CONFIG = config/user.mk
 -include $(USER_CONFIG)
@@ -94,40 +97,17 @@ else
    $(call mfem-info, NOT including $(CONFIG_MK))
 endif
 
-# Default installation location
-PREFIX ?= ./mfem
-INSTALL ?= /usr/bin/install
-
-# Default serial and parallel compilers
-CXX ?= g++
-MPICXX ?= mpicxx
-OPTIM_FLAGS ?= -O3
-DEBUG_FLAGS ?= -g -Wall
 # Compile flags used by MFEM: CPPFLAGS, CXXFLAGS, plus library flags
 INCFLAGS = -I@MFEM_INC_DIR@
 # Link flags used by MFEM: library link flags plus LDFLAGS (added last)
 ALL_LIBS = -L@MFEM_LIB_DIR@ -lmfem
 
 # The default value of CXXFLAGS is based on the value of MFEM_DEBUG
-MFEM_DEBUG ?= NO
 ifeq ($(MFEM_DEBUG),YES)
    CXXFLAGS ?= $(DEBUG_FLAGS)
 endif
 CXXFLAGS ?= $(OPTIM_FLAGS)
 
-# HYPRE library configuration (needed to build the parallel version)
-HYPRE_DIR ?= @MFEM_DIR@/../hypre-2.10.0b/src/hypre
-HYPRE_OPT ?= -I$(HYPRE_DIR)/include
-HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
-
-# METIS library configuration
-METIS_DIR ?= @MFEM_DIR@/../metis-4.0
-METIS_OPT ?=
-METIS_LIB ?= -L$(METIS_DIR) -lmetis
-
-MFEM_USE_METIS_5 ?= NO
-
-MFEM_USE_MPI ?= NO
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
 else
@@ -138,19 +118,11 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-MFEM_USE_LAPACK ?= NO
-# LAPACK library configuration
-LAPACK_OPT ?=
-LAPACK_LIB ?= -llapack
 ifeq ($(MFEM_USE_LAPACK),YES)
    INCFLAGS += $(LAPACK_OPT)
    ALL_LIBS += $(LAPACK_LIB)
 endif
 
-MFEM_USE_OPENMP ?= NO
-# OpenMP configuration
-OPENMP_OPT ?= -fopenmp
-OPENMP_LIB ?=
 ifeq ($(MFEM_USE_OPENMP),YES)
    MFEM_THREAD_SAFE ?= YES
    ifneq ($(MFEM_THREAD_SAFE),YES)
@@ -158,58 +130,28 @@ ifeq ($(MFEM_USE_OPENMP),YES)
    endif
    INCFLAGS += $(OPENMP_OPT)
    ALL_LIBS += $(OPENMP_LIB)
-else
-   MFEM_THREAD_SAFE ?= NO
 endif
 
-MFEM_USE_MESQUITE ?= NO
-# MESQUITE library configuration
-MESQUITE_DIR ?= @MFEM_DIR@/../mesquite-2.99
-MESQUITE_OPT ?= -I$(MESQUITE_DIR)/include
-MESQUITE_LIB ?= -L$(MESQUITE_DIR)/lib -lmesquite
 ifeq ($(MFEM_USE_MESQUITE),YES)
    INCFLAGS += $(MESQUITE_OPT)
    ALL_LIBS += $(MESQUITE_LIB)
 endif
 
-MFEM_USE_SUITESPARSE ?= NO
-# SuiteSparse library configuration
-SUITESPARSE_DIR ?= @MFEM_DIR@/../SuiteSparse
-SUITESPARSE_OPT ?= -I$(SUITESPARSE_DIR)/include
-SUITESPARSE_LIB ?= -L$(SUITESPARSE_DIR)/lib -lklu -lbtf -lumfpack -lcholmod -lcolamd -lamd\
- -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
 ifeq ($(MFEM_USE_SUITESPARSE),YES)
    INCFLAGS += $(SUITESPARSE_OPT)
    ALL_LIBS += $(SUITESPARSE_LIB)
 endif
 
-MFEM_USE_GECKO ?= NO
-GECKO_DIR ?= @MFEM_DIR@/../gecko
-GECKO_OPT ?= -I$(GECKO_DIR)/inc
-GECKO_LIB ?= -L$(GECKO_DIR)/lib -lgecko
 ifeq ($(MFEM_USE_GECKO),YES)
    INCFLAGS += $(GECKO_OPT)
    ALL_LIBS += $(GECKO_LIB)
 endif
 
-MFEM_USE_GNUTLS ?= NO
-# GnuTLS library configuration
-GNUTLS_OPT ?=
-GNUTLS_LIB ?= -lgnutls
 ifeq ($(MFEM_USE_GNUTLS),YES)
    INCFLAGS += $(GNUTLS_OPT)
    ALL_LIBS += $(GNUTLS_LIB)
 endif
 
-MFEM_USE_MEMALLOC ?= YES
-
-# Use POSIX clocks for timing unless kernel-name is 'Darwin' (mac)
-ifeq ($(shell uname -s),Darwin)
-   MFEM_TIMER_TYPE ?= 0
-else
-   MFEM_TIMER_TYPE ?= 2
-endif
-POSIX_CLOCKS_LIB ?= -lrt
 ifeq ($(MFEM_TIMER_TYPE),2)
    ALL_LIBS += $(POSIX_CLOCKS_LIB)
 endif

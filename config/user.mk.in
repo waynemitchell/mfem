@@ -11,7 +11,7 @@
 
 # See the file INSTALL for description of the configuration options.
 
-# All variables in this file are optional.
+# Default options. To replace these, copy this file to user.mk and modify it.
 
 CXX = g++
 MPICXX = mpicxx
@@ -35,6 +35,9 @@ INSTALL = /usr/bin/install
 # Note: symbols of the form @VAR@ will be replaced by $(VAR) in derived
 #       variables, like MFEM_FLAGS, defined in config.mk.
 
+# Some choices below are based on the system name:
+SYSNAME = $(shell uname -s)
+
 HYPRE_DIR = @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT = -I$(HYPRE_DIR)/include
 HYPRE_LIB = -L$(HYPRE_DIR)/lib -lHYPRE
@@ -45,6 +48,9 @@ METIS_LIB = -L$(METIS_DIR) -lmetis
 
 LAPACK_OPT =
 LAPACK_LIB = -llapack
+ifeq ($(SYSNAME),Darwin)
+   LAPACK_LIB = -framework Accelerate
+endif
 
 OPENMP_OPT = -fopenmp
 OPENMP_LIB =
@@ -53,10 +59,15 @@ MESQUITE_DIR = @MFEM_DIR@/../mesquite-2.99
 MESQUITE_OPT = -I$(MESQUITE_DIR)/include
 MESQUITE_LIB = -L$(MESQUITE_DIR)/lib -lmesquite
 
+LIB_RT = -lrt
+ifeq ($(SYSNAME),Darwin)
+   LIB_RT =
+endif
 SUITESPARSE_DIR = @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT = -I$(SUITESPARSE_DIR)/include
-SUITESPARSE_LIB = -L$(SUITESPARSE_DIR)/lib -lklu -lbtf -lumfpack -lcholmod -lcolamd -lamd\
- -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
+SUITESPARSE_LIB = -L$(SUITESPARSE_DIR)/lib -lklu -lbtf -lumfpack -lcholmod\
+ -lcolamd -lamd -lcamd -lccolamd -lsuitesparseconfig $(LIB_RT) $(METIS_LIB)\
+ $(LAPACK_LIB)
 
 GECKO_DIR = @MFEM_DIR@/../gecko
 GECKO_OPT = -I$(GECKO_DIR)/inc
@@ -81,10 +92,9 @@ MFEM_USE_SUITESPARSE = NO
 MFEM_USE_GECKO       = NO
 MFEM_USE_GNUTLS      = NO
 MFEM_USE_MEMALLOC    = YES
-ifeq ($(shell uname -s),Darwin)
-   MFEM_TIMER_TYPE ?= 0
-else
-   MFEM_TIMER_TYPE ?= 2
+MFEM_TIMER_TYPE      = 2
+ifeq ($(SYSNAME),Darwin)
+   MFEM_TIMER_TYPE = 0
 endif
 
 # If YES, enable some informational messages
