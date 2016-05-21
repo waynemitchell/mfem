@@ -18,7 +18,6 @@
 
 #include <cstring>      // memset, memcpy, strerror
 #include <cerrno>       // errno
-#include <cstdlib>      // getenv
 #ifndef _WIN32
 #include <netdb.h>      // gethostbyname
 #include <arpa/inet.h>  // htons
@@ -34,8 +33,12 @@ typedef int ssize_t;
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
+#ifdef MFEM_USE_GNUTLS
+#include <cstdlib>  // getenv
+#include <gnutls/openpgp.h>
 // Enable debug messages from GnuTLS_* classes
 // #define MFEM_USE_GNUTLS_DEBUG
+#endif
 
 namespace mfem
 {
@@ -853,12 +856,12 @@ std::streamsize GnuTLS_socketbuf::xsputn(const char_type *__s,
 }
 
 
-int GLVis_socketstream::num_glvis_sockets = 0;
-GnuTLS_global_state *GLVis_socketstream::state = NULL;
-GnuTLS_session_params *GLVis_socketstream::params = NULL;
+int socketstream::num_glvis_sockets = 0;
+GnuTLS_global_state *socketstream::state = NULL;
+GnuTLS_session_params *socketstream::params = NULL;
 
 // static method
-GnuTLS_session_params &GLVis_socketstream::add_socket()
+GnuTLS_session_params &socketstream::add_socket()
 {
    if (num_glvis_sockets == 0)
    {
@@ -884,25 +887,9 @@ GnuTLS_session_params &GLVis_socketstream::add_socket()
    return *params;
 }
 
-#endif // MFEM_USE_GNUTLS
-
-
-GLVis_socketstream::GLVis_socketstream()
-#ifdef MFEM_USE_GNUTLS
-   : GnuTLS_socketstream(add_socket())
-#endif
-{ }
-
-GLVis_socketstream::GLVis_socketstream(const char hostname[], int port) :
-#ifndef MFEM_USE_GNUTLS
-   socketstream(hostname, port) { }
-#else
-   GnuTLS_socketstream(add_socket()) { open(hostname, port); }
-#endif
-
-GLVis_socketstream::~GLVis_socketstream()
+// static method
+void socketstream::remove_socket()
 {
-#ifdef MFEM_USE_GNUTLS
    if (num_glvis_sockets > 0)
    {
       num_glvis_sockets--;
@@ -912,7 +899,8 @@ GLVis_socketstream::~GLVis_socketstream()
          delete state; state = NULL;
       }
    }
-#endif
 }
 
-}
+#endif // MFEM_USE_GNUTLS
+
+} // namespace mfem

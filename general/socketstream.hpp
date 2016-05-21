@@ -13,11 +13,11 @@
 #define MFEM_SOCKETSTREAM
 
 #include "../config/config.hpp"
+#include "../general/error.hpp"
 #include <iostream>
 
 #ifdef MFEM_USE_GNUTLS
 #include <gnutls/gnutls.h>
-#include <gnutls/openpgp.h>
 #endif
 
 namespace mfem
@@ -76,66 +76,6 @@ protected:
    virtual std::streamsize xsputn(const char_type *__s, std::streamsize __n);
 };
 
-
-class socketstream : public std::iostream
-{
-protected:
-   socketbuf *buf__;
-
-public:
-   socketstream() : buf__(new socketbuf) { std::iostream::rdbuf(buf__); }
-
-   socketstream(socketbuf *buf) : std::iostream(buf), buf__(buf) { }
-
-   explicit socketstream(int s)
-      : buf__(new socketbuf(s)) { std::iostream::rdbuf(buf__); }
-
-   socketstream(const char hostname[], int port)
-      : buf__(new socketbuf)
-   { std::iostream::rdbuf(buf__); open(hostname, port); }
-
-   socketbuf *rdbuf() { return buf__; }
-
-   int open(const char hostname[], int port)
-   {
-      int err = buf__->open(hostname, port);
-      if (err)
-      {
-         setstate(std::ios::failbit);
-      }
-      else
-      {
-         clear();
-      }
-      return err;
-   }
-
-   int close() { return buf__->close(); }
-
-   bool is_open() { return buf__->is_open(); }
-
-   virtual ~socketstream() { delete buf__; }
-};
-
-
-class socketserver
-{
-private:
-   int listen_socket;
-
-public:
-   explicit socketserver(int port);
-
-   bool good() { return (listen_socket >= 0); }
-
-   int close();
-
-   int accept();
-
-   int accept(socketstream &sockstr);
-
-   ~socketserver() { close(); }
-};
 
 #ifdef MFEM_USE_GNUTLS
 
@@ -253,51 +193,122 @@ protected:
    virtual std::streamsize xsputn(const char_type *__s, std::streamsize __n);
 };
 
-/// Secure socket stream, based on GnuTLS using OpenPGP/GnuPG keys.
-class GnuTLS_socketstream : public socketstream
-{
-public:
-   GnuTLS_socketstream(const GnuTLS_session_params &p)
-      : socketstream(new GnuTLS_socketbuf(p))
-   {
-      if (((GnuTLS_socketbuf*)buf__)->gnutls_good())
-      {
-         clear();
-      }
-      else
-      {
-         setstate(std::ios::failbit);
-      }
-   }
-};
-
 #endif // MFEM_USE_GNUTLS
 
-
-/// Socket stream connection to GLVis using connection type based on the MFEM
-/// build-time option MFEM_USE_GNUTLS. This class is a shortcut for connecting
-/// to GLVis regardless of the value of MFEM_USE_GNUTLS.
-class GLVis_socketstream : public
-#ifndef MFEM_USE_GNUTLS
-   socketstream
-#else
-   GnuTLS_socketstream
-#endif
+class socketstream : public std::iostream
 {
-#ifdef MFEM_USE_GNUTLS
 protected:
+   socketbuf *buf__;
+
+#ifdef MFEM_USE_GNUTLS
    static int num_glvis_sockets;
    static GnuTLS_global_state *state;
    static GnuTLS_session_params *params;
    static GnuTLS_session_params &add_socket();
+   static void remove_socket();
+   void set_secure_socket(const GnuTLS_session_params &p)
+   {
+      buf__ = new GnuTLS_socketbuf(p);
+      std::iostream::rdbuf(buf__);
+   }
+   void check_secure_socket()
+   {
+      if (((GnuTLS_socketbuf*)buf__)->gnutls_good()) { clear(); }
+      else { setstate(std::ios::failbit); }
+   }
+   void set_secure_glvis_socket() { set_secure_socket(add_socket()); }
+#else
+   void set_secure_glvis_socket()
+   { mfem_error("The secure option in class mfem::socketstream can only\n"
+                "be used when GnuTLS support is enabled."); }
+   void check_secure_socket() { }
 #endif
 
 public:
-   GLVis_socketstream();
-   GLVis_socketstream(const char hostname[], int port);
-   ~GLVis_socketstream();
+#ifdef MFEM_USE_GNUTLS
+   static const bool secure_default = true;
+#else
+   static const bool secure_default = false;
+#endif
+
+   /** @brief Create a socket stream without connecting to a host.
+
+       If 'secure' is true, (GnuTLS support must be enabled) then the connection
+       will use GLVis client session keys from ~/.config/glvis/client for GnuTLS
+       identification. If you want to use other GnuTLS session keys or
+       parameters, use the contructor from GnuTLS_session_params. */
+   socketstream(bool secure = secure_default)
+   {
+      if (secure) { set_secure_glvis_socket(); check_secure_socket(); }
+      else { buf__ = new socketbuf; std::iostream::rdbuf(buf__); }
+   }
+
+   /// Create a socket stream associated with the given socket buffer.
+   explicit socketstream(socketbuf *buf) : std::iostream(buf), buf__(buf) { }
+
+   /** @brief Create a socket stream and associate it with the given socket
+       descriptor 's'. The treatment of the 'secure' flag is similar to that in
+       the default constructor. */
+   explicit socketstream(int s, bool secure = secure_default)
+   {
+      if (secure)
+      { set_secure_glvis_socket(); buf__->attach(s); check_secure_socket(); }
+      else { buf__ = new socketbuf(s); std::iostream::rdbuf(buf__); }
+   }
+
+   /** @brief Create a socket stream and connect to the given host and port.
+       The treatment of the 'secure' flag is similar to that in the default
+       constructor. */
+   socketstream(const char hostname[], int port, bool secure = secure_default)
+   {
+      if (secure) { set_secure_glvis_socket(); }
+      else { buf__ = new socketbuf; std::iostream::rdbuf(buf__); }
+      open(hostname, port);
+   }
+
+#ifdef MFEM_USE_GNUTLS
+   /// Create a secure socket stream using the given GnuTLS_session_params.
+   explicit socketstream(const GnuTLS_session_params &p)
+   { set_secure_socket(p); check_secure_socket(); }
+#endif
+
+   socketbuf *rdbuf() { return buf__; }
+
+   int open(const char hostname[], int port)
+   {
+      int err = buf__->open(hostname, port);
+      if (err) { setstate(std::ios::failbit); }
+      else { clear(); }
+      return err;
+   }
+
+   int close() { return buf__->close(); }
+
+   bool is_open() { return buf__->is_open(); }
+
+   virtual ~socketstream() { delete buf__; }
 };
 
-}
+
+class socketserver
+{
+private:
+   int listen_socket;
+
+public:
+   explicit socketserver(int port);
+
+   bool good() { return (listen_socket >= 0); }
+
+   int close();
+
+   int accept();
+
+   int accept(socketstream &sockstr);
+
+   ~socketserver() { close(); }
+};
+
+} // namespace mfem
 
 #endif

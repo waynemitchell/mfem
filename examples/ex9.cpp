@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
       visit_dc.Save();
    }
 
-   GLVis_socketstream sout;
+   socketstream sout;
    if (visualization)
    {
       char vishost[] = "localhost";

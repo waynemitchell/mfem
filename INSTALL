@@ -180,9 +180,9 @@ MFEM_USE_SUITESPARSE = YES/NO
    this option uses the SUITESPARSE_* library options, see below.
 
 MFEM_USE_GNUTLS = YES/NO
-   Enable the secure socket classes GnuTLS_socketstream, GnuTLS_socketbuf, etc,
-   based on the GnuTLS library. When enabled, this option uses the GNUTLS_*
-   library options, see below.
+   Enable secure socket support in class socketstream, using the GnuTLS_*
+   classes, based on the GnuTLS library. When enabled, this option uses the
+   GNUTLS_* library options, see below.
 
 MFEM_USE_MEMALLOC = YES/NO
    Internal MFEM option: enable batch allocation for some small objects.
