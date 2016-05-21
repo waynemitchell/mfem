@@ -199,29 +199,17 @@ class socketstream : public std::iostream
 {
 protected:
    socketbuf *buf__;
+   bool glvis_client;
 
+   void set_socket(bool secure);
+   inline void check_secure_socket();
 #ifdef MFEM_USE_GNUTLS
    static int num_glvis_sockets;
    static GnuTLS_global_state *state;
    static GnuTLS_session_params *params;
    static GnuTLS_session_params &add_socket();
    static void remove_socket();
-   void set_secure_socket(const GnuTLS_session_params &p)
-   {
-      buf__ = new GnuTLS_socketbuf(p);
-      std::iostream::rdbuf(buf__);
-   }
-   void check_secure_socket()
-   {
-      if (((GnuTLS_socketbuf*)buf__)->gnutls_good()) { clear(); }
-      else { setstate(std::ios::failbit); }
-   }
-   void set_secure_glvis_socket() { set_secure_socket(add_socket()); }
-#else
-   void set_secure_glvis_socket()
-   { mfem_error("The secure option in class mfem::socketstream can only\n"
-                "be used when GnuTLS support is enabled."); }
-   void check_secure_socket() { }
+   inline void set_secure_socket(const GnuTLS_session_params &p);
 #endif
 
 public:
@@ -237,56 +225,38 @@ public:
        will use GLVis client session keys from ~/.config/glvis/client for GnuTLS
        identification. If you want to use other GnuTLS session keys or
        parameters, use the contructor from GnuTLS_session_params. */
-   socketstream(bool secure = secure_default)
-   {
-      if (secure) { set_secure_glvis_socket(); check_secure_socket(); }
-      else { buf__ = new socketbuf; std::iostream::rdbuf(buf__); }
-   }
+   socketstream(bool secure = secure_default);
 
-   /// Create a socket stream associated with the given socket buffer.
-   explicit socketstream(socketbuf *buf) : std::iostream(buf), buf__(buf) { }
+   /** @brief Create a socket stream associated with the given socket buffer.
+       The new object takes ownership of 'buf'. */
+   explicit socketstream(socketbuf *buf)
+      : std::iostream(buf), buf__(buf), glvis_client(false) { }
 
    /** @brief Create a socket stream and associate it with the given socket
        descriptor 's'. The treatment of the 'secure' flag is similar to that in
        the default constructor. */
-   explicit socketstream(int s, bool secure = secure_default)
-   {
-      if (secure)
-      { set_secure_glvis_socket(); buf__->attach(s); check_secure_socket(); }
-      else { buf__ = new socketbuf(s); std::iostream::rdbuf(buf__); }
-   }
+   explicit socketstream(int s, bool secure = secure_default);
 
    /** @brief Create a socket stream and connect to the given host and port.
        The treatment of the 'secure' flag is similar to that in the default
        constructor. */
    socketstream(const char hostname[], int port, bool secure = secure_default)
-   {
-      if (secure) { set_secure_glvis_socket(); }
-      else { buf__ = new socketbuf; std::iostream::rdbuf(buf__); }
-      open(hostname, port);
-   }
+   { set_socket(secure); open(hostname, port); }
 
 #ifdef MFEM_USE_GNUTLS
    /// Create a secure socket stream using the given GnuTLS_session_params.
-   explicit socketstream(const GnuTLS_session_params &p)
-   { set_secure_socket(p); check_secure_socket(); }
+   explicit socketstream(const GnuTLS_session_params &p);
 #endif
 
    socketbuf *rdbuf() { return buf__; }
 
-   int open(const char hostname[], int port)
-   {
-      int err = buf__->open(hostname, port);
-      if (err) { setstate(std::ios::failbit); }
-      else { clear(); }
-      return err;
-   }
+   int open(const char hostname[], int port);
 
    int close() { return buf__->close(); }
 
    bool is_open() { return buf__->is_open(); }
 
-   virtual ~socketstream() { delete buf__; }
+   virtual ~socketstream();
 };
 
 

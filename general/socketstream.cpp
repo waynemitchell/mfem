@@ -901,6 +901,81 @@ void socketstream::remove_socket()
    }
 }
 
+inline void socketstream::set_secure_socket(const GnuTLS_session_params &p)
+{
+   buf__ = new GnuTLS_socketbuf(p);
+   std::iostream::rdbuf(buf__);
+}
+
+socketstream::socketstream(const GnuTLS_session_params &p)
+   : glvis_client(false)
+{
+   set_secure_socket(p);
+   check_secure_socket();
+}
+
 #endif // MFEM_USE_GNUTLS
+
+void socketstream::set_socket(bool secure)
+{
+   glvis_client = secure;
+   if (secure)
+   {
+#ifdef MFEM_USE_GNUTLS
+      set_secure_socket(add_socket());
+#else
+      mfem_error("The secure option in class mfem::socketstream can only\n"
+                 "be used when GnuTLS support is enabled.");
+#endif
+   }
+   else
+   {
+      buf__ = new socketbuf;
+      std::iostream::rdbuf(buf__);
+   }
+}
+
+inline void socketstream::check_secure_socket()
+{
+#ifdef MFEM_USE_GNUTLS
+   if (((GnuTLS_socketbuf*)buf__)->gnutls_good()) { clear(); }
+   else { setstate(std::ios::failbit); }
+#endif
+}
+
+socketstream::socketstream(bool secure)
+{
+   set_socket(secure);
+   if (secure) { check_secure_socket(); }
+}
+
+socketstream::socketstream(int s, bool secure)
+{
+   set_socket(secure);
+   buf__->attach(s);
+   if (secure) { check_secure_socket(); }
+}
+
+int socketstream::open(const char hostname[], int port)
+{
+   int err = buf__->open(hostname, port);
+   if (err)
+   {
+      setstate(std::ios::failbit);
+   }
+   else
+   {
+      clear();
+   }
+   return err;
+}
+
+socketstream::~socketstream()
+{
+#ifdef MFEM_USE_GNUTLS
+   if (glvis_client) { remove_socket(); }
+#endif
+   delete buf__;
+}
 
 } // namespace mfem
