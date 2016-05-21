@@ -32,6 +32,20 @@
 
 using namespace std;
 
+// Connects v to mfem_v.
+static void ConnectNVector(mfem::Vector &mfem_v, N_Vector &v)
+{
+#ifndef MFEM_USE_MPI
+   v = N_VMake_Serial(mfem_v.Size(),
+                      static_cast<realtype *>(mfem_v.GetData()));
+   MFEM_ASSERT(static_cast<void *>(v) != NULL, "N_VMake_Serial() failed!");
+#else
+   mfem::HypreParVector *hv = dynamic_cast<mfem::HypreParVector *>(&mfem_v);
+   MFEM_VERIFY(hv != NULL, "Could not cast to HypreParVector!");
+   v = N_VMake_ParHyp(hv->StealParVector());
+#endif
+}
+
 static int SundialsMult(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
    // Creates mfem Vectors linked to the data in y and in ydot.
@@ -53,6 +67,7 @@ static int SundialsMult(realtype t, N_Vector y, N_Vector ydot, void *user_data)
    return 0;
 }
 
+// Computes the non-linear operator action F(u).
 static int KinSolMult(N_Vector u, N_Vector fu, void *user_data)
 {
    // Creates mfem Vectors linked to the data in y and in ydot.
@@ -71,18 +86,29 @@ static int KinSolMult(N_Vector u, N_Vector fu, void *user_data)
    return 0;
 }
 
-// Connects v to mfem_v.
-static void ConnectNVector(mfem::Vector &mfem_v, N_Vector &v)
+// Computes J(u)v.
+// Here new_u tells you whether u has been updated since the
+// last call to KinSolJacAction.
+static int KinSolJacAction(N_Vector v, N_Vector Jv, N_Vector u,
+                           booleantype *new_u, void *user_data)
 {
 #ifndef MFEM_USE_MPI
-   v = N_VMake_Serial(mfem_v.Size(),
-                      static_cast<realtype *>(mfem_v.GetData()));
-   MFEM_ASSERT(static_cast<void *>(v) != NULL, "N_VMake_Serial() failed!");
+   mfem::Vector mfem_u(NV_DATA_S(u), NV_LENGTH_S(u));
+   mfem::Vector mfem_v(NV_DATA_S(v), NV_LENGTH_S(v));
+   mfem::Vector mfem_Jv(NV_DATA_S(Jv), NV_LENGTH_S(Jv));
 #else
-   mfem::HypreParVector *hv = dynamic_cast<mfem::HypreParVector *>(&mfem_v);
-   MFEM_VERIFY(hv != NULL, "Could not cast to HypreParVector!");
-   v = N_VMake_ParHyp(hv->StealParVector());
+   mfem::HypreParVector mfem_u =
+      static_cast<mfem::HypreParVector>(N_VGetVector_ParHyp(u));
+   mfem::HypreParVector mfem_v =
+      static_cast<mfem::HypreParVector>(N_VGetVector_ParHyp(v));
+   mfem::HypreParVector mfem_Jv =
+      static_cast<mfem::HypreParVector>(N_VGetVector_ParHyp(Jv));
 #endif
+
+   mfem::Operator &J =
+         static_cast<mfem::Operator *>(user_data)->GetGradient(mfem_u);
+   J.Mult(mfem_v, mfem_Jv);
+   return 0;
 }
 
 /// Linear solve associated with CVodeMem structs.
@@ -410,13 +436,11 @@ KinSolWrapper::KinSolWrapper(Operator &oper, Vector &mfem_u)
    // Set void pointer to user data.
    KINSetUserData(kin_mem, static_cast<void *>(&oper));
 
-   // Set dense linear solver.
-//   KINDense(kin_mem, N);
    // Set scaled preconditioned GMRES linear solver.
    KINSpgmr(kin_mem, 0);
 
-   // set a Jacobian function
-//   KINDlsSetDenseJacFn(kin_mem, KinSolWrapperJacobian);
+   // Define the Jacobian action.
+   KINSpilsSetJacTimesVecFn(kin_mem, KinSolJacAction);
 }
 
 void KinSolWrapper::setPrintLevel(int level)
