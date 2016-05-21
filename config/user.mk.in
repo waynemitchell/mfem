@@ -55,6 +55,9 @@ endif
 OPENMP_OPT = -fopenmp
 OPENMP_LIB =
 
+# Used when MFEM_TIMER_TYPE = 2
+POSIX_CLOCKS_LIB = -lrt
+
 MESQUITE_DIR = @MFEM_DIR@/../mesquite-2.99
 MESQUITE_OPT = -I$(MESQUITE_DIR)/include
 MESQUITE_LIB = -L$(MESQUITE_DIR)/lib -lmesquite
@@ -76,8 +79,6 @@ GECKO_LIB = -L$(GECKO_DIR)/lib -lgecko
 GNUTLS_OPT =
 GNUTLS_LIB = -lgnutls
 
-POSIX_CLOCKS_LIB = -lrt
-
 # YES/NO MFEM options exported to config.mk and config.hpp.
 # The values here are defaults for generating the actual values in config.mk
 # and config.hpp.
@@ -87,15 +88,12 @@ MFEM_DEBUG           = NO
 MFEM_USE_LAPACK      = NO
 MFEM_THREAD_SAFE     = NO
 MFEM_USE_OPENMP      = NO
+MFEM_USE_MEMALLOC    = YES
+MFEM_TIMER_TYPE      = $(if $(findstring Darwin,$(SYSNAME)),0,2)
 MFEM_USE_MESQUITE    = NO
 MFEM_USE_SUITESPARSE = NO
 MFEM_USE_GECKO       = NO
 MFEM_USE_GNUTLS      = NO
-MFEM_USE_MEMALLOC    = YES
-MFEM_TIMER_TYPE      = 2
-ifeq ($(SYSNAME),Darwin)
-   MFEM_TIMER_TYPE = 0
-endif
 
 # If YES, enable some informational messages
 VERBOSE = NO
