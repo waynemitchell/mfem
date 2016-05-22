@@ -880,7 +880,10 @@ GnuTLS_session_params &socketstream::add_socket()
          std::cout << "  public key   = " << pubkey << '\n'
                    << "  private key  = " << privkey << '\n'
                    << "  trusted keys = " << trustedkeys << std::endl;
-         std::cout << "Error setting GLVis client parameters." << std::endl;
+         std::cout << "Error setting GLVis client parameters.\n"
+                   "Use the following GLVis script to create your GLVis keys:\n"
+                   "   bash glvis-keygen.sh [\"Your Name\"] [\"Your Email\"]"
+                   << std::endl;
       }
    }
    num_glvis_sockets++;
