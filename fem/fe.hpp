@@ -16,13 +16,24 @@
 #include "../general/array.hpp"
 #include "../linalg/linalg.hpp"
 #include "intrules.hpp"
-#include "quadraturefunc.hpp"
 #include "geom.hpp"
 
 namespace mfem
 {
 
 // Base and derived classes for finite elements
+
+/// Codifying all possible Basis types
+/// in a single location to enforce uniformity amongst the different FE
+class AllBasisType{
+public:
+    enum { GaussLegendre = 0,
+           GaussLobatto = 1,
+           Positive = 2,
+           ClosedEquallySpaced = 3,
+           OpenEquallySpaced = 4
+    };
+};
 
 /// Describes the space on each element
 class FunctionSpace
@@ -1255,15 +1266,15 @@ public:
    static const int *Binom(const int p);
 
    const double *OpenPoints(const int p, const int type =
-           (int) NumericalQuad1D::GaussLegendre);
+           NumericalQuad1D::GaussLegendre);
    const double *ClosedPoints(const int p, const int type =
-           (int) NumericalQuad1D::GaussLobatto);
+            NumericalQuad1D::GaussLobatto);
 
-   Basis &OpenBasis(const int p, const int type =
-                                       (int) NumericalQuad1D::GaussLegendre);
+   Basis &OpenBasis(const int p,
+           const int type = AllBasisType::GaussLegendre);
 
-   Basis &ClosedBasis(const int p, const int type =
-           (int) NumericalQuad1D::GaussLobatto);
+   Basis &ClosedBasis(const int p,
+           const int type = AllBasisType::GaussLobatto);
 
    // Evaluate the values of a hierarchical 1D basis at point x
    // hierarchical = k-th basis function is degree k polynomial
@@ -1286,8 +1297,6 @@ public:
    static double CalcDelta(const int p, const double x)
    { return pow(x, (double) p); }
 
-   static void ClosedUniformPoints(const int p, double *x);
-   static void OpenUniformPoints(const int p, double *x);
    static void UniformPoints(const int p, double *x);
    static void GaussPoints(const int p, double *x);
    static void GaussLobattoPoints(const int p, double *x);
@@ -1325,7 +1334,8 @@ private:
    Array<int> dof_map;
 
 public:
-   H1_SegmentElement(const int p);
+   H1_SegmentElement(const int p,
+           const int type = AllBasisType::GaussLobatto);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1344,7 +1354,8 @@ private:
    Array<int> dof_map;
 
 public:
-   H1_QuadrilateralElement(const int p);
+   H1_QuadrilateralElement(const int p,
+           const int type = AllBasisType::GaussLobatto);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1363,7 +1374,8 @@ private:
    Array<int> dof_map;
 
 public:
-   H1_HexahedronElement(const int p);
+   H1_HexahedronElement(const int p,
+           const int type = AllBasisType::GaussLobatto);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1529,7 +1541,7 @@ private:
 #endif
 
 public:
-   L2_SegmentElement(const int p, const int _type = 0); // Default to GaussLegendre
+   L2_SegmentElement(const int p, const int _type = AllBasisType::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1563,7 +1575,8 @@ private:
 #endif
 
 public:
-   L2_QuadrilateralElement(const int p, const int _type = 0);
+   L2_QuadrilateralElement(const int p,
+           const int _type = AllBasisType::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1601,7 +1614,8 @@ private:
 #endif
 
 public:
-   L2_HexahedronElement(const int p, const int _type = 0);
+   L2_HexahedronElement(const int p,
+           const int _type = AllBasisType::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;

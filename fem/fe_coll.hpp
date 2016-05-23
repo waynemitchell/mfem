@@ -19,6 +19,9 @@
 namespace mfem
 {
 
+
+
+
 /** Collection of finite elements from the same family in multiple dimensions.
     This class is used to match the degrees of freedom of a FiniteElementSpace
     between elements, and to provide the finite element restriction from an
@@ -53,15 +56,8 @@ public:
 /// Arbitrary order H1-conforming (continuous) finite elements.
 class H1_FECollection : public FiniteElementCollection
 {
-public:
-   enum BasisType
-   {
-      GaussLobatto = 0, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive     = 1  // Positive basis, Bernstein polynomials
-   };
-
 protected:
-   BasisType m_type;
+   int m_type;
    char h1_name[32];
    FiniteElement *H1_Elements[Geometry::NumGeom];
    int H1_dof[Geometry::NumGeom];
@@ -69,7 +65,7 @@ protected:
 
 public:
    explicit H1_FECollection(const int p, const int dim = 3,
-                            const int type = GaussLobatto);
+                            const int type = AllBasisType::GaussLobatto);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return H1_Elements[GeomType]; }
@@ -79,7 +75,7 @@ public:
    virtual const char *Name() const { return h1_name; }
    FiniteElementCollection *GetTraceCollection() const;
 
-   BasisType GetBasisType() const { return m_type; }
+   int GetBasisType() const { return m_type; }
 
    virtual ~H1_FECollection();
 };
@@ -90,7 +86,7 @@ class H1Pos_FECollection : public H1_FECollection
 {
 public:
    explicit H1Pos_FECollection(const int p, const int dim = 3)
-      : H1_FECollection(p, dim, Positive) { }
+      : H1_FECollection(p, dim, AllBasisType::Positive) { }
 };
 
 /** Arbitrary order "H^{1/2}-conforming" trace finite elements defined on the
@@ -100,24 +96,14 @@ class H1_Trace_FECollection : public H1_FECollection
 {
 public:
    H1_Trace_FECollection(const int p, const int dim,
-                         const int type = GaussLobatto);
+                         const int type = AllBasisType::GaussLobatto);
 };
 
 /// Arbitrary order "L2-conforming" discontinuous finite elements.
 class L2_FECollection : public FiniteElementCollection
 {
-public:
-   enum BasisType
-   {
-      GaussLegendre = 0, // Nodal basis, with nodes at the Gauss-Legendre points
-      GaussLobatto  = 1, // Nodal basis, with nodes at the Gauss-Lobatto points
-      Positive      = 2, // Positive basis, Bernstein polynomials
-      ClosedEqual   = 3, // Nodal basis, equally spaced points, point at 0 and 1
-      OpenEqual     = 4  // Nodal basis, equally spaced points, no points at 0 and 1
-   };
-
 private:
-   BasisType m_type;
+   int m_type;
    char d_name[32];
    FiniteElement *L2_Elements[Geometry::NumGeom];
    FiniteElement *Tr_Elements[Geometry::NumGeom];
@@ -125,7 +111,8 @@ private:
    int *TriDofOrd[6]; // for rotating triangle dofs in 2D
 
 public:
-   L2_FECollection(const int p, const int dim, const int type = GaussLegendre);
+   L2_FECollection(const int p, const int dim,
+           const int type = AllBasisType::GaussLegendre);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return L2_Elements[GeomType]; }
@@ -146,7 +133,7 @@ public:
       return Tr_Elements[GeomType];
    }
 
-   BasisType GetBasisType() const { return m_type; }
+   int GetBasisType() const { return m_type; }
 
    virtual ~L2_FECollection();
 };

@@ -74,60 +74,6 @@ IntegrationRule::IntegrationRule(IntegrationRule &irx, IntegrationRule &iry,
    }
 }
 
-void IntegrationRule::GaussianRule()
-{
-   int n = Size();
-   int m = (n+1)/2;
-   int i, j;
-   double p1, p2, p3;
-   double pp, z;
-   for (i = 1; i <= m; i++)
-   {
-      z = cos(M_PI * (i - 0.25) / (n + 0.5));
-
-      while (1)
-      {
-         p1 = 1;
-         p2 = 0;
-         for (j = 1; j <= n; j++)
-         {
-            p3 = p2;
-            p2 = p1;
-            p1 = ((2 * j - 1) * z * p2 - (j - 1) * p3) / j;
-         }
-         // p1 is Legendre polynomial
-
-         pp = n * (z*p1-p2) / (z*z - 1);
-
-         if (fabs(p1/pp) < 2e-16) { break; }
-
-         z = z - p1/pp;
-      }
-
-      z = ((1 - z) + p1/pp)/2;
-
-      IntPoint(i-1).x  = z;
-      IntPoint(n-i).x  = 1 - z;
-      IntPoint(i-1).weight =
-         IntPoint(n-i).weight = 1./(4*z*(1 - z)*pp*pp);
-   }
-}
-
-void IntegrationRule::UniformRule()
-{
-   int i;
-   double h;
-
-   h = 1.0 / (Size() - 1);
-   for (i = 0; i < Size(); i++)
-   {
-      IntPoint(i).x = double(i) / (Size() - 1);
-      IntPoint(i).weight = h;
-   }
-   IntPoint(0).weight = 0.5 * h;
-   IntPoint(Size()-1).weight = 0.5 * h;
-}
-
 void IntegrationRule::GrundmannMollerSimplexRule(int s, int n)
 {
    // for pow on older compilers
@@ -411,9 +357,8 @@ void QuadratureFunctions1D::ClosedEquallySpaced(const int np,
 void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts , const int type)
 {
     IntegrationRule ir(np);
-    NumericalQuad1D quadType = NumericalQuad1D(type);
 
-    switch(quadType)
+    switch(type)
     {
         case NumericalQuad1D::GaussLegendre:
         {
@@ -827,13 +772,15 @@ void QuadratureFunctions1D::NewtonPolynomialNewtonCotesWeights(
    return;
 }
 
-IntegrationRules IntRules(0);
+IntegrationRules IntRules(0, NumericalQuad1D::GaussLegendre);
 
-IntegrationRules RefinedIntRules(1);
+IntegrationRules RefinedIntRules(1, NumericalQuad1D::GaussLegendre);
 
-IntegrationRules::IntegrationRules(int Ref)
+IntegrationRules::IntegrationRules(int Ref, int _type):
+        quad_type(_type)
 {
    refined = Ref;
+
    if (refined < 0) { own_rules = 0; return; }
 
    own_rules = 1;
@@ -859,8 +806,7 @@ IntegrationRules::IntegrationRules(int Ref)
    CubeIntRules = NULL;
 }
 
-const IntegrationRule &IntegrationRules::Get(int GeomType, int Order, 
-                                              NumericalQuad1D type)
+const IntegrationRule &IntegrationRules::Get(int GeomType, int Order)
 {
    Array<IntegrationRule *> *ir_array;
 
@@ -884,7 +830,7 @@ const IntegrationRule &IntegrationRules::Get(int GeomType, int Order,
 
    if (!HaveIntRule(*ir_array, Order))
    {
-      GenerateIntegrationRule(GeomType, Order, type);
+      GenerateIntegrationRule(GeomType, Order);
    }
 
    return *(*ir_array)[Order];
@@ -948,23 +894,22 @@ IntegrationRules::~IntegrationRules()
 
 
 IntegrationRule *IntegrationRules::GenerateIntegrationRule(int GeomType,
-                                                           int Order,
-                                                           NumericalQuad1D type)
+                                                           int Order)
 {
    switch (GeomType)
    {
       case Geometry::POINT:
          return PointIntegrationRule(Order);
       case Geometry::SEGMENT:
-         return SegmentIntegrationRule(Order,type);
+         return SegmentIntegrationRule(Order);
       case Geometry::TRIANGLE:
          return TriangleIntegrationRule(Order);
       case Geometry::SQUARE:
-         return SquareIntegrationRule(Order,type);
+         return SquareIntegrationRule(Order);
       case Geometry::TETRAHEDRON:
          return TetrahedronIntegrationRule(Order);
       case Geometry::CUBE:
-         return CubeIntegrationRule(Order,type);
+         return CubeIntegrationRule(Order);
       default:
          mfem_error("IntegrationRules::Set(...) : Unknown geometry type!");
          return NULL;
@@ -991,8 +936,7 @@ IntegrationRule *IntegrationRules::PointIntegrationRule(int Order)
 }
 
 // Integration rules for line segment [0,1]
-IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order, 
-                                              NumericalQuad1D type)
+IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
 {
    AllocIntRule(SegmentIntRules, Order);
 
@@ -1002,7 +946,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order,
       /// degree Order polynomial
       int n;
       IntegrationRule tmp;
-      switch (type)
+      switch (quad_type)
       {
            case NumericalQuad1D::GaussLegendre:
            {
@@ -1048,7 +992,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order,
       return ir;
    }
 
-   switch (type)
+   switch (quad_type)
    {
       case NumericalQuad1D::GaussLegendre:  
       {
@@ -1454,20 +1398,16 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
 }
 
 // Integration rules for unit square
-IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order, 
-                                              NumericalQuad1D type)
+IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order)
 {
-   int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
-
    if (!HaveIntRule(SegmentIntRules, Order))
    {
-      SegmentIntegrationRule(Order,type);
+      SegmentIntegrationRule(Order);
    }
-   AllocIntRule(SquareIntRules, i);
-   SquareIntRules[i-1] =
-      SquareIntRules[i] =
-         new IntegrationRule(*SegmentIntRules[i], *SegmentIntRules[i]);
-   return SquareIntRules[i];
+   AllocIntRule(SquareIntRules, Order);
+   SquareIntRules[Order] =
+         new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order]);
+   return SquareIntRules[Order];
 }
 
 /** Integration rules for reference tetrahedron
@@ -1570,12 +1510,11 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
 }
 
 // Integration rules for reference cube
-IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order, 
-                                              NumericalQuad1D type)
+IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order)
 {
    if (!HaveIntRule(SegmentIntRules, Order))
    {
-      SegmentIntegrationRule(Order,type);
+      SegmentIntegrationRule(Order);
    }
    AllocIntRule(CubeIntRules, Order);
    CubeIntRules[Order] =

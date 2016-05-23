@@ -18,16 +18,6 @@
 namespace mfem
 {
 
-
-
-enum class NumericalQuad1D : int
-{
-   GaussLegendre = 0,
-   GaussLobatto = 1,
-   OpenEquallySpaced = 2,
-   ClosedEquallySpaced = 3
-};
-
 /* Classes for IntegrationPoint, IntegrationRule, and container class
    IntegrationRules.  Declares the global variable IntRules */
 
@@ -94,12 +84,6 @@ class IntegrationRule : public Array<IntegrationPoint>
 {
 private:
    friend class IntegrationRules;
-
-   /// Computes Gaussian integration rule on (0,1) with NPoints
-   void GaussianRule();
-
-   /// Defines composite trapezoidal integration rule on [0,1]
-   void UniformRule();
 
    /// Define n-simplex rule (triangle/tetrahedron for n=2/3) of order (2s+1)
    void GrundmannMollerSimplexRule(int s, int n = 3);
@@ -269,12 +253,30 @@ private:
                                            const bool is_open);
 };
 
+class NumericalQuad1D
+{
+public:
+    enum {
+       InvalidQuad = -1,
+       GaussLegendre = 0,
+       GaussLobatto = 1,
+       OpenEquallySpaced = 2,
+       ClosedEquallySpaced = 3
+    };
+};
+
 /// Container class for integration rules
 class IntegrationRules
 {
 private:
+    /// Taken from the NumericalQuad1D class anonymous enum
+    /// Determines the type of numerical quadrature used for
+    /// segment, square, and cube geometries
+   const int quad_type;
+
    int own_rules, refined;
 
+   /// Function that generates quadrature points and weights on [0,1]
    QuadratureFunctions1D quad_func;
 
    Array<IntegrationRule *> PointIntRules;
@@ -296,28 +298,24 @@ private:
       return (ir_array.Size() > Order && ir_array[Order] != NULL);
    }
 
-   IntegrationRule *GenerateIntegrationRule(int GeomType, int Order, 
-                                              NumericalQuad1D type);
+   IntegrationRule *GenerateIntegrationRule(int GeomType, int Order);
    IntegrationRule *PointIntegrationRule(int Order);
-   IntegrationRule *SegmentIntegrationRule(int Order, 
-                                              NumericalQuad1D type);
+   IntegrationRule *SegmentIntegrationRule(int Order);
    IntegrationRule *TriangleIntegrationRule(int Order);
-   IntegrationRule *SquareIntegrationRule(int Order, 
-                                              NumericalQuad1D type);
+   IntegrationRule *SquareIntegrationRule(int Order);
    IntegrationRule *TetrahedronIntegrationRule(int Order);
-   IntegrationRule *CubeIntegrationRule(int Order, 
-                                              NumericalQuad1D type);
+   IntegrationRule *CubeIntegrationRule(int Order);
 
    void DeleteIntRuleArray(Array<IntegrationRule *> &ir_array);
 
 public:
    /// Sets initial sizes for the integration rule arrays, but rules
    /// are defined the first time they are requested with the Get method.
-   explicit IntegrationRules(int Ref = 0);
+   explicit IntegrationRules(int Ref = 0,
+           int type = NumericalQuad1D::GaussLegendre);
 
    /// Returns an integration rule for given GeomType and Order.
-   const IntegrationRule &Get(int GeomType, int Order, 
-         NumericalQuad1D type = NumericalQuad1D::GaussLegendre);
+   const IntegrationRule &Get(int GeomType, int Order);
 
    void Set(int GeomType, int Order, IntegrationRule &IntRule);
 
