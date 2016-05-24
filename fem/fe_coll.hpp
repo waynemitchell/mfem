@@ -56,6 +56,11 @@ public:
 /// Arbitrary order H1-conforming (continuous) finite elements.
 class H1_FECollection : public FiniteElementCollection
 {
+public:
+     enum BasisType { GaussLobatto  = 0 ,
+                      Positive = 1,
+                      NewCapability = -1
+    };
 protected:
    int m_type;
    char h1_name[32];
@@ -65,7 +70,7 @@ protected:
 
 public:
    explicit H1_FECollection(const int p, const int dim = 3,
-                            const int type = AllBasisType::GaussLobatto);
+                            const int type = 0);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return H1_Elements[GeomType]; }
@@ -75,7 +80,7 @@ public:
    virtual const char *Name() const { return h1_name; }
    FiniteElementCollection *GetTraceCollection() const;
 
-   int GetBasisType() const { return m_type; }
+   BasisType GetBasisType() const;
 
    virtual ~H1_FECollection();
 };
@@ -86,7 +91,7 @@ class H1Pos_FECollection : public H1_FECollection
 {
 public:
    explicit H1Pos_FECollection(const int p, const int dim = 3)
-      : H1_FECollection(p, dim, AllBasisType::Positive) { }
+      : H1_FECollection(p, dim, 1) { }
 };
 
 /** Arbitrary order "H^{1/2}-conforming" trace finite elements defined on the
@@ -96,12 +101,19 @@ class H1_Trace_FECollection : public H1_FECollection
 {
 public:
    H1_Trace_FECollection(const int p, const int dim,
-                         const int type = AllBasisType::GaussLobatto);
+                         const int type = 0);
 };
 
 /// Arbitrary order "L2-conforming" discontinuous finite elements.
 class L2_FECollection : public FiniteElementCollection
 {
+public:
+     enum BasisType {   GaussLegendre = 0,
+                        GaussLobatto  = 1 ,
+                        Positive = 2,
+                        NewCapability = -1
+    };
+
 private:
    int m_type;
    char d_name[32];
@@ -112,7 +124,7 @@ private:
 
 public:
    L2_FECollection(const int p, const int dim,
-           const int type = AllBasisType::GaussLegendre);
+                   const int type = 0);
 
    virtual const FiniteElement *FiniteElementForGeometry(int GeomType) const
    { return L2_Elements[GeomType]; }
@@ -133,7 +145,7 @@ public:
       return Tr_Elements[GeomType];
    }
 
-   int GetBasisType() const { return m_type; }
+   L2_FECollection::BasisType GetBasisType() const;
 
    virtual ~L2_FECollection();
 };

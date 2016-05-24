@@ -256,22 +256,23 @@ private:
 class NumericalQuad1D
 {
 public:
-    enum {
-       InvalidQuad = -1,
-       GaussLegendre = 0,
-       GaussLobatto = 1,
-       OpenEquallySpaced = 2,
-       ClosedEquallySpaced = 3
-    };
+   enum
+   {
+      InvalidQuad = -1,
+      GaussLegendre = 0,
+      GaussLobatto = 1,
+      OpenEquallySpaced = 2,
+      ClosedEquallySpaced = 3
+   };
 };
 
 /// Container class for integration rules
 class IntegrationRules
 {
 private:
-    /// Taken from the NumericalQuad1D class anonymous enum
-    /// Determines the type of numerical quadrature used for
-    /// segment, square, and cube geometries
+   /// Taken from the NumericalQuad1D class anonymous enum
+   /// Determines the type of numerical quadrature used for
+   /// segment, square, and cube geometries
    const int quad_type;
 
    int own_rules, refined;
@@ -312,7 +313,7 @@ public:
    /// Sets initial sizes for the integration rule arrays, but rules
    /// are defined the first time they are requested with the Get method.
    explicit IntegrationRules(int Ref = 0,
-           int type = NumericalQuad1D::GaussLegendre);
+                             int type = NumericalQuad1D::GaussLegendre);
 
    /// Returns an integration rule for given GeomType and Order.
    const IntegrationRule &Get(int GeomType, int Order);

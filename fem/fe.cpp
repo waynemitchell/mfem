@@ -6506,15 +6506,15 @@ const double *Poly_1D::OpenPoints(const int p, const int type)
          open_pts[i] = NULL;
       }
    }
-   if( open_pts[p] != NULL)
+   if ( open_pts[p] != NULL)
    {
       return open_pts[p];
    }
    else
    {
-       open_pts[p] = new double[p + 1];
-       quad_func.GivePolyPoints(p+1, open_pts[p], type);
-       return open_pts[p];
+      open_pts[p] = new double[p + 1];
+      quad_func.GivePolyPoints(p+1, open_pts[p], type);
+      return open_pts[p];
    }
 }
 
@@ -6535,9 +6535,9 @@ const double *Poly_1D::ClosedPoints(const int p, const int type)
    }
    else
    {
-       closed_pts[p] = new double[p + 1];
-       quad_func.GivePolyPoints(p+1, closed_pts[p], type);
-       return closed_pts[p];
+      closed_pts[p] = new double[p + 1];
+      quad_func.GivePolyPoints(p+1, closed_pts[p], type);
+      return closed_pts[p];
    }
 }
 
@@ -6552,26 +6552,30 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
          open_basis[i] = NULL;
       }
    }
-   if(open_basis[p] != NULL)
+   if (open_basis[p] != NULL)
    {
       return *open_basis[p];
    }
    else
    {
-       /// Convert from AllBasisType integer to
+      /// Convert from AllBasisType integer to
       /// a NumericalQuad1D type integer
       int quad_type = NumericalQuad1D::InvalidQuad; // set to cause an error
-      if(type == AllBasisType::GaussLegendre)
-          quad_type = NumericalQuad1D::GaussLegendre;
-      else if( type == AllBasisType::OpenEquallySpaced)
-          quad_type = NumericalQuad1D::OpenEquallySpaced;
+      if (type == AllBasisType::GaussLegendre)
+      {
+         quad_type = NumericalQuad1D::GaussLegendre;
+      }
+      else if ( type == AllBasisType::OpenEquallySpaced)
+      {
+         quad_type = NumericalQuad1D::OpenEquallySpaced;
+      }
 
       MFEM_VERIFY( (quad_type != NumericalQuad1D::InvalidQuad) ,
-          "Could not convert basis type integer to a valid quadrature type integer ");
+                   "Could not convert basis type integer to a valid quadrature type integer ");
 
-       const double *op = OpenPoints(p , quad_type);
-       open_basis[p] = new Basis(p,op);
-       return *open_basis[p];
+      const double *op = OpenPoints(p , quad_type);
+      open_basis[p] = new Basis(p,op);
+      return *open_basis[p];
    }
 }
 
@@ -6592,20 +6596,24 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
    }
    else
    {
-       /// Convert from AllBasisType integer to
-       /// a NumericalQuad1D type integer
-       int quad_type = NumericalQuad1D::InvalidQuad; // set to cause an error
-       if(type == AllBasisType::GaussLobatto)
-           quad_type = NumericalQuad1D::GaussLobatto;
-       else if( type == AllBasisType::ClosedEquallySpaced)
-           quad_type = NumericalQuad1D::ClosedEquallySpaced;
+      /// Convert from AllBasisType integer to
+      /// a NumericalQuad1D type integer
+      int quad_type = NumericalQuad1D::InvalidQuad; // set to cause an error
+      if (type == AllBasisType::GaussLobatto)
+      {
+         quad_type = NumericalQuad1D::GaussLobatto;
+      }
+      else if ( type == AllBasisType::ClosedEquallySpaced)
+      {
+         quad_type = NumericalQuad1D::ClosedEquallySpaced;
+      }
 
-       MFEM_VERIFY( (quad_type != NumericalQuad1D::InvalidQuad) ,
-           "Could not convert basis type integer to a valid quadrature type integer ");
+      MFEM_VERIFY( (quad_type != NumericalQuad1D::InvalidQuad) ,
+                   "Could not convert basis type integer to a valid quadrature type integer ");
 
-       const double *cp = ClosedPoints(p, quad_type);
-       closed_basis[p] =  new Basis(p, cp);
-       return *closed_basis[p];
+      const double *cp = ClosedPoints(p, quad_type);
+      closed_basis[p] =  new Basis(p, cp);
+      return *closed_basis[p];
    }
 }
 
@@ -6640,11 +6648,11 @@ H1_SegmentElement::H1_SegmentElement(const int p, const int type)
      dof_map(Dof)
 {
    MFEM_VERIFY( (type != AllBasisType::GaussLegendre) &&
-               (type != AllBasisType::OpenEquallySpaced) ,
-               "Trying to form an H1_Segment_Element using open type basis points");
+                (type != AllBasisType::OpenEquallySpaced) ,
+                "Trying to form an H1_Segment_Element using open type basis points");
 
    MFEM_VERIFY( (type != AllBasisType::Positive) ,
-           "Tring to form an H1 Segment element with a positive type");
+                "Tring to form an H1 Segment element with a positive type");
 
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -6735,12 +6743,12 @@ H1_QuadrilateralElement::H1_QuadrilateralElement(const int p, const int type)
                         FunctionSpace::Qk),
      basis1d(poly1d.ClosedBasis(p,type)), dof_map((p + 1)*(p + 1))
 {
-    MFEM_VERIFY( (type != AllBasisType::GaussLegendre) &&
-                   (type != AllBasisType::OpenEquallySpaced) ,
-                   "Trying to form an H1_Quadrilateral_Element using open type basis points");
+   MFEM_VERIFY( (type != AllBasisType::GaussLegendre) &&
+                (type != AllBasisType::OpenEquallySpaced) ,
+                "Trying to form an H1_Quadrilateral_Element using open type basis points");
 
-    MFEM_VERIFY( (type != AllBasisType::Positive) ,
-                       "Trying to form an H1_Quadrilateral_Element using a positive type");
+   MFEM_VERIFY( (type != AllBasisType::Positive) ,
+                "Trying to form an H1_Quadrilateral_Element using a positive type");
 
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -6886,12 +6894,12 @@ H1_HexahedronElement::H1_HexahedronElement(const int p, const int type)
                         FunctionSpace::Qk),
      basis1d(poly1d.ClosedBasis(p,type)), dof_map((p + 1)*(p + 1)*(p + 1))
 {
-    MFEM_VERIFY( (type != AllBasisType::GaussLegendre) &&
-                   (type != AllBasisType::OpenEquallySpaced) ,
-                   "Trying to form an H1_Hexahedron_Element using open type basis points");
+   MFEM_VERIFY( (type != AllBasisType::GaussLegendre) &&
+                (type != AllBasisType::OpenEquallySpaced) ,
+                "Trying to form an H1_Hexahedron_Element using open type basis points");
 
    MFEM_VERIFY( (type!=AllBasisType::Positive) ,
-           "Trying to form an H1_Hex element with a positive basis");
+                "Trying to form an H1_Hex element with a positive basis");
 
    const double *cp = poly1d.ClosedPoints(p);
 
@@ -8201,8 +8209,8 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
          basis1d = &poly1d.ClosedBasis(p);
          op = poly1d.ClosedPoints(p);
          break;
-       // Closed Points
-      case 1: case 3: 
+      // Closed Points
+      case 1: case 3:
          basis1d = &poly1d.ClosedBasis(p);
          op = poly1d.ClosedPoints(p);
          break;

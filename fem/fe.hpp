@@ -25,14 +25,15 @@ namespace mfem
 
 /// Codifying all possible Basis types
 /// in a single location to enforce uniformity amongst the different FE
-class AllBasisType{
+class AllBasisType
+{
 public:
-    enum { GaussLegendre = 0,
-           GaussLobatto = 1,
-           Positive = 2,
-           ClosedEquallySpaced = 3,
-           OpenEquallySpaced = 4
-    };
+   enum { GaussLegendre = 0,
+          GaussLobatto = 1,
+          Positive = 2,
+          ClosedEquallySpaced = 3,
+          OpenEquallySpaced = 4
+        };
 };
 
 /// Describes the space on each element
@@ -1266,15 +1267,15 @@ public:
    static const int *Binom(const int p);
 
    const double *OpenPoints(const int p, const int type =
-           NumericalQuad1D::GaussLegendre);
+                               NumericalQuad1D::GaussLegendre);
    const double *ClosedPoints(const int p, const int type =
-            NumericalQuad1D::GaussLobatto);
+                                 NumericalQuad1D::GaussLobatto);
 
    Basis &OpenBasis(const int p,
-           const int type = AllBasisType::GaussLegendre);
+                    const int type = AllBasisType::GaussLegendre);
 
    Basis &ClosedBasis(const int p,
-           const int type = AllBasisType::GaussLobatto);
+                      const int type = AllBasisType::GaussLobatto);
 
    // Evaluate the values of a hierarchical 1D basis at point x
    // hierarchical = k-th basis function is degree k polynomial
@@ -1335,7 +1336,7 @@ private:
 
 public:
    H1_SegmentElement(const int p,
-           const int type = AllBasisType::GaussLobatto);
+                     const int type = AllBasisType::GaussLobatto);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1355,7 +1356,7 @@ private:
 
 public:
    H1_QuadrilateralElement(const int p,
-           const int type = AllBasisType::GaussLobatto);
+                           const int type = AllBasisType::GaussLobatto);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1375,7 +1376,7 @@ private:
 
 public:
    H1_HexahedronElement(const int p,
-           const int type = AllBasisType::GaussLobatto);
+                        const int type = AllBasisType::GaussLobatto);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1576,7 +1577,7 @@ private:
 
 public:
    L2_QuadrilateralElement(const int p,
-           const int _type = AllBasisType::GaussLegendre);
+                           const int _type = AllBasisType::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
@@ -1615,7 +1616,7 @@ private:
 
 public:
    L2_HexahedronElement(const int p,
-           const int _type = AllBasisType::GaussLegendre);
+                        const int _type = AllBasisType::GaussLegendre);
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
