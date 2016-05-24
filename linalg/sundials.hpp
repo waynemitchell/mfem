@@ -30,7 +30,6 @@ private:
 protected:
    N_Vector y;
    void* ode_mem;
-   bool tolerances_set_sundials;
    int solver_iteration_type;
 
 public:
@@ -43,10 +42,10 @@ public:
     * CVodeCreate creates an internal memory block for a problem to
     * be solved by CVODE.
     */
-   CVODESolver(Vector &_y, int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
+   CVODESolver(Vector &y_, int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
 
 #ifdef MFEM_USE_MPI
-   CVODESolver(MPI_Comm _comm, Vector &_y,
+   CVODESolver(MPI_Comm comm_, Vector &y_,
                int lmm = CV_ADAMS, int iter = CV_FUNCTIONAL);
 #endif
 
@@ -115,9 +114,6 @@ public:
     */
    void Step(Vector &x, double &t, double &dt);
 
-   /// Connects _y to the _x data.
-   void TransferNVectorShallow(Vector *_x, N_Vector &_y);
-
    void SetLinearSolve(Solver*, SundialsLinearSolveOperator*);
 
    /** \brief Destroys associated memory. Calls CVodeFree and N_VDestroy.
@@ -143,7 +139,6 @@ private:
 protected:
    N_Vector y;
    void* ode_mem;
-   bool tolerances_set_sundials;
    bool use_explicit;
 
 public:
@@ -238,9 +233,6 @@ public:
     * y(tout) is not required.
     */
    void Step(Vector &x, double &t, double &dt);
-
-   /// Connects _y to the _x data.
-   void TransferNVectorShallow(Vector *_x, N_Vector &_y);
 
    void SetLinearSolve(Solver*, SundialsLinearSolveOperator*);
 

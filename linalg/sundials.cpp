@@ -122,13 +122,11 @@ static int MFEMLinearARKSolve(void *arkode_mem, mfem::Solver*,
 namespace mfem
 {
 
-CVODESolver::CVODESolver(Vector &_y, int lmm, int iter)
-   : ODESolver(),
-     tolerances_set_sundials(false),
-     solver_iteration_type(iter)
+CVODESolver::CVODESolver(Vector &y_, int lmm, int iter)
+   : solver_iteration_type(iter)
 {
    // Create the NVector y.
-   ConnectNVector(_y, y);
+   ConnectNVector(y_, y);
 
    // Create the solver memory.
    ode_mem = CVodeCreate(lmm, iter);
@@ -137,17 +135,18 @@ CVODESolver::CVODESolver(Vector &_y, int lmm, int iter)
    // RHS function in x' = f(t, x), initial time, initial condition.
    int flag = CVodeInit(ode_mem, SundialsMult, 0.0, y);
    MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
+
+   // For some reason CVODE insists those to be set by hand (no defaults).
+   SetSStolerances(RELTOL, ABSTOL);
 }
 
 #ifdef MFEM_USE_MPI
-CVODESolver::CVODESolver(MPI_Comm _comm, Vector &_y, int lmm, int iter)
-   : ODESolver(),
-     comm(_comm),
-     tolerances_set_sundials(false),
+CVODESolver::CVODESolver(MPI_Comm comm_, Vector &y_, int lmm, int iter)
+   : comm(comm_),
      solver_iteration_type(iter)
 {
    // Create the NVector y.
-   ConnectNVector(_y, y);
+   ConnectNVector(y_, y);
 
    // Create the solver memory.
    ode_mem = CVodeCreate(lmm, iter);
@@ -156,6 +155,9 @@ CVODESolver::CVODESolver(MPI_Comm _comm, Vector &_y, int lmm, int iter)
    // RHS function in x' = f(t, x), initial time, initial condition.
    int flag = CVodeInit(ode_mem, SundialsMult, 0.0, y);
    MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
+
+   // For some reason CVODE insists those to be set by hand (no defaults).
+   SetSStolerances(RELTOL, ABSTOL);
 }
 #endif
 
@@ -163,23 +165,14 @@ void CVODESolver::Init(TimeDependentOperator &_f)
 {
    f = &_f;
 
-   SetSStolerances(RELTOL, ABSTOL);
-
    // Set the pointer to user-defined data.
    int flag = CVodeSetUserData(ode_mem, f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 
-   // TODO: what's going on with the tolerances. Should this be in Init()?
+   // When newton iterations are chosen, one should specify the linear solver.
    if (solver_iteration_type == CV_NEWTON)
    {
-#ifndef MFEM_USE_MPI
-      double size = f->Width();
-      SetSStolerances(1e-3, 1e-6);
-      CVBand(ode_mem, size, size * 0.5, size * 0.5);
-#else
-      SetSStolerances(1e-3, 1e-6);
       CVSpgmr(ode_mem, PREC_NONE, 0);
-#endif
    }
 }
 
@@ -196,17 +189,10 @@ void CVODESolver::ReInit(TimeDependentOperator &_f, Vector &_y, double & _t)
    flag = CVodeSetUserData(ode_mem, this->f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 
-   // TODO: what's going on with the tolerances. Should this be in Init()?
+   // When newton iterations are chosen, one should specify the linear solver.
    if (solver_iteration_type == CV_NEWTON)
    {
-#ifndef MFEM_USE_MPI
-      double size = f->Width();
-      SetSStolerances(1e-3, 1e-6);
-      CVBand(ode_mem, size, size * 0.5, size * 0.5);
-#else
-      SetSStolerances(1e-3, 1e-6);
       CVSpgmr(ode_mem, PREC_NONE, 0);
-#endif
    }
 }
 
@@ -215,13 +201,17 @@ void CVODESolver::SetSStolerances(realtype reltol, realtype abstol)
    // Specify the scalar relative tolerance and scalar absolute tolerance.
    int flag = CVodeSStolerances(ode_mem, reltol, abstol);
    MFEM_ASSERT(flag >= 0, "CVodeSStolerances() failed!");
-
-   tolerances_set_sundials = true;
 }
 
 void CVODESolver::Step(Vector &x, double &t, double &dt)
 {
-   TransferNVectorShallow(&x, y);
+#ifndef MFEM_USE_MPI
+   NV_DATA_S(y) = x.GetData();
+#else
+   HypreParVector *hx = dynamic_cast<HypreParVector *>(&x);
+   MFEM_ASSERT(hx != NULL, "Could not cast to HypreParVector!");
+   y = N_VMake_ParHyp(hx->StealParVector());
+#endif
 
    // Perform the step.
    realtype tout = t + dt;
@@ -230,18 +220,6 @@ void CVODESolver::Step(Vector &x, double &t, double &dt)
 
    // Record last incremental step size.
    flag = CVodeGetLastStep(ode_mem, &dt);
-}
-
-void CVODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
-{
-#ifndef MFEM_USE_MPI
-   NV_DATA_S(_y) = _x->GetData();
-#else
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
-
-   y = N_VMake_ParHyp(x->StealParVector());
-#endif
 }
 
 void CVODESolver::SetLinearSolve(Solver* J_solve,
@@ -255,16 +233,11 @@ void CVODESolver::SetLinearSolve(Solver* J_solve,
       realtype t0 = ((CVodeMem) ode_mem)->cv_tn;
       CVodeFree(&ode_mem);
       ode_mem=CVodeCreate(CV_BDF, CV_NEWTON); // ??
-      tolerances_set_sundials=false;
 
       int flag = CVodeInit(ode_mem, SundialsMult, t0, y);
       MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
 
       CVodeSetUserData(ode_mem, this->f);
-      if (!tolerances_set_sundials)
-      {
-         SetSStolerances(RELTOL,ABSTOL);
-      }
    }
 
    // Call CVodeSetMaxNumSteps to increase default.
@@ -285,7 +258,6 @@ CVODESolver::~CVODESolver()
 
 ARKODESolver::ARKODESolver(Vector &_y, int _use_explicit)
    : ODESolver(),
-     tolerances_set_sundials(false),
      use_explicit(_use_explicit)
 {
    y = N_VMake_Serial(_y.Size(),
@@ -301,13 +273,14 @@ ARKODESolver::ARKODESolver(Vector &_y, int _use_explicit)
               ARKodeInit(ode_mem, SundialsMult, NULL, 0.0, y) :
               ARKodeInit(ode_mem, NULL, SundialsMult, 0.0, y);
    MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
+
+   SetSStolerances(RELTOL, ABSTOL);
 }
 
 #ifdef MFEM_USE_MPI
 ARKODESolver::ARKODESolver(MPI_Comm _comm, Vector &_y, int _use_explicit)
    : ODESolver(),
      comm(_comm),
-     tolerances_set_sundials(false),
      use_explicit(_use_explicit)
 {
    // Create the NVector y.
@@ -322,16 +295,15 @@ ARKODESolver::ARKODESolver(MPI_Comm _comm, Vector &_y, int _use_explicit)
               ARKodeInit(ode_mem, SundialsMult, NULL, 0.0, y) :
               ARKodeInit(ode_mem, NULL, SundialsMult, 0.0, y);
    MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
+
+   SetSStolerances(RELTOL, ABSTOL);
 }
 #endif
 
 void ARKODESolver::Init(TimeDependentOperator &_f)
 {
    f = &_f;
-
-   SetSStolerances(RELTOL, ABSTOL);
-
-   /* Set the pointer to user-defined data */
+   // Set the pointer to user-defined data.
    int flag = ARKodeSetUserData(ode_mem, this->f);
    MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
 }
@@ -357,13 +329,17 @@ void ARKODESolver::SetSStolerances(realtype reltol, realtype abstol)
    // Specify the scalar relative tolerance and scalar absolute tolerance.
    int flag = ARKodeSStolerances(ode_mem, reltol, abstol);
    MFEM_ASSERT(flag >= 0, "ARKodeSStolerances() failed!");
-
-   tolerances_set_sundials = true;
 }
 
 void ARKODESolver::Step(Vector &x, double &t, double &dt)
 {
-   TransferNVectorShallow(&x, y);
+#ifndef MFEM_USE_MPI
+      NV_DATA_S(y) = x.GetData();
+#else
+   HypreParVector *hx = dynamic_cast<HypreParVector *>(&x);
+   MFEM_ASSERT(hx != NULL, "Could not cast to HypreParVector!");
+   y = N_VMake_ParHyp(hx->StealParVector());
+#endif
 
    // Step.
    realtype tout = t + dt;
@@ -372,17 +348,6 @@ void ARKODESolver::Step(Vector &x, double &t, double &dt)
 
    // Record last incremental step size.
    flag = ARKodeGetLastStep(ode_mem, &dt);
-}
-
-void ARKODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
-{
-#ifdef MFEM_USE_MPI
-   HypreParVector *x = dynamic_cast<HypreParVector *>(_x);
-   MFEM_ASSERT(x != NULL, "Could not cast to HypreParVector!");
-   y = N_VMake_ParHyp(x->StealParVector());
-#else
-   NV_DATA_S(_y) = _x->GetData();
-#endif
 }
 
 void ARKODESolver::WrapSetERKTableNum(int table_num)
@@ -403,7 +368,7 @@ void ARKODESolver::SetLinearSolve(Solver* solve,
       realtype t0= ((ARKodeMem) ode_mem)->ark_tn;
       ARKodeFree(&ode_mem);
       ode_mem=ARKodeCreate();
-      tolerances_set_sundials=false;
+
       // TODO: why is this?
       use_explicit=false;
       //change init structure in order to switch to implicit method
@@ -413,15 +378,12 @@ void ARKODESolver::SetLinearSolve(Solver* solve,
       MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
 
       ARKodeSetUserData(ode_mem, this->f);
-      if (!tolerances_set_sundials)
-      {
-         SetSStolerances(RELTOL, ABSTOL);
-      }
    }
 
    // Call ARKodeSetMaxNumSteps to increase default.
    ARKodeSetMaxNumSteps(ode_mem, 10000);
    SetSStolerances(1e-2,1e-4);
+
    MFEMLinearARKSolve(ode_mem, solve, op);
 }
 

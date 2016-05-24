@@ -334,14 +334,11 @@ int main(int argc, char *argv[])
          ode_solver = new CVODESolver(vx, CV_BDF, CV_NEWTON); break;
       case 5:
          ode_solver = new CVODESolver(vx, CV_BDF, CV_NEWTON);
-         // Must be called before SetLinearSolve.
-         ode_solver->Init(oper);
          static_cast<CVODESolver *>(ode_solver)->
             SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 6:
          ode_solver = new ARKODESolver(vx, false);
-         ode_solver->Init(oper);
          static_cast<ARKODESolver *>(ode_solver)->
             SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
@@ -351,10 +348,7 @@ int main(int argc, char *argv[])
          ode_solver = new ARKODESolver(vx, true); break;
    }
 
-   if (ode_solver_type != 5 && ode_solver_type != 6)
-   {
-      ode_solver->Init(oper);
-   }
+   ode_solver->Init(oper);
 
    bool last_step = false;
    double dt_by_ref = dt;
