@@ -819,10 +819,10 @@ void BiLinear2DFiniteElement::CalcDShape(const IntegrationPoint &ip,
 void BiLinear2DFiniteElement::CalcHessian(
    const IntegrationPoint &ip, DenseMatrix &h) const
 {
-   h( 0,0) = 0.;   h( 0,1) =  1.;   h( 0,2) = 0.;
-   h( 1,0) = 0.;   h( 1,1) = -1.;   h( 1,2) = 0.;
-   h( 2,0) = 0.;   h( 2,1) =  1.;   h( 2,2) = 0.;
-   h( 3,0) = 0.;   h( 3,1) = -1.;   h( 3,2) = 0.;
+   h(0,0) = 0.;   h(0,1) =  1.;   h(0,2) = 0.;
+   h(1,0) = 0.;   h(1,1) = -1.;   h(1,2) = 0.;
+   h(2,0) = 0.;   h(2,1) =  1.;   h(2,2) = 0.;
+   h(3,0) = 0.;   h(3,1) = -1.;   h(3,2) = 0.;
 }
 
 
@@ -6531,15 +6531,15 @@ const double *Poly_1D::OpenPoints(const int p, const int type)
          open_pts[i] = NULL;
       }
    }
-   if( open_pts[p] != NULL)
+   if (open_pts[p] != NULL)
    {
       return open_pts[p];
    }
    else
    {
-       open_pts[p] = new double[p + 1];
-       quad_func.GivePolyPoints(p+1, open_pts[p], type);
-       return open_pts[p];
+      open_pts[p] = new double[p + 1];
+      quad_func.GivePolyPoints(p+1, open_pts[p], type);
+      return open_pts[p];
    }
 }
 
@@ -6560,9 +6560,9 @@ const double *Poly_1D::ClosedPoints(const int p, const int type)
    }
    else
    {
-       closed_pts[p] = new double[p + 1];
-       quad_func.GivePolyPoints(p+1, closed_pts[p], type);
-       return closed_pts[p];
+      closed_pts[p] = new double[p + 1];
+      quad_func.GivePolyPoints(p+1, closed_pts[p], type);
+      return closed_pts[p];
    }
 }
 
@@ -6577,15 +6577,15 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p, const int type)
          open_basis[i] = NULL;
       }
    }
-   if(open_basis[p] != NULL)
+   if (open_basis[p] != NULL)
    {
       return *open_basis[p];
    }
    else
    {
-       const double *op = OpenPoints(p , type);
-       open_basis[p] = new Basis(p,op);
-       return *open_basis[p];
+      const double *op = OpenPoints(p , type);
+      open_basis[p] = new Basis(p,op);
+      return *open_basis[p];
    }
 }
 
@@ -6600,15 +6600,15 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
          closed_basis[i] = NULL;
       }
    }
-   if ( closed_basis[p] != NULL)
+   if (closed_basis[p] != NULL)
    {
       return *closed_basis[p];
    }
    else
    {
-       const double *cp = ClosedPoints(p, type);
-       closed_basis[p] =  new Basis(p, cp);
-       return *closed_basis[p];
+      const double *cp = ClosedPoints(p, type);
+      closed_basis[p] =  new Basis(p, cp);
+      return *closed_basis[p];
    }
 }
 
@@ -8183,8 +8183,8 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
          basis1d = &poly1d.ClosedBasis(p);
          op = poly1d.ClosedPoints(p);
          break;
-       // Closed Points
-      case 1: case 3: 
+      // Closed Points
+      case 1: case 3:
          basis1d = &poly1d.ClosedBasis(p);
          op = poly1d.ClosedPoints(p);
          break;

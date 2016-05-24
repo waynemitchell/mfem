@@ -296,17 +296,17 @@ private:
       return (ir_array.Size() > Order && ir_array[Order] != NULL);
    }
 
-   IntegrationRule *GenerateIntegrationRule(int GeomType, int Order, 
-                                              NumericalQuad1D type);
+   IntegrationRule *GenerateIntegrationRule(int GeomType, int Order,
+                                            NumericalQuad1D type);
    IntegrationRule *PointIntegrationRule(int Order);
-   IntegrationRule *SegmentIntegrationRule(int Order, 
-                                              NumericalQuad1D type);
+   IntegrationRule *SegmentIntegrationRule(int Order,
+                                           NumericalQuad1D type);
    IntegrationRule *TriangleIntegrationRule(int Order);
-   IntegrationRule *SquareIntegrationRule(int Order, 
-                                              NumericalQuad1D type);
+   IntegrationRule *SquareIntegrationRule(int Order,
+                                          NumericalQuad1D type);
    IntegrationRule *TetrahedronIntegrationRule(int Order);
-   IntegrationRule *CubeIntegrationRule(int Order, 
-                                              NumericalQuad1D type);
+   IntegrationRule *CubeIntegrationRule(int Order,
+                                        NumericalQuad1D type);
 
    void DeleteIntRuleArray(Array<IntegrationRule *> &ir_array);
 
@@ -316,8 +316,8 @@ public:
    explicit IntegrationRules(int Ref = 0);
 
    /// Returns an integration rule for given GeomType and Order.
-   const IntegrationRule &Get(int GeomType, int Order, 
-         NumericalQuad1D type = NumericalQuad1D::GaussLegendre);
+   const IntegrationRule &Get(int GeomType, int Order,
+                              NumericalQuad1D type = NumericalQuad1D::GaussLegendre);
 
    void Set(int GeomType, int Order, IntegrationRule &IntRule);
 

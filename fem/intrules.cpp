@@ -408,37 +408,40 @@ void QuadratureFunctions1D::ClosedEquallySpaced(const int np,
 }
 
 
-void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts , const int type)
+void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts ,
+                                           const int type)
 {
-    IntegrationRule ir(np);
-    NumericalQuad1D quadType = NumericalQuad1D(type);
+   IntegrationRule ir(np);
+   NumericalQuad1D quadType = NumericalQuad1D(type);
 
-    switch(quadType)
-    {
-        case NumericalQuad1D::GaussLegendre:
-        {
-            GaussLegendre(np,&ir);
-            break;
-        }
-        case NumericalQuad1D::GaussLobatto:
-        {
-            GaussLobatto(np, &ir);
-            break;
-        }
-        case NumericalQuad1D::OpenEquallySpaced:
-        {
-            OpenEquallySpaced(np,&ir);
-            break;
-        }
-        case NumericalQuad1D::ClosedEquallySpaced:
-        {
-            ClosedEquallySpaced(np,&ir);
-            break;
-        }
-    }
+   switch (quadType)
+   {
+      case NumericalQuad1D::GaussLegendre:
+      {
+         GaussLegendre(np,&ir);
+         break;
+      }
+      case NumericalQuad1D::GaussLobatto:
+      {
+         GaussLobatto(np, &ir);
+         break;
+      }
+      case NumericalQuad1D::OpenEquallySpaced:
+      {
+         OpenEquallySpaced(np,&ir);
+         break;
+      }
+      case NumericalQuad1D::ClosedEquallySpaced:
+      {
+         ClosedEquallySpaced(np,&ir);
+         break;
+      }
+   }
 
-    for(int i = 0 ; i < np ; ++i)
-        pts[i] = ir.IntPoint(i).x;
+   for (int i = 0 ; i < np ; ++i)
+   {
+      pts[i] = ir.IntPoint(i).x;
+   }
 }
 
 void QuadratureFunctions1D::CalculateLagrangeWeights(IntegrationRule *ir)
@@ -859,8 +862,8 @@ IntegrationRules::IntegrationRules(int Ref)
    CubeIntRules = NULL;
 }
 
-const IntegrationRule &IntegrationRules::Get(int GeomType, int Order, 
-                                              NumericalQuad1D type)
+const IntegrationRule &IntegrationRules::Get(int GeomType, int Order,
+                                             NumericalQuad1D type)
 {
    Array<IntegrationRule *> *ir_array;
 
@@ -991,8 +994,8 @@ IntegrationRule *IntegrationRules::PointIntegrationRule(int Order)
 }
 
 // Integration rules for line segment [0,1]
-IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order, 
-                                              NumericalQuad1D type)
+IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order,
+                                                          NumericalQuad1D type)
 {
    AllocIntRule(SegmentIntRules, Order);
 
@@ -1004,34 +1007,34 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order,
       IntegrationRule tmp;
       switch (type)
       {
-           case NumericalQuad1D::GaussLegendre:
-           {
-              /// Gauss Legendre is exact for 2*np - 1
-              n = (Order + 1)/2 + Order%2;
-              quad_func.GaussLegendre(n, &tmp );
-              break;
-           }
-           case NumericalQuad1D::GaussLobatto:
-           {
-               /// Gauss Lobatto is exact for 2np-3
-              n = (Order + 3)/2 + Order%2;
-              quad_func.GaussLobatto(n, &tmp );
-              break;
-           }
-           case NumericalQuad1D::OpenEquallySpaced:
-           {
-               /// Open Newton Cotes is exact for (np%2) + np
-              n = Order + 1;
-              quad_func.OpenEquallySpaced(n, &tmp );
-              break;
-           }
-           case NumericalQuad1D::ClosedEquallySpaced:
-           {
-               /// Closed Newton Cotes is exact for -1*( (np+1) %2)
-              n = Order + 1;
-              quad_func.ClosedEquallySpaced(n, &tmp );
-              break;
-           }
+         case NumericalQuad1D::GaussLegendre:
+         {
+            /// Gauss Legendre is exact for 2*np - 1
+            n = (Order + 1)/2 + Order%2;
+            quad_func.GaussLegendre(n, &tmp );
+            break;
+         }
+         case NumericalQuad1D::GaussLobatto:
+         {
+            /// Gauss Lobatto is exact for 2np-3
+            n = (Order + 3)/2 + Order%2;
+            quad_func.GaussLobatto(n, &tmp );
+            break;
+         }
+         case NumericalQuad1D::OpenEquallySpaced:
+         {
+            /// Open Newton Cotes is exact for (np%2) + np
+            n = Order + 1;
+            quad_func.OpenEquallySpaced(n, &tmp );
+            break;
+         }
+         case NumericalQuad1D::ClosedEquallySpaced:
+         {
+            /// Closed Newton Cotes is exact for -1*( (np+1) %2)
+            n = Order + 1;
+            quad_func.ClosedEquallySpaced(n, &tmp );
+            break;
+         }
       }
 
       /// Effectively passing memory management to SegmentIntegrationRules
@@ -1050,7 +1053,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order,
 
    switch (type)
    {
-      case NumericalQuad1D::GaussLegendre:  
+      case NumericalQuad1D::GaussLegendre:
       {
          /// Order = degree of polynomial that is exactly integrated
          /// Gauss Legendre is exact for 2*np - 1
@@ -1059,24 +1062,27 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order,
          quad_func.GaussLegendre(np, SegmentIntRules[Order] );
          break;
       }
-      case NumericalQuad1D::GaussLobatto:  
-      {   /// Order = degree of polynomial that is exactly integrated
+      case NumericalQuad1D::GaussLobatto:
+      {
+         /// Order = degree of polynomial that is exactly integrated
          /// Gauss Legendre is exact for 2*np - 3
          int np = (Order + 3)/2 + Order%2;
          SegmentIntRules[Order] = new IntegrationRule(np);
          quad_func.GaussLobatto(np,  SegmentIntRules[Order] );
          break;
       }
-      case NumericalQuad1D::OpenEquallySpaced:  
-      {   /// Order = degree of polynomial that is exactly integrated
+      case NumericalQuad1D::OpenEquallySpaced:
+      {
+         /// Order = degree of polynomial that is exactly integrated
          /// Gauss Legendre is exact for 2*np - 1
          int np = Order + 1;
          SegmentIntRules[Order] = new IntegrationRule(np);
          quad_func.OpenEquallySpaced(np,  SegmentIntRules[Order] );
          break;
       }
-      case NumericalQuad1D::ClosedEquallySpaced:  
-      {   /// Order = degree of polynomial that is exactly integrated
+      case NumericalQuad1D::ClosedEquallySpaced:
+      {
+         /// Order = degree of polynomial that is exactly integrated
          /// Gauss Legendre is exact for 2*np - 1
          int np = Order + 1;
          SegmentIntRules[Order] = new IntegrationRule(np);
@@ -1454,8 +1460,8 @@ IntegrationRule *IntegrationRules::TriangleIntegrationRule(int Order)
 }
 
 // Integration rules for unit square
-IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order, 
-                                              NumericalQuad1D type)
+IntegrationRule *IntegrationRules::SquareIntegrationRule(int Order,
+                                                         NumericalQuad1D type)
 {
    int i = (Order / 2) * 2 + 1;   // Get closest odd # >= Order
 
@@ -1570,8 +1576,8 @@ IntegrationRule *IntegrationRules::TetrahedronIntegrationRule(int Order)
 }
 
 // Integration rules for reference cube
-IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order, 
-                                              NumericalQuad1D type)
+IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order,
+                                                       NumericalQuad1D type)
 {
    if (!HaveIntRule(SegmentIntRules, Order))
    {
@@ -1579,8 +1585,8 @@ IntegrationRule *IntegrationRules::CubeIntegrationRule(int Order,
    }
    AllocIntRule(CubeIntRules, Order);
    CubeIntRules[Order] =
-         new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order],
-                             *SegmentIntRules[Order]);
+      new IntegrationRule(*SegmentIntRules[Order], *SegmentIntRules[Order],
+                          *SegmentIntRules[Order]);
    return CubeIntRules[Order];
 }
 
