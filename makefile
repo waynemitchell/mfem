@@ -35,7 +35,7 @@ make config MFEM_USE_MPI=YES MFEM_DEBUG=YES MPICXX=mpiCC
 make -j 4
    Build the library (in parallel) using the current configuration options.
 make all
-   Build the library, the exa/g/g10/dwhite/mfemApps/meshes/coil_thex.mples and the miniapps using the current configuration.
+   Build the library, the examples and the miniapps using the current configuration.
 make status
    Display information about the current configuration.
 make serial
@@ -183,20 +183,6 @@ ifeq ($(MFEM_USE_SUITESPARSE),YES)
    ALL_LIBS += $(SUITESPARSE_LIB)
 endif
 
-MFEM_USE_NETCDF ?= NO
-# NetCDF library configuration
-NETCDF_DIR ?= @MFEM_DIR@/../NetCDF
-HDF5_DIR ?= @MFEM_DIR@/../hdf5
-ZLIB_DIR ?= @MFEM_DIR@/../zlib
-NETCDF_OPT ?= -I$(NETCDF_DIR)/include
-NETCDF_LIB ?= -L$(NETCDF_DIR)/lib  -lnetcdf -L $(HDF5_DIR)/lib -lhdf5_hl -lhdf5 -L $(ZLIB_DIR)/lib -lz 
-ifeq ($(MFEM_USE_NETCDF),YES)
-   INCFLAGS += $(NETCDF_OPT)
-   ALL_LIBS += $(NETCDF_LIB)
-endif
-
-MFEM_USE_MEMALLOC ?= YES
-
 MFEM_USE_GECKO ?= NO
 GECKO_DIR ?= @MFEM_DIR@/../gecko
 GECKO_OPT ?= -I$(GECKO_DIR)/inc
@@ -205,6 +191,20 @@ ifeq ($(MFEM_USE_GECKO),YES)
    INCFLAGS += $(GECKO_OPT)
    ALL_LIBS += $(GECKO_LIB)
 endif
+
+MFEM_USE_NETCDF ?= NO
+# NetCDF library configuration
+NETCDF_DIR ?= @MFEM_DIR@/../NetCDF
+HDF5_DIR ?= @MFEM_DIR@/../hdf5
+ZLIB_DIR ?= @MFEM_DIR@/../zlib
+NETCDF_OPT ?= -I$(NETCDF_DIR)/include
+NETCDF_LIB ?= -L$(NETCDF_DIR)/lib -lnetcdf -L$(HDF5_DIR)/lib -lhdf5_hl -lhdf5 -L$(ZLIB_DIR)/lib -lz
+ifeq ($(MFEM_USE_NETCDF),YES)
+   INCFLAGS += $(NETCDF_OPT)
+   ALL_LIBS += $(NETCDF_LIB)
+endif
+
+MFEM_USE_MEMALLOC ?= YES
 
 # Use POSIX clocks for timing unless kernel-name is 'Darwin' (mac)
 ifeq ($(shell uname -s),Darwin)
@@ -387,6 +387,7 @@ status info:
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
+	$(info MFEM_USE_NETCDF       = $(MFEM_USE_NETCDF))
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
 	$(info MFEM_CPPFLAGS        = $(value MFEM_CPPFLAGS))
