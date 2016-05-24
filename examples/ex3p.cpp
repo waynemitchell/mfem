@@ -24,10 +24,10 @@
 // for reading a cubit linear tetrahedral mesh
 //               mpirun -np 4 ex3p -cubit -m ../data/rod-tet4.gen
 //
-// for reading a cubit quadratic hexhedral mesh 
+// for reading a cubit quadratic hexhedral mesh
 //               mpirun -np 4 ex3p -cubit -m ../data/rod-hex27.gen
 //
-// for reading a cubit linear hexhedral mesh 
+// for reading a cubit linear hexhedral mesh
 //               mpirun -np 4 ex3p -cubit -m ../data/rod-hex8.gen
 //
 // Description:  This example code solves a simple electromagnetic diffusion
@@ -86,8 +86,8 @@ int main(int argc, char *argv[])
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
    args.AddOption(&cubit, "-cubit", "--cubit", "-no-cubit",
-		  "--no-cubit",
-		  "Is the mesh a cubit (Netcdf) file.");
+                  "--no-cubit",
+                  "Is the mesh a cubit (Netcdf) file.");
    args.Parse();
    if (!args.Good())
    {
@@ -108,27 +108,29 @@ int main(int argc, char *argv[])
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
    Mesh *mesh;
-   if (!cubit) {
-     ifstream imesh(mesh_file);
-     if (!imesh)
-       {
-	 if (myid == 0)
-	   {
-	     cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-	   }
-	 MPI_Finalize();
-	 return 2;
-       }
-     mesh = new Mesh(imesh, 1, 1);
-     imesh.close();
+   if (!cubit)
+   {
+      ifstream imesh(mesh_file);
+      if (!imesh)
+      {
+         if (myid == 0)
+         {
+            cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
+         }
+         MPI_Finalize();
+         return 2;
+      }
+      mesh = new Mesh(imesh, 1, 1);
+      imesh.close();
    }
-   else {
+   else
+   {
 #ifdef MFEM_USE_NETCDF
-     mesh = new Mesh();
-     mesh->LoadCubit(mesh_file, 1, 1, true);
+      mesh = new Mesh();
+      mesh->LoadCubit(mesh_file, 1, 1, true);
 #else
-     MFEM_ASSERT(false,"cubit option not allowed MFEM not built with NetCFD\n");
-     return 2;
+      MFEM_ASSERT(false,"cubit option not allowed MFEM not built with NetCFD\n");
+      return 2;
 #endif
    }
 

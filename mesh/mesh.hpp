@@ -443,10 +443,10 @@ public:
    void Load(std::istream &input, int generate_edges = 0, int refine = 1,
              bool fix_orientation = true);
 
-  /* Note NetCDF (optional library) is used for reading cubit files */
+   /* Note NetCDF (optional library) is used for reading cubit files */
 #ifdef MFEM_USE_NETCDF
-  void LoadCubit(const char *filename, int generate_edges = 0, int refine = 1,
-		 bool fix_orientation = true);
+   void LoadCubit(const char *filename, int generate_edges = 0, int refine = 1,
+                  bool fix_orientation = true);
 #endif
 
    /** Return a bitmask:
