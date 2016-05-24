@@ -9,7 +9,7 @@
 //    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/amr-quad.mesh -p 1 -rp 1 -dt 0.002 -tf 9
-//    mpirun -np 4 ex9p -m ../data/star-q3.mesh -p 1 -rp 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/star-q3.mesh -p 1 -rp 1 -dt 0.004 -tf 9
 //    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 1 -rp 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
@@ -155,15 +155,7 @@ int main(int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-
    int dim = mesh->Dimension();
-   mesh->GetBoundingBox(bb_min, bb_max);
-
-   if (mesh->NURBSext)
-   {
-      mesh->SetCurvature(4);
-   }
-   mesh->EnsureNCMesh();
 
    // 4. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
@@ -192,27 +184,20 @@ int main(int argc, char *argv[])
    {
       mesh->UniformRefinement();
    }
-
    if (mesh->NURBSext)
    {
-      int mesh_order = std::max(order, 1);
-      FiniteElementCollection *mfec = new H1_FECollection(mesh_order, dim);
-      FiniteElementSpace *mfes = new FiniteElementSpace(mesh, mfec, dim);
-      mesh->SetNodalFESpace(mfes);
-      mesh->GetNodes()->MakeOwner(mfec);
+      mesh->SetCurvature(max(order, 1));
    }
+   mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
    // 6. Define the parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-
-   srand(myid);
    for (int lev = 0; lev < par_ref_levels; lev++)
    {
-      //pmesh->UniformRefinement();
-      pmesh->RandomRefinement(0.5);
+      pmesh->UniformRefinement();
    }
 
    // 7. Define the parallel discontinuous DG finite element space on the
@@ -225,11 +210,6 @@ int main(int argc, char *argv[])
    {
       cout << "Number of unknowns: " << global_vSize << endl;
    }
-
-   // X. Test regeneration of face neigbhors after load balancing
-   fes->ExchangeFaceNbrData();
-   pmesh->Rebalance();
-   fes->Update();
 
    // 8. Set up and assemble the parallel bilinear and linear forms (and the
    //    parallel hypre matrices) corresponding to the DG discretization. The

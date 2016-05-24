@@ -85,12 +85,6 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
-   if (mesh->NURBSext)
-   {
-      mesh->SetCurvature(2);
-   }
-
-   mesh->EnsureNCMesh();
 
    // 3. Refine the mesh to increase the resolution. In this example we do
    //    'ref_levels' of uniform refinement. By default, or if ref_levels < 0,
@@ -101,12 +95,14 @@ int main(int argc, char *argv[])
       {
          ref_levels = (int)floor(log(50000./mesh->GetNE())/log(2.)/dim);
       }
-      srand(0);
       for (int l = 0; l < ref_levels; l++)
       {
-         //mesh->UniformRefinement();
-         mesh->RandomRefinement(0.5);
+         mesh->UniformRefinement();
       }
+   }
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(max(order, 1));
    }
 
    // 4. Define a finite element space on the mesh. Here we use discontinuous

@@ -136,9 +136,7 @@ int main(int argc, char *argv[])
    }
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
-
    int dim = mesh->Dimension();
-   mesh->GetBoundingBox(bb_min, bb_max);
 
    // 3. Define the ODE solver used for time integration. Several explicit
    //    Runge-Kutta methods are available.
@@ -159,28 +157,15 @@ int main(int argc, char *argv[])
    //    'ref_levels' of uniform refinement, where 'ref_levels' is a
    //    command-line parameter. If the mesh is of NURBS type, we convert it to
    //    a (piecewise-polynomial) high-order mesh.
-   if (mesh->NURBSext)
-   {
-      mesh->SetCurvature(4);
-   }
-   mesh->EnsureNCMesh();
-
    for (int lev = 0; lev < ref_levels; lev++)
    {
-      //mesh->UniformRefinement();
-      mesh->RandomRefinement(0.5);
+      mesh->UniformRefinement();
    }
-
-   //mesh->RandomRefinement(0.1);
-
    if (mesh->NURBSext)
    {
-      int mesh_order = std::max(order, 1);
-      FiniteElementCollection *mfec = new H1_FECollection(mesh_order, dim);
-      FiniteElementSpace *mfes = new FiniteElementSpace(mesh, mfec, dim);
-      mesh->SetNodalFESpace(mfes);
-      mesh->GetNodes()->MakeOwner(mfec);
+      mesh->SetCurvature(max(order, 1));
    }
+   mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
    // 5. Define the discontinuous DG finite element space of the given
    //    polynomial order on the refined mesh.

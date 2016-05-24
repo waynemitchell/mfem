@@ -105,12 +105,6 @@ int main(int argc, char *argv[])
    mesh = new Mesh(imesh, 1, 1);
    imesh.close();
    int dim = mesh->Dimension();
-   if (mesh->NURBSext)
-   {
-      mesh->SetCurvature(2);
-   }
-
-   mesh->EnsureNCMesh();
 
    // 4. Refine the serial mesh on all processors to increase the resolution. In
    //    this example we do 'ser_ref_levels' of uniform refinement. By default,
@@ -126,6 +120,10 @@ int main(int argc, char *argv[])
          mesh->UniformRefinement();
       }
    }
+   if (mesh->NURBSext)
+   {
+      mesh->SetCurvature(max(order, 1));
+   }
 
    // 5. Define a parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -133,14 +131,11 @@ int main(int argc, char *argv[])
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
    {
-      srand(myid);
       for (int l = 0; l < par_ref_levels; l++)
       {
-         //pmesh->UniformRefinement();
-         pmesh->RandomRefinement(0.5);
+         pmesh->UniformRefinement();
       }
    }
-   pmesh->Rebalance();
 
    // 6. Define a parallel finite element space on the parallel mesh. Here we
    //    use discontinuous finite elements of the specified order >= 0.
