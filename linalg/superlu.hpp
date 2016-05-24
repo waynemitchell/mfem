@@ -81,7 +81,8 @@ private:
     double precision types. It is currently maintained by Xiaoye Sherry Li at
     NERSC, see http://crd-legacy.lbl.gov/~xiaoye/SuperLU/.
 */
-class SuperLUSolver :  public virtual mfem::Solver
+
+class SuperLUSolver :  public mfem::Solver
 {
 public:
    // Constructor with MPI_Comm parameter.

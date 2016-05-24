@@ -276,7 +276,7 @@ void SuperLUSolver::Init()
    set_default_options_dist(options);
 
    options->ParSymbFact = YES;
-   options->ColPerm     = PARMETIS;
+   options->ColPerm     = NATURAL;
 
    // Choose nprow and npcol so that the process grid is as square as possible.
    // If the processes cannot be divided evenly, keep the row dimension smaller
