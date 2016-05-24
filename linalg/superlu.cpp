@@ -17,14 +17,14 @@
 #include "superlu.hpp"
 
 // SuperLU headers
-#include <superlu_defs.h>
-#include <superlu_ddefs.h>
+#include "superlu_defs.h"
+#include "superlu_ddefs.h"
 
 using namespace std;
 
 namespace mfem
 {
-unsigned int superlu_internal::sqrti(const unsigned int & a)
+unsigned int superlu_internal::sqrti( const unsigned int & a )
 {
    unsigned int a_ = a;
    unsigned int rem = 0;
@@ -111,7 +111,7 @@ SuperLURowLocMatrix::SuperLURowLocMatrix(MPI_Comm comm,
                                   SLU_NR_loc, SLU_D, SLU_GE);
 }
 
-SuperLURowLocMatrix::SuperLURowLocMatrix(const HypreParMatrix & hypParMat)
+SuperLURowLocMatrix::SuperLURowLocMatrix( const HypreParMatrix & hypParMat )
    : comm_(hypParMat.GetComm()),
      rowLocPtr_(NULL)
 {
@@ -195,7 +195,7 @@ SuperLUSolver::SuperLUSolver( MPI_Comm comm )
    this->Init();
 }
 
-SuperLUSolver::SuperLUSolver( SuperLURowLocMatrix & A)
+SuperLUSolver::SuperLUSolver( SuperLURowLocMatrix & A )
    : comm_(A.GetComm()),
      APtr_(&A),
      optionsPtr_(NULL),
@@ -252,8 +252,7 @@ SuperLUSolver::~SuperLUSolver()
    if (     perm_r_ != NULL ) { SUPERLU_FREE(perm_r_); }
 }
 
-void
-SuperLUSolver::Init()
+void SuperLUSolver::Init()
 {
    MPI_Comm_size(comm_, &numProcs_);
    MPI_Comm_rank(comm_, &myid_);
@@ -280,8 +279,8 @@ SuperLUSolver::Init()
    options->ColPerm     = PARMETIS;
 
    // Choose nprow and npcol so that the process grid is as square as possible.
-   // If the processes cannot be divided evenly, keep the row dimension
-   // smaller than the column dimension.
+   // If the processes cannot be divided evenly, keep the row dimension smaller
+   // than the column dimension.
 
    nprow_ = (int)superlu_internal::sqrti((unsigned int)numProcs_);
    while (numProcs_ % nprow_ != 0 && nprow_ > 0)
@@ -323,7 +322,7 @@ void SuperLUSolver::SetColumnPermutation( superlu::ColPerm col_perm )
 }
 
 void SuperLUSolver::SetRowPermutation( superlu::RowPerm row_perm,
-                                       Array<int> * perm)
+                                       Array<int> * perm )
 {
    superlu_dist_options_t * options = (superlu_dist_options_t*)optionsPtr_;
 
@@ -335,7 +334,8 @@ void SuperLUSolver::SetRowPermutation( superlu::RowPerm row_perm,
    {
       if ( perm == NULL )
       {
-         mfem_error("SuperLUSolver::SetRowPermutation : permutation vector not set!");
+         mfem_error("SuperLUSolver::SetRowPermutation :"
+                    " permutation vector not set!");
       }
 
       if ( !(perm_r_ = intMalloc_dist(perm->Size())) )
@@ -401,8 +401,7 @@ void SuperLUSolver::SetSymmetricPattern( bool sym )
    options->SymPattern = opt;
 }
 
-void
-SuperLUSolver::SetupGrid()
+void SuperLUSolver::SetupGrid()
 {
    gridinfo_t * grid = (gridinfo_t*)gridPtr_;
 
@@ -431,8 +430,7 @@ SuperLUSolver::SetupGrid()
    gridInitialized_ = true;
 }
 
-void
-SuperLUSolver::DismantleGrid()
+void SuperLUSolver::DismantleGrid()
 {
    if ( gridInitialized_ )
    {
@@ -444,11 +442,11 @@ SuperLUSolver::DismantleGrid()
    gridInitialized_ = false;
 }
 
-void
-SuperLUSolver::Mult( const Vector & x, Vector & y ) const
+void SuperLUSolver::Mult( const Vector & x, Vector & y ) const
 {
    MFEM_ASSERT(APtr_ != NULL,
-               "SuperLU Error: The operator must be set before the system can be solved.");
+               "SuperLU Error: The operator must be set before"
+               " the system can be solved.");
 
    superlu_dist_options_t * options = (superlu_dist_options_t*)optionsPtr_;
    SuperLUStat_t     * stat         = (SuperLUStat_t*)statPtr_;
@@ -463,13 +461,13 @@ SuperLUSolver::Mult( const Vector & x, Vector & y ) const
    {
       options->Fact = FACTORED; // Indicate the factored form of A is supplied.
    }
-   else // This is the first sovle with this A
+   else // This is the first solve with this A
    {
       firstSolveWithThisA_ = false;
 
-      // Make sure that the parameters have been initialized
-      // The only parameter we might have to worry about is ScalePermstruct,
-      // if the user is supplying a row or column permutation.
+      // Make sure that the parameters have been initialized The only parameter
+      // we might have to worry about is ScalePermstruct, if the user is
+      // supplying a row or column permutation.
 
       // Initialize ScalePermstruct and LUstruct.
       SPstruct->DiagScale = NOEQUIL;
@@ -496,8 +494,8 @@ SuperLUSolver::Mult( const Vector & x, Vector & y ) const
       LUStructInitialized_ = true;
    }
 
-   // SuperLU overwrites x with y, so copy x to y and pass that
-   // to the solve routine.
+   // SuperLU overwrites x with y, so copy x to y and pass that to the solve
+   // routine.
 
    y = x;
 
@@ -527,8 +525,7 @@ SuperLUSolver::Mult( const Vector & x, Vector & y ) const
    }
 }
 
-void
-SuperLUSolver::SetOperator( const Operator & op )
+void SuperLUSolver::SetOperator( const Operator & op )
 {
    // Verify that we have a compatible operator
    APtr_ = dynamic_cast<const SuperLURowLocMatrix*>(&op);
@@ -537,7 +534,7 @@ SuperLUSolver::SetOperator( const Operator & op )
       mfem_error("SuperLUSolver::SetOperator : not SuperLURowLocMatrix!");
    }
 
-   // Everything is ok so finish setting the operator
+   // Everything is OK so finish setting the operator
    firstSolveWithThisA_ = true;
 
    // Set mfem::Operator member data

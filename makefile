@@ -121,12 +121,18 @@ HYPRE_OPT ?= -I$(HYPRE_DIR)/include
 HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
 # METIS library configuration
-#METIS_DIR ?= @MFEM_DIR@/../metis-4.0
-METIS_DIR ?= @MFEM_DIR@/../parmetis-4.0.3/metis
-METIS_OPT ?=
-METIS_LIB ?= -L$(METIS_DIR) -lmetis
-
-MFEM_USE_METIS_5 ?= NO
+ifeq ($(MFEM_USE_SUPERLU),NO)
+   METIS_DIR ?= @MFEM_DIR@/../metis-4.0
+   METIS_OPT ?=
+   METIS_LIB ?= -L$(METIS_DIR) -lmetis
+   MFEM_USE_METIS_5 ?= NO
+else
+   # ParMETIS currently needed only with SuperLU
+   METIS_DIR ?= @MFEM_DIR@/../parmetis-4.0.3
+   METIS_OPT ?=
+   METIS_LIB ?= -L$(METIS_DIR) -lparmetis -lmetis
+   MFEM_USE_METIS_5 ?= YES
+endif
 
 MFEM_USE_MPI ?= NO
 ifneq ($(MFEM_USE_MPI),YES)
@@ -186,9 +192,9 @@ endif
 
 MFEM_USE_SUPERLU ?= NO
 # SuperLU library configuration
-SUPERLU_DIR ?= @MFEM_DIR@/../SuperLU_DIST_5.0.0
+SUPERLU_DIR ?= @MFEM_DIR@/../SuperLU_DIST_5.1.0
 SUPERLU_OPT ?= -I$(SUPERLU_DIR)/SRC
-SUPERLU_LIB ?= -L$(SUPERLU_DIR)/build/SRC -lsuperlu_dist $(METIS_LIB)
+SUPERLU_LIB ?= -L$(SUPERLU_DIR)/SRC -lsuperlu_dist -lblas $(METIS_LIB)
 ifeq ($(MFEM_USE_SUPERLU),YES)
    INCFLAGS += $(SUPERLU_OPT)
    ALL_LIBS += $(SUPERLU_LIB)
@@ -219,7 +225,7 @@ endif
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
- MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC MFEM_USE_GECKO
+ MFEM_USE_SUITESPARSE MFEM_USE_SUPERLU MFEM_USE_MEMALLOC MFEM_USE_GECKO
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -384,6 +390,7 @@ status info:
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
+	$(info MFEM_USE_SUPERLU     = $(MFEM_USE_SUPERLU))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))

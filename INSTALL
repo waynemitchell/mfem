@@ -176,14 +176,15 @@ MFEM_USE_MESQUITE = YES/NO
 
 MFEM_USE_SUITESPARSE = YES/NO
    Enable MFEM functionality based on the SuiteSparse library. Currently, this
-   option adds the class UMFPackSolver (a sparse direct solver). When enabled,
-   this option uses the SUITESPARSE_* library options, see below.
+   option adds the classes UMFPackSolver and KLUSolver (both sparse serial
+   direct solvers). When enabled, this option uses the SUITESPARSE_* library
+   options, see below.
 
 MFEM_USE_SUPERLU = YES/NO
    Enable MFEM functionality based on the SuperLU_DIST library. Currently, this
-   option adds the classes SuperLUSolver (a sparse direct solver) and
-   SuperLURowLocMatrix a distributed CSR matrix class needed by SuperLU.
-   When enabled, this option uses the SUPERLU_* library options, see below.
+   option adds the classes SuperLUSolver (a parallel sparse direct solver) and
+   SuperLURowLocMatrix a distributed CSR matrix class needed by SuperLU. When
+   enabled, this option uses the SUPERLU_* library options, see below.
 
 MFEM_USE_MEMALLOC = YES/NO
    Internal MFEM option: enable batch allocation for some small objects.
@@ -244,8 +245,8 @@ The specific libraries and their options are:
   URL: http://faculty.cse.tamu.edu/davis/suitesparse.html
   Options: SUITESPARSE_OPT, SUITESPARSE_LIB.
 
-- SuperLU (optional), used when MFEM_USE_SUPERLU = YES.  Note that SuperLU
-  requires ParMETIS which, in turn, requires METIS.
+- SuperLU (optional), used when MFEM_USE_SUPERLU = YES. Note that SuperLU
+  requires ParMETIS which, in turn, requires METIS (see above URL).
   URL: http://http://crd-legacy.lbl.gov/~xiaoye/SuperLU
   Options: SUPERLU_OPT, SUPERLU_LIB.
 

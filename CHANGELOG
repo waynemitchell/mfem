@@ -69,13 +69,11 @@ Improved solvers
   against the klu and btf libraries in SuiteSparse, see config/user.mk.in.
 
 - Added a wrapper for the real-valued, double precision solver in SuperLU_DIST
-  which is a sparse direct solver for distributed memory architectures.
-  As such it can only be enabled along with MFEM_USE_MPI.  If MFEM was
-  configured with MFEM_USE_SUPERLU, one may also need to alter the version
-  of METIS being used.  The reason for this is that SuperLU_DIST reqiures
-  ParMETIS which comes packaged with a version of METIS.
-  See http://http://crd-legacy.lbl.gov/~xiaoye/SuperLU for details of
-  SuperLU_DIST.
+  which is a sparse direct solver for distributed memory architectures. As such
+  it can only be enabled along with MFEM_USE_MPI. When MFEM is configured with
+  MFEM_USE_SUPERLU, one also needs to alter the version of METIS, since SuperLU
+  requires ParMETIS (which comes packaged with a serial version of METIS).  See
+  http://http://crd-legacy.lbl.gov/~xiaoye/SuperLU for SuperLU_DIST details.
 
 New and updated examples
 ------------------------
