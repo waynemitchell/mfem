@@ -34,7 +34,7 @@
 //               example.
 
 
-#include "../mfem.hpp"
+#include "mfem.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>

@@ -34,7 +34,7 @@
 //               example.
 
 
-#include "../mfem.hpp"
+#include "mfem.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
@@ -384,13 +384,11 @@ int main(int argc, char *argv[])
       case 5:
          ode_solver = new CVODESolver(MPI_COMM_WORLD, *vx_hyp,
                                       CV_BDF, CV_NEWTON);
-         ode_solver->Init(oper);
          static_cast<CVODESolver *>(ode_solver)->
             SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
       case 6:
          ode_solver = new ARKODESolver(MPI_COMM_WORLD, *vx_hyp, false);
-         ode_solver->Init(oper);
          static_cast<ARKODESolver *>(ode_solver)->
             SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
          break;
@@ -403,10 +401,7 @@ int main(int argc, char *argv[])
          break;
    }
 
-   if(ode_solver_type != 5 && ode_solver_type != 6)
-   {
-      ode_solver->Init(oper);
-   }
+   ode_solver->Init(oper);
 
 
    // 10. Perform time-integration

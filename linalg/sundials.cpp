@@ -132,6 +132,11 @@ CVODESolver::CVODESolver(Vector &_y, int lmm, int iter)
 
    // Create the solver memory.
    ode_mem = CVodeCreate(lmm, iter);
+
+   // Initialize integrator memory, specify the user's
+   // RHS function in x' = f(t, x), initial time, initial condition.
+   int flag = CVodeInit(ode_mem, SundialsMult, 0.0, y);
+   MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
 }
 
 #ifdef MFEM_USE_MPI
@@ -146,6 +151,11 @@ CVODESolver::CVODESolver(MPI_Comm _comm, Vector &_y, int lmm, int iter)
 
    // Create the solver memory.
    ode_mem = CVodeCreate(lmm, iter);
+
+   // Initialize integrator memory, specify the user's
+   // RHS function in x' = f(t, x), initial time, initial condition.
+   int flag = CVodeInit(ode_mem, SundialsMult, 0.0, y);
+   MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
 }
 #endif
 
@@ -153,16 +163,10 @@ void CVODESolver::Init(TimeDependentOperator &_f)
 {
    f = &_f;
 
-   // Initialize integrator memory, specify the user's
-   // RHS function in x' = f(t, x), initial time, initial condition.
-   int flag = CVodeInit(ode_mem, SundialsMult, 0.0, y);
-
-   MFEM_ASSERT(flag >= 0, "CVodeInit() failed!");
-
    SetSStolerances(RELTOL, ABSTOL);
 
    // Set the pointer to user-defined data.
-   flag = CVodeSetUserData(ode_mem, f);
+   int flag = CVodeSetUserData(ode_mem, f);
    MFEM_ASSERT(flag >= 0, "CVodeSetUserData() failed!");
 
    // TODO: what's going on with the tolerances. Should this be in Init()?
@@ -243,14 +247,14 @@ void CVODESolver::TransferNVectorShallow(Vector* _x, N_Vector &_y)
 void CVODESolver::SetLinearSolve(Solver* J_solve,
                                  SundialsLinearSolveOperator* op)
 {
-   // Jane comment: If linear solve should be Newton, recreate ode_mem object.
+   // Jean comment: If linear solve should be Newton, recreate ode_mem object.
    //    Consider checking for CV_ADAMS vs CV_BDF as well.
    // TODO: Is there an error here ??
    if (solver_iteration_type == CV_FUNCTIONAL)
    {
       realtype t0 = ((CVodeMem) ode_mem)->cv_tn;
       CVodeFree(&ode_mem);
-      ode_mem=CVodeCreate(CV_BDF, CV_NEWTON);
+      ode_mem=CVodeCreate(CV_BDF, CV_NEWTON); // ??
       tolerances_set_sundials=false;
 
       int flag = CVodeInit(ode_mem, SundialsMult, t0, y);
@@ -290,6 +294,13 @@ ARKODESolver::ARKODESolver(Vector &_y, int _use_explicit)
 
    // Create the solver memory.
    ode_mem = ARKodeCreate();
+
+   // Initialize the integrator memory, specify the user's
+   // RHS function in x' = f(t, x), the inital time, initial condition.
+   int flag = use_explicit ?
+              ARKodeInit(ode_mem, SundialsMult, NULL, 0.0, y) :
+              ARKodeInit(ode_mem, NULL, SundialsMult, 0.0, y);
+   MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
 }
 
 #ifdef MFEM_USE_MPI
@@ -304,12 +315,6 @@ ARKODESolver::ARKODESolver(MPI_Comm _comm, Vector &_y, int _use_explicit)
 
    // Create the solver memory.
    ode_mem = ARKodeCreate();
-}
-#endif
-
-void ARKODESolver::Init(TimeDependentOperator &_f)
-{
-   f = &_f;
 
    // Initialize the integrator memory, specify the user's
    // RHS function in x' = f(t, x), the inital time, initial condition.
@@ -317,11 +322,17 @@ void ARKODESolver::Init(TimeDependentOperator &_f)
               ARKodeInit(ode_mem, SundialsMult, NULL, 0.0, y) :
               ARKodeInit(ode_mem, NULL, SundialsMult, 0.0, y);
    MFEM_ASSERT(flag >= 0, "ARKodeInit() failed!");
+}
+#endif
+
+void ARKODESolver::Init(TimeDependentOperator &_f)
+{
+   f = &_f;
 
    SetSStolerances(RELTOL, ABSTOL);
 
    /* Set the pointer to user-defined data */
-   flag = ARKodeSetUserData(ode_mem, this->f);
+   int flag = ARKodeSetUserData(ode_mem, this->f);
    MFEM_ASSERT(flag >= 0, "ARKodeSetUserData() failed!");
 }
 
@@ -471,7 +482,6 @@ void KinSolWrapper::solve(Vector &mfem_u,
    // LINESEARCH might be fancier, but more fragile near convergence.
    int strategy = KIN_LINESEARCH;
 //   int strategy = KIN_NONE;
-   //KINSetPrintLevel(kin_mem, 1);
    int flag = KINSol(kin_mem, u, strategy, u_scale, f_scale);
    MFEM_VERIFY(flag == KIN_SUCCESS || flag == KIN_INITIAL_GUESS_OK,
                "KINSol returned " << flag << " that indicated a problem!");
@@ -547,13 +557,6 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
    lmem->solve_y = new mfem::HypreParVector(N_VGetVector_ParHyp(ycur));
    lmem->solve_f = new mfem::HypreParVector(N_VGetVector_ParHyp(fcur));
    lmem->solve_b = new mfem::HypreParVector(N_VGetVector_ParHyp(b));
-
-//   ((mfem::HypreParVector*) lmem->solve_y)->SetDataAndSize(NV_DATA_PH(ycur),
-//                                                           NV_LOCLENGTH_PH(ycur));
-//   ((mfem::HypreParVector*) lmem->solve_f)->SetDataAndSize(NV_DATA_PH(fcur),
-//                                                           NV_LOCLENGTH_PH(fcur));
-//   ((mfem::HypreParVector*) lmem->solve_b)->SetDataAndSize(NV_DATA_PH(b),
-//                                                           NV_LOCLENGTH_PH(b));
 #endif
 
    lmem->weight = cv_mem->cv_gamma;
