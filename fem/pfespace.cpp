@@ -1902,7 +1902,7 @@ void ParFiniteElementSpace::Update(bool want_transform)
    Destroy();
    FiniteElementSpace::Destroy();
 
-   FiniteElementSpace::Construct();
+   FiniteElementSpace::Construct(); // sets T to NULL, own_T to true
    Construct();
 
    BuildElementToDofTable();

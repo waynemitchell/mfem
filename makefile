@@ -176,7 +176,7 @@ MFEM_USE_SUITESPARSE ?= NO
 # SuiteSparse library configuration
 SUITESPARSE_DIR ?= @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT ?= -I$(SUITESPARSE_DIR)/include
-SUITESPARSE_LIB ?= -L$(SUITESPARSE_DIR)/lib -lklu -lbft -lumfpack -lcholmod -lcolamd -lamd\
+SUITESPARSE_LIB ?= -L$(SUITESPARSE_DIR)/lib -lklu -lbtf -lumfpack -lcholmod -lcolamd -lamd\
  -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
 ifeq ($(MFEM_USE_SUITESPARSE),YES)
    INCFLAGS += $(SUITESPARSE_OPT)
