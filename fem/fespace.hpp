@@ -76,6 +76,7 @@ protected:
 
    /// Transformation to apply to GridFunctions after space Update().
    Operator *T;
+   bool own_T;
 
    long sequence; // should match Mesh::GetSequence
 
@@ -323,8 +324,13 @@ public:
    /// Get the GridFunction update matrix.
    const Operator* GetUpdateOperator() { Update(); return T; }
 
+   /** @brief Set the ownership of the update operator: if set to false, the
+       Operator returned by GetUpdateOperator() must be deleted outside the
+       FiniteElementSpace. */
+   void SetUpdateOperatorOwner(bool own) { own_T = own; }
+
    /// Free GridFunction transformation matrix (if any), to save memory.
-   void UpdatesFinished() { delete T; T = NULL; }
+   void UpdatesFinished() { if (own_T) { delete T; } T = NULL; }
 
    /// Return update counter (see Mesh::sequence)
    long GetSequence() const { return sequence; }

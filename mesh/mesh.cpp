@@ -5446,6 +5446,8 @@ void Mesh::ReorientTetMesh()
       DoNodeReorder(old_v_to_v, old_elem_vert);
       delete old_elem_vert;
       delete old_v_to_v;
+
+      Nodes->FESpace()->RebuildElementToDofTable();
    }
 }
 
