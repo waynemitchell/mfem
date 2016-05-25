@@ -21,6 +21,7 @@
 #include "../fem/eltrans.hpp"
 #include "../fem/coefficient.hpp"
 #include <iostream>
+#include <fstream>
 
 namespace mfem
 {
@@ -37,6 +38,16 @@ struct Refinement;
 class ParMesh;
 class ParNCMesh;
 #endif
+
+/// Input file stream that remembers the input file name (useful for reading
+/// NetCDF meshes).
+class nifstream : public std::ifstream
+{
+public:
+   const char *filename;
+   nifstream(const char *mesh_name) :
+      std::ifstream(mesh_name), filename(mesh_name) {}
+};
 
 class Mesh
 {

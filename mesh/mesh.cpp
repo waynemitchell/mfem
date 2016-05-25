@@ -2350,7 +2350,8 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
    // into temporary work arrays
    //
 
-   const int sideMapHex8[6][4] = {{1,2,6,5},
+   const int sideMapHex8[6][4] = {
+      {1,2,6,5},
       {2,3,7,6},
       {4,3,7,8},
       {1,4,8,5},
@@ -2358,7 +2359,8 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       {5,8,7,6}
    };
 
-   const int sideMapTet4[4][3] = {{1,2,4},
+   const int sideMapTet4[4][3] = {
+      {1,2,4},
       {2,3,4},
       {1,4,3},
       {1,3,2}
@@ -2367,25 +2369,18 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
    //                                  1,2,3,4,5,6,7,8,9,10
    const int mfemToGenesisTet10[10] = {1,2,3,4,5,7,8,6,9,10};
 
-
    //                                  1,2,3,4,5,6,7,8,9,10,11,
    const int mfemToGenesisHex27[27] = {1,2,3,4,5,6,7,8,9,10,11,
-
-                                       //                 12,13,14,15,16,17,18,19,
+                                       // 12,13,14,15,16,17,18,19
                                        12,17,18,19,20,13,14,15,
-
-                                       //                 20,21,22,23,24,25,26,27
-                                       16,22,26,25,27,24,23,21
-                                      };
-
-
-
-
+                                       // 20,21,22,23,24,25,26,27
+                                       16,22,26,25,27,24,23,21};
 
    const int mfemToGenesisTri6[6]   = {1,2,3,4,5,6};
    const int mfemToGenesisQuad9[9]  = {1,2,3,4,5,6,7,8,9};
 
-   const int sideMapHex27[6][9] = {{1,2,6,5,9,14,17,13,26},
+   const int sideMapHex27[6][9] = {
+      {1,2,6,5,9,14,17,13,26},
       {2,3,7,6,10,15,18,14,25},
       {4,3,7,8,11,15,19,16,27},
       {1,4,8,5,12,16,20,13,24},
@@ -2393,13 +2388,12 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
       {5,8,7,6,20,19,18,17,23}
    };
 
-   const int sideMapTet10[4][6] = {{1,2,4,5,9,8},
+   const int sideMapTet10[4][6] = {
+      {1,2,4,5,9,8},
       {2,3,4,6,10,9},
       {1,4,3,8,10,7},
       {1,3,2,7,6,5}
    };
-
-
 
    // error handling.
    int retval;
@@ -2410,7 +2404,10 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
    // Open the file.
    int ncid;
    if ((retval = nc_open(filename, NC_NOWRITE, &ncid)))
-   { cerr << "NetCDF error " << nc_strerror(retval) << endl; MFEM_ASSERT(false," fatal NetCDF error\n");}
+   {
+      cerr << "NetCDF error " << nc_strerror(retval) << endl;
+      MFEM_ASSERT(false," fatal NetCDF error\n");
+   }
 
    //
    // important dimensions to read first
@@ -4532,6 +4529,27 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    else if (mesh_type == "$MeshFormat") // Gmsh
    {
       ReadGmshMesh(input);
+   }
+   else if (mesh_type.size() > 2 &&
+            mesh_type[0] == 'C' && mesh_type[1] == 'D' && mesh_type[2] == 'F')
+   {
+      nifstream *mesh_input = dynamic_cast<nifstream *>(&input);
+      if (mesh_input)
+      {
+#ifdef MFEM_USE_NETCDF
+         LoadCubit(mesh_input->filename,
+                   generate_edges, refine, fix_orientation);
+#else
+         MFEM_ABORT("NetCDF support requires configuration with"
+                    " MFEM_USE_NETCDF=YES");
+#endif
+         return;
+      }
+      else
+      {
+         MFEM_ABORT("Need to use mfem_ifstream with NetCDF");
+         return;
+      }
    }
    else
    {
