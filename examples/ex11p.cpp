@@ -31,9 +31,10 @@
 //               NURBS mesh, etc.)
 //
 //               The example highlights the use of the LOBPCG eigenvalue solver
-//               together with the BoomerAMG preconditioner in HYPRE. Reusing a
-//               single GLVis visualization window for multiple eigenfunctions
-//               is also illustrated.
+//               together with the BoomerAMG preconditioner in HYPRE, as well as
+//               optionally the SuperLU parallel direct solver. Reusing a single
+//               GLVis visualization window for multiple eigenfunctions is also
+//               illustrated.
 //
 //               We recommend viewing Example 1 before viewing this example.
 

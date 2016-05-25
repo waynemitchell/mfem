@@ -205,13 +205,13 @@ int main(int argc, char *argv[])
    //     preconditioner from hypre.
    ParFiniteElementSpace *prec_fespace =
       (a->StaticCondensationIsEnabled() ? a->SCParFESpace() : fespace);
-   HypreAMS ams(A, prec_fespace);
-   HyprePCG pcg(A);
-   pcg.SetTol(1e-12);
-   pcg.SetMaxIter(500);
-   pcg.SetPrintLevel(2);
-   pcg.SetPreconditioner(ams);
-   pcg.Mult(B, X);
+   HypreSolver *ams = new HypreAMS(A, prec_fespace);
+   HyprePCG *pcg = new HyprePCG(A);
+   pcg->SetTol(1e-12);
+   pcg->SetMaxIter(500);
+   pcg->SetPrintLevel(2);
+   pcg->SetPreconditioner(*ams);
+   pcg->Mult(B, X);
 
    // 13. Recover the parallel grid function corresponding to X. This is the
    //     local finite element solution on each processor.
@@ -254,6 +254,8 @@ int main(int argc, char *argv[])
    }
 
    // 17. Free the used memory.
+   delete pcg;
+   delete ams;
    delete a;
    delete sigma;
    delete muinv;
