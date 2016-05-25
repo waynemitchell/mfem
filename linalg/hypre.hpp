@@ -506,7 +506,7 @@ public:
    /// Compute window and Chebyshev coefficients for given polynomial order.
    void SetFIRCoefficients(double max_eig);
 
-   /** Set/update the associated operator. Mult be called after setting the
+   /** Set/update the associated operator. Must be called after setting the
        HypreSmoother type and options. */
    virtual void SetOperator(const Operator &op);
 
