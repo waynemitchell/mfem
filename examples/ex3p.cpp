@@ -19,16 +19,16 @@
 //               mpirun -np 4 ex3p -m ../data/klein-bottle.mesh -o 2 -f 0.1
 //
 // for reading a cubit quadratic tetrahedral mesh
-//               mpirun -np 4 ex3p -cubit -m ../data/rod-tet10.gen
+//               mpirun -np 4 ex3p -m ../data/rod-tet10.gen
 //
 // for reading a cubit linear tetrahedral mesh
-//               mpirun -np 4 ex3p -cubit -m ../data/rod-tet4.gen
+//               mpirun -np 4 ex3p -m ../data/rod-tet4.gen
 //
 // for reading a cubit quadratic hexhedral mesh
-//               mpirun -np 4 ex3p -cubit -m ../data/rod-hex27.gen
+//               mpirun -np 4 ex3p -m ../data/rod-hex27.gen
 //
 // for reading a cubit linear hexhedral mesh
-//               mpirun -np 4 ex3p -cubit -m ../data/rod-hex8.gen
+//               mpirun -np 4 ex3p -m ../data/rod-hex8.gen
 //
 // Description:  This example code solves a simple electromagnetic diffusion
 //               problem corresponding to the second order definite Maxwell
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
    int order = 1;
    bool static_cond = false;
    bool visualization = 1;
-   bool cubit = false;
+
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -85,9 +85,7 @@ int main(int argc, char *argv[])
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
-   args.AddOption(&cubit, "-cubit", "--cubit", "-no-cubit",
-                  "--no-cubit",
-                  "Is the mesh a cubit (Netcdf) file.");
+
    args.Parse();
    if (!args.Good())
    {
@@ -107,32 +105,12 @@ int main(int argc, char *argv[])
    // 3. Read the (serial) mesh from the given mesh file on all processors.  We
    //    can handle triangular, quadrilateral, tetrahedral, hexahedral, surface
    //    and volume meshes with the same code.
+
    Mesh *mesh;
-   if (!cubit)
-   {
-      ifstream imesh(mesh_file);
-      if (!imesh)
-      {
-         if (myid == 0)
-         {
-            cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
-         }
-         MPI_Finalize();
-         return 2;
-      }
-      mesh = new Mesh(imesh, 1, 1);
-      imesh.close();
-   }
-   else
-   {
-#ifdef MFEM_USE_NETCDF
-      mesh = new Mesh();
-      mesh->LoadCubit(mesh_file, 1, 1, true);
-#else
-      MFEM_ASSERT(false,"cubit option not allowed MFEM not built with NetCFD\n");
-      return 2;
-#endif
-   }
+
+   // the nifstream is required for Cubit (NetCDF) files
+   nifstream imesh(mesh_file);
+   mesh = new Mesh(imesh, 1, 1);
 
    dim = mesh->Dimension();
    int sdim = mesh->SpaceDimension();

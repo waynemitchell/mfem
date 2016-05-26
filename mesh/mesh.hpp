@@ -456,8 +456,7 @@ public:
 
    /* Note NetCDF (optional library) is used for reading cubit files */
 #ifdef MFEM_USE_NETCDF
-   void LoadCubit(const char *filename, int generate_edges = 0, int refine = 1,
-                  bool fix_orientation = true);
+  void ReadCubit(nifstream &input, int &curved, int &read_gf);
 #endif
 
    /** Return a bitmask:

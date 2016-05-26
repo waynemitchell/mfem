@@ -2289,66 +2289,14 @@ void skip_comment_lines(std::istream &is, const char comment_char)
    }
 }
 
+
 #ifdef MFEM_USE_NETCDF
-void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
-                     bool fix_orientation)
+void Mesh::ReadCubit(nifstream &input, int &curved, int &read_gf)
 {
-   int curved = 0;
+   read_gf = 0;
 
-   if (NumOfVertices != -1)
-   {
-      // Delete the elements.
-      for (int i = 0; i < NumOfElements; i++)
-      {
-         FreeElement(elements[i]);
-      }
-      elements.DeleteAll();
-      NumOfElements = 0;
-
-      // Delete the vertices.
-      vertices.DeleteAll();
-      NumOfVertices = 0;
-
-      // Delete the boundary elements.
-      for (int i = 0; i < NumOfBdrElements; i++)
-      {
-         FreeElement(boundary[i]);
-      }
-      boundary.DeleteAll();
-      NumOfBdrElements = 0;
-
-      // Delete interior faces (if generated)
-      for (int i = 0; i < faces.Size(); i++)
-      {
-         FreeElement(faces[i]);
-      }
-      faces.DeleteAll();
-      NumOfFaces = 0;
-
-      faces_info.DeleteAll();
-
-      // Delete the edges (if generated).
-      DeleteTables();
-      be_to_edge.DeleteAll();
-      be_to_face.DeleteAll();
-      NumOfEdges = 0;
-
-      // TODO: make this a Destroy function
-   }
-
-   delete ncmesh;
-   ncmesh = NULL;
-
-   if (own_nodes) { delete Nodes; }
-   Nodes = NULL;
-
-   InitTables();
-   spaceDim = 0;
-
-   //
-   // OK now we process the cubit file putting vertices and elements
-   // into temporary work arrays
-   //
+   // curved set to zero will chang if mesh is indeed curved
+   curved = 0;
 
    const int sideMapHex8[6][4] = {
       {1,2,6,5},
@@ -2371,9 +2319,9 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
 
    //                                  1,2,3,4,5,6,7,8,9,10,11,
    const int mfemToGenesisHex27[27] = {1,2,3,4,5,6,7,8,9,10,11,
-                                       // 12,13,14,15,16,17,18,19
+                                    // 12,13,14,15,16,17,18,19
                                        12,17,18,19,20,13,14,15,
-                                       // 20,21,22,23,24,25,26,27
+                                    // 20,21,22,23,24,25,26,27
                                        16,22,26,25,27,24,23,21};
 
    const int mfemToGenesisTri6[6]   = {1,2,3,4,5,6};
@@ -2403,6 +2351,7 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
 
    // Open the file.
    int ncid;
+   const char* filename = input.filename;
    if ((retval = nc_open(filename, NC_NOWRITE, &ncid)))
    {
       cerr << "NetCDF error " << nc_strerror(retval) << endl;
@@ -3052,143 +3001,6 @@ void Mesh::LoadCubit(const char *filename, int generate_edges, int refine,
    delete ss_node_id;
    delete ebprop;
    delete ssprop;
-
-   // everything below this line is identical to the regular Load function
-   //
-   // at this point the following should be defined:
-   //  1) Dim
-   //  2) NumOfElements, elements
-   //  3) NumOfBdrElements, boundary
-   //  4) NumOfVertices, with allocated space in vertices
-   //  5) curved
-   //  5a) if curved == 0, vertices must be defined
-   //  5b) if curved != 0 and read_gf != 0,
-   //         'input' must point to a GridFunction
-   //  5c) if curved != 0 and read_gf == 0,
-   //         vertices and Nodes must be defined
-
-   if (spaceDim == 0)
-   {
-      spaceDim = Dim;
-   }
-
-   InitBaseGeom();
-
-   // set the mesh type ('meshgen')
-   SetMeshGen();
-
-   if (NumOfBdrElements == 0 && Dim > 2)
-   {
-      // in 3D, generate boundary elements before we 'MarkForRefinement'
-      GetElementToFaceTable();
-      GenerateFaces();
-      GenerateBoundaryElements();
-   }
-
-   if (!curved)
-   {
-      // check and fix element orientation
-      CheckElementOrientation(fix_orientation);
-
-      if (refine)
-      {
-         MarkForRefinement();
-      }
-   }
-
-   if (Dim == 1)
-   {
-      GenerateFaces();
-   }
-
-   // generate the faces
-   if (Dim > 2)
-   {
-      GetElementToFaceTable();
-      GenerateFaces();
-      // check and fix boundary element orientation
-      if ( !(curved && (meshgen & 1)) )
-      {
-         CheckBdrElementOrientation();
-      }
-   }
-   else
-   {
-      NumOfFaces = 0;
-   }
-
-   // generate edges if requested
-   if (Dim > 1 && generate_edges == 1)
-   {
-      // el_to_edge may already be allocated (P2 VTK meshes)
-      if (!el_to_edge) { el_to_edge = new Table; }
-      NumOfEdges = GetElementToEdgeTable(*el_to_edge, be_to_edge);
-      if (Dim == 2)
-      {
-         GenerateFaces(); // 'Faces' in 2D refers to the edges
-         if (NumOfBdrElements == 0)
-         {
-            GenerateBoundaryElements();
-         }
-         // check and fix boundary element orientation
-         if ( !(curved && (meshgen & 1)) )
-         {
-            CheckBdrElementOrientation();
-         }
-      }
-   }
-   else
-   {
-      NumOfEdges = 0;
-   }
-
-   if (ncmesh)
-   {
-      // tell NCMesh the numbering of edges/faces
-      ncmesh->OnMeshUpdated(this);
-
-      // update faces_info with NC relations
-      GenerateNCFaceInfo();
-   }
-
-   // generate the arrays 'attributes' and ' bdr_attributes'
-   SetAttributes();
-
-   if (curved)
-   {
-      // Check orientation and mark edges; only for triangles / tets
-      if (meshgen & 1)
-      {
-         DSTable *old_v_to_v = NULL;
-         Table *old_elem_vert = NULL;
-         if (fix_orientation || refine)
-         {
-            PrepareNodeReorder(&old_v_to_v, &old_elem_vert);
-         }
-
-         // check orientation and mark for refinement using just vertices
-         // (i.e. higher order curvature is not used)
-         CheckElementOrientation(fix_orientation);
-         if (refine)
-         {
-            MarkForRefinement();   // changes topology!
-         }
-
-         if (fix_orientation || refine)
-         {
-            DoNodeReorder(old_v_to_v, old_elem_vert);
-            delete old_elem_vert;
-            delete old_v_to_v;
-         }
-
-         Nodes->FESpace()->RebuildElementToDofTable();
-
-         // TODO: maybe introduce Mesh::NODE_REORDER operation and FESpace::
-         // NodeReorderMatrix and do Nodes->Update() instead of DoNodeReorder?
-      }
-   }
-
-   if (ncmesh) { ncmesh->spaceDim = spaceDim; }
 
 }
 #endif
@@ -4533,29 +4345,28 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
    else if (mesh_type.size() > 2 &&
             mesh_type[0] == 'C' && mesh_type[1] == 'D' && mesh_type[2] == 'F')
    {
-      nifstream *mesh_input = dynamic_cast<nifstream *>(&input);
-      if (mesh_input)
-      {
+     nifstream *mesh_input = dynamic_cast<nifstream *>(&input);
+     if (mesh_input)
+       {
 #ifdef MFEM_USE_NETCDF
-         LoadCubit(mesh_input->filename,
-                   generate_edges, refine, fix_orientation);
+	 ReadCubit(*mesh_input, curved, read_gf);
 #else
-         MFEM_ABORT("NetCDF support requires configuration with"
-                    " MFEM_USE_NETCDF=YES");
+	 MFEM_ABORT("NetCDF support requires configuration with"
+		    " MFEM_USE_NETCDF=YES");
+	 return;
 #endif
-         return;
-      }
-      else
-      {
-         MFEM_ABORT("Need to use mfem_ifstream with NetCDF");
-         return;
-      }
+       }
+     else
+       {
+	 MFEM_ABORT("Need to use mfem_ifstream with NetCDF");
+	 return;
+       }
    }
    else
-   {
-      MFEM_ABORT("Unknown input mesh format: " << mesh_type);
-      return;
-   }
+     {
+       MFEM_ABORT("Unknown input mesh format: " << mesh_type);
+       return;
+     }
 
    // at this point the following should be defined:
    //  1) Dim
