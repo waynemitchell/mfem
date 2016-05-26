@@ -21,6 +21,7 @@ MFEM makefile targets:
    make parallel
    make debug
    make pdebug
+   make check/test
    make install
    make clean
    make distclean
@@ -47,6 +48,10 @@ make debug
    A shortcut to configure and build the serial debug version of the library.
 make pdebug
    A shortcut to configure and build the parallel debug version of the library.
+make check
+   Quick-check the build by compiling and running Example 1/1p.
+make test
+   Verify the build by checking the results from running all examples and miniapps.
 make install PREFIX=<dir>
    Install the library and headers in <dir>/lib and <dir>/include.
 make clean
@@ -112,19 +117,36 @@ ifeq ($(MFEM_DEBUG),YES)
 endif
 CXXFLAGS ?= $(OPTIM_FLAGS)
 
+# MFEM configuration options
+MFEM_USE_MPI         ?= NO
+MFEM_USE_LAPACK      ?= NO
+MFEM_USE_OPENMP      ?= NO
+MFEM_USE_MESQUITE    ?= NO
+MFEM_USE_SUITESPARSE ?= NO
+MFEM_USE_SUPERLU     ?= NO
+MFEM_USE_MEMALLOC    ?= YES
+MFEM_USE_GECKO       ?= NO
+
 # HYPRE library configuration (needed to build the parallel version)
 HYPRE_DIR ?= @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT ?= -I$(HYPRE_DIR)/include
 HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
 # METIS library configuration
-METIS_DIR ?= @MFEM_DIR@/../metis-4.0
-METIS_OPT ?=
-METIS_LIB ?= -L$(METIS_DIR) -lmetis
+ifeq ($(MFEM_USE_SUPERLU),NO)
+   METIS_DIR ?= @MFEM_DIR@/../metis-4.0
+   METIS_OPT ?=
+   METIS_LIB ?= -L$(METIS_DIR) -lmetis
+   MFEM_USE_METIS_5 ?= NO
+else
+   # ParMETIS currently needed only with SuperLU
+   METIS_DIR ?= @MFEM_DIR@/../parmetis-4.0.3
+   METIS_OPT ?=
+   METIS_LIB ?= -L$(METIS_DIR) -lparmetis -lmetis
+   MFEM_USE_METIS_5 ?= YES
+endif
 
-MFEM_USE_METIS_5 ?= NO
-
-MFEM_USE_MPI ?= NO
+# MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
 else
@@ -138,15 +160,9 @@ DEP_CXX ?= $(MFEM_CXX)
 # SIDRE library and required libraries configurations.
 MFEM_USE_SIDRE ?= NO
 ifeq ($(MFEM_USE_SIDRE),YES)
-   ifndef SIDRE_DIR
-      $(error Sidre requires SIDRE_DIR to be set.)
-   endif
-   ifndef CONDUIT_DIR
-      $(error Sidre requires CONDUIT_DIR to be set.)
-   endif
-   ifndef HDF5_DIR
-      $(error Sidre requires HDF5_DIR to be set.)
-   endif
+   SIDRE_DIR ?= @MFEM_DIR@/../asctoolkit
+   CONDUIT_DIR ?= @MFEM_DIR@/../conduit
+   HDF5_DIR ?= @MFEM_DIR@/../hdf5
 
    INCFLAGS += -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include -I$(HDF5_DIR)/include
    ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -llibb64 -lhdf5 -lz -ldl
@@ -162,8 +178,6 @@ ifeq ($(MFEM_USE_LAPACK),YES)
    ALL_LIBS += $(LAPACK_LIB)
 endif
 
-
-MFEM_USE_OPENMP ?= NO
 # OpenMP configuration
 OPENMP_OPT ?= -fopenmp
 OPENMP_LIB ?=
@@ -178,7 +192,6 @@ else
    MFEM_THREAD_SAFE ?= NO
 endif
 
-MFEM_USE_MESQUITE ?= NO
 # MESQUITE library configuration
 MESQUITE_DIR ?= @MFEM_DIR@/../mesquite-2.99
 MESQUITE_OPT ?= -I$(MESQUITE_DIR)/include
@@ -188,20 +201,26 @@ ifeq ($(MFEM_USE_MESQUITE),YES)
    ALL_LIBS += $(MESQUITE_LIB)
 endif
 
-MFEM_USE_SUITESPARSE ?= NO
 # SuiteSparse library configuration
 SUITESPARSE_DIR ?= @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT ?= -I$(SUITESPARSE_DIR)/include
-SUITESPARSE_LIB ?= -L$(SUITESPARSE_DIR)/lib -lumfpack -lcholmod -lcolamd -lamd\
+SUITESPARSE_LIB ?= -L$(SUITESPARSE_DIR)/lib -lklu -lbtf -lumfpack -lcholmod -lcolamd -lamd\
  -lcamd -lccolamd -lsuitesparseconfig -lrt $(METIS_LIB) $(LAPACK_LIB)
 ifeq ($(MFEM_USE_SUITESPARSE),YES)
    INCFLAGS += $(SUITESPARSE_OPT)
    ALL_LIBS += $(SUITESPARSE_LIB)
 endif
 
-MFEM_USE_MEMALLOC ?= YES
+# SuperLU library configuration
+SUPERLU_DIR ?= @MFEM_DIR@/../SuperLU_DIST_5.1.0
+SUPERLU_OPT ?= -I$(SUPERLU_DIR)/SRC
+SUPERLU_LIB ?= -L$(SUPERLU_DIR)/SRC -lsuperlu_dist -lblas $(METIS_LIB)
+ifeq ($(MFEM_USE_SUPERLU),YES)
+   INCFLAGS += $(SUPERLU_OPT)
+   ALL_LIBS += $(SUPERLU_LIB)
+endif
 
-MFEM_USE_GECKO ?= NO
+# Gecko library configuration
 GECKO_DIR ?= @MFEM_DIR@/../gecko
 GECKO_OPT ?= -I$(GECKO_DIR)/inc
 GECKO_LIB ?= -L$(GECKO_DIR)/lib -lgecko
@@ -223,8 +242,8 @@ endif
 
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
- MFEM_USE_LAPACK MFEM_USE_SIDRE MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
- MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC MFEM_USE_GECKO
+ MFEM_USE_SIDRE MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
+ MFEM_USE_SUITESPARSE MFEM_USE_SUPERLU MFEM_USE_MEMALLOC MFEM_USE_GECKO
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -271,9 +290,8 @@ DIRS = general linalg mesh fem
 SOURCE_FILES = $(foreach dir,$(DIRS),$(wildcard $(dir)/*.cpp))
 OBJECT_FILES = $(SOURCE_FILES:.cpp=.o)
 
-
-.PHONY: lib all clean distclean install config status info deps serial parallel sidre\
- debug pdebug style
+.PHONY: lib all clean distclean install config status info deps serial parallel\
+ debug pdebug style check test
 
 .SUFFIXES: .cpp .o
 .cpp.o:
@@ -287,6 +305,7 @@ all: lib
 	$(MAKE) -C miniapps/common
 	$(MAKE) -C miniapps/meshing
 	$(MAKE) -C miniapps/electromagnetics
+	$(MAKE) -C miniapps/performance
 
 -include deps.mk
 
@@ -320,12 +339,33 @@ deps:
 	for i in $(SOURCE_FILES:.cpp=); do \
 	   $(DEP_CXX) $(MFEM_FLAGS) -MM -MT $${i}.o $${i}.cpp >> deps.mk; done
 
+check: lib
+	@printf "Quick-checking the MFEM library."
+	@printf " Use 'make test' for more extensive tests.\n"
+	@$(MAKE) -C examples \
+	$(if $(findstring YES,$(MFEM_USE_MPI)),ex1p-test-par,ex1-test-seq)
+
+test: lib
+	@echo "Testing the MFEM library. This may take a while..."
+	@echo "Building all examples and miniapps..."
+	@make all
+	@echo "Running examples..."
+	@$(MAKE) -C examples test
+	@echo "Running meshing miniapps..."
+	@$(MAKE) -C miniapps/meshing test
+	@echo "Running electromagnetic miniapps..."
+	@$(MAKE) -C miniapps/electromagnetics test
+	@echo "Running high-performance miniapps..."
+	@$(MAKE) -C miniapps/performance test
+	@echo "Done."
+
 clean:
 	rm -f */*.o */*~ *~ libmfem.a deps.mk
 	$(MAKE) -C examples clean
 	$(MAKE) -C miniapps/common clean
 	$(MAKE) -C miniapps/meshing clean
 	$(MAKE) -C miniapps/electromagnetics clean
+	$(MAKE) -C miniapps/performance clean
 
 distclean: clean
 	rm -rf mfem/
@@ -338,10 +378,10 @@ install: libmfem.a
 	$(INSTALL) -m 640 libmfem.a $(PREFIX_LIB)
 # install top level includes
 	mkdir -p $(PREFIX_INC)
-	$(INSTALL) -m 640 mfem.hpp $(PREFIX_INC)
+	$(INSTALL) -m 640 mfem.hpp mfem-performance.hpp $(PREFIX_INC)
 # install config include
 	mkdir -p $(PREFIX_INC)/config
-	$(INSTALL) -m 640 config/config.hpp $(PREFIX_INC)/config
+	$(INSTALL) -m 640 config/config.hpp config/tconfig.hpp $(PREFIX_INC)/config
 # install remaining includes in each subdirectory
 	for dir in $(DIRS); do \
 	   mkdir -p $(PREFIX_INC)/$$dir && \
@@ -375,6 +415,7 @@ status info:
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
+	$(info MFEM_USE_SUPERLU     = $(MFEM_USE_SUPERLU))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))

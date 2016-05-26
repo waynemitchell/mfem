@@ -39,6 +39,9 @@ Example codes (serial/parallel, depending on the build):
 Build everything (library, examples and miniapps) with current configuration:
    make all -j 4
 
+Quick-check the build by running Example 1/1p (optional):
+   make check
+
 
 Building with GNU make
 ======================
@@ -76,6 +79,19 @@ are also defined:
 
 Note that any of the above shortcuts accept configuration options, either at the
 command line or through a user configuration file.
+
+The build can be quick-tested by running
+
+   make check
+
+which will simply compile and run Example 1/1p. For more extensive tests that
+check the results from all the serial/parallel MFEM examples and miniapps use:
+
+   make test
+
+Note that running all the tests may take a while. Implementation details about
+the check and test targets can be found in the top-level makefile and the
+config/test.mk file.
 
 An optional installation of the library and the headers can be performed with
 
@@ -160,8 +176,15 @@ MFEM_USE_MESQUITE = YES/NO
 
 MFEM_USE_SUITESPARSE = YES/NO
    Enable MFEM functionality based on the SuiteSparse library. Currently, this
-   option adds the class UMFPackSolver (a sparse direct solver). When enabled,
-   this option uses the SUITESPARSE_* library options, see below.
+   option adds the classes UMFPackSolver and KLUSolver (both sparse serial
+   direct solvers). When enabled, this option uses the SUITESPARSE_* library
+   options, see below.
+
+MFEM_USE_SUPERLU = YES/NO
+   Enable MFEM functionality based on the SuperLU_DIST library. Currently, this
+   option adds the classes SuperLUSolver (a parallel sparse direct solver) and
+   SuperLURowLocMatrix a distributed CSR matrix class needed by SuperLU. When
+   enabled, this option uses the SUPERLU_* library options, see below.
 
 MFEM_USE_MEMALLOC = YES/NO
    Internal MFEM option: enable batch allocation for some small objects.
@@ -221,6 +244,11 @@ The specific libraries and their options are:
 - SuiteSparse (optional), used when MFEM_USE_SUITESPARSE = YES.
   URL: http://faculty.cse.tamu.edu/davis/suitesparse.html
   Options: SUITESPARSE_OPT, SUITESPARSE_LIB.
+
+- SuperLU (optional), used when MFEM_USE_SUPERLU = YES. Note that SuperLU
+  requires ParMETIS which, in turn, requires METIS (see above URL).
+  URL: http://http://crd-legacy.lbl.gov/~xiaoye/SuperLU
+  Options: SUPERLU_OPT, SUPERLU_LIB.
 
 - High-resolution POSIX clocks: when using MFEM_TIMER_TYPE = 2, it may be
   necessary to link with a system library (e.g. librt.so).

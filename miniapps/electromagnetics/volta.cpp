@@ -96,6 +96,7 @@ int main(int argc, char *argv[])
    // Parse command-line options.
    const char *mesh_file = "butterfly_3d.mesh";
    int order = 1;
+   int maxit = 100;
    int sr = 0, pr = 0;
    bool visualization = true;
    bool visit = true;
@@ -136,6 +137,8 @@ int main(int argc, char *argv[])
                   "Neumann Boundary Condition Surfaces");
    args.AddOption(&nbcv, "-nbcv", "--neumann-bc-vals",
                   "Neumann Boundary Condition Values");
+   args.AddOption(&maxit, "-maxit", "--max-amr-iterations",
+                  "Max number of iterations in the main AMR loop.");
    args.AddOption(&visualization, "-vis", "--visualization", "-no-vis",
                   "--no-visualization",
                   "Enable or disable GLVis visualization.");
@@ -263,7 +266,7 @@ int main(int argc, char *argv[])
    // refine until the maximum number of dofs in the nodal finite element space
    // reaches 10 million.
    const int max_dofs = 10000000;
-   for (int it = 1; it <= 100; it++)
+   for (int it = 1; it <= maxit; it++)
    {
       if (myid == 0)
       {
@@ -330,21 +333,12 @@ int main(int argc, char *argv[])
       MPI_Allreduce(&local_max_err, &global_max_err, 1,
                     MPI_DOUBLE, MPI_MAX, pmesh.GetComm());
 
-      // Make a list of elements whose error is larger than a fraction
-      // of the maximum element error. These elements will be refined.
-      Array<int> ref_list;
+      // Refine the elements whose error is larger than a fraction of the
+      // maximum element error.
       const double frac = 0.7;
       double threshold = frac * global_max_err;
-      for (int i = 0; i < errors.Size(); i++)
-      {
-         if (errors[i] >= threshold) { ref_list.Append(i); }
-      }
-
-      // Refine the selected elements. Since we are going to transfer the
-      // grid function x from the coarse mesh to the new fine mesh in the
-      // next step, we need to request the "two-level state" of the mesh.
       if (myid == 0) { cout << " Refinement ..." << flush; }
-      pmesh.GeneralRefinement(ref_list);
+      pmesh.RefineByError(errors, threshold);
 
       // Update the electrostatic solver to reflect the new state of the mesh.
       Volta.Update();

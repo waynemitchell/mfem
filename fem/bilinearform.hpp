@@ -32,7 +32,7 @@ protected:
    /// Sparse matrix to be associated with the form.
    SparseMatrix *mat;
 
-   // Matrix used to eliminate b.c.
+   /// Matrix used to eliminate b.c.
    SparseMatrix *mat_e;
 
    /// FE space on which the form lives.
@@ -63,6 +63,8 @@ protected:
    int precompute_sparsity;
    // Allocate appropriate SparseMatrix and assign it to mat
    void AllocMat();
+
+   void ConformingAssemble();
 
    // may be used in the construction of derived classes
    BilinearForm() : Matrix (0)
@@ -150,9 +152,29 @@ public:
    virtual void Finalize(int skip_zeros = 1);
 
    /// Returns a reference to the sparse matrix
-   const SparseMatrix &SpMat() const { return *mat; }
-   SparseMatrix &SpMat() { return *mat; }
+   const SparseMatrix &SpMat() const
+   {
+      MFEM_VERIFY(mat, "mat is NULL and can't be dereferenced");
+      return *mat;
+   }
+   SparseMatrix &SpMat()
+   {
+      MFEM_VERIFY(mat, "mat is NULL and can't be dereferenced");
+      return *mat;
+   }
    SparseMatrix *LoseMat() { SparseMatrix *tmp = mat; mat = NULL; return tmp; }
+
+   /// Returns a reference to the sparse matrix of eliminated b.c.
+   const SparseMatrix &SpMatElim() const
+   {
+      MFEM_VERIFY(mat_e, "mat_e is NULL and can't be dereferenced");
+      return *mat_e;
+   }
+   SparseMatrix &SpMatElim()
+   {
+      MFEM_VERIFY(mat_e, "mat_e is NULL and can't be dereferenced");
+      return *mat_e;
+   }
 
    /// Adds new Domain Integrator.
    void AddDomainIntegrator(BilinearFormIntegrator *bfi);
@@ -174,20 +196,6 @@ public:
 
    /// Assembles the form i.e. sums over all domain/bdr integrators.
    void Assemble(int skip_zeros = 1);
-
-   /** For partially conforming FE spaces, complete the assembly process by
-       performing A := P^t A P where A is the internal sparse matrix and P is
-       the conforming prolongation of the FE space. After this call the
-       BilinearForm becomes an operator on the conforming FE space. */
-   void ConformingAssemble();
-
-   /** A shortcut for converting the whole linear system to conforming DOFs. */
-   void ConformingAssemble(GridFunction& sol, LinearForm& rhs)
-   {
-      ConformingAssemble();
-      rhs.ConformingAssemble();
-      sol.ConformingProject();
-   }
 
    /** Form the linear system A X = B, corresponding to the current bilinear
        form and b(.), by applying any necessary transformations such as:

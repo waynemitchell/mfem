@@ -79,11 +79,11 @@ public:
    /// Creates vector compatible with y
    HypreParVector(const HypreParVector &y);
    /// Creates vector compatible with (i.e. in the domain of) A or A^T
-   HypreParVector(HypreParMatrix &A, int tr = 0);
+   explicit HypreParVector(const HypreParMatrix &A, int transpose = 0);
    /// Creates vector wrapping y
-   HypreParVector(HYPRE_ParVector y);
+   explicit HypreParVector(HYPRE_ParVector y);
    /// Create a true dof parallel vector on a given ParFiniteElementSpace
-   HypreParVector(ParFiniteElementSpace *pfes);
+   explicit HypreParVector(ParFiniteElementSpace *pfes);
 
    /// MPI communicator
    MPI_Comm GetComm() { return x->comm; }
@@ -192,7 +192,7 @@ public:
    HypreParMatrix();
 
    /// Converts hypre's format to HypreParMatrix
-   HypreParMatrix(hypre_ParCSRMatrix *a)
+   explicit HypreParMatrix(hypre_ParCSRMatrix *a)
    {
       Init();
       A = a;
@@ -506,7 +506,7 @@ public:
    /// Compute window and Chebyshev coefficients for given polynomial order.
    void SetFIRCoefficients(double max_eig);
 
-   /** Set/update the associated operator. Mult be called after setting the
+   /** Set/update the associated operator. Must be called after setting the
        HypreSmoother type and options. */
    virtual void SetOperator(const Operator &op);
 

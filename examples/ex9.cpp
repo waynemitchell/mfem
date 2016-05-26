@@ -290,10 +290,6 @@ int main(int argc, char *argv[])
        exit(-1);
       }
 
-
-      // TODO - Make a second data collection, compare to first data collection?
-      // Ask MFEM team if I can create multiple meshes, etc, ( no singletons, right? ).
-
    }
 #endif // MFEM_USE_SIDRE
 

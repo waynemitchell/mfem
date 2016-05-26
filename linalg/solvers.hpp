@@ -21,6 +21,7 @@
 
 #ifdef MFEM_USE_SUITESPARSE
 #include <umfpack.h>
+#include <klu.h>
 #endif
 
 namespace mfem
@@ -357,6 +358,35 @@ public:
    virtual void MultTranspose(const Vector &b, Vector &x) const;
 
    virtual ~UMFPackSolver();
+};
+
+/// Direct sparse solver using KLU
+class KLUSolver : public Solver
+{
+protected:
+   SparseMatrix *mat;
+   klu_symbolic *Symbolic;
+   klu_numeric *Numeric;
+
+   void Init();
+
+public:
+   KLUSolver()
+      : mat(0),Symbolic(0),Numeric(0)
+   { Init(); }
+   KLUSolver(SparseMatrix &A)
+      : mat(0),Symbolic(0),Numeric(0)
+   { Init(); SetOperator(A); }
+
+   // Works on sparse matrices only; calls SparseMatrix::SortColumnIndices().
+   virtual void SetOperator(const Operator &op);
+
+   virtual void Mult(const Vector &b, Vector &x) const;
+   virtual void MultTranspose(const Vector &b, Vector &x) const;
+
+   virtual ~KLUSolver();
+
+   mutable klu_common Common;
 };
 
 #endif // MFEM_USE_SUITESPARSE
