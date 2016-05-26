@@ -51,8 +51,8 @@
 //      mpirun -np 4 volta -dbcs 1 -dbcg -ds '0.0 0.0 0.0 0.2 8.0'
 //
 //   An example using piecewise constant permittivity values
-//       mpirun -np 4 volta -m llnl.mesh -dbcs '4' -dbcv '0' 
-//                          -cs '8 8  10 0.55' -pwe '1 1 1 0.0001'
+//       mpirun -np 4 volta -m llnl.mesh -dbcs '4' -dbcv '0'
+//                          -cs '8 8 10 0.54' -pwe '1 1 1 0.001'
 //
 //   By default the sources and fields are all zero:
 //      mpirun -np 4 volta
