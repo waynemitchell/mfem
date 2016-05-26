@@ -149,7 +149,7 @@ ifeq ($(MFEM_USE_SIDRE),YES)
    endif
 
    INCFLAGS += -I$(SIDRE_DIR)/include -I$(CONDUIT_DIR)/include -I$(HDF5_DIR)/include
-   ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -llibb64 -lhdf5 -ldl
+   ALL_LIBS += -L$(SIDRE_DIR)/lib -L$(CONDUIT_DIR)/lib -L$(HDF5_DIR)/lib -lsidre -lslic -lcommon -lconduit -lconduit_relay -llibb64 -lhdf5 -lz -ldl
 endif
 
 
