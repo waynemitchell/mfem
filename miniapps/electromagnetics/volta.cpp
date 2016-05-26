@@ -50,6 +50,10 @@
 //   A dielectric sphere suspended in a uniform electric field:
 //      mpirun -np 4 volta -dbcs 1 -dbcg -ds '0.0 0.0 0.0 0.2 8.0'
 //
+//   An example using piecewise constant permittivity values
+//       mpirun -np 4 volta -m llnl.mesh -dbcs '4' -dbcv '0' 
+//                          -cs '8 8  10 0.55' -pwe '1 1 1 0.0001'
+//
 //   By default the sources and fields are all zero:
 //      mpirun -np 4 volta
 
@@ -61,7 +65,14 @@ using namespace std;
 using namespace mfem;
 using namespace mfem::electromagnetics;
 
-// Permittivity Function
+// Physical Constants
+// Permittivity of Free Space (units F/m)
+static double epsilon0_ = 8.8541878176e-12;
+
+// Permittivity Functions
+Coefficient * SetupPermittivityCoefficient();
+
+static Vector pw_eps_(0);     // Piecewise permittivity values
 static Vector ds_params_(0);  // Center, Radius, and Permittivity
 //                               of dielectric sphere
 double dielectric_sphere(const Vector &);
@@ -120,6 +131,8 @@ int main(int argc, char *argv[])
                   "Number of parallel refinement levels.");
    args.AddOption(&e_uniform_, "-uebc", "--uniform-e-bc",
                   "Specify if the three components of the constant electric field");
+   args.AddOption(&pw_eps_, "-pwe", "--piecewise-eps",
+                  "Piecewise values of Permittivity");
    args.AddOption(&ds_params_, "-ds", "--dielectric-sphere-params",
                   "Center, Radius, and Permittivity of Dielectric Sphere");
    args.AddOption(&cs_params_, "-cs", "--charged-sphere-params",
@@ -238,9 +251,10 @@ int main(int argc, char *argv[])
       nbcv = 0.0;
    }
 
+   Coefficient * epsCoef = SetupPermittivityCoefficient();
+
    // Create the Electrostatic solver
-   VoltaSolver Volta(pmesh, order, dbcs, dbcv, nbcs, nbcv,
-                     ( ds_params_.Size() > 0 ) ? dielectric_sphere : NULL,
+   VoltaSolver Volta(pmesh, order, dbcs, dbcv, nbcs, nbcv, *epsCoef,
                      ( e_uniform_.Size() > 0 ) ? phi_bc_uniform    : NULL,
                      ( cs_params_.Size() > 0 ) ? charged_sphere    : NULL,
                      ( vp_params_.Size() > 0 ) ? voltaic_pile      : NULL);
@@ -344,6 +358,8 @@ int main(int argc, char *argv[])
       Volta.Update();
    }
 
+   delete epsCoef;
+
    MPI_Finalize();
 
    return 0;
@@ -358,6 +374,29 @@ void display_banner(ostream & os)
       << "    \\     (  <_> )  |_|  |  / __ \\_  " << endl
       << "     \\___/ \\____/|____/__| (____  /  " << endl
       << "                                \\/   " << endl << flush;
+}
+
+// The Permittivity is a required coefficient which may be defined in
+// various ways so we'll determine the appropriate coefficient type here.
+Coefficient *
+SetupPermittivityCoefficient()
+{
+   Coefficient * coef = NULL;
+
+   if ( ds_params_.Size() > 0 )
+   {
+      coef = new FunctionCoefficient(dielectric_sphere);
+   }
+   else if ( pw_eps_.Size() > 0 )
+   {
+      coef = new PWConstCoefficient(pw_eps_);
+   }
+   else
+   {
+      coef = new ConstantCoefficient(epsilon0_);
+   }
+
+   return coef;
 }
 
 // A sphere with constant permittivity.  The sphere has a radius,
