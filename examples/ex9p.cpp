@@ -28,6 +28,10 @@
 #include <fstream>
 #include <iostream>
 
+#ifdef MFEM_USE_SIDRE
+  #include "sidre/sidre.hpp"
+#endif // MFEM_USE_SIDRE
+
 using namespace std;
 using namespace mfem;
 
@@ -71,6 +75,9 @@ public:
 
 int main(int argc, char *argv[])
 {
+// TODO - prototype only! If number of elements exceeds the amount reserved, the vector will resize and invalidate all the pointers!
+   mfem::Quadrilateral::all_indices.reserve(1024000);
+
    // 1. Initialize MPI.
    int num_procs, myid;
    MPI_Init(&argc, &argv);
@@ -87,6 +94,7 @@ int main(int argc, char *argv[])
    double t_final = 10.0;
    double dt = 0.01;
    bool visualization = true;
+   bool sidre = true;
    bool visit = false;
    int vis_steps = 5;
 
@@ -117,6 +125,10 @@ int main(int argc, char *argv[])
    args.AddOption(&visit, "-visit", "--visit-datafiles", "-no-visit",
                   "--no-visit-datafiles",
                   "Save data files for VisIt (visit.llnl.gov) visualization.");
+   args.AddOption(&sidre, "-sidre", "--sidre-datafiles", "-no-sidre",
+                  "--no-sidre-datafiles",
+                  "Save sidre contents to conduit file.");
+ 
    args.AddOption(&vis_steps, "-vs", "--visualization-steps",
                   "Visualize every n-th timestep.");
    args.Parse();
@@ -133,6 +145,15 @@ int main(int argc, char *argv[])
    {
       args.PrintOptions(cout);
    }
+
+#ifdef MFEM_USE_SIDRE
+   // Stop on any sidre warnings.
+   asctoolkit::slic::debug::checksAreErrors = true;
+
+   // 2. Create a sidre datastore instance.
+   asctoolkit::sidre::DataStore ds;
+
+#endif // MFEM_USE_SIDRE
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
    //    handle geometrically periodic meshes in this code.
@@ -258,6 +279,63 @@ int main(int argc, char *argv[])
       osol.precision(precision);
       u->Save(osol);
    }
+
+#ifdef MFEM_USE_SIDRE
+   if (sidre)
+   {
+      // Create Sidre data collection, add mesh
+      SidreDataCollection sidre_dc("Example9", mesh, &ds.getRoot());
+      // Add grid function
+      sidre_dc.RegisterField("solution", u);
+
+      // Dump sidre to file
+
+      // std::string filename("Example9.hdf5");
+      std::string filename("Example9");
+
+      // TODO: I can't use SPIO in a serial code yet.  Need MPI wrappers in SPIO first.
+      // For now, just call datastore group save() directly.
+      // asctoolkit::spio::IOManager writer(MPI_COMM_WORLD, &ds->getRoot(), num_root_groups, num_files);
+      // writer.write("ex9-initial", 0, "conduit_hdf5");
+
+//      std::string protocol = "conduit";
+//      ds.save(filename, protocol);
+
+      // Test loading file back in.
+//      asctoolkit::sidre::DataStore new_ds1;
+//      new_ds1.load(filename, protocol);
+
+      std::string protocol = "conduit_hdf5";
+      ds.save(filename, protocol);
+
+      asctoolkit::sidre::DataStore new_ds2;
+      new_ds2.load(filename, protocol);
+
+      protocol = "text";
+      ds.save(filename, protocol);
+/*
+      if (ds.getRoot()->isEquivalentTo(new_ds1.getRoot()) )
+      {
+        std::cout << "Datastore save/load with conduit binary passed, they are equivalent." << std::endl;
+      }
+      else
+      {
+       std::cout << "Datastore conduit binary instances don't match, crap, need to troubleshoot." << std::endl;
+       exit(-1);
+      }
+*/
+      if (ds.getRoot()->isEquivalentTo(new_ds2.getRoot()) )
+      {
+        std::cout << "Datastore save/load with conduit hdf5 passed, they are equivalent." << std::endl;
+      }
+      else
+      {
+       std::cout << "Datastore conduit hdf5 instances don't match, crap, need to troubleshoot." << std::endl;
+       exit(-1);
+      }
+
+   }
+#endif // MFEM_USE_SIDRE
 
    VisItDataCollection visit_dc("Example9-Parallel", pmesh);
    visit_dc.RegisterField("solution", u);

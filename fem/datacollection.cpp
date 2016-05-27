@@ -585,12 +585,12 @@ void VisItDataCollection::ParseVisItRootString(string json)
 // There are some exceptions - individual scalars are copied into Sidre, as long as we know the
 // data does not change during a run.  There are some drawbacks to trying to do most data as 'external'
 // to Sidre. (For future discussion)
-SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataStore* ds)
+SidreDataCollection::SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataGroup* dg)
   : DataCollection(collection_name, new_mesh)
 {
   namespace sidre = asctoolkit::sidre;
 
-  sidre_dc_group = ds->getRoot()->createGroup( std::string(collection_name) );
+  sidre_dc_group = dg->createGroup( std::string(collection_name) );
 
   // Create group for mesh
   sidre::DataGroup * mesh_grp = sidre_dc_group->createGroup("topology");
@@ -652,19 +652,20 @@ void SidreDataCollection::addElements( asctoolkit::sidre::DataGroup * group, Arr
 
   group->createView("number")->setScalar( elements.Size() );
   // TODO - Need a helper function to map element shape id to a string name.
-  // For now put in the the int value.
+  // For now put in the int value.
   // Assume all elements are same type ( for this prototype only ).
   // Add the hex's only.
 
   group->createView("shape")->setString("hexs");
   sidre::DataView * conn_view = group->createView("connectivity");
 
+  // This can easily be converted to use a data buffer prepared by the datastore instead of a stl vector in mfem.
+  // TODO - Discuss refactoring material attributes as a field with MFEM team.
   conn_view->setExternalDataPtr( &Quadrilateral::all_indices[0] );
   conn_view-> apply( SidreTT<mfem_int_t>::id, Quadrilateral::all_indices.size() );
 
   // Have to build array of material_attributes, unless we want # elems entries in datastore.
   // Unless, the data structure is changed in mfem.
-  std::cerr << " # elemens " << elements.Size() << std::endl;
   sidre::DataView * attributes_view = group->createView("material_attributes", SidreTT<mfem_int_t>::id,
     elements.Size() ) -> allocate();
   mfem_int_t * attributes_ptr = attributes_view->getArray();

@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
    if (sidre)
    {
       // Create Sidre data collection, add mesh
-      SidreDataCollection sidre_dc("Example9", mesh, &ds);
+      SidreDataCollection sidre_dc("Example9", mesh, &ds.getRoot());
       // Add grid function
       sidre_dc.RegisterField("solution", &u);
 
@@ -254,14 +254,14 @@ int main(int argc, char *argv[])
       // asctoolkit::spio::IOManager writer(MPI_COMM_WORLD, &ds->getRoot(), num_root_groups, num_files);
       // writer.write("ex9-initial", 0, "conduit_hdf5");
 
-      std::string protocol = "conduit";
-      ds.save(filename, protocol);
+//      std::string protocol = "conduit";
+//      ds.save(filename, protocol);
 
       // Test loading file back in.
-      asctoolkit::sidre::DataStore new_ds1;
-      new_ds1.load(filename, protocol);
+//      asctoolkit::sidre::DataStore new_ds1;
+//      new_ds1.load(filename, protocol);
 
-      protocol = "conduit_hdf5";
+      std::string protocol = "conduit_hdf5";
       ds.save(filename, protocol);
 
       asctoolkit::sidre::DataStore new_ds2;
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 
       protocol = "text";
       ds.save(filename, protocol);
-
+/*
       if (ds.getRoot()->isEquivalentTo(new_ds1.getRoot()) )
       {
         std::cout << "Datastore save/load with conduit binary passed, they are equivalent." << std::endl;
@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
        std::cout << "Datastore conduit binary instances don't match, crap, need to troubleshoot." << std::endl;
        exit(-1);
       }
-
+*/
       if (ds.getRoot()->isEquivalentTo(new_ds2.getRoot()) )
       {
         std::cout << "Datastore save/load with conduit hdf5 passed, they are equivalent." << std::endl;

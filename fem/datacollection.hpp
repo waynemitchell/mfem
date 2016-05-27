@@ -235,7 +235,7 @@ public:
   // TODO
 //   SidreDataCollection( DataCollection& collection ) {}
 
-   SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataStore * ds);
+   SidreDataCollection(const char *collection_name, Mesh * new_mesh, asctoolkit::sidre::DataGroup * dg);
 
    void RegisterField(const char* name, GridFunction *gf);
 
