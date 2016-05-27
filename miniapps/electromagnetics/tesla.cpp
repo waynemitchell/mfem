@@ -41,6 +41,10 @@
 //   A ring of current in a metal sphere:
 //      mpirun -np 4 tesla -cr '0 0 -0.2 0 0 0.2 0.2 0.4 1'
 //
+//   A Halbach array of permanent magnets:
+//      mpirun -np 4 tesla -m ../../data/beam-hex.mesh -rs 2
+//                         -ha '1 0.1 0.3 7 0.9 0.7 0 1 12'
+//
 //   An example demonstrating the use of surface currents:
 //      mpirun -np 4 tesla -m ./square-angled-pipe.mesh
 //                         -kbcs '3' -vbcs '1 2' -vbcv '-0.5 0.5'
@@ -64,10 +68,14 @@ using namespace mfem;
 using namespace mfem::electromagnetics;
 
 // Permeability Function
+Coefficient * SetupInvPermeabilityCoefficient();
+
+static Vector pw_mu_(0);      // Piecewise permeability values
+static Vector pw_mu_inv_(0);  // Piecewise inverse permeability values
 static Vector ms_params_(0);  // Center, Inner and Outer Radii, and
 //                               Permeability of magnetic shell
 double magnetic_shell(const Vector &);
-double muInv(const Vector & x) { return 1.0/magnetic_shell(x); }
+double magnetic_shell_inv(const Vector & x) { return 1.0/magnetic_shell(x); }
 
 // Current Density Function
 static Vector cr_params_(0);  // Axis Start, Axis End, Inner Ring Radius,
@@ -79,6 +87,12 @@ void current_ring(const Vector &, Vector &);
 static Vector bm_params_(0);  // Axis Start, Axis End, Bar Radius,
 //                               and Magnetic Field Magnitude
 void bar_magnet(const Vector &, Vector &);
+
+static Vector ha_params_(0);  // Bounding box,
+//                               axis index (0->'x', 1->'y', 2->'z'),
+//                               rotation axis index
+//                               and number of segments
+void halbach_array(const Vector &, Vector &);
 
 // A Field Boundary Condition for B = (Bx,By,Bz)
 static Vector b_uniform_(0);
@@ -124,12 +138,16 @@ int main(int argc, char *argv[])
                   "Number of parallel refinement levels.");
    args.AddOption(&b_uniform_, "-ubbc", "--uniform-b-bc",
                   "Specify if the three components of the constant magnetic flux density");
+   args.AddOption(&pw_mu_, "-pwm", "--piecewise-mu",
+                  "Piecewise values of Permeability");
    args.AddOption(&ms_params_, "-ms", "--magnetic-shell-params",
                   "Center, Inner Radius, Outer Radius, and Permeability of Magnetic Shell");
    args.AddOption(&cr_params_, "-cr", "--current-ring-params",
                   "Axis End Points, Inner Radius, Outer Radius and Total Current of Annulus");
    args.AddOption(&bm_params_, "-bm", "--bar-magnet-params",
                   "Axis End Points, Radius, and Magnetic Field of Cylindrical Magnet");
+   args.AddOption(&ha_params_, "-ha", "--halbach-array-params",
+                  "Bounding Box Corners and Number of Segments");
    args.AddOption(&kbcs, "-kbcs", "--surface-current-bc",
                   "Surfaces for the Surface Current (K) Boundary Condition");
    args.AddOption(&vbcs, "-vbcs", "--voltage-bc-surf",
@@ -229,12 +247,15 @@ int main(int argc, char *argv[])
       return 3;
    }
 
+   // Create a coefficient describing the magnetic permeability
+   Coefficient * muInvCoef = SetupInvPermeabilityCoefficient();
+
    // Create the Magnetostatic solver
-   TeslaSolver Tesla(pmesh, order, kbcs, vbcs, vbcv,
-                     (ms_params_.Size() > 0 ) ? muInv        : NULL,
-                     (b_uniform_.Size() > 0 ) ? a_bc_uniform : NULL,
-                     (cr_params_.Size() > 0 ) ? current_ring : NULL,
-                     (bm_params_.Size() > 0 ) ? bar_magnet   : NULL);
+   TeslaSolver Tesla(pmesh, order, kbcs, vbcs, vbcv, *muInvCoef,
+                     (b_uniform_.Size() > 0 ) ? a_bc_uniform  : NULL,
+                     (cr_params_.Size() > 0 ) ? current_ring  : NULL,
+                     (bm_params_.Size() > 0 ) ? bar_magnet    :
+                     (ha_params_.Size() > 0 ) ? halbach_array : NULL);
 
    // Initialize GLVis visualization
    if (visualization)
@@ -349,6 +370,35 @@ void display_banner(ostream & os)
       << "    |    |\\  ___/ \\___ \\|  |__/ __ \\_  " << endl
       << "    |____| \\___  >____  >____(____  /  " << endl
       << "               \\/     \\/          \\/   " << endl << flush;
+}
+
+// The Permeability is a required coefficient which may be defined in
+// various ways so we'll determine the appropriate coefficient type here.
+Coefficient *
+SetupInvPermeabilityCoefficient()
+{
+   Coefficient * coef = NULL;
+
+   if ( ms_params_.Size() > 0 )
+   {
+      coef = new FunctionCoefficient(magnetic_shell_inv);
+   }
+   else if ( pw_mu_.Size() > 0 )
+   {
+      pw_mu_inv_.SetSize(pw_mu_.Size());
+      for (int i=0; i<pw_mu_.Size(); i++)
+      {
+         MFEM_ASSERT( pw_mu_[i] > 0.0, "permeability values must be positive" );
+         pw_mu_inv_[i] = 1.0/pw_mu_[i];
+      }
+      coef = new PWConstCoefficient(pw_mu_inv_);
+   }
+   else
+   {
+      coef = new ConstantCoefficient(1.0/mu0_);
+   }
+
+   return coef;
 }
 
 // A spherical shell with constant permeability.  The sphere has inner
@@ -467,6 +517,32 @@ void bar_magnet(const Vector &x, Vector &m)
    {
       m.Add(bm_params_[2*x.Size()+1]/h,a);
    }
+}
+
+// A Square Rod of rotating magnetized segments.  The rod is defined
+// by a bounding box and a number of segments.  The magnetization in
+// each segment is constant and follows a rotating pattern.
+void halbach_array(const Vector &x, Vector &m)
+{
+   m.SetSize(x.Size());
+   m = 0.0;
+
+   // Check Bounding Box
+   if ( x[0] < ha_params_[0] || x[0] > ha_params_[3] ||
+        x[1] < ha_params_[1] || x[1] > ha_params_[4] ||
+        x[2] < ha_params_[2] || x[2] > ha_params_[5] )
+   {
+      return;
+   }
+
+   int ai = (int)ha_params_[6];
+   int ri = (int)ha_params_[7];
+   int n  = (int)ha_params_[8];
+
+   int i = (int)n * (x[ai] - ha_params_[ai]) /
+           (ha_params_[ai+3] - ha_params_[ai]);
+
+   m[(ri + 1 + (i % 2)) % 3] = pow(-1.0,i/2);
 }
 
 // To produce a uniform magnetic flux the vector potential can be set

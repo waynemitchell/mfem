@@ -251,6 +251,7 @@ int main(int argc, char *argv[])
       nbcv = 0.0;
    }
 
+   // Create a coefficient describing the dielectric permittivity
    Coefficient * epsCoef = SetupPermittivityCoefficient();
 
    // Create the Electrostatic solver
