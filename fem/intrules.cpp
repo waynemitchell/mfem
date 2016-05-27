@@ -954,14 +954,14 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
          case NumericalQuad1D::GaussLegendre:
          {
             /// Gauss Legendre is exact for 2*np - 1
-            n = (Order + 1)/2 + Order%2;
+            n = (Order + 1)/2 + (1+Order)%2;
             quad_func.GaussLegendre(n, &tmp );
             break;
          }
          case NumericalQuad1D::GaussLobatto:
          {
             /// Gauss Lobatto is exact for 2np-3
-            n = (Order + 3)/2 + Order%2;
+            n = (Order + 3)/2 + (1+Order)%2;
             quad_func.GaussLobatto(n, &tmp );
             break;
          }
@@ -1001,7 +1001,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
       {
          /// Order = degree of polynomial that is exactly integrated
          /// Gauss Legendre is exact for 2*np - 1
-         int np = (Order + 1)/2 + Order%2;
+         int np = (Order + 1)/2 + (1+Order)%2;
          SegmentIntRules[Order] = new IntegrationRule(np);
          quad_func.GaussLegendre(np, SegmentIntRules[Order] );
          break;
@@ -1010,7 +1010,7 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
       {
          /// Order = degree of polynomial that is exactly integrated
          /// Gauss Legendre is exact for 2*np - 3
-         int np = (Order + 3)/2 + Order%2;
+         int np = (Order + 3)/2 + (1+Order)%2;
          SegmentIntRules[Order] = new IntegrationRule(np);
          quad_func.GaussLobatto(np,  SegmentIntRules[Order] );
          break;
@@ -1033,6 +1033,15 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
          quad_func.ClosedEquallySpaced(np,  SegmentIntRules[Order] );
          break;
       }
+   }
+   IntegrationRule *ir = SegmentIntRules[Order];
+   int ir_size = ir->Size();
+   std::cout << "Size of integration rule being returned: " << ir_size <<
+             std::endl;
+   for (int i = 0 ; i < ir->Size() ; ++i)
+   {
+      std::cout << "point: " << ir->IntPoint(i).x << "  weight: " << ir->IntPoint(
+                   i).weight << std::endl;
    }
    return SegmentIntRules[Order];
 }
