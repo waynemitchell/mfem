@@ -6509,21 +6509,9 @@ const double *Poly_1D::OpenPoints(const int p)
       }
       goto alloc_open;
    }
-<<<<<<< HEAD
    if ((op = open_pts[p]) != NULL)
    {
       return op;
-=======
-   if (open_pts[p] != NULL)
-   {
-      return open_pts[p];
-   }
-   else
-   {
-      open_pts[p] = new double[p + 1];
-      quad_func.GivePolyPoints(p+1, open_pts[p], type);
-      return open_pts[p];
->>>>>>> cbaea0d72d50057c4f0cc17a173598c2cd96e8b5
    }
 alloc_open:
    open_pts[p] = op = new double[p + 1];
@@ -6548,13 +6536,7 @@ const double *Poly_1D::ClosedPoints(const int p)
    }
    if ((cp = closed_pts[p]) != NULL)
    {
-<<<<<<< HEAD
       return cp;
-=======
-      closed_pts[p] = new double[p + 1];
-      quad_func.GivePolyPoints(p+1, closed_pts[p], type);
-      return closed_pts[p];
->>>>>>> cbaea0d72d50057c4f0cc17a173598c2cd96e8b5
    }
 alloc_closed:
    closed_pts[p] = cp = new double[p + 1];
@@ -8168,22 +8150,7 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-<<<<<<< HEAD
       case 0:
-=======
-      // Open Points
-      case 0: case 4:
-         basis1d = &poly1d.ClosedBasis(p);
-         op = poly1d.ClosedPoints(p);
-         break;
-      // Closed Points
-      case 1: case 3:
-         basis1d = &poly1d.ClosedBasis(p);
-         op = poly1d.ClosedPoints(p);
-         break;
-      default:
-         //GaussLegendre
->>>>>>> cbaea0d72d50057c4f0cc17a173598c2cd96e8b5
          basis1d = &poly1d.OpenBasis(p);
          op = poly1d.OpenPoints(p);
          break;
