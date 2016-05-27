@@ -529,6 +529,7 @@ static int WrapLinearCVSolve(CVodeMem cv_mem, N_Vector b,
    // TODO: can't we only have the operator in the lmem?
    WrapLinearSolve(cv_mem->cv_lmem, cv_mem->cv_tn, lmem->solve_b, lmem->solve_y,
                    lmem->setup_y, lmem->solve_f);
+
    return 0;
 }
 
@@ -545,7 +546,8 @@ static void WrapLinearCVSolveFree(CVodeMem cv_mem)
  MFEMLinearCVSolve first calls the existing lfree routine if this is not
  NULL. It then sets the cv_linit, cv_lsetup, cv_lsolve,
  cv_lfree fields in (*cvode_mem) to be WrapLinearCVSolveInit,
- WrapLinearCVSolveSetup, WrapLinearCVSolve, and WrapLinearCVSolveFree, respectively.
+ WrapLinearCVSolveSetup, WrapLinearCVSolve, and WrapLinearCVSolveFree,
+ respectively.
 ---------------------------------------------------------------*/
 static int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve,
                              mfem::SundialsLinearSolveOperator* op)
@@ -553,20 +555,22 @@ static int MFEMLinearCVSolve(void *ode_mem, mfem::Solver* solve,
    CVodeMem cv_mem;
 
    MFEM_VERIFY(ode_mem != NULL, "CVODE memory error!");
-   cv_mem = (CVodeMem) ode_mem;
+   cv_mem = static_cast<CVodeMem>(ode_mem);
 
-   if (cv_mem->cv_lfree != NULL) { cv_mem->cv_lfree(cv_mem); }
+   if (cv_mem->cv_lfree != NULL)
+   {
+      cv_mem->cv_lfree(cv_mem);
+   }
 
-   // Set four main function fields in ark_mem
+   // Set four main function fields in cv_mem.
    cv_mem->cv_linit  = WrapLinearCVSolveInit;
    cv_mem->cv_lsetup = WrapLinearCVSolveSetup;
    cv_mem->cv_lsolve = WrapLinearCVSolve;
    cv_mem->cv_lfree  = WrapLinearCVSolveFree;
    cv_mem->cv_setupNonNull = 1;
-   // forces cvode to call lsetup prior to every time it calls lsolve
+   // Forces CVode to call lsetup prior to every time it calls lsolve.
    cv_mem->cv_maxcor = 1;
 
-   //void* for containing linear solver memory
    mfem::MFEMLinearSolverMemory* lmem = new mfem::MFEMLinearSolverMemory();
 
 #ifndef MFEM_USE_MPI

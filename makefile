@@ -125,10 +125,10 @@ MFEM_USE_METIS_5 ?= NO
 # SUNDIALS library configuration
 SUNDIALS_DIR ?= @MFEM_DIR@/../../sundials_latest/install
 SUNDIALS_OPT ?= -I$(SUNDIALS_DIR)/include
-SUNDIALS_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_cvode\
- -Wl,-lsundials_nvecserial -Wl,-lsundials_kinsol -Wl,-rpath,$(SUNDIALS_DIR)/lib
-SUNDIALS_PAR_LIB ?= -L$(SUNDIALS_DIR)/lib -Wl,-lsundials_arkode -Wl,-lsundials_cvode\
- -Wl,-lsundials_nvecserial -Wl,-lsundials_kinsol -Wl,-lsundials_nvecparhyp -Wl,-rpath,$(SUNDIALS_DIR)/lib
+SUNDIALS_LIB ?= -L$(SUNDIALS_DIR)/lib -lsundials_arkode -lsundials_cvode\
+  -lsundials_nvecserial -lsundials_kinsol
+SUNDIALS_PAR_LIB ?= -L$(SUNDIALS_DIR)/lib -lsundials_arkode -lsundials_cvode\
+  -lsundials_nvecserial -lsundials_kinsol -lsundials_nvecparhyp
 
 MFEM_USE_MPI ?= NO
 MFEM_USE_SUNDIALS ?= YES

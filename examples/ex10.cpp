@@ -612,7 +612,7 @@ void HyperelasticOperator::ImplicitSolve(const double dt,
 
    add(v, dt, dv_dt, dx_dt);
 
-   MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
+   //MFEM_VERIFY(newton_solver.GetConverged(), "Newton Solver did not converge.");
 }
 
 double HyperelasticOperator::ElasticEnergy(Vector &x) const
