@@ -115,6 +115,16 @@ ifeq ($(MFEM_DEBUG),YES)
 endif
 CXXFLAGS ?= $(OPTIM_FLAGS)
 
+# MFEM configuration options
+MFEM_USE_MPI         ?= NO
+MFEM_USE_LAPACK      ?= NO
+MFEM_USE_OPENMP      ?= NO
+MFEM_USE_MESQUITE    ?= NO
+MFEM_USE_SUITESPARSE ?= NO
+MFEM_USE_SUPERLU     ?= NO
+MFEM_USE_MEMALLOC    ?= YES
+MFEM_USE_GECKO       ?= NO
+
 # HYPRE library configuration (needed to build the parallel version)
 HYPRE_DIR ?= @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT ?= -I$(HYPRE_DIR)/include
@@ -134,7 +144,7 @@ else
    MFEM_USE_METIS_5 ?= YES
 endif
 
-MFEM_USE_MPI ?= NO
+# MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
 else
@@ -145,7 +155,6 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-MFEM_USE_LAPACK ?= NO
 # LAPACK library configuration
 LAPACK_OPT ?=
 LAPACK_LIB ?= -llapack
@@ -154,7 +163,6 @@ ifeq ($(MFEM_USE_LAPACK),YES)
    ALL_LIBS += $(LAPACK_LIB)
 endif
 
-MFEM_USE_OPENMP ?= NO
 # OpenMP configuration
 OPENMP_OPT ?= -fopenmp
 OPENMP_LIB ?=
@@ -169,7 +177,6 @@ else
    MFEM_THREAD_SAFE ?= NO
 endif
 
-MFEM_USE_MESQUITE ?= NO
 # MESQUITE library configuration
 MESQUITE_DIR ?= @MFEM_DIR@/../mesquite-2.99
 MESQUITE_OPT ?= -I$(MESQUITE_DIR)/include
@@ -179,7 +186,6 @@ ifeq ($(MFEM_USE_MESQUITE),YES)
    ALL_LIBS += $(MESQUITE_LIB)
 endif
 
-MFEM_USE_SUITESPARSE ?= NO
 # SuiteSparse library configuration
 SUITESPARSE_DIR ?= @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT ?= -I$(SUITESPARSE_DIR)/include
@@ -190,7 +196,6 @@ ifeq ($(MFEM_USE_SUITESPARSE),YES)
    ALL_LIBS += $(SUITESPARSE_LIB)
 endif
 
-MFEM_USE_SUPERLU ?= NO
 # SuperLU library configuration
 SUPERLU_DIR ?= @MFEM_DIR@/../SuperLU_DIST_5.1.0
 SUPERLU_OPT ?= -I$(SUPERLU_DIR)/SRC
@@ -200,9 +205,7 @@ ifeq ($(MFEM_USE_SUPERLU),YES)
    ALL_LIBS += $(SUPERLU_LIB)
 endif
 
-MFEM_USE_MEMALLOC ?= YES
-
-MFEM_USE_GECKO ?= NO
+# Gecko library configuration
 GECKO_DIR ?= @MFEM_DIR@/../gecko
 GECKO_OPT ?= -I$(GECKO_DIR)/inc
 GECKO_LIB ?= -L$(GECKO_DIR)/lib -lgecko
