@@ -3072,7 +3072,9 @@ HypreLOBPCG::SetOperator(Operator & A)
       delete x;
    }
 
-   x = new HypreParVector(comm,glbSize,NULL,part);
+   // Create a distributed vector without a data array.
+   double x_dummy = 0.0;
+   x = new HypreParVector(comm,glbSize,&x_dummy,part);
 
    matvec_fn.MatvecCreate  = this->OperatorMatvecCreate;
    matvec_fn.Matvec        = this->OperatorMatvec;
