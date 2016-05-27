@@ -115,19 +115,36 @@ ifeq ($(MFEM_DEBUG),YES)
 endif
 CXXFLAGS ?= $(OPTIM_FLAGS)
 
+# MFEM configuration options
+MFEM_USE_MPI         ?= NO
+MFEM_USE_LAPACK      ?= NO
+MFEM_USE_OPENMP      ?= NO
+MFEM_USE_MESQUITE    ?= NO
+MFEM_USE_SUITESPARSE ?= NO
+MFEM_USE_SUPERLU     ?= NO
+MFEM_USE_MEMALLOC    ?= YES
+MFEM_USE_GECKO       ?= NO
+
 # HYPRE library configuration (needed to build the parallel version)
 HYPRE_DIR ?= @MFEM_DIR@/../hypre-2.10.0b/src/hypre
 HYPRE_OPT ?= -I$(HYPRE_DIR)/include
 HYPRE_LIB ?= -L$(HYPRE_DIR)/lib -lHYPRE
 
 # METIS library configuration
-METIS_DIR ?= @MFEM_DIR@/../metis-4.0
-METIS_OPT ?=
-METIS_LIB ?= -L$(METIS_DIR) -lmetis
+ifeq ($(MFEM_USE_SUPERLU),NO)
+   METIS_DIR ?= @MFEM_DIR@/../metis-4.0
+   METIS_OPT ?=
+   METIS_LIB ?= -L$(METIS_DIR) -lmetis
+   MFEM_USE_METIS_5 ?= NO
+else
+   # ParMETIS currently needed only with SuperLU
+   METIS_DIR ?= @MFEM_DIR@/../parmetis-4.0.3
+   METIS_OPT ?=
+   METIS_LIB ?= -L$(METIS_DIR) -lparmetis -lmetis
+   MFEM_USE_METIS_5 ?= YES
+endif
 
-MFEM_USE_METIS_5 ?= NO
-
-MFEM_USE_MPI ?= NO
+# MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
 else
@@ -138,7 +155,6 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
-MFEM_USE_LAPACK ?= NO
 # LAPACK library configuration
 LAPACK_OPT ?=
 LAPACK_LIB ?= -llapack
@@ -147,7 +163,6 @@ ifeq ($(MFEM_USE_LAPACK),YES)
    ALL_LIBS += $(LAPACK_LIB)
 endif
 
-MFEM_USE_OPENMP ?= NO
 # OpenMP configuration
 OPENMP_OPT ?= -fopenmp
 OPENMP_LIB ?=
@@ -162,7 +177,6 @@ else
    MFEM_THREAD_SAFE ?= NO
 endif
 
-MFEM_USE_MESQUITE ?= NO
 # MESQUITE library configuration
 MESQUITE_DIR ?= @MFEM_DIR@/../mesquite-2.99
 MESQUITE_OPT ?= -I$(MESQUITE_DIR)/include
@@ -172,7 +186,6 @@ ifeq ($(MFEM_USE_MESQUITE),YES)
    ALL_LIBS += $(MESQUITE_LIB)
 endif
 
-MFEM_USE_SUITESPARSE ?= NO
 # SuiteSparse library configuration
 SUITESPARSE_DIR ?= @MFEM_DIR@/../SuiteSparse
 SUITESPARSE_OPT ?= -I$(SUITESPARSE_DIR)/include
@@ -183,9 +196,16 @@ ifeq ($(MFEM_USE_SUITESPARSE),YES)
    ALL_LIBS += $(SUITESPARSE_LIB)
 endif
 
-MFEM_USE_MEMALLOC ?= YES
+# SuperLU library configuration
+SUPERLU_DIR ?= @MFEM_DIR@/../SuperLU_DIST_5.1.0
+SUPERLU_OPT ?= -I$(SUPERLU_DIR)/SRC
+SUPERLU_LIB ?= -L$(SUPERLU_DIR)/SRC -lsuperlu_dist -lblas $(METIS_LIB)
+ifeq ($(MFEM_USE_SUPERLU),YES)
+   INCFLAGS += $(SUPERLU_OPT)
+   ALL_LIBS += $(SUPERLU_LIB)
+endif
 
-MFEM_USE_GECKO ?= NO
+# Gecko library configuration
 GECKO_DIR ?= @MFEM_DIR@/../gecko
 GECKO_OPT ?= -I$(GECKO_DIR)/inc
 GECKO_LIB ?= -L$(GECKO_DIR)/lib -lgecko
@@ -208,7 +228,7 @@ endif
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_TIMER_TYPE\
  MFEM_USE_LAPACK MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MESQUITE\
- MFEM_USE_SUITESPARSE MFEM_USE_MEMALLOC MFEM_USE_GECKO
+ MFEM_USE_SUITESPARSE MFEM_USE_SUPERLU MFEM_USE_MEMALLOC MFEM_USE_GECKO
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -373,6 +393,7 @@ status info:
 	$(info MFEM_USE_OPENMP      = $(MFEM_USE_OPENMP))
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
+	$(info MFEM_USE_SUPERLU     = $(MFEM_USE_SUPERLU))
 	$(info MFEM_USE_MEMALLOC    = $(MFEM_USE_MEMALLOC))
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
