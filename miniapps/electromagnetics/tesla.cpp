@@ -46,7 +46,7 @@
 //                         -ha '1 0.1 0.3 7 0.9 0.7 0 1 12'
 //
 //   An example demonstrating the use of surface currents:
-//      mpirun -np 4 tesla -m ./square-angled-pipe.mesh
+//      mpirun -np 4 tesla -m square-angled-pipe.mesh
 //                         -kbcs '3' -vbcs '1 2' -vbcv '-0.5 0.5'
 //
 //   An example combining the paramagnetic shell, permanent magnet,
