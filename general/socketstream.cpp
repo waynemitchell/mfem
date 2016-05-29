@@ -911,7 +911,7 @@ inline void socketstream::set_secure_socket(const GnuTLS_session_params &p)
 }
 
 socketstream::socketstream(const GnuTLS_session_params &p)
-   : glvis_client(false)
+   : std::iostream(0), glvis_client(false)
 {
    set_secure_socket(p);
    check_secure_socket();
@@ -946,13 +946,13 @@ inline void socketstream::check_secure_socket()
 #endif
 }
 
-socketstream::socketstream(bool secure)
+socketstream::socketstream(bool secure) : std::iostream(0)
 {
    set_socket(secure);
    if (secure) { check_secure_socket(); }
 }
 
-socketstream::socketstream(int s, bool secure)
+socketstream::socketstream(int s, bool secure) : std::iostream(0)
 {
    set_socket(secure);
    buf__->attach(s);

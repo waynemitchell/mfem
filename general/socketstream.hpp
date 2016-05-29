@@ -241,7 +241,7 @@ public:
        The treatment of the 'secure' flag is similar to that in the default
        constructor. */
    socketstream(const char hostname[], int port, bool secure = secure_default)
-   { set_socket(secure); open(hostname, port); }
+      : std::iostream(0) { set_socket(secure); open(hostname, port); }
 
 #ifdef MFEM_USE_GNUTLS
    /// Create a secure socket stream using the given GnuTLS_session_params.
