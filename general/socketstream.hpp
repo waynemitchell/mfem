@@ -224,7 +224,7 @@ public:
        If 'secure' is true, (GnuTLS support must be enabled) then the connection
        will use GLVis client session keys from ~/.config/glvis/client for GnuTLS
        identification. If you want to use other GnuTLS session keys or
-       parameters, use the contructor from GnuTLS_session_params. */
+       parameters, use the constructor from GnuTLS_session_params. */
    socketstream(bool secure = secure_default);
 
    /** @brief Create a socket stream associated with the given socket buffer.

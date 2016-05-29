@@ -570,7 +570,7 @@ void GnuTLS_socketbuf::start_session()
 
    if (status.good())
    {
-      const char *hostname = NULL; // no hostname verificaion
+      const char *hostname = NULL; // no hostname verification
       gnutls_session_set_ptr(session, (void*)hostname);
       if (params.get_flags() & GNUTLS_SERVER)
       {
