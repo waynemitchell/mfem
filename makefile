@@ -108,6 +108,7 @@ ifeq ($(MFEM_DEBUG),YES)
 endif
 CXXFLAGS ?= $(OPTIM_FLAGS)
 
+# MPI configuration
 ifneq ($(MFEM_USE_MPI),YES)
    MFEM_CXX ?= $(CXX)
 else
@@ -118,11 +119,13 @@ endif
 
 DEP_CXX ?= $(MFEM_CXX)
 
+# LAPACK library configuration
 ifeq ($(MFEM_USE_LAPACK),YES)
    INCFLAGS += $(LAPACK_OPT)
    ALL_LIBS += $(LAPACK_LIB)
 endif
 
+# OpenMP configuration
 ifeq ($(MFEM_USE_OPENMP),YES)
    MFEM_THREAD_SAFE ?= YES
    ifneq ($(MFEM_THREAD_SAFE),YES)
@@ -136,21 +139,31 @@ ifeq ($(MFEM_TIMER_TYPE),2)
    ALL_LIBS += $(POSIX_CLOCKS_LIB)
 endif
 
+# MESQUITE library configuration
 ifeq ($(MFEM_USE_MESQUITE),YES)
    INCFLAGS += $(MESQUITE_OPT)
    ALL_LIBS += $(MESQUITE_LIB)
 endif
 
+# SuiteSparse library configuration
 ifeq ($(MFEM_USE_SUITESPARSE),YES)
    INCFLAGS += $(SUITESPARSE_OPT)
    ALL_LIBS += $(SUITESPARSE_LIB)
 endif
 
+# SuperLU library configuration
+ifeq ($(MFEM_USE_SUPERLU),YES)
+   INCFLAGS += $(SUPERLU_OPT)
+   ALL_LIBS += $(SUPERLU_LIB)
+endif
+
+# Gecko library configuration
 ifeq ($(MFEM_USE_GECKO),YES)
    INCFLAGS += $(GECKO_OPT)
    ALL_LIBS += $(GECKO_LIB)
 endif
 
+# GnuTLS library configuration
 ifeq ($(MFEM_USE_GNUTLS),YES)
    INCFLAGS += $(GNUTLS_OPT)
    ALL_LIBS += $(GNUTLS_LIB)
@@ -159,7 +172,8 @@ endif
 # List of all defines that may be enabled in config.hpp and config.mk:
 MFEM_DEFINES = MFEM_USE_MPI MFEM_USE_METIS_5 MFEM_DEBUG MFEM_USE_LAPACK\
  MFEM_THREAD_SAFE MFEM_USE_OPENMP MFEM_USE_MEMALLOC MFEM_TIMER_TYPE\
- MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE MFEM_USE_GECKO MFEM_USE_GNUTLS
+ MFEM_USE_MESQUITE MFEM_USE_SUITESPARSE MFEM_USE_GECKO MFEM_USE_SUPERLU\
+ MFEM_USE_GNUTLS
 
 # List of makefile variables that will be written to config.mk:
 MFEM_CONFIG_VARS = MFEM_CXX MFEM_CPPFLAGS MFEM_CXXFLAGS MFEM_INC_DIR\
@@ -326,6 +340,7 @@ status info:
 	$(info MFEM_TIMER_TYPE      = $(MFEM_TIMER_TYPE))
 	$(info MFEM_USE_MESQUITE    = $(MFEM_USE_MESQUITE))
 	$(info MFEM_USE_SUITESPARSE = $(MFEM_USE_SUITESPARSE))
+	$(info MFEM_USE_SUPERLU     = $(MFEM_USE_SUPERLU))
 	$(info MFEM_USE_GECKO       = $(MFEM_USE_GECKO))
 	$(info MFEM_USE_GNUTLS      = $(MFEM_USE_GNUTLS))
 	$(info MFEM_CXX             = $(value MFEM_CXX))
