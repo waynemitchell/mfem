@@ -98,6 +98,15 @@ endif
 PREFIX ?= ./mfem
 INSTALL ?= /usr/bin/install
 
+ifneq ($(shell uname -s),Darwin)
+   AR_CREATE ?= ar cruv
+   AR_FINISH ?= ranlib
+else
+   # Silence "has no symbols" warnings on Mac OS X
+   AR_CREATE ?= ar Scruv
+   AR_FINISH ?= ranlib -no_warning_for_no_symbols
+endif
+
 # Default serial and parallel compilers
 CXX ?= g++
 MPICXX ?= mpicxx
@@ -297,8 +306,8 @@ all: lib
 $(OBJECT_FILES): $(CONFIG_MK)
 
 libmfem.a: $(OBJECT_FILES)
-	ar cruv libmfem.a $(OBJECT_FILES)
-	ranlib libmfem.a
+	$(AR_CREATE) libmfem.a $(OBJECT_FILES)
+	$(AR_FINISH) libmfem.a
 
 serial:
 	$(MAKE) config MFEM_USE_MPI=NO MFEM_DEBUG=NO && $(MAKE)

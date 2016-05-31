@@ -129,6 +129,9 @@ public:
    void GroupEdge(int group, int i, int &edge, int &o);
    void GroupFace(int group, int i, int &face, int &o);
 
+   void GenerateOffsets(int N, HYPRE_Int loc_sizes[],
+                        Array<HYPRE_Int> *offsets[]) const;
+
    void ExchangeFaceNbrData();
    void ExchangeFaceNbrNodes();
 

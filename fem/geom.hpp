@@ -35,6 +35,10 @@ public:
    static const int NumBdrArray[];
    static const char *Name[NumGeom];
    static const double Volume[NumGeom];
+   static const int Dimension[NumGeom];
+   static const int NumVerts[NumGeom];
+   static const int NumEdges[NumGeom];
+   static const int NumFaces[NumGeom];
 
    // Structure that holds constants describing the Geometries.
    // Currently it contains just the space dimension.
@@ -74,17 +78,112 @@ public:
 };
 
 template <> struct Geometry::Constants<Geometry::POINT>
-{ static const int Dimension = 0; };
+{
+   static const int Dimension = 0;
+   static const int NumVert = 1;
+
+   static const int NumOrient = 1;
+   static const int Orient[NumOrient][NumVert];
+   static const int InvOrient[NumOrient];
+};
+
 template <> struct Geometry::Constants<Geometry::SEGMENT>
-{ static const int Dimension = 1; };
+{
+   static const int Dimension = 1;
+   static const int NumVert = 2;
+   static const int NumEdges = 1;
+   static const int Edges[NumEdges][2];
+
+   static const int NumOrient = 2;
+   static const int Orient[NumOrient][NumVert];
+   static const int InvOrient[NumOrient];
+};
+
 template <> struct Geometry::Constants<Geometry::TRIANGLE>
-{ static const int Dimension = 2; };
+{
+   static const int Dimension = 2;
+   static const int NumVert = 3;
+   static const int NumEdges = 3;
+   // The same as Triangle::edges.
+   static const int Edges[NumEdges][2];
+   struct VertToVert
+   {
+      static const int I[NumVert];
+      static const int J[NumEdges][2]; // {end,edge_idx}
+   };
+   static const int NumFaces = 1;
+   static const int FaceVert[NumFaces][NumVert];
+
+   // For a given base tuple v={v0,v1,v2}, the orientation of a permutation
+   // u={u0,u1,u2} of v, is an index 'j' such that u[i]=v[Orient[j][i]].
+   // The static method Mesh::GetTriOrientation, computes the index 'j' of the
+   // permutation that maps the second argument 'test' to the first argument
+   // 'base': test[Orient[j][i]]=base[i].
+   static const int NumOrient = 6;
+   // The same as Mesh::tri_orientations.
+   static const int Orient[NumOrient][NumVert];
+   // The inverse of orientation 'j' is InvOrient[j].
+   static const int InvOrient[NumOrient];
+};
+
 template <> struct Geometry::Constants<Geometry::SQUARE>
-{ static const int Dimension = 2; };
+{
+   static const int Dimension = 2;
+   static const int NumVert = 4;
+   static const int NumEdges = 4;
+   // The same as Quadrilateral::edges.
+   static const int Edges[NumEdges][2];
+   struct VertToVert
+   {
+      static const int I[NumVert];
+      static const int J[NumEdges][2]; // {end,edge_idx}
+   };
+   static const int NumFaces = 1;
+   static const int FaceVert[NumFaces][NumVert];
+
+   static const int NumOrient = 8;
+   // The same as Mesh::quad_orientations.
+   static const int Orient[NumOrient][NumVert];
+   static const int InvOrient[NumOrient];
+};
+
 template <> struct Geometry::Constants<Geometry::TETRAHEDRON>
-{ static const int Dimension = 3; };
+{
+   static const int Dimension = 3;
+   static const int NumVert = 4;
+   static const int NumEdges = 6;
+   // The same as Tetrahedron::edges.
+   static const int Edges[NumEdges][2];
+   static const int NumFaces = 4;
+   static const int FaceTypes[NumFaces];
+   static const int MaxFaceVert = 3;
+   // The same as Mesh::tet_faces
+   static const int FaceVert[NumFaces][MaxFaceVert];
+   struct VertToVert
+   {
+      static const int I[NumVert];
+      static const int J[NumEdges][2]; // {end,edge_idx}
+   };
+};
+
 template <> struct Geometry::Constants<Geometry::CUBE>
-{ static const int Dimension = 3; };
+{
+   static const int Dimension = 3;
+   static const int NumVert = 8;
+   static const int NumEdges = 12;
+   // The same as Hexahedron::edges.
+   static const int Edges[NumEdges][2];
+   static const int NumFaces = 6;
+   static const int FaceTypes[NumFaces];
+   static const int MaxFaceVert = 4;
+   // The same as Mesh::hex_faces and Hexahedron::faces.
+   static const int FaceVert[NumFaces][MaxFaceVert];
+   struct VertToVert
+   {
+      static const int I[NumVert];
+      static const int J[NumEdges][2]; // {end,edge_idx}
+   };
+};
 
 extern Geometry Geometries;
 

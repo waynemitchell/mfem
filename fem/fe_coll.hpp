@@ -25,6 +25,20 @@ namespace mfem
     element to its boundary. */
 class FiniteElementCollection
 {
+protected:
+   template <Geometry::Type geom>
+   static inline void GetNVE(int &nv, int &ne);
+
+   template <Geometry::Type geom, typename v_t>
+   static inline void GetEdge(int &nv, v_t &v, int &ne, int &e, int &eo,
+                              const int edge_info);
+
+   template <Geometry::Type geom, Geometry::Type f_geom,
+             typename v_t, typename e_t, typename eo_t>
+   static inline void GetFace(int &nv, v_t &v, int &ne, e_t &e, eo_t &eo,
+                              int &nf, int &f, int &fg, int &fo,
+                              const int face_info);
+
 public:
    virtual const FiniteElement *
    FiniteElementForGeometry(int GeomType) const = 0;
@@ -48,6 +62,9 @@ public:
    virtual ~FiniteElementCollection() { }
 
    static FiniteElementCollection *New(const char *name);
+
+   // Inf = 64 * SubIndex + Orientation; 0 <= SDim <= Dim(Geom)
+   void SubDofOrder(int Geom, int SDim, int Info, Array<int> &dofs) const;
 };
 
 /// Arbitrary order H1-conforming (continuous) finite elements.

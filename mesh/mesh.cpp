@@ -388,7 +388,7 @@ void Mesh::GetFaceTransformation(int FaceNo, IsoparametricTransformation *FTr)
          GetLocalFaceTransformation(face_type,
                                     GetElementType(face_info.Elem1No),
                                     FaceElemTr.Loc1.Transf, face_info.Elem1Inf);
-         // NOTE: FaceElemTr.Loc1 is destroyed here -- we use it as a temporary
+         // NOTE: FaceElemTr.Loc1 is overwritten here -- used as a temporary
 
          face_el = Nodes->FESpace()->GetTraceElement(face_info.Elem1No,
                                                      face_geom);
@@ -488,20 +488,16 @@ void Mesh::GetLocalPtToSegTransformation(
 void Mesh::GetLocalSegToTriTransformation(
    IsoparametricTransformation &Transf, int i)
 {
-   // tri_faces is the same as Triangle::edges
-   static const int tri_faces[3][2] = {{0, 1}, {1, 2}, {2, 0}};
-   static const int seg_inv_orient[2][2] = {{0, 1}, {1, 0}};
-   int j;
    const int *tv, *so;
    const IntegrationRule *TriVert;
    DenseMatrix &locpm = Transf.GetPointMat();
 
    Transf.SetFE(&SegmentFE);
-   tv = tri_faces[i/64]; //  (i/64) is the local face no. in the triangle
-   so = seg_inv_orient[i%64]; //  (i%64) is the orientation of the segment
+   tv = tri_t::Edges[i/64];  //  (i/64) is the local face no. in the triangle
+   so = seg_t::Orient[i%64]; //  (i%64) is the orientation of the segment
    TriVert = Geometries.GetVertices(Geometry::TRIANGLE);
    locpm.SetSize(2, 2);
-   for (j = 0; j < 2; j++)
+   for (int j = 0; j < 2; j++)
    {
       locpm(0, so[j]) = TriVert->IntPoint(tv[j]).x;
       locpm(1, so[j]) = TriVert->IntPoint(tv[j]).y;
@@ -511,54 +507,21 @@ void Mesh::GetLocalSegToTriTransformation(
 void Mesh::GetLocalSegToQuadTransformation(
    IsoparametricTransformation &Transf, int i)
 {
-   // quad_faces is the same as Quadrilateral::edges
-   static const int quad_faces[4][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}};
-   static const int seg_inv_orient[2][2] = {{0, 1}, {1, 0}};
-   int j;
    const int *qv, *so;
    const IntegrationRule *QuadVert;
    DenseMatrix &locpm = Transf.GetPointMat();
 
    Transf.SetFE(&SegmentFE);
-   qv = quad_faces[i/64]; //  (i/64) is the local face no. in the quad
-   so = seg_inv_orient[i%64]; //  (i%64) is the orientation of the segment
+   qv = quad_t::Edges[i/64]; //  (i/64) is the local face no. in the quad
+   so = seg_t::Orient[i%64]; //  (i%64) is the orientation of the segment
    QuadVert = Geometries.GetVertices(Geometry::SQUARE);
    locpm.SetSize(2, 2);
-   for (j = 0; j < 2; j++)
+   for (int j = 0; j < 2; j++)
    {
       locpm(0, so[j]) = QuadVert->IntPoint(qv[j]).x;
       locpm(1, so[j]) = QuadVert->IntPoint(qv[j]).y;
    }
 }
-
-const int Mesh::tet_faces[4][3] =
-{
-   {1, 2, 3}, {0, 3, 2},
-   {0, 1, 3}, {0, 2, 1}
-};
-
-// same as Hexahedron::faces
-const int Mesh::hex_faces[6][4] =
-{
-   {3, 2, 1, 0}, {0, 1, 5, 4},
-   {1, 2, 6, 5}, {2, 3, 7, 6},
-   {3, 0, 4, 7}, {4, 5, 6, 7}
-};
-
-const int Mesh::tri_orientations[6][3] =
-{
-   {0, 1, 2}, {1, 0, 2},
-   {2, 0, 1}, {2, 1, 0},
-   {1, 2, 0}, {0, 2, 1}
-};
-
-const int Mesh::quad_orientations[8][4] =
-{
-   {0, 1, 2, 3}, {0, 3, 2, 1},
-   {1, 2, 3, 0}, {1, 0, 3, 2},
-   {2, 3, 0, 1}, {2, 1, 0, 3},
-   {3, 0, 1, 2}, {3, 2, 1, 0}
-};
 
 void Mesh::GetLocalTriToTetTransformation(
    IsoparametricTransformation &Transf, int i)
@@ -567,10 +530,10 @@ void Mesh::GetLocalTriToTetTransformation(
 
    Transf.SetFE(&TriangleFE);
    //  (i/64) is the local face no. in the tet
-   const int *tv = tet_faces[i/64];
+   const int *tv = tet_t::FaceVert[i/64];
    //  (i%64) is the orientation of the tetrahedron face
    //         w.r.t. the face element
-   const int *to = tri_orientations[i%64];
+   const int *to = tri_t::Orient[i%64];
    const IntegrationRule *TetVert =
       Geometries.GetVertices(Geometry::TETRAHEDRON);
    locpm.SetSize(3, 3);
@@ -590,9 +553,9 @@ void Mesh::GetLocalQuadToHexTransformation(
 
    Transf.SetFE(&QuadrilateralFE);
    //  (i/64) is the local face no. in the hex
-   const int *hv = hex_faces[i/64];
+   const int *hv = hex_t::FaceVert[i/64];
    //  (i%64) is the orientation of the quad
-   const int *qo = quad_orientations[i%64];
+   const int *qo = quad_t::Orient[i%64];
    const IntegrationRule *HexVert = Geometries.GetVertices(Geometry::CUBE);
    locpm.SetSize(3, 4);
    for (int j = 0; j < 4; j++)
@@ -4393,6 +4356,10 @@ void Mesh::CheckElementOrientation(bool fix_it)
 
 int Mesh::GetTriOrientation(const int *base, const int *test)
 {
+   // Static method.
+   // This function computes the index 'j' of the permutation that transforms
+   // test into base: test[tri_orientation[j][i]]=base[i].
+   // tri_orientation = Geometry::Constants<Geometry::TRIANGLE>::Orient
    int orient;
 
    if (test[0] == base[0])
@@ -4424,7 +4391,7 @@ int Mesh::GetTriOrientation(const int *base, const int *test)
       }
 
 #ifdef MFEM_DEBUG
-   const int *aor = tri_orientations[orient];
+   const int *aor = tri_t::Orient[orient];
    for (int j = 0; j < 3; j++)
       if (test[aor[j]] != base[j])
       {
@@ -4455,7 +4422,7 @@ int Mesh::GetQuadOrientation(const int *base, const int *test)
    {
       orient = 2*i+1;
    }
-   const int *aor = quad_orientations[orient];
+   const int *aor = quad_t::Orient[orient];
    for (int j = 0; j < 4; j++)
       if (test[aor[j]] != base[j])
       {
@@ -4546,7 +4513,7 @@ void Mesh::CheckBdrElementOrientation(bool fix_it)
                   int lf = faces_info[be_to_face[i]].Elem1Inf/64;
                   for (int j = 0; j < 4; j++)
                   {
-                     v[j] = ev[hex_faces[lf][j]];
+                     v[j] = ev[hex_t::FaceVert[lf][j]];
                   }
                   if (GetQuadOrientation(v, bv) % 2)
                   {
@@ -5209,7 +5176,7 @@ void Mesh::GenerateFaces()
             {
                for (int j = 0; j < 4; j++)
                {
-                  const int *fv = tet_faces[j];
+                  const int *fv = tet_t::FaceVert[j];
                   AddTriangleFaceElement(j, ef[j], i,
                                          v[fv[0]], v[fv[1]], v[fv[2]]);
                }
@@ -5219,7 +5186,7 @@ void Mesh::GenerateFaces()
             {
                for (int j = 0; j < 6; j++)
                {
-                  const int *fv = hex_faces[j];
+                  const int *fv = hex_t::FaceVert[j];
                   AddQuadFaceElement(j, ef[j], i,
                                      v[fv[0]], v[fv[1]], v[fv[2]], v[fv[3]]);
                }
@@ -5291,7 +5258,7 @@ STable3D *Mesh::GetFacesTable()
          {
             for (int j = 0; j < 4; j++)
             {
-               const int *fv = tet_faces[j];
+               const int *fv = tet_t::FaceVert[j];
                faces_tbl->Push(v[fv[0]], v[fv[1]], v[fv[2]]);
             }
             break;
@@ -5302,7 +5269,7 @@ STable3D *Mesh::GetFacesTable()
             // z = 0, y = 0, x = 1, y = 1, x = 0, z = 1
             for (int j = 0; j < 6; j++)
             {
-               const int *fv = hex_faces[j];
+               const int *fv = hex_t::FaceVert[j];
                faces_tbl->Push4(v[fv[0]], v[fv[1]], v[fv[2]], v[fv[3]]);
             }
             break;
@@ -5334,7 +5301,7 @@ STable3D *Mesh::GetElementToFaceTable(int ret_ftbl)
          {
             for (int j = 0; j < 4; j++)
             {
-               const int *fv = tet_faces[j];
+               const int *fv = tet_t::FaceVert[j];
                el_to_face->Push(
                   i, faces_tbl->Push(v[fv[0]], v[fv[1]], v[fv[2]]));
             }
@@ -5346,7 +5313,7 @@ STable3D *Mesh::GetElementToFaceTable(int ret_ftbl)
             // z = 0, y = 0, x = 1, y = 1, x = 0, z = 1
             for (int j = 0; j < 6; j++)
             {
-               const int *fv = hex_faces[j];
+               const int *fv = hex_t::FaceVert[j];
                el_to_face->Push(
                   i, faces_tbl->Push4(v[fv[0]], v[fv[1]], v[fv[2]], v[fv[3]]));
             }
@@ -6533,7 +6500,7 @@ void Mesh::HexUniformRefinement()
       {
          for (int k = 0; k < 4; k++)
          {
-            vv[k] = v[hex_faces[j][k]];
+            vv[k] = v[hex_t::FaceVert[j][k]];
          }
          AverageVertices(vv, 4, oface+f[j]);
       }
@@ -6544,7 +6511,7 @@ void Mesh::HexUniformRefinement()
       {
          for (int k = 0; k < 2; k++)
          {
-            vv[k] = v[Hexahedron::edges[j][k]];
+            vv[k] = v[hex_t::Edges[j][k]];
          }
          AverageVertices(vv, 2, oedge+e[j]);
       }

@@ -75,10 +75,17 @@ protected:
    int *Af_ipiv;
 
 #ifdef MFEM_USE_MPI
+   HypreParMatrix *pC, *P_pc; // for parallel non-conforming meshes
    HypreParMatrix *pH;
 #endif
 
+   void ConstructC();
+
    void GetIBDofs(int el, Array<int> &i_dofs, Array<int> &b_dofs) const;
+
+   void GetBDofs(int el, int &num_idofs, Array<int> &b_dofs) const;
+
+   void ComputeH();
 
    // Compute depending on mode:
    // - mode 0: bf = Af^{-1} Rf^t b, where

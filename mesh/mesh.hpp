@@ -112,18 +112,18 @@ protected:
    GridFunction *Nodes;
    int own_nodes;
 
-   static const int tet_faces[4][3];
-   static const int hex_faces[6][4]; // same as Hexahedron::faces
-
-   static const int tri_orientations[6][3];
-   static const int quad_orientations[8][4];
-
 #ifdef MFEM_USE_MEMALLOC
    friend class Tetrahedron;
    MemAlloc <Tetrahedron, 1024> TetMemory;
 #endif
 
 public:
+   typedef typename Geometry::Constants<Geometry::SEGMENT>     seg_t;
+   typedef typename Geometry::Constants<Geometry::TRIANGLE>    tri_t;
+   typedef typename Geometry::Constants<Geometry::SQUARE>      quad_t;
+   typedef typename Geometry::Constants<Geometry::TETRAHEDRON> tet_t;
+   typedef typename Geometry::Constants<Geometry::CUBE>        hex_t;
+
    enum Operation { NONE, REFINE, DEREFINE, REBALANCE };
 
    Array<int> attributes;

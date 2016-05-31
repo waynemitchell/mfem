@@ -25,6 +25,7 @@ protected:
    int indices[1];
 
 public:
+   typedef typename Geometry::Constants<Geometry::POINT> geom_t;
 
    Point() : Element(Geometry::POINT) {}
 
