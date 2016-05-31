@@ -73,7 +73,9 @@ public:
        Processor P owns columns [col[P],col[P+1]) */
    HypreParVector(MPI_Comm comm, HYPRE_Int glob_size, HYPRE_Int *col);
    /** Creates vector with given global size, partitioning of the columns,
-       and data. The data must be allocated and destroyed outside. */
+       and data. The data must be allocated and destroyed outside.
+       If _data is NULL, a dummy vector without a valid data array will
+       be created. */
    HypreParVector(MPI_Comm comm, HYPRE_Int glob_size, double *_data,
                   HYPRE_Int *col);
    /// Creates vector compatible with y
