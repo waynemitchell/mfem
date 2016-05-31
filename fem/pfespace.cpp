@@ -482,7 +482,7 @@ GroupCommunicator *ParFiniteElementSpace::ScalarGroupComm()
 {
    if (Nonconforming())
    {
-      //MFEM_WARNING("Not implemented for NC mesh.");
+      // MFEM_WARNING("Not implemented for NC mesh.");
       return NULL;
    }
 
@@ -1146,6 +1146,7 @@ void ParFiniteElementSpace
 
 void ParFiniteElementSpace::GetDofs(int type, int index, Array<int>& dofs)
 {
+   // helper to get vertex, edge or face DOFs
    switch (type)
    {
       case 0: GetVertexDofs(index, dofs); break;
@@ -1158,55 +1159,56 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
 {
    ParNCMesh* pncmesh = pmesh->pncmesh;
 
+   bool dg = (nvdofs == 0 && nedofs == 0 && nfdofs == 0);
+
    // *** STEP 1: exchange shared vertex/edge/face DOFs with neighbors ***
 
    NeighborDofMessage::Map send_dofs, recv_dofs;
 
    // prepare neighbor DOF messages for shared vertices/edges/faces
-   for (int type = 0; type < 3; type++)
+   if (!dg)
    {
-      const NCMesh::NCList &list = pncmesh->GetSharedList(type);
-      Array<int> dofs;
-
-      int cs = list.conforming.size(), ms = list.masters.size();
-      for (int i = 0; i < cs+ms; i++)
+      for (int type = 0; type < 3; type++)
       {
-         // loop through all (shared) conforming+master vertices/edges/faces
-         const NCMesh::MeshId& id =
-            (i < cs) ? (const NCMesh::MeshId&) list.conforming[i]
-            /*    */ : (const NCMesh::MeshId&) list.masters[i-cs];
+         const NCMesh::NCList &list = pncmesh->GetSharedList(type);
+         Array<int> dofs;
 
-         int owner = pncmesh->GetOwner(type, id.index), gsize;
-         if (owner == MyRank)
+         int cs = list.conforming.size(), ms = list.masters.size();
+         for (int i = 0; i < cs+ms; i++)
          {
-            // we own a shared v/e/f, send its DOFs to others in group
-            GetDofs(type, id.index, dofs);
-            // TODO: send dofs only when dofs.Size() > 0 ???
-            const int *group = pncmesh->GetGroup(type, id.index, gsize);
-            for (int j = 0; j < gsize; j++)
-            {
-               if (group[j] != MyRank)
-               {
-                  NeighborDofMessage &send_msg = send_dofs[group[j]];
-                  send_msg.Init(pncmesh, fec, ndofs);
-                  send_msg.AddDofs(type, id, dofs);
+            // loop through all (shared) conforming+master vertices/edges/faces
+            const NCMesh::MeshId& id =
+               (i < cs) ? (const NCMesh::MeshId&) list.conforming[i]
+               /*    */ : (const NCMesh::MeshId&) list.masters[i-cs];
 
-                  // DEBUG: calculate results of Step 3 here
-                  //recv_requests2[group[j]].AddDofs(dofs);
+            int owner = pncmesh->GetOwner(type, id.index), gsize;
+            if (owner == MyRank)
+            {
+               // we own a shared v/e/f, send its DOFs to others in group
+               GetDofs(type, id.index, dofs);
+               const int *group = pncmesh->GetGroup(type, id.index, gsize);
+               for (int j = 0; j < gsize; j++)
+               {
+                  if (group[j] != MyRank)
+                  {
+                     NeighborDofMessage &send_msg = send_dofs[group[j]];
+                     send_msg.Init(pncmesh, fec, ndofs);
+                     send_msg.AddDofs(type, id, dofs);
+                  }
                }
             }
-         }
-         else
-         {
-            // we don't own this v/e/f and expect to receive DOFs for it
-            recv_dofs[owner].Init(pncmesh, fec, 0);
+            else
+            {
+               // we don't own this v/e/f and expect to receive DOFs for it
+               recv_dofs[owner].Init(pncmesh, fec, 0);
+            }
          }
       }
-   }
 
-   // send/receive all DOF messages
-   NeighborDofMessage::IsendAll(send_dofs, MyComm);
-   NeighborDofMessage::RecvAll(recv_dofs, MyComm);
+      // send/receive all DOF messages
+      NeighborDofMessage::IsendAll(send_dofs, MyComm);
+      NeighborDofMessage::RecvAll(recv_dofs, MyComm);
+   }
 
    // *** STEP 2: build dependency lists ***
 
@@ -1216,97 +1218,102 @@ void ParFiniteElementSpace::GetParallelConformingInterpolation()
    Array<int> master_dofs, slave_dofs;
    Array<int> owner_dofs, my_dofs;
 
-   // loop through *all* master edges/faces, constrain their slaves
-   for (int type = 1; type < 3; type++)
+   if (!dg)
    {
-      const NCMesh::NCList &list = (type > 1) ? pncmesh->GetFaceList()
-                                   /*      */ : pncmesh->GetEdgeList();
-      if (!list.masters.size()) { continue; }
-
-      IsoparametricTransformation T;
-      if (type > 1) { T.SetFE(&QuadrilateralFE); }
-      else { T.SetFE(&SegmentFE); }
-
-      int geom = (type > 1) ? Geometry::SQUARE : Geometry::SEGMENT;
-      const FiniteElement* fe = fec->FiniteElementForGeometry(geom);
-      if (!fe) { continue; }
-
-      DenseMatrix I(fe->GetDof());
-
-      // process masters that we own or that affect our edges/faces
-      for (unsigned mi = 0; mi < list.masters.size(); mi++)
+      // loop through *all* master edges/faces, constrain their slaves
+      for (int type = 1; type < 3; type++)
       {
-         const NCMesh::Master &mf = list.masters[mi];
-         if (!pncmesh->RankInGroup(type, mf.index, MyRank)) { continue; }
+         const NCMesh::NCList &list = (type > 1) ? pncmesh->GetFaceList()
+                                      /*      */ : pncmesh->GetEdgeList();
+         if (!list.masters.size()) { continue; }
 
-         // get master DOFs
-         int master_ndofs, master_rank = pncmesh->GetOwner(type, mf.index);
-         if (master_rank == MyRank)
+         IsoparametricTransformation T;
+         if (type > 1) { T.SetFE(&QuadrilateralFE); }
+         else { T.SetFE(&SegmentFE); }
+
+         int geom = (type > 1) ? Geometry::SQUARE : Geometry::SEGMENT;
+         const FiniteElement* fe = fec->FiniteElementForGeometry(geom);
+         if (!fe) { continue; }
+
+         DenseMatrix I(fe->GetDof());
+
+         // process masters that we own or that affect our edges/faces
+         for (unsigned mi = 0; mi < list.masters.size(); mi++)
          {
-            GetDofs(type, mf.index, master_dofs);
-            master_ndofs = ndofs;
-         }
-         else
-         {
-            recv_dofs[master_rank].GetDofs(type, mf, master_dofs, master_ndofs);
-         }
+            const NCMesh::Master &mf = list.masters[mi];
+            if (!pncmesh->RankInGroup(type, mf.index, MyRank)) { continue; }
 
-         if (!master_dofs.Size()) { continue; }
+            // get master DOFs
+            int master_ndofs, master_rank = pncmesh->GetOwner(type, mf.index);
+            if (master_rank == MyRank)
+            {
+               GetDofs(type, mf.index, master_dofs);
+               master_ndofs = ndofs;
+            }
+            else
+            {
+               recv_dofs[master_rank].GetDofs(type, mf, master_dofs,
+                                              master_ndofs);
+            }
 
-         // constrain slaves that exist in our mesh
-         for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
-         {
-            const NCMesh::Slave &sf = list.slaves[si];
-            if (pncmesh->IsGhost(type, sf.index)) { continue; }
+            if (!master_dofs.Size()) { continue; }
 
-            GetDofs(type, sf.index, slave_dofs);
-            if (!slave_dofs.Size()) { continue; }
+            // constrain slaves that exist in our mesh
+            for (int si = mf.slaves_begin; si < mf.slaves_end; si++)
+            {
+               const NCMesh::Slave &sf = list.slaves[si];
+               if (pncmesh->IsGhost(type, sf.index)) { continue; }
 
-            T.GetPointMat() = sf.point_matrix;
-            fe->GetLocalInterpolation(T, I);
+               GetDofs(type, sf.index, slave_dofs);
+               if (!slave_dofs.Size()) { continue; }
 
-            // make each slave DOF dependent on all master DOFs
-            MaskSlaveDofs(slave_dofs, sf.point_matrix, fec);
-            AddSlaveDependencies(deps, master_rank, master_dofs, master_ndofs,
-                                 slave_dofs, I);
-         }
+               sf.OrientedPointMatrix(T.GetPointMat());
+               fe->GetLocalInterpolation(T, I);
 
-         // special case for master edges that we don't own but still exist in
-         // our mesh: this is a conforming-like situation, create 1-to-1 deps
-         if (master_rank != MyRank && !pncmesh->IsGhost(type, mf.index))
-         {
-            GetDofs(type, mf.index, my_dofs);
-            Add1To1Dependencies(deps, master_rank, master_dofs, master_ndofs,
-                                my_dofs);
+               // make each slave DOF dependent on all master DOFs
+               MaskSlaveDofs(slave_dofs, T.GetPointMat(), fec);
+               AddSlaveDependencies(deps, master_rank, master_dofs, master_ndofs,
+                                    slave_dofs, I);
+            }
+
+            // special case for master edges that we don't own but still exist
+            // in our mesh: this is a conforming-like situation, create 1-to-1
+            // deps
+            if (master_rank != MyRank && !pncmesh->IsGhost(type, mf.index))
+            {
+               GetDofs(type, mf.index, my_dofs);
+               Add1To1Dependencies(deps, master_rank, master_dofs, master_ndofs,
+                                   my_dofs);
+            }
          }
       }
-   }
 
-   // add one-to-one dependencies between shared conforming vertices/edges/faces
-   for (int type = 0; type < 3; type++)
-   {
-      const NCMesh::NCList &list = pncmesh->GetSharedList(type);
-      for (unsigned i = 0; i < list.conforming.size(); i++)
+      // add one-to-one dependencies between shared conforming verts/edges/faces
+      for (int type = 0; type < 3; type++)
       {
-         const NCMesh::MeshId &id = list.conforming[i];
-         GetDofs(type, id.index, my_dofs);
-         // TODO: skip if my_dofs.Size() == 0
+         const NCMesh::NCList &list = pncmesh->GetSharedList(type);
+         for (unsigned i = 0; i < list.conforming.size(); i++)
+         {
+            const NCMesh::MeshId &id = list.conforming[i];
+            GetDofs(type, id.index, my_dofs);
 
-         int owner_ndofs, owner = pncmesh->GetOwner(type, id.index);
-         if (owner != MyRank)
-         {
-            recv_dofs[owner].GetDofs(type, id, owner_dofs, owner_ndofs);
-            if (type == 2)
+            int owner_ndofs, owner = pncmesh->GetOwner(type, id.index);
+            if (owner != MyRank)
             {
-               int fo = pncmesh->GetFaceOrientation(id.index);
-               ReorderFaceDofs(owner_dofs, fo);
+               recv_dofs[owner].GetDofs(type, id, owner_dofs, owner_ndofs);
+               if (type == 2)
+               {
+                  int fo = pncmesh->GetFaceOrientation(id.index);
+                  ReorderFaceDofs(owner_dofs, fo);
+               }
+               Add1To1Dependencies(deps, owner, owner_dofs, owner_ndofs,
+                                   my_dofs);
             }
-            Add1To1Dependencies(deps, owner, owner_dofs, owner_ndofs, my_dofs);
-         }
-         else
-         {
-            // we own this v/e/f, assert ownership of the DOFs
-            Add1To1Dependencies(deps, owner, my_dofs, ndofs, my_dofs);
+            else
+            {
+               // we own this v/e/f, assert ownership of the DOFs
+               Add1To1Dependencies(deps, owner, my_dofs, ndofs, my_dofs);
+            }
          }
       }
    }
