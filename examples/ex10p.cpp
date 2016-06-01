@@ -114,8 +114,17 @@ public:
    BackwardEulerOperator(ParBilinearForm *M_, ParBilinearForm *S_,
                          ParNonlinearForm *H_);
    void SetParameters(double dt_, const Vector *v_, const Vector *x_);
+
+   // Linear solve applicable to the Sundials format.
+   // (Sundials doesn't work with increments).
+   // Solves (Mass - dt J) y = Mass b, where in our case:
+   // Mass = | M  0 |  J = | -S  -grad_H |  y = | v_hat |  b = | b_v |
+   //        | 0  I |      |  I     0    |      | x_hat |      | b_x |
+   // The result replaces the rhs b.
+   // We substitute x_hat = b_x + dt v_hat and solve
+   // (M + dt S + dt^2 grad_H) v_hat = M b_v - dt grad_H b_x.
    virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
-                              double gamma);
+                              double dt);
    virtual void Mult(const Vector &k, Vector &y) const;
    virtual Operator &GetGradient(const Vector &k) const;
    virtual ~BackwardEulerOperator();
@@ -533,38 +542,31 @@ void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
    S->TrueAddMult(w, y);
 }
 
-void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp, double gamma_)
+void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
+                                          double dt)
 {
    int sc = b->Size()/2;
    Vector v(ycur->GetData() +  0, sc);
    Vector x(ycur->GetData() + sc, sc);
    Vector b_v(b->GetData() +  0, sc);
    Vector b_x(b->GetData() + sc, sc);
-   Vector* tmp_empty=new Vector(2*sc);
-   Vector v_hat(tmp_empty->GetData() +  0, sc);
-   Vector x_hat(tmp_empty->GetData() + sc, sc);
-   Vector rhs_1(sc);
-   Vector rhs_2(sc);
+   Vector sltn(2 * sc);
+   Vector v_hat(sltn.GetData() +  0, sc);
+   Vector x_hat(sltn.GetData() + sc, sc);
    Vector rhs(sc);
 
-   this->SetParameters(gamma_, &v, &x);
    delete Jacobian;
-   SparseMatrix *localJ = Add(1.0, M->SpMat(), gamma_, S->SpMat());
-   localJ->Add(gamma_*gamma_, H->GetLocalGradient(x));
+   SparseMatrix *localJ = Add(1.0, M->SpMat(), dt, S->SpMat());
+   localJ->Add(dt*dt, H->GetLocalGradient(x));
    Jacobian = M->ParallelAssemble(localJ);
    delete localJ;
 
-   //update b_v to the proper rhs
-   rhs_1=0.0;
-   rhs_2=0.0;
-   M->TrueAddMult(b_v, rhs_2);
-   ///////get h gamma in there somehow
-   (H->GetGradient(x)).Mult(b_x, rhs_1);
-   add(rhs_2,-gamma_,rhs_1,rhs);
+   H->GetGradient(x).Mult(b_x, rhs);
+   rhs *= -dt;
+   M->TrueAddMult(b_v, rhs);
 
    HypreSmoother J_hypreSmoother;
    J_hypreSmoother.SetType(HypreSmoother::l1Jacobi);
-
    MINRESSolver J_minres(M->ParFESpace()->GetComm());
    J_minres.SetRelTol(1e-8);
    J_minres.SetAbsTol(0.0);
@@ -573,9 +575,10 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp, 
    J_minres.SetPreconditioner(J_hypreSmoother);
    J_minres.SetOperator(*Jacobian);
 
+   sltn = 0.0;
    J_minres.Mult(rhs, v_hat);
-   add(b_x, gamma_, v_hat, x_hat);
-   *b = *tmp_empty;
+   add(b_x, dt, v_hat, x_hat);
+   *b = sltn;
 }
 
 Operator &BackwardEulerOperator::GetGradient(const Vector &k) const
