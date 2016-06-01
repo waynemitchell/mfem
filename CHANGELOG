@@ -73,7 +73,7 @@ New and improved solvers
 - Added a wrapper for the KLU solver in SuiteSparse see
   http://faculty.cse.tamu.edu/davis/suitesparse.html for details of KLU.
   If MFEM was configured with MFEM_USE_SUITESPARSE, one must now also link
-  against the klu and btf libraries in SuiteSparse, see config/user.mk.in.
+  against the klu and btf libraries in SuiteSparse, see config/defaults.mk.
 
 New and updated examples
 ------------------------

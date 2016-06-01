@@ -69,10 +69,10 @@ MFEM_DIR = ..
 
 CONFIG_MK = config/config.mk
 
-DEFAULTS_MK = config/user.mk.in
+DEFAULTS_MK = config/defaults.mk
 include $(DEFAULTS_MK)
 
-# Optional user config file, see config/user.mk.in
+# Optional user config file, see config/defaults.mk
 USER_CONFIG = config/user.mk
 -include $(USER_CONFIG)
 
