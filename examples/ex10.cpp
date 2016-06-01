@@ -124,8 +124,7 @@ public:
    // The result replaces the rhs b.
    // We substitute x_hat = b_x + dt v_hat and solve
    // (M + dt S + dt^2 grad_H) v_hat = M b_v - dt grad_H b_x.
-   virtual void SolveJacobian(Vector *b, Vector *ycur, Vector *tmp,
-                              Solver *J_solve, double dt);
+   virtual void SolveJacobian(Vector *b, Vector *ycur, Vector *tmp, double dt);
 
    // Compute y = H(x + dt (v + dt k)) + M k + S (v + dt k).
    virtual void Mult(const Vector &k, Vector &y) const;
@@ -335,12 +334,12 @@ int main(int argc, char *argv[])
       case 5:
          ode_solver = new CVODESolver(vx, CV_BDF, CV_NEWTON);
          static_cast<CVODESolver *>(ode_solver)->
-            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
+            SetLinearSolve(oper.backward_euler_oper);
          break;
       case 6:
          ode_solver = new ARKODESolver(vx, false);
          static_cast<ARKODESolver *>(ode_solver)->
-            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
+            SetLinearSolve(oper.backward_euler_oper);
          break;
       case 15:
          ode_solver = new CVODESolver(vx, CV_ADAMS, CV_FUNCTIONAL); break;
@@ -454,7 +453,7 @@ void BackwardEulerOperator::SetParameters(double gamma_, const Vector *v_,
 }
 
 void BackwardEulerOperator::SolveJacobian(Vector *b, Vector *ycur, Vector *tmp,
-                                          Solver *J_solve, double dt)
+                                          double dt)
 {
    int sc = b->Size() / 2;
    Vector x(ycur->GetData() + sc, sc);
@@ -469,13 +468,21 @@ void BackwardEulerOperator::SolveJacobian(Vector *b, Vector *ycur, Vector *tmp,
    Jacobian = Add(1.0, M->SpMat(), dt, S->SpMat());
    SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&H->GetGradient(x));
    Jacobian->Add(dt * dt, *grad_H);
-   J_solve->SetOperator(*Jacobian);
 
    grad_H->Mult(b_x, rhs);
    rhs *= -dt;
    M->AddMult(b_v, rhs);
 
-   J_solve->Mult(rhs, v_hat);
+   DSmoother J_prec(1);
+   MINRESSolver J_minres;
+   J_minres.SetRelTol(1e-8);
+   J_minres.SetAbsTol(0.0);
+   J_minres.SetMaxIter(300);
+   J_minres.SetPrintLevel(-1);
+   J_minres.SetPreconditioner(J_prec);
+   J_minres.SetOperator(*Jacobian);
+
+   J_minres.Mult(rhs, v_hat);
    add(b_x, dt, v_hat, x_hat);
    *b = sltn;
 }

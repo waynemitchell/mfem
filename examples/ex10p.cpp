@@ -115,7 +115,7 @@ public:
                          ParNonlinearForm *H_);
    void SetParameters(double dt_, const Vector *v_, const Vector *x_);
    virtual void SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
-                              Solver* J_solve, double gamma);
+                              double gamma);
    virtual void Mult(const Vector &k, Vector &y) const;
    virtual Operator &GetGradient(const Vector &k) const;
    virtual ~BackwardEulerOperator();
@@ -385,12 +385,12 @@ int main(int argc, char *argv[])
          ode_solver = new CVODESolver(MPI_COMM_WORLD, *vx_hyp,
                                       CV_BDF, CV_NEWTON);
          static_cast<CVODESolver *>(ode_solver)->
-            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
+            SetLinearSolve(oper.backward_euler_oper);
          break;
       case 6:
          ode_solver = new ARKODESolver(MPI_COMM_WORLD, *vx_hyp, false);
          static_cast<ARKODESolver *>(ode_solver)->
-            SetLinearSolve(oper.J_solver, oper.backward_euler_oper);
+            SetLinearSolve(oper.backward_euler_oper);
          break;
       case 15:
          ode_solver = new CVODESolver(MPI_COMM_WORLD, *vx_hyp,
@@ -533,8 +533,7 @@ void BackwardEulerOperator::Mult(const Vector &k, Vector &y) const
    S->TrueAddMult(w, y);
 }
 
-void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
-                                          Solver* J_solve, double gamma_)
+void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp, double gamma_)
 {
    int sc = b->Size()/2;
    Vector v(ycur->GetData() +  0, sc);
@@ -555,8 +554,6 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
    Jacobian = M->ParallelAssemble(localJ);
    delete localJ;
 
-   /*Transfered GetGradient into SolveJacobian code in order to reuse grad_H*/
-   J_solve->SetOperator(*Jacobian);
    //update b_v to the proper rhs
    rhs_1=0.0;
    rhs_2=0.0;
@@ -565,10 +562,20 @@ void BackwardEulerOperator::SolveJacobian(Vector* b, Vector* ycur, Vector* tmp,
    (H->GetGradient(x)).Mult(b_x, rhs_1);
    add(rhs_2,-gamma_,rhs_1,rhs);
 
-   J_solve->Mult(rhs, v_hat);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
+   HypreSmoother J_hypreSmoother;
+   J_hypreSmoother.SetType(HypreSmoother::l1Jacobi);
+
+   MINRESSolver J_minres(M->ParFESpace()->GetComm());
+   J_minres.SetRelTol(1e-8);
+   J_minres.SetAbsTol(0.0);
+   J_minres.SetMaxIter(300);
+   J_minres.SetPrintLevel(-1);
+   J_minres.SetPreconditioner(J_hypreSmoother);
+   J_minres.SetOperator(*Jacobian);
+
+   J_minres.Mult(rhs, v_hat);
    add(b_x, gamma_, v_hat, x_hat);
-   //transfer solutions to proper vectors
-   *b=*tmp_empty;
+   *b = *tmp_empty;
 }
 
 Operator &BackwardEulerOperator::GetGradient(const Vector &k) const

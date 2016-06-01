@@ -114,7 +114,7 @@ public:
     */
    void Step(Vector &x, double &t, double &dt);
 
-   void SetLinearSolve(Solver*, SundialsLinearSolveOperator*);
+   void SetLinearSolve(SundialsLinearSolveOperator*);
 
    /** \brief Destroys associated memory. Calls CVodeFree and N_VDestroy.
     *
@@ -234,7 +234,7 @@ public:
     */
    void Step(Vector &x, double &t, double &dt);
 
-   void SetLinearSolve(Solver*, SundialsLinearSolveOperator*);
+   void SetLinearSolve(SundialsLinearSolveOperator*);
 
    /** \brief
     * Wraps SetERKTable to choose a specific Butcher table for a RK method.
@@ -275,29 +275,6 @@ public:
    ~ARKODESolver();
 };
 
-class MFEMLinearSolverMemory
-{
-public:
-   Vector* setup_y;
-   Vector* setup_f;
-   Vector* solve_y;
-   Vector* solve_yn;
-   Vector* solve_f;
-   Vector* solve_b;
-   Vector* vec_tmp;
-   double weight;
-   Solver* J_solve;
-   SundialsLinearSolveOperator* op_for_gradient;
-
-   MFEMLinearSolverMemory()
-   {
-      setup_y=NULL; setup_f=NULL;
-      solve_y=NULL; solve_yn=NULL;
-      solve_f=NULL; vec_tmp=NULL;
-      J_solve=NULL; op_for_gradient=NULL;
-   }
-};
-
 /// Interface for custom Jacobian inversion in Sundials.
 /// The Jacobian problem has the form
 ///  I - dt inv(M) J(y) = b.
@@ -306,8 +283,7 @@ class SundialsLinearSolveOperator : public Operator
 public:
    SundialsLinearSolveOperator(int s) : Operator(s)
    { }
-   virtual void SolveJacobian(Vector* b, Vector* y, Vector* tmp,
-                              Solver* J_solve, double dt) = 0;
+   virtual void SolveJacobian(Vector* b, Vector* y, Vector* tmp, double dt) = 0;
 };
 
 class KinSolWrapper
