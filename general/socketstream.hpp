@@ -18,6 +18,9 @@
 
 #ifdef MFEM_USE_GNUTLS
 #include <gnutls/gnutls.h>
+#if GNUTLS_VERSION_NUMBER < 0x020800
+#error "MFEM requires GnuTLS version >= 2.8.0"
+#endif
 #endif
 
 namespace mfem
