@@ -83,13 +83,11 @@ double phi_bc_uniform(const Vector &);
 // Prints the program's logo to the given output stream
 void display_banner(ostream & os);
 
-int main_driver(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-   int num_procs, myid;
-   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+   MPI_Session mpi(argc, argv);
 
-   if ( myid == 0 ) { display_banner(cout); }
+   if ( mpi.Root() ) { display_banner(cout); }
 
    // Parse command-line options.
    const char *mesh_file = "butterfly_3d.mesh";
@@ -145,13 +143,13 @@ int main_driver(int argc, char *argv[])
    args.Parse();
    if (!args.Good())
    {
-      if (myid == 0)
+      if (mpi.Root())
       {
          args.PrintUsage(cout);
       }
       return 1;
    }
-   if (myid == 0)
+   if (mpi.Root())
    {
       args.PrintOptions(cout);
    }
@@ -163,7 +161,7 @@ int main_driver(int argc, char *argv[])
    ifstream imesh(mesh_file);
    if (!imesh)
    {
-      if (myid == 0)
+      if (mpi.Root())
       {
          cerr << "\nCan not open mesh file: " << mesh_file << '\n' << endl;
       }
@@ -177,7 +175,7 @@ int main_driver(int argc, char *argv[])
    // Refine the serial mesh on all processors to increase the resolution. In
    // this example we do 'ref_levels' of uniform refinement. NURBS meshes are
    // refined at least twice, as they are typically coarse.
-   if (myid == 0) { cout << "Starting initialization." << endl; }
+   if (mpi.Root()) { cout << "Starting initialization." << endl; }
    {
       int ref_levels = sr;
       if (mesh->NURBSext && ref_levels < 2)
@@ -254,7 +252,7 @@ int main_driver(int argc, char *argv[])
    {
       Volta.RegisterVisItFields(visit_dc);
    }
-   if (myid == 0) { cout << "Initialization done." << endl; }
+   if (mpi.Root()) { cout << "Initialization done." << endl; }
 
    // The main AMR loop. In each iteration we solve the problem on the current
    // mesh, visualize the solution, estimate the error on all elements, refine
@@ -264,7 +262,7 @@ int main_driver(int argc, char *argv[])
    const int max_dofs = 10000000;
    for (int it = 1; it <= maxit; it++)
    {
-      if (myid == 0)
+      if (mpi.Root())
       {
          cout << "\nAMR Iteration " << it << endl;
       }
@@ -289,9 +287,9 @@ int main_driver(int argc, char *argv[])
       {
          Volta.DisplayToGLVis();
       }
-      if (myid == 0 && (visit || visualization)) { cout << "done." << endl; }
+      if (mpi.Root() && (visit || visualization)) { cout << "done." << endl; }
 
-      if (myid == 0)
+      if (mpi.Root())
       {
          cout << "AMR iteration " << it << " complete." << endl;
       }
@@ -299,7 +297,7 @@ int main_driver(int argc, char *argv[])
       // Check stopping criteria
       if (prob_size > max_dofs)
       {
-         if (myid == 0)
+         if (mpi.Root())
          {
             cout << "Reached maximum number of dofs, exiting..." << endl;
          }
@@ -308,7 +306,7 @@ int main_driver(int argc, char *argv[])
 
       // Wait for user input. Ask every 10th iteration.
       char c = 'c';
-      if (myid == 0 && (it % 10 == 0))
+      if (mpi.Root() && (it % 10 == 0))
       {
          cout << "press (q)uit or (c)ontinue --> " << flush;
          cin >> c;
@@ -333,7 +331,7 @@ int main_driver(int argc, char *argv[])
       // maximum element error.
       const double frac = 0.7;
       double threshold = frac * global_max_err;
-      if (myid == 0) { cout << " Refinement ..." << flush; }
+      if (mpi.Root()) { cout << " Refinement ..." << flush; }
       pmesh.RefineByError(errors, threshold);
 
       // Update the electrostatic solver to reflect the new state of the mesh.
@@ -341,17 +339,6 @@ int main_driver(int argc, char *argv[])
    }
 
    return 0;
-}
-
-int main(int argc, char *argv[])
-{
-   MPI_Init(&argc, &argv);
-
-   int err = main_driver(argc, argv);
-
-   MPI_Finalize();
-
-   return err;
 }
 
 // Print the Volta ascii logo to the given ostream
