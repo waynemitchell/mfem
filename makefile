@@ -158,7 +158,7 @@ endif
 DEP_CXX ?= $(MFEM_CXX)
 
 # SIDRE library and required libraries configurations.
-MFEM_USE_SIDRE ?= NO
+MFEM_USE_SIDRE ?= YES
 ifeq ($(MFEM_USE_SIDRE),YES)
    SIDRE_DIR ?= @MFEM_DIR@/../asctoolkit
    CONDUIT_DIR ?= @MFEM_DIR@/../conduit
