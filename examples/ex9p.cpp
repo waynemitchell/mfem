@@ -284,7 +284,8 @@ int main(int argc, char *argv[])
    if (sidre)
    {
       // Create Sidre data collection, add mesh
-      SidreDataCollection sidre_dc("Example9", mesh, &ds.getRoot());
+      asctoolkit::sidre::DataGroup * root = ds.getRoot();
+      SidreDataCollection sidre_dc("Example9", mesh, root);
       // Add grid function
       sidre_dc.RegisterField("solution", u);
 

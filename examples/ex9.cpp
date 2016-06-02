@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
        exit(-1);
       }
 */
-      if (ds.getRoot()->isEquivalentTo(new_ds2.getRoot()) )
+      if (ds.getRoot()->isEquivalentTo( new_ds2.getRoot() ) )
       {
         std::cout << "Datastore save/load with conduit hdf5 passed, they are equivalent." << std::endl;
       }
