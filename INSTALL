@@ -201,9 +201,17 @@ MFEM_USE_SUPERLU = YES/NO
    enabled, this option uses the SUPERLU_* library options, see below.
 
 MFEM_USE_GNUTLS = YES/NO
-   Enable secure socket support in class socketstream, using the GnuTLS_*
-   classes, based on the GnuTLS library. When enabled, this option uses the
-   GNUTLS_* library options, see below.
+   Enable secure socket support in class socketstream, using the auxiliary
+   GnuTLS_* classes, based on the GnuTLS library. This option may be useful in
+   multi-user environment to prevent users from sending/receiving visualization
+   data to/from other users. When this option is enabled, the default behavior
+   in class socketstream is to use secure sockets, e.g. when connecting to a
+   GLVis visualization server. In order for this to work, one needs to generate
+   GLVis server/client key pairs (in ~/.config/glvis), similar ssh keys -- the
+   script 'glvis-keygen.sh' in the main GLVis directory can be used to do that:
+      bash glvis-keygen.sh ["Your Name"] ["Your Email"]
+   When MFEM_USE_GNUTLS is enabled, the additional build options, GNUTLS_*, are
+   also used, see below.
 
 MFEM_BUILD_TAG = (any value)
    An optional tag to characterize the build. Exported to config/config.mk.
@@ -260,7 +268,9 @@ The specific libraries and their options are:
   URL: http://crd-legacy.lbl.gov/~xiaoye/SuperLU
   Options: SUPERLU_OPT, SUPERLU_LIB.
 
-- GnuTLS (optional), used when MFEM_USE_GNUTLS = YES.
+- GnuTLS (optional), used when MFEM_USE_GNUTLS = YES. On most Linux systems,
+  GnuTLS is available as a development package, e.g. gnutls-devel. On Mac OS X,
+  one can get the library through the Homebrew package manager (http://brew.sh).
   URL: http://gnutls.org
   Options: GNUTLS_OPT, GNUTLS_LIB.
 
