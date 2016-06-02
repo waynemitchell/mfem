@@ -66,6 +66,15 @@ protected:
    Array<Element *> boundary;
    Array<Element *> faces;
 
+   // we just allocated contiguously
+   void *element_allocation;
+   size_t element_allocation_size;
+   void *element_allocation_top;
+   size_t element_allocation_fill;
+   int temp_allocation_count;
+   void *get_element_allocation(size_t size);
+
+
    struct FaceInfo
    {
       int Elem1No, Elem2No, Elem1Inf, Elem2Inf;

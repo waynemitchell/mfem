@@ -2175,20 +2175,96 @@ Mesh::Mesh(std::istream &input, int generate_edges, int refine,
    Load(input, generate_edges, refine, fix_orientation);
 }
 
+
+// were going to try to provide 
+void *Mesh::get_element_allocation(size_t size) {
+   if (element_allocation) {
+      if (element_allocation_top + size > 
+            element_allocation + element_allocation_size) {
+         //throw "not enough memory in the element allocation array";
+         //printf("not enough memory in prealloc, using default allocator\n");
+         // weird realloc fun
+         //return ::operator new(size);
+         void *old_address = element_allocation;
+         std::vector<int> old;
+         for (int i = 0; i < temp_allocation_count; i++) {
+            Array<int> a;
+            elements[i]->GetVertices(a);
+            for (int j = 0; j < a.Size(); j++) {
+               old.push_back(a[j]);
+            }
+         }
+
+         element_allocation_size += 2*size;
+         element_allocation = realloc(element_allocation, element_allocation_size);
+         printf("reallocated. new addess is %p new size is %zu\n", element_allocation,
+               element_allocation_size);
+         for (int i = 0; i < elements.Size(); i++) {
+            // shifty
+            if (elements[i] == NULL) {
+               //printf("skipping %d (nil) and breaking...\n", i);
+               continue;
+            }
+            size_t offset = (elements[i] - (Element*)old_address) * sizeof(Element);
+            if (offset > element_allocation_fill || offset < 0) {
+               continue;
+            }
+            //printf("reassigning %d, which was at %p relative to %p\n", i, elements[i], old_address);
+            void * new_address = element_allocation + offset;
+            //printf("offset is %zu and the new address is %p\n", offset, new_address);
+            elements[i] = (Element*)(new_address);
+         }
+
+         std::vector<int> neww;
+         for (int i = 0; i < temp_allocation_count; i++) {
+            Array<int> a;
+            elements[i]->GetVertices(a);
+            for (int j = 0; j < a.Size(); j++) {
+               neww.push_back(a[j]);
+            }
+         }
+         for (int i = 0; i < old.size(); i++) {
+            if (old[i] != neww[i]) {
+               printf("%d - %d~=%d\n", i, old[i], neww[i]);
+            }
+         }
+         printf("realloc move finished\n\n");
+         printf("allocating size %zu at %p\n", size, element_allocation_top);
+         element_allocation_top = element_allocation + element_allocation_fill;
+         element_allocation_fill += size;
+         element_allocation_top += size;
+         temp_allocation_count++;
+         //printf("we've allocated %d elements\n", temp_allocation_count);
+         return element_allocation_top - size;
+      }
+      else {
+         //printf("allocating size %zu at %p\n", size, element_allocation_top);
+         element_allocation_top += size;
+         element_allocation_fill += size;
+         temp_allocation_count++;
+         //printf("we've allocated %d elements\n", temp_allocation_count);
+         return element_allocation_top - size;
+      }
+   }
+   return ::operator new(size);
+}
+
+
+
 Element *Mesh::NewElement(int geom)
 {
    switch (geom)
    {
-      case Geometry::POINT:     return (new Point);
-      case Geometry::SEGMENT:   return (new Segment);
-      case Geometry::TRIANGLE:  return (new Triangle);
-      case Geometry::SQUARE:    return (new Quadrilateral);
-      case Geometry::CUBE:      return (new Hexahedron);
+      case Geometry::POINT:     return (new(get_element_allocation(sizeof(Point))) Point);
+      case Geometry::SEGMENT:   return (new(get_element_allocation(sizeof(Segment))) Segment);
+      case Geometry::TRIANGLE:  return (new(get_element_allocation(sizeof(Triangle))) Triangle);
+      case Geometry::SQUARE:    return (new(get_element_allocation(sizeof(Quadrilateral))) Quadrilateral);
+      case Geometry::CUBE:      return (new(get_element_allocation(sizeof(Hexahedron))) Hexahedron);
       case Geometry::TETRAHEDRON:
 #ifdef MFEM_USE_MEMALLOC
          return TetMemory.Alloc();
 #else
-         return (new Tetrahedron);
+         return (new(get_element_allocation(sizeof(Tetrahedron))) Tetrahedron);
 #endif
    }
 
@@ -2303,6 +2379,34 @@ void Mesh::ReadMFEMMesh(std::istream &input, bool mfem_v11, int &curved)
    MFEM_VERIFY(ident == "elements", "invalid mesh file");
    input >> NumOfElements;
    elements.SetSize(NumOfElements);
+
+   // a bunch of debug stuff
+   {
+      printf("we have %d elements\n", NumOfElements);
+      printf("first pass set to max size of any element\n"); 
+      element_allocation_size = 6100; //sizeof(Point) * NumOfElements;
+      element_allocation_fill = 0;
+      element_allocation = malloc(element_allocation_size);
+      element_allocation_top = element_allocation;
+      temp_allocation_count = 0;
+      if (!element_allocation) {
+         throw "Memory Allocation Error";
+      }
+      size_t point_size = sizeof(Point);
+      size_t segment_size = sizeof(Segment);
+      size_t triangle_size = sizeof(Triangle);
+      size_t quad_size = sizeof(Quadrilateral);
+      size_t hex_size = sizeof(Hexahedron);
+      size_t tetra_size = sizeof(Tetrahedron);
+      printf("point size: %zu\n", point_size);
+      printf("segment size: %zu\n", segment_size);
+      printf("triangle size: %zu\n", triangle_size);
+      printf("quad size: %zu\n", quad_size);
+      printf("hex size: %zu\n", hex_size);
+      printf("tetra size: %zu\n", tetra_size);
+   }
+   // okay done with the debug stuff
+
    for (int j = 0; j < NumOfElements; j++)
    {
       elements[j] = ReadElement(input);
@@ -3524,6 +3628,7 @@ void Mesh::Load(std::istream &input, int generate_edges, int refine,
       for (i = 0; i < NumOfElements; i++)
       {
          FreeElement(elements[i]);
+
       }
       elements.DeleteAll();
       NumOfElements = 0;
@@ -6421,12 +6526,21 @@ void Mesh::QuadUniformRefinement()
       v = elements[i]->GetVertices();
       e = el_to_edge->GetRow(i);
       j = NumOfElements + 3 * i;
-
+   
+      /*
       elements[j+0] = new Quadrilateral(oedge+e[0], v[1], oedge+e[1],
                                         oelem+i, attr);
       elements[j+1] = new Quadrilateral(oelem+i, oedge+e[1], v[2],
                                         oedge+e[2], attr);
       elements[j+2] = new Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
+                                        v[3], attr);
+      */
+
+      elements[j+0] = new(get_element_allocation(sizeof(Quadrilateral))) Quadrilateral(oedge+e[0], v[1], oedge+e[1],
+                                        oelem+i, attr);
+      elements[j+1] = new(get_element_allocation(sizeof(Quadrilateral))) Quadrilateral(oelem+i, oedge+e[1], v[2],
+                                        oedge+e[2], attr);
+      elements[j+2] = new(get_element_allocation(sizeof(Quadrilateral))) Quadrilateral(oedge+e[3], oelem+i, oedge+e[2],
                                         v[3], attr);
 
       v[1] = oedge+e[0];
@@ -9371,6 +9485,10 @@ void Mesh::RemoveInternalBoundaries()
 
 void Mesh::FreeElement(Element *E)
 {
+   if (E > element_allocation && E < element_allocation_top) {
+      // don't free stuff in the contiguous block
+      return;
+   }
 #ifdef MFEM_USE_MEMALLOC
    if (E)
    {
@@ -9392,6 +9510,7 @@ Mesh::~Mesh()
 {
    int i;
 
+
    if (own_nodes) { delete Nodes; }
 
    delete ncmesh;
@@ -9400,17 +9519,23 @@ Mesh::~Mesh()
 
    for (i = 0; i < NumOfElements; i++)
    {
+      printf("on elm %d\n", i);
       FreeElement(elements[i]);
    }
 
    for (i = 0; i < NumOfBdrElements; i++)
    {
+      printf("on bdr %d\n", i);
       FreeElement(boundary[i]);
    }
 
    for (i = 0; i < faces.Size(); i++)
    {
       FreeElement(faces[i]);
+   }
+
+   if (element_allocation) {
+      free(element_allocation);
    }
 
    DeleteTables();
