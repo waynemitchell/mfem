@@ -1035,14 +1035,14 @@ IntegrationRule *IntegrationRules::SegmentIntegrationRule(int Order)
       }
    }
    IntegrationRule *ir = SegmentIntRules[Order];
-   int ir_size = ir->Size();
+/*   int ir_size = ir->Size();
    std::cout << "Size of integration rule being returned: " << ir_size <<
              std::endl;
    for (int i = 0 ; i < ir->Size() ; ++i)
    {
       std::cout << "point: " << ir->IntPoint(i).x << "  weight: " << ir->IntPoint(
                    i).weight << std::endl;
-   }
+   } */
    return SegmentIntRules[Order];
 }
 

@@ -6495,7 +6495,7 @@ void Poly_1D::CalcChebyshev(const int p, const double x, double *u, double *d)
    }
 }
 
-const double *Poly_1D::OpenPoints(const int p)
+const double *Poly_1D::OpenPoints(const int p,const int type)
 {
    double *op;
 
@@ -6520,7 +6520,7 @@ alloc_open:
    return op;
 }
 
-const double *Poly_1D::ClosedPoints(const int p)
+const double *Poly_1D::ClosedPoints(const int p, const int type)
 {
    double *cp;
 
@@ -6545,7 +6545,7 @@ alloc_closed:
    return cp;
 }
 
-Poly_1D::Basis &Poly_1D::OpenBasis(const int p)
+Poly_1D::Basis &Poly_1D::OpenBasis(const int p,const int type)
 {
    Basis *ob;
 
@@ -6568,7 +6568,7 @@ alloc_obasis:
    return *ob;
 }
 
-Poly_1D::Basis &Poly_1D::ClosedBasis(const int p)
+Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
 {
    Basis *cb;
 
@@ -8151,13 +8151,24 @@ L2_SegmentElement::L2_SegmentElement(const int p, const int _type)
    switch (type)
    {
       case 0:
-         basis1d = &poly1d.OpenBasis(p);
-         op = poly1d.OpenPoints(p);
+          basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::GaussLegendre);
+          op = poly1d.OpenPoints(p, NumericalQuad1D::GaussLegendre);
+          break;
+      case 4:
+         basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::OpenEquallySpaced);
+         op = poly1d.OpenPoints(p, NumericalQuad1D::OpenEquallySpaced);
          break;
       case 1:
+          basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+          op = poly1d.ClosedPoints(p, NumericalQuad1D::GaussLobatto );
+          break;
+      case 3:
+          basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+          op = poly1d.ClosedPoints(p, NumericalQuad1D::ClosedEquallySpaced);
+          break;
       default:
-         basis1d = &poly1d.ClosedBasis(p);
-         op = poly1d.ClosedPoints(p);
+         MFEM_ABORT("Attempting to construct an unknown L2_Segment_Element" <<
+                 "Type= " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8274,14 +8285,25 @@ L2_QuadrilateralElement::L2_QuadrilateralElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-      case 0:
-         basis1d = &poly1d.OpenBasis(p);
-         op = poly1d.OpenPoints(p);
-         break;
-      case 1:
-      default:
-         basis1d = &poly1d.ClosedBasis(p);
-         op = poly1d.ClosedPoints(p);
+       case 0:
+           basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::GaussLegendre);
+           op = poly1d.OpenPoints(p, NumericalQuad1D::GaussLegendre);
+           break;
+       case 4:
+          basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::OpenEquallySpaced);
+          op = poly1d.OpenPoints(p, NumericalQuad1D::OpenEquallySpaced);
+          break;
+       case 1:
+           basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+           op = poly1d.ClosedPoints(p, NumericalQuad1D::GaussLobatto );
+           break;
+       case 3:
+           basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+           op = poly1d.ClosedPoints(p, NumericalQuad1D::ClosedEquallySpaced);
+           break;
+       default:
+           MFEM_ABORT("Attempting to construct an unknown " <<
+                   " L2_Quadrilateral_Element. type= " << type);
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8481,14 +8503,26 @@ L2_HexahedronElement::L2_HexahedronElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-      case 0:
-         basis1d = &poly1d.OpenBasis(p);
-         op = poly1d.OpenPoints(p);
-         break;
-      case 1:
+       case 0:
+           basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::GaussLegendre);
+           op = poly1d.OpenPoints(p, NumericalQuad1D::GaussLegendre);
+           break;
+       case 4:
+          basis1d = &poly1d.OpenBasis(p, NumericalQuad1D::OpenEquallySpaced);
+          op = poly1d.OpenPoints(p, NumericalQuad1D::OpenEquallySpaced);
+          break;
+       case 1:
+           basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::GaussLobatto);
+           op = poly1d.ClosedPoints(p, NumericalQuad1D::GaussLobatto );
+           break;
+       case 3:
+           basis1d = &poly1d.ClosedBasis(p, NumericalQuad1D::ClosedEquallySpaced);
+           op = poly1d.ClosedPoints(p, NumericalQuad1D::ClosedEquallySpaced);
+           break;
       default:
-         basis1d = &poly1d.ClosedBasis(p);
-         op = poly1d.ClosedPoints(p);
+          MFEM_ABORT("Attempting to construct an unknown L2_Hexahedron_Element" <<
+                           "Type= " << type );
+
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8746,9 +8780,16 @@ L2_TriangleElement::L2_TriangleElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-      case 0: op = poly1d.OpenPoints(p); break;
+      case 0:
+          op = poly1d.OpenPoints(p);
+          break;
       case 1:
-      default: op = poly1d.ClosedPoints(p);
+          op = poly1d.ClosedPoints(p);
+          break;
+      default:
+          MFEM_ABORT( "Attempting to construct a L2_Triangle element of type "
+                  << type << std::endl );
+
    }
 
 #ifndef MFEM_THREAD_SAFE
@@ -8930,9 +8971,15 @@ L2_TetrahedronElement::L2_TetrahedronElement(const int p, const int _type)
    type = _type;
    switch (type)
    {
-      case 0: op = poly1d.OpenPoints(p); break;
+      case 0:
+          op = poly1d.OpenPoints(p);
+          break;
       case 1:
-      default: op = poly1d.ClosedPoints(p);
+          op = poly1d.ClosedPoints(p);
+          break;
+      default:
+          MFEM_ABORT( "Attempting to construct a L2_TetrahedronElement of type "
+                        << type );
    }
 
 #ifndef MFEM_THREAD_SAFE
