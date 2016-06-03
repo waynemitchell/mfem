@@ -1254,14 +1254,14 @@ public:
    static const int *Binom(const int p);
 
    const double *OpenPoints(const int p,
-           const int type = NumericalQuad1D::GaussLegendre);
+                            const int type = NumericalQuad1D::GaussLegendre);
    const double *ClosedPoints(const int p,
-           const int type = NumericalQuad1D::GaussLobatto);
+                              const int type = NumericalQuad1D::GaussLobatto);
 
    Basis &OpenBasis(const int p,
-           const int type = NumericalQuad1D::GaussLegendre);
+                    const int type = NumericalQuad1D::GaussLegendre);
    Basis &ClosedBasis(const int p,
-           const int type = NumericalQuad1D::GaussLobatto);
+                      const int type = NumericalQuad1D::GaussLobatto);
 
    // Evaluate the values of a hierarchical 1D basis at point x
    // hierarchical = k-th basis function is degree k polynomial

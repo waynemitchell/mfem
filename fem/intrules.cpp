@@ -233,7 +233,7 @@ void QuadratureFunctions1D::GaussLobatto(const int np, IntegrationRule* ir)
          /// initial guess is the corresponding Chebyshev point
          double x_i = cos(M_PI * double (np -1 -i) / double(np -1) );
          double p_l = 0.;
-         for (int iter = 0 ;true ; ++iter)
+         for (int iter = 0 ; true ; ++iter)
          {
             /// build Legendre polynomials, up to P_{np}(x_i)
             double p_lm1 = 1.;
@@ -383,8 +383,8 @@ void QuadratureFunctions1D::GivePolyPoints(const int np, double *pts ,
       }
       default:
       {
-          MFEM_ABORT("Asking for an unknown type of 1D Quadrature points" <<
-                  "Requesting type=" << type);
+         MFEM_ABORT("Asking for an unknown type of 1D Quadrature points" <<
+                    "Requesting type=" << type);
       }
    }
 

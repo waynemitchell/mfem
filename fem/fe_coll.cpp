@@ -1347,7 +1347,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
    }
    else
    {
-       snprintf(d_name, 32, "L2_%dD_P%d", dim, p);
+      snprintf(d_name, 32, "L2_%dD_P%d", dim, p);
    }
 
    for (int g = 0; g < Geometry::NumGeom; g++)
@@ -1372,7 +1372,7 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
       }
       else
       {
-          L2_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, m_type);
+         L2_Elements[Geometry::SEGMENT] = new L2_SegmentElement(p, m_type);
       }
 
       Tr_Elements[Geometry::POINT] = new PointFiniteElement;
@@ -1390,18 +1390,22 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
    {
       if ( m_type == 2)
       {
-          L2_Elements[Geometry::TRIANGLE] = new L2Pos_TriangleElement(p);
-          L2_Elements[Geometry::SQUARE] = new L2Pos_QuadrilateralElement(p);
+         L2_Elements[Geometry::TRIANGLE] = new L2Pos_TriangleElement(p);
+         L2_Elements[Geometry::SQUARE] = new L2Pos_QuadrilateralElement(p);
       }
       else
       {
-          /// Don't mess with triangle element basis points yet
-          if( (m_type == OpenEquallySpaced) ||  (m_type == GaussLegendre) )
-              L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, GaussLegendre);
-          else
-              L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, GaussLobatto);
+         /// Don't mess with triangle element basis points yet
+         if ( (m_type == OpenEquallySpaced) ||  (m_type == GaussLegendre) )
+         {
+            L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, GaussLegendre);
+         }
+         else
+         {
+            L2_Elements[Geometry::TRIANGLE] = new L2_TriangleElement(p, GaussLobatto);
+         }
 
-          L2_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, m_type);
+         L2_Elements[Geometry::SQUARE] = new L2_QuadrilateralElement(p, m_type);
       }
 
       /// All trace elements use Gauss Legendre points?
@@ -1431,22 +1435,23 @@ L2_FECollection::L2_FECollection(const int p, const int dim, const int type)
    {
       if (m_type == Positive)
       {
-          L2_Elements[Geometry::TETRAHEDRON] = new L2Pos_TetrahedronElement(p);
-                   L2_Elements[Geometry::CUBE] = new L2Pos_HexahedronElement(p);
+         L2_Elements[Geometry::TETRAHEDRON] = new L2Pos_TetrahedronElement(p);
+         L2_Elements[Geometry::CUBE] = new L2Pos_HexahedronElement(p);
       }
       else
       {
-          /// don't mess with tets
-          if( (m_type == OpenEquallySpaced) ||  (m_type == GaussLegendre) )
-          {    L2_Elements[Geometry::TETRAHEDRON] =
-                          new L2_TetrahedronElement(p, GaussLegendre);
-          }
-          else
-          {
-              L2_Elements[Geometry::TETRAHEDRON] =
-                          new L2_TetrahedronElement(p, GaussLobatto);
-          }
-          L2_Elements[Geometry::CUBE] = new L2_HexahedronElement(p, m_type);
+         /// don't mess with tets
+         if ( (m_type == OpenEquallySpaced) ||  (m_type == GaussLegendre) )
+         {
+            L2_Elements[Geometry::TETRAHEDRON] =
+               new L2_TetrahedronElement(p, GaussLegendre);
+         }
+         else
+         {
+            L2_Elements[Geometry::TETRAHEDRON] =
+               new L2_TetrahedronElement(p, GaussLobatto);
+         }
+         L2_Elements[Geometry::CUBE] = new L2_HexahedronElement(p, m_type);
       }
 
       /// All trace element use Gauss Legendre nodal points?
