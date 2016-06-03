@@ -6553,19 +6553,19 @@ Poly_1D::Basis &Poly_1D::OpenBasis(const int p,const int type)
    {
       int i = open_basis.Size();
       open_basis.SetSize(p + 1);
-      for ( ; i < p; i++)
+      for ( ; i <= p; i++)
       {
          open_basis[i] = NULL;
       }
-      goto alloc_obasis;
    }
-   if ((ob = open_basis[p]) != NULL)
+   if ( open_basis[p] == NULL)
    {
-      return *ob;
+       open_basis[p] = new Basis(p, OpenPoints(p,type));
+       return *open_basis[p];
    }
-alloc_obasis:
-   open_basis[p] = ob = new Basis(p, OpenPoints(p));
-   return *ob;
+   else
+       return *open_basis[p];
+
 }
 
 Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
@@ -6576,19 +6576,19 @@ Poly_1D::Basis &Poly_1D::ClosedBasis(const int p, const int type)
    {
       int i = closed_basis.Size();
       closed_basis.SetSize(p + 1);
-      for ( ; i < p; i++)
+      for ( ; i <= p; i++)
       {
          closed_basis[i] = NULL;
       }
-      goto alloc_cbasis;
    }
-   if ((cb = closed_basis[p]) != NULL)
+   if ( closed_basis[p] == NULL)
    {
-      return *cb;
+      closed_basis[p] = new Basis(p, ClosedPoints(p, type));
+      return *closed_basis[p];
    }
-alloc_cbasis:
-   closed_basis[p] = cb = new Basis(p, ClosedPoints(p));
-   return *cb;
+   else
+       return *closed_basis[p];
+
 }
 
 Poly_1D::~Poly_1D()
