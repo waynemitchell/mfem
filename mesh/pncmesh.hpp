@@ -25,6 +25,7 @@
 namespace mfem
 {
 
+class ParMesh;
 class FiniteElementCollection; // for edge orientation handling
 class FiniteElementSpace; // for Dof -> VDof conversion
 
@@ -60,13 +61,13 @@ class FiniteElementSpace; // for Dof -> VDof conversion
  *  pair of numbers. The first number specifies an element in an ElementSet
  *  (typically sent at the beginning of the message) that contains the v/e/f.
  *  The second number is the local index of the v/e/f in that element.
- *
- *  TODO: what else to describe?
  */
 class ParNCMesh : public NCMesh
 {
 public:
    ParNCMesh(MPI_Comm comm, const NCMesh& ncmesh);
+
+   virtual ~ParNCMesh();
 
    /** An override of NCMesh::Refine, which is called eventually, after making
        sure that refinements that occur on the processor boundary are sent to
@@ -189,6 +190,13 @@ public:
    { return leaf_elements[index]->rank; }
 
 
+   // interface for ParMesh
+
+   /** Populate face neighbor members of ParMesh from the ghost layer, without
+       communication. */
+   void GetFaceNeighbors(ParMesh &pmesh);
+
+
    // utility
 
    /// Use the communication pattern from last Rebalance() to send element DOFs.
@@ -202,7 +210,7 @@ public:
        indicates that an element didn't exist in the mesh before. */
    const Array<int>& GetRebalanceOldIndex() const { return old_index_or_rank; }
 
-   /** Get previous (pre-Derefine) fine element ranks. This complementents the
+   /** Get previous (pre-Derefine) fine element ranks. This complements the
        CoarseFineTransformations::embeddings array in parallel. */
    const Array<int>& GetDerefineOldRanks() const { return old_index_or_rank; }
 
@@ -292,6 +300,8 @@ protected:
 
    void BuildSharedVertices();
 
+   static int get_face_orientation(Face *face, Element* e1, Element* e2,
+                                   int local[2] = NULL);
    void CalcFaceOrientations();
 
    void UpdateLayers();
@@ -364,7 +374,7 @@ protected:
 
 
    /** A base for internal messages used by Refine(), Derefine() and Rebalance().
-    *  Allows sending values associated with a set of elements.
+    *  Allows sending values associated with elements in a set.
     *  If RefType == true, the element set is recreated on the receiving end.
     */
    template<class ValueType, bool RefTypes, int Tag>
@@ -470,7 +480,12 @@ protected:
        the ranks of the old (potentially non-existent) fine elements. */
    Array<int> old_index_or_rank;
 
+   /// Stores modified point matrices created by GetFaceNeighbors
+   Array<DenseMatrix*> aux_pm_store;
+   void ClearAuxPM();
+
    static bool compare_ranks(const Element* a, const Element* b);
+   static bool compare_ranks_indices(const Element* a, const Element* b);
 
    friend class ParMesh;
    friend class NeighborDofMessage;
@@ -480,7 +495,7 @@ protected:
 /** Represents a message about DOF assignment of vertex, edge and face DOFs on
  *  the boundary with another processor. This and other messages below
  *  are only exchanged between immediate neighbors. Used by
- *  ParFiniteElementSpace::GetConformingInterpolation().
+ *  ParFiniteElementSpace::GetParallelConformingInterpolation().
  */
 class NeighborDofMessage : public VarMessage<135>
 {

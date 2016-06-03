@@ -8,6 +8,9 @@
 //    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 0 -dt 0.01
 //    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/periodic-hexagon.mesh -p 1 -dt 0.005 -tf 9
+//    mpirun -np 4 ex9p -m ../data/amr-quad.mesh -p 1 -rp 1 -dt 0.002 -tf 9
+//    mpirun -np 4 ex9p -m ../data/star-q3.mesh -p 1 -rp 1 -dt 0.004 -tf 9
+//    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 1 -rp 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/disc-nurbs.mesh -p 2 -rp 1 -dt 0.005 -tf 9
 //    mpirun -np 4 ex9p -m ../data/periodic-square.mesh -p 3 -rp 2 -dt 0.0025 -tf 9 -vs 20
 //    mpirun -np 4 ex9p -m ../data/periodic-cube.mesh -p 0 -o 2 -rp 1 -dt 0.01 -tf 8
@@ -43,6 +46,9 @@ double u0_function(const Vector &x);
 
 // Inflow boundary condition
 double inflow_function(const Vector &x);
+
+// Mesh bounding box
+Vector bb_min, bb_max;
 
 
 /** A time-dependent operator for the right-hand side of the ODE. The DG weak
@@ -178,15 +184,11 @@ int main(int argc, char *argv[])
    {
       mesh->UniformRefinement();
    }
-
    if (mesh->NURBSext)
    {
-      int mesh_order = std::max(order, 1);
-      FiniteElementCollection *mfec = new H1_FECollection(mesh_order, dim);
-      FiniteElementSpace *mfes = new FiniteElementSpace(mesh, mfec, dim);
-      mesh->SetNodalFESpace(mfes);
-      mesh->GetNodes()->MakeOwner(mfec);
+      mesh->SetCurvature(max(order, 1));
    }
+   mesh->GetBoundingBox(bb_min, bb_max, max(order, 1));
 
    // 6. Define the parallel mesh by a partitioning of the serial mesh. Refine
    //    this mesh further in parallel to increase the resolution. Once the
@@ -401,6 +403,14 @@ void velocity_function(const Vector &x, Vector &v)
 {
    int dim = x.Size();
 
+   // map to the reference [-1,1] domain
+   Vector X(dim);
+   for (int i = 0; i < dim; i++)
+   {
+      double center = (bb_min[i] + bb_max[i]) * 0.5;
+      X(i) = 2 * (x(i) - center) / (bb_max[i] - bb_min[i]);
+   }
+
    switch (problem)
    {
       case 0:
@@ -423,8 +433,8 @@ void velocity_function(const Vector &x, Vector &v)
          switch (dim)
          {
             case 1: v(0) = 1.0; break;
-            case 2: v(0) = w*x(1); v(1) = -w*x(0); break;
-            case 3: v(0) = w*x(1); v(1) = -w*x(0); v(2) = 0.0; break;
+            case 2: v(0) = w*X(1); v(1) = -w*X(0); break;
+            case 3: v(0) = w*X(1); v(1) = -w*X(0); v(2) = 0.0; break;
          }
          break;
       }
@@ -432,13 +442,13 @@ void velocity_function(const Vector &x, Vector &v)
       {
          // Clockwise twisting rotation in 2D around the origin
          const double w = M_PI/2;
-         double d = max((x(0)+1.)*(1.-x(0)),0.) * max((x(1)+1.)*(1.-x(1)),0.);
+         double d = max((X(0)+1.)*(1.-X(0)),0.) * max((X(1)+1.)*(1.-X(1)),0.);
          d = d*d;
          switch (dim)
          {
             case 1: v(0) = 1.0; break;
-            case 2: v(0) = d*w*x(1); v(1) = -d*w*x(0); break;
-            case 3: v(0) = d*w*x(1); v(1) = -d*w*x(0); v(2) = 0.0; break;
+            case 2: v(0) = d*w*X(1); v(1) = -d*w*X(0); break;
+            case 3: v(0) = d*w*X(1); v(1) = -d*w*X(0); v(2) = 0.0; break;
          }
          break;
       }
@@ -450,6 +460,14 @@ double u0_function(const Vector &x)
 {
    int dim = x.Size();
 
+   // map to the reference [-1,1] domain
+   Vector X(dim);
+   for (int i = 0; i < dim; i++)
+   {
+      double center = (bb_min[i] + bb_max[i]) * 0.5;
+      X(i) = 2 * (x(i) - center) / (bb_max[i] - bb_min[i]);
+   }
+
    switch (problem)
    {
       case 0:
@@ -458,34 +476,33 @@ double u0_function(const Vector &x)
          switch (dim)
          {
             case 1:
-               return exp(-40.*pow(x(0)-0.5,2));
+               return exp(-40.*pow(X(0)-0.5,2));
             case 2:
             case 3:
             {
                double rx = 0.45, ry = 0.25, cx = 0., cy = -0.2, w = 10.;
                if (dim == 3)
                {
-                  const double s = (1. + 0.25*cos(2*M_PI*x(2)));
+                  const double s = (1. + 0.25*cos(2*M_PI*X(2)));
                   rx *= s;
                   ry *= s;
                }
-               return ( erfc(w*(x(0)-cx-rx))*erfc(-w*(x(0)-cx+rx)) *
-                        erfc(w*(x(1)-cy-ry))*erfc(-w*(x(1)-cy+ry)) )/16;
+               return ( erfc(w*(X(0)-cx-rx))*erfc(-w*(X(0)-cx+rx)) *
+                        erfc(w*(X(1)-cy-ry))*erfc(-w*(X(1)-cy+ry)) )/16;
             }
          }
       }
       case 2:
       {
-         const double r = sqrt(8.);
-         double x_ = x(0), y_ = x(1), rho, phi;
-         rho = hypot(x_, y_) / r;
+         double x_ = X(0), y_ = X(1), rho, phi;
+         rho = hypot(x_, y_);
          phi = atan2(y_, x_);
          return pow(sin(M_PI*rho),2)*sin(3*phi);
       }
       case 3:
       {
          const double f = M_PI;
-         return sin(f*x(0))*sin(f*x(1));
+         return sin(f*X(0))*sin(f*X(1));
       }
    }
    return 0.0;
